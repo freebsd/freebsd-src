@@ -1,0 +1,130 @@
+# Copyright 1989 Sun Microsystems, Inc.  All rights reserved.
+# Use is subject to license terms.
+
+# Copyright (c) 1983, 1984, 1985, 1986, 1987, 1988, 1989 AT&T
+# All Rights Reserved
+
+# Portions of this source code were derived from Berkeley 4.3 BSD
+# under license from the Regents of the University of California.
+
+#ident	"@(#)README	1.3	05/06/01 SMI"
+
+Description of terminal tables for new nroff:
+(In the following description, "white space" means any combination
+of spaces, tabs and new-lines).
+
+The first line should contain the name of the terminal -- just a string,
+but with no embedded white space.
+
+This is followed by a table of 25 lines (defining the first 25 items
+in struct t, laid out in tw.h):
+
+	bset	[integer]	/*bits that must be set for printing*/
+	breset	[integer]	/*bits that must be reset for printing*/
+	Hor	[integer]	/*size of unit of horizontal motion*/
+	Vert	[integer]	/*size of unit of vertical motion*/
+	Newline	[integer]	/*size of line of vertical motion*/
+	Char	[integer]	/*size of character horizontally*/
+	Em	[integer]	/*size of Em of horizontal motion*/
+	Halfline [integer]	/*size of half line of vertical motion*/
+	Adj	[integer]	/*horizontal resolution*/
+	twinit	[string]	/*sequence to initialize terminal*/
+	twrest	[string]	/*sequence to restore terminal*/
+	twnl	[string]	/*sequence to print newline*/
+	hlr	[string]	/*sequence for half-line reverse*/
+	hlf	[string]	/*sequence for half-line forward*/
+	flr	[string]	/*sequence for full-line reverse*/
+	bdon	[string]	/*sequence to turn on bold*/
+	bdoff	[string]	/*sequence to turn off bold*/
+	iton	[string]	/*sequence to turn on italic*/
+	itoff	[string]	/*sequence to turn off italic*/
+	ploton	[string]	/*sequence to enter plot mode*/
+	plotoff	[string]	/*sequence to leave plot mode*/
+	up	[string]	/*sequence to move up 1 space in plot mode*/
+	down	[string]	/*sequence to move down 1 space in plot mode*/
+	right	[string]	/*sequence to move right 1 space in plot mode*/
+	left	[string]	/*sequence to move left 1 space in plot mode*/
+
+This table is fixed format, and the order cannot be changed.
+Entries should be on separate lines, and should contain exactly
+two fields (N.B. the comment should be omitted) separated by white space.
+First field is the string identifying the value (this is not verified),
+then white space, and then the value.  The value is either an integer,
+or a string, as specified above.  An integer is a sequence of digits.
+Integers describing sizes are expressed in units of 1/240 of an inch.
+A string is a sequence of characters, probably surrounded by quotes
+(to be on the safe side).  For non-printable ascii characters, the
+following escapes hold (as in C):
+	\b	backspace
+	\t	tab
+	\n	newline
+	\r	carriage return
+	\\	\
+	\"	"
+	\ followed by 3 octal digits specifies the ascii character
+					with the value of those digits
+
+This is followed by a line containing the word "charset", and then by the table of
+special characters -- all the non-ASCII characters that nroff/troff
+knows by 2-character names, e.g. \(hy and \(ga.  The entries in this
+table can be in any order (put the most used ones first), and
+the entries should be restricted to only those characters that
+can be printed on the terminal in question.  The format of each line
+(defining one special character) is:  the (2-character) name of the
+special character, followed by white space, followed by the width of
+the character (in ems), followed by white space, followed by the
+sequence needed to produce the character.  This sequence may be
+surrounded by quotes.  The same escapes hold as for strings above.
+
+The best way to create a terminal table for a new device is to take
+a terminal table for an old device and modify it!
+For example, here is the first page of the terminal table for lp:
+
+lp
+bset	0
+breset	0
+Hor	24
+Vert	40
+Newline	40
+Char	24
+Em	24
+Halfline	20
+Adj	24
+twinit	""
+twrest	""
+twnl	"\n"
+hlr	""
+hlf	""
+flr	"\0337"
+bdon	""
+bdoff	""
+iton	""
+itoff	""
+ploton	""
+plotoff	""
+up	""
+down	""
+right	""
+left	""
+
+charset
+
+em 1 -
+hy 1 -
+\- 1 -
+bu 1 +\bo
+sq 2 []
+ru 1 _
+14 3 1/4
+12 3 1/2
+34 3 3/4
+de 1 \344o\304
+dg 1 |\b-
+fm 1 '
+ct 1 c\b/
+rg 1 r\bO
+co 1 c\bO
+pl 1 +
+mi 1 -
+eq 1 =
+** 1 *

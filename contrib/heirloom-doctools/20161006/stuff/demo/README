@@ -1,0 +1,15 @@
+README for the Heirloom Troff Demonstration Page
+================================================
+
+To build this document, you either need the Type 1 Adobe
+Caslon font including the Expert sets, or its OpenType
+variant Adobe Caslon Pro, and need to set the TROFFONTS
+variable accordingly. Adobe Caslon Pro is available as
+part of the "Adobe Type Basics OpenType Edition" package.
+
+Note that as of autumn 2005, it was not possible to
+download fonts bought directly from Adobe using a Linux
+system. There are many other shops that sell Adobe fonts,
+though, and these usually allow downloads for Linux users.
+
+Gunnar Ritter					01/08/07

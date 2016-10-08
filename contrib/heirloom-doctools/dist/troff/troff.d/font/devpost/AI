@@ -1,0 +1,125 @@
+#ident	"@(#)AI	1.4	05/06/08 SMI"	/* SVr4.0 1.1	*/
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License, Version 1.0 only
+# (the "License").  You may not use this file except in compliance
+# with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or http://www.opensolaris.org/os/licensing.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
+# AvantGarde-BookOblique
+name AI
+internalname 26
+ligatures fi fl 0
+charset
+!	29	2	33
+$	55	2	36
+%	77	2	37
+&	76	2	38
+'	35	2	39
+cq	35	2	39
+(	37	3	40
+)	37	3	41
+*	42	2	42
++	61	0	43
+,	28	0	44
+hy	33	0	45
+-	"
+.	28	0	46
+/	44	3	47
+0	55	2	48
+1	55	2	49
+2	55	2	50
+3	55	2	51
+4	55	2	52
+5	55	2	53
+6	55	2	54
+7	55	2	55
+8	55	2	56
+9	55	2	57
+:	28	0	58
+;	28	0	59
+=	61	0	61
+?	59	2	63
+A	74	2	65
+B	57	2	66
+C	81	2	67
+D	74	2	68
+E	54	2	69
+F	49	2	70
+G	87	2	71
+H	68	2	72
+I	23	2	73
+J	48	2	74
+K	59	2	75
+L	46	2	76
+M	92	2	77
+N	74	2	78
+O	87	2	79
+P	59	2	80
+Q	87	2	81
+R	61	2	82
+S	50	2	83
+T	43	2	84
+U	66	2	85
+V	70	2	86
+W	96	2	87
+X	61	2	88
+Y	59	2	89
+Z	48	2	90
+[	35	3	91
+]	35	3	93
+`	35	2	96
+oq	35	2	96
+a	68	0	97
+b	68	2	98
+c	65	0	99
+d	69	2	100
+e	65	0	101
+f	31	2	102
+g	67	1	103
+h	61	2	104
+i	20	2	105
+j	20	3	106
+k	50	2	107
+l	20	2	108
+m	94	0	109
+n	61	0	110
+o	66	0	111
+p	68	1	112
+q	68	1	113
+r	30	0	114
+s	39	0	115
+t	34	2	116
+u	61	0	117
+v	55	0	118
+w	83	0	119
+x	48	0	120
+y	54	1	121
+z	42	0	122
+ct	55	2	162
+fi	49	2	174
+fl	49	2	175
+dg	55	3	178
+bu	61	0	183
+de	33	2	202
+em	100	0	208
+14	75	2	1
+34	75	2	1
+12	75	2	1
+``	50	2	170
+''	50	2	186
+aq	35	2	169

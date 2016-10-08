@@ -1,0 +1,271 @@
+.\"
+.\" Sccsid @(#)nroff.1b	1.13 (gritter) 9/4/06
+.\" Derived from troff(1), Unix 7th edition:
+.\" Copyright(C) Caldera International Inc. 2001-2002. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"   Redistributions of source code and documentation must retain the
+.\"    above copyright notice, this list of conditions and the following
+.\"    disclaimer.
+.\"   Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"   All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"      This product includes software developed or owned by Caldera
+.\"      International, Inc.
+.\"   Neither the name of Caldera International, Inc. nor the names of
+.\"    other contributors may be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC. AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+.\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.TH NROFF 1 "9/4/06" "Heirloom Documentation Tools" "BSD System Compatibility"
+.SH NAME
+nroff \- format documents for display or line-printer
+.SH SYNOPSIS
+.HP
+.ad l
+.nh
+\fBnroff\fR
+[\fB\-ehiqzV\fR]
+[\fB\-d\fIaS\fR]
+[\fB\-d\fIa\fB=\fIS\fR]
+[\fB\-F\fIfontdir\fR]
+[\fB\-m\fIname\fR]
+[\fB\-n\fIN\fR]
+[\fB\-o\fIlist\fR]
+[\fB\-r\fIaN\fR]
+[\fB\-r\fIa\fB=\fIN\fR]
+[\fB\-s\fIN\fR]
+[\fB\-T\fIname\fR]
+[\fB\-u\fIN\fR]
+[\fB\-x\fIN\fR]
+.br
+.hy 1
+.ad b
+.SH DESCRIPTION
+.I nroff
+formats text in the named
+.I files
+for typewriter-like devices.
+Its capabilities are described in the
+.I Nroff/Troff user's manual.
+.PP
+If no
+.I file
+argument is present, the standard input is read.
+An argument consisting of a single minus
+.RB ( \- )
+is taken to be
+a file name corresponding to the standard input.
+The options, which may appear in any order so long as they appear
+before the files, are:
+.TP 10n
+.BI \-o list
+Print only pages whose page numbers appear in
+the comma-separated
+.I list
+of numbers and ranges.
+A range
+.IB N \- M
+means pages
+.I N
+through
+.IR M ;
+an initial
+.I \-N
+means
+from the beginning to page
+.IR N ;
+and a final
+.IR N \-
+means
+from
+.I N
+to the end.
+.TP
+.BI \-n N
+Number first generated page
+.IR N .
+.TP
+.BI \-s N
+Stop every
+.I N
+pages.
+.I Nroff
+will halt prior to every
+.I N
+pages (default
+.IR N =1)
+to allow paper loading or
+changing, and will resume upon receipt of a newline.
+.TP
+.BI \-m name
+Prepend the macro file
+.BI /usr/ucblib/doctools/tmac/tmac. name
+to the input
+.IR files .
+.TP
+.BI \-r aN
+Set register
+.I a
+(one-character) to
+.IR N .
+.TP
+.BI \-r a = N
+Set register
+.I a
+(may be more than one character) to
+.IR N .
+.TP
+.BI \-d aN
+Define string
+.I a
+(one-character) to
+.IR S .
+.TP
+.BI \-d a = N
+Define string
+.I a
+(may be more than one character) to
+.IR S .
+.TP
+.B \-i
+Read standard input after the input files are exhausted.
+.TP
+.B \-q
+Invoke the simultaneous input-output mode of the
+.B rd
+request.
+.TP
+.B \-z
+Check syntax only;
+do not generate any output
+except for error messages.
+.TP
+.BI \-F fontdir
+Use the directory
+.I fontdir
+to locate font files.
+.TP
+.B \-u N
+Set the emboldening amount,
+i.e. the number of times a character is printed
+to simulate bold output,
+to
+.IR N .
+.TP
+.BI \-T name
+Prepare output for specified terminal.
+Known
+.I names
+are
+.B 37
+for the (default) 
+Teletype Corporation Model 37 terminal,
+.B lp
+for any line printer or terminal without half-line capability,
+.B tn300
+for the GE TermiNet\ 300,
+.B 300S
+for the \s-1DASI\s+1-300S,
+.B 300
+for the \s-1DASI\s+1-300,
+and
+.B 450
+for the \s-1DASI\s+1-450
+(Diablo Hyterm).
+A special
+.IR name ,
+.BR locale ,
+is also supported.
+It generates UTF-8 output if permitted by
+the current locale,
+and has the same effect as
+.I lp
+otherwise.
+.TP
+.B \-e
+Produce equally-spaced words in adjusted
+lines, using full terminal resolution.
+.TP
+.B \-h
+Use output tabs during horizontal spacing
+to speed output and reduce output character count.
+Tab settings are assumed to be every
+8 nominal character widths.
+.TP
+.BI \-x N
+Enable extensions to previous versions of
+.I nroff
+at level
+.IR N .
+Level 0 disables any extensions;
+level 1 enables all extensions
+except for long requests and request arguments;
+level 2 enables these in addition
+but executes short requests which are prefixes of undefined long requests;
+level 3 ignores undefined long requests.
+.TP
+.B \-V
+Print nroff version.
+.SH "ENVIRONMENT VARIABLES"
+.TP
+.BR LANG ", " LC_ALL
+See
+.IR locale (7).
+.TP
+.B LC_CTYPE
+Determines the mapping
+of bytes to characters,
+and the choice of output characters with the
+.I \-Tlocale
+option.
+.TP
+.B TYPESETTER
+Specifies a device name as with the
+.I \-T
+option.
+.TP
+.B TROFFMACS
+Specifies the location to search for macro files with the
+.I \-m
+option.
+This string forms a prefix to which the macro package name
+is immediately appended.
+Thus to make `\-mname' work with a file `/path/to/tmac.name',
+use `TROFFMACS=/path/to/tmac.'
+.SH FILES
+.ta \w'/usr/ucblib/doctools/tmac/*  'u
+/tmp/ta*	temporary file
+.br
+/usr/ucblib/doctools/tmac/*	standard macro files
+.br
+/usr/ucblib/doctools/nterm/*	terminal driving tables
+.\".br
+.\"/usr/ucblib/doctools/font/*	font width tables for
+.\".I troff
+.SH "SEE ALSO"
+J. F. Ossanna,
+.I Nroff/Troff user's manual
+.br
+B. W. Kernighan,
+.I
+A TROFF Tutorial
+.br
+eqn(1), tbl(1)
+.br
+col(1)

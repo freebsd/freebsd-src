@@ -1,0 +1,127 @@
+#ident	"@(#)S	1.4	05/06/08 SMI"
+#
+# Copyright 2005 Sun Microsystems, Inc.  All rights reserved.
+# Use is subject to license terms.
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License, Version 1.0 only
+# (the "License").  You may not use this file except in compliance
+# with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or http://www.opensolaris.org/os/licensing.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
+# University Copyright- Copyright (c) 1982, 1986, 1988
+# The Regents of the University of California
+# All Rights Reserved
+#
+# University Acknowledgment- Portions of this document are derived from
+# software developed by the University of California, Berkeley, and its
+# contributors.
+#
+name S
+internalname 21
+special
+alternate_font
+max_range 3
+charset
+"	35	0	1
+dq	"
+\'	27	2	2
+aa	"
+\	37	0	3
+rs	"
+^	40	0	4
+ul	45	1	5	max_range 2
+_	"
+\`	27	2	6
+ga	"
+~	40	0	7
+/	37	2	8
+sl	"
+<	96	0	9
+>	96	0	10
+{	37	0	11
+}	37	0	12
+#	72	0	13
+@	96	0	14
+pl	72	0	15
++	"
+mi	72	0	16
+\-	"
+eq	72	0	17
+=	"
+**	43	0	18
+sr	81	3	19
+rn	48	2	20
+<=	96	2	21
+>=	96	2	22
+==	96	0	23
+ap	96	0	24
+~=	96	0	25
+!=	96	2	26
+->	96	0	27
+<-	96	0	28
+ua	48	3	29
+da	48	3	30
+mu	72	0	31
+di	72	0	32
++-	96	0	33
+cu	96	2	34
+ca	96	2	35
+sb	96	2	36
+sp	96	2	37
+ib	96	3	38
+ip	96	3	39
+if	91	0	40
+pd	56	2	41
+sc	46	3	42
+gr	96	2	43
+no	59	0	44
+is	64	3	45
+pt	72	0	46
+es	74	2	47
+mo	72	2	48
+dd	46	2	49
+rh	126	2	50
+lh	128	2	51
+or	24	2	53
+ci	85	2	54
+|	0	0	66
+br	"
+ts	48	0	67
+*U	75	2	68
+*Q	85	2	69
+*W	96	2	70
+bu	72	0	80
+sq	72	0	81
+bx	72	0	111
+em	96	0	82
+ru	42	0	84
+fm	21	2	85
+Sl	55	2	116	max_range 2
+bv	50	3	21	font 11
+lt	50	3	15	font 11
+lb	50	3	16	font 11
+rt	50	3	17	font 11
+rb	50	3	18	font 11
+lk	50	3	19	font 11
+rk	50	3	20	font 11
+lf	50	3	22	font 11
+rf	50	3	23	font 11
+lc	50	3	24	font 11
+rc	50	3	25	font 11
+LH	212	3	0	font 441
+LV	112	3	0	font 441

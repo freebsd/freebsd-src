@@ -1,0 +1,58 @@
+.\"
+.\" Changes by Gunnar Ritter, Freiburg i. Br., Germany, September 2005.
+.\"
+.\" Derived from Plan 9 v4 /sys/src/cmd/postscript/mcolor/color.sr
+.\"
+.\" Copyright (C) 2003, Lucent Technologies Inc. and others.
+.\" All Rights Reserved.
+.\"
+.\" Distributed under the terms of the Lucent Public License Version 1.02.
+.\"
+.\" Sccsid @(#)color	1.3 (gritter) 11/28/05
+.ds Dc black
+.ds Cc \*(Dc
+.de CL	\" Color selection macro
+.	\"
+.	\"	$1=color (e.g. .CL red) or
+.	\"	$1=textcolor on backgroundcolor (e.g. .CL "red on blue")
+.	\"	$1=red green blue rgb (e.g. .CL ".2 .3 .4 rgb") or
+.	\"	$1=hue saturation brightness hsb (e.g. .CL ".5 .6 .7 hsb")
+.	\"	$1=cyan magenta yellow black cmyk (e.g. .CL ".1 .2 .3 .4 cmyk")
+.	\"	$1=arbitrary PostScript commands
+.	\"	$2=text
+.	\"
+.	\" If no arguments are given the default color (usually black) will be
+.	\" restored. If $2 is omitted the color selected by $1 remains in effect
+.	\" until another color is selected. If two arguments are given $2 will be
+.	\" printed in color $1 and then the default color will be restored.
+.	\"
+.	\" The color of the text and the background can be selected by setting $1
+.	\" to "textcolor on backgroundcolor" where textcolor and backgroundcolor
+.	\" can be any of the known colors. For example use .CL "white on black"
+.	\" for reverse video printing. Changing color in a word can be accomplished
+.	\" by preceeding the characters with a \X'SetColor:val' command, where val
+.	\" is the color you wish to use. Named colors are case independent.
+.	\"
+.	\" Implementation details are device dependent and are handled in the
+.	\" appropriate post-processor. Requesting a color that's not available
+.	\" (eg. not defined in /usr/lib/postscript/color.ps) results in the use
+.	\" of default colors - black or white on black for reverse video mode.
+.	\"
+.	\" All colors may not be supported on every output device, and the direct
+.	\" specification of a color via an explicit rgb, hsb, or cmyk argument may also
+.	\" be device dependent. In any case, to be safe on PostScript devices, all
+.	\" numeric paramenters in the direct rgb, hsb or cmyk specifications should lie
+.	\" between 0 and 1 (inclusive). The names of the currently available colors
+.	\" on PostScript printers are listed in file /usr/lib/postscript/color.ps.
+.	\"
+.mk Ov
+.if \\n(.$=0 .ds Cc \\*(Dc
+.if \\n(.$=1 .ds Cc \\$1
+.if \\n(.$<2 \\X'SetColor:\\*(Cc'
+.if \\n(.$=2 \\X'SetColor:\\$1'\\c
+.if \\n(.$=2 'sp |\\n(Ovu
+.if \\n(.$=2 \\$2
+.if \\n(.$=2 .mk Ov
+.if \\n(.$=2 \\X'SetColor:\\*(Cc'\\c
+'sp |\\n(Ovu
+..

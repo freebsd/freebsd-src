@@ -1,0 +1,1733 @@
+%!PS-Adobe-3.0
+%%Creator: Heirloom Documentation Tools - dpost 8.77 (gritter) 6/19/11
+%%
+%%DocumentFonts: Times-Italic Times-Roman Symbol Courier Times-Bold Helvetica
+%%Pages: 2
+%%DocumentNeededResources: font Times-Italic
+%%+ font Times-Roman
+%%+ font Symbol
+%%+ font Courier
+%%+ font Times-Bold
+%%+ font Helvetica
+%%EndComments
+%%BeginProlog
+%%BeginResource: procset dpost 4.19 0
+%
+% Copyright 2005 Sun Microsystems, Inc.  All rights reserved.
+% Use is subject to license terms.
+%
+% CDDL HEADER START
+%
+% The contents of this file are subject to the terms of the
+% Common Development and Distribution License, Version 1.0 only
+% (the "License").  You may not use this file except in compliance
+% with the License.
+%
+% You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+% or http://www.opensolaris.org/os/licensing.
+% See the License for the specific language governing permissions
+% and limitations under the License.
+%
+% When distributing Covered Code, include this CDDL HEADER in each
+% file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+% If applicable, add the following below this CDDL HEADER, with the
+% fields enclosed by brackets "[]" replaced with your own identifying
+% information: Portions Copyright [yyyy] [name of copyright owner]
+%
+% CDDL HEADER END
+%
+% from OpenSolaris "dpost.ps	1.7	05/06/08 SMI"
+%
+% Portions Copyright 2005 Gunnar Ritter, Freiburg i. Br, Germany
+%
+% Sccsid @(#)dpost.ps	4.19 (gritter) 2/7/10
+%
+
+/#copies 1 store
+/aspectratio 1 def
+/formsperpage 1 def
+/landscape false def
+/linewidth .3 def
+/magnification 1 def
+/margin 0 def
+/orientation 0 def
+/resolution 720 def
+/xoffset 0 def
+/yoffset 0 def
+
+/roundpage true def
+/useclippath true def
+/pagebbox [0 0 612 792] def
+
+/R  /Times-Roman def
+/I  /Times-Italic def
+/B  /Times-Bold def
+/BI /Times-BoldItalic def
+/H  /Helvetica def
+/HI /Helvetica-Oblique def
+/HB /Helvetica-Bold def
+/HX /Helvetica-BoldOblique def
+/CW /Courier def
+/CO /Courier def
+/CI /Courier-Oblique def
+/CB /Courier-Bold def
+/CX /Courier-BoldOblique def
+/PA /Palatino-Roman def
+/PI /Palatino-Italic def
+/PB /Palatino-Bold def
+/PX /Palatino-BoldItalic def
+/Hr /Helvetica-Narrow def
+/Hi /Helvetica-Narrow-Oblique def
+/Hb /Helvetica-Narrow-Bold def
+/Hx /Helvetica-Narrow-BoldOblique def
+/KR /Bookman-Light def
+/KI /Bookman-LightItalic def
+/KB /Bookman-Demi def
+/KX /Bookman-DemiItalic def
+/AR /AvantGarde-Book def
+/AI /AvantGarde-BookOblique def
+/AB /AvantGarde-Demi def
+/AX /AvantGarde-DemiOblique def
+/NR /NewCenturySchlbk-Roman def
+/NI /NewCenturySchlbk-Italic def
+/NB /NewCenturySchlbk-Bold def
+/NX /NewCenturySchlbk-BoldItalic def
+/ZD /ZapfDingbats def
+/ZI /ZapfChancery-MediumItalic def
+/VR /Varitimes#Roman def
+/VI /Varitimes#Italic def
+/VB /Varitimes#Bold def
+/VX /Varitimes#BoldItalic def
+/S  /S def
+/S1 /S1 def
+/GR /Symbol def
+
+/inch {72 mul} bind def
+/min {2 copy gt {exch} if pop} bind def
+
+/track 0 def
+/horscale 1.0 def
+
+/setup {
+	counttomark 2 idiv {def} repeat pop
+
+	landscape {/orientation 90 orientation add def} if
+	/scaling 72 resolution div def
+	linewidth setlinewidth
+	1 setlinecap
+
+	pagedimensions
+	xcenter ycenter translate
+	orientation neg rotate
+	width 2 div neg height 2 div translate
+	xoffset inch yoffset inch translate
+	margin 2 div dup neg translate
+	magnification dup aspectratio mul scale
+	scaling scaling scale
+
+	/Symbol /S Sdefs cf
+	/Times-Roman /S1 S1defs cf
+	0 0 moveto
+} def
+
+/pagedimensions {
+	useclippath userdict /gotpagebbox known not and {
+		/pagebbox [clippath pathbbox newpath] def
+		roundpage currentdict /roundpagebbox known and {roundpagebbox} if
+	} if
+	pagebbox aload pop
+	4 -1 roll exch 4 1 roll 4 copy
+	landscape {4 2 roll} if
+	sub /width exch def
+	sub /height exch def
+	add 2 div /xcenter exch def
+	add 2 div /ycenter exch def
+	userdict /gotpagebbox true put
+} def
+
+/pagesetup {
+	/page exch def
+	currentdict /pagedict known currentdict page known and {
+		page load pagedict exch get cvx exec
+	} if
+	/Dsetup where {pop Dsetup} if
+	_custompagesetup
+} def
+
+/decodingdefs [
+	{counttomark 2 idiv {y moveto track 0 3 -1 roll ashow} repeat}
+	{neg /y exch def counttomark 2 idiv {y moveto track 0 3 -1 roll ashow} repeat}
+	{neg dup /y exch def moveto {2 index dup length track mul exch stringwidth pop add sub exch div 0 32 track 0 6 -1 roll awidthshow} repeat}
+	{neg dup /y exch def moveto {spacewidth sub track sub 0.0 32 track 0 6 -1 roll awidthshow} repeat}
+	{/x exch def counttomark 2 idiv 1 add {x y moveto counttomark 1 gt {x exch sub /x exch def} if track 0 3 -1 roll ashow} repeat}
+	{/x exch def counttomark 2 idiv 1 add {x y moveto counttomark 1 gt {x exch sub /x exch def} if track 0 3 -1 roll ashow} repeat}
+	{counttomark 2 idiv {y moveto track 0 3 -1 roll ashow} repeat}
+	{neg setfunnytext}
+] def
+
+/setdecoding {/t decodingdefs 3 -1 roll get def} bind def
+
+/T {/track exch def} bind def
+
+/w {neg dup /y exch def moveto track 0 3 -1 roll ashow} bind def
+/v {y moveto track 0 3 -1 roll ashow} bind def
+/u {y neg t} bind def
+/m {neg dup /y exch def moveto} bind def
+/done {/lastpage where {pop lastpage} if} def
+
+/f {
+	dup /font exch def exch
+	dup /ptsize exch def scaling div dup /size exch def
+	horscale 1.0 ne {horscale mul [exch 0 0 size 0 0]} if SF
+	linewidth ptsize mul scaling 10 mul div setlinewidth
+	/spacewidth ( ) stringwidth pop def
+	/horscale 1.0 def
+} bind def
+/F {ptsize exch f} bind def
+/s {font f} bind def
+/h {/horscale exch def f} bind def
+
+/changefont {
+	/fontheight exch def
+	/fontslant exch def
+	currentfont [
+		1 0
+		fontheight ptsize div fontslant sin mul fontslant cos div
+		fontheight ptsize div
+		0 0
+	] makefont setfont
+} bind def
+
+/sf {f} bind def
+
+/cf {
+	dup length 2 idiv
+	/entries exch def
+	/chtab exch def
+	/newfont exch def
+
+	findfont dup length 1 add dict
+	/newdict exch def
+	{1 index /FID ne {newdict 3 1 roll put} {pop pop} ifelse} forall
+
+	newdict /Metrics entries dict put
+	newdict /Metrics get
+	begin
+		chtab aload pop
+		1 1 entries {pop def} for
+		newfont newdict definefont pop
+	end
+} bind def
+
+%
+% A few arrays used to adjust reference points and character widths in some
+% of the printer resident fonts. If square roots are too high try changing
+% the lines describing /radical and /radicalex to,
+%
+%	/radical	[0 -75 550 0]
+%	/radicalex	[-50 -75 500 0]
+%
+
+/Sdefs [
+	/underscore		[0 0 500 0]
+	/bracketlefttp		[208 500]
+	/bracketleftbt		[208 500]
+	/bracketrighttp		[-60 380]
+	/bracketrightbt		[-60 380]
+	/braceleftbt		[209 490]
+	/bracketrightex		[220 -125 500 0]
+	/radical		[0 0 550 0]
+	% NeWSprint's \(br is too low, compensate
+	statusdict /product get (NeWS Server) eq {
+		/radicalex		[-50 100 500 0]
+		/parenleftex		[-20 100 0 0]
+
+	} {
+		/radicalex		[-50 0 500.001 0]
+		/parenleftex		[-20 -170 0 0]
+	} ifelse
+	/integral		[100 -50 500 0]
+	/infinity		[10 -75 730 0]
+] def
+
+%
+% This adjusts the y left bearing of the underscore character in the
+% Symbol font to the position expected by troff, depending on the
+% font variant actually in use with the current document.
+%
+/_Sdefsadj {
+	gsave
+	/Symbol findfont 1000 scalefont setfont
+	0 0 moveto
+	(\137) false charpath flattenpath pathbbox pop pop exch pop
+	grestore
+	252 add neg
+	Sdefs 1 [0 5 -1 roll 500 0] put
+} def
+
+/S1defs [
+	/underscore		[0 80 500.001 0]
+	/endash			[7 90 650 0]
+] def
+
+% from Adobe's PostScript Language Reference Manual, 2nd ed. 1990, pp. 588-589
+/*SF {					% Complete selectfont emulation
+	exch findfont exch
+	dup type /arraytype eq {makefont}{scalefont} ifelse setfont
+} bind def
+/languagelevel where			% Determine language level
+	{pop languagelevel} {1} ifelse	% of implementation
+	2 lt {				% ifelse
+		/SF /*SF load def	% Level 1 interpreter present, so
+	} {				% else
+		/SF /selectfont load def% Level 2 interpreter present, so
+	}
+ifelse
+
+% from Adobe's pdfmark Reference Manual for Acrobat 7.0, 11/30/04, p. 10
+/pdfmark where				% Is pdfmark already available?
+	{pop}				% Yes: do nothing (use that definition)
+	{				% No: define pdfmark as follows:
+	/globaldict where		% globaldict is preferred because
+		{pop globaldict}	% globaldict is always visible; else,
+		{userdict}		% use userdict otherwise.
+	ifelse
+	/pdfmark /cleartomark load put
+	}				% Define pdfmark to remove all objects
+ifelse					% up to and including the mark object.
+%%EndResource
+%%EndProlog
+%%BeginSetup
+[ %
+  /Creator (Heirloom Documentation Tools - dpost 8.77 (gritter) 6/19/11)
+/DOCINFO pdfmark
+/_custompagesetup {
+} def
+/_marks {
+} def
+/Encoding-@12@0 [
+/.notdef /hyphen /cent /fi /fl /dagger /emdash /onequarter /threequarters
+/onehalf /endash /acute /grave /section /daggerdbl /backslash
+/quotedbl /ring /bullet /bar /quotedblleft /quotedblright /quotesingle
+/quoteleft /quoteright /space /asciicircum /asciitilde /exclamdown
+/sterling /fraction /yen /space /exclam /quotedbl /numbersign
+/dollar /percent /ampersand /quoteright /parenleft /parenright
+/asterisk /plus /comma /hyphen /period /slash /zero /one /two
+/three /four /five /six /seven /eight /nine /colon /semicolon
+/less /equal /greater /question /at /A /B /C /D /E /F /G /H /I
+/J /K /L /M /N /O /P /Q /R /S /T /U /V /W /X /Y /Z /bracketleft
+/backslash /bracketright /circumflex /underscore /quoteleft /a
+/b /c /d /e /f /g /h /i /j /k /l /m /n /o /p /q /r /s /t /u /v
+/w /x /y /z /braceleft /bar /braceright /tilde /florin /currency
+/guillemotleft /guilsinglleft /guilsinglright /periodcentered
+/paragraph /quotesinglbase /quotedblbase /guillemotright /ellipsis
+/perthousand /questiondown /macron /breve /dotaccent /dieresis
+/cedilla /hungarumlaut /ogonek /caron /AE /ordfeminine /Lslash
+/Oslash /OE /ordmasculine /ae /dotlessi /lslash /oslash /oe /germandbls
+/Idieresis /eacute /Ydieresis /divide /Yacute /Acircumflex /aacute
+/Ucircumflex /yacute /ecircumflex /Udieresis /Uacute /Edieresis
+/copyright /aring /agrave /atilde /scaron /iacute /ucircumflex
+/acircumflex /ccedilla /Thorn /threesuperior /Ograve /Agrave
+/multiply /uacute /ydieresis /icircumflex /Ecircumflex /adieresis
+/edieresis /Iacute /plusminus /brokenbar /registered /Egrave
+/Zcaron /Eth /Ccedilla /Aacute /Adieresis /egrave /Oacute /oacute
+/idieresis /Ocircumflex /Ugrave /thorn /twosuperior /Odieresis
+/mu /igrave /trademark /Igrave /ocircumflex /ntilde /Eacute /Scaron
+/degree /ograve /ugrave /Ntilde /otilde /Atilde /Aring /Otilde
+/minus /Icircumflex /logicalnot /odieresis /udieresis /eth /zcaron
+/onesuperior /Euro /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+] def
+/Times-Italic findfont
+dup length dict begin
+  {1 index /FID ne {def} {pop pop} ifelse} forall
+  /Encoding Encoding-@12@0 def
+  currentdict
+end
+/Times-Italic-@12 exch definefont pop
+/@12 /Times-Italic-@12 def
+/&12 {@12 F} bind def
+/Encoding-@11@0 [
+/.notdef /hyphen /cent /fi /fl /dagger /emdash /onequarter /threequarters
+/onehalf /endash /acute /grave /section /daggerdbl /backslash
+/quotedbl /ring /bullet /bar /quotedblleft /quotedblright /quotesingle
+/quoteleft /quoteright /space /asciicircum /asciitilde /exclamdown
+/sterling /fraction /yen /space /exclam /quotedbl /numbersign
+/dollar /percent /ampersand /quoteright /parenleft /parenright
+/asterisk /plus /comma /hyphen /period /slash /zero /one /two
+/three /four /five /six /seven /eight /nine /colon /semicolon
+/less /equal /greater /question /at /A /B /C /D /E /F /G /H /I
+/J /K /L /M /N /O /P /Q /R /S /T /U /V /W /X /Y /Z /bracketleft
+/backslash /bracketright /circumflex /underscore /quoteleft /a
+/b /c /d /e /f /g /h /i /j /k /l /m /n /o /p /q /r /s /t /u /v
+/w /x /y /z /braceleft /bar /braceright /tilde /florin /currency
+/guillemotleft /guilsinglleft /guilsinglright /periodcentered
+/paragraph /quotesinglbase /quotedblbase /guillemotright /ellipsis
+/perthousand /questiondown /macron /breve /dotaccent /dieresis
+/cedilla /hungarumlaut /ogonek /caron /AE /ordfeminine /Lslash
+/Oslash /OE /ordmasculine /ae /dotlessi /lslash /oslash /oe /germandbls
+/Idieresis /eacute /Ydieresis /divide /Yacute /Acircumflex /aacute
+/Ucircumflex /yacute /ecircumflex /Udieresis /Uacute /Edieresis
+/copyright /aring /agrave /atilde /scaron /iacute /ucircumflex
+/acircumflex /ccedilla /Thorn /threesuperior /Ograve /Agrave
+/multiply /uacute /ydieresis /icircumflex /Ecircumflex /adieresis
+/edieresis /Iacute /plusminus /brokenbar /registered /Egrave
+/Zcaron /Eth /Ccedilla /Aacute /Adieresis /egrave /Oacute /oacute
+/idieresis /Ocircumflex /Ugrave /thorn /twosuperior /Odieresis
+/mu /igrave /trademark /Igrave /ocircumflex /ntilde /Eacute /Scaron
+/degree /ograve /ugrave /Ntilde /otilde /Atilde /Aring /Otilde
+/minus /Icircumflex /logicalnot /odieresis /udieresis /eth /zcaron
+/onesuperior /Euro /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+] def
+/Times-Roman findfont
+dup length dict begin
+  {1 index /FID ne {def} {pop pop} ifelse} forall
+  /Encoding Encoding-@11@0 def
+  currentdict
+end
+/Times-Roman-@11 exch definefont pop
+/@11 /Times-Roman-@11 def
+/&11 {@11 F} bind def
+/Encoding-@19@0 [
+/.notdef /cent /dagger /onequarter /threequarters /onehalf /endash
+/acute /grave /underscore /section /daggerdbl /backslash /quotedbl
+/bar /quotedblleft /quotedblright /space /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /space /.notdef /quotedbl
+/numbersign /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /less /.notdef /greater /.notdef
+/at /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /backslash
+/.notdef /circumflex /underscore /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /bar /.notdef /tilde /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef ] def
+/Times-Roman findfont
+dup length dict begin
+  {1 index /FID ne {def} {pop pop} ifelse} forall
+  /Encoding Encoding-@19@0 def
+  currentdict
+end
+/Times-Roman-tmp-@19 exch definefont pop
+/Times-Roman-tmp-@19 /Times-Roman-@19 S1defs cf
+/Times-Roman-tmp-@19 undefinefont
+/@19 /Times-Roman-@19 def
+/&19 {@19 F} bind def
+/Encoding-@20@0 [
+/.notdef /arrowright /parenleftex /universal /existential /asteriskmath
+/plus /minus /equal /Alpha /Beta /Chi /Delta /Epsilon /Phi /Gamma
+/Eta /Iota /Kappa /Lambda /Mu /Nu /Omicron /Pi /Rho /Theta /Sigma
+/Tau /Upsilon /Omega /Xi /Psi /space /exclam /Zeta /numbersign
+/underscore /percent /ampersand /radicalex /parenleft /parenright
+/alpha /plus /comma /minus /period /slash /zero /one /two /three
+/four /five /six /seven /eight /nine /colon /semicolon /less
+/equal /greater /question /beta /chi /delta /epsilon /phi /gamma
+/eta /iota /kappa /lambda /mu /nu /omicron /pi /theta /rho /sigma
+/tau /upsilon /omega /xi /psi /zeta /similar /minute /lessequal
+/fraction /bracketleft /infinity /bracketright /arrowleft /underscore
+/arrowup /arrowdown /degree /plusminus /greaterequal /multiply
+/proportional /partialdiff /bullet /divide /notequal /equivalence
+/approxequal /aleph /circlemultiply /circleplus /emptyset /intersection
+/union /propersuperset /reflexsuperset /propersubset /reflexsubset
+/element /gradient /registerserif /copyrightserif /braceleft
+/bar /braceright /similar /trademarkserif /radical /logicalnot
+/logicalor /bracketlefttp /bracketleftbt /bracelefttp /braceleftmid
+/braceleftbt /braceex /integral /bracketrighttp /bracketrightbt
+/bracerighttp /bracerightmid /bracerightbt /sigma1 /bracketleftex
+/space /suchthat /congruent /theta1 /therefore /perpendicular
+/phi1 /omega1 /Euro /Upsilon1 /florin /club /diamond /heart /spade
+/arrowboth /second /ellipsis /arrowvertex /arrowhorizex /carriagereturn
+/Ifraktur /Rfraktur /weierstrass /notsubset /notelement /angle
+/product /dotmath /logicaland /arrowdblboth /arrowdblleft /arrowdblup
+/arrowdblright /arrowdbldown /lozenge /angleleft /registersans
+/copyrightsans /trademarksans /summation /parenlefttp /parenleftbt
+/angleright /integraltp /integralex /integralbt /parenrighttp
+/parenrightex /parenrightbt /bracketrightex /apple /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef ] def
+/Symbol findfont
+dup length dict begin
+  {1 index /FID ne {def} {pop pop} ifelse} forall
+  /Encoding Encoding-@20@0 def
+  currentdict
+end
+/Symbol-tmp-@20 exch definefont pop
+_Sdefsadj
+/Symbol-tmp-@20 /Symbol-@20 Sdefs cf
+/Symbol-tmp-@20 undefinefont
+/@20 /Symbol-@20 def
+/&20 {@20 F} bind def
+/Encoding-@15@0 [
+/.notdef /hyphen /cent /fi /fl /dagger /emdash /onequarter /threequarters
+/onehalf /endash /acute /grave /section /daggerdbl /backslash
+/quotedbl /ring /bullet /bar /quotedblleft /quotedblright /quotesingle
+/quoteleft /quoteright /space /asciicircum /asciitilde /exclamdown
+/sterling /fraction /yen /space /exclam /quotedbl /numbersign
+/dollar /percent /ampersand /quoteright /parenleft /parenright
+/asterisk /plus /comma /hyphen /period /slash /zero /one /two
+/three /four /five /six /seven /eight /nine /colon /semicolon
+/less /equal /greater /question /at /A /B /C /D /E /F /G /H /I
+/J /K /L /M /N /O /P /Q /R /S /T /U /V /W /X /Y /Z /bracketleft
+/backslash /bracketright /circumflex /underscore /quoteleft /a
+/b /c /d /e /f /g /h /i /j /k /l /m /n /o /p /q /r /s /t /u /v
+/w /x /y /z /braceleft /bar /braceright /tilde /florin /currency
+/guillemotleft /guilsinglleft /guilsinglright /periodcentered
+/paragraph /quotesinglbase /quotedblbase /guillemotright /ellipsis
+/perthousand /questiondown /macron /breve /dotaccent /dieresis
+/cedilla /hungarumlaut /ogonek /caron /AE /ordfeminine /Lslash
+/Oslash /OE /ordmasculine /ae /dotlessi /lslash /oslash /oe /germandbls
+/Idieresis /eacute /Ydieresis /divide /Yacute /Acircumflex /aacute
+/Ucircumflex /yacute /ecircumflex /Udieresis /Uacute /Edieresis
+/copyright /aring /agrave /atilde /scaron /iacute /ucircumflex
+/acircumflex /ccedilla /Thorn /threesuperior /Ograve /Agrave
+/multiply /uacute /ydieresis /icircumflex /Ecircumflex /adieresis
+/edieresis /Iacute /plusminus /brokenbar /registered /Egrave
+/Zcaron /Eth /Ccedilla /Aacute /Adieresis /egrave /Oacute /oacute
+/idieresis /Ocircumflex /Ugrave /thorn /twosuperior /Odieresis
+/mu /igrave /trademark /Igrave /ocircumflex /ntilde /Eacute /Scaron
+/degree /ograve /ugrave /Ntilde /otilde /Atilde /Aring /Otilde
+/minus /Icircumflex /logicalnot /odieresis /udieresis /eth /zcaron
+/onesuperior /Euro /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+] def
+/Courier findfont
+dup length dict begin
+  {1 index /FID ne {def} {pop pop} ifelse} forall
+  /Encoding Encoding-@15@0 def
+  currentdict
+end
+/Courier-@15 exch definefont pop
+/@15 /Courier-@15 def
+/&15 {@15 F} bind def
+/Encoding-@13@0 [
+/.notdef /hyphen /cent /fi /fl /dagger /emdash /onequarter /threequarters
+/onehalf /endash /acute /grave /section /daggerdbl /backslash
+/quotedbl /ring /bullet /bar /quotedblleft /quotedblright /quotesingle
+/quoteleft /quoteright /space /asciicircum /asciitilde /exclamdown
+/sterling /fraction /yen /space /exclam /quotedbl /numbersign
+/dollar /percent /ampersand /quoteright /parenleft /parenright
+/asterisk /plus /comma /hyphen /period /slash /zero /one /two
+/three /four /five /six /seven /eight /nine /colon /semicolon
+/less /equal /greater /question /at /A /B /C /D /E /F /G /H /I
+/J /K /L /M /N /O /P /Q /R /S /T /U /V /W /X /Y /Z /bracketleft
+/backslash /bracketright /circumflex /underscore /quoteleft /a
+/b /c /d /e /f /g /h /i /j /k /l /m /n /o /p /q /r /s /t /u /v
+/w /x /y /z /braceleft /bar /braceright /tilde /florin /currency
+/guillemotleft /guilsinglleft /guilsinglright /periodcentered
+/paragraph /quotesinglbase /quotedblbase /guillemotright /ellipsis
+/perthousand /questiondown /macron /breve /dotaccent /dieresis
+/cedilla /hungarumlaut /ogonek /caron /AE /ordfeminine /Lslash
+/Oslash /OE /ordmasculine /ae /dotlessi /lslash /oslash /oe /germandbls
+/Idieresis /eacute /Ydieresis /divide /Yacute /Acircumflex /aacute
+/Ucircumflex /yacute /ecircumflex /Udieresis /Uacute /Edieresis
+/copyright /aring /agrave /atilde /scaron /iacute /ucircumflex
+/acircumflex /ccedilla /Thorn /threesuperior /Ograve /Agrave
+/multiply /uacute /ydieresis /icircumflex /Ecircumflex /adieresis
+/edieresis /Iacute /plusminus /brokenbar /registered /Egrave
+/Zcaron /Eth /Ccedilla /Aacute /Adieresis /egrave /Oacute /oacute
+/idieresis /Ocircumflex /Ugrave /thorn /twosuperior /Odieresis
+/mu /igrave /trademark /Igrave /ocircumflex /ntilde /Eacute /Scaron
+/degree /ograve /ugrave /Ntilde /otilde /Atilde /Aring /Otilde
+/minus /Icircumflex /logicalnot /odieresis /udieresis /eth /zcaron
+/onesuperior /Euro /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+] def
+/Times-Bold findfont
+dup length dict begin
+  {1 index /FID ne {def} {pop pop} ifelse} forall
+  /Encoding Encoding-@13@0 def
+  currentdict
+end
+/Times-Bold-@13 exch definefont pop
+/@13 /Times-Bold-@13 def
+/&13 {@13 F} bind def
+/Encoding-@16@0 [
+/.notdef /hyphen /cent /fi /fl /dagger /emdash /onequarter /threequarters
+/onehalf /endash /acute /grave /section /daggerdbl /backslash
+/quotedbl /ring /bullet /bar /quotedblleft /quotedblright /quotesingle
+/quoteleft /quoteright /space /asciicircum /asciitilde /exclamdown
+/sterling /fraction /yen /space /exclam /quotedbl /numbersign
+/dollar /percent /ampersand /quoteright /parenleft /parenright
+/asterisk /plus /comma /hyphen /period /slash /zero /one /two
+/three /four /five /six /seven /eight /nine /colon /semicolon
+/less /equal /greater /question /at /A /B /C /D /E /F /G /H /I
+/J /K /L /M /N /O /P /Q /R /S /T /U /V /W /X /Y /Z /bracketleft
+/backslash /bracketright /circumflex /underscore /quoteleft /a
+/b /c /d /e /f /g /h /i /j /k /l /m /n /o /p /q /r /s /t /u /v
+/w /x /y /z /braceleft /bar /braceright /tilde /florin /currency
+/guillemotleft /guilsinglleft /guilsinglright /periodcentered
+/paragraph /quotesinglbase /quotedblbase /guillemotright /ellipsis
+/perthousand /questiondown /macron /breve /dotaccent /dieresis
+/cedilla /hungarumlaut /ogonek /caron /AE /ordfeminine /Lslash
+/Oslash /OE /ordmasculine /ae /dotlessi /lslash /oslash /oe /germandbls
+/Idieresis /eacute /Ydieresis /divide /Yacute /Acircumflex /aacute
+/Ucircumflex /yacute /ecircumflex /Udieresis /Uacute /Edieresis
+/copyright /aring /agrave /atilde /scaron /iacute /ucircumflex
+/acircumflex /ccedilla /Thorn /threesuperior /Ograve /Agrave
+/multiply /uacute /ydieresis /icircumflex /Ecircumflex /adieresis
+/edieresis /Iacute /plusminus /brokenbar /registered /Egrave
+/Zcaron /Eth /Ccedilla /Aacute /Adieresis /egrave /Oacute /oacute
+/idieresis /Ocircumflex /Ugrave /thorn /twosuperior /Odieresis
+/mu /igrave /trademark /Igrave /ocircumflex /ntilde /Eacute /Scaron
+/degree /ograve /ugrave /Ntilde /otilde /Atilde /Aring /Otilde
+/minus /Icircumflex /logicalnot /odieresis /udieresis /eth /zcaron
+/onesuperior /Euro /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+] def
+/Helvetica findfont
+dup length dict begin
+  {1 index /FID ne {def} {pop pop} ifelse} forall
+  /Encoding Encoding-@16@0 def
+  currentdict
+end
+/Helvetica-@16 exch definefont pop
+/@16 /Helvetica-@16 def
+/&16 {@16 F} bind def
+mark
+/resolution 72000 def
+setup
+3 setdecoding
+%%EndSetup
+%%Page: 1 1
+save
+mark
+1 pagesetup
+10 @12 f
+(a)5000 12000 w
+(b)20000 v
+(a)5000 24000 w
+(b)8000 v
+(b)9833 49000 w
+(a)7500 34000 w
+7 @11 f
+(2)13666 36000 w
+10 @19 f
+(\011)6000 39000 w
+(\011\011)8666 v
+&12
+(C)5000 59000 w
+&20
+(\010)13336 v
+&12
+(Ax)18826 v
+&20
+(\006)31042 v
+&12
+(By)36532 v
+&11
+(F)5000 71000 w
+( T)3150(ormel #y sub 1 = 75# im)3330 2 10410 u
+(e)122370 v
+(xt v)3330 1 126660 u
+(or)142570 v
+&15
+(delim)154230 v
+&11
+(.)184230 v
+(F)5000 83000 w
+(ormel)10410 v
+&12
+(y)37070 v
+7 @11 f
+(2)42676 85000 w
+10 @20 f
+(\010)46176 83000 w
+&11
+( T)3150(85 im)3330 2 51666 u
+(e)84116 v
+(xt nach)3330 1 88406 u
+&12
+(delim)121726 v
+&11
+(.)143946 v
+(F)5000 95000 w
+(ormel)10410 v
+&12
+(y)37070 v
+7 @11 f
+(2)42676 97000 w
+10 @20 f
+(\010)46176 95000 w
+&11
+( T)3150(85 im)3330 2 51666 u
+(e)84116 v
+(xt mit)3330 1 88406 u
+&12
+(delim)116186 v
+(? und !.)3330 1 5000 107000 t
+(F)5000 119000 w
+(ormel #y sub 3 = 95# nac)3330 1 10060 u
+(h)117740 v
+&13
+(delim)126070 v
+&16
+(off)153290 v
+&12
+(.)164410 v
+(C)5000 131000 w
+&20
+(\010)15833 v
+&12
+(Ax)24473 v
+&20
+(\006)39186 v
+&12
+(By)48006 v
+(C)5000 143000 w
+&20
+(\010)14169 v
+&12
+(Ax)21325 v
+&20
+(\006)34374 v
+&12
+(By)41530 v
+(x)5000 155000 w
+7 @11 f
+(1)10606 157000 w
+10 @20 f
+(\006)41000 155000 w
+&12
+(x)46490 v
+7 @11 f
+(2)52096 157000 w
+10 @20 f
+(\006)77000 155000 w
+&12
+(s)82490 v
+7 @11 f
+(1)87546 157000 w
+10 @20 f
+(\010)113000 155000 w
+&11
+(10)120156 v
+&20
+(\007)5000 167000 w
+&11
+(2)10490 v
+&12
+(x)15490 v
+7 @11 f
+(1)21096 169000 w
+10 @20 f
+(\006)77000 167000 w
+&12
+(s)82490 v
+7 @11 f
+(1)87546 169000 w
+10 @20 f
+(\010)113000 167000 w
+&11
+(42)120156 v
+&12
+(y)5000 179000 w
+7 @11 f
+(1)10606 181000 w
+10 @20 f
+(\010)14106 179000 w
+&12
+(x)19596 v
+7 @11 f
+(2)25202 175000 w
+10 @20 f
+(\006)28702 179000 w
+&11
+(1)34192 v
+&12
+(a)5000 191000 w
+7 s
+(k)10000 193000 w
+&11
+(2)12332 187000 w
+10 @12 f
+(a)5000 204500 w
+7 @11 f
+(2)11166 198000 w
+4 @12 f
+(k)14666 200500 w
+10 s
+(e)5000 217300 w
+7 s
+(i)10606 213300 w
+4 s
+(k)13218 210500 w
+&20
+(\006)15660 v
+&11
+(1)17856 v
+10 @20 f
+(\115)5000 229300 w
+&12
+(r)10490 v
+7 @11 f
+(2)15546 225300 w
+10 @20 f
+(\170)5000 241300 w
+&12
+(y)12130 v
+&20
+(\132\170)18236 v
+&12
+(x)27036 v
+&20
+(\147)5000 253300 w
+&12
+(x)9940 v
+&20
+(\132\147)16046 v
+&12
+(t)22656 v
+(Expected)5000 270300 w
+(V)45463 v
+(alue)50463 v
+&20
+(\010)71846 v
+7 @12 f
+(i)80666 280300 w
+&20
+(\010)83778 v
+&11
+(1)87621 v
+15 @20 f
+(\032)81453 273300 w
+7 s
+(\134)83338 260300 w
+10 s
+(\115)91120 270300 w
+7 @12 f
+(i)96610 272300 w
+10 s
+(X)100222 270300 w
+7 s
+(i)106332 272300 w
+9 @20 f
+(\200\047)5000 288500 w
+(\047\047\047\047\047\047)14212 v
+10 @12 f
+(b)9950 290300 w
+7 @11 f
+(2)16116 286300 w
+10 @20 f
+(\007)19616 290300 w
+&11
+(4)25106 v
+&12
+(ac)30106 v
+7 @11 f
+(3)5000 298300 w
+9 @20 f
+(\200\047)8500 300500 w
+(\047)15056 v
+10 @12 f
+(x)13450 302300 w
+(P)5000 322300 w
+&20
+(\010)12776 v
+&12
+(R)18266 v
+&20
+(\203)26042 311300 w
+(\210)26042 321300 w
+(\204)26042 331300 w
+&11
+(1)31042 322300 w
+&20
+(\007)37708 v
+&12
+(i)56302 329300 w
+&11
+(1)47364 316300 w
+&20
+(\006)52364 v
+&11
+(1)57854 v
+7 @12 f
+(n)62854 312300 w
+10 @19 f
+(\011)45864 319300 w
+(\011\011\011\011)49520 v
+&20
+(\212)72186 311300 w
+(\210)72186 321300 w
+(\213)72186 331300 w
+&11
+(0)5000 354300 w
+(1)5000 340300 w
+&20
+(\007)16660 354300 w
+&11
+(1)22150 v
+(\011)19650 340300 w
+&12
+(P)5000 393300 w
+&20
+(\010)15273 v
+(\203)25759 361300 w
+(\210)25759 371300 w
+(\210)25759 381300 w
+(\210)25759 391300 w
+(\210)25759 401300 w
+(\210)25759 411300 w
+(\204)25759 421300 w
+(\113)30759 418300 w
+7 @12 f
+(N)35969 420300 w
+10 s
+(.)35281 405300 w
+(.)35281 395300 w
+(.)35281 385300 w
+&20
+(\113)32176 376300 w
+7 @11 f
+(2)37386 378300 w
+10 @20 f
+(\113)32176 364300 w
+7 @11 f
+(1)37386 366300 w
+10 @20 f
+(\212)43970 361300 w
+(\210)43970 371300 w
+(\210)43970 381300 w
+(\210)43970 391300 w
+(\210)43970 401300 w
+(\210)43970 411300 w
+(\213)43970 421300 w
+&12
+(f)5833 450300 w
+7 s
+(X)10279 452300 w
+10 @11 f
+(\()16222 450300 w
+&12
+(x)19552 v
+&11
+(\))24825 v
+&20
+(\010)29821 v
+(\205)38643 429300 w
+(\210)38643 439300 w
+(\206)38643 449300 w
+(\210)38643 459300 w
+(\207)38643 469300 w
+&11
+(0)47983 464300 w
+(2)43543 450300 w
+&12
+(x)48543 v
+&11
+(0)47983 436300 w
+&12
+(x)59643 464300 w
+(>)65749 v
+&11
+(1)72499 v
+(0)59643 450300 w
+&20
+(\131)64643 v
+&12
+(x)70133 v
+&20
+(\131)75406 v
+&11
+(1)80896 v
+&12
+(x)59643 436300 w
+(<)65749 v
+&11
+(0)72499 v
+&12
+(cr)5000 480300 w
+(e)12960 v
+(^)13515 v
+(pes)17400 v
+(Citr)5000 492300 w
+(o)20670 v
+(..)21670 485600 w
+(en)25670 492300 w
+(a)5000 504300 w
+7 @20 f
+(\001)5046 500300 w
+10 s
+(\006)11667 504300 w
+&12
+(b)17157 v
+7 @20 f
+(\001)17703 497800 w
+10 @12 f
+(X)5000 516300 w
+&20
+(\047)7000 516600 w
+(\047)7110 v
+7 @12 f
+(st)11110 518300 w
+10 s
+(T)5000 528300 w
+(est:)9640 v
+&11
+(1)5000 540300 w
+&20
+(\132)10000 v
+&11
+(2)11670 v
+&12
+(i)16670 v
+&11
+(,)19450 v
+(2)23616 v
+7 @12 f
+(i)28616 536300 w
+10 s
+(cos\(x\))5000 552300 w
+&20
+(\006)31096 v
+&11
+(cos\()36586 v
+&12
+(x)53246 v
+&11
+(\))58519 v
+&20
+(\112)5000 564300 w
+(\010)14090 v
+(\111)22910 v
+&12
+(t)28400 v
+&20
+(\010)15756 584400 w
+7 @11 f
+(0)26326 594400 w
+14 @20 f
+(\211)24576 585400 w
+7 @12 f
+(t)27103 571300 w
+10 @20 f
+(\111)31576 584400 w
+&12
+(dz)37066 v
+&13
+(qP)5000 604400 w
+&20
+(\052)5000 616400 w
+(\100)14640 v
+&11
+(\011)5000 628400 w
+(\011)5500 v
+13 @12 f
+(x)5000 641400 w
+10 @20 f
+(\010)12438 v
+&12
+(y)17928 v
+8 s
+(A)5000 653400 w
+&20
+(\006)11221 v
+&12
+(B)15613 v
+10 @20 f
+(\147)7500 678400 w
+&12
+(x)12440 v
+7 @11 f
+(2)18046 674400 w
+10 @20 f
+(\147)7664 664400 w
+7 @11 f
+(2)12604 660400 w
+10 @12 f
+(f)16937 664400 w
+&19
+(\011)6001 667400 w
+(\011\011\011)8047 v
+&20
+(\010)24047 670400 w
+&12
+(a)32037 678400 w
+7 @11 f
+(2)38203 674400 w
+10 @12 f
+(x)32317 664400 w
+7 @11 f
+(2)37923 660400 w
+10 @19 f
+(\011)30537 667400 w
+(\011\011)33203 v
+&20
+(\006)44203 670400 w
+&12
+(b)52193 678400 w
+7 @11 f
+(2)58359 674400 w
+10 @12 f
+(y)52473 664400 w
+7 @11 f
+(2)58079 660400 w
+10 @19 f
+(\011)50693 667400 w
+(\011\011)53359 v
+&12
+(x)5000 693200 w
+&20
+(\010)11106 v
+&11
+(2)40608 700200 w
+&12
+(a)45608 v
+&20
+(\007)19096 687200 w
+&12
+(b)24586 v
+&20
+(\143)30419 v
+9 s
+(\200\047)35909 685400 w
+(\047\047\047\047\047\047)45121 v
+10 @12 f
+(b)40859 687200 w
+7 @11 f
+(2)47025 683200 w
+10 @20 f
+(\007)50525 687200 w
+&11
+(4)56015 v
+&12
+(ac)61015 v
+&19
+(\011)17596 690200 w
+(\011\011\011\011\011\011\011\011\011\011\011)18621 v
+_marks
+cleartomark
+showpage
+restore
+%%EndPage: 1 1
+%%Page: 2 2
+save
+mark
+2 pagesetup
+14 @20 f
+(\211)5000 50700 w
+10 @12 f
+(ae)14500 57700 w
+7 s
+(mx)25106 53700 w
+10 @20 f
+(\007)34934 57700 w
+&12
+(be)40424 v
+7 @20 f
+(\007)51030 53700 w
+&12
+(mx)54873 v
+10 s
+(dx)34881 43700 w
+&19
+(\011)13001 46700 w
+(\011\011\011\011\011\011\011\011\011\011)16202 v
+&20
+(\010)70532 49700 w
+(\205)81018 9000 w
+(\210)81018 19000 w
+(\210)81018 29000 w
+(\210)81018 39000 w
+(\206)81018 49000 w
+(\210)81018 59000 w
+(\210)81018 69000 w
+(\210)81018 79000 w
+(\207)81018 89000 w
+&12
+(m)88418 86100 w
+9 @20 f
+(\200\047)96471 84300 w
+(\047\047)104087 v
+10 @12 f
+(ab)101421 86100 w
+&20
+(\007)95508 72300 w
+&11
+(1)100998 v
+&19
+(\011)86919 75300 w
+(\011\011\011\011\011)89588 v
+&11
+(coth)118918 78300 w
+7 @20 f
+(\007)136138 74300 w
+&11
+(1)139981 v
+10 s
+(\()143481 78300 w
+9 @20 f
+(\200\047)149311 84300 w
+(\047)156427 v
+10 @12 f
+(b)154261 86100 w
+9 @20 f
+(\200\047)149311 70500 w
+(\047)156427 v
+10 @12 f
+(a)154261 72300 w
+&19
+(\011)147811 75300 w
+(\011\011)152427 v
+&12
+(e)163427 78300 w
+7 s
+(mx)169033 74300 w
+10 @11 f
+(\))178861 78300 w
+&12
+(m)88418 57500 w
+9 @20 f
+(\200\047)96471 55700 w
+(\047\047)104087 v
+10 @12 f
+(ab)101421 57500 w
+&11
+(1)98253 43700 w
+&19
+(\011)86919 46700 w
+(\011\011\011\011\011)89588 v
+&11
+(tanh)118918 49700 w
+7 @20 f
+(\007)136138 45700 w
+&11
+(1)139981 v
+10 s
+(\()143481 49700 w
+9 @20 f
+(\200\047)149311 55700 w
+(\047)156427 v
+10 @12 f
+(b)154261 57500 w
+9 @20 f
+(\200\047)149311 41900 w
+(\047)156427 v
+10 @12 f
+(a)154261 43700 w
+&19
+(\011)147811 46700 w
+(\011\011)152427 v
+&12
+(e)163427 49700 w
+7 s
+(mx)169033 45700 w
+10 @11 f
+(\))178861 49700 w
+(2)88418 28700 w
+&12
+(m)93418 v
+9 @20 f
+(\200\047)101471 26900 w
+(\047\047)109087 v
+10 @12 f
+(ab)106421 28700 w
+&11
+(1)100753 14900 w
+&19
+(\011)86919 17900 w
+(\011\011\011\011\011\011)89588 v
+&11
+(log)123918 20900 w
+9 @20 f
+(\200\047)142528 27100 w
+(\047)149644 v
+10 @12 f
+(a)147478 28900 w
+(e)154144 v
+7 s
+(mx)159750 24900 w
+10 @20 f
+(\006)169578 28900 w
+9 s
+(\200\047)175068 27100 w
+(\047)182184 v
+10 @12 f
+(b)180018 28900 w
+9 @20 f
+(\200\047)142528 13100 w
+(\047)149644 v
+10 @12 f
+(a)147478 14900 w
+(e)154144 v
+7 s
+(mx)159750 10900 w
+10 @20 f
+(\007)169578 14900 w
+9 s
+(\200\047)175068 13100 w
+(\047)182184 v
+10 @12 f
+(b)180018 14900 w
+&19
+(\011)141028 17900 w
+(\011\011\011\011\011\011\011\011\011)143184 v
+&12
+(x)5000 100000 w
+&20
+(\010)11106 v
+&12
+(f)17429 v
+&11
+(\()23541 v
+&12
+(y)26871 v
+&20
+(\132)32977 v
+&11
+(2\))34647 v
+&20
+(\006)42977 v
+&12
+(y)48467 v
+&20
+(\132)54573 v
+&11
+(2)56243 v
+&12
+(x)5000 112000 w
+&20
+(\010)11106 v
+&12
+(y)16596 v
+&20
+(\006)22702 v
+&12
+(z)28192 v
+(x)5000 124000 w
+&20
+(\010)13603 v
+&12
+(y)22423 v
+&20
+(\006)31026 v
+&12
+(z)39846 v
+&11
+(\()5000 136000 w
+&12
+(a)8330 v
+7 @11 f
+(2)14496 132000 w
+10 @20 f
+(\132)17996 136000 w
+&12
+(b)19666 v
+7 @11 f
+(2)25832 138000 w
+10 s
+(\))29332 136000 w
+7 s
+(\011)32662 132000 w
+14 @13 f
+(x)5000 150000 w
+10 @20 f
+(\010)12000 v
+&12
+(y)17490 v
+&20
+(\006)23596 v
+14 s
+(\052\006\100)29086 v
+10 @12 f
+({ size alpha })3330 1 5000 162000 t
+&11
+({ size alpha })3330 1 60770 u
+&12
+(G)5000 181500 w
+&11
+(\()13886 v
+&12
+(z)17216 v
+&11
+(\))21939 v
+&20
+(\010)28599 v
+&12
+(e)37419 v
+7 @11 f
+(ln)43025 177500 w
+&12
+(G)50802 v
+&11
+(\()57022 v
+&12
+(z)59353 v
+&11
+(\))62659 v
+10 @20 f
+(\010)68320 181500 w
+&11
+(e)77140 v
+(xp)81430 v
+&20
+(\205)93096 171000 w
+(\210)93096 181000 w
+(\207)93096 191000 w
+7 @12 f
+(k)97996 191500 w
+&20
+(\144)102270 v
+&11
+(1)106113 v
+15 @20 f
+(\032)99364 184500 w
+10 @12 f
+(k)119694 188500 w
+(S)112112 173500 w
+7 s
+(k)117112 175500 w
+10 s
+(z)121886 173500 w
+7 s
+(k)126942 169500 w
+10 @19 f
+(\011)110612 178500 w
+(\011\011\011\011)113216 v
+&20
+(\214)135882 171000 w
+(\210)135882 181000 w
+(\216)135882 191000 w
+(\010)144152 181500 w
+7 @12 f
+(k)152972 191500 w
+&20
+(\144)157246 v
+&11
+(1)161089 v
+15 @20 f
+(\027)153020 184500 w
+10 @12 f
+(e)164588 181500 w
+7 s
+(S)170194 175000 w
+4 s
+(k)173694 177500 w
+7 s
+(z)176636 175000 w
+4 s
+(k)180025 172200 w
+7 @20 f
+(\132)182967 175000 w
+&12
+(k)184136 v
+10 @20 f
+(\010)28599 211000 w
+(\205)35755 199000 w
+(\210)35755 209000 w
+(\207)35755 219000 w
+&11
+(1)40655 211000 w
+&20
+(\006)45655 v
+&12
+(S)51145 v
+7 @11 f
+(1)57311 213000 w
+10 @12 f
+(z)60811 211000 w
+&20
+(\006)66367 v
+&11
+(2!)79886 218000 w
+&12
+(S)74357 203000 w
+7 @11 f
+(1)80523 205000 w
+(2)81689 199000 w
+10 @12 f
+(z)85189 203000 w
+7 @11 f
+(2)90245 199000 w
+10 @19 f
+(\011)72857 208000 w
+(\011\011\011\011)75245 v
+&20
+(\006)96245 211000 w
+&12
+(...)101735 v
+&20
+(\214)110901 199000 w
+(\210)110901 209000 w
+(\216)110901 219000 w
+(\205)117507 199500 w
+(\210)117507 209500 w
+(\207)117507 219500 w
+&11
+(1)122407 211000 w
+&20
+(\006)127407 v
+&11
+(2)142008 218000 w
+&12
+(S)135397 203000 w
+7 @11 f
+(2)141563 205000 w
+10 @12 f
+(z)145063 203000 w
+7 @11 f
+(2)150119 199000 w
+10 @19 f
+(\011)133897 208000 w
+(\011\011\011\011)135119 v
+&20
+(\006)156119 211000 w
+&11
+(2)164138 219000 w
+7 s
+(2)169138 215000 w
+10 @12 f
+(.)172638 216000 w
+&11
+(2!)175138 219000 w
+&12
+(S)164109 203000 w
+7 @11 f
+(2)170275 205000 w
+(2)171441 199000 w
+10 @12 f
+(z)174941 203000 w
+7 @11 f
+(4)179997 199000 w
+10 @19 f
+(\011)162609 208000 w
+(\011\011\011\011)164997 v
+&20
+(\006)185997 211000 w
+&12
+(...)191487 v
+&20
+(\214)200653 199500 w
+(\210)200653 209500 w
+(\216)200653 219500 w
+&12
+(...)205593 211000 w
+&20
+(\010)28599 244750 w
+7 @12 f
+(m)34089 254750 w
+&20
+(\144)40309 v
+&11
+(0)44152 v
+15 @20 f
+(\032)36430 247750 w
+10 s
+(\205)49317 228500 w
+(\210)49317 238500 w
+(\210)49317 248500 w
+(\210)49317 258500 w
+(\207)49317 268500 w
+7 @12 f
+(k)54217 264250 w
+4 @11 f
+(1)57991 266750 w
+7 @20 f
+(\006)59991 264250 w
+&11
+(2)63834 v
+&12
+(k)67334 v
+4 @11 f
+(2)71108 266750 w
+7 @20 f
+(\006)73108 264250 w
+&12
+(...)76951 v
+&20
+(\006)82201 v
+&12
+(mk)86044 v
+4 s
+(m)94206 266750 w
+7 @20 f
+(\010)98260 264250 w
+&12
+(m)102103 v
+(k)56582 254750 w
+4 @11 f
+(1)60356 257250 w
+7 s
+(,)62356 254750 w
+&12
+(k)65272 v
+4 @11 f
+(2)69046 257250 w
+7 @12 f
+(,)71046 254750 w
+(.)75127 v
+(.)79208 v
+(.)83289 v
+(,)87370 v
+(k)90286 v
+4 s
+(m)93394 257250 w
+7 @20 f
+(\144)97448 254750 w
+&11
+(0)101291 v
+15 @20 f
+(\032)76247 247750 w
+10 @11 f
+(1)109657 255250 w
+7 @12 f
+(k)114657 248750 w
+4 @11 f
+(1)118431 251250 w
+10 @12 f
+(k)120431 255250 w
+7 @11 f
+(1)126037 257250 w
+10 s
+(!)129537 255250 w
+&12
+(S)115292 236750 w
+7 @11 f
+(1)121458 238750 w
+&12
+(k)121458 229750 w
+4 @11 f
+(1)125232 232750 w
+10 @19 f
+(\011)108157 241750 w
+(\011\011\011\011\011)109367 v
+&11
+(2)141197 255250 w
+7 @12 f
+(k)146197 248750 w
+4 @11 f
+(2)149971 251250 w
+10 @12 f
+(k)151971 255250 w
+7 @11 f
+(2)157577 257250 w
+10 s
+(!)161077 255250 w
+&12
+(S)146832 236750 w
+7 @11 f
+(2)152998 238750 w
+&12
+(k)152998 229750 w
+4 @11 f
+(2)156772 232750 w
+10 @19 f
+(\011)139697 241750 w
+(\011\011\011\011\011)140907 v
+&12
+(...)170237 244750 w
+(m)180237 255250 w
+7 s
+(k)188623 248750 w
+4 s
+(m)191731 251250 w
+10 s
+(k)195785 255250 w
+7 s
+(m)200225 257250 w
+10 @11 f
+(!)206945 255250 w
+&12
+(S)188592 236750 w
+7 s
+(m)193592 238750 w
+(k)194758 229750 w
+4 s
+(m)197866 232750 w
+10 @19 f
+(\011)178737 241750 w
+(\011\011\011\011\011\011)181775 v
+&20
+(\214)214441 228500 w
+(\210)214441 238500 w
+(\210)214441 248500 w
+(\210)214441 258500 w
+(\216)214441 268500 w
+&12
+(z)219381 244750 w
+7 s
+(m)224437 240750 w
+10 s
+(dsum)5000 279500 w
+&11
+(\()27776 v
+&12
+(i=1)31106 v
+&11
+(,)45636 v
+&12
+(n)49802 v
+&11
+(,)54802 v
+(\))58968 v
+&12
+(dsum)72288 v
+&11
+(\()95064 v
+&12
+(j=1)98394 v
+&11
+(,)112924 v
+&12
+(n)117090 v
+&11
+(,)122090 v
+&12
+(x sub ij)3330 1 126256 u
+&11
+(\))156806 v
+20 @15 f
+(a)5000 291500 w
+&20
+(\010)17000 v
+&15
+(b)27980 v
+&20
+(\006)39980 v
+&15
+(c)50960 v
+_marks
+cleartomark
+showpage
+restore
+%%EndPage: 2 2
+%%Trailer
+done
+%%EOF

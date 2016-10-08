@@ -1,0 +1,96 @@
+Brief explanation of the hyphenation algorithm herein.
+
+Raph Levien <raph@acm.org>
+4 Aug 1998
+
+   The hyphenation algorithm is basically the same as Knuth's TeX
+algorithm. However, the implementation is quite a bit faster.
+
+   The hyphenation files from TeX can almost be used directly. There
+is a preprocessing step, however. If you don't do the preprocessing
+step, you'll get bad hyphenations (i.e. a silent failure).
+
+   Start with a file such as hyphen.us. This is the TeX ushyph1.tex
+file, with the exception dictionary encoded using the same rules as
+the main portion of the file. Any line beginning with % is a comment.
+Each other line should contain exactly one rule.
+
+   Then, do the preprocessing - "perl substrings.pl hyphen.us". The
+resulting file is hyphen.mashed. It's in Perl, and it's fairly slow
+(it uses brute force algorithms; about 17 seconds on a P100), but it
+could probably be redone in C with clever algorithms. This would be
+valuable, for example, if it was handle user-supplied exception
+dictionaries by integrating them into the rule table.
+
+   Once the rules are preprocessed, loading them is quite quick -
+about 200ms on a P100. It then hyphenates at about 40,000 words per
+second on a P100. I haven't benchmarked it against other
+implementations (both TeX and groff contain essentially the same
+algorithm), but expect that it runs quite a bit faster than any of
+them.
+
+Knuth's algorithm
+
+   This section contains a brief explanation of Knuth's algorithm, in
+case you missed it from the TeX books. We'll use the semi-word
+"example" as our running example.
+
+   Since the beginning and end of a word are special, the algorithm is
+actually run over the prepared word (prep_word in the source)
+".example.". Knuths algorithm basically just does pattern matches from
+the rule set, then applies the matches. The patterns in this case that
+match are "xa", "xam", "mp", and "pl". These are actually stored as
+"x1a", "xam3", "4m1p", and "1p2l2". Whenever numbers appear between
+the letters, they are added in. If two (or more) patterns have numbers
+in the same place, the highest number wins. Here's the example:
+
+ . e x a m p l e .
+     x1a
+     x a m3
+        4m1p
+          1p2l2
+ -----------------
+ . e x1a4m3p2l2e .
+
+   Finally, hyphens are placed wherever odd numbers appear. They are,
+however, suppressed after the first letter and before the last letter
+of the word (TeX actually suppresses them before the next-to-last, as
+well). So, it's "ex-am-ple", which is correct.
+
+   Knuth uses a trie to implement this. I.e. he stores each rule in a
+trie structure. For each position in the word, he searches the trie,
+searching for a match. Most patterns are short, so efficiency should
+be quite good.
+
+Theory of the algorithm
+
+   The algorithm works as a slightly modified finite state machine.
+There are two kinds of transitions: those that consume one letter of
+input (which work just like your regular finite state machine), and
+"fallback" transitions, which don't consume any input. If no
+transition matching the next letter is found, the fallback is used.
+One way of looking at this is a form of compression of the transition
+tables - i.e. it behaves the same as a completely vanilla state
+machine in which the actual transition table of a node is made up of
+the union of transition tables of the node itself, plus its fallbacks.
+
+   Each state is represented by a string. Thus, if the current state
+is "am" and the next letter is "p", then the next state is "amp".
+Fallback transitions go to states which chop off one or (sometimes)
+more letters from the beginning. For example, if none of the
+transitions from "amp" match the next letter, then it will fall back
+to "mp". Similarly, if none of the transitions from "mp" match the
+next letter, it will fall back to "m".
+
+   Each state is also associated with a (possibly null) "match"
+string. This represents the union of all patterns which are
+right-justified substrings of the match string. I.e. the pattern "mp"
+is a right-justified substring of the state "amp", so it's numbers get
+added in. The actual calculation of this union is done by the
+Perl preprocessing script, but could probably be done in C just about
+as easily.
+
+   Because each state transition either consumes one input character
+or shortens the state string by one character, the total number of
+state transitions is linear in the length of the word.
+

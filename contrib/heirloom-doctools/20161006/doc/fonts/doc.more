@@ -1,0 +1,1518 @@
+
+
+
+
+
+        Font Handling in Troff With PostScript
+                        Devices
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                FONT HANDLING IN TROFF
+
+                WITH POSTSCRIPT DEVICES
+
+
+
+
+
+                     Gunnar Ritter
+
+                       10/24/06
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+             Heirloom Documentation Tools
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+          http://n‐t‐
+          roff.github.io/heirloom/doctools.html
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+       _T_h_e _b_a_s_i_c_s
+
+        Heirloom _t_r_o_f_f understands two  ways  to
+       select PostScript fonts.
+        The current method can access PostScript
+       font  files  directly. Fonts are selected
+       using an extended  ‘‘.fp’’  request.   As
+       simple examples,
+
+         .fp 0 R somefont pfb
+         .ft R
+         Here is some text in somefont.
+         Here is some text in somefont.
+
+       or, with the Linux Libertine font used in
+       this document,
+
+         .fp 0 R LinLibertine_R otf
+         .ft R
+         Here is some text in Linux Libertine Regular.
+         Here is some text in Linux Libertine Regular.
+
+        But it is also possible to have  differ‐
+       ent  names for the metrics and glyph data
+       files, as in
+
+         .fp 0 R mykerning.afm somefont.pfb
+         .ft R
+         This text prints in somefont using modified kerning.
+         This text prints in somefont using modified kerning.
+
+        The  default  higher‐resolution   ‘‘ps’’
+       PostScript  device always uses AFM files;
+       it supports the conventional ‘‘.fp’’  re‐
+       quest  for backwards compatibility to se‐
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+          lect pre‐installed  fonts  from  the  PDF
+          base set.
+           With fonts selected by this method,  lo‐
+          calized input processing is performed ac‐
+          cording to the LC_CTYPE environment vari‐
+          able, or according to a document‐specific
+          value set by the ‘‘.lc_ctype’’ request:
+
+            . Enable long request names.
+            .do xflag 3
+            . de_DE.utf8 is for GNU libc; de_DE.UTF‐8 works elsewhere.
+            .lc_ctype de_DE.utf8
+            Deutscher Text mit ‹Anführungszeichen›
+            Deutscher Text mit ‹Anführungszeichen›
+            .sp
+            The first five small letters of the Greek alphabet: α β γ δ ε
+            The first five small letters of the Greek alphabet: α β γ δ ε
+
+           Note that any use of AFM,  OpenType,  or
+          TrueType  files  requires that the output
+          of _t_r_o_f_f is passed to the exactly  match‐
+          ing  version  of  _d_p_o_s_t, i.e.  to the one
+          that was delivered with the same  release
+          of this package.  Sending such _t_r_o_f_f out‐
+          put directly to a print spooler that  in‐
+          vokes a system version of _d_p_o_s_t will thus
+          usually not work.
+           The historical method requires font  ta‐
+          bles  to  be  generated  manually.  It is
+          still supported, and is still the default
+          for  the  lower‐resolution ‘‘post’’ Post‐
+          Script device, but it is  not  recommend‐
+          ed  anymore  that  it  is used for adding
+          fonts. Localized input processing accord‐
+          ing  to  LC_CTYPE  is  not available with
+
+
+          2
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+       this method.
+
+
+       _I_n_s_t_a_l_l_i_n_g _P_o_s_t_S_c_r_i_p_t _T_y_p_e _1 _f_o_n_t_s
+
+        Making  additional  fonts  available  is
+       easy  with the current method. If you buy
+       a PostScript Type 1  font  for  use  with
+       _t_r_o_f_f,  select  the  Windows version. You
+       will get a set of  files  from  the  ven‐
+       dor. Only two of them are of interest for
+       _t_r_o_f_f:
+
+         xxxxxxxx.afm
+          This is the metrics  file.  _t_r_o_f_f  ac‐
+          cesses it to learn the widths of char‐
+          acters in the font.
+
+         xxxxxxxx.pfb
+          This file contains  the  actual  glyph
+          data.  _t_r_o_f_f does not really need this
+          file, but the printer or PDF converter
+          does.  In  many cases, it is most con‐
+          venient to include the  data  directly
+          into the .ps file generated, as in the
+          examples above.
+
+        Create a directory to hold  your  fonts.
+       For   compatibility   with   future  ver‐
+       sions of _t_r_o_f_f, it  is  recommended  that
+       it  is  put  outside  the  _t_r_o_f_f  hierar‐
+       chy /usr/ucblib/doctools;  something  be‐
+       low  /usr/local  may  be  a  good choice.
+       For each font you want to  install,  copy
+       or  link  both  the  AFM and the PFB file
+
+
+                                               3
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+          into the directory.   Set  the  TROFFONTS
+          environment  variable  to this directory;
+          if you have  multiple  font  directories,
+          you  can  separate  them  in TROFFONTS by
+          colons, just as in the PATH variable  for
+          the  shell, e.g.  ‘‘TROFFONTS=/usr/local/
+          share/fonts:/usr/share/fonts export TROF‐
+          FONTS’’.   Write  the  definition in your
+          ‘‘.profile’’ or a similar startup file to
+          make  it  permanent.  You can now use the
+          fonts with _t_r_o_f_f. If you want to  install
+          more fonts later, it is sufficient to put
+          them into the font directory.
+
+
+          _I_n_s_t_a_l_l_i_n_g _O_p_e_n_T_y_p_e _o_r _T_r_u_e_T_y_p_e _f_o_n_t_s
+
+           The procedure  for  OpenType  and  True‐
+          Type  fonts  is  nearly  the  same as for
+          Type 1 fonts, except that there  is  only
+          one  file  ‘‘FontName.otf’’  (or  ‘‘Font‐
+          Name.ttf’’) with them that contains  both
+          metrics  and  glyph data.  Just copy this
+          file to a directory given  in  the  TROF‐
+          FONTS path.
+
+
+          _U_s_i_n_g _O_p_e_n_T_y_p_e _f_e_a_t_u_r_e_s
+
+           High‐quality OpenType fonts may  contain
+          feature  tables  that allow special typo‐
+          graphic effects. For  example,  the  Lin‐
+          ux  Libertine  font contains superscripts
+          characters that can be accessed with  the
+          ‘‘.feature’’ request in _t_r_o_f_f:
+
+
+          4
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+         .do xflag 3
+         .fp 1 R LinLibertine_R otf
+         .fp 0 U LinLibertine_R otf
+         .feature U +sups
+         .ft R
+         Regular text which ends with\fUsuperscript\fR.
+         Regular text which ends withsuperscript.
+
+        To retrieve a list  of  features  in  an
+       individual  font  that are available with
+       _t_r_o_f_f, use ‘‘otf_info s font.otf’’. Typi‐
+       cal useful features are:
+
+       +c2sc         converts capitals to small capitals
+       +case         substitutions for  use  in  combination  with
+                     text in all‐capital letters
+       +onum         old‐style numerals
+       +pnum         proportional (lining) numerals
+       +pnum +onum   proportional old‐style numerals
+       +smcp         converts lower‐case letters to small capitals
+       +smcp +c2sc   converts all letters to small capitals
+       +titl         titling characters
+       +sups         superscript
+       +infs         subscript
+       +zero         slashed zero
+
+        Features such as  ‘‘aalt’’  or  ‘‘ornm’’
+       which only map sets of very special char‐
+       acters to different  positions  are  nor‐
+       mally  not  useful with _t_r_o_f_f since these
+       characters can be accessed  directly  us‐
+       ing  ‘‘[name]’’  escape sequences anyway.
+       To make an individual alternate character
+       the  default, the ‘‘.ftr’’ request can be
+       used:
+
+
+                                               5
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+            ._d_o _x_f_l_a_g _3
+            ._f_p _0 _R _L_i_n_L_i_b_e_r_t_i_n_e__R _o_t_f
+            ._f_t_r _R _h\[_h._a_l_t]
+            ._f_t _R
+            _U_s_i_n_g _a_l_t_e_r_n_a_t_e _c_h_a_r_a_c_t_e_r _i_n _t_h_e _w_o_r_d ‘‘_h_e_l_l_o.’’
+            Using alternate character in the word ‘‘ello.’’
+
+           Feature mappings result  in  changes  to
+          the  same  internal  data  structures  as
+          the ‘‘.ftr’’ request.  It  is  thus  pos‐
+          sible  to  make  adjustments  to mappings
+          by using ‘‘.ftr’’ after ‘‘.feature’’,  or
+          to  create personalized variants by using
+          ‘‘.ftr’’ based on the data obtained  from
+          ‘‘otf_info s’’.
+           The ‘‘.feature’’ request must  still  be
+          active  for  a  font  when a character is
+          printed; disabling a feature with ‘‘.fea‐
+          ture  F  feat’’  only works completely if
+          all of its mappings are  still  in  posi‐
+          tion.  It  is  thus  recommended that the
+          ‘‘.feature’’ request is  used  only  once
+          for  a font immediately after it has been
+          mounted, and that a font is mounted  mul‐
+          tiple  times,  each  time for enabling an
+          individual feature set. Doing so has  the
+          additional  advantage  that switching be‐
+          tween features is  conveniently  possible
+          using the ‘‘f’’ escape sequence.
+
+
+          _U_s_i_n_g _f_o_n_t_s _w_i_t_h _o_l_d‐_s_t_y_l_e _n_u_m_e_r_a_l_s
+
+           A Type 1 font  with  old‐style  numerals
+          but otherwise standard characters usually
+
+
+          6
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+       does not require any  special  mechanism.
+       It  can  simply be mounted, selected, and
+       used.
+        Old‐style numerals contained in OpenType
+       fonts  can  be  accessed  conveniently by
+       mapping them to the standard  ASCII  num‐
+       bers with the ‘‘.feature’’ request:
+
+         .do xflag 3
+         .fp 1 R LinLibertine_R otf
+         .feature R +onum
+         The numerals 0 1 2 3 4 5 6 7 8 9 are in old‐style.
+         The numerals 0 1 2 3 4 5 6 7 8 9 are in old‐style.
+
+
+       _U_s_i_n_g _f_o_n_t_s _w_i_t_h _s_m_a_l_l _c_a_p_i_t_a_l _l_e_t_t_e_r_s
+
+        Small capital fonts sometimes need  let‐
+       ter space tracking. Thus e.g.  to use the
+       Linux Libertine small capital  font,  you
+       can write something like
+
+         .do xflag 3
+         .fp 0 SC LinLibertine_R otf
+         .feature SC +smcp
+         .track SC 1 1.2 40 0
+         .ft SC
+         This text prints in Small Capitals.
+         This text prints in Small Capitals.
+
+
+       _U_s_i_n_g _a _c_o_m_b_i_n_a_t_i_o_n _o_f _e_x_p_e_r_t  _a_n_d  _s_t_a_n_‐
+       _d_a_r_d _f_o_n_t_s _f_o_r _s_m_a_l_l _c_a_p_i_t_a_l_s
+
+        A Type 1 expert font contains small cap‐
+
+
+                                               7
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+          ital letters but  no  upper‐case  capital
+          letters.  Since it would be very inconve‐
+          nient to change the font  explicitly  for
+          each  upper‐case letter, the fallback se‐
+          quence is useful in this  case.  The  ex‐
+          pert  font  is selected as text font, but
+          for each upper‐case  letter  encountered,
+          _t_r_o_f_f  changes automatically to the stan‐
+          dard font:
+
+            .do xflag 3
+            .fp 1 R normalfont pfb
+            .fp 0 E expertfont pfb
+            .track E 1 .2 24 2
+            .fallback E R
+            .ft E
+            This text prints in Small Capitals.
+            This text prints in Small Capitals.
+
+           For OpenType fonts,  all  small  capital
+          letters  are  contained  within  the base
+          font, and the ‘‘smcp’’  feature  accesses
+          them as shown above.
+
+
+          _U_s_i_n_g _a _c_o_m_b_i_n_a_t_i_o_n _o_f _e_x_p_e_r_t  _a_n_d  _s_t_a_n_‐
+          _d_a_r_d _f_o_n_t_s _f_o_r _o_l_d‐_s_t_y_l_e _n_u_m_e_r_a_l_s
+
+           This also uses  the  fallback  sequence,
+          but   since  the  standard  numerals  are
+          present in the standard font,  they  have
+          to be hidden first so that _t_r_o_f_f does not
+          select them:
+
+            .do xflag 3
+
+
+          8
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+         .fp 1 R normalfont pfb
+         .fp 0 E expertfont pfb
+         .fallback R E
+         .hidechar R 0123456789
+         .ft R
+         The numerals 0 1 2 3 4 5 6 7 8 9 are in old‐style.
+         The numerals 0 1 2 3 4 5 6 7 8 9 are in old‐style.
+
+
+       _U_s_i_n_g _t_h_e _e_x_p_e_r_t _f_o_n_t _f_o_r _b_o_t_h _s_m_a_l_l _c_a_p_‐
+       _i_t_a_l_s _a_n_d _o_l_d‐_s_t_y_l_e _n_u_m_e_r_a_l_s
+
+        The examples above can also be combined.
+       Since the ‘‘.track’’ request does not af‐
+       fect the tracking of fonts that  are  se‐
+       lected  by  the  fallback sequence, it is
+       sufficient to mount each font once:
+
+         .do xflag 3
+         .fp 1 R normalfont pfb
+         .fp 0 E expertfont pfb
+         .fallback R E
+         .fallback E R
+         .track E 1 .2 24 2
+         .hidechar R 0123456789
+         .ft R
+         The numerals 0 1 2 3 4 5 6 7 8 9 are in old‐style.
+         The numerals 0 1 2 3 4 5 6 7 8 9 are in old‐style.
+         .br
+         .ft E
+         But this text prints in Small Capitals.
+         But this text prints in Small Capitals.
+
+
+
+
+
+                                               9
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+          _U_s_i_n_g _t_h_e _e_x_p_e_r_t _f_o_n_t _f_o_r _l_i_g_a_t_u_r_e_s
+
+           PostScript Type 1 fonts usually  do  not
+          contain  ligatures  for  ff, ffi, and ffl
+          in the base font; an expert  font  deliv‐
+          ers them in addition. Automatic substitu‐
+          tion of such ligatures can be enabled us‐
+          ing  the ‘‘.flig’’ request in combination
+          with the fallback sequence:
+
+            .do xflag 3
+            .fp 1 R normalfont pfb
+            .fp 0 E expertfont pfb
+            .fallback R E
+            .flig R ff \(ff ffi \(Fi ffl \(Fl
+            .ft R
+            effective office offline
+            eective ofice ofline
+
+           OpenType  fonts  contain  all  available
+          ligatures in the base font, so no special
+          procedure needs to be applied with them.
+
+
+          _D_e_f_i_n_i_n_g _a_d_d_i_t_i_o_n_a_l _l_i_g_a_t_u_r_e_s
+
+           Fonts may provide ligatures  beyond  the
+          five  standard  _t_r_o_f_f ones.  They are not
+          activated by default  regardless  of  any
+          definitions  in  the  font metrics files,
+          but can be enabled  individually  as  de‐
+          sired;  _t_r_o_f_f will then replace sequences
+          of characters automatically with them  as
+          with  the  standard ligatures.  For exam‐
+          ple, Linux Libertine  contains  ligatures
+
+
+          10
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+       for use with  the  historic  ‘‘’’  letter
+       variant:
+
+         .do xflag 3
+         .fp 1 R LinLibertine_R otf
+         .flig R \[longs]\[longs] \[longs_longs] \[longs]i \[longs_i]
+         .flig R \[longs]\[longs]i \[longs_longs_i]
+         U\[longs]e the\[longs]e ligatures
+         for cla\[longs]\[longs]ic typography.
+         Ue thee ligatures for clac typography.
+
+        _t_r_o_f_f splits ligatures in two parts when
+       hyphenating  words.  It is thus necessary
+       that any part of a ligature that  is  not
+       a  single  character is also defined as a
+       ligature, so ‘‘’’ and ‘‘’’ are  prerequi‐
+       sites for ‘‘’’.
+        It is  normally  not  advisable  to  en‐
+       able   ligatures   with  special  display
+       forms  (such  as  in   ‘‘seion’’)   using
+       the   ‘‘.flig’’  mechanism;  they  should
+       be set  manually  as  special  characters
+       (‘‘\[c_t]’’  in this case) at precise lo‐
+       cations.
+
+
+       _C_h_o_o_s_i_n_g _b_e_t_w_e_e_n _m_u_l_t_i_p_l_e _p_o_s_s_i_b_l_e  _l_i_g_a_‐
+       _t_u_r_e_s
+
+        If  a  font  contains  only  two‐charac‐
+       ter  ligatures,  there  are two possibil‐
+       ities  for  automatic  ligature  building
+       with  an  input  sequence that would form
+       a three‐character ligature, e.g., ‘‘ffi’’
+       could be constructed as ‘‘i’’ or ‘‘ffi’’.
+
+
+                                              11
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+          _t_r_o_f_f normally selects the first ligature
+          available, so ‘‘i’’ would be the default.
+          In many cases, the other choice would  be
+          aesthetically preferable; this is the ap‐
+          plication for the ‘‘.fdeferlig’’ request:
+
+            .do xflag 3
+            .fp 1 R LinLibertine_R otf
+            .flig R \[longs]\[longs] \[longs_longs] \[longs]i \[longs_i]
+            .fdeferlig R \[longs]\[longs]i
+            Choo\[longs]ing the \[longs]econd ligature looks po\[longs]\[longs]ibly better.
+            Choong the econd ligature looks pobly better.
+
+
+          _C_o_m_b_i_n_i_n_g _d_i_f_f_e_r_e_n_t _f_o_n_t_s
+
+           Different fonts often have different vi‐
+          sual  sizes  even  if they are set in the
+          same nominal point size.  Also fonts from
+          different vendors are often based on dif‐
+          ferent standards for  character  heights.
+          To  adjust  this,  the ‘‘.fzoom’’ request
+          is available.  As implied  by  this  pur‐
+          pose,  it only applies to characters that
+          are actually in the current font, not  to
+          characters  from  another  font that have
+          been  selected  using  the  fallback  se‐
+          quence.
+
+            .do xflag 3
+            .fp 1 R LinLibertine_R otf
+            .fp 0 M LinLibertine_M otf
+            .track M 1 ‐.1 40 ‐0
+            .fzoom M .8
+            \fMLibertine Monospace\fR must be adjusted to fit with Roman.
+
+
+          12
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+         Libertine Monospace must be adjusted to fit with Roman.
+
+        The ‘‘.fzoom’’ request affects all char‐
+       acters  set in the respective font on the
+       current output  line.  To  create  single
+       zoomed  words,  mount  a font twice under
+       different names, but zoom it only once.
+
+
+       _S_p_a_c_i_n_g _o_u_t _i_n_d_i_v_i_d_u_a_l _w_o_r_d_s
+
+        Spacing out the characters  of  individ‐
+       ual  words  is  commonly  done  for high‐
+       lighting text e.g. with German  blacklet‐
+       ter  faces; the ‘‘.track’’ request can be
+       used for this as well.  Like  ‘‘.fzoom’’,
+       ‘‘.track’’  applies  to all characters in
+       the respective font on an  entire  output
+       line.  Thus it is also necessary to mount
+       a font twice but to track  it  only  once
+       when  it  is used for tracking individual
+       words.
+
+
+       _S_e_t_t_i_n_g _t_e_x_t _i_n _a_l_l‐_c_a_p_i_t_a_l _l_e_t_t_e_r_s
+
+        When setting text  in  all‐capital  let‐
+       ters,  it  is  normally necessary to zoom
+       the font to a smaller size than  that  of
+       the  lower‐case  text surrounding it, and
+       to track it as well. Mounting the regular
+       font a second time is the most convenient
+       way to handle this:
+
+         .do xflag 3
+
+
+                                              13
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+            .fp 1 R LinLibertine_R otf
+            .fp 0 C LinLibertine_R otf
+            .track C 1 1.2 40 0
+            fzoom C .9
+            Regular text and \fCALL‐CAPITAL TEXT\fR which ends.
+            Regular text and ALL‐CAPITAL TEXT which ends.
+
+
+          _P_a_i_r_w_i_s_e _k_e_r_n_i_n_g
+
+           Pairwise kerning is enabled  unless  the
+          x0 option is given. The ‘‘.kern’’ request
+          disables it. Kerning tables are initially
+          read  from the AFM, OpenType, or TrueType
+          files; this default kerning only  applies
+          if  two  adjacent characters are from the
+          same font.  A font‐specific kerning table
+          can  be disabled using the ‘‘.fkern’’ re‐
+          quest.
+           There are  two  methods  to  adjust  the
+          kerning tables: In some cases, it is most
+          convenient to create a  private  copy  of
+          the  AFM  file  and to adjust the ‘‘KPX’’
+          entries in it.  This  has  the  advantage
+          that the modified kerning pairs are imme‐
+          diately available for use in other  docu‐
+          ments.
+           For OpenType or TrueType fonts,  or  for
+          cases  where  this  is  not suitable with
+          Type 1 fonts, or not possible because the
+          characters  in the kerning pair originate
+          from different fonts, _t_r_o_f_f provides  the
+          ‘‘.kernpair’’ request:
+
+            .do xflag 3
+
+
+          14
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+         .fp 1 R LinLibertine_R otf
+         .feature R +onum
+         .kernpair R 0 R / 50
+         .kernpair R / R 1 90
+         .kernpair R 1 R / 40
+         .kernpair R / R 2 80
+         0/1/2
+         0/1/2
+
+        In this example, old‐style numerals from
+       Linux  Libertine are mixed with the slash
+       character, and are  adjusted  to  achieve
+       matching visual letter spacing.
+
+
+       _K_e_r_n_i_n_g _o_f _a _c_h_a_r_a_c_t_e_r _i_n _a_n_y _c_o_m_b_i_n_a_t_i_o_n
+
+        It is sometimes useful  to  add  a  cer‐
+       tain  amount  of space whenever a charac‐
+       ter appears, for example before ‘‘;’’  or
+       ‘‘?’’,  or  on the inner sides of guille‐
+       mots in French/Swiss style.  The  ‘‘.ker‐
+       nafter’’ and ‘‘.kernbefore’’ requests are
+       useful for this:
+
+         .do xflag 3
+         .kernafter R ; 66 ? 66
+
+        If the characters affected by these  re‐
+       quests are also member of a regular kern‐
+       ing pair, the resulting  added  space  is
+       the  sum  of  both definitions. These re‐
+       quests are applied at the same places  as
+       kerning  pairs,  i.e. they have no effect
+       if following or preceding a  motion  com‐
+
+
+                                              15
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+          mand, ‘‘’’ or line margin, and  they  are
+          additionally restricted to have no effect
+          if the other character is a space.
+
+
+          _H_a_n_g_i_n_g _c_h_a_r_a_c_t_e_r_s
+
+           Since there  are  no  tables  for  hang‐
+          ing  characters in AFM files, values must
+          be given explicitly in _t_r_o_f_f source  code
+          using  the  ‘‘.lhang’’ and ‘‘.rhang’’ re‐
+          quests. Both accept a font  specification
+          followed  by one or more pairs of charac‐
+          ters and values:
+
+            .do xflag 3
+            .ps 10
+            .fp 1 R somefont pfb
+            .lhang R V 50 J 40
+            .rhang R (hy 80
+
+           Adjustments  are  given  in   units   of
+          1/72000  inch  multiplied  by  the actual
+          point size, or 1/1000 of the em size when
+          the  line  is printed. Thus in this exam‐
+          ple, the left margin is  shifted  to  the
+          left  by .5 points when the leftmost let‐
+          ter is a ‘‘V’’, and  by  .4  points  when
+          the leftmost letter is a ‘‘J’’; the right
+          margin is shifted  to  the  right  by  .8
+          points when the rightmost letter is a hy‐
+          phen.
+           Left margin  adjustments  are  evaluated
+          before  the  letters that fit on the cur‐
+          rent line  are  computed,  and  can  thus
+
+
+          16
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+       principally be of  any  length.  In  con‐
+       trast, right margin adjustments are eval‐
+       uated after this computation is finished,
+       and the adjustment is simply added to the
+       word space of the  output  line.  Thus  a
+       positive  right  adjustment that is large
+       in relation to the line length will cause
+       visible  holes, and a negative adjustment
+       will ultimately cause the  words  on  the
+       line  to be printed over each other. This
+       is not a  problem  for  the  typical  ap‐
+       plication  of hanging punctuation for vi‐
+       sual alignment, though; if  a  line  with
+       eight word spaces is shifted in the exam‐
+       ple above, each word space is enlarged by
+       only 1/100 em.
+
+
+       _M_a_t_h_e_m_a_t_i_c_a_l _a_n_d _o_t_h_e_r _s_p_e_c_i_a_l _c_h_a_r_a_c_t_e_r_s
+
+        Special  mathematical  characters   like
+       ‘‘(’’,  greek  letters like ‘‘(*a’’, and,
+       with the ‘‘pslow’’ device, even the punc‐
+       tuation  characters  (or   `  ´   # < > @
+       are normally not chosen from the  current
+       font, but are taken from the special font
+       instead.  (PostScript names (e.g. ‘‘[num‐
+       bersign]’’,  ‘‘[less]’’, ‘‘[at]’’) access
+       characters from the current  font.)   The
+       ‘‘.fps’’  request  can  be  used to over‐
+       ride this behavior. In  particular,  this
+       is  useful  to set mathematical text with
+       a different font. To use Linux  Libertine
+       for  greek  letters and mathematical sym‐
+       bols:
+
+
+                                              17
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+            .do xflag 3
+            .fps math,greek,punct,large 1 R LinLibertine_R otf
+            .fp 2 I LinLibertine_RI otf
+            .fallback I R
+            .EQ
+            a = pi {r sup 2}
+            .EN
+
+
+          _H_e_l_p_e_r _u_t_i_l_i_t_i_e_s
+
+           The _o_t_f__i_n_f_o utility shows the  contents
+          of an OpenType or TrueType font file just
+          as _t_r_o_f_f interprets it. It emits an ASCII
+          format that is readable by humans and can
+          also be used for further processing  with
+          shell  scripts.  It is useful to retrieve
+          lists of characters and features support‐
+          ed with the font.
+           The shell  script  ‘‘stuff/showfont.sh’’
+          in  the  source  code  distribution  uses
+          _t_r_o_f_f and possibly _o_t_f__i_n_f_o  to  print  a
+          map  of  all  characters in an AFM, Open‐
+          Type, or TrueType font along  with  their
+          PostScript names.
+
+
+          _L_i_m_i_t_a_t_i_o_n_s
+
+           _d_p_o_s_t  uses  a  method  to  embed   CFF‐
+          based  (PostScript‐style)  OpenType fonts
+          in  PostScript  documents  that  is  only
+          available with PostScript 3 interpreters;
+          older printing equipment that uses  Post‐
+          Script  Level 2  or  below  cannot handle
+
+
+          18
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+       such documents directly.  The recommended
+       workaround  is  to convert the PostScript
+       output to a PDF document and to print  it
+       using  a PDF viewer or reverse conversion
+       program.  Also you  may  have  to  update
+       your copy of Ghostscript in order to cre‐
+       ate PDF files with proper font  embedding
+       from such output.
+        Embedding TrueType fonts  in  PostScript
+       documents  requires PostScript 3 or Post‐
+       Script Level 2 of at least version 2013.
+        _t_r_o_f_f only  supports  OpenType  features
+       that result in single‐character substitu‐
+       tions insensitive of context (except  for
+       the  ‘‘fi  fl  ff ffi ffl’’ ligatures and
+       kerning which are enabled by  default  if
+       possible).  Also  _t_r_o_f_f  ignores any fea‐
+       tures that are not mapped to the ‘‘DFLT’’
+       or  ‘‘latn’’  languages  in  an  OpenType
+       font.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                              19
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

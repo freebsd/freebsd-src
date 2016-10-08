@@ -1,0 +1,192 @@
+.\" Copyright (c) 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     from 4.4BSD doc-ditroff	8.1 (Berkeley) 6/8/93
+.\"
+.\" Portions Copyright (c) 2005 Gunnar Ritter, Freiburg i. Br., Germany
+.\"
+.\" Sccsid @(#)doc-ditroff	1.2 (gritter) 11/16/05
+.\"
+.\" tmac.mdoc-ditroff
+.\"     %beginstrip%
+.\"
+.so @MACDIR@/tmac.gchar
+.ds aD \fI\s10
+.ds aR \f(CI\s10
+.ds cM \f(CB\s10
+.ds dF \fR\s10
+.ds eM \fI\s10
+.ds eR \f(CW\s10
+.ds eV \f(CW\s10
+.ds fA \f(CI\s10
+.ds fD \f(CB\s10
+.ds fL \f(CB\s10
+.ds fN \f(CB\s10
+.ds fP \fP\s0
+.ds fS \s0
+.ds fT \f(CI\s10
+.ds Hs \fR\s10
+.ds iC \f(CB\s10
+.ds lI \f(CW
+.ds lP \fR\|(\|\fP\s10
+.ds lp \fR(\fP\s10
+.ds rP \fR\|)\|\fP\s10
+.ds rp \fR)\fP\s10
+.ds lB \fR\^[\^\fP\s10
+.ds rB \fR\^]\fP\s10
+.ds mL \fB\s10
+.ds nM \f(CB\s10
+.ds nO \fR\s10
+.ds nT \s0
+.ds pA \f(CW\s10
+.ds Pu \fR{\ .\ ,\ :\ ;\ (\ )\ [\ ]\ \fR}
+.ds rA \fR\s10
+.ds rT \f(CI\s10
+.ds sH \fB\s10
+.ds sP \s0
+.ds sY \fB\s10
+.ds sX \fB\s10
+.ds tF \fR
+.ds tN \s9
+.ds vA \fI\s10
+.ds Vs \fR\s10
+.ds vT \f(CB\s10
+.ds xR \f(CW\s10
+.tr *\(**
+.nr sI \w\f(CW,u*5
+.nr Ti \n(sIu
+.if \*(.Thtml \{\
+.	nr cR 1
+.	nh
+.	rm hy
+.	\" pseudo-transition to first page (else "x font" is not output):
+.	br
+.\}
+.nr Pp .5v
+.ds lS \0
+.nr lS \w'\0'u
+.nr __dI 6n
+.de pL
+.nr Hm .5i
+.nr Fm .5i
+.nr ll 6.5i
+.ll 6.5i
+.nr lt 6.5i
+.lt 6.5i
+.nr po 1i
+.po 1.i
+.nr dV .5v
+..
+.nr gX 0
+.de hK
+.	ds hT \\*(dT
+.	ie \\*(cHNull \{\
+.		if !\\*(gPNull .as hT \&\|(\|\\*(gP\|)
+.	\}
+.	el \{\
+.		ie !\\*(gPNull .as hT \|(\|\\*(cH\\*(gP\|)
+.		el .as hT \\|(\\|\\*(cH\\|)
+.	\}
+.	ie \\n(cR \{\
+.		hM
+.	\}
+.	el \{\
+.		wh 0 hM
+.		wh -1.25i fM
+.	\}
+.	\" .tm Here is gX == \\n(gX
+.	ie \\n(gX==1 \{\
+.		rm n1
+.		if !\\n(cR .bp
+.	\}
+.	el \{\
+.		if !\\n(cR 'bp
+.	\}
+.	nr % 1
+.	nr gX 0
+.	em lM
+.	if !\\*[Toc] \{\
+.		nr Toc 1
+.		Sh CONTENTS
+.		nr Toc +1
+.		nf
+.		so \\*[Toc]
+.		fi
+.		nr Sh.a 1
+.		ad
+.	\}
+..
+.\" NS Ql macro - Quoted literal define
+.de Ql
+.	if \\n(aC==0  \{\
+.		ds mN Ql
+.	 	nr fV \\n(.$
+.		lnr _i_ 0 1
+.		while \\n(.$ \{\
+.			ds A\\n+[_i_] \\$1
+.			shift
+.		\}
+.	 	fV
+.	\}
+.	nr aP \\n(aP+1
+.	lnr _l_ 0
+.	length _l_ "\\*[A\\n(aP]
+.	nr aP \\n(aP-1
+.	ie \\n[_l_]>2 .Li
+.	el \{\
+.		\" Db on
+.		if (\\n(aP>0) \{\
+.			ds A\\n(aP Li
+.			nr aP \\n(aP -1
+.		\}
+.		if (\\n(aP==0) \{\
+.			rm C0 C1 C2 C3 C4 C5 C6 C7 C8 C9
+.			rm S1 S2 S3 S4 S5 S6 S7 S8 S9
+.			rn A8 A9
+.			rn A7 A8
+.			rn A6 A7
+.			rn A5 A6
+.			rn A4 A5
+.			rn A3 A4
+.			rn A2 A3
+.			rn A1 A2
+.			ds A1 Li
+.		 	nr fV \\n(aC+1
+.			nr aC 0
+.			fV
+.		\}
+.		ds qL \&\\*(sL
+.		ds qR \&\\*(sR
+.		En
+.		\" Db off
+.	\}
+..
+.\" vim:set syntax=nroff:

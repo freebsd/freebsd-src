@@ -1,0 +1,182 @@
+.if t \{\
+.	po 1n
+.	pl 29c
+.	ll 20c
+.\}
+.nf
+.EQ
+a fwd 100 b
+.EN
+.EQ
+a back 20 b
+.EN
+.EQ
+a sub 2 over b
+.EN
+.EQ I (13a)
+C=Ax+By
+.EN
+Formel #y sub 1 = 75# im Text vor \f(CWdelim\fP.
+.EQ
+delim ##
+.EN
+Formel #y sub 2 = 85# im Text nach \fIdelim\fP.
+.EQ
+delim ?!
+.EN
+Formel ?y sub 2 = 85! im Text mit \fIdelim
+.EQ
+delim off
+.EN
+? und !\fP.
+Formel #y sub 3 = 95# nach \fBdelim\fP \fHoff\fP.
+.EQ
+C~=~Ax~+~By
+.EN
+.EQ
+C^=^Ax^+^By
+.EN
+.ta 0.5i +0.5i +0.5i
+.EQ
+x sub 1	+x sub 2	+s sub 1	=^10
+.EN
+.EQ
+-2x sub 1		+s sub 1	=^42
+.EN
+.EQ
+delim $$
+.EN
+$y sub 1 = x sup 2 + 1$
+$a sub k sup 2$
+$a sup 2 sub k$
+.EQ
+e sup {i sup {k + 1}}
+.EN
+$pi r sup 2$
+$del y / del x$
+$partial x / partial t$
+$Expected~Value~=~sum from {i=1} to inf pi sub i X sub i$
+.EQ
+sqrt {b sup 2 - 4ac}
+.EN
+.EQ
+"" sup 3 sqrt x
+.EN
+$P=R left [ 1^-^{1+1 sup n} over i right ]$
+.EQ
+matrix {
+  lcol {1 above 0}
+  rcol {half above -1}
+}
+.EN
+.EQ
+P~=~left [
+   pile { nu sub 1 above nu sub 2 above cdot
+   above cdot above cdot above nu sub N }
+right ]
+.EN
+.EQ
+f sub X (x)^=^left {
+  rpile { 0 above 2x above 0 }
+  ~~lpile { x < 0 above 0 <= x <= 1 above x > 1 }
+.EN
+$cr e hat pes$
+$Citr o dotdot en$
+$a vec + b vec$
+$X bar sub st$
+.EQ
+define 2i '2 sup i'
+define 1/2i '1 over 2i'
+.EN
+Test:
+$1/2i, 2i$
+$italic "cos(x)" + cos (x)$
+.EQ
+mu~mark =~lambda t
+.EN
+.EQ
+lineup =~int from 0 to t lambda dz
+.EN
+$bold qP$
+$roman alpha~beta$
+$fat half$
+$size +3 x =y$
+$size 8 {A + B}$
+.EQ
+{partial sup 2 f} over {partial x sup 2} =
+x sup 2 over a sup 2 + y sup 2 over b sup 2
+.EN
+.EQ
+x = {-b +- sqrt{b sup 2 -4ac}} over 2a
+.EN
+.bp
+.EQ
+define emx "{e sup mx}"
+define mab "{m sqrt ab}"
+define sa "{sqrt a}"
+define sb "{sqrt b}"
+int dx over {a emx - be sup -mx} ~=~
+left { lpile {
+        1 over {2 mab} ~log~
+            {sa emx - sb} over {sa emx + sb}
+    above
+        1 over mab ~ tanh sup -1 ( sa over sb emx )
+    above
+       -1 over mab ~ coth sup -1 ( sa over sb emx )
+}
+.EN
+.EQ I (3.1a)
+x = f(y/2)+y/2
+.EN
+.EQ
+x  =  y
+  + z
+.EN
+.EQ
+x~=~y~+~z
+.EN
+.EQ
+(a sup 2 /b sub 2 ) sup half
+.EN
+.EQ
+size 14 bold x = y +
+  size 14 {alpha + beta}
+.EN
+.EQ
+"{ size alpha }"
+roman "{ size alpha }"
+.EN
+.EQ I
+G(z)~mark =~ e sup { ln ~ G(z) }
+~=~ exp left (
+sum from k>=1 {S sub k z sup k} over k right )
+~=~ prod from k>=1 e sup {S sub k z sup k /k}
+.EN
+.EQ I
+lineup = left ( 1 + S sub 1 z +
+{ S sub 1 sup 2 z sup 2 } over 2! + ... right )
+left ( 1+ { S sub 2 z sup 2 } over 2
++ { S sub 2 sup 2 z sup 4 } over { 2 sup 2 cdot 2! }
++ ... right ) ...
+.EN
+.EQ I
+lineup = sum from m>=0 left (
+sum from
+pile { k sub 1 ,k sub 2 ,..., k sub m >=0
+above
+k sub 1 +2k sub 2 + ... +mk sub m =m}
+{ S sub 1 sup {k sub 1} } over {1 sup k sub 1 k sub 1 ! } ~
+{ S sub 2 sup {k sub 2} } over {2 sup k sub 2 k sub 2 ! } ~
+...
+{ S sub m sup {k sub m} } over {m sup k sub m k sub m ! }
+right ) z sup m
+.EN
+.EQ
+define dsum % sum from $1 to $2 $3 %
+dsum("i=1", n, "")~~~dsum("j=1", n, "x sub ij")
+.EN
+.EQ
+gsize 20
+gfont CW
+a=b+c
+.EN

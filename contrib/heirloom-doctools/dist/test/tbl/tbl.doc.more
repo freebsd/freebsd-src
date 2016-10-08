@@ -1,0 +1,1650 @@
+
+
+
+
+
+
+
+
+
+               TTTTBBBBLLLL----AAAA PPPPrrrrooooggggrrrraaaammmm ttttoooo FFFFoooorrrrmmmmaaaatttt TTTTaaaabbbblllleeeessss
+
+
+                         M. E. Lesk
+
+
+
+                          _A_B_S_T_R_A_C_T
+
+          _T_b_l is a document formatting preprocessor for
+     _t_r_o_f_f  or  _n_r_o_f_f  which  makes even fairly complex
+     tables easy to specify and enter.  It is available
+     on the UNIX† system, and on Honeywell  6000  GCOS.
+     Tables  are  made  up  of  columns  which  may  be
+     independently  centered,   right‐adjusted,   left‐
+     adjusted,  or aligned by decimal points.  Headings
+     may be placed over single  columns  or  groups  of
+     columns.   A table entry may contain equations, or
+     may consist of several rows of  text.   Horizontal
+     or  vertical  lines may be drawn as desired in the
+     table, and any table or element may be enclosed in
+     a box.  For example:
+
+
+         ─┌────────────────────────────────────────┐
+         │     1970 Federal Budget Transfers      │
+         │       (in billions of dollars)         │
+         ═╞═════════════╤════════════╤════════╤═══════╡
+         │            │   Taxes   │ Money │       │
+         │   State    │ collected │ spent │  Net  │
+         ─├─────────────┼────────────┼────────┼───────┤
+         │New York    │   22.91   │ 21.35 │ -1.56 │
+         │New Jersey  │    8.33   │  6.96 │ -1.37 │
+         │Connecticut │    4.12   │  3.10 │ -1.02 │
+         │Maine       │    0.74   │  0.67 │ -0.07 │
+         │California  │   22.29   │ 22.42 │ +0.13 │
+         │New Mexico  │    0.70   │  1.49 │ +0.79 │
+         │Georgia     │    3.30   │  4.28 │ +0.98 │
+         │Mississippi │    1.15   │  2.32 │ +1.17 │
+         │Texas       │    9.33   │ 11.13 │ +1.80 │
+         ─└─────────────┴────────────┴────────┴───────┘
+
+
+
+
+
+
+_________________________
+†  UNIX  is a registered trademark of The Open Group in
+the U.S. and other countries.
+
+
+
+
+
+
+
+
+
+
+2                                                        _T_B_L
+
+
+_I_N_T_R_O_D_U_C_T_I_O_N
+
+     _T_b_l turns a simple description of a table into a  _t_r_o_f_f
+or  _n_r_o_f_f  [1]  program  (list  of requests) that prints the
+table.  _T_b_l may be used on the UNIX [2] system  and  on  the
+Honeywell  6000  GCOS system.  It attempts to isolate a por‐
+tion of a job that it can successfully handle and leave  the
+remainder for other programs.  Thus _t_b_l may be used with the
+equation  formatting  program   _e_q_n   [3]   and/or   various
+_n_r_o_f_f/_t_r_o_f_f  layout  macro  packages  [4,5,6],  but does not
+duplicate their functions.
+
+     This memorandum is divided into two  parts.   First  we
+give  the  rules for preparing _t_b_l input; then some examples
+are shown.  The description of rules is precise but  techni‐
+cal,  and the beginning user may prefer to read the examples
+first, as they show some common table arrangements.  A  sec‐
+tion explaining how to invoke _t_b_l precedes the examples.  To
+avoid repetition, henceforth read ‘‘_t_r_o_f_f’’  as  ‘‘_t_r_o_f_f  or
+_n_r_o_f_f.’’
+
+     The input to _t_b_l is text for a  document,  with  tables
+preceded  by a ‘‘.TS’’ (table start) command and followed by
+a ‘‘.TE’’ (table end) command.  _T_b_l  processes  the  tables,
+generating   _t_r_o_f_f   formatting  requests,  and  leaves  the
+remainder of the text unchanged.  The  ‘‘.TS’’  and  ‘‘.TE’’
+lines  are copied, too, so that _t_r_o_f_f layout macros (such as
+the memorandum formatting macros [4,6]) can use these  lines
+to delimit and place tables as they see fit.  In particular,
+any arguments on the ‘‘.TS’’ or ‘‘.TE’’ lines are copied but
+otherwise  ignored, and may be used by document layout macro
+requests.  The format of the input is as follows:
+
+        text
+        .TS
+        _t_a_b_l_e
+        .TE
+        text
+        .TS
+        _t_a_b_l_e
+        .TE
+        text
+        ...
+
+where the format of each table is as follows:
+
+        .TS
+        _o_p_t_i_o_n_s ;;;;
+        _f_o_r_m_a_t .
+        _d_a_t_a
+        .TE
+
+Each table  is  independent,  and  must  contain  formatting
+information followed by the data to be entered in the table.
+
+
+
+
+
+
+
+
+
+_T_B_L                                                        3
+
+
+The formatting information, which describes  the  individual
+columns  and  rows  of  the  table, may be preceded by a few
+options that affect the entire table.  A  detailed  descrip‐
+tion of tables is given in the next section.
+
+_I_N_P_U_T _C_O_M_M_A_N_D_S
+
+     As indicated above, a  table  contains,  first,  global
+options,  then a format section describing the layout of the
+table entries, and then the data to be printed.  The  format
+and  data  are  always  required,  but not the options.  The
+various parts of the table are entered as follows:
+
+1)   OPTIONS.  There may be a single line of options affect‐
+     ing the whole table.  If present, this line must follow
+     the .TS line immediately and must  contain  a  list  of
+     option  names separated by spaces, tabs, or commas, and
+     must be  terminated  by  a  semicolon.   The  allowable
+     options are:
+
+       cccceeeennnntttteeeerrrr     -  center  the  table  (default  is  left‐
+                  adjust);
+
+       eeeexxxxppppaaaannnndddd     - make the table as wide  as  the  current
+                  line length;
+
+       bbbbooooxxxx        - enclose the table in a box;
+
+       aaaallllllllbbbbooooxxxx     - enclose each item in the table in a box;
+
+       ddddoooouuuubbbblllleeeebbbbooooxxxx  - enclose the table in two boxes;
+
+       ttttaaaabbbb (_x)    - use _x instead of tab  to  separate  data
+                  items.
+
+       lllliiiinnnneeeessssiiiizzzzeeee (_n)- set lines or rules (e.g., from bbbbooooxxxx)  in
+                  _n‐point type;
+
+       ddddeeeelllliiiimmmm (_x_y) - recognize _x and _y as the _e_q_n delimiters.
+
+     The _t_b_l program tries to keep boxed tables on one  page
+     by  issuing appropriate ‘‘need’’ (._n_e) requests.  These
+     requests are calculated from the number of lines in the
+     tables,  and  if there are spacing requests embedded in
+     the input, the ._n_e requests may be inaccurate; use nor‐
+     mal  _t_r_o_f_f  procedures, such as keep‐release macros, in
+     that case.  The user who must have a  multi‐page  boxed
+     table  should  use macros designed for this purpose, as
+     explained below under ‘Usage.’
+
+2)   FORMAT.  The format section of the table specifies  the
+     layout  of  the  columns.   Each  line  in this section
+     corresponds to one line of the table (except  that  the
+     last  line corresponds to all following lines up to the
+
+
+
+
+
+
+
+
+
+4                                                        _T_B_L
+
+
+     next and each  line  contains  a  key‐letter  for  each
+     column  of  the table.  It is good practice to separate
+     the key letters for each  column  by  spaces  or  tabs.
+     Each key‐letter is one of the following:
+
+       LLLL or llll  to indicate a left‐adjusted column entry;
+
+       RRRR or rrrr  to indicate a right‐adjusted column entry;
+
+       CCCC or cccc  to indicate a centered column entry;
+
+       NNNN or nnnn  to indicate a numerical column entry,  to  be
+               aligned  with other numerical entries so that
+               the units digits of numbers line up;
+
+       AAAA or aaaa  to  indicate  an  alphabetic  subcolumn;  all
+               corresponding  entries  are  aligned  on  the
+               left, and positioned so that  the  widest  is
+               centered  within  the  column (see example on
+               page 13);
+
+       SSSS or ssss  to indicate a spanned heading, i.e., to indi‐
+               cate  that the entry from the previous column
+               continues across this column (not allowed for
+               the first column of the table, obviously); or
+
+       ^^^^       to indicate  a  vertically  spanned  heading,
+               i.e.,  to  indicate  that  the entry from the
+               previous row continues down through this  row
+               (not  allowed for the first row of the table,
+               obviously).
+
+     When numerical alignment is specified, a  location  for
+     the  decimal  point  is  sought.  The rightmost dot (.)
+     adjacent to a digit is used  as  a  decimal  point;  if
+     there  is no dot adjoining a digit, the rightmost digit
+     is used as a units digit; if no alignment is indicated,
+     the  item is centered in the column.  However, the spe‐
+     cial non‐printing character string \& may  be  used  to
+     override  unconditionally  dots and digits, or to align
+     alphabetic data; this string lines up where a dot  nor‐
+     mally would, and then disappears from the final output.
+     In the example below, the items shown at the left  will
+     be  aligned  (in  a  numerical  column) as shown on the
+     right:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+_T_B_L                                                        5
+
+
+
+
+                     13              13
+                     4.2              4.2
+                     26.4.12       26.4.12
+                     abc             abc
+                     abc\&          abc
+                     43\&3.22        433.22
+                     749.12         749.12
+
+
+     NNNNooootttteeee::::  If numerical data are used in  the  same  column
+     with wider _L or _r type table entries, the widest _n_u_m_b_e_r
+     is centered relative to the wider _L or _r  items  (LLLL  is
+     used  instead  of llll for readability; they have the same
+     meaning as key‐letters).  Alignment within the  numeri‐
+     cal  items  is  preserved.   This  is  similar  to  the
+     behavior of _a type data, as explained above.   However,
+     alphabetic  subcolumns  (requested by the _a key‐letter)
+     are always slightly indented relative to  _L  items;  if
+     necessary, the column width is increased to force this.
+     This is not true for nnnn type entries.
+
+  WWWWaaaarrrrnnnniiiinnnngggg::::
+     The nnnn and aaaa items  should  not  be  used  in  the  same
+     column.
+
+     For readability, the key‐letters describing each column
+     should  be  separated by spaces.  The end of the format
+     section is indicated by a period.  The  layout  of  the
+     key‐letters  in the format section resembles the layout
+     of the actual data in the table.  Thus a simple  format
+     might appear as:
+       c  s  s
+       l  n  n .
+     which specifies a table of  three  columns.  The  first
+     line  of  the  table contains a heading centered across
+     all three  columns;  each  remaining  line  contains  a
+     left‐adjusted  item in the first column followed by two
+     columns of numerical data.  A sample table in this for‐
+     mat might be:
+
+
+       Overall title
+         Item‐a         34.22    9.1
+         Item‐b         12.65     .02
+         Items: c,d,e   23       5.8
+         Total          69.87   14.92
+
+     There are some additional features of the key‐letter system:
+
+       _H_o_r_i_z_o_n_t_a_l _l_i_n_e_s
+          - A key‐letter may be replaced by ‘_’ (underscore)
+          to  indicate  a  horizontal  line  in place of the
+
+
+
+
+
+
+
+
+
+6                                                        _T_B_L
+
+
+          corresponding column entry, or by ‘=’ to  indicate
+          a  double  horizontal line.  If an adjacent column
+          contains a horizontal line, or if there are verti‐
+          cal  lines  adjoining this column, this horizontal
+          line is extended to meet the nearby lines.  If any
+          data  entry  is  provided  for  this column, it is
+          ignored and a warning message is printed.
+
+       _V_e_r_t_i_c_a_l _l_i_n_e_s
+          - A vertical bar  may  be  placed  between  column
+          key‐letters.   This  will  cause  a  vertical line
+          between the corresponding columns of the table.  A
+          vertical  bar  to the left of the first key‐letter
+          or to the right of the last one produces a line at
+          the  edge  of  the  table.   If  two vertical bars
+          appear between key‐letters, a double vertical line
+          is drawn.
+
+       _S_p_a_c_e _b_e_t_w_e_e_n _c_o_l_u_m_n_s
+          - A number may follow the key‐letter.  This  indi‐
+          cates the amount of separation between this column
+          and the next column.  The number  normally  speci‐
+          fies  the  separation  in _e_n_s (one en is about the
+          width of the letter ‘n’).*  If the  _e_x_p_a_n_d  option
+          is  used,  then  these numbers are multiplied by a
+          constant such that the table is  as  wide  as  the
+          current  line  length.  The default column separa‐
+          tion number is 3.  If the  separation  is  changed
+          the worst case (largest space requested) governs.
+
+       _V_e_r_t_i_c_a_l _s_p_a_n_n_i_n_g
+          - Normally,  vertically  spanned  items  extending
+          over  several  rows  of  the table are centered in
+          their vertical range.  If a key‐letter is followed
+          by  _t  or  _T, any corresponding vertically spanned
+          item will begin at the top line of its range.
+
+       _F_o_n_t _c_h_a_n_g_e_s
+          - A key‐letter may be followed by  a  string  con‐
+          taining  a  font  name  or  number preceded by the
+          letter  _f  or  _F.    This   indicates   that   the
+          corresponding column should be in a different font
+          from the default font (usually Roman).   All  font
+          names  are  one  or two letters; a one‐letter font
+          name should be separated from whatever follows  by
+          a space or tab.  The single letters BBBB, bbbb, IIII, and iiii
+          are shorter synonyms for _f_B and  _f_I.   Font‐change
+          requests  given  with  the  table entries override
+          these specifications.
+
+_________________________
+* More precisely, an en is a number of points (1  point
+= 1/72 inch) equal to half the current type size.
+
+
+
+
+
+
+
+
+
+
+_T_B_L                                                        7
+
+
+       _P_o_i_n_t _s_i_z_e _c_h_a_n_g_e_s
+          - A key‐letter may be followed by the letter _p  or
+          _P  and  a number to indicate the point size of the
+          corresponding table entries.  The number may be  a
+          signed  digit,  in  which  case  it is taken as an
+          increment or  decrement  from  the  current  point
+          size.   If  both a point size and a column separa‐
+          tion value are given,  one  or  more  blanks  must
+          separate them.
+
+       _V_e_r_t_i_c_a_l _s_p_a_c_i_n_g _c_h_a_n_g_e_s
+          - A key‐letter may be followed by the letter _v  or
+          _V and a number to indicate the vertical line spac‐
+          ing to be used within a  multi‐line  corresponding
+          table entry.  The number may be a signed digit, in
+          which case it is taken as an increment  or  decre‐
+          ment  from the current vertical spacing.  A column
+          separation value must be separated  by  blanks  or
+          some  other  specification from a vertical spacing
+          request.  This request has no  effect  unless  the
+          corresponding  table  entry  is  a text block (see
+          below).
+
+       _C_o_l_u_m_n _w_i_d_t_h _i_n_d_i_c_a_t_i_o_n
+          - A key‐letter may be followed by the letter _w  or
+          _W and a width value in parentheses.  This width is
+          used as a minimum column width.   If  the  largest
+          element  in the column is not as wide as the width
+          value given after the wwww, the  largest  element  is
+          assumed  to  be that wide.  If the largest element
+          in the column is wider than the  specified  value,
+          its  width  is  used.  The width is also used as a
+          default line  length  for  included  text  blocks.
+          Normal  _t_r_o_f_f units can be used to scale the width
+          value; if none are used, the default is  ens.   If
+          the  width specification is a unitless integer the
+          parentheses may be omitted.  If the width value is
+          changed in a column, the _l_a_s_t one given controls.
+
+       _E_q_u_a_l‐_w_i_d_t_h _c_o_l_u_m_n_s
+          - A key‐letter may be followed by the letter _e  or
+          _E  to  indicate  equal‐width columns.  All columns
+          whose key‐letters are followed by eeee or EEEE are  made
+          the  same  width.   This permits the user to get a
+          group of regularly spaced columns.
+
+       _S_t_a_g_g_e_r_e_d _c_o_l_u_m_n_s
+          - A key‐letter may be followed by the letter _u  or
+          _U  to  indicate that the corresponding entry is to
+          be moved up one‐half line.  This  makes  it  easy,
+          for  example,  to  have  a  column  of differences
+          between  numbers  in  an  adjoining  column.   The
+          _a_l_l_b_o_x   option   does  not  work  with  staggered
+          columns.
+
+
+
+
+
+
+
+
+
+8                                                        _T_B_L
+
+
+       _Z_e_r_o‐_w_i_d_t_h _i_t_e_m
+          - A key‐letter may be followed by the letter _z  or
+          _Z  to indicate that the corresponding data item is
+          to be ignored in calculating column widths.   This
+          may  be  useful, for example, in allowing headings
+          to run across adjacent columns where spanned head‐
+          ings would be inappropriate.
+
+       NNNNooootttteeee::::
+          The order of the  above  features  is  immaterial;
+          they  need  not  be separated by spaces, except as
+          indicated above  to  avoid  ambiguities  involving
+          point  size  and  font  changes.  Thus a numerical
+          column entry in italic font and 12‐point type with
+          a  minimum  width of 2.5 inches and separated by 6
+          ens from the next column could be specified as
+               np12w(2.5i)fI  6
+
+       _A_l_t_e_r_n_a_t_i_v_e _n_o_t_a_t_i_o_n
+          - Instead of  listing  the  format  of  successive
+          lines  of a table on consecutive lines of the for‐
+          mat section, successive line formats may be  given
+          on the same line, separated by commas, so that the
+          format for the example above might have been writ‐
+          ten:
+               c s s ,,,, l n n .
+
+       _D_e_f_a_u_l_t
+          - Column descriptors missing from  the  end  of  a
+          format line are assumed to be LLLL.  The longest line
+          in the format section, however, defines the number
+          of columns in the table; extra columns in the data
+          are ignored silently.
+
+3)   DATA.  The data for the table are typed after the  for‐
+     mat.  Normally, each table line is typed as one line of
+     data.  Very long input lines can be  broken:  any  line
+     whose  last character is \ is combined with the follow‐
+     ing line (and the \ vanishes).  The data for  different
+     columns  (the  table entries) are separated by tabs, or
+     by whatever character has been specified in the  option
+     _t_a_b_s option.  There are a few special cases:
+
+       _T_r_o_f_f _r_e_q_u_e_s_t_s _w_i_t_h_i_n _t_a_b_l_e_s
+          - An input line beginning with a ‘.’  followed  by
+          anything  but  a number is assumed to be a request
+          to _t_r_o_f_f and is passed through unchanged,  retain‐
+          ing  its  position in the table.  So, for example,
+          space within a table may be  produced  by  ‘‘.sp’’
+          requests in the data.
+
+       _F_u_l_l _w_i_d_t_h _h_o_r_i_z_o_n_t_a_l _l_i_n_e_s
+          - An input _l_i_n_e containing only  the  character  __
+          (underscore)  or  ====  (equal sign) is taken to be a
+
+
+
+
+
+
+
+
+
+_T_B_L                                                        9
+
+
+          single or double line, respectively, extending the
+          full width of the _t_a_b_l_e.
+
+       _S_i_n_g_l_e _c_o_l_u_m_n _h_o_r_i_z_o_n_t_a_l _l_i_n_e_s
+          - An input table _e_n_t_r_y containing only the charac‐
+          ter  __ or ==== is taken to be a single or double line
+          extending the full  width  of  the  _c_o_l_u_m_n.   Such
+          lines  are extended to meet horizontal or vertical
+          lines adjoining  this  column.   To  obtain  these
+          characters  explicitly in a column, either precede
+          them by \& or follow them by a  space  before  the
+          usual tab or new‐line.
+
+       _S_h_o_r_t _h_o_r_i_z_o_n_t_a_l _l_i_n_e_s
+          - An input table _e_n_t_r_y containing only the  string
+          \_  is  taken  to  be a single line as wide as the
+          contents of the column.  It  is  not  extended  to
+          meet adjoining lines.
+
+       _R_e_p_e_a_t_e_d _c_h_a_r_a_c_t_e_r_s
+          - An input table _e_n_t_r_y containing only a string of
+          the  form \\RRRR_x where _x is any character is replaced
+          by repetitions of the character _x as wide  as  the
+          data  in  the  column.  The sequence of _x’s is not
+          extended to meet adjoining columns.
+
+       _V_e_r_t_i_c_a_l_l_y _s_p_a_n_n_e_d _i_t_e_m_s
+          - An input table entry containing only the charac‐
+          ter  string  \^  indicates  that  the  table entry
+          immediately above spans downward  over  this  row.
+          It  is  equivalent to a table format key‐letter of
+          ‘^’.
+
+       _T_e_x_t _b_l_o_c_k_s
+          - In order to include a block of text as  a  table
+          entry, precede it by TT{{ and follow it by TT}}.  Thus
+          the sequence
+              ... TT{{
+              _b_l_o_c_k _o_f
+              _t_e_x_t
+              TT}} ...
+          is the way to enter, as  a  single  entry  in  the
+          table, something that cannot conveniently be typed
+          as a simple string between tabs.  Note that the TT}}
+          end   delimiter  must  begin  a  line;  additional
+          columns of data may follow after a tab on the same
+          line.  See the example on page 11 for an illustra‐
+          tion of included text blocks in a table.  If  more
+          than thirty or so text blocks are used in a table,
+          various limits in the _t_r_o_f_f program are likely  to
+          be  exceeded,  producing  diagnostics such as ‘too
+          many  string/macro  names’  or  ‘too  many  number
+          registers.’
+
+
+
+
+
+
+
+
+
+
+10                                                       _T_B_L
+
+
+          Text blocks are pulled out from  the  table,  pro‐
+          cessed  separately  by  _t_r_o_f_f, and replaced in the
+          table as a solid block.   If  no  line  length  is
+          specified  in  the _b_l_o_c_k _o_f _t_e_x_t itself, or in the
+          table format, the  default  is  to  use  L×C/(N+1)
+          where  _L  is  the  current  line  length, _C is the
+          number of table columns spanned by the text, and _N
+          is  the total number of columns in the table.  The
+          other parameters (point size, font, etc.) used  in
+          setting  the  _b_l_o_c_k _o_f _t_e_x_t are those in effect at
+          the beginning of the table (including  the  effect
+          of the ‘‘.TS’’ macro) and any table format specif‐
+          ications of size, spacing, and font, using the  pppp,
+          vvvv  and  ffff  modifiers  to  the  column key‐letters.
+          Requests within the text  block  itself  are  also
+          recognized,  of  course.   However, _t_r_o_f_f requests
+          within the table data  but  not  within  the  text
+          block do not affect that block.
+
+       WWWWaaaarrrrnnnniiiinnnnggggssss::::
+          Although any number of lines may be present  in  a
+          table,  only  the first 200 lines are used in set‐
+          ting up the table; a multi‐page table, of  course,
+          may  be  arranged as several single‐page tables if
+          this proves to be a problem.   Other  difficulties
+          with formatting may arise because, in the calcula‐
+          tion  of  column  widths  all  table  entries  are
+          assumed to be in the font and size being used when
+          the ‘‘.TS’’ command was  encountered,  except  for
+          font  and  size changes indicated (a) in the table
+          format section and (b) within the table  data  (as
+          in   the   entry  \\\\ssss++++3333\\\\ffffIIIIDDDDaaaattttaaaa\\\\ffffPPPP\\\\ssss0000).   Therefore,
+          although arbitrary _t_r_o_f_f requests may be sprinkled
+          in  a table, care must be taken to avoid confusing
+          the width calculations; use requests such as ‘.ps’
+          with care.
+
+4)   ADDITIONAL COMMAND LINES.  If the  format  of  a  table
+     must  be changed after many similar lines, as with sub‐
+     headings or summarizations,  the  ‘‘.T&’’  (table  con‐
+     tinue) command can be used to change column parameters.
+     The outline of such a table input is:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+_T_B_L                                                       11
+
+
+
+             .TS
+             _o_p_t_i_o_n_s ;;;;
+             _f_o_r_m_a_t .
+             _d_a_t_a
+             ...
+             .T&
+             _f_o_r_m_a_t .
+             _d_a_t_a
+             .T&
+             _f_o_r_m_a_t .
+             _d_a_t_a
+             .TE
+
+     as in the examples on pages 10 and 13.  Using this pro‐
+     cedure, each table line can be close to its correspond‐
+     ing format line.
+
+  WWWWaaaarrrrnnnniiiinnnngggg::::
+     It is not possible to change the number of columns, the
+     space  between columns, the global options such as _b_o_x,
+     or the selection of columns  to  be  made  equal‐width.
+     Furthermore,  ‘‘.T&’’ is not recognized after the first
+     200 lines of a table.
+
+_U_S_A_G_E
+
+     On UNIX, _t_b_l can be run on a simple table with the com‐
+mand
+
+        tbl input‐file ⎪ troff
+
+but for more complicated use, where there are several  input
+files,  and  they  contain  equations  and  _m_s (or _m_m) macro
+requests as well as tables, the normal command would be
+
+        tbl file‐1 file‐2 ... ⎪ eqn ⎪ troff -ms     (or -mm)
+
+and, of course, the usual options may be used on  the  _t_r_o_f_f
+and  _e_q_n  commands.   The usage for _n_r_o_f_f is similar to that
+for _t_r_o_f_f, but only _T_E_L_E_T_Y_P_E® Model 37 and  Diablo‐mechanism
+(DASI or GSI) terminals can print boxed tables directly.  If
+a file name is ‘‘----’’, the standard input  is  read  at  that
+point.
+
+     For the convenience of users  employing  line  printers
+without  adequate driving tables or post‐filters, there is a
+special -_T_X command‐line option to _t_b_l which produces output
+that  does not have fractional line motions in it.  The only
+other command‐line options recognized by _t_b_l are -_m_s and -_m_m
+which  are  turned  into commands to fetch the corresponding
+macro files; usually it is more convenient  to  place  these
+arguments  on  the  _t_r_o_f_f part of the command line, but they
+are accepted by _t_b_l as well.
+
+
+
+
+
+
+
+
+
+12                                                       _T_B_L
+
+
+     Note that when _e_q_n and _t_b_l are  used  together  on  the
+same  file  _t_b_l should be used first.  If there are no equa‐
+tions within tables, either order works, but it  is  usually
+faster  to  run  _t_b_l  first,  since  _e_q_n normally produces a
+larger expansion of the input than _t_b_l.  However,  if  there
+are  equations  within  tables (using the _d_e_l_i_m mechanism in
+_e_q_n), tbl must be first or the  output  will  be  scrambled.
+Users  must  also  beware  of  using  equations  in  nnnn‐style
+columns; this is nearly always wrong, since _t_b_l attempts  to
+split  numerical format items into two parts and this is not
+possible with equations.  The user can defend  against  this
+by  giving  the _d_e_l_i_m(_x_x) table option; this prevents split‐
+ting of numerical columns within the delimiters.  For  exam‐
+ple, if the _e_q_n delimiters are $$, giving _d_e_l_i_m($$) causes a
+numerical column such as 1111222244445555 $$$$++++---- 11116666$$$$ to  be  divided  after
+1245, not after 16.
+
+     _T_b_l accepts up to about  35  columns,  but  the  actual
+number  that  can  be processed may be smaller, depending on
+availability of _t_r_o_f_f number registers.  The user must avoid
+number  register  names used by _t_b_l, which include two‐digit
+numbers from 31 to 99 and strings of the form  4444_x,  5555_x,  ####_x,
+_x++++,  _x⎪,  ^_x, and _x----, where _x is any lower‐case letter.  The
+names ########, ####----, and ####^ are also used in certain circumstances.
+To  conserve  register  names,  the  nnnn and aaaa formats share a
+register; hence the restriction above that they may  not  be
+used in the same column.
+
+     For aid in writing layout macros, _t_b_l defines a  number
+register  TW  which is the table width; it is defined by the
+time that the ‘‘.TE’’ macro is invoked and may  be  used  in
+the expansion of that macro.  More importantly, to assist in
+laying out multi‐page boxed tables the macro T#  is  defined
+to produce the bottom lines and side lines of a boxed table,
+and then invoked at its end.  By use of this  macro  in  the
+page footer a multi‐page table can be boxed.  In particular,
+the _m_s and _m_m macros can be used to print a multi‐page boxed
+table  with  a  repeated heading by giving the argument H to
+the ‘‘.TS’’ macro.  If the table start macro is written
+        .TS H
+a line of the form
+        .TH
+must be given in the table after any table  heading  (or  at
+the start if none).  Material up to the ‘‘.TH’’ is placed at
+the top of each page of table; the remaining  lines  in  the
+table  are  placed  on several pages as required.  Note that
+this is _n_o_t a feature of _t_b_l, but of the _m_s and _m_m macros.
+
+_E_X_A_M_P_L_E_S
+
+     Here are some examples illustrating  features  of  _t_b_l.
+The symbol T○ in the input represents a tab character.
+
+
+
+
+
+
+
+
+
+
+
+_T_B_L                                                       13
+
+
+_I_n_p_u_t:                        _O_u_t_p_u_t:
+   .TS                        ─┌─────────────────────────────────────────────┐
+   box;                       │Language       Authors           Runs on     │
+   c c c                      │                                             │
+   l l l.                     │Fortran    Many              Almost anything │
+   LanguageT○AuthorsT○Runs on   │PL/1       IBM               360/370         │
+                              │C          BTL               11/45,H6000,370 │
+   FortranT○ManyT○Almost anything│BLISS      Carnegie‐Mellon   PDP‐10,11       │
+   PL/1T○IBMT○360/370           │IDS        Honeywell         H6000           │
+   CT○BTLT○11/45,H6000,370      │Pascal     Stanford          370             │
+   BLISST○Carnegie‐MellonT○PDP‐10└─,─1─1───────────────────────────────────────────┘
+   IDST○HoneywellT○H6000
+   PascalT○StanfordT○370
+   .TE
+
+_I_n_p_u_t:                        _O_u_t_p_u_t:
+   .TS                        ─┌──────┬────────┬──────────┐
+   allbox;                    │   AT&T Common Stock    │
+   c s s                      ─├──────┬────────┬──────────┤
+   c c c                      │Year │ Price │ Dividend │
+   n n n.                     ─├──────┼────────┼──────────┤
+   AT&T Common Stock          │1971 │ 41‐54 │  $2.60   │
+   YearT○PriceT○Dividend        ─├──────┼────────┼──────────┤
+   1971T○41‐54T○$2.60           │   2 │ 41‐54 │   2.70   │
+   2T○41‐54T○2.70               ─├──────┼────────┼──────────┤
+   3T○46‐55T○2.87               │   3 │ 46‐55 │   2.87   │
+   4T○40‐53T○3.24               ─├──────┼────────┼──────────┤
+   5T○45‐52T○3.40               │   4 │ 40‐53 │   3.24   │
+   6T○51‐59T○.95*               ─├──────┼────────┼──────────┤
+   .TE                        │   5 │ 45‐52 │   3.40   │
+   * (first quarter only)     ─└──────┴────────┴──────────┘
+                              │   6 │ 51‐59 │    .95*  │
+                              ─└──────┴────────┴──────────┘
+                              * (first quarter only)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+14                                                       _T_B_L
+
+
+_I_n_p_u_t:                        _O_u_t_p_u_t:
+   .TS                        ─┌───────────────────┬─────────────────┬────────┐
+   box;                       │          Major New York Bridges            │
+   c s s                      ═╞═══════════════════╤═════════════════╤════════╡
+   c | c | c                  │     Bridge       │    Designer    │ Length │
+   l | l | n.                 ─├───────────────────┼─────────────────┼────────┤
+   Major New York Bridges     │Brooklyn          │ J. A. Roebling │  1595  │
+   =                          │Manhattan         │ G. Lindenthal  │  1470  │
+   BridgeT○DesignerT○Length     │Williamsburg      │ L. L. Buck     │  1600  │
+   _                          ─├───────────────────┼─────────────────┼────────┤
+   BrooklynT○J. A. RoeblingT○1595│Queensborough     │ Palmer &       │  1182  │
+   ManhattanT○G. LindenthalT○1470│                  │   Hornbostel   │        │
+   WilliamsburgT○L. L. BuckT○1600├────────────────────┼─────────────────┼────────┤
+   _                          │                  │                │  1380  │
+   QueensboroughT○Palmer &T○1182│Triborough        │ O. H. Ammann   │─├───────│┤
+   T○  Hornbostel              │                  │                │   383  │
+   _                          ─├───────────────────┼─────────────────┼────────┤
+   T○T○1380                     │Bronx Whitestone  │ O. H. Ammann   │  2300  │
+   TriboroughT○O. H. AmmannT○_  │Throgs Neck       │ O. H. Ammann   │  1800  │
+   T○T○383                      ─├───────────────────┼─────────────────┼────────┤
+   _                          │George Washington │ O. H. Ammann   │  3500  │
+   Bronx WhitestoneT○O. H. Amman└─n─T─○2─3─0─0──────────────┴─────────────────┴────────┘
+   Throgs NeckT○O. H. AmmannT○1800
+   _
+   George WashingtonT○O. H. AmmannT○3500
+   .TE
+
+_I_n_p_u_t:                        _O_u_t_p_u_t:
+   .TS                            Stack
+   c c                          │┌───────┐
+   np‐2 | n | .               1 │ 46    │
+   T○Stack                       │├───────┤
+   T○_                         2 │ 23    │
+   1T○46                         │├───────┤
+   T○_                         3 │ 15    │
+   2T○23                         │├───────┤
+   T○_                         4 │  6.5  │
+   3T○15                         │├───────┤
+   T○_                         5 │  2.1  │
+   4T○6.5                        │└───────┘
+   T○_
+   5T○2.1
+   T○_
+   .TE
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+_T_B_L                                                       15
+
+
+_I_n_p_u_t:                        _O_u_t_p_u_t:
+   .TS                        ─┌───────────────────────────────┐
+   box;                       │january   february    march    │
+   L L L                      │april     may        ─┌─────────│┤
+   L L _                      │june      july      │ MMMMoooonnnntttthhhhssss   │
+   L L | LB                   │august    september  ─└─────────│┤
+   L L _                      │october   november    december │
+   L L L.                     ─└───────────────────────────────┘
+   januaryT○februaryT○march
+   aprilT○may
+   juneT○julyT○Months
+   augustT○september
+   octoberT○novemberT○december
+   .TE
+
+_I_n_p_u_t:                        _O_u_t_p_u_t:
+   .TS                        ─┌─────────────────────────────────────┐
+   box;                       │        CCCCoooommmmppppoooossssiiiittttiiiioooonnnn ooooffff FFFFooooooooddddssss         │
+   cfB s s s.                 ─├─────────────────────────────────────┤
+   Composition of Foods       │           │    Percent by Weight    │
+   _                          │           │├──────────┬──────┐─────────│
+   .T&                        │   Food    │         │     │ Carbo‐  │
+   c  | c s s                 │           │ Protein │ Fat │ hydrate │
+   c  | c s s                 ─├────────────┼──────────┼──────┼─────────┤
+   c   | c  | c  | c.         │Apples     │    .4   │  .5 │  13.0   │
+   FoodT○Percent by Weight     │Halibut    │  18.4   │ 5.2 │   ...   │
+   \^T○_                       │Lima beans │   7.5   │  .8 │  22.0   │
+   \^T○ProteinT○FatT○Carbo‐      │Milk       │   3.3   │ 4.0 │   5.0   │
+   \^T○\^T○\^T○hydrate           │Mushrooms  │   3.5   │  .4 │   6.0   │
+   _                          │Rye bread  │   9.0   │  .6 │  52.7   │
+   .T&                        ─└────────────┴──────────┴──────┴─────────┘
+   l  | n  | n  | n.
+   ApplesT○.4T○.5T○13.0
+   HalibutT○18.4T○5.2T○...
+   Lima beansT○7.5T○.8T○22.0
+   MilkT○3.3T○4.0T○5.0
+   MushroomsT○3.5T○.4T○6.0
+   Rye breadT○9.0T○.6T○52.7
+   .TE
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+16                                                       _T_B_L
+
+
+_I_n_p_u_t:                        _O_u_t_p_u_t:
+   .TS                        ─┌─────────────┬──────────────────┬─────────────┐
+   allbox;                    │            _N_e_w _Y_o_r_k _A_r_e_a _R_o_c_k_s             │
+   cfI  s   s                 ─├─────────────┬──────────────────┬─────────────┤
+   c    cw(1i)   cw(1i)       │    Era     │    Formation    │ Age (years) │
+   lp9 lp9 lp9 .              ─├─────────────┼──────────────────┼─────────────┤
+   New York Area Rocks        │Precambrian │ Reading Prong   │ >1 billion  │
+   EraT○FormationT○Age (years)  ─├─────────────┼──────────────────┼─────────────┤
+   PrecambrianT○Reading ProngT○>1│Pbailleloizoonic   │ Manhattan Prong │ 400 million │
+   PaleozoicT○Manhattan ProngT○40├─0──m─i─l─l─i─o─n─────┼──────────────────┼─────────────┤
+   MesozoicT○T{                │Mesozoic    │ Newark Basin,   │ 200 million │
+   .na                        │            │ incl.  Stock‐   │             │
+   Newark Basin, incl.        │            │ ton, Lockatong, │             │
+   Stockton, Lockatong, and Bru│nswick      │ and Brunswick   │             │
+   formations; also Watchungs │            │ formations;     │             │
+   and Palisades.             │            │ also Watchungs  │             │
+   .ad                        │            │ and Palisades.  │             │
+   T}T○200 million             ─└─────────────┴──────────────────┴─────────────┘
+   CenozoicT○Coastal PlainT○T{  │Cenozoic    │ Coastal Plain   │ On Long     │
+   .na                        │            │                 │ Island      │
+   On Long Island 30,000 years;│            │                 │ 30,000      │
+   Cretaceous sediments redepos│ited        │                 │ years; Cre‐ │
+   by recent glaciation.      │            │                 │ taceous     │
+   .ad                        │            │                 │ sediments   │
+   T}                         │            │                 │ redeposited │
+   .TE                        │            │                 │ by recent   │
+                              │            │                 │ glaciation. │
+                              ─└─────────────┴──────────────────┴─────────────┘
+
+_I_n_p_u_t:                        _O_u_t_p_u_t:
+   .EQ                        ═╔═══════════════════════════════╗
+   delim $$                   ║ Name         Definition       ║
+   .EN                                        ∞tz−1e−tdt
+                              ║Gamma    Γ(z)=∫0⎽1⎽(eix−e−ix)   ║
+   ...                        ║Sine     sin(x)=2iπcozse(−zts2idntθ)dθ ║
+                              ║Error    erf(z)=⎽1⎽∫20⎽⎽⎽∫0          ║
+   .TS                        ║Bessel   J0(z)=π∞\│π            ║
+   doublebox;                 ║Zeta     ζ(s)= Σ k−s  (Re s>1) ║
+   c c                        ═╚══════════════k═=═1═══════════════╝
+   l l.
+   NameT○Definition
+   .sp
+   .vs +2p
+   GammaT○$GAMMA (z) = int sub 0 sup inf  t sup {z‐1} e sup ‐t dt$
+   SineT○$sin (x) = 1 over 2i ( e sup ix ‐ e sup ‐ix )$
+   ErrorT○$ roman erf (z) = 2 over sqrt pi int sub 0 sup z e sup {‐t sup 2} dt$
+   BesselT○$ J sub 0 (z) = 1 over pi int sub 0 sup pi cos ( z sin theta ) d theta $
+   ZetaT○$ zeta (s) = sum from k=1 to inf k sup ‐s ~~( Re~s > 1)$
+   .vs ‐2p
+   .sp 2p
+   .TE
+
+
+
+
+
+
+
+
+
+
+
+
+_T_B_L                                                       17
+
+
+_I_n_p_u_t:                        _O_u_t_p_u_t:
+   .TS                        ─┌──────────────────────────────────────────┐
+   box, tab(:);               │           RRRReeeeaaaaddddaaaabbbbiiiilllliiiittttyyyy ooooffff TTTTeeeexxxxtttt            │
+   cb s s s s                 │Line Width and Leading for 10‐Point Type  │
+   cp‐2 s s s s               ═╞═════════╦═══════╤═════════╤═════════╤════════╡
+   c || c | c | c | c         │ Line   ║ Set  │1‐Point │2‐Point │4‐Point │
+   c || c | c | c | c         │ Width  ║Solid │Leading │Leading │Leading │
+   r2 || n2 | n2 | n2 | n.    ─├─────────╫───────┼─────────┼─────────┼────────┤
+   Readability of Text        │ 9 Pica ║-9.3  │ -6.0   │ -5.3   │ -7.1   │
+   Line Width and Leading for 1│01‐4PoPiincta T║y-p4e.5  │ -0.6   │ -0.3   │ -1.7   │
+   =                          │19 Pica ║-5.0  │ -5.1   │  0.0   │ -2.0   │
+   Line:Set:1‐Point:2‐Point:4‐P│o3i1ntPica ║-3.7  │ -3.8   │ -2.4   │ -3.6   │
+   Width:Solid:Leading:Leading:│L4e3adPiincga ║-9.1  │ -9.0   │ -5.9   │ -8.8   │
+   _                          ─└─────────╨───────┴─────────┴─────────┴────────┘
+   9 Pica:\-9.3:\-6.0:\-5.3:\-7.1
+   14 Pica:\-4.5:\-0.6:\-0.3:\-1.7
+   19 Pica:\-5.0:\-5.1: 0.0:\-2.0
+   31 Pica:\-3.7:\-3.8:\-2.4:\-3.6
+   43 Pica:\-9.1:\-9.0:\-5.9:\-8.8
+   .TE
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+18                                                       _T_B_L
+
+
+_I_n_p_u_t:                        _O_u_t_p_u_t:
+   .TS                             Some London Transport Statistics
+   c s                                        (_Y_e_a_r _1_9_6_4)
+   cip‐2 s                    Railway route miles                 244
+   l n                           Tube                              66
+   a n.                          Sub‐surface                       22
+   Some London Transport StatisticSsurface                          156
+   (Year 1964)                Passenger traffic − railway
+   Railway route milesT○244       Journeys                     674 million
+   TubeT○66                       Average length                4.55 miles
+   Sub‐surfaceT○22                Passenger miles            3,066 million
+   SurfaceT○156                Passenger traffic − road
+   .sp .5                        Journeys                   2,252 million
+   .T&                           Average length                2.26 miles
+   l r                           Passenger miles            5,094 million
+   a r.                       Vehicles                         12,521
+   Passenger traffic \- railway  Railway motor cars             2,905
+   JourneysT○674 million          Railway trailer cars           1,269
+   Average lengthT○4.55 miles     Total railway                  4,174
+   Passenger milesT○3,066 million Omnibuses                      8,347
+   .T&                        Staff                            73,739
+   l r                           Administrative, etc.           5,582
+   a r.                          Civil engineering              5,134
+   Passenger traffic \- road     Electrical eng.                1,714
+   JourneysT○2,252 million        Mech. eng. − railway           4,310
+   Average lengthT○2.26 miles     Mech. eng. − road              9,152
+   Passenger milesT○5,094 million Railway operations             8,930
+   .T&                           Road operations               35,946
+   l n                           Other                          2,971
+   a n.
+   .sp .5
+   VehiclesT○12,521
+   Railway motor carsT○2,905
+   Railway trailer carsT○1,269
+   Total railwayT○4,174
+   OmnibusesT○8,347
+   .T&
+   l n
+   a n.
+   .sp .5
+   StaffT○73,739
+   Administrative, etc.T○5,582
+   Civil engineeringT○5,134
+   Electrical eng.T○1,714
+   Mech. eng. \- railwayT○4,310
+   Mech. eng. \- roadT○9,152
+   Railway operationsT○8,930
+   Road operationsT○35,946
+   OtherT○2,971
+   .TE
+
+
+
+
+
+
+
+
+
+
+
+
+
+_T_B_L                                                       19
+
+
+_I_n_p_u_t:
+   .ps 8
+   .vs 10p
+   .TS
+   center box;
+   c s s
+   ci s s
+   c c c
+   lB l n.
+   New Jersey Representatives
+   (Democrats)
+   .sp .5
+   NameT○Office addressT○Phone
+   .sp .5
+   James J. FlorioT○23 S. White Horse Pike, Somerdale 08083T○609‐627‐8222
+   William J. HughesT○2920 Atlantic Ave., Atlantic City 08401T○609‐345‐4844
+   James J. HowardT○801 Bangs Ave., Asbury Park 07712T○201‐774‐1600
+   Frank Thompson, Jr.T○10 Rutgers Pl., Trenton 08618T○609‐599‐1619
+   Andrew MaguireT○115 W. Passaic St., Rochelle Park 07662T○201‐843‐0240
+   Robert A. RoeT○U.S.P.O., 194 Ward St., Paterson 07510T○201‐523‐5152
+   Henry HelstoskiT○666 Paterson Ave., East Rutherford 07073T○201‐939‐9090
+   Peter W. Rodino, Jr.T○Suite 1435A, 970 Broad St., Newark 07102T○201‐645‐3213
+   Joseph G. MinishT○308 Main St., Orange 07050T○201‐645‐6363
+   Helen S. MeynerT○32 Bridge St., Lambertville 08530T○609‐397‐1830
+   Dominick V. DanielsT○895 Bergen Ave., Jersey City 07306T○201‐659‐7700
+   Edward J. PattenT○Natl. Bank Bldg., Perth Amboy 08861T○201‐826‐4610
+   .sp .5
+   .T&
+   ci s s
+   lB l n.
+   (Republicans)
+   .sp .5v
+   Millicent FenwickT○41 N. Bridge St., Somerville 08876T○201‐722‐8200
+   Edwin B. ForsytheT○301 Mill St., Moorestown 08057T○609‐235‐6622
+   Matthew J. RinaldoT○1961 Morris Ave., Union 07083T○201‐687‐4235
+   .TE
+   .ps 10
+   .vs 12p
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+20                                                       _T_B_L
+
+
+_O_u_t_p_u_t:
+─┌───────────────────────────────────────────────────────────────────────────────┐
+│                          New Jersey Representatives                           │
+│                                 (_D_e_m_o_c_r_a_t_s)                                   │
+│        Name                        Office address                   Phone     │
+│JJJJaaaammmmeeeessss JJJJ.... FFFFlllloooorrrriiiioooo        23 S. White Horse Pike, Somerdale 08083    609‐627‐8222 │
+│WWWWiiiilllllllliiiiaaaammmm JJJJ.... HHHHuuuugggghhhheeeessss      2920 Atlantic Ave., Atlantic City 08401    609‐345‐4844 │
+│JJJJaaaammmmeeeessss JJJJ.... HHHHoooowwwwaaaarrrrdddd        801 Bangs Ave., Asbury Park 07712          201‐774‐1600 │
+│FFFFrrrraaaannnnkkkk TTTThhhhoooommmmppppssssoooonnnn,,,, JJJJrrrr....    10 Rutgers Pl., Trenton 08618              609‐599‐1619 │
+│AAAAnnnnddddrrrreeeewwww MMMMaaaagggguuuuiiiirrrreeee         115 W. Passaic St., Rochelle Park 07662    201‐843‐0240 │
+│RRRRoooobbbbeeeerrrrtttt AAAA.... RRRRooooeeee          U.S.P.O., 194 Ward St., Paterson 07510     201‐523‐5152 │
+│HHHHeeeennnnrrrryyyy HHHHeeeellllssssttttoooosssskkkkiiii        666 Paterson Ave., East Rutherford 07073   201‐939‐9090 │
+│PPPPeeeetttteeeerrrr WWWW.... RRRRooooddddiiiinnnnoooo,,,, JJJJrrrr....   Suite 1435A, 970 Broad St., Newark 07102   201‐645‐3213 │
+│JJJJoooosssseeeepppphhhh GGGG.... MMMMiiiinnnniiiisssshhhh       308 Main St., Orange 07050                 201‐645‐6363 │
+│HHHHeeeelllleeeennnn SSSS.... MMMMeeeeyyyynnnneeeerrrr        32 Bridge St., Lambertville 08530          609‐397‐1830 │
+│DDDDoooommmmiiiinnnniiiicccckkkk VVVV.... DDDDaaaannnniiiieeeellllssss    895 Bergen Ave., Jersey City 07306         201‐659‐7700 │
+│EEEEddddwwwwaaaarrrrdddd JJJJ.... PPPPaaaatttttttteeeennnn       Natl. Bank Bldg., Perth Amboy 08861        201‐826‐4610 │
+│                                (_R_e_p_u_b_l_i_c_a_n_s)                                  │
+│MMMMiiiilllllllliiiicccceeeennnntttt FFFFeeeennnnwwwwiiiicccckkkk      41 N. Bridge St., Somerville 08876         201‐722‐8200 │
+│EEEEddddwwwwiiiinnnn BBBB.... FFFFoooorrrrssssyyyytttthhhheeee      301 Mill St., Moorestown 08057             609‐235‐6622 │
+│MMMMaaaatttttttthhhheeeewwww JJJJ.... RRRRiiiinnnnaaaallllddddoooo     1961 Morris Ave., Union 07083              201‐687‐4235 │
+─└───────────────────────────────────────────────────────────────────────────────┘
+
+This is a paragraph of normal text placed here only to indi‐
+cate  where the left and right margins are.  In this way the
+reader can  judge  the  appearance  of  centered  tables  or
+expanded tables, and observe how such tables are formatted.
+
+_I_n_p_u_t:
+   .TS
+   expand;
+   c s s s
+   c c c c
+   l l n n.
+   Bell Labs Locations
+   NameT○AddressT○Area CodeT○Phone
+   HolmdelT○Holmdel, N. J. 07733T○201T○949‐3000
+   Murray HillT○Murray Hill, N. J. 07974T○201T○582‐6377
+   WhippanyT○Whippany, N. J. 07981T○201T○386‐3000
+   Indian HillT○Naperville, Illinois 60540T○312T○690‐2000
+   .TE
+
+_O_u_t_p_u_t:
+                      Bell Labs Locations
+   Name                Address             Area Code    Phone
+Holmdel       Holmdel, N. J. 07733            201      949‐3000
+Murray Hill   Murray Hill, N. J. 07974        201      582‐6377
+Whippany      Whippany, N. J. 07981           201      386‐3000
+Indian Hill   Naperville, Illinois 60540      312      690‐2000
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+_T_B_L                                                       21
+
+
+_I_n_p_u_t:
+   .TS
+   box;
+   cb   s   s   s
+   c | c | c   s
+   ltiw(1i) | ltw(2i) | lp8 | lw(1.6i)p8.
+   Some Interesting Places
+   _
+   NameT○DescriptionT○Practical Information
+   _
+   T{
+   American Museum of Natural History
+   T}T○T{
+   The collections fill 11.5 acres (Michelin) or 25 acres (MTA)
+   of exhibition halls on four floors.
+   There is a full‐sized replica
+   of a blue whale and the world’s largest star sapphire (stolen in 1964).
+   T}T○HoursT○10‐5, ex. Sun 11‐5, Wed. to 9
+   \^T○\^T○LocationT○T{
+   Central Park West & 79th St.
+   T}
+   \^T○\^T○AdmissionT○Donation: $1.00 asked
+   \^T○\^T○SubwayT○AA to 81st St.
+   \^T○\^T○TelephoneT○212‐873‐4225
+   _
+   Bronx ZooT○T{
+   About a mile long and .6 mile wide, this is the largest zoo in America.
+   A lion eats 18 pounds
+   of meat a day while a sea lion eats 15 pounds of fish.
+   T}T○HoursT○T{
+   10‐4:30 winter, to 5:00 summer
+   T}
+   \^T○\^T○LocationT○T{
+   185th St. & Southern Blvd, the Bronx.
+   T}
+   \^T○\^T○AdmissionT○$1.00, but Tu,We,Th free
+   \^T○\^T○SubwayT○2, 5 to East Tremont Ave.
+   \^T○\^T○TelephoneT○212‐933‐1759
+   _
+   Brooklyn MuseumT○T{
+   Five floors of galleries contain American and ancient art.
+   There are American period rooms and architectural ornaments saved
+   from wreckers, such as a classical figure from Pennsylvania Station.
+   T}T○HoursT○Wed‐Sat, 10‐5, Sun 12‐5
+   \^T○\^T○LocationT○T{
+   Eastern Parkway & Washington Ave., Brooklyn.
+   T}
+   \^T○\^T○AdmissionT○Free
+   \^T○\^T○SubwayT○2,3 to Eastern Parkway.
+   \^T○\^T○TelephoneT○212‐638‐5000
+   _
+   T{
+   New‐York Historical Society
+   T}T○T{
+
+
+
+
+
+
+
+
+
+22                                                       _T_B_L
+
+
+   All the original paintings for Audubon’s
+   .I
+   Birds of America
+   .R
+   are here, as are exhibits of American decorative arts, New York history,
+   Hudson River school paintings, carriages, and glass paperweights.
+   T}T○HoursT○T{
+   Tues‐Fri & Sun, 1‐5; Sat 10‐5
+   T}
+   \^T○\^T○LocationT○T{
+   Central Park West & 77th St.
+   T}
+   \^T○\^T○AdmissionT○Free
+   \^T○\^T○SubwayT○AA to 81st St.
+   \^T○\^T○TelephoneT○212‐873‐3400
+   .TE
+
+_O_u_t_p_u_t:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+_T_B_L                                                       23
+
+
+─┌─────────────────┬───────────────────────┬───────────────────────────────────────────┐
+│                             SSSSoooommmmeeee IIIInnnntttteeeerrrreeeessssttttiiiinnnngggg PPPPllllaaaacccceeeessss                               │
+─├─────────────────┬───────────────────────┬───────────────────────────────────────────┤
+│     Name       │     Description      │           Practical Information           │
+─├─────────────────┼───────────────────────┼────────────┬───────────────────────────────┤
+│_A_m_e_r_i_c_a_n _M_u_s_e_u_m │││││ The collections fill │ Hours     │ 10‐5, ex. Sun 11‐5, Wed. to 9 │
+│_o_f _N_a_t_u_r_a_l _H_i_s‐   11.5  acres  (Miche‐ │ Location  │ Central Park West & 79th St.  │
+│_t_o_r_y              lin)  or  25   acres │ Admission │ Donation: $1.00 asked         │
+│                  (MTA)  of exhibition │ Subway    │ AA to 81st St.                │
+│                  halls    on     four │ Telephone │ 212‐873‐4225                  │
+│                │ floors.   There is a │           │                               │
+│                │ full‐sized   replica │           │                               │
+│                │ of  a blue whale and │           │                               │
+│                │ the world’s  largest │           │                               │
+│                │ star        sapphire │           │                               │
+│                │ (stolen in 1964).    │           │                               │
+─├─────────────────┼───────────────────────┼────────────┼───────────────────────────────┤
+│_B_r_o_n_x _Z_o_o       │││││ About  a  mile  long │ Hours     │ 10‐4:30 winter, to 5:00  sum‐ │
+│                │ and  .6  mile  wide, │           │ mer                           │
+│                  this is the  largest │ Location  │ 185th St.  &  Southern  Blvd, │
+│                │ zoo  in  America.  A │           │ the Bronx.                    │
+│                  lion eats 18  pounds │ Admission │ $1.00, but Tu,We,Th free      │
+│                  of  meat a day while │ Subway    │ 2, 5 to East Tremont Ave.     │
+│                  a sea lion  eats  15 │ Telephone │ 212‐933‐1759                  │
+│                │ pounds of fish.      │           │                               │
+─├─────────────────┼───────────────────────┼────────────┼───────────────────────────────┤
+│_B_r_o_o_k_l_y_n _M_u_s_e_u_m │││││ Five floors of  gal‐ │ Hours     │ Wed‐Sat, 10‐5, Sun 12‐5       │
+│                  leries contain Amer‐ │ Location  │ Eastern Parkway &  Washington │
+│                │ ican   and   ancient │           │ Ave., Brooklyn.               │
+│                  art.     There   are │ Admission │ Free                          │
+│                  American      period │ Subway    │ 2,3 to Eastern Parkway.       │
+│                  rooms  and architec‐ │ Telephone │ 212‐638‐5000                  │
+│                │ tural      ornaments │           │                               │
+│                │ saved from wreckers, │           │                               │
+│                │ such as a  classical │           │                               │
+│                │ figure from Pennsyl‐ │           │                               │
+│                │ vania Station.       │           │                               │
+─├─────────────────┼───────────────────────┼────────────┼───────────────────────────────┤
+│_N_e_w‐_Y_o_r_k   _H_i_s‐ ││││ All   the   original │ Hours     │ Tues‐Fri & Sun, 1‐5; Sat 10‐5 │
+│_t_o_r_i_c_a_l _S_o_c_i_e_t_y   paintings        for │ Location  │ Central Park West & 77th St.  │
+│                  Audubon’s  _B_i_r_d_s  _o_f │ Admission │ Free                          │
+│                  _A_m_e_r_i_c_a are here, as │ Subway    │ AA to 81st St.                │
+│                │ are   exhibits    of │ Telephone │ 212‐873‐3400                  │
+│                │ American  decorative │           │                               │
+│                │ arts, New York  his‐ │           │                               │
+│                │ tory,  Hudson  River │           │                               │
+│                │ school    paintings, │           │                               │
+│                │ carriages, and glass │           │                               │
+│                │ paperweights.        │           │                               │
+─└─────────────────┴───────────────────────┴────────────┴───────────────────────────────┘
+
+
+
+
+
+
+
+
+
+
+
+
+
+24                                                       _T_B_L
+
+
+_A_C_K_N_O_W_L_E_D_G_E_M_E_N_T_S
+
+     Many thanks are due to J. C.  Blinn,  who  has  done  a
+large  amount of testing and assisted with the design of the
+program.  He has also written many of the more  intelligible
+sentences  in  this document and helped edit all of it.  All
+phototypesetting programs on UNIX are dependent on the  work
+of  the  late J. F. Ossanna, whose assistance with this pro‐
+gram in particular had been most helpful.  This  program  is
+patterned on a table formatter written by J. F. Gimpel.  The
+assistance of T. A. Dolotta, B.  W.  Kernighan,  and  J.  N.
+Sturman is gratefully acknowledged.
+
+_R_E_F_E_R_E_N_C_E_S
+
+[1]  J. F. Ossanna.  _N_R_O_F_F/_T_R_O_F_F _U_s_e_r’_s _M_a_n_u_a_l, Bell Labora‐
+     tories, 1976.
+[2]  D. M. Ritchie and K. Thompson.  The  UNIX  Time‐Sharing
+     System, _C_A_C_M 11117777(7):365‐75 (July 1974).
+[3]  B. W.  Kernighan  and  L.  L.  Cherry.   A  System  for
+     Typesetting Mathematics, _C_A_C_M 11118888(3):151‐56 (Mar. 1975).
+[4]  M. E. Lesk.  _T_y_p_i_n_g _D_o_c_u_m_e_n_t_s  _o_n  _U_N_I_X,  Bell  Labora‐
+     tories, 1976.
+[5]  M. E. Lesk and B. W. Kernighan.   Computer  Typesetting
+     of  Technical  Journals  on UNIX, _P_r_o_c. _A_F_I_P_S _N_C_C, vol.
+     46, pp. 879‐88 (1977).
+[6]  D. W. Smith and J. R.  Mashey.   _M_M-_M_e_m_o_r_a_n_d_u_m  _M_a_c_r_o_s,
+     Bell Laboratories, 1980.
+
+
+
+          _L_i_s_t _o_f _T_b_l _C_o_m_m_a_n_d _C_h_a_r_a_c_t_e_r_s _a_n_d _W_o_r_d_s
+
+    _C_o_m_m_a_n_d                   _M_e_a_n_i_n_g               _S_e_c_t_i_o_n
+  aaaa AAAA             Alphabetic subcolumn                  2
+  aaaallllllllbbbbooooxxxx          Draw box around all items             1
+  bbbb BBBB             Boldface item                         2
+  bbbbooooxxxx             Draw box around table                 1
+  cccc CCCC             Centered column                       2
+  cccceeeennnntttteeeerrrr          Center table in page                  1
+  ddddeeeelllliiiimmmm (_x_y)      Define _e_q_n delimiters                 1
+  ddddoooouuuubbbblllleeeebbbbooooxxxx       Draw double box around table          1
+  eeee EEEE             Equal‐width columns                   2
+  eeeexxxxppppaaaannnndddd          Make table full line width            1
+  ffff FFFF             Font change                           2
+  iiii IIII             Italic item                           2
+  llll LLLL             Left adjusted column                  2
+  lllliiiinnnneeeessssiiiizzzzeeee (_n)    Set size for rules                    1
+  nnnn NNNN             Numerical column                      2
+  _n_n_n             Column separation                     2
+  pppp PPPP             Point size change                     2
+  rrrr RRRR             Right adjusted column                 2
+  ssss SSSS             Spanned item                          2
+  tttt TTTT             Vertical spanning at top              2
+
+
+
+
+
+
+
+
+
+_T_B_L                                                       25
+
+
+  ttttaaaabbbb (_x)         Change data separator character       1
+  TTTT{{{{............TTTT}}}}         Text block                            3
+  uuuu UUUU             Staggered columns                     2
+  vvvv VVVV             Vertical spacing change               2
+  wwww WWWW             Minimum width value                   2
+  zzzz ZZZZ             Zero‐width item                       2
+  ...._x_x             Included _t_r_o_f_f request                3
+  ⎪⎪⎪⎪               Vertical line                         2
+  ⎪⎪⎪⎪⎪⎪⎪⎪              Double vertical line                  2
+  ^^^^               Vertical span                         2
+  \\\\^^^^              Vertical span                         3
+  ====               Double horizontal line              2,3
+  ____               Horizontal line                     2,3
+  \\\\____              Short horizontal line                 3
+  \\\\RRRR_x             Repeat character                      3
+  ----               Name of standard input             Usage
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

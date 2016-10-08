@@ -1,0 +1,168 @@
+37
+bset	0
+breset	0
+Hor	24
+Vert	20
+Newline	40
+Char	24
+Em	24
+Halfline	20
+Adj	24
+twinit	""
+twrest	""
+twnl	"\n"
+hlr	"\0338"
+hlf	"\0339"
+flr	"\0337"
+bdon	""
+bdoff	""
+iton	""
+itoff	""
+ploton	""
+plotoff	""
+up	""
+down	""
+right	""
+left	""
+
+charset
+em 2 --
+hy 1 -
+\- 1 -
+en 1 -
+rs 1 %\134
+dq 1 %\042
+bu 1 +\bo
+sq 2 \[]
+ru 1 _
+14 3 1/4
+12 3 1/2
+34 3 3/4
+fi 2 fi
+fl 2 fl
+ff 2 ff
+Fi 3 ffi
+Fl 3 ffl
+de 1 \0338o\0339
+dg 1 |\b-
+fm 1 '
+ct 1 c\b/
+rg 1 \0338r\0339
+co 1 \0338c\0339
+pl 1 +
+mi 1 -
+eq 1 =
+** 1 *
+sc 1 j\bf
+aa 1 '
+aq 1 '
+oq 1 '
+cq 1 '
+ga 1 `
+ul 1 _
+sl 1 /
+*a 1 \016A\017
+*b 1 \016B\017
+*g 1 \016\\\017
+*d 1 \016D\017
+*e 1 \016S\017
+*z 1 \016Q\017
+*y 1 \016N\017
+*h 1 \016T\017
+*i 1 ,\bi
+*k 1 k
+*l 1 \016L\017
+*m 1 \016M\017
+*n 1 \016@\017
+*c 1 \016X\017
+*o 1 o
+*p 1 \016J\017
+*r 1 \016K\017
+*s 1 \016Y\017
+*t 1 \016I\017
+*u 1 u
+*f 1 \016U\017
+*x 1 x
+*q 1 \016V\017
+*w 1 \016C\017
+*A 1 A
+*B 1 B
+*G 1 \016G\017
+*D 1 \016W\017
+*E 1 E
+*Z 1 Z
+*Y 1 H
+*H 1 \016O\017
+*I 1 I
+*K 1 K
+*L 1 \016E\017
+*M 1 M
+*N 1 N
+*C 1 _\b-\b~
+*O 1 O
+*P 1 \016P\017
+*R 1 P
+*S 1 \016R\017
+*T 1 T
+*U 1 Y
+*F 1 \016F\017
+*X 1 X
+*Q 1 \016H\017
+*W 1 \016Z\017
+ts 1 s
+sr 2 \\/
+rn 1 \0338_\0339
+>= 1 _\b>
+<= 1 _\b<
+== 1 _\b=
+~= 1 ~\b=
+ap 1 \0339~\0338
+!= 1 =\b/
+-> 2 ->
+<- 2 <-
+ua 1 |\b^
+da 1 |\bv
+mu 1 x
+di 1 -\b:
++- 1 +\b_
+cu 1 U
+ca 3 (^)
+sb 2 (_\b~
+sp 2 _\b~)
+ib 2 (~\b_\b=
+ip 2 ~\b_\b=)
+if 2 oo
+pd 1 \016]\017
+gr 1 \016[\017
+no 1 \016_\017
+is 1 \016^\017
+pt 2 oc
+es 1 O\b/
+mo 1 -\bC
+br 1 |
+dd 1 |\b=
+rh 2 =>
+rA 2 =>
+lh 2 <=
+or 1 |
+ci 1 O
+lt 1 (
+lb 1 (
+rt 1 )
+rb 1 )
+lk 1 |
+rk 1 |
+bv 1 |
+lf 1 |
+rf 1 |
+lc 1 |
+rc 1 |
+ba 1 |
+la 1 <
+ra 1 >
+a~ 1 ~
+sh 1 #
+ha 1 ^
+Do 1 $
+lq 1 \"
+rq 1 \"

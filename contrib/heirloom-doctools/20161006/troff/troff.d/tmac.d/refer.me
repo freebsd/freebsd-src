@@ -1,0 +1,129 @@
+.\"
+.\" Copyright 2005 Sun Microsystems, Inc.  All rights reserved.
+.\" Use is subject to license terms.
+.\"
+.\" CDDL HEADER START
+.\"
+.\" The contents of this file are subject to the terms of the
+.\" Common Development and Distribution License, Version 1.0 only
+.\" (the "License").  You may not use this file except in compliance
+.\" with the License.
+.\"
+.\" You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+.\" or http://www.opensolaris.org/os/licensing.
+.\" See the License for the specific language governing permissions
+.\" and limitations under the License.
+.\"
+.\" When distributing Covered Code, include this CDDL HEADER in each
+.\" file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+.\" If applicable, add the following below this CDDL HEADER, with the
+.\" fields enclosed by brackets "[]" replaced with your own identifying
+.\" information: Portions Copyright [yyyy] [name of copyright owner]
+.\"
+.\" CDDL HEADER END
+.\"
+.\"ident	"@(#)refer.me	1.5	05/06/08 SMI"
+.\"
+.\" University Copyright- Copyright (c) 1982, 1986, 1988
+.\" The Regents of the University of California
+.\" All Rights Reserved
+.\"
+.\" University Acknowledgment- Portions of this document are derived from
+.\" software developed by the University of California, Berkeley, and its
+.\" contributors.
+.\"
+.nr _0 \n(c.
+.\"	@(#)refer.me	2.2	8/17/84
+.de ][
+.if \\$1>5 .tm Bad arg to []
+.[\\$1
+..
+.de [0
+.(f
+.ip "\\*([F.\0"
+.if !"\\*([A"" \\*([A,
+.if !"\\*([T"" \\f2\\*([T\\f1\c
+.if !"\\*([T"" .if !"\\*([O"" ,\ 
+.ie !"\\*([O"" \\*([O
+.el .if !"\\*([T"" \&.
+.if !"\\*([D"" \\*([D.
+.@p
+.)f
+..
+.de [1
+.(f
+.ip "\\*([F.\0"
+\\*([A,
+.if !"\\*([T"" \\*(lq\\*([T,\\*(rq
+.if "\\*([V"" \\f2\\*([J\\f1,
+.if !"\\*([V"" \\f2\\*([J\\f1
+.if !"\\*([V"" .if n Vol.\&
+.if !"\\*([V"" \\f3\\*([V\\f1\c
+.if !"\\*([N"" (\\*([N)\c
+.if !"\\*([P"" \
+\{\
+.	ie \\n([P>0 \ pp.\&
+.	el \ p.\&
+\\*([P
+.\}
+.if !"\\*([I"" .if "\\*([R"" \\*([I,
+(\\*([D).
+.if !"\\*([O"" \\*([O
+.)f
+..
+.de [2
+.(f
+.ip "\\*([F.\0"
+\\*([A, \\f2\\*([T,\\f1
+\\*([I\c
+.if !"\\*([C"" , \\*([C\c
+ (\\*([D).
+.if !"\\*([G"" Gov't. ordering no. \\*([G
+.if !"\\*([O"" \\*([O
+.)f
+..
+.de [3
+.(f
+.ip "\\*([F.\0"
+\\*([A, \\*(lq\\*([T,\\*(rq
+.if !"\\*([P"" pp. \\*([P
+in \\f2\\*([B\\f1, \c
+.if !"\\*([E"" ed. \\*([E,\c
+.if !"\\*([I"" \\*([I\c
+.if !"\\*([C"" ,  \\*([C\c
+ (\\*([D).
+.if !"\\*([O"" \\*([O
+.)f
+..
+.de [4
+.(f
+.ip "\\*([F.\0"
+\\*([A, \\*(lq\\*([T,\\*(rq
+\\*([R\c
+.if !"\\*([G"" \& (\\*([G)\c
+.if !"\\*([I"" ,  \\*([I\c
+.if !"\\*([C"" ,  \\*([C\c
+ (\\*([D).
+.if !"\\*([O"" \\*([O
+.)f
+..
+.de [5
+.(f
+.ip "\\*([F.\0"
+\\*([A, \\f2\\*([T\\f1,
+.ie \\n(TN \\*([M.
+.el Bell Laboratories internal memorandum (\\*([D).
+.)f
+..
+.de ]<
+.$p References
+.lp
+.rm (f )f
+..
+.de ]>
+.sp
+..
+.de ]-
+.rm [V [P [A [T [N [C [B [O [R [I [E [D
+..
+.nr c. \n(_0

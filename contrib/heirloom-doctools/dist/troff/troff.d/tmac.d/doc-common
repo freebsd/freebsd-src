@@ -1,0 +1,489 @@
+.\" Copyright (c) 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     from 4.4BSD doc-common	8.1 (Berkeley) 6/8/93
+.\"
+.\" Portions Copyright (c) 2005 Gunnar Ritter, Freiburg i. Br., Germany
+.\" Portions Copyright (c) 2014 Carsten Kunze <carsten.kunze@arcor.de>
+.\"
+.\" Sccsid @(#)doc-common	1.2 (gritter) 11/16/05
+.\"
+.\"     %beginstrip%
+.nr %A 1
+.nr %J 1
+.nr %N 1
+.nr %O 1
+.nr %R 1
+.nr %T 1
+.nr %V 1
+.nr Ad 12n
+.nr Ac 3
+.nr An 12n
+.nr Ao 12n
+.nr Ap 2
+.nr Aq 12n
+.nr Ar 12n
+.nr At 4
+.nr Bc 3
+.nr Bl 1
+.nr Bo 12n
+.nr Bq 12n
+.nr Brc 3
+.nr Bro 12n
+.nr Brq 12n
+.nr Bsx 4 \" groff: 1
+.nr Bx 4
+.nr Cd 12n
+.nr Cm 10n
+.nr Dc 3
+.nr Do 10n
+.nr Dq 12n
+.nr Ds 6n
+.nr Dq 12n
+.nr Dv 12n
+.nr Dx 4 \" groff: 1
+.nr Ec 3
+.nr El 1
+.nr Eo 12n
+.nr Eq 12n
+.nr Em 10n
+.nr Er 17n
+.nr Ev 15n
+.nr Fa 12n
+.nr Fl 10n
+.nr Fc 3
+.nr Fo 16n
+.nr Fn 16n
+.nr Ft 8n\" ? (groff)
+.nr Fx 4
+.nr I1 6n
+.nr I2 12n
+.nr I3 18n
+.nr Ic 10n
+.nr In 12n
+.nr Lb 11n
+.nr Li 16n
+.nr Lk 32n
+.nr Ms 6n
+.nr Mt 32n
+.nr Nm 10n
+.nr No 12n
+.nr Ns 2
+.nr Nx 4
+.nr Oo 10n
+.nr Oc 3
+.nr Op 14n
+.nr Ox 4
+.nr Pa 32n
+.nr Pf 12n
+.nr Pc 3
+.nr Po 12n
+.nr Pq 12n
+.nr Qc 3
+.nr Ql 16n
+.nr Qo 12n
+.nr Qq 12n
+.nr Sc 3
+.nr Sh 8n \" groff
+.nr Sm 8n
+.nr So 12n
+.nr Sq 12n
+.nr Ss 3  \" groff: 8n
+.nr St 8n \" groff
+.nr Sx 16n
+.nr Sy 6n
+.nr Rv 1
+.nr Tn 10n
+.nr Ta 2
+.nr Tv 1
+.nr Tx 22n
+.nr Ux 4
+.nr Va 12n
+.nr Vt 12n
+.nr Xc 3
+.nr Xo 1
+.nr Xr 10n
+.ds mdoc.cm.%A
+.ds mdoc.cm.%J
+.ds mdoc.cm.%N
+.ds mdoc.cm.%O
+.ds mdoc.cm.%R
+.ds mdoc.cm.%T
+.ds mdoc.cm.%V
+.ds mdoc.cm.Ad
+.ds mdoc.cm.Ac
+.ds mdoc.cm.An
+.ds mdoc.cm.Ao
+.ds mdoc.cm.Ap
+.ds mdoc.cm.Aq
+.ds mdoc.cm.Ar
+.ds mdoc.cm.At
+.ds mdoc.cm.Bc
+.ds mdoc.cm.Bl
+.ds mdoc.cm.Bo
+.ds mdoc.cm.Bq
+.ds mdoc.cm.Brc
+.ds mdoc.cm.Bro
+.ds mdoc.cm.Brq
+.ds mdoc.cm.Bsx
+.ds mdoc.cm.Bx
+.ds mdoc.cm.Cd
+.ds mdoc.cm.Cm
+.ds mdoc.cm.Dc
+.ds mdoc.cm.Do
+.ds mdoc.cm.Dq
+.ds mdoc.cm.Ds
+.ds mdoc.cm.Dq
+.ds mdoc.cm.Dv
+.ds mdoc.cm.Dx
+.ds mdoc.cm.Ec
+.ds mdoc.cm.El
+.ds mdoc.cm.Eo
+.ds mdoc.cm.Eq
+.ds mdoc.cm.Em
+.ds mdoc.cm.Er
+.ds mdoc.cm.Ev
+.ds mdoc.cm.Fa
+.ds mdoc.cm.Fl
+.ds mdoc.cm.Fc
+.ds mdoc.cm.Fo
+.ds mdoc.cm.Fn
+.ds mdoc.cm.Ft
+.ds mdoc.cm.Fx
+.ds mdoc.cm.I1
+.ds mdoc.cm.I2
+.ds mdoc.cm.I3
+.ds mdoc.cm.Ic
+.ds mdoc.cm.In
+.ds mdoc.cm.Lb
+.ds mdoc.cm.Li
+.ds mdoc.cm.Lk
+.ds mdoc.cm.Ms
+.ds mdoc.cm.Mt
+.ds mdoc.cm.Nm
+.ds mdoc.cm.No
+.ds mdoc.cm.Ns
+.ds mdoc.cm.Nx
+.ds mdoc.cm.Oo
+.ds mdoc.cm.Oc
+.ds mdoc.cm.Op
+.ds mdoc.cm.Ox
+.ds mdoc.cm.Pa
+.ds mdoc.cm.Pf
+.ds mdoc.cm.Pc
+.ds mdoc.cm.Po
+.ds mdoc.cm.Pq
+.ds mdoc.cm.Qc
+.ds mdoc.cm.Ql
+.ds mdoc.cm.Qo
+.ds mdoc.cm.Qq
+.ds mdoc.cm.Sc
+.ds mdoc.cm.Sh
+.ds mdoc.cm.Sm
+.ds mdoc.cm.So
+.ds mdoc.cm.Sq
+.ds mdoc.cm.Ss
+.ds mdoc.cm.St
+.ds mdoc.cm.Sx
+.ds mdoc.cm.Sy
+.ds mdoc.cm.Rv
+.ds mdoc.cm.Tn
+.ds mdoc.cm.Ta
+.ds mdoc.cm.Tv
+.ds mdoc.cm.Tx
+.ds mdoc.cm.Ux
+.ds mdoc.cm.Va
+.ds mdoc.cm.Vt
+.ds mdoc.cm.Xc
+.ds mdoc.cm.Xo
+.ds mdoc.cm.Xr
+.ds mdoc.ncm.It
+.ds sV \& \&
+.ds hV \&\ \&
+.ds iV \& \&
+.ds tV \&\\t\&
+.\" Punctuation values (3 = closing punctuation, 4 = opening)
+.ds z. 3
+.ds z! 3
+.ds z? 3
+.ds z, 3
+.ds z: 3
+.ds z; 3
+.ds z( 4
+.ds z) 3
+.ds z[ 4
+.ds z] 3
+.ds mdoc.d.0
+.ds mdoc.d.1
+.ds mdoc.d.2
+.ds mdoc.d.3
+.ds mdoc.d.4
+.ds mdoc.d.5
+.ds mdoc.d.6
+.ds mdoc.d.7
+.ds mdoc.d.8
+.ds mdoc.d.9
+.\" Header assembly macros
+.de Dt
+.ds dT UNTITLED
+.ds vT LOCAL
+.ds cH Null
+.if !\\$1 .ds dT \\$1
+.if !\\$2 \{\
+.	ds cH \\$2
+.	ie \B\\$2 .if \\$2>=1 .if \\$2<=9 \{\
+.		lds _OS_ BSD \"
+.		ie     \\$2=1 .ds vT \\*[_OS_]General Commands Manual
+.		el .ie \\$2=2 .ds vT \\*[_OS_]System Calls Manual
+.		el .ie \\$2=3 .ds vT \\*[_OS_]Library Functions Manual
+.		el .ie \\$2=4 .ds vT \\*[_OS_]Kernel Interfaces Manual
+.		el .ie \\$2=5 .ds vT \\*[_OS_]File Formats Manual
+.		el .ie \\$2=6 .ds vT \\*[_OS_]Games Manual
+.		el .ie \\$2=7 .ds vT \\*[_OS_]Miscellaneous Information Manual
+.		el .ie \\$2=8 .ds vT \\*[_OS_]System Manager's Manual
+.		el            .ds vT \\*[_OS_]Kernel Developer's Manual
+.		nr sN \\$2
+.	\}
+.	el .ie \\$2unass .ds vT DRAFT
+.	el .ie \\$2draft .ds vT DRAFT
+.	if     \\$2paper .ds vT UNTITLED
+.\}
+.if !\\$3 \{\
+.	ie     \\$3USD     .ds vT User's Supplementary Documents
+.	el .ie \\$3PS1     .ds vT Programmer's Supplementary Documents
+.	el .ie \\$3AMD     .ds vT Ancestral Manual Documents
+.	el .ie \\$3SMM     .ds vT System Manager's Manual
+.	el .ie \\$3URM     .ds vT Reference Manual
+.	el .ie \\$3PRM     .ds vT Programmer's Manual
+.	el .ie \\$3IND     .ds vT Manual Master Index
+.	el .ie \\$3LOCAL   .ds vT Local Manual
+.	el .ie \\$3tahoe   .as vT \ (Tahoe Architecture)
+.	el .ie \\$3vax     .as vT \ (VAX Architecture)
+.	el .ie \\$3hp300   .as vT \ (HP300 Architecture)
+.	el .ie \\$3sparc   .as vT \ (SPARC Architecture)
+.	el .if \\*(vTLOCAL .ds vT \\$3
+.\}
+..
+.\" NS Os macro - Operating System (behaviour changes after first call)
+.\" .	ds vT \f(CIDRAFT\fP\ \ \-\-\ \ \\*(vT\ \ \-\-\ \ \f(CIDRAFT
+.\" .	ds dD \f(CIDRAFT\fP\ \ \-\-\ \ \\*(dD\ \ \-\-\ \ \f(CIDRAFT
+.\" .ds vT \s+4\f(CIDRAFT\fP\s-4\ \ \-\-\ \ \\*(vT\ \ \-\-\ \ \s+4\f(CIDRAFT\s-4
+.\" .ds dD \s+4\f(CIDRAFT\fP\s-4\ \ \-\-\ \ \\*(dD\ \ \-\-\ \ \s+4\f(CIDRAFT\s-4
+.de Os
+.ie \\$1 \{\
+.	ds oS BSD
+.	if !\\$1 .as oS \0\\$2
+.\}
+.el .ie \\$1ATT   \{\
+.	ds oS AT&T
+.	if \\$2    .as oS \0UNIX
+.	if \\$27th .as oS \07th Edition
+.	if \\$27   .as oS \07th Edition
+.	if \\$2III .as oS \0System III
+.	if \\$23   .as oS \0System III
+.	if \\$2V   .as oS \0System V
+.	if \\$2V.2 .as oS \0System V Release 2
+.	if \\$2V.3 .as oS \0System V Release 3
+.	if \\$2V.4 .as oS \0System V Release 4
+.\}
+.el .ie \\$1BSD \{\
+.	if \\$23    .ds oS 3rd Berkeley Distribution
+.	if \\$24    .ds oS 4th Berkeley Distribution
+.	if \\$24.1  .ds oS 4.1 Berkeley Distribution
+.	if \\$24.2  .ds oS 4.2 Berkeley Distribution
+.	if \\$24.3  .ds oS 4.3 Berkeley Distribution
+.	if \\$24.3T .ds oS 4.3-Tahoe Berkeley Distribution
+.	if \\$24.3R .ds oS 4.3-Reno Berkeley Distribution
+.	if \\$24.3t .ds oS 4.3-Tahoe Berkeley Distribution
+.	if \\$24.3r .ds oS 4.3-Reno Berkeley Distribution
+.	if \\$24.4  .ds oS 4.4BSD
+.\}
+.el \{\
+.	ds oS \\$1
+.	if !\\$1 .as oS \0\\$2
+.\}
+.ds operating-system \\*(oS\" for groff_mdoc.7
+..
+.de Dd
+.if !\\*(dD .nr gX 1
+.ie \\n(.$>0 \{\
+.	ie \\$1$Mdocdate: \
+.		ds dD \\$2\\ \\$3, \\$4
+.	el .ie \\n(.$==3 \{\
+.		ds dD \\$1 \\$2 \\$3
+.	\}
+.	el \{\
+.		if \\n(mo1  .ds dD January
+.		if \\n(mo2  .ds dD February
+.		if \\n(mo3  .ds dD March
+.		if \\n(mo4  .ds dD April
+.		if \\n(mo5  .ds dD May
+.		if \\n(mo6  .ds dD June
+.		if \\n(mo7  .ds dD July
+.		if \\n(mo8  .ds dD August
+.		if \\n(mo9  .ds dD September
+.		if \\n(mo10 .ds dD October
+.		if \\n(mo11 .ds dD November
+.		if \\n(mo12 .ds dD December
+.		as dD \&\ \\n(dy, \\n[year]
+.	\}
+.\}
+.el \{\
+.	ds dD Epoch
+.\}
+..
+.de hM
+.ev 1
+.pL
+.if !\\n(cR 'sp \\n(Hmu
+.ie \w\\*(Hs\\*(hT+2n*2+\w\\*(Hs\\*(hT>\\n[.lt] \
+.	tl \\*(Hs\\*(hT\fP\\*(Vs\\*(vT\fP
+.el .tl \\*(Hs\\*(hT\fP\\*(Vs\\*(vT\fP\\*(Hs\\*(hT\fP
+'sp \\n(Hmu
+.ev
+..
+.de fM
+.ie \\n(cR 'br
+.el \{\
+.	ev 1
+.	pL
+.	if !\\n(cR \{\
+'		sp \\n(Fmu
+.		tl \\*(Hs\\*(oS\fP\\*(Vs\\*(dD\fP\\*(Hs\\*(oS\fP
+'		bp
+.	\}
+.	ev
+.\}
+..
+.de lM
+.if \\n(cR .pl +3v
+.fl
+.if \\n(cR \{\
+'	sp
+.	tl \\*(Hs\\*(oS\fP\\*(Vs\\*(dD\fP\\*(Hs\\*(oS\fP
+.       pl \\n(nlu
+.\}
+..
+.de Pp
+.sp \\n(Ppu
+.if !\\n(cR .ne 2
+.ns
+..
+.de Lp
+.Pp
+..
+.de LP
+.tm Not a \-mdoc command: .LP
+..
+.de PP
+.tm Not a \-mdoc command: .PP
+..
+.de pp
+.tm Not a \-mdoc command: .pp
+..
+.de Nd
+\&\(em\& \\$*
+..
+.de Ss
+.	if !\\n(aC \{\
+.		ds Ss.A
+.		sp
+.		if !\\n(cR .ne 2
+.		ie n .ti -2
+.		el   .ti -.25i
+.		ds mN Ss
+.		nr fV \\n(.$
+.		lnr i 0 1
+.		while \\n(.$ \{\
+.			ds A\\n+i "\\$1
+.			shift
+.		\}
+.		fV
+.	\}
+.	as b1 \&\\*(sH
+.	if \\n(aC>\\n(aP \{\
+.		nr aP \\n(aP+1
+.		if \\n(aP>1 \{\
+.			as b1 " \|
+.			as Ss.A " \|
+.		\}
+.		ie \\n[C\\n(aP]=1 .\\*[A\\n(aP]
+.		el \{\
+.			as b1 \\*[A\\n(aP]
+.			as Ss.A \\*[A\\n(aP]
+.		\}
+.	\}
+.	ie \\n(aC>\\n(aP .Ss
+.	el \{\
+.		as b1 \&\fR\s10
+.		ie \\n[Toc] \{\
+\XPDFMark: BookmarkClosed 1 \\*[Ss.A]\A\\*[Ss.A]\\*(b1
+.			ie \\*(.Thtml \{\
+.				tm Toc:.ta 3n
+.				tm Toc:\t\T\\*[Ss.A]\\*[Ss.A]\T
+.			\}
+.			el \{\
+.				lnr Tab \\n(.l-\\n(.i
+.				tm Toc:.ta 3n \\n[Tab]uR
+.				tm Toc:\t\T\\*[Ss.A]\\*[Ss.A]\T\a\\n%
+.			\}
+.		\}
+.		el \\*(b1
+.		ds b1
+.		aY
+.		ta T .5i
+.		if !\\n(cR .ne 2
+.		br
+.	\}
+..
+.\" For displaying groff_mdoc.7:
+.ds volume-operating-system BSD
+.ds volume-ds-1 General Commands Manual
+.ds volume-ds-2 System Calls Manual
+.ds volume-ds-3 Library Functions Manual
+.ds volume-ds-4 Kernel Interfaces Manual
+.ds volume-ds-5 File Formats Manual
+.ds volume-ds-6 Games Manual
+.ds volume-ds-7 Miscellaneous Information Manual
+.ds volume-ds-8 System Manager's Manual
+.ds volume-ds-9 Kernel Developer's Manual
+.ds volume-ds-USD   User's Supplementary Documents
+.ds volume-ds-PS1   Programmer's Supplementary Documents
+.ds volume-ds-AMD   Ancestral Manual Documents
+.ds volume-ds-SMM   System Manager's Manual
+.ds volume-ds-URM   User's Reference Manual
+.ds volume-ds-PRM   Programmer's Manual
+.ds volume-ds-KM    Kernel Manual
+.ds volume-ds-IND   Manual Master Index
+.ds volume-ds-LOCAL Local Manual
+.ds volume-ds-CON   Contributed Software Manual
+.ds volume-as-i386         i386
+.\" vim:set syntax=nroff:

@@ -1,0 +1,147 @@
+#ident	"@(#)CW	1.4	05/06/08 SMI"
+#
+# Copyright 2005 Sun Microsystems, Inc.  All rights reserved.
+# Use is subject to license terms.
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License, Version 1.0 only
+# (the "License").  You may not use this file except in compliance
+# with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or http://www.opensolaris.org/os/licensing.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
+# University Copyright- Copyright (c) 1982, 1986, 1988
+# The Regents of the University of California
+# All Rights Reserved
+#
+# University Acknowledgment- Portions of this document are derived from
+# software developed by the University of California, Berkeley, and its
+# contributors.
+#
+# Constant Width (also PO)
+name CW
+internalname 10941
+spacewidth 68
+max_range 2
+charset
+A	68	2	1
+B	68	2	2
+C	68	2	3
+D	68	2	4
+E	68	2	5
+F	68	2	6
+G	68	2	7
+H	68	2	8
+I	68	2	9
+J	68	2	10
+K	68	2	11
+L	68	2	12
+M	68	2	13
+N	68	2	14
+O	68	2	15
+P	68	2	16
+Q	68	2	17
+R	68	2	18
+S	68	2	19
+T	68	2	20
+U	68	2	21
+V	68	2	22
+W	68	2	23
+X	68	2	24
+Y	68	2	25
+Z	68	2	26
+a	68	0	27
+b	68	2	28
+c	68	0	29
+d	68	2	30
+e	68	0	31
+f	68	2	32
+g	68	1	33
+h	68	2	34
+i	68	0	35
+j	68	1	36
+k	68	2	37
+l	68	2	38
+m	68	0	39
+n	68	0	40
+o	68	0	41
+p	68	1	42
+q	68	1	43
+r	68	0	44
+s	68	0	45
+t	68	2	46
+u	68	0	47
+v	68	0	48
+w	68	0	49
+x	68	0	50
+y	68	1	51
+z	68	0	52
+1	68	2	53
+2	68	2	54
+3	68	2	55
+4	68	2	56
+5	68	2	57
+6	68	2	58
+7	68	2	59
+8	68	2	60
+9	68	2	61
+0	68	2	62
+$	68	0	63
+ct	68	3	64
+&	68	0	65
+:	68	0	66
+;	68	0	67
+.	68	0	68
+,	68	0	69
+`	68	0	70
+'	68	0	71
+?	68	0	72
+!	68	0	73
+%	68	0	74
+*	68	0	75
+(	68	0	76
+)	68	0	77
+/	68	2	78
+sl	"
+hy	68	0	79
+-	"
+=	68	0	80
++	68	0	81
+no	68	0	82
+<	68	0	83
+>	68	0	84
+{	68	0	85
+}	68	0	86
+^	68	0	91
+~	68	0	92
+"	68	0	93
+fm	68	2	94
+_	68	0	109
+ul	"
+|	68	0	110
+or	"
+lh	68	2	111
+\	68	0	112
+#	68	0	116
+@	68	0	120
+sq	68	0	121
+->	68	0	122
+<-	68	0	123
+dg	68	3	124
+ua	68	3	125
+da	68	3	126
+[	68	0	127
+]	68	0	128

@@ -1,0 +1,43 @@
+.\"
+.\" Sccsid @(#)otfdump.1	1.4 (gritter) 2/2/07
+.TH OTF_INFO 1 "2/2/07" "Heirloom Documentation Tools" "User Commands"
+.SH NAME
+otf_info \- dump the contents of OpenType font files
+.SH SYNOPSIS
+.HP
+.ad l
+.nh
+\fBotf_info\fR
+[\fB\-ckns\fR]
+font ...
+.br
+.hy 1
+.ad b
+.SH DESCRIPTION
+.I otf_info
+prints the contents of OpenType or TrueType font files
+in ASCII format
+just as
+.I troff
+interprets it.
+By default,
+all available information is printed.
+Options can be used to restrict the output:
+.TP
+.B \-c
+prints only the characters present in the font,
+in the format `\fBchar \fIstring \fBwidth \fInumber\fR'.
+.TP
+.B \-k
+prints only the kerning pairs present in the font,
+in the format `\fBkernpair \fIstring1 string2 \fBwidth \fInumber\fR'.
+.TP
+.B \-n
+prints only the PostScript name of the font,
+in the format `\fBname \fIstring\fR'.
+.TP
+.B \-s
+prints only the substitution features available with the font,
+in the format `\fBfeature \fIstring \fBsubstitution \fIstring1 string2\fR'.
+.SH "SEE ALSO"
+troff(1)

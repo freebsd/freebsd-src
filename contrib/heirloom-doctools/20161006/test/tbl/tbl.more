@@ -1,0 +1,196 @@
+               ─┌─────────────────────────────────┐
+               │ Production of Audio Equipment   │
+               │       (units: 1000 sets)        │
+               ─├─────────────────────────────────┤
+               │   Product        1984     1985  │
+               ─├─────────────────────────────────┤
+               │General radio     8,895    8,770 │
+               │Clock radio       5,467    6,500 │
+               │Radio/cassette   29,734   27,523 │
+               │Tape deck        11,788   14,300 │
+               │Car radio         9,450   10,398 │
+               │Car stereo       15,670   17,456 │
+               ─└─────────────────────────────────┘
+           ─┌──────────────────────────────────────────┐
+           │             Output Devices               │
+           │ Port                 Device              │
+           │   1      User console                    │
+           │   2      Monochromatic graphics terminal │
+           │3, 4, 5   Color graphics terminal         │
+           ─└──────────────────────────────────────────┘
+─┌──────────────────────────────┐
+│      1984 (Jan.‐July)        │
+│                   ─┌──────────│┤
+│Items     Units   │ 1984/1983 │
+│                  │    (%)    │
+─├───────────────────┴───────────┤
+│TV      3,889,543     145.7   │
+│Color   2,766,004     110.7   │
+│B/W     1,123,539      12.5   │
+─└──────────────────────────────┘
+(1)
+─┌────────────────────┬─────────────────────────────────────────────┐
+│             SSSSoooommmmeeee PPPPaaaatttttttteeeerrrrnnnn‐MMMMaaaattttcccchhhhiiiinnnngggg CCCChhhhaaaarrrraaaacccctttteeeerrrrssss iiiinnnn _v_i              │
+─├────────────────────┬─────────────────────────────────────────────┤
+│_S_p_e_c_i_a_l _C_h_a_r_a_c_t_e_r_s │                    _U_s_a_g_e                    │
+─├────────────────────┼─────────────────────────────────────────────┤
+│        .          │ Matches any single characterexcept _n_e_w_l_i_n_e. │
+│                   │                                             │
+│        *          │ Matches any number (including zero) of  the │
+│                   │ single  character  (including  a  character │
+│                   │ specified by e regular expression) that im‐ │
+│                   │ mediately precedes it.                      │
+│                   │                                             │
+│      [...]        │ Matches any _o_n_e of the characters  enclosed │
+│                   │ between  the brackets.  A range of consecu‐ │
+│                   │ tive  characters  can   be   specified   by │
+│                   │ separating  the first and last character in │
+│                   │ the range with a hyphen.                    │
+─└────────────────────┴─────────────────────────────────────────────┘
+(1)
+(1)
+               ═╔═══════════════╤══════════════════╗
+               ║ffffoooonnnntttt ppppoooossssiiiittttiiiioooonnnn │       ffffoooonnnntttt       ║
+               ═╠═══════════════╪══════════════════╣
+               ║      1       │  Times Roman     ║
+               ─╟───────────────┼──────────────────╢
+               ║      2       │  _T_i_m_e_s _I_t_a_l_i_c    ║
+               ─╟───────────────┼──────────────────╢
+               ║      3       │  TTTTiiiimmmmeeeessss BBBBoooolllldddd      ║
+               ─╟───────────────┼──────────────────╢
+               ║      4       │  Helvetica       ║
+               ─╟───────────────┼──────────────────╢
+               ║      5       │  Constant‐Width  ║
+               ═╚═══════════════╧══════════════════╝
+(1)
+                        UUUUnnnniiiitttt
+   IIIItttteeeemmmm       QQQQnnnnttttyyyy....    PPPPrrrriiiicccceeee     CCCCoooosssstttt
+═════════════════════════════════════
+ Dt. Coke       2      1.39      2.78
+ Crest          1      1.99      1.99
+ Kiwi Pol.      1      0.79      0.79
+ Selzer         6      0.25      1.50
+                                ─────
+                      Subtotal   7.06
+                       6% Tax    0.42
+                                ─────
+                       Total     7.48
+                                ═════
+(1)
+                   ─┌─────────────────┬────────┐
+                   │iiiitttteeeemmmm ddddeeeennnnoooottttaaaattttiiiioooonnnn │  iiiitttteeeemmmm  │
+                   ═╞═════════════════╪════════╡
+                   │      sum       │  Σ     │
+                   ─├─────────────────┼────────┤
+                   │      int       │  ∫     │
+                   ─├─────────────────┼────────┤
+                   │     prod       │  Π     │
+                   ─├─────────────────┼────────┤
+                   │     union      │  ∪     │
+                   ─├─────────────────┼────────┤
+                   │     inter      │  ∩     │
+                   ─├─────────────────┼────────┤
+                   │     oppE       │  oppE  │
+                   ─└─────────────────┴────────┘
+                       EEEEuuuulllleeeerrrr’ssss IIIIddddeeeennnnttttiiiittttiiiieeeessss
+                  ─┌───────────────────────────┐
+                  │eeeexxxxpppprrrreeeessssssssiiiioooonnnn   e⎽i⎽i⎽θiiid⎽ddde⎽−eeen⎽nnnt⎽ettti⎽−iiit⎽ittty⎽θyyy    │
+                  │sin θ        e⎽i⎽θ⎽⎽2⎽+i⎽e⎽−⎽i⎽θ⎽    │
+                  │cos θ            2         │
+                  │tan θ        ⎽⎽e⎽i⎽θ⎽⎽−⎽⎽e⎽−⎽i⎽θ⎽⎽ │
+                  ─└─────────────i─(─e─i─θ──+──e─−─i─θ─)──┘
+─┌──┐
+│X │
+─└──┘
+─┌────────────────────────────────────────┐
+│             SSSSiiiinnnngggglllleeee‐CCCCoooolllluuuummmmnnnn              │
+│           HHHHoooorrrriiiizzzzoooonnnnttttaaaallll LLLLiiiinnnneeeessss             │
+│_C_o_d_e          _M_e_a_n_i_n_g           _E_x_a_m_p_l_e │
+═╞══════╤═════════════════════════╤═════════╡
+│ _   │  Joined, single line.  │├─────────┤
+│ =   │  Joined, double line.  │╞═════════╡
+│ \_  │ Orphaned, single line. │ ─────── │
+│\Rx  │      Repeated _x.       │ xxxxxxx │
+─└──────┴─────────────────────────┴─────────┘
+                ─┌────────────────────────────────┐
+                │   Store        Item      Cost  │
+                ═╞════════════════════════════════╡
+                │Supermarket   Bread        1.50 │
+                │              Milk         2.00 │
+                │              Cake         1.40 │
+                │                          ───── │
+                │              Sub‐total    4.90 │
+                ─├────────────────────────────────┤
+                │Clothes       Shirt       12.70 │
+                │              Pants       14.25 │
+                │                          ───── │
+                │              Sub‐total   27.05 │
+                │             ───────────────────│
+                │              Total       31.95 │
+                ─└────────────────────────────────┘
+(1)
+A ║ B
+───╜──
+C │ D
+(1)
+                    ─┌─────────────┬───────────┐
+                    │NNNNEEEESSSS GGGGaaaammmmeeeeppppaaaadddd │ KKKKeeeeyyyybbbbooooaaaarrrrdddd  │
+                    ═╞═════════════╪═══════════╡
+                    │    Up      │ _K_e_y_p_a_d _U_p │
+                    ─└─────────────┴───────────┘
+                          ═╔══════╤══════╗
+                          ║foo1 │ foo2 ║
+                          ═╠══════╪══════╣
+                          ║bar  │ baz  ║
+                          ═╚══════╧══════╝
+(1)
+a   b   c
+  ┌───┐
+d │ e │ f
+  └───┘
+g   h   i
+(1)
+Bla bla bla bla bla bla bla bla bla bla bla bla bla bla  bla  bla
+bla  bla  bla bla bla bla bla bla bla bla bla bla bla bla bla bla
+bla bla bla bla bla bla bla bla bla bla bla bla bla bla  bla  bla
+bla bla bla bla bla bla bla bla bla.
+a                  bb                  ccc                   dddd
+─┌─────────────┬─────────────────┬─────────────────┬────────────────┐
+│    a       │      bb        │      ccc       │       dddd     │
+─└─────────────┴─────────────────┴─────────────────┴────────────────┘
+──────────────────────────────────────────────────────────┐
+a              bb             ccc              dddd       │
+──────────────────────────────────────────────────────────┘
+→ Heirloom: Too narrow
+─┌──────────────────────────────────────────────────────────────┐
+│    a             bb              ccc              dddd       │
+─└──────────────────────────────────────────────────────────────┘
+→ Heirloom: Nearly correct (a little bit too narrow)
+─┌──────────────────────────────────────────────────────────────────────
+│     a                  bb                   ccc                  dddd
+─└──────────────────────────────────────────────────────────────────────
+→ Heirloom: Too wide!
+a   bb   ccc   dddd
+a                          bb                          ccc   dddd
+─┌─────────────────────────┬──────────────────────────┬──────┬──────┐
+│a                       │bb                       │ ccc │ dddd │
+─└─────────────────────────┴──────────────────────────┴──────┴──────┘
+─┌───┬─────┬──────┬─────────────────────────────────────────────────┐
+│a │ bb │ ccc │ dddd                                            │
+─└───┴─────┴──────┴─────────────────────────────────────────────────┘
+(1)
+  13
+   4.2
+26.4.12
+  abc
+ abc
+  433.22
+ 749.12
+(1)
+a │ b
+c ║ d
+═══╝══
+e │ f
+g   h
+i ║ j
+k   l

@@ -1,0 +1,406 @@
+.\"
+.\" CDDL HEADER START
+.\"
+.\" The contents of this file are subject to the terms of the
+.\" Common Development and Distribution License, Version 1.0 only
+.\" (the "License").  You may not use this file except in compliance
+.\" with the License.
+.\"
+.\" You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+.\" or http://www.opensolaris.org/os/licensing.
+.\" See the License for the specific language governing permissions
+.\" and limitations under the License.
+.\"
+.\" When distributing Covered Code, include this CDDL HEADER in each
+.\" file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+.\" If applicable, add the following below this CDDL HEADER, with the
+.\" fields enclosed by brackets "[]" replaced with your own identifying
+.\" information: Portions Copyright [yyyy] [name of copyright owner]
+.\"
+.\" CDDL HEADER END
+.\"
+.\" ident	"@(#)vgrind	1.3	05/06/10 SMI"
+.ig
+	This version of tmac.vgrind is intended to interface more
+	gracefully to other macro packages than the previous version.
+	Rather than defining things irrevocably, with no way to alter
+	the definitions, this version encapsulates definitions and
+	changes in the operating environment into macros whose
+	definitions can be overriden as needed.
+
+	Guide to strings that vfontedpr generates code to define:
+	=F	current file name
+	=H	operand of vfontedpr's -h flag
+	=M	time and date info for current file
+
+	Guide to number registers that vfontedpr generates code to define:
+	vP	point size (in points) to use for main text.  Pre-defined
+		only if the -s option was supplied to vfontedpr.
+		N.B.: does not affect headers or margin entries.
+
+	Internal strings
+	=f	ellipsis string for current function
+ 	=G	local copy of =F used to keep header and footer consistent
+		with each other
+	+K	string used to start keyword; value depends on whether
+		or not a comment is active
+	-K	string used to end keyword; value depends on whether
+		or not a comment is active
+
+	Internal number registers
+	v	nonzero prevents cut marks (in theory, at least)
+	vC	nonzero when in comment
+
+	To do: convert hard-wired point sizes, etc. to parameterized values.
+
+	XXX: vfontedpr has font 2 wired into it for comments; change to use
+	tC and fC as below.
+
+  ***	This version is also augmented with support for two column output.
+
+	N.B.: I haven't thought at all about how to make this work in
+	filter mode.  Things will have to be redefined, as I rely on adding
+	hooks to the header and footer macros to flip from one column to
+	the next.
+
+	Additional register that vfontedpr defines:
+	=2	if nonzero, generate two column output.
+
+	Additional internal number registers.
+	v2	corrent column number: 0 == left, 1 == right
+	vH	saved vertical position of top of left column; calculated
+		in vH when switching to left column and used in vF when
+		switching to the right column.
+	vO	page offset in effect for left column (the original offset).
+        vR	page offset in effect for right column.
+	vL	saved line length in effect at beginning of new page.
+	vK	line length in effect for each column.
+	vX	scratch register.
+..
+'\"----------------
+.ig
+    sI:	Initialize configurable strings
+	XXX: need better name for this macro.
+	This macro is called from the vI macro at initialization time.
+	It must define the following:
+	_	string	representation for underscore
+	-	string	representation for minus
+	/	string	representation for slash, shifted horizontally so
+			that C-style comments will line up
+	/*	string	representation for /*, shifted horizontally so
+			that C-style comments will line up.
+
+	tC	string	comment font in .ft form (e.g., `BI')
+	fC	string	comment font in \f  form (e.g., `(BI')
+	tK	string	keyword font in .ft form
+	fK	string	keyword font in \f  form
+	tP	string	program font in .ft form
+	fP	string	program font in \f  form
+
+	By redefining this macro, one can alter the appearance of vgrind's
+	output.
+..
+.de sI
+'ds _ \d\(mi\u
+'ds - \(mi
+'ds / \\h'\\w' 'u-\\w'/'u'/
+'ds /* \\h'\\w' 'u-\\w'/'u'/*
+'\"
+'ds tC 2
+'ds fC 2
+'ds tK 3
+'ds fK 3
+'ds tP 1
+'ds fP 1
+'\"
+.nr v 1
+..
+'\"----------------
+.ig
+    no:	no-op
+	This macro does nothing.  It's defined as a place-holder to
+'\"	immediately precede \} constructs, to make editing easier.
+..
+.de no
+..
+'\"----------------
+.ig
+    vI:	Initial definitions.
+	This macro is called once only, before any .vS -- .vE program
+	inclusions are processed (or before all input files, if they consist
+	solely of program text).
+
+   XXX:	We assume that 2-column mode imples landscape output.  Ideally, there
+	should be a separate -T<device> entry for the landscape version of the
+	output device, but that hasn't happened.  Instead, all there is is a
+	"-L" flag to troff that does nothing more than rotate the resulting
+	PostScript 90 degrees.  In particular, page lengths and widths are
+	unaffected.  Thus, we hack altered values into place here.  This is
+	pretty disgusting...
+..
+.de vI
+'\"	Deal with page length and width -- see above.
+'if \\n(=2 \{\
+'       ll 9.5i
+'       lt 9.5i
+'       ev 2
+'       ll 9.5i
+'       lt 9.5i
+'       ev
+'       pl 8i
+'no\}
+'sI
+'\"	If point size values haven't already been established, set them
+'\"	to suitable default values.  The defaults are smaller for two column
+'\"	mode.
+'if \\n(vP=0 \{\
+'       ie \\n(=2 \{\
+'               nr vP 8
+'       no\}
+'       el \{\
+'               nr vP 9
+'       no\}
+'no\}
+'\"	Force comment state indicators into the correct
+'\"	initial state.  Convert the comment start macro
+'\"	to its final form.
+'+C
+'-C
+'am +C
+'ne 3
+\\..
+'ft \\*(tP
+'lg 0
+..
+'\"----------------
+.ig
+    vS: Start program text
+	This macro must be called at the start of a chunk of interpolated
+	program text.  The version given here is a default version suitable
+	for standalone use -- that is, not in conjunction with some other
+	macro package.  It should be redefined as necessary to coexist
+	gracefully with the macro package of your choice.  Of course, the
+	redefined version should do the same things this version does.
+
+	It may be necessary to move the emboldening commands to the vI
+	macro, or remove them altogether.  If they remain here, they will
+	probably have to be supplemented with copies of themselves that
+	are protected with the transparent throughput indicator.
+..
+.de vS
+'ss 23
+'\" Set text point size and vertical spacing.
+'\"     XXX: All point size stuff should be parameterized, not just the
+'\"	primary text sizes.
+'ps \\n(vPp
+'nr vX \\n(vP+1
+'vs \\n(vXp
+'\" If in two column mode, reduce page offset to first column a bit
+'\" and bump line length correspondingly.
+'\"	XXX: Aargh!  More hard-wiring!
+.if \\n(=2 \{\
+'       po -0.4i
+'       ll +0.4i
+'       lt +0.4i
+'       ev 2
+'       ll +0.4i
+'       lt +0.4i
+'       ev
+'no\}
+'\"'bd B 3
+'\"'bd S B 3
+'nf		\" When not run standalone, the host macro package
+'		\" may well do this for us.
+'nr vC 0	\" We're not in a comment.
+'nr v2 0                                \" start in left column
+'nr vO \\n(.ou                          \" save page offset
+'nr vL \\n(.lu                          \" save line length
+'nr vR \\n(.ou+(\\n(.lu/2u)+(0.25i)u    \" get right column offset
+'ie \\n(=2 'nr vK (\\n(.lu/2u)-(0.25i)u \" get column width
+'el        'nr vK \\n(.lu
+..
+'\"----------------
+.ig
+    vE: End program text
+	This macro closes the chunk of program text started by vS.  The
+	same comments apply to it that do for vS.
+..
+.de vE
+'ss 12
+'ps
+'vs
+'\"'bd B
+'\"'bd S
+..
+'\"----------------
+.ig
+    vH:	Header macro
+	Only invoked when not in filter mode.
+
+	N.B.: This macro hard-wires the inter-column gap to 0.25i.
+..
+'de vH
+'v<     \" Put out the header itself.
+'if \\n(=2 \{\
+'\"     In two column mode: we've trapped because we've moved to a new
+'\"     page.  Save position information for later use.  Squash down line
+'\"     length.
+'       nr v2 0 1       \" reset column counter
+'       mk vH           \" save vertical position for later restoration
+'       ll \\n(vKu
+'.no\}
+'v.     \" Put out the column header
+..
+'\"----------------
+.ig
+    v<:	Output page header
+	Called from vH.
+..
+.de v<
+'ev 2
+'if t 'if !\nv 'tl '\-\-''\-\-'
+'\" Emit page header (file name at right and left page margins).
+'ft 1
+'sp .35i
+'tl '\s14\f3\\*(=F\fP\s0'\\*(=H'\f3\s14\\*(=F\fP\s0'
+'\"'\" Emit the ellipsis string for the current function.
+'\"'sp .25i
+'\"'ft 1
+'\"\f2\s12\h'\\n(.lu-\w'\\*(=f'u'\\*(=f\fP\s0\h'|0u'
+'\".sp .05i
+'ev
+'\" Save current file name for use in footer.
+'ds =G \\*(=F
+..
+'\"----------------
+.ig
+    v.:	Output function ellipsis string as part of column header.
+	Called from vH.
+..
+.de v.
+'ev 2
+'sp .25i
+'ft 1
+\f2\s12\h'\\n(vKu-\w'\\*(=f'u'\\*(=f\fP\s0\h'|0u'
+.sp .05i
+'ev
+'ns     \" Suppress additional spacing.
+..
+'\"----------------
+.ig
+    vF:	Footer macro
+	Only invoked when not in filter mode.
+
+	If in two column mode, handles switching between columns.
+
+	N.B.: This macro hard-wires the inter-column gap to 0.25i.
+..
+.de vF
+'ie \\n(=2 \{\
+'\" in two column mode
+'       ie \\n+(v2=1 \{\
+'\"         Transition from left column to right.
+'\"             Construct a vertical line running down the center of the
+'\"             gutter.
+'               ev 2
+'               nr vX (\\n(vLu/2u-(0.125i))u    \" Horiz off to gutter center
+\h'|\\n(vXu'\c
+\L'|\\n(vHu'\c
+\h'|0u'\c
+'\"             Move back to top of column and bump page offset to move
+'\"             into it.
+.               sp |\\n(vHu
+'               po \\n(vRu
+'\"             Put out the current function ellipsis string.
+'               ev
+'               v.
+'       no\}
+'       el \{\
+'\"         Transition from right column to left of next page: restore
+'\"         saved values and then output the footer.
+'               po \\n(vOu
+'               ll \\n(vLu
+'               v>
+'       no\}
+'no\}
+'el     'v>
+..
+'\"----------------
+.ig
+    v>:	Output page footer
+	Called from vF when in single column mode or when it hits the
+	bottom of the left column.
+..
+'de v>
+'ev 2
+'sp .35i
+'ie '\\*(=G'' 'tl '\f2\\*(=M''Page %\fP'
+'el           'tl '\f2\\*(=M''Page % of \\*(=G\fP'
+'bp
+'ev
+'ft \\*(tP
+'if \\n(vC=1 'ft \\*(tC
+..
+'\"----------------
+.ig
+    ():	Inter-file macro
+	Only invoked when not in filter mode.  Called between input files,
+	to reset page numbering for each.
+..
+'de ()
+'pn 1
+..
+'\"----------------
+.ig
+    +C:	Start comment
+..
+'de +C
+'nr vC 1
+'ft \\*(tC
+'ds +K
+'ds -K
+..
+'\"----------------
+.ig
+    -C: end comment
+..
+'de -C
+'nr vC 0
+'ft \\*(tP
+'ds +K \\f\\*(fK
+'ds -K \fP
+..
+'\"----------------
+.ig
+    FN:	function definition
+	Issues marginal notation giving function's name.
+	Issues the primary index entry for it.
+	Sets the =f string to record a continuation entry for it
+	(e.g., " ...func-name").
+..
+'de FN
+\f2\s14\h'\\n(vKu-\w'\\$1'u'\\$1\fP\s0\h'|0u'\c
+.if \\nx .tm \\$1 \\*(=F \\n%
+'ds =f \&...\\$1
+..
+'\"----------------
+.ig
+    FC:	function continuation
+	Issues index entry for where the function definition picks up again.
+	Sets the =f string to record a continuation entry for it
+	(e.g., " ...func-name").
+..
+'de FC
+.if \\nx .tm \\$1 \\*(=F \\n%
+'ds =f \&...\\$1
+..
+'\"----------------
+.ig
+    -F:	function end
+	Removes definition of =f string so that the marginal entry for
+	function continuation will no longer appear.
+..
+'de -F
+'rm =f
+..
+'\"----------------

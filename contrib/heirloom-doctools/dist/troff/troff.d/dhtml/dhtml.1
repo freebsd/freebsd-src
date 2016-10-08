@@ -1,0 +1,107 @@
+.\" Copyright (c) 2015, Carsten Kunze
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright notice,
+.\"    this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright notice,
+.\"    this list of conditions and the following disclaimer in the documentation
+.\"    and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+.\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.Dd September 18, 2015
+.Dt DHTML 1
+.Sh NAME
+.Nm dhtml
+.Nd HTML postprocessor for troff
+.Sh SYNOPSIS
+.Nm
+.Op Fl t Ar title
+.Li < Ar ditroff_output Li > Ar html_output
+.Sh DESCRIPTION
+.Nm
+is a HTML postprocessor for
+.Xr troff 1 .
+It reads the ditroff output from
+.Dv STDIN
+and writes HTML5 output to
+.Dv STDOUT .
+.Nm troff
+must in this case be called with option
+.Fl Thtml .
+Missing charaters can be added by changing the files
+.Pa charset
+and
+.Pa CHAR
+(see section
+.Sx FILES ) .
+For adding fonts the tool needs to be recompiled (currently the
+legacy fonts
+.Li R I B BI C CW CR CI CB H HI HB S
+are available).
+.Pp
+Options:
+.Bl -tag -width ".Fl t Ar title"
+.It Fl t Ar title
+Set text for the HTML
+.Li <title>
+tag.
+.El
+.Sh FILES
+.Bl -tag
+.It Ar source_dir Ns Pa /troff/troff.d/font/devhtml/charset
+.Sy charset
+which is appended to each font description file at installation
+of the tool (run
+.Pp
+.Dl # make install
+.Pp
+after changes of this file).
+.It Pa $FNTDIR/devhtml/CHAR
+Character to HTML name mapping which is read at each run of
+.Nm .
+.El
+.Sh EXAMPLES
+.Bd -unfilled -offset indent
+.Li tbl Ar manpage Li | troff -Thtml -mandoc \(rs
+.Li "    |" dhtml Li -t Ar html_title Li > Ar html_file
+.Ed
+.Pp
+Convert
+.Ar manpage
+into HTML format with title
+.Ar html_title
+and save it as
+.Ar html_file .
+.Sh SEE ALSO
+.Xr troff 1 ,
+.Xr dpost 1
+.Sh BUGS
+For the current version no changes to the ditroff interface are done.
+All information for formatting the HTML page is taken from legacy ditroff
+commands.
+As a consequence the alignment cannot be as accurate as in the
+.Xr dpost 1
+output since the character widths of HTML fonts must be supposed to be
+unknown.
+.Pp
+At the moment no HTML tables are generated.
+.Xr tbl 1
+(without options) can be used for preprocessing but mayor alingment issues
+may result.
+There is no support for equations, graphics, images, and links in this
+versions.
+These features are subject to be implemented later.

@@ -1,0 +1,140 @@
+#ident	"@(#)HX	1.4	05/06/08 SMI"
+#
+# Copyright 2005 Sun Microsystems, Inc.  All rights reserved.
+# Use is subject to license terms.
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License, Version 1.0 only
+# (the "License").  You may not use this file except in compliance
+# with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or http://www.opensolaris.org/os/licensing.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
+# University Copyright- Copyright (c) 1982, 1986, 1988
+# The Regents of the University of California
+# All Rights Reserved
+#
+# University Acknowledgment- Portions of this document are derived from
+# software developed by the University of California, Berkeley, and its
+# contributors.
+#
+# Helvetica Black Italic
+name HX
+internalname 12561
+ligatures fi ff fl ffi ffl 0
+default_slant 14
+charset
+A	66	2	1
+B	66	2	2
+C	70	2	3
+D	70	2	4
+E	64	2	5
+F	62	2	6
+G	74	2	7
+H	66	2	8
+I	28	2	9
+J	54	2	10
+K	68	2	11
+L	56	2	12
+M	80	2	13
+N	68	2	14
+O	74	2	15
+P	62	2	16
+Q	76	2	17
+R	64	2	18
+S	64	2	19
+T	62	2	20
+U	68	2	21
+V	64	2	22
+W	90	2	23
+X	62	2	24
+Y	62	2	25
+Z	62	2	26
+a	56	0	27
+b	60	2	28
+c	56	0	29
+d	60	2	30
+e	58	0	31
+f	36	2	32
+g	60	1	33
+h	56	2	34
+i	26	0	35
+j	26	1	36
+k	58	2	37
+l	26	2	38
+m	84	0	39
+n	58	0	40
+o	60	0	41
+p	60	1	42
+q	60	1	43
+r	38	0	44
+s	52	0	45
+t	36	2	46
+u	56	0	47
+v	52	0	48
+w	78	0	49
+x	56	0	50
+y	54	1	51
+z	50	0	52
+1	60	2	53
+2	60	2	54
+3	60	2	55
+4	60	2	56
+5	60	2	57
+6	60	2	58
+7	60	2	59
+8	60	2	60
+9	60	2	61
+0	60	2	62
+$	60	0	63
+ct	60	3	64
+&	70	0	65
+:	30	0	66
+;	30	0	67
+.	30	0	68
+,	30	0	69
+`	30	0	70
+'	30	0	71
+?	30	0	72
+!	30	0	73
+%	90	0	74
+*	30	0	75
+(	32	0	76
+)	32	0	77
+/	60	2	78
+hy	30	0	79
+-	"
+em	120	0	80
+ff	61	2	82
+fi	54	2	83
+fl	54	2	84
+Fi	83	2	85
+Fl	83	2	86
+14	90	2	91
+12	90	2	92
+34	90	2	93
+co	64	2	111	slant 0
+rg	64	2	112	slant 0
+tm	64	2	113	slant 0
+#	90	0	116
+@	90	0	120
+bu	28	0	121	slant 0
+de	30	2	123	slant 0
+dg	60	3	124
+dd	60	2	125
+sc	60	3	126
+[	30	0	127
+]	30	0	128

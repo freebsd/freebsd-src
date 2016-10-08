@@ -1,0 +1,146 @@
+.\" Copyright (c) 1983 Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" This code contains changes by
+.\"      Gunnar Ritter, Freiburg i. Br., Germany, 2005. All rights reserved.
+.\"
+.\" Conditions 1, 2, and 4 and the no-warranty notice below apply
+.\" to these changes.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowedgement:
+.\" 	This product includes software developed by the University of
+.\" 	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" Copyright(C) Caldera International Inc. 2001-2002. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"   Redistributions of source code and documentation must retain the
+.\"    above copyright notice, this list of conditions and the following
+.\"    disclaimer.
+.\"   Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"   All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"      This product includes software developed or owned by Caldera
+.\"      International, Inc.
+.\"   Neither the name of Caldera International, Inc. nor the names of
+.\"    other contributors may be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC. AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+.\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" Sccsid @(#)sortbib.1b	1.4 (gritter) 12/12/05
+.\"
+.\"	from 4.3BSD-Tahoe sortbib.1	6.1 (Berkeley) 4/29/85
+.\"
+.\".TH SORTBIB 1 "April 29, 1985"
+.Dd December 12, 2005
+.Dt SORTBIB 1
+.Os
+.Sh NAME
+.Nm sortbib
+.Nd sort bibliographic database
+.Sh SYNOPSIS
+.Nm
+.Op Fl s Ar KEYS
+.Ar database
+.Ar ...
+.Sh DESCRIPTION
+.Nm
+sorts files of records containing
+.Cm refer
+key-letters by user-specified keys. Records may be separated by blank lines,
+or by \&.[ and \&.] delimiters, but the two styles may not be mixed together.
+This program reads through each
+.Ar database
+and pulls out key fields, which are sorted separately. The sorted key fields
+contain the file pointer, byte offset, and length of corresponding records.
+These records are delivered using disk seeks and reads, so
+.Nm
+may not be used in a pipeline to read standard input.
+.Pp
+By default,
+.Nm
+alphabetizes by the first %A and the %D fields,
+which contain the senior author and date.
+The
+.Fl s
+option is used to specify new
+.Ar KEYS .
+For instance,
+.Fl -s Ar ATD
+will sort by author, title, and date,
+while
+.Fl s Ar A+D
+will sort by all authors, and date.
+Sort keys past the fourth are not meaningful.
+No more than 16 databases may be sorted together at one time.
+Records longer than 4096 characters will be truncated.
+.Pp
+.Nm
+sorts on the last word on the %A line,
+which is assumed to be the author's last name.
+A word in the final position, such as ``jr.'' or ``ed.'',
+will be ignored if the name beforehand ends with a comma.
+Authors with two-word last names or unusual constructions
+can be sorted correctly by using the
+.Cm nroff
+convention ``\e0'' in place of a blank.
+A %Q field is considered to be the same as %A,
+except sorting begins with the first, not the last, word.
+.Nm
+sorts on the last word of the %D line, usually the year.
+It also ignores leading articles (like ``A'' or ``The'')
+when sorting by titles in the %T or %J fields;
+it will ignore articles of any modern European language.
+If a sort-significant field is absent from a record,
+.Nm
+places that record before other records containing that field.
+.Sh SEE ALSO
+.Xr addbib 1 ,
+.Xr indxbib 1 ,
+.Xr lookbib 1 ,
+.Xr refer 1 ,
+.Xr roffbib 1
+.Sh NOTES
+Records with missing author fields should probably be sorted by title.
+.Pp
+Written by Greg Shenaut & Bill Tuthill.

@@ -1,0 +1,116 @@
+.\"
+.\" Copyright 2005 Sun Microsystems, Inc.  All rights reserved.
+.\" Use is subject to license terms.
+.\"
+.\" CDDL HEADER START
+.\"
+.\" The contents of this file are subject to the terms of the
+.\" Common Development and Distribution License, Version 1.0 only
+.\" (the "License").  You may not use this file except in compliance
+.\" with the License.
+.\"
+.\" You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+.\" or http://www.opensolaris.org/os/licensing.
+.\" See the License for the specific language governing permissions
+.\" and limitations under the License.
+.\"
+.\" When distributing Covered Code, include this CDDL HEADER in each
+.\" file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+.\" If applicable, add the following below this CDDL HEADER, with the
+.\" fields enclosed by brackets "[]" replaced with your own identifying
+.\" information: Portions Copyright [yyyy] [name of copyright owner]
+.\"
+.\" CDDL HEADER END
+.\"
+.\"ident	"@(#)footnote.me	1.5	05/06/08 SMI"
+.\"
+.\" University Copyright- Copyright (c) 1982, 1986, 1988
+.\" The Regents of the University of California
+.\" All Rights Reserved
+.\"
+.\" University Acknowledgment- Portions of this document are derived from
+.\" software developed by the University of California, Berkeley, and its
+.\" contributors.
+.\"
+.nr _0 \n(c.
+.\"	@(#)footnote.me	2.6	3/10/86
+.de (f
+.ec
+.if "\\n(.z"|f" .tm Line \\n(c. -- Illegal footnote nesting
+.ie "\\n(.z"" \
+\{\
+.	nr _D \\n(dn
+.	nr _0 1v+\\n(nlu
+.	ev 2
+.	da |f
+.	in 0
+.	xl \\n($lu-\\n(fuu
+.	@F \\n(ff
+.	sz \\n(fp
+.	vs \\n(.su*\\n($Ru
+.	if !\\n(?f \
+\{\
+.		nr _b +1v
+.		$s
+.	\}
+.	br
+.	if \\n(.p-\\n(_b-\\n(_0-\\n(.h-1v-\\n(fs<0 \
+\{\
+.		da\"
+.		bc
+.		if !\\n(?f \
+.			rm |f
+.		da |f
+.		in 0
+.		xl \\n($lu-\\n(fuu
+.		@F \\n(ff
+.		sz \\n(fp
+.		vs \\n(.su*\\n($Ru
+.		if !\\n(?f \
+.			$s
+.		br
+.	\}
+.	rr _0
+.	sp \\n(fsu
+.	nr ?f 1
+.	fi
+.	if !"\\$1"_" \
+.		ti \\n(fiu
+.\}
+.el \
+\{\
+.	ev 2
+\!.(f \\$1
+.\}
+..
+.de )f
+.ie "\\n(.z"|f" \
+\{\
+.	if \\n* \
+.		nr $f +1
+.	ds * \\*[\\n($f\\*]\k*
+.	rr *
+.	in 0
+.	da
+.	ev
+.	if \\n(_w<\\n(dl \
+.		nr _w \\n(dl
+.	nr _b +\\n(dn
+.	ch @f -\\n(_bu
+.	if \\n(.p-\\n(_b<=\\n(nl \
+.		ch @f \\n(nlu+\n(.Vu
+.	nr dn _D
+.	rr _D
+.\}
+.el \
+\{\
+.	br
+\!.)f
+.	ev
+.\}
+..
+.if \n(ff<=0 \
+.	nr ff 1
+.if \n(fp<=0 \
+.	nr fp 8
+.nr c. \n(_0

@@ -1,0 +1,61 @@
+%%BeginResource: procset dpost_charrf 1.0 0
+% from OpenSolaris "lp:filter/postscript/font/devpost/charlib/rf	1.2"
+%
+% CDDL HEADER START
+%
+% The contents of this file are subject to the terms of the
+% Common Development and Distribution License, Version 1.0 only
+% (the "License").  You may not use this file except in compliance
+% with the License.
+%
+% You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+% or http://www.opensolaris.org/os/licensing.
+% See the License for the specific language governing permissions
+% and limitations under the License.
+%
+% When distributing Covered Code, include this CDDL HEADER in each
+% file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+% If applicable, add the following below this CDDL HEADER, with the
+% fields enclosed by brackets "[]" replaced with your own identifying
+% information: Portions Copyright [yyyy] [name of copyright owner]
+%
+% CDDL HEADER END
+%
+% Portions Copyright 2005 Gunnar Ritter, Freiburg i. Br, Germany
+%
+% This stuff has gotten terribly complicated - sorry.
+%
+
+currentdict /bvbbox known not {/bvbbox [0 0 0 0 0 0 0] def} if
+
+/build_rf {
+    pop
+    gsave
+	currentpoint translate newpath
+	bvbbox 6 get size ne {
+	    gsave
+		initgraphics
+		scaling scaling scale
+		0 0 moveto
+		(\357) false charpath flattenpath pathbbox 0 0 size bvbbox astore pop
+		0 1 idtransform dup mul exch dup mul add sqrt dup
+		bvbbox 1 get add bvbbox 1 3 -1 roll put
+		bvbbox 3 get exch sub bvbbox 3 3 -1 roll put
+		bvbbox 2 get bvbbox 0 get sub bvbbox 4 3 -1 roll put
+		bvbbox 2 get bvbbox 0 get add 2 div bvbbox 5 3 -1 roll put
+	    grestore
+	} if
+	bvbbox 2 get bvbbox 1 get moveto
+	bvbbox 2 get bvbbox 3 get lineto
+	bvbbox 5 get bvbbox 4 get 8 mul sub dup bvbbox 3 get lineto
+	bvbbox 1 get lineto closepath clip newpath
+	0 0 moveto (\357) show
+	bvbbox 5 get bvbbox 1 get moveto
+	bvbbox 4 get dup dup
+	8 mul neg 0 rlineto
+	0 exch rlineto
+	8 mul 0 rlineto
+	closepath clip eofill
+    grestore
+} def
+%%EndResource

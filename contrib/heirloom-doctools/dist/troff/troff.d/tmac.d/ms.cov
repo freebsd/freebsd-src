@@ -1,0 +1,298 @@
+.\"
+.\" Copyright 2005 Sun Microsystems, Inc.  All rights reserved.
+.\" Use is subject to license terms.
+.\"
+.\" CDDL HEADER START
+.\"
+.\" The contents of this file are subject to the terms of the
+.\" Common Development and Distribution License, Version 1.0 only
+.\" (the "License").  You may not use this file except in compliance
+.\" with the License.
+.\"
+.\" You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+.\" or http://www.opensolaris.org/os/licensing.
+.\" See the License for the specific language governing permissions
+.\" and limitations under the License.
+.\"
+.\" When distributing Covered Code, include this CDDL HEADER in each
+.\" file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+.\" If applicable, add the following below this CDDL HEADER, with the
+.\" fields enclosed by brackets "[]" replaced with your own identifying
+.\" information: Portions Copyright [yyyy] [name of copyright owner]
+.\"
+.\" CDDL HEADER END
+.\"
+.\"ident	"@(#)ms.cov	1.5	05/06/08 SMI"
+.\"
+.\" University Copyright- Copyright (c) 1982, 1986, 1988
+.\" The Regents of the University of California
+.\" All Rights Reserved
+.\"
+.\" University Acknowledgment- Portions of this document are derived from
+.\" software developed by the University of California, Berkeley, and its
+.\" contributors.
+.\"
+.	\" TL - title and initialization
+.de TL
+.if \\n(TM .nr ST 1
+.if \\n(TM .pn 0
+.br
+.nr TV 1
+.nr YE 1
+.nr SJ \\n(.j
+.di WT
+.na
+.fi
+.ll 5.0i
+.ft 3
+.ps \\n(PS+2
+.hy 0
+..
+.	\" TX - actually print title
+.de TX
+.rs
+.sp .5i
+.ce 999
+.if n .ul 999
+.ps \\n(PS+2
+.vs \\n(.s+2p
+.ft 3
+.ne 4
+.hy 0
+.WT
+.hy 14
+.ce 0
+.ul 0
+..
+.	\" AU - author(s)
+.de AU
+.nr AV 1
+.ad \\n(SJ
+.br
+.di
+.br
+.nf
+.nr NA +1
+.di A\\n(NA
+.ll \\n(LLu
+.if t .ft 2
+.if n .ft 1
+.ps \\n(PS
+..
+.	\" AI - author's institution
+.de AI
+.br
+.ft 1
+.di
+.di I\\n(NA
+.nf
+..
+.	\" AX - actually print authors and institutions
+.de AX
+.ft 1
+.rs
+.ce 999
+.if n .ul 0
+.ps \\n(PS
+.if \\n(VS>=40 .vs \\n(VSu
+.if \\n(VS<=39 .vs \\n(VSp
+.if n .sp 2
+.if t .sp
+.A1
+.if n .sp
+.if t .sp .5
+.ns
+.I1
+.if \\n(NA-1 .if n .sp 2
+.if \\n(NA-1 .if t .sp
+.A2
+.if \\n(NA-1 .if n .sp
+.if \\n(NA-1 .if t .sp .5
+.ns
+.I2
+.if \\n(NA-2 .if t .sp
+.if \\n(NA-2 .if n .sp 2
+.A3
+.if \\n(NA-2 .if t .sp .5
+.if \\n(NA-2 .if n .sp
+.ns
+.I3
+.if \\n(NA-3 .if t .sp
+.if \\n(NA-3 .if n .sp 2
+.A4
+.if \\n(NA-3 .if t .sp .5
+.if \\n(NA-3 .if n .sp
+.ns
+.I4
+.if \\n(NA-4 .if t .sp
+.if \\n(NA-4 .if n .sp 2
+.A5
+.if \\n(NA-4 .if n .sp
+.if \\n(NA-4 .if t .sp .5
+.ns
+.I5
+.if \\n(NA-5 .if t .sp
+.if \\n(NA-5 .if n .sp 2
+.A6
+.if \\n(NA-5 .if n .sp
+.if \\n(NA-5 .if t .sp .5
+.ns
+.I6
+.if \\n(NA-6 .if t .sp
+.if \\n(NA-6 .if n .sp 2
+.A7
+.if \\n(NA-6 .if n .sp
+.if \\n(NA-6 .if t .sp .5
+.ns
+.I7
+.if \\n(NA-7 .if t .sp
+.if \\n(NA-7 .if n .sp 2
+.A8
+.if \\n(NA-7 .if n .sp
+.if \\n(NA-7 .if t .sp .5
+.ns
+.I8
+.if \\n(NA-8 .if t .sp
+.if \\n(NA-8 .if n .sp 2
+.A9
+.if \\n(NA-8 .if n .sp
+.if \\n(NA-8 .if t .sp .5
+.ns
+.I9
+..
+.	\" AB - abstract begin
+.de AB
+.br
+.di
+.ul 0
+.ce 0
+.nr 1T 1
+.nr IK 1
+.nr KI 1
+.di WB
+.rs
+.nr AJ 1
+.ce 1
+.ft 2
+.if n .ul
+.ll \\n(LLu
+.if !\\n(.$ ABSTRACT
+.if \\n(.$ .if !\\$1no \\$1
+.if !\\n(.$ .sp
+.if \\n(.$ .if !\\$1no .sp
+.hy 14
+.ul 0
+.ce 0
+.fi
+.ft 1
+.nr OJ \\n(.i
+.in +\\n(.lu/12u
+.ll -\\n(.lu/12u
+.br
+.ps \\n(PS
+.if \\n(VS>=40 .vs \\n(VSu
+.if \\n(VS<=39 .vs \\n(VSp
+.ti +\\n(PIu
+.if \\n(TM .ls 1
+..
+.	\" AE - abstract end
+.de AE
+.br
+.di
+.ll \\n(LLu
+.ps \\n(PS
+.if \\n(VS>=40 .vs \\n(VSu
+.if \\n(VS<=39 .vs \\n(VSp
+.nr 1T 0
+.nr IK 0
+.in \\n(OJu
+.nr AJ 0
+.di
+.ce 0
+.if \\n(ST>0 .SY
+.if \\n(ST<3 .rm SY
+.if \\n(TM .ls 2
+..
+.	\" SY - cover sheet of released paper
+.de SY
+.ll \\n(LLu
+.if !\\n(LT .nr LT \\n(LLu
+.ns
+.if \\n(TV .TX
+.if \\n(AV .AX
+.rs
+.ce 0
+.nf
+.sp 3
+.pn 2
+.af PN i
+.ls 1
+.WB
+.ls
+.sp 3v
+\\*(DY
+.af PN 1
+.sp |9i
+.if \\n(FP>0 .FA
+.FG
+.fi
+..
+.	\" S2 - cover and page 1 of RP
+.de S2
+.ce 0
+.br
+.SY
+.rm SY
+.bp 1
+.if \\n(TV .TX
+.if \\n(AV .AX
+.rm A1 A2 A3 A4 A5 A6 A7 A8 A9
+.rm I1 I2 I3 I4 I5 I6 I7 I8 I9
+.rs
+.ce 0
+.ft 1
+.ad \\n(SJ
+..
+.	\" S1 - cover and page 1 of RP (no p.1 title)
+.de S1
+.ce 0
+.br
+.SY
+.rm SY
+.rm A1 A2 A3 A4 A5 A6 A7 A8 A9
+.rm I1 I2 I3 I4 I5 I6 I7 I8 I9
+.bp 1
+.rs
+.ce 0
+.ft 1
+.ad \\n(SJ
+.nr KG 0
+..
+.	\" S0 - conserve paper format (without RP)
+.de S0
+.ce 0
+.br
+.ll \\n(LLu
+.if \\n(TV+\\n(AV>0 .ns
+.if \\n(TV .TX
+.if \\n(AV .AX
+.rm A1 A2 A3 A4 A5 A6 A7 A8 A9
+.rm I1 I2 I3 I4 I5 I6 I7 I8 I9
+.if \\n(TV+\\n(AV>0 .rs
+.ce 0
+.if \\n(TV>0 .sp 2
+.ls 1
+.if \\n(FP>0 \{\
+.	FJ
+.	nf
+.	FG
+.	fi
+.	FK
+.	nr FP 0
+.\}
+.nf
+.WB
+.ls
+.fi
+.ad \\n(SJ
+..

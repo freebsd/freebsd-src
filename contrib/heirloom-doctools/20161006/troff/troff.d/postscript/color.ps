@@ -1,0 +1,93 @@
+%%BeginResource: procset dpost_color 1.3 0
+% from OpenSolaris "lp:filter/postscript/postscript/color.ps	1.1"
+%
+% CDDL HEADER START
+%
+% The contents of this file are subject to the terms of the
+% Common Development and Distribution License, Version 1.0 only
+% (the "License").  You may not use this file except in compliance
+% with the License.
+%
+% You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+% or http://www.opensolaris.org/os/licensing.
+% See the License for the specific language governing permissions
+% and limitations under the License.
+%
+% When distributing Covered Code, include this CDDL HEADER in each
+% file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+% If applicable, add the following below this CDDL HEADER, with the
+% fields enclosed by brackets "[]" replaced with your own identifying
+% information: Portions Copyright [yyyy] [name of copyright owner]
+%
+% CDDL HEADER END
+%
+% Portions Copyright 2005 Gunnar Ritter, Freiburg i. Br, Germany
+%
+% Sccsid @(#)color.ps	1.3 (gritter) 11/28/05
+%
+% Color and reverse video support for dpost. A call made to setcolor with two
+% arguments implies reverse video printing.
+%
+
+/rgb {setrgbcolor} bind def
+/hsb {sethsbcolor} bind def
+/cmyk {setcmykcolor} bind def
+
+/colordict 50 dict dup begin
+	/red			{ 1 0 0 } def
+	/green			{ 0 1 0 } def
+	/blue			{ 0 0 1 } def
+	/cyan			{ 0 1 1 } def
+	/magenta		{ 1 0 1 } def
+	/yellow			{ 1 1 0 } def
+	/white			{ 1 1 1 } def
+	/black			{ 0 0 0 } def
+end def
+
+/_setcolor {
+	counttomark 1 eq {
+		dup colordict exch known not {pop /black} if
+		colordict exch get exec setrgbcolor
+	} if
+	counttomark 2 eq {
+		/backcolor exch def
+		/textcolor exch def
+		colordict backcolor known not colordict textcolor known not or {
+			/backcolor colordict /black get def
+			/textcolor colordict /white get def
+		} if
+		/backcolor colordict backcolor get def
+		/textcolor colordict textcolor get def
+		/dY1 0 def
+		/dY2 0 def
+		textcolor exec setrgbcolor
+	} if
+} bind def
+
+/drawrvbox {
+	/x2 exch def
+	/x1 exch def
+
+	currentpoint dup
+	/y1 exch def
+	/y2 exch def pop
+
+	dY1 0 eq dY2 0 eq and {
+		currentfont /FontBBox get aload pop
+		currentfont /FontMatrix get dtransform /dY2 exch def pop
+		currentfont /FontMatrix get dtransform /dY1 exch def pop
+	} if
+
+	/y1 y1 dY1 add def
+	/y2 y2 dY2 add def
+
+	backcolor exec setrgbcolor
+	newpath
+	x1 y1 moveto
+	x2 y1 lineto
+	x2 y2 lineto
+	x1 y2 lineto
+	closepath fill
+	textcolor exec setrgbcolor
+} bind def
+%%EndResource

@@ -1,0 +1,30 @@
+%!
+% Changes by Gunnar Ritter, Freiburg i. Br., Germany, December 2005
+% Sccsid @(#)PDFX_def.ps	1.3 (gritter) 1/20/06
+% from Ghostscript 8.53 PDFX_def.ps,v 1.1 2005/09/12 11:34:50 leonardo Exp
+%
+% This is a sample prefix file for creating a PDF/X-3 document.
+% It has been changed such that the resulting document passed the
+% preflight check of Acrobat 7.0.5.
+
+% Define entries to the document Info dictionary:
+[ /GTS_PDFXVersion (PDF/X-3:2002) % Intended version of the standard
+  /Title (Title)                  % Overridden by "\X'PDFMark: Title ...'".
+  /Trapped /False                 % Must be so (Ghostscript doesn't provide other).
+  /DOCINFO pdfmark
+
+% Define the output intent dictionary:
+[/_objdef {OutputIntent_PDFX} /type /dict /OBJ pdfmark
+[{OutputIntent_PDFX} <<
+  /Type /OutputIntent             % Must be so (the standard requires).
+  /S /GTS_PDFX                    % Must be so (the standard requires).
+  % The troff demonstration document uses only black so these entries are
+  % included just for conformance. If you actually use colors, you will
+  % have to retrieve an ICC profile and to convert all colors and images
+  % using a CMS (e.g. <http://www.littlecms.com>) to the intended output
+  % profile before they get used in troff and dpost.
+  /Info (Europe ISO Uncoated Yellowish FOGRA30)
+  /OutputConditionIdentifier (FOGRA30)
+  /RegistryName (http://www.color.org)
+>> /PUT pdfmark
+[{Catalog} <</OutputIntents [ {OutputIntent_PDFX} ]>> /PUT pdfmark

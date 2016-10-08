@@ -1,0 +1,58 @@
+Adding hyphenation files to troff
+=================================
+
+There are principally two methods to obtain hyphenation files for
+use with troff:
+
+1. Get an OpenOffice hyphenation file. The file format of these should
+   be principally compatible; however, the results when hyphenating with
+   them were rather mediocre. I have not followed this issue further.
+   Replace the first line with the string "UTF-8" and recode the rest
+   of the file from the original encoding to UTF-8.
+
+2. Derive a hyphenation file from TeX sources in the following steps:
+
+   a) Verify that you are allowed to do this by reading the license of
+      the individual file.
+
+   b) Create a temporary copy of the file for the next steps.
+
+   c) Delete everything except the \patterns{} and \hyphenation{} parts;
+      the latter may be missing.
+
+   d) Delete all remaining comments, i.e. any "%" character and following
+      ones to the end of the line.
+
+   e) Recode the \hyphenation{} part, if any, to the same format as the
+      \patterns{} part. Replace each hyphen by a "9", and insert an "8"
+      after any letter that is not followed by a hyphen. The first and
+      last characters of each word are not hyphenated anyway, so there
+      is no need to insert an "8" there. Surround each word by dots. In
+      effect, "phil-an-thropic" becomes ".ph8i8l9a8n9t8h8r8o8p8ic."
+
+   f) Delete remaining part separators, if any.
+
+   g) Reformat the file such that each pattern is on a single line, and
+      delete any other white space.
+
+   h) Replace any non-ASCII characters in one of the TeX encodings by
+      their UTF-8 equivalents.
+
+   i) Run "perl substring.pl tmp_file". This will print a lot of output,
+      and will finally generate the file "hyphen.mashed". Move it to
+      "hyph_<lc>_<CC>[@extra].dic", where "lc" is a language code, and
+      "CC" is a country code, as appropriate. The optional "@extra" part
+      may be added to describe special variations.
+
+   j) Add the line "UTF-8" as the first line of the new file.
+
+   k) Insert copyright/authorship statements from the original file into
+      the new one using "%" as a comment character. Supply any information
+      that is additionally demanded by the license of the original.
+
+   l) Insert a prominent remark that you changed the file, and that you
+      will accept bug reports for your variant.
+
+   m) Contribute your work if you like.
+
+Gunnar Ritter                                                      9/3/05

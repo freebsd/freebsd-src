@@ -1,0 +1,13 @@
+README for the Heirloom Troff Font Handling Manual
+==================================================
+
+To build this manual, you need the Garamond Premier Pro
+Opticals fonts from Adobe, and need to set the TROFFONTS
+variable accordingly.
+
+Note that as of autumn 2005, it was not possible to
+download fonts bought directly from Adobe using a Linux
+system. There are many other shops that sell Adobe fonts,
+though, and these usually allow downloads for Linux users.
+
+Gunnar Ritter					01/08/07

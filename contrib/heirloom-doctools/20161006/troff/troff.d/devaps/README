@@ -1,0 +1,102 @@
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License, Version 1.0 only
+# (the "License").  You may not use this file except in compliance
+# with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or http://www.opensolaris.org/os/licensing.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
+#ident	"@(#)README	1.4	05/06/08 SMI"
+#
+# Copyright 1989 Sun Microsystems, Inc.  All rights reserved.
+# Use is subject to license terms.
+#
+# University Copyright- Copyright (c) 1982, 1986, 1988
+# The Regents of the University of California
+# All Rights Reserved
+#
+# University Acknowledgment- Portions of this document are derived from
+# software developed by the University of California, Berkeley, and its
+# contributors.
+#
+
+This directory contains the ASCII font and device tables and a
+postprocessor for an APS-5 phototypesetter. The device independent troff uses
+the information contained in these files, but instead of looking at the
+ASCII files, troff reads an equivalent set of binary tables that are
+produced by a program called 'makedev'.
+
+    Since you need to be a little careful when you run makedev, we
+have written a small shell program called 'maketables' that takes one
+or more of the ASCII files as input, and then properly updates all the
+required binary files. For example, to make a complete new set of
+binary tables just type in the command,
+
+                            maketables *
+
+On the other hand if just a few font files have been changed, eg. R,
+I, and PA, the command line,
+
+                            maketables R I PA
+
+will remake all the required binary files. In neither of the above
+examples could you simply substitute makedev for maketables and have
+things work properly. After you've run either maketables or makedev
+the binary files are easy to find - their names all end in the suffix
+'.out' or '.add'.  maketables uses the makedev defined by its shell
+variable MAKEDEV.
+
+The shell program 'maketables' is located in the parent of this directory.
+
+N.B.  The contents of this directory (the ASCII font description
+tables, the postprocessor daps, and the description table compiler
+makedev) are all tailored for the particular font disk used in the
+Murray Hill Computing Center.  Any installation with a different
+APS font set will almost certainly have to hand-tune some of the
+font description files and will possibly want to use the more general
+makedev located in the parent of this directory.
+
+
+-------------------------------------------------------------------------------
+
+Changes since the original release:
+
+
+ 1: The width of ru on the R, I, B, and S fonts is 12 units less than
+    Autologic's specifications. This eliminates the dashed line problems
+    we were having, provided only troff reads these tables.
+
+ 2: Added the en character to the I and B fonts so that font positions
+    1, 2, and 3 would all be the same size. Told users on other systems
+    to remove en from R since it's only used in our banners and that
+    seemed to be a less error prone process.
+
+ 3: Added xe, xt, and xk to DESC, GB, and GR files.
+
+ 4: Set the character code for bs in the S font to 0 so that the old
+    Bell System logo will be replaced by white space on the APS-5.
+
+ 5: Added the new ATT logo characters to DESC and the S font file.
+    LH and LV are logos in horizontal and vertical configurations,
+    respectively.
+
+ 6: Fixed (probably overdid) the ascender/descender stuff.
+
+ 7: Added the old Bell Logo to the DESC file and the S font as character
+    LB.  Still have \(bs replaced by white space.
+
+
+-------------------------------------------------------------------------------

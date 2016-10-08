@@ -1,0 +1,849 @@
+%!PS-Adobe-3.0
+%%Creator: Heirloom Documentation Tools - dpost 8.77 (gritter) 6/19/11
+%%
+%%DocumentFonts: Times-Roman
+%%Pages: 2
+%%DocumentNeededResources: font Times-Roman
+%%EndComments
+%%BeginProlog
+%%BeginResource: procset dpost 4.19 0
+%
+% Copyright 2005 Sun Microsystems, Inc.  All rights reserved.
+% Use is subject to license terms.
+%
+% CDDL HEADER START
+%
+% The contents of this file are subject to the terms of the
+% Common Development and Distribution License, Version 1.0 only
+% (the "License").  You may not use this file except in compliance
+% with the License.
+%
+% You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+% or http://www.opensolaris.org/os/licensing.
+% See the License for the specific language governing permissions
+% and limitations under the License.
+%
+% When distributing Covered Code, include this CDDL HEADER in each
+% file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+% If applicable, add the following below this CDDL HEADER, with the
+% fields enclosed by brackets "[]" replaced with your own identifying
+% information: Portions Copyright [yyyy] [name of copyright owner]
+%
+% CDDL HEADER END
+%
+% from OpenSolaris "dpost.ps	1.7	05/06/08 SMI"
+%
+% Portions Copyright 2005 Gunnar Ritter, Freiburg i. Br, Germany
+%
+% Sccsid @(#)dpost.ps	4.19 (gritter) 2/7/10
+%
+
+/#copies 1 store
+/aspectratio 1 def
+/formsperpage 1 def
+/landscape false def
+/linewidth .3 def
+/magnification 1 def
+/margin 0 def
+/orientation 0 def
+/resolution 720 def
+/xoffset 0 def
+/yoffset 0 def
+
+/roundpage true def
+/useclippath true def
+/pagebbox [0 0 612 792] def
+
+/R  /Times-Roman def
+/I  /Times-Italic def
+/B  /Times-Bold def
+/BI /Times-BoldItalic def
+/H  /Helvetica def
+/HI /Helvetica-Oblique def
+/HB /Helvetica-Bold def
+/HX /Helvetica-BoldOblique def
+/CW /Courier def
+/CO /Courier def
+/CI /Courier-Oblique def
+/CB /Courier-Bold def
+/CX /Courier-BoldOblique def
+/PA /Palatino-Roman def
+/PI /Palatino-Italic def
+/PB /Palatino-Bold def
+/PX /Palatino-BoldItalic def
+/Hr /Helvetica-Narrow def
+/Hi /Helvetica-Narrow-Oblique def
+/Hb /Helvetica-Narrow-Bold def
+/Hx /Helvetica-Narrow-BoldOblique def
+/KR /Bookman-Light def
+/KI /Bookman-LightItalic def
+/KB /Bookman-Demi def
+/KX /Bookman-DemiItalic def
+/AR /AvantGarde-Book def
+/AI /AvantGarde-BookOblique def
+/AB /AvantGarde-Demi def
+/AX /AvantGarde-DemiOblique def
+/NR /NewCenturySchlbk-Roman def
+/NI /NewCenturySchlbk-Italic def
+/NB /NewCenturySchlbk-Bold def
+/NX /NewCenturySchlbk-BoldItalic def
+/ZD /ZapfDingbats def
+/ZI /ZapfChancery-MediumItalic def
+/VR /Varitimes#Roman def
+/VI /Varitimes#Italic def
+/VB /Varitimes#Bold def
+/VX /Varitimes#BoldItalic def
+/S  /S def
+/S1 /S1 def
+/GR /Symbol def
+
+/inch {72 mul} bind def
+/min {2 copy gt {exch} if pop} bind def
+
+/track 0 def
+/horscale 1.0 def
+
+/setup {
+	counttomark 2 idiv {def} repeat pop
+
+	landscape {/orientation 90 orientation add def} if
+	/scaling 72 resolution div def
+	linewidth setlinewidth
+	1 setlinecap
+
+	pagedimensions
+	xcenter ycenter translate
+	orientation neg rotate
+	width 2 div neg height 2 div translate
+	xoffset inch yoffset inch translate
+	margin 2 div dup neg translate
+	magnification dup aspectratio mul scale
+	scaling scaling scale
+
+	/Symbol /S Sdefs cf
+	/Times-Roman /S1 S1defs cf
+	0 0 moveto
+} def
+
+/pagedimensions {
+	useclippath userdict /gotpagebbox known not and {
+		/pagebbox [clippath pathbbox newpath] def
+		roundpage currentdict /roundpagebbox known and {roundpagebbox} if
+	} if
+	pagebbox aload pop
+	4 -1 roll exch 4 1 roll 4 copy
+	landscape {4 2 roll} if
+	sub /width exch def
+	sub /height exch def
+	add 2 div /xcenter exch def
+	add 2 div /ycenter exch def
+	userdict /gotpagebbox true put
+} def
+
+/pagesetup {
+	/page exch def
+	currentdict /pagedict known currentdict page known and {
+		page load pagedict exch get cvx exec
+	} if
+	/Dsetup where {pop Dsetup} if
+	_custompagesetup
+} def
+
+/decodingdefs [
+	{counttomark 2 idiv {y moveto track 0 3 -1 roll ashow} repeat}
+	{neg /y exch def counttomark 2 idiv {y moveto track 0 3 -1 roll ashow} repeat}
+	{neg dup /y exch def moveto {2 index dup length track mul exch stringwidth pop add sub exch div 0 32 track 0 6 -1 roll awidthshow} repeat}
+	{neg dup /y exch def moveto {spacewidth sub track sub 0.0 32 track 0 6 -1 roll awidthshow} repeat}
+	{/x exch def counttomark 2 idiv 1 add {x y moveto counttomark 1 gt {x exch sub /x exch def} if track 0 3 -1 roll ashow} repeat}
+	{/x exch def counttomark 2 idiv 1 add {x y moveto counttomark 1 gt {x exch sub /x exch def} if track 0 3 -1 roll ashow} repeat}
+	{counttomark 2 idiv {y moveto track 0 3 -1 roll ashow} repeat}
+	{neg setfunnytext}
+] def
+
+/setdecoding {/t decodingdefs 3 -1 roll get def} bind def
+
+/T {/track exch def} bind def
+
+/w {neg dup /y exch def moveto track 0 3 -1 roll ashow} bind def
+/v {y moveto track 0 3 -1 roll ashow} bind def
+/u {y neg t} bind def
+/m {neg dup /y exch def moveto} bind def
+/done {/lastpage where {pop lastpage} if} def
+
+/f {
+	dup /font exch def exch
+	dup /ptsize exch def scaling div dup /size exch def
+	horscale 1.0 ne {horscale mul [exch 0 0 size 0 0]} if SF
+	linewidth ptsize mul scaling 10 mul div setlinewidth
+	/spacewidth ( ) stringwidth pop def
+	/horscale 1.0 def
+} bind def
+/F {ptsize exch f} bind def
+/s {font f} bind def
+/h {/horscale exch def f} bind def
+
+/changefont {
+	/fontheight exch def
+	/fontslant exch def
+	currentfont [
+		1 0
+		fontheight ptsize div fontslant sin mul fontslant cos div
+		fontheight ptsize div
+		0 0
+	] makefont setfont
+} bind def
+
+/sf {f} bind def
+
+/cf {
+	dup length 2 idiv
+	/entries exch def
+	/chtab exch def
+	/newfont exch def
+
+	findfont dup length 1 add dict
+	/newdict exch def
+	{1 index /FID ne {newdict 3 1 roll put} {pop pop} ifelse} forall
+
+	newdict /Metrics entries dict put
+	newdict /Metrics get
+	begin
+		chtab aload pop
+		1 1 entries {pop def} for
+		newfont newdict definefont pop
+	end
+} bind def
+
+%
+% A few arrays used to adjust reference points and character widths in some
+% of the printer resident fonts. If square roots are too high try changing
+% the lines describing /radical and /radicalex to,
+%
+%	/radical	[0 -75 550 0]
+%	/radicalex	[-50 -75 500 0]
+%
+
+/Sdefs [
+	/underscore		[0 0 500 0]
+	/bracketlefttp		[208 500]
+	/bracketleftbt		[208 500]
+	/bracketrighttp		[-60 380]
+	/bracketrightbt		[-60 380]
+	/braceleftbt		[209 490]
+	/bracketrightex		[220 -125 500 0]
+	/radical		[0 0 550 0]
+	% NeWSprint's \(br is too low, compensate
+	statusdict /product get (NeWS Server) eq {
+		/radicalex		[-50 100 500 0]
+		/parenleftex		[-20 100 0 0]
+
+	} {
+		/radicalex		[-50 0 500.001 0]
+		/parenleftex		[-20 -170 0 0]
+	} ifelse
+	/integral		[100 -50 500 0]
+	/infinity		[10 -75 730 0]
+] def
+
+%
+% This adjusts the y left bearing of the underscore character in the
+% Symbol font to the position expected by troff, depending on the
+% font variant actually in use with the current document.
+%
+/_Sdefsadj {
+	gsave
+	/Symbol findfont 1000 scalefont setfont
+	0 0 moveto
+	(\137) false charpath flattenpath pathbbox pop pop exch pop
+	grestore
+	252 add neg
+	Sdefs 1 [0 5 -1 roll 500 0] put
+} def
+
+/S1defs [
+	/underscore		[0 80 500.001 0]
+	/endash			[7 90 650 0]
+] def
+
+% from Adobe's PostScript Language Reference Manual, 2nd ed. 1990, pp. 588-589
+/*SF {					% Complete selectfont emulation
+	exch findfont exch
+	dup type /arraytype eq {makefont}{scalefont} ifelse setfont
+} bind def
+/languagelevel where			% Determine language level
+	{pop languagelevel} {1} ifelse	% of implementation
+	2 lt {				% ifelse
+		/SF /*SF load def	% Level 1 interpreter present, so
+	} {				% else
+		/SF /selectfont load def% Level 2 interpreter present, so
+	}
+ifelse
+
+% from Adobe's pdfmark Reference Manual for Acrobat 7.0, 11/30/04, p. 10
+/pdfmark where				% Is pdfmark already available?
+	{pop}				% Yes: do nothing (use that definition)
+	{				% No: define pdfmark as follows:
+	/globaldict where		% globaldict is preferred because
+		{pop globaldict}	% globaldict is always visible; else,
+		{userdict}		% use userdict otherwise.
+	ifelse
+	/pdfmark /cleartomark load put
+	}				% Define pdfmark to remove all objects
+ifelse					% up to and including the mark object.
+%%EndResource
+%%BeginResource: procset dpost_draw 1.5 0
+% from OpenSolaris "lp:filter/postscript/postscript/draw.ps	1.1"
+%
+% CDDL HEADER START
+%
+% The contents of this file are subject to the terms of the
+% Common Development and Distribution License, Version 1.0 only
+% (the "License").  You may not use this file except in compliance
+% with the License.
+%
+% You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+% or http://www.opensolaris.org/os/licensing.
+% See the License for the specific language governing permissions
+% and limitations under the License.
+%
+% When distributing Covered Code, include this CDDL HEADER in each
+% file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+% If applicable, add the following below this CDDL HEADER, with the
+% fields enclosed by brackets "[]" replaced with your own identifying
+% information: Portions Copyright [yyyy] [name of copyright owner]
+%
+% CDDL HEADER END
+%
+% Portions Copyright 2005 Gunnar Ritter, Freiburg i. Br, Germany
+%
+% Sccsid @(#)draw.ps	1.5 (gritter) 2/9/06
+%
+% Drawing procedures for dpost. Automatically pulled in, but only
+% when needed.
+%
+
+/Dsetup {
+	/inpath false def
+	/savematrix matrix currentmatrix def
+} bind def
+
+/Dl {
+	inpath
+		{
+			/Dlny exch def
+			/Dlnx exch def
+			currentpoint
+			neg round /Dlcy exch def
+			round /Dlcx exch def
+			Dlnx Dlcx ne Dlny Dlcy ne or {Dlnx Dlny neg moveto} if
+			neg lineto
+		}
+		{newpath neg moveto neg lineto stroke}
+	ifelse
+} bind def
+
+/De {
+	/y1 exch 2 div def
+	/x1 exch 2 div def
+	neg exch x1 add exch translate
+	x1 y1 scale
+	0 0 1 0 360
+	inpath
+		{1 0 moveto arc savematrix setmatrix}
+		{newpath arc savematrix setmatrix stroke}
+	ifelse
+} bind def
+
+/DE {
+	/y1 exch 2 div def
+	/x1 exch 2 div def
+	neg exch x1 add exch translate
+	x1 y1 scale
+	0 0 1 0 360
+	inpath
+		{1 0 moveto arc savematrix setmatrix}
+		{newpath arc savematrix setmatrix fill}
+	ifelse
+} bind def
+
+/Da {
+	/dy2 exch def
+	/dx2 exch def
+	/dy1 exch def
+	/dx1 exch def
+	dy1 add neg exch dx1 add exch
+	dx1 dx1 mul dy1 dy1 mul add sqrt
+	dy1 dx1 neg atan
+	dy2 neg dx2 atan
+	inpath
+		{arc}
+		{newpath arc stroke}
+	ifelse
+} bind def
+
+/DA {
+	/dy2 exch def
+	/dx2 exch def
+	/dy1 exch def
+	/dx1 exch def
+	dy1 add neg exch dx1 add exch
+	dx1 dx1 mul dy1 dy1 mul add sqrt
+	dy1 dx1 neg atan
+	dy2 neg dx2 atan
+	inpath
+		{arcn}
+		{newpath arcn stroke}
+	ifelse
+} bind def
+
+/Ds {
+	/y2 exch def
+	/x2 exch def
+	/y1 exch def
+	/x1 exch def
+	/y0 exch def
+	/x0 exch def
+	x0 5 x1 mul add 6 div
+	y0 5 y1 mul add -6 div
+	x2 5 x1 mul add 6 div
+	y2 5 y1 mul add -6 div
+	x1 x2 add 2 div
+	y1 y2 add -2 div
+	inpath
+		{curveto}
+		{newpath x0 x1 add 2 div y0 y1 add -2 div moveto curveto stroke}
+	ifelse
+} bind def
+%%EndResource
+%%EndProlog
+%%BeginSetup
+[ %
+  /Creator (Heirloom Documentation Tools - dpost 8.77 (gritter) 6/19/11)
+/DOCINFO pdfmark
+/_custompagesetup {
+} def
+/_marks {
+} def
+/Encoding-@11@0 [
+/.notdef /hyphen /cent /fi /fl /dagger /emdash /onequarter /threequarters
+/onehalf /endash /acute /grave /section /daggerdbl /backslash
+/quotedbl /ring /bullet /bar /quotedblleft /quotedblright /quotesingle
+/quoteleft /quoteright /space /asciicircum /asciitilde /exclamdown
+/sterling /fraction /yen /space /exclam /quotedbl /numbersign
+/dollar /percent /ampersand /quoteright /parenleft /parenright
+/asterisk /plus /comma /hyphen /period /slash /zero /one /two
+/three /four /five /six /seven /eight /nine /colon /semicolon
+/less /equal /greater /question /at /A /B /C /D /E /F /G /H /I
+/J /K /L /M /N /O /P /Q /R /S /T /U /V /W /X /Y /Z /bracketleft
+/backslash /bracketright /circumflex /underscore /quoteleft /a
+/b /c /d /e /f /g /h /i /j /k /l /m /n /o /p /q /r /s /t /u /v
+/w /x /y /z /braceleft /bar /braceright /tilde /florin /currency
+/guillemotleft /guilsinglleft /guilsinglright /periodcentered
+/paragraph /quotesinglbase /quotedblbase /guillemotright /ellipsis
+/perthousand /questiondown /macron /breve /dotaccent /dieresis
+/cedilla /hungarumlaut /ogonek /caron /AE /ordfeminine /Lslash
+/Oslash /OE /ordmasculine /ae /dotlessi /lslash /oslash /oe /germandbls
+/Idieresis /eacute /Ydieresis /divide /Yacute /Acircumflex /aacute
+/Ucircumflex /yacute /ecircumflex /Udieresis /Uacute /Edieresis
+/copyright /aring /agrave /atilde /scaron /iacute /ucircumflex
+/acircumflex /ccedilla /Thorn /threesuperior /Ograve /Agrave
+/multiply /uacute /ydieresis /icircumflex /Ecircumflex /adieresis
+/edieresis /Iacute /plusminus /brokenbar /registered /Egrave
+/Zcaron /Eth /Ccedilla /Aacute /Adieresis /egrave /Oacute /oacute
+/idieresis /Ocircumflex /Ugrave /thorn /twosuperior /Odieresis
+/mu /igrave /trademark /Igrave /ocircumflex /ntilde /Eacute /Scaron
+/degree /ograve /ugrave /Ntilde /otilde /Atilde /Aring /Otilde
+/minus /Icircumflex /logicalnot /odieresis /udieresis /eth /zcaron
+/onesuperior /Euro /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+] def
+/Times-Roman findfont
+dup length dict begin
+  {1 index /FID ne {def} {pop pop} ifelse} forall
+  /Encoding Encoding-@11@0 def
+  currentdict
+end
+/Times-Roman-@11 exch definefont pop
+/@11 /Times-Roman-@11 def
+/&11 {@11 F} bind def
+mark
+/resolution 72000 def
+setup
+3 setdecoding
+%%EndSetup
+%%Page: 1 1
+save
+mark
+1 pagesetup
+10 @11 f
+(O)13320 12000 w
+(/)6660 24000 w
+(\023)12770 v
+(\017)18100 v
+(#<\001>O<\001>#)0 36000 w
+10 @11 f
+124200 66000 54000 36000 De
+126000 199200 50400 50400 De
+0 181200 0 217200 Dl
+0 181200 54000 181200 Dl
+54000 217200 54000 181200 Dl
+0 217200 54000 217200 Dl
+248400 181200 248400 217200 Dl
+248400 181200 302400 181200 Dl
+302400 217200 302400 181200 Dl
+248400 217200 302400 217200 Dl
+27000 181200 132120 78744 Dl
+27000 181200 30888 174864 Dl
+27000 181200 33408 177456 Dl
+275400 181200 170280 78744 Dl
+275400 181200 268992 177456 Dl
+275400 181200 271512 174864 Dl
+151200 84000 153000 91200 Dl
+151200 84000 149400 91200 Dl
+151200 174000 151200 84000 Dl
+151200 174000 149400 166800 Dl
+151200 174000 153000 166800 Dl
+(Zwischenzeile)0 236400 w
+0 266400 36000 36000 De
+0 332400 72000 72000 De
+0 398400 54000 36000 De
+(document)7280 400400 w
+54000 398400 90000 398400 Dl
+90000 398400 82800 400200 Dl
+90000 398400 82800 396600 Dl
+90000 380400 90000 416400 Dl
+90000 380400 144000 380400 Dl
+144000 416400 144000 380400 Dl
+90000 416400 144000 416400 Dl
+(PIC)109220 400400 w
+144000 398400 180000 398400 Dl
+180000 398400 172800 400200 Dl
+180000 398400 172800 396600 Dl
+180000 416400 183600 416400 Dl
+187200 416400 190800 416400 Dl
+194400 416400 198000 416400 Dl
+201600 416400 205200 416400 Dl
+208800 416400 212400 416400 Dl
+216000 416400 219600 416400 Dl
+223200 416400 226800 416400 Dl
+230400 416400 234000 416400 Dl
+234000 412800 234000 416400 Dl
+234000 404736 234000 408336 Dl
+234000 396600 234000 400200 Dl
+234000 388536 234000 392136 Dl
+234000 380400 234000 384000 Dl
+230400 380400 234000 380400 Dl
+223200 380400 226800 380400 Dl
+216000 380400 219600 380400 Dl
+208800 380400 212400 380400 Dl
+201600 380400 205200 380400 Dl
+194400 380400 198000 380400 Dl
+187200 380400 190800 380400 Dl
+180000 380400 183600 380400 Dl
+180000 384000 180000 380400 Dl
+180000 392064 180000 388464 Dl
+180000 400200 180000 396600 Dl
+180000 408264 180000 404664 Dl
+180000 416400 180000 412800 Dl
+(TBL/EQN)185890 394400 w
+(\(optional\))187280 406400 w
+234000 398400 270000 398400 Dl
+270000 398400 262800 400200 Dl
+270000 398400 262800 396600 Dl
+270000 380400 270000 416400 Dl
+270000 380400 324000 380400 Dl
+324000 416400 324000 380400 Dl
+270000 416400 324000 416400 Dl
+(TR)281640 400400 w
+(OFF)294020 v
+324000 398400 360000 398400 Dl
+360000 398400 352800 400200 Dl
+360000 398400 352800 396600 Dl
+360000 398400 54000 36000 De
+(typesetter)367560 400400 w
+0 428400 36000 428400 Dl
+(this is)3330 1 5775 424400 t
+(a line)3330 1 6615 436400 t
+0 452400 36000 452400 Dl
+36000 452400 28800 454200 Dl
+36000 452400 28800 450600 Dl
+(this is)3330 1 5775 448400 t
+(an arro)3330 1 80 460400 t
+(w)28700 v
+0 476400 3600 476400 Dl
+8136 476400 11736 476400 Dl
+16200 476400 19800 476400 Dl
+24336 476400 27936 476400 Dl
+32400 476400 36000 476400 Dl
+(dashed)4115 472400 w
+(line)10500 484400 w
+0 536400 36000 536400 Dl
+36000 536400 0 -18000 18000 0 Da
+72000 500400 0 18000 -18000 0 Da
+72000 500400 108000 500400 Dl
+108000 500400 100800 502200 Dl
+108000 500400 100800 498600 Dl
+0 548400 0 584400 Dl
+0 548400 54000 548400 Dl
+54000 584400 54000 548400 Dl
+0 584400 54000 584400 Dl
+90000 548400 90000 584400 Dl
+90000 548400 144000 548400 Dl
+144000 584400 144000 548400 Dl
+90000 584400 144000 584400 Dl
+162000 596400 162000 632400 Dl
+162000 596400 216000 596400 Dl
+216000 632400 216000 596400 Dl
+162000 632400 216000 632400 Dl
+126000 614400 162000 614400 Dl
+126000 614400 133200 612600 Dl
+126000 614400 133200 616200 Dl
+72000 614400 54000 36000 De
+36000 614400 72000 614400 Dl
+36000 614400 43200 612600 Dl
+36000 614400 43200 616200 Dl
+0 614400 36000 36000 De
+0 648000 0 655200 Dl
+0 648000 216000 648000 Dl
+216000 655200 216000 648000 Dl
+0 655200 216000 655200 Dl
+216000 651600 14400 14400 De
+179530 670800 35530 742800 Dl
+35530 670800 179530 670800 Dl
+35530 670800 42730 669000 Dl
+35530 670800 42730 672600 Dl
+28330 670800 30130 678000 Dl
+28330 670800 26530 678000 Dl
+28330 742800 28330 670800 Dl
+28330 742800 26530 735600 Dl
+28330 742800 30130 735600 Dl
+(height)0 708800 w
+_marks
+cleartomark
+showpage
+restore
+%%EndPage: 1 1
+%%Page: 2 2
+save
+mark
+2 pagesetup
+10 @11 f
+36000 12000 0 48000 Dl
+36000 48000 36000 12000 Dl
+0 84000 36000 48000 Dl
+0 48000 0 84000 Dl
+7 s
+(.)-1000 132300 w
+(.)2600 v
+(.)6200 v
+(.)9800 v
+(.)13400 v
+(.)17000 v
+(.)20600 v
+(.)24200 v
+(.)27800 v
+(.)31400 v
+(.)35000 v
+(.)38600 v
+(.)42200 v
+(.)45800 v
+(.)49400 v
+(.)53000 v
+(.)53000 v
+(.)53000 128700 w
+(.)53000 125100 w
+(.)53000 121500 w
+(.)53000 117900 w
+(.)53000 114300 w
+(.)53000 110700 w
+(.)53000 107100 w
+(.)53000 103500 w
+(.)53000 99900 w
+(.)53000 96300 w
+(.)53000 v
+(.)49400 v
+(.)45800 v
+(.)42200 v
+(.)38600 v
+(.)35000 v
+(.)31400 v
+(.)27800 v
+(.)24200 v
+(.)20600 v
+(.)17000 v
+(.)13400 v
+(.)9800 v
+(.)6200 v
+(.)2600 v
+(.)-1000 v
+(.)-1000 v
+(.)-1000 99900 w
+(.)-1000 103500 w
+(.)-1000 107100 w
+(.)-1000 110700 w
+(.)-1000 114300 w
+(.)-1000 117900 w
+(.)-1000 121500 w
+(.)-1000 125100 w
+(.)-1000 128700 w
+(.)-1000 132300 w
+(.)53000 114300 w
+(.)56600 v
+(.)60200 v
+(.)63800 v
+(.)67400 v
+(.)71000 v
+(.)74600 v
+(.)78200 v
+(.)81800 v
+(.)85400 v
+(.)89000 v
+10 s
+126000 114000 129600 114000 Dl
+134136 114000 137736 114000 Dl
+142200 114000 145800 114000 Dl
+150336 114000 153936 114000 Dl
+158400 114000 162000 114000 Dl
+162000 132000 165600 132000 Dl
+169200 132000 172800 132000 Dl
+176400 132000 180000 132000 Dl
+183600 132000 187200 132000 Dl
+190800 132000 194400 132000 Dl
+198000 132000 201600 132000 Dl
+205200 132000 208800 132000 Dl
+212400 132000 216000 132000 Dl
+216000 128400 216000 132000 Dl
+216000 120336 216000 123936 Dl
+216000 112200 216000 115800 Dl
+216000 104136 216000 107736 Dl
+216000 96000 216000 99600 Dl
+212400 96000 216000 96000 Dl
+205200 96000 208800 96000 Dl
+198000 96000 201600 96000 Dl
+190800 96000 194400 96000 Dl
+183600 96000 187200 96000 Dl
+176400 96000 180000 96000 Dl
+169200 96000 172800 96000 Dl
+162000 96000 165600 96000 Dl
+162000 99600 162000 96000 Dl
+162000 107664 162000 104064 Dl
+162000 115800 162000 112200 Dl
+162000 123864 162000 120264 Dl
+162000 132000 162000 128400 Dl
+0 144000 3600 144000 Dl
+7272 144000 10872 144000 Dl
+14544 144000 18144 144000 Dl
+21816 144000 25416 144000 Dl
+29088 144000 32688 144000 Dl
+36360 144000 39960 144000 Dl
+43632 144000 47232 144000 Dl
+50904 144000 54504 144000 Dl
+58176 144000 61776 144000 Dl
+65448 144000 69048 144000 Dl
+72720 144000 76320 144000 Dl
+79992 144000 83592 144000 Dl
+87264 144000 90864 144000 Dl
+94536 144000 98136 144000 Dl
+101808 144000 105408 144000 Dl
+109080 144000 112680 144000 Dl
+116352 144000 119952 144000 Dl
+123624 144000 127224 144000 Dl
+130896 144000 134496 144000 Dl
+138168 144000 141768 144000 Dl
+145440 144000 149040 144000 Dl
+152712 144000 156312 144000 Dl
+159984 144000 163584 144000 Dl
+167256 144000 170856 144000 Dl
+174528 144000 178128 144000 Dl
+181872 144000 185472 144000 Dl
+189144 144000 192744 144000 Dl
+196416 144000 200016 144000 Dl
+203688 144000 207288 144000 Dl
+210960 144000 214560 144000 Dl
+218232 144000 221832 144000 Dl
+225504 144000 229104 144000 Dl
+232776 144000 236376 144000 Dl
+240048 144000 243648 144000 Dl
+247320 144000 250920 144000 Dl
+254592 144000 258192 144000 Dl
+261864 144000 265464 144000 Dl
+269136 144000 272736 144000 Dl
+276408 144000 280008 144000 Dl
+283680 144000 287280 144000 Dl
+290952 144000 294552 144000 Dl
+298224 144000 301824 144000 Dl
+305496 144000 309096 144000 Dl
+312768 144000 316368 144000 Dl
+320040 144000 323640 144000 Dl
+327312 144000 330912 144000 Dl
+334584 144000 338184 144000 Dl
+341856 144000 345456 144000 Dl
+349128 144000 352728 144000 Dl
+356400 144000 360000 144000 Dl
+0 162000 18000 162000 Dl
+34200 162000 52200 162000 Dl
+68400 162000 86400 162000 Dl
+102600 162000 120600 162000 Dl
+136800 162000 154800 162000 Dl
+171000 162000 189000 162000 Dl
+205200 162000 223200 162000 Dl
+239400 162000 257400 162000 Dl
+273600 162000 291600 162000 Dl
+307800 162000 325800 162000 Dl
+342000 162000 360000 162000 Dl
+0 180000 36000 180000 Dl
+64800 180000 100800 180000 Dl
+129600 180000 165600 180000 Dl
+194400 180000 230400 180000 Dl
+259200 180000 295200 180000 Dl
+324000 180000 360000 180000 Dl
+0 198000 72000 198000 Dl
+144000 198000 216000 198000 Dl
+288000 198000 360000 198000 Dl
+(input)16720 230000 w
+54000 228000 90000 228000 Dl
+90000 228000 82800 229800 Dl
+90000 228000 82800 226200 Dl
+(output)104220 230000 w
+0 258000 36000 258000 Dl
+36000 258000 28800 259800 Dl
+36000 258000 28800 256200 Dl
+(on top of)3330 1 -885 260000 t
+72000 258000 108000 258000 Dl
+108000 258000 100800 259800 Dl
+108000 258000 100800 256200 Dl
+(abo)78210 254000 w
+(v)92500 v
+(e)97350 v
+(belo)77905 266000 w
+(w)94875 v
+144000 258000 180000 258000 Dl
+180000 258000 172800 259800 Dl
+180000 258000 172800 256200 Dl
+(abo)150210 254000 w
+(v)164500 v
+(e)169350 v
+216000 258000 252000 258000 Dl
+252000 258000 244800 259800 Dl
+252000 258000 244800 256200 Dl
+(belo)221905 266000 w
+(w)238875 v
+288000 258000 324000 258000 Dl
+324000 258000 316800 259800 Dl
+324000 258000 316800 256200 Dl
+(abo)294210 248000 w
+(v)308500 v
+(e)313350 v
+(on top of)3330 1 287115 260000 t
+(belo)293905 272000 w
+(w)310875 v
+(Fileende)0 270000 w
+_marks
+cleartomark
+showpage
+restore
+%%EndPage: 2 2
+%%Trailer
+done
+%%EOF

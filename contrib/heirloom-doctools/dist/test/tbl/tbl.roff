@@ -1,0 +1,154 @@
+.ie n \{\
+.	pl 2000000000u
+.\}
+.el \{\
+.	pl 29.7c
+.	ll 20c
+.	po 0.5c
+.\}
+.TS
+center,box;
+c s s
+c s s
+c c c
+l r r.
+Production of Audio Equipment
+(units: 1000 sets)
+_
+Product	1984	1985
+_
+General radio	8,895	8,770
+Clock radio	5,467	6,500
+Radio/cassette	29,734	27,523
+Tape deck	11,788	14,300
+Car radio	9,450	10,398
+Car stereo	15,670	17,456
+.TE
+.TS
+center,box,tab(@);
+c s
+c c
+c l.
+Output Devices
+.sp .5
+Port@Device
+.sp .5
+1@User console
+2@Monochromatic graphics terminal
+3, 4, 5@Color graphics terminal
+.TE
+.so tv.roff
+.so vi.roff
+(\n%)
+.br
+.TS
+doublebox, center;
+cb | cb
+a | a.
+font position	font
+=
+1	Times Roman
+_
+2	\fITimes Italic\fP
+_
+3	\fBTimes Bold\fP
+_
+4	\fHHelvetica\fP
+_
+5	\f(CWConstant-Width\fP
+.TE
+(\n%)
+.br
+.TS
+cb cb cb cb
+cb cb cb cb
+a n n n.
+		Unit
+Item	Qnty.	Price	Cost
+=
+.sp .5p
+Dt. Coke	2	1.39	2.78
+Crest	1	1.99	1.99
+Kiwi Pol.	1	0.79	0.79
+Selzer	6	0.25	1.50
+			_
+		Subtotal	7.06
+		6\|% Tax	0.42
+			_
+		Total	7.48
+.sp 3p
+			=
+.TE
+(\n%)
+.br
+.if t .bp
+.EQ
+delim $$
+.EN
+.TS
+center,box	delim($$);
+cb | cb
+cfCW | a.
+.sp 3p
+item denotation	item
+.sp 3p
+=
+.sp 3p
+sum	$sum$
+.sp 3p
+_
+.sp 3p
+int	$int$
+.sp 3p
+_
+.sp 3p
+prod	$prod$
+.sp 3p
+_
+.sp 3p
+union	$union$
+.sp 3p
+_
+.sp 3p
+inter	$inter$
+.sp 3p
+_
+.sp 3p
+oppE	$oppE$
+.sp 3p
+.TE
+.ce
+\fBEuler's Identities\fR
+.sp 3p
+.TS
+delim($$),center box;
+c c
+l l.
+\fBexpression\fR	\fBidentity\fR
+.sp 0.05i
+.vs +3p
+$sin~theta$	\
+${e sup {i theta}~-~e sup {-i theta}} over 2i$
+$cos~theta$	\
+${e sup {i theta}~+~e sup {-i theta}} over 2$
+$tan~theta$	\
+${e sup {i theta}~-~e sup {-i theta}} over \
+{i(e sup {i theta}~+~e sup{-i theta})}$
+.vs -3p
+.sp 0.05i
+.TE
+.so 1cell-allbox.roff
+.so linienbsp.roff
+.so supermarket.roff
+.so no-unicode.roff
+.so ab1.roff
+.so ab2.roff
+.so mid-sq.roff
+.if t .bp
+.so expand.nr
+.so n.roff
+.so short-v.roff
+.if n \{\
+.	br
+.	pl 0
+.\}

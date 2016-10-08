@@ -1,0 +1,129 @@
+#ident	"@(#)VX	1.4	05/06/08 SMI"	/* SVr4.0 1.1	*/
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License, Version 1.0 only
+# (the "License").  You may not use this file except in compliance
+# with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or http://www.opensolaris.org/os/licensing.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
+# Varitimes#BoldItalic
+name VX
+internalname 1
+special
+charset
+!	28	2	33
+$	55	2	36
+%	91	2	37
+&	75	2	38
+'	28	2	39
+cq	28	2	39
+(	33	3	40
+)	33	3	41
+*	55	2	42
++	77	0	43
+,	28	1	44
+hy	39	0	45
+-	"
+.	28	1	46
+/	22	2	47
+0	53	2	48
+1	53	2	49
+2	53	2	50
+3	53	2	51
+4	53	2	52
+5	53	2	53
+6	53	2	54
+7	53	2	55
+8	53	2	56
+9	53	2	57
+:	28	0	58
+;	28	1	59
+=	77	0	61
+?	44	2	63
+A	66	2	65
+B	69	2	66
+C	69	2	67
+D	77	2	68
+E	69	2	69
+F	66	2	70
+G	77	2	71
+H	80	2	72
+I	39	2	73
+J	50	2	74
+K	69	2	75
+L	64	2	76
+M	94	2	77
+N	75	2	78
+O	75	2	79
+P	64	2	80
+Q	75	3	81
+R	72	2	82
+S	58	2	83
+T	66	2	84
+U	77	2	85
+V	69	2	86
+W	91	2	87
+X	66	2	88
+Y	61	2	89
+Z	64	2	90
+[	33	3	91
+]	33	3	93
+`	28	2	96
+oq	28	2	96
+a	53	0	97
+b	53	2	98
+c	44	0	99
+d	53	2	100
+e	44	0	101
+f	33	3	102
+g	50	1	103
+h	55	2	104
+i	30	2	105
+j	33	3	106
+k	53	2	107
+l	30	2	108
+m	80	0	109
+n	55	0	110
+o	50	0	111
+p	53	1	112
+q	53	1	113
+r	41	0	114
+s	39	0	115
+t	33	2	116
+u	55	0	117
+v	44	0	118
+w	66	0	119
+x	50	0	120
+y	44	1	121
+z	44	0	122
+ct	44	3	162
+fi	61	3	174
+fl	61	3	175
+ff	60	2	1
+Fi	84	2	1
+Fl	84	2	1
+dg	50	3	178
+bu	41	0	183
+de	30	2	202
+em	100	0	208
+14	75	2	1
+34	75	2	1
+12	75	2	1
+sq	50	2	1
+``	44	2	170
+''	44	2	186
+aq	28	2	169

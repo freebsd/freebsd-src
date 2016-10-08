@@ -1,0 +1,158 @@
+.\"
+.\" Sccsid @(#)ptx.1	1.6 (gritter) 2/2/07
+.\" Parts taken from ptx(1), Unix 7th edition:
+.\" Copyright(C) Caldera International Inc. 2001-2002. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"   Redistributions of source code and documentation must retain the
+.\"    above copyright notice, this list of conditions and the following
+.\"    disclaimer.
+.\"   Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"   All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"      This product includes software developed or owned by Caldera
+.\"      International, Inc.
+.\"   Neither the name of Caldera International, Inc. nor the names of
+.\"    other contributors may be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC. AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+.\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.Dd February 2, 2007
+.Dt PTX 1
+.Os
+.Sh NAME
+.Nm ptx
+.Nd permuted index
+.Sh SYNOPSIS
+.Nm
+.Op Fl ftr
+.Op Fl w Ar n
+.Op Fl g Ar n
+.Op Fl o Ar only
+.Op Fl i Ar ignore
+.Op Fl b Ar break
+.Op Ar input Op Ar output
+.Sh DESCRIPTION
+.Nm
+generates a permuted index to file
+.Ar input
+on file
+.Ar output
+(standard input and output default).
+It has three phases: the first does the permutation, generating
+one line for each keyword in an input line.
+The keyword is rotated to the front.
+The permuted file is then
+sorted.
+Finally, the sorted lines are rotated so the keyword
+comes at the middle of the page.
+.Nm
+produces output in the form:
+.Bd -literal -offset XXXXX
+\&.xx "tail" "before keyword" "keyword and after" "head"
+.Ed
+.Pp
+where .xx may be an
+.Cm nroff
+or
+.Xr troff  1
+macro
+for user-defined formatting.
+Once choice for this macro is supplied in the
+.Sq Fl mptx
+macro package.
+The
+.Em before keyword
+and
+.Em keyword and after
+fields incorporate as much of the line as will fit
+around the keyword when it is printed at the middle of the page.
+.Em tail
+and
+.Em head
+at least one of which is an empty string "",
+are wrapped-around pieces small enough to fit
+in the unused space at the opposite end of the line.
+When original text must be discarded, `/' marks the spot.
+.Pp
+The following options can be applied:
+.Bl -tag -width XXXXX
+.It Fl f
+Fold upper and lower case letters for sorting.
+.It Fl t
+Prepare the output for the phototypesetter,
+i.e. set the default line length to 100 characters.
+.It Fl w Ar n
+Use the next argument,
+.Ar n,
+as the width of the output line.
+The default line length is 72 characters.
+.It Fl g Ar n
+Use the next argument,
+.Ar n,
+as the number of characters to allow for each gap
+among the four parts of the line as finally printed.
+The default gap is 3 characters.
+.It Fl o Ar only
+Use as keywords only the words given in the
+.Ar only
+file.
+.It Fl i Ar ignore
+Do not use as keywords any words given in the
+.Ar ignore
+file.
+If the
+.Fl i
+and
+.Fl o
+options are missing, use
+.Pa /usr/ucblib/eign
+as the
+.Ar ignore
+file.
+.It Fl b Ar break
+Use the characters in the
+.Ar break
+file to separate words.
+In any case, tab, newline, and space characters are always used as break
+characters.
+.It Fl r
+Take any leading nonblank characters of each input line to
+be a reference identifier (as to a page or chapter)
+separate from the text of the line.
+Attach that identifier as a 5th field on each output line.
+.El
+.Sh ENVIRONMENT VARIABLES
+.Bl -tag -width XXXXXXXXXXXX
+.It Ev LANG , Ev LC_ALL
+See
+.Xr locale 7 .
+.It Ev LC_COLLATE
+Determines the sort order.
+.It Ev LC_CTYPE
+Determines the mapping of bytes to characters.
+.El
+.Sh FILES
+.Bl -ohang -compact
+.It Pa /usr/5bin/sort
+.It Pa /usr/ucblib/eign
+.It Pa /usr/ucblib/doctools/tmac/ptx
+.El
+.Sh NOTES
+Line length counts do not account for overstriking or
+proportional spacing.

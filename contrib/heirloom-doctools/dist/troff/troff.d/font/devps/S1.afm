@@ -1,0 +1,51 @@
+StartFontMetrics 4.1
+Comment Copyright (c) 1985, 1987, 1989, 1990, 1993, 1997 Adobe Systems Incorporated.  All Rights Reserved.
+Comment Modified by Gunnar Ritter, Freiburg i. Br., Germany, 2005, for use as a troff special font.
+Comment Creation Date: Thu May  1 12:49:17 1997
+Comment UniqueID 43068
+Comment VMusage 43909 54934
+FontName Times-Roman
+FullName Times Roman
+FamilyName Times
+Weight Roman
+ItalicAngle 0
+IsFixedPitch false
+CharacterSet ExtendedRoman
+FontBBox -168 -218 1000 898 
+UnderlinePosition -100
+UnderlineThickness 50
+Version 002.000
+Notice Copyright (c) 1985, 1987, 1989, 1990, 1993, 1997 Adobe Systems Incorporated.  All Rights Reserved.Times is a trademark of Linotype-Hell AG and/or its subsidiaries.
+EncodingScheme AdobeStandardEncoding
+CapHeight 662
+XHeight 450
+Ascender 683
+Descender -217
+StdHW 28
+StdVW 84
+StartCharMetrics 23
+C 32 ; WX 250 ; N space ; B 0 0 0 0 ;
+C 34 ; WX 408 ; N quotedbl ; B 77 431 331 676 ;
+C 35 ; WX 500 ; N numbersign ; B 5 0 496 662 ;
+C 60 ; WX 564 ; N less ; B 28 -8 536 514 ;
+C 62 ; WX 564 ; N greater ; B 28 -8 536 514 ;
+C 64 ; WX 921 ; N at ; B 116 -14 809 676 ;
+C 92 ; WX 278 ; N backslash ; B -9 -14 287 676 ;
+C 95 ; WX 500 ; N underscore ; B 0 -125 500 -75 ;
+C 124 ; WX 200 ; N bar ; B 67 -218 133 782 ;
+C 162 ; WX 500 ; N cent ; B 53 -138 448 579 ;
+C 167 ; WX 500 ; N section ; B 70 -148 426 676 ;
+C 170 ; WX 444 ; N quotedblleft ; B 43 433 414 676 ;
+C 177 ; WX 650 ; N endash ; B 0 201 500 250 ;
+C 178 ; WX 500 ; N dagger ; B 59 -149 442 676 ;
+C 179 ; WX 500 ; N daggerdbl ; B 58 -153 442 676 ;
+C 186 ; WX 444 ; N quotedblright ; B 30 433 401 676 ;
+C 193 ; WX 333 ; N grave ; B 19 507 242 678 ;
+C 194 ; WX 333 ; N acute ; B 93 507 317 678 ;
+C 195 ; WX 333 ; N circumflex ; B 11 507 322 674 ;
+C 196 ; WX 333 ; N tilde ; B 1 532 331 638 ;
+C -1 ; WX 750 ; N threequarters ; B 15 -14 718 676 ;
+C -1 ; WX 750 ; N onehalf ; B 31 -14 746 676 ;
+C -1 ; WX 750 ; N onequarter ; B 37 -14 718 676 ;
+EndCharMetrics
+EndFontMetrics

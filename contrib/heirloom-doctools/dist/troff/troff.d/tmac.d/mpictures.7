@@ -1,0 +1,188 @@
+.\"
+.\" Changes by Gunnar Ritter, Freiburg i. Br., Germany, August 2005.
+.\"
+.\" Derived from Plan 9 v4 /opt/unix/plan9v4/sys/man/6/mpictures
+.\"
+.\" Copyright (C) 2003, Lucent Technologies Inc. and others.
+.\" All Rights Reserved.
+.\"
+.\" Distributed under the terms of the Lucent Public License Version 1.02.
+.\"
+.\" Sccsid @(#)mpictures.7	1.6 (gritter) 2/2/07
+.TH MPICTURES 7 "2/2/07" "Heirloom Documentation Tools" "Macro Packages"
+.SH NAME
+mpictures \- picture inclusion macros
+.SH SYNOPSIS
+.B troff \-mpictures
+[
+.I options
+]
+.I file ...
+.SH DESCRIPTION
+.I Mpictures
+macros insert PostScript pictures into
+.IR troff (1)
+documents.
+The macros are:
+.TP
+.BI .BP " source height width position offset flags label
+Define a frame and place a picture in it.
+Null arguments, represented by "",
+are interpreted as defaults.
+The arguments are:
+.RS
+.TP
+.I source
+Name of a PostScript picture file, optionally
+suffixed with
+.RI ( n )
+to select page number
+.I n
+from the file (first page by default).
+.PD 0
+.TP
+.I height
+Vertical size of the frame, default
+.BR 3.0i .
+This argument is interpreted as a value in inches
+unless it ends with a `u' scale indicator.
+.TP
+.I width
+Horizontal size of the frame, current line length by default.
+This argument is interpreted as a value in inches
+unless it ends with a `u' scale indicator.
+.TP
+.I position
+.B l
+(default),
+.BR c ,
+or
+.B r
+to left-justify, center, or right-justify the frame.
+.TP
+.I offset
+Move the frame horizontally from the original
+.I position
+by this amount, default
+.BR 0i .
+.TP
+.I flags
+One or more of:
+.RS
+.PD 0v
+.TP
+.BI a d 
+Rotate the picture clockwise
+.I d
+degrees, default 
+.IR d =90.
+.TP
+.B o
+Outline the picture with a box.
+.TP
+.B s
+Freely scale both picture dimensions.
+.TP
+.B w
+White out the area to be occupied by the picture.
+.TP
+.BR l , r , t ,\fPb
+Attach the picture to the left right, top, or bottom of the frame.
+.RE
+.TP
+.I label
+Place
+.I label
+at distance
+.B 1.5v
+below the frame.
+.PD
+.PP
+If there's room,
+.B .BP
+fills text around the frame.
+Everything destined for either side of the frame
+goes into a diversion to be retrieved when the accumulated
+text sweeps past the trap set by 
+.B .BP
+or when the diversion is explicitly closed
+by 
+.BR .EP .
+.RE
+.TP
+.BI .PI " source height" , width , "yoffset\fB,\fPxoffset flags.
+This low-level macro, used by
+.BR .BP ,
+can help do more complex things.
+The two arguments not already described are:
+.RS
+.TP
+.I xoffset
+Offset the frame from the left margin by this amount, default
+.BR 0i .
+This argument is interpreted as a value in inches
+unless it ends with a `u' scale indicator.
+.PD 0
+.TP
+.I yoffset
+Offset the frame from the current baseline,
+measuring positive downward, default
+.BR 0i .
+This argument is interpreted as a value in inches
+unless it ends with a `u' scale indicator.
+.PD
+.RE
+.TP
+.B .EP
+End a picture started by
+.BR .BP ;
+.B .EP
+is usually called implicitly by a trap
+at frame bottom.
+.PP
+If a PostScript file lacks page-delimiting comments,
+the entire file is included.
+If no
+.B %%BoundingBox
+comment is present, the picture is
+assumed to fill an 8.5\(mu11-inch page.
+Nothing prevents the picture from being placed off the page.
+.PP
+The `.psbb'
+.I troff
+request can be used to read the
+.B %%BoundingBox
+comment for further processing, as in
+.sp
+.RS
+.nf
+\&.psbb picture.eps
+\&.nr scale 4
+\&.nr y (\en[ury]p\-\en[lly]p)/\en[scale]
+\&.nr x (\en[urx]p\-\en[llx]p)/\en[scale]
+\&.PI picture.eps "\enyu,\enxu"
+\&.sp \enyu
+\&picture description
+.fi
+.RE
+.SH SEE ALSO
+.IR troff (1)
+.SH DIAGNOSTICS
+A picture file that can't be read by the PostScript
+postprocessor is replaced by white space.
+.SH NOTES
+A picture and associated text silently disappear if
+a diversion trap set by
+.B .BP
+isn't reached.
+Call
+.B .EP
+at the end of the document to retrieve it.
+.PP
+Macros in other packages may break the adjustments
+made to the line length and indent when text is being placed
+around a picture.
+.PP
+A missing or improper
+.B %%BoundingBox
+comment may cause the frame to be filled incorrectly.

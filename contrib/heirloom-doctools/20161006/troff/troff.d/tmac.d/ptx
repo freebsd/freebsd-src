@@ -1,0 +1,28 @@
+.\"
+.\" Changes by Gunnar Ritter, Freiburg i. Br., Germany, September 2005.
+.\"
+.\" Derived from Plan 9 v4 /sys/lib/tmac/tmac.ptx
+.\"
+.\" Copyright (C) 2003, Lucent Technologies Inc. and others.
+.\" All Rights Reserved.
+.\"
+.\" Distributed under the terms of the Lucent Public License Version 1.02.
+.\"
+.\" Sccsid @(#)ptx	1.2 (gritter) 11/6/05
+'''\"	from ptx.src (ptx.src	1.1)  -  format permuted index macro
+.tr ~
+.nr )y \n(.lu-.65i
+.nr )x \n()yu/2u
+.ds s2 ~~~
+.ds s4 ~
+.ds s5 ~
+.de xx
+.ds s1
+.if \w\\$2 .ds s1 ~\|
+.ds s3
+.if \w\\$4 .ds s3 ~\|
+.ds y \\*(s4\f3\a\fP\\*(s5
+.ta \\n()yu-\w\\*(s5u
+\h\\n()xu-\w\\$1\\*(s1\\$2\\*(s2u\\$1\\*(s1\\$2\\*(s2\\$3\\*(s3\\$4\\*y\\$5
+..
+.nf

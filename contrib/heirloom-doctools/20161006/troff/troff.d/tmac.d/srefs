@@ -1,0 +1,169 @@
+.\"
+.\" Changes by Gunnar Ritter, Freiburg i. Br., Germany, October 2005.
+.\"
+.\" Derived from Plan 9 v4 /sys/lib/tmac/tmac.srefs
+.\"
+.\" Copyright (C) 2003, Lucent Technologies Inc. and others.
+.\" All Rights Reserved.
+.\"
+.\" Distributed under the terms of the Lucent Public License Version 1.02.
+.\"
+.\"
+.\"	Sccsid @(#)srefs	1.4 (gritter) 10/30/05
+.\"
+.\" REFER macros .... citations
+.de []
+.][ \\$1
+..
+.de ][
+.if \\$1>5 .tm Bad arg to []
+.[\\$1
+..
+.if n .ds [. [
+.if t .ds [. \s-2\v'-.4m'\f1
+.if n .ds .] ]
+.if t .ds .] \v'.4m'\s+2\fP
+.if n .ds [o ""
+.if n .ds [c ""
+.if t .ds [o ``
+.if t .ds [c ''
+.\" the next lines deal with the problem of .[1] or [1].
+.\" refer will write "linexxx\*(<.[1]\*(>.
+.\" and either "<." or ">." should produce the .;
+.\" similarly for ,
+.if n .ds >. .
+.if t .ds <. .
+.if n .ds >, ,
+.if t .ds <, ,
+.de [5 \" tm style
+.FS
+.IP "\\*([F.\0"
+.nr %T 2
+\\*([A, \\f2\\*([T\\f1,
+.ie \\n(TN \\*([M.
+.el Bell Laboratories internal memorandum (\\*([D).
+.RT
+.FE
+..
+.de [0 \" other
+.FS
+.nr [: 0
+.if !"\\*([F"" .IP "\\*([F.\0"
+.if !"\\*([A"" \{.nr [: 1
+\\*([A\c\}
+.if !"\\*([T"" \{.if \\n([:>0 ,
+.nr [: 1
+\\f2\\*([T\\f1\c\}
+.if !"\\*([O""\{.if \\n([:>0 ,
+.nr [: 1
+.if \\n([O>0 .nr [: 0
+\\*([O\c
+.if \\n([O>0 \& \c\}
+.if !"\\*([D"" \{.if \\n([:>0 ,
+.nr [: 1
+\\*([D\c\}
+.if \\n([:>0 \&.
+.if !"\\*([%"" Cited p. \\*([%.
+.RT
+.FE
+..
+.de [1 \" journal article
+.nr %T 1 \" title font
+.FS
+.if !"\\*([R"" .rm [C
+.if !"\\*([F"" .IP "\\*([F.\0"
+.if !"\\*([A"" \\*([A,
+.if !"\\*([T"" \\*([o\\*([T,\\*([c
+\\f2\\*([J\\f1\c
+.if !"\\*([C"" , \\*([C\c
+.if !"\\*([V"" .if n ,\& Vol.\&\c
+.if !"\\*([V"" \& \\f3\\*([V\\f1\c
+.if !"\\*([N"" (\\*([N)\c
+.if !"\\*([P"" \{\
+.ie \\n([P>0 , pp.\ \&\c
+.el , p.\ \&\c
+\\*([P\c\}
+.if !"\\*([I"" .if "\\*([R"" , \\*([I\c
+.if !"\\*([O"" .if \\n([O=0 , \\*([O\c
+.if !"\\*([D"" \& (\\*([D)\c
+\&.
+.if !"\\*([O"" .if \\n([O>0  \\*([O
+.if !"\\*([%"" Cited p. \\*([%.
+.RT
+.FE
+..
+.de [2 \" book
+.FS
+.nr %T 2
+.if !"\\*([F"" .IP "\\*([F.\0"
+.if !"\\*([A"" \\*([A,
+.if !"\\*([T"" \\f2\\*([T,\\f1
+\\*([I\c
+.if !"\\*([C"" , \\*([C\c
+.if !"\\*([D"" \& (\\*([D)\c
+\&.
+.if !"\\*([G"" Gov't. ordering no. \\*([G.
+.if !"\\*([O"" \\*([O
+.if !"\\*([%"" Cited p. \\*([%.
+.RT
+.FE
+..
+.de [4 \" report
+.FS
+.if !"\\*([F"" .IP "\\*([F.\0"
+.nr %T 1
+\\*([A, \\*([o\\*([T,\\*([c
+\\*([R\c
+.if !"\\*([G"" \& (\\*([G)\c
+.if !"\\*([I"" ,  \\*([I\c
+.if !"\\*([C"" ,  \\*([C\c
+.if !"\\*([D"" \& (\\*([D)\c
+\&.
+.if !"\\*([O"" \\*([O
+.if !"\\*([%"" Cited p. \\*([%.
+.RT
+.FE
+..
+.de [3 \" article in book
+.FS
+.nr %T 1
+.if !"\\*([F"" .IP "\\*([F.\0"
+.if !"\\*([A"" \\*([A,
+.if !"\\*([T"" \\*([o\\*([T,\\*([c
+.if !"\\*([P"" pp. \\*([P
+in \\f2\\*([B\\f1\c
+.if !"\\*([E"" , ed. \\*([E\c
+.if !"\\*([I"" , \\*([I\c
+.if !"\\*([C"" , \\*([C\c
+.if !"\\*([D"" \& (\\*([D)\c
+\&.
+.if !"\\*([O"" \\*([O
+.if !"\\*([%"" Cited p. \\*([%.
+.RT
+.FE
+..
+.de ]<
+.[<
+..
+.de [<
+.LP
+.rm FS FE
+..
+.de [>
+.]>
+..
+.de ]>
+.sp
+..
+.de ]-
+.[-
+..
+.de [-
+.rm [V [P [A [T
+.rm [N [C [B [O
+.rm [R [I [E [D
+.rm [G [%
+..
+.de ]]
+.\"this is never executed and just uses up an end-of-file bug.
+..

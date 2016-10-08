@@ -1,0 +1,8142 @@
+%!PS-Adobe-3.0
+%%Creator: Heirloom Documentation Tools - dpost 8.77 (gritter) 6/19/11
+%%
+%%DocumentFonts: Times-Bold Times-Italic Times-Roman Symbol
+%%Pages: 18
+%%DocumentNeededResources: font Times-Bold
+%%+ font Times-Italic
+%%+ font Times-Roman
+%%+ font Symbol
+%%EndComments
+%%BeginProlog
+%%BeginResource: procset dpost 4.19 0
+%
+% Copyright 2005 Sun Microsystems, Inc.  All rights reserved.
+% Use is subject to license terms.
+%
+% CDDL HEADER START
+%
+% The contents of this file are subject to the terms of the
+% Common Development and Distribution License, Version 1.0 only
+% (the "License").  You may not use this file except in compliance
+% with the License.
+%
+% You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+% or http://www.opensolaris.org/os/licensing.
+% See the License for the specific language governing permissions
+% and limitations under the License.
+%
+% When distributing Covered Code, include this CDDL HEADER in each
+% file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+% If applicable, add the following below this CDDL HEADER, with the
+% fields enclosed by brackets "[]" replaced with your own identifying
+% information: Portions Copyright [yyyy] [name of copyright owner]
+%
+% CDDL HEADER END
+%
+% from OpenSolaris "dpost.ps	1.7	05/06/08 SMI"
+%
+% Portions Copyright 2005 Gunnar Ritter, Freiburg i. Br, Germany
+%
+% Sccsid @(#)dpost.ps	4.19 (gritter) 2/7/10
+%
+
+/#copies 1 store
+/aspectratio 1 def
+/formsperpage 1 def
+/landscape false def
+/linewidth .3 def
+/magnification 1 def
+/margin 0 def
+/orientation 0 def
+/resolution 720 def
+/xoffset 0 def
+/yoffset 0 def
+
+/roundpage true def
+/useclippath true def
+/pagebbox [0 0 612 792] def
+
+/R  /Times-Roman def
+/I  /Times-Italic def
+/B  /Times-Bold def
+/BI /Times-BoldItalic def
+/H  /Helvetica def
+/HI /Helvetica-Oblique def
+/HB /Helvetica-Bold def
+/HX /Helvetica-BoldOblique def
+/CW /Courier def
+/CO /Courier def
+/CI /Courier-Oblique def
+/CB /Courier-Bold def
+/CX /Courier-BoldOblique def
+/PA /Palatino-Roman def
+/PI /Palatino-Italic def
+/PB /Palatino-Bold def
+/PX /Palatino-BoldItalic def
+/Hr /Helvetica-Narrow def
+/Hi /Helvetica-Narrow-Oblique def
+/Hb /Helvetica-Narrow-Bold def
+/Hx /Helvetica-Narrow-BoldOblique def
+/KR /Bookman-Light def
+/KI /Bookman-LightItalic def
+/KB /Bookman-Demi def
+/KX /Bookman-DemiItalic def
+/AR /AvantGarde-Book def
+/AI /AvantGarde-BookOblique def
+/AB /AvantGarde-Demi def
+/AX /AvantGarde-DemiOblique def
+/NR /NewCenturySchlbk-Roman def
+/NI /NewCenturySchlbk-Italic def
+/NB /NewCenturySchlbk-Bold def
+/NX /NewCenturySchlbk-BoldItalic def
+/ZD /ZapfDingbats def
+/ZI /ZapfChancery-MediumItalic def
+/VR /Varitimes#Roman def
+/VI /Varitimes#Italic def
+/VB /Varitimes#Bold def
+/VX /Varitimes#BoldItalic def
+/S  /S def
+/S1 /S1 def
+/GR /Symbol def
+
+/inch {72 mul} bind def
+/min {2 copy gt {exch} if pop} bind def
+
+/track 0 def
+/horscale 1.0 def
+
+/setup {
+	counttomark 2 idiv {def} repeat pop
+
+	landscape {/orientation 90 orientation add def} if
+	/scaling 72 resolution div def
+	linewidth setlinewidth
+	1 setlinecap
+
+	pagedimensions
+	xcenter ycenter translate
+	orientation neg rotate
+	width 2 div neg height 2 div translate
+	xoffset inch yoffset inch translate
+	margin 2 div dup neg translate
+	magnification dup aspectratio mul scale
+	scaling scaling scale
+
+	/Symbol /S Sdefs cf
+	/Times-Roman /S1 S1defs cf
+	0 0 moveto
+} def
+
+/pagedimensions {
+	useclippath userdict /gotpagebbox known not and {
+		/pagebbox [clippath pathbbox newpath] def
+		roundpage currentdict /roundpagebbox known and {roundpagebbox} if
+	} if
+	pagebbox aload pop
+	4 -1 roll exch 4 1 roll 4 copy
+	landscape {4 2 roll} if
+	sub /width exch def
+	sub /height exch def
+	add 2 div /xcenter exch def
+	add 2 div /ycenter exch def
+	userdict /gotpagebbox true put
+} def
+
+/pagesetup {
+	/page exch def
+	currentdict /pagedict known currentdict page known and {
+		page load pagedict exch get cvx exec
+	} if
+	/Dsetup where {pop Dsetup} if
+	_custompagesetup
+} def
+
+/decodingdefs [
+	{counttomark 2 idiv {y moveto track 0 3 -1 roll ashow} repeat}
+	{neg /y exch def counttomark 2 idiv {y moveto track 0 3 -1 roll ashow} repeat}
+	{neg dup /y exch def moveto {2 index dup length track mul exch stringwidth pop add sub exch div 0 32 track 0 6 -1 roll awidthshow} repeat}
+	{neg dup /y exch def moveto {spacewidth sub track sub 0.0 32 track 0 6 -1 roll awidthshow} repeat}
+	{/x exch def counttomark 2 idiv 1 add {x y moveto counttomark 1 gt {x exch sub /x exch def} if track 0 3 -1 roll ashow} repeat}
+	{/x exch def counttomark 2 idiv 1 add {x y moveto counttomark 1 gt {x exch sub /x exch def} if track 0 3 -1 roll ashow} repeat}
+	{counttomark 2 idiv {y moveto track 0 3 -1 roll ashow} repeat}
+	{neg setfunnytext}
+] def
+
+/setdecoding {/t decodingdefs 3 -1 roll get def} bind def
+
+/T {/track exch def} bind def
+
+/w {neg dup /y exch def moveto track 0 3 -1 roll ashow} bind def
+/v {y moveto track 0 3 -1 roll ashow} bind def
+/u {y neg t} bind def
+/m {neg dup /y exch def moveto} bind def
+/done {/lastpage where {pop lastpage} if} def
+
+/f {
+	dup /font exch def exch
+	dup /ptsize exch def scaling div dup /size exch def
+	horscale 1.0 ne {horscale mul [exch 0 0 size 0 0]} if SF
+	linewidth ptsize mul scaling 10 mul div setlinewidth
+	/spacewidth ( ) stringwidth pop def
+	/horscale 1.0 def
+} bind def
+/F {ptsize exch f} bind def
+/s {font f} bind def
+/h {/horscale exch def f} bind def
+
+/changefont {
+	/fontheight exch def
+	/fontslant exch def
+	currentfont [
+		1 0
+		fontheight ptsize div fontslant sin mul fontslant cos div
+		fontheight ptsize div
+		0 0
+	] makefont setfont
+} bind def
+
+/sf {f} bind def
+
+/cf {
+	dup length 2 idiv
+	/entries exch def
+	/chtab exch def
+	/newfont exch def
+
+	findfont dup length 1 add dict
+	/newdict exch def
+	{1 index /FID ne {newdict 3 1 roll put} {pop pop} ifelse} forall
+
+	newdict /Metrics entries dict put
+	newdict /Metrics get
+	begin
+		chtab aload pop
+		1 1 entries {pop def} for
+		newfont newdict definefont pop
+	end
+} bind def
+
+%
+% A few arrays used to adjust reference points and character widths in some
+% of the printer resident fonts. If square roots are too high try changing
+% the lines describing /radical and /radicalex to,
+%
+%	/radical	[0 -75 550 0]
+%	/radicalex	[-50 -75 500 0]
+%
+
+/Sdefs [
+	/underscore		[0 0 500 0]
+	/bracketlefttp		[208 500]
+	/bracketleftbt		[208 500]
+	/bracketrighttp		[-60 380]
+	/bracketrightbt		[-60 380]
+	/braceleftbt		[209 490]
+	/bracketrightex		[220 -125 500 0]
+	/radical		[0 0 550 0]
+	% NeWSprint's \(br is too low, compensate
+	statusdict /product get (NeWS Server) eq {
+		/radicalex		[-50 100 500 0]
+		/parenleftex		[-20 100 0 0]
+
+	} {
+		/radicalex		[-50 0 500.001 0]
+		/parenleftex		[-20 -170 0 0]
+	} ifelse
+	/integral		[100 -50 500 0]
+	/infinity		[10 -75 730 0]
+] def
+
+%
+% This adjusts the y left bearing of the underscore character in the
+% Symbol font to the position expected by troff, depending on the
+% font variant actually in use with the current document.
+%
+/_Sdefsadj {
+	gsave
+	/Symbol findfont 1000 scalefont setfont
+	0 0 moveto
+	(\137) false charpath flattenpath pathbbox pop pop exch pop
+	grestore
+	252 add neg
+	Sdefs 1 [0 5 -1 roll 500 0] put
+} def
+
+/S1defs [
+	/underscore		[0 80 500.001 0]
+	/endash			[7 90 650 0]
+] def
+
+% from Adobe's PostScript Language Reference Manual, 2nd ed. 1990, pp. 588-589
+/*SF {					% Complete selectfont emulation
+	exch findfont exch
+	dup type /arraytype eq {makefont}{scalefont} ifelse setfont
+} bind def
+/languagelevel where			% Determine language level
+	{pop languagelevel} {1} ifelse	% of implementation
+	2 lt {				% ifelse
+		/SF /*SF load def	% Level 1 interpreter present, so
+	} {				% else
+		/SF /selectfont load def% Level 2 interpreter present, so
+	}
+ifelse
+
+% from Adobe's pdfmark Reference Manual for Acrobat 7.0, 11/30/04, p. 10
+/pdfmark where				% Is pdfmark already available?
+	{pop}				% Yes: do nothing (use that definition)
+	{				% No: define pdfmark as follows:
+	/globaldict where		% globaldict is preferred because
+		{pop globaldict}	% globaldict is always visible; else,
+		{userdict}		% use userdict otherwise.
+	ifelse
+	/pdfmark /cleartomark load put
+	}				% Define pdfmark to remove all objects
+ifelse					% up to and including the mark object.
+%%EndResource
+%%BeginResource: procset dpost_draw 1.5 0
+% from OpenSolaris "lp:filter/postscript/postscript/draw.ps	1.1"
+%
+% CDDL HEADER START
+%
+% The contents of this file are subject to the terms of the
+% Common Development and Distribution License, Version 1.0 only
+% (the "License").  You may not use this file except in compliance
+% with the License.
+%
+% You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+% or http://www.opensolaris.org/os/licensing.
+% See the License for the specific language governing permissions
+% and limitations under the License.
+%
+% When distributing Covered Code, include this CDDL HEADER in each
+% file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+% If applicable, add the following below this CDDL HEADER, with the
+% fields enclosed by brackets "[]" replaced with your own identifying
+% information: Portions Copyright [yyyy] [name of copyright owner]
+%
+% CDDL HEADER END
+%
+% Portions Copyright 2005 Gunnar Ritter, Freiburg i. Br, Germany
+%
+% Sccsid @(#)draw.ps	1.5 (gritter) 2/9/06
+%
+% Drawing procedures for dpost. Automatically pulled in, but only
+% when needed.
+%
+
+/Dsetup {
+	/inpath false def
+	/savematrix matrix currentmatrix def
+} bind def
+
+/Dl {
+	inpath
+		{
+			/Dlny exch def
+			/Dlnx exch def
+			currentpoint
+			neg round /Dlcy exch def
+			round /Dlcx exch def
+			Dlnx Dlcx ne Dlny Dlcy ne or {Dlnx Dlny neg moveto} if
+			neg lineto
+		}
+		{newpath neg moveto neg lineto stroke}
+	ifelse
+} bind def
+
+/De {
+	/y1 exch 2 div def
+	/x1 exch 2 div def
+	neg exch x1 add exch translate
+	x1 y1 scale
+	0 0 1 0 360
+	inpath
+		{1 0 moveto arc savematrix setmatrix}
+		{newpath arc savematrix setmatrix stroke}
+	ifelse
+} bind def
+
+/DE {
+	/y1 exch 2 div def
+	/x1 exch 2 div def
+	neg exch x1 add exch translate
+	x1 y1 scale
+	0 0 1 0 360
+	inpath
+		{1 0 moveto arc savematrix setmatrix}
+		{newpath arc savematrix setmatrix fill}
+	ifelse
+} bind def
+
+/Da {
+	/dy2 exch def
+	/dx2 exch def
+	/dy1 exch def
+	/dx1 exch def
+	dy1 add neg exch dx1 add exch
+	dx1 dx1 mul dy1 dy1 mul add sqrt
+	dy1 dx1 neg atan
+	dy2 neg dx2 atan
+	inpath
+		{arc}
+		{newpath arc stroke}
+	ifelse
+} bind def
+
+/DA {
+	/dy2 exch def
+	/dx2 exch def
+	/dy1 exch def
+	/dx1 exch def
+	dy1 add neg exch dx1 add exch
+	dx1 dx1 mul dy1 dy1 mul add sqrt
+	dy1 dx1 neg atan
+	dy2 neg dx2 atan
+	inpath
+		{arcn}
+		{newpath arcn stroke}
+	ifelse
+} bind def
+
+/Ds {
+	/y2 exch def
+	/x2 exch def
+	/y1 exch def
+	/x1 exch def
+	/y0 exch def
+	/x0 exch def
+	x0 5 x1 mul add 6 div
+	y0 5 y1 mul add -6 div
+	x2 5 x1 mul add 6 div
+	y2 5 y1 mul add -6 div
+	x1 x2 add 2 div
+	y1 y2 add -2 div
+	inpath
+		{curveto}
+		{newpath x0 x1 add 2 div y0 y1 add -2 div moveto curveto stroke}
+	ifelse
+} bind def
+%%EndResource
+%%BeginResource: procset dpost_charci 1.0 0
+% from OpenSolaris "lp:filter/postscript/font/devpost/charlib/ci	1.2"
+%
+% CDDL HEADER START
+%
+% The contents of this file are subject to the terms of the
+% Common Development and Distribution License, Version 1.0 only
+% (the "License").  You may not use this file except in compliance
+% with the License.
+%
+% You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+% or http://www.opensolaris.org/os/licensing.
+% See the License for the specific language governing permissions
+% and limitations under the License.
+%
+% When distributing Covered Code, include this CDDL HEADER in each
+% file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+% If applicable, add the following below this CDDL HEADER, with the
+% fields enclosed by brackets "[]" replaced with your own identifying
+% information: Portions Copyright [yyyy] [name of copyright owner]
+%
+% CDDL HEADER END
+%
+% Portions Copyright 2005 Gunnar Ritter, Freiburg i. Br, Germany
+%
+/build_ci {
+    pop
+    size 3 mul 8 div /rad exch def
+    currentpoint
+    newpath
+    rad add exch rad add exch rad 0 360 arc
+    stroke
+} def
+%%EndResource
+%%EndProlog
+%%BeginSetup
+[ %
+  /Creator (Heirloom Documentation Tools - dpost 8.77 (gritter) 6/19/11)
+/DOCINFO pdfmark
+/_custompagesetup {
+} def
+/_marks {
+} def
+/Encoding-@13@0 [
+/.notdef /hyphen /cent /fi /fl /dagger /emdash /onequarter /threequarters
+/onehalf /endash /acute /grave /section /daggerdbl /backslash
+/quotedbl /ring /bullet /bar /quotedblleft /quotedblright /quotesingle
+/quoteleft /quoteright /space /asciicircum /asciitilde /exclamdown
+/sterling /fraction /yen /space /exclam /quotedbl /numbersign
+/dollar /percent /ampersand /quoteright /parenleft /parenright
+/asterisk /plus /comma /hyphen /period /slash /zero /one /two
+/three /four /five /six /seven /eight /nine /colon /semicolon
+/less /equal /greater /question /at /A /B /C /D /E /F /G /H /I
+/J /K /L /M /N /O /P /Q /R /S /T /U /V /W /X /Y /Z /bracketleft
+/backslash /bracketright /circumflex /underscore /quoteleft /a
+/b /c /d /e /f /g /h /i /j /k /l /m /n /o /p /q /r /s /t /u /v
+/w /x /y /z /braceleft /bar /braceright /tilde /florin /currency
+/guillemotleft /guilsinglleft /guilsinglright /periodcentered
+/paragraph /quotesinglbase /quotedblbase /guillemotright /ellipsis
+/perthousand /questiondown /macron /breve /dotaccent /dieresis
+/cedilla /hungarumlaut /ogonek /caron /AE /ordfeminine /Lslash
+/Oslash /OE /ordmasculine /ae /dotlessi /lslash /oslash /oe /germandbls
+/Idieresis /eacute /Ydieresis /divide /Yacute /Acircumflex /aacute
+/Ucircumflex /yacute /ecircumflex /Udieresis /Uacute /Edieresis
+/copyright /aring /agrave /atilde /scaron /iacute /ucircumflex
+/acircumflex /ccedilla /Thorn /threesuperior /Ograve /Agrave
+/multiply /uacute /ydieresis /icircumflex /Ecircumflex /adieresis
+/edieresis /Iacute /plusminus /brokenbar /registered /Egrave
+/Zcaron /Eth /Ccedilla /Aacute /Adieresis /egrave /Oacute /oacute
+/idieresis /Ocircumflex /Ugrave /thorn /twosuperior /Odieresis
+/mu /igrave /trademark /Igrave /ocircumflex /ntilde /Eacute /Scaron
+/degree /ograve /ugrave /Ntilde /otilde /Atilde /Aring /Otilde
+/minus /Icircumflex /logicalnot /odieresis /udieresis /eth /zcaron
+/onesuperior /Euro /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+] def
+/Times-Bold findfont
+dup length dict begin
+  {1 index /FID ne {def} {pop pop} ifelse} forall
+  /Encoding Encoding-@13@0 def
+  currentdict
+end
+/Times-Bold-@13 exch definefont pop
+/@13 /Times-Bold-@13 def
+/&13 {@13 F} bind def
+/Encoding-@12@0 [
+/.notdef /hyphen /cent /fi /fl /dagger /emdash /onequarter /threequarters
+/onehalf /endash /acute /grave /section /daggerdbl /backslash
+/quotedbl /ring /bullet /bar /quotedblleft /quotedblright /quotesingle
+/quoteleft /quoteright /space /asciicircum /asciitilde /exclamdown
+/sterling /fraction /yen /space /exclam /quotedbl /numbersign
+/dollar /percent /ampersand /quoteright /parenleft /parenright
+/asterisk /plus /comma /hyphen /period /slash /zero /one /two
+/three /four /five /six /seven /eight /nine /colon /semicolon
+/less /equal /greater /question /at /A /B /C /D /E /F /G /H /I
+/J /K /L /M /N /O /P /Q /R /S /T /U /V /W /X /Y /Z /bracketleft
+/backslash /bracketright /circumflex /underscore /quoteleft /a
+/b /c /d /e /f /g /h /i /j /k /l /m /n /o /p /q /r /s /t /u /v
+/w /x /y /z /braceleft /bar /braceright /tilde /florin /currency
+/guillemotleft /guilsinglleft /guilsinglright /periodcentered
+/paragraph /quotesinglbase /quotedblbase /guillemotright /ellipsis
+/perthousand /questiondown /macron /breve /dotaccent /dieresis
+/cedilla /hungarumlaut /ogonek /caron /AE /ordfeminine /Lslash
+/Oslash /OE /ordmasculine /ae /dotlessi /lslash /oslash /oe /germandbls
+/Idieresis /eacute /Ydieresis /divide /Yacute /Acircumflex /aacute
+/Ucircumflex /yacute /ecircumflex /Udieresis /Uacute /Edieresis
+/copyright /aring /agrave /atilde /scaron /iacute /ucircumflex
+/acircumflex /ccedilla /Thorn /threesuperior /Ograve /Agrave
+/multiply /uacute /ydieresis /icircumflex /Ecircumflex /adieresis
+/edieresis /Iacute /plusminus /brokenbar /registered /Egrave
+/Zcaron /Eth /Ccedilla /Aacute /Adieresis /egrave /Oacute /oacute
+/idieresis /Ocircumflex /Ugrave /thorn /twosuperior /Odieresis
+/mu /igrave /trademark /Igrave /ocircumflex /ntilde /Eacute /Scaron
+/degree /ograve /ugrave /Ntilde /otilde /Atilde /Aring /Otilde
+/minus /Icircumflex /logicalnot /odieresis /udieresis /eth /zcaron
+/onesuperior /Euro /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+] def
+/Times-Italic findfont
+dup length dict begin
+  {1 index /FID ne {def} {pop pop} ifelse} forall
+  /Encoding Encoding-@12@0 def
+  currentdict
+end
+/Times-Italic-@12 exch definefont pop
+/@12 /Times-Italic-@12 def
+/&12 {@12 F} bind def
+/Encoding-@11@0 [
+/.notdef /hyphen /cent /fi /fl /dagger /emdash /onequarter /threequarters
+/onehalf /endash /acute /grave /section /daggerdbl /backslash
+/quotedbl /ring /bullet /bar /quotedblleft /quotedblright /quotesingle
+/quoteleft /quoteright /space /asciicircum /asciitilde /exclamdown
+/sterling /fraction /yen /space /exclam /quotedbl /numbersign
+/dollar /percent /ampersand /quoteright /parenleft /parenright
+/asterisk /plus /comma /hyphen /period /slash /zero /one /two
+/three /four /five /six /seven /eight /nine /colon /semicolon
+/less /equal /greater /question /at /A /B /C /D /E /F /G /H /I
+/J /K /L /M /N /O /P /Q /R /S /T /U /V /W /X /Y /Z /bracketleft
+/backslash /bracketright /circumflex /underscore /quoteleft /a
+/b /c /d /e /f /g /h /i /j /k /l /m /n /o /p /q /r /s /t /u /v
+/w /x /y /z /braceleft /bar /braceright /tilde /florin /currency
+/guillemotleft /guilsinglleft /guilsinglright /periodcentered
+/paragraph /quotesinglbase /quotedblbase /guillemotright /ellipsis
+/perthousand /questiondown /macron /breve /dotaccent /dieresis
+/cedilla /hungarumlaut /ogonek /caron /AE /ordfeminine /Lslash
+/Oslash /OE /ordmasculine /ae /dotlessi /lslash /oslash /oe /germandbls
+/Idieresis /eacute /Ydieresis /divide /Yacute /Acircumflex /aacute
+/Ucircumflex /yacute /ecircumflex /Udieresis /Uacute /Edieresis
+/copyright /aring /agrave /atilde /scaron /iacute /ucircumflex
+/acircumflex /ccedilla /Thorn /threesuperior /Ograve /Agrave
+/multiply /uacute /ydieresis /icircumflex /Ecircumflex /adieresis
+/edieresis /Iacute /plusminus /brokenbar /registered /Egrave
+/Zcaron /Eth /Ccedilla /Aacute /Adieresis /egrave /Oacute /oacute
+/idieresis /Ocircumflex /Ugrave /thorn /twosuperior /Odieresis
+/mu /igrave /trademark /Igrave /ocircumflex /ntilde /Eacute /Scaron
+/degree /ograve /ugrave /Ntilde /otilde /Atilde /Aring /Otilde
+/minus /Icircumflex /logicalnot /odieresis /udieresis /eth /zcaron
+/onesuperior /Euro /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+] def
+/Times-Roman findfont
+dup length dict begin
+  {1 index /FID ne {def} {pop pop} ifelse} forall
+  /Encoding Encoding-@11@0 def
+  currentdict
+end
+/Times-Roman-@11 exch definefont pop
+/@11 /Times-Roman-@11 def
+/&11 {@11 F} bind def
+/Encoding-@19@0 [
+/.notdef /cent /dagger /onequarter /threequarters /onehalf /endash
+/acute /grave /underscore /section /daggerdbl /backslash /quotedbl
+/bar /quotedblleft /quotedblright /space /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /space /.notdef /quotedbl
+/numbersign /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /less /.notdef /greater /.notdef
+/at /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /backslash
+/.notdef /circumflex /underscore /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /bar /.notdef /tilde /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef ] def
+/Times-Roman findfont
+dup length dict begin
+  {1 index /FID ne {def} {pop pop} ifelse} forall
+  /Encoding Encoding-@19@0 def
+  currentdict
+end
+/Times-Roman-tmp-@19 exch definefont pop
+/Times-Roman-tmp-@19 /Times-Roman-@19 S1defs cf
+/Times-Roman-tmp-@19 undefinefont
+/@19 /Times-Roman-@19 def
+/&19 {@19 F} bind def
+/Encoding-@20@0 [
+/.notdef /arrowright /parenleftex /universal /existential /asteriskmath
+/plus /minus /equal /Alpha /Beta /Chi /Delta /Epsilon /Phi /Gamma
+/Eta /Iota /Kappa /Lambda /Mu /Nu /Omicron /Pi /Rho /Theta /Sigma
+/Tau /Upsilon /Omega /Xi /Psi /space /exclam /Zeta /numbersign
+/underscore /percent /ampersand /radicalex /parenleft /parenright
+/alpha /plus /comma /minus /period /slash /zero /one /two /three
+/four /five /six /seven /eight /nine /colon /semicolon /less
+/equal /greater /question /beta /chi /delta /epsilon /phi /gamma
+/eta /iota /kappa /lambda /mu /nu /omicron /pi /theta /rho /sigma
+/tau /upsilon /omega /xi /psi /zeta /similar /minute /lessequal
+/fraction /bracketleft /infinity /bracketright /arrowleft /underscore
+/arrowup /arrowdown /degree /plusminus /greaterequal /multiply
+/proportional /partialdiff /bullet /divide /notequal /equivalence
+/approxequal /aleph /circlemultiply /circleplus /emptyset /intersection
+/union /propersuperset /reflexsuperset /propersubset /reflexsubset
+/element /gradient /registerserif /copyrightserif /braceleft
+/bar /braceright /similar /trademarkserif /radical /logicalnot
+/logicalor /bracketlefttp /bracketleftbt /bracelefttp /braceleftmid
+/braceleftbt /braceex /integral /bracketrighttp /bracketrightbt
+/bracerighttp /bracerightmid /bracerightbt /sigma1 /bracketleftex
+/space /suchthat /congruent /theta1 /therefore /perpendicular
+/phi1 /omega1 /Euro /Upsilon1 /florin /club /diamond /heart /spade
+/arrowboth /second /ellipsis /arrowvertex /arrowhorizex /carriagereturn
+/Ifraktur /Rfraktur /weierstrass /notsubset /notelement /angle
+/product /dotmath /logicaland /arrowdblboth /arrowdblleft /arrowdblup
+/arrowdblright /arrowdbldown /lozenge /angleleft /registersans
+/copyrightsans /trademarksans /summation /parenlefttp /parenleftbt
+/angleright /integraltp /integralex /integralbt /parenrighttp
+/parenrightex /parenrightbt /bracketrightex /apple /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
+/.notdef ] def
+/Symbol findfont
+dup length dict begin
+  {1 index /FID ne {def} {pop pop} ifelse} forall
+  /Encoding Encoding-@20@0 def
+  currentdict
+end
+/Symbol-tmp-@20 exch definefont pop
+_Sdefsadj
+/Symbol-tmp-@20 /Symbol-@20 Sdefs cf
+/Symbol-tmp-@20 undefinefont
+/@20 /Symbol-@20 def
+/&20 {@20 F} bind def
+mark
+/resolution 72000 def
+setup
+3 setdecoding
+%%EndSetup
+%%Page: 1 1
+save
+mark
+1 pagesetup
+12 @13 f
+(T)198674 120000 w
+10 s
+(BL)206678 v
+12 s
+(\012A Pr)3996 1 220018 u
+(ogram to F)3996 1 251122 u
+(ormat T)3636 1 309466 u
+(ables)351322 v
+10 @12 f
+(M. E. Lesk)3330 1 265785 144000 t
+(ABSTRA)264535 186000 w
+(CT)299235 v
+(Tbl)133000 210000 w
+&11
+( preprocessor for)4502(is a document formatting)4501 2 150841 u
+&12
+(tr)333370 v
+(of)339590 v
+(f)347190 v
+&11
+(or)354472 v
+&12
+(nr)367304 v
+(of)375744 v
+(f)383344 v
+&11
+(which mak)4502 1 390626 u
+(es e)4502 1 436688 u
+(v)453710 v
+(en)458560 v
+(f)108000 222000 w
+(airly comple)4161 1 111230 u
+(x tables easy to specify and enter)4161 1 163011 u
+( a)4162( is)4161(. It)7491 3 304617 u
+(v)339951 v
+(ailable on the)4162 1 344701 u
+9 s
+(UNIX)406067 v
+10 s
+(\005 system,)4162 1 428558 u
+(and on Hone)6087 1 108000 234000 t
+(ywell 6000)6087 1 166124 u
+9 s
+(GCOS)220518 v
+10 s
+(. T)9237 1 244521 u
+( columns which may be)6086(ables are made up of)6087 2 261568 u
+( decimal points.)6257
+(independently centered, right\001adjusted, left\001adjusted, or aligned b\
+y)6256 2 108000 246000 t
+(Headings may be placed o)3339 1 108000 258000 t
+(v)216736 v
+( table entry may)3338( A)6118( of columns.)3338
+(er single columns or groups)3339 4 221586 u
+(contain equations, or may consist of se)4009 1 108000 270000 t
+(v)272064 v
+(eral ro)4009 1 276914 u
+(ws of te)4009 1 303993 u
+( or v)4010(xt. Horizontal)7339 2 338521 u
+(ertical lines)4010 1 420110 u
+(may be dra)3960 1 108000 282000 t
+(wn as desired in the table, and an)3960 1 155200 u
+(y table or element may be enclosed in a)3960 1 298020 u
+(box. F)6660 1 108000 294000 t
+(or e)3330 1 137570 u
+(xample:)153520 v
+10 @11 f
+385390 322000 190610 322000 Dl
+( T)3150(1970 Federal Budget)3330 2 224950 332000 t
+(ransfers)319400 v
+8 s
+(\(in billions of dollars\))2664 1 252004 344000 t
+10 s
+385390 347000 190610 347000 Dl
+385390 349000 190610 349000 Dl
+(T)269555 358000 w
+(ax)274865 v
+(es)284155 v
+(Mone)314070 v
+(y)337250 v
+(State)211790 364000 w
+(collected)262970 370000 w
+(spent)317605 v
+(Net)361600 364000 w
+385390 374000 190610 374000 Dl
+(Ne)195610 384000 w
+(w Y)2430 1 207020 u
+(ork)222790 v
+(22.91)269770 v
+(21.35)316910 v
+(\0121.56)357890 v
+(Ne)195610 396000 w
+(w Jerse)3330 1 207020 u
+(y)237410 v
+(8.33)274770 v
+(6.96)321910 v
+(\0121.37)357890 v
+(Connecticut)195610 408000 w
+(4.12)274770 v
+(3.10)321910 v
+(\0121.02)357890 v
+(Maine)195610 420000 w
+(0.74)274770 v
+(0.67)321910 v
+(\0120.07)357890 v
+(California)195610 432000 w
+(22.29)269770 v
+(22.42)316910 v
+(+0.13)357250 v
+(Ne)195610 444000 w
+(w Me)3330 1 207020 u
+(xico)230750 v
+(0.70)274770 v
+(1.49)321910 v
+(+0.79)357250 v
+(Geor)195610 456000 w
+(gia)215420 v
+(3.30)274770 v
+(4.28)321910 v
+(+0.98)357250 v
+(Mississippi)195610 468000 w
+(1.15)274770 v
+(2.32)321910 v
+(+1.17)357250 v
+(T)195610 480000 w
+(e)201020 v
+(xas)205310 v
+(9.33)274770 v
+(11.13)316910 v
+(+1.80)357250 v
+385390 484000 190610 484000 Dl
+190610 322000 190610 484000 Dl
+255470 349000 255470 484000 Dl
+306570 349000 306570 484000 Dl
+349750 349000 349750 484000 Dl
+385390 322000 385390 484000 Dl
+&13
+(INTR)72000 530000 w
+(ODUCTION)96700 v
+&12
+(Tbl)97000 545600 w
+&11
+(turns a simple description of a table into a)4534 1 114874 u
+&12
+(tr)303440 v
+(of)309660 v
+(f)317260 v
+&11
+(or)324575 v
+&12
+(nr)337440 v
+(of)345880 v
+(f)353480 v
+&11
+([1] program \(list of requests\) that)4535 1 360795 u
+(prints the table.)3429 1 72000 557600 t
+&12
+(Tbl)142557 v
+&11
+(may be used on the)3428 1 159326 u
+9 s
+(UNIX)243676 v
+10 s
+([2] system and on the Hone)3428 1 269595 u
+(ywell 6000)3428 1 384345 u
+9 s
+(GCOS)433421 v
+10 s
+(system. It)6758 1 460852 u
+( of a job that it can successfully handle and lea)4178
+(attempts to isolate a portion)4177 2 72000 569600 t
+(v)393028 v
+(e the remainder for other)4178 1 397878 u
+(programs. Thus)6547 1 72000 581600 t
+&12
+(tbl)142214 v
+&11
+(may be used with the equation formatting program)3397 1 156171 u
+&12
+(eqn)368877 v
+&11
+([3] and/or v)3396 1 386713 u
+(arious)435465 v
+&12
+(nr)463301 v
+(of)471741 v
+(f)479341 v
+(/)482954 v
+(tr)486567 v
+(of)492787 v
+(f)500387 v
+&11
+(layout macro packages [4,5,6], b)3330 1 72000 593600 t
+(ut does not duplicate their functions.)3330 1 205920 u
+(This memorandum is di)3871 1 97000 609200 t
+(vided into tw)3871 1 196143 u
+( we gi)3871( First)7201(o parts.)3871 3 251565 u
+(v)334849 v
+( preparing)3872(e the rules for)3871 2 339699 u
+&12
+(tbl)445136 v
+&11
+(input; then)3872 1 459568 u
+(some e)3452 1 72000 621200 t
+(xamples are sho)3452 1 100852 u
+( description of rules is precise b)3452(wn. The)6602 2 166936 u
+(ut technical, and the be)3452 1 336520 u
+(ginning user may)3451 1 432658 u
+(prefer to read the e)3777 1 72000 633200 t
+(xamples)152478 v
+(\003rst, as the)3777 1 189585 u
+(y sho)3777 1 235599 u
+( section e)3778( A)6558( table arrangements.)3778(w some common)3777 4 258016 u
+(xplaining)466220 v
+(ho)72000 645200 w
+(w to in)3330 1 81750 u
+(v)110790 v
+(ok)115590 v
+(e)125490 v
+&12
+(tbl)133260 v
+&11
+(precedes the e)3330 1 147150 u
+(xamples. T)6480 1 205300 u
+(o a)3330 1 252920 u
+(v)265490 v
+(oid repetition, henceforth read)3330 1 270290 u
+&12
+(\027)397190 v
+(\027tr)399410 v
+(of)408960 v
+(f)416560 v
+(\030)420173 v
+(\030)422393 v
+&11
+(as)427943 v
+&12
+(\027)439603 v
+(\027tr)441823 v
+(of)451373 v
+(f)458973 v
+&11
+(or)465083 v
+&12
+(nr)476743 v
+(of)485183 v
+(f)492783 v
+(.)495413 v
+(\030)496513 v
+(\030)498733 v
+8 @19 f
+(\011\011\011\011\011\011\011\011\011\011\011\011\011\011\011\011\011\011\
+)72000 698000 w
+&11
+(\005)72000 708000 w
+7 s
+(UNIX)78664 v
+8 s
+(is a re)2664 1 98821 u
+( Open Group in the U.S. and other countries.)2664( The)2520
+(gistered trademark of)2664 3 119133 u
+_marks
+cleartomark
+showpage
+restore
+%%EndPage: 1 1
+%%Page: 2 2
+save
+mark
+2 pagesetup
+9 @11 f
+(2)72000 48000 w
+&12
+(TBL)487743 v
+10 @11 f
+(The input to)4205 1 97000 84000 t
+&12
+(tbl)153505 v
+&11
+(is te)4205 1 168270 u
+(xt for a document, with tables preceded by a)4205 1 186215 u
+(\027)381520 v
+(\027)384110 v
+14 s
+(.)388273 v
+10 s
+(TS\030)391773 v
+( start\) command)4206(\030 \(table)3465 2 406033 u
+(and follo)4545 1 72000 96000 t
+(wed by a)4544 1 109625 u
+(\027)154357 v
+(\027)156947 v
+14 s
+(.)161110 v
+10 s
+(TE\030)164610 v
+( end\) command.)4544(\030 \(table)3804 2 179420 u
+&12
+(Tbl)285996 v
+&11
+(processes the tables, generating)4544 1 303880 u
+&12
+(tr)440636 v
+(of)446856 v
+(f)454456 v
+&11
+(formatting)461780 v
+(requests, and lea)3764 1 72000 108000 t
+(v)140698 v
+( te)3765(es the remainder of the)3764 2 145548 u
+( The)6915(xt unchanged.)3765 2 253079 u
+(\027)336674 v
+(\027)339264 v
+14 s
+(.)343427 v
+10 s
+(TS\030)346927 v
+(\030 and)3025 1 361187 u
+(\027)385747 v
+(\027)388337 v
+14 s
+(.)392500 v
+10 s
+(TE\030)396000 v
+( are copied, too,)3765(\030 lines)3025 2 410810 u
+(so that)4387 1 72000 120000 t
+&12
+(tr)104664 v
+(of)110884 v
+(f)118484 v
+&11
+( formatting macros [4,6])4386(layout macros \(such as the memorandum)4387 2 125651 u
+(\) can use these lines to)4386 1 404310 u
+(delimit and place tables as the)3973 1 72000 132000 t
+(y see)3973 1 199475 u
+( particular)3974(\003t. In)7303 2 225191 u
+(, an)3974 1 293558 u
+(y ar)3974 1 309322 u
+(guments on the)3974 1 325886 u
+(\027)393918 v
+(\027)396508 v
+14 s
+(.)400671 v
+10 s
+(TS\030)404171 v
+(\030 or)3234 1 418431 u
+(\027)437299 v
+(\027)439889 v
+14 s
+(.)444052 v
+10 s
+(TE\030)447552 v
+( are)3974(\030 lines)3234 2 462362 u
+(copied b)3800 1 72000 144000 t
+( format of the)3799( The)6949( used by document layout macro requests.)3799
+(ut otherwise ignored, and may be)3800 4 107260 u
+(input is as follo)3330 1 72000 156000 t
+(ws:)136190 v
+(te)108000 174000 w
+(xt)115070 v
+14 s
+(.)108833 186000 w
+10 s
+(TS)112333 v
+&12
+(table)108000 198000 w
+14 @11 f
+(.)108833 210000 w
+10 s
+(TE)112333 v
+(te)108000 222000 w
+(xt)115070 v
+14 s
+(.)108833 234000 w
+10 s
+(TS)112333 v
+&12
+(table)108000 246000 w
+14 @11 f
+(.)108833 258000 w
+10 s
+(TE)112333 v
+(te)108000 270000 w
+(xt)115070 v
+14 s
+(.)108833 282000 w
+(.)114832 v
+(.)120831 v
+10 s
+(where the format of each table is as follo)3330 1 72000 300000 t
+(ws:)241680 v
+14 s
+(.)108833 318000 w
+10 s
+(TS)112333 v
+&12
+(options)108000 330000 w
+&13
+(;)140780 v
+&12
+(format)108000 342000 w
+14 s
+(.)138833 v
+10 s
+(data)108000 354000 w
+14 @11 f
+(.)108833 366000 w
+10 s
+(TE)112333 v
+(Each table is independent, and must contain formatting information follo)4061 1 72000 384000 t
+( the data to be entered)4062(wed by)4061 2 377439 u
+( formatting information, which describes the indi)3682( The)6832
+(in the table.)3682 3 72000 396000 t
+(vidual columns and ro)3682 1 346898 u
+(ws of the table,)3682 1 439354 u
+(may be preceded by a fe)3885 1 72000 408000 t
+(w options that af)3885 1 176135 u
+( detailed description of tables is gi)3885( A)6665(fect the entire table.)3885 3 246980 u
+(v)489710 v
+(en)494560 v
+(in the ne)3330 1 72000 420000 t
+(xt section.)3330 1 107950 u
+&13
+(INPUT COMMANDS)4996 1 72000 450000 t
+&11
+(As indicated abo)3490 1 97000 465600 t
+(v)166040 v
+(e, a table contains,)3490 1 170890 u
+(\003rst, global options, then a format section describing the lay\001)3490 1 251500 u
+( format and data are al)4044( The)7194( and then the data to be printed.)4044
+(out of the table entries,)4045 4 72000 477600 t
+(w)427062 v
+(ays required, b)4044 1 434182 u
+(ut)496220 v
+( v)3330( The)6480(not the options.)3330 3 72000 489600 t
+(arious parts of the table are entered as follo)3330 1 165720 u
+(ws:)344840 v
+(1\))72000 511200 w
+(O)97000 v
+8 s
+(PTIONS.)104220 v
+10 s
+( be a single line of options af)4427(There may)4426 2 141796 u
+( present, this line)4427( If)7757(fecting the whole table.)4427 3 315821 u
+(must follo)5418 1 97000 523200 t
+(w the)5418 1 140508 u
+14 s
+(.)171617 v
+10 s
+( names separated by)5417
+(TS line immediately and must contain a list of option)5418 2 175117 u
+( allo)3330( The)6480
+(spaces, tabs, or commas, and must be terminated by a semicolon.)3330 3 97000 535200 t
+(w)405930 v
+(able options are:)3330 1 413050 u
+&13
+(center)103660 550800 w
+&11
+(\012 center the table \(def)3330 1 162000 u
+(ault is left\001adjust\);)3330 1 252410 u
+&13
+(expand)103660 566400 w
+&11
+(\012 mak)3330 1 162000 u
+(e the table as wide as the current line length;)3330 1 187450 u
+&13
+(box)103660 582000 w
+&11
+(\012 enclose the table in a box;)3330 1 162000 u
+&13
+(allbox)103660 597600 w
+&11
+(\012 enclose each item in the table in a box;)3330 1 162000 u
+&13
+(doublebox)103660 613200 w
+&11
+(\012 enclose the table in tw)3330 1 162000 u
+(o box)3330 1 262980 u
+(es;)286160 v
+&13
+(tab)103660 628800 w
+&11
+(\()120880 v
+&12
+(x)124210 v
+&11
+(\))129483 v
+(\012 use)3330 1 162000 u
+&12
+(x)186990 v
+&11
+(instead of tab to separate data items.)3330 1 194760 u
+&13
+(linesize)103660 644400 w
+&11
+(\()138100 v
+&12
+(n)141430 v
+&11
+(\))147263 v
+(\012 set lines or rules \(e.g., from)3330 1 162000 u
+&13
+(box)287790 v
+&11
+(\) in)3330 1 303350 u
+&12
+(n)321120 v
+&11
+(\001point type;)3330 1 326120 u
+&13
+(delim)103660 660000 w
+&11
+(\()130880 v
+&12
+(xy)134210 v
+&11
+(\))143923 v
+(\012 recognize)3330 1 162000 u
+&12
+(x)212530 v
+&11
+(and)220300 v
+&12
+(y)238070 v
+&11
+(as the)3330 1 245840 u
+&12
+(eqn)273050 v
+&11
+(delimiters.)290820 v
+(The)97000 675600 w
+&12
+(tbl)117694 v
+&11
+(program tries to k)5144 1 133398 u
+(eep box)5144 1 212610 u
+( issuing appropriate)5145(ed tables on one page by)5144 2 246484 u
+(\027)447609 v
+(\027need\030)450199 v
+(\030 \()4405 1 474999 u
+14 @12 f
+(.)486897 v
+10 s
+(ne)490397 v
+&11
+(\))500670 v
+( are calculated from the number of lines in the tables, and if there are)4448
+( requests)4449(requests. These)7599 3 97000 687600 t
+(spacing requests embedded in the input, the)3631 1 97000 699600 t
+14 @12 f
+(.)282951 v
+10 s
+(ne)286451 v
+&11
+(requests may be inaccurate; use normal)3632 1 300356 u
+&12
+(tr)467108 v
+(of)473328 v
+(f)480928 v
+&11
+(pro\001)487340 v
+(cedures, such as k)4063 1 97000 711600 t
+( must ha)4062( user who)4063( The)7213
+(eep\001release macros, in that case.)4063 4 173789 u
+(v)410464 v
+(e a multi\001page box)4062 1 415314 u
+(ed)494560 v
+(table should use macros designed for this purpose, as e)3330 1 97000 723600 t
+(xplained belo)3330 1 323730 u
+(w under)3330 1 378470 u
+(\027Usage.)415120 v
+(\030)445240 v
+_marks
+cleartomark
+showpage
+restore
+%%EndPage: 2 2
+%%Page: 3 3
+save
+mark
+3 pagesetup
+9 @12 f
+(TBL)72000 48000 w
+&11
+(3)499500 v
+10 s
+(2\))72000 84000 w
+(F)97000 v
+8 s
+(ORMA)102560 v
+(T)125672 v
+10 s
+( line in this)4257( Each)7587
+( section of the table speci\003es the layout of the columns.)4257( format)4256
+(. The)7406 5 130560 u
+( one line of the table \(e)3938(section corresponds to)3939 2 97000 96000 t
+(xcept that the last line corresponds to all follo)3938 1 289986 u
+(wing)484000 v
+(lines up to the ne)3345 1 97000 108000 t
+(xt)168560 v
+14 s
+(.)180518 v
+10 s
+(T&, if an)3345 1 184018 u
+(y\012see belo)3345 1 222498 u
+( contains a k)3346(w\), and each line)3345 2 265583 u
+(e)389136 v
+(y\001letter for each column of)3346 1 393426 u
+( is good practice to separate the k)3742( It)7072(the table.)3742 3 97000 120000 t
+(e)290258 v
+( Each)7071( column by spaces or tabs.)3741(y letters for each)3742 3 294548 u
+(k)97000 132000 w
+(e)101900 v
+(y\001letter is one of the follo)3330 1 106190 u
+(wing:)212020 v
+&13
+(L)103659 147600 w
+&11
+(or)113657 v
+&13
+(l)127260 v
+&11
+(to indicate a left\001adjusted column entry;)3330 1 147000 u
+&13
+(R)103384 163200 w
+&11
+(or)113657 v
+&13
+(r)126430 v
+&11
+(to indicate a right\001adjusted column entry;)3330 1 147000 u
+&13
+(C)103384 178800 w
+&11
+(or)113657 v
+&13
+(c)126430 v
+&11
+(to indicate a centered column entry;)3330 1 147000 u
+&13
+(N)103384 194400 w
+&11
+(or)113657 v
+&13
+(n)125870 v
+&11
+( column entry)4631(to indicate a numerical)4630 2 147000 u
+(, to be aligned with other numerical entries so)4631 1 303922 u
+(that the units digits of numbers line up;)3330 1 147000 206400 t
+&13
+(A)103384 222000 w
+&11
+(or)113657 v
+&13
+(a)126150 v
+&11
+( aligned on the left,)3899
+(to indicate an alphabetic subcolumn; all corresponding entries are)3898 2 147000 u
+( the column \(see e)3688
+(and positioned so that the widest is centered within)3689 2 147000 234000 t
+(xample on page)3688 1 438304 u
+(13\);)147000 246000 w
+&13
+(S)104213 261600 w
+&11
+(or)113657 v
+&13
+(s)126705 v
+&11
+( spanned heading, i.e., to indicate that the entry from the pre)3458
+(to indicate a)3457 2 147000 u
+(vious column)3458 1 448872 u
+( this column \(not allo)3413(continues across)3414 2 147000 273600 t
+(wed for the)3413 1 302696 u
+(\003rst column of the table, ob)3413 1 353475 u
+(viously\);)468440 v
+(or)147000 285600 w
+14 @13 f
+(^)104493 305400 w
+10 @11 f
+( v)3668(to indicate a)3667 2 147000 301200 t
+(ertically spanned heading, i.e., to indicate that the entry from the prev\
+i\001)3668 1 206732 u
+(ous ro)4127 1 147000 313200 t
+(w continues do)4127 1 173097 u
+(wn through this ro)4127 1 236651 u
+(w \(not allo)4127 1 314892 u
+(wed for the)4127 1 361226 u
+(\003rst ro)4126 1 414146 u
+(w of the table,)4126 1 441912 u
+(ob)147000 325200 w
+(viously\).)156850 v
+( rightmost)3770( The)6920( is sought.)3770
+(When numerical alignment is speci\003ed, a location for the decimal point\
+)3769 4 97000 340800 t
+(dot \()3343 1 97000 352800 t
+14 s
+(.)117286 v
+10 s
+( dot adjoining a digit, the right\001)3342
+( to a digit is used as a decimal point; if there is no)3343(\) adjacent)6673 3 120786 u
+( used as a units digit; if no alignment is indicated, the item is centere\
+d in the column.)3468
+(most digit is)3467 2 97000 364800 t
+(Ho)97000 376800 w
+(we)108970 v
+(v)120380 v
+(er)125230 v
+(, the special non\001printing character string)3361 1 132600 u
+( o)3360(\017& may be used to)3361 2 304676 u
+(v)389660 v
+(erride unconditionally dots)3360 1 394510 u
+(and digits, or to align alphabetic data; this string lines up where a dot\
+ normally w)4014 1 97000 388800 t
+(ould, and then)4015 1 444030 u
+(disappears from the)3335 1 97000 400800 t
+( the e)3334( In)6664(\003nal output.)3334 3 180874 u
+(xample belo)3334 1 268220 u
+(w)317964 v
+(, the items sho)3334 1 324534 u
+(wn at the left will be aligned)3334 1 384566 u
+(\(in a numerical column\) as sho)3330 1 97000 412800 t
+(wn on the right:)3330 1 224490 u
+(13)246220 442800 w
+(13)325446 v
+(4)246220 454800 w
+14 s
+(.)252053 v
+10 s
+(2)255553 v
+(4)330446 v
+14 s
+(.)336279 v
+10 s
+(2)339779 v
+(26)246220 466800 w
+14 s
+(.)257053 v
+10 s
+(4)260553 v
+14 s
+(.)266386 v
+10 s
+(12)269886 v
+(26)316113 v
+14 s
+(.)326946 v
+10 s
+(4)330446 v
+14 s
+(.)336279 v
+10 s
+(12)339779 v
+(abc)246220 478800 w
+(abc)328506 v
+(abc\017&)246220 490800 w
+(abc)321566 v
+(43\017&3)246220 502800 w
+14 s
+(.)272613 v
+10 s
+(22)276113 v
+(433)325446 v
+14 s
+(.)341279 v
+10 s
+(22)344779 v
+(749)246220 514800 w
+14 s
+(.)262053 v
+10 s
+(12)265553 v
+(749)320446 v
+14 s
+(.)336279 v
+10 s
+(12)339779 v
+&13
+(Note:)97000 542400 w
+&11
+( data are used in the same column with wider)4329(If numerical)4328 2 127978 u
+&13
+(L)380546 v
+&11
+(or)391545 v
+&13
+(r)404204 v
+&11
+(type table entries, the)4329 1 412973 u
+(widest)97000 554400 w
+&12
+(number)126515 v
+&11
+(is centered relati)3405 1 160470 u
+(v)228120 v
+(e to the wider)3404 1 232970 u
+&13
+(L)293796 v
+&11
+(or)303870 v
+&13
+(r)315604 v
+&11
+(items \()3404 1 323448 u
+&13
+(L)351852 v
+&11
+(is used instead of)3404 1 361926 u
+&13
+(l)437202 v
+&11
+(for readability;)3404 1 443386 u
+(the)97000 566400 w
+(y ha)4244 1 109070 u
+(v)127554 v
+( k)4245(e the same meaning as)4244 2 132404 u
+(e)238505 v
+( within the numerical items is preserv)4245(y\001letters\). Alignment)7025 2 242795 u
+(ed.)492060 v
+(This is similar to the beha)5159 1 97000 578400 t
+(vior of)5159 1 213705 u
+&13
+(a)248463 v
+&11
+( e)5158(type data, as)5159 2 258622 u
+(xplained abo)5158 1 323098 u
+(v)376986 v
+(e. Ho)8488 1 381836 u
+(we)409234 v
+(v)420644 v
+(er)425494 v
+(, alphabetic sub\001)5158 1 432864 u
+(columns \(requested by the)3898 1 97000 590400 t
+&13
+(a)210352 v
+&11
+(k)219250 v
+(e)224150 v
+(y\001letter\) are al)3898 1 228440 u
+(w)287776 v
+(ays slightly indented relati)3898 1 294896 u
+(v)404670 v
+(e to)3898 1 409520 u
+&13
+(L)429536 v
+&11
+(items; if neces\001)3898 1 440104 u
+(sary)97000 602400 w
+( is not true for)3330( This)6480
+(, the column width is increased to force this.)3330 3 113010 u
+&13
+(n)384420 v
+&11
+(type entries.)3330 1 393310 u
+&13
+(W)78660 618000 w
+(ar)88010 v
+(ning:)97300 v
+&11
+(The)97000 630000 w
+&13
+(n)115880 v
+&11
+(and)124770 v
+&13
+(a)142540 v
+&11
+(items should not be used in the same column.)3330 1 150870 u
+(F)97000 645600 w
+(or readability)3610 1 102410 u
+(, the k)3610 1 156470 u
+(e)183310 v
+( end of)3610( The)6760
+(y\001letters describing each column should be separated by spaces.)3610 3 187600 u
+( layout of the k)4548( The)7698( is indicated by a period.)4548
+(the format section)4549 4 97000 657600 t
+(e)373758 v
+(y\001letters in the format section)4548 1 378048 u
+( a simple format might appear as:)3330( Thus)6480
+(resembles the layout of the actual data in the table.)3330 3 97000 669600 t
+(c s s)6660 1 117000 681600 t
+(l n n)6660 1 117000 693600 t
+14 s
+(.)147263 v
+10 s
+( The)4214(which speci\003es a table of three columns.)4394 2 97000 705600 t
+( the table contains a heading centered)4395(\003rst line of)4394 2 294992 u
+( line contains a left\001adjusted item in the)3729
+(across all three columns; each remaining)3730 2 97000 717600 t
+(\003rst column fol\001)3729 1 436542 u
+(lo)97000 729600 w
+(wed by tw)3330 1 104530 u
+( sample table in this format might be:)3330( A)6110
+(o columns of numerical data.)3330 3 147750 u
+_marks
+cleartomark
+showpage
+restore
+%%EndPage: 3 3
+%%Page: 4 4
+save
+mark
+4 pagesetup
+9 @11 f
+(4)72000 48000 w
+&12
+(TBL)487743 v
+10 @11 f
+(Ov)108740 84000 w
+(erall title)3330 1 120810 u
+(Item\001a)137000 96000 w
+(34.22)199210 v
+(9.1)241710 v
+(Item\001b)137000 108000 w
+(12.65)199210 v
+(.02)246710 v
+(Items: c,d,e)3330 1 137000 120000 t
+(23)199210 v
+(5.8)241710 v
+(T)137000 132000 w
+(otal)142310 v
+(69.87)199210 v
+(14.92)236710 v
+(There are some additional features of the k)3330 1 97000 156000 t
+(e)274050 v
+(y\001letter system:)3330 1 278340 u
+&12
+(Horizontal lines)3330 1 103660 171600 t
+&11
+( k)3977(\012 A)3427 2 122000 183600 t
+(e)146524 v
+(y\001letter may be replaced by)3977 1 150814 u
+(\027)270109 v
+&20
+(\044)273439 v
+&11
+( to indicate a horizontal line in place of)3978(\030 \(underscore\))3237 2 278439 u
+(the corresponding column entry)4114 1 122000 195600 t
+(, or by)4114 1 253672 u
+( an adja\001)4114( If)7444( indicate a double horizontal line.)4114
+(\027=\030 to)3374 4 286844 u
+(cent column contains a horizontal line, or if there are v)4244 1 122000 207600 t
+(ertical lines adjoining this column,)4245 1 358410 u
+(this horizontal line is e)4133 1 122000 219600 t
+( an)4132( If)7462( lines.)4132(xtended to meet the nearby)4133 4 219492 u
+(y data entry is pro)4132 1 387400 u
+(vided for)4132 1 465988 u
+(this column, it is ignored and a w)3330 1 122000 231600 t
+(arning message is printed.)3330 1 261040 u
+&12
+(V)103660 247200 w
+(ertical lines)3330 1 108660 u
+&11
+( v)3946(\012 A)3396 2 122000 259200 t
+( placed between column k)3947(ertical bar may be)3946 2 146412 u
+(e)332778 v
+( will cause a v)3947(y\001letters. This)7097 2 337068 u
+(ertical line)3947 1 460063 u
+( v)3956( A)6736( the table.)3956(between the corresponding columns of)3957 4 122000 271200 t
+(ertical bar to the left of the)3956 1 347632 u
+(\003rst k)3956 1 466964 u
+(e)491380 v
+(y\001)495670 v
+( tw)3714( If)7044( line at the edge of the table.)3714
+(letter or to the right of the last one produces a)3713 4 122000 283200 t
+(o v)3714 1 465446 u
+(ertical)479010 v
+(bars appear between k)3330 1 122000 295200 t
+(e)213520 v
+(y\001letters, a double v)3330 1 217810 u
+(ertical line is dra)3330 1 299580 u
+(wn.)368850 v
+&12
+(Space between columns)3330 1 103660 310800 t
+&11
+( number may follo)3468(\012 A)2918 2 122000 322800 t
+(w the k)3468 1 213952 u
+(e)245228 v
+(y\001letter)249518 v
+( indicates the amount of separation between this)3469(. This)6619 2 277848 u
+(column and the ne)3881 1 122000 334800 t
+( in)3880( number normally speci\003es the separation)3881( The)7031
+(xt column.)3881 4 199593 u
+&12
+(ens)455700 v
+&11
+(\(one en)3880 1 472910 u
+(is about the width of the letter)3891 1 122000 346800 t
+( the)3891(\027n\030\).* If)7221 2 254227 u
+&12
+(e)310600 v
+(xpand)314840 v
+&11
+( these numbers are)3892(option is used, then)3891 2 343171 u
+( The)8375( as the current line length.)5225
+(multiplied by a constant such that the table is as wide)5226 3 122000 358800 t
+(def)122000 370800 w
+( is changed the w)3847( the separation)3846( If)7176
+(ault column separation number is 3.)3846 4 134670 u
+(orst case \(lar)3847 1 434286 u
+(gest)487890 v
+(space requested\) go)3330 1 122000 382800 t
+(v)202370 v
+(erns.)207220 v
+&12
+(V)103660 398400 w
+(ertical spanning)3330 1 108660 u
+&11
+(\012 Normally)3360 1 122000 410400 t
+(, v)3360 1 168040 u
+(ertically spanned items e)3360 1 178750 u
+(xtending o)3360 1 280330 u
+(v)323540 v
+(er se)3360 1 328390 u
+(v)347600 v
+(eral ro)3360 1 352450 u
+(ws of the table are centered in)3360 1 378880 u
+(their v)5336 1 122000 422400 t
+( a k)5336( If)8666(ertical range.)5336 3 150516 u
+(e)240890 v
+(y\001letter is follo)5336 1 245180 u
+(wed by)5336 1 310042 u
+&13
+(t)347374 v
+&11
+(or)356040 v
+&13
+(T)369705 v
+&11
+(, an)5335 1 376375 u
+(y corresponding v)5335 1 393500 u
+(ertically)471230 v
+(spanned item will be)3330 1 122000 434400 t
+(gin at the top line of its range.)3330 1 207390 u
+&12
+(F)103660 450000 w
+(ont c)3330 1 108720 u
+(hang)129120 v
+(es)149020 v
+&11
+( k)3980(\012 A)3430 2 122000 462000 t
+(e)146530 v
+(y\001letter may be follo)3980 1 150820 u
+(wed by a string containing a font name or number preceded by)3980 1 236940 u
+(the letter)3715 1 122000 474000 t
+&13
+(f)162200 v
+&11
+(or)169245 v
+&13
+(F)181290 v
+&11
+( that the corresponding column should be in a dif)3714( indicates)3715
+(. This)6865 3 187400 u
+(ferent font)3714 1 460856 u
+(from the def)4169 1 122000 486000 t
+( or tw)4170( font names are one)4169( All)6949
+(ault font \(usually Roman\).)4169 4 174668 u
+(o letters; a one\001letter)4170 1 416510 u
+(font name should be separated from whate)3906 1 122000 498000 t
+(v)300146 v
+(er follo)3906 1 304996 u
+(ws by a space or tab)3906 1 335312 u
+( single letters)3906(. The)7056 2 422752 u
+&13
+(B)122000 510000 w
+&11
+(,)128670 v
+&13
+(b)135890 v
+&11
+(,)141450 v
+&13
+(I)148670 v
+&11
+(, and)4720 1 152560 u
+&13
+(i)178940 v
+&11
+(are shorter synon)4720 1 186440 u
+(yms for)4720 1 259600 u
+&13
+(f)297370 v
+(B)301533 v
+&11
+(and)312923 v
+&13
+(f)332083 v
+(I)336246 v
+&11
+(. F)8050 1 340136 u
+(ont\001change requests gi)4721 1 356096 u
+(v)450268 v
+(en with the)4721 1 455118 u
+(table entries o)3330 1 122000 522000 t
+(v)179610 v
+(erride these speci\003cations.)3330 1 184460 u
+&12
+(P)103660 537600 w
+(oint size c)3330 1 108970 u
+(hang)150480 v
+(es)170380 v
+&11
+( k)3701(\012 A)3151 2 122000 549600 t
+(e)145972 v
+(y\001letter may be follo)3701 1 150262 u
+(wed by the letter)3701 1 235545 u
+&13
+(p)309780 v
+&11
+(or)319042 v
+&13
+(P)331074 v
+&11
+(and a number to indicate the point size)3702 1 340886 u
+( a signed digit, in which case it is)4167( number may be)4168( The)7318
+(of the corresponding table entries.)4168 4 122000 561600 t
+(tak)122000 573600 w
+( both a point size and a)3936( If)7266
+( increment or decrement from the current point size.)3936(en as an)3935 4 134120 u
+(column separation v)3330 1 122000 585600 t
+(alue are gi)3330 1 204510 u
+(v)247570 v
+(en, one or more blanks must separate them.)3330 1 252420 u
+&12
+(V)103660 601200 w
+(ertical spacing c)3330 1 108660 u
+(hang)176830 v
+(es)196730 v
+&11
+( k)4225(\012 A)3675 2 122000 613200 t
+(e)147020 v
+(y\001letter may be follo)4225 1 151310 u
+(wed by the letter)4225 1 238165 u
+&13
+(v)314495 v
+&11
+(or)323720 v
+&13
+(V)336275 v
+&11
+(and a number to indicate the v)4225 1 347720 u
+(ertical)479010 v
+(line spacing to be used within a multi\001line corresponding table entry)3470 1 122000 625200 t
+( number may be a)3470(. The)6620 2 403800 u
+( which case it is tak)3392(signed digit, in)3391 2 122000 637200 t
+(en as an increment or decrement from the current v)3392 1 266472 u
+(ertical)479010 v
+( v)4259( column separation)4260(spacing. A)7040 3 122000 649200 t
+(alue must be separated by blanks or some other speci\003ca\001)4259 1 257939 u
+(tion from a v)4670 1 122000 661200 t
+( request has no ef)4670( This)7820(ertical spacing request.)4670 3 180300 u
+(fect unless the corresponding)4670 1 380570 u
+(table entry is a te)3330 1 122000 673200 t
+(xt block \(see belo)3330 1 193490 u
+(w\).)266550 v
+8 @19 f
+(\011\011\011\011\011\011\011\011\011\011\011\011\011\011\011\011\011\011\
+)72000 698000 w
+&11
+(* More precisely)2664 1 72000 708000 t
+(, an en is a number of points \(1 point = 1/72 inch\) equal to half the c\
+urrent type size.)2664 1 127016 u
+_marks
+cleartomark
+showpage
+restore
+%%EndPage: 4 4
+%%Page: 5 5
+save
+mark
+5 pagesetup
+9 @12 f
+(TBL)72000 48000 w
+&11
+(5)499500 v
+10 @12 f
+(Column width indication)3330 1 103660 84000 t
+&11
+( k)3391(\012 A)2841 2 122000 96000 t
+(e)145352 v
+(y\001letter may be follo)3391 1 149642 u
+( the letter)3392(wed by)3391 2 233995 u
+&13
+(w)306992 v
+&11
+(or)317604 v
+&13
+(W)329326 v
+&11
+(and a width v)3392 1 342718 u
+( This)6542(alue in parentheses.)3392 2 399304 u
+( the lar)4067( If)7397( used as a minimum column width.)4067(width is)4068 4 122000 108000 t
+(gest element in the column is not as)4067 1 349981 u
+(wide as the width v)3340 1 122000 120000 t
+(alue gi)3340 1 202880 u
+(v)230410 v
+(en after the)3340 1 235260 u
+&13
+(w)285260 v
+&11
+(, the lar)3340 1 292480 u
+( If)6670(gest element is assumed to be that wide.)3340 2 324250 u
+(the lar)4055 1 122000 132000 t
+( wider than the speci\003ed v)4054(gest element in the column is)4055 2 148645 u
+( The)7204(alue, its width is used.)4054 2 386140 u
+( a def)4019(width is also used as)4018 2 122000 144000 t
+(ault line length for included te)4019 1 235440 u
+( Normal)7349(xt blocks.)4019 2 363705 u
+&12
+(tr)446032 v
+(of)452252 v
+(f)459852 v
+&11
+(units can)4019 1 466651 u
+(be used to scale the width v)3499 1 122000 156000 t
+(alue; if none are used, the def)3499 1 238284 u
+( width speci\003ca\001)3498( the)3499( If)6829(ault is ens.)3499 4 362198 u
+(tion is a unitless inte)3526 1 122000 168000 t
+( the width v)3527( If)6857(ger the parentheses may be omitted.)3526 3 208184 u
+(alue is changed in a)3527 1 421022 u
+(column, the)3330 1 122000 180000 t
+&12
+(last)173380 v
+&11
+(one gi)3330 1 191160 u
+(v)216460 v
+(en controls.)3330 1 221310 u
+&12
+(Equal\001width columns)3330 1 103660 195600 t
+&11
+( k)4308(\012 A)3758 2 122000 207600 t
+(e)147186 v
+(y\001letter may be follo)4308 1 151476 u
+(wed by the letter)4308 1 238580 u
+&13
+(e)315242 v
+&11
+(or)323990 v
+&13
+(E)336628 v
+&11
+( All)7089( columns.)4309(to indicate equal\001width)4308 3 347606 u
+(columns whose k)4054 1 122000 219600 t
+(e)194448 v
+(y\001letters are follo)4054 1 198738 u
+(wed by)4054 1 270466 u
+&13
+(e)305233 v
+&11
+(or)313726 v
+&13
+(E)326109 v
+&11
+( permits)4053( This)7203(are made the same width.)4053 3 336832 u
+(the user to get a group of re)3330 1 122000 231600 t
+(gularly spaced columns.)3330 1 237910 u
+&12
+(Sta)103660 247200 w
+(g)116340 v
+(g)121240 v
+(er)126140 v
+(ed columns)3330 1 134100 u
+&11
+( k)3647(\012 A)3097 2 122000 259200 t
+(e)145864 v
+(y\001letter may be follo)3647 1 150154 u
+(wed by the letter)3647 1 235275 u
+&13
+(u)309293 v
+&11
+(or)318500 v
+&13
+(U)330477 v
+&11
+( entry)3648(to indicate that the corresponding)3647 2 341344 u
+( mo)4814(is to be)4815 2 122000 271200 t
+(v)172964 v
+( mak)4814( This)7964(ed up one\001half line.)4814 3 177814 u
+(es it easy)4814 1 310194 u
+(, for e)4814 1 350832 u
+(xample, to ha)4814 1 378910 u
+(v)437498 v
+(e a column of)4814 1 442348 u
+(dif)122000 283200 w
+( The)6532(ferences between numbers in an adjoining column.)3382 2 132860 u
+&12
+(allbox)367186 v
+&11
+(option does not w)3383 1 395568 u
+(ork with)3383 1 469507 u
+(staggered columns.)3330 1 122000 295200 t
+&12
+(Zer)103660 310800 w
+(o\001width item)3330 1 117100 u
+&11
+( k)3974(\012 A)3424 2 122000 322800 t
+(e)146518 v
+(y\001letter may be follo)3974 1 150808 u
+(wed by the letter)3974 1 236910 u
+&13
+(z)312236 v
+&11
+(or)320650 v
+&13
+(Z)332954 v
+&11
+( corresponding data)3975(to indicate that the)3974 2 343598 u
+( may be useful, for e)4583( This)7733( calculating column widths.)4583
+(item is to be ignored in)4584 4 122000 334800 t
+(xample, in)4583 1 459697 u
+(allo)122000 346800 w
+(wing headings to run across adjacent columns where spanned headings w)4229 1 136750 u
+(ould be inap\001)4230 1 447770 u
+(propriate.)122000 358800 w
+&13
+(Note:)103660 374400 w
+&11
+(The order of the abo)3754 1 122000 386400 t
+(v)208506 v
+(e features is immaterial; the)3754 1 213356 u
+(y need not be separated by spaces, e)3754 1 329312 u
+(xcept)482340 v
+(as indicated abo)5420 1 122000 398400 t
+(v)192120 v
+(e to a)5420 1 196970 u
+(v)224270 v
+(oid ambiguities in)5420 1 229070 u
+(v)306740 v
+( a)5420( Thus)8570(olving point size and font changes.)5420 3 311540 u
+( minimum width of 2.5 inches)3450
+(numerical column entry in italic font and 12\001point type with a)3449 2 122000 410400 t
+(and separated by 6 ens from the ne)3330 1 122000 422400 t
+(xt column could be speci\003ed as)3330 1 266790 u
+(np12w\(2)172000 434400 w
+14 s
+(.)208383 v
+10 s
+(5i\)f)211883 v
+(I 6)6660 1 227989 u
+&12
+(Alternative notation)3330 1 103660 450000 t
+&11
+(\012 Instead of listing the format of successi)3742 1 122000 462000 t
+(v)295144 v
+( on consecuti)3743(e lines of a table)3742 2 299994 u
+(v)425508 v
+(e lines of the for)3743 1 430358 u
+(\001)500670 v
+(mat section, successi)4034 1 122000 474000 t
+(v)208418 v
+(e line formats may be gi)4034 1 213268 u
+(v)317618 v
+( the same line, separated by commas,)4033(en on)4034 2 322468 u
+(so that the format for the e)3330 1 122000 486000 t
+(xample abo)3330 1 232920 u
+(v)279980 v
+(e might ha)3330 1 284830 u
+(v)328510 v
+(e been written:)3330 1 333360 u
+(c s s)5000 1 172000 498000 t
+&13
+(,)199220 v
+&11
+(l n n)5000 1 206720 u
+14 s
+(.)235333 v
+10 @12 f
+(Default)103660 513600 w
+&11
+( the end of a format line are assumed to be)4844
+(\012 Column descriptors missing from)4843 2 122000 525600 t
+&13
+(L)471286 v
+&11
+(. The)7994 1 477956 u
+(longest line in the format section, ho)4943 1 122000 537600 t
+(we)282788 v
+(v)294198 v
+(er)299048 v
+( the table;)4942(, de\003nes the number of columns in)4943 2 306418 u
+(e)122000 549600 w
+(xtra columns in the data are ignored silently)3330 1 126290 u
+(.)307260 v
+(3\))72000 571200 w
+(D)97000 v
+8 s
+(A)104220 v
+(T)109108 v
+(A)113252 v
+10 s
+( Normally)6760( the format.)3430( data for the table are typed after)3429
+(. The)6579 4 119028 u
+(, each table line is typed as one)3430 1 373070 u
+( V)6768(line of data.)3938 2 97000 583200 t
+( input lines can be brok)3937(ery long)3938 2 160244 u
+(en: an)3937 1 295417 u
+(y line whose last character is)3937 1 320864 u
+(\017 is combined)3937 1 447236 u
+(with the follo)3643 1 97000 595200 t
+(wing line \(and the)3643 1 152926 u
+(\017 v)3643 1 232488 u
+( data for dif)3643(anishes\). The)6793 2 243661 u
+( entries\) are)3644(ferent columns \(the table)3643 2 351383 u
+(separated by tabs, or by whate)4215 1 97000 607200 t
+(v)226405 v
+(er character has been speci\003ed in the option)4215 1 231255 u
+&12
+(tabs)422705 v
+&11
+(option. There)7364 1 445256 u
+(are a fe)3330 1 97000 619200 t
+(w special cases:)3330 1 127830 u
+&12
+(T)103660 634800 w
+(r)108670 v
+(of)112110 v
+(f r)3330 1 119710 u
+(equests within tables)3330 1 129340 u
+&11
+( be)3720( input line)3719(\012 An)3169 3 122000 646800 t
+(ginning with a)3720 1 198397 u
+(\027)262337 v
+14 s
+(.)266500 v
+10 s
+(\030 follo)2980 1 270000 u
+(wed by an)3720 1 294950 u
+(ything b)3720 1 338340 u
+(ut a number is assumed to be a)3720 1 372420 u
+(request to)3788 1 122000 658800 t
+&12
+(tr)166236 v
+(of)172456 v
+(f)180056 v
+&11
+( for)3788( So,)7118
+(and is passed through unchanged, retaining its position in the table.)3788 3 186624 u
+(e)122000 670800 w
+(xample, space within a table may be produced by)3330 1 126290 u
+(\027)333720 v
+(\027)336310 v
+14 s
+(.)340473 v
+10 s
+(sp\030)343973 v
+( in the data.)3330(\030 requests)2590 2 355453 u
+&12
+(Full width horizontal lines)3330 1 103660 686400 t
+&11
+( input)3455(\012 An)2905 2 122000 698400 t
+&12
+(line)169595 v
+&11
+(containing only the character)3455 1 189716 u
+&20
+(\044)312396 v
+(\044)312896 v
+&11
+(\(underscore\) or)3456 1 321352 u
+&13
+(=)387124 v
+&11
+(\(equal sign\) is tak)3456 1 396280 u
+(en to be)3456 1 470428 u
+(a single or double line, respecti)3330 1 122000 710400 t
+(v)250880 v
+(ely)255730 v
+(, e)3330 1 267300 u
+(xtending the full width of the)3330 1 277420 u
+&12
+(table)401840 v
+(.)421690 v
+_marks
+cleartomark
+showpage
+restore
+%%EndPage: 5 5
+%%Page: 6 6
+save
+mark
+6 pagesetup
+9 @11 f
+(6)72000 48000 w
+&12
+(TBL)487743 v
+10 s
+(Single column horizontal lines)3330 1 103660 84000 t
+&11
+( input table)3441(\012 An)2891 2 122000 96000 t
+&12
+(entry)192434 v
+&11
+(containing only the character)3442 1 218092 u
+&20
+(\044)340720 v
+(\044)341220 v
+&11
+(or)349662 v
+&13
+(=)361434 v
+&11
+(is tak)3442 1 370576 u
+(en to be a single or double)3442 1 392808 u
+(line e)4101 1 122000 108000 t
+(xtending the full width of the)4101 1 145391 u
+&12
+(column.)274437 v
+&11
+(Such lines are e)4101 1 312144 u
+( or)4100(xtended to meet horizontal)4101 2 379837 u
+(v)122000 120000 w
+( T)6525(ertical lines adjoining this column.)3375 2 126850 u
+( e)3376(o obtain these characters)3375 2 280795 u
+(xplicitly in a column, either)3376 1 389666 u
+(precede them by)3330 1 122000 132000 t
+(\017& or follo)3330 1 193080 u
+(w them by a space before the usual tab or ne)3330 1 237270 u
+(w\001line.)423050 v
+&12
+(Short horizontal lines)3330 1 103660 147600 t
+&11
+( input table)3927(\012 An)3377 2 122000 159600 t
+&12
+(entry)194378 v
+&11
+(containing only the string)3927 1 220521 u
+(\017)331229 v
+&20
+(\044)334842 v
+&11
+(is tak)3927 1 343769 u
+(en to be a single line as wide as)3928 1 366486 u
+( is not e)3330( It)6660(the contents of the column.)3330 3 122000 171600 t
+(xtended to meet adjoining lines.)3330 1 280420 u
+&12
+(Repeated c)3330 1 103660 187200 t
+(har)148490 v
+(acter)162230 v
+(s)182680 v
+&11
+( input table)3675(\012 An)3125 2 122000 199200 t
+&12
+(entry)193370 v
+&11
+( form)3676(containing only a string of the)3675 2 219261 u
+&12
+(\017)372198 v
+(\017)372698 v
+&13
+(R)375478 v
+&12
+(x)382698 v
+&11
+(where)390814 v
+&12
+(x)418920 v
+&11
+(is an)3676 1 428702 u
+(y character is)3676 1 448338 u
+(replaced by repetitions of the character)3737 1 122000 211200 t
+&12
+(x)287702 v
+&11
+( sequence)3736( The)6886( as the data in the column.)3736(as wide)3737 4 297545 u
+(of)122000 223200 w
+&12
+(x)133660 v
+&11
+(\030)139766 v
+(s is not e)3330 1 142546 u
+(xtended to meet adjoining columns.)3330 1 180166 u
+&12
+(V)103660 238800 w
+(ertically spanned items)3330 1 108660 u
+&11
+( entry containing only the character string)4085( input table)4084
+(\012 An)3534 3 122000 250800 t
+(\017)371707 v
+14 s
+(^)375320 255000 w
+10 s
+(indicates that the table entry)4085 1 384900 250800 t
+(immediately abo)4440 1 122000 262800 t
+(v)190730 v
+(e spans do)4440 1 195580 u
+(wnw)240870 v
+(ard o)4440 1 260210 u
+(v)282270 v
+(er this ro)4440 1 287120 u
+(w)326300 v
+( is equi)4440(. It)7770 2 332870 u
+(v)381770 v
+(alent to a table format k)4440 1 386520 u
+(e)491380 v
+(y\001)495670 v
+(letter of)3330 1 122000 274800 t
+(\027)157540 v
+14 s
+(^)161703 279000 w
+10 s
+(\030.)167198 274800 w
+&12
+(T)103660 290400 w
+(e)108300 v
+(xt bloc)3330 1 112540 u
+(ks)140110 v
+&11
+( block of te)3735(\012 In order to include a)3734 2 122000 302400 t
+(xt as a table entry)3735 1 265585 u
+( T{)3555(, precede it by)3735 2 340415 u
+(T{ and follo)3735 1 404825 u
+( T})3555(w it by)3735 2 456285 u
+(T}.)490590 v
+(Thus the sequence)3330 1 122000 314400 t
+14 s
+(.)149493 326400 w
+(.)155492 v
+(.)161491 v
+10 s
+(T{)168141 v
+(T{)168641 v
+&12
+(bloc)148660 338400 w
+(k of)3330 1 165680 u
+(te)148660 350400 w
+(xt)155680 v
+&11
+(T})148480 362400 w
+(T})148980 v
+14 s
+(.)164053 v
+(.)170052 v
+(.)176051 v
+10 s
+(is the w)4603 1 122000 374400 t
+(ay to enter)4603 1 157216 u
+( con)4604(, as a single entry in the table, something that cannot)4603 2 203232 u
+(v)452886 v
+(eniently be)4604 1 457736 u
+( T})4202( the)4382( that)4383( Note)7713
+(typed as a simple string between tabs.)4383 5 122000 386400 t
+(T} end delimiter must be)4382 1 352508 u
+(gin a line;)4382 1 460236 u
+( data may follo)4442(additional columns of)4441 2 122000 398400 t
+( the e)4442( See)7772(w after a tab on the same line.)4442 3 278948 u
+(xample on)4442 1 460118 u
+(page 11 for an illustration of included te)3850 1 122000 410400 t
+( more than thirty or so te)3849( If)7179( in a table.)3849(xt blocks)3850 4 292110 u
+(xt)496220 v
+(blocks are used in a table, v)3553 1 122000 422400 t
+( the)3554(arious limits in)3553 2 238878 u
+&12
+(tr)320322 v
+(of)326542 v
+(f)334142 v
+&11
+(program are lik)3554 1 340476 u
+(ely to be e)3554 1 404134 u
+(xceeded, pro\001)3554 1 448526 u
+(ducing diagnostics such as)3330 1 122000 434400 t
+(\027too man)3330 1 234200 u
+( or)2590(y string/macro names\030)3330 2 270710 u
+(\027too man)3330 1 376050 u
+(y number re)3330 1 412560 u
+(gisters.)462390 v
+(\030)490300 v
+(T)122000 450000 w
+(e)127410 v
+(xt blocks are pulled out from the table, processed separately by)3836 1 131700 u
+&12
+(tr)401346 v
+(of)407566 v
+(f)415166 v
+(,)417846 v
+&11
+(and replaced in the)3836 1 424182 u
+( no line length is speci\003ed in the)3483( If)6813
+(table as a solid block.)3483 3 122000 462000 t
+&12
+(bloc)365869 v
+(k of te)3483 1 382889 u
+(xt)409095 v
+&11
+(itself, or in the table)3483 1 419798 u
+(format, the def)3646 1 122000 474000 t
+(ault is to use)3646 1 183342 u
+&12
+(L)240706 v
+&20
+(\145)247099 v
+&12
+(C)252589 v
+&20
+(\132)260925 v
+&11
+(\()262595 v
+&12
+(N)265925 v
+&20
+(\006)274261 v
+&11
+(1\) where)3646 1 279751 u
+&12
+(L)319803 v
+&11
+(is the current line length,)3646 1 329009 u
+&12
+(C)436949 v
+&11
+(is the number)3647 1 447266 u
+(of table columns spanned by the te)4442 1 122000 486000 t
+(xt, and)4442 1 272372 u
+&12
+(N)305976 v
+&11
+( columns in the table.)4441(is the total number of)4442 2 317088 u
+( used in setting the)4651(The other parameters \(point size, font, etc.\))4650 2 122000 498000 t
+&12
+(bloc)396165 v
+(k of te)4651 1 413185 u
+(xt)441727 v
+&11
+(are those in)4651 1 453598 u
+(ef)122000 510000 w
+(fect at the be)3765 1 129520 u
+(ginning of the table \(including the ef)3764 1 184535 u
+(fect of the)3764 1 338519 u
+(\027)385351 v
+(\027)387941 v
+14 s
+(.)392104 v
+10 s
+(TS\030)395604 v
+( and an)3764(\030 macro\))3024 2 409864 u
+(y table)3764 1 475796 u
+(format speci\003cations of size, spacing, and font, using the)3495 1 122000 522000 t
+&13
+(p)360925 v
+&11
+(,)366485 v
+&13
+(v)372480 v
+&11
+(and)380975 v
+&13
+(f)398910 v
+&11
+(modi\003ers to the column)3495 1 405735 u
+(k)122000 534000 w
+(e)126900 v
+( within the te)4184(y\001letters. Requests)7514 2 131190 u
+( Ho)7513(xt block itself are also recognized, of course.)4183 2 267486 u
+(we)477870 v
+(v)489280 v
+(er)494130 v
+(,)501500 v
+&12
+(tr)122000 546000 w
+(of)128220 v
+(f)135820 v
+&11
+(requests within the table data b)3330 1 143596 u
+(ut not within the te)3330 1 271696 u
+(xt block do not af)3330 1 350426 u
+(fect that block.)3330 1 424046 u
+&13
+(W)103660 561600 w
+(ar)113010 v
+(nings:)122300 v
+&11
+(Although an)3593 1 122000 573600 t
+( of lines may be present in a table, only the)3594(y number)3593 2 172663 u
+(\003rst 200 lines are used in)3594 1 398260 u
+( multi\001page table, of course, may be arranged as se)4304
+(setting up the table; a)4305 2 122000 585600 t
+(v)433756 v
+(eral single\001page)4304 1 438606 u
+( pro)3938(tables if this)3937 2 122000 597600 t
+(v)190882 v
+( dif\003culties with formatting may arise because,)3938( Other)7268
+(es to be a problem.)3938 3 195732 u
+( of column widths all table entries are assumed to be in the font and siz\
+e)3944
+(in the calculation)3945 2 122000 609600 t
+(being used when the)4483 1 122000 621600 t
+(\027)214362 v
+(\027)216952 v
+14 s
+(.)221115 v
+10 s
+(TS\030)224615 v
+( w)4484(\030 command)3743 2 238875 u
+(as encountered, e)4484 1 296992 u
+(xcept for font and size changes)4484 1 369950 u
+( format section and \(b\) within the table data \(as in the entry)5476
+(indicated \(a\) in the table)5477 2 122000 633600 t
+&13
+(\017s+3\017fIData\017fP\017s0)122000 645600 w
+&11
+( although arbitrary)3859(\). Therefore,)7009 2 193810 u
+&12
+(tr)329576 v
+(of)335796 v
+(f)343396 v
+&11
+( table,)3860(requests may be sprinkled in a)3859 2 350035 u
+( tak)3375(care must be)3376 2 122000 657600 t
+(en to a)3375 1 189787 u
+(v)217997 v
+(oid confusing the width calculations; use requests such as)3375 1 222797 u
+(\027)463702 v
+14 s
+(.)467865 v
+10 s
+(ps\030 with)2635 1 471365 u
+(care.)122000 669600 w
+(4\))72000 691200 w
+(A)97000 v
+8 s
+(DDITION)104220 v
+(AL COMMAND LINES)3116 1 137260 u
+10 s
+( the format of a table must be changed after man)3782(. If)7112 2 219484 u
+(y similar lines,)3782 1 442266 u
+(as with sub\001headings or summarizations, the)4847 1 97000 703200 t
+(\027)291342 v
+(\027)293932 v
+14 s
+(.)298095 v
+10 s
+(T&\030)301595 v
+( can be used to)4846( continue\) command)4847(\030 \(table)4107 3 318075 u
+( outline of such a table input is:)3330( The)6480
+(change column parameters.)3330 3 97000 715200 t
+_marks
+cleartomark
+showpage
+restore
+%%EndPage: 6 6
+%%Page: 7 7
+save
+mark
+7 pagesetup
+9 @12 f
+(TBL)72000 48000 w
+&11
+(7)499500 v
+14 s
+(.)133833 90000 w
+10 s
+(TS)137333 v
+&12
+(options)133000 102000 w
+&13
+(;)165780 v
+&12
+(format)133000 114000 w
+14 s
+(.)163833 v
+10 s
+(data)133000 126000 w
+14 s
+(.)133833 138000 w
+(.)139832 v
+(.)145831 v
+&11
+(.)133833 150000 w
+10 s
+(T&)137333 v
+&12
+(format)133000 162000 w
+14 s
+(.)163833 v
+10 s
+(data)133000 174000 w
+14 @11 f
+(.)133833 186000 w
+10 s
+(T&)137333 v
+&12
+(format)133000 198000 w
+14 s
+(.)163833 v
+10 s
+(data)133000 210000 w
+14 @11 f
+(.)133833 222000 w
+10 s
+(TE)137333 v
+(as in the e)3859 1 97000 240000 t
+( procedure, each table line can be close to its)3860( this)3859( Using)7189
+(xamples on pages 10 and 13.)3859 4 141197 u
+(corresponding format line.)3330 1 97000 252000 t
+&13
+(W)78660 267600 w
+(ar)88010 v
+(ning:)97300 v
+&11
+( columns, the global options)3392
+(It is not possible to change the number of columns, the space between)3391 2 97000 279600 t
+(such as)4756 1 97000 291600 t
+&12
+(box,)133172 v
+&11
+( Furthermore,)8086(or the selection of columns to be made equal\001width.)4756 2 154868 u
+(\027)445717 v
+(\027)448307 v
+14 s
+(.)452470 v
+10 s
+(T&\030)455970 v
+( not)4755(\030 is)4015 2 472450 u
+(recognized after the)3330 1 97000 303600 t
+(\003rst 200 lines of a table.)3330 1 181400 u
+&13
+(USA)72000 327600 w
+(GE)91450 v
+&11
+(On)97000 343200 w
+9 s
+(UNIX)112550 v
+10 s
+(,)135041 v
+&12
+(tbl)140871 v
+&11
+(can be run on a simple table with the command)3330 1 154761 u
+(tbl input\001f)4996 1 108000 361200 t
+(ile)150576 v
+&20
+(\210)165572 v
+&11
+(trof)175508 v
+(f)189698 v
+(b)72000 379200 w
+( se)3611(ut for more complicated use, where there are)3610 2 76800 u
+(v)275091 v
+(eral input f)3611 1 279941 u
+(iles, and the)3611 1 325843 u
+(y contain equations and)3611 1 375965 u
+&12
+(ms)477619 v
+&11
+(\(or)492340 v
+&12
+(mm)72000 391200 w
+&11
+(\) macro requests as well as tables, the normal command w)3330 1 86440 u
+(ould be)3330 1 327650 u
+(tbl f)4996 1 108000 409200 t
+(ile\0011 f)4996 1 126686 u
+(ile\0012)153142 v
+14 s
+(.)177301 v
+(.)183300 v
+(.)189299 v
+10 @20 f
+(\210)197795 v
+&11
+(eqn)207731 v
+&20
+(\210)227167 v
+&11
+(trof)237103 v
+(f)251293 v
+(\012ms)259619 v
+(\(or)312289 v
+(\012mm\))328945 v
+(and, of course, the usual options may be used on the)4116 1 72000 427200 t
+&12
+(tr)301136 v
+(of)307356 v
+(f)314956 v
+&11
+(and)321852 v
+&12
+(eqn)340408 v
+&11
+( usage for)4117(commands. The)7267 2 358965 u
+&12
+(nr)474393 v
+(of)482833 v
+(f)490433 v
+&11
+(is)497330 v
+(similar to that for)3712 1 72000 439200 t
+&12
+(tr)149068 v
+(of)155288 v
+(f)162888 v
+(,)165568 v
+&11
+(b)171780 v
+(ut only)3712 1 176580 u
+9 @12 f
+(TELETYPE)209564 v
+10 @20 f
+(\171)252409 v
+&11
+(Model 37 and Diablo\001mechanism \()3712 1 264021 u
+9 s
+(D)408849 v
+(ASI)414987 v
+10 s
+(or)433198 v
+9 s
+(GSI)445240 v
+10 s
+(\) terminals)3711 1 459739 u
+(can print box)3330 1 72000 451200 t
+(ed tables directly)3330 1 126280 u
+( a f)3330(. If)6660 2 195610 u
+(ile name is)3330 1 225660 u
+(\027)273980 v
+(\027)276570 v
+&13
+(\012)279900 v
+&11
+(\030)284900 v
+(\030, the standard input is read at that point.)3330 1 287490 u
+(F)97000 466800 w
+(or the con)5238 1 102410 u
+(v)147476 v
+(enience of users emplo)5238 1 152326 u
+( without adequate dri)5239(ying line printers)5238 2 252360 u
+(ving tables or post\001)5239 1 418843 u
+(f)72000 478800 w
+(ilters, there is a special)4693 1 75130 u
+&12
+(\012TX)179965 v
+&11
+(command\001line option to)4693 1 202994 u
+&12
+(tbl)308183 v
+&11
+(which produces output that does not ha)4693 1 325102 u
+(v)494710 v
+(e)499560 v
+( only other command\001line options recognized by)3421( The)6571
+(fractional line motions in it.)3420 3 72000 490800 t
+&12
+(tbl)412558 v
+&11
+(are)428205 v
+&12
+(\012ms)443836 v
+&11
+(and)465033 v
+&12
+(\012mm)482894 v
+&11
+(which are turned into commands to fetch the corresponding macro f)3509 1 72000 502800 t
+( is more con)3508(iles; usually it)3509 2 353500 u
+(v)463422 v
+(enient to)3508 1 468272 u
+(place these ar)3330 1 72000 514800 t
+(guments on the)3330 1 127900 u
+&12
+(tr)194000 v
+(of)200220 v
+(f)207820 v
+&11
+(part of the command line, b)3330 1 215596 u
+(ut the)3330 1 330086 u
+(y are accepted by)3330 1 353266 u
+&12
+(tbl)428776 v
+&11
+(as well.)3330 1 444332 u
+(Note that when)3332 1 97000 530400 t
+&12
+(eqn)163096 v
+&11
+(and)180868 v
+&12
+(tbl)198640 v
+&11
+( same f)3333(are used together on the)3332 2 212532 u
+(ile)341736 v
+&12
+(tbl)355069 v
+&11
+(should be used f)3333 1 368962 u
+( there are)3333(irst. If)6663 2 436531 u
+(no equations within tables, either order w)3588 1 72000 542400 t
+(orks, b)3588 1 244238 u
+(ut it is usually f)3588 1 272346 u
+(aster to run)3588 1 338828 u
+&12
+(tbl)389582 v
+&11
+(f)403729 v
+(irst, since)3587 1 406859 u
+&12
+(eqn)449863 v
+&11
+(normally)467890 v
+(produces a lar)4035 1 72000 554400 t
+(ger e)4035 1 130980 u
+( than)4036(xpansion of the input)4035 2 152075 u
+&12
+(tbl.)266692 v
+&11
+(Ho)287118 v
+(we)299088 v
+(v)310498 v
+(er)315348 v
+(, if there are equations within tables \(using)4036 1 322718 u
+(the)72000 566400 w
+&12
+(delim)87760 v
+&11
+(mechanism in)3540 1 113520 u
+&12
+(eqn)173930 v
+&11
+(\),)188370 v
+&12
+(tbl)197740 v
+&11
+(must be f)3540 1 211840 u
+( must also be)3539( Users)6869(irst or the output will be scrambled.)3539 3 250940 u
+(w)484670 v
+(are)491790 v
+( in)3732(of using equations)3731 2 72000 578400 t
+&13
+(n)163036 v
+&11
+(\001style columns; this is nearly al)3732 1 168596 u
+(w)299376 v
+(ays wrong, since)3732 1 306496 u
+&12
+(tbl)379622 v
+&11
+(attempts to split numerical)3732 1 393914 u
+(format items into tw)3604 1 72000 590400 t
+( user can defend ag)3603( The)6753( is not possible with equations.)3603
+(o parts and this)3604 4 156602 u
+(ainst this by)3603 1 453454 u
+(gi)72000 602400 w
+(ving the)3356 1 79530 u
+&12
+(delim\(xx\))116242 v
+&11
+(table option; this pre)3356 1 159024 u
+(v)243842 v
+( F)6686(ents splitting of numerical columns within the delimiters.)3356 2 248692 u
+(or)495670 v
+(e)72000 614400 w
+(xample, if the)7399 1 76290 u
+&12
+(eqn)148756 v
+&11
+(delimiters are)7398 1 172260 u
+&13
+($$)239266 v
+&11
+(, gi)7398 1 249266 u
+(ving)266694 v
+&13
+(delim\($$\))291872 v
+&11
+(causes a numerical column such as)7398 1 339820 u
+&13
+(1245)72000 626400 w
+($+\012)95330 v
+(16$)114360 v
+&11
+(to be di)3330 1 132690 u
+(vided after 1245, not after 16.)3330 1 164100 u
+&12
+(Tbl)97000 642000 w
+&11
+( to about 35 columns, b)3588(accepts up)3587 2 115593 u
+(ut the actual number that can be processed may be smaller)3588 1 257740 u
+(,)501500 v
+(depending on a)3435 1 72000 654000 t
+(v)134770 v
+(ailability of)3435 1 139520 u
+&12
+(tr)190280 v
+(of)196500 v
+(f)204100 v
+&11
+(number re)3434 1 211980 u
+( user must a)3434(gisters. The)6584 2 253584 u
+(v)354980 v
+(oid number re)3434 1 359780 u
+(gister names used by)3434 1 417598 u
+&12
+(tbl,)72000 666000 w
+&11
+(which include tw)3800 1 90526 u
+( from 31 to 99 and strings of the form)3801(o\001digit numbers)3800 2 161906 u
+&13
+(4)393146 v
+&12
+(x)398146 v
+&11
+(,)402586 v
+&13
+(5)408887 v
+&12
+(x)413887 v
+&11
+(,)418327 v
+&13
+(#)424628 v
+&12
+(x)429628 v
+&11
+(,)434068 v
+&12
+(x)440369 v
+&13
+(+)444809 v
+&11
+(,)450509 v
+&12
+(x)456810 v
+&20
+(\210)461250 v
+&11
+(,)466190 v
+14 s
+(^)473324 670200 w
+10 @12 f
+(x)478819 666000 w
+&11
+(, and)3801 1 483259 u
+&12
+(x)72000 678000 w
+&13
+(\012)76440 v
+&11
+(, where)3837 1 81440 u
+&12
+(x)116044 v
+&11
+(is an)3837 1 124321 u
+(y lo)3837 1 144118 u
+(wer)160485 v
+(\001case letter)3837 1 175275 u
+( names)3837(. The)6987 2 219652 u
+&13
+(##)277913 v
+&11
+(,)287913 v
+&13
+(#\012)294250 v
+&11
+(, and)3837 1 304250 u
+&13
+(#)328864 v
+14 @11 f
+(^)334697 682200 w
+10 s
+( used in certain circumstances.)3836(are also)3837 2 344029 678000 t
+(T)72000 690000 w
+(o conserv)4161 1 77310 u
+(e re)4161 1 117421 u
+(gister names, the)4161 1 133642 u
+&13
+(n)208615 v
+&11
+(and)218336 v
+&13
+(a)236937 v
+&11
+(formats share a re)4161 1 246098 u
+( abo)4162(gister; hence the restriction)4161 2 322291 u
+(v)454316 v
+(e that the)4162 1 459166 u
+(y)499000 v
+(may not be used in the same column.)3330 1 72000 702000 t
+(F)97000 717600 w
+(or aid in writing layout macros,)3777 1 102410 u
+&12
+(tbl)238672 v
+&11
+(def)253009 v
+(ines a number re)3777 1 265579 u
+( table width; it is)3778( which is the)3777(gister TW)3597 3 335630 u
+(def)72000 729600 w
+(ined by the time that the)3869 1 84570 u
+(\027)192224 v
+(\027)194814 v
+14 s
+(.)198977 v
+10 s
+(TE\030)202477 v
+( is in)3869(\030 macro)3129 2 217287 u
+(v)270524 v
+(ok)275324 v
+( e)3868(ed and may be used in the)3869 2 285224 u
+(xpansion of that macro.)3868 1 405466 u
+_marks
+cleartomark
+showpage
+restore
+%%EndPage: 7 7
+%%Page: 8 8
+save
+mark
+8 pagesetup
+9 @11 f
+(8)72000 48000 w
+&12
+(TBL)487743 v
+10 @11 f
+(More importantly)3473 1 72000 84000 t
+(, to assist in laying out multi\001page box)3473 1 143153 u
+( is def)3474( T#)3294(ed tables the macro)3474 3 303154 u
+(ined to produce the)3474 1 424148 u
+(bottom lines and side lines of a box)3974 1 72000 96000 t
+(ed table, and then in)3973 1 224108 u
+(v)310420 v
+(ok)315220 v
+( use of this macro in the)3973( By)7303(ed at its end.)3973 3 325120 u
+(page footer a multi\001page table can be box)3531 1 72000 108000 t
+( particular)3531(ed. In)6861 2 244857 u
+(, the)3531 1 313439 u
+&12
+(ms)335222 v
+&11
+(and)351530 v
+&12
+(mm)369502 v
+&11
+(macros can be used to print)3532 1 389140 u
+(a multi\001page box)3534 1 72000 120000 t
+(ed table with a repeated heading by gi)3534 1 141688 u
+(ving the ar)3534 1 300586 u
+( the)3533(gument H to)3534 2 345244 u
+(\027)416598 v
+(\027)419188 v
+14 s
+(.)423351 v
+10 s
+(TS\030)426851 v
+( the)3533( If)6863(\030 macro.)2793 3 441111 u
+(table start macro is written)3330 1 72000 132000 t
+14 s
+(.)97833 144000 w
+10 s
+(TS H)3330 1 101333 u
+(a line of the form)3330 1 72000 156000 t
+14 s
+(.)97833 168000 w
+10 s
+(TH)101333 v
+(must be gi)3609 1 72000 180000 t
+(v)115638 v
+(en in the table after an)3609 1 120488 u
+( up to the)3610( Material)6940( if none\).)3610
+(y table heading \(or at the start)3609 4 215023 u
+(\027)464957 v
+(\027)467547 v
+14 s
+(.)471710 v
+10 s
+(TH\030)475210 v
+(\030 is)2870 1 491130 u
+( lines in the table are placed on se)3958
+(placed at the top of each page of table; the remaining)3959 2 72000 192000 t
+(v)445144 v
+(eral pages as)3958 1 449994 u
+( that this is)3330(required. Note)6660 2 72000 204000 t
+&12
+(not)183360 v
+&11
+(a feature of)3330 1 199470 u
+&12
+(tbl,)249990 v
+&11
+(b)266380 v
+(ut of the)3330 1 271180 u
+&12
+(ms)309500 v
+&11
+(and)323940 v
+&12
+(mm)341710 v
+&11
+(macros.)359480 v
+&13
+(EXAMPLES)72000 228000 w
+&11
+(Here are some e)3969 1 97000 243600 t
+(xamples illustrating features of)3969 1 165947 u
+&12
+(tbl.)298473 v
+&11
+(The symbol)3969 1 318832 u
+6 s
+(T)375436 242600 w
+10 s
+()373436 243600 w
+10 @11 f
+373436 243600 m
+7320 build_ci
+380756 243600 m
+( input represents a tab)3970(in the)3969 2 386391 u
+(character)72000 255600 w
+(.)108090 v
+&13
+(Input:)72000 279600 w
+14 @11 f
+(.)87833 297600 w
+10 s
+(TS)91333 v
+(box;)87000 309600 w
+(c c c)3330 1 87000 321600 t
+(l l l)3330 1 87000 333600 t
+14 s
+(.)102833 v
+10 s
+(Language)87000 345600 w
+6 s
+(T)130096 344600 w
+10 s
+()128096 345600 w
+128096 345600 m
+7320 build_ci
+135416 345600 m
+(Authors)137082 v
+6 s
+(T)172968 344600 w
+10 s
+()170968 345600 w
+170968 345600 m
+7320 build_ci
+178288 345600 m
+(Runs on)3330 1 179954 u
+(F)87000 369600 w
+(ortran)92410 v
+6 s
+(T)119956 368600 w
+10 s
+()117956 369600 w
+117956 369600 m
+7320 build_ci
+125276 369600 m
+(Man)126942 v
+(y)145122 v
+6 s
+(T)153788 368600 w
+10 s
+()151788 369600 w
+151788 369600 m
+7320 build_ci
+159108 369600 m
+(Almost an)3330 1 160774 u
+(ything)202844 v
+(PL/1)87000 381600 w
+6 s
+(T)110116 380600 w
+10 s
+()108116 381600 w
+108116 381600 m
+7320 build_ci
+115436 381600 m
+(IBM)117102 v
+6 s
+(T)139658 380600 w
+10 s
+()137658 381600 w
+137658 381600 m
+7320 build_ci
+144978 381600 m
+(360/370)146644 v
+(C)87000 393600 w
+6 s
+(T)97336 392600 w
+10 s
+()95336 393600 w
+95336 393600 m
+7320 build_ci
+102656 393600 m
+(BTL)104322 v
+6 s
+(T)126878 392600 w
+10 s
+()124878 393600 w
+124878 393600 m
+7320 build_ci
+132198 393600 m
+(11/45,H6000,370)133864 v
+(BLISS)87000 405600 w
+6 s
+(T)117896 404600 w
+10 s
+()115896 405600 w
+115896 405600 m
+7320 build_ci
+123216 405600 m
+(Carne)124882 v
+(gie\001Mellon)148612 v
+6 s
+(T)196718 404600 w
+10 s
+()194718 405600 w
+194718 405600 m
+7320 build_ci
+202038 405600 m
+(PDP\00110,11)203704 v
+(IDS)87000 417600 w
+6 s
+(T)106776 416600 w
+10 s
+()104776 417600 w
+104776 417600 m
+7320 build_ci
+112096 417600 m
+(Hone)113762 v
+(ywell)135272 v
+6 s
+(T)161158 416600 w
+10 s
+()159158 417600 w
+159158 417600 m
+7320 build_ci
+166478 417600 m
+(H6000)168144 v
+(P)87000 429600 w
+(ascal)92410 v
+6 s
+(T)116066 428600 w
+10 s
+()114066 429600 w
+114066 429600 m
+7320 build_ci
+121386 429600 m
+(Stanford)123052 v
+6 s
+(T)161158 428600 w
+10 s
+()159158 429600 w
+159158 429600 m
+7320 build_ci
+166478 429600 m
+(370)168144 v
+14 s
+(.)87833 441600 w
+10 s
+(TE)91333 v
+&13
+(Output:)288000 279600 w
+505600 289600 288000 289600 Dl
+&11
+(Language)293000 299600 w
+(Authors)365405 v
+(Runs on)3330 1 448655 u
+(F)293000 323600 w
+(ortran)298410 v
+(Man)347430 v
+(y)365610 v
+(Almost an)3330 1 430600 u
+(ything)472670 v
+(PL/1)293000 335600 w
+(IBM)347430 v
+(360/370)430600 v
+(C)293000 347600 w
+(BTL)347430 v
+(11/45,H6000,370)430600 v
+(BLISS)293000 359600 w
+(Carne)347430 v
+(gie\001Mellon)371160 v
+(PDP\00110,11)430600 v
+(IDS)293000 371600 w
+(Hone)347430 v
+(ywell)368940 v
+(H6000)430600 v
+(P)293000 383600 w
+(ascal)298410 v
+(Stanford)347430 v
+(370)430600 v
+505600 387600 288000 387600 Dl
+288000 289600 288000 387600 Dl
+505600 289600 505600 387600 Dl
+&13
+(Input:)72000 465600 w
+14 @11 f
+(.)87833 483600 w
+10 s
+(TS)91333 v
+(allbox;)87000 495600 w
+(c s s)3330 1 87000 507600 t
+(c c c)3330 1 87000 519600 t
+(n n n)3330 1 87000 531600 t
+14 s
+(.)109493 v
+10 s
+(A)87000 543600 w
+(T&T Common Stock)3330 1 93110 u
+(Y)87000 555600 w
+(ear)93220 v
+6 s
+(T)109096 554600 w
+10 s
+()107096 555600 w
+107096 555600 m
+7320 build_ci
+114416 555600 m
+(Price)116082 v
+6 s
+(T)140298 554600 w
+10 s
+()138298 555600 w
+138298 555600 m
+7320 build_ci
+145618 555600 m
+(Di)147284 v
+(vidend)157034 v
+(1971)87000 567600 w
+6 s
+(T)110666 566600 w
+10 s
+()108666 567600 w
+108666 567600 m
+7320 build_ci
+115986 567600 m
+(41\00154)117652 v
+6 s
+(T)144648 566600 w
+10 s
+()142648 567600 w
+142648 567600 m
+7320 build_ci
+149968 567600 m
+($2)151634 v
+14 s
+(.)162467 v
+10 s
+(60)165967 v
+(2)87000 579600 w
+6 s
+(T)95666 578600 w
+10 s
+()93666 579600 w
+93666 579600 m
+7320 build_ci
+100986 579600 m
+(41\00154)102652 v
+6 s
+(T)129648 578600 w
+10 s
+()127648 579600 w
+127648 579600 m
+7320 build_ci
+134968 579600 m
+(2)136634 v
+14 s
+(.)142467 v
+10 s
+(70)145967 v
+(3)87000 591600 w
+6 s
+(T)95666 590600 w
+10 s
+()93666 591600 w
+93666 591600 m
+7320 build_ci
+100986 591600 m
+(46\00155)102652 v
+6 s
+(T)129648 590600 w
+10 s
+()127648 591600 w
+127648 591600 m
+7320 build_ci
+134968 591600 m
+(2)136634 v
+14 s
+(.)142467 v
+10 s
+(87)145967 v
+(4)87000 603600 w
+6 s
+(T)95666 602600 w
+10 s
+()93666 603600 w
+93666 603600 m
+7320 build_ci
+100986 603600 m
+(40\00153)102652 v
+6 s
+(T)129648 602600 w
+10 s
+()127648 603600 w
+127648 603600 m
+7320 build_ci
+134968 603600 m
+(3)136634 v
+14 s
+(.)142467 v
+10 s
+(24)145967 v
+(5)87000 615600 w
+6 s
+(T)95666 614600 w
+10 s
+()93666 615600 w
+93666 615600 m
+7320 build_ci
+100986 615600 m
+(45\00152)102652 v
+6 s
+(T)129648 614600 w
+10 s
+()127648 615600 w
+127648 615600 m
+7320 build_ci
+134968 615600 m
+(3)136634 v
+14 s
+(.)142467 v
+10 s
+(40)145967 v
+(6)87000 627600 w
+6 s
+(T)95666 626600 w
+10 s
+()93666 627600 w
+93666 627600 m
+7320 build_ci
+100986 627600 m
+(51\00159)102652 v
+6 s
+(T)129648 626600 w
+10 s
+()127648 627600 w
+127648 627600 m
+7320 build_ci
+134968 627600 m
+14 s
+(.)137467 v
+10 s
+(95*)140967 v
+14 s
+(.)87833 639600 w
+10 s
+(TE)91333 v
+(* \(f)3330 1 87000 651600 t
+(irst quarter only\))3330 1 101790 u
+&13
+(Output:)288000 465600 w
+408300 475600 288000 475600 Dl
+&11
+(A)301760 485600 w
+(T&T Common Stock)3330 1 307870 u
+408300 489600 288000 489600 Dl
+(Y)293785 499600 w
+(ear)300005 v
+(Price)329390 v
+(Di)366330 v
+(vidend)376080 v
+408300 503600 288000 503600 Dl
+(1971)293000 513600 w
+(41\00154)328000 v
+($2.60)371065 v
+408300 517600 288000 517600 Dl
+(2)308000 527600 w
+(41\00154)328000 v
+(2.70)376065 v
+408300 531600 288000 531600 Dl
+(3)308000 541600 w
+(46\00155)328000 v
+(2.87)376065 v
+408300 545600 288000 545600 Dl
+(4)308000 555600 w
+(40\00153)328000 v
+(3.24)376065 v
+408300 559600 288000 559600 Dl
+(5)308000 569600 w
+(45\00152)328000 v
+(3.40)376065 v
+408300 573600 288000 573600 Dl
+(6)308000 583600 w
+(51\00159)328000 v
+(.95*)381065 v
+408300 587600 288000 587600 Dl
+288000 475600 288000 587600 Dl
+320500 489600 320500 587600 Dl
+358830 489600 358830 587600 Dl
+408300 475600 408300 587600 Dl
+(* \(\003rst quarter only\))3330 1 288000 597600 t
+_marks
+cleartomark
+showpage
+restore
+%%EndPage: 8 8
+%%Page: 9 9
+save
+mark
+9 pagesetup
+9 @12 f
+(TBL)72000 48000 w
+&11
+(9)499500 v
+10 @13 f
+(Input:)72000 84000 w
+14 @11 f
+(.)87833 102000 w
+10 s
+(TS)91333 v
+(box;)87000 114000 w
+(c s s)3330 1 87000 126000 t
+(c)87000 138000 w
+(\023 c)3330 1 94770 u
+(\023 c)3330 1 107870 u
+(l)87000 150000 w
+(\023 l)3330 1 93110 u
+(\023 n)3330 1 104550 u
+14 s
+(.)115713 v
+10 s
+(Major Ne)3330 1 87000 162000 t
+(w Y)2430 1 126180 u
+(ork Bridges)3330 1 141950 u
+(=)87000 174000 w
+(Bridge)87000 186000 w
+6 s
+(T)117886 185000 w
+10 s
+()115886 186000 w
+115886 186000 m
+7320 build_ci
+123206 186000 m
+(Designer)124872 v
+6 s
+(T)164638 185000 w
+10 s
+()162638 186000 w
+162638 186000 m
+7320 build_ci
+169958 186000 m
+(Length)171624 v
+&20
+(\044)87000 198000 w
+&11
+(Brooklyn)87000 210000 w
+6 s
+(T)128446 209000 w
+10 s
+()126446 210000 w
+126446 210000 m
+7320 build_ci
+133766 210000 m
+(J)135432 v
+14 s
+(.)140155 v
+10 s
+(A)146435 v
+14 s
+(.)154488 v
+10 s
+(Roebling)161318 v
+6 s
+(T)201654 209000 w
+10 s
+()199654 210000 w
+199654 210000 m
+7320 build_ci
+206974 210000 m
+(1595)208640 v
+(Manhattan)87000 222000 w
+6 s
+(T)133436 221000 w
+10 s
+()131436 222000 w
+131436 222000 m
+7320 build_ci
+138756 222000 m
+(G)140422 v
+14 s
+(.)148475 v
+10 s
+(Lindenthal)155305 v
+6 s
+(T)202301 221000 w
+10 s
+()200301 222000 w
+200301 222000 m
+7320 build_ci
+207621 222000 m
+(1470)209287 v
+(W)87000 234000 w
+(illiamsb)96040 v
+(ur)128070 v
+(g)136220 v
+6 s
+(T)144886 233000 w
+10 s
+()142886 234000 w
+142886 234000 m
+7320 build_ci
+150206 234000 m
+(L)151872 v
+14 s
+(.)158815 v
+10 s
+(L)165645 v
+14 s
+(.)172588 v
+10 s
+(Buck)179418 v
+6 s
+(T)204194 233000 w
+10 s
+()202194 234000 w
+202194 234000 m
+7320 build_ci
+209514 234000 m
+(1600)211180 v
+&20
+(\044)87000 246000 w
+&11
+(Queensborough)87000 258000 w
+6 s
+(T)153986 257000 w
+10 s
+()151986 258000 w
+151986 258000 m
+7320 build_ci
+159306 258000 m
+(P)160972 v
+(almer &)3330 1 166382 u
+6 s
+(T)203928 257000 w
+10 s
+()201928 258000 w
+201928 258000 m
+7320 build_ci
+209248 258000 m
+(1182)210914 v
+6 s
+(T)90666 269000 w
+10 s
+()88666 270000 w
+88666 270000 m
+7320 build_ci
+95986 270000 m
+(Hornbostel)104312 v
+&20
+(\044)87000 282000 w
+6 @11 f
+(T)90666 293000 w
+10 s
+()88666 294000 w
+88666 294000 m
+7320 build_ci
+95986 294000 m
+6 s
+(T)101318 293000 w
+10 s
+()99318 294000 w
+99318 294000 m
+7320 build_ci
+106638 294000 m
+(1380)108304 v
+(T)87000 306000 w
+(riborough)92760 v
+6 s
+(T)135866 305000 w
+10 s
+()133866 306000 w
+133866 306000 m
+7320 build_ci
+141186 306000 m
+(O)142852 v
+14 s
+(.)150905 v
+10 s
+(H)157735 v
+14 s
+(.)165788 v
+10 s
+(Ammann)172068 v
+6 s
+(T)212954 305000 w
+10 s
+()210954 306000 w
+210954 306000 m
+7320 build_ci
+218274 306000 m
+&20
+(\044)219940 v
+6 @11 f
+(T)90666 317000 w
+10 s
+()88666 318000 w
+88666 318000 m
+7320 build_ci
+95986 318000 m
+6 s
+(T)101318 317000 w
+10 s
+()99318 318000 w
+99318 318000 m
+7320 build_ci
+106638 318000 m
+(383)108304 v
+&20
+(\044)87000 330000 w
+&11
+(Bronx Whitestone)3030 1 87000 342000 t
+6 s
+(T)164246 341000 w
+10 s
+()162246 342000 w
+162246 342000 m
+7320 build_ci
+169566 342000 m
+(O)171232 v
+14 s
+(.)179285 v
+10 s
+(H)186115 v
+14 s
+(.)194168 v
+10 s
+(Ammann)200448 v
+6 s
+(T)241334 341000 w
+10 s
+()239334 342000 w
+239334 342000 m
+7320 build_ci
+246654 342000 m
+(2300)248320 v
+(Throgs Neck)3330 1 87000 354000 t
+6 s
+(T)143426 353000 w
+10 s
+()141426 354000 w
+141426 354000 m
+7320 build_ci
+148746 354000 m
+(O)150412 v
+14 s
+(.)158465 v
+10 s
+(H)165295 v
+14 s
+(.)173348 v
+10 s
+(Ammann)179628 v
+6 s
+(T)220514 353000 w
+10 s
+()218514 354000 w
+218514 354000 m
+7320 build_ci
+225834 354000 m
+(1800)227500 v
+&20
+(\044)87000 366000 w
+&11
+(Geor)87000 378000 w
+(ge W)3030 1 106810 u
+(ashington)127920 v
+6 s
+(T)170476 377000 w
+10 s
+()168476 378000 w
+168476 378000 m
+7320 build_ci
+175796 378000 m
+(O)177462 v
+14 s
+(.)185515 v
+10 s
+(H)192345 v
+14 s
+(.)200398 v
+10 s
+(Ammann)206678 v
+6 s
+(T)247564 377000 w
+10 s
+()245564 378000 w
+245564 378000 m
+7320 build_ci
+252884 378000 m
+(3500)254550 v
+14 s
+(.)87833 390000 w
+10 s
+(TE)91333 v
+&13
+(Output:)288000 84000 w
+498910 94000 288000 94000 Dl
+&11
+(Major Ne)3330 1 342095 104000 t
+(w Y)2430 1 381275 u
+(ork Bridges)3330 1 397045 u
+498910 107000 288000 107000 Dl
+498910 109000 288000 109000 Dl
+(Bridge)319295 118000 w
+(Designer)401145 v
+(Length)465580 v
+498910 122000 288000 122000 Dl
+(Brooklyn)293000 132000 w
+( Roebling)3330(J. A.)2780 2 387810 u
+(1595)469745 v
+(Manhattan)293000 144000 w
+(G. Lindenthal)3330 1 387810 u
+(1470)469745 v
+(W)293000 156000 w
+(illiamsb)302040 v
+(ur)334070 v
+(g)342220 v
+(L. L. Buck)3330 1 387810 u
+(1600)469745 v
+498910 160000 288000 160000 Dl
+(Queensborough)293000 170000 w
+(P)387810 v
+(almer &)3330 1 393220 u
+(1182)469745 v
+(Hornbostel)394470 182000 w
+498910 186000 288000 186000 Dl
+(1380)469745 196000 w
+(T)293000 208000 w
+(riborough)298760 v
+( Ammann)2780(O. H.)3330 2 387810 u
+498910 205000 458080 205000 Dl
+(383)474745 220000 w
+498910 224000 288000 224000 Dl
+(Bronx Whitestone)3030 1 293000 234000 t
+( Ammann)2780(O. H.)3330 2 387810 u
+(2300)469745 v
+(Throgs Neck)3330 1 293000 246000 t
+( Ammann)2780(O. H.)3330 2 387810 u
+(1800)469745 v
+498910 250000 288000 250000 Dl
+(Geor)293000 260000 w
+(ge W)3030 1 312810 u
+(ashington)333920 v
+( Ammann)2780(O. H.)3330 2 387810 u
+(3500)469745 v
+498910 264000 288000 264000 Dl
+288000 94000 288000 264000 Dl
+380310 109000 380310 264000 Dl
+458080 109000 458080 264000 Dl
+498910 94000 498910 264000 Dl
+&13
+(Input:)72000 414000 w
+14 @11 f
+(.)87833 432000 w
+10 s
+(TS)91333 v
+(c c)3330 1 87000 444000 t
+(np\0012)87000 456000 w
+(\023 n)3330 1 108660 u
+(\023)122320 v
+14 s
+(.)128483 v
+6 s
+(T)90666 467000 w
+10 s
+()88666 468000 w
+88666 468000 m
+7320 build_ci
+95986 468000 m
+(Stack)97652 v
+6 s
+(T)90666 479000 w
+10 s
+()88666 480000 w
+88666 480000 m
+7320 build_ci
+95986 480000 m
+&20
+(\044)97652 v
+&11
+(1)87000 492000 w
+6 s
+(T)95666 491000 w
+10 s
+()93666 492000 w
+93666 492000 m
+7320 build_ci
+100986 492000 m
+(46)102652 v
+6 s
+(T)90666 503000 w
+10 s
+()88666 504000 w
+88666 504000 m
+7320 build_ci
+95986 504000 m
+&20
+(\044)97652 v
+&11
+(2)87000 516000 w
+6 s
+(T)95666 515000 w
+10 s
+()93666 516000 w
+93666 516000 m
+7320 build_ci
+100986 516000 m
+(23)102652 v
+6 s
+(T)90666 527000 w
+10 s
+()88666 528000 w
+88666 528000 m
+7320 build_ci
+95986 528000 m
+&20
+(\044)97652 v
+&11
+(3)87000 540000 w
+6 s
+(T)95666 539000 w
+10 s
+()93666 540000 w
+93666 540000 m
+7320 build_ci
+100986 540000 m
+(15)102652 v
+6 s
+(T)90666 551000 w
+10 s
+()88666 552000 w
+88666 552000 m
+7320 build_ci
+95986 552000 m
+&20
+(\044)97652 v
+&11
+(4)87000 564000 w
+6 s
+(T)95666 563000 w
+10 s
+()93666 564000 w
+93666 564000 m
+7320 build_ci
+100986 564000 m
+(6)102652 v
+14 s
+(.)108485 v
+10 s
+(5)111985 v
+6 s
+(T)90666 575000 w
+10 s
+()88666 576000 w
+88666 576000 m
+7320 build_ci
+95986 576000 m
+&20
+(\044)97652 v
+&11
+(5)87000 588000 w
+6 s
+(T)95666 587000 w
+10 s
+()93666 588000 w
+93666 588000 m
+7320 build_ci
+100986 588000 m
+(2)102652 v
+14 s
+(.)108485 v
+10 s
+(1)111985 v
+6 s
+(T)90666 599000 w
+10 s
+()88666 600000 w
+88666 600000 m
+7320 build_ci
+95986 600000 m
+&20
+(\044)97652 v
+14 @11 f
+(.)87833 612000 w
+10 s
+(TE)91333 v
+&13
+(Output:)288000 414000 w
+&11
+(Stack)307000 432000 w
+336720 436000 299500 436000 Dl
+8 s
+(1)288000 446000 w
+10 s
+(46)309360 v
+336720 450000 299500 450000 Dl
+8 s
+(2)288000 460000 w
+10 s
+(23)309360 v
+336720 464000 299500 464000 Dl
+8 s
+(3)288000 474000 w
+10 s
+(15)309360 v
+336720 478000 299500 478000 Dl
+8 s
+(4)288000 488000 w
+10 s
+(6.5)314360 v
+336720 492000 299500 492000 Dl
+8 s
+(5)288000 502000 w
+10 s
+(2.1)314360 v
+336720 506000 299500 506000 Dl
+299500 436000 299500 506000 Dl
+336720 436000 336720 506000 Dl
+_marks
+cleartomark
+showpage
+restore
+%%EndPage: 9 9
+%%Page: 10 10
+save
+mark
+10 pagesetup
+9 @11 f
+(10)72000 48000 w
+&12
+(TBL)487743 v
+10 @13 f
+(Input:)72000 84000 w
+14 @11 f
+(.)87833 102000 w
+10 s
+(TS)91333 v
+(box;)87000 114000 w
+(L L L)3330 1 87000 126000 t
+(L L)3330 1 87000 138000 t
+&20
+(\044)105880 v
+&11
+(L L)3330 1 87000 150000 t
+(\023 LB)3330 1 105880 u
+(L L)3330 1 87000 162000 t
+&20
+(\044)105880 v
+&11
+(L L L)3330 1 87000 174000 t
+14 s
+(.)112823 v
+10 s
+(january)87000 186000 w
+6 s
+(T)120656 185000 w
+10 s
+()118656 186000 w
+118656 186000 m
+7320 build_ci
+125976 186000 m
+(february)127642 v
+6 s
+(T)165178 185000 w
+10 s
+()163178 186000 w
+163178 186000 m
+7320 build_ci
+170498 186000 m
+(march)172164 v
+(april)87000 198000 w
+6 s
+(T)108996 197000 w
+10 s
+()106996 198000 w
+106996 198000 m
+7320 build_ci
+114316 198000 m
+(may)115982 v
+(june)87000 210000 w
+6 s
+(T)107886 209000 w
+10 s
+()105886 210000 w
+105886 210000 m
+7320 build_ci
+113206 210000 m
+(july)114872 v
+6 s
+(T)134098 209000 w
+10 s
+()132098 210000 w
+132098 210000 m
+7320 build_ci
+139418 210000 m
+(Months)141084 v
+(august)87000 222000 w
+6 s
+(T)116776 221000 w
+10 s
+()114776 222000 w
+114776 222000 m
+7320 build_ci
+122096 222000 m
+(september)123762 v
+(october)87000 234000 w
+6 s
+(T)120656 233000 w
+10 s
+()118656 234000 w
+118656 234000 m
+7320 build_ci
+125976 234000 m
+(no)127642 v
+(v)137492 v
+(ember)142342 v
+6 s
+(T)170998 233000 w
+10 s
+()168998 234000 w
+168998 234000 m
+7320 build_ci
+176318 234000 m
+(december)177984 v
+14 s
+(.)87833 246000 w
+10 s
+(TE)91333 v
+&13
+(Output:)288000 84000 w
+437960 94000 288000 94000 Dl
+&11
+(january)293000 104000 w
+(february)337990 v
+(march)394090 v
+(april)293000 116000 w
+(may)337990 v
+437960 113000 386590 113000 Dl
+(june)293000 128000 w
+(july)337990 v
+386590 113000 386590 137000 Dl
+&13
+(Months)394090 128000 w
+&11
+(august)293000 140000 w
+(september)337990 v
+437960 137000 386590 137000 Dl
+(october)293000 152000 w
+(no)337990 v
+(v)347840 v
+(ember)352690 v
+(december)394090 v
+437960 156000 288000 156000 Dl
+288000 94000 288000 156000 Dl
+437960 94000 437960 156000 Dl
+&13
+(Input:)72000 270000 w
+14 @11 f
+(.)87833 288000 w
+10 s
+(TS)91333 v
+(box;)87000 300000 w
+(cfB s s s)3330 1 87000 312000 t
+14 s
+(.)123933 v
+10 s
+(Composition of F)3330 1 87000 324000 t
+(oods)159080 v
+&20
+(\044)87000 336000 w
+14 @11 f
+(.)87833 348000 w
+10 s
+(T&)91333 v
+(c)87000 360000 w
+(\023 c s s)3330 1 98100 u
+(c)87000 372000 w
+(\023 c s s)3330 1 98100 u
+(c)87000 384000 w
+(\023 c)3330 1 101430 u
+(\023 c)3330 1 117860 u
+(\023 c)3330 1 134290 u
+14 s
+(.)144893 v
+10 s
+(F)87000 396000 w
+(ood)92410 v
+6 s
+(T)111076 395000 w
+10 s
+()109076 396000 w
+109076 396000 m
+7320 build_ci
+116396 396000 m
+( W)3030(Percent by)3330 2 118062 u
+(eight)173052 v
+(\017)87000 408000 w
+14 s
+(^)90613 412200 w
+6 s
+(T)99774 407000 w
+10 s
+()97774 408000 w
+97774 408000 m
+7320 build_ci
+105094 408000 m
+&20
+(\044)106760 v
+&11
+(\017)87000 420000 w
+14 s
+(^)90613 424200 w
+6 s
+(T)99774 419000 w
+10 s
+()97774 420000 w
+97774 420000 m
+7320 build_ci
+105094 420000 m
+(Protein)106760 v
+6 s
+(T)139316 419000 w
+10 s
+()137316 420000 w
+137316 420000 m
+7320 build_ci
+144636 420000 m
+(F)146302 v
+(at)151712 v
+6 s
+(T)162598 419000 w
+10 s
+()160598 420000 w
+160598 420000 m
+7320 build_ci
+167918 420000 m
+(Carbo\001)169584 v
+(\017)87000 432000 w
+14 s
+(^)90613 436200 w
+6 s
+(T)99774 431000 w
+10 s
+()97774 432000 w
+97774 432000 m
+7320 build_ci
+105094 432000 m
+(\017)106760 v
+14 s
+(^)110373 436200 w
+6 s
+(T)119534 431000 w
+10 s
+()117534 432000 w
+117534 432000 m
+7320 build_ci
+124854 432000 m
+(\017)126520 v
+14 s
+(^)130133 436200 w
+6 s
+(T)139294 431000 w
+10 s
+()137294 432000 w
+137294 432000 m
+7320 build_ci
+144614 432000 m
+(h)146280 v
+(ydrate)151230 v
+&20
+(\044)87000 444000 w
+14 @11 f
+(.)87833 456000 w
+10 s
+(T&)91333 v
+(l)87000 468000 w
+(\023 n)3330 1 96440 u
+(\023 n)3330 1 113430 u
+(\023 n)3330 1 130420 u
+14 s
+(.)141583 v
+10 s
+(Apples)87000 480000 w
+6 s
+(T)118996 479000 w
+10 s
+()116996 480000 w
+116996 480000 m
+7320 build_ci
+124316 480000 m
+14 s
+(.)126815 v
+10 s
+(4)130315 v
+6 s
+(T)138981 479000 w
+10 s
+()136981 480000 w
+136981 480000 m
+7320 build_ci
+144301 480000 m
+14 s
+(.)146800 v
+10 s
+(5)150300 v
+6 s
+(T)158966 479000 w
+10 s
+()156966 480000 w
+156966 480000 m
+7320 build_ci
+164286 480000 m
+(13)165952 v
+14 s
+(.)176785 v
+10 s
+(0)180285 v
+(Halib)87000 492000 w
+(ut)109020 v
+6 s
+(T)120466 491000 w
+10 s
+()118466 492000 w
+118466 492000 m
+7320 build_ci
+125786 492000 m
+(18)127452 v
+14 s
+(.)138285 v
+10 s
+(4)141785 v
+6 s
+(T)150451 491000 w
+10 s
+()148451 492000 w
+148451 492000 m
+7320 build_ci
+155771 492000 m
+(5)157437 v
+14 s
+(.)163270 v
+10 s
+(2)166770 v
+6 s
+(T)175436 491000 w
+10 s
+()173436 492000 w
+173436 492000 m
+7320 build_ci
+180756 492000 m
+14 s
+(.)183255 v
+(.)189254 v
+(.)195253 v
+10 s
+(Lima beans)3330 1 87000 504000 t
+6 s
+(T)137876 503000 w
+10 s
+()135876 504000 w
+135876 504000 m
+7320 build_ci
+143196 504000 m
+(7)144862 v
+14 s
+(.)150695 v
+10 s
+(5)154195 v
+6 s
+(T)162861 503000 w
+10 s
+()160861 504000 w
+160861 504000 m
+7320 build_ci
+168181 504000 m
+14 s
+(.)170680 v
+10 s
+(8)174180 v
+6 s
+(T)182846 503000 w
+10 s
+()180846 504000 w
+180846 504000 m
+7320 build_ci
+188166 504000 m
+(22)189832 v
+14 s
+(.)200665 v
+10 s
+(0)204165 v
+(Milk)87000 516000 w
+6 s
+(T)110116 515000 w
+10 s
+()108116 516000 w
+108116 516000 m
+7320 build_ci
+115436 516000 m
+(3)117102 v
+14 s
+(.)122935 v
+10 s
+(3)126435 v
+6 s
+(T)135101 515000 w
+10 s
+()133101 516000 w
+133101 516000 m
+7320 build_ci
+140421 516000 m
+(4)142087 v
+14 s
+(.)147920 v
+10 s
+(0)151420 v
+6 s
+(T)160086 515000 w
+10 s
+()158086 516000 w
+158086 516000 m
+7320 build_ci
+165406 516000 m
+(5)167072 v
+14 s
+(.)172905 v
+10 s
+(0)176405 v
+(Mushrooms)87000 528000 w
+6 s
+(T)138446 527000 w
+10 s
+()136446 528000 w
+136446 528000 m
+7320 build_ci
+143766 528000 m
+(3)145432 v
+14 s
+(.)151265 v
+10 s
+(5)154765 v
+6 s
+(T)163431 527000 w
+10 s
+()161431 528000 w
+161431 528000 m
+7320 build_ci
+168751 528000 m
+14 s
+(.)171250 v
+10 s
+(4)174750 v
+6 s
+(T)183416 527000 w
+10 s
+()181416 528000 w
+181416 528000 m
+7320 build_ci
+188736 528000 m
+(6)190402 v
+14 s
+(.)196235 v
+10 s
+(0)199735 v
+(Rye bread)3330 1 87000 540000 t
+6 s
+(T)132316 539000 w
+10 s
+()130316 540000 w
+130316 540000 m
+7320 build_ci
+137636 540000 m
+(9)139302 v
+14 s
+(.)145135 v
+10 s
+(0)148635 v
+6 s
+(T)157301 539000 w
+10 s
+()155301 540000 w
+155301 540000 m
+7320 build_ci
+162621 540000 m
+14 s
+(.)165120 v
+10 s
+(6)168620 v
+6 s
+(T)177286 539000 w
+10 s
+()175286 540000 w
+175286 540000 m
+7320 build_ci
+182606 540000 m
+(52)184272 v
+14 s
+(.)195105 v
+10 s
+(7)198605 v
+14 s
+(.)87833 552000 w
+10 s
+(TE)91333 v
+&13
+(Output:)288000 270000 w
+462240 280000 288000 280000 Dl
+(Composition of F)3330 1 327745 290000 t
+(oods)403045 v
+462240 294000 288000 294000 Dl
+&11
+( W)3030(Percent by)3330 2 369015 304000 t
+(eight)424005 v
+462240 308000 348280 308000 Dl
+(Carbo\001)428385 318000 w
+(F)306685 317000 w
+(ood)312095 v
+(Protein)355780 324000 w
+(F)399670 v
+(at)405080 v
+(h)427300 330000 w
+(ydrate)432250 v
+462240 334000 288000 334000 Dl
+(Apples)293000 344000 w
+(.4)371475 v
+(.5)404735 v
+(13.0)433520 v
+(Halib)293000 356000 w
+(ut)315020 v
+(18.4)361475 v
+(5.2)399735 v
+(...)438520 v
+(Lima beans)3330 1 293000 368000 t
+(7.5)366475 v
+(.8)404735 v
+(22.0)433520 v
+(Milk)293000 380000 w
+(3.3)366475 v
+(4.0)399735 v
+(5.0)438520 v
+(Mushrooms)293000 392000 w
+(3.5)366475 v
+(.4)404735 v
+(6.0)438520 v
+(Rye bread)3330 1 293000 404000 t
+(9.0)366475 v
+(.6)404735 v
+(52.7)433520 v
+462240 408000 288000 408000 Dl
+288000 280000 288000 408000 Dl
+348280 294000 348280 408000 Dl
+392170 308000 392170 408000 Dl
+419800 308000 419800 408000 Dl
+462240 280000 462240 408000 Dl
+_marks
+cleartomark
+showpage
+restore
+%%EndPage: 10 10
+%%Page: 11 11
+save
+mark
+11 pagesetup
+9 @12 f
+(TBL)72000 48000 w
+&11
+(11)495000 v
+10 @13 f
+(Input:)72000 84000 w
+14 @11 f
+(.)87833 102000 w
+10 s
+(TS)91333 v
+(allbox;)87000 114000 w
+( s)9990(cfI s)6660 2 87000 126000 t
+( cw\(1i\))9990(c cw\(1i\))13320 2 87000 138000 t
+(lp9 lp9 lp9)3330 1 87000 150000 t
+14 s
+(.)136163 v
+10 s
+(Ne)87000 162000 w
+(w Y)2430 1 98410 u
+( Rocks)3330(ork Area)2780 2 114180 u
+(Era)87000 174000 w
+6 s
+(T)104546 173000 w
+10 s
+()102546 174000 w
+102546 174000 m
+7320 build_ci
+109866 174000 m
+(F)111532 v
+(ormation)116942 v
+6 s
+(T)156718 173000 w
+10 s
+()154718 174000 w
+154718 174000 m
+7320 build_ci
+162038 174000 m
+(Age \(years\))3330 1 163704 u
+(Precambrian)87000 186000 w
+6 s
+(T)141206 185000 w
+10 s
+()139206 186000 w
+139206 186000 m
+7320 build_ci
+146526 186000 m
+(Reading Prong)3330 1 148192 u
+6 s
+(T)212408 185000 w
+10 s
+()210408 186000 w
+210408 186000 m
+7320 build_ci
+217728 186000 m
+(>1 billion)3330 1 219394 u
+(P)87000 198000 w
+(aleozoic)92410 v
+6 s
+(T)129396 197000 w
+10 s
+()127396 198000 w
+127396 198000 m
+7320 build_ci
+134716 198000 m
+(Manhattan Prong)3330 1 136382 u
+6 s
+(T)210038 197000 w
+10 s
+()208038 198000 w
+208038 198000 m
+7320 build_ci
+215358 198000 m
+(400 million)3330 1 217024 u
+(Mesozoic)87000 210000 w
+6 s
+(T)129546 209000 w
+10 s
+()127546 210000 w
+127546 210000 m
+7320 build_ci
+134866 210000 m
+(T{)136532 v
+14 s
+(.)87833 222000 w
+10 s
+(na)91333 v
+(Ne)87000 234000 w
+(w)98410 v
+(ark Basin, incl)3330 1 105530 u
+14 s
+(.)166073 v
+10 s
+(Stockton, Lockatong, and Brunswick)3330 1 87000 246000 t
+( W)3030(formations; also)3330 2 87000 258000 t
+(atchungs)164220 v
+(and P)3330 1 87000 270000 t
+(alisades)110180 v
+14 s
+(.)142673 v
+(.)87833 282000 w
+10 s
+(ad)91333 v
+(T})87000 294000 w
+6 s
+(T)101576 293000 w
+10 s
+()99576 294000 w
+99576 294000 m
+7320 build_ci
+106896 294000 m
+(200 million)3330 1 108562 u
+(Cenozoic)87000 306000 w
+6 s
+(T)128436 305000 w
+10 s
+()126436 306000 w
+126436 306000 m
+7320 build_ci
+133756 306000 m
+(Coastal Plain)3330 1 135422 u
+6 s
+(T)192978 305000 w
+10 s
+()190978 306000 w
+190978 306000 m
+7320 build_ci
+198298 306000 m
+(T{)199964 v
+14 s
+(.)87833 318000 w
+10 s
+(na)91333 v
+(On Long Island 30,000 years;)3330 1 87000 330000 t
+(Cretaceous sediments redeposited)3330 1 87000 342000 t
+(by recent glaciation)3330 1 87000 354000 t
+14 s
+(.)168363 v
+(.)87833 366000 w
+10 s
+(ad)91333 v
+(T})87000 378000 w
+14 s
+(.)87833 390000 w
+10 s
+(TE)91333 v
+&13
+(Output:)288000 84000 w
+517486 94000 288000 94000 Dl
+&12
+(Ne)359038 104000 w
+(w Y)2580 1 369998 u
+(ork Ar)3150 1 383888 u
+(ea Roc)3330 1 409998 u
+(ks)438118 v
+517486 108000 288000 108000 Dl
+&11
+(Era)308803 118000 w
+(F)368726 v
+(ormation)374136 v
+(Age \(years\))3330 1 452611 u
+517486 122000 288000 122000 Dl
+9 s
+(Precambrian)293000 132000 w
+(Reading Prong)2997 1 353486 u
+(>1 billion)2997 1 440486 u
+10 s
+517486 136000 288000 136000 Dl
+9 s
+(P)293000 146000 w
+(aleozoic)297869 v
+(Manhattan Prong)2997 1 353486 u
+(400 million)2997 1 440486 u
+10 s
+517486 150000 288000 150000 Dl
+9 s
+(Mesozoic)293000 160000 w
+(200 million)2997 1 440486 u
+(Ne)353486 v
+(w)363755 v
+(ark Basin,)2997 1 370163 u
+(incl. Stockton,)5994 1 353486 171000 t
+(Lockatong, and)2997 1 353486 182000 t
+(Brunswick forma\001)2997 1 353486 193000 t
+(tions; also)2997 1 353486 204000 t
+(W)353486 215000 w
+(atchungs and)2997 1 361262 u
+(P)353486 226000 w
+(alisades.)358355 v
+10 s
+517486 230000 288000 230000 Dl
+9 s
+(Cenozoic)293000 240000 w
+(Coastal Plain)2997 1 353486 u
+(On Long Island)2997 1 440486 u
+(30,000 years; Cre\001)2997 1 440486 251000 t
+(taceous sediments)2997 1 440486 262000 t
+(redeposited by)2997 1 440486 273000 t
+(recent glaciation.)2997 1 440486 284000 t
+10 s
+517486 288000 288000 288000 Dl
+288000 94000 288000 288000 Dl
+345986 108000 345986 288000 Dl
+432986 108000 432986 288000 Dl
+517486 94000 517486 288000 Dl
+&13
+(Input:)72000 414000 w
+14 @11 f
+(.)87833 432000 w
+10 s
+(EQ)91333 v
+(delim $$)3330 1 87000 444000 t
+14 s
+(.)87833 456000 w
+10 s
+(EN)91333 v
+14 s
+(.)87833 480000 w
+(.)93832 v
+(.)99831 v
+(.)87833 504000 w
+10 s
+(TS)91333 v
+(doublebox;)87000 516000 w
+(c c)3330 1 87000 528000 t
+(l l)3330 1 87000 540000 t
+14 s
+(.)96723 v
+10 s
+(Name)87000 552000 w
+6 s
+(T)114546 551000 w
+10 s
+()112546 552000 w
+112546 552000 m
+7320 build_ci
+119866 552000 m
+(Def)121532 v
+(inition)136322 v
+14 s
+(.)87833 564000 w
+10 s
+(sp)91333 v
+14 s
+(.)87833 576000 w
+10 s
+(vs +2p)3330 1 91333 u
+(Gamma)87000 588000 w
+6 s
+(T)122326 587000 w
+10 s
+()120326 588000 w
+120326 588000 m
+7320 build_ci
+127646 588000 m
+( sup {z\0011} e sup)3330( t)6660($GAMMA \(z\) = int sub 0 sup inf)3330 3 129312 u
+(\001t dt$)3330 1 348932 u
+(Sine)87000 600000 w
+6 s
+(T)108446 599000 w
+10 s
+()106446 600000 w
+106446 600000 m
+7320 build_ci
+113766 600000 m
+($sin \(x\) = 1 o)3330 1 115432 u
+(v)172572 v
+(er 2i \( e sup ix)3330 1 177422 u
+(\001 e sup)3330 1 242392 u
+(\001ix \)$)3330 1 274042 u
+(Error)87000 612000 w
+6 s
+(T)111766 611000 w
+10 s
+()109766 612000 w
+109766 612000 m
+7320 build_ci
+117086 612000 m
+($ roman erf \(z\) = 2 o)3330 1 118752 u
+(v)206972 v
+(er sqrt pi int sub 0 sup z e sup {\001t sup 2} dt$)3330 1 211822 u
+(Bessel)87000 624000 w
+6 s
+(T)116776 623000 w
+10 s
+()114776 624000 w
+114776 624000 m
+7320 build_ci
+122096 624000 m
+($ J sub 0 \(z\) = 1 o)3330 1 123762 u
+(v)201442 v
+(er pi int sub 0 sup pi cos \( z sin theta \) d theta $)3330 1 206292 u
+(Zeta)87000 636000 w
+6 s
+(T)108436 635000 w
+10 s
+()106436 636000 w
+106436 636000 m
+7320 build_ci
+113756 636000 m
+($ zeta \(s\) = sum from k=1 to inf k sup)3330 1 115422 u
+(\001s ~~\( Re~s > 1\)$)3330 1 278872 u
+14 s
+(.)87833 648000 w
+10 s
+(vs)91333 v
+(\0012p)103553 v
+14 s
+(.)87833 660000 w
+10 s
+(sp 2p)3330 1 91333 u
+14 s
+(.)87833 672000 w
+10 s
+(TE)91333 v
+&13
+(Output:)288000 414000 w
+446774 423000 287000 423000 Dl
+444774 425000 289000 425000 Dl
+&11
+(Name)296890 434000 w
+(De\003nition)369937 v
+(Gamma)293000 461100 w
+&20
+(\017)339660 v
+&11
+(\()345690 v
+&12
+(z)349020 v
+&11
+(\))353743 v
+&20
+(\010)357073 v
+14 s
+(\211)362563 462100 w
+7 @11 f
+(0)366763 466900 w
+&20
+(\134)370729 451500 w
+10 @12 f
+(t)375839 461100 w
+7 s
+(z)379785 457100 w
+&20
+(\007)383674 v
+&11
+(1)387517 v
+10 @12 f
+(e)391017 461100 w
+7 @20 f
+(\007)396623 457100 w
+&12
+(t)400466 v
+10 s
+(dt)404078 461100 w
+&11
+(Sine)293000 480100 w
+(sin\()339660 v
+&12
+(x)354660 v
+&11
+(\))359933 v
+&20
+(\010)363263 v
+&11
+(2)371253 487100 w
+&12
+(i)376253 v
+&11
+(1)372643 474100 w
+&19
+(\011)369753 477100 w
+(\011\011)370533 v
+&11
+(\()381533 480100 w
+&12
+(e)384863 v
+7 s
+(ix)390469 476100 w
+10 @20 f
+(\007)397189 480100 w
+&12
+(e)402679 v
+7 @20 f
+(\007)408285 476100 w
+&12
+(ix)412128 v
+10 @11 f
+(\))418848 480100 w
+(Error)293000 503100 w
+(erf\()339660 v
+&12
+(z)354090 v
+&11
+(\))358813 v
+&20
+(\010)362143 v
+9 s
+(\200\047)370133 509100 w
+(\047)376073 v
+10 s
+(\115)375083 510900 w
+&11
+(2)372853 497100 w
+&19
+(\011)368633 500100 w
+(\011\011)372073 v
+14 @20 f
+(\211)383073 504100 w
+7 @11 f
+(0)387273 508900 w
+&12
+(z)391239 493500 w
+10 s
+(e)393962 503100 w
+7 @20 f
+(\007)399568 499100 w
+&12
+(t)403411 v
+4 @11 f
+(2)406023 496300 w
+10 @12 f
+(dt)408023 503100 w
+&11
+(Bessel)293000 526900 w
+&12
+(J)339660 v
+7 @11 f
+(0)345266 528900 w
+10 s
+(\()348766 526900 w
+&12
+(z)352096 v
+&11
+(\))356819 v
+&20
+(\010)360149 v
+(\115)368139 533900 w
+&11
+(1)368384 520900 w
+&19
+(\011)366639 523900 w
+(\011)370129 v
+14 @20 f
+(\211)376129 527900 w
+7 @11 f
+(0)380329 532700 w
+&20
+(\115)384295 517300 w
+10 @11 f
+(cos\()388138 526900 w
+&12
+(z)404798 v
+&11
+(sin)409521 v
+&20
+(\116)421191 v
+&11
+(\))426401 v
+&12
+(d)429731 v
+&20
+(\116)435564 v
+&11
+(Zeta)293000 550900 w
+&20
+(\126)339660 v
+&11
+(\()344600 v
+&12
+(s)347930 v
+&11
+(\))352653 v
+&20
+(\010)355983 v
+7 @12 f
+(k)361473 560900 w
+&20
+(\010)365747 v
+&11
+(1)369590 v
+15 @20 f
+(\032)362841 553900 w
+7 s
+(\134)364726 540900 w
+10 @12 f
+(k)373089 550900 w
+7 @20 f
+(\007)378695 546900 w
+&12
+(s)382538 v
+10 @11 f
+(\(Re)393587 550900 w
+&12
+(s)411357 v
+(>)416913 v
+&11
+(1\))423663 v
+444774 563900 289000 563900 Dl
+446774 565900 287000 565900 Dl
+287000 423000 287000 565900 Dl
+289000 425000 289000 563900 Dl
+444774 425000 444774 563900 Dl
+446774 423000 446774 565900 Dl
+_marks
+cleartomark
+showpage
+restore
+%%EndPage: 11 11
+%%Page: 12 12
+save
+mark
+12 pagesetup
+9 @11 f
+(12)72000 48000 w
+&12
+(TBL)487743 v
+10 @13 f
+(Input:)72000 84000 w
+14 @11 f
+(.)87833 102000 w
+10 s
+(TS)91333 v
+(box, tab\()3330 1 87000 114000 t
+(:)125046 v
+(\);)129492 v
+(cb s s s s)3330 1 87000 126000 t
+(cp\0012 s s s s)3330 1 87000 138000 t
+(c)87000 150000 w
+(\023)94770 v
+(\023 c)3330 1 98436 u
+(\023 c)3330 1 111536 u
+(\023 c)3330 1 124636 u
+(\023 c)3330 1 137736 u
+(c)87000 162000 w
+(\023)94770 v
+(\023 c)3330 1 98436 u
+(\023 c)3330 1 111536 u
+(\023 c)3330 1 124636 u
+(\023 c)3330 1 137736 u
+(r2)87000 174000 w
+(\023)98660 v
+(\023 n2)3330 1 102326 u
+(\023 n2)3330 1 120986 u
+(\023 n2)3330 1 139646 u
+(\023 n)3330 1 158306 u
+14 s
+(.)169469 v
+10 s
+( T)3150(Readability of)3330 2 87000 186000 t
+(e)153330 v
+(xt)157620 v
+(Line W)3030 1 87000 198000 t
+( T)3150(idth and Leading for 10\001Point)3330 2 117400 u
+(ype)248060 v
+(=)87000 210000 w
+(Line)87000 222000 w
+(:)106996 v
+(Set)111442 v
+(:)125888 v
+(1\001Point)130334 v
+(:)161450 v
+(2\001Point)165896 v
+(:)197012 v
+(4\001Point)201458 v
+(W)87000 234000 w
+(idth)96040 v
+(:)113266 v
+(Solid)117712 v
+(:)140498 v
+(Leading)144944 v
+(:)179380 v
+(Leading)183826 v
+(:)218262 v
+(Leading)222708 v
+(_)87000 246000 w
+(9 Pica)3330 1 87000 258000 t
+(:)114216 v
+(\017\0129)118662 v
+14 s
+(.)132275 v
+10 s
+(3)135775 v
+(:)142441 v
+(\017\0126)146887 v
+14 s
+(.)160500 v
+10 s
+(0)164000 v
+(:)170666 v
+(\017\0125)175112 v
+14 s
+(.)188725 v
+10 s
+(3)192225 v
+(:)198891 v
+(\017\0127)203337 v
+14 s
+(.)216950 v
+10 s
+(1)220450 v
+(14 Pica)3330 1 87000 270000 t
+(:)119216 v
+(\017\0124)123662 v
+14 s
+(.)137275 v
+10 s
+(5)140775 v
+(:)147441 v
+(\017\0120)151887 v
+14 s
+(.)165500 v
+10 s
+(6)169000 v
+(:)175666 v
+(\017\0120)180112 v
+14 s
+(.)193725 v
+10 s
+(3)197225 v
+(:)203891 v
+(\017\0121)208337 v
+14 s
+(.)221950 v
+10 s
+(7)225450 v
+(19 Pica)3330 1 87000 282000 t
+(:)119216 v
+(\017\0125)123662 v
+14 s
+(.)137275 v
+10 s
+(0)140775 v
+(:)147441 v
+(\017\0125)151887 v
+14 s
+(.)165500 v
+10 s
+(1)169000 v
+(: 0)4996 1 175666 u
+14 s
+(.)189275 v
+10 s
+(0)192775 v
+(:)199441 v
+(\017\0122)203887 v
+14 s
+(.)217500 v
+10 s
+(0)221000 v
+(31 Pica)3330 1 87000 294000 t
+(:)119216 v
+(\017\0123)123662 v
+14 s
+(.)137275 v
+10 s
+(7)140775 v
+(:)147441 v
+(\017\0123)151887 v
+14 s
+(.)165500 v
+10 s
+(8)169000 v
+(:)175666 v
+(\017\0122)180112 v
+14 s
+(.)193725 v
+10 s
+(4)197225 v
+(:)203891 v
+(\017\0123)208337 v
+14 s
+(.)221950 v
+10 s
+(6)225450 v
+(43 Pica)3330 1 87000 306000 t
+(:)119216 v
+(\017\0129)123662 v
+14 s
+(.)137275 v
+10 s
+(1)140775 v
+(:)147441 v
+(\017\0129)151887 v
+14 s
+(.)165500 v
+10 s
+(0)169000 v
+(:)175666 v
+(\017\0125)180112 v
+14 s
+(.)193725 v
+10 s
+(9)197225 v
+(:)203891 v
+(\017\0128)208337 v
+14 s
+(.)221950 v
+10 s
+(8)225450 v
+14 s
+(.)87833 318000 w
+10 s
+(TE)91333 v
+&13
+(Output:)288000 84000 w
+487980 94000 288000 94000 Dl
+( T)3030(Readability of)3330 2 346660 104000 t
+(ext)416550 v
+8 @11 f
+(Line W)2424 1 317790 116000 t
+( T)2520(idth and Leading for 10\001Point)2664 2 342110 u
+(ype)446638 v
+10 s
+487980 119000 288000 119000 Dl
+487980 121000 288000 121000 Dl
+(Line)299110 130000 w
+(Set)337720 v
+(1\001Point)366330 v
+(2\001Point)409100 v
+(4\001Point)451870 v
+(W)295975 142000 w
+(idth)305015 v
+(Solid)333550 v
+(Leading)364670 v
+(Leading)407440 v
+(Leading)450210 v
+487980 146000 288000 146000 Dl
+(9 Pica)3330 1 298000 156000 t
+(\0129.3)335360 v
+(\0126.0)372305 v
+(\0125.3)415075 v
+(\0127.1)457845 v
+(14 Pica)3330 1 293000 168000 t
+(\0124.5)335360 v
+(\0120.6)372305 v
+(\0120.3)415075 v
+(\0121.7)457845 v
+(19 Pica)3330 1 293000 180000 t
+(\0125.0)335360 v
+(\0125.1 0.0)30270 1 372305 u
+(\0122.0)457845 v
+(31 Pica)3330 1 293000 192000 t
+(\0123.7)335360 v
+(\0123.8)372305 v
+(\0122.4)415075 v
+(\0123.6)457845 v
+(43 Pica)3330 1 293000 204000 t
+(\0129.1)335360 v
+(\0129.0)372305 v
+(\0125.9)415075 v
+(\0128.8)457845 v
+487980 208000 288000 208000 Dl
+288000 94000 288000 208000 Dl
+327550 121000 327550 208000 Dl
+329550 121000 329550 208000 Dl
+359670 121000 359670 208000 Dl
+402440 121000 402440 208000 Dl
+445210 121000 445210 208000 Dl
+487980 94000 487980 208000 Dl
+_marks
+cleartomark
+showpage
+restore
+%%EndPage: 12 12
+%%Page: 13 13
+save
+mark
+13 pagesetup
+9 @12 f
+(TBL)72000 48000 w
+&11
+(13)495000 v
+10 @13 f
+(Input:)72000 84000 w
+14 @11 f
+(.)87833 102000 w
+10 s
+(TS)91333 v
+(c s)3330 1 87000 114000 t
+(cip\0012 s)3330 1 87000 126000 t
+(l n)3330 1 87000 138000 t
+(a n)3330 1 87000 150000 t
+14 s
+(.)100603 v
+10 s
+( T)3150(Some London)3330 2 87000 162000 t
+(ransport Statistics)3330 1 153130 u
+(\(Y)87000 174000 w
+(ear 1964\))3330 1 96550 u
+(Rail)87000 186000 w
+(w)103570 v
+(ay route miles)3330 1 110690 u
+6 s
+(T)172676 185000 w
+10 s
+()170676 186000 w
+170676 186000 m
+7320 build_ci
+177996 186000 m
+(244)179662 v
+(T)87000 198000 w
+(ube)92660 v
+6 s
+(T)110766 197000 w
+10 s
+()108766 198000 w
+108766 198000 m
+7320 build_ci
+116086 198000 m
+(66)117752 v
+(Sub\001surf)87000 210000 w
+(ace)121340 v
+6 s
+(T)138326 209000 w
+10 s
+()136326 210000 w
+136326 210000 m
+7320 build_ci
+143646 210000 m
+(22)145312 v
+(Surf)87000 222000 w
+(ace)104120 v
+6 s
+(T)121106 221000 w
+10 s
+()119106 222000 w
+119106 222000 m
+7320 build_ci
+126426 222000 m
+(156)128092 v
+14 s
+(.)87833 234000 w
+10 s
+(sp)91333 v
+14 s
+(.)104386 v
+10 s
+(5)107886 v
+14 s
+(.)87833 246000 w
+10 s
+(T&)91333 v
+(l r)3330 1 87000 258000 t
+(a r)3330 1 87000 270000 t
+14 s
+(.)98933 v
+10 s
+(P)87000 282000 w
+(assenger traf)3330 1 92410 u
+(f)143800 v
+(ic)146930 v
+(\017\012 rail)3330 1 157480 u
+(w)181820 v
+(ay)188940 v
+(Journe)87000 294000 w
+(ys)113510 v
+6 s
+(T)126066 293000 w
+10 s
+()124066 294000 w
+124066 294000 m
+7320 build_ci
+131386 294000 m
+(674 million)3330 1 133052 u
+(A)87000 306000 w
+(v)93480 v
+(erage length)3330 1 98330 u
+6 s
+(T)151976 305000 w
+10 s
+()149976 306000 w
+149976 306000 m
+7320 build_ci
+157296 306000 m
+(4)158962 v
+14 s
+(.)164795 v
+10 s
+(55 miles)3330 1 168295 u
+(P)87000 318000 w
+(assenger miles)3330 1 92410 u
+6 s
+(T)155506 317000 w
+10 s
+()153506 318000 w
+153506 318000 m
+7320 build_ci
+160826 318000 m
+(3,066 million)3330 1 162492 u
+14 s
+(.)87833 330000 w
+10 s
+(T&)91333 v
+(l r)3330 1 87000 342000 t
+(a r)3330 1 87000 354000 t
+14 s
+(.)98933 v
+10 s
+(P)87000 366000 w
+(assenger traf)3330 1 92410 u
+(f)143800 v
+(ic)146930 v
+(\017\012 road)3330 1 157480 u
+(Journe)87000 378000 w
+(ys)113510 v
+6 s
+(T)126066 377000 w
+10 s
+()124066 378000 w
+124066 378000 m
+7320 build_ci
+131386 378000 m
+(2,252 million)3330 1 133052 u
+(A)87000 390000 w
+(v)93480 v
+(erage length)3330 1 98330 u
+6 s
+(T)151976 389000 w
+10 s
+()149976 390000 w
+149976 390000 m
+7320 build_ci
+157296 390000 m
+(2)158962 v
+14 s
+(.)164795 v
+10 s
+(26 miles)3330 1 168295 u
+(P)87000 402000 w
+(assenger miles)3330 1 92410 u
+6 s
+(T)155506 401000 w
+10 s
+()153506 402000 w
+153506 402000 m
+7320 build_ci
+160826 402000 m
+(5,094 million)3330 1 162492 u
+14 s
+(.)87833 414000 w
+10 s
+(T&)91333 v
+(l n)3330 1 87000 426000 t
+(a n)3330 1 87000 438000 t
+14 s
+(.)100603 v
+(.)87833 450000 w
+10 s
+(sp)91333 v
+14 s
+(.)104386 v
+10 s
+(5)107886 v
+(V)87000 462000 w
+(ehicles)93110 v
+6 s
+(T)124546 461000 w
+10 s
+()122546 462000 w
+122546 462000 m
+7320 build_ci
+129866 462000 m
+(12,521)131532 v
+(Rail)87000 474000 w
+(w)103570 v
+(ay motor cars)3330 1 110690 u
+6 s
+(T)170446 473000 w
+10 s
+()168446 474000 w
+168446 474000 m
+7320 build_ci
+175766 474000 m
+(2,905)177432 v
+(Rail)87000 486000 w
+(w)103570 v
+(ay trailer cars)3330 1 110690 u
+6 s
+(T)170436 485000 w
+10 s
+()168436 486000 w
+168436 486000 m
+7320 build_ci
+175756 486000 m
+(1,269)177422 v
+(T)87000 498000 w
+(otal rail)3330 1 92310 u
+(w)123870 v
+(ay)130990 v
+6 s
+(T)144096 497000 w
+10 s
+()142096 498000 w
+142096 498000 m
+7320 build_ci
+149416 498000 m
+(4,174)151082 v
+(Omnib)87000 510000 w
+(uses)114580 v
+6 s
+(T)135466 509000 w
+10 s
+()133466 510000 w
+133466 510000 m
+7320 build_ci
+140786 510000 m
+(8,347)142452 v
+14 s
+(.)87833 522000 w
+10 s
+(T&)91333 v
+(l n)3330 1 87000 534000 t
+(a n)3330 1 87000 546000 t
+14 s
+(.)100603 v
+(.)87833 558000 w
+10 s
+(sp)91333 v
+14 s
+(.)104386 v
+10 s
+(5)107886 v
+(Staf)87000 570000 w
+(f)102860 v
+6 s
+(T)109856 569000 w
+10 s
+()107856 570000 w
+107856 570000 m
+7320 build_ci
+115176 570000 m
+(73,739)116842 v
+(Administrati)87000 582000 w
+(v)137310 v
+(e, etc)3330 1 142160 u
+14 s
+(.)164923 v
+6 s
+(T)172089 581000 w
+10 s
+()170089 582000 w
+170089 582000 m
+7320 build_ci
+177409 582000 m
+(5,582)179075 v
+(Ci)87000 594000 w
+(vil engineering)3330 1 96200 u
+6 s
+(T)160966 593000 w
+10 s
+()158966 594000 w
+158966 594000 m
+7320 build_ci
+166286 594000 m
+(5,134)167952 v
+(Electrical eng)3330 1 87000 606000 t
+14 s
+(.)143923 v
+6 s
+(T)151089 605000 w
+10 s
+()149089 606000 w
+149089 606000 m
+7320 build_ci
+156409 606000 m
+(1,714)158075 v
+(Mech)87000 618000 w
+14 s
+(.)110603 v
+10 s
+(eng)117433 v
+14 s
+(.)132706 v
+10 s
+(\017\012 rail)3330 1 139536 u
+(w)163876 v
+(ay)170996 v
+6 s
+(T)184102 617000 w
+10 s
+()182102 618000 w
+182102 618000 m
+7320 build_ci
+189422 618000 m
+(4,310)191088 v
+(Mech)87000 630000 w
+14 s
+(.)110603 v
+10 s
+(eng)117433 v
+14 s
+(.)132706 v
+10 s
+(\017\012 road)3330 1 139536 u
+6 s
+(T)172082 629000 w
+10 s
+()170082 630000 w
+170082 630000 m
+7320 build_ci
+177402 630000 m
+(9,152)179068 v
+(Rail)87000 642000 w
+(w)103570 v
+(ay operations)3330 1 110690 u
+6 s
+(T)168786 641000 w
+10 s
+()166786 642000 w
+166786 642000 m
+7320 build_ci
+174106 642000 m
+(8,930)175772 v
+(Road operations)3330 1 87000 654000 t
+6 s
+(T)156766 653000 w
+10 s
+()154766 654000 w
+154766 654000 m
+7320 build_ci
+162086 654000 m
+(35,946)163752 v
+(Other)87000 666000 w
+6 s
+(T)113436 665000 w
+10 s
+()111436 666000 w
+111436 666000 m
+7320 build_ci
+118756 666000 m
+(2,971)120422 v
+14 s
+(.)87833 678000 w
+10 s
+(TE)91333 v
+&13
+(Output:)288000 84000 w
+&11
+( T)3150(Some London)3330 2 308185 102000 t
+(ransport Statistics)3330 1 374315 u
+8 @12 f
+(\(Y)358176 114000 w
+(ear 1964\))2664 1 364552 u
+10 @11 f
+(Rail)288000 126000 w
+(w)304570 v
+(ay route miles)3330 1 311690 u
+(244)438105 v
+(T)298755 138000 w
+(ube)304415 v
+(66)443105 v
+(Sub\001surf)298755 150000 w
+(ace)333095 v
+(22)443105 v
+(Surf)298755 162000 w
+(ace)315875 v
+(156)438105 v
+(P)288000 180000 w
+(assenger traf\003c)3330 1 293410 u
+&20
+(\007)358380 v
+&11
+(rail)367200 v
+(w)380430 v
+(ay)387550 v
+(Journe)298755 192000 w
+(ys)325265 v
+(674 million)3330 1 419490 u
+(A)298755 204000 w
+(v)305235 v
+(erage length)3330 1 310085 u
+(4.55 miles)3330 1 424220 u
+(P)298755 216000 w
+(assenger miles)3330 1 304165 u
+(3,066 million)3330 1 411990 u
+(P)288000 228000 w
+(assenger traf\003c)3330 1 293410 u
+&20
+(\007)358380 v
+&11
+(road)367200 v
+(Journe)298755 240000 w
+(ys)325265 v
+(2,252 million)3330 1 411990 u
+(A)298755 252000 w
+(v)305235 v
+(erage length)3330 1 310085 u
+(2.26 miles)3330 1 424220 u
+(P)298755 264000 w
+(assenger miles)3330 1 304165 u
+(5,094 million)3330 1 411990 u
+(V)288000 282000 w
+(ehicles)294110 v
+(12,521)425605 v
+(Rail)298755 294000 w
+(w)315325 v
+(ay motor cars)3330 1 322445 u
+(2,905)430605 v
+(Rail)298755 306000 w
+(w)315325 v
+(ay trailer cars)3330 1 322445 u
+(1,269)430605 v
+(T)298755 318000 w
+(otal rail)3330 1 304065 u
+(w)335625 v
+(ay)342745 v
+(4,174)430605 v
+(Omnib)298755 330000 w
+(uses)326335 v
+(8,347)430605 v
+(Staf)288000 348000 w
+(f)303860 v
+(73,739)425605 v
+(Administrati)298755 360000 w
+(v)349065 v
+(e, etc.)3330 1 353915 u
+(5,582)430605 v
+(Ci)298755 372000 w
+(vil engineering)3330 1 307955 u
+(5,134)430605 v
+(Electrical eng.)3330 1 298755 384000 t
+(1,714)430605 v
+(Mech. eng.)3330 1 298755 396000 t
+&20
+(\007)347625 v
+&11
+(rail)356445 v
+(w)369675 v
+(ay)376795 v
+(4,310)430605 v
+(Mech. eng.)3330 1 298755 408000 t
+&20
+(\007)347625 v
+&11
+(road)356445 v
+(9,152)430605 v
+(Rail)298755 420000 w
+(w)315325 v
+(ay operations)3330 1 322445 u
+(8,930)430605 v
+(Road operations)3330 1 298755 432000 t
+(35,946)425605 v
+(Other)298755 444000 w
+(2,971)430605 v
+_marks
+cleartomark
+showpage
+restore
+%%EndPage: 13 13
+%%Page: 14 14
+save
+mark
+14 pagesetup
+9 @11 f
+(14)72000 48000 w
+&12
+(TBL)487743 v
+10 @13 f
+(Input:)72000 84000 w
+14 @11 f
+(.)87833 102000 w
+10 s
+(ps 8)3330 1 91333 u
+14 s
+(.)87833 114000 w
+10 s
+(vs 10p)3330 1 91333 u
+14 s
+(.)87833 126000 w
+10 s
+(TS)91333 v
+(center box;)3330 1 87000 138000 t
+(c s s)3330 1 87000 150000 t
+(ci s s)3330 1 87000 162000 t
+(c c c)3330 1 87000 174000 t
+(lB l n)3330 1 87000 186000 t
+14 s
+(.)111723 v
+10 s
+(Ne)87000 198000 w
+(w Jerse)3330 1 98410 u
+(y Representati)3330 1 128800 u
+(v)186870 v
+(es)191720 v
+(\(Democrats\))87000 210000 w
+14 s
+(.)87833 222000 w
+10 s
+(sp)91333 v
+14 s
+(.)104386 v
+10 s
+(5)107886 v
+(Name)87000 234000 w
+6 s
+(T)114546 233000 w
+10 s
+()112546 234000 w
+112546 234000 m
+7320 build_ci
+119866 234000 m
+(Of)121532 v
+(f)131832 v
+(ice address)3330 1 134962 u
+6 s
+(T)183608 233000 w
+10 s
+()181608 234000 w
+181608 234000 m
+7320 build_ci
+188928 234000 m
+(Phone)190594 v
+14 s
+(.)87833 246000 w
+10 s
+(sp)91333 v
+14 s
+(.)104386 v
+10 s
+(5)107886 v
+(James J)3330 1 87000 258000 t
+14 s
+(.)119493 v
+10 s
+(Florio)126323 v
+6 s
+(T)154439 257000 w
+10 s
+()152439 258000 w
+152439 258000 m
+7320 build_ci
+159759 258000 m
+(23 S)3330 1 161425 u
+14 s
+(.)181148 v
+10 s
+(White Horse Pik)3330 1 187678 u
+(e, Somerdale 08083)3330 1 255898 u
+6 s
+(T)340934 257000 w
+10 s
+()338934 258000 w
+338934 258000 m
+7320 build_ci
+346254 258000 m
+(609\001627\0018222)347920 v
+(W)87000 270000 w
+(illiam J)3330 1 96040 u
+14 s
+(.)127433 v
+10 s
+(Hughes)134263 v
+6 s
+(T)168479 269000 w
+10 s
+()166479 270000 w
+166479 270000 m
+7320 build_ci
+173799 270000 m
+(2920 Atlantic A)2780 1 175465 u
+(v)239725 v
+(e)244575 v
+14 s
+(.)249848 v
+10 s
+( City 08401)3330(, Atlantic)2780 2 253348 u
+6 s
+(T)343404 269000 w
+10 s
+()341404 270000 w
+341404 270000 m
+7320 build_ci
+348724 270000 m
+(609\001345\0014844)350390 v
+(James J)3330 1 87000 282000 t
+14 s
+(.)119493 v
+10 s
+(Ho)126323 v
+(w)138293 v
+(ard)145413 v
+6 s
+(T)161849 281000 w
+10 s
+()159849 282000 w
+159849 282000 m
+7320 build_ci
+167169 282000 m
+( A)2780(801 Bangs)3330 2 168835 u
+(v)221425 v
+(e)226275 v
+14 s
+(.)231548 v
+10 s
+(, Asb)2780 1 235048 u
+(ury P)3330 1 256238 u
+(ark 07712)3330 1 278308 u
+6 s
+(T)323074 281000 w
+10 s
+()321074 282000 w
+321074 282000 m
+7320 build_ci
+328394 282000 m
+(201\001774\0011600)330060 v
+( Jr)3330(Frank Thompson,)3150 2 87000 294000 t
+14 s
+(.)170143 v
+6 s
+(T)177309 293000 w
+10 s
+()175309 294000 w
+175309 294000 m
+7320 build_ci
+182629 294000 m
+(10 Rutgers Pl)3330 1 184295 u
+14 s
+(.)241238 v
+10 s
+(, T)3150 1 244738 u
+(renton 08618)3330 1 256148 u
+6 s
+(T)313694 293000 w
+10 s
+()311694 294000 w
+311694 294000 m
+7320 build_ci
+319014 294000 m
+(609\001599\0011619)320680 v
+(Andre)87000 306000 w
+(w Maguire)3330 1 111740 u
+6 s
+(T)159836 305000 w
+10 s
+()157836 306000 w
+157836 306000 m
+7320 build_ci
+165156 306000 m
+(115 W)3030 1 166822 u
+14 s
+(.)195125 v
+10 s
+(P)201955 v
+(assaic St)3330 1 207365 u
+14 s
+(.)243748 v
+10 s
+(, Rochelle P)3330 1 247248 u
+(ark 07662)3330 1 297368 u
+6 s
+(T)342134 305000 w
+10 s
+()340134 306000 w
+340134 306000 m
+7320 build_ci
+347454 306000 m
+(201\001843\0010240)349120 v
+(Robert A)2780 1 87000 318000 t
+14 s
+(.)125053 v
+10 s
+(Roe)131883 v
+6 s
+(T)151659 317000 w
+10 s
+()149659 318000 w
+149659 318000 m
+7320 build_ci
+156979 318000 m
+(U)158645 v
+14 s
+(.)166698 v
+10 s
+(S)170198 v
+14 s
+(.)176591 v
+10 s
+(P)180091 v
+14 s
+(.)186484 v
+10 s
+(O)189984 v
+14 s
+(.)198037 v
+10 s
+( W)3030(, 194)3330 2 201537 u
+(ard St)3330 1 234037 u
+14 s
+(.)259310 v
+10 s
+(, P)3330 1 262810 u
+(aterson 07510)3330 1 274050 u
+6 s
+(T)334926 317000 w
+10 s
+()332926 318000 w
+332926 318000 m
+7320 build_ci
+340246 318000 m
+(201\001523\0015152)341912 v
+(Henry Helstoski)3330 1 87000 330000 t
+6 s
+(T)156766 329000 w
+10 s
+()154766 330000 w
+154766 330000 m
+7320 build_ci
+162086 330000 m
+(666 P)3330 1 163752 u
+(aterson A)2780 1 187492 u
+(v)225632 v
+(e)230482 v
+14 s
+(.)235755 v
+10 s
+(, East Rutherford 07073)3330 1 239255 u
+6 s
+(T)341511 329000 w
+10 s
+()339511 330000 w
+339511 330000 m
+7320 build_ci
+346831 330000 m
+(201\001939\0019090)348497 v
+(Peter W)3030 1 87000 342000 t
+14 s
+(.)120853 v
+10 s
+(Rodino, Jr)3330 1 127683 u
+14 s
+(.)171016 v
+6 s
+(T)178182 341000 w
+10 s
+()176182 342000 w
+176182 342000 m
+7320 build_ci
+183502 342000 m
+(Suite 1435A, 970 Broad St)3330 1 185168 u
+14 s
+(.)297381 v
+10 s
+(, Ne)3330 1 300881 u
+(w)318121 v
+(ark 07102)3330 1 325241 u
+6 s
+(T)370007 341000 w
+10 s
+()368007 342000 w
+368007 342000 m
+7320 build_ci
+375327 342000 m
+(201\001645\0013213)376993 v
+(Joseph G)3330 1 87000 354000 t
+14 s
+(.)125603 v
+10 s
+(Minish)132433 v
+6 s
+(T)164439 353000 w
+10 s
+()162439 354000 w
+162439 354000 m
+7320 build_ci
+169759 354000 m
+(308 Main St)3330 1 171425 u
+14 s
+(.)223368 v
+10 s
+(, Orange 07050)3330 1 226868 u
+6 s
+(T)294124 353000 w
+10 s
+()292124 354000 w
+292124 354000 m
+7320 build_ci
+299444 354000 m
+(201\001645\0016363)301110 v
+(Helen S)3330 1 87000 366000 t
+14 s
+(.)120603 v
+10 s
+(Me)127433 v
+(yner)140613 v
+6 s
+(T)162049 365000 w
+10 s
+()160049 366000 w
+160049 366000 m
+7320 build_ci
+167369 366000 m
+(32 Bridge St)3330 1 169035 u
+14 s
+(.)222088 v
+10 s
+(, Lambertville 08530)3330 1 225588 u
+6 s
+(T)315074 365000 w
+10 s
+()313074 366000 w
+313074 366000 m
+7320 build_ci
+320394 366000 m
+(609\001397\0011830)322060 v
+(Dominick V)2830 1 87000 378000 t
+14 s
+(.)137883 v
+10 s
+(Daniels)144713 v
+6 s
+(T)178929 377000 w
+10 s
+()176929 378000 w
+176929 378000 m
+7320 build_ci
+184249 378000 m
+(895 Ber)3330 1 185915 u
+(gen A)2780 1 218505 u
+(v)242205 v
+(e)247055 v
+14 s
+(.)252328 v
+10 s
+(, Jerse)3330 1 255828 u
+(y City 07306)3330 1 281498 u
+6 s
+(T)339054 377000 w
+10 s
+()337054 378000 w
+337054 378000 m
+7320 build_ci
+344374 378000 m
+(201\001659\0017700)346040 v
+(Edw)87000 390000 w
+(ard J)3330 1 105230 u
+14 s
+(.)126053 v
+10 s
+(P)132883 v
+(atten)138293 v
+6 s
+(T)161399 389000 w
+10 s
+()159399 390000 w
+159399 390000 m
+7320 build_ci
+166719 390000 m
+(Natl)168385 v
+14 s
+(.)186438 v
+10 s
+(Bank Bldg)3330 1 193268 u
+14 s
+(.)237991 v
+10 s
+( Ambo)2780(, Perth)3330 2 241491 u
+(y 08861)3330 1 296111 u
+6 s
+(T)333107 389000 w
+10 s
+()331107 390000 w
+331107 390000 m
+7320 build_ci
+338427 390000 m
+(201\001826\0014610)340093 v
+14 s
+(.)87833 402000 w
+10 s
+(sp)91333 v
+14 s
+(.)104386 v
+10 s
+(5)107886 v
+14 s
+(.)87833 414000 w
+10 s
+(T&)91333 v
+(ci s s)3330 1 87000 426000 t
+(lB l n)3330 1 87000 438000 t
+14 s
+(.)111723 v
+10 s
+(\(Republicans\))87000 450000 w
+14 s
+(.)87833 462000 w
+10 s
+(sp)91333 v
+14 s
+(.)104386 v
+10 s
+(5v)107886 v
+(Millicent Fenwick)3330 1 87000 474000 t
+6 s
+(T)165106 473000 w
+10 s
+()163106 474000 w
+163106 474000 m
+7320 build_ci
+170426 474000 m
+(41 N)3330 1 172092 u
+14 s
+(.)193475 v
+10 s
+(Bridge St)3330 1 200305 u
+14 s
+(.)240028 v
+10 s
+(, Somerville 08876)3330 1 243528 u
+6 s
+(T)325244 473000 w
+10 s
+()323244 474000 w
+323244 474000 m
+7320 build_ci
+330564 474000 m
+(201\001722\0018200)332230 v
+(Edwin B)3330 1 87000 486000 t
+14 s
+(.)123943 v
+10 s
+(F)130773 v
+(orsythe)136183 v
+6 s
+(T)169289 485000 w
+10 s
+()167289 486000 w
+167289 486000 m
+7320 build_ci
+174609 486000 m
+(301 Mill St)3330 1 176275 u
+14 s
+(.)224338 v
+10 s
+(, Mooresto)3330 1 227838 u
+(wn 08057)3330 1 271748 u
+6 s
+(T)315964 485000 w
+10 s
+()313964 486000 w
+313964 486000 m
+7320 build_ci
+321284 486000 m
+(609\001235\0016622)322950 v
+(Matthe)87000 498000 w
+(w J)3330 1 115080 u
+14 s
+(.)130353 v
+10 s
+(Rinaldo)137183 v
+6 s
+(T)172519 497000 w
+10 s
+()170519 498000 w
+170519 498000 m
+7320 build_ci
+177839 498000 m
+( A)2780(1961 Morris)3330 2 179505 u
+(v)239315 v
+(e)244165 v
+14 s
+(.)249438 v
+10 s
+(, Union 07083)3330 1 252938 u
+6 s
+(T)315764 497000 w
+10 s
+()313764 498000 w
+313764 498000 m
+7320 build_ci
+321084 498000 m
+(201\001687\0014235)322750 v
+14 s
+(.)87833 510000 w
+10 s
+(TE)91333 v
+14 s
+(.)87833 522000 w
+10 s
+(ps 10)3330 1 91333 u
+14 s
+(.)87833 534000 w
+10 s
+(vs 12p)3330 1 91333 u
+_marks
+cleartomark
+showpage
+restore
+%%EndPage: 14 14
+%%Page: 15 15
+save
+mark
+15 pagesetup
+9 @12 f
+(TBL)72000 48000 w
+&11
+(15)495000 v
+10 @13 f
+(Output:)72000 84000 w
+8 @11 f
+435216 93600 140784 93600 Dl
+(Ne)242780 102000 w
+(w Jerse)2664 1 251908 u
+(y Representati)2664 1 276220 u
+(v)322676 v
+(es)326556 v
+&12
+(\(Democr)267844 112000 w
+(ats\))296156 v
+&11
+(Name)172048 127000 w
+(Of\003ce address)2664 1 278828 u
+(Phone)398552 v
+&13
+(J)144784 142000 w
+(ames J)2664 1 148664 u
+(. Florio)2664 1 172496 u
+&11
+( Horse Pik)2664( White)2424(23 S.)2664 3 230416 u
+(e, Somerdale 08083)2664 1 304528 u
+(609\001627\0018222)385888 v
+&13
+(W)144784 152000 w
+(illiam J)2664 1 152640 u
+(. Hughes)2664 1 178704 u
+&11
+(2920 Atlantic A)2224 1 230416 u
+(v)281824 v
+( City 08401)2664(e., Atlantic)2224 2 285704 u
+(609\001345\0014844)385888 v
+&13
+(J)144784 162000 w
+(ames J)2664 1 148664 u
+(. Ho)2664 1 172496 u
+(ward)187304 v
+&11
+( A)2224(801 Bangs)2664 2 230416 u
+(v)272488 v
+(e., Asb)2224 1 276368 u
+(ury P)2664 1 298872 u
+(ark 07712)2664 1 316528 u
+(201\001774\0011600)385888 v
+&13
+( Jr)2664(Frank Thompson,)2424 2 144784 172000 t
+(.)216416 v
+&11
+( T)2520(10 Rutgers Pl.,)2664 2 230416 u
+(renton 08618)2664 1 286432 u
+(609\001599\0011619)385888 v
+&13
+(Andr)144784 182000 w
+(ew Maguir)2664 1 162864 u
+(e)200488 v
+&11
+(115 W)2424 1 230416 u
+(. P)2664 1 251656 u
+(assaic St., Rochelle P)2664 1 260648 u
+(ark 07662)2664 1 331184 u
+(201\001843\0010240)385888 v
+&13
+( Roe)2664(Robert A.)2224 2 144784 192000 t
+&11
+(U.S.P)230416 v
+( W)2424(.O., 194)2664 2 248200 u
+(ard St., P)2664 1 283976 u
+(aterson 07510)2664 1 314520 u
+(201\001523\0015152)385888 v
+&13
+(Henry Helstoski)2664 1 144784 202000 t
+&11
+(666 P)2664 1 230416 u
+(aterson A)2224 1 249408 u
+(v)279920 v
+(e., East Rutherford 07073)2664 1 283800 u
+(201\001939\0019090)385888 v
+&13
+(P)144784 212000 w
+(eter W)2424 1 149512 u
+(. Rodino, Jr)2664 1 172520 u
+(.)213496 v
+&11
+(Suite 1435A, 970 Broad St., Ne)2664 1 230416 u
+(w)335312 v
+(ark 07102)2664 1 341008 u
+(201\001645\0013213)385888 v
+&13
+(J)144784 222000 w
+(oseph G. Minish)2664 1 148664 u
+&11
+(308 Main St., Orange 07050)2664 1 230416 u
+(201\001645\0016363)385888 v
+&13
+(Helen S. Meyner)2664 1 144784 232000 t
+&11
+(32 Bridge St., Lambertville 08530)2664 1 230416 u
+(609\001397\0011830)385888 v
+&13
+(Dominick V)2304 1 144784 242000 t
+(. Daniels)2664 1 185040 u
+&11
+(895 Ber)2664 1 230416 u
+(gen A)2224 1 256488 u
+(v)275448 v
+(e., Jerse)2664 1 279328 u
+(y City 07306)2664 1 305416 u
+(201\001659\0017700)385888 v
+&13
+(Ed)144784 252000 w
+(ward J)2664 1 154448 u
+(. P)2664 1 178728 u
+(atten)188200 v
+&11
+( Ambo)2224(Natl. Bank Bldg., Perth)2664 2 230416 u
+(y 08861)2664 1 329664 u
+(201\001826\0014610)385888 v
+&12
+(\(Republicans\))265560 267000 w
+&13
+(Millicent F)2664 1 144784 282000 t
+(enwick)182800 v
+&11
+(41 N. Bridge St., Somerville 08876)2664 1 230416 u
+(201\001722\0018200)385888 v
+&13
+(Ed)144784 292000 w
+(win B. F)2664 1 154448 u
+(orsythe)184248 v
+&11
+(301 Mill St., Mooresto)2664 1 230416 u
+(wn 08057)2664 1 305328 u
+(609\001235\0016622)385888 v
+&13
+(Matthew J)2664 1 144784 302000 t
+(. Rinaldo)2664 1 181944 u
+&11
+( A)2224(1961 Morris)2664 2 230416 u
+(v)278264 v
+(e., Union 07083)2664 1 282144 u
+(201\001687\0014235)385888 v
+435216 305600 140784 305600 Dl
+140784 93600 140784 305600 Dl
+435216 93600 435216 305600 Dl
+10 s
+(This is a paragraph of normal te)3651 1 72000 328000 t
+(xt placed here only to indicate where the left and right mar)3651 1 206506 u
+( In)6982(gins are.)3651 2 453657 u
+(this w)4393 1 72000 340000 t
+( centered tables or e)4392(ay the reader can judge the appearance of)4393 2 97963 u
+(xpanded tables, and observ)4392 1 364362 u
+(e ho)4392 1 478198 u
+(w)496780 v
+(such tables are formatted.)3330 1 72000 352000 t
+&13
+(Input:)72000 376000 w
+14 @11 f
+(.)87833 394000 w
+10 s
+(TS)91333 v
+(e)87000 406000 w
+(xpand;)91290 v
+(c s s s)3330 1 87000 418000 t
+(c c c c)3330 1 87000 430000 t
+(l l n n)3330 1 87000 442000 t
+14 s
+(.)113383 v
+10 s
+(Bell Labs Locations)3330 1 87000 454000 t
+(Name)87000 466000 w
+6 s
+(T)114546 465000 w
+10 s
+()112546 466000 w
+112546 466000 m
+7320 build_ci
+119866 466000 m
+(Address)121532 v
+6 s
+(T)157968 465000 w
+10 s
+()155968 466000 w
+155968 466000 m
+7320 build_ci
+163288 466000 m
+(Area Code)3330 1 164954 u
+6 s
+(T)212490 465000 w
+10 s
+()210490 466000 w
+210490 466000 m
+7320 build_ci
+217810 466000 m
+(Phone)219476 v
+(Holmdel)87000 478000 w
+6 s
+(T)125666 477000 w
+10 s
+()123666 478000 w
+123666 478000 m
+7320 build_ci
+130986 478000 m
+(Holmdel, N)3330 1 132652 u
+14 s
+(.)181535 v
+10 s
+(J)188365 v
+14 s
+(.)193088 v
+10 s
+(07733)199918 v
+6 s
+(T)228584 477000 w
+10 s
+()226584 478000 w
+226584 478000 m
+7320 build_ci
+233904 478000 m
+(201)235570 v
+6 s
+(T)254236 477000 w
+10 s
+()252236 478000 w
+252236 478000 m
+7320 build_ci
+259556 478000 m
+(949\0013000)261222 v
+(Murray Hill)3330 1 87000 490000 t
+6 s
+(T)139546 489000 w
+10 s
+()137546 490000 w
+137546 490000 m
+7320 build_ci
+144866 490000 m
+(Murray Hill, N)3330 1 146532 u
+14 s
+(.)209295 v
+10 s
+(J)216125 v
+14 s
+(.)220848 v
+10 s
+(07974)227678 v
+6 s
+(T)256344 489000 w
+10 s
+()254344 490000 w
+254344 490000 m
+7320 build_ci
+261664 490000 m
+(201)263330 v
+6 s
+(T)281996 489000 w
+10 s
+()279996 490000 w
+279996 490000 m
+7320 build_ci
+287316 490000 m
+(582\0016377)288982 v
+(Whippan)87000 502000 w
+(y)123510 v
+6 s
+(T)132176 501000 w
+10 s
+()130176 502000 w
+130176 502000 m
+7320 build_ci
+137496 502000 m
+(Whippan)139162 v
+(y)175672 v
+(, N)3330 1 180022 u
+14 s
+(.)193905 v
+10 s
+(J)200735 v
+14 s
+(.)205458 v
+10 s
+(07981)212288 v
+6 s
+(T)240954 501000 w
+10 s
+()238954 502000 w
+238954 502000 m
+7320 build_ci
+246274 502000 m
+(201)247940 v
+6 s
+(T)266606 501000 w
+10 s
+()264606 502000 w
+264606 502000 m
+7320 build_ci
+271926 502000 m
+(386\0013000)273592 v
+(Indian Hill)3330 1 87000 514000 t
+6 s
+(T)135106 513000 w
+10 s
+()133106 514000 w
+133106 514000 m
+7320 build_ci
+140426 514000 m
+(Naperville, Illinois 60540)3330 1 142092 u
+6 s
+(T)250468 513000 w
+10 s
+()248468 514000 w
+248468 514000 m
+7320 build_ci
+255788 514000 m
+(312)257454 v
+6 s
+(T)276120 513000 w
+10 s
+()274120 514000 w
+274120 514000 m
+7320 build_ci
+281440 514000 m
+(690\0012000)283106 v
+14 s
+(.)87833 526000 w
+10 s
+(TE)91333 v
+&13
+(Output:)72000 550000 w
+&11
+(Bell Labs Locations)3330 1 246894 568000 t
+(Name)84500 580000 w
+(Address)222253 v
+(Area Code)3330 1 356396 u
+(Phone)472334 v
+(Holmdel)72000 592000 w
+(Holmdel, N. J. 07733)3330 1 186283 u
+(201)370831 v
+(949\0013000)465669 v
+(Murray Hill)3330 1 72000 604000 t
+(Murray Hill, N. J. 07974)3330 1 186283 u
+(201)370831 v
+(582\0016377)465669 v
+(Whippan)72000 616000 w
+(y)108510 v
+(Whippan)186283 v
+(y)222793 v
+(, N. J. 07981)3330 1 227143 u
+(201)370831 v
+(386\0013000)465669 v
+(Indian Hill)3330 1 72000 628000 t
+(Naperville, Illinois 60540)3330 1 186283 u
+(312)370831 v
+(690\0012000)465669 v
+_marks
+cleartomark
+showpage
+restore
+%%EndPage: 15 15
+%%Page: 16 16
+save
+mark
+16 pagesetup
+9 @11 f
+(16)72000 45000 w
+&12
+(TBL)487743 v
+8 @13 f
+(Input:)72000 81000 w
+14 @11 f
+(.)84666 94500 w
+8 s
+(TS)88166 v
+(box;)84000 103500 w
+(cb s s s)7992 1 84000 112500 t
+(c)84000 121500 w
+(\023 c)2664 1 90216 u
+( s)7992(\023 c)2664 2 100696 u
+(ltiw\(1i\))84000 130500 w
+(\023 ltw\(2i\))2664 1 110664 u
+(\023 lp8)2664 1 139368 u
+(\023 l)2664 1 156520 u
+(w\(1)162928 v
+14 s
+(.)176034 v
+8 s
+(6i\)p8)179534 v
+14 s
+(.)197088 v
+8 s
+(Some Interesting Places)2664 1 84000 139500 t
+(_)84000 148500 w
+(Name)84000 157500 w
+6 s
+(T)106037 156700 w
+10 s
+()104037 157700 w
+104037 157700 m
+7320 build_ci
+111357 157700 m
+8 s
+(Description)113023 v
+6 s
+(T)153284 156900 w
+10 s
+()151284 157900 w
+151284 157900 m
+7320 build_ci
+158604 157900 m
+8 s
+(Practical Information)2664 1 160270 u
+(_)84000 166500 w
+(T{)84000 175500 w
+(American Museum of Natural History)2664 1 84000 184500 t
+(T})84000 193500 w
+6 s
+(T)95661 192700 w
+10 s
+()93661 193700 w
+93661 193700 m
+7320 build_ci
+100981 193700 m
+8 s
+(T{)102647 v
+(The collections f)2664 1 84000 202500 t
+(ill 11)2664 1 138936 u
+14 s
+(.)156938 v
+8 s
+(5 acres \(Michelin\) or 25 acres \(MT)2664 1 160438 u
+(A\))276086 v
+(of e)2664 1 84000 211500 t
+(xhibition halls on four floors)2664 1 96760 u
+14 s
+(.)192082 v
+8 s
+(There is a full\001sized replica)2664 1 84000 220500 t
+(of a blue whale and the w)2664 1 84000 229500 t
+(orld\030)170104 v
+(s lar)2664 1 185216 u
+(gest star sapphire \(stolen in 1964\))2664 1 199288 u
+14 s
+(.)311482 v
+8 s
+(T})84000 238500 w
+6 s
+(T)95661 237700 w
+10 s
+()93661 238700 w
+93661 238700 m
+7320 build_ci
+100981 238700 m
+8 s
+(Hours)102647 v
+6 s
+(T)125132 237900 w
+10 s
+()123132 238900 w
+123132 238900 m
+7320 build_ci
+130452 238900 m
+8 s
+(10\0015, e)2664 1 132118 u
+(x)154878 v
+14 s
+(.)159544 v
+8 s
+( W)2424(Sun 11\0015,)2664 2 165708 u
+(ed)206820 v
+14 s
+(.)215038 v
+8 s
+(to 9)2664 1 221202 u
+(\017)84000 247500 w
+12 s
+(^)86890 251100 w
+6 s
+(T)94485 246700 w
+10 s
+()92485 247700 w
+92485 247700 m
+7320 build_ci
+99805 247700 m
+8 s
+(\017)101471 v
+12 s
+(^)104361 251300 w
+6 s
+(T)111956 246900 w
+10 s
+()109956 247900 w
+109956 247900 m
+7320 build_ci
+117276 247900 m
+8 s
+(Location)118942 v
+6 s
+(T)150315 247100 w
+10 s
+()148315 248100 w
+148315 248100 m
+7320 build_ci
+155635 248100 m
+8 s
+(T{)157301 v
+(Central P)2664 1 84000 256500 t
+(ark W)2424 1 114544 u
+(est & 79th St)2664 1 134096 u
+14 s
+(.)178762 v
+8 s
+(T})84000 265500 w
+(\017)84000 274500 w
+12 s
+(^)86890 278100 w
+6 s
+(T)94485 273700 w
+10 s
+()92485 274700 w
+92485 274700 m
+7320 build_ci
+99805 274700 m
+8 s
+(\017)101471 v
+12 s
+(^)104361 278300 w
+6 s
+(T)111956 273900 w
+10 s
+()109956 274900 w
+109956 274900 m
+7320 build_ci
+117276 274900 m
+8 s
+(Admission)118942 v
+6 s
+(T)156547 274100 w
+10 s
+()154547 275100 w
+154547 275100 m
+7320 build_ci
+161867 275100 m
+8 s
+(Donation: $1)2664 1 163533 u
+14 s
+(.)206863 v
+8 s
+(00 ask)2664 1 210363 u
+(ed)231611 v
+(\017)84000 283500 w
+12 s
+(^)86890 287100 w
+6 s
+(T)94485 282700 w
+10 s
+()92485 283700 w
+92485 283700 m
+7320 build_ci
+99805 283700 m
+8 s
+(\017)101471 v
+12 s
+(^)104361 287300 w
+6 s
+(T)111956 282900 w
+10 s
+()109956 283900 w
+109956 283900 m
+7320 build_ci
+117276 283900 m
+8 s
+(Subw)118942 v
+(ay)137086 v
+6 s
+(T)147571 283100 w
+10 s
+()145571 284100 w
+145571 284100 m
+7320 build_ci
+152891 284100 m
+8 s
+(AA to 81st St)2664 1 154557 u
+14 s
+(.)200999 v
+8 s
+(\017)84000 292500 w
+12 s
+(^)86890 296100 w
+6 s
+(T)94485 291700 w
+10 s
+()92485 292700 w
+92485 292700 m
+7320 build_ci
+99805 292700 m
+8 s
+(\017)101471 v
+12 s
+(^)104361 296300 w
+6 s
+(T)111956 291900 w
+10 s
+()109956 292900 w
+109956 292900 m
+7320 build_ci
+117276 292900 m
+8 s
+(T)118942 v
+(elephone)123270 v
+6 s
+(T)155083 292100 w
+10 s
+()153083 293100 w
+153083 293100 m
+7320 build_ci
+160403 293100 m
+8 s
+(212\001873\0014225)162069 v
+(_)84000 301500 w
+(Bronx Zoo)2664 1 84000 310500 t
+6 s
+(T)122485 309700 w
+10 s
+()120485 310700 w
+120485 310700 m
+7320 build_ci
+127805 310700 m
+8 s
+(T{)129471 v
+(About a mile long and)2664 1 84000 319500 t
+14 s
+(.)161538 v
+8 s
+(6 mile wide, this is the lar)2664 1 165038 u
+( America)2224(gest zoo in)2664 2 251766 u
+14 s
+(.)318192 v
+8 s
+(A lion eats 18 pounds)2664 1 84000 328500 t
+(of meat a day while a sea lion eats 15 pounds of f)2664 1 84000 337500 t
+(ish)250000 v
+14 s
+(.)260002 v
+8 s
+(T})84000 346500 w
+6 s
+(T)95661 345700 w
+10 s
+()93661 346700 w
+93661 346700 m
+7320 build_ci
+100981 346700 m
+8 s
+(Hours)102647 v
+6 s
+(T)125132 345900 w
+10 s
+()123132 346900 w
+123132 346900 m
+7320 build_ci
+130452 346900 m
+8 s
+(T{)132118 v
+(10\0014:30 winter)2664 1 84000 355500 t
+(, to 5:00 summer)2664 1 131672 u
+(T})84000 364500 w
+(\017)84000 373500 w
+12 s
+(^)86890 377100 w
+6 s
+(T)94485 372700 w
+10 s
+()92485 373700 w
+92485 373700 m
+7320 build_ci
+99805 373700 m
+8 s
+(\017)101471 v
+12 s
+(^)104361 377300 w
+6 s
+(T)111956 372900 w
+10 s
+()109956 373900 w
+109956 373900 m
+7320 build_ci
+117276 373900 m
+8 s
+(Location)118942 v
+6 s
+(T)150315 373100 w
+10 s
+()148315 374100 w
+148315 374100 m
+7320 build_ci
+155635 374100 m
+8 s
+(T{)157301 v
+(185th St)2664 1 84000 382500 t
+14 s
+(.)112226 v
+8 s
+(& Southern Blvd, the Bronx)2664 1 118390 u
+14 s
+(.)212160 v
+8 s
+(T})84000 391500 w
+(\017)84000 400500 w
+12 s
+(^)86890 404100 w
+6 s
+(T)94485 399700 w
+10 s
+()92485 400700 w
+92485 400700 m
+7320 build_ci
+99805 400700 m
+8 s
+(\017)101471 v
+12 s
+(^)104361 404300 w
+6 s
+(T)111956 399900 w
+10 s
+()109956 400900 w
+109956 400900 m
+7320 build_ci
+117276 400900 m
+8 s
+(Admission)118942 v
+6 s
+(T)156547 400100 w
+10 s
+()154547 401100 w
+154547 401100 m
+7320 build_ci
+161867 401100 m
+8 s
+($1)163533 v
+14 s
+(.)172199 v
+8 s
+(00, b)2664 1 175699 u
+(ut T)2520 1 192203 u
+(u,W)205475 v
+(e,Th free)2664 1 218387 u
+(\017)84000 409500 w
+12 s
+(^)86890 413100 w
+6 s
+(T)94485 408700 w
+10 s
+()92485 409700 w
+92485 409700 m
+7320 build_ci
+99805 409700 m
+8 s
+(\017)101471 v
+12 s
+(^)104361 413300 w
+6 s
+(T)111956 408900 w
+10 s
+()109956 409900 w
+109956 409900 m
+7320 build_ci
+117276 409900 m
+8 s
+(Subw)118942 v
+(ay)137086 v
+6 s
+(T)147571 409100 w
+10 s
+()145571 410100 w
+145571 410100 m
+7320 build_ci
+152891 410100 m
+8 s
+( T)2520(2, 5 to East)2664 2 154557 u
+(remont A)2224 1 199677 u
+(v)229749 v
+(e)233629 v
+14 s
+(.)237847 v
+8 s
+(\017)84000 418500 w
+12 s
+(^)86890 422100 w
+6 s
+(T)94485 417700 w
+10 s
+()92485 418700 w
+92485 418700 m
+7320 build_ci
+99805 418700 m
+8 s
+(\017)101471 v
+12 s
+(^)104361 422300 w
+6 s
+(T)111956 417900 w
+10 s
+()109956 418900 w
+109956 418900 m
+7320 build_ci
+117276 418900 m
+8 s
+(T)118942 v
+(elephone)123270 v
+6 s
+(T)155083 418100 w
+10 s
+()153083 419100 w
+153083 419100 m
+7320 build_ci
+160403 419100 m
+8 s
+(212\001933\0011759)162069 v
+(_)84000 427500 w
+(Brooklyn Museum)2664 1 84000 436500 t
+6 s
+(T)147821 435700 w
+10 s
+()145821 436700 w
+145821 436700 m
+7320 build_ci
+153141 436700 m
+8 s
+(T{)154807 v
+(Fi)84000 445500 w
+(v)90472 v
+(e floors of g)2664 1 94352 u
+( and ancient art)2664( American)2224(alleries contain)2664 3 135184 u
+14 s
+(.)270026 v
+8 s
+( period rooms and architectural ornaments sa)2664( American)2224
+(There are)2664 3 84000 454500 t
+(v)296648 v
+(ed)300528 v
+(from wreck)2664 1 84000 463500 t
+(ers, such as a classical f)2664 1 121680 u
+(igure from Pennsylv)2664 1 200816 u
+(ania Station)2664 1 267272 u
+14 s
+(.)306602 v
+8 s
+(T})84000 472500 w
+6 s
+(T)95661 471700 w
+10 s
+()93661 472700 w
+93661 472700 m
+7320 build_ci
+100981 472700 m
+8 s
+(Hours)102647 v
+6 s
+(T)125132 471900 w
+10 s
+()123132 472900 w
+123132 472900 m
+7320 build_ci
+130452 472900 m
+8 s
+(W)132118 v
+(ed\001Sat, 10\0015, Sun 12\0015)2664 1 139030 u
+(\017)84000 481500 w
+12 s
+(^)86890 485100 w
+6 s
+(T)94485 480700 w
+10 s
+()92485 481700 w
+92485 481700 m
+7320 build_ci
+99805 481700 m
+8 s
+(\017)101471 v
+12 s
+(^)104361 485300 w
+6 s
+(T)111956 480900 w
+10 s
+()109956 481900 w
+109956 481900 m
+7320 build_ci
+117276 481900 m
+8 s
+(Location)118942 v
+6 s
+(T)150315 481100 w
+10 s
+()148315 482100 w
+148315 482100 m
+7320 build_ci
+155635 482100 m
+8 s
+(T{)157301 v
+(Eastern P)2664 1 84000 490500 t
+(arkw)114984 v
+( W)2424(ay &)2664 2 130896 u
+(ashington A)2224 1 156672 u
+(v)195192 v
+(e)199072 v
+14 s
+(.)203290 v
+8 s
+(, Brooklyn)2664 1 206790 u
+14 s
+(.)242344 v
+8 s
+(T})84000 499500 w
+(\017)84000 508500 w
+12 s
+(^)86890 512100 w
+6 s
+(T)94485 507700 w
+10 s
+()92485 508700 w
+92485 508700 m
+7320 build_ci
+99805 508700 m
+8 s
+(\017)101471 v
+12 s
+(^)104361 512300 w
+6 s
+(T)111956 507900 w
+10 s
+()109956 508900 w
+109956 508900 m
+7320 build_ci
+117276 508900 m
+8 s
+(Admission)118942 v
+6 s
+(T)156547 508100 w
+10 s
+()154547 509100 w
+154547 509100 m
+7320 build_ci
+161867 509100 m
+8 s
+(Free)163533 v
+(\017)84000 517500 w
+12 s
+(^)86890 521100 w
+6 s
+(T)94485 516700 w
+10 s
+()92485 517700 w
+92485 517700 m
+7320 build_ci
+99805 517700 m
+8 s
+(\017)101471 v
+12 s
+(^)104361 521300 w
+6 s
+(T)111956 516900 w
+10 s
+()109956 517900 w
+109956 517900 m
+7320 build_ci
+117276 517900 m
+8 s
+(Subw)118942 v
+(ay)137086 v
+6 s
+(T)147571 517100 w
+10 s
+()145571 518100 w
+145571 518100 m
+7320 build_ci
+152891 518100 m
+8 s
+(2,3 to Eastern P)2664 1 154557 u
+(arkw)207093 v
+(ay)223005 v
+14 s
+(.)231223 v
+8 s
+(\017)84000 526500 w
+12 s
+(^)86890 530100 w
+6 s
+(T)94485 525700 w
+10 s
+()92485 526700 w
+92485 526700 m
+7320 build_ci
+99805 526700 m
+8 s
+(\017)101471 v
+12 s
+(^)104361 530300 w
+6 s
+(T)111956 525900 w
+10 s
+()109956 526900 w
+109956 526900 m
+7320 build_ci
+117276 526900 m
+8 s
+(T)118942 v
+(elephone)123270 v
+6 s
+(T)155083 526100 w
+10 s
+()153083 527100 w
+153083 527100 m
+7320 build_ci
+160403 527100 m
+8 s
+(212\001638\0015000)162069 v
+(_)84000 535500 w
+(T{)84000 544500 w
+(Ne)84000 553500 w
+(w\001Y)93128 v
+(ork Historical Society)2664 1 106464 u
+(T})84000 562500 w
+6 s
+(T)95661 561700 w
+10 s
+()93661 562700 w
+93661 562700 m
+7320 build_ci
+100981 562700 m
+8 s
+(T{)102647 v
+( Audubon\030)2224(All the original paintings for)2664 2 84000 571500 t
+(s)212432 v
+14 s
+(.)84666 580500 w
+8 s
+(I)88166 v
+( America)2224(Birds of)2664 2 84000 589500 t
+14 s
+(.)84666 598500 w
+8 s
+(R)88166 v
+(are here, as are e)2664 1 84000 607500 t
+( decorati)2664( American)2224(xhibits of)2664 3 140056 u
+(v)233168 v
+(e arts, Ne)2664 1 237048 u
+(w Y)1944 1 268608 u
+(ork history)2664 1 281224 u
+(,)316256 v
+(Hudson Ri)2664 1 84000 616500 t
+(v)118912 v
+(er school paintings, carriages, and glass paperweights)2664 1 122792 u
+14 s
+(.)298962 v
+8 s
+(T})84000 625500 w
+6 s
+(T)95661 624700 w
+10 s
+()93661 625700 w
+93661 625700 m
+7320 build_ci
+100981 625700 m
+8 s
+(Hours)102647 v
+6 s
+(T)125132 624900 w
+10 s
+()123132 625900 w
+123132 625900 m
+7320 build_ci
+130452 625900 m
+8 s
+(T{)132118 v
+(T)84000 634500 w
+(ues\001Fri & Sun, 1\0015; Sat 10\0015)2664 1 88528 u
+(T})84000 643500 w
+(\017)84000 652500 w
+12 s
+(^)86890 656100 w
+6 s
+(T)94485 651700 w
+10 s
+()92485 652700 w
+92485 652700 m
+7320 build_ci
+99805 652700 m
+8 s
+(\017)101471 v
+12 s
+(^)104361 656300 w
+6 s
+(T)111956 651900 w
+10 s
+()109956 652900 w
+109956 652900 m
+7320 build_ci
+117276 652900 m
+8 s
+(Location)118942 v
+6 s
+(T)150315 652100 w
+10 s
+()148315 653100 w
+148315 653100 m
+7320 build_ci
+155635 653100 m
+8 s
+(T{)157301 v
+(Central P)2664 1 84000 661500 t
+(ark W)2424 1 114544 u
+(est & 77th St)2664 1 134096 u
+14 s
+(.)178762 v
+8 s
+(T})84000 670500 w
+(\017)84000 679500 w
+12 s
+(^)86890 683100 w
+6 s
+(T)94485 678700 w
+10 s
+()92485 679700 w
+92485 679700 m
+7320 build_ci
+99805 679700 m
+8 s
+(\017)101471 v
+12 s
+(^)104361 683300 w
+6 s
+(T)111956 678900 w
+10 s
+()109956 679900 w
+109956 679900 m
+7320 build_ci
+117276 679900 m
+8 s
+(Admission)118942 v
+6 s
+(T)156547 679100 w
+10 s
+()154547 680100 w
+154547 680100 m
+7320 build_ci
+161867 680100 m
+8 s
+(Free)163533 v
+(\017)84000 688500 w
+12 s
+(^)86890 692100 w
+6 s
+(T)94485 687700 w
+10 s
+()92485 688700 w
+92485 688700 m
+7320 build_ci
+99805 688700 m
+8 s
+(\017)101471 v
+12 s
+(^)104361 692300 w
+6 s
+(T)111956 687900 w
+10 s
+()109956 688900 w
+109956 688900 m
+7320 build_ci
+117276 688900 m
+8 s
+(Subw)118942 v
+(ay)137086 v
+6 s
+(T)147571 688100 w
+10 s
+()145571 689100 w
+145571 689100 m
+7320 build_ci
+152891 689100 m
+8 s
+(AA to 81st St)2664 1 154557 u
+14 s
+(.)200999 v
+8 s
+(\017)84000 697500 w
+12 s
+(^)86890 701100 w
+6 s
+(T)94485 696700 w
+10 s
+()92485 697700 w
+92485 697700 m
+7320 build_ci
+99805 697700 m
+8 s
+(\017)101471 v
+12 s
+(^)104361 701300 w
+6 s
+(T)111956 696900 w
+10 s
+()109956 697900 w
+109956 697900 m
+7320 build_ci
+117276 697900 m
+8 s
+(T)118942 v
+(elephone)123270 v
+6 s
+(T)155083 697100 w
+10 s
+()153083 698100 w
+153083 698100 m
+7320 build_ci
+160403 698100 m
+8 s
+(212\001873\0013400)162069 v
+14 s
+(.)84666 706500 w
+8 s
+(TE)88166 v
+_marks
+cleartomark
+showpage
+restore
+%%EndPage: 16 16
+%%Page: 17 17
+save
+mark
+17 pagesetup
+9 @12 f
+(TBL)72000 48000 w
+&11
+(17)495000 v
+10 @13 f
+(Output:)72000 84000 w
+494292 94000 72000 94000 Dl
+(Some Inter)3330 1 231581 104000 t
+(esting Places)3330 1 279721 u
+494292 108000 72000 108000 Dl
+&11
+(Name)101770 118000 w
+(Description)214090 v
+(Practical Information)3330 1 363811 u
+494292 122000 72000 122000 Dl
+8 s
+(Hours)324420 132000 w
+(10\0015, e)2664 1 374092 u
+( W)2424(x. Sun 11\0015,)2664 2 396852 u
+(ed. to 9)2664 1 446628 u
+(Location)324420 144000 w
+(Central P)2664 1 374092 u
+(ark W)2424 1 404636 u
+(est & 79th St.)2664 1 424188 u
+(Admission)324420 156000 w
+(Donation: $1.00 ask)2664 1 374092 u
+(ed)440004 v
+(Subw)324420 168000 w
+(ay)342564 v
+(AA to 81st St.)2664 1 374092 u
+(T)324420 180000 w
+(elephone)328748 v
+(212\001873\0014225)374092 v
+10 @12 f
+(American)77000 132000 w
+(Museum of)31760 1 77000 144000 t
+(Natur)77000 156000 w
+(al History)3330 1 100190 u
+&11
+(The collections)8990 1 165420 132000 t
+(\003ll 11.5 acres)8990 1 242280 u
+(\(Michelin\) or 25 acres \(MT)5216 1 165420 144000 t
+(A\) of)5216 1 285324 u
+(e)165420 156000 w
+(xhibition halls on four)8190 1 169710 u
+(\004oors.)284140 v
+( full\001sized replica of a)5303(There is a)5304 2 165420 168000 t
+(blue whale and the w)3972 1 165420 180000 t
+(orld\030)256188 v
+(s lar)3972 1 275078 u
+(gest)293310 v
+(star sapphire \(stolen in 1964\).)3330 1 165420 192000 t
+494292 196000 72000 196000 Dl
+8 s
+(Hours)324420 206000 w
+(10\0014:30 winter)2664 1 374092 u
+(, to 5:00 summer)2664 1 421764 u
+(Location)324420 218000 w
+( the)5172(185th St. & Southern Blvd,)5171 2 374092 u
+(Bronx.)374092 228000 w
+(Admission)324420 240000 w
+($1.00, b)2664 1 374092 u
+(ut T)2520 1 400596 u
+(u,W)413868 v
+(e,Th free)2664 1 426780 u
+(Subw)324420 252000 w
+(ay)342564 v
+( T)2520(2, 5 to East)2664 2 374092 u
+(remont A)2224 1 419212 u
+(v)449284 v
+(e.)453164 v
+10 @12 f
+(Br)77000 206000 w
+(onx Zoo)3330 1 86550 u
+8 @11 f
+(T)324420 264000 w
+(elephone)328748 v
+(212\001933\0011759)374092 v
+10 s
+( long and .6 mile)6547(About a mile)6546 2 165420 206000 t
+(wide, this is the lar)6670 1 165420 218000 t
+(gest zoo in)6670 1 257750 u
+( lion eats 18 pounds)5414(America. A)8194 2 165420 230000 t
+( day while a sea lion eats)3351(of meat a)3352 2 165420 242000 t
+(15 pounds of)3330 1 165420 254000 t
+(\003sh.)222630 v
+494292 268000 72000 268000 Dl
+8 s
+(Hours)324420 278000 w
+(W)374092 v
+(ed\001Sat, 10\0015, Sun 12\0015)2664 1 381004 u
+(Location)324420 290000 w
+(Eastern P)6469 1 374092 u
+(arkw)408881 v
+( W)6230(ay &)6469 2 424793 u
+(ashington)458180 v
+(A)374092 300000 w
+(v)379276 v
+(e., Brooklyn.)2664 1 383156 u
+(Admission)324420 312000 w
+(Free)374092 v
+(Subw)324420 324000 w
+(ay)342564 v
+(2,3 to Eastern P)2664 1 374092 u
+(arkw)426628 v
+(ay)442540 v
+(.)449572 v
+10 @12 f
+(Br)77000 278000 w
+(ooklyn Museum)3330 1 86550 u
+8 @11 f
+(T)324420 336000 w
+(elephone)328748 v
+(212\001638\0015000)374092 v
+10 s
+(Fi)165420 278000 w
+(v)173510 v
+(e)178360 v
+(\004oors of g)8060 1 190860 u
+(alleries contain)8060 1 243040 u
+( There)8582( art.)5432(American and ancient)5433 3 165420 290000 t
+( period rooms and)6980(are American)6430 2 165420 302000 t
+(architectural ornaments sa)3500 1 165420 314000 t
+(v)272190 v
+(ed from)3500 1 277040 u
+(wreck)165420 326000 w
+(ers, such as a classical)3440 1 189750 u
+(\003gure)286090 v
+(from Pennsylv)3330 1 165420 338000 t
+(ania Station.)3330 1 224610 u
+494292 342000 72000 342000 Dl
+8 s
+(Hours)324420 352000 w
+(T)374092 v
+(ues\001Fri & Sun, 1\0015; Sat 10\0015)2664 1 378620 u
+(Location)324420 364000 w
+(Central P)2664 1 374092 u
+(ark W)2424 1 404636 u
+(est & 77th St.)2664 1 424188 u
+(Admission)324420 376000 w
+(Free)374092 v
+(Subw)324420 388000 w
+(ay)342564 v
+(AA to 81st St.)2664 1 374092 u
+(T)324420 400000 w
+(elephone)328748 v
+(212\001873\0013400)374092 v
+10 @12 f
+(Ne)77000 352000 w
+(w\001Y)87960 v
+(ork Histor)5800 1 102600 u
+(\001)147090 v
+(ical Society)3330 1 77000 364000 t
+&11
+(All the original paintings for)9890 1 165420 352000 t
+(Audubon\030)165420 364000 w
+(s)205420 v
+&12
+(Bir)215590 v
+( America)6100(ds of)6280 2 228000 u
+&11
+(are)297210 v
+(here, as are e)5004 1 165420 376000 t
+( American)4454(xhibits of)5004 2 224972 u
+(decorati)165420 388000 w
+(v)197380 v
+(e arts, Ne)4750 1 202230 u
+(w Y)3850 1 244520 u
+(ork history)4750 1 261710 u
+(,)306920 v
+(Hudson Ri)8596 1 165420 400000 t
+(v)214326 v
+(er school paintings,)8597 1 219176 u
+(carriages, and glass paperweights.)3330 1 165420 412000 t
+494292 416000 72000 416000 Dl
+72000 94000 72000 416000 Dl
+157920 108000 157920 416000 Dl
+316920 108000 316920 416000 Dl
+366592 122000 366592 416000 Dl
+494292 94000 494292 416000 Dl
+&13
+(A)72000 441600 w
+(CKNO)78670 v
+(WLEDGEMENTS)108170 v
+&11
+(Man)97000 457200 w
+( a lar)3590(y thanks are due to J. C. Blinn, who has done)3589 2 115180 u
+(ge amount of testing and assisted with the)3590 1 328880 u
+( has also written man)4356( He)7687(design of the program.)4357 3 72000 469200 t
+(y of the more intelligible sentences in this document)4356 1 279722 u
+( phototypesetting programs on)3669( All)6449(and helped edit all of it.)3669 3 72000 481200 t
+9 s
+(UNIX)321180 v
+10 s
+(are dependent on the w)3670 1 347340 u
+(ork of the late)3670 1 444670 u
+(J. F)3697 1 72000 493200 t
+( program is)3696( This)6846
+( with this program in particular had been most helpful.)3696
+(. Ossanna, whose assistance)3697 4 86847 u
+( J. F)4727(patterned on a table formatter written by)4726 2 72000 505200 t
+( T)4547( assistance of)4727( The)7877(. Gimpel.)4727 4 267590 u
+( W)4427( Dolotta, B.)4727(. A.)4177 3 398435 u
+(. K)4727 1 478903 u
+(er)493100 v
+(\001)500670 v
+(nighan, and J. N. Sturman is gratefully ackno)3330 1 72000 517200 t
+(wledged.)258650 v
+&13
+(REFERENCES)72000 541200 w
+&11
+([1])72000 556800 w
+(J. F)3330 1 97000 u
+(. Ossanna.)3330 1 111480 u
+&12
+(N)160350 v
+9 s
+(R)167020 v
+(OFF/TR)172159 v
+(OFF)202300 v
+10 s
+(User\030)223126 v
+(s Manual,)3330 1 245496 u
+&11
+(Bell Laboratories, 1976.)3330 1 289656 u
+([2])72000 568800 w
+( U)5113( The)8263( Thompson.)4933( Ritchie and K.)5113(D. M.)5112 5 97000 u
+9 s
+(NIX)277970 v
+10 s
+(T)298896 v
+(ime\001Sharing System,)5113 1 304656 u
+9 @12 f
+(CA)396272 v
+(CM)407504 v
+10 @13 f
+(17)426117 v
+&11
+(\(7\):365\00175 \(July)5113 1 436117 u
+(1974\).)97000 580800 w
+([3])72000 592800 w
+(B. W)3919 1 97000 u
+(. K)4219 1 118609 u
+(ernighan and L. L. Cherry)4220 1 132298 u
+( T)4040( System for)4220(. A)7000 3 242948 u
+(ypesetting Mathematics,)4220 1 318568 u
+9 @12 f
+(CA)422278 v
+(CM)433510 v
+10 @13 f
+(18)451230 v
+&11
+(\(3\):151\00156)461230 v
+(\(Mar)97000 604800 w
+(. 1975\).)3330 1 116440 u
+([4])72000 616800 w
+(M. E. Lesk.)3330 1 97000 u
+&12
+(T)152260 v
+(yping Documents on U)3330 1 157080 u
+9 s
+(NIX)251500 v
+10 s
+(,)265999 v
+&11
+(Bell Laboratories, 1976.)3330 1 271829 u
+([5])72000 628800 w
+( W)4113(M. E. Lesk and B.)4413 2 97000 u
+(. K)4413 1 190335 u
+( T)4233(ernighan. Computer)7743 2 204218 u
+( T)4234(ypesetting of)4413 2 298994 u
+(echnical Journals on U)4414 1 362491 u
+9 s
+(NIX)459603 v
+10 s
+(,)475596 v
+&12
+(Pr)482510 v
+(oc.)492060 v
+(AFIPS NCC,)3330 1 97000 640800 t
+&11
+(v)152830 v
+(ol. 46, pp. 879\00188 \(1977\).)3330 1 157630 u
+([6])72000 652800 w
+(D. W)3030 1 97000 u
+(. Smith and J. R. Mashe)3330 1 118270 u
+(y)217830 v
+(.)222180 v
+&12
+(MM\012Memor)231340 v
+(andum Macr)3330 1 281730 u
+(os,)333490 v
+&11
+(Bell Laboratories, 1980.)3330 1 348210 u
+_marks
+cleartomark
+showpage
+restore
+%%EndPage: 17 17
+%%Page: 18 18
+save
+mark
+18 pagesetup
+9 @11 f
+(18)72000 48000 w
+&12
+(TBL)487743 v
+10 @13 f
+( W)3030( Command Characters and)3330( Tbl)3030(List of)3330 4 189795 84000 t
+(ords)367315 v
+&12
+(Command)172479 108000 w
+(Meaning)283691 v
+(Section)381711 v
+&13
+(a A)2780 1 169848 120000 t
+&11
+(Alphabetic subcolumn)3330 1 236221 u
+(2)397681 v
+&13
+(allbox)169848 132000 w
+&11
+(Dra)236221 v
+(w box around all items)3330 1 251061 u
+(1)397681 v
+&13
+(b B)3330 1 169848 144000 t
+&11
+(Boldf)236221 v
+(ace item)3330 1 258901 u
+(2)397681 v
+&13
+(box)169848 156000 w
+&11
+(Dra)236221 v
+(w box around table)3330 1 251061 u
+(1)397681 v
+&13
+(c C)3330 1 169848 168000 t
+&11
+(Centered column)3330 1 236221 u
+(2)397681 v
+&13
+(center)169848 180000 w
+&11
+(Center table in page)3330 1 236221 u
+(1)397681 v
+&13
+(delim)169848 192000 w
+&11
+(\()197068 v
+&12
+(xy)200398 v
+&11
+(\))210111 v
+(De\003ne)236221 v
+&12
+(eqn)266211 v
+&11
+(delimiters)283981 v
+(1)397681 v
+&13
+(doublebox)169848 204000 w
+&11
+(Dra)236221 v
+(w double box around table)3330 1 251061 u
+(1)397681 v
+&13
+(e E)3330 1 169848 216000 t
+&11
+(Equal\001width columns)3330 1 236221 u
+(2)397681 v
+&13
+(expand)169848 228000 w
+&11
+(Mak)236221 v
+(e table full line width)3330 1 254451 u
+(1)397681 v
+&13
+(f F)3330 1 169848 240000 t
+&11
+(F)236221 v
+(ont change)3330 1 241631 u
+(2)397681 v
+&13
+(i I)3330 1 169848 252000 t
+&11
+(Italic item)3330 1 236221 u
+(2)397681 v
+&13
+(l L)3330 1 169848 264000 t
+&11
+(Left adjusted column)3330 1 236221 u
+(2)397681 v
+&13
+(linesize)169848 276000 w
+&11
+(\()204288 v
+&12
+(n)207618 v
+&11
+(\))213451 v
+(Set size for rules)3330 1 236221 u
+(1)397681 v
+&13
+(n N)3330 1 169848 288000 t
+&11
+(Numerical column)3330 1 236221 u
+(2)397681 v
+&12
+(nnn)169848 300000 w
+&11
+(Column separation)3330 1 236221 u
+(2)397681 v
+&13
+(p P)3330 1 169848 312000 t
+&11
+(Point size change)3330 1 236221 u
+(2)397681 v
+&13
+(r R)3330 1 169848 324000 t
+&11
+(Right adjusted column)3330 1 236221 u
+(2)397681 v
+&13
+(s S)3330 1 169848 336000 t
+&11
+(Spanned item)3330 1 236221 u
+(2)397681 v
+&13
+(t T)3030 1 169848 348000 t
+&11
+(V)236221 v
+(ertical spanning at top)3330 1 242331 u
+(2)397681 v
+&13
+(tab)169848 360000 w
+&11
+(\()187068 v
+&12
+(x)190398 v
+&11
+(\))195671 v
+(Change data separator character)3330 1 236221 u
+(1)397681 v
+&13
+(T{)169848 372000 w
+(.)182124 v
+(.)186290 v
+(.)190456 v
+(T})194622 v
+&11
+(T)236221 v
+(e)241631 v
+(xt block)3330 1 245921 u
+(3)397681 v
+&13
+(u U)3330 1 169848 384000 t
+&11
+(Staggered columns)3330 1 236221 u
+(2)397681 v
+&13
+(v V)2880 1 169848 396000 t
+&11
+(V)236221 v
+(ertical spacing change)3330 1 242331 u
+(2)397681 v
+&13
+(w W)3030 1 169848 408000 t
+&11
+(Minimum width v)3330 1 236221 u
+(alue)310421 v
+(2)397681 v
+&13
+(z Z)3330 1 169848 420000 t
+&11
+(Zero\001width item)3330 1 236221 u
+(2)397681 v
+&13
+(.)169848 432000 w
+&12
+(xx)172348 v
+&11
+(Included)236221 v
+&12
+(tr)274541 v
+(of)280761 v
+(f)288361 v
+&11
+(request)294471 v
+(3)397681 v
+&20
+(\210)169848 444000 w
+&11
+(V)236221 v
+(ertical line)3330 1 242331 u
+(2)397681 v
+&20
+(\210)169848 456000 w
+(\210)176454 v
+&11
+(Double v)3330 1 236221 u
+(ertical line)3330 1 273841 u
+(2)397681 v
+14 @13 f
+(^)170681 472200 w
+10 @11 f
+(V)236221 468000 w
+(ertical span)3330 1 242331 u
+(2)397681 v
+&13
+(\017)169848 480000 w
+14 s
+(^)173461 484200 w
+10 @11 f
+(V)236221 480000 w
+(ertical span)3330 1 242331 u
+(3)397681 v
+&20
+(\010)169848 492000 w
+&11
+(Double horizontal line)3330 1 236221 u
+(2,3)390181 v
+&20
+(\044)169848 504000 w
+&11
+(Horizontal line)3330 1 236221 u
+(2,3)390181 v
+&13
+(\017)169848 516000 w
+&20
+(\044)173461 v
+&11
+(Short horizontal line)3330 1 236221 u
+(3)397681 v
+&13
+(\017R)169848 528000 w
+&12
+(x)179848 v
+&11
+(Repeat character)3330 1 236221 u
+(3)397681 v
+&13
+(\012)169848 540000 w
+&11
+(Name of standard input)3330 1 236221 u
+(Usage)383936 v
+_marks
+cleartomark
+showpage
+restore
+%%EndPage: 18 18
+%%Trailer
+done
+%%EOF

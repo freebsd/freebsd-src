@@ -1,0 +1,184 @@
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License, Version 1.0 only
+# (the "License").  You may not use this file except in compliance
+# with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or http://www.opensolaris.org/os/licensing.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
+#
+# Copyright 1989 Sun Microsystems, Inc.  All rights reserved.
+# Use is subject to license terms.
+#
+
+#ident	"@(#)README	1.4	05/06/08 SMI"
+
+#
+# University Copyright- Copyright (c) 1982, 1986, 1988
+# The Regents of the University of California
+# All Rights Reserved
+#
+# University Acknowledgment- Portions of this document are derived from
+# software developed by the University of California, Berkeley, and its
+# contributors.
+#
+
+The troff in this directory
+is a troff that produces machine-independent output.
+It requires a file of descriptive information about
+the particular typesetter you have in mind, and produces
+output parameterized for that device.
+
+Thus:
+	troff -Taps ...
+produces output for the Autologic APS-5.
+(This is the default.)
+
+To make this work, you need two things.
+First, you need to create a set of
+device and font descriptions in the directory
+	/usr/doctools/font/devxxx
+where "xxx" is your device name.
+Currently supported device is
+	aps	Autologic APS-5 phototypesetter
+Source for this device is found in the subdirectory
+devaps of this directory.
+
+The file "DESC" contains information about the
+device itself and the character set.  (See devaps/DESC.)
+
+In addition, each font needs a file describing its
+characters, width and device-driving codes;
+see R and S for typical examples.
+
+The program "makedev" will convert these text
+descriptions into a binary form that the troff can
+slurp up in a single gulp during initialization;
+these wind up in DESC.out (which includes
+default font info) and XX.out for info about font XX.
+
+The second half of the job is to write a post-processor
+that converts the more or less machine-independent troff
+output into specific codes for your favorite typesetter.
+daps.c is the driver for the APS-5;
+it will serve as a useful prototype.  In particular,
+it contains a precise description of the output language.
+	ta	prints ascii on ordinary terminals (crudely)
+
+One can always simply run
+	troff
+and look at the output; it is guaranteed to be ascii text
+and thus safe to edit, grep, etc.
+(Since it is ascii, it is also guaranteed to be quite voluminous.)
+
+The recommended way to create the necessary files to make troff
+able to communicate with a new output device
+is to pick the most similar device for which this software
+already exists, and modify it to suit the new device.
+
+This release contains prototype software for one
+type of device -- a phototypesetter (devaps)
+The devaps subtree contains
+profusely-commented programs and strategically placed README
+files to help guide the experienced user in making
+modifications to these files.
+
+Two other source of information for users who wish to delve
+deeply into this software are the manual pages
+troff(5), which describes the output language produced by troff,
+and font(5), which describes the format of the device
+and font description files.
+
+-----------------------------------------------------------------------------
+
+Changes since the original release:
+
+January, 1985:
+
+Added optional 3rd argument to .fp command:
+	.fp 3 xx longishname
+causes font to be called xx but data is loaded
+from longishname.out instead of xx.out.
+The intent is to deal with the proliferation of fonts.
+
+Turned NBLIST up to 2048 so can handle really big
+diversions.  Tends to blow various systems.
+
+December 1984:
+
+Nroff modified to read ascii tables for various devices
+instead of the compiled C code nonsense.  Only a few
+tables converted;  details of language still subject to
+change.
+
+September 1984:
+
+Added Molly Wagner's code to prevent side effects
+during scanning of false branch of an if.
+
+Added test warning when one removes a macro during 
+its execution (more precisely, warning when a macro
+evaluation has encountered a freed block).
+[Disabled Nov 84;  it seemed to cause troubles]
+
+NS = 128;  devname[] is bigger;  turned off the -t
+argument (it could be a synonym for -T but that's
+probably just as risky.)
+
+July, 1984:
+
+Added TYPESETTER environment variable
+
+Added \X'...' command:  ... comes out as
+	x X ...\n in proper place. (doesn't nest)
+
+In \D comands, unrecognized command letters are passed through
+untouched.  This makes it possible to define things like other
+splines, filled polygons, etc.
+
+\s(dd, \s(+dd, \s(-dd size commands.
+
+Added .lf line filename to set current line number & filename
+
+Added Dan Berry's fixes to handle horizontal resolution properly.
+
+New, March 1984:
+
+Dennis Ritchie's hashed macro and number register tables;
+cached width computations, general cleanup.
+Minor work on de-linting.
+
+New comments 9/16/83
+
+This version is the current evolution of 8th Edition troff.
+The only changes of substance since the export version are
+
+	the end of a sentence is more general; things like
+	." .!'' etc are recognized and padded
+
+	the "font too big for position n" error can no longer arise.
+	makedev has a new parameter called biggestfont that
+	ensures that all font positions are at least that big.
+	this eliminates the "font X too big for position Y" message
+
+	some minor bugs fixes have been made:
+		doesn't look for ligatures in \nf
+		doesn't put out WORDSP in -a
+
+	troff no longer produces \^ and \| on output,
+	but this hasn't been tested much since it takes
+	character set changes too.
+

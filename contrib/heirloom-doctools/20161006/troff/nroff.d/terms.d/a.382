@@ -1,0 +1,27 @@
+382
+bset	0
+breset	054
+Hor	4
+Vert	5
+Newline	40
+Char	24
+Em	24
+Halfline	20
+Adj	24
+twinit	"\033\006"
+twrest	"\033A"
+twnl	"\015\012"
+hlr	"\033H"
+hlf	"\033h"
+flr	"\032"
+bdon	"\033Z"
+bdoff	"\033z"
+iton	""
+itoff	""
+ploton	"\006"
+plotoff	"\033\006"
+up	"\032"
+down	"\012"
+right	" "
+left	"\010"
+

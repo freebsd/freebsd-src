@@ -1,0 +1,183 @@
+%%BeginResource: procset dpost_baseline 1.2 0
+% from OpenSolaris "lp:filter/postscript/postscript/baseline.ps	1.1"
+%
+% CDDL HEADER START
+%
+% The contents of this file are subject to the terms of the
+% Common Development and Distribution License, Version 1.0 only
+% (the "License").  You may not use this file except in compliance
+% with the License.
+%
+% You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+% or http://www.opensolaris.org/os/licensing.
+% See the License for the specific language governing permissions
+% and limitations under the License.
+%
+% When distributing Covered Code, include this CDDL HEADER in each
+% file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+% If applicable, add the following below this CDDL HEADER, with the
+% fields enclosed by brackets "[]" replaced with your own identifying
+% information: Portions Copyright [yyyy] [name of copyright owner]
+%
+% CDDL HEADER END
+%
+% Portions Copyright 2005 Gunnar Ritter, Freiburg i. Br, Germany
+%
+% Sccsid @(#)baseline.ps	1.2 (gritter) 9/6/05
+%
+% Stuff used to draw or set text along a baseline specified by parametric equations
+% for x and y.
+%
+
+/left -1 def
+/center 0 def
+/right 1 def
+
+/baselinedict 50 dict def
+
+/newbaseline {
+	baselinedict begin
+		/g' exch bind def
+		/f' exch bind def
+		/g  exch bind def
+		/f  exch bind def
+
+		counttomark 2 eq {/hoffset exch def} if
+		/res exch def
+
+		/t 0 def
+		/s 0 def
+		/voffset false def
+		cleartomark
+	end
+} bind def
+
+/drawfunnytext {
+	baselinedict begin
+		/t exch def
+		/mode exch def
+		/str exch def
+
+		mode left eq {
+			/leftstring emptystring def
+			/rightstring str def
+		} if
+
+		mode right eq {
+			/leftstring str reversestring def
+			/rightstring emptystring def
+		} if
+
+		mode center eq {
+			str splitstring
+			/rightstring exch def
+			/leftstring exch reversestring def
+		} if
+
+		gsave currentpoint translate leftstring left t baselineshow grestore
+		gsave currentpoint translate rightstring right t baselineshow grestore
+
+		/t 0 def
+		/s 0 def
+		/voffset false def
+		cleartomark
+	end
+} bind def
+
+/setfunnytext {
+	baselinedict begin
+		/vpos exch def
+		/hpos exch def
+		/str  exch def
+
+		voffset vpos ne {
+			/voffset vpos def
+			/t 0 def
+			/s hoffset def
+		} if
+
+		gsave
+			hoffset voffset translate
+			0 0 moveto
+			/ds hpos s sub def
+			/dt ds t f' dup mul t g' dup mul add sqrt res mul div def
+			/s s ds add def
+			/t t dt add def
+			str right t baselineshow
+		grestore
+	end
+} bind def
+
+baselinedict begin
+
+/f  {} bind def
+/g  {pop 0} bind def
+/f' {pop 1} bind def
+/g' {pop 0} bind def
+
+/s 0 def
+/t 0 def
+/res 72 def
+
+/onecharstring ( ) def
+/emptystring () def
+
+/baselineshow {
+	/t exch def
+	/mode exch def
+	/str exch def
+
+	gsave
+		t f res mul t g res mul translate
+		0 0 moveto
+		t g' t f' atan rotate
+		{
+			mode right eq {pop} if
+			grestore gsave
+			onecharstring 0 3 -1 roll put onecharstring stringwidth pop
+			/ds exch mode mul def
+			/dt ds t f' dup mul t g' dup mul add sqrt res mul div def
+			/t t dt add def
+			/s s ds add def
+			t f res mul t g res mul translate
+			0 0 moveto
+			t g' t f' atan rotate
+			mode left eq {pop} if
+		} str kshow
+	grestore
+} bind def
+
+/reversestring {
+	/str1 exch def
+
+	/str2 str1 length string def
+	/i 0 def
+	/n str1 length 1 sub def
+
+	{
+		str1 n get str2 exch i exch put
+		/i i 1 add def
+		/n n 1 sub def
+		n 0 lt {exit} if
+	} loop
+	str2
+} bind def
+
+/splitstring {
+	/str1 exch def
+
+	/len str1 stringwidth pop def
+	/s 0 def
+	/n 0 def
+	str1 length {
+		str1 n get onecharstring exch 0 exch put
+		/s onecharstring stringwidth pop s add def
+		s len 2 div ge {exit} if
+		/n n 1 add def
+	} repeat
+	str1 0 n 1 add getinterval
+	str1 n str1 length n sub getinterval
+} bind def
+
+end
+%%EndResource

@@ -1,0 +1,9 @@
+README for the Heirloom Documentation Tools Reference Manual
+============================================================
+
+To build the reference manual, you need to download the
+OpenType variants of TeX Gyre Termes fonts available for
+free from <http://www.janusz.nowacki.strefa.pl/>, and
+to set the TROFFONTS variable such that it includes them.
+
+Gunnar Ritter					01/08/07

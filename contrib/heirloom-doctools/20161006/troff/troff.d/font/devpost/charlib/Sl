@@ -1,0 +1,131 @@
+%%BeginResource: procset dpost_charSl 1.1 0
+% from OpenSolaris "lp:filter/postscript/font/devpost/charlib/Sl	1.2"
+%
+% CDDL HEADER START
+%
+% The contents of this file are subject to the terms of the
+% Common Development and Distribution License, Version 1.0 only
+% (the "License").  You may not use this file except in compliance
+% with the License.
+%
+% You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+% or http://www.opensolaris.org/os/licensing.
+% See the License for the specific language governing permissions
+% and limitations under the License.
+%
+% When distributing Covered Code, include this CDDL HEADER in each
+% file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+% If applicable, add the following below this CDDL HEADER, with the
+% fields enclosed by brackets "[]" replaced with your own identifying
+% information: Portions Copyright [yyyy] [name of copyright owner]
+%
+% CDDL HEADER END
+%
+% Portions Copyright 2005 Gunnar Ritter, Freiburg i. Br, Germany
+%
+/build_Sl {
+pop
+gsave
+linewidth ptsize mul resolution 720 div div scaling 10 mul div setlinewidth
+size .0022 mul dup scale
+currentpoint translate
+14 93 moveto
+14 96 lineto
+29 110 lineto
+44 121 lineto
+54 127 lineto
+55 132 lineto
+57 146 lineto
+59 157 lineto
+62 171 lineto
+66 186 lineto
+70 199 lineto
+75 213 lineto
+81 228 lineto
+88 243 lineto
+96 257 lineto
+106 272 lineto
+118 287 lineto
+133 300 lineto
+148 307 lineto
+163 308 lineto
+178 304 lineto
+191 293 lineto
+197 281 lineto
+198 277 lineto
+198 260 lineto
+194 246 lineto
+187 231 lineto
+179 217 lineto
+168 202 lineto
+155 187 lineto
+141 172 lineto
+126 158 lineto
+111 146 lineto
+96 136 lineto
+94 131 lineto
+93 123 lineto
+92 112 lineto
+91 103 lineto
+90 93 lineto
+89 81 lineto
+89 40 lineto
+92 28 lineto
+97 18 lineto
+108 10 lineto
+122 10 lineto
+134 18 lineto
+145 33 lineto
+152 48 lineto
+158 62 lineto
+168 58 lineto
+168 59 lineto
+163 45 lineto
+157 31 lineto
+148 16 lineto
+133 3 lineto
+118 -1 lineto
+103 0 lineto
+88 5 lineto
+73 18 lineto
+64 31 lineto
+58 46 lineto
+55 59 lineto
+53 73 lineto
+52 111 lineto
+37 101 lineto
+22 86 lineto
+14 93 lineto
+
+97 152 moveto
+97 153 lineto
+99 166 lineto
+101 178 lineto
+103 190 lineto
+106 205 lineto
+109 218 lineto
+113 232 lineto
+118 246 lineto
+124 261 lineto
+132 275 lineto
+144 290 lineto
+157 298 lineto
+171 298 lineto
+181 291 lineto
+186 283 lineto
+187 279 lineto
+187 264 lineto
+186 260 lineto
+181 246 lineto
+174 233 lineto
+165 218 lineto
+155 204 lineto
+142 190 lineto
+127 175 lineto
+112 162 lineto
+97 152 lineto
+
+eofill
+grestore
+} def
+%%EndResource

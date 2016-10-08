@@ -1,0 +1,86 @@
+.\"
+.\" Copyright 2005 Sun Microsystems, Inc.  All rights reserved.
+.\" Use is subject to license terms.
+.\"
+.\" CDDL HEADER START
+.\"
+.\" The contents of this file are subject to the terms of the
+.\" Common Development and Distribution License, Version 1.0 only
+.\" (the "License").  You may not use this file except in compliance
+.\" with the License.
+.\"
+.\" You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+.\" or http://www.opensolaris.org/os/licensing.
+.\" See the License for the specific language governing permissions
+.\" and limitations under the License.
+.\"
+.\" When distributing Covered Code, include this CDDL HEADER in each
+.\" file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+.\" If applicable, add the following below this CDDL HEADER, with the
+.\" fields enclosed by brackets "[]" replaced with your own identifying
+.\" information: Portions Copyright [yyyy] [name of copyright owner]
+.\"
+.\" CDDL HEADER END
+.\"
+.\"ident	"@(#)chars.me	1.5	05/06/08 SMI"
+.\"
+.\" University Copyright- Copyright (c) 1982, 1986, 1988
+.\" The Regents of the University of California
+.\" All Rights Reserved
+.\"
+.\" University Acknowledgment- Portions of this document are derived from
+.\" software developed by the University of California, Berkeley, and its
+.\" contributors.
+.\"
+.nr _0 \n(c.
+.\"	@(#)chars.me	2.2	8/29/80
+.if n \
+\{\
+.	ds #[ \f1
+.	ds #] \fP
+.	ds #h 0
+.	ds #v 0.8m
+.	ds #f 0.3m
+.\}
+.if t \
+\{\
+.	ds #[ \&
+.	ds #] \&
+.	ds #h ((1u-(\\\\n(.fu%2u))*0.13m)
+.	ds #v 0.6m
+.	ds #f 0
+.\}
+.ds ' \k_\h'-(\\n(.wu*8/10-\*(#h)'\*(#[\(aa\h'|\\n_u'\*(#]
+.ds ` \k_\h'-(\\n(.wu*7/10-\*(#h)'\*(#[\(ga\h'|\\n_u'\*(#]
+.ds : \k_\h'-(\\n(.wu*8/10-\*(#h+0.1m+\*(#f)'\v'-\*(#v'\*(#[\z.\h'0.2m+\*(#f'.\h'|\\n_u'\v'\*(#v'\*(#]
+.ds ^ \k_\h'-(\\n(.wu-\*(#h-0.05m)'\*(#[^\h'|\\n_u'\*(#]
+.ds ~ \k_\h'-(\\n(.wu-\*(#h-0.05m)'\*(#[~\h'|\\n_u'\*(#]
+.ds , \k_\h'-(\\n(.wu)'\*(#[,\h'|\\n_u'\*(#]
+.ds v \k_\h'-(\\n(.wu*9/10-\*(#h)'\v'-\*(#v'\*(#[\s-4v\s0\v'\*(#v'\h'|\\n_u'\*(#]
+.ds o \k_\h'-(\\n(.wu+\w'\(de'u-\*(#h)/2u'\v'-0.4n'\*(#[\z\(de\v'0.4n'\h'|\\n_u'\*(#]
+.ds qe \*(#[\v'0.5m'\z\(em\v'-0.65m'\z\(em\v'-0.65m'\z\(em\v'0.8m'\h'0.3m'|\h'-0.3m'\*(#]
+.ds qa \*(#[\h'-0.24m'\z\e\h'0.48m'\z\(sl\h'-0.24m'\v'-0.15m'\(em\v'0.15m'\*(#]
+.if t \
+\{\
+.	ds qe \s-2\v'0.45m'\z\(em\v'-0.625m'\z\(em\v'-0.625m'\(em\v'0.8m'\s0\h'-0.1m'\v'-0.05m'\(br\v'0.05m'\h'0.1m'
+.	ds qa \z\e\h'0.35m'\z\(sl\h'-0.33m'\v'-0.3m'\s-4\(em\s0\v'0.3m'\h'0.15m'
+.\}
+.if \n($T \
+\{\
+.	ds ' \*(#[\h'-1'\(aa\*(#]
+.	ds ` \*(#[\h'-1'\(ga\*(#]
+.	ds : \&
+.	ds ^ \*(#[\h'-1'^\*(#]
+.	ds ~ \*(#[\h'-1'~\*(#]
+.	ds , \*(#[\h'-1',\*(#]
+.	ds v \&
+.	ds o \&
+.	ds qe EXISTS
+.	ds qa FORALL
+.\}
+.rm #[
+.rm #]
+.rm #h
+.rm #v
+.rm #f
+.nr c. \n(_0

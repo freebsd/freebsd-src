@@ -1,0 +1,171 @@
+.\" Copyright (c) 1983 Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" This code contains changes by
+.\"      Gunnar Ritter, Freiburg i. Br., Germany, 2005. All rights reserved.
+.\"
+.\" Conditions 1, 2, and 4 and the no-warranty notice below apply
+.\" to these changes.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowedgement:
+.\" 	This product includes software developed by the University of
+.\" 	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" Copyright(C) Caldera International Inc. 2001-2002. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"   Redistributions of source code and documentation must retain the
+.\"    above copyright notice, this list of conditions and the following
+.\"    disclaimer.
+.\"   Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"   All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"      This product includes software developed or owned by Caldera
+.\"      International, Inc.
+.\"   Neither the name of Caldera International, Inc. nor the names of
+.\"    other contributors may be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC. AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+.\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" Sccsid @(#)roffbib.1b	1.4 (gritter) 12/12/05
+.\"
+.\"
+.\"	from 4.3BSD-Tahoe roffbib.1	6.2 (Berkeley) 5/7/86
+.\"
+.\".TH ROFFBIB 1 "May 7, 1986"
+.Dd December 12, 2005
+.Dt ROFFBIB 1
+.Os
+.Sh NAME
+.Nm roffbib
+.Nd run off bibliographic database
+.Sh SYNOPSIS
+.Nm
+.Op Fl ehnorsxVQ
+.Op Fl T Ns Ar term
+.Op Fl m Ns Ar mac
+.Op Ar
+.Sh DESCRIPTION
+.Nm
+prints out all records in a bibliographic database,
+in bibliography format rather than as footnotes or endnotes.
+Generally it is used in conjunction with
+.Cm sortbib :
+.Bd -literal
+sortbib  database | roffbib
+.Ed
+.Nm
+accepts most of the options understood by
+.Xr nroff 1 ,
+most importantly the
+.Fl T
+flag to specify terminal type.
+.Pp
+If abstracts or comments are entered following the %X field key,
+.Nm
+will format them into paragraphs for an annotated bibliography.
+Several %X fields may be given if several
+annotation paragraphs are desired.
+The
+.Fl x
+flag will suppress the printing of these abstracts.
+.Pp
+A user-defined set of macros
+may be specified after the
+.Fl m
+option.
+There should be a space between the
+.Fl m
+and the macro filename.
+This set of macros will replace the ones
+defined in
+.Pa /usr/ucblib/doctools/tmac/bib .
+The
+.Fl V
+flag will send output to the Versatec; the
+.Fl Q
+flag will queue output for the phototypesetter.
+.Pp
+Four command-line registers control formatting style
+of the bibliography, much like the number registers of
+.Xr ms 7 .
+The command-line argument
+.Fl r Ns Ar N1
+will number
+the references starting at one (1).
+The flag
+.Fl r Ns Ar V2
+will double space the biblio\%graphy,
+while
+.Fl r Ns Ar V1
+will double space references
+but single space annotation paragraphs.
+The line length can be changed from the default 6.5 inches
+to 6 inches with the
+.Fl r Ns Ar L6i
+argument,
+and the page offset can be set from the default of 0
+to one inch by specifying
+.Fl r Ns Ar O1i
+(capital O, not zero).
+Note: with the
+.Fl V
+and
+.Fl Q
+flags
+the default page offset is already one inch.
+.Sh FILES
+.Bl -tag -width /usr/ucblib/doctools/tmac/bib
+.It Pa /usr/ucblib/doctools/tmac/bib
+file of macros used by
+.Cm nroff Ns / Ns Cm troff
+.El
+.Sh SEE ALSO
+.Xr addbib 1 ,
+.Xr indxbib 1 ,
+.Xr lookbib 1 ,
+.Xr refer 1 ,
+.Xr sortbib 1
+.Sh NOTES
+Users have to rewrite macros
+to create customized formats.

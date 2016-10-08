@@ -1,0 +1,13 @@
+This was part of libhnj library by Raph Levien. I've cut only hyphenation
+part from it, to use in OOo.
+
+---
+LibHnj is a library for high quality hyphenation and justification. It
+is dual licensed under both LGPL and MPL to encourage widespread use.
+The parseAFM.[ch] files are written by Adobe and distributed under a
+slightly different license, but one that appears to be compatible with
+both LGPL and MPL.
+
+The code is currently fairly rough. In particular, psset has many
+fixed-size buffers and is simply not suitable for production. Further
+speedups are also possible, although the code isn't exactly slow now.

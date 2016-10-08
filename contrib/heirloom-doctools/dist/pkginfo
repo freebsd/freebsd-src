@@ -1,0 +1,11 @@
+# Sccsid @(#)pkginfo	1.1 (gritter) 2/24/07
+PKG=heirloom-doctools
+NAME=Heirloom Documentation Tools
+DESC=nroff, troff, and related utilities
+VENDOR=Gunnar Ritter
+HOTLINE=http://heirloom.sourceforge.net
+EMAIL=gunnarr@acm.org
+VERSION=070224
+ARCH=IA32,i386
+CATEGORY=utilities
+BASEDIR=/

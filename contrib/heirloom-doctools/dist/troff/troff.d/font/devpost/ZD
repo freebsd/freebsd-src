@@ -1,0 +1,214 @@
+#ident	"@(#)ZD	1.4	05/06/08 SMI"	/* SVr4.0 1.1	*/
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License, Version 1.0 only
+# (the "License").  You may not use this file except in compliance
+# with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or http://www.opensolaris.org/os/licensing.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
+# ZapfDingbats
+name ZD
+internalname 36
+ligatures fi fl 0
+charset
+!	97	2	33
+"	96	2	34
+#	97	2	35
+$	98	3	36
+%	72	2	37
+&	79	3	38
+'	79	3	39
+(	79	3	40
+)	69	2	41
+*	96	2	42
++	94	2	43
+,	55	3	44
+-	86	2	45
+.	91	2	46
+/	93	2	47
+0	91	2	48
+1	94	2	49
+2	97	2	50
+3	76	3	51
+4	85	3	52
+5	76	2	53
+6	76	2	54
+7	57	3	55
+8	68	3	56
+9	76	2	57
+:	76	2	58
+;	76	2	59
+<	75	3	60
+=	49	2	61
+>	55	2	62
+?	54	3	63
+@	58	2	64
+A	69	3	65
+B	79	3	66
+C	79	3	67
+D	79	3	68
+E	79	3	69
+F	79	3	70
+G	79	3	71
+H	82	3	72
+I	82	3	73
+J	79	3	74
+K	84	3	75
+L	82	3	76
+M	83	3	77
+N	82	3	78
+O	83	3	79
+P	92	3	80
+Q	74	2	81
+R	72	2	82
+S	75	2	83
+T	79	3	84
+U	79	3	85
+V	69	3	86
+W	78	3	87
+X	77	3	88
+Y	79	3	89
+Z	76	2	90
+[	71	3	91
+\	71	3	92
+]	68	3	93
+^	70	3	94
+_	83	3	95
+`	81	3	96
+a	79	3	97
+b	79	3	98
+c	71	3	99
+d	69	2	100
+e	70	2	101
+f	69	2	102
+g	79	3	103
+h	79	3	104
+i	71	3	105
+j	79	3	106
+k	78	3	107
+l	79	3	108
+m	87	3	109
+n	76	2	110
+o	76	2	111
+p	76	2	112
+q	76	3	113
+r	76	3	114
+s	89	2	115
+t	89	3	116
+u	79	3	117
+v	78	3	118
+w	44	3	119
+x	14	2	120
+y	28	2	121
+z	41	2	122
+{	39	2	123
+|	39	2	124
+}	67	2	125
+~	67	2	126
+hy	73	3	161
+em	54	3	162
+de	54	3	163
+\-	91	2	164
+en	67	3	165
+ff	76	3	166
+fi	76	2	167
+fl	78	2	168
+Fi	60	3	169
+Fl	69	3	170
+fm	63	3	171
+ru	79	3	172
+dg	79	3	173
+bu	79	3	174
+14	79	3	175
+34	79	3	176
+12	79	3	177
+ct	79	3	178
+rg	79	3	179
+sq	79	3	180
+sl	79	3	181
+ul	79	3	182
+or	79	3	183
+no	79	3	184
+->	79	3	185
+<-	79	3	186
+da	79	3	187
+lh	79	3	188
+ua	79	3	189
+\e	79	3	190
+\'	79	3	191
+aa	79	3	192
+\`	79	3	193
+ga	79	3	194
+pl	79	3	195
+mi	79	3	196
+mu	79	3	197
+di	79	3	198
+eq	79	3	199
+==	79	3	200
+>=	79	3	201
+<=	79	3	202
+!=	79	3	203
++-	79	3	204
+-+	79	3	205
+ap	79	3	206
+~=	79	3	207
+gr	79	3	208
+is	79	3	209
+pd	79	3	210
+if	79	3	211
+sr	89	2	212
+rn	84	2	213
+sb	102	2	214
+sp	46	3	215
+cu	75	2	216
+ca	92	2	217
+ib	75	2	218
+ip	92	2	219
+mo	93	2	220
+es	93	2	221
+sc	93	2	222
+dd	83	2	223
+lc	87	2	224
+rc	83	2	225
+lf	92	2	226
+rf	92	2	227
+bv	92	2	228
+**	93	2	229
+br	93	2	230
+ci	46	3	231
+ts	88	2	232
+co	84	2	233
+lt	84	2	234
+rt	87	2	235
+lb	87	2	236
+rb	70	2	237
+lk	70	2	238
+rk	87	2	239
+rh	87	2	241
+tm	76	2	242
+Sl	95	2	243
+ps	77	2	244
+cs	86	2	245
+cy	77	2	246
+as	89	3	247
+os	97	2	248
+=.	89	3	249
+ld	83	2	250
+rd	87	2	251
+le	93	2	252
+ge	97	2	253
+pp	92	2	254

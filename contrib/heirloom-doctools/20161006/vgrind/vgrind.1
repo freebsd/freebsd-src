@@ -1,0 +1,228 @@
+.\"
+.\" This code contains changes by
+.\"      Gunnar Ritter, Freiburg i. Br., Germany, 2005. All rights reserved.
+.\"
+.\" Conditions 1, 2, and 4 and the no-warranty notice below apply
+.\" to these changes.
+.\"
+.\"
+.\" Copyright (c) 1980 Regents of the University of California.
+.\" 	All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowedgement:
+.\" 	This product includes software developed by the University of
+.\" 	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	from 4.3BSD-Tahoe vgrind.1	6.2 (Berkeley) 5/5/86
+.\".TH VGRIND 1 "May 5, 1986"
+.\"
+.\" Sccsid @(#)vgrind.1b	1.3 (gritter) 11/6/05
+.\"
+.TH VGRIND 1 "11/6/05" "Heirloom Documentation Tools" "BSD System Compatibility"
+.UC 4
+.SH NAME
+vgrind \- grind nice listings of programs
+.SH SYNOPSIS
+.HP
+.ad l
+.nh
+\fBvgrind\fR
+[\fB\-2ftnxw\fR]
+[\fB\-s\fIn\fR]
+[\fB\-h\ \fIheader\fR]
+[\fB\-d\ \fIfile\fR]
+[\fB\-l\ \fIlanguage\fR]
+[\fB\-P\ \fIprinter\fR]
+[\fB\-T\ \fIdevice\fR]
+[\fB\-o\ \fIlist\fR]
+\fIname\fR\ ...
+.br
+.hy 1
+.ad b
+.SH DESCRIPTION
+.I Vgrind
+formats the program sources which are arguments 
+in a nice style using
+.IR troff (1).
+Comments are placed in italics, keywords in bold face,
+and the name of the current function is listed down the margin of each
+page as it is encountered.
+.PP
+.I Vgrind 
+runs in two basic modes, filter mode or regular mode.  In filter mode 
+.I vgrind
+acts as a filter in a manner similar to
+.IR tbl (1).
+The standard input is passed directly to the standard output except
+for lines bracketed by the 
+.I troff-like
+macros:
+.IP .vS
+\- starts processing
+.IP .vE
+\- ends processing
+.LP
+These lines are formatted as described above.  The output from this
+filter can be passed to 
+.I troff 
+for output.  There need be no particular ordering with 
+.IR eqn (1)
+or
+.IR tbl (1).
+.PP
+In regular mode 
+.I vgrind
+accepts input files, processes them, and passes them to 
+.IR troff (1)
+for output.  
+.PP
+In both modes 
+.I vgrind
+passes any lines beginning with a decimal point without conversion.
+.PP
+The options are:
+.IP \fB\-2\fP
+produce two-column output
+.IP \fB\-f\fP
+forces filter mode
+.IP \fB\-t\fP
+similar to the same option in
+.I troff
+causing formatted text to go to the standard output
+.IP \fB\-n\fP
+forces no keyword bolding
+.IP \fB\-x\fP
+outputs the index file in a ``pretty'' format. 
+The index file itself is produced whenever 
+.I vgrind
+is run with a file called 
+.I index
+in the current directory.
+The index of function
+definitions can then be run off by giving 
+.I vgrind 
+the
+.B \-x
+option and the file
+.I index
+as argument.
+.IP \fB\-s\fP
+specifies a point size to use on output (exactly the same as the argument
+of a .ps)
+.IP \fB\-h\fP
+specifies a particular header to put on every output page (default is
+the file name)
+.IP \fB\-d\fP
+specifies an alternate language definitions
+file (default is /usr/lib/vgrindefs)
+.IP \fB\-l\fP
+specifies the language to use.  Currently known are PASCAL
+.RB ( \-lp ),
+MODEL
+.RB ( \-lm ),
+C
+.RB ( \-lc
+or the default),
+C++
+.RB ( \-lc++ ),
+CSH
+.RB ( \-lcsh ), 
+SHELL
+.RB ( \-lsh ),
+RATFOR
+.RB ( \-lr ),
+MODULA2
+.RB ( \-lmod2 ),
+YACC
+.RB ( \-lyacc ),
+ISP
+.RB ( \-lisp ),
+and ICON
+.RB ( \-lI ).
+.IP \fB\-P\fP
+specifies that output is directed to the named printer.
+.IP \fB\-T\fP
+is passed to
+.I troff
+and specifies the device to use.
+.IP \fB\-o\fP
+is passed to
+.I troff
+and specifies selected pages to print.
+.IP \fB\-w\fP
+Sets the size of tabulators to four instead of the default eight.
+.SH FILES
+.\".ta \w'/usr/ucblib/tmac/vgrind 'u
+index	file where source for index is created
+.br
+/usr/ucblib/tmac/vgrind	macro package
+.br
+/usr/ucblib/vfontedpr	preprocessor
+.br
+/usr/ucblib/vgrindefs	language descriptions
+.SH SEE ALSO
+troff(1)
+.SH NOTES
+Vfontedpr assumes that a certain programming style is followed:
+.PP
+For 
+.B C
+and
+.B C++
+\- function names can be preceded on a line only by spaces, tabs, or an
+asterisk.  The parenthesized arguments must also be on the same line.
+.PP
+For
+.B PASCAL
+\- function names need to appear on the same line as the keywords
+.I function
+or
+.I procedure.
+.PP
+For
+.B MODEL
+\- function names need to appear on the same line as the keywords
+.I is
+.I beginproc.
+.PP
+If these conventions are not followed, the indexing and marginal function
+name comment mechanisms will fail.
+.sp
+More generally, arbitrary formatting styles for programs mostly look bad.
+The use of spaces to align source code fails miserably; if you plan to
+.I vgrind
+your program you should use tabs.  This is somewhat inevitable since the
+font used by
+.I vgrind
+is variable width.
+.PP
+The mechanism of ctags in recognizing functions should be used here.
+.PP
+Filter mode does not work in documents using the \-me or \-ms macros.
+(So what use is it anyway?)
+.PP
+Written by Dave Presotto & William Joy.

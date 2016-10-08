@@ -1,0 +1,400 @@
+utf8
+bset	0
+breset	0
+Hor	24
+Vert	40
+Newline	40
+Char	24
+Em	24
+Halfline	20
+Adj	24
+twinit	""
+twrest	""
+twnl	"\n"
+hlr	""
+hlf	""
+flr	"\0337"
+bdon	""
+bdoff	""
+iton	""
+itoff	""
+ploton	""
+plotoff	""
+up	""
+down	""
+right	""
+left	""
+
+charset
+em 1 %\342%\200%\224
+en 1 %\342%\200%\223
+hy 1 %\342%\200%\220
+\- 1 -
+rs 1 %\134
+dq 1 %\042
+bu 1 %\342%\200%\242
+sq 1 %\342%\226%\241
+ru 1 %\342%\216%\275
+14 1 %\302%\274
+12 1 %\302%\275
+34 1 %\302%\276
+fi 2 fi
+fl 2 fl
+ff 2 ff
+Fi 3 ffi
+Fl 3 ffl
+de 1 %\302%\260
+dg 1 %\342%\200%\240
+fm 1 %\xe2%\x80%\xb2 # U+2032 PRIME
+ct 1 %\302%\242
+rg 1 %\302%\256
+co 1 %\302%\251
+pl 1 +
+mi 1 %\342%\210%\222
+eq 1 =
+** 1 %\xe2%\x88%\x97 # U+2217 ASTERISK OPERATOR
+sc 1 %\302%\247
+aa 1 %\xc2%\xb4 # U+00B4 ACUTE ACCENT
+aq 1 %\x27
+ga 1 %\x60
+ul 1 %\137
+sl 1 /
+*a 1 %\316%\261
+*b 1 %\316%\262
+*g 1 %\316%\263
+*d 1 %\316%\264
+*e 1 %\316%\265
+*z 1 %\316%\266
+*y 1 %\316%\267
+*h 1 %\316%\270
+*i 1 %\316%\271
+*k 1 %\316%\272
+*l 1 %\316%\273
+*m 1 %\316%\274
+*n 1 %\316%\275
+*c 1 %\316%\276
+*o 1 %\316%\277
+*p 1 %\317%\200
+*r 1 %\317%\201
+*s 1 %\317%\203
+*t 1 %\317%\204
+*u 1 %\317%\205
+*f 1 %\xcf%\x95 # U+03D5 GREEK PHI SYMBOL
+*x 1 %\317%\207
+*q 1 %\317%\210
+*w 1 %\317%\211
+*A 1 %\316%\221
+*B 1 %\316%\222
+*G 1 %\316%\223
+*D 1 %\316%\224
+*E 1 %\316%\225
+*Z 1 %\316%\226
+*Y 1 %\316%\227
+*H 1 %\316%\230
+*I 1 %\316%\231
+*K 1 %\316%\232
+*L 1 %\316%\233
+*M 1 %\316%\234
+*N 1 %\316%\235
+*C 1 %\316%\236
+*O 1 %\316%\237
+*P 1 %\316%\240
+*R 1 %\316%\241
+*S 1 %\316%\243
+*T 1 %\316%\244
+*U 1 %\316%\245
+*F 1 %\316%\246
+*X 1 %\316%\247
+*Q 1 %\316%\250
+*W 1 %\316%\251
+ts 1 %\317%\202
+sr 1 %\342%\210%\232
+rn 1 %\xe2%\x80%\xbe # U+203E OVERLINE
+>= 1 %\342%\211%\245
+<= 1 %\342%\211%\244
+== 1 %\342%\211%\241
+~= 1 %\xe2%\x89%\x88 # U+2248 ALMOST EQUAL TO
+~~ 1 %\xe2%\x89%\x88 # U+2248 ALMOST EQUAL TO
+ap 1 %\342%\210%\274
+!= 1 %\xe2%\x89%\xa0 # U+2260 NOT EQUAL TO
+-> 1 %\342%\206%\222
+<- 1 %\342%\206%\220
+ua 1 %\342%\206%\221
+da 1 %\342%\206%\223
+mu 1 %\303%\227
+di 1 %\303%\267
++- 1 %\302%\261
+cu 1 %\342%\210%\252
+ca 1 %\342%\210%\251
+sb 1 %\342%\212%\202
+sp 1 %\xe2%\x8a%\x83 # U+2283 SUPERSET OF
+ib 1 %\xe2%\x8a%\x86 # U+2286 SUBSET OF OR EQUAL TO
+ip 1 %\xe2%\x8a%\x87 # U+2287 SUPERSET OF OR EQUAL TO
+if 1 %\342%\210%\236
+pd 1 %\342%\210%\202
+gr 1 %\342%\210%\207
+no 1 %\302%\254
+is 1 %\342%\210%\253
+pt 1 %\342%\210%\235
+es 1 %\342%\210%\205
+mo 1 %\342%\210%\210
+br 1 %\342%\224%\202
+dd 1 %\342%\200%\241
+rh 1 %\342%\230%\236
+lh 1 %\342%\230%\234
+or 1 |
+ci 1 %\342%\227%\213
+bx 1 %\342%\226%\240
+Sl 1 %\342%\204%\223
+fa 1 %\342%\210%\200
+te 1 %\342%\210%\203
+al 1 %\342%\204%\265
+Ox 1 %\342%\212%\227
+O+ 1 %\342%\212%\225
+tm 1 %\342%\204%\242
+`` 1 %\342%\200%\234
+lq 1 %\342%\200%\234
+quotedblleft 1 %\342%\200%\234
+'' 1 %\342%\200%\235
+rq 1 %\342%\200%\235
+quotedblright 1 %\342%\200%\235
+oq 1 %\342%\200%\230
+quoteleft 1 %\342%\200%\230
+cq 1 %\342%\200%\231
+quoteright 1 %\342%\200%\231
+-+ 1 %\342%\210%\223
+lt 1 %\342%\216%\247
+lb 1 %\342%\216%\251
+rt 1 %\342%\216%\253
+rb 1 %\342%\216%\255
+lk 1 %\342%\216%\250
+rk 1 %\342%\216%\254
+bv 1 %\342%\216%\252
+lf 1 %\xe2%\x8c%\x8a # U+230A LEFT FLOOR
+rf 1 %\xe2%\x8c%\x8b # U+230B RIGHT FLOOR
+lc 1 %\xe2%\x8c%\x88 # U+2308 LEFT CEILING
+rc 1 %\xe2%\x8c%\x89 # U+2309 RIGHT CEILING
+ba 1 %\x7c # bar
+rl 1 %\xe2%\x80%\xbe # U+203E OVERLINE (sic?)
+bb 1 %\xc2%\xa6 # broken bar
+lz 1 %\xe2%\x97%\x8a # U+25CA LOZENGE
+ps 1 %\xc2%\xB6 # paragraph
+at 1 %\x40 # at
+sh 1 %\x23 # hash (pound)
+CR 1 %\xe2%\x86%\xb5 # U+21B5 DOWNWARDS ARROW WITH CORNER LEFTWARDS
+OK 1 %\xe2%\x9c%\x93 # U+2713 CHECK MARK
+r! 1 %\xc2%\xA1 # upside-down exclamation
+r? 1 %\xc2%\xBF # upside-down question
+Bq 1 %\xe2%\x80%\x9e # U+201E DOUBLE LOW-9 QUOTATION MARK
+quotedblbase 1 %\xe2%\x80%\x9e # U+201E DOUBLE LOW-9 QUOTATION MARK
+bq 1 %\xe2%\x80%\x9a # U+201A SINGLE LOW-9 QUOTATION MARK
+Fo 1 %\xc2%\xAB # left guillemet
+Fc 1 %\xc2%\xBB # right guillemet
+fo 1 %\xe2%\x80%\xb9 # U+2039 SINGLE LEFT-POINTING ANGLE QUOTATION MARK
+fc 1 %\xe2%\x80%\xba # U+203A SINGLE RIGHT-POINTING ANGLE QUOTATION MARK
+lB 1 %\x5b # bracketleft
+rB 1 %\x5d # bracketright
+lC 1 %\x7b # braceleft
+rC 1 %\x7d # braceright
+la 1 %\xe2%\x9f%\xa8 # U+27E8 MATHEMATICAL LEFT ANGLE BRACKET
+ra 1 %\xe2%\x9f%\xa9 # U+27E9 MATHEMATICAL RIGHT ANGLE BRACKET
+braceex 1 %\xe2%\x8e%\xaa # U+23AA CURLY BRACKET EXTENSION
+bracketlefttp 1 %\xe2%\x8e%\xa1 # U+23A1 LEFT SQUARE BRACKET UPPER CORNER
+bracketleftbt 1 %\xe2%\x8e%\xa3 # U+23A3 LEFT SQUARE BRACKET LOWER CORNER
+bracketleftex 1 %\xe2%\x8e%\xa2 # U+23A2 LEFT SQUARE BRACKET EXTENSION
+bracketrighttp 1 %\xe2%\x8e%\xa4 # U+23A4 RIGHT SQUARE BRACKET UPPER CORNER
+bracketrightbt 1 %\xe2%\x8e%\xa6 # U+23A6 RIGHT SQUARE BRACKET LOWER CORNER
+bracketrightex 1 %\xe2%\x8e%\xa5 # U+23A5 RIGHT SQUARE BRACKET EXTENSION
+bracelefttp 1 %\xe2%\x8e%\xa7 # U+23A7 LEFT CURLY BRACKET UPPER HOOK
+braceleftmid 1 %\xe2%\x8e%\xa8 # U+23A8 LEFT CURLY BRACKET MIDDLE PIECE
+braceleftbt 1 %\xe2%\x8e%\xa9 # U+23A9 LEFT CURLY BRACKET LOWER HOOK
+braceleftex 1 %\xe2%\x8e%\xaa # U+23AA CURLY BRACKET EXTENSION
+bracerighttp 1 %\xe2%\x8e%\xab # U+23AB RIGHT CURLY BRACKET UPPER HOOK
+bracerightmid 1 %\xe2%\x8e%\xac # U+23AC RIGHT CURLY BRACKET MIDDLE PIECE
+bracerightbt 1 %\xe2%\x8e%\xad # U+23AD RIGHT CURLY BRACKET LOWER HOOK
+bracerightex 1 %\xe2%\x8e%\xaa # U+23AA CURLY BRACKET EXTENSION
+parenlefttp 1 %\xe2%\x8e%\x9b # U+239B LEFT PARENTHESIS UPPER HOOK
+parenleftbt 1 %\xe2%\x8e%\x9d # U+239D LEFT PARENTHESIS LOWER HOOK
+parenleftex 1 %\xe2%\x8e%\x9c # U+239C LEFT PARENTHESIS EXTENSION
+parenrighttp 1 %\xe2%\x8e%\x9e # U+239E RIGHT PARENTHESIS UPPER HOOK
+parenrightbt 1 %\xe2%\x8e%\xa0 # U+23A0 RIGHT PARENTHESIS LOWER HOOK
+parenrightex 1 %\xe2%\x8e%\x9f # U+239F RIGHT PARENTHESIS EXTENSION
+<> 1 %\xe2%\x86%\x94 # U+2194 LEFT RIGHT ARROW
+va 1 %\xe2%\x86%\x95 # U+2195 UP DOWN ARROW
+lA 1 %\xe2%\x87%\x90 # U+21D0 LEFTWARDS DOUBLE ARROW
+rA 1 %\xe2%\x87%\x92 # U+21D2 RIGHTWARDS DOUBLE ARROW
+hA 1 %\xe2%\x87%\x94 # U+21D4 LEFT RIGHT DOUBLE ARROW
+uA 1 %\xe2%\x87%\x91 # U+21D1 UPWARDS DOUBLE ARROW
+dA 1 %\xe2%\x87%\x93 # U+21D3 DOWNWARDS DOUBLE ARROW
+vA 1 %\xe2%\x87%\x95 # U+21D5 UP DOWN DOUBLE ARROW
+AN 1 %\xe2%\x88%\xa7 # U+2227 LOGICAL AND
+OR 1 %\xe2%\x88%\xa8 # U+2228 LOGICAL OR
+tno 1 %\xC2%\xac
+st 1 %\xe2%\x88%\x8b # U+220B CONTAINS AS MEMBER
+tf 1 %\xe2%\x88%\xb4 # U+2234 THEREFORE
+3d 1 %\xe2%\x88%\xb4 # U+2234 THEREFORE
+t+- 1 %\xc2%\xb1
+f/ 1 %\xe2%\x81%\x84 # U+2044 FRACTION SLASH
+<< 1 %\xe2%\x89%\xaa # U+226A MUCH LESS-THAN
+>> 1 %\xe2%\x89%\xab # U+226B MUCH GREATER-THAN
+pc 1 %\xc2%\xb7
+tmu 1 %\xc3%\x97 # U+00D7 MULTIPLICATION SIGN
+c* 1 %\xe2%\x8a%\x97 # U+2297 CIRCLED TIMES
+c+ 1 %\xe2%\x8a%\x95 # U+2295 CIRCLED PLUS
+tdi 1 %\xc3%\xb7 # U+00F7 DIVISION SIGN
+ne 1 %\xe2%\x89%\xa2 # U+2262 NOT IDENTICAL TO
+=~ 1 %\xe2%\x89%\x85 # U+2245 APPROXIMATELY EQUAL TO
+|= 1 %\xe2%\x89%\x83 # U+2243 ASYMPTOTICALLY EQUAL TO
+nm 1 %\xe2%\x88%\x89 # U+2209 NOT AN ELEMENT OF
+nb 1 %\xe2%\x8a%\x84 # U+2284 NOT A SUBSET OF
+nc 1 %\xe2%\x8a%\x85 # U+2285 NOT A SUPERSET OF
+/_ 1 %\xe2%\x88%\xa0 # U+2220 ANGLE
+pp 1 %\xe2%\x8a%\xa5 # U+22A5 UP TACK
+integral 1 %\xe2%\x88%\xab # U+222B INTEGRAL
+sum 1 %\xe2%\x88%\x91 # U+2211 N-ARY SUMMATION
+product 1 %\xe2%\x88%\x8f # U+220F N-ARY PRODUCT
+coproduct 1 %\xe2%\x88%\x90 # U+2210 N-ARY COPRODUCT
+sqrt 1 %\xe2%\x88%\x9a # U+221A SQUARE ROOT
+Ah 1 %\xe2%\x84%\xb5 # U+2135 ALEF SYMBOL
+Im 1 %\xe2%\x84%\x91 # U+2111 BLACK-LETTER CAPITAL I
+Re 1 %\xe2%\x84%\x9c # U+211C BLACK-LETTER CAPITAL R
+-h 1 %\xe2%\x84%\x8f # U+210F PLANCK CONSTANT OVER TWO PI
+AE 1 %\xc3%\x86 # U+00C6 LATIN CAPITAL LETTER AE
+ae 1 %\xc3%\xa6 # U+00E6 LATIN SMALL LETTER AE
+OE 1 %\xc5%\x92 # U+0152 LATIN CAPITAL LIGATURE OE
+oe 1 %\xc5%\x93 # U+0153 LATIN SMALL LIGATURE OE
+ss 1 %\xc3%\x9f # U+00DF LATIN SMALL LETTER SHARP S
+germandbls 1 %\xc3%\x9f # U+00DF LATIN SMALL LETTER SHARP S
+IJ 1 %\xc4%\xb2 # U+0132 LATIN CAPITAL LIGATURE IJ
+ij 1 %\xc4%\xb3 # U+0133 LATIN SMALL LIGATURE IJ
+#a" 1 %\xcc%\x8b # U+030B COMBINING DOUBLE ACUTE ACCENT
+a" 1 %\xcb%\x9d # U+02DD DOUBLE ACUTE ACCENT
+#a- 1 %\xcc%\x84 # U+0304 COMBINING MACRON
+a- 1 %\xc2%\xaf # U+00AF MACRON
+#a. 1 %\xcc%\x87 # U+0307 COMBINING DOT ABOVE
+a. 1 %\xcb%\x99 # U+02D9 DOT ABOVE
+#a^ 1 %\xcc%\x82 # U+0302 COMBINING CIRCUMFLEX ACCENT
+a^ 1 %\x5e # U+005E CIRCUMFLEX ACCENT
+#ab 1 %\xcc%\x86 # U+0306 COMBINING BREVE
+ab 1 %\xcb%\x98 # U+02D8 BREVE
+#ac 1 %\xcc%\xa7 # U+0327 COMBINING CEDILLA
+ac 1 %\xc2%\xb8 # U+00B8 CEDILLA
+#ad 1 %\xcc%\x88 # U+0308 COMBINING DIAERESIS
+ad 1 %\xc2%\xa8 # U+00A8 DIAERESIS
+#ah 1 %\xcc%\x8c # U+030C COMBINING CARON
+ah 1 %\xcb%\x87 # U+02C7 CARON
+#ao 1 %\xcc%\x8a # U+030A COMBINING RING ABOVE
+ao 1 %\xcb%\x9a # U+02DA RING ABOVE
+#a~ 1 %\xcc%\x83 # U+0303 COMBINING TILDE
+a~ 1 %\xcb%\x9c # U+02DC SMALL TILDE
+#ho 1 %\xcc%\xa8 # U+0328 COMBINING OGONEK
+ho 1 %\xcb%\x9b # U+02DB OGONEK
+ha 1 %\x5e
+ti 1 %\x7e
+'A 1 %\xc3%\x81 # U+00C1 LATIN CAPITAL LETTER A WITH ACUTE
+'C 1 %\xc4%\x86 # U+0106
+'E 1 %\xc3%\x89 # U+00C9 LATIN CAPITAL LETTER E WITH ACUTE
+'I 1 %\xc3%\x8d # U+00CD LATIN CAPITAL LETTER I WITH ACUTE
+'O 1 %\xc3%\x93 # U+00D3 LATIN CAPITAL LETTER O WITH ACUTE
+'U 1 %\xc3%\x9a # U+00DA LATIN CAPITAL LETTER U WITH ACUTE
+'Y 1 %\xc3%\x9d # U+00DD
+'a 1 %\xc3%\xa1 # U+00E1 LATIN SMALL LETTER A WITH ACUTE
+'c 1 %\xc4%\x87 # U+0107
+'e 1 %\xc3%\xa9 # U+00E9 LATIN SMALL LETTER E WITH ACUTE
+'i 1 %\xc3%\xad # U+00ED LATIN SMALL LETTER I WITH ACUTE
+'o 1 %\xc3%\xb3 # U+00F3 LATIN SMALL LETTER O WITH ACUTE
+'u 1 %\xc3%\xba # U+00FA LATIN SMALL LETTER U WITH ACUTE
+'y 1 %\xc3%\xbd # U+00FD
+`A 1 %\xc3%\x80 # U+00C0 LATIN CAPITAL LETTER A WITH GRAVE
+`E 1 %\xc3%\x88 # U+00C8 LATIN CAPITAL LETTER E WITH GRAVE
+`I 1 %\xc3%\x8c # U+00CC LATIN CAPITAL LETTER I WITH GRAVE
+`O 1 %\xc3%\x92 # U+00D2 LATIN CAPITAL LETTER O WITH GRAVE
+`U 1 %\xc3%\x99 # U+00D9 LATIN CAPITAL LETTER U WITH GRAVE
+`a 1 %\xc3%\xa0 # U+00E0 LATIN SMALL LETTER A WITH GRAVE
+`e 1 %\xc3%\xa8 # U+00E8 LATIN SMALL LETTER E WITH GRAVE
+`i 1 %\xc3%\xac # U+00EC LATIN SMALL LETTER I WITH GRAVE
+`o 1 %\xc3%\xb2 # U+00F2 LATIN SMALL LETTER O WITH GRAVE
+`u 1 %\xc3%\xb9 # U+00F9 LATIN SMALL LETTER U WITH GRAVE
+~A 1 %\xc3%\x83 # U+00C3 LATIN CAPITAL LETTER A WITH TILDE
+~N 1 %\xc3%\x91 # U+00D1 LATIN CAPITAL LETTER N WITH TILDE
+~O 1 %\xc3%\x95 # U+00D5 LATIN CAPITAL LETTER O WITH TILDE
+~a 1 %\xc3%\xa3 # U+00E3 LATIN SMALL LETTER A WITH TILDE
+~n 1 %\xc3%\xb1 # U+00F1 LATIN SMALL LETTER N WITH TILDE
+~o 1 %\xc3%\xb5 # U+00F5 LATIN SMALL LETTER O WITH TILDE
+:A 1 %\xc3%\x84 # U+00C4 LATIN CAPITAL LETTER A WITH DIAERESIS
+Adieresis 1 %\xc3%\x84 # U+00C4 LATIN CAPITAL LETTER A WITH DIAERESIS
+:E 1 %\xc3%\x8b # U+00CB LATIN CAPITAL LETTER E WITH DIAERESIS
+:I 1 %\xc3%\x8f # U+00CF LATIN CAPITAL LETTER I WITH DIAERESIS
+:O 1 %\xc3%\x96 # U+00D6 LATIN CAPITAL LETTER O WITH DIAERESIS
+Odieresis 1 %\xc3%\x96 # U+00D6 LATIN CAPITAL LETTER O WITH DIAERESIS
+:U 1 %\xc3%\x9c # U+00DC LATIN CAPITAL LETTER U WITH DIAERESIS
+Udieresis 1 %\xc3%\x9c # U+00DC LATIN CAPITAL LETTER U WITH DIAERESIS
+:Y 1 %\xc5%\xb8 # U+0178
+:a 1 %\xc3%\xa4 # U+00E4 LATIN SMALL LETTER A WITH DIAERESIS
+adieresis 1 %\xc3%\xa4 # U+00E4 LATIN SMALL LETTER A WITH DIAERESIS
+:e 1 %\xc3%\xab # U+00EB LATIN SMALL LETTER E WITH DIAERESIS
+:i 1 %\xc3%\xaf # U+00EF LATIN SMALL LETTER I WITH DIAERESIS
+:o 1 %\xc3%\xb6 # U+00F6 LATIN SMALL LETTER O WITH DIAERESIS
+odieresis 1 %\xc3%\xb6 # U+00F6 LATIN SMALL LETTER O WITH DIAERESIS
+:u 1 %\xc3%\xbc # U+00FC LATIN SMALL LETTER U WITH DIAERESIS
+udieresis 1 %\xc3%\xbc # U+00FC LATIN SMALL LETTER U WITH DIAERESIS
+:y 1 %\xc3%\xbf # U+00FF LATIN SMALL LETTER Y WITH DIAERESIS
+^A 1 %\xc3%\x82 # U+00C2 LATIN CAPITAL LETTER A WITH CIRCUMFLEX
+^E 1 %\xc3%\x8a # U+00CA LATIN CAPITAL LETTER E WITH CIRCUMFLEX
+^I 1 %\xc3%\x8e # U+00CE LATIN CAPITAL LETTER I WITH CIRCUMFLEX
+^O 1 %\xc3%\x94 # U+00D4 LATIN CAPITAL LETTER O WITH CIRCUMFLEX
+^U 1 %\xc3%\x9b # U+00DB LATIN CAPITAL LETTER U WITH CIRCUMFLEX
+^a 1 %\xc3%\xa2 # U+00E2 LATIN SMALL LETTER A WITH CIRCUMFLEX
+^e 1 %\xc3%\xaa # U+00EA LATIN SMALL LETTER E WITH CIRCUMFLEX
+^i 1 %\xc3%\xae # U+00EE LATIN SMALL LETTER I WITH CIRCUMFLEX
+^o 1 %\xc3%\xb4 # U+00F4 LATIN SMALL LETTER O WITH CIRCUMFLEX
+^u 1 %\xc3%\xbb # U+00FB LATIN SMALL LETTER U WITH CIRCUMFLEX
+,C 1 %\xc3%\x87 # U+00C7 LATIN CAPITAL LETTER C WITH CEDILLA
+,c 1 %\xc3%\xa7 # U+00E7 LATIN SMALL LETTER C WITH CEDILLA
+/L 1 %\xc5%\x81 # U+0141 LATIN CAPITAL LETTER L WITH STROKE
+/l 1 %\xc5%\x82 # U+0142 LATIN SMALL LETTER L WITH STROKE
+/O 1 %\xc3%\x98 # U+00D8 LATIN CAPITAL LETTER O WITH STROKE
+/o 1 %\xc3%\xb8 # U+00F8 LATIN SMALL LETTER O WITH STROKE
+oA 1 %\xc3%\x85 # U+00C5 LATIN CAPITAL LETTER A WITH RING ABOVE
+oa 1 %\xc3%\xa5 # U+00E5 LATIN SMALL LETTER A WITH RING ABOVE
+-D 1 %\xc3%\x90 # U+00D0 LATIN CAPITAL LETTER ETH
+Sd 1 %\xc3%\xb0 # U+00F0 LATIN SMALL LETTER ETH
+TP 1 %\xc3%\x9e # U+00DE LATIN CAPITAL LETTER THORN
+Tp 1 %\xc3%\xbe # U+00FE LATIN SMALL LETTER THORN
+.i 1 %\xc4%\xb1 # U+0131 LATIN SMALL LETTER DOTLESS I
+.j 1 %\xc8%\xb7 # U+0237 LATIN SMALL LETTER DOTLESS J
+Do 1 %\x24
+Eu 1 %\xe2%\x82%\xac # U+20AC EURO SIGN
+eu 1 %\xe2%\x82%\xac # U+20AC EURO SIGN
+Ye 1 %\xc2%\xa5 # U+00A5 YEN SIGN
+Po 1 %\xc2%\xa3 # U+00A3 POUND SIGN
+Cs 1 %\xc2%\xa4 # U+00A4 CURRENCY SIGN
+Fn 1 %\xc6%\x92 # U+0192 LATIN SMALL LETTER F WITH HOOK
+%0 1 %\xe2%\x80%\xb0 # U+2030 PER MILLE SIGN
+sd 1 %\xe2%\x80%\xb3 # U+2033 DOUBLE PRIME
+mc 1 %\xc2%\xb5 # U+00B5 MICRO SIGN
++h 1 %\xcf%\x91 # U+03D1 GREEK THETA SYMBOL
++f 1 %\xcf%\x86 # U+03C6 GREEK SMALL LETTER PHI
++p 1 %\xcf%\x96 # U+03D6 GREEK PI SYMBOL
++e 1 %\xcf%\xb5 # U+03F5 GREEK LUNATE EPSILON SYMBOL
+vS 1 %\xc5%\xa0 # U+0160 S caron
+vZ 1 %\xc5%\xbd # U+017D Z caron
+vs 1 %\xc5%\xa1 # U+0161 s caron
+vz 1 %\xc5%\xbe # U+017E z caron
+an 1 %\xe2%\x8e%\xaf # U+23AF horizontal line extension
+Of 1 %\xc2%\xaa # AA feminine ordinal
+Om 1 %\xc2%\xba # BA masculine ordinal
+18 1 %\xe2%\x85%\x9b # 215B 1/8 symbol
+38 1 %\xe2%\x85%\x9c # 215C 3/8 symbol
+58 1 %\xe2%\x85%\x9d # 215D 5/8 symbol
+78 1 %\xe2%\x85%\x9e # 215E 7/8 symbol
+S1 1 %\xc2%\xb9 # B9 superscript 1
+S2 1 %\xc2%\xb2 # B2 superscript 2
+S3 1 %\xc2%\xb3 # B3 superscript 3
+md 1 %\xe2%\x8b%\x85 # 22C5 multiplication dot
+wp 1 %\xe2%\x84%\x98 # 2118 Weierstrass
+hbar 1 %\xe2%\x84%\x8f # 210F Planck constant
+CL 1 %\xe2%\x99%\xa3 # 2663 black club suit
+SP 1 %\xe2%\x99%\xa0 # 2660 black spade suit
+HE 1 %\xe2%\x99%\xa5 # 2665 black heart suit
+DI 1 %\xe2%\x99%\xa6 # 2666 black diamond suit

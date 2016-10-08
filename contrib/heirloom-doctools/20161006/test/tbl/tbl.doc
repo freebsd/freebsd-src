@@ -1,0 +1,1940 @@
+.\" tbl tbl.man | eqn -Txxx | troff -ms -Txxx
+.if t .ds ^ \^\s+4\v@.3m@^\v@-.3m@\s-4\^
+.if n .ds ^ ^
+.ds :? TBL
+.de PT
+.lt \\n(LLu
+.pc %
+.nr PN \\n%
+.if \\n%-1 .if o .tl '\s9\f2\*(:?\fP''\\n(PN\s0'
+.if \\n%-1 .if e .tl '\s9\\n(PN''\f2\*(:?\^\fP\s0'
+.lt \\n(.lu
+..
+.hy 14
+.bd S 3 3
+.TL
+T\s-2BL\s+2\-A Program to Format Tables
+.AU
+M. E. Lesk
+.AI
+.MH
+.AB
+.I
+Tbl
+.R
+is a document formatting preprocessor for
+.I
+troff
+.R
+or
+.I
+nroff
+.R
+which makes
+even
+fairly complex tables easy to specify and enter.
+It is available on
+the
+.UX
+system,
+and on Honeywell 6000
+\s-1GCOS\s+1.
+Tables are made up of columns which may be independently centered, right-adjusted,
+left-adjusted, or aligned by decimal points.
+Headings may be placed over single columns or groups of columns.
+A table entry may contain equations, or may consist of several rows of text.
+Horizontal or vertical lines may be drawn as desired
+in the table,
+and any table or element may be enclosed in a box.
+For example:
+.in 0
+.ll
+.sp .5
+.TS
+center, box;
+c  s  s  s
+c  s  s  s
+c |c |c |c
+c |c |c |c
+l |n |n |n.
+1970 Federal Budget Transfers
+\s-2(in billions of dollars)\s0
+=
+State	Taxes	Money	Net
+\^	collected	spent	\^
+_
+New York	22.91	21.35	\-1.56
+New Jersey	8.33	6.96	\-1.37
+Connecticut	4.12	3.10	\-1.02
+Maine	0.74	0.67	\-0.07
+California	22.29	22.42	+0.13
+New Mexico	0.70	1.49	+0.79
+Georgia	3.30	4.28	+0.98
+Mississippi	1.15	2.32	+1.17
+Texas	9.33	11.13	+1.80
+.TE
+.AE
+.tr # 
+.de e1
+.nr \\$1 \\$2
+..
+.de e2
+.if !\\n(\\$1=\\n% .tm Error in example \\$1: referred to page \\n(\\$1, is on page \\n%
+.rr \\$1
+..
+.di qq
+.EQ
+delim $$
+.EN
+.di
+.rm qq
+.SH
+INTRODUCTION
+.PP
+.I
+Tbl
+.R
+turns a simple description
+of a table into a
+.I
+troff
+.R
+or
+.I
+nroff
+.R
+[1]
+program (list of requests) that prints the table.
+.I
+Tbl
+.R
+may be used on the
+\s-1UNIX\s+1
+[2] system and on the Honeywell 6000
+\s-1GCOS\s+1
+system.
+It
+attempts to isolate a portion of a job that it can
+successfully
+handle and leave the remainder for other programs.
+Thus
+.I
+tbl
+.R
+may be used with the equation formatting
+program
+.I
+eqn
+.R
+[3]
+and/or various
+\f2nroff\^/\^troff\^\fR
+layout macro packages
+[4,5,6],
+but does not duplicate their functions.
+.PP
+This memorandum is divided into two parts.
+First we give the rules for preparing
+.I
+tbl
+.R
+input; then some examples are shown.
+The description of rules is precise but technical, and
+the beginning user may prefer to read the examples first,
+as they show some common table arrangements.
+A section explaining how to invoke
+.I
+tbl
+.R
+precedes the examples.
+To avoid repetition, henceforth read
+.I
+``troff\^''
+.R
+as
+.I
+``troff
+.R
+or
+.I
+nroff.''
+.R
+.ds . \^\s14.\s0
+.br
+.if t .ne 4v
+.PP
+The input to
+.I
+tbl
+.R
+is text for a document, with tables preceded by a ``\*.TS''
+(table start)
+command and followed by a ``\*.TE''
+(table end) command.
+.I
+Tbl
+.R
+processes the tables, generating
+.I
+troff
+.R
+formatting requests,
+and leaves the remainder of the text unchanged.
+The ``\*.TS'' and ``\*.TE''
+lines are copied, too, so that
+.I
+troff
+.R
+layout macros
+(such as the memorandum formatting macros [4,6]\|) can use these lines
+to delimit and place tables as they see fit.
+In particular, any arguments on the ``\*.TS'' or ``\*.TE''
+lines
+are copied but otherwise ignored, and may be used by document layout
+macro requests.
+The format of the input is as follows:
+.DS
+\&text
+\&\*.TS
+\&\fItable\fR
+\&\*.TE
+\&text
+\&\*.TS
+\&\fItable\fR
+\&\*.TE
+\&text
+\&\&\*.\|\*.\|\*.
+.DE
+where the format of each table is as follows:
+.DS
+\&\*.TS
+\fIoptions \fB;\fR
+\fIformat \*.
+data
+\&\fR\*.TE
+.DE
+Each table is independent, and must contain formatting
+information
+followed by the data to be entered in the table.
+The formatting information, which describes the
+individual columns and rows of the table, may be preceded
+by a few options that affect the entire table.
+A detailed description of tables is given in the next section.
+.sp .5
+.SH
+INPUT \|COMMANDS
+.PP
+As indicated above, a table contains, first, global options,
+then a format section describing the layout of the table
+entries, and then the data to be printed.
+The format and data
+are always required, but not the options.
+The various parts of the table are entered as follows:
+.sp .5v
+.IP "1)"
+O\s-2PTIONS.\s0
+There may be a single line of options
+affecting the whole table.
+If present, this line must follow the \*.TS line immediately
+and must contain a list of option names
+separated by spaces, tabs, or commas, and must be terminated by a semicolon.
+The allowable options are:
+.RS
+.IP "##\fBcenter\fR" 13
+\- center the table (default is left-adjust);
+.IP "##\fBexpand\fR"
+\- make the table as wide as the current line length;
+.IP "##\fBbox\fR"
+\- enclose the table in a box;
+.IP "##\fBallbox\fR"
+\- enclose each item in the table in a box;
+.IP "##\fBdoublebox\fR"
+\- enclose the table in two boxes;
+.IP "##\fBtab\fR#(\fIx\fR\^)"
+\- use \fIx\fR instead of tab to separate data items.
+.IP "##\fBlinesize\fR#(\fIn\fR\^)"
+\- set lines or rules (e.g., from \fBbox\fR) in \fIn\fR-point type;
+.IP "##\fBdelim\fR#(\fIxy\fR\^)"
+\- recognize \fIx\fR and \fIy\fR as the \fIeqn\fR delimiters.
+.RE
+.IP
+The
+.I
+tbl
+.R
+program
+tries to keep boxed tables on one page by issuing
+appropriate ``need'' (\fI\*.ne\fR\^) requests.
+These requests are calculated from the number of lines in the tables,
+and if there are spacing requests embedded in the input,
+the \fI\*.ne\fR\^ requests may be inaccurate;
+use normal
+.I
+troff
+.R
+procedures, such as keep-release macros, in that case.
+The user who must have a multi-page boxed table
+should use macros designed for this purpose,
+as explained below under `Usage.'
+.sp .5v
+.IP "2)"
+F\s-2ORMAT\s0.
+The format section of the table specifies the layout
+of the columns.
+Each line in this section corresponds to one line
+of the table (except that the last line corresponds to all following
+lines up to the next \*.T&, if any\-see below),
+and each line contains a key-letter for each column
+of the table.
+It is good practice to separate the key letters for each
+column by spaces or tabs.
+Each key-letter is one of the following:
+.RS
+.cs B 24
+.IP "##\fBL\fR#or#\fBl\fR" 10
+to indicate a left-adjusted column entry;
+.IP "##\fBR\fR#or#\fBr\fR"
+to indicate a right-adjusted column entry;
+.IP "##\fBC\fR#or#\fBc\fR"
+to indicate a centered column entry;
+.IP "##\fBN\fR#or#\fBn\fR"
+to indicate a numerical column entry, to be aligned with other
+numerical entries so that the units digits of numbers line up;
+.IP "##\fBA\fR#or#\fBa\fR"
+to indicate an alphabetic subcolumn;
+all corresponding entries are aligned on the left, and positioned
+so that the widest is centered within the column (see
+example on page 13);
+.IP "##\fBS\fR#or#\fBs\fR"
+to indicate a spanned heading, i.e., to indicate that the
+entry from the previous column continues across this
+column
+(not allowed for the first column of the table, obviously); or
+.br
+.cs B
+.IP "##\fB\*^\fR"
+to indicate a vertically spanned heading, i.e., to indicate that
+the entry from the previous row continues down through this row
+(not allowed for the first row of the table, obviously).
+.RE
+.LP
+.ns
+.IP
+When numerical alignment is specified, a location for the decimal
+point is sought.
+The rightmost dot (\*.)
+adjacent to a digit is used as a decimal point; if there is no
+dot adjoining a digit, the rightmost digit is used as a units digit;
+if no alignment is indicated, the item is centered in the column.
+However, the special non-printing character string \e& may be used
+to override unconditionally dots
+and digits, or to align alphabetic data;
+this string lines up where a dot normally would,
+and then disappears from the final output.
+In the example below, the items shown at the left will be
+aligned (in a numerical column) as shown on the right:
+.KS
+.TS
+center;
+l6 n.
+13	13
+4\*.2	4\&\*.2
+26\*.4\*.12	26\*.4\&\*.12
+abc	abc
+abc\e&	abc\&
+43\e&3\*.22	43\&3\*.22
+749\*.12	749\&\*.12
+.TE
+.KE
+.IP
+\fBNote:\fR
+If numerical data are used in the same column with wider
+.B L
+or
+.B r
+type table entries, the widest \fInumber\fR is centered relative
+to the wider
+.B L
+or
+.B r
+items (\fBL\fR is used instead of \fBl\fR for readability;
+they have the same meaning as key-letters).
+Alignment within the numerical items is preserved.
+This is similar to the behavior of
+.B a
+type data, as explained above.
+However,
+alphabetic subcolumns (requested by the
+.B
+a
+.R
+key-letter)
+are always slightly indented relative to
+.B
+L
+.R
+items;
+if necessary, the column width is increased to force this.
+This is not true for \fBn\fR type entries.
+.IP "##\fBWarning:\fR#"
+The \fBn\fR and \fBa\fR items should not be used in
+the same column.
+.IP
+For readability, the key-letters describing each column should
+be separated by spaces.
+The end of the format section is indicated by a period.
+The layout of the key-letters in the format section resembles
+the layout of the actual data in the table.
+Thus a simple format might appear as:
+.br
+.ne 3
+.in +2
+.nf
+c  s  s
+l  n  n \*.
+.fi
+.in -2
+which specifies a table of three columns. The first line
+of the table contains a heading centered across all three
+columns; each remaining line contains a left-adjusted item
+in the first column followed by two columns of numerical
+data.
+A sample table in this format might be:
+.br
+.ne 6v
+.br
+.in +4
+.TS
+c s s
+l n n.
+Overall title
+Item-a	34.22	9.1
+Item-b	12.65	.02
+Items: c,d,e	23	5.8
+Total	69.87	14.92
+.TE
+.in -4
+There are some additional features of the key-letter system:
+.RS
+.IP "##\fIHorizontal lines\fR#"
+\- A key-letter may be replaced by `\(ul'
+(underscore) to indicate
+a horizontal line in place of the corresponding column entry,
+or by `=' to indicate a double horizontal line.
+If an adjacent column contains a horizontal line, or if
+there are vertical lines adjoining this column,
+this horizontal line is extended to meet the nearby lines.
+If any data entry is provided for this column, it is ignored and
+a warning message is printed.
+.QQ do the D(x) and M(x) to draw a line of 'x' characters.
+.QQ D will draw divided lines, M merged lines. thus - is simple M(\(ru)
+.IP "##\fIVertical lines\fR#"
+\- A vertical bar may be placed between column key-letters.
+This will
+cause a vertical line between the corresponding columns of the table.
+A vertical bar to the left of the first key-letter
+or to the right of the last one produces a line at the
+edge of the table.
+If two vertical bars appear between key-letters, a double vertical
+line is drawn.
+.IP "##\fISpace between columns\fR#"
+\- A number may follow the key-letter.
+This indicates the amount of separation
+between this column and the next column.
+The number normally specifies the separation in
+.I
+ens
+.R
+(one
+en
+.ne 3
+is about the width of the letter `n').*\ 
+.FS
+* More precisely, an en is a number of points (1 point = 1/72 inch)
+equal to half the current type size.
+.FE
+If the \fIexpand\fR option is used, then these numbers are multiplied
+by a constant such that the table is as wide as the current line length.
+The default column separation number is 3.
+If the separation is changed the worst case (largest space requested) governs.
+.IP "##\fIVertical spanning\fR#"
+\- Normally, vertically spanned items extending over several
+rows of the table are centered in their vertical range.
+If a key-letter is followed by
+.B
+t
+.R
+or
+.B T ,
+any corresponding vertically spanned item
+will begin at the top line of its range.
+.IP "##\fIFont changes\fR#"
+\- A key-letter may be followed by a string containing a font
+name or number
+preceded by the letter
+.B f
+or
+.B F .
+This indicates that the corresponding column should be in a different
+font from the default font (usually Roman).
+All font names are one or two letters; a one-letter font
+name should be separated from whatever follows by a space or tab.
+The single letters
+\f3B\f1, \f3b\f1, \f3I\f1,
+and
+\f3i\f1
+are shorter synonyms for
+.B f\^B
+and
+.B f\^I .
+Font-change requests given with the table entries
+override these specifications.
+.IP "##\fIPoint size changes\fR#"
+\- A key-letter may be followed by the letter
+.B p
+or
+.B P
+and a number to indicate the point size of the corresponding table entries.
+The number may be a signed digit, in which case it is taken as
+an increment or decrement
+from the current point size.
+If both a point size and a column separation value are given,
+one or more blanks must separate them.
+.IP "##\fIVertical spacing changes\fR#"
+\- A key-letter may be followed by the letter
+.B v
+or
+.B V
+and a number to indicate the vertical line spacing to be used
+within a multi-line corresponding table entry.
+The number may be a signed digit, in which case it is taken as an increment
+or decrement from the current vertical spacing.
+A column separation value must be separated by blanks or some other
+specification from a vertical spacing request.
+This request has no effect unless the corresponding table entry
+is a text block (see below).
+.IP "##\fIColumn width indication\fR#"
+\- A key-letter may be followed by the letter
+.B w
+or
+.B W
+and a width value in parentheses.
+This width is used as a minimum column width.
+If the largest element in the column is not as wide as the width value
+given after the \fBw\fR, the largest element is assumed to be that wide.
+If the largest element in the column is wider than the specified value,
+its width is used.
+The width is also used as a default line
+length for included text blocks.
+Normal
+.I
+troff
+.R
+units can be used to scale the width value; if none are used,
+the default is
+ens.
+If the width specification is a unitless integer
+the parentheses may be omitted.
+If the width value is changed in a column, the \fIlast\fR one given controls.
+.IP "##\fIEqual-width columns\fR#"
+\- A key-letter may be followed by the letter
+.B e
+or
+.B E
+to indicate equal-width columns.
+All columns whose
+key-letters are followed by \fBe\fR or \fBE\fR are made the same width.
+This permits the user to get a group of regularly spaced
+columns.
+.IP "##\fIStaggered columns\fR#"
+\- A key-letter may be followed by the letter
+.B u
+or
+.B U
+to indicate that the corresponding entry is to be moved up one-half line.
+This makes it easy, for example, to have a column of differences
+between numbers in an adjoining column.
+The \fIallbox\fR option does not work with staggered columns.
+.IP "##\fIZero-width item\fR#"
+\- A key-letter may be followed by the letter
+.B z
+or
+.B Z
+to indicate that the corresponding
+data item is to be ignored in calculating column widths.
+This may be useful, for example, in allowing headings
+to run across adjacent columns where spanned headings
+would be inappropriate.
+.IP "##\fBNote:\fR#"
+The order of the above features is immaterial; they need not be separated
+by spaces, except as indicated above to avoid ambiguities involving
+point size and font changes.
+Thus
+a numerical column entry in italic font and 12-point type with a minimum
+width of 2.5 inches and separated by 6 ens from the next column could
+be specified as
+.in +5
+np12w(2\*.5i)f\|I  6
+.in -5
+.IP "##\fIAlternative notation\fR#"
+\- Instead of listing the format of successive lines of a table
+on consecutive lines of the format section,
+successive line formats may be given on the same line, separated
+by commas, so that the format for the example
+above might have been written:
+.in +5
+.ss 18
+c s s \fB,\fR l n n \*.
+.in -5
+.ss 12
+.IP "##\fIDefault\fR#"
+\- Column descriptors missing from the end
+of a format line are assumed to be \fBL\fR.
+The longest line in the format section, however,
+defines the number of columns
+in the table;
+extra columns in the data are ignored silently.
+.QQ put in the diagnostics.
+.RE
+.sp .5v
+.IP "3)"
+D\s-2ATA\s0.
+The data for the table are typed after the format.
+Normally, each table line is typed as one line of data.
+Very long input lines can be broken: any line whose last character is
+\e is combined with the following line (and the \e vanishes).
+The data for different columns (the table entries) are separated by tabs,
+or by whatever character has been specified in the option
+.I tabs
+option.
+There are a few special cases:
+.RS
+.IP "##\fITroff requests within tables\fR#"
+\- An input line
+beginning with a `\*.' followed by anything
+but a number is assumed to be a request to
+.I
+troff
+.R
+and is passed through unchanged, retaining its position in the table.
+So, for example, space within a table may be produced by ``\*.sp''
+requests
+in the data.
+.IP "##\fIFull width horizontal lines\fR#"
+\- An input
+.I line
+containing only the character $fat "\(ul" $ (underscore)
+or \fB=\fR (equal sign) is taken to be a single or double
+line, respectively, extending the
+full width
+of the
+.I table.
+.IP "##\fISingle column horizontal lines\fR#"
+\- An input table
+.I entry
+containing only the character $fat "\(ul" $ or \fB=\fR
+is taken to be a single or double line extending
+the full width of the
+.I column.
+Such lines are extended to meet horizontal or vertical
+lines adjoining this column.
+To obtain these characters explicitly in a column, either
+precede them by \e& or
+follow them by a space before the usual tab or new-line.
+.IP "##\fIShort horizontal lines\fR#"
+\- An input table
+.I entry
+containing only the string \e\^\(ul
+is taken to be a single line as wide as the contents of
+the column.
+It is not extended to meet
+adjoining lines.
+.IP "##\fIRepeated characters\fR#"
+\- An input table
+.I entry
+containing only a string of the form $fat "\e"$\f3R\f2x\f1
+where
+.I x
+is any character is replaced by repetitions of the character
+.I x
+as wide as the data in the column.
+The sequence of
+.I x 's
+is not extended to meet adjoining columns.
+.IP "##\fIVertically spanned items\fR#"
+\- An input table entry containing only the
+character string
+\e\*^
+indicates that the table entry immediately
+above spans downward over this row.
+It is equivalent
+to a table format key-letter of `\*^'.
+.IP "##\fIText blocks\fR#"
+\- In order to include a block of text as a table entry,
+precede it by $fat roman "T{" $ and follow
+it by $fat roman "T}" $.
+Thus the sequence
+.in +2
+.nf
+  \*.\|\*.\|\*. $fat roman "T{"$
+.I
+  block of
+  text
+.R
+  $fat roman "T}"$ \*.\|\*.\|\*.
+.in -2
+.fi
+is the way to enter, as a single entry in the table, something
+that cannot conveniently be typed as a simple string between
+tabs.
+Note that the $fat roman "T}" $ end delimiter must begin a line;
+additional columns of data may follow after a tab on the same line.
+See the example on page 11 for an illustration of included text blocks
+.e1 aa 11
+in a table.
+If more than thirty or so text blocks are used in a table,
+various limits in the
+.I
+troff
+.R
+program are likely to be exceeded,
+producing diagnostics such as `too many string/macro names' or `too many
+number registers.'
+.IP
+Text blocks are pulled out from the table, processed separately by
+.I
+troff,
+.R
+and replaced in the table as a solid block.
+If no line length
+is specified in the
+.I
+block of text
+.R
+itself, or in the table format,
+the default is to use
+$ L times C / (N+1) $
+where
+.I
+L
+.R
+is the current line length,
+.I
+C
+.R
+is the number of table columns spanned by the text,
+and
+.I
+N
+.R
+is the total number of columns in the table.
+The other parameters (point size, font, etc.) used in setting the
+.I
+block of text
+.R
+are those in effect at the beginning of the table (including
+the effect of the ``\*.TS'' macro)
+and any table format specifications of size, spacing, and font,
+using the \fBp\fR, \fBv\fR and \fBf\fR modifiers to the column key-letters.
+Requests within the text block itself are also recognized, of course.
+However,
+.I troff
+requests within the table data but not within the text block
+do not affect that block.
+.br
+.di RR
+.     this is going down a rat-hole
+.EQ
+delim off
+.EN
+.di
+.rm RR
+.IP "##\fBWarnings:\fR#"
+Although any number of lines may be present in a table,
+only the first 200 lines are used in
+setting up the table;
+a multi-page table,
+of course, may be arranged as several single-page tables
+if this proves to be a problem.
+Other difficulties with formatting may arise because,
+in the calculation of column widths all table entries
+are assumed to be in the font and size being used when
+the ``\*.TS'' command was encountered, except for font and size changes
+indicated (a) in the table format section and (b)
+within the table data (as in the entry
+\fB\es+3\efIData\efP\es0\fR).
+Therefore, although arbitrary
+.I
+troff
+.R
+requests may be sprinkled in a table, care must be taken
+to avoid confusing the width calculations;
+use requests such as `\*.ps' with care.
+.sp .5v
+.RE
+.IP "4)"
+A\s-2DDITIONAL COMMAND LINES\s0.
+If the format of a table must be changed after
+many similar lines, as with sub-headings or summarizations, the ``\*.T&''
+(table continue)
+command can be used
+to change column parameters.
+The outline of such a table input is:
+.DS
+.ft R
+\&\*.TS
+.ft I
+\&options \fB;\fP
+\&format \*.
+\&data
+\&\*.\|\*.\|\*.
+.ft R
+\&\*.T&
+.ft I
+\&format \*.
+\&data
+.ft R
+\&\*.T&
+.ft I
+\&format \*.
+\&data
+.ft R
+\&\*.TE
+.DE
+as in the examples on pages 10 and 13.
+.e1 ab 10
+.e1 ac 13
+Using this procedure, each table line can be close to its corresponding format line.
+.IP "##\fBWarning:\fR#"
+It is not possible to change the number of columns, the space
+between columns, the global options such as \fIbox,\fR
+or the selection of columns to be made equal-width.
+Furthermore,
+``\*.T&'' is not recognized after the first 200 lines of a table.
+.tr ##
+.SH
+USAGE
+.PP
+On
+\s-1UNIX\s+1,
+.I
+tbl
+.R
+can be run on a simple table with the command
+.DS
+.lg 0
+\!.lg 0
+tbl \|input-file \|\(bv \|troff
+.lg 0
+\!.lg 0
+.DE
+but
+for more complicated use, where there are several input files,
+and they contain equations and \fIms\fR (or \fImm\fR) macro requests as well
+as tables, the normal command would be
+.DS
+.lg 0
+\!.lg 0
+tbl \|file-1 \|file-2 \|\*.\|\*.\|\*. \|\(bv \|eqn \|\(bv \|troff \|\-ms\h'.5i'(or \|\-mm)
+.lg 0
+\!.lg 0
+.DE
+and, of course, the usual options may be used on the
+.I
+troff
+.R
+and
+.I
+eqn
+.R
+commands.
+The usage for
+.I
+nroff
+.R
+is similar
+to that for
+.I
+troff,
+.R
+but only
+\fI\s-1TELETYPE\s+1\^\fR\(rg Model 37 and
+Diablo-mechanism (\s-1DASI\s+1 or \s-1GSI\s+1)
+terminals can print boxed tables directly.
+If a file name is ``\fB\-\fR'',
+the standard input is read at that point.
+.PP
+For the convenience of users employing line printers without
+adequate driving tables or post-filters, there is a special
+.I \-TX
+command-line option to
+.I tbl
+which produces output that does not have fractional line
+motions in it.
+The only other command-line options recognized by
+.I tbl
+are
+.I \-ms
+and
+.I \-mm
+which are turned into
+commands to fetch the corresponding macro files;
+usually it is more convenient to place these arguments
+on the
+.I troff
+part of the command line,
+but they are accepted by
+.I tbl
+as well.
+.PP
+Note that when
+.I
+eqn
+.R
+and
+.I
+tbl
+.R
+are used together on the same file
+.I
+tbl
+.R
+should be used first.
+If there are no equations within tables,
+either order works, but it is usually faster
+to run
+.I
+tbl
+.R
+first, since
+.I
+eqn
+.R
+normally produces a larger expansion of the input
+than
+.I
+tbl.
+.R
+However, if there are equations within tables
+(using the
+.I
+delim
+.R
+mechanism in
+.I
+eqn\fR),
+.I
+tbl
+.R
+must be first or the output will be scrambled.
+Users must also beware of using equations in
+\fBn\fR-style columns; this is nearly always wrong,
+since
+.I
+tbl
+.R
+attempts to split numerical format items into two parts and this
+is not possible with equations.
+The user can defend against this by giving the
+.I delim(xx)
+table option;
+this prevents splitting of numerical columns within the delimiters.
+For example, if the
+.I eqn
+delimiters
+are
+.B $$ ,
+giving
+.B delim($$)
+causes
+a numerical column such as
+\fB1245\ $+\-\ 16$\fR
+to be divided after 1245, not after 16.
+.PP
+.I Tbl
+accepts up to about 35 columns, but the actual number
+that can be processed
+may be smaller, depending on availability of
+.I troff
+number registers.
+The user must avoid number register names used
+by
+.I tbl,
+which include two-digit numbers from 31 to 99
+and strings of the form
+\fB4\fIx\fR, \fB5\fIx\fR,
+\fB#\fIx\fR, \fIx\fB+\fR, \fIx\fR\(bv, \*^\fIx\fR, and \fIx\fB\-\fR,
+where
+\fIx\fR is any lower-case letter.
+The names
+\fB##\fR, \fB#\-\fR, and \fB#\fR\*^ are also used in certain circumstances.
+To conserve register names, the
+\fBn\fR
+and
+\fBa\fR
+formats share a register;
+hence the restriction above that they may not be used in the same column.
+.PP
+For aid in writing layout macros,
+.I
+tbl
+.R
+defines a number register TW which is
+the table width; it is defined by the time that the ``\*.TE'' macro
+is invoked and may be used in the expansion of that macro.
+More importantly, to assist in laying out multi-page boxed tables
+the macro T# is defined to produce the bottom lines and side lines of a boxed
+table, and then invoked at its end.
+By use of this macro
+in the page footer a multi-page table can be boxed.
+In particular, the
+.I ms
+and
+.I mm
+macros can be used to print a multi-page boxed table with a repeated heading
+by giving the
+argument H to the ``\*.TS'' macro.
+If the table start macro is written
+.br
+	\&\*.TS H
+.br
+a line of the form
+.br
+	\&\*.TH
+.br
+must be given in the table after any table heading (or at the start if none).
+Material up to the ``\*.TH'' is placed at the top of each page of table;
+the remaining lines in the table are placed on several pages as required.
+Note that this is
+.I
+not
+.R
+a feature of
+.I
+tbl,
+.R
+but of the \fIms\fR and \fImm\fR macros.
+.SH
+EXAMPLES
+.PP
+Here are some examples illustrating features of
+.I
+tbl.
+.R
+.ds T \|\h'.4n'\v'-.2n'\s6\zT\s0\s10\v'.2n'\h'-.4n'\(ci\|\s0
+The symbol \*T in the input represents a tab character.
+.de IN
+.po \\n(POu
+.sp |\\n(.hu
+.sp
+.ne \\$1
+.mk
+.B
+Input:
+.R
+.sp .5
+.nf
+.in +3n
+.lg 0
+..
+.de OU
+.br
+.lg
+.in -3n
+.rt
+.po +3i
+.B
+Output:
+.R
+.sp .5
+..
+.rm TS
+.rm TE
+.nf
+.IN 2.5i
+\&\*.TS
+\&box;
+\&c c c
+\&l l l\*.
+\&Language\*TAuthors\*TRuns on
+\&
+\&Fortran\*TMany\*TAlmost anything
+\&PL/1\*TIBM\*T360/370
+\&C\*TBTL\*T11/45,H6000,370
+\&BLISS\*TCarnegie-Mellon\*TPDP-10,11
+\&IDS\*THoneywell\*TH6000
+\&Pascal\*TStanford\*T370
+\&\*.TE
+.OU
+.TS
+box;
+c c c
+l l l.
+Language	Authors	Runs on
+
+Fortran	Many	Almost anything
+PL/1	IBM	360/370
+C	BTL	11/45,H6000,370
+BLISS	Carnegie-Mellon	PDP-10,11
+IDS	Honeywell	H6000
+Pascal	Stanford	370
+.TE
+.IN 2.8i
+\&\*.TS
+\&allbox;
+\&c s s
+\&c c c
+\&n n n\*.
+\&AT&T Common Stock
+\&Year\*TPrice\*TDividend
+\&1971\*T41-54\*T$2\*.60
+\&2\*T41-54\*T2\*.70
+\&3\*T46-55\*T2\*.87
+\&4\*T40-53\*T3\*.24
+\&5\*T45-52\*T3\*.40
+\&6\*T51-59\*T\*.95*
+\&\*.TE
+\&* (first quarter only)
+.OU
+.TS
+allbox;
+c s s
+c c c
+n n n.
+AT&T Common Stock
+Year	Price	Dividend
+1971	41-54	$2.60
+2	41-54	2.70
+3	46-55	2.87
+4	40-53	3.24
+5	45-52	3.40
+6	51-59	.95*
+.TE
+* (first quarter only)
+.IN 4i
+\&\*.TS
+\&box;
+\&c s s
+\&c | c | c
+\&l | l | n\*.
+\&Major New York Bridges
+\&=
+\&Bridge\*TDesigner\*TLength
+\&\(ul
+\&Brooklyn\*TJ\*. A\*. Roebling\*T1595
+\&Manhattan\*TG\*. Lindenthal\*T1470
+\&Williamsburg\*TL\*. L\*. Buck\*T1600
+\&\(ul
+\&Queensborough\*TPalmer &\*T1182
+\&\*T  Hornbostel
+\&\(ul
+\&\*T\*T1380
+\&Triborough\*TO\*. H\*. Ammann\*T\(ul
+\&\*T\*T383
+\&\(ul
+\&Bronx Whitestone\*TO\*. H\*. Ammann\*T2300
+\&Throgs Neck\*TO\*. H\*. Ammann\*T1800
+\&\(ul
+\&George Washington\*TO\*. H\*. Ammann\*T3500
+\&\*.TE
+.OU
+.TS
+box;
+c s s
+c | c | c
+l | l | n.
+Major New York Bridges
+=
+Bridge	Designer	Length
+_
+Brooklyn	J. A. Roebling	1595
+Manhattan	G. Lindenthal	1470
+Williamsburg	L. L. Buck	1600
+_
+Queensborough	Palmer &	1182
+	  Hornbostel
+_
+		1380
+Triborough	O. H. Ammann	_
+		383
+_
+Bronx Whitestone	O. H. Ammann	2300
+Throgs Neck	O. H. Ammann	1800
+_
+George Washington	O. H. Ammann	3500
+.TE
+.IN 3.0i
+\&\*.TS
+\&c c
+\&np-2 | n | \*.
+\&\*TStack
+\&\*T\(ul
+\&1\*T46
+\&\*T\(ul
+\&2\*T23
+\&\*T\(ul
+\&3\*T15
+\&\*T\(ul
+\&4\*T6\*.5
+\&\*T\(ul
+\&5\*T2\*.1
+\&\*T\(ul
+\&\*.TE
+.OU
+.TS
+c c
+np-2 | n |.
+	Stack
+	_
+1	46
+	_
+2	23
+	_
+3	15
+	_
+4	6.5
+	_
+5	2.1
+	_
+.TE
+.IN 2.5i
+\&\*.TS
+\&box;
+\&L L L
+\&L L \(ul
+\&L L | LB
+\&L L \(ul
+\&L L L\*.
+\&january\*Tfebruary\*Tmarch
+\&april\*Tmay
+\&june\*Tjuly\*TMonths
+\&august\*Tseptember
+\&october\*Tnovember\*Tdecember
+\&\*.TE
+.OU
+.TS
+box;
+L L L
+L L _
+L L | LB
+L L _
+L L L.
+january	february	march
+april	may
+june	july	Months
+august	september
+october	november	december
+.TE
+.IN 5.0i
+.e2 ab
+\&\*.TS
+\&box;
+\&cfB s s s\*.
+\&Composition of Foods
+\&\(ul
+\&\*.T&
+\&c  | c s s
+\&c  | c s s
+\&c   | c  | c  | c\*.
+\&Food\*TPercent by Weight
+\&\e\*^\*T\(ul
+\&\e\*^\*TProtein\*TFat\*TCarbo-
+\&\e\*^\*T\e\*^\*T\e\*^\*Thydrate
+\&\(ul
+\&\*.T&
+\&l  | n  | n  | n\*.
+\&Apples\*T\*.4\*T\*.5\*T13\*.0
+\&Halibut\*T18\*.4\*T5\*.2\*T\*.\|\*.\|\*.
+\&Lima beans\*T7\*.5\*T\*.8\*T22\*.0
+\&Milk\*T3\*.3\*T4\*.0\*T5\*.0
+\&Mushrooms\*T3\*.5\*T\*.4\*T6\*.0
+\&Rye bread\*T9\*.0\*T\*.6\*T52\*.7
+\&\*.TE
+.OU
+.TS
+box;
+cfB s s s.
+Composition of Foods
+_
+.T&
+c  |c s s
+c  |c s s
+c   |c  |c  |c.
+Food	Percent by Weight
+\^	_
+\^	Protein	Fat	Carbo-
+\^	\^	\^	hydrate
+_
+.T&
+l  |n  |n  |n.
+Apples	.4	.5	13.0
+Halibut	18.4	5.2	...
+Lima beans	7.5	.8	22.0
+Milk	3.3	4.0	5.0
+Mushrooms	3.5	.4	6.0
+Rye bread	9.0	.6	52.7
+.TE
+.IN 3.7i
+.e2 aa
+\&\*.TS
+\&allbox;
+\&cfI  s   s
+\&c    cw(1i)   cw(1i)
+\&lp9 lp9 lp9 \*.
+\&New York Area Rocks
+\&Era\*TFormation\*TAge (years)
+\&Precambrian\*TReading Prong\*T>1 billion
+\&Paleozoic\*TManhattan Prong\*T400 million
+\&Mesozoic\*TT{
+\&\*.na
+\&Newark Basin, incl\*.
+\&Stockton, Lockatong, and Brunswick
+\&formations; also Watchungs
+\&and Palisades\*.
+\&\*.ad
+\&T}\*T200 million
+\&Cenozoic\*TCoastal Plain\*TT{
+\&\*.na
+\&On Long Island 30,000 years;
+\&Cretaceous sediments redeposited
+\&by recent glaciation\*.
+\&\*.ad
+\&T}
+\&\*.TE
+.OU
+.fi
+.TS
+allbox;
+cfI s   s
+c   cw(1i)   cw(1i)
+lp9 lp9 lp9 .
+New York Area Rocks
+Era	Formation	Age (years)
+Precambrian	Reading Prong	>1 billion
+Paleozoic	Manhattan Prong	400 million
+Mesozoic	T{
+.na
+Newark Basin, incl.
+Stockton, Lockatong, and Brunswick
+formations; also Watchungs
+and Palisades.
+.ad
+T}	200 million
+Cenozoic	Coastal Plain	T{
+.na
+On Long Island 30,000 years;
+Cretaceous sediments redeposited
+by recent glaciation.
+.ad
+T}
+.TE
+.IN 2i
+\&\*.EQ
+\&delim $$
+\&\*.EN
+.sp
+\&\*.\|\*.\|\*.
+.sp
+\&\*.TS
+\&doublebox;
+\&c c
+\&l l\*.
+\&Name\*TDefinition
+\&\*.sp
+\&\*.vs +2p
+\&Gamma\*T$GAMMA (z) = int sub 0 sup inf  t sup {z-1} e sup -t dt$
+\&Sine\*T$sin (x) = 1 over 2i ( e sup ix - e sup -ix )$
+\&Error\*T$ roman erf (z) = 2 over sqrt pi int sub 0 sup z e sup {-t sup 2} dt$
+\&Bessel\*T$ J sub 0 (z) = 1 over pi int sub 0 sup pi cos ( z sin theta ) d theta $
+\&Zeta\*T$ zeta (s) = sum from k=1 to inf k sup -s ~~( Re~s > 1)$
+\&\*.vs -2p
+\&\*.sp 2p
+\&\*.TE
+.di qq
+.EQ
+delim $$
+.EN
+.di
+.rm qq
+.rs
+.OU
+.TS
+doublebox;
+c c
+l l.
+Name	Definition
+.sp
+.vs +2p
+Gamma	$GAMMA (z) = int sub 0 sup inf  t sup {z-1} e sup -t dt$
+Sine	$sin (x) = 1 over 2i ( e sup ix - e sup -ix )$
+Error	$ roman erf (z) = 2 over sqrt pi int sub 0 sup z e sup {-t sup 2} dt$
+Bessel	$ J sub 0 (z) = 1 over pi int sub 0 sup pi cos ( z sin theta ) d theta $
+Zeta	$ zeta (s) = sum from k=1 to inf k sup -s ~~( Re~s > 1)$
+.vs -2p
+.sp 2p
+.TE
+.ds : \|:\|
+.IN 2i
+\&\*.TS
+\&box, tab(\*:);
+\&cb s s s s
+\&cp-2 s s s s
+\&c |\|| c | c | c | c
+\&c |\|| c | c | c | c
+\&r2 |\|| n2 | n2 | n2 | n\*.
+\&Readability of Text
+\&Line Width and Leading for 10-Point Type
+\&=
+\&Line\*:Set\*:1-Point\*:2-Point\*:4-Point
+\&Width\*:Solid\*:Leading\*:Leading\*:Leading
+\&_
+\&9 Pica\*:\e\-9\*.3\*:\e\-6\*.0\*:\e\-5\*.3\*:\e\-7\*.1
+\&14 Pica\*:\e\-4\*.5\*:\e\-0\*.6\*:\e\-0\*.3\*:\e\-1\*.7
+\&19 Pica\*:\e\-5\*.0\*:\e\-5\*.1\*: 0\*.0\*:\e\-2\*.0
+\&31 Pica\*:\e\-3\*.7\*:\e\-3\*.8\*:\e\-2\*.4\*:\e\-3\*.6
+\&43 Pica\*:\e\-9\*.1\*:\e\-9\*.0\*:\e\-5\*.9\*:\e\-8\*.8
+\&\*.TE
+.OU
+.TS
+box, tab(:);
+cb s s s s
+cp-2 s s s s
+c ||c |c |c |c
+c ||c |c |c |c
+r2 ||n2 |n2 |n2 |n.
+Readability of Text
+Line Width and Leading for 10-Point Type
+=
+Line:Set:1-Point:2-Point:4-Point
+Width:Solid:Leading:Leading:Leading
+_
+9 Pica:\-9.3:\-6.0:\-5.3:\-7.1
+14 Pica:\-4.5:\-0.6:\-0.3:\-1.7
+19 Pica:\-5.0:\-5.1: 0.0:\-2.0
+31 Pica:\-3.7:\-3.8:\-2.4:\-3.6
+43 Pica:\-9.1:\-9.0:\-5.9:\-8.8
+.TE
+.IN 7i
+.e2 ac
+\&\*.TS
+\&c s
+\&cip-2 s
+\&l n
+\&a n\*.
+\&Some London Transport Statistics
+\&(Year 1964)
+\&Railway route miles\*T244
+\&Tube\*T66
+\&Sub-surface\*T22
+\&Surface\*T156
+\&\*.sp \*.5
+\&\*.T&
+\&l r
+\&a r\*.
+\&Passenger traffic \e\- railway
+\&Journeys\*T674 million
+\&Average length\*T4\*.55 miles
+\&Passenger miles\*T3,066 million
+\&\*.T&
+\&l r
+\&a r\*.
+\&Passenger traffic \e\- road
+\&Journeys\*T2,252 million
+\&Average length\*T2\*.26 miles
+\&Passenger miles\*T5,094 million
+\&\*.T&
+\&l n
+\&a n\*.
+\&\*.sp \*.5
+\&Vehicles\*T12,521
+\&Railway motor cars\*T2,905
+\&Railway trailer cars\*T1,269
+\&Total railway\*T4,174
+\&Omnibuses\*T8,347
+\&\*.T&
+\&l n
+\&a n\*.
+\&\*.sp \*.5
+\&Staff\*T73,739
+\&Administrative, etc\*.\*T5,582
+\&Civil engineering\*T5,134
+\&Electrical eng\*.\*T1,714
+\&Mech\*. eng\*. \e\- railway\*T4,310
+\&Mech\*. eng\*. \e\- road\*T9,152
+\&Railway operations\*T8,930
+\&Road operations\*T35,946
+\&Other\*T2,971
+\&\*.TE
+.OU
+.TS
+c s
+cip-2 s
+l n
+a n.
+Some London Transport Statistics
+(Year 1964)
+Railway route miles	244
+Tube	66
+Sub-surface	22
+Surface	156
+.sp .5
+.T&
+l r
+a r.
+Passenger traffic \(mi railway
+Journeys	674 million
+Average length	4.55 miles
+Passenger miles	3,066 million
+.T&
+l r
+a r.
+Passenger traffic \(mi road
+Journeys	2,252 million
+Average length	2.26 miles
+Passenger miles	5,094 million
+.T&
+l n
+a n.
+.sp .5
+Vehicles	12,521
+Railway motor cars	2,905
+Railway trailer cars	1,269
+Total railway	4,174
+Omnibuses	8,347
+.T&
+l n
+a n.
+.sp .5
+Staff	73,739
+Administrative, etc.	5,582
+Civil engineering	5,134
+Electrical eng.	1,714
+Mech. eng. \(mi railway	4,310
+Mech. eng. \(mi road	9,152
+Railway operations	8,930
+Road operations	35,946
+Other	2,971
+.TE
+.po \n(POu
+.sp |\n(.hu
+.de IN
+.sp
+.ne 1i
+.B
+Input:
+.R
+.sp .5
+.in +3n
+.nf
+.lg 0
+..
+.de OU
+.sp
+.lg
+.in -3n
+.ne 1i
+.B
+Output:
+.R
+.sp .5
+..
+.ns
+.EQ
+delim off
+.EN
+.IN
+\&\*.ps 8
+\&\*.vs 10p
+\&\*.TS
+center box;
+\&c s s
+\&ci s s
+\&c c c
+\&lB l n\*.
+\&New Jersey Representatives
+\&(Democrats)
+\&\*.sp \*.5
+\&Name\*TOffice address\*TPhone
+\&\*.sp \*.5
+\&James J\*. Florio\*T23 S\*. White Horse Pike, Somerdale 08083\*T609-627-8222
+\&William J\*. Hughes\*T2920 Atlantic Ave\*., Atlantic City 08401\*T609-345-4844
+\&James J\*. Howard\*T801 Bangs Ave\*., Asbury Park 07712\*T201-774-1600
+\&Frank Thompson, Jr\*.\*T10 Rutgers Pl\*., Trenton 08618\*T609-599-1619
+\&Andrew Maguire\*T115 W\*. Passaic St\*., Rochelle Park 07662\*T201-843-0240
+\&Robert A\*. Roe\*TU\*.S\*.P\*.O\*., 194 Ward St\*., Paterson 07510\*T201-523-5152
+\&Henry Helstoski\*T666 Paterson Ave\*., East Rutherford 07073\*T201-939-9090
+\&Peter W\*. Rodino, Jr\*.\*TSuite 1435A, 970 Broad St\*., Newark 07102\*T201-645-3213
+\&Joseph G\*. Minish\*T308 Main St\*., Orange 07050\*T201-645-6363
+\&Helen S\*. Meyner\*T32 Bridge St\*., Lambertville 08530\*T609-397-1830
+\&Dominick V\*. Daniels\*T895 Bergen Ave\*., Jersey City 07306\*T201-659-7700
+\&Edward J\*. Patten\*TNatl\*. Bank Bldg\*., Perth Amboy 08861\*T201-826-4610
+\&\*.sp \*.5
+\&\*.T&
+\&ci s s
+\&lB l n\*.
+\&(Republicans)
+\&\*.sp \*.5v
+\&Millicent Fenwick\*T41 N\*. Bridge St\*., Somerville 08876\*T201-722-8200
+\&Edwin B\*. Forsythe\*T301 Mill St\*., Moorestown 08057\*T609-235-6622
+\&Matthew J\*. Rinaldo\*T1961 Morris Ave\*., Union 07083\*T201-687-4235
+\&\*.TE
+\&\*.ps 10
+\&\*.vs 12p
+.ne 3.2i
+.OU
+.ps 8
+.vs 10p
+.TS
+center box;
+c s s
+ci s s
+c c c
+lB l n.
+New Jersey Representatives
+(Democrats)
+.sp .5
+Name	Office address	Phone
+.sp .5
+James J. Florio	23 S. White Horse Pike, Somerdale 08083	609-627-8222
+William J. Hughes	2920 Atlantic Ave., Atlantic City 08401	609-345-4844
+James J. Howard	801 Bangs Ave., Asbury Park 07712	201-774-1600
+Frank Thompson, Jr.	10 Rutgers Pl., Trenton 08618	609-599-1619
+Andrew Maguire	115 W. Passaic St., Rochelle Park 07662	201-843-0240
+Robert A. Roe	U.S.P.O., 194 Ward St., Paterson 07510	201-523-5152
+Henry Helstoski	666 Paterson Ave., East Rutherford 07073	201-939-9090
+Peter W. Rodino, Jr.	Suite 1435A, 970 Broad St., Newark 07102	201-645-3213
+Joseph G. Minish	308 Main St., Orange 07050	201-645-6363
+Helen S. Meyner	32 Bridge St., Lambertville 08530	609-397-1830
+Dominick V. Daniels	895 Bergen Ave., Jersey City 07306	201-659-7700
+Edward J. Patten	Natl. Bank Bldg., Perth Amboy 08861	201-826-4610
+.sp .5
+.T&
+ci s s
+lB l n.
+(Republicans)
+.sp .5v
+Millicent Fenwick	41 N. Bridge St., Somerville 08876	201-722-8200
+Edwin B. Forsythe	301 Mill St., Moorestown 08057	609-235-6622
+Matthew J. Rinaldo	1961 Morris Ave., Union 07083	201-687-4235
+.TE
+.ps 10
+.vs 12p
+.sp
+.fi
+This is a paragraph of normal text placed here only to indicate where
+the left and right margins are.
+In this way the reader can judge
+the appearance of centered tables or expanded tables, and observe
+how such tables are formatted.
+.IN
+\&\*.TS
+\&expand;
+\&c s s s
+\&c c c c
+\&l l n n\*.
+\&Bell Labs Locations
+\&Name\*TAddress\*TArea Code\*TPhone
+\&Holmdel\*THolmdel, N\*. J\*. 07733\*T201\*T949-3000
+\&Murray Hill\*TMurray Hill, N\*. J\*. 07974\*T201\*T582-6377
+\&Whippany\*TWhippany, N\*. J\*. 07981\*T201\*T386-3000
+\&Indian Hill\*TNaperville, Illinois 60540\*T312\*T690-2000
+\&\*.TE
+.ne 1.3i
+.OU
+.TS
+expand;
+c s s s
+c c c c
+l l n n.
+Bell Labs Locations
+Name	Address	Area Code	Phone
+Holmdel	Holmdel, N. J. 07733	201	949-3000
+Murray Hill	Murray Hill, N. J. 07974	201	582-6377
+Whippany	Whippany, N. J. 07981	201	386-3000
+Indian Hill	Naperville, Illinois 60540	312	690-2000
+.TE
+.br
+.ps 8
+.vs 9p
+.ne 5i
+.IN
+\&\*.TS
+\&box;
+\&cb   s   s   s
+\&c | c | c   s
+\&ltiw(1i) | ltw(2i) | lp8 | lw(1\*.6i)p8\*.
+\&Some Interesting Places
+\&_
+\&Name\*TDescription\*TPractical Information
+\&_
+\&T{
+\&American Museum of Natural History
+\&T}\*TT{
+\&The collections fill 11\*.5 acres (Michelin) or 25 acres (MTA)
+\&of exhibition halls on four floors\*.
+\&There is a full-sized replica
+\&of a blue whale and the world's largest star sapphire (stolen in 1964)\*.
+\&T}\*THours\*T10-5, ex\*. Sun 11-5, Wed\*. to 9
+\&\e\*^\*T\e\*^\*TLocation\*TT{
+\&Central Park West & 79th St\*.
+\&T}
+\&\e\*^\*T\e\*^\*TAdmission\*TDonation: $1\*.00 asked
+\&\e\*^\*T\e\*^\*TSubway\*TAA to 81st St\*.
+\&\e\*^\*T\e\*^\*TTelephone\*T212-873-4225
+\&_
+\&Bronx Zoo\*TT{
+\&About a mile long and \*.6 mile wide, this is the largest zoo in America\*.
+\&A lion eats 18 pounds
+\&of meat a day while a sea lion eats 15 pounds of fish\*.
+\&T}\*THours\*TT{
+\&10-4:30 winter, to 5:00 summer
+\&T}
+\&\e\*^\*T\e\*^\*TLocation\*TT{
+\&185th St\*. & Southern Blvd, the Bronx\*.
+\&T}
+\&\e\*^\*T\e\*^\*TAdmission\*T$1\*.00, but Tu,We,Th free
+\&\e\*^\*T\e\*^\*TSubway\*T2, 5 to East Tremont Ave\*.
+\&\e\*^\*T\e\*^\*TTelephone\*T212-933-1759
+\&_
+\&Brooklyn Museum\*TT{
+\&Five floors of galleries contain American and ancient art\*.
+\&There are American period rooms and architectural ornaments saved
+\&from wreckers, such as a classical figure from Pennsylvania Station\*.
+\&T}\*THours\*TWed-Sat, 10-5, Sun 12-5
+\&\e\*^\*T\e\*^\*TLocation\*TT{
+\&Eastern Parkway & Washington Ave\*., Brooklyn\*.
+\&T}
+\&\e\*^\*T\e\*^\*TAdmission\*TFree
+\&\e\*^\*T\e\*^\*TSubway\*T2,3 to Eastern Parkway\*.
+\&\e\*^\*T\e\*^\*TTelephone\*T212-638-5000
+\&_
+\&T{
+\&New-York Historical Society
+\&T}\*TT{
+\&All the original paintings for Audubon's
+\&\*.I
+\&Birds of America
+\&\*.R
+\&are here, as are exhibits of American decorative arts, New York history,
+\&Hudson River school paintings, carriages, and glass paperweights\*.
+\&T}\*THours\*TT{
+\&Tues-Fri & Sun, 1-5; Sat 10-5
+\&T}
+\&\e\*^\*T\e\*^\*TLocation\*TT{
+\&Central Park West & 77th St\*.
+\&T}
+\&\e\*^\*T\e\*^\*TAdmission\*TFree
+\&\e\*^\*T\e\*^\*TSubway\*TAA to 81st St\*.
+\&\e\*^\*T\e\*^\*TTelephone\*T212-873-3400
+\&\*.TE
+.br
+.ps \n(PS
+.vs \n(VSp
+.OU
+.fi
+.rr 10 11 12 13 14 15 16 17 18 19 20 21 22 98 99
+.rr 60 61 62 63 64 65 66 67 68 69 70
+.rr 43 44 45 46 47 48 49 50 51 52 53
+.rr 83 84 85 86 87 88 89 90 91 92 93
+.rr #a
+.rr #b
+.rr #c
+.rr #d
+.rr #e
+.rr YY
+.rr OJ
+.rr P
+.rr AV CW GW DW FL KN SJ A1 A2 A3 I1 I2 I3
+.in 0
+.TS
+box;
+cb   s   s   s
+c | c | c   s
+ltiw(1i) | ltw(2i) | lp8| lw(1.6i)p8.
+Some Interesting Places
+_
+Name	Description	Practical Information
+_
+T{
+American Museum of Natural History
+T}	T{
+The collections fill 11.5 acres (Michelin) or 25 acres (MTA)
+of exhibition halls on four floors.
+There is a full-sized replica
+of a blue whale and the world's largest star sapphire (stolen in 1964).
+T}	Hours	10-5, ex. Sun 11-5, Wed. to 9
+\^	\^	Location	T{
+Central Park West & 79th St.
+T}
+\^	\^	Admission	Donation: $1.00 asked
+\^	\^	Subway	AA to 81st St.
+\^	\^	Telephone	212-873-4225
+_
+Bronx Zoo	T{
+About a mile long and .6 mile wide, this is the largest zoo in America.
+A lion eats 18 pounds
+of meat a day while a sea lion eats 15 pounds of fish.
+T}	Hours	T{
+10-4:30 winter, to 5:00 summer
+T}
+\^	\^	Location	T{
+185th St. & Southern Blvd, the Bronx.
+T}
+\^	\^	Admission	$1.00, but Tu,We,Th free
+\^	\^	Subway	2, 5 to East Tremont Ave.
+\^	\^	Telephone	212-933-1759
+_
+Brooklyn Museum	T{
+Five floors of galleries contain American and ancient art.
+There are American period rooms and architectural ornaments saved
+from wreckers, such as a classical figure from Pennsylvania Station.
+T}	Hours	Wed-Sat, 10-5, Sun 12-5
+\^	\^	Location	T{
+Eastern Parkway & Washington Ave., Brooklyn.
+T}
+\^	\^	Admission	Free
+\^	\^	Subway	2,3 to Eastern Parkway.
+\^	\^	Telephone	212-638-5000
+_
+T{
+New-York Historical Society
+T}	T{
+All the original paintings for Audubon's
+.I
+Birds of America
+.R
+are here, as are exhibits of American decorative arts, New York history,
+Hudson River school paintings, carriages, and glass paperweights.
+T}	Hours	T{
+Tues-Fri & Sun, 1-5; Sat 10-5
+T}
+\^	\^	Location	T{
+Central Park West & 77th St.
+T}
+\^	\^	Admission	Free
+\^	\^	Subway	AA to 81st St.
+\^	\^	Telephone	212-873-3400
+.TE
+.rr 40
+.rr 41
+.rr 42
+.rr 43
+.rr 80
+.rr 81
+.rr 82
+.rr 83
+.rr 60
+.rr 61
+.rr 62
+.rr 63
+.rr #a
+.rr #b
+.rr #c
+.rr #d
+.rr #e
+.rr ##
+.ne 2i
+.fi
+.LP
+.SH
+ACKNOWLEDGEMENTS
+.PP
+Many thanks are due to J. C. Blinn, who has done a large amount
+of testing and assisted with the design of the program.
+He has also written many of the more intelligible sentences
+in this document and helped edit all of it.
+All phototypesetting programs on \s-1UNIX\s+1 are dependent on the work
+of the late J. F. Ossanna, whose assistance with this program in particular
+had been most helpful.
+This program is patterned on a table formatter
+written by J. F. Gimpel.
+The assistance of
+T. A. Dolotta, B. W. Kernighan, and J. N. Sturman
+is gratefully acknowledged.
+.ne 2i
+.SH
+REFERENCES
+.IP "[1]"
+J. F. Ossanna.
+.I
+N\s-1ROFF/TROFF\s+1 User's Manual,
+.R
+Bell Laboratories, 1976.
+.nr PD 0v
+.IP "[2]"
+D. M. Ritchie and K. Thompson.
+The U\s-1NIX\s+1 Time-Sharing System,
+\fI\s-1CACM\s+1\fR \fB17\fR(7):365-75 (July 1974).
+.IP "[3]"
+B. W. Kernighan and L. L. Cherry.
+A System for Typesetting Mathematics,
+\fI\s-1CACM\s+1\fR \fB18\fR(3):151-56 (Mar. 1975).
+.IP "[4]"
+M. E. Lesk.
+.I
+Typing Documents on U\s-1NIX\s+1,
+.R
+Bell Laboratories, 1976.
+.IP "[5]"
+M. E. Lesk and B. W. Kernighan.
+Computer Typesetting of Technical Journals on U\s-1NIX\s+1,
+\fIProc. AFIPS NCC,\fR vol. 46, pp. 879-88 (1977).
+.IP "[6]"
+D. W. Smith and J. R. Mashey.
+.I
+MM\-Memorandum Macros,
+.R
+Bell Laboratories, 1980.
+.sp 2v
+.SH
+.ce
+List of Tbl Command Characters and Words
+.sp
+.LP
+.EQ
+delim $$
+gfont roman
+.EN
+.TS
+center;
+cI cI cI
+aB lf1 nf1 .
+Command	Meaning	Section
+a A	Alphabetic subcolumn	2
+allbox	Draw box around all items	1
+b B	Boldface item	2
+box	Draw box around table	1
+c C	Centered column	2
+center	Center table in page	1
+delim \fR(\fIxy\^\fR)	Define \fIeqn\fR delimiters	1
+doublebox	Draw double box around table	1
+e E	Equal-width columns	2
+expand	Make table full line width	1
+f F	Font change	2
+i I	Italic item	2
+l L	Left adjusted column	2
+linesize \fR(\fIn\^\fR)	Set size for rules	1
+n N	Numerical column	2
+\fInnn\fR	Column separation	2
+p P	Point size change	2
+r R	Right adjusted column	2
+s S	Spanned item	2
+t T	Vertical spanning at top	2
+tab \fR(\fIx\^\fR)	Change data separator character	1
+\fBT\&{\|.\|.\|.\|T\&}\fR	Text block	3
+u U	Staggered columns	2
+v V	Vertical spacing change	2
+w W	Minimum width value	2
+z Z	Zero-width item	2
+\&\fB.\fIxx\fR	Included \fItroff\fR request	3
+\(bv	Vertical line	2
+\(bv\|\(bv	Double vertical line	2
+\*^	Vertical span	2
+\e\*^	Vertical span	3
+\(eq	Double horizontal line	2,3
+\(ul	Horizontal line	2,3
+\e\^\(ul	Short horizontal line	3
+\e\f3R\f2x	Repeat character	3
+\-	Name of standard input	Usage
+.TE
+.D3 "January 1981"

@@ -1,0 +1,137 @@
+README file for the Heirloom Documentation Tools
+================================================
+
+The Heirloom Documentation Tools provide troff, nroff, and relat-
+ed  utilities to format manual pages and other documents for out-
+put on terminals and printers.  They are  portable  and  enhanced
+versions of the utilities released by Sun as part of OpenSolaris,
+and, for pic, grap, mpm, and some minor parts, by Lucent as  part
+of Plan 9.
+
+nroff is most prominently used to format Unix  manual  pages  for
+viewing  them  on a terminal.  This implementation consumes rela-
+tively few system resources and is thus suitable for small system
+distributions.  It has been enhanced to generate UTF-8 output.
+
+troff generates typesetter output from the same  document  source
+code  as  nroff.   Thus  a special use of it is to prepare manual
+pages for printing.  troff is a general-purpose typesetting  pro-
+cessor, though.  Significant features have been added in this im-
+plementation; see the "Nroff/Troff User's Manual", "Font Handling
+in Troff with PostScript Devices", and "Justification in Heirloom
+Troff" for details.  All documents are included in the "doc" sub-
+directory of the source code distribution; compiled PDF files can
+be downloaded from the project home page.
+
+Currently, troff is almost  exclusively  targeted  at  generating
+output  for  PostScript  interpreters.   Its principal device in-
+dependence has been retained,  though;  the  intermediate  output
+language  is largely unchanged.  The troff driver for the Autolo-
+gic APS-5 is still included.  It is untested since  it  would  be
+surprising  to  find a phototypesetter of this type that is still
+in use, but serves as an experimentation aid for device  indepen-
+dence.
+
+The source code has been compiled successfully on:
+
+OpenBSD         CURRENT
+NetBSD          6.1.5, 7, CURRENT
+FreeBSD         8.4, 9.3, 10.1, CURRENT
+Linux           Slackware 14.1, OpenSuse Tumbleweed
+Mac OS X
+SmartOS
+
+To build and install manually:
+
+- Adjust the installation paths and compiler settings in the file
+  "mk.config", which is in makefile syntax.
+
+- Execute "make", followed by "make  install".   "make  mrproper"
+  will destroy all generated files.
+
+troff currently reads several binary files which are  built  dur-
+ing  the  compilation process.  It is thus not possible to cross-
+compile.
+
+The locale-dependent character input in troff assumes that the  C
+library represents wchar_t values as Unicode characters.  This is
+the case on any modern Unix system.
+
+The "pm" utility requires a C++ compiler.  If such a compiler  is
+not  available,  delete the "mpm" directory from the list of sub-
+directories to build in the top-level "makefile".  The "pm" util-
+ity  is  rarely  used,  so it should not be too dramatic if it is
+missing.
+
+In order to use the utilities for formatting manual  pages,  note
+the following:
+
+- You will normally want to use "nroff  -Tlocale".   By  default,
+  nroff  generates  output for a Teletype Model 37 with half-line
+  capabilities which will lead to weird results with any xterm or
+  CRT terminal.
+
+- tbl(1) should be used with option -Tlocale when producing input
+  for nroff and with option -g when producing input for troff.
+
+- "nroff -Tlocale" will generate UTF-8 output if permitted by the
+  current  setting of the LC_CTYPE locale, and the same as "nroff
+  -Tlp" otherwise.
+
+- Macro names are normally restricted to two characters for  com-
+  patibility  with previous versions of nroff.  With "nroff -mg",
+  long macro names and other groff extensions are accepted.   You
+  will  normally  want  to  enable this because you are much more
+  likely to encounter manual pages written  with  groff  in  mind
+  than manual pages that require strict Unix compatibility.
+
+- You need to filter the output of nroff through "col -x".
+
+- You need at least the "an" macro file to format  manual  pages.
+  If  you  also  want  to use the Berkeley "doc" macros, you also
+  need "doc*" and "andoc".  "nroff -mandoc" will then switch  au-
+  tomatically between the two macro packages.
+
+- Heirloom nroff can optimize  line  breaking  over  whole  para-
+  graphs.   This results in fewer ugly holes of successive spaces
+  in the output.  To enable it with manual pages, add "-mpadj" to
+  the command line.
+
+- It is recommended that the "-msafe" macro package is used  when
+  viewing  manual  pages.  It will remove those requests that al-
+  low to call programs or to write to files.  If  your  man  com-
+  mand  runs  with  privileges, you then also need to ensure that
+  the "TROFFMACS" environment variable is unset when nroff is ex-
+  ecuted.   Otherwise,  a malicious user might replace the "safe"
+  macro package with his own version.
+
+- Thus a complete pipeline to format manual pages for viewing is:
+
+    tbl -Tlocale input.1 | neqn | nroff -Tlocale -mg -msafe \
+        -mpadj -mandoc | col -x
+
+- If you like italic text to appear underlined and boldfaced text
+  to appear bold on a CRT or X Window System terminal, also add a
+  call to the "ul" filter:
+
+    tbl -Tlocale input.1 | neqn | nroff -Tlocale -mg -msafe \
+        -mpadj -mandoc | col -x | ul
+
+- To print manual pages with troff, use
+
+    tbl -g input.1 | eqn | troff -mg -msafe -mpadj -mandoc | \
+        dpost | lp
+
+- You should of course configure your  "man"  command  such  that
+  it  executes  these  pipelines  automatically for you.  For the
+  "man" command from the Heirloom Toolchest, suitable entries  in
+  "/etc/default/man" are:
+
+        NROFF=/usr/local/ucb/nroff -Tlocale -mg -msafe -mpadj
+        TROFF=/usr/local/ucb/troff -mg -msafe -mpadj
+        TBL=/usr/local/ucb/tbl -Tlocale
+        EQN=/usr/local/ucb/eqn
+        NEQN=/usr/local/ucb/neqn
+        TCAT=/usr/local/ucb/dpost
+        COL=/usr/local/ucb/col -x | ul
+        MACSET=-mandoc
