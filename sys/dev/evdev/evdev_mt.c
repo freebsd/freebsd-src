@@ -112,6 +112,7 @@ void
 evdev_set_last_mt_slot(struct evdev_dev *evdev, int32_t slot)
 {
 
+	evdev->ev_mt->ev_mt_slots[slot].ev_report = evdev->ev_report_count;
 	evdev->ev_mt->ev_mt_last_reported_slot = slot;
 }
 
@@ -127,10 +128,6 @@ inline void
 evdev_set_mt_value(struct evdev_dev *evdev, int32_t slot, int16_t code,
     int32_t value)
 {
-
-	if (code == ABS_MT_TRACKING_ID && value == -1)
-		evdev->ev_mt->ev_mt_slots[slot].ev_report =
-		    evdev->ev_report_count;
 
 	evdev->ev_mt->ev_mt_slots[slot].ev_mt_states[ABS_MT_INDEX(code)] =
 	    value;
@@ -227,9 +224,13 @@ void
 evdev_push_nfingers(struct evdev_dev *evdev, int32_t nfingers)
 {
 
-	EVDEV_LOCK(evdev);
+	if (evdev->ev_lock_type == EV_LOCK_INTERNAL)
+		EVDEV_LOCK(evdev);
+	else
+		EVDEV_LOCK_ASSERT(evdev);
 	evdev_send_nfingers(evdev, nfingers);
-	EVDEV_UNLOCK(evdev);
+	if (evdev->ev_lock_type == EV_LOCK_INTERNAL)
+		EVDEV_UNLOCK(evdev);
 }
 
 void
@@ -263,7 +264,29 @@ void
 evdev_push_mt_compat(struct evdev_dev *evdev)
 {
 
-	EVDEV_LOCK(evdev);
+	if (evdev->ev_lock_type == EV_LOCK_INTERNAL)
+		EVDEV_LOCK(evdev);
+	else
+		EVDEV_LOCK_ASSERT(evdev);
 	evdev_send_mt_compat(evdev);
-	EVDEV_UNLOCK(evdev);
+	if (evdev->ev_lock_type == EV_LOCK_INTERNAL)
+		EVDEV_UNLOCK(evdev);
+}
+
+void
+evdev_send_mt_autorel(struct evdev_dev *evdev)
+{
+	int32_t slot;
+
+	EVDEV_LOCK_ASSERT(evdev);
+
+	for (slot = 0; slot <= MAXIMAL_MT_SLOT(evdev); slot++) {
+		if (evdev->ev_mt->ev_mt_slots[slot].ev_report !=
+		    evdev->ev_report_count &&
+		    evdev_get_mt_value(evdev, slot, ABS_MT_TRACKING_ID) != -1){
+			evdev_send_event(evdev, EV_ABS, ABS_MT_SLOT, slot);
+			evdev_send_event(evdev, EV_ABS, ABS_MT_TRACKING_ID,
+			    -1);
+		}
+	}
 }

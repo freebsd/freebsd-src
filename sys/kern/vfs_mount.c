@@ -522,6 +522,8 @@ vfs_mount_destroy(struct mount *mp)
 		panic("vfs_mount_destroy: nonzero nvnodelistsize");
 	if (mp->mnt_activevnodelistsize != 0)
 		panic("vfs_mount_destroy: nonzero activevnodelistsize");
+	if (mp->mnt_tmpfreevnodelistsize != 0)
+		panic("vfs_mount_destroy: nonzero tmpfreevnodelistsize");
 	if (mp->mnt_lockref != 0)
 		panic("vfs_mount_destroy: nonzero lock refcount");
 	MNT_IUNLOCK(mp);
@@ -1352,7 +1354,7 @@ dounmount(struct mount *mp, int flags, struct thread *td)
 	mp->mnt_flag &= ~MNT_ASYNC;
 	mp->mnt_kern_flag &= ~MNTK_ASYNC;
 	MNT_IUNLOCK(mp);
-	cache_purgevfs(mp);	/* remove cache entries for this file sys */
+	cache_purgevfs(mp, false); /* remove cache entries for this file sys */
 	vfs_deallocate_syncvnode(mp);
 	/*
 	 * For forced unmounts, move process cdir/rdir refs on the fs root

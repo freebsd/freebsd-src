@@ -56,6 +56,7 @@ enum {
 	T4_SET_SCHED_QUEUE,             /* set queue class */
 	T4_GET_TRACER,			/* get information about a tracer */
 	T4_SET_TRACER,			/* program a tracer */
+	T4_LOAD_CFG,			/* copy a config file to card's flash */
 };
 
 struct t4_reg {
@@ -344,4 +345,5 @@ struct t4_tracer {
     struct t4_sched_queue)
 #define CHELSIO_T4_GET_TRACER	_IOWR('f', T4_GET_TRACER, struct t4_tracer)
 #define CHELSIO_T4_SET_TRACER	_IOW('f', T4_SET_TRACER, struct t4_tracer)
+#define CHELSIO_T4_LOAD_CFG	_IOW('f', T4_LOAD_CFG, struct t4_data)
 #endif
