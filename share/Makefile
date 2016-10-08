@@ -49,9 +49,7 @@ _dict=		dict
 _examples=	examples
 .endif
 
-.if ${MK_GROFF} != "no"
-_me=		me
-.endif
+SUBDIR.${MK_DOCTOOLS}+=		me
 
 .if ${MK_ICONV} != "no"
 _i18n=		i18n

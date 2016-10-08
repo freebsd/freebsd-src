@@ -1,8 +1,8 @@
 #	@(#)Makefile	8.2 (Berkeley) 3/27/94
 # $FreeBSD$
 
-MELIB=	${BINDIR}/me
-TMLIB=	${BINDIR}/tmac
+MELIB=	${BINDIR}/doctools/me
+TMLIB=	${BINDIR}/doctools/tmac
 MESRCS=	acm.me chars.me deltext.me eqn.me float.me footnote.me \
 	index.me letterhead.me local.me null.me refer.me sh.me \
 	tbl.me thesis.me

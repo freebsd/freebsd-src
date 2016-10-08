@@ -321,11 +321,13 @@
             ..
             font
             ..
+            me
+            ..
+            nterm
+            ..
             pub
             ..
             tmac
-            ..
-            nterm
             ..
         ..
         dtrace
