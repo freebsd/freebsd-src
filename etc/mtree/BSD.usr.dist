@@ -118,6 +118,12 @@
         ..
         bsdinstall
         ..
+        doctools
+            reftools
+            ..
+            hyphen
+            ..
+        ..
         hyperv
         ..
         lpr
@@ -306,6 +312,20 @@
                 ..
                 22.trofftut
                 ..
+            ..
+        ..
+        doctools
+            devpost
+                postscript
+                ..
+            ..
+            font
+            ..
+            pub
+            ..
+            tmac
+            ..
+            nterm
             ..
         ..
         dtrace
