@@ -465,7 +465,8 @@ CROSSENV+=	MAKEOBJDIRPREFIX=${OBJTREE} \
 # Don't rebuild build-tools targets during normal build.
 CROSSENV+=	BUILD_TOOLS_META=.NOMETA_CMP
 .endif
-.if ${MK_GROFF} != "no"
+.if ${MK_DOCTOOLS} != "no"
+# XXX TODO
 CROSSENV+=	GROFF_BIN_PATH=${WORLDTMP}/legacy/usr/bin \
 		GROFF_FONT_PATH=${WORLDTMP}/legacy/usr/share/groff_font \
 		GROFF_TMAC_PATH=${WORLDTMP}/legacy/usr/share/tmac
@@ -681,10 +682,6 @@ _worldtmp: .PHONY
 .endfor
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
 	    -p ${WORLDTMP}/legacy/usr >/dev/null
-.if ${MK_GROFF} != "no"
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.groff.dist \
-	    -p ${WORLDTMP}/legacy/usr >/dev/null
-.endif
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 	    -p ${WORLDTMP}/legacy/usr/include >/dev/null
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.usr.dist \

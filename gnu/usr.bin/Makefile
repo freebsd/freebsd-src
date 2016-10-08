@@ -10,19 +10,13 @@ SUBDIR= ${_binutils} \
 	${_gdb} \
 	${_gperf} \
 	grep \
-	${_groff} \
 	${_rcs} \
 	${_tests}
 
 SUBDIR_DEPEND_gdb= ${_binutils}
 
-.if ${MK_CXX} != "no"
-.if ${MK_GCC} != "no"
+.if ${MK_CXX} != "no" || ${MK_GCC} != "no"
 _gperf=		gperf
-.endif
-.if ${MK_GROFF} != "no"
-_groff=		groff
-.endif
 .endif
 
 .if ${MK_GPL_DTC} != "no"

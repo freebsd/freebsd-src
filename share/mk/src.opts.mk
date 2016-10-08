@@ -325,7 +325,6 @@ MK_KERBEROS:=	no
 
 .if ${MK_CXX} == "no"
 MK_CLANG:=	no
-MK_GROFF:=	no
 MK_GNUCXX:=	no
 MK_TESTS:=	no
 .endif
@@ -359,7 +358,6 @@ MK_DTRACE_TESTS:= no
 .endif
 
 .if ${MK_TEXTPROC} == "no"
-MK_GROFF:=	no
 MK_DOCTOOLS:=	no
 .endif
 
