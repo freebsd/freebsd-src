@@ -70,6 +70,8 @@ extern int evdev_rcpt_mask;
 #define	EVDEV_FLAG_SOFTREPEAT	0x00	/* use evdev to repeat keys */
 #define	EVDEV_FLAG_MT_STCOMPAT	0x01	/* autogenerate ST-compatible events
 					 * for MT protocol type B reports */
+#define	EVDEV_FLAG_MT_AUTOREL	0x02	/* Autorelease MT-slots not listed in
+					 * current MT protocol type B report */
 #define	EVDEV_FLAG_MAX		0x1F
 #define	EVDEV_FLAG_CNT		(EVDEV_FLAG_MAX + 1)
 
