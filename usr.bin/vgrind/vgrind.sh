@@ -38,7 +38,7 @@ files=""
 f=""
 head=""
 vf="/usr/libexec/vfontedpr"
-tm="/usr/share/tmac"
+tm="/usr/share/doctools/tmac"
 postproc="psroff"
 
 # Parse args
