@@ -2975,8 +2975,8 @@ iwm_mvm_rx_rx_mpdu(struct iwm_softc *sc,
 	}
 
 	/* rssi is in 1/2db units */
-	rxs.rssi = rssi * 2;
-	rxs.nf = sc->sc_noise;
+	rxs.c_rssi = rssi * 2;
+	rxs.c_nf = sc->sc_noise;
 
 	if (ieee80211_radiotap_active_vap(vap)) {
 		struct iwm_rx_radiotap_header *tap = &sc->sc_rxtap;

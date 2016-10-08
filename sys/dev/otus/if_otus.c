@@ -1710,8 +1710,8 @@ otus_sub_rxeof(struct otus_softc *sc, uint8_t *buf, int len, struct mbufq *rxq)
 	/* Add RSSI/NF to this mbuf */
 	bzero(&rxs, sizeof(rxs));
 	rxs.r_flags = IEEE80211_R_NF | IEEE80211_R_RSSI;
-	rxs.nf = sc->sc_nf[0];	/* XXX chain 0 != combined rssi/nf */
-	rxs.rssi = tail->rssi;
+	rxs.c_nf = sc->sc_nf[0];	/* XXX chain 0 != combined rssi/nf */
+	rxs.c_rssi = tail->rssi;
 	/* XXX TODO: add MIMO RSSI/NF as well */
 	ieee80211_add_rx_params(m, &rxs);
 

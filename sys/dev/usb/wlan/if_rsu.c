@@ -1534,8 +1534,8 @@ rsu_event_survey(struct rsu_softc *sc, uint8_t *buf, int len)
 	rxs.c_ieee = le32toh(bss->config.dsconfig);
 	rxs.c_freq = ieee80211_ieee2mhz(rxs.c_ieee, IEEE80211_CHAN_2GHZ);
 	/* This is a number from 0..100; so let's just divide it down a bit */
-	rxs.rssi = le32toh(bss->rssi) / 2;
-	rxs.nf = -96;
+	rxs.c_rssi = le32toh(bss->rssi) / 2;
+	rxs.c_nf = -96;
 
 	/* XXX avoid a LOR */
 	RSU_UNLOCK(sc);
