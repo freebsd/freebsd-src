@@ -43,7 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/poll.h>
 #include <sys/uio.h>
 #include <sys/conf.h>
-#include <sys/kthread.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -102,14 +101,20 @@ __FBSDID("$FreeBSD$");
 				    (buf[FT5406_POINT_YL(n)]))
 #define	GET_TOUCH_ID(buf, n)	((buf[FT5406_POINT_YH(n)] >> 4) & 0xf)
 
-#define	NO_POINTS	99
-#define	SCREEN_WIDTH	800
-#define	SCREEN_HEIGHT	480
+#define	NO_POINTS		99
+#define	SCREEN_WIDTH		800
+#define	SCREEN_HEIGHT		480
+#define	SCREEN_WIDTH_MM		155
+#define	SCREEN_HEIGHT_MM	86
+#define	SCREEN_RES_X	(SCREEN_WIDTH / SCREEN_WIDTH_MM)
+#define	SCREEN_RES_Y	(SCREEN_HEIGHT / SCREEN_HEIGHT_MM)
+#define	MAX_TOUCH_ID	(10 - 1)
 
 struct ft5406ts_softc {
 	device_t		sc_dev;
 	struct mtx		sc_mtx;
-	struct proc		*sc_worker;
+	int			sc_tick;
+	struct callout		sc_callout;
 
 	/* mbox buffer (mapped to KVA) */
 	uint8_t			*touch_buf;
@@ -118,86 +123,76 @@ struct ft5406ts_softc {
 	struct intr_config_hook	sc_init_hook;
 
 	struct evdev_dev	*sc_evdev;
-	int			sc_detaching;
+
+	uint8_t			sc_window[FT5406_WINDOW_SIZE];
+};
+
+static evdev_open_t ft5406ts_ev_open;
+static evdev_close_t ft5406ts_ev_close;
+
+static const struct evdev_methods ft5406ts_evdev_methods = {
+	.ev_open = &ft5406ts_ev_open,
+	.ev_close = &ft5406ts_ev_close,
 };
 
 static void
-ft5406ts_worker(void *data)
+ft5406ts_callout(void *data)
 {
 	struct ft5406ts_softc *sc = (struct ft5406ts_softc *)data;
 	int points;
-	int id, new_x, new_y, i, new_pen_down, updated;
-	int x, y, pen_down;
-	uint8_t window[FT5406_WINDOW_SIZE];
-	int tick;
+	int id, i, x, y;
 
-	/* 60Hz */
-	tick = hz*17/1000;
-	if (tick == 0)
-		tick = 1;
+	FT5406_LOCK_ASSERT(sc);
 
-	x = y = -1;
-	pen_down = 0;
+	memcpy(sc->sc_window, sc->touch_buf, FT5406_WINDOW_SIZE);
+	sc->touch_buf[FT5406_NUM_POINTS] = NO_POINTS;
 
-	FT5406_LOCK(sc);
-	while(1) {
-		msleep(sc, &sc->sc_mtx, PCATCH | PZERO, "ft5406ts", tick);
+	points = GET_NUM_POINTS(sc->sc_window);
+	/*
+	 * No update from VC - do nothing.
+	 */
+	if (points == NO_POINTS)
+		goto out;
 
-		if (sc->sc_detaching)
-			break;
+	for (i = 0; i < points; i++) {
+		id = GET_TOUCH_ID(sc->sc_window, i);
+		x = GET_X(sc->sc_window, i);
+		y = GET_Y(sc->sc_window, i);
 
-		memcpy(window, sc->touch_buf, sizeof(window));
-		sc->touch_buf[FT5406_NUM_POINTS] = NO_POINTS;
-
-		points = GET_NUM_POINTS(window);
-		/*
-		 * No update from VC - do nothing
-		 */
-		if (points == NO_POINTS)
+		if (id > MAX_TOUCH_ID) {
+			device_printf(sc->sc_dev, "bad touch id: %d", id);
 			continue;
-
-		/* No points and pen is already up */
-		if ((points == 0) && !pen_down)
-			continue;
-
-		new_pen_down = 0;
-		for (i = 0; i < points; i++) {
-			id = GET_TOUCH_ID(window, 0);
-			/* For now consider only touch 0 */
-			if (id != 0)
-				continue;
-			new_pen_down = 1;
-			new_x = GET_X(window, 0);
-			new_y = GET_Y(window, 0);
 		}
-
-		updated = 0;
-
-		if (new_x != x) {
-			x = new_x;
-			updated = 1;
-		}
-
-		if (new_y != y) {
-			y = new_y;
-			updated = 1;
-		}
-
-		if (new_pen_down != pen_down) {
-			pen_down = new_pen_down;
-			updated = 1;
-		}
-
-		if (updated) {
-			evdev_push_event(sc->sc_evdev, EV_ABS, ABS_X, x);
-			evdev_push_event(sc->sc_evdev, EV_ABS, ABS_Y, y);
-			evdev_push_event(sc->sc_evdev, EV_KEY, BTN_TOUCH, pen_down);
-			evdev_sync(sc->sc_evdev);
-		}
+		evdev_push_event(sc->sc_evdev, EV_ABS, ABS_MT_SLOT, id);
+		evdev_push_event(sc->sc_evdev, EV_ABS, ABS_MT_TRACKING_ID, id);
+		evdev_push_event(sc->sc_evdev, EV_ABS, ABS_MT_POSITION_X, x);
+		evdev_push_event(sc->sc_evdev, EV_ABS, ABS_MT_POSITION_Y, y);
 	}
-	FT5406_UNLOCK(sc);
+	evdev_sync(sc->sc_evdev);
+out:
+	callout_reset(&sc->sc_callout, sc->sc_tick, ft5406ts_callout, sc);
+}
 
-	kproc_exit(0);
+static void
+ft5406ts_ev_close(struct evdev_dev *evdev, void *data)
+{
+	struct ft5406ts_softc *sc = (struct ft5406ts_softc *)data;
+
+	FT5406_LOCK_ASSERT(sc);
+
+	callout_stop(&sc->sc_callout);
+}
+
+static int
+ft5406ts_ev_open(struct evdev_dev *evdev, void *data)
+{
+	struct ft5406ts_softc *sc = (struct ft5406ts_softc *)data;
+
+	FT5406_LOCK_ASSERT(sc);
+
+	callout_reset(&sc->sc_callout, sc->sc_tick, ft5406ts_callout, sc);
+
+	return (0);
 }
 
 static void
@@ -234,33 +229,40 @@ ft5406ts_init(void *arg)
 	touchbuf = VCBUS_TO_PHYS(msg.body.resp.address);
 	sc->touch_buf = (uint8_t*)pmap_mapdev(touchbuf, FT5406_WINDOW_SIZE);
 
+	/* 60Hz */
+	sc->sc_tick = hz * 17 / 1000;
+	if (sc->sc_tick == 0)
+		sc->sc_tick = 1;
+
 	sc->sc_evdev = evdev_alloc();
 	evdev_set_name(sc->sc_evdev, device_get_desc(sc->sc_dev));
 	evdev_set_phys(sc->sc_evdev, device_get_nameunit(sc->sc_dev));
-	evdev_set_id(sc->sc_evdev, BUS_VIRTUAL, 0, 0, 0);
+	evdev_set_id(sc->sc_evdev, BUS_HOST, 0, 0, 0);
+	evdev_set_methods(sc->sc_evdev, sc, &ft5406ts_evdev_methods);
+	evdev_set_flag(sc->sc_evdev, EVDEV_FLAG_MT_STCOMPAT);
+	evdev_set_flag(sc->sc_evdev, EVDEV_FLAG_MT_AUTOREL);
 	evdev_support_prop(sc->sc_evdev, INPUT_PROP_DIRECT);
 	evdev_support_event(sc->sc_evdev, EV_SYN);
 	evdev_support_event(sc->sc_evdev, EV_ABS);
-	evdev_support_event(sc->sc_evdev, EV_KEY);
 
-	evdev_support_abs(sc->sc_evdev, ABS_X, 0, 0,
-	    SCREEN_WIDTH, 0, 0, 0);
-	evdev_support_abs(sc->sc_evdev, ABS_Y, 0, 0,
-	    SCREEN_HEIGHT, 0, 0, 0);
+	evdev_support_abs(sc->sc_evdev, ABS_MT_SLOT, 0, 0,
+	    MAX_TOUCH_ID, 0, 0, 0);
+	evdev_support_abs(sc->sc_evdev, ABS_MT_TRACKING_ID, 0, -1,
+	    MAX_TOUCH_ID, 0, 0, 0);
+	evdev_support_abs(sc->sc_evdev, ABS_MT_POSITION_X, 0, 0,
+	    SCREEN_WIDTH, 0, 0, SCREEN_RES_X);
+	evdev_support_abs(sc->sc_evdev, ABS_MT_POSITION_Y, 0, 0,
+	    SCREEN_HEIGHT, 0, 0, SCREEN_RES_Y);
 
-	evdev_support_key(sc->sc_evdev, BTN_TOUCH);
-
-	err = evdev_register(sc->sc_evdev);
+	err = evdev_register_mtx(sc->sc_evdev, &sc->sc_mtx);
 	if (err) {
 		evdev_free(sc->sc_evdev);
+		sc->sc_evdev = NULL;	/* Avoid double free */
 		return;
 	}
 
 	sc->touch_buf[FT5406_NUM_POINTS] = NO_POINTS;
-	if (kproc_create(ft5406ts_worker, (void*)sc, &sc->sc_worker, 0, 0,
-	    "ft5406ts_worker") != 0) {
-		printf("failed to create ft5406ts_worker\n");
-	}
+	callout_init_mtx(&sc->sc_callout, &sc->sc_mtx, 0);
 }
 
 static int
@@ -292,6 +294,7 @@ ft5406ts_attach(device_t dev)
 
 	if (config_intrhook_establish(&sc->sc_init_hook) != 0) {
 		device_printf(dev, "config_intrhook_establish failed\n");
+		FT5406_LOCK_DESTROY(sc);
 		return (ENOMEM);
 	}
 
@@ -305,14 +308,7 @@ ft5406ts_detach(device_t dev)
 
 	sc = device_get_softc(dev);
 
-	FT5406_LOCK(sc);
-	if (sc->sc_worker)
-		sc->sc_detaching = 1;
-	wakeup(sc);
-	FT5406_UNLOCK(sc);
-
-	if (sc->sc_evdev)
-		evdev_free(sc->sc_evdev);
+	evdev_free(sc->sc_evdev);
 
 	FT5406_LOCK_DESTROY(sc);
 
