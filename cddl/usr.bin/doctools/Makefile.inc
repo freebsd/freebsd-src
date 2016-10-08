@@ -1,0 +1,13 @@
+DOCTOOLSDIR=	${SRCTOP}/contrib/heirloom-doctools
+CFLAGS+=	-I${DOCTOOLSDIR}/include
+NO_WERROR=	yes
+LIBDIR=	/usr/libexec/doctools
+REDFIR=	${LIBDIR}/reftools
+HYPDIR=	${LIBDIR}/hyphen
+SHAREDIR=	/usr/share/doctools
+FNTDIR=	${SHAREDIR}/font
+MACDIR=	${SHAREDIR}/tmac
+PSTDIR=	${SHAREDIR}/devpost/postscript
+PUBDIR=	${SHAREDIR}/pub
+TABDIR=	${SHAREDIR}/nterm
+.include "../Makefile.inc"
