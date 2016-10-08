@@ -186,6 +186,7 @@ initvar(void)
 		}
 	}
 	setvareq_const("OPTIND=1", 0);
+	setvareq_const("IFS= \t\n", 0);
 }
 
 /*
