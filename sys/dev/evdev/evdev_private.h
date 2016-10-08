@@ -71,6 +71,12 @@ enum evdev_clock_id
 	EV_CLOCK_BOOTTIME	/* monotonic, suspend-awared */
 };
 
+enum evdev_lock_type
+{
+	EV_LOCK_INTERNAL = 0,	/* Internal evdev mutex */
+	EV_LOCK_MTX,		/* Driver`s mutex */
+};
+
 struct evdev_dev
 {
 	char			ev_name[NAMELEN];
@@ -78,6 +84,8 @@ struct evdev_dev
 	char			ev_serial[NAMELEN];
 	struct cdev *		ev_cdev;
 	int			ev_unit;
+	enum evdev_lock_type	ev_lock_type;
+	struct mtx *		ev_lock;
 	struct mtx		ev_mtx;
 	struct input_id		ev_id;
 	struct evdev_client *	ev_grabber;
@@ -123,9 +131,9 @@ struct evdev_dev
 	LIST_HEAD(, evdev_client) ev_clients;
 };
 
-#define	EVDEV_LOCK(evdev)		mtx_lock(&(evdev)->ev_mtx)
-#define	EVDEV_UNLOCK(evdev)		mtx_unlock(&(evdev)->ev_mtx)
-#define	EVDEV_LOCK_ASSERT(evdev)	mtx_assert(&(evdev)->ev_mtx, MA_OWNED)
+#define	EVDEV_LOCK(evdev)		mtx_lock((evdev)->ev_lock)
+#define	EVDEV_UNLOCK(evdev)		mtx_unlock((evdev)->ev_lock)
+#define	EVDEV_LOCK_ASSERT(evdev)	mtx_assert((evdev)->ev_lock, MA_OWNED)
 
 struct evdev_client
 {
