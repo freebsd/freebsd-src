@@ -16,6 +16,15 @@ SRCS=	n10.c \
 		draw.c \
 		bst.c \
 		version.c
+		
+
+FILESDIR=	${TABDIR}
+
+TERMSFILES=	tab.2631 tab.2631-c tab.2631-e tab.lp \
+		tab.300 tab.300-12 tab.300s tab.300s-12 tab.382 \
+		tab.4000a tab.450 tab.450-12 tab.832 \
+		tab.37 tab.8510 tab.X tab.tn300
+FILES=		${TERMSFILES} tab.utf8
 
 DPADD=	${.OBJDIR}/../libhnj/libhnj.a
 LDADD=	${.OBJDIR}/../libhnj/libhnj.a
@@ -29,7 +38,24 @@ CFLAGS+=	-I${DOCTOOLSDIR}/stuff/bst -I${DOCTOOLSDIR}/troff/nroff.d \
 		-DTABDIR='"${TABDIR}"' \
 		-DNROFF -DUSG -DEUC
 
+NLTERM=		${DOCTOOLSDIR}/troff/nroff.d/terms.d
+
+.for f in tab.2631 tab.2631-c tab.2631-e tab.lp
+$f: a.${f:E} b.lp
+	cat ${.ALLSRC} >${.TARGET}
+.endfor
+
+.for f in tab.300 tab.300-12 tab.300s tab.300s-12 tab.382 tab.4000a tab.450-12 tab.832 
+$f: a.${f:E} b.300
+	cat ${.ALLSRC} >${.TARGET}
+.endfor
+
+.for f in tab.37 tab.8510 tab.X tab.tn300
+$f: ab.${f:E}
+	cat ${.ALLSRC} >${.TARGET}
+.endfor
+
 .include <bsd.prog.mk>
 
 RELEASE!=	awk -F= '/^RELEASE/ { print $$2 }' ${DOCTOOLSDIR}/version.mk
-.PATH:	${DOCTOOLSDIR}/troff/nroff.d ${DOCTOOLSDIR}/stuff/bst ${DOCTOOLSDIR}/troff/
+.PATH:	${DOCTOOLSDIR}/troff/nroff.d ${DOCTOOLSDIR}/stuff/bst ${DOCTOOLSDIR}/troff/ ${NLTERM}
