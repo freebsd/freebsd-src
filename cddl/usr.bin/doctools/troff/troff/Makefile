@@ -1,5 +1,6 @@
 SUBDIR=	\
-	dpost
+	dpost \
+	tmac
 
 PROGS=	troff \
 	devaps \
