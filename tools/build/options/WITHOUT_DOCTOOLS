@@ -1,0 +1,9 @@
+.\" $FreeBSD$
+Set to not build the
+.Xr roff 7
+toolchain
+You should consider installing the textproc/groff ports or the
+textproc/heirloom-doctools port to not break
+.Xr man 1
+on man pages not supported by
+.Xr mandoc 1

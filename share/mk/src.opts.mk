@@ -78,6 +78,7 @@ __DEFAULT_YES_OPTIONS = \
     CXX \
     DIALOG \
     DICT \
+    DOCTOOLS \
     DMAGENT \
     DYNAMICROOT \
     ED_CRYPTO \
@@ -313,6 +314,7 @@ MK_SOURCELESS_UCODE:= no
 .if ${MK_CDDL} == "no"
 MK_ZFS:=	no
 MK_CTF:=	no
+MK_DOCTOOLS:=	no
 .endif
 
 .if ${MK_CRYPT} == "no"
@@ -358,6 +360,7 @@ MK_DTRACE_TESTS:= no
 
 .if ${MK_TEXTPROC} == "no"
 MK_GROFF:=	no
+MK_DOCTOOLS:=	no
 .endif
 
 .if ${MK_CROSS_COMPILER} == "no"
