@@ -174,6 +174,7 @@ SUBDIR=	alias \
 	unvis \
 	uudecode \
 	uuencode \
+	vgrind \
 	vis \
 	vmstat \
 	w \
@@ -218,7 +219,6 @@ SUBDIR.${MK_GAMES}+=	random
 SUBDIR+=	dtc
 .endif
 .endif
-SUBDIR.${MK_GROFF}+=	vgrind
 SUBDIR.${MK_HESIOD}+=	hesinfo
 SUBDIR.${MK_ICONV}+=	iconv
 SUBDIR.${MK_ICONV}+=	mkcsmapper

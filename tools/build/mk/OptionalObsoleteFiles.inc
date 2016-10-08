@@ -2172,7 +2172,6 @@ OLD_FILES+=usr/share/man/man3/gpio_pin_tristate.3.gz
 OLD_FILES+=usr/share/man/man8/gpioctl.8.gz
 .endif
 
-# Also includes vgrind(1)
 .if ${MK_GROFF} == no
 OLD_FILES+=usr/bin/addftinfo
 OLD_FILES+=usr/bin/afmtodit
@@ -2201,7 +2200,6 @@ OLD_FILES+=usr/bin/refer
 OLD_FILES+=usr/bin/tbl
 OLD_FILES+=usr/bin/tfmtodit
 OLD_FILES+=usr/bin/troff
-OLD_FILES+=usr/bin/vgrind
 OLD_FILES+=usr/libexec/vfontedpr
 OLD_FILES+=usr/share/dict/eign
 OLD_FILES+=usr/share/doc/papers/beyond43.ascii.gz
@@ -2607,13 +2605,11 @@ OLD_FILES+=usr/share/man/man1/refer.1.gz
 OLD_FILES+=usr/share/man/man1/tbl.1.gz
 OLD_FILES+=usr/share/man/man1/tfmtodit.1.gz
 OLD_FILES+=usr/share/man/man1/troff.1.gz
-OLD_FILES+=usr/share/man/man1/vgrind.1.gz
 OLD_FILES+=usr/share/man/man5/groff_font.5.gz
 OLD_FILES+=usr/share/man/man5/groff_out.5.gz
 OLD_FILES+=usr/share/man/man5/groff_tmac.5.gz
 OLD_FILES+=usr/share/man/man5/lj4_font.5.gz
 OLD_FILES+=usr/share/man/man5/tmac.5.gz
-OLD_FILES+=usr/share/man/man5/vgrindefs.5.gz
 OLD_FILES+=usr/share/man/man7/ditroff.7.gz
 OLD_FILES+=usr/share/man/man7/groff.7.gz
 OLD_FILES+=usr/share/man/man7/groff_char.7.gz
@@ -2649,8 +2645,6 @@ OLD_FILES+=usr/share/me/sh.me
 OLD_FILES+=usr/share/me/tbl.me
 OLD_FILES+=usr/share/me/thesis.me
 OLD_DIRS+=usr/share/me
-OLD_FILES+=usr/share/misc/vgrindefs
-OLD_FILES+=usr/share/misc/vgrindefs.db
 OLD_FILES+=usr/share/tmac/X.tmac
 OLD_FILES+=usr/share/tmac/Xps.tmac
 OLD_FILES+=usr/share/tmac/a4.tmac
@@ -2712,7 +2706,6 @@ OLD_FILES+=usr/share/tmac/pspic.tmac
 OLD_FILES+=usr/share/tmac/s.tmac
 OLD_FILES+=usr/share/tmac/safer.tmac
 OLD_FILES+=usr/share/tmac/tmac.orig_me
-OLD_FILES+=usr/share/tmac/tmac.vgrind
 OLD_FILES+=usr/share/tmac/trace.tmac
 OLD_FILES+=usr/share/tmac/troffrc
 OLD_FILES+=usr/share/tmac/troffrc-end
