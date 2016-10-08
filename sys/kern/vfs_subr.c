@@ -1066,16 +1066,16 @@ vnlru_return_batch_locked(struct mount *mp)
 	if (mp->mnt_tmpfreevnodelistsize == 0)
 		return;
 
-	mtx_lock(&vnode_free_list_mtx);
 	TAILQ_FOREACH(vp, &mp->mnt_tmpfreevnodelist, v_actfreelist) {
 		VNASSERT((vp->v_mflag & VMP_TMPMNTFREELIST) != 0, vp,
 		    ("vnode without VMP_TMPMNTFREELIST on mnt_tmpfreevnodelist"));
 		vp->v_mflag &= ~VMP_TMPMNTFREELIST;
 	}
+	mtx_lock(&vnode_free_list_mtx);
 	TAILQ_CONCAT(&vnode_free_list, &mp->mnt_tmpfreevnodelist, v_actfreelist);
 	freevnodes += mp->mnt_tmpfreevnodelistsize;
-	mp->mnt_tmpfreevnodelistsize = 0;
 	mtx_unlock(&vnode_free_list_mtx);
+	mp->mnt_tmpfreevnodelistsize = 0;
 }
 
 static void
