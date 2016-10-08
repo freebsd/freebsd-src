@@ -527,7 +527,8 @@ wpi_attach(device_t dev)
 	wpi_radiotap_attach(sc);
 
 	/* Setup Tx status flags (constant). */
-	sc->sc_txs.flags = IEEE80211_RATECTL_STATUS_SHORT_RETRY |
+	sc->sc_txs.flags = IEEE80211_RATECTL_STATUS_PKTLEN |
+	    IEEE80211_RATECTL_STATUS_SHORT_RETRY |
 	    IEEE80211_RATECTL_STATUS_LONG_RETRY;
 
 	callout_init_mtx(&sc->calib_to, &sc->rxon_mtx, 0);
@@ -2079,9 +2080,15 @@ wpi_tx_done(struct wpi_softc *sc, struct wpi_rx_desc *desc)
 	m = data->m, data->m = NULL;
 	ni = data->ni, data->ni = NULL;
 
+	/* Restore frame header. */
+	KASSERT(M_LEADINGSPACE(m) >= data->hdrlen, ("no frame header!"));
+	M_PREPEND(m, data->hdrlen, M_NOWAIT);
+	KASSERT(m != NULL, ("%s: m is NULL\n", __func__));
+
 	/*
 	 * Update rate control statistics for the node.
 	 */
+	txs->pktlen = m->m_pkthdr.len;
 	txs->short_retries = stat->rtsfailcnt;
 	txs->long_retries = stat->ackfailcnt / WPI_NTRIES_DEFAULT;
 	if (!(status & WPI_TX_STATUS_FAIL))
@@ -2721,6 +2728,7 @@ wpi_cmd2(struct wpi_softc *sc, struct wpi_buf *buf)
 
 	data->m = buf->m;
 	data->ni = buf->ni;
+	data->hdrlen = hdrlen;
 
 	DPRINTF(sc, WPI_DEBUG_XMIT, "%s: qid %d idx %d len %d nsegs %d\n",
 	    __func__, ring->qid, cur, totlen, nsegs);
