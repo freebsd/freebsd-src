@@ -187,8 +187,8 @@ evdev_estimate_report_size(struct evdev_dev *evdev)
 	return (size);
 }
 
-int
-evdev_register(struct evdev_dev *evdev)
+static int
+evdev_register_common(struct evdev_dev *evdev)
 {
 	int ret;
 
@@ -196,7 +196,6 @@ evdev_register(struct evdev_dev *evdev)
 	    evdev->ev_shortname, evdev->ev_name, evdev->ev_serial);
 
 	/* Initialize internal structures */
-	mtx_init(&evdev->ev_mtx, "evmtx", NULL, MTX_DEF);
 	LIST_INIT(&evdev->ev_clients);
 
 	if (evdev_event_supported(evdev, EV_REP) &&
@@ -228,10 +227,32 @@ evdev_register(struct evdev_dev *evdev)
 	/* Create char device node */
 	ret = evdev_cdev_create(evdev);
 bail_out:
+	return (ret);
+}
+
+int
+evdev_register(struct evdev_dev *evdev)
+{
+	int ret;
+
+	evdev->ev_lock_type = EV_LOCK_INTERNAL;
+	evdev->ev_lock = &evdev->ev_mtx;
+	mtx_init(&evdev->ev_mtx, "evmtx", NULL, MTX_DEF);
+
+	ret = evdev_register_common(evdev);
 	if (ret != 0)
 		mtx_destroy(&evdev->ev_mtx);
 
 	return (ret);
+}
+
+int
+evdev_register_mtx(struct evdev_dev *evdev, struct mtx *mtx)
+{
+
+	evdev->ev_lock_type = EV_LOCK_MTX;
+	evdev->ev_lock = mtx;
+	return (evdev_register_common(evdev));
 }
 
 int
@@ -257,7 +278,7 @@ evdev_unregister(struct evdev_dev *evdev)
 	/* destroy_dev can sleep so release lock */
 	ret = evdev_cdev_destroy(evdev);
 	evdev->ev_cdev = NULL;
-	if (ret == 0)
+	if (ret == 0 && evdev->ev_lock_type == EV_LOCK_INTERNAL)
 		mtx_destroy(&evdev->ev_mtx);
 
 	evdev_free_absinfo(evdev->ev_absinfo);
@@ -735,16 +756,21 @@ evdev_push_event(struct evdev_dev *evdev, uint16_t type, uint16_t code,
     int32_t value)
 {
 
+	if (evdev->ev_lock_type != EV_LOCK_INTERNAL)
+		EVDEV_LOCK_ASSERT(evdev);
+
 	if (evdev_check_event(evdev, type, code, value) != 0)
 		return (EINVAL);
 
-	EVDEV_LOCK(evdev);
+	if (evdev->ev_lock_type == EV_LOCK_INTERNAL)
+		EVDEV_LOCK(evdev);
 	evdev_modify_event(evdev, type, code, &value);
 	if (type == EV_SYN && code == SYN_REPORT && evdev->ev_report_opened &&
 	    bit_test(evdev->ev_flags, EVDEV_FLAG_MT_STCOMPAT))
 		evdev_send_mt_compat(evdev);
 	evdev_send_event(evdev, type, code, value);
-	EVDEV_UNLOCK(evdev);
+	if (evdev->ev_lock_type == EV_LOCK_INTERNAL)
+		EVDEV_UNLOCK(evdev);
 
 	return (0);
 }

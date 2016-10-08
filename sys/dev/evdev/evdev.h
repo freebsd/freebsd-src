@@ -92,6 +92,7 @@ void evdev_set_serial(struct evdev_dev *, const char *);
 void evdev_set_methods(struct evdev_dev *, void *,
     const struct evdev_methods *);
 int evdev_register(struct evdev_dev *);
+int evdev_register_mtx(struct evdev_dev *, struct mtx *);
 int evdev_unregister(struct evdev_dev *);
 int evdev_push_event(struct evdev_dev *, uint16_t, uint16_t, int32_t);
 int evdev_sync(struct evdev_dev *);
