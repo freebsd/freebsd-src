@@ -39,7 +39,7 @@ LIBADD.devaps=	m
 MAN.devaps=
 
 SRCS.dhtml=	main.c \
-		dhtml.c \
+		dhtml.l \
 		tr_out.c \
 		char.c \
 		lib.c \
