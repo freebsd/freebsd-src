@@ -12,6 +12,8 @@ SUBDIR= \
 	${_zstreamdump} \
 	${_ztest}
 
+SUBDIR.${MK_DOCTOOLS}=	doctools
+
 .if ${MK_TESTS} != "no"
 _tests=	tests
 .endif
