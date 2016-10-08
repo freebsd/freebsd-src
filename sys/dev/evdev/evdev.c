@@ -686,6 +686,8 @@ evdev_sparse_event(struct evdev_dev *evdev, uint16_t type, uint16_t code,
 
 	case EV_SYN:
 		if (code == SYN_REPORT) {
+			/* Count empty reports as well as non empty */
+			evdev->ev_report_count++;
 			/* Skip empty reports */
 			if (!evdev->ev_report_opened)
 				return (EV_SKIP_EVENT);
@@ -722,10 +724,7 @@ evdev_propagate_event(struct evdev_dev *evdev, uint16_t type, uint16_t code,
 		EVDEV_CLIENT_UNLOCKQ(client);
 	}
 
-	/* Update counters */
 	evdev->ev_event_count++;
-	if (type == EV_SYN && code == SYN_REPORT)
-		evdev->ev_report_count++;
 }
 
 void
@@ -765,6 +764,9 @@ evdev_push_event(struct evdev_dev *evdev, uint16_t type, uint16_t code,
 	if (evdev->ev_lock_type == EV_LOCK_INTERNAL)
 		EVDEV_LOCK(evdev);
 	evdev_modify_event(evdev, type, code, &value);
+	if (type == EV_SYN && code == SYN_REPORT &&
+	     bit_test(evdev->ev_flags, EVDEV_FLAG_MT_AUTOREL))
+		evdev_send_mt_autorel(evdev);
 	if (type == EV_SYN && code == SYN_REPORT && evdev->ev_report_opened &&
 	    bit_test(evdev->ev_flags, EVDEV_FLAG_MT_STCOMPAT))
 		evdev_send_mt_compat(evdev);
