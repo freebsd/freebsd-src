@@ -192,6 +192,7 @@ void evdev_set_last_mt_slot(struct evdev_dev *, int32_t);
 int32_t evdev_get_mt_value(struct evdev_dev *, int32_t, int16_t);
 void evdev_set_mt_value(struct evdev_dev *, int32_t, int16_t, int32_t);
 void evdev_send_mt_compat(struct evdev_dev *);
+void evdev_send_mt_autorel(struct evdev_dev *);
 
 /* Utility functions: */
 void evdev_client_dumpqueue(struct evdev_client *);
