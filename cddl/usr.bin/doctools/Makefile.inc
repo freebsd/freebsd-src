@@ -4,10 +4,10 @@ NO_WERROR=	yes
 LIBDIR=	/usr/libexec/doctools
 REDFIR=	${LIBDIR}/reftools
 HYPDIR=	${LIBDIR}/hyphen
-SHAREDIR=	/usr/share/doctools
-FNTDIR=	${SHAREDIR}/font
-MACDIR=	${SHAREDIR}/tmac
-PSTDIR=	${SHAREDIR}/devpost/postscript
-PUBDIR=	${SHAREDIR}/pub
-TABDIR=	${SHAREDIR}/nterm
+DTSHAREDIR=	/usr/share/doctools
+FNTDIR=	${DTSHAREDIR}/font
+MACDIR=	${DTSHAREDIR}/tmac
+PSTDIR=	${DTSHAREDIR}/devpost/postscript
+PUBDIR=	${DTSHAREDIR}/pub
+TABDIR=	${DTSHAREDIR}/nterm
 .include "../Makefile.inc"
