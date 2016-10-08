@@ -325,6 +325,16 @@ Zone America/New_York	-4:56:02 -	LMT	1883 Nov 18 12:03:58
 # Statue 175 closer in synch with the US Congress' intent....
 # http://www.legis.state.wi.us/2007/data/acts/07Act3.pdf
 
+# From an email administrator of the City of Fort Pierre, SD (2015-12-21):
+# Fort Pierre is technically located in the Mountain time zone as is
+# the rest of Stanley County.  Most of Stanley County and Fort Pierre
+# uses the Central time zone due to doing most of their business in
+# Pierre so it simplifies schedules.  I have lived in Stanley County
+# all my life and it has been that way since I can remember.  (43 years!)
+#
+# From Paul Eggert (2015-12-25):
+# Assume this practice predates 1970, so Fort Pierre can use America/Chicago.
+
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER
 Rule	Chicago	1920	only	-	Jun	13	2:00	1:00	D
 Rule	Chicago	1920	1921	-	Oct	lastSun	2:00	0	S
@@ -403,11 +413,42 @@ Zone America/Denver	-6:59:56 -	LMT	1883 Nov 18 12:00:04
 # north of the Salmon River, and the towns of Burgdorf and Warren),
 # Nevada (except West Wendover), Oregon (except the northern 3/4 of
 # Malheur county), and Washington
+
+# From Paul Eggert (2016-08-20):
+# In early February 1948, in response to California's electricity shortage,
+# PG&E changed power frequency from 60 to 59.5 Hz during daylight hours,
+# causing electric clocks to lose six minutes per day.  (This did not change
+# legal time, and is not part of the data here.)  See:
+# Ross SA. An energy crisis from the past: Northern California in 1948.
+# Working Paper No. 8, Institute of Governmental Studies, UC Berkeley,
+# 1973-11.  http://escholarship.org/uc/item/8x22k30c
+#
+# In another measure to save electricity, DST was instituted from 1948-03-14
+# at 02:01 to 1949-01-16 at 02:00, with the governor having the option to move
+# the fallback transition earlier.  See pages 3-4 of:
+# http://clerk.assembly.ca.gov/sites/clerk.assembly.ca.gov/files/archive/Statutes/1948/48Vol1_Chapters.pdf
+#
+# In response:
+#
+#   Governor Warren received a torrent of objecting mail, and it is not too much
+#   to speculate that the objections to Daylight Saving Time were one important
+#   factor in the defeat of the Dewey-Warren Presidential ticket in California.
+#     -- Ross, p 25
+#
+# On December 8 the governor exercised the option, setting the date to January 1
+# (LA Times 1948-12-09).  The transition time was 02:00 (LA Times 1949-01-01).
+#
+# Despite the controversy, in 1949 California voters approved Proposition 12,
+# which established DST from April's last Sunday at 01:00 until September's
+# last Sunday at 02:00. This was amended by 1962's Proposition 6, which changed
+# the fall-back date to October's last Sunday. See:
+# http://repository.uchastings.edu/cgi/viewcontent.cgi?article=1501&context=ca_ballot_props
+# http://repository.uchastings.edu/cgi/viewcontent.cgi?article=1636&context=ca_ballot_props
 #
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER
-Rule	CA	1948	only	-	Mar	14	2:00	1:00	D
+Rule	CA	1948	only	-	Mar	14	2:01	1:00	D
 Rule	CA	1949	only	-	Jan	 1	2:00	0	S
-Rule	CA	1950	1966	-	Apr	lastSun	2:00	1:00	D
+Rule	CA	1950	1966	-	Apr	lastSun	1:00	1:00	D
 Rule	CA	1950	1961	-	Sep	lastSun	2:00	0	S
 Rule	CA	1962	1966	-	Oct	lastSun	2:00	0	S
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -481,6 +522,12 @@ Zone America/Los_Angeles -7:52:58 -	LMT	1883 Nov 18 12:07:02
 # For lack of better information, assume that Metlakatla's
 # abandonment of use of daylight saving resulted from the 1983 vote.
 
+# From Steffen Thorsen (2015-11-09):
+# It seems Metlakatla did go off PST on Sunday, November 1, changing
+# their time to AKST and are going to follow Alaska's DST, switching
+# between AKST and AKDT from now on....
+# http://www.krbd.org/2015/10/30/annette-island-times-they-are-a-changing/
+
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Juneau	 15:02:19 -	LMT	1867 Oct 18
 			 -8:57:41 -	LMT	1900 Aug 20 12:00
@@ -506,7 +553,8 @@ Zone America/Metlakatla	 15:13:42 -	LMT	1867 Oct 18
 			 -8:00	US	P%sT	1946
 			 -8:00	-	PST	1969
 			 -8:00	US	P%sT	1983 Oct 30  2:00
-			 -8:00	-	PST
+			 -8:00	-	PST	2015 Nov  1  2:00
+			 -9:00	US	AK%sT
 Zone America/Yakutat	 14:41:05 -	LMT	1867 Oct 18
 			 -9:18:55 -	LMT	1900 Aug 20 12:00
 			 -9:00	-	YST	1942
@@ -2174,39 +2222,39 @@ Rule	NT_YK	1980	2006	-	Oct	lastSun	2:00	0	S
 Rule	NT_YK	1987	2006	-	Apr	Sun>=1	2:00	1:00	D
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 # aka Panniqtuuq
-Zone America/Pangnirtung 0	-	zzz	1921 # trading post est.
+Zone America/Pangnirtung 0	-	-00	1921 # trading post est.
 			-4:00	NT_YK	A%sT	1995 Apr Sun>=1  2:00
 			-5:00	Canada	E%sT	1999 Oct 31  2:00
 			-6:00	Canada	C%sT	2000 Oct 29  2:00
 			-5:00	Canada	E%sT
 # formerly Frobisher Bay
-Zone America/Iqaluit	0	-	zzz	1942 Aug # Frobisher Bay est.
+Zone America/Iqaluit	0	-	-00	1942 Aug # Frobisher Bay est.
 			-5:00	NT_YK	E%sT	1999 Oct 31  2:00
 			-6:00	Canada	C%sT	2000 Oct 29  2:00
 			-5:00	Canada	E%sT
 # aka Qausuittuq
-Zone America/Resolute	0	-	zzz	1947 Aug 31 # Resolute founded
+Zone America/Resolute	0	-	-00	1947 Aug 31 # Resolute founded
 			-6:00	NT_YK	C%sT	2000 Oct 29  2:00
 			-5:00	-	EST	2001 Apr  1  3:00
 			-6:00	Canada	C%sT	2006 Oct 29  2:00
 			-5:00	-	EST	2007 Mar 11  3:00
 			-6:00	Canada	C%sT
 # aka Kangiqiniq
-Zone America/Rankin_Inlet 0	-	zzz	1957 # Rankin Inlet founded
+Zone America/Rankin_Inlet 0	-	-00	1957 # Rankin Inlet founded
 			-6:00	NT_YK	C%sT	2000 Oct 29  2:00
 			-5:00	-	EST	2001 Apr  1  3:00
 			-6:00	Canada	C%sT
 # aka Iqaluktuuttiaq
-Zone America/Cambridge_Bay 0	-	zzz	1920 # trading post est.?
+Zone America/Cambridge_Bay 0	-	-00	1920 # trading post est.?
 			-7:00	NT_YK	M%sT	1999 Oct 31  2:00
 			-6:00	Canada	C%sT	2000 Oct 29  2:00
 			-5:00	-	EST	2000 Nov  5  0:00
 			-6:00	-	CST	2001 Apr  1  3:00
 			-7:00	Canada	M%sT
-Zone America/Yellowknife 0	-	zzz	1935 # Yellowknife founded?
+Zone America/Yellowknife 0	-	-00	1935 # Yellowknife founded?
 			-7:00	NT_YK	M%sT	1980
 			-7:00	Canada	M%sT
-Zone America/Inuvik	0	-	zzz	1953 # Inuvik founded
+Zone America/Inuvik	0	-	-00	1953 # Inuvik founded
 			-8:00	NT_YK	P%sT	1979 Apr lastSun  2:00
 			-7:00	NT_YK	M%sT	1980
 			-7:00	Canada	M%sT
@@ -2458,13 +2506,22 @@ Zone America/Merida	-5:58:28 -	LMT	1922 Jan  1  0:01:32
 			-6:00	-	CST	1981 Dec 23
 			-5:00	-	EST	1982 Dec  2
 			-6:00	Mexico	C%sT
-# Coahuila, Durango, Nuevo León, Tamaulipas (near US border)
+# Coahuila, Nuevo León, Tamaulipas (near US border)
+# This includes the following municipalities:
+#   in Coahuila: Ocampo, Acuña, Zaragoza, Jiménez, Piedras Negras, Nava,
+#     Guerrero, Hidalgo.
+#   in Nuevo León: Anáhuac, Los Aldama.
+#   in Tamaulipas: Nuevo Laredo, Guerrero, Mier, Miguel Alemán, Camargo,
+#     Gustavo Díaz Ordaz, Reynosa, Río Bravo, Valle Hermoso, Matamoros.
+# See: Inicia mañana Horario de Verano en zona fronteriza, El Universal,
+# 2016-03-12
+# http://www.eluniversal.com.mx/articulo/estados/2016/03/12/inicia-manana-horario-de-verano-en-zona-fronteriza
 Zone America/Matamoros	-6:40:00 -	LMT	1921 Dec 31 23:20:00
 			-6:00	-	CST	1988
 			-6:00	US	C%sT	1989
 			-6:00	Mexico	C%sT	2010
 			-6:00	US	C%sT
-# Coahuila, Durango, Nuevo León, Tamaulipas (away from US border)
+# Durango; Coahuila, Nuevo León, Tamaulipas (away from US border)
 Zone America/Monterrey	-6:41:16 -	LMT	1921 Dec 31 23:18:44
 			-6:00	-	CST	1988
 			-6:00	US	C%sT	1989
@@ -2480,6 +2537,9 @@ Zone America/Mexico_City -6:36:36 -	LMT	1922 Jan  1  0:23:24
 			-6:00	-	CST	2002 Feb 20
 			-6:00	Mexico	C%sT
 # Chihuahua (near US border)
+# This includes the municipalities of Janos, Ascensión, Juárez, Guadalupe,
+# Práxedis G Guerrero, Coyame del Sotol, Ojinaga, and Manuel Benavides.
+# (See the 2016-03-12 El Universal source mentioned above.)
 Zone America/Ojinaga	-6:57:40 -	LMT	1922 Jan  1  0:02:20
 			-7:00	-	MST	1927 Jun 10 23:00
 			-6:00	-	CST	1930 Nov 15
@@ -2567,7 +2627,7 @@ Zone America/Bahia_Banderas	-7:01:00 -	LMT	1921 Dec 31 23:59:00
 			-7:00	Mexico	M%sT	2010 Apr  4  2:00
 			-6:00	Mexico	C%sT
 
-# Baja California (near US border)
+# Baja California
 Zone America/Tijuana	-7:48:04 -	LMT	1922 Jan  1  0:11:56
 			-7:00	-	MST	1924
 			-8:00	-	PST	1927 Jun 10 23:00
@@ -2587,25 +2647,6 @@ Zone America/Tijuana	-7:48:04 -	LMT	1922 Jan  1  0:11:56
 			-8:00	US	P%sT	2002 Feb 20
 			-8:00	Mexico	P%sT	2010
 			-8:00	US	P%sT
-# Baja California (away from US border)
-Zone America/Santa_Isabel	-7:39:28 -	LMT	1922 Jan  1  0:20:32
-			-7:00	-	MST	1924
-			-8:00	-	PST	1927 Jun 10 23:00
-			-7:00	-	MST	1930 Nov 15
-			-8:00	-	PST	1931 Apr  1
-			-8:00	1:00	PDT	1931 Sep 30
-			-8:00	-	PST	1942 Apr 24
-			-8:00	1:00	PWT	1945 Aug 14 23:00u
-			-8:00	1:00	PPT	1945 Nov 12 # Peace
-			-8:00	-	PST	1948 Apr  5
-			-8:00	1:00	PDT	1949 Jan 14
-			-8:00	-	PST	1954
-			-8:00	CA	P%sT	1961
-			-8:00	-	PST	1976
-			-8:00	US	P%sT	1996
-			-8:00	Mexico	P%sT	2001
-			-8:00	US	P%sT	2002 Feb 20
-			-8:00	Mexico	P%sT
 # From Paul Eggert (2006-03-22):
 # Formerly there was an America/Ensenada zone, which differed from
 # America/Tijuana only in that it did not observe DST from 1976
@@ -2617,6 +2658,13 @@ Zone America/Santa_Isabel	-7:39:28 -	LMT	1922 Jan  1  0:20:32
 # data after 1970 so most likely there should be at least one Zone
 # other than America/Tijuana for Baja, but it's not clear yet what its
 # name or contents should be.
+#
+# From Paul Eggert (2015-10-08):
+# Formerly there was an America/Santa_Isabel zone, but this appears to
+# have come from a misreading of
+# http://dof.gob.mx/nota_detalle.php?codigo=5127480&fecha=06/01/2010
+# It has been moved to the 'backward' file.
+#
 #
 # Revillagigedo Is
 # no information
@@ -2692,17 +2740,7 @@ Zone Atlantic/Bermuda	-4:19:18 -	LMT	1930 Jan  1  2:00 # Hamilton
 			-4:00	US	A%sT
 
 # Cayman Is
-
-# From Paul Eggert (2015-05-15):
-# The Cayman government has decided to introduce DST in 2016, the idea being
-# to keep in sync with New York.  The legislation hasn't passed but the change
-# seems quite likely.  See: Meade B. Cayman 27.
-# http://www.cayman27.com.ky/2015/05/15/clock-ticks-toward-daylight-saving-time-in-cayman
-
-Zone	America/Cayman	-5:25:32 -	LMT	1890     # Georgetown
-			-5:07:11 -	KMT	1912 Feb # Kingston Mean Time
-			-5:00	-	EST	2016
-			-5:00	US	E%sT
+# See America/Panama.
 
 # Costa Rica
 
@@ -3065,6 +3103,13 @@ Zone America/Guatemala	-6:02:04 -	LMT	1918 Oct 5
 # http://radiovision2000haiti.net/public/haiti-avis-changement-dheure-dimanche/
 # http://www.canalplushaiti.net/?p=6714
 
+# From Steffen Thorsen (2016-03-12):
+# Jean Antoine, editor of www.haiti-reference.com informed us that Haiti
+# are not going on DST this year.  Several other resources confirm this: ...
+# http://www.radiotelevisioncaraibes.com/presse/heure_d_t_pas_de_changement_d_heure_pr_vu_pour_cet_ann_e.html
+# http://www.vantbefinfo.com/changement-dheure-pas-pour-haiti/
+# http://news.anmwe.com/haiti-lheure-nationale-ne-sera-ni-avancee-ni-reculee-cette-annee/
+
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Haiti	1983	only	-	May	8	0:00	1:00	D
 Rule	Haiti	1984	1987	-	Apr	lastSun	0:00	1:00	D
@@ -3075,8 +3120,8 @@ Rule	Haiti	1988	1997	-	Apr	Sun>=1	1:00s	1:00	D
 Rule	Haiti	1988	1997	-	Oct	lastSun	1:00s	0	S
 Rule	Haiti	2005	2006	-	Apr	Sun>=1	0:00	1:00	D
 Rule	Haiti	2005	2006	-	Oct	lastSun	0:00	0	S
-Rule	Haiti	2012	max	-	Mar	Sun>=8	2:00	1:00	D
-Rule	Haiti	2012	max	-	Nov	Sun>=1	2:00	0	S
+Rule	Haiti	2012	2015	-	Mar	Sun>=8	2:00	1:00	D
+Rule	Haiti	2012	2015	-	Nov	Sun>=1	2:00	0	S
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Port-au-Prince -4:49:20 -	LMT	1890
 			-4:49	-	PPMT	1917 Jan 24 12:00 # P-a-P MT
@@ -3225,6 +3270,7 @@ Zone	America/Managua	-5:45:08 -	LMT	1890
 Zone	America/Panama	-5:18:08 -	LMT	1890
 			-5:19:36 -	CMT	1908 Apr 22 # Colón Mean Time
 			-5:00	-	EST
+Link America/Panama America/Cayman
 
 # Puerto Rico
 # There are too many San Juans elsewhere, so we'll use 'Puerto_Rico'.
@@ -3266,7 +3312,7 @@ Zone America/Miquelon	-3:44:40 -	LMT	1911 May 15 # St Pierre
 # indicating that the normal ET rules are followed.
 #
 # From Paul Eggert (2014-08-19):
-# The 2014-08-13 Cabinet meeting decided to stay on UTC-4 year-round.  See:
+# The 2014-08-13 Cabinet meeting decided to stay on UT -04 year-round.  See:
 # http://tcweeklynews.com/daylight-savings-time-to-be-maintained-p5353-127.htm
 # Model this as a switch from EST/EDT to AST ...
 # From Chris Walton (2014-11-04):
