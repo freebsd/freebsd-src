@@ -8,7 +8,7 @@ FILES=	vgrindefs.src vgrindefs.src.db tmac.vgrind
 FILESNAME_vgrindefs.src=	vgrindefs
 FILESNAME_vgrindefs.src.db=	vgrindefs.db
 FILESDIR=	${SHAREDIR}/misc
-FILESDIR_tmac.vgrind=	${SHAREDIR}/tmac
+FILESDIR_tmac.vgrind=	${SHAREDIR}/doctools/tmac
 MAN=	vgrind.1 vgrindefs.5
 
 WARNS?=	3
