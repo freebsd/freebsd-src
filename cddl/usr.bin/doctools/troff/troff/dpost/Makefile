@@ -16,6 +16,16 @@ SRCS=	dpost.c \
 	version.c \
 	bst.c
 LIBADD=	m
+FILESDIR=	${PSTDIR}
+FILES=	aps.ps \
+	baseline.ps \
+	color.ps \
+	cutmarks.ps \
+	dpost.ps \
+	draw.ps \
+	fatcourier.ps \
+	forms.ps \
+	ps_include.ps
 
 CFLAGS+=	-I${DOCTOOLSDIR}/stuff/bst -I${DOCTOOLSDIR}/troff/troff.d/dpost.d-I${DOCTOOLSDIR}/troff/troff.d/dpost.d \
 		-I${DOCTOOLSDIR}/troff/troff.d/ \
@@ -32,3 +42,4 @@ RELEASE!=	awk -F= '/^RELEASE/ { print $$2 }' ${DOCTOOLSDIR}/version.mk
 .PATH:	${DOCTOOLSDIR}/stuff/bst
 .PATH:	${DOCTOOLSDIR}/troff/troff.d/dpost.d
 .PATH:	${DOCTOOLSDIR}/troff
+.PATH:	${DOCTOOLSDIR}/troff/troff.d/postscript
