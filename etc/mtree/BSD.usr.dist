@@ -320,6 +320,18 @@
                 ..
             ..
             font
+                devhtml
+                ..
+                devpost
+                    charlib
+                    ..
+                ..
+                devps
+                ..
+                devpslow
+                ..
+                devpsmed
+                ..
             ..
             me
             ..
