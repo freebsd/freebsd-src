@@ -322,15 +322,23 @@ man_display_page() {
 	fi
 
 	if ! eval "$cattool $manpage | $testline" ;then
-		if which -s groff; then
+		if which -s picpack; then
+			pipeline="soelim | tbl | eqn | nroff -u1 -Tlocale -man - | col -x"
+			if [ -z "$tflags" ]; then
+				pipeline="${pipeline} | $MANPAGER"
+			fi
+		elif which -s groff; then
 			man_display_page_groff
+			return
 		else
-			echo "This manpage needs groff(1) to be rendered" >&2
-			echo "First install groff(1): " >&2
+			echo "This manpage needs heirloom-doctools or groff(1) to be rendered" >&2
+			echo "First install heirloom doctools or groff(1): " >&2
+			echo "pkg install heirloom-doctools " >&2
+			echo "or" >&2
 			echo "pkg install groff " >&2
 			ret=1
+			return
 		fi
-		return
 	fi
 
 	if [ $debug -gt 0 ]; then
