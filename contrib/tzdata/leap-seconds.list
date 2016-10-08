@@ -143,7 +143,7 @@
 #		Boulder, Colorado
 #		Judah.Levine@nist.gov
 #
-#	Last Update of leap second values:   5 January 2015
+#	Last Update of leap second values:   8 July 2016
 #
 #	The following line shows this last update date in NTP timestamp
 #	format. This is the date on which the most recent change to
@@ -151,7 +151,7 @@
 #	be identified by the unique pair of characters in the first two
 #	columns as shown below.
 #
-#$	 3629404800
+#$	 3676924800
 #
 #	The NTP timestamps are in units of seconds since the NTP epoch,
 #	which is 1 January 1900, 00:00:00. The Modified Julian Day number
@@ -199,10 +199,10 @@
 #	current -- the update time stamp, the data and the name of the file
 #	will not change.
 #
-#	Updated through IERS Bulletin C50
-#	File expires on:  28 June 2016
+#	Updated through IERS Bulletin C52
+#	File expires on:  28 June 2017
 #
-#@	3676060800
+#@	3707596800
 #
 2272060800	10	# 1 Jan 1972
 2287785600	11	# 1 Jul 1972
@@ -231,6 +231,7 @@
 3439756800	34	# 1 Jan 2009
 3550089600	35	# 1 Jul 2012
 3644697600	36	# 1 Jul 2015
+3692217600	37	# 1 Jan 2017
 #
 #	the following special comment contains the
 #	hash value of the data in this file computed
@@ -246,4 +247,4 @@
 #	the hash line is also ignored in the
 #	computation.
 #
-#h	3d037453 3acade76 570bd8f8 be2b8bc9 55ec6fe8
+#h	dacf2c42 2c4765d6 3c797af8 2cf630eb 699c8c67
