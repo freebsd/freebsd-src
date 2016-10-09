@@ -7,10 +7,10 @@ CFLAGS+=	-DEUC
 build-tools: genutf8
 
 genutf8: genutf8.c
-	${CC} -o $@ ${CFLAGS} $<
+	${CC} -o ${.TARGET} ${CFLAGS} ${.IMPSRC}
 
 utf-8:	genutf8
-	./genutf8 >utf-8
+	./genutf8 >${.TARGET}
 
 .include <bsd.prog.mk>
 
