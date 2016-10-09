@@ -120,6 +120,8 @@
         ..
         doctools
             reftools
+                papers
+                ..
             ..
             hyphen
             ..

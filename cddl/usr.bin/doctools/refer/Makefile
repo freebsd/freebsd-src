@@ -1,3 +1,4 @@
+SUBDIR=	papers
 PROGS=	refer addbib lookbib sortbib mkey inv hunt
 SRCS.refer= glue1.c \
 	refer1.c \
@@ -54,7 +55,19 @@ MAN.mkey=
 MAN.inv=
 MAN.hunt=
 
+SCRIPTS=	roffbib indxbib
+CLEANFILES=	roffbib indxbib
+
+BINDIR.hunt=	${LIBDIR}/reftools
+BINDIR.inv=	${LIBDIR}/reftools
+BINDIR.mkey=	${LIBDIR}/reftools
+
 CFLAGS=	-DMACDIR='"${MACDIR}"' -DREFDIR='"${REFDIR}"'
+
+.SUFFIXES:	.sh
+.sh:
+	echo "#!/bin/sh" > ${.TARGET}
+	sed 's:@BINDIR@:$(BINDIR):g; s:@REFDIR@:${REFDIR}:g' ${.IMPSRC} >> ${.TARGET}
 
 .include <bsd.progs.mk>
 
