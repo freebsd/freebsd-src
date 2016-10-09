@@ -62,9 +62,10 @@ main(void)
 		buf = malloc(attr.mq_msgsize);
 		for (j = 0; j < LOOPS; ++j) {
 			FD_ZERO(&set);
-			FD_SET(__mq_oshandle(mq), &set);
+			FD_SET(mq_getfd_np(mq), &set);
 			alarm(3);
-			status = select(__mq_oshandle(mq)+1, &set, NULL, NULL, NULL);
+			status = select(mq_getfd_np(mq) + 1, &set, NULL,
+			    NULL, NULL);
 			if (status != 1)
 				err(1, "child process: select()");
 			status = mq_receive(mq, buf, attr.mq_msgsize, &prio);
@@ -94,8 +95,9 @@ main(void)
 			}
 			alarm(3);
 			FD_ZERO(&set);
-			FD_SET(__mq_oshandle(mq), &set);
-			status = select(__mq_oshandle(mq)+1, NULL, &set, NULL, NULL);
+			FD_SET(mq_getfd_np(mq), &set);
+			status = select(mq_getfd_np(mq) + 1, NULL, &set,
+			    NULL, NULL);
 			if (status != 1)
 				err(1, "select()");
 			status = mq_send(mq, buf, attr.mq_msgsize, PRIO);
