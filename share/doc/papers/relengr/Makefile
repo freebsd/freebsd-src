@@ -3,13 +3,9 @@
 
 VOLUME=		papers
 DOC=		releng
-SRCS=		stubs 0.t 1.t 2.t 3.t
-EXTRA=		ref.bib
+SRCS=		0.t 1.t 2.t 3.t
 MACROS=		-ms
+REFER_ARGS=	-p ${.CURDIR}/ref.bib
 USE_REFER=
-CLEANFILES=	stubs
-
-stubs:
-	@(echo .R1; echo database ${.CURDIR}/ref.bib; echo .R2) > ${.TARGET}
 
 .include <bsd.doc.mk>
