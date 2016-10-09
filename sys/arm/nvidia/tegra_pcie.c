@@ -710,7 +710,7 @@ tegra_pcib_msi_alloc_msi(device_t dev, device_t child, int count, int maxcount,
 	mtx_lock(&sc->mtx);
 
 	found = false;
-	for (irq = 0; irq < TEGRA_PCIB_MAX_MSI && !found; irq++) {
+	for (irq = 0; (irq + count - 1) < TEGRA_PCIB_MAX_MSI; irq++) {
 		/* Start on an aligned interrupt */
 		if ((irq & (maxcount - 1)) != 0)
 			continue;
@@ -719,20 +719,17 @@ tegra_pcib_msi_alloc_msi(device_t dev, device_t child, int count, int maxcount,
 		found = true;
 
 		/* Check this range is valid */
-		for (end_irq = irq; end_irq != irq + count - 1; end_irq++) {
-			/* No free interrupts */
-			if (end_irq == (TEGRA_PCIB_MAX_MSI - 1)) {
-				found = false;
-				break;
-			}
-
+		for (end_irq = irq; end_irq < irq + count; end_irq++) {
 			/* This is already used */
-			if ((sc->isrcs[irq].flags & TEGRA_FLAG_MSI_USED) ==
+			if ((sc->isrcs[end_irq].flags & TEGRA_FLAG_MSI_USED) ==
 			    TEGRA_FLAG_MSI_USED) {
 				found = false;
 				break;
 			}
 		}
+
+		if (found)
+			break;
 	}
 
 	/* Not enough interrupts were found */
