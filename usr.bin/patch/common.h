@@ -53,10 +53,9 @@
 
 /* handy definitions */
 
-#define	strNE(s1,s2) (strcmp(s1, s2))
-#define	strEQ(s1,s2) (!strcmp(s1, s2))
-#define	strnNE(s1,s2,l) (strncmp(s1, s2, l))
-#define	strnEQ(s1,s2,l) (!strncmp(s1, s2, l))
+#define	strEQ(s1,s2) (strcmp(s1, s2) == 0)
+#define	strnNE(s1,s2,l) (strncmp(s1, s2, l) != 0)
+#define	strnEQ(s1,s2,l) (strncmp(s1, s2, l) == 0)
 
 /* typedefs */
 
