@@ -45,6 +45,7 @@ static const char rcsid[] =
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#include <capsicum_helpers.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -52,7 +53,6 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <termios.h>
 #include <unistd.h>
 
 typedef struct _list {
@@ -73,8 +73,6 @@ main(int argc, char *argv[])
 	char *bp;
 	int append, ch, exitval;
 	char *buf;
-	cap_rights_t rights;
-	unsigned long cmd;
 #define	BSIZE (8 * 1024)
 
 	append = 0;
@@ -96,15 +94,8 @@ main(int argc, char *argv[])
 	if ((buf = malloc(BSIZE)) == NULL)
 		err(1, "malloc");
 
-	cap_rights_init(&rights, CAP_READ, CAP_FSTAT);
-	if (cap_rights_limit(STDIN_FILENO, &rights) < 0 && errno != ENOSYS)
-		err(EXIT_FAILURE, "unable to limit rights for stdin");
-	cap_rights_init(&rights, CAP_WRITE, CAP_FSTAT, CAP_IOCTL);
-	if (cap_rights_limit(STDERR_FILENO, &rights) < 0 && errno != ENOSYS)
-		err(EXIT_FAILURE, "unable to limit rights for stderr");
-	cmd = TIOCGETA;
-	if (cap_ioctls_limit(STDERR_FILENO, &cmd, 1) < 0 && errno != ENOSYS)
-		err(EXIT_FAILURE, "unable to limit ioctls for stderr");
+	if (caph_limit_stdin() == -1 || caph_limit_stderr() == -1)
+		err(EXIT_FAILURE, "unable to limit stdio");
 
 	add(STDOUT_FILENO, "stdout");
 
@@ -148,19 +139,14 @@ add(int fd, const char *name)
 {
 	LIST *p;
 	cap_rights_t rights;
-	unsigned long cmd;
-
-	if (fd == STDOUT_FILENO)
-		cap_rights_init(&rights, CAP_WRITE, CAP_FSTAT, CAP_IOCTL);
-	else
-		cap_rights_init(&rights, CAP_WRITE, CAP_FSTAT);
-	if (cap_rights_limit(fd, &rights) < 0 && errno != ENOSYS)
-		err(EXIT_FAILURE, "unable to limit rights");
 
 	if (fd == STDOUT_FILENO) {
-		cmd = TIOCGETA;
-		if (cap_ioctls_limit(fd, &cmd, 1) < 0 && errno != ENOSYS)
-			err(EXIT_FAILURE, "unable to limit ioctls for stdout");
+		if (caph_limit_stdout() == -1)
+			err(EXIT_FAILURE, "unable to limit stdout");
+	} else {
+		cap_rights_init(&rights, CAP_WRITE, CAP_FSTAT);
+		if (cap_rights_limit(fd, &rights) < 0 && errno != ENOSYS)
+			err(EXIT_FAILURE, "unable to limit rights");
 	}
 
 	if ((p = malloc(sizeof(LIST))) == NULL)

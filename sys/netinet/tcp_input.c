@@ -603,7 +603,7 @@ tcp_input(struct mbuf **mp, int *offp, int proto)
 #ifdef TCP_SIGNATURE
 	uint8_t sig_checked = 0;
 #endif
-	uint8_t iptos = 0;
+	uint8_t iptos;
 	struct m_tag *fwd_tag = NULL;
 #ifdef INET6
 	struct ip6_hdr *ip6 = NULL;
@@ -675,6 +675,7 @@ tcp_input(struct mbuf **mp, int *offp, int proto)
 			/* XXX stat */
 			goto drop;
 		}
+		iptos = (ntohl(ip6->ip6_flow) >> 20) & 0xff;
 	}
 #endif
 #if defined(INET) && defined(INET6)
@@ -701,6 +702,7 @@ tcp_input(struct mbuf **mp, int *offp, int proto)
 		th = (struct tcphdr *)((caddr_t)ip + off0);
 		tlen = ntohs(ip->ip_len) - off0;
 
+		iptos = ip->ip_tos;
 		if (m->m_pkthdr.csum_flags & CSUM_DATA_VALID) {
 			if (m->m_pkthdr.csum_flags & CSUM_PSEUDO_HDR)
 				th->th_sum = m->m_pkthdr.csum_data;
@@ -721,28 +723,19 @@ tcp_input(struct mbuf **mp, int *offp, int proto)
 			ipov->ih_len = htons(tlen);
 			th->th_sum = in_cksum(m, len);
 			/* Reset length for SDT probes. */
-			ip->ip_len = htons(tlen + off0);
+			ip->ip_len = htons(len);
+			/* Reset TOS bits */
+			ip->ip_tos = iptos;
+			/* Re-initialization for later version check */
+			ip->ip_v = IPVERSION;
 		}
 
 		if (th->th_sum) {
 			TCPSTAT_INC(tcps_rcvbadsum);
 			goto drop;
 		}
-		/* Re-initialization for later version check */
-		ip->ip_v = IPVERSION;
 	}
 #endif /* INET */
-
-#ifdef INET6
-	if (isipv6)
-		iptos = (ntohl(ip6->ip6_flow) >> 20) & 0xff;
-#endif
-#if defined(INET) && defined(INET6)
-	else
-#endif
-#ifdef INET
-		iptos = ip->ip_tos;
-#endif
 
 	/*
 	 * Check that TCP offset makes sense,
@@ -1503,7 +1496,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 {
 	int thflags, acked, ourfinisacked, needoutput = 0, sack_changed;
 	int rstreason, todrop, win;
-	u_long tiwin;
+	uint32_t tiwin;
 	uint16_t nsegs;
 	char *s;
 	struct in_conninfo *inc;
@@ -1743,7 +1736,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				 */
 				if ((to.to_flags & TOF_TS) != 0 &&
 				    to.to_tsecr) {
-					u_int t;
+					uint32_t t;
 
 					t = tcp_ts_getticks() - to.to_tsecr;
 					if (!tp->t_rttlow || tp->t_rttlow > t)
@@ -2032,7 +2025,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				(TF_RCVD_SCALE|TF_REQ_SCALE)) {
 				tp->rcv_scale = tp->request_r_scale;
 			}
-			tp->rcv_adv += imin(tp->rcv_wnd,
+			tp->rcv_adv += min(tp->rcv_wnd,
 			    TCP_MAXWIN << tp->rcv_scale);
 			tp->snd_una++;		/* SYN is acked */
 			/*
@@ -2662,7 +2655,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 					 */
 					cc_ack_received(tp, th, nsegs,
 					    CC_DUPACK);
-					u_long oldcwnd = tp->snd_cwnd;
+					uint32_t oldcwnd = tp->snd_cwnd;
 					tcp_seq oldsndmax = tp->snd_max;
 					u_int sent;
 					int avail;
@@ -2792,7 +2785,7 @@ process_ACK:
 		 * huge RTT and blow up the retransmit timer.
 		 */
 		if ((to.to_flags & TOF_TS) != 0 && to.to_tsecr) {
-			u_int t;
+			uint32_t t;
 
 			t = tcp_ts_getticks() - to.to_tsecr;
 			if (!tp->t_rttlow || tp->t_rttlow > t)
@@ -2841,7 +2834,7 @@ process_ACK:
 			ourfinisacked = 1;
 		} else {
 			mfree = sbcut_locked(&so->so_snd, acked);
-			if (tp->snd_wnd >= (u_long) acked)
+			if (tp->snd_wnd >= (uint32_t) acked)
 				tp->snd_wnd -= acked;
 			else
 				tp->snd_wnd = 0;
@@ -3002,7 +2995,7 @@ step6:
 		 * but if two URG's are pending at once, some out-of-band
 		 * data may creep in... ick.
 		 */
-		if (th->th_urp <= (u_long)tlen &&
+		if (th->th_urp <= (uint32_t)tlen &&
 		    !(so->so_options & SO_OOBINLINE)) {
 			/* hdr drop is delayed */
 			tcp_pulloutofband(so, th, m, drop_hdrlen);
@@ -3567,7 +3560,7 @@ tcp_mss_update(struct tcpcb *tp, int offer, int mtuoffer,
     struct hc_metrics_lite *metricptr, struct tcp_ifcap *cap)
 {
 	int mss = 0;
-	u_long maxmtu = 0;
+	uint32_t maxmtu = 0;
 	struct inpcb *inp = tp->t_inpcb;
 	struct hc_metrics_lite metrics;
 #ifdef INET6
@@ -3713,7 +3706,7 @@ void
 tcp_mss(struct tcpcb *tp, int offer)
 {
 	int mss;
-	u_long bufsize;
+	uint32_t bufsize;
 	struct inpcb *inp;
 	struct socket *so;
 	struct hc_metrics_lite metrics;
@@ -3782,8 +3775,8 @@ int
 tcp_mssopt(struct in_conninfo *inc)
 {
 	int mss = 0;
-	u_long maxmtu = 0;
-	u_long thcmtu = 0;
+	uint32_t thcmtu = 0;
+	uint32_t maxmtu = 0;
 	size_t min_protoh;
 
 	KASSERT(inc != NULL, ("tcp_mssopt with NULL in_conninfo pointer"));
@@ -3828,7 +3821,7 @@ void
 tcp_newreno_partial_ack(struct tcpcb *tp, struct tcphdr *th)
 {
 	tcp_seq onxt = tp->snd_nxt;
-	u_long ocwnd = tp->snd_cwnd;
+	uint32_t ocwnd = tp->snd_cwnd;
 	u_int maxseg = tcp_maxseg(tp);
 
 	INP_WLOCK_ASSERT(tp->t_inpcb);

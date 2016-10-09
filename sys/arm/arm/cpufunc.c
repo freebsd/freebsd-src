@@ -242,50 +242,19 @@ struct cpu_functions sheeva_cpufuncs = {
 
 #ifdef CPU_MV_PJ4B
 struct cpu_functions pj4bv7_cpufuncs = {
-	/* CPU functions */
-
-	armv7_drain_writebuf,		/* cpwait		*/
-
-	/* MMU functions */
-
-	cpufunc_control,		/* control		*/
-	armv7_setttb,			/* Setttb		*/
-
-	/* TLB functions */
-
-	armv7_tlb_flushID,		/* tlb_flushID		*/
-	armv7_tlb_flushID_SE,		/* tlb_flushID_SE	*/
-	armv7_tlb_flushID,		/* tlb_flushD		*/
-	armv7_tlb_flushID_SE,		/* tlb_flushD_SE	*/
 
 	/* Cache operations */
-	armv7_icache_sync_range,	/* icache_sync_range	*/
-
-	armv7_dcache_wbinv_all,		/* dcache_wbinv_all	*/
-	armv7_dcache_wbinv_range,	/* dcache_wbinv_range	*/
-	armv7_dcache_inv_range,		/* dcache_inv_range	*/
-	armv7_dcache_wb_range,		/* dcache_wb_range	*/
-
-	armv7_idcache_inv_all,		/* idcache_inv_all	*/
-	armv7_idcache_wbinv_all,	/* idcache_wbinv_all	*/
-	armv7_idcache_wbinv_range,	/* idcache_wbinv_all	*/
-
-	(void *)cpufunc_nullop,		/* l2cache_wbinv_all	*/
-	(void *)cpufunc_nullop,		/* l2cache_wbinv_range	*/
-	(void *)cpufunc_nullop,		/* l2cache_inv_range	*/
-	(void *)cpufunc_nullop,		/* l2cache_wb_range	*/
-	(void *)cpufunc_nullop,         /* l2cache_drain_writebuf */
+	.cf_l2cache_wbinv_all = (void *)cpufunc_nullop,
+	.cf_l2cache_wbinv_range = (void *)cpufunc_nullop,
+	.cf_l2cache_inv_range = (void *)cpufunc_nullop,
+	.cf_l2cache_wb_range = (void *)cpufunc_nullop,
+	.cf_l2cache_drain_writebuf = (void *)cpufunc_nullop,
 
 	/* Other functions */
-
-	armv7_drain_writebuf,		/* drain_writebuf	*/
-
-	(void *)cpufunc_nullop,		/* sleep		*/
+	.cf_sleep = (void *)cpufunc_nullop,
 
 	/* Soft functions */
-	armv7_context_switch,		/* context_switch	*/
-
-	pj4bv7_setup			/* cpu setup		*/
+	.cf_setup = pj4bv7_setup
 };
 #endif /* CPU_MV_PJ4B */
 
@@ -445,113 +414,44 @@ struct cpu_functions fa526_cpufuncs = {
 
 #if defined(CPU_ARM1176)
 struct cpu_functions arm1176_cpufuncs = {
-	/* CPU functions */
-
-	cpufunc_nullop,                 /* cpwait               */
-
-	/* MMU functions */
-
-	cpufunc_control,                /* control              */
-	arm11x6_setttb,                 /* Setttb               */
-
-	/* TLB functions */
-
-	arm11_tlb_flushID,              /* tlb_flushID          */
-	arm11_tlb_flushID_SE,           /* tlb_flushID_SE       */
-	arm11_tlb_flushD,               /* tlb_flushD           */
-	arm11_tlb_flushD_SE,            /* tlb_flushD_SE        */
 
 	/* Cache operations */
-
-	arm11x6_icache_sync_range,      /* icache_sync_range    */
-
-	arm11x6_dcache_wbinv_all,       /* dcache_wbinv_all     */
-	armv6_dcache_wbinv_range,       /* dcache_wbinv_range   */
-	armv6_dcache_inv_range,         /* dcache_inv_range     */
-	armv6_dcache_wb_range,          /* dcache_wb_range      */
-
-	armv6_idcache_inv_all,		/* idcache_inv_all	*/
-	arm11x6_idcache_wbinv_all,      /* idcache_wbinv_all    */
-	arm11x6_idcache_wbinv_range,    /* idcache_wbinv_range  */
-
-	(void *)cpufunc_nullop,         /* l2cache_wbinv_all    */
-	(void *)cpufunc_nullop,         /* l2cache_wbinv_range  */
-	(void *)cpufunc_nullop,         /* l2cache_inv_range    */
-	(void *)cpufunc_nullop,         /* l2cache_wb_range     */
-	(void *)cpufunc_nullop,         /* l2cache_drain_writebuf */
+	.cf_l2cache_wbinv_all = (void *)cpufunc_nullop,
+	.cf_l2cache_wbinv_range = (void *)cpufunc_nullop,
+	.cf_l2cache_inv_range = (void *)cpufunc_nullop,
+	.cf_l2cache_wb_range = (void *)cpufunc_nullop,
+	.cf_l2cache_drain_writebuf = (void *)cpufunc_nullop,
 
 	/* Other functions */
-
-	arm11_drain_writebuf,           /* drain_writebuf       */
-
-	arm11x6_sleep,                  /* sleep                */
+	.cf_sleep = arm11x6_sleep, 
 
 	/* Soft functions */
-
-	arm11_context_switch,           /* context_switch       */
-
-	arm11x6_setup                   /* cpu setup            */
+	.cf_setup = arm11x6_setup
 };
 #endif /*CPU_ARM1176 */
 
-#if defined(CPU_CORTEXA) || defined(CPU_KRAIT)
+#if defined(CPU_CORTEXA8) || defined(CPU_CORTEXA_MP) || defined(CPU_KRAIT)
 struct cpu_functions cortexa_cpufuncs = {
-	/* CPU functions */
-
-	cpufunc_nullop,                 /* cpwait               */
-
-	/* MMU functions */
-
-	cpufunc_control,                /* control              */
-	armv7_setttb,                   /* Setttb               */
-
-	/*
-	 * TLB functions.  ARMv7 does all TLB ops based on a unified TLB model
-	 * whether the hardware implements separate I+D or not, so we use the
-	 * same 'ID' functions for all 3 variations.
-	 */
-
-	armv7_tlb_flushID,              /* tlb_flushID          */
-	armv7_tlb_flushID_SE,           /* tlb_flushID_SE       */
-	armv7_tlb_flushID,              /* tlb_flushD           */
-	armv7_tlb_flushID_SE,           /* tlb_flushD_SE        */
 
 	/* Cache operations */
-
-	armv7_icache_sync_range,        /* icache_sync_range    */
-
-	armv7_dcache_wbinv_all,         /* dcache_wbinv_all     */
-	armv7_dcache_wbinv_range,       /* dcache_wbinv_range   */
-	armv7_dcache_inv_range,         /* dcache_inv_range     */
-	armv7_dcache_wb_range,          /* dcache_wb_range      */
-
-	armv7_idcache_inv_all,		/* idcache_inv_all	*/
-	armv7_idcache_wbinv_all,        /* idcache_wbinv_all    */
-	armv7_idcache_wbinv_range,      /* idcache_wbinv_range  */
 
 	/*
 	 * Note: For CPUs using the PL310 the L2 ops are filled in when the
 	 * L2 cache controller is actually enabled.
 	 */
-	cpufunc_nullop,                 /* l2cache_wbinv_all    */
-	(void *)cpufunc_nullop,         /* l2cache_wbinv_range  */
-	(void *)cpufunc_nullop,         /* l2cache_inv_range    */
-	(void *)cpufunc_nullop,         /* l2cache_wb_range     */
-	(void *)cpufunc_nullop,         /* l2cache_drain_writebuf */
+	.cf_l2cache_wbinv_all = cpufunc_nullop,
+	.cf_l2cache_wbinv_range = (void *)cpufunc_nullop,
+	.cf_l2cache_inv_range = (void *)cpufunc_nullop,
+	.cf_l2cache_wb_range = (void *)cpufunc_nullop,
+	.cf_l2cache_drain_writebuf = (void *)cpufunc_nullop,
 
 	/* Other functions */
-
-	armv7_drain_writebuf,           /* drain_writebuf       */
-
-	armv7_cpu_sleep,                /* sleep                */
+	.cf_sleep = armv7_cpu_sleep,
 
 	/* Soft functions */
-
-	armv7_context_switch,           /* context_switch       */
-
-	cortexa_setup                     /* cpu setup            */
+	.cf_setup = cortexa_setup
 };
-#endif /* CPU_CORTEXA */
+#endif /* CPU_CORTEXA8 || CPU_CORTEXA_MP || CPU_KRAIT */
 
 /*
  * Global constants also used by locore.s
@@ -569,7 +469,7 @@ u_int cpu_reset_needs_v4_MMU_disable;	/* flag used in locore-v4.s */
   defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) ||		\
   defined(CPU_FA526) || defined(CPU_MV_PJ4B) ||			\
   defined(CPU_XSCALE_81342) || \
-  defined(CPU_CORTEXA) || defined(CPU_KRAIT)
+  defined(CPU_CORTEXA8) || defined(CPU_CORTEXA_MP) || defined(CPU_KRAIT)
 
 /* Global cache line sizes, use 32 as default */
 int	arm_dcache_min_line_size = 32;
@@ -760,7 +660,7 @@ set_cpufuncs()
 		goto out;
 	}
 #endif /* CPU_ARM1176 */
-#if defined(CPU_CORTEXA) || defined(CPU_KRAIT)
+#if defined(CPU_CORTEXA8) || defined(CPU_CORTEXA_MP) || defined(CPU_KRAIT)
 	switch(cputype & CPU_ID_SCHEME_MASK) {
 	case CPU_ID_CORTEXA5:
 	case CPU_ID_CORTEXA7:
@@ -768,6 +668,9 @@ set_cpufuncs()
 	case CPU_ID_CORTEXA9:
 	case CPU_ID_CORTEXA12:
 	case CPU_ID_CORTEXA15:
+	case CPU_ID_CORTEXA53:
+	case CPU_ID_CORTEXA57:
+	case CPU_ID_CORTEXA72:
 	case CPU_ID_KRAIT300:
 		cpufuncs = cortexa_cpufuncs;
 		get_cachetype_cp15();
@@ -775,7 +678,7 @@ set_cpufuncs()
 	default:
 		break;
 	}
-#endif /* CPU_CORTEXA */
+#endif /* CPU_CORTEXA8 || CPU_CORTEXA_MP || CPU_KRAIT */
 
 #if defined(CPU_MV_PJ4B)
 	if (cputype == CPU_ID_MV88SV581X_V7 ||
@@ -928,7 +831,7 @@ arm10_setup(void)
 
 #if defined(CPU_ARM1176) \
  || defined(CPU_MV_PJ4B) \
- || defined(CPU_CORTEXA) || defined(CPU_KRAIT)
+ || defined(CPU_CORTEXA8) || defined(CPU_CORTEXA_MP) || defined(CPU_KRAIT)
 static __inline void
 cpu_scc_setup_ccnt(void)
 {
@@ -998,7 +901,7 @@ pj4bv7_setup(void)
 }
 #endif /* CPU_MV_PJ4B */
 
-#if defined(CPU_CORTEXA) || defined(CPU_KRAIT)
+#if defined(CPU_CORTEXA8) || defined(CPU_CORTEXA_MP) || defined(CPU_KRAIT)
 
 void
 cortexa_setup(void)
@@ -1006,7 +909,7 @@ cortexa_setup(void)
 
 	cpu_scc_setup_ccnt();
 }
-#endif  /* CPU_CORTEXA */
+#endif  /* CPU_CORTEXA8 || CPU_CORTEXA_MP || CPU_KRAIT */
 
 #if defined(CPU_FA526)
 void

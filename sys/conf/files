@@ -480,6 +480,7 @@ contrib/dev/acpica/components/utilities/utpredef.c	optional acpi
 contrib/dev/acpica/components/utilities/utresrc.c	optional acpi
 contrib/dev/acpica/components/utilities/utstate.c	optional acpi
 contrib/dev/acpica/components/utilities/utstring.c	optional acpi
+contrib/dev/acpica/components/utilities/utstrtoul64.c	optional acpi
 contrib/dev/acpica/components/utilities/utuuid.c	optional acpi acpi_debug
 contrib/dev/acpica/components/utilities/utxface.c	optional acpi
 contrib/dev/acpica/components/utilities/utxferror.c	optional acpi
@@ -4036,131 +4037,90 @@ ofed/drivers/infiniband/ulp/sdp/sdp_cma.c	optional sdp inet 	\
 ofed/drivers/infiniband/ulp/sdp/sdp_tx.c	optional sdp inet 	\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/ulp/sdp/"
 
-ofed/drivers/infiniband/hw/mlx4/alias_GUID.c    optional mlx4ib         \
-        no-depend obj-prefix "mlx4ib_"                                  \
-        compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/infiniband/hw/mlx4/"
-ofed/drivers/infiniband/hw/mlx4/mcg.c           optional mlx4ib         \
-        no-depend obj-prefix "mlx4ib_"                                  \
-        compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/infiniband/hw/mlx4/"
-ofed/drivers/infiniband/hw/mlx4/sysfs.c         optional mlx4ib         \
-        no-depend obj-prefix "mlx4ib_"                                  \
-        compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/infiniband/hw/mlx4/"
-ofed/drivers/infiniband/hw/mlx4/cm.c            optional mlx4ib         \
-        no-depend obj-prefix "mlx4ib_"                                  \
-        compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/infiniband/hw/mlx4/"
-ofed/drivers/infiniband/hw/mlx4/ah.c		optional mlx4ib		\
-	no-depend obj-prefix "mlx4ib_"					\
-	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/infiniband/hw/mlx4/"
-ofed/drivers/infiniband/hw/mlx4/cq.c		optional mlx4ib		\
-	no-depend obj-prefix "mlx4ib_"					\
-	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/infiniband/hw/mlx4/"
-ofed/drivers/infiniband/hw/mlx4/doorbell.c	optional mlx4ib		\
-	no-depend obj-prefix "mlx4ib_"					\
-	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/infiniband/hw/mlx4/"
-ofed/drivers/infiniband/hw/mlx4/mad.c		optional mlx4ib		\
-	no-depend obj-prefix "mlx4ib_"					\
-	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/infiniband/hw/mlx4/"
-ofed/drivers/infiniband/hw/mlx4/main.c		optional mlx4ib		\
-	no-depend obj-prefix "mlx4ib_"					\
-	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/infiniband/hw/mlx4/"
-ofed/drivers/infiniband/hw/mlx4/mlx4_exp.c	optional mlx4ib		\
-	no-depend obj-prefix "mlx4ib_"					\
-	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/infiniband/hw/mlx4/"
-ofed/drivers/infiniband/hw/mlx4/mr.c		optional mlx4ib		\
-	no-depend obj-prefix "mlx4ib_"					\
-	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/infiniband/hw/mlx4/"
-ofed/drivers/infiniband/hw/mlx4/qp.c		optional mlx4ib		\
-	no-depend obj-prefix "mlx4ib_"					\
-	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/infiniband/hw/mlx4/"
-ofed/drivers/infiniband/hw/mlx4/srq.c		optional mlx4ib		\
-	no-depend obj-prefix "mlx4ib_"					\
-	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/infiniband/hw/mlx4/"
-ofed/drivers/infiniband/hw/mlx4/wc.c		optional mlx4ib		\
-	no-depend obj-prefix "mlx4ib_"					\
-	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/infiniband/hw/mlx4/"
+dev/mlx4/mlx4_ib/mlx4_ib_alias_GUID.c		optional mlx4ib pci ofed \
+	compile-with "${OFED_C}"
+dev/mlx4/mlx4_ib/mlx4_ib_mcg.c			optional mlx4ib pci ofed \
+	compile-with "${OFED_C}"
+dev/mlx4/mlx4_ib/mlx4_ib_sysfs.c		optional mlx4ib pci ofed \
+	compile-with "${OFED_C}"
+dev/mlx4/mlx4_ib/mlx4_ib_cm.c			optional mlx4ib pci ofed \
+	compile-with "${OFED_C}"
+dev/mlx4/mlx4_ib/mlx4_ib_ah.c			optional mlx4ib pci ofed \
+	compile-with "${OFED_C}"
+dev/mlx4/mlx4_ib/mlx4_ib_cq.c			optional mlx4ib pci ofed \
+	compile-with "${OFED_C}"
+dev/mlx4/mlx4_ib/mlx4_ib_doorbell.c		optional mlx4ib pci ofed \
+	compile-with "${OFED_C}"
+dev/mlx4/mlx4_ib/mlx4_ib_mad.c			optional mlx4ib pci ofed \
+	compile-with "${OFED_C}"
+dev/mlx4/mlx4_ib/mlx4_ib_main.c			optional mlx4ib pci ofed \
+	compile-with "${OFED_C}"
+dev/mlx4/mlx4_ib/mlx4_ib_exp.c			optional mlx4ib pci ofed \
+	compile-with "${OFED_C}"
+dev/mlx4/mlx4_ib/mlx4_ib_mr.c			optional mlx4ib pci ofed \
+	compile-with "${OFED_C}"
+dev/mlx4/mlx4_ib/mlx4_ib_qp.c			optional mlx4ib pci ofed \
+	compile-with "${OFED_C}"
+dev/mlx4/mlx4_ib/mlx4_ib_srq.c			optional mlx4ib pci ofed \
+	compile-with "${OFED_C}"
+dev/mlx4/mlx4_ib/mlx4_ib_wc.c			optional mlx4ib pci ofed \
+	compile-with "${OFED_C}"
 
-ofed/drivers/net/mlx4/alloc.c			optional mlx4ib | mlxen	\
-	no-depend obj-prefix "mlx4_"					\
-	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/net/mlx4/"
-ofed/drivers/net/mlx4/catas.c			optional mlx4ib | mlxen	\
-	no-depend obj-prefix "mlx4_"					\
-	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/net/mlx4/"
-ofed/drivers/net/mlx4/cmd.c			optional mlx4ib | mlxen	\
-	no-depend obj-prefix "mlx4_"					\
-	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/net/mlx4/"
-ofed/drivers/net/mlx4/cq.c			optional mlx4ib | mlxen	\
-	no-depend obj-prefix "mlx4_"					\
-	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/net/mlx4/"
-ofed/drivers/net/mlx4/eq.c			optional mlx4ib | mlxen	\
-	no-depend obj-prefix "mlx4_"					\
-	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/net/mlx4/"
-ofed/drivers/net/mlx4/fw.c			optional mlx4ib | mlxen	\
-	no-depend obj-prefix "mlx4_"					\
-	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/net/mlx4/"
-ofed/drivers/net/mlx4/icm.c			optional mlx4ib | mlxen	\
-	no-depend obj-prefix "mlx4_"					\
-	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/net/mlx4/"
-ofed/drivers/net/mlx4/intf.c			optional mlx4ib | mlxen	\
-	no-depend obj-prefix "mlx4_"					\
-	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/net/mlx4/"
-ofed/drivers/net/mlx4/main.c			optional mlx4ib | mlxen	\
-	no-depend obj-prefix "mlx4_"					\
-	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/net/mlx4/"
-ofed/drivers/net/mlx4/mcg.c			optional mlx4ib | mlxen	\
-	no-depend obj-prefix "mlx4_"					\
-	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/net/mlx4/ -Wno-unused"
-ofed/drivers/net/mlx4/mr.c			optional mlx4ib | mlxen	\
-	no-depend obj-prefix "mlx4_"					\
-	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/net/mlx4/"
-ofed/drivers/net/mlx4/pd.c			optional mlx4ib | mlxen	\
-	no-depend obj-prefix "mlx4_"					\
-	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/net/mlx4/"
-ofed/drivers/net/mlx4/port.c			optional mlx4ib | mlxen	\
-	no-depend obj-prefix "mlx4_"					\
-	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/net/mlx4/"
-ofed/drivers/net/mlx4/profile.c			optional mlx4ib | mlxen	\
-	no-depend obj-prefix "mlx4_"					\
-	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/net/mlx4/"
-ofed/drivers/net/mlx4/qp.c			optional mlx4ib | mlxen	\
-	no-depend obj-prefix "mlx4_"					\
-	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/net/mlx4/"
-ofed/drivers/net/mlx4/reset.c			optional mlx4ib | mlxen	\
-	no-depend obj-prefix "mlx4_"					\
-	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/net/mlx4/"
-ofed/drivers/net/mlx4/sense.c			optional mlx4ib | mlxen	\
-	no-depend obj-prefix "mlx4_"					\
-	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/net/mlx4/"
-ofed/drivers/net/mlx4/srq.c			optional mlx4ib | mlxen	\
-	no-depend obj-prefix "mlx4_"					\
-	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/net/mlx4/"
-ofed/drivers/net/mlx4/resource_tracker.c        optional mlx4ib | mlxen	\
-	no-depend obj-prefix "mlx4_"					\
-	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/net/mlx4/"
-ofed/drivers/net/mlx4/sys_tune.c		optional mlx4ib | mlxen	\
-	no-depend obj-prefix "mlx4_"					\
-	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/net/mlx4/"
+dev/mlx4/mlx4_core/mlx4_alloc.c			optional mlx4 pci \
+	compile-with "${OFED_C}"
+dev/mlx4/mlx4_core/mlx4_catas.c			optional mlx4 pci \
+	compile-with "${OFED_C}"
+dev/mlx4/mlx4_core/mlx4_cmd.c			optional mlx4 pci \
+	compile-with "${OFED_C}"
+dev/mlx4/mlx4_core/mlx4_cq.c			optional mlx4 pci \
+	compile-with "${OFED_C}"
+dev/mlx4/mlx4_core/mlx4_eq.c			optional mlx4 pci \
+	compile-with "${OFED_C}"
+dev/mlx4/mlx4_core/mlx4_fw.c			optional mlx4 pci \
+	compile-with "${OFED_C}"
+dev/mlx4/mlx4_core/mlx4_icm.c			optional mlx4 pci \
+	compile-with "${OFED_C}"
+dev/mlx4/mlx4_core/mlx4_intf.c			optional mlx4 pci \
+	compile-with "${OFED_C}"
+dev/mlx4/mlx4_core/mlx4_main.c			optional mlx4 pci \
+	compile-with "${OFED_C}"
+dev/mlx4/mlx4_core/mlx4_mcg.c			optional mlx4 pci \
+	compile-with "${OFED_C}"
+dev/mlx4/mlx4_core/mlx4_mr.c			optional mlx4 pci \
+	compile-with "${OFED_C}"
+dev/mlx4/mlx4_core/mlx4_pd.c			optional mlx4 pci \
+	compile-with "${OFED_C}"
+dev/mlx4/mlx4_core/mlx4_port.c			optional mlx4 pci \
+	compile-with "${OFED_C}"
+dev/mlx4/mlx4_core/mlx4_profile.c		optional mlx4 pci \
+	compile-with "${OFED_C}"
+dev/mlx4/mlx4_core/mlx4_qp.c			optional mlx4 pci \
+	compile-with "${OFED_C}"
+dev/mlx4/mlx4_core/mlx4_reset.c			optional mlx4 pci \
+	compile-with "${OFED_C}"
+dev/mlx4/mlx4_core/mlx4_sense.c			optional mlx4 pci \
+	compile-with "${OFED_C}"
+dev/mlx4/mlx4_core/mlx4_srq.c			optional mlx4 pci \
+	compile-with "${OFED_C}"
+dev/mlx4/mlx4_core/mlx4_resource_tracker.c	optional mlx4 pci \
+	compile-with "${OFED_C}"
+dev/mlx4/mlx4_core/mlx4_sys_tune.c		optional mlx4 pci \
+	compile-with "${OFED_C}"
 
-ofed/drivers/net/mlx4/en_cq.c			optional mlxen		\
-	no-depend obj-prefix "mlx4_"					\
-	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/net/mlx4/"
-ofed/drivers/net/mlx4/en_main.c			optional mlxen		\
-	no-depend obj-prefix "mlx4_"					\
-	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/net/mlx4/"
-ofed/drivers/net/mlx4/en_netdev.c		optional mlxen		\
-	no-depend obj-prefix "mlx4_"					\
-	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/net/mlx4/"
-ofed/drivers/net/mlx4/en_port.c			optional mlxen		\
-	no-depend obj-prefix "mlx4_"					\
-	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/net/mlx4/"
-ofed/drivers/net/mlx4/en_resources.c		optional mlxen		\
-	no-depend obj-prefix "mlx4_"					\
-	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/net/mlx4/"
-ofed/drivers/net/mlx4/en_rx.c			optional mlxen		\
-	no-depend obj-prefix "mlx4_"					\
-	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/net/mlx4/"
-ofed/drivers/net/mlx4/en_tx.c			optional mlxen		\
-	no-depend obj-prefix "mlx4_"					\
-	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/net/mlx4/"
+dev/mlx4/mlx4_en/mlx4_en_cq.c			optional mlx4en pci inet inet6	\
+	compile-with "${OFED_C}"
+dev/mlx4/mlx4_en/mlx4_en_main.c			optional mlx4en pci inet inet6	\
+	compile-with "${OFED_C}"
+dev/mlx4/mlx4_en/mlx4_en_netdev.c		optional mlx4en pci inet inet6	\
+	compile-with "${OFED_C}"
+dev/mlx4/mlx4_en/mlx4_en_port.c			optional mlx4en pci inet inet6	\
+	compile-with "${OFED_C}"
+dev/mlx4/mlx4_en/mlx4_en_resources.c		optional mlx4en pci inet inet6	\
+	compile-with "${OFED_C}"
+dev/mlx4/mlx4_en/mlx4_en_rx.c			optional mlx4en pci inet inet6	\
+	compile-with "${OFED_C}"
+dev/mlx4/mlx4_en/mlx4_en_tx.c			optional mlx4en pci inet inet6	\
+	compile-with "${OFED_C}"
 
 dev/mlx5/mlx5_core/mlx5_alloc.c			optional mlx5 pci	\
 	compile-with "${OFED_C}"

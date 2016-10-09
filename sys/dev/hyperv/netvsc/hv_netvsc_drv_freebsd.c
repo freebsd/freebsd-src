@@ -334,7 +334,6 @@ static void hn_fixup_tx_data(struct hn_softc *);
 static void hn_destroy_tx_data(struct hn_softc *);
 static void hn_start_taskfunc(void *, int);
 static void hn_start_txeof_taskfunc(void *, int);
-static void hn_stop_tx_tasks(struct hn_softc *);
 static int hn_encap(struct hn_tx_ring *, struct hn_txdesc *, struct mbuf **);
 static int hn_create_rx_data(struct hn_softc *sc, int);
 static void hn_destroy_rx_data(struct hn_softc *sc);
@@ -350,7 +349,10 @@ static void hn_synth_detach(struct hn_softc *);
 static bool hn_tx_ring_pending(struct hn_tx_ring *);
 static void hn_suspend(struct hn_softc *);
 static void hn_resume(struct hn_softc *);
+static void hn_rx_drain(struct vmbus_channel *);
+static void hn_tx_resume(struct hn_softc *, int);
 static void hn_tx_ring_qflush(struct hn_tx_ring *);
+static int netvsc_detach(device_t dev);
 
 static void hn_nvs_handle_notify(struct hn_softc *sc,
 		const struct vmbus_chanpkt_hdr *pkt);
@@ -403,6 +405,9 @@ hn_rss_reconfig(struct hn_softc *sc)
 	int error;
 
 	HN_LOCK_ASSERT(sc);
+
+	if ((sc->hn_flags & HN_FLAG_SYNTH_ATTACHED) == 0)
+		return (ENXIO);
 
 	/*
 	 * Disable RSS first.
@@ -735,29 +740,28 @@ netvsc_attach(device_t dev)
 
 	return (0);
 failed:
-	/* TODO: reuse netvsc_detach() */
-	hn_destroy_tx_data(sc);
-	if (ifp != NULL)
-		if_free(ifp);
+	if (sc->hn_flags & HN_FLAG_SYNTH_ATTACHED)
+		hn_synth_detach(sc);
+	netvsc_detach(dev);
 	return (error);
 }
 
-/*
- * TODO: Use this for error handling on attach path.
- */
 static int
 netvsc_detach(device_t dev)
 {
 	struct hn_softc *sc = device_get_softc(dev);
+	struct ifnet *ifp = sc->hn_ifp;
 
-	/* TODO: ether_ifdetach */
-
-	HN_LOCK(sc);
-	/* TODO: hn_stop */
-	hn_synth_detach(sc);
-	HN_UNLOCK(sc);
-
-	hn_stop_tx_tasks(sc);
+	if (device_is_attached(dev)) {
+		HN_LOCK(sc);
+		if (sc->hn_flags & HN_FLAG_SYNTH_ATTACHED) {
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+				hn_stop(sc);
+			hn_synth_detach(sc);
+		}
+		HN_UNLOCK(sc);
+		ether_ifdetach(ifp);
+	}
 
 	ifmedia_removeall(&sc->hn_media);
 	hn_destroy_rx_data(sc);
@@ -766,10 +770,12 @@ netvsc_detach(device_t dev)
 	if (sc->hn_tx_taskq != hn_tx_taskq)
 		taskqueue_free(sc->hn_tx_taskq);
 
-	vmbus_xact_ctx_destroy(sc->hn_xact);
-	HN_LOCK_DESTROY(sc);
+	if (sc->hn_xact != NULL)
+		vmbus_xact_ctx_destroy(sc->hn_xact);
 
-	/* TODO: if_free */
+	if_free(ifp);
+
+	HN_LOCK_DESTROY(sc);
 	return (0);
 }
 
@@ -1007,14 +1013,16 @@ hn_encap(struct hn_tx_ring *txr, struct hn_txdesc *txd, struct mbuf **m_head0)
 	pkt->rm_pktinfooffset = sizeof(*pkt);
 	pkt->rm_pktinfolen = 0;
 
-	/*
-	 * Set the hash value for this packet, so that the host could
-	 * dispatch the TX done event for this packet back to this TX
-	 * ring's channel.
-	 */
-	pi_data = hn_rndis_pktinfo_append(pkt, HN_RNDIS_PKT_LEN,
-	    HN_NDIS_HASH_VALUE_SIZE, HN_NDIS_PKTINFO_TYPE_HASHVAL);
-	*pi_data = txr->hn_tx_idx;
+	if (txr->hn_tx_flags & HN_TX_FLAG_HASHVAL) {
+		/*
+		 * Set the hash value for this packet, so that the host could
+		 * dispatch the TX done event for this packet back to this TX
+		 * ring's channel.
+		 */
+		pi_data = hn_rndis_pktinfo_append(pkt, HN_RNDIS_PKT_LEN,
+		    HN_NDIS_HASH_VALUE_SIZE, HN_NDIS_PKTINFO_TYPE_HASHVAL);
+		*pi_data = txr->hn_tx_idx;
+	}
 
 	if (m_head->m_flags & M_VLANTAG) {
 		pi_data = hn_rndis_pktinfo_append(pkt, HN_RNDIS_PKT_LEN,
@@ -1617,6 +1625,11 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 		HN_LOCK(sc);
 
+		if ((sc->hn_flags & HN_FLAG_SYNTH_ATTACHED) == 0) {
+			HN_UNLOCK(sc);
+			break;
+		}
+
 		if ((sc->hn_caps & HN_CAP_MTU) == 0) {
 			/* Can't change MTU */
 			HN_UNLOCK(sc);
@@ -1669,6 +1682,11 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 	case SIOCSIFFLAGS:
 		HN_LOCK(sc);
+
+		if ((sc->hn_flags & HN_FLAG_SYNTH_ATTACHED) == 0) {
+			HN_UNLOCK(sc);
+			break;
+		}
 
 		if (ifp->if_flags & IFF_UP) {
 			/*
@@ -1776,25 +1794,22 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 static void
 hn_stop(struct hn_softc *sc)
 {
-	struct ifnet *ifp;
+	struct ifnet *ifp = sc->hn_ifp;
 	int i;
 
 	HN_LOCK_ASSERT(sc);
 
-	ifp = sc->hn_ifp;
+	KASSERT(sc->hn_flags & HN_FLAG_SYNTH_ATTACHED,
+	    ("synthetic parts were not attached"));
 
-	if (bootverbose)
-		printf(" Closing Device ...\n");
+	/* Clear RUNNING bit _before_ hn_suspend() */
+	atomic_clear_int(&ifp->if_drv_flags, IFF_DRV_RUNNING);
+	hn_suspend(sc);
 
-	atomic_clear_int(&ifp->if_drv_flags,
-	    (IFF_DRV_RUNNING | IFF_DRV_OACTIVE));
+	/* Clear OACTIVE bit. */
+	atomic_clear_int(&ifp->if_drv_flags, IFF_DRV_OACTIVE);
 	for (i = 0; i < sc->hn_tx_ring_inuse; ++i)
 		sc->hn_tx_ring[i].hn_oactive = 0;
-
-	if_link_state_change(ifp, LINK_STATE_DOWN);
-
-	/* Disable RX by clearing RX filter. */
-	hn_rndis_set_rxfilter(sc, 0);
 }
 
 /*
@@ -1858,27 +1873,32 @@ do_sched:
 static void
 hn_init_locked(struct hn_softc *sc)
 {
-	struct ifnet *ifp;
-	int ret, i;
+	struct ifnet *ifp = sc->hn_ifp;
+	int i;
 
 	HN_LOCK_ASSERT(sc);
 
-	ifp = sc->hn_ifp;
-
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+	if ((sc->hn_flags & HN_FLAG_SYNTH_ATTACHED) == 0)
 		return;
-	}
+
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+		return;
 
 	/* TODO: add hn_rx_filter */
-	ret = hn_rndis_set_rxfilter(sc, NDIS_PACKET_TYPE_PROMISCUOUS);
-	if (ret != 0)
-		return;
+	hn_rndis_set_rxfilter(sc, NDIS_PACKET_TYPE_PROMISCUOUS);
 
+	/* Clear OACTIVE bit. */
 	atomic_clear_int(&ifp->if_drv_flags, IFF_DRV_OACTIVE);
 	for (i = 0; i < sc->hn_tx_ring_inuse; ++i)
 		sc->hn_tx_ring[i].hn_oactive = 0;
 
+	/* Clear TX 'suspended' bit. */
+	hn_tx_resume(sc, sc->hn_tx_ring_inuse);
+
+	/* Everything is ready; unleash! */
 	atomic_set_int(&ifp->if_drv_flags, IFF_DRV_RUNNING);
+
+	/* TODO: check RNDIS link status. */
 	if_link_state_change(ifp, LINK_STATE_UP);
 }
 
@@ -2925,6 +2945,12 @@ hn_fixup_tx_data(struct hn_softc *sc)
 
 	for (i = 0; i < sc->hn_tx_ring_cnt; ++i)
 		sc->hn_tx_ring[i].hn_csum_assist = csum_assist;
+
+	if (sc->hn_ndis_ver >= HN_NDIS_VERSION_6_30) {
+		/* Support HASHVAL pktinfo on TX path. */
+		for (i = 0; i < sc->hn_tx_ring_cnt; ++i)
+			sc->hn_tx_ring[i].hn_tx_flags |= HN_TX_FLAG_HASHVAL;
+	}
 }
 
 static void
@@ -2969,19 +2995,6 @@ hn_start_txeof_taskfunc(void *xtxr, int pending __unused)
 	atomic_clear_int(&txr->hn_sc->hn_ifp->if_drv_flags, IFF_DRV_OACTIVE);
 	hn_start_locked(txr, 0);
 	mtx_unlock(&txr->hn_tx_lock);
-}
-
-static void
-hn_stop_tx_tasks(struct hn_softc *sc)
-{
-	int i;
-
-	for (i = 0; i < sc->hn_tx_ring_inuse; ++i) {
-		struct hn_tx_ring *txr = &sc->hn_tx_ring[i];
-
-		taskqueue_drain(txr->hn_tx_taskq, &txr->hn_tx_task);
-		taskqueue_drain(txr->hn_tx_taskq, &txr->hn_txeof_task);
-	}
 }
 
 static int
@@ -3387,6 +3400,9 @@ hn_synth_attach(struct hn_softc *sc, int mtu)
 	int error, nsubch, nchan, i;
 	uint32_t old_caps;
 
+	KASSERT((sc->hn_flags & HN_FLAG_SYNTH_ATTACHED) == 0,
+	    ("synthetic parts were attached"));
+
 	/* Save capabilities for later verification. */
 	old_caps = sc->hn_caps;
 	sc->hn_caps = 0;
@@ -3499,6 +3515,8 @@ back:
 	error = hn_attach_subchans(sc);
 	if (error)
 		return (error);
+
+	sc->hn_flags |= HN_FLAG_SYNTH_ATTACHED;
 	return (0);
 }
 
@@ -3512,6 +3530,9 @@ hn_synth_detach(struct hn_softc *sc)
 {
 	HN_LOCK_ASSERT(sc);
 
+	KASSERT(sc->hn_flags & HN_FLAG_SYNTH_ATTACHED,
+	    ("synthetic parts were not attached"));
+
 	/* Detach the RNDIS first. */
 	hn_rndis_detach(sc);
 
@@ -3520,6 +3541,8 @@ hn_synth_detach(struct hn_softc *sc)
 
 	/* Detach all of the channels. */
 	hn_detach_allchans(sc);
+
+	sc->hn_flags &= ~HN_FLAG_SYNTH_ATTACHED;
 }
 
 static void
@@ -3571,6 +3594,9 @@ hn_suspend(struct hn_softc *sc)
 		/* Wait for all pending sends to finish. */
 		while (hn_tx_ring_pending(txr))
 			pause("hnwtx", 1 /* 1 tick */);
+
+		taskqueue_drain(txr->hn_tx_taskq, &txr->hn_tx_task);
+		taskqueue_drain(txr->hn_tx_taskq, &txr->hn_txeof_task);
 	}
 
 	/*
@@ -3601,9 +3627,25 @@ hn_suspend(struct hn_softc *sc)
 }
 
 static void
+hn_tx_resume(struct hn_softc *sc, int tx_ring_cnt)
+{
+	int i;
+
+	KASSERT(tx_ring_cnt <= sc->hn_tx_ring_cnt,
+	    ("invalid TX ring count %d", tx_ring_cnt));
+
+	for (i = 0; i < tx_ring_cnt; ++i) {
+		struct hn_tx_ring *txr = &sc->hn_tx_ring[i];
+
+		mtx_lock(&txr->hn_tx_lock);
+		txr->hn_suspended = 0;
+		mtx_unlock(&txr->hn_tx_lock);
+	}
+}
+
+static void
 hn_resume(struct hn_softc *sc)
 {
-	struct hn_tx_ring *txr;
 	int i;
 
 	HN_LOCK_ASSERT(sc);
@@ -3618,13 +3660,7 @@ hn_resume(struct hn_softc *sc)
 	 * Make sure to clear suspend status on "all" TX rings,
 	 * since hn_tx_ring_inuse can be changed after hn_suspend().
 	 */
-	for (i = 0; i < sc->hn_tx_ring_cnt; ++i) {
-		txr = &sc->hn_tx_ring[i];
-
-		mtx_lock(&txr->hn_tx_lock);
-		txr->hn_suspended = 0;
-		mtx_unlock(&txr->hn_tx_lock);
-	}
+	hn_tx_resume(sc, sc->hn_tx_ring_cnt);
 
 	if (!hn_use_if_start) {
 		/*
@@ -3639,7 +3675,8 @@ hn_resume(struct hn_softc *sc)
 	 * Kick start TX.
 	 */
 	for (i = 0; i < sc->hn_tx_ring_inuse; ++i) {
-		txr = &sc->hn_tx_ring[i];
+		struct hn_tx_ring *txr = &sc->hn_tx_ring[i];
+
 		/*
 		 * Use txeof task, so that any pending oactive can be
 		 * cleared properly.

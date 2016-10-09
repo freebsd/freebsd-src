@@ -168,6 +168,7 @@ struct hn_tx_ring {
 	struct buf_ring	*hn_mbuf_br;
 	int		hn_oactive;
 	int		hn_tx_idx;
+	int		hn_tx_flags;
 
 	struct mtx	hn_tx_lock;
 	struct hn_softc	*hn_sc;
@@ -194,10 +195,10 @@ struct hn_tx_ring {
 	struct hn_txdesc *hn_txdesc;
 	bus_dma_tag_t	hn_tx_rndis_dtag;
 	struct sysctl_oid *hn_tx_sysctl_tree;
-	int		hn_tx_flags;
 } __aligned(CACHE_LINE_SIZE);
 
 #define HN_TX_FLAG_ATTACHED	0x1
+#define HN_TX_FLAG_HASHVAL	0x2	/* support HASHVAL pktinfo */
 
 /*
  * Device-specific softc structure
@@ -251,6 +252,7 @@ struct hn_softc {
 #define HN_FLAG_CHIM_CONNECTED		0x0002
 #define HN_FLAG_HAS_RSSKEY		0x0004
 #define HN_FLAG_HAS_RSSIND		0x0008
+#define HN_FLAG_SYNTH_ATTACHED		0x0010
 
 #define HN_CAP_VLAN			0x0001
 #define HN_CAP_MTU			0x0002

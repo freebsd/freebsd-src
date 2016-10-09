@@ -52,6 +52,9 @@
 /* Define to 1 if you have the `chroot' function. */
 #define HAVE_CHROOT 1
 
+/* Define to 1 if you have the `CRYPTO_cleanup_all_ex_data' function. */
+#define HAVE_CRYPTO_CLEANUP_ALL_EX_DATA 1
+
 /* Define to 1 if you have the `ctime_r' function. */
 #define HAVE_CTIME_R 1
 
@@ -111,8 +114,17 @@
 /* Define to 1 if you have the `endprotoent' function. */
 #define HAVE_ENDPROTOENT 1
 
+/* Define to 1 if you have the `endpwent' function. */
+#define HAVE_ENDPWENT 1
+
 /* Define to 1 if you have the `endservent' function. */
 #define HAVE_ENDSERVENT 1
+
+/* Define to 1 if you have the `ERR_free_strings' function. */
+#define HAVE_ERR_FREE_STRINGS 1
+
+/* Define to 1 if you have the `ERR_load_crypto_strings' function. */
+#define HAVE_ERR_LOAD_CRYPTO_STRINGS 1
 
 /* Define to 1 if you have the `event_base_free' function. */
 /* #undef HAVE_EVENT_BASE_FREE */
@@ -128,6 +140,9 @@
 
 /* Define to 1 if you have the <event.h> header file. */
 /* #undef HAVE_EVENT_H */
+
+/* Define to 1 if you have the `EVP_cleanup' function. */
+#define HAVE_EVP_CLEANUP 1
 
 /* Define to 1 if you have the `EVP_MD_CTX_new' function. */
 /* #undef HAVE_EVP_MD_CTX_NEW */
@@ -255,8 +270,17 @@
 /* Use libnettle for crypto */
 /* #undef HAVE_NETTLE */
 
+/* Define to 1 if you have the <nettle/dsa-compat.h> header file. */
+/* #undef HAVE_NETTLE_DSA_COMPAT_H */
+
 /* Use libnss for crypto */
 /* #undef HAVE_NSS */
+
+/* Define to 1 if you have the `OpenSSL_add_all_digests' function. */
+#define HAVE_OPENSSL_ADD_ALL_DIGESTS 1
+
+/* Define to 1 if you have the <openssl/bn.h> header file. */
+#define HAVE_OPENSSL_BN_H 1
 
 /* Define to 1 if you have the `OPENSSL_config' function. */
 #define HAVE_OPENSSL_CONFIG 1
@@ -264,14 +288,29 @@
 /* Define to 1 if you have the <openssl/conf.h> header file. */
 #define HAVE_OPENSSL_CONF_H 1
 
+/* Define to 1 if you have the <openssl/dh.h> header file. */
+#define HAVE_OPENSSL_DH_H 1
+
+/* Define to 1 if you have the <openssl/dsa.h> header file. */
+#define HAVE_OPENSSL_DSA_H 1
+
 /* Define to 1 if you have the <openssl/engine.h> header file. */
 #define HAVE_OPENSSL_ENGINE_H 1
 
 /* Define to 1 if you have the <openssl/err.h> header file. */
 #define HAVE_OPENSSL_ERR_H 1
 
+/* Define to 1 if you have the `OPENSSL_init_crypto' function. */
+/* #undef HAVE_OPENSSL_INIT_CRYPTO */
+
+/* Define to 1 if you have the `OPENSSL_init_ssl' function. */
+/* #undef HAVE_OPENSSL_INIT_SSL */
+
 /* Define to 1 if you have the <openssl/rand.h> header file. */
 #define HAVE_OPENSSL_RAND_H 1
+
+/* Define to 1 if you have the <openssl/rsa.h> header file. */
+#define HAVE_OPENSSL_RSA_H 1
 
 /* Define to 1 if you have the <openssl/ssl.h> header file. */
 #define HAVE_OPENSSL_SSL_H 1
@@ -296,6 +335,9 @@
 
 /* Define to 1 if you have the `random' function. */
 #define HAVE_RANDOM 1
+
+/* Define to 1 if you have the `RAND_cleanup' function. */
+#define HAVE_RAND_CLEANUP 1
 
 /* Define to 1 if you have the `reallocarray' function. */
 #define HAVE_REALLOCARRAY 1
@@ -524,7 +566,7 @@
 #define PACKAGE_NAME "unbound"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "unbound 1.5.9"
+#define PACKAGE_STRING "unbound 1.5.10"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "unbound"
@@ -533,7 +575,7 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "1.5.9"
+#define PACKAGE_VERSION "1.5.10"
 
 /* default pidfile location */
 #define PIDFILE "/var/unbound/unbound.pid"
@@ -552,7 +594,7 @@
 #define ROOT_CERT_FILE "/var/unbound/icannbundle.pem"
 
 /* version number for resource files */
-#define RSRC_PACKAGE_VERSION 1,5,9,0
+#define RSRC_PACKAGE_VERSION 1,5,10,0
 
 /* Directory to chdir to */
 #define RUN_DIR "/var/unbound"
@@ -611,6 +653,12 @@
 /* Define if you want to use internal select based events */
 #define USE_MINI_EVENT 1
 
+/* Define this to enable client TCP Fast Open. */
+/* #undef USE_MSG_FASTOPEN */
+
+/* Define this to enable client TCP Fast Open. */
+/* #undef USE_OSX_MSG_FASTOPEN */
+
 /* Define this to enable SHA256 and SHA512 support. */
 #define USE_SHA2 1
 
@@ -635,6 +683,9 @@
 # define __EXTENSIONS__ 1
 #endif
 
+
+/* Define this to enable server TCP Fast Open. */
+/* #undef USE_TCP_FASTOPEN */
 
 /* Whether the windows socket API is used */
 /* #undef USE_WINSOCK */

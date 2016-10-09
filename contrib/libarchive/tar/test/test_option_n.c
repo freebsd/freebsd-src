@@ -55,7 +55,7 @@ DEFINE_TEST(test_option_n)
 	    systemf("%s -xf archive.tar >x.out 2>x.err", testprog));
 	assertEmptyFile("x.out");
 	assertEmptyFile("x.err");
-	assertIsDir("d1", 0755);
+	assertIsDir("d1", umasked(0755));
 	assertFileNotExists("d1/file1");
 	assertChdir("..");
 }

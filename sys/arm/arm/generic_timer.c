@@ -259,7 +259,7 @@ arm_tmr_stop(struct eventtimer *et)
 	sc = (struct arm_tmr_softc *)et->et_priv;
 
 	ctrl = get_ctrl(sc->physical);
-	ctrl &= GT_CTRL_ENABLE;
+	ctrl &= ~GT_CTRL_ENABLE;
 	set_ctrl(ctrl, sc->physical);
 
 	return (0);

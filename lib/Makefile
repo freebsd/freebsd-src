@@ -38,6 +38,7 @@ SUBDIR=	${SUBDIR_BOOTSTRAP} \
 	libbz2 \
 	libcalendar \
 	libcam \
+	libcapsicum \
 	${_libcasper} \
 	${_libcom_err} \
 	libcompat \
@@ -89,6 +90,7 @@ SUBDIR=	${SUBDIR_BOOTSTRAP} \
 	libprocstat \
 	${_libradius} \
 	librpcsvc \
+	librss \
 	librt \
 	${_librtld_db} \
 	libsbuf \

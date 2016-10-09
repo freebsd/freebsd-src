@@ -778,12 +778,8 @@ print_rule(struct pf_rule *r, const char *anchor_call, int verbose, int numeric)
 			printf(" reply-to");
 		else if (r->rt == PF_DUPTO)
 			printf(" dup-to");
-		else if (r->rt == PF_FASTROUTE)
-			printf(" fastroute");
-		if (r->rt != PF_FASTROUTE) {
-			printf(" ");
-			print_pool(&r->rpool, 0, 0, r->af, PF_PASS);
-		}
+		printf(" ");
+		print_pool(&r->rpool, 0, 0, r->af, PF_PASS);
 	}
 	if (r->af) {
 		if (r->af == AF_INET)

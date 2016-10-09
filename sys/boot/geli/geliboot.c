@@ -77,17 +77,25 @@ geli_taste(int read_func(void *vdev, void *priv, off_t off, void *buf,
 	int error;
 	off_t alignsector;
 
-	alignsector = (lastsector * DEV_BSIZE) &
-	    ~(off_t)(DEV_GELIBOOT_BSIZE - 1);
+	alignsector = rounddown2(lastsector * DEV_BSIZE, DEV_GELIBOOT_BSIZE);
+	if (alignsector + DEV_GELIBOOT_BSIZE > ((lastsector + 1) * DEV_BSIZE)) {
+		/* Don't read past the end of the disk */
+		alignsector = (lastsector * DEV_BSIZE) + DEV_BSIZE
+		    - DEV_GELIBOOT_BSIZE;
+	}
 	error = read_func(NULL, dskp, alignsector, &buf, DEV_GELIBOOT_BSIZE);
 	if (error != 0) {
 		return (error);
 	}
-	/* Extract the last DEV_BSIZE bytes from the block. */
-	error = eli_metadata_decode(buf + (DEV_GELIBOOT_BSIZE - DEV_BSIZE),
-	    &md);
+	/* Extract the last 4k sector of the disk. */
+	error = eli_metadata_decode(buf, &md);
 	if (error != 0) {
-		return (error);
+		/* Try the last 512 byte sector instead. */
+		error = eli_metadata_decode(buf +
+		    (DEV_GELIBOOT_BSIZE - DEV_BSIZE), &md);
+		if (error != 0) {
+			return (error);
+		}
 	}
 
 	if (!(md.md_flags & G_ELI_FLAG_GELIBOOT)) {

@@ -207,7 +207,7 @@ cxgbei_init(struct adapter *sc, struct cxgbei_data *ci)
 	r &= V_ISCSITAGMASK(M_ISCSITAGMASK);
 	if (r != pr->pr_tag_mask) {
 		/*
-		 * Recent firmwares are supposed to set up the the iSCSI tagmask
+		 * Recent firmwares are supposed to set up the iSCSI tagmask
 		 * but we'll do it ourselves it the computed value doesn't match
 		 * what's in the register.
 		 */

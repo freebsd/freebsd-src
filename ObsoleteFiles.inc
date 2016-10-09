@@ -130,6 +130,9 @@ OLD_FILES+=usr/lib/clang/3.8.0/lib/freebsd/libclang_rt.ubsan_standalone_cxx-x86_
 OLD_DIRS+=usr/lib/clang/3.8.0/lib/freebsd
 OLD_DIRS+=usr/lib/clang/3.8.0/lib
 OLD_DIRS+=usr/lib/clang/3.8.0
+# 20161003: MK_ELFCOPY_AS_OBJCOPY option retired
+OLD_FILES+=usr/bin/elfcopy
+OLD_FILES+=usr/share/man/man1/elfcopy.1.gz
 # 20160906: libkqueue tests moved to /usr/tests/sys/kqueue/libkqueue
 OLD_FILES+=usr/tests/sys/kqueue/kqtest
 OLD_FILES+=usr/tests/sys/kqueue/kqueue_test

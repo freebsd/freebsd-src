@@ -42,8 +42,10 @@
 
 #include "fdt.hh"
 #include "checking.hh"
+#include "util.hh"
 
 using namespace dtc;
+using std::string;
 
 /**
  * The current major version of the tool.
@@ -58,7 +60,7 @@ int version_minor = 4;
  */
 int version_patch = 0;
 
-static void usage(const char* argv0)
+static void usage(const string &argv0)
 {
 	fprintf(stderr, "Usage:\n"
 		"\t%s\t[-fhsv] [-b boot_cpu_id] [-d dependency_file]"
@@ -67,7 +69,7 @@ static void usage(const char* argv0)
 			"[-O output_format]\n"
 		"\t\t[-o output_file] [-R entries] [-S bytes] [-p bytes]"
 			"[-V blob_version]\n"
-		"\t\t-W [no-]checker_name] input_file\n", basename((char*)argv0));
+		"\t\t-W [no-]checker_name] input_file\n", basename(argv0).c_str());
 }
 
 /**
@@ -90,9 +92,8 @@ main(int argc, char **argv)
 	const char *in_file = "-";
 	FILE *depfile = 0;
 	bool debug_mode = false;
-	void (device_tree::*write_fn)(int) = &device_tree::write_binary;
-	void (device_tree::*read_fn)(const char*, FILE*) =
-		&device_tree::parse_dts;
+	auto write_fn = &device_tree::write_binary;
+	auto read_fn = &device_tree::parse_dts;
 	uint32_t boot_cpu;
 	bool boot_cpu_specified = false;
 	bool keep_going = false;
@@ -115,12 +116,12 @@ main(int argc, char **argv)
 			return EXIT_SUCCESS;
 		case 'I':
 		{
-			string arg = string(optarg);
-			if (arg == string("dtb"))
+			string arg(optarg);
+			if (arg == "dtb")
 			{
 				read_fn = &device_tree::parse_dtb;
 			}
-			else if (arg == string("dts"))
+			else if (arg == "dts")
 			{
 				read_fn = &device_tree::parse_dts;
 			}
@@ -133,16 +134,16 @@ main(int argc, char **argv)
 		}
 		case 'O':
 		{
-			string arg = string(optarg);
-			if (arg == string("dtb"))
+			string arg(optarg);
+			if (arg == "dtb")
 			{
 				write_fn = &device_tree::write_binary;
 			}
-			else if (arg == string("asm"))
+			else if (arg == "asm")
 			{
 				write_fn = &device_tree::write_asm;
 			}
-			else if (arg == string("dts"))
+			else if (arg == "dts")
 			{
 				write_fn = &device_tree::write_dts;
 			}
@@ -168,7 +169,7 @@ main(int argc, char **argv)
 			debug_mode = true;
 			break;
 		case 'V':
-			if (string(optarg) != string("17"))
+			if (string(optarg) != "17")
 			{
 				fprintf(stderr, "Unknown output format version: %s\n", optarg);
 				return EXIT_FAILURE;
@@ -180,7 +181,7 @@ main(int argc, char **argv)
 			{
 				fclose(depfile);
 			}
-			if (string(optarg) == string("-"))
+			if (string(optarg) == "-")
 			{
 				depfile = stdout;
 			}
@@ -197,16 +198,16 @@ main(int argc, char **argv)
 		}
 		case 'H':
 		{
-			string arg = string(optarg);
-			if (arg == string("both"))
+			string arg(optarg);
+			if (arg == "both")
 			{
 				tree.set_phandle_format(device_tree::BOTH);
 			}
-			else if (arg == string("epapr"))
+			else if (arg == "epapr")
 			{
 				tree.set_phandle_format(device_tree::EPAPR);
 			}
-			else if (arg == string("linux"))
+			else if (arg == "linux")
 			{
 				tree.set_phandle_format(device_tree::LINUX);
 			}
@@ -229,7 +230,7 @@ main(int argc, char **argv)
 		case 'W':
 		case 'E':
 		{
-			string arg = string(optarg);
+			string arg(optarg);
 			if ((arg.size() > 3) && (strncmp(optarg, "no-", 3) == 0))
 			{
 				arg = string(optarg+3);
@@ -307,7 +308,7 @@ main(int argc, char **argv)
 	}
 	if (!(tree.is_valid() || keep_going))
 	{
-		fprintf(stderr, "Failed to parse tree.  Unhappy face!\n");
+		fprintf(stderr, "Failed to parse tree.\n");
 		return EXIT_FAILURE;
 	}
 	clock_t c2 = clock();

@@ -3632,7 +3632,7 @@ pf_create_state(struct pf_rule *r, struct pf_rule *nr, struct pf_rule *a,
 		s->timeout = PFTM_OTHER_FIRST_PACKET;
 	}
 
-	if (r->rt && r->rt != PF_FASTROUTE) {
+	if (r->rt) {
 		if (pf_map_addr(pd->af, r, pd->src, &s->rt_addr, NULL, &sn)) {
 			REASON_SET(&reason, PFRES_MAPFAILED);
 			pf_src_tree_remove_state(s);
@@ -5439,41 +5439,24 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 	dst.sin_len = sizeof(dst);
 	dst.sin_addr = ip->ip_dst;
 
-	if (r->rt == PF_FASTROUTE) {
-		struct nhop4_basic nh4;
-
-		if (s)
-			PF_STATE_UNLOCK(s);
-
-		if (fib4_lookup_nh_basic(M_GETFIB(m0), ip->ip_dst, 0,
-		    m0->m_pkthdr.flowid, &nh4) != 0) {
-			KMOD_IPSTAT_INC(ips_noroute);
-			error = EHOSTUNREACH;
-			goto bad;
-		}
-
-		ifp = nh4.nh_ifp;
-		dst.sin_addr = nh4.nh_addr;
+	if (TAILQ_EMPTY(&r->rpool.list)) {
+		DPFPRINTF(PF_DEBUG_URGENT,
+		    ("%s: TAILQ_EMPTY(&r->rpool.list)\n", __func__));
+		goto bad_locked;
+	}
+	if (s == NULL) {
+		pf_map_addr(AF_INET, r, (struct pf_addr *)&ip->ip_src,
+		    &naddr, NULL, &sn);
+		if (!PF_AZERO(&naddr, AF_INET))
+			dst.sin_addr.s_addr = naddr.v4.s_addr;
+		ifp = r->rpool.cur->kif ?
+		    r->rpool.cur->kif->pfik_ifp : NULL;
 	} else {
-		if (TAILQ_EMPTY(&r->rpool.list)) {
-			DPFPRINTF(PF_DEBUG_URGENT,
-			    ("%s: TAILQ_EMPTY(&r->rpool.list)\n", __func__));
-			goto bad_locked;
-		}
-		if (s == NULL) {
-			pf_map_addr(AF_INET, r, (struct pf_addr *)&ip->ip_src,
-			    &naddr, NULL, &sn);
-			if (!PF_AZERO(&naddr, AF_INET))
-				dst.sin_addr.s_addr = naddr.v4.s_addr;
-			ifp = r->rpool.cur->kif ?
-			    r->rpool.cur->kif->pfik_ifp : NULL;
-		} else {
-			if (!PF_AZERO(&s->rt_addr, AF_INET))
-				dst.sin_addr.s_addr =
-				    s->rt_addr.v4.s_addr;
-			ifp = s->rt_kif ? s->rt_kif->pfik_ifp : NULL;
-			PF_STATE_UNLOCK(s);
-		}
+		if (!PF_AZERO(&s->rt_addr, AF_INET))
+			dst.sin_addr.s_addr =
+			    s->rt_addr.v4.s_addr;
+		ifp = s->rt_kif ? s->rt_kif->pfik_ifp : NULL;
+		PF_STATE_UNLOCK(s);
 	}
 	if (ifp == NULL)
 		goto bad;
@@ -5614,16 +5597,6 @@ pf_route6(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 	dst.sin6_family = AF_INET6;
 	dst.sin6_len = sizeof(dst);
 	dst.sin6_addr = ip6->ip6_dst;
-
-	/* Cheat. XXX why only in the v6 case??? */
-	if (r->rt == PF_FASTROUTE) {
-		if (s)
-			PF_STATE_UNLOCK(s);
-		m0->m_flags |= M_SKIP_FIREWALL;
-		ip6_output(m0, NULL, NULL, 0, NULL, NULL, NULL);
-		*m = NULL;
-		return;
-	}
 
 	if (TAILQ_EMPTY(&r->rpool.list)) {
 		DPFPRINTF(PF_DEBUG_URGENT,

@@ -241,6 +241,7 @@ int assertion_file_birthtime_recent(const char *, int, const char *);
 int assertion_file_contains_lines_any_order(const char *, int, const char *, const char **);
 int assertion_file_contents(const char *, int, const void *, int, const char *);
 int assertion_file_exists(const char *, int, const char *);
+int assertion_file_mode(const char *, int, const char *, int);
 int assertion_file_mtime(const char *, int, const char *, long, long);
 int assertion_file_mtime_recent(const char *, int, const char *);
 int assertion_file_nlinks(const char *, int, const char *, int);
@@ -325,6 +326,9 @@ void copy_reference_file(const char *);
  * List must be NULL terminated.
  */
 void extract_reference_files(const char **);
+
+/* Subtract umask from mode */
+mode_t umasked(mode_t expected_mode);
 
 /* Path to working directory for current test */
 extern const char *testworkdir;

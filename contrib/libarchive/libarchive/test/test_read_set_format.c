@@ -204,7 +204,7 @@ DEFINE_TEST(test_read_append_filter_wrong_program)
   /*
    * If we have "bunzip2 -q", try using that.
    */
-  if (!canRunCommand("bunzip2 -V")) {
+  if (!canRunCommand("bunzip2 -h")) {
     skipping("Can't run bunzip2 program on this platform");
     return;
   }

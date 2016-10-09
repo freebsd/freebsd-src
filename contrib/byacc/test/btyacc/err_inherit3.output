@@ -5,25 +5,22 @@
    2  $$2 :
 
    3  declaration : class type $$1 $$2 namelist
+   4              | type locnamelist
 
-   4  $$3 :
+   5  class : GLOBAL
+   6        | LOCAL
 
-   5  declaration : type $$3 locnamelist
+   7  type : REAL
+   8       | INTEGER
 
-   6  class : GLOBAL
-   7        | LOCAL
+   9  $$3 :
 
-   8  type : REAL
-   9       | INTEGER
+  10  namelist : $$3 namelist NAME
+  11           | NAME
 
-  10  $$4 :
+  12  $$4 :
 
-  11  namelist : $$4 namelist NAME
-  12           | NAME
-
-  13  $$5 :
-
-  14  locnamelist : $$5 $$2 namelist
+  13  locnamelist : $$4 $$2 namelist
 
 state 0
 	$accept : . declaration $end  (0)
@@ -40,27 +37,27 @@ state 0
 
 
 state 1
-	class : GLOBAL .  (6)
+	class : GLOBAL .  (5)
+
+	.  reduce 5
+
+
+state 2
+	class : LOCAL .  (6)
 
 	.  reduce 6
 
 
-state 2
-	class : LOCAL .  (7)
+state 3
+	type : REAL .  (7)
 
 	.  reduce 7
 
 
-state 3
-	type : REAL .  (8)
+state 4
+	type : INTEGER .  (8)
 
 	.  reduce 8
-
-
-state 4
-	type : INTEGER .  (9)
-
-	.  reduce 9
 
 
 state 5
@@ -80,12 +77,13 @@ state 6
 
 
 state 7
-	declaration : type . $$3 locnamelist  (5)
-	$$3 : .  (4)
+	declaration : type . locnamelist  (4)
+	$$4 : .  (12)
 
-	.  reduce 4
+	.  reduce 12
 
-	$$3  goto 9
+	locnamelist  goto 9
+	$$4  goto 10
 
 
 state 8
@@ -94,20 +92,25 @@ state 8
 
 	.  reduce 1
 
-	$$1  goto 10
+	$$1  goto 11
 
 
 state 9
-	declaration : type $$3 . locnamelist  (5)
-	$$5 : .  (13)
+	declaration : type locnamelist .  (4)
 
-	.  reduce 13
-
-	locnamelist  goto 11
-	$$5  goto 12
+	.  reduce 4
 
 
 state 10
+	locnamelist : $$4 . $$2 namelist  (13)
+	$$2 : .  (2)
+
+	.  reduce 2
+
+	$$2  goto 12
+
+
+state 11
 	declaration : class type $$1 . $$2 namelist  (3)
 	$$2 : .  (2)
 
@@ -116,96 +119,81 @@ state 10
 	$$2  goto 13
 
 
-state 11
-	declaration : type $$3 locnamelist .  (5)
-
-	.  reduce 5
-
-
+12: shift/reduce conflict (shift 14, reduce 9) on NAME
 state 12
-	locnamelist : $$5 . $$2 namelist  (14)
-	$$2 : .  (2)
+	locnamelist : $$4 $$2 . namelist  (13)
+	$$3 : .  (9)
 
-	.  reduce 2
+	NAME  shift 14
 
-	$$2  goto 14
+	namelist  goto 15
+	$$3  goto 16
 
 
-13: shift/reduce conflict (shift 15, reduce 10) on NAME
+13: shift/reduce conflict (shift 14, reduce 9) on NAME
 state 13
 	declaration : class type $$1 $$2 . namelist  (3)
-	$$4 : .  (10)
+	$$3 : .  (9)
 
-	NAME  shift 15
+	NAME  shift 14
 
-	namelist  goto 16
-	$$4  goto 17
+	namelist  goto 17
+	$$3  goto 16
 
 
-14: shift/reduce conflict (shift 15, reduce 10) on NAME
 state 14
-	locnamelist : $$5 $$2 . namelist  (14)
-	$$4 : .  (10)
+	namelist : NAME .  (11)
 
-	NAME  shift 15
-
-	namelist  goto 18
-	$$4  goto 17
+	.  reduce 11
 
 
 state 15
-	namelist : NAME .  (12)
+	locnamelist : $$4 $$2 namelist .  (13)
 
-	.  reduce 12
+	.  reduce 13
 
 
+16: shift/reduce conflict (shift 14, reduce 9) on NAME
 state 16
+	namelist : $$3 . namelist NAME  (10)
+	$$3 : .  (9)
+
+	NAME  shift 14
+
+	namelist  goto 18
+	$$3  goto 16
+
+
+state 17
 	declaration : class type $$1 $$2 namelist .  (3)
 
 	.  reduce 3
 
 
-17: shift/reduce conflict (shift 15, reduce 10) on NAME
-state 17
-	namelist : $$4 . namelist NAME  (11)
-	$$4 : .  (10)
-
-	NAME  shift 15
-
-	namelist  goto 19
-	$$4  goto 17
-
-
 state 18
-	locnamelist : $$5 $$2 namelist .  (14)
+	namelist : $$3 namelist . NAME  (10)
 
-	.  reduce 14
-
-
-state 19
-	namelist : $$4 namelist . NAME  (11)
-
-	NAME  shift 20
+	NAME  shift 19
 	.  error
 
 
-state 20
-	namelist : $$4 namelist NAME .  (11)
+state 19
+	namelist : $$3 namelist NAME .  (10)
 
-	.  reduce 11
+	.  reduce 10
 
 
 Rules never reduced:
-	$$4 :  (10)
+	$$3 :  (9)
 
 
+State 12 contains 1 shift/reduce conflict.
 State 13 contains 1 shift/reduce conflict.
-State 14 contains 1 shift/reduce conflict.
-State 17 contains 1 shift/reduce conflict.
+State 16 contains 1 shift/reduce conflict.
 
 
-7 terminals, 11 nonterminals
-15 grammar rules, 21 states
+7 terminals, 10 nonterminals
+14 grammar rules, 20 states
 
 grammar parser grammar
 symbol# value# symbol
@@ -226,4 +214,3 @@ symbol# value# symbol
     14    269  $$2
     15    270  $$3
     16    271  $$4
-    17    272  $$5

@@ -51,7 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 
 #include <machine/bus.h>
-#include <machine/cpufunc.h>
 #include <machine/machdep.h>
 
 #include <arm/xscale/i8134x/i80321reg.h>

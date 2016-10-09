@@ -358,6 +358,7 @@ const ACPI_DMTABLE_DATA     AcpiDmTableData[] =
     {ACPI_SIG_NFIT, AcpiDmTableInfoNfit,    AcpiDmDumpNfit, DtCompileNfit,  TemplateNfit},
     {ACPI_SIG_PCCT, AcpiDmTableInfoPcct,    AcpiDmDumpPcct, DtCompilePcct,  TemplatePcct},
     {ACPI_SIG_PMTT, NULL,                   AcpiDmDumpPmtt, DtCompilePmtt,  TemplatePmtt},
+    {ACPI_SIG_RASF, AcpiDmTableInfoRasf,    NULL,           NULL,           TemplateRasf},
     {ACPI_SIG_RSDT, NULL,                   AcpiDmDumpRsdt, DtCompileRsdt,  TemplateRsdt},
     {ACPI_SIG_S3PT, NULL,                   NULL,           NULL,           TemplateS3pt},
     {ACPI_SIG_SBST, AcpiDmTableInfoSbst,    NULL,           NULL,           TemplateSbst},
@@ -844,6 +845,11 @@ AcpiDmDumpTable (
             ByteLength = 10;
             break;
 
+        case ACPI_DMT_BUF12:
+
+            ByteLength = 12;
+            break;
+
         case ACPI_DMT_BUF16:
         case ACPI_DMT_UUID:
 
@@ -1006,6 +1012,7 @@ AcpiDmDumpTable (
 
         case ACPI_DMT_BUF7:
         case ACPI_DMT_BUF10:
+        case ACPI_DMT_BUF12:
         case ACPI_DMT_BUF16:
         case ACPI_DMT_BUF128:
             /*

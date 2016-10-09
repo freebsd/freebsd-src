@@ -114,6 +114,7 @@ MAN=	accept_filter.9 \
 	devstat.9 \
 	devtoname.9 \
 	disk.9 \
+	dnv.9 \
 	domain.9 \
 	drbr.9 \
 	driver.9 \
@@ -761,6 +762,19 @@ MLINKS+=disk.9 disk_alloc.9 \
 	disk.9 disk_destroy.9 \
 	disk.9 disk_gone.9 \
 	disk.9 disk_resize.9
+MLINKS+=dnv.9 dnvlist.9 \
+	dnv.9 dnvlist_get_binary.9 \
+	dnv.9 dnvlist_get_bool.9 \
+	dnv.9 dnvlist_get_descriptor.9 \
+	dnv.9 dnvlist_get_number.9 \
+	dnv.9 dnvlist_get_nvlist.9 \
+	dnv.9 dnvlist_get_string.9 \
+	dnv.9 dnvlist_take_binary.9 \
+	dnv.9 dnvlist_take_bool.9 \
+	dnv.9 dnvlist_take_descriptor.9 \
+	dnv.9 dnvlist_take_number.9 \
+	dnv.9 dnvlist_take_nvlist.9 \
+	dnv.9 dnvlist_take_string.9
 MLINKS+=domain.9 DOMAIN_SET.9 \
 	domain.9 domain_add.9 \
 	domain.9 pfctlinput.9 \
@@ -1960,7 +1974,8 @@ MLINKS+=VOP_RDWR.9 VOP_READ.9 \
 	VOP_RDWR.9 VOP_WRITE.9
 MLINKS+=VOP_REMOVE.9 VOP_RMDIR.9
 MLINKS+=vnet.9 vimage.9
-MLINKS+=vref.9 VREF.9
+MLINKS+=vref.9 VREF.9 \
+	vref.9 vrefl.9
 MLINKS+=vrele.9 vput.9 \
 	vrele.9 vunref.9
 MLINKS+=vslock.9 vsunlock.9

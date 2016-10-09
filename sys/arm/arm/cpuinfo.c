@@ -111,6 +111,10 @@ cpuinfo_init(void)
 /* Not yet - CBAR only exist on ARM SMP Cortex A CPUs
 	cpuinfo.cbar = cp15_cbar_get();
 */
+	if (CPU_CT_FORMAT(cpuinfo.ctr) == CPU_CT_ARMV7) {
+		cpuinfo.ccsidr = cp15_ccsidr_get();
+		cpuinfo.clidr = cp15_clidr_get();
+	}
 
 	/* Test if revidr is implemented */
 	if (cpuinfo.revidr == cpuinfo.midr)
@@ -131,6 +135,8 @@ cpuinfo_init(void)
 	cpuinfo.generic_timer_ext = (cpuinfo.id_pfr1 >> 16) & 0xF;
 	cpuinfo.virtualization_ext = (cpuinfo.id_pfr1 >> 12) & 0xF;
 	cpuinfo.security_ext = (cpuinfo.id_pfr1 >> 4) & 0xF;
+	/* mpidr */
+	cpuinfo.mp_ext = (cpuinfo.mpidr >> 31u) & 0x1;
 
 	/* L1 Cache sizes */
 	if (CPU_CT_FORMAT(cpuinfo.ctr) == CPU_CT_ARMV7) {
@@ -163,7 +169,12 @@ cpuinfo_get_actlr_modifier(uint32_t *actlr_mask, uint32_t *actlr_set)
 
 	if (cpuinfo.implementer == CPU_IMPLEMENTER_ARM) {
 		switch (cpuinfo.part_number) {
-
+		case CPU_ARCH_CORTEX_A73:
+		case CPU_ARCH_CORTEX_A72:
+		case CPU_ARCH_CORTEX_A57:
+		case CPU_ARCH_CORTEX_A53:
+			/* Nothing to do for AArch32 */
+			break;
 		case CPU_ARCH_CORTEX_A17:
 		case CPU_ARCH_CORTEX_A12: /* A12 is merged to A17 */
 			/*
