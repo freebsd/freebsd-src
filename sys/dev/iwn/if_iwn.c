@@ -210,9 +210,10 @@ static void	iwn4965_tx_done(struct iwn_softc *, struct iwn_rx_desc *,
 		    struct iwn_rx_data *);
 static void	iwn5000_tx_done(struct iwn_softc *, struct iwn_rx_desc *,
 		    struct iwn_rx_data *);
-static void	iwn_tx_done(struct iwn_softc *, struct iwn_rx_desc *, int,
+static void	iwn_tx_done(struct iwn_softc *, struct iwn_rx_desc *, int, int,
 		    uint8_t);
-static void	iwn_ampdu_tx_done(struct iwn_softc *, int, int, int, int, void *);
+static void	iwn_ampdu_tx_done(struct iwn_softc *, int, int, int, int, int,
+		    void *);
 static void	iwn_cmd_done(struct iwn_softc *, struct iwn_rx_desc *);
 static void	iwn_notif_intr(struct iwn_softc *);
 static void	iwn_wakeup_intr(struct iwn_softc *);
@@ -3147,6 +3148,7 @@ static void
 iwn_rx_compressed_ba(struct iwn_softc *sc, struct iwn_rx_desc *desc,
     struct iwn_rx_data *data)
 {
+	struct ieee80211_ratectl_tx_status *txs = &sc->sc_txs;
 	struct iwn_ops *ops = &sc->ops;
 	struct iwn_node *wn;
 	struct ieee80211_node *ni;
@@ -3158,7 +3160,7 @@ iwn_rx_compressed_ba(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 	uint64_t bitmap;
 	uint16_t ssn;
 	uint8_t tid;
-	int ackfailcnt = 0, i, lastidx, qid, *res, shift;
+	int i, lastidx, qid, *res, shift;
 	int tx_ok = 0, tx_err = 0;
 
 	DPRINTF(sc, IWN_DEBUG_TRACE | IWN_DEBUG_XMIT, "->%s begin\n", __func__);
@@ -3227,15 +3229,15 @@ iwn_rx_compressed_ba(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 	ni = tap->txa_ni;
 	bitmap = (le64toh(ba->bitmap) >> shift) & wn->agg[tid].bitmap;
 	for (i = 0; bitmap; i++) {
+		txs->flags = 0;		/* XXX TODO */
 		if ((bitmap & 1) == 0) {
 			tx_err ++;
-			ieee80211_ratectl_tx_complete(ni->ni_vap, ni,
-			    IEEE80211_RATECTL_TX_FAILURE, &ackfailcnt, NULL);
+			txs->status = IEEE80211_RATECTL_TX_FAIL_UNSPECIFIED;
 		} else {
 			tx_ok ++;
-			ieee80211_ratectl_tx_complete(ni->ni_vap, ni,
-			    IEEE80211_RATECTL_TX_SUCCESS, &ackfailcnt, NULL);
+			txs->status = IEEE80211_RATECTL_TX_SUCCESS;
 		}
+		ieee80211_ratectl_tx_complete(ni, txs);
 		bitmap >>= 1;
 	}
 
@@ -3501,9 +3503,9 @@ iwn4965_tx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 	bus_dmamap_sync(ring->data_dmat, data->map, BUS_DMASYNC_POSTREAD);
 	if (qid >= sc->firstaggqueue) {
 		iwn_ampdu_tx_done(sc, qid, desc->idx, stat->nframes,
-		    stat->ackfailcnt, &stat->status);
+		    stat->rtsfailcnt, stat->ackfailcnt, &stat->status);
 	} else {
-		iwn_tx_done(sc, desc, stat->ackfailcnt,
+		iwn_tx_done(sc, desc, stat->rtsfailcnt, stat->ackfailcnt,
 		    le32toh(stat->status) & 0xff);
 	}
 }
@@ -3536,9 +3538,9 @@ iwn5000_tx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 	bus_dmamap_sync(ring->data_dmat, data->map, BUS_DMASYNC_POSTREAD);
 	if (qid >= sc->firstaggqueue) {
 		iwn_ampdu_tx_done(sc, qid, desc->idx, stat->nframes,
-		    stat->ackfailcnt, &stat->status);
+		    stat->rtsfailcnt, stat->ackfailcnt, &stat->status);
 	} else {
-		iwn_tx_done(sc, desc, stat->ackfailcnt,
+		iwn_tx_done(sc, desc, stat->rtsfailcnt, stat->ackfailcnt,
 		    le16toh(stat->status) & 0xff);
 	}
 }
@@ -3547,14 +3549,14 @@ iwn5000_tx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
  * Adapter-independent backend for TX_DONE firmware notifications.
  */
 static void
-iwn_tx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc, int ackfailcnt,
-    uint8_t status)
+iwn_tx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc, int rtsfailcnt,
+    int ackfailcnt, uint8_t status)
 {
+	struct ieee80211_ratectl_tx_status *txs = &sc->sc_txs;
 	struct iwn_tx_ring *ring = &sc->txq[desc->qid & 0xf];
 	struct iwn_tx_data *data = &ring->data[desc->idx];
 	struct mbuf *m;
 	struct ieee80211_node *ni;
-	struct ieee80211vap *vap;
 
 	KASSERT(data->ni != NULL, ("no node"));
 
@@ -3565,17 +3567,33 @@ iwn_tx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc, int ackfailcnt,
 	bus_dmamap_unload(ring->data_dmat, data->map);
 	m = data->m, data->m = NULL;
 	ni = data->ni, data->ni = NULL;
-	vap = ni->ni_vap;
 
 	/*
 	 * Update rate control statistics for the node.
 	 */
-	if (status & IWN_TX_FAIL)
-		ieee80211_ratectl_tx_complete(vap, ni,
-		    IEEE80211_RATECTL_TX_FAILURE, &ackfailcnt, NULL);
-	else
-		ieee80211_ratectl_tx_complete(vap, ni,
-		    IEEE80211_RATECTL_TX_SUCCESS, &ackfailcnt, NULL);
+	txs->flags = IEEE80211_RATECTL_STATUS_SHORT_RETRY |
+		     IEEE80211_RATECTL_STATUS_LONG_RETRY;
+	txs->short_retries = rtsfailcnt;
+	txs->long_retries = ackfailcnt;
+	if (!(status & IWN_TX_FAIL))
+		txs->status = IEEE80211_RATECTL_TX_SUCCESS;
+	else {
+		switch (status) {
+		case IWN_TX_FAIL_SHORT_LIMIT:
+			txs->status = IEEE80211_RATECTL_TX_FAIL_SHORT;
+			break;
+		case IWN_TX_FAIL_LONG_LIMIT:
+			txs->status = IEEE80211_RATECTL_TX_FAIL_LONG;
+			break;
+		case IWN_TX_STATUS_FAIL_LIFE_EXPIRE:
+			txs->status = IEEE80211_RATECTL_TX_FAIL_EXPIRED;
+			break;
+		default:
+			txs->status = IEEE80211_RATECTL_TX_FAIL_UNSPECIFIED;
+			break;
+		}
+	}
+	ieee80211_ratectl_tx_complete(ni, txs);
 
 	/*
 	 * Channels marked for "radar" require traffic to be received
@@ -3640,10 +3658,11 @@ iwn_cmd_done(struct iwn_softc *sc, struct iwn_rx_desc *desc)
 
 static void
 iwn_ampdu_tx_done(struct iwn_softc *sc, int qid, int idx, int nframes,
-    int ackfailcnt, void *stat)
+    int rtsfailcnt, int ackfailcnt, void *stat)
 {
 	struct iwn_ops *ops = &sc->ops;
 	struct iwn_tx_ring *ring = &sc->txq[qid];
+	struct ieee80211_ratectl_tx_status *txs = &sc->sc_txs;
 	struct iwn_tx_data *data;
 	struct mbuf *m;
 	struct iwn_node *wn;
@@ -3682,6 +3701,10 @@ iwn_ampdu_tx_done(struct iwn_softc *sc, int qid, int idx, int nframes,
 	 * handled differently.
 	 */
 	if (nframes == 1) {
+		txs->flags = IEEE80211_RATECTL_STATUS_SHORT_RETRY |
+			     IEEE80211_RATECTL_STATUS_LONG_RETRY;
+		txs->short_retries = rtsfailcnt;
+		txs->long_retries = ackfailcnt;
 		if ((*status & 0xff) != 1 && (*status & 0xff) != 2) {
 #ifdef	NOT_YET
 			printf("ieee80211_send_bar()\n");
@@ -3691,11 +3714,8 @@ iwn_ampdu_tx_done(struct iwn_softc *sc, int qid, int idx, int nframes,
 			 * notification is pushed up to the rate control
 			 * layer.
 			 */
-			ieee80211_ratectl_tx_complete(ni->ni_vap,
-			    ni,
-			    IEEE80211_RATECTL_TX_FAILURE,
-			    &ackfailcnt,
-			    NULL);
+			/* XXX */
+			txs->status = IEEE80211_RATECTL_TX_FAIL_UNSPECIFIED;
 		} else {
 			/*
 			 * If nframes=1, then we won't be getting a BA for
@@ -3703,12 +3723,9 @@ iwn_ampdu_tx_done(struct iwn_softc *sc, int qid, int idx, int nframes,
 			 * rate control code with how many retries were
 			 * needed to send it.
 			 */
-			ieee80211_ratectl_tx_complete(ni->ni_vap,
-			    ni,
-			    IEEE80211_RATECTL_TX_SUCCESS,
-			    &ackfailcnt,
-			    NULL);
+			txs->status = IEEE80211_RATECTL_TX_SUCCESS;
 		}
+		ieee80211_ratectl_tx_complete(ni, txs);
 	}
 
 	bitmap = 0;

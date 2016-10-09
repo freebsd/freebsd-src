@@ -457,19 +457,10 @@ static devclass_t psm_devclass;
 
 /* Tunables */
 static int tap_enabled = -1;
-TUNABLE_INT("hw.psm.tap_enabled", &tap_enabled);
-
-static int synaptics_support = 0;
-TUNABLE_INT("hw.psm.synaptics_support", &synaptics_support);
-
-static int trackpoint_support = 0;
-TUNABLE_INT("hw.psm.trackpoint_support", &trackpoint_support);
-
-static int elantech_support = 0;
-TUNABLE_INT("hw.psm.elantech_support", &elantech_support);
-
 static int verbose = PSM_DEBUG;
-TUNABLE_INT("debug.psm.loglevel", &verbose);
+static int synaptics_support = 0;
+static int trackpoint_support = 0;
+static int elantech_support = 0;
 
 /* for backward compatibility */
 #define	OLD_MOUSE_GETHWINFO	_IOR('M', 1, old_mousehw_t)
@@ -2460,7 +2451,7 @@ psmtimeout(void *arg)
 static SYSCTL_NODE(_debug, OID_AUTO, psm, CTLFLAG_RD, 0, "ps/2 mouse");
 static SYSCTL_NODE(_hw, OID_AUTO, psm, CTLFLAG_RD, 0, "ps/2 mouse");
 
-SYSCTL_INT(_debug_psm, OID_AUTO, loglevel, CTLFLAG_RW, &verbose, 0,
+SYSCTL_INT(_debug_psm, OID_AUTO, loglevel, CTLFLAG_RWTUN, &verbose, 0,
     "Verbosity level");
 
 static int psmhz = 20;
@@ -2482,7 +2473,7 @@ static int pkterrthresh = 2;
 SYSCTL_INT(_debug_psm, OID_AUTO, pkterrthresh, CTLFLAG_RW, &pkterrthresh, 0,
     "Number of error packets allowed before reinitializing the mouse");
 
-SYSCTL_INT(_hw_psm, OID_AUTO, tap_enabled, CTLFLAG_RW, &tap_enabled, 0,
+SYSCTL_INT(_hw_psm, OID_AUTO, tap_enabled, CTLFLAG_RWTUN, &tap_enabled, 0,
     "Enable tap and drag gestures");
 static int tap_threshold = PSM_TAP_THRESHOLD;
 SYSCTL_INT(_hw_psm, OID_AUTO, tap_threshold, CTLFLAG_RW, &tap_threshold, 0,
@@ -2490,6 +2481,16 @@ SYSCTL_INT(_hw_psm, OID_AUTO, tap_threshold, CTLFLAG_RW, &tap_threshold, 0,
 static int tap_timeout = PSM_TAP_TIMEOUT;
 SYSCTL_INT(_hw_psm, OID_AUTO, tap_timeout, CTLFLAG_RW, &tap_timeout, 0,
     "Tap timeout for touchpads");
+
+/* Tunables */
+SYSCTL_INT(_hw_psm, OID_AUTO, synaptics_support, CTLFLAG_RDTUN,
+    &synaptics_support, 0, "Enable support for Synaptics touchpads");
+
+SYSCTL_INT(_hw_psm, OID_AUTO, trackpoint_support, CTLFLAG_RDTUN,
+    &trackpoint_support, 0, "Enable support for IBM/Lenovo TrackPoint");
+
+SYSCTL_INT(_hw_psm, OID_AUTO, elantech_support, CTLFLAG_RDTUN,
+    &elantech_support, 0, "Enable support for Elantech touchpads");
 
 static void
 psmintr(void *arg)
@@ -2749,7 +2750,9 @@ proc_synaptics(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 	static int touchpad_buttons;
 	static int guest_buttons;
 	static finger_t f[PSM_FINGERS];
-	int w, id, nfingers, ewcode;
+	int w, id, nfingers, ewcode, extended_buttons;
+
+	extended_buttons = 0;
 
 	/* TouchPad PS/2 absolute mode message format with capFourButtons:
 	 *
@@ -2859,10 +2862,11 @@ proc_synaptics(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 				guest_buttons |= MOUSE_BUTTON1DOWN;
 			if (pb->ipacket[1] & 0x04)
 				guest_buttons |= MOUSE_BUTTON2DOWN;
-				if (pb->ipacket[1] & 0x02)
+			if (pb->ipacket[1] & 0x02)
 				guest_buttons |= MOUSE_BUTTON3DOWN;
 
-			ms->button = touchpad_buttons | guest_buttons;
+			ms->button = touchpad_buttons | guest_buttons |
+			    sc->extended_buttons;
 		}
 		goto SYNAPTICS_END;
 
@@ -2932,30 +2936,26 @@ proc_synaptics(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 		/* Middle Button */
 		if ((pb->ipacket[0] ^ pb->ipacket[3]) & 0x01)
 			touchpad_buttons |= MOUSE_BUTTON2DOWN;
-	} else if (sc->synhw.capExtended && sc->synhw.capClickPad) {
-		/* ClickPad Button */
-		if ((pb->ipacket[0] ^ pb->ipacket[3]) & 0x01)
-			touchpad_buttons = MOUSE_BUTTON1DOWN;
 	} else if (sc->synhw.capExtended && (sc->synhw.nExtendedButtons > 0)) {
 		/* Extended Buttons */
 		if ((pb->ipacket[0] ^ pb->ipacket[3]) & 0x02) {
 			if (sc->syninfo.directional_scrolls) {
 				if (pb->ipacket[4] & 0x01)
-					touchpad_buttons |= MOUSE_BUTTON4DOWN;
+					extended_buttons |= MOUSE_BUTTON4DOWN;
 				if (pb->ipacket[5] & 0x01)
-					touchpad_buttons |= MOUSE_BUTTON5DOWN;
+					extended_buttons |= MOUSE_BUTTON5DOWN;
 				if (pb->ipacket[4] & 0x02)
-					touchpad_buttons |= MOUSE_BUTTON6DOWN;
+					extended_buttons |= MOUSE_BUTTON6DOWN;
 				if (pb->ipacket[5] & 0x02)
-					touchpad_buttons |= MOUSE_BUTTON7DOWN;
+					extended_buttons |= MOUSE_BUTTON7DOWN;
 			} else {
 				if (pb->ipacket[4] & 0x01)
-					touchpad_buttons |= MOUSE_BUTTON1DOWN;
+					extended_buttons |= MOUSE_BUTTON1DOWN;
 				if (pb->ipacket[5] & 0x01)
-					touchpad_buttons |= MOUSE_BUTTON3DOWN;
+					extended_buttons |= MOUSE_BUTTON3DOWN;
 				if (pb->ipacket[4] & 0x02)
-					touchpad_buttons |= MOUSE_BUTTON2DOWN;
-				sc->extended_buttons = touchpad_buttons;
+					extended_buttons |= MOUSE_BUTTON2DOWN;
+				sc->extended_buttons = extended_buttons;
 			}
 
 			/*
@@ -2983,9 +2983,13 @@ proc_synaptics(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 			 * Keep reporting MOUSE DOWN until we get a new packet
 			 * indicating otherwise.
 			 */
-			touchpad_buttons |= sc->extended_buttons;
+			extended_buttons |= sc->extended_buttons;
 		}
 	}
+	/* Handle ClickPad */
+	if (sc->synhw.capClickPad &&
+	    ((pb->ipacket[0] ^ pb->ipacket[3]) & 0x01))
+		touchpad_buttons |= MOUSE_BUTTON1DOWN;
 
 	if (sc->synhw.capReportsV && nfingers > 1)
 		f[0] = (finger_t) {
@@ -3022,7 +3026,7 @@ proc_synaptics(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 		if (id >= nfingers)
 			PSM_FINGER_RESET(f[id]);
 
-	ms->button = touchpad_buttons | guest_buttons;
+	ms->button = touchpad_buttons;
 
 	/* Palm detection doesn't terminate the current action. */
 	if (!psmpalmdetect(sc, &f[0], nfingers)) {
@@ -3032,6 +3036,8 @@ proc_synaptics(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 	} else {
 		VLOG(2, (LOG_DEBUG, "synaptics: palm detected! (%d)\n", f[0].w));
 	}
+
+	ms->button |= extended_buttons | guest_buttons;
 
 SYNAPTICS_END:
 	/*

@@ -46,13 +46,13 @@
 #include <contrib/dev/acpica/include/accommon.h>
 #include <contrib/dev/acpica/include/acdebug.h>
 #include <contrib/dev/acpica/include/actables.h>
-#include <stdio.h>
-#ifdef ACPI_APPLICATION
-#include <contrib/dev/acpica/include/acapps.h>
-#endif
 
 #define _COMPONENT          ACPI_CA_DEBUGGER
         ACPI_MODULE_NAME    ("dbfileio")
+
+
+#ifdef ACPI_APPLICATION
+#include <contrib/dev/acpica/include/acapps.h>
 
 
 #ifdef ACPI_DEBUGGER
@@ -73,8 +73,6 @@ AcpiDbCloseDebugFile (
     void)
 {
 
-#ifdef ACPI_APPLICATION
-
     if (AcpiGbl_DebugFile)
     {
        fclose (AcpiGbl_DebugFile);
@@ -83,7 +81,6 @@ AcpiDbCloseDebugFile (
        AcpiOsPrintf ("Debug output file %s closed\n",
             AcpiGbl_DbDebugFilename);
     }
-#endif
 }
 
 
@@ -104,8 +101,6 @@ AcpiDbOpenDebugFile (
     char                    *Name)
 {
 
-#ifdef ACPI_APPLICATION
-
     AcpiDbCloseDebugFile ();
     AcpiGbl_DebugFile = fopen (Name, "w+");
     if (!AcpiGbl_DebugFile)
@@ -118,8 +113,6 @@ AcpiDbOpenDebugFile (
     strncpy (AcpiGbl_DbDebugFilename, Name,
         sizeof (AcpiGbl_DbDebugFilename));
     AcpiGbl_DbOutputToFile = TRUE;
-
-#endif
 }
 #endif
 
@@ -169,8 +162,7 @@ AcpiDbLoadTables (
             return (Status);
         }
 
-        fprintf (stderr,
-            "Acpi table [%4.4s] successfully installed and loaded\n",
+        AcpiOsPrintf ("Acpi table [%4.4s] successfully installed and loaded\n",
             Table->Signature);
 
         TableListHead = TableListHead->Next;
@@ -178,3 +170,4 @@ AcpiDbLoadTables (
 
     return (AE_OK);
 }
+#endif

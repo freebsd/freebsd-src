@@ -179,6 +179,7 @@ struct g_mirror_softc {
 
 	struct g_geom	*sc_geom;
 	struct g_provider *sc_provider;
+	int		sc_provider_open;
 
 	uint32_t	sc_id;		/* Mirror unique ID. */
 

@@ -43,10 +43,9 @@
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
-#include <contrib/dev/acpica/include/acapps.h>
 #include <contrib/dev/acpica/include/actables.h>
 #include <contrib/dev/acpica/include/acutils.h>
-#include <errno.h>
+#include <contrib/dev/acpica/include/acapps.h>
 
 #define _COMPONENT          ACPI_UTILITIES
         ACPI_MODULE_NAME    ("acfileio")
@@ -98,7 +97,7 @@ AcGetAllTablesFromFile (
     File = fopen (Filename, "rb");
     if (!File)
     {
-        perror ("Could not open input file");
+        fprintf (stderr, "Could not open input file: %s\n", Filename);
         if (errno == ENOENT)
         {
             return (AE_NOT_EXIST);
@@ -263,12 +262,14 @@ AcGetOneTableFromFile (
         return (Status);
     }
 
+
     if (GetOnlyAmlTables)
     {
-        /* Table must be an AML table (DSDT/SSDT) or FADT */
-
-        if (!ACPI_COMPARE_NAME (TableHeader.Signature, ACPI_SIG_FADT) &&
-            !AcpiUtIsAmlTable (&TableHeader))
+        /*
+         * Table must be an AML table (DSDT/SSDT).
+         * Used for iASL -e option only.
+         */
+        if (!AcpiUtIsAmlTable (&TableHeader))
         {
             fprintf (stderr,
                 "    %s: Table [%4.4s] is not an AML table - ignoring\n",
@@ -280,7 +281,7 @@ AcGetOneTableFromFile (
 
     /* Allocate a buffer for the entire table */
 
-    Table = AcpiOsAllocate ((size_t) TableHeader.Length);
+    Table = AcpiOsAllocate ((ACPI_SIZE) TableHeader.Length);
     if (!Table)
     {
         return (AE_NO_MEMORY);
@@ -388,7 +389,7 @@ AcValidateTableHeader (
     long                    TableOffset)
 {
     ACPI_TABLE_HEADER       TableHeader;
-    size_t                  Actual;
+    ACPI_SIZE               Actual;
     long                    OriginalOffset;
     UINT32                  FileSize;
     UINT32                  i;

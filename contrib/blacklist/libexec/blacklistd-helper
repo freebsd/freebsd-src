@@ -19,8 +19,8 @@ fi
 if [ -z "$pf" ]; then
 	for f in npf pf ipf; do
 		if [ -f "/etc/$f.conf" ]; then
-			pf="$f"
-			break
+		    pf="$f"
+		    break
 		fi
 	done
 fi
@@ -54,8 +54,8 @@ add)
 	ipf)
 		/sbin/ipfstat -io | /sbin/ipf -I -f - >/dev/null 2>&1
 		echo block in quick $proto from $addr/$mask to \
-			any port=$6 head port$6 | \
-			/sbin/ipf -I -f - -s >/dev/null 2>&1
+		    any port=$6 head port$6 | \
+		    /sbin/ipf -I -f - -s >/dev/null 2>&1 && echo OK
 		;;
 	ipfw)
 		# use $ipfw_offset+$port for rule number
@@ -64,17 +64,21 @@ add)
 		/sbin/ipfw table $tname create type addr 2>/dev/null
 		/sbin/ipfw -q table $tname add "$addr/$mask"
 		/sbin/ipfw -q add $rule drop $3 from "table("$tname")" to \
-			any dst-port $6
+		    any dst-port $6 && echo OK
 		;;
 	npf)
 		/sbin/npfctl rule "$2" add block in final $proto from \
 		    "$addr/$mask" to any $port
 		;;
 	pf)
-		# insert $ip/$mask into per-protocol anchored table
-		/sbin/pfctl -a "$2" -t "port$6" -T add "$addr/$mask"
-		echo "block in quick $proto from <port$6> to any $port" | \
-		    /sbin/pfctl -a "$2" -f -
+		# if the filtering rule does not exist, create it
+		/sbin/pfctl -a "$2/$6" -sr 2>/dev/null | \
+		    grep -q "<port$6>" || \
+		    echo "block in quick $proto from <port$6> to any $port" | \
+		    /sbin/pfctl -a "$2/$6" -f -
+		# insert $ip/$mask into per-protocol/port anchored table
+		/sbin/pfctl -a "$2/$6" -t "port$6" -T add "$addr/$mask" && \
+		    echo OK
 		;;
 	esac
 	;;
@@ -83,33 +87,35 @@ rem)
 	ipf)
 		/sbin/ipfstat -io | /sbin/ipf -I -f - >/dev/null 2>&1
 		echo block in quick $proto from $addr/$mask to \
-			any port=$6 head port$6 | \
-			/sbin/ipf -I -r -f - -s >/dev/null 2>&1
+		    any port=$6 head port$6 | \
+		    /sbin/ipf -I -r -f - -s >/dev/null 2>&1 && echo OK
 		;;
 	ipfw)
-		/sbin/ipfw table "port$6" delete "$addr/$mask" 2>/dev/null
+		/sbin/ipfw table "port$6" delete "$addr/$mask" 2>/dev/null && \
+		    echo OK
 		;;
 	npf)
 		/sbin/npfctl rule "$2" rem-id "$7"
 		;;
 	pf)
-		/sbin/pfctl -a "$2" -t "port$6" -T delete "$addr/$mask"
+		/sbin/pfctl -a "$2/$6" -t "port$6" -T delete "$addr/$mask" && \
+		    echo OK
 		;;
 	esac
 	;;
 flush)
 	case "$pf" in
 	ipf)
-		/sbin/ipf -Z -I -Fi -s > /dev/null
+		/sbin/ipf -Z -I -Fi -s > /dev/null && echo OK
 		;;
 	ipfw)
-		/sbin/ipfw table "port$6" flush 2>/dev/null
+		/sbin/ipfw table "port$6" flush 2>/dev/null && echo OK
 		;;
 	npf)
 		/sbin/npfctl rule "$2" flush
 		;;
 	pf)
-		/sbin/pfctl -a "$2" -t "port$6" -T flush
+		/sbin/pfctl -a "$2/$6" -t "port$6" -T flush && echo OK
 		;;
 	esac
 	;;

@@ -526,6 +526,11 @@ wpi_attach(device_t dev)
 
 	wpi_radiotap_attach(sc);
 
+	/* Setup Tx status flags (constant). */
+	sc->sc_txs.flags = IEEE80211_RATECTL_STATUS_PKTLEN |
+	    IEEE80211_RATECTL_STATUS_SHORT_RETRY |
+	    IEEE80211_RATECTL_STATUS_LONG_RETRY;
+
 	callout_init_mtx(&sc->calib_to, &sc->rxon_mtx, 0);
 	callout_init_mtx(&sc->scan_timeout, &sc->rxon_mtx, 0);
 	callout_init_mtx(&sc->tx_timeout, &sc->txq_state_mtx, 0);
@@ -2051,14 +2056,13 @@ wpi_rx_statistics(struct wpi_softc *sc, struct wpi_rx_desc *desc,
 static void
 wpi_tx_done(struct wpi_softc *sc, struct wpi_rx_desc *desc)
 {
+	struct ieee80211_ratectl_tx_status *txs = &sc->sc_txs;
 	struct wpi_tx_ring *ring = &sc->txq[desc->qid & 0x3];
 	struct wpi_tx_data *data = &ring->data[desc->idx];
 	struct wpi_tx_stat *stat = (struct wpi_tx_stat *)(desc + 1);
 	struct mbuf *m;
 	struct ieee80211_node *ni;
-	struct ieee80211vap *vap;
 	uint32_t status = le32toh(stat->status);
-	int ackfailcnt = stat->ackfailcnt / WPI_NTRIES_DEFAULT;
 
 	KASSERT(data->ni != NULL, ("no node"));
 	KASSERT(data->m != NULL, ("no mbuf"));
@@ -2075,18 +2079,38 @@ wpi_tx_done(struct wpi_softc *sc, struct wpi_rx_desc *desc)
 	bus_dmamap_unload(ring->data_dmat, data->map);
 	m = data->m, data->m = NULL;
 	ni = data->ni, data->ni = NULL;
-	vap = ni->ni_vap;
+
+	/* Restore frame header. */
+	KASSERT(M_LEADINGSPACE(m) >= data->hdrlen, ("no frame header!"));
+	M_PREPEND(m, data->hdrlen, M_NOWAIT);
+	KASSERT(m != NULL, ("%s: m is NULL\n", __func__));
 
 	/*
 	 * Update rate control statistics for the node.
 	 */
-	if (status & WPI_TX_STATUS_FAIL) {
-		ieee80211_ratectl_tx_complete(vap, ni,
-		    IEEE80211_RATECTL_TX_FAILURE, &ackfailcnt, NULL);
-	} else
-		ieee80211_ratectl_tx_complete(vap, ni,
-		    IEEE80211_RATECTL_TX_SUCCESS, &ackfailcnt, NULL);
+	txs->pktlen = m->m_pkthdr.len;
+	txs->short_retries = stat->rtsfailcnt;
+	txs->long_retries = stat->ackfailcnt / WPI_NTRIES_DEFAULT;
+	if (!(status & WPI_TX_STATUS_FAIL))
+		txs->status = IEEE80211_RATECTL_TX_SUCCESS;
+	else {
+		switch (status & 0xff) {
+		case WPI_TX_STATUS_FAIL_SHORT_LIMIT:
+			txs->status = IEEE80211_RATECTL_TX_FAIL_SHORT;
+			break;
+		case WPI_TX_STATUS_FAIL_LONG_LIMIT:
+			txs->status = IEEE80211_RATECTL_TX_FAIL_LONG;
+			break;
+		case WPI_TX_STATUS_FAIL_LIFE_EXPIRE:
+			txs->status = IEEE80211_RATECTL_TX_FAIL_EXPIRED;
+			break;
+		default:
+			txs->status = IEEE80211_RATECTL_TX_FAIL_UNSPECIFIED;
+			break;
+		}
+	}
 
+	ieee80211_ratectl_tx_complete(ni, txs);
 	ieee80211_tx_complete(ni, m, (status & WPI_TX_STATUS_FAIL) != 0);
 
 	WPI_TXQ_STATE_LOCK(sc);
@@ -2704,6 +2728,7 @@ wpi_cmd2(struct wpi_softc *sc, struct wpi_buf *buf)
 
 	data->m = buf->m;
 	data->ni = buf->ni;
+	data->hdrlen = hdrlen;
 
 	DPRINTF(sc, WPI_DEBUG_XMIT, "%s: qid %d idx %d len %d nsegs %d\n",
 	    __func__, ring->qid, cur, totlen, nsegs);

@@ -851,12 +851,13 @@ rt2661_eeprom_read(struct rt2661_softc *sc, uint8_t addr)
 static void
 rt2661_tx_intr(struct rt2661_softc *sc)
 {
+	struct ieee80211_ratectl_tx_status *txs = &sc->sc_txs;
 	struct rt2661_tx_ring *txq;
 	struct rt2661_tx_data *data;
 	uint32_t val;
-	int error, qid, retrycnt;
-	struct ieee80211vap *vap;
+	int error, qid;
 
+	txs->flags = IEEE80211_RATECTL_TX_FAIL_LONG;
 	for (;;) {
 		struct ieee80211_node *ni;
 		struct mbuf *m;
@@ -879,31 +880,27 @@ rt2661_tx_intr(struct rt2661_softc *sc)
 		/* if no frame has been sent, ignore */
 		if (ni == NULL)
 			continue;
-		else
-			vap = ni->ni_vap;
 
 		switch (RT2661_TX_RESULT(val)) {
 		case RT2661_TX_SUCCESS:
-			retrycnt = RT2661_TX_RETRYCNT(val);
+			txs->status = IEEE80211_RATECTL_TX_SUCCESS;
+			txs->long_retries = RT2661_TX_RETRYCNT(val);
 
 			DPRINTFN(sc, 10, "data frame sent successfully after "
-			    "%d retries\n", retrycnt);
+			    "%d retries\n", txs->long_retries);
 			if (data->rix != IEEE80211_FIXED_RATE_NONE)
-				ieee80211_ratectl_tx_complete(vap, ni,
-				    IEEE80211_RATECTL_TX_SUCCESS,
-				    &retrycnt, NULL);
+				ieee80211_ratectl_tx_complete(ni, txs);
 			error = 0;
 			break;
 
 		case RT2661_TX_RETRY_FAIL:
-			retrycnt = RT2661_TX_RETRYCNT(val);
+			txs->status = IEEE80211_RATECTL_TX_FAIL_LONG;
+			txs->long_retries = RT2661_TX_RETRYCNT(val);
 
 			DPRINTFN(sc, 9, "%s\n",
 			    "sending data frame failed (too much retries)");
 			if (data->rix != IEEE80211_FIXED_RATE_NONE)
-				ieee80211_ratectl_tx_complete(vap, ni,
-				    IEEE80211_RATECTL_TX_FAILURE,
-				    &retrycnt, NULL);
+				ieee80211_ratectl_tx_complete(ni, txs);
 			error = 1;
 			break;
 

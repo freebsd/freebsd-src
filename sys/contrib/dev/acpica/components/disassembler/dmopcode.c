@@ -64,6 +64,10 @@ static void
 AcpiDmConvertToElseIf (
     ACPI_PARSE_OBJECT       *Op);
 
+static void
+AcpiDmPromoteSubtree (
+    ACPI_PARSE_OBJECT       *StartOp);
+
 
 /*******************************************************************************
  *
@@ -1067,12 +1071,22 @@ AcpiDmConvertToElseIf (
      *    be the only blocks under the original Else.
      */
     IfOp = OriginalElseOp->Common.Value.Arg;
+
     if (!IfOp ||
         (IfOp->Common.AmlOpcode != AML_IF_OP) ||
         (IfOp->Asl.Next && (IfOp->Asl.Next->Common.AmlOpcode != AML_ELSE_OP)))
     {
-        /* Not an Else..If sequence, cannot convert to ElseIf */
+        /* Not a proper Else..If sequence, cannot convert to ElseIf */
 
+        AcpiOsPrintf ("%s", "Else");
+        return;
+    }
+
+    /* Cannot have anything following the If...Else block */
+
+    ElseOp = IfOp->Common.Next;
+    if (ElseOp && ElseOp->Common.Next)
+    {
         AcpiOsPrintf ("%s", "Else");
         return;
     }
@@ -1100,7 +1114,10 @@ AcpiDmConvertToElseIf (
         /* If an ELSE matches the IF, promote it also */
 
         ElseOp->Common.Parent = OriginalElseOp->Common.Parent;
-        ElseOp->Common.Next = OriginalElseOp->Common.Next;
+
+        /* Promote the entire block under the ElseIf (All Next OPs) */
+
+        AcpiDmPromoteSubtree (OriginalElseOp);
     }
     else
     {
@@ -1121,4 +1138,49 @@ AcpiDmConvertToElseIf (
     /* Insert IF (now ELSEIF) as next peer of the original ELSE */
 
     OriginalElseOp->Common.Next = IfOp;
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDmPromoteSubtree
+ *
+ * PARAMETERS:  StartOpOp           - Original parent of the entire subtree
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Promote an entire parse subtree up one level.
+ *
+ ******************************************************************************/
+
+static void
+AcpiDmPromoteSubtree (
+    ACPI_PARSE_OBJECT       *StartOp)
+{
+    ACPI_PARSE_OBJECT       *Op;
+    ACPI_PARSE_OBJECT       *ParentOp;
+
+
+    /* New parent for subtree elements */
+
+    ParentOp = StartOp->Common.Parent;
+
+    /* First child starts the subtree */
+
+    Op = StartOp->Common.Value.Arg;
+
+    /* Walk the top-level elements of the subtree */
+
+    while (Op)
+    {
+        Op->Common.Parent = ParentOp;
+        if (!Op->Common.Next)
+        {
+            /* Last Op in list, update its next field */
+
+            Op->Common.Next = StartOp->Common.Next;
+            break;
+        }
+        Op = Op->Common.Next;
+    }
 }

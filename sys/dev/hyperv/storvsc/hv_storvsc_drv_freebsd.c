@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/sema.h>
 #include <sys/sglist.h>
+#include <sys/eventhandler.h>
 #include <machine/bus.h>
 #include <sys/bus_dma.h>
 
@@ -202,6 +203,7 @@ struct storvsc_softc {
 	struct vmbus_channel		*hs_sel_chan[MAXCPU];
 };
 
+static eventhandler_tag storvsc_handler_tag;
 /*
  * The size of the vmscsi_request has changed in win8. The
  * additional size is for the newly added elements in the
@@ -898,21 +900,15 @@ hv_storvsc_on_channel_callback(struct vmbus_channel *channel, void *xsc)
 static int
 storvsc_probe(device_t dev)
 {
-	int ata_disk_enable = 0;
 	int ret	= ENXIO;
 	
 	switch (storvsc_get_storage_type(dev)) {
 	case DRIVER_BLKVSC:
 		if(bootverbose)
-			device_printf(dev, "DRIVER_BLKVSC-Emulated ATA/IDE probe\n");
-		if (!getenv_int("hw.ata.disk_enable", &ata_disk_enable)) {
-			if(bootverbose)
-				device_printf(dev,
-					"Enlightened ATA/IDE detected\n");
-			device_set_desc(dev, g_drv_props_table[DRIVER_BLKVSC].drv_desc);
-			ret = BUS_PROBE_DEFAULT;
-		} else if(bootverbose)
-			device_printf(dev, "Emulated ATA/IDE set (hw.ata.disk_enable set)\n");
+			device_printf(dev,
+			    "Enlightened ATA/IDE detected\n");
+		device_set_desc(dev, g_drv_props_table[DRIVER_BLKVSC].drv_desc);
+		ret = BUS_PROBE_DEFAULT;
 		break;
 	case DRIVER_STORVSC:
 		if(bootverbose)
@@ -2155,27 +2151,45 @@ storvsc_io_done(struct hv_storvsc_request *reqp)
 	ccb->ccb_h.status &= ~CAM_STATUS_MASK;
 	if (vm_srb->scsi_status == SCSI_STATUS_OK) {
 		const struct scsi_generic *cmd;
-
+		cmd = (const struct scsi_generic *)
+		    ((ccb->ccb_h.flags & CAM_CDB_POINTER) ?
+		     csio->cdb_io.cdb_ptr : csio->cdb_io.cdb_bytes);
 		if (vm_srb->srb_status != SRB_STATUS_SUCCESS) {
-			if (vm_srb->srb_status == SRB_STATUS_INVALID_LUN) {
-				xpt_print(ccb->ccb_h.path, "invalid LUN %d\n",
-				    vm_srb->lun);
-			} else {
-				xpt_print(ccb->ccb_h.path, "Unknown SRB flag: %d\n",
-				    vm_srb->srb_status);
-			}
 			/*
 			 * If there are errors, for example, invalid LUN,
 			 * host will inform VM through SRB status.
 			 */
-			ccb->ccb_h.status |= CAM_SEL_TIMEOUT;
+			if (bootverbose) {
+				if (vm_srb->srb_status == SRB_STATUS_INVALID_LUN) {
+					xpt_print(ccb->ccb_h.path,
+					    "invalid LUN %d for op: %s\n",
+					    vm_srb->lun,
+					    scsi_op_desc(cmd->opcode, NULL));
+				} else {
+					xpt_print(ccb->ccb_h.path,
+					    "Unknown SRB flag: %d for op: %s\n",
+					    vm_srb->srb_status,
+					    scsi_op_desc(cmd->opcode, NULL));
+				}
+			}
+
+			/*
+			 * XXX For a selection timeout, all of the LUNs
+			 * on the target will be gone.  It works for SCSI
+			 * disks, but does not work for IDE disks.
+			 *
+			 * For CAM_DEV_NOT_THERE, CAM will only get
+			 * rid of the device(s) specified by the path.
+			 */
+			if (storvsc_get_storage_type(sc->hs_dev) ==
+			    DRIVER_STORVSC)
+				ccb->ccb_h.status |= CAM_SEL_TIMEOUT;
+			else
+				ccb->ccb_h.status |= CAM_DEV_NOT_THERE;
 		} else {
 			ccb->ccb_h.status |= CAM_REQ_CMP;
 		}
 
-		cmd = (const struct scsi_generic *)
-		    ((ccb->ccb_h.flags & CAM_CDB_POINTER) ?
-		     csio->cdb_io.cdb_ptr : csio->cdb_io.cdb_bytes);
 		if (cmd->opcode == INQUIRY) {
 			struct scsi_inquiry_data *inq_data =
 			    (struct scsi_inquiry_data *)csio->data_ptr;
@@ -2287,3 +2301,58 @@ storvsc_get_storage_type(device_t dev)
 		return DRIVER_STORVSC;
 	return DRIVER_UNKNOWN;
 }
+
+#define	PCI_VENDOR_INTEL	0x8086
+#define	PCI_PRODUCT_PIIX4	0x7111
+
+static void
+storvsc_ada_probe_veto(void *arg __unused, struct cam_path *path,
+    struct ata_params *ident_buf __unused, int *veto)
+{
+
+	/*
+	 * The ATA disks are shared with the controllers managed
+	 * by this driver, so veto the ATA disks' attachment; the
+	 * ATA disks will be attached as SCSI disks once this driver
+	 * attached.
+	 */
+	if (path->device->protocol == PROTO_ATA) {
+		struct ccb_pathinq cpi;
+
+		bzero(&cpi, sizeof(cpi));
+		xpt_setup_ccb(&cpi.ccb_h, path, CAM_PRIORITY_NONE);
+		cpi.ccb_h.func_code = XPT_PATH_INQ;
+		xpt_action((union ccb *)&cpi);
+		if (cpi.ccb_h.status == CAM_REQ_CMP &&
+		    cpi.hba_vendor == PCI_VENDOR_INTEL &&
+		    cpi.hba_device == PCI_PRODUCT_PIIX4) {
+			(*veto)++;
+			if (bootverbose) {
+				xpt_print(path,
+				    "Disable ATA disks on "
+				    "simulated ATA controller (0x%04x%04x)\n",
+				    cpi.hba_device, cpi.hba_vendor);
+			}
+		}
+	}
+}
+
+static void
+storvsc_sysinit(void *arg __unused)
+{
+	if (vm_guest == VM_GUEST_HV) {
+		storvsc_handler_tag = EVENTHANDLER_REGISTER(ada_probe_veto,
+		    storvsc_ada_probe_veto, NULL, EVENTHANDLER_PRI_ANY);
+	}
+}
+SYSINIT(storvsc_sys_init, SI_SUB_DRIVERS, SI_ORDER_SECOND, storvsc_sysinit,
+    NULL);
+
+static void
+storvsc_sysuninit(void *arg __unused)
+{
+	if (storvsc_handler_tag != NULL)
+		EVENTHANDLER_DEREGISTER(ada_probe_veto, storvsc_handler_tag);
+}
+SYSUNINIT(storvsc_sys_uninit, SI_SUB_DRIVERS, SI_ORDER_SECOND,
+    storvsc_sysuninit, NULL);

@@ -1,4 +1,4 @@
-/* $Id: output.c,v 1.74 2014/10/05 23:21:09 tom Exp $ */
+/* $Id: output.c,v 1.76 2016/06/07 00:14:34 tom Exp $ */
 
 #include "defs.h"
 
@@ -54,7 +54,7 @@ puts_code(FILE * fp, const char *s)
 }
 
 static void
-puts_param_types(FILE * fp, param * list, int more)
+puts_param_types(FILE * fp, param *list, int more)
 {
     param *p;
 
@@ -79,7 +79,7 @@ puts_param_types(FILE * fp, param * list, int more)
 }
 
 static void
-puts_param_names(FILE * fp, param * list, int more)
+puts_param_names(FILE * fp, param *list, int more)
 {
     param *p;
 
@@ -366,7 +366,7 @@ find_conflict_base(int cbase)
 	if (j + cbase >= nconflicts)
 	    break;
     }
-    return (Value_t) i;
+    return (Value_t)i;
 }
 #endif
 
@@ -412,7 +412,7 @@ token_actions(void)
 			conflictcount++;
 			conflicts[nconflicts++] = -1;
 			j = find_conflict_base(cbase);
-			actionrow[csym + 2 * ntokens] = (Value_t) (j + 1);
+			actionrow[csym + 2 * ntokens] = (Value_t)(j + 1);
 			if (j == cbase)
 			{
 			    cbase = nconflicts;
@@ -457,7 +457,7 @@ token_actions(void)
 			    else
 				conflicts[nconflicts++] = -1;
 			}
-			conflicts[nconflicts++] = (Value_t) (p->number - 2);
+			conflicts[nconflicts++] = (Value_t)(p->number - 2);
 		    }
 		}
 #endif
@@ -468,7 +468,7 @@ token_actions(void)
 		conflictcount++;
 		conflicts[nconflicts++] = -1;
 		j = find_conflict_base(cbase);
-		actionrow[csym + 2 * ntokens] = (Value_t) (j + 1);
+		actionrow[csym + 2 * ntokens] = (Value_t)(j + 1);
 		if (j == cbase)
 		{
 		    cbase = nconflicts;
@@ -512,7 +512,7 @@ token_actions(void)
 			*s++ = actionrow[j];
 		    }
 		}
-		width[i] = (Value_t) (max - min + 1);
+		width[i] = (Value_t)(max - min + 1);
 	    }
 	    if (reducecount > 0)
 	    {
@@ -529,10 +529,10 @@ token_actions(void)
 			if (max < symbol_value[j])
 			    max = symbol_value[j];
 			*r++ = symbol_value[j];
-			*s++ = (Value_t) (actionrow[ntokens + j] - 2);
+			*s++ = (Value_t)(actionrow[ntokens + j] - 2);
 		    }
 		}
-		width[nstates + i] = (Value_t) (max - min + 1);
+		width[nstates + i] = (Value_t)(max - min + 1);
 	    }
 #if defined(YYBTYACC)
 	    if (backtrack && conflictcount > 0)
@@ -550,10 +550,10 @@ token_actions(void)
 			if (max < symbol_value[j])
 			    max = symbol_value[j];
 			*r++ = symbol_value[j];
-			*s++ = (Value_t) (actionrow[2 * ntokens + j] - 1);
+			*s++ = (Value_t)(actionrow[2 * ntokens + j] - 1);
 		    }
 		}
-		width[2 * nstates + i] = (Value_t) (max - min + 1);
+		width[2 * nstates + i] = (Value_t)(max - min + 1);
 	    }
 #endif
 	}
@@ -635,7 +635,7 @@ save_column(int symbol, int default_state)
     }
 
     tally[symno] = count;
-    width[symno] = (Value_t) (sp1[-1] - sp[0] + 1);
+    width[symno] = (Value_t)(sp1[-1] - sp[0] + 1);
 }
 
 static void
@@ -871,7 +871,7 @@ pack_table(void)
 	state = matching_vector(i);
 
 	if (state < 0)
-	    place = (Value_t) pack_vector(i);
+	    place = (Value_t)pack_vector(i);
 	else
 	    place = base[state];
 
@@ -1198,6 +1198,16 @@ output_defines(FILE * fp)
     if (fp != defines_file || iflag)
 	fprintf(fp, "#define YYERRCODE %d\n", symbol_value[1]);
 
+    if (token_table && rflag && fp != externs_file)
+    {
+	if (fp == code_file)
+	    ++outline;
+	fputs("#undef yytname\n", fp);
+	if (fp == code_file)
+	    ++outline;
+	fputs("#define yytname yyname\n", fp);
+    }
+
     if (fp == defines_file || (iflag && !dflag))
     {
 	if (unionized)
@@ -1307,8 +1317,11 @@ output_debug(void)
      */
     if (token_table)
     {
-	output_line("#undef yytname");
-	output_line("#define yytname yyname");
+	if (!rflag)
+	{
+	    output_line("#undef yytname");
+	    output_line("#define yytname yyname");
+	}
     }
     else
     {

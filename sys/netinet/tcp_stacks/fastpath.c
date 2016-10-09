@@ -169,7 +169,7 @@ static void	 tcp_do_segment_fastack(struct mbuf *, struct tcphdr *,
 static void
 tcp_do_fastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	       struct tcpcb *tp, struct tcpopt *to, int drop_hdrlen, int tlen, 
-	       int ti_locked, u_long tiwin)
+	       int ti_locked, uint32_t tiwin)
 {
 	int acked;
 	uint16_t nsegs;
@@ -248,7 +248,7 @@ tcp_do_fastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 */
 	if ((to->to_flags & TOF_TS) != 0 &&
 	    to->to_tsecr) {
-		u_int t;
+		uint32_t t;
 
 		t = tcp_ts_getticks() - to->to_tsecr;
 		if (!tp->t_rttlow || tp->t_rttlow > t)
@@ -343,7 +343,7 @@ tcp_do_fastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 static void
 tcp_do_fastnewdata(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		   struct tcpcb *tp, struct tcpopt *to, int drop_hdrlen, int tlen, 
-		   int ti_locked, u_long tiwin)
+		   int ti_locked, uint32_t tiwin)
 {
 	int newsize = 0;	/* automatic sockbuf scaling */
 #ifdef TCPDEBUG
@@ -501,7 +501,7 @@ tcp_do_fastnewdata(struct mbuf *m, struct tcphdr *th, struct socket *so,
 static void
 tcp_do_slowpath(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		struct tcpcb *tp, struct tcpopt *to, int drop_hdrlen, int tlen, 
-		int ti_locked, u_long tiwin, int thflags)
+		int ti_locked, uint32_t tiwin, int thflags)
 {
 	int  acked, ourfinisacked, needoutput = 0;
 	int rstreason, todrop, win;
@@ -595,7 +595,7 @@ tcp_do_slowpath(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				(TF_RCVD_SCALE|TF_REQ_SCALE)) {
 				tp->rcv_scale = tp->request_r_scale;
 			}
-			tp->rcv_adv += imin(tp->rcv_wnd,
+			tp->rcv_adv += min(tp->rcv_wnd,
 			    TCP_MAXWIN << tp->rcv_scale);
 			tp->snd_una++;		/* SYN is acked */
 			/*
@@ -1179,7 +1179,7 @@ tcp_do_slowpath(struct mbuf *m, struct tcphdr *th, struct socket *so,
 					 */
 					cc_ack_received(tp, th, nsegs,
 					    CC_DUPACK);
-					u_long oldcwnd = tp->snd_cwnd;
+					uint32_t oldcwnd = tp->snd_cwnd;
 					tcp_seq oldsndmax = tp->snd_max;
 					u_int sent;
 					int avail;
@@ -1296,7 +1296,7 @@ process_ACK:
 		 * huge RTT and blow up the retransmit timer.
 		 */
 		if ((to->to_flags & TOF_TS) != 0 && to->to_tsecr) {
-			u_int t;
+			uint32_t t;
 
 			t = tcp_ts_getticks() - to->to_tsecr;
 			if (!tp->t_rttlow || tp->t_rttlow > t)
@@ -1500,7 +1500,7 @@ step6:
 		 * but if two URG's are pending at once, some out-of-band
 		 * data may creep in... ick.
 		 */
-		if (th->th_urp <= (u_long)tlen &&
+		if (th->th_urp <= (uint32_t)tlen &&
 		    !(so->so_options & SO_OOBINLINE)) {
 			/* hdr drop is delayed */
 			tcp_pulloutofband(so, th, m, drop_hdrlen);
@@ -1765,7 +1765,7 @@ tcp_do_segment_fastslow(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			int ti_locked)
 {
 	int thflags;
-	u_long tiwin;
+	uint32_t tiwin;
 	char *s;
 	uint16_t nsegs;
 	int can_enter;
@@ -1991,7 +1991,7 @@ tcp_do_segment_fastslow(struct mbuf *m, struct tcphdr *th, struct socket *so,
 static int
 tcp_fastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	       struct tcpcb *tp, struct tcpopt *to, int drop_hdrlen, int tlen, 
-	       int ti_locked, u_long tiwin)
+	       int ti_locked, uint32_t tiwin)
 {
 	int acked;
 	uint16_t nsegs;
@@ -2109,7 +2109,7 @@ tcp_fastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 */
 	if ((to->to_flags & TOF_TS) != 0 &&
 	    to->to_tsecr) {
-		u_int t;
+		uint32_t t;
 
 		t = tcp_ts_getticks() - to->to_tsecr;
 		if (!tp->t_rttlow || tp->t_rttlow > t)
@@ -2213,7 +2213,7 @@ tcp_do_segment_fastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		       int ti_locked)
 {
 	int thflags;
-	u_long tiwin;
+	uint32_t tiwin;
 	char *s;
 	struct in_conninfo *inc;
 	struct tcpopt to;

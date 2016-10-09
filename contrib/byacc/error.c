@@ -1,4 +1,4 @@
-/* $Id: error.c,v 1.11 2014/04/07 22:22:49 tom Exp $ */
+/* $Id: error.c,v 1.13 2016/06/07 00:15:16 tom Exp $ */
 
 /* routines for printing error messages  */
 
@@ -267,11 +267,12 @@ unknown_rhs(int i)
 }
 
 void
-default_action_warning(void)
+default_action_warning(char *s)
 {
     fprintf(stderr,
-	    "%s: w - line %d of \"%s\", the default action assigns an \
-undefined value to $$\n", myname, lineno, input_file_name);
+	    "%s: w - line %d of \"%s\", the default action for %s assigns an \
+undefined value to $$\n",
+	    myname, lineno, input_file_name, s);
 }
 
 void

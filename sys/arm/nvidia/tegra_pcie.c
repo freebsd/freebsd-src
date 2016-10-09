@@ -201,7 +201,8 @@ __FBSDID("$FreeBSD$");
 #define	 RP_LINK_CONTROL_STATUS_DL_LINK_ACTIVE	0x20000000
 #define	 RP_LINK_CONTROL_STATUS_LINKSTAT_MASK	0x3fff0000
 
-#define	TEGRA_PCIE_LINKUP_TIMEOUT	200
+/* Wait 50 ms (per port) for link. */
+#define	TEGRA_PCIE_LINKUP_TIMEOUT	50000
 
 #define TEGRA_PCIB_MSI_ENABLE
 
@@ -709,7 +710,7 @@ tegra_pcib_msi_alloc_msi(device_t dev, device_t child, int count, int maxcount,
 	mtx_lock(&sc->mtx);
 
 	found = false;
-	for (irq = 0; irq < TEGRA_PCIB_MAX_MSI && !found; irq++) {
+	for (irq = 0; (irq + count - 1) < TEGRA_PCIB_MAX_MSI; irq++) {
 		/* Start on an aligned interrupt */
 		if ((irq & (maxcount - 1)) != 0)
 			continue;
@@ -718,20 +719,17 @@ tegra_pcib_msi_alloc_msi(device_t dev, device_t child, int count, int maxcount,
 		found = true;
 
 		/* Check this range is valid */
-		for (end_irq = irq; end_irq != irq + count - 1; end_irq++) {
-			/* No free interrupts */
-			if (end_irq == (TEGRA_PCIB_MAX_MSI - 1)) {
-				found = false;
-				break;
-			}
-
+		for (end_irq = irq; end_irq < irq + count; end_irq++) {
 			/* This is already used */
-			if ((sc->isrcs[irq].flags & TEGRA_FLAG_MSI_USED) ==
+			if ((sc->isrcs[end_irq].flags & TEGRA_FLAG_MSI_USED) ==
 			    TEGRA_FLAG_MSI_USED) {
 				found = false;
 				break;
 			}
 		}
+
+		if (found)
+			break;
 	}
 
 	/* Not enough interrupts were found */
@@ -764,15 +762,15 @@ tegra_pcib_msi_release_msi(device_t dev, device_t child, int count,
 	sc = device_get_softc(dev);
 	mtx_lock(&sc->mtx);
 	for (i = 0; i < count; i++) {
-		ti = (struct tegra_pcib_irqsrc *)isrc;
+		ti = (struct tegra_pcib_irqsrc *)isrc[i];
 
 		KASSERT((ti->flags & TEGRA_FLAG_MSI_USED) == TEGRA_FLAG_MSI_USED,
 		    ("%s: Trying to release an unused MSI-X interrupt",
 		    __func__));
 
 		ti->flags &= ~TEGRA_FLAG_MSI_USED;
-		mtx_unlock(&sc->mtx);
 	}
+	mtx_unlock(&sc->mtx);
 	return (0);
 }
 
@@ -1160,6 +1158,7 @@ tegra_pcib_wait_for_link(struct tegra_pcib_softc *sc,
 		    RP_VEND_XP, 4);
 		if (reg & RP_VEND_XP_DL_UP)
 				break;
+		DELAY(1);
 
 	}
 	if (i <= 0)
@@ -1171,6 +1170,7 @@ tegra_pcib_wait_for_link(struct tegra_pcib_softc *sc,
 		if (reg & RP_LINK_CONTROL_STATUS_DL_LINK_ACTIVE)
 				break;
 
+		DELAY(1);
 	}
 	if (i <= 0)
 		return (ETIMEDOUT);
@@ -1629,7 +1629,8 @@ static device_method_t tegra_pcib_methods[] = {
 	DEVMETHOD_END
 };
 
+static devclass_t pcib_devclass;
 DEFINE_CLASS_1(pcib, tegra_pcib_driver, tegra_pcib_methods,
     sizeof(struct tegra_pcib_softc), ofw_pci_driver);
-devclass_t pcib_devclass;
-DRIVER_MODULE(pcib, simplebus, tegra_pcib_driver, pcib_devclass, 0, 0);
+DRIVER_MODULE(pcib, simplebus, tegra_pcib_driver, pcib_devclass,
+    NULL, NULL);

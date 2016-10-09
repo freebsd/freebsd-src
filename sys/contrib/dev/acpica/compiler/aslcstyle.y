@@ -82,6 +82,13 @@ NoEcho('
  *  13)     = += -= *= /= %= <<= >>= &= ^= |=
  */
 
+
+/*******************************************************************************
+ *
+ * Basic operations for math and logical expressions.
+ *
+ ******************************************************************************/
+
 Expression
 
     /* Unary operators */
@@ -140,32 +147,42 @@ Expression
     | TermArg PARSEOP_EXP_LOGICAL_OR    {$<n>$ = TrCreateLeafNode (PARSEOP_LOR);}
         TermArg                         {$$ = TrLinkChildren ($<n>3,2,$1,$4);}
 
-        /* Parentheses */
+    /* Parentheses */
 
     | '(' TermArg ')'                   { $$ = $2;}
 
-        /* Index term -- "= BUF1[5]" on right-hand side of an equals (source) */
+    /* Index term -- "= BUF1[5]" on right-hand side of an equals (source) */
 
-    | SuperName PARSEOP_EXP_INDEX_LEFT TermArg PARSEOP_EXP_INDEX_RIGHT
-                                        {$$ = TrCreateLeafNode (PARSEOP_INDEX);
+    | SuperName PARSEOP_EXP_INDEX_LEFT
+        TermArg PARSEOP_EXP_INDEX_RIGHT {$$ = TrCreateLeafNode (PARSEOP_INDEX);
                                         TrLinkChildren ($$,3,$1,$3,TrCreateNullTarget ());}
     ;
 
-        /* Index term -- "BUF1[5] = " on left-hand side of an equals (target) */
+    /* Index term -- "BUF1[5] = " on left-hand side of an equals (target) */
 
 IndexExpTerm
 
-    : SuperName PARSEOP_EXP_INDEX_LEFT TermArg PARSEOP_EXP_INDEX_RIGHT
-                                        {$$ = TrCreateLeafNode (PARSEOP_INDEX);
+    : SuperName PARSEOP_EXP_INDEX_LEFT
+        TermArg PARSEOP_EXP_INDEX_RIGHT {$$ = TrCreateLeafNode (PARSEOP_INDEX);
                                         TrLinkChildren ($$,3,$1,$3,TrCreateNullTarget ());}
     ;
 
+
+/*******************************************************************************
+ *
+ * All assignment-type operations -- math and logical. Includes simple
+ * assignment and compound assignments.
+ *
+ ******************************************************************************/
+
 EqualsTerm
 
-    /* All assignment-type operations */
+    /* Simple Store() operation */
 
     : SuperName PARSEOP_EXP_EQUALS
         TermArg                         {$$ = TrCreateAssignmentNode ($1, $3);}
+
+    /* Compound assignments -- Add (operand, operand, target) */
 
     | TermArg PARSEOP_EXP_ADD_EQ        {$<n>$ = TrCreateLeafNode (PARSEOP_ADD);}
         TermArg                         {$$ = TrLinkChildren ($<n>3,3,$1,$4,

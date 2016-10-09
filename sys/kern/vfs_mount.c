@@ -109,6 +109,7 @@ mount_init(void *mem, int size, int flags)
 
 	mp = (struct mount *)mem;
 	mtx_init(&mp->mnt_mtx, "struct mount mtx", NULL, MTX_DEF);
+	mtx_init(&mp->mnt_listmtx, "struct mount vlist mtx", NULL, MTX_DEF);
 	lockinit(&mp->mnt_explock, PVFS, "explock", 0, 0);
 	return (0);
 }
@@ -120,6 +121,7 @@ mount_fini(void *mem, int size)
 
 	mp = (struct mount *)mem;
 	lockdestroy(&mp->mnt_explock);
+	mtx_destroy(&mp->mnt_listmtx);
 	mtx_destroy(&mp->mnt_mtx);
 }
 
@@ -461,6 +463,8 @@ vfs_mount_alloc(struct vnode *vp, struct vfsconf *vfsp, const char *fspath,
 	mp->mnt_nvnodelistsize = 0;
 	TAILQ_INIT(&mp->mnt_activevnodelist);
 	mp->mnt_activevnodelistsize = 0;
+	TAILQ_INIT(&mp->mnt_tmpfreevnodelist);
+	mp->mnt_tmpfreevnodelistsize = 0;
 	mp->mnt_ref = 0;
 	(void) vfs_busy(mp, MBF_NOWAIT);
 	atomic_add_acq_int(&vfsp->vfc_refcount, 1);
@@ -518,6 +522,8 @@ vfs_mount_destroy(struct mount *mp)
 		panic("vfs_mount_destroy: nonzero nvnodelistsize");
 	if (mp->mnt_activevnodelistsize != 0)
 		panic("vfs_mount_destroy: nonzero activevnodelistsize");
+	if (mp->mnt_tmpfreevnodelistsize != 0)
+		panic("vfs_mount_destroy: nonzero tmpfreevnodelistsize");
 	if (mp->mnt_lockref != 0)
 		panic("vfs_mount_destroy: nonzero lock refcount");
 	MNT_IUNLOCK(mp);
@@ -1348,7 +1354,7 @@ dounmount(struct mount *mp, int flags, struct thread *td)
 	mp->mnt_flag &= ~MNT_ASYNC;
 	mp->mnt_kern_flag &= ~MNTK_ASYNC;
 	MNT_IUNLOCK(mp);
-	cache_purgevfs(mp);	/* remove cache entries for this file sys */
+	cache_purgevfs(mp, false); /* remove cache entries for this file sys */
 	vfs_deallocate_syncvnode(mp);
 	/*
 	 * For forced unmounts, move process cdir/rdir refs on the fs root

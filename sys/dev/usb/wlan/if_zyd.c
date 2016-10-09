@@ -662,12 +662,24 @@ zyd_intr_read_callback(struct usb_xfer *xfer, usb_error_t error)
 			 */
 			ni = ieee80211_find_txnode(vap, retry->macaddr);
 			if (ni != NULL) {
+				struct ieee80211_ratectl_tx_status *txs =
+				    &sc->sc_txs;
 				int retrycnt =
 				    (int)(le16toh(retry->count) & 0xff);
-				
-				ieee80211_ratectl_tx_complete(vap, ni,
-				    IEEE80211_RATECTL_TX_FAILURE,
-				    &retrycnt, NULL);
+
+				txs->flags =
+				    IEEE80211_RATECTL_STATUS_LONG_RETRY;
+				txs->long_retries = retrycnt;
+				if (le16toh(retry->count) & 0x100) {
+					txs->status =
+					    IEEE80211_RATECTL_TX_FAIL_LONG;
+				} else {
+					txs->status =
+					    IEEE80211_RATECTL_TX_SUCCESS;
+				}
+
+
+				ieee80211_ratectl_tx_complete(ni, txs);
 				ieee80211_free_node(ni);
 			}
 			if (le16toh(retry->count) & 0x100)

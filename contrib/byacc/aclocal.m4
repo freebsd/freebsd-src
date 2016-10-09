@@ -1,4 +1,4 @@
-dnl $Id: aclocal.m4,v 1.39 2016/03/25 00:06:44 tom Exp $
+dnl $Id: aclocal.m4,v 1.40 2016/06/07 00:48:07 tom Exp $
 dnl Macros for byacc configure script (Thomas E. Dickey)
 dnl ---------------------------------------------------------------------------
 dnl Copyright 2004-2015,2016 Thomas E. Dickey
@@ -171,11 +171,15 @@ ifelse([$3],,[    :]dnl
 ])dnl
 ])])dnl
 dnl ---------------------------------------------------------------------------
-dnl CF_CC_ENV_FLAGS version: 2 updated: 2015/04/12 15:39:00
+dnl CF_CC_ENV_FLAGS version: 3 updated: 2016/05/21 18:10:17
 dnl ---------------
 dnl Check for user's environment-breakage by stuffing CFLAGS/CPPFLAGS content
 dnl into CC.  This will not help with broken scripts that wrap the compiler with
 dnl options, but eliminates a more common category of user confusion.
+dnl
+dnl Caveat: this also disallows blanks in the pathname for the compiler, but
+dnl the nuisance of having inconsistent settings for compiler and preprocessor
+dnl outweighs that limitation.
 AC_DEFUN([CF_CC_ENV_FLAGS],
 [
 # This should have been defined by AC_PROG_CC
@@ -183,13 +187,16 @@ AC_DEFUN([CF_CC_ENV_FLAGS],
 
 AC_MSG_CHECKING(\$CC variable)
 case "$CC" in
-(*[[\ \	]]-[[IUD]]*)
+(*[[\ \	]]-*)
 	AC_MSG_RESULT(broken)
 	AC_MSG_WARN(your environment misuses the CC variable to hold CFLAGS/CPPFLAGS options)
 	# humor him...
-	cf_flags=`echo "$CC" | sed -e 's/^[[^ 	]]*[[ 	]]//'`
+	cf_flags=`echo "$CC" | sed -e 's/^[[^ 	]]*[[ 	]][[ 	]]*//'`
 	CC=`echo "$CC" | sed -e 's/[[ 	]].*//'`
 	CF_ADD_CFLAGS($cf_flags)
+	CF_VERBOSE(resulting CC: '$CC')
+	CF_VERBOSE(resulting CFLAGS: '$CFLAGS')
+	CF_VERBOSE(resulting CPPFLAGS: '$CPPFLAGS')
 	;;
 (*)
 	AC_MSG_RESULT(ok)
@@ -1010,11 +1017,11 @@ AC_SUBST(GROFF_NOTE)
 AC_SUBST(NROFF_NOTE)
 ])dnl
 dnl ---------------------------------------------------------------------------
-dnl CF_PROG_LINT version: 2 updated: 2009/08/12 04:43:14
+dnl CF_PROG_LINT version: 3 updated: 2016/05/22 15:25:54
 dnl ------------
 AC_DEFUN([CF_PROG_LINT],
 [
-AC_CHECK_PROGS(LINT, tdlint lint alint splint lclint)
+AC_CHECK_PROGS(LINT, lint cppcheck splint)
 AC_SUBST(LINT_OPTS)
 ])dnl
 dnl ---------------------------------------------------------------------------

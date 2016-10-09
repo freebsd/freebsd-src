@@ -76,137 +76,112 @@ AslInitialize (
 
 /*******************************************************************************
  *
- * FUNCTION:    Usage
+ * FUNCTION:    main
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Standard argc/argv
  *
- * RETURN:      None
+ * RETURN:      Program termination code
  *
- * DESCRIPTION: Display option help message.
- *              Optional items in square brackets.
- *
- ******************************************************************************/
-
-void
-Usage (
-    void)
-{
-    printf ("%s\n\n", ASL_COMPLIANCE);
-    ACPI_USAGE_HEADER ("iasl [Options] [Files]");
-
-    printf ("\nGeneral:\n");
-    ACPI_OPTION ("-@ <file>",       "Specify command file");
-    ACPI_OPTION ("-I <dir>",        "Specify additional include directory");
-    ACPI_OPTION ("-T <sig list>|ALL",   "Create ACPI table template/example files");
-    ACPI_OPTION ("-T <count>",      "Emit DSDT and <count> SSDTs to same file");
-    ACPI_OPTION ("-p <prefix>",     "Specify path/filename prefix for all output files");
-    ACPI_OPTION ("-v",              "Display compiler version");
-    ACPI_OPTION ("-vo",             "Enable optimization comments");
-    ACPI_OPTION ("-vs",             "Disable signon");
-
-    printf ("\nHelp:\n");
-    ACPI_OPTION ("-h",              "This message");
-    ACPI_OPTION ("-hc",             "Display operators allowed in constant expressions");
-    ACPI_OPTION ("-hf",             "Display help for output filename generation");
-    ACPI_OPTION ("-hr",             "Display ACPI reserved method names");
-    ACPI_OPTION ("-ht",             "Display currently supported ACPI table names");
-
-    printf ("\nPreprocessor:\n");
-    ACPI_OPTION ("-D <symbol>",     "Define symbol for preprocessor use");
-    ACPI_OPTION ("-li",             "Create preprocessed output file (*.i)");
-    ACPI_OPTION ("-P",              "Preprocess only and create preprocessor output file (*.i)");
-    ACPI_OPTION ("-Pn",             "Disable preprocessor");
-
-    printf ("\nErrors, Warnings, and Remarks:\n");
-    ACPI_OPTION ("-va",             "Disable all errors/warnings/remarks");
-    ACPI_OPTION ("-ve",             "Report only errors (ignore warnings and remarks)");
-    ACPI_OPTION ("-vi",             "Less verbose errors and warnings for use with IDEs");
-    ACPI_OPTION ("-vr",             "Disable remarks");
-    ACPI_OPTION ("-vw <messageid>", "Disable specific warning or remark");
-    ACPI_OPTION ("-w1 -w2 -w3",     "Set warning reporting level");
-    ACPI_OPTION ("-we",             "Report warnings as errors");
-
-    printf ("\nAML Code Generation (*.aml):\n");
-    ACPI_OPTION ("-oa",             "Disable all optimizations (compatibility mode)");
-    ACPI_OPTION ("-of",             "Disable constant folding");
-    ACPI_OPTION ("-oi",             "Disable integer optimization to Zero/One/Ones");
-    ACPI_OPTION ("-on",             "Disable named reference string optimization");
-    ACPI_OPTION ("-ot",             "Disable typechecking");
-    ACPI_OPTION ("-cr",             "Disable Resource Descriptor error checking");
-    ACPI_OPTION ("-in",             "Ignore NoOp operators");
-    ACPI_OPTION ("-r <revision>",   "Override table header Revision (1-255)");
-
-    printf ("\nOptional Source Code Output Files:\n");
-    ACPI_OPTION ("-sc -sa",         "Create source file in C or assembler (*.c or *.asm)");
-    ACPI_OPTION ("-ic -ia",         "Create include file in C or assembler (*.h or *.inc)");
-    ACPI_OPTION ("-tc -ta -ts",     "Create hex AML table in C, assembler, or ASL (*.hex)");
-    ACPI_OPTION ("-so",             "Create offset table in C (*.offset.h)");
-
-    printf ("\nOptional Listing Files:\n");
-    ACPI_OPTION ("-l",              "Create mixed listing file (ASL source and AML) (*.lst)");
-    ACPI_OPTION ("-lm",             "Create hardware summary map file (*.map)");
-    ACPI_OPTION ("-ln",             "Create namespace file (*.nsp)");
-    ACPI_OPTION ("-ls",             "Create combined source file (expanded includes) (*.src)");
-    ACPI_OPTION ("-lx",             "Create cross-reference file (*.xrf)");
-
-    printf ("\nData Table Compiler:\n");
-    ACPI_OPTION ("-G",              "Compile custom table that contains generic operators");
-    ACPI_OPTION ("-vt",             "Create verbose template files (full disassembly)");
-
-    printf ("\nAML Disassembler:\n");
-    ACPI_OPTION ("-d  <f1 f2 ...>", "Disassemble or decode binary ACPI tables to file (*.dsl)");
-    ACPI_OPTION ("",                "  (Optional, file type is automatically detected)");
-    ACPI_OPTION ("-da <f1 f2 ...>", "Disassemble multiple tables from single namespace");
-    ACPI_OPTION ("-db",             "Do not translate Buffers to Resource Templates");
-    ACPI_OPTION ("-dc <f1 f2 ...>", "Disassemble AML and immediately compile it");
-    ACPI_OPTION ("",                "  (Obtain DSDT from current system if no input file)");
-    ACPI_OPTION ("-df",             "Force disassembler to assume table contains valid AML");
-    ACPI_OPTION ("-dl",             "Emit legacy ASL code only (no C-style operators)");
-    ACPI_OPTION ("-e  <f1 f2 ...>", "Include ACPI table(s) for external symbol resolution");
-    ACPI_OPTION ("-fe <file>",      "Specify external symbol declaration file");
-    ACPI_OPTION ("-in",             "Ignore NoOp opcodes");
-    ACPI_OPTION ("-l",              "Disassemble to mixed ASL and AML code");
-    ACPI_OPTION ("-vt",             "Dump binary table data in hex format within output file");
-
-    printf ("\nDebug Options:\n");
-    ACPI_OPTION ("-bf",             "Create debug file (full output) (*.txt)");
-    ACPI_OPTION ("-bs",             "Create debug file (parse tree only) (*.txt)");
-    ACPI_OPTION ("-bp <depth>",     "Prune ASL parse tree");
-    ACPI_OPTION ("-bt <type>",      "Object type to be pruned from the parse tree");
-    ACPI_OPTION ("-f",              "Ignore errors, force creation of AML output file(s)");
-    ACPI_OPTION ("-m <size>",       "Set internal line buffer size (in Kbytes)");
-    ACPI_OPTION ("-n",              "Parse only, no output generation");
-    ACPI_OPTION ("-oc",             "Display compile times and statistics");
-    ACPI_OPTION ("-x <level>",      "Set debug level for trace output");
-    ACPI_OPTION ("-z",              "Do not insert new compiler ID for DataTables");
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    FilenameHelp
- *
- * PARAMETERS:  None
- *
- * RETURN:      None
- *
- * DESCRIPTION: Display help message for output filename generation
+ * DESCRIPTION: C main routine for the iASL Compiler/Disassembler. Process
+ *  command line options and begin the compile/disassembly for each file on
+ *  the command line (wildcards supported).
  *
  ******************************************************************************/
 
-void
-AslFilenameHelp (
-    void)
+int ACPI_SYSTEM_XFACE
+main (
+    int                     argc,
+    char                    **argv)
 {
+    ACPI_STATUS             Status;
+    int                     Index1;
+    int                     Index2;
+    int                     ReturnStatus = 0;
 
-    printf ("\nAML output filename generation:\n");
-    printf ("  Output filenames are generated by appending an extension to a common\n");
-    printf ("  filename prefix. The filename prefix is obtained via one of the\n");
-    printf ("  following methods (in priority order):\n");
-    printf ("    1) The -p option specifies the prefix\n");
-    printf ("    2) The prefix of the AMLFileName in the ASL Definition Block\n");
-    printf ("    3) The prefix of the input filename\n");
-    printf ("\n");
+
+    /*
+     * Big-endian machines are not currently supported. ACPI tables must
+     * be little-endian, and support for big-endian machines needs to
+     * be implemented.
+     */
+    if (UtIsBigEndianMachine ())
+    {
+        fprintf (stderr,
+            "iASL is not currently supported on big-endian machines.\n");
+        return (-1);
+    }
+
+    AcpiOsInitialize ();
+    ACPI_DEBUG_INITIALIZE (); /* For debug version only */
+
+    /* Initialize preprocessor and compiler before command line processing */
+
+    signal (SIGINT, AslSignalHandler);
+    AcpiGbl_ExternalFileList = NULL;
+    AcpiDbgLevel = 0;
+    PrInitializePreprocessor ();
+    AslInitialize ();
+
+    Index1 = Index2 =
+        AslCommandLine (argc, argv);
+
+    /* Allocate the line buffer(s), must be after command line */
+
+    Gbl_LineBufferSize /= 2;
+    UtExpandLineBuffers ();
+
+    /* Perform global actions first/only */
+
+    if (Gbl_DisassembleAll)
+    {
+        while (argv[Index1])
+        {
+            Status = AcpiDmAddToExternalFileList (argv[Index1]);
+            if (ACPI_FAILURE (Status))
+            {
+                return (-1);
+            }
+
+            Index1++;
+        }
+    }
+
+    /* Process each pathname/filename in the list, with possible wildcards */
+
+    while (argv[Index2])
+    {
+        /*
+         * If -p not specified, we will use the input filename as the
+         * output filename prefix
+         */
+        if (Gbl_UseDefaultAmlFilename)
+        {
+            Gbl_OutputFilenamePrefix = argv[Index2];
+            UtConvertBackslashes (Gbl_OutputFilenamePrefix);
+        }
+
+        Status = AslDoOneFile (argv[Index2]);
+        if (ACPI_FAILURE (Status))
+        {
+            ReturnStatus = -1;
+            goto CleanupAndExit;
+        }
+
+        Index2++;
+    }
+
+
+CleanupAndExit:
+
+    UtFreeLineBuffers ();
+    AslParserCleanup ();
+
+    if (AcpiGbl_ExternalFileList)
+    {
+        AcpiDmClearExternalFileList();
+    }
+
+    return (ReturnStatus);
 }
 
 
@@ -291,113 +266,4 @@ AslInitialize (
 
     Gbl_Files[ASL_FILE_STDERR].Handle   = stderr;
     Gbl_Files[ASL_FILE_STDERR].Filename = "STDERR";
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    main
- *
- * PARAMETERS:  Standard argc/argv
- *
- * RETURN:      Program termination code
- *
- * DESCRIPTION: C main routine for the Asl Compiler. Handle command line
- *              options and begin the compile for each file on the command line
- *
- ******************************************************************************/
-
-int ACPI_SYSTEM_XFACE
-main (
-    int                     argc,
-    char                    **argv)
-{
-    ACPI_STATUS             Status;
-    int                     Index1;
-    int                     Index2;
-    int                     ReturnStatus = 0;
-
-
-    /*
-     * Big-endian machines are not currently supported. ACPI tables must
-     * be little-endian, and support for big-endian machines needs to
-     * be implemented.
-     */
-    if (UtIsBigEndianMachine ())
-    {
-        fprintf (stderr,
-            "iASL is not currently supported on big-endian machines.\n");
-        return (-1);
-    }
-
-    AcpiOsInitialize ();
-    ACPI_DEBUG_INITIALIZE (); /* For debug version only */
-
-    /* Initialize preprocessor and compiler before command line processing */
-
-    signal (SIGINT, AslSignalHandler);
-    AcpiGbl_ExternalFileList = NULL;
-    AcpiDbgLevel = 0;
-    PrInitializePreprocessor ();
-    AslInitialize ();
-
-    Index1 = Index2 = AslCommandLine (argc, argv);
-
-    /* Allocate the line buffer(s), must be after command line */
-
-    Gbl_LineBufferSize /= 2;
-    UtExpandLineBuffers ();
-
-    /* Perform global actions first/only */
-
-    if (Gbl_DisassembleAll)
-    {
-        while (argv[Index1])
-        {
-            Status = AcpiDmAddToExternalFileList (argv[Index1]);
-            if (ACPI_FAILURE (Status))
-            {
-                return (-1);
-            }
-
-            Index1++;
-        }
-    }
-
-    /* Process each pathname/filename in the list, with possible wildcards */
-
-    while (argv[Index2])
-    {
-        /*
-         * If -p not specified, we will use the input filename as the
-         * output filename prefix
-         */
-        if (Gbl_UseDefaultAmlFilename)
-        {
-            Gbl_OutputFilenamePrefix = argv[Index2];
-            UtConvertBackslashes (Gbl_OutputFilenamePrefix);
-        }
-
-        Status = AslDoOneFile (argv[Index2]);
-        if (ACPI_FAILURE (Status))
-        {
-            ReturnStatus = -1;
-            goto CleanupAndExit;
-        }
-
-        Index2++;
-    }
-
-
-CleanupAndExit:
-
-    UtFreeLineBuffers ();
-    AslParserCleanup ();
-
-    if (AcpiGbl_ExternalFileList)
-    {
-        AcpiDmClearExternalFileList();
-    }
-
-    return (ReturnStatus);
 }
