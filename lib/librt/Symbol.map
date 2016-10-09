@@ -25,6 +25,11 @@ FBSD_1.0 {
 	timer_getoverrun;
 };
 
+FBSD_1.5 {
+	mq_getfd_np;
+	timer_oshandle_np;
+};
+
 FBSDprivate_1.0 {
 	_aio_read;
 	_aio_write;
