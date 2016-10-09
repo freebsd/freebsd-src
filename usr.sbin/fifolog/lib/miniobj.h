@@ -28,7 +28,7 @@
 
 #define ALLOC_OBJ(to, type_magic)					\
 	do {								\
-		(to) = calloc(sizeof *(to), 1);				\
+		(to) = calloc(1, sizeof *(to));				\
 		if ((to) != NULL)					\
 			(to)->magic = (type_magic);			\
 	} while (0)
