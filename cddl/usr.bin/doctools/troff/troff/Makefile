@@ -53,12 +53,21 @@ CFLAGS.dhtml+=	-I${DOCTOOLSDIR}/troff/troff.d/dhtml
 
 CFLAGS+=	-I${DOCTOOLSDIR}/stuff/bst -I${DOCTOOLSDIR}/troff/troff.d \
 		-I${DOCTOOLSDIR}/troff/ -DSHELL='"/bin/sh"' \
-		-DMACDIR='"${MACDIR}"' \
-		-DRELEASE='"${RELEASE}"' \
+		-DRELEASE='"${RELEASE}"'
+
+.if defined(WORLDTMP)
+CFLAGS+=	-DMACDIR='"${WORLDTMP}/legacy/${MACDIR}"' \
+		-DHYPDIR='"${WORLDTMP}/legacy/${HYPDIR}"' \
+		-DFNTDIR='"${WORLDTMP}/legacy/${FNTDIR}"' \
+		-DTABDIR='"${WORLDTMP}/legacy/${TABDIR}"' \
+		-DPSTDIR='"${WORLDTMP}/legacy/${PSTDIR}"'
+.else
+CFLAGS+=	-DMACDIR='"${MACDIR}"' \
 		-DHYPDIR='"${HYPDIR}"' \
 		-DFNTDIR='"${FNTDIR}"' \
 		-DTABDIR='"${TABDIR}"' \
-		-DPSTDIR='"${PSTDIR}"' \
+		-DPSTDIR='"${PSTDIR}"'
+.endif
 
 .include <bsd.progs.mk>
 

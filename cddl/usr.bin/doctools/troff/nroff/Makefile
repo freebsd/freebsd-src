@@ -32,12 +32,19 @@ LDADD=	${.OBJDIR}/../libhnj/libhnj.a
 
 CFLAGS+=	-I${DOCTOOLSDIR}/stuff/bst -I${DOCTOOLSDIR}/troff/nroff.d \
 		-I${DOCTOOLSDIR}/troff/ -DSHELL='"/bin/sh"' \
-		-DMACDIR='"${MACDIR}"' \
 		-DRELEASE='"${RELEASE}"' \
+		-DNROFF -DUSG -DEUC
+.if defined(WORLDTMP)
+CFLAGS+=	-DMACDIR='"${WORLDTMP}/legacy/${MACDIR}"' \
+		-DHYPDIR='"${WORLDTMP}/legacy/${HYPDIR}"' \
+		-DFNTDIR='"${WORLDTMP}/legacy/${FNTDIR}"' \
+		-DTABDIR='"${WORLDTMP}/legacy/${TABDIR}"'
+.else
+CFLAGS+=	-DMACDIR='"${MACDIR}"' \
 		-DHYPDIR='"${HYPDIR}"' \
 		-DFNTDIR='"${FNTDIR}"' \
-		-DTABDIR='"${TABDIR}"' \
-		-DNROFF -DUSG -DEUC
+		-DTABDIR='"${TABDIR}"'
+.endif
 
 NLTERM=		${DOCTOOLSDIR}/troff/nroff.d/terms.d
 
