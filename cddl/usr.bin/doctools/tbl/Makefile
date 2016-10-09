@@ -21,7 +21,11 @@ SRCS=	t0.c \
 	tu.c \
 	tv.c
 
+.if defined(WORLDTMP)
+CFLAGS+=	-DMACDIR='"${WORLDTMP}/legacy/${MACDIR}"'
+.else
 CFLAGS+=	-DMACDIR='"${MACDIR}"'
+.endif
 
 .include <bsd.prog.mk>
 
