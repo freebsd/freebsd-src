@@ -15,8 +15,6 @@ SUBDIR=	title \
 	12.vi \
 	13.viref \
 	18.msdiffs \
-	19.memacros \
-	20.meref \
 	21.troff \
 	22.trofftut
 SUBDIR_PARALLEL=
