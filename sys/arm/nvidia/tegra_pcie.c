@@ -762,15 +762,15 @@ tegra_pcib_msi_release_msi(device_t dev, device_t child, int count,
 	sc = device_get_softc(dev);
 	mtx_lock(&sc->mtx);
 	for (i = 0; i < count; i++) {
-		ti = (struct tegra_pcib_irqsrc *)isrc;
+		ti = (struct tegra_pcib_irqsrc *)isrc[i];
 
 		KASSERT((ti->flags & TEGRA_FLAG_MSI_USED) == TEGRA_FLAG_MSI_USED,
 		    ("%s: Trying to release an unused MSI-X interrupt",
 		    __func__));
 
 		ti->flags &= ~TEGRA_FLAG_MSI_USED;
-		mtx_unlock(&sc->mtx);
 	}
+	mtx_unlock(&sc->mtx);
 	return (0);
 }
 
