@@ -57,7 +57,7 @@ INDXBIB?=	indxbib
 PIC?=		pic
 REFER?=		refer
 .for _dev in ${PRINTERDEVICE:Mascii}
-ROFF.ascii?=	nroff -Tlocale ${TRFLAGS} ${MACROS} ${PAGES:C/^/-o/1}
+ROFF.ascii?=	nroff -Tlp ${TRFLAGS} ${MACROS} ${PAGES:C/^/-o/1} | col -x
 .endfor
 .for _dev in ${PRINTERDEVICE:Mhtml}
 ROFF.${_dev}?=	troff -T${_dev} ${TRFLAGS} ${MACROS} ${PAGES:C/^/-o/1} | ${DHTML}
