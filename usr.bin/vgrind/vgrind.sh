@@ -104,7 +104,7 @@ if test -r index; then
 			$vf $options -h "$head" $files
 		else
 			$vf $options $files
-		fi | cat $tm/tmac.vgrind -
+		fi | cat $tm/vgrind -
 	else
 		if test "x$head" != x; then
 			$vf $options -h "$head" $files
@@ -120,7 +120,7 @@ else
 			$vf $options -h "$head" $files
 		else
 			$vf $options $files
-		fi | cat $tm/tmac.vgrind -
+		fi | cat $tm/vgrind -
 	else
 		if test "x$head" != x; then
 			$vf $options -h "$head" $files
