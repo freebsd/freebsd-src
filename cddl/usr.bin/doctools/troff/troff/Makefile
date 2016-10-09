@@ -1,6 +1,9 @@
 SUBDIR=	\
 	dpost \
-	tmac
+	tmac \
+	devps \
+	devpslow \
+	devpsmed
 
 PROGS=	troff \
 	devaps \
