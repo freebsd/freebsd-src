@@ -11,7 +11,6 @@ SRCS=	dpost.c \
 	glob.c \
 	misc.c \
 	request.c \
-	getopt.c \
 	asciitype.c \
 	otf.c \
 	../fontmap.c \

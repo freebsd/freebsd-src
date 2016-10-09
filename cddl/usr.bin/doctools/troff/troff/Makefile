@@ -37,8 +37,7 @@ LDADD.troff=	${.OBJDIR}/../libhnj/libhnj.a
 
 SRCS.devaps=	daps.c \
 		build.c \
-		draw.c \
-		getopt.c
+		draw.c
 LIBADD.devaps=	m
 MAN.devaps=
 
