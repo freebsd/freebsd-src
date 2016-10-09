@@ -1,12 +1,12 @@
 #	@(#)Makefile	8.2 (Berkeley) 3/27/94
 # $FreeBSD$
 
-MELIB=	${BINDIR}/doctools/me
+MELIB=	${BINDIR}/me
 TMLIB=	${BINDIR}/doctools/tmac
 MESRCS=	acm.me chars.me deltext.me eqn.me float.me footnote.me \
 	index.me letterhead.me local.me null.me refer.me sh.me \
 	tbl.me thesis.me
-TMSRCS=	tmac.orig_me
+TMSRCS=	orig_me
 FILES=	${MESRCS:S/$/.tmp/} ${TMSRCS:S/$/.tmp/} revisions
 CLEANFILES+=	${MESRCS:S/$/.tmp/} ${TMSRCS:S/$/.tmp/}
 
