@@ -467,9 +467,8 @@ CROSSENV+=	BUILD_TOOLS_META=.NOMETA_CMP
 .endif
 .if ${MK_DOCTOOLS} != "no"
 # XXX TODO
-CROSSENV+=	GROFF_BIN_PATH=${WORLDTMP}/legacy/usr/bin \
-		GROFF_FONT_PATH=${WORLDTMP}/legacy/usr/share/groff_font \
-		GROFF_TMAC_PATH=${WORLDTMP}/legacy/usr/share/tmac
+CROSSENV+=	TROFFFONTS=${WORLDTMP}/legacy/usr/share/doctools/font/ \
+		TROFFMACS=${WORLDTMP}/legacy/usr/share/doctools/tmac/
 .endif
 .if defined(TARGET_CFLAGS)
 CROSSENV+=	${TARGET_CFLAGS}
