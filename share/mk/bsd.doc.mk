@@ -74,14 +74,14 @@ LPR?=		lpr
 .if defined(USE_SOELIM)
 PRECMD+=	${SOELIM} -I${.CURDIR} |
 .endif
+.if defined(USE_REFER)
+PRECMD+=	${REFER} ${REFER_ARGS} |
+.endif
 .if defined(USE_EQN)
 PRECMD+=	${EQN} |
 .endif
 .if defined(USE_PIC)
 PRECMD+=	${PIC} |
-.endif
-.if defined(USE_REFER)
-PRECMD+=	${REFER} |
 .endif
 .if defined(USE_TBL)
 PRECMD+=	${TBL} |
