@@ -46,7 +46,7 @@ $f: a.${f:E} b.lp
 	cat ${.ALLSRC} >${.TARGET}
 .endfor
 
-.for f in tab.300 tab.300-12 tab.300s tab.300s-12 tab.382 tab.4000a tab.450-12 tab.832 
+.for f in tab.300 tab.300-12 tab.300s tab.300s-12 tab.382 tab.4000a tab.450 tab.450-12 tab.832 
 $f: a.${f:E} b.300
 	cat ${.ALLSRC} >${.TARGET}
 .endfor
