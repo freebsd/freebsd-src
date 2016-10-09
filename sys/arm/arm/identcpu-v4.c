@@ -45,9 +45,6 @@
 __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/param.h>
-#include <sys/malloc.h>
-#include <sys/time.h>
-#include <sys/proc.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
@@ -169,39 +166,6 @@ const struct cpuidtab cpuids[] = {
 	{ CPU_ID_ARM1026EJS,	CPU_CLASS_ARM10EJ,	"ARM1026EJ-S",
 	  generic_steppings },
 
-	{ CPU_ID_CORTEXA5,	CPU_CLASS_CORTEXA,	"Cortex A5",
-	  generic_steppings },
-	{ CPU_ID_CORTEXA7,	CPU_CLASS_CORTEXA,	"Cortex A7",
-	  generic_steppings },
-	{ CPU_ID_CORTEXA8R1,	CPU_CLASS_CORTEXA,	"Cortex A8-r1",
-	  generic_steppings },
-	{ CPU_ID_CORTEXA8R2,	CPU_CLASS_CORTEXA,	"Cortex A8-r2",
-	  generic_steppings },
-	{ CPU_ID_CORTEXA8R3,	CPU_CLASS_CORTEXA,	"Cortex A8-r3",
-	  generic_steppings },
-	{ CPU_ID_CORTEXA9R1,	CPU_CLASS_CORTEXA,	"Cortex A9-r1",
-	  generic_steppings },
-	{ CPU_ID_CORTEXA9R2,	CPU_CLASS_CORTEXA,	"Cortex A9-r2",
-	  generic_steppings },
-	{ CPU_ID_CORTEXA9R3,	CPU_CLASS_CORTEXA,	"Cortex A9-r3",
-	  generic_steppings },
-	{ CPU_ID_CORTEXA9R4,	CPU_CLASS_CORTEXA,	"Cortex A9-r4",
-	  generic_steppings },
-	{ CPU_ID_CORTEXA12R0,	CPU_CLASS_CORTEXA,	"Cortex A12-r0",
-	  generic_steppings },
-	{ CPU_ID_CORTEXA15R0,	CPU_CLASS_CORTEXA,	"Cortex A15-r0",
-	  generic_steppings },
-	{ CPU_ID_CORTEXA15R1,	CPU_CLASS_CORTEXA,	"Cortex A15-r1",
-	  generic_steppings },
-	{ CPU_ID_CORTEXA15R2,	CPU_CLASS_CORTEXA,	"Cortex A15-r2",
-	  generic_steppings },
-	{ CPU_ID_CORTEXA15R3,	CPU_CLASS_CORTEXA,	"Cortex A15-r3",
-	  generic_steppings },
-	{ CPU_ID_KRAIT300R0,	CPU_CLASS_KRAIT,	"Krait 300-r0",
-	  generic_steppings },
-	{ CPU_ID_KRAIT300R1,	CPU_CLASS_KRAIT,	"Krait 300-r1",
-	  generic_steppings },
-
 	{ CPU_ID_80200,		CPU_CLASS_XSCALE,	"i80200",
 	  xscale_steppings },
 
@@ -248,23 +212,10 @@ const struct cpuidtab cpuids[] = {
 	{ CPU_ID_IXP435,	CPU_CLASS_XSCALE,	"IXP435",
 	  ixp425_steppings },
 
-	{ CPU_ID_ARM1136JS,	CPU_CLASS_ARM11J,	"ARM1136J-S",
-	  generic_steppings },
-	{ CPU_ID_ARM1136JSR1,	CPU_CLASS_ARM11J,	"ARM1136J-S R1",
-	  generic_steppings },
-	{ CPU_ID_ARM1176JZS,	CPU_CLASS_ARM11J,	"ARM1176JZ-S",
-	  generic_steppings },
-
 	{ CPU_ID_MV88FR131,	CPU_CLASS_MARVELL,	"Feroceon 88FR131",
 	  generic_steppings },
 
 	{ CPU_ID_MV88FR571_VD,	CPU_CLASS_MARVELL,	"Feroceon 88FR571-VD",
-	  generic_steppings },
-	{ CPU_ID_MV88SV581X_V7,	CPU_CLASS_MARVELL,	"Sheeva 88SV581x",
-	  generic_steppings },
-	{ CPU_ID_ARM_88SV581X_V7, CPU_CLASS_MARVELL,	"Sheeva 88SV581x",
-	  generic_steppings },
-	{ CPU_ID_MV88SV584X_V7,	CPU_CLASS_MARVELL,	"Sheeva 88SV584x",
 	  generic_steppings },
 
 	{ 0, CPU_CLASS_NONE, NULL, NULL }
@@ -282,10 +233,7 @@ const struct cpu_classtab cpu_classes[] = {
 	{ "ARM9EJ-S",	"CPU_ARM9E" },		/* CPU_CLASS_ARM9EJS */
 	{ "ARM10E",	"CPU_ARM10" },		/* CPU_CLASS_ARM10E */
 	{ "ARM10EJ",	"CPU_ARM10" },		/* CPU_CLASS_ARM10EJ */
-	{ "Cortex-A",	"CPU_CORTEXA" },	/* CPU_CLASS_CORTEXA */
-	{ "Krait",	"CPU_KRAIT" },		/* CPU_CLASS_KRAIT */
 	{ "XScale",	"CPU_XSCALE_..." },	/* CPU_CLASS_XSCALE */
-	{ "ARM11J",	"CPU_ARM11" },		/* CPU_CLASS_ARM11J */
 	{ "Marvell",	"CPU_MARVELL" },	/* CPU_CLASS_MARVELL */
 };
 
@@ -344,50 +292,11 @@ u_int cpu_pfr(int num)
 	return (feat);
 }
 
-static
-void identify_armv7(void)
-{
-	u_int feature;
-
-	printf("Supported features:");
-	/* Get Processor Feature Register 0 */
-	feature = cpu_pfr(0);
-
-	if (feature & ARM_PFR0_ARM_ISA_MASK)
-		printf(" ARM_ISA");
-
-	if (feature & ARM_PFR0_THUMB2)
-		printf(" THUMB2");
-	else if (feature & ARM_PFR0_THUMB)
-		printf(" THUMB");
-
-	if (feature & ARM_PFR0_JAZELLE_MASK)
-		printf(" JAZELLE");
-
-	if (feature & ARM_PFR0_THUMBEE_MASK)
-		printf(" THUMBEE");
-
-
-	/* Get Processor Feature Register 1 */
-	feature = cpu_pfr(1);
-
-	if (feature & ARM_PFR1_ARMV4_MASK)
-		printf(" ARMv4");
-
-	if (feature & ARM_PFR1_SEC_EXT_MASK)
-		printf(" Security_Ext");
-
-	if (feature & ARM_PFR1_MICROCTRL_MASK)
-		printf(" M_profile");
-
-	printf("\n");
-}
-
 void
 identify_arm_cpu(void)
 {
-	u_int cpuid, reg, size, sets, ways;
-	u_int8_t type, linesize, ctrl;
+	u_int cpuid;
+	u_int8_t ctrl;
 	int i;
 
 	ctrl = cpu_get_control();
@@ -413,43 +322,38 @@ identify_arm_cpu(void)
 
 	printf(" ");
 
-	if ((cpuid & CPU_ID_ARCH_MASK) == CPU_ID_CPUID_SCHEME) {
-		identify_armv7();
-	} else {
-		if (ctrl & CPU_CONTROL_BEND_ENABLE)
-			printf(" Big-endian");
-		else
-			printf(" Little-endian");
+	if (ctrl & CPU_CONTROL_BEND_ENABLE)
+		printf(" Big-endian");
+	else
+		printf(" Little-endian");
 
-		switch (cpu_class) {
-		case CPU_CLASS_ARM9TDMI:
-		case CPU_CLASS_ARM9ES:
-		case CPU_CLASS_ARM9EJS:
-		case CPU_CLASS_ARM10E:
-		case CPU_CLASS_ARM10EJ:
-		case CPU_CLASS_XSCALE:
-		case CPU_CLASS_ARM11J:
-		case CPU_CLASS_MARVELL:
-			print_enadis(ctrl & CPU_CONTROL_DC_ENABLE, "DC");
-			print_enadis(ctrl & CPU_CONTROL_IC_ENABLE, "IC");
+	switch (cpu_class) {
+	case CPU_CLASS_ARM9TDMI:
+	case CPU_CLASS_ARM9ES:
+	case CPU_CLASS_ARM9EJS:
+	case CPU_CLASS_ARM10E:
+	case CPU_CLASS_ARM10EJ:
+	case CPU_CLASS_XSCALE:
+	case CPU_CLASS_MARVELL:
+		print_enadis(ctrl & CPU_CONTROL_DC_ENABLE, "DC");
+		print_enadis(ctrl & CPU_CONTROL_IC_ENABLE, "IC");
 #ifdef CPU_XSCALE_81342
-			print_enadis(ctrl & CPU_CONTROL_L2_ENABLE, "L2");
+		print_enadis(ctrl & CPU_CONTROL_L2_ENABLE, "L2");
 #endif
 #if defined(SOC_MV_KIRKWOOD) || defined(SOC_MV_DISCOVERY)
-			i = sheeva_control_ext(0, 0);
-			print_enadis(i & MV_WA_ENABLE, "WA");
-			print_enadis(i & MV_DC_STREAM_ENABLE, "DC streaming");
-			printf("\n ");
-			print_enadis((i & MV_BTB_DISABLE) == 0, "BTB");
-			print_enadis(i & MV_L2_ENABLE, "L2");
-			print_enadis((i & MV_L2_PREFETCH_DISABLE) == 0,
-			    "L2 prefetch");
-			printf("\n ");
+		i = sheeva_control_ext(0, 0);
+		print_enadis(i & MV_WA_ENABLE, "WA");
+		print_enadis(i & MV_DC_STREAM_ENABLE, "DC streaming");
+		printf("\n ");
+		print_enadis((i & MV_BTB_DISABLE) == 0, "BTB");
+		print_enadis(i & MV_L2_ENABLE, "L2");
+		print_enadis((i & MV_L2_PREFETCH_DISABLE) == 0,
+		    "L2 prefetch");
+		printf("\n ");
 #endif
-			break;
-		default:
-			break;
-		}
+		break;
+	default:
+		break;
 	}
 
 	print_enadis(ctrl & CPU_CONTROL_WBUF_ENABLE, "WB");
@@ -461,74 +365,22 @@ identify_arm_cpu(void)
 	print_enadis(ctrl & CPU_CONTROL_BPRD_ENABLE, "branch prediction");
 	printf("\n");
 
-	if (arm_cache_level) {
-		printf("LoUU:%d LoC:%d LoUIS:%d \n", CPU_CLIDR_LOUU(arm_cache_level) + 1,
-		    arm_cache_loc + 1, CPU_CLIDR_LOUIS(arm_cache_level) + 1);
-		i = 0;
-		while (((type = CPU_CLIDR_CTYPE(arm_cache_level, i)) != 0) && i < 7) {
-			printf("Cache level %d: \n", i + 1);
-			if (type == CACHE_DCACHE || type == CACHE_UNI_CACHE ||
-			    type == CACHE_SEP_CACHE) {
-				reg = arm_cache_type[2 * i];
-				ways = CPUV7_CT_xSIZE_ASSOC(reg) + 1;
-				sets = CPUV7_CT_xSIZE_SET(reg) + 1;
-				linesize = 1 << (CPUV7_CT_xSIZE_LEN(reg) + 4);
-				size = (ways * sets * linesize) / 1024;
+	/* Print cache info. */
+	if (arm_picache_line_size == 0 && arm_pdcache_line_size == 0)
+		return;
 
-				if (type == CACHE_UNI_CACHE)
-					printf(" %dKB/%dB %d-way unified cache", size, linesize,ways);
-				else
-					printf(" %dKB/%dB %d-way data cache", size, linesize, ways);
-				if (reg & CPUV7_CT_CTYPE_WT)
-					printf(" WT");
-				if (reg & CPUV7_CT_CTYPE_WB)
-					printf(" WB");
-				if (reg & CPUV7_CT_CTYPE_RA)
-					printf(" Read-Alloc");
-				if (reg & CPUV7_CT_CTYPE_WA)
-					printf(" Write-Alloc");
-				printf("\n");
-			}
-
-			if (type == CACHE_ICACHE || type == CACHE_SEP_CACHE) {
-				reg = arm_cache_type[(2 * i) + 1];
-
-				ways = CPUV7_CT_xSIZE_ASSOC(reg) + 1;
-				sets = CPUV7_CT_xSIZE_SET(reg) + 1;
-				linesize = 1 << (CPUV7_CT_xSIZE_LEN(reg) + 4);
-				size = (ways * sets * linesize) / 1024;
-
-				printf(" %dKB/%dB %d-way instruction cache", size, linesize, ways);
-				if (reg & CPUV7_CT_CTYPE_WT)
-					printf(" WT");
-				if (reg & CPUV7_CT_CTYPE_WB)
-					printf(" WB");
-				if (reg & CPUV7_CT_CTYPE_RA)
-					printf(" Read-Alloc");
-				if (reg & CPUV7_CT_CTYPE_WA)
-					printf(" Write-Alloc");
-				printf("\n");
-			}
-			i++;
-		}
+	if (arm_pcache_unified) {
+		printf("  %dKB/%dB %d-way %s unified cache\n",
+		    arm_pdcache_size / 1024,
+		    arm_pdcache_line_size, arm_pdcache_ways,
+		    wtnames[arm_pcache_type]);
 	} else {
-		/* Print cache info. */
-		if (arm_picache_line_size == 0 && arm_pdcache_line_size == 0)
-			return;
-
-		if (arm_pcache_unified) {
-			printf("  %dKB/%dB %d-way %s unified cache\n",
-			    arm_pdcache_size / 1024,
-			    arm_pdcache_line_size, arm_pdcache_ways,
-			    wtnames[arm_pcache_type]);
-		} else {
-			printf("  %dKB/%dB %d-way instruction cache\n",
-			    arm_picache_size / 1024,
-			    arm_picache_line_size, arm_picache_ways);
-			printf("  %dKB/%dB %d-way %s data cache\n",
-			    arm_pdcache_size / 1024,
-			    arm_pdcache_line_size, arm_pdcache_ways,
-			    wtnames[arm_pcache_type]);
-		}
+		printf("  %dKB/%dB %d-way instruction cache\n",
+		    arm_picache_size / 1024,
+		    arm_picache_line_size, arm_picache_ways);
+		printf("  %dKB/%dB %d-way %s data cache\n",
+		    arm_pdcache_size / 1024,
+		    arm_pdcache_line_size, arm_pdcache_ways,
+		    wtnames[arm_pcache_type]);
 	}
 }

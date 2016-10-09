@@ -48,13 +48,14 @@
 #define CPU_ARCH_CORTEX_A53		0xD03
 #define CPU_ARCH_CORTEX_A57		0xD07
 #define CPU_ARCH_CORTEX_A72		0xD08
+#define CPU_ARCH_CORTEX_A73		0xD09
 
 
 /* QCOM */
 #define CPU_ARCH_KRAIT_300		0x06F
 
 /* MRVL */
-#define CPU_ARCH_SHEEVA_851		0x581	/* PJ4/PJ4B */
+#define CPU_ARCH_SHEEVA_581		0x581	/* PJ4/PJ4B */
 #define CPU_ARCH_SHEEVA_584		0x584 	/* PJ4B-MP/PJ4C */
 
 struct cpuinfo {
@@ -80,8 +81,10 @@ struct cpuinfo {
 	uint32_t id_isar4;
 	uint32_t id_isar5;
 	uint32_t cbar;
+	uint32_t ccsidr;
+	uint32_t clidr;
 
-        /* Parsed bits of above registers... */
+	/* Parsed bits of above registers... */
 
 	/* midr */
 	int implementer;
