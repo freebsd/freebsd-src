@@ -57,13 +57,16 @@ INDXBIB?=	indxbib
 PIC?=		pic
 REFER?=		refer
 .for _dev in ${PRINTERDEVICE:Mascii}
-ROFF.ascii?=	nroff -Tlp ${TRFLAGS} ${MACROS} ${PAGES:C/^/-o/1} | col -x
+ROFF.ascii?=	nroff -Tlp ${TRFLAGS} ${MACROS} ${PAGES:C/^/-o/1}
+POSTCMD.ascii?=	| col -x
 .endfor
 .for _dev in ${PRINTERDEVICE:Mhtml}
-ROFF.${_dev}?=	troff -T${_dev} ${TRFLAGS} ${MACROS} ${PAGES:C/^/-o/1} | ${DHTML}
+ROFF.${_dev}?=	troff -T${_dev} ${TRFLAGS} ${MACROS} ${PAGES:C/^/-o/1}
+POSTCMD.${_dev}?=	| ${DHTML}
 .endfor
 .for _dev in ${PRINTERDEVICE:Mps}
-ROFF.${_dev}?=	troff -T${_dev} ${TRFLAGS} ${MACROS} ${PAGES:C/^/-o/1} | ${DPOST}
+ROFF.${_dev}?=	troff -T${_dev} ${TRFLAGS} ${MACROS} ${PAGES:C/^/-o/1}
+POSTCMD.${_DEV}?=	| ${DPOST}
 .endfor
 SOELIM?=	soelim
 TBL?=		tbl
@@ -175,7 +178,7 @@ ${DFILE.${_dev}}: ${SRCS}
 .if ${MK_DOCCOMPRESS} == "no"
 	${ROFF.${_dev}} ${.ALLSRC:N_stamp.extra} > ${.TARGET}
 .else
-	cat ${.ALLSRC:N_stamp.extra} | ${PRECMD} ${ROFF.${_dev}} | ${DCOMPRESS_CMD} > ${.TARGET}
+	cat ${.ALLSRC:N_stamp.extra} | ${PRECMD} ${ROFF.${_dev}} ${POSTCMD.${_dev}} | ${DCOMPRESS_CMD} > ${.TARGET}
 .endif
 .endif
 .endfor
