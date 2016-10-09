@@ -67,10 +67,10 @@ fifolog_reader_open(const char *fname)
 	if (retval != NULL)
 		err(1, "%s", retval);
 
-	fr->olen = fr->ff->recsize * 16;
-	fr->obuf = calloc(fr->olen, 1);
+	fr->obuf = calloc(16, fr->ff->recsize);
 	if (fr->obuf == NULL)
 		err(1, "Cannot malloc");
+	fr->olen = fr->ff->recsize * 16;
 
 	i = inflateInit(fr->ff->zs);
 	assert(i == Z_OK);
