@@ -48,13 +48,14 @@
 PRINTERDEVICE?=	ascii
 
 BIB?=		bib
+DHTML?=		dhtml
+DPOST?=		dpost
+EQN?=		eqn
 GREMLIN?=	grn
 GRIND?=		vgrind -f
 INDXBIB?=	indxbib
 PIC?=		pic
 REFER?=		refer
-DHTML?=		dhtml
-DPOST?=		dpost
 .for _dev in ${PRINTERDEVICE:Mascii}
 ROFF.ascii?=	nroff -Tlocale ${TRFLAGS} ${MACROS} ${PAGES:C/^/-o/1}
 .endfor
@@ -70,20 +71,20 @@ TBL?=		tbl
 DOC?=		paper
 LPR?=		lpr
 
-.if defined(USE_EQN)
-PRECMD+=	eqn |
-.endif
-.if defined(USE_PIC)
-PRECMD+=	pic |
-.endif
-.if defined(USE_REFER)
-PRECMD+=	refer |
-.endif
 .if defined(USE_SOELIM)
 PRECMD+=	${SOELIM} -I${.CURDIR} |
 .endif
+.if defined(USE_EQN)
+PRECMD+=	${EQN} |
+.endif
+.if defined(USE_PIC)
+PRECMD+=	${PIC} |
+.endif
+.if defined(USE_REFER)
+PRECMD+=	${REFER} |
+.endif
 .if defined(USE_TBL)
-PRECMD+=	tbl |
+PRECMD+=	${TBL} |
 .endif
 
 .if defined(NO_ROOT)
