@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <machine/bus.h>
-#include <machine/cpufunc.h>
 #include <machine/machdep.h>
 #include <machine/fdt.h>
 
