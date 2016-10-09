@@ -57,7 +57,8 @@ arm/arm/generic_timer.c		optional	generic_timer
 arm/arm/gic.c			optional	gic
 arm/arm/gic_fdt.c		optional	gic fdt
 arm/arm/hdmi_if.m		optional	hdmi
-arm/arm/identcpu.c		standard
+arm/arm/identcpu-v4.c		optional	!armv6
+arm/arm/identcpu-v6.c		optional	armv6
 arm/arm/in_cksum.c		optional	inet | inet6
 arm/arm/in_cksum_arm.S		optional	inet | inet6
 arm/arm/intr.c			optional	!intrng
