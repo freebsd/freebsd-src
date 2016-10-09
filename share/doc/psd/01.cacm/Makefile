@@ -2,15 +2,10 @@
 # $FreeBSD$
 
 VOLUME=		psd/01.cacm
-SRCS=		stubs p.mac p1 p2 p3 p4 p5 p6
-EXTRA=		ref.bib
+SRCS=		p.mac p1 p2 p3 p4 p5 p6
+REFER_ARGS=	-e -p ${.CURDIR}/ref.bib
 MACROS=		-ms
 USE_REFER=
 USE_TBL=
-CLEANFILES=	stubs
-
-stubs:
-	@(echo .R1; echo database ${.CURDIR}/ref.bib; \
-	    echo accumulate; echo .R2) > ${.TARGET}
 
 .include <bsd.doc.mk>
