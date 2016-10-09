@@ -1,6 +1,5 @@
 PROG=	picpack
-SRCS=	picpack.c \
-	getopt.c
+SRCS=	picpack.c
 
 CFLAGS=	-I${DOCTOOLSDIR}/troff/troff.d/dpost.d
 
