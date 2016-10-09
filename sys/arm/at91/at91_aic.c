@@ -38,8 +38,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/armreg.h>
 #include <machine/bus.h>
-#include <machine/cpu.h>
-#include <machine/cpufunc.h>
 #include <machine/frame.h>
 #include <machine/intr.h>
 #include <machine/resource.h>
