@@ -922,7 +922,9 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 
 	INP_WUNLOCK(inp);
 
-	soisconnected(so);
+	if ((so->so_options & SO_ACCEPTFILTER) == 0) {
+		soisconnected(so);
+	}
 
 	TCPSTAT_INC(tcps_accepts);
 	return (so);
