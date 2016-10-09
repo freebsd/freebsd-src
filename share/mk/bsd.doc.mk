@@ -53,11 +53,16 @@ GRIND?=		vgrind -f
 INDXBIB?=	indxbib
 PIC?=		pic
 REFER?=		refer
+DHTML?=		dhtml
+DPOST?=		dpost
 .for _dev in ${PRINTERDEVICE:Mascii}
-ROFF.ascii?=	groff -Tascii -P-c ${TRFLAGS} -mtty-char ${MACROS} ${PAGES:C/^/-o/1}
+ROFF.ascii?=	nroff -Tlocale ${TRFLAGS} ${MACROS} ${PAGES:C/^/-o/1}
 .endfor
-.for _dev in ${PRINTERDEVICE:Nascii}
-ROFF.${_dev}?=	groff -T${_dev} ${TRFLAGS} ${MACROS} ${PAGES:C/^/-o/1}
+.for _dev in ${PRINTERDEVICE:Mhtml}
+ROFF.${_dev}?=	troff -T${_dev} ${TRFLAGS} ${MACROS} ${PAGES:C/^/-o/1} | ${DHTML}
+.endfor
+.for _dev in ${PRINTERDEVICE:Mps}
+ROFF.${_dev}?=	troff -T${_dev} ${TRFLAGS} ${MACROS} ${PAGES:C/^/-o/1} | ${DPOST}
 .endfor
 SOELIM?=	soelim
 TBL?=		tbl
@@ -66,19 +71,19 @@ DOC?=		paper
 LPR?=		lpr
 
 .if defined(USE_EQN)
-TRFLAGS+=	-e
+PRECMD+=	eqn |
 .endif
 .if defined(USE_PIC)
-TRFLAGS+=	-p
+PRECMD+=	pic |
 .endif
 .if defined(USE_REFER)
-TRFLAGS+=	-R
+PRECMD+=	refer |
 .endif
 .if defined(USE_SOELIM)
-TRFLAGS+=	-I${.CURDIR}
+PRECMD+=	${SOELIM} -I${.CURDIR} |
 .endif
 .if defined(USE_TBL)
-TRFLAGS+=	-t
+PRECMD+=	tbl |
 .endif
 
 .if defined(NO_ROOT)
@@ -100,13 +105,6 @@ DFILE.${_dev}=	${DOC}.${_dev}
 DFILE.${_dev}=	${DOC}.${_dev}${DCOMPRESS_EXT}
 .endif
 .endfor
-
-UNROFF?=	unroff
-HTML_SPLIT?=	yes
-UNROFFFLAGS?=	-fhtml
-.if ${HTML_SPLIT} == "yes"
-UNROFFFLAGS+=	split=1
-.endif
 
 # Compatibility mode flag for groff.  Use this when formatting documents with
 # Berkeley me macros (orig_me(7)).
@@ -167,7 +165,7 @@ _stamp.extra: ${EXTRA}
 .endif
 
 CLEANFILES+=	_stamp.extra
-.for _dev in ${PRINTERDEVICE:Nhtml}
+.for _dev in ${PRINTERDEVICE}
 .if !target(${DFILE.${_dev}})
 .if target(_stamp.extra)
 ${DFILE.${_dev}}: _stamp.extra
@@ -176,23 +174,7 @@ ${DFILE.${_dev}}: ${SRCS}
 .if ${MK_DOCCOMPRESS} == "no"
 	${ROFF.${_dev}} ${.ALLSRC:N_stamp.extra} > ${.TARGET}
 .else
-	${ROFF.${_dev}} ${.ALLSRC:N_stamp.extra} | ${DCOMPRESS_CMD} > ${.TARGET}
-.endif
-.endif
-.endfor
-
-.for _dev in ${PRINTERDEVICE:Mhtml}
-.if !target(${DFILE.html})
-.if target(_stamp.extra)
-${DFILE.html}: _stamp.extra
-.endif
-${DFILE.html}: ${SRCS}
-.if defined(MACROS) && !empty(MACROS)
-	cd ${SRCDIR}; ${UNROFF} ${MACROS} ${UNROFFFLAGS} \
-	    document=${DOC} ${SRCS}
-.else # unroff(1) requires a macro package as an argument
-	cd ${SRCDIR}; ${UNROFF} -ms ${UNROFFFLAGS} \
-	    document=${DOC} ${SRCS}
+	cat ${.ALLSRC:N_stamp.extra} | ${PRECMD} ${ROFF.${_dev}} | ${DCOMPRESS_CMD} > ${.TARGET}
 .endif
 .endif
 .endfor
