@@ -5,7 +5,6 @@ VOLUME=		usd/13.viref
 EXTRA=		ex.cmd.roff ref.so set.opt.roff vi.cmd.roff
 MACROS=		-me
 CLEANFILES=	vi.ref-patched index
-TRFLAGS=	-U		# this is to hide warnings only
 USE_SOELIM=
 USE_TBL=
 
@@ -24,7 +23,7 @@ vi.ref-${_dev}: index.so.${_dev}
 # Build index.so as a side-effect of building the paper.
 index.so.${_dev}: vi.ref-patched ${EXTRA:Nindex.so.${_dev}}
 	sed -e 's:^\.so index\.so\.\\\*\[\.T\]$$::' vi.ref-patched | \
-	    ${ROFF.${_dev}} -U -z
+	    ${ROFF.${_dev}} -z
 	sed -e 's/MINUSSIGN/-/' \
 	    -e 's/DOUBLEQUOTE/""/' \
 	    -e "s/SQUOTE/'/" \
