@@ -1584,7 +1584,8 @@ _gperf=		gnu/usr.bin/gperf
 
 .if ${MK_SHAREDOCS} != "no" || ${MK_DOCTOOLS} != "no"
 _doctools=	cddl/usr.bin/doctools \
-		usr.bin/soelim
+		usr.bin/soelim \
+		usr.bin/col
 .endif
 
 .if ${MK_VT} != "no"
