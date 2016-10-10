@@ -2166,6 +2166,7 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	dev->if_capabilities |= IFCAP_VLAN_HWCSUM | IFCAP_VLAN_HWFILTER;
 	dev->if_capabilities |= IFCAP_LINKSTATE | IFCAP_JUMBO_MTU;
 	dev->if_capabilities |= IFCAP_LRO;
+	dev->if_capabilities |= IFCAP_HWSTATS;
 
 	if (mdev->LSO_support)
 		dev->if_capabilities |= IFCAP_TSO4 | IFCAP_TSO6 | IFCAP_VLAN_HWTSO;
