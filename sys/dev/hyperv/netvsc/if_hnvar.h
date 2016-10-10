@@ -117,7 +117,7 @@ struct rndis_packet_msg;
 uint32_t	hn_chim_alloc(struct hn_softc *sc);
 void		hn_chim_free(struct hn_softc *sc, uint32_t chim_idx);
 
-int		hn_rndis_attach(struct hn_softc *sc);
+int		hn_rndis_attach(struct hn_softc *sc, int mtu);
 void		hn_rndis_detach(struct hn_softc *sc);
 int		hn_rndis_conf_rss(struct hn_softc *sc, uint16_t flags);
 void		*hn_rndis_pktinfo_append(struct rndis_packet_msg *,
