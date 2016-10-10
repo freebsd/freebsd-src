@@ -3968,6 +3968,7 @@ product SIERRA E6892		0x6892	E6892
 product SIERRA E6893		0x6893	E6893
 product SIERRA MC8700		0x68A3	MC8700
 product SIERRA AIRCARD875	0x6820	Aircard 875 HSDPA
+product SIERRA MC7430		0x9071	Sierra Wireless MC7430 Qualcomm Snapdragon X7 LTE-A
 product SIERRA AC313U		0x68aa	Sierra Wireless AirCard 313U
 product SIERRA TRUINSTALL	0x0fff	Aircard Tru Installer
 
