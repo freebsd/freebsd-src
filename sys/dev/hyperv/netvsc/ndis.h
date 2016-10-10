@@ -319,9 +319,9 @@ struct ndis_offload {
 };
 
 #define	NDIS_OFFLOAD_SIZE		sizeof(struct ndis_offload)
-#define	NDIS_OFFLOAD_SIZE_1		\
+#define	NDIS_OFFLOAD_SIZE_6_0		\
 	__offsetof(struct ndis_offload, ndis_ipsecv2)
-#define	NDIS_OFFLOAD_SIZE_2		\
+#define	NDIS_OFFLOAD_SIZE_6_1		\
 	__offsetof(struct ndis_offload, ndis_rsc)
 
 #define	NDIS_OFFLOAD_REV_1		1	/* NDIS 6.0 */
