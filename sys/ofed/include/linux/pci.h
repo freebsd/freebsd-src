@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2016 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -115,9 +115,9 @@ struct pci_device_id {
 #define	PCI_EXP_TYPE_RC_EC	PCIEM_TYPE_ROOT_EC		/* Root Complex Event Collector */
 
 
-#define	IORESOURCE_MEM	SYS_RES_MEMORY
-#define	IORESOURCE_IO	SYS_RES_IOPORT
-#define	IORESOURCE_IRQ	SYS_RES_IRQ
+#define	IORESOURCE_MEM	(1 << SYS_RES_MEMORY)
+#define	IORESOURCE_IO	(1 << SYS_RES_IOPORT)
+#define	IORESOURCE_IRQ	(1 << SYS_RES_IRQ)
 
 struct pci_dev;
 
@@ -213,17 +213,28 @@ pci_resource_len(struct pci_dev *pdev, int bar)
 	return rle->count;
 }
 
+static inline int
+pci_resource_type(struct pci_dev *pdev, int bar)
+{
+	struct resource_list_entry *rle;
+
+	if ((rle = _pci_get_bar(pdev, bar)) == NULL)
+		return (-1);
+	return (rle->type);
+}
+
 /*
  * All drivers just seem to want to inspect the type not flags.
  */
 static inline int
 pci_resource_flags(struct pci_dev *pdev, int bar)
 {
-	struct resource_list_entry *rle;
+	int type;
 
-	if ((rle = _pci_get_bar(pdev, bar)) == NULL)
+	type = pci_resource_type(pdev, bar);
+	if (type < 0)
 		return (0);
-	return rle->type;
+	return (1 << type);
 }
 
 static inline const char *
@@ -283,8 +294,8 @@ pci_request_region(struct pci_dev *pdev, int bar, const char *res_name)
 	int rid;
 	int type;
 
-	type = pci_resource_flags(pdev, bar);
-	if (type == 0)
+	type = pci_resource_type(pdev, bar);
+	if (type < 0)
 		return (-ENODEV);
 	rid = PCIR_BAR(bar);
 	if (bus_alloc_resource_any(pdev->dev.bsddev, type, &rid,
