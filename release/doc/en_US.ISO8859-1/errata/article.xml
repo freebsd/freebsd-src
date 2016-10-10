@@ -156,7 +156,7 @@ boot</screen>
       </listitem>
 
       <listitem>
-	<para>The Release Notes errorneously states the
+	<para>The Release Notes erroneously states the
 	  <literal>WITH_SYSTEM_COMPILER</literal> &man.src.conf.5;
 	  option is enabled by default, however this was disabled
 	  prior to the final release build.</para>
