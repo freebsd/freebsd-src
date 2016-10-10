@@ -161,6 +161,13 @@ boot</screen>
 	  option is enabled by default, however this was disabled
 	  prior to the final release build.</para>
       </listitem>
+
+      <listitem>
+	<para>The release announcement stated &quot;Wireless support
+	  for 802.11n has been added.&quot;  This was intended to
+	  state &quot;Wireless support for 802.11n has been added for
+	  additional wireless network drivers.&quot;</para>
+      </listitem>
     </itemizedlist>
   </sect1>
 
