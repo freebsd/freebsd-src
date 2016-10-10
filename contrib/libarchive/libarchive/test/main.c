@@ -1396,6 +1396,31 @@ assertion_file_size(const char *file, int line, const char *pathname, long size)
 	return (0);
 }
 
+/* Verify mode of 'pathname'. */
+int
+assertion_file_mode(const char *file, int line, const char *pathname, int expected_mode)
+{
+	int mode;
+	int r;
+
+	assertion_count(file, line);
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	failure_start(file, line, "assertFileMode not yet implemented for Windows");
+#else
+	{
+		struct stat st;
+		r = lstat(pathname, &st);
+		mode = (int)(st.st_mode & 0777);
+	}
+	if (r == 0 && mode == expected_mode)
+		return (1);
+	failure_start(file, line, "File %s has mode %o, expected %o",
+	    pathname, mode, expected_mode);
+#endif
+	failure_finish(NULL);
+	return (0);
+}
+
 /* Assert that 'pathname' is a dir.  If mode >= 0, verify that too. */
 int
 assertion_is_dir(const char *file, int line, const char *pathname, int mode)

@@ -16,7 +16,17 @@ from older versions of FreeBSD, try WITHOUT_CLANG to bootstrap to the tip of
 stable/10, and then rebuild without this option. The bootstrap process from
 older version of current is a bit fragile.
 
-20160926	p29	FreeBSD-SA-16:26.openssl [revised]
+20161010	p40	FreeBSD-SA-16:29.bspatch
+			FreeBSD-SA-16:30.portsnap
+			FreeBSD-SA-16:31.libarchive
+
+	Fix bspatch heap overflow vulnerability. [SA-16:29]
+
+	Fix multiple portsnap vulnerabilities. [SA-16:30]
+
+	Fix multiple libarchive vulnerabilities. [SA-16:31]
+
+20160926	p39	FreeBSD-SA-16:26.openssl [revised]
 
 	Fix OpenSSL regression introduced in SA-16:26.
 

@@ -175,6 +175,9 @@ TESTS= \
 	test_write_disk_no_hfs_compression.c	\
 	test_write_disk_perms.c			\
 	test_write_disk_secure.c		\
+	test_write_disk_secure744.c		\
+	test_write_disk_secure745.c		\
+	test_write_disk_secure746.c		\
 	test_write_disk_sparse.c		\
 	test_write_disk_symlink.c		\
 	test_write_disk_times.c			\
