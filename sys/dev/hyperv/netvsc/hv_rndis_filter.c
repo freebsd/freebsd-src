@@ -745,26 +745,44 @@ hn_rndis_get_rsscaps(struct hn_softc *sc, int *rxr_cnt)
 	size_t caps_len;
 	int error;
 
-	/*
-	 * Only NDIS 6.30+ is supported.
-	 */
-	KASSERT(sc->hn_ndis_ver >= HN_NDIS_VERSION_6_30,
-	    ("NDIS 6.30+ is required, NDIS version 0x%08x", sc->hn_ndis_ver));
 	*rxr_cnt = 0;
 
 	memset(&in, 0, sizeof(in));
 	in.ndis_hdr.ndis_type = NDIS_OBJTYPE_RSS_CAPS;
-	in.ndis_hdr.ndis_rev = NDIS_RSS_CAPS_REV_2;
-	in.ndis_hdr.ndis_size = NDIS_RSS_CAPS_SIZE;
+	if (sc->hn_ndis_ver < HN_NDIS_VERSION_6_30) {
+		in.ndis_hdr.ndis_rev = NDIS_RSS_CAPS_REV_1;
+		in.ndis_hdr.ndis_size = NDIS_RSS_CAPS_SIZE_6_0;
+	} else {
+		in.ndis_hdr.ndis_rev = NDIS_RSS_CAPS_REV_2;
+		in.ndis_hdr.ndis_size = NDIS_RSS_CAPS_SIZE;
+	}
 
 	caps_len = NDIS_RSS_CAPS_SIZE;
-	error = hn_rndis_query(sc, OID_GEN_RECEIVE_SCALE_CAPABILITIES,
-	    &in, NDIS_RSS_CAPS_SIZE, &caps, &caps_len);
+	error = hn_rndis_query2(sc, OID_GEN_RECEIVE_SCALE_CAPABILITIES,
+	    &in, NDIS_RSS_CAPS_SIZE, &caps, &caps_len, NDIS_RSS_CAPS_SIZE_6_0);
 	if (error)
 		return (error);
-	if (caps_len < NDIS_RSS_CAPS_SIZE_6_0) {
-		if_printf(sc->hn_ifp, "invalid NDIS RSS caps len %zu",
-		    caps_len);
+
+	/*
+	 * Preliminary verification.
+	 */
+	if (caps.ndis_hdr.ndis_type != NDIS_OBJTYPE_RSS_CAPS) {
+		if_printf(sc->hn_ifp, "invalid NDIS objtype 0x%02x\n",
+		    caps.ndis_hdr.ndis_type);
+		return (EINVAL);
+	}
+	if (caps.ndis_hdr.ndis_rev < NDIS_RSS_CAPS_REV_1) {
+		if_printf(sc->hn_ifp, "invalid NDIS objrev 0x%02x\n",
+		    caps.ndis_hdr.ndis_rev);
+		return (EINVAL);
+	}
+	if (caps.ndis_hdr.ndis_size > caps_len) {
+		if_printf(sc->hn_ifp, "invalid NDIS objsize %u, "
+		    "data size %zu\n", caps.ndis_hdr.ndis_size, caps_len);
+		return (EINVAL);
+	} else if (caps.ndis_hdr.ndis_size < NDIS_RSS_CAPS_SIZE_6_0) {
+		if_printf(sc->hn_ifp, "invalid NDIS objsize %u\n",
+		    caps.ndis_hdr.ndis_size);
 		return (EINVAL);
 	}
 
@@ -774,7 +792,7 @@ hn_rndis_get_rsscaps(struct hn_softc *sc, int *rxr_cnt)
 	}
 	*rxr_cnt = caps.ndis_nrxr;
 
-	if (caps_len == NDIS_RSS_CAPS_SIZE) {
+	if (caps.ndis_hdr.ndis_size == NDIS_RSS_CAPS_SIZE) {
 		if (bootverbose) {
 			if_printf(sc->hn_ifp, "RSS indirect table size %u\n",
 			    caps.ndis_nind);
