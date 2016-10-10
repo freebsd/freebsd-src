@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 11, 2012
+.Dd October 3, 2016
 .Dt MOUNT_FUSEFS 8
 .Os
 .Sh NAME
@@ -52,7 +52,8 @@
 .Sh DESCRIPTION
 Basic usage is to start a fuse daemon on the given
 .Ar special
-file.  In practice, the daemon is assigned a
+file.
+In practice, the daemon is assigned a
 .Ar special
 file automatically, which can then be indentified via
 .Xr fstat 1 .
@@ -68,7 +69,8 @@ is appended to the list of arguments,
 .Nm
 will call the
 .Ar fuse_daemon
-via that command.  In that way the
+via that command.
+In that way the
 .Ar fuse_daemon
 will be instructed to attach itself to
 .Ar special .
@@ -101,7 +103,8 @@ The options are as follows:
 .It Fl A , Ic --reject-allow_other
 Prohibit the
 .Cm allow_other
-mount flag. Intended for use in scripts and the
+mount flag.
+Intended for use in scripts and the
 .Xr sudoers 5
 file.
 .It Fl S , Ic --safe
@@ -143,8 +146,8 @@ Only root can use this option
 Limit size of read requests to
 .Ar n
 .It Cm private
-Refuse shared mounting of the daemon. This is the default behaviour,
-to allow sharing, expicitly use
+Refuse shared mounting of the daemon.
+This is the default behaviour, to allow sharing, expicitly use
 .Fl o Cm noprivate
 .It Cm neglect_shares
 Do not refuse unmounting if there are secondary mounts
@@ -155,11 +158,13 @@ Prefix absolute symlinks with the mountpoint
 .El
 .Pp
 Besides the above mount options, there is a set of pseudo-mount options which
-are supported by the Fuse library. One can list these by passing
+are supported by the Fuse library.
+One can list these by passing
 .Fl h
-to a Fuse daemon. Most of these options have effect only on the behaviour of
-the daemon (that is, their scope is limited to userspace). However,
-there are some which do require in-kernel support.
+to a Fuse daemon.
+Most of these options only have affect on the behavior of the daemon (that is,
+their scope is limited to userspace).
+However, there are some which do require in-kernel support.
 Currently the options supported by the kernel are:
 .Bl -tag -width indent
 .It Cm direct_io
@@ -190,7 +195,7 @@ only if the filesystem daemon has the same credentials (uid, real uid, gid,
 real gid) as the user.
 .Pp
 This is applied for Fuse mounts by default and only root can mount without
-the strict access policy (ie. the
+the strict access policy (i.e. the
 .Cm allow_other
 mount option).
 .Pp
@@ -202,7 +207,7 @@ Users might opt to willingly relax strict access policy (as far they
 are concerned) by doing their own secondary mount (See
 .Sx SHARED MOUNTS ) .
 .Sh SHARED MOUNTS
-A Fuse daemon can be shared (ie. mounted multiple times).
+A Fuse daemon can be shared (i.e. mounted multiple times).
 When doing the first (primary) mount, the spawner and the mounter of the daemon
 must have the same uid, or the mounter should be the superuser.
 .Pp
@@ -213,9 +218,9 @@ The behaviour of a secondary mount is analogous to that of symbolic
 links: they redirect all filesystem operations to the primary mount.
 .Pp
 Doing a secondary mount is like signing an agreement: by this action, the mounter
-agrees that the Fuse daemon can trace her I/O activities. From then on
-she is not banned from using the filesystem (either via her own mount or
-via the primary mount), regardless whether
+agrees that the Fuse daemon can trace her I/O activities.
+From then on she is not banned from using the filesystem
+(either via her own mount or via the primary mount), regardless whether
 .Cm allow_other
 is used or not.
 .Pp
@@ -227,14 +232,15 @@ mount; e.g.
 System administrators might want to use a custom mount policy (ie., one going
 beyond the
 .Va vfs.usermount
-sysctl). The primary tool for such purposes is
+sysctl).
+The primary tool for such purposes is
 .Xr sudo 8 .
 However, given that
 .Nm
 is capable of invoking an arbitrary program, one must be careful when doing this.
 .Nm
-is designed in a way such that it makes that easy. For this purpose,
-there are options which disable certain risky features (ie.
+is designed in a way such that it makes that easy.
+For this purpose, there are options which disable certain risky features (i.e.
 .Fl S
 and
 .Fl A ) ,
@@ -270,8 +276,8 @@ If set,
 .Nm
 will ignore uknown mount options.
 .It Ev MOUNT_FUSEFS_CALL_BY_LIB
-Adjust behaviour to the needs of the FUSE library. Currently it effects
-help output.
+Adjust behavior to the needs of the FUSE library.
+Currently it effects help output.
 .El
 .Pp
 Although the following variables do not have any effect on
@@ -279,11 +285,13 @@ Although the following variables do not have any effect on
 itself, they affect the behaviour of fuse daemons:
 .Bl -tag -width ".Ev FUSE_DEV_NAME"
 .It Ev FUSE_DEV_NAME
-Device to attach. If not set, the multiplexer path
+Device to attach.
+If not set, the multiplexer path
 .Ar /dev/fuse
 is used.
 .It Ev FUSE_DEV_FD
-File desciptor of an opened Fuse device to use. Overrides
+File desciptor of an opened Fuse device to use.
+Overrides
 .Ev FUSE_DEV_NAME .
 .It Ev FUSE_NO_MOUNT
 If set, the library will not attempt to mount the filesystem, even
@@ -294,7 +302,8 @@ if a mountpoint argument is supplied.
 .It Pa /dev/fuse
 Fuse device with which the kernel and Fuse daemons can communicate.
 .It Pa /dev/fuse
-The multiplexer path. An
+The multiplexer path.
+An
 .Xr open 2
 performed on it automatically is passed to a free Fuse device by the kernel
 (which might be created just for this puprose).
@@ -331,12 +340,19 @@ does not call any external utility and also provides a hacky
 .Xr sudo 8
 .Sh HISTORY
 .Nm
-appears as the part of the FreeBSD implementation of the Fuse userspace filesystem
-framework (see http://fuse.sourceforge.net). This user interface is FreeBSD specific.
+appeared in
+.Fx 10.0
+as the part of the
+.Fx
+implementation of the Fuse userspace filesystem
+framework (see http://fuse.sourceforge.net).
 .Sh CAVEATS
-Secondary mounts should be unmounted via their device name. If an attempt is
-made to be unmount them via their filesystem root path, the unmount request
-will be forwarded to the primary mount path.
+This user interface is
+.Fx
+specific.
+Secondary mounts should be unmounted via their device name.
+If an attempt is made to unmount them via their filesystem root path,
+the unmount request will be forwarded to the primary mount path.
 In general, unmounting by device name is less error-prone than by mount path
 (although the latter will also work under normal circumstances).
 .Pp
