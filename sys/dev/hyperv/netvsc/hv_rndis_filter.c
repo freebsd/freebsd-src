@@ -39,6 +39,8 @@ __FBSDID("$FreeBSD$");
 #include <net/if_var.h>
 #include <net/ethernet.h>
 #include <net/rndis.h>
+#include <netinet/in.h>
+#include <netinet/ip.h>
 #include <sys/types.h>
 #include <machine/atomic.h>
 #include <sys/sema.h>
@@ -77,6 +79,8 @@ __FBSDID("$FreeBSD$");
 	 NDIS_TXCSUM_CAP_IP6EXT)
 #define HN_NDIS_TXCSUM_CAP_UDP6		\
 	(NDIS_TXCSUM_CAP_UDP6 | NDIS_TXCSUM_CAP_IP6EXT)
+#define HN_NDIS_LSOV2_CAP_IP6		\
+	(NDIS_LSOV2_CAP_IP6EXT | NDIS_LSOV2_CAP_TCP6OPT)
 
 /*
  * Forward declarations
@@ -93,7 +97,7 @@ static int hn_rndis_query2(struct hn_softc *sc, uint32_t oid,
     size_t min_odlen);
 static int hn_rndis_set(struct hn_softc *sc, uint32_t oid, const void *data,
     size_t dlen);
-static int hn_rndis_conf_offload(struct hn_softc *sc);
+static int hn_rndis_conf_offload(struct hn_softc *sc, int mtu);
 static int hn_rndis_query_hwcaps(struct hn_softc *sc,
     struct ndis_offload *caps);
 
@@ -830,13 +834,13 @@ done:
 }
 
 static int
-hn_rndis_conf_offload(struct hn_softc *sc)
+hn_rndis_conf_offload(struct hn_softc *sc, int mtu)
 {
 	struct ndis_offload hwcaps;
 	struct ndis_offload_params params;
 	uint32_t caps = 0;
 	size_t paramsz;
-	int error;
+	int error, tso_maxsz, tso_minsg;
 
 	error = hn_rndis_query_hwcaps(sc, &hwcaps);
 	if (error) {
@@ -857,18 +861,58 @@ hn_rndis_conf_offload(struct hn_softc *sc)
 	}
 	params.ndis_hdr.ndis_size = paramsz;
 
-	/* TSO */
+	/*
+	 * TSO4/TSO6 setup.
+	 */
+	tso_maxsz = IP_MAXPACKET;
+	tso_minsg = 2;
 	if (hwcaps.ndis_lsov2.ndis_ip4_encap & NDIS_OFFLOAD_ENCAP_8023) {
 		caps |= HN_CAP_TSO4;
 		params.ndis_lsov2_ip4 = NDIS_OFFLOAD_LSOV2_ON;
-		/* TODO: tso_max */
+
+		if (hwcaps.ndis_lsov2.ndis_ip4_maxsz < tso_maxsz)
+			tso_maxsz = hwcaps.ndis_lsov2.ndis_ip4_maxsz;
+		if (hwcaps.ndis_lsov2.ndis_ip4_minsg > tso_minsg)
+			tso_minsg = hwcaps.ndis_lsov2.ndis_ip4_minsg;
 	}
-	if (hwcaps.ndis_lsov2.ndis_ip6_encap & NDIS_OFFLOAD_ENCAP_8023) {
+	if ((hwcaps.ndis_lsov2.ndis_ip6_encap & NDIS_OFFLOAD_ENCAP_8023) &&
+	    (hwcaps.ndis_lsov2.ndis_ip6_opts & HN_NDIS_LSOV2_CAP_IP6) ==
+	    HN_NDIS_LSOV2_CAP_IP6) {
 #ifdef notyet
 		caps |= HN_CAP_TSO6;
 		params.ndis_lsov2_ip6 = NDIS_OFFLOAD_LSOV2_ON;
+
+		if (hwcaps.ndis_lsov2.ndis_ip6_maxsz < tso_maxsz)
+			tso_maxsz = hwcaps.ndis_lsov2.ndis_ip6_maxsz;
+		if (hwcaps.ndis_lsov2.ndis_ip6_minsg > tso_minsg)
+			tso_minsg = hwcaps.ndis_lsov2.ndis_ip6_minsg;
 #endif
-		/* TODO: tso_max */
+	}
+	sc->hn_ndis_tso_szmax = 0;
+	sc->hn_ndis_tso_sgmin = 0;
+	if (caps & (HN_CAP_TSO4 | HN_CAP_TSO6)) {
+		KASSERT(tso_maxsz <= IP_MAXPACKET,
+		    ("invalid NDIS TSO maxsz %d", tso_maxsz));
+		KASSERT(tso_minsg >= 2,
+		    ("invalid NDIS TSO minsg %d", tso_minsg));
+		if (tso_maxsz < tso_minsg * mtu) {
+			if_printf(sc->hn_ifp, "invalid NDIS TSO config: "
+			    "maxsz %d, minsg %d, mtu %d; "
+			    "disable TSO4 and TSO6\n",
+			    tso_maxsz, tso_minsg, mtu);
+			caps &= ~(HN_CAP_TSO4 | HN_CAP_TSO6);
+			params.ndis_lsov2_ip4 = NDIS_OFFLOAD_LSOV2_OFF;
+			params.ndis_lsov2_ip6 = NDIS_OFFLOAD_LSOV2_OFF;
+		} else {
+			sc->hn_ndis_tso_szmax = tso_maxsz;
+			sc->hn_ndis_tso_sgmin = tso_minsg;
+			if (bootverbose) {
+				if_printf(sc->hn_ifp, "NDIS TSO "
+				    "szmax %d sgmin %d\n",
+				    sc->hn_ndis_tso_szmax,
+				    sc->hn_ndis_tso_sgmin);
+			}
+		}
 	}
 
 	/* IPv4 checksum */
@@ -1186,7 +1230,7 @@ hn_rndis_query_hwcaps(struct hn_softc *sc, struct ndis_offload *caps)
 }
 
 int
-hn_rndis_attach(struct hn_softc *sc)
+hn_rndis_attach(struct hn_softc *sc, int mtu)
 {
 	int error;
 
@@ -1201,7 +1245,7 @@ hn_rndis_attach(struct hn_softc *sc)
 	 * Configure NDIS offload settings.
 	 * XXX no offloading, if error happened?
 	 */
-	hn_rndis_conf_offload(sc);
+	hn_rndis_conf_offload(sc, mtu);
 	return (0);
 }
 
