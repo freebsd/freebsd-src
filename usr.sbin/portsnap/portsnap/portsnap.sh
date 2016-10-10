@@ -609,7 +609,7 @@ fetch_index_sanity() {
 # Verify a list of files
 fetch_snapshot_verify() {
 	while read F; do
-		if [ "`gunzip -c snap/${F} | ${SHA256} -q`" != ${F} ]; then
+		if [ "`gunzip -c < snap/${F}.gz | ${SHA256} -q`" != ${F} ]; then
 			echo "snapshot corrupt."
 			return 1
 		fi
@@ -644,11 +644,18 @@ fetch_snapshot() {
 	cut -f 2 -d '|' tINDEX.new | fetch_snapshot_verify || return 1
 # Extract the index
 	rm -f INDEX.new
-	gunzip -c snap/`look INDEX tINDEX.new |
+	gunzip -c < snap/`look INDEX tINDEX.new |
 	    cut -f 2 -d '|'`.gz > INDEX.new
 	fetch_index_sanity || return 1
 # Verify the snapshot contents
 	cut -f 2 -d '|' INDEX.new | fetch_snapshot_verify || return 1
+	cut -f 2 -d '|' tINDEX.new INDEX.new | sort -u > files.expected
+	find snap -mindepth 1 | sed -E 's^snap/(.*)\.gz^\1^' | sort > files.snap
+	if ! cmp -s files.expected files.snap; then
+		echo "unexpected files in snapshot."
+		return 1
+	fi
+	rm files.expected files.snap
 	echo "done."
 
 # Move files into their proper locations
@@ -737,7 +744,7 @@ fetch_update() {
 	echo "done."
 
 # Extract the index
-	gunzip -c files/`look INDEX tINDEX.new |
+	gunzip -c < files/`look INDEX tINDEX.new |
 	    cut -f 2 -d '|'`.gz > INDEX.new
 	fetch_index_sanity || return 1
 
@@ -842,7 +849,7 @@ extract_make_index() {
 		echo -n "$1 not provided by portsnap server; "
 		echo "$2 not being generated."
 	else
-	gunzip -c "${WORKDIR}/files/`look $1 ${WORKDIR}/tINDEX |
+	gunzip -c < "${WORKDIR}/files/`look $1 ${WORKDIR}/tINDEX |
 	    cut -f 2 -d '|'`.gz" |
 	    cat - ${LOCALDESC} |
 	    ${MKINDEX} /dev/stdin > ${PORTSDIR}/$2
