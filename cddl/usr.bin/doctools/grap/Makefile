@@ -19,8 +19,16 @@ FILESDIR=	${LIBDIR}
 
 CLEANFILES=	grapl.c
 
-CFLAGS=	-I. -I${DOCTOOLSDIR}/grap -DLIBDIR='"${LIBDIR}"'
 LIBADD=	m
+
+CFLAGS+=	-I. -I${DOCTOOLSDIR}/grap
+
+.if defined(WORLDTMP)
+CFLAGS+=	-DLIBDIR='"${WORLDTMP}/legacy/${LIBDIR}"'
+.else
+CFLAGS+=	-DLIBDIR='"${LIBDIR}"'
+.endif
+
 
 .include <bsd.prog.mk>
 

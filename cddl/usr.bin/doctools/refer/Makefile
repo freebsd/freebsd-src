@@ -62,7 +62,11 @@ BINDIR.hunt=	${LIBDIR}/reftools
 BINDIR.inv=	${LIBDIR}/reftools
 BINDIR.mkey=	${LIBDIR}/reftools
 
-CFLAGS=	-DMACDIR='"${MACDIR}"' -DREFDIR='"${REFDIR}"'
+.if defined(WORLDTMP)
+CFLAGS+=	-DMACDIR='"${WORLDTMP}/legacy/${MACDIR}"' -DREFDIR='"${WORLDTMP}/legacy/${REFDIR}"'
+.else
+CFLAGS+=	-DMACDIR='"${MACDIR}"' -DREFDIR='"${REFDIR}"'
+.endif
 
 .SUFFIXES:	.sh
 .sh:
