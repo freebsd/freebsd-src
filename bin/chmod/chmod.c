@@ -91,12 +91,11 @@ main(int argc, char *argv[])
 			break;
 		case 'h':
 			/*
-			 * In System V (and probably POSIX.2) the -h option
-			 * causes chmod to change the mode of the symbolic
-			 * link.  4.4BSD's symbolic links didn't have modes,
-			 * so it was an undocumented noop.  In FreeBSD 3.0,
-			 * lchmod(2) is introduced and this option does real
-			 * work.
+			 * In System V the -h option causes chmod to change
+			 * the mode of the symbolic link. 4.4BSD's symbolic
+			 * links didn't have modes, so it was an undocumented
+			 * noop.  In FreeBSD 3.0, lchmod(2) is introduced and
+			 * this option does real work.
 			 */
 			hflag = 1;
 			break;
