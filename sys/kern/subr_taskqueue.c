@@ -454,9 +454,26 @@ taskqueue_drain_all(struct taskqueue *queue)
 
 	TQ_LOCK(queue);
 	task = STAILQ_LAST(&queue->tq_queue, task, ta_link);
-	if (task != NULL)
-		while (task->ta_pending != 0)
-			TQ_SLEEP(queue, task, &queue->tq_mutex, PWAIT, "-", 0);
+	while (task != NULL && task->ta_pending != 0) {
+		struct task *oldtask;
+		TQ_SLEEP(queue, task, &queue->tq_mutex, PWAIT, "-", 0);
+		/*
+		 * While we were asleeep the last entry may have been freed.
+		 * We need to check if it's still even in the queue.
+		 * Not perfect, but it's better than referencing bad memory.
+		 * first guess is the current 'end of queue' but if a new
+		 * item has been added we need to take the expensive path
+		 * Better fix in 11.
+		 */
+		oldtask = task;
+		if (oldtask !=
+		    (task = STAILQ_LAST(&queue->tq_queue, task, ta_link))) {
+			STAILQ_FOREACH(task, &queue->tq_queue, ta_link) {
+				if (task == oldtask)
+					break;
+			}
+		}
+	}
 	taskqueue_drain_running(queue);
 	KASSERT(STAILQ_EMPTY(&queue->tq_queue),
 	    ("taskqueue queue is not empty after draining"));
