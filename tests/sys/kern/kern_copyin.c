@@ -59,6 +59,11 @@ ATF_TC_BODY(kern_copyin, tc)
 {
 	char template[] = "copyin.XXXXXX";
 
+#ifdef __mips__
+	/* MIPS has no shared page implemented yet. */
+	atf_tc_skip("Platform is not supported.");
+#endif
+
 	scratch_file = mkstemp(template);
 	ATF_REQUIRE(scratch_file != -1);
 	unlink(template);
