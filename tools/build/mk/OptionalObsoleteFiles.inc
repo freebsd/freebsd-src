@@ -6014,6 +6014,10 @@ OLD_FILES+=usr/share/man/whatis
 OLD_FILES+=usr/share/openssl/man/whatis
 .endif
 
+.if ${MK_MANDOCDB} != no
+OLD_FILES+=usr/share/man/man1/makewhatis.1.gz
+.endif
+
 .if ${MK_NDIS} == no
 OLD_FILES+=usr/sbin/ndiscvt
 OLD_FILES+=usr/sbin/ndisgen
