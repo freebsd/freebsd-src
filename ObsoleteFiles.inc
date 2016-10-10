@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20161010: remove link to removed m_getclr(9) macro
+OLD_FILES+=usr/share/man/man9/m_getclr.9
 # 20161003: MK_ELFCOPY_AS_OBJCOPY option retired
 OLD_FILES+=usr/bin/elfcopy
 OLD_FILES+=usr/share/man/man1/elfcopy.1.gz
