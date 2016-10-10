@@ -10,4 +10,7 @@ MACDIR=	${DTSHAREDIR}/tmac
 PSTDIR=	${DTSHAREDIR}/devpost/postscript
 PUBDIR=	${DTSHAREDIR}/pub
 TABDIR=	${DTSHAREDIR}/nterm
+.if defined(WORLDTMP)
+WORLDTMPDIR=	${WORLDTMP}/legacy
+.endif
 .include "../Makefile.inc"

@@ -67,7 +67,7 @@ IMACS=	an \
 
 .SUFFIXES: .in
 .in:
-	sed 's:@MACDIR@:${MACDIR}:; s:@LIBDIR@:${LIBDIR}:' ${.IMPSRC} >${.TARGET}
+	sed 's:@MACDIR@:${WORLDTMPDIR}${MACDIR}:; s:@LIBDIR@:${WORLDTMPDIR}${LIBDIR}:' ${.IMPSRC} >${.TARGET}
 
 .include <bsd.prog.mk>
 .PATH: ${DOCTOOLSDIR}/troff/troff.d/tmac.d

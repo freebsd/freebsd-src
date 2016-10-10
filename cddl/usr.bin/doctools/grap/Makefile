@@ -23,11 +23,7 @@ LIBADD=	m
 
 CFLAGS+=	-I. -I${DOCTOOLSDIR}/grap
 
-.if defined(WORLDTMP)
-CFLAGS+=	-DLIBDIR='"${WORLDTMP}/legacy/${LIBDIR}"'
-.else
-CFLAGS+=	-DLIBDIR='"${LIBDIR}"'
-.endif
+CFLAGS+=	-DLIBDIR='"${WORLDTMPDIR}${LIBDIR}"'
 
 
 .include <bsd.prog.mk>
