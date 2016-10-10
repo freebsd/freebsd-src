@@ -1179,16 +1179,16 @@ hn_rndis_query_hwcaps(struct hn_softc *sc, struct ndis_offload *caps)
 		size = NDIS_OFFLOAD_SIZE;
 	} else if (sc->hn_ndis_ver >= HN_NDIS_VERSION_6_1) {
 		in.ndis_hdr.ndis_rev = NDIS_OFFLOAD_REV_2;
-		size = NDIS_OFFLOAD_SIZE_2;
+		size = NDIS_OFFLOAD_SIZE_6_1;
 	} else {
 		in.ndis_hdr.ndis_rev = NDIS_OFFLOAD_REV_1;
-		size = NDIS_OFFLOAD_SIZE_1;
+		size = NDIS_OFFLOAD_SIZE_6_0;
 	}
 	in.ndis_hdr.ndis_size = size;
 
 	caps_len = NDIS_OFFLOAD_SIZE;
 	error = hn_rndis_query2(sc, OID_TCP_OFFLOAD_HARDWARE_CAPABILITIES,
-	    &in, size, caps, &caps_len, NDIS_OFFLOAD_SIZE_1);
+	    &in, size, caps, &caps_len, NDIS_OFFLOAD_SIZE_6_0);
 	if (error)
 		return (error);
 
@@ -1209,7 +1209,7 @@ hn_rndis_query_hwcaps(struct hn_softc *sc, struct ndis_offload *caps)
 		if_printf(sc->hn_ifp, "invalid NDIS objsize %u, "
 		    "data size %zu\n", caps->ndis_hdr.ndis_size, caps_len);
 		return (EINVAL);
-	} else if (caps->ndis_hdr.ndis_size < NDIS_OFFLOAD_SIZE_1) {
+	} else if (caps->ndis_hdr.ndis_size < NDIS_OFFLOAD_SIZE_6_0) {
 		if_printf(sc->hn_ifp, "invalid NDIS objsize %u\n",
 		    caps->ndis_hdr.ndis_size);
 		return (EINVAL);
@@ -1217,7 +1217,9 @@ hn_rndis_query_hwcaps(struct hn_softc *sc, struct ndis_offload *caps)
 
 	if (bootverbose) {
 		/*
-		 * Fields for NDIS 6.0 are accessable.
+		 * NOTE:
+		 * caps->ndis_hdr.ndis_size MUST be checked before accessing
+		 * NDIS 6.1+ specific fields.
 		 */
 		if_printf(sc->hn_ifp, "hwcaps rev %u\n",
 		    caps->ndis_hdr.ndis_rev);
