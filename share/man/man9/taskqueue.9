@@ -221,6 +221,8 @@ Otherwise, the task is scheduled for enqueueing in the future,
 after the absolute value of
 .Va ticks
 is passed.
+This function returns -1 if the task is being drained.
+Otherwise, the number of pending calls is returned.
 .Pp
 The
 .Fn taskqueue_cancel
