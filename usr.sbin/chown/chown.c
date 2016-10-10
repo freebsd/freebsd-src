@@ -159,7 +159,7 @@ main(int argc, char **argv)
 	} else
 		a_gid(*argv);
 
-	if ((ftsp = fts_open(++argv, fts_options, 0)) == NULL)
+	if ((ftsp = fts_open(++argv, fts_options, NULL)) == NULL)
 		err(1, NULL);
 
 	for (rval = 0; (p = fts_read(ftsp)) != NULL;) {
