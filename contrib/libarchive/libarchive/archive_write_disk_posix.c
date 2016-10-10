@@ -140,7 +140,17 @@ __FBSDID("$FreeBSD$");
 #define O_BINARY 0
 #endif
 #ifndef O_CLOEXEC
-#define O_CLOEXEC	0
+#define O_CLOEXEC 0
+#endif
+
+/* Ignore non-int O_NOFOLLOW constant. */
+/* gnulib's fcntl.h does this on AIX, but it seems practical everywhere */
+#if defined O_NOFOLLOW && !(INT_MIN <= O_NOFOLLOW && O_NOFOLLOW <= INT_MAX)
+#undef O_NOFOLLOW
+#endif
+
+#ifndef O_NOFOLLOW
+#define O_NOFOLLOW 0
 #endif
 
 struct fixup_entry {
@@ -326,12 +336,14 @@ struct archive_write_disk {
 
 #define HFS_BLOCKS(s)	((s) >> 12)
 
+static int	check_symlinks_fsobj(char *path, int *error_number, struct archive_string *error_string, int flags);
 static int	check_symlinks(struct archive_write_disk *);
 static int	create_filesystem_object(struct archive_write_disk *);
 static struct fixup_entry *current_fixup(struct archive_write_disk *, const char *pathname);
 #if defined(HAVE_FCHDIR) && defined(PATH_MAX)
 static void	edit_deep_directories(struct archive_write_disk *ad);
 #endif
+static int	cleanup_pathname_fsobj(char *path, int *error_number, struct archive_string *error_string, int flags);
 static int	cleanup_pathname(struct archive_write_disk *);
 static int	create_dir(struct archive_write_disk *, char *);
 static int	create_parent_dir(struct archive_write_disk *, char *);
@@ -1791,7 +1803,7 @@ edit_deep_directories(struct archive_write_disk *a)
 	char *tail = a->name;
 
 	/* If path is short, avoid the open() below. */
-	if (strlen(tail) <= PATH_MAX)
+	if (strlen(tail) < PATH_MAX)
 		return;
 
 	/* Try to record our starting dir. */
@@ -1801,7 +1813,7 @@ edit_deep_directories(struct archive_write_disk *a)
 		return;
 
 	/* As long as the path is too long... */
-	while (strlen(tail) > PATH_MAX) {
+	while (strlen(tail) >= PATH_MAX) {
 		/* Locate a dir prefix shorter than PATH_MAX. */
 		tail += PATH_MAX - 8;
 		while (tail > a->name && *tail != '/')
@@ -1996,6 +2008,10 @@ create_filesystem_object(struct archive_write_disk *a)
 	const char *linkname;
 	mode_t final_mode, mode;
 	int r;
+	/* these for check_symlinks_fsobj */
+	char *linkname_copy;	/* non-const copy of linkname */
+	struct archive_string error_string;
+	int error_number;
 
 	/* We identify hard/symlinks according to the link names. */
 	/* Since link(2) and symlink(2) don't handle modes, we're done here. */
@@ -2004,6 +2020,27 @@ create_filesystem_object(struct archive_write_disk *a)
 #if !HAVE_LINK
 		return (EPERM);
 #else
+		archive_string_init(&error_string);
+		linkname_copy = strdup(linkname);
+		if (linkname_copy == NULL) {
+		    return (EPERM);
+		}
+		/* TODO: consider using the cleaned-up path as the link target? */
+		r = cleanup_pathname_fsobj(linkname_copy, &error_number, &error_string, a->flags);
+		if (r != ARCHIVE_OK) {
+			archive_set_error(&a->archive, error_number, "%s", error_string.s);
+			free(linkname_copy);
+			/* EPERM is more appropriate than error_number for our callers */
+			return (EPERM);
+		}
+		r = check_symlinks_fsobj(linkname_copy, &error_number, &error_string, a->flags);
+		if (r != ARCHIVE_OK) {
+			archive_set_error(&a->archive, error_number, "%s", error_string.s);
+			free(linkname_copy);
+			/* EPERM is more appropriate than error_number for our callers */
+			return (EPERM);
+		}
+		free(linkname_copy);
 		r = link(linkname, a->name) ? errno : 0;
 		/*
 		 * New cpio and pax formats allow hardlink entries
@@ -2022,7 +2059,7 @@ create_filesystem_object(struct archive_write_disk *a)
 			a->deferred = 0;
 		} else if (r == 0 && a->filesize > 0) {
 			a->fd = open(a->name,
-				     O_WRONLY | O_TRUNC | O_BINARY | O_CLOEXEC);
+				     O_WRONLY | O_TRUNC | O_BINARY | O_CLOEXEC | O_NOFOLLOW);
 			__archive_ensure_cloexec_flag(a->fd);
 			if (a->fd < 0)
 				r = errno;
@@ -2332,109 +2369,232 @@ current_fixup(struct archive_write_disk *a, const char *pathname)
 	return (a->current_fixup);
 }
 
-/* TODO: Make this work. */
-/*
- * TODO: The deep-directory support bypasses this; disable deep directory
- * support if we're doing symlink checks.
- */
 /*
  * TODO: Someday, integrate this with the deep dir support; they both
  * scan the path and both can be optimized by comparing against other
  * recent paths.
  */
 /* TODO: Extend this to support symlinks on Windows Vista and later. */
+
+/*
+ * Checks the given path to see if any elements along it are symlinks.  Returns
+ * ARCHIVE_OK if there are none, otherwise puts an error in errmsg.
+ */
 static int
-check_symlinks(struct archive_write_disk *a)
+check_symlinks_fsobj(char *path, int *error_number, struct archive_string *error_string, int flags)
 {
 #if !defined(HAVE_LSTAT)
 	/* Platform doesn't have lstat, so we can't look for symlinks. */
-	(void)a; /* UNUSED */
+	(void)path; /* UNUSED */
+	(void)error_number; /* UNUSED */
+	(void)error_string; /* UNUSED */
+	(void)flags; /* UNUSED */
 	return (ARCHIVE_OK);
 #else
-	char *pn;
+	int res = ARCHIVE_OK;
+	char *tail;
+	char *head;
+	int last;
 	char c;
 	int r;
 	struct stat st;
+	int restore_pwd;
+
+	/* Nothing to do here if name is empty */
+	if(path[0] == '\0')
+	    return (ARCHIVE_OK);
 
 	/*
 	 * Guard against symlink tricks.  Reject any archive entry whose
 	 * destination would be altered by a symlink.
+	 *
+	 * Walk the filename in chunks separated by '/'.  For each segment:
+	 *  - if it doesn't exist, continue
+	 *  - if it's symlink, abort or remove it
+	 *  - if it's a directory and it's not the last chunk, cd into it
+	 * As we go:
+	 *  head points to the current (relative) path
+	 *  tail points to the temporary \0 terminating the segment we're currently examining
+	 *  c holds what used to be in *tail
+	 *  last is 1 if this is the last tail
 	 */
-	/* Whatever we checked last time doesn't need to be re-checked. */
-	pn = a->name;
-	if (archive_strlen(&(a->path_safe)) > 0) {
-		char *p = a->path_safe.s;
-		while ((*pn != '\0') && (*p == *pn))
-			++p, ++pn;
-	}
-	c = pn[0];
-	/* Keep going until we've checked the entire name. */
-	while (pn[0] != '\0' && (pn[0] != '/' || pn[1] != '\0')) {
+	restore_pwd = open(".", O_RDONLY | O_BINARY | O_CLOEXEC);
+	__archive_ensure_cloexec_flag(restore_pwd);
+	if (restore_pwd < 0)
+		return (ARCHIVE_FATAL);
+	head = path;
+	tail = path;
+	last = 0;
+	/* TODO: reintroduce a safe cache here? */
+	/* Skip the root directory if the path is absolute. */
+	if(tail == path && tail[0] == '/')
+		++tail;
+	/* Keep going until we've checked the entire name.
+	 * head, tail, path all alias the same string, which is
+	 * temporarily zeroed at tail, so be careful restoring the
+	 * stashed (c=tail[0]) for error messages.
+	 * Exiting the loop with break is okay; continue is not.
+	 */
+	while (!last) {
+		/* Skip the separator we just consumed, plus any adjacent ones */
+		while (*tail == '/')
+		    ++tail;
 		/* Skip the next path element. */
-		while (*pn != '\0' && *pn != '/')
-			++pn;
-		c = pn[0];
-		pn[0] = '\0';
+		while (*tail != '\0' && *tail != '/')
+			++tail;
+		/* is this the last path component? */
+		last = (tail[0] == '\0') || (tail[0] == '/' && tail[1] == '\0');
+		/* temporarily truncate the string here */
+		c = tail[0];
+		tail[0] = '\0';
 		/* Check that we haven't hit a symlink. */
-		r = lstat(a->name, &st);
+		r = lstat(head, &st);
 		if (r != 0) {
+			tail[0] = c;
 			/* We've hit a dir that doesn't exist; stop now. */
-			if (errno == ENOENT)
+			if (errno == ENOENT) {
 				break;
+			} else {
+				/* Treat any other error as fatal - best to be paranoid here
+				 * Note: This effectively disables deep directory
+				 * support when security checks are enabled.
+				 * Otherwise, very long pathnames that trigger
+				 * an error here could evade the sandbox.
+				 * TODO: We could do better, but it would probably
+				 * require merging the symlink checks with the
+				 * deep-directory editing. */
+				if (error_number) *error_number = errno;
+				if (error_string)
+					archive_string_sprintf(error_string,
+							"Could not stat %s",
+							path);
+				res = ARCHIVE_FAILED;
+				break;
+			}
+		} else if (S_ISDIR(st.st_mode)) {
+			if (!last) {
+				if (chdir(head) != 0) {
+					tail[0] = c;
+					if (error_number) *error_number = errno;
+					if (error_string)
+						archive_string_sprintf(error_string,
+								"Could not chdir %s",
+								path);
+					res = (ARCHIVE_FATAL);
+					break;
+				}
+				/* Our view is now from inside this dir: */
+				head = tail + 1;
+			}
 		} else if (S_ISLNK(st.st_mode)) {
-			if (c == '\0') {
+			if (last) {
 				/*
 				 * Last element is symlink; remove it
 				 * so we can overwrite it with the
 				 * item being extracted.
 				 */
-				if (unlink(a->name)) {
-					archive_set_error(&a->archive, errno,
-					    "Could not remove symlink %s",
-					    a->name);
-					pn[0] = c;
-					return (ARCHIVE_FAILED);
+				if (unlink(head)) {
+					tail[0] = c;
+					if (error_number) *error_number = errno;
+					if (error_string)
+						archive_string_sprintf(error_string,
+								"Could not remove symlink %s",
+								path);
+					res = ARCHIVE_FAILED;
+					break;
 				}
-				a->pst = NULL;
 				/*
 				 * Even if we did remove it, a warning
 				 * is in order.  The warning is silly,
 				 * though, if we're just replacing one
 				 * symlink with another symlink.
 				 */
-				if (!S_ISLNK(a->mode)) {
-					archive_set_error(&a->archive, 0,
-					    "Removing symlink %s",
-					    a->name);
+				tail[0] = c;
+				/* FIXME:  not sure how important this is to restore
+				if (!S_ISLNK(path)) {
+					if (error_number) *error_number = 0;
+					if (error_string)
+						archive_string_sprintf(error_string,
+								"Removing symlink %s",
+								path);
 				}
+				*/
 				/* Symlink gone.  No more problem! */
-				pn[0] = c;
-				return (0);
-			} else if (a->flags & ARCHIVE_EXTRACT_UNLINK) {
+				res = ARCHIVE_OK;
+				break;
+			} else if (flags & ARCHIVE_EXTRACT_UNLINK) {
 				/* User asked us to remove problems. */
-				if (unlink(a->name) != 0) {
-					archive_set_error(&a->archive, 0,
-					    "Cannot remove intervening symlink %s",
-					    a->name);
-					pn[0] = c;
-					return (ARCHIVE_FAILED);
+				if (unlink(head) != 0) {
+					tail[0] = c;
+					if (error_number) *error_number = 0;
+					if (error_string)
+						archive_string_sprintf(error_string,
+								"Cannot remove intervening symlink %s",
+								path);
+					res = ARCHIVE_FAILED;
+					break;
 				}
-				a->pst = NULL;
+				tail[0] = c;
 			} else {
-				archive_set_error(&a->archive, 0,
-				    "Cannot extract through symlink %s",
-				    a->name);
-				pn[0] = c;
-				return (ARCHIVE_FAILED);
+				tail[0] = c;
+				if (error_number) *error_number = 0;
+				if (error_string)
+					archive_string_sprintf(error_string,
+							"Cannot extract through symlink %s",
+							path);
+				res = ARCHIVE_FAILED;
+				break;
 			}
 		}
+		/* be sure to always maintain this */
+		tail[0] = c;
+		if (tail[0] != '\0')
+			tail++; /* Advance to the next segment. */
 	}
-	pn[0] = c;
-	/* We've checked and/or cleaned the whole path, so remember it. */
-	archive_strcpy(&a->path_safe, a->name);
-	return (ARCHIVE_OK);
+	/* Catches loop exits via break */
+	tail[0] = c;
+#ifdef HAVE_FCHDIR
+	/* If we changed directory above, restore it here. */
+	if (restore_pwd >= 0) {
+		r = fchdir(restore_pwd);
+		if (r != 0) {
+			if(error_number) *error_number = errno;
+			if(error_string)
+				archive_string_sprintf(error_string,
+						"chdir() failure");
+		}
+		close(restore_pwd);
+		restore_pwd = -1;
+		if (r != 0) {
+			res = (ARCHIVE_FATAL);
+		}
+	}
+#endif
+	/* TODO: reintroduce a safe cache here? */
+	return res;
 #endif
 }
+
+/*
+ * Check a->name for symlinks, returning ARCHIVE_OK if its clean, otherwise
+ * calls archive_set_error and returns ARCHIVE_{FATAL,FAILED}
+ */
+static int
+check_symlinks(struct archive_write_disk *a)
+{
+	struct archive_string error_string;
+	int error_number;
+	int rc;
+	archive_string_init(&error_string);
+	rc = check_symlinks_fsobj(a->name, &error_number, &error_string, a->flags);
+	if (rc != ARCHIVE_OK) {
+		archive_set_error(&a->archive, error_number, "%s", error_string.s);
+	}
+	archive_string_free(&error_string);
+	a->pst = NULL;	/* to be safe */
+	return rc;
+}
+
 
 #if defined(__CYGWIN__)
 /*
@@ -2509,15 +2669,17 @@ cleanup_pathname_win(struct archive_write_disk *a)
  * is set) if the path is absolute.
  */
 static int
-cleanup_pathname(struct archive_write_disk *a)
+cleanup_pathname_fsobj(char *path, int *error_number, struct archive_string *error_string, int flags)
 {
 	char *dest, *src;
 	char separator = '\0';
 
-	dest = src = a->name;
+	dest = src = path;
 	if (*src == '\0') {
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-		    "Invalid empty pathname");
+		if (error_number) *error_number = ARCHIVE_ERRNO_MISC;
+		if (error_string)
+		    archive_string_sprintf(error_string,
+			    "Invalid empty pathname");
 		return (ARCHIVE_FAILED);
 	}
 
@@ -2526,9 +2688,11 @@ cleanup_pathname(struct archive_write_disk *a)
 #endif
 	/* Skip leading '/'. */
 	if (*src == '/') {
-		if (a->flags & ARCHIVE_EXTRACT_SECURE_NOABSOLUTEPATHS) {
-			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			                  "Path is absolute");
+		if (flags & ARCHIVE_EXTRACT_SECURE_NOABSOLUTEPATHS) {
+			if (error_number) *error_number = ARCHIVE_ERRNO_MISC;
+			if (error_string)
+			    archive_string_sprintf(error_string,
+				    "Path is absolute");
 			return (ARCHIVE_FAILED);
 		}
 
@@ -2555,10 +2719,11 @@ cleanup_pathname(struct archive_write_disk *a)
 			} else if (src[1] == '.') {
 				if (src[2] == '/' || src[2] == '\0') {
 					/* Conditionally warn about '..' */
-					if (a->flags & ARCHIVE_EXTRACT_SECURE_NODOTDOT) {
-						archive_set_error(&a->archive,
-						    ARCHIVE_ERRNO_MISC,
-						    "Path contains '..'");
+					if (flags & ARCHIVE_EXTRACT_SECURE_NODOTDOT) {
+						if (error_number) *error_number = ARCHIVE_ERRNO_MISC;
+						if (error_string)
+						    archive_string_sprintf(error_string,
+							    "Path contains '..'");
 						return (ARCHIVE_FAILED);
 					}
 				}
@@ -2589,7 +2754,7 @@ cleanup_pathname(struct archive_write_disk *a)
 	 * We've just copied zero or more path elements, not including the
 	 * final '/'.
 	 */
-	if (dest == a->name) {
+	if (dest == path) {
 		/*
 		 * Nothing got copied.  The path must have been something
 		 * like '.' or '/' or './' or '/././././/./'.
@@ -2602,6 +2767,21 @@ cleanup_pathname(struct archive_write_disk *a)
 	/* Terminate the result. */
 	*dest = '\0';
 	return (ARCHIVE_OK);
+}
+
+static int
+cleanup_pathname(struct archive_write_disk *a)
+{
+	struct archive_string error_string;
+	int error_number;
+	int rc;
+	archive_string_init(&error_string);
+	rc = cleanup_pathname_fsobj(a->name, &error_number, &error_string, a->flags);
+	if (rc != ARCHIVE_OK) {
+		archive_set_error(&a->archive, error_number, "%s", error_string.s);
+	}
+	archive_string_free(&error_string);
+	return rc;
 }
 
 /*
