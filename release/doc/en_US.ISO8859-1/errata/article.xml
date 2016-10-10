@@ -19,7 +19,7 @@
     <pubdate>$FreeBSD$</pubdate>
 
     <copyright>
-      <year>2015</year>
+      <year>2016</year>
 
       <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
     </copyright>
@@ -89,7 +89,79 @@
   <sect1 xml:id="open-issues">
     <title>Open Issues</title>
 
-    <para>No open issues.</para>
+    <itemizedlist>
+      <listitem>
+	<para>An issue was discovered with Amazon&reg; EC2&trade;
+	  images which would cause the virtual machine to hang during
+	  boot when upgrading from previous FreeBSD versions. New
+	  EC2&trade; installations are not affected, but exisiting
+	  installations running earlier releases are advised to wait
+	  until the issue is resolved in an Errata Notice before
+	  upgrading.  An Errata Notice to address this is planned
+	  following the release.</para>
+      </listitem>
+
+      <listitem>
+	<para>&os;/&arch.i386; installed on ZFS may crash during boot
+	  when the ZFS pool mount is attempted while booting an
+	  unmodified <literal>GENERIC</literal> kernel.</para>
+
+	<para>A system tunable has been added as of revision
+	  <literal>r286584</literal> to make the
+	  <literal>kern.kstack_pages</literal> tunable configurable
+	  without recompiling the kernel.</para>
+
+	<para>To mitigate system crashes with such configurations,
+	  chose <literal>Escape to loader prompt</literal> in the boot
+	  menu and enter the following lines from &man.loader.8;
+	  prompt, after an <literal>OK</literal>:</para>
+
+	<screen>set kern.kstack_pages=4
+boot</screen>
+
+	<para>Add this line to
+	  <filename>/boot/loader.conf</filename> for the change to
+	  persist across reboots:</para>
+
+	<programlisting>kern.kstack_pages=4</programlisting>
+      </listitem>
+
+      <listitem>
+	<para>A bug was diagnosed in interaction of the
+	  <literal>pmap_activate()</literal> function and
+	  <acronym>TLB</acronym> shootdown <acronym>IPI</acronym>
+	  handler on amd64 systems which have <acronym>PCID</acronym>
+	  features but do not implement the <acronym>INVPCID</acronym>
+	  instruction.  On such machines, such as SandyBridge&trade;
+	  and IvyBridge&trade; microarchitectures, set the loader
+	  tunable <literal>vm.pmap.pcid_enabled=0</literal> during
+	  boot:</para>
+
+	<screen>set vm.pmap.pcid_enabled=0
+boot</screen>
+
+	<para>Add this line to
+	  <filename>/boot/loader.conf</filename> for the change to
+	  persist across reboots:</para>
+
+	<para>To check if the system is affected, check
+	  &man.dmesg.8; for <acronym>PCID</acronym> listed in the
+	  &quot;Features2&quot;, and absence of
+	  <acronym>INVPCID</acronym> in the &quot;Structured Extended
+	  Features&quot;.  If the <acronym>PCID</acronym> feature is
+	  not present, or <acronym>INVPCID</acronym> is present,
+	  system is not affected.</para>
+
+	<programlisting>vm.pmap.pcid_enabled=0</programlisting>
+      </listitem>
+
+      <listitem>
+	<para>The Release Notes errorneously states the
+	  <literal>WITH_SYSTEM_COMPILER</literal> &man.src.conf.5;
+	  option is enabled by default, however this was disabled
+	  prior to the final release build.</para>
+      </listitem>
+    </itemizedlist>
   </sect1>
 
   <sect1 xml:id="late-news">
