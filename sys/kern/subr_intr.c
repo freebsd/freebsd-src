@@ -145,6 +145,7 @@ static u_int intrcnt_index;
 
 static struct intr_irqsrc *intr_map_get_isrc(u_int res_id);
 static void intr_map_set_isrc(u_int res_id, struct intr_irqsrc *isrc);
+static struct intr_map_data * intr_map_get_map_data(u_int res_id);
 static void intr_map_copy_map_data(u_int res_id, device_t *dev, intptr_t *xref,
     struct intr_map_data **data);
 
@@ -1309,6 +1310,7 @@ intr_release_msi(device_t pci, device_t child, intptr_t xref, int count,
 {
 	struct intr_irqsrc **isrc;
 	struct intr_pic *pic;
+	struct intr_map_data_msi *msi;
 	int i, err;
 
 	pic = pic_lookup(NULL, xref);
@@ -1321,8 +1323,14 @@ intr_release_msi(device_t pci, device_t child, intptr_t xref, int count,
 
 	isrc = malloc(sizeof(*isrc) * count, M_INTRNG, M_WAITOK);
 
-	for (i = 0; i < count; i++)
-		isrc[i] = intr_map_get_isrc(irqs[i]);
+	for (i = 0; i < count; i++) {
+		msi = (struct intr_map_data_msi *)
+		    intr_map_get_map_data(irqs[i]);
+		KASSERT(msi->hdr.type == INTR_MAP_DATA_MSI,
+		    ("%s: irq %d map data is not MSI", __func__,
+		    irqs[i]));
+		isrc[i] = msi->isrc;
+	}
 
 	err = MSI_RELEASE_MSI(pic->pic_dev, child, count, isrc);
 
@@ -1369,6 +1377,7 @@ intr_release_msix(device_t pci, device_t child, intptr_t xref, int irq)
 {
 	struct intr_irqsrc *isrc;
 	struct intr_pic *pic;
+	struct intr_map_data_msi *msi;
 	int err;
 
 	pic = pic_lookup(NULL, xref);
@@ -1379,7 +1388,12 @@ intr_release_msix(device_t pci, device_t child, intptr_t xref, int irq)
 	    ("%s: Found a non-MSI controller: %s", __func__,
 	     device_get_name(pic->pic_dev)));
 
-	isrc = intr_map_get_isrc(irq);
+	msi = (struct intr_map_data_msi *)
+	    intr_map_get_map_data(irq);
+	KASSERT(msi->hdr.type == INTR_MAP_DATA_MSI,
+	    ("%s: irq %d map data is not MSI", __func__,
+	    irq));
+	isrc = msi->isrc;
 	if (isrc == NULL) {
 		intr_unmap_irq(irq);
 		return (EINVAL);
@@ -1511,6 +1525,24 @@ intr_map_set_isrc(u_int res_id, struct intr_irqsrc *isrc)
 	}
 	irq_map[res_id]->isrc = isrc;
 	mtx_unlock(&irq_map_lock);
+}
+
+/*
+ * Get a copy of intr_map_entry data
+ */
+static struct intr_map_data *
+intr_map_get_map_data(u_int res_id)
+{
+	struct intr_map_data *data;
+
+	data = NULL;
+	mtx_lock(&irq_map_lock);
+	if (res_id >= irq_map_count || irq_map[res_id] == NULL)
+		panic("Attempt to copy invalid resource id: %u\n", res_id);
+	data = irq_map[res_id]->map_data;
+	mtx_unlock(&irq_map_lock);
+
+	return (data);
 }
 
 /*
