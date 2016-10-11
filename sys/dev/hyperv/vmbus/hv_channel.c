@@ -157,7 +157,7 @@ vmbus_channel_sysctl_create(hv_vmbus_channel* channel)
 		    &channel->ch_id, 0, "channel id");
 	}
 	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(devch_id_sysctl), OID_AUTO,
-	    "cpu", CTLFLAG_RD, &channel->target_cpu, 0, "owner CPU id");
+	    "cpu", CTLFLAG_RD, &channel->ch_cpuid, 0, "owner CPU id");
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(devch_id_sysctl), OID_AUTO,
 	    "monitor_allocated", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
 	    channel, 0, vmbus_channel_sysctl_monalloc, "I",
@@ -193,8 +193,8 @@ hv_vmbus_channel_open(
 	uint32_t			recv_ring_buffer_size,
 	void*				user_data,
 	uint32_t			user_data_len,
-	hv_vmbus_pfn_channel_callback	pfn_on_channel_callback,
-	void* 				context)
+	vmbus_chan_callback_t		cb,
+	void				*cbarg)
 {
 	struct vmbus_softc *sc = new_channel->vmbus_sc;
 	const struct vmbus_chanmsg_chopen_resp *resp;
@@ -220,19 +220,19 @@ hv_vmbus_channel_open(
 	    VMBUS_CHAN_ST_OPENED_SHIFT))
 		panic("double-open chan%u", new_channel->ch_id);
 
-	new_channel->on_channel_callback = pfn_on_channel_callback;
-	new_channel->channel_callback_context = context;
+	new_channel->ch_cb = cb;
+	new_channel->ch_cbarg = cbarg;
 
 	vmbus_chan_update_evtflagcnt(sc, new_channel);
 
-	new_channel->rxq = VMBUS_PCPU_GET(new_channel->vmbus_sc, event_tq,
-	    new_channel->target_cpu);
+	new_channel->ch_tq = VMBUS_PCPU_GET(new_channel->vmbus_sc, event_tq,
+	    new_channel->ch_cpuid);
 	if (new_channel->ch_flags & VMBUS_CHAN_FLAG_BATCHREAD) {
-		TASK_INIT(&new_channel->channel_task, 0,
-		    vmbus_chan_task, new_channel);
+		TASK_INIT(&new_channel->ch_task, 0, vmbus_chan_task,
+		    new_channel);
 	} else {
-		TASK_INIT(&new_channel->channel_task, 0,
-		    vmbus_chan_task_nobatch, new_channel);
+		TASK_INIT(&new_channel->ch_task, 0, vmbus_chan_task_nobatch,
+		    new_channel);
 	}
 
 	/*
@@ -290,7 +290,7 @@ hv_vmbus_channel_open(
 	req->chm_chanid = new_channel->ch_id;
 	req->chm_openid = new_channel->ch_id;
 	req->chm_gpadl = new_channel->ch_bufring_gpadl;
-	req->chm_vcpuid = new_channel->target_vcpu;
+	req->chm_vcpuid = new_channel->ch_vcpuid;
 	req->chm_rxbr_pgofs = send_ring_buffer_size >> PAGE_SHIFT;
 	if (user_data_len)
 		memcpy(req->chm_udata, user_data, user_data_len);
@@ -521,7 +521,7 @@ hv_vmbus_channel_close_internal(hv_vmbus_channel *channel)
 	struct vmbus_softc *sc = channel->vmbus_sc;
 	struct vmbus_msghc *mh;
 	struct vmbus_chanmsg_chclose *req;
-	struct taskqueue *rxq = channel->rxq;
+	struct taskqueue *tq = channel->ch_tq;
 	int error;
 
 	/* TODO: stringent check */
@@ -530,11 +530,11 @@ hv_vmbus_channel_close_internal(hv_vmbus_channel *channel)
 	sysctl_ctx_free(&channel->ch_sysctl_ctx);
 
 	/*
-	 * set rxq to NULL to avoid more requests be scheduled
+	 * Set ch_tq to NULL to avoid more requests be scheduled
 	 */
-	channel->rxq = NULL;
-	taskqueue_drain(rxq, &channel->channel_task);
-	channel->on_channel_callback = NULL;
+	channel->ch_tq = NULL;
+	taskqueue_drain(tq, &channel->ch_task);
+	channel->ch_cb = NULL;
 
 	/**
 	 * Send a closing message
@@ -895,11 +895,8 @@ static void
 vmbus_chan_task(void *xchan, int pending __unused)
 {
 	struct hv_vmbus_channel *chan = xchan;
-	void (*callback)(void *);
-	void *arg;
-
-	arg = chan->channel_callback_context;
-	callback = chan->on_channel_callback;
+	vmbus_chan_callback_t cb = chan->ch_cb;
+	void *cbarg = chan->ch_cbarg;
 
 	/*
 	 * Optimize host to guest signaling by ensuring:
@@ -916,7 +913,7 @@ vmbus_chan_task(void *xchan, int pending __unused)
 	for (;;) {
 		uint32_t left;
 
-		callback(arg);
+		cb(cbarg);
 
 		left = hv_ring_buffer_read_end(&chan->inbound);
 		if (left == 0) {
@@ -932,7 +929,7 @@ vmbus_chan_task_nobatch(void *xchan, int pending __unused)
 {
 	struct hv_vmbus_channel *chan = xchan;
 
-	chan->on_channel_callback(chan->channel_callback_context);
+	chan->ch_cb(chan->ch_cbarg);
 }
 
 static __inline void
@@ -961,12 +958,12 @@ vmbus_event_flags_proc(struct vmbus_softc *sc, volatile u_long *event_flags,
 			channel = sc->vmbus_chmap[chid_base + chid_ofs];
 
 			/* if channel is closed or closing */
-			if (channel == NULL || channel->rxq == NULL)
+			if (channel == NULL || channel->ch_tq == NULL)
 				continue;
 
 			if (channel->ch_flags & VMBUS_CHAN_FLAG_BATCHREAD)
 				hv_ring_buffer_read_begin(&channel->inbound);
-			taskqueue_enqueue(channel->rxq, &channel->channel_task);
+			taskqueue_enqueue(channel->ch_tq, &channel->ch_task);
 		}
 	}
 }
@@ -1005,7 +1002,7 @@ vmbus_chan_update_evtflagcnt(struct vmbus_softc *sc,
 	int flag_cnt;
 
 	flag_cnt = (chan->ch_id / VMBUS_EVTFLAG_LEN) + 1;
-	flag_cnt_ptr = VMBUS_PCPU_PTR(sc, event_flags_cnt, chan->target_cpu);
+	flag_cnt_ptr = VMBUS_PCPU_PTR(sc, event_flags_cnt, chan->ch_cpuid);
 
 	for (;;) {
 		int old_flag_cnt;
@@ -1017,8 +1014,7 @@ vmbus_chan_update_evtflagcnt(struct vmbus_softc *sc,
 			if (bootverbose) {
 				device_printf(sc->vmbus_dev,
 				    "channel%u update cpu%d flag_cnt to %d\n",
-				    chan->ch_id,
-				    chan->target_cpu, flag_cnt);
+				    chan->ch_id, chan->ch_cpuid, flag_cnt);
 			}
 			break;
 		}
@@ -1162,13 +1158,12 @@ vmbus_channel_cpu_set(struct hv_vmbus_channel *chan, int cpu)
 		cpu = 0;
 	}
 
-	chan->target_cpu = cpu;
-	chan->target_vcpu = VMBUS_PCPU_GET(chan->vmbus_sc, vcpuid, cpu);
+	chan->ch_cpuid = cpu;
+	chan->ch_vcpuid = VMBUS_PCPU_GET(chan->vmbus_sc, vcpuid, cpu);
 
 	if (bootverbose) {
 		printf("vmbus_chan%u: assigned to cpu%u [vcpu%u]\n",
-		    chan->ch_id,
-		    chan->target_cpu, chan->target_vcpu);
+		    chan->ch_id, chan->ch_cpuid, chan->ch_vcpuid);
 	}
 }
 
@@ -1401,17 +1396,17 @@ vmbus_select_outgoing_channel(struct hv_vmbus_channel *primary)
 			continue;
 		}
 
-		if (new_channel->target_vcpu == cur_vcpu){
+		if (new_channel->ch_vcpuid == cur_vcpu){
 			return new_channel;
 		}
 
-		old_cpu_distance = ((outgoing_channel->target_vcpu > cur_vcpu) ?
-		    (outgoing_channel->target_vcpu - cur_vcpu) :
-		    (cur_vcpu - outgoing_channel->target_vcpu));
+		old_cpu_distance = ((outgoing_channel->ch_vcpuid > cur_vcpu) ?
+		    (outgoing_channel->ch_vcpuid - cur_vcpu) :
+		    (cur_vcpu - outgoing_channel->ch_vcpuid));
 
-		new_cpu_distance = ((new_channel->target_vcpu > cur_vcpu) ?
-		    (new_channel->target_vcpu - cur_vcpu) :
-		    (cur_vcpu - new_channel->target_vcpu));
+		new_cpu_distance = ((new_channel->ch_vcpuid > cur_vcpu) ?
+		    (new_channel->ch_vcpuid - cur_vcpu) :
+		    (cur_vcpu - new_channel->ch_vcpuid));
 
 		if (old_cpu_distance < new_cpu_distance) {
 			continue;
