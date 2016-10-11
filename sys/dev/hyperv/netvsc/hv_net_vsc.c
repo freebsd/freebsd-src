@@ -184,8 +184,7 @@ hv_nv_init_rx_buffer_with_net_vsp(struct hn_softc *sc)
 
 	ret = hv_vmbus_channel_send_packet(sc->hn_prichan, init_pkt,
 	    sizeof(nvsp_msg), (uint64_t)(uintptr_t)init_pkt,
-	    HV_VMBUS_PACKET_TYPE_DATA_IN_BAND,
-	    HV_VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
+	    VMBUS_CHANPKT_TYPE_INBAND, VMBUS_CHANPKT_FLAG_RC);
 	if (ret != 0) {
 		goto cleanup;
 	}
@@ -278,8 +277,7 @@ hv_nv_init_send_buffer_with_net_vsp(struct hn_softc *sc)
 
 	ret = hv_vmbus_channel_send_packet(sc->hn_prichan, init_pkt,
   	    sizeof(nvsp_msg), (uint64_t)init_pkt,
-	    HV_VMBUS_PACKET_TYPE_DATA_IN_BAND,
-	    HV_VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
+	    VMBUS_CHANPKT_TYPE_INBAND, VMBUS_CHANPKT_FLAG_RC);
 	if (ret != 0) {
 		goto cleanup;
 	}
@@ -339,7 +337,7 @@ hv_nv_destroy_rx_buffer(netvsc_dev *net_dev)
 		ret = hv_vmbus_channel_send_packet(net_dev->sc->hn_prichan,
 		    revoke_pkt, sizeof(nvsp_msg),
 		    (uint64_t)(uintptr_t)revoke_pkt,
-		    HV_VMBUS_PACKET_TYPE_DATA_IN_BAND, 0);
+		    VMBUS_CHANPKT_TYPE_INBAND, 0);
 
 		/*
 		 * If we failed here, we might as well return and have a leak 
@@ -407,7 +405,7 @@ hv_nv_destroy_send_buffer(netvsc_dev *net_dev)
 		ret = hv_vmbus_channel_send_packet(net_dev->sc->hn_prichan,
 		    revoke_pkt, sizeof(nvsp_msg),
 		    (uint64_t)(uintptr_t)revoke_pkt,
-		    HV_VMBUS_PACKET_TYPE_DATA_IN_BAND, 0);
+		    VMBUS_CHANPKT_TYPE_INBAND, 0);
 		/*
 		 * If we failed here, we might as well return and have a leak 
 		 * rather than continue and a bugchk
@@ -473,8 +471,7 @@ hv_nv_negotiate_nvsp_protocol(struct hn_softc *sc, netvsc_dev *net_dev,
 	/* Send the init request */
 	ret = hv_vmbus_channel_send_packet(sc->hn_prichan, init_pkt,
 	    sizeof(nvsp_msg), (uint64_t)(uintptr_t)init_pkt,
-	    HV_VMBUS_PACKET_TYPE_DATA_IN_BAND,
-	    HV_VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
+	    VMBUS_CHANPKT_TYPE_INBAND, VMBUS_CHANPKT_FLAG_RC);
 	if (ret != 0)
 		return (-1);
 
@@ -517,7 +514,7 @@ hv_nv_send_ndis_config(struct hn_softc *sc, uint32_t mtu)
 	/* Send the configuration packet */
 	ret = hv_vmbus_channel_send_packet(sc->hn_prichan, init_pkt,
 	    sizeof(nvsp_msg), (uint64_t)(uintptr_t)init_pkt,
-	    HV_VMBUS_PACKET_TYPE_DATA_IN_BAND, 0);
+	    VMBUS_CHANPKT_TYPE_INBAND, 0);
 	if (ret != 0)
 		return (-EINVAL);
 
@@ -596,15 +593,14 @@ hv_nv_connect_to_vsp(struct hn_softc *sc)
 
 	ret = hv_vmbus_channel_send_packet(sc->hn_prichan, init_pkt,
 	    sizeof(nvsp_msg), (uint64_t)(uintptr_t)init_pkt,
-	    HV_VMBUS_PACKET_TYPE_DATA_IN_BAND, 0);
+	    VMBUS_CHANPKT_TYPE_INBAND, 0);
 	if (ret != 0) {
 		goto cleanup;
 	}
 	/*
 	 * TODO:  BUGBUG - We have to wait for the above msg since the netvsp
 	 * uses KMCL which acknowledges packet (completion packet) 
-	 * since our Vmbus always set the
-	 * HV_VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED flag
+	 * since our Vmbus always set the VMBUS_CHANPKT_FLAG_RC flag
 	 */
 	/* sema_wait(&NetVscChannel->channel_init_sema); */
 
@@ -815,15 +811,13 @@ hv_nv_on_send(struct hv_vmbus_channel *chan, netvsc_packet *pkt)
 	send_msg.msgs.vers_1_msgs.send_rndis_pkt.send_buf_section_size =
 	    pkt->send_buf_section_size;
 
-	if (pkt->page_buf_count) {
-		ret = hv_vmbus_channel_send_packet_pagebuffer(chan,
-		    pkt->page_buffers, pkt->page_buf_count,
+	if (pkt->gpa_cnt) {
+		ret = vmbus_chan_send_sglist(chan, pkt->gpa, pkt->gpa_cnt,
 		    &send_msg, sizeof(nvsp_msg), (uint64_t)(uintptr_t)pkt);
 	} else {
 		ret = hv_vmbus_channel_send_packet(chan,
 		    &send_msg, sizeof(nvsp_msg), (uint64_t)(uintptr_t)pkt,
-		    HV_VMBUS_PACKET_TYPE_DATA_IN_BAND,
-		    HV_VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
+		    VMBUS_CHANPKT_TYPE_INBAND, VMBUS_CHANPKT_FLAG_RC);
 	}
 
 	return (ret);
@@ -852,7 +846,7 @@ hv_nv_on_receive(netvsc_dev *net_dev, struct hn_softc *sc,
 	 * All inbound packets other than send completion should be
 	 * xfer page packet.
 	 */
-	if (pkt->type != HV_VMBUS_PACKET_TYPE_DATA_USING_TRANSFER_PAGES) {
+	if (pkt->type != VMBUS_CHANPKT_TYPE_RXBUF) {
 		device_printf(dev, "packet type %d is invalid!\n", pkt->type);
 		return;
 	}
@@ -923,7 +917,7 @@ hv_nv_on_receive_completion(struct hv_vmbus_channel *chan, uint64_t tid,
 retry_send_cmplt:
 	/* Send the completion */
 	ret = hv_vmbus_channel_send_packet(chan, &rx_comp_msg,
-	    sizeof(nvsp_msg), tid, HV_VMBUS_PACKET_TYPE_COMPLETION, 0);
+	    sizeof(nvsp_msg), tid, VMBUS_CHANPKT_TYPE_COMP, 0);
 	if (ret == 0) {
 		/* success */
 		/* no-op */
@@ -1008,14 +1002,14 @@ hv_nv_on_channel_callback(void *xchan)
 			if (bytes_rxed > 0) {
 				desc = (hv_vm_packet_descriptor *)buffer;
 				switch (desc->type) {
-				case HV_VMBUS_PACKET_TYPE_COMPLETION:
+				case VMBUS_CHANPKT_TYPE_COMP:
 					hv_nv_on_send_completion(net_dev, chan,
 					    desc);
 					break;
-				case HV_VMBUS_PACKET_TYPE_DATA_USING_TRANSFER_PAGES:
+				case VMBUS_CHANPKT_TYPE_RXBUF:
 					hv_nv_on_receive(net_dev, sc, chan, desc);
 					break;
-				case HV_VMBUS_PACKET_TYPE_DATA_IN_BAND:
+				case VMBUS_CHANPKT_TYPE_INBAND:
 					hv_nv_send_table(sc, desc);
 					break;
 				default:
