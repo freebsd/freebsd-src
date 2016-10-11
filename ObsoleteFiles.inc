@@ -482,9 +482,6 @@ OLD_FILES+=usr/lib/clang/3.7.0/lib/freebsd/libclang_rt.ubsan_standalone_cxx-x86_
 OLD_DIRS+=usr/lib/clang/3.7.0/lib/freebsd
 OLD_DIRS+=usr/lib/clang/3.7.0/lib
 OLD_DIRS+=usr/lib/clang/3.7.0
-# 20151201: mqueue tests 3 and 4 disabled
-OLD_FILES+=usr/tests/sys/mqueue/mqtest3
-OLD_FILES+=usr/tests/sys/mqueue/mqtest4
 # 20151130: libelf moved from /usr/lib to /lib (libkvm dependency in r291406)
 OLD_LIBS+=usr/lib/libelf.so.2
 # 20151115: Fox bad upgrade scheme
