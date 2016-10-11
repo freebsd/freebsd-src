@@ -4,6 +4,10 @@
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN"
         "http://www.FreeBSD.org/release/XML/release.ent">
 %release;
+<!ENTITY % sponsor PUBLIC "-//FreeBSD//ENTITIES Sponsor Specification//EN" "sponsor.ent">
+%sponsor;
+<!ENTITY % vendor PUBLIC "-//FreeBSD//ENTITIES Vendor Specification//EN" "vendor.ent">
+%vendor;
 <!ENTITY security SYSTEM "../../share/xml/security.xml">
 <!ENTITY errata SYSTEM "../../share/xml/errata.xml">
 ]>
@@ -176,18 +180,21 @@ boot</screen>
 
 	<itemizedlist>
 	  <listitem>
-	    <para revision="289550">Support for the Cavium
-	      Virtualized NIC ethernet driver has been added.</para>
+	    <para revision="289550" contrib="sponsor"
+	      sponsor="&cavium;">Support for the Cavium Virtualized
+	      NIC ethernet driver has been added.</para>
 	  </listitem>
 
 	  <listitem>
-	    <para revision="286919">Support for the GICv3 and
-	      ITS device drivers has been added.</para>
+	    <para revision="286919" contrib="sponsor"
+	      sponsor="&cavium;">Support for the GICv3 and ITS device
+	      drivers has been added.</para>
 	  </listitem>
 
 	  <listitem>
-	    <para revision="296308">Support for PCI
-	      Enhanced Allocation support has been added.</para>
+	    <para revision="296308" contrib="sponsor"
+	      sponsor="&cavium;">Support for PCI Enhanced Allocation
+	      support has been added.</para>
 	  </listitem>
 	</itemizedlist>
       </listitem>
