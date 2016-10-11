@@ -41,7 +41,7 @@ typedef struct hv_util_sc {
 	 */
 	void (*callback)(void *);
 
-	struct hv_device*	hv_dev;
+	struct hv_vmbus_channel	*channel;
 	uint8_t			*receive_buffer;
 } hv_util_sc;
 

@@ -1040,113 +1040,73 @@ vmbus_intr_teardown(struct vmbus_softc *sc)
 static int
 vmbus_read_ivar(device_t dev, device_t child, int index, uintptr_t *result)
 {
-	struct hv_device *child_dev_ctx = device_get_ivars(child);
-
-	switch (index) {
-	case HV_VMBUS_IVAR_TYPE:
-		*result = (uintptr_t)&child_dev_ctx->class_id;
-		return (0);
-
-	case HV_VMBUS_IVAR_INSTANCE:
-		*result = (uintptr_t)&child_dev_ctx->device_id;
-		return (0);
-
-	case HV_VMBUS_IVAR_DEVCTX:
-		*result = (uintptr_t)child_dev_ctx;
-		return (0);
-
-	case HV_VMBUS_IVAR_NODE:
-		*result = (uintptr_t)child_dev_ctx->device;
-		return (0);
-	}
-	return (ENOENT);
-}
-
-static int
-vmbus_write_ivar(device_t dev, device_t child, int index, uintptr_t value)
-{
-	switch (index) {
-	case HV_VMBUS_IVAR_TYPE:
-	case HV_VMBUS_IVAR_INSTANCE:
-	case HV_VMBUS_IVAR_DEVCTX:
-	case HV_VMBUS_IVAR_NODE:
-		/* read-only */
-		return (EINVAL);
-	}
 	return (ENOENT);
 }
 
 static int
 vmbus_child_pnpinfo_str(device_t dev, device_t child, char *buf, size_t buflen)
 {
-	struct hv_device *dev_ctx = device_get_ivars(child);
+	const struct hv_vmbus_channel *chan;
 	char guidbuf[HYPERV_GUID_STRLEN];
 
-	if (dev_ctx == NULL)
+	chan = vmbus_get_channel(child);
+	if (chan == NULL) {
+		/* Event timer device, which does not belong to a channel */
 		return (0);
+	}
 
 	strlcat(buf, "classid=", buflen);
-	hyperv_guid2str(&dev_ctx->class_id, guidbuf, sizeof(guidbuf));
+	hyperv_guid2str(&chan->ch_guid_type, guidbuf, sizeof(guidbuf));
 	strlcat(buf, guidbuf, buflen);
 
 	strlcat(buf, " deviceid=", buflen);
-	hyperv_guid2str(&dev_ctx->device_id, guidbuf, sizeof(guidbuf));
+	hyperv_guid2str(&chan->ch_guid_inst, guidbuf, sizeof(guidbuf));
 	strlcat(buf, guidbuf, buflen);
 
 	return (0);
 }
 
-struct hv_device *
-hv_vmbus_child_device_create(struct hv_vmbus_channel *channel)
+int
+hv_vmbus_child_device_register(struct hv_vmbus_channel *chan)
 {
-	hv_device *child_dev;
+	struct vmbus_softc *sc = chan->vmbus_sc;
+	device_t parent = sc->vmbus_dev;
+	int error = 0;
 
-	/*
-	 * Allocate the new child device
-	 */
-	child_dev = malloc(sizeof(hv_device), M_DEVBUF, M_WAITOK | M_ZERO);
-
-	child_dev->channel = channel;
-	child_dev->class_id = channel->ch_guid_type;
-	child_dev->device_id = channel->ch_guid_inst;
-
-	return (child_dev);
-}
-
-void
-hv_vmbus_child_device_register(struct vmbus_softc *sc,
-    struct hv_device *child_dev)
-{
-	device_t child, parent;
-
-	parent = sc->vmbus_dev;
-	if (bootverbose) {
-		char name[HYPERV_GUID_STRLEN];
-
-		hyperv_guid2str(&child_dev->class_id, name, sizeof(name));
-		device_printf(parent, "add device, classid: %s\n", name);
+	chan->ch_dev = device_add_child(parent, NULL, -1);
+	if (chan->ch_dev == NULL) {
+		device_printf(parent, "device_add_child for chan%u failed\n",
+		    chan->ch_id);
+		error = ENXIO;
+		goto done;
 	}
+	device_set_ivars(chan->ch_dev, chan);
 
-	child = device_add_child(parent, NULL, -1);
-	child_dev->device = child;
-	device_set_ivars(child, child_dev);
-
-	/* New device was added to vmbus */
+done:
+	/* New device has been/should be added to vmbus. */
 	vmbus_scan_newdev(sc);
+	return error;
 }
 
 int
-hv_vmbus_child_device_unregister(struct hv_device *child_dev)
+hv_vmbus_child_device_unregister(struct hv_vmbus_channel *chan)
 {
-	int ret = 0;
+	int error;
+
+	if (chan->ch_dev == NULL) {
+		/* Failed to add a device. */
+		return 0;
+	}
+
 	/*
 	 * XXXKYS: Ensure that this is the opposite of
 	 * device_add_child()
 	 */
 	mtx_lock(&Giant);
-	ret = device_delete_child(vmbus_get_device(), child_dev->device);
+	error = device_delete_child(chan->vmbus_sc->vmbus_dev, chan->ch_dev);
 	mtx_unlock(&Giant);
-	return(ret);
+
+	return error;
 }
 
 static int
@@ -1167,6 +1127,16 @@ vmbus_get_version_method(device_t bus, device_t dev)
 	struct vmbus_softc *sc = device_get_softc(bus);
 
 	return sc->vmbus_version;
+}
+
+static int
+vmbus_probe_guid_method(device_t bus, device_t dev, const struct hv_guid *guid)
+{
+	const struct hv_vmbus_channel *chan = vmbus_get_channel(dev);
+
+	if (memcmp(&chan->ch_guid_type, guid, sizeof(struct hv_guid)) == 0)
+		return 0;
+	return ENXIO;
 }
 
 static int
@@ -1376,11 +1346,11 @@ static device_method_t vmbus_methods[] = {
 	DEVMETHOD(bus_add_child,		bus_generic_add_child),
 	DEVMETHOD(bus_print_child,		bus_generic_print_child),
 	DEVMETHOD(bus_read_ivar,		vmbus_read_ivar),
-	DEVMETHOD(bus_write_ivar,		vmbus_write_ivar),
 	DEVMETHOD(bus_child_pnpinfo_str,	vmbus_child_pnpinfo_str),
 
 	/* Vmbus interface */
 	DEVMETHOD(vmbus_get_version,		vmbus_get_version_method),
+	DEVMETHOD(vmbus_probe_guid,		vmbus_probe_guid_method),
 
 	DEVMETHOD_END
 };

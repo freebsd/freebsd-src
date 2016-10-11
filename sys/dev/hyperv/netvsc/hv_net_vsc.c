@@ -57,31 +57,30 @@ MALLOC_DEFINE(M_NETVSC, "netvsc", "Hyper-V netvsc driver");
  * Forward declarations
  */
 static void hv_nv_on_channel_callback(void *xchan);
-static int  hv_nv_init_send_buffer_with_net_vsp(struct hv_device *device);
-static int  hv_nv_init_rx_buffer_with_net_vsp(struct hv_device *device);
+static int  hv_nv_init_send_buffer_with_net_vsp(struct hn_softc *sc);
+static int  hv_nv_init_rx_buffer_with_net_vsp(struct hn_softc *);
 static int  hv_nv_destroy_send_buffer(netvsc_dev *net_dev);
 static int  hv_nv_destroy_rx_buffer(netvsc_dev *net_dev);
-static int  hv_nv_connect_to_vsp(struct hv_device *device);
+static int  hv_nv_connect_to_vsp(struct hn_softc *sc);
 static void hv_nv_on_send_completion(netvsc_dev *net_dev,
-    struct hv_device *device, struct hv_vmbus_channel *, hv_vm_packet_descriptor *pkt);
+    struct hv_vmbus_channel *, hv_vm_packet_descriptor *pkt);
 static void hv_nv_on_receive_completion(struct hv_vmbus_channel *chan,
     uint64_t tid, uint32_t status);
 static void hv_nv_on_receive(netvsc_dev *net_dev,
-    struct hv_device *device, struct hv_vmbus_channel *chan,
+    struct hn_softc *sc, struct hv_vmbus_channel *chan,
     hv_vm_packet_descriptor *pkt);
 
 /*
  *
  */
 static inline netvsc_dev *
-hv_nv_alloc_net_device(struct hv_device *device)
+hv_nv_alloc_net_device(struct hn_softc *sc)
 {
 	netvsc_dev *net_dev;
-	hn_softc_t *sc = device_get_softc(device->device);
 
 	net_dev = malloc(sizeof(netvsc_dev), M_NETVSC, M_WAITOK | M_ZERO);
 
-	net_dev->dev = device;
+	net_dev->sc = sc;
 	net_dev->destroy = FALSE;
 	sc->net_dev = net_dev;
 
@@ -89,43 +88,21 @@ hv_nv_alloc_net_device(struct hv_device *device)
 }
 
 /*
- *
+ * XXX unnecessary; nuke it.
  */
 static inline netvsc_dev *
-hv_nv_get_outbound_net_device(struct hv_device *device)
+hv_nv_get_outbound_net_device(struct hn_softc *sc)
 {
-	hn_softc_t *sc = device_get_softc(device->device);
-	netvsc_dev *net_dev = sc->net_dev;;
-
-	if ((net_dev != NULL) && net_dev->destroy) {
-		return (NULL);
-	}
-
-	return (net_dev);
+	return sc->net_dev;
 }
 
 /*
- *
+ * XXX unnecessary; nuke it.
  */
 static inline netvsc_dev *
-hv_nv_get_inbound_net_device(struct hv_device *device)
+hv_nv_get_inbound_net_device(struct hn_softc *sc)
 {
-	hn_softc_t *sc = device_get_softc(device->device);
-	netvsc_dev *net_dev = sc->net_dev;;
-
-	if (net_dev == NULL) {
-		return (net_dev);
-	}
-	/*
-	 * When the device is being destroyed; we only
-	 * permit incoming packets if and only if there
-	 * are outstanding sends.
-	 */
-	if (net_dev->destroy) {
-		return (NULL);
-	}
-
-	return (net_dev);
+	return sc->net_dev;
 }
 
 int
@@ -163,13 +140,13 @@ hv_nv_get_next_send_section(netvsc_dev *net_dev)
  *     Hyper-V extensible switch and the synthetic data path.
  */
 static int 
-hv_nv_init_rx_buffer_with_net_vsp(struct hv_device *device)
+hv_nv_init_rx_buffer_with_net_vsp(struct hn_softc *sc)
 {
 	netvsc_dev *net_dev;
 	nvsp_msg *init_pkt;
 	int ret = 0;
 
-	net_dev = hv_nv_get_outbound_net_device(device);
+	net_dev = hv_nv_get_outbound_net_device(sc);
 	if (!net_dev) {
 		return (ENODEV);
 	}
@@ -184,7 +161,7 @@ hv_nv_init_rx_buffer_with_net_vsp(struct hv_device *device)
 	 * GPADL:  Guest physical address descriptor list.
 	 */
 	ret = hv_vmbus_channel_establish_gpadl(
-		device->channel, net_dev->rx_buf,
+		sc->hn_prichan, net_dev->rx_buf,
 		net_dev->rx_buf_size, &net_dev->rx_buf_gpadl_handle);
 	if (ret != 0) {
 		goto cleanup;
@@ -205,7 +182,7 @@ hv_nv_init_rx_buffer_with_net_vsp(struct hv_device *device)
 
 	/* Send the gpadl notification request */
 
-	ret = hv_vmbus_channel_send_packet(device->channel, init_pkt,
+	ret = hv_vmbus_channel_send_packet(sc->hn_prichan, init_pkt,
 	    sizeof(nvsp_msg), (uint64_t)(uintptr_t)init_pkt,
 	    HV_VMBUS_PACKET_TYPE_DATA_IN_BAND,
 	    HV_VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
@@ -255,13 +232,13 @@ exit:
  * Net VSC initialize send buffer with net VSP
  */
 static int 
-hv_nv_init_send_buffer_with_net_vsp(struct hv_device *device)
+hv_nv_init_send_buffer_with_net_vsp(struct hn_softc *sc)
 {
 	netvsc_dev *net_dev;
 	nvsp_msg *init_pkt;
 	int ret = 0;
 
-	net_dev = hv_nv_get_outbound_net_device(device);
+	net_dev = hv_nv_get_outbound_net_device(sc);
 	if (!net_dev) {
 		return (ENODEV);
 	}
@@ -278,7 +255,7 @@ hv_nv_init_send_buffer_with_net_vsp(struct hv_device *device)
 	 * Note:  This call uses the vmbus connection rather than the
 	 * channel to establish the gpadl handle. 
 	 */
-	ret = hv_vmbus_channel_establish_gpadl(device->channel,
+	ret = hv_vmbus_channel_establish_gpadl(sc->hn_prichan,
   	    net_dev->send_buf, net_dev->send_buf_size,
 	    &net_dev->send_buf_gpadl_handle);
 	if (ret != 0) {
@@ -299,7 +276,7 @@ hv_nv_init_send_buffer_with_net_vsp(struct hv_device *device)
 
 	/* Send the gpadl notification request */
 
-	ret = hv_vmbus_channel_send_packet(device->channel, init_pkt,
+	ret = hv_vmbus_channel_send_packet(sc->hn_prichan, init_pkt,
   	    sizeof(nvsp_msg), (uint64_t)init_pkt,
 	    HV_VMBUS_PACKET_TYPE_DATA_IN_BAND,
 	    HV_VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
@@ -359,7 +336,7 @@ hv_nv_destroy_rx_buffer(netvsc_dev *net_dev)
 		revoke_pkt->msgs.vers_1_msgs.revoke_rx_buf.id =
 		    NETVSC_RECEIVE_BUFFER_ID;
 
-		ret = hv_vmbus_channel_send_packet(net_dev->dev->channel,
+		ret = hv_vmbus_channel_send_packet(net_dev->sc->hn_prichan,
 		    revoke_pkt, sizeof(nvsp_msg),
 		    (uint64_t)(uintptr_t)revoke_pkt,
 		    HV_VMBUS_PACKET_TYPE_DATA_IN_BAND, 0);
@@ -375,7 +352,7 @@ hv_nv_destroy_rx_buffer(netvsc_dev *net_dev)
 		
 	/* Tear down the gpadl on the vsp end */
 	if (net_dev->rx_buf_gpadl_handle) {
-		ret = hv_vmbus_channel_teardown_gpdal(net_dev->dev->channel,
+		ret = hv_vmbus_channel_teardown_gpdal(net_dev->sc->hn_prichan,
 		    net_dev->rx_buf_gpadl_handle);
 		/*
 		 * If we failed here, we might as well return and have a leak 
@@ -427,7 +404,7 @@ hv_nv_destroy_send_buffer(netvsc_dev *net_dev)
 		revoke_pkt->msgs.vers_1_msgs.revoke_send_buf.id =
 		    NETVSC_SEND_BUFFER_ID;
 
-		ret = hv_vmbus_channel_send_packet(net_dev->dev->channel,
+		ret = hv_vmbus_channel_send_packet(net_dev->sc->hn_prichan,
 		    revoke_pkt, sizeof(nvsp_msg),
 		    (uint64_t)(uintptr_t)revoke_pkt,
 		    HV_VMBUS_PACKET_TYPE_DATA_IN_BAND, 0);
@@ -442,7 +419,7 @@ hv_nv_destroy_send_buffer(netvsc_dev *net_dev)
 		
 	/* Tear down the gpadl on the vsp end */
 	if (net_dev->send_buf_gpadl_handle) {
-		ret = hv_vmbus_channel_teardown_gpdal(net_dev->dev->channel,
+		ret = hv_vmbus_channel_teardown_gpdal(net_dev->sc->hn_prichan,
 		    net_dev->send_buf_gpadl_handle);
 
 		/*
@@ -477,7 +454,7 @@ hv_nv_destroy_send_buffer(netvsc_dev *net_dev)
  * to the negotiated version, so we cannot rely on that.
  */
 static int
-hv_nv_negotiate_nvsp_protocol(struct hv_device *device, netvsc_dev *net_dev,
+hv_nv_negotiate_nvsp_protocol(struct hn_softc *sc, netvsc_dev *net_dev,
     uint32_t nvsp_ver)
 {
 	nvsp_msg *init_pkt;
@@ -494,7 +471,7 @@ hv_nv_negotiate_nvsp_protocol(struct hv_device *device, netvsc_dev *net_dev,
 	init_pkt->msgs.init_msgs.init.protocol_version_2 = nvsp_ver;
 
 	/* Send the init request */
-	ret = hv_vmbus_channel_send_packet(device->channel, init_pkt,
+	ret = hv_vmbus_channel_send_packet(sc->hn_prichan, init_pkt,
 	    sizeof(nvsp_msg), (uint64_t)(uintptr_t)init_pkt,
 	    HV_VMBUS_PACKET_TYPE_DATA_IN_BAND,
 	    HV_VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
@@ -515,13 +492,13 @@ hv_nv_negotiate_nvsp_protocol(struct hv_device *device, netvsc_dev *net_dev,
  * Not valid for NDIS version 1.
  */
 static int
-hv_nv_send_ndis_config(struct hv_device *device, uint32_t mtu)
+hv_nv_send_ndis_config(struct hn_softc *sc, uint32_t mtu)
 {
 	netvsc_dev *net_dev;
 	nvsp_msg *init_pkt;
 	int ret;
 
-	net_dev = hv_nv_get_outbound_net_device(device);
+	net_dev = hv_nv_get_outbound_net_device(sc);
 	if (!net_dev)
 		return (-ENODEV);
 
@@ -538,7 +515,7 @@ hv_nv_send_ndis_config(struct hv_device *device, uint32_t mtu)
 		= 1;
 
 	/* Send the configuration packet */
-	ret = hv_vmbus_channel_send_packet(device->channel, init_pkt,
+	ret = hv_vmbus_channel_send_packet(sc->hn_prichan, init_pkt,
 	    sizeof(nvsp_msg), (uint64_t)(uintptr_t)init_pkt,
 	    HV_VMBUS_PACKET_TYPE_DATA_IN_BAND, 0);
 	if (ret != 0)
@@ -551,7 +528,7 @@ hv_nv_send_ndis_config(struct hv_device *device, uint32_t mtu)
  * Net VSC connect to VSP
  */
 static int
-hv_nv_connect_to_vsp(struct hv_device *device)
+hv_nv_connect_to_vsp(struct hn_softc *sc)
 {
 	netvsc_dev *net_dev;
 	nvsp_msg *init_pkt;
@@ -563,20 +540,16 @@ hv_nv_connect_to_vsp(struct hv_device *device)
 	int i;
 	int protocol_number = nitems(protocol_list);
 	int ret = 0;
-	device_t dev = device->device;
-	hn_softc_t *sc = device_get_softc(dev);
+	device_t dev = sc->hn_dev;
 	struct ifnet *ifp = sc->arpcom.ac_ifp;
 
-	net_dev = hv_nv_get_outbound_net_device(device);
-	if (!net_dev) {
-		return (ENODEV);
-	}
+	net_dev = hv_nv_get_outbound_net_device(sc);
 
 	/*
 	 * Negotiate the NVSP version.  Try the latest NVSP first.
 	 */
 	for (i = protocol_number - 1; i >= 0; i--) {
-		if (hv_nv_negotiate_nvsp_protocol(device, net_dev,
+		if (hv_nv_negotiate_nvsp_protocol(sc, net_dev,
 		    protocol_list[i]) == 0) {
 			net_dev->nvsp_version = protocol_list[i];
 			if (bootverbose)
@@ -598,7 +571,7 @@ hv_nv_connect_to_vsp(struct hv_device *device)
 	 * This needs to be right after the NVSP init message per Haiyang
 	 */
 	if (net_dev->nvsp_version >= NVSP_PROTOCOL_VERSION_2)
-		ret = hv_nv_send_ndis_config(device, ifp->if_mtu);
+		ret = hv_nv_send_ndis_config(sc, ifp->if_mtu);
 
 	/*
 	 * Send the NDIS version
@@ -621,7 +594,7 @@ hv_nv_connect_to_vsp(struct hv_device *device)
 
 	/* Send the init request */
 
-	ret = hv_vmbus_channel_send_packet(device->channel, init_pkt,
+	ret = hv_vmbus_channel_send_packet(sc->hn_prichan, init_pkt,
 	    sizeof(nvsp_msg), (uint64_t)(uintptr_t)init_pkt,
 	    HV_VMBUS_PACKET_TYPE_DATA_IN_BAND, 0);
 	if (ret != 0) {
@@ -642,9 +615,9 @@ hv_nv_connect_to_vsp(struct hv_device *device)
 		net_dev->rx_buf_size = NETVSC_RECEIVE_BUFFER_SIZE;
 	net_dev->send_buf_size = NETVSC_SEND_BUFFER_SIZE;
 
-	ret = hv_nv_init_rx_buffer_with_net_vsp(device);
+	ret = hv_nv_init_rx_buffer_with_net_vsp(sc);
 	if (ret == 0)
-		ret = hv_nv_init_send_buffer_with_net_vsp(device);
+		ret = hv_nv_init_send_buffer_with_net_vsp(sc);
 
 cleanup:
 	return (ret);
@@ -676,13 +649,13 @@ hv_nv_subchan_attach(struct hv_vmbus_channel *chan)
  * Callback when the device belonging to this driver is added
  */
 netvsc_dev *
-hv_nv_on_device_add(struct hv_device *device, void *additional_info)
+hv_nv_on_device_add(struct hn_softc *sc, void *additional_info)
 {
-	struct hv_vmbus_channel *chan = device->channel;
+	struct hv_vmbus_channel *chan = sc->hn_prichan;
 	netvsc_dev *net_dev;
 	int ret = 0;
 
-	net_dev = hv_nv_alloc_net_device(device);
+	net_dev = hv_nv_alloc_net_device(sc);
 	if (net_dev == NULL)
 		return NULL;
 
@@ -706,7 +679,7 @@ hv_nv_on_device_add(struct hv_device *device, void *additional_info)
 	/*
 	 * Connect with the NetVsp
 	 */
-	ret = hv_nv_connect_to_vsp(device);
+	ret = hv_nv_connect_to_vsp(sc);
 	if (ret != 0)
 		goto close;
 
@@ -732,9 +705,8 @@ cleanup:
  * Net VSC on device remove
  */
 int
-hv_nv_on_device_remove(struct hv_device *device, boolean_t destroy_channel)
+hv_nv_on_device_remove(struct hn_softc *sc, boolean_t destroy_channel)
 {
-	hn_softc_t *sc = device_get_softc(device->device);
 	netvsc_dev *net_dev = sc->net_dev;;
 	
 	/* Stop outbound traffic ie sends and receives completions */
@@ -747,12 +719,12 @@ hv_nv_on_device_remove(struct hv_device *device, boolean_t destroy_channel)
 	/* Now, we can close the channel safely */
 
 	if (!destroy_channel) {
-		device->channel->state =
+		sc->hn_prichan->state =
 		    HV_CHANNEL_CLOSING_NONDESTRUCTIVE_STATE;
 	}
 
-	free(device->channel->hv_chan_rdbuf, M_NETVSC);
-	hv_vmbus_channel_close(device->channel);
+	free(sc->hn_prichan->hv_chan_rdbuf, M_NETVSC);
+	hv_vmbus_channel_close(sc->hn_prichan);
 
 	sema_destroy(&net_dev->channel_init_sema);
 	free(net_dev, M_NETVSC);
@@ -764,8 +736,7 @@ hv_nv_on_device_remove(struct hv_device *device, boolean_t destroy_channel)
  * Net VSC on send completion
  */
 static void
-hv_nv_on_send_completion(netvsc_dev *net_dev,
-    struct hv_device *device, struct hv_vmbus_channel *chan,
+hv_nv_on_send_completion(netvsc_dev *net_dev, struct hv_vmbus_channel *chan,
     hv_vm_packet_descriptor *pkt)
 {
 	nvsp_msg *nvsp_msg_pkt;
@@ -870,14 +841,14 @@ hv_nv_on_send(struct hv_vmbus_channel *chan, netvsc_packet *pkt)
  * with virtual addresses.
  */
 static void
-hv_nv_on_receive(netvsc_dev *net_dev, struct hv_device *device,
+hv_nv_on_receive(netvsc_dev *net_dev, struct hn_softc *sc,
     struct hv_vmbus_channel *chan, hv_vm_packet_descriptor *pkt)
 {
 	hv_vm_transfer_page_packet_header *vm_xfer_page_pkt;
 	nvsp_msg *nvsp_msg_pkt;
 	netvsc_packet vsc_pkt;
 	netvsc_packet *net_vsc_pkt = &vsc_pkt;
-	device_t dev = device->device;
+	device_t dev = sc->hn_dev;
 	int count = 0;
 	int i = 0;
 	int status = nvsp_status_success;
@@ -911,7 +882,6 @@ hv_nv_on_receive(netvsc_dev *net_dev, struct hv_device *device,
 	}
 
 	count = vm_xfer_page_pkt->range_count;
-	net_vsc_pkt->device = device;
 
 	/* Each range represents 1 RNDIS pkt that contains 1 Ethernet frame */
 	for (i = 0; i < count; i++) {
@@ -921,7 +891,7 @@ hv_nv_on_receive(netvsc_dev *net_dev, struct hv_device *device,
 		net_vsc_pkt->tot_data_buf_len = 
 		    vm_xfer_page_pkt->ranges[i].byte_count;
 
-		hv_rf_on_receive(net_dev, device, chan, net_vsc_pkt);
+		hv_rf_on_receive(net_dev, chan, net_vsc_pkt);
 		if (net_vsc_pkt->status != nvsp_status_success) {
 			status = nvsp_status_failure;
 		}
@@ -977,14 +947,14 @@ retry_send_cmplt:
  * Net VSC receiving vRSS send table from VSP
  */
 static void
-hv_nv_send_table(struct hv_device *device, hv_vm_packet_descriptor *pkt)
+hv_nv_send_table(struct hn_softc *sc, hv_vm_packet_descriptor *pkt)
 {
 	netvsc_dev *net_dev;
 	nvsp_msg *nvsp_msg_pkt;
 	int i;
 	uint32_t count, *table;
 
-	net_dev = hv_nv_get_inbound_net_device(device);
+	net_dev = hv_nv_get_inbound_net_device(sc);
 	if (!net_dev)
         	return;
 
@@ -1020,9 +990,9 @@ static void
 hv_nv_on_channel_callback(void *xchan)
 {
 	struct hv_vmbus_channel *chan = xchan;
-	struct hv_device *device = chan->device;
+	device_t dev = chan->ch_dev;
+	struct hn_softc *sc = device_get_softc(dev);
 	netvsc_dev *net_dev;
-	device_t dev = device->device;
 	uint32_t bytes_rxed;
 	uint64_t request_id;
  	hv_vm_packet_descriptor *desc;
@@ -1030,7 +1000,7 @@ hv_nv_on_channel_callback(void *xchan)
 	int bufferlen = NETVSC_PACKET_SIZE;
 	int ret = 0;
 
-	net_dev = hv_nv_get_inbound_net_device(device);
+	net_dev = hv_nv_get_inbound_net_device(sc);
 	if (net_dev == NULL)
 		return;
 
@@ -1044,14 +1014,14 @@ hv_nv_on_channel_callback(void *xchan)
 				desc = (hv_vm_packet_descriptor *)buffer;
 				switch (desc->type) {
 				case HV_VMBUS_PACKET_TYPE_COMPLETION:
-					hv_nv_on_send_completion(net_dev, device,
-					    chan, desc);
+					hv_nv_on_send_completion(net_dev, chan,
+					    desc);
 					break;
 				case HV_VMBUS_PACKET_TYPE_DATA_USING_TRANSFER_PAGES:
-					hv_nv_on_receive(net_dev, device, chan, desc);
+					hv_nv_on_receive(net_dev, sc, chan, desc);
 					break;
 				case HV_VMBUS_PACKET_TYPE_DATA_IN_BAND:
-					hv_nv_send_table(device, desc);
+					hv_nv_send_table(sc, desc);
 					break;
 				default:
 					device_printf(dev,
