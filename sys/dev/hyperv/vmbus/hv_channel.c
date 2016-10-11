@@ -100,7 +100,7 @@ vmbus_channel_sysctl_create(hv_vmbus_channel* channel)
 	uint16_t sub_ch_id;
 	char name[16];
 	
-	hv_vmbus_channel* primary_ch = channel->primary_channel;
+	hv_vmbus_channel* primary_ch = channel->ch_prichan;
 
 	if (primary_ch == NULL) {
 		dev = channel->ch_dev;
@@ -563,7 +563,7 @@ hv_vmbus_channel_close(struct hv_vmbus_channel *chan)
 	/*
 	 * Close all sub-channels, if any.
 	 */
-	subchan_cnt = chan->subchan_cnt;
+	subchan_cnt = chan->ch_subchan_cnt;
 	if (subchan_cnt > 0) {
 		struct hv_vmbus_channel **subchan;
 		int i;
