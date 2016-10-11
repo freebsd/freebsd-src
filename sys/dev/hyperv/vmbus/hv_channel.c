@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 #include <dev/hyperv/vmbus/hv_vmbus_priv.h>
+#include <dev/hyperv/vmbus/hyperv_var.h>
 #include <dev/hyperv/vmbus/vmbus_reg.h>
 #include <dev/hyperv/vmbus/vmbus_var.h>
 
@@ -58,21 +59,21 @@ static void	VmbusProcessChannelEvent(void* channel, int pending);
 static void
 vmbus_channel_set_event(hv_vmbus_channel *channel)
 {
-	if (channel->offer_msg.monitor_allocated) {
-		struct vmbus_softc *sc = channel->vmbus_sc;
-		hv_vmbus_monitor_page *monitor_page;
-		uint32_t chanid = channel->offer_msg.child_rel_id;
+	struct vmbus_softc *sc = channel->vmbus_sc;
+	uint32_t chanid = channel->offer_msg.child_rel_id;
 
-		atomic_set_long(
-		    &sc->vmbus_tx_evtflags[chanid >> VMBUS_EVTFLAG_SHIFT],
-		    1UL << (chanid & VMBUS_EVTFLAG_MASK));
+	atomic_set_long(&sc->vmbus_tx_evtflags[chanid >> VMBUS_EVTFLAG_SHIFT],
+	    1UL << (chanid & VMBUS_EVTFLAG_MASK));
+
+	if (channel->offer_msg.monitor_allocated) {
+		hv_vmbus_monitor_page *monitor_page;
 
 		monitor_page = sc->vmbus_mnf2;
 		synch_set_bit(channel->monitor_bit,
 			(uint32_t *)&monitor_page->
 				trigger_group[channel->monitor_group].u.pending);
 	} else {
-		hv_vmbus_set_event(channel);
+		hypercall_signal_event(channel->ch_sigevt_dma.hv_paddr);
 	}
 
 }
@@ -342,8 +343,7 @@ hv_vmbus_channel_establish_gpadl(struct hv_vmbus_channel *channel,
 	/*
 	 * Allocate GPADL id.
 	 */
-	gpadl = atomic_fetchadd_int(
-	    &hv_vmbus_g_connection.next_gpadl_handle, 1);
+	gpadl = vmbus_gpadl_alloc(sc);
 	*gpadl0 = gpadl;
 
 	/*
