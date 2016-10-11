@@ -1713,3 +1713,11 @@ vmbus_chan_rx_empty(const struct vmbus_channel *chan)
 
 	return (vmbus_rxbr_empty(&chan->ch_rxbr));
 }
+
+void
+vmbus_chan_run_task(struct vmbus_channel *chan, struct task *task)
+{
+
+	taskqueue_enqueue(chan->ch_tq, task);
+	taskqueue_drain(chan->ch_tq, task);
+}
