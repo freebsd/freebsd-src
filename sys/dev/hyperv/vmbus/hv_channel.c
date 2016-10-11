@@ -52,6 +52,8 @@ __FBSDID("$FreeBSD$");
 
 static void 	vmbus_channel_set_event(hv_vmbus_channel* channel);
 static void	VmbusProcessChannelEvent(void* channel, int pending);
+static void	vmbus_chan_update_evtflagcnt(struct vmbus_softc *,
+		    const struct hv_vmbus_channel *);
 
 /**
  *  @brief Trigger an event notification on the specified channel
@@ -207,7 +209,7 @@ hv_vmbus_channel_open(
 	new_channel->on_channel_callback = pfn_on_channel_callback;
 	new_channel->channel_callback_context = context;
 
-	vmbus_on_channel_open(new_channel);
+	vmbus_chan_update_evtflagcnt(sc, new_channel);
 
 	new_channel->rxq = VMBUS_PCPU_GET(new_channel->vmbus_sc, event_tq,
 	    new_channel->target_cpu);
@@ -881,5 +883,97 @@ VmbusProcessChannelEvent(void* context, int pending)
 			else
 				bytes_to_read = 0;
 		} while (is_batched_reading && (bytes_to_read != 0));
+	}
+}
+
+static __inline void
+vmbus_event_flags_proc(struct vmbus_softc *sc, volatile u_long *event_flags,
+    int flag_cnt)
+{
+	int f;
+
+	for (f = 0; f < flag_cnt; ++f) {
+		uint32_t rel_id_base;
+		u_long flags;
+		int bit;
+
+		if (event_flags[f] == 0)
+			continue;
+
+		flags = atomic_swap_long(&event_flags[f], 0);
+		rel_id_base = f << VMBUS_EVTFLAG_SHIFT;
+
+		while ((bit = ffsl(flags)) != 0) {
+			struct hv_vmbus_channel *channel;
+			uint32_t rel_id;
+
+			--bit;	/* NOTE: ffsl is 1-based */
+			flags &= ~(1UL << bit);
+
+			rel_id = rel_id_base + bit;
+			channel = sc->vmbus_chmap[rel_id];
+
+			/* if channel is closed or closing */
+			if (channel == NULL || channel->rxq == NULL)
+				continue;
+
+			if (channel->batched_reading)
+				hv_ring_buffer_read_begin(&channel->inbound);
+			taskqueue_enqueue(channel->rxq, &channel->channel_task);
+		}
+	}
+}
+
+void
+vmbus_event_proc(struct vmbus_softc *sc, int cpu)
+{
+	struct vmbus_evtflags *eventf;
+
+	/*
+	 * On Host with Win8 or above, the event page can be checked directly
+	 * to get the id of the channel that has the pending interrupt.
+	 */
+	eventf = VMBUS_PCPU_GET(sc, event_flags, cpu) + VMBUS_SINT_MESSAGE;
+	vmbus_event_flags_proc(sc, eventf->evt_flags,
+	    VMBUS_PCPU_GET(sc, event_flags_cnt, cpu));
+}
+
+void
+vmbus_event_proc_compat(struct vmbus_softc *sc, int cpu)
+{
+	struct vmbus_evtflags *eventf;
+
+	eventf = VMBUS_PCPU_GET(sc, event_flags, cpu) + VMBUS_SINT_MESSAGE;
+	if (atomic_testandclear_long(&eventf->evt_flags[0], 0)) {
+		vmbus_event_flags_proc(sc, sc->vmbus_rx_evtflags,
+		    VMBUS_CHAN_MAX_COMPAT >> VMBUS_EVTFLAG_SHIFT);
+	}
+}
+
+static void
+vmbus_chan_update_evtflagcnt(struct vmbus_softc *sc,
+    const struct hv_vmbus_channel *chan)
+{
+	volatile int *flag_cnt_ptr;
+	int flag_cnt;
+
+	flag_cnt = (chan->offer_msg.child_rel_id / VMBUS_EVTFLAG_LEN) + 1;
+	flag_cnt_ptr = VMBUS_PCPU_PTR(sc, event_flags_cnt, chan->target_cpu);
+
+	for (;;) {
+		int old_flag_cnt;
+
+		old_flag_cnt = *flag_cnt_ptr;
+		if (old_flag_cnt >= flag_cnt)
+			break;
+		if (atomic_cmpset_int(flag_cnt_ptr, old_flag_cnt, flag_cnt)) {
+			if (bootverbose) {
+				device_printf(sc->vmbus_dev,
+				    "channel%u update cpu%d flag_cnt to %d\n",
+				    chan->offer_msg.child_rel_id,
+				    chan->target_cpu, flag_cnt);
+			}
+			break;
+		}
 	}
 }
