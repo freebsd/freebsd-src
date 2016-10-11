@@ -124,6 +124,7 @@ SUBDIR.${MK_CHERI}+=	cheri_tcpdump_control
 SUBDIR.${MK_CTM}+=	ctm
 SUBDIR.${MK_DIALOG}+=	tzsetup
 SUBDIR.${MK_DIALOG}+=	bsdconfig
+SUBDIR.${MK_EFI}+=	efivar
 SUBDIR.${MK_FLOPPY}+=	fdcontrol
 SUBDIR.${MK_FLOPPY}+=	fdformat
 SUBDIR.${MK_FLOPPY}+=	fdread
