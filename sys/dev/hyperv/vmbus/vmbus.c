@@ -1184,8 +1184,8 @@ vmbus_doattach(struct vmbus_softc *sc)
 
 	mtx_init(&sc->vmbus_scan_lock, "vmbus scan", NULL, MTX_DEF);
 	sc->vmbus_gpadl = VMBUS_GPADL_START;
-	mtx_init(&sc->vmbus_chlist_lock, "vmbus chlist", NULL, MTX_DEF);
-	TAILQ_INIT(&sc->vmbus_chlist);
+	mtx_init(&sc->vmbus_prichan_lock, "vmbus prichan", NULL, MTX_DEF);
+	TAILQ_INIT(&sc->vmbus_prichans);
 	sc->vmbus_chmap = malloc(
 	    sizeof(struct hv_vmbus_channel *) * VMBUS_CHAN_MAX, M_DEVBUF,
 	    M_WAITOK | M_ZERO);
@@ -1256,7 +1256,7 @@ cleanup:
 	}
 	free(sc->vmbus_chmap, M_DEVBUF);
 	mtx_destroy(&sc->vmbus_scan_lock);
-	mtx_destroy(&sc->vmbus_chlist_lock);
+	mtx_destroy(&sc->vmbus_prichan_lock);
 
 	return (ret);
 }
@@ -1314,7 +1314,7 @@ vmbus_detach(device_t dev)
 {
 	struct vmbus_softc *sc = device_get_softc(dev);
 
-	hv_vmbus_release_unattached_channels(sc);
+	vmbus_chan_destroy_all(sc);
 
 	vmbus_disconnect(sc);
 
@@ -1333,7 +1333,7 @@ vmbus_detach(device_t dev)
 
 	free(sc->vmbus_chmap, M_DEVBUF);
 	mtx_destroy(&sc->vmbus_scan_lock);
-	mtx_destroy(&sc->vmbus_chlist_lock);
+	mtx_destroy(&sc->vmbus_prichan_lock);
 
 	return (0);
 }

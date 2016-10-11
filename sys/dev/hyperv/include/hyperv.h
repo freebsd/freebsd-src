@@ -326,7 +326,7 @@ typedef struct hv_vmbus_channel {
 	void				*hv_chan_priv3;
 
 	struct task			ch_detach_task;
-	TAILQ_ENTRY(hv_vmbus_channel)	ch_link;
+	TAILQ_ENTRY(hv_vmbus_channel)	ch_prilink;	/* primary chan link */
 	uint32_t			ch_subidx;	/* subchan index */
 	volatile uint32_t		ch_stflags;	/* atomic-op */
 							/* VMBUS_CHAN_ST_ */
