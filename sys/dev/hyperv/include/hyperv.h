@@ -55,6 +55,7 @@
 
 #include <amd64/include/xen/synch_bitops.h>
 #include <amd64/include/atomic.h>
+#include <dev/hyperv/include/hyperv_busdma.h>
 
 typedef uint8_t	hv_bool_uint8_t;
 
@@ -72,10 +73,13 @@ typedef uint8_t	hv_bool_uint8_t;
  * 2.4   --  Windows 8
  * 3.0   --  Windows 8.1
  */
-#define HV_VMBUS_VERSION_WS2008		((0 << 16) | (13))
-#define HV_VMBUS_VERSION_WIN7		((1 << 16) | (1))
-#define HV_VMBUS_VERSION_WIN8		((2 << 16) | (4))
-#define HV_VMBUS_VERSION_WIN8_1		((3 << 16) | (0))
+#define VMBUS_VERSION_WS2008		((0 << 16) | (13))
+#define VMBUS_VERSION_WIN7		((1 << 16) | (1))
+#define VMBUS_VERSION_WIN8		((2 << 16) | (4))
+#define VMBUS_VERSION_WIN8_1		((3 << 16) | (0))
+
+#define VMBUS_VERSION_MAJOR(ver)	(((uint32_t)(ver)) >> 16)
+#define VMBUS_VERSION_MINOR(ver)	(((uint32_t)(ver)) & 0xffff)
 
 /*
  * Make maximum size of pipe payload of 16K
@@ -528,22 +532,7 @@ typedef union {
 
 } __packed hv_vmbus_connection_id;
 
-/*
- * Definition of the hv_vmbus_signal_event hypercall input structure
- */
-typedef struct {
-	hv_vmbus_connection_id	connection_id;
-	uint16_t		flag_number;
-	uint16_t		rsvd_z;
-} __packed hv_vmbus_input_signal_event;
-
-typedef struct {
-	uint64_t			align8;
-	hv_vmbus_input_signal_event	event;
-} __packed hv_vmbus_input_signal_event_buffer;
-
 typedef struct hv_vmbus_channel {
-	TAILQ_ENTRY(hv_vmbus_channel)	list_entry;
 	struct hv_device*		device;
 	struct vmbus_softc		*vmbus_sc;
 	hv_vmbus_channel_state		state;
@@ -589,14 +578,8 @@ typedef struct hv_vmbus_channel {
 
 	boolean_t			is_dedicated_interrupt;
 
-	/*
-	 * Used as an input param for HV_CALL_SIGNAL_EVENT hypercall.
-	 */
-	hv_vmbus_input_signal_event_buffer	signal_event_buffer;
-	/*
-	 * 8-bytes aligned of the buffer above
-	 */
-	hv_vmbus_input_signal_event	*signal_event_param;
+	struct hypercall_sigevt_in	*ch_sigevt;
+	struct hyperv_dma		ch_sigevt_dma;
 
 	/*
 	 * From Win8, this field specifies the target virtual process
@@ -643,6 +626,7 @@ typedef struct hv_vmbus_channel {
 	void				*hv_chan_priv3;
 
 	struct task			ch_detach_task;
+	TAILQ_ENTRY(hv_vmbus_channel)	ch_link;
 } hv_vmbus_channel;
 
 #define HV_VMBUS_CHAN_ISPRIMARY(chan)	((chan)->primary_channel == NULL)
@@ -726,6 +710,7 @@ int		hv_vmbus_channel_teardown_gpdal(
 struct hv_vmbus_channel* vmbus_select_outgoing_channel(struct hv_vmbus_channel *promary);
 
 void		vmbus_channel_cpu_set(struct hv_vmbus_channel *chan, int cpu);
+void		vmbus_channel_cpu_rr(struct hv_vmbus_channel *chan);
 struct hv_vmbus_channel **
 		vmbus_get_subchan(struct hv_vmbus_channel *pri_chan, int subchan_cnt);
 void		vmbus_rel_subchan(struct hv_vmbus_channel **subchan, int subchan_cnt);
@@ -741,5 +726,4 @@ hv_get_phys_addr(void *virt)
 	return (ret);
 }
 
-extern uint32_t hv_vmbus_protocal_version;
 #endif  /* __HYPERV_H__ */

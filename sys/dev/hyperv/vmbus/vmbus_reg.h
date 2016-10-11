@@ -93,7 +93,7 @@ struct vmbus_gpa_range {
  * - Embedded in hypercall_postmsg_in.hc_data, e.g. request.
  */
 
-#define VMBUS_CHANMSG_TYPE_CHANNEL_REQ		3	/* REQ */
+#define VMBUS_CHANMSG_TYPE_CHREQUEST		3	/* REQ */
 #define VMBUS_CHANMSG_TYPE_CHOPEN		5	/* REQ */
 #define VMBUS_CHANMSG_TYPE_CHOPEN_RESP		6	/* RESP */
 #define VMBUS_CHANMSG_TYPE_CHCLOSE		7	/* REQ */
@@ -102,17 +102,17 @@ struct vmbus_gpa_range {
 #define VMBUS_CHANMSG_TYPE_GPADL_CONNRESP	10	/* RESP */
 #define VMBUS_CHANMSG_TYPE_GPADL_DISCONN	11	/* REQ */
 #define VMBUS_CHANMSG_TYPE_GPADL_DISCONNRESP	12	/* RESP */
-#define VMBUS_CHANMSG_TYPE_INIT_CONTACT		14	/* REQ */
-#define VMBUS_CHANMSG_TYPE_VERSION_RESP		15	/* RESP */
-#define VMBUS_CHANMSG_TYPE_UNLOAD		16	/* REQ */
+#define VMBUS_CHANMSG_TYPE_CONNECT		14	/* REQ */
+#define VMBUS_CHANMSG_TYPE_CONNECT_RESP		15	/* RESP */
+#define VMBUS_CHANMSG_TYPE_DISCONNECT		16	/* REQ */
 
 struct vmbus_chanmsg_hdr {
 	uint32_t	chm_type;	/* VMBUS_CHANMSG_TYPE_ */
 	uint32_t	chm_rsvd;
 } __packed;
 
-/* VMBUS_CHANMSG_TYPE_INIT_CONTACT */
-struct vmbus_chanmsg_init_contact {
+/* VMBUS_CHANMSG_TYPE_CONNECT */
+struct vmbus_chanmsg_connect {
 	struct vmbus_chanmsg_hdr chm_hdr;
 	uint32_t	chm_ver;
 	uint32_t	chm_rsvd;
@@ -121,19 +121,19 @@ struct vmbus_chanmsg_init_contact {
 	uint64_t	chm_mnf2;
 } __packed;
 
-/* VMBUS_CHANMSG_TYPE_VERSION_RESP */
-struct vmbus_chanmsg_version_resp {
+/* VMBUS_CHANMSG_TYPE_CONNECT_RESP */
+struct vmbus_chanmsg_connect_resp {
 	struct vmbus_chanmsg_hdr chm_hdr;
-	uint8_t		chm_supp;
+	uint8_t		chm_done;
 } __packed;
 
-/* VMBUS_CHANMSG_TYPE_CHANNEL_REQ */
-struct vmbus_chanmsg_channel_req {
+/* VMBUS_CHANMSG_TYPE_CHREQUEST */
+struct vmbus_chanmsg_chrequest {
 	struct vmbus_chanmsg_hdr chm_hdr;
 } __packed;
 
-/* VMBUS_CHANMSG_TYPE_UNLOAD */
-struct vmbus_chanmsg_unload {
+/* VMBUS_CHANMSG_TYPE_DISCONNECT */
+struct vmbus_chanmsg_disconnect {
 	struct vmbus_chanmsg_hdr chm_hdr;
 } __packed;
 
