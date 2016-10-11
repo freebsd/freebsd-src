@@ -29,12 +29,7 @@
 #ifndef _LIBEFI_INT_H_
 #define	_LIBEFI_INT_H_
 
-#include <sys/errno.h>
-#include <machine/iodev.h>
-
-int libefi_ucs2_to_utf8(u_short *, size_t *, char *);
-int libefi_utf8_to_ucs2(char *, size_t *, u_short **);
-
-int libefi_efivar(struct iodev_efivar_req *);
+int libefi_ucs2_to_utf8(const efi_char *, char **);
+int libefi_utf8_to_ucs2(const char *, efi_char **, size_t *);
 
 #endif /* _LIBEFI_INT_H_ */
