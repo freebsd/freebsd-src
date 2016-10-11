@@ -285,21 +285,19 @@ vmbus_channel_on_offer_internal(struct vmbus_softc *sc,
 {
 	hv_vmbus_channel* new_channel;
 
-	/* Allocate the channel object and save this offer */
+	/*
+	 * Allocate the channel object and save this offer
+	 */
 	new_channel = hv_vmbus_allocate_channel(sc);
 	new_channel->ch_id = offer->child_rel_id;
 	new_channel->ch_subidx = offer->offer.sub_channel_index;
-	if (offer->monitor_allocated)
-		new_channel->ch_flags |= VMBUS_CHAN_FLAG_HASMNF;
 	new_channel->ch_guid_type = offer->offer.interface_type;
 	new_channel->ch_guid_inst = offer->offer.interface_instance;
 
-	/*
-	 * By default we setup state to enable batched
-	 * reading. A specific service can choose to
-	 * disable this prior to opening the channel.
-	 */
-	new_channel->batched_reading = TRUE;
+	/* Batch reading is on by default */
+	new_channel->ch_flags |= VMBUS_CHAN_FLAG_BATCHREAD;
+	if (offer->monitor_allocated)
+		new_channel->ch_flags |= VMBUS_CHAN_FLAG_HASMNF;
 
 	new_channel->ch_sigevt = hyperv_dmamem_alloc(
 	    bus_get_dma_tag(sc->vmbus_dev),
@@ -313,12 +311,8 @@ vmbus_channel_on_offer_internal(struct vmbus_softc *sc,
 		return;
 	}
 	new_channel->ch_sigevt->hc_connid = VMBUS_CONNID_EVENT;
-
-	if (sc->vmbus_version != VMBUS_VERSION_WS2008) {
-		new_channel->is_dedicated_interrupt =
-		    (offer->is_dedicated_interrupt != 0);
+	if (sc->vmbus_version != VMBUS_VERSION_WS2008)
 		new_channel->ch_sigevt->hc_connid = offer->connection_id;
-	}
 
 	new_channel->monitor_group = (uint8_t) offer->monitor_id / 32;
 	new_channel->monitor_bit = (uint8_t) offer->monitor_id % 32;
