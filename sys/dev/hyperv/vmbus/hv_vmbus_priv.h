@@ -35,38 +35,11 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/sema.h>
+#include <sys/_iovec.h>
 
 #include <dev/hyperv/include/hyperv.h>
 
 struct vmbus_softc;
-
-typedef struct {
-	void*		data;
-	uint32_t	length;
-} hv_vmbus_sg_buffer_list;
-
-typedef struct {
-	uint32_t	current_interrupt_mask;
-	uint32_t	current_read_index;
-	uint32_t	current_write_index;
-	uint32_t	bytes_avail_to_read;
-	uint32_t	bytes_avail_to_write;
-} hv_vmbus_ring_buffer_debug_info;
-
-typedef struct {
-	uint32_t 		rel_id;
-	struct hyperv_guid	interface_type;
-	struct hyperv_guid	interface_instance;
-	uint32_t		monitor_id;
-	uint32_t		server_monitor_pending;
-	uint32_t		server_monitor_latency;
-	uint32_t		server_monitor_connection_id;
-	uint32_t		client_monitor_pending;
-	uint32_t		client_monitor_latency;
-	uint32_t		client_monitor_connection_id;
-	hv_vmbus_ring_buffer_debug_info	inbound;
-	hv_vmbus_ring_buffer_debug_info	outbound;
-} hv_vmbus_channel_debug_info;
 
 /*
  * The format must be the same as hv_vm_data_gpa_direct
@@ -118,8 +91,8 @@ void			hv_ring_buffer_cleanup(
 
 int			hv_ring_buffer_write(
 				hv_vmbus_ring_buffer_info	*ring_info,
-				hv_vmbus_sg_buffer_list		sg_buffers[],
-				uint32_t			sg_buff_count,
+				const struct iovec		iov[],
+				uint32_t			iovlen,
 				boolean_t			*need_sig);
 
 int			hv_ring_buffer_peek(
@@ -133,22 +106,10 @@ int			hv_ring_buffer_read(
 				uint32_t			buffer_len,
 				uint32_t			offset);
 
-uint32_t		hv_vmbus_get_ring_buffer_interrupt_mask(
-				hv_vmbus_ring_buffer_info	*ring_info);
-
-void			hv_vmbus_dump_ring_info(
-				hv_vmbus_ring_buffer_info	*ring_info,
-				char				*prefix);
-
 void			hv_ring_buffer_read_begin(
 				hv_vmbus_ring_buffer_info	*ring_info);
 
 uint32_t		hv_ring_buffer_read_end(
 				hv_vmbus_ring_buffer_info	*ring_info);
-
-int			hv_vmbus_child_device_register(
-					struct hv_vmbus_channel *chan);
-int			hv_vmbus_child_device_unregister(
-					struct hv_vmbus_channel *chan);
 
 #endif  /* __HYPERV_PRIV_H__ */
