@@ -72,6 +72,34 @@ struct vmbus_evtflags {
 CTASSERT(sizeof(struct vmbus_evtflags) == VMBUS_EVTFLAGS_SIZE);
 
 /*
+ * Hyper-V Monitor Notification Facility
+ */
+
+struct vmbus_mon_trig {
+	uint32_t	mt_pending;
+	uint32_t	mt_armed;
+} __packed;
+
+#define VMBUS_MONTRIGS_MAX	4
+#define VMBUS_MONTRIG_LEN	32
+
+struct vmbus_mnf {
+	uint32_t	mnf_state;
+	uint32_t	mnf_rsvd1;
+
+	struct vmbus_mon_trig mnf_trigs[VMBUS_MONTRIGS_MAX];
+	uint8_t		mnf_rsvd2[536];
+
+	uint16_t	mnf_lat[VMBUS_MONTRIGS_MAX][VMBUS_MONTRIG_LEN];
+	uint8_t		mnf_rsvd3[256];
+
+	struct hyperv_mon_param
+			mnf_param[VMBUS_MONTRIGS_MAX][VMBUS_MONTRIG_LEN];
+	uint8_t		mnf_rsvd4[1984];
+} __packed;
+CTASSERT(sizeof(struct vmbus_mnf) == PAGE_SIZE);
+
+/*
  * Channel
  */
 

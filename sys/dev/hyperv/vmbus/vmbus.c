@@ -130,7 +130,7 @@ vmbus_msghc_alloc(bus_dma_tag_t parent_dtag)
 	mh = malloc(sizeof(*mh), M_DEVBUF, M_WAITOK | M_ZERO);
 
 	mh->mh_inprm = hyperv_dmamem_alloc(parent_dtag,
-	    HYPERCALL_POSTMSGIN_ALIGN, 0, HYPERCALL_POSTMSGIN_SIZE,
+	    HYPERCALL_PARAM_ALIGN, 0, HYPERCALL_POSTMSGIN_SIZE,
 	    &mh->mh_inprm_dma, BUS_DMA_WAITOK);
 	if (mh->mh_inprm == NULL) {
 		free(mh, M_DEVBUF);
@@ -835,7 +835,8 @@ vmbus_dma_alloc(struct vmbus_softc *sc)
 		return ENOMEM;
 
 	sc->vmbus_mnf2 = hyperv_dmamem_alloc(parent_dtag, PAGE_SIZE, 0,
-	    PAGE_SIZE, &sc->vmbus_mnf2_dma, BUS_DMA_WAITOK | BUS_DMA_ZERO);
+	    sizeof(struct vmbus_mnf), &sc->vmbus_mnf2_dma,
+	    BUS_DMA_WAITOK | BUS_DMA_ZERO);
 	if (sc->vmbus_mnf2 == NULL)
 		return ENOMEM;
 
