@@ -223,9 +223,11 @@ cheriabi_exec_copyin_args(struct image_args *args, const char *fname,
     enum uio_seg segflg, struct chericap *argv, struct chericap *envv)
 {
 	char *argp, *envp;
-	struct chericap *pcap, arg;
+	struct chericap *pcap, *argcap;
 	size_t length;
 	int error, tag;
+
+	argcap = NULL;
 
 	bzero(args, sizeof(*args));
 	if (argv == NULL)
@@ -240,10 +242,15 @@ cheriabi_exec_copyin_args(struct image_args *args, const char *fname,
 		return (error);
 
 	/*
+	 * XXX: Work around not being able to store capabilities to the stack
+	 * and use the allocated buffer instead.
+	 */
+	argcap = (struct chericap *)args->buf;
+	/*
 	 * Copy the file name.
 	 */
 	if (fname != NULL) {
-		args->fname = args->buf;
+		args->fname = args->buf + sizeof(struct chericap);
 		error = (segflg == UIO_SYSSPACE) ?
 		    copystr(fname, args->fname, PATH_MAX, &length) :
 		    copyinstr(fname, args->fname, PATH_MAX, &length);
@@ -252,7 +259,7 @@ cheriabi_exec_copyin_args(struct image_args *args, const char *fname,
 	} else
 		length = 0;
 
-	args->begin_argv = args->buf + length;
+	args->begin_argv = args->buf + sizeof(struct chericap) + length;
 	args->endp = args->begin_argv;
 	args->stringspace = ARG_MAX;
 
@@ -261,15 +268,15 @@ cheriabi_exec_copyin_args(struct image_args *args, const char *fname,
 	 */
 	pcap = argv;
 	for (;;) {
-		error = copyincap(pcap++, &arg, sizeof(arg));
+		error = copyincap(pcap++, argcap, sizeof(*argcap));
 		if (error)
 			goto err_exit;
-		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &arg, 0);
+		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, argcap, 0);
 		CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
 		if (!tag)
 			break;
 		error = cheriabi_strcap_to_ptr((const char **)&argp,
-		    &arg, 0);
+		    argcap, 0);
 		if (error)
 			goto err_exit;
 		/* Lose any stray caps in arg strings. */
@@ -292,15 +299,15 @@ cheriabi_exec_copyin_args(struct image_args *args, const char *fname,
 	if (envv) {
 		pcap = envv;
 		for (;;) {
-			error = copyincap(pcap++, &arg, sizeof(arg));
+			error = copyincap(pcap++, argcap, sizeof(*argcap));
 			if (error)
 				goto err_exit;
-			CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &arg, 0);
+			CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, argcap, 0);
 			CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
 			if (!tag)
 				break;
 			error = cheriabi_strcap_to_ptr((const char **)&envp,
-			    &arg, 0);
+			    argcap, 0);
 			if (error)
 				goto err_exit;
 			/* Lose any stray caps in env strings. */
