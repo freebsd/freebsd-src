@@ -168,6 +168,29 @@ boot</screen>
 	  state &quot;Wireless support for 802.11n has been added for
 	  additional wireless network drivers.&quot;</para>
       </listitem>
+
+      <listitem>
+	<para>Some release notes pertaining to the Cavium ThunderX
+	  platform (the &os;/&arch.arm64; reference platform) were
+	  omitted:</para>
+
+	<itemizedlist>
+	  <listitem>
+	    <para revision="289550">Support for the Cavium
+	      Virtualized NIC ethernet driver has been added.</para>
+	  </listitem>
+
+	  <listitem>
+	    <para revision="286919">Support for the GICv3 and
+	      ITS device drivers has been added.</para>
+	  </listitem>
+
+	  <listitem>
+	    <para revision="296308">Support for PCI
+	      Enhanced Allocation support has been added.</para>
+	  </listitem>
+	</itemizedlist>
+      </listitem>
     </itemizedlist>
   </sect1>
 
