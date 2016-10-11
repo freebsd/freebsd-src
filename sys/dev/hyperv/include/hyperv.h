@@ -523,12 +523,13 @@ typedef struct hv_vmbus_channel {
 	hv_vmbus_channel_state		state;
 	uint32_t			ch_flags;	/* VMBUS_CHAN_FLAG_ */
 	uint32_t			ch_id;		/* channel id */
+
 	/*
 	 * These are based on the offer_msg.monitor_id.
 	 * Save it here for easy access.
 	 */
-	uint8_t				monitor_group;
-	uint8_t				monitor_bit;
+	int				ch_montrig_idx;	/* MNF trig index */
+	uint32_t			ch_montrig_mask;/* MNF trig mask */
 
 	uint32_t			ring_buffer_gpadl_handle;
 	/*
@@ -551,8 +552,8 @@ typedef struct hv_vmbus_channel {
 	hv_vmbus_pfn_channel_callback	on_channel_callback;
 	void*				channel_callback_context;
 
-	struct hypercall_sigevt_in	*ch_sigevt;
-	struct hyperv_dma		ch_sigevt_dma;
+	struct hyperv_mon_param		*ch_monprm;
+	struct hyperv_dma		ch_monprm_dma;
 
 	/*
 	 * From Win8, this field specifies the target virtual process
