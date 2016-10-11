@@ -293,30 +293,17 @@ typedef struct hv_vmbus_channel {
 	uint32_t			target_cpu;
 
 	/*
-	 * Support for multi-channels.
-	 * The initial offer is considered the primary channel and this
-	 * offer message will indicate if the host supports multi-channels.
-	 * The guest is free to ask for multi-channels to be offerred and can
-	 * open these multi-channels as a normal "primary" channel. However,
-	 * all multi-channels will have the same type and instance guids as the
-	 * primary channel. Requests sent on a given channel will result in a
-	 * response on the same channel.
+	 * If this is a primary channel, ch_subchan* fields
+	 * contain sub-channels belonging to this primary
+	 * channel.
 	 */
+	struct mtx			ch_subchan_lock;
+	TAILQ_HEAD(, hv_vmbus_channel)	ch_subchans;
+	int				ch_subchan_cnt;
 
-	struct mtx			sc_lock;
-
-	/*
-	 * Link list of all the multi-channels if this is a primary channel
-	 */
-	TAILQ_HEAD(, hv_vmbus_channel)	sc_list_anchor;
-	TAILQ_ENTRY(hv_vmbus_channel)	sc_list_entry;
-	int				subchan_cnt;
-
-	/*
-	 * The primary channel this sub-channle belongs to.
-	 * This will be NULL for the primary channel.
-	 */
-	struct hv_vmbus_channel		*primary_channel;
+	/* If this is a sub-channel */
+	TAILQ_ENTRY(hv_vmbus_channel)	ch_sublink;	/* sub-channel link */
+	struct hv_vmbus_channel		*ch_prichan;	/* owner primary chan */
 
 	/*
 	 * Driver private data
