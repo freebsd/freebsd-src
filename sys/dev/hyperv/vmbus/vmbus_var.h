@@ -74,6 +74,7 @@ struct vmbus_softc {
 
 	u_long			*vmbus_rx_evtflags;
 						/* compat evtflgs from host */
+	struct hv_vmbus_channel	**vmbus_chmap;
 	struct vmbus_msghc_ctx	*vmbus_msg_hc;
 	struct vmbus_pcpu_data	vmbus_pcpu[MAXCPU];
 
@@ -129,7 +130,6 @@ struct trapframe;
 struct vmbus_message;
 struct vmbus_msghc;
 
-void	vmbus_on_channel_open(const struct hv_vmbus_channel *);
 void	vmbus_event_proc(struct vmbus_softc *, int);
 void	vmbus_event_proc_compat(struct vmbus_softc *, int);
 void	vmbus_handle_intr(struct trapframe *);
