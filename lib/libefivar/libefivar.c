@@ -27,86 +27,105 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/ioctl.h>
 #include <sys/types.h>
-#include <fcntl.h>
+#include <errno.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/efi.h>
+#include <machine/efi.h>
 
-#include "libefi_int.h"
+#include "libefivar_int.h"
 
-static int __iofd = -1;
+#include <stdio.h>
 
-static void
-iodev_fd_close(void)
+/*
+ * If nm were converted to utf8, what what would strlen
+ * return on the resulting string?
+ */
+static size_t
+utf8_len_of_ucs2(const efi_char *nm)
 {
+	size_t len;
+	efi_char c;
 
-	close(__iofd);
-}
+	len = 0;
+	while (*nm) {
+		c = *nm++;
+		if (c > 0x7ff)
+			len += 3;
+		else if (c > 0x7f)
+			len += 2;
+		else
+			len++;
+	}
 
-static int
-iodev_fd(int *fd)
-{
-
-	*fd = __iofd;
-	if (__iofd != -1)
-		return (0);
-
-	__iofd = open("/dev/io", O_RDWR);
-	if (__iofd == -1)
-		return (errno);
-
-	atexit(iodev_fd_close);
-	*fd = __iofd;
-	return (0);
+	return (len);
 }
 
 int
-libefi_ucs2_to_utf8(u_short *nm, size_t *szp, char *name)
+libefi_ucs2_to_utf8(const efi_char *nm, char **name)
 {
 	size_t len, sz;
-	u_short c;
+	efi_char c;
+	char *cp;
+	int freeit = *name == NULL;
 
+	sz = utf8_len_of_ucs2(nm) + 1;
 	len = 0;
-	sz = *szp;
+	if (*name != NULL)
+		cp = *name;
+	else
+		cp = *name = malloc(sz);
+	if (*name == NULL)
+		return (ENOMEM);
+
 	while (*nm) {
 		c = *nm++;
 		if (c > 0x7ff) {
 			if (len++ < sz)
-				*name++ = 0xE0 | (c >> 12);
+				*cp++ = (char)(0xE0 | (c >> 12));
 			if (len++ < sz)
-				*name++ = 0x80 | ((c >> 6) & 0x3f);
+				*cp++ = (char)(0x80 | ((c >> 6) & 0x3f));
 			if (len++ < sz)
-				*name++ = 0x80 | (c & 0x3f);
+				*cp++ = (char)(0x80 | (c & 0x3f));
 		} else if (c > 0x7f) {
 			if (len++ < sz)
-				*name++ = 0xC0 | ((c >> 6) & 0x1f);
+				*cp++ = (char)(0xC0 | ((c >> 6) & 0x1f));
 			if (len++ < sz)
-				*name++ = 0x80 | (c & 0x3f);
+				*cp++ = (char)(0x80 | (c & 0x3f));
 		} else {
 			if (len++ < sz)
-				*name++ = (c & 0x7f);
+				*cp++ = (char)(c & 0x7f);
 		}
 	}
-	if (len++ < sz)
-		*name++ = 0;
 
-	*szp = len;
-	return ((len <= sz) ? 0 : EOVERFLOW);
+	if (len >= sz) {
+		/* Absent bugs, we'll never return EOVERFLOW */
+		if (freeit)
+			free(*name);
+		return (EOVERFLOW);
+	}
+	*cp++ = '\0';
+
+	return (0);
 }
 
 int
-libefi_utf8_to_ucs2(char *name, size_t *szp, u_short **nmp)
+libefi_utf8_to_ucs2(const char *name, efi_char **nmp, size_t *len)
 {
-	u_short *nm;
+	efi_char *nm;
 	size_t sz;
 	uint32_t ucs4;
 	int c, bytes;
+	int freeit = *nmp == NULL;
 
-	*szp = sz = (*szp == 0) ? strlen(name) * 2 + 2 : *szp;
-	*nmp = nm = malloc(sz);
+	sz = strlen(name) * 2 + 2;
+	if (*nmp == NULL)
+		*nmp = malloc(sz);
+	nm = *nmp;
+	*len = sz;
 
 	ucs4 = 0;
 	bytes = 0;
@@ -119,7 +138,8 @@ libefi_utf8_to_ucs2(char *name, size_t *szp, u_short **nmp)
 		if ((c & 0xc0) != 0x80) {
 			/* Initial characters. */
 			if (bytes != 0) {
-				free(nm);
+				if (freeit)
+					free(nm);
 				return (EILSEQ);
 			}
 			if ((c & 0xf8) == 0xf0) {
@@ -141,36 +161,28 @@ libefi_utf8_to_ucs2(char *name, size_t *szp, u_short **nmp)
 				ucs4 = (ucs4 << 6) + (c & 0x3f);
 				bytes--;
 			} else if (bytes == 0) {
-				free(nm);
+				if (freeit)
+					free(nm);
 				return (EILSEQ);
 			}
 		}
 		if (bytes == 0) {
 			if (ucs4 > 0xffff) {
-				free(nm);
+				if (freeit)
+					free(nm);
 				return (EILSEQ);
 			}
-			*nm++ = (u_short)ucs4;
+			*nm++ = (efi_char)ucs4;
 			sz -= 2;
 		}
 	}
 	if (sz < 2) {
-		free(nm);
+		if (freeit)
+			free(nm);
 		return (EDOOFUS);
 	}
+	sz -= 2;
 	*nm = 0;
+	*len -= sz;
 	return (0);
-}
-
-int
-libefi_efivar(struct iodev_efivar_req *req)
-{
-	int error, fd;
-
-	error = iodev_fd(&fd);
-	if (!error)
-		error = (ioctl(fd, IODEV_EFIVAR, req) == -1) ? errno : 0;
-	if (!error)
-		error = req->result;
-	return (error);
 }
