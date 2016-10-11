@@ -69,6 +69,9 @@ recvmmsg(int s, struct mmsghdr *__restrict msgvec, size_t vlen, int flags,
 	if (ret == -1)
 		return (ret);
 
+	/* Save received bytes. */
+	msgvec[0].msg_len = ret;
+
 	/* 
 	 * Do non-blocking receive for second and later messages if
 	 * WAITFORONE is set.
