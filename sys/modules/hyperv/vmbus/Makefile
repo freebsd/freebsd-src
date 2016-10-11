@@ -5,7 +5,6 @@
 
 KMOD=	hv_vmbus
 SRCS=	hv_channel.c \
-	hv_channel_mgmt.c \
 	hv_ring_buffer.c \
 	hyperv.c \
 	hyperv_busdma.c \
