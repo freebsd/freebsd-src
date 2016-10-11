@@ -228,7 +228,7 @@ cam_compat_handle_0x17(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 
 		cts = &ccb->cts;
 		cts17 = (struct ccb_trans_settings_0x17 *)hdr17;
-		cts17->type = cts17->type;
+		cts17->type = cts->type;
 		cts17->protocol = cts->protocol;
 		cts17->protocol_version = cts->protocol_version;
 		cts17->transport = cts->transport;
@@ -335,7 +335,7 @@ cam_compat_handle_0x18(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 
 		cts = &ccb->cts;
 		cts18 = (struct ccb_trans_settings_0x18 *)hdr18;
-		cts18->type = cts18->type;
+		cts18->type = cts->type;
 		cts18->protocol = cts->protocol;
 		cts18->protocol_version = cts->protocol_version;
 		cts18->transport = cts->transport;
