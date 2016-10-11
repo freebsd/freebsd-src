@@ -45,36 +45,39 @@ typedef void	(*vmbus_chanmsg_proc_t)
 
 static struct hv_vmbus_channel *hv_vmbus_allocate_channel(struct vmbus_softc *);
 static void	vmbus_channel_on_offer_internal(struct vmbus_softc *,
-		    const hv_vmbus_channel_offer_channel *offer);
+		    const struct vmbus_chanmsg_choffer *);
 static void	vmbus_chan_detach_task(void *, int);
 
 static void	vmbus_channel_on_offer(struct vmbus_softc *,
 		    const struct vmbus_message *);
-static void	vmbus_channel_on_offer_rescind(struct vmbus_softc *,
-		    const struct vmbus_message *);
 static void	vmbus_channel_on_offers_delivered(struct vmbus_softc *,
 		    const struct vmbus_message *);
+static void	vmbus_chan_msgproc_chrescind(struct vmbus_softc *,
+		    const struct vmbus_message *);
 
-/**
- * Channel message dispatch table
+/*
+ * Vmbus channel message processing.
  */
+
+#define VMBUS_CHANMSG_PROC(name, func)	\
+	[VMBUS_CHANMSG_TYPE_##name] = func
+#define VMBUS_CHANMSG_PROC_WAKEUP(name)	\
+	VMBUS_CHANMSG_PROC(name, vmbus_msghc_wakeup)
+
 static const vmbus_chanmsg_proc_t
-vmbus_chanmsg_process[HV_CHANNEL_MESSAGE_COUNT] = {
-	[HV_CHANNEL_MESSAGE_OFFER_CHANNEL] =
-		vmbus_channel_on_offer,
-	[HV_CHANNEL_MESSAGE_RESCIND_CHANNEL_OFFER] =
-		vmbus_channel_on_offer_rescind,
-	[HV_CHANNEL_MESSAGE_ALL_OFFERS_DELIVERED] =
-		vmbus_channel_on_offers_delivered,
-	[HV_CHANNEL_MESSAGE_OPEN_CHANNEL_RESULT] =
-		vmbus_msghc_wakeup,
-	[HV_CHANNEL_MESSAGE_GPADL_CREATED] =
-		vmbus_msghc_wakeup,
-	[HV_CHANNEL_MESSAGE_GPADL_TORNDOWN] =
-		vmbus_msghc_wakeup,
-	[HV_CHANNEL_MESSAGE_VERSION_RESPONSE] =
-		vmbus_msghc_wakeup
+vmbus_chanmsg_process[VMBUS_CHANMSG_TYPE_MAX] = {
+	VMBUS_CHANMSG_PROC(CHOFFER,	vmbus_channel_on_offer),
+	VMBUS_CHANMSG_PROC(CHRESCIND,	vmbus_chan_msgproc_chrescind),
+	VMBUS_CHANMSG_PROC(CHOFFER_DONE,vmbus_channel_on_offers_delivered),
+
+	VMBUS_CHANMSG_PROC_WAKEUP(CHOPEN_RESP),
+	VMBUS_CHANMSG_PROC_WAKEUP(GPADL_CONNRESP),
+	VMBUS_CHANMSG_PROC_WAKEUP(GPADL_DISCONNRESP),
+	VMBUS_CHANMSG_PROC_WAKEUP(CONNECT_RESP)
 };
+
+#undef VMBUS_CHANMSG_PROC_WAKEUP
+#undef VMBUS_CHANMSG_PROC
 
 /**
  * @brief Allocate and initialize a vmbus channel object
@@ -113,27 +116,25 @@ vmbus_channel_process_offer(hv_vmbus_channel *new_channel)
 {
 	struct vmbus_softc *sc = new_channel->vmbus_sc;
 	hv_vmbus_channel*	channel;
-	uint32_t                relid;
 
-	relid = new_channel->ch_id;
 	/*
 	 * Make sure this is a new offer
 	 */
 	mtx_lock(&sc->vmbus_chlist_lock);
-	if (relid == 0) {
+	if (new_channel->ch_id == 0) {
 		/*
 		 * XXX channel0 will not be processed; skip it.
 		 */
 		printf("VMBUS: got channel0 offer\n");
 	} else {
-		sc->vmbus_chmap[relid] = new_channel;
+		sc->vmbus_chmap[new_channel->ch_id] = new_channel;
 	}
 
 	TAILQ_FOREACH(channel, &sc->vmbus_chlist, ch_link) {
 		if (memcmp(&channel->ch_guid_type, &new_channel->ch_guid_type,
-		    sizeof(hv_guid)) == 0 &&
+		    sizeof(struct hyperv_guid)) == 0 &&
 		    memcmp(&channel->ch_guid_inst, &new_channel->ch_guid_inst,
-		    sizeof(hv_guid)) == 0)
+		    sizeof(struct hyperv_guid)) == 0)
 			break;
 	}
 
@@ -270,18 +271,16 @@ vmbus_channel_select_defcpu(struct hv_vmbus_channel *chan)
 static void
 vmbus_channel_on_offer(struct vmbus_softc *sc, const struct vmbus_message *msg)
 {
-	const hv_vmbus_channel_offer_channel *offer;
-
 	/* New channel is offered by vmbus */
 	vmbus_scan_newchan(sc);
 
-	offer = (const hv_vmbus_channel_offer_channel *)msg->msg_data;
-	vmbus_channel_on_offer_internal(sc, offer);
+	vmbus_channel_on_offer_internal(sc,
+	    (const struct vmbus_chanmsg_choffer *)msg->msg_data);
 }
 
 static void
 vmbus_channel_on_offer_internal(struct vmbus_softc *sc,
-    const hv_vmbus_channel_offer_channel *offer)
+    const struct vmbus_chanmsg_choffer *offer)
 {
 	hv_vmbus_channel* new_channel;
 
@@ -289,14 +288,14 @@ vmbus_channel_on_offer_internal(struct vmbus_softc *sc,
 	 * Allocate the channel object and save this offer
 	 */
 	new_channel = hv_vmbus_allocate_channel(sc);
-	new_channel->ch_id = offer->child_rel_id;
-	new_channel->ch_subidx = offer->offer.sub_channel_index;
-	new_channel->ch_guid_type = offer->offer.interface_type;
-	new_channel->ch_guid_inst = offer->offer.interface_instance;
+	new_channel->ch_id = offer->chm_chanid;
+	new_channel->ch_subidx = offer->chm_subidx;
+	new_channel->ch_guid_type = offer->chm_chtype;
+	new_channel->ch_guid_inst = offer->chm_chinst;
 
 	/* Batch reading is on by default */
 	new_channel->ch_flags |= VMBUS_CHAN_FLAG_BATCHREAD;
-	if (offer->monitor_allocated)
+	if (offer->chm_flags1 & VMBUS_CHOFFER_FLAG1_HASMNF)
 		new_channel->ch_flags |= VMBUS_CHAN_FLAG_HASMNF;
 
 	new_channel->ch_monprm = hyperv_dmamem_alloc(
@@ -312,15 +311,15 @@ vmbus_channel_on_offer_internal(struct vmbus_softc *sc,
 	}
 	new_channel->ch_monprm->mp_connid = VMBUS_CONNID_EVENT;
 	if (sc->vmbus_version != VMBUS_VERSION_WS2008)
-		new_channel->ch_monprm->mp_connid = offer->connection_id;
+		new_channel->ch_monprm->mp_connid = offer->chm_connid;
 
 	if (new_channel->ch_flags & VMBUS_CHAN_FLAG_HASMNF) {
 		new_channel->ch_montrig_idx =
-		    offer->monitor_id / VMBUS_MONTRIG_LEN;
+		    offer->chm_montrig / VMBUS_MONTRIG_LEN;
 		if (new_channel->ch_montrig_idx >= VMBUS_MONTRIGS_MAX)
-			panic("invalid monitor id %u", offer->monitor_id);
+			panic("invalid monitor trigger %u", offer->chm_montrig);
 		new_channel->ch_montrig_mask =
-		    1 << (offer->monitor_id % VMBUS_MONTRIG_LEN);
+		    1 << (offer->chm_montrig % VMBUS_MONTRIG_LEN);
 	}
 
 	/* Select default cpu for this channel. */
@@ -329,33 +328,34 @@ vmbus_channel_on_offer_internal(struct vmbus_softc *sc,
 	vmbus_channel_process_offer(new_channel);
 }
 
-/**
- * @brief Rescind offer handler.
- *
- * We queue a work item to process this offer
- * synchronously.
- *
+/*
  * XXX pretty broken; need rework.
  */
 static void
-vmbus_channel_on_offer_rescind(struct vmbus_softc *sc,
+vmbus_chan_msgproc_chrescind(struct vmbus_softc *sc,
     const struct vmbus_message *msg)
 {
-	const hv_vmbus_channel_rescind_offer *rescind;
-	hv_vmbus_channel*		channel;
+	const struct vmbus_chanmsg_chrescind *note;
+	struct hv_vmbus_channel *chan;
 
-	rescind = (const hv_vmbus_channel_rescind_offer *)msg->msg_data;
-	if (bootverbose) {
-		device_printf(sc->vmbus_dev, "chan%u rescind\n",
-		    rescind->child_rel_id);
+	note = (const struct vmbus_chanmsg_chrescind *)msg->msg_data;
+	if (note->chm_chanid > VMBUS_CHAN_MAX) {
+		device_printf(sc->vmbus_dev, "invalid rescinded chan%u\n",
+		    note->chm_chanid);
+		return;
 	}
 
-	channel = sc->vmbus_chmap[rescind->child_rel_id];
-	if (channel == NULL)
-	    return;
-	sc->vmbus_chmap[rescind->child_rel_id] = NULL;
+	if (bootverbose) {
+		device_printf(sc->vmbus_dev, "chan%u rescinded\n",
+		    note->chm_chanid);
+	}
 
-	taskqueue_enqueue(taskqueue_thread, &channel->ch_detach_task);
+	chan = sc->vmbus_chmap[note->chm_chanid];
+	if (chan == NULL)
+		return;
+	sc->vmbus_chmap[note->chm_chanid] = NULL;
+
+	taskqueue_enqueue(taskqueue_thread, &chan->ch_detach_task);
 }
 
 static void
@@ -566,7 +566,7 @@ vmbus_chan_msgproc(struct vmbus_softc *sc, const struct vmbus_message *msg)
 	uint32_t msg_type;
 
 	msg_type = ((const struct vmbus_chanmsg_hdr *)msg->msg_data)->chm_type;
-	if (msg_type >= HV_CHANNEL_MESSAGE_COUNT) {
+	if (msg_type >= VMBUS_CHANMSG_TYPE_MAX) {
 		device_printf(sc->vmbus_dev, "unknown message type 0x%x\n",
 		    msg_type);
 		return;
