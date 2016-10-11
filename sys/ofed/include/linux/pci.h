@@ -216,11 +216,16 @@ pci_resource_len(struct pci_dev *pdev, int bar)
 static inline int
 pci_resource_type(struct pci_dev *pdev, int bar)
 {
-	struct resource_list_entry *rle;
+	struct pci_map *pm;
 
-	if ((rle = _pci_get_bar(pdev, bar)) == NULL)
+	pm = pci_find_bar(pdev->dev.bsddev, PCIR_BAR(bar));
+	if (!pm)
 		return (-1);
-	return (rle->type);
+
+	if (PCI_BAR_IO(pm->pm_value))
+		return (SYS_RES_IOPORT);
+	else
+		return (SYS_RES_MEMORY);
 }
 
 /*
