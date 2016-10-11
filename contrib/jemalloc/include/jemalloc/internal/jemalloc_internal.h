@@ -254,7 +254,7 @@ typedef unsigned szind_t;
 #    define LG_QUANTUM		4
 #  endif
 #  ifdef __mips__
-#    ifdef CHERI
+#    ifdef __CHERI__
 /* CHERI requires 32-byte alignment as capabilities must be aligned. */
 #      define LG_QUANTUM	5
 #    else
