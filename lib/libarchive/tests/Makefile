@@ -150,6 +150,7 @@ TESTS_SRCS= \
 	test_read_format_lha_bugfix_0.c		\
 	test_read_format_lha_filename.c		\
 	test_read_format_mtree.c		\
+	test_read_format_mtree_crash747.c	\
 	test_read_format_pax_bz2.c		\
 	test_read_format_rar.c			\
 	test_read_format_rar_encryption_data.c	\
@@ -466,6 +467,7 @@ FILES+=	test_read_format_lha_lh6.lzh.uu
 FILES+=	test_read_format_lha_lh7.lzh.uu
 FILES+=	test_read_format_lha_withjunk.lzh.uu
 FILES+=	test_read_format_mtree.mtree.uu
+FILES+=	test_read_format_mtree_crash747.mtree.bz2.uu
 FILES+=	test_read_format_mtree_nomagic.mtree.uu
 FILES+=	test_read_format_mtree_nomagic2.mtree.uu
 FILES+=	test_read_format_mtree_nomagic3.mtree.uu
