@@ -34,8 +34,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/sysctl.h>
 
-#include "hv_vmbus_priv.h"
 #include <dev/hyperv/vmbus/vmbus_reg.h>
+#include <dev/hyperv/vmbus/vmbus_brvar.h>
 
 /* Amount of space to write to */
 #define	HV_BYTES_AVAIL_TO_WRITE(r, w, z)	\
