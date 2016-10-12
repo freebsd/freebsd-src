@@ -48,26 +48,24 @@
 #include "hv_rndis.h"
 #include "hv_rndis_filter.h"
 
-/* priv1 and priv2 are consumed by the main driver */
-#define hv_chan_rdbuf	hv_chan_priv3
-
 MALLOC_DEFINE(M_NETVSC, "netvsc", "Hyper-V netvsc driver");
 
 /*
  * Forward declarations
  */
-static void hv_nv_on_channel_callback(void *xchan);
+static void hv_nv_on_channel_callback(struct vmbus_channel *chan,
+    void *xrxr);
 static int  hv_nv_init_send_buffer_with_net_vsp(struct hn_softc *sc);
 static int  hv_nv_init_rx_buffer_with_net_vsp(struct hn_softc *);
 static int  hv_nv_destroy_send_buffer(netvsc_dev *net_dev);
 static int  hv_nv_destroy_rx_buffer(netvsc_dev *net_dev);
 static int  hv_nv_connect_to_vsp(struct hn_softc *sc);
 static void hv_nv_on_send_completion(netvsc_dev *net_dev,
-    struct hv_vmbus_channel *, const struct vmbus_chanpkt_hdr *pkt);
-static void hv_nv_on_receive_completion(struct hv_vmbus_channel *chan,
+    struct vmbus_channel *, const struct vmbus_chanpkt_hdr *pkt);
+static void hv_nv_on_receive_completion(struct vmbus_channel *chan,
     uint64_t tid, uint32_t status);
 static void hv_nv_on_receive(netvsc_dev *net_dev,
-    struct hn_softc *sc, struct hv_vmbus_channel *chan,
+    struct hn_rx_ring *rxr, struct vmbus_channel *chan,
     const struct vmbus_chanpkt_hdr *pkt);
 
 /*
@@ -640,13 +638,14 @@ hv_nv_disconnect_from_vsp(netvsc_dev *net_dev)
 }
 
 void
-hv_nv_subchan_attach(struct hv_vmbus_channel *chan)
+hv_nv_subchan_attach(struct vmbus_channel *chan, struct hn_rx_ring *rxr)
 {
-
-	chan->hv_chan_rdbuf = malloc(NETVSC_PACKET_SIZE, M_NETVSC, M_WAITOK);
+	KASSERT(rxr->hn_rx_idx == vmbus_chan_subidx(chan),
+	    ("chan%u subidx %u, rxr%d mismatch",
+	     vmbus_chan_id(chan), vmbus_chan_subidx(chan), rxr->hn_rx_idx));
 	vmbus_chan_open(chan, NETVSC_DEVICE_RING_BUFFER_SIZE,
 	    NETVSC_DEVICE_RING_BUFFER_SIZE, NULL, 0,
-	    hv_nv_on_channel_callback, chan);
+	    hv_nv_on_channel_callback, rxr);
 }
 
 /*
@@ -655,9 +654,10 @@ hv_nv_subchan_attach(struct hv_vmbus_channel *chan)
  * Callback when the device belonging to this driver is added
  */
 netvsc_dev *
-hv_nv_on_device_add(struct hn_softc *sc, void *additional_info)
+hv_nv_on_device_add(struct hn_softc *sc, void *additional_info,
+    struct hn_rx_ring *rxr)
 {
-	struct hv_vmbus_channel *chan = sc->hn_prichan;
+	struct vmbus_channel *chan = sc->hn_prichan;
 	netvsc_dev *net_dev;
 	int ret = 0;
 
@@ -669,18 +669,17 @@ hv_nv_on_device_add(struct hn_softc *sc, void *additional_info)
 
 	sema_init(&net_dev->channel_init_sema, 0, "netdev_sema");
 
-	chan->hv_chan_rdbuf = malloc(NETVSC_PACKET_SIZE, M_NETVSC, M_WAITOK);
-
 	/*
 	 * Open the channel
 	 */
+	KASSERT(rxr->hn_rx_idx == vmbus_chan_subidx(chan),
+	    ("chan%u subidx %u, rxr%d mismatch",
+	     vmbus_chan_id(chan), vmbus_chan_subidx(chan), rxr->hn_rx_idx));
 	ret = vmbus_chan_open(chan,
 	    NETVSC_DEVICE_RING_BUFFER_SIZE, NETVSC_DEVICE_RING_BUFFER_SIZE,
-	    NULL, 0, hv_nv_on_channel_callback, chan);
-	if (ret != 0) {
-		free(chan->hv_chan_rdbuf, M_NETVSC);
+	    NULL, 0, hv_nv_on_channel_callback, rxr);
+	if (ret != 0)
 		goto cleanup;
-	}
 
 	/*
 	 * Connect with the NetVsp
@@ -693,7 +692,6 @@ hv_nv_on_device_add(struct hn_softc *sc, void *additional_info)
 
 close:
 	/* Now, we can close the channel safely */
-	free(chan->hv_chan_rdbuf, M_NETVSC);
 	vmbus_chan_close(chan);
 
 cleanup:
@@ -724,7 +722,6 @@ hv_nv_on_device_remove(struct hn_softc *sc, boolean_t destroy_channel)
 
 	/* Now, we can close the channel safely */
 
-	free(sc->hn_prichan->hv_chan_rdbuf, M_NETVSC);
 	vmbus_chan_close(sc->hn_prichan);
 
 	sema_destroy(&net_dev->channel_init_sema);
@@ -737,7 +734,7 @@ hv_nv_on_device_remove(struct hn_softc *sc, boolean_t destroy_channel)
  * Net VSC on send completion
  */
 static void
-hv_nv_on_send_completion(netvsc_dev *net_dev, struct hv_vmbus_channel *chan,
+hv_nv_on_send_completion(netvsc_dev *net_dev, struct vmbus_channel *chan,
     const struct vmbus_chanpkt_hdr *pkt)
 {
 	const nvsp_msg *nvsp_msg_pkt;
@@ -801,7 +798,7 @@ hv_nv_on_send_completion(netvsc_dev *net_dev, struct hv_vmbus_channel *chan,
  * Returns 0 on success, non-zero on failure.
  */
 int
-hv_nv_on_send(struct hv_vmbus_channel *chan, netvsc_packet *pkt)
+hv_nv_on_send(struct vmbus_channel *chan, netvsc_packet *pkt)
 {
 	nvsp_msg send_msg;
 	int ret;
@@ -839,14 +836,13 @@ hv_nv_on_send(struct hv_vmbus_channel *chan, netvsc_packet *pkt)
  * with virtual addresses.
  */
 static void
-hv_nv_on_receive(netvsc_dev *net_dev, struct hn_softc *sc,
-    struct hv_vmbus_channel *chan, const struct vmbus_chanpkt_hdr *pkthdr)
+hv_nv_on_receive(netvsc_dev *net_dev, struct hn_rx_ring *rxr,
+    struct vmbus_channel *chan, const struct vmbus_chanpkt_hdr *pkthdr)
 {
 	const struct vmbus_chanpkt_rxbuf *pkt;
 	const nvsp_msg *nvsp_msg_pkt;
 	netvsc_packet vsc_pkt;
 	netvsc_packet *net_vsc_pkt = &vsc_pkt;
-	device_t dev = sc->hn_dev;
 	int count = 0;
 	int i = 0;
 	int status = nvsp_status_success;
@@ -855,7 +851,7 @@ hv_nv_on_receive(netvsc_dev *net_dev, struct hn_softc *sc,
 
 	/* Make sure this is a valid nvsp packet */
 	if (nvsp_msg_pkt->hdr.msg_type != nvsp_msg_1_type_send_rndis_pkt) {
-		device_printf(dev, "packet hdr type %u is invalid!\n",
+		if_printf(rxr->hn_ifp, "packet hdr type %u is invalid!\n",
 		    nvsp_msg_pkt->hdr.msg_type);
 		return;
 	}
@@ -863,7 +859,7 @@ hv_nv_on_receive(netvsc_dev *net_dev, struct hn_softc *sc,
 	pkt = (const struct vmbus_chanpkt_rxbuf *)pkthdr;
 
 	if (pkt->cp_rxbuf_id != NETVSC_RECEIVE_BUFFER_ID) {
-		device_printf(dev, "rxbuf_id %d is invalid!\n",
+		if_printf(rxr->hn_ifp, "rxbuf_id %d is invalid!\n",
 		    pkt->cp_rxbuf_id);
 		return;
 	}
@@ -877,7 +873,7 @@ hv_nv_on_receive(netvsc_dev *net_dev, struct hn_softc *sc,
 		    pkt->cp_rxbuf[i].rb_ofs);
 		net_vsc_pkt->tot_data_buf_len = pkt->cp_rxbuf[i].rb_len;
 
-		hv_rf_on_receive(net_dev, chan, net_vsc_pkt);
+		hv_rf_on_receive(net_dev, rxr, net_vsc_pkt);
 		if (net_vsc_pkt->status != nvsp_status_success) {
 			status = nvsp_status_failure;
 		}
@@ -897,7 +893,7 @@ hv_nv_on_receive(netvsc_dev *net_dev, struct hn_softc *sc,
  * Send a receive completion packet to RNDIS device (ie NetVsp)
  */
 static void
-hv_nv_on_receive_completion(struct hv_vmbus_channel *chan, uint64_t tid,
+hv_nv_on_receive_completion(struct vmbus_channel *chan, uint64_t tid,
     uint32_t status)
 {
 	nvsp_msg rx_comp_msg;
@@ -972,11 +968,10 @@ hv_nv_send_table(struct hn_softc *sc, const struct vmbus_chanpkt_hdr *pkt)
  * Net VSC on channel callback
  */
 static void
-hv_nv_on_channel_callback(void *xchan)
+hv_nv_on_channel_callback(struct vmbus_channel *chan, void *xrxr)
 {
-	struct hv_vmbus_channel *chan = xchan;
-	device_t dev = chan->ch_dev;
-	struct hn_softc *sc = device_get_softc(dev);
+	struct hn_rx_ring *rxr = xrxr;
+	struct hn_softc *sc = rxr->hn_ifp->if_softc;
 	netvsc_dev *net_dev;
 	void *buffer;
 	int bufferlen = NETVSC_PACKET_SIZE;
@@ -985,7 +980,7 @@ hv_nv_on_channel_callback(void *xchan)
 	if (net_dev == NULL)
 		return;
 
-	buffer = chan->hv_chan_rdbuf;
+	buffer = rxr->hn_rdbuf;
 	do {
 		struct vmbus_chanpkt_hdr *pkt = buffer;
 		uint32_t bytes_rxed;
@@ -1001,13 +996,13 @@ hv_nv_on_channel_callback(void *xchan)
 					    pkt);
 					break;
 				case VMBUS_CHANPKT_TYPE_RXBUF:
-					hv_nv_on_receive(net_dev, sc, chan, pkt);
+					hv_nv_on_receive(net_dev, rxr, chan, pkt);
 					break;
 				case VMBUS_CHANPKT_TYPE_INBAND:
 					hv_nv_send_table(sc, pkt);
 					break;
 				default:
-					device_printf(dev,
+					if_printf(rxr->hn_ifp,
 					    "unknown chan pkt %u\n",
 					    pkt->cph_type);
 					break;
@@ -1023,7 +1018,7 @@ hv_nv_on_channel_callback(void *xchan)
 			/* alloc new buffer */
 			buffer = malloc(bytes_rxed, M_NETVSC, M_NOWAIT);
 			if (buffer == NULL) {
-				device_printf(dev,
+				if_printf(rxr->hn_ifp,
 				    "hv_cb malloc buffer failed, len=%u\n",
 				    bytes_rxed);
 				bufferlen = 0;
@@ -1039,5 +1034,5 @@ hv_nv_on_channel_callback(void *xchan)
 	if (bufferlen > NETVSC_PACKET_SIZE)
 		free(buffer, M_NETVSC);
 
-	hv_rf_channel_rollup(chan);
+	hv_rf_channel_rollup(rxr, rxr->hn_txr);
 }

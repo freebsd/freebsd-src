@@ -36,6 +36,7 @@
 
 #include <dev/hyperv/include/hyperv.h>
 #include <dev/hyperv/include/vmbus.h>
+#include <dev/hyperv/utilities/hv_utilreg.h>
 #include "hv_util.h"
 #include "vmbus_if.h"
 
@@ -48,10 +49,9 @@ static const struct hyperv_guid service_guid = { .hv_guid =
  * Process heartbeat message
  */
 static void
-hv_heartbeat_cb(void *context)
+hv_heartbeat_cb(struct vmbus_channel *channel, void *context)
 {
 	uint8_t*		buf;
-	hv_vmbus_channel*	channel;
 	int			recvlen;
 	uint64_t		requestid;
 	int			ret;
@@ -62,7 +62,6 @@ hv_heartbeat_cb(void *context)
 
 	softc = (hv_util_sc*)context;
 	buf = softc->receive_buffer;;
-	channel = softc->channel;
 
 	recvlen = PAGE_SIZE;
 	ret = vmbus_chan_recv(channel, buf, &recvlen, &requestid);
