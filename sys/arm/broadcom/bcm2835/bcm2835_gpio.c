@@ -676,7 +676,7 @@ bcm_gpio_get_reserved_pins(struct bcm_gpio_softc *sc)
 	phandle_t gpio, node, reserved;
 	ssize_t len;
 
-	/* Get read-only pins if they're porvided */
+	/* Get read-only pins if they're provided */
 	gpio = ofw_bus_get_node(sc->sc_dev);
 	if (bcm_gpio_get_ro_pins(sc, gpio, "broadcom,read-only",
 	    "read-only") != 0)
