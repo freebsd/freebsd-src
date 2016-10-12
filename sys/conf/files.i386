@@ -7,6 +7,18 @@
 # limitations in config: backslash-newline doesn't work in strings, and
 # dependency lines other than the first are silently ignored.
 #
+cloudabi32_vdso.o		optional	compat_cloudabi32	\
+	dependency	"$S/contrib/cloudabi/cloudabi_vdso_i686.S" \
+	compile-with	"${CC} -x assembler-with-cpp -shared -nostdinc -nostdlib -Wl,-T$S/compat/cloudabi/cloudabi_vdso.lds $S/contrib/cloudabi/cloudabi_vdso_i686.S -o ${.TARGET}" \
+	no-obj no-implicit-rule						\
+	clean		"cloudabi32_vdso.o"
+#
+cloudabi32_vdso_blob.o		optional	compat_cloudabi32	\
+	dependency 	"cloudabi32_vdso.o"				\
+	compile-with	"${OBJCOPY} --input-target binary --output-target elf32-i386-freebsd --binary-architecture i386 cloudabi32_vdso.o ${.TARGET}" \
+	no-implicit-rule						\
+	clean		"cloudabi32_vdso_blob.o"
+#
 linux_genassym.o		optional	compat_linux		\
 	dependency 	"$S/i386/linux/linux_genassym.c"		\
 	compile-with	"${CC} ${CFLAGS:N-fno-common} -c ${.IMPSRC}"	\
@@ -456,6 +468,7 @@ i386/bios/apm.c			optional apm
 i386/bios/mca_machdep.c		optional mca
 i386/bios/smapi.c		optional smapi
 i386/bios/smapi_bios.S		optional smapi
+i386/cloudabi32/cloudabi32_sysvec.c	optional compat_cloudabi32
 #i386/i386/apic_vector.s		optional apic
 i386/i386/atomic.c		standard		\
 	compile-with	"${CC} -c ${CFLAGS} ${DEFINED_PROF:S/^$/-fomit-frame-pointer/} ${.IMPSRC}"

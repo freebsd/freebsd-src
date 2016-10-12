@@ -35,25 +35,25 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/uio.h>
 
-#include <contrib/cloudabi/cloudabi64_types.h>
+#include <contrib/cloudabi/cloudabi32_types.h>
 
 #include <compat/cloudabi/cloudabi_util.h>
 
-#include <compat/cloudabi64/cloudabi64_proto.h>
-#include <compat/cloudabi64/cloudabi64_util.h>
+#include <compat/cloudabi32/cloudabi32_proto.h>
+#include <compat/cloudabi32/cloudabi32_util.h>
 
 static MALLOC_DEFINE(M_SOCKET, "socket", "CloudABI socket");
 
 int
-cloudabi64_sys_sock_recv(struct thread *td,
-    struct cloudabi64_sys_sock_recv_args *uap)
+cloudabi32_sys_sock_recv(struct thread *td,
+    struct cloudabi32_sys_sock_recv_args *uap)
 {
 	struct sockaddr_storage ss;
-	cloudabi64_recv_in_t ri;
-	cloudabi64_recv_out_t ro = {};
-	cloudabi64_iovec_t iovobj;
+	cloudabi32_recv_in_t ri;
+	cloudabi32_recv_out_t ro = {};
+	cloudabi32_iovec_t iovobj;
 	struct msghdr msghdr = {};
-	const cloudabi64_iovec_t *user_iov;
+	const cloudabi32_iovec_t *user_iov;
 	size_t i;
 	int error;
 
@@ -99,14 +99,14 @@ cloudabi64_sys_sock_recv(struct thread *td,
 }
 
 int
-cloudabi64_sys_sock_send(struct thread *td,
-    struct cloudabi64_sys_sock_send_args *uap)
+cloudabi32_sys_sock_send(struct thread *td,
+    struct cloudabi32_sys_sock_send_args *uap)
 {
-	cloudabi64_send_in_t si;
-	cloudabi64_send_out_t so = {};
-	cloudabi64_ciovec_t iovobj;
+	cloudabi32_send_in_t si;
+	cloudabi32_send_out_t so = {};
+	cloudabi32_ciovec_t iovobj;
 	struct msghdr msghdr = {};
-	const cloudabi64_ciovec_t *user_iov;
+	const cloudabi32_ciovec_t *user_iov;
 	size_t i;
 	int error, flags;
 

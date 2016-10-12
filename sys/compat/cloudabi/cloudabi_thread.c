@@ -60,14 +60,6 @@ cloudabi_sys_thread_exit(struct thread *td,
 }
 
 int
-cloudabi_sys_thread_tcb_set(struct thread *td,
-    struct cloudabi_sys_thread_tcb_set_args *uap)
-{
-
-	return (cpu_set_user_tls(td, uap->tcb));
-}
-
-int
 cloudabi_sys_thread_yield(struct thread *td,
     struct cloudabi_sys_thread_yield_args *uap)
 {
