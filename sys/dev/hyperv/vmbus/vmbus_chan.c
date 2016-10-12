@@ -610,6 +610,8 @@ vmbus_chan_send(struct vmbus_channel *chan, uint16_t type, uint16_t flags,
 	hlen = sizeof(pkt);
 	pktlen = hlen + dlen;
 	pad_pktlen = VMBUS_CHANPKT_TOTLEN(pktlen);
+	KASSERT(pad_pktlen <= vmbus_txbr_maxpktsz(&chan->ch_txbr),
+	    ("invalid packet size %d", pad_pktlen));
 
 	pkt.cp_hdr.cph_type = type;
 	pkt.cp_hdr.cph_flags = flags;
@@ -640,12 +642,11 @@ vmbus_chan_send_sglist(struct vmbus_channel *chan,
 	boolean_t send_evt;
 	uint64_t pad = 0;
 
-	KASSERT(sglen < VMBUS_CHAN_SGLIST_MAX,
-	    ("invalid sglist len %d", sglen));
-
 	hlen = __offsetof(struct vmbus_chanpkt_sglist, cp_gpa[sglen]);
 	pktlen = hlen + dlen;
 	pad_pktlen = VMBUS_CHANPKT_TOTLEN(pktlen);
+	KASSERT(pad_pktlen <= vmbus_txbr_maxpktsz(&chan->ch_txbr),
+	    ("invalid packet size %d", pad_pktlen));
 
 	pkt.cp_hdr.cph_type = VMBUS_CHANPKT_TYPE_GPA;
 	pkt.cp_hdr.cph_flags = VMBUS_CHANPKT_FLAG_RC;
@@ -681,13 +682,12 @@ vmbus_chan_send_prplist(struct vmbus_channel *chan,
 	boolean_t send_evt;
 	uint64_t pad = 0;
 
-	KASSERT(prp_cnt < VMBUS_CHAN_PRPLIST_MAX,
-	    ("invalid prplist entry count %d", prp_cnt));
-
 	hlen = __offsetof(struct vmbus_chanpkt_prplist,
 	    cp_range[0].gpa_page[prp_cnt]);
 	pktlen = hlen + dlen;
 	pad_pktlen = VMBUS_CHANPKT_TOTLEN(pktlen);
+	KASSERT(pad_pktlen <= vmbus_txbr_maxpktsz(&chan->ch_txbr),
+	    ("invalid packet size %d", pad_pktlen));
 
 	pkt.cp_hdr.cph_type = VMBUS_CHANPKT_TYPE_GPA;
 	pkt.cp_hdr.cph_flags = VMBUS_CHANPKT_FLAG_RC;
