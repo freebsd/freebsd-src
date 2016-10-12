@@ -42,9 +42,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/callout.h>
 #include <sys/eventhandler.h>
+#ifdef TCP_HHOOK
 #include <sys/hhook.h>
+#endif
 #include <sys/kernel.h>
+#ifdef TCP_HHOOK
 #include <sys/khelp.h>
+#endif
 #include <sys/sysctl.h>
 #include <sys/jail.h>
 #include <sys/malloc.h>
@@ -238,7 +242,9 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, signature_verify_input, CTLFLAG_RW,
 VNET_DEFINE(uma_zone_t, sack_hole_zone);
 #define	V_sack_hole_zone		VNET(sack_hole_zone)
 
+#ifdef TCP_HHOOK
 VNET_DEFINE(struct hhook_head *, tcp_hhh[HHOOK_TCP_LAST+1]);
+#endif
 
 static struct inpcb *tcp_notify(struct inpcb *, int);
 static struct inpcb *tcp_mtudisc_notify(struct inpcb *, int);
@@ -449,7 +455,9 @@ struct tcpcb_mem {
 	struct	tcpcb		tcb;
 	struct	tcp_timer	tt;
 	struct	cc_var		ccv;
+#ifdef TCP_HHOOK
 	struct	osd		osd;
+#endif
 };
 
 static VNET_DEFINE(uma_zone_t, tcpcb_zone);
@@ -605,12 +613,14 @@ tcp_init(void)
 
 	tcbhash_tuneable = "net.inet.tcp.tcbhashsize";
 
+#ifdef TCP_HHOOK
 	if (hhook_head_register(HHOOK_TYPE_TCP, HHOOK_TCP_EST_IN,
 	    &V_tcp_hhh[HHOOK_TCP_EST_IN], HHOOK_NOWAIT|HHOOK_HEADISINVNET) != 0)
 		printf("%s: WARNING: unable to register helper hook\n", __func__);
 	if (hhook_head_register(HHOOK_TYPE_TCP, HHOOK_TCP_EST_OUT,
 	    &V_tcp_hhh[HHOOK_TCP_EST_OUT], HHOOK_NOWAIT|HHOOK_HEADISINVNET) != 0)
 		printf("%s: WARNING: unable to register helper hook\n", __func__);
+#endif
 	hashsize = TCBHASHSIZE;
 	TUNABLE_INT_FETCH(tcbhash_tuneable, &hashsize);
 	if (hashsize == 0) {
@@ -763,6 +773,7 @@ tcp_destroy(void *unused __unused)
 	tcp_fastopen_destroy();
 #endif
 
+#ifdef TCP_HHOOK
 	error = hhook_head_deregister(V_tcp_hhh[HHOOK_TCP_EST_IN]);
 	if (error != 0) {
 		printf("%s: WARNING: unable to deregister helper hook "
@@ -775,6 +786,7 @@ tcp_destroy(void *unused __unused)
 		    "type=%d, id=%d: error %d returned\n", __func__,
 		    HHOOK_TYPE_TCP, HHOOK_TCP_EST_OUT, error);
 	}
+#endif
 }
 VNET_SYSUNINIT(tcp, SI_SUB_PROTO_DOMAIN, SI_ORDER_FOURTH, tcp_destroy, NULL);
 #endif
@@ -1204,6 +1216,7 @@ tcp_newtcpcb(struct inpcb *inp)
 			return (NULL);
 		}
 
+#ifdef TCP_HHOOK
 	tp->osd = &tm->osd;
 	if (khelp_init_osd(HELPER_CLASS_TCP, tp->osd)) {
 		if (tp->t_fb->tfb_tcp_fb_fini)
@@ -1212,6 +1225,7 @@ tcp_newtcpcb(struct inpcb *inp)
 		uma_zfree(V_tcpcb_zone, tm);
 		return (NULL);
 	}
+#endif
 
 #ifdef VIMAGE
 	tp->t_vnet = inp->inp_vnet;
@@ -1477,7 +1491,9 @@ tcp_discardcb(struct tcpcb *tp)
 	if (CC_ALGO(tp)->cb_destroy != NULL)
 		CC_ALGO(tp)->cb_destroy(tp->ccv);
 
+#ifdef TCP_HHOOK
 	khelp_destroy_osd(tp->osd);
+#endif
 
 	CC_ALGO(tp) = NULL;
 	inp->inp_ppcb = NULL;
