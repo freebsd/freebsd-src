@@ -81,6 +81,9 @@ ASSYM(PCB_R12, offsetof(struct pcb, pcb_regs.sf_r12));
 ASSYM(PCB_SP, offsetof(struct pcb, pcb_regs.sf_sp));
 ASSYM(PCB_LR, offsetof(struct pcb, pcb_regs.sf_lr));
 ASSYM(PCB_PC, offsetof(struct pcb, pcb_regs.sf_pc));
+#if __ARM_ARCH >= 6
+ASSYM(PCB_TPIDRURW, offsetof(struct pcb, pcb_regs.sf_tpidrurw));
+#endif
 
 ASSYM(PC_CURPCB, offsetof(struct pcpu, pc_curpcb));
 ASSYM(PC_CURTHREAD, offsetof(struct pcpu, pc_curthread));
@@ -100,8 +103,8 @@ ASSYM(TD_FLAGS, offsetof(struct thread, td_flags));
 ASSYM(TD_PROC, offsetof(struct thread, td_proc));
 ASSYM(TD_MD, offsetof(struct thread, td_md));
 ASSYM(TD_LOCK, offsetof(struct thread, td_lock));
-ASSYM(MD_TP, offsetof(struct mdthread, md_tp));
 #if __ARM_ARCH < 6
+ASSYM(MD_TP, offsetof(struct mdthread, md_tp));
 ASSYM(MD_RAS_START, offsetof(struct mdthread, md_ras_start));
 ASSYM(MD_RAS_END, offsetof(struct mdthread, md_ras_end));
 #endif
