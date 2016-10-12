@@ -470,11 +470,11 @@ tcp_hc_get(struct in_conninfo *inc, struct hc_metrics_lite *hc_metrics_lite)
  * discovered path MTU.  Returns 0 if no entry is found or value is not
  * set.
  */
-u_long
+uint32_t
 tcp_hc_getmtu(struct in_conninfo *inc)
 {
 	struct hc_metrics *hc_entry;
-	u_long mtu;
+	uint32_t mtu;
 
 	if (!V_tcp_use_hostcache)
 		return 0;
@@ -496,7 +496,7 @@ tcp_hc_getmtu(struct in_conninfo *inc)
  * Creates a new entry if none was found.
  */
 void
-tcp_hc_updatemtu(struct in_conninfo *inc, u_long mtu)
+tcp_hc_updatemtu(struct in_conninfo *inc, uint32_t mtu)
 {
 	struct hc_metrics *hc_entry;
 
@@ -558,16 +558,16 @@ tcp_hc_update(struct in_conninfo *inc, struct hc_metrics_lite *hcml)
 		if (hc_entry->rmx_rtt == 0)
 			hc_entry->rmx_rtt = hcml->rmx_rtt;
 		else
-			hc_entry->rmx_rtt =
-			    (hc_entry->rmx_rtt + hcml->rmx_rtt) / 2;
+			hc_entry->rmx_rtt = ((uint64_t)hc_entry->rmx_rtt +
+			    (uint64_t)hcml->rmx_rtt) / 2;
 		TCPSTAT_INC(tcps_cachedrtt);
 	}
 	if (hcml->rmx_rttvar != 0) {
 	        if (hc_entry->rmx_rttvar == 0)
 			hc_entry->rmx_rttvar = hcml->rmx_rttvar;
 		else
-			hc_entry->rmx_rttvar =
-			    (hc_entry->rmx_rttvar + hcml->rmx_rttvar) / 2;
+			hc_entry->rmx_rttvar = ((uint64_t)hc_entry->rmx_rttvar +
+			    (uint64_t)hcml->rmx_rttvar) / 2;
 		TCPSTAT_INC(tcps_cachedrttvar);
 	}
 	if (hcml->rmx_ssthresh != 0) {
@@ -582,8 +582,8 @@ tcp_hc_update(struct in_conninfo *inc, struct hc_metrics_lite *hcml)
 		if (hc_entry->rmx_cwnd == 0)
 			hc_entry->rmx_cwnd = hcml->rmx_cwnd;
 		else
-			hc_entry->rmx_cwnd =
-			    (hc_entry->rmx_cwnd + hcml->rmx_cwnd) / 2;
+			hc_entry->rmx_cwnd = ((uint64_t)hc_entry->rmx_cwnd +
+			    (uint64_t)hcml->rmx_cwnd) / 2;
 		/* TCPSTAT_INC(tcps_cachedcwnd); */
 	}
 	if (hcml->rmx_sendpipe != 0) {
@@ -591,7 +591,8 @@ tcp_hc_update(struct in_conninfo *inc, struct hc_metrics_lite *hcml)
 			hc_entry->rmx_sendpipe = hcml->rmx_sendpipe;
 		else
 			hc_entry->rmx_sendpipe =
-			    (hc_entry->rmx_sendpipe + hcml->rmx_sendpipe) /2;
+			    ((uint64_t)hc_entry->rmx_sendpipe +
+			    (uint64_t)hcml->rmx_sendpipe) /2;
 		/* TCPSTAT_INC(tcps_cachedsendpipe); */
 	}
 	if (hcml->rmx_recvpipe != 0) {
@@ -599,7 +600,8 @@ tcp_hc_update(struct in_conninfo *inc, struct hc_metrics_lite *hcml)
 			hc_entry->rmx_recvpipe = hcml->rmx_recvpipe;
 		else
 			hc_entry->rmx_recvpipe =
-			    (hc_entry->rmx_recvpipe + hcml->rmx_recvpipe) /2;
+			    ((uint64_t)hc_entry->rmx_recvpipe +
+			    (uint64_t)hcml->rmx_recvpipe) /2;
 		/* TCPSTAT_INC(tcps_cachedrecvpipe); */
 	}
 
@@ -636,7 +638,7 @@ sysctl_tcp_hc_list(SYSCTL_HANDLER_ARGS)
 		TAILQ_FOREACH(hc_entry, &V_tcp_hostcache.hashbase[i].hch_bucket,
 			      rmx_q) {
 			sbuf_printf(&sb,
-			    "%-15s %5lu %8lu %6lums %6lums %8lu %8lu %8lu %4lu "
+			    "%-15s %5u %8u %6lums %6lums %8u %8u %8u %4lu "
 			    "%4lu %4i\n",
 			    hc_entry->ip4.s_addr ? inet_ntoa(hc_entry->ip4) :
 #ifdef INET6
@@ -646,9 +648,9 @@ sysctl_tcp_hc_list(SYSCTL_HANDLER_ARGS)
 #endif
 			    hc_entry->rmx_mtu,
 			    hc_entry->rmx_ssthresh,
-			    msec(hc_entry->rmx_rtt *
+			    msec((u_long)hc_entry->rmx_rtt *
 				(RTM_RTTUNIT / (hz * TCP_RTT_SCALE))),
-			    msec(hc_entry->rmx_rttvar *
+			    msec((u_long)hc_entry->rmx_rttvar *
 				(RTM_RTTUNIT / (hz * TCP_RTTVAR_SCALE))),
 			    hc_entry->rmx_cwnd,
 			    hc_entry->rmx_sendpipe,

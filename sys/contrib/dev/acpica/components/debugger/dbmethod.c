@@ -53,6 +53,15 @@
 #define _COMPONENT          ACPI_CA_DEBUGGER
         ACPI_MODULE_NAME    ("dbmethod")
 
+/* Local prototypes */
+
+static ACPI_STATUS
+AcpiDbWalkForExecute (
+    ACPI_HANDLE             ObjHandle,
+    UINT32                  NestingLevel,
+    void                    *Context,
+    void                    **ReturnValue);
+
 
 /*******************************************************************************
  *
@@ -413,4 +422,140 @@ AcpiDbDisassembleMethod (
     AcpiNsDeleteNamespaceByOwner (ObjDesc->Method.OwnerId);
     AcpiUtReleaseOwnerId (&ObjDesc->Method.OwnerId);
     return (AE_OK);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDbWalkForExecute
+ *
+ * PARAMETERS:  Callback from WalkNamespace
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Batch execution module. Currently only executes predefined
+ *              ACPI names.
+ *
+ ******************************************************************************/
+
+static ACPI_STATUS
+AcpiDbWalkForExecute (
+    ACPI_HANDLE             ObjHandle,
+    UINT32                  NestingLevel,
+    void                    *Context,
+    void                    **ReturnValue)
+{
+    ACPI_NAMESPACE_NODE     *Node = (ACPI_NAMESPACE_NODE *) ObjHandle;
+    ACPI_DB_EXECUTE_WALK    *Info = (ACPI_DB_EXECUTE_WALK *) Context;
+    ACPI_BUFFER             ReturnObj;
+    ACPI_STATUS             Status;
+    char                    *Pathname;
+    UINT32                  i;
+    ACPI_DEVICE_INFO        *ObjInfo;
+    ACPI_OBJECT_LIST        ParamObjects;
+    ACPI_OBJECT             Params[ACPI_METHOD_NUM_ARGS];
+    const ACPI_PREDEFINED_INFO *Predefined;
+
+
+    Predefined = AcpiUtMatchPredefinedMethod (Node->Name.Ascii);
+    if (!Predefined)
+    {
+        return (AE_OK);
+    }
+
+    if (Node->Type == ACPI_TYPE_LOCAL_SCOPE)
+    {
+        return (AE_OK);
+    }
+
+    Pathname = AcpiNsGetExternalPathname (Node);
+    if (!Pathname)
+    {
+        return (AE_OK);
+    }
+
+    /* Get the object info for number of method parameters */
+
+    Status = AcpiGetObjectInfo (ObjHandle, &ObjInfo);
+    if (ACPI_FAILURE (Status))
+    {
+        return (Status);
+    }
+
+    ParamObjects.Pointer = NULL;
+    ParamObjects.Count   = 0;
+
+    if (ObjInfo->Type == ACPI_TYPE_METHOD)
+    {
+        /* Setup default parameters */
+
+        for (i = 0; i < ObjInfo->ParamCount; i++)
+        {
+            Params[i].Type           = ACPI_TYPE_INTEGER;
+            Params[i].Integer.Value  = 1;
+        }
+
+        ParamObjects.Pointer     = Params;
+        ParamObjects.Count       = ObjInfo->ParamCount;
+    }
+
+    ACPI_FREE (ObjInfo);
+    ReturnObj.Pointer = NULL;
+    ReturnObj.Length = ACPI_ALLOCATE_BUFFER;
+
+    /* Do the actual method execution */
+
+    AcpiGbl_MethodExecuting = TRUE;
+
+    Status = AcpiEvaluateObject (Node, NULL, &ParamObjects, &ReturnObj);
+
+    AcpiOsPrintf ("%-32s returned %s\n", Pathname, AcpiFormatException (Status));
+    AcpiGbl_MethodExecuting = FALSE;
+    ACPI_FREE (Pathname);
+
+    /* Ignore status from method execution */
+
+    Status = AE_OK;
+
+    /* Update count, check if we have executed enough methods */
+
+    Info->Count++;
+    if (Info->Count >= Info->MaxCount)
+    {
+        Status = AE_CTRL_TERMINATE;
+    }
+
+    return (Status);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDbEvaluatePredefinedNames
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Namespace batch execution. Execute predefined names in the
+ *              namespace, up to the max count, if specified.
+ *
+ ******************************************************************************/
+
+void
+AcpiDbEvaluatePredefinedNames (
+    void)
+{
+    ACPI_DB_EXECUTE_WALK    Info;
+
+
+    Info.Count = 0;
+    Info.MaxCount = ACPI_UINT32_MAX;
+
+    /* Search all nodes in namespace */
+
+    (void) AcpiWalkNamespace (ACPI_TYPE_ANY, ACPI_ROOT_OBJECT, ACPI_UINT32_MAX,
+                AcpiDbWalkForExecute, NULL, (void *) &Info, NULL);
+
+    AcpiOsPrintf ("Evaluated %u predefined names in the namespace\n", Info.Count);
 }

@@ -151,7 +151,8 @@ platform_mp_start_ap(void)
 	/* Put CPU1 out from reset */
 	bus_space_write_4(fdtbus_bs_tag, rst, MPUMODRST, 0);
 
-	armv7_sev();
+	dsb();
+	sev();
 
 	bus_space_unmap(fdtbus_bs_tag, scu, SCU_SIZE);
 	bus_space_unmap(fdtbus_bs_tag, rst, RSTMGR_SIZE);

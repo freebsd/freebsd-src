@@ -38,6 +38,11 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20161010: remove link to removed m_getclr(9) macro
+OLD_FILES+=usr/share/man/man9/m_getclr.9.gz
+# 20161003: MK_ELFCOPY_AS_OBJCOPY option retired
+OLD_FILES+=usr/bin/elfcopy
+OLD_FILES+=usr/share/man/man1/elfcopy.1.gz
 # 20160906: libkqueue tests moved to /usr/tests/sys/kqueue/libkqueue
 OLD_FILES+=usr/tests/sys/kqueue/kqtest
 OLD_FILES+=usr/tests/sys/kqueue/kqueue_test
@@ -477,9 +482,6 @@ OLD_FILES+=usr/lib/clang/3.7.0/lib/freebsd/libclang_rt.ubsan_standalone_cxx-x86_
 OLD_DIRS+=usr/lib/clang/3.7.0/lib/freebsd
 OLD_DIRS+=usr/lib/clang/3.7.0/lib
 OLD_DIRS+=usr/lib/clang/3.7.0
-# 20151201: mqueue tests 3 and 4 disabled
-OLD_FILES+=usr/tests/sys/mqueue/mqtest3
-OLD_FILES+=usr/tests/sys/mqueue/mqtest4
 # 20151130: libelf moved from /usr/lib to /lib (libkvm dependency in r291406)
 OLD_LIBS+=usr/lib/libelf.so.2
 # 20151115: Fox bad upgrade scheme

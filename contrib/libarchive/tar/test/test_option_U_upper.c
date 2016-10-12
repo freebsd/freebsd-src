@@ -135,7 +135,7 @@ DEFINE_TEST(test_option_U_upper)
 	assertMakeSymlink("d1/file1", "d1/realfile1");
 	assertEqualInt(0,
 	    systemf("%s -xf ../archive.tar d1/file1 >test.out 2>test.err", testprog));
-	assertIsReg("d1/file1", 0644);
+	assertIsReg("d1/file1", umasked(0644));
 	assertFileContents("d1/file1", 8, "d1/file1");
 	assertFileContents("realfile1", 9, "d1/realfile1");
 	assertEmptyFile("test.out");
@@ -150,7 +150,7 @@ DEFINE_TEST(test_option_U_upper)
 	assertMakeSymlink("d1/file1", "d1/realfile1");
 	assertEqualInt(0,
 	    systemf("%s -xPUf ../archive.tar d1/file1 >test.out 2>test.err", testprog));
-	assertIsReg("d1/file1", 0644);
+	assertIsReg("d1/file1", umasked(0644));
 	assertFileContents("d1/file1", 8, "d1/file1");
 	assertFileContents("realfile1", 9, "d1/realfile1");
 	assertEmptyFile("test.out");

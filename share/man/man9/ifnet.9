@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 27, 2016
+.Dd October 8, 2016
 .Dt IFNET 9
 .Os
 .Sh NAME
@@ -951,6 +951,8 @@ Number of packets sent by link-layer multicast.
 .It Va ifi_iqdrops
 Number of packets dropped on input.
 Rarely implemented.
+.It Va ifi_oqdrops
+Number of packets dropped on output.
 .It Va ifi_noproto
 Number of packets received for unknown network-layer protocol.
 .It Va ifi_lastchange

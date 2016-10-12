@@ -453,6 +453,7 @@ in6_ifattach_linklocal(struct ifnet *ifp, struct ifnet *altifp)
 	struct in6_ifaddr *ia;
 	struct in6_aliasreq ifra;
 	struct nd_prefixctl pr0;
+	struct nd_prefix *pr;
 	int error;
 
 	/*
@@ -535,10 +536,11 @@ in6_ifattach_linklocal(struct ifnet *ifp, struct ifnet *altifp)
 	 * address, and then reconfigure another one, the prefix is still
 	 * valid with referring to the old link-local address.
 	 */
-	if (nd6_prefix_lookup(&pr0) == NULL) {
+	if ((pr = nd6_prefix_lookup(&pr0)) == NULL) {
 		if ((error = nd6_prelist_add(&pr0, NULL, NULL)) != 0)
 			return (error);
-	}
+	} else
+		nd6_prefix_rele(pr);
 
 	return 0;
 }
@@ -778,15 +780,6 @@ _in6_ifdetach(struct ifnet *ifp, int purgeulp)
 		return;
 
 	/*
-	 * Remove neighbor management table.
-	 * Enabling the nd6_purge will panic on vmove for interfaces on VNET
-	 * teardown as the IPv6 layer is cleaned up already and the locks
-	 * are destroyed.
-	 */
-	if (purgeulp)
-		nd6_purge(ifp);
-
-	/*
 	 * nuke any of IPv6 addresses we have
 	 * XXX: all addresses should be already removed
 	 */
@@ -804,12 +797,10 @@ _in6_ifdetach(struct ifnet *ifp, int purgeulp)
 	in6_purgemaddrs(ifp);
 
 	/*
-	 * remove neighbor management table.  we call it twice just to make
-	 * sure we nuke everything.  maybe we need just one call.
-	 * XXX: since the first call did not release addresses, some prefixes
-	 * might remain.  We should call nd6_purge() again to release the
-	 * prefixes after removing all addresses above.
-	 * (Or can we just delay calling nd6_purge until at this point?)
+	 * Remove neighbor management table.
+	 * Enabling the nd6_purge will panic on vmove for interfaces on VNET
+	 * teardown as the IPv6 layer is cleaned up already and the locks
+	 * are destroyed.
 	 */
 	if (purgeulp)
 		nd6_purge(ifp);

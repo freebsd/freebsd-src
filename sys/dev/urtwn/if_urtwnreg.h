@@ -1227,9 +1227,8 @@ struct r88e_tx_rpt_ccx {
 #define R88E_RPTB2_LIFE_EXPIRE	0x40
 #define R88E_RPTB2_RETRY_OVER	0x80
 
-	uint8_t		rptb3;
-	uint8_t		rptb4;
-	uint8_t		rptb5;
+	uint16_t	ccx_qtime;
+	uint8_t		final_rate;
 	uint8_t		rptb6;
 #define R88E_RPTB6_QSEL_M	0xf0
 #define R88E_RPTB6_QSEL_S	4

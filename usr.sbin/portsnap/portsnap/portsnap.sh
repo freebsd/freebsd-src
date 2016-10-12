@@ -691,8 +691,9 @@ fetch_snapshot() {
 	fetch_index_sanity || return 1
 # Verify the snapshot contents
 	cut -f 2 -d '|' INDEX.new | fetch_snapshot_verify || return 1
-	cut -f 2 -d '|' tINDEX.new INDEX.new | sort -u > files.expected
-	find snap -mindepth 1 | sed -E 's^snap/(.*)\.gz^\1^' | sort > files.snap
+	cut -f 2 -d '|' tINDEX.new INDEX.new | sort -u |
+	    lam -s 'snap/' - -s '.gz' > files.expected
+	find snap -mindepth 1 | sort > files.snap
 	if ! cmp -s files.expected files.snap; then
 		echo "unexpected files in snapshot."
 		return 1

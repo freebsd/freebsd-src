@@ -392,6 +392,7 @@ struct iwm_softc {
 	struct mtx		sc_mtx;
 	struct mbufq		sc_snd;
 	struct ieee80211com	sc_ic;
+	struct ieee80211_ratectl_tx_status sc_txs;
 
 	int			sc_flags;
 #define IWM_FLAG_USE_ICT	(1 << 0)

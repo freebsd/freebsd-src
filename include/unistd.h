@@ -449,8 +449,6 @@ int	 symlink(const char * __restrict, const char * __restrict);
 /* X/Open System Interfaces */
 #if __XSI_VISIBLE
 char	*crypt(const char *, const char *);
-/* char	*ctermid(char *); */		/* XXX ??? */
-int	 encrypt(char *, int);
 long	 gethostid(void);
 int	 lockf(int, int, off_t);
 int	 nice(int);
@@ -498,8 +496,6 @@ const char *
 	 crypt_get_format(void);
 char	*crypt_r(const char *, const char *, struct crypt_data *);
 int	 crypt_set_format(const char *);
-int	 des_cipher(const char *, char *, long, int);
-int	 des_setkey(const char *key);
 int	 dup3(int, int, int);
 int	 eaccess(const char *, int);
 void	 endusershell(void);
@@ -567,10 +563,6 @@ int	 setdomainname(const char *, int);
 int	 setgroups(int, const gid_t *);
 void	 sethostid(long);
 int	 sethostname(const char *, int);
-#ifndef _SETKEY_DECLARED
-int	 setkey(const char *);
-#define	_SETKEY_DECLARED
-#endif
 int	 setlogin(const char *);
 int	 setloginclass(const char *);
 void	*setmode(const char *);

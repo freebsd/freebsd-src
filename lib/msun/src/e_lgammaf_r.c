@@ -122,7 +122,7 @@ sin_pif(float x)
 float
 __ieee754_lgammaf_r(float x, int *signgamp)
 {
-	float nadj,p,p1,p2,p3,q,r,t,w,y,z;
+	float nadj,p,p1,p2,q,r,t,w,y,z;
 	int32_t hx;
 	int i,ix;
 

@@ -111,6 +111,7 @@ SUBDIR=	\
 	${_epic} \
 	esp \
 	${_et} \
+	evdev \
 	${_ex} \
 	${_exca} \
 	ext2fs \
@@ -371,6 +372,7 @@ SUBDIR=	\
 	udf \
 	udf_iconv \
 	ufs \
+	uinput \
 	unionfs \
 	urtwn \
 	${_urtwnfw} \
@@ -509,7 +511,8 @@ _txp=		txp
 
 .if ${MK_SOURCELESS_UCODE} != "no" && ${MACHINE_CPUARCH} != "arm" && \
 	${MACHINE_CPUARCH} != "mips" && \
-	${MACHINE_ARCH} != "powerpc" && ${MACHINE_CPUARCH} != "riscv"
+	${MACHINE_ARCH} != "powerpc" && ${MACHINE_ARCH} != "powerpcspe" && \
+	${MACHINE_CPUARCH} != "riscv"
 _cxgbe=		cxgbe
 .endif
 

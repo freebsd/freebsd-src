@@ -870,6 +870,7 @@ single_user(void)
 	sigset_t mask;
 	const char *shell;
 	char *argv[2];
+	struct timeval tv, tn;
 #ifdef SECURE
 	struct ttyent *typ;
 	struct passwd *pp;
@@ -884,8 +885,13 @@ single_user(void)
 	if (Reboot) {
 		/* Instead of going single user, let's reboot the machine */
 		sync();
-		reboot(howto);
-		_exit(0);
+		if (reboot(howto) == -1) {
+			emergency("reboot(%#x) failed, %s", howto,
+			    strerror(errno));
+			_exit(1); /* panic and reboot */
+		}
+		warning("reboot(%#x) returned", howto);
+		_exit(0); /* panic as well */
 	}
 
 	shell = get_shell();
@@ -1002,7 +1008,14 @@ single_user(void)
 			 *  reboot(8) killed shell?
 			 */
 			warning("single user shell terminated.");
-			sleep(STALL_TIMEOUT);
+			gettimeofday(&tv, NULL);
+			tn = tv;
+			tv.tv_sec += STALL_TIMEOUT;
+			while (tv.tv_sec > tn.tv_sec || (tv.tv_sec ==
+			    tn.tv_sec && tv.tv_usec > tn.tv_usec)) {
+				sleep(1);
+				gettimeofday(&tn, NULL);
+			}
 			_exit(0);
 		} else {
 			warning("single user shell terminated, restarting");

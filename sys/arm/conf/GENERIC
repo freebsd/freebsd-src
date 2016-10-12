@@ -20,7 +20,7 @@
 
 ident		GENERIC
 
-cpu		CPU_CORTEXA
+cpu		CPU_CORTEXA_MP
 machine 	arm armv6
 makeoptions	CONF_CFLAGS="-march=armv7a"
 
@@ -169,4 +169,4 @@ options 	EFI
 
 # Flattened Device Tree
 options 	FDT			# Configure using FDT/DTB data
-makeoptions	MODULES_EXTRA="dtb/allwinner dtb/rpi"
+makeoptions	MODULES_EXTRA="dtb/allwinner dtb/nvidia dtb/rpi"

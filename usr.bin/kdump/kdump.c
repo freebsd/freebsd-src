@@ -41,16 +41,11 @@ static char sccsid[] = "@(#)kdump.c	8.1 (Berkeley) 6/6/93";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#define _KERNEL
-extern int errno;
-#include <sys/errno.h>
-#undef _KERNEL
+#define _WANT_KERNEL_ERRNO
 #include <sys/param.h>
 #include <sys/capsicum.h>
 #include <sys/errno.h>
-#define _KERNEL
 #include <sys/time.h>
-#undef _KERNEL
 #include <sys/uio.h>
 #include <sys/ktrace.h>
 #include <sys/ioctl.h>
@@ -67,6 +62,7 @@ extern int errno;
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <ctype.h>
+#include <capsicum_helpers.h>
 #include <err.h>
 #include <grp.h>
 #include <inttypes.h>
@@ -74,11 +70,11 @@ extern int errno;
 #include <netdb.h>
 #include <nl_types.h>
 #include <pwd.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sysdecode.h>
-#include <termios.h>
 #include <time.h>
 #include <unistd.h>
 #include <vis.h>
@@ -114,7 +110,6 @@ void ktrstruct(char *, size_t);
 void ktrcapfail(struct ktr_cap_fail *);
 void ktrfault(struct ktr_fault *);
 void ktrfaultend(struct ktr_faultend *);
-void limitfd(int fd);
 void usage(void);
 
 #define	TIMESTAMP_NONE		0x0
@@ -131,6 +126,27 @@ static struct ktr_header ktr_header;
 
 #define TIME_FORMAT	"%b %e %T %Y"
 #define eqs(s1, s2)	(strcmp((s1), (s2)) == 0)
+
+#define	print_number64(first,i,n,c) do {				\
+	uint64_t __v;							\
+									\
+	if (quad_align && (((ptrdiff_t)((i) - (first))) & 1) == 1) {	\
+		(i)++;							\
+		(n)--;							\
+	}								\
+	if (quad_slots == 2)						\
+		__v = (uint64_t)(uint32_t)(i)[0] |			\
+		    ((uint64_t)(uint32_t)(i)[1]) << 32;			\
+	else								\
+		__v = (uint64_t)*(i);					\
+	if (decimal)							\
+		printf("%c%jd", (c), (intmax_t)__v);			\
+	else								\
+		printf("%c%#jx", (c), (uintmax_t)__v);			\
+	(i) += quad_slots;						\
+	(n) -= quad_slots;						\
+	(c) = ',';							\
+} while (0)
 
 #define print_number(i,n,c) do {					\
 	if (decimal)							\
@@ -320,9 +336,8 @@ main(int argc, char *argv[])
 			err(1, "unable to enter capability mode");
 	}
 #endif
-	limitfd(STDIN_FILENO);
-	limitfd(STDOUT_FILENO);
-	limitfd(STDERR_FILENO);
+	if (caph_limit_stdio() == -1)
+		err(1, "unable to limit stdio");
 
 	TAILQ_INIT(&trace_procs);
 	drop_logged = 0;
@@ -413,40 +428,6 @@ main(int argc, char *argv[])
 			fflush(stdout);
 	}
 	return 0;
-}
-
-void
-limitfd(int fd)
-{
-	cap_rights_t rights;
-	unsigned long cmd;
-
-	cap_rights_init(&rights, CAP_FSTAT);
-	cmd = 0;
-
-	switch (fd) {
-	case STDIN_FILENO:
-		cap_rights_set(&rights, CAP_READ);
-		break;
-	case STDOUT_FILENO:
-		cap_rights_set(&rights, CAP_IOCTL, CAP_WRITE);
-		cmd = TIOCGETA;	/* required by isatty(3) in printf(3) */
-		break;
-	case STDERR_FILENO:
-		cap_rights_set(&rights, CAP_WRITE);
-		if (!suppressdata) {
-			cap_rights_set(&rights, CAP_IOCTL);
-			cmd = TIOCGWINSZ;
-		}
-		break;
-	default:
-		abort();
-	}
-
-	if (cap_rights_limit(fd, &rights) < 0 && errno != ENOSYS)
-		err(1, "unable to limit rights for descriptor %d", fd);
-	if (cmd != 0 && cap_ioctls_limit(fd, &cmd, 1) < 0 && errno != ENOSYS)
-		err(1, "unable to limit ioctls for descriptor %d", fd);
 }
 
 int
@@ -545,7 +526,8 @@ void
 dumpheader(struct ktr_header *kth)
 {
 	static char unknown[64];
-	static struct timeval prevtime, prevtime_e, temp;
+	static struct timeval prevtime, prevtime_e;
+	struct timeval temp;
 	const char *type;
 	const char *sign;
 
@@ -618,27 +600,23 @@ dumpheader(struct ktr_header *kth)
 		if (timestamp & TIMESTAMP_ELAPSED) {
 			if (prevtime_e.tv_sec == 0)
 				prevtime_e = kth->ktr_time;
-			timevalsub(&kth->ktr_time, &prevtime_e);
-			printf("%jd.%06ld ", (intmax_t)kth->ktr_time.tv_sec,
-			    kth->ktr_time.tv_usec);
-			timevaladd(&kth->ktr_time, &prevtime_e);
+			timersub(&kth->ktr_time, &prevtime_e, &temp);
+			printf("%jd.%06ld ", (intmax_t)temp.tv_sec,
+			    temp.tv_usec);
 		}
 		if (timestamp & TIMESTAMP_RELATIVE) {
 			if (prevtime.tv_sec == 0)
 				prevtime = kth->ktr_time;
-			temp = kth->ktr_time;
-			timevalsub(&kth->ktr_time, &prevtime);
-			if ((intmax_t)kth->ktr_time.tv_sec < 0) {
-                        	kth->ktr_time = prevtime;
-				prevtime = temp;
-				timevalsub(&kth->ktr_time, &prevtime);
+			if (timercmp(&kth->ktr_time, &prevtime, <)) {
+				timersub(&prevtime, &kth->ktr_time, &temp);
 				sign = "-";
 			} else {
-				prevtime = temp;
+				timersub(&kth->ktr_time, &prevtime, &temp);
 				sign = "";
 			}
-			printf("%s%jd.%06ld ", sign, (intmax_t)kth->ktr_time.tv_sec,
-			    kth->ktr_time.tv_usec);
+			prevtime = kth->ktr_time;
+			printf("%s%jd.%06ld ", sign, (intmax_t)temp.tv_sec,
+			    temp.tv_usec);
 		}
 	}
 	printf("%s  ", type);
@@ -705,16 +683,25 @@ void
 ktrsyscall(struct ktr_syscall *ktr, u_int sv_flags)
 {
 	int narg = ktr->ktr_narg;
-	register_t *ip;
+	register_t *ip, *first;
 	intmax_t arg;
+	int quad_align, quad_slots;
 
 	syscallname(ktr->ktr_code, sv_flags);
-	ip = &ktr->ktr_args[0];
+	ip = first = &ktr->ktr_args[0];
 	if (narg) {
 		char c = '(';
 		if (fancy &&
 		    (sv_flags == 0 ||
 		    (sv_flags & SV_ABI_MASK) == SV_ABI_FREEBSD)) {
+			quad_align = 0;
+			if (sv_flags & SV_ILP32) {
+#ifdef __powerpc__
+				quad_align = 1;
+#endif
+				quad_slots = 2;
+			} else
+				quad_slots = 1;
 			switch (ktr->ktr_code) {
 			case SYS_bindat:
 			case SYS_connectat:
@@ -796,7 +783,7 @@ ktrsyscall(struct ktr_syscall *ktr, u_int sv_flags)
 				c = ',';
 				ip++;
 				narg--;
-				print_number(ip, narg, c);
+				print_number64(first, ip, narg, c);
 				print_number(ip, narg, c);
 				putchar(',');
 				wait6optname(*ip);
@@ -996,7 +983,7 @@ ktrsyscall(struct ktr_syscall *ktr, u_int sv_flags)
 				print_number(ip, narg, c);
 				/* Hidden 'pad' argument, not in lseek(2) */
 				print_number(ip, narg, c);
-				print_number(ip, narg, c);
+				print_number64(first, ip, narg, c);
 				putchar(',');
 				whencename(*ip);
 				ip++;
@@ -1005,8 +992,7 @@ ktrsyscall(struct ktr_syscall *ktr, u_int sv_flags)
 #endif
 			case SYS_lseek:
 				print_number(ip, narg, c);
-				/* Hidden 'pad' argument, not in lseek(2) */
-				print_number(ip, narg, c);
+				print_number64(first, ip, narg, c);
 				putchar(',');
 				whencename(*ip);
 				ip++;
@@ -1285,7 +1271,7 @@ ktrsyscall(struct ktr_syscall *ktr, u_int sv_flags)
 				c = ',';
 				ip++;
 				narg--;
-				print_number(ip, narg, c);
+				print_number64(first, ip, narg, c);
 				putchar(',');
 				procctlcmdname(*ip);
 				ip++;
@@ -1311,6 +1297,12 @@ ktrsyscall(struct ktr_syscall *ktr, u_int sv_flags)
 				}
 				ip++;
 				narg--;
+				break;
+			case SYS_ftruncate:
+			case SYS_truncate:
+				print_number(ip, narg, c);
+				print_number64(first, ip, narg, c);
+				break;
 			}
 		}
 		while (narg > 0) {

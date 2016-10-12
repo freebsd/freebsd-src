@@ -125,7 +125,6 @@ const YYINT calc_ctable[] = {                     -1,
 #ifndef YYDEBUG
 #define YYDEBUG 0
 #endif
-#if YYDEBUG
 const char *const calc_name[] = {
 
 "$end",0,0,0,0,0,0,0,0,0,"'\\n'",0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -138,6 +137,7 @@ const char *const calc_name[] = {
 0,0,"error","DIGIT","LETTER","UMINUS","$accept","list","stat","expr","number",
 "illegal-symbol",
 };
+#if YYDEBUG
 const char *const calc_rule[] = {
 "$accept : list",
 "list :",

@@ -233,7 +233,7 @@ extern int mod_debug;
 
 #define	MOD_DPF(cat, args) do {						\
 	if (mod_debug & MOD_DEBUG_##cat)				\
-		printf(args);						\
+		printf args;						\
 } while (0)
 
 #else	/* !MOD_DEBUG */

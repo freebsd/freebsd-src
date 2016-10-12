@@ -553,12 +553,14 @@ struct tlv_global_port_mode {
 #define TLV_PORT_MODE_40G                        (1) /* 40G, single QSFP/40G-KR */
 #define TLV_PORT_MODE_10G_10G                    (2) /* 2x10G, dual SFP/10G-KR or single QSFP */
 #define TLV_PORT_MODE_40G_40G                    (3) /* 40G + 40G, dual QSFP/40G-KR (Greenport, Medford) */
-#define TLV_PORT_MODE_10G_10G_10G_10G            (4) /* 2x10G + 2x10G, quad SFP/10G-KR or dual QSFP (Greenport, Medford) */
-#define TLV_PORT_MODE_10G_10G_10G_10G_Q          (5) /* 4x10G, single QSFP, cage 0 (Medford) */
+#define TLV_PORT_MODE_10G_10G_10G_10G            (4) /* 2x10G + 2x10G, quad SFP/10G-KR or dual QSFP (Greenport) */
+#define TLV_PORT_MODE_10G_10G_10G_10G_Q1         (4) /* 4x10G, single QSFP, cage 0 (Medford) */
+#define TLV_PORT_MODE_10G_10G_10G_10G_Q          (5) /* 4x10G, single QSFP, cage 0 (Medford) OBSOLETE DO NOT USE */
 #define TLV_PORT_MODE_40G_10G_10G                (6) /* 1x40G + 2x10G, dual QSFP (Greenport, Medford) */
 #define TLV_PORT_MODE_10G_10G_40G                (7) /* 2x10G + 1x40G, dual QSFP (Greenport, Medford) */
 #define TLV_PORT_MODE_10G_10G_10G_10G_Q2         (8) /* 4x10G, single QSFP, cage 1 (Medford) */
-#define TLV_PORT_MODE_MAX TLV_PORT_MODE_10G_10G_10G_10G_Q2
+#define TLV_PORT_MODE_10G_10G_10G_10G_Q1_Q2      (9) /* 2x10G + 2x10G, dual QSFP (Medford) */
+#define TLV_PORT_MODE_MAX TLV_PORT_MODE_10G_10G_10G_10G_Q1_Q2
 };
 
 /* Type of the v-switch created implicitly by the firmware */
@@ -765,8 +767,8 @@ struct tlv_rx_event_merging_config {
 #define TLV_RX_EVENT_MERGING_CONFIG_MAX_EVENTS_MAX ((1 << 4) - 1)
   uint32_t  timeout_ns;
 };
-#define TLV_RX_EVENT_MERGING_MAX_EVENTS_DEFAULT 7
-#define TLV_RX_EVENT_MERGING_TIMEOUT_NS_DEFAULT 8740
+#define TLV_RX_EVENT_MERGING_MAX_EVENTS_DEFAULT (0xffffffff)
+#define TLV_RX_EVENT_MERGING_TIMEOUT_NS_DEFAULT (0xffffffff)
 
 #define TLV_TAG_PCIE_LINK_SETTINGS (0x101f0000)
 struct tlv_pcie_link_settings {
@@ -791,9 +793,9 @@ struct tlv_tx_event_merging_config {
   uint32_t  timeout_ns;
   uint32_t  qempty_timeout_ns; /* Medford only */
 };
-#define TLV_TX_EVENT_MERGING_MAX_EVENTS_DEFAULT 7
-#define TLV_TX_EVENT_MERGING_TIMEOUT_NS_DEFAULT 1400
-#define TLV_TX_EVENT_MERGING_QEMPTY_TIMEOUT_NS_DEFAULT 700
+#define TLV_TX_EVENT_MERGING_MAX_EVENTS_DEFAULT (0xffffffff)
+#define TLV_TX_EVENT_MERGING_TIMEOUT_NS_DEFAULT (0xffffffff)
+#define TLV_TX_EVENT_MERGING_QEMPTY_TIMEOUT_NS_DEFAULT (0xffffffff)
 
 /* Tx vFIFO Low latency configuration 
  * 
@@ -807,6 +809,20 @@ struct tlv_tx_vfifo_ull_mode {
   uint32_t length;
   uint8_t  mode;
 #define TLV_TX_VFIFO_ULL_MODE_DEFAULT    0
+};
+
+/* BIU mode
+ *
+ * Medford2 tag for selecting VI window decode (see values below)
+ */
+#define TLV_TAG_BIU_VI_WINDOW_MODE       (0x10280000)
+struct tlv_biu_vi_window_mode {
+  uint32_t tag;
+  uint32_t length;
+  uint8_t  mode;
+#define TLV_BIU_VI_WINDOW_MODE_8K    0  /*  8k per VI, CTPIO not mapped, medford/hunt compatible */
+#define TLV_BIU_VI_WINDOW_MODE_16K   1  /* 16k per VI, CTPIO mapped */
+#define TLV_BIU_VI_WINDOW_MODE_64K   2  /* 64k per VI, CTPIO mapped, POWER-friendly */
 };
 
 #define TLV_TAG_LICENSE (0x30800000)

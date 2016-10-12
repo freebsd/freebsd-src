@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 machine 	arm armv6
-cpu		CPU_CORTEXA
+cpu		CPU_CORTEXA_MP
 makeoptions	CONF_CFLAGS="-march=armv7a"
 options 	SOC_BCM2836
 

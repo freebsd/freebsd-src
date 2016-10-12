@@ -1304,12 +1304,22 @@ cpususpend_handler(void)
 void
 invlcache_handler(void)
 {
+	uint32_t generation;
+
 #ifdef COUNT_IPIS
 	(*ipi_invlcache_counts[PCPU_GET(cpuid)])++;
 #endif /* COUNT_IPIS */
 
+	/*
+	 * Reading the generation here allows greater parallelism
+	 * since wbinvd is a serializing instruction.  Without the
+	 * temporary, we'd wait for wbinvd to complete, then the read
+	 * would execute, then the dependent write, whuch must then
+	 * complete before return from interrupt.
+	 */
+	generation = smp_tlb_generation;
 	wbinvd();
-	atomic_add_int(&smp_tlb_wait, 1);
+	PCPU_SET(smp_tlb_done, generation);
 }
 
 /*
@@ -1367,7 +1377,7 @@ SYSINIT(mp_ipi_intrcnt, SI_SUB_INTR, SI_ORDER_MIDDLE, mp_ipi_intrcnt, NULL);
 /* Variables needed for SMP tlb shootdown. */
 static vm_offset_t smp_tlb_addr1, smp_tlb_addr2;
 pmap_t smp_tlb_pmap;
-volatile int smp_tlb_wait;
+volatile uint32_t smp_tlb_generation;
 
 #ifdef __amd64__
 #define	read_eflags() read_rflags()
@@ -1377,15 +1387,16 @@ static void
 smp_targeted_tlb_shootdown(cpuset_t mask, u_int vector, pmap_t pmap,
     vm_offset_t addr1, vm_offset_t addr2)
 {
-	int cpu, ncpu, othercpus;
-
-	othercpus = mp_ncpus - 1;	/* does not shootdown self */
+	cpuset_t other_cpus;
+	volatile uint32_t *p_cpudone;
+	uint32_t generation;
+	int cpu;
 
 	/*
 	 * Check for other cpus.  Return if none.
 	 */
 	if (CPU_ISFULLSET(&mask)) {
-		if (othercpus < 1)
+		if (mp_ncpus <= 1)
 			return;
 	} else {
 		CPU_CLR(PCPU_GET(cpuid), &mask);
@@ -1399,23 +1410,28 @@ smp_targeted_tlb_shootdown(cpuset_t mask, u_int vector, pmap_t pmap,
 	smp_tlb_addr1 = addr1;
 	smp_tlb_addr2 = addr2;
 	smp_tlb_pmap = pmap;
-	smp_tlb_wait =  0;
+	generation = ++smp_tlb_generation;
 	if (CPU_ISFULLSET(&mask)) {
-		ncpu = othercpus;
 		ipi_all_but_self(vector);
+		other_cpus = all_cpus;
+		CPU_CLR(PCPU_GET(cpuid), &other_cpus);
 	} else {
-		ncpu = 0;
+		other_cpus = mask;
 		while ((cpu = CPU_FFS(&mask)) != 0) {
 			cpu--;
 			CPU_CLR(cpu, &mask);
 			CTR3(KTR_SMP, "%s: cpu: %d ipi: %x", __func__,
 			    cpu, vector);
 			ipi_send_cpu(cpu, vector);
-			ncpu++;
 		}
 	}
-	while (smp_tlb_wait < ncpu)
-		ia32_pause();
+	while ((cpu = CPU_FFS(&other_cpus)) != 0) {
+		cpu--;
+		CPU_CLR(cpu, &other_cpus);
+		p_cpudone = &cpuid_to_pcpu[cpu]->pc_smp_tlb_done;
+		while (*p_cpudone != generation)
+			ia32_pause();
+	}
 	mtx_unlock_spin(&smp_ipi_mtx);
 }
 
@@ -1473,6 +1489,8 @@ smp_cache_flush(void)
 void
 invltlb_handler(void)
 {
+	uint32_t generation;
+  
 #ifdef COUNT_XINVLTLB_HITS
 	xhits_gbl[PCPU_GET(cpuid)]++;
 #endif /* COUNT_XINVLTLB_HITS */
@@ -1480,16 +1498,23 @@ invltlb_handler(void)
 	(*ipi_invltlb_counts[PCPU_GET(cpuid)])++;
 #endif /* COUNT_IPIS */
 
+	/*
+	 * Reading the generation here allows greater parallelism
+	 * since invalidating the TLB is a serializing operation.
+	 */
+	generation = smp_tlb_generation;
 	if (smp_tlb_pmap == kernel_pmap)
 		invltlb_glob();
 	else
 		invltlb();
-	atomic_add_int(&smp_tlb_wait, 1);
+	PCPU_SET(smp_tlb_done, generation);
 }
 
 void
 invlpg_handler(void)
 {
+	uint32_t generation;
+
 #ifdef COUNT_XINVLTLB_HITS
 	xhits_pg[PCPU_GET(cpuid)]++;
 #endif /* COUNT_XINVLTLB_HITS */
@@ -1497,14 +1522,16 @@ invlpg_handler(void)
 	(*ipi_invlpg_counts[PCPU_GET(cpuid)])++;
 #endif /* COUNT_IPIS */
 
+	generation = smp_tlb_generation;	/* Overlap with serialization */
 	invlpg(smp_tlb_addr1);
-	atomic_add_int(&smp_tlb_wait, 1);
+	PCPU_SET(smp_tlb_done, generation);
 }
 
 void
 invlrng_handler(void)
 {
-	vm_offset_t addr;
+	vm_offset_t addr, addr2;
+	uint32_t generation;
 
 #ifdef COUNT_XINVLTLB_HITS
 	xhits_rng[PCPU_GET(cpuid)]++;
@@ -1514,10 +1541,12 @@ invlrng_handler(void)
 #endif /* COUNT_IPIS */
 
 	addr = smp_tlb_addr1;
+	addr2 = smp_tlb_addr2;
+	generation = smp_tlb_generation;	/* Overlap with serialization */
 	do {
 		invlpg(addr);
 		addr += PAGE_SIZE;
-	} while (addr < smp_tlb_addr2);
+	} while (addr < addr2);
 
-	atomic_add_int(&smp_tlb_wait, 1);
+	PCPU_SET(smp_tlb_done, generation);
 }

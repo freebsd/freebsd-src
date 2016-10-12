@@ -114,6 +114,7 @@ INLINE_LIMIT?=	8000
 CFLAGS += -mgeneral-regs-only
 # Reserve x18 for pcpu data
 CFLAGS += -ffixed-x18
+INLINE_LIMIT?=	8000
 .endif
 
 .if ${MACHINE_CPUARCH} == "riscv"

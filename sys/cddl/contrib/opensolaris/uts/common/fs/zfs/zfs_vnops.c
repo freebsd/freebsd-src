@@ -1454,7 +1454,8 @@ zfs_lookup_lock(vnode_t *dvp, vnode_t *vp, const char *name, int lkflags)
 
 	ASSERT_VOP_LOCKED(dvp, __func__);
 #ifdef DIAGNOSTIC
-	ASSERT(!RRM_LOCK_HELD(&zfsvfs->z_teardown_lock));
+	if ((zdp->z_pflags & ZFS_XATTR) == 0)
+		VERIFY(!RRM_LOCK_HELD(&zfsvfs->z_teardown_lock));
 #endif
 
 	if (name[0] == 0 || (name[0] == '.' && name[1] == 0)) {
@@ -5933,8 +5934,19 @@ zfs_vptocnp(struct vop_vptocnp_args *ap)
 	}
 
 	if (zp->z_id != parent || zfsvfs->z_parent == zfsvfs) {
+		char name[MAXNAMLEN + 1];
+		znode_t *dzp;
+		size_t len;
+
+		error = zfs_znode_parent_and_name(zp, &dzp, name);
+		if (error == 0) {
+			len = strlen(name);
+			*ap->a_buflen -= len;
+			bcopy(name, ap->a_buf + *ap->a_buflen, len);
+			*ap->a_vpp = ZTOV(dzp);
+		}
 		ZFS_EXIT(zfsvfs);
-		return (vop_stdvptocnp(ap));
+		return (error);
 	}
 	ZFS_EXIT(zfsvfs);
 
@@ -5973,13 +5985,15 @@ zfs_lock(ap)
 	vp = ap->a_vp;
 	flags = ap->a_flags;
 	if ((flags & LK_INTERLOCK) == 0 && (flags & LK_NOWAIT) == 0 &&
-	    (vp->v_iflag & VI_DOOMED) == 0 && (zp = vp->v_data) != NULL) {
+	    (vp->v_iflag & VI_DOOMED) == 0 && (zp = vp->v_data) != NULL &&
+	    (zp->z_pflags & ZFS_XATTR) == 0) {
 		zfsvfs = zp->z_zfsvfs;
 		VERIFY(!RRM_LOCK_HELD(&zfsvfs->z_teardown_lock));
 	}
 	err = vop_stdlock(ap);
 	if ((flags & LK_INTERLOCK) != 0 && (flags & LK_NOWAIT) == 0 &&
-	    (vp->v_iflag & VI_DOOMED) == 0 && (zp = vp->v_data) != NULL) {
+	    (vp->v_iflag & VI_DOOMED) == 0 && (zp = vp->v_data) != NULL &&
+	    (zp->z_pflags & ZFS_XATTR) == 0) {
 		zfsvfs = zp->z_zfsvfs;
 		VERIFY(!RRM_LOCK_HELD(&zfsvfs->z_teardown_lock));
 	}

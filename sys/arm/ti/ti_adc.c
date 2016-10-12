@@ -54,7 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#ifdef EVDEV
+#ifdef EVDEV_SUPPORT
 #include <dev/evdev/input.h>
 #include <dev/evdev/evdev.h>
 #endif
@@ -89,7 +89,7 @@ static int ti_adc_samples[5] = { 0, 2, 4, 8, 16 };
 
 static int ti_adc_detach(device_t dev);
 
-#ifdef EVDEV
+#ifdef EVDEV_SUPPORT
 static void
 ti_adc_ev_report(struct ti_adc_softc *sc)
 {
@@ -472,7 +472,7 @@ ti_adc_tsc_read_data(struct ti_adc_softc *sc)
 	device_printf(sc->sc_dev, "touchscreen x: %d, y: %d\n", x, y);
 #endif
 
-#ifdef EVDEV
+#ifdef EVDEV_SUPPORT
 	if ((sc->sc_x != x) || (sc->sc_y != y)) {
 		sc->sc_x = x;
 		sc->sc_y = y;
@@ -516,7 +516,7 @@ ti_adc_intr(void *arg)
 		status |= ADC_IRQ_HW_PEN_ASYNC;
 		ADC_WRITE4(sc, ADC_IRQENABLE_CLR,
 			ADC_IRQ_HW_PEN_ASYNC);
-#ifdef EVDEV
+#ifdef EVDEV_SUPPORT
 		ti_adc_ev_report(sc);
 #endif
 	}
@@ -524,7 +524,7 @@ ti_adc_intr(void *arg)
 	if (rawstatus & ADC_IRQ_PEN_UP) {
 		sc->sc_pen_down = 0;
 		status |= ADC_IRQ_PEN_UP;
-#ifdef EVDEV
+#ifdef EVDEV_SUPPORT
 		ti_adc_ev_report(sc);
 #endif
 	}
@@ -874,7 +874,7 @@ ti_adc_attach(device_t dev)
 	ti_adc_setup(sc);
 	TI_ADC_UNLOCK(sc);
 
-#ifdef EVDEV
+#ifdef EVDEV_SUPPORT
 	if (sc->sc_tsc_wires > 0) {
 		sc->sc_evdev = evdev_alloc();
 		evdev_set_name(sc->sc_evdev, device_get_desc(dev));
@@ -921,7 +921,7 @@ ti_adc_detach(device_t dev)
 	ti_adc_reset(sc);
 	ti_adc_setup(sc);
 
-#ifdef EVDEV
+#ifdef EVDEV_SUPPORT
 	evdev_free(sc->sc_evdev);
 #endif
 
@@ -958,6 +958,6 @@ static devclass_t ti_adc_devclass;
 DRIVER_MODULE(ti_adc, simplebus, ti_adc_driver, ti_adc_devclass, 0, 0);
 MODULE_VERSION(ti_adc, 1);
 MODULE_DEPEND(ti_adc, simplebus, 1, 1, 1);
-#ifdef EVDEV
+#ifdef EVDEV_SUPPORT
 MODULE_DEPEND(ti_adc, evdev, 1, 1, 1);
 #endif

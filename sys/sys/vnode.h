@@ -608,7 +608,7 @@ int	cache_lookup(struct vnode *dvp, struct vnode **vpp,
 	    struct componentname *cnp, struct timespec *tsp, int *ticksp);
 void	cache_purge(struct vnode *vp);
 void	cache_purge_negative(struct vnode *vp);
-void	cache_purgevfs(struct mount *mp);
+void	cache_purgevfs(struct mount *mp, bool force);
 int	change_dir(struct vnode *vp, struct thread *td);
 void	cvtstat(struct stat *st, struct ostat *ost);
 void	cvtnstat(struct stat *sb, struct nstat *nsb);
@@ -659,6 +659,7 @@ int	vtruncbuf(struct vnode *vp, struct ucred *cred, off_t length,
 void	vunref(struct vnode *);
 void	vn_printf(struct vnode *vp, const char *fmt, ...) __printflike(2,3);
 int	vrecycle(struct vnode *vp);
+int	vrecyclel(struct vnode *vp);
 int	vn_bmap_seekhole(struct vnode *vp, u_long cmd, off_t *off,
 	    struct ucred *cred);
 int	vn_close(struct vnode *vp,

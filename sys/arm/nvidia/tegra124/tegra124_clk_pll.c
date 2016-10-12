@@ -86,7 +86,7 @@ enum pll_type {
 #define	PLLRE_IDDQ_BIT		16
 #define	PLLSS_IDDQ_BIT		19
 
-#define	PLL_LOCK_TIMEOUT 1000
+#define	PLL_LOCK_TIMEOUT	5000
 
 /* Post divider <-> register value mapping. */
 struct pdiv_table {

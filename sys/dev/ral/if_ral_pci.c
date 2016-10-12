@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_radiotap.h>
+#include <net80211/ieee80211_ratectl.h>
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>

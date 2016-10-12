@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 1, 2013
+.Dd October 3, 2016
 .Dt MOUNT_MSDOSFS 8
 .Os
 .Sh NAME
@@ -193,21 +193,32 @@ To mount a Japanese MS-DOS file system located in
 List of Localized MS Operating Systems:
 .Pa http://www.microsoft.com/globaldev/reference/oslocversion.mspx .
 .Sh HISTORY
-The
-.Nm
-utility first appeared in
-.Fx 2.0 .
-Its predecessor, the
+The predecessor to
+.Nm mount_msdos
+utility named
 .Nm mount_pcfs
-utility appeared in
-.Fx 1.0 ,
-and was abandoned in favor
-of the more aptly-named
-.Nm .
-.Pp
+appeared in
+.Bx 386 .
+It was rewritten in
+.Nx 1.0
+and first appeared in
+.Fx 2.0 .
+.Nm mount_msdos
+was renamed to the more aptly-named
+.Nm
+in
+.Fx 5.0.
+The character code conversion routine was added in 2003.
+.Sh AUTHORS
+Initial implementation as
+.Nm mount_pcfs
+was written by
+.An -nosplit
+.An Paul Popelka Aq Mt paulp@uts.amdahl.com .
+It was rewritten by
+.An Christopher G. Demetriou Aq Mt cgd@NetBSD.org .
 The character code conversion routine was added by
-.An Ryuichiro Imura Aq Mt imura@ryu16.org
-in 2003.
+.An Ryuichiro Imura Aq Mt imura@ryu16.org .
 .Sh CAVEATS
 The use of the
 .Fl 9

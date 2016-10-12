@@ -728,7 +728,7 @@ taskqgroup_bind(struct taskqgroup *qgroup)
 	 * one.
 	 */
 	for (i = 0; i < qgroup->tqg_cnt; i++) {
-		gtask = malloc(sizeof (*gtask), M_DEVBUF, M_NOWAIT);
+		gtask = malloc(sizeof (*gtask), M_DEVBUF, M_WAITOK);
 		GTASK_INIT(&gtask->bt_task, 0, 0, taskqgroup_binder, gtask);
 		gtask->bt_cpuid = qgroup->tqg_queue[i].tgc_cpu;
 		grouptaskqueue_enqueue(qgroup->tqg_queue[i].tgc_taskq,
@@ -827,10 +827,10 @@ _taskqgroup_adjust(struct taskqgroup *qgroup, int cnt, int stride)
 	for (i = cnt; i < old_cnt; i++)
 		taskqgroup_cpu_remove(qgroup, i);
 
+	taskqgroup_bind(qgroup);
+
 	mtx_lock(&qgroup->tqg_lock);
 	qgroup->tqg_adjusting = 0;
-
-	taskqgroup_bind(qgroup);
 
 	return (0);
 }

@@ -98,12 +98,23 @@ AcpiDmCheckForSymbolicOpcode (
     ACPI_PARSE_OBJECT       *Child1;
     ACPI_PARSE_OBJECT       *Child2;
     ACPI_PARSE_OBJECT       *Target;
+    ACPI_PARSE_OBJECT       *GrandChild1;
+    ACPI_PARSE_OBJECT       *GrandChild2;
+    ACPI_PARSE_OBJECT       *GrandTarget = NULL;
 
 
     /* Exit immediately if ASL+ not enabled */
 
     if (!AcpiGbl_CstyleDisassembly)
     {
+        return (FALSE);
+    }
+
+    /* Check for a non-ASL+ statement, propagate the flag */
+
+    if (Op->Common.Parent->Common.DisasmFlags & ACPI_PARSEOP_LEGACY_ASL_ONLY)
+    {
+        Op->Common.DisasmFlags |= ACPI_PARSEOP_LEGACY_ASL_ONLY;
         return (FALSE);
     }
 
@@ -323,6 +334,7 @@ AcpiDmCheckForSymbolicOpcode (
             if (AcpiDmIsValidTarget (Target))
             {
                 Child1->Common.OperatorSymbol = NULL;
+                Op->Common.DisasmFlags |= ACPI_PARSEOP_LEGACY_ASL_ONLY;
                 return (FALSE);
             }
 
@@ -339,6 +351,13 @@ AcpiDmCheckForSymbolicOpcode (
 
         if (!AcpiDmIsValidTarget (Target))
         {
+            if (Op->Common.Parent->Common.AmlOpcode == AML_STORE_OP)
+            {
+                Op->Common.DisasmFlags = 0;
+                Child1->Common.OperatorSymbol = NULL;
+                return (FALSE);
+            }
+
             /* Not a valid target (placeholder only, from parser) */
             break;
         }
@@ -478,6 +497,69 @@ AcpiDmCheckForSymbolicOpcode (
         /*
          * Target is the 2nd operand.
          * We know the target is valid, it is not optional.
+         *
+         * The following block implements "Ignore conversion if a store
+         * is followed by a math/bit operator that has no target". Used
+         * only for the ASL test suite.
+         */
+        if (!AcpiGbl_DoDisassemblerOptimizations)
+        {
+            switch (Child1->Common.AmlOpcode)
+            {
+            /* This operator has two operands and two targets */
+
+            case AML_DIVIDE_OP:
+
+                GrandChild1 = Child1->Common.Value.Arg;
+                GrandChild2 = GrandChild1->Common.Next;
+                GrandTarget = GrandChild2->Common.Next;
+
+                if (GrandTarget && !AcpiDmIsValidTarget (GrandTarget))
+                {
+                    Op->Common.DisasmFlags |= ACPI_PARSEOP_LEGACY_ASL_ONLY;
+                    return (FALSE);
+                }
+                GrandTarget = GrandTarget->Common.Next;
+                break;
+
+            case AML_ADD_OP:
+            case AML_SUBTRACT_OP:
+            case AML_MULTIPLY_OP:
+            case AML_MOD_OP:
+            case AML_SHIFT_LEFT_OP:
+            case AML_SHIFT_RIGHT_OP:
+            case AML_BIT_AND_OP:
+            case AML_BIT_OR_OP:
+            case AML_BIT_XOR_OP:
+            case AML_INDEX_OP:
+
+                /* These operators have two operands and a target */
+
+                GrandChild1 = Child1->Common.Value.Arg;
+                GrandChild2 = GrandChild1->Common.Next;
+                GrandTarget = GrandChild2->Common.Next;
+                break;
+
+            case AML_BIT_NOT_OP:
+
+                /* This operator has one operand and a target */
+
+                GrandChild1 = Child1->Common.Value.Arg;
+                GrandTarget = GrandChild1->Common.Next;
+                break;
+
+            default:
+                break;
+            }
+
+            if (GrandTarget && !AcpiDmIsValidTarget (GrandTarget))
+            {
+                Op->Common.DisasmFlags |= ACPI_PARSEOP_LEGACY_ASL_ONLY;
+                return (FALSE);
+            }
+        }
+
+        /*
          * In the parse tree, simply swap the target with the
          * source so that the target is processed first.
          */
@@ -563,9 +645,18 @@ AcpiDmCloseOperator (
 {
     BOOLEAN                 IsCStyleOp = FALSE;
 
+
     /* Always emit paren if ASL+ disassembly disabled */
 
     if (!AcpiGbl_CstyleDisassembly)
+    {
+        AcpiOsPrintf (")");
+        return;
+    }
+
+    /* Check for a non-ASL+ statement */
+
+    if (Op->Common.DisasmFlags & ACPI_PARSEOP_LEGACY_ASL_ONLY)
     {
         AcpiOsPrintf (")");
         return;

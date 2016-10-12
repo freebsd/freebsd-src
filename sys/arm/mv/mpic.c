@@ -50,7 +50,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/intr.h>
-#include <machine/cpufunc.h>
 #include <machine/smp.h>
 
 #include <arm/mv/mvvar.h>

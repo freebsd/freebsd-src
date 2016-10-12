@@ -95,6 +95,8 @@ usage(FILE *fp)
 	    "\tfilter list                         list all filters\n"
 	    "\tfilter mode [<match>] ...           get/set global filter mode\n"
 	    "\ti2c <port> <devaddr> <addr> [<len>] read from i2c device\n"
+	    "\tloadcfg <fw-config.txt>             install configuration file\n"
+	    "\tloadcfg clear                       remove configuration file\n"
 	    "\tloadfw <fw-image.bin>               install firmware\n"
 	    "\tmemdump <addr> <len>                dump a memory range\n"
 	    "\tmodinfo <port> [raw]                optics/cable information\n"
@@ -1835,6 +1837,49 @@ loadfw(int argc, const char *argv[])
 }
 
 static int
+loadcfg(int argc, const char *argv[])
+{
+	int rc, fd;
+	struct t4_data data = {0};
+	const char *fname = argv[0];
+	struct stat st = {0};
+
+	if (argc != 1) {
+		warnx("loadcfg: incorrect number of arguments.");
+		return (EINVAL);
+	}
+
+	if (strcmp(fname, "clear") == 0)
+		return (doit(CHELSIO_T4_LOAD_CFG, &data));
+
+	fd = open(fname, O_RDONLY);
+	if (fd < 0) {
+		warn("open(%s)", fname);
+		return (errno);
+	}
+
+	if (fstat(fd, &st) < 0) {
+		warn("fstat");
+		close(fd);
+		return (errno);
+	}
+
+	data.len = st.st_size;
+	data.len &= ~3;		/* Clip off to make it a multiple of 4 */
+	data.data = mmap(0, data.len, PROT_READ, MAP_PRIVATE, fd, 0);
+	if (data.data == MAP_FAILED) {
+		warn("mmap");
+		close(fd);
+		return (errno);
+	}
+
+	rc = doit(CHELSIO_T4_LOAD_CFG, &data);
+	munmap(data.data, data.len);
+	close(fd);
+	return (rc);
+}
+
+static int
 read_mem(uint32_t addr, uint32_t len, void (*output)(uint32_t *, uint32_t))
 {
 	int rc;
@@ -2732,6 +2777,8 @@ run_cmd(int argc, const char *argv[])
 		rc = sched_class(argc, argv);
 	else if (!strcmp(cmd, "sched-queue"))
 		rc = sched_queue(argc, argv);
+	else if (!strcmp(cmd, "loadcfg"))
+		rc = loadcfg(argc, argv);
 	else {
 		rc = EINVAL;
 		warnx("invalid command \"%s\"", cmd);

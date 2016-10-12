@@ -527,7 +527,7 @@ uinput_ioctl_sub(struct uinput_cdev_state *state, u_long cmd, caddr_t data)
 			return (EINVAL);
 
 		uabs = (struct uinput_abs_setup *)data;
-		if (uabs->code > ABS_MAX || uabs->code < 0)
+		if (uabs->code > ABS_MAX)
 			return (EINVAL);
 
 		evdev_support_abs(state->ucs_evdev, uabs->code,
@@ -708,3 +708,5 @@ uinput_modevent(module_t mod __unused, int cmd, void *data)
 }
 
 DEV_MODULE(uinput, uinput_modevent, NULL);
+MODULE_VERSION(uinput, 1);
+MODULE_DEPEND(uinput, evdev, 1, 1, 1);

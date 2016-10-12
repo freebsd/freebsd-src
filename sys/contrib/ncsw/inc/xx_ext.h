@@ -932,7 +932,7 @@ t_Error XX_IpcSendMessage(t_Handle           h_Session,
 
 /** FreeBSD Specific additions. */
 void XX_TrackInit(void);
-void XX_TrackAddress(void *addr);
+physAddress_t  XX_TrackAddress(void *addr);
 void XX_UntrackAddress(void *addr);
 
 #endif /* __XX_EXT_H */

@@ -3113,7 +3113,7 @@ flushbufqueues(struct vnode *lvp, int target, int flushdeps)
 		if (bp->b_qindex == QUEUE_SENTINEL || (lvp != NULL &&
 		    bp->b_vp != lvp)) {
 			mtx_unlock(&bqlocks[queue]);
- 			continue;
+			continue;
 		}
 		error = BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT, NULL);
 		mtx_unlock(&bqlocks[queue]);

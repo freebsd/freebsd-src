@@ -1474,15 +1474,15 @@ arm_gicv2m_release_msi(device_t dev, device_t child, int count,
 
 	mtx_lock(&sc->sc_mutex);
 	for (i = 0; i < count; i++) {
-		gi = (struct gic_irqsrc *)isrc;
+		gi = (struct gic_irqsrc *)isrc[i];
 
 		KASSERT((gi->gi_flags & GI_FLAG_MSI_USED) == GI_FLAG_MSI_USED,
 		    ("%s: Trying to release an unused MSI-X interrupt",
 		    __func__));
 
 		gi->gi_flags &= ~GI_FLAG_MSI_USED;
-		mtx_unlock(&sc->sc_mutex);
 	}
+	mtx_unlock(&sc->sc_mutex);
 
 	return (0);
 }

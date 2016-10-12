@@ -411,16 +411,19 @@ static const int dbits = 6;	/* bits in base distance lookup table */
    The code with value 256 is special, and the tables are constructed
    so that no bits beyond that code are fetched when that code is
    decoded. */
+/*
+ * Arguments:
+ * b	code lengths in bits (all assumed <= BMAX)
+ * n	number of codes (assumed <= N_MAX)
+ * s	number of simple-valued codes (0..s-1)
+ * d	list of base values for non-simple codes
+ * e	list of extra bits for non-simple codes
+ * t	result: starting table
+ * m	maximum lookup bits, returns actual
+ */
 static int
-huft_build(glbl, b, n, s, d, e, t, m)
-	struct inflate *glbl;
-	unsigned       *b;	/* code lengths in bits (all assumed <= BMAX) */
-	unsigned        n;	/* number of codes (assumed <= N_MAX) */
-	unsigned        s;	/* number of simple-valued codes (0..s-1) */
-	const ush      *d;	/* list of base values for non-simple codes */
-	const ush      *e;	/* list of extra bits for non-simple codes */
-	struct huft   **t;	/* result: starting table */
-	int            *m;	/* maximum lookup bits, returns actual */
+huft_build(struct inflate *glbl, unsigned *b, unsigned n, unsigned s,
+    const ush *d, const ush *e, struct huft **t, int *m)
 {
 	unsigned        a;	/* counter for codes of length k */
 	unsigned        c[BMAX + 1];	/* bit length count table */
@@ -614,10 +617,12 @@ huft_build(glbl, b, n, s, d, e, t, m)
 	return y != 0 && g != 1;
 }
 
+/*
+ * Arguments:
+ * t	table to free
+ */
 static int
-huft_free(glbl, t)
-	struct inflate *glbl;
-	struct huft    *t;	/* table to free */
+huft_free(struct inflate *glbl, struct huft *t)
 /* Free the malloc'ed tables built by huft_build(), which makes a linked
    list of the tables it made, with the links in a dummy first entry of
    each table. */
@@ -636,11 +641,14 @@ huft_free(glbl, t)
 
 /* inflate (decompress) the codes in a deflated (compressed) block.
    Return an error code or zero if it all goes ok. */
+/*
+ * Arguments:
+ * tl, td	literal/length and distance decoder tables
+ * bl, bd	number of bits decoded by tl[] and td[]
+ */
 static int
-inflate_codes(glbl, tl, td, bl, bd)
-	struct inflate *glbl;
-	struct huft    *tl, *td;/* literal/length and distance decoder tables */
-	int             bl, bd;	/* number of bits decoded by tl[] and td[] */
+inflate_codes(struct inflate *glbl, struct huft *tl, struct huft*td, int bl,
+    int bd)
 {
 	register unsigned e;	/* table entry flag/number of extra bits */
 	unsigned        n, d;	/* length and index for copy */
@@ -733,8 +741,7 @@ inflate_codes(glbl, tl, td, bl, bd)
 
 /* "decompress" an inflated type 0 (stored) block. */
 static int
-inflate_stored(glbl)
-	struct inflate *glbl;
+inflate_stored(struct inflate *glbl)
 {
 	unsigned        n;	/* number of bytes in block */
 	unsigned        w;	/* current window position */
@@ -780,8 +787,7 @@ inflate_stored(glbl)
    either replace this with a custom decoder, or at least precompute the
    Huffman tables. */
 static int
-inflate_fixed(glbl)
-	struct inflate *glbl;
+inflate_fixed(struct inflate *glbl)
 {
 	/* if first time, set up tables for fixed blocks */
 	if (glbl->gz_fixed_tl == (struct huft *) NULL) {
@@ -822,8 +828,7 @@ inflate_fixed(glbl)
 
 /* decompress an inflated type 2 (dynamic Huffman codes) block. */
 static int
-inflate_dynamic(glbl)
-	struct inflate *glbl;
+inflate_dynamic(struct inflate *glbl)
 {
 	int             i;	/* temporary variables */
 	unsigned        j;
@@ -967,10 +972,12 @@ inflate_dynamic(glbl)
 }
 
 /* decompress an inflated block */
+/*
+ * Arguments:
+ * e	last block flag
+ */
 static int
-inflate_block(glbl, e)
-	struct inflate *glbl;
-	int            *e;	/* last block flag */
+inflate_block(struct inflate *glbl, int *e)
 {
 	unsigned        t;	/* block type */
 	register ulg    b;	/* bit buffer */
@@ -1007,8 +1014,7 @@ inflate_block(glbl, e)
 
 /* decompress an inflated entry */
 static int
-xinflate(glbl)
-	struct inflate *glbl;
+xinflate(struct inflate *glbl)
 {
 	int             e;	/* last block flag */
 	int             r;	/* result code */
@@ -1040,8 +1046,7 @@ xinflate(glbl)
 
 /* Nobody uses this - why not? */
 int
-inflate(glbl)
-	struct inflate *glbl;
+inflate(struct inflate *glbl)
 {
 	int             i;
 #ifdef _KERNEL

@@ -32,7 +32,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 14, 1998
+.Dd October 5, 2016
 .Dt CHIO 1
 .Os
 .Sh NAME
@@ -60,10 +60,6 @@ Use the device
 rather than the default device
 .Pa /dev/ch0 .
 .El
-.Pp
-The default changer may be overridden by setting the environment variable
-.Ev CHANGER
-to the desired changer device.
 .Pp
 A medium changer apparatus is made up of
 .Em elements .
@@ -265,6 +261,12 @@ Element supports passing media (exporting) to an outside human operator.
 .It INENAB
 Element supports receiving media (importing) from an outside human operator.
 .El
+.Sh ENVIRONMENT
+.Bl -tag -width CHANGER
+.It Ev CHANGER
+The default changer may be overridden by setting this environmental
+variable to the desired changer device.
+.El
 .Sh FILES
 .Bl -tag -width /dev/ch0 -compact
 .It Pa /dev/ch0
@@ -285,6 +287,14 @@ Configure the changer to use picker 2 (third picker) for operations.
 .Sh SEE ALSO
 .Xr mt 1 ,
 .Xr mount 8
+.Sh HISTORY
+A
+.Nm
+utility appeared in
+.Nx 1.3 .
+.Nm
+first appeared in
+.Fx 2.2 .
 .Sh AUTHORS
 .An -nosplit
 The
