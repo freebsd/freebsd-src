@@ -32,6 +32,8 @@
 #ifndef	_COMPAT_IA32_IA32_SIGNAL_H
 #define	_COMPAT_IA32_IA32_SIGNAL_H
 
+#include <compat/freebsd32/freebsd32_signal.h>
+
 #define	_MC_IA32_HASSEGS	0x1
 #define	_MC_IA32_HASBASES	0x2
 #define	_MC_IA32_HASFPXSTATE	0x4
