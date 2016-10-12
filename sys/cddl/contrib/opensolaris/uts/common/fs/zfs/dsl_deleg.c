@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2011, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2015 by Delphix. All rights reserved.
  */
 
 /*
@@ -330,7 +330,7 @@ dsl_deleg_get(const char *ddname, nvlist_t **nvp)
 		zap_attribute_t baseza;
 		nvlist_t *sp_nvp;
 		uint64_t n;
-		char source[MAXNAMELEN];
+		char source[ZFS_MAX_DATASET_NAME_LEN];
 
 		if (dsl_dir_phys(dd)->dd_deleg_zapobj == 0 ||
 		    zap_count(mos,
