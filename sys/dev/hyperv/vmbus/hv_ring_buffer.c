@@ -37,32 +37,29 @@ __FBSDID("$FreeBSD$");
 #include <dev/hyperv/vmbus/vmbus_reg.h>
 #include <dev/hyperv/vmbus/vmbus_brvar.h>
 
-/* Amount of space to write to */
-#define	HV_BYTES_AVAIL_TO_WRITE(r, w, z)	\
-	((w) >= (r)) ? ((z) - ((w) - (r))) : ((r) - (w))
+/* Amount of space available for write */
+#define	VMBUS_BR_WAVAIL(r, w, z)	\
+	(((w) >= (r)) ? ((z) - ((w) - (r))) : ((r) - (w)))
 
-static uint32_t	copy_to_ring_buffer(hv_vmbus_ring_buffer_info *ring_info,
-		    uint32_t start_write_offset, const uint8_t *src,
-		    uint32_t src_len);
-static uint32_t copy_from_ring_buffer(hv_vmbus_ring_buffer_info *ring_info,
-		    char *dest, uint32_t dest_len, uint32_t start_read_offset);
+/* Increase bufing index */
+#define VMBUS_BR_IDXINC(idx, inc, sz)	(((idx) + (inc)) % (sz))
 
 static int
 vmbus_br_sysctl_state(SYSCTL_HANDLER_ARGS)
 {
-	const hv_vmbus_ring_buffer_info *br = arg1;
-	uint32_t rindex, windex, intr_mask, ravail, wavail;
+	const struct vmbus_br *br = arg1;
+	uint32_t rindex, windex, imask, ravail, wavail;
 	char state[256];
 
-	rindex = br->ring_buffer->br_rindex;
-	windex = br->ring_buffer->br_windex;
-	intr_mask = br->ring_buffer->br_imask;
-	wavail = HV_BYTES_AVAIL_TO_WRITE(rindex, windex, br->ring_data_size);
-	ravail = br->ring_data_size - wavail;
+	rindex = br->vbr_rindex;
+	windex = br->vbr_windex;
+	imask = br->vbr_imask;
+	wavail = VMBUS_BR_WAVAIL(rindex, windex, br->vbr_dsize);
+	ravail = br->vbr_dsize - wavail;
 
 	snprintf(state, sizeof(state),
-	    "rindex:%u windex:%u intr_mask:%u ravail:%u wavail:%u",
-	    rindex, windex, intr_mask, ravail, wavail);
+	    "rindex:%u windex:%u imask:%u ravail:%u wavail:%u",
+	    rindex, windex, imask, ravail, wavail);
 	return sysctl_handle_string(oidp, state, sizeof(state), req);
 }
 
@@ -79,25 +76,25 @@ vmbus_br_sysctl_state_bin(SYSCTL_HANDLER_ARGS)
 #define BR_STATE_WSPC	4
 #define BR_STATE_MAX	5
 
-	const hv_vmbus_ring_buffer_info *br = arg1;
+	const struct vmbus_br *br = arg1;
 	uint32_t rindex, windex, wavail, state[BR_STATE_MAX];
 
-	rindex = br->ring_buffer->br_rindex;
-	windex = br->ring_buffer->br_windex;
-	wavail = HV_BYTES_AVAIL_TO_WRITE(rindex, windex, br->ring_data_size);
+	rindex = br->vbr_rindex;
+	windex = br->vbr_windex;
+	wavail = VMBUS_BR_WAVAIL(rindex, windex, br->vbr_dsize);
 
 	state[BR_STATE_RIDX] = rindex;
 	state[BR_STATE_WIDX] = windex;
-	state[BR_STATE_IMSK] = br->ring_buffer->br_imask;
+	state[BR_STATE_IMSK] = br->vbr_imask;
 	state[BR_STATE_WSPC] = wavail;
-	state[BR_STATE_RSPC] = br->ring_data_size - wavail;
+	state[BR_STATE_RSPC] = br->vbr_dsize - wavail;
 
 	return sysctl_handle_opaque(oidp, state, sizeof(state), req);
 }
 
 void
 vmbus_br_sysctl_create(struct sysctl_ctx_list *ctx, struct sysctl_oid *br_tree,
-    hv_vmbus_ring_buffer_info *br, const char *name)
+    struct vmbus_br *br, const char *name)
 {
 	struct sysctl_oid *tree;
 	char desc[64];
@@ -118,342 +115,291 @@ vmbus_br_sysctl_create(struct sysctl_ctx_list *ctx, struct sysctl_oid *br_tree,
 	    br, 0, vmbus_br_sysctl_state_bin, "IU", desc);
 }
 
-/**
- * @brief Get number of bytes available to read and to write to
- * for the specified ring buffer
- */
-static __inline void
-get_ring_buffer_avail_bytes(hv_vmbus_ring_buffer_info *rbi, uint32_t *read,
-    uint32_t *write)
-{
-	uint32_t read_loc, write_loc;
-
-	/*
-	 * Capture the read/write indices before they changed
-	 */
-	read_loc = rbi->ring_buffer->br_rindex;
-	write_loc = rbi->ring_buffer->br_windex;
-
-	*write = HV_BYTES_AVAIL_TO_WRITE(read_loc, write_loc,
-	    rbi->ring_data_size);
-	*read = rbi->ring_data_size - *write;
-}
-
-/**
- * @brief Get the next write location for the specified ring buffer
- */
-static __inline uint32_t
-get_next_write_location(hv_vmbus_ring_buffer_info *ring_info)
-{
-	return ring_info->ring_buffer->br_windex;
-}
-
-/**
- * @brief Set the next write location for the specified ring buffer
- */
-static __inline void
-set_next_write_location(hv_vmbus_ring_buffer_info *ring_info,
-    uint32_t next_write_location)
-{
-	ring_info->ring_buffer->br_windex = next_write_location;
-}
-
-/**
- * @brief Get the next read location for the specified ring buffer
- */
-static __inline uint32_t
-get_next_read_location(hv_vmbus_ring_buffer_info *ring_info)
-{
-	return ring_info->ring_buffer->br_rindex;
-}
-
-/**
- * @brief Get the next read location + offset for the specified ring buffer.
- * This allows the caller to skip.
- */
-static __inline uint32_t
-get_next_read_location_with_offset(hv_vmbus_ring_buffer_info *ring_info,
-    uint32_t offset)
-{
-	uint32_t next = ring_info->ring_buffer->br_rindex;
-
-	next += offset;
-	next %= ring_info->ring_data_size;
-	return (next);
-}
-
-/**
- * @brief Set the next read location for the specified ring buffer
- */
-static __inline void
-set_next_read_location(hv_vmbus_ring_buffer_info *ring_info,
-    uint32_t next_read_location)
-{
-	ring_info->ring_buffer->br_rindex = next_read_location;
-}
-
-/**
- * @brief Get the start of the ring buffer
- */
-static __inline void *
-get_ring_buffer(hv_vmbus_ring_buffer_info *ring_info)
-{
-	return ring_info->ring_buffer->br_data;
-}
-
-/**
- * @brief Get the size of the ring buffer.
- */
-static __inline uint32_t
-get_ring_buffer_size(hv_vmbus_ring_buffer_info *ring_info)
-{
-	return ring_info->ring_data_size;
-}
-
-/**
- * Get the read and write indices as uint64_t of the specified ring buffer.
- */
-static __inline uint64_t
-get_ring_buffer_indices(hv_vmbus_ring_buffer_info *ring_info)
-{
-	return ((uint64_t)ring_info->ring_buffer->br_windex) << 32;
-}
-
 void
-hv_ring_buffer_read_begin(hv_vmbus_ring_buffer_info *ring_info)
+vmbus_rxbr_intr_mask(struct vmbus_rxbr *rbr)
 {
-	ring_info->ring_buffer->br_imask = 1;
+	rbr->rxbr_imask = 1;
 	mb();
 }
 
-uint32_t
-hv_ring_buffer_read_end(hv_vmbus_ring_buffer_info *ring_info)
+static __inline uint32_t
+vmbus_rxbr_avail(const struct vmbus_rxbr *rbr)
 {
-	uint32_t read, write;
+	uint32_t rindex, windex;
 
-	ring_info->ring_buffer->br_imask = 0;
+	/* Get snapshot */
+	rindex = rbr->rxbr_rindex;
+	windex = rbr->rxbr_windex;
+
+	return (rbr->rxbr_dsize -
+	    VMBUS_BR_WAVAIL(rindex, windex, rbr->rxbr_dsize));
+}
+
+uint32_t
+vmbus_rxbr_intr_unmask(struct vmbus_rxbr *rbr)
+{
+	rbr->rxbr_imask = 0;
 	mb();
 
 	/*
 	 * Now check to see if the ring buffer is still empty.
 	 * If it is not, we raced and we need to process new
-	 * incoming messages.
+	 * incoming channel packets.
 	 */
-	get_ring_buffer_avail_bytes(ring_info, &read, &write);
-	return (read);
+	return vmbus_rxbr_avail(rbr);
+}
+
+static void
+vmbus_br_setup(struct vmbus_br *br, void *buf, int blen)
+{
+	br->vbr = buf;
+	br->vbr_dsize = blen - sizeof(struct vmbus_bufring);
+}
+
+void
+vmbus_rxbr_init(struct vmbus_rxbr *rbr)
+{
+	mtx_init(&rbr->rxbr_lock, "vmbus_rxbr", NULL, MTX_SPIN);
+}
+
+void
+vmbus_rxbr_deinit(struct vmbus_rxbr *rbr)
+{
+	mtx_destroy(&rbr->rxbr_lock);
+}
+
+void
+vmbus_rxbr_setup(struct vmbus_rxbr *rbr, void *buf, int blen)
+{
+	vmbus_br_setup(&rbr->rxbr, buf, blen);
+}
+
+void
+vmbus_txbr_init(struct vmbus_txbr *tbr)
+{
+	mtx_init(&tbr->txbr_lock, "vmbus_txbr", NULL, MTX_SPIN);
+}
+
+void
+vmbus_txbr_deinit(struct vmbus_txbr *tbr)
+{
+	mtx_destroy(&tbr->txbr_lock);
+}
+
+void
+vmbus_txbr_setup(struct vmbus_txbr *tbr, void *buf, int blen)
+{
+	vmbus_br_setup(&tbr->txbr, buf, blen);
 }
 
 /*
- * When we write to the ring buffer, check if the host needs to
- * be signaled. Here is the details of this protocol:
+ * When we write to the ring buffer, check if the host needs to be
+ * signaled.
  *
- *	1. The host guarantees that while it is draining the
- *	   ring buffer, it will set the interrupt_mask to
- *	   indicate it does not need to be interrupted when
- *	   new data is placed.
- *
- *	2. The host guarantees that it will completely drain
- *	   the ring buffer before exiting the read loop. Further,
- *	   once the ring buffer is empty, it will clear the
- *	   interrupt_mask and re-check to see if new data has
- *	   arrived.
+ * The contract:
+ * - The host guarantees that while it is draining the TX bufring,
+ *   it will set the br_imask to indicate it does not need to be
+ *   interrupted when new data are added.
+ * - The host guarantees that it will completely drain the TX bufring
+ *   before exiting the read loop.  Further, once the TX bufring is
+ *   empty, it will clear the br_imask and re-check to see if new
+ *   data have arrived.
  */
-static boolean_t
-hv_ring_buffer_needsig_on_write(uint32_t old_write_location,
-    hv_vmbus_ring_buffer_info *rbi)
+static __inline boolean_t
+vmbus_txbr_need_signal(const struct vmbus_txbr *tbr, uint32_t old_windex)
 {
 	mb();
-	if (rbi->ring_buffer->br_imask)
+	if (tbr->txbr_imask)
 		return (FALSE);
 
+	/* XXX only compiler fence is needed */
 	/* Read memory barrier */
 	rmb();
+
 	/*
 	 * This is the only case we need to signal when the
 	 * ring transitions from being empty to non-empty.
 	 */
-	if (old_write_location == rbi->ring_buffer->br_rindex)
+	if (old_windex == tbr->txbr_rindex)
 		return (TRUE);
 
 	return (FALSE);
 }
 
-/**
- * @brief Initialize the ring buffer.
- */
-int
-hv_vmbus_ring_buffer_init(hv_vmbus_ring_buffer_info *ring_info, void *buffer,
-    uint32_t buffer_len)
+static __inline uint32_t
+vmbus_txbr_avail(const struct vmbus_txbr *tbr)
 {
-	memset(ring_info, 0, sizeof(hv_vmbus_ring_buffer_info));
+	uint32_t rindex, windex;
 
-	ring_info->ring_buffer = buffer;
-	ring_info->ring_buffer->br_rindex = 0;
-	ring_info->ring_buffer->br_windex = 0;
+	/* Get snapshot */
+	rindex = tbr->txbr_rindex;
+	windex = tbr->txbr_windex;
 
-	ring_info->ring_data_size = buffer_len - sizeof(struct vmbus_bufring);
-	mtx_init(&ring_info->ring_lock, "vmbus ring buffer", NULL, MTX_SPIN);
-
-	return (0);
+	return VMBUS_BR_WAVAIL(rindex, windex, tbr->txbr_dsize);
 }
 
-/**
- * @brief Cleanup the ring buffer.
- */
-void
-hv_ring_buffer_cleanup(hv_vmbus_ring_buffer_info *ring_info) 
+static __inline uint32_t
+vmbus_txbr_copyto(const struct vmbus_txbr *tbr, uint32_t windex,
+    const void *src0, uint32_t cplen)
 {
-	mtx_destroy(&ring_info->ring_lock);
+	const uint8_t *src = src0;
+	uint8_t *br_data = tbr->txbr_data;
+	uint32_t br_dsize = tbr->txbr_dsize;
+
+	if (cplen > br_dsize - windex) {
+		uint32_t fraglen = br_dsize - windex;
+
+		/* Wrap-around detected */
+		memcpy(br_data + windex, src, fraglen);
+		memcpy(br_data, src + fraglen, cplen - fraglen);
+	} else {
+		memcpy(br_data + windex, src, cplen);
+	}
+	return VMBUS_BR_IDXINC(windex, cplen, br_dsize);
 }
 
-/**
- * @brief Write to the ring buffer.
+/*
+ * Write scattered channel packet to TX bufring.
+ *
+ * The offset of this channel packet is written as a 64bits value
+ * immediately after this channel packet.
  */
 int
-hv_ring_buffer_write(hv_vmbus_ring_buffer_info *out_ring_info,
-    const struct iovec iov[], uint32_t iovlen, boolean_t *need_sig)
+vmbus_txbr_write(struct vmbus_txbr *tbr, const struct iovec iov[], int iovlen,
+    boolean_t *need_sig)
 {
-	int i = 0;
-	uint32_t byte_avail_to_write;
-	uint32_t byte_avail_to_read;
-	uint32_t old_write_location;
-	uint32_t total_bytes_to_write = 0;
-	volatile uint32_t next_write_location;
-	uint64_t prev_indices = 0;
+	uint32_t old_windex, windex, total;
+	uint64_t save_windex;
+	int i;
 
+	total = 0;
 	for (i = 0; i < iovlen; i++)
-		total_bytes_to_write += iov[i].iov_len;
+		total += iov[i].iov_len;
+	total += sizeof(save_windex);
 
-	total_bytes_to_write += sizeof(uint64_t);
-
-	mtx_lock_spin(&out_ring_info->ring_lock);
-
-	get_ring_buffer_avail_bytes(out_ring_info, &byte_avail_to_read,
-	    &byte_avail_to_write);
+	mtx_lock_spin(&tbr->txbr_lock);
 
 	/*
-	 * If there is only room for the packet, assume it is full.
-	 * Otherwise, the next time around, we think the ring buffer
-	 * is empty since the read index == write index
+	 * NOTE:
+	 * If this write is going to make br_windex same as br_rindex,
+	 * i.e. the available space for write is same as the write size,
+	 * we can't do it then, since br_windex == br_rindex means that
+	 * the bufring is empty.
 	 */
-	if (byte_avail_to_write <= total_bytes_to_write) {
-		mtx_unlock_spin(&out_ring_info->ring_lock);
+	if (vmbus_txbr_avail(tbr) <= total) {
+		mtx_unlock_spin(&tbr->txbr_lock);
 		return (EAGAIN);
 	}
 
+	/* Save br_windex for later use */
+	old_windex = tbr->txbr_windex;
+
 	/*
-	 * Write to the ring buffer
+	 * Copy the scattered channel packet to the TX bufring.
 	 */
-	next_write_location = get_next_write_location(out_ring_info);
-
-	old_write_location = next_write_location;
-
+	windex = old_windex;
 	for (i = 0; i < iovlen; i++) {
-		next_write_location = copy_to_ring_buffer(out_ring_info,
-		    next_write_location, iov[i].iov_base, iov[i].iov_len);
+		windex = vmbus_txbr_copyto(tbr, windex,
+		    iov[i].iov_base, iov[i].iov_len);
 	}
 
 	/*
-	 * Set previous packet start
+	 * Set the offset of the current channel packet.
 	 */
-	prev_indices = get_ring_buffer_indices(out_ring_info);
-
-	next_write_location = copy_to_ring_buffer(out_ring_info,
-	    next_write_location, (char *)&prev_indices, sizeof(uint64_t));
+	save_windex = ((uint64_t)old_windex) << 32;
+	windex = vmbus_txbr_copyto(tbr, windex, &save_windex,
+	    sizeof(save_windex));
 
 	/*
+	 * XXX only compiler fence is needed.
 	 * Full memory barrier before upding the write index. 
 	 */
 	mb();
 
 	/*
-	 * Now, update the write location
+	 * Update the write index _after_ the channel packet
+	 * is copied.
 	 */
-	set_next_write_location(out_ring_info, next_write_location);
+	tbr->txbr_windex = windex;
 
-	mtx_unlock_spin(&out_ring_info->ring_lock);
+	mtx_unlock_spin(&tbr->txbr_lock);
 
-	*need_sig = hv_ring_buffer_needsig_on_write(old_write_location,
-	    out_ring_info);
+	*need_sig = vmbus_txbr_need_signal(tbr, old_windex);
 
 	return (0);
 }
 
-/**
- * @brief Read without advancing the read index.
- */
-int
-hv_ring_buffer_peek(hv_vmbus_ring_buffer_info *in_ring_info, void *buffer,
-    uint32_t buffer_len)
+static __inline uint32_t
+vmbus_rxbr_copyfrom(const struct vmbus_rxbr *rbr, uint32_t rindex,
+    void *dst0, int cplen)
 {
-	uint32_t bytesAvailToWrite;
-	uint32_t bytesAvailToRead;
-	uint32_t nextReadLocation = 0;
+	uint8_t *dst = dst0;
+	const uint8_t *br_data = rbr->rxbr_data;
+	uint32_t br_dsize = rbr->rxbr_dsize;
 
-	mtx_lock_spin(&in_ring_info->ring_lock);
+	if (cplen > br_dsize - rindex) {
+		uint32_t fraglen = br_dsize - rindex;
 
-	get_ring_buffer_avail_bytes(in_ring_info, &bytesAvailToRead,
-	    &bytesAvailToWrite);
+		/* Wrap-around detected. */
+		memcpy(dst, br_data + rindex, fraglen);
+		memcpy(dst + fraglen, br_data, cplen - fraglen);
+	} else {
+		memcpy(dst, br_data + rindex, cplen);
+	}
+	return VMBUS_BR_IDXINC(rindex, cplen, br_dsize);
+}
+
+int
+vmbus_rxbr_peek(struct vmbus_rxbr *rbr, void *data, int dlen)
+{
+	mtx_lock_spin(&rbr->rxbr_lock);
 
 	/*
-	 * Make sure there is something to read
+	 * The requested data and the 64bits channel packet
+	 * offset should be there at least.
 	 */
-	if (bytesAvailToRead < buffer_len) {
-		mtx_unlock_spin(&in_ring_info->ring_lock);
+	if (vmbus_rxbr_avail(rbr) < dlen + sizeof(uint64_t)) {
+		mtx_unlock_spin(&rbr->rxbr_lock);
 		return (EAGAIN);
 	}
+	vmbus_rxbr_copyfrom(rbr, rbr->rxbr_rindex, data, dlen);
 
-	/*
-	 * Convert to byte offset
-	 */
-	nextReadLocation = get_next_read_location(in_ring_info);
-
-	nextReadLocation = copy_from_ring_buffer(in_ring_info,
-	    (char *)buffer, buffer_len, nextReadLocation);
-
-	mtx_unlock_spin(&in_ring_info->ring_lock);
+	mtx_unlock_spin(&rbr->rxbr_lock);
 
 	return (0);
 }
 
-/**
- * @brief Read and advance the read index.
+/*
+ * NOTE:
+ * We assume (dlen + skip) == sizeof(channel packet).
  */
 int
-hv_ring_buffer_read(hv_vmbus_ring_buffer_info *in_ring_info, void *buffer,
-    uint32_t buffer_len, uint32_t offset)
+vmbus_rxbr_read(struct vmbus_rxbr *rbr, void *data, int dlen, uint32_t skip)
 {
-	uint32_t bytes_avail_to_write;
-	uint32_t bytes_avail_to_read;
-	uint32_t next_read_location = 0;
-	uint64_t prev_indices = 0;
+	uint32_t rindex, br_dsize = rbr->rxbr_dsize;
 
-	if (buffer_len <= 0)
-		return (EINVAL);
+	KASSERT(dlen + skip > 0, ("invalid dlen %d, offset %u", dlen, skip));
 
-	mtx_lock_spin(&in_ring_info->ring_lock);
+	mtx_lock_spin(&rbr->rxbr_lock);
 
-	get_ring_buffer_avail_bytes(in_ring_info, &bytes_avail_to_read,
-	    &bytes_avail_to_write);
-
-	/*
-	 * Make sure there is something to read
-	 */
-	if (bytes_avail_to_read < buffer_len) {
-		mtx_unlock_spin(&in_ring_info->ring_lock);
+	if (vmbus_rxbr_avail(rbr) < dlen + skip + sizeof(uint64_t)) {
+		mtx_unlock_spin(&rbr->rxbr_lock);
 		return (EAGAIN);
 	}
 
-	next_read_location = get_next_read_location_with_offset(in_ring_info,
-	    offset);
-
-	next_read_location = copy_from_ring_buffer(in_ring_info, (char *)buffer,
-	    buffer_len, next_read_location);
-
-	next_read_location = copy_from_ring_buffer(in_ring_info,
-	    (char *)&prev_indices, sizeof(uint64_t), next_read_location);
+	/*
+	 * Copy channel packet from RX bufring.
+	 */
+	rindex = VMBUS_BR_IDXINC(rbr->rxbr_rindex, skip, br_dsize);
+	rindex = vmbus_rxbr_copyfrom(rbr, rindex, data, dlen);
 
 	/*
+	 * Discard this channel packet's 64bits offset, which is useless to us.
+	 */
+	rindex = VMBUS_BR_IDXINC(rindex, sizeof(uint64_t), br_dsize);
+
+	/*
+	 * XXX only compiler fence is needed.
 	 * Make sure all reads are done before we update the read index since
 	 * the writer may start writing to the read area once the read index
 	 * is updated.
@@ -461,67 +407,11 @@ hv_ring_buffer_read(hv_vmbus_ring_buffer_info *in_ring_info, void *buffer,
 	wmb();
 
 	/*
-	 * Update the read index
+	 * Update the read index _after_ the channel packet is fetched.
 	 */
-	set_next_read_location(in_ring_info, next_read_location);
+	rbr->rxbr_rindex = rindex;
 
-	mtx_unlock_spin(&in_ring_info->ring_lock);
+	mtx_unlock_spin(&rbr->rxbr_lock);
 
 	return (0);
-}
-
-/**
- * @brief Helper routine to copy from source to ring buffer.
- *
- * Assume there is enough room. Handles wrap-around in dest case only!
- */
-static uint32_t
-copy_to_ring_buffer(hv_vmbus_ring_buffer_info *ring_info,
-    uint32_t start_write_offset, const uint8_t *src, uint32_t src_len)
-{
-	char *ring_buffer = get_ring_buffer(ring_info);
-	uint32_t ring_buffer_size = get_ring_buffer_size(ring_info);
-	uint32_t fragLen;
-
-	if (src_len > ring_buffer_size - start_write_offset) {
-		/* wrap-around detected! */
-		fragLen = ring_buffer_size - start_write_offset;
-		memcpy(ring_buffer + start_write_offset, src, fragLen);
-		memcpy(ring_buffer, src + fragLen, src_len - fragLen);
-	} else {
-		memcpy(ring_buffer + start_write_offset, src, src_len);
-	}
-
-	start_write_offset += src_len;
-	start_write_offset %= ring_buffer_size;
-
-	return (start_write_offset);
-}
-
-/**
- * @brief Helper routine to copy to source from ring buffer.
- *
- * Assume there is enough room. Handles wrap-around in src case only!
- */
-static uint32_t
-copy_from_ring_buffer(hv_vmbus_ring_buffer_info *ring_info, char *dest,
-    uint32_t dest_len, uint32_t start_read_offset)
-{
-	uint32_t fragLen;
-	char *ring_buffer = get_ring_buffer(ring_info);
-	uint32_t ring_buffer_size = get_ring_buffer_size(ring_info);
-
-	if (dest_len > ring_buffer_size - start_read_offset) {
-		/* wrap-around detected at the src */
-		fragLen = ring_buffer_size - start_read_offset;
-		memcpy(dest, ring_buffer + start_read_offset, fragLen);
-		memcpy(dest + fragLen, ring_buffer, dest_len - fragLen);
-	} else {
-		memcpy(dest, ring_buffer + start_read_offset, dest_len);
-	}
-
-	start_read_offset += dest_len;
-	start_read_offset %= ring_buffer_size;
-
-	return (start_read_offset);
 }
