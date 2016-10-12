@@ -121,7 +121,12 @@ dwc_otg_attach(device_t dev)
 	sc->sc_otg.sc_io_hdl = rman_get_bushandle(sc->sc_otg.sc_io_res);
 	sc->sc_otg.sc_io_size = rman_get_size(sc->sc_otg.sc_io_res);
 
-	rid = 0;
+
+	/*
+	 * brcm,bcm2708-usb FDT provides two interrupts,
+	 * we need only second one (VC_USB)
+	 */
+	rid = ofw_bus_is_compatible(dev, "brcm,bcm2708-usb") ? 1 : 0;
 	sc->sc_otg.sc_irq_res =
 	    bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
 	if (sc->sc_otg.sc_irq_res == NULL)
