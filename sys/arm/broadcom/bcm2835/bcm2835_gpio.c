@@ -82,8 +82,6 @@ static struct resource_spec bcm_gpio_res_spec[] = {
 	{ SYS_RES_MEMORY, 0, RF_ACTIVE },
 	{ SYS_RES_IRQ, 0, RF_ACTIVE },	/* bank 0 interrupt */
 	{ SYS_RES_IRQ, 1, RF_ACTIVE },	/* bank 1 interrupt */
-	{ SYS_RES_IRQ, 2, RF_ACTIVE },	/* bank 1 interrupt (mirrored) */
-	{ SYS_RES_IRQ, 3, RF_ACTIVE },	/* bank 0-1 interrupt (united) */
 	{ -1, 0, 0 }
 };
 
@@ -158,6 +156,12 @@ enum bcm_gpio_pud {
 #define	BCM_GPIO_GPAFEN(_bank)	(0x88 + _bank * 4)	/* Async Falling Egde */
 #define	BCM_GPIO_GPPUD(_bank)	(0x94)			/* Pin Pull up/down */
 #define	BCM_GPIO_GPPUDCLK(_bank) (0x98 + _bank * 4)	/* Pin Pull up clock */
+
+static struct ofw_compat_data compat_data[] = {
+	{"broadcom,bcm2835-gpio",	1},
+	{"brcm,bcm2835-gpio",		1},
+	{NULL,				0}
+};
 
 static struct bcm_gpio_softc *bcm_gpio_sc = NULL;
 
@@ -672,11 +676,11 @@ bcm_gpio_get_reserved_pins(struct bcm_gpio_softc *sc)
 	phandle_t gpio, node, reserved;
 	ssize_t len;
 
-	/* Get read-only pins. */
+	/* Get read-only pins if they're porvided */
 	gpio = ofw_bus_get_node(sc->sc_dev);
 	if (bcm_gpio_get_ro_pins(sc, gpio, "broadcom,read-only",
 	    "read-only") != 0)
-		return (-1);
+		return (0);
 	/* Traverse the GPIO subnodes to find the reserved pins node. */
 	reserved = 0;
 	node = OF_child(gpio);
@@ -742,7 +746,7 @@ bcm_gpio_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (!ofw_bus_is_compatible(dev, "broadcom,bcm2835-gpio"))
+	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
 		return (ENXIO);
 
 	device_set_desc(dev, "BCM2708/2835 GPIO controller");
