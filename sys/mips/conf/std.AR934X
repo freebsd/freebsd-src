@@ -31,6 +31,7 @@ options 	ALQ
 options 	SCHED_4BSD		#4BSD scheduler
 options 	INET			#InterNETworking
 #options 	INET6			#InterNETworking
+options 	TCP_HHOOK		# hhook(9) framework for TCP
 #options 	NFSCL			#Network Filesystem Client
 options 	PSEUDOFS		#Pseudo-filesystem framework
 options 	_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
