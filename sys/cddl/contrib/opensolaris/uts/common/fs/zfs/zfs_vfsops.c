@@ -1791,7 +1791,7 @@ zfs_statfs(vfs_t *vfsp, struct statfs *statp)
 	strlcpy(statp->f_mntonname, vfsp->mnt_stat.f_mntonname,
 	    sizeof(statp->f_mntonname));
 
-	statp->f_namemax = ZFS_MAXNAMELEN;
+	statp->f_namemax = MAXNAMELEN - 1;
 
 	ZFS_EXIT(zfsvfs);
 	return (0);
