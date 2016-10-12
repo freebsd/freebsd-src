@@ -1025,6 +1025,18 @@ cheriabi_sysarch(struct thread *td, struct cheriabi_sysarch_args *uap)
 		parms_from_cap = 0;
 		break;
 
+#ifdef CPU_QEMU_MALTA
+	case QEMU_GET_QTRACE:
+		reqsize = sizeof(int);
+		reqperms = CHERI_PERM_STORE;
+		break;
+
+	case QEMU_SET_QTRACE:
+		reqsize = sizeof(int);
+		reqperms = CHERI_PERM_LOAD;
+		break;
+#endif
+
 	default:
 		return (EINVAL);
 	}
