@@ -2977,6 +2977,8 @@ iwm_mvm_rx_rx_mpdu(struct iwm_softc *sc,
 	/* rssi is in 1/2db units */
 	rxs.c_rssi = rssi * 2;
 	rxs.c_nf = sc->sc_noise;
+	if (ieee80211_add_rx_params(m, &rxs) == 0)
+		goto fail;
 
 	if (ieee80211_radiotap_active_vap(vap)) {
 		struct iwm_rx_radiotap_header *tap = &sc->sc_rxtap;
@@ -3013,11 +3015,11 @@ iwm_mvm_rx_rx_mpdu(struct iwm_softc *sc,
 	IWM_UNLOCK(sc);
 	if (ni != NULL) {
 		IWM_DPRINTF(sc, IWM_DEBUG_RECV, "input m %p\n", m);
-		ieee80211_input_mimo(ni, m, &rxs);
+		ieee80211_input_mimo(ni, m);
 		ieee80211_free_node(ni);
 	} else {
 		IWM_DPRINTF(sc, IWM_DEBUG_RECV, "inputall m %p\n", m);
-		ieee80211_input_mimo_all(ic, m, &rxs);
+		ieee80211_input_mimo_all(ic, m);
 	}
 	IWM_LOCK(sc);
 
