@@ -32,9 +32,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/proc.h>
-#include <sys/systm.h>
 #include <sys/smp.h>
-#include <sys/time.h>
+#include <sys/systm.h>
 #include <sys/timeet.h>
 
 #include <machine/cpu.h>
@@ -59,7 +58,34 @@ __FBSDID("$FreeBSD$");
 					 CPUID_HV_MSR_SYNIC |		\
 					 CPUID_HV_MSR_SYNTIMER)
 
+static void			vmbus_et_identify(driver_t *, device_t);
+static int			vmbus_et_probe(device_t);
+static int			vmbus_et_attach(device_t);
+static int			vmbus_et_detach(device_t);
+static int			vmbus_et_start(struct eventtimer *, sbintime_t,
+				    sbintime_t);
+
 static struct eventtimer	vmbus_et;
+
+static device_method_t vmbus_et_methods[] = {
+	DEVMETHOD(device_identify,	vmbus_et_identify),
+	DEVMETHOD(device_probe,		vmbus_et_probe),
+	DEVMETHOD(device_attach,	vmbus_et_attach),
+	DEVMETHOD(device_detach,	vmbus_et_detach),
+
+	DEVMETHOD_END
+};
+
+static driver_t vmbus_et_driver = {
+	VMBUS_ET_NAME,
+	vmbus_et_methods,
+	0
+};
+
+static devclass_t vmbus_et_devclass;
+
+DRIVER_MODULE(hv_et, vmbus, vmbus_et_driver, vmbus_et_devclass, NULL, NULL);
+MODULE_VERSION(hv_et, 1);
 
 static __inline uint64_t
 hyperv_sbintime2count(sbintime_t time)
@@ -177,22 +203,3 @@ vmbus_et_detach(device_t dev)
 {
 	return (et_deregister(&vmbus_et));
 }
-
-static device_method_t vmbus_et_methods[] = {
-	DEVMETHOD(device_identify,	vmbus_et_identify),
-	DEVMETHOD(device_probe,		vmbus_et_probe),
-	DEVMETHOD(device_attach,	vmbus_et_attach),
-	DEVMETHOD(device_detach,	vmbus_et_detach),
-
-	DEVMETHOD_END
-};
-
-static driver_t vmbus_et_driver = {
-	VMBUS_ET_NAME,
-	vmbus_et_methods,
-	0
-};
-
-static devclass_t vmbus_et_devclass;
-DRIVER_MODULE(hv_et, vmbus, vmbus_et_driver, vmbus_et_devclass, NULL, NULL);
-MODULE_VERSION(hv_et, 1);
