@@ -250,7 +250,7 @@ do_setopt_accept_filter(struct socket *so, struct sockopt *sopt)
 	newaf = malloc(sizeof(*newaf), M_ACCF, M_WAITOK |
 	    M_ZERO);
 	if (afp->accf_create != NULL && afap->af_name[0] != '\0') {
-		int len = strlen(afap->af_name) + 1;
+		size_t len = strlen(afap->af_name) + 1;
 		newaf->so_accept_filter_str = malloc(len, M_ACCF,
 		    M_WAITOK);
 		strcpy(newaf->so_accept_filter_str, afap->af_name);
