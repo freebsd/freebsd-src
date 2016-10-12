@@ -65,6 +65,12 @@ struct bcmsc_softc {
 	device_t			dev;
 };
 
+static struct ofw_compat_data compat_data[] = {
+	{"broadcom,bcm2835-fb",		1},
+	{"brcm,bcm2708-fb",		1},
+	{NULL,				0}
+};
+
 static int bcm_fb_probe(device_t);
 static int bcm_fb_attach(device_t);
 
@@ -191,7 +197,8 @@ bcm_fb_sysctl_init(struct bcmsc_softc *sc)
 static int
 bcm_fb_probe(device_t dev)
 {
-	if (!ofw_bus_is_compatible(dev, "broadcom,bcm2835-fb"))
+
+	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
 		return (ENXIO);
 
 	device_set_desc(dev, "BCM2835 VT framebuffer driver");
@@ -265,3 +272,4 @@ static driver_t bcm_fb_driver = {
 };
 
 DRIVER_MODULE(bcm2835fb, ofwbus, bcm_fb_driver, bcm_fb_devclass, 0, 0);
+DRIVER_MODULE(bcm2835fb, simplebus, bcm_fb_driver, bcm_fb_devclass, 0, 0);
