@@ -28,58 +28,66 @@
  * $FreeBSD$
  */
 
-#ifndef __HYPERV_PRIV_H__
-#define __HYPERV_PRIV_H__
+#ifndef _VMBUS_BRVAR_H_
+#define _VMBUS_BRVAR_H_
 
 #include <sys/param.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#include <sys/sema.h>
 #include <sys/_iovec.h>
 
-#include <dev/hyperv/vmbus/vmbus_chanvar.h>
+struct vmbus_br {
+	struct vmbus_bufring	*vbr;
+	uint32_t		vbr_dsize;	/* total data size */
+};
 
-struct vmbus_softc;
+#define vbr_windex		vbr->br_windex
+#define vbr_rindex		vbr->br_rindex
+#define vbr_imask		vbr->br_imask
+#define vbr_data		vbr->br_data
 
-/*
- * Private, VM Bus functions
- */
+struct vmbus_rxbr {
+	struct mtx		rxbr_lock;
+	struct vmbus_br		rxbr;
+};
+
+#define rxbr_windex		rxbr.vbr_windex
+#define rxbr_rindex		rxbr.vbr_rindex
+#define rxbr_imask		rxbr.vbr_imask
+#define rxbr_data		rxbr.vbr_data
+#define rxbr_dsize		rxbr.vbr_dsize
+
+struct vmbus_txbr {
+	struct mtx		txbr_lock;
+	struct vmbus_br		txbr;
+};
+
+#define txbr_windex		txbr.vbr_windex
+#define txbr_rindex		txbr.vbr_rindex
+#define txbr_imask		txbr.vbr_imask
+#define txbr_data		txbr.vbr_data
+#define txbr_dsize		txbr.vbr_dsize
+
 struct sysctl_ctx_list;
 struct sysctl_oid;
 
-void	vmbus_br_sysctl_create(struct sysctl_ctx_list *ctx,
-	    struct sysctl_oid *br_tree, hv_vmbus_ring_buffer_info *br,
-	    const char *name);
+void		vmbus_br_sysctl_create(struct sysctl_ctx_list *ctx,
+		    struct sysctl_oid *br_tree, struct vmbus_br *br,
+		    const char *name);
 
-int			hv_vmbus_ring_buffer_init(
-				hv_vmbus_ring_buffer_info	*ring_info,
-				void				*buffer,
-				uint32_t			buffer_len);
+void		vmbus_rxbr_init(struct vmbus_rxbr *rbr);
+void		vmbus_rxbr_deinit(struct vmbus_rxbr *rbr);
+void		vmbus_rxbr_setup(struct vmbus_rxbr *rbr, void *buf, int blen);
+int		vmbus_rxbr_peek(struct vmbus_rxbr *rbr, void *data, int dlen);
+int		vmbus_rxbr_read(struct vmbus_rxbr *rbr, void *data, int dlen,
+		    uint32_t skip);
+void		vmbus_rxbr_intr_mask(struct vmbus_rxbr *rbr);
+uint32_t	vmbus_rxbr_intr_unmask(struct vmbus_rxbr *rbr);
 
-void			hv_ring_buffer_cleanup(
-				hv_vmbus_ring_buffer_info	*ring_info);
+void		vmbus_txbr_init(struct vmbus_txbr *tbr);
+void		vmbus_txbr_deinit(struct vmbus_txbr *tbr);
+void		vmbus_txbr_setup(struct vmbus_txbr *tbr, void *buf, int blen);
+int		vmbus_txbr_write(struct vmbus_txbr *tbr,
+		    const struct iovec iov[], int iovlen, boolean_t *need_sig);
 
-int			hv_ring_buffer_write(
-				hv_vmbus_ring_buffer_info	*ring_info,
-				const struct iovec		iov[],
-				uint32_t			iovlen,
-				boolean_t			*need_sig);
-
-int			hv_ring_buffer_peek(
-				hv_vmbus_ring_buffer_info	*ring_info,
-				void				*buffer,
-				uint32_t			buffer_len);
-
-int			hv_ring_buffer_read(
-				hv_vmbus_ring_buffer_info	*ring_info,
-				void				*buffer,
-				uint32_t			buffer_len,
-				uint32_t			offset);
-
-void			hv_ring_buffer_read_begin(
-				hv_vmbus_ring_buffer_info	*ring_info);
-
-uint32_t		hv_ring_buffer_read_end(
-				hv_vmbus_ring_buffer_info	*ring_info);
-
-#endif  /* __HYPERV_PRIV_H__ */
+#endif  /* _VMBUS_BRVAR_H_ */
