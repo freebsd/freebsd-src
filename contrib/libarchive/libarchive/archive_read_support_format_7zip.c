@@ -2431,6 +2431,8 @@ read_Header(struct archive_read *a, struct _7z_header_info *h,
 
 		switch (type) {
 		case kEmptyStream:
+			if (h->emptyStreamBools != NULL)
+				return (-1);
 			h->emptyStreamBools = calloc((size_t)zip->numFiles,
 			    sizeof(*h->emptyStreamBools));
 			if (h->emptyStreamBools == NULL)
@@ -2451,6 +2453,8 @@ read_Header(struct archive_read *a, struct _7z_header_info *h,
 					return (-1);
 				break;
 			}
+			if (h->emptyFileBools != NULL)
+				return (-1);
 			h->emptyFileBools = calloc(empty_streams,
 			    sizeof(*h->emptyFileBools));
 			if (h->emptyFileBools == NULL)
@@ -2465,6 +2469,8 @@ read_Header(struct archive_read *a, struct _7z_header_info *h,
 					return (-1);
 				break;
 			}
+			if (h->antiBools != NULL)
+				return (-1);
 			h->antiBools = calloc(empty_streams,
 			    sizeof(*h->antiBools));
 			if (h->antiBools == NULL)
@@ -2491,6 +2497,8 @@ read_Header(struct archive_read *a, struct _7z_header_info *h,
 			if ((ll & 1) || ll < zip->numFiles * 4)
 				return (-1);
 
+			if (zip->entry_names != NULL)
+				return (-1);
 			zip->entry_names = malloc(ll);
 			if (zip->entry_names == NULL)
 				return (-1);
@@ -2543,6 +2551,8 @@ read_Header(struct archive_read *a, struct _7z_header_info *h,
 			if ((p = header_bytes(a, 2)) == NULL)
 				return (-1);
 			allAreDefined = *p;
+			if (h->attrBools != NULL)
+				return (-1);
 			h->attrBools = calloc((size_t)zip->numFiles,
 			    sizeof(*h->attrBools));
 			if (h->attrBools == NULL)

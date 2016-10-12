@@ -93,7 +93,7 @@ static struct myacl_t acls_reg[] = {
 
 static struct myacl_t acls_dir[] = {
 	/* For this test, we need to be able to read and write the ACL. */
-	{ ARCHIVE_ENTRY_ACL_TYPE_ALLOW, ARCHIVE_ENTRY_ACL_READ_ACL,
+	{ ARCHIVE_ENTRY_ACL_TYPE_ALLOW, ARCHIVE_ENTRY_ACL_READ_DATA | ARCHIVE_ENTRY_ACL_READ_ACL,
 	  ARCHIVE_ENTRY_ACL_USER_OBJ, -1, ""},
 
 	/* An entry for each type. */

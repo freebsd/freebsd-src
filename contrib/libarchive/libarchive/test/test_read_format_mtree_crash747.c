@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2010 Tim Kientzle
+ * Copyright (c) 2003-2016 Tim Kientzle
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,39 +23,22 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD$");
 
-DEFINE_TEST(test_option_n)
+
+/*
+ * Reproduce the crash reported in Github Issue #747.
+ */
+DEFINE_TEST(test_read_format_mtree_crash747)
 {
-	assertMakeDir("d1", 0755);
-	assertMakeFile("d1/file1", 0644, "d1/file1");
+	const char *reffile = "test_read_format_mtree_crash747.mtree.bz2";
+	struct archive *a;
 
-	/* Test 1: -c without -n */
-	assertMakeDir("test1", 0755);
-	assertChdir("test1");
-	assertEqualInt(0,
-	    systemf("%s -cf archive.tar -C .. d1 >c.out 2>c.err", testprog));
-	assertEmptyFile("c.out");
-	assertEmptyFile("c.err");
-	assertEqualInt(0,
-	    systemf("%s -xf archive.tar >x.out 2>x.err", testprog));
-	assertEmptyFile("x.out");
-	assertEmptyFile("x.err");
-	assertFileContents("d1/file1", 8, "d1/file1");
-	assertChdir("..");
+	extract_reference_file(reffile);
 
-	/* Test 2: -c with -n */
-	assertMakeDir("test2", 0755);
-	assertChdir("test2");
-	assertEqualInt(0,
-	    systemf("%s -cnf archive.tar -C .. d1 >c.out 2>c.err", testprog));
-	assertEmptyFile("c.out");
-	assertEmptyFile("c.err");
-	assertEqualInt(0,
-	    systemf("%s -xf archive.tar >x.out 2>x.err", testprog));
-	assertEmptyFile("x.out");
-	assertEmptyFile("x.err");
-	assertIsDir("d1", umasked(0755));
-	assertFileNotExists("d1/file1");
-	assertChdir("..");
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_bzip2(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_mtree(a));
+	assertEqualIntA(a, ARCHIVE_FATAL, archive_read_open_filename(a, reffile, 10240));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
+

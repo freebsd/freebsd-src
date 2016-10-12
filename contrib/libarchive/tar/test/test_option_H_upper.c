@@ -83,10 +83,10 @@ DEFINE_TEST(test_option_H_upper)
 	assertChdir("test3");
 	assertEqualInt(0,
 	    systemf("%s -xf archive.tar >c.out 2>c.err", testprog));
-	assertIsDir("ld1", 0755);
+	assertIsDir("ld1", umasked(0755));
 	assertIsSymlink("d1/linkX", "fileX");
 	assertIsSymlink("d1/link1", "file1");
-	assertIsReg("link2", 0644);
+	assertIsReg("link2", umasked(0644));
 	assertIsSymlink("linkY", "d1/fileY");
 	assertChdir("..");
 }
