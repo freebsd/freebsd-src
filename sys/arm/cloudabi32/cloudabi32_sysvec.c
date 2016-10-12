@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Nuxi, https://nuxi.nl/
+ * Copyright (c) 2015-2016 Nuxi, https://nuxi.nl/
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -41,14 +41,14 @@ __FBSDID("$FreeBSD$");
 
 #include <compat/cloudabi/cloudabi_util.h>
 
-#include <compat/cloudabi64/cloudabi64_syscall.h>
-#include <compat/cloudabi64/cloudabi64_util.h>
+#include <compat/cloudabi32/cloudabi32_syscall.h>
+#include <compat/cloudabi32/cloudabi32_util.h>
 
-extern const char *cloudabi64_syscallnames[];
-extern struct sysent cloudabi64_sysent[];
+extern const char *cloudabi32_syscallnames[];
+extern struct sysent cloudabi32_sysent[];
 
 static void
-cloudabi64_proc_setregs(struct thread *td, struct image_params *imgp,
+cloudabi32_proc_setregs(struct thread *td, struct image_params *imgp,
     unsigned long stack)
 {
 	struct trapframe *regs;
@@ -57,66 +57,74 @@ cloudabi64_proc_setregs(struct thread *td, struct image_params *imgp,
 
 	/*
 	 * The stack now contains a pointer to the TCB and the auxiliary
-	 * vector. Let x0 point to the auxiliary vector, and set
-	 * tpidr_el0 to the TCB.
+	 * vector. Let r0 point to the auxiliary vector, and set
+	 * tpidrurw to the TCB.
 	 */
 	regs = td->td_frame;
-	regs->tf_x[0] = td->td_retval[0] =
-	    stack + roundup(sizeof(cloudabi64_tcb_t), sizeof(register_t));
+	regs->tf_r0 = td->td_retval[0] =
+	    stack + roundup(sizeof(cloudabi32_tcb_t), sizeof(register_t));
 	(void)cpu_set_user_tls(td, (void *)stack);
 }
 
 static int
-cloudabi64_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
+cloudabi32_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 {
 	struct trapframe *frame = td->td_frame;
-	int i;
+	int error;
 
 	/* Obtain system call number. */
-	sa->code = frame->tf_x[8];
-	if (sa->code >= CLOUDABI64_SYS_MAXSYSCALL)
+	sa->code = frame->tf_r12;
+	if (sa->code >= CLOUDABI32_SYS_MAXSYSCALL)
 		return (ENOSYS);
-	sa->callp = &cloudabi64_sysent[sa->code];
+	sa->callp = &cloudabi32_sysent[sa->code];
 	sa->narg = sa->callp->sy_narg;
 
-	/* Fetch system call arguments. */
-	for (i = 0; i < MAXARGS; i++)
-		sa->args[i] = frame->tf_x[i];
+	/* Fetch system call arguments from registers and the stack. */
+	sa->args[0] = frame->tf_r0;
+	sa->args[1] = frame->tf_r1;
+	sa->args[2] = frame->tf_r2;
+	sa->args[3] = frame->tf_r3;
+	if (sa->narg > 4) {
+		error = copyin((void *)td->td_frame->tf_usr_sp, &sa->args[4],
+		    (sa->narg - 4) * sizeof(register_t));
+		if (error != 0)
+			return (error);
+	}
 
 	/* Default system call return values. */
 	td->td_retval[0] = 0;
-	td->td_retval[1] = frame->tf_x[1];
+	td->td_retval[1] = frame->tf_r1;
 	return (0);
 }
 
 static void
-cloudabi64_set_syscall_retval(struct thread *td, int error)
+cloudabi32_set_syscall_retval(struct thread *td, int error)
 {
 	struct trapframe *frame = td->td_frame;
 
 	switch (error) {
 	case 0:
 		/* System call succeeded. */
-		frame->tf_x[0] = td->td_retval[0];
-		frame->tf_x[1] = td->td_retval[1];
+		frame->tf_r0 = td->td_retval[0];
+		frame->tf_r1 = td->td_retval[1];
 		frame->tf_spsr &= ~PSR_C;
 		break;
 	case ERESTART:
 		/* Restart system call. */
-		frame->tf_elr -= 4;
+		frame->tf_pc -= 4;
 		break;
 	case EJUSTRETURN:
 		break;
 	default:
 		/* System call returned an error. */
-		frame->tf_x[0] = cloudabi_convert_errno(error);
+		frame->tf_r0 = cloudabi_convert_errno(error);
 		frame->tf_spsr |= PSR_C;
 		break;
 	}
 }
 
 static void
-cloudabi64_schedtail(struct thread *td)
+cloudabi32_schedtail(struct thread *td)
 {
 	struct trapframe *frame = td->td_frame;
 
@@ -126,14 +134,14 @@ cloudabi64_schedtail(struct thread *td)
 	 * when creating a new thread.
 	 */
 	if ((td->td_pflags & TDP_FORKING) != 0) {
-		frame->tf_x[0] = CLOUDABI_PROCESS_CHILD;
-		frame->tf_x[1] = td->td_tid;
+		frame->tf_r0 = CLOUDABI_PROCESS_CHILD;
+		frame->tf_r1 = td->td_tid;
 	}
 }
 
 int
-cloudabi64_thread_setregs(struct thread *td,
-    const cloudabi64_threadattr_t *attr, uint64_t tcb)
+cloudabi32_thread_setregs(struct thread *td,
+    const cloudabi32_threadattr_t *attr, uint32_t tcb)
 {
 	struct trapframe *frame;
 	stack_t stack;
@@ -149,38 +157,37 @@ cloudabi64_thread_setregs(struct thread *td,
 	 * entry point.
 	 */
 	frame = td->td_frame;
-	frame->tf_x[0] = td->td_tid;
-	frame->tf_x[1] = attr->argument;
+	frame->tf_r0 = td->td_tid;
+	frame->tf_r1 = attr->argument;
 
 	/* Set up TLS. */
 	return (cpu_set_user_tls(td, (void *)tcb));
 }
 
-static struct sysentvec cloudabi64_elf_sysvec = {
-	.sv_size		= CLOUDABI64_SYS_MAXSYSCALL,
-	.sv_table		= cloudabi64_sysent,
-	.sv_fixup		= cloudabi64_fixup,
-	.sv_name		= "CloudABI ELF64",
-	.sv_coredump		= elf64_coredump,
+static struct sysentvec cloudabi32_elf_sysvec = {
+	.sv_size		= CLOUDABI32_SYS_MAXSYSCALL,
+	.sv_table		= cloudabi32_sysent,
+	.sv_fixup		= cloudabi32_fixup,
+	.sv_name		= "CloudABI ELF32",
+	.sv_coredump		= elf32_coredump,
 	.sv_pagesize		= PAGE_SIZE,
 	.sv_minuser		= VM_MIN_ADDRESS,
 	.sv_maxuser		= VM_MAXUSER_ADDRESS,
 	.sv_stackprot		= VM_PROT_READ | VM_PROT_WRITE,
-	.sv_copyout_strings	= cloudabi64_copyout_strings,
-	.sv_setregs		= cloudabi64_proc_setregs,
-	.sv_flags		= SV_ABI_CLOUDABI | SV_CAPSICUM | SV_LP64,
-	.sv_set_syscall_retval	= cloudabi64_set_syscall_retval,
-	.sv_fetch_syscall_args	= cloudabi64_fetch_syscall_args,
-	.sv_syscallnames	= cloudabi64_syscallnames,
-	.sv_schedtail		= cloudabi64_schedtail,
+	.sv_copyout_strings	= cloudabi32_copyout_strings,
+	.sv_setregs		= cloudabi32_proc_setregs,
+	.sv_flags		= SV_ABI_CLOUDABI | SV_CAPSICUM | SV_ILP32,
+	.sv_set_syscall_retval	= cloudabi32_set_syscall_retval,
+	.sv_fetch_syscall_args	= cloudabi32_fetch_syscall_args,
+	.sv_syscallnames	= cloudabi32_syscallnames,
+	.sv_schedtail		= cloudabi32_schedtail,
 };
 
-INIT_SYSENTVEC(elf_sysvec, &cloudabi64_elf_sysvec);
+INIT_SYSENTVEC(elf_sysvec, &cloudabi32_elf_sysvec);
 
-Elf64_Brandinfo cloudabi64_brand = {
+Elf32_Brandinfo cloudabi32_brand = {
 	.brand		= ELFOSABI_CLOUDABI,
-	.machine	= EM_AARCH64,
-	.sysvec		= &cloudabi64_elf_sysvec,
-	.flags		= BI_CAN_EXEC_DYN,
+	.machine	= EM_ARM,
+	.sysvec		= &cloudabi32_elf_sysvec,
 	.compat_3_brand	= "CloudABI",
 };

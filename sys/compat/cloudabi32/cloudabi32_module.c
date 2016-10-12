@@ -36,17 +36,17 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysent.h>
 #include <sys/systm.h>
 
-#include <contrib/cloudabi/cloudabi64_types.h>
+#include <contrib/cloudabi/cloudabi32_types.h>
 
 #include <compat/cloudabi/cloudabi_util.h>
 
-#include <compat/cloudabi64/cloudabi64_util.h>
+#include <compat/cloudabi32/cloudabi32_util.h>
 
-extern char _binary_cloudabi64_vdso_o_start[];
-extern char _binary_cloudabi64_vdso_o_end[];
+extern char _binary_cloudabi32_vdso_o_start[];
+extern char _binary_cloudabi32_vdso_o_end[];
 
 register_t *
-cloudabi64_copyout_strings(struct image_params *imgp)
+cloudabi32_copyout_strings(struct image_params *imgp)
 {
 	struct image_args *args;
 	uintptr_t begin;
@@ -61,10 +61,10 @@ cloudabi64_copyout_strings(struct image_params *imgp)
 }
 
 int
-cloudabi64_fixup(register_t **stack_base, struct image_params *imgp)
+cloudabi32_fixup(register_t **stack_base, struct image_params *imgp)
 {
 	char canarybuf[64];
-	Elf64_Auxargs *args;
+	Elf32_Auxargs *args;
 	struct thread *td;
 	void *argdata, *canary;
 	size_t argdatalen;
@@ -93,13 +93,13 @@ cloudabi64_fixup(register_t **stack_base, struct image_params *imgp)
 	 * binary safe, we had to add a trailing null byte in
 	 * exec_copyin_data_fds(). Undo this by reducing the length.
 	 */
-	args = (Elf64_Auxargs *)imgp->auxargs;
+	args = (Elf32_Auxargs *)imgp->auxargs;
 	argdatalen = imgp->args->begin_envv - imgp->args->begin_argv;
 	if (argdatalen > 0)
 		--argdatalen;
 
 	/* Write out an auxiliary vector. */
-	cloudabi64_auxv_t auxv[] = {
+	cloudabi32_auxv_t auxv[] = {
 #define	VAL(type, val)	{ .a_type = (type), .a_val = (val) }
 #define	PTR(type, ptr)	{ .a_type = (type), .a_ptr = (uintptr_t)(ptr) }
 		PTR(CLOUDABI_AT_ARGDATA, argdata),
@@ -124,44 +124,44 @@ cloudabi64_fixup(register_t **stack_base, struct image_params *imgp)
 		return (error);
 
 	/* Reserve space for storing the TCB. */
-	*stack_base -= howmany(sizeof(cloudabi64_tcb_t), sizeof(register_t));
+	*stack_base -= howmany(sizeof(cloudabi32_tcb_t), sizeof(register_t));
 	return (0);
 }
 
 static int
-cloudabi64_modevent(module_t mod, int type, void *data)
+cloudabi32_modevent(module_t mod, int type, void *data)
 {
 
 	switch (type) {
 	case MOD_LOAD:
-		cloudabi_vdso_init(cloudabi64_brand.sysvec,
-		    _binary_cloudabi64_vdso_o_start,
-		    _binary_cloudabi64_vdso_o_end);
-		if (elf64_insert_brand_entry(&cloudabi64_brand) < 0) {
+		cloudabi_vdso_init(cloudabi32_brand.sysvec,
+		    _binary_cloudabi32_vdso_o_start,
+		    _binary_cloudabi32_vdso_o_end);
+		if (elf32_insert_brand_entry(&cloudabi32_brand) < 0) {
 			printf("Failed to add CloudABI ELF brand handler\n");
 			return (EINVAL);
 		}
 		return (0);
 	case MOD_UNLOAD:
-		if (elf64_brand_inuse(&cloudabi64_brand))
+		if (elf32_brand_inuse(&cloudabi32_brand))
 			return (EBUSY);
-		if (elf64_remove_brand_entry(&cloudabi64_brand) < 0) {
+		if (elf32_remove_brand_entry(&cloudabi32_brand) < 0) {
 			printf("Failed to remove CloudABI ELF brand handler\n");
 			return (EINVAL);
 		}
-		cloudabi_vdso_destroy(cloudabi64_brand.sysvec);
+		cloudabi_vdso_destroy(cloudabi32_brand.sysvec);
 		return (0);
 	default:
 		return (EOPNOTSUPP);
 	}
 }
 
-static moduledata_t cloudabi64_module = {
-	"cloudabi64",
-	cloudabi64_modevent,
+static moduledata_t cloudabi32_module = {
+	"cloudabi32",
+	cloudabi32_modevent,
 	NULL
 };
 
-DECLARE_MODULE_TIED(cloudabi64, cloudabi64_module, SI_SUB_EXEC, SI_ORDER_ANY);
-MODULE_DEPEND(cloudabi64, cloudabi, 1, 1, 1);
-FEATURE(cloudabi64, "CloudABI 64bit support");
+DECLARE_MODULE_TIED(cloudabi32, cloudabi32_module, SI_SUB_EXEC, SI_ORDER_ANY);
+MODULE_DEPEND(cloudabi32, cloudabi, 1, 1, 1);
+FEATURE(cloudabi32, "CloudABI 32bit support");

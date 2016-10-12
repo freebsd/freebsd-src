@@ -30,12 +30,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/syscallsubr.h>
 
-#include <contrib/cloudabi/cloudabi64_types.h>
+#include <contrib/cloudabi/cloudabi32_types.h>
 
 #include <compat/cloudabi/cloudabi_util.h>
 
-#include <compat/cloudabi64/cloudabi64_proto.h>
-#include <compat/cloudabi64/cloudabi64_util.h>
+#include <compat/cloudabi32/cloudabi32_proto.h>
+#include <compat/cloudabi32/cloudabi32_util.h>
 
 /* Converts a FreeBSD signal number to a CloudABI signal number. */
 static cloudabi_signal_t
@@ -76,18 +76,18 @@ convert_signal(int sig)
 	return (signals[sig]);
 }
 
-struct cloudabi64_kevent_args {
-	const cloudabi64_subscription_t *in;
-	cloudabi64_event_t *out;
+struct cloudabi32_kevent_args {
+	const cloudabi32_subscription_t *in;
+	cloudabi32_event_t *out;
 	bool once;
 };
 
 /* Converts CloudABI's subscription objects to FreeBSD's struct kevent. */
 static int
-cloudabi64_kevent_copyin(void *arg, struct kevent *kevp, int count)
+cloudabi32_kevent_copyin(void *arg, struct kevent *kevp, int count)
 {
-	cloudabi64_subscription_t sub;
-	struct cloudabi64_kevent_args *args;
+	cloudabi32_subscription_t sub;
+	struct cloudabi32_kevent_args *args;
 	cloudabi_timestamp_t ts;
 	int error;
 
@@ -163,10 +163,10 @@ cloudabi64_kevent_copyin(void *arg, struct kevent *kevp, int count)
 
 /* Converts FreeBSD's struct kevent to CloudABI's event objects. */
 static int
-cloudabi64_kevent_copyout(void *arg, struct kevent *kevp, int count)
+cloudabi32_kevent_copyout(void *arg, struct kevent *kevp, int count)
 {
-	cloudabi64_event_t ev;
-	struct cloudabi64_kevent_args *args;
+	cloudabi32_event_t ev;
+	struct cloudabi32_kevent_args *args;
 	int error;
 
 	args = arg;
@@ -233,16 +233,16 @@ cloudabi64_kevent_copyout(void *arg, struct kevent *kevp, int count)
 }
 
 int
-cloudabi64_sys_poll(struct thread *td, struct cloudabi64_sys_poll_args *uap)
+cloudabi32_sys_poll(struct thread *td, struct cloudabi32_sys_poll_args *uap)
 {
-	struct cloudabi64_kevent_args args = {
+	struct cloudabi32_kevent_args args = {
 		.in	= uap->in,
 		.out	= uap->out,
 		.once	= true,
 	};
 	struct kevent_copyops copyops = {
-		.k_copyin	= cloudabi64_kevent_copyin,
-		.k_copyout	= cloudabi64_kevent_copyout,
+		.k_copyin	= cloudabi32_kevent_copyin,
+		.k_copyout	= cloudabi32_kevent_copyout,
 		.arg		= &args,
 	};
 
@@ -251,8 +251,8 @@ cloudabi64_sys_poll(struct thread *td, struct cloudabi64_sys_poll_args *uap)
 	 * implemented through FreeBSD's kqueue().
 	 */
 	if (uap->nsubscriptions == 1) {
-		cloudabi64_subscription_t sub;
-		cloudabi64_event_t ev = {};
+		cloudabi32_subscription_t sub;
+		cloudabi32_event_t ev = {};
 		int error;
 
 		error = copyin(uap->in, &sub, sizeof(sub));
@@ -294,8 +294,8 @@ cloudabi64_sys_poll(struct thread *td, struct cloudabi64_sys_poll_args *uap)
 			return (copyout(&ev, uap->out, sizeof(ev)));
 		}
 	} else if (uap->nsubscriptions == 2) {
-		cloudabi64_subscription_t sub[2];
-		cloudabi64_event_t ev[2] = {};
+		cloudabi32_subscription_t sub[2];
+		cloudabi32_event_t ev[2] = {};
 		int error;
 
 		error = copyin(uap->in, &sub, sizeof(sub));
@@ -371,20 +371,20 @@ cloudabi64_sys_poll(struct thread *td, struct cloudabi64_sys_poll_args *uap)
 }
 
 int
-cloudabi64_sys_poll_fd(struct thread *td,
-    struct cloudabi64_sys_poll_fd_args *uap)
+cloudabi32_sys_poll_fd(struct thread *td,
+    struct cloudabi32_sys_poll_fd_args *uap)
 {
-	struct cloudabi64_kevent_args args = {
+	struct cloudabi32_kevent_args args = {
 		.in	= uap->in,
 		.out	= uap->out,
 		.once	= false,
 	};
 	struct kevent_copyops copyops = {
-		.k_copyin	= cloudabi64_kevent_copyin,
-		.k_copyout	= cloudabi64_kevent_copyout,
+		.k_copyin	= cloudabi32_kevent_copyin,
+		.k_copyout	= cloudabi32_kevent_copyout,
 		.arg		= &args,
 	};
-	cloudabi64_subscription_t subtimo;
+	cloudabi32_subscription_t subtimo;
 	struct timespec timeout;
 	int error;
 

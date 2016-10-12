@@ -70,31 +70,31 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 1;
 		break;
 	}
-	/* cloudabi64_sys_fd_pread */
+	/* cloudabi32_sys_fd_pread */
 	case 8: {
-		struct cloudabi64_sys_fd_pread_args *p = params;
+		struct cloudabi32_sys_fd_pread_args *p = params;
 		iarg[0] = p->fd; /* cloudabi_fd_t */
-		uarg[1] = (intptr_t) p->iov; /* const cloudabi64_iovec_t * */
+		uarg[1] = (intptr_t) p->iov; /* const cloudabi32_iovec_t * */
 		uarg[2] = p->iovcnt; /* size_t */
 		iarg[3] = p->offset; /* cloudabi_filesize_t */
 		*n_args = 4;
 		break;
 	}
-	/* cloudabi64_sys_fd_pwrite */
+	/* cloudabi32_sys_fd_pwrite */
 	case 9: {
-		struct cloudabi64_sys_fd_pwrite_args *p = params;
+		struct cloudabi32_sys_fd_pwrite_args *p = params;
 		iarg[0] = p->fd; /* cloudabi_fd_t */
-		uarg[1] = (intptr_t) p->iov; /* const cloudabi64_ciovec_t * */
+		uarg[1] = (intptr_t) p->iov; /* const cloudabi32_ciovec_t * */
 		uarg[2] = p->iovcnt; /* size_t */
 		iarg[3] = p->offset; /* cloudabi_filesize_t */
 		*n_args = 4;
 		break;
 	}
-	/* cloudabi64_sys_fd_read */
+	/* cloudabi32_sys_fd_read */
 	case 10: {
-		struct cloudabi64_sys_fd_read_args *p = params;
+		struct cloudabi32_sys_fd_read_args *p = params;
 		iarg[0] = p->fd; /* cloudabi_fd_t */
-		uarg[1] = (intptr_t) p->iov; /* const cloudabi64_iovec_t * */
+		uarg[1] = (intptr_t) p->iov; /* const cloudabi32_iovec_t * */
 		uarg[2] = p->iovcnt; /* size_t */
 		*n_args = 3;
 		break;
@@ -140,11 +140,11 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 1;
 		break;
 	}
-	/* cloudabi64_sys_fd_write */
+	/* cloudabi32_sys_fd_write */
 	case 16: {
-		struct cloudabi64_sys_fd_write_args *p = params;
+		struct cloudabi32_sys_fd_write_args *p = params;
 		iarg[0] = p->fd; /* cloudabi_fd_t */
-		uarg[1] = (intptr_t) p->iov; /* const cloudabi64_ciovec_t * */
+		uarg[1] = (intptr_t) p->iov; /* const cloudabi32_ciovec_t * */
 		uarg[2] = p->iovcnt; /* size_t */
 		*n_args = 3;
 		break;
@@ -364,24 +364,24 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 2;
 		break;
 	}
-	/* cloudabi64_sys_poll */
+	/* cloudabi32_sys_poll */
 	case 39: {
-		struct cloudabi64_sys_poll_args *p = params;
-		uarg[0] = (intptr_t) p->in; /* const cloudabi64_subscription_t * */
-		uarg[1] = (intptr_t) p->out; /* cloudabi64_event_t * */
+		struct cloudabi32_sys_poll_args *p = params;
+		uarg[0] = (intptr_t) p->in; /* const cloudabi32_subscription_t * */
+		uarg[1] = (intptr_t) p->out; /* cloudabi32_event_t * */
 		uarg[2] = p->nsubscriptions; /* size_t */
 		*n_args = 3;
 		break;
 	}
-	/* cloudabi64_sys_poll_fd */
+	/* cloudabi32_sys_poll_fd */
 	case 40: {
-		struct cloudabi64_sys_poll_fd_args *p = params;
+		struct cloudabi32_sys_poll_fd_args *p = params;
 		iarg[0] = p->fd; /* cloudabi_fd_t */
-		uarg[1] = (intptr_t) p->in; /* const cloudabi64_subscription_t * */
+		uarg[1] = (intptr_t) p->in; /* const cloudabi32_subscription_t * */
 		uarg[2] = p->nin; /* size_t */
-		uarg[3] = (intptr_t) p->out; /* cloudabi64_event_t * */
+		uarg[3] = (intptr_t) p->out; /* cloudabi32_event_t * */
 		uarg[4] = p->nout; /* size_t */
-		uarg[5] = (intptr_t) p->timeout; /* const cloudabi64_subscription_t * */
+		uarg[5] = (intptr_t) p->timeout; /* const cloudabi32_subscription_t * */
 		*n_args = 6;
 		break;
 	}
@@ -459,21 +459,21 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 2;
 		break;
 	}
-	/* cloudabi64_sys_sock_recv */
+	/* cloudabi32_sys_sock_recv */
 	case 50: {
-		struct cloudabi64_sys_sock_recv_args *p = params;
+		struct cloudabi32_sys_sock_recv_args *p = params;
 		iarg[0] = p->sock; /* cloudabi_fd_t */
-		uarg[1] = (intptr_t) p->in; /* const cloudabi64_recv_in_t * */
-		uarg[2] = (intptr_t) p->out; /* cloudabi64_recv_out_t * */
+		uarg[1] = (intptr_t) p->in; /* const cloudabi32_recv_in_t * */
+		uarg[2] = (intptr_t) p->out; /* cloudabi32_recv_out_t * */
 		*n_args = 3;
 		break;
 	}
-	/* cloudabi64_sys_sock_send */
+	/* cloudabi32_sys_sock_send */
 	case 51: {
-		struct cloudabi64_sys_sock_send_args *p = params;
+		struct cloudabi32_sys_sock_send_args *p = params;
 		iarg[0] = p->sock; /* cloudabi_fd_t */
-		uarg[1] = (intptr_t) p->in; /* const cloudabi64_send_in_t * */
-		uarg[2] = (intptr_t) p->out; /* cloudabi64_send_out_t * */
+		uarg[1] = (intptr_t) p->in; /* const cloudabi32_send_in_t * */
+		uarg[2] = (intptr_t) p->out; /* cloudabi32_send_out_t * */
 		*n_args = 3;
 		break;
 	}
@@ -494,10 +494,10 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 3;
 		break;
 	}
-	/* cloudabi64_sys_thread_create */
+	/* cloudabi32_sys_thread_create */
 	case 54: {
-		struct cloudabi64_sys_thread_create_args *p = params;
-		uarg[0] = (intptr_t) p->attr; /* cloudabi64_threadattr_t * */
+		struct cloudabi32_sys_thread_create_args *p = params;
+		uarg[0] = (intptr_t) p->attr; /* cloudabi32_threadattr_t * */
 		*n_args = 1;
 		break;
 	}
@@ -613,14 +613,14 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* cloudabi64_sys_fd_pread */
+	/* cloudabi32_sys_fd_pread */
 	case 8:
 		switch(ndx) {
 		case 0:
 			p = "cloudabi_fd_t";
 			break;
 		case 1:
-			p = "const cloudabi64_iovec_t *";
+			p = "const cloudabi32_iovec_t *";
 			break;
 		case 2:
 			p = "size_t";
@@ -632,14 +632,14 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* cloudabi64_sys_fd_pwrite */
+	/* cloudabi32_sys_fd_pwrite */
 	case 9:
 		switch(ndx) {
 		case 0:
 			p = "cloudabi_fd_t";
 			break;
 		case 1:
-			p = "const cloudabi64_ciovec_t *";
+			p = "const cloudabi32_ciovec_t *";
 			break;
 		case 2:
 			p = "size_t";
@@ -651,14 +651,14 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* cloudabi64_sys_fd_read */
+	/* cloudabi32_sys_fd_read */
 	case 10:
 		switch(ndx) {
 		case 0:
 			p = "cloudabi_fd_t";
 			break;
 		case 1:
-			p = "const cloudabi64_iovec_t *";
+			p = "const cloudabi32_iovec_t *";
 			break;
 		case 2:
 			p = "size_t";
@@ -735,14 +735,14 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* cloudabi64_sys_fd_write */
+	/* cloudabi32_sys_fd_write */
 	case 16:
 		switch(ndx) {
 		case 0:
 			p = "cloudabi_fd_t";
 			break;
 		case 1:
-			p = "const cloudabi64_ciovec_t *";
+			p = "const cloudabi32_ciovec_t *";
 			break;
 		case 2:
 			p = "size_t";
@@ -1154,14 +1154,14 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* cloudabi64_sys_poll */
+	/* cloudabi32_sys_poll */
 	case 39:
 		switch(ndx) {
 		case 0:
-			p = "const cloudabi64_subscription_t *";
+			p = "const cloudabi32_subscription_t *";
 			break;
 		case 1:
-			p = "cloudabi64_event_t *";
+			p = "cloudabi32_event_t *";
 			break;
 		case 2:
 			p = "size_t";
@@ -1170,26 +1170,26 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* cloudabi64_sys_poll_fd */
+	/* cloudabi32_sys_poll_fd */
 	case 40:
 		switch(ndx) {
 		case 0:
 			p = "cloudabi_fd_t";
 			break;
 		case 1:
-			p = "const cloudabi64_subscription_t *";
+			p = "const cloudabi32_subscription_t *";
 			break;
 		case 2:
 			p = "size_t";
 			break;
 		case 3:
-			p = "cloudabi64_event_t *";
+			p = "cloudabi32_event_t *";
 			break;
 		case 4:
 			p = "size_t";
 			break;
 		case 5:
-			p = "const cloudabi64_subscription_t *";
+			p = "const cloudabi32_subscription_t *";
 			break;
 		default:
 			break;
@@ -1317,33 +1317,33 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* cloudabi64_sys_sock_recv */
+	/* cloudabi32_sys_sock_recv */
 	case 50:
 		switch(ndx) {
 		case 0:
 			p = "cloudabi_fd_t";
 			break;
 		case 1:
-			p = "const cloudabi64_recv_in_t *";
+			p = "const cloudabi32_recv_in_t *";
 			break;
 		case 2:
-			p = "cloudabi64_recv_out_t *";
+			p = "cloudabi32_recv_out_t *";
 			break;
 		default:
 			break;
 		};
 		break;
-	/* cloudabi64_sys_sock_send */
+	/* cloudabi32_sys_sock_send */
 	case 51:
 		switch(ndx) {
 		case 0:
 			p = "cloudabi_fd_t";
 			break;
 		case 1:
-			p = "const cloudabi64_send_in_t *";
+			p = "const cloudabi32_send_in_t *";
 			break;
 		case 2:
-			p = "cloudabi64_send_out_t *";
+			p = "cloudabi32_send_out_t *";
 			break;
 		default:
 			break;
@@ -1378,11 +1378,11 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* cloudabi64_sys_thread_create */
+	/* cloudabi32_sys_thread_create */
 	case 54:
 		switch(ndx) {
 		case 0:
-			p = "cloudabi64_threadattr_t *";
+			p = "cloudabi32_threadattr_t *";
 			break;
 		default:
 			break;
@@ -1455,17 +1455,17 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "cloudabi_fd_t";
 		break;
-	/* cloudabi64_sys_fd_pread */
+	/* cloudabi32_sys_fd_pread */
 	case 8:
 		if (ndx == 0 || ndx == 1)
 			p = "size_t";
 		break;
-	/* cloudabi64_sys_fd_pwrite */
+	/* cloudabi32_sys_fd_pwrite */
 	case 9:
 		if (ndx == 0 || ndx == 1)
 			p = "size_t";
 		break;
-	/* cloudabi64_sys_fd_read */
+	/* cloudabi32_sys_fd_read */
 	case 10:
 		if (ndx == 0 || ndx == 1)
 			p = "size_t";
@@ -1495,7 +1495,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "void";
 		break;
-	/* cloudabi64_sys_fd_write */
+	/* cloudabi32_sys_fd_write */
 	case 16:
 		if (ndx == 0 || ndx == 1)
 			p = "size_t";
@@ -1610,12 +1610,12 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "void";
 		break;
-	/* cloudabi64_sys_poll */
+	/* cloudabi32_sys_poll */
 	case 39:
 		if (ndx == 0 || ndx == 1)
 			p = "size_t";
 		break;
-	/* cloudabi64_sys_poll_fd */
+	/* cloudabi32_sys_poll_fd */
 	case 40:
 		if (ndx == 0 || ndx == 1)
 			p = "size_t";
@@ -1662,12 +1662,12 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "void";
 		break;
-	/* cloudabi64_sys_sock_recv */
+	/* cloudabi32_sys_sock_recv */
 	case 50:
 		if (ndx == 0 || ndx == 1)
 			p = "void";
 		break;
-	/* cloudabi64_sys_sock_send */
+	/* cloudabi32_sys_sock_send */
 	case 51:
 		if (ndx == 0 || ndx == 1)
 			p = "void";
@@ -1682,7 +1682,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "void";
 		break;
-	/* cloudabi64_sys_thread_create */
+	/* cloudabi32_sys_thread_create */
 	case 54:
 		if (ndx == 0 || ndx == 1)
 			p = "cloudabi_tid_t";

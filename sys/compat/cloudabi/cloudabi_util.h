@@ -33,6 +33,7 @@
 #include <contrib/cloudabi/cloudabi_types_common.h>
 
 struct file;
+struct sysentvec;
 struct thread;
 struct timespec;
 
@@ -75,5 +76,9 @@ int cloudabi_futex_lock_rdlock(struct thread *, cloudabi_lock_t *,
 int cloudabi_futex_lock_wrlock(struct thread *, cloudabi_lock_t *,
     cloudabi_scope_t, cloudabi_clockid_t, cloudabi_timestamp_t,
     cloudabi_timestamp_t);
+
+/* vDSO setup and teardown. */
+void cloudabi_vdso_init(struct sysentvec *, char *, char *);
+void cloudabi_vdso_destroy(struct sysentvec *);
 
 #endif
