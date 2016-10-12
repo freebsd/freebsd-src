@@ -82,7 +82,6 @@ CTFFLAGS+= -g
 
 # prefer .s to a .c, add .po, remove stuff not used in the BSD libraries
 # .pico used for PIC object files
-.SUFFIXES:
 .SUFFIXES: .out .o .po .pico .S .asm .s .c .cc .cpp .cxx .C .f .y .l .ln
 
 .if !defined(PICFLAG)
@@ -95,11 +94,6 @@ PICFLAG=-fpic
 
 PO_FLAG=-pg
 
-.c.o:
-	${CC.${.IMPSRC:T}:U${CC}} ${STATIC_CFLAGS} ${CFLAGS} -c ${.IMPSRC} \
-	    -o ${.TARGET}
-	${CTFCONVERT_CMD}
-
 .c.po:
 	${CC.${.IMPSRC:T}:U${CC}} ${PO_FLAG} ${STATIC_CFLAGS} ${PO_CFLAGS} \
 	    -c ${.IMPSRC} -o ${.TARGET}
@@ -109,9 +103,6 @@ PO_FLAG=-pg
 	${CC.${.IMPSRC:T}:U${CC}} ${PICFLAG} -DPIC ${SHARED_CFLAGS} ${CFLAGS} \
 	    -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
-
-.cc.o .C.o .cpp.o .cxx.o:
-	${CXX} ${STATIC_CXXFLAGS} ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 
 .cc.po .C.po .cpp.po .cxx.po:
 	${CXX} ${PO_FLAG} ${STATIC_CXXFLAGS} ${PO_CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
