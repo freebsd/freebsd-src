@@ -41,31 +41,7 @@
 #include <dev/hyperv/include/vmbus.h>
 
 typedef struct {
-	/*
-	 * offset in bytes from the start of ring data below
-	 */
-	volatile uint32_t       write_index;
-	/*
-	 * offset in bytes from the start of ring data below
-	 */
-	volatile uint32_t       read_index;
-	/*
-	 * NOTE: The interrupt_mask field is used only for channels, but
-	 * vmbus connection also uses this data structure
-	 */
-	volatile uint32_t       interrupt_mask;
-	/* pad it to PAGE_SIZE so that data starts on a page */
-	uint8_t                 reserved[4084];
-
-	/*
-	 * WARNING: Ring data starts here
-	 *  !!! DO NOT place any fields below this !!!
-	 */
-	uint8_t			buffer[0];	/* doubles as interrupt mask */
-} __packed hv_vmbus_ring_buffer;
-
-typedef struct {
-	hv_vmbus_ring_buffer*	ring_buffer;
+	struct vmbus_bufring	*ring_buffer;
 	struct mtx		ring_lock;
 	uint32_t		ring_data_size;	/* ring_size */
 } hv_vmbus_ring_buffer_info;
