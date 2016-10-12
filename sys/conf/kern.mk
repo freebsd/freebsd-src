@@ -264,6 +264,7 @@ LD_EMULATION_mips64el= elf64ltsmip_fbsd
 LD_EMULATION_mipsn32= elf32btsmipn32_fbsd
 LD_EMULATION_mipsn32el= elf32btsmipn32_fbsd   # I don't think this is a thing that works
 LD_EMULATION_powerpc= elf32ppc_fbsd
+LD_EMULATION_powerpcspe= elf32ppc_fbsd
 LD_EMULATION_powerpc64= elf64ppc_fbsd
 LD_EMULATION_riscv= elf64riscv
 LD_EMULATION_sparc64= elf64_sparc_fbsd
