@@ -1209,7 +1209,7 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	ltflags = (tp->t_flags & (TF_NOOPT | TF_SIGNATURE));
 
 #ifdef TCP_RFC7413
-	if (V_tcp_fastopen_enabled && (tp->t_flags & TF_FASTOPEN) &&
+	if (V_tcp_fastopen_enabled && IS_FASTOPEN(tp->t_flags) &&
 	    (tp->t_tfo_pending != NULL) && (to->to_flags & TOF_FASTOPEN)) {
 		/*
 		 * Limit the number of pending TFO connections to
