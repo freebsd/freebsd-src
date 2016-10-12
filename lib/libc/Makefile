@@ -32,11 +32,15 @@ LIBC_ARCH=${MACHINE_CPUARCH}
 LIB?=c
 SHLIB_MAJOR= 7
 .ifdef LIBCHERI
-SHLIB_LDSCRIPT?=libc-cheri.ldscript
+SHLIB_LDSCRIPT=libc-cheri.ldscript
 .else
-SHLIB_LDSCRIPT?=libc.ldscript
+.if ${MK_SSP} != "no"
+SHLIB_LDSCRIPT=libc.ldscript
+.else
+SHLIB_LDSCRIPT=libc_nossp.ldscript
 .endif
-SHLIB_LDSCRIPT_LINKS?=libxnet.so
+.endif
+SHLIB_LDSCRIPT_LINKS=libxnet.so
 WARNS?=	2
 CFLAGS+=-I${LIBC_SRCTOP}/include -I${LIBC_SRCTOP}/../../include
 CFLAGS+=-I${LIBC_SRCTOP}/${LIBC_ARCH}
