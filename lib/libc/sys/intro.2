@@ -28,7 +28,7 @@
 .\"     @(#)intro.2	8.5 (Berkeley) 2/27/95
 .\" $FreeBSD$
 .\"
-.Dd May 4, 2013
+.Dd September 8, 2016
 .Dt INTRO 2
 .Os
 .Sh NAME
@@ -486,7 +486,10 @@ A new process is created by a currently active process (see
 .Xr fork 2 ) .
 The parent process ID of a process is initially the process ID of its creator.
 If the creating process exits,
-the parent process ID of each child is set to the ID of a system process,
+the parent process ID of each child is set to the ID of the calling process's
+reaper (see
+.Xr procctl 2 ) ,
+normally
 .Xr init 8 .
 .It Process Group
 Each active process is a member of a process group that is identified by
@@ -535,7 +538,7 @@ when none of its members has a parent process that is in the same session
 as the group,
 but is in a different process group.
 Note that when a process exits, the parent process for its children
-is changed to be
+is normally changed to be
 .Xr init 8 ,
 which is in a separate session.
 Not all members of an orphaned process group are necessarily orphaned
