@@ -468,7 +468,8 @@ static driver_t bcm_intc_driver = {
 
 static devclass_t bcm_intc_devclass;
 
-DRIVER_MODULE(intc, simplebus, bcm_intc_driver, bcm_intc_devclass, 0, 0);
+EARLY_DRIVER_MODULE(intc, simplebus, bcm_intc_driver, bcm_intc_devclass,
+    0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);
 
 #ifndef INTRNG
 int
