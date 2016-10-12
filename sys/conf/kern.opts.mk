@@ -65,7 +65,7 @@ BROKEN_OPTIONS+= CDDL ZFS
 .endif
 
 .if ${MACHINE_CPUARCH} == "mips"
-BROKEN_OPTIONS+= CDDL ZFS
+BROKEN_OPTIONS+= CDDL ZFS SSP
 .endif
 
 .if ${MACHINE_CPUARCH} == "powerpc" && ${MACHINE_ARCH} == "powerpc"
