@@ -3191,10 +3191,10 @@ static struct asc_table_entry asc_table[] = {
 	{ SST(0x74, 0x6F, SS_RDEF,	/* XXX TBD */
 	    "External data encryption control error") },
 	/* DT   R M E  V  */
-	{ SST(0x74, 0x71, SS_RDEF,	/* XXX TBD */
+	{ SST(0x74, 0x71, SS_FATAL | EACCES,
 	    "Logical unit access not authorized") },
 	/* D              */
-	{ SST(0x74, 0x79, SS_RDEF,	/* XXX TBD */
+	{ SST(0x74, 0x79, SS_FATAL | EACCES,
 	    "Security conflict in translated device") }
 };
 
