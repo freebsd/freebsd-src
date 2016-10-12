@@ -92,6 +92,12 @@ struct bcm_mbox_softc {
 #define	mbox_write_4(sc, reg, val)		\
     bus_space_write_4((sc)->bst, (sc)->bsh, reg, val)
 
+static struct ofw_compat_data compat_data[] = {
+	{"broadcom,bcm2835-mbox",	1},
+	{"brcm,bcm2835-mbox",		1},
+	{NULL,				0}
+};
+
 static int
 bcm_mbox_read_msg(struct bcm_mbox_softc *sc, int *ochan)
 {
@@ -138,12 +144,12 @@ bcm_mbox_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (ofw_bus_is_compatible(dev, "broadcom,bcm2835-mbox")) {
-		device_set_desc(dev, "BCM2835 VideoCore Mailbox");
-		return(BUS_PROBE_DEFAULT);
-	}
+	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
+		return (ENXIO);
 
-	return (ENXIO);
+	device_set_desc(dev, "BCM2835 VideoCore Mailbox");
+
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int
