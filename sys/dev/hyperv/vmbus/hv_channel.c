@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/hyperv/vmbus/vmbus_reg.h>
 #include <dev/hyperv/vmbus/vmbus_var.h>
 
-static void 	vmbus_chan_send_event(hv_vmbus_channel* channel);
+static void 	vmbus_chan_signal_tx(struct hv_vmbus_channel *chan);
 static void	vmbus_chan_update_evtflagcnt(struct vmbus_softc *,
 		    const struct hv_vmbus_channel *);
 
@@ -81,195 +81,194 @@ vmbus_chan_msgprocs[VMBUS_CHANMSG_TYPE_MAX] = {
  *  @brief Trigger an event notification on the specified channel
  */
 static void
-vmbus_chan_send_event(hv_vmbus_channel *channel)
+vmbus_chan_signal_tx(struct hv_vmbus_channel *chan)
 {
-	struct vmbus_softc *sc = channel->vmbus_sc;
-	uint32_t chanid = channel->ch_id;
+	struct vmbus_softc *sc = chan->vmbus_sc;
+	uint32_t chanid = chan->ch_id;
 
 	atomic_set_long(&sc->vmbus_tx_evtflags[chanid >> VMBUS_EVTFLAG_SHIFT],
 	    1UL << (chanid & VMBUS_EVTFLAG_MASK));
 
-	if (channel->ch_flags & VMBUS_CHAN_FLAG_HASMNF) {
+	if (chan->ch_flags & VMBUS_CHAN_FLAG_HASMNF) {
 		atomic_set_int(
-		&sc->vmbus_mnf2->mnf_trigs[channel->ch_montrig_idx].mt_pending,
-		channel->ch_montrig_mask);
+		&sc->vmbus_mnf2->mnf_trigs[chan->ch_montrig_idx].mt_pending,
+		chan->ch_montrig_mask);
 	} else {
-		hypercall_signal_event(channel->ch_monprm_dma.hv_paddr);
+		hypercall_signal_event(chan->ch_monprm_dma.hv_paddr);
 	}
 }
 
 static int
-vmbus_channel_sysctl_monalloc(SYSCTL_HANDLER_ARGS)
+vmbus_chan_sysctl_mnf(SYSCTL_HANDLER_ARGS)
 {
 	struct hv_vmbus_channel *chan = arg1;
-	int alloc = 0;
+	int mnf = 0;
 
 	if (chan->ch_flags & VMBUS_CHAN_FLAG_HASMNF)
-		alloc = 1;
-	return sysctl_handle_int(oidp, &alloc, 0, req);
+		mnf = 1;
+	return sysctl_handle_int(oidp, &mnf, 0, req);
 }
 
 static void
-vmbus_channel_sysctl_create(hv_vmbus_channel* channel)
+vmbus_chan_sysctl_create(struct hv_vmbus_channel *chan)
 {
-	device_t dev;
-	struct sysctl_oid *devch_sysctl;
-	struct sysctl_oid *devch_id_sysctl, *devch_sub_sysctl;
-	struct sysctl_oid *devch_id_in_sysctl, *devch_id_out_sysctl;
+	struct sysctl_oid *ch_tree, *chid_tree, *br_tree;
 	struct sysctl_ctx_list *ctx;
 	uint32_t ch_id;
-	uint16_t sub_ch_id;
 	char name[16];
-	
-	hv_vmbus_channel* primary_ch = channel->ch_prichan;
 
-	if (primary_ch == NULL) {
-		dev = channel->ch_dev;
-		ch_id = channel->ch_id;
-	} else {
-		dev = primary_ch->ch_dev;
-		ch_id = primary_ch->ch_id;
-		sub_ch_id = channel->ch_subidx;
-	}
-	ctx = &channel->ch_sysctl_ctx;
+	/*
+	 * Add sysctl nodes related to this channel to this
+	 * channel's sysctl ctx, so that they can be destroyed
+	 * independently upon close of this channel, which can
+	 * happen even if the device is not detached.
+	 */
+	ctx = &chan->ch_sysctl_ctx;
 	sysctl_ctx_init(ctx);
-	/* This creates dev.DEVNAME.DEVUNIT.channel tree */
-	devch_sysctl = SYSCTL_ADD_NODE(ctx,
-		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-		    OID_AUTO, "channel", CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "");
-	/* This creates dev.DEVNAME.DEVUNIT.channel.CHANID tree */
+
+	/*
+	 * Create dev.NAME.UNIT.channel tree.
+	 */
+	ch_tree = SYSCTL_ADD_NODE(ctx,
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(chan->ch_dev)),
+	    OID_AUTO, "channel", CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "");
+	if (ch_tree == NULL)
+		return;
+
+	/*
+	 * Create dev.NAME.UNIT.channel.CHANID tree.
+	 */
+	if (VMBUS_CHAN_ISPRIMARY(chan))
+		ch_id = chan->ch_id;
+	else
+		ch_id = chan->ch_prichan->ch_id;
 	snprintf(name, sizeof(name), "%d", ch_id);
-	devch_id_sysctl = SYSCTL_ADD_NODE(ctx,
-	    	    SYSCTL_CHILDREN(devch_sysctl),
-	    	    OID_AUTO, name, CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "");
+	chid_tree = SYSCTL_ADD_NODE(ctx, SYSCTL_CHILDREN(ch_tree),
+	    OID_AUTO, name, CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "");
+	if (chid_tree == NULL)
+		return;
 
-	if (primary_ch != NULL) {
-		devch_sub_sysctl = SYSCTL_ADD_NODE(ctx,
-			SYSCTL_CHILDREN(devch_id_sysctl),
-			OID_AUTO, "sub", CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "");
-		snprintf(name, sizeof(name), "%d", sub_ch_id);
-		devch_id_sysctl = SYSCTL_ADD_NODE(ctx,
-			SYSCTL_CHILDREN(devch_sub_sysctl),
-			OID_AUTO, name, CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "");
+	if (!VMBUS_CHAN_ISPRIMARY(chan)) {
+		/*
+		 * Create dev.NAME.UNIT.channel.CHANID.sub tree.
+		 */
+		ch_tree = SYSCTL_ADD_NODE(ctx, SYSCTL_CHILDREN(chid_tree),
+		    OID_AUTO, "sub", CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "");
+		if (ch_tree == NULL)
+			return;
 
-		SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(devch_id_sysctl),
-		    OID_AUTO, "chanid", CTLFLAG_RD,
-		    &channel->ch_id, 0, "channel id");
+		/*
+		 * Create dev.NAME.UNIT.channel.CHANID.sub.SUBIDX tree.
+		 *
+		 * NOTE:
+		 * chid_tree is changed to this new sysctl tree.
+		 */
+		snprintf(name, sizeof(name), "%d", chan->ch_subidx);
+		chid_tree = SYSCTL_ADD_NODE(ctx, SYSCTL_CHILDREN(ch_tree),
+		    OID_AUTO, name, CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "");
+		if (chid_tree == NULL)
+			return;
+
+		SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(chid_tree), OID_AUTO,
+		    "chanid", CTLFLAG_RD, &chan->ch_id, 0, "channel id");
 	}
-	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(devch_id_sysctl), OID_AUTO,
-	    "cpu", CTLFLAG_RD, &channel->ch_cpuid, 0, "owner CPU id");
-	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(devch_id_sysctl), OID_AUTO,
-	    "monitor_allocated", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
-	    channel, 0, vmbus_channel_sysctl_monalloc, "I",
-	    "is monitor allocated to this channel");
 
-	devch_id_in_sysctl = SYSCTL_ADD_NODE(ctx,
-                    SYSCTL_CHILDREN(devch_id_sysctl),
-                    OID_AUTO,
-		    "in",
-		    CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "");
-	devch_id_out_sysctl = SYSCTL_ADD_NODE(ctx,
-                    SYSCTL_CHILDREN(devch_id_sysctl),
-                    OID_AUTO,
-		    "out",
-		    CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "");
-	hv_ring_buffer_stat(ctx,
-		SYSCTL_CHILDREN(devch_id_in_sysctl),
-		&(channel->inbound),
-		"inbound ring buffer stats");
-	hv_ring_buffer_stat(ctx,
-		SYSCTL_CHILDREN(devch_id_out_sysctl),
-		&(channel->outbound),
-		"outbound ring buffer stats");
+	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(chid_tree), OID_AUTO,
+	    "cpu", CTLFLAG_RD, &chan->ch_cpuid, 0, "owner CPU id");
+	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(chid_tree), OID_AUTO,
+	    "mnf", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    chan, 0, vmbus_chan_sysctl_mnf, "I",
+	    "has monitor notification facilities");
+
+	/*
+	 * Create sysctl tree for RX bufring.
+	 */
+	br_tree = SYSCTL_ADD_NODE(ctx, SYSCTL_CHILDREN(chid_tree), OID_AUTO,
+	    "in", CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "");
+	if (br_tree != NULL) {
+		hv_ring_buffer_stat(ctx, SYSCTL_CHILDREN(br_tree),
+		    &chan->inbound, "inbound ring buffer stats");
+	}
+
+	/*
+	 * Create sysctl tree for TX bufring.
+	 */
+	br_tree = SYSCTL_ADD_NODE(ctx, SYSCTL_CHILDREN(chid_tree), OID_AUTO,
+	    "out", CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "");
+	if (br_tree != NULL) {
+		hv_ring_buffer_stat(ctx, SYSCTL_CHILDREN(br_tree),
+		    &chan->outbound, "outbound ring buffer stats");
+	}
 }
 
-/**
- * @brief Open the specified channel
- */
 int
-hv_vmbus_channel_open(
-	hv_vmbus_channel*		new_channel,
-	uint32_t			send_ring_buffer_size,
-	uint32_t			recv_ring_buffer_size,
-	void*				user_data,
-	uint32_t			user_data_len,
-	vmbus_chan_callback_t		cb,
-	void				*cbarg)
+vmbus_chan_open(struct hv_vmbus_channel *chan, int txbr_size, int rxbr_size,
+    const void *udata, int udlen, vmbus_chan_callback_t cb, void *cbarg)
 {
-	struct vmbus_softc *sc = new_channel->vmbus_sc;
+	struct vmbus_softc *sc = chan->vmbus_sc;
 	const struct vmbus_chanmsg_chopen_resp *resp;
 	const struct vmbus_message *msg;
 	struct vmbus_chanmsg_chopen *req;
 	struct vmbus_msghc *mh;
 	uint32_t status;
-	int ret = 0;
+	int error;
 	uint8_t *br;
 
-	if (user_data_len > VMBUS_CHANMSG_CHOPEN_UDATA_SIZE) {
+	if (udlen > VMBUS_CHANMSG_CHOPEN_UDATA_SIZE) {
 		device_printf(sc->vmbus_dev,
-		    "invalid udata len %u for chan%u\n",
-		    user_data_len, new_channel->ch_id);
+		    "invalid udata len %d for chan%u\n", udlen, chan->ch_id);
 		return EINVAL;
 	}
-	KASSERT((send_ring_buffer_size & PAGE_MASK) == 0,
+	KASSERT((txbr_size & PAGE_MASK) == 0,
 	    ("send bufring size is not multiple page"));
-	KASSERT((recv_ring_buffer_size & PAGE_MASK) == 0,
+	KASSERT((rxbr_size & PAGE_MASK) == 0,
 	    ("recv bufring size is not multiple page"));
 
-	if (atomic_testandset_int(&new_channel->ch_stflags,
+	if (atomic_testandset_int(&chan->ch_stflags,
 	    VMBUS_CHAN_ST_OPENED_SHIFT))
-		panic("double-open chan%u", new_channel->ch_id);
+		panic("double-open chan%u", chan->ch_id);
 
-	new_channel->ch_cb = cb;
-	new_channel->ch_cbarg = cbarg;
+	chan->ch_cb = cb;
+	chan->ch_cbarg = cbarg;
 
-	vmbus_chan_update_evtflagcnt(sc, new_channel);
+	vmbus_chan_update_evtflagcnt(sc, chan);
 
-	new_channel->ch_tq = VMBUS_PCPU_GET(new_channel->vmbus_sc, event_tq,
-	    new_channel->ch_cpuid);
-	if (new_channel->ch_flags & VMBUS_CHAN_FLAG_BATCHREAD) {
-		TASK_INIT(&new_channel->ch_task, 0, vmbus_chan_task,
-		    new_channel);
-	} else {
-		TASK_INIT(&new_channel->ch_task, 0, vmbus_chan_task_nobatch,
-		    new_channel);
-	}
+	chan->ch_tq = VMBUS_PCPU_GET(chan->vmbus_sc, event_tq, chan->ch_cpuid);
+	if (chan->ch_flags & VMBUS_CHAN_FLAG_BATCHREAD)
+		TASK_INIT(&chan->ch_task, 0, vmbus_chan_task, chan);
+	else
+		TASK_INIT(&chan->ch_task, 0, vmbus_chan_task_nobatch, chan);
 
 	/*
 	 * Allocate the TX+RX bufrings.
 	 * XXX should use ch_dev dtag
 	 */
 	br = hyperv_dmamem_alloc(bus_get_dma_tag(sc->vmbus_dev),
-	    PAGE_SIZE, 0, send_ring_buffer_size + recv_ring_buffer_size,
-	    &new_channel->ch_bufring_dma, BUS_DMA_WAITOK | BUS_DMA_ZERO);
+	    PAGE_SIZE, 0, txbr_size + rxbr_size, &chan->ch_bufring_dma,
+	    BUS_DMA_WAITOK | BUS_DMA_ZERO);
 	if (br == NULL) {
 		device_printf(sc->vmbus_dev, "bufring allocation failed\n");
-		ret = ENOMEM;
+		error = ENOMEM;
 		goto failed;
 	}
-	new_channel->ch_bufring = br;
+	chan->ch_bufring = br;
 
 	/* TX bufring comes first */
-	hv_vmbus_ring_buffer_init(&new_channel->outbound,
-	    br, send_ring_buffer_size);
+	hv_vmbus_ring_buffer_init(&chan->outbound, br, txbr_size);
 	/* RX bufring immediately follows TX bufring */
-	hv_vmbus_ring_buffer_init(&new_channel->inbound,
-	    br + send_ring_buffer_size, recv_ring_buffer_size);
+	hv_vmbus_ring_buffer_init(&chan->inbound, br + txbr_size, rxbr_size);
 
 	/* Create sysctl tree for this channel */
-	vmbus_channel_sysctl_create(new_channel);
+	vmbus_chan_sysctl_create(chan);
 
 	/*
 	 * Connect the bufrings, both RX and TX, to this channel.
 	 */
-	ret = vmbus_chan_gpadl_connect(new_channel,
-		new_channel->ch_bufring_dma.hv_paddr,
-		send_ring_buffer_size + recv_ring_buffer_size,
-		&new_channel->ch_bufring_gpadl);
-	if (ret != 0) {
+	error = vmbus_chan_gpadl_connect(chan, chan->ch_bufring_dma.hv_paddr,
+	    txbr_size + rxbr_size, &chan->ch_bufring_gpadl);
+	if (error) {
 		device_printf(sc->vmbus_dev,
-		    "failed to connect bufring GPADL to chan%u\n",
-		    new_channel->ch_id);
+		    "failed to connect bufring GPADL to chan%u\n", chan->ch_id);
 		goto failed;
 	}
 
@@ -280,26 +279,26 @@ hv_vmbus_channel_open(
 	if (mh == NULL) {
 		device_printf(sc->vmbus_dev,
 		    "can not get msg hypercall for chopen(chan%u)\n",
-		    new_channel->ch_id);
-		ret = ENXIO;
+		    chan->ch_id);
+		error = ENXIO;
 		goto failed;
 	}
 
 	req = vmbus_msghc_dataptr(mh);
 	req->chm_hdr.chm_type = VMBUS_CHANMSG_TYPE_CHOPEN;
-	req->chm_chanid = new_channel->ch_id;
-	req->chm_openid = new_channel->ch_id;
-	req->chm_gpadl = new_channel->ch_bufring_gpadl;
-	req->chm_vcpuid = new_channel->ch_vcpuid;
-	req->chm_rxbr_pgofs = send_ring_buffer_size >> PAGE_SHIFT;
-	if (user_data_len)
-		memcpy(req->chm_udata, user_data, user_data_len);
+	req->chm_chanid = chan->ch_id;
+	req->chm_openid = chan->ch_id;
+	req->chm_gpadl = chan->ch_bufring_gpadl;
+	req->chm_vcpuid = chan->ch_vcpuid;
+	req->chm_txbr_pgcnt = txbr_size >> PAGE_SHIFT;
+	if (udlen > 0)
+		memcpy(req->chm_udata, udata, udlen);
 
-	ret = vmbus_msghc_exec(sc, mh);
-	if (ret != 0) {
+	error = vmbus_msghc_exec(sc, mh);
+	if (error) {
 		device_printf(sc->vmbus_dev,
 		    "chopen(chan%u) msg hypercall exec failed: %d\n",
-		    new_channel->ch_id, ret);
+		    chan->ch_id, error);
 		vmbus_msghc_put(sc, mh);
 		goto failed;
 	}
@@ -313,28 +312,25 @@ hv_vmbus_channel_open(
 	if (status == 0) {
 		if (bootverbose) {
 			device_printf(sc->vmbus_dev, "chan%u opened\n",
-			    new_channel->ch_id);
+			    chan->ch_id);
 		}
 		return 0;
 	}
 
-	device_printf(sc->vmbus_dev, "failed to open chan%u\n",
-	    new_channel->ch_id);
-	ret = ENXIO;
+	device_printf(sc->vmbus_dev, "failed to open chan%u\n", chan->ch_id);
+	error = ENXIO;
 
 failed:
-	if (new_channel->ch_bufring_gpadl) {
-		hv_vmbus_channel_teardown_gpdal(new_channel,
-		    new_channel->ch_bufring_gpadl);
-		new_channel->ch_bufring_gpadl = 0;
+	if (chan->ch_bufring_gpadl) {
+		vmbus_chan_gpadl_disconnect(chan, chan->ch_bufring_gpadl);
+		chan->ch_bufring_gpadl = 0;
 	}
-	if (new_channel->ch_bufring != NULL) {
-		hyperv_dmamem_free(&new_channel->ch_bufring_dma,
-		    new_channel->ch_bufring);
-		new_channel->ch_bufring = NULL;
+	if (chan->ch_bufring != NULL) {
+		hyperv_dmamem_free(&chan->ch_bufring_dma, chan->ch_bufring);
+		chan->ch_bufring = NULL;
 	}
-	atomic_clear_int(&new_channel->ch_stflags, VMBUS_CHAN_ST_OPENED);
-	return ret;
+	atomic_clear_int(&chan->ch_stflags, VMBUS_CHAN_ST_OPENED);
+	return error;
 }
 
 int
@@ -468,7 +464,7 @@ vmbus_chan_gpadl_connect(struct hv_vmbus_channel *chan, bus_addr_t paddr,
  * Disconnect the GPA from the target channel
  */
 int
-hv_vmbus_channel_teardown_gpdal(struct hv_vmbus_channel *chan, uint32_t gpadl)
+vmbus_chan_gpadl_disconnect(struct hv_vmbus_channel *chan, uint32_t gpadl)
 {
 	struct vmbus_softc *sc = chan->vmbus_sc;
 	struct vmbus_msghc *mh;
@@ -505,41 +501,45 @@ hv_vmbus_channel_teardown_gpdal(struct hv_vmbus_channel *chan, uint32_t gpadl)
 }
 
 static void
-hv_vmbus_channel_close_internal(hv_vmbus_channel *channel)
+vmbus_chan_close_internal(struct hv_vmbus_channel *chan)
 {
-	struct vmbus_softc *sc = channel->vmbus_sc;
+	struct vmbus_softc *sc = chan->vmbus_sc;
 	struct vmbus_msghc *mh;
 	struct vmbus_chanmsg_chclose *req;
-	struct taskqueue *tq = channel->ch_tq;
+	struct taskqueue *tq = chan->ch_tq;
 	int error;
 
 	/* TODO: stringent check */
-	atomic_clear_int(&channel->ch_stflags, VMBUS_CHAN_ST_OPENED);
-
-	sysctl_ctx_free(&channel->ch_sysctl_ctx);
+	atomic_clear_int(&chan->ch_stflags, VMBUS_CHAN_ST_OPENED);
 
 	/*
-	 * Set ch_tq to NULL to avoid more requests be scheduled
+	 * Free this channel's sysctl tree attached to its device's
+	 * sysctl tree.
 	 */
-	channel->ch_tq = NULL;
-	taskqueue_drain(tq, &channel->ch_task);
-	channel->ch_cb = NULL;
+	sysctl_ctx_free(&chan->ch_sysctl_ctx);
 
-	/**
-	 * Send a closing message
+	/*
+	 * Set ch_tq to NULL to avoid more requests be scheduled.
+	 * XXX pretty broken; need rework.
 	 */
+	chan->ch_tq = NULL;
+	taskqueue_drain(tq, &chan->ch_task);
+	chan->ch_cb = NULL;
 
+	/*
+	 * Close this channel.
+	 */
 	mh = vmbus_msghc_get(sc, sizeof(*req));
 	if (mh == NULL) {
 		device_printf(sc->vmbus_dev,
 		    "can not get msg hypercall for chclose(chan%u)\n",
-		    channel->ch_id);
+		    chan->ch_id);
 		return;
 	}
 
 	req = vmbus_msghc_dataptr(mh);
 	req->chm_hdr.chm_type = VMBUS_CHANMSG_TYPE_CHCLOSE;
-	req->chm_chanid = channel->ch_id;
+	req->chm_chanid = chan->ch_id;
 
 	error = vmbus_msghc_exec_noresult(mh);
 	vmbus_msghc_put(sc, mh);
@@ -547,30 +547,28 @@ hv_vmbus_channel_close_internal(hv_vmbus_channel *channel)
 	if (error) {
 		device_printf(sc->vmbus_dev,
 		    "chclose(chan%u) msg hypercall exec failed: %d\n",
-		    channel->ch_id, error);
+		    chan->ch_id, error);
 		return;
 	} else if (bootverbose) {
-		device_printf(sc->vmbus_dev, "close chan%u\n",
-		    channel->ch_id);
+		device_printf(sc->vmbus_dev, "close chan%u\n", chan->ch_id);
 	}
 
-	/* Tear down the gpadl for the channel's ring buffer */
-	if (channel->ch_bufring_gpadl) {
-		hv_vmbus_channel_teardown_gpdal(channel,
-		    channel->ch_bufring_gpadl);
-		channel->ch_bufring_gpadl = 0;
+	/*
+	 * Disconnect the TX+RX bufrings from this channel.
+	 */
+	if (chan->ch_bufring_gpadl) {
+		vmbus_chan_gpadl_disconnect(chan, chan->ch_bufring_gpadl);
+		chan->ch_bufring_gpadl = 0;
 	}
 
-	/* TODO: Send a msg to release the childRelId */
-
-	/* cleanup the ring buffers for this channel */
-	hv_ring_buffer_cleanup(&channel->outbound);
-	hv_ring_buffer_cleanup(&channel->inbound);
-
-	if (channel->ch_bufring != NULL) {
-		hyperv_dmamem_free(&channel->ch_bufring_dma,
-		    channel->ch_bufring);
-		channel->ch_bufring = NULL;
+	/*
+	 * Destroy the TX+RX bufrings.
+	 */
+	hv_ring_buffer_cleanup(&chan->outbound);
+	hv_ring_buffer_cleanup(&chan->inbound);
+	if (chan->ch_bufring != NULL) {
+		hyperv_dmamem_free(&chan->ch_bufring_dma, chan->ch_bufring);
+		chan->ch_bufring = NULL;
 	}
 }
 
@@ -580,7 +578,7 @@ hv_vmbus_channel_close_internal(hv_vmbus_channel *channel)
  * are not being opened.
  */
 void
-hv_vmbus_channel_close(struct hv_vmbus_channel *chan)
+vmbus_chan_close(struct hv_vmbus_channel *chan)
 {
 	int subchan_cnt;
 
@@ -600,14 +598,14 @@ hv_vmbus_channel_close(struct hv_vmbus_channel *chan)
 		struct hv_vmbus_channel **subchan;
 		int i;
 
-		subchan = vmbus_get_subchan(chan, subchan_cnt);
+		subchan = vmbus_subchan_get(chan, subchan_cnt);
 		for (i = 0; i < subchan_cnt; ++i)
-			hv_vmbus_channel_close_internal(subchan[i]);
-		vmbus_rel_subchan(subchan, subchan_cnt);
+			vmbus_chan_close_internal(subchan[i]);
+		vmbus_subchan_rel(subchan, subchan_cnt);
 	}
 
 	/* Then close the primary channel. */
-	hv_vmbus_channel_close_internal(chan);
+	vmbus_chan_close_internal(chan);
 }
 
 int
@@ -639,7 +637,7 @@ vmbus_chan_send(struct hv_vmbus_channel *chan, uint16_t type, uint16_t flags,
 
 	error = hv_ring_buffer_write(&chan->outbound, iov, 3, &send_evt);
 	if (!error && send_evt)
-		vmbus_chan_send_event(chan);
+		vmbus_chan_signal_tx(chan);
 	return error;
 }
 
@@ -679,7 +677,7 @@ vmbus_chan_send_sglist(struct hv_vmbus_channel *chan,
 
 	error = hv_ring_buffer_write(&chan->outbound, iov, 4, &send_evt);
 	if (!error && send_evt)
-		vmbus_chan_send_event(chan);
+		vmbus_chan_signal_tx(chan);
 	return error;
 }
 
@@ -721,7 +719,7 @@ vmbus_chan_send_prplist(struct hv_vmbus_channel *chan,
 
 	error = hv_ring_buffer_write(&chan->outbound, iov, 4, &send_evt);
 	if (!error && send_evt)
-		vmbus_chan_send_event(chan);
+		vmbus_chan_signal_tx(chan);
 	return error;
 }
 
@@ -840,20 +838,20 @@ vmbus_event_flags_proc(struct vmbus_softc *sc, volatile u_long *event_flags,
 		chid_base = f << VMBUS_EVTFLAG_SHIFT;
 
 		while ((chid_ofs = ffsl(flags)) != 0) {
-			struct hv_vmbus_channel *channel;
+			struct hv_vmbus_channel *chan;
 
 			--chid_ofs; /* NOTE: ffsl is 1-based */
 			flags &= ~(1UL << chid_ofs);
 
-			channel = sc->vmbus_chmap[chid_base + chid_ofs];
+			chan = sc->vmbus_chmap[chid_base + chid_ofs];
 
 			/* if channel is closed or closing */
-			if (channel == NULL || channel->ch_tq == NULL)
+			if (chan == NULL || chan->ch_tq == NULL)
 				continue;
 
-			if (channel->ch_flags & VMBUS_CHAN_FLAG_BATCHREAD)
-				hv_ring_buffer_read_begin(&channel->inbound);
-			taskqueue_enqueue(channel->ch_tq, &channel->ch_task);
+			if (chan->ch_flags & VMBUS_CHAN_FLAG_BATCHREAD)
+				hv_ring_buffer_read_begin(&chan->inbound);
+			taskqueue_enqueue(chan->ch_tq, &chan->ch_task);
 		}
 	}
 }
@@ -1038,7 +1036,7 @@ vmbus_chan_add(struct hv_vmbus_channel *newchan)
 }
 
 void
-vmbus_channel_cpu_set(struct hv_vmbus_channel *chan, int cpu)
+vmbus_chan_cpu_set(struct hv_vmbus_channel *chan, int cpu)
 {
 	KASSERT(cpu >= 0 && cpu < mp_ncpus, ("invalid cpu %d", cpu));
 
@@ -1058,13 +1056,13 @@ vmbus_channel_cpu_set(struct hv_vmbus_channel *chan, int cpu)
 }
 
 void
-vmbus_channel_cpu_rr(struct hv_vmbus_channel *chan)
+vmbus_chan_cpu_rr(struct hv_vmbus_channel *chan)
 {
 	static uint32_t vmbus_chan_nextcpu;
 	int cpu;
 
 	cpu = atomic_fetchadd_int(&vmbus_chan_nextcpu, 1) % mp_ncpus;
-	vmbus_channel_cpu_set(chan, cpu);
+	vmbus_chan_cpu_set(chan, cpu);
 }
 
 static void
@@ -1073,9 +1071,9 @@ vmbus_chan_cpu_default(struct hv_vmbus_channel *chan)
 	/*
 	 * By default, pin the channel to cpu0.  Devices having
 	 * special channel-cpu mapping requirement should call
-	 * vmbus_channel_cpu_{set,rr}().
+	 * vmbus_chan_cpu_{set,rr}().
 	 */
-	vmbus_channel_cpu_set(chan, 0);
+	vmbus_chan_cpu_set(chan, 0);
 }
 
 static void
@@ -1251,65 +1249,67 @@ vmbus_chan_destroy_all(struct vmbus_softc *sc)
 	mtx_unlock(&sc->vmbus_prichan_lock);
 }
 
-/**
- * @brief Select the best outgoing channel
- * 
+/*
  * The channel whose vcpu binding is closest to the currect vcpu will
  * be selected.
- * If no multi-channel, always select primary channel
- * 
- * @param primary - primary channel
+ * If no multi-channel, always select primary channel.
  */
 struct hv_vmbus_channel *
-vmbus_select_outgoing_channel(struct hv_vmbus_channel *primary)
+vmbus_chan_cpu2chan(struct hv_vmbus_channel *prichan, int cpu)
 {
-	hv_vmbus_channel *new_channel = NULL;
-	hv_vmbus_channel *outgoing_channel = primary;
-	int old_cpu_distance = 0;
-	int new_cpu_distance = 0;
-	int cur_vcpu = 0;
-	int smp_pro_id = PCPU_GET(cpuid);
+	struct hv_vmbus_channel *sel, *chan;
+	uint32_t vcpu, sel_dist;
 
-	if (TAILQ_EMPTY(&primary->ch_subchans)) {
-		return outgoing_channel;
-	}
+	KASSERT(cpu >= 0 && cpu < mp_ncpus, ("invalid cpuid %d", cpu));
+	if (TAILQ_EMPTY(&prichan->ch_subchans))
+		return prichan;
 
-	if (smp_pro_id >= MAXCPU) {
-		return outgoing_channel;
-	}
+	vcpu = VMBUS_PCPU_GET(prichan->vmbus_sc, vcpuid, cpu);
 
-	cur_vcpu = VMBUS_PCPU_GET(primary->vmbus_sc, vcpuid, smp_pro_id);
-	
-	/* XXX need lock */
-	TAILQ_FOREACH(new_channel, &primary->ch_subchans, ch_sublink) {
-		if ((new_channel->ch_stflags & VMBUS_CHAN_ST_OPENED) == 0) {
+#define CHAN_VCPU_DIST(ch, vcpu)		\
+	(((ch)->ch_vcpuid > (vcpu)) ?		\
+	 ((ch)->ch_vcpuid - (vcpu)) : ((vcpu) - (ch)->ch_vcpuid))
+
+#define CHAN_SELECT(ch)				\
+do {						\
+	sel = ch;				\
+	sel_dist = CHAN_VCPU_DIST(ch, vcpu);	\
+} while (0)
+
+	CHAN_SELECT(prichan);
+
+	mtx_lock(&prichan->ch_subchan_lock);
+	TAILQ_FOREACH(chan, &prichan->ch_subchans, ch_sublink) {
+		uint32_t dist;
+
+		KASSERT(chan->ch_stflags & VMBUS_CHAN_ST_OPENED,
+		    ("chan%u is not opened", chan->ch_id));
+
+		if (chan->ch_vcpuid == vcpu) {
+			/* Exact match; done */
+			CHAN_SELECT(chan);
+			break;
+		}
+
+		dist = CHAN_VCPU_DIST(chan, vcpu);
+		if (sel_dist <= dist) {
+			/* Far or same distance; skip */
 			continue;
 		}
 
-		if (new_channel->ch_vcpuid == cur_vcpu){
-			return new_channel;
-		}
-
-		old_cpu_distance = ((outgoing_channel->ch_vcpuid > cur_vcpu) ?
-		    (outgoing_channel->ch_vcpuid - cur_vcpu) :
-		    (cur_vcpu - outgoing_channel->ch_vcpuid));
-
-		new_cpu_distance = ((new_channel->ch_vcpuid > cur_vcpu) ?
-		    (new_channel->ch_vcpuid - cur_vcpu) :
-		    (cur_vcpu - new_channel->ch_vcpuid));
-
-		if (old_cpu_distance < new_cpu_distance) {
-			continue;
-		}
-
-		outgoing_channel = new_channel;
+		/* Select the closer channel. */
+		CHAN_SELECT(chan);
 	}
+	mtx_unlock(&prichan->ch_subchan_lock);
 
-	return(outgoing_channel);
+#undef CHAN_SELECT
+#undef CHAN_VCPU_DIST
+
+	return sel;
 }
 
 struct hv_vmbus_channel **
-vmbus_get_subchan(struct hv_vmbus_channel *pri_chan, int subchan_cnt)
+vmbus_subchan_get(struct hv_vmbus_channel *pri_chan, int subchan_cnt)
 {
 	struct hv_vmbus_channel **ret, *chan;
 	int i;
@@ -1340,14 +1340,14 @@ vmbus_get_subchan(struct hv_vmbus_channel *pri_chan, int subchan_cnt)
 }
 
 void
-vmbus_rel_subchan(struct hv_vmbus_channel **subchan, int subchan_cnt __unused)
+vmbus_subchan_rel(struct hv_vmbus_channel **subchan, int subchan_cnt __unused)
 {
 
 	free(subchan, M_TEMP);
 }
 
 void
-vmbus_drain_subchan(struct hv_vmbus_channel *pri_chan)
+vmbus_subchan_drain(struct hv_vmbus_channel *pri_chan)
 {
 	mtx_lock(&pri_chan->ch_subchan_lock);
 	while (pri_chan->ch_subchan_cnt > 0)
@@ -1368,4 +1368,13 @@ vmbus_chan_msgproc(struct vmbus_softc *sc, const struct vmbus_message *msg)
 	msg_proc = vmbus_chan_msgprocs[msg_type];
 	if (msg_proc != NULL)
 		msg_proc(sc, msg);
+}
+
+void
+vmbus_chan_set_readbatch(struct hv_vmbus_channel *chan, bool on)
+{
+	if (!on)
+		chan->ch_flags &= ~VMBUS_CHAN_FLAG_BATCHREAD;
+	else
+		chan->ch_flags |= VMBUS_CHAN_FLAG_BATCHREAD;
 }
