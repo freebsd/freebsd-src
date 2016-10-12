@@ -337,17 +337,6 @@ failed:
 	return ret;
 }
 
-/**
- * @brief Establish a GPADL for the specified buffer
- */
-int
-hv_vmbus_channel_establish_gpadl(struct hv_vmbus_channel *channel,
-    void *contig_buffer, uint32_t size, uint32_t *gpadl)
-{
-	return vmbus_chan_gpadl_connect(channel,
-	    hv_get_phys_addr(contig_buffer), size, gpadl);
-}
-
 int
 vmbus_chan_gpadl_connect(struct hv_vmbus_channel *chan, bus_addr_t paddr,
     int size, uint32_t *gpadl0)
