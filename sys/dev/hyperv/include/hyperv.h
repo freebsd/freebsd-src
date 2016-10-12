@@ -267,42 +267,6 @@ typedef struct hv_vmbus_channel {
 #define VMBUS_CHAN_ST_OPENED_SHIFT	0
 #define VMBUS_CHAN_ST_OPENED		(1 << VMBUS_CHAN_ST_OPENED_SHIFT)
 
-static inline void
-hv_set_channel_read_state(hv_vmbus_channel* channel, boolean_t on)
-{
-	if (!on)
-		channel->ch_flags &= ~VMBUS_CHAN_FLAG_BATCHREAD;
-	else
-		channel->ch_flags |= VMBUS_CHAN_FLAG_BATCHREAD;
-}
-
-int		hv_vmbus_channel_open(
-				hv_vmbus_channel*	channel,
-				uint32_t		send_ring_buffer_size,
-				uint32_t		recv_ring_buffer_size,
-				void*			user_data,
-				uint32_t		user_data_len,
-				vmbus_chan_callback_t	cb,
-				void			*cbarg);
-
-void		hv_vmbus_channel_close(hv_vmbus_channel *channel);
-
-int		hv_vmbus_channel_teardown_gpdal(
-				hv_vmbus_channel*	channel,
-				uint32_t		gpadl_handle);
-
-int		vmbus_chan_gpadl_connect(struct hv_vmbus_channel *chan,
-		    bus_addr_t paddr, int size, uint32_t *gpadl);
-
-struct hv_vmbus_channel* vmbus_select_outgoing_channel(struct hv_vmbus_channel *promary);
-
-void		vmbus_channel_cpu_set(struct hv_vmbus_channel *chan, int cpu);
-void		vmbus_channel_cpu_rr(struct hv_vmbus_channel *chan);
-struct hv_vmbus_channel **
-		vmbus_get_subchan(struct hv_vmbus_channel *pri_chan, int subchan_cnt);
-void		vmbus_rel_subchan(struct hv_vmbus_channel **subchan, int subchan_cnt);
-void		vmbus_drain_subchan(struct hv_vmbus_channel *pri_chan);
-
 /**
  * @brief Get physical address from virtual
  */
