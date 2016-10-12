@@ -1028,7 +1028,7 @@ relocked:
 #endif
 	if (!((tp->t_state == TCPS_ESTABLISHED && (thflags & TH_SYN) == 0) ||
 	      (tp->t_state == TCPS_LISTEN && (thflags & TH_SYN) &&
-	       !(tp->t_flags & TF_FASTOPEN)))) {
+	       !IS_FASTOPEN(tp->t_flags)))) {
 		if (ti_locked == TI_UNLOCKED) {
 			if (INP_INFO_TRY_RLOCK(&V_tcbinfo) == 0) {
 				in_pcbref(inp);
@@ -1506,7 +1506,9 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	struct in_conninfo *inc;
 	struct mbuf *mfree;
 	struct tcpopt to;
+#ifdef TCP_RFC7413
 	int tfo_syn;
+#endif
 	
 #ifdef TCPDEBUG
 	/*
@@ -1964,7 +1966,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				goto dropwithreset;
 		}
 #ifdef TCP_RFC7413
-		if (tp->t_flags & TF_FASTOPEN) {
+		if (IS_FASTOPEN(tp->t_flags)) {
 			/*
 			 * When a TFO connection is in SYN_RECEIVED, the
 			 * only valid packets are the initial SYN, a
@@ -2398,7 +2400,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		    (tp->t_flags & TF_NEEDSYN)) {
 #ifdef TCP_RFC7413
 			if (tp->t_state == TCPS_SYN_RECEIVED &&
-			    tp->t_flags & TF_FASTOPEN) {
+			    IS_FASTOPEN(tp->t_flags)) {
 				tp->snd_wnd = tiwin;
 				cc_conn_init(tp);
 			}
@@ -2461,7 +2463,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			 * snd_cwnd reduction that occurs when a TFO SYN|ACK
 			 * is retransmitted.
 			 */
-			if (!(tp->t_flags & TF_FASTOPEN))
+			if (!IS_FASTOPEN(tp->t_flags))
 #endif
 				cc_conn_init(tp);
 			tcp_timer_activate(tp, TT_KEEP, TP_KEEPIDLE(tp));
@@ -3028,8 +3030,12 @@ dodata:							/* XXX */
 	 * case PRU_RCVD).  If a FIN has already been received on this
 	 * connection then we just ignore the text.
 	 */
+#ifdef TCP_RFC7413
 	tfo_syn = ((tp->t_state == TCPS_SYN_RECEIVED) &&
-		   (tp->t_flags & TF_FASTOPEN));
+		   IS_FASTOPEN(tp->t_flags));
+#else
+#define	tfo_syn	(false)
+#endif
 	if ((tlen || (thflags & TH_FIN) || tfo_syn) &&
 	    TCPS_HAVERCVDFIN(tp->t_state) == 0) {
 		tcp_seq save_start = th->th_seq;
@@ -3253,6 +3259,9 @@ drop:
 	if (tp != NULL)
 		INP_WUNLOCK(tp->t_inpcb);
 	m_freem(m);
+#ifndef TCP_RFC7413
+#undef	tfo_syn
+#endif
 }
 
 /*
