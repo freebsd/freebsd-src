@@ -1071,11 +1071,11 @@ relocked:
 	 * state) we look into the SYN cache if this is a new connection
 	 * attempt or the completion of a previous one.
 	 */
-	if (so->so_options & SO_ACCEPTCONN) {
+	KASSERT(tp->t_state == TCPS_LISTEN || !(so->so_options & SO_ACCEPTCONN),
+	    ("%s: so accepting but tp %p not listening", __func__, tp));
+	if (tp->t_state == TCPS_LISTEN && (so->so_options & SO_ACCEPTCONN)) {
 		struct in_conninfo inc;
 
-		KASSERT(tp->t_state == TCPS_LISTEN, ("%s: so accepting but "
-		    "tp not listening", __func__));
 		bzero(&inc, sizeof(inc));
 #ifdef INET6
 		if (isipv6) {
