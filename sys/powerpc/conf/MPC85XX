@@ -36,6 +36,7 @@ options 	GDB
 options 	GEOM_PART_GPT
 options 	INET
 options 	INET6
+options 	TCP_HHOOK		# hhook(9) framework for TCP
 options 	INVARIANTS
 options 	INVARIANT_SUPPORT
 options 	KDB
