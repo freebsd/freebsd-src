@@ -42,11 +42,8 @@
 #define NDIS_VERSION_6_1                        0x00060001
 #define NDIS_VERSION_6_30                       0x0006001e
 
-#define NDIS_VERSION_MAJOR_6			6
-#define NDIS_VERSION_MINOR_1			1
-#define NDIS_VERSION_MINOR_30			30
-
-#define NDIS_VERSION                            (NDIS_VERSION_5_1)
+#define NDIS_VERSION_MAJOR(ver)			(((ver) & 0xffff0000) >> 16)
+#define NDIS_VERSION_MINOR(ver)			((ver) & 0xffff)
 
 /*
  * Object Identifiers used by NdisRequest Query/Set Information
