@@ -40,6 +40,14 @@
 #define HN_NDIS_VERSION_MAJOR(ver)	(((ver) & 0xffff0000) >> 16)
 #define HN_NDIS_VERSION_MINOR(ver)	((ver) & 0xffff)
 
+/*
+ * NVS versions.
+ */
+#define HN_NVS_VERSION_1		0x00002
+#define HN_NVS_VERSION_2		0x30002
+#define HN_NVS_VERSION_4		0x40000
+#define HN_NVS_VERSION_5		0x50000
+
 #define HN_NVS_RXBUF_SIG		0xcafe
 #define HN_NVS_CHIM_SIG			0xface
 
