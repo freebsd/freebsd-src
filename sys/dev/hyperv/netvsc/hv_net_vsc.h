@@ -1060,7 +1060,6 @@ typedef struct netvsc_dev_ {
 	uint32_t				rx_buf_size;
 	uint32_t				rx_buf_gpadl_handle;
 	uint32_t				rx_section_count;
-	nvsp_1_rx_buf_section			*rx_sections;
 
 	/* Used for NetVSP initialization protocol */
 	struct sema				channel_init_sema;
@@ -1244,6 +1243,7 @@ typedef struct hn_softc {
 	struct taskqueue *hn_tx_taskq;
 	struct sysctl_oid *hn_tx_sysctl_tree;
 	struct sysctl_oid *hn_rx_sysctl_tree;
+	struct vmbus_xact_ctx *hn_xact;
 } hn_softc_t;
 
 /*
