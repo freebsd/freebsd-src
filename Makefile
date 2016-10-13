@@ -397,6 +397,9 @@ MMAKE=		${MMAKEENV} ${MAKE} \
 		-DNO_SUBDIR \
 		DESTDIR= PROGNAME=${MYMAKE:T}
 
+# Hacks to bootstrap make
+MMAKE+=		MK_CHERI_PURE=no
+
 bmake: .PHONY
 	@echo
 	@echo "--------------------------------------------------------------"
