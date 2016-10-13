@@ -182,6 +182,8 @@
   assertion_file_nlinks(__FILE__, __LINE__, pathname, nlinks)
 #define assertFileSize(pathname, size)  \
   assertion_file_size(__FILE__, __LINE__, pathname, size)
+#define assertFileMode(pathname, mode)  \
+  assertion_file_mode(__FILE__, __LINE__, pathname, mode)
 #define assertTextFileContents(text, pathname) \
   assertion_text_file_contents(__FILE__, __LINE__, text, pathname)
 #define assertFileContainsLinesAnyOrder(pathname, lines)	\
@@ -326,6 +328,9 @@ void copy_reference_file(const char *);
  * List must be NULL terminated.
  */
 void extract_reference_files(const char **);
+
+/* Subtract umask from mode */
+mode_t umasked(mode_t expected_mode);
 
 /* Path to working directory for current test */
 extern const char *testworkdir;
