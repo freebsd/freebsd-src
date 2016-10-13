@@ -128,6 +128,13 @@ __FBSDID("$FreeBSD: head/lib/libarchive/test/main.c 201247 2009-12-30 05:59:21Z 
 # include <crtdbg.h>
 #endif
 
+mode_t umasked(mode_t expected_mode)
+{
+	mode_t mode = umask(0);
+	umask(mode);
+	return expected_mode & ~mode;
+}
+
 /* Path to working directory for current test */
 const char *testworkdir;
 #ifdef PROGRAM
@@ -1364,6 +1371,31 @@ assertion_file_birthtime_recent(const char *file, int line,
 	return assertion_file_time(file, line, pathname, 0, 0, 'b', 1);
 }
 
+/* Verify mode of 'pathname'. */
+int
+assertion_file_mode(const char *file, int line, const char *pathname, int expected_mode)
+{
+	int mode;
+	int r;
+
+	assertion_count(file, line);
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	failure_start(file, line, "assertFileMode not yet implemented for Windows");
+#else
+	{
+		struct stat st;
+		r = lstat(pathname, &st);
+		mode = (int)(st.st_mode & 0777);
+	}
+	if (r == 0 && mode == expected_mode)
+			return (1);
+	failure_start(file, line, "File %s has mode %o, expected %o",
+	    pathname, mode, expected_mode);
+#endif
+	failure_finish(NULL);
+	return (0);
+}
+
 /* Verify mtime of 'pathname'. */
 int
 assertion_file_mtime(const char *file, int line,
@@ -1403,7 +1435,7 @@ assertion_file_nlinks(const char *file, int line,
 	assertion_count(file, line);
 	r = lstat(pathname, &st);
 	if (r == 0 && (int)st.st_nlink == nlinks)
-			return (1);
+		return (1);
 	failure_start(file, line, "File %s has %d links, expected %d",
 	    pathname, st.st_nlink, nlinks);
 	failure_finish(NULL);
@@ -1436,31 +1468,6 @@ assertion_file_size(const char *file, int line, const char *pathname, long size)
 			return (1);
 	failure_start(file, line, "File %s has size %ld, expected %ld",
 	    pathname, (long)filesize, (long)size);
-	failure_finish(NULL);
-	return (0);
-}
-
-/* Verify mode of 'pathname'. */
-int
-assertion_file_mode(const char *file, int line, const char *pathname, int expected_mode)
-{
-	int mode;
-	int r;
-
-	assertion_count(file, line);
-#if defined(_WIN32) && !defined(__CYGWIN__)
-	failure_start(file, line, "assertFileMode not yet implemented for Windows");
-#else
-	{
-		struct stat st;
-		r = lstat(pathname, &st);
-		mode = (int)(st.st_mode & 0777);
-	}
-	if (r == 0 && mode == expected_mode)
-			return (1);
-	failure_start(file, line, "File %s has mode %o, expected %o",
-	    pathname, mode, expected_mode);
-#endif
 	failure_finish(NULL);
 	return (0);
 }
@@ -1664,6 +1671,7 @@ assertion_make_file(const char *file, int line,
 	if (0 != chmod(path, mode)) {
 		failure_start(file, line, "Could not chmod %s", path);
 		failure_finish(NULL);
+		close(fd);
 		return (0);
 	}
 	if (contents != NULL) {
@@ -1678,6 +1686,7 @@ assertion_make_file(const char *file, int line,
 			failure_start(file, line,
 			    "Could not write to %s", path);
 			failure_finish(NULL);
+			close(fd);
 			return (0);
 		}
 	}
