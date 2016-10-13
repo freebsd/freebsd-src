@@ -1,7 +1,7 @@
 # 	@(#)Makefile	8.1 (Berkeley) 7/19/93
 # $FreeBSD$
 
-# openpam_static
+# Crash in jemalloc's startup code (arena_boot()).  Possible linker bug.
 WANT_CHERI=none
 
 .include <src.opts.mk>

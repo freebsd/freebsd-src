@@ -1,5 +1,8 @@
 # $FreeBSD$
 
+# broken
+WANT_CHERI=none
+
 PROG=	pkg
 SRCS=	pkg.c dns_utils.c config.c
 MAN=	pkg.7
