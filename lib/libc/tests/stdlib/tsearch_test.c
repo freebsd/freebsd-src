@@ -34,7 +34,7 @@ __FBSDID("$FreeBSD$");
 
 /* Validates the integrity of an AVL tree. */
 static inline unsigned int
-tnode_assert(const node_t *n)
+tnode_assert(const posix_tnode *n)
 {
 	unsigned int height_left, height_right;
 	int balance;
@@ -79,7 +79,7 @@ ATF_TC_BODY(tsearch_test, tc)
 		keys[i] = i;
 
 	/* Apply random operations on a binary tree and check the results. */
-	void *root = NULL;
+	posix_tnode *root = NULL;
 	bool present[NKEYS] = {};
 	for (int i = 0; i < NKEYS * 10; ++i) {
 		int key = nrand48(random_state) % NKEYS;
