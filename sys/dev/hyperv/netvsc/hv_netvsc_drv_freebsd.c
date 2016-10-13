@@ -79,7 +79,7 @@ __FBSDID("$FreeBSD$");
 #include <net/ethernet.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
-
+#include <net/rndis.h>
 #include <net/bpf.h>
 
 #include <net/if_types.h>
@@ -120,7 +120,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/hyperv/include/vmbus_xact.h>
 
 #include <dev/hyperv/netvsc/hv_net_vsc.h>
-#include <dev/hyperv/netvsc/hv_rndis.h>
 #include <dev/hyperv/netvsc/hv_rndis_filter.h>
 #include <dev/hyperv/netvsc/ndis.h>
 
@@ -144,14 +143,14 @@ __FBSDID("$FreeBSD$");
 
 #define HN_RING_CNT_DEF_MAX		8
 
-#define HN_RNDIS_MSG_LEN		\
-    (sizeof(rndis_msg) +		\
-     RNDIS_HASHVAL_PPI_SIZE +		\
-     RNDIS_VLAN_PPI_SIZE +		\
-     RNDIS_TSO_PPI_SIZE +		\
-     RNDIS_CSUM_PPI_SIZE)
-#define HN_RNDIS_MSG_BOUNDARY		PAGE_SIZE
-#define HN_RNDIS_MSG_ALIGN		CACHE_LINE_SIZE
+#define HN_RNDIS_PKT_LEN					\
+	(sizeof(struct rndis_packet_msg) +			\
+	 HN_RNDIS_PKTINFO_SIZE(HN_NDIS_HASH_VALUE_SIZE) +	\
+	 HN_RNDIS_PKTINFO_SIZE(NDIS_VLAN_INFO_SIZE) +		\
+	 HN_RNDIS_PKTINFO_SIZE(NDIS_LSO2_INFO_SIZE) +		\
+	 HN_RNDIS_PKTINFO_SIZE(NDIS_TXCSUM_INFO_SIZE))
+#define HN_RNDIS_PKT_BOUNDARY		PAGE_SIZE
+#define HN_RNDIS_PKT_ALIGN		CACHE_LINE_SIZE
 
 #define HN_TX_DATA_BOUNDARY		PAGE_SIZE
 #define HN_TX_DATA_MAXSIZE		IP_MAXPACKET
@@ -175,9 +174,9 @@ struct hn_txdesc {
 
 	bus_dmamap_t	data_dmap;
 
-	bus_addr_t	rndis_msg_paddr;
-	rndis_msg	*rndis_msg;
-	bus_dmamap_t	rndis_msg_dmap;
+	bus_addr_t	rndis_pkt_paddr;
+	struct rndis_packet_msg *rndis_pkt;
+	bus_dmamap_t	rndis_pkt_dmap;
 };
 
 #define HN_TXD_FLAG_ONLIST	0x1
@@ -839,7 +838,7 @@ hn_tx_done(struct hn_send_ctx *sndc, struct hn_softc *sc,
 }
 
 void
-netvsc_channel_rollup(struct hn_rx_ring *rxr, struct hn_tx_ring *txr)
+hn_chan_rollup(struct hn_rx_ring *rxr, struct hn_tx_ring *txr)
 {
 #if defined(INET) || defined(INET6)
 	struct lro_ctrl *lro = &rxr->hn_lro;
@@ -863,6 +862,15 @@ netvsc_channel_rollup(struct hn_rx_ring *rxr, struct hn_tx_ring *txr)
 	hn_txeof(txr);
 }
 
+static __inline uint32_t
+hn_rndis_pktmsg_offset(uint32_t ofs)
+{
+
+	KASSERT(ofs >= sizeof(struct rndis_packet_msg),
+	    ("invalid RNDIS packet msg offset %u", ofs));
+	return (ofs - __offsetof(struct rndis_packet_msg, rm_dataoffset));
+}
+
 /*
  * NOTE:
  * If this function fails, then both txd and m_head0 will be freed.
@@ -873,14 +881,10 @@ hn_encap(struct hn_tx_ring *txr, struct hn_txdesc *txd, struct mbuf **m_head0)
 	bus_dma_segment_t segs[HN_TX_DATA_SEGCNT_MAX];
 	int error, nsegs, i;
 	struct mbuf *m_head = *m_head0;
-	rndis_msg *rndis_mesg;
-	rndis_packet *rndis_pkt;
-	rndis_per_packet_info *rppi;
-	struct rndis_hash_value *hash_value;
-	uint32_t rndis_msg_size, tot_data_buf_len, send_buf_section_idx;
-	int send_buf_section_size;
-
-	tot_data_buf_len = m_head->m_pkthdr.len;
+	struct rndis_packet_msg *pkt;
+	uint32_t send_buf_section_idx;
+	int send_buf_section_size, pktlen;
+	uint32_t *pi_data;
 
 	/*
 	 * extension points to the area reserved for the
@@ -888,45 +892,34 @@ hn_encap(struct hn_tx_ring *txr, struct hn_txdesc *txd, struct mbuf **m_head0)
 	 * the netvsc_packet (and rppi struct, if present;
 	 * length is updated later).
 	 */
-	rndis_mesg = txd->rndis_msg;
-	/* XXX not necessary */
-	memset(rndis_mesg, 0, HN_RNDIS_MSG_LEN);
-	rndis_mesg->ndis_msg_type = REMOTE_NDIS_PACKET_MSG;
-
-	rndis_pkt = &rndis_mesg->msg.packet;
-	rndis_pkt->data_offset = sizeof(rndis_packet);
-	rndis_pkt->data_length = tot_data_buf_len;
-	rndis_pkt->per_pkt_info_offset = sizeof(rndis_packet);
-
-	rndis_msg_size = RNDIS_MESSAGE_SIZE(rndis_packet);
+	pkt = txd->rndis_pkt;
+	pkt->rm_type = REMOTE_NDIS_PACKET_MSG;
+	pkt->rm_len = sizeof(*pkt) + m_head->m_pkthdr.len;
+	pkt->rm_dataoffset = sizeof(*pkt);
+	pkt->rm_datalen = m_head->m_pkthdr.len;
+	pkt->rm_pktinfooffset = sizeof(*pkt);
+	pkt->rm_pktinfolen = 0;
 
 	/*
 	 * Set the hash value for this packet, so that the host could
 	 * dispatch the TX done event for this packet back to this TX
 	 * ring's channel.
 	 */
-	rndis_msg_size += RNDIS_HASHVAL_PPI_SIZE;
-	rppi = hv_set_rppi_data(rndis_mesg, RNDIS_HASHVAL_PPI_SIZE,
-	    nbl_hash_value);
-	hash_value = (struct rndis_hash_value *)((uint8_t *)rppi +
-	    rppi->per_packet_info_offset);
-	hash_value->hash_value = txr->hn_tx_idx;
+	pi_data = hn_rndis_pktinfo_append(pkt, HN_RNDIS_PKT_LEN,
+	    HN_NDIS_HASH_VALUE_SIZE, HN_NDIS_PKTINFO_TYPE_HASHVAL);
+	*pi_data = txr->hn_tx_idx;
 
 	if (m_head->m_flags & M_VLANTAG) {
-		ndis_8021q_info *rppi_vlan_info;
-
-		rndis_msg_size += RNDIS_VLAN_PPI_SIZE;
-		rppi = hv_set_rppi_data(rndis_mesg, RNDIS_VLAN_PPI_SIZE,
-		    ieee_8021q_info);
-
-		rppi_vlan_info = (ndis_8021q_info *)((uint8_t *)rppi +
-		    rppi->per_packet_info_offset);
-		rppi_vlan_info->u1.s1.vlan_id =
-		    m_head->m_pkthdr.ether_vtag & 0xfff;
+		pi_data = hn_rndis_pktinfo_append(pkt, HN_RNDIS_PKT_LEN,
+		    NDIS_VLAN_INFO_SIZE, NDIS_PKTINFO_TYPE_VLAN);
+		*pi_data = NDIS_VLAN_INFO_MAKE(
+		    EVL_VLANOFTAG(m_head->m_pkthdr.ether_vtag),
+		    EVL_PRIOFTAG(m_head->m_pkthdr.ether_vtag),
+		    EVL_CFIOFTAG(m_head->m_pkthdr.ether_vtag));
 	}
 
 	if (m_head->m_pkthdr.csum_flags & CSUM_TSO) {
-		rndis_tcp_tso_info *tso_info;	
+#if defined(INET6) || defined(INET)
 		struct ether_vlan_header *eh;
 		int ether_len;
 
@@ -939,15 +932,8 @@ hn_encap(struct hn_tx_ring *txr, struct hn_txdesc *txd, struct mbuf **m_head0)
 		else
 			ether_len = ETHER_HDR_LEN;
 
-		rndis_msg_size += RNDIS_TSO_PPI_SIZE;
-		rppi = hv_set_rppi_data(rndis_mesg, RNDIS_TSO_PPI_SIZE,
-		    tcp_large_send_info);
-
-		tso_info = (rndis_tcp_tso_info *)((uint8_t *)rppi +
-		    rppi->per_packet_info_offset);
-		tso_info->lso_v2_xmit.type =
-		    RNDIS_TCP_LARGE_SEND_OFFLOAD_V2_TYPE;
-
+		pi_data = hn_rndis_pktinfo_append(pkt, HN_RNDIS_PKT_LEN,
+		    NDIS_LSO2_INFO_SIZE, NDIS_PKTINFO_TYPE_LSO);
 #ifdef INET
 		if (m_head->m_pkthdr.csum_flags & CSUM_IP_TSO) {
 			struct ip *ip =
@@ -956,13 +942,12 @@ hn_encap(struct hn_tx_ring *txr, struct hn_txdesc *txd, struct mbuf **m_head0)
 			struct tcphdr *th =
 			    (struct tcphdr *)((caddr_t)ip + iph_len);
 
-			tso_info->lso_v2_xmit.ip_version =
-			    RNDIS_TCP_LARGE_SEND_OFFLOAD_IPV4;
 			ip->ip_len = 0;
 			ip->ip_sum = 0;
-
 			th->th_sum = in_pseudo(ip->ip_src.s_addr,
 			    ip->ip_dst.s_addr, htons(IPPROTO_TCP));
+			*pi_data = NDIS_LSO2_INFO_MAKEIPV4(0,
+			    m_head->m_pkthdr.tso_segsz);
 		}
 #endif
 #if defined(INET6) && defined(INET)
@@ -974,53 +959,47 @@ hn_encap(struct hn_tx_ring *txr, struct hn_txdesc *txd, struct mbuf **m_head0)
 			    (m_head->m_data + ether_len);
 			struct tcphdr *th = (struct tcphdr *)(ip6 + 1);
 
-			tso_info->lso_v2_xmit.ip_version =
-			    RNDIS_TCP_LARGE_SEND_OFFLOAD_IPV6;
 			ip6->ip6_plen = 0;
 			th->th_sum = in6_cksum_pseudo(ip6, 0, IPPROTO_TCP, 0);
+			*pi_data = NDIS_LSO2_INFO_MAKEIPV6(0,
+			    m_head->m_pkthdr.tso_segsz);
 		}
 #endif
-		tso_info->lso_v2_xmit.tcp_header_offset = 0;
-		tso_info->lso_v2_xmit.mss = m_head->m_pkthdr.tso_segsz;
+#endif	/* INET6 || INET */
 	} else if (m_head->m_pkthdr.csum_flags & txr->hn_csum_assist) {
-		rndis_tcp_ip_csum_info *csum_info;
+		pi_data = hn_rndis_pktinfo_append(pkt, HN_RNDIS_PKT_LEN,
+		    NDIS_TXCSUM_INFO_SIZE, NDIS_PKTINFO_TYPE_CSUM);
+		*pi_data = NDIS_TXCSUM_INFO_IPV4;
 
-		rndis_msg_size += RNDIS_CSUM_PPI_SIZE;
-		rppi = hv_set_rppi_data(rndis_mesg, RNDIS_CSUM_PPI_SIZE,
-		    tcpip_chksum_info);
-		csum_info = (rndis_tcp_ip_csum_info *)((uint8_t *)rppi +
-		    rppi->per_packet_info_offset);
-
-		csum_info->xmit.is_ipv4 = 1;
 		if (m_head->m_pkthdr.csum_flags & CSUM_IP)
-			csum_info->xmit.ip_header_csum = 1;
+			*pi_data |= NDIS_TXCSUM_INFO_IPCS;
 
-		if (m_head->m_pkthdr.csum_flags & CSUM_TCP) {
-			csum_info->xmit.tcp_csum = 1;
-			csum_info->xmit.tcp_header_offset = 0;
-		} else if (m_head->m_pkthdr.csum_flags & CSUM_UDP) {
-			csum_info->xmit.udp_csum = 1;
-		}
+		if (m_head->m_pkthdr.csum_flags & CSUM_TCP)
+			*pi_data |= NDIS_TXCSUM_INFO_TCPCS;
+		else if (m_head->m_pkthdr.csum_flags & CSUM_UDP)
+			*pi_data |= NDIS_TXCSUM_INFO_UDPCS;
 	}
 
-	rndis_mesg->msg_len = tot_data_buf_len + rndis_msg_size;
-	tot_data_buf_len = rndis_mesg->msg_len;
+	pktlen = pkt->rm_pktinfooffset + pkt->rm_pktinfolen;
+	/* Convert RNDIS packet message offsets */
+	pkt->rm_dataoffset = hn_rndis_pktmsg_offset(pkt->rm_dataoffset);
+	pkt->rm_pktinfooffset = hn_rndis_pktmsg_offset(pkt->rm_pktinfooffset);
 
 	/*
 	 * Chimney send, if the packet could fit into one chimney buffer.
 	 */
-	if (tot_data_buf_len < txr->hn_chim_size) {
+	if (pkt->rm_len < txr->hn_chim_size) {
 		txr->hn_tx_chimney_tried++;
 		send_buf_section_idx = hn_chim_alloc(txr->hn_sc);
 		if (send_buf_section_idx != HN_NVS_CHIM_IDX_INVALID) {
 			uint8_t *dest = txr->hn_sc->hn_chim +
 			    (send_buf_section_idx * txr->hn_sc->hn_chim_szmax);
 
-			memcpy(dest, rndis_mesg, rndis_msg_size);
-			dest += rndis_msg_size;
+			memcpy(dest, pkt, pktlen);
+			dest += pktlen;
 			m_copydata(m_head, 0, m_head->m_pkthdr.len, dest);
 
-			send_buf_section_size = tot_data_buf_len;
+			send_buf_section_size = pkt->rm_len;
 			txr->hn_gpa_cnt = 0;
 			txr->hn_tx_chimney++;
 			goto done;
@@ -1051,9 +1030,9 @@ hn_encap(struct hn_tx_ring *txr, struct hn_txdesc *txd, struct mbuf **m_head0)
 	txr->hn_gpa_cnt = nsegs + 1;
 
 	/* send packet with page buffer */
-	txr->hn_gpa[0].gpa_page = atop(txd->rndis_msg_paddr);
-	txr->hn_gpa[0].gpa_ofs = txd->rndis_msg_paddr & PAGE_MASK;
-	txr->hn_gpa[0].gpa_len = rndis_msg_size;
+	txr->hn_gpa[0].gpa_page = atop(txd->rndis_pkt_paddr);
+	txr->hn_gpa[0].gpa_ofs = txd->rndis_pkt_paddr & PAGE_MASK;
+	txr->hn_gpa[0].gpa_len = pktlen;
 
 	/*
 	 * Fill the page buffers with mbuf info after the page
@@ -1301,7 +1280,7 @@ hn_lro_rx(struct lro_ctrl *lc, struct mbuf *m)
  * Note:  This is no longer used as a callback
  */
 int
-netvsc_recv(struct hn_rx_ring *rxr, const void *data, int dlen,
+hn_rxpkt(struct hn_rx_ring *rxr, const void *data, int dlen,
     const struct hn_recvinfo *info)
 {
 	struct ifnet *ifp = rxr->hn_ifp;
@@ -2154,8 +2133,8 @@ hn_ndis_version_sysctl(SYSCTL_HANDLER_ARGS)
 	char verstr[16];
 
 	snprintf(verstr, sizeof(verstr), "%u.%u",
-	    NDIS_VERSION_MAJOR(sc->hn_ndis_ver),
-	    NDIS_VERSION_MINOR(sc->hn_ndis_ver));
+	    HN_NDIS_VERSION_MAJOR(sc->hn_ndis_ver),
+	    HN_NDIS_VERSION_MINOR(sc->hn_ndis_ver));
 	return sysctl_handle_string(oidp, verstr, sizeof(verstr), req);
 }
 
@@ -2515,16 +2494,16 @@ hn_create_tx_ring(struct hn_softc *sc, int id)
 
 	parent_dtag = bus_get_dma_tag(dev);
 
-	/* DMA tag for RNDIS messages. */
+	/* DMA tag for RNDIS packet messages. */
 	error = bus_dma_tag_create(parent_dtag, /* parent */
-	    HN_RNDIS_MSG_ALIGN,		/* alignment */
-	    HN_RNDIS_MSG_BOUNDARY,	/* boundary */
+	    HN_RNDIS_PKT_ALIGN,		/* alignment */
+	    HN_RNDIS_PKT_BOUNDARY,	/* boundary */
 	    BUS_SPACE_MAXADDR,		/* lowaddr */
 	    BUS_SPACE_MAXADDR,		/* highaddr */
 	    NULL, NULL,			/* filter, filterarg */
-	    HN_RNDIS_MSG_LEN,		/* maxsize */
+	    HN_RNDIS_PKT_LEN,		/* maxsize */
 	    1,				/* nsegments */
-	    HN_RNDIS_MSG_LEN,		/* maxsegsize */
+	    HN_RNDIS_PKT_LEN,		/* maxsegsize */
 	    0,				/* flags */
 	    NULL,			/* lockfunc */
 	    NULL,			/* lockfuncarg */
@@ -2559,28 +2538,28 @@ hn_create_tx_ring(struct hn_softc *sc, int id)
 		txd->txr = txr;
 
 		/*
-		 * Allocate and load RNDIS messages.
+		 * Allocate and load RNDIS packet message.
 		 */
         	error = bus_dmamem_alloc(txr->hn_tx_rndis_dtag,
-		    (void **)&txd->rndis_msg,
-		    BUS_DMA_WAITOK | BUS_DMA_COHERENT,
-		    &txd->rndis_msg_dmap);
+		    (void **)&txd->rndis_pkt,
+		    BUS_DMA_WAITOK | BUS_DMA_COHERENT | BUS_DMA_ZERO,
+		    &txd->rndis_pkt_dmap);
 		if (error) {
 			device_printf(dev,
-			    "failed to allocate rndis_msg, %d\n", i);
+			    "failed to allocate rndis_packet_msg, %d\n", i);
 			return error;
 		}
 
 		error = bus_dmamap_load(txr->hn_tx_rndis_dtag,
-		    txd->rndis_msg_dmap,
-		    txd->rndis_msg, HN_RNDIS_MSG_LEN,
-		    hyperv_dma_map_paddr, &txd->rndis_msg_paddr,
+		    txd->rndis_pkt_dmap,
+		    txd->rndis_pkt, HN_RNDIS_PKT_LEN,
+		    hyperv_dma_map_paddr, &txd->rndis_pkt_paddr,
 		    BUS_DMA_NOWAIT);
 		if (error) {
 			device_printf(dev,
-			    "failed to load rndis_msg, %d\n", i);
+			    "failed to load rndis_packet_msg, %d\n", i);
 			bus_dmamem_free(txr->hn_tx_rndis_dtag,
-			    txd->rndis_msg, txd->rndis_msg_dmap);
+			    txd->rndis_pkt, txd->rndis_pkt_dmap);
 			return error;
 		}
 
@@ -2591,9 +2570,9 @@ hn_create_tx_ring(struct hn_softc *sc, int id)
 			device_printf(dev,
 			    "failed to allocate tx data dmamap\n");
 			bus_dmamap_unload(txr->hn_tx_rndis_dtag,
-			    txd->rndis_msg_dmap);
+			    txd->rndis_pkt_dmap);
 			bus_dmamem_free(txr->hn_tx_rndis_dtag,
-			    txd->rndis_msg, txd->rndis_msg_dmap);
+			    txd->rndis_pkt, txd->rndis_pkt_dmap);
 			return error;
 		}
 
@@ -2651,9 +2630,9 @@ hn_txdesc_dmamap_destroy(struct hn_txdesc *txd)
 	KASSERT(txd->m == NULL, ("still has mbuf installed"));
 	KASSERT((txd->flags & HN_TXD_FLAG_DMAMAP) == 0, ("still dma mapped"));
 
-	bus_dmamap_unload(txr->hn_tx_rndis_dtag, txd->rndis_msg_dmap);
-	bus_dmamem_free(txr->hn_tx_rndis_dtag, txd->rndis_msg,
-	    txd->rndis_msg_dmap);
+	bus_dmamap_unload(txr->hn_tx_rndis_dtag, txd->rndis_pkt_dmap);
+	bus_dmamem_free(txr->hn_tx_rndis_dtag, txd->rndis_pkt,
+	    txd->rndis_pkt_dmap);
 	bus_dmamap_destroy(txr->hn_tx_data_dtag, txd->data_dmap);
 }
 
