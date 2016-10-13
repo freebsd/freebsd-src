@@ -87,7 +87,7 @@ typedef union
                                                 PCIe memory space pointers in the LAST POINTERS block in the
                                                 OUTBOUND, INBOUND, and EXTERNAL-ONLY cases. Must be zero in the
                                                 INTERNAL-ONLY case. Must be zero on chips with PCI */
-        cvmx_dma_engine_transfer_t type :  2; /**< Type ­ A given PCI DMA transfer is either OUTBOUND (read from L2/DRAM,
+        cvmx_dma_engine_transfer_t type :  2; /**< Type - A given PCI DMA transfer is either OUTBOUND (read from L2/DRAM,
                                                 write into PCI / PCIe memory space), INBOUND (read from PCI / PCIe memory space, write
                                                 into L2/DRAM), INTERNAL-ONLY (read from L2/DRAM, write into L2/DRAM), or
                                                 EXTERNAL-ONLY (read from PCIe memory space, write into PCIe memory space). */
@@ -95,14 +95,14 @@ typedef union
                                                 work-queue entry that is submitted by the hardware after completing the DMA;
                                                 when WQP = 0, PTR (if non-zero) is a pointer to a byte in local memory that
                                                 is written to 0 by the hardware after completing the DMA. */
-        uint64_t    c               :  1;   /**< C ­ Counter. 1 = use counter 1, 0 = use counter 0.
+        uint64_t    c               :  1;   /**< C - Counter. 1 = use counter 1, 0 = use counter 0.
                                                 The C bit selects between the two counters (NPEI_DMA_CNTS[DMA0,DMA1])
                                                 that can optionally be updated after an OUTBOUND or EXTERNAL-ONLY
                                                 transfer, and also selects between the two forced-interrupt bits
                                                 (NPEI_INT_SUMn[DMA0_FI, DMA1_FI]) that can optionally be set after an
                                                 OUTBOUND or EXTERNAL-ONLY transfer. C must be zero for INBOUND or
                                                 INTERNAL-ONLY transfers. */
-        uint64_t    ca              :  1;   /**< CA ­ Counter add.
+        uint64_t    ca              :  1;   /**< CA - Counter add.
                                                 When CA = 1, the hardware updates the selected counter after it completes the
                                                 PCI DMA OUTBOUND or EXTERNAL-ONLY Instruction.
                                                     - If C = 0, PCIE_DMA_CNT0 is updated
@@ -117,13 +117,13 @@ typedef union
                                                 When CA = 0, the hardware does not update any counters.
                                                 For an INBOUND or INTERNAL-ONLY PCI DMA transfer, CA must never be
                                                 set, and the hardware never adds to the counters. */
-        uint64_t    fi              :  1;   /**< FI ­ Force interrupt.
+        uint64_t    fi              :  1;   /**< FI - Force interrupt.
                                                 When FI is set for an OUTBOUND or EXTERNAL-ONLY transfer, the hardware
                                                 sets a forced interrupt bit after it completes the PCI DMA Instruction. If C = 0,
                                                 NPEI_INT_SUMn[DMA0_FI] is set, else NPEI_INT_SUMn[DMA1_FI] is set. For
                                                 an INBOUND or INTERNAL-ONLY PCI DMA operation, FI must never be set,
                                                 and the hardware never generates interrupts. */
-        uint64_t    ii              :  1;   /**< II­ Ignore the I bit (i.e. the I bit of the PCI DMA instruction local pointer).
+        uint64_t    ii              :  1;   /**< II- Ignore the I bit (i.e. the I bit of the PCI DMA instruction local pointer).
                                                 For OUTBOUND transfers when II = 1, ignore the I bit and the FL bit in the
                                                 DMA HDR alone determines whether the hardware frees any/all of the local
                                                 buffers in the FIRST POINTERS area:
@@ -134,7 +134,7 @@ typedef union
                                                     - when (FL  I) is true, the hardware frees the local buffer when II=0.
                                                 For INBOUND, INTERNAL-ONLY, and EXTERNAL-ONLY PCI DMA transfers,
                                                 II must never be set, and local buffers are never freed. */
-        uint64_t    fl              :  1;   /**< FL ­ Free local buffer.
+        uint64_t    fl              :  1;   /**< FL - Free local buffer.
                                                 When FL = 1, for an OUTBOUND operation, it indicates that the local buffers in
                                                 the FIRST BUFFERS area should be freed.
                                                 If II = 1, the FL bit alone indicates whether the local buffer should be freed:
@@ -145,7 +145,7 @@ typedef union
                                                     - when (FL  I) is true, the hardware frees the local buffer when II=0.
                                                 For an INBOUND, INTERNAL-ONLY, or EXTERNAL-ONLY PCI DMA transfer,
                                                 FL must never be set, and local buffers are never freed. */
-        uint64_t    nlst            :  4;   /**< NLST ­ Number Last pointers.
+        uint64_t    nlst            :  4;   /**< NLST - Number Last pointers.
                                                 The number of pointers in the LAST POINTERS area.
                                                 In the INBOUND, OUTBOUND, and EXTERNAL-ONLY cases, the LAST
                                                 POINTERS area contains PCI components, and the number of 64-bit words
@@ -156,7 +156,7 @@ typedef union
                                                     - HDR.NLST
                                                 Note that the sum of the number of 64-bit words in the LAST POINTERS and
                                                 FIRST POINTERS area must never exceed 31. */
-        uint64_t    nfst            :  4;   /**< NFST ­ Number First pointers.
+        uint64_t    nfst            :  4;   /**< NFST - Number First pointers.
                                                 The number of pointers in the FIRST POINTERS area.
                                                 In the INBOUND, OUTBOUND, and INTERNAL-ONLY cases, the FIRST
                                                 POINTERS area contains local pointers, and the number of 64-bit words required
@@ -166,7 +166,7 @@ typedef union
                                                 components, and the number of 64-bit words required in the FIRST POINTERS
                                                 area is:
                                                     - HDR.NFST + ((HDR.NFST + 3)/4) where the division removes the fraction. */
-        uint64_t    addr            : 40;   /**< PTR ­ Pointer, either a work-queue-entry pointer (when WQP = 1) or a local
+        uint64_t    addr            : 40;   /**< PTR - Pointer, either a work-queue-entry pointer (when WQP = 1) or a local
                                                 memory pointer (WQP = 0).
                                                 When WQP = 1 and PTR  0x0, the hardware inserts the work-queue entry
                                                 indicated by PTR into a POW input queue after the PCI DMA operation is
@@ -186,12 +186,12 @@ typedef union
     uint64_t u64;
     struct
     {
-        uint64_t    i               :  1;   /**< I ­ Invert free.
+        uint64_t    i               :  1;   /**< I - Invert free.
                                                 This bit gives the software the ability to free buffers independently for an
                                                 OUTBOUND PCI DMA transfer. I is not used by the hardware when II is set. I
                                                 must not be set, and buffers are never freed, for INBOUND, INTERNAL-ONLY,
                                                 and EXTERNAL-ONLY PCI DMA transfers. */
-        uint64_t    back            :  4;   /**< Back ­ Backup amount.
+        uint64_t    back            :  4;   /**< Back - Backup amount.
                                                 Allows the start of a buffer that is to be freed during an OUTBOUND transfer to
                                                 be different from the ptr value. Back specifies the amount to subtract from the
                                                 pointer to reach the start when freeing a buffer.
@@ -200,13 +200,13 @@ typedef union
                                                 Back is only used by the hardware when the buffer corresponding to ptr is freed.
                                                 Back must be 0x0, and buffers are never freed, for INBOUND, INTERNAL-ONLY,
                                                 and EXTERNAL-ONLY PCI DMA transfers. */
-        uint64_t    pool            :  3;   /**< Pool ­ Free pool.
+        uint64_t    pool            :  3;   /**< Pool - Free pool.
                                                 Specifies which pool (of the eight hardware-managed FPA free pools) receives the
                                                 buffer associated with ptr when freed during an OUTBOUND transfer.
                                                 Pool is only used when the buffer corresponding to ptr is freed. Pool must be 0x0,
                                                 and buffers are never freed, for INBOUND, INTERNAL-ONLY, and EXTERNAL-ONLY
                                                 PCI DMA transfers. */
-        uint64_t    f               :  1;   /**< F ­ Full-block writes are allowed.
+        uint64_t    f               :  1;   /**< F - Full-block writes are allowed.
                                                 When set, the hardware is permitted to write all the bytes in the cache blocks
                                                 covered by ptr, ptr + Size - 1. This can improve memory system performance
                                                 when the write misses in the L2 cache.
@@ -218,12 +218,12 @@ typedef union
                                                 F must not be set for local pointers that are not written to:
                                                     - The local pointers in the FIRST POINTERS area for OUTBOUND and
                                                     INTERNAL-ONLY transfers. */
-        uint64_t    a               :  1;   /**< A ­ Allocate L2.
+        uint64_t    a               :  1;   /**< A - Allocate L2.
                                                 This is a hint to the hardware that the cache blocks should be allocated in the L2
                                                 cache (if they were not already). */
-        uint64_t    l               :  1;   /**< L ­ Little-endian.
+        uint64_t    l               :  1;   /**< L - Little-endian.
                                                 When L is set, the data at ptr is in little-endian format rather than big-endian. */
-        uint64_t    size            : 13;   /**< Size ­ Size in bytes of the contiguous space specified by ptr. A Size value of 0 is
+        uint64_t    size            : 13;   /**< Size - Size in bytes of the contiguous space specified by ptr. A Size value of 0 is
                                                 illegal. Note that the sum of the sizes in the FIRST POINTERS area must always
                                                 exactly equal the sum of the sizes/lengths in the LAST POINTERS area:
                                                     - In the OUTBOUND and INBOUND cases, the HDR.NFST size fields in the
