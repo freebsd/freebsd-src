@@ -1346,6 +1346,8 @@ vmbus_subchan_get(struct vmbus_channel *pri_chan, int subchan_cnt)
 	struct vmbus_channel **ret, *chan;
 	int i;
 
+	KASSERT(subchan_cnt > 0, ("invalid sub-channel count %d", subchan_cnt));
+
 	ret = malloc(subchan_cnt * sizeof(struct vmbus_channel *), M_TEMP,
 	    M_WAITOK);
 
