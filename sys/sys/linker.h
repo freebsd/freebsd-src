@@ -73,6 +73,7 @@ struct linker_file {
     int			userrefs;	/* kldload(2) count */
     int			flags;
 #define LINKER_FILE_LINKED	0x1	/* file has been fully linked */
+#define LINKER_FILE_MODULES	0x2	/* file has >0 modules at preload */
     TAILQ_ENTRY(linker_file) link;	/* list of all loaded files */
     char*		filename;	/* file which was loaded */
     char*		pathname;	/* file name with full path */
