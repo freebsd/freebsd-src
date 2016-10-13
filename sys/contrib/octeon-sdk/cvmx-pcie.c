@@ -981,7 +981,7 @@ static int __cvmx_pcie_rc_initialize_gen2(int pcie_port)
 
     /* Make sure we aren't trying to setup a target mode interface in host mode */
     mio_rst_ctl.u64 = cvmx_read_csr(CVMX_MIO_RST_CTLX(pcie_port));
-    ep_mode = (OCTEON_IS_MODEL(OCTEON_CN61XX || OCTEON_IS_MODEL(OCTEON_CNF71XX)) ? (mio_rst_ctl.s.prtmode != 1) : (!mio_rst_ctl.s.host_mode));
+    ep_mode = ((OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)) ? (mio_rst_ctl.s.prtmode != 1) : (!mio_rst_ctl.s.host_mode));
     if (ep_mode)
     {
         cvmx_dprintf("PCIe: Port %d in endpoint mode.\n", pcie_port);
