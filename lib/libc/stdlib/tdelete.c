@@ -46,9 +46,9 @@ __FBSDID("$FreeBSD$");
 		 * that we won't need to perform any rotations above	\
 		 * this point. In this case rotations are always	\
 		 * capable of keeping the subtree in balance. Make	\
-		 * this the base node and reset the path.		\
+		 * this the root node and reset the path.		\
 		 */							\
-		base = leaf;						\
+		rootp = leaf;						\
 		path_init(&path);					\
 	}								\
 	path_taking_left(&path);					\
@@ -59,7 +59,7 @@ __FBSDID("$FreeBSD$");
 #define	GO_RIGHT() do {							\
 	if ((*leaf)->balance == 0 ||					\
 	    ((*leaf)->balance > 0 && (*leaf)->llink->balance == 0)) {	\
-		base = leaf;						\
+		rootp = leaf;						\
 		path_init(&path);					\
 	}								\
 	path_taking_right(&path);					\
@@ -67,18 +67,16 @@ __FBSDID("$FreeBSD$");
 } while (0)
 
 void *
-tdelete(const void *restrict key, void **restrict rootp,
+tdelete(const void *restrict key, posix_tnode **restrict rootp,
     int (*compar)(const void *, const void *))
 {
 	struct path path;
-	node_t *root, **base, **leaf, *old, **n, *x, *y, *z;
-	void *result;
+	posix_tnode **leaf, *old, **n, *x, *y, *z, *result;
 	int cmp;
 
 	/* POSIX requires that tdelete() returns NULL if rootp is NULL. */
 	if (rootp == NULL)
 		return (NULL);
-	root = *rootp;
 
 	/*
 	 * Find the leaf that needs to be removed. Return if we cannot
@@ -86,19 +84,18 @@ tdelete(const void *restrict key, void **restrict rootp,
 	 * to get to the node, as we will need it to adjust the
 	 * balances.
 	 */
-	result = (void *)1;
+	result = (posix_tnode *)1;
 	path_init(&path);
-	base = &root;
-	leaf = &root;
+	leaf = rootp;
 	for (;;) {
 		if (*leaf == NULL)
 			return (NULL);
 		cmp = compar(key, (*leaf)->key);
 		if (cmp < 0) {
-			result = &(*leaf)->key;
+			result = *leaf;
 			GO_LEFT();
 		} else if (cmp > 0) {
-			result = &(*leaf)->key;
+			result = *leaf;
 			GO_RIGHT();
 		} else {
 			break;
@@ -134,7 +131,7 @@ tdelete(const void *restrict key, void **restrict rootp,
 	 * and left-left case that only exists when deleting. Hence the
 	 * duplication of code.
 	 */
-	for (n = base; n != leaf;) {
+	for (n = rootp; n != leaf;) {
 		if (path_took_left(&path)) {
 			x = *n;
 			if (x->balance < 0) {
@@ -207,6 +204,5 @@ tdelete(const void *restrict key, void **restrict rootp,
 	}
 
 	/* Return the parent of the old entry. */
-	*rootp = root;
 	return (result);
 }
