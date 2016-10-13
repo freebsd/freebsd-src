@@ -2211,7 +2211,7 @@ nandfs_whiteout(struct vop_whiteout_args *ap)
 		/* Create a new directory whiteout */
 #ifdef INVARIANTS
 		if ((cnp->cn_flags & SAVENAME) == 0)
-			panic("ufs_whiteout: missing name");
+			panic("nandfs_whiteout: missing name");
 #endif
 		error = nandfs_add_dirent(dvp, NANDFS_WHT_INO, cnp->cn_nameptr,
 		    cnp->cn_namelen, DT_WHT);
