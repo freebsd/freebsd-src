@@ -713,6 +713,14 @@ static struct da_quirk_entry da_quirk_table[] =
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "JetFlash", "Transcend*",
 		 "*"}, /*quirks*/ DA_Q_NO_RC16
 	},
+	{
+		/*
+		 * I-O Data USB Flash Disk
+		 * PR: usb/211716
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "I-O DATA", "USB Flash Disk*",
+		 "*"}, /*quirks*/ DA_Q_NO_RC16
+	},
 	/* ATA/SATA devices over SAS/USB/... */
 	{
 		/* Hitachi Advanced Format (4k) drives */
