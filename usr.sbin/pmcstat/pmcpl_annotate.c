@@ -103,7 +103,7 @@ pmcpl_annotate_process(struct pmcstat_process *pp, struct pmcstat_pmcrecord *pmc
 		return;
 
 	fprintf(args.pa_graphfile, "%p %s 0x%jx 0x%jx\n",
-		(void *)cc[0],
+		(void *)(intptr_t)cc[0],
 		pmcstat_string_unintern(sym->ps_name),
 		(uintmax_t)(sym->ps_start +
 		image->pi_vaddr), (uintmax_t)(sym->ps_end +

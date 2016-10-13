@@ -280,7 +280,7 @@ pmcstat_cgnode_print(struct pmcstat_cgnode *cg, int depth, uint32_t total)
 		    pmcstat_string_unintern(sym->ps_name));
 	else
 		(void) fprintf(args.pa_graphfile, "%p",
-		    (void *) (cg->pcg_image->pi_vaddr + cg->pcg_func));
+		    (void *)(intptr_t) (cg->pcg_image->pi_vaddr + cg->pcg_func));
 
 	if (pmcstat_previous_filename_printed !=
 	    cg->pcg_image->pi_fullpath) {
@@ -490,7 +490,7 @@ pmcstat_cgnode_topprint(struct pmcstat_cgnode *cg,
 		    pmcstat_string_unintern(sym->ps_name));
 	} else
 		snprintf(ns, sizeof(ns), "%p",
-		    (void *)cg->pcg_func);
+		    (void *)(intptr_t)cg->pcg_func);
 
 	PMCSTAT_ATTRON(v_attrs);
 	PMCSTAT_PRINTW("%5.5s", vs);
@@ -549,7 +549,7 @@ pmcstat_cgnode_topprint(struct pmcstat_cgnode *cg,
 			    pmcstat_string_unintern(sym->ps_name));
 		} else
 			ns_len = snprintf(ns, sizeof(ns), "%p",
-			    (void *)pcg->pcg_func);
+			    (void *)(intptr_t)pcg->pcg_func);
 
 		len = ns_len + vs_len + 1;
 		if (width - len < 0) {

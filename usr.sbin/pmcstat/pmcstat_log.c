@@ -1019,7 +1019,7 @@ pmcstat_image_addr2line(struct pmcstat_image *image, uintfptr_t addr,
 		return (0);
 	}
 
-	fprintf(image->pi_addr2line, "%p\n", (void *)addr);
+	fprintf(image->pi_addr2line, "%p\n", (void *)(intptr_t)addr);
 
 	if (fgets(funcname, funcname_len, image->pi_addr2line) == NULL) {
 		warnx("WARNING: addr2line function name read error");
@@ -1637,7 +1637,7 @@ pmcstat_print_log(void)
 			        pl_cpuflags) ? 'u' : 's');
 			for (npc = 0; npc < ev.pl_u.pl_cc.pl_npc; npc++)
 				PMCSTAT_PRINT_ENTRY("...", "%p",
-				    (void *) ev.pl_u.pl_cc.pl_pc[npc]);
+				    (void *)(intptr_t) ev.pl_u.pl_cc.pl_pc[npc]);
 			break;
 		case PMCLOG_TYPE_CLOSELOG:
 			PMCSTAT_PRINT_ENTRY("closelog",);
@@ -1658,20 +1658,20 @@ pmcstat_print_log(void)
 		case PMCLOG_TYPE_MAP_IN:
 			PMCSTAT_PRINT_ENTRY("map-in","%d %p \"%s\"",
 			    ev.pl_u.pl_mi.pl_pid,
-			    (void *) ev.pl_u.pl_mi.pl_start,
+			    (void *)(intptr_t) ev.pl_u.pl_mi.pl_start,
 			    ev.pl_u.pl_mi.pl_pathname);
 			break;
 		case PMCLOG_TYPE_MAP_OUT:
 			PMCSTAT_PRINT_ENTRY("map-out","%d %p %p",
 			    ev.pl_u.pl_mo.pl_pid,
-			    (void *) ev.pl_u.pl_mo.pl_start,
-			    (void *) ev.pl_u.pl_mo.pl_end);
+			    (void *)(intptr_t) ev.pl_u.pl_mo.pl_start,
+			    (void *)(intptr_t) ev.pl_u.pl_mo.pl_end);
 			break;
 		case PMCLOG_TYPE_PCSAMPLE:
 			PMCSTAT_PRINT_ENTRY("sample","0x%x %d %p %c",
 			    ev.pl_u.pl_s.pl_pmcid,
 			    ev.pl_u.pl_s.pl_pid,
-			    (void *) ev.pl_u.pl_s.pl_pc,
+			    (void *)(intptr_t) ev.pl_u.pl_s.pl_pc,
 			    ev.pl_u.pl_s.pl_usermode ? 'u' : 's');
 			break;
 		case PMCLOG_TYPE_PMCALLOCATE:
@@ -1707,7 +1707,7 @@ pmcstat_print_log(void)
 			PMCSTAT_PRINT_ENTRY("exec","0x%x %d %p \"%s\"",
 			    ev.pl_u.pl_x.pl_pmcid,
 			    ev.pl_u.pl_x.pl_pid,
-			    (void *) ev.pl_u.pl_x.pl_entryaddr,
+			    (void *)(intptr_t) ev.pl_u.pl_x.pl_entryaddr,
 			    ev.pl_u.pl_x.pl_pathname);
 			break;
 		case PMCLOG_TYPE_PROCEXIT:

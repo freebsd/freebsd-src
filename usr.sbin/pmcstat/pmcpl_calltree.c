@@ -522,7 +522,7 @@ pmcpl_ct_node_printtop(struct pmcpl_ct_sample *rsamples, int pmcin, int maxy)
 				    pmcstat_string_unintern(ct->pct_sym->ps_name));
 			} else
 				ns_len = snprintf(ns, sizeof(ns), "%p",
-				    (void *)ct->pct_func);
+				    (void *)(intptr_t)ct->pct_func);
 
 			/* Format image. */
 			if (x == 1 ||
@@ -859,18 +859,20 @@ pmcpl_ct_node_printchild(struct pmcpl_ct_node *ct, uintfptr_t paddr,
 				        child->pct_sym->ps_name));
 			else
 				fprintf(args.pa_graphfile,
-				    "cfi=???\ncfn=%p\n", (void *)addr);
+				    "cfi=???\ncfn=%p\n",
+				    (void *)(intptr_t)addr);
 		}
 
 		/* Child function address, line and call count. */
 		fprintf(args.pa_graphfile, "calls=%u %p %u\n",
-		    ct->pct_arc[i].pcta_call, (void *)addr, line);
+		    ct->pct_arc[i].pcta_call, (void *)(intptr_t)addr, line);
 
 		/*
 		 * Call address, line, sample.
 		 * TODO: Associate call address to the right location.
 		 */
-		fprintf(args.pa_graphfile, "%p %u", (void *)paddr, pline);
+		fprintf(args.pa_graphfile, "%p %u", (void *)(intptr_t)paddr,
+		    pline);
 		for (j = 0; j<pmcstat_npmcs; j++)
 			fprintf(args.pa_graphfile, " %u",
 			    PMCPL_CT_SAMPLE(j, &ct->pct_arc[i].pcta_samples));
@@ -916,7 +918,8 @@ pmcpl_ct_node_printself(struct pmcpl_ct_node *ct)
 			    pmcstat_string_unintern(ct->pct_sym->ps_name));
 		else
 			fprintf(args.pa_graphfile, "fl=???\nfn=%p\n",
-			    (void *)(ct->pct_image->pi_vaddr + ct->pct_func));
+			    (void *)(intptr_t)(ct->pct_image->pi_vaddr +
+			    ct->pct_func));
 	}
 
 	/*
@@ -934,7 +937,7 @@ pmcpl_ct_node_printself(struct pmcpl_ct_node *ct)
 			    sourcefile, sizeof(sourcefile), &line,
 			    funcname, sizeof(funcname));
 			fprintf(args.pa_graphfile, "%p %u",
-			    (void *)addr, line);
+			    (void *)(intptr_t)addr, line);
 			for (j = 0; j<pmcstat_npmcs; j++)
 				fprintf(args.pa_graphfile, " %u",
 				    PMCPL_CT_SAMPLE(j,
@@ -943,7 +946,8 @@ pmcpl_ct_node_printself(struct pmcpl_ct_node *ct)
 		}
 	} else {
 		/* Global cost function cost. */
-		fprintf(args.pa_graphfile, "%p %u", (void *)faddr, fline);
+		fprintf(args.pa_graphfile, "%p %u", (void *)(intptr_t)faddr,
+		    fline);
 		for (i = 0; i<pmcstat_npmcs ; i++)
 			fprintf(args.pa_graphfile, " %u",
 			    PMCPL_CT_SAMPLE(i, &ct->pct_samples));
@@ -1053,7 +1057,7 @@ _pmcpl_ct_expand_inline(struct pmcpl_ct_node *ct)
 		if (args.pa_verbosity >= 2)
 			fprintf(args.pa_printfile,
 			    "WARNING: inlined function at %p %s in %s\n",
-			    (void *)addr, funcname, ffuncname);
+			    (void *)(intptr_t)addr, funcname, ffuncname);
 
 		snprintf(buffer, sizeof(buffer), "%s@%s",
 			funcname, ffuncname);

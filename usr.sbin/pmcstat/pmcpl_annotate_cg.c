@@ -114,13 +114,13 @@ pmcpl_annotate_cg_process(struct pmcstat_process *pp, struct pmcstat_pmcrecord *
 
 		if (map != NULL && sym != NULL) {
 			fprintf(args.pa_graphfile, "%p %s %s:%d\n",
-			    (void *)cc[i],
+			    (void *)(intptr_t)cc[i],
 			    funcname,
 			    filename,
 			    sline);
 		} else {
 			fprintf(args.pa_graphfile, "%p <unknown> ??:0\n",
-			    (void *) cc[i]);
+			    (void *)(intptr_t)cc[i]);
 		}
 	}
 	fprintf(args.pa_graphfile, "--\n");
