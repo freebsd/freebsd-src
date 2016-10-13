@@ -246,8 +246,9 @@ bcm_sdhci_attach(device_t dev)
 		goto fail;
 	}
 
-	sc->sc_sdhci_buffer_phys = BUS_SPACE_PHYSADDR(sc->sc_mem_res, 
-	    SDHCI_BUFFER);
+	/* FIXME: Fix along with other BUS_SPACE_PHYSADDR instances */
+	sc->sc_sdhci_buffer_phys = rman_get_start(sc->sc_mem_res) +
+	    SDHCI_BUFFER;
 
 	bus_generic_probe(dev);
 	bus_generic_attach(dev);
@@ -552,7 +553,7 @@ bcm_sdhci_read_dma(device_t dev, struct sdhci_slot *slot)
 	    slot->curcmd->data->len - slot->offset);
 
 	KASSERT((left & 3) == 0,
-	    ("%s: len = %d, not word-aligned", __func__, left));
+	    ("%s: len = %zu, not word-aligned", __func__, left));
 
 	if (bus_dmamap_load(sc->sc_dma_tag, sc->sc_dma_map, 
 	    (uint8_t *)slot->curcmd->data->data + slot->offset, left, 
@@ -581,7 +582,7 @@ bcm_sdhci_write_dma(device_t dev, struct sdhci_slot *slot)
 	    slot->curcmd->data->len - slot->offset);
 
 	KASSERT((left & 3) == 0,
-	    ("%s: len = %d, not word-aligned", __func__, left));
+	    ("%s: len = %zu, not word-aligned", __func__, left));
 
 	if (bus_dmamap_load(sc->sc_dma_tag, sc->sc_dma_map,
 	    (uint8_t *)slot->curcmd->data->data + slot->offset, left, 
