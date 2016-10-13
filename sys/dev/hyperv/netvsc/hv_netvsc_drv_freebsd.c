@@ -156,8 +156,8 @@ __FBSDID("$FreeBSD$");
 #define HN_TX_DATA_BOUNDARY		PAGE_SIZE
 #define HN_TX_DATA_MAXSIZE		IP_MAXPACKET
 #define HN_TX_DATA_SEGSIZE		PAGE_SIZE
-#define HN_TX_DATA_SEGCNT_MAX		\
-    (NETVSC_PACKET_MAXPAGE - HV_RF_NUM_TX_RESERVED_PAGE_BUFS)
+/* -1 for RNDIS packet message */
+#define HN_TX_DATA_SEGCNT_MAX		(NETVSC_PACKET_MAXPAGE - 1)
 
 #define HN_DIRECT_TX_SIZE_DEF		128
 
@@ -663,7 +663,7 @@ netvsc_detach(device_t dev)
 	 * the netdevice.
 	 */
 
-	hv_rf_on_device_remove(sc, HV_RF_NV_DESTROY_CHANNEL);
+	hv_rf_on_device_remove(sc);
 
 	hn_stop_tx_tasks(sc);
 
@@ -1047,7 +1047,8 @@ hn_encap(struct hn_tx_ring *txr, struct hn_txdesc *txd, struct mbuf **m_head0)
 	}
 	*m_head0 = m_head;
 
-	txr->hn_gpa_cnt = nsegs + HV_RF_NUM_TX_RESERVED_PAGE_BUFS;
+	/* +1 RNDIS packet message */
+	txr->hn_gpa_cnt = nsegs + 1;
 
 	/* send packet with page buffer */
 	txr->hn_gpa[0].gpa_page = atop(txd->rndis_msg_paddr);
@@ -1055,12 +1056,11 @@ hn_encap(struct hn_tx_ring *txr, struct hn_txdesc *txd, struct mbuf **m_head0)
 	txr->hn_gpa[0].gpa_len = rndis_msg_size;
 
 	/*
-	 * Fill the page buffers with mbuf info starting at index
-	 * HV_RF_NUM_TX_RESERVED_PAGE_BUFS.
+	 * Fill the page buffers with mbuf info after the page
+	 * buffer for RNDIS packet message.
 	 */
 	for (i = 0; i < nsegs; ++i) {
-		struct vmbus_gpa *gpa = &txr->hn_gpa[
-		    i + HV_RF_NUM_TX_RESERVED_PAGE_BUFS];
+		struct vmbus_gpa *gpa = &txr->hn_gpa[i + 1];
 
 		gpa->gpa_page = atop(segs[i].ds_addr);
 		gpa->gpa_ofs = segs[i].ds_addr & PAGE_MASK;
@@ -1594,7 +1594,7 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		 * MTU to take effect.  This includes tearing down, but not
 		 * deleting the channel, then bringing it back up.
 		 */
-		error = hv_rf_on_device_remove(sc, HV_RF_NV_RETAIN_CHANNEL);
+		error = hv_rf_on_device_remove(sc);
 		if (error) {
 			NV_LOCK(sc);
 			sc->temp_unusable = FALSE;
