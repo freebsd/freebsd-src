@@ -33,7 +33,9 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/kernel.h>
 #include <sys/pcpu.h>
+#include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 
@@ -150,6 +152,17 @@ const struct cpu_implementers cpu_implementers[] = {
 	{ CPU_IMPL_INTEL,	"Intel",	cpu_parts_none },
 	CPU_IMPLEMENTER_NONE,
 };
+
+static void
+identify_cpu_sysinit(void *dummy __unused)
+{
+	int cpu;
+
+	CPU_FOREACH(cpu) {
+		print_cpu_features(cpu);
+	}
+}
+SYSINIT(idenrity_cpu, SI_SUB_SMP, SI_ORDER_ANY, identify_cpu_sysinit, NULL);
 
 void
 print_cpu_features(u_int cpu)
