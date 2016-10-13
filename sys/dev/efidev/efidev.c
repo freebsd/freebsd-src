@@ -119,10 +119,6 @@ vg_out:
 		efi_char *name;
 
 		name = malloc(ev->namesize, M_TEMP, M_WAITOK);
-		if (name == NULL) {
-			error = ENOMEM;
-			goto vn_out;
-		}
 		error = copyin(ev->name, name, ev->namesize);
 		if (error)
 			goto vn_out;
@@ -136,8 +132,7 @@ vg_out:
 			error = 0;
 		}
 	vn_out:
-		if (name != NULL)
-			free(name, M_TEMP);
+		free(name, M_TEMP);
 		break;
 	}
 	case EFIIOC_VAR_SET:
@@ -166,8 +161,7 @@ vg_out:
 		error = efi_var_set(name, &ev->vendor, ev->attrib, ev->datasize,
 		    data);
 vs_out:
-		if (data != NULL)
-			free(data, M_TEMP);
+		free(data, M_TEMP);
 		free(name, M_TEMP);
 		break;
 	}
@@ -184,7 +178,7 @@ efidev_init(struct cdev **cdev)
 {
 	
 	*cdev = make_dev(&efi_cdevsw, 0, UID_ROOT, GID_WHEEL, 0700,
-	    "efidev");
+	    "efi");
 
 	return (0);
 }

@@ -241,7 +241,7 @@ _libcxxrt=	libcxxrt
 _libcplusplus=	libc++
 .endif
 
-.if ${MACHINE_ARCH} == "amd64"
+.if ${MK_EFI} != "no"
 _libefivar=	libefivar
 .endif
 
