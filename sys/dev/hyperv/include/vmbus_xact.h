@@ -26,58 +26,35 @@
  * $FreeBSD$
  */
 
-#ifndef _IF_HNVAR_H_
-#define _IF_HNVAR_H_
+#ifndef _VMBUS_XACT_H_
+#define _VMBUS_XACT_H_
 
 #include <sys/param.h>
-#include <dev/hyperv/netvsc/hv_net_vsc.h>
+#include <sys/bus.h>
+#include <machine/bus.h>
 
-struct netvsc_dev_;
-struct nvsp_msg_;
+struct vmbus_xact;
+struct vmbus_xact_ctx;
 
-struct vmbus_channel;
-struct hn_send_ctx;
+struct vmbus_xact_ctx	*vmbus_xact_ctx_create(bus_dma_tag_t dtag,
+			    size_t req_size, size_t resp_size,
+			    size_t priv_size);
+void			vmbus_xact_ctx_destroy(struct vmbus_xact_ctx *ctx);
+struct vmbus_xact	*vmbus_xact_get(struct vmbus_xact_ctx *ctx,
+			    size_t req_len);
+void			vmbus_xact_put(struct vmbus_xact *xact);
 
-typedef void		(*hn_sent_callback_t)
-			(struct hn_send_ctx *, struct netvsc_dev_ *,
-			 struct vmbus_channel *, const struct nvsp_msg_ *, int);
+void			*vmbus_xact_req_data(const struct vmbus_xact *xact);
+bus_addr_t		vmbus_xact_req_paddr(const struct vmbus_xact *xact);
+void			*vmbus_xact_priv(const struct vmbus_xact *xact,
+			    size_t priv_len);
+void			vmbus_xact_activate(struct vmbus_xact *xact);
+void			vmbus_xact_deactivate(struct vmbus_xact *xact);
+const void		*vmbus_xact_wait(struct vmbus_xact *xact,
+			    size_t *resp_len);
+void			vmbus_xact_wakeup(struct vmbus_xact *xact,
+			    const void *data, size_t dlen);
+void			vmbus_xact_ctx_wakeup(struct vmbus_xact_ctx *ctx,
+			    const void *data, size_t dlen);
 
-struct hn_send_ctx {
-	hn_sent_callback_t	hn_cb;
-	void			*hn_cbarg;
-	uint32_t		hn_chim_idx;
-	int			hn_chim_sz;
-};
-
-#define HN_SEND_CTX_INITIALIZER(cb, cbarg)				\
-{									\
-	.hn_cb		= cb,						\
-	.hn_cbarg	= cbarg,					\
-	.hn_chim_idx	= NVSP_1_CHIMNEY_SEND_INVALID_SECTION_INDEX,	\
-	.hn_chim_sz	= 0						\
-}
-
-static __inline void
-hn_send_ctx_init(struct hn_send_ctx *sndc, hn_sent_callback_t cb,
-    void *cbarg, uint32_t chim_idx, int chim_sz)
-{
-	sndc->hn_cb = cb;
-	sndc->hn_cbarg = cbarg;
-	sndc->hn_chim_idx = chim_idx;
-	sndc->hn_chim_sz = chim_sz;
-}
-
-static __inline void
-hn_send_ctx_init_simple(struct hn_send_ctx *sndc, hn_sent_callback_t cb,
-    void *cbarg)
-{
-	hn_send_ctx_init(sndc, cb, cbarg,
-	    NVSP_1_CHIMNEY_SEND_INVALID_SECTION_INDEX, 0);
-}
-
-void		hn_nvs_sent_xact(struct hn_send_ctx *sndc,
-		    struct netvsc_dev_ *net_dev, struct vmbus_channel *chan,
-		    const struct nvsp_msg_ *msg, int dlen);
-void		hn_chim_free(struct netvsc_dev_ *net_dev, uint32_t chim_idx);
-
-#endif	/* !_IF_HNVAR_H_ */
+#endif	/* !_VMBUS_XACT_H_ */
