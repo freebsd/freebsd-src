@@ -53,6 +53,10 @@ uchg_head() {
 	atf_set "require.user" "root"
 }
 uchg_body() {
+	# Begin FreeBSD
+	atf_skip "this fails on FreeBSD with root - bug 212861"
+	# End FreeBSD
+
 	test_mount
 
 	atf_check -s eq:0 -o empty -e empty touch a
