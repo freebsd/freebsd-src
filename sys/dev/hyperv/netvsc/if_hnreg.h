@@ -208,4 +208,17 @@ struct hn_nvs_rndis_ack {
 } __packed;
 CTASSERT(sizeof(struct hn_nvs_rndis_ack) >= HN_NVS_REQSIZE_MIN);
 
+/*
+ * RNDIS extension
+ */
+
+/* Per-packet hash info */
+#define HN_NDIS_HASH_INFO_SIZE		sizeof(uint32_t)
+#define HN_NDIS_PKTINFO_TYPE_HASHINF	NDIS_PKTINFO_TYPE_ORIG_NBLIST
+/* NDIS_HASH_ */
+
+/* Per-packet hash value */
+#define HN_NDIS_HASH_VALUE_SIZE		sizeof(uint32_t)
+#define HN_NDIS_PKTINFO_TYPE_HASHVAL	NDIS_PKTINFO_TYPE_PKT_CANCELID
+
 #endif	/* !_IF_HNREG_H_ */

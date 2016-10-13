@@ -203,4 +203,32 @@ struct ndis_rssprm_toeplitz {
 	uint32_t			rss_ind[NDIS_HASH_INDCNT];
 };
 
+/*
+ * Per-packet-info
+ */
+
+/* VLAN */
+#define	NDIS_VLAN_INFO_SIZE		sizeof(uint32_t)
+#define	NDIS_VLAN_INFO_PRI_MASK		0x0007
+#define	NDIS_VLAN_INFO_CFI_MASK		0x0008
+#define	NDIS_VLAN_INFO_ID_MASK		0xfff0
+#define	NDIS_VLAN_INFO_MAKE(id, pri, cfi)	\
+        (((pri) & NVIS_VLAN_INFO_PRI_MASK) |	\
+	 (((cfi) & 0x1) << 3) | (((id) & 0xfff) << 4))
+#define	NDIS_VLAN_INFO_ID(inf)		(((inf) & NDIS_VLAN_INFO_ID_MASK) >> 4)
+#define	NDIS_VLAN_INFO_CFI(inf)		(((inf) & NDIS_VLAN_INFO_CFI_MASK) >> 3)
+#define	NDIS_VLAN_INFO_PRI(inf)		((inf) & NDIS_VLAN_INFO_PRI_MASK)
+
+/* Reception checksum */
+#define	NDIS_RXCSUM_INFO_SIZE		sizeof(uint32_t)
+#define	NDIS_RXCSUM_INFO_TCPCS_FAILED	0x0001
+#define	NDIS_RXCSUM_INFO_UDPCS_FAILED	0x0002
+#define	NDIS_RXCSUM_INFO_IPCS_FAILED	0x0004
+#define	NDIS_RXCSUM_INFO_TCPCS_OK	0x0008
+#define	NDIS_RXCSUM_INFO_UDPCS_OK	0x0010
+#define	NDIS_RXCSUM_INFO_IPCS_OK	0x0020
+#define	NDIS_RXCSUM_INFO_LOOPBACK	0x0040
+#define	NDIS_RXCSUM_INFO_TCPCS_INVAL	0x0080
+#define	NDIS_RXCSUM_INFO_IPCS_INVAL	0x0100
+
 #endif	/* !_NET_NDIS_H_ */
