@@ -325,16 +325,9 @@ hv_rf_receive_response(rndis_device *device, const rndis_msg *response)
 			memcpy(&request->response_msg, response,
 			    response->msg_len);
 		} else {
-			if (response->ndis_msg_type == REMOTE_NDIS_RESET_CMPLT) {
-				/* Does not have a request id field */
-				request->response_msg.msg.reset_complete.status =
-				    STATUS_BUFFER_OVERFLOW;
-			} else {
-				request->response_msg.msg.init_complete.status =
-				    STATUS_BUFFER_OVERFLOW;
-			}
+			request->response_msg.msg.init_complete.status =
+			    STATUS_BUFFER_OVERFLOW;
 		}
-
 		sema_post(&request->wait_sema);
 	}
 }
@@ -567,29 +560,40 @@ hv_rf_on_receive(struct hn_softc *sc, struct hn_rx_ring *rxr,
 
 	rndis_hdr = data;
 	switch (rndis_hdr->ndis_msg_type) {
-
 	/* data message */
 	case REMOTE_NDIS_PACKET_MSG:
 		hv_rf_receive_data(rxr, data, dlen);
 		break;
+
 	/* completion messages */
 	case REMOTE_NDIS_INITIALIZE_CMPLT:
 	case REMOTE_NDIS_QUERY_CMPLT:
 	case REMOTE_NDIS_SET_CMPLT:
-	case REMOTE_NDIS_RESET_CMPLT:
 	case REMOTE_NDIS_KEEPALIVE_CMPLT:
 		hv_rf_receive_response(rndis_dev, rndis_hdr);
 		break;
+
 	/* notification message */
 	case REMOTE_NDIS_INDICATE_STATUS_MSG:
 		hv_rf_receive_indicate_status(rndis_dev, rndis_hdr);
 		break;
+
+	case REMOTE_NDIS_RESET_CMPLT:
+		/*
+		 * Reset completed, no rid.
+		 *
+		 * NOTE:
+		 * RESET is not issued by hn(4), so this message should
+		 * _not_ be observed.
+		 */
+		if_printf(sc->hn_ifp, "RESET CMPLT received\n");
+		break;
+
 	default:
-		printf("hv_rf_on_receive():  Unknown msg_type 0x%x\n",
+		if_printf(sc->hn_ifp, "unknown RNDIS message 0x%x\n",
 			rndis_hdr->ndis_msg_type);
 		break;
 	}
-
 	return (0);
 }
 
@@ -929,7 +933,6 @@ static int
 hv_rf_halt_device(rndis_device *device)
 {
 	rndis_request *request;
-	rndis_halt_request *halt;
 	int i, ret;
 
 	/* Attempt to do a rndis device halt */
@@ -942,12 +945,6 @@ hv_rf_halt_device(rndis_device *device)
 	/* initialize "poor man's semaphore" */
 	request->halt_complete_flag = 0;
 
-	/* Set up the rndis set */
-	halt = &request->request_msg.msg.halt_request;
-	halt->request_id = atomic_fetchadd_int(&device->new_request_id, 1);
-	/* Increment to get the new value (call above returns old value) */
-	halt->request_id += 1;
-	
 	ret = hv_rf_send_request(device, request, REMOTE_NDIS_HALT_MSG);
 	if (ret != 0) {
 		return (-1);
