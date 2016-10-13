@@ -691,7 +691,7 @@ physical2iov(struct physical *p, struct iovec *iov, int *niov, int maxiov,
     timer_Stop(&p->link.ccp.fsm.StoppedTimer);
     if (p->handler) {
       h = p->handler;
-      p->handler = (struct device *)(long)p->handler->type;
+      p->handler = (struct device *)(intptr_t)p->handler->type;
     }
 
     if (Enabled(p->dl->bundle, OPT_KEEPSESSION) ||
