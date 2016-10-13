@@ -108,7 +108,7 @@ efi_open_dev(void)
 {
 
 	if (efi_fd == -2)
-		efi_fd = open("/dev/efidev", O_RDWR);
+		efi_fd = open("/dev/efi", O_RDWR);
 	if (efi_fd < 0)
 		efi_fd = -1;
 	else
