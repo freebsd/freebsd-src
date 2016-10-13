@@ -130,6 +130,13 @@ __FBSDID("$FreeBSD$");
 # include <crtdbg.h>
 #endif
 
+mode_t umasked(mode_t expected_mode)
+{
+	mode_t mode = umask(0);
+	umask(mode);
+	return expected_mode & ~mode;
+}
+
 /* Path to working directory for current test */
 const char *testworkdir;
 #ifdef PROGRAM
@@ -1294,6 +1301,11 @@ assertion_file_time(const char *file, int line,
 	switch (type) {
 	case 'a': filet_nsec = st.st_atimespec.tv_nsec; break;
 	case 'b': filet = st.st_birthtime;
+		/* FreeBSD filesystems that don't support birthtime
+		 * (e.g., UFS1) always return -1 here. */
+		if (filet == -1) {
+			return (1);
+		}
 		filet_nsec = st.st_birthtimespec.tv_nsec; break;
 	case 'm': filet_nsec = st.st_mtimespec.tv_nsec; break;
 	default: fprintf(stderr, "INTERNAL: Bad type %c for file time", type);
@@ -1425,7 +1437,7 @@ assertion_file_nlinks(const char *file, int line,
 	assertion_count(file, line);
 	r = lstat(pathname, &st);
 	if (r == 0 && (int)st.st_nlink == nlinks)
-			return (1);
+		return (1);
 	failure_start(file, line, "File %s has %d links, expected %d",
 	    pathname, st.st_nlink, nlinks);
 	failure_finish(NULL);
@@ -1661,6 +1673,7 @@ assertion_make_file(const char *file, int line,
 	if (0 != chmod(path, mode)) {
 		failure_start(file, line, "Could not chmod %s", path);
 		failure_finish(NULL);
+		close(fd);
 		return (0);
 	}
 	if (contents != NULL) {
@@ -1675,6 +1688,7 @@ assertion_make_file(const char *file, int line,
 			failure_start(file, line,
 			    "Could not write to %s", path);
 			failure_finish(NULL);
+			close(fd);
 			return (0);
 		}
 	}
