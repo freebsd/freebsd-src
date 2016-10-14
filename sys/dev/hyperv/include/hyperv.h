@@ -399,20 +399,6 @@ typedef struct {
 
 #define HW_MACADDR_LEN	6
 
-enum {
-	HV_VMBUS_IVAR_TYPE,
-	HV_VMBUS_IVAR_INSTANCE,
-	HV_VMBUS_IVAR_NODE,
-	HV_VMBUS_IVAR_DEVCTX
-};
-
-#define HV_VMBUS_ACCESSOR(var, ivar, type) \
-		__BUS_ACCESSOR(vmbus, var, HV_VMBUS, ivar, type)
-
-HV_VMBUS_ACCESSOR(type, TYPE,  const char *)
-HV_VMBUS_ACCESSOR(devctx, DEVCTX,  struct hv_device *)
-
-
 /*
  * Common defines for Hyper-V ICs
  */
@@ -534,7 +520,7 @@ typedef union {
 } __packed hv_vmbus_connection_id;
 
 typedef struct hv_vmbus_channel {
-	struct hv_device*		device;
+	device_t			ch_dev;
 	struct vmbus_softc		*vmbus_sc;
 	hv_vmbus_channel_state		state;
 	uint32_t			ch_flags;	/* VMBUS_CHAN_FLAG_ */
@@ -647,15 +633,6 @@ hv_set_channel_read_state(hv_vmbus_channel* channel, boolean_t state)
 	channel->batched_reading = state;
 }
 
-typedef struct hv_device {
-	hv_guid		    class_id;
-	hv_guid		    device_id;
-	device_t	    device;
-	hv_vmbus_channel*   channel;
-} hv_device;
-
-
-
 int		hv_vmbus_channel_recv_packet(
 				hv_vmbus_channel*	channel,
 				void*			buffer,
@@ -735,6 +712,12 @@ hv_get_phys_addr(void *virt)
 	unsigned long ret;
 	ret = (vtophys(virt) | ((vm_offset_t) virt & PAGE_MASK));
 	return (ret);
+}
+
+static __inline struct hv_vmbus_channel *
+vmbus_get_channel(device_t dev)
+{
+	return device_get_ivars(dev);
 }
 
 #endif  /* __HYPERV_H__ */
