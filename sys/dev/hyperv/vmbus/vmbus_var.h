@@ -71,7 +71,7 @@ struct vmbus_softc {
 	void			(*vmbus_event_proc)(struct vmbus_softc *, int);
 	u_long			*vmbus_tx_evtflags;
 						/* event flags to host */
-	void			*vmbus_mnf2;	/* monitored by host */
+	struct vmbus_mnf	*vmbus_mnf2;	/* monitored by host */
 
 	u_long			*vmbus_rx_evtflags;
 						/* compat evtflgs from host */
