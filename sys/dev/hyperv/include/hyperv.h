@@ -77,10 +77,6 @@ typedef uint8_t	hv_bool_uint8_t;
 #define HV_VMBUS_VERSION_WIN8		((2 << 16) | (4))
 #define HV_VMBUS_VERSION_WIN8_1		((3 << 16) | (0))
 
-#define HV_VMBUS_VERSION_INVALID	-1
-
-#define HV_VMBUS_VERSION_CURRENT	HV_VMBUS_VERSION_WIN8_1
-
 /*
  * Make maximum size of pipe payload of 16K
  */
@@ -536,20 +532,6 @@ typedef struct {
 	hv_vmbus_channel_msg_header	header;
 	uint32_t			child_rel_id;
 } __packed hv_vmbus_channel_relid_released;
-
-typedef struct {
-	hv_vmbus_channel_msg_header	header;
-	uint32_t			vmbus_version_requested;
-	uint32_t			padding2;
-	uint64_t			interrupt_page;
-	uint64_t			monitor_page_1;
-	uint64_t			monitor_page_2;
-} __packed hv_vmbus_channel_initiate_contact;
-
-typedef struct {
-	hv_vmbus_channel_msg_header header;
-	hv_bool_uint8_t		version_supported;
-} __packed hv_vmbus_channel_version_response;
 
 typedef hv_vmbus_channel_msg_header hv_vmbus_channel_unload;
 

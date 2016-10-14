@@ -38,4 +38,6 @@
 extern u_int	hyperv_features;
 extern u_int	hyperv_recommends;
 
+uint64_t	hypercall_post_message(bus_addr_t msg_paddr);
+
 #endif	/* !_HYPERV_VAR_H_ */
