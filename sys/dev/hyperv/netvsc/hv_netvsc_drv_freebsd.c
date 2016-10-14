@@ -354,6 +354,8 @@ static void hn_suspend(struct hn_softc *);
 static void hn_suspend_data(struct hn_softc *);
 static void hn_suspend_mgmt(struct hn_softc *);
 static void hn_resume(struct hn_softc *);
+static void hn_resume_data(struct hn_softc *);
+static void hn_resume_mgmt(struct hn_softc *);
 static void hn_rx_drain(struct vmbus_channel *);
 static void hn_tx_resume(struct hn_softc *, int);
 static void hn_tx_ring_qflush(struct hn_tx_ring *);
@@ -1689,8 +1691,11 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			hn_set_lro_lenlim(sc, HN_LRO_LENLIM_MIN(ifp));
 #endif
 
-		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-			hn_suspend(sc);
+		/*
+		 * Suspend this interface before the synthetic parts
+		 * are ripped.
+		 */
+		hn_suspend(sc);
 
 		/*
 		 * Detach the synthetics parts, i.e. NVS and RNDIS.
@@ -1708,9 +1713,10 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			hn_set_chim_size(sc, sc->hn_chim_szmax);
 		hn_set_tso_maxsize(sc, hn_tso_maxlen, ifr->ifr_mtu);
 
-		/* All done!  Resume now. */
-		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-			hn_resume(sc);
+		/*
+		 * All done!  Resume the interface now.
+		 */
+		hn_resume(sc);
 
 		HN_UNLOCK(sc);
 		break;
@@ -3717,7 +3723,8 @@ static void
 hn_suspend(struct hn_softc *sc)
 {
 
-	hn_suspend_data(sc);
+	if (sc->hn_ifp->if_drv_flags & IFF_DRV_RUNNING)
+		hn_suspend_data(sc);
 	hn_suspend_mgmt(sc);
 }
 
@@ -3739,7 +3746,7 @@ hn_tx_resume(struct hn_softc *sc, int tx_ring_cnt)
 }
 
 static void
-hn_resume(struct hn_softc *sc)
+hn_resume_data(struct hn_softc *sc)
 {
 	int i;
 
@@ -3779,12 +3786,26 @@ hn_resume(struct hn_softc *sc)
 		 */
 		taskqueue_enqueue(txr->hn_tx_taskq, &txr->hn_txeof_task);
 	}
+}
+
+static void
+hn_resume_mgmt(struct hn_softc *sc)
+{
 
 	/*
 	 * Kick off link status check.
 	 */
 	sc->hn_mgmt_taskq = sc->hn_mgmt_taskq0;
 	hn_link_status_update(sc);
+}
+
+static void
+hn_resume(struct hn_softc *sc)
+{
+
+	if (sc->hn_ifp->if_drv_flags & IFF_DRV_RUNNING)
+		hn_resume_data(sc);
+	hn_resume_mgmt(sc);
 }
 
 static void
