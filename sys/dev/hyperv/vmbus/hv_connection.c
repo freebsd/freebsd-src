@@ -47,10 +47,7 @@
  * Globals
  */
 hv_vmbus_connection hv_vmbus_g_connection =
-	{ .connect_state = HV_DISCONNECTED,
-	  .next_gpadl_handle = 0xE1E10, };
-
-uint32_t hv_vmbus_protocal_version;
+	{ .connect_state = HV_DISCONNECTED };
 
 /**
  * Send a connect request on the partition service connection
@@ -69,10 +66,6 @@ hv_vmbus_connect(struct vmbus_softc *sc)
 	 * Initialize the vmbus connection
 	 */
 	hv_vmbus_g_connection.connect_state = HV_CONNECTING;
-
-	TAILQ_INIT(&hv_vmbus_g_connection.channel_anchor);
-	mtx_init(&hv_vmbus_g_connection.channel_lock, "vmbus channel",
-		NULL, MTX_DEF);
 
 	hv_vmbus_g_connection.channels = malloc(sizeof(hv_vmbus_channel*) *
 	    VMBUS_CHAN_MAX, M_DEVBUF, M_WAITOK | M_ZERO);
@@ -156,23 +149,6 @@ vmbus_event_proc_compat(struct vmbus_softc *sc, int cpu)
 		vmbus_event_flags_proc(sc->vmbus_rx_evtflags,
 		    VMBUS_CHAN_MAX_COMPAT >> VMBUS_EVTFLAG_SHIFT);
 	}
-}
-
-/**
- * Send an event notification to the parent
- */
-int
-hv_vmbus_set_event(hv_vmbus_channel *channel)
-{
-	struct vmbus_softc *sc = channel->vmbus_sc;
-	int ret = 0;
-	uint32_t chanid = channel->offer_msg.child_rel_id;
-
-	atomic_set_long(&sc->vmbus_tx_evtflags[chanid >> VMBUS_EVTFLAG_SHIFT],
-	    1UL << (chanid & VMBUS_EVTFLAG_MASK));
-	ret = hv_vmbus_signal_event(channel->signal_event_param);
-
-	return (ret);
 }
 
 void
