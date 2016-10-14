@@ -70,10 +70,6 @@ hv_vmbus_connect(struct vmbus_softc *sc)
 	 */
 	hv_vmbus_g_connection.connect_state = HV_CONNECTING;
 
-	TAILQ_INIT(&hv_vmbus_g_connection.channel_msg_anchor);
-	mtx_init(&hv_vmbus_g_connection.channel_msg_lock, "vmbus channel msg",
-		NULL, MTX_DEF);
-
 	TAILQ_INIT(&hv_vmbus_g_connection.channel_anchor);
 	mtx_init(&hv_vmbus_g_connection.channel_lock, "vmbus channel",
 		NULL, MTX_DEF);
@@ -92,8 +88,6 @@ hv_vmbus_connect(struct vmbus_softc *sc)
 int
 hv_vmbus_disconnect(void)
 {
-
-	mtx_destroy(&hv_vmbus_g_connection.channel_msg_lock);
 
 	free(hv_vmbus_g_connection.channels, M_DEVBUF);
 	hv_vmbus_g_connection.connect_state = HV_DISCONNECTED;
@@ -162,40 +156,6 @@ vmbus_event_proc_compat(struct vmbus_softc *sc, int cpu)
 		vmbus_event_flags_proc(sc->vmbus_rx_evtflags,
 		    VMBUS_CHAN_MAX_COMPAT >> VMBUS_EVTFLAG_SHIFT);
 	}
-}
-
-/**
- * Send a msg on the vmbus's message connection
- */
-int hv_vmbus_post_message(void *buffer, size_t bufferLen)
-{
-	hv_vmbus_connection_id connId;
-	sbintime_t time = SBT_1MS;
-	int retries;
-	int ret;
-
-	connId.as_uint32_t = 0;
-	connId.u.id = HV_VMBUS_MESSAGE_CONNECTION_ID;
-
-	/*
-	 * We retry to cope with transient failures caused by host side's
-	 * insufficient resources. 20 times should suffice in practice.
-	 */
-	for (retries = 0; retries < 20; retries++) {
-		ret = hv_vmbus_post_msg_via_msg_ipc(connId,
-		    HYPERV_MSGTYPE_CHANNEL, buffer, bufferLen);
-		if (ret == HV_STATUS_SUCCESS)
-			return (0);
-
-		pause_sbt("pstmsg", time, 0, C_HARDCLOCK);
-		if (time < SBT_1S * 2)
-			time *= 2;
-	}
-
-	KASSERT(ret == HV_STATUS_SUCCESS,
-		("Error VMBUS: Message Post Failed, ret=%d\n", ret));
-
-	return (EAGAIN);
 }
 
 /**
