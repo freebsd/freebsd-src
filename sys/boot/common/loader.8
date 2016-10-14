@@ -90,9 +90,7 @@ which is
 default.
 After that,
 .Pa /boot/loader.rc
-is processed if available, and, failing that,
-.Pa /boot/boot.conf
-is read for historical reasons.
+is processed if available.
 These files are processed through the
 .Ic include
 command, which reads all of them into memory before processing them,
@@ -957,10 +955,6 @@ itself.
 Additional
 .Tn FICL
 initialization.
-.It Pa /boot/boot.conf
-.Nm
-bootstrapping script.
-Deprecated.
 .It Pa /boot/defaults/loader.conf
 .It Pa /boot/loader.conf
 .It Pa /boot/loader.conf.local
