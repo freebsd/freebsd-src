@@ -1435,7 +1435,7 @@ zap_cursor_move_to_key(zap_cursor_t *zc, const char *name, matchtype_t mt)
 
 	if (zc->zc_zap == NULL) {
 		err = zap_lockdir(zc->zc_objset, zc->zc_zapobj, NULL,
-		    RW_READER, TRUE, FALSE, &zc->zc_zap);
+		    RW_READER, TRUE, FALSE, FTAG, &zc->zc_zap);
 		if (err)
 			return (err);
 	} else {
