@@ -856,11 +856,13 @@ VmbusProcessChannelEvent(void* context, int pending)
 	void* arg;
 	uint32_t bytes_to_read;
 	hv_vmbus_channel* channel = (hv_vmbus_channel*)context;
-	boolean_t is_batched_reading;
+	bool is_batched_reading = false;
+
+	if (channel->ch_flags & VMBUS_CHAN_FLAG_BATCHREAD)
+		is_batched_reading = true;
 
 	if (channel->on_channel_callback != NULL) {
 		arg = channel->channel_callback_context;
-		is_batched_reading = channel->batched_reading;
 		/*
 		 * Optimize host to guest signaling by ensuring:
 		 * 1. While reading the channel, we disable interrupts from
@@ -917,7 +919,7 @@ vmbus_event_flags_proc(struct vmbus_softc *sc, volatile u_long *event_flags,
 			if (channel == NULL || channel->rxq == NULL)
 				continue;
 
-			if (channel->batched_reading)
+			if (channel->ch_flags & VMBUS_CHAN_FLAG_BATCHREAD)
 				hv_ring_buffer_read_begin(&channel->inbound);
 			taskqueue_enqueue(channel->rxq, &channel->channel_task);
 		}
