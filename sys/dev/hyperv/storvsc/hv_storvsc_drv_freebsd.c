@@ -72,7 +72,9 @@ __FBSDID("$FreeBSD$");
 #include <cam/scsi/scsi_message.h>
 
 #include <dev/hyperv/include/hyperv.h>
+
 #include "hv_vstorage.h"
+#include "vmbus_if.h"
 
 #define STORVSC_RINGBUFFER_SIZE		(20*PAGE_SIZE)
 #define STORVSC_MAX_LUNS_PER_TARGET	(64)
@@ -361,6 +363,7 @@ storvsc_subchan_attach(struct hv_vmbus_channel *new_channel)
 
 	memset(&props, 0, sizeof(props));
 
+	vmbus_channel_cpu_rr(new_channel);
 	ret = hv_vmbus_channel_open(new_channel,
 	    sc->hs_drv_props->drv_ringbuffer_size,
   	    sc->hs_drv_props->drv_ringbuffer_size,
@@ -464,6 +467,7 @@ hv_storvsc_channel_init(struct hv_device *dev)
 	struct storvsc_softc *sc;
 	uint16_t max_chans = 0;
 	boolean_t support_multichannel = FALSE;
+	uint32_t version;
 
 	max_chans = 0;
 	support_multichannel = FALSE;
@@ -588,8 +592,9 @@ hv_storvsc_channel_init(struct hv_device *dev)
 
 	/* multi-channels feature is supported by WIN8 and above version */
 	max_chans = vstor_packet->u.chan_props.max_channel_cnt;
-	if ((hv_vmbus_protocal_version != HV_VMBUS_VERSION_WIN7) &&
-	    (hv_vmbus_protocal_version != HV_VMBUS_VERSION_WS2008) &&
+	version = VMBUS_GET_VERSION(device_get_parent(dev->device),
+	    dev->device);
+	if (version != VMBUS_VERSION_WIN7 && version != VMBUS_VERSION_WS2008 &&
 	    (vstor_packet->u.chan_props.flags &
 	     HV_STORAGE_SUPPORTS_MULTI_CHANNEL)) {
 		support_multichannel = TRUE;
@@ -655,7 +660,7 @@ hv_storvsc_connect_vsp(struct hv_device *dev)
 	/*
 	 * Open the channel
 	 */
-
+	vmbus_channel_cpu_rr(dev->channel);
 	ret = hv_vmbus_channel_open(
 		dev->channel,
 		sc->hs_drv_props->drv_ringbuffer_size,

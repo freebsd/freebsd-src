@@ -46,6 +46,12 @@
  */
 #define VMBUS_SINT_TIMER	4
 
+/*
+ * NOTE: DO NOT CHANGE THESE
+ */
+#define VMBUS_CONNID_MESSAGE		1
+#define VMBUS_CONNID_EVENT		2
+
 struct vmbus_pcpu_data {
 	u_long			*intr_cnt;	/* Hyper-V interrupt counter */
 	struct vmbus_message	*message;	/* shared messages */
@@ -72,10 +78,15 @@ struct vmbus_softc {
 	struct vmbus_msghc_ctx	*vmbus_msg_hc;
 	struct vmbus_pcpu_data	vmbus_pcpu[MAXCPU];
 
-	/* Rarely used fields */
+	/*
+	 * Rarely used fields
+	 */
+
 	device_t		vmbus_dev;
 	int			vmbus_idtvec;
 	uint32_t		vmbus_flags;	/* see VMBUS_FLAG_ */
+	uint32_t		vmbus_version;
+	uint32_t		vmbus_gpadl;
 
 	/* Shared memory for vmbus_{rx,tx}_evtflags */
 	void			*vmbus_evtflags;
@@ -89,6 +100,9 @@ struct vmbus_softc {
 	uint32_t		vmbus_scan_chcnt;
 #define VMBUS_SCAN_CHCNT_DONE	0x80000000
 	uint32_t		vmbus_scan_devcnt;
+
+	struct mtx		vmbus_chlist_lock;
+	TAILQ_HEAD(, hv_vmbus_channel) vmbus_chlist;
 };
 
 #define VMBUS_FLAG_ATTACHED	0x0001	/* vmbus was attached */
@@ -137,5 +151,7 @@ void	vmbus_msghc_reset(struct vmbus_msghc *, size_t);
 
 void	vmbus_scan_done(struct vmbus_softc *);
 void	vmbus_scan_newchan(struct vmbus_softc *);
+
+uint32_t vmbus_gpadl_alloc(struct vmbus_softc *);
 
 #endif	/* !_VMBUS_VAR_H_ */
