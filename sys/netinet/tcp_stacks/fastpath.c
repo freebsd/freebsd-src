@@ -1819,8 +1819,6 @@ tcp_do_segment_fastslow(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 * validation to ignore broken/spoofed segs.
 	 */
 	tp->t_rcvtime = ticks;
-	if (TCPS_HAVEESTABLISHED(tp->t_state))
-		tcp_timer_activate(tp, TT_KEEP, TP_KEEPIDLE(tp));
 
 	/*
 	 * Unscale the window into a 32-bit value.
@@ -2266,8 +2264,6 @@ tcp_do_segment_fastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 * validation to ignore broken/spoofed segs.
 	 */
 	tp->t_rcvtime = ticks;
-	if (TCPS_HAVEESTABLISHED(tp->t_state))
-		tcp_timer_activate(tp, TT_KEEP, TP_KEEPIDLE(tp));
 
 	/*
 	 * Unscale the window into a 32-bit value.
