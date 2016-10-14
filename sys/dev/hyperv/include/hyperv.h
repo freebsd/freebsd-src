@@ -471,7 +471,7 @@ typedef struct {
 	uint8_t                 reserved[4084];
 
 	/*
-	 * WARNING: Ring data starts here + ring_data_start_offset
+	 * WARNING: Ring data starts here
 	 *  !!! DO NOT place any fields below this !!!
 	 */
 	uint8_t			buffer[0];	/* doubles as interrupt mask */
@@ -491,10 +491,8 @@ typedef struct {
 
 typedef struct {
 	hv_vmbus_ring_buffer*	ring_buffer;
-	uint32_t		ring_size;	/* Include the shared header */
 	struct mtx		ring_lock;
 	uint32_t		ring_data_size;	/* ring_size */
-	uint32_t		ring_data_start_offset;
 } hv_vmbus_ring_buffer_info;
 
 typedef void (*hv_vmbus_pfn_channel_callback)(void *context);
@@ -552,19 +550,6 @@ typedef struct hv_vmbus_channel {
 	struct task			channel_task;
 	hv_vmbus_pfn_channel_callback	on_channel_callback;
 	void*				channel_callback_context;
-
-	/*
-	 * If batched_reading is set to "true", mask the interrupt
-	 * and read until the channel is empty.
-	 * If batched_reading is set to "false", the channel is not
-	 * going to perform batched reading.
-	 *
-	 * Batched reading is enabled by default; specific
-	 * drivers that don't want this behavior can turn it off.
-	 */
-	boolean_t			batched_reading;
-
-	boolean_t			is_dedicated_interrupt;
 
 	struct hypercall_sigevt_in	*ch_sigevt;
 	struct hyperv_dma		ch_sigevt_dma;
@@ -626,11 +611,23 @@ typedef struct hv_vmbus_channel {
 #define HV_VMBUS_CHAN_ISPRIMARY(chan)	((chan)->primary_channel == NULL)
 
 #define VMBUS_CHAN_FLAG_HASMNF		0x0001
+/*
+ * If this flag is set, this channel's interrupt will be masked in ISR,
+ * and the RX bufring will be drained before this channel's interrupt is
+ * unmasked.
+ *
+ * This flag is turned on by default.  Drivers can turn it off according
+ * to their own requirement.
+ */
+#define VMBUS_CHAN_FLAG_BATCHREAD	0x0002
 
 static inline void
-hv_set_channel_read_state(hv_vmbus_channel* channel, boolean_t state)
+hv_set_channel_read_state(hv_vmbus_channel* channel, boolean_t on)
 {
-	channel->batched_reading = state;
+	if (!on)
+		channel->ch_flags &= ~VMBUS_CHAN_FLAG_BATCHREAD;
+	else
+		channel->ch_flags |= VMBUS_CHAN_FLAG_BATCHREAD;
 }
 
 int		hv_vmbus_channel_recv_packet(
