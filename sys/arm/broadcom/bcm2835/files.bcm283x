@@ -9,7 +9,7 @@ arm/broadcom/bcm2835/bcm2835_fbd.c		optional vt
 arm/broadcom/bcm2835/bcm2835_ft5406.c		optional evdev bcm2835_ft5406
 arm/broadcom/bcm2835/bcm2835_gpio.c		optional gpio
 arm/broadcom/bcm2835/bcm2835_intr.c		standard
-arm/broadcom/bcm2835/bcm2835_machdep.c		standard
+arm/broadcom/bcm2835/bcm2835_machdep.c		optional platform
 arm/broadcom/bcm2835/bcm2835_mbox.c		standard
 arm/broadcom/bcm2835/bcm2835_rng.c		optional random
 arm/broadcom/bcm2835/bcm2835_sdhci.c		optional sdhci
