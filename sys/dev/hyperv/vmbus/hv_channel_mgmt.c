@@ -123,7 +123,7 @@ vmbus_channel_process_offer(hv_vmbus_channel *new_channel)
 		 */
 		printf("VMBUS: got channel0 offer\n");
 	} else {
-		hv_vmbus_g_connection.channels[relid] = new_channel;
+		sc->vmbus_chmap[relid] = new_channel;
 	}
 
 	TAILQ_FOREACH(channel, &sc->vmbus_chlist, ch_link) {
@@ -351,10 +351,10 @@ vmbus_channel_on_offer_rescind(struct vmbus_softc *sc,
 		    rescind->child_rel_id);
 	}
 
-	channel = hv_vmbus_g_connection.channels[rescind->child_rel_id];
+	channel = sc->vmbus_chmap[rescind->child_rel_id];
 	if (channel == NULL)
 	    return;
-	hv_vmbus_g_connection.channels[rescind->child_rel_id] = NULL;
+	sc->vmbus_chmap[rescind->child_rel_id] = NULL;
 
 	taskqueue_enqueue(taskqueue_thread, &channel->ch_detach_task);
 }
@@ -451,8 +451,8 @@ hv_vmbus_release_unattached_channels(struct vmbus_softc *sc)
 	    }
 	    hv_vmbus_free_vmbus_channel(channel);
 	}
-	bzero(hv_vmbus_g_connection.channels,
-	    sizeof(hv_vmbus_channel*) * VMBUS_CHAN_MAX);
+	bzero(sc->vmbus_chmap,
+	    sizeof(struct hv_vmbus_channel *) * VMBUS_CHAN_MAX);
 
 	mtx_unlock(&sc->vmbus_chlist_lock);
 }
