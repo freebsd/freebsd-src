@@ -15,7 +15,6 @@ MAN=
 
 LDFLAGS+=	-Wl,--script=${.CURDIR}/../../../lib/libc_cheri/sandbox.ld \
 		-nostdlib
-MK_MAN= 	no
 #STRIP=
 CFLAGS+=	-I${.CURDIR}/../../lib/libimagebox
 CFLAGS+=	-I${.CURDIR}/../../../lib/libc/${MACHINE}
