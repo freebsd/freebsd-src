@@ -13,4 +13,6 @@ CFLAGS+=-DDES
 LIBADD=	crypto
 .endif
 
+NO_WERROR=	# Surpress -Wclobbered error in base gcc
+
 .include <bsd.prog.mk>
