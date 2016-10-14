@@ -85,9 +85,7 @@ static int			vmbus_connect(struct vmbus_softc *, uint32_t);
 static int			vmbus_req_channels(struct vmbus_softc *sc);
 static void			vmbus_disconnect(struct vmbus_softc *);
 static int			vmbus_scan(struct vmbus_softc *);
-static void			vmbus_scan_wait(struct vmbus_softc *);
-static void			vmbus_scan_newchan(struct vmbus_softc *);
-static void			vmbus_scan_newdev(struct vmbus_softc *);
+static void			vmbus_scan_teardown(struct vmbus_softc *);
 static void			vmbus_scan_done(struct vmbus_softc *,
 				    const struct vmbus_message *);
 static void			vmbus_chanmsg_handle(struct vmbus_softc *,
@@ -395,50 +393,22 @@ vmbus_req_channels(struct vmbus_softc *sc)
 }
 
 static void
-vmbus_scan_newchan(struct vmbus_softc *sc)
+vmbus_scan_done_task(void *xsc, int pending __unused)
 {
-	mtx_lock(&sc->vmbus_scan_lock);
-	if ((sc->vmbus_scan_chcnt & VMBUS_SCAN_CHCNT_DONE) == 0)
-		sc->vmbus_scan_chcnt++;
-	mtx_unlock(&sc->vmbus_scan_lock);
+	struct vmbus_softc *sc = xsc;
+
+	mtx_lock(&Giant);
+	sc->vmbus_scandone = true;
+	mtx_unlock(&Giant);
+	wakeup(&sc->vmbus_scandone);
 }
 
 static void
 vmbus_scan_done(struct vmbus_softc *sc,
     const struct vmbus_message *msg __unused)
 {
-	mtx_lock(&sc->vmbus_scan_lock);
-	sc->vmbus_scan_chcnt |= VMBUS_SCAN_CHCNT_DONE;
-	mtx_unlock(&sc->vmbus_scan_lock);
-	wakeup(&sc->vmbus_scan_chcnt);
-}
 
-static void
-vmbus_scan_newdev(struct vmbus_softc *sc)
-{
-	mtx_lock(&sc->vmbus_scan_lock);
-	sc->vmbus_scan_devcnt++;
-	mtx_unlock(&sc->vmbus_scan_lock);
-	wakeup(&sc->vmbus_scan_devcnt);
-}
-
-static void
-vmbus_scan_wait(struct vmbus_softc *sc)
-{
-	uint32_t chancnt;
-
-	mtx_lock(&sc->vmbus_scan_lock);
-	while ((sc->vmbus_scan_chcnt & VMBUS_SCAN_CHCNT_DONE) == 0) {
-		mtx_sleep(&sc->vmbus_scan_chcnt, &sc->vmbus_scan_lock, 0,
-		    "waitch", 0);
-	}
-	chancnt = sc->vmbus_scan_chcnt & ~VMBUS_SCAN_CHCNT_DONE;
-
-	while (sc->vmbus_scan_devcnt != chancnt) {
-		mtx_sleep(&sc->vmbus_scan_devcnt, &sc->vmbus_scan_lock, 0,
-		    "waitdev", 0);
-	}
-	mtx_unlock(&sc->vmbus_scan_lock);
+	taskqueue_enqueue(sc->vmbus_devtq, &sc->vmbus_scandone_task);
 }
 
 static int
@@ -447,31 +417,71 @@ vmbus_scan(struct vmbus_softc *sc)
 	int error;
 
 	/*
+	 * Identify, probe and attach for non-channel devices.
+	 */
+	bus_generic_probe(sc->vmbus_dev);
+	bus_generic_attach(sc->vmbus_dev);
+
+	/*
+	 * This taskqueue serializes vmbus devices' attach and detach
+	 * for channel offer and rescind messages.
+	 */
+	sc->vmbus_devtq = taskqueue_create("vmbus dev", M_WAITOK,
+	    taskqueue_thread_enqueue, &sc->vmbus_devtq);
+	taskqueue_start_threads(&sc->vmbus_devtq, 1, PI_NET, "vmbusdev");
+	TASK_INIT(&sc->vmbus_scandone_task, 0, vmbus_scan_done_task, sc);
+
+	/*
+	 * This taskqueue handles sub-channel detach, so that vmbus
+	 * device's detach running in vmbus_devtq can drain its sub-
+	 * channels.
+	 */
+	sc->vmbus_subchtq = taskqueue_create("vmbus subch", M_WAITOK,
+	    taskqueue_thread_enqueue, &sc->vmbus_subchtq);
+	taskqueue_start_threads(&sc->vmbus_subchtq, 1, PI_NET, "vmbussch");
+
+	/*
 	 * Start vmbus scanning.
 	 */
 	error = vmbus_req_channels(sc);
 	if (error) {
 		device_printf(sc->vmbus_dev, "channel request failed: %d\n",
 		    error);
-		return error;
+		return (error);
 	}
 
 	/*
-	 * Wait for all devices are added to vmbus.
+	 * Wait for all vmbus devices from the initial channel offers to be
+	 * attached.
 	 */
-	vmbus_scan_wait(sc);
-
-	/*
-	 * Identify, probe and attach.
-	 */
-	bus_generic_probe(sc->vmbus_dev);
-	bus_generic_attach(sc->vmbus_dev);
+	GIANT_REQUIRED;
+	while (!sc->vmbus_scandone)
+		mtx_sleep(&sc->vmbus_scandone, &Giant, 0, "vmbusdev", 0);
 
 	if (bootverbose) {
 		device_printf(sc->vmbus_dev, "device scan, probe and attach "
 		    "done\n");
 	}
-	return 0;
+	return (0);
+}
+
+static void
+vmbus_scan_teardown(struct vmbus_softc *sc)
+{
+
+	GIANT_REQUIRED;
+	if (sc->vmbus_devtq != NULL) {
+		mtx_unlock(&Giant);
+		taskqueue_free(sc->vmbus_devtq);
+		mtx_lock(&Giant);
+		sc->vmbus_devtq = NULL;
+	}
+	if (sc->vmbus_subchtq != NULL) {
+		mtx_unlock(&Giant);
+		taskqueue_free(sc->vmbus_subchtq);
+		mtx_lock(&Giant);
+		sc->vmbus_subchtq = NULL;
+	}
 }
 
 static void
@@ -1000,45 +1010,35 @@ vmbus_add_child(struct vmbus_channel *chan)
 {
 	struct vmbus_softc *sc = chan->ch_vmbus;
 	device_t parent = sc->vmbus_dev;
-	int error = 0;
 
-	/* New channel has been offered */
-	vmbus_scan_newchan(sc);
+	mtx_lock(&Giant);
 
 	chan->ch_dev = device_add_child(parent, NULL, -1);
 	if (chan->ch_dev == NULL) {
+		mtx_unlock(&Giant);
 		device_printf(parent, "device_add_child for chan%u failed\n",
 		    chan->ch_id);
-		error = ENXIO;
-		goto done;
+		return (ENXIO);
 	}
 	device_set_ivars(chan->ch_dev, chan);
+	device_probe_and_attach(chan->ch_dev);
 
-done:
-	/* New device has been/should be added to vmbus. */
-	vmbus_scan_newdev(sc);
-	return error;
+	mtx_unlock(&Giant);
+	return (0);
 }
 
 int
 vmbus_delete_child(struct vmbus_channel *chan)
 {
-	int error;
+	int error = 0;
 
-	if (chan->ch_dev == NULL) {
-		/* Failed to add a device. */
-		return 0;
-	}
-
-	/*
-	 * XXXKYS: Ensure that this is the opposite of
-	 * device_add_child()
-	 */
 	mtx_lock(&Giant);
-	error = device_delete_child(chan->ch_vmbus->vmbus_dev, chan->ch_dev);
+	if (chan->ch_dev != NULL) {
+		error = device_delete_child(chan->ch_vmbus->vmbus_dev,
+		    chan->ch_dev);
+	}
 	mtx_unlock(&Giant);
-
-	return error;
+	return (error);
 }
 
 static int
@@ -1110,10 +1110,11 @@ vmbus_doattach(struct vmbus_softc *sc)
 		return (0);
 	sc->vmbus_flags |= VMBUS_FLAG_ATTACHED;
 
-	mtx_init(&sc->vmbus_scan_lock, "vmbus scan", NULL, MTX_DEF);
 	sc->vmbus_gpadl = VMBUS_GPADL_START;
 	mtx_init(&sc->vmbus_prichan_lock, "vmbus prichan", NULL, MTX_DEF);
 	TAILQ_INIT(&sc->vmbus_prichans);
+	mtx_init(&sc->vmbus_chan_lock, "vmbus channel", NULL, MTX_DEF);
+	TAILQ_INIT(&sc->vmbus_chans);
 	sc->vmbus_chmap = malloc(
 	    sizeof(struct vmbus_channel *) * VMBUS_CHAN_MAX, M_DEVBUF,
 	    M_WAITOK | M_ZERO);
@@ -1177,6 +1178,7 @@ vmbus_doattach(struct vmbus_softc *sc)
 	return (ret);
 
 cleanup:
+	vmbus_scan_teardown(sc);
 	vmbus_intr_teardown(sc);
 	vmbus_dma_free(sc);
 	if (sc->vmbus_xc != NULL) {
@@ -1184,8 +1186,8 @@ cleanup:
 		sc->vmbus_xc = NULL;
 	}
 	free(sc->vmbus_chmap, M_DEVBUF);
-	mtx_destroy(&sc->vmbus_scan_lock);
 	mtx_destroy(&sc->vmbus_prichan_lock);
+	mtx_destroy(&sc->vmbus_chan_lock);
 
 	return (ret);
 }
@@ -1225,7 +1227,10 @@ vmbus_detach(device_t dev)
 {
 	struct vmbus_softc *sc = device_get_softc(dev);
 
+	bus_generic_detach(dev);
 	vmbus_chan_destroy_all(sc);
+
+	vmbus_scan_teardown(sc);
 
 	vmbus_disconnect(sc);
 
@@ -1243,8 +1248,8 @@ vmbus_detach(device_t dev)
 	}
 
 	free(sc->vmbus_chmap, M_DEVBUF);
-	mtx_destroy(&sc->vmbus_scan_lock);
 	mtx_destroy(&sc->vmbus_prichan_lock);
+	mtx_destroy(&sc->vmbus_chan_lock);
 
 	return (0);
 }
