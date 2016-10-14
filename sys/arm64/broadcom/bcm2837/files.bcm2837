@@ -1,0 +1,4 @@
+# $FreeBSD$
+
+arm/broadcom/bcm2835/bcm2836.c		standard
+kern/kern_clocksource.c			standard
