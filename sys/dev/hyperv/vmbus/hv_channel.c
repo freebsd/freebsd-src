@@ -111,7 +111,8 @@ vmbus_channel_sysctl_create(hv_vmbus_channel* channel)
 		ch_id = primary_ch->offer_msg.child_rel_id;
 		sub_ch_id = channel->offer_msg.offer.sub_channel_index;
 	}
-	ctx = device_get_sysctl_ctx(dev);
+	ctx = &channel->ch_sysctl_ctx;
+	sysctl_ctx_init(ctx);
 	/* This creates dev.DEVNAME.DEVUNIT.channel tree */
 	devch_sysctl = SYSCTL_ADD_NODE(ctx,
 		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
@@ -423,6 +424,11 @@ hv_vmbus_channel_establish_gpadl(struct hv_vmbus_channel *channel,
 		device_printf(sc->vmbus_dev, "gpadl->chan%u failed: "
 		    "status %u\n", channel->offer_msg.child_rel_id, status);
 		return EIO;
+	} else {
+		if (bootverbose) {
+			device_printf(sc->vmbus_dev, "gpadl->chan%u "
+			    "succeeded\n", channel->offer_msg.child_rel_id);
+		}
 	}
 	return 0;
 }
@@ -477,6 +483,7 @@ hv_vmbus_channel_close_internal(hv_vmbus_channel *channel)
 	int error;
 
 	channel->state = HV_CHANNEL_OPEN_STATE;
+	sysctl_ctx_free(&channel->ch_sysctl_ctx);
 
 	/*
 	 * set rxq to NULL to avoid more requests be scheduled
