@@ -124,6 +124,12 @@ static void tcp_hc_purge(void *);
 static SYSCTL_NODE(_net_inet_tcp, OID_AUTO, hostcache, CTLFLAG_RW, 0,
     "TCP Host cache");
 
+VNET_DEFINE(int, tcp_use_hostcache) = 1;
+#define V_tcp_use_hostcache  VNET(tcp_use_hostcache)
+SYSCTL_INT(_net_inet_tcp_hostcache, OID_AUTO, enable, CTLFLAG_VNET | CTLFLAG_RW,
+    &VNET_NAME(tcp_use_hostcache), 0,
+    "Enable the TCP hostcache");
+
 SYSCTL_UINT(_net_inet_tcp_hostcache, OID_AUTO, cachelimit, CTLFLAG_VNET | CTLFLAG_RDTUN,
     &VNET_NAME(tcp_hostcache.cache_limit), 0,
     "Overall entry limit for hostcache");
@@ -276,6 +282,9 @@ tcp_hc_lookup(struct in_conninfo *inc)
 	struct hc_head *hc_head;
 	struct hc_metrics *hc_entry;
 
+	if (!V_tcp_use_hostcache)
+		return NULL;
+
 	KASSERT(inc != NULL, ("tcp_hc_lookup with NULL in_conninfo pointer"));
 
 	/*
@@ -331,6 +340,9 @@ tcp_hc_insert(struct in_conninfo *inc)
 	int hash;
 	struct hc_head *hc_head;
 	struct hc_metrics *hc_entry;
+
+	if (!V_tcp_use_hostcache)
+		return NULL;
 
 	KASSERT(inc != NULL, ("tcp_hc_insert with NULL in_conninfo pointer"));
 
@@ -421,6 +433,9 @@ tcp_hc_get(struct in_conninfo *inc, struct hc_metrics_lite *hc_metrics_lite)
 {
 	struct hc_metrics *hc_entry;
 
+	if (!V_tcp_use_hostcache)
+		return;
+
 	/*
 	 * Find the right bucket.
 	 */
@@ -452,7 +467,7 @@ tcp_hc_get(struct in_conninfo *inc, struct hc_metrics_lite *hc_metrics_lite)
 
 /*
  * External function: look up an entry in the hostcache and return the
- * discovered path MTU.  Returns NULL if no entry is found or value is not
+ * discovered path MTU.  Returns 0 if no entry is found or value is not
  * set.
  */
 u_long
@@ -460,6 +475,9 @@ tcp_hc_getmtu(struct in_conninfo *inc)
 {
 	struct hc_metrics *hc_entry;
 	u_long mtu;
+
+	if (!V_tcp_use_hostcache)
+		return 0;
 
 	hc_entry = tcp_hc_lookup(inc);
 	if (hc_entry == NULL) {
@@ -481,6 +499,9 @@ void
 tcp_hc_updatemtu(struct in_conninfo *inc, u_long mtu)
 {
 	struct hc_metrics *hc_entry;
+
+	if (!V_tcp_use_hostcache)
+		return;
 
 	/*
 	 * Find the right bucket.
@@ -520,6 +541,9 @@ void
 tcp_hc_update(struct in_conninfo *inc, struct hc_metrics_lite *hcml)
 {
 	struct hc_metrics *hc_entry;
+
+	if (!V_tcp_use_hostcache)
+		return;
 
 	hc_entry = tcp_hc_lookup(inc);
 	if (hc_entry == NULL) {
