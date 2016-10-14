@@ -31,10 +31,7 @@ SUBDIR=	${SUBDIR_BOOTSTRAP} \
 	libarchive \
 	libauditd \
 	libbegemot \
-	${_libblacklist} \
 	libblocksruntime \
-	${_libbluetooth} \
-	${_libbsnmp} \
 	libbsdstat \
 	libbsm \
 	libbz2 \
@@ -42,103 +39,63 @@ SUBDIR=	${SUBDIR_BOOTSTRAP} \
 	libcalendar \
 	libcam \
 	libcapsicum \
-	${_libcasper} \
-	${_libcom_err} \
 	libcompat \
 	libcrypt \
-	${_libcurl} \
 	libdevctl \
-	${_libdevdctl} \
 	libdevinfo \
 	libdevstat \
 	libdwarf \
 	libedit \
-	${_libefivar} \
-	${_libelftc} \
 	libevent \
 	libexecinfo \
 	libexpat \
 	libfetch \
 	libfigpar \
 	libgeom \
-	${_libgpio} \
-	${_libgssapi} \
-	${_libhelloworld} \
-	${_librpcsec_gss} \
-	${_libiconv_modules} \
 	libifconfig \
 	libipsec \
 	libjail \
-	${_libjpeg} \
 	libkiconv \
 	libkvm \
-	${_libldns} \
 	liblzma \
-	${_libmagic} \
 	libmemstat \
 	${_libstatcounters} \
 	libmd \
-	${_libmilter} \
-	${_libmp} \
 	libmt \
-	${_libnandfs} \
 	lib80211 \
-	${_libnetgraph} \
-	${_libngatm} \
 	libnv \
 	libopenbsd \
 	libopie \
 	libpam \
 	libpcap \
-	${_libpe} \
 	libpjdlog \
-	${_libpmc} \
 	libpng \
-	${_libpng_sb} \
 	${_libproc} \
 	libprocstat \
-	${_libradius} \
 	librpcsvc \
 	librss \
 	librt \
 	${_librtld_db} \
 	libsbuf \
-	${_libsdp} \
-	${_libsm} \
 	libsmb \
-	${_libsmdb} \
-	${_libsmutil} \
 	libsqlite3 \
 	libstand \
 	libstdbuf \
 	libstdthreads \
-	${_libsyscalls} \
 	libsysdecode \
 	libtacplus \
-	${_libtelnet} \
-	${_libthr} \
 	libthread_db \
 	libucl \
 	libufs \
 	libugidfw \
 	libulog \
-	${_libunbound} \
-	${_libusbhid} \
-	${_libusb} \
 	libutil \
 	${_libvgl} \
-	${_libvmmapi} \
 	libwrap \
 	libxo \
 	liby \
-	${_libypclnt} \
 	libz \
-	${_libz_cheri} \
-	ncurses \
-	${_atf} \
-	${_clang} \
-	${_cuse} \
-	${_tests}
+	ncurses
 
 # Inter-library dependencies.  When the makefile for a library contains LDADD
 # libraries, those libraries should be listed as build order dependencies here.
@@ -170,81 +127,40 @@ SUBDIR_DEPEND_liblzma= ${_libthr}
 
 # NB: keep these sorted by MK_* knobs
 
-.if ${MK_ATM} != "no"
-_libngatm=	libngatm
-.endif
+SUBDIR.${MK_ATM}+=	libngatm
+SUBDIR.${MK_BLACKLIST}+=libblacklist
+SUBDIR.${MK_BLUETOOTH}+=libbluetooth libsdp
+SUBDIR.${MK_BSNMP}+=	libbsnmp
+SUBDIR.${MK_CASPER}+=	libcasper
 
-.if ${MK_BLACKLIST} != "no"
-_libblacklist=	libblacklist
-.endif
-
-.if ${MK_BLUETOOTH} != "no"
-_libbluetooth=	libbluetooth
-_libsdp=	libsdp
-.endif
-
-.if ${MK_BSNMP} != "no"
-_libbsnmp=	libbsnmp
-.endif
-
-.if ${MK_CASPER} != "no"
-_libcasper=	libcasper
-.endif
+SUBDIR.${MK_CHERI}+=	libhelloworld
+SUBDIR.${MK_CHERI}+=	libsyscalls
+SUBDIR.${MK_CHERI}+=	libz-cheri
+SUBDIR.${MK_CHERI}+=	libcurl
+SUBDIR.${MK_CHERI}+=	libjpeg
+SUBDIR.${MK_CHERI}+=	libpng_sb
 
 .if ${MK_CHERI} != "no"
 _libc_cheri=	libc_cheri
 _libcheri=	libcheri
-_libhelloworld=	libhelloworld
-_libsyscalls=	libsyscalls
-_libz_cheri=	libz-cheri
-_libcurl=	libcurl
-_libjpeg=	libjpeg
-_libpng_sb=	libpng_sb
 .endif
 
-.if ${MK_CLANG} != "no" && !defined(COMPAT_32BIT) && !defined(COMPAT_SOFTFP)
-_clang=		clang
+.if !defined(COMPAT_32BIT) && !defined(COMPAT_SOFTFP)
+SUBDIR.${MK_CLANG}+=	clang
 .endif
 
-.if ${MK_CUSE} != "no"
-_cuse=		libcuse
+SUBDIR.${MK_CUSE}+= 	libcuse
+.if !defined(LIBCHERI)
+SUBDIR.${MK_CXX}+=	libdevdctl
 .endif
-
-.if ${MK_CXX} != "no"
-_libdevdctl=	libdevdctl
-.endif
-
-.if ${MK_TOOLCHAIN} != "no"
-_libelftc=	libelftc
-_libpe=		libpe
-.endif
-
+SUBDIR.${MK_TOOLCHAIN}+=libelftc libpe
 SUBDIR.${MK_DIALOG}+=	libdpv
-
-.if ${MK_FILE} != "no"
-_libmagic=	libmagic
-.endif
-
-.if ${MK_GPIO} != "no"
-_libgpio=	libgpio
-.endif
-
-.if ${MK_GSSAPI} != "no"
-_libgssapi=	libgssapi
-_librpcsec_gss=	librpcsec_gss
-.endif
-
-.if ${MK_ICONV} != "no"
-_libiconv_modules=	libiconv_modules
-.endif
-
-.if ${MK_KERBEROS_SUPPORT} != "no"
-_libcom_err= libcom_err
-.endif
-
-.if ${MK_LDNS} != "no"
-_libldns=	libldns
-.endif
+SUBDIR.${MK_FILE}+=	libmagic
+SUBDIR.${MK_GPIO}+=	libgpio
+SUBDIR.${MK_GSSAPI}+=	libgssapi librpcsec_gss
+SUBDIR.${MK_ICONV}+=	libiconv_modules
+SUBDIR.${MK_KERBEROS_SUPPORT}+=	libcom_err
+SUBDIR.${MK_LDNS}+=	libldns
 
 # The libraries under libclang_rt can only be built by clang, and only make
 # sense to build when clang is enabled at all.  Furthermore, they can only be
@@ -261,25 +177,11 @@ _libcxxrt=	libcxxrt
 _libcplusplus=	libc++
 .endif
 
-.if ${MK_EFI} != "no"
-_libefivar=	libefivar
-.endif
-
-.if ${MK_LIBTHR} != "no"
-_libthr=	libthr
-.endif
-
-.if ${MK_NAND} != "no"
-_libnandfs=	libnandfs
-.endif
-
-.if ${MK_NETGRAPH} != "no"
-_libnetgraph=	libnetgraph
-.endif
-
-.if ${MK_NIS} != "no"
-_libypclnt=	libypclnt
-.endif
+SUBDIR.${MK_EFI}+=	libefivar
+SUBDIR.${MK_LIBTHR}+=	libthr
+SUBDIR.${MK_NAND}+=	libnandfs
+SUBDIR.${MK_NETGRAPH}+=	libnetgraph
+SUBDIR.${MK_NIS}+=	libypclnt
 
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
 _libvgl=	libvgl
@@ -288,9 +190,7 @@ _librtld_db=	librtld_db
 .endif
 
 .if ${MACHINE_CPUARCH} == "amd64"
-.if ${MK_BHYVE} != "no"
-_libvmmapi=	libvmmapi
-.endif
+SUBDIR.${MK_BHYVE}+=	libvmmapi
 .endif
 
 .if ${MACHINE_CPUARCH} == "mips"
@@ -310,44 +210,19 @@ _libproc=	libproc
 _librtld_db=	librtld_db
 .endif
 
-.if ${MK_OPENSSL} != "no"
-_libmp=		libmp
-.endif
-
-.if ${MK_PMC} != "no"
-_libpmc=	libpmc
-.endif
-
-.if ${MK_RADIUS_SUPPORT} != "no"
-_libradius=	libradius
-.endif
-
-.if ${MK_SENDMAIL} != "no"
-_libmilter=	libmilter
-_libsm=		libsm
-_libsmdb=	libsmdb
-_libsmutil=	libsmutil
-.endif
-
-.if ${MK_TELNET} != "no"
-_libtelnet=	libtelnet
-.endif
+SUBDIR.${MK_OPENSSL}+=	libmp
+SUBDIR.${MK_PMC}+=	libpmc
+SUBDIR.${MK_RADIUS_SUPPORT}+=	libradius
+SUBDIR.${MK_SENDMAIL}+=	libmilter libsm libsmdb libsmutil
+SUBDIR.${MK_TELNET}+=	libtelnet
 
 .if ${MK_TESTS_SUPPORT} != "no" || defined(LIBCHERI)
-_atf=		atf
-.endif
-.if ${MK_TESTS} != "no"
-_tests=		tests
+SUBDIR+=		atf
 .endif
 
-.if ${MK_UNBOUND} != "no"
-_libunbound=	libunbound
-.endif
-
-.if ${MK_USB} != "no"
-_libusbhid=	libusbhid
-_libusb=	libusb
-.endif
+SUBDIR.${MK_TESTS}+=	tests
+SUBDIR.${MK_UNBOUND}+=	libunbound
+SUBDIR.${MK_USB}+=	libusbhid libusb
 
 .if !make(install)
 SUBDIR_PARALLEL=
