@@ -713,6 +713,7 @@ typedef struct {
 typedef struct hv_vmbus_channel {
 	TAILQ_ENTRY(hv_vmbus_channel)	list_entry;
 	struct hv_device*		device;
+	struct vmbus_softc		*vmbus_sc;
 	hv_vmbus_channel_state		state;
 	hv_vmbus_channel_offer_channel	offer_msg;
 	/*
@@ -808,6 +809,8 @@ typedef struct hv_vmbus_channel {
 	void				*hv_chan_priv1;
 	void				*hv_chan_priv2;
 	void				*hv_chan_priv3;
+
+	struct task			ch_detach_task;
 } hv_vmbus_channel;
 
 #define HV_VMBUS_CHAN_ISPRIMARY(chan)	((chan)->primary_channel == NULL)

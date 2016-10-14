@@ -84,6 +84,11 @@ struct vmbus_softc {
 	void			*vmbus_mnf1;	/* monitored by VM, unused */
 	struct hyperv_dma	vmbus_mnf1_dma;
 	struct hyperv_dma	vmbus_mnf2_dma;
+
+	struct mtx		vmbus_scan_lock;
+	uint32_t		vmbus_scan_chcnt;
+#define VMBUS_SCAN_CHCNT_DONE	0x80000000
+	uint32_t		vmbus_scan_devcnt;
 };
 
 #define VMBUS_FLAG_ATTACHED	0x0001	/* vmbus was attached */
@@ -128,5 +133,8 @@ int	vmbus_msghc_exec(struct vmbus_softc *, struct vmbus_msghc *);
 const struct vmbus_message *vmbus_msghc_wait_result(struct vmbus_softc *,
 	    struct vmbus_msghc *);
 void	vmbus_msghc_wakeup(struct vmbus_softc *, const struct vmbus_message *);
+
+void	vmbus_scan_done(struct vmbus_softc *);
+void	vmbus_scan_newchan(struct vmbus_softc *);
 
 #endif	/* !_VMBUS_VAR_H_ */
