@@ -362,7 +362,7 @@ retrylookup:
 			vm_page_aflag_set(m, PGA_REFERENCED);
 			vm_page_lock(m);
 			VM_OBJECT_WUNLOCK(ksobj);
-			vm_page_busy_sleep(m, "pgrbwt");
+			vm_page_busy_sleep(m, "pgrbwt", false);
 			VM_OBJECT_WLOCK(ksobj);
 			goto retrylookup;
 		} else {
