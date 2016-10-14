@@ -266,7 +266,6 @@ struct hn_softc {
 /*
  * Externs
  */
-extern int hv_promisc_mode;
 struct hn_send_ctx;
 
 void netvsc_linkstatus_callback(struct hn_softc *sc, uint32_t status);
