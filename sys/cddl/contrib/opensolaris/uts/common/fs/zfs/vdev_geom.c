@@ -730,7 +730,8 @@ vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *max_psize,
 
 	if (vd->vdev_spa->spa_splitting_newspa ||
 	    (vd->vdev_prevstate == VDEV_STATE_UNKNOWN &&
-	     vd->vdev_spa->spa_load_state == SPA_LOAD_NONE)) {
+	     vd->vdev_spa->spa_load_state == SPA_LOAD_NONE ||
+	     vd->vdev_spa->spa_load_state == SPA_LOAD_CREATE)) {
 		/*
 		 * We are dealing with a vdev that hasn't been previously
 		 * opened (since boot), and we are not loading an
