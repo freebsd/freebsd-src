@@ -345,6 +345,7 @@ static void hn_destroy_rx_data(struct hn_softc *sc);
 static void hn_set_tx_chimney_size(struct hn_softc *, int);
 static void hn_channel_attach(struct hn_softc *, struct hv_vmbus_channel *);
 static void hn_subchan_attach(struct hn_softc *, struct hv_vmbus_channel *);
+static void hn_subchan_setup(struct hn_softc *);
 
 static int hn_transmit(struct ifnet *, struct mbuf *);
 static void hn_xmit_qflush(struct ifnet *);
@@ -575,25 +576,8 @@ netvsc_attach(device_t dev)
 	device_printf(dev, "%d TX ring, %d RX ring\n",
 	    sc->hn_tx_ring_inuse, sc->hn_rx_ring_inuse);
 
-	if (sc->net_dev->num_channel > 1) {
-		struct hv_vmbus_channel **subchan;
-		int subchan_cnt = sc->net_dev->num_channel - 1;
-		int i;
-
-		/* Wait for sub-channels setup to complete. */
-		subchan = vmbus_get_subchan(pri_chan, subchan_cnt);
-
-		/* Attach the sub-channels. */
-		for (i = 0; i < subchan_cnt; ++i) {
-			/* NOTE: Calling order is critical. */
-			hn_subchan_attach(sc, subchan[i]);
-			hv_nv_subchan_attach(subchan[i]);
-		}
-
-		/* Release the sub-channels */
-		vmbus_rel_subchan(subchan, subchan_cnt);
-		device_printf(dev, "%d sub-channels setup done\n", subchan_cnt);
-	}
+	if (sc->net_dev->num_channel > 1)
+		hn_subchan_setup(sc);
 
 #if __FreeBSD_version >= 1100099
 	if (sc->hn_rx_ring_inuse > 1) {
@@ -1620,6 +1604,10 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			NV_UNLOCK(sc);
 			break;
 		}
+
+		/* Wait for subchannels to be destroyed */
+		vmbus_drain_subchan(hn_dev->channel);
+
 		error = hv_rf_on_device_add(hn_dev, &device_info,
 		    sc->hn_rx_ring_inuse);
 		if (error) {
@@ -1627,6 +1615,26 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			sc->temp_unusable = FALSE;
 			NV_UNLOCK(sc);
 			break;
+		}
+		KASSERT(sc->hn_rx_ring_cnt == sc->net_dev->num_channel,
+		    ("RX ring count %d and channel count %u mismatch",
+		     sc->hn_rx_ring_cnt, sc->net_dev->num_channel));
+		if (sc->net_dev->num_channel > 1) {
+			int r;
+
+			/*
+			 * Skip the rings on primary channel; they are
+			 * handled by the hv_rf_on_device_add() above.
+			 */
+			for (r = 1; r < sc->hn_rx_ring_cnt; ++r) {
+				sc->hn_rx_ring[r].hn_rx_flags &=
+				    ~HN_RX_FLAG_ATTACHED;
+			}
+			for (r = 1; r < sc->hn_tx_ring_cnt; ++r) {
+				sc->hn_tx_ring[r].hn_tx_flags &=
+				    ~HN_TX_FLAG_ATTACHED;
+			}
+			hn_subchan_setup(sc);
 		}
 
 		sc->hn_tx_chimney_max = sc->net_dev->send_section_size;
@@ -2977,6 +2985,29 @@ hn_subchan_attach(struct hn_softc *sc, struct hv_vmbus_channel *chan)
 	    ("invalid channel subidx %u",
 	     chan->offer_msg.offer.sub_channel_index));
 	hn_channel_attach(sc, chan);
+}
+
+static void
+hn_subchan_setup(struct hn_softc *sc)
+{
+	struct hv_device *device_ctx = vmbus_get_devctx(sc->hn_dev);
+	struct hv_vmbus_channel **subchan;
+	int subchan_cnt = sc->net_dev->num_channel - 1;
+	int i;
+
+	/* Wait for sub-channels setup to complete. */
+	subchan = vmbus_get_subchan(device_ctx->channel, subchan_cnt);
+
+	/* Attach the sub-channels. */
+	for (i = 0; i < subchan_cnt; ++i) {
+		/* NOTE: Calling order is critical. */
+		hn_subchan_attach(sc, subchan[i]);
+		hv_nv_subchan_attach(subchan[i]);
+	}
+
+	/* Release the sub-channels */
+	vmbus_rel_subchan(subchan, subchan_cnt);
+	if_printf(sc->hn_ifp, "%d sub-channels setup done\n", subchan_cnt);
 }
 
 static void
