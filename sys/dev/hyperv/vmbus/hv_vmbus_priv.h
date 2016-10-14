@@ -395,9 +395,7 @@ void			hv_ring_buffer_read_begin(
 uint32_t		hv_ring_buffer_read_end(
 				hv_vmbus_ring_buffer_info	*ring_info);
 
-hv_vmbus_channel*	hv_vmbus_allocate_channel(void);
 void			hv_vmbus_free_vmbus_channel(hv_vmbus_channel *channel);
-int			hv_vmbus_request_channel_offers(void);
 void			hv_vmbus_release_unattached_channels(void);
 
 uint16_t		hv_vmbus_post_msg_via_msg_ipc(
@@ -413,7 +411,9 @@ struct hv_device*	hv_vmbus_child_device_create(
 				hv_guid			device_instance,
 				hv_vmbus_channel	*channel);
 
-int			hv_vmbus_child_device_register(
+struct vmbus_softc;
+
+void			hv_vmbus_child_device_register(struct vmbus_softc *,
 					struct hv_device *child_dev);
 int			hv_vmbus_child_device_unregister(
 					struct hv_device *child_dev);
@@ -421,13 +421,9 @@ int			hv_vmbus_child_device_unregister(
 /**
  * Connection interfaces
  */
-struct vmbus_softc;
 int			hv_vmbus_connect(struct vmbus_softc *);
 int			hv_vmbus_disconnect(void);
 int			hv_vmbus_post_message(void *buffer, size_t buf_size);
 int			hv_vmbus_set_event(hv_vmbus_channel *channel);
-
-/* Wait for device creation */
-void			vmbus_scan(void);
 
 #endif  /* __HYPERV_PRIV_H__ */

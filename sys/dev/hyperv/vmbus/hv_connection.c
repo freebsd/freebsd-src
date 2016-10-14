@@ -92,19 +92,13 @@ hv_vmbus_connect(struct vmbus_softc *sc)
 int
 hv_vmbus_disconnect(void)
 {
-	int			 ret = 0;
-	hv_vmbus_channel_unload  msg;
-
-	msg.message_type = HV_CHANNEL_MESSAGE_UNLOAD;
-
-	ret = hv_vmbus_post_message(&msg, sizeof(hv_vmbus_channel_unload));
 
 	mtx_destroy(&hv_vmbus_g_connection.channel_msg_lock);
 
 	free(hv_vmbus_g_connection.channels, M_DEVBUF);
 	hv_vmbus_g_connection.connect_state = HV_DISCONNECTED;
 
-	return (ret);
+	return (0);
 }
 
 static __inline void
@@ -210,7 +204,7 @@ int hv_vmbus_post_message(void *buffer, size_t bufferLen)
 int
 hv_vmbus_set_event(hv_vmbus_channel *channel)
 {
-	struct vmbus_softc *sc = vmbus_get_softc();
+	struct vmbus_softc *sc = channel->vmbus_sc;
 	int ret = 0;
 	uint32_t chanid = channel->offer_msg.child_rel_id;
 
@@ -228,7 +222,7 @@ vmbus_on_channel_open(const struct hv_vmbus_channel *chan)
 	int flag_cnt;
 
 	flag_cnt = (chan->offer_msg.child_rel_id / VMBUS_EVTFLAG_LEN) + 1;
-	flag_cnt_ptr = VMBUS_PCPU_PTR(vmbus_get_softc(), event_flags_cnt,
+	flag_cnt_ptr = VMBUS_PCPU_PTR(chan->vmbus_sc, event_flags_cnt,
 	    chan->target_cpu);
 
 	for (;;) {
