@@ -415,7 +415,7 @@
 199	AUE_LSEEK	OBSOL	lseek
 200	AUE_TRUNCATE	OBSOL	truncate
 201	AUE_FTRUNCATE	OBSOL	ftruncate
-202	AUE_SYSCTL	NOPROTO	{ int __sysctl(_In_z_ int *name, \
+202	AUE_SYSCTL	NOPROTO	{ int __sysctl(_In_reads_(namelen) int *name, \
 				    u_int namelen, \
 				    _Out_writes_bytes_opt_(*oldlenp) \
 				    void *old, \

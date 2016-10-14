@@ -2902,14 +2902,14 @@ CHERIABI_SYS___sysctl_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->newlen, CHERI_CR_CTEMP0);
 
-	/* [0] _In_z_ int * name */
+	/* [0] _In_reads_(namelen) int * name */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
 
 		cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS___sysctl, 0);
 		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->name),
-		    &tmpcap, sizeof(*uap->name), reqperms, 0);
+		    &tmpcap, (sizeof(*uap->name) * uap->namelen), reqperms, 0);
 		if (error != 0)
 			return (error);
 	}
