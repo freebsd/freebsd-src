@@ -166,26 +166,13 @@ SUBDIR.${MK_NIS}+=	libypclnt
 
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
 _libvgl=	libvgl
-_libproc=	libproc
-_librtld_db=	librtld_db
 .endif
 
 .if ${MACHINE_CPUARCH} == "amd64"
 SUBDIR.${MK_BHYVE}+=	libvmmapi
 .endif
 
-.if ${MACHINE_CPUARCH} == "mips"
-_libproc=	libproc
-_librtld_db=	librtld_db
-.endif
-
-.if ${MACHINE_CPUARCH} == "powerpc"
-_libproc=	libproc
-_librtld_db=	librtld_db
-.endif
-
-.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "arm" || \
-    ${MACHINE_CPUARCH} == "riscv"
+.if ${MACHINE_CPUARCH} != "sparc64"
 _libproc=	libproc
 _librtld_db=	librtld_db
 .endif
