@@ -178,6 +178,7 @@ struct hn_tx_ring {
 	bus_dma_tag_t	hn_tx_data_dtag;
 	uint64_t	hn_csum_assist;
 
+	int		hn_suspended;
 	int		hn_gpa_cnt;
 	struct vmbus_gpa hn_gpa[NETVSC_PACKET_MAXPAGE];
 
@@ -269,8 +270,6 @@ extern int hv_promisc_mode;
 struct hn_send_ctx;
 
 void netvsc_linkstatus_callback(struct hn_softc *sc, uint32_t status);
-int hn_nvs_attach(struct hn_softc *sc, int mtu);
-int hv_nv_on_device_remove(struct hn_softc *sc);
 int hv_nv_on_send(struct vmbus_channel *chan, uint32_t rndis_mtype,
 	struct hn_send_ctx *sndc, struct vmbus_gpa *gpa, int gpa_cnt);
 

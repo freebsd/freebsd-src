@@ -958,11 +958,8 @@ done:
 	return (error);
 }
 
-/*
- * RNDIS filter halt device
- */
 static int
-hv_rf_halt_device(struct hn_softc *sc)
+hn_rndis_halt(struct hn_softc *sc)
 {
 	struct vmbus_xact *xact;
 	struct rndis_halt_req *halt;
@@ -1009,21 +1006,12 @@ hn_rndis_attach(struct hn_softc *sc)
 	return (0);
 }
 
-/*
- * RNDIS filter on device remove
- */
-int
-hv_rf_on_device_remove(struct hn_softc *sc)
+void
+hn_rndis_detach(struct hn_softc *sc)
 {
-	int ret;
 
-	/* Halt and release the rndis device */
-	ret = hv_rf_halt_device(sc);
-
-	/* Pass control to inner driver to remove the device */
-	ret |= hv_nv_on_device_remove(sc);
-
-	return (ret);
+	/* Halt the RNDIS. */
+	hn_rndis_halt(sc);
 }
 
 /*
