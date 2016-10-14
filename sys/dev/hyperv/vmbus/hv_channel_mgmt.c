@@ -112,7 +112,7 @@ vmbus_channel_process_offer(hv_vmbus_channel *new_channel)
 	hv_vmbus_channel*	channel;
 	uint32_t                relid;
 
-	relid = new_channel->offer_msg.child_rel_id;
+	relid = new_channel->ch_id;
 	/*
 	 * Make sure this is a new offer
 	 */
@@ -127,11 +127,9 @@ vmbus_channel_process_offer(hv_vmbus_channel *new_channel)
 	}
 
 	TAILQ_FOREACH(channel, &sc->vmbus_chlist, ch_link) {
-		if (memcmp(&channel->offer_msg.offer.interface_type,
-		    &new_channel->offer_msg.offer.interface_type,
+		if (memcmp(&channel->ch_guid_type, &new_channel->ch_guid_type,
 		    sizeof(hv_guid)) == 0 &&
-		    memcmp(&channel->offer_msg.offer.interface_instance,
-		    &new_channel->offer_msg.offer.interface_instance,
+		    memcmp(&channel->ch_guid_inst, &new_channel->ch_guid_inst,
 		    sizeof(hv_guid)) == 0)
 			break;
 	}
@@ -148,18 +146,18 @@ vmbus_channel_process_offer(hv_vmbus_channel *new_channel)
 		logstr[0] = '\0';
 		if (channel != NULL) {
 			snprintf(logstr, sizeof(logstr), ", primary chan%u",
-			    channel->offer_msg.child_rel_id);
+			    channel->ch_id);
 		}
 		device_printf(sc->vmbus_dev, "chan%u subchanid%u offer%s\n",
-		    new_channel->offer_msg.child_rel_id,
-		    new_channel->offer_msg.offer.sub_channel_index, logstr);
+		    new_channel->ch_id,
+		    new_channel->ch_subidx, logstr);
 	}
 
 	if (channel != NULL) {
 		/*
 		 * Check if this is a sub channel.
 		 */
-		if (new_channel->offer_msg.offer.sub_channel_index != 0) {
+		if (new_channel->ch_subidx != 0) {
 			/*
 			 * It is a sub channel offer, process it.
 			 */
@@ -200,7 +198,7 @@ vmbus_channel_process_offer(hv_vmbus_channel *new_channel)
 		}
 
 		printf("VMBUS: duplicated primary channel%u\n",
-		    new_channel->offer_msg.child_rel_id);
+		    new_channel->ch_id);
 		hv_vmbus_free_vmbus_channel(new_channel);
 		return;
 	}
@@ -212,9 +210,7 @@ vmbus_channel_process_offer(hv_vmbus_channel *new_channel)
 	 * (We need to set the device field before calling
 	 * hv_vmbus_child_device_add())
 	 */
-	new_channel->device = hv_vmbus_child_device_create(
-	    new_channel->offer_msg.offer.interface_type,
-	    new_channel->offer_msg.offer.interface_instance, new_channel);
+	new_channel->device = hv_vmbus_child_device_create(new_channel);
 
 	/*
 	 * Add the new device to the bus. This will kick off device-driver
@@ -241,7 +237,7 @@ vmbus_channel_cpu_set(struct hv_vmbus_channel *chan, int cpu)
 
 	if (bootverbose) {
 		printf("vmbus_chan%u: assigned to cpu%u [vcpu%u]\n",
-		    chan->offer_msg.child_rel_id,
+		    chan->ch_id,
 		    chan->target_cpu, chan->target_vcpu);
 	}
 }
@@ -292,6 +288,12 @@ vmbus_channel_on_offer_internal(struct vmbus_softc *sc,
 
 	/* Allocate the channel object and save this offer */
 	new_channel = hv_vmbus_allocate_channel(sc);
+	new_channel->ch_id = offer->child_rel_id;
+	new_channel->ch_subidx = offer->offer.sub_channel_index;
+	if (offer->monitor_allocated)
+		new_channel->ch_flags |= VMBUS_CHAN_FLAG_HASMNF;
+	new_channel->ch_guid_type = offer->offer.interface_type;
+	new_channel->ch_guid_inst = offer->offer.interface_instance;
 
 	/*
 	 * By default we setup state to enable batched
@@ -319,8 +321,6 @@ vmbus_channel_on_offer_internal(struct vmbus_softc *sc,
 		new_channel->ch_sigevt->hc_connid = offer->connection_id;
 	}
 
-	memcpy(&new_channel->offer_msg, offer,
-	    sizeof(hv_vmbus_channel_offer_channel));
 	new_channel->monitor_group = (uint8_t) offer->monitor_id / 32;
 	new_channel->monitor_bit = (uint8_t) offer->monitor_id % 32;
 
@@ -379,13 +379,13 @@ vmbus_chan_detach_task(void *xchan, int pending __unused)
 		if (mh == NULL) {
 			device_printf(sc->vmbus_dev,
 			    "can not get msg hypercall for chfree(chan%u)\n",
-			    chan->offer_msg.child_rel_id);
+			    chan->ch_id);
 			goto remove;
 		}
 
 		req = vmbus_msghc_dataptr(mh);
 		req->chm_hdr.chm_type = VMBUS_CHANMSG_TYPE_CHFREE;
-		req->chm_chanid = chan->offer_msg.child_rel_id;
+		req->chm_chanid = chan->ch_id;
 
 		error = vmbus_msghc_exec_noresult(mh);
 		vmbus_msghc_put(sc, mh);
@@ -393,12 +393,12 @@ vmbus_chan_detach_task(void *xchan, int pending __unused)
 		if (error) {
 			device_printf(sc->vmbus_dev,
 			    "chfree(chan%u) failed: %d",
-			    chan->offer_msg.child_rel_id, error);
+			    chan->ch_id, error);
 			/* NOTE: Move on! */
 		} else {
 			if (bootverbose) {
 				device_printf(sc->vmbus_dev, "chan%u freed\n",
-				    chan->offer_msg.child_rel_id);
+				    chan->ch_id);
 			}
 		}
 remove:
