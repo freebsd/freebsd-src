@@ -21,8 +21,16 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
-#include "common.h"
 #include "extern.h"
+
+static void
+cleanup(const char *filename)
+{
+
+	if (unlink(filename))
+		err(2, "could not delete: %s", filename);
+	exit(2);
+}
 
 /*
  * Execute an editor on the specified pathname, which is interpreted
