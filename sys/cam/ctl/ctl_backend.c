@@ -243,3 +243,14 @@ ctl_get_opt(ctl_options_t *opts, const char *name)
 	}
 	return (NULL);
 }
+
+int
+ctl_get_opt_number(ctl_options_t *opts, const char *name, uint64_t *val)
+{
+	const char *value;
+
+	value = ctl_get_opt(opts, name);
+	if (value == NULL)
+		return (-2);
+	return (ctl_expand_number(value, val));
+}

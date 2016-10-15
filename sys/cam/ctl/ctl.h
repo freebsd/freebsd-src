@@ -217,6 +217,7 @@ void ctl_update_opts(ctl_options_t *opts, int num_args,
     struct ctl_be_arg *args);
 void ctl_free_opts(ctl_options_t *opts);
 char * ctl_get_opt(ctl_options_t *opts, const char *name);
+int ctl_get_opt_number(ctl_options_t *opts, const char *name, uint64_t *num);
 int ctl_expand_number(const char *buf, uint64_t *num);
 
 #endif	/* _KERNEL */
