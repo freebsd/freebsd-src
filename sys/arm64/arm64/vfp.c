@@ -79,6 +79,10 @@ void
 vfp_discard(struct thread *td)
 {
 
+#ifdef INVARIANTS
+	if (td != NULL)
+		CRITICAL_ASSERT(td);
+#endif
 	if (PCPU_GET(fpcurthread) == td)
 		PCPU_SET(fpcurthread, NULL);
 
