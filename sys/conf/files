@@ -1573,6 +1573,7 @@ dev/gpio/gpioc.c		optional gpio				\
 	dependency	"gpio_if.h"
 dev/gpio/gpioiic.c		optional gpioiic
 dev/gpio/gpioled.c		optional gpioled
+dev/gpio/gpioregulator.c	optional gpioregulator fdt ext_resources
 dev/gpio/gpiospi.c		optional gpiospi
 dev/gpio/gpio_if.m		optional gpio
 dev/gpio/gpiobus_if.m		optional gpio
