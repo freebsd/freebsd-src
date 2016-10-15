@@ -1089,7 +1089,6 @@ MLINKS+=\
 	mbuf.9 m_get2.9 \
 	mbuf.9 m_getjcl.9 \
 	mbuf.9 m_getcl.9 \
-	mbuf.9 m_getclr.9 \
 	mbuf.9 MGETHDR.9 \
 	mbuf.9 m_gethdr.9 \
 	mbuf.9 m_getm.9 \
