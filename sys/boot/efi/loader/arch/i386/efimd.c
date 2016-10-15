@@ -48,7 +48,10 @@ static EFI_GUID hcdp_guid = HCDP_TABLE_GUID;
 
 static UINTN mapkey;
 
-uint64_t
+int ldr_bootinfo(struct bootinfo *, uint64_t *);
+int ldr_enter(const char *);
+
+static uint64_t
 ldr_alloc(vm_offset_t va)
 {
 

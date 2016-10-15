@@ -144,8 +144,15 @@ arc4_stir(void)
 		arc4_init();
 		rs_initialized = 1;
 	}
-	if (arc4_sysctl(rdat, KEYSIZE) != KEYSIZE)
-		abort(); /* Random sysctl cannot fail. */
+	if (arc4_sysctl(rdat, KEYSIZE) != KEYSIZE) {
+		/*
+		 * The sysctl cannot fail. If it does fail on some FreeBSD
+		 * derivative or after some future change, just abort so that
+		 * the problem will be found and fixed. abort is not normally
+		 * suitable for a library but makes sense here.
+		 */
+		abort();
+	}
 
 	arc4_addrandom(rdat, KEYSIZE);
 

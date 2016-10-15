@@ -1151,11 +1151,10 @@ syncache_tfo_expand(struct syncache *sc, struct socket **lsop, struct mbuf *m,
  * the data, we avoid this DoS scenario.
  *
  * The exception to the above is when a SYN with a valid TCP Fast Open (TFO)
- * cookie is processed, V_tcp_fastopen_enabled set to true, and the
- * TCP_FASTOPEN socket option is set.  In this case, a new socket is created
- * and returned via lsop, the mbuf is not freed so that tcp_input() can
- * queue its data to the socket, and 1 is returned to indicate the
- * TFO-socket-creation path was taken.
+ * cookie is processed and a new socket is created.  In this case, any data
+ * accompanying the SYN will be queued to the socket by tcp_input() and will
+ * be ACKed either when the application sends response data or the delayed
+ * ACK timer expires, whichever comes first.
  */
 int
 syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
@@ -1181,6 +1180,7 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	struct ucred *cred;
 #ifdef TCP_RFC7413
 	uint64_t tfo_response_cookie;
+	unsigned int *tfo_pending = NULL;
 	int tfo_cookie_valid = 0;
 	int tfo_response_cookie_valid = 0;
 #endif
@@ -1209,7 +1209,7 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	ltflags = (tp->t_flags & (TF_NOOPT | TF_SIGNATURE));
 
 #ifdef TCP_RFC7413
-	if (V_tcp_fastopen_enabled && (tp->t_flags & TF_FASTOPEN) &&
+	if (V_tcp_fastopen_enabled && IS_FASTOPEN(tp->t_flags) &&
 	    (tp->t_tfo_pending != NULL) && (to->to_flags & TOF_FASTOPEN)) {
 		/*
 		 * Limit the number of pending TFO connections to
@@ -1226,8 +1226,13 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 			    &tfo_response_cookie);
 			tfo_cookie_valid = (result > 0);
 			tfo_response_cookie_valid = (result >= 0);
-		} else
-			atomic_subtract_int(tp->t_tfo_pending, 1);
+		}
+
+		/*
+		 * Remember the TFO pending counter as it will have to be
+		 * decremented below if we don't make it to syncache_tfo_expand().
+		 */
+		tfo_pending = tp->t_tfo_pending;
 	}
 #endif
 
@@ -1468,9 +1473,9 @@ skip_alloc:
 #ifdef TCP_RFC7413
 	if (tfo_cookie_valid) {
 		syncache_tfo_expand(sc, lsop, m, tfo_response_cookie);
-		/* INP_WUNLOCK(inp) will be performed by the called */
+		/* INP_WUNLOCK(inp) will be performed by the caller */
 		rv = 1;
-		goto tfo_done;
+		goto tfo_expanded;
 	}
 #endif
 
@@ -1496,7 +1501,16 @@ done:
 		m_freem(m);
 	}
 #ifdef TCP_RFC7413
-tfo_done:
+	/*
+	 * If tfo_pending is not NULL here, then a TFO SYN that did not
+	 * result in a new socket was processed and the associated pending
+	 * counter has not yet been decremented.  All such TFO processing paths
+	 * transit this point.
+	 */
+	if (tfo_pending != NULL)
+		tcp_fastopen_decrement_counter(tfo_pending);
+
+tfo_expanded:
 #endif
 	if (cred != NULL)
 		crfree(cred);

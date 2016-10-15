@@ -49,6 +49,8 @@ FILES=	\
 	bsd.progs.mk \
 	bsd.snmpmod.mk \
 	bsd.subdir.mk \
+	bsd.suffixes-posix.mk \
+	bsd.suffixes.mk \
 	bsd.symver.mk \
 	bsd.sys.mk \
 	bsd.test.mk \

@@ -335,7 +335,7 @@ struct mbuf {
 #define	M_HASHTYPE_RSS_TCP_IPV6		M_HASHTYPE_HASH(4) /* TCPv6 4-tuple */
 #define	M_HASHTYPE_RSS_IPV6_EX		M_HASHTYPE_HASH(5) /* IPv6 2-tuple +
 							    * ext hdrs */
-#define	M_HASHTYPE_RSS_TCP_IPV6_EX	M_HASHTYPE_HASH(6) /* TCPv6 4-tiple +
+#define	M_HASHTYPE_RSS_TCP_IPV6_EX	M_HASHTYPE_HASH(6) /* TCPv6 4-tuple +
 							    * ext hdrs */
 /* Non-standard RSS hash types */
 #define	M_HASHTYPE_RSS_UDP_IPV4		M_HASHTYPE_HASH(7) /* IPv4 UDP 4-tuple*/

@@ -57,7 +57,9 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#ifdef TCP_HHOOK
 #include <sys/hhook.h>
+#endif
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/proc.h>		/* for proc0 declaration */
@@ -278,6 +280,7 @@ kmod_tcpstat_inc(int statnum)
 	counter_u64_add(VNET(tcpstat)[statnum], 1);
 }
 
+#ifdef TCP_HHOOK
 /*
  * Wrapper for the TCP established input helper hook.
  */
@@ -295,6 +298,7 @@ hhook_run_tcp_est_in(struct tcpcb *tp, struct tcphdr *th, struct tcpopt *to)
 		    tp->osd);
 	}
 }
+#endif
 
 /*
  * CC wrapper hook functions
@@ -1024,7 +1028,7 @@ relocked:
 #endif
 	if (!((tp->t_state == TCPS_ESTABLISHED && (thflags & TH_SYN) == 0) ||
 	      (tp->t_state == TCPS_LISTEN && (thflags & TH_SYN) &&
-	       !(tp->t_flags & TF_FASTOPEN)))) {
+	       !IS_FASTOPEN(tp->t_flags)))) {
 		if (ti_locked == TI_UNLOCKED) {
 			if (INP_INFO_TRY_RLOCK(&V_tcbinfo) == 0) {
 				in_pcbref(inp);
@@ -1067,11 +1071,11 @@ relocked:
 	 * state) we look into the SYN cache if this is a new connection
 	 * attempt or the completion of a previous one.
 	 */
-	if (so->so_options & SO_ACCEPTCONN) {
+	KASSERT(tp->t_state == TCPS_LISTEN || !(so->so_options & SO_ACCEPTCONN),
+	    ("%s: so accepting but tp %p not listening", __func__, tp));
+	if (tp->t_state == TCPS_LISTEN && (so->so_options & SO_ACCEPTCONN)) {
 		struct in_conninfo inc;
 
-		KASSERT(tp->t_state == TCPS_LISTEN, ("%s: so accepting but "
-		    "tp not listening", __func__));
 		bzero(&inc, sizeof(inc));
 #ifdef INET6
 		if (isipv6) {
@@ -1117,7 +1121,7 @@ relocked:
 				goto dropwithreset;
 			}
 #ifdef TCP_RFC7413
-new_tfo_socket:
+tfo_socket_result:
 #endif
 			if (so == NULL) {
 				/*
@@ -1383,7 +1387,7 @@ new_tfo_socket:
 		tcp_dooptions(&to, optp, optlen, TO_SYN);
 #ifdef TCP_RFC7413
 		if (syncache_add(&inc, &to, th, inp, &so, m, NULL, NULL))
-			goto new_tfo_socket;
+			goto tfo_socket_result;
 #else
 		syncache_add(&inc, &to, th, inp, &so, m, NULL, NULL);
 #endif
@@ -1502,7 +1506,9 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	struct in_conninfo *inc;
 	struct mbuf *mfree;
 	struct tcpopt to;
+#ifdef TCP_RFC7413
 	int tfo_syn;
+#endif
 	
 #ifdef TCPDEBUG
 	/*
@@ -1559,8 +1565,6 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 * validation to ignore broken/spoofed segs.
 	 */
 	tp->t_rcvtime = ticks;
-	if (TCPS_HAVEESTABLISHED(tp->t_state))
-		tcp_timer_activate(tp, TT_KEEP, TP_KEEPIDLE(tp));
 
 	/*
 	 * Scale up the window into a 32-bit value.
@@ -1753,8 +1757,10 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				}
 				acked = BYTES_THIS_ACK(tp, th);
 
+#ifdef TCP_HHOOK
 				/* Run HHOOK_TCP_ESTABLISHED_IN helper hooks. */
 				hhook_run_tcp_est_in(tp, th, &to);
+#endif
 
 				TCPSTAT_ADD(tcps_rcvackpack, nsegs);
 				TCPSTAT_ADD(tcps_rcvackbyte, acked);
@@ -1958,7 +1964,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				goto dropwithreset;
 		}
 #ifdef TCP_RFC7413
-		if (tp->t_flags & TF_FASTOPEN) {
+		if (IS_FASTOPEN(tp->t_flags)) {
 			/*
 			 * When a TFO connection is in SYN_RECEIVED, the
 			 * only valid packets are the initial SYN, a
@@ -2392,7 +2398,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		    (tp->t_flags & TF_NEEDSYN)) {
 #ifdef TCP_RFC7413
 			if (tp->t_state == TCPS_SYN_RECEIVED &&
-			    tp->t_flags & TF_FASTOPEN) {
+			    IS_FASTOPEN(tp->t_flags)) {
 				tp->snd_wnd = tiwin;
 				cc_conn_init(tp);
 			}
@@ -2455,7 +2461,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			 * snd_cwnd reduction that occurs when a TFO SYN|ACK
 			 * is retransmitted.
 			 */
-			if (!(tp->t_flags & TF_FASTOPEN))
+			if (!IS_FASTOPEN(tp->t_flags))
 #endif
 				cc_conn_init(tp);
 			tcp_timer_activate(tp, TT_KEEP, TP_KEEPIDLE(tp));
@@ -2499,8 +2505,10 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			 */
 			tp->sackhint.sacked_bytes = 0;
 
+#ifdef TCP_HHOOK
 		/* Run HHOOK_TCP_ESTABLISHED_IN helper hooks. */
 		hhook_run_tcp_est_in(tp, th, &to);
+#endif
 
 		if (SEQ_LEQ(th->th_ack, tp->snd_una)) {
 			u_int maxseg;
@@ -3020,8 +3028,12 @@ dodata:							/* XXX */
 	 * case PRU_RCVD).  If a FIN has already been received on this
 	 * connection then we just ignore the text.
 	 */
+#ifdef TCP_RFC7413
 	tfo_syn = ((tp->t_state == TCPS_SYN_RECEIVED) &&
-		   (tp->t_flags & TF_FASTOPEN));
+		   IS_FASTOPEN(tp->t_flags));
+#else
+#define	tfo_syn	(false)
+#endif
 	if ((tlen || (thflags & TH_FIN) || tfo_syn) &&
 	    TCPS_HAVERCVDFIN(tp->t_state) == 0) {
 		tcp_seq save_start = th->th_seq;
@@ -3245,6 +3257,9 @@ drop:
 	if (tp != NULL)
 		INP_WUNLOCK(tp->t_inpcb);
 	m_freem(m);
+#ifndef TCP_RFC7413
+#undef	tfo_syn
+#endif
 }
 
 /*

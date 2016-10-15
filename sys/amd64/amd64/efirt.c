@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 static struct efi_systbl *efi_systbl;
 static struct efi_cfgtbl *efi_cfgtbl;
 static struct efi_rt *efi_runtime;
+static struct cdev *efi_cdev;
 
 static int efi_status2err[25] = {
 	0,		/* EFI_SUCCESS */
@@ -402,12 +403,14 @@ efi_init(void)
 		return (ENXIO);
 	}
 
-	return (0);
+	return (efidev_init(&efi_cdev));
 }
 
 static void
 efi_uninit(void)
 {
+
+	efidev_uninit(efi_cdev);
 
 	efi_destroy_1t1_map();
 

@@ -40,7 +40,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/domain.h>
+#ifdef TCP_HHOOK
 #include <sys/hhook.h>
+#endif
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mbuf.h>
@@ -140,11 +142,14 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, sendbuf_max, CTLFLAG_VNET | CTLFLAG_RW,
 	    tcp_timer_active((tp), TT_PERSIST),				\
 	    ("neither rexmt nor persist timer is set"))
 
+#ifdef TCP_HHOOK
 static void inline	hhook_run_tcp_est_out(struct tcpcb *tp,
 			    struct tcphdr *th, struct tcpopt *to,
 			    uint32_t len, int tso);
+#endif
 static void inline	cc_after_idle(struct tcpcb *tp);
 
+#ifdef TCP_HHOOK
 /*
  * Wrapper for the TCP established output helper hook.
  */
@@ -165,6 +170,7 @@ hhook_run_tcp_est_out(struct tcpcb *tp, struct tcphdr *th,
 		    tp->osd);
 	}
 }
+#endif
 
 /*
  * CC wrapper hook functions
@@ -224,7 +230,7 @@ tcp_output(struct tcpcb *tp)
 	 * For TFO connections in SYN_RECEIVED, only allow the initial
 	 * SYN|ACK and those sent by the retransmit timer.
 	 */
-	if ((tp->t_flags & TF_FASTOPEN) &&
+	if (IS_FASTOPEN(tp->t_flags) &&
 	    (tp->t_state == TCPS_SYN_RECEIVED) &&
 	    SEQ_GT(tp->snd_max, tp->snd_una) &&    /* initial SYN|ACK sent */
 	    (tp->snd_nxt != tp->snd_una))          /* not a retransmit */
@@ -420,7 +426,7 @@ after_sack_rexmit:
 		 * When sending additional segments following a TFO SYN|ACK,
 		 * do not include the SYN bit.
 		 */
-		if ((tp->t_flags & TF_FASTOPEN) &&
+		if (IS_FASTOPEN(tp->t_flags) &&
 		    (tp->t_state == TCPS_SYN_RECEIVED))
 			flags &= ~TH_SYN;
 #endif
@@ -443,7 +449,7 @@ after_sack_rexmit:
 	 * don't include data, as the presence of data may have caused the
 	 * original SYN|ACK to have been dropped by a middlebox.
 	 */
-	if ((tp->t_flags & TF_FASTOPEN) &&
+	if (IS_FASTOPEN(tp->t_flags) &&
 	    (((tp->t_state == TCPS_SYN_RECEIVED) && (tp->t_rxtshift > 0)) ||
 	     (flags & TH_RST)))
 		len = 0;
@@ -780,7 +786,7 @@ send:
 			 * the TFO option may have caused the original
 			 * SYN|ACK to have been dropped by a middlebox.
 			 */
-			if ((tp->t_flags & TF_FASTOPEN) &&
+			if (IS_FASTOPEN(tp->t_flags) &&
 			    (tp->t_state == TCPS_SYN_RECEIVED) &&
 			    (tp->t_rxtshift == 0)) {
 				to.to_tfo_len = TCP_FASTOPEN_COOKIE_LEN;
@@ -1306,8 +1312,10 @@ send:
 	    __func__, len, hdrlen, ipoptlen, m_length(m, NULL)));
 #endif
 
+#ifdef TCP_HHOOK
 	/* Run HHOOK_TCP_ESTABLISHED_OUT helper hooks. */
 	hhook_run_tcp_est_out(tp, th, &to, len, tso);
+#endif
 
 #ifdef TCPDEBUG
 	/*

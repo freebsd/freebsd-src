@@ -67,11 +67,6 @@ CFLAGS+=	-DBOOT_FORTH -I${.CURDIR}/../../ficl -I${.CURDIR}/../../ficl/powerpc
 LIBFICL=	${.OBJDIR}/../../ficl/libficl.a
 .endif
 
-# Avoid the open-close-dance for every file access as some firmwares perform
-# an auto-negotiation on every open of the network interface and thus causes
-# netbooting to take horribly long.
-CFLAGS+=	-DNETIF_OPEN_CLOSE_ONCE
-
 # Always add MI sources
 .PATH:		${.CURDIR}/../../common ${.CURDIR}/../../../libkern
 .include	"${.CURDIR}/../../common/Makefile.inc"

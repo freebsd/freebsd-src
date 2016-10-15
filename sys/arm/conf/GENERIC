@@ -112,6 +112,7 @@ device		icee
 # GPIO
 device		gpio
 device		gpioled
+device		gpioregulator
 
 # SPI
 device		spibus

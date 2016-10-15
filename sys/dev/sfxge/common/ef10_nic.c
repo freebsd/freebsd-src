@@ -164,6 +164,7 @@ ef10_nic_get_port_mode_bandwidth(
 		break;
 	case TLV_PORT_MODE_10G_10G_10G_10G:
 	case TLV_PORT_MODE_10G_10G_10G_10G_Q:
+	case TLV_PORT_MODE_10G_10G_10G_10G_Q1_Q2:
 	case TLV_PORT_MODE_10G_10G_10G_10G_Q2:
 		bandwidth = 10000 * 4;
 		break;
@@ -1098,57 +1099,74 @@ fail1:
 
 
 /*
- * The external port mapping is a one-based numbering of the external
- * connectors on the board. It does not distinguish off-board separated
- * outputs such as multi-headed cables.
- * The number of ports that map to each external port connector
- * on the board is determined by the chip family and the port modes to
- * which the NIC can be configured. The mapping table lists modes with
- * port numbering requirements in increasing order.
+ * Table of mapping schemes from port number to the number of the external
+ * connector on the board. The external numbering does not distinguish
+ * off-board separated outputs such as from multi-headed cables.
+ *
+ * The count of adjacent port numbers that map to each external port
+ * and the offset in the numbering, is determined by the chip family and
+ * current port mode.
+ *
+ * For the Huntington family, the current port mode cannot be discovered,
+ * so the mapping used is instead the last match in the table to the full
+ * set of port modes to which the NIC can be configured. Therefore the
+ * ordering of entries in the the mapping table is significant.
  */
 static struct {
 	efx_family_t	family;
 	uint32_t	modes_mask;
-	uint32_t	stride;
+	int32_t		count;
+	int32_t		offset;
 }	__ef10_external_port_mappings[] = {
-	/* Supported modes requiring 1 output per port */
+	/* Supported modes with 1 output per external port */
 	{
 		EFX_FAMILY_HUNTINGTON,
 		(1 << TLV_PORT_MODE_10G) |
 		(1 << TLV_PORT_MODE_10G_10G) |
 		(1 << TLV_PORT_MODE_10G_10G_10G_10G),
+		1,
 		1
 	},
 	{
 		EFX_FAMILY_MEDFORD,
 		(1 << TLV_PORT_MODE_10G) |
-		(1 << TLV_PORT_MODE_10G_10G) |
-		(1 << TLV_PORT_MODE_10G_10G_10G_10G),
+		(1 << TLV_PORT_MODE_10G_10G),
+		1,
 		1
 	},
-	/* Supported modes requiring 2 outputs per port */
+	/* Supported modes with 2 outputs per external port */
 	{
 		EFX_FAMILY_HUNTINGTON,
 		(1 << TLV_PORT_MODE_40G) |
 		(1 << TLV_PORT_MODE_40G_40G) |
 		(1 << TLV_PORT_MODE_40G_10G_10G) |
 		(1 << TLV_PORT_MODE_10G_10G_40G),
-		2
+		2,
+		1
 	},
 	{
 		EFX_FAMILY_MEDFORD,
 		(1 << TLV_PORT_MODE_40G) |
 		(1 << TLV_PORT_MODE_40G_40G) |
 		(1 << TLV_PORT_MODE_40G_10G_10G) |
-		(1 << TLV_PORT_MODE_10G_10G_40G),
-		2
+		(1 << TLV_PORT_MODE_10G_10G_40G) |
+		(1 << TLV_PORT_MODE_10G_10G_10G_10G_Q1_Q2),
+		2,
+		1
 	},
-	/* Supported modes requiring 4 outputs per port */
+	/* Supported modes with 4 outputs per external port */
 	{
 		EFX_FAMILY_MEDFORD,
 		(1 << TLV_PORT_MODE_10G_10G_10G_10G_Q) |
+		(1 << TLV_PORT_MODE_10G_10G_10G_10G_Q1),
+		4,
+		1,
+	},
+	{
+		EFX_FAMILY_MEDFORD,
 		(1 << TLV_PORT_MODE_10G_10G_10G_10G_Q2),
-		4
+		4,
+		2
 	},
 };
 
@@ -1162,11 +1180,26 @@ ef10_external_port_mapping(
 	int i;
 	uint32_t port_modes;
 	uint32_t matches;
-	uint32_t stride = 1; /* default 1-1 mapping */
+	uint32_t current;
+	int32_t count = 1; /* Default 1-1 mapping */
+	int32_t offset = 1; /* Default starting external port number */
 
-	if ((rc = efx_mcdi_get_port_modes(enp, &port_modes, NULL)) != 0) {
-		/* No port mode information available - use default mapping */
-		goto out;
+	if ((rc = efx_mcdi_get_port_modes(enp, &port_modes, &current)) != 0) {
+		/*
+		 * No current port mode information
+		 * - infer mapping from available modes
+		 */
+		if ((rc = efx_mcdi_get_port_modes(enp,
+			    &port_modes, NULL)) != 0) {
+			/*
+			 * No port mode information available
+			 * - use default mapping
+			 */
+			goto out;
+		}
+	} else {
+		/* Only need to scan the current mode */
+		port_modes = 1 << current;
 	}
 
 	/*
@@ -1180,7 +1213,8 @@ ef10_external_port_mapping(
 		matches = (__ef10_external_port_mappings[i].modes_mask &
 		    port_modes);
 		if (matches != 0) {
-			stride = __ef10_external_port_mappings[i].stride;
+			count = __ef10_external_port_mappings[i].count;
+			offset = __ef10_external_port_mappings[i].offset;
 			port_modes &= ~matches;
 		}
 	}
@@ -1194,9 +1228,9 @@ ef10_external_port_mapping(
 out:
 	/*
 	 * Scale as required by last matched mode and then convert to
-	 * one-based numbering
+	 * correctly offset numbering
 	 */
-	*external_portp = (uint8_t)(port / stride) + 1;
+	*external_portp = (uint8_t)((port / count) + offset);
 	return (0);
 
 fail1:

@@ -38,6 +38,7 @@ makeoptions	MODULES_OVERRIDE=""
 options 	SCHED_4BSD		# 4BSD scheduler
 options 	INET			# InterNETworking
 #options 	INET6			# IPv6 communications protocols
+options 	TCP_HHOOK		# hhook(9) framework for TCP
 options 	TMPFS			# Efficient memory filesystem
 options 	FFS			# Berkeley Fast Filesystem
 #options 	SOFTUPDATES		# Enable FFS soft updates support

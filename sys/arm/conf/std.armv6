@@ -7,6 +7,7 @@ options 	ARM_L2_PIPT		# Only L2 PIPT is supported
 options 	PREEMPTION		# Enable kernel thread preemption
 options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
+options 	TCP_HHOOK		# hhook(9) framework for TCP
 options 	IPSEC			# IP (v4/v6) security
 options 	SCTP			# Stream Control Transmission Protocol
 options 	FFS			# Berkeley Fast Filesystem

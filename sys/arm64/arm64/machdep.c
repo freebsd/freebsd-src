@@ -192,9 +192,12 @@ fill_fpregs(struct thread *td, struct fpreg *regs)
 		 */
 		vfp_save_state(td, pcb);
 
-		memcpy(regs->fp_q, pcb->pcb_vfp, sizeof(regs->fp_q));
-		regs->fp_cr = pcb->pcb_fpcr;
-		regs->fp_sr = pcb->pcb_fpsr;
+		KASSERT(pcb->pcb_fpusaved == &pcb->pcb_fpustate,
+		    ("Called fill_fpregs while the kernel is using the VFP"));
+		memcpy(regs->fp_q, pcb->pcb_fpustate.vfp_regs,
+		    sizeof(regs->fp_q));
+		regs->fp_cr = pcb->pcb_fpustate.vfp_fpcr;
+		regs->fp_sr = pcb->pcb_fpustate.vfp_fpsr;
 	} else
 #endif
 		memset(regs->fp_q, 0, sizeof(regs->fp_q));
@@ -208,9 +211,11 @@ set_fpregs(struct thread *td, struct fpreg *regs)
 	struct pcb *pcb;
 
 	pcb = td->td_pcb;
-	memcpy(pcb->pcb_vfp, regs->fp_q, sizeof(regs->fp_q));
-	pcb->pcb_fpcr = regs->fp_cr;
-	pcb->pcb_fpsr = regs->fp_sr;
+	KASSERT(pcb->pcb_fpusaved == &pcb->pcb_fpustate,
+	    ("Called set_fpregs while the kernel is using the VFP"));
+	memcpy(pcb->pcb_fpustate.vfp_regs, regs->fp_q, sizeof(regs->fp_q));
+	pcb->pcb_fpustate.vfp_fpcr = regs->fp_cr;
+	pcb->pcb_fpustate.vfp_fpsr = regs->fp_sr;
 #endif
 	return (0);
 }
@@ -334,10 +339,12 @@ get_fpcontext(struct thread *td, mcontext_t *mcp)
 		 */
 		vfp_save_state(td, curpcb);
 
-		memcpy(mcp->mc_fpregs.fp_q, curpcb->pcb_vfp,
+		KASSERT(curpcb->pcb_fpusaved == &curpcb->pcb_fpustate,
+		    ("Called get_fpcontext while the kernel is using the VFP"));
+		memcpy(mcp->mc_fpregs.fp_q, curpcb->pcb_fpustate.vfp_regs,
 		    sizeof(mcp->mc_fpregs));
-		mcp->mc_fpregs.fp_cr = curpcb->pcb_fpcr;
-		mcp->mc_fpregs.fp_sr = curpcb->pcb_fpsr;
+		mcp->mc_fpregs.fp_cr = curpcb->pcb_fpustate.vfp_fpcr;
+		mcp->mc_fpregs.fp_sr = curpcb->pcb_fpustate.vfp_fpsr;
 		mcp->mc_fpregs.fp_flags = curpcb->pcb_fpflags;
 		mcp->mc_flags |= _MC_FP_VALID;
 	}
@@ -363,10 +370,12 @@ set_fpcontext(struct thread *td, mcontext_t *mcp)
 		 */
 		vfp_discard(td);
 
-		memcpy(curpcb->pcb_vfp, mcp->mc_fpregs.fp_q,
+		KASSERT(curpcb->pcb_fpusaved == &curpcb->pcb_fpustate,
+		    ("Called set_fpcontext while the kernel is using the VFP"));
+		memcpy(curpcb->pcb_fpustate.vfp_regs, mcp->mc_fpregs.fp_q,
 		    sizeof(mcp->mc_fpregs));
-		curpcb->pcb_fpcr = mcp->mc_fpregs.fp_cr;
-		curpcb->pcb_fpsr = mcp->mc_fpregs.fp_sr;
+		curpcb->pcb_fpustate.vfp_fpcr = mcp->mc_fpregs.fp_cr;
+		curpcb->pcb_fpustate.vfp_fpsr = mcp->mc_fpregs.fp_sr;
 		curpcb->pcb_fpflags = mcp->mc_fpregs.fp_flags;
 	}
 
@@ -607,6 +616,7 @@ init_proc0(vm_offset_t kstack)
 	thread0.td_kstack = kstack;
 	thread0.td_pcb = (struct pcb *)(thread0.td_kstack) - 1;
 	thread0.td_pcb->pcb_fpflags = 0;
+	thread0.td_pcb->pcb_fpusaved = &thread0.td_pcb->pcb_fpustate;
 	thread0.td_pcb->pcb_vfpcpu = UINT_MAX;
 	thread0.td_frame = &proc0_tf;
 	pcpup->pc_curpcb = thread0.td_pcb;

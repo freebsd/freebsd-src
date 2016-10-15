@@ -230,7 +230,7 @@ SYSCTL_INT(_hw_hn, OID_AUTO, trust_hostip, CTLFLAG_RDTUN,
     "when csum info is missing (global setting)");
 
 /* Limit TSO burst size */
-static int hn_tso_maxlen = 0;
+static int hn_tso_maxlen = IP_MAXPACKET;
 SYSCTL_INT(_hw_hn, OID_AUTO, tso_maxlen, CTLFLAG_RDTUN,
     &hn_tso_maxlen, 0, "TSO burst limit");
 
@@ -334,10 +334,13 @@ static void hn_fixup_tx_data(struct hn_softc *);
 static void hn_destroy_tx_data(struct hn_softc *);
 static void hn_start_taskfunc(void *, int);
 static void hn_start_txeof_taskfunc(void *, int);
+static void hn_link_taskfunc(void *, int);
+static void hn_suspend_mgmt_taskfunc(void *, int);
 static int hn_encap(struct hn_tx_ring *, struct hn_txdesc *, struct mbuf **);
 static int hn_create_rx_data(struct hn_softc *sc, int);
 static void hn_destroy_rx_data(struct hn_softc *sc);
 static void hn_set_chim_size(struct hn_softc *, int);
+static void hn_set_tso_maxsize(struct hn_softc *, int, int);
 static int hn_chan_attach(struct hn_softc *, struct vmbus_channel *);
 static void hn_chan_detach(struct hn_softc *, struct vmbus_channel *);
 static int hn_attach_subchans(struct hn_softc *);
@@ -348,7 +351,11 @@ static int hn_synth_attach(struct hn_softc *, int);
 static void hn_synth_detach(struct hn_softc *);
 static bool hn_tx_ring_pending(struct hn_tx_ring *);
 static void hn_suspend(struct hn_softc *);
+static void hn_suspend_data(struct hn_softc *);
+static void hn_suspend_mgmt(struct hn_softc *);
 static void hn_resume(struct hn_softc *);
+static void hn_resume_data(struct hn_softc *);
+static void hn_resume_mgmt(struct hn_softc *);
 static void hn_rx_drain(struct vmbus_channel *);
 static void hn_tx_resume(struct hn_softc *, int);
 static void hn_tx_ring_qflush(struct hn_tx_ring *);
@@ -517,10 +524,8 @@ netvsc_attach(device_t dev)
 	struct sysctl_oid_list *child;
 	struct sysctl_ctx_list *ctx;
 	uint8_t eaddr[ETHER_ADDR_LEN];
-	uint32_t link_status;
 	struct ifnet *ifp = NULL;
 	int error, ring_cnt, tx_ring_cnt;
-	int tso_maxlen;
 
 	sc->hn_dev = dev;
 	sc->hn_prichan = vmbus_get_channel(dev);
@@ -549,6 +554,15 @@ netvsc_attach(device_t dev)
 	} else {
 		sc->hn_tx_taskq = hn_tx_taskq;
 	}
+
+	/*
+	 * Setup taskqueue for mangement tasks, e.g. link status.
+	 */
+	sc->hn_mgmt_taskq0 = taskqueue_create("hn_mgmt", M_WAITOK,
+	    taskqueue_thread_enqueue, &sc->hn_mgmt_taskq0);
+	taskqueue_start_threads(&sc->hn_mgmt_taskq0, 1, PI_NET, "%s mgmt",
+	    device_get_nameunit(dev));
+	TASK_INIT(&sc->hn_link_task, 0, hn_link_taskfunc, sc);
 
 	/*
 	 * Allocate ifnet and setup its name earlier, so that if_printf
@@ -620,12 +634,6 @@ netvsc_attach(device_t dev)
 	error = hn_synth_attach(sc, ETHERMTU);
 	if (error)
 		goto failed;
-
-	error = hn_rndis_get_linkstatus(sc, &link_status);
-	if (error)
-		goto failed;
-	if (link_status == NDIS_MEDIA_STATE_CONNECTED)
-		sc->hn_carrier = 1;
 
 	error = hn_rndis_get_eaddr(sc, eaddr);
 	if (error)
@@ -720,23 +728,27 @@ netvsc_attach(device_t dev)
 	/* Enable all available capabilities by default. */
 	ifp->if_capenable = ifp->if_capabilities;
 
-	tso_maxlen = hn_tso_maxlen;
-	if (tso_maxlen <= 0 || tso_maxlen > IP_MAXPACKET)
-		tso_maxlen = IP_MAXPACKET;
-	ifp->if_hw_tsomaxsegcount = HN_TX_DATA_SEGCNT_MAX;
-	ifp->if_hw_tsomaxsegsize = PAGE_SIZE;
-	ifp->if_hw_tsomax = tso_maxlen -
-	    (ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN);
+	if (ifp->if_capabilities & (IFCAP_TSO6 | IFCAP_TSO4)) {
+		hn_set_tso_maxsize(sc, hn_tso_maxlen, ETHERMTU);
+		ifp->if_hw_tsomaxsegcount = HN_TX_DATA_SEGCNT_MAX;
+		ifp->if_hw_tsomaxsegsize = PAGE_SIZE;
+	}
 
 	ether_ifattach(ifp, eaddr);
 
-	if (bootverbose) {
-		if_printf(ifp, "TSO: %u/%u/%u\n", ifp->if_hw_tsomax,
+	if ((ifp->if_capabilities & (IFCAP_TSO6 | IFCAP_TSO4)) && bootverbose) {
+		if_printf(ifp, "TSO segcnt %u segsz %u\n",
 		    ifp->if_hw_tsomaxsegcount, ifp->if_hw_tsomaxsegsize);
 	}
 
 	/* Inform the upper layer about the long frame support. */
 	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
+
+	/*
+	 * Kick off link status check.
+	 */
+	sc->hn_mgmt_taskq = sc->hn_mgmt_taskq0;
+	hn_link_status_update(sc);
 
 	return (0);
 failed:
@@ -757,6 +769,12 @@ netvsc_detach(device_t dev)
 		if (sc->hn_flags & HN_FLAG_SYNTH_ATTACHED) {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				hn_stop(sc);
+			/*
+			 * NOTE:
+			 * hn_stop() only suspends data, so managment
+			 * stuffs have to be suspended manually here.
+			 */
+			hn_suspend_mgmt(sc);
 			hn_synth_detach(sc);
 		}
 		HN_UNLOCK(sc);
@@ -769,6 +787,7 @@ netvsc_detach(device_t dev)
 
 	if (sc->hn_tx_taskq != hn_tx_taskq)
 		taskqueue_free(sc->hn_tx_taskq);
+	taskqueue_free(sc->hn_mgmt_taskq0);
 
 	if (sc->hn_xact != NULL)
 		vmbus_xact_ctx_destroy(sc->hn_xact);
@@ -786,6 +805,36 @@ static int
 netvsc_shutdown(device_t dev)
 {
 	return (0);
+}
+
+static void
+hn_link_taskfunc(void *xsc, int pending __unused)
+{
+	struct hn_softc *sc = xsc;
+	struct ifnet *ifp = sc->hn_ifp;
+	uint32_t link_status;
+	int error;
+
+	error = hn_rndis_get_linkstatus(sc, &link_status);
+	if (error) {
+		/* XXX what to do? */
+		return;
+	}
+
+	if (link_status == NDIS_MEDIA_STATE_CONNECTED)
+		sc->hn_carrier = 1;
+	else
+		sc->hn_carrier = 0;
+	if_link_state_change(ifp,
+	    sc->hn_carrier ? LINK_STATE_UP : LINK_STATE_DOWN);
+}
+
+void
+hn_link_status_update(struct hn_softc *sc)
+{
+
+	if (sc->hn_mgmt_taskq != NULL)
+		taskqueue_enqueue(sc->hn_mgmt_taskq, &sc->hn_link_task);
 }
 
 static __inline int
@@ -1313,19 +1362,6 @@ hn_start_locked(struct hn_tx_ring *txr, int len)
 }
 
 /*
- * Link up/down notification
- */
-void
-netvsc_linkstatus_callback(struct hn_softc *sc, uint32_t status)
-{
-	if (status == 1) {
-		sc->hn_carrier = 1;
-	} else {
-		sc->hn_carrier = 0;
-	}
-}
-
-/*
  * Append the specified data to the indicated mbuf chain,
  * Extend the mbuf chain if the new data does not fit in
  * existing space.
@@ -1655,8 +1691,11 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			hn_set_lro_lenlim(sc, HN_LRO_LENLIM_MIN(ifp));
 #endif
 
-		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-			hn_suspend(sc);
+		/*
+		 * Suspend this interface before the synthetic parts
+		 * are ripped.
+		 */
+		hn_suspend(sc);
 
 		/*
 		 * Detach the synthetics parts, i.e. NVS and RNDIS.
@@ -1672,10 +1711,12 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 		if (sc->hn_tx_ring[0].hn_chim_size > sc->hn_chim_szmax)
 			hn_set_chim_size(sc, sc->hn_chim_szmax);
+		hn_set_tso_maxsize(sc, hn_tso_maxlen, ifr->ifr_mtu);
 
-		/* All done!  Resume now. */
-		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-			hn_resume(sc);
+		/*
+		 * All done!  Resume the interface now.
+		 */
+		hn_resume(sc);
 
 		HN_UNLOCK(sc);
 		break;
@@ -1802,9 +1843,9 @@ hn_stop(struct hn_softc *sc)
 	KASSERT(sc->hn_flags & HN_FLAG_SYNTH_ATTACHED,
 	    ("synthetic parts were not attached"));
 
-	/* Clear RUNNING bit _before_ hn_suspend() */
+	/* Clear RUNNING bit _before_ hn_suspend_data() */
 	atomic_clear_int(&ifp->if_drv_flags, IFF_DRV_RUNNING);
-	hn_suspend(sc);
+	hn_suspend_data(sc);
 
 	/* Clear OACTIVE bit. */
 	atomic_clear_int(&ifp->if_drv_flags, IFF_DRV_OACTIVE);
@@ -1897,9 +1938,6 @@ hn_init_locked(struct hn_softc *sc)
 
 	/* Everything is ready; unleash! */
 	atomic_set_int(&ifp->if_drv_flags, IFF_DRV_RUNNING);
-
-	/* TODO: check RNDIS link status. */
-	if_link_state_change(ifp, LINK_STATE_UP);
 }
 
 static void
@@ -2919,6 +2957,34 @@ hn_set_chim_size(struct hn_softc *sc, int chim_size)
 }
 
 static void
+hn_set_tso_maxsize(struct hn_softc *sc, int tso_maxlen, int mtu)
+{
+	struct ifnet *ifp = sc->hn_ifp;
+	int tso_minlen;
+
+	if ((ifp->if_capabilities & (IFCAP_TSO4 | IFCAP_TSO6)) == 0)
+		return;
+
+	KASSERT(sc->hn_ndis_tso_sgmin >= 2,
+	    ("invalid NDIS tso sgmin %d", sc->hn_ndis_tso_sgmin));
+	tso_minlen = sc->hn_ndis_tso_sgmin * mtu;
+
+	KASSERT(sc->hn_ndis_tso_szmax >= tso_minlen &&
+	    sc->hn_ndis_tso_szmax <= IP_MAXPACKET,
+	    ("invalid NDIS tso szmax %d", sc->hn_ndis_tso_szmax));
+
+	if (tso_maxlen < tso_minlen)
+		tso_maxlen = tso_minlen;
+	else if (tso_maxlen > IP_MAXPACKET)
+		tso_maxlen = IP_MAXPACKET;
+	if (tso_maxlen > sc->hn_ndis_tso_szmax)
+		tso_maxlen = sc->hn_ndis_tso_szmax;
+	ifp->if_hw_tsomax = tso_maxlen - (ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN);
+	if (bootverbose)
+		if_printf(ifp, "TSO size max %u\n", ifp->if_hw_tsomax);
+}
+
+static void
 hn_fixup_tx_data(struct hn_softc *sc)
 {
 	uint64_t csum_assist;
@@ -3424,7 +3490,7 @@ hn_synth_attach(struct hn_softc *sc, int mtu)
 	/*
 	 * Attach RNDIS _after_ NVS is attached.
 	 */
-	error = hn_rndis_attach(sc);
+	error = hn_rndis_attach(sc, mtu);
 	if (error)
 		return (error);
 
@@ -3573,7 +3639,7 @@ hn_rx_drain(struct vmbus_channel *chan)
 }
 
 static void
-hn_suspend(struct hn_softc *sc)
+hn_suspend_data(struct hn_softc *sc)
 {
 	struct vmbus_channel **subch = NULL;
 	int i, nsubch;
@@ -3627,6 +3693,42 @@ hn_suspend(struct hn_softc *sc)
 }
 
 static void
+hn_suspend_mgmt_taskfunc(void *xsc, int pending __unused)
+{
+
+	((struct hn_softc *)xsc)->hn_mgmt_taskq = NULL;
+}
+
+static void
+hn_suspend_mgmt(struct hn_softc *sc)
+{
+	struct task task;
+
+	HN_LOCK_ASSERT(sc);
+
+	/*
+	 * Make sure that hn_mgmt_taskq0 can nolonger be accessed
+	 * through hn_mgmt_taskq.
+	 */
+	TASK_INIT(&task, 0, hn_suspend_mgmt_taskfunc, sc);
+	vmbus_chan_run_task(sc->hn_prichan, &task);
+
+	/*
+	 * Make sure that all pending management tasks are completed.
+	 */
+	taskqueue_drain_all(sc->hn_mgmt_taskq0);
+}
+
+static void
+hn_suspend(struct hn_softc *sc)
+{
+
+	if (sc->hn_ifp->if_drv_flags & IFF_DRV_RUNNING)
+		hn_suspend_data(sc);
+	hn_suspend_mgmt(sc);
+}
+
+static void
 hn_tx_resume(struct hn_softc *sc, int tx_ring_cnt)
 {
 	int i;
@@ -3644,7 +3746,7 @@ hn_tx_resume(struct hn_softc *sc, int tx_ring_cnt)
 }
 
 static void
-hn_resume(struct hn_softc *sc)
+hn_resume_data(struct hn_softc *sc)
 {
 	int i;
 
@@ -3658,7 +3760,8 @@ hn_resume(struct hn_softc *sc)
 
 	/*
 	 * Make sure to clear suspend status on "all" TX rings,
-	 * since hn_tx_ring_inuse can be changed after hn_suspend().
+	 * since hn_tx_ring_inuse can be changed after
+	 * hn_suspend_data().
 	 */
 	hn_tx_resume(sc, sc->hn_tx_ring_cnt);
 
@@ -3683,6 +3786,26 @@ hn_resume(struct hn_softc *sc)
 		 */
 		taskqueue_enqueue(txr->hn_tx_taskq, &txr->hn_txeof_task);
 	}
+}
+
+static void
+hn_resume_mgmt(struct hn_softc *sc)
+{
+
+	/*
+	 * Kick off link status check.
+	 */
+	sc->hn_mgmt_taskq = sc->hn_mgmt_taskq0;
+	hn_link_status_update(sc);
+}
+
+static void
+hn_resume(struct hn_softc *sc)
+{
+
+	if (sc->hn_ifp->if_drv_flags & IFF_DRV_RUNNING)
+		hn_resume_data(sc);
+	hn_resume_mgmt(sc);
 }
 
 static void

@@ -383,7 +383,11 @@ nexus_activate_resource(device_t bus, device_t child, int type, int rid,
 		return (0);
 	} else if (type == SYS_RES_IRQ) {
 #ifdef INTRNG
-		intr_activate_irq(child, r);
+		err = intr_activate_irq(child, r);
+		if (err != 0) {
+			rman_deactivate_resource(r);
+			return (err);
+		}
 #endif
 	}
 	return (0);
