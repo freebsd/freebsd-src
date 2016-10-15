@@ -27,7 +27,6 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
-#include "common.h"
 #include "extern.h"
 
 #define DIFF_PATH	"/usr/bin/diff"
