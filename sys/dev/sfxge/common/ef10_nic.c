@@ -164,6 +164,7 @@ ef10_nic_get_port_mode_bandwidth(
 		break;
 	case TLV_PORT_MODE_10G_10G_10G_10G:
 	case TLV_PORT_MODE_10G_10G_10G_10G_Q:
+	case TLV_PORT_MODE_10G_10G_10G_10G_Q1_Q2:
 	case TLV_PORT_MODE_10G_10G_10G_10G_Q2:
 		bandwidth = 10000 * 4;
 		break;
@@ -1122,8 +1123,7 @@ static struct {
 	{
 		EFX_FAMILY_MEDFORD,
 		(1 << TLV_PORT_MODE_10G) |
-		(1 << TLV_PORT_MODE_10G_10G) |
-		(1 << TLV_PORT_MODE_10G_10G_10G_10G),
+		(1 << TLV_PORT_MODE_10G_10G),
 		1
 	},
 	/* Supported modes requiring 2 outputs per port */
@@ -1140,13 +1140,15 @@ static struct {
 		(1 << TLV_PORT_MODE_40G) |
 		(1 << TLV_PORT_MODE_40G_40G) |
 		(1 << TLV_PORT_MODE_40G_10G_10G) |
-		(1 << TLV_PORT_MODE_10G_10G_40G),
+		(1 << TLV_PORT_MODE_10G_10G_40G) |
+		(1 << TLV_PORT_MODE_10G_10G_10G_10G_Q1_Q2),
 		2
 	},
 	/* Supported modes requiring 4 outputs per port */
 	{
 		EFX_FAMILY_MEDFORD,
 		(1 << TLV_PORT_MODE_10G_10G_10G_10G_Q) |
+		(1 << TLV_PORT_MODE_10G_10G_10G_10G_Q1) |
 		(1 << TLV_PORT_MODE_10G_10G_10G_10G_Q2),
 		4
 	},
