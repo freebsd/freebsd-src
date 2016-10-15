@@ -24,15 +24,13 @@ __FBSDID("$FreeBSD$");
 #include "common.h"
 #include "extern.h"
 
-int editit(const char *);
-
 /*
  * Execute an editor on the specified pathname, which is interpreted
  * from the shell.  This means flags may be included.
  *
  * Returns -1 on error, or the exit value on success.
  */
-int
+static int
 editit(const char *pathname)
 {
 	sig_t sighup, sigint, sigquit, sigchld;
