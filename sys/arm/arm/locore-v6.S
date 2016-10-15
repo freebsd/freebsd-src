@@ -439,9 +439,6 @@ boot_pt1:
 	.text
 	.align	2
 
-.Lcpufuncs:
-	.word	_C_LABEL(cpufuncs)
-
 #if defined(SMP)
 
 ASENTRY_NP(mpentry)
