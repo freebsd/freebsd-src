@@ -34,7 +34,8 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 20161015:
 	GNU rcs has been removed from base.  It is available as packages:
 	- rcs: Latest GPLv3 GNU rcs version.
-	- rcs57: Copy of the latest version of GNU rcs (GPLv2) from base.
+	- rcs57: Copy of the latest version of GNU rcs (GPLv2) before it was
+	removed from base.
 
 20161008:
 	Use of the cc_cdg, cc_chd, cc_hd, or cc_vegas congestion control
