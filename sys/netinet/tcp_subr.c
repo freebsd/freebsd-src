@@ -742,7 +742,10 @@ tcp_init(void)
 static void
 tcp_destroy(void *unused __unused)
 {
-	int error, n;
+	int n;
+#ifdef TCP_HHOOK
+	int error;
+#endif
 
 	/*
 	 * All our processes are gone, all our sockets should be cleaned
