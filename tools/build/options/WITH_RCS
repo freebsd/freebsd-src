@@ -1,4 +1,0 @@
-.\" $FreeBSD$
-Set to build
-.Xr rcs 1
-and related utilities.
