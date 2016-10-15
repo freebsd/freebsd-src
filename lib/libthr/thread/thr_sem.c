@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 
 #include "thr_private.h"
 
+#ifndef __CHERI_PURE_CAPABILITY__
 FB10_COMPAT(_sem_init_compat, sem_init);
 FB10_COMPAT(_sem_destroy_compat, sem_destroy);
 FB10_COMPAT(_sem_getvalue_compat, sem_getvalue);
@@ -114,3 +115,4 @@ _sem_post_compat(sem_t *sem)
 {
 	return _libc_sem_post_compat(sem);
 }
+#endif /* !__CHERI_PURE_CAPABILITY__ */
