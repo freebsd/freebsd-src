@@ -3,7 +3,7 @@
 .include <src.opts.mk>
 
 PROG=	sdiff
-SRCS=	common.c edit.c sdiff.c
+SRCS=	edit.c sdiff.c
 WARNS=	3
 
 MAN1=	sdiff.1
