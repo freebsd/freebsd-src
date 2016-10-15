@@ -746,10 +746,6 @@ icl_receive_thread(void *arg)
 	ic = arg;
 	so = ic->ic_socket;
 
-	ICL_CONN_LOCK(ic);
-	ic->ic_receive_running = true;
-	ICL_CONN_UNLOCK(ic);
-
 	for (;;) {
 		if (ic->ic_disconnecting) {
 			//ICL_DEBUG("terminating");
@@ -971,8 +967,6 @@ icl_send_thread(void *arg)
 	STAILQ_INIT(&queue);
 
 	ICL_CONN_LOCK(ic);
-	ic->ic_send_running = true;
-
 	for (;;) {
 		for (;;) {
 			/*
@@ -1224,25 +1218,6 @@ icl_conn_start(struct icl_conn *ic)
 	}
 
 	/*
-	 * Start threads.
-	 */
-	error = kthread_add(icl_send_thread, ic, NULL, NULL, 0, 0, "%stx",
-	    ic->ic_name);
-	if (error != 0) {
-		ICL_WARN("kthread_add(9) failed with error %d", error);
-		icl_conn_close(ic);
-		return (error);
-	}
-
-	error = kthread_add(icl_receive_thread, ic, NULL, NULL, 0, 0, "%srx",
-	    ic->ic_name);
-	if (error != 0) {
-		ICL_WARN("kthread_add(9) failed with error %d", error);
-		icl_conn_close(ic);
-		return (error);
-	}
-
-	/*
 	 * Register socket upcall, to get notified about incoming PDUs
 	 * and free space to send outgoing ones.
 	 */
@@ -1252,6 +1227,35 @@ icl_conn_start(struct icl_conn *ic)
 	SOCKBUF_LOCK(&ic->ic_socket->so_rcv);
 	soupcall_set(ic->ic_socket, SO_RCV, icl_soupcall_receive, ic);
 	SOCKBUF_UNLOCK(&ic->ic_socket->so_rcv);
+
+	/*
+	 * Start threads.
+	 */
+	ICL_CONN_LOCK(ic);
+	ic->ic_send_running = ic->ic_receive_running = true;
+	ICL_CONN_UNLOCK(ic);
+	error = kthread_add(icl_send_thread, ic, NULL, NULL, 0, 0, "%stx",
+	    ic->ic_name);
+	if (error != 0) {
+		ICL_WARN("kthread_add(9) failed with error %d", error);
+		ICL_CONN_LOCK(ic);
+		ic->ic_send_running = ic->ic_receive_running = false;
+		cv_signal(&ic->ic_send_cv);
+		ICL_CONN_UNLOCK(ic);
+		icl_conn_close(ic);
+		return (error);
+	}
+	error = kthread_add(icl_receive_thread, ic, NULL, NULL, 0, 0, "%srx",
+	    ic->ic_name);
+	if (error != 0) {
+		ICL_WARN("kthread_add(9) failed with error %d", error);
+		ICL_CONN_LOCK(ic);
+		ic->ic_receive_running = false;
+		cv_signal(&ic->ic_send_cv);
+		ICL_CONN_UNLOCK(ic);
+		icl_conn_close(ic);
+		return (error);
+	}
 
 	return (0);
 }
@@ -1306,46 +1310,42 @@ void
 icl_conn_close(struct icl_conn *ic)
 {
 	struct icl_pdu *pdu;
-
-	ICL_CONN_LOCK_ASSERT_NOT(ic);
+	struct socket *so;
 
 	ICL_CONN_LOCK(ic);
-	if (ic->ic_socket == NULL) {
+
+	/*
+	 * Wake up the threads, so they can properly terminate.
+	 */
+	ic->ic_disconnecting = true;
+	while (ic->ic_receive_running || ic->ic_send_running) {
+		cv_signal(&ic->ic_receive_cv);
+		cv_signal(&ic->ic_send_cv);
+		cv_wait(&ic->ic_send_cv, ic->ic_lock);
+	}
+
+	/* Some other thread could close the connection same time. */
+	so = ic->ic_socket;
+	if (so == NULL) {
 		ICL_CONN_UNLOCK(ic);
 		return;
 	}
+	ic->ic_socket = NULL;
 
 	/*
 	 * Deregister socket upcalls.
 	 */
 	ICL_CONN_UNLOCK(ic);
-	SOCKBUF_LOCK(&ic->ic_socket->so_snd);
-	if (ic->ic_socket->so_snd.sb_upcall != NULL)
-		soupcall_clear(ic->ic_socket, SO_SND);
-	SOCKBUF_UNLOCK(&ic->ic_socket->so_snd);
-	SOCKBUF_LOCK(&ic->ic_socket->so_rcv);
-	if (ic->ic_socket->so_rcv.sb_upcall != NULL)
-		soupcall_clear(ic->ic_socket, SO_RCV);
-	SOCKBUF_UNLOCK(&ic->ic_socket->so_rcv);
+	SOCKBUF_LOCK(&so->so_snd);
+	if (so->so_snd.sb_upcall != NULL)
+		soupcall_clear(so, SO_SND);
+	SOCKBUF_UNLOCK(&so->so_snd);
+	SOCKBUF_LOCK(&so->so_rcv);
+	if (so->so_rcv.sb_upcall != NULL)
+		soupcall_clear(so, SO_RCV);
+	SOCKBUF_UNLOCK(&so->so_rcv);
+	soclose(so);
 	ICL_CONN_LOCK(ic);
-
-	ic->ic_disconnecting = true;
-
-	/*
-	 * Wake up the threads, so they can properly terminate.
-	 */
-	while (ic->ic_receive_running || ic->ic_send_running) {
-		//ICL_DEBUG("waiting for send/receive threads to terminate");
-		cv_signal(&ic->ic_receive_cv);
-		cv_signal(&ic->ic_send_cv);
-		cv_wait(&ic->ic_send_cv, ic->ic_lock);
-	}
-	//ICL_DEBUG("send/receive threads terminated");
-
-	ICL_CONN_UNLOCK(ic);
-	soclose(ic->ic_socket);
-	ICL_CONN_LOCK(ic);
-	ic->ic_socket = NULL;
 
 	if (ic->ic_receive_pdu != NULL) {
 		//ICL_DEBUG("freeing partially received PDU");
