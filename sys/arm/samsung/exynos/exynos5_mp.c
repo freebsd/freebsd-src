@@ -124,7 +124,8 @@ platform_mp_start_ap(void)
 
 	dcache_wbinv_poc_all();
 
-	armv7_sev();
+	dsb();
+	sev();
 	bus_space_unmap(fdtbus_bs_tag, sysram, 0x100);
 	bus_space_unmap(fdtbus_bs_tag, pmu, 0x20000);
 }

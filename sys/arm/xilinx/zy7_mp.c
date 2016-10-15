@@ -94,5 +94,6 @@ platform_mp_start_ap(void)
 	dcache_wbinv_poc_all();
 
 	/* Wake up CPU1. */
-	armv7_sev();
+	dsb();
+	sev();
 }
