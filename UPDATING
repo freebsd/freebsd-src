@@ -32,7 +32,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
 20161015:
-	GNU rcs has been removed rom base.  It is available as packages:
+	GNU rcs has been removed from base.  It is available as packages:
 	- rcs: Latest GPLv3 GNU rcs version.
 	- rcs57: Copy of the latest version of GNU rcs (GPLv2) from base.
 
