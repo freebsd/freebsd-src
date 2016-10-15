@@ -779,8 +779,6 @@ ampdu_rx_flush_upto(struct ieee80211_node *ni,
 int
 ieee80211_ampdu_reorder(struct ieee80211_node *ni, struct mbuf *m)
 {
-#define	IEEE80211_FC0_QOSDATA \
-	(IEEE80211_FC0_TYPE_DATA|IEEE80211_FC0_SUBTYPE_QOS|IEEE80211_FC0_VERSION_0)
 #define	PROCESS		0	/* caller should process frame */
 #define	CONSUMED	1	/* frame consumed, caller does nothing */
 	struct ieee80211vap *vap = ni->ni_vap;
@@ -966,7 +964,6 @@ again:
 	}
 #undef CONSUMED
 #undef PROCESS
-#undef IEEE80211_FC0_QOSDATA
 }
 
 /*

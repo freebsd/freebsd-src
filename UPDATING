@@ -31,6 +31,17 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20161015:
+	GNU rcs has been removed from base.  It is available as packages:
+	- rcs: Latest GPLv3 GNU rcs version.
+	- rcs57: Copy of the latest version of GNU rcs (GPLv2) before it was
+	removed from base.
+
+20161008:
+	Use of the cc_cdg, cc_chd, cc_hd, or cc_vegas congestion control
+	modules now requires that the kernel configuration contain the
+	TCP_HHOOK option. (This option is included in the GENERIC kernel.)
+
 20161003:
 	The WITHOUT_ELFCOPY_AS_OBJCOPY src.conf(5) knob has been retired.
 	ELF Tool Chain's elfcopy is always installed as /usr/bin/objcopy.

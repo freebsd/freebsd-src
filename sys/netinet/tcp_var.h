@@ -349,6 +349,12 @@ struct tcpcb {
 #define	ENTER_RECOVERY(t_flags) t_flags |= (TF_CONGRECOVERY | TF_FASTRECOVERY)
 #define	EXIT_RECOVERY(t_flags) t_flags &= ~(TF_CONGRECOVERY | TF_FASTRECOVERY)
 
+#if defined(_KERNEL) && !defined(TCP_RFC7413)
+#define	IS_FASTOPEN(t_flags)		(false)
+#else
+#define	IS_FASTOPEN(t_flags)		(t_flags & TF_FASTOPEN)
+#endif
+
 #define	BYTES_THIS_ACK(tp, th)	(th->th_ack - tp->snd_una)
 
 /*
@@ -749,8 +755,10 @@ VNET_DECLARE(int, tcp_ecn_maxretries);
 #define	V_tcp_do_ecn		VNET(tcp_do_ecn)
 #define	V_tcp_ecn_maxretries	VNET(tcp_ecn_maxretries)
 
+#ifdef TCP_HHOOK
 VNET_DECLARE(struct hhook_head *, tcp_hhh[HHOOK_TCP_LAST + 1]);
 #define	V_tcp_hhh		VNET(tcp_hhh)
+#endif
 
 VNET_DECLARE(int, tcp_do_rfc6675_pipe);
 #define V_tcp_do_rfc6675_pipe	VNET(tcp_do_rfc6675_pipe)
@@ -788,8 +796,10 @@ void	cc_ack_received(struct tcpcb *tp, struct tcphdr *th,
 void 	cc_conn_init(struct tcpcb *tp);
 void 	cc_post_recovery(struct tcpcb *tp, struct tcphdr *th);
 void	cc_cong_signal(struct tcpcb *tp, struct tcphdr *th, uint32_t type);
+#ifdef TCP_HHOOK
 void	hhook_run_tcp_est_in(struct tcpcb *tp,
 			    struct tcphdr *th, struct tcpopt *to);
+#endif
 
 int	 tcp_input(struct mbuf **, int *, int);
 void	 tcp_do_segment(struct mbuf *, struct tcphdr *,

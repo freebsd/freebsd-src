@@ -32,9 +32,15 @@
 #ifndef _MACHINE_VFP_H_
 #define	_MACHINE_VFP_H_
 
-#ifdef _KERNEL
 
 #ifndef LOCORE
+struct vfpstate {
+	__uint128_t	vfp_regs[32];
+	uint32_t	vfp_fpcr;
+	uint32_t	vfp_fpsr;
+};
+
+#ifdef _KERNEL
 void	vfp_init(void);
 void	vfp_discard(struct thread *);
 void	vfp_restore_state(void);

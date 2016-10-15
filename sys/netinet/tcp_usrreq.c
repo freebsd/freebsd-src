@@ -410,7 +410,7 @@ tcp_usr_listen(struct socket *so, int backlog, struct thread *td)
 	SOCK_UNLOCK(so);
 
 #ifdef TCP_RFC7413
-	if (tp->t_flags & TF_FASTOPEN)
+	if (IS_FASTOPEN(tp->t_flags))
 		tp->t_tfo_pending = tcp_fastopen_alloc_counter();
 #endif
 out:
@@ -460,7 +460,7 @@ tcp6_usr_listen(struct socket *so, int backlog, struct thread *td)
 	SOCK_UNLOCK(so);
 
 #ifdef TCP_RFC7413
-	if (tp->t_flags & TF_FASTOPEN)
+	if (IS_FASTOPEN(tp->t_flags))
 		tp->t_tfo_pending = tcp_fastopen_alloc_counter();
 #endif
 out:
@@ -826,7 +826,7 @@ tcp_usr_rcvd(struct socket *so, int flags)
 	 * application response data, or failing that, when the DELACK timer
 	 * expires.
 	 */
-	if ((tp->t_flags & TF_FASTOPEN) &&
+	if (IS_FASTOPEN(tp->t_flags) &&
 	    (tp->t_state == TCPS_SYN_RECEIVED))
 		goto out;
 #endif

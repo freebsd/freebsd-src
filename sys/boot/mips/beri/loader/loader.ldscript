@@ -65,6 +65,10 @@ SECTIONS
 		__start_set_Xcommand_set = .;
 		KEEP(*(set_Xcommand_set))
 		__stop_set_Xcommand_set = .;
+
+		__start_set_Xficl_compile_set = .;
+		KEEP(*(set_Xficl_compile_set))
+		__stop_set_Xficl_compile_set = .;
 	}
 	.data ALIGN(0x10): { *(.data*)}
 	.bss ALIGN(0x10): { *(.bss*) }

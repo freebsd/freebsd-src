@@ -21,10 +21,16 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
-#include "common.h"
 #include "extern.h"
 
-int editit(const char *);
+static void
+cleanup(const char *filename)
+{
+
+	if (unlink(filename))
+		err(2, "could not delete: %s", filename);
+	exit(2);
+}
 
 /*
  * Execute an editor on the specified pathname, which is interpreted
@@ -32,7 +38,7 @@ int editit(const char *);
  *
  * Returns -1 on error, or the exit value on success.
  */
-int
+static int
 editit(const char *pathname)
 {
 	sig_t sighup, sigint, sigquit, sigchld;

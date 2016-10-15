@@ -82,6 +82,7 @@ __DEFAULT_YES_OPTIONS = \
     DYNAMICROOT \
     ED_CRYPTO \
     EE \
+    EFI \
     ELFTOOLCHAIN_BOOTSTRAP \
     EXAMPLES \
     FDT \
@@ -262,6 +263,9 @@ BROKEN_OPTIONS+=LIBSOFT
 .endif
 .if ${__T:Mmips*}
 BROKEN_OPTIONS+=SSP
+.endif
+.if ${__T:Mmips*} || ${__T:Mpowerpc*} || ${__T:Msparc64} || ${__T:Mriscv*}
+BROKEN_OPTIONS+=EFI
 .endif
 
 .include <bsd.mkopt.mk>

@@ -655,15 +655,26 @@ void
 vm_page_busy_downgrade(vm_page_t m)
 {
 	u_int x;
+	bool locked;
 
 	vm_page_assert_xbusied(m);
+	locked = mtx_owned(vm_page_lockptr(m));
 
 	for (;;) {
 		x = m->busy_lock;
 		x &= VPB_BIT_WAITERS;
+		if (x != 0 && !locked)
+			vm_page_lock(m);
 		if (atomic_cmpset_rel_int(&m->busy_lock,
-		    VPB_SINGLE_EXCLUSIVER | x, VPB_SHARERS_WORD(1) | x))
+		    VPB_SINGLE_EXCLUSIVER | x, VPB_SHARERS_WORD(1)))
 			break;
+		if (x != 0 && !locked)
+			vm_page_unlock(m);
+	}
+	if (x != 0) {
+		wakeup(m);
+		if (!locked)
+			vm_page_unlock(m);
 	}
 }
 
@@ -730,21 +741,20 @@ vm_page_sunbusy(vm_page_t m)
  *	This is used to implement the hard-path of busying mechanism.
  *
  *	The given page must be locked.
+ *
+ *	If nonshared is true, sleep only if the page is xbusy.
  */
 void
-vm_page_busy_sleep(vm_page_t m, const char *wmesg)
+vm_page_busy_sleep(vm_page_t m, const char *wmesg, bool nonshared)
 {
 	u_int x;
 
-	vm_page_lock_assert(m, MA_OWNED);
+	vm_page_assert_locked(m);
 
 	x = m->busy_lock;
-	if (x == VPB_UNBUSIED) {
-		vm_page_unlock(m);
-		return;
-	}
-	if ((x & VPB_BIT_WAITERS) == 0 &&
-	    !atomic_cmpset_int(&m->busy_lock, x, x | VPB_BIT_WAITERS)) {
+	if (x == VPB_UNBUSIED || (nonshared && (x & VPB_BIT_SHARED) != 0) ||
+	    ((x & VPB_BIT_WAITERS) == 0 &&
+	    !atomic_cmpset_int(&m->busy_lock, x, x | VPB_BIT_WAITERS))) {
 		vm_page_unlock(m);
 		return;
 	}
@@ -1081,7 +1091,7 @@ vm_page_sleep_if_busy(vm_page_t m, const char *msg)
 		obj = m->object;
 		vm_page_lock(m);
 		VM_OBJECT_WUNLOCK(obj);
-		vm_page_busy_sleep(m, msg);
+		vm_page_busy_sleep(m, msg, false);
 		VM_OBJECT_WLOCK(obj);
 		return (TRUE);
 	}
@@ -3444,7 +3454,8 @@ retrylookup:
 			vm_page_aflag_set(m, PGA_REFERENCED);
 			vm_page_lock(m);
 			VM_OBJECT_WUNLOCK(object);
-			vm_page_busy_sleep(m, "pgrbwt");
+			vm_page_busy_sleep(m, "pgrbwt", (allocflags &
+			    VM_ALLOC_IGN_SBUSY) != 0);
 			VM_OBJECT_WLOCK(object);
 			goto retrylookup;
 		} else {

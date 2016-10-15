@@ -704,11 +704,7 @@ sendit:
 		IPSTAT_INC(ips_fragmented);
 
 done:
-	/*
-	 * Release the route if using our private route, or if
-	 * (with flowtable) we don't have our own reference.
-	 */
-	if (ro == &iproute || ro->ro_flags & RT_NORTREF)
+	if (ro == &iproute)
 		RO_RTFREE(ro);
 	else if (rte == NULL)
 		/*

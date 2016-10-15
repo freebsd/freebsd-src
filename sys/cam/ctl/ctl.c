@@ -9903,6 +9903,7 @@ ctl_inquiry_evpd_block_limits(struct ctl_scsiio *ctsio, int alloc_len)
 {
 	struct scsi_vpd_block_limits *bl_ptr;
 	struct ctl_lun *lun;
+	uint64_t ival;
 
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 
@@ -9941,8 +9942,14 @@ ctl_inquiry_evpd_block_limits(struct ctl_scsiio *ctsio, int alloc_len)
 	if (lun != NULL) {
 		scsi_ulto4b(lun->be_lun->opttxferlen, bl_ptr->opt_txfer_len);
 		if (lun->be_lun->flags & CTL_LUN_FLAG_UNMAP) {
-			scsi_ulto4b(0xffffffff, bl_ptr->max_unmap_lba_cnt);
-			scsi_ulto4b(0xffffffff, bl_ptr->max_unmap_blk_cnt);
+			ival = 0xffffffff;
+			ctl_get_opt_number(&lun->be_lun->options,
+			    "unmap_max_lba", &ival);
+			scsi_ulto4b(ival, bl_ptr->max_unmap_lba_cnt);
+			ival = 0xffffffff;
+			ctl_get_opt_number(&lun->be_lun->options,
+			    "unmap_max_descr", &ival);
+			scsi_ulto4b(ival, bl_ptr->max_unmap_blk_cnt);
 			if (lun->be_lun->ublockexp != 0) {
 				scsi_ulto4b((1 << lun->be_lun->ublockexp),
 				    bl_ptr->opt_unmap_grain);
@@ -9956,8 +9963,10 @@ ctl_inquiry_evpd_block_limits(struct ctl_scsiio *ctsio, int alloc_len)
 		scsi_ulto4b(0, bl_ptr->atomic_transfer_length_granularity);
 		scsi_ulto4b(0, bl_ptr->max_atomic_transfer_length_with_atomic_boundary);
 		scsi_ulto4b(0, bl_ptr->max_atomic_boundary_size);
+		ival = UINT64_MAX;
+		ctl_get_opt_number(&lun->be_lun->options, "write_same_max_lba", &ival);
+		scsi_u64to8b(ival, bl_ptr->max_write_same_length);
 	}
-	scsi_u64to8b(UINT64_MAX, bl_ptr->max_write_same_length);
 
 	ctl_set_success(ctsio);
 	ctsio->io_hdr.flags |= CTL_FLAG_ALLOCATED;
@@ -10031,6 +10040,7 @@ ctl_inquiry_evpd_lbp(struct ctl_scsiio *ctsio, int alloc_len)
 {
 	struct scsi_vpd_logical_block_prov *lbp_ptr;
 	struct ctl_lun *lun;
+	const char *value;
 
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 
@@ -10068,7 +10078,14 @@ ctl_inquiry_evpd_lbp(struct ctl_scsiio *ctsio, int alloc_len)
 	if (lun != NULL && lun->be_lun->flags & CTL_LUN_FLAG_UNMAP) {
 		lbp_ptr->flags = SVPD_LBP_UNMAP | SVPD_LBP_WS16 |
 		    SVPD_LBP_WS10 | SVPD_LBP_RZ | SVPD_LBP_ANC_SUP;
-		lbp_ptr->prov_type = SVPD_LBP_THIN;
+		value = ctl_get_opt(&lun->be_lun->options, "provisioning_type");
+		if (value != NULL) {
+			if (strcmp(value, "resource") == 0)
+				lbp_ptr->prov_type = SVPD_LBP_RESOURCE;
+			else if (strcmp(value, "thin") == 0)
+				lbp_ptr->prov_type = SVPD_LBP_THIN;
+		} else
+			lbp_ptr->prov_type = SVPD_LBP_THIN;
 	}
 
 	ctl_set_success(ctsio);

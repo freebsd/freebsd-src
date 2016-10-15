@@ -1299,10 +1299,7 @@ in_pcbfree(struct inpcb *inp)
 	if (inp->inp_moptions != NULL)
 		inp_freemoptions(inp->inp_moptions);
 #endif
-	if (inp->inp_route.ro_rt) {
-		RTFREE(inp->inp_route.ro_rt);
-		inp->inp_route.ro_rt = (struct rtentry *)NULL;
-	}
+	RO_RTFREE(&inp->inp_route);
 	if (inp->inp_route.ro_lle)
 		LLE_FREE(inp->inp_route.ro_lle);	/* zeros ro_lle */
 
@@ -2242,10 +2239,7 @@ void
 in_losing(struct inpcb *inp)
 {
 
-	if (inp->inp_route.ro_rt) {
-		RTFREE(inp->inp_route.ro_rt);
-		inp->inp_route.ro_rt = (struct rtentry *)NULL;
-	}
+	RO_RTFREE(&inp->inp_route);
 	if (inp->inp_route.ro_lle)
 		LLE_FREE(inp->inp_route.ro_lle);	/* zeros ro_lle */
 	return;
