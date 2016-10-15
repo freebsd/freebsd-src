@@ -61,13 +61,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu-v6.h>
 #include <machine/md_var.h>
 
-#if __ARM_ARCH < 6
-#define	BUSDMA_DCACHE_ALIGN	arm_dcache_align
-#define	BUSDMA_DCACHE_MASK	arm_dcache_align_mask
-#else
 #define	BUSDMA_DCACHE_ALIGN	cpuinfo.dcache_line_size
 #define	BUSDMA_DCACHE_MASK	cpuinfo.dcache_line_mask
-#endif
 
 #define	MAX_BPAGES		64
 #define	MAX_DMA_SEGMENTS	4096
@@ -340,7 +335,7 @@ cacheline_bounce(bus_dmamap_t map, bus_addr_t addr, bus_size_t size)
 
 	if (map->flags & (DMAMAP_DMAMEM_ALLOC | DMAMAP_COHERENT | DMAMAP_MBUF))
 		return (0);
-	return ((addr | size) & arm_dcache_align_mask);
+	return ((addr | size) & BUSDMA_DCACHE_MASK);
 }
 
 /*
