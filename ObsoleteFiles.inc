@@ -38,6 +38,30 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20161015: Remove GNU rcs
+OLD_FILES+=usr/bin/ci
+OLD_FILES+=usr/bin/co
+OLD_FILES+=usr/bin/merge
+OLD_FILES+=usr/bin/rcs
+OLD_FILES+=usr/bin/rcsclean
+OLD_FILES+=usr/bin/rcsdiff
+OLD_FILES+=usr/bin/rcsfreeze
+OLD_FILES+=usr/bin/rcsmerge
+OLD_FILES+=usr/bin/rlog
+OLD_FILES+=usr/share/doc/psd/13.rcs/paper.ascii.gz
+OLD_FILES+=usr/share/doc/psd/13.rcs/rcs_func.ascii.gz
+OLD_DIRS+=usr/share/doc/psd/13.rcs
+OLD_FILES+=usr/share/man/man1/ci.1.gz
+OLD_FILES+=usr/share/man/man1/co.1.gz
+OLD_FILES+=usr/share/man/man1/merge.1.gz
+OLD_FILES+=usr/share/man/man1/rcs.1.gz
+OLD_FILES+=usr/share/man/man1/rcsclean.1.gz
+OLD_FILES+=usr/share/man/man1/rcsdiff.1.gz
+OLD_FILES+=usr/share/man/man1/rcsfreeze.1.gz
+OLD_FILES+=usr/share/man/man1/rcsintro.1.gz
+OLD_FILES+=usr/share/man/man1/rcsmerge.1.gz
+OLD_FILES+=usr/share/man/man1/rlog.1.gz
+OLD_FILES+=usr/share/man/man5/rcsfile.5.gz
 # 20161010: remove link to removed m_getclr(9) macro
 OLD_FILES+=usr/share/man/man9/m_getclr.9.gz
 # 20161003: MK_ELFCOPY_AS_OBJCOPY option retired
