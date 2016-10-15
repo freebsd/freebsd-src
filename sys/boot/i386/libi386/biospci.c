@@ -190,7 +190,6 @@ static struct pci_class
     {-1,	NULL,		NULL}
 };
 
-
 static void	biospci_enumerate(void);
 static void	biospci_addinfo(int devid, struct pci_class *pc, struct pci_subclass *psc, struct pci_progif *ppi);
 
@@ -199,6 +198,7 @@ struct pnphandler biospcihandler =
     "PCI BIOS",
     biospci_enumerate
 };
+static int biospci_version;
 
 #define PCI_BIOS_PRESENT	0xb101
 #define FIND_PCI_DEVICE		0xb102
@@ -254,7 +254,7 @@ biospci_detect(void)
     setenv("pcibios.config2", buf, 1);
     sprintf(buf, "%d", maxbus);
     setenv("pcibios.maxbus", buf, 1);
-
+    biospci_version = bcd2bin((version >> 8) & 0xf) * 10 + bcd2bin(version & 0xf);
 }
 
 static void
@@ -577,6 +577,8 @@ static void ficlCompilePciBios(FICL_SYSTEM *pSys)
     dictAppendWord(dp, "pcibios-find-devclass", ficlPciBiosFindDevclass, FW_DEFAULT);
     dictAppendWord(dp, "pcibios-find-device", ficlPciBiosFindDevice, FW_DEFAULT);
     dictAppendWord(dp, "pcibios-locator", ficlPciBiosLocator, FW_DEFAULT);
+
+    ficlSetEnv(pSys, "pcibios-version", biospci_version);
 }
 
 FICL_COMPILE_SET(ficlCompilePciBios);
