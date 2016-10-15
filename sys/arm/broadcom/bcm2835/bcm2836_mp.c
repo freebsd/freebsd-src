@@ -132,7 +132,8 @@ platform_mp_start_ap(void)
 		} while (1);
 
 		/* dsb and sev */
-		armv7_sev();
+		dsb();
+		sev();
 
 		/* recode AP in CPU map */
 		CPU_SET(i, &all_cpus);

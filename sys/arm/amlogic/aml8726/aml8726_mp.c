@@ -487,7 +487,8 @@ platform_mp_start_ap(void)
 	CPUCONF_BARRIER(AML_CPUCONF_CONTROL_REG);
 
 	/* Wakeup the now enabled APs */
-	armv7_sev();
+	dsb();
+	sev();
 
 	/*
 	 * Free the resources which are not needed after startup.

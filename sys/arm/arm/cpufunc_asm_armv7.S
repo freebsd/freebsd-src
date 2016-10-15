@@ -297,13 +297,6 @@ ENTRY(armv7_drain_writebuf)
 	RET
 END(armv7_drain_writebuf)
 
-ENTRY(armv7_sev)
-	dsb
-	sev
-	nop
-	RET
-END(armv7_sev)
-
 ENTRY(armv7_auxctrl)
 	mrc	CP15_ACTLR(r2)
 	bic r3, r2, r0	/* Clear bits */
