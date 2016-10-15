@@ -62,7 +62,7 @@ static struct option longopts[] = {
 static int aflag, Aflag, bflag, dflag, Dflag, Hflag, Nflag,
 	lflag, Lflag, Rflag, wflag, pflag;
 static char *varname;
-static u_long attrib = 0x7;
+static u_long attrib = EFI_VARIABLE_NON_VOLATILE |EFI_VARIABLE_BOOTSERVICE_ACCESS | EFI_VARIABLE_RUNTIME_ACCESS;
 
 static void
 usage(void)
@@ -294,11 +294,13 @@ parse_args(int argc, char **argv)
 		case 'R':
 			Rflag++;
 			break;
+		case 't':
+			attrib = strtoul(optarg, NULL, 16);
+			break;
 		case 'w':
 			wflag++;
 			break;
 		case 'f':
-		case 't':
 		case 0:
 			errx(1, "unknown or unimplemented option\n");
 			break;
