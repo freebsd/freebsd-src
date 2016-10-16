@@ -62,7 +62,7 @@ static struct option longopts[] = {
 static int aflag, Aflag, bflag, dflag, Dflag, Hflag, Nflag,
 	lflag, Lflag, Rflag, wflag, pflag;
 static char *varname;
-static u_long attrib = EFI_VARIABLE_NON_VOLATILE |EFI_VARIABLE_BOOTSERVICE_ACCESS | EFI_VARIABLE_RUNTIME_ACCESS;
+static u_long attrib = EFI_VARIABLE_NON_VOLATILE | EFI_VARIABLE_BOOTSERVICE_ACCESS | EFI_VARIABLE_RUNTIME_ACCESS;
 
 static void
 usage(void)
