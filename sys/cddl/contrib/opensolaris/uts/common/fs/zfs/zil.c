@@ -924,6 +924,8 @@ uint64_t zil_block_buckets[] = {
  * Limit checking is disabled by setting zil_slog_limit to UINT64_MAX.
  */
 uint64_t zil_slog_limit = 1024 * 1024;
+SYSCTL_QUAD(_vfs_zfs, OID_AUTO, zil_slog_limit, CTLFLAG_RWTUN,
+    &zil_slog_limit, 0, "Maximal commit size to use SLOG");
 #define	USE_SLOG(zilog) (((zilog)->zl_logbias == ZFS_LOGBIAS_LATENCY) && \
 	(((zilog)->zl_cur_used < zil_slog_limit) || \
 	((zilog)->zl_itx_list_sz < (zil_slog_limit << 1))))
