@@ -33,11 +33,46 @@
 #ifndef _SYS_DISKPC98_H_
 #define	_SYS_DISKPC98_H_
 
-#include <sys/disk/pc98.h>
 #include <sys/ioccom.h>
 
-#define	DOSMID_386BSD		__DOSMID_386BSD
-#define	DOSSID_386BSD		__DOSSID_386BSD
+#define	PC98_BBSECTOR	1	/* DOS boot block relative sector number */
+#define	PC98_PARTOFF	0
+#define	PC98_PARTSIZE	32
+#define	PC98_NPARTS	16
+#define	PC98_MAGICOFS	510
+#define	PC98_MAGIC	0xAA55
+
+#define	PC98_MID_BOOTABLE	0x80
+#define	PC98_MID_MASK		0x7f
+#define	PC98_MID_386BSD		0x14
+
+#define	PC98_SID_ACTIVE		0x80
+#define	PC98_SID_MASK		0x7f
+#define	PC98_SID_386BSD		0x44
+
+#define	DOSMID_386BSD		(PC98_MID_386BSD | PC98_MID_BOOTABLE)
+#define	DOSSID_386BSD		(PC98_SID_386BSD | PC98_SID_ACTIVE)
+#define	PC98_PTYP_386BSD	(DOSSID_386BSD << 8 | DOSMID_386BSD)
+
+struct pc98_partition {
+    	unsigned char	dp_mid;
+	unsigned char	dp_sid;
+	unsigned char	dp_dum1;
+	unsigned char	dp_dum2;
+	unsigned char	dp_ipl_sct;
+	unsigned char	dp_ipl_head;
+	unsigned short	dp_ipl_cyl;
+	unsigned char	dp_ssect;	/* starting sector */
+	unsigned char	dp_shd;		/* starting head */
+	unsigned short	dp_scyl;	/* starting cylinder */
+	unsigned char	dp_esect;	/* end sector */
+	unsigned char	dp_ehd;		/* end head */
+	unsigned short	dp_ecyl;	/* end cylinder */
+	unsigned char	dp_name[16];
+};
+#ifdef CTASSERT
+CTASSERT(sizeof (struct pc98_partition) == PC98_PARTSIZE);
+#endif
 
 void pc98_partition_dec(void const *pp, struct pc98_partition *d);
 void pc98_partition_enc(void *pp, struct pc98_partition *d);

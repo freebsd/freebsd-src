@@ -59,7 +59,6 @@ LSUBDIRS=	cam/ata cam/nvme cam/scsi \
 	security/audit \
 	security/mac_biba security/mac_bsdextended security/mac_lomac \
 	security/mac_mls security/mac_partition \
-	sys/disk \
 	ufs/ffs ufs/ufs
 
 LSUBSUBDIRS=	dev/mpt/mpilib
