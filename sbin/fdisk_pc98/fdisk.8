@@ -1,6 +1,6 @@
 .\" $FreeBSD$
 .\"
-.Dd April 30, 2007
+.Dd October 5, 2016
 .Dt FDISK 8
 .Os
 .Sh NAME
@@ -448,6 +448,21 @@ Example: to make slice 1 the active slice:
 .Xr bsdlabel 8 ,
 .Xr gpart 8 ,
 .Xr newfs 8
+.Sh HISTORY
+A version of
+.Nm
+first appeared in the Mach Operating System.
+It was subsequently ported to
+.Bx 386 .
+.Sh AUTHORS
+.An -nosplit
+.Nm
+for Mach Operating System was written by
+.An Robert Baron Aq Mt rvb@cs.cmu.edu .
+It was ported to
+.Bx 386
+by
+.An Julian Elischer Aq Mt julian@tfs.com .
 .Sh BUGS
 The default boot code will not necessarily handle all slice types
 correctly, in particular those introduced since
