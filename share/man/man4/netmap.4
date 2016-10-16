@@ -33,10 +33,10 @@
 .Sh NAME
 .Nm netmap
 .Nd a framework for fast packet I/O
-.Pp
+.br
 .Nm VALE
 .Nd a fast VirtuAl Local Ethernet using the netmap API
-.Pp
+.br
 .Nm netmap pipes
 .Nd a shared memory packet transport channel
 .Sh SYNOPSIS
@@ -44,28 +44,49 @@
 .Sh DESCRIPTION
 .Nm
 is a framework for extremely fast and efficient packet I/O
-for both userspace and kernel clients.
+for userspace and kernel clients, and for Virtual Machines.
 It runs on
 .Fx
-and Linux, and includes
-.Nm VALE ,
-a very fast and modular in-kernel software switch/dataplane,
-and
-.Nm netmap pipes ,
-a shared memory packet transport channel.
-All these are accessed interchangeably with the same API.
+Linux and some versions of Windows, and supports a variety of
+.Nm netmap ports ,
+including
+.Bl -tag -width XXXX
+.It Nm physical NIC ports
+to access individual queues of network interfaces;
+.It Nm host ports
+to inject packets into the host stack;
+.It Nm VALE ports
+implementing a very fast and modular in-kernel software switch/dataplane;
+.It Nm netmap pipes
+a shared memory packet transport channel;
+.It Nm netmap monitors
+a mechanism similar to
+.Xr bpf
+to capture traffic
+.El
 .Pp
-.Nm ,
-.Nm VALE
-and
-.Nm netmap pipes
-are at least one order of magnitude faster than
+All these
+.Nm netmap ports
+are accessed interchangeably with the same API,
+and are at least one order of magnitude faster than
 standard OS mechanisms
-(sockets, bpf, tun/tap interfaces, native switches, pipes),
-reaching 14.88 million packets per second (Mpps)
-with much less than one core on a 10 Gbit NIC,
-about 20 Mpps per core for VALE ports,
-and over 100 Mpps for netmap pipes.
+(sockets, bpf, tun/tap interfaces, native switches, pipes).
+With suitably fast hardware (NICs, PCIe buses, CPUs),
+packet I/O using
+.Nm
+on supported NICs
+reaches 14.88 million packets per second (Mpps)
+with much less than one core on 10 Gbit/s NICs;
+35-40 Mpps on 40 Gbit/s NICs (limited by the hardware);
+about 20 Mpps per core for VALE ports;
+and over 100 Mpps for
+.Nm netmap pipes.
+NICs without native
+.Nm
+support can still use the API in emulated mode,
+which uses unmodified device drivers and is 3-5 times faster than
+.Xr bpf
+or raw sockets.
 .Pp
 Userspace clients can dynamically switch NICs into
 .Nm
@@ -73,8 +94,10 @@ mode and send and receive raw packets through
 memory mapped buffers.
 Similarly,
 .Nm VALE
-switch instances and ports, and
+switch instances and ports,
 .Nm netmap pipes
+and
+.Nm netmap monitors
 can be created dynamically,
 providing high speed packet I/O between processes,
 virtual machines, NICs and the host stack.
@@ -89,17 +112,17 @@ and standard OS mechanisms such as
 .Xr epoll 2 ,
 and
 .Xr kqueue 2 .
-.Nm VALE
-and
-.Nm netmap pipes
+All types of
+.Nm netmap ports
+and the
+.Nm VALE switch
 are implemented by a single kernel module, which also emulates the
 .Nm
-API over standard drivers for devices without native
-.Nm
-support.
+API over standard drivers.
 For best performance,
 .Nm
-requires explicit support in device drivers.
+requires native support in device drivers.
+A list of such devices is at the end of this document.
 .Pp
 In the rest of this (long) manual page we document
 various aspects of the
@@ -116,7 +139,7 @@ which can be connected to a physical interface
 to the host stack,
 or to a
 .Nm VALE
-switch).
+switch.
 Ports use preallocated circular queues of buffers
 .Em ( rings )
 residing in an mmapped region.
@@ -166,16 +189,18 @@ has multiple modes of operation controlled by the
 .Vt struct nmreq
 argument.
 .Va arg.nr_name
-specifies the port name, as follows:
+specifies the netmap port name, as follows:
 .Bl -tag -width XXXX
 .It Dv OS network interface name (e.g. 'em0', 'eth1', ... )
 the data path of the NIC is disconnected from the host stack,
 and the file descriptor is bound to the NIC (one or all queues),
 or to the host stack;
-.It Dv valeXXX:YYY (arbitrary XXX and YYY)
-the file descriptor is bound to port YYY of a VALE switch called XXX,
-both dynamically created if necessary.
-The string cannot exceed IFNAMSIZ characters, and YYY cannot
+.It Dv valeSSS:PPP
+the file descriptor is bound to port PPP of VALE switch SSS.
+Switch instances and ports are dynamically created if necessary.
+.br
+Both SSS and PPP have the form [0-9a-zA-Z_]+ , the string
+cannot exceed IFNAMSIZ characters, and PPP cannot
 be the name of any existing OS network interface.
 .El
 .Pp
@@ -312,9 +337,6 @@ one slot is always kept empty.
 The ring size
 .Va ( num_slots )
 should not be assumed to be a power of two.
-.br
-(NOTE: older versions of netmap used head/count format to indicate
-the content of a ring).
 .Pp
 .Va head
 is the first slot available to userspace;
@@ -585,6 +607,15 @@ it from the host stack.
 Multiple file descriptors can be bound to the same port,
 with proper synchronization left to the user.
 .Pp
+The recommended way to bind a file descriptor to a port is
+to use function
+.Va nm_open(..)
+(see
+.Xr LIBRARIES )
+which parses names to access specific port types and
+enable features.
+In the following we document the main features.
+.Pp
 .Dv NIOCREGIF can also bind a file descriptor to one endpoint of a
 .Em netmap pipe ,
 consisting of two netmap ports with a crossover connection.
@@ -734,7 +765,7 @@ similar to
 binds a file descriptor to a port.
 .Bl -tag -width XX
 .It Va ifname
-is a port name, in the form "netmap:XXX" for a NIC and "valeXXX:YYY" for a
+is a port name, in the form "netmap:PPP" for a NIC and "valeSSS:PPP" for a
 .Nm VALE
 port.
 .It Va req
@@ -774,28 +805,39 @@ similar to pcap_next(), fetches the next packet
 natively supports the following devices:
 .Pp
 On FreeBSD:
+.Xr cxgbe 4 ,
 .Xr em 4 ,
 .Xr igb 4 ,
 .Xr ixgbe 4 ,
+.Xr ixl 4 ,
 .Xr lem 4 ,
 .Xr re 4 .
 .Pp
 On Linux
 .Xr e1000 4 ,
 .Xr e1000e 4 ,
+.Xr i40e 4 ,
 .Xr igb 4 ,
 .Xr ixgbe 4 ,
-.Xr mlx4 4 ,
-.Xr forcedeth 4 ,
 .Xr r8169 4 .
 .Pp
 NICs without native support can still be used in
 .Nm
 mode through emulation.
 Performance is inferior to native netmap
-mode but still significantly higher than sockets, and approaching
+mode but still significantly higher than various raw socket types
+(bpf, PF_PACKET, etc.).
+Note that for slow devices (such as 1 Gbit/s and slower NICs,
+or several 10 Gbit/s NICs whose hardware is unable 
 that of in-kernel solutions such as Linux's
 .Xr pktgen .
+When emulation is in use, packet sniffer programs such as tcpdump
+could see received packets before they are diverted by netmap. This behaviour
+is not intentional, being just an artifact of the implementation of emulation.
+Note that in case the netmap application subsequently moves packets received
+from the emulated adapter onto the host RX ring, the sniffer will intercept
+those packets again, since the packets are injected to the host stack as they
+were received by the network interface.
 .Pp
 Emulation is also available for devices with native netmap support,
 which can be used for testing or performance comparison.
@@ -812,8 +854,12 @@ and module parameters on Linux
 .Bl -tag -width indent
 .It Va dev.netmap.admode: 0
 Controls the use of native or emulated adapter mode.
-0 uses the best available option, 1 forces native and
-fails if not available, 2 forces emulated hence never fails.
+.br
+0 uses the best available option;
+.br
+1 forces native mode and fails if not available;
+.br
+2 forces emulated hence never fails.
 .It Va dev.netmap.generic_ringsize: 1024
 Ring size used for emulated netmap mode
 .It Va dev.netmap.generic_mit: 100000
@@ -861,9 +907,9 @@ performance.
 uses
 .Xr select 2 ,
 .Xr poll 2 ,
-.Xr epoll
+.Xr epoll 2
 and
-.Xr kqueue
+.Xr kqueue 2
 to wake up processes when significant events occur, and
 .Xr mmap 2
 to map memory.
@@ -1015,8 +1061,8 @@ e.g. running the following in two different terminals:
 .Dl pkt-gen -i vale1:b -f tx # sender
 The same example can be used to test netmap pipes, by simply
 changing port names, e.g.
-.Dl pkt-gen -i vale:x{3 -f rx # receiver on the master side
-.Dl pkt-gen -i vale:x}3 -f tx # sender on the slave side
+.Dl pkt-gen -i vale2:x{3 -f rx # receiver on the master side
+.Dl pkt-gen -i vale2:x}3 -f tx # sender on the slave side
 .Pp
 The following command attaches an interface and the host stack
 to a switch:

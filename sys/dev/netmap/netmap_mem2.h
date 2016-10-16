@@ -1,5 +1,8 @@
 /*
- * Copyright (C) 2012-2014 Matteo Landi, Luigi Rizzo, Giuseppe Lettieri. All rights reserved.
+ * Copyright (C) 2012-2014 Matteo Landi
+ * Copyright (C) 2012-2016 Luigi Rizzo
+ * Copyright (C) 2012-2016 Giuseppe Lettieri
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -117,8 +120,11 @@
 
 extern struct netmap_mem_d nm_mem;
 
-void	   netmap_mem_get_lut(struct netmap_mem_d *, struct netmap_lut *);
+int	   netmap_mem_get_lut(struct netmap_mem_d *, struct netmap_lut *);
 vm_paddr_t netmap_mem_ofstophys(struct netmap_mem_d *, vm_ooffset_t);
+#ifdef _WIN32
+PMDL win32_build_user_vm_map(struct netmap_mem_d* nmd);
+#endif
 int	   netmap_mem_finalize(struct netmap_mem_d *, struct netmap_adapter *);
 int 	   netmap_mem_init(void);
 void 	   netmap_mem_fini(void);
@@ -127,6 +133,7 @@ void 	   netmap_mem_if_delete(struct netmap_adapter *, struct netmap_if *);
 int	   netmap_mem_rings_create(struct netmap_adapter *);
 void	   netmap_mem_rings_delete(struct netmap_adapter *);
 void 	   netmap_mem_deref(struct netmap_mem_d *, struct netmap_adapter *);
+int	netmap_mem2_get_pool_info(struct netmap_mem_d *, u_int, u_int *, u_int *);
 int	   netmap_mem_get_info(struct netmap_mem_d *, u_int *size, u_int *memflags, uint16_t *id);
 ssize_t    netmap_mem_if_offset(struct netmap_mem_d *, const void *vaddr);
 struct netmap_mem_d* netmap_mem_private_new(const char *name,
@@ -156,6 +163,15 @@ void netmap_mem_get(struct netmap_mem_d *);
 void netmap_mem_put(struct netmap_mem_d *);
 
 #endif /* !NM_DEBUG_PUTGET */
+
+#ifdef WITH_PTNETMAP_GUEST
+struct netmap_mem_d* netmap_mem_pt_guest_new(struct ifnet *,
+					     unsigned int nifp_offset,
+					     nm_pt_guest_ptctl_t);
+struct ptnetmap_memdev;
+struct netmap_mem_d* netmap_mem_pt_guest_attach(struct ptnetmap_memdev *, uint16_t);
+int netmap_mem_pt_guest_ifp_del(struct netmap_mem_d *, struct ifnet *);
+#endif /* WITH_PTNETMAP_GUEST */
 
 #define NETMAP_MEM_PRIVATE	0x2	/* allocator uses private address space */
 #define NETMAP_MEM_IO		0x4	/* the underlying memory is mmapped I/O */
