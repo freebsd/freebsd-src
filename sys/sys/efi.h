@@ -165,9 +165,6 @@ struct efi_systbl {
 
 #ifdef _KERNEL
 extern vm_paddr_t efi_systbl_phys;
-struct cdev;
-int efidev_init(struct cdev **);
-int efidev_uninit(struct cdev *);
 #endif	/* _KERNEL */
 
 #endif /* _SYS_EFI_H_ */
