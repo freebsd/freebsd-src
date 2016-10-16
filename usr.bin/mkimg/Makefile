@@ -11,6 +11,7 @@ mkimg.o: Makefile
 
 CFLAGS+=-DMKIMG_VERSION=${MKIMG_VERSION}
 CFLAGS+=-DSPARSE_WRITE
+CFLAGS+=-I${.CURDIR:H:H}/sys
 
 # List of formats to support
 SRCS+= \
