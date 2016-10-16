@@ -35,18 +35,13 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <uuid.h>
 
-#include <sys/diskmbr.h>
-#include <sys/gpt.h>
+#include <sys/disk/gpt.h>
+#include <sys/disk/mbr.h>
 
 #include "endian.h"
 #include "image.h"
 #include "mkimg.h"
 #include "scheme.h"
-
-#ifndef GPT_ENT_TYPE_FREEBSD_NANDFS
-#define	GPT_ENT_TYPE_FREEBSD_NANDFS	\
-    {0x74ba7dd9,0xa689,0x11e1,0xbd,0x04,{0x00,0xe0,0x81,0x28,0x6a,0xcf}}
-#endif
 
 static uuid_t gpt_uuid_efi = GPT_ENT_TYPE_EFI;
 static uuid_t gpt_uuid_freebsd = GPT_ENT_TYPE_FREEBSD;
