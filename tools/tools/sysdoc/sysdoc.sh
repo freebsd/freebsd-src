@@ -59,12 +59,12 @@ implementation, see the respecting manual pages.
 This manual page is automatically generated
 by a set of scripts written by
 .An -nosplit
-.An Tom Rhodes Aq trhodes@FreeBSD.org ,
+.An Tom Rhodes Aq Mt trhodes@FreeBSD.org ,
 with significant contributions from
-.An Giorgos Keramidas Aq keramida@FreeBSD.org ,
-.An Ruslan Ermilov Aq ru@FreeBSD.org ,
+.An Giorgos Keramidas Aq Mt keramida@FreeBSD.org ,
+.An Ruslan Ermilov Aq Mt ru@FreeBSD.org ,
 and
-.An Marc Silver Aq marcs@draenor.org .
+.An Marc Silver Aq Mt marcs@draenor.org .
 .Sh BUGS
 Sometimes
 .Fx
