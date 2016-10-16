@@ -256,7 +256,9 @@ f_sysrc_service_configs()
 			last_name=
 			print_name() {
 				local name="$1"
-				[ "$name" = "$last_name" ] && return
+				case "$name" in
+				""|.|..|*/*|"$last_name") return ;;
+				esac
 				echo "$name" >&9
 				last_name="$name"
 			}
