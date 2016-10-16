@@ -31,7 +31,7 @@
 .\"	@(#)disklabel.8	8.2 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd October 1, 2013
+.Dd October 5, 2016
 .Dt BSDLABEL 8
 .Os
 .Sh NAME
@@ -466,7 +466,7 @@ which could be used as a source file for
 
 8 partitions:
 #        size   offset    fstype   [fsize bsize bps/cpg]
-  a:   400M       16    4.2BSD     4096 16384    75 	# (Cyl.    0 - 812*)
+  a:   400M       16    4.2BSD     4096 16384    75    # (Cyl.    0 - 812*)
   b:     1G        *      swap
   c:      *        *    unused
   e: 204800        *    4.2BSD
@@ -500,3 +500,8 @@ are not generally compatible.
 .Xr boot0cfg 8 ,
 .Xr gpart 8 ,
 .Xr newfs 8
+.Sh HISTORY
+The
+.Nm disklabel
+utility appeared in
+.Bx 4.3 Tahoe .
