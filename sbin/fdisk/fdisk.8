@@ -1,6 +1,6 @@
 .\" $FreeBSD$
 .\"
-.Dd October 1, 2013
+.Dd October 5, 2016
 .Dt FDISK 8
 .Os
 .Sh NAME
@@ -177,19 +177,19 @@ An example follows:
 	Information from DOS bootblock is:
 	The data for partition 1 is:
 	sysid 165,(FreeBSD/NetBSD/386BSD)
-    	    start 495, size 380160 (185 Meg), flag 0
+           start 495, size 380160 (185 Meg), flag 0
 		beg: cyl 1/ sector 1/ head 0;
 		end: cyl 768/ sector 33/ head 14
 	The data for partition 2 is:
 	sysid 164,(unknown)
-    	    start 378180, size 2475 (1 Meg), flag 0
+           start 378180, size 2475 (1 Meg), flag 0
 		beg: cyl 764/ sector 1/ head 0;
 		end: cyl 768/ sector 33/ head 14
 	The data for partition 3 is:
 	<UNUSED>
 	The data for partition 4 is:
 	sysid 99,(ISC UNIX, other System V/386, GNU HURD or Mach)
-    	    start 380656, size 224234 (109 Meg), flag 80
+           start 380656, size 224234 (109 Meg), flag 80
 		beg: cyl 769/ sector 2/ head 0;
 		end: cyl 197/ sector 33/ head 14
 .Ed
@@ -485,6 +485,21 @@ The default boot code.
 .Xr bsdlabel 8 ,
 .Xr gpart 8 ,
 .Xr newfs 8
+.Sh HISTORY
+A version of
+.Nm
+first appeared in the Mach Operating System.
+It was subsequently ported to
+.Bx 386 .
+.Sh AUTHORS
+.An -nosplit
+.Nm
+for Mach Operating System was written by
+.An Robert Baron Aq Mt rvb@cs.cmu.edu .
+It was ported to
+.Bx 386
+by
+.An Julian Elischer Aq Mt julian@tfs.com .
 .Sh BUGS
 The default boot code will not necessarily handle all slice types
 correctly, in particular those introduced since
