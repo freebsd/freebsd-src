@@ -72,6 +72,7 @@ exclude EXFAIL common/mib/tst.udp.ksh
 exclude SKIP common/privs/tst.fds.ksh
 exclude SKIP common/privs/tst.func_access.ksh
 exclude SKIP common/privs/tst.getf.ksh
+exclude SKIP common/privs/tst.kpriv.ksh
 exclude SKIP common/privs/tst.op_access.ksh
 exclude SKIP common/privs/tst.procpriv.ksh
 exclude SKIP common/privs/tst.providers.ksh
