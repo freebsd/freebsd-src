@@ -443,14 +443,9 @@ udl_detach(device_t dev)
 {
 	struct udl_softc *sc = device_get_softc(dev);
 
-	if (sc->sc_fbdev != NULL) {
-		device_t bdev;
+	/* delete all child devices */
+	device_delete_children(dev);
 
-		bdev = sc->sc_fbdev;
-		sc->sc_fbdev = NULL;
-		device_detach(bdev);
-		device_delete_child(dev, bdev);
-	}
 	UDL_LOCK(sc);
 	sc->sc_gone = 1;
 	callout_stop(&sc->sc_callout);
