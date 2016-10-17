@@ -495,6 +495,7 @@ boolean_t vm_page_unwire(vm_page_t m, uint8_t queue);
 void vm_page_updatefake(vm_page_t m, vm_paddr_t paddr, vm_memattr_t memattr);
 void vm_page_wire (vm_page_t);
 void vm_page_xunbusy_hard(vm_page_t m);
+void vm_page_xunbusy_maybelocked(vm_page_t m);
 void vm_page_set_validclean (vm_page_t, int, int);
 void vm_page_clear_dirty (vm_page_t, int, int);
 void vm_page_set_invalid (vm_page_t, int, int);
