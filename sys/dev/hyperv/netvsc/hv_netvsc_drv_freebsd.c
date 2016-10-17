@@ -154,7 +154,7 @@ __FBSDID("$FreeBSD$");
 #define HN_TX_DATA_MAXSIZE		IP_MAXPACKET
 #define HN_TX_DATA_SEGSIZE		PAGE_SIZE
 #define HN_TX_DATA_SEGCNT_MAX		\
-    (NETVSC_PACKET_MAXPAGE - HV_RF_NUM_TX_RESERVED_PAGE_BUFS)
+    (VMBUS_CHAN_SGLIST_MAX - HV_RF_NUM_TX_RESERVED_PAGE_BUFS)
 
 #define HN_DIRECT_TX_SIZE_DEF		128
 
@@ -998,7 +998,7 @@ hn_encap(struct hn_tx_ring *txr, struct hn_txdesc *txd, struct mbuf **m_head0)
 			packet->send_buf_section_idx = send_buf_section_idx;
 			packet->send_buf_section_size =
 			    packet->tot_data_buf_len;
-			packet->page_buf_count = 0;
+			packet->gpa_cnt = 0;
 			txr->hn_tx_chimney++;
 			goto done;
 		}
@@ -1024,24 +1024,24 @@ hn_encap(struct hn_tx_ring *txr, struct hn_txdesc *txd, struct mbuf **m_head0)
 	}
 	*m_head0 = m_head;
 
-	packet->page_buf_count = nsegs + HV_RF_NUM_TX_RESERVED_PAGE_BUFS;
+	packet->gpa_cnt = nsegs + HV_RF_NUM_TX_RESERVED_PAGE_BUFS;
 
 	/* send packet with page buffer */
-	packet->page_buffers[0].pfn = atop(txd->rndis_msg_paddr);
-	packet->page_buffers[0].offset = txd->rndis_msg_paddr & PAGE_MASK;
-	packet->page_buffers[0].length = rndis_msg_size;
+	packet->gpa[0].gpa_page = atop(txd->rndis_msg_paddr);
+	packet->gpa[0].gpa_ofs = txd->rndis_msg_paddr & PAGE_MASK;
+	packet->gpa[0].gpa_len = rndis_msg_size;
 
 	/*
 	 * Fill the page buffers with mbuf info starting at index
 	 * HV_RF_NUM_TX_RESERVED_PAGE_BUFS.
 	 */
 	for (i = 0; i < nsegs; ++i) {
-		hv_vmbus_page_buffer *pb = &packet->page_buffers[
+		struct vmbus_gpa *gpa = &packet->gpa[
 		    i + HV_RF_NUM_TX_RESERVED_PAGE_BUFS];
 
-		pb->pfn = atop(segs[i].ds_addr);
-		pb->offset = segs[i].ds_addr & PAGE_MASK;
-		pb->length = segs[i].ds_len;
+		gpa->gpa_page = atop(segs[i].ds_addr);
+		gpa->gpa_ofs = segs[i].ds_addr & PAGE_MASK;
+		gpa->gpa_len = segs[i].ds_len;
 	}
 
 	packet->send_buf_section_idx =
