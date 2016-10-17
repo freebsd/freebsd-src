@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <signal.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -591,14 +592,15 @@ static void
 report_signal(struct trussinfo *info, siginfo_t *si)
 {
 	struct threadinfo *t;
-	char *signame;
+	const char *signame;
 
 	t = info->curthread;
 	clock_gettime(CLOCK_REALTIME, &t->after);
 	print_line_prefix(info);
-	signame = strsig(si->si_status);
-	fprintf(info->outfile, "SIGNAL %u (%s)\n", si->si_status,
-	    signame == NULL ? "?" : signame);
+	signame = sysdecode_signal(si->si_status);
+	if (signame == NULL)
+		signame = "?";
+	fprintf(info->outfile, "SIGNAL %u (%s)\n", si->si_status, signame);
 }
 
 /*
