@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/armreg.h>
 #include <machine/ucontext.h>
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <sysdecode.h>
 
