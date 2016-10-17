@@ -213,7 +213,7 @@ struct ndis_rssprm_toeplitz {
 #define	NDIS_VLAN_INFO_CFI_MASK		0x0008
 #define	NDIS_VLAN_INFO_ID_MASK		0xfff0
 #define	NDIS_VLAN_INFO_MAKE(id, pri, cfi)	\
-        (((pri) & NVIS_VLAN_INFO_PRI_MASK) |	\
+        (((pri) & NDIS_VLAN_INFO_PRI_MASK) |	\
 	 (((cfi) & 0x1) << 3) | (((id) & 0xfff) << 4))
 #define	NDIS_VLAN_INFO_ID(inf)		(((inf) & NDIS_VLAN_INFO_ID_MASK) >> 4)
 #define	NDIS_VLAN_INFO_CFI(inf)		(((inf) & NDIS_VLAN_INFO_CFI_MASK) >> 3)
@@ -230,5 +230,32 @@ struct ndis_rssprm_toeplitz {
 #define	NDIS_RXCSUM_INFO_LOOPBACK	0x0040
 #define	NDIS_RXCSUM_INFO_TCPCS_INVAL	0x0080
 #define	NDIS_RXCSUM_INFO_IPCS_INVAL	0x0100
+
+/* LSOv2 */
+#define	NDIS_LSO2_INFO_SIZE		sizeof(uint32_t)
+#define	NDIS_LSO2_INFO_MSS_MASK		0x000fffff
+#define	NDIS_LSO2_INFO_THOFF_MASK	0x3ff00000
+#define	NDIS_LSO2_INFO_ISLSO2		0x40000000
+#define	NDIS_LSO2_INFO_ISIPV6		0x80000000
+
+#define	NDIS_LSO2_INFO_MAKE(thoff, mss)				\
+	((((uint32_t)(mss)) & NDIS_LSO2_INFO_MSS_MASK) |	\
+	 ((((uint32_t)(thoff)) & 0x3ff) << 20) |		\
+	 NDIS_LSO2_INFO_ISLSO2)
+
+#define	NDIS_LSO2_INFO_MAKEIPV4(thoff, mss)			\
+	NDIS_LSO2_INFO_MAKE((thoff), (mss))
+
+#define	NDIS_LSO2_INFO_MAKEIPV6(thoff, mss)			\
+	(NDIS_LSO2_INFO_MAKE((thoff), (mss)) | NDIS_LSO2_INFO_ISIPV6)
+
+/* Transmission checksum */
+#define	NDIS_TXCSUM_INFO_SIZE		sizeof(uint32_t)
+#define	NDIS_TXCSUM_INFO_IPV4		0x00000001
+#define	NDIS_TXCSUM_INFO_IPV6		0x00000002
+#define	NDIS_TXCSUM_INFO_TCPCS		0x00000004
+#define	NDIS_TXCSUM_INFO_UDPCS		0x00000008
+#define	NDIS_TXCSUM_INFO_IPCS		0x00000010
+#define	NDIS_TXCSUM_INFO_THOFF		0x03ff0000
 
 #endif	/* !_NET_NDIS_H_ */
