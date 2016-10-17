@@ -52,7 +52,7 @@ hv_heartbeat_cb(void *context)
 {
 	uint8_t*		buf;
 	hv_vmbus_channel*	channel;
-	uint32_t		recvlen;
+	int			recvlen;
 	uint64_t		requestid;
 	int			ret;
 
@@ -64,8 +64,10 @@ hv_heartbeat_cb(void *context)
 	buf = softc->receive_buffer;
 	channel = softc->channel;
 
-	ret = hv_vmbus_channel_recv_packet(channel, buf, PAGE_SIZE, &recvlen,
-					    &requestid);
+	recvlen = PAGE_SIZE;
+	ret = vmbus_chan_recv(channel, buf, &recvlen, &requestid);
+	KASSERT(ret != ENOBUFS, ("hvheartbeat recvbuf is not large enough"));
+	/* XXX check recvlen to make sure that it contains enough data */
 
 	if ((ret == 0) && recvlen > 0) {
 
