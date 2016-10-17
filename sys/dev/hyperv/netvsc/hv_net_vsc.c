@@ -77,7 +77,7 @@ static void hn_nvs_sent_none(struct hn_send_ctx *sndc,
 static void hn_nvs_sent_xact(struct hn_send_ctx *, struct hn_softc *sc,
     struct vmbus_channel *, const void *, int);
 
-static struct hn_send_ctx	hn_send_ctx_none =
+struct hn_send_ctx	hn_send_ctx_none =
     HN_SEND_CTX_INITIALIZER(hn_nvs_sent_none, NULL);
 
 uint32_t
