@@ -60,11 +60,11 @@ __FBSDID("$FreeBSD$");
 #include <x86/apicvar.h>
 
 #include <dev/hyperv/include/hyperv.h>
-#include <dev/hyperv/vmbus/hv_vmbus_priv.h>
 #include <dev/hyperv/vmbus/hyperv_reg.h>
 #include <dev/hyperv/vmbus/hyperv_var.h>
 #include <dev/hyperv/vmbus/vmbus_reg.h>
 #include <dev/hyperv/vmbus/vmbus_var.h>
+#include <dev/hyperv/vmbus/vmbus_chanvar.h>
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include "acpi_if.h"
