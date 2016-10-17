@@ -62,6 +62,8 @@
 #include <dev/hyperv/include/hyperv_busdma.h>
 #include <dev/hyperv/include/vmbus.h>
 
+#include <dev/hyperv/netvsc/ndis.h>
+
 #define HN_USE_TXDESC_BUFRING
 
 MALLOC_DECLARE(M_NETVSC);
@@ -383,6 +385,8 @@ typedef struct hn_softc {
 
 	uint32_t		hn_rndis_rid;
 	uint32_t		hn_ndis_ver;
+
+	struct ndis_rssprm_toeplitz hn_rss;
 } hn_softc_t;
 
 #define HN_FLAG_RXBUF_CONNECTED		0x0001

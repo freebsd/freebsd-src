@@ -536,20 +536,6 @@ struct rndis_hash_info {
 	uint32_t	hash_info;
 } __packed;
 
-#define NDIS_HASH_FUNCTION_MASK		0x000000FF	/* see hash function */
-#define NDIS_HASH_TYPE_MASK		0x00FFFF00	/* see hash type */
-
-/* hash function */
-#define NDIS_HASH_FUNCTION_TOEPLITZ	0x00000001
-
-/* hash type */
-#define NDIS_HASH_IPV4			0x00000100
-#define NDIS_HASH_TCP_IPV4		0x00000200
-#define NDIS_HASH_IPV6			0x00000400
-#define NDIS_HASH_IPV6_EX		0x00000800
-#define NDIS_HASH_TCP_IPV6		0x00001000
-#define NDIS_HASH_TCP_IPV6_EX		0x00002000
-
 typedef struct rndis_tcp_tso_info_ {
 	union {
 		struct {
@@ -902,19 +888,6 @@ typedef struct rndismp_rx_bufs_info_ {
 
 
 #define RNDIS_HEADER_SIZE (sizeof(rndis_msg) - sizeof(rndis_msg_container))
-
-#define NDIS_PACKET_TYPE_DIRECTED	0x00000001
-#define NDIS_PACKET_TYPE_MULTICAST	0x00000002
-#define NDIS_PACKET_TYPE_ALL_MULTICAST	0x00000004
-#define NDIS_PACKET_TYPE_BROADCAST	0x00000008
-#define NDIS_PACKET_TYPE_SOURCE_ROUTING	0x00000010
-#define NDIS_PACKET_TYPE_PROMISCUOUS	0x00000020
-#define NDIS_PACKET_TYPE_SMT		0x00000040
-#define NDIS_PACKET_TYPE_ALL_LOCAL	0x00000080
-#define NDIS_PACKET_TYPE_GROUP		0x00000100
-#define NDIS_PACKET_TYPE_ALL_FUNCTIONAL	0x00000200
-#define NDIS_PACKET_TYPE_FUNCTIONAL	0x00000400
-#define NDIS_PACKET_TYPE_MAC_FRAME	0x00000800
 
 /*
  * Externs
