@@ -232,12 +232,10 @@ SYSCTL_INT(_hw_hn, OID_AUTO, trust_hostip, CTLFLAG_RDTUN,
     "Trust ip packet verification on host side, "
     "when csum info is missing (global setting)");
 
-#if __FreeBSD_version >= 1100045
 /* Limit TSO burst size */
 static int hn_tso_maxlen = 0;
 SYSCTL_INT(_hw_hn, OID_AUTO, tso_maxlen, CTLFLAG_RDTUN,
     &hn_tso_maxlen, 0, "TSO burst limit");
-#endif
 
 /* Limit chimney send size */
 static int hn_tx_chimney_size = 0;
@@ -318,8 +316,12 @@ static int hn_lro_ackcnt_sysctl(SYSCTL_HANDLER_ARGS);
 #endif
 static int hn_trust_hcsum_sysctl(SYSCTL_HANDLER_ARGS);
 static int hn_chim_size_sysctl(SYSCTL_HANDLER_ARGS);
-static int hn_rx_stat_ulong_sysctl(SYSCTL_HANDLER_ARGS);
+#if __FreeBSD_version < 1100095
+static int hn_rx_stat_int_sysctl(SYSCTL_HANDLER_ARGS);
+#else
 static int hn_rx_stat_u64_sysctl(SYSCTL_HANDLER_ARGS);
+#endif
+static int hn_rx_stat_ulong_sysctl(SYSCTL_HANDLER_ARGS);
 static int hn_tx_stat_ulong_sysctl(SYSCTL_HANDLER_ARGS);
 static int hn_tx_conf_int_sysctl(SYSCTL_HANDLER_ARGS);
 static int hn_ndis_version_sysctl(SYSCTL_HANDLER_ARGS);
@@ -448,9 +450,7 @@ netvsc_attach(device_t dev)
 	uint32_t link_status;
 	struct ifnet *ifp = NULL;
 	int error, ring_cnt, tx_ring_cnt;
-#if __FreeBSD_version >= 1100045
 	int tso_maxlen;
-#endif
 
 	sc->hn_dev = dev;
 	sc->hn_prichan = vmbus_get_channel(dev);
@@ -583,7 +583,6 @@ netvsc_attach(device_t dev)
 	if (link_status == NDIS_MEDIA_STATE_CONNECTED)
 		sc->hn_carrier = 1;
 
-#if __FreeBSD_version >= 1100045
 	tso_maxlen = hn_tso_maxlen;
 	if (tso_maxlen <= 0 || tso_maxlen > IP_MAXPACKET)
 		tso_maxlen = IP_MAXPACKET;
@@ -592,17 +591,14 @@ netvsc_attach(device_t dev)
 	ifp->if_hw_tsomaxsegsize = PAGE_SIZE;
 	ifp->if_hw_tsomax = tso_maxlen -
 	    (ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN);
-#endif
 
 	error = hn_rndis_get_eaddr(sc, eaddr);
 	if (error)
 		goto failed;
 	ether_ifattach(ifp, eaddr);
 
-#if __FreeBSD_version >= 1100045
 	if_printf(ifp, "TSO: %u/%u/%u\n", ifp->if_hw_tsomax,
 	    ifp->if_hw_tsomaxsegcount, ifp->if_hw_tsomaxsegsize);
-#endif
 
 	hn_set_chim_size(sc, sc->hn_chim_szmax);
 	if (hn_tx_chimney_size > 0 &&
@@ -1866,32 +1862,33 @@ hn_chim_size_sysctl(SYSCTL_HANDLER_ARGS)
 	return 0;
 }
 
+#if __FreeBSD_version < 1100095
 static int
-hn_rx_stat_ulong_sysctl(SYSCTL_HANDLER_ARGS)
+hn_rx_stat_int_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	struct hn_softc *sc = arg1;
 	int ofs = arg2, i, error;
 	struct hn_rx_ring *rxr;
-	u_long stat;
+	uint64_t stat;
 
 	stat = 0;
-	for (i = 0; i < sc->hn_rx_ring_inuse; ++i) {
+	for (i = 0; i < sc->hn_rx_ring_cnt; ++i) {
 		rxr = &sc->hn_rx_ring[i];
-		stat += *((u_long *)((uint8_t *)rxr + ofs));
+		stat += *((int *)((uint8_t *)rxr + ofs));
 	}
 
-	error = sysctl_handle_long(oidp, &stat, 0, req);
+	error = sysctl_handle_64(oidp, &stat, 0, req);
 	if (error || req->newptr == NULL)
 		return error;
 
 	/* Zero out this stat. */
-	for (i = 0; i < sc->hn_rx_ring_inuse; ++i) {
+	for (i = 0; i < sc->hn_rx_ring_cnt; ++i) {
 		rxr = &sc->hn_rx_ring[i];
-		*((u_long *)((uint8_t *)rxr + ofs)) = 0;
+		*((int *)((uint8_t *)rxr + ofs)) = 0;
 	}
 	return 0;
 }
-
+#else
 static int
 hn_rx_stat_u64_sysctl(SYSCTL_HANDLER_ARGS)
 {
@@ -1914,6 +1911,34 @@ hn_rx_stat_u64_sysctl(SYSCTL_HANDLER_ARGS)
 	for (i = 0; i < sc->hn_rx_ring_inuse; ++i) {
 		rxr = &sc->hn_rx_ring[i];
 		*((uint64_t *)((uint8_t *)rxr + ofs)) = 0;
+	}
+	return 0;
+}
+
+#endif
+
+static int
+hn_rx_stat_ulong_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct hn_softc *sc = arg1;
+	int ofs = arg2, i, error;
+	struct hn_rx_ring *rxr;
+	u_long stat;
+
+	stat = 0;
+	for (i = 0; i < sc->hn_rx_ring_inuse; ++i) {
+		rxr = &sc->hn_rx_ring[i];
+		stat += *((u_long *)((uint8_t *)rxr + ofs));
+	}
+
+	error = sysctl_handle_long(oidp, &stat, 0, req);
+	if (error || req->newptr == NULL)
+		return error;
+
+	/* Zero out this stat. */
+	for (i = 0; i < sc->hn_rx_ring_inuse; ++i) {
+		rxr = &sc->hn_rx_ring[i];
+		*((u_long *)((uint8_t *)rxr + ofs)) = 0;
 	}
 	return 0;
 }
@@ -2168,11 +2193,21 @@ hn_create_rx_data(struct hn_softc *sc, int ring_cnt)
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "lro_queued",
 	    CTLTYPE_U64 | CTLFLAG_RW | CTLFLAG_MPSAFE, sc,
 	    __offsetof(struct hn_rx_ring, hn_lro.lro_queued),
-	    hn_rx_stat_u64_sysctl, "LU", "LRO queued");
+#if __FreeBSD_version < 1100095
+	    hn_rx_stat_int_sysctl,
+#else
+	    hn_rx_stat_u64_sysctl,
+#endif
+	    "LU", "LRO queued");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "lro_flushed",
 	    CTLTYPE_U64 | CTLFLAG_RW | CTLFLAG_MPSAFE, sc,
 	    __offsetof(struct hn_rx_ring, hn_lro.lro_flushed),
-	    hn_rx_stat_u64_sysctl, "LU", "LRO flushed");
+#if __FreeBSD_version < 1100095
+	    hn_rx_stat_int_sysctl,
+#else
+	    hn_rx_stat_u64_sysctl,
+#endif
+	    "LU", "LRO flushed");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "lro_tried",
 	    CTLTYPE_ULONG | CTLFLAG_RW | CTLFLAG_MPSAFE, sc,
 	    __offsetof(struct hn_rx_ring, hn_lro_tried),
