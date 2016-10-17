@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 26, 2001
+.Dd October 17, 2016
 .Dt KLDSYM 2
 .Os
 .Sh NAME
@@ -36,7 +36,7 @@
 .In sys/param.h
 .In sys/linker.h
 .Ft int
-.Fn kldsym "int fileid" "int command" "void *data"
+.Fn kldsym "int fileid" "int cmd" "void *data"
 .Sh DESCRIPTION
 The
 .Fn kldsym
@@ -48,7 +48,7 @@ If
 .Fa fileid
 is 0, all loaded modules are searched.
 Currently, the only
-.Fa command
+.Fa cmd
 implemented is
 .Dv KLDSYM_LOOKUP .
 .Pp
@@ -96,7 +96,7 @@ system call will fail if:
 Invalid value in
 .Fa data->version
 or
-.Fa command .
+.Fa cmd .
 .It Bq Er ENOENT
 The
 .Fa fileid
