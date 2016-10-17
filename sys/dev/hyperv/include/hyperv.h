@@ -287,14 +287,6 @@ int		hv_vmbus_channel_open(
 
 void		hv_vmbus_channel_close(hv_vmbus_channel *channel);
 
-int		hv_vmbus_channel_establish_gpadl(
-				hv_vmbus_channel*	channel,
-				/* must be phys and virt contiguous */
-				void*			contig_buffer,
-				/*  page-size multiple	*/
-				uint32_t		size,
-				uint32_t*		gpadl_handle);
-
 int		hv_vmbus_channel_teardown_gpdal(
 				hv_vmbus_channel*	channel,
 				uint32_t		gpadl_handle);

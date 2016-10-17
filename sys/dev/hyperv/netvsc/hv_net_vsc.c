@@ -152,19 +152,27 @@ hv_nv_init_rx_buffer_with_net_vsp(struct hn_softc *sc)
 		return (ENODEV);
 	}
 
-	net_dev->rx_buf = contigmalloc(net_dev->rx_buf_size, M_NETVSC,
-	    M_ZERO, 0UL, BUS_SPACE_MAXADDR, PAGE_SIZE, 0);
+	net_dev->rx_buf = hyperv_dmamem_alloc(bus_get_dma_tag(sc->hn_dev),
+	    PAGE_SIZE, 0, net_dev->rx_buf_size, &net_dev->rxbuf_dma,
+	    BUS_DMA_WAITOK | BUS_DMA_ZERO);
+	if (net_dev->rx_buf == NULL) {
+		device_printf(sc->hn_dev, "allocate rxbuf failed\n");
+		return ENOMEM;
+	}
 
 	/*
-	 * Establish the GPADL handle for this buffer on this channel.
-	 * Note:  This call uses the vmbus connection rather than the
-	 * channel to establish the gpadl handle. 
-	 * GPADL:  Guest physical address descriptor list.
+	 * Connect the RXBUF GPADL to the primary channel.
+	 *
+	 * NOTE:
+	 * Only primary channel has RXBUF connected to it.  Sub-channels
+	 * just share this RXBUF.
 	 */
-	ret = hv_vmbus_channel_establish_gpadl(
-		sc->hn_prichan, net_dev->rx_buf,
-		net_dev->rx_buf_size, &net_dev->rx_buf_gpadl_handle);
+	ret = vmbus_chan_gpadl_connect(sc->hn_prichan,
+	    net_dev->rxbuf_dma.hv_paddr, net_dev->rx_buf_size,
+	    &net_dev->rx_buf_gpadl_handle);
 	if (ret != 0) {
+		device_printf(sc->hn_dev, "rxbuf gpadl connect failed: %d\n",
+		    ret);
 		goto cleanup;
 	}
 	
@@ -243,22 +251,27 @@ hv_nv_init_send_buffer_with_net_vsp(struct hn_softc *sc)
 		return (ENODEV);
 	}
 
-	net_dev->send_buf  = contigmalloc(net_dev->send_buf_size, M_NETVSC,
-	    M_ZERO, 0UL, BUS_SPACE_MAXADDR, PAGE_SIZE, 0);
+	net_dev->send_buf = hyperv_dmamem_alloc(bus_get_dma_tag(sc->hn_dev),
+	    PAGE_SIZE, 0, net_dev->send_buf_size, &net_dev->txbuf_dma,
+	    BUS_DMA_WAITOK | BUS_DMA_ZERO);
 	if (net_dev->send_buf == NULL) {
-		ret = ENOMEM;
-		goto cleanup;
+		device_printf(sc->hn_dev, "allocate chimney txbuf failed\n");
+		return ENOMEM;
 	}
 
 	/*
-	 * Establish the gpadl handle for this buffer on this channel.
-	 * Note:  This call uses the vmbus connection rather than the
-	 * channel to establish the gpadl handle. 
+	 * Connect chimney sending buffer GPADL to the primary channel.
+	 *
+	 * NOTE:
+	 * Only primary channel has chimney sending buffer connected to it.
+	 * Sub-channels just share this chimney sending buffer.
 	 */
-	ret = hv_vmbus_channel_establish_gpadl(sc->hn_prichan,
-  	    net_dev->send_buf, net_dev->send_buf_size,
+	ret = vmbus_chan_gpadl_connect(sc->hn_prichan,
+  	    net_dev->txbuf_dma.hv_paddr, net_dev->send_buf_size,
 	    &net_dev->send_buf_gpadl_handle);
 	if (ret != 0) {
+		device_printf(sc->hn_dev, "chimney sending buffer gpadl "
+		    "connect failed: %d\n", ret);
 		goto cleanup;
 	}
 
@@ -364,7 +377,7 @@ hv_nv_destroy_rx_buffer(netvsc_dev *net_dev)
 
 	if (net_dev->rx_buf) {
 		/* Free up the receive buffer */
-		contigfree(net_dev->rx_buf, net_dev->rx_buf_size, M_NETVSC);
+		hyperv_dmamem_free(&net_dev->rxbuf_dma, net_dev->rx_buf);
 		net_dev->rx_buf = NULL;
 	}
 
@@ -432,7 +445,7 @@ hv_nv_destroy_send_buffer(netvsc_dev *net_dev)
 
 	if (net_dev->send_buf) {
 		/* Free up the receive buffer */
-		contigfree(net_dev->send_buf, net_dev->send_buf_size, M_NETVSC);
+		hyperv_dmamem_free(&net_dev->txbuf_dma, net_dev->send_buf);
 		net_dev->send_buf = NULL;
 	}
 
