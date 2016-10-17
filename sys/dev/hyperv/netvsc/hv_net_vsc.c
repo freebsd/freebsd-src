@@ -57,11 +57,10 @@ MALLOC_DEFINE(M_NETVSC, "netvsc", "Hyper-V netvsc driver");
 /*
  * Forward declarations
  */
-static int  hv_nv_init_send_buffer_with_net_vsp(struct hn_softc *sc);
-static int  hv_nv_init_rx_buffer_with_net_vsp(struct hn_softc *);
-static int  hv_nv_destroy_send_buffer(struct hn_softc *sc);
-static int  hv_nv_destroy_rx_buffer(struct hn_softc *sc);
-static int  hv_nv_connect_to_vsp(struct hn_softc *sc, int mtu);
+static int  hn_nvs_conn_chim(struct hn_softc *sc);
+static int  hn_nvs_conn_rxbuf(struct hn_softc *);
+static int  hn_nvs_disconn_chim(struct hn_softc *sc);
+static int  hn_nvs_disconn_rxbuf(struct hn_softc *sc);
 static void hn_nvs_sent_none(struct hn_send_ctx *sndc,
     struct hn_softc *, struct vmbus_channel *chan,
     const void *, int);
@@ -103,7 +102,7 @@ hn_chim_alloc(struct hn_softc *sc)
 	return (ret);
 }
 
-const void *
+static const void *
 hn_nvs_xact_execute(struct hn_softc *sc, struct vmbus_xact *xact,
     void *req, int reqlen, size_t *resplen0, uint32_t type)
 {
@@ -154,14 +153,8 @@ hn_nvs_req_send(struct hn_softc *sc, void *req, int reqlen)
 	    req, reqlen, &hn_send_ctx_none));
 }
 
-/*
- * Net VSC initialize receive buffer with net VSP
- * 
- * Net VSP:  Network virtual services client, also known as the
- *     Hyper-V extensible switch and the synthetic data path.
- */
 static int 
-hv_nv_init_rx_buffer_with_net_vsp(struct hn_softc *sc)
+hn_nvs_conn_rxbuf(struct hn_softc *sc)
 {
 	struct vmbus_xact *xact = NULL;
 	struct hn_nvs_rxbuf_conn *conn;
@@ -188,7 +181,7 @@ hv_nv_init_rx_buffer_with_net_vsp(struct hn_softc *sc)
 	error = vmbus_chan_gpadl_connect(sc->hn_prichan,
 	    sc->hn_rxbuf_dma.hv_paddr, rxbuf_size, &sc->hn_rxbuf_gpadl);
 	if (error) {
-		if_printf(sc->hn_ifp, "rxbuf gpadl connect failed: %d\n",
+		if_printf(sc->hn_ifp, "rxbuf gpadl conn failed: %d\n",
 		    error);
 		goto cleanup;
 	}
@@ -212,7 +205,7 @@ hv_nv_init_rx_buffer_with_net_vsp(struct hn_softc *sc)
 	resp = hn_nvs_xact_execute(sc, xact, conn, sizeof(*conn), &resp_len,
 	    HN_NVS_TYPE_RXBUF_CONNRESP);
 	if (resp == NULL) {
-		if_printf(sc->hn_ifp, "exec rxbuf conn failed\n");
+		if_printf(sc->hn_ifp, "exec nvs rxbuf conn failed\n");
 		error = EIO;
 		goto cleanup;
 	}
@@ -222,7 +215,7 @@ hv_nv_init_rx_buffer_with_net_vsp(struct hn_softc *sc)
 	xact = NULL;
 
 	if (status != HN_NVS_STATUS_OK) {
-		if_printf(sc->hn_ifp, "rxbuf conn failed: %x\n", status);
+		if_printf(sc->hn_ifp, "nvs rxbuf conn failed: %x\n", status);
 		error = EIO;
 		goto cleanup;
 	}
@@ -233,15 +226,12 @@ hv_nv_init_rx_buffer_with_net_vsp(struct hn_softc *sc)
 cleanup:
 	if (xact != NULL)
 		vmbus_xact_put(xact);
-	hv_nv_destroy_rx_buffer(sc);
+	hn_nvs_disconn_rxbuf(sc);
 	return (error);
 }
 
-/*
- * Net VSC initialize send buffer with net VSP
- */
 static int 
-hv_nv_init_send_buffer_with_net_vsp(struct hn_softc *sc)
+hn_nvs_conn_chim(struct hn_softc *sc)
 {
 	struct vmbus_xact *xact = NULL;
 	struct hn_nvs_chim_conn *chim;
@@ -261,8 +251,7 @@ hv_nv_init_send_buffer_with_net_vsp(struct hn_softc *sc)
   	    sc->hn_chim_dma.hv_paddr, NETVSC_SEND_BUFFER_SIZE,
 	    &sc->hn_chim_gpadl);
 	if (error) {
-		if_printf(sc->hn_ifp, "chimney sending buffer gpadl "
-		    "connect failed: %d\n", error);
+		if_printf(sc->hn_ifp, "chim gpadl conn failed: %d\n", error);
 		goto cleanup;
 	}
 
@@ -285,7 +274,7 @@ hv_nv_init_send_buffer_with_net_vsp(struct hn_softc *sc)
 	resp = hn_nvs_xact_execute(sc, xact, chim, sizeof(*chim), &resp_len,
 	    HN_NVS_TYPE_CHIM_CONNRESP);
 	if (resp == NULL) {
-		if_printf(sc->hn_ifp, "exec chim conn failed\n");
+		if_printf(sc->hn_ifp, "exec nvs chim conn failed\n");
 		error = EIO;
 		goto cleanup;
 	}
@@ -296,14 +285,14 @@ hv_nv_init_send_buffer_with_net_vsp(struct hn_softc *sc)
 	xact = NULL;
 
 	if (status != HN_NVS_STATUS_OK) {
-		if_printf(sc->hn_ifp, "chim conn failed: %x\n", status);
+		if_printf(sc->hn_ifp, "nvs chim conn failed: %x\n", status);
 		error = EIO;
 		goto cleanup;
 	}
 	if (sectsz == 0) {
 		if_printf(sc->hn_ifp, "zero chimney sending buffer "
 		    "section size\n");
-		return 0;
+		return (0);
 	}
 
 	sc->hn_chim_szmax = sectsz;
@@ -327,22 +316,19 @@ hv_nv_init_send_buffer_with_net_vsp(struct hn_softc *sc)
 		if_printf(sc->hn_ifp, "chimney sending buffer %d/%d\n",
 		    sc->hn_chim_szmax, sc->hn_chim_cnt);
 	}
-	return 0;
+	return (0);
 
 cleanup:
 	if (xact != NULL)
 		vmbus_xact_put(xact);
-	hv_nv_destroy_send_buffer(sc);
+	hn_nvs_disconn_chim(sc);
 	return (error);
 }
 
-/*
- * Net VSC destroy receive buffer
- */
 static int
-hv_nv_destroy_rx_buffer(struct hn_softc *sc)
+hn_nvs_disconn_rxbuf(struct hn_softc *sc)
 {
-	int ret = 0;
+	int error;
 
 	if (sc->hn_flags & HN_FLAG_RXBUF_CONNECTED) {
 		struct hn_nvs_rxbuf_disconn disconn;
@@ -355,38 +341,35 @@ hv_nv_destroy_rx_buffer(struct hn_softc *sc)
 		disconn.nvs_sig = HN_NVS_RXBUF_SIG;
 
 		/* NOTE: No response. */
-		ret = hn_nvs_req_send(sc, &disconn, sizeof(disconn));
-		if (ret != 0) {
+		error = hn_nvs_req_send(sc, &disconn, sizeof(disconn));
+		if (error) {
 			if_printf(sc->hn_ifp,
-			    "send rxbuf disconn failed: %d\n", ret);
-			return (ret);
+			    "send nvs rxbuf disconn failed: %d\n", error);
+			return (error);
 		}
 		sc->hn_flags &= ~HN_FLAG_RXBUF_CONNECTED;
 	}
-		
+
 	if (sc->hn_rxbuf_gpadl != 0) {
 		/*
 		 * Disconnect RXBUF from primary channel.
 		 */
-		ret = vmbus_chan_gpadl_disconnect(sc->hn_prichan,
+		error = vmbus_chan_gpadl_disconnect(sc->hn_prichan,
 		    sc->hn_rxbuf_gpadl);
-		if (ret != 0) {
+		if (error) {
 			if_printf(sc->hn_ifp,
-			    "rxbuf disconn failed: %d\n", ret);
-			return (ret);
+			    "rxbuf gpadl disconn failed: %d\n", error);
+			return (error);
 		}
 		sc->hn_rxbuf_gpadl = 0;
 	}
-	return (ret);
+	return (0);
 }
 
-/*
- * Net VSC destroy send buffer
- */
 static int
-hv_nv_destroy_send_buffer(struct hn_softc *sc)
+hn_nvs_disconn_chim(struct hn_softc *sc)
 {
-	int ret = 0;
+	int error;
 
 	if (sc->hn_flags & HN_FLAG_CHIM_CONNECTED) {
 		struct hn_nvs_chim_disconn disconn;
@@ -399,25 +382,25 @@ hv_nv_destroy_send_buffer(struct hn_softc *sc)
 		disconn.nvs_sig = HN_NVS_CHIM_SIG;
 
 		/* NOTE: No response. */
-		ret = hn_nvs_req_send(sc, &disconn, sizeof(disconn));
-		if (ret != 0) {
+		error = hn_nvs_req_send(sc, &disconn, sizeof(disconn));
+		if (error) {
 			if_printf(sc->hn_ifp,
-			    "send chim disconn failed: %d\n", ret);
-			return (ret);
+			    "send nvs chim disconn failed: %d\n", error);
+			return (error);
 		}
 		sc->hn_flags &= ~HN_FLAG_CHIM_CONNECTED;
 	}
-		
+
 	if (sc->hn_chim_gpadl != 0) {
 		/*
 		 * Disconnect chimney sending buffer from primary channel.
 		 */
-		ret = vmbus_chan_gpadl_disconnect(sc->hn_prichan,
+		error = vmbus_chan_gpadl_disconnect(sc->hn_prichan,
 		    sc->hn_chim_gpadl);
-		if (ret != 0) {
+		if (error) {
 			if_printf(sc->hn_ifp,
-			    "chim disconn failed: %d\n", ret);
-			return (ret);
+			    "chim gpadl disconn failed: %d\n", error);
+			return (error);
 		}
 		sc->hn_chim_gpadl = 0;
 	}
@@ -426,8 +409,7 @@ hv_nv_destroy_send_buffer(struct hn_softc *sc)
 		free(sc->hn_chim_bmap, M_NETVSC);
 		sc->hn_chim_bmap = NULL;
 	}
-
-	return (ret);
+	return (0);
 }
 
 static int
@@ -538,38 +520,48 @@ hn_nvs_init(struct hn_softc *sc)
 	return (ENXIO);
 }
 
-static int
-hv_nv_connect_to_vsp(struct hn_softc *sc, int mtu)
+int
+hn_nvs_attach(struct hn_softc *sc, int mtu)
 {
-	int ret;
+	int error;
 
 	/*
 	 * Initialize NVS.
 	 */
-	ret = hn_nvs_init(sc);
-	if (ret != 0)
-		return (ret);
+	error = hn_nvs_init(sc);
+	if (error)
+		return (error);
 
 	if (sc->hn_nvs_ver >= HN_NVS_VERSION_2) {
 		/*
 		 * Configure NDIS before initializing it.
 		 */
-		ret = hn_nvs_conf_ndis(sc, mtu);
-		if (ret != 0)
-			return (ret);
+		error = hn_nvs_conf_ndis(sc, mtu);
+		if (error)
+			return (error);
 	}
 
 	/*
 	 * Initialize NDIS.
 	 */
-	ret = hn_nvs_init_ndis(sc);
-	if (ret != 0)
-		return (ret);
+	error = hn_nvs_init_ndis(sc);
+	if (error)
+		return (error);
 
-	ret = hv_nv_init_rx_buffer_with_net_vsp(sc);
-	if (ret == 0)
-		ret = hv_nv_init_send_buffer_with_net_vsp(sc);
-	return (ret);
+	/*
+	 * Connect RXBUF.
+	 */
+	error = hn_nvs_conn_rxbuf(sc);
+	if (error)
+		return (error);
+
+	/*
+	 * Connect chimney sending buffer.
+	 */
+	error = hn_nvs_conn_chim(sc);
+	if (error)
+		return (error);
+	return (0);
 }
 
 /*
@@ -578,23 +570,8 @@ hv_nv_connect_to_vsp(struct hn_softc *sc, int mtu)
 static void
 hv_nv_disconnect_from_vsp(struct hn_softc *sc)
 {
-	hv_nv_destroy_rx_buffer(sc);
-	hv_nv_destroy_send_buffer(sc);
-}
-
-/*
- * Net VSC on device add
- * 
- * Callback when the device belonging to this driver is added
- */
-int
-hv_nv_on_device_add(struct hn_softc *sc, int mtu)
-{
-
-	/*
-	 * Connect with the NetVsp
-	 */
-	return (hv_nv_connect_to_vsp(sc, mtu));
+	hn_nvs_disconn_rxbuf(sc);
+	hn_nvs_disconn_chim(sc);
 }
 
 /*
@@ -605,11 +582,6 @@ hv_nv_on_device_remove(struct hn_softc *sc)
 {
 	
 	hv_nv_disconnect_from_vsp(sc);
-
-	/* Now, we can close the channel safely */
-
-	vmbus_chan_close(sc->hn_prichan);
-
 	return (0);
 }
 
@@ -675,4 +647,55 @@ hv_nv_on_send(struct vmbus_channel *chan, uint32_t rndis_mtype,
 	}
 
 	return (ret);
+}
+
+int
+hn_nvs_alloc_subchans(struct hn_softc *sc, int *nsubch0)
+{
+	struct vmbus_xact *xact;
+	struct hn_nvs_subch_req *req;
+	const struct hn_nvs_subch_resp *resp;
+	int error, nsubch_req;
+	uint32_t nsubch;
+	size_t resp_len;
+
+	nsubch_req = *nsubch0;
+	KASSERT(nsubch_req > 0, ("invalid # of sub-channels %d", nsubch_req));
+
+	xact = vmbus_xact_get(sc->hn_xact, sizeof(*req));
+	if (xact == NULL) {
+		if_printf(sc->hn_ifp, "no xact for nvs subch alloc\n");
+		return (ENXIO);
+	}
+	req = vmbus_xact_req_data(xact);
+	req->nvs_type = HN_NVS_TYPE_SUBCH_REQ;
+	req->nvs_op = HN_NVS_SUBCH_OP_ALLOC;
+	req->nvs_nsubch = nsubch_req;
+
+	resp_len = sizeof(*resp);
+	resp = hn_nvs_xact_execute(sc, xact, req, sizeof(*req), &resp_len,
+	    HN_NVS_TYPE_SUBCH_RESP);
+	if (resp == NULL) {
+		if_printf(sc->hn_ifp, "exec nvs subch alloc failed\n");
+		error = EIO;
+		goto done;
+	}
+	if (resp->nvs_status != HN_NVS_STATUS_OK) {
+		if_printf(sc->hn_ifp, "nvs subch alloc failed: %x\n",
+		    resp->nvs_status);
+		error = EIO;
+		goto done;
+	}
+
+	nsubch = resp->nvs_nsubch;
+	if (nsubch > nsubch_req) {
+		if_printf(sc->hn_ifp, "%u subchans are allocated, "
+		    "requested %d\n", nsubch, nsubch_req);
+		nsubch = nsubch_req;
+	}
+	*nsubch0 = nsubch;
+	error = 0;
+done:
+	vmbus_xact_put(xact);
+	return (error);
 }
