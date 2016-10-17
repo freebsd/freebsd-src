@@ -86,10 +86,10 @@ hv_rf_send_offload_request(struct hn_softc *sc,
     rndis_offload_params *offloads);
 
 static void hn_rndis_sent_halt(struct hn_send_ctx *sndc,
-    struct netvsc_dev_ *net_dev, struct vmbus_channel *chan,
+    struct hn_softc *sc, struct vmbus_channel *chan,
     const void *data, int dlen);
 static void hn_rndis_sent_cb(struct hn_send_ctx *sndc,
-    struct netvsc_dev_ *net_dev, struct vmbus_channel *chan,
+    struct hn_softc *sc, struct vmbus_channel *chan,
     const void *data, int dlen);
 
 /*
@@ -240,7 +240,7 @@ static int
 hv_rf_send_request(rndis_device *device, rndis_request *request,
     uint32_t message_type)
 {
-	netvsc_dev      *net_dev = device->net_dev;
+	struct hn_softc *sc = device->sc;
 	uint32_t send_buf_section_idx, tot_data_buf_len;
 	struct vmbus_gpa gpa[2];
 	int gpa_cnt, send_buf_section_size;
@@ -269,11 +269,11 @@ hv_rf_send_request(rndis_device *device, rndis_request *request,
 	else
 		cb = hn_rndis_sent_halt;
 
-	if (tot_data_buf_len < net_dev->send_section_size) {
-		send_buf_section_idx = hv_nv_get_next_send_section(net_dev);
+	if (tot_data_buf_len < sc->hn_chim_szmax) {
+		send_buf_section_idx = hn_chim_alloc(sc);
 		if (send_buf_section_idx != HN_NVS_CHIM_IDX_INVALID) {
-			char *dest = ((char *)net_dev->send_buf +
-				send_buf_section_idx * net_dev->send_section_size);
+			uint8_t *dest = sc->hn_chim +
+				(send_buf_section_idx * sc->hn_chim_szmax);
 
 			memcpy(dest, &request->request_msg, request->request_msg.msg_len);
 			send_buf_section_size = tot_data_buf_len;
@@ -288,8 +288,8 @@ hv_rf_send_request(rndis_device *device, rndis_request *request,
 sendit:
 	hn_send_ctx_init(&request->send_ctx, cb, request,
 	    send_buf_section_idx, send_buf_section_size);
-	return hv_nv_on_send(device->net_dev->sc->hn_prichan,
-	    HN_NVS_RNDIS_MTYPE_CTRL, &request->send_ctx, gpa, gpa_cnt);
+	return hv_nv_on_send(sc->hn_prichan, HN_NVS_RNDIS_MTYPE_CTRL,
+	    &request->send_ctx, gpa, gpa_cnt);
 }
 
 /*
@@ -346,14 +346,12 @@ hv_rf_send_offload_request(struct hn_softc *sc,
 	rndis_set_request *set;
 	rndis_offload_params *offload_req;
 	rndis_set_complete *set_complete;	
-	rndis_device *rndis_dev;
+	rndis_device *rndis_dev = sc->rndis_dev;
 	device_t dev = sc->hn_dev;
-	netvsc_dev *net_dev = sc->net_dev;
-	uint32_t vsp_version = net_dev->nvsp_version;
 	uint32_t extlen = sizeof(rndis_offload_params);
 	int ret;
 
-	if (vsp_version <= NVSP_PROTOCOL_VERSION_4) {
+	if (sc->hn_nvs_ver <= NVSP_PROTOCOL_VERSION_4) {
 		extlen = VERSION_4_OFFLOAD_SIZE;
 		/* On NVSP_PROTOCOL_VERSION_4 and below, we do not support
 		 * UDP checksum offload.
@@ -361,8 +359,6 @@ hv_rf_send_offload_request(struct hn_softc *sc,
 		offloads->udp_ipv4_csum = 0;
 		offloads->udp_ipv6_csum = 0;
 	}
-
-	rndis_dev = net_dev->extension;
 
 	request = hv_rndis_request(rndis_dev, REMOTE_NDIS_SET_MSG,
 	    RNDIS_MESSAGE_SIZE(rndis_set_request) + extlen);
@@ -424,14 +420,14 @@ hv_rf_receive_indicate_status(rndis_device *device, const rndis_msg *response)
 		
 	switch(indicate->status) {
 	case RNDIS_STATUS_MEDIA_CONNECT:
-		netvsc_linkstatus_callback(device->net_dev->sc, 1);
+		netvsc_linkstatus_callback(device->sc, 1);
 		break;
 	case RNDIS_STATUS_MEDIA_DISCONNECT:
-		netvsc_linkstatus_callback(device->net_dev->sc, 0);
+		netvsc_linkstatus_callback(device->sc, 0);
 		break;
 	default:
 		/* TODO: */
-		device_printf(device->net_dev->sc->hn_dev,
+		device_printf(device->sc->hn_dev,
 		    "unknown status %d received\n", indicate->status);
 		break;
 	}
@@ -558,17 +554,13 @@ hv_rf_receive_data(struct hn_rx_ring *rxr, const void *data, int dlen)
  * RNDIS filter on receive
  */
 int
-hv_rf_on_receive(netvsc_dev *net_dev,
-    struct hn_rx_ring *rxr, const void *data, int dlen)
+hv_rf_on_receive(struct hn_softc *sc, struct hn_rx_ring *rxr,
+    const void *data, int dlen)
 {
 	rndis_device *rndis_dev;
 	const rndis_msg *rndis_hdr;
 
-	/* Make sure the rndis device state is initialized */
-	if (net_dev->extension == NULL)
-		return (ENODEV);
-
-	rndis_dev = (rndis_device *)net_dev->extension;
+	rndis_dev = sc->rndis_dev;
 	if (rndis_dev->state == RNDIS_DEV_UNINITIALIZED)
 		return (EINVAL);
 
@@ -1036,11 +1028,9 @@ hv_rf_close_device(rndis_device *device)
  */
 int
 hv_rf_on_device_add(struct hn_softc *sc, void *additl_info,
-    int nchan, struct hn_rx_ring *rxr)
+    int *nchan0, struct hn_rx_ring *rxr)
 {
-	struct hn_send_ctx sndc;
 	int ret;
-	netvsc_dev *net_dev;
 	rndis_device *rndis_dev;
 	rndis_offload_params offloads;
 	struct rndis_recv_scale_cap rsscaps;
@@ -1050,13 +1040,16 @@ hv_rf_on_device_add(struct hn_softc *sc, void *additl_info,
 	struct hn_nvs_subch_req *req;
 	const struct hn_nvs_subch_resp *resp;
 	size_t resp_len;
-	struct vmbus_xact *xact;
+	struct vmbus_xact *xact = NULL;
 	uint32_t status, nsubch;
+	int nchan = *nchan0;
 
 	rndis_dev = hv_get_rndis_device();
 	if (rndis_dev == NULL) {
 		return (ENOMEM);
 	}
+	sc->rndis_dev = rndis_dev;
+	rndis_dev->sc = sc;
 
 	/*
 	 * Let the inner driver handle this first to create the netvsc channel
@@ -1064,19 +1057,15 @@ hv_rf_on_device_add(struct hn_softc *sc, void *additl_info,
 	 * (hv_rf_on_receive()) before this call is completed.
 	 * Note:  Earlier code used a function pointer here.
 	 */
-	net_dev = hv_nv_on_device_add(sc, additl_info, rxr);
-	if (!net_dev) {
+	ret = hv_nv_on_device_add(sc, rxr);
+	if (ret != 0) {
 		hv_put_rndis_device(rndis_dev);
-
-		return (ENOMEM);
+		return (ret);
 	}
 
 	/*
 	 * Initialize the rndis device
 	 */
-
-	net_dev->extension = rndis_dev;
-	rndis_dev->net_dev = net_dev;
 
 	/* Send the rndis initialization message */
 	ret = hv_rf_init_device(rndis_dev);
@@ -1115,8 +1104,7 @@ hv_rf_on_device_add(struct hn_softc *sc, void *additl_info,
 	
 	dev_info->link_state = rndis_dev->link_status;
 
-	net_dev->num_channel = 1;
-	if (net_dev->nvsp_version < NVSP_PROTOCOL_VERSION_5 || nchan == 1)
+	if (sc->hn_nvs_ver < NVSP_PROTOCOL_VERSION_5 || nchan == 1)
 		return (0);
 
 	memset(&rsscaps, 0, rsscaps_size);
@@ -1132,10 +1120,9 @@ hv_rf_on_device_add(struct hn_softc *sc, void *additl_info,
 	    rsscaps.num_recv_que, nchan);
 	if (nchan > rsscaps.num_recv_que)
 		nchan = rsscaps.num_recv_que;
-	net_dev->num_channel = nchan;
 
-	if (net_dev->num_channel == 1) {
-		device_printf(dev, "net_dev->num_channel == 1 under VRSS\n");
+	if (nchan == 1) {
+		device_printf(dev, "only 1 channel is supported, no vRSS\n");
 		goto out;
 	}
 	
@@ -1148,36 +1135,26 @@ hv_rf_on_device_add(struct hn_softc *sc, void *additl_info,
 		ret = ENXIO;
 		goto out;
 	}
-
 	req = vmbus_xact_req_data(xact);
 	req->nvs_type = HN_NVS_TYPE_SUBCH_REQ;
 	req->nvs_op = HN_NVS_SUBCH_OP_ALLOC;
-	req->nvs_nsubch = net_dev->num_channel - 1;
+	req->nvs_nsubch = nchan - 1;
 
-	hn_send_ctx_init_simple(&sndc, hn_nvs_sent_xact, xact);
-	vmbus_xact_activate(xact);
-
-	ret = hn_nvs_send(sc->hn_prichan, VMBUS_CHANPKT_FLAG_RC,
-	    req, sizeof(*req), &sndc);
-	if (ret != 0) {
-		if_printf(sc->hn_ifp, "send nvs subch req failed: %d\n", ret);
-		vmbus_xact_deactivate(xact);
-		vmbus_xact_put(xact);
+	resp = hn_nvs_xact_execute(sc, xact, req, sizeof(*req), &resp_len);
+	if (resp == NULL) {
+		if_printf(sc->hn_ifp, "exec subch failed\n");
+		ret = EIO;
 		goto out;
 	}
-
-	resp = vmbus_xact_wait(xact, &resp_len);
 	if (resp_len < sizeof(*resp)) {
 		if_printf(sc->hn_ifp, "invalid subch resp length %zu\n",
 		    resp_len);
-		vmbus_xact_put(xact);
 		ret = EINVAL;
 		goto out;
 	}
 	if (resp->nvs_type != HN_NVS_TYPE_SUBCH_RESP) {
 		if_printf(sc->hn_ifp, "not subch resp, type %u\n",
 		    resp->nvs_type);
-		vmbus_xact_put(xact);
 		ret = EINVAL;
 		goto out;
 	}
@@ -1185,25 +1162,25 @@ hv_rf_on_device_add(struct hn_softc *sc, void *additl_info,
 	status = resp->nvs_status;
 	nsubch = resp->nvs_nsubch;
 	vmbus_xact_put(xact);
+	xact = NULL;
 
 	if (status != HN_NVS_STATUS_OK) {
 		if_printf(sc->hn_ifp, "subch req failed: %x\n", status);
 		ret = EIO;
 		goto out;
 	}
-	if (nsubch > net_dev->num_channel - 1) {
+	if (nsubch > nchan - 1) {
 		if_printf(sc->hn_ifp, "%u subchans are allocated, requested %u\n",
-		    nsubch, net_dev->num_channel - 1);
-		nsubch = net_dev->num_channel - 1;
+		    nsubch, nchan - 1);
+		nsubch = nchan - 1;
 	}
-	net_dev->num_channel = nsubch + 1;
+	nchan = nsubch + 1;
 
-	ret = hv_rf_set_rss_param(rndis_dev, net_dev->num_channel);
-
+	ret = hv_rf_set_rss_param(rndis_dev, nchan);
+	*nchan0 = nchan;
 out:
-	if (ret)
-		net_dev->num_channel = 1;
-
+	if (xact != NULL)
+		vmbus_xact_put(xact);
 	return (ret);
 }
 
@@ -1213,15 +1190,14 @@ out:
 int
 hv_rf_on_device_remove(struct hn_softc *sc, boolean_t destroy_channel)
 {
-	netvsc_dev *net_dev = sc->net_dev;
-	rndis_device *rndis_dev = (rndis_device *)net_dev->extension;
+	rndis_device *rndis_dev = sc->rndis_dev;
 	int ret;
 
 	/* Halt and release the rndis device */
 	ret = hv_rf_halt_device(rndis_dev);
 
+	sc->rndis_dev = NULL;
 	hv_put_rndis_device(rndis_dev);
-	net_dev->extension = NULL;
 
 	/* Pass control to inner driver to remove the device */
 	ret |= hv_nv_on_device_remove(sc, destroy_channel);
@@ -1235,9 +1211,8 @@ hv_rf_on_device_remove(struct hn_softc *sc, boolean_t destroy_channel)
 int
 hv_rf_on_open(struct hn_softc *sc)
 {
-	netvsc_dev *net_dev = sc->net_dev;
 
-	return (hv_rf_open_device((rndis_device *)net_dev->extension));
+	return (hv_rf_open_device(sc->rndis_dev));
 }
 
 /*
@@ -1246,29 +1221,28 @@ hv_rf_on_open(struct hn_softc *sc)
 int 
 hv_rf_on_close(struct hn_softc *sc)
 {
-	netvsc_dev *net_dev = sc->net_dev;
 
-	return (hv_rf_close_device((rndis_device *)net_dev->extension));
+	return (hv_rf_close_device(sc->rndis_dev));
 }
 
 static void
-hn_rndis_sent_cb(struct hn_send_ctx *sndc, struct netvsc_dev_ *net_dev,
+hn_rndis_sent_cb(struct hn_send_ctx *sndc, struct hn_softc *sc,
     struct vmbus_channel *chan __unused, const void *data __unused,
     int dlen __unused)
 {
 	if (sndc->hn_chim_idx != HN_NVS_CHIM_IDX_INVALID)
-		hn_chim_free(net_dev, sndc->hn_chim_idx);
+		hn_chim_free(sc, sndc->hn_chim_idx);
 }
 
 static void
-hn_rndis_sent_halt(struct hn_send_ctx *sndc, struct netvsc_dev_ *net_dev,
+hn_rndis_sent_halt(struct hn_send_ctx *sndc, struct hn_softc *sc,
     struct vmbus_channel *chan __unused, const void *data __unused,
     int dlen __unused)
 {
 	rndis_request *request = sndc->hn_cbarg;
 
 	if (sndc->hn_chim_idx != HN_NVS_CHIM_IDX_INVALID)
-		hn_chim_free(net_dev, sndc->hn_chim_idx);
+		hn_chim_free(sc, sndc->hn_chim_idx);
 
 	/*
 	 * Notify hv_rf_halt_device() about halt completion.

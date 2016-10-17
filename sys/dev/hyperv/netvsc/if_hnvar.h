@@ -34,13 +34,13 @@
 #include <dev/hyperv/include/vmbus.h>
 #include <dev/hyperv/netvsc/if_hnreg.h>
 
-struct netvsc_dev_;
+struct hn_softc;
 
 struct vmbus_channel;
 struct hn_send_ctx;
 
 typedef void		(*hn_sent_callback_t)
-			(struct hn_send_ctx *, struct netvsc_dev_ *,
+			(struct hn_send_ctx *, struct hn_softc *,
 			 struct vmbus_channel *, const void *, int);
 
 struct hn_send_ctx {
@@ -107,9 +107,12 @@ hn_nvs_send_sglist(struct vmbus_channel *chan, struct vmbus_gpa sg[], int sglen,
 	    (uint64_t)(uintptr_t)sndc));
 }
 
-void		hn_nvs_sent_xact(struct hn_send_ctx *sndc,
-		    struct netvsc_dev_ *net_dev, struct vmbus_channel *chan,
-		    const void *data, int dlen);
-void		hn_chim_free(struct netvsc_dev_ *net_dev, uint32_t chim_idx);
+struct vmbus_xact;
+
+const void	*hn_nvs_xact_execute(struct hn_softc *sc,
+		    struct vmbus_xact *xact, void *req, int reqlen,
+		    size_t *resp_len);
+uint32_t	hn_chim_alloc(struct hn_softc *sc);
+void		hn_chim_free(struct hn_softc *sc, uint32_t chim_idx);
 
 #endif	/* !_IF_HNVAR_H_ */
