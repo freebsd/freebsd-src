@@ -171,24 +171,17 @@ vmbus_chan_sysctl_create(struct vmbus_channel *chan)
 	    chan, 0, vmbus_chan_sysctl_mnf, "I",
 	    "has monitor notification facilities");
 
-	/*
-	 * Create sysctl tree for RX bufring.
-	 */
 	br_tree = SYSCTL_ADD_NODE(ctx, SYSCTL_CHILDREN(chid_tree), OID_AUTO,
-	    "in", CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "");
+	    "br", CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "");
 	if (br_tree != NULL) {
-		hv_ring_buffer_stat(ctx, SYSCTL_CHILDREN(br_tree),
-		    &chan->ch_rxbr, "inbound ring buffer stats");
-	}
-
-	/*
-	 * Create sysctl tree for TX bufring.
-	 */
-	br_tree = SYSCTL_ADD_NODE(ctx, SYSCTL_CHILDREN(chid_tree), OID_AUTO,
-	    "out", CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "");
-	if (br_tree != NULL) {
-		hv_ring_buffer_stat(ctx, SYSCTL_CHILDREN(br_tree),
-		    &chan->ch_txbr, "outbound ring buffer stats");
+		/*
+		 * Create sysctl tree for RX bufring.
+		 */
+		vmbus_br_sysctl_create(ctx, br_tree, &chan->ch_rxbr, "rx");
+		/*
+		 * Create sysctl tree for TX bufring.
+		 */
+		vmbus_br_sysctl_create(ctx, br_tree, &chan->ch_txbr, "tx");
 	}
 }
 
