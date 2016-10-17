@@ -719,11 +719,6 @@ hv_nv_on_device_remove(struct hn_softc *sc, boolean_t destroy_channel)
 
 	/* Now, we can close the channel safely */
 
-	if (!destroy_channel) {
-		sc->hn_prichan->state =
-		    HV_CHANNEL_CLOSING_NONDESTRUCTIVE_STATE;
-	}
-
 	free(sc->hn_prichan->hv_chan_rdbuf, M_NETVSC);
 	hv_vmbus_channel_close(sc->hn_prichan);
 

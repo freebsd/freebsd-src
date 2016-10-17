@@ -2957,7 +2957,7 @@ static void
 hn_subchan_attach(struct hn_softc *sc, struct hv_vmbus_channel *chan)
 {
 
-	KASSERT(!HV_VMBUS_CHAN_ISPRIMARY(chan),
+	KASSERT(!VMBUS_CHAN_ISPRIMARY(chan),
 	    ("subchannel callback on primary channel"));
 	KASSERT(chan->ch_subidx > 0,
 	    ("invalid channel subidx %u",
