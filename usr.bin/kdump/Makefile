@@ -9,8 +9,8 @@ WANT_CHERI=none
 .PATH: ${.CURDIR}/../ktrace
 
 PROG=		kdump
-SRCS=		kdump_subr.c kdump_subr.h kdump.c subr.c
-CFLAGS+=	-I${.CURDIR}/../ktrace -I${.CURDIR} -I${.CURDIR}/../.. -I.
+SRCS=		kdump.c subr.c
+CFLAGS+=	-I${.CURDIR}/../ktrace #-I${.CURDIR}/../...
 
 LIBADD=		sysdecode
 .if ${MK_CASPER} != "no"
@@ -20,15 +20,6 @@ LIBADD+=	cap_pwd
 CFLAGS+=-DHAVE_LIBCASPER
 .endif
 
-NO_WERROR?=	YES
-
-CLEANFILES=	kdump_subr.c kdump_subr.h
-
-kdump_subr.h: mksubr
-	sh ${.CURDIR}/mksubr ${DESTDIR}${INCLUDEDIR} | \
-	    sed -n 's/^\([a-z].*)\)$$/void \1;/p' >${.TARGET}
-
-kdump_subr.c: mksubr kdump_subr.h
-	sh ${.CURDIR}/mksubr ${DESTDIR}${INCLUDEDIR} >${.TARGET}
+#NO_WERROR?=	YES
 
 .include <bsd.prog.mk>

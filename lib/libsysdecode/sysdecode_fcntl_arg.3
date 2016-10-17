@@ -26,72 +26,96 @@
 .\" $FreeBSD$
 .\"
 .Dd October 17, 2016
-.Dt sysdecode_abi_to_freebsd_errno 3
+.Dt sysdecode_fcntl_arg 3
 .Os
 .Sh NAME
-.Nm sysdecode_abi_to_freebsd_errno ,
-.Nm sysdecode_freebsd_to_abi_errno
-.Nd translate error numbers between process ABIs
+.Nm sysdecode_fcntl_arg ,
+.Nm sysdecode_fcntl_arg_p
+.Nd output description of fcntl argument
 .Sh LIBRARY
 .Lb libsysdecode
 .Sh SYNOPSIS
 .In sys/types.h
 .In stdbool.h
 .In sysdecode.h
-.Ft int
-.Fn sysdecode_abi_to_freebsd_errno "enum sysdecode_abi abi" "int error"
-.Ft int
-.Fn sysdecode_freebsd_to_abi_errno "enum sysdecode_abi abi" "int error"
+.Ft void
+.Fn sysdecode_fcntl_arg "FILE *fp" "int cmd" "uintptr_t arg" "int base"
+.Ft bool
+.Fn sysdecode_fcntl_arg_p "int cmd"
 .Sh DESCRIPTION
 The
-.Fn sysdecode_abi_to_freebsd_errno
-function returns the native
-.Xr errno 2
-value that corresponds to the error indicated by
-.Fa error
-for the process ABI
-.Fa abi .
-If
-.Fa error
-does not identify a valid error for
-.Fa abi ,
-.Dv INT_MAX
-is returned.
+.Fn sysdecode_fcntl_arg
+function outputs a text description of the optional
+.Fa arg
+argument to
+.Xr fcntl 2
+to the stream
+.Fa fp .
+The type and format of
+.Fa arg
+are determined by
+.Fa cmd :
+.Bl -column ".Dv F_SETLKW" "Vt struct flock *"
+.It Sy Command Ta Fa arg Sy Type Ta Sy Output Format
+.It
+.It Dv F_SETFD Ta Vt int Ta
+.Dq FD_CLOEXEC
+or the value of
+.Fa arg
+in the indicated
+.Fa base
+.Pq one of 8, 10, or 16 .
+.It
+.It Dv F_SETFL Ta Vt int Ta
+File flags as output by
+.Xr sysdecode_fcntl_fileflags 3
+with any unknown or remaining bits output in hexadecimal.
+.It
+.It Dv F_GETLK Ta Vt struct flock * Ta
+.It Dv F_SETLK Ta Vt struct flock * Ta
+.It Dv F_SETLKW Ta Vt struct flock * Ta
+The value of
+.Fa arg
+using the
+.Dq %p
+conversion specification.
+.It
+.It Others Ta Vt int Ta
+The value of
+.Fa arg
+in the indicated
+.Fa base
+.Pq one of 8, 10, or 16 .
+.El
 .Pp
 The
-.Fn sysdecode_freebsd_to_abi_errno
-function the error value for the process ABI
-.Fa abi
-that corresponds to the native
-.Xr errno 2
-value
-.Fa error .
-If
-.Fa error
-does not identify a valid
-.Xr errno 2
-error,
-.Dv INT_MAX
-is returned.
-.Pp
-Note that the mappings between native
-.Xr errno 2
-values and errors for other ABIs are not exhaustive.
-If a mapping does not exist,
-these functions return
-.Dv INT_MAX .
-In addition, multiple error values in one ABI may map to a single
-error in another ABI.
-.Sh RETURN VALUES
-These functions return an error value on success or
-.Dv INT_MAX
+.Fn sysdecode_fcntl_arg_p
+function can be used to determine if a
+.Xr fcntl 2
+command uses the optional third argument to
+.Xr fcntl 2 .
+The function returns
+.Dv true
 if
-.Fa error
-is not valid.
-.Pp
-For the list of supported ABIs,
-see
-.Xr sysdecode 3 .
+.Fa cmd
+accepts a third argument to
+.Xr fcntl 2
+and
+.Dv false
+if it does not.
+.Sh RETURN VALUES
+The
+.Nm sysdecode_fcntl_arg_p
+function returns
+.Dv true
+if
+.Fa cmd
+accepts a third argument to
+.Xr fcntl 2
+and
+.Dv false
+if it does not.
 .Sh SEE ALSO
 .Xr sysdecode 3 ,
-.Xr sysdecode_syscallnames 3
+.Xr sysdecode_fcntl_cmd 3 ,
+.Xr sysdecode_fcntl_fileflags 3
