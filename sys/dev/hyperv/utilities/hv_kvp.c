@@ -332,20 +332,23 @@ hv_kvp_convert_utf16_ipinfo_to_utf8(struct hv_kvp_ip_msg *host_ip_msg,
 
 	if (devclass_get_devices(devclass_find("hn"), &devs, &devcnt) == 0) {
 		for (devcnt = devcnt - 1; devcnt >= 0; devcnt--) {
-			/* XXX access other driver's softc?  are you kidding? */
 			device_t dev = devs[devcnt];
 			struct vmbus_channel *chan;
 			char buf[HYPERV_GUID_STRLEN];
+			int n;
+
+			chan = vmbus_get_channel(dev);
+			n = hyperv_guid2str(vmbus_chan_guid_inst(chan), buf,
+			    sizeof(buf));
 
 			/*
-			 * Trying to find GUID of Network Device
+			 * The string in the 'kvp_ip_val.adapter_id' has
+			 * braces around the GUID; skip the leading brace
+			 * in 'kvp_ip_val.adapter_id'.
 			 */
-			chan = vmbus_get_channel(dev);
-			hyperv_guid2str(vmbus_chan_guid_inst(chan),
-			    buf, sizeof(buf));
-
-			if (strncmp(buf, (char *)umsg->body.kvp_ip_val.adapter_id,
-			    HYPERV_GUID_STRLEN - 1) == 0) {
+			if (strncmp(buf,
+			    ((char *)&umsg->body.kvp_ip_val.adapter_id) + 1,
+			    n) == 0) {
 				strlcpy((char *)umsg->body.kvp_ip_val.adapter_id,
 				    device_get_nameunit(dev), MAX_ADAPTER_ID_SIZE);
 				break;
