@@ -243,6 +243,8 @@ qla_watchdog(void *arg)
 			ha->flags.qla_watchdog_pause = 1;
 			ha->qla_initiate_recovery = 0;
 			ha->err_inject = 0;
+			device_printf(ha->pci_dev,
+				"%s: taskqueue_enqueue(err_task) \n", __func__);
 			taskqueue_enqueue(ha->err_tq, &ha->err_task);
 		} else if (ha->flags.qla_interface_up) {
 
@@ -452,7 +454,7 @@ qla_pci_attach(device_t dev)
 
 
 	TASK_INIT(&ha->tx_task, 0, qla_tx_done, ha);
-	ha->tx_tq = taskqueue_create_fast("qla_txq", M_NOWAIT,
+	ha->tx_tq = taskqueue_create("qla_txq", M_NOWAIT,
 			taskqueue_thread_enqueue, &ha->tx_tq);
 	taskqueue_start_threads(&ha->tx_tq, 1, PI_NET, "%s txq",
 		device_get_nameunit(ha->pci_dev));
@@ -470,13 +472,13 @@ qla_pci_attach(device_t dev)
 		qla_watchdog, ha);
 
 	TASK_INIT(&ha->err_task, 0, qla_error_recovery, ha);
-	ha->err_tq = taskqueue_create_fast("qla_errq", M_NOWAIT,
+	ha->err_tq = taskqueue_create("qla_errq", M_NOWAIT,
 			taskqueue_thread_enqueue, &ha->err_tq);
 	taskqueue_start_threads(&ha->err_tq, 1, PI_NET, "%s errq",
 		device_get_nameunit(ha->pci_dev));
 
         TASK_INIT(&ha->async_event_task, 0, qla_async_event, ha);
-        ha->async_event_tq = taskqueue_create_fast("qla_asyncq", M_NOWAIT,
+        ha->async_event_tq = taskqueue_create("qla_asyncq", M_NOWAIT,
                         taskqueue_thread_enqueue, &ha->async_event_tq);
         taskqueue_start_threads(&ha->async_event_tq, 1, PI_NET, "%s asyncq",
                 device_get_nameunit(ha->pci_dev));
