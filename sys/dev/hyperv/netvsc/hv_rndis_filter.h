@@ -33,6 +33,7 @@
 
 #include <sys/param.h>
 #include <net/ethernet.h>
+#include <dev/hyperv/netvsc/if_hnvar.h>
 
 /*
  * Defines
@@ -75,7 +76,7 @@ typedef struct rndis_request_ {
 	uint8_t				buf_resp[PAGE_SIZE];
 
 	/* Simplify allocation by having a netvsc packet inline */
-	netvsc_packet			pkt;
+	struct hn_send_ctx		send_ctx;
 
 	/*
 	 * The max request size is sizeof(rndis_msg) + PAGE_SIZE.

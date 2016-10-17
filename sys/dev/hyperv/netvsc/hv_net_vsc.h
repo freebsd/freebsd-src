@@ -1112,33 +1112,10 @@ typedef void (*pfn_on_send_rx_completion)(struct vmbus_channel *, void *);
 #endif
 
 typedef struct netvsc_packet_ {
-	uint8_t                    is_data_pkt;      /* One byte */
-	uint16_t		   vlan_tci;
-	uint32_t status;
-
-	/* Completion */
-	union {
-		struct {
-			uint64_t   rx_completion_tid;
-			void	   *rx_completion_context;
-			/* This is no longer used */
-			pfn_on_send_rx_completion   on_rx_completion;
-		} rx;
-		struct {
-			uint64_t    send_completion_tid;
-			void	    *send_completion_context;
-			/* Still used in netvsc and filter code */
-			pfn_on_send_rx_completion   on_send_completion;
-		} send;
-	} compl;
-	uint32_t	send_buf_section_idx;
-	uint32_t	send_buf_section_size;
-
-	void		*rndis_mesg;
+	uint16_t	vlan_tci;
+	uint32_t	status;
 	uint32_t	tot_data_buf_len;
 	void		*data;
-	uint32_t	gpa_cnt;
-	struct vmbus_gpa gpa[NETVSC_PACKET_MAXPAGE];
 } netvsc_packet;
 
 typedef struct {
@@ -1216,6 +1193,9 @@ struct hn_tx_ring {
 	bus_dma_tag_t	hn_tx_data_dtag;
 	uint64_t	hn_csum_assist;
 
+	int		hn_gpa_cnt;
+	struct vmbus_gpa hn_gpa[NETVSC_PACKET_MAXPAGE];
+
 	u_long		hn_no_txdescs;
 	u_long		hn_send_failed;
 	u_long		hn_txdma_failed;
@@ -1269,13 +1249,15 @@ typedef struct hn_softc {
  * Externs
  */
 extern int hv_promisc_mode;
+struct hn_send_ctx;
 
 void netvsc_linkstatus_callback(struct hn_softc *sc, uint32_t status);
 netvsc_dev *hv_nv_on_device_add(struct hn_softc *sc,
     void *additional_info, struct hn_rx_ring *rxr);
 int hv_nv_on_device_remove(struct hn_softc *sc,
     boolean_t destroy_channel);
-int hv_nv_on_send(struct vmbus_channel *chan, netvsc_packet *pkt);
+int hv_nv_on_send(struct vmbus_channel *chan, bool is_data_pkt,
+	struct hn_send_ctx *sndc, struct vmbus_gpa *gpa, int gpa_cnt);
 int hv_nv_get_next_send_section(netvsc_dev *net_dev);
 void hv_nv_subchan_attach(struct vmbus_channel *chan,
     struct hn_rx_ring *rxr);
