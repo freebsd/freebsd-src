@@ -312,9 +312,9 @@ static u_int hn_cpu_index;
 /*
  * Forward declarations
  */
-static void hn_stop(hn_softc_t *sc);
-static void hn_ifinit_locked(hn_softc_t *sc);
-static void hn_ifinit(void *xsc);
+static void hn_stop(struct hn_softc *sc);
+static void hn_init_locked(struct hn_softc *sc);
+static void hn_init(void *xsc);
 static int  hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data);
 static int hn_start_locked(struct hn_tx_ring *txr, int len);
 static void hn_start(struct ifnet *ifp);
@@ -450,21 +450,17 @@ netvsc_probe(device_t dev)
 static int
 netvsc_attach(device_t dev)
 {
+	struct hn_softc *sc = device_get_softc(dev);
 	struct sysctl_oid_list *child;
 	struct sysctl_ctx_list *ctx;
 	uint8_t eaddr[ETHER_ADDR_LEN];
 	uint32_t link_status;
-	hn_softc_t *sc;
-	int unit = device_get_unit(dev);
 	struct ifnet *ifp = NULL;
 	int error, ring_cnt, tx_ring_cnt;
 #if __FreeBSD_version >= 1100045
 	int tso_maxlen;
 #endif
 
-	sc = device_get_softc(dev);
-
-	sc->hn_unit = unit;
 	sc->hn_dev = dev;
 	sc->hn_prichan = vmbus_get_channel(dev);
 
@@ -548,7 +544,7 @@ netvsc_attach(device_t dev)
 
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = hn_ioctl;
-	ifp->if_init = hn_ifinit;
+	ifp->if_init = hn_init;
 	ifp->if_mtu = ETHERMTU;
 	if (hn_use_if_start) {
 		int qdepth = hn_get_txswq_depth(&sc->hn_tx_ring[0]);
@@ -1497,29 +1493,13 @@ skip:
 static int
 hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
-	hn_softc_t *sc = ifp->if_softc;
+	struct hn_softc *sc = ifp->if_softc;
 	struct ifreq *ifr = (struct ifreq *)data;
-#ifdef INET
-	struct ifaddr *ifa = (struct ifaddr *)data;
-#endif
 	int mask, error = 0;
 	int retry_cnt = 500;
 	
-	switch(cmd) {
-
-	case SIOCSIFADDR:
-#ifdef INET
-		if (ifa->ifa_addr->sa_family == AF_INET) {
-			ifp->if_flags |= IFF_UP;
-			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
-				hn_ifinit(sc);
-			arp_ifinit(ifp, ifa);
-		} else
-#endif
-		error = ether_ioctl(ifp, cmd, data);
-		break;
+	switch (cmd) {
 	case SIOCSIFMTU:
-		/* Check MTU value change */
 		if (ifp->if_mtu == ifr->ifr_mtu)
 			break;
 
@@ -1587,12 +1567,13 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		if (sc->hn_tx_ring[0].hn_chim_size > sc->hn_chim_szmax)
 			hn_set_chim_size(sc, sc->hn_chim_szmax);
 
-		hn_ifinit_locked(sc);
+		hn_init_locked(sc);
 
 		NV_LOCK(sc);
 		sc->temp_unusable = FALSE;
 		NV_UNLOCK(sc);
 		break;
+
 	case SIOCSIFFLAGS:
 		do {
                        NV_LOCK(sc);
@@ -1633,7 +1614,7 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				/* do something here for Hyper-V */
 			} else
 #endif
-				hn_ifinit_locked(sc);
+				hn_init_locked(sc);
 		} else {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 				hn_stop(sc);
@@ -1643,8 +1624,8 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		sc->temp_unusable = FALSE;
 		NV_UNLOCK(sc);
 		sc->hn_if_flags = ifp->if_flags;
-		error = 0;
 		break;
+
 	case SIOCSIFCAP:
 		NV_LOCK(sc);
 
@@ -1683,38 +1664,32 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		}
 
 		NV_UNLOCK(sc);
-		error = 0;
 		break;
+
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
-#ifdef notyet
-		/* Fixme:  Multicast mode? */
-		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-			NV_LOCK(sc);
-			netvsc_setmulti(sc);
-			NV_UNLOCK(sc);
-			error = 0;
-		}
-#endif
-		error = EINVAL;
+		/* Always all-multi */
+		/*
+		 * TODO:
+		 * Enable/disable all-multi according to the emptiness of
+		 * the mcast address list.
+		 */
 		break;
+
 	case SIOCSIFMEDIA:
 	case SIOCGIFMEDIA:
 		error = ifmedia_ioctl(ifp, ifr, &sc->hn_media, cmd);
 		break;
+
 	default:
 		error = ether_ioctl(ifp, cmd, data);
 		break;
 	}
-
 	return (error);
 }
 
-/*
- *
- */
 static void
-hn_stop(hn_softc_t *sc)
+hn_stop(struct hn_softc *sc)
 {
 	struct ifnet *ifp;
 	int ret, i;
@@ -1793,11 +1768,8 @@ do_sched:
 	}
 }
 
-/*
- *
- */
 static void
-hn_ifinit_locked(hn_softc_t *sc)
+hn_init_locked(struct hn_softc *sc)
 {
 	struct ifnet *ifp;
 	int ret, i;
@@ -1829,9 +1801,9 @@ hn_ifinit_locked(hn_softc_t *sc)
  *
  */
 static void
-hn_ifinit(void *xsc)
+hn_init(void *xsc)
 {
-	hn_softc_t *sc = xsc;
+	struct hn_softc *sc = xsc;
 
 	NV_LOCK(sc);
 	if (sc->temp_unusable) {
@@ -1841,7 +1813,7 @@ hn_ifinit(void *xsc)
 	sc->temp_unusable = TRUE;
 	NV_UNLOCK(sc);
 
-	hn_ifinit_locked(sc);
+	hn_init_locked(sc);
 
 	NV_LOCK(sc);
 	sc->temp_unusable = FALSE;
@@ -1855,11 +1827,9 @@ hn_ifinit(void *xsc)
 static void
 hn_watchdog(struct ifnet *ifp)
 {
-	hn_softc_t *sc;
-	sc = ifp->if_softc;
 
-	printf("hn%d: watchdog timeout -- resetting\n", sc->hn_unit);
-	hn_ifinit(sc);    /*???*/
+	if_printf(ifp, "watchdog timeout -- resetting\n");
+	hn_init(ifp->if_softc);    /* XXX */
 	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 }
 #endif
@@ -3489,7 +3459,7 @@ static device_method_t netvsc_methods[] = {
 static driver_t netvsc_driver = {
         NETVSC_DEVNAME,
         netvsc_methods,
-        sizeof(hn_softc_t)
+        sizeof(struct hn_softc)
 };
 
 static devclass_t netvsc_devclass;
