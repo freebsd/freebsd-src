@@ -38,7 +38,7 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
-# 20161016: urtwn(4) was merged into rtwn(4)
+# 20161017: urtwn(4) was merged into rtwn(4)
 OLD_FILES+=usr/share/man/man4/urtwn.4.gz
 OLD_FILES+=usr/share/man/man4/urtwnfw.4.gz
 # 20161015: Remove GNU rcs
