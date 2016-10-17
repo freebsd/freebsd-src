@@ -99,11 +99,6 @@ struct vmbus_channel;
 #define NETVSC_DEVICE_RING_BUFFER_SIZE	(128 * PAGE_SIZE)
 #define NETVSC_PACKET_MAXPAGE		32
 
-typedef struct {
-	uint8_t		mac_addr[ETHER_ADDR_LEN];
-	uint32_t	link_state;
-} netvsc_device_info;
-
 #define HN_XACT_REQ_PGCNT		2
 #define HN_XACT_RESP_PGCNT		2
 #define HN_XACT_REQ_SIZE		(HN_XACT_REQ_PGCNT * PAGE_SIZE)
@@ -261,7 +256,7 @@ extern int hv_promisc_mode;
 struct hn_send_ctx;
 
 void netvsc_linkstatus_callback(struct hn_softc *sc, uint32_t status);
-int hv_nv_on_device_add(struct hn_softc *sc, int mtu);
+int hn_nvs_attach(struct hn_softc *sc, int mtu);
 int hv_nv_on_device_remove(struct hn_softc *sc);
 int hv_nv_on_send(struct vmbus_channel *chan, uint32_t rndis_mtype,
 	struct hn_send_ctx *sndc, struct vmbus_gpa *gpa, int gpa_cnt);
