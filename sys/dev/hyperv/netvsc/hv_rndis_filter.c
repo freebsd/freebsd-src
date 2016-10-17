@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/hyperv/netvsc/hv_rndis.h>
 #include <dev/hyperv/netvsc/hv_rndis_filter.h>
 #include <dev/hyperv/netvsc/if_hnreg.h>
+#include <dev/hyperv/netvsc/ndis.h>
 
 #define HV_RF_RECVINFO_VLAN	0x1
 #define HV_RF_RECVINFO_CSUM	0x2
@@ -96,6 +97,11 @@ static void hn_rndis_sent_halt(struct hn_send_ctx *sndc,
 static void hn_rndis_sent_cb(struct hn_send_ctx *sndc,
     struct hn_softc *sc, struct vmbus_channel *chan,
     const void *data, int dlen);
+static int hn_rndis_query(struct hn_softc *sc, uint32_t oid,
+    const void *idata, size_t idlen, void *odata, size_t *odlen0);
+static int hn_rndis_set(struct hn_softc *sc, uint32_t oid, const void *data,
+    size_t dlen);
+static int hn_rndis_conf_offload(struct hn_softc *sc);
 
 static __inline uint32_t
 hn_rndis_rid(struct hn_softc *sc)
@@ -695,13 +701,23 @@ cleanup:
 /*
  * RNDIS filter query device MAC address
  */
-static inline int
+static int
 hv_rf_query_device_mac(rndis_device *device)
 {
-	uint32_t size = ETHER_ADDR_LEN;
+	struct hn_softc *sc = device->sc;
+	size_t hwaddr_len;
+	int error;
 
-	return (hv_rf_query_device(device,
-	    RNDIS_OID_802_3_PERMANENT_ADDRESS, device->hw_mac_addr, &size));
+	hwaddr_len = ETHER_ADDR_LEN;
+	error = hn_rndis_query(sc, OID_802_3_PERMANENT_ADDRESS, NULL, 0,
+	    device->hw_mac_addr, &hwaddr_len);
+	if (error)
+		return error;
+	if (hwaddr_len != ETHER_ADDR_LEN) {
+		if_printf(sc->hn_ifp, "invalid hwaddr len %zu\n", hwaddr_len);
+		return EINVAL;
+	}
+	return 0;
 }
 
 /*
@@ -892,12 +908,12 @@ exit:
 
 static const void *
 hn_rndis_xact_execute(struct hn_softc *sc, struct vmbus_xact *xact, uint32_t rid,
-    size_t reqlen, size_t min_complen, uint32_t comp_type)
+    size_t reqlen, size_t *comp_len0, uint32_t comp_type)
 {
 	struct vmbus_gpa gpa[HN_XACT_REQ_PGCNT];
 	const struct rndis_comp_hdr *comp;
 	bus_addr_t paddr;
-	size_t comp_len;
+	size_t comp_len, min_complen = *comp_len0;
 	int gpa_cnt, error;
 
 	KASSERT(rid > HN_RNDIS_RID_COMPAT_MAX, ("invalid rid %u\n", rid));
@@ -946,7 +962,14 @@ hn_rndis_xact_execute(struct hn_softc *sc, struct vmbus_xact *xact, uint32_t rid
 	 * Check this RNDIS complete message.
 	 */
 	if (comp_len < min_complen) {
-		if_printf(sc->hn_ifp, "invalid RNDIS comp len %zu\n", comp_len);
+		if (comp_len >= sizeof(*comp)) {
+			/* rm_status field is valid */
+			if_printf(sc->hn_ifp, "invalid RNDIS comp len %zu, "
+			    "status 0x%08x\n", comp_len, comp->rm_status);
+		} else {
+			if_printf(sc->hn_ifp, "invalid RNDIS comp len %zu\n",
+			    comp_len);
+		}
 		return (NULL);
 	}
 	if (comp->rm_len < min_complen) {
@@ -965,7 +988,188 @@ hn_rndis_xact_execute(struct hn_softc *sc, struct vmbus_xact *xact, uint32_t rid
 		return (NULL);
 	}
 	/* All pass! */
+	*comp_len0 = comp_len;
 	return (comp);
+}
+
+static int
+hn_rndis_query(struct hn_softc *sc, uint32_t oid,
+    const void *idata, size_t idlen, void *odata, size_t *odlen0)
+{
+	struct rndis_query_req *req;
+	const struct rndis_query_comp *comp;
+	struct vmbus_xact *xact;
+	size_t reqlen, odlen = *odlen0, comp_len;
+	int error, ofs;
+	uint32_t rid;
+
+	reqlen = sizeof(*req) + idlen;
+	xact = vmbus_xact_get(sc->hn_xact, reqlen);
+	if (xact == NULL) {
+		if_printf(sc->hn_ifp, "no xact for RNDIS query 0x%08x\n", oid);
+		return (ENXIO);
+	}
+	rid = hn_rndis_rid(sc);
+	req = vmbus_xact_req_data(xact);
+	req->rm_type = REMOTE_NDIS_QUERY_MSG;
+	req->rm_len = reqlen;
+	req->rm_rid = rid;
+	req->rm_oid = oid;
+	/*
+	 * XXX
+	 * This is _not_ RNDIS Spec conforming:
+	 * "This MUST be set to 0 when there is no input data
+	 *  associated with the OID."
+	 *
+	 * If this field was set to 0 according to the RNDIS Spec,
+	 * Hyper-V would set non-SUCCESS status in the query
+	 * completion.
+	 */
+	req->rm_infobufoffset = RNDIS_QUERY_REQ_INFOBUFOFFSET;
+
+	if (idlen > 0) {
+		req->rm_infobuflen = idlen;
+		/* Input data immediately follows RNDIS query. */
+		memcpy(req + 1, idata, idlen);
+	}
+
+	comp_len = sizeof(*comp) + odlen;
+	comp = hn_rndis_xact_execute(sc, xact, rid, reqlen, &comp_len,
+	    REMOTE_NDIS_QUERY_CMPLT);
+	if (comp == NULL) {
+		if_printf(sc->hn_ifp, "exec RNDIS query 0x%08x failed\n", oid);
+		error = EIO;
+		goto done;
+	}
+
+	if (comp->rm_status != RNDIS_STATUS_SUCCESS) {
+		if_printf(sc->hn_ifp, "RNDIS query 0x%08x failed: "
+		    "status 0x%08x\n", oid, comp->rm_status);
+		error = EIO;
+		goto done;
+	}
+	if (comp->rm_infobuflen == 0 || comp->rm_infobufoffset == 0) {
+		/* No output data! */
+		if_printf(sc->hn_ifp, "RNDIS query 0x%08x, no data\n", oid);
+		*odlen0 = 0;
+		error = 0;
+		goto done;
+	}
+
+	/*
+	 * Check output data length and offset.
+	 */
+	/* ofs is the offset from the beginning of comp. */
+	ofs = RNDIS_QUERY_COMP_INFOBUFABS(comp->rm_infobufoffset);
+	if (ofs < sizeof(*comp) || ofs + comp->rm_infobuflen > comp_len) {
+		if_printf(sc->hn_ifp, "RNDIS query invalid comp ib off/len, "
+		    "%u/%u\n", comp->rm_infobufoffset, comp->rm_infobuflen);
+		error = EINVAL;
+		goto done;
+	}
+
+	/*
+	 * Save output data.
+	 */
+	if (comp->rm_infobuflen < odlen)
+		odlen = comp->rm_infobuflen;
+	memcpy(odata, ((const uint8_t *)comp) + ofs, odlen);
+	*odlen0 = odlen;
+
+	error = 0;
+done:
+	vmbus_xact_put(xact);
+	return (error);
+}
+
+static int
+hn_rndis_set(struct hn_softc *sc, uint32_t oid, const void *data, size_t dlen)
+{
+	struct rndis_set_req *req;
+	const struct rndis_set_comp *comp;
+	struct vmbus_xact *xact;
+	size_t reqlen, comp_len;
+	uint32_t rid;
+	int error;
+
+	KASSERT(dlen > 0, ("invalid dlen %zu", dlen));
+
+	reqlen = sizeof(*req) + dlen;
+	xact = vmbus_xact_get(sc->hn_xact, reqlen);
+	if (xact == NULL) {
+		if_printf(sc->hn_ifp, "no xact for RNDIS set 0x%08x\n", oid);
+		return (ENXIO);
+	}
+	rid = hn_rndis_rid(sc);
+	req = vmbus_xact_req_data(xact);
+	req->rm_type = REMOTE_NDIS_SET_MSG;
+	req->rm_len = reqlen;
+	req->rm_rid = rid;
+	req->rm_oid = oid;
+	req->rm_infobuflen = dlen;
+	req->rm_infobufoffset = RNDIS_SET_REQ_INFOBUFOFFSET;
+	/* Data immediately follows RNDIS set. */
+	memcpy(req + 1, data, dlen);
+
+	comp_len = sizeof(*comp);
+	comp = hn_rndis_xact_execute(sc, xact, rid, reqlen, &comp_len,
+	    REMOTE_NDIS_SET_CMPLT);
+	if (comp == NULL) {
+		if_printf(sc->hn_ifp, "exec RNDIS set 0x%08x failed\n", oid);
+		error = EIO;
+		goto done;
+	}
+
+	if (comp->rm_status != RNDIS_STATUS_SUCCESS) {
+		if_printf(sc->hn_ifp, "RNDIS set 0x%08x failed: "
+		    "status 0x%08x\n", oid, comp->rm_status);
+		error = EIO;
+		goto done;
+	}
+	error = 0;
+done:
+	vmbus_xact_put(xact);
+	return (error);
+}
+
+static int
+hn_rndis_conf_offload(struct hn_softc *sc)
+{
+	struct ndis_offload_params params;
+	size_t paramsz;
+	int error;
+
+	/* NOTE: 0 means "no change" */
+	memset(&params, 0, sizeof(params));
+
+	params.ndis_hdr.ndis_type = NDIS_OBJTYPE_DEFAULT;
+	if (sc->hn_ndis_ver < NDIS_VERSION_6_30) {
+		params.ndis_hdr.ndis_rev = NDIS_OFFLOAD_PARAMS_REV_2;
+		paramsz = NDIS_OFFLOAD_PARAMS_SIZE_6_1;
+	} else {
+		params.ndis_hdr.ndis_rev = NDIS_OFFLOAD_PARAMS_REV_3;
+		paramsz = NDIS_OFFLOAD_PARAMS_SIZE;
+	}
+	params.ndis_hdr.ndis_size = paramsz;
+
+	params.ndis_ip4csum = NDIS_OFFLOAD_PARAM_TXRX;
+	params.ndis_tcp4csum = NDIS_OFFLOAD_PARAM_TXRX;
+	params.ndis_tcp6csum = NDIS_OFFLOAD_PARAM_TXRX;
+	if (sc->hn_ndis_ver >= NDIS_VERSION_6_30) {
+		params.ndis_udp4csum = NDIS_OFFLOAD_PARAM_TXRX;
+		params.ndis_udp6csum = NDIS_OFFLOAD_PARAM_TXRX;
+	}
+	params.ndis_lsov2_ip4 = NDIS_OFFLOAD_LSOV2_ON;
+	/* XXX ndis_lsov2_ip6 = NDIS_OFFLOAD_LSOV2_ON */
+
+	error = hn_rndis_set(sc, OID_TCP_OFFLOAD_PARAMETERS, &params, paramsz);
+	if (error) {
+		if_printf(sc->hn_ifp, "offload config failed: %d\n", error);
+	} else {
+		if (bootverbose)
+			if_printf(sc->hn_ifp, "offload config done\n");
+	}
+	return (error);
 }
 
 /*
@@ -978,6 +1182,7 @@ hv_rf_init_device(rndis_device *device)
 	struct rndis_init_req *req;
 	const struct rndis_init_comp *comp;
 	struct vmbus_xact *xact;
+	size_t comp_len;
 	uint32_t rid;
 	int error;
 
@@ -998,8 +1203,9 @@ hv_rf_init_device(rndis_device *device)
 	req->rm_ver_minor = RNDIS_VERSION_MINOR;
 	req->rm_max_xfersz = HN_RNDIS_XFER_SIZE;
 
-	comp = hn_rndis_xact_execute(sc, xact, rid, sizeof(*req),
-	    RNDIS_INIT_COMP_SIZE_MIN, REMOTE_NDIS_INITIALIZE_CMPLT);
+	comp_len = RNDIS_INIT_COMP_SIZE_MIN;
+	comp = hn_rndis_xact_execute(sc, xact, rid, sizeof(*req), &comp_len,
+	    REMOTE_NDIS_INITIALIZE_CMPLT);
 	if (comp == NULL) {
 		if_printf(sc->hn_ifp, "exec RNDIS init failed\n");
 		error = EIO;
@@ -1131,7 +1337,6 @@ hv_rf_on_device_add(struct hn_softc *sc, void *additl_info,
 {
 	int ret;
 	rndis_device *rndis_dev;
-	rndis_offload_params offloads;
 	struct rndis_recv_scale_cap rsscaps;
 	uint32_t rsscaps_size = sizeof(struct rndis_recv_scale_cap);
 	netvsc_device_info *dev_info = (netvsc_device_info *)additl_info;
@@ -1181,21 +1386,8 @@ hv_rf_on_device_add(struct hn_softc *sc, void *additl_info,
 		/* TODO: shut down rndis device and the channel */
 	}
 
-	/* config csum offload and send request to host */
-	memset(&offloads, 0, sizeof(offloads));
-	offloads.ipv4_csum = RNDIS_OFFLOAD_PARAMETERS_TX_RX_ENABLED;
-	offloads.tcp_ipv4_csum = RNDIS_OFFLOAD_PARAMETERS_TX_RX_ENABLED;
-	offloads.udp_ipv4_csum = RNDIS_OFFLOAD_PARAMETERS_TX_RX_ENABLED;
-	offloads.tcp_ipv6_csum = RNDIS_OFFLOAD_PARAMETERS_TX_RX_ENABLED;
-	offloads.udp_ipv6_csum = RNDIS_OFFLOAD_PARAMETERS_TX_RX_ENABLED;
-	offloads.lso_v2_ipv4 = RNDIS_OFFLOAD_PARAMETERS_LSOV2_ENABLED;
-
-	ret = hv_rf_send_offload_request(sc, &offloads);
-	if (ret != 0) {
-		/* TODO: shut down rndis device and the channel */
-		device_printf(dev,
-		    "hv_rf_send_offload_request failed, ret=%d\n", ret);
-	}
+	/* Configure NDIS offload settings */
+	hn_rndis_conf_offload(sc);
 	
 	memcpy(dev_info->mac_addr, rndis_dev->hw_mac_addr, ETHER_ADDR_LEN);
 
