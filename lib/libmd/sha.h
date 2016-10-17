@@ -94,6 +94,12 @@ __BEGIN_DECLS
 #ifndef SHA_End
 #define SHA_End		_libmd_SHA_End
 #endif
+#ifndef SHA_Fd
+#define SHA_Fd		_libmd_SHA_Fd
+#endif
+#ifndef SHA_FdChunk
+#define SHA_FdChunk	_libmd_SHA_FdChunk
+#endif
 #ifndef SHA_File
 #define SHA_File	_libmd_SHA_File
 #endif
@@ -126,6 +132,12 @@ __BEGIN_DECLS
 #ifndef SHA1_End
 #define SHA1_End	_libmd_SHA1_End
 #endif
+#ifndef SHA1_Fd
+#define SHA1_Fd		_libmd_SHA1_Fd
+#endif
+#ifndef SHA1_FdChunk
+#define SHA1_FdChunk	_libmd_SHA1_FdChunk
+#endif
 #ifndef SHA1_File
 #define SHA1_File	_libmd_SHA1_File
 #endif
@@ -150,6 +162,8 @@ void	SHA_Init(SHA_CTX *c);
 void	SHA_Update(SHA_CTX *c, const void *data, size_t len);
 void	SHA_Final(unsigned char *md, SHA_CTX *c);
 char   *SHA_End(SHA_CTX *, char *);
+char   *SHA_Fd(int, char *);
+char   *SHA_FdChunk(int, char *, off_t, off_t);
 char   *SHA_File(const char *, char *);
 char   *SHA_FileChunk(const char *, char *, off_t, off_t);
 char   *SHA_Data(const void *, unsigned int, char *);
@@ -158,6 +172,8 @@ void	SHA1_Init(SHA_CTX *c);
 void	SHA1_Update(SHA_CTX *c, const void *data, size_t len);
 void	SHA1_Final(unsigned char *md, SHA_CTX *c);
 char   *SHA1_End(SHA_CTX *, char *);
+char   *SHA1_Fd(int, char *);
+char   *SHA1_FdChunk(int, char *, off_t, off_t);
 char   *SHA1_File(const char *, char *);
 char   *SHA1_FileChunk(const char *, char *, off_t, off_t);
 char   *SHA1_Data(const void *, unsigned int, char *);
