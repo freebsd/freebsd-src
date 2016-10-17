@@ -52,13 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/hyperv/netvsc/hv_rndis_filter.h>
 #include <dev/hyperv/netvsc/if_hnreg.h>
 
-struct hv_rf_recvinfo {
-	const ndis_8021q_info		*vlan_info;
-	const rndis_tcp_ip_csum_info	*csum_info;
-	const struct rndis_hash_info	*hash_info;
-	const struct rndis_hash_value	*hash_value;
-};
-
 #define HV_RF_RECVINFO_VLAN	0x1
 #define HV_RF_RECVINFO_CSUM	0x2
 #define HV_RF_RECVINFO_HASHINF	0x4
@@ -74,11 +67,12 @@ struct hv_rf_recvinfo {
  */
 static int  hv_rf_send_request(rndis_device *device, rndis_request *request,
 			       uint32_t message_type);
-static void hv_rf_receive_response(rndis_device *device, rndis_msg *response);
+static void hv_rf_receive_response(rndis_device *device,
+    const rndis_msg *response);
 static void hv_rf_receive_indicate_status(rndis_device *device,
-					  rndis_msg *response);
-static void hv_rf_receive_data(struct hn_rx_ring *rxr, rndis_msg *message,
-			       netvsc_packet *pkt);
+    const rndis_msg *response);
+static void hv_rf_receive_data(struct hn_rx_ring *rxr,
+    const void *data, int dlen);
 static int  hv_rf_query_device(rndis_device *device, uint32_t oid,
 			       void *result, uint32_t *result_size);
 static inline int hv_rf_query_device_mac(rndis_device *device);
@@ -302,7 +296,7 @@ sendit:
  * RNDIS filter receive response
  */
 static void 
-hv_rf_receive_response(rndis_device *device, rndis_msg *response)
+hv_rf_receive_response(rndis_device *device, const rndis_msg *response)
 {
 	rndis_request *request = NULL;
 	rndis_request *next_request;
@@ -424,9 +418,9 @@ cleanup:
  * RNDIS filter receive indicate status
  */
 static void 
-hv_rf_receive_indicate_status(rndis_device *device, rndis_msg *response)
+hv_rf_receive_indicate_status(rndis_device *device, const rndis_msg *response)
 {
-	rndis_indicate_status *indicate = &response->msg.indicate_status;
+	const rndis_indicate_status *indicate = &response->msg.indicate_status;
 		
 	switch(indicate->status) {
 	case RNDIS_STATUS_MEDIA_CONNECT:
@@ -444,7 +438,7 @@ hv_rf_receive_indicate_status(rndis_device *device, rndis_msg *response)
 }
 
 static int
-hv_rf_find_recvinfo(const rndis_packet *rpkt, struct hv_rf_recvinfo *info)
+hv_rf_find_recvinfo(const rndis_packet *rpkt, struct hn_recvinfo *info)
 {
 	const rndis_per_packet_info *ppi;
 	uint32_t mask, len;
@@ -525,12 +519,12 @@ skip:
  * RNDIS filter receive data
  */
 static void
-hv_rf_receive_data(struct hn_rx_ring *rxr, rndis_msg *message,
-    netvsc_packet *pkt)
+hv_rf_receive_data(struct hn_rx_ring *rxr, const void *data, int dlen)
 {
-	rndis_packet *rndis_pkt;
+	const rndis_msg *message = data;
+	const rndis_packet *rndis_pkt;
 	uint32_t data_offset;
-	struct hv_rf_recvinfo info;
+	struct hn_recvinfo info;
 
 	rndis_pkt = &message->msg.packet;
 
@@ -542,30 +536,22 @@ hv_rf_receive_data(struct hn_rx_ring *rxr, rndis_msg *message,
 	/* Remove rndis header, then pass data packet up the stack */
 	data_offset = RNDIS_HEADER_SIZE + rndis_pkt->data_offset;
 
-	pkt->tot_data_buf_len -= data_offset;
-	if (pkt->tot_data_buf_len < rndis_pkt->data_length) {
-		pkt->status = HN_NVS_STATUS_FAILED;
+	dlen -= data_offset;
+	if (dlen < rndis_pkt->data_length) {
 		if_printf(rxr->hn_ifp,
 		    "total length %u is less than data length %u\n",
-		    pkt->tot_data_buf_len, rndis_pkt->data_length);
+		    dlen, rndis_pkt->data_length);
 		return;
 	}
 
-	pkt->tot_data_buf_len = rndis_pkt->data_length;
-	pkt->data = (void *)((unsigned long)pkt->data + data_offset);
+	dlen = rndis_pkt->data_length;
+	data = (const uint8_t *)data + data_offset;
 
 	if (hv_rf_find_recvinfo(rndis_pkt, &info)) {
-		pkt->status = HN_NVS_STATUS_FAILED;
 		if_printf(rxr->hn_ifp, "recvinfo parsing failed\n");
 		return;
 	}
-
-	if (info.vlan_info != NULL)
-		pkt->vlan_tci = info.vlan_info->u1.s1.vlan_id;
-	else
-		pkt->vlan_tci = 0;
-
-	netvsc_recv(rxr, pkt, info.csum_info, info.hash_info, info.hash_value);
+	netvsc_recv(rxr, data, dlen, &info);
 }
 
 /*
@@ -573,30 +559,25 @@ hv_rf_receive_data(struct hn_rx_ring *rxr, rndis_msg *message,
  */
 int
 hv_rf_on_receive(netvsc_dev *net_dev,
-    struct hn_rx_ring *rxr, netvsc_packet *pkt)
+    struct hn_rx_ring *rxr, const void *data, int dlen)
 {
 	rndis_device *rndis_dev;
-	rndis_msg *rndis_hdr;
+	const rndis_msg *rndis_hdr;
 
 	/* Make sure the rndis device state is initialized */
-	if (net_dev->extension == NULL) {
-		pkt->status = HN_NVS_STATUS_FAILED;
+	if (net_dev->extension == NULL)
 		return (ENODEV);
-	}
 
 	rndis_dev = (rndis_device *)net_dev->extension;
-	if (rndis_dev->state == RNDIS_DEV_UNINITIALIZED) {
-		pkt->status = HN_NVS_STATUS_FAILED;
+	if (rndis_dev->state == RNDIS_DEV_UNINITIALIZED)
 		return (EINVAL);
-	}
 
-	rndis_hdr = pkt->data;
-
+	rndis_hdr = data;
 	switch (rndis_hdr->ndis_msg_type) {
 
 	/* data message */
 	case REMOTE_NDIS_PACKET_MSG:
-		hv_rf_receive_data(rxr, rndis_hdr, pkt);
+		hv_rf_receive_data(rxr, data, dlen);
 		break;
 	/* completion messages */
 	case REMOTE_NDIS_INITIALIZE_CMPLT:
