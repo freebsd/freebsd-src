@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <string.h>
+#include <stddef.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -50,7 +51,8 @@ __FBSDID("$FreeBSD$");
 
 #define NFS_DEBUGxx
 
-#define NFSREAD_SIZE 1024
+#define NFSREAD_MIN_SIZE 1024
+#define NFSREAD_MAX_SIZE 4096
 
 /* Define our own NFS attributes without NQNFS stuff. */
 #ifdef OLD_NFSV2
@@ -83,7 +85,7 @@ struct nfs_read_repl {
 	n_long	errno;
 	struct	nfsv2_fattrs fa;
 	n_long	count;
-	u_char	data[NFSREAD_SIZE];
+	u_char	data[NFSREAD_MAX_SIZE];
 };
 
 #ifndef NFS_NOSYMLINK
@@ -210,6 +212,8 @@ struct fs_ops nfs_fsops = {
 	nfs_readdir
 };
 
+static int nfs_read_size = NFSREAD_MIN_SIZE;
+
 #ifdef	OLD_NFSV2
 /*
  * Fetch the root file handle (call mount daemon)
@@ -264,6 +268,17 @@ nfs_getrootfh(struct iodesc *d, char *path, u_char *fhp)
 	if (repl->errno)
 		return (ntohl(repl->errno));
 	bcopy(repl->fh, fhp, sizeof(repl->fh));
+
+	/*
+	 * Improve boot performance over NFS
+	 */
+	if (getenv("nfs.read_size") != NULL)
+		nfs_read_size = strtol(getenv("nfs.read_size"), NULL, 0);
+	if (nfs_read_size < NFSREAD_MIN_SIZE)
+		nfs_read_size = NFSREAD_MIN_SIZE;
+	if (nfs_read_size > NFSREAD_MAX_SIZE)
+		nfs_read_size = NFSREAD_MAX_SIZE;
+
 	return (0);
 }
 
@@ -401,11 +416,11 @@ nfs_readdata(struct nfs_iodesc *d, off_t off, void *addr, size_t len)
 
 	bcopy(d->fh, args->fh, NFS_FHSIZE);
 	args->off = htonl((n_long)off);
-	if (len > NFSREAD_SIZE)
-		len = NFSREAD_SIZE;
+	if (len > nfs_read_size)
+		len = nfs_read_size;
 	args->len = htonl((n_long)len);
 	args->xxx = htonl((n_long)0);
-	hlen = sizeof(*repl) - NFSREAD_SIZE;
+	hlen = offsetof(struct nfs_read_rpl, data[0]);
 
 	cc = rpc_call(d->iodesc, NFS_PROG, NFS_VER2, NFSPROC_READ,
 	    args, sizeof(*args),
@@ -1022,7 +1037,7 @@ nfs_readdata(struct nfs_iodesc *d, off_t off, void *addr, size_t len)
 		uint32_t count;
 		uint32_t eof;
 		uint32_t len;
-		u_char data[NFSREAD_SIZE];
+		u_char data[NFSREAD_MAX_SIZE];
 	} *repl;
 	struct {
 		uint32_t h[RPC_HEADER_WORDS];
@@ -1045,10 +1060,10 @@ nfs_readdata(struct nfs_iodesc *d, off_t off, void *addr, size_t len)
 	pos = roundup(d->fhsize, sizeof(uint32_t)) / sizeof(uint32_t);
 	args->fhoffcnt[pos++] = 0;
 	args->fhoffcnt[pos++] = htonl((uint32_t)off);
-	if (len > NFSREAD_SIZE)
-		len = NFSREAD_SIZE;
+	if (len > nfs_read_size)
+		len = nfs_read_size;
 	args->fhoffcnt[pos] = htonl((uint32_t)len);
-	hlen = sizeof(*repl) - NFSREAD_SIZE;
+	hlen = offsetof(struct repl, data[0]);
 
 	cc = rpc_call(d->iodesc, NFS_PROG, NFS_VER3, NFSPROCV3_READ,
 	    args, 4 * sizeof(uint32_t) + roundup(d->fhsize, sizeof(uint32_t)),
