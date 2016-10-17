@@ -678,8 +678,9 @@ UPLCOM_INTR_INTERVAL	opt_uplcom.h
 UVSCOM_DEFAULT_OPKTSIZE	opt_uvscom.h
 UVSCOM_INTR_INTERVAL	opt_uvscom.h
 
-# options for the Realtek RTL8188*U/RTL8192CU driver (urtwn)
-URTWN_WITHOUT_UCODE	opt_urtwn.h
+# options for the Realtek rtwn driver
+RTWN_DEBUG		opt_rtwn.h
+RTWN_WITHOUT_UCODE	opt_rtwn.h
 
 # Embedded system options
 INIT_PATH
