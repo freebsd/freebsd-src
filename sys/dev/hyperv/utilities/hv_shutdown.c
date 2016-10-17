@@ -87,7 +87,7 @@ hv_shutdown_cb(struct vmbus_channel *channel, void *context)
 	    if (icmsghdrp->icmsgtype == HV_ICMSGTYPE_NEGOTIATE) {
 		int error;
 
-		error = vmbus_ic_negomsg(softc, buf, recv_len);
+		error = vmbus_ic_negomsg(softc, buf, &recv_len);
 		if (error)
 			return;
 	    } else {
