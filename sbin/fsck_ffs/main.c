@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <fstab.h>
 #include <grp.h>
+#include <inttypes.h>
 #include <mntopts.h>
 #include <paths.h>
 #include <stdint.h>
@@ -68,7 +69,7 @@ __FBSDID("$FreeBSD$");
 int	restarts;
 
 static void usage(void) __dead2;
-static int argtoi(int flag, const char *req, const char *str, int base);
+static intmax_t argtoimax(int flag, const char *req, const char *str, int base);
 static int checkfilesys(char *filesys);
 static int chkdoreload(struct statfs *mntp);
 static struct statfs *getmntpt(const char *);
@@ -88,8 +89,8 @@ main(int argc, char *argv[])
 		switch (ch) {
 		case 'b':
 			skipclean = 0;
-			bflag = argtoi('b', "number", optarg, 10);
-			printf("Alternate super block location: %d\n", bflag);
+			bflag = argtoimax('b', "number", optarg, 10);
+			printf("Alternate super block location: %jd\n", bflag);
 			break;
 
 		case 'B':
@@ -98,7 +99,8 @@ main(int argc, char *argv[])
 
 		case 'c':
 			skipclean = 0;
-			cvtlevel = argtoi('c', "conversion level", optarg, 10);
+			cvtlevel = argtoimax('c', "conversion level", optarg,
+			    10);
 			if (cvtlevel < 3)
 				errx(EEXIT, "cannot do level %d conversion",
 				    cvtlevel);
@@ -121,7 +123,7 @@ main(int argc, char *argv[])
 			break;
 
 		case 'm':
-			lfmode = argtoi('m', "mode", optarg, 8);
+			lfmode = argtoimax('m', "mode", optarg, 8);
 			if (lfmode &~ 07777)
 				errx(EEXIT, "bad mode to -m: %o", lfmode);
 			printf("** lost+found creation mode %o\n", lfmode);
@@ -203,13 +205,13 @@ main(int argc, char *argv[])
 	exit(ret);
 }
 
-static int
-argtoi(int flag, const char *req, const char *str, int base)
+static intmax_t
+argtoimax(int flag, const char *req, const char *str, int base)
 {
 	char *cp;
-	int ret;
+	intmax_t ret;
 
-	ret = (int)strtol(str, &cp, base);
+	ret = strtoimax(str, &cp, base);
 	if (cp == str || *cp)
 		errx(EEXIT, "-%c flag requires a %s", flag, req);
 	return (ret);
