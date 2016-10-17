@@ -20,12 +20,13 @@ sleep=$(pwd)/sleep.txt
 ln -sf /bin/sleep $sleep
 
 name="pgrep -j <jid>"
-sleep_amount=5
+sleep_amount=15
 jail -c path=/ name=${base}_1_1 ip4.addr=127.0.0.1 \
     command=daemon -p ${PWD}/${base}_1_1.pid $sleep $sleep_amount &
 
 jail -c path=/ name=${base}_1_2 ip4.addr=127.0.0.1 \
     command=daemon -p ${PWD}/${base}_1_2.pid $sleep $sleep_amount &
+sleep 0.5
 
 for i in `seq 1 10`; do
 	jid1=$(jail_name_to_jid ${base}_1_1)
