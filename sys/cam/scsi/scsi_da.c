@@ -1488,7 +1488,7 @@ daclose(struct disk *dp)
 			scsi_synchronize_cache(&ccb->csio, /*retries*/1,
 			    /*cbfcnp*/dadone, MSG_SIMPLE_Q_TAG,
 			    /*begin_lba*/0, /*lb_count*/0, SSD_FULL_SIZE,
-			    da_default_timeout * 1000);
+			    5 * 60 * 1000);
 			error = cam_periph_runccb(ccb, daerror, /*cam_flags*/0,
 			    /*sense_flags*/SF_RETRY_UA | SF_QUIET_IR,
 			    softc->disk->d_devstat);
