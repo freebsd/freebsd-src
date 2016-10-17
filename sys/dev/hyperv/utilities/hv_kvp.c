@@ -54,17 +54,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/un.h>
 #include <sys/endian.h>
 #include <sys/_null.h>
+#include <sys/sema.h>
 #include <sys/signal.h>
 #include <sys/syslog.h>
 #include <sys/systm.h>
 #include <sys/mutex.h>
 
-#include <net/if.h>
-#include <net/if_arp.h>
-#include <net/if_var.h>
-
 #include <dev/hyperv/include/hyperv.h>
-#include <dev/hyperv/netvsc/hv_net_vsc.h>
 #include <dev/hyperv/utilities/hv_utilreg.h>
 
 #include "hv_util.h"
@@ -91,9 +87,15 @@ static int hv_kvp_log = 0;
 		log(LOG_INFO, "hv_kvp: " __VA_ARGS__);		\
 } while (0)
 
-static const struct hyperv_guid service_guid = { .hv_guid =
-	{0xe7, 0xf4, 0xa0, 0xa9, 0x45, 0x5a, 0x96, 0x4d,
-	0xb8, 0x27, 0x8a, 0x84, 0x1e, 0x8c, 0x3,  0xe6} };
+static const struct vmbus_ic_desc vmbus_kvp_descs[] = {
+	{
+		.ic_guid = { .hv_guid = {
+		    0xe7, 0xf4, 0xa0, 0xa9, 0x45, 0x5a, 0x96, 0x4d,
+		    0xb8, 0x27, 0x8a, 0x84, 0x1e, 0x8c, 0x3,  0xe6 } },
+		.ic_desc = "Hyper-V KVP"
+	},
+	VMBUS_IC_DESC_END
+};
 
 /* character device prototypes */
 static d_open_t		hv_kvp_dev_open;
@@ -333,13 +335,11 @@ hv_kvp_convert_utf16_ipinfo_to_utf8(struct hv_kvp_ip_msg *host_ip_msg,
 		for (devcnt = devcnt - 1; devcnt >= 0; devcnt--) {
 			/* XXX access other driver's softc?  are you kidding? */
 			device_t dev = devs[devcnt];
-			struct hn_softc *sc = device_get_softc(dev);
 			struct vmbus_channel *chan;
 			char buf[HYPERV_GUID_STRLEN];
 
 			/*
 			 * Trying to find GUID of Network Device
-			 * TODO: need vmbus interface.
 			 */
 			chan = vmbus_get_channel(dev);
 			hyperv_guid2str(vmbus_chan_guid_inst(chan),
@@ -348,7 +348,7 @@ hv_kvp_convert_utf16_ipinfo_to_utf8(struct hv_kvp_ip_msg *host_ip_msg,
 			if (strncmp(buf, (char *)umsg->body.kvp_ip_val.adapter_id,
 			    HYPERV_GUID_STRLEN - 1) == 0) {
 				strlcpy((char *)umsg->body.kvp_ip_val.adapter_id,
-				    sc->hn_ifp->if_xname, MAX_ADAPTER_ID_SIZE);
+				    device_get_nameunit(dev), MAX_ADAPTER_ID_SIZE);
 				break;
 			}
 		}
@@ -873,14 +873,8 @@ hv_kvp_dev_daemon_poll(struct cdev *dev, int events, struct thread *td)
 static int
 hv_kvp_probe(device_t dev)
 {
-	if (resource_disabled("hvkvp", 0))
-		return ENXIO;
 
-	if (VMBUS_PROBE_GUID(device_get_parent(dev), dev, &service_guid) == 0) {
-		device_set_desc(dev, "Hyper-V KVP Service");
-		return BUS_PROBE_DEFAULT;
-	}
-	return ENXIO;
+	return (vmbus_ic_probe(dev, vmbus_kvp_descs));
 }
 
 static int
