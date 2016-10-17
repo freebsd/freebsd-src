@@ -25,7 +25,7 @@ makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
 # makeoptions	WITH_CTF=1		# Run ctfconvert(1) for DTrace support
 
 # FIXME: linker error. "--relax and -r may not be used together"
-makeoptions	WITHOUT_MODULES="usb otusfw mwlfw ispfw mwlfw ralfw rtwnfw urtwnfw"
+makeoptions	WITHOUT_MODULES="usb otusfw mwlfw ispfw mwlfw ralfw rtwnfw"
 # makeoptions	NO_MODULES
 
 options 	SCHED_ULE		# ULE scheduler
