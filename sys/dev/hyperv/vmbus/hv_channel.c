@@ -191,17 +191,9 @@ hv_vmbus_channel_open(
 		return EINVAL;
 	}
 
-	mtx_lock(&new_channel->sc_lock);
-	if (new_channel->state == HV_CHANNEL_OPEN_STATE) {
-	    new_channel->state = HV_CHANNEL_OPENING_STATE;
-	} else {
-	    mtx_unlock(&new_channel->sc_lock);
-	    if(bootverbose)
-		printf("VMBUS: Trying to open channel <%p> which in "
-		    "%d state.\n", new_channel, new_channel->state);
-	    return (EINVAL);
-	}
-	mtx_unlock(&new_channel->sc_lock);
+	if (atomic_testandset_int(&new_channel->ch_stflags,
+	    VMBUS_CHAN_ST_OPENED_SHIFT))
+		panic("double-open chan%u", new_channel->ch_id);
 
 	new_channel->on_channel_callback = pfn_on_channel_callback;
 	new_channel->channel_callback_context = context;
@@ -223,8 +215,10 @@ hv_vmbus_channel_open(
 	    M_DEVBUF, M_ZERO, 0UL, BUS_SPACE_MAXADDR, PAGE_SIZE, 0);
 	KASSERT(out != NULL,
 	    ("Error VMBUS: contigmalloc failed to allocate Ring Buffer!"));
-	if (out == NULL)
-		return (ENOMEM);
+	if (out == NULL) {
+		ret = ENOMEM;
+		goto failed;
+	}
 
 	in = ((uint8_t *) out + send_ring_buffer_size);
 
@@ -265,7 +259,8 @@ hv_vmbus_channel_open(
 		device_printf(sc->vmbus_dev,
 		    "can not get msg hypercall for chopen(chan%u)\n",
 		    new_channel->ch_id);
-		return ENXIO;
+		ret = ENXIO;
+		goto failed;
 	}
 
 	req = vmbus_msghc_dataptr(mh);
@@ -284,7 +279,7 @@ hv_vmbus_channel_open(
 		    "chopen(chan%u) msg hypercall exec failed: %d\n",
 		    new_channel->ch_id, ret);
 		vmbus_msghc_put(sc, mh);
-		return ret;
+		goto failed;
 	}
 
 	msg = vmbus_msghc_wait_result(sc, mh);
@@ -294,17 +289,20 @@ hv_vmbus_channel_open(
 	vmbus_msghc_put(sc, mh);
 
 	if (status == 0) {
-		new_channel->state = HV_CHANNEL_OPENED_STATE;
 		if (bootverbose) {
 			device_printf(sc->vmbus_dev, "chan%u opened\n",
 			    new_channel->ch_id);
 		}
-	} else {
-		device_printf(sc->vmbus_dev, "failed to open chan%u\n",
-		    new_channel->ch_id);
-		ret = ENXIO;
+		return 0;
 	}
-	return (ret);
+
+	device_printf(sc->vmbus_dev, "failed to open chan%u\n",
+	    new_channel->ch_id);
+	ret = ENXIO;
+
+failed:
+	atomic_clear_int(&new_channel->ch_stflags, VMBUS_CHAN_ST_OPENED);
+	return ret;
 }
 
 /**
@@ -487,7 +485,9 @@ hv_vmbus_channel_close_internal(hv_vmbus_channel *channel)
 	struct taskqueue *rxq = channel->rxq;
 	int error;
 
-	channel->state = HV_CHANNEL_OPEN_STATE;
+	/* TODO: stringent check */
+	atomic_clear_int(&channel->ch_stflags, VMBUS_CHAN_ST_OPENED);
+
 	sysctl_ctx_free(&channel->ch_sysctl_ctx);
 
 	/*
@@ -563,7 +563,7 @@ hv_vmbus_channel_close(hv_vmbus_channel *channel)
 	 */
 	TAILQ_FOREACH(sub_channel, &channel->sc_list_anchor,
 	    sc_list_entry) {
-		if (sub_channel->state != HV_CHANNEL_OPENED_STATE)
+		if ((sub_channel->ch_stflags & VMBUS_CHAN_ST_OPENED) == 0)
 			continue;
 		hv_vmbus_channel_close_internal(sub_channel);
 	}
