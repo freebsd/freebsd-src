@@ -196,7 +196,7 @@ setup(char *dev)
 			bflag = 0;
 			return(0);
 		}
-		pwarn("USING ALTERNATE SUPERBLOCK AT %d\n", bflag);
+		pwarn("USING ALTERNATE SUPERBLOCK AT %jd\n", bflag);
 		bflag = 0;
 	}
 	if (skipclean && ckclean && sblock.fs_clean) {
@@ -329,7 +329,7 @@ readsb(int listerr)
 		}
 		if (sblock.fs_magic != FS_UFS1_MAGIC &&
 		    sblock.fs_magic != FS_UFS2_MAGIC) {
-			fprintf(stderr, "%d is not a file system superblock\n",
+			fprintf(stderr, "%jd is not a file system superblock\n",
 			    bflag);
 			return (0);
 		}
