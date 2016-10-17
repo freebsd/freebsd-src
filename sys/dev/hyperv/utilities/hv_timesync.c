@@ -22,37 +22,25 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-/*
- * A common driver for all hyper-V util services.
- */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/malloc.h>
+#include <sys/kernel.h>
 #include <sys/module.h>
-#include <sys/reboot.h>
-#include <sys/timetc.h>
 #include <sys/syscallsubr.h>
-#include <sys/systm.h>
 #include <sys/sysctl.h>
+#include <sys/systm.h>
 
 #include <dev/hyperv/include/hyperv.h>
 #include <dev/hyperv/include/vmbus.h>
-#include <dev/hyperv/utilities/hv_utilreg.h>
-#include "hv_util.h"
-#include "vmbus_if.h"
+#include <dev/hyperv/utilities/hv_util.h>
+#include <dev/hyperv/utilities/vmbus_icreg.h>
 
-#define HV_WLTIMEDELTA              116444736000000000L     /* in 100ns unit */
-#define HV_ICTIMESYNCFLAG_PROBE     0
-#define HV_ICTIMESYNCFLAG_SYNC      1
-#define HV_ICTIMESYNCFLAG_SAMPLE    2
-#define HV_NANO_SEC_PER_SEC         1000000000
-#define HV_NANO_SEC_PER_MILLI_SEC   1000000
+#include "vmbus_if.h"
 
 static const struct vmbus_ic_desc vmbus_timesync_descs[] = {
 	{
@@ -64,135 +52,144 @@ static const struct vmbus_ic_desc vmbus_timesync_descs[] = {
 	VMBUS_IC_DESC_END
 };
 
-struct hv_ictimesync_data {
-	uint64_t    parenttime;
-	uint64_t    childtime;
-	uint64_t    roundtriptime;
-	uint8_t     flags;
-} __packed;
-
-/*
- * Globals
- */
 SYSCTL_NODE(_hw, OID_AUTO, hvtimesync, CTLFLAG_RW | CTLFLAG_MPSAFE, NULL,
     "Hyper-V timesync interface");
 
-/* Ignore the sync request when set to 1. */
-static int ignore_sync_req = 0;
-SYSCTL_INT(_hw_hvtimesync, OID_AUTO, ignore_sync_req, CTLFLAG_RWTUN,
-    &ignore_sync_req, 0,
-    "Ignore the sync request when set to 1.");
+static int vmbus_ts_ignore_sync = 0;
+SYSCTL_INT(_hw_hvtimesync, OID_AUTO, ignore_sync, CTLFLAG_RWTUN,
+    &vmbus_ts_ignore_sync, 0, "Ignore the sync request.");
 
 /*
  * Trigger sample sync when drift exceeds threshold (ms).
  * Ignore the sample request when set to 0.
  */
-static int sample_drift = 100;
-SYSCTL_INT(_hw_hvtimesync, OID_AUTO, sample_drift, CTLFLAG_RWTUN,
-    &sample_drift, 0,
-    "Threshold that makes sample request trigger the sync.");
+static int vmbus_ts_sample_thresh = 100;
+SYSCTL_INT(_hw_hvtimesync, OID_AUTO, sample_thresh, CTLFLAG_RWTUN,
+    &vmbus_ts_sample_thresh, 0,
+    "Threshold that makes sample request trigger the sync (unit: ms).");
 
-/**
- * @brief Synchronize time with host after reboot, restore, etc.
- *
- * ICTIMESYNCFLAG_SYNC flag bit indicates reboot, restore events of the VM.
- * After reboot the flag ICTIMESYNCFLAG_SYNC is included in the first time
- * message after the timesync channel is opened. Since the hv_utils module is
- * loaded after hv_vmbus, the first message is usually missed. The other
- * thing is, systime is automatically set to emulated hardware clock which may
- * not be UTC time or in the same time zone. So, to override these effects, we
- * use the first 50 time samples for initial system time setting.
- */
-static inline
-void hv_adj_guesttime(hv_util_sc *sc, uint64_t hosttime, uint8_t flags)
+static int vmbus_ts_sample_verbose = 0;
+SYSCTL_INT(_hw_hvtimesync, OID_AUTO, sample_verbose, CTLFLAG_RWTUN,
+    &vmbus_ts_sample_verbose, 0, "Increase sample request verbosity.");
+
+static void
+vmbus_timesync(struct hv_util_sc *sc, uint64_t hvtime, uint8_t tsflags)
 {
-	struct timespec guest_ts, host_ts;
-	uint64_t host_tns, guest_tns;
-	int64_t diff;
-	int error;
+	struct timespec vm_ts;
+	uint64_t hv_ns, vm_ns;
 
-	host_tns = (hosttime - HV_WLTIMEDELTA) * 100;
-	host_ts.tv_sec = (time_t)(host_tns/HV_NANO_SEC_PER_SEC);
-	host_ts.tv_nsec = (long)(host_tns%HV_NANO_SEC_PER_SEC);
+	hv_ns = (hvtime - VMBUS_ICMSG_TS_BASE) * VMBUS_ICMSG_TS_FACTOR;
+	nanotime(&vm_ts);
+	vm_ns = (vm_ts.tv_sec * NANOSEC) + vm_ts.tv_nsec;
 
-	nanotime(&guest_ts);
-	guest_tns = guest_ts.tv_sec * HV_NANO_SEC_PER_SEC + guest_ts.tv_nsec;
+	if ((tsflags & VMBUS_ICMSG_TS_FLAG_SYNC) && !vmbus_ts_ignore_sync) {
+		struct timespec hv_ts;
 
-	if ((flags & HV_ICTIMESYNCFLAG_SYNC) != 0 && ignore_sync_req == 0) {
 		if (bootverbose) {
-			device_printf(sc->ic_dev, "handle sync request "
-			    "{host: %ju, guest: %ju}\n",
-			    (uintmax_t)host_tns, (uintmax_t)guest_tns);
+			device_printf(sc->ic_dev, "apply sync request, "
+			    "hv: %ju, vm: %ju\n",
+			    (uintmax_t)hv_ns, (uintmax_t)vm_ns);
 		}
-
-		error = kern_clock_settime(curthread, CLOCK_REALTIME,
-		    &host_ts);
+		hv_ts.tv_sec = hv_ns / NANOSEC;
+		hv_ts.tv_nsec = hv_ns % NANOSEC;
+		kern_clock_settime(curthread, CLOCK_REALTIME, &hv_ts);
+		/* Done! */
 		return;
 	}
 
-	if ((flags & HV_ICTIMESYNCFLAG_SAMPLE) != 0 && sample_drift != 0) {
-		if (bootverbose) {
-			device_printf(sc->ic_dev, "handle sample request "
-			    "{host: %ju, guest: %ju}\n",
-			    (uintmax_t)host_tns, (uintmax_t)guest_tns);
+	if ((tsflags & VMBUS_ICMSG_TS_FLAG_SAMPLE) &&
+	    vmbus_ts_sample_thresh > 0) {
+		int64_t diff;
+
+		if (vmbus_ts_sample_verbose) {
+			device_printf(sc->ic_dev, "sample request, "
+			    "hv: %ju, vm: %ju\n",
+			    (uintmax_t)hv_ns, (uintmax_t)vm_ns);
 		}
 
-		diff = (int64_t)(host_tns - guest_tns) / HV_NANO_SEC_PER_MILLI_SEC;
-		if (diff > sample_drift || diff < -sample_drift) {
-			error = kern_clock_settime(curthread, CLOCK_REALTIME,
-			    &host_ts);
-			if (bootverbose)
-				device_printf(sc->ic_dev, "trigger sample sync");
+		if (hv_ns > vm_ns)
+			diff = hv_ns - vm_ns;
+		else
+			diff = vm_ns - hv_ns;
+		/* nanosec -> millisec */
+		diff /= 1000000;
+
+		if (diff > vmbus_ts_sample_thresh) {
+			struct timespec hv_ts;
+
+			if (bootverbose) {
+				device_printf(sc->ic_dev,
+				    "apply sample request, hv: %ju, vm: %ju\n",
+				    (uintmax_t)hv_ns, (uintmax_t)vm_ns);
+			}
+			hv_ts.tv_sec = hv_ns / NANOSEC;
+			hv_ts.tv_nsec = hv_ns % NANOSEC;
+			kern_clock_settime(curthread, CLOCK_REALTIME, &hv_ts);
 		}
+		/* Done */
 		return;
 	}
 }
 
-/**
- * Time Sync Channel message handler
- */
 static void
-hv_timesync_cb(struct vmbus_channel *channel, void *context)
+vmbus_timesync_cb(struct vmbus_channel *chan, void *xsc)
 {
-	hv_vmbus_icmsg_hdr*	icmsghdrp;
-	uint32_t		recvlen;
-	uint64_t		requestId;
-	int			ret;
-	uint8_t*		time_buf;
-	struct hv_ictimesync_data* timedatap;
-	hv_util_sc		*softc;
+	struct hv_util_sc *sc = xsc;
+	struct vmbus_icmsg_hdr *hdr;
+	const struct vmbus_icmsg_timesync *msg;
+	int dlen, error;
+	uint64_t xactid;
+	void *data;
 
-	softc = (hv_util_sc*)context;
-	time_buf = softc->receive_buffer;
+	/*
+	 * Receive request.
+	 */
+	data = sc->receive_buffer;
+	dlen = sc->ic_buflen;
+	error = vmbus_chan_recv(chan, data, &dlen, &xactid);
+	KASSERT(error != ENOBUFS, ("icbuf is not large enough"));
+	if (error)
+		return;
 
-	recvlen = softc->ic_buflen;
-	ret = vmbus_chan_recv(channel, time_buf, &recvlen, &requestId);
-	KASSERT(ret != ENOBUFS, ("hvtimesync recvbuf is not large enough"));
-	/* XXX check recvlen to make sure that it contains enough data */
+	if (dlen < sizeof(*hdr)) {
+		device_printf(sc->ic_dev, "invalid data len %d\n", dlen);
+		return;
+	}
+	hdr = data;
 
-	if ((ret == 0) && recvlen > 0) {
-	    icmsghdrp = (struct hv_vmbus_icmsg_hdr *) &time_buf[
-		sizeof(struct hv_vmbus_pipe_hdr)];
-
-	    if (icmsghdrp->icmsgtype == HV_ICMSGTYPE_NEGOTIATE) {
-	    	int error;
-
-		error = vmbus_ic_negomsg(softc, time_buf, &recvlen);
+	/*
+	 * Update request, which will be echoed back as response.
+	 */
+	switch (hdr->ic_type) {
+	case VMBUS_ICMSG_TYPE_NEGOTIATE:
+		error = vmbus_ic_negomsg(sc, data, &dlen);
 		if (error)
 			return;
-	    } else {
-		timedatap = (struct hv_ictimesync_data *) &time_buf[
-		    sizeof(struct hv_vmbus_pipe_hdr) +
-			sizeof(struct hv_vmbus_icmsg_hdr)];
-		hv_adj_guesttime(softc, timedatap->parenttime, timedatap->flags);
-	    }
+		break;
 
-	    icmsghdrp->icflags = HV_ICMSGHDRFLAG_TRANSACTION
-		| HV_ICMSGHDRFLAG_RESPONSE;
+	case VMBUS_ICMSG_TYPE_TIMESYNC:
+		if (dlen < sizeof(*msg)) {
+			device_printf(sc->ic_dev, "invalid timesync len %d\n",
+			    dlen);
+			return;
+		}
+		msg = data;
+		vmbus_timesync(sc, msg->ic_hvtime, msg->ic_tsflags);
+		break;
 
-	    vmbus_chan_send(channel, VMBUS_CHANPKT_TYPE_INBAND, 0,
-	        time_buf, recvlen, requestId);
+	default:
+		device_printf(sc->ic_dev, "got 0x%08x icmsg\n", hdr->ic_type);
+		break;
 	}
+
+	/*
+	 * Send response by echoing the updated request back.
+	 */
+	hdr->ic_flags = VMBUS_ICMSG_FLAG_XACT | VMBUS_ICMSG_FLAG_RESP;
+	error = vmbus_chan_send(chan, VMBUS_CHANPKT_TYPE_INBAND, 0,
+	    data, dlen, xactid);
+	if (error)
+		device_printf(sc->ic_dev, "resp send failed: %d\n", error);
 }
 
 static int
@@ -205,20 +202,15 @@ hv_timesync_probe(device_t dev)
 static int
 hv_timesync_attach(device_t dev)
 {
-	return hv_util_attach(dev, hv_timesync_cb);
-}
 
-static int
-hv_timesync_detach(device_t dev)
-{
-	return hv_util_detach(dev);
+	return (hv_util_attach(dev, vmbus_timesync_cb));
 }
 
 static device_method_t timesync_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe, hv_timesync_probe),
 	DEVMETHOD(device_attach, hv_timesync_attach),
-	DEVMETHOD(device_detach, hv_timesync_detach),
+	DEVMETHOD(device_detach, hv_util_detach),
 	{ 0, 0 }
 };
 
