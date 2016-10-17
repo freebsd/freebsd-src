@@ -897,25 +897,23 @@ vmbus_event_flags_proc(struct vmbus_softc *sc, volatile u_long *event_flags,
 	int f;
 
 	for (f = 0; f < flag_cnt; ++f) {
-		uint32_t rel_id_base;
+		uint32_t chid_base;
 		u_long flags;
-		int bit;
+		int chid_ofs;
 
 		if (event_flags[f] == 0)
 			continue;
 
 		flags = atomic_swap_long(&event_flags[f], 0);
-		rel_id_base = f << VMBUS_EVTFLAG_SHIFT;
+		chid_base = f << VMBUS_EVTFLAG_SHIFT;
 
-		while ((bit = ffsl(flags)) != 0) {
+		while ((chid_ofs = ffsl(flags)) != 0) {
 			struct hv_vmbus_channel *channel;
-			uint32_t rel_id;
 
-			--bit;	/* NOTE: ffsl is 1-based */
-			flags &= ~(1UL << bit);
+			--chid_ofs; /* NOTE: ffsl is 1-based */
+			flags &= ~(1UL << chid_ofs);
 
-			rel_id = rel_id_base + bit;
-			channel = sc->vmbus_chmap[rel_id];
+			channel = sc->vmbus_chmap[chid_base + chid_ofs];
 
 			/* if channel is closed or closing */
 			if (channel == NULL || channel->rxq == NULL)

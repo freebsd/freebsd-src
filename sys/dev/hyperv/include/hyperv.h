@@ -82,32 +82,6 @@ typedef uint8_t	hv_bool_uint8_t;
 #define VMBUS_VERSION_MAJOR(ver)	(((uint32_t)(ver)) >> 16)
 #define VMBUS_VERSION_MINOR(ver)	(((uint32_t)(ver)) & 0xffff)
 
-/*
- * Make maximum size of pipe payload of 16K
- */
-
-#define HV_MAX_PIPE_DATA_PAYLOAD	(sizeof(BYTE) * 16384)
-
-/*
- * Define pipe_mode values
- */
-
-#define HV_VMBUS_PIPE_TYPE_BYTE		0x00000000
-#define HV_VMBUS_PIPE_TYPE_MESSAGE	0x00000004
-
-/*
- * The size of the user defined data buffer for non-pipe offers
- */
-
-#define HV_MAX_USER_DEFINED_BYTES	120
-
-/*
- *  The size of the user defined data buffer for pipe offers
- */
-
-#define HV_MAX_PIPE_USER_DEFINED_BYTES	116
-
-
 #define HV_MAX_PAGE_BUFFER_COUNT	32
 #define HV_MAX_MULTIPAGE_BUFFER_COUNT	32
 
@@ -121,68 +95,13 @@ typedef uint8_t	hv_bool_uint8_t;
 		((HV_ALIGN_UP(addr+len, PAGE_SIZE) -			\
 		    HV_ALIGN_DOWN(addr, PAGE_SIZE)) >> PAGE_SHIFT )
 
-typedef struct hv_guid {
-	uint8_t data[16];
-} __packed hv_guid;
+struct hyperv_guid {
+	uint8_t		hv_guid[16];
+} __packed;
 
 #define HYPERV_GUID_STRLEN	40
 
-int	hyperv_guid2str(const struct hv_guid *, char *, size_t);
-
-#define HV_NIC_GUID							\
-	.data = {0x63, 0x51, 0x61, 0xF8, 0x3E, 0xDF, 0xc5, 0x46,	\
-		0x91, 0x3F, 0xF2, 0xD2, 0xF9, 0x65, 0xED, 0x0E}
-
-#define HV_IDE_GUID							\
-	.data = {0x32, 0x26, 0x41, 0x32, 0xcb, 0x86, 0xa2, 0x44,	\
-		 0x9b, 0x5c, 0x50, 0xd1, 0x41, 0x73, 0x54, 0xf5}
-
-#define HV_SCSI_GUID							\
-	.data = {0xd9, 0x63, 0x61, 0xba, 0xa1, 0x04, 0x29, 0x4d,	\
-		 0xb6, 0x05, 0x72, 0xe2, 0xff, 0xb1, 0xdc, 0x7f}
-
-/*
- * At the center of the Channel Management library is
- * the Channel Offer. This struct contains the
- * fundamental information about an offer.
- */
-
-typedef struct hv_vmbus_channel_offer {
-	hv_guid		interface_type;
-	hv_guid		interface_instance;
-	uint64_t	interrupt_latency_in_100ns_units;
-	uint32_t	interface_revision;
-	uint32_t	server_context_area_size; /* in bytes */
-	uint16_t	channel_flags;
-	uint16_t	mmio_megabytes;		  /* in bytes * 1024 * 1024 */
-	union
-	{
-        /*
-         * Non-pipes: The user has HV_MAX_USER_DEFINED_BYTES bytes.
-         */
-		struct {
-			uint8_t	user_defined[HV_MAX_USER_DEFINED_BYTES];
-		} __packed standard;
-
-        /*
-         * Pipes: The following structure is an integrated pipe protocol, which
-         *        is implemented on top of standard user-defined data. pipe
-         *        clients  have HV_MAX_PIPE_USER_DEFINED_BYTES left for their
-         *        own use.
-         */
-		struct {
-			uint32_t	pipe_mode;
-			uint8_t	user_defined[HV_MAX_PIPE_USER_DEFINED_BYTES];
-		} __packed pipe;
-	} u;
-
-	/*
-	 * Sub_channel_index, newly added in Win8.
-	 */
-	uint16_t	sub_channel_index;
-	uint16_t	padding;
-
-} __packed hv_vmbus_channel_offer;
+int	hyperv_guid2str(const struct hyperv_guid *, char *, size_t);
 
 typedef struct {
 	uint16_t type;
@@ -191,13 +110,6 @@ typedef struct {
 	uint16_t flags;
 	uint64_t transaction_id;
 } __packed hv_vm_packet_descriptor;
-
-typedef uint32_t hv_previous_packet_offset;
-
-typedef struct {
-	hv_previous_packet_offset	previous_packet_start_offset;
-	hv_vm_packet_descriptor		descriptor;
-} __packed hv_vm_packet_header;
 
 typedef struct {
 	uint32_t byte_count;
@@ -212,91 +124,6 @@ typedef struct {
 	uint32_t		range_count;
 	hv_vm_transfer_page	ranges[1];
 } __packed hv_vm_transfer_page_packet_header;
-
-typedef struct {
-	hv_vm_packet_descriptor	d;
-	uint32_t		gpadl;
-	uint32_t		reserved;
-} __packed hv_vm_gpadl_packet_header;
-
-typedef struct {
-	hv_vm_packet_descriptor	d;
-	uint32_t		gpadl;
-	uint16_t		transfer_page_set_id;
-	uint16_t		reserved;
-} __packed hv_vm_add_remove_transfer_page_set;
-
-/*
- * This structure defines a range in guest
- * physical space that can be made
- * to look virtually contiguous.
- */
-
-typedef struct {
-	uint32_t byte_count;
-	uint32_t byte_offset;
-	uint64_t pfn_array[0];
-} __packed hv_gpa_range;
-
-/*
- * This is the format for an Establish Gpadl packet, which contains a handle
- * by which this GPADL will be known and a set of GPA ranges associated with
- * it.  This can be converted to a MDL by the guest OS.  If there are multiple
- * GPA ranges, then the resulting MDL will be "chained," representing multiple
- * VA ranges.
- */
-
-typedef struct {
-	hv_vm_packet_descriptor	d;
-	uint32_t		gpadl;
-	uint32_t		range_count;
-	hv_gpa_range		range[1];
-} __packed hv_vm_establish_gpadl;
-
-/*
- * This is the format for a Teardown Gpadl packet, which indicates that the
- * GPADL handle in the Establish Gpadl packet will never be referenced again.
- */
-
-typedef struct {
-	hv_vm_packet_descriptor	d;
-	uint32_t		gpadl;
-				/* for alignment to a 8-byte boundary */
-	uint32_t		reserved;
-} __packed hv_vm_teardown_gpadl;
-
-/*
- * This is the format for a GPA-Direct packet, which contains a set of GPA
- * ranges, in addition to commands and/or data.
- */
-
-typedef struct {
-	hv_vm_packet_descriptor	d;
-	uint32_t		reserved;
-	uint32_t		range_count;
-	hv_gpa_range		range[1];
-} __packed hv_vm_data_gpa_direct;
-
-/*
- * This is the format for a Additional data Packet.
- */
-typedef struct {
-	hv_vm_packet_descriptor	d;
-	uint64_t		total_bytes;
-	uint32_t		byte_offset;
-	uint32_t		byte_count;
-	uint8_t			data[1];
-} __packed hv_vm_additional_data;
-
-typedef union {
-	hv_vm_packet_descriptor             simple_header;
-	hv_vm_transfer_page_packet_header   transfer_page_header;
-	hv_vm_gpadl_packet_header           gpadl_header;
-	hv_vm_add_remove_transfer_page_set  add_remove_transfer_page_header;
-	hv_vm_establish_gpadl               establish_gpadl_header;
-	hv_vm_teardown_gpadl                teardown_gpadl_header;
-	hv_vm_data_gpa_direct               data_gpa_direct_header;
-} __packed hv_vm_packet_largest_possible_header;
 
 typedef enum {
 	HV_VMBUS_PACKET_TYPE_INVALID				= 0x0,
@@ -316,86 +143,6 @@ typedef enum {
 } hv_vmbus_packet_type;
 
 #define HV_VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED    1
-
-/*
- * Version 1 messages
- */
-typedef enum {
-	HV_CHANNEL_MESSAGE_INVALID			= 0,
-	HV_CHANNEL_MESSAGE_OFFER_CHANNEL		= 1,
-	HV_CHANNEL_MESSAGE_RESCIND_CHANNEL_OFFER	= 2,
-	HV_CHANNEL_MESSAGE_REQUEST_OFFERS		= 3,
-	HV_CHANNEL_MESSAGE_ALL_OFFERS_DELIVERED		= 4,
-	HV_CHANNEL_MESSAGE_OPEN_CHANNEL			= 5,
-	HV_CHANNEL_MESSAGE_OPEN_CHANNEL_RESULT		= 6,
-	HV_CHANNEL_MESSAGE_CLOSE_CHANNEL		= 7,
-	HV_CHANNEL_MESSAGEL_GPADL_HEADER		= 8,
-	HV_CHANNEL_MESSAGE_GPADL_BODY			= 9,
-	HV_CHANNEL_MESSAGE_GPADL_CREATED		= 10,
-	HV_CHANNEL_MESSAGE_GPADL_TEARDOWN		= 11,
-	HV_CHANNEL_MESSAGE_GPADL_TORNDOWN		= 12,
-	HV_CHANNEL_MESSAGE_REL_ID_RELEASED		= 13,
-	HV_CHANNEL_MESSAGE_INITIATED_CONTACT		= 14,
-	HV_CHANNEL_MESSAGE_VERSION_RESPONSE		= 15,
-	HV_CHANNEL_MESSAGE_UNLOAD			= 16,
-	HV_CHANNEL_MESSAGE_COUNT
-} hv_vmbus_channel_msg_type;
-
-typedef struct {
-	hv_vmbus_channel_msg_type	message_type;
-	uint32_t			padding;
-} __packed hv_vmbus_channel_msg_header;
-
-/*
- * Query VMBus Version parameters
- */
-typedef struct {
-	hv_vmbus_channel_msg_header	header;
-	uint32_t			version;
-} __packed hv_vmbus_channel_query_vmbus_version;
-
-/*
- * Channel Offer parameters
- */
-typedef struct {
-	hv_vmbus_channel_msg_header	header;
-	hv_vmbus_channel_offer		offer;
-	uint32_t			child_rel_id;
-	uint8_t				monitor_id;
-	/*
-	 * This field has been split into a bit field on Win7
-	 * and higher.
-	 */
-	uint8_t				monitor_allocated:1;
-	uint8_t				reserved:7;
-	/*
-	 * Following fields were added in win7 and higher.
-	 * Make sure to check the version before accessing these fields.
-	 *
-	 * If "is_dedicated_interrupt" is set, we must not set the
-	 * associated bit in the channel bitmap while sending the
-	 * interrupt to the host.
-	 *
-	 * connection_id is used in signaling the host.
-	 */
-	uint16_t			is_dedicated_interrupt:1;
-	uint16_t			reserved1:15;
-	uint32_t			connection_id;
-} __packed hv_vmbus_channel_offer_channel;
-
-/*
- * Rescind Offer parameters
- */
-typedef struct
-{
-    hv_vmbus_channel_msg_header	header;
-    uint32_t			child_rel_id;
-} __packed hv_vmbus_channel_rescind_offer;
-
-typedef struct {
-	hv_vmbus_channel_msg_header	header;
-	uint32_t			child_rel_id;
-} __packed hv_vmbus_channel_relid_released;
 
 #define HW_MACADDR_LEN	6
 
@@ -505,18 +252,6 @@ typedef enum {
 	HV_CHANNEL_CLOSING_NONDESTRUCTIVE_STATE,
 } hv_vmbus_channel_state;
 
-/*
- *  Connection identifier type
- */
-typedef union {
-	uint32_t		as_uint32_t;
-	struct {
-		uint32_t	id:24;
-		uint32_t	reserved:8;
-	} u;
-
-} __packed hv_vmbus_connection_id;
-
 typedef struct hv_vmbus_channel {
 	device_t			ch_dev;
 	struct vmbus_softc		*vmbus_sc;
@@ -603,8 +338,8 @@ typedef struct hv_vmbus_channel {
 	TAILQ_ENTRY(hv_vmbus_channel)	ch_link;
 	uint32_t			ch_subidx;	/* subchan index */
 
-	struct hv_guid			ch_guid_type;
-	struct hv_guid			ch_guid_inst;
+	struct hyperv_guid		ch_guid_type;
+	struct hyperv_guid		ch_guid_inst;
 
 	struct sysctl_ctx_list		ch_sysctl_ctx;
 } hv_vmbus_channel;
