@@ -31,6 +31,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20161017:
+	The urtwn(4) driver was merged into rtwn(4) and now consists of
+	rtwn(4) main module + rtwn_usb(4) and rtwn_pci(4) bus-specific
+	parts.
+	Also, firmware for RTL8188CE was renamed due to possible name
+	conflict (rtwnrtl8192cU(B) -> rtwnrtl8192cE(B))
+
 20161015:
 	GNU rcs has been removed from base.  It is available as packages:
 	- rcs: Latest GPLv3 GNU rcs version.
