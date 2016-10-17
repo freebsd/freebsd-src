@@ -128,35 +128,6 @@ hv_set_rppi_data(rndis_msg *rndis_mesg, uint32_t rppi_size,
 }
 
 /*
- * Get the Per-Packet-Info with the specified type
- * return NULL if not found.
- */
-void *
-hv_get_ppi_data(rndis_packet *rpkt, uint32_t type)
-{
-	rndis_per_packet_info *ppi;
-	int len;
-
-	if (rpkt->per_pkt_info_offset == 0)
-		return (NULL);
-
-	ppi = (rndis_per_packet_info *)((unsigned long)rpkt +
-	    rpkt->per_pkt_info_offset);
-	len = rpkt->per_pkt_info_length;
-
-	while (len > 0) {
-		if (ppi->type == type)
-			return (void *)((unsigned long)ppi +
-			    ppi->per_packet_info_offset);
-
-		len -= ppi->size;
-		ppi = (rndis_per_packet_info *)((unsigned long)ppi + ppi->size);
-	}
-
-	return (NULL);
-}
-
-/*
  * RNDIS filter receive indicate status
  */
 static void 
