@@ -40,7 +40,7 @@
  */
 struct hn_rx_ring;
 
-int hv_rf_on_receive(struct hn_softc *sc, struct hn_rx_ring *rxr,
+void hv_rf_on_receive(struct hn_softc *sc, struct hn_rx_ring *rxr,
     const void *data, int dlen);
 void hv_rf_channel_rollup(struct hn_rx_ring *rxr, struct hn_tx_ring *txr);
 int hv_rf_on_device_add(struct hn_softc *sc, void *additl_info, int *nchan,
