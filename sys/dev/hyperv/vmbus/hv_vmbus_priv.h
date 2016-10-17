@@ -45,13 +45,11 @@ struct vmbus_softc;
  * Private, VM Bus functions
  */
 struct sysctl_ctx_list;
-struct sysctl_oid_list;
+struct sysctl_oid;
 
-void			hv_ring_buffer_stat(
-				struct sysctl_ctx_list		*ctx,
-				struct sysctl_oid_list		*tree_node,
-				hv_vmbus_ring_buffer_info	*rbi,
-				const char			*desc);
+void	vmbus_br_sysctl_create(struct sysctl_ctx_list *ctx,
+	    struct sysctl_oid *br_tree, hv_vmbus_ring_buffer_info *br,
+	    const char *name);
 
 int			hv_vmbus_ring_buffer_init(
 				hv_vmbus_ring_buffer_info	*ring_info,
