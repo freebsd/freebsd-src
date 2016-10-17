@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/kerneldump.h>
 #include <sys/msgbuf.h>
+#include <sys/sysctl.h>
 #include <sys/watchdog.h>
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -68,6 +69,9 @@ static void *dump_va;
 static size_t counter, progress, dumpsize;
 
 CTASSERT(sizeof(*vm_page_dump) == 8);
+static int dump_retry_count = 5;
+SYSCTL_INT(_machdep, OID_AUTO, dump_retry_count, CTLFLAG_RWTUN,
+    &dump_retry_count, 0, "Number of times dump has to retry before bailing out");
 
 static int
 is_dumpable(vm_paddr_t pa)
@@ -447,7 +451,7 @@ minidumpsys(struct dumperinfo *di)
 	printf("\n");
 	if (error == ENOSPC) {
 		printf("Dump map grown while dumping. ");
-		if (retry_count < 5) {
+		if (retry_count < dump_retry_count) {
 			printf("Retrying...\n");
 			goto retry;
 		}
