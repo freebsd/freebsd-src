@@ -252,7 +252,7 @@ hv_ring_buffer_needsig_on_write(
 static uint32_t	copy_to_ring_buffer(
 			hv_vmbus_ring_buffer_info*	ring_info,
 			uint32_t			start_write_offset,
-			char*				src,
+			const uint8_t			*src,
 			uint32_t			src_len);
 
 static uint32_t copy_from_ring_buffer(
@@ -260,16 +260,6 @@ static uint32_t copy_from_ring_buffer(
 			char*				dest,
 			uint32_t			dest_len,
 			uint32_t			start_read_offset);
-
-
-/**
- * @brief Get the interrupt mask for the specified ring buffer.
- */
-uint32_t
-hv_vmbus_get_ring_buffer_interrupt_mask(hv_vmbus_ring_buffer_info *rbi) 
-{
-	return rbi->ring_buffer->interrupt_mask;
-}
 
 /**
  * @brief Initialize the ring buffer.
@@ -307,8 +297,8 @@ void hv_ring_buffer_cleanup(hv_vmbus_ring_buffer_info* ring_info)
 int
 hv_ring_buffer_write(
 	hv_vmbus_ring_buffer_info*	out_ring_info,
-	hv_vmbus_sg_buffer_list		sg_buffers[],
-	uint32_t			sg_buffer_count,
+	const struct iovec		iov[],
+	uint32_t			iovlen,
 	boolean_t			*need_sig)
 {
 	int i = 0;
@@ -320,8 +310,8 @@ hv_ring_buffer_write(
 	volatile uint32_t next_write_location;
 	uint64_t prev_indices = 0;
 
-	for (i = 0; i < sg_buffer_count; i++) {
-	    total_bytes_to_write += sg_buffers[i].length;
+	for (i = 0; i < iovlen; i++) {
+	    total_bytes_to_write += iov[i].iov_len;
 	}
 
 	total_bytes_to_write += sizeof(uint64_t);
@@ -350,10 +340,9 @@ hv_ring_buffer_write(
 
 	old_write_location = next_write_location;
 
-	for (i = 0; i < sg_buffer_count; i++) {
+	for (i = 0; i < iovlen; i++) {
 	    next_write_location = copy_to_ring_buffer(out_ring_info,
-		next_write_location, (char *) sg_buffers[i].data,
-		sg_buffers[i].length);
+		next_write_location, iov[i].iov_base, iov[i].iov_len);
 	}
 
 	/*
@@ -492,11 +481,11 @@ hv_ring_buffer_read(
  *
  * Assume there is enough room. Handles wrap-around in dest case only!
  */
-uint32_t
+static uint32_t
 copy_to_ring_buffer(
 	hv_vmbus_ring_buffer_info*	ring_info,
 	uint32_t 			start_write_offset,
-	char*				src,
+	const uint8_t			*src,
 	uint32_t			src_len)
 {
 	char *ring_buffer = get_ring_buffer(ring_info);
