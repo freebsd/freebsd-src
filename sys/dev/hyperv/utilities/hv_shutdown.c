@@ -38,6 +38,7 @@
 #include <sys/reboot.h>
 #include <sys/timetc.h>
 #include <sys/syscallsubr.h>
+#include <sys/systm.h>
 
 #include <dev/hyperv/include/hyperv.h>
 #include <dev/hyperv/include/vmbus.h>
