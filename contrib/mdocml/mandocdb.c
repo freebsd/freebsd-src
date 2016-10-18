@@ -1146,10 +1146,8 @@ mpages_merge(struct mparse *mp)
 
 	for (mpage = mpage_head; mpage != NULL; mpage = mpage->next) {
 		mlinks_undupe(mpage);
-		if ((mlink = mpage->mlinks) == NULL) {
-			mpage = mpage->next;
+		if ((mlink = mpage->mlinks) == NULL)
 			continue;
-		}
 
 		name_mask = NAME_MASK;
 		mandoc_ohash_init(&names, 4, offsetof(struct str, key));
