@@ -33,7 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
-#include <sys/disk/pc98.h>
+#include <pc98.h>
 
 #include "endian.h"
 #include "image.h"
