@@ -81,6 +81,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/uio.h>
+#include <sys/libkern.h>
 
 #include <sys/limits.h>
 #include <sys/mouse.h>
@@ -161,40 +162,6 @@ typedef struct packetbuf {
 #define	PSM_PACKETQUEUE	128
 #endif
 
-enum {
-	SYNAPTICS_SYSCTL_MIN_PRESSURE,
-	SYNAPTICS_SYSCTL_MAX_PRESSURE,
-	SYNAPTICS_SYSCTL_MAX_WIDTH,
-	SYNAPTICS_SYSCTL_MARGIN_TOP,
-	SYNAPTICS_SYSCTL_MARGIN_RIGHT,
-	SYNAPTICS_SYSCTL_MARGIN_BOTTOM,
-	SYNAPTICS_SYSCTL_MARGIN_LEFT,
-	SYNAPTICS_SYSCTL_NA_TOP,
-	SYNAPTICS_SYSCTL_NA_RIGHT,
-	SYNAPTICS_SYSCTL_NA_BOTTOM,
-	SYNAPTICS_SYSCTL_NA_LEFT,
-	SYNAPTICS_SYSCTL_WINDOW_MIN,
-	SYNAPTICS_SYSCTL_WINDOW_MAX,
-	SYNAPTICS_SYSCTL_MULTIPLICATOR,
-	SYNAPTICS_SYSCTL_WEIGHT_CURRENT,
-	SYNAPTICS_SYSCTL_WEIGHT_PREVIOUS,
-	SYNAPTICS_SYSCTL_WEIGHT_PREVIOUS_NA,
-	SYNAPTICS_SYSCTL_WEIGHT_LEN_SQUARED,
-	SYNAPTICS_SYSCTL_DIV_MIN,
-	SYNAPTICS_SYSCTL_DIV_MAX,
-	SYNAPTICS_SYSCTL_DIV_MAX_NA,
-	SYNAPTICS_SYSCTL_DIV_LEN,
-	SYNAPTICS_SYSCTL_TAP_MAX_DELTA,
-	SYNAPTICS_SYSCTL_TAP_MIN_QUEUE,
-	SYNAPTICS_SYSCTL_TAPHOLD_TIMEOUT,
-	SYNAPTICS_SYSCTL_VSCROLL_HOR_AREA,
-	SYNAPTICS_SYSCTL_VSCROLL_VER_AREA,
-	SYNAPTICS_SYSCTL_VSCROLL_MIN_DELTA,
-	SYNAPTICS_SYSCTL_VSCROLL_DIV_MIN,
-	SYNAPTICS_SYSCTL_VSCROLL_DIV_MAX,
-	SYNAPTICS_SYSCTL_TOUCHPAD_OFF
-};
-
 typedef struct synapticsinfo {
 	struct sysctl_ctx_list	 sysctl_ctx;
 	struct sysctl_oid	*sysctl_tree;
@@ -231,6 +198,11 @@ typedef struct synapticsinfo {
 	int			 vscroll_div_min;
 	int			 vscroll_div_max;
 	int			 touchpad_off;
+	int			 softbuttons_y;
+	int			 softbutton2_x;
+	int			 softbutton3_x;
+	int			 max_x;
+	int			 max_y;
 } synapticsinfo_t;
 
 typedef struct synapticspacket {
@@ -246,22 +218,29 @@ typedef struct synapticspacket {
     ((synhw).infoMajor > (major) ||					\
      ((synhw).infoMajor == (major) && (synhw).infoMinor >= (minor)))
 
-typedef struct synapticsaction {
+typedef struct smoother {
 	synapticspacket_t	queue[SYNAPTICS_PACKETQUEUE];
 	int			queue_len;
 	int			queue_cursor;
-	int			window_min;
 	int			start_x;
 	int			start_y;
 	int			avg_dx;
 	int			avg_dy;
 	int			squelch_x;
 	int			squelch_y;
+	int			is_fuzzy;
+	int			active;
+} smoother_t;
+
+typedef struct gesture {
+	int			window_min;
 	int			fingers_nb;
 	int			tap_button;
 	int			in_taphold;
 	int			in_vscroll;
-} synapticsaction_t;
+	int			zmax;		/* maximum pressure value */
+	struct timeval		taptimeout;	/* tap timeout for touchpads */
+} gesture_t;
 
 enum {
 	TRACKPOINT_SYSCTL_SENSITIVITY,
@@ -295,6 +274,100 @@ typedef struct trackpointinfo {
 	int	skipback;
 } trackpointinfo_t;
 
+typedef struct finger {
+	int			x;
+	int			y;
+	int			p;
+	int			w;
+	int			flags;
+} finger_t;
+#define	PSM_FINGERS		2	/* # of processed fingers */
+#define	PSM_FINGER_IS_PEN	(1<<0)
+#define	PSM_FINGER_FUZZY	(1<<1)
+#define	PSM_FINGER_DEFAULT_P	tap_threshold
+#define	PSM_FINGER_DEFAULT_W	1
+#define	PSM_FINGER_IS_SET(f) ((f).x != -1 && (f).y != -1 && (f).p != 0)
+#define	PSM_FINGER_RESET(f) do { \
+	(f) = (finger_t) { .x = -1, .y = -1, .p = 0, .w = 0, .flags = 0 }; \
+} while (0)
+
+typedef struct elantechhw {
+	int			hwversion;
+	int			fwversion;
+	int			sizex;
+	int			sizey;
+	int			dpmmx;
+	int			dpmmy;
+	int			ntracesx;
+	int			ntracesy;
+	int			issemimt;
+	int			isclickpad;
+	int			hascrc;
+	int			hastrackpoint;
+	int			haspressure;
+} elantechhw_t;
+
+/* minimum versions supported by this driver */
+#define	ELANTECH_HW_IS_V1(fwver) ((fwver) < 0x020030 || (fwver) == 0x020600)
+
+#define	ELANTECH_MAGIC(magic)				\
+	((magic)[0] == 0x3c && (magic)[1] == 0x03 &&	\
+	((magic)[2] == 0xc8 || (magic)[2] == 0x00))
+
+#define	ELANTECH_FW_ID		0x00
+#define	ELANTECH_FW_VERSION	0x01
+#define	ELANTECH_CAPABILITIES	0x02
+#define	ELANTECH_SAMPLE		0x03
+#define	ELANTECH_RESOLUTION	0x04
+#define	ELANTECH_REG_READ	0x10
+#define	ELANTECH_REG_WRITE	0x11
+#define	ELANTECH_REG_RDWR	0x00
+#define	ELANTECH_CUSTOM_CMD	0xf8
+
+#define	ELANTECH_MAX_FINGERS	PSM_FINGERS
+
+#define	ELANTECH_FINGER_SET_XYP(pb) (finger_t) {			\
+    .x = (((pb)->ipacket[1] & 0x0f) << 8) | (pb)->ipacket[2],		\
+    .y = (((pb)->ipacket[4] & 0x0f) << 8) | (pb)->ipacket[5],		\
+    .p = ((pb)->ipacket[1] & 0xf0) | (((pb)->ipacket[4] >> 4) & 0x0f),	\
+    .w = PSM_FINGER_DEFAULT_W,						\
+    .flags = 0								\
+}
+
+enum {
+	ELANTECH_PKT_NOP,
+	ELANTECH_PKT_TRACKPOINT,
+	ELANTECH_PKT_V2_COMMON,
+	ELANTECH_PKT_V2_2FINGER,
+	ELANTECH_PKT_V3,
+	ELANTECH_PKT_V4_STATUS,
+	ELANTECH_PKT_V4_HEAD,
+	ELANTECH_PKT_V4_MOTION
+};
+
+#define	ELANTECH_PKT_IS_TRACKPOINT(pb) (((pb)->ipacket[3] & 0x0f) == 0x06)
+#define	ELANTECH_PKT_IS_DEBOUNCE(pb, hwversion) ((hwversion) == 4 ? 0 :	\
+    (pb)->ipacket[0] == ((hwversion) == 2 ? 0x84 : 0xc4) &&		\
+    (pb)->ipacket[1] == 0xff && (pb)->ipacket[2] == 0xff &&		\
+    (pb)->ipacket[3] == 0x02 && (pb)->ipacket[4] == 0xff &&		\
+    (pb)->ipacket[5] == 0xff)
+#define	ELANTECH_PKT_IS_V2(pb) 						\
+    (((pb)->ipacket[0] & 0x0c) == 0x04 && ((pb)->ipacket[3] & 0x0f) == 0x02)
+#define	ELANTECH_PKT_IS_V3_HEAD(pb, hascrc) ((hascrc) ? 		\
+    ((pb)->ipacket[3] & 0x09) == 0x08 : 				\
+    ((pb)->ipacket[0] & 0x0c) == 0x04 && ((pb)->ipacket[3] & 0xcf) == 0x02)
+#define	ELANTECH_PKT_IS_V3_TAIL(pb, hascrc) ((hascrc) ? 		\
+    ((pb)->ipacket[3] & 0x09) == 0x09 : 				\
+    ((pb)->ipacket[0] & 0x0c) == 0x0c && ((pb)->ipacket[3] & 0xce) == 0x0c)
+#define	ELANTECH_PKT_IS_V4(pb, hascrc) ((hascrc) ? 			\
+    ((pb)->ipacket[3] & 0x08) == 0x00 :					\
+    ((pb)->ipacket[0] & 0x0c) == 0x04 && ((pb)->ipacket[3] & 0x1c) == 0x10)
+
+typedef struct elantechaction {
+	finger_t		fingers[ELANTECH_MAX_FINGERS];
+	int			mask;
+} elantechaction_t;
+
 /* driver control block */
 struct psm_softc {		/* Driver status information */
 	int		unit;
@@ -308,7 +381,10 @@ struct psm_softc {		/* Driver status information */
 	mousehw_t	hw;		/* hardware information */
 	synapticshw_t	synhw;		/* Synaptics hardware information */
 	synapticsinfo_t	syninfo;	/* Synaptics configuration */
-	synapticsaction_t synaction;	/* Synaptics action context */
+	smoother_t	smoother[PSM_FINGERS];	/* Motion smoothing */
+	gesture_t	gesture;	/* Gesture context */
+	elantechhw_t	elanhw;		/* Elantech hardware information */
+	elantechaction_t elanaction;	/* Elantech action context */
 	int		tphw;		/* TrackPoint hardware information */
 	trackpointinfo_t tpinfo;	/* TrackPoint configuration */
 	mousemode_t	mode;		/* operation mode */
@@ -324,13 +400,13 @@ struct psm_softc {		/* Driver status information */
 	int		xaverage;	/* average X position */
 	int		yaverage;	/* average Y position */
 	int		squelch; /* level to filter movement at low speed */
-	int		zmax;	/* maximum pressure value for touchpads */
 	int		syncerrors; /* # of bytes discarded to synchronize */
 	int		pkterrors;  /* # of packets failed during quaranteen. */
 	struct timeval	inputtimeout;
 	struct timeval	lastsoftintr;	/* time of last soft interrupt */
 	struct timeval	lastinputerr;	/* time last sync error happened */
-	struct timeval	taptimeout;	/* tap timeout for touchpads */
+	struct timeval	idletimeout;
+	packetbuf_t	idlepacket;	/* packet to send after idle timeout */
 	int		watchdog;	/* watchdog timer flag */
 	struct callout	callout;	/* watchdog timer call out */
 	struct callout	softcallout; /* buffer timer call out */
@@ -381,16 +457,10 @@ static devclass_t psm_devclass;
 
 /* Tunables */
 static int tap_enabled = -1;
-TUNABLE_INT("hw.psm.tap_enabled", &tap_enabled);
-
-static int synaptics_support = 0;
-TUNABLE_INT("hw.psm.synaptics_support", &synaptics_support);
-
-static int trackpoint_support = 0;
-TUNABLE_INT("hw.psm.trackpoint_support", &trackpoint_support);
-
 static int verbose = PSM_DEBUG;
-TUNABLE_INT("debug.psm.loglevel", &verbose);
+static int synaptics_support = 0;
+static int trackpoint_support = 0;
+static int elantech_support = 0;
 
 /* for backward compatibility */
 #define	OLD_MOUSE_GETHWINFO	_IOR('M', 1, old_mousehw_t)
@@ -410,6 +480,44 @@ typedef struct old_mousemode {
 	int	resolution;
 	int	accelfactor;
 } old_mousemode_t;
+
+#define SYN_OFFSET(field) offsetof(struct psm_softc, syninfo.field)
+enum {
+	SYNAPTICS_SYSCTL_MIN_PRESSURE =		SYN_OFFSET(min_pressure),
+	SYNAPTICS_SYSCTL_MAX_PRESSURE =		SYN_OFFSET(max_pressure),
+	SYNAPTICS_SYSCTL_MAX_WIDTH =		SYN_OFFSET(max_width),
+	SYNAPTICS_SYSCTL_MARGIN_TOP =		SYN_OFFSET(margin_top),
+	SYNAPTICS_SYSCTL_MARGIN_RIGHT =		SYN_OFFSET(margin_right),
+	SYNAPTICS_SYSCTL_MARGIN_BOTTOM =	SYN_OFFSET(margin_bottom),
+	SYNAPTICS_SYSCTL_MARGIN_LEFT =		SYN_OFFSET(margin_left),
+	SYNAPTICS_SYSCTL_NA_TOP =		SYN_OFFSET(na_top),
+	SYNAPTICS_SYSCTL_NA_RIGHT =		SYN_OFFSET(na_right),
+	SYNAPTICS_SYSCTL_NA_BOTTOM =		SYN_OFFSET(na_bottom),
+	SYNAPTICS_SYSCTL_NA_LEFT = 		SYN_OFFSET(na_left),
+	SYNAPTICS_SYSCTL_WINDOW_MIN =		SYN_OFFSET(window_min),
+	SYNAPTICS_SYSCTL_WINDOW_MAX =		SYN_OFFSET(window_max),
+	SYNAPTICS_SYSCTL_MULTIPLICATOR =	SYN_OFFSET(multiplicator),
+	SYNAPTICS_SYSCTL_WEIGHT_CURRENT =	SYN_OFFSET(weight_current),
+	SYNAPTICS_SYSCTL_WEIGHT_PREVIOUS =	SYN_OFFSET(weight_previous),
+	SYNAPTICS_SYSCTL_WEIGHT_PREVIOUS_NA =	SYN_OFFSET(weight_previous_na),
+	SYNAPTICS_SYSCTL_WEIGHT_LEN_SQUARED =	SYN_OFFSET(weight_len_squared),
+	SYNAPTICS_SYSCTL_DIV_MIN =		SYN_OFFSET(div_min),
+	SYNAPTICS_SYSCTL_DIV_MAX =		SYN_OFFSET(div_max),
+	SYNAPTICS_SYSCTL_DIV_MAX_NA =		SYN_OFFSET(div_max_na),
+	SYNAPTICS_SYSCTL_DIV_LEN =		SYN_OFFSET(div_len),
+	SYNAPTICS_SYSCTL_TAP_MAX_DELTA =	SYN_OFFSET(tap_max_delta),
+	SYNAPTICS_SYSCTL_TAP_MIN_QUEUE =	SYN_OFFSET(tap_min_queue),
+	SYNAPTICS_SYSCTL_TAPHOLD_TIMEOUT =	SYN_OFFSET(taphold_timeout),
+	SYNAPTICS_SYSCTL_VSCROLL_HOR_AREA =	SYN_OFFSET(vscroll_hor_area),
+	SYNAPTICS_SYSCTL_VSCROLL_VER_AREA =	SYN_OFFSET(vscroll_ver_area),
+	SYNAPTICS_SYSCTL_VSCROLL_MIN_DELTA =	SYN_OFFSET(vscroll_min_delta),
+	SYNAPTICS_SYSCTL_VSCROLL_DIV_MIN =	SYN_OFFSET(vscroll_div_min),
+	SYNAPTICS_SYSCTL_VSCROLL_DIV_MAX =	SYN_OFFSET(vscroll_div_max),
+	SYNAPTICS_SYSCTL_TOUCHPAD_OFF =		SYN_OFFSET(touchpad_off),
+	SYNAPTICS_SYSCTL_SOFTBUTTONS_Y =	SYN_OFFSET(softbuttons_y),
+	SYNAPTICS_SYSCTL_SOFTBUTTON2_X =	SYN_OFFSET(softbutton2_x),
+	SYNAPTICS_SYSCTL_SOFTBUTTON3_X =	SYN_OFFSET(softbutton3_x),
+};
 
 /* packet formatting function */
 typedef int	packetfunc_t(struct psm_softc *, u_char *, int *, int,
@@ -446,6 +554,7 @@ static int	doopen(struct psm_softc *, int);
 static int	reinitialize(struct psm_softc *, int);
 static char	*model_name(int);
 static void	psmsoftintr(void *);
+static void	psmsoftintridle(void *);
 static void	psmintr(void *);
 static void	psmtimeout(void *);
 static int	timeelapsed(const struct timeval *, int, int,
@@ -458,6 +567,13 @@ static int	proc_synaptics(struct psm_softc *, packetbuf_t *,
 		    mousestatus_t *, int *, int *, int *);
 static void	proc_versapad(struct psm_softc *, packetbuf_t *,
 		    mousestatus_t *, int *, int *, int *);
+static int	proc_elantech(struct psm_softc *, packetbuf_t *,
+		    mousestatus_t *, int *, int *, int *);
+static int	psmpalmdetect(struct psm_softc *, finger_t *, int);
+static void	psmgestures(struct psm_softc *, finger_t *, int,
+		    mousestatus_t *);
+static void	psmsmoother(struct psm_softc *, finger_t *, int,
+		    mousestatus_t *, int *, int *);
 static int	tame_mouse(struct psm_softc *, packetbuf_t *, mousestatus_t *,
 		    u_char *);
 
@@ -480,6 +596,7 @@ static probefunc_t	enable_mmanplus;
 static probefunc_t	enable_synaptics;
 static probefunc_t	enable_trackpoint;
 static probefunc_t	enable_versapad;
+static probefunc_t	enable_elantech;
 
 static void set_trackpoint_parameters(struct psm_softc *sc);
 static void synaptics_passthrough_on(struct psm_softc *sc);
@@ -511,6 +628,8 @@ static struct {
 	  0xc8, MOUSE_4DPLUS_PACKETSIZE, enable_4dplus },
 	{ MOUSE_MODEL_SYNAPTICS,	/* Synaptics Touchpad */
 	  0xc0, MOUSE_SYNAPTICS_PACKETSIZE, enable_synaptics },
+	{ MOUSE_MODEL_ELANTECH,		/* Elantech Touchpad */
+	  0x04, MOUSE_ELANTECH_PACKETSIZE, enable_elantech },
 	{ MOUSE_MODEL_INTELLI,		/* Microsoft IntelliMouse */
 	  0x08, MOUSE_PS2INTELLI_PACKETSIZE, enable_msintelli },
 	{ MOUSE_MODEL_GLIDEPOINT,	/* ALPS GlidePoint */
@@ -762,6 +881,7 @@ model_name(int model)
 		{ MOUSE_MODEL_4DPLUS,		"4D+ Mouse" },
 		{ MOUSE_MODEL_SYNAPTICS,	"Synaptics Touchpad" },
 		{ MOUSE_MODEL_TRACKPOINT,	"IBM/Lenovo TrackPoint" },
+		{ MOUSE_MODEL_ELANTECH,		"Elantech Touchpad" },
 		{ MOUSE_MODEL_GENERIC,		"Generic PS/2 mouse" },
 		{ MOUSE_MODEL_UNKNOWN,		"Unknown" },
 	};
@@ -1504,6 +1624,7 @@ psmattach(device_t dev)
 	case MOUSE_MODEL_SYNAPTICS:
 	case MOUSE_MODEL_GLIDEPOINT:
 	case MOUSE_MODEL_VERSAPAD:
+	case MOUSE_MODEL_ELANTECH:
 		sc->config |= PSM_CONFIG_INITAFTERSUSPEND;
 		break;
 	default:
@@ -1511,6 +1632,11 @@ psmattach(device_t dev)
 			sc->config |= PSM_CONFIG_INITAFTERSUSPEND;
 		break;
 	}
+
+	/* Elantech trackpad`s sync bit differs from touchpad`s one */
+	if (sc->hw.model == MOUSE_MODEL_ELANTECH &&
+	    (sc->elanhw.hascrc || sc->elanhw.hastrackpoint))
+		sc->config |= PSM_CONFIG_NOCHECKSYNC;
 
 	if (!verbose)
 		printf("psm%d: model %s, device ID %d\n",
@@ -2165,20 +2291,6 @@ psmioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		    (*(int *)addr > PSM_LEVEL_MAX))
 			return (EINVAL);
 		sc->mode.level = *(int *)addr;
-
-		if (sc->hw.model == MOUSE_MODEL_SYNAPTICS) {
-			/*
-			 * If we are entering PSM_LEVEL_NATIVE, we want to
-			 * enable sending of "extended W mode" packets to
-			 * userland. Reset the mode of the touchpad so that the
-			 * change in the level is picked up.
-			 */
-			error = block_mouse_data(sc, &command_byte);
-			if (error)
-				return (error);
-			synaptics_set_mode(sc, synaptics_preferred_mode(sc));
-			unblock_mouse_data(sc, command_byte);
-		}
 		break;
 
 	case MOUSE_GETSTATUS:
@@ -2339,7 +2451,7 @@ psmtimeout(void *arg)
 static SYSCTL_NODE(_debug, OID_AUTO, psm, CTLFLAG_RD, 0, "ps/2 mouse");
 static SYSCTL_NODE(_hw, OID_AUTO, psm, CTLFLAG_RD, 0, "ps/2 mouse");
 
-SYSCTL_INT(_debug_psm, OID_AUTO, loglevel, CTLFLAG_RW, &verbose, 0,
+SYSCTL_INT(_debug_psm, OID_AUTO, loglevel, CTLFLAG_RWTUN, &verbose, 0,
     "Verbosity level");
 
 static int psmhz = 20;
@@ -2361,7 +2473,7 @@ static int pkterrthresh = 2;
 SYSCTL_INT(_debug_psm, OID_AUTO, pkterrthresh, CTLFLAG_RW, &pkterrthresh, 0,
     "Number of error packets allowed before reinitializing the mouse");
 
-SYSCTL_INT(_hw_psm, OID_AUTO, tap_enabled, CTLFLAG_RW, &tap_enabled, 0,
+SYSCTL_INT(_hw_psm, OID_AUTO, tap_enabled, CTLFLAG_RWTUN, &tap_enabled, 0,
     "Enable tap and drag gestures");
 static int tap_threshold = PSM_TAP_THRESHOLD;
 SYSCTL_INT(_hw_psm, OID_AUTO, tap_threshold, CTLFLAG_RW, &tap_threshold, 0,
@@ -2369,6 +2481,16 @@ SYSCTL_INT(_hw_psm, OID_AUTO, tap_threshold, CTLFLAG_RW, &tap_threshold, 0,
 static int tap_timeout = PSM_TAP_TIMEOUT;
 SYSCTL_INT(_hw_psm, OID_AUTO, tap_timeout, CTLFLAG_RW, &tap_timeout, 0,
     "Tap timeout for touchpads");
+
+/* Tunables */
+SYSCTL_INT(_hw_psm, OID_AUTO, synaptics_support, CTLFLAG_RDTUN,
+    &synaptics_support, 0, "Enable support for Synaptics touchpads");
+
+SYSCTL_INT(_hw_psm, OID_AUTO, trackpoint_support, CTLFLAG_RDTUN,
+    &trackpoint_support, 0, "Enable support for IBM/Lenovo TrackPoint");
+
+SYSCTL_INT(_hw_psm, OID_AUTO, elantech_support, CTLFLAG_RDTUN,
+    &elantech_support, 0, "Enable support for Elantech touchpads");
 
 static void
 psmintr(void *arg)
@@ -2627,7 +2749,10 @@ proc_synaptics(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 {
 	static int touchpad_buttons;
 	static int guest_buttons;
-	int w, x0, y0;
+	static finger_t f[PSM_FINGERS];
+	int w, id, nfingers, ewcode, extended_buttons;
+
+	extended_buttons = 0;
 
 	/* TouchPad PS/2 absolute mode message format with capFourButtons:
 	 *
@@ -2683,6 +2808,7 @@ proc_synaptics(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 		return (-1);
 
 	*x = *y = 0;
+	ms->button = ms->obutton;
 
 	/*
 	 * Pressure value.
@@ -2718,34 +2844,80 @@ proc_synaptics(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 		w = 4;
 	}
 
-	/*
-	 * Handle packets from the guest device. See:
-	 * Synaptics PS/2 TouchPad Interfacing Guide, Section 5.1
-	 */
-	if (w == 3 && sc->synhw.capPassthrough) {
-		*x = ((pb->ipacket[1] & 0x10) ?
-		    pb->ipacket[4] - 256 : pb->ipacket[4]);
-		*y = ((pb->ipacket[1] & 0x20) ?
-		    pb->ipacket[5] - 256 : pb->ipacket[5]);
-		*z = 0;
+	switch (w) {
+	case 3:
+		/*
+		 * Handle packets from the guest device. See:
+		 * Synaptics PS/2 TouchPad Interfacing Guide, Section 5.1
+		 */
+		if (sc->synhw.capPassthrough) {
+			*x = ((pb->ipacket[1] & 0x10) ?
+			    pb->ipacket[4] - 256 : pb->ipacket[4]);
+			*y = ((pb->ipacket[1] & 0x20) ?
+			    pb->ipacket[5] - 256 : pb->ipacket[5]);
+			*z = 0;
 
-		guest_buttons = 0;
-		if (pb->ipacket[1] & 0x01)
-			guest_buttons |= MOUSE_BUTTON1DOWN;
-		if (pb->ipacket[1] & 0x04)
-			guest_buttons |= MOUSE_BUTTON2DOWN;
-		if (pb->ipacket[1] & 0x02)
-			guest_buttons |= MOUSE_BUTTON3DOWN;
+			guest_buttons = 0;
+			if (pb->ipacket[1] & 0x01)
+				guest_buttons |= MOUSE_BUTTON1DOWN;
+			if (pb->ipacket[1] & 0x04)
+				guest_buttons |= MOUSE_BUTTON2DOWN;
+				if (pb->ipacket[1] & 0x02)
+				guest_buttons |= MOUSE_BUTTON3DOWN;
 
-		ms->button = touchpad_buttons | guest_buttons;
+			ms->button = touchpad_buttons | guest_buttons |
+			    sc->extended_buttons;
+		}
 		goto SYNAPTICS_END;
+
+	case 2:
+		/* Handle Extended W mode packets */
+		ewcode = (pb->ipacket[5] & 0xf0) >> 4;
+#if PSM_FINGERS > 1
+		switch (ewcode) {
+		case 1:
+			/* Secondary finger */
+			if (sc->synhw.capAdvancedGestures)
+				f[1] = (finger_t) {
+					.x = (((pb->ipacket[4] & 0x0f) << 8) |
+					    pb->ipacket[1]) << 1,
+					.y = (((pb->ipacket[4] & 0xf0) << 4) |
+					    pb->ipacket[2]) << 1,
+					.p = ((pb->ipacket[3] & 0x30) |
+					    (pb->ipacket[5] & 0x0f)) << 1,
+					.w = PSM_FINGER_DEFAULT_W,
+					.flags = PSM_FINGER_FUZZY,
+				};
+			else if (sc->synhw.capReportsV)
+				f[1] = (finger_t) {
+					.x = (((pb->ipacket[4] & 0x0f) << 8) |
+					    (pb->ipacket[1] & 0xfe)) << 1,
+					.y = (((pb->ipacket[4] & 0xf0) << 4) |
+					    (pb->ipacket[2] & 0xfe)) << 1,
+					.p = ((pb->ipacket[3] & 0x30) |
+					    (pb->ipacket[5] & 0x0e)) << 1,
+					.w = (((pb->ipacket[5] & 0x01) << 2) |
+					    ((pb->ipacket[2] & 0x01) << 1) |
+					    (pb->ipacket[1] & 0x01)) + 8,
+					.flags = PSM_FINGER_FUZZY,
+				};
+		default:
+			break;
+		}
+#endif
+		goto SYNAPTICS_END;
+
+	case 1:
+	case 0:
+		nfingers = w + 2;
+		break;
+
+	default:
+		nfingers = 1;
 	}
 
-	if (sc->syninfo.touchpad_off) {
-		*x = *y = *z = 0;
-		ms->button = ms->obutton;
+	if (sc->syninfo.touchpad_off)
 		goto SYNAPTICS_END;
-	}
 
 	/* Button presses */
 	touchpad_buttons = 0;
@@ -2769,21 +2941,21 @@ proc_synaptics(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 		if ((pb->ipacket[0] ^ pb->ipacket[3]) & 0x02) {
 			if (sc->syninfo.directional_scrolls) {
 				if (pb->ipacket[4] & 0x01)
-					touchpad_buttons |= MOUSE_BUTTON4DOWN;
+					extended_buttons |= MOUSE_BUTTON4DOWN;
 				if (pb->ipacket[5] & 0x01)
-					touchpad_buttons |= MOUSE_BUTTON5DOWN;
+					extended_buttons |= MOUSE_BUTTON5DOWN;
 				if (pb->ipacket[4] & 0x02)
-					touchpad_buttons |= MOUSE_BUTTON6DOWN;
+					extended_buttons |= MOUSE_BUTTON6DOWN;
 				if (pb->ipacket[5] & 0x02)
-					touchpad_buttons |= MOUSE_BUTTON7DOWN;
+					extended_buttons |= MOUSE_BUTTON7DOWN;
 			} else {
 				if (pb->ipacket[4] & 0x01)
-					touchpad_buttons |= MOUSE_BUTTON1DOWN;
+					extended_buttons |= MOUSE_BUTTON1DOWN;
 				if (pb->ipacket[5] & 0x01)
-					touchpad_buttons |= MOUSE_BUTTON3DOWN;
+					extended_buttons |= MOUSE_BUTTON3DOWN;
 				if (pb->ipacket[4] & 0x02)
-					touchpad_buttons |= MOUSE_BUTTON2DOWN;
-				sc->extended_buttons = touchpad_buttons;
+					extended_buttons |= MOUSE_BUTTON2DOWN;
+				sc->extended_buttons = extended_buttons;
 			}
 
 			/*
@@ -2806,27 +2978,487 @@ proc_synaptics(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 			pb->ipacket[4] &= ~(mask);
 			pb->ipacket[5] &= ~(mask);
 		} else	if (!sc->syninfo.directional_scrolls &&
-		    !sc->synaction.in_vscroll) {
+		    !sc->gesture.in_vscroll) {
 			/*
 			 * Keep reporting MOUSE DOWN until we get a new packet
 			 * indicating otherwise.
 			 */
-			touchpad_buttons |= sc->extended_buttons;
+			extended_buttons |= sc->extended_buttons;
 		}
 	}
-	/* Handle ClickPad. */
+	/* Handle ClickPad */
 	if (sc->synhw.capClickPad &&
 	    ((pb->ipacket[0] ^ pb->ipacket[3]) & 0x01))
 		touchpad_buttons |= MOUSE_BUTTON1DOWN;
 
-	ms->button = touchpad_buttons | guest_buttons;
+	if (sc->synhw.capReportsV && nfingers > 1)
+		f[0] = (finger_t) {
+			.x = ((pb->ipacket[3] & 0x10) << 8) |
+			    ((pb->ipacket[1] & 0x0f) << 8) |
+			    (pb->ipacket[4] & 0xfd),
+			.y = ((pb->ipacket[3] & 0x20) << 7) |
+			    ((pb->ipacket[1] & 0xf0) << 4) |
+			    (pb->ipacket[5] & 0xfd),
+			.p = *z & 0xfe,
+			.w = (((pb->ipacket[2] & 0x01) << 2) |
+			    (pb->ipacket[5] & 0x02) |
+			    ((pb->ipacket[4] & 0x02) >> 1)) + 8,
+			.flags = PSM_FINGER_FUZZY,
+		};
+	else
+		f[0] = (finger_t) {
+			.x = ((pb->ipacket[3] & 0x10) << 8) |
+			    ((pb->ipacket[1] & 0x0f) << 8) |
+			    pb->ipacket[4],
+			.y = ((pb->ipacket[3] & 0x20) << 7) |
+			    ((pb->ipacket[1] & 0xf0) << 4) |
+			    pb->ipacket[5],
+			.p = *z,
+			.w = w,
+			.flags = nfingers > 1 ? PSM_FINGER_FUZZY : 0,
+		};
+
+	/* Ignore hovering and unmeasurable touches */
+	if (f[0].p < sc->syninfo.min_pressure || f[0].x < 2)
+		nfingers = 0;
+
+	for (id = 0; id < PSM_FINGERS; id++)
+		if (id >= nfingers)
+			PSM_FINGER_RESET(f[id]);
+
+	ms->button = touchpad_buttons;
+
+	/* Palm detection doesn't terminate the current action. */
+	if (!psmpalmdetect(sc, &f[0], nfingers)) {
+		psmgestures(sc, &f[0], nfingers, ms);
+		for (id = 0; id < PSM_FINGERS; id++)
+			psmsmoother(sc, &f[id], id, ms, x, y);
+	} else {
+		VLOG(2, (LOG_DEBUG, "synaptics: palm detected! (%d)\n", f[0].w));
+	}
+
+	ms->button |= extended_buttons | guest_buttons;
+
+SYNAPTICS_END:
+	/*
+	 * Use the extra buttons as a scrollwheel
+	 *
+	 * XXX X.Org uses the Z axis for vertical wheel only,
+	 * whereas moused(8) understands special values to differ
+	 * vertical and horizontal wheels.
+	 *
+	 * xf86-input-mouse needs therefore a small patch to
+	 * understand these special values. Without it, the
+	 * horizontal wheel acts as a vertical wheel in X.Org.
+	 *
+	 * That's why the horizontal wheel is disabled by
+	 * default for now.
+	 */
+	if (ms->button & MOUSE_BUTTON4DOWN)
+		*z = -1;
+	else if (ms->button & MOUSE_BUTTON5DOWN)
+		*z = 1;
+	else if (ms->button & MOUSE_BUTTON6DOWN)
+		*z = -2;
+	else if (ms->button & MOUSE_BUTTON7DOWN)
+		*z = 2;
+	else
+		*z = 0;
+	ms->button &= ~(MOUSE_BUTTON4DOWN | MOUSE_BUTTON5DOWN |
+	    MOUSE_BUTTON6DOWN | MOUSE_BUTTON7DOWN);
+
+	return (0);
+}
+
+static int
+psmpalmdetect(struct psm_softc *sc, finger_t *f, int nfingers)
+{
+	if (!(
+	    ((sc->synhw.capMultiFinger ||
+	      sc->synhw.capAdvancedGestures) && nfingers > 1) ||
+	    (sc->synhw.capPalmDetect && f->w <= sc->syninfo.max_width) ||
+	    (!sc->synhw.capPalmDetect && f->p <= sc->syninfo.max_pressure) ||
+	    (sc->synhw.capPen && f->flags & PSM_FINGER_IS_PEN))) {
+		/*
+		 * We consider the packet irrelevant for the current
+		 * action when:
+		 *  - the width isn't comprised in:
+		 *    [1; max_width]
+		 *  - the pressure isn't comprised in:
+		 *    [min_pressure; max_pressure]
+		 *  - pen aren't supported but PSM_FINGER_IS_PEN is set
+		 */
+		return (1);
+	}
+	return (0);
+}
+
+static void
+psmgestures(struct psm_softc *sc, finger_t *fingers, int nfingers,
+    mousestatus_t *ms)
+{
+	smoother_t *smoother;
+	gesture_t *gest;
+	finger_t *f;
+	int y_ok, center_button, center_x, right_button, right_x, i;
+
+	f = &fingers[0];
+	smoother = &sc->smoother[0];
+	gest = &sc->gesture;
+
+	/* Find first active finger. */
+	if (nfingers > 0) {
+		for (i = 0; i < PSM_FINGERS; i++) {
+			if (PSM_FINGER_IS_SET(fingers[i])) {
+				f = &fingers[i];
+				smoother = &sc->smoother[i];
+				break;
+			}
+		}
+	}
 
 	/*
 	 * Check pressure to detect a real wanted action on the
 	 * touchpad.
 	 */
-	if (*z >= sc->syninfo.min_pressure) {
-		synapticsaction_t *synaction;
+	if (f->p >= sc->syninfo.min_pressure) {
+		int x0, y0;
+		int dxp, dyp;
+		int start_x, start_y;
+		int queue_len;
+		int margin_top, margin_right, margin_bottom, margin_left;
+		int window_min, window_max;
+		int vscroll_hor_area, vscroll_ver_area;
+		int two_finger_scroll;
+		int max_x, max_y;
+
+		/* Read sysctl. */
+		/* XXX Verify values? */
+		margin_top = sc->syninfo.margin_top;
+		margin_right = sc->syninfo.margin_right;
+		margin_bottom = sc->syninfo.margin_bottom;
+		margin_left = sc->syninfo.margin_left;
+		window_min = sc->syninfo.window_min;
+		window_max = sc->syninfo.window_max;
+		vscroll_hor_area = sc->syninfo.vscroll_hor_area;
+		vscroll_ver_area = sc->syninfo.vscroll_ver_area;
+		two_finger_scroll = sc->syninfo.two_finger_scroll;
+		max_x = sc->syninfo.max_x;
+		max_y = sc->syninfo.max_y;
+
+		/* Read current absolute position. */
+		x0 = f->x;
+		y0 = f->y;
+
+		/*
+		 * Limit the coordinates to the specified margins because
+		 * this area isn't very reliable.
+		 */
+		if (x0 <= margin_left)
+			x0 = margin_left;
+		else if (x0 >= max_x - margin_right)
+			x0 = max_x - margin_right;
+		if (y0 <= margin_bottom)
+			y0 = margin_bottom;
+		else if (y0 >= max_y - margin_top)
+			y0 = max_y - margin_top;
+
+		VLOG(3, (LOG_DEBUG, "synaptics: ipacket: [%d, %d], %d, %d\n",
+		    x0, y0, f->p, f->w));
+
+		/*
+		 * If the action is just beginning, init the structure and
+		 * compute tap timeout.
+		 */
+		if (!(sc->flags & PSM_FLAGS_FINGERDOWN)) {
+			VLOG(3, (LOG_DEBUG, "synaptics: ----\n"));
+
+			/* Initialize queue. */
+			gest->window_min = window_min;
+
+			/* Reset pressure peak. */
+			gest->zmax = 0;
+
+			/* Reset fingers count. */
+			gest->fingers_nb = 0;
+
+			/* Reset virtual scrolling state. */
+			gest->in_vscroll = 0;
+
+			/* Compute tap timeout. */
+			gest->taptimeout.tv_sec  = tap_timeout / 1000000;
+			gest->taptimeout.tv_usec = tap_timeout % 1000000;
+			timevaladd(&gest->taptimeout, &sc->lastsoftintr);
+
+			sc->flags |= PSM_FLAGS_FINGERDOWN;
+
+			/* Smoother has not been reset yet */
+			queue_len = 1;
+			start_x = x0;
+			start_y = y0;
+		} else {
+			queue_len = smoother->queue_len + 1;
+			start_x = smoother->start_x;
+			start_y = smoother->start_y;
+		}
+
+		/* Process ClickPad softbuttons */
+		if (sc->synhw.capClickPad && ms->button & MOUSE_BUTTON1DOWN) {
+			y_ok = sc->syninfo.softbuttons_y >= 0 ?
+			    start_y < sc->syninfo.softbuttons_y :
+			    start_y > max_y - sc->syninfo.softbuttons_y;
+
+			center_button = MOUSE_BUTTON2DOWN;
+			center_x = sc->syninfo.softbutton2_x;
+			right_button = MOUSE_BUTTON3DOWN;
+			right_x = sc->syninfo.softbutton3_x;
+
+			if (center_x > 0 && right_x > 0 && center_x > right_x) {
+				center_button = MOUSE_BUTTON3DOWN;
+				center_x = sc->syninfo.softbutton3_x;
+				right_button = MOUSE_BUTTON2DOWN;
+				right_x = sc->syninfo.softbutton2_x;
+			}
+
+			if (right_x > 0 && start_x > right_x && y_ok)
+				ms->button = (ms->button &
+				    ~MOUSE_BUTTON1DOWN) | right_button;
+			else if (center_x > 0 && start_x > center_x && y_ok)
+				ms->button = (ms->button &
+				    ~MOUSE_BUTTON1DOWN) | center_button;
+		}
+
+		/* If in tap-hold, add the recorded button. */
+		if (gest->in_taphold)
+			ms->button |= gest->tap_button;
+
+		/*
+		 * For tap, we keep the maximum number of fingers and the
+		 * pressure peak. Also with multiple fingers, we increase
+		 * the minimum window.
+		 */
+		if (nfingers > 1)
+			gest->window_min = window_max;
+		gest->fingers_nb = imax(nfingers, gest->fingers_nb);
+		gest->zmax = imax(f->p, gest->zmax);
+
+		/* Do we have enough packets to consider this a gesture? */
+		if (queue_len < gest->window_min)
+			return;
+
+		/* Is a scrolling action occurring? */
+		if (!gest->in_taphold && !ms->button &&
+		    (!gest->in_vscroll || two_finger_scroll)) {
+			/*
+			 * A scrolling action must not conflict with a tap
+			 * action. Here are the conditions to consider a
+			 * scrolling action:
+			 *  - the action in a configurable area
+			 *  - one of the following:
+			 *     . the distance between the last packet and the
+			 *       first should be above a configurable minimum
+			 *     . tap timed out
+			 */
+			dxp = abs(x0 - start_x);
+			dyp = abs(y0 - start_y);
+
+			if (timevalcmp(&sc->lastsoftintr, &gest->taptimeout, >) ||
+			    dxp >= sc->syninfo.vscroll_min_delta ||
+			    dyp >= sc->syninfo.vscroll_min_delta) {
+				/*
+				 * Handle two finger scrolling.
+				 * Note that we don't rely on fingers_nb
+				 * as that keeps the maximum number of fingers.
+				 */
+				if (two_finger_scroll) {
+					if (nfingers == 2) {
+						gest->in_vscroll +=
+						    dyp ? 2 : 0;
+						gest->in_vscroll +=
+						    dxp ? 1 : 0;
+					}
+				} else {
+					/* Check for horizontal scrolling. */
+					if ((vscroll_hor_area > 0 &&
+					    start_y <= vscroll_hor_area) ||
+					    (vscroll_hor_area < 0 &&
+					     start_y >=
+					     max_y + vscroll_hor_area))
+						gest->in_vscroll += 2;
+
+					/* Check for vertical scrolling. */
+					if ((vscroll_ver_area > 0 &&
+					    start_x <= vscroll_ver_area) ||
+					    (vscroll_ver_area < 0 &&
+					     start_x >=
+					     max_x + vscroll_ver_area))
+						gest->in_vscroll += 1;
+				}
+
+				/* Avoid conflicts if area overlaps. */
+				if (gest->in_vscroll >= 3)
+					gest->in_vscroll =
+					    (dxp > dyp) ? 2 : 1;
+			}
+		}
+		/*
+		 * Reset two finger scrolling when the number of fingers
+		 * is different from two or any button is pressed.
+		 */
+		if (two_finger_scroll && gest->in_vscroll != 0 &&
+		    (nfingers != 2 || ms->button))
+			gest->in_vscroll = 0;
+
+		VLOG(5, (LOG_DEBUG,
+			"synaptics: virtual scrolling: %s "
+			"(direction=%d, dxp=%d, dyp=%d, fingers=%d)\n",
+			gest->in_vscroll ? "YES" : "NO",
+			gest->in_vscroll, dxp, dyp,
+			gest->fingers_nb));
+
+	} else if (sc->flags & PSM_FLAGS_FINGERDOWN) {
+		/*
+		 * An action is currently taking place but the pressure
+		 * dropped under the minimum, putting an end to it.
+		 */
+		int taphold_timeout, dx, dy, tap_max_delta;
+
+		dx = abs(smoother->queue[smoother->queue_cursor].x -
+		    smoother->start_x);
+		dy = abs(smoother->queue[smoother->queue_cursor].y -
+		    smoother->start_y);
+
+		/* Max delta is disabled for multi-fingers tap. */
+		if (gest->fingers_nb > 1)
+			tap_max_delta = imax(dx, dy);
+		else
+			tap_max_delta = sc->syninfo.tap_max_delta;
+
+		sc->flags &= ~PSM_FLAGS_FINGERDOWN;
+
+		/* Check for tap. */
+		VLOG(3, (LOG_DEBUG,
+		    "synaptics: zmax=%d, dx=%d, dy=%d, "
+		    "delta=%d, fingers=%d, queue=%d\n",
+		    gest->zmax, dx, dy, tap_max_delta, gest->fingers_nb,
+		    smoother->queue_len));
+		if (!gest->in_vscroll && gest->zmax >= tap_threshold &&
+		    timevalcmp(&sc->lastsoftintr, &gest->taptimeout, <=) &&
+		    dx <= tap_max_delta && dy <= tap_max_delta &&
+		    smoother->queue_len >= sc->syninfo.tap_min_queue) {
+			/*
+			 * We have a tap if:
+			 *   - the maximum pressure went over tap_threshold
+			 *   - the action ended before tap_timeout
+			 *
+			 * To handle tap-hold, we must delay any button push to
+			 * the next action.
+			 */
+			if (gest->in_taphold) {
+				/*
+				 * This is the second and last tap of a
+				 * double tap action, not a tap-hold.
+				 */
+				gest->in_taphold = 0;
+
+				/*
+				 * For double-tap to work:
+				 *   - no button press is emitted (to
+				 *     simulate a button release)
+				 *   - PSM_FLAGS_FINGERDOWN is set to
+				 *     force the next packet to emit a
+				 *     button press)
+				 */
+				VLOG(2, (LOG_DEBUG,
+				    "synaptics: button RELEASE: %d\n",
+				    gest->tap_button));
+				sc->flags |= PSM_FLAGS_FINGERDOWN;
+
+				/* Schedule button press on next interrupt */
+				sc->idletimeout.tv_sec  = psmhz > 1 ?
+				    0 : 1;
+				sc->idletimeout.tv_usec = psmhz > 1 ?
+				    1000000 / psmhz : 0;
+			} else {
+				/*
+				 * This is the first tap: we set the
+				 * tap-hold state and notify the button
+				 * down event.
+				 */
+				gest->in_taphold = 1;
+				taphold_timeout = sc->syninfo.taphold_timeout;
+				gest->taptimeout.tv_sec  = taphold_timeout /
+				    1000000;
+				gest->taptimeout.tv_usec = taphold_timeout %
+				    1000000;
+				sc->idletimeout = gest->taptimeout;
+				timevaladd(&gest->taptimeout,
+				    &sc->lastsoftintr);
+
+				switch (gest->fingers_nb) {
+				case 3:
+					gest->tap_button =
+					    MOUSE_BUTTON2DOWN;
+					break;
+				case 2:
+					gest->tap_button =
+					    MOUSE_BUTTON3DOWN;
+					break;
+				default:
+					gest->tap_button =
+					    MOUSE_BUTTON1DOWN;
+				}
+				VLOG(2, (LOG_DEBUG,
+				    "synaptics: button PRESS: %d\n",
+				    gest->tap_button));
+				ms->button |= gest->tap_button;
+			}
+		} else {
+			/*
+			 * Not enough pressure or timeout: reset
+			 * tap-hold state.
+			 */
+			if (gest->in_taphold) {
+				VLOG(2, (LOG_DEBUG,
+				    "synaptics: button RELEASE: %d\n",
+				    gest->tap_button));
+				gest->in_taphold = 0;
+			} else {
+				VLOG(2, (LOG_DEBUG,
+				    "synaptics: not a tap-hold\n"));
+			}
+		}
+	} else if (!(sc->flags & PSM_FLAGS_FINGERDOWN) && gest->in_taphold) {
+		/*
+		 * For a tap-hold to work, the button must remain down at
+		 * least until timeout (where the in_taphold flags will be
+		 * cleared) or during the next action.
+		 */
+		if (timevalcmp(&sc->lastsoftintr, &gest->taptimeout, <=)) {
+			ms->button |= gest->tap_button;
+		} else {
+			VLOG(2, (LOG_DEBUG, "synaptics: button RELEASE: %d\n",
+			    gest->tap_button));
+			gest->in_taphold = 0;
+		}
+	}
+
+	return;
+}
+
+static void
+psmsmoother(struct psm_softc *sc, finger_t *f, int smoother_id,
+    mousestatus_t *ms, int *x, int *y)
+{
+	smoother_t *smoother = &sc->smoother[smoother_id];
+	gesture_t *gest = &(sc->gesture);
+
+	/*
+	 * Check pressure to detect a real wanted action on the
+	 * touchpad.
+	 */
+	if (f->p >= sc->syninfo.min_pressure) {
+		int x0, y0;
 		int cursor, peer, window;
 		int dx, dy, dxp, dyp;
 		int max_width, max_pressure;
@@ -2838,9 +3470,10 @@ proc_synaptics(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 		int div_min, div_max, div_len;
 		int vscroll_hor_area, vscroll_ver_area;
 		int two_finger_scroll;
+		int max_x, max_y;
 		int len, weight_prev_x, weight_prev_y;
 		int div_max_x, div_max_y, div_x, div_y;
-		int exiting_scroll;
+		int is_fuzzy;
 
 		/* Read sysctl. */
 		/* XXX Verify values? */
@@ -2866,97 +3499,14 @@ proc_synaptics(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 		vscroll_hor_area = sc->syninfo.vscroll_hor_area;
 		vscroll_ver_area = sc->syninfo.vscroll_ver_area;
 		two_finger_scroll = sc->syninfo.two_finger_scroll;
+		max_x = sc->syninfo.max_x;
+		max_y = sc->syninfo.max_y;
 
-		exiting_scroll = 0;
-
-		/* Palm detection. */
-		if (!(
-		    ((sc->synhw.capMultiFinger ||
-		      sc->synhw.capAdvancedGestures) && (w == 0 || w == 1)) ||
-		    (sc->synhw.capPalmDetect && w >= 4 && w <= max_width) ||
-		    (!sc->synhw.capPalmDetect && *z <= max_pressure) ||
-		    (sc->synhw.capPen && w == 2))) {
-			/*
-			 * We consider the packet irrelevant for the current
-			 * action when:
-			 *  - the width isn't comprised in:
-			 *    [4; max_width]
-			 *  - the pressure isn't comprised in:
-			 *    [min_pressure; max_pressure]
-			 *  - pen aren't supported but w is 2
-			 *
-			 *  Note that this doesn't terminate the current action.
-			 */
-			VLOG(2, (LOG_DEBUG,
-			    "synaptics: palm detected! (%d)\n", w));
-			goto SYNAPTICS_END;
-		}
+		is_fuzzy = (f->flags & PSM_FINGER_FUZZY) != 0;
 
 		/* Read current absolute position. */
-		x0 = ((pb->ipacket[3] & 0x10) << 8) |
-		    ((pb->ipacket[1] & 0x0f) << 8) |
-		    pb->ipacket[4];
-		y0 = ((pb->ipacket[3] & 0x20) << 7) |
-		    ((pb->ipacket[1] & 0xf0) << 4) |
-		    pb->ipacket[5];
-
-		synaction = &(sc->synaction);
-
-		/*
-		 * If the action is just beginning, init the structure and
-		 * compute tap timeout.
-		 */
-		if (!(sc->flags & PSM_FLAGS_FINGERDOWN)) {
-			VLOG(3, (LOG_DEBUG, "synaptics: ----\n"));
-
-			/* Store the first point of this action. */
-			synaction->start_x = x0;
-			synaction->start_y = y0;
-			dx = dy = 0;
-
-			/* Initialize queue. */
-			synaction->queue_cursor = SYNAPTICS_PACKETQUEUE;
-			synaction->queue_len = 0;
-			synaction->window_min = window_min;
-
-			/* Reset average. */
-			synaction->avg_dx = 0;
-			synaction->avg_dy = 0;
-
-			/* Reset squelch. */
-			synaction->squelch_x = 0;
-			synaction->squelch_y = 0;
-
-			/* Reset pressure peak. */
-			sc->zmax = 0;
-
-			/* Reset fingers count. */
-			synaction->fingers_nb = 0;
-
-			/* Reset virtual scrolling state. */
-			synaction->in_vscroll = 0;
-
-			/* Compute tap timeout. */
-			sc->taptimeout.tv_sec  = tap_timeout / 1000000;
-			sc->taptimeout.tv_usec = tap_timeout % 1000000;
-			timevaladd(&sc->taptimeout, &sc->lastsoftintr);
-
-			sc->flags |= PSM_FLAGS_FINGERDOWN;
-		} else {
-			/* Calculate the current delta. */
-			cursor = synaction->queue_cursor;
-			dx = x0 - synaction->queue[cursor].x;
-			dy = y0 - synaction->queue[cursor].y;
-		}
-
-		/* If in tap-hold, add the recorded button. */
-		if (synaction->in_taphold)
-			ms->button |= synaction->tap_button;
-
-		/*
-		 * From now on, we can use the SYNAPTICS_END label to skip
-		 * the current packet.
-		 */
+		x0 = f->x;
+		y0 = f->y;
 
 		/*
 		 * Limit the coordinates to the specified margins because
@@ -2964,128 +3514,65 @@ proc_synaptics(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 		 */
 		if (x0 <= margin_left)
 			x0 = margin_left;
-		else if (x0 >= 6143 - margin_right)
-			x0 = 6143 - margin_right;
+		else if (x0 >= max_x - margin_right)
+			x0 = max_x - margin_right;
 		if (y0 <= margin_bottom)
 			y0 = margin_bottom;
-		else if (y0 >= 6143 - margin_top)
-			y0 = 6143 - margin_top;
+		else if (y0 >= max_y - margin_top)
+			y0 = max_y - margin_top;
 
-		VLOG(3, (LOG_DEBUG, "synaptics: ipacket: [%d, %d], %d, %d\n",
-		    x0, y0, *z, w));
+		/* If the action is just beginning, init the structure. */
+		if (smoother->active == 0) {
+			VLOG(3, (LOG_DEBUG, "smoother%d: ---\n", smoother_id));
+
+			/* Store the first point of this action. */
+			smoother->start_x = x0;
+			smoother->start_y = y0;
+			dx = dy = 0;
+
+			/* Initialize queue. */
+			smoother->queue_cursor = SYNAPTICS_PACKETQUEUE;
+			smoother->queue_len = 0;
+
+			/* Reset average. */
+			smoother->avg_dx = 0;
+			smoother->avg_dy = 0;
+
+			/* Reset squelch. */
+			smoother->squelch_x = 0;
+			smoother->squelch_y = 0;
+
+			/* Activate queue */
+			smoother->active = 1;
+		} else {
+			/* Calculate the current delta. */
+			cursor = smoother->queue_cursor;
+			dx = x0 - smoother->queue[cursor].x;
+			dy = y0 - smoother->queue[cursor].y;
+		}
+
+		VLOG(3, (LOG_DEBUG, "smoother%d: ipacket: [%d, %d], %d, %d\n",
+		    smoother_id, x0, y0, f->p, f->w));
 
 		/* Queue this new packet. */
-		cursor = SYNAPTICS_QUEUE_CURSOR(synaction->queue_cursor - 1);
-		synaction->queue[cursor].x = x0;
-		synaction->queue[cursor].y = y0;
-		synaction->queue_cursor = cursor;
-		if (synaction->queue_len < SYNAPTICS_PACKETQUEUE)
-			synaction->queue_len++;
+		cursor = SYNAPTICS_QUEUE_CURSOR(smoother->queue_cursor - 1);
+		smoother->queue[cursor].x = x0;
+		smoother->queue[cursor].y = y0;
+		smoother->queue_cursor = cursor;
+		if (smoother->queue_len < SYNAPTICS_PACKETQUEUE)
+			smoother->queue_len++;
 		VLOG(5, (LOG_DEBUG,
-		    "synaptics: cursor[%d]: x=%d, y=%d, dx=%d, dy=%d\n",
-		    cursor, x0, y0, dx, dy));
-
-		/*
-		 * For tap, we keep the maximum number of fingers and the
-		 * pressure peak. Also with multiple fingers, we increase
-		 * the minimum window.
-		 */
-		switch (w) {
-		case 1: /* Three or more fingers. */
-			synaction->fingers_nb = imax(3, synaction->fingers_nb);
-			synaction->window_min = window_max;
-			break;
-		case 0: /* Two fingers. */
-			synaction->fingers_nb = imax(2, synaction->fingers_nb);
-			synaction->window_min = window_max;
-			break;
-		default: /* One finger or undetectable. */
-			synaction->fingers_nb = imax(1, synaction->fingers_nb);
-		}
-		sc->zmax = imax(*z, sc->zmax);
+		    "smoother%d: cursor[%d]: x=%d, y=%d, dx=%d, dy=%d\n",
+		    smoother_id, cursor, x0, y0, dx, dy));
 
 		/* Do we have enough packets to consider this a movement? */
-		if (synaction->queue_len < synaction->window_min)
-			goto SYNAPTICS_END;
-
-		/* Is a scrolling action occurring? */
-		if (!synaction->in_taphold && !synaction->in_vscroll) {
-			/*
-			 * A scrolling action must not conflict with a tap
-			 * action. Here are the conditions to consider a
-			 * scrolling action:
-			 *  - the action in a configurable area
-			 *  - one of the following:
-			 *     . the distance between the last packet and the
-			 *       first should be above a configurable minimum
-			 *     . tap timed out
-			 */
-			dxp = abs(synaction->queue[synaction->queue_cursor].x -
-			    synaction->start_x);
-			dyp = abs(synaction->queue[synaction->queue_cursor].y -
-			    synaction->start_y);
-
-			if (timevalcmp(&sc->lastsoftintr, &sc->taptimeout, >) ||
-			    dxp >= sc->syninfo.vscroll_min_delta ||
-			    dyp >= sc->syninfo.vscroll_min_delta) {
-				/*
-				 * Handle two finger scrolling.
-				 * Note that we don't rely on fingers_nb
-				 * as that keeps the maximum number of fingers.
-				 */
-				if (two_finger_scroll) {
-					if (w == 0) {
-						synaction->in_vscroll +=
-						    dyp ? 2 : 0;
-						synaction->in_vscroll +=
-						    dxp ? 1 : 0;
-					}
-				} else {
-					/* Check for horizontal scrolling. */
-					if ((vscroll_hor_area > 0 &&
-					    synaction->start_y <=
-					        vscroll_hor_area) ||
-					    (vscroll_hor_area < 0 &&
-					     synaction->start_y >=
-					     6143 + vscroll_hor_area))
-						synaction->in_vscroll += 2;
-
-					/* Check for vertical scrolling. */
-					if ((vscroll_ver_area > 0 &&
-					    synaction->start_x <=
-						vscroll_ver_area) ||
-					    (vscroll_ver_area < 0 &&
-					     synaction->start_x >=
-					     6143 + vscroll_ver_area))
-						synaction->in_vscroll += 1;
-				}
-
-				/* Avoid conflicts if area overlaps. */
-				if (synaction->in_vscroll >= 3)
-					synaction->in_vscroll =
-					    (dxp > dyp) ? 2 : 1;
-			}
-		}
-		/*
-		 * Reset two finger scrolling when the number of fingers
-		 * is different from two.
-		 */
-		if (two_finger_scroll && w != 0 && synaction->in_vscroll != 0) {
-			synaction->in_vscroll = 0;
-			exiting_scroll = 1;
-		}
-
-		VLOG(5, (LOG_DEBUG,
-			"synaptics: virtual scrolling: %s "
-			"(direction=%d, dxp=%d, dyp=%d, fingers=%d)\n",
-			synaction->in_vscroll ? "YES" : "NO",
-			synaction->in_vscroll, dxp, dyp,
-			synaction->fingers_nb));
+		if (smoother->queue_len < gest->window_min)
+			return;
 
 		weight_prev_x = weight_prev_y = weight_previous;
 		div_max_x = div_max_y = div_max;
 
-		if (synaction->in_vscroll) {
+		if (gest->in_vscroll) {
 			/* Dividers are different with virtual scrolling. */
 			div_min = sc->syninfo.vscroll_div_min;
 			div_max_x = div_max_y = sc->syninfo.vscroll_div_max;
@@ -3096,12 +3583,12 @@ proc_synaptics(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 			 * using this area, we apply a special weight and
 			 * div.
 			 */
-			if (x0 <= na_left || x0 >= 6143 - na_right) {
+			if (x0 <= na_left || x0 >= max_x - na_right) {
 				weight_prev_x = sc->syninfo.weight_previous_na;
 				div_max_x = sc->syninfo.div_max_na;
 			}
 
-			if (y0 <= na_bottom || y0 >= 6143 - na_top) {
+			if (y0 <= na_bottom || y0 >= max_y - na_top) {
 				weight_prev_y = sc->syninfo.weight_previous_na;
 				div_max_y = sc->syninfo.div_max_na;
 			}
@@ -3113,10 +3600,10 @@ proc_synaptics(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 		 * the current packet and a previous one (based on the
 		 * window width).
 		 */
-		window = imin(synaction->queue_len, window_max);
+		window = imin(smoother->queue_len, window_max);
 		peer = SYNAPTICS_QUEUE_CURSOR(cursor + window - 1);
-		dxp = abs(x0 - synaction->queue[peer].x) + 1;
-		dyp = abs(y0 - synaction->queue[peer].y) + 1;
+		dxp = abs(x0 - smoother->queue[peer].x) + 1;
+		dyp = abs(y0 - smoother->queue[peer].y) + 1;
 		len = (dxp * dxp) + (dyp * dyp);
 		weight_prev_x = imin(weight_prev_x,
 		    weight_len_squared * weight_prev_x / len);
@@ -3132,215 +3619,442 @@ proc_synaptics(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 		div_y = imax(div_min, div_y);
 
 		VLOG(3, (LOG_DEBUG,
-		    "synaptics: peer=%d, len=%d, weight=%d/%d, div=%d/%d\n",
-		    peer, len, weight_prev_x, weight_prev_y, div_x, div_y));
+		    "smoother%d: peer=%d, len=%d, weight=%d/%d, div=%d/%d\n",
+		    smoother_id, peer, len, weight_prev_x, weight_prev_y,
+		    div_x, div_y));
 
 		/* Compute averages. */
-		synaction->avg_dx =
+		smoother->avg_dx =
 		    (weight_current * dx * multiplicator +
-		     weight_prev_x * synaction->avg_dx) /
+		     weight_prev_x * smoother->avg_dx) /
 		    (weight_current + weight_prev_x);
 
-		synaction->avg_dy =
+		smoother->avg_dy =
 		    (weight_current * dy * multiplicator +
-		     weight_prev_y * synaction->avg_dy) /
+		     weight_prev_y * smoother->avg_dy) /
 		    (weight_current + weight_prev_y);
 
 		VLOG(5, (LOG_DEBUG,
-		    "synaptics: avg_dx~=%d, avg_dy~=%d\n",
-		    synaction->avg_dx / multiplicator,
-		    synaction->avg_dy / multiplicator));
+		    "smoother%d: avg_dx~=%d, avg_dy~=%d\n", smoother_id,
+		    smoother->avg_dx / multiplicator,
+		    smoother->avg_dy / multiplicator));
 
 		/* Use these averages to calculate x & y. */
-		synaction->squelch_x += synaction->avg_dx;
-		*x = synaction->squelch_x / (div_x * multiplicator);
-		synaction->squelch_x = synaction->squelch_x %
+		smoother->squelch_x += smoother->avg_dx;
+		dxp = smoother->squelch_x / (div_x * multiplicator);
+		smoother->squelch_x = smoother->squelch_x %
 		    (div_x * multiplicator);
 
-		synaction->squelch_y += synaction->avg_dy;
-		*y = synaction->squelch_y / (div_y * multiplicator);
-		synaction->squelch_y = synaction->squelch_y %
+		smoother->squelch_y += smoother->avg_dy;
+		dyp = smoother->squelch_y / (div_y * multiplicator);
+		smoother->squelch_y = smoother->squelch_y %
 		    (div_y * multiplicator);
 
-		if (synaction->in_vscroll) {
-			switch(synaction->in_vscroll) {
-			case 1: /* Vertical scrolling. */
-				if (*y != 0)
-					ms->button |= (*y > 0) ?
-					    MOUSE_BUTTON4DOWN :
-					    MOUSE_BUTTON5DOWN;
-				break;
-			case 2: /* Horizontal scrolling. */
-				if (*x != 0)
-					ms->button |= (*x > 0) ?
-					    MOUSE_BUTTON7DOWN :
-					    MOUSE_BUTTON6DOWN;
-				break;
+		switch(gest->in_vscroll) {
+		case 0: /* Pointer movement. */
+			/* On real<->fuzzy finger switch the x/y pos jumps */
+			if (is_fuzzy == smoother->is_fuzzy) {
+				*x += dxp;
+				*y += dyp;
 			}
 
-			/* The pointer is not moved. */
-			*x = *y = 0;
-		} else {
-			/* On exit the x/y pos may jump, ignore this */
-			if (exiting_scroll)
-				*x = *y = 0;
-
-			VLOG(3, (LOG_DEBUG, "synaptics: [%d, %d] -> [%d, %d]\n",
-			    dx, dy, *x, *y));
+			VLOG(3, (LOG_DEBUG, "smoother%d: [%d, %d] -> [%d, %d]\n",
+			    smoother_id, dx, dy, dxp, dyp));
+			break;
+		case 1: /* Vertical scrolling. */
+			if (dyp != 0)
+				ms->button |= (dyp > 0) ?
+				    MOUSE_BUTTON4DOWN : MOUSE_BUTTON5DOWN;
+			break;
+		case 2: /* Horizontal scrolling. */
+			if (dxp != 0)
+				ms->button |= (dxp > 0) ?
+				    MOUSE_BUTTON7DOWN : MOUSE_BUTTON6DOWN;
+			break;
 		}
-	} else if (sc->flags & PSM_FLAGS_FINGERDOWN) {
+
+		smoother->is_fuzzy = is_fuzzy;
+
+	} else {
 		/*
-		 * An action is currently taking place but the pressure
-		 * dropped under the minimum, putting an end to it.
+		 * Deactivate queue. Note: We can not just reset queue here
+		 * as these values are still used by gesture processor.
+		 * So postpone reset till next touch.
 		 */
-		synapticsaction_t *synaction;
-		int taphold_timeout, dx, dy, tap_max_delta;
+		smoother->active = 0;
+	}
+}
 
-		synaction = &(sc->synaction);
-		dx = abs(synaction->queue[synaction->queue_cursor].x -
-		    synaction->start_x);
-		dy = abs(synaction->queue[synaction->queue_cursor].y -
-		    synaction->start_y);
+static int
+proc_elantech(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
+    int *x, int *y, int *z)
+{
+	static int touchpad_button, trackpoint_button;
+	finger_t fn, f[ELANTECH_MAX_FINGERS];
+	int pkt, id, scale, i, nfingers, mask;
 
-		/* Max delta is disabled for multi-fingers tap. */
-		if (synaction->fingers_nb > 1)
-			tap_max_delta = imax(dx, dy);
-		else
-			tap_max_delta = sc->syninfo.tap_max_delta;
+	if (!elantech_support)
+		return (0);
 
-		sc->flags &= ~PSM_FLAGS_FINGERDOWN;
+	/* Determine packet format and do a sanity check for out of sync packets. */
+	if (ELANTECH_PKT_IS_DEBOUNCE(pb, sc->elanhw.hwversion))
+		pkt = ELANTECH_PKT_NOP;
+	else if (ELANTECH_PKT_IS_TRACKPOINT(pb))
+		pkt = ELANTECH_PKT_TRACKPOINT;
+	else
+	switch (sc->elanhw.hwversion) {
+	case 2:
+		if (!ELANTECH_PKT_IS_V2(pb))
+			return (-1);
 
-		/* Check for tap. */
-		VLOG(3, (LOG_DEBUG,
-		    "synaptics: zmax=%d, dx=%d, dy=%d, "
-		    "delta=%d, fingers=%d, queue=%d\n",
-		    sc->zmax, dx, dy, tap_max_delta, synaction->fingers_nb,
-		    synaction->queue_len));
-		if (!synaction->in_vscroll && sc->zmax >= tap_threshold &&
-		    timevalcmp(&sc->lastsoftintr, &sc->taptimeout, <=) &&
-		    dx <= tap_max_delta && dy <= tap_max_delta &&
-		    synaction->queue_len >= sc->syninfo.tap_min_queue) {
-			/*
-			 * We have a tap if:
-			 *   - the maximum pressure went over tap_threshold
-			 *   - the action ended before tap_timeout
-			 *
-			 * To handle tap-hold, we must delay any button push to
-			 * the next action.
-			 */
-			if (synaction->in_taphold) {
-				/*
-				 * This is the second and last tap of a
-				 * double tap action, not a tap-hold.
-				 */
-				synaction->in_taphold = 0;
+		pkt = (pb->ipacket[0] & 0xc0) == 0x80 ?
+		    ELANTECH_PKT_V2_2FINGER : ELANTECH_PKT_V2_COMMON;
+		break;
+	case 3:
+		if (!ELANTECH_PKT_IS_V3_HEAD(pb, sc->elanhw.hascrc) &&
+		    !ELANTECH_PKT_IS_V3_TAIL(pb, sc->elanhw.hascrc))
+			return (-1);
 
-				/*
-				 * For double-tap to work:
-				 *   - no button press is emitted (to
-				 *     simulate a button release)
-				 *   - PSM_FLAGS_FINGERDOWN is set to
-				 *     force the next packet to emit a
-				 *     button press)
-				 */
-				VLOG(2, (LOG_DEBUG,
-				    "synaptics: button RELEASE: %d\n",
-				    synaction->tap_button));
-				sc->flags |= PSM_FLAGS_FINGERDOWN;
-			} else {
-				/*
-				 * This is the first tap: we set the
-				 * tap-hold state and notify the button
-				 * down event.
-				 */
-				synaction->in_taphold = 1;
-				taphold_timeout = sc->syninfo.taphold_timeout;
-				sc->taptimeout.tv_sec  = taphold_timeout /
-				    1000000;
-				sc->taptimeout.tv_usec = taphold_timeout %
-				    1000000;
-				timevaladd(&sc->taptimeout, &sc->lastsoftintr);
+		pkt = ELANTECH_PKT_V3;
+		break;
+	case 4:
+		if (!ELANTECH_PKT_IS_V4(pb, sc->elanhw.hascrc))
+			return (-1);
 
-				switch (synaction->fingers_nb) {
-				case 3:
-					synaction->tap_button =
-					    MOUSE_BUTTON2DOWN;
-					break;
-				case 2:
-					synaction->tap_button =
-					    MOUSE_BUTTON3DOWN;
-					break;
-				default:
-					synaction->tap_button =
-					    MOUSE_BUTTON1DOWN;
-				}
-				VLOG(2, (LOG_DEBUG,
-				    "synaptics: button PRESS: %d\n",
-				    synaction->tap_button));
-				ms->button |= synaction->tap_button;
-			}
-		} else {
-			/*
-			 * Not enough pressure or timeout: reset
-			 * tap-hold state.
-			 */
-			if (synaction->in_taphold) {
-				VLOG(2, (LOG_DEBUG,
-				    "synaptics: button RELEASE: %d\n",
-				    synaction->tap_button));
-				synaction->in_taphold = 0;
-			} else {
-				VLOG(2, (LOG_DEBUG,
-				    "synaptics: not a tap-hold\n"));
-			}
+		switch (pb->ipacket[3] & 0x03) {
+		case 0x00:
+			pkt = ELANTECH_PKT_V4_STATUS;
+			break;
+		case 0x01:
+			pkt = ELANTECH_PKT_V4_HEAD;
+			break;
+		case 0x02:
+			pkt = ELANTECH_PKT_V4_MOTION;
+			break;
+		default:
+			return (-1);
 		}
-	} else if (!(sc->flags & PSM_FLAGS_FINGERDOWN) &&
-	    sc->synaction.in_taphold) {
-		/*
-		 * For a tap-hold to work, the button must remain down at
-		 * least until timeout (where the in_taphold flags will be
-		 * cleared) or during the next action.
-		 */
-		if (timevalcmp(&sc->lastsoftintr, &sc->taptimeout, <=)) {
-			ms->button |= sc->synaction.tap_button;
-		} else {
-			VLOG(2, (LOG_DEBUG,
-			    "synaptics: button RELEASE: %d\n",
-			    sc->synaction.tap_button));
-			sc->synaction.in_taphold = 0;
-		}
+		break;
+	default:
+		return (-1);
 	}
 
-SYNAPTICS_END:
-	/*
-	 * Use the extra buttons as a scrollwheel
-	 *
-	 * XXX X.Org uses the Z axis for vertical wheel only,
-	 * whereas moused(8) understands special values to differ
-	 * vertical and horizontal wheels.
-	 *
-	 * xf86-input-mouse needs therefore a small patch to
-	 * understand these special values. Without it, the
-	 * horizontal wheel acts as a vertical wheel in X.Org.
-	 *
-	 * That's why the horizontal wheel is disabled by
-	 * default for now.
-	 */
+	VLOG(5, (LOG_DEBUG, "elantech: ipacket format: %d\n", pkt));
 
-	if (ms->button & MOUSE_BUTTON4DOWN) {
+	for (id = 0; id < ELANTECH_MAX_FINGERS; id++)
+		PSM_FINGER_RESET(f[id]);
+
+	*x = *y = *z = 0;
+	ms->button = ms->obutton;
+
+	if (sc->syninfo.touchpad_off)
+		return (0);
+
+	/* Common legend
+	 * L: Left mouse button pressed
+	 * R: Right mouse button pressed
+	 * N: number of fingers on touchpad
+	 * X: absolute x value (horizontal)
+	 * Y: absolute y value (vertical)
+	 * W; width of the finger touch
+	 * P: pressure
+	 */
+	switch (pkt) {
+	case ELANTECH_PKT_V2_COMMON:	/* HW V2. One/Three finger touch */
+		/*               7   6   5   4   3   2   1   0 (LSB)
+		 * -------------------------------------------
+		 * ipacket[0]:  N1  N0  W3  W2   .   .   R   L
+		 * ipacket[1]:  P7  P6  P5  P4 X11 X10  X9  X8
+		 * ipacket[2]:  X7  X6  X5  X4  X3  X2  X1  X0
+		 * ipacket[3]:  N4  VF  W1  W0   .   .   .  B2
+		 * ipacket[4]:  P3  P1  P2  P0 Y11 Y10  Y9  Y8
+		 * ipacket[5]:  Y7  Y6  Y5  Y4  Y3  Y2  Y1  Y0
+		 * -------------------------------------------
+		 * N4: set if more than 3 fingers (only in 3 fingers mode)
+		 * VF: a kind of flag? (only on EF123, 0 when finger
+		 *     is over one of the buttons, 1 otherwise)
+		 * B2: (on EF113 only, 0 otherwise), one button pressed
+		 * P & W is not reported on EF113 touchpads
+		 */
+		nfingers = (pb->ipacket[0] & 0xc0) >> 6;
+		if (nfingers == 3 && (pb->ipacket[3] & 0x80))
+			nfingers = 4;
+		mask = (1 << nfingers) - 1;
+
+		fn = ELANTECH_FINGER_SET_XYP(pb);
+		if (sc->elanhw.haspressure) {
+			fn.w = ((pb->ipacket[0] & 0x30) >> 2) |
+			    ((pb->ipacket[3] & 0x30) >> 4);
+		} else {
+			fn.p = PSM_FINGER_DEFAULT_P;
+			fn.w = PSM_FINGER_DEFAULT_W;
+		}
+
+		/*
+		 * HW v2 dont report exact finger positions when 3 or more
+		 * fingers are on touchpad. Use reported value as fingers
+		 * position as it is required for tap detection
+		 */
+		if (nfingers > 2)
+			fn.flags = PSM_FINGER_FUZZY;
+
+		for (id = 0; id < imin(nfingers, ELANTECH_MAX_FINGERS); id++)
+			f[id] = fn;
+		break;
+
+	case ELANTECH_PKT_V2_2FINGER:	/*HW V2. Two finger touch */
+		/*               7   6   5   4   3   2   1   0 (LSB)
+		 * -------------------------------------------
+		 * ipacket[0]:  N1  N0 AY8 AX8   .   .   R   L
+		 * ipacket[1]: AX7 AX6 AX5 AX4 AX3 AX2 AX1 AX0
+		 * ipacket[2]: AY7 AY6 AY5 AY4 AY3 AY2 AY1 AY0
+		 * ipacket[3]:   .   . BY8 BX8   .   .   .   .
+		 * ipacket[4]: BX7 BX6 BX5 BX4 BX3 BX2 BX1 BX0
+		 * ipacket[5]: BY7 BY6 BY5 BY4 BY3 BY2 BY1 BY0
+		 * -------------------------------------------
+		 * AX: lower-left finger absolute x value
+		 * AY: lower-left finger absolute y value
+		 * BX: upper-right finger absolute x value
+		 * BY: upper-right finger absolute y value
+		 */
+		nfingers = 2;
+		mask = (1 << nfingers) - 1;
+
+		for (id = 0; id < imin(2, ELANTECH_MAX_FINGERS); id ++)
+			f[id] = (finger_t) {
+				.x = (((pb->ipacket[id * 3] & 0x10) << 4) |
+				    pb->ipacket[id * 3 + 1]) << 2,
+				.y = (((pb->ipacket[id * 3] & 0x20) << 3) |
+				    pb->ipacket[id * 3 + 2]) << 2,
+				.p = PSM_FINGER_DEFAULT_P,
+				.w = PSM_FINGER_DEFAULT_W,
+				/* HW ver.2 sends bounding box */
+				.flags = PSM_FINGER_FUZZY
+			};
+		break;
+
+	case ELANTECH_PKT_V3:	/* HW Version 3 */
+		/*               7   6   5   4   3   2   1   0 (LSB)
+		 * -------------------------------------------
+		 * ipacket[0]:  N1  N0  W3  W2   0   1   R   L
+		 * ipacket[1]:  P7  P6  P5  P4 X11 X10  X9  X8
+		 * ipacket[2]:  X7  X6  X5  X4  X3  X2  X1  X0
+		 * ipacket[3]:   0   0  W1  W0   0   0   1   0
+		 * ipacket[4]:  P3  P1  P2  P0 Y11 Y10  Y9  Y8
+		 * ipacket[5]:  Y7  Y6  Y5  Y4  Y3  Y2  Y1  Y0
+		 * -------------------------------------------
+		 */
+		nfingers = (pb->ipacket[0] & 0xc0) >> 6;
+		mask = (1 << nfingers) - 1;
+		id = nfingers - 1;
+
+		fn = ELANTECH_FINGER_SET_XYP(pb);
+		fn.w = ((pb->ipacket[0] & 0x30) >> 2) |
+		    ((pb->ipacket[3] & 0x30) >> 4);
+
+		/*
+		 * HW v3 dont report exact finger positions when 3 or more
+		 * fingers are on touchpad. Use reported value as fingers
+		 * position as it is required for tap detection
+		 */
+		if (nfingers > 1)
+			fn.flags = PSM_FINGER_FUZZY;
+
+		for (id = 0; id < imin(nfingers, ELANTECH_MAX_FINGERS); id++)
+			f[id] = fn;
+
+		if (nfingers == 2) {
+			if (ELANTECH_PKT_IS_V3_HEAD(pb, sc->elanhw.hascrc)) {
+				sc->elanaction.fingers[0] = fn;
+				return (0);
+			} else
+				f[0] = sc->elanaction.fingers[0];
+		}
+		break;
+
+	case ELANTECH_PKT_V4_STATUS:	/* HW Version 4. Status packet */
+		/*               7   6   5   4   3   2   1   0 (LSB)
+		 * -------------------------------------------
+		 * ipacket[0]:   .   .   .   .   0   1   R   L
+		 * ipacket[1]:   .   .   .  F4  F3  F2  F1  F0
+		 * ipacket[2]:   .   .   .   .   .   .   .   .
+		 * ipacket[3]:   .   .   .   1   0   0   0   0
+		 * ipacket[4]:  PL   .   .   .   .   .   .   .
+		 * ipacket[5]:   .   .   .   .   .   .   .   .
+		 * -------------------------------------------
+		 * Fn: finger n is on touchpad
+		 * PL: palm
+		 * HV ver4 sends a status packet to indicate that the numbers
+		 * or identities of the fingers has been changed
+		 */
+
+		mask = pb->ipacket[1] & 0x1f;
+		nfingers = bitcount(mask);
+
+		/* Skip "new finger is on touchpad" packets */
+		if ((sc->elanaction.mask & mask) == sc->elanaction.mask &&
+		    (mask & ~sc->elanaction.mask)) {
+			sc->elanaction.mask = mask;
+			return (0);
+		}
+
+		break;
+
+	case ELANTECH_PKT_V4_HEAD:	/* HW Version 4. Head packet */
+		/*               7   6   5   4   3   2   1   0 (LSB)
+		 * -------------------------------------------
+		 * ipacket[0]:  W3  W2  W1  W0   0   1   R   L
+		 * ipacket[1]:  P7  P6  P5  P4 X11 X10  X9  X8
+		 * ipacket[2]:  X7  X6  X5  X4  X3  X2  X1  X0
+		 * ipacket[3]: ID2 ID1 ID0   1   0   0   0   1
+		 * ipacket[4]:  P3  P1  P2  P0 Y11 Y10  Y9  Y8
+		 * ipacket[5]:  Y7  Y6  Y5  Y4  Y3  Y2  Y1  Y0
+		 * -------------------------------------------
+		 * ID: finger id
+		 * HW ver 4 sends head packets in two cases:
+		 * 1. One finger touch and movement.
+		 * 2. Next after status packet to tell new finger positions.
+		 */
+		mask = sc->elanaction.mask;
+		nfingers = bitcount(mask);
+		id = ((pb->ipacket[3] & 0xe0) >> 5) - 1;
+
+		if (id >= 0 && id < ELANTECH_MAX_FINGERS) {
+			f[id] = ELANTECH_FINGER_SET_XYP(pb);
+			f[id].w = (pb->ipacket[0] & 0xf0) >> 4;
+		}
+		break;
+
+	case ELANTECH_PKT_V4_MOTION:	/* HW Version 4. Motion packet */
+		/*               7   6   5   4   3   2   1   0 (LSB)
+		 * -------------------------------------------
+		 * ipacket[0]: ID2 ID1 ID0  OF   0   1   R   L
+		 * ipacket[1]: DX7 DX6 DX5 DX4 DX3 DX2 DX1 DX0
+		 * ipacket[2]: DY7 DY6 DY5 DY4 DY3 DY2 DY1 DY0
+		 * ipacket[3]: ID2 ID1 ID0   1   0   0   1   0
+		 * ipacket[4]: DX7 DX6 DX5 DX4 DX3 DX2 DX1 DX0
+		 * ipacket[5]: DY7 DY6 DY5 DY4 DY3 DY2 DY1 DY0
+		 * -------------------------------------------
+		 * OF: delta overflows (> 127 or < -128), in this case
+		 *     firmware sends us (delta x / 5) and (delta y / 5)
+		 * ID: finger id
+		 * DX: delta x (two's complement)
+		 * XY: delta y (two's complement)
+		 * byte 0 ~ 2 for one finger
+		 * byte 3 ~ 5 for another finger
+		 */
+		mask = sc->elanaction.mask;
+		nfingers = bitcount(mask);
+
+		scale = (pb->ipacket[0] & 0x10) ? 5 : 1;
+		for (i = 0; i <= 3; i += 3) {
+			id = ((pb->ipacket[i] & 0xe0) >> 5) - 1;
+			if (id < 0 || id >= ELANTECH_MAX_FINGERS)
+				continue;
+
+			if (PSM_FINGER_IS_SET(sc->elanaction.fingers[id])) {
+				f[id] = sc->elanaction.fingers[id];
+				f[id].x += imax(-f[id].x,
+				    (signed char)pb->ipacket[i+1] * scale);
+				f[id].y += imax(-f[id].y,
+				    (signed char)pb->ipacket[i+2] * scale);
+			} else {
+				VLOG(3, (LOG_DEBUG, "elantech: "
+				    "HW v4 motion packet skipped\n"));
+			}
+		}
+
+		break;
+
+	case ELANTECH_PKT_TRACKPOINT:
+		/*               7   6   5   4   3   2   1   0 (LSB)
+		 * -------------------------------------------
+		 * ipacket[0]:   0   0  SX  SY   0   M   R   L
+		 * ipacket[1]: ~SX   0   0   0   0   0   0   0
+		 * ipacket[2]: ~SY   0   0   0   0   0   0   0
+		 * ipacket[3]:   0   0 ~SY ~SX   0   1   1   0
+		 * ipacket[4]:  X7  X6  X5  X4  X3  X2  X1  X0
+		 * ipacket[5]:  Y7  Y6  Y5  Y4  Y3  Y2  Y1  Y0
+		 * -------------------------------------------
+		 * X and Y are written in two's complement spread
+		 * over 9 bits with SX/SY the relative top bit and
+		 * X7..X0 and Y7..Y0 the lower bits.
+		 */
+		*x = (pb->ipacket[0] & 0x20) ?
+		    pb->ipacket[4] - 256 : pb->ipacket[4];
+		*y = (pb->ipacket[0] & 0x10) ?
+		    pb->ipacket[5] - 256 : pb->ipacket[5];
+
+		trackpoint_button =
+		    ((pb->ipacket[0] & 0x01) ? MOUSE_BUTTON1DOWN : 0) |
+		    ((pb->ipacket[0] & 0x02) ? MOUSE_BUTTON3DOWN : 0) |
+		    ((pb->ipacket[0] & 0x04) ? MOUSE_BUTTON2DOWN : 0);
+
+		ms->button = touchpad_button | trackpoint_button;
+		return (0);
+
+	case ELANTECH_PKT_NOP:
+		return (0);
+
+	default:
+		return (-1);
+	}
+
+	for (id = 0; id < ELANTECH_MAX_FINGERS; id++)
+		if (PSM_FINGER_IS_SET(f[id]))
+			VLOG(2, (LOG_DEBUG, "elantech: "
+			    "finger %d: down [%d, %d], %d, %d, %d\n", id + 1,
+			    f[id].x, f[id].y, f[id].p, f[id].w, f[id].flags));
+
+	/* Touchpad button presses */
+	if (sc->elanhw.isclickpad) {
+		touchpad_button =
+		    ((pb->ipacket[0] & 0x03) ? MOUSE_BUTTON1DOWN : 0);
+	} else {
+		touchpad_button =
+		    ((pb->ipacket[0] & 0x01) ? MOUSE_BUTTON1DOWN : 0) |
+		    ((pb->ipacket[0] & 0x02) ? MOUSE_BUTTON3DOWN : 0);
+	}
+
+	ms->button = touchpad_button | trackpoint_button;
+
+	/* Palm detection doesn't terminate the current action. */
+	if (!psmpalmdetect(sc, &f[0], nfingers)) {
+		/* Send finger 1 position to gesture processor */
+		if (PSM_FINGER_IS_SET(f[0]) || PSM_FINGER_IS_SET(f[1]) ||
+		    nfingers == 0)
+			psmgestures(sc, &f[0], imin(nfingers, 3), ms);
+		/* Send fingers positions to movement smoothers */
+		for (id = 0; id < PSM_FINGERS; id++)
+			if (PSM_FINGER_IS_SET(f[id]) || !(mask & (1 << id)))
+				psmsmoother(sc, &f[id], id, ms, x, y);
+	} else {
+		VLOG(2, (LOG_DEBUG, "elantech: palm detected! (%d)\n",
+		    f[0].w));
+	}
+
+	/* Store current finger positions in action context */
+	for (id = 0; id < ELANTECH_MAX_FINGERS; id++) {
+		if (PSM_FINGER_IS_SET(f[id]))
+			sc->elanaction.fingers[id] = f[id];
+		if ((sc->elanaction.mask & (1 << id)) && !(mask & (1 << id)))
+			PSM_FINGER_RESET(sc->elanaction.fingers[id]);
+	}
+	sc->elanaction.mask = mask;
+
+	/* Use the extra buttons as a scrollwheel */
+	if (ms->button & MOUSE_BUTTON4DOWN)
 		*z = -1;
-		ms->button &= ~MOUSE_BUTTON4DOWN;
-	} else if (ms->button & MOUSE_BUTTON5DOWN) {
+	else if (ms->button & MOUSE_BUTTON5DOWN)
 		*z = 1;
-		ms->button &= ~MOUSE_BUTTON5DOWN;
-	} else if (ms->button & MOUSE_BUTTON6DOWN) {
+	else if (ms->button & MOUSE_BUTTON6DOWN)
 		*z = -2;
-		ms->button &= ~MOUSE_BUTTON6DOWN;
-	} else if (ms->button & MOUSE_BUTTON7DOWN) {
+	else if (ms->button & MOUSE_BUTTON7DOWN)
 		*z = 2;
-		ms->button &= ~MOUSE_BUTTON7DOWN;
-	} else
+	else
 		*z = 0;
+	ms->button &= ~(MOUSE_BUTTON4DOWN | MOUSE_BUTTON5DOWN |
+	    MOUSE_BUTTON6DOWN | MOUSE_BUTTON7DOWN);
 
 	return (0);
 }
@@ -3413,6 +4127,31 @@ proc_versapad(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 }
 
 static void
+psmsoftintridle(void *arg)
+{
+	struct psm_softc *sc = arg;
+	packetbuf_t *pb;
+
+	/* Invoke soft handler only when pqueue is empty. Otherwise it will be
+	 * invoked from psmintr soon with pqueue filled with real data */
+	if (sc->pqueue_start == sc->pqueue_end &&
+	    sc->idlepacket.inputbytes > 0) {
+		/* Grow circular queue backwards to avoid race with psmintr */
+		if (--sc->pqueue_start < 0)
+			sc->pqueue_start = PSM_PACKETQUEUE - 1;
+
+		pb = &sc->pqueue[sc->pqueue_start];
+		memcpy(pb, &sc->idlepacket, sizeof(packetbuf_t));
+		VLOG(4, (LOG_DEBUG,
+		    "psmsoftintridle: %02x %02x %02x %02x %02x %02x\n",
+		    pb->ipacket[0], pb->ipacket[1], pb->ipacket[2],
+		    pb->ipacket[3], pb->ipacket[4], pb->ipacket[5]));
+
+		psmsoftintr(arg);
+	}
+}
+
+static void
 psmsoftintr(void *arg)
 {
 	/*
@@ -3465,6 +4204,8 @@ psmsoftintr(void *arg)
 		if (sc->config & PSM_CONFIG_FORCETAP)
 			ms.button |= ((c & MOUSE_PS2_TAP)) ?
 			    0 : MOUSE_BUTTON4DOWN;
+		timevalclear(&sc->idletimeout);
+		sc->idlepacket.inputbytes = 0;
 
 		switch (sc->hw.model) {
 
@@ -3603,6 +4344,11 @@ psmsoftintr(void *arg)
 				goto next;
 			break;
 
+		case MOUSE_MODEL_ELANTECH:
+			if (proc_elantech(sc, pb, &ms, &x, &y, &z) != 0)
+				goto next;
+			break;
+
 		case MOUSE_MODEL_TRACKPOINT:
 		case MOUSE_MODEL_GENERIC:
 		default:
@@ -3626,6 +4372,10 @@ psmsoftintr(void *arg)
 				y = -y;
 		}
 	}
+
+	/* Store last packet for reinjection if it has not been set already */
+	if (timevalisset(&sc->idletimeout) && sc->idlepacket.inputbytes == 0)
+		sc->idlepacket = *pb;
 
 	ms.dx = x;
 	ms.dy = y;
@@ -3673,6 +4423,16 @@ next:
 		pgsigio(&sc->async, SIGIO, 0);
 	}
 	sc->state &= ~PSM_SOFTARMED;
+
+	/* schedule injection of predefined packet after idletimeout
+	 * if no data packets have been received from psmintr */
+	if (timevalisset(&sc->idletimeout)) {
+		sc->state |= PSM_SOFTARMED;
+		callout_reset(&sc->softcallout, tvtohz(&sc->idletimeout),
+		    psmsoftintridle, sc);
+		VLOG(2, (LOG_DEBUG, "softintr: callout set: %d ticks\n",
+		    tvtohz(&sc->idletimeout)));
+	}
 	splx(s);
 }
 
@@ -4106,10 +4866,17 @@ enable_4dplus(struct psm_softc *sc, enum probearg arg)
 static int
 synaptics_sysctl(SYSCTL_HANDLER_ARGS)
 {
+	struct psm_softc *sc;
 	int error, arg;
 
+	if (oidp->oid_arg1 == NULL || oidp->oid_arg2 < 0 ||
+	    oidp->oid_arg2 > SYNAPTICS_SYSCTL_SOFTBUTTON3_X)
+		return (EINVAL);
+
+	sc = oidp->oid_arg1;
+
 	/* Read the current value. */
-	arg = *(int *)oidp->oid_arg1;
+	arg = *(int *)((char *)sc + oidp->oid_arg2);
 	error = sysctl_handle_int(oidp, &arg, 0, req);
 
 	/* Sanity check. */
@@ -4131,14 +4898,23 @@ synaptics_sysctl(SYSCTL_HANDLER_ARGS)
 			return (EINVAL);
 		break;
 	case SYNAPTICS_SYSCTL_MARGIN_TOP:
-	case SYNAPTICS_SYSCTL_MARGIN_RIGHT:
 	case SYNAPTICS_SYSCTL_MARGIN_BOTTOM:
-	case SYNAPTICS_SYSCTL_MARGIN_LEFT:
 	case SYNAPTICS_SYSCTL_NA_TOP:
-	case SYNAPTICS_SYSCTL_NA_RIGHT:
 	case SYNAPTICS_SYSCTL_NA_BOTTOM:
+		if (arg < 0 || arg > sc->synhw.maximumYCoord)
+			return (EINVAL);
+		break;
+	case SYNAPTICS_SYSCTL_SOFTBUTTON2_X:
+	case SYNAPTICS_SYSCTL_SOFTBUTTON3_X:
+		/* Softbuttons is clickpad only feature */
+		if (!sc->synhw.capClickPad && arg != 0)
+			return (EINVAL);
+		/* FALLTHROUGH */
+	case SYNAPTICS_SYSCTL_MARGIN_RIGHT:
+	case SYNAPTICS_SYSCTL_MARGIN_LEFT:
+	case SYNAPTICS_SYSCTL_NA_RIGHT:
 	case SYNAPTICS_SYSCTL_NA_LEFT:
-		if (arg < 0 || arg > 6143)
+		if (arg < 0 || arg > sc->synhw.maximumXCoord)
 			return (EINVAL);
 		break;
 	case SYNAPTICS_SYSCTL_WINDOW_MIN:
@@ -4168,8 +4944,18 @@ synaptics_sysctl(SYSCTL_HANDLER_ARGS)
 			return (EINVAL);
 		break;
 	case SYNAPTICS_SYSCTL_VSCROLL_HOR_AREA:
+		if (arg < -sc->synhw.maximumXCoord ||
+		    arg > sc->synhw.maximumXCoord)
+			return (EINVAL);
+		break;
+	case SYNAPTICS_SYSCTL_SOFTBUTTONS_Y:
+		/* Softbuttons is clickpad only feature */
+		if (!sc->synhw.capClickPad && arg != 0)
+			return (EINVAL);
+		/* FALLTHROUGH */
 	case SYNAPTICS_SYSCTL_VSCROLL_VER_AREA:
-		if (arg < -6143 || arg > 6143)
+		if (arg < -sc->synhw.maximumYCoord ||
+		    arg > sc->synhw.maximumYCoord)
 			return (EINVAL);
 		break;
         case SYNAPTICS_SYSCTL_TOUCHPAD_OFF:
@@ -4181,13 +4967,51 @@ synaptics_sysctl(SYSCTL_HANDLER_ARGS)
 	}
 
 	/* Update. */
-	*(int *)oidp->oid_arg1 = arg;
+	*(int *)((char *)sc + oidp->oid_arg2) = arg;
 
 	return (error);
 }
 
 static void
-synaptics_sysctl_create_tree(struct psm_softc *sc)
+synaptics_sysctl_create_softbuttons_tree(struct psm_softc *sc)
+{
+	/*
+	 * Set predefined sizes for softbuttons.
+	 * Values are taken to match HP Pavilion dv6 clickpad drawings
+	 * with thin middle softbutton placed on separator
+	 */
+
+	/* hw.psm.synaptics.softbuttons_y */
+	sc->syninfo.softbuttons_y = 1700;
+	SYSCTL_ADD_PROC(&sc->syninfo.sysctl_ctx,
+	    SYSCTL_CHILDREN(sc->syninfo.sysctl_tree), OID_AUTO,
+	    "softbuttons_y", CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_ANYBODY,
+	    sc, SYNAPTICS_SYSCTL_SOFTBUTTONS_Y,
+	    synaptics_sysctl, "I",
+	    "Vertical size of softbuttons area");
+
+	/* hw.psm.synaptics.softbutton2_x */
+	sc->syninfo.softbutton2_x = 3100;
+	SYSCTL_ADD_PROC(&sc->syninfo.sysctl_ctx,
+	    SYSCTL_CHILDREN(sc->syninfo.sysctl_tree), OID_AUTO,
+	    "softbutton2_x", CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_ANYBODY,
+	    sc, SYNAPTICS_SYSCTL_SOFTBUTTON2_X,
+	    synaptics_sysctl, "I",
+	    "Horisontal position of 2-nd softbutton left edge (0-disable)");
+
+	/* hw.psm.synaptics.softbutton3_x */
+	sc->syninfo.softbutton3_x = 3900;
+	SYSCTL_ADD_PROC(&sc->syninfo.sysctl_ctx,
+	    SYSCTL_CHILDREN(sc->syninfo.sysctl_tree), OID_AUTO,
+	    "softbutton3_x", CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_ANYBODY,
+	    sc, SYNAPTICS_SYSCTL_SOFTBUTTON3_X,
+	    synaptics_sysctl, "I",
+	    "Horisontal position of 3-rd softbutton left edge (0-disable)");
+}
+
+static void
+synaptics_sysctl_create_tree(struct psm_softc *sc, const char *name,
+    const char *descr)
 {
 
 	if (sc->syninfo.sysctl_tree != NULL)
@@ -4196,8 +5020,8 @@ synaptics_sysctl_create_tree(struct psm_softc *sc)
 	/* Attach extra synaptics sysctl nodes under hw.psm.synaptics */
 	sysctl_ctx_init(&sc->syninfo.sysctl_ctx);
 	sc->syninfo.sysctl_tree = SYSCTL_ADD_NODE(&sc->syninfo.sysctl_ctx,
-	    SYSCTL_STATIC_CHILDREN(_hw_psm), OID_AUTO, "synaptics", CTLFLAG_RD,
-	    0, "Synaptics TouchPad");
+	    SYSCTL_STATIC_CHILDREN(_hw_psm), OID_AUTO, name, CTLFLAG_RD,
+	    0, descr);
 
 	/* hw.psm.synaptics.directional_scrolls. */
 	sc->syninfo.directional_scrolls = 0;
@@ -4207,6 +5031,22 @@ synaptics_sysctl_create_tree(struct psm_softc *sc)
 	    &sc->syninfo.directional_scrolls, 0,
 	    "Enable hardware scrolling pad (if non-zero) or register it as "
 	    "extended buttons (if 0)");
+
+	/* hw.psm.synaptics.max_x. */
+	sc->syninfo.max_x = 6143;
+	SYSCTL_ADD_INT(&sc->syninfo.sysctl_ctx,
+	    SYSCTL_CHILDREN(sc->syninfo.sysctl_tree), OID_AUTO,
+	    "max_x", CTLFLAG_RD|CTLFLAG_ANYBODY,
+	    &sc->syninfo.max_x, 0,
+	    "Horizontal reporting range");
+
+	/* hw.psm.synaptics.max_y. */
+	sc->syninfo.max_y = 6143;
+	SYSCTL_ADD_INT(&sc->syninfo.sysctl_ctx,
+	    SYSCTL_CHILDREN(sc->syninfo.sysctl_tree), OID_AUTO,
+	    "max_y", CTLFLAG_RD|CTLFLAG_ANYBODY,
+	    &sc->syninfo.max_y, 0,
+	    "Vertical reporting range");
 
 	/*
 	 * Turn off two finger scroll if we have a
@@ -4230,7 +5070,7 @@ synaptics_sysctl_create_tree(struct psm_softc *sc)
 	SYSCTL_ADD_PROC(&sc->syninfo.sysctl_ctx,
 	    SYSCTL_CHILDREN(sc->syninfo.sysctl_tree), OID_AUTO,
 	    "min_pressure", CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_ANYBODY,
-	    &sc->syninfo.min_pressure, SYNAPTICS_SYSCTL_MIN_PRESSURE,
+	    sc, SYNAPTICS_SYSCTL_MIN_PRESSURE,
 	    synaptics_sysctl, "I",
 	    "Minimum pressure required to start an action");
 
@@ -4239,7 +5079,7 @@ synaptics_sysctl_create_tree(struct psm_softc *sc)
 	SYSCTL_ADD_PROC(&sc->syninfo.sysctl_ctx,
 	    SYSCTL_CHILDREN(sc->syninfo.sysctl_tree), OID_AUTO,
 	    "max_pressure", CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_ANYBODY,
-	    &sc->syninfo.max_pressure, SYNAPTICS_SYSCTL_MAX_PRESSURE,
+	    sc, SYNAPTICS_SYSCTL_MAX_PRESSURE,
 	    synaptics_sysctl, "I",
 	    "Maximum pressure to detect palm");
 
@@ -4248,7 +5088,7 @@ synaptics_sysctl_create_tree(struct psm_softc *sc)
 	SYSCTL_ADD_PROC(&sc->syninfo.sysctl_ctx,
 	    SYSCTL_CHILDREN(sc->syninfo.sysctl_tree), OID_AUTO,
 	    "max_width", CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_ANYBODY,
-	    &sc->syninfo.max_width, SYNAPTICS_SYSCTL_MAX_WIDTH,
+	    sc, SYNAPTICS_SYSCTL_MAX_WIDTH,
 	    synaptics_sysctl, "I",
 	    "Maximum finger width to detect palm");
 
@@ -4257,7 +5097,7 @@ synaptics_sysctl_create_tree(struct psm_softc *sc)
 	SYSCTL_ADD_PROC(&sc->syninfo.sysctl_ctx,
 	    SYSCTL_CHILDREN(sc->syninfo.sysctl_tree), OID_AUTO,
 	    "margin_top", CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_ANYBODY,
-	    &sc->syninfo.margin_top, SYNAPTICS_SYSCTL_MARGIN_TOP,
+	    sc, SYNAPTICS_SYSCTL_MARGIN_TOP,
 	    synaptics_sysctl, "I",
 	    "Top margin");
 
@@ -4266,7 +5106,7 @@ synaptics_sysctl_create_tree(struct psm_softc *sc)
 	SYSCTL_ADD_PROC(&sc->syninfo.sysctl_ctx,
 	    SYSCTL_CHILDREN(sc->syninfo.sysctl_tree), OID_AUTO,
 	    "margin_right", CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_ANYBODY,
-	    &sc->syninfo.margin_right, SYNAPTICS_SYSCTL_MARGIN_RIGHT,
+	    sc, SYNAPTICS_SYSCTL_MARGIN_RIGHT,
 	    synaptics_sysctl, "I",
 	    "Right margin");
 
@@ -4275,7 +5115,7 @@ synaptics_sysctl_create_tree(struct psm_softc *sc)
 	SYSCTL_ADD_PROC(&sc->syninfo.sysctl_ctx,
 	    SYSCTL_CHILDREN(sc->syninfo.sysctl_tree), OID_AUTO,
 	    "margin_bottom", CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_ANYBODY,
-	    &sc->syninfo.margin_bottom, SYNAPTICS_SYSCTL_MARGIN_BOTTOM,
+	    sc, SYNAPTICS_SYSCTL_MARGIN_BOTTOM,
 	    synaptics_sysctl, "I",
 	    "Bottom margin");
 
@@ -4284,7 +5124,7 @@ synaptics_sysctl_create_tree(struct psm_softc *sc)
 	SYSCTL_ADD_PROC(&sc->syninfo.sysctl_ctx,
 	    SYSCTL_CHILDREN(sc->syninfo.sysctl_tree), OID_AUTO,
 	    "margin_left", CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_ANYBODY,
-	    &sc->syninfo.margin_left, SYNAPTICS_SYSCTL_MARGIN_LEFT,
+	    sc, SYNAPTICS_SYSCTL_MARGIN_LEFT,
 	    synaptics_sysctl, "I",
 	    "Left margin");
 
@@ -4293,7 +5133,7 @@ synaptics_sysctl_create_tree(struct psm_softc *sc)
 	SYSCTL_ADD_PROC(&sc->syninfo.sysctl_ctx,
 	    SYSCTL_CHILDREN(sc->syninfo.sysctl_tree), OID_AUTO,
 	    "na_top", CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_ANYBODY,
-	    &sc->syninfo.na_top, SYNAPTICS_SYSCTL_NA_TOP,
+	    sc, SYNAPTICS_SYSCTL_NA_TOP,
 	    synaptics_sysctl, "I",
 	    "Top noisy area, where weight_previous_na is used instead "
 	    "of weight_previous");
@@ -4303,7 +5143,7 @@ synaptics_sysctl_create_tree(struct psm_softc *sc)
 	SYSCTL_ADD_PROC(&sc->syninfo.sysctl_ctx,
 	    SYSCTL_CHILDREN(sc->syninfo.sysctl_tree), OID_AUTO,
 	    "na_right", CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_ANYBODY,
-	    &sc->syninfo.na_right, SYNAPTICS_SYSCTL_NA_RIGHT,
+	    sc, SYNAPTICS_SYSCTL_NA_RIGHT,
 	    synaptics_sysctl, "I",
 	    "Right noisy area, where weight_previous_na is used instead "
 	    "of weight_previous");
@@ -4313,7 +5153,7 @@ synaptics_sysctl_create_tree(struct psm_softc *sc)
 	SYSCTL_ADD_PROC(&sc->syninfo.sysctl_ctx,
 	    SYSCTL_CHILDREN(sc->syninfo.sysctl_tree), OID_AUTO,
 	    "na_bottom", CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_ANYBODY,
-	    &sc->syninfo.na_bottom, SYNAPTICS_SYSCTL_NA_BOTTOM,
+	    sc, SYNAPTICS_SYSCTL_NA_BOTTOM,
 	    synaptics_sysctl, "I",
 	    "Bottom noisy area, where weight_previous_na is used instead "
 	    "of weight_previous");
@@ -4323,7 +5163,7 @@ synaptics_sysctl_create_tree(struct psm_softc *sc)
 	SYSCTL_ADD_PROC(&sc->syninfo.sysctl_ctx,
 	    SYSCTL_CHILDREN(sc->syninfo.sysctl_tree), OID_AUTO,
 	    "na_left", CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_ANYBODY,
-	    &sc->syninfo.na_left, SYNAPTICS_SYSCTL_NA_LEFT,
+	    sc, SYNAPTICS_SYSCTL_NA_LEFT,
 	    synaptics_sysctl, "I",
 	    "Left noisy area, where weight_previous_na is used instead "
 	    "of weight_previous");
@@ -4333,7 +5173,7 @@ synaptics_sysctl_create_tree(struct psm_softc *sc)
 	SYSCTL_ADD_PROC(&sc->syninfo.sysctl_ctx,
 	    SYSCTL_CHILDREN(sc->syninfo.sysctl_tree), OID_AUTO,
 	    "window_min", CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_ANYBODY,
-	    &sc->syninfo.window_min, SYNAPTICS_SYSCTL_WINDOW_MIN,
+	    sc, SYNAPTICS_SYSCTL_WINDOW_MIN,
 	    synaptics_sysctl, "I",
 	    "Minimum window size to start an action");
 
@@ -4342,7 +5182,7 @@ synaptics_sysctl_create_tree(struct psm_softc *sc)
 	SYSCTL_ADD_PROC(&sc->syninfo.sysctl_ctx,
 	    SYSCTL_CHILDREN(sc->syninfo.sysctl_tree), OID_AUTO,
 	    "window_max", CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_ANYBODY,
-	    &sc->syninfo.window_max, SYNAPTICS_SYSCTL_WINDOW_MAX,
+	    sc, SYNAPTICS_SYSCTL_WINDOW_MAX,
 	    synaptics_sysctl, "I",
 	    "Maximum window size");
 
@@ -4351,7 +5191,7 @@ synaptics_sysctl_create_tree(struct psm_softc *sc)
 	SYSCTL_ADD_PROC(&sc->syninfo.sysctl_ctx,
 	    SYSCTL_CHILDREN(sc->syninfo.sysctl_tree), OID_AUTO,
 	    "multiplicator", CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_ANYBODY,
-	    &sc->syninfo.multiplicator, SYNAPTICS_SYSCTL_MULTIPLICATOR,
+	    sc, SYNAPTICS_SYSCTL_MULTIPLICATOR,
 	    synaptics_sysctl, "I",
 	    "Multiplicator to increase precision in averages and divisions");
 
@@ -4360,7 +5200,7 @@ synaptics_sysctl_create_tree(struct psm_softc *sc)
 	SYSCTL_ADD_PROC(&sc->syninfo.sysctl_ctx,
 	    SYSCTL_CHILDREN(sc->syninfo.sysctl_tree), OID_AUTO,
 	    "weight_current", CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_ANYBODY,
-	    &sc->syninfo.weight_current, SYNAPTICS_SYSCTL_WEIGHT_CURRENT,
+	    sc, SYNAPTICS_SYSCTL_WEIGHT_CURRENT,
 	    synaptics_sysctl, "I",
 	    "Weight of the current movement in the new average");
 
@@ -4369,7 +5209,7 @@ synaptics_sysctl_create_tree(struct psm_softc *sc)
 	SYSCTL_ADD_PROC(&sc->syninfo.sysctl_ctx,
 	    SYSCTL_CHILDREN(sc->syninfo.sysctl_tree), OID_AUTO,
 	    "weight_previous", CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_ANYBODY,
-	    &sc->syninfo.weight_previous, SYNAPTICS_SYSCTL_WEIGHT_PREVIOUS,
+	    sc, SYNAPTICS_SYSCTL_WEIGHT_PREVIOUS,
 	    synaptics_sysctl, "I",
 	    "Weight of the previous average");
 
@@ -4378,8 +5218,7 @@ synaptics_sysctl_create_tree(struct psm_softc *sc)
 	SYSCTL_ADD_PROC(&sc->syninfo.sysctl_ctx,
 	    SYSCTL_CHILDREN(sc->syninfo.sysctl_tree), OID_AUTO,
 	    "weight_previous_na", CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_ANYBODY,
-	    &sc->syninfo.weight_previous_na,
-	    SYNAPTICS_SYSCTL_WEIGHT_PREVIOUS_NA,
+	    sc, SYNAPTICS_SYSCTL_WEIGHT_PREVIOUS_NA,
 	    synaptics_sysctl, "I",
 	    "Weight of the previous average (inside the noisy area)");
 
@@ -4388,8 +5227,7 @@ synaptics_sysctl_create_tree(struct psm_softc *sc)
 	SYSCTL_ADD_PROC(&sc->syninfo.sysctl_ctx,
 	    SYSCTL_CHILDREN(sc->syninfo.sysctl_tree), OID_AUTO,
 	    "weight_len_squared", CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_ANYBODY,
-	    &sc->syninfo.weight_len_squared,
-	    SYNAPTICS_SYSCTL_WEIGHT_LEN_SQUARED,
+	    sc, SYNAPTICS_SYSCTL_WEIGHT_LEN_SQUARED,
 	    synaptics_sysctl, "I",
 	    "Length (squared) of segments where weight_previous "
 	    "starts to decrease");
@@ -4399,7 +5237,7 @@ synaptics_sysctl_create_tree(struct psm_softc *sc)
 	SYSCTL_ADD_PROC(&sc->syninfo.sysctl_ctx,
 	    SYSCTL_CHILDREN(sc->syninfo.sysctl_tree), OID_AUTO,
 	    "div_min", CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_ANYBODY,
-	    &sc->syninfo.div_min, SYNAPTICS_SYSCTL_DIV_MIN,
+	    sc, SYNAPTICS_SYSCTL_DIV_MIN,
 	    synaptics_sysctl, "I",
 	    "Divisor for fast movements");
 
@@ -4408,7 +5246,7 @@ synaptics_sysctl_create_tree(struct psm_softc *sc)
 	SYSCTL_ADD_PROC(&sc->syninfo.sysctl_ctx,
 	    SYSCTL_CHILDREN(sc->syninfo.sysctl_tree), OID_AUTO,
 	    "div_max", CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_ANYBODY,
-	    &sc->syninfo.div_max, SYNAPTICS_SYSCTL_DIV_MAX,
+	    sc, SYNAPTICS_SYSCTL_DIV_MAX,
 	    synaptics_sysctl, "I",
 	    "Divisor for slow movements");
 
@@ -4417,7 +5255,7 @@ synaptics_sysctl_create_tree(struct psm_softc *sc)
 	SYSCTL_ADD_PROC(&sc->syninfo.sysctl_ctx,
 	    SYSCTL_CHILDREN(sc->syninfo.sysctl_tree), OID_AUTO,
 	    "div_max_na", CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_ANYBODY,
-	    &sc->syninfo.div_max_na, SYNAPTICS_SYSCTL_DIV_MAX_NA,
+	    sc, SYNAPTICS_SYSCTL_DIV_MAX_NA,
 	    synaptics_sysctl, "I",
 	    "Divisor with slow movements (inside the noisy area)");
 
@@ -4426,7 +5264,7 @@ synaptics_sysctl_create_tree(struct psm_softc *sc)
 	SYSCTL_ADD_PROC(&sc->syninfo.sysctl_ctx,
 	    SYSCTL_CHILDREN(sc->syninfo.sysctl_tree), OID_AUTO,
 	    "div_len", CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_ANYBODY,
-	    &sc->syninfo.div_len, SYNAPTICS_SYSCTL_DIV_LEN,
+	    sc, SYNAPTICS_SYSCTL_DIV_LEN,
 	    synaptics_sysctl, "I",
 	    "Length of segments where div_max starts to decrease");
 
@@ -4435,7 +5273,7 @@ synaptics_sysctl_create_tree(struct psm_softc *sc)
 	SYSCTL_ADD_PROC(&sc->syninfo.sysctl_ctx,
 	    SYSCTL_CHILDREN(sc->syninfo.sysctl_tree), OID_AUTO,
 	    "tap_max_delta", CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_ANYBODY,
-	    &sc->syninfo.tap_max_delta, SYNAPTICS_SYSCTL_TAP_MAX_DELTA,
+	    sc, SYNAPTICS_SYSCTL_TAP_MAX_DELTA,
 	    synaptics_sysctl, "I",
 	    "Length of segments above which a tap is ignored");
 
@@ -4444,17 +5282,17 @@ synaptics_sysctl_create_tree(struct psm_softc *sc)
 	SYSCTL_ADD_PROC(&sc->syninfo.sysctl_ctx,
 	    SYSCTL_CHILDREN(sc->syninfo.sysctl_tree), OID_AUTO,
 	    "tap_min_queue", CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_ANYBODY,
-	    &sc->syninfo.tap_min_queue, SYNAPTICS_SYSCTL_TAP_MIN_QUEUE,
+	    sc, SYNAPTICS_SYSCTL_TAP_MIN_QUEUE,
 	    synaptics_sysctl, "I",
 	    "Number of packets required to consider a tap");
 
 	/* hw.psm.synaptics.taphold_timeout. */
-	sc->synaction.in_taphold = 0;
+	sc->gesture.in_taphold = 0;
 	sc->syninfo.taphold_timeout = tap_timeout;
 	SYSCTL_ADD_PROC(&sc->syninfo.sysctl_ctx,
 	    SYSCTL_CHILDREN(sc->syninfo.sysctl_tree), OID_AUTO,
 	    "taphold_timeout", CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_ANYBODY,
-	    &sc->syninfo.taphold_timeout, SYNAPTICS_SYSCTL_TAPHOLD_TIMEOUT,
+	    sc, SYNAPTICS_SYSCTL_TAPHOLD_TIMEOUT,
 	    synaptics_sysctl, "I",
 	    "Maximum elapsed time between two taps to consider a tap-hold "
 	    "action");
@@ -4464,16 +5302,16 @@ synaptics_sysctl_create_tree(struct psm_softc *sc)
 	SYSCTL_ADD_PROC(&sc->syninfo.sysctl_ctx,
 	    SYSCTL_CHILDREN(sc->syninfo.sysctl_tree), OID_AUTO,
 	    "vscroll_hor_area", CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_ANYBODY,
-	    &sc->syninfo.vscroll_hor_area, SYNAPTICS_SYSCTL_VSCROLL_HOR_AREA,
+	    sc, SYNAPTICS_SYSCTL_VSCROLL_HOR_AREA,
 	    synaptics_sysctl, "I",
 	    "Area reserved for horizontal virtual scrolling");
 
 	/* hw.psm.synaptics.vscroll_ver_area. */
-	sc->syninfo.vscroll_ver_area = -600;
+	sc->syninfo.vscroll_ver_area = -400 - sc->syninfo.margin_right;
 	SYSCTL_ADD_PROC(&sc->syninfo.sysctl_ctx,
 	    SYSCTL_CHILDREN(sc->syninfo.sysctl_tree), OID_AUTO,
 	    "vscroll_ver_area", CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_ANYBODY,
-	    &sc->syninfo.vscroll_ver_area, SYNAPTICS_SYSCTL_VSCROLL_VER_AREA,
+	    sc, SYNAPTICS_SYSCTL_VSCROLL_VER_AREA,
 	    synaptics_sysctl, "I",
 	    "Area reserved for vertical virtual scrolling");
 
@@ -4482,8 +5320,7 @@ synaptics_sysctl_create_tree(struct psm_softc *sc)
 	SYSCTL_ADD_PROC(&sc->syninfo.sysctl_ctx,
 	    SYSCTL_CHILDREN(sc->syninfo.sysctl_tree), OID_AUTO,
 	    "vscroll_min_delta", CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_ANYBODY,
-	    &sc->syninfo.vscroll_min_delta,
-	    SYNAPTICS_SYSCTL_VSCROLL_MIN_DELTA,
+	    sc, SYNAPTICS_SYSCTL_VSCROLL_MIN_DELTA,
 	    synaptics_sysctl, "I",
 	    "Minimum movement to consider virtual scrolling");
 
@@ -4492,7 +5329,7 @@ synaptics_sysctl_create_tree(struct psm_softc *sc)
 	SYSCTL_ADD_PROC(&sc->syninfo.sysctl_ctx,
 	    SYSCTL_CHILDREN(sc->syninfo.sysctl_tree), OID_AUTO,
 	    "vscroll_div_min", CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_ANYBODY,
-	    &sc->syninfo.vscroll_div_min, SYNAPTICS_SYSCTL_VSCROLL_DIV_MIN,
+	    sc, SYNAPTICS_SYSCTL_VSCROLL_DIV_MIN,
 	    synaptics_sysctl, "I",
 	    "Divisor for fast scrolling");
 
@@ -4501,7 +5338,7 @@ synaptics_sysctl_create_tree(struct psm_softc *sc)
 	SYSCTL_ADD_PROC(&sc->syninfo.sysctl_ctx,
 	    SYSCTL_CHILDREN(sc->syninfo.sysctl_tree), OID_AUTO,
 	    "vscroll_div_max", CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_ANYBODY,
-	    &sc->syninfo.vscroll_div_max, SYNAPTICS_SYSCTL_VSCROLL_DIV_MAX,
+	    sc, SYNAPTICS_SYSCTL_VSCROLL_DIV_MAX,
 	    synaptics_sysctl, "I",
 	    "Divisor for slow scrolling");
 
@@ -4510,27 +5347,28 @@ synaptics_sysctl_create_tree(struct psm_softc *sc)
 	SYSCTL_ADD_PROC(&sc->syninfo.sysctl_ctx,
 	    SYSCTL_CHILDREN(sc->syninfo.sysctl_tree), OID_AUTO,
 	    "touchpad_off", CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_ANYBODY,
-	    &sc->syninfo.touchpad_off, SYNAPTICS_SYSCTL_TOUCHPAD_OFF,
+	    sc, SYNAPTICS_SYSCTL_TOUCHPAD_OFF,
 	    synaptics_sysctl, "I",
 	    "Turn off touchpad");
+
+	sc->syninfo.softbuttons_y = 0;
+	sc->syninfo.softbutton2_x = 0;
+	sc->syninfo.softbutton3_x = 0;
+
+	/* skip softbuttons sysctl on not clickpads */
+	if (sc->synhw.capClickPad)
+		synaptics_sysctl_create_softbuttons_tree(sc);
 }
 
 static int
 synaptics_preferred_mode(struct psm_softc *sc) {
 	int mode_byte;
 
-	mode_byte = 0xc0;
+	mode_byte = 0xc4;
 
 	/* request wmode where available */
 	if (sc->synhw.capExtended)
 		mode_byte |= 1;
-
-	/*
-	 * Disable gesture processing when native packets are requested. This
-	 * enables sending of encapsulated "extended W mode" packets.
-	 */
-	if (sc->mode.level == PSM_LEVEL_NATIVE)
-		mode_byte |= (1 << 2);
 
 	return mode_byte;
 }
@@ -4546,7 +5384,8 @@ synaptics_set_mode(struct psm_softc *sc, int mode_byte) {
 	 * Enable advanced gestures mode if supported and we are not entering
 	 * passthrough mode.
 	 */
-	if (sc->synhw.capAdvancedGestures && !(mode_byte & (1 << 5))) {
+	if ((sc->synhw.capAdvancedGestures || sc->synhw.capReportsV) &&
+	    !(mode_byte & (1 << 5))) {
 		mouse_ext_command(sc->kbdc, 3);
 		set_mouse_sampling_rate(sc->kbdc, 0xc8);
 	}
@@ -4754,7 +5593,15 @@ enable_synaptics(struct psm_softc *sc, enum probearg arg)
 						     ((status[1] & 0x0f) << 1);
 				synhw.maximumYCoord = (status[2] << 5) |
 						     ((status[1] & 0xf0) >> 3);
+			} else {
+				/*
+				 * Typical bezel limits. Taken from 'Synaptics
+				 * PS/2 * TouchPad Interfacing Guide' p.3.2.3.
+				 */
+				synhw.maximumXCoord = 5472;
+				synhw.maximumYCoord = 4448;
 			}
+
 			if (synhw.capReportsMin) {
 				if (!set_mouse_scaling(kbdc, 1))
 					return (FALSE);
@@ -4767,6 +5614,13 @@ enable_synaptics(struct psm_softc *sc, enum probearg arg)
 						     ((status[1] & 0x0f) << 1);
 				synhw.minimumYCoord = (status[2] << 5) |
 						     ((status[1] & 0xf0) >> 3);
+			} else {
+				/*
+				 * Typical bezel limits. Taken from 'Synaptics
+				 * PS/2 * TouchPad Interfacing Guide' p.3.2.3.
+				 */
+				synhw.minimumXCoord = 1472;
+				synhw.minimumYCoord = 1408;
 			}
 
 			if (verbose >= 2) {
@@ -4854,7 +5708,8 @@ enable_synaptics(struct psm_softc *sc, enum probearg arg)
 
 	if (arg == PROBE) {
 		/* Create sysctl tree. */
-		synaptics_sysctl_create_tree(sc);
+		synaptics_sysctl_create_tree(sc, "synaptics",
+		    "Synaptics TouchPad");
 		sc->hw.buttons = buttons;
 	}
 
@@ -5169,6 +6024,340 @@ enable_versapad(struct psm_softc *sc, enum probearg arg)
 	set_mouse_scaling(kbdc, 1);			/* set scale 1:1 */
 
 	return (TRUE);				/* PS/2 absolute mode */
+}
+
+/* Elantech Touchpad */
+static int
+elantech_read_1(KBDC kbdc, int hwversion, int reg, int *val)
+{
+	int res, readcmd, retidx;
+	int resp[3];
+
+	readcmd = hwversion == 2 ? ELANTECH_REG_READ : ELANTECH_REG_RDWR;
+	retidx = hwversion == 4 ? 1 : 0;
+
+	res = send_aux_command(kbdc, ELANTECH_CUSTOM_CMD) != PSM_ACK;
+	res |= send_aux_command(kbdc, readcmd) != PSM_ACK;
+	res |= send_aux_command(kbdc, ELANTECH_CUSTOM_CMD) != PSM_ACK;
+	res |= send_aux_command(kbdc, reg) != PSM_ACK;
+	res |= get_mouse_status(kbdc, resp, 0, 3) != 3;
+
+	if (res == 0)
+		*val = resp[retidx];
+
+	return (res);
+}
+
+static int
+elantech_write_1(KBDC kbdc, int hwversion, int reg, int val)
+{
+	int res, writecmd;
+
+	writecmd = hwversion == 2 ? ELANTECH_REG_WRITE : ELANTECH_REG_RDWR;
+
+	res = send_aux_command(kbdc, ELANTECH_CUSTOM_CMD) != PSM_ACK;
+	res |= send_aux_command(kbdc, writecmd) != PSM_ACK;
+	res |= send_aux_command(kbdc, ELANTECH_CUSTOM_CMD) != PSM_ACK;
+	res |= send_aux_command(kbdc, reg) != PSM_ACK;
+	if (hwversion == 4) {
+		res |= send_aux_command(kbdc, ELANTECH_CUSTOM_CMD) != PSM_ACK;
+		res |= send_aux_command(kbdc, writecmd) != PSM_ACK;
+	}
+	res |= send_aux_command(kbdc, ELANTECH_CUSTOM_CMD) != PSM_ACK;
+	res |= send_aux_command(kbdc, val) != PSM_ACK;
+	res |= set_mouse_scaling(kbdc, 1) == 0;
+
+	return (res);
+}
+
+static int
+elantech_cmd(KBDC kbdc, int hwversion, int cmd, int *resp)
+{
+	int res;
+
+	if (hwversion == 2) {
+		res = set_mouse_scaling(kbdc, 1) == 0;
+		res |= mouse_ext_command(kbdc, cmd) == 0;
+	} else {
+		res = send_aux_command(kbdc, ELANTECH_CUSTOM_CMD) != PSM_ACK;
+		res |= send_aux_command(kbdc, cmd) != PSM_ACK;
+	}
+	res |= get_mouse_status(kbdc, resp, 0, 3) != 3;
+
+	return (res);
+}
+
+static int
+elantech_init(KBDC kbdc, elantechhw_t *elanhw)
+{
+	int i, val, res, hwversion, reg10;
+
+	/* set absolute mode */
+	hwversion = elanhw->hwversion;
+	reg10 = -1;
+	switch (hwversion) {
+	case 2:
+		reg10 = elanhw->fwversion == 0x020030 ? 0x54 : 0xc4;
+		res = elantech_write_1(kbdc, hwversion, 0x10, reg10);
+		if (res)
+			break;
+		res = elantech_write_1(kbdc, hwversion, 0x11, 0x8A);
+		break;
+	case 3:
+		reg10 = 0x0b;
+		res = elantech_write_1(kbdc, hwversion, 0x10, reg10);
+		break;
+	case 4:
+		res = elantech_write_1(kbdc, hwversion, 0x07, 0x01);
+		break;
+	default:
+		res = 1;
+	}
+
+	/* Read back reg 0x10 to ensure hardware is ready. */
+	if (res == 0 && reg10 >= 0) {
+		for (i = 0; i < 5; i++) {
+			if (elantech_read_1(kbdc, hwversion, 0x10, &val) == 0)
+				break;
+			DELAY(2000);
+		}
+		if (i == 5)
+			res = 1;
+	}
+
+	if (res)
+		printf("couldn't set absolute mode\n");
+
+	return (res);
+}
+
+static void
+elantech_init_synaptics(struct psm_softc *sc)
+{
+
+	/* Set capabilites required by movement smother */
+	sc->synhw.infoMajor = sc->elanhw.hwversion;
+	sc->synhw.infoMinor = sc->elanhw.fwversion;
+	sc->synhw.infoXupmm = sc->elanhw.dpmmx;
+	sc->synhw.infoYupmm = sc->elanhw.dpmmy;
+	sc->synhw.verticalScroll = 0;
+	sc->synhw.nExtendedQueries = 4;
+	sc->synhw.capExtended = 1;
+	sc->synhw.capPassthrough = sc->elanhw.hastrackpoint;
+	sc->synhw.capClickPad = sc->elanhw.isclickpad;
+	sc->synhw.capMultiFinger = 1;
+	sc->synhw.capAdvancedGestures = 1;
+	sc->synhw.capPalmDetect = 1;
+	sc->synhw.capPen = 0;
+	sc->synhw.capReportsMax = 1;
+	sc->synhw.maximumXCoord = sc->elanhw.sizex;
+	sc->synhw.maximumYCoord = sc->elanhw.sizey;
+	sc->synhw.capReportsMin = 1;
+	sc->synhw.minimumXCoord = 0;
+	sc->synhw.minimumYCoord = 0;
+
+	if (sc->syninfo.sysctl_tree == NULL) {
+		synaptics_sysctl_create_tree(sc, "elantech",
+		    "Elantech Touchpad");
+
+		/*
+		 * Adjust synaptic smoother tunables
+		 * 1. Disable finger detection pressure threshold. Unlike
+		 *    synaptics we assume the finger is acting when packet with
+		 *    its X&Y arrives not when pressure exceedes some threshold
+		 * 2. Disable unrelated features like margins and noisy areas
+		 * 3. Disable virtual scroll areas as 2nd finger is preferable
+		 * 4. For clickpads set bottom quarter as 42% - 16% - 42% sized
+		 *    softbuttons
+		 * 5. Scale down divisors and movement lengths by a factor of 3
+		 *    where 3 is Synaptics to Elantech (~2200/800) dpi ratio
+		 */
+
+		/* Set reporting range to be equal touchpad size */
+		sc->syninfo.max_x = sc->elanhw.sizex;
+		sc->syninfo.max_y = sc->elanhw.sizey;
+
+		/* Disable finger detection pressure threshold */
+		sc->syninfo.min_pressure = 1;
+
+		/* Use full area of touchpad */
+		sc->syninfo.margin_top = 0;
+		sc->syninfo.margin_right = 0;
+		sc->syninfo.margin_bottom = 0;
+		sc->syninfo.margin_left = 0;
+
+		/* Disable noisy area */
+		sc->syninfo.na_top = 0;
+		sc->syninfo.na_right = 0;
+		sc->syninfo.na_bottom = 0;
+		sc->syninfo.na_left = 0;
+
+		/* Tune divisors and movement lengths */
+		sc->syninfo.weight_len_squared = 200;
+		sc->syninfo.div_min = 3;
+		sc->syninfo.div_max = 6;
+		sc->syninfo.div_max_na = 10;
+		sc->syninfo.div_len = 30;
+		sc->syninfo.tap_max_delta = 25;
+
+		/* Disable virtual scrolling areas and tune its divisors */
+		sc->syninfo.vscroll_hor_area = 0;
+		sc->syninfo.vscroll_ver_area = 0;
+		sc->syninfo.vscroll_min_delta = 15;
+		sc->syninfo.vscroll_div_min = 30;
+		sc->syninfo.vscroll_div_max = 50;
+
+		/* Set bottom quarter as 42% - 16% - 42% sized softbuttons */
+		if (sc->elanhw.isclickpad) {
+			sc->syninfo.softbuttons_y = sc->elanhw.sizey / 4;
+			sc->syninfo.softbutton2_x = sc->elanhw.sizex * 11 / 25;
+			sc->syninfo.softbutton3_x = sc->elanhw.sizex * 14 / 25;
+		}
+	}
+
+	return;
+}
+
+static int
+enable_elantech(struct psm_softc *sc, enum probearg arg)
+{
+	static const int ic2hw[] =
+	/*IC: 0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f */
+	    { 0, 0, 2, 0, 2, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 0 };
+	elantechhw_t elanhw;
+	int icversion, hwversion, dptracex, dptracey, id, resp[3], dpix, dpiy;
+	KBDC kbdc = sc->kbdc;
+
+	VLOG(3, (LOG_DEBUG, "elantech: BEGIN init\n"));
+
+	set_mouse_scaling(kbdc, 1);
+	set_mouse_scaling(kbdc, 1);
+	set_mouse_scaling(kbdc, 1);
+	if (get_mouse_status(kbdc, resp, 0, 3) != 3)
+		return (FALSE);
+
+	if (!ELANTECH_MAGIC(resp))
+		return (FALSE);
+
+	/* Identify the Touchpad version. */
+	if (elantech_cmd(kbdc, 2, ELANTECH_FW_VERSION, resp))
+		return (FALSE);
+
+	bzero(&elanhw, sizeof(elanhw));
+
+	elanhw.fwversion = (resp[0] << 16) | (resp[1] << 8) | resp[2];
+	icversion = resp[0] & 0x0f;
+	hwversion = ic2hw[icversion];
+
+	if (verbose >= 2)
+		printf("Elantech touchpad hardware v.%d firmware v.0x%06x\n",
+		    hwversion, elanhw.fwversion);
+
+	if (ELANTECH_HW_IS_V1(elanhw.fwversion)) {
+		printf ("  Unsupported touchpad hardware (v1)\n");
+		return (FALSE);
+	}
+	if (hwversion == 0) {
+		printf ("  Unknown touchpad hardware (firmware v.0x%06x)\n",
+		    elanhw.fwversion);
+		return (FALSE);
+	}
+
+	/* Get the Touchpad model information. */
+	elanhw.hwversion = hwversion;
+	elanhw.issemimt = hwversion == 2;
+	elanhw.isclickpad = (resp[1] & 0x10) != 0;
+	elanhw.hascrc = (resp[1] & 0x40) != 0;
+	elanhw.haspressure = elanhw.fwversion >= 0x020800;
+
+	/* Read the capability bits. */
+	if (elantech_cmd(kbdc, hwversion, ELANTECH_CAPABILITIES, resp) != 0) {
+		printf("  Failed to read capability bits\n");
+		return (FALSE);
+	}
+
+	elanhw.ntracesx = resp[1] - 1;
+	elanhw.ntracesy = resp[2] - 1;
+	elanhw.hastrackpoint = (resp[0] & 0x80) != 0;
+
+	/* Get the touchpad resolution */
+	switch (hwversion) {
+	case 4:
+		if (elantech_cmd(kbdc, hwversion, ELANTECH_RESOLUTION, resp)
+		    == 0) {
+			dpix = (resp[1] & 0x0f) * 10 + 790;
+			dpiy = ((resp[1] & 0xf0) >> 4) * 10 + 790;
+			elanhw.dpmmx = (dpix * 10 + 5) / 254;
+			elanhw.dpmmy = (dpiy * 10 + 5) / 254;
+			break;
+		}
+		/* FALLTHROUGH */
+	case 2:
+	case 3:
+		elanhw.dpmmx = elanhw.dpmmy = 32; /* 800 dpi */
+		break;
+	}
+
+	if (!elantech_support)
+		return (FALSE);
+
+	if (elantech_init(kbdc, &elanhw)) {
+		printf("couldn't initialize elantech touchpad\n");
+		return (FALSE);
+	}
+
+	/*
+	 * Get the touchpad reporting range.
+	 * On HW v.3 touchpads it should be done after switching hardware
+	 * to real resolution mode (by setting bit 3 of reg10)
+	 */
+	if (elantech_cmd(kbdc, hwversion, ELANTECH_FW_ID, resp) != 0) {
+		printf("  Failed to read touchpad size\n");
+		elanhw.sizex = 10000; /* Arbitrary high values to     */
+		elanhw.sizey = 10000; /* prevent clipping in smoother */
+	} else if (hwversion == 2) {
+		dptracex = dptracey = 64;
+		if ((elanhw.fwversion >> 16) == 0x14 && (resp[1] & 0x10) &&
+		    !elantech_cmd(kbdc, hwversion, ELANTECH_SAMPLE, resp)) {
+			dptracex = resp[1] / 2;
+			dptracey = resp[2] / 2;
+		}
+		elanhw.sizex = (elanhw.ntracesx - 1) * dptracex;
+		elanhw.sizey = (elanhw.ntracesy - 1) * dptracey;
+	} else {
+		elanhw.sizex = (resp[0] & 0x0f) << 8 | resp[1];
+		elanhw.sizey = (resp[0] & 0xf0) << 4 | resp[2];
+	}
+
+	if (verbose >= 2) {
+		printf("  Model information:\n");
+		printf("   MaxX:       %d\n", elanhw.sizex);
+		printf("   MaxY:       %d\n", elanhw.sizey);
+		printf("   DpmmX:      %d\n", elanhw.dpmmx);
+		printf("   DpmmY:      %d\n", elanhw.dpmmy);
+		printf("   TracesX:    %d\n", elanhw.ntracesx);
+		printf("   TracesY:    %d\n", elanhw.ntracesy);
+		printf("   SemiMT:     %d\n", elanhw.issemimt);
+		printf("   Clickpad:   %d\n", elanhw.isclickpad);
+		printf("   Trackpoint: %d\n", elanhw.hastrackpoint);
+		printf("   CRC:        %d\n", elanhw.hascrc);
+		printf("   Pressure:   %d\n", elanhw.haspressure);
+	}
+
+	VLOG(3, (LOG_DEBUG, "elantech: END init\n"));
+
+	if (arg == PROBE) {
+		sc->elanhw = elanhw;
+		sc->hw.buttons = 3;
+
+		/* Initialize synaptics movement smoother */
+		elantech_init_synaptics(sc);
+
+		for (id = 0; id < ELANTECH_MAX_FINGERS; id++)
+			PSM_FINGER_RESET(sc->elanaction.fingers[id]);
+	}
+
+	return (TRUE);
 }
 
 /*
