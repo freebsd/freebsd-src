@@ -665,6 +665,7 @@ taskqgroup_attach_deferred(struct taskqgroup *qgroup, struct grouptask *gtask)
 
 	LIST_INSERT_HEAD(&qgroup->tqg_queue[qid].tgc_tasks, gtask,
 			 gt_list);
+	MPASS(qgroup->tqg_queue[qid].tgc_taskq != NULL);
 	gtask->gt_taskqueue = qgroup->tqg_queue[qid].tgc_taskq;
 	mtx_unlock(&qgroup->tqg_lock);
 }
@@ -729,6 +730,7 @@ taskqgroup_attach_cpu_deferred(struct taskqgroup *qgroup, struct grouptask *gtas
 	}
 	qgroup->tqg_queue[qid].tgc_cnt++;
 	LIST_INSERT_HEAD(&qgroup->tqg_queue[qid].tgc_tasks, gtask, gt_list);
+	MPASS(qgroup->tqg_queue[qid].tgc_taskq != NULL);
 	gtask->gt_taskqueue = qgroup->tqg_queue[qid].tgc_taskq;
 	mtx_unlock(&qgroup->tqg_lock);
 
@@ -834,10 +836,10 @@ _taskqgroup_adjust(struct taskqgroup *qgroup, int cnt, int stride)
 	 */
 	cpu = old_cpu;
 	for (i = old_cnt; i < cnt; i++) {
-		for (k = 0; k < qgroup->tqg_stride; k++)
-			cpu = CPU_NEXT(cpu);
-
 		taskqgroup_cpu_create(qgroup, i, cpu);
+
+		for (k = 0; k < stride; k++)
+			cpu = CPU_NEXT(cpu);
 	}
 	mtx_lock(&qgroup->tqg_lock);
 	qgroup->tqg_cnt = cnt;
@@ -864,6 +866,15 @@ _taskqgroup_adjust(struct taskqgroup *qgroup, int cnt, int stride)
 			taskqgroup_attach_deferred(qgroup, gtask);
 	}
 
+#ifdef INVARIANTS
+	mtx_lock(&qgroup->tqg_lock);
+	for (i = 0; i < qgroup->tqg_cnt; i++) {
+		MPASS(qgroup->tqg_queue[i].tgc_taskq != NULL);
+		LIST_FOREACH(gtask, &qgroup->tqg_queue[i].tgc_tasks, gt_list)
+			MPASS(gtask->gt_taskqueue != NULL);
+	}
+	mtx_unlock(&qgroup->tqg_lock);
+#endif
 	/*
 	 * If taskq thread count has been reduced.
 	 */
