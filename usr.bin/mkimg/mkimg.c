@@ -28,7 +28,6 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/stat.h>
-#include <sys/uuid.h>
 #include <errno.h>
 #include <err.h>
 #include <fcntl.h>
@@ -372,22 +371,6 @@ mkimg_chs(lba_t lba, u_int maxcyl, u_int *cylp, u_int *hdp, u_int *secp)
 	*cylp = lba;
 	*hdp = hd;
 	*secp = sec;
-}
-
-void
-mkimg_uuid(struct uuid *uuid)
-{
-	static uint8_t gen[sizeof(struct uuid)];
-	u_int i;
-
-	if (!unit_testing) {
-		uuidgen(uuid, 1);
-		return;
-	}
-
-	for (i = 0; i < sizeof(gen); i++)
-		gen[i]++;
-	memcpy(uuid, gen, sizeof(uuid_t));
 }
 
 static int
