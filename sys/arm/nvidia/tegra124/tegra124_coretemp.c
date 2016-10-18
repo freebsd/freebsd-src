@@ -178,10 +178,14 @@ tegra124_coretemp_ofw_parse(struct tegra124_coretemp_softc *sc)
 static void
 tegra124_coretemp_identify(driver_t *driver, device_t parent)
 {
+	phandle_t root;
 
-	if (device_find_child(parent, "coretemp", -1) != NULL)
+	root = OF_finddevice("/");
+	if (!ofw_bus_node_is_compatible(root, "nvidia,tegra124"))
 		return;
-	if (BUS_ADD_CHILD(parent, 0, "coretemp", -1) == NULL)
+	if (device_find_child(parent, "tegra124_coretemp", -1) != NULL)
+		return;
+	if (BUS_ADD_CHILD(parent, 0, "tegra124_coretemp", -1) == NULL)
 		device_printf(parent, "add child failed\n");
 }
 
@@ -262,7 +266,7 @@ static device_method_t tegra124_coretemp_methods[] = {
 };
 
 static devclass_t tegra124_coretemp_devclass;
-static DEFINE_CLASS_0(coretemp, tegra124_coretemp_driver,
+static DEFINE_CLASS_0(tegra124_coretemp, tegra124_coretemp_driver,
     tegra124_coretemp_methods, sizeof(struct tegra124_coretemp_softc));
 DRIVER_MODULE(tegra124_coretemp, cpu, tegra124_coretemp_driver,
     tegra124_coretemp_devclass, NULL, NULL);
