@@ -409,6 +409,9 @@ do_el0_sync(struct trapframe *frame)
 		userret(td, frame);
 		break;
 	}
+
+	KASSERT((curthread->td_pcb->pcb_fpflags & ~PCB_FP_USERMASK) == 0,
+	    ("Kernel VFP flags set while entering userspace"));
 }
 
 void
