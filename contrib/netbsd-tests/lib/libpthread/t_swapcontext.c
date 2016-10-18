@@ -97,7 +97,7 @@ ATF_TC_BODY(swapcontext1, tc)
 {
 	pthread_t thread;
 
-#ifdef __mips__
+#if defined(__FreeBSD__) && defined(__mips__)
 	/*
 	 * MIPS modifies TLS pointer in set_mcontext(), so
 	 * swapping contexts obtained from different threads
