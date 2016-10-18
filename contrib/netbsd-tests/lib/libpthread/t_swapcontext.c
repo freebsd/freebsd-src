@@ -97,6 +97,15 @@ ATF_TC_BODY(swapcontext1, tc)
 {
 	pthread_t thread;
 
+#ifdef __mips__
+	/*
+	 * MIPS modifies TLS pointer in set_mcontext(), so
+	 * swapping contexts obtained from different threads
+	 * gives us different pthread_self() return value.
+	 */
+	atf_tc_skip("Platform is not supported.");
+#endif
+
 	oself = (void *)&val1;
 	nself = (void *)&val2;
 
