@@ -657,15 +657,26 @@ void
 vm_page_busy_downgrade(vm_page_t m)
 {
 	u_int x;
+	bool locked;
 
 	vm_page_assert_xbusied(m);
+	locked = mtx_owned(vm_page_lockptr(m));
 
 	for (;;) {
 		x = m->busy_lock;
 		x &= VPB_BIT_WAITERS;
+		if (x != 0 && !locked)
+			vm_page_lock(m);
 		if (atomic_cmpset_rel_int(&m->busy_lock,
-		    VPB_SINGLE_EXCLUSIVER | x, VPB_SHARERS_WORD(1) | x))
+		    VPB_SINGLE_EXCLUSIVER | x, VPB_SHARERS_WORD(1)))
 			break;
+		if (x != 0 && !locked)
+			vm_page_unlock(m);
+	}
+	if (x != 0) {
+		wakeup(m);
+		if (!locked)
+			vm_page_unlock(m);
 	}
 }
 
