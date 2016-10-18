@@ -95,7 +95,7 @@ __FBSDID("$FreeBSD$");
 
 /*
  * For older versions of FreeBSD:
- * 
+ *
  * We allocate EXT_PACKET mbuf+clusters, but need to set M_NOFREE
  * so that the destructor, if invoked, will not free the packet.
  * In principle we should set the destructor only on demand,
@@ -628,8 +628,6 @@ generic_mbuf_destructor(struct mbuf *m)
 #endif
 }
 
-extern int netmap_adaptive_io;
-
 /* Record completed transmissions and update hwtail.
  *
  * The oldest tx buffer not yet completed is at nr_hwtail + 1,
@@ -690,23 +688,6 @@ generic_netmap_tx_clean(struct netmap_kring *kring, int txqdisc)
 
 		n++;
 		nm_i = nm_next(nm_i, lim);
-#if 0 /* rate adaptation */
-		if (netmap_adaptive_io > 1) {
-			if (n >= netmap_adaptive_io)
-				break;
-		} else if (netmap_adaptive_io) {
-			/* if hwcur - nm_i < lim/8 do an early break
-			 * so we prevent the sender from stalling. See CVT.
-			 */
-			if (hwcur >= nm_i) {
-				if (hwcur - nm_i < lim/2)
-					break;
-			} else {
-				if (hwcur + lim + 1 - nm_i < lim/2)
-					break;
-			}
-		}
-#endif
 	}
 	kring->nr_hwtail = nm_prev(nm_i, lim);
 	ND("tx completed [%d] -> hwtail %d", n, kring->nr_hwtail);

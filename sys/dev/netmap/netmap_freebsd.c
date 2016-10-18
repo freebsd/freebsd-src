@@ -353,7 +353,7 @@ nm_os_generic_xmit_frame(struct nm_os_gen_arg *a)
 	bcopy(a->addr, m->m_data, len);
 #else  /* __FreeBSD_version >= 1100000 */
 	/* New FreeBSD versions. Link the external storage to
-	 * the netmap buffer, so that no copy is necessary. */ 
+	 * the netmap buffer, so that no copy is necessary. */
 	m->m_ext.ext_buf = m->m_data = a->addr;
 	m->m_ext.ext_size = len;
 #endif /* __FreeBSD_version >= 1100000 */
@@ -644,7 +644,8 @@ DRIVER_MODULE_ORDERED(ptn_memdev, pci, ptn_memdev_driver, ptnetmap_devclass,
  * of the netmap memory mapped in the guest.
  */
 int
-nm_os_pt_memdev_iomap(struct ptnetmap_memdev *ptn_dev, vm_paddr_t *nm_paddr, void **nm_addr)
+nm_os_pt_memdev_iomap(struct ptnetmap_memdev *ptn_dev, vm_paddr_t *nm_paddr,
+		      void **nm_addr)
 {
 	uint32_t mem_size;
 	int rid;
@@ -668,8 +669,8 @@ nm_os_pt_memdev_iomap(struct ptnetmap_memdev *ptn_dev, vm_paddr_t *nm_paddr, voi
 
 	D("=== BAR %d start %lx len %lx mem_size %x ===",
 			PTNETMAP_MEM_PCI_BAR,
-			*nm_paddr,
-			rman_get_size(ptn_dev->pci_mem),
+			(unsigned long)(*nm_paddr),
+			(unsigned long)rman_get_size(ptn_dev->pci_mem),
 			mem_size);
 	return (0);
 }
