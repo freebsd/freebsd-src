@@ -40,6 +40,7 @@
 .Op Fl c Ar capacity
 .Op Fl f Ar format
 .Op Fl o Ar outfile
+.Op Fl a Ar active
 .Op Fl v
 .Op Fl y
 .Op Fl s Ar scheme Op Fl p Ar partition ...
@@ -119,7 +120,7 @@ An empty partition table can be written to the disk when specifying a
 partitioning scheme with the
 .Fl s
 option, but without specifying any partitions.
-When the size required to for all the partitions is larger than the
+When the size required for all the partitions is larger than the
 given capacity, then the disk image will be larger than the capacity
 given.
 .Pp
@@ -138,6 +139,26 @@ utility will generate predictable values for Universally Unique Identifiers
 (UUIDs) and time stamps so that consecutive runs of the
 .Nm
 utility will create images that are identical.
+.Pp
+The
+.Ar active
+option marks a partition as active, if the partitioning
+scheme supports it.
+Currently, only the
+.Ar mbr
+scheme supports this concept.
+By default,
+.Nm
+will only mark the first partition as active when boot code is
+specified.
+Use the
+.Ar active
+option to override the active partition.
+The number specified corresponds to the number after the 's' in the
+partition's
+.Xr geom 8
+name.
+No partitions are marked active when the value is 0.
 .Pp
 A set of long options exist to query about the
 .Nm
