@@ -3162,8 +3162,6 @@ iflib_if_qflush(if_t ifp)
 		     IFCAP_TSO4 | IFCAP_TSO6 | IFCAP_VLAN_HWTAGGING |	\
 		     IFCAP_VLAN_MTU | IFCAP_VLAN_HWFILTER | IFCAP_VLAN_HWTSO)
 
-#define IFCAP_REINIT IFCAP_FLAGS
-
 static int
 iflib_if_ioctl(if_t ifp, u_long command, caddr_t data)
 {
@@ -3288,6 +3286,8 @@ iflib_if_ioctl(if_t ifp, u_long command, caddr_t data)
 #endif
 		setmask |= (mask & IFCAP_FLAGS);
 
+		if (setmask  & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6))
+			setmask |= (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6);
 		if ((mask & IFCAP_WOL) &&
 		    (if_getcapabilities(ifp) & IFCAP_WOL) != 0)
 			setmask |= (mask & (IFCAP_WOL_MCAST|IFCAP_WOL_MAGIC));
@@ -3298,10 +3298,10 @@ iflib_if_ioctl(if_t ifp, u_long command, caddr_t data)
 		if (setmask) {
 			CTX_LOCK(ctx);
 			bits = if_getdrvflags(ifp);
-			if (setmask & IFCAP_REINIT)
+			if (bits & IFF_DRV_RUNNING)
 				iflib_stop(ctx);
 			if_togglecapenable(ifp, setmask);
-			if (setmask & IFCAP_REINIT)
+			if (bits & IFF_DRV_RUNNING)
 				iflib_init_locked(ctx);
 			if_setdrvflags(ifp, bits);
 			CTX_UNLOCK(ctx);
