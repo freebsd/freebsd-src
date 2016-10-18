@@ -655,8 +655,8 @@ struct ptn_vmm_ioctl_msix {
 
 /* IOCTL parameters */
 struct nm_kth_ioctl {
-	u_long				com;
-	/* TODO: use union */
+	uint64_t com;
+	/* We use union to support more ioctl commands. */
 	union {
 		struct ptn_vmm_ioctl_msix msix;
 	} data;
@@ -667,5 +667,6 @@ struct ptnet_ring_cfg {
 	uint64_t ioeventfd;		/* eventfd in linux, tsleep() parameter in FreeBSD */
 	uint64_t irqfd;			/* eventfd in linux, ioctl fd in FreeBSD */
 	struct nm_kth_ioctl ioctl;	/* ioctl parameter to send irq (only used in bhyve/FreeBSD) */
+	uint64_t reserved[4];		/* reserved to support of more hypervisors */
 };
 #endif /* _NET_NETMAP_H_ */
