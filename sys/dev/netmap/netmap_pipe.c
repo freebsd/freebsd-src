@@ -92,7 +92,7 @@ nm_pipe_alloc(struct netmap_adapter *na, u_int npipes)
 	if (npipes <= na->na_max_pipes)
 		/* we already have more entries that requested */
 		return 0;
-	
+
 	if (npipes < na->na_next_pipe || npipes > NM_MAXPIPES)
 		return EINVAL;
 
@@ -402,7 +402,7 @@ netmap_pipe_reg(struct netmap_adapter *na, int onoff)
 				}
 			}
 		}
-		
+
 		/* create all missing needed rings on the other end */
 		error = netmap_mem_rings_create(ona);
 		if (error)

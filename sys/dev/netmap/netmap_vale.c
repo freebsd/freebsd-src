@@ -906,7 +906,7 @@ nm_bdg_create_kthreads(struct nm_bdg_polling_state *bps)
 		int affinity = bps->cpu_from + i;
 
 		t->bps = bps;
-		t->qfirst = all ? bps->qfirst /* must be 0 */: affinity; 
+		t->qfirst = all ? bps->qfirst /* must be 0 */: affinity;
 		t->qlast = all ? bps->qlast : t->qfirst + 1;
 		D("kthread %d a:%u qf:%u ql:%u", i, affinity, t->qfirst,
 			t->qlast);
@@ -2540,7 +2540,7 @@ netmap_bwrap_notify(struct netmap_kring *kring, int flags)
 	struct netmap_kring *hw_kring;
 	int error;
 
-	ND("%s: na %s hwna %s", 
+	ND("%s: na %s hwna %s",
 			(kring ? kring->name : "NULL!"),
 			(na ? na->name : "NULL!"),
 			(hwna ? hwna->name : "NULL!"));
