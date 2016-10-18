@@ -207,6 +207,8 @@ create_diskimage_mbr ( ) (
 	(
 	local extra i sz fmt fmtarg bootmbr bootbsd skiparg
 	set -o xtrace
+	# Tell mtools not to be too picky
+	export MTOOLS_SKIP_CHECK=1
 
 	[ -z ${NANO_DISKIMAGE_FORMAT} ] || fmtarg="-f ${NANO_DISKIMAGE_FORMAT}"
 	[ -z ${NANO_DISKIMAGE_FORMAT} ] || fmt=".${NANO_DISKIMAGE_FORMAT}"
