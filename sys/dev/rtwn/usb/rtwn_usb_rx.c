@@ -216,7 +216,7 @@ rtwn_report_intr(struct rtwn_usb_softc *uc, struct usb_xfer *xfer,
 		 * NB: this will executed only when 'report' bit is set.
 		 */
 		if (sc->sc_tx_n_active > 0 && --sc->sc_tx_n_active <= 1)
-			rtwn_cmd_sleepable(uc, NULL, 0, rtwn_ff_flush_all);
+			rtwn_cmd_sleepable(sc, NULL, 0, rtwn_ff_flush_all);
 #endif
 		break;
 	case RTWN_RX_OTHER:
@@ -327,7 +327,7 @@ finish:
 	 */
 #ifdef	IEEE80211_SUPPORT_SUPERG
 	if (!(sc->sc_flags & RTWN_FW_LOADED))
-		rtwn_cmd_sleepable(uc, NULL, 0, rtwn_ff_flush_all);
+		rtwn_cmd_sleepable(sc, NULL, 0, rtwn_ff_flush_all);
 #endif
 
 	/* Kick-start more transmit in case we stalled */
