@@ -207,7 +207,7 @@ finish:
 		 * XXX TODO: just make this a callout timer schedule so we can
 		 * flush the FF staging queue if we're approaching idle.
 		 */
-		rtwn_cmd_sleepable(uc, NULL, 0, rtwn_ff_flush_all);
+		rtwn_cmd_sleepable(sc, NULL, 0, rtwn_ff_flush_all);
 	}
 #endif
 	/* Kick-start more transmit */
