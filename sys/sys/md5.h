@@ -44,7 +44,7 @@ typedef struct MD5Context {
 __BEGIN_DECLS
 void   MD5Init (MD5_CTX *);
 void   MD5Update (MD5_CTX *, const void *, unsigned int);
-void   MD5Final (unsigned char[static MD5_DIGEST_LENGTH], MD5_CTX *);
+void   MD5Final (unsigned char[__min_size(MD5_DIGEST_LENGTH)], MD5_CTX *);
 #ifndef _KERNEL
 char * MD5End(MD5_CTX *, char *);
 char * MD5Fd(int, char *);

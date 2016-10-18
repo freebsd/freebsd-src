@@ -115,7 +115,8 @@ __BEGIN_DECLS
 
 void	SHA512_224_Init(SHA512_CTX *);
 void	SHA512_224_Update(SHA512_CTX *, const void *, size_t);
-void	SHA512_224_Final(unsigned char [static SHA512_224_DIGEST_LENGTH], SHA512_CTX *);
+void	SHA512_224_Final(unsigned char [__min_size(SHA512_224_DIGEST_LENGTH)],
+    SHA512_CTX *);
 #ifndef _KERNEL
 char   *SHA512_224_End(SHA512_CTX *, char *);
 char   *SHA512_224_Data(const void *, unsigned int, char *);
@@ -126,7 +127,8 @@ char   *SHA512_224_FileChunk(const char *, char *, off_t, off_t);
 #endif
 void	SHA512_256_Init(SHA512_CTX *);
 void	SHA512_256_Update(SHA512_CTX *, const void *, size_t);
-void	SHA512_256_Final(unsigned char [static SHA512_256_DIGEST_LENGTH], SHA512_CTX *);
+void	SHA512_256_Final(unsigned char [__min_size(SHA512_256_DIGEST_LENGTH)],
+    SHA512_CTX *);
 #ifndef _KERNEL
 char   *SHA512_256_End(SHA512_CTX *, char *);
 char   *SHA512_256_Data(const void *, unsigned int, char *);
