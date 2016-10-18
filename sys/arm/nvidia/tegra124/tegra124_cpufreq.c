@@ -475,6 +475,11 @@ get_fdt_resources(struct tegra124_cpufreq_softc *sc, phandle_t node)
 static void
 tegra124_cpufreq_identify(driver_t *driver, device_t parent)
 {
+	phandle_t root;
+
+	root = OF_finddevice("/");
+	if (!ofw_bus_node_is_compatible(root, "nvidia,tegra124"))
+		return;
 
 	if (device_get_unit(parent) != 0)
 		return;
