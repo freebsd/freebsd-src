@@ -43,13 +43,5 @@
 
 #endif
 
-#ifdef __cplusplus
-#define static
-#endif
-
 #include <sys/md5.h>
-
-#ifdef __cplusplus
-#undef static
-#endif
 #endif /* _MD5_H_ */
