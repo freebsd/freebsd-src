@@ -3903,6 +3903,10 @@ _iflib_assert(if_shared_ctx_t sctx)
 	MPASS(sctx->isc_ntxd_default[0]);
 }
 
+#define DEFAULT_CAPS (IFCAP_TXCSUM_IPV6 | IFCAP_RXCSUM_IPV6 | IFCAP_HWCSUM | IFCAP_LRO | \
+		     IFCAP_TSO4 | IFCAP_TSO6 | IFCAP_VLAN_HWTAGGING |	\
+		     IFCAP_VLAN_MTU | IFCAP_VLAN_HWFILTER | IFCAP_VLAN_HWTSO | IFCAP_HWSTATS)
+
 static int
 iflib_register(if_ctx_t ctx)
 {
@@ -3937,8 +3941,9 @@ iflib_register(if_ctx_t ctx)
 	if_setqflushfn(ifp, iflib_if_qflush);
 	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
 
-	if_setcapabilities(ifp, 0);
-	if_setcapenable(ifp, 0);
+	/* XXX - move this in to the driver for non-default settings */
+	if_setcapabilities(ifp, DEFAULT_CAPS);
+	if_setcapenable(ifp, DEFAULT_CAPS);
 
 	ctx->ifc_vlan_attach_event =
 		EVENTHANDLER_REGISTER(vlan_config, iflib_vlan_register, ctx,
