@@ -58,6 +58,12 @@ __FBSDID("$FreeBSD$");
 
 #include "spibus_if.h"
 
+static struct ofw_compat_data compat_data[] = {
+	{"broadcom,bcm2835-spi",	1},
+	{"brcm,bcm2835-spi",		1},
+	{NULL,				0}
+};
+
 static void bcm_spi_intr(void *);
 
 #ifdef	BCM_SPI_DEBUG
@@ -233,7 +239,7 @@ bcm_spi_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (!ofw_bus_is_compatible(dev, "broadcom,bcm2835-spi"))
+	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
 		return (ENXIO);
 
 	device_set_desc(dev, "BCM2708/2835 SPI controller");
