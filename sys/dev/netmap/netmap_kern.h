@@ -1512,9 +1512,9 @@ int netmap_adapter_put(struct netmap_adapter *na);
  */
 #define NETMAP_BUF_BASE(_na)	((_na)->na_lut.lut[0].vaddr)
 #define NETMAP_BUF_SIZE(_na)	((_na)->na_lut.objsize)
-extern int netmap_mitigate;	// XXX not really used
 extern int netmap_no_pendintr;
-extern int netmap_verbose;	// XXX debugging
+extern int netmap_mitigate;
+extern int netmap_verbose;		/* for debugging */
 enum {                                  /* verbose flags */
 	NM_VERB_ON = 1,                 /* generic verbose */
 	NM_VERB_HOST = 0x2,             /* verbose host stack */
@@ -1527,7 +1527,6 @@ enum {                                  /* verbose flags */
 };
 
 extern int netmap_txsync_retry;
-extern int netmap_adaptive_io;
 extern int netmap_flags;
 extern int netmap_generic_mit;
 extern int netmap_generic_ringsize;

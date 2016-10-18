@@ -58,13 +58,11 @@
 
 /* Registers for the ptnetmap memdev */
 /* 32 bit r/o */
-#define PTNETMAP_IO_PCI_FEATURES        0	/* XXX should be removed */
-/* 32 bit r/o */
-#define PTNETMAP_IO_PCI_MEMSIZE         4	/* size of the netmap memory shared
+#define PTNETMAP_IO_PCI_MEMSIZE         0	/* size of the netmap memory shared
 						 * between guest and host */
 /* 16 bit r/o */
-#define PTNETMAP_IO_PCI_HOSTID          8	/* memory allocator ID in netmap host */
-#define PTNETMAP_IO_SIZE                10
+#define PTNETMAP_IO_PCI_HOSTID          4	/* memory allocator ID in netmap host */
+#define PTNETMAP_IO_SIZE                6
 
 /*
  * ptnetmap configuration
@@ -115,18 +113,17 @@ ptnetmap_write_cfg(struct nmreq *nmr, struct ptnetmap_cfg *cfg)
 #define PTNET_IO_PTFEAT		0
 #define PTNET_IO_PTCTL		4
 #define PTNET_IO_PTSTS		8
-/* hole */
-#define PTNET_IO_MAC_LO		16
-#define PTNET_IO_MAC_HI		20
-#define PTNET_IO_CSBBAH         24
-#define PTNET_IO_CSBBAL         28
-#define PTNET_IO_NIFP_OFS	32
-#define PTNET_IO_NUM_TX_RINGS	36
-#define PTNET_IO_NUM_RX_RINGS	40
-#define PTNET_IO_NUM_TX_SLOTS	44
-#define PTNET_IO_NUM_RX_SLOTS	48
-#define PTNET_IO_VNET_HDR_LEN	52
-#define PTNET_IO_END		56
+#define PTNET_IO_MAC_LO		12
+#define PTNET_IO_MAC_HI		16
+#define PTNET_IO_CSBBAH         20
+#define PTNET_IO_CSBBAL         24
+#define PTNET_IO_NIFP_OFS	28
+#define PTNET_IO_NUM_TX_RINGS	32
+#define PTNET_IO_NUM_RX_RINGS	36
+#define PTNET_IO_NUM_TX_SLOTS	40
+#define PTNET_IO_NUM_RX_SLOTS	44
+#define PTNET_IO_VNET_HDR_LEN	48
+#define PTNET_IO_END		52
 #define PTNET_IO_KICK_BASE	128
 #define PTNET_IO_MASK           0xff
 
@@ -139,11 +136,11 @@ struct ptnet_ring {
 	uint32_t head;		  /* GW+ HR+ the head of the guest netmap_ring */
 	uint32_t cur;		  /* GW+ HR+ the cur of the guest netmap_ring */
 	uint32_t guest_need_kick; /* GW+ HR+ host-->guest notification enable */
-	char pad[4];
+	uint32_t sync_flags;	  /* GW+ HR+ the flags of the guest [tx|rx]sync() */
 	uint32_t hwcur;		  /* GR+ HW+ the hwcur of the host netmap_kring */
 	uint32_t hwtail;	  /* GR+ HW+ the hwtail of the host netmap_kring */
 	uint32_t host_need_kick;  /* GR+ HW+ guest-->host notification enable */
-	uint32_t sync_flags;	  /* GW+ HR+ the flags of the guest [tx|rx]sync() */
+	char pad[4];
 };
 
 /* CSB for the ptnet device. */
@@ -165,6 +162,61 @@ ptn_sub(uint32_t l_elem, uint32_t r_elem, uint32_t num_slots)
 }
 #endif /* WITH_PTNETMAP_HOST || WITH_PTNETMAP_GUEST */
 
+#ifdef WITH_PTNETMAP_GUEST
+
+/* ptnetmap_memdev routines used to talk with ptnetmap_memdev device driver */
+struct ptnetmap_memdev;
+int nm_os_pt_memdev_iomap(struct ptnetmap_memdev *, vm_paddr_t *, void **);
+void nm_os_pt_memdev_iounmap(struct ptnetmap_memdev *);
+
+/* Guest driver: Write kring pointers (cur, head) to the CSB.
+ * This routine is coupled with ptnetmap_host_read_kring_csb(). */
+static inline void
+ptnetmap_guest_write_kring_csb(struct ptnet_ring *ptr, uint32_t cur,
+			       uint32_t head)
+{
+    /*
+     * We need to write cur and head to the CSB but we cannot do it atomically.
+     * There is no way we can prevent the host from reading the updated value
+     * of one of the two and the old value of the other. However, if we make
+     * sure that the host never reads a value of head more recent than the
+     * value of cur we are safe. We can allow the host to read a value of cur
+     * more recent than the value of head, since in the netmap ring cur can be
+     * ahead of head and cur cannot wrap around head because it must be behind
+     * tail. Inverting the order of writes below could instead result into the
+     * host to think head went ahead of cur, which would cause the sync
+     * prologue to fail.
+     *
+     * The following memory barrier scheme is used to make this happen:
+     *
+     *          Guest              Host
+     *
+     *          STORE(cur)         LOAD(head)
+     *          mb() <-----------> mb()
+     *          STORE(head)        LOAD(cur)
+     */
+    ptr->cur = cur;
+    mb();
+    ptr->head = head;
+}
+
+/* Guest driver: Read kring pointers (hwcur, hwtail) from the CSB.
+ * This routine is coupled with ptnetmap_host_write_kring_csb(). */
+static inline void
+ptnetmap_guest_read_kring_csb(struct ptnet_ring *ptr, struct netmap_kring *kring)
+{
+    /*
+     * We place a memory barrier to make sure that the update of hwtail never
+     * overtakes the update of hwcur.
+     * (see explanation in ptnetmap_host_write_kring_csb).
+     */
+    kring->nr_hwtail = ptr->hwtail;
+    mb();
+    kring->nr_hwcur = ptr->hwcur;
+}
+
+#endif /* WITH_PTNETMAP_GUEST */
+
 #ifdef WITH_PTNETMAP_HOST
 /*
  * ptnetmap kernel thread routines
@@ -179,147 +231,50 @@ ptn_sub(uint32_t l_elem, uint32_t r_elem, uint32_t num_slots)
 #define CSB_WRITE(csb, field, v) (suword32(&csb->field, v))
 #endif /* ! linux */
 
-/*
- * HOST read/write kring pointers from/in CSB
- */
-
-/* Host: Read kring pointers (head, cur, sync_flags) from CSB */
-static inline void
-ptnetmap_host_read_kring_csb(struct ptnet_ring __user *ptr,
-			     struct netmap_ring *g_ring,
-			     uint32_t num_slots)
-{
-    uint32_t old_head = g_ring->head, old_cur = g_ring->cur;
-    uint32_t d, inc_h, inc_c;
-
-    //mb(); /* Force memory complete before read CSB */
-
-    /*
-     * We must first read head and then cur with a barrier in the
-     * middle, because cur can exceed head, but not vice versa.
-     * The guest must first write cur and then head with a barrier.
-     *
-     * head <= cur
-     *
-     *          guest           host
-     *
-     *          STORE(cur)      LOAD(head)
-     *            mb() ----------- mb()
-     *          STORE(head)     LOAD(cur)
-     *
-     * This approach ensures that every head that we read is
-     * associated with the correct cur. In this way head can not exceed cur.
-     */
-    CSB_READ(ptr, head, g_ring->head);
-    mb();
-    CSB_READ(ptr, cur, g_ring->cur);
-    CSB_READ(ptr, sync_flags, g_ring->flags);
-
-    /*
-     * Even with the previous barrier, it is still possible that we read an
-     * updated cur and an old head.
-     * To detect this situation, we can check if the new cur overtakes
-     * the (apparently) new head.
-     */
-    d = ptn_sub(old_cur, old_head, num_slots);     /* previous distance */
-    inc_c = ptn_sub(g_ring->cur, old_cur, num_slots);   /* increase of cur */
-    inc_h = ptn_sub(g_ring->head, old_head, num_slots); /* increase of head */
-
-    if (unlikely(inc_c > num_slots - d + inc_h)) { /* cur overtakes head */
-        ND(1,"ERROR cur overtakes head - old_cur: %u cur: %u old_head: %u head: %u",
-                old_cur, g_ring->cur, old_head, g_ring->head);
-        g_ring->cur = nm_prev(g_ring->head, num_slots - 1);
-        //*g_cur = *g_head;
-    }
-}
-
-/* Host: Write kring pointers (hwcur, hwtail) into the CSB */
+/* Host netmap: Write kring pointers (hwcur, hwtail) to the CSB.
+ * This routine is coupled with ptnetmap_guest_read_kring_csb(). */
 static inline void
 ptnetmap_host_write_kring_csb(struct ptnet_ring __user *ptr, uint32_t hwcur,
         uint32_t hwtail)
 {
-    /* We must write hwtail before hwcur (see below). */
-    CSB_WRITE(ptr, hwtail, hwtail);
-    mb();
+    /*
+     * The same scheme used in ptnetmap_guest_write_kring_csb() applies here.
+     * We allow the guest to read a value of hwcur more recent than the value
+     * of hwtail, since this would anyway result in a consistent view of the
+     * ring state (and hwcur can never wraparound hwtail, since hwcur must be
+     * behind head).
+     *
+     * The following memory barrier scheme is used to make this happen:
+     *
+     *          Guest                Host
+     *
+     *          STORE(hwcur)         LOAD(hwtail)
+     *          mb() <-------------> mb()
+     *          STORE(hwtail)        LOAD(hwcur)
+     */
     CSB_WRITE(ptr, hwcur, hwcur);
+    mb();
+    CSB_WRITE(ptr, hwtail, hwtail);
+}
 
-    //mb(); /* Force memory complete before send notification */
+/* Host netmap: Read kring pointers (head, cur, sync_flags) from the CSB.
+ * This routine is coupled with ptnetmap_guest_write_kring_csb(). */
+static inline void
+ptnetmap_host_read_kring_csb(struct ptnet_ring __user *ptr,
+			     struct netmap_ring *shadow_ring,
+			     uint32_t num_slots)
+{
+    /*
+     * We place a memory barrier to make sure that the update of head never
+     * overtakes the update of cur.
+     * (see explanation in ptnetmap_guest_write_kring_csb).
+     */
+    CSB_READ(ptr, head, shadow_ring->head);
+    mb();
+    CSB_READ(ptr, cur, shadow_ring->cur);
+    CSB_READ(ptr, sync_flags, shadow_ring->flags);
 }
 
 #endif /* WITH_PTNETMAP_HOST */
-
-#ifdef WITH_PTNETMAP_GUEST
-/*
- * GUEST read/write kring pointers from/in CSB.
- * To use into device driver.
- */
-
-/* Guest: Write kring pointers (cur, head) into the CSB */
-static inline void
-ptnetmap_guest_write_kring_csb(struct ptnet_ring *ptr, uint32_t cur,
-			       uint32_t head)
-{
-    /* We must write cur before head for sync reason (see above) */
-    ptr->cur = cur;
-    mb();
-    ptr->head = head;
-
-    //mb(); /* Force memory complete before send notification */
-}
-
-/* Guest: Read kring pointers (hwcur, hwtail) from CSB */
-static inline void
-ptnetmap_guest_read_kring_csb(struct ptnet_ring *ptr, struct netmap_kring *kring)
-{
-    uint32_t old_hwcur = kring->nr_hwcur, old_hwtail = kring->nr_hwtail;
-    uint32_t num_slots = kring->nkr_num_slots;
-    uint32_t d, inc_hc, inc_ht;
-
-    //mb(); /* Force memory complete before read CSB */
-
-    /*
-     * We must first read hwcur and then hwtail with a barrier in the
-     * middle, because hwtail can exceed hwcur, but not vice versa.
-     * The host must first write hwtail and then hwcur with a barrier.
-     *
-     * hwcur <= hwtail
-     *
-     *          host            guest
-     *
-     *          STORE(hwtail)   LOAD(hwcur)
-     *            mb()  ---------  mb()
-     *          STORE(hwcur)    LOAD(hwtail)
-     *
-     * This approach ensures that every hwcur that the guest reads is
-     * associated with the correct hwtail. In this way hwcur can not exceed
-     * hwtail.
-     */
-    kring->nr_hwcur = ptr->hwcur;
-    mb();
-    kring->nr_hwtail = ptr->hwtail;
-
-    /*
-     * Even with the previous barrier, it is still possible that we read an
-     * updated hwtail and an old hwcur.
-     * To detect this situation, we can check if the new hwtail overtakes
-     * the (apparently) new hwcur.
-     */
-    d = ptn_sub(old_hwtail, old_hwcur, num_slots);       /* previous distance */
-    inc_ht = ptn_sub(kring->nr_hwtail, old_hwtail, num_slots);  /* increase of hwtail */
-    inc_hc = ptn_sub(kring->nr_hwcur, old_hwcur, num_slots);    /* increase of hwcur */
-
-    if (unlikely(inc_ht > num_slots - d + inc_hc)) {
-        ND(1, "ERROR hwtail overtakes hwcur - old_hwtail: %u hwtail: %u old_hwcur: %u hwcur: %u",
-                old_hwtail, kring->nr_hwtail, old_hwcur, kring->nr_hwcur);
-        kring->nr_hwtail = nm_prev(kring->nr_hwcur, num_slots - 1);
-        //kring->nr_hwtail = kring->nr_hwcur;
-    }
-}
-
-/* ptnetmap_memdev routines used to talk with ptnetmap_memdev device driver */
-struct ptnetmap_memdev;
-int nm_os_pt_memdev_iomap(struct ptnetmap_memdev *, vm_paddr_t *, void **);
-void nm_os_pt_memdev_iounmap(struct ptnetmap_memdev *);
-#endif /* WITH_PTNETMAP_GUEST */
 
 #endif /* NETMAP_VIRT_H */
