@@ -121,7 +121,7 @@ dpaa_portal_alloc_res(device_t dev, struct dpaa_portals_devinfo *di, int cpu)
 		return (ENXIO);
 	}
 
-	err = XX_PreallocAndBindIntr((int)sc->sc_dp[cpu].dp_ires, cpu);
+	err = XX_PreallocAndBindIntr((uintptr_t)sc->sc_dp[cpu].dp_ires, cpu);
 
 	if (err != E_OK) {
 		device_printf(dev, "Could not prealloc and bind interrupt\n");

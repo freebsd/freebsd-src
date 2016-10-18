@@ -66,8 +66,8 @@ enum fman_mu_ram_map {
 struct fman_config {
 	device_t fman_device;
 	uintptr_t mem_base_addr;
-	int irq_num;
-	int err_irq_num;
+	uintptr_t irq_num;
+	uintptr_t err_irq_num;
 	uint8_t fm_id;
 	t_FmExceptionsCallback *exception_callback;
 	t_FmBusErrorCallback *bus_error_callback;
@@ -282,8 +282,8 @@ fman_attach(device_t dev)
 	cfg.fman_device = dev;
 	cfg.fm_id = device_get_unit(dev);
 	cfg.mem_base_addr = rman_get_bushandle(sc->mem_res);
-	cfg.irq_num = (int)sc->irq_res;
-	cfg.err_irq_num = (int)sc->err_irq_res;
+	cfg.irq_num = (uintptr_t)sc->irq_res;
+	cfg.err_irq_num = (uintptr_t)sc->err_irq_res;
 	cfg.exception_callback = fman_exception_callback;
 	cfg.bus_error_callback = fman_error_callback;
 
