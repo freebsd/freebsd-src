@@ -57,9 +57,12 @@ void SKEIN256_Update(SKEIN256_CTX *ctx, const void *in, size_t len);
 void SKEIN512_Update(SKEIN512_CTX *ctx, const void *in, size_t len);
 void SKEIN1024_Update(SKEIN1024_CTX *ctx, const void *in, size_t len);
 
-void SKEIN256_Final(unsigned char digest[static SKEIN256_DIGEST_LENGTH], SKEIN256_CTX *ctx);
-void SKEIN512_Final(unsigned char digest[static SKEIN512_DIGEST_LENGTH], SKEIN512_CTX *ctx);
-void SKEIN1024_Final(unsigned char digest[static SKEIN1024_DIGEST_LENGTH], SKEIN1024_CTX *ctx);
+void SKEIN256_Final(unsigned char digest[__min_size(SKEIN256_DIGEST_LENGTH)],
+    SKEIN256_CTX *ctx);
+void SKEIN512_Final(unsigned char digest[__min_size(SKEIN512_DIGEST_LENGTH)],
+    SKEIN512_CTX *ctx);
+void SKEIN1024_Final(unsigned char digest[__min_size(SKEIN1024_DIGEST_LENGTH)],
+    SKEIN1024_CTX *ctx);
 
 #ifndef _KERNEL
 char   *SKEIN256_End(SKEIN256_CTX *, char *);
