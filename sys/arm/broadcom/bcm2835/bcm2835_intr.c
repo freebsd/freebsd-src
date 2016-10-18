@@ -270,6 +270,7 @@ bcm_intc_map_intr(device_t dev, struct intr_map_data *data,
 	u_int irq;
 	struct intr_map_data_fdt *daf;
 	struct bcm_intc_softc *sc;
+	bool valid;
 
 	if (data->type != INTR_MAP_DATA_FDT)
 		return (ENOTSUP);
@@ -277,8 +278,36 @@ bcm_intc_map_intr(device_t dev, struct intr_map_data *data,
 	daf = (struct intr_map_data_fdt *)data;
 	if (daf->ncells == 1)
 		irq = daf->cells[0];
-	else if (daf->ncells == 2)
-		irq = daf->cells[0] * 32 + daf->cells[1];
+	else if (daf->ncells == 2) {
+		valid = true;
+		switch (daf->cells[0]) {
+		case 0:
+			irq = daf->cells[1];
+			if (irq >= BANK1_START)
+				valid = false;
+			break;
+		case 1:
+			irq = daf->cells[1] + BANK1_START;
+			if (irq > BANK1_END)
+				valid = false;
+			break;
+		case 2:
+			irq = daf->cells[1] + BANK2_START;
+			if (irq > BANK2_END)
+				valid = false;
+			break;
+		default:
+			valid = false;
+			break;
+		}
+
+		if (!valid) {
+			device_printf(dev,
+			    "invalid IRQ config: bank=%d, irq=%d\n",
+			    daf->cells[0], daf->cells[1]);
+			return (EINVAL);
+		}
+	}
 	else
 		return (EINVAL);
 
@@ -355,7 +384,8 @@ bcm_intc_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (!ofw_bus_is_compatible(dev, "broadcom,bcm2835-armctrl-ic"))
+	if (!ofw_bus_is_compatible(dev, "broadcom,bcm2835-armctrl-ic") &&
+	    !ofw_bus_is_compatible(dev, "brcm,bcm2836-armctrl-ic"))
 		return (ENXIO);
 	device_set_desc(dev, "BCM2835 Interrupt Controller");
 	return (BUS_PROBE_DEFAULT);
@@ -438,7 +468,8 @@ static driver_t bcm_intc_driver = {
 
 static devclass_t bcm_intc_devclass;
 
-DRIVER_MODULE(intc, simplebus, bcm_intc_driver, bcm_intc_devclass, 0, 0);
+EARLY_DRIVER_MODULE(intc, simplebus, bcm_intc_driver, bcm_intc_devclass,
+    0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);
 
 #ifndef INTRNG
 int
