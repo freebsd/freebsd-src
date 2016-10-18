@@ -229,6 +229,8 @@ LINTLIBFLAGS	?=	-cghapbxu -C ${LIB}
 MAKE		?=	make
 
 .if !defined(%POSIX)
+LORDER		?=	lorder
+
 NM		?=	nm
 NMFLAGS		?=
 
@@ -242,6 +244,9 @@ PFLAGS		?=
 
 RC		?=	f77
 RFLAGS		?=
+
+TSORT		?=	tsort
+TSORTFLAGS	?=	-q
 .endif
 
 SHELL		?=	sh
