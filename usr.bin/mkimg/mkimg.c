@@ -70,6 +70,7 @@ u_int nheads = 1;
 u_int nsecs = 1;
 u_int secsz = 512;
 u_int blksz = 0;
+uint32_t active_partition = 0;
 
 static void
 print_formats(int usage)
@@ -145,6 +146,7 @@ usage(const char *why)
 	fprintf(stderr, "\t--schemes\t-  list partition schemes\n");
 	fprintf(stderr, "\t--version\t-  show version information\n");
 	fputc('\n', stderr);
+	fprintf(stderr, "\t-a <num>\t-  mark num'th partion as active\n");
 	fprintf(stderr, "\t-b <file>\t-  file containing boot code\n");
 	fprintf(stderr, "\t-c <num>\t-  capacity (in bytes) of the disk\n");
 	fprintf(stderr, "\t-f <format>\n");
@@ -468,9 +470,14 @@ main(int argc, char *argv[])
 
 	bcfd = -1;
 	outfd = 1;	/* Write to stdout by default */
-	while ((c = getopt_long(argc, argv, "b:c:f:o:p:s:vyH:P:S:T:",
+	while ((c = getopt_long(argc, argv, "a:b:c:f:o:p:s:vyH:P:S:T:",
 	    longopts, NULL)) != -1) {
 		switch (c) {
+		case 'a':	/* ACTIVE PARTITION, if supported */
+			error = parse_uint32(&active_partition, 1, 100, optarg);
+			if (error)
+				errc(EX_DATAERR, error, "Partition ordinal");
+			break;
 		case 'b':	/* BOOT CODE */
 			if (bcfd != -1)
 				usage("multiple bootcode given");
