@@ -568,8 +568,8 @@ mr_loop:
         qmPortalMrPvbUpdate(p_QmPortal->p_LowQmPortal);
         p_Msg = qm_mr_current(p_QmPortal->p_LowQmPortal);
         if (p_Msg) {
-            struct qman_fq  *p_FqFqs  = (void *)p_Msg->fq.contextB;
-            struct qman_fq  *p_FqErn  = (void *)p_Msg->ern.tag;
+            struct qman_fq  *p_FqFqs  = UINT_TO_PTR(p_Msg->fq.contextB);
+            struct qman_fq  *p_FqErn  = UINT_TO_PTR(p_Msg->ern.tag);
             uint8_t         verb    =(uint8_t)(p_Msg->verb & QM_MR_VERB_TYPE_MASK);
             t_QmRejectedFrameInfo   rejectedFrameInfo;
 
@@ -646,7 +646,7 @@ static void LoopDequeueRing(t_Handle h_QmPortal)
         p_Dq = qm_dqrr_current(p_QmPortal->p_LowQmPortal);
         if (!p_Dq)
             break;
-        p_Fq = (void *)p_Dq->contextB;
+	p_Fq = UINT_TO_PTR(p_Dq->contextB);
         if (p_Dq->stat & QM_DQRR_STAT_UNSCHEDULED) {
             /* We only set QMAN_FQ_STATE_NE when retiring, so we only need
              * to check for clearing it when doing volatile dequeues. It's
@@ -728,7 +728,7 @@ static void LoopDequeueRingDcaOptimized(t_Handle h_QmPortal)
         p_Dq = qm_dqrr_current(p_QmPortal->p_LowQmPortal);
         if (!p_Dq)
             break;
-        p_Fq = (void *)p_Dq->contextB;
+	p_Fq = UINT_TO_PTR(p_Dq->contextB);
         if (p_Dq->stat & QM_DQRR_STAT_UNSCHEDULED) {
             /* We only set QMAN_FQ_STATE_NE when retiring, so we only need
              * to check for clearing it when doing volatile dequeues. It's
@@ -802,7 +802,7 @@ static void LoopDequeueRingOptimized(t_Handle h_QmPortal)
         p_Dq = qm_dqrr_current(p_QmPortal->p_LowQmPortal);
         if (!p_Dq)
             break;
-        p_Fq = (void *)p_Dq->contextB;
+	p_Fq = UINT_TO_PTR(p_Dq->contextB);
         if (p_Dq->stat & QM_DQRR_STAT_UNSCHEDULED) {
             /* We only set QMAN_FQ_STATE_NE when retiring, so we only need
              * to check for clearing it when doing volatile dequeues. It's
@@ -1483,7 +1483,7 @@ static t_Error QmPortalPullFrame(t_Handle h_QmPortal, uint32_t pdqcr, t_DpaaFD *
         p_Dq = qm_dqrr_current(p_QmPortal->p_LowQmPortal);
         if (!p_Dq)
             continue;
-        p_Fq = (void *)p_Dq->contextB;
+        p_Fq = UINT_TO_PTR(p_Dq->contextB);
         ASSERT_COND(p_Dq->fqid);
         p_Dst = (uint32_t *)p_Frame;
         p_Src = (uint32_t *)&p_Dq->fd;
@@ -1811,7 +1811,7 @@ t_Error QM_PORTAL_PollFrame(t_Handle h_QmPortal, t_QmPortalFrameInfo *p_frameInf
         PUNLOCK(p_QmPortal);
         return ERROR_CODE(E_EMPTY);
     }
-    p_Fq = (void *)p_Dq->contextB;
+    p_Fq = UINT_TO_PTR(p_Dq->contextB);
     ASSERT_COND(p_Dq->fqid);
     if (p_Fq)
     {
@@ -2141,7 +2141,7 @@ t_Error QM_FQR_Enqueue(t_Handle h_QmFqr, t_Handle h_QmPortal, uint32_t fqidOffse
     }
 
     p_Eq->fqid = p_Fq->fqid;
-    p_Eq->tag = (uint32_t)p_Fq;
+    p_Eq->tag = (uintptr_t)p_Fq;
     /* gcc does a dreadful job of the following;
      *  eq->fd = *fd;
      * It causes the entire function to save/restore a wider range of

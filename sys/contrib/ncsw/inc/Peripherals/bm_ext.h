@@ -124,7 +124,7 @@ typedef struct {
     t_Handle                h_App;                  /**< A handle to an application layer object; This handle will
                                                          be passed by the driver upon calling the above callbacks.
                                                          NOTE: this parameter relevant only for BM in master mode ('guestId'=NCSW_MASTER_ID). */
-    int                     errIrq;                 /**< BM error interrupt line; NO_IRQ if interrupts not used.
+    uintptr_t               errIrq;                 /**< BM error interrupt line; NO_IRQ if interrupts not used.
                                                          NOTE: this parameter relevant only for BM in master mode ('guestId'=NCSW_MASTER_ID). */
 
     uint8_t                 partBpidBase;           /**< The first buffer-pool-id dedicated to this partition.
