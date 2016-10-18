@@ -90,6 +90,7 @@ options 	MALLOC_DEBUG_MAXZONES=8	# Separate malloc(9) zones
 options 	SOC_ALLWINNER_A64
 options 	SOC_CAVM_THUNDERX
 options 	SOC_HISI_HI6220
+options 	SOC_BRCM_BCM2837
 
 # Annapurna Alpine drivers
 device		al_ccu			# Alpine Cache Coherency Unit
@@ -129,6 +130,7 @@ device		da
 device		pass		# Passthrough device (direct ATA/SCSI access)
 
 # MMC/SD/SDIO Card slot support
+device		sdhci
 device		aw_mmc			# Allwinner SD/MMC controller
 device		mmc			# mmc/sd bus
 device		mmcsd			# mmc/sd flash cards
@@ -152,13 +154,19 @@ device		usb			# USB Bus (required)
 device		ukbd			# Keyboard
 device		umass			# Disks/Mass storage - Requires scbus and da
 
+# USB ethernet support
+device		smcphy
+device		smsc
+
 # GPIO
 device		aw_gpio		# Allwinner GPIO controller
 device		gpio
+device		gpioled
 device		fdt_pinctrl
 
 # I2C
 device		aw_rsb		# Allwinner Reduced Serial Bus
+device		bcm2835_bsc	# Broadcom BCM283x I2C bus
 device		iicbus
 
 # Clock and reset controllers
@@ -181,6 +189,14 @@ device		aw_sid		# Allwinner Secure ID EFUSE
 
 # Thermal sensors
 device		aw_thermal	# Allwinner Thermal Sensor Controller
+
+# SPI
+device		spibus
+device		bcm2835_spi	# Broadcom BCM283x SPI bus
+
+# Console
+device		vt
+device		kbdmux
 
 # Pseudo devices.
 device		loop		# Network loopback
