@@ -201,8 +201,13 @@ create_diskimage_gpt ( ) (
 
 create_diskimage_mbr ( ) (
 
+	local fmt
+
+	[ -z ${NANO_DISKIMAGE_FORMAT} ] || fmt=".${NANO_DISKIMAGE_FORMAT}"
+
 	pprint 2 "build diskimage ${NANO_NAME}"
 	pprint 3 "log: ${NANO_LOG}/_.di"
+	pprint 3 "image in: ${NANO_DISKIMGDIR}/_.disk.image.${NANO_NAME}${fmt}"
 
 	(
 	local extra i sz fmt fmtarg bootmbr bootbsd skiparg
