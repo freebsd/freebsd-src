@@ -828,9 +828,9 @@ Performance is inferior to native netmap
 mode but still significantly higher than various raw socket types
 (bpf, PF_PACKET, etc.).
 Note that for slow devices (such as 1 Gbit/s and slower NICs,
-or several 10 Gbit/s NICs whose hardware is unable 
-that of in-kernel solutions such as Linux's
-.Xr pktgen .
+or several 10 Gbit/s NICs whose hardware is unable to sustain line rate),
+emulated and native mode will likely have similar or same throughput.
+.br
 When emulation is in use, packet sniffer programs such as tcpdump
 could see received packets before they are diverted by netmap. This behaviour
 is not intentional, being just an artifact of the implementation of emulation.
