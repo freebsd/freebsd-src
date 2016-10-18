@@ -59,6 +59,7 @@ extern u_int nheads;
 extern u_int nsecs;
 extern u_int secsz;	/* Logical block size. */
 extern u_int blksz;	/* Physical block size. */
+extern uint32_t active_partition;
 
 static inline lba_t
 round_block(lba_t n)
