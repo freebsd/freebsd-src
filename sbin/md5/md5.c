@@ -21,8 +21,10 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+#include <sys/capsicum.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <capsicum_helpers.h>
 #include <err.h>
 #include <md5.h>
 #include <ripemd.h>
@@ -74,7 +76,7 @@ typedef struct Algorithm_t {
 	DIGEST_Update *Update;
 	DIGEST_End *End;
 	char *(*Data)(const void *, unsigned int, char *);
-	char *(*File)(const char *, char *);
+	char *(*Fd)(int, char *);
 } Algorithm_t;
 
 static void MD5_Update(MD5_CTX *, const unsigned char *, size_t);
@@ -106,34 +108,34 @@ typedef union {
 static const struct Algorithm_t Algorithm[] = {
 	{ "md5", "MD5", &MD5TestOutput, (DIGEST_Init*)&MD5Init,
 		(DIGEST_Update*)&MD5_Update, (DIGEST_End*)&MD5End,
-		&MD5Data, &MD5File },
+		&MD5Data, &MD5Fd },
 	{ "sha1", "SHA1", &SHA1_TestOutput, (DIGEST_Init*)&SHA1_Init,
 		(DIGEST_Update*)&SHA1_Update, (DIGEST_End*)&SHA1_End,
-		&SHA1_Data, &SHA1_File },
+		&SHA1_Data, &SHA1_Fd },
 	{ "sha256", "SHA256", &SHA256_TestOutput, (DIGEST_Init*)&SHA256_Init,
 		(DIGEST_Update*)&SHA256_Update, (DIGEST_End*)&SHA256_End,
-		&SHA256_Data, &SHA256_File },
+		&SHA256_Data, &SHA256_Fd },
 	{ "sha384", "SHA384", &SHA384_TestOutput, (DIGEST_Init*)&SHA384_Init,
 		(DIGEST_Update*)&SHA384_Update, (DIGEST_End*)&SHA384_End,
-		&SHA384_Data, &SHA384_File },
+		&SHA384_Data, &SHA384_Fd },
 	{ "sha512", "SHA512", &SHA512_TestOutput, (DIGEST_Init*)&SHA512_Init,
 		(DIGEST_Update*)&SHA512_Update, (DIGEST_End*)&SHA512_End,
-		&SHA512_Data, &SHA512_File },
+		&SHA512_Data, &SHA512_Fd },
 	{ "sha512t256", "SHA512t256", &SHA512t256_TestOutput, (DIGEST_Init*)&SHA512_256_Init,
 		(DIGEST_Update*)&SHA512_256_Update, (DIGEST_End*)&SHA512_256_End,
-		&SHA512_256_Data, &SHA512_256_File },
+		&SHA512_256_Data, &SHA512_256_Fd },
 	{ "rmd160", "RMD160", &RIPEMD160_TestOutput,
 		(DIGEST_Init*)&RIPEMD160_Init, (DIGEST_Update*)&RIPEMD160_Update,
-		(DIGEST_End*)&RIPEMD160_End, &RIPEMD160_Data, &RIPEMD160_File },
+		(DIGEST_End*)&RIPEMD160_End, &RIPEMD160_Data, &RIPEMD160_Fd },
 	{ "skein256", "Skein256", &SKEIN256_TestOutput,
 		(DIGEST_Init*)&SKEIN256_Init, (DIGEST_Update*)&SKEIN256_Update,
-		(DIGEST_End*)&SKEIN256_End, &SKEIN256_Data, &SKEIN256_File },
+		(DIGEST_End*)&SKEIN256_End, &SKEIN256_Data, &SKEIN256_Fd },
 	{ "skein512", "Skein512", &SKEIN512_TestOutput,
 		(DIGEST_Init*)&SKEIN512_Init, (DIGEST_Update*)&SKEIN512_Update,
-		(DIGEST_End*)&SKEIN512_End, &SKEIN512_Data, &SKEIN512_File },
+		(DIGEST_End*)&SKEIN512_End, &SKEIN512_Data, &SKEIN512_Fd },
 	{ "skein1024", "Skein1024", &SKEIN1024_TestOutput,
 		(DIGEST_Init*)&SKEIN1024_Init, (DIGEST_Update*)&SKEIN1024_Update,
-		(DIGEST_End*)&SKEIN1024_End, &SKEIN1024_Data, &SKEIN1024_File }
+		(DIGEST_End*)&SKEIN1024_End, &SKEIN1024_Data, &SKEIN1024_Fd }
 };
 
 static void
@@ -154,7 +156,8 @@ Arguments (may be any combination):
 int
 main(int argc, char *argv[])
 {
-	int	ch;
+	cap_rights_t	rights;
+	int	ch, fd;
 	char   *p;
 	char	buf[HEX_DIGEST_LENGTH];
 	int	failed;
@@ -206,10 +209,30 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
+	if (caph_limit_stdout() < 0 || caph_limit_stderr() < 0)
+		err(1, "unable to limit rights for stdio");
+
 	if (*argv) {
 		do {
-			p = Algorithm[digest].File(*argv, buf);
-			if (!p) {
+			if ((fd = open(*argv, O_RDONLY)) < 0) {
+				warn("%s", *argv);
+				failed++;
+				continue;
+			}
+			/*
+			 * XXX Enter capability mode on the last argv file.
+			 * When a casper file service or other approach is
+			 * available, switch to that and enter capability mode
+			 * earlier.
+			 */
+			if (*(argv + 1) == NULL) {
+				cap_rights_init(&rights, CAP_READ);
+				if ((cap_rights_limit(fd, &rights) < 0 &&
+				    errno != ENOSYS) ||
+				    (cap_enter() < 0 && errno != ENOSYS))
+					err(1, "capsicum");
+			}
+			if ((p = Algorithm[digest].Fd(fd, buf)) == NULL) {
 				warn("%s", *argv);
 				failed++;
 			} else {
@@ -229,8 +252,12 @@ main(int argc, char *argv[])
 				printf("\n");
 			}
 		} while (*++argv);
-	} else if (!sflag && (optind == 1 || qflag || rflag))
+	} else if (!sflag && (optind == 1 || qflag || rflag)) {
+		if (caph_limit_stdin() < 0 ||
+		    (cap_enter() < 0 && errno != ENOSYS))
+			err(1, "capsicum");
 		MDFilter(&Algorithm[digest], 0);
+	}
 
 	if (failed != 0)
 		return (1);
