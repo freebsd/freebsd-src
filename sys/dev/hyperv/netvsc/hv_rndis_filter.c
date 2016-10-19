@@ -155,6 +155,15 @@ hv_rf_receive_indicate_status(struct hn_softc *sc, const void *data, int dlen)
 		netvsc_linkstatus_callback(sc, 0);
 		break;
 
+	case RNDIS_STATUS_TASK_OFFLOAD_CURRENT_CONFIG:
+		/* Not really useful; ignore. */
+		break;
+
+	case RNDIS_STATUS_NETWORK_CHANGE:
+		/* TODO */
+		if_printf(sc->hn_ifp, "network changed\n");
+		break;
+
 	default:
 		/* TODO: */
 		if_printf(sc->hn_ifp, "unknown RNDIS status 0x%08x\n",
