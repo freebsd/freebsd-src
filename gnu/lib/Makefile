@@ -5,18 +5,9 @@
 SUBDIR= csu libgcc libregex
 
 SUBDIR.${MK_DIALOG}+=	libdialog
-
-.if ${MK_GCC} != "no"
-SUBDIR+= libgcov libgomp
-.endif
-
-.if ${MK_SSP} != "no"
-SUBDIR+= libssp
-.endif
-
-.if ${MK_TESTS} != "no"
-SUBDIR+= tests
-.endif
+SUBDIR.${MK_GCC}+=	libgcov libgomp
+SUBDIR.${MK_SSP}+=	libssp
+SUBDIR.${MK_TESTS}+=	tests
 
 .if ${MK_BINUTILS} != "no" && ${MK_GDB} != "no"
 SUBDIR+=	libreadline
