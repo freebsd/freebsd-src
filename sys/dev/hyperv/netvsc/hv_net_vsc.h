@@ -244,6 +244,8 @@ struct hn_softc {
 
 	uint32_t		hn_rndis_rid;
 	uint32_t		hn_ndis_ver;
+	int			hn_ndis_tso_szmax;
+	int			hn_ndis_tso_sgmin;
 
 	struct ndis_rssprm_toeplitz hn_rss;
 };
