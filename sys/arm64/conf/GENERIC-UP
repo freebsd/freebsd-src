@@ -21,3 +21,5 @@
 include		GENERIC
 ident		GENERIC-UP
 nooptions 	SMP
+
+options 	SOC_BRCM_BCM2837
