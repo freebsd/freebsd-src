@@ -2210,7 +2210,7 @@ storvsc_io_done(struct hv_storvsc_request *reqp)
 				    resp_buf[3], resp_buf[4]);
 			}
 			if (vm_srb->srb_status == SRB_STATUS_SUCCESS &&
-			    data_len > SHORT_INQUIRY_LENGTH) {
+			    data_len >= SHORT_INQUIRY_LENGTH) {
 				char vendor[16];
 
 				cam_strvis(vendor, inq_data->vendor,
