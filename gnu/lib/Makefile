@@ -2,7 +2,9 @@
 
 .include <src.opts.mk>
 
-SUBDIR= csu libgcc libregex
+SUBDIR=			csu
+SUBDIR+=		libgcc
+SUBDIR+=		libregex
 
 SUBDIR.${MK_DIALOG}+=	libdialog
 SUBDIR.${MK_GCC}+=	libgcov libgomp
