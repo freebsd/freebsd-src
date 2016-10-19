@@ -888,7 +888,7 @@ genkbd_commonioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 	case PIO_KEYMAP:	/* set keyboard translation table */
 	case OPIO_KEYMAP:	/* set keyboard translation table (compat) */
 #ifndef KBD_DISABLE_KEYMAP_LOAD
-		mapp = malloc(sizeof *mapp, M_TEMP, M_NOWAIT);
+		mapp = malloc(sizeof *mapp, M_TEMP, M_WAITOK);
 		if (cmd == OPIO_KEYMAP) {
 			omapp = (okeymap_t *)arg;
 			mapp->n_keys = omapp->n_keys;
