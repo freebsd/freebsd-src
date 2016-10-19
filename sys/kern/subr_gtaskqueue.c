@@ -52,7 +52,6 @@ static MALLOC_DEFINE(M_GTASKQUEUE, "taskqueue", "Task Queues");
 static void	gtaskqueue_thread_enqueue(void *);
 static void	gtaskqueue_thread_loop(void *arg);
 
-
 struct gtaskqueue_busy {
 	struct gtask	*tb_running;
 	TAILQ_ENTRY(gtaskqueue_busy) tb_link;
@@ -655,11 +654,11 @@ taskqgroup_attach_deferred(struct taskqgroup *qgroup, struct grouptask *gtask)
 	if (gtask->gt_irq != -1) {
 		mtx_unlock(&qgroup->tqg_lock);
 
-			CPU_ZERO(&mask);
-			CPU_SET(cpu, &mask);
-			intr_setaffinity(gtask->gt_irq, &mask);
+		CPU_ZERO(&mask);
+		CPU_SET(cpu, &mask);
+		intr_setaffinity(gtask->gt_irq, &mask);
 
-			mtx_lock(&qgroup->tqg_lock);
+		mtx_lock(&qgroup->tqg_lock);
 	}
 	qgroup->tqg_queue[qid].tgc_cnt++;
 
@@ -789,6 +788,9 @@ taskqgroup_bind(struct taskqgroup *qgroup)
 	 * Bind taskqueue threads to specific CPUs, if they have been assigned
 	 * one.
 	 */
+	if (qgroup->tqg_cnt == 1)
+		return;
+
 	for (i = 0; i < qgroup->tqg_cnt; i++) {
 		gtask = malloc(sizeof (*gtask), M_DEVBUF, M_WAITOK);
 		GTASK_INIT(&gtask->bt_task, 0, 0, taskqgroup_binder, gtask);
@@ -855,7 +857,6 @@ _taskqgroup_adjust(struct taskqgroup *qgroup, int cnt, int stride)
 			LIST_INSERT_HEAD(&gtask_head, gtask, gt_list);
 		}
 	}
-
 	mtx_unlock(&qgroup->tqg_lock);
 
 	while ((gtask = LIST_FIRST(&gtask_head))) {
