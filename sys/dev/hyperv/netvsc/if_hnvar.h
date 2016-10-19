@@ -118,6 +118,7 @@ uint32_t	hn_chim_alloc(struct hn_softc *sc);
 void		hn_chim_free(struct hn_softc *sc, uint32_t chim_idx);
 
 int		hn_rndis_attach(struct hn_softc *sc);
+void		hn_rndis_detach(struct hn_softc *sc);
 int		hn_rndis_conf_rss(struct hn_softc *sc, uint16_t flags);
 void		*hn_rndis_pktinfo_append(struct rndis_packet_msg *,
 		    size_t pktsize, size_t pi_dlen, uint32_t pi_type);
@@ -127,6 +128,7 @@ int		hn_rndis_get_linkstatus(struct hn_softc *sc,
 		    uint32_t *link_status);
 
 int		hn_nvs_attach(struct hn_softc *sc, int mtu);
+void		hn_nvs_detach(struct hn_softc *sc);
 int		hn_nvs_alloc_subchans(struct hn_softc *sc, int *nsubch);
 void		hn_nvs_sent_xact(struct hn_send_ctx *sndc, struct hn_softc *sc,
 		    struct vmbus_channel *chan, const void *data, int dlen);
