@@ -352,6 +352,7 @@ static void hn_resume(struct hn_softc *);
 static void hn_rx_drain(struct vmbus_channel *);
 static void hn_tx_resume(struct hn_softc *, int);
 static void hn_tx_ring_qflush(struct hn_tx_ring *);
+static int netvsc_detach(device_t dev);
 
 static void hn_nvs_handle_notify(struct hn_softc *sc,
 		const struct vmbus_chanpkt_hdr *pkt);
@@ -404,6 +405,9 @@ hn_rss_reconfig(struct hn_softc *sc)
 	int error;
 
 	HN_LOCK_ASSERT(sc);
+
+	if ((sc->hn_flags & HN_FLAG_SYNTH_ATTACHED) == 0)
+		return (ENXIO);
 
 	/*
 	 * Disable RSS first.
@@ -736,27 +740,28 @@ netvsc_attach(device_t dev)
 
 	return (0);
 failed:
-	/* TODO: reuse netvsc_detach() */
-	hn_destroy_tx_data(sc);
-	if (ifp != NULL)
-		if_free(ifp);
+	if (sc->hn_flags & HN_FLAG_SYNTH_ATTACHED)
+		hn_synth_detach(sc);
+	netvsc_detach(dev);
 	return (error);
 }
 
-/*
- * TODO: Use this for error handling on attach path.
- */
 static int
 netvsc_detach(device_t dev)
 {
 	struct hn_softc *sc = device_get_softc(dev);
+	struct ifnet *ifp = sc->hn_ifp;
 
-	/* TODO: ether_ifdetach */
-
-	HN_LOCK(sc);
-	/* TODO: hn_stop */
-	hn_synth_detach(sc);
-	HN_UNLOCK(sc);
+	if (device_is_attached(dev)) {
+		HN_LOCK(sc);
+		if (sc->hn_flags & HN_FLAG_SYNTH_ATTACHED) {
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+				hn_stop(sc);
+			hn_synth_detach(sc);
+		}
+		HN_UNLOCK(sc);
+		ether_ifdetach(ifp);
+	}
 
 	ifmedia_removeall(&sc->hn_media);
 	hn_destroy_rx_data(sc);
@@ -765,10 +770,12 @@ netvsc_detach(device_t dev)
 	if (sc->hn_tx_taskq != hn_tx_taskq)
 		taskqueue_free(sc->hn_tx_taskq);
 
-	vmbus_xact_ctx_destroy(sc->hn_xact);
-	HN_LOCK_DESTROY(sc);
+	if (sc->hn_xact != NULL)
+		vmbus_xact_ctx_destroy(sc->hn_xact);
 
-	/* TODO: if_free */
+	if_free(ifp);
+
+	HN_LOCK_DESTROY(sc);
 	return (0);
 }
 
@@ -1618,6 +1625,11 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 		HN_LOCK(sc);
 
+		if ((sc->hn_flags & HN_FLAG_SYNTH_ATTACHED) == 0) {
+			HN_UNLOCK(sc);
+			break;
+		}
+
 		if ((sc->hn_caps & HN_CAP_MTU) == 0) {
 			/* Can't change MTU */
 			HN_UNLOCK(sc);
@@ -1670,6 +1682,11 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 	case SIOCSIFFLAGS:
 		HN_LOCK(sc);
+
+		if ((sc->hn_flags & HN_FLAG_SYNTH_ATTACHED) == 0) {
+			HN_UNLOCK(sc);
+			break;
+		}
 
 		if (ifp->if_flags & IFF_UP) {
 			/*
@@ -1782,6 +1799,9 @@ hn_stop(struct hn_softc *sc)
 
 	HN_LOCK_ASSERT(sc);
 
+	KASSERT(sc->hn_flags & HN_FLAG_SYNTH_ATTACHED,
+	    ("synthetic parts were not attached"));
+
 	/* Clear RUNNING bit _before_ hn_suspend() */
 	atomic_clear_int(&ifp->if_drv_flags, IFF_DRV_RUNNING);
 	hn_suspend(sc);
@@ -1857,6 +1877,9 @@ hn_init_locked(struct hn_softc *sc)
 	int i;
 
 	HN_LOCK_ASSERT(sc);
+
+	if ((sc->hn_flags & HN_FLAG_SYNTH_ATTACHED) == 0)
+		return;
 
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 		return;
@@ -3377,6 +3400,9 @@ hn_synth_attach(struct hn_softc *sc, int mtu)
 	int error, nsubch, nchan, i;
 	uint32_t old_caps;
 
+	KASSERT((sc->hn_flags & HN_FLAG_SYNTH_ATTACHED) == 0,
+	    ("synthetic parts were attached"));
+
 	/* Save capabilities for later verification. */
 	old_caps = sc->hn_caps;
 	sc->hn_caps = 0;
@@ -3489,6 +3515,8 @@ back:
 	error = hn_attach_subchans(sc);
 	if (error)
 		return (error);
+
+	sc->hn_flags |= HN_FLAG_SYNTH_ATTACHED;
 	return (0);
 }
 
@@ -3502,6 +3530,9 @@ hn_synth_detach(struct hn_softc *sc)
 {
 	HN_LOCK_ASSERT(sc);
 
+	KASSERT(sc->hn_flags & HN_FLAG_SYNTH_ATTACHED,
+	    ("synthetic parts were not attached"));
+
 	/* Detach the RNDIS first. */
 	hn_rndis_detach(sc);
 
@@ -3510,6 +3541,8 @@ hn_synth_detach(struct hn_softc *sc)
 
 	/* Detach all of the channels. */
 	hn_detach_allchans(sc);
+
+	sc->hn_flags &= ~HN_FLAG_SYNTH_ATTACHED;
 }
 
 static void
