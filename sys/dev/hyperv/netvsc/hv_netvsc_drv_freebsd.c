@@ -232,7 +232,7 @@ SYSCTL_INT(_hw_hn, OID_AUTO, trust_hostip, CTLFLAG_RDTUN,
     "when csum info is missing (global setting)");
 
 /* Limit TSO burst size */
-static int hn_tso_maxlen = 0;
+static int hn_tso_maxlen = IP_MAXPACKET;
 SYSCTL_INT(_hw_hn, OID_AUTO, tso_maxlen, CTLFLAG_RDTUN,
     &hn_tso_maxlen, 0, "TSO burst limit");
 
@@ -340,6 +340,7 @@ static int hn_encap(struct hn_tx_ring *, struct hn_txdesc *, struct mbuf **);
 static int hn_create_rx_data(struct hn_softc *sc, int);
 static void hn_destroy_rx_data(struct hn_softc *sc);
 static void hn_set_chim_size(struct hn_softc *, int);
+static void hn_set_tso_maxsize(struct hn_softc *, int, int);
 static int hn_chan_attach(struct hn_softc *, struct vmbus_channel *);
 static void hn_chan_detach(struct hn_softc *, struct vmbus_channel *);
 static int hn_attach_subchans(struct hn_softc *);
@@ -535,7 +536,6 @@ netvsc_attach(device_t dev)
 	uint32_t link_status;
 	struct ifnet *ifp = NULL;
 	int error, ring_cnt, tx_ring_cnt;
-	int tso_maxlen;
 
 	sc->hn_dev = dev;
 	sc->hn_prichan = vmbus_get_channel(dev);
@@ -736,18 +736,16 @@ netvsc_attach(device_t dev)
 	/* Enable all available capabilities by default. */
 	ifp->if_capenable = ifp->if_capabilities;
 
-	tso_maxlen = hn_tso_maxlen;
-	if (tso_maxlen <= 0 || tso_maxlen > IP_MAXPACKET)
-		tso_maxlen = IP_MAXPACKET;
-	ifp->if_hw_tsomaxsegcount = HN_TX_DATA_SEGCNT_MAX;
-	ifp->if_hw_tsomaxsegsize = PAGE_SIZE;
-	ifp->if_hw_tsomax = tso_maxlen -
-	    (ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN);
+	if (ifp->if_capabilities & (IFCAP_TSO6 | IFCAP_TSO4)) {
+		hn_set_tso_maxsize(sc, hn_tso_maxlen, ETHERMTU);
+		ifp->if_hw_tsomaxsegcount = HN_TX_DATA_SEGCNT_MAX;
+		ifp->if_hw_tsomaxsegsize = PAGE_SIZE;
+	}
 
 	ether_ifattach(ifp, eaddr);
 
-	if (bootverbose) {
-		if_printf(ifp, "TSO: %u/%u/%u\n", ifp->if_hw_tsomax,
+	if ((ifp->if_capabilities & (IFCAP_TSO6 | IFCAP_TSO4)) && bootverbose) {
+		if_printf(ifp, "TSO segcnt %u segsz %u\n",
 		    ifp->if_hw_tsomaxsegcount, ifp->if_hw_tsomaxsegsize);
 	}
 
@@ -1692,6 +1690,7 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 		if (sc->hn_tx_ring[0].hn_chim_size > sc->hn_chim_szmax)
 			hn_set_chim_size(sc, sc->hn_chim_szmax);
+		hn_set_tso_maxsize(sc, hn_tso_maxlen, ifr->ifr_mtu);
 
 		/* All done!  Resume now. */
 		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
@@ -2939,6 +2938,34 @@ hn_set_chim_size(struct hn_softc *sc, int chim_size)
 }
 
 static void
+hn_set_tso_maxsize(struct hn_softc *sc, int tso_maxlen, int mtu)
+{
+	struct ifnet *ifp = sc->hn_ifp;
+	int tso_minlen;
+
+	if ((ifp->if_capabilities & (IFCAP_TSO4 | IFCAP_TSO6)) == 0)
+		return;
+
+	KASSERT(sc->hn_ndis_tso_sgmin >= 2,
+	    ("invalid NDIS tso sgmin %d", sc->hn_ndis_tso_sgmin));
+	tso_minlen = sc->hn_ndis_tso_sgmin * mtu;
+
+	KASSERT(sc->hn_ndis_tso_szmax >= tso_minlen &&
+	    sc->hn_ndis_tso_szmax <= IP_MAXPACKET,
+	    ("invalid NDIS tso szmax %d", sc->hn_ndis_tso_szmax));
+
+	if (tso_maxlen < tso_minlen)
+		tso_maxlen = tso_minlen;
+	else if (tso_maxlen > IP_MAXPACKET)
+		tso_maxlen = IP_MAXPACKET;
+	if (tso_maxlen > sc->hn_ndis_tso_szmax)
+		tso_maxlen = sc->hn_ndis_tso_szmax;
+	ifp->if_hw_tsomax = tso_maxlen - (ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN);
+	if (bootverbose)
+		if_printf(ifp, "TSO size max %u\n", ifp->if_hw_tsomax);
+}
+
+static void
 hn_fixup_tx_data(struct hn_softc *sc)
 {
 	uint64_t csum_assist;
@@ -3444,7 +3471,7 @@ hn_synth_attach(struct hn_softc *sc, int mtu)
 	/*
 	 * Attach RNDIS _after_ NVS is attached.
 	 */
-	error = hn_rndis_attach(sc);
+	error = hn_rndis_attach(sc, mtu);
 	if (error)
 		return (error);
 
