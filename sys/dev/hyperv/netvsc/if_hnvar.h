@@ -138,6 +138,7 @@ void		hn_nvs_sent_xact(struct hn_send_ctx *sndc, struct hn_softc *sc,
 int		hn_rxpkt(struct hn_rx_ring *rxr, const void *data, int dlen,
 		    const struct hn_recvinfo *info);
 void		hn_chan_rollup(struct hn_rx_ring *rxr, struct hn_tx_ring *txr);
+void		hn_link_status_update(struct hn_softc *sc);
 
 extern struct hn_send_ctx	hn_send_ctx_none;
 

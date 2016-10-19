@@ -167,11 +167,8 @@ hv_rf_receive_indicate_status(struct hn_softc *sc, const void *data, int dlen)
 
 	switch (msg->rm_status) {
 	case RNDIS_STATUS_MEDIA_CONNECT:
-		netvsc_linkstatus_callback(sc, 1);
-		break;
-
 	case RNDIS_STATUS_MEDIA_DISCONNECT:
-		netvsc_linkstatus_callback(sc, 0);
+		hn_link_status_update(sc);
 		break;
 
 	case RNDIS_STATUS_TASK_OFFLOAD_CURRENT_CONFIG:
