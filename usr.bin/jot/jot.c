@@ -47,8 +47,11 @@ __FBSDID("$FreeBSD$");
  * Author:  John Kunze, Office of Comp. Affairs, UCB
  */
 
+#include <sys/capsicum.h>
+#include <capsicum_helpers.h>
 #include <ctype.h>
 #include <err.h>
+#include <errno.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -89,6 +92,7 @@ static void	usage(void);
 int
 main(int argc, char **argv)
 {
+	cap_rights_t rights;
 	bool	have_format = false;
 	bool	infinity = false;
 	bool	nofinalnl = false;
@@ -104,6 +108,21 @@ main(int argc, char **argv)
 	double	x, y;
 	long	i;
 	long	reps = REPS_DEF;
+
+	if (caph_limit_stdio() < 0)
+		err(1, "unable to limit rights for stdio");
+	cap_rights_init(&rights);
+	if (cap_rights_limit(STDIN_FILENO, &rights) < 0 && errno != ENOSYS)
+		err(1, "unable to limit rights for stdin");
+
+	/*
+	 * Cache NLS data, for strerror, for err(3), before entering capability
+	 * mode.
+	 */
+	caph_cache_catpages();
+
+	if (cap_enter() < 0 && errno != ENOSYS)
+		err(1, "unable to enter capability mode");
 
 	while ((ch = getopt(argc, argv, "b:cnp:rs:w:")) != -1)
 		switch (ch) {
