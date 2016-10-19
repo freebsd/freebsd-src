@@ -325,6 +325,7 @@ static int hn_rx_stat_ulong_sysctl(SYSCTL_HANDLER_ARGS);
 static int hn_tx_stat_ulong_sysctl(SYSCTL_HANDLER_ARGS);
 static int hn_tx_conf_int_sysctl(SYSCTL_HANDLER_ARGS);
 static int hn_ndis_version_sysctl(SYSCTL_HANDLER_ARGS);
+static int hn_caps_sysctl(SYSCTL_HANDLER_ARGS);
 static int hn_rss_key_sysctl(SYSCTL_HANDLER_ARGS);
 static int hn_rss_ind_sysctl(SYSCTL_HANDLER_ARGS);
 static int hn_check_iplen(const struct mbuf *, int);
@@ -433,6 +434,8 @@ hn_rss_ind_fixup(struct hn_softc *sc, int nchan)
 {
 	struct ndis_rssprm_toeplitz *rss = &sc->hn_rss;
 	int i;
+
+	KASSERT(nchan > 1, ("invalid # of channels %d", nchan));
 
 	/*
 	 * Check indirect table to make sure that all channels in it
@@ -641,6 +644,9 @@ netvsc_attach(device_t dev)
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "ndis_version",
 	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
 	    hn_ndis_version_sysctl, "A", "NDIS version");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "caps",
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
+	    hn_caps_sysctl, "A", "capabilities");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "rss_key",
 	    CTLTYPE_OPAQUE | CTLFLAG_RW | CTLFLAG_MPSAFE, sc, 0,
 	    hn_rss_key_sysctl, "IU", "RSS key");
@@ -1568,6 +1574,13 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 		HN_LOCK(sc);
 
+		if ((sc->hn_caps & HN_CAP_MTU) == 0) {
+			/* Can't change MTU */
+			HN_UNLOCK(sc);
+			error = EOPNOTSUPP;
+			break;
+		}
+
 		if (ifp->if_mtu == ifr->ifr_mtu) {
 			HN_UNLOCK(sc);
 			break;
@@ -2095,6 +2108,30 @@ hn_ndis_version_sysctl(SYSCTL_HANDLER_ARGS)
 }
 
 static int
+hn_caps_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct hn_softc *sc = arg1;
+	char caps_str[128];
+	uint32_t caps;
+
+	HN_LOCK(sc);
+	caps = sc->hn_caps;
+	HN_UNLOCK(sc);
+	snprintf(caps_str, sizeof(caps_str), "%b", caps,
+	    "\020"
+	    "\001VLAN"
+	    "\002MTU"
+	    "\003IPCS"
+	    "\004TCP4CS"
+	    "\005TCP6CS"
+	    "\006UDP4CS"
+	    "\007UDP6CS"
+	    "\010TSO4"
+	    "\011TSO6");
+	return sysctl_handle_string(oidp, caps_str, sizeof(caps_str), req);
+}
+
+static int
 hn_rss_key_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	struct hn_softc *sc = arg1;
@@ -2109,8 +2146,14 @@ hn_rss_key_sysctl(SYSCTL_HANDLER_ARGS)
 	error = SYSCTL_IN(req, sc->hn_rss.rss_key, sizeof(sc->hn_rss.rss_key));
 	if (error)
 		goto back;
+	sc->hn_flags |= HN_FLAG_HAS_RSSKEY;
 
-	error = hn_rss_reconfig(sc);
+	if (sc->hn_rx_ring_inuse > 1) {
+		error = hn_rss_reconfig(sc);
+	} else {
+		/* Not RSS capable, at least for now; just save the RSS key. */
+		error = 0;
+	}
 back:
 	HN_UNLOCK(sc);
 	return (error);
@@ -2128,9 +2171,19 @@ hn_rss_ind_sysctl(SYSCTL_HANDLER_ARGS)
 	if (error || req->newptr == NULL)
 		goto back;
 
+	/*
+	 * Don't allow RSS indirect table change, if this interface is not
+	 * RSS capable currently.
+	 */
+	if (sc->hn_rx_ring_inuse == 1) {
+		error = EOPNOTSUPP;
+		goto back;
+	}
+
 	error = SYSCTL_IN(req, sc->hn_rss.rss_ind, sizeof(sc->hn_rss.rss_ind));
 	if (error)
 		goto back;
+	sc->hn_flags |= HN_FLAG_HAS_RSSIND;
 
 	hn_rss_ind_fixup(sc, sc->hn_rx_ring_inuse);
 	error = hn_rss_reconfig(sc);
@@ -3223,6 +3276,11 @@ hn_synth_attach(struct hn_softc *sc, int mtu)
 {
 	struct ndis_rssprm_toeplitz *rss = &sc->hn_rss;
 	int error, nsubch, nchan, i;
+	uint32_t old_caps;
+
+	/* Save capabilities for later verification. */
+	old_caps = sc->hn_caps;
+	sc->hn_caps = 0;
 
 	/*
 	 * Attach the primary channel _before_ attaching NVS and RNDIS.
@@ -3244,6 +3302,17 @@ hn_synth_attach(struct hn_softc *sc, int mtu)
 	error = hn_rndis_attach(sc);
 	if (error)
 		return (error);
+
+	/*
+	 * Make sure capabilities are not changed.
+	 */
+	if (device_is_attached(sc->hn_dev) && old_caps != sc->hn_caps) {
+		if_printf(sc->hn_ifp, "caps mismatch old 0x%08x, new 0x%08x\n",
+		    old_caps, sc->hn_caps);
+		/* Restore old capabilities and abort. */
+		sc->hn_caps = old_caps;
+		return ENXIO;
+	}
 
 	/*
 	 * Allocate sub-channels for multi-TX/RX rings.
@@ -3268,24 +3337,29 @@ hn_synth_attach(struct hn_softc *sc, int mtu)
 	 * are allocated.
 	 */
 
-	if (!device_is_attached(sc->hn_dev)) {
+	if ((sc->hn_flags & HN_FLAG_HAS_RSSKEY) == 0) {
 		/*
-		 * Setup default RSS key and indirect table for the
-		 * attach DEVMETHOD.  They can be altered later on,
-		 * so don't mess them up once this interface is attached.
+		 * RSS key is not set yet; set it to the default RSS key.
+		 */
+		if (bootverbose)
+			if_printf(sc->hn_ifp, "setup default RSS key\n");
+		memcpy(rss->rss_key, hn_rss_key_default, sizeof(rss->rss_key));
+		sc->hn_flags |= HN_FLAG_HAS_RSSKEY;
+	}
+
+	if ((sc->hn_flags & HN_FLAG_HAS_RSSIND) == 0) {
+		/*
+		 * RSS indirect table is not set yet; set it up in round-
+		 * robin fashion.
 		 */
 		if (bootverbose) {
-			if_printf(sc->hn_ifp, "setup default RSS key and "
-			    "indirect table\n");
+			if_printf(sc->hn_ifp, "setup default RSS indirect "
+			    "table\n");
 		}
-
-		/* Setup default RSS key. */
-		memcpy(rss->rss_key, hn_rss_key_default, sizeof(rss->rss_key));
-
-		/* Setup default RSS indirect table. */
 		/* TODO: Take ndis_rss_caps.ndis_nind into account. */
 		for (i = 0; i < NDIS_HASH_INDCNT; ++i)
 			rss->rss_ind[i] = i % nchan;
+		sc->hn_flags |= HN_FLAG_HAS_RSSIND;
 	} else {
 		/*
 		 * # of usable channels may be changed, so we have to
