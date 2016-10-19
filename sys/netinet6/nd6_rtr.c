@@ -76,17 +76,16 @@ static int prelist_update(struct nd_prefixctl *, struct nd_defrouter *,
     struct mbuf *, int);
 static struct in6_ifaddr *in6_ifadd(struct nd_prefixctl *, int);
 static struct nd_pfxrouter *pfxrtr_lookup(struct nd_prefix *,
-	struct nd_defrouter *);
+    struct nd_defrouter *);
 static void pfxrtr_add(struct nd_prefix *, struct nd_defrouter *);
 static void pfxrtr_del(struct nd_pfxrouter *);
-static struct nd_pfxrouter *find_pfxlist_reachable_router
-(struct nd_prefix *);
+static struct nd_pfxrouter *find_pfxlist_reachable_router(struct nd_prefix *);
 static void defrouter_delreq(struct nd_defrouter *);
 static void nd6_rtmsg(int, struct rtentry *);
 
 static int in6_init_prefix_ltimes(struct nd_prefix *);
 static void in6_init_address_ltimes(struct nd_prefix *,
-	struct in6_addrlifetime *);
+    struct in6_addrlifetime *);
 
 static int nd6_prefix_onlink(struct nd_prefix *);
 static int nd6_prefix_offlink(struct nd_prefix *);
@@ -1432,7 +1431,7 @@ find_pfxlist_reachable_router(struct nd_prefix *pr)
  * we have moved from the network but the lifetime of the prefix has not
  * expired yet.  So we should not use the prefix if there is another prefix
  * that has an available router.
- * But, if there is no prefix that has an available router, we still regards
+ * But, if there is no prefix that has an available router, we still regard
  * all the prefixes as on-link.  This is because we can't tell if all the
  * routers are simply dead or if we really moved from the network and there
  * is no router around us.
@@ -1485,40 +1484,26 @@ pfxlist_onlink_check(void)
 		 */
 		LIST_FOREACH(pr, &V_nd_prefix, ndpr_entry) {
 			/* XXX: a link-local prefix should never be detached */
-			if (IN6_IS_ADDR_LINKLOCAL(&pr->ndpr_prefix.sin6_addr))
-				continue;
-
-			/*
-			 * we aren't interested in prefixes without the L bit
-			 * set.
-			 */
-			if (pr->ndpr_raf_onlink == 0)
-				continue;
-
-			if (pr->ndpr_raf_auto == 0)
+			if (IN6_IS_ADDR_LINKLOCAL(&pr->ndpr_prefix.sin6_addr) ||
+			    pr->ndpr_raf_onlink == 0 ||
+			    pr->ndpr_raf_auto == 0)
 				continue;
 
 			if ((pr->ndpr_stateflags & NDPRF_DETACHED) == 0 &&
 			    find_pfxlist_reachable_router(pr) == NULL)
 				pr->ndpr_stateflags |= NDPRF_DETACHED;
-			if ((pr->ndpr_stateflags & NDPRF_DETACHED) != 0 &&
+			else if ((pr->ndpr_stateflags & NDPRF_DETACHED) != 0 &&
 			    find_pfxlist_reachable_router(pr) != NULL)
 				pr->ndpr_stateflags &= ~NDPRF_DETACHED;
 		}
 	} else {
 		/* there is no prefix that has a reachable router */
 		LIST_FOREACH(pr, &V_nd_prefix, ndpr_entry) {
-			if (IN6_IS_ADDR_LINKLOCAL(&pr->ndpr_prefix.sin6_addr))
+			if (IN6_IS_ADDR_LINKLOCAL(&pr->ndpr_prefix.sin6_addr) ||
+			    pr->ndpr_raf_onlink == 0 ||
+			    pr->ndpr_raf_auto == 0)
 				continue;
-
-			if (pr->ndpr_raf_onlink == 0)
-				continue;
-
-			if (pr->ndpr_raf_auto == 0)
-				continue;
-
-			if ((pr->ndpr_stateflags & NDPRF_DETACHED) != 0)
-				pr->ndpr_stateflags &= ~NDPRF_DETACHED;
+			pr->ndpr_stateflags &= ~NDPRF_DETACHED;
 		}
 	}
 
@@ -1531,16 +1516,12 @@ pfxlist_onlink_check(void)
 	 * so we don't have to care about them.
 	 */
 	LIST_FOREACH(pr, &V_nd_prefix, ndpr_entry) {
-		int e;
 		char ip6buf[INET6_ADDRSTRLEN];
+		int e;
 
-		if (IN6_IS_ADDR_LINKLOCAL(&pr->ndpr_prefix.sin6_addr))
-			continue;
-
-		if (pr->ndpr_raf_onlink == 0)
-			continue;
-
-		if (pr->ndpr_raf_auto == 0)
+		if (IN6_IS_ADDR_LINKLOCAL(&pr->ndpr_prefix.sin6_addr) ||
+		    pr->ndpr_raf_onlink == 0 ||
+		    pr->ndpr_raf_auto == 0)
 			continue;
 
 		if ((pr->ndpr_stateflags & NDPRF_DETACHED) != 0 &&
@@ -1753,11 +1734,11 @@ nd6_prefix_onlink(struct nd_prefix *pr)
 		/* XXX: freebsd does not have ifa_ifwithaf */
 		IF_ADDR_RLOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
-			if (ifa->ifa_addr->sa_family == AF_INET6)
+			if (ifa->ifa_addr->sa_family == AF_INET6) {
+				ifa_ref(ifa);
 				break;
+			}
 		}
-		if (ifa != NULL)
-			ifa_ref(ifa);
 		IF_ADDR_RUNLOCK(ifp);
 		/* should we care about ia6_flags? */
 	}
@@ -1844,17 +1825,12 @@ nd6_prefix_offlink(struct nd_prefix *pr)
 		 * interface.
 		 */
 		LIST_FOREACH(opr, &V_nd_prefix, ndpr_entry) {
-			if (opr == pr)
-				continue;
-
-			if ((opr->ndpr_stateflags & NDPRF_ONLINK) != 0)
-				continue;
-
 			/*
 			 * KAME specific: detached prefixes should not be
 			 * on-link.
 			 */
-			if ((opr->ndpr_stateflags & NDPRF_DETACHED) != 0)
+			if (opr == pr || (opr->ndpr_stateflags &
+			    (NDPRF_ONLINK | NDPRF_DETACHED)) != 0)
 				continue;
 
 			if (opr->ndpr_plen == pr->ndpr_plen &&
