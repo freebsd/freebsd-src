@@ -180,14 +180,6 @@ struct hn_txdesc {
 #define HN_TXD_FLAG_ONLIST	0x1
 #define HN_TXD_FLAG_DMAMAP	0x2
 
-/*
- * Only enable UDP checksum offloading when it is on 2012R2 or
- * later.  UDP checksum offloading doesn't work on earlier
- * Windows releases.
- */
-#define HN_CSUM_ASSIST_WIN8	(CSUM_IP | CSUM_TCP)
-#define HN_CSUM_ASSIST		(CSUM_IP | CSUM_UDP | CSUM_TCP)
-
 #define HN_LRO_LENLIM_MULTIRX_DEF	(12 * ETHERMTU)
 #define HN_LRO_LENLIM_DEF		(25 * ETHERMTU)
 /* YYY 2*MTU is a bit rough, but should be good enough. */
@@ -201,6 +193,13 @@ struct hn_txdesc {
 #define HN_LOCK_DESTROY(sc)		sx_destroy(&(sc)->hn_lock)
 #define HN_LOCK(sc)			sx_xlock(&(sc)->hn_lock)
 #define HN_UNLOCK(sc)			sx_xunlock(&(sc)->hn_lock)
+
+#define HN_CSUM_IP_MASK			(CSUM_IP | CSUM_IP_TCP | CSUM_IP_UDP)
+#define HN_CSUM_IP6_MASK		(CSUM_IP6_TCP | CSUM_IP6_UDP)
+#define HN_CSUM_IP_HWASSIST(sc)		\
+	((sc)->hn_tx_ring[0].hn_csum_assist & HN_CSUM_IP_MASK)
+#define HN_CSUM_IP6_HWASSIST(sc)	\
+	((sc)->hn_tx_ring[0].hn_csum_assist & HN_CSUM_IP6_MASK)
 
 /*
  * Globals
@@ -326,12 +325,14 @@ static int hn_tx_stat_ulong_sysctl(SYSCTL_HANDLER_ARGS);
 static int hn_tx_conf_int_sysctl(SYSCTL_HANDLER_ARGS);
 static int hn_ndis_version_sysctl(SYSCTL_HANDLER_ARGS);
 static int hn_caps_sysctl(SYSCTL_HANDLER_ARGS);
+static int hn_hwassist_sysctl(SYSCTL_HANDLER_ARGS);
 static int hn_rss_key_sysctl(SYSCTL_HANDLER_ARGS);
 static int hn_rss_ind_sysctl(SYSCTL_HANDLER_ARGS);
 static int hn_check_iplen(const struct mbuf *, int);
 static int hn_create_tx_ring(struct hn_softc *, int);
 static void hn_destroy_tx_ring(struct hn_tx_ring *);
 static int hn_create_tx_data(struct hn_softc *, int);
+static void hn_fixup_tx_data(struct hn_softc *);
 static void hn_destroy_tx_data(struct hn_softc *);
 static void hn_start_taskfunc(void *, int);
 static void hn_start_txeof_taskfunc(void *, int);
@@ -632,10 +633,10 @@ netvsc_attach(device_t dev)
 	}
 #endif
 
-	hn_set_chim_size(sc, sc->hn_chim_szmax);
-	if (hn_tx_chimney_size > 0 &&
-	    hn_tx_chimney_size < sc->hn_chim_szmax)
-		hn_set_chim_size(sc, hn_tx_chimney_size);
+	/*
+	 * Fixup TX stuffs after synthetic parts are attached.
+	 */
+	hn_fixup_tx_data(sc);
 
 	ctx = device_get_sysctl_ctx(dev);
 	child = SYSCTL_CHILDREN(device_get_sysctl_tree(dev));
@@ -647,6 +648,9 @@ netvsc_attach(device_t dev)
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "caps",
 	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
 	    hn_caps_sysctl, "A", "capabilities");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "hwassist",
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
+	    hn_hwassist_sysctl, "A", "hwassist");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "rss_key",
 	    CTLTYPE_OPAQUE | CTLFLAG_RW | CTLFLAG_MPSAFE, sc, 0,
 	    hn_rss_key_sysctl, "IU", "RSS key");
@@ -681,13 +685,32 @@ netvsc_attach(device_t dev)
 		ifp->if_qflush = hn_xmit_qflush;
 	}
 
-	ifp->if_capabilities |=
-	    IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU | IFCAP_HWCSUM | IFCAP_TSO |
-	    IFCAP_LRO;
-	ifp->if_capenable |=
-	    IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU | IFCAP_HWCSUM | IFCAP_TSO |
-	    IFCAP_LRO;
-	ifp->if_hwassist = sc->hn_tx_ring[0].hn_csum_assist | CSUM_TSO;
+	ifp->if_capabilities |= IFCAP_RXCSUM | IFCAP_LRO;
+#ifdef foo
+	/* We can't diff IPv6 packets from IPv4 packets on RX path. */
+	ifp->if_capabilities |= IFCAP_RXCSUM_IPV6;
+#endif
+	if (sc->hn_caps & HN_CAP_VLAN) {
+		/* XXX not sure about VLAN_MTU. */
+		ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU;
+	}
+
+	ifp->if_hwassist = sc->hn_tx_ring[0].hn_csum_assist;
+	if (ifp->if_hwassist & HN_CSUM_IP_MASK)
+		ifp->if_capabilities |= IFCAP_TXCSUM;
+	if (ifp->if_hwassist & HN_CSUM_IP6_MASK)
+		ifp->if_capabilities |= IFCAP_TXCSUM_IPV6;
+	if (sc->hn_caps & HN_CAP_TSO4) {
+		ifp->if_capabilities |= IFCAP_TSO4;
+		ifp->if_hwassist |= CSUM_IP_TSO;
+	}
+	if (sc->hn_caps & HN_CAP_TSO6) {
+		ifp->if_capabilities |= IFCAP_TSO6;
+		ifp->if_hwassist |= CSUM_IP6_TSO;
+	}
+
+	/* Enable all available capabilities by default. */
+	ifp->if_capenable = ifp->if_capabilities;
 
 	tso_maxlen = hn_tso_maxlen;
 	if (tso_maxlen <= 0 || tso_maxlen > IP_MAXPACKET)
@@ -1041,14 +1064,19 @@ hn_encap(struct hn_tx_ring *txr, struct hn_txdesc *txd, struct mbuf **m_head0)
 	} else if (m_head->m_pkthdr.csum_flags & txr->hn_csum_assist) {
 		pi_data = hn_rndis_pktinfo_append(pkt, HN_RNDIS_PKT_LEN,
 		    NDIS_TXCSUM_INFO_SIZE, NDIS_PKTINFO_TYPE_CSUM);
-		*pi_data = NDIS_TXCSUM_INFO_IPV4;
+		if (m_head->m_pkthdr.csum_flags &
+		    (CSUM_IP6_TCP | CSUM_IP6_UDP)) {
+			*pi_data = NDIS_TXCSUM_INFO_IPV6;
+		} else {
+			*pi_data = NDIS_TXCSUM_INFO_IPV4;
+			if (m_head->m_pkthdr.csum_flags & CSUM_IP)
+				*pi_data |= NDIS_TXCSUM_INFO_IPCS;
+		}
 
-		if (m_head->m_pkthdr.csum_flags & CSUM_IP)
-			*pi_data |= NDIS_TXCSUM_INFO_IPCS;
-
-		if (m_head->m_pkthdr.csum_flags & CSUM_TCP)
+		if (m_head->m_pkthdr.csum_flags & (CSUM_IP_TCP | CSUM_IP6_TCP))
 			*pi_data |= NDIS_TXCSUM_INFO_TCPCS;
-		else if (m_head->m_pkthdr.csum_flags & CSUM_UDP)
+		else if (m_head->m_pkthdr.csum_flags &
+		    (CSUM_IP_UDP | CSUM_IP6_UDP))
 			*pi_data |= NDIS_TXCSUM_INFO_UDPCS;
 	}
 
@@ -1665,21 +1693,31 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 	case SIOCSIFCAP:
 		HN_LOCK(sc);
-
 		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
+
 		if (mask & IFCAP_TXCSUM) {
 			ifp->if_capenable ^= IFCAP_TXCSUM;
-			if (ifp->if_capenable & IFCAP_TXCSUM) {
-				ifp->if_hwassist |=
-				    sc->hn_tx_ring[0].hn_csum_assist;
-			} else {
-				ifp->if_hwassist &=
-				    ~sc->hn_tx_ring[0].hn_csum_assist;
-			}
+			if (ifp->if_capenable & IFCAP_TXCSUM)
+				ifp->if_hwassist |= HN_CSUM_IP_HWASSIST(sc);
+			else
+				ifp->if_hwassist &= ~HN_CSUM_IP_HWASSIST(sc);
+		}
+		if (mask & IFCAP_TXCSUM_IPV6) {
+			ifp->if_capenable ^= IFCAP_TXCSUM_IPV6;
+			if (ifp->if_capenable & IFCAP_TXCSUM_IPV6)
+				ifp->if_hwassist |= HN_CSUM_IP6_HWASSIST(sc);
+			else
+				ifp->if_hwassist &= ~HN_CSUM_IP6_HWASSIST(sc);
 		}
 
+		/* TODO: flip RNDIS offload parameters for RXCSUM. */
 		if (mask & IFCAP_RXCSUM)
 			ifp->if_capenable ^= IFCAP_RXCSUM;
+#ifdef foo
+		/* We can't diff IPv6 packets from IPv4 packets on RX path. */
+		if (mask & IFCAP_RXCSUM_IPV6)
+			ifp->if_capenable ^= IFCAP_RXCSUM_IPV6;
+#endif
 
 		if (mask & IFCAP_LRO)
 			ifp->if_capenable ^= IFCAP_LRO;
@@ -1691,7 +1729,6 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			else
 				ifp->if_hwassist &= ~CSUM_IP_TSO;
 		}
-
 		if (mask & IFCAP_TSO6) {
 			ifp->if_capenable ^= IFCAP_TSO6;
 			if (ifp->if_capenable & IFCAP_TSO6)
@@ -2132,6 +2169,20 @@ hn_caps_sysctl(SYSCTL_HANDLER_ARGS)
 }
 
 static int
+hn_hwassist_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct hn_softc *sc = arg1;
+	char assist_str[128];
+	uint32_t hwassist;
+
+	HN_LOCK(sc);
+	hwassist = sc->hn_ifp->if_hwassist;
+	HN_UNLOCK(sc);
+	snprintf(assist_str, sizeof(assist_str), "%b", hwassist, CSUM_BITS);
+	return sysctl_handle_string(oidp, assist_str, sizeof(assist_str), req);
+}
+
+static int
 hn_rss_key_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	struct hn_softc *sc = arg1;
@@ -2488,7 +2539,6 @@ hn_create_tx_ring(struct hn_softc *sc, int id)
 	device_t dev = sc->hn_dev;
 	bus_dma_tag_t parent_dtag;
 	int error, i;
-	uint32_t version;
 
 	txr->hn_sc = sc;
 	txr->hn_tx_idx = id;
@@ -2527,18 +2577,6 @@ hn_create_tx_ring(struct hn_softc *sc, int id)
 	}
 
 	txr->hn_direct_tx_size = hn_direct_tx_size;
-	version = VMBUS_GET_VERSION(device_get_parent(dev), dev);
-	if (version >= VMBUS_VERSION_WIN8_1) {
-		txr->hn_csum_assist = HN_CSUM_ASSIST;
-	} else {
-		txr->hn_csum_assist = HN_CSUM_ASSIST_WIN8;
-		if (id == 0) {
-			device_printf(dev, "bus version %u.%u, "
-			    "no UDP checksum offloading\n",
-			    VMBUS_VERSION_MAJOR(version),
-			    VMBUS_VERSION_MINOR(version));
-		}
-	}
 
 	/*
 	 * Always schedule transmission instead of trying to do direct
@@ -2831,6 +2869,35 @@ hn_set_chim_size(struct hn_softc *sc, int chim_size)
 
 	for (i = 0; i < sc->hn_tx_ring_inuse; ++i)
 		sc->hn_tx_ring[i].hn_chim_size = chim_size;
+}
+
+static void
+hn_fixup_tx_data(struct hn_softc *sc)
+{
+	uint64_t csum_assist;
+	int i;
+
+	hn_set_chim_size(sc, sc->hn_chim_szmax);
+	if (hn_tx_chimney_size > 0 &&
+	    hn_tx_chimney_size < sc->hn_chim_szmax)
+		hn_set_chim_size(sc, hn_tx_chimney_size);
+
+	csum_assist = 0;
+	if (sc->hn_caps & HN_CAP_IPCS)
+		csum_assist |= CSUM_IP;
+	if (sc->hn_caps & HN_CAP_TCP4CS)
+		csum_assist |= CSUM_IP_TCP;
+	if (sc->hn_caps & HN_CAP_UDP4CS)
+		csum_assist |= CSUM_IP_UDP;
+#ifdef notyet
+	if (sc->hn_caps & HN_CAP_TCP6CS)
+		csum_assist |= CSUM_IP6_TCP;
+	if (sc->hn_caps & HN_CAP_UDP6CS)
+		csum_assist |= CSUM_IP6_UDP;
+#endif
+
+	for (i = 0; i < sc->hn_tx_ring_cnt; ++i)
+		sc->hn_tx_ring[i].hn_csum_assist = csum_assist;
 }
 
 static void
