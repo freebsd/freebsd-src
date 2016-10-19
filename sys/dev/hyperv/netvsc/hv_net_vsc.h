@@ -234,6 +234,10 @@ struct hn_softc {
 	struct vmbus_xact_ctx *hn_xact;
 	uint32_t	hn_nvs_ver;
 
+	struct taskqueue	*hn_mgmt_taskq;
+	struct taskqueue	*hn_mgmt_taskq0;
+	struct task		hn_link_task;
+
 	uint32_t		hn_caps;	/* HN_CAP_ */
 	uint32_t		hn_flags;	/* HN_FLAG_ */
 	void			*hn_rxbuf;
@@ -272,7 +276,6 @@ struct hn_softc {
  */
 struct hn_send_ctx;
 
-void netvsc_linkstatus_callback(struct hn_softc *sc, uint32_t status);
 int hv_nv_on_send(struct vmbus_channel *chan, uint32_t rndis_mtype,
 	struct hn_send_ctx *sndc, struct vmbus_gpa *gpa, int gpa_cnt);
 
