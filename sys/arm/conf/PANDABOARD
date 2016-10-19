@@ -30,7 +30,7 @@ hints		"PANDABOARD.hints"
 include 	"std.armv6"
 include 	"../ti/omap4/pandaboard/std.pandaboard"
 
-makeoptions	MODULES_OVERRIDE=dtb/omap4
+makeoptions	MODULES_EXTRA=dtb/omap4
 
 options 	SCHED_ULE		# ULE scheduler
 options 	PLATFORM
