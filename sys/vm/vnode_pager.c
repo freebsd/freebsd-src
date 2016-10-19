@@ -953,7 +953,7 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int count,
 	if (a_rahead)
 		*a_rahead = bp->b_pgafter;
 
-	KASSERT(bp->b_npages <= sizeof(bp->b_pages),
+	KASSERT(bp->b_npages <= nitems(bp->b_pages),
 	    ("%s: buf %p overflowed", __func__, bp));
 
 	/*
