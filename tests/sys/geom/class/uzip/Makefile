@@ -8,7 +8,7 @@ PACKAGE=	tests
 
 TESTSDIR=	${TESTSBASE}/sys/geom/class/${.CURDIR:T}
 
-IMAGE=		1.img
+IMAGE=		1_endian_little.img
 ZIMAGE=		${IMAGE}.uzip
 UZIMAGE=	${ZIMAGE}.uue
 
@@ -25,7 +25,7 @@ ${UZIMAGE}: ${IMAGE} ${ZIMAGE}
 	printf "FreeBSD$$\n#\n\n" >> ${.TARGET}
 	uuencode ${ZIMAGE} ${ZIMAGE} >>${.TARGET}
 
-${PACKAGE}FILES+=		conf.sh \
+${PACKAGE}FILES+=		conf.sh 1_endian_big.img.uzip.uue \
 				${UZIMAGE}
 
 FILESGROUPS+=	etalon
