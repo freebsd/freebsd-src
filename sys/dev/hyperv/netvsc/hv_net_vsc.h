@@ -136,6 +136,9 @@ struct hn_rx_ring {
 	/* Rarely used stuffs */
 	struct sysctl_oid *hn_rx_sysctl_tree;
 	int		hn_rx_flags;
+
+	void		*hn_br;		/* TX/RX bufring */
+	struct hyperv_dma hn_br_dma;
 } __aligned(CACHE_LINE_SIZE);
 
 #define HN_TRUST_HCSUM_IP	0x0001
