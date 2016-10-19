@@ -848,7 +848,7 @@ __mtx_assert(const volatile uintptr_t *c, int what, const char *file, int line)
 {
 	const struct mtx *m;
 
-	if (panicstr != NULL || dumping)
+	if (panicstr != NULL || dumping || SCHEDULER_STOPPED())
 		return;
 
 	m = mtxlock2mtx(c);
