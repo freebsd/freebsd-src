@@ -99,7 +99,7 @@ struct g_class g_mirror_class = {
 
 static void g_mirror_destroy_provider(struct g_mirror_softc *sc);
 static int g_mirror_update_disk(struct g_mirror_disk *disk, u_int state);
-static void g_mirror_update_device(struct g_mirror_softc *sc, boolean_t force);
+static void g_mirror_update_device(struct g_mirror_softc *sc, bool force);
 static void g_mirror_dumpconf(struct sbuf *sb, const char *indent,
     struct g_geom *gp, struct g_consumer *cp, struct g_provider *pp);
 static void g_mirror_sync_stop(struct g_mirror_disk *disk, int type);
@@ -1822,7 +1822,7 @@ g_mirror_worker(void *arg)
 				    "Running event for device %s.",
 				    sc->sc_name);
 				ep->e_error = 0;
-				g_mirror_update_device(sc, 1);
+				g_mirror_update_device(sc, true);
 			} else {
 				/* Update disk status. */
 				G_MIRROR_DEBUG(3, "Running event for disk %s.",
@@ -1830,7 +1830,7 @@ g_mirror_worker(void *arg)
 				ep->e_error = g_mirror_update_disk(ep->e_disk,
 				    ep->e_state);
 				if (ep->e_error == 0)
-					g_mirror_update_device(sc, 0);
+					g_mirror_update_device(sc, false);
 			}
 			if ((ep->e_flags & G_MIRROR_EVENT_DONTWAIT) != 0) {
 				KASSERT(ep->e_error == 0,
@@ -2228,7 +2228,7 @@ g_mirror_determine_state(struct g_mirror_disk *disk)
  * Update device state.
  */
 static void
-g_mirror_update_device(struct g_mirror_softc *sc, boolean_t force)
+g_mirror_update_device(struct g_mirror_softc *sc, bool force)
 {
 	struct g_mirror_disk *disk;
 	u_int state;
