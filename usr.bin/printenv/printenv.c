@@ -83,8 +83,8 @@ main(int argc, char *argv[])
 	for (ep = environ; *ep; ep++)
 		if (!memcmp(*ep, *argv, len)) {
 			cp = *ep + len;
-			if (!*cp || *cp == '=') {
-				(void)printf("%s\n", *cp ? cp + 1 : cp);
+			if (*cp == '=') {
+				(void)printf("%s\n", cp + 1);
 				exit(0);
 			}
 		}
