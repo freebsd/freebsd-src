@@ -118,6 +118,7 @@ struct vmbus_chan_br {
 
 struct vmbus_channel;
 struct hyperv_guid;
+struct task;
 
 typedef void	(*vmbus_chan_callback_t)(struct vmbus_channel *, void *);
 
@@ -135,6 +136,8 @@ int		vmbus_chan_open_br(struct vmbus_channel *chan,
 		    int udlen, vmbus_chan_callback_t cb, void *cbarg);
 void		vmbus_chan_close(struct vmbus_channel *chan);
 void		vmbus_chan_intr_drain(struct vmbus_channel *chan);
+void		vmbus_chan_run_task(struct vmbus_channel *chan,
+		    struct task *task);
 
 int		vmbus_chan_gpadl_connect(struct vmbus_channel *chan,
 		    bus_addr_t paddr, int size, uint32_t *gpadl);
