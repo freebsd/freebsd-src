@@ -17,8 +17,8 @@ SUBDIR.${MK_GDB}+=	gdb
 .endif
 
 SUBDIR.${MK_GCC}+=	cc
-SUBDIR.${MK_GNU_DIFF}+=	diff diff3                                      
-SUBDIR.${MK_GNU_GREP}+=	grep                                            
+SUBDIR.${MK_GNU_DIFF}+=	diff diff3
+SUBDIR.${MK_GNU_GREP}+=	grep
 SUBDIR.${MK_GPL_DTC}+=	dtc
 SUBDIR.${MK_TESTS}+=	tests
 
