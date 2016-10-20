@@ -2143,10 +2143,9 @@ g_mirror_destroy_provider(struct g_mirror_softc *sc)
 		}
 	}
 	mtx_unlock(&sc->sc_queue_mtx);
-	G_MIRROR_DEBUG(0, "Device %s: provider %s destroyed.", sc->sc_name,
-	    sc->sc_provider->name);
 	g_wither_provider(sc->sc_provider, ENXIO);
 	sc->sc_provider = NULL;
+	G_MIRROR_DEBUG(0, "Device %s: provider destroyed.", sc->sc_name);
 	g_topology_unlock();
 	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
 		if (disk->d_state == G_MIRROR_DISK_STATE_SYNCHRONIZING)
@@ -2872,7 +2871,7 @@ static int
 g_mirror_access(struct g_provider *pp, int acr, int acw, int ace)
 {
 	struct g_mirror_softc *sc;
-	int dcr, dcw, dce, error = 0;
+	int error = 0;
 
 	g_topology_assert();
 	G_MIRROR_DEBUG(2, "Access request for %s: r%dw%de%d.", pp->name, acr,
@@ -2883,30 +2882,21 @@ g_mirror_access(struct g_provider *pp, int acr, int acw, int ace)
 		return (0);
 	KASSERT(sc != NULL, ("NULL softc (provider=%s).", pp->name));
 
-	dcr = pp->acr + acr;
-	dcw = pp->acw + acw;
-	dce = pp->ace + ace;
-
 	g_topology_unlock();
 	sx_xlock(&sc->sc_lock);
 	if ((sc->sc_flags & G_MIRROR_DEVICE_FLAG_DESTROY) != 0 ||
+	    (sc->sc_flags & G_MIRROR_DEVICE_FLAG_DESTROYING) != 0 ||
 	    LIST_EMPTY(&sc->sc_disks)) {
 		if (acr > 0 || acw > 0 || ace > 0)
 			error = ENXIO;
 		goto end;
 	}
-	if (dcw == 0)
-		g_mirror_idle(sc, dcw);
-	if ((sc->sc_flags & G_MIRROR_DEVICE_FLAG_DESTROYING) != 0) {
-		if (acr > 0 || acw > 0 || ace > 0) {
-			error = ENXIO;
-			goto end;
-		}
-		if (dcr == 0 && dcw == 0 && dce == 0) {
-			g_post_event(g_mirror_destroy_delayed, sc, M_WAITOK,
-			    sc, NULL);
-		}
-	}
+	sc->sc_provider_open += acr + acw + ace;
+	if (pp->acw + acw == 0)
+		g_mirror_idle(sc, 0);
+	if ((sc->sc_flags & G_MIRROR_DEVICE_FLAG_DESTROYING) != 0 &&
+	    sc->sc_provider_open == 0)
+		g_post_event(g_mirror_destroy_delayed, sc, M_WAITOK, sc, NULL);
 end:
 	sx_xunlock(&sc->sc_lock);
 	g_topology_lock();
@@ -2963,6 +2953,7 @@ g_mirror_create(struct g_class *mp, const struct g_mirror_metadata *md)
 	gp->softc = sc;
 	sc->sc_geom = gp;
 	sc->sc_provider = NULL;
+	sc->sc_provider_open = 0;
 	/*
 	 * Synchronization geom.
 	 */
@@ -3003,25 +2994,23 @@ int
 g_mirror_destroy(struct g_mirror_softc *sc, int how)
 {
 	struct g_mirror_disk *disk;
-	struct g_provider *pp;
 
 	g_topology_assert_not();
 	if (sc == NULL)
 		return (ENXIO);
 	sx_assert(&sc->sc_lock, SX_XLOCKED);
 
-	pp = sc->sc_provider;
-	if (pp != NULL && (pp->acr != 0 || pp->acw != 0 || pp->ace != 0)) {
+	if (sc->sc_provider_open != 0) {
 		switch (how) {
 		case G_MIRROR_DESTROY_SOFT:
 			G_MIRROR_DEBUG(1,
-			    "Device %s is still open (r%dw%de%d).", pp->name,
-			    pp->acr, pp->acw, pp->ace);
+			    "Device %s is still open (%d).", sc->sc_name,
+			    sc->sc_provider_open);
 			return (EBUSY);
 		case G_MIRROR_DESTROY_DELAYED:
 			G_MIRROR_DEBUG(1,
 			    "Device %s will be destroyed on last close.",
-			    pp->name);
+			    sc->sc_name);
 			LIST_FOREACH(disk, &sc->sc_disks, d_next) {
 				if (disk->d_state ==
 				    G_MIRROR_DISK_STATE_SYNCHRONIZING) {
@@ -3032,7 +3021,7 @@ g_mirror_destroy(struct g_mirror_softc *sc, int how)
 			return (EBUSY);
 		case G_MIRROR_DESTROY_HARD:
 			G_MIRROR_DEBUG(1, "Device %s is still open, so it "
-			    "can't be definitely removed.", pp->name);
+			    "can't be definitely removed.", sc->sc_name);
 		}
 	}
 
