@@ -1252,13 +1252,6 @@ g_mirror_regular_release(struct g_mirror_softc *sc)
 		G_MIRROR_LOGREQ(2, bp, "Releasing delayed request (%p).", bp);
 		mtx_lock(&sc->sc_queue_mtx);
 		bioq_insert_head(&sc->sc_queue, bp);
-#if 0
-		/*
-		 * wakeup() is not needed, because this function is called from
-		 * the worker thread.
-		 */
-		wakeup(&sc->sc_queue);
-#endif
 		mtx_unlock(&sc->sc_queue_mtx);
 	}
 }
@@ -2065,6 +2058,7 @@ g_mirror_sync_stop(struct g_mirror_disk *disk, int type)
 		G_MIRROR_DEBUG(0, "Device %s: rebuilding provider %s stopped.",
 		    sc->sc_name, g_mirror_get_diskname(disk));
 	}
+	g_mirror_regular_release(sc);
 	free(disk->d_sync.ds_bios, M_MIRROR);
 	disk->d_sync.ds_bios = NULL;
 	cp = disk->d_sync.ds_consumer;
