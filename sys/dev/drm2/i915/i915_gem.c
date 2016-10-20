@@ -1976,7 +1976,7 @@ retry:
 			DRM_UNLOCK(dev);
 			vm_page_lock(m);
 			VM_OBJECT_WUNLOCK(vm_obj);
-			vm_page_busy_sleep(m, "915pee");
+			vm_page_busy_sleep(m, "915pee", false);
 			goto retry;
 		}
 		goto have_page;
@@ -2037,7 +2037,7 @@ retry:
 		DRM_UNLOCK(dev);
 		vm_page_lock(m);
 		VM_OBJECT_WUNLOCK(vm_obj);
-		vm_page_busy_sleep(m, "915pbs");
+		vm_page_busy_sleep(m, "915pbs", false);
 		goto retry;
 	}
 	if (vm_page_insert(m, vm_obj, OFF_TO_IDX(offset))) {
