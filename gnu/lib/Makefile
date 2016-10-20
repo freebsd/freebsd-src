@@ -39,7 +39,7 @@ SUBDIR:=	${SUBDIR:Ncsu}
 # CHERI-Clang #38
 SUBDIR:=	${SUBDIR:Nlibgcc}
 # Broken and heading for the dustbin of history
-SUBDIR:=	${SUBDIR:Nlibgomp}
+SUBDIR.${MK_GCC}:=	${SUBDIR.${MK_GCC}:Nlibgomp}
 # Include issue
 SUBDIR:=	${SUBDIR:Nlibreadline}
 .endif
