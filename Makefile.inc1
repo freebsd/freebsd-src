@@ -1983,7 +1983,10 @@ libraries: .MAKE .PHONY
 #
 # static libgcc.a prerequisite for shared libc
 #
-_prereq_libs= gnu/lib/libssp/libssp_nonshared gnu/lib/libgcc lib/libcompiler_rt
+_prereq_libs= gnu/lib/libgcc lib/libcompiler_rt
+.if ${MK_SSP} != "no"
+_prereq_libs+= gnu/lib/libssp/libssp_nonshared
+.endif
 
 # These dependencies are not automatically generated:
 #
