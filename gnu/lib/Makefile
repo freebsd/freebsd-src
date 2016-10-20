@@ -15,7 +15,7 @@ SUBDIR+=	libreadline
 .endif
 
 .if ${MK_GNU_DIFF} != "no" || ${MK_GNU_GREP} != "no" || \
-    ${GNU_GREP_COMPAT} != "no" || ${MK_GDB} != "no"
+    ${MK_GNU_GREP_COMPAT} != "no" || ${MK_GDB} != "no"
 SUBDIR+=		libregex
 .endif
 
