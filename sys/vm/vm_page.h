@@ -420,7 +420,7 @@ malloc2vm_flags(int malloc_flags)
 #endif
 
 void vm_page_busy_downgrade(vm_page_t m);
-void vm_page_busy_sleep(vm_page_t m, const char *msg);
+void vm_page_busy_sleep(vm_page_t m, const char *msg, bool nonshared);
 void vm_page_flash(vm_page_t m);
 void vm_page_hold(vm_page_t mem);
 void vm_page_unhold(vm_page_t mem);
