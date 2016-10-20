@@ -198,6 +198,17 @@ boot</screen>
 	  </listitem>
 	</itemizedlist>
       </listitem>
+
+      <listitem>
+	<para revision="293860">[2016-10-20] Several recent Dell
+	  systems fail to find a bootable disk when the system boots
+	  in Legacy/BIOS/CSM mode, the boot disk is partitioned with
+	  <acronym>GPT</acronym>, and the Active flag in the
+	  Protective <acronym>MBR</acronym> is not set.  To work
+	  around this issue, either configure the system to boot in
+	  <acronym>UEFI</acronym> mode, or choose the &quot;GPT
+	  + Active&quot; scheme.</para>
+      </listitem>
     </itemizedlist>
   </sect1>
 
