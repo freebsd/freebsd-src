@@ -204,9 +204,9 @@ void
 mi_startup(void)
 {
 
-	register struct sysinit **sipp;		/* system initialization*/
-	register struct sysinit **xipp;		/* interior loop of sort*/
-	register struct sysinit *save;		/* bubble*/
+	struct sysinit **sipp;	/* system initialization*/
+	struct sysinit **xipp;	/* interior loop of sort*/
+	struct sysinit *save;	/* bubble*/
 
 #if defined(VERBOSE_SYSINIT)
 	int last;
