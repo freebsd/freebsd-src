@@ -1276,6 +1276,22 @@ g_mirror_sync_release(struct g_mirror_softc *sc)
 }
 
 /*
+ * Free a synchronization request and clear its slot in the array.
+ */
+static void
+g_mirror_sync_request_free(struct g_mirror_disk *disk, struct bio *bp)
+{
+	int i;
+
+	if (disk != NULL && disk->d_sync.ds_bios != NULL) {
+		i = (int)(uintptr_t)bp->bio_caller1;
+		disk->d_sync.ds_bios[i] = NULL;
+	}
+	free(bp->bio_data, M_MIRROR);
+	g_destroy_bio(bp);
+}
+
+/*
  * Handle synchronization requests.
  * Every synchronization request is two-steps process: first, READ request is
  * send to active provider and then WRITE request (with read data) to the provider
@@ -1287,6 +1303,7 @@ g_mirror_sync_request(struct bio *bp)
 {
 	struct g_mirror_softc *sc;
 	struct g_mirror_disk *disk;
+	struct g_mirror_disk_sync *sync;
 
 	bp->bio_from->index--;
 	sc = bp->bio_from->geom->softc;
@@ -1296,8 +1313,7 @@ g_mirror_sync_request(struct bio *bp)
 		g_topology_lock();
 		g_mirror_kill_consumer(sc, bp->bio_from);
 		g_topology_unlock();
-		free(bp->bio_data, M_MIRROR);
-		g_destroy_bio(bp);
+		g_mirror_sync_request_free(NULL, bp);
 		sx_xlock(&sc->sc_lock);
 		return;
 	}
@@ -1317,7 +1333,7 @@ g_mirror_sync_request(struct bio *bp)
 			G_MIRROR_LOGREQ(0, bp,
 			    "Synchronization request failed (error=%d).",
 			    bp->bio_error);
-			g_destroy_bio(bp);
+			g_mirror_sync_request_free(disk, bp);
 			return;
 		}
 		G_MIRROR_LOGREQ(3, bp,
@@ -1334,7 +1350,6 @@ g_mirror_sync_request(struct bio *bp)
 	    }
 	case BIO_WRITE:
 	    {
-		struct g_mirror_disk_sync *sync;
 		off_t offset;
 		void *data;
 		int i;
@@ -1346,7 +1361,7 @@ g_mirror_sync_request(struct bio *bp)
 			G_MIRROR_LOGREQ(0, bp,
 			    "Synchronization request failed (error=%d).",
 			    bp->bio_error);
-			g_destroy_bio(bp);
+			g_mirror_sync_request_free(disk, bp);
 			sc->sc_bump_id |= G_MIRROR_BUMP_GENID;
 			g_mirror_event_send(disk,
 			    G_MIRROR_DISK_STATE_DISCONNECTED,
@@ -1360,12 +1375,7 @@ g_mirror_sync_request(struct bio *bp)
 		    (sc->sc_flags & G_MIRROR_DEVICE_FLAG_DESTROY) != 0) {
 			/* Don't send more synchronization requests. */
 			sync->ds_inflight--;
-			if (sync->ds_bios != NULL) {
-				i = (int)(uintptr_t)bp->bio_caller1;
-				sync->ds_bios[i] = NULL;
-			}
-			free(bp->bio_data, M_MIRROR);
-			g_destroy_bio(bp);
+			g_mirror_sync_request_free(disk, bp);
 			if (sync->ds_inflight > 0)
 				return;
 			if (sync->ds_consumer == NULL ||
