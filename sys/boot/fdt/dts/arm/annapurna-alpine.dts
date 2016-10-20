@@ -159,6 +159,12 @@
 			interrupt-parent = <&MPIC>;
 		};
 
+		/* SerDes */
+		serdes {
+			compatible = "annapurna-labs,al-serdes";
+			reg = <0x28c0000 0x1000>;
+		};
+
 		serial0: serial@2883000 {
 			compatible = "ns16550";
 			reg = <0x2883000 0x20>;
