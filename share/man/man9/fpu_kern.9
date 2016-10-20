@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 23, 2014
+.Dd October 20, 2016
 .Dt FPU_KERN 9
 .Os
 .Sh NAME
@@ -134,11 +134,11 @@ of increased system latency.
 .El
 .Pp
 The function does not sleep or block.
-It could cause the
+It could cause an FPU trap during execution, and on the first FPU access
+after the function returns, as well as after each context switch.
+On i386 and amd64 this will be the
 .Nm Device Not Available
-exception during execution, and on the first FPU access after the
-function returns, as well as after each context switch
-(see Intel Software Developer Manual for the reference).
+exception (see Intel Software Developer Manual for the reference).
 Currently, no errors are defined which can be returned by
 .Fn fpu_kern_enter
 to the caller.
@@ -190,7 +190,7 @@ and false otherwise.
 .Sh NOTES
 The
 .Nm
-is currently implemented only for the i386 and amd64 architectures.
+is currently implemented only for the i386, amd64, and arm64 architectures.
 .Pp
 There is no way to handle floating point exceptions raised from
 kernel mode.
@@ -208,3 +208,5 @@ The
 .Nm
 facitily and this manual page were written by
 .An Konstantin Belousov Aq Mt kib@FreeBSD.org .
+The arm64 support was added by
+.An Andrew Turner Aq Mt andrew@FreeBSD.org .

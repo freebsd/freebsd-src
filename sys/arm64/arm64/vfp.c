@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 The FreeBSD Foundation
+ * Copyright (c) 2015-2016 The FreeBSD Foundation
  * All rights reserved.
  *
  * This software was developed by Andrew Turner under
@@ -48,6 +48,14 @@ CTASSERT(sizeof(((struct pcb *)0)->pcb_fpustate.vfp_regs) == 16 * 32);
 static MALLOC_DEFINE(M_FPUKERN_CTX, "fpukern_ctx",
     "Kernel contexts for VFP state");
 
+struct fpu_kern_ctx {
+	struct vfpstate	*prev;
+#define	FPU_KERN_CTX_DUMMY	0x01	/* avoided save for the kern thread */
+#define	FPU_KERN_CTX_INUSE	0x02
+	uint32_t	 flags;
+	struct vfpstate	 state;
+};
+
 static void
 vfp_enable(void)
 {
@@ -71,9 +79,10 @@ vfp_disable(void)
 }
 
 /*
- * Called when the thread is dying. If the thread was the last to use the
- * VFP unit mark it as unused to tell the kernel the fp state is unowned.
- * Ensure the VFP unit is off so we get an exception on the next access.
+ * Called when the thread is dying or when discarding the kernel VFP state.
+ * If the thread was the last to use the VFP unit mark it as unused to tell
+ * the kernel the fp state is unowned. Ensure the VFP unit is off so we get
+ * an exception on the next access.
  */
 void
 vfp_discard(struct thread *td)
@@ -226,4 +235,111 @@ vfp_init(void)
 
 SYSINIT(vfp, SI_SUB_CPU, SI_ORDER_ANY, vfp_init, NULL);
 
+struct fpu_kern_ctx *
+fpu_kern_alloc_ctx(u_int flags)
+{
+	struct fpu_kern_ctx *res;
+	size_t sz;
+
+	sz = sizeof(struct fpu_kern_ctx);
+	res = malloc(sz, M_FPUKERN_CTX, ((flags & FPU_KERN_NOWAIT) ?
+	    M_NOWAIT : M_WAITOK) | M_ZERO);
+	return (res);
+}
+
+void
+fpu_kern_free_ctx(struct fpu_kern_ctx *ctx)
+{
+
+	KASSERT((ctx->flags & FPU_KERN_CTX_INUSE) == 0, ("free'ing inuse ctx"));
+	/* XXXAndrew clear the memory ? */
+	free(ctx, M_FPUKERN_CTX);
+}
+
+int
+fpu_kern_enter(struct thread *td, struct fpu_kern_ctx *ctx, u_int flags)
+{
+	struct pcb *pcb;
+
+	pcb = td->td_pcb;
+	KASSERT(ctx == NULL || (ctx->flags & FPU_KERN_CTX_INUSE) == 0,
+	    ("using inuse ctx"));
+
+	if ((flags & FPU_KERN_KTHR) != 0 && is_fpu_kern_thread(0)) {
+		ctx->flags = FPU_KERN_CTX_DUMMY | FPU_KERN_CTX_INUSE;
+		return (0);
+	}
+	/*
+	 * Check either we are already using the VFP in the kernel, or
+	 * the the saved state points to the default user space.
+	 */
+	KASSERT((pcb->pcb_fpflags & PCB_FP_KERN) != 0 ||
+	    pcb->pcb_fpusaved == &pcb->pcb_fpustate,
+	    ("Mangled pcb_fpusaved %x %p %p", pcb->pcb_fpflags, pcb->pcb_fpusaved, &pcb->pcb_fpustate));
+	ctx->flags = FPU_KERN_CTX_INUSE;
+	vfp_save_state(curthread, pcb);
+	ctx->prev = pcb->pcb_fpusaved;
+	pcb->pcb_fpusaved = &ctx->state;
+	pcb->pcb_fpflags |= PCB_FP_KERN;
+	pcb->pcb_fpflags &= ~PCB_FP_STARTED;
+
+	return (0);
+}
+
+int
+fpu_kern_leave(struct thread *td, struct fpu_kern_ctx *ctx)
+{
+	struct pcb *pcb;
+
+	pcb = td->td_pcb;
+
+	KASSERT((ctx->flags & FPU_KERN_CTX_INUSE) != 0,
+	    ("FPU context not inuse"));
+	ctx->flags &= ~FPU_KERN_CTX_INUSE;
+
+	if (is_fpu_kern_thread(0) &&
+	    (ctx->flags & FPU_KERN_CTX_DUMMY) != 0)
+		return (0);
+	KASSERT((ctx->flags & FPU_KERN_CTX_DUMMY) == 0, ("dummy ctx"));
+	critical_enter();
+	vfp_discard(td);
+	critical_exit();
+	pcb->pcb_fpflags &= ~PCB_FP_STARTED;
+	pcb->pcb_fpusaved = ctx->prev;
+
+	if (pcb->pcb_fpusaved == &pcb->pcb_fpustate) {
+		pcb->pcb_fpflags &= ~PCB_FP_KERN;
+	} else {
+		KASSERT((pcb->pcb_fpflags & PCB_FP_KERN) != 0,
+		    ("unpaired fpu_kern_leave"));
+	}
+
+	return (0);
+}
+
+int
+fpu_kern_thread(u_int flags)
+{
+	struct pcb *pcb = curthread->td_pcb;
+
+	KASSERT((curthread->td_pflags & TDP_KTHREAD) != 0,
+	    ("Only kthread may use fpu_kern_thread"));
+	KASSERT(pcb->pcb_fpusaved == &pcb->pcb_fpustate,
+	    ("Mangled pcb_fpusaved"));
+	KASSERT((pcb->pcb_fpflags & PCB_FP_KERN) == 0,
+	    ("Thread already setup for the VFP"));
+	pcb->pcb_fpflags |= PCB_FP_KERN;
+	return (0);
+}
+
+int
+is_fpu_kern_thread(u_int flags)
+{
+	struct pcb *curpcb;
+
+	if ((curthread->td_pflags & TDP_KTHREAD) == 0)
+		return (0);
+	curpcb = curthread->td_pcb;
+	return ((curpcb->pcb_fpflags & PCB_FP_KERN) != 0);
+}
 #endif
