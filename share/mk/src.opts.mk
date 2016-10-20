@@ -98,6 +98,8 @@ __DEFAULT_YES_OPTIONS = \
     GCOV \
     GDB \
     GNU \
+    GNU_DIFF \
+    GNU_GREP \
     GNU_GREP_COMPAT \
     GPIO \
     GPL_DTC \
