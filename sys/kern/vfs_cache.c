@@ -763,6 +763,8 @@ cache_negative_shrink_select(int start, struct namecache **ncpp,
 	struct namecache *ncp;
 	int i;
 
+	*ncpp = ncp = NULL;
+
 	for (i = start; i < numneglists; i++) {
 		neglist = &neglists[i];
 		if (TAILQ_FIRST(&neglist->nl_list) == NULL)
