@@ -170,6 +170,16 @@
 		};
 	};
 
+	/* MSIX Configuration */
+	msix: msix {
+		compatible = "annapurna-labs,al-msix";
+		#address-cells = <2>;
+		#size-cells = <1>;
+		reg = <0xfbe00000 0x100000>;
+		interrupts = <0 96 1 0 159 1>;
+		interrupt-parent = <&MPIC>;
+	};
+
 	pcie-internal {
 		compatible = "annapurna-labs,al-internal-pcie";
 		device_type = "pci";
@@ -182,6 +192,7 @@
 				<0x3800 0 0 1 &MPIC 0 36 4>,
 				<0x4000 0 0 1 &MPIC 0 43 4>, // SATA 0 (PCIe expander)
 				<0x4800 0 0 1 &MPIC 0 44 1>; // SATA 1 (onboard)
+		msi-parent = <&msix>;
 
 		// ranges:
 		// - ECAM - non prefetchable config space
