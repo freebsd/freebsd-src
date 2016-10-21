@@ -320,6 +320,8 @@ RetryFault:;
 			growstack = FALSE;
 			goto RetryFault;
 		}
+		if (fs.vp != NULL)
+			vput(fs.vp);
 		return (result);
 	}
 
