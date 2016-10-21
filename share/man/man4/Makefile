@@ -433,6 +433,7 @@ MAN=	aac.4 \
 	rp.4 \
 	rtwn.4 \
 	rtwnfw.4 \
+	rtwn_pci.4 \
 	rue.4 \
 	rum.4 \
 	run.4 \
@@ -692,6 +693,8 @@ MLINKS+=pms.4 pmspcv.4
 MLINKS+=ral.4 if_ral.4
 MLINKS+=re.4 if_re.4
 MLINKS+=rl.4 if_rl.4
+MLINKS+=rtwn.4 if_rtwn.4
+MLINKS+=rtwn_pci.4 if_rtwn_pci.4
 MLINKS+=rue.4 if_rue.4
 MLINKS+=rum.4 if_rum.4
 MLINKS+=run.4 if_run.4
@@ -886,6 +889,7 @@ MAN+=	\
 	otusfw.4 \
 	rsu.4 \
 	rsufw.4 \
+	rtwn_usb.4 \
 	u3g.4 \
 	uark.4 \
 	uart.4 \
@@ -928,8 +932,6 @@ MAN+=	\
 	urio.4 \
 	urndis.4 \
 	${_urtw.4} \
-	urtwn.4 \
-	urtwnfw.4 \
 	usb.4 \
 	usb_quirk.4 \
 	usb_template.4 \
@@ -941,6 +943,7 @@ MAN+=	\
 
 MLINKS+=otus.4 if_otus.4
 MLINKS+=rsu.4 if_rsu.4
+MLINKS+=rtwn_usb.4 if_rtwn_usb.4
 MLINKS+=u3g.4 u3gstub.4
 MLINKS+=uath.4 if_uath.4
 MLINKS+=udav.4 if_udav.4
@@ -948,7 +951,6 @@ MLINKS+=upgt.4 if_upgt.4
 MLINKS+=ural.4 if_ural.4
 MLINKS+=urndis.4 if_urndis.4
 MLINKS+=${_urtw.4} ${_if_urtw.4}
-MLINKS+=urtwn.4 if_urtwn.4
 .endif
 
 .include <bsd.prog.mk>

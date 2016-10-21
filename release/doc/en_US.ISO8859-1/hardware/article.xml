@@ -1013,8 +1013,6 @@
 
       &hwlist.urtw;
 
-      &hwlist.urtwn;
-
       <para>[&arch.amd64;, &arch.i386;, &arch.pc98;] Lucent
 	Technologies WaveLAN/IEEE 802.11b wireless network adapters
 	and workalikes using the Lucent Hermes, Intersil PRISM-II,

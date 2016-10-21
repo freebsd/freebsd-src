@@ -127,7 +127,7 @@ vtnet_netmap_txsync(struct netmap_kring *kring, int flags)
 	 * First part: process new packets to send.
 	 */
 	rmb();
-	
+
 	nm_i = kring->nr_hwcur;
 	if (nm_i != head) {	/* we have new packets to send */
 		struct sglist *sg = txq->vtntx_sg;
@@ -182,7 +182,7 @@ vtnet_netmap_txsync(struct netmap_kring *kring, int flags)
 		virtqueue_enable_intr(vq); // like postpone with 0
 	}
 
-	
+
         /* Free used slots. We only consider our own used buffers, recognized
 	 * by the token we passed to virtqueue_add_outbuf.
 	 */

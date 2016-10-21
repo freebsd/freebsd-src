@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 21, 2016
+.Dd October 18, 2016
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -1357,6 +1357,24 @@ or a hostname)
 and mask width of
 .Cm masklen
 bits.
+.It Ar addr Ns / Ns Ar mask
+Matches all IPv6 addresses with base
+.Ar addr
+(specified as allowed by
+.Xr inet_pton
+or a hostname)
+and the mask of
+.Ar mask ,
+specified as allowed by
+.Xr inet_pton.
+As an example, fe::640:0:0/ffff::ffff:ffff:0:0 will match
+fe:*:*:*:0:640:*:*.
+This form is advised only for non-contiguous
+masks.
+It is better to resort to the
+.Ar addr Ns / Ns Ar masklen
+format for contiguous masks, which is more compact and less
+error-prone.
 .El
 .Pp
 No support for sets of IPv6 addresses is provided because IPv6 addresses

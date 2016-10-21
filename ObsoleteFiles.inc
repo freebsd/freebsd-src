@@ -130,6 +130,9 @@ OLD_FILES+=usr/lib/clang/3.8.0/lib/freebsd/libclang_rt.ubsan_standalone_cxx-x86_
 OLD_DIRS+=usr/lib/clang/3.8.0/lib/freebsd
 OLD_DIRS+=usr/lib/clang/3.8.0/lib
 OLD_DIRS+=usr/lib/clang/3.8.0
+# 20161017: urtwn(4) was merged into rtwn(4)
+OLD_FILES+=usr/share/man/man4/urtwn.4.gz
+OLD_FILES+=usr/share/man/man4/urtwnfw.4.gz
 # 20161015: Remove GNU rcs
 OLD_FILES+=usr/bin/ci
 OLD_FILES+=usr/bin/co

@@ -141,7 +141,7 @@ static struct speedo_entry tegra124_speedo_pllx_tbl[] =
 
 static struct cpu_volt_def tegra124_cpu_volt_pllx_def =
 {
-	.min_uvolt =  900000,		/* 0.9 V */
+	.min_uvolt = 1000000,		/* XXX 0.9 V doesn't work on all boards */
 	.max_uvolt = 1260000,		/* 1.26 */
 	.step_uvolt =  10000,		/* 10 mV */
 	.speedo_scale = 100,
@@ -171,7 +171,6 @@ static uint64_t cpu_freq_tbl[] = {
 	2014000000ULL,
 	2116000000ULL,
 	2218000000ULL,
-	2320000000ULL,
 	2320000000ULL,
 	2422000000ULL,
 	2524000000ULL,
@@ -475,6 +474,11 @@ get_fdt_resources(struct tegra124_cpufreq_softc *sc, phandle_t node)
 static void
 tegra124_cpufreq_identify(driver_t *driver, device_t parent)
 {
+	phandle_t root;
+
+	root = OF_finddevice("/");
+	if (!ofw_bus_node_is_compatible(root, "nvidia,tegra124"))
+		return;
 
 	if (device_get_unit(parent) != 0)
 		return;

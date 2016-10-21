@@ -676,6 +676,7 @@ OLD_FILES+=usr/libexec/bsdinstall/distextract
 OLD_FILES+=usr/libexec/bsdinstall/distfetch
 OLD_FILES+=usr/libexec/bsdinstall/docsinstall
 OLD_FILES+=usr/libexec/bsdinstall/entropy
+OLD_FILES+=usr/libexec/bsdinstall/hardening
 OLD_FILES+=usr/libexec/bsdinstall/hostname
 OLD_FILES+=usr/libexec/bsdinstall/jail
 OLD_FILES+=usr/libexec/bsdinstall/keymap
@@ -2191,6 +2192,39 @@ OLD_FILES+=usr/share/man/man3/gpio_pin_set.3.gz
 OLD_FILES+=usr/share/man/man3/gpio_pin_set_flags.3.gz
 OLD_FILES+=usr/share/man/man3/gpio_pin_tristate.3.gz
 OLD_FILES+=usr/share/man/man8/gpioctl.8.gz
+.endif
+
+.if ${MK_GNU_DIFF} == no
+OLD_FILES+=usr/bin/diff
+OLD_FILES+=usr/bin/diff3
+OLD_FILES+=usr/share/man/man1/diff.1.gz
+OLD_FILES+=usr/share/man/man1/diff3.1.gz
+OLD_FILES+=usr/share/man/man7/diff.7.gz
+.endif
+
+.if ${MK_GNU_GREP} == no
+OLD_FILES+=usr/bin/gnugrep
+OLD_FILES+=usr/share/man/man1/gnugrep.1.gz
+.if ${MK_BSD_GREP} == no
+OLD_FILES+=usr/bin/bzgrep
+OLD_FILES+=usr/bin/bzegrep
+OLD_FILES+=usr/bin/bzfgrep
+OLD_FILES+=usr/bin/egrep
+OLD_FILES+=usr/bin/fgrep
+OLD_FILES+=usr/bin/grep
+OLD_FILES+=usr/bin/zegrep
+OLD_FILES+=usr/bin/zfgrep
+OLD_FILES+=usr/bin/zgrep
+OLD_FILES+=usr/share/man/man1/bzegrep.1.gz
+OLD_FILES+=usr/share/man/man1/bzfgrep.1.gz
+OLD_FILES+=usr/share/man/man1/bzgrep.1.gz
+OLD_FILES+=usr/share/man/man1/egrep.1.gz
+OLD_FILES+=usr/share/man/man1/fgrep.1.gz
+OLD_FILES+=usr/share/man/man1/grep.1.gz
+OLD_FILES+=usr/share/man/man1/zegrep.1.gz
+OLD_FILES+=usr/share/man/man1/zfgrep.1.gz
+OLD_FILES+=usr/share/man/man1/zgrep.1.gz
+.endif
 .endif
 
 # Also includes vgrind(1)
@@ -8624,6 +8658,7 @@ OLD_FILES+=usr/share/man/man4/otus.4.gz
 OLD_FILES+=usr/share/man/man4/otusfw.4.gz
 OLD_FILES+=usr/share/man/man4/rsu.4.gz
 OLD_FILES+=usr/share/man/man4/rsufw.4.gz
+OLD_FILES+=usr/share/man/man4/rtwn_usb.4.gz
 OLD_FILES+=usr/share/man/man4/u3g.4.gz
 OLD_FILES+=usr/share/man/man4/u3gstub.4.gz
 OLD_FILES+=usr/share/man/man4/uark.4.gz
@@ -8665,8 +8700,6 @@ OLD_FILES+=usr/share/man/man4/ural.4.gz
 OLD_FILES+=usr/share/man/man4/urio.4.gz
 OLD_FILES+=usr/share/man/man4/urndis.4.gz
 OLD_FILES+=usr/share/man/man4/urtw.4.gz
-OLD_FILES+=usr/share/man/man4/urtwn.4.gz
-OLD_FILES+=usr/share/man/man4/urtwnfw.4.gz
 OLD_FILES+=usr/share/man/man4/usb.4.gz
 OLD_FILES+=usr/share/man/man4/usb_quirk.4.gz
 OLD_FILES+=usr/share/man/man4/usb_template.4.gz

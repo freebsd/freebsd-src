@@ -412,6 +412,12 @@ ieee80211_swscan_bg_scan(const struct ieee80211_scanner *scan,
 	return (ic->ic_flags & IEEE80211_F_SCAN);
 }
 
+/*
+ * Taskqueue work to cancel a scan.
+ *
+ * Note: for offload scan devices, we may want to call into the
+ * driver to try and cancel scanning, however it may not be cancelable.
+ */
 static void
 cancel_scan(struct ieee80211vap *vap, int any, const char *func)
 {
@@ -510,6 +516,12 @@ ieee80211_swscan_probe_curchan(struct ieee80211vap *vap, int force)
 	struct ieee80211_scan_state *ss = ic->ic_scan;
 	struct ifnet *ifp = vap->iv_ifp;
 	int i;
+
+	/*
+	 * Full-offload scan devices don't require this.
+	 */
+	if (vap->iv_flags_ext & IEEE80211_FEXT_SCAN_OFFLOAD)
+		return;
 
 	/*
 	 * Send directed probe requests followed by any
@@ -617,7 +629,14 @@ scan_start(void *arg, int pending)
 		return;
 	}
 
-	if (vap->iv_opmode == IEEE80211_M_STA &&
+	/*
+	 * Put the station into power save mode.
+	 *
+	 * This is only required if we're not a full-offload devices;
+	 * those devices manage scan/traffic differently.
+	 */
+	if (((vap->iv_flags_ext & IEEE80211_FEXT_SCAN_OFFLOAD) == 0) &&
+	    vap->iv_opmode == IEEE80211_M_STA &&
 	    vap->iv_state == IEEE80211_S_RUN) {
 		if ((vap->iv_bss->ni_flags & IEEE80211_NODE_PWR_MGT) == 0) {
 			/* Enable station power save mode */
@@ -870,7 +889,12 @@ scan_done(struct ieee80211_scan_state *ss, int scandone)
 	 * waiting for us.
 	 */
 	if (scandone) {
-		vap->iv_sta_ps(vap, 0);
+		/*
+		 * If we're not a scan offload device, come back out of
+		 * station powersave.  Offload devices handle this themselves.
+		 */
+		if ((vap->iv_flags_ext & IEEE80211_FEXT_SCAN_OFFLOAD) == 0)
+			vap->iv_sta_ps(vap, 0);
 		if (ss->ss_next >= ss->ss_last)
 			ic->ic_flags_ext &= ~IEEE80211_FEXT_BGSCAN;
 

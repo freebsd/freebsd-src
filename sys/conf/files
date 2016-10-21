@@ -709,6 +709,45 @@ dev/aic7xxx/aic7xxx_93cx6.c	optional ahc
 dev/aic7xxx/aic7xxx_osm.c	optional ahc
 dev/aic7xxx/aic7xxx_pci.c	optional ahc pci
 dev/aic7xxx/aic7xxx_reg_print.c	optional ahc ahc_reg_pretty_print
+dev/al_eth/al_eth.c				optional al_eth		\
+	no-depend	\
+	compile-with "${CC} -c -o ${.TARGET} ${CFLAGS} -I$S/contrib/alpine-hal -I$S/contrib/alpine-hal/eth ${PROF} ${.IMPSRC}"
+dev/al_eth/al_init_eth_lm.c			optional al_eth		\
+	no-depend	\
+	compile-with "${CC} -c -o ${.TARGET} ${CFLAGS} -I$S/contrib/alpine-hal -I$S/contrib/alpine-hal/eth ${PROF} ${.IMPSRC}"
+dev/al_eth/al_init_eth_kr.c			optional al_eth		\
+	no-depend	\
+	compile-with "${CC} -c -o ${.TARGET} ${CFLAGS} -I$S/contrib/alpine-hal -I$S/contrib/alpine-hal/eth ${PROF} ${.IMPSRC}"
+contrib/alpine-hal/al_hal_iofic.c		optional al_iofic	\
+	no-depend	\
+	compile-with "${CC} -c -o ${.TARGET} ${CFLAGS} -I$S/contrib/alpine-hal -I$S/contrib/alpine-hal/eth ${PROF} ${.IMPSRC}"
+contrib/alpine-hal/al_hal_serdes_25g.c		optional al_serdes	\
+	no-depend	\
+	compile-with "${CC} -c -o ${.TARGET} ${CFLAGS} -I$S/contrib/alpine-hal -I$S/contrib/alpine-hal/eth ${PROF} ${.IMPSRC}"
+contrib/alpine-hal/al_hal_serdes_hssp.c		optional al_serdes	\
+	no-depend	\
+	compile-with "${CC} -c -o ${.TARGET} ${CFLAGS} -I$S/contrib/alpine-hal -I$S/contrib/alpine-hal/eth ${PROF} ${.IMPSRC}"
+contrib/alpine-hal/al_hal_udma_config.c		optional al_udma	\
+	no-depend	\
+	compile-with "${CC} -c -o ${.TARGET} ${CFLAGS} -I$S/contrib/alpine-hal -I$S/contrib/alpine-hal/eth ${PROF} ${.IMPSRC}"
+contrib/alpine-hal/al_hal_udma_debug.c		optional al_udma	\
+	no-depend	\
+	compile-with "${CC} -c -o ${.TARGET} ${CFLAGS} -I$S/contrib/alpine-hal -I$S/contrib/alpine-hal/eth ${PROF} ${.IMPSRC}"
+contrib/alpine-hal/al_hal_udma_iofic.c		optional al_udma	\
+	no-depend	\
+	compile-with "${CC} -c -o ${.TARGET} ${CFLAGS} -I$S/contrib/alpine-hal -I$S/contrib/alpine-hal/eth ${PROF} ${.IMPSRC}"
+contrib/alpine-hal/al_hal_udma_main.c		optional al_udma	\
+	no-depend	\
+	compile-with "${CC} -c -o ${.TARGET} ${CFLAGS} -I$S/contrib/alpine-hal -I$S/contrib/alpine-hal/eth ${PROF} ${.IMPSRC}"
+contrib/alpine-hal/al_serdes.c			optional al_serdes	\
+	no-depend	\
+	compile-with "${CC} -c -o ${.TARGET} ${CFLAGS} -I$S/contrib/alpine-hal -I$S/contrib/alpine-hal/eth ${PROF} ${.IMPSRC}"
+contrib/alpine-hal/eth/al_hal_eth_kr.c		optional al_eth		\
+	no-depend	\
+	compile-with "${CC} -c -o ${.TARGET} ${CFLAGS} -I$S/contrib/alpine-hal -I$S/contrib/alpine-hal/eth ${PROF} ${.IMPSRC}"
+contrib/alpine-hal/eth/al_hal_eth_main.c	optional al_eth		\
+	no-depend	\
+	compile-with "${CC} -c -o ${.TARGET} ${CFLAGS} -I$S/contrib/alpine-hal -I$S/contrib/alpine-hal/eth ${PROF} ${.IMPSRC}"
 dev/alc/if_alc.c		optional alc pci
 dev/ale/if_ale.c		optional ale pci
 dev/alpm/alpm.c			optional alpm pci
@@ -2187,6 +2226,7 @@ dev/nand/nfc_if.m		optional nand
 dev/ncr/ncr.c			optional ncr pci
 dev/ncv/ncr53c500.c		optional ncv
 dev/ncv/ncr53c500_pccard.c	optional ncv pccard
+dev/netmap/if_ptnet.c		optional netmap inet
 dev/netmap/netmap.c		optional netmap
 dev/netmap/netmap_freebsd.c	optional netmap
 dev/netmap/netmap_generic.c	optional netmap
@@ -2195,6 +2235,7 @@ dev/netmap/netmap_mem2.c	optional netmap
 dev/netmap/netmap_monitor.c	optional netmap
 dev/netmap/netmap_offloadings.c	optional netmap
 dev/netmap/netmap_pipe.c	optional netmap
+dev/netmap/netmap_pt.c		optional netmap
 dev/netmap/netmap_vale.c	optional netmap
 # compile-with "${NORMAL_C} -Wconversion -Wextra"
 dev/nfsmb/nfsmb.c		optional nfsmb pci
@@ -2488,7 +2529,147 @@ dev/rndtest/rndtest.c		optional rndtest
 dev/rp/rp.c			optional rp
 dev/rp/rp_isa.c			optional rp isa
 dev/rp/rp_pci.c			optional rp pci
+#
 dev/rtwn/if_rtwn.c		optional rtwn
+dev/rtwn/if_rtwn_beacon.c	optional rtwn
+dev/rtwn/if_rtwn_calib.c	optional rtwn
+dev/rtwn/if_rtwn_cam.c		optional rtwn
+dev/rtwn/if_rtwn_efuse.c	optional rtwn
+dev/rtwn/if_rtwn_fw.c		optional rtwn
+dev/rtwn/if_rtwn_rx.c		optional rtwn
+dev/rtwn/if_rtwn_task.c		optional rtwn
+dev/rtwn/if_rtwn_tx.c		optional rtwn
+#
+dev/rtwn/pci/rtwn_pci_attach.c	optional rtwn_pci pci
+dev/rtwn/pci/rtwn_pci_reg.c	optional rtwn_pci pci
+dev/rtwn/pci/rtwn_pci_rx.c	optional rtwn_pci pci
+dev/rtwn/pci/rtwn_pci_tx.c	optional rtwn_pci pci
+#
+dev/rtwn/usb/rtwn_usb_attach.c	optional rtwn_usb
+dev/rtwn/usb/rtwn_usb_ep.c	optional rtwn_usb
+dev/rtwn/usb/rtwn_usb_reg.c	optional rtwn_usb
+dev/rtwn/usb/rtwn_usb_rx.c	optional rtwn_usb
+dev/rtwn/usb/rtwn_usb_tx.c	optional rtwn_usb
+# RTL8188E
+dev/rtwn/rtl8188e/r88e_beacon.c	optional rtwn
+dev/rtwn/rtl8188e/r88e_calib.c	optional rtwn
+dev/rtwn/rtl8188e/r88e_chan.c	optional rtwn
+dev/rtwn/rtl8188e/r88e_fw.c	optional rtwn
+dev/rtwn/rtl8188e/r88e_init.c	optional rtwn
+dev/rtwn/rtl8188e/r88e_led.c	optional rtwn
+dev/rtwn/rtl8188e/r88e_tx.c	optional rtwn
+dev/rtwn/rtl8188e/r88e_rf.c	optional rtwn
+dev/rtwn/rtl8188e/r88e_rom.c	optional rtwn
+dev/rtwn/rtl8188e/r88e_rx.c	optional rtwn
+dev/rtwn/rtl8188e/usb/r88eu_attach.c	optional rtwn_usb
+dev/rtwn/rtl8188e/usb/r88eu_init.c	optional rtwn_usb
+dev/rtwn/rtl8188e/usb/r88eu_rx.c	optional rtwn_usb
+# RTL8192C
+dev/rtwn/rtl8192c/r92c_attach.c	optional rtwn
+dev/rtwn/rtl8192c/r92c_beacon.c	optional rtwn
+dev/rtwn/rtl8192c/r92c_calib.c	optional rtwn
+dev/rtwn/rtl8192c/r92c_chan.c	optional rtwn
+dev/rtwn/rtl8192c/r92c_fw.c	optional rtwn
+dev/rtwn/rtl8192c/r92c_init.c	optional rtwn
+dev/rtwn/rtl8192c/r92c_rf.c	optional rtwn
+dev/rtwn/rtl8192c/r92c_rom.c	optional rtwn
+dev/rtwn/rtl8192c/r92c_rx.c	optional rtwn
+dev/rtwn/rtl8192c/r92c_tx.c	optional rtwn
+dev/rtwn/rtl8192c/pci/r92ce_attach.c	optional rtwn_pci pci
+dev/rtwn/rtl8192c/pci/r92ce_calib.c	optional rtwn_pci pci
+dev/rtwn/rtl8192c/pci/r92ce_fw.c	optional rtwn_pci pci
+dev/rtwn/rtl8192c/pci/r92ce_init.c	optional rtwn_pci pci
+dev/rtwn/rtl8192c/pci/r92ce_led.c	optional rtwn_pci pci
+dev/rtwn/rtl8192c/pci/r92ce_rx.c	optional rtwn_pci pci
+dev/rtwn/rtl8192c/pci/r92ce_tx.c	optional rtwn_pci pci
+dev/rtwn/rtl8192c/usb/r92cu_attach.c	optional rtwn_usb
+dev/rtwn/rtl8192c/usb/r92cu_init.c	optional rtwn_usb
+dev/rtwn/rtl8192c/usb/r92cu_led.c	optional rtwn_usb
+dev/rtwn/rtl8192c/usb/r92cu_rx.c	optional rtwn_usb
+dev/rtwn/rtl8192c/usb/r92cu_tx.c	optional rtwn_usb
+# RTL8812A
+dev/rtwn/rtl8812a/r12a_beacon.c	optional rtwn
+dev/rtwn/rtl8812a/r12a_calib.c	optional rtwn
+dev/rtwn/rtl8812a/r12a_caps.c	optional rtwn
+dev/rtwn/rtl8812a/r12a_chan.c	optional rtwn
+dev/rtwn/rtl8812a/r12a_fw.c	optional rtwn
+dev/rtwn/rtl8812a/r12a_init.c	optional rtwn
+dev/rtwn/rtl8812a/r12a_led.c	optional rtwn
+dev/rtwn/rtl8812a/r12a_rf.c	optional rtwn
+dev/rtwn/rtl8812a/r12a_rom.c	optional rtwn
+dev/rtwn/rtl8812a/r12a_rx.c	optional rtwn
+dev/rtwn/rtl8812a/r12a_tx.c	optional rtwn
+dev/rtwn/rtl8812a/usb/r12au_attach.c	optional rtwn_usb
+dev/rtwn/rtl8812a/usb/r12au_init.c	optional rtwn_usb
+dev/rtwn/rtl8812a/usb/r12au_rx.c	optional rtwn_usb
+dev/rtwn/rtl8812a/usb/r12au_tx.c	optional rtwn_usb
+# RTL8821A
+dev/rtwn/rtl8821a/r21a_beacon.c	optional rtwn
+dev/rtwn/rtl8821a/r21a_calib.c	optional rtwn
+dev/rtwn/rtl8821a/r21a_chan.c	optional rtwn
+dev/rtwn/rtl8821a/r21a_fw.c	optional rtwn
+dev/rtwn/rtl8821a/r21a_init.c	optional rtwn
+dev/rtwn/rtl8821a/r21a_led.c	optional rtwn
+dev/rtwn/rtl8821a/r21a_rom.c	optional rtwn
+dev/rtwn/rtl8821a/r21a_rx.c	optional rtwn
+dev/rtwn/rtl8821a/usb/r21au_attach.c	optional rtwn_usb
+dev/rtwn/rtl8821a/usb/r21au_init.c	optional rtwn_usb
+rtwn-rtl8188eufw.c		optional rtwn-rtl8188eufw | rtwnfw	\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk rtwn-rtl8188eufw.fw:rtwn-rtl8188eufw:111 -mrtwn-rtl8188eufw -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"rtwn-rtl8188eufw.c"
+rtwn-rtl8188eufw.fwo		optional rtwn-rtl8188eufw | rtwnfw	\
+	dependency	"rtwn-rtl8188eufw.fw"				\
+	compile-with	"${NORMAL_FWO}"					\
+	no-implicit-rule						\
+	clean		"rtwn-rtl8188eufw.fwo"
+rtwn-rtl8188eufw.fw		optional rtwn-rtl8188eufw | rtwnfw	\
+	dependency	"$S/contrib/dev/rtwn/rtwn-rtl8188eufw.fw.uu"	\
+	compile-with	"${NORMAL_FW}"					\
+	no-obj no-implicit-rule						\
+	clean		"rtwn-rtl8188eufw.fw"
+rtwn-rtl8192cfwE.c		optional rtwn-rtl8192cfwE | rtwnfw	\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk rtwn-rtl8192cfwE.fw:rtwn-rtl8192cfwE:111 -mrtwn-rtl8192cfwE -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"rtwn-rtl8192cfwE.c"
+rtwn-rtl8192cfwE.fwo		optional rtwn-rtl8192cfwE | rtwnfw	\
+	dependency	"rtwn-rtl8192cfwE.fw"				\
+	compile-with	"${NORMAL_FWO}"					\
+	no-implicit-rule						\
+	clean		"rtwn-rtl8192cfwE.fwo"
+rtwn-rtl8192cfwE.fw		optional rtwn-rtl8192cfwE | rtwnfw	\
+	dependency	"$S/contrib/dev/rtwn/rtwn-rtl8192cfwE.fw.uu"	\
+	compile-with	"${NORMAL_FW}"					\
+	no-obj no-implicit-rule						\
+	clean		"rtwn-rtl8192cfwE.fw"
+rtwn-rtl8192cfwE_B.c		optional rtwn-rtl8192cfwE_B | rtwnfw	\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk rtwn-rtl8192cfwE_B.fw:rtwn-rtl8192cfwE_B:111 -mrtwn-rtl8192cfwE_B -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"rtwn-rtl8192cfwE_B.c"
+rtwn-rtl8192cfwE_B.fwo		optional rtwn-rtl8192cfwE_B | rtwnfw	\
+	dependency	"rtwn-rtl8192cfwE_B.fw"				\
+	compile-with	"${NORMAL_FWO}"					\
+	no-implicit-rule						\
+	clean		"rtwn-rtl8192cfwE_B.fwo"
+rtwn-rtl8192cfwE_B.fw		optional rtwn-rtl8192cfwE_B | rtwnfw	\
+	dependency	"$S/contrib/dev/rtwn/rtwn-rtl8192cfwE_B.fw.uu"	\
+	compile-with	"${NORMAL_FW}"					\
+	no-obj no-implicit-rule						\
+	clean		"rtwn-rtl8192cfwE_B.fw"
+rtwn-rtl8192cfwT.c		optional rtwn-rtl8192cfwT | rtwnfw	\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk rtwn-rtl8192cfwT.fw:rtwn-rtl8192cfwT:111 -mrtwn-rtl8192cfwT -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"rtwn-rtl8192cfwT.c"
+rtwn-rtl8192cfwT.fwo		optional rtwn-rtl8192cfwT | rtwnfw	\
+	dependency	"rtwn-rtl8192cfwT.fw"				\
+	compile-with	"${NORMAL_FWO}"					\
+	no-implicit-rule						\
+	clean		"rtwn-rtl8192cfwT.fwo"
+rtwn-rtl8192cfwT.fw		optional rtwn-rtl8192cfwT | rtwnfw	\
+	dependency	"$S/contrib/dev/rtwn/rtwn-rtl8192cfwT.fw.uu"	\
+	compile-with	"${NORMAL_FW}"					\
+	no-obj no-implicit-rule						\
+	clean		"rtwn-rtl8192cfwT.fw"
 rtwn-rtl8192cfwU.c		optional rtwn-rtl8192cfwU | rtwnfw	\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk rtwn-rtl8192cfwU.fw:rtwn-rtl8192cfwU:111 -mrtwn-rtl8192cfwU -c${.TARGET}" \
 	no-implicit-rule before-depend local				\
@@ -2503,20 +2684,34 @@ rtwn-rtl8192cfwU.fw		optional rtwn-rtl8192cfwU | rtwnfw	\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"rtwn-rtl8192cfwU.fw"
-rtwn-rtl8192cfwU_B.c		optional rtwn-rtl8192cfwU_B | rtwnfw	\
-	compile-with	"${AWK} -f $S/tools/fw_stub.awk rtwn-rtl8192cfwU_B.fw:rtwn-rtl8192cfwU_B:111 -mrtwn-rtl8192cfwU_B -c${.TARGET}" \
+rtwn-rtl8812aufw.c		optional rtwn-rtl8812aufw | rtwnfw	\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk rtwn-rtl8812aufw.fw:rtwn-rtl8812aufw:111 -mrtwn-rtl8812aufw -c${.TARGET}" \
 	no-implicit-rule before-depend local				\
-	clean		"rtwn-rtl8192cfwU_B.c"
-rtwn-rtl8192cfwU_B.fwo		optional rtwn-rtl8192cfwU_B | rtwnfw	\
-	dependency	"rtwn-rtl8192cfwU_B.fw"				\
+	clean		"rtwn-rtl8812aufw.c"
+rtwn-rtl8812aufw.fwo		optional rtwn-rtl8812aufw | rtwnfw	\
+	dependency	"rtwn-rtl8812aufw.fw"				\
 	compile-with	"${NORMAL_FWO}"					\
 	no-implicit-rule						\
-	clean		"rtwn-rtl8192cfwU_B.fwo"
-rtwn-rtl8192cfwU_B.fw		optional rtwn-rtl8192cfwU_B | rtwnfw	\
-	dependency	"$S/contrib/dev/rtwn/rtwn-rtl8192cfwU_B.fw.uu"	\
+	clean		"rtwn-rtl8812aufw.fwo"
+rtwn-rtl8812aufw.fw		optional rtwn-rtl8812aufw | rtwnfw	\
+	dependency	"$S/contrib/dev/rtwn/rtwn-rtl8812aufw.fw.uu"	\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
-	clean		"rtwn-rtl8192cfwU_B.fw"
+	clean		"rtwn-rtl8812aufw.fw"
+rtwn-rtl8821aufw.c		optional rtwn-rtl8821aufw | rtwnfw	\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk rtwn-rtl8821aufw.fw:rtwn-rtl8821aufw:111 -mrtwn-rtl8821aufw -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"rtwn-rtl8821aufw.c"
+rtwn-rtl8821aufw.fwo		optional rtwn-rtl8821aufw | rtwnfw	\
+	dependency	"rtwn-rtl8821aufw.fw"				\
+	compile-with	"${NORMAL_FWO}"					\
+	no-implicit-rule						\
+	clean		"rtwn-rtl8821aufw.fwo"
+rtwn-rtl8821aufw.fw		optional rtwn-rtl8821aufw | rtwnfw	\
+	dependency	"$S/contrib/dev/rtwn/rtwn-rtl8821aufw.fw.uu"	\
+	compile-with	"${NORMAL_FW}"					\
+	no-obj no-implicit-rule						\
+	clean		"rtwn-rtl8821aufw.fw"
 dev/safe/safe.c			optional safe
 dev/scc/scc_if.m		optional scc
 dev/scc/scc_bfe_ebus.c		optional scc ebus

@@ -3162,8 +3162,6 @@ iflib_if_qflush(if_t ifp)
 		     IFCAP_TSO4 | IFCAP_TSO6 | IFCAP_VLAN_HWTAGGING |	\
 		     IFCAP_VLAN_MTU | IFCAP_VLAN_HWFILTER | IFCAP_VLAN_HWTSO)
 
-#define IFCAP_REINIT IFCAP_FLAGS
-
 static int
 iflib_if_ioctl(if_t ifp, u_long command, caddr_t data)
 {
@@ -3288,6 +3286,8 @@ iflib_if_ioctl(if_t ifp, u_long command, caddr_t data)
 #endif
 		setmask |= (mask & IFCAP_FLAGS);
 
+		if (setmask  & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6))
+			setmask |= (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6);
 		if ((mask & IFCAP_WOL) &&
 		    (if_getcapabilities(ifp) & IFCAP_WOL) != 0)
 			setmask |= (mask & (IFCAP_WOL_MCAST|IFCAP_WOL_MAGIC));
@@ -3298,10 +3298,10 @@ iflib_if_ioctl(if_t ifp, u_long command, caddr_t data)
 		if (setmask) {
 			CTX_LOCK(ctx);
 			bits = if_getdrvflags(ifp);
-			if (setmask & IFCAP_REINIT)
+			if (bits & IFF_DRV_RUNNING)
 				iflib_stop(ctx);
 			if_togglecapenable(ifp, setmask);
-			if (setmask & IFCAP_REINIT)
+			if (bits & IFF_DRV_RUNNING)
 				iflib_init_locked(ctx);
 			if_setdrvflags(ifp, bits);
 			CTX_UNLOCK(ctx);
@@ -3903,6 +3903,10 @@ _iflib_assert(if_shared_ctx_t sctx)
 	MPASS(sctx->isc_ntxd_default[0]);
 }
 
+#define DEFAULT_CAPS (IFCAP_TXCSUM_IPV6 | IFCAP_RXCSUM_IPV6 | IFCAP_HWCSUM | IFCAP_LRO | \
+		     IFCAP_TSO4 | IFCAP_TSO6 | IFCAP_VLAN_HWTAGGING |	\
+		     IFCAP_VLAN_MTU | IFCAP_VLAN_HWFILTER | IFCAP_VLAN_HWTSO | IFCAP_HWSTATS)
+
 static int
 iflib_register(if_ctx_t ctx)
 {
@@ -3937,8 +3941,9 @@ iflib_register(if_ctx_t ctx)
 	if_setqflushfn(ifp, iflib_if_qflush);
 	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
 
-	if_setcapabilities(ifp, 0);
-	if_setcapenable(ifp, 0);
+	/* XXX - move this in to the driver for non-default settings */
+	if_setcapabilities(ifp, DEFAULT_CAPS);
+	if_setcapenable(ifp, DEFAULT_CAPS);
 
 	ctx->ifc_vlan_attach_event =
 		EVENTHANDLER_REGISTER(vlan_config, iflib_vlan_register, ctx,
@@ -4294,17 +4299,23 @@ iflib_irq_alloc(if_ctx_t ctx, if_irq_t irq, int rid,
 	return (_iflib_irq_alloc(ctx, irq, rid, filter, handler, arg, name));
 }
 
-static void
+static int
 find_nth(if_ctx_t ctx, cpuset_t *cpus, int qid)
 {
-	int i, cpuid;
+	int i, cpuid, eqid, count;
 
 	CPU_COPY(&ctx->ifc_cpus, cpus);
+	count = CPU_COUNT(&ctx->ifc_cpus);
+	eqid = qid % count;
 	/* clear up to the qid'th bit */
-	for (i = 0; i < qid; i++) {
+	for (i = 0; i < eqid; i++) {
 		cpuid = CPU_FFS(cpus);
-		CPU_CLR(cpuid, cpus);
+		MPASS(cpuid != 0);
+		CPU_CLR(cpuid-1, cpus);
 	}
+	cpuid = CPU_FFS(cpus);
+	MPASS(cpuid != 0);
+	return (cpuid-1);
 }
 
 int
@@ -4317,10 +4328,11 @@ iflib_irq_alloc_generic(if_ctx_t ctx, if_irq_t irq, int rid,
 	iflib_filter_info_t info;
 	cpuset_t cpus;
 	gtask_fn_t *fn;
-	int tqrid, err;
+	int tqrid, err, cpuid;
 	void *q;
 
 	info = &ctx->ifc_filter_info;
+	tqrid = rid;
 
 	switch (type) {
 	/* XXX merge tx/rx for netmap? */
@@ -4329,7 +4341,6 @@ iflib_irq_alloc_generic(if_ctx_t ctx, if_irq_t irq, int rid,
 		info = &ctx->ifc_txqs[qid].ift_filter_info;
 		gtask = &ctx->ifc_txqs[qid].ift_task;
 		tqg = qgroup_if_io_tqg;
-		tqrid = irq->ii_rid;
 		fn = _task_fn_tx;
 		break;
 	case IFLIB_INTR_RX:
@@ -4337,7 +4348,6 @@ iflib_irq_alloc_generic(if_ctx_t ctx, if_irq_t irq, int rid,
 		info = &ctx->ifc_rxqs[qid].ifr_filter_info;
 		gtask = &ctx->ifc_rxqs[qid].ifr_task;
 		tqg = qgroup_if_io_tqg;
-		tqrid = irq->ii_rid;
 		fn = _task_fn_rx;
 		break;
 	case IFLIB_INTR_ADMIN:
@@ -4345,7 +4355,6 @@ iflib_irq_alloc_generic(if_ctx_t ctx, if_irq_t irq, int rid,
 		info = &ctx->ifc_filter_info;
 		gtask = &ctx->ifc_admin_task;
 		tqg = qgroup_if_config_tqg;
-		tqrid = -1;
 		fn = _task_fn_admin;
 		break;
 	default:
@@ -4363,11 +4372,11 @@ iflib_irq_alloc_generic(if_ctx_t ctx, if_irq_t irq, int rid,
 	if (err != 0)
 		return (err);
 	if (tqrid != -1) {
-		find_nth(ctx, &cpus, qid);
-		taskqgroup_attach_cpu(tqg, gtask, q, CPU_FFS(&cpus), irq->ii_rid, name);
-	} else
+		cpuid = find_nth(ctx, &cpus, qid);
+		taskqgroup_attach_cpu(tqg, gtask, q, cpuid, irq->ii_rid, name);
+	} else {
 		taskqgroup_attach(tqg, gtask, q, tqrid, name);
-
+	}
 
 	return (0);
 }
