@@ -1,5 +1,5 @@
 /*-
- * Test 0013:	BPF_ST & BPF_LDX+BPF_MEM
+ * Test 0088:	BPF_ALU+BPF_XOR+BPF_K
  *
  * $FreeBSD$
  */
@@ -7,9 +7,7 @@
 /* BPF program */
 static struct bpf_insn	pc[] = {
 	BPF_STMT(BPF_LD+BPF_IMM, 0xdeadc0de),
-	BPF_STMT(BPF_ST, 7),
-	BPF_STMT(BPF_LDX+BPF_MEM, 7),
-	BPF_STMT(BPF_MISC+BPF_TXA, 0),
+	BPF_STMT(BPF_ALU+BPF_XOR+BPF_K, 0xc0decafe),
 	BPF_STMT(BPF_RET+BPF_A, 0),
 };
 
@@ -28,7 +26,7 @@ static u_int	buflen =	sizeof(pkt);
 static int	invalid =	0;
 
 /* Expected return value */
-static u_int	expect =	0xdeadc0de;
+static u_int	expect =	0x1e730a20;
 
 /* Expected signal */
 static int	expect_signal =	0;
