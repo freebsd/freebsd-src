@@ -133,7 +133,7 @@ crt_init_globals()
 			base = __builtin_memcap_offset_set(base, reloc->permissions);
 			_int = *(int *)base;
 		}
-		if (!isFunction && (reloc->size != 0))
+		if (!isFunction && (reloc->size != 0) && (reloc->size != (size_t)-1))
 		{
 			src = __builtin_memcap_bounds_set(src, reloc->size);
 		}
