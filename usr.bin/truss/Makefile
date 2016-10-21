@@ -1,5 +1,8 @@
 # $FreeBSD$
 
+# Build failure
+WANT_CHERI=none
+
 #NO_WERROR=
 PROG=	truss
 SRCS=	main.c setup.c syscalls.c
