@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 5, 2016
+.Dd October 21, 2016
 .Dt CAPSICUM_HELPERS 3
 .Os
 .Sh NAME
@@ -57,7 +57,8 @@
 .Sh DESCRIPTION
 The
 .Nm capsicum helpers
-are a set of a inline functions which simplify Capsicumizing programs.
+are a set of a inline functions which simplify modifying programs to use
+Capsicum.
 The goal is to reduce duplicated code patterns.
 The
 .Nm capsicum helpers
@@ -70,7 +71,7 @@ restricts capabilities on
 .Fa fd
 to only those needed by POSIX stream objects (that is, FILEs).
 .Pp
-The following flags can be provided:
+These flags can be provided:
 .Pp
 .Bl -tag -width "CAPH_IGNORE_EBADF" -compact -offset indent
 .It Dv CAPH_IGNORE_EBADF
