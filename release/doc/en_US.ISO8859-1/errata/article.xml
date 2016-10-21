@@ -209,6 +209,44 @@ boot</screen>
 	  <acronym>UEFI</acronym> mode, or choose the &quot;GPT
 	  + Active&quot; scheme.</para>
       </listitem>
+
+      <listitem>
+	<para>[2016-10-21] Support for <literal>sha512</literal> and
+	  <literal>skein</literal> checksumming has been added to the
+	  <acronym>ZFS</acronym> filesystem.  This was not mentioned
+	  in the release notes.</para>
+
+	<para>Systems being upgraded from earlier &os; releases with
+	  <acronym>ZFS</acronym> will see a message in <literal>zpool
+	    status</literal> output noting the pool is not at the
+	  latest version, and some features may not be enabled.
+	  Additional instructions on how to any <acronym>ZFS</acronym>
+	  pools to the latest version and update the boot blocks for
+	  all boot drives in the pool will also be provided in the
+	  output.</para>
+
+	<para>This information is also documented is also documented
+	  in <filename>/usr/src/UPDATING</filename>, which is
+	  included if the <literal>src</literal> component is selected
+	  during installation.</para>
+      </listitem>
+
+      <listitem>
+	<para>[2016-10-21] The size of the <acronym>GPT</acronym>
+	  enabled <acronym>ZFS</acronym> boot blocks
+	  (<filename>/boot/gptzfsboot</filename>) has increased past
+	  64K.  Systems upgraded from older releases may experience
+	  a problem where the size of the existing
+	  &quot;freebsd-boot&quot; partition is too small to hold the
+	  new <filename>gptzfsboot</filename>.</para>
+
+	<para>Systems where the boot partition is immediately followed
+	  by the swap partition, such as those installed via
+	  &man.bsdinstall.8;, can resize the swap partition slightly
+	  using the &man.gpart.8; <literal>resize</literal> command,
+	  so space can be reclaimed to increase the size of the
+	  freebsd-boot partition.</para>
+      </listitem>
     </itemizedlist>
   </sect1>
 
