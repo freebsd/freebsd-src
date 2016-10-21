@@ -220,10 +220,10 @@ boot</screen>
 	  <acronym>ZFS</acronym> will see a message in <literal>zpool
 	    status</literal> output noting the pool is not at the
 	  latest version, and some features may not be enabled.
-	  Additional instructions on how to any <acronym>ZFS</acronym>
-	  pools to the latest version and update the boot blocks for
-	  all boot drives in the pool will also be provided in the
-	  output.</para>
+	  Additional instructions on how to update
+	  <acronym>ZFS</acronym> pools to the latest version and
+	  update the boot blocks for all boot drives in the pool will
+	  also be provided in the output.</para>
 
 	<para>This information is also documented in
 	  <filename>/usr/src/UPDATING</filename>, which is included if
