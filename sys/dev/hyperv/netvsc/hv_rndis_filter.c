@@ -748,7 +748,7 @@ done:
 }
 
 int
-hn_rndis_get_rsscaps(struct hn_softc *sc, int *rxr_cnt)
+hn_rndis_query_rsscaps(struct hn_softc *sc, int *rxr_cnt)
 {
 	struct ndis_rss_caps in, caps;
 	size_t caps_len;
