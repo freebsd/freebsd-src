@@ -57,6 +57,7 @@
 #include "util/random.h"
 #include "util/net_help.h"
 #include "util/tube.h"
+#include "util/ub_event.h"
 #include "services/modstack.h"
 #include "services/localzone.h"
 #include "services/cache/infra.h"
@@ -170,6 +171,20 @@ ub_ctx_create(void)
 }
 
 struct ub_ctx* 
+ub_ctx_create_ub_event(struct ub_event_base* ueb)
+{
+	struct ub_ctx* ctx = ub_ctx_create_nopipe();
+	if(!ctx)
+		return NULL;
+	/* no pipes, but we have the locks to make sure everything works */
+	ctx->created_bg = 0;
+	ctx->dothread = 1; /* the processing is in the same process,
+		makes ub_cancel and ub_ctx_delete do the right thing */
+	ctx->event_base = ueb;
+	return ctx;
+}
+
+struct ub_ctx* 
 ub_ctx_create_event(struct event_base* eb)
 {
 	struct ub_ctx* ctx = ub_ctx_create_nopipe();
@@ -179,7 +194,11 @@ ub_ctx_create_event(struct event_base* eb)
 	ctx->created_bg = 0;
 	ctx->dothread = 1; /* the processing is in the same process,
 		makes ub_cancel and ub_ctx_delete do the right thing */
-	ctx->event_base = eb;
+	ctx->event_base = ub_libevent_event_base(eb);
+	if (!ctx->event_base) {
+		ub_ctx_delete(ctx);
+		return NULL;
+	}
 	return ctx;
 }
 	
@@ -697,6 +716,9 @@ ub_resolve_event(struct ub_ctx* ctx, const char* name, int rrtype,
 			return UB_INITFAIL;
 		}
 	}
+
+	/* set time in case answer comes from cache */
+	ub_comm_base_now(ctx->event_worker->base);
 
 	/* create new ctx_query and attempt to add to the list */
 	q = context_new(ctx, name, rrtype, rrclass, (ub_callback_t)callback,
@@ -1323,10 +1345,12 @@ const char* ub_version(void)
 
 int 
 ub_ctx_set_event(struct ub_ctx* ctx, struct event_base* base) {
+	struct ub_event_base* new_base;
+
 	if (!ctx || !ctx->event_base || !base) {
 		return UB_INITFAIL;
 	}
-	if (ctx->event_base == base) {
+	if (ub_libevent_get_event_base(ctx->event_base) == base) {
 		/* already set */
 		return UB_NOERROR;
 	}
@@ -1335,9 +1359,11 @@ ub_ctx_set_event(struct ub_ctx* ctx, struct event_base* base) {
 	/* destroy the current worker - safe to pass in NULL */
 	libworker_delete_event(ctx->event_worker);
 	ctx->event_worker = NULL;
-	ctx->event_base = base;	
+	new_base = ub_libevent_event_base(base);
+	if (new_base)
+		ctx->event_base = new_base;	
 	ctx->created_bg = 0;
 	ctx->dothread = 1;
 	lock_basic_unlock(&ctx->cfglock);
-	return UB_NOERROR;
+	return new_base ? UB_NOERROR : UB_INITFAIL;
 }

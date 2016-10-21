@@ -45,9 +45,6 @@
 #include "util/locks.h"
 #include "util/alloc.h"
 #include "services/modstack.h"
-#ifdef UB_ON_WINDOWS
-#  include "util/winsock_event.h"
-#endif
 struct config_file;
 struct worker;
 struct listen_port;

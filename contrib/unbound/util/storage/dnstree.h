@@ -183,6 +183,17 @@ void addr_tree_init_parents(rbtree_t* tree);
 struct addr_tree_node* addr_tree_lookup(rbtree_t* tree, 
 	struct sockaddr_storage* addr, socklen_t addrlen);
 
+/**
+ * Find element in addr tree.  (search a netblock, not a match for an address)
+ * @param tree: addr tree
+ * @param addr: netblock to lookup.
+ * @param addrlen: length of addr
+ * @param net: size of subnet
+ * @return addr tree element, or NULL if not found.
+ */
+struct addr_tree_node* addr_tree_find(rbtree_t* tree, 
+	struct sockaddr_storage* addr, socklen_t addrlen, int net);
+
 /** compare name tree nodes */
 int name_tree_compare(const void* k1, const void* k2);
 

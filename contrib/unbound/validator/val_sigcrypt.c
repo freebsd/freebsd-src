@@ -1283,15 +1283,23 @@ adjust_ttl(struct val_env* ve, uint32_t unow,
 	/* so now:
 	 * d->ttl: rrset ttl read from message or cache. May be reduced
 	 * origttl: original TTL from signature, authoritative TTL max.
+	 * MIN_TTL: minimum TTL from config.
 	 * expittl: TTL until the signature expires.
 	 *
-	 * Use the smallest of these.
+	 * Use the smallest of these, but don't let origttl set the TTL
+	 * below the minimum.
 	 */
-	if(d->ttl > (time_t)origttl) {
-		verbose(VERB_QUERY, "rrset TTL larger than original TTL,"
-			" adjusting TTL downwards");
+	if(MIN_TTL > (time_t)origttl && d->ttl > MIN_TTL) {
+		verbose(VERB_QUERY, "rrset TTL larger than original and minimum"
+			" TTL, adjusting TTL downwards to mimimum ttl");
+		d->ttl = MIN_TTL;
+	}
+	else if(MIN_TTL <= origttl && d->ttl > (time_t)origttl) {
+		verbose(VERB_QUERY, "rrset TTL larger than original TTL, "
+		"adjusting TTL downwards to original ttl");
 		d->ttl = origttl;
 	}
+
 	if(expittl > 0 && d->ttl > (time_t)expittl) {
 		verbose(VERB_ALGO, "rrset TTL larger than sig expiration ttl,"
 			" adjusting TTL downwards");
