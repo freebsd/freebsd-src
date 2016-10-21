@@ -247,6 +247,19 @@ boot</screen>
 	  so space can be reclaimed to increase the size of the
 	  freebsd-boot partition.</para>
       </listitem>
+
+      <listitem>
+	<para>[2016-10-21] Due to a bug in earlier versions of
+	  &man.clang.1; that are difficult to work around in the
+	  upgrade process, to upgrade the system from sources via
+	  buildworld to -CURRENT or &release;, it is necessary to
+	  upgrade machines running 9.x to at least revision r286035,
+	  or machines running 10.x to revision r286033.  Source-based
+	  upgrades from 10.3-RELEASE are not affected.  This differs
+	  from the historical situation where one could generally
+	  upgrade from anywhere on earlier stable branches, so caution
+	  should be exercised.</para>
+      </listitem>
     </itemizedlist>
   </sect1>
 
