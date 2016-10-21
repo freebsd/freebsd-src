@@ -269,6 +269,7 @@ struct hn_softc {
 #define HN_CAP_UDP6CS			0x0040
 #define HN_CAP_TSO4			0x0080
 #define HN_CAP_TSO6			0x0100
+#define HN_CAP_HASHVAL			0x0200
 
 /*
  * Externs
