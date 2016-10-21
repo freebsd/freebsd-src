@@ -27,10 +27,10 @@
 #include "opt_inet.h"
 #include "opt_inet6.h"
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/module.h>
 #include <sys/errno.h>
-#include <sys/param.h>  /* defines used in kernel.h */
+#include <sys/jail.h>
 #include <sys/poll.h>  /* POLLIN, POLLOUT */
 #include <sys/kernel.h> /* types used in module initialization */
 #include <sys/conf.h>	/* DEV_MODULE_ORDERED */
@@ -1407,7 +1407,7 @@ freebsd_netmap_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t data,
 	int error;
 	struct netmap_priv_d *priv;
 
-	CURVNET_SET(TD_TO_VNET(rd));
+	CURVNET_SET(TD_TO_VNET(td));
 	error = devfs_get_cdevpriv((void **)&priv);
 	if (error) {
 		/* XXX ENOENT should be impossible, since the priv
