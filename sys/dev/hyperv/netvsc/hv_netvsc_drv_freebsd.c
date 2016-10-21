@@ -2233,7 +2233,8 @@ hn_caps_sysctl(SYSCTL_HANDLER_ARGS)
 	    "\006UDP4CS"
 	    "\007UDP6CS"
 	    "\010TSO4"
-	    "\011TSO6");
+	    "\011TSO6"
+	    "\012HASHVAL");
 	return sysctl_handle_string(oidp, caps_str, sizeof(caps_str), req);
 }
 
@@ -3008,12 +3009,15 @@ hn_fixup_tx_data(struct hn_softc *sc)
 	if (sc->hn_caps & HN_CAP_UDP6CS)
 		csum_assist |= CSUM_IP6_UDP;
 #endif
-
 	for (i = 0; i < sc->hn_tx_ring_cnt; ++i)
 		sc->hn_tx_ring[i].hn_csum_assist = csum_assist;
 
-	if (sc->hn_ndis_ver >= HN_NDIS_VERSION_6_30) {
-		/* Support HASHVAL pktinfo on TX path. */
+	if (sc->hn_caps & HN_CAP_HASHVAL) {
+		/*
+		 * Support HASHVAL pktinfo on TX path.
+		 */
+		if (bootverbose)
+			if_printf(sc->hn_ifp, "support HASHVAL pktinfo\n");
 		for (i = 0; i < sc->hn_tx_ring_cnt; ++i)
 			sc->hn_tx_ring[i].hn_tx_flags |= HN_TX_FLAG_HASHVAL;
 	}
