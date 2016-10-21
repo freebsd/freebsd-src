@@ -250,7 +250,7 @@ boot</screen>
 
       <listitem>
 	<para>[2016-10-21] Due to a bug in earlier versions of
-	  &man.clang.1; that are difficult to work around in the
+	  &man.clang.1; that is difficult to work around in the
 	  upgrade process, to upgrade the system from sources via
 	  buildworld to -CURRENT or &release;, it is necessary to
 	  upgrade machines running 9.x to at least revision r286035,
