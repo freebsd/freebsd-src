@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+PACKAGE=			tests
+
 .include <bsd.own.mk>
 
 ATF_TESTS_C+=			queue_test
