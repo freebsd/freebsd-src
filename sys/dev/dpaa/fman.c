@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 
 #include <dev/fdt/fdt_common.h>
+#include <dev/fdt/simplebus.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
@@ -88,6 +89,8 @@ static struct fman_softc *fm_sc = NULL;
 static t_Handle
 fman_init(struct fman_softc *sc, struct fman_config *cfg)
 {
+	struct ofw_bus_devinfo obd;
+	phandle_t node;
 	t_FmParams fm_params;
 	t_Handle muram_handle, fm_handle;
 	t_Error error;
@@ -158,6 +161,16 @@ fman_init(struct fman_softc *sc, struct fman_config *cfg)
 	device_printf(cfg->fman_device, "Hardware version: %d.%d.\n",
 	    revision_info.majorRev, revision_info.minorRev);
 
+	/* Initialize the simplebus part of things */
+	simplebus_init(sc->sc_base.dev, 0);
+
+	node = ofw_bus_get_node(sc->sc_base.dev);
+	for (node = OF_child(node); node > 0; node = OF_peer(node)) {
+		if (ofw_bus_gen_setup_devinfo(&obd, node) != 0)
+			continue;
+		simplebus_add_device(sc->sc_base.dev, node, 0, NULL, -1, NULL);
+	}
+
 	return (fm_handle);
 
 err2:
@@ -173,7 +186,7 @@ fman_exception_callback(t_Handle app_handle, e_FmExceptions exception)
 	struct fman_softc *sc;
 
 	sc = app_handle;
-	device_printf(sc->dev, "FMan exception occurred.\n");
+	device_printf(sc->sc_base.dev, "FMan exception occurred.\n");
 }
 
 static void
@@ -183,7 +196,7 @@ fman_error_callback(t_Handle app_handle, e_FmPortType port_type,
 	struct fman_softc *sc;
 
 	sc = app_handle;
-	device_printf(sc->dev, "FMan error occurred.\n");
+	device_printf(sc->sc_base.dev, "FMan error occurred.\n");
 }
 /** @} */
 
@@ -230,13 +243,25 @@ fman_get_bushandle(vm_offset_t *fm_base)
 }
 
 int
+fman_get_dev(device_t *fm_dev)
+{
+
+	if (fm_sc == NULL)
+		return (ENOMEM);
+
+	*fm_dev = fm_sc->sc_base.dev;
+
+	return (0);
+}
+
+int
 fman_attach(device_t dev)
 {
 	struct fman_softc *sc;
 	struct fman_config cfg;
 
 	sc = device_get_softc(dev);
-	sc->dev = dev;
+	sc->sc_base.dev = dev;
 	fm_sc = sc;
 
 	/* Check if MallocSmart allocator is ready */
@@ -249,7 +274,7 @@ fman_attach(device_t dev)
 
 	sc->mem_rid = 0;
 	sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->mem_rid,
-	    RF_ACTIVE);
+	    RF_ACTIVE | RF_SHAREABLE);
 	if (!sc->mem_res) {
 		device_printf(dev, "could not allocate memory.\n");
 		return (ENXIO);
