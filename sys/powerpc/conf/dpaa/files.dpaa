@@ -87,6 +87,8 @@ dev/dpaa/qman_fdt.c				optional dpaa fdt	\
 	no-depend compile-with "${DPAA_COMPILE_CMD}"
 dev/dpaa/fman.c				optional dpaa fdt			\
 	no-depend compile-with "${DPAA_COMPILE_CMD}"
+dev/dpaa/fman_mdio.c			optional dpaa fdt			\
+	no-depend compile-with "${DPAA_COMPILE_CMD}"
 dev/dpaa/fman_fdt.c				optional dpaa fdt			\
 	no-depend compile-with "${DPAA_COMPILE_CMD}"
 dev/dpaa/if_dtsec.c				optional dpaa			\
