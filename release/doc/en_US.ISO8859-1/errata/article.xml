@@ -225,10 +225,10 @@ boot</screen>
 	  all boot drives in the pool will also be provided in the
 	  output.</para>
 
-	<para>This information is also documented is also documented
-	  in <filename>/usr/src/UPDATING</filename>, which is
-	  included if the <literal>src</literal> component is selected
-	  during installation.</para>
+	<para>This information is also documented in
+	  <filename>/usr/src/UPDATING</filename>, which is included if
+	  the <literal>src</literal> component is selected during
+	  installation.</para>
       </listitem>
 
       <listitem>
