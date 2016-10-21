@@ -37,63 +37,57 @@ __FBSDID("$FreeBSD$");
 #include "libc_private.h"
 
 #define	SLOT(a, b) \
-	[INTERPOS_##a] = (interpos_func_t)b
+	[INTERPOS_##a] = (interpos_func_t)b,
+#ifndef NO_SYSCALLS
 #define SLOT_SYS(s) \
-	[INTERPOS_##s] = (interpos_func_t)__sys_##s
+	[INTERPOS_##s] = (interpos_func_t)__sys_##s,
+#else
+#define SLOT_SYS(s)
+#endif
 #define SLOT_LIBC(s) \
-	[INTERPOS_##s] = (interpos_func_t)__libc_##s
+	[INTERPOS_##s] = (interpos_func_t)__libc_##s,
 interpos_func_t __libc_interposing[INTERPOS_MAX] = {
-#ifndef NO_SYSCALLS
-	SLOT_SYS(accept),
-	SLOT_SYS(accept4),
-	SLOT_SYS(aio_suspend),
-	SLOT_SYS(close),
-	SLOT_SYS(connect),
-	SLOT_SYS(fcntl),
-	SLOT_SYS(fsync),
-	SLOT_SYS(fork),
-	SLOT_SYS(msync),
-	SLOT_SYS(nanosleep),
-	SLOT_SYS(openat),
-	SLOT_SYS(poll),
-	SLOT_SYS(pselect),
-	SLOT_SYS(read),
-	SLOT_SYS(readv),
-	SLOT_SYS(recvfrom),
-	SLOT_SYS(recvmsg),
-	SLOT_SYS(select),
-	SLOT_SYS(sendmsg),
-	SLOT_SYS(sendto),
-	SLOT_SYS(setcontext),
-	SLOT_SYS(sigaction),
-	SLOT_SYS(sigprocmask),
-	SLOT_SYS(sigsuspend),
-#endif
-	SLOT_LIBC(sigwait),
-#ifndef NO_SYSCALLS
-	SLOT_SYS(sigtimedwait),
-	SLOT_SYS(sigwaitinfo),
-	SLOT_SYS(swapcontext),
-#endif
-	SLOT_LIBC(system),
-	SLOT_LIBC(tcdrain),
-#ifndef NO_SYSCALLS
-	SLOT_SYS(wait4),
-	SLOT_SYS(write),
-	SLOT_SYS(writev),
-#endif
-	SLOT(_pthread_mutex_init_calloc_cb, _pthread_mutex_init_calloc_cb_stub),
-	SLOT(spinlock, __libc_spinlock_stub),
-	SLOT(spinunlock, __libc_spinunlock_stub),
-#ifndef NO_SYSCALLS
-	SLOT_SYS(kevent),
-	SLOT_SYS(wait6),
-	SLOT_SYS(ppoll),
-#endif
-	SLOT_LIBC(map_stacks_exec),
-#ifndef NO_SYSCALLS
-	SLOT_SYS(fdatasync),
-#endif
+	SLOT_SYS(accept)
+	SLOT_SYS(accept4)
+	SLOT_SYS(aio_suspend)
+	SLOT_SYS(close)
+	SLOT_SYS(connect)
+	SLOT_SYS(fcntl)
+	SLOT_SYS(fsync)
+	SLOT_SYS(fork)
+	SLOT_SYS(msync)
+	SLOT_SYS(nanosleep)
+	SLOT_SYS(openat)
+	SLOT_SYS(poll)
+	SLOT_SYS(pselect)
+	SLOT_SYS(read)
+	SLOT_SYS(readv)
+	SLOT_SYS(recvfrom)
+	SLOT_SYS(recvmsg)
+	SLOT_SYS(select)
+	SLOT_SYS(sendmsg)
+	SLOT_SYS(sendto)
+	SLOT_SYS(setcontext)
+	SLOT_SYS(sigaction)
+	SLOT_SYS(sigprocmask)
+	SLOT_SYS(sigsuspend)
+	SLOT_LIBC(sigwait)
+	SLOT_SYS(sigtimedwait)
+	SLOT_SYS(sigwaitinfo)
+	SLOT_SYS(swapcontext)
+	SLOT_LIBC(system)
+	SLOT_LIBC(tcdrain)
+	SLOT_SYS(wait4)
+	SLOT_SYS(write)
+	SLOT_SYS(writev)
+	SLOT(_pthread_mutex_init_calloc_cb, _pthread_mutex_init_calloc_cb_stub)
+	SLOT(spinlock, __libc_spinlock_stub)
+	SLOT(spinunlock, __libc_spinunlock_stub)
+	SLOT_SYS(kevent)
+	SLOT_SYS(wait6)
+	SLOT_SYS(ppoll)
+	SLOT_LIBC(map_stacks_exec)
+	SLOT_SYS(fdatasync)
 };
 #undef SLOT
 #undef SLOT_SYS
