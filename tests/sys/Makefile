@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-TESTSDIR= ${TESTSBASE}/sys
+TESTSDIR=		${TESTSBASE}/sys
 
 TESTS_SUBDIRS+=		acl
 TESTS_SUBDIRS+=		aio
