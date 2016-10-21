@@ -122,7 +122,7 @@ void		hn_rndis_detach(struct hn_softc *sc);
 int		hn_rndis_conf_rss(struct hn_softc *sc, uint16_t flags);
 void		*hn_rndis_pktinfo_append(struct rndis_packet_msg *,
 		    size_t pktsize, size_t pi_dlen, uint32_t pi_type);
-int		hn_rndis_get_rsscaps(struct hn_softc *sc, int *rxr_cnt);
+int		hn_rndis_query_rsscaps(struct hn_softc *sc, int *rxr_cnt);
 int		hn_rndis_get_eaddr(struct hn_softc *sc, uint8_t *eaddr);
 int		hn_rndis_get_linkstatus(struct hn_softc *sc,
 		    uint32_t *link_status);

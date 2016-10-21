@@ -3473,10 +3473,10 @@ hn_synth_alloc_subchans(struct hn_softc *sc, int *nsubch)
 	}
 
 	/*
-	 * Get RSS capabilities, e.g. # of RX rings, and # of indirect
+	 * Query RSS capabilities, e.g. # of RX rings, and # of indirect
 	 * table entries.
 	 */
-	error = hn_rndis_get_rsscaps(sc, &rxr_cnt);
+	error = hn_rndis_query_rsscaps(sc, &rxr_cnt);
 	if (error) {
 		/* No RSS; this is benign. */
 		*nsubch = 0;
