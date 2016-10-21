@@ -30,7 +30,8 @@ CFLAGS+=	-DTARGET_ARM_EABI
 CFLAGS+=	-DIN_GCC -DIN_LIBGCC2 -D__GCC_FLOAT_NOT_NEEDED \
 		-DHAVE_GTHR_DEFAULT \
 		-I${GCCLIB}/include \
-		-I${GCCDIR}/config -I${GCCDIR} -I.
+		-I${GCCDIR}/config -I${GCCDIR} -I. \
+		-I${CCDIR}/cc_tools
 
 LDFLAGS+=	-nodefaultlibs
 LIBADD+=	c
@@ -100,12 +101,6 @@ CFLAGS+=	-I${SRCTOP}/contrib/libc++/include
 .endif
 
 .else # MK_LLVM_LIBUNWIND
-
-#
-# Prevent the potential unwind.h from gcc (generated)
-# to be in the include path before the one from llvm unwind
-#
-CFLAGS+=	-I${CCDIR}/cc_tools
 
 .if ${TARGET_CPUARCH} == "arm"
 LIB2ADDEH =	unwind-arm.c libunwind-arm.S pr-support.c unwind-c.c
