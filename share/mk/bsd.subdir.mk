@@ -110,7 +110,7 @@ install:	beforeinstall realinstall afterinstall
 # SUBDIR recursing may be disabled for MK_DIRDEPS_BUILD
 .if !target(_SUBDIR)
 
-.if defined(SUBDIR)
+.if defined(SUBDIR) || defined(SUBDIR.yes)
 SUBDIR:=${SUBDIR} ${SUBDIR.yes}
 SUBDIR:=${SUBDIR:u}
 .endif
