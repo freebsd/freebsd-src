@@ -490,7 +490,7 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 			break;
 		case ICMP6_DST_UNREACH_ADMIN:
 			icmp6_ifstat_inc(ifp, ifs6_in_adminprohib);
-			code = PRC_UNREACH_PROTOCOL; /* is this a good code? */
+			code = PRC_UNREACH_ADMIN_PROHIB;
 			break;
 		case ICMP6_DST_UNREACH_BEYONDSCOPE:
 			/* I mean "source address was incorrect." */
