@@ -204,20 +204,29 @@ daemon_init(void)
 	signal_handling_record();
 	checklock_start();
 #ifdef HAVE_SSL
+#  ifdef HAVE_ERR_LOAD_CRYPTO_STRINGS
 	ERR_load_crypto_strings();
-	ERR_load_SSL_strings();
-#  ifdef HAVE_OPENSSL_CONFIG
-	OPENSSL_config("unbound");
 #  endif
+	ERR_load_SSL_strings();
 #  ifdef USE_GOST
 	(void)sldns_key_EVP_load_gost_id();
 #  endif
+#  if OPENSSL_VERSION_NUMBER < 0x10100000 || !defined(HAVE_OPENSSL_INIT_CRYPTO)
 	OpenSSL_add_all_algorithms();
+#  else
+	OPENSSL_init_crypto(OPENSSL_INIT_ADD_ALL_CIPHERS
+		| OPENSSL_INIT_ADD_ALL_DIGESTS
+		| OPENSSL_INIT_LOAD_CRYPTO_STRINGS, NULL);
+#  endif
 #  if HAVE_DECL_SSL_COMP_GET_COMPRESSION_METHODS
 	/* grab the COMP method ptr because openssl leaks it */
 	comp_meth = (void*)SSL_COMP_get_compression_methods();
 #  endif
+#  if OPENSSL_VERSION_NUMBER < 0x10100000 || !defined(HAVE_OPENSSL_INIT_SSL)
 	(void)SSL_library_init();
+#  else
+	(void)OPENSSL_init_ssl(0, NULL);
+#  endif
 #  if defined(HAVE_SSL) && defined(OPENSSL_THREADS) && !defined(THREADS_DISABLED)
 	if(!ub_openssl_lock_init())
 		fatal_exit("could not init openssl locks");
@@ -407,6 +416,8 @@ daemon_create_workers(struct daemon* daemon)
 	}
 	daemon->workers = (struct worker**)calloc((size_t)daemon->num, 
 		sizeof(struct worker*));
+	if(!daemon->workers)
+		fatal_exit("out of memory during daemon init");
 	if(daemon->cfg->dnstap) {
 #ifdef USE_DNSTAP
 		daemon->dtenv = dt_create(daemon->cfg->dnstap_socket_path,
@@ -589,13 +600,12 @@ daemon_cleanup(struct daemon* daemon)
 	log_thread_set(NULL);
 	/* clean up caches because
 	 * a) RRset IDs will be recycled after a reload, causing collisions
-	 * b) validation config can change, thus rrset, msg, keycache clear 
-	 * The infra cache is kept, the timing and edns info is still valid */
+	 * b) validation config can change, thus rrset, msg, keycache clear */
 	slabhash_clear(&daemon->env->rrset_cache->table);
 	slabhash_clear(daemon->env->msg_cache);
 	local_zones_delete(daemon->local_zones);
 	daemon->local_zones = NULL;
-	/* key cache is cleared by module desetup during next daemon_init() */
+	/* key cache is cleared by module desetup during next daemon_fork() */
 	daemon_remote_clear(daemon->rc);
 	for(i=0; i<daemon->num; i++)
 		worker_delete(daemon->workers[i]);
@@ -647,18 +657,27 @@ daemon_delete(struct daemon* daemon)
 #  endif
 #  if HAVE_DECL_SSL_COMP_GET_COMPRESSION_METHODS && HAVE_DECL_SK_SSL_COMP_POP_FREE
 #    ifndef S_SPLINT_S
+#      if OPENSSL_VERSION_NUMBER < 0x10100000
 	sk_SSL_COMP_pop_free(comp_meth, (void(*)())CRYPTO_free);
+#      endif
 #    endif
 #  endif
 #  ifdef HAVE_OPENSSL_CONFIG
 	EVP_cleanup();
+#  if OPENSSL_VERSION_NUMBER < 0x10100000
 	ENGINE_cleanup();
+#  endif
 	CONF_modules_free();
 #  endif
+#  ifdef HAVE_CRYPTO_CLEANUP_ALL_EX_DATA
 	CRYPTO_cleanup_all_ex_data(); /* safe, no more threads right now */
-	ERR_remove_state(0);
+#  endif
+#  ifdef HAVE_ERR_FREE_STRINGS
 	ERR_free_strings();
+#  endif
+#  if OPENSSL_VERSION_NUMBER < 0x10100000
 	RAND_cleanup();
+#  endif
 #  if defined(HAVE_SSL) && defined(OPENSSL_THREADS) && !defined(THREADS_DISABLED)
 	ub_openssl_lock_delete();
 #  endif
