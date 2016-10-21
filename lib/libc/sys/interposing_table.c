@@ -36,11 +36,344 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include "libc_private.h"
 
+#ifdef __CHERI_PURE_CAPABILITY__
+#include <sys/wait.h>
+/*
+ * __wrap_<sys> functions to work around CTSRD-CHERI/llvm#182
+ */
+int __wrap_accept(int s, struct sockaddr * restrict addr,
+    __socklen_t * restrict addrlen);
+int __wrap_accept4(int s, struct sockaddr * restrict addr,
+    __socklen_t * restrict addrlen, int flags);
+int __wrap_aio_suspend(const struct aiocb *const iocbs[], int niocb,
+     const struct timespec *timeout);
+int __wrap_close(int fd);
+int __wrap_connect(int s, const struct sockaddr *name, __socklen_t namelen);
+int __wrap_fcntl(int fd, int cmd, intptr_t arg);
+int __wrap_fdatasync(int fd);
+int __wrap_fork(void);
+int __wrap_fsync(int fd);
+int __wrap_kevent(int fd, struct kevent *changelist, int nchanges,
+    struct kevent *eventlist, int nevents, const struct timespec *timeout);
+int __wrap_msync(void *addr, size_t len, int flags);
+int __wrap_nanosleep(const struct timespec *rqtp, struct timespec *rmtp);
+int __wrap_openat(int fd, const char *path, int flags, mode_t mode);
+int __wrap_poll(struct pollfd *fds, u_int nfds, int timeout);
+int __wrap_ppoll(struct pollfd *fds, u_int nfds, const struct timespec *ts,
+    const sigset_t *set);
+int __wrap_pselect(int nd, fd_set *in, fd_set *ou, fd_set *ex,
+    const struct timespec *ts, const sigset_t *sm);
+int __wrap_read(int fd, void *buf, size_t nbyte);
+int __wrap_readv(int fd, struct iovec *iovp, u_int iovcnt);
+int __wrap_recvfrom(int s, void *buf, size_t len, int flags, struct sockaddr *from,
+    int *fromlenaddr);
+int __wrap_recvmsg(int s, struct msghdr *msg, int flags);
+int __wrap_select(int nd, fd_set *in, fd_set *ou, fd_set *ex, struct timeval *tv);
+int __wrap_sendmsg(int s, struct msghdr *msg, int flags);
+int __wrap_sendto(int s, void *buf, size_t len, int flags,
+    const struct sockaddr *to, int tolen);
+int __wrap_setcontext(const struct __ucontext *ucp);
+int __wrap_sigaction(int sig, const struct sigaction *act, struct sigaction *oact);
+int __wrap_sigprocmask(int how, const sigset_t *set, sigset_t *oset);
+int __wrap_sigsuspend(const sigset_t *sigmask);
+int __wrap_sigtimedwait(const sigset_t *set, struct __siginfo *info,
+    const struct timespec *timeout);
+int __wrap_sigwaitinfo(const sigset_t *set, struct __siginfo *info);
+int __wrap_swapcontext(struct __ucontext *oucp, const struct __ucontext *ucp);
+int __wrap_wait4(int pid, int *status, int options, struct rusage *rusage);
+int __wrap_wait6(enum idtype idtype, id_t id, int *status, int options,
+    struct __wrusage *wrusage, struct __siginfo *info);
+int __wrap_write(int fd, const void *buf, size_t nbyte);
+int __wrap_writev(int fd, struct iovec *iovp, u_int iovcnt);
+
+int
+__wrap_accept(int s, struct sockaddr * restrict addr,
+    __socklen_t * restrict addrlen)
+{
+
+	return (__sys_accept(s, addr, addrlen));
+}
+
+int
+__wrap_accept4(int s, struct sockaddr * restrict addr,
+    __socklen_t * restrict addrlen, int flags)
+{
+
+	return (__sys_accept4(s, addr, addrlen, flags));
+}
+
+int
+__wrap_aio_suspend(const struct aiocb *const iocbs[], int niocb,
+    const struct timespec *timeout)
+{
+
+	return (__sys_aio_suspend(iocbs, niocb, timeout));
+}
+
+int
+__wrap_close(int fd)
+{
+
+	return (__sys_close(fd));
+}
+
+int
+__wrap_connect(int s, const struct sockaddr *name, __socklen_t namelen)
+{
+
+	return(__sys_connect(s, name, namelen));
+}
+
+
+int
+__wrap_fcntl(int fd, int cmd, intptr_t arg)
+{
+
+	return(__sys_fcntl(fd, cmd, arg));
+}
+
+
+int
+__wrap_fdatasync(int fd)
+{
+
+	return(__sys_fdatasync(fd));
+}
+
+
+int
+__wrap_fork(void)
+{
+
+	return(__sys_fork());
+}
+
+
+int
+__wrap_fsync(int fd)
+{
+
+	return(__sys_fsync(fd));
+}
+
+
+int
+__wrap_kevent(int fd, struct kevent *changelist, int nchanges,
+    struct kevent *eventlist, int nevents, const struct timespec *timeout)
+{
+
+	return(__sys_kevent(fd, changelist, nchanges, eventlist, nevents,
+	    timeout));
+}
+
+
+int
+__wrap_msync(void *addr, size_t len, int flags)
+{
+
+	return(__sys_msync(addr, len, flags));
+}
+
+
+int
+__wrap_nanosleep(const struct timespec *rqtp, struct timespec *rmtp)
+{
+
+	return(__sys_nanosleep(rqtp, rmtp));
+}
+
+
+int
+__wrap_openat(int
+fd, const char *path, int flags, mode_t mode)
+{
+
+	return (__sys_openat(fd, path, flags, mode));
+}
+int
+__wrap_poll(struct pollfd *fds, u_int nfds, int timeout)
+{
+
+	return(__sys_poll(fds, nfds, timeout));
+}
+
+
+int
+__wrap_ppoll(struct pollfd *fds, u_int nfds, const struct timespec *ts,
+    const sigset_t *set)
+{
+
+	return(__sys_ppoll(fds, nfds, ts, set));
+}
+
+
+int
+__wrap_pselect(int nd, fd_set *in, fd_set *ou, fd_set *ex,
+    const struct timespec *ts, const sigset_t *sm)
+{
+
+	return(__sys_pselect(nd, in, ou, ex, ts, sm));
+}
+
+
+int
+__wrap_read(int fd, void *buf, size_t nbyte)
+{
+
+	return(__sys_read(fd, buf, nbyte));
+}
+
+
+int
+__wrap_readv(int fd, struct iovec *iovp, u_int iovcnt)
+{
+
+	return(__sys_readv(fd, iovp, iovcnt));
+}
+
+
+int
+__wrap_recvfrom(int s, void *buf, size_t len, int flags, struct sockaddr *from,
+    int *fromlenaddr)
+{
+
+	return(__sys_recvfrom(s, buf, len, flags, from, fromlenaddr));
+}
+
+
+int
+__wrap_recvmsg(int s, struct msghdr *msg, int flags)
+{
+
+	return(__sys_recvmsg(s, msg, flags));
+}
+
+
+int
+__wrap_select(int nd, fd_set *in, fd_set *ou, fd_set *ex, struct timeval *tv)
+{
+
+	return(__sys_select(nd, in, ou, ex, tv));
+}
+
+
+int
+__wrap_sendmsg(int s, struct msghdr *msg, int flags)
+{
+
+	return(__sys_sendmsg(s, msg, flags));
+}
+
+
+int
+__wrap_sendto(int s, void *buf, size_t len, int flags,
+    const struct sockaddr *to, int tolen)
+{
+
+	return(__sys_sendto(s, buf, len, flags, to, tolen));
+}
+
+
+int
+__wrap_setcontext(const struct __ucontext *ucp)
+{
+
+	return(__sys_setcontext(ucp));
+}
+
+
+int
+__wrap_sigaction(int sig, const struct sigaction *act, struct sigaction *oact)
+{
+
+	return(__sys_sigaction(sig, act, oact));
+}
+
+
+int
+__wrap_sigprocmask(int how, const sigset_t *set, sigset_t *oset)
+{
+
+	return(__sys_sigprocmask(how, set, oset));
+}
+
+
+int
+__wrap_sigsuspend(const sigset_t *sigmask)
+{
+
+	return(__sys_sigsuspend(sigmask));
+}
+
+
+int
+__wrap_sigtimedwait(const sigset_t *set, struct __siginfo *info,
+    const struct timespec *timeout)
+{
+
+	return(__sys_sigtimedwait(set, info, timeout));
+}
+
+
+int
+__wrap_sigwaitinfo(const sigset_t *set, struct __siginfo *info)
+{
+
+	return(__sys_sigwaitinfo(set, info));
+}
+
+
+int
+__wrap_swapcontext(struct __ucontext *oucp, const struct __ucontext *ucp)
+{
+
+	return(__sys_swapcontext(oucp, ucp));
+}
+
+
+int
+__wrap_wait4(int pid, int *status, int options, struct rusage *rusage)
+{
+
+	return(__sys_wait4(pid, status, options, rusage));
+}
+
+
+int
+__wrap_wait6(enum idtype idtype, id_t id, int *status, int options,
+    struct __wrusage *wrusage, struct __siginfo *info)
+{
+
+	return(__sys_wait6(idtype, id, status, options, wrusage, info));
+}
+
+
+int
+__wrap_write(int fd, const void *buf, size_t nbyte)
+{
+
+	return(__sys_write(fd, buf, nbyte));
+}
+
+
+int
+__wrap_writev(int fd, struct iovec *iovp, u_int iovcnt)
+{
+
+	return(__sys_writev(fd, iovp, iovcnt));
+}
+#endif
+
 #define	SLOT(a, b) \
 	[INTERPOS_##a] = (interpos_func_t)b,
 #ifndef NO_SYSCALLS
+#ifndef __CHERI_PURE_CAPABILITY__
 #define SLOT_SYS(s) \
 	[INTERPOS_##s] = (interpos_func_t)__sys_##s,
+#else
+#define SLOT_SYS(s) \
+	[INTERPOS_##s] = (interpos_func_t)__wrap_##s,
+#endif
 #else
 #define SLOT_SYS(s)
 #endif
