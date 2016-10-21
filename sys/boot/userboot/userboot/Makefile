@@ -49,8 +49,9 @@ BOOT_FORTH=	yes
 CFLAGS+=        -DBOOT_FORTH -I${.CURDIR}/../../ficl -I${.CURDIR}/../../ficl/i386
 CFLAGS+=	-DBF_DICTSIZE=15000
 LIBFICL=	${.OBJDIR}/../ficl/libficl.a
-LIBSTAND=	${.OBJDIR}/../libstand/libstand.a
 .endif
+
+LIBSTAND=	${.OBJDIR}/../libstand/libstand.a
 
 .if ${MK_ZFS} != "no"
 CFLAGS+=	-DUSERBOOT_ZFS_SUPPORT
