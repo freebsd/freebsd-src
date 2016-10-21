@@ -1,6 +1,6 @@
 /*-
  * Copyright (C) 2002-2003 NetGroup, Politecnico di Torino (Italy)
- * Copyright (C) 2005-2009 Jung-uk Kim <jkim@FreeBSD.org>
+ * Copyright (C) 2005-2016 Jung-uk Kim <jkim@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -494,6 +494,7 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size)
 				break;
 
 			case BPF_ALU|BPF_DIV|BPF_X:
+			case BPF_ALU|BPF_MOD|BPF_X:
 				TESTrd(EDX, EDX);
 				if (fmem) {
 					JNEb(4);
@@ -507,6 +508,8 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size)
 				MOVrd(EDX, ECX);
 				ZEROrd(EDX);
 				DIVrd(ECX);
+				if (BPF_OP(ins->code) == BPF_MOD)
+					MOVrd(EDX, EAX);
 				MOVrd(ECX, EDX);
 				break;
 
@@ -516,6 +519,10 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size)
 
 			case BPF_ALU|BPF_OR|BPF_X:
 				ORrd(EDX, EAX);
+				break;
+
+			case BPF_ALU|BPF_XOR|BPF_X:
+				XORrd(EDX, EAX);
 				break;
 
 			case BPF_ALU|BPF_LSH|BPF_X:
@@ -544,10 +551,13 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size)
 				break;
 
 			case BPF_ALU|BPF_DIV|BPF_K:
+			case BPF_ALU|BPF_MOD|BPF_K:
 				MOVrd(EDX, ECX);
 				ZEROrd(EDX);
 				MOVid(ins->k, ESI);
 				DIVrd(ESI);
+				if (BPF_OP(ins->code) == BPF_MOD)
+					MOVrd(EDX, EAX);
 				MOVrd(ECX, EDX);
 				break;
 
@@ -557,6 +567,10 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size)
 
 			case BPF_ALU|BPF_OR|BPF_K:
 				ORid(ins->k, EAX);
+				break;
+
+			case BPF_ALU|BPF_XOR|BPF_K:
+				XORid(ins->k, EAX);
 				break;
 
 			case BPF_ALU|BPF_LSH|BPF_K:
