@@ -97,8 +97,8 @@
       <listitem>
 	<para>An issue was discovered with Amazon&reg; EC2&trade;
 	  images which would cause the virtual machine to hang during
-	  boot when upgrading from previous FreeBSD versions. New
-	  EC2&trade; installations are not affected, but exisiting
+	  boot when upgrading from previous FreeBSD versions.  New
+	  EC2&trade; installations are not affected, but existing
 	  installations running earlier releases are advised to wait
 	  until the issue is resolved in an Errata Notice before
 	  upgrading.  An Errata Notice to address this is planned
