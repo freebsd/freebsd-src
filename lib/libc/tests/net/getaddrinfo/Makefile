@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-PACKAGE=	tests
-
 TESTSRC=	${SRCTOP}/contrib/netbsd-tests/lib/libc/net/${.CURDIR:T}
 
 .include <bsd.own.mk>
