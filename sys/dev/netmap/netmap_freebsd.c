@@ -1049,8 +1049,8 @@ nm_os_kthread_send_irq(struct nm_kthread *nmk)
 	if (ctx->user_td && ctx->irq_fd > 0) {
 		err = kern_ioctl(ctx->user_td, ctx->irq_fd, ctx->irq_ioctl.com, (caddr_t)&ctx->irq_ioctl.data.msix);
 		if (err) {
-			D("kern_ioctl error: %d ioctl parameters: fd %d com %lu data %p",
-				err, ctx->irq_fd, ctx->irq_ioctl.com, &ctx->irq_ioctl.data);
+			D("kern_ioctl error: %d ioctl parameters: fd %d com %ju data %p",
+				err, ctx->irq_fd, (uintmax_t)ctx->irq_ioctl.com, &ctx->irq_ioctl.data);
 		}
 	}
 }
