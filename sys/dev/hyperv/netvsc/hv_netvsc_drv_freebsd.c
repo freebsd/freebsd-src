@@ -3408,10 +3408,9 @@ hn_synth_alloc_subchans(struct hn_softc *sc, int *nsubch)
 	int nchan, rxr_cnt, error;
 
 	nchan = *nsubch + 1;
-	if (sc->hn_ndis_ver < HN_NDIS_VERSION_6_30 || nchan == 1) {
+	if (nchan == 1) {
 		/*
-		 * Either RSS is not supported, or multiple RX/TX rings
-		 * are not requested.
+		 * Multiple RX/TX rings are not requested.
 		 */
 		*nsubch = 0;
 		return (0);
