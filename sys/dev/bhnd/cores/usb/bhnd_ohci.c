@@ -163,15 +163,9 @@ static int
 bhnd_ohci_detach(device_t self)
 {
 	ohci_softc_t	*sc;
-	device_t	 bdev;
 
 	sc = device_get_softc(self);
 
-	if (sc->sc_bus.bdev) {
-		bdev = sc->sc_bus.bdev;
-		device_detach(bdev);
-		device_delete_child(self, bdev);
-	}
 	/* during module unload there are lots of children leftover */
 	device_delete_children(self);
 

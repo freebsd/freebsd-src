@@ -94,6 +94,9 @@ options 	SOC_HISI_HI6220
 # Annapurna Alpine drivers
 device		al_ccu			# Alpine Cache Coherency Unit
 device		al_nb_service		# Alpine North Bridge Service
+device		al_iofic		# I/O Fabric Interrupt Controller
+device		al_serdes		# Serializer/Deserializer
+device		al_udma			# Universal DMA
 
 # VirtIO support
 device		virtio
@@ -119,6 +122,7 @@ device		igb		# Intel PRO/1000 PCIE Server Gigabit Family
 device		ix		# Intel 10Gb Ethernet Family
 device		msk		# Marvell/SysKonnect Yukon II Gigabit Ethernet
 device		vnic		# Cavium ThunderX NIC
+device		al_eth		# Annapurna Alpine Ethernet NIC
 
 # Block devices
 device		ahci
@@ -129,6 +133,7 @@ device		da
 device		pass		# Passthrough device (direct ATA/SCSI access)
 
 # MMC/SD/SDIO Card slot support
+device		sdhci
 device		aw_mmc			# Allwinner SD/MMC controller
 device		mmc			# mmc/sd bus
 device		mmcsd			# mmc/sd flash cards
@@ -152,13 +157,19 @@ device		usb			# USB Bus (required)
 device		ukbd			# Keyboard
 device		umass			# Disks/Mass storage - Requires scbus and da
 
+# USB ethernet support
+device		smcphy
+device		smsc
+
 # GPIO
 device		aw_gpio		# Allwinner GPIO controller
 device		gpio
+device		gpioled
 device		fdt_pinctrl
 
 # I2C
 device		aw_rsb		# Allwinner Reduced Serial Bus
+device		bcm2835_bsc	# Broadcom BCM283x I2C bus
 device		iicbus
 
 # Clock and reset controllers
@@ -181,6 +192,14 @@ device		aw_sid		# Allwinner Secure ID EFUSE
 
 # Thermal sensors
 device		aw_thermal	# Allwinner Thermal Sensor Controller
+
+# SPI
+device		spibus
+device		bcm2835_spi	# Broadcom BCM283x SPI bus
+
+# Console
+device		vt
+device		kbdmux
 
 # Pseudo devices.
 device		loop		# Network loopback

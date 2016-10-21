@@ -920,6 +920,16 @@ findpcb:
 		goto dropwithreset;
 	}
 	INP_WLOCK_ASSERT(inp);
+	/*
+	 * While waiting for inp lock during the lookup, another thread
+	 * can have dropped the inpcb, in which case we need to loop back
+	 * and try to find a new inpcb to deliver to.
+	 */
+	if (inp->inp_flags & INP_DROPPED) {
+		INP_WUNLOCK(inp);
+		inp = NULL;
+		goto findpcb;
+	}
 	if ((inp->inp_flowtype == M_HASHTYPE_NONE) &&
 	    (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE) &&
 	    ((inp->inp_socket == NULL) ||
@@ -980,6 +990,10 @@ relocked:
 				if (in_pcbrele_wlocked(inp)) {
 					inp = NULL;
 					goto findpcb;
+				} else if (inp->inp_flags & INP_DROPPED) {
+					INP_WUNLOCK(inp);
+					inp = NULL;
+					goto findpcb;
 				}
 			} else
 				ti_locked = TI_RLOCKED;
@@ -1037,6 +1051,10 @@ relocked:
 				ti_locked = TI_RLOCKED;
 				INP_WLOCK(inp);
 				if (in_pcbrele_wlocked(inp)) {
+					inp = NULL;
+					goto findpcb;
+				} else if (inp->inp_flags & INP_DROPPED) {
+					INP_WUNLOCK(inp);
 					inp = NULL;
 					goto findpcb;
 				}
@@ -3758,7 +3776,15 @@ tcp_mss(struct tcpcb *tp, int offer)
 			(void)sbreserve_locked(&so->so_snd, bufsize, so, NULL);
 	}
 	SOCKBUF_UNLOCK(&so->so_snd);
-	tp->t_maxseg = mss;
+	/*
+	 * Sanity check: make sure that maxseg will be large
+	 * enough to allow some data on segments even if the
+	 * all the option space is used (40bytes).  Otherwise
+	 * funny things may happen in tcp_output.
+	 *
+	 * XXXGL: shouldn't we reserve space for IP/IPv6 options?
+	 */
+	tp->t_maxseg = max(mss, 64);
 
 	SOCKBUF_LOCK(&so->so_rcv);
 	if ((so->so_rcv.sb_hiwat == V_tcp_recvspace) && metrics.rmx_recvpipe)

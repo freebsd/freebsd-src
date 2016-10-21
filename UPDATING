@@ -31,6 +31,30 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+
+****************************** SPECIAL WARNING: ******************************
+
+	Due to a bug in some versions of clang that's very hard to workaround in
+	the upgrade process, to upgrade to -current you must first upgrade
+	either stable/9 after r286035 or stable/10 after r286033 (including
+	10.3-RELEASE) or current after r286007 (including stable/11 and
+	11.0-RELEASE). These revisions post-date the 10.2 and 9.3 releases, so
+	you'll need to take the unusual step of upgrading to the tip of the
+	stable branch before moving to 11 or -current via a source upgrade.
+	stable/11 and 11.0-RELEASE post-date the fix so you can move from them
+	to -current. This differs from the historical situation where one could
+	upgrade from anywhere on the last couple of stable branches, so be
+	careful.
+
+****************************** SPECIAL WARNING: ******************************
+
+20161017:
+	The urtwn(4) driver was merged into rtwn(4) and now consists of
+	rtwn(4) main module + rtwn_usb(4) and rtwn_pci(4) bus-specific
+	parts.
+	Also, firmware for RTL8188CE was renamed due to possible name
+	conflict (rtwnrtl8192cU(B) -> rtwnrtl8192cE(B))
+
 20161015:
 	GNU rcs has been removed from base.  It is available as packages:
 	- rcs: Latest GPLv3 GNU rcs version.
@@ -1460,11 +1484,15 @@ COMMON ITEMS:
 	your build attempts in an "environmental clean room", prefix all make
 	commands with 'env -i '.  See the env(1) manual page for more details.
 
-	When upgrading from one major version to another it is generally best
-	to upgrade to the latest code in the currently installed branch first,
-	then do an upgrade to the new branch. This is the best-tested upgrade
-	path, and has the highest probability of being successful.  Please try
-	this approach before reporting problems with a major version upgrade.
+	When upgrading from one major version to another it is generally best to
+	upgrade to the latest code in the currently installed branch first, then
+	do an upgrade to the new branch. This is the best-tested upgrade path,
+	and has the highest probability of being successful.  Please try this
+	approach if you encounter problems with a major version upgrade.  Since
+	the stable 4.x branch point, one has generally been able to upgade from
+	anywhere in the most recent stable branch to head / current (or even the
+	last couple of stable branches). See the top of this file when there's
+	an exception.
 
 	When upgrading a live system, having a root shell around before
 	installing anything can help undo problems. Not having a root shell

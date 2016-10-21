@@ -3139,6 +3139,8 @@ rescan_or_reset_bus(path_id_t bus, int rescan)
 		return(1);
 	}
 
+	bzero(&ccb, sizeof(ccb));
+
 	if (bus != CAM_BUS_WILDCARD) {
 		ccb.ccb_h.func_code = rescan ? XPT_SCAN_BUS : XPT_RESET_BUS;
 		ccb.ccb_h.path_id = bus;
@@ -3181,7 +3183,7 @@ rescan_or_reset_bus(path_id_t bus, int rescan)
 	 * no-op, sending a rescan to the xpt bus would result in a status of
 	 * CAM_REQ_INVALID.
 	 */
-	CCB_CLEAR_ALL_EXCEPT_HDR(&matchccb.cdm);
+	bzero(&matchccb, sizeof(matchccb));
 	matchccb.ccb_h.func_code = XPT_DEV_MATCH;
 	matchccb.ccb_h.path_id = CAM_BUS_WILDCARD;
 	bufsize = sizeof(struct dev_match_result) * 20;

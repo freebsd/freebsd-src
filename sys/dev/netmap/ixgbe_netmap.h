@@ -53,7 +53,7 @@ void ixgbe_netmap_attach(struct adapter *adapter);
 /*
  * device-specific sysctl variables:
  *
- * ix_crcstrip: 0: keep CRC in rx frames (default), 1: strip it.
+ * ix_crcstrip: 0: NIC keeps CRC in rx frames (default), 1: NIC strips it.
  *	During regular operations the CRC is stripped, but on some
  *	hardware reception of frames not multiple of 64 is slower,
  *	so using crcstrip=0 helps in benchmarks.
@@ -65,7 +65,7 @@ SYSCTL_DECL(_dev_netmap);
 static int ix_rx_miss, ix_rx_miss_bufs;
 int ix_crcstrip;
 SYSCTL_INT(_dev_netmap, OID_AUTO, ix_crcstrip,
-    CTLFLAG_RW, &ix_crcstrip, 0, "strip CRC on rx frames");
+    CTLFLAG_RW, &ix_crcstrip, 0, "NIC strips CRC on rx frames");
 SYSCTL_INT(_dev_netmap, OID_AUTO, ix_rx_miss,
     CTLFLAG_RW, &ix_rx_miss, 0, "potentially missed rx intr");
 SYSCTL_INT(_dev_netmap, OID_AUTO, ix_rx_miss_bufs,
@@ -109,6 +109,20 @@ set_crcstrip(struct ixgbe_hw *hw, int onoff)
 	IXGBE_WRITE_REG(hw, IXGBE_RDRXCTL, rxc);
 }
 
+static void
+ixgbe_netmap_intr(struct netmap_adapter *na, int onoff)
+{
+	struct ifnet *ifp = na->ifp;
+	struct adapter *adapter = ifp->if_softc;
+
+	IXGBE_CORE_LOCK(adapter);
+	if (onoff) {
+		ixgbe_enable_intr(adapter); // XXX maybe ixgbe_stop ?
+	} else {
+		ixgbe_disable_intr(adapter); // XXX maybe ixgbe_stop ?
+	}
+	IXGBE_CORE_UNLOCK(adapter);
+}
 
 /*
  * Register/unregister. We are already under netmap lock.
@@ -311,7 +325,7 @@ ixgbe_netmap_txsync(struct netmap_kring *kring, int flags)
 		 * good way.
 		 */
 		nic_i = IXGBE_READ_REG(&adapter->hw, IXGBE_IS_VF(adapter) ?
-				       IXGBE_VFTDH(kring->ring_id) : IXGBE_TDH(kring->ring_id));
+				IXGBE_VFTDH(kring->ring_id) : IXGBE_TDH(kring->ring_id));
 		if (nic_i >= kring->nkr_num_slots) { /* XXX can it happen ? */
 			D("TDH wrap %d", nic_i);
 			nic_i -= kring->nkr_num_slots;
@@ -486,6 +500,7 @@ ixgbe_netmap_attach(struct adapter *adapter)
 	na.nm_rxsync = ixgbe_netmap_rxsync;
 	na.nm_register = ixgbe_netmap_reg;
 	na.num_tx_rings = na.num_rx_rings = adapter->num_queues;
+	na.nm_intr = ixgbe_netmap_intr;
 	netmap_attach(&na);
 }
 

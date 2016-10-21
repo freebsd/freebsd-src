@@ -335,6 +335,8 @@ static void hn_destroy_tx_data(struct hn_softc *);
 static void hn_start_taskfunc(void *, int);
 static void hn_start_txeof_taskfunc(void *, int);
 static void hn_link_taskfunc(void *, int);
+static void hn_netchg_init_taskfunc(void *, int);
+static void hn_netchg_status_taskfunc(void *, int);
 static void hn_suspend_mgmt_taskfunc(void *, int);
 static int hn_encap(struct hn_tx_ring *, struct hn_txdesc *, struct mbuf **);
 static int hn_create_rx_data(struct hn_softc *sc, int);
@@ -360,6 +362,7 @@ static void hn_rx_drain(struct vmbus_channel *);
 static void hn_tx_resume(struct hn_softc *, int);
 static void hn_tx_ring_qflush(struct hn_tx_ring *);
 static int netvsc_detach(device_t dev);
+static void hn_link_status(struct hn_softc *);
 
 static void hn_nvs_handle_notify(struct hn_softc *sc,
 		const struct vmbus_chanpkt_hdr *pkt);
@@ -482,7 +485,7 @@ hn_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 	ifmr->ifm_status = IFM_AVALID;
 	ifmr->ifm_active = IFM_ETHER;
 
-	if (!sc->hn_carrier) {
+	if ((sc->hn_link_flags & HN_LINK_FLAG_LINKUP) == 0) {
 		ifmr->ifm_active |= IFM_NONE;
 		return;
 	}
@@ -563,6 +566,9 @@ netvsc_attach(device_t dev)
 	taskqueue_start_threads(&sc->hn_mgmt_taskq0, 1, PI_NET, "%s mgmt",
 	    device_get_nameunit(dev));
 	TASK_INIT(&sc->hn_link_task, 0, hn_link_taskfunc, sc);
+	TASK_INIT(&sc->hn_netchg_init, 0, hn_netchg_init_taskfunc, sc);
+	TIMEOUT_TASK_INIT(sc->hn_mgmt_taskq0, &sc->hn_netchg_status, 0,
+	    hn_netchg_status_taskfunc, sc);
 
 	/*
 	 * Allocate ifnet and setup its name earlier, so that if_printf
@@ -808,10 +814,8 @@ netvsc_shutdown(device_t dev)
 }
 
 static void
-hn_link_taskfunc(void *xsc, int pending __unused)
+hn_link_status(struct hn_softc *sc)
 {
-	struct hn_softc *sc = xsc;
-	struct ifnet *ifp = sc->hn_ifp;
 	uint32_t link_status;
 	int error;
 
@@ -822,11 +826,51 @@ hn_link_taskfunc(void *xsc, int pending __unused)
 	}
 
 	if (link_status == NDIS_MEDIA_STATE_CONNECTED)
-		sc->hn_carrier = 1;
+		sc->hn_link_flags |= HN_LINK_FLAG_LINKUP;
 	else
-		sc->hn_carrier = 0;
-	if_link_state_change(ifp,
-	    sc->hn_carrier ? LINK_STATE_UP : LINK_STATE_DOWN);
+		sc->hn_link_flags &= ~HN_LINK_FLAG_LINKUP;
+	if_link_state_change(sc->hn_ifp,
+	    (sc->hn_link_flags & HN_LINK_FLAG_LINKUP) ?
+	    LINK_STATE_UP : LINK_STATE_DOWN);
+}
+
+static void
+hn_link_taskfunc(void *xsc, int pending __unused)
+{
+	struct hn_softc *sc = xsc;
+
+	if (sc->hn_link_flags & HN_LINK_FLAG_NETCHG)
+		return;
+	hn_link_status(sc);
+}
+
+static void
+hn_netchg_init_taskfunc(void *xsc, int pending __unused)
+{
+	struct hn_softc *sc = xsc;
+
+	/* Prevent any link status checks from running. */
+	sc->hn_link_flags |= HN_LINK_FLAG_NETCHG;
+
+	/*
+	 * Fake up a [link down --> link up] state change; 5 seconds
+	 * delay is used, which closely simulates miibus reaction
+	 * upon link down event.
+	 */
+	sc->hn_link_flags &= ~HN_LINK_FLAG_LINKUP;
+	if_link_state_change(sc->hn_ifp, LINK_STATE_DOWN);
+	taskqueue_enqueue_timeout(sc->hn_mgmt_taskq0,
+	    &sc->hn_netchg_status, 5 * hz);
+}
+
+static void
+hn_netchg_status_taskfunc(void *xsc, int pending __unused)
+{
+	struct hn_softc *sc = xsc;
+
+	/* Re-allow link status checks. */
+	sc->hn_link_flags &= ~HN_LINK_FLAG_NETCHG;
+	hn_link_status(sc);
 }
 
 void
@@ -835,6 +879,14 @@ hn_link_status_update(struct hn_softc *sc)
 
 	if (sc->hn_mgmt_taskq != NULL)
 		taskqueue_enqueue(sc->hn_mgmt_taskq, &sc->hn_link_task);
+}
+
+void
+hn_network_change(struct hn_softc *sc)
+{
+
+	if (sc->hn_mgmt_taskq != NULL)
+		taskqueue_enqueue(sc->hn_mgmt_taskq, &sc->hn_netchg_init);
 }
 
 static __inline int
@@ -2233,7 +2285,8 @@ hn_caps_sysctl(SYSCTL_HANDLER_ARGS)
 	    "\006UDP4CS"
 	    "\007UDP6CS"
 	    "\010TSO4"
-	    "\011TSO6");
+	    "\011TSO6"
+	    "\012HASHVAL");
 	return sysctl_handle_string(oidp, caps_str, sizeof(caps_str), req);
 }
 
@@ -3008,12 +3061,15 @@ hn_fixup_tx_data(struct hn_softc *sc)
 	if (sc->hn_caps & HN_CAP_UDP6CS)
 		csum_assist |= CSUM_IP6_UDP;
 #endif
-
 	for (i = 0; i < sc->hn_tx_ring_cnt; ++i)
 		sc->hn_tx_ring[i].hn_csum_assist = csum_assist;
 
-	if (sc->hn_ndis_ver >= HN_NDIS_VERSION_6_30) {
-		/* Support HASHVAL pktinfo on TX path. */
+	if (sc->hn_caps & HN_CAP_HASHVAL) {
+		/*
+		 * Support HASHVAL pktinfo on TX path.
+		 */
+		if (bootverbose)
+			if_printf(sc->hn_ifp, "support HASHVAL pktinfo\n");
 		for (i = 0; i < sc->hn_tx_ring_cnt; ++i)
 			sc->hn_tx_ring[i].hn_tx_flags |= HN_TX_FLAG_HASHVAL;
 	}
@@ -3408,20 +3464,19 @@ hn_synth_alloc_subchans(struct hn_softc *sc, int *nsubch)
 	int nchan, rxr_cnt, error;
 
 	nchan = *nsubch + 1;
-	if (sc->hn_ndis_ver < HN_NDIS_VERSION_6_30 || nchan == 1) {
+	if (nchan == 1) {
 		/*
-		 * Either RSS is not supported, or multiple RX/TX rings
-		 * are not requested.
+		 * Multiple RX/TX rings are not requested.
 		 */
 		*nsubch = 0;
 		return (0);
 	}
 
 	/*
-	 * Get RSS capabilities, e.g. # of RX rings, and # of indirect
+	 * Query RSS capabilities, e.g. # of RX rings, and # of indirect
 	 * table entries.
 	 */
-	error = hn_rndis_get_rsscaps(sc, &rxr_cnt);
+	error = hn_rndis_query_rsscaps(sc, &rxr_cnt);
 	if (error) {
 		/* No RSS; this is benign. */
 		*nsubch = 0;
@@ -3716,6 +3771,8 @@ hn_suspend_mgmt(struct hn_softc *sc)
 	/*
 	 * Make sure that all pending management tasks are completed.
 	 */
+	taskqueue_drain(sc->hn_mgmt_taskq0, &sc->hn_netchg_init);
+	taskqueue_drain_timeout(sc->hn_mgmt_taskq0, &sc->hn_netchg_status);
 	taskqueue_drain_all(sc->hn_mgmt_taskq0);
 }
 
@@ -3793,10 +3850,11 @@ hn_resume_mgmt(struct hn_softc *sc)
 {
 
 	/*
-	 * Kick off link status check.
+	 * Kick off network change detection, which will
+	 * do link status check too.
 	 */
 	sc->hn_mgmt_taskq = sc->hn_mgmt_taskq0;
-	hn_link_status_update(sc);
+	hn_network_change(sc);
 }
 
 static void

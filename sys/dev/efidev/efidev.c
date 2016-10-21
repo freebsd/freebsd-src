@@ -47,7 +47,6 @@ static struct cdevsw efi_cdevsw = {
 	.d_ioctl = efidev_ioctl,
 };
 	
-/* ARGSUSED */
 static int
 efidev_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t addr,
     int flags __unused, struct thread *td __unused)
@@ -173,21 +172,45 @@ vs_out:
 	return (error);
 }
 
-int
-efidev_init(struct cdev **cdev)
-{
-	
-	*cdev = make_dev(&efi_cdevsw, 0, UID_ROOT, GID_WHEEL, 0700,
-	    "efi");
+static struct cdev *efidev;
 
-	return (0);
+static int
+efidev_modevents(module_t m, int event, void *arg __unused)
+{
+	struct make_dev_args mda;
+	int error;
+
+	switch (event) {
+	case MOD_LOAD:
+		make_dev_args_init(&mda);
+		mda.mda_flags = MAKEDEV_WAITOK | MAKEDEV_CHECKNAME;
+		mda.mda_devsw = &efi_cdevsw;
+		mda.mda_uid = UID_ROOT;
+		mda.mda_gid = GID_WHEEL;
+		mda.mda_mode = 0700;
+		error = make_dev_s(&mda, &efidev, "efi");
+		return (error);
+
+	case MOD_UNLOAD:
+		if (efidev != NULL)
+			destroy_dev(efidev);
+		efidev = NULL;
+		return (0);
+
+	case MOD_SHUTDOWN:
+		return (0);
+
+	default:
+		return (EOPNOTSUPP);
+	}
 }
 
-int
-efidev_uninit(struct cdev *cdev)
-{
-	
-	destroy_dev(cdev);
+static moduledata_t efidev_moddata = {
+	.name = "efidev",
+	.evhand = efidev_modevents,
+	.priv = NULL,
+};
 
-	return (0);
-}
+DECLARE_MODULE(efidev, efidev_moddata, SI_SUB_DEVFS, SI_ORDER_ANY);
+MODULE_VERSION(efidev, 1);
+MODULE_DEPEND(efidev, efirt, 1, 1, 1);

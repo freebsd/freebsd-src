@@ -794,7 +794,7 @@ vm_page_xunbusy_locked(vm_page_t m)
 	wakeup(m);
 }
 
-static void
+void
 vm_page_xunbusy_maybelocked(vm_page_t m)
 {
 	bool lockacq;

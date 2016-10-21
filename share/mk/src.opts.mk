@@ -98,6 +98,8 @@ __DEFAULT_YES_OPTIONS = \
     GCOV \
     GDB \
     GNU \
+    GNU_DIFF \
+    GNU_GREP \
     GNU_GREP_COMPAT \
     GPIO \
     GPL_DTC \
@@ -298,6 +300,10 @@ MK_${var}:=	no
 #
 .if !${COMPILER_FEATURES:Mc++11}
 MK_LLVM_LIBUNWIND:=	no
+.endif
+
+.if ${MK_BINUTILS} == "no"
+MK_GDB:=	no
 .endif
 
 .if ${MK_LIBPTHREAD} == "no"

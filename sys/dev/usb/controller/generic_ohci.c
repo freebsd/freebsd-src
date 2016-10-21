@@ -214,17 +214,10 @@ static int
 generic_ohci_detach(device_t dev)
 {
 	struct generic_ohci_softc *sc = device_get_softc(dev);
-	device_t bdev;
 	int err;
 #ifdef EXT_RESOURCES
 	struct clk_list *clk, *clk_tmp;
 #endif
-
-	if (sc->ohci_sc.sc_bus.bdev) {
-		bdev = sc->ohci_sc.sc_bus.bdev;
-		device_detach(bdev);
-		device_delete_child(dev, bdev);
-	}
 
 	/* during module unload there are lots of children leftover */
 	device_delete_children(dev);
