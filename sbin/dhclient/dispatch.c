@@ -50,7 +50,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if_media.h>
 #include <ifaddrs.h>
 #include <poll.h>
-#include <stddef.h>
 
 struct protocol *protocols;
 struct timeout *timeouts;
@@ -107,10 +106,8 @@ discover_interfaces(struct interface_info *iface)
 			if (foo.sin_addr.s_addr == htonl(INADDR_LOOPBACK))
 				continue;
 			if (!iface->ifp) {
-				if (offsetof(struct ifreq, ifr_ifru) +
-				     ifa->ifa_addr->sa_len > sizeof(struct ifreq))
-					error("impossibly long address length");
-				if ((tif = malloc(sizeof(struct ifreq))) == NULL)
+				if ((tif = calloc(1, sizeof(struct ifreq)))
+				    == NULL)
 					error("no space to remember ifp");
 				strlcpy(tif->ifr_name, ifa->ifa_name, IFNAMSIZ);
 				memcpy(&tif->ifr_addr, ifa->ifa_addr,
