@@ -396,6 +396,10 @@
         ..
         file
         ..
+        fs
+            tmpfs
+            ..
+        ..
         geom
             class
                 concat
