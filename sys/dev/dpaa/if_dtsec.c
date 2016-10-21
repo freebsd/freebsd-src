@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_arp.h>
 
 #include <dev/fdt/fdt_common.h>
+#include <dev/fdt/simplebus.h>
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
 #include <dev/ofw/ofw_bus.h>
@@ -79,13 +80,6 @@ struct dtsec_fm_mac_ex_str {
 	const int num;
 	const char *str;
 };
-
-/* XXX: Handle to FM_MAC instance of dTSEC0 */
-/* From QorIQ Data Path Acceleration Architecture Reference Manual, Rev 2, page
- * 3-37, "The MII management hardware is shared by all dTSECs... only through
- * the MIIM registers of dTSEC1 can external PHY's be accessed and configured."
- */
-static t_Handle dtsec_mdio_mac_handle;
 /** @} */
 
 
@@ -205,8 +199,6 @@ dtsec_fm_mac_init(struct dtsec_softc *sc, uint8_t *mac)
 	params.h_Fm = sc->sc_fmh;
 
 	sc->sc_mach = FM_MAC_Config(&params);
-	if (sc->sc_hidden)
-		return (0);
 	if (sc->sc_mach == NULL) {
 		device_printf(sc->sc_dev, "couldn't configure FM_MAC module.\n"
 		    );
@@ -647,20 +639,6 @@ dtsec_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	/*
-	 * XXX: All phys are connected to MDIO interface of the first dTSEC
-	 * device (dTSEC0). We have to save handle to the FM_MAC instance of
-	 * dTSEC0, which is used later during phy's registers accesses. Another
-	 * option would be adding new property to DTS pointing to correct dTSEC
-	 * instance, of which FM_MAC handle has to be used for phy's registers
-	 * accesses. We did not want to add new properties to DTS, thus this
-	 * quite ugly hack.
-	 */
-	if (sc->sc_eth_id == 0)
-		dtsec_mdio_mac_handle = sc->sc_mach;
-	if (sc->sc_hidden)
-		return (0);
-
 	/* Init FMan TX port */
 	error = sc->sc_port_tx_init(sc, device_get_unit(sc->sc_dev));
 	if (error != 0) {
@@ -797,47 +775,21 @@ int
 dtsec_miibus_readreg(device_t dev, int phy, int reg)
 {
 	struct dtsec_softc *sc;
-	uint16_t data;
-	t_Error error;
 
 	sc = device_get_softc(dev);
 
-	if (phy != sc->sc_phy_addr)
-		return (0xFFFF);
-
-	DTSEC_MII_LOCK(sc);
-	error = FM_MAC_MII_ReadPhyReg(dtsec_mdio_mac_handle, phy, reg, &data);
-	DTSEC_MII_UNLOCK(sc);
-	if (error != E_OK) {
-		device_printf(dev, "Error while reading from PHY (NetCommSw "
-		    "error: %d)\n", error);
-		return (0xFFFF);
-	}
-
-	return ((int)data);
+	return (MIIBUS_READREG(sc->sc_mdio, phy, reg));
 }
 
 int
 dtsec_miibus_writereg(device_t dev, int phy, int reg, int value)
 {
+
 	struct dtsec_softc *sc;
-	t_Error error;
 
 	sc = device_get_softc(dev);
 
-	if (phy != sc->sc_phy_addr)
-		return (EINVAL);
-
-	DTSEC_MII_LOCK(sc);
-	error = FM_MAC_MII_WritePhyReg(dtsec_mdio_mac_handle, phy, reg, value);
-	DTSEC_MII_UNLOCK(sc);
-	if (error != E_OK) {
-		device_printf(dev, "Error while writing to PHY (NetCommSw "
-		    "error: %d).\n", error);
-		return (EIO);
-	}
-
-	return (0);
+	return (MIIBUS_WRITEREG(sc->sc_mdio, phy, reg, value));
 }
 
 void

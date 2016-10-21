@@ -29,11 +29,13 @@
 #ifndef FMAN_H_
 #define FMAN_H_
 
+#include <dev/fdt/simplebus.h>
+
 /**
  * FMan driver instance data.
  */
 struct fman_softc {
-	device_t dev;
+	struct simplebus_softc sc_base;
 	struct resource *mem_res;
 	struct resource *irq_res;
 	struct resource *err_irq_res;
@@ -63,5 +65,6 @@ uint32_t	fman_get_clock(struct fman_softc *sc);
 int	fman_get_handle(t_Handle *fmh);
 int	fman_get_muram_handle(t_Handle *muramh);
 int	fman_get_bushandle(vm_offset_t *fm_base);
+int	fman_get_dev(device_t *fmd);
 
 #endif /* FMAN_H_ */
