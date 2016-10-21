@@ -158,6 +158,7 @@ static void
 hv_rf_receive_indicate_status(struct hn_softc *sc, const void *data, int dlen)
 {
 	const struct rndis_status_msg *msg;
+	int ofs;
 
 	if (dlen < sizeof(*msg)) {
 		if_printf(sc->hn_ifp, "invalid RNDIS status\n");
@@ -176,8 +177,19 @@ hv_rf_receive_indicate_status(struct hn_softc *sc, const void *data, int dlen)
 		break;
 
 	case RNDIS_STATUS_NETWORK_CHANGE:
-		/* TODO */
-		if_printf(sc->hn_ifp, "network changed\n");
+		ofs = RNDIS_STBUFOFFSET_ABS(msg->rm_stbufoffset);
+		if (dlen < ofs + msg->rm_stbuflen ||
+		    msg->rm_stbuflen < sizeof(uint32_t)) {
+			if_printf(sc->hn_ifp, "network changed\n");
+		} else {
+			uint32_t change;
+
+			memcpy(&change, ((const uint8_t *)msg) + ofs,
+			    sizeof(change));
+			if_printf(sc->hn_ifp, "network changed, change %u\n",
+			    change);
+		}
+		hn_network_change(sc);
 		break;
 
 	default:
