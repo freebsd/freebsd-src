@@ -38,60 +38,66 @@ __FBSDID("$FreeBSD$");
 
 #define	SLOT(a, b) \
 	[INTERPOS_##a] = (interpos_func_t)b
+#define SLOT_SYS(s) \
+	[INTERPOS_##s] = (interpos_func_t)__sys_##s
+#define SLOT_LIBC(s) \
+	[INTERPOS_##s] = (interpos_func_t)__libc_##s
 interpos_func_t __libc_interposing[INTERPOS_MAX] = {
 #ifndef NO_SYSCALLS
-	SLOT(accept, __sys_accept),
-	SLOT(accept4, __sys_accept4),
-	SLOT(aio_suspend, __sys_aio_suspend),
-	SLOT(close, __sys_close),
-	SLOT(connect, __sys_connect),
-	SLOT(fcntl, __sys_fcntl),
-	SLOT(fsync, __sys_fsync),
-	SLOT(fork, __sys_fork),
-	SLOT(msync, __sys_msync),
-	SLOT(nanosleep, __sys_nanosleep),
-	SLOT(openat, __sys_openat),
-	SLOT(poll, __sys_poll),
-	SLOT(pselect, __sys_pselect),
-	SLOT(read, __sys_read),
-	SLOT(readv, __sys_readv),
-	SLOT(recvfrom, __sys_recvfrom),
-	SLOT(recvmsg, __sys_recvmsg),
-	SLOT(select, __sys_select),
-	SLOT(sendmsg, __sys_sendmsg),
-	SLOT(sendto, __sys_sendto),
-	SLOT(setcontext, __sys_setcontext),
-	SLOT(sigaction, __sys_sigaction),
-	SLOT(sigprocmask, __sys_sigprocmask),
-	SLOT(sigsuspend, __sys_sigsuspend),
+	SLOT_SYS(accept),
+	SLOT_SYS(accept4),
+	SLOT_SYS(aio_suspend),
+	SLOT_SYS(close),
+	SLOT_SYS(connect),
+	SLOT_SYS(fcntl),
+	SLOT_SYS(fsync),
+	SLOT_SYS(fork),
+	SLOT_SYS(msync),
+	SLOT_SYS(nanosleep),
+	SLOT_SYS(openat),
+	SLOT_SYS(poll),
+	SLOT_SYS(pselect),
+	SLOT_SYS(read),
+	SLOT_SYS(readv),
+	SLOT_SYS(recvfrom),
+	SLOT_SYS(recvmsg),
+	SLOT_SYS(select),
+	SLOT_SYS(sendmsg),
+	SLOT_SYS(sendto),
+	SLOT_SYS(setcontext),
+	SLOT_SYS(sigaction),
+	SLOT_SYS(sigprocmask),
+	SLOT_SYS(sigsuspend),
 #endif
-	SLOT(sigwait, __libc_sigwait),
+	SLOT_LIBC(sigwait),
 #ifndef NO_SYSCALLS
-	SLOT(sigtimedwait, __sys_sigtimedwait),
-	SLOT(sigwaitinfo, __sys_sigwaitinfo),
-	SLOT(swapcontext, __sys_swapcontext),
+	SLOT_SYS(sigtimedwait),
+	SLOT_SYS(sigwaitinfo),
+	SLOT_SYS(swapcontext),
 #endif
-	SLOT(system, __libc_system),
-	SLOT(tcdrain, __libc_tcdrain),
+	SLOT_LIBC(system),
+	SLOT_LIBC(tcdrain),
 #ifndef NO_SYSCALLS
-	SLOT(wait4, __sys_wait4),
-	SLOT(write, __sys_write),
-	SLOT(writev, __sys_writev),
+	SLOT_SYS(wait4),
+	SLOT_SYS(write),
+	SLOT_SYS(writev),
 #endif
 	SLOT(_pthread_mutex_init_calloc_cb, _pthread_mutex_init_calloc_cb_stub),
 	SLOT(spinlock, __libc_spinlock_stub),
 	SLOT(spinunlock, __libc_spinunlock_stub),
 #ifndef NO_SYSCALLS
-	SLOT(kevent, __sys_kevent),
-	SLOT(wait6, __sys_wait6),
-	SLOT(ppoll, __sys_ppoll),
+	SLOT_SYS(kevent),
+	SLOT_SYS(wait6),
+	SLOT_SYS(ppoll),
 #endif
-	SLOT(map_stacks_exec, __libc_map_stacks_exec),
+	SLOT_LIBC(map_stacks_exec),
 #ifndef NO_SYSCALLS
-	SLOT(fdatasync, __sys_fdatasync),
+	SLOT_SYS(fdatasync),
 #endif
 };
 #undef SLOT
+#undef SLOT_SYS
+#undef SLOT_LIBC
 
 interpos_func_t *
 __libc_interposing_slot(int interposno)
