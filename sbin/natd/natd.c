@@ -2006,7 +2006,7 @@ NewInstance(const char *name)
 		}
 	}
 	ninstance++;
-	ip = calloc(sizeof *ip, 1);
+	ip = calloc(1, sizeof(*ip));
 	ip->name = strdup(name);
 	ip->la = LibAliasInit (ip->la);
 	ip->assignAliasAddr	= 0;
