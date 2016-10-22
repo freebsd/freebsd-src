@@ -31,7 +31,7 @@ LIBADD=	amu wrap
 
 CLEANFILES+=	conf_parse.c conf_parse.h conf_tok.c
 
-conf_tok.o: conf_parse.h
+conf_tok.o:	conf_parse.h
 
 #		These are generated at compile time
 SRCS+=		mount_xdr.c
