@@ -621,10 +621,7 @@ main(int argc, char *argv[])
 		dprintf("sending on inet and/or inet6 socket\n");
 	}
 
-	if ((fklog = open(_PATH_KLOG, O_RDONLY, 0)) >= 0)
-		if (fcntl(fklog, F_SETFL, O_NONBLOCK) < 0)
-			fklog = -1;
-	if (fklog < 0)
+	if ((fklog = open(_PATH_KLOG, O_RDONLY|O_NONBLOCK, 0)) < 0)
 		dprintf("can't open %s (%d)\n", _PATH_KLOG, errno);
 
 	/* tuck my process id away */
