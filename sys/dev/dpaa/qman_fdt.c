@@ -143,7 +143,7 @@ qman_portals_fdt_attach(device_t dev)
 	ihandle_t cpu;
 	int cpu_num, cpus, intr_rid;
 	struct dpaa_portals_devinfo di;
-	struct ofw_bus_devinfo ofw_di;
+	struct ofw_bus_devinfo ofw_di = {};
 
 	cpus = 0;
 	sc = device_get_softc(dev);
