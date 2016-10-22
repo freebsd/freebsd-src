@@ -3,8 +3,8 @@
 #
 #	List of PCI ID's
 #
-#	Version: 2016.10.03
-#	Date:    2016-10-03 03:15:01
+#	Version: 2016.10.20
+#	Date:    2016-10-20 03:15:02
 #
 #	Maintained by Albert Pool, Martin Mares, and other volunteers from
 #	the PCI ID Project at http://pci-ids.ucw.cz/.
@@ -245,8 +245,13 @@
 	0013  53c875a
 		1000 1000  LSI53C875A PCI to Ultra SCSI Controller
 	0014  MegaRAID Tri-Mode SAS3516
+		1028 1fd4  PERC H745P MX
 		1d49 0602  ThinkSystem RAID 930-16i 4GB Flash PCIe 12Gb Adapter
 	0016  MegaRAID Tri-Mode SAS3508
+		1028 1fc9  PERC H840 Adapter
+		1028 1fcb  PERC H740P Adapter
+		1028 1fcd  PERC H740P Mini
+		1028 1fcf  PERC H740P Mini
 		1d49 0601  ThinkSystem RAID 930-8i 2GB Flash PCIe 12Gb Adapter
 		1d49 0603  ThinkSystem RAID 930-24i 4GB Flash PCIe 12Gb Adapter
 		1d49 0604  ThinkSystem RAID 930-8e 4GB Flash PCIe 12Gb Adapter
@@ -376,6 +381,7 @@
 		1028 1f4d  PERC FD33xS
 		1028 1f4f  PERC H730P Slim
 		1028 1f54  PERC FD33xD
+		1028 1fd1  PERC H730P MX
 		17aa 1052  ThinkServer RAID 720i
 		17aa 1053  ThinkServer RAID 720ix
 		1d49 0600  ThinkSystem RAID 730-8i 1GB Cache PCIe 12Gb Adapter
@@ -535,8 +541,11 @@
 	0097  SAS3008 PCI-Express Fusion-MPT SAS-3
 		1000 3090  SAS9311-8i
 		1000 30e0  SAS9300-8i
-		1028 1f45  12GB/s HBA internal
+		1028 1f45  HBA330 Adapter
 		1028 1f46  12Gbps HBA
+		1028 1f53  HBA330 Mini
+		1028 1fd2  HBA330 MX
+		1028 1fd3  HBA330 MMZ
 	00ab  SAS3516 Fusion-MPT Tri-Mode RAID On Chip (ROC)
 	00ac  SAS3416 Fusion-MPT Tri-Mode I/O Controller Chip (IOC)
 		1d49 0201  ThinkSystem 9400-16i PCIe 12Gb HBA
@@ -1588,7 +1597,7 @@
 		1462 2938  Radeon R9 360 OEM
 		1462 3271  Radeon R9 360 OEM
 		1682 7360  Radeon R7 360
-	6660  Sun XT [Radeon HD 8670A/8670M/8690M / R5 M330]
+	6660  Sun XT [Radeon HD 8670A/8670M/8690M / R5 M330 / M430]
 		1028 05ea  Radeon HD 8670M
 		1028 06bf  Radeon R5 M335
 		103c 1970  Radeon HD 8670M
@@ -1596,6 +1605,7 @@
 		103c 8136  Radeon R5 M330
 		17aa 3804  Radeon R5 M330
 		17aa 3809  Radeon R5 M330
+		17aa 381a  Radeon R5 M430
 		17aa 390c  Radeon R5 M330
 	6663  Sun PRO [Radeon HD 8570A/8570M]
 		1025 0846  Radeon HD 8570A
@@ -2866,11 +2876,12 @@
 		174b e180  Radeon HD 7350
 		17af 3015  Radeon HD 7350
 	68fe  Cedar LE
-	6900  Topaz XT [Radeon R7 M260/M265 / M340/M360]
+	6900  Topaz XT [Radeon R7 M260/M265 / M340/M360 / M440/M445]
 		1025 1056  Radeon R7 M360 / R8 M365DX
 		1028 0640  Radeon R7 M260/M265
 		1028 0643  Radeon R7 M260/M265
 		1028 067f  Radeon R7 M260
+		1028 0767  Radeon R7 M445
 		1028 130a  Radeon R7 M260
 		103c 2263  Radeon R7 M260
 		103c 2269  Radeon R7 M260
@@ -2881,6 +2892,7 @@
 		103c 80b5  Radeon R7 M360
 		103c 80b9  Radeon R7 M360
 		103c 811c  Radeon R7 M340
+		103c 8226  Radeon R7 M440
 		10cf 1906  Radeon R7 M260
 		1170 9979  Radeon R7 M360
 		1179 f903  Radeon R7 M260
@@ -2892,6 +2904,7 @@
 		17aa 5021  Radeon R7 M260
 	6901  Topaz PRO [Radeon R5 M255]
 		103c 1318  Radeon R6 M255DX
+	6907  Meso XT [Radeon R5 M315]
 	6921  Amethyst XT [Radeon R9 M295X]
 	6929  Tonga XT GL [FirePro S7150]
 	692b  Tonga PRO GL [FirePro W7100]
@@ -3349,7 +3362,7 @@
 	99a4  Trinity [Radeon HD 7400G]
 	aa00  R600 HDMI Audio [Radeon HD 2900 GT/PRO/XT]
 	aa01  RV635 HDMI Audio [Radeon HD 3650/3730/3750]
-	aa08  RV630 HDMI Audio [Radeon HD 2600 Series]
+	aa08  RV630 HDMI Audio [Radeon HD 2600 PRO/XT / HD 3610]
 	aa10  RV610 HDMI Audio [Radeon HD 2350 PRO / 2400 PRO/XT / HD 3410]
 		174b aa10  Radeon HD 2400 PRO
 		18bc aa10  Radeon HD 2400 PRO
@@ -3369,10 +3382,10 @@
 	aa68  Cedar HDMI Audio [Radeon HD 5400/6300/7300 Series]
 		1028 aa68  XPS 8300
 	aa80  Cayman/Antilles HDMI Audio [Radeon HD 6930/6950/6970/6990]
-	aa88  Barts HDMI Audio [Radeon HD 6800 Series]
+	aa88  Barts HDMI Audio [Radeon HD 6790/6850/6870 / 7720 OEM]
 	aa90  Turks HDMI Audio [Radeon HD 6500/6600 / 6700M Series]
 		1028 04a3  Precision M4600
-	aa98  Caicos HDMI Audio [Radeon HD 6400 Series]
+	aa98  Caicos HDMI Audio [Radeon HD 6450 / 7450/8450/8490 OEM / R5 230/235/235X OEM]
 		174b aa98  Radeon HD 6450 1GB DDR3
 	aaa0  Tahiti HDMI Audio [Radeon HD 7870 XT / 7950/7970]
 	aab0  Cape Verde/Pitcairn HDMI Audio [Radeon HD 7700/7800 Series]
@@ -7347,6 +7360,7 @@
 	8533  PEX 8533 32-lane, 6-port PCI Express Switch
 	8547  PEX 8547 48-lane, 3-port PCI Express Switch
 	8548  PEX 8548 48-lane, 9-port PCI Express Switch
+	8603  PEX 8603 3-lane, 3-Port PCI Express Gen 2 (5.0 GT/s) Switch
 	8604  PEX 8604 4-lane, 4-Port PCI Express Gen 2 (5.0 GT/s) Switch
 	8605  PEX 8605 PCI Express 4-port Gen2 Switch
 	8606  PEX 8606 6 Lane, 6 Port PCI Express Gen 2 (5.0 GT/s) Switch
@@ -17921,7 +17935,7 @@
 	1015  MT27710 Family [ConnectX-4 Lx]
 	1016  MT27710 Family [ConnectX-4 Lx Virtual Function]
 	1017  MT27800 Family [ConnectX-5]
-	1018  MT28800 Family [ConnectX-5 Virtual Function]
+	1018  MT27800 Family [ConnectX-5 Virtual Function]
 	1019  MT28800 Family [ConnectX-5 Ex]
 	101a  MT28800 Family [ConnectX-5 Ex Virtual Function]
 	101b  MT28831
@@ -17932,6 +17946,7 @@
 	1020  MT28860
 	1021  MT28861
 	1974  MT28800 Family [ConnectX-5 PCIe Bridge]
+	1975  MT416842 Family [BlueField SoC PCIe Bridge]
 	5274  MT21108 InfiniBridge
 	5a44  MT23108 InfiniHost
 	5a45  MT23108 [Infinihost HCA Flash Recovery]
@@ -17966,6 +17981,9 @@
 	7121  NPS-600 configuration and management interface
 	7122  NPS-600 network interface PF
 	7123  NPS-600 network interface VF
+	a2d0  MT416842
+	a2d1  MT416842
+	a2d3  MT416842 BlueField multicore SoC family VF
 # SwitchX-2, 40GbE switch
 	c738  MT51136
 	c739  MT51136 GW
@@ -18638,7 +18656,12 @@
 	7018  AP408: 32-Channel Digital I/O Module
 	701a  AP220-16 12-Bit, 16-Channel Analog Output Module
 	701b  AP231-16 16-Bit, 16-Channel Analog Output Module
+	7021  APA7-201 Reconfigurable Artix-7 FPGA module 48 TTL channels
+	7022  APA7-202 Reconfigurable Artix-7 FPGA module 24 RS485 channels
+	7023  APA7-203 Reconfigurable Artix-7 FPGA module 24 TTL & 12 RS485 channels
+	7024  APA7-204 Reconfigurable Artix-7 FPGA module 24 LVDS channels
 	7042  AP482 Counter Timer Module with TTL Level Input/Output
+	7043  AP483 Counter Timer Module with TTL Level and RS422 Input/Output
 	7044  AP484 Counter Timer Module with RS422 Input/Output
 16da  Advantech Co., Ltd.
 	0011  INES GPIB-PCI
@@ -18881,6 +18904,7 @@
 	0401  Datacenter Technologies QDF2400 PCI Express Root Port
 17cc  NetChip Technology, Inc
 	2280  USB 2.0
+17cd  Cadence Design Systems, Inc.
 17cf  Z-Com, Inc.
 17d3  Areca Technology Corp.
 	1110  ARC-1110 4-Port PCI-X to SATA RAID Controller
@@ -20290,7 +20314,8 @@
 		1432 8102  EN-8102P 10GbE Ethernet Adapter
 		1fc9 3015  Ethernet Adapter
 	4026  TN9610 10GbE SFP+ Ethernet Adapter
-	4027  TN9710 10GBase-T/NBASE-T Ethernet Adapter
+	4027  TN9710P 10GBase-T/NBASE-T Ethernet Adapter
+	4527  TN9710Q 5GBase-T/NBASE-T Ethernet Adapter
 1fcc  StreamLabs
 	f416  MS416
 	fb01  MH4LM
@@ -22295,6 +22320,7 @@
 		17aa 4007  82599ES 10-Gigabit SFI/SFP+ Network Connection
 		17aa 402b  82599ES 10Gb 2-port Server Adapter X520-DA2
 		17aa 402f  FPGA Card XC7VX690T-3FFG1157E
+		18d4 0c09  82599ES 10Gb 2-port SFP+ OCP Mezz Card MOP81-I-10GS2
 		1bd4 001b  10G SFP+ DP ER102Fi4 Rack Adapter
 		1bd4 002f  10G SFP+ DP EP102Fi4A Adapter
 		1bd4 0032  10G SFP+ DP EP102Fi4 Adapter
@@ -22570,8 +22596,15 @@
 	1520  I350 Ethernet Controller Virtual Function
 	1521  I350 Gigabit Network Connection
 		1028 0602  Gigabit 2P I350-t LOM
+		1028 0693  Gigabit 2P I350-t LOM
+		1028 06e2  Gigabit 2P I350-t LOM
+		1028 0757  Gigabit I350-t LOM
+		1028 075a  Gigabit I350-t LOM
 		1028 1f60  Gigabit 4P I350-t rNDC
 		1028 1f62  Gigabit 4P X540/I350 rNDC
+		1028 1fa8  Ethernet 10G 4P X550/I350 rNDC
+		1028 1fa9  Ethernet 10G 4P X550 rNDC
+		1028 1faa  Gigabit 4P X550/I350 rNDC
 		1028 ff9a  Gigabit 4P X710/I350 rNDC
 		103c 17d1  Ethernet 1Gb 4-port 366FLR Adapter
 		103c 2003  Ethernet 1Gb 2-port 367i Adapter
@@ -22590,6 +22623,7 @@
 		15d9 0652  Dual Port i350 GbE MicroLP [AOC-CGP-i2]
 		17aa 1074  ThinkServer I350-T4 AnyFabric
 		17aa 4005  I350 Gigabit Network Connection
+		18d4 0c07  I350 1Gb 2-port RJ45 OCP Mezz Card MOP41-I-1GT2
 		1bd4 001d  1G base-T QP EP014Ti1 Adapter
 		1bd4 0035  1G base-T QP EP014Ti1 Adapter
 		8086 0001  Ethernet Server Adapter I350-T4
@@ -22698,6 +22732,7 @@
 		1028 1fa9  Ethernet 10G 4P X550 rNDC
 		1590 00d1  Ethernet 10Gb 2-port 562T Adapter
 		1590 00d2  Ethernet 10Gb 2-port 562FLR-T Adapter
+		18d4 0c08  X550 10Gb 2-port RJ45 OCP Mezz Card MOP81-I-10GT2
 		8086 0001  Ethernet Converged Network Adapter X550-T2
 		8086 001a  Ethernet Converged Network Adapter X550-T2
 		8086 0022  Ethernet Converged Network Adapter X550-T2
@@ -22782,11 +22817,11 @@
 		108e 0000  Ethernet Controller X710 for 10GBASE-T
 		108e 4857  Ethernet Controller X710 for 10GBASE-T
 	1587  Ethernet Controller XL710 for 20GbE backplane
-		103c 0000  HP Flex-20 20Gb 2-port 660FLB Adapter
-		103c 22fe  HP Flex-20 20Gb 2-port 660FLB Adapter
+		103c 0000  HPE Ethernet 10/20Gb 2-port 660FLB Adapter
+		103c 22fe  HPE Ethernet 10/20Gb 2-port 660FLB Adapter
 	1588  Ethernet Controller XL710 for 20GbE backplane
-		103c 0000  HP Flex-20 20Gb 2-port 660M Adapter
-		103c 22ff  HP Flex-20 20Gb 2-port 660M Adapter
+		103c 0000  HPE Ethernet 10/20Gb 2-port 660M Adapter
+		103c 22ff  HPE Ethernet 10/20Gb 2-port 660M Adapter
 	1589  Ethernet Controller X710/X557-AT 10GBASE-T
 		108e 0000  Quad Port 10GBase-T Adapter
 		108e 7b1c  Quad Port 10GBase-T Adapter
@@ -23169,7 +23204,7 @@
 	1e09  7 Series Chipset Family 2-port SATA Controller [IDE mode]
 		144d c652  NP300E5C series laptop
 	1e0e  7 Series/C210 Series Chipset Family SATA Controller [RAID mode]
-	1e10  7 Series/C210 Series Chipset Family PCI Express Root Port 1
+	1e10  7 Series/C216 Chipset Family PCI Express Root Port 1
 		1043 108d  VivoBook X202EV
 		1043 1477  N56VZ
 		1043 1517  Zenbook Prime UX31A
@@ -23181,7 +23216,7 @@
 		1043 1477  N56VZ
 		1043 1517  Zenbook Prime UX31A
 	1e14  7 Series/C210 Series Chipset Family PCI Express Root Port 3
-	1e16  7 Series/C210 Series Chipset Family PCI Express Root Port 4
+	1e16  7 Series/C216 Chipset Family PCI Express Root Port 4
 		1043 108d  VivoBook X202EV
 		1043 1477  N56VZ
 		144d c652  NP300E5C series laptop
@@ -23194,7 +23229,7 @@
 	1e1c  7 Series/C210 Series Chipset Family PCI Express Root Port 7
 	1e1e  7 Series/C210 Series Chipset Family PCI Express Root Port 8
 		1849 1e1e  Motherboard
-	1e20  7 Series/C210 Series Chipset Family High Definition Audio Controller
+	1e20  7 Series/C216 Chipset Family High Definition Audio Controller
 		1028 054b  Dell XPS One 2710
 		1043 108d  VivoBook X202EV
 		1043 1477  N56VZ
@@ -23203,7 +23238,7 @@
 		1043 8445  ASUS P8Z77-V LX Motherboard
 		144d c652  NP300E5C series laptop
 		1849 1898  Z77 Extreme4 motherboard
-	1e22  7 Series/C210 Series Chipset Family SMBus Controller
+	1e22  7 Series/C216 Chipset Family SMBus Controller
 		1043 108d  VivoBook X202EV
 		1043 1477  N56VZ
 		1043 1517  Zenbook Prime UX31A
@@ -23213,14 +23248,14 @@
 	1e24  7 Series/C210 Series Chipset Family Thermal Management Controller
 		1043 1517  Zenbook Prime UX31A
 	1e25  7 Series/C210 Series Chipset Family DMI to PCI Bridge
-	1e26  7 Series/C210 Series Chipset Family USB Enhanced Host Controller #1
+	1e26  7 Series/C216 Chipset Family USB Enhanced Host Controller #1
 		1043 108d  VivoBook X202EV
 		1043 1477  N56VZ
 		1043 1517  Zenbook Prime UX31A
 		1043 84ca  P8 series motherboard
 		144d c652  NP300E5C series laptop
 		1849 1e26  Motherboard
-	1e2d  7 Series/C210 Series Chipset Family USB Enhanced Host Controller #2
+	1e2d  7 Series/C216 Chipset Family USB Enhanced Host Controller #2
 		1043 108d  VivoBook X202EV
 		1043 1477  N56VZ
 		1043 1517  Zenbook Prime UX31A
@@ -23235,7 +23270,7 @@
 		1043 84ca  P8 series motherboard
 		1849 1e31  Motherboard
 	1e33  7 Series/C210 Series Chipset Family LAN Controller
-	1e3a  7 Series/C210 Series Chipset Family MEI Controller #1
+	1e3a  7 Series/C216 Chipset Family MEI Controller #1
 		1043 108d  VivoBook X202EV
 		1043 1477  N56VZ
 		1043 1517  Zenbook Prime UX31A
@@ -26234,10 +26269,21 @@
 	37cd  X722 Virtual Function
 	37ce  Ethernet Connection X722 for 10GbE backplane
 		1590 0215  Ethernet 10Gb 2-port 568i Adapter
+		17aa 4023  Intel Ethernet Connection X722 for 10GbE backplane
 	37cf  Ethernet Connection X722 for 10GbE QSFP+
 	37d0  Ethernet Connection X722 for 10GbE SFP+
 	37d1  Ethernet Connection X722 for 1GbE
+		17aa 4020  Intel Ethernet Connection X722 for 1GbE
+		17aa 4021  Intel Ethernet Connection X722 for 1GbE
+		17aa 4022  Intel Ethernet Connection X722 for 1GbE
+		8086 4020  Ethernet Connection X722 for 1GbE
+		8086 4021  Ethernet Connection X722 for 1GbE
+		8086 4022  Ethernet Connection X722 for 1GbE
 	37d2  Ethernet Connection X722 for 10GBASE-T
+		17aa 4020  Intel Ethernet Connection X722 for 10GBASE
+		17aa 4021  Intel Ethernet Connection X722 for 10GBASE
+		8086 4020  Ethernet Connection X722 for 10GBASE
+		8086 4021  Ethernet Connection X722 for 10GBASE
 	37d3  Ethernet Connection X722 for 10GbE SFP+
 	37d4  Ethernet Connection X722 for 10GbE QSFP+
 	37d9  X722 Hyper-V Virtual Function
