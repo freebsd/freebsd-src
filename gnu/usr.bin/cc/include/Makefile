@@ -14,7 +14,8 @@ INCS=	ammintrin.h emmintrin.h mmintrin.h mm3dnow.h pmmintrin.h \
 INCS+=	wmmintrin.h __wmmintrin_aes.h __wmmintrin_pclmul.h
 .elif ${TARGET_ARCH} == "arm"
 INCS=	mmintrin.h
-.elif ${TARGET_ARCH} == "powerpc" || ${TARGET_ARCH} == "powerpc64"
+.elif ${TARGET_ARCH} == "powerpc" || ${TARGET_ARCH} == "powerpc64" || \
+    ${TARGET_ARCH} == "powerpcspe"
 INCS=	ppc-asm.h altivec.h spe.h
 .endif
 
