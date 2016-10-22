@@ -110,6 +110,8 @@
         ..
         ciss
         ..
+        evdev
+        ..
         filemon
         ..
         firewire
