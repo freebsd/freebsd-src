@@ -35,6 +35,10 @@ LDSCRIPT_NAME?= ldscript.${MACHINE_ARCH}
 
 INCLUDES+= -I$S/contrib/libfdt
 
+.if "${MACHINE_ARCH}" == "powerpcspe"
+# Force __SPE__, since the builtin will be removed later with -mno-spe
+CFLAGS+= -mabi=spe -D__SPE__
+.endif
 CFLAGS+= -msoft-float -Wa,-many
 
 # Build position-independent kernel
