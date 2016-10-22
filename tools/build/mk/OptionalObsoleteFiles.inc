@@ -1348,12 +1348,10 @@ OLD_FILES+=usr/lib/libdpv.so
 OLD_FILES+=usr/lib/libdpv.so.1
 OLD_FILES+=usr/lib/libdpv_p.a
 OLD_FILES+=usr/sbin/bsdconfig
-OLD_FILES+=usr/sbin/tzsetup
 OLD_FILES+=usr/share/man/man1/dialog.1.gz
 OLD_FILES+=usr/share/man/man1/dpv.1.gz
 OLD_FILES+=usr/share/man/man3/dialog.3.gz
 OLD_FILES+=usr/share/man/man3/dpv.3.gz
-OLD_FILES+=usr/share/man/man8/tzsetup.8.gz
 OLD_FILES+=usr/share/man/man8/bsdconfig.8.gz
 .endif
 
