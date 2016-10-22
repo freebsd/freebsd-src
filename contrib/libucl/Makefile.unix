@@ -1,7 +1,7 @@
 CC ?= gcc
 DESTDIR ?= /usr/local
 LD ?= gcc
-C_COMMON_FLAGS ?= -fPIC -Wall -W -Wno-unused-parameter -Wno-pointer-sign -I./include -I./uthash -I./src
+C_COMMON_FLAGS ?= -fPIC -Wall -W -Wno-unused-parameter -Wno-pointer-sign -I./include -I./uthash -I./src -I./klib
 MAJOR_VERSION = 0
 MINOR_VERSION = 2
 PATCH_VERSION = 9
@@ -25,13 +25,12 @@ HDEPS = $(SRCDIR)/ucl_hash.h \
 		$(SRCDIR)/ucl_chartable.h \
 		$(SRCDIR)/ucl_internal.h \
 		$(INCLUDEDIR)/ucl.h \
-		$(SRCDIR)/xxhash.h
+		$(SRCDIR)/mum.h
 OBJECTS = $(OBJDIR)/ucl_hash.o \
 		$(OBJDIR)/ucl_util.o \
 		$(OBJDIR)/ucl_parser.o \
 		$(OBJDIR)/ucl_emitter.o \
-		$(OBJDIR)/ucl_schema.o \
-		$(OBJDIR)/xxhash.o
+		$(OBJDIR)/ucl_schema.o
 
 all: $(OBJDIR) $(OBJDIR)/$(SONAME)
 
@@ -55,8 +54,6 @@ $(OBJDIR)/ucl_hash.o: $(SRCDIR)/ucl_hash.c $(HDEPS)
 	$(CC) -o $(OBJDIR)/ucl_hash.o $(CPPFLAGS) $(COPT_FLAGS) $(CFLAGS) $(C_COMMON_FLAGS) $(SSL_CFLAGS) $(FETCH_FLAGS) -c $(SRCDIR)/ucl_hash.c
 $(OBJDIR)/ucl_schema.o: $(SRCDIR)/ucl_schema.c $(HDEPS)
 	$(CC) -o $(OBJDIR)/ucl_schema.o $(CPPFLAGS) $(COPT_FLAGS) $(CFLAGS) $(C_COMMON_FLAGS) $(SSL_CFLAGS) $(FETCH_FLAGS) -c $(SRCDIR)/ucl_schema.c
-$(OBJDIR)/xxhash.o: $(SRCDIR)/xxhash.c $(HDEPS)
-	$(CC) -o $(OBJDIR)/xxhash.o $(CPPFLAGS) $(COPT_FLAGS) $(CFLAGS) $(C_COMMON_FLAGS) $(SSL_CFLAGS) $(FETCH_FLAGS) -c $(SRCDIR)/xxhash.c
 
 clean:
 	$(RM) $(OBJDIR)/*.o $(OBJDIR)/$(SONAME_FULL) $(OBJDIR)/$(SONAME) $(OBJDIR)/chargen $(OBJDIR)/test_basic $(OBJDIR)/test_speed $(OBJDIR)/objdump $(OBJDIR)/test_generate $(OBJDIR)/test_schema || true
