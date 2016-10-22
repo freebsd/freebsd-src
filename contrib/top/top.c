@@ -188,9 +188,9 @@ char *argv[];
     fd_set readfds;
 
 #ifdef ORDER
-    static char command_chars[] = "\f qh?en#sdkriIutHmSCajzPJo";
+    static char command_chars[] = "\f qh?en#sdkriIutHmSCajzPJwo";
 #else
-    static char command_chars[] = "\f qh?en#sdkriIutHmSCajzPJ";
+    static char command_chars[] = "\f qh?en#sdkriIutHmSCajzPJw";
 #endif
 /* these defines enumerate the "strchr"s of the commands in command_chars */
 #define CMD_redraw	0
@@ -219,8 +219,9 @@ char *argv[];
 #define CMD_kidletog	22
 #define CMD_pcputog	23
 #define CMD_jail	24
+#define CMD_swaptog	25
 #ifdef ORDER
-#define CMD_order       25
+#define CMD_order       26
 #endif
 
     /* set the buffer for stdout */
@@ -254,6 +255,7 @@ char *argv[];
     ps.wcpu    = 1;
     ps.jid     = -1;
     ps.jail    = No;
+    ps.swap    = No;
     ps.kidle   = Yes;
     ps.command = NULL;
 
@@ -280,7 +282,7 @@ char *argv[];
 	    optind = 1;
 	}
 
-	while ((i = getopt(ac, av, "CSIHPabijJ:nquvzs:d:U:m:o:t")) != EOF)
+	while ((i = getopt(ac, av, "CSIHPabijJ:nquvzs:d:U:m:o:tw")) != EOF)
 	{
 	    switch(i)
 	    {
@@ -416,6 +418,10 @@ char *argv[];
 
 	      case 'P':
 		pcpu_stats = !pcpu_stats;
+		break;
+
+	      case 'w':
+		ps.swap = 1;
 		break;
 
 	      case 'z':
@@ -1138,6 +1144,15 @@ restart:
 				    pcpu_stats ? "per-" : "global ");
 				toggle_pcpustats();
 				max_topn = display_updatecpus(&statics);
+				reset_display();
+				putchar('\r');
+				break;
+			    case CMD_swaptog:
+				ps.swap = !ps.swap;
+				new_message(MT_standout | MT_delayed,
+				    " %sisplaying per-process swap usage.",
+				    ps.swap ? "D" : "Not d");
+				header_text = format_header(uname_field);
 				reset_display();
 				putchar('\r');
 				break;
