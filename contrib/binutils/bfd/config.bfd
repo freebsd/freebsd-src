@@ -1103,7 +1103,7 @@ case "${targ}" in
     want64=true
     ;;
 #endif
-  powerpc-*-*bsd* | powerpc-*-elf* | powerpc-*-sysv4* | powerpc-*-eabi* | \
+  powerpc-*-*bsd* | powerpcspe-*-*bsd* | powerpc-*-elf* | powerpc-*-sysv4* | powerpc-*-eabi* | \
   powerpc-*-solaris2* | powerpc-*-linux-* | powerpc-*-rtems* | \
   powerpc-*-chorus*)
     targ_defvec=bfd_elf32_powerpc_vec
