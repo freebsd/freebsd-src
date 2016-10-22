@@ -41,14 +41,18 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
-#include <sys/types.h>
+#include <sys/capsicum.h>
 #include <sys/stat.h>
+#include <sys/types.h>
+
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <termios.h>
 #include <unistd.h>
 
 typedef struct _list {
@@ -69,6 +73,8 @@ main(int argc, char *argv[])
 	char *bp;
 	int append, ch, exitval;
 	char *buf;
+	cap_rights_t rights;
+	unsigned long cmd;
 #define	BSIZE (8 * 1024)
 
 	append = 0;
@@ -90,6 +96,16 @@ main(int argc, char *argv[])
 	if ((buf = malloc(BSIZE)) == NULL)
 		err(1, "malloc");
 
+	cap_rights_init(&rights, CAP_READ, CAP_FSTAT);
+	if (cap_rights_limit(STDIN_FILENO, &rights) < 0 && errno != ENOSYS)
+		err(EXIT_FAILURE, "unable to limit rights for stdin");
+	cap_rights_init(&rights, CAP_WRITE, CAP_FSTAT, CAP_IOCTL);
+	if (cap_rights_limit(STDERR_FILENO, &rights) < 0 && errno != ENOSYS)
+		err(EXIT_FAILURE, "unable to limit rights for stderr");
+	cmd = TIOCGETA;
+	if (cap_ioctls_limit(STDERR_FILENO, &cmd, 1) < 0 && errno != ENOSYS)
+		err(EXIT_FAILURE, "unable to limit ioctls for stderr");
+
 	add(STDOUT_FILENO, "stdout");
 
 	for (exitval = 0; *argv; ++argv)
@@ -100,6 +116,8 @@ main(int argc, char *argv[])
 		} else
 			add(fd, *argv);
 
+	if (cap_enter() < 0 && errno != ENOSYS)
+		err(EXIT_FAILURE, "unable to enter capability mode");
 	while ((rval = read(STDIN_FILENO, buf, BSIZE)) > 0)
 		for (p = head; p; p = p->next) {
 			n = rval;
@@ -129,6 +147,21 @@ static void
 add(int fd, const char *name)
 {
 	LIST *p;
+	cap_rights_t rights;
+	unsigned long cmd;
+
+	if (fd == STDOUT_FILENO)
+		cap_rights_init(&rights, CAP_WRITE, CAP_FSTAT, CAP_IOCTL);
+	else
+		cap_rights_init(&rights, CAP_WRITE, CAP_FSTAT);
+	if (cap_rights_limit(fd, &rights) < 0 && errno != ENOSYS)
+		err(EXIT_FAILURE, "unable to limit rights");
+
+	if (fd == STDOUT_FILENO) {
+		cmd = TIOCGETA;
+		if (cap_ioctls_limit(fd, &cmd, 1) < 0 && errno != ENOSYS)
+			err(EXIT_FAILURE, "unable to limit ioctls for stdout");
+	}
 
 	if ((p = malloc(sizeof(LIST))) == NULL)
 		err(1, "malloc");
