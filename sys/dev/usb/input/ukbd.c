@@ -387,7 +387,7 @@ static device_detach_t ukbd_detach;
 static device_resume_t ukbd_resume;
 
 #ifdef EVDEV_SUPPORT
-static struct evdev_methods ukbd_evdev_methods = {
+static const struct evdev_methods ukbd_evdev_methods = {
 	.ev_event = evdev_ev_kbd_event,
 };
 #endif
