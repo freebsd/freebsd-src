@@ -98,4 +98,4 @@ options 	FDT			# Configure using FDT/DTB data
 # handed to kernel via U-Boot and ubldr.
 #options 	FDT_DTB_STATIC
 #makeoptions	FDT_DTS_FILE=rpi2.dts
-makeoptions	MODULES_EXTRA=dtb/rpi
+makeoptions	MODULES_EXTRA="dtb/rpi rpi_ft5406"
