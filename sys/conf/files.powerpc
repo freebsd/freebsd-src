@@ -82,25 +82,25 @@ kern/kern_clocksource.c		standard
 kern/subr_dummy_vdso_tc.c	standard
 kern/syscalls.c			optional	ktr
 kern/subr_sfbuf.c		standard
-libkern/ashldi3.c		optional	powerpc
-libkern/ashrdi3.c		optional	powerpc
+libkern/ashldi3.c		optional	powerpc | powerpcspe
+libkern/ashrdi3.c		optional	powerpc | powerpcspe
 libkern/bcmp.c			standard
-libkern/cmpdi2.c		optional	powerpc
-libkern/divdi3.c		optional	powerpc
+libkern/cmpdi2.c		optional	powerpc | powerpcspe
+libkern/divdi3.c		optional	powerpc | powerpcspe
 libkern/ffs.c			standard
 libkern/ffsl.c			standard
 libkern/ffsll.c			standard
 libkern/fls.c			standard
 libkern/flsl.c			standard
 libkern/flsll.c			standard
-libkern/lshrdi3.c		optional	powerpc
+libkern/lshrdi3.c		optional	powerpc | powerpcspe
 libkern/memmove.c		standard
 libkern/memset.c		standard
-libkern/moddi3.c		optional	powerpc
-libkern/qdivrem.c		optional	powerpc
-libkern/ucmpdi2.c		optional	powerpc
-libkern/udivdi3.c		optional	powerpc
-libkern/umoddi3.c		optional	powerpc
+libkern/moddi3.c		optional	powerpc | powerpcspe
+libkern/qdivrem.c		optional	powerpc | powerpcspe
+libkern/ucmpdi2.c		optional	powerpc | powerpcspe
+libkern/udivdi3.c		optional	powerpc | powerpcspe
+libkern/umoddi3.c		optional	powerpc | powerpcspe
 powerpc/aim/locore.S		optional	aim no-obj
 powerpc/aim/aim_machdep.c	optional	aim
 powerpc/aim/mmu_oea.c		optional	aim powerpc
@@ -115,6 +115,7 @@ powerpc/booke/machdep_e500.c	optional	booke_e500
 powerpc/booke/mp_cpudep.c	optional	booke smp
 powerpc/booke/platform_bare.c	optional	booke
 powerpc/booke/pmap.c		optional	booke
+powerpc/booke/spe.c		optional	powerpcspe
 powerpc/cpufreq/dfs.c		optional	cpufreq
 powerpc/cpufreq/pcr.c		optional	cpufreq aim
 powerpc/cpufreq/pmufreq.c	optional	cpufreq aim pmu
@@ -179,7 +180,7 @@ powerpc/powermac/smusat.c	optional	powermac smu
 powerpc/powermac/uninorth.c	optional	powermac
 powerpc/powermac/uninorthpci.c	optional	powermac pci
 powerpc/powermac/vcoregpio.c	optional	powermac 
-powerpc/powerpc/altivec.c	standard
+powerpc/powerpc/altivec.c	optional	powerpc | powerpc64
 powerpc/powerpc/autoconf.c	standard
 powerpc/powerpc/bcopy.c		standard
 powerpc/powerpc/bus_machdep.c	standard
@@ -193,7 +194,7 @@ powerpc/powerpc/db_hwwatch.c	optional	ddb
 powerpc/powerpc/db_interface.c	optional	ddb
 powerpc/powerpc/db_trace.c	optional	ddb
 powerpc/powerpc/dump_machdep.c	standard
-powerpc/powerpc/elf32_machdep.c	optional	powerpc | compat_freebsd32
+powerpc/powerpc/elf32_machdep.c	optional	powerpc | powerpcspe | compat_freebsd32
 powerpc/powerpc/elf64_machdep.c	optional	powerpc64
 powerpc/powerpc/exec_machdep.c	standard
 powerpc/powerpc/fpu.c		standard
@@ -216,9 +217,9 @@ powerpc/powerpc/platform_if.m	standard
 powerpc/powerpc/ptrace_machdep.c	standard
 powerpc/powerpc/sc_machdep.c	optional	sc
 powerpc/powerpc/setjmp.S	standard
-powerpc/powerpc/sigcode32.S	optional	powerpc | compat_freebsd32
+powerpc/powerpc/sigcode32.S	optional	powerpc | powerpcspe | compat_freebsd32
 powerpc/powerpc/sigcode64.S	optional	powerpc64
-powerpc/powerpc/swtch32.S	optional	powerpc
+powerpc/powerpc/swtch32.S	optional	powerpc | powerpcspe
 powerpc/powerpc/swtch64.S	optional	powerpc64
 powerpc/powerpc/stack_machdep.c	optional	ddb | stack
 powerpc/powerpc/suswintr.c	standard
