@@ -1570,7 +1570,7 @@ _strfile=	usr.bin/fortune/strfile
 _gperf=		gnu/usr.bin/gperf
 .endif
 
-.if ${MK_GROFF} != "no"
+.if ${MK_SHAREDOCS} != "no" && ${MK_GROFF} != "no"
 _groff=		gnu/usr.bin/groff \
 		usr.bin/soelim
 .endif
