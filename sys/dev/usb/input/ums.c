@@ -191,7 +191,7 @@ static struct usb_fifo_methods ums_fifo_methods = {
 };
 
 #ifdef EVDEV_SUPPORT
-static struct evdev_methods ums_evdev_methods = {
+static const struct evdev_methods ums_evdev_methods = {
 	.ev_open = &ums_ev_open,
 	.ev_close = &ums_ev_close,
 };
