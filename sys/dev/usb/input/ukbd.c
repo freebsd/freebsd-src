@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_compat.h"
 #include "opt_kbd.h"
 #include "opt_ukbd.h"
+#include "opt_evdev.h"
 
 #include <sys/stdint.h>
 #include <sys/stddef.h>
@@ -72,6 +73,11 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_debug.h>
 
 #include <dev/usb/quirk/usb_quirk.h>
+
+#ifdef EVDEV
+#include <dev/evdev/input.h>
+#include <dev/evdev/evdev.h>
+#endif
 
 #include <sys/ioccom.h>
 #include <sys/filio.h>
@@ -162,6 +168,9 @@ struct ukbd_softc {
 	struct usb_device *sc_udev;
 	struct usb_interface *sc_iface;
 	struct usb_xfer *sc_xfer[UKBD_N_TRANSFER];
+#ifdef EVDEV
+	struct evdev_dev *sc_evdev;
+#endif
 
 	uint32_t sc_ntime[UKBD_NKEYCODE];
 	uint32_t sc_otime[UKBD_NKEYCODE];
@@ -377,6 +386,12 @@ static device_attach_t ukbd_attach;
 static device_detach_t ukbd_detach;
 static device_resume_t ukbd_resume;
 
+#ifdef EVDEV
+static struct evdev_methods ukbd_evdev_methods = {
+	.ev_event = evdev_ev_kbd_event,
+};
+#endif
+
 static uint8_t
 ukbd_any_key_pressed(struct ukbd_softc *sc)
 {
@@ -404,6 +419,14 @@ ukbd_put_key(struct ukbd_softc *sc, uint32_t key)
 
 	DPRINTF("0x%02x (%d) %s\n", key, key,
 	    (key & KEY_RELEASE) ? "released" : "pressed");
+
+#ifdef EVDEV
+	if (evdev_rcpt_mask & EVDEV_RCPT_HW_KBD && sc->sc_evdev != NULL) {
+		evdev_push_event(sc->sc_evdev, EV_KEY,
+		    evdev_hid2key(KEY_INDEX(key)), !(key & KEY_RELEASE));
+		evdev_sync(sc->sc_evdev);
+	}
+#endif
 
 	if (sc->sc_inputs < UKBD_IN_BUF_SIZE) {
 		sc->sc_input[sc->sc_inputtail] = key;
@@ -918,6 +941,11 @@ ukbd_set_leds_callback(struct usb_xfer *xfer, usb_error_t error)
 		if (!any)
 			break;
 
+#ifdef EVDEV
+		if (sc->sc_evdev != NULL)
+			evdev_push_leds(sc->sc_evdev, sc->sc_leds);
+#endif
+
 		/* range check output report length */
 		len = sc->sc_led_size;
 		if (len > (UKBD_BUFFER_SIZE - 1))
@@ -1193,6 +1221,10 @@ ukbd_attach(device_t dev)
 	usb_error_t err;
 	uint16_t n;
 	uint16_t hid_len;
+#ifdef EVDEV
+	struct evdev_dev *evdev;
+	int i;
+#endif
 #ifdef USB_DEBUG
 	int rate;
 #endif
@@ -1307,6 +1339,37 @@ ukbd_attach(device_t dev)
 		goto detach;
 	}
 #endif
+
+#ifdef EVDEV
+	evdev = evdev_alloc();
+	evdev_set_name(evdev, device_get_desc(dev));
+	evdev_set_phys(evdev, device_get_nameunit(dev));
+	evdev_set_id(evdev, BUS_USB, uaa->info.idVendor,
+	   uaa->info.idProduct, 0);
+	evdev_set_serial(evdev, usb_get_serial(uaa->device));
+	evdev_set_methods(evdev, kbd, &ukbd_evdev_methods);
+	evdev_support_event(evdev, EV_SYN);
+	evdev_support_event(evdev, EV_KEY);
+	if (sc->sc_flags & (UKBD_FLAG_NUMLOCK | UKBD_FLAG_CAPSLOCK |
+			    UKBD_FLAG_SCROLLLOCK))
+		evdev_support_event(evdev, EV_LED);
+	evdev_support_event(evdev, EV_REP);
+
+	for (i = 0x00; i <= 0xFF; i++)
+		evdev_support_key(evdev, evdev_hid2key(i));
+	if (sc->sc_flags & UKBD_FLAG_NUMLOCK)
+		evdev_support_led(evdev, LED_NUML);
+	if (sc->sc_flags & UKBD_FLAG_CAPSLOCK)
+		evdev_support_led(evdev, LED_CAPSL);
+	if (sc->sc_flags & UKBD_FLAG_SCROLLLOCK)
+		evdev_support_led(evdev, LED_SCROLLL);
+
+	if (evdev_register(evdev))
+		evdev_free(evdev);
+	else
+		sc->sc_evdev = evdev;
+#endif
+
 	sc->sc_flags |= UKBD_FLAG_ATTACHED;
 
 	if (bootverbose) {
@@ -1377,6 +1440,11 @@ ukbd_detach(device_t dev)
 		}
 	}
 #endif
+
+#ifdef EVDEV
+	evdev_free(sc->sc_evdev);
+#endif
+
 	if (KBD_IS_CONFIGURED(&sc->sc_kbd)) {
 		error = kbd_unregister(&sc->sc_kbd);
 		if (error) {
@@ -1908,6 +1976,10 @@ ukbd_ioctl_locked(keyboard_t *kbd, u_long cmd, caddr_t arg)
 		else
 			kbd->kb_delay1 = ((int *)arg)[0];
 		kbd->kb_delay2 = ((int *)arg)[1];
+#ifdef EVDEV
+		if (sc->sc_evdev != NULL)
+			evdev_push_repeats(sc->sc_evdev, kbd);
+#endif
 		return (0);
 
 #if defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD5) || \
@@ -2056,6 +2128,9 @@ ukbd_set_leds(struct ukbd_softc *sc, uint8_t leds)
 static int
 ukbd_set_typematic(keyboard_t *kbd, int code)
 {
+#ifdef EVDEV
+	struct ukbd_softc *sc = kbd->kb_data;
+#endif
 	static const int delays[] = {250, 500, 750, 1000};
 	static const int rates[] = {34, 38, 42, 46, 50, 55, 59, 63,
 		68, 76, 84, 92, 100, 110, 118, 126,
@@ -2067,6 +2142,10 @@ ukbd_set_typematic(keyboard_t *kbd, int code)
 	}
 	kbd->kb_delay1 = delays[(code >> 5) & 3];
 	kbd->kb_delay2 = rates[code & 0x1f];
+#ifdef EVDEV
+	if (sc->sc_evdev != NULL)
+		evdev_push_repeats(sc->sc_evdev, kbd);
+#endif
 	return (0);
 }
 
