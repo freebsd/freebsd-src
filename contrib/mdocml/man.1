@@ -1,4 +1,4 @@
-.\"	$Id: man.1,v 1.16 2015/09/21 09:59:02 schwarze Exp $
+.\"	$Id: man.1,v 1.17 2016/07/01 20:24:04 schwarze Exp $
 .\"
 .\" Copyright (c) 1989, 1990, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -31,7 +31,7 @@
 .\"
 .\"     @(#)man.1	8.2 (Berkeley) 1/2/94
 .\"
-.Dd $Mdocdate: September 21 2015 $
+.Dd $Mdocdate: July 1 2016 $
 .Dt MAN 1
 .Os
 .Sh NAME
@@ -209,13 +209,9 @@ architecture whilst using another.
 This option overrides the
 .Ev MACHINE
 environment variable.
-.It Xo
-.Op Fl s
-.Ar section
-.Xc
-Restricts the directories that
-.Nm
-will search to a specific section.
+.It Oo Fl s Oc Ar section
+Only select manuals from the specified
+.Ar section .
 The currently available sections are:
 .Pp
 .Bl -tag -width "localXXX" -offset indent -compact
@@ -225,9 +221,7 @@ General commands
 .It 2
 System calls and error numbers.
 .It 3
-Libraries.
-.It 3f
-Fortran programmer's reference guide.
+Library functions.
 .It 3p
 .Xr perl 1
 programmer's reference guide.
@@ -238,30 +232,12 @@ File formats.
 .It 6
 Games.
 .It 7
-Miscellaneous.
+Miscellaneous information.
 .It 8
 System maintenance and operation commands.
 .It 9
 Kernel internals.
-.It X11
-An alias for X11R6.
-.It X11R6
-X Window System.
-.It local
-Pages located in
-.Pa /usr/local .
-.It n
-Tcl/Tk commands.
 .El
-.Pp
-The
-.Nm
-configuration file,
-.Xr man.conf 5 ,
-specifies the possible
-.Ar section
-values, and their search order.
-Additional sections may be specified.
 .It Fl T Ar output
 Select the output format.
 The default is

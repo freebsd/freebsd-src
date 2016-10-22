@@ -1,4 +1,4 @@
-/*	$Id: libmandoc.h,v 1.62 2015/11/07 14:01:16 schwarze Exp $ */
+/*	$Id: libmandoc.h,v 1.63 2016/07/07 19:19:01 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2010, 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2013, 2014, 2015 Ingo Schwarze <schwarze@openbsd.org>
@@ -38,7 +38,6 @@ struct	tbl_span;
 struct	eqn;
 struct	roff;
 struct	roff_man;
-struct	roff_node;
 
 void		 mandoc_msg(enum mandocerr, struct mparse *,
 			int, int, const char *);

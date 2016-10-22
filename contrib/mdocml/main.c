@@ -1,4 +1,4 @@
-/*	$Id: main.c,v 1.262 2016/01/08 02:53:13 schwarze Exp $ */
+/*	$Id: main.c,v 1.269 2016/07/12 05:18:38 kristaps Exp $ */
 /*
  * Copyright (c) 2008-2012 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2010-2012, 2014-2016 Ingo Schwarze <schwarze@openbsd.org>
@@ -30,11 +30,15 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <glob.h>
+#if HAVE_SANDBOX_INIT
+#include <sandbox.h>
+#endif
 #include <signal.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "mandoc_aux.h"
@@ -123,9 +127,9 @@ main(int argc, char *argv[])
 	unsigned char	*uc;
 	struct manpage	*res, *resp;
 	char		*conf_file, *defpaths;
-	size_t		 isec, i, sz;
+	const char	*sec;
+	size_t		 i, sz;
 	int		 prio, best_prio;
-	char		 sec;
 	enum outmode	 outmode;
 	int		 fd;
 	int		 show_usage;
@@ -156,6 +160,11 @@ main(int argc, char *argv[])
 #if HAVE_PLEDGE
 	if (pledge("stdio rpath tmppath tty proc exec flock", NULL) == -1)
 		err((int)MANDOCLEVEL_SYSERR, "pledge");
+#endif
+
+#if HAVE_SANDBOX_INIT
+	if (sandbox_init(kSBXProfileNoInternet, SANDBOX_NAMED, NULL) == -1)
+		errx((int)MANDOCLEVEL_SYSERR, "sandbox_init");
 #endif
 
 	/* Search options. */
@@ -389,7 +398,7 @@ main(int argc, char *argv[])
 
 		if (outmode == OUTMODE_ONE) {
 			argc = 1;
-			best_prio = 10;
+			best_prio = 20;
 		} else if (outmode == OUTMODE_ALL)
 			argc = (int)sz;
 
@@ -405,11 +414,13 @@ main(int argc, char *argv[])
 				    res[i].output);
 			else if (outmode == OUTMODE_ONE) {
 				/* Search for the best section. */
-				isec = strcspn(res[i].file, "123456789");
-				sec = res[i].file[isec];
-				if ('\0' == sec)
+				sec = res[i].file;
+				sec += strcspn(sec, "123456789");
+				if (sec[0] == '\0')
 					continue;
-				prio = sec_prios[sec - '1'];
+				prio = sec_prios[sec[0] - '1'];
+				if (sec[1] != '/')
+					prio += 10;
 				if (prio >= best_prio)
 					continue;
 				best_prio = prio;
@@ -476,7 +487,7 @@ main(int argc, char *argv[])
 				    conf.output.synopsisonly);
 
 			if (argc > 1 && curp.outtype <= OUTT_UTF8)
-				ascii_sepline(curp.outdata);
+				terminal_sepline(curp.outdata);
 		} else if (rc < MANDOCLEVEL_ERROR)
 			rc = MANDOCLEVEL_ERROR;
 
@@ -661,8 +672,8 @@ fs_lookup(const struct manpaths *paths, size_t ipath,
 
 found:
 #if HAVE_SQLITE3
-	warnx("outdated mandoc.db lacks %s(%s) entry, run makewhatis %s",
-	    name, sec, paths->paths[ipath]);
+	warnx("outdated mandoc.db lacks %s(%s) entry, run %s %s",
+	    name, sec, BINM_MAKEWHATIS, paths->paths[ipath]);
 #endif
 	*res = mandoc_reallocarray(*res, ++*ressz, sizeof(struct manpage));
 	page = *res + (*ressz - 1);
@@ -681,7 +692,7 @@ fs_search(const struct mansearch *cfg, const struct manpaths *paths,
 	int argc, char **argv, struct manpage **res, size_t *ressz)
 {
 	const char *const sections[] =
-	    {"1", "8", "6", "2", "3", "3p", "5", "7", "4", "9"};
+	    {"1", "8", "6", "2", "3", "5", "7", "4", "9", "3p"};
 	const size_t nsec = sizeof(sections)/sizeof(sections[0]);
 
 	size_t		 ipath, isec, lastsz;
@@ -1018,6 +1029,7 @@ mmsg(enum mandocerr t, enum mandoclevel lvl,
 static pid_t
 spawn_pager(struct tag_files *tag_files)
 {
+	const struct timespec timeout = { 0, 100000000 };  /* 0.1s */
 #define MAX_PAGER_ARGS 16
 	char		*argv[MAX_PAGER_ARGS];
 	const char	*pager;
@@ -1051,11 +1063,11 @@ spawn_pager(struct tag_files *tag_files)
 			break;
 	}
 
-	/* For more(1) and less(1), use the tag file. */
+	/* For less(1), use the tag file. */
 
 	if ((cmdlen = strlen(argv[0])) >= 4) {
 		cp = argv[0] + cmdlen - 4;
-		if (strcmp(cp, "less") == 0 || strcmp(cp, "more") == 0) {
+		if (strcmp(cp, "less") == 0) {
 			argv[argc++] = mandoc_strdup("-T");
 			argv[argc++] = tag_files->tfn;
 		}
@@ -1067,8 +1079,6 @@ spawn_pager(struct tag_files *tag_files)
 	case -1:
 		err((int)MANDOCLEVEL_SYSERR, "fork");
 	case 0:
-		/* Set pgrp in both parent and child to avoid racing exec. */
-		(void)setpgid(0, 0);
 		break;
 	default:
 		(void)setpgid(pager_pid, 0);
@@ -1087,6 +1097,12 @@ spawn_pager(struct tag_files *tag_files)
 		err((int)MANDOCLEVEL_SYSERR, "pager stdout");
 	close(tag_files->ofd);
 	close(tag_files->tfd);
+
+	/* Do not start the pager before controlling the terminal. */
+
+	while (tcgetpgrp(STDIN_FILENO) != getpid())
+		nanosleep(&timeout, NULL);
+
 	execvp(argv[0], argv);
 	err((int)MANDOCLEVEL_SYSERR, "exec %s", argv[0]);
 }
