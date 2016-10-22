@@ -73,10 +73,8 @@ again:
 			printf("Waiting for connection from gdb\r\n");
 			printonce = 1;
 		}
-		conn_fd = accept(listen_fd, NULL, NULL);
-		if (conn_fd >= 0)
-			fcntl(conn_fd, F_SETFL, O_NONBLOCK);
-		else if (errno != EINTR)
+		conn_fd = accept4(listen_fd, NULL, NULL, O_NONBLOCK);
+		if (conn_fd < 0 && errno != EINTR)
 			perror("accept");
 	}
 
