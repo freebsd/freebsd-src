@@ -25,7 +25,7 @@ SRCS+=	ops_unionfs.c opts.c readdir.c restart.c rpc_fwd.c sched.c
 SRCS+=	srvr_amfs_auto.c srvr_nfs.c
 
 CFLAGS+= -I${SRCTOP}/contrib/amd/amd \
-	 -I${DESTDIR}/usr/include/rpcsvc
+	 -I${.OBJDIR}/../../../include/rpcsvc
 
 LIBADD=	amu wrap
 
