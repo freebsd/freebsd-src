@@ -765,13 +765,13 @@ fix_unaligned(struct thread *td, struct trapframe *frame)
 		fpr = (double *)td->td_pcb->pcb_vec.vr[reg];
 		fputhread = PCPU_GET(vecthread);
 
-		/* Juggle the FPU to ensure that we've initialized
-		 * the FPRs, and that their current state is in
+		/* Juggle the SPE to ensure that we've initialized
+		 * the registers, and that their current state is in
 		 * the PCB.
 		 */
-		if (fputhread != td) {
-			if (fputhread)
-				save_vec(fputhread);
+		if (vecthread != td) {
+			if (vecthread)
+				save_vec(vecthread);
 			enable_vec(td);
 		}
 		save_vec(td);
