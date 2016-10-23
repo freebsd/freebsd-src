@@ -12,6 +12,7 @@ arm/allwinner/a10_mmc.c			optional	mmc
 arm/allwinner/a10_sramc.c		standard
 arm/allwinner/aw_nmi.c			optional	intrng
 arm/allwinner/aw_if_dwc.c		optional	dwc
+arm/allwinner/aw_p2wi.c			optional	p2wi
 arm/allwinner/aw_rsb.c			optional	rsb
 arm/allwinner/aw_rtc.c			standard
 arm/allwinner/aw_ts.c			standard
