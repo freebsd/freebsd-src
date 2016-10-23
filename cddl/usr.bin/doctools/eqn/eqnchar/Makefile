@@ -10,7 +10,7 @@ genutf8: genutf8.c
 	${CC} -o ${.TARGET} ${CFLAGS} ${.IMPSRC}
 
 utf-8:	genutf8
-	./genutf8 >${.TARGET}
+	${.OBJDIR}/genutf8 >${.TARGET}
 
 .include <bsd.prog.mk>
 
