@@ -104,6 +104,7 @@ device		iicbus
 device		iic
 device		twsi
 device		rsb
+device		p2wi			# Allwinner Push-Pull Two Wire interface
 device		axp209			# AXP209 Power Management Unit
 device		axp81x			# AXP813/818 Power Management Unit
 device		bcm2835_bsc
