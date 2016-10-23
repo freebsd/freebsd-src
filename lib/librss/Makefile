@@ -5,6 +5,7 @@ SHLIBDIR?=	/lib
 
 .include <src.opts.mk>
 
+INCS=	librss.h
 LIB=	rss
 SHLIB_MAJOR=	1
 
