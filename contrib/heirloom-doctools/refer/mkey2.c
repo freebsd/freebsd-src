@@ -32,8 +32,10 @@ static long lp, lim;
 static int alph, used, prevc;
 static char *p, key[20];
 
+void chkey(int c, const char *name);
+
 void
-dofile(FILE *f, char *name)
+dofile(FILE *f, const char *name)
 {
 	/* read file f & spit out keys & ptrs */
 
@@ -122,15 +124,15 @@ grec (char *s, FILE *f)
 char *
 trimnl(char *ln)
 {
-	register char *p = ln;
-	while (*p) p++;
-	p--;
-	if (*p == '\n') *p=0;
+	register char *ptr = ln;
+	while (*ptr) ptr++;
+	ptr--;
+	if (*ptr == '\n') *ptr=0;
 	return(ln);
 }
 
 void
-chkey (int c, char *name)
+chkey(int c, const char *name)
 {
 	extern int labels;
 	extern int wholefile;

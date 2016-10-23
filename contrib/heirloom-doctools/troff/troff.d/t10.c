@@ -89,7 +89,7 @@ int	Hor;
 int	Vert;
 int	Unitwidth;
 int	nfonts;
-int	nsizes;
+static int	nsizes;
 int	nchtab;
 int	lettrack;
 float	horscale;
@@ -317,7 +317,7 @@ specnames(void)
 {
 	static struct {
 		int	*n;
-		char	*v;
+		const char	*v;
 	} spnames[] = {
 		{ &c_hyphen  , "hy" },
 		{ &c_emdash  , "em" },
@@ -348,7 +348,7 @@ specnames(void)
 }
 
 int
-findch(register char *s)	/* find char s in chname */
+findch(register const char *s)	/* find char s in chname */
 {
 	register int	i;
 

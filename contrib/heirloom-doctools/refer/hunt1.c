@@ -31,15 +31,12 @@
 # include <limits.h>
 # include "refer..c"
 extern char refdir[];
-extern int keepold;
-extern char *fgnames[];
-extern char **fgnamp;
 FILE *fd =NULL;
 int lmaster =500;
 int *hfreq, hfrflg;
 int colevel =0;
-int measure=0;
-int soutlen =1000;
+static int measure=0;
+static int soutlen =1000;
 int reached =0;
 int iflong =0;
 int prfreqs =0;

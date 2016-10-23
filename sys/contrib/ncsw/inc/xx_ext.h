@@ -197,7 +197,7 @@ char    XX_GetChar(void);
 
  @Return        E_OK on success; error code otherwise..
 *//***************************************************************************/
-t_Error XX_PreallocAndBindIntr(int irq, unsigned int cpu);
+t_Error XX_PreallocAndBindIntr(uintptr_t irq, unsigned int cpu);
 
 /**************************************************************************//**
  @Function      XX_DeallocIntr
@@ -208,7 +208,7 @@ t_Error XX_PreallocAndBindIntr(int irq, unsigned int cpu);
 
  @Return        E_OK on success; error code otherwise..
 *//***************************************************************************/
-t_Error XX_DeallocIntr(int irq);
+t_Error XX_DeallocIntr(uintptr_t irq);
 
 /**************************************************************************//**
  @Function      XX_SetIntr
@@ -221,7 +221,7 @@ t_Error XX_DeallocIntr(int irq);
 
  @Return        E_OK on success; error code otherwise..
 *//***************************************************************************/
-t_Error XX_SetIntr(int irq, t_Isr *f_Isr, t_Handle handle);
+t_Error XX_SetIntr(uintptr_t irq, t_Isr *f_Isr, t_Handle handle);
 
 /**************************************************************************//**
  @Function      XX_FreeIntr
@@ -232,7 +232,7 @@ t_Error XX_SetIntr(int irq, t_Isr *f_Isr, t_Handle handle);
 
  @Return        E_OK on success; error code otherwise..
 *//***************************************************************************/
-t_Error XX_FreeIntr(int irq);
+t_Error XX_FreeIntr(uintptr_t irq);
 
 /**************************************************************************//**
  @Function      XX_EnableIntr
@@ -243,7 +243,7 @@ t_Error XX_FreeIntr(int irq);
 
  @Return        E_OK on success; error code otherwise..
 *//***************************************************************************/
-t_Error XX_EnableIntr(int irq);
+t_Error XX_EnableIntr(uintptr_t irq);
 
 /**************************************************************************//**
  @Function      XX_DisableIntr
@@ -254,7 +254,7 @@ t_Error XX_EnableIntr(int irq);
 
  @Return        E_OK on success; error code otherwise..
 *//***************************************************************************/
-t_Error XX_DisableIntr(int irq);
+t_Error XX_DisableIntr(uintptr_t irq);
 
 #if !(defined(__MWERKS__) && defined(OPTIMIZED_FOR_SPEED))
 /**************************************************************************//**

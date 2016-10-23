@@ -205,7 +205,7 @@ qman_attach(device_t dev)
 	qp.pfdrMemPartitionId = NCSW_MASTER_ID;
 	qp.f_Exception = qman_exception;
 	qp.h_App = sc;
-	qp.errIrq = (int)sc->sc_ires;
+	qp.errIrq = (uintptr_t)sc->sc_ires;
 	qp.partFqidBase = QMAN_FQID_BASE;
 	qp.partNumOfFqids = QMAN_MAX_FQIDS;
 	qp.partCgsBase = 0;
@@ -255,7 +255,7 @@ qman_detach(device_t dev)
 		QM_Free(sc->sc_qh);
 
 	if (sc->sc_ires != NULL)
-		XX_DeallocIntr((int)sc->sc_ires);
+		XX_DeallocIntr((uintptr_t)sc->sc_ires);
 
 	if (sc->sc_ires != NULL)
 		bus_release_resource(dev, SYS_RES_IRQ,

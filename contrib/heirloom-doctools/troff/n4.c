@@ -67,10 +67,10 @@
  */
 
 
-int	regcnt = NNAMES;
+static int	regcnt = NNAMES;
 int	falsef	= 0;	/* on if inside false branch of if */
 #define	NHASH(i)	((i>>6)^i)&0177
-struct	numtab	**nhash;	/* size must be 128 == the 0177 on line above */
+static struct	numtab	**nhash;	/* size must be 128 == the 0177 on line above */
 
 static void	nrehash(struct numtab *, int, struct numtab **);
 static struct numtab	*_findr(register int i, int, int, int, int *);
@@ -311,7 +311,7 @@ sl:
 		case 'Y':
 			if (xflag) {
 				TMYES;
-				cpushback((char *)revision);
+				cpushback(revision);
 				return(0);
 			}
 			/*FALLTHRU*/
@@ -571,8 +571,8 @@ setn(void)
 	_setn(0);
 }
 
-tchar	numbuf[17];
-tchar	*numbufp;
+static tchar	numbuf[17];
+static tchar	*numbufp;
 
 int 
 wrc(tchar i)
@@ -798,7 +798,7 @@ roman(int i, int (*f)(tchar))
 
 
 int 
-roman0(int i, int (*f)(tchar), char *onesp, char *fivesp)
+roman0(int i, int (*f)(tchar), const char *onesp, const char *fivesp)
 {
 	register int q, rem, k;
 
@@ -1355,11 +1355,11 @@ a1:
 		i = dfactd;
 	}
 	if (!field) {
-		tchar	t, tp[2];
-		int	f, d, n;
-		t = getch();
-		if (cbits(t) != ';') {
-			tp[0] = t;
+		tchar	_t, tp[2];
+		int	_f, _d, n;
+		_t = getch();
+		if (cbits(_t) != ';') {
+			tp[0] = _t;
 			tp[1] = 0;
 			pushback(tp);
 			ch = ii;
@@ -1367,15 +1367,15 @@ a1:
 		}
 	newscale:
 		/* (c;e) */
-		f = dfact;
-		d = dfactd;
+		_f = dfact;
+		_d = dfactd;
 		n = noscale;
 		dfact = j;
 		dfactd = i;
 		noscale = _noscale;
 		acc = _atoi0(flt);
-		dfact = f;
-		dfactd = d;
+		dfact = _f;
+		dfactd = _d;
 		noscale = n;
 		return(acc);
 	}
@@ -1782,7 +1782,7 @@ caseunwatchn(void)
 void
 prwatchn(struct numtab *numtp)
 {
-	char	*local;
+	const char	*local;
 
 	if (numtp == NULL)
 		return;
@@ -1886,18 +1886,18 @@ _inumb(int *n, float *fp, int flt, int *relative)
 float
 atop(void)
 {
-	float	t;
+	float	_t;
 
 	noscale++;
-	t = atof();
+	_t = atof();
 	noscale--;
-	if (t < -INFPENALTY)
-		t = -INFPENALTY;
-	else if (t > INFPENALTY)
-		t = INFPENALTY;
+	if (_t < -INFPENALTY)
+		_t = -INFPENALTY;
+	else if (_t > INFPENALTY)
+		_t = INFPENALTY;
 	else
-		t *= PENALSCALE;
-	return t;
+		_t *= PENALSCALE;
+	return _t;
 }
 
 
@@ -1923,7 +1923,7 @@ quant(int n, int m)
 
 
 tchar
-moflo(int n)
+moflo(int n __unused)
 {
 	if (warn & WARN_RANGE)
 		errprint("value too large for motion");

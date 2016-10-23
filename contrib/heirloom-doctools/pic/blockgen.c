@@ -20,8 +20,8 @@
 
 struct pushstack stack[NBRACK];
 int	nstack	= 0;
-struct pushstack bracestack[NBRACE];
-int	nbstack	= 0;
+static struct pushstack bracestack[NBRACE];
+static int	nbstack	= 0;
 
 void blockadj(obj *);
 

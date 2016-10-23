@@ -26,7 +26,7 @@ files		"../atheros/files.ar71xx"
 hints		"QCA955X_BASE.hints"
 
 makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
-makeoptions	MODULES_OVERRIDE="gpio ar71xx if_gif if_vlan if_gre if_tap if_tun if_bridge bridgestp usb wlan wlan_xauth wlan_acl wlan_wep wlan_tkip wlan_ccmp wlan_rssadapt wlan_amrr hwpmc ipfw ipfw_nat libalias ipfw_nptv6 urtwn urtwnfw otus otusfw"
+makeoptions	MODULES_OVERRIDE="gpio ar71xx if_gif if_vlan if_gre if_tap if_tun if_bridge bridgestp usb wlan wlan_xauth wlan_acl wlan_wep wlan_tkip wlan_ccmp wlan_rssadapt wlan_amrr hwpmc ipfw ipfw_nat libalias ipfw_nptv6 rtwn rtwn_usb rtwnfw otus otusfw"
 
 options 	DDB
 options 	KDB
@@ -35,6 +35,7 @@ options 	ALQ
 options 	SCHED_4BSD		#4BSD scheduler
 options 	INET			#InterNETworking
 #options 	INET6			#InterNETworking
+options 	TCP_HHOOK		# hhook(9) framework for TCP
 #options 	NFSCL			#Network Filesystem Client
 options 	PSEUDOFS		#Pseudo-filesystem framework
 options 	_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions

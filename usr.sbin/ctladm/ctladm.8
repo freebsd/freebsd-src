@@ -35,7 +35,7 @@
 .\" $Id: //depot/users/kenm/FreeBSD-test2/usr.sbin/ctladm/ctladm.8#3 $
 .\" $FreeBSD$
 .\"
-.Dd September 26, 2015
+.Dd October 15, 2016
 .Dt CTLADM 8
 .Os
 .Sh NAME
@@ -903,8 +903,21 @@ Specifies medium rotation rate of the device: 0 -- not reported,
 .It Va formfactor
 Specifies nominal form factor of the device: 0 -- not reported, 1 -- 5.25",
 2 -- 3.5", 3 -- 2.5", 4 -- 1.8", 5 -- less then 1.8".
+.It Va provisioning_type
+When UNMAP support is enabled, this option specifies provisioning type:
+"resource", "thin" or "unknown".
+Default value is "thin".
+Logical units without UNMAP support are reported as fully provisioned.
 .It Va unmap
-Set to "on", enables UNMAP support for the LUN, if supported by the backend.
+Setting to "on" or "off" controls UNMAP support for the logical unit.
+Default value is "on" if supported by the backend.
+.It Va unmap_max_lba
+.It Va unmap_max_descr
+Specify maximum allowed number of LBAs and block descriptors per UNMAP
+command to report in Block Limits VPD page.
+.It Va write_same_max_lba
+Specify maximum allowed number of LBAs per WRITE SAME command to report
+in Block Limits VPD page.
 .It Va avail-threshold
 .It Va used-threshold
 .It Va pool-avail-threshold

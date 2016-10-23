@@ -173,7 +173,7 @@ signals(void)
 	signal(SIGTERM, intr);
 }
 
-static void intr(int unused)
+static void intr(int unused __unused)
 {
 	signal(SIGINT, SIG_IGN);
 	cleanup();

@@ -32,7 +32,7 @@ int keycount = 100;
 int labels = 1;
 int minlen = 3;
 extern int comcount;
-char *iglist = "XYZ#";
+const char *iglist = "XYZ#";
 
 int
 main (int argc,char **argv)

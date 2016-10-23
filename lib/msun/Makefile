@@ -63,8 +63,8 @@ COMMON_SRCS= b_exp.c b_log.c b_tgamma.c \
 	s_exp2.c s_exp2f.c s_expm1.c s_expm1f.c s_fabsf.c s_fdim.c \
 	s_finite.c s_finitef.c \
 	s_floor.c s_floorf.c s_fma.c s_fmaf.c \
-	s_fmax.c s_fmaxf.c s_fmaxl.c s_fmin.c \
-	s_fminf.c s_fminl.c s_frexp.c s_frexpf.c s_ilogb.c s_ilogbf.c \
+	s_fmax.c s_fmaxf.c s_fmin.c \
+	s_fminf.c s_frexp.c s_frexpf.c s_ilogb.c s_ilogbf.c \
 	s_ilogbl.c s_isfinite.c s_isnan.c s_isnormal.c \
 	s_llrint.c s_llrintf.c s_llround.c s_llroundf.c s_llroundl.c \
 	s_log1p.c s_log1pf.c s_logb.c s_logbf.c s_lrint.c s_lrintf.c \
@@ -101,9 +101,9 @@ COMMON_SRCS+=	e_acoshl.c e_acosl.c e_asinl.c e_atan2l.c e_atanhl.c \
 	invtrig.c k_cosl.c k_sinl.c k_tanl.c \
 	s_asinhl.c s_atanl.c s_cbrtl.c s_ceill.c s_cosl.c s_cprojl.c \
 	s_csqrtl.c s_erfl.c s_exp2l.c s_expl.c s_floorl.c s_fmal.c \
-	s_frexpl.c s_logbl.c s_logl.c s_nanl.c s_nextafterl.c \
-	s_nexttoward.c s_remquol.c s_rintl.c s_roundl.c s_scalbnl.c \
-	s_sinl.c s_tanhl.c s_tanl.c s_truncl.c w_cabsl.c
+	s_fmaxl.c s_fminl.c s_frexpl.c s_logbl.c s_logl.c s_nanl.c \
+	s_nextafterl.c s_nexttoward.c s_remquol.c s_rintl.c s_roundl.c \
+	s_scalbnl.c s_sinl.c s_tanhl.c s_tanl.c s_truncl.c w_cabsl.c
 .endif
 
 # C99 complex functions

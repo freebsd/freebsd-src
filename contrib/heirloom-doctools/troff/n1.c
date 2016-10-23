@@ -50,7 +50,7 @@
  * contributors.
  */
 
-char *xxxvers = "@(#)roff:n1.c	2.13";
+/* const char *xxxvers = "@(#)roff:n1.c	2.13"; */
 /*
  * n1.c
  *
@@ -94,12 +94,12 @@ static int	max_recursion_depth = MAX_RECURSION_DEPTH;
 static int	max_tail_depth;
 
 jmp_buf sjbuf;
-filep	ipl[NSO];
-long	offl[NSO];
-long	ioff;
-char	*ttyp;
+static filep	ipl[NSO];
+static long	offl[NSO];
+static long	ioff;
+static const char	*ttyp;
 char	*cfname[NSO+1];		/*file name stack*/
-int	cfline[NSO];		/*input line count stack*/
+static int	cfline[NSO];		/*input line count stack*/
 static int	cfpid[NSO+1];	/* .pso process IDs */
 char	*progname;	/* program name (troff) */
 #ifdef	EUC
@@ -140,7 +140,7 @@ main(int argc, char **argv)
 	register char	*p;
 	register int j;
 	char	**oargv;
-	char *s;
+	const char *s;
 	size_t l;
 
 	setlocale(LC_CTYPE, "");
@@ -435,7 +435,7 @@ Lt:
 
 
 int
-tryfile(register char *pat, register char *fn, int idx)
+tryfile(register const char *pat, register char *fn, int idx)
 {
 	size_t l = strlen(pat) + strlen(fn) + 1;
 	mfiles[idx] = malloc(l);
@@ -446,13 +446,13 @@ tryfile(register char *pat, register char *fn, int idx)
 	else return(1);
 }	
 
-void catch(int unused)
+void catch(int unused __unused)
 {
 	done3(01);
 }
 
 
-void kcatch(int unused)
+void kcatch(int unused __unused)
 {
 	signal(SIGTERM, SIG_IGN);
 	done3(01);
@@ -469,7 +469,7 @@ init0(void)
 
 
 void
-init1(char a)
+init1(char a __unused)
 {
 	register int i;
 
@@ -579,7 +579,7 @@ mesg(int f)
 	}
 }
 
-void
+static void
 verrprint(const char *s, va_list ap)
 {
 	fprintf(stderr, "%s: ", progname);
@@ -621,7 +621,7 @@ static char	pfbuf[NTM];
 static char	*pfbp = pfbuf;
 
 void
-fdprintf(int fd, char *fmt, ...)
+fdprintf(int fd, const char *fmt, ...)
 {
 	va_list	ap;
 
@@ -790,7 +790,7 @@ static void printn(register long n, register long b)
 /* returns pointer to \0 that ends the string */
 
 /* VARARGS2 */
-char *roff_sprintf(char *str, size_t size, char *fmt, ...)
+char *roff_sprintf(char *str, size_t size, const char *fmt, ...)
 {
 	register int c;
 	char	*s;
@@ -827,9 +827,9 @@ loop:
 	} else if (c == 'e' || c == 'E' ||
 			c == 'f' || c == 'F' ||
 			c == 'g' || c == 'G') {
-		char	fmt[] = "%%";
-		fmt[1] = c;
-		str += snprintf(str, size - (str - buf), fmt, va_arg(ap,
+		char	_fmt[] = "%%";
+		_fmt[1] = c;
+		str += snprintf(str, size - (str - buf), _fmt, va_arg(ap,
 		    double));
 	} else if (c == 'p') {
 		i = (intptr_t)va_arg(ap, void *);
@@ -1475,7 +1475,7 @@ copy:
 void
 setxon(void)	/* \X'...' for copy through */
 {
-	tchar xbuf[NC];
+	tchar _xbuf[NC];
 	register tchar *i;
 	tchar c, delim;
 	int k;
@@ -1483,10 +1483,10 @@ setxon(void)	/* \X'...' for copy through */
 	if (ismot(c = getch()))
 		return;
 	delim = c;
-	i = xbuf;
+	i = _xbuf;
 	*i++ = XON;
 	charf++;
-	while (k = cbits(c = getch()), !issame(c, delim) && k != '\n' && i < xbuf+NC-1) {
+	while (k = cbits(c = getch()), !issame(c, delim) && k != '\n' && i < _xbuf+NC-1) {
 		if (k == ' ')
 			setcbits(c, UNPAD);
 		*i++ = c | ZBIT;
@@ -1496,7 +1496,7 @@ setxon(void)	/* \X'...' for copy through */
 	charf--;
 	*i++ = XOFF;
 	*i = 0;
-	pushback(xbuf);
+	pushback(_xbuf);
 }
 
 static tchar
@@ -1644,9 +1644,9 @@ pushback(register tchar *b)
 }
 
 void
-cpushback(register char *b)
+cpushback(register const char *b)
 {
-	register char *ob = b;
+	register const char *ob = b;
 
 	while (*b++)
 		;
@@ -1677,7 +1677,7 @@ int
 nextfile(void)
 {
 	register char	*p;
-	char *s;
+	const char *s;
 	size_t l;
 
 n0:
@@ -1873,22 +1873,23 @@ getname(void)
 tchar
 setuc(void)
 {
-	char	c, d, b[NC], *bp;
-	int	i = 0, n;
+	char	c, _d, b[NC], *bp;
+	int	n;
+	size_t	i = 0;
 	tchar	r = 0;
 #ifndef NROFF
 	extern int nchtab;
 #endif
 
-	d = getach();
+	_d = getach();
 	do {
 		c = getach();
 		if (i >= sizeof b)
 			goto rtn;
 		b[i++] = c;
-	} while (c && c != d);
+	} while (c && c != _d);
 	b[--i] = 0;
-	if (i == 0 || c != d)
+	if (i == 0 || c != _d)
 		goto rtn;
 	n = strtol(b, &bp, 16);
 	if (n == 0 || *bp != '\0')
@@ -2251,7 +2252,7 @@ caserecursionlimit(void)
 }
 
 void
-casechar(int flag)
+casechar(int flag __unused)
 {
 #ifndef	NROFF
 	extern int	ps2cc(const char *);
@@ -2376,15 +2377,15 @@ prepchar(struct fmtchar *fp)
 {
 	static int	charcount;
 	filep	startb;
-	tchar	t;
+	tchar	_t;
 
 	if ((startb = alloc()) == 0) {
 		errprint("out of space");
 		return -1;
 	}
-	t = 0;
-	setsbits(t, charcount);
-	charcount = sbits(t);
+	_t = 0;
+	setsbits(_t, charcount);
+	charcount = sbits(_t);
 	if (dip != d)
 		wbt(0);
 	if (charcount >= charoutsz) {
@@ -2503,28 +2504,28 @@ setZ(void)
 }
 
 tchar
-sfmask(tchar t)
+sfmask(tchar _t)
 {
-	while (isxfunc(t, CHAR))
-		t = charout[sbits(t)].ch;
-	if (t == XFUNC || t == SLANT || (t & SFMASK) == 0)
+	while (isxfunc(_t, CHAR))
+		_t = charout[sbits(_t)].ch;
+	if (_t == XFUNC || _t == SLANT || (_t & SFMASK) == 0)
 		return chbits;
-	return t & SFMASK;
+	return _t & SFMASK;
 }
 
 int
-issame(tchar c, tchar d)
+issame(tchar c, tchar _d)
 {
-	if (ismot(c) || ismot(d))
+	if (ismot(c) || ismot(_d))
 		return 0;
 	while (isxfunc(c, CHAR))
 		c = charout[sbits(c)].ch;
-	while (isxfunc(d, CHAR))
-		d = charout[sbits(d)].ch;
-	if (cbits(c) != cbits(d))
+	while (isxfunc(_d, CHAR))
+		_d = charout[sbits(_d)].ch;
+	if (cbits(c) != cbits(_d))
 		return 0;
-	if (cbits(c) == XFUNC && cbits(d) == XFUNC)
-		return fbits(c) == fbits(d);
+	if (cbits(c) == XFUNC && cbits(_d) == XFUNC)
+		return fbits(c) == fbits(_d);
 	return 1;
 }
 

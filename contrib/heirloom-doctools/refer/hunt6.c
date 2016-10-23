@@ -29,7 +29,6 @@
 #include "refer..c"
 #define TXTLEN 1000
 
-char *outbuf = 0;
 extern char *soutput;
 extern int soutlen, iflong;
 extern long indexdate;

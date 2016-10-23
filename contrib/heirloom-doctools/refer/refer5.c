@@ -111,7 +111,7 @@ putsig (int nf, char **flds, int nref, char *nstline,
 	}
 	another = (sd = lookat()) ? prefix(".[", sd) : 0;
 	if (another && (strcmp(".[\n", sd) != SAME))
-		fprintf(stderr, (char *)"File %s line %d: punctuation ignored from: %s",
+		fprintf(stderr, "File %s line %d: punctuation ignored from: %s",
 			Ifile, Iline, sd);
 	if ((strlen(sig) + strlen(t)) > MXSIG)
 		err("sig overflow (%d)", MXSIG);
@@ -196,7 +196,7 @@ putsig (int nf, char **flds, int nref, char *nstline,
 }
 
 char *
-fpar (int nf, char **flds, char *out, size_t outsiz, int c, int seq,
+fpar (int nf, char **flds, char *out, size_t outsiz __unused, int c, int seq,
     int prepend)
 {
 	char *p, *s;
@@ -240,7 +240,7 @@ fpar (int nf, char **flds, char *out, size_t outsiz, int c, int seq,
 }
 
 void
-putkey(int nf, char **flds, int nref, char *keystr)
+putkey(int nf, char **flds, int nref, char *_keystr)
 {
 	char t1[50], *sf;
 	int ctype, i, count;
@@ -249,9 +249,9 @@ putkey(int nf, char **flds, int nref, char *keystr)
 	if (nf <= 0)
 		fprintf(fo, "%s%c%c", labtab[nref], labc[nref], sep);
 	else {
-		while ((ctype = *keystr++)) {
-			count = atoi(keystr);
-			if (*keystr=='+')
+		while ((ctype = *_keystr++)) {
+			count = atoi(_keystr);
+			if (*_keystr=='+')
 				count=999;
 			if (count <= 0)
 				count = 1;

@@ -33,10 +33,12 @@ Src	*srcp	= src;
 void	do_thru(void);
 int	nextchar(void);
 int	getarg(char *);
-void	freedef(char *);
-int	baldelim(int, char *);
+int	baldelim(int, const char *);
+static void popsrc(void);
 
-void pushsrc(int type, char *ptr)	/* new input source */
+static char *addnewline(char *);
+
+void pushsrc(int type, const char *ptr)	/* new input source */
 {
 	if (++srcp >= src + MAXSRC)
 		FATAL("inputs nested too deep");
@@ -70,7 +72,7 @@ void pushsrc(int type, char *ptr)	/* new input source */
 	}
 }
 
-void popsrc(void)	/* restore an old one */
+static void popsrc(void)	/* restore an old one */
 {
 	if (srcp <= src)
 		FATAL("too many inputs popped");
@@ -102,7 +104,7 @@ void popsrc(void)	/* restore an old one */
 	srcp--;
 }
 
-void definition(char *s)	/* collect definition for s and install */
+void definition(const char *s)	/* collect definition for s and install */
 				/* definitions picked up lexically */
 {
 	char *p;
@@ -125,7 +127,7 @@ void definition(char *s)	/* collect definition for s and install */
 	dprintf("installing %s as `%s'\n", s, p);
 }
 
-char *delimstr(char *s)	/* get body of X ... X */
+char *delimstr(const char *s)	/* get body of X ... X */
 				/* message if too big */
 {
 	int c, delim, rdelim, n, deep;
@@ -160,7 +162,7 @@ char *delimstr(char *s)	/* get body of X ... X */
 	return tostring(buf);
 }
 
-int baldelim(int c, char *s)	/* replace c by balancing entry in s */
+int baldelim(int c, const char *s)	/* replace c by balancing entry in s */
 {
 	for ( ; *s; s += 2)
 		if (*s == c)
@@ -178,9 +180,9 @@ void undefine(char *s)	/* undefine macro */
 }
 
 
-Arg	args[10];	/* argument frames */
-Arg	*argfp = args;	/* frame pointer */
-int	argcnt;		/* number of arguments seen so far */
+static Arg	args[10];	/* argument frames */
+static Arg	*argfp = args;	/* frame pointer */
+static int	argcnt;		/* number of arguments seen so far */
 
 void dodef(struct symtab *stp)	/* collect args and switch input to defn */
 {
@@ -239,13 +241,13 @@ int getarg(char *p)	/* pick up single argument, store in p, return length */
 }
 
 #define	PBSIZE	2000
-char	pbuf[PBSIZE];		/* pushback buffer */
-char	*pb	= pbuf-1;	/* next pushed back character */
+static char	pbuf[PBSIZE];		/* pushback buffer */
+static char	*pb	= pbuf-1;	/* next pushed back character */
 
-char	ebuf[200];		/* collect input here for error reporting */
-char	*ep	= ebuf;
+static char	ebuf[200];		/* collect input here for error reporting */
+static char	*ep	= ebuf;
 
-int	begin	= 0;
+static int	begin	= 0;
 extern	int	thru;
 extern	struct symtab	*thrudef;
 extern	char	*untilstr;
@@ -429,7 +431,7 @@ int unput(int c)
 	return c;
 }
 
-void pbstr(char *s)
+void pbstr(const char *s)
 {
 	pushsrc(String, s);
 }
@@ -450,7 +452,6 @@ void	eprint(void);
 
 void yyerror(char *s)
 {
-	extern char *cmdname;
 	int ern = errno;	/* cause some libraries clobber it */
 
 	if (synerr)
@@ -498,7 +499,7 @@ void eprint(void)	/* try to print context around error */
 
 void yywrap(void) {}
 
-char	*newfile = 0;		/* filename for file copy */
+static char	*newfile = 0;		/* filename for file copy */
 char	*untilstr = 0;		/* string that terminates a thru */
 int	thru	= 0;		/* 1 if copying thru macro */
 struct symtab	*thrudef = 0;		/* macro being used */
@@ -513,7 +514,7 @@ void copydef(struct symtab *p)	/* remember macro symtab ptr */
 	thrudef = p;
 }
 
-struct symtab *copythru(char *s)	/* collect the macro name or body for thru */
+struct symtab *copythru(const char *s)	/* collect the macro name or body for thru */
 {
 	struct symtab *p;
 	char *q, *addnewline(char *);
@@ -545,7 +546,7 @@ struct symtab *copythru(char *s)	/* collect the macro name or body for thru */
 	return p;
 }
 
-char *addnewline(char *p)	/* add newline to end of p */
+static char *addnewline(char *p)	/* add newline to end of p */
 {
 	int n;
 
@@ -584,7 +585,7 @@ void copy(void)	/* begin input from file, etc. */
 	}
 }
 
-char	shellbuf[1000], *shellp;
+static char	shellbuf[1000], *shellp;
 
 void shell_init(void)	/* set up to interpret a shell command */
 {

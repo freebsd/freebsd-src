@@ -25,11 +25,9 @@
 #include "refer..c"
 
 static int *coord = 0;
-int hh[50]; 
-extern int *hfreq, hfrflg;
-extern int prfreqs;
+static int hh[50];
 union ptr {
-	unsigned *a; 
+	unsigned *a;
 	long *b;
 };
 

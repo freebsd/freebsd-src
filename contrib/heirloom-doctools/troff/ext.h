@@ -52,6 +52,10 @@
 
 #include <sys/types.h>
 
+#ifndef __unused
+#define __unused __attribute__((unused))
+#endif
+
 extern	char	**argp;
 extern	char	*chname;
 extern	char	*eibuf;
@@ -266,7 +270,7 @@ extern	int	chompend;
 
 /* n1.c */
 extern	void	mainloop(void);
-extern	int	tryfile(char *, char *, int);
+extern	int	tryfile(const char *, char *, int);
 extern	void	catch(int);
 extern	void	kcatch(int);
 extern	void	init0(void);
@@ -277,8 +281,8 @@ extern	int	ctoi(register char *);
 extern	void	mesg(int);
 extern	void	errprint(const char *, ...);
 #define	fdprintf	xxfdprintf
-extern	void	fdprintf(int, char *, ...);
-extern	char	*roff_sprintf(char *, size_t, char *, ...);
+extern	void	fdprintf(int, const char *, ...);
+extern	char	*roff_sprintf(char *, size_t, const char *, ...);
 extern	int	control(register int, register int);
 extern	int	getrq2(void);
 extern	int	getrq(int);
@@ -286,7 +290,7 @@ extern	tchar	getch(void);
 extern	void	setxon(void);
 extern	tchar	getch0(void);
 extern	void	pushback(register tchar *);
-extern	void	cpushback(register char *);
+extern	void	cpushback(register const char *);
 extern	tchar	*growpbbuf(void);
 extern	int	nextfile(void);
 extern	int	popf(void);
@@ -316,7 +320,7 @@ extern	int	issame(tchar, tchar);
 extern	int	pchar(register tchar);
 extern	void	pchar1(register tchar);
 extern	void	outascii(tchar);
-extern	void	oputs(register char *);
+extern	void	oputs(register const char *);
 extern	void	flusho(void);
 extern	void	caseoutput(void);
 extern	void	done(int);
@@ -373,7 +377,7 @@ extern	void	casepc(void);
 extern	void	casechop(void);
 extern	void	casepm(void);
 extern	void	stackdump(void);
-extern	char	*macname(int);
+extern	const char	*macname(int);
 extern	int	maybemore(int, int);
 extern	tchar	setuc(void);
 extern	int	makerq(const char *);
@@ -388,7 +392,7 @@ extern	struct numtab	*usedr(register int);
 extern	int	fnumb(register int, register int (*)(tchar));
 extern	int	decml(register int, register int (*)(tchar));
 extern	int	roman(int, int (*)(tchar));
-extern	int	roman0(int, int (*)(tchar), char *, char *);
+extern	int	roman0(int, int (*)(tchar), const char *, const char *);
 extern	int	abc(int, int (*)(tchar));
 extern	int	abc0(int, int (*)(tchar));
 extern	int	hatoi(void);

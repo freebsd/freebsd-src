@@ -112,7 +112,7 @@ static const char sccsid[] USED = "@(#)picpack.sl	5.1 (gritter) 10/25/05";
 
 #include	"glob.c"
 
-static	char	*keys[11] = {".BP", ".PI", NULL};
+static	const char	*keys[11] = {".BP", ".PI", NULL};
 static	int	quiet = FALSE;
 
 static	FILE	*fp_in;			/* input */
@@ -566,7 +566,7 @@ addpicfile(char *name)
 
 /*****************************************************************************/
 
-void *
+static void *
 srealloc(void *p, size_t size)
 {
 	if ((p = realloc(p, size)) == NULL) {
@@ -622,7 +622,7 @@ fgetline(char **line, size_t *linesize, size_t *llen, FILE *fp)
  * Portions Copyright (c) 2005 Gunnar Ritter, Freiburg i. Br., Germany
  */
 void
-error(int kind, char *mesg, ...)
+error(int kind, const char *mesg, ...)
 {
 
 

@@ -31,6 +31,8 @@
 
 #ifndef LOCORE
 
+#include <machine/vfp.h>
+
 struct trapframe;
 
 #define	PCB_LR		30
@@ -49,13 +51,20 @@ struct pcb {
 #define	PCB_SINGLE_STEP_SHIFT	0
 #define	PCB_SINGLE_STEP		(1 << PCB_SINGLE_STEP_SHIFT)
 
-	/* Place last to simplify the asm to access the rest if the struct */
-	__uint128_t	pcb_vfp[32];
-	uint32_t	pcb_fpcr;
-	uint32_t	pcb_fpsr;
+	struct vfpstate	*pcb_fpusaved;
 	int		pcb_fpflags;
 #define	PCB_FP_STARTED	0x01
+#define	PCB_FP_KERN	0x02
+/* The bits passed to userspace in get_fpcontext */
+#define	PCB_FP_USERMASK	(PCB_FP_STARTED)
 	u_int		pcb_vfpcpu;	/* Last cpu this thread ran VFP code */
+
+	/*
+	 * The userspace VFP state. The pcb_fpusaved pointer will point to
+	 * this unless the kernel has allocated a VFP context.
+	 * Place last to simplify the asm to access the rest if the struct.
+	 */
+	struct vfpstate	pcb_fpustate;
 };
 
 #ifdef _KERNEL

@@ -50,12 +50,17 @@ extern FILE *_f[];
 
 # define ever (;;)
 
+#ifndef __unused
+#define __unused __attribute__((unused))
+#endif
+
+# ifndef gcos
+static void badsig(int);
+# endif
+
 int 
 main(int argc, char *argv[])
 {
-# ifndef gcos
-void badsig(int);
-# endif
 	progname = basename(argv[0]);
 # ifndef gcos
 signal(SIGPIPE, badsig);
@@ -85,8 +90,8 @@ fclose(tabin);
 free(line);
 return(0);
 }
-int sargc;
-char **sargv;
+static int sargc;
+static char **sargv;
 void 
 setinp(int argc, char **argv)
 {
@@ -181,7 +186,7 @@ swapin(void)
 }
 # ifndef gcos
 void 
-badsig(int unused)
+badsig(int unused __unused)
 {
 signal(SIGPIPE, SIG_IGN);
  exit(0);

@@ -271,8 +271,8 @@ evdev_push_mouse_btn(struct evdev_dev *evdev, int buttons)
 	size_t i;
 
 	for (i = 0; i < nitems(evdev_mouse_button_codes); i++)
-		evdev_push_event(evdev, EV_KEY, evdev_mouse_button_codes[i],
-		    (buttons & (1 << i)) != 0);
+		evdev_push_key(evdev, evdev_mouse_button_codes[i],
+		    buttons & (1 << i));
 }
 
 void
@@ -285,8 +285,7 @@ evdev_push_leds(struct evdev_dev *evdev, int leds)
 		return;
 
 	for (i = 0; i < nitems(evdev_led_codes); i++)
-		evdev_push_event(evdev, EV_LED, evdev_led_codes[i],
-		    (leds & (1 << i)) != 0);
+		evdev_push_led(evdev, evdev_led_codes[i], leds & (1 << i));
 }
 
 void

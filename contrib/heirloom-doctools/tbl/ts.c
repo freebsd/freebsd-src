@@ -21,9 +21,11 @@
  * Sccsid @(#)ts.c	1.3 (gritter) 7/23/05
  */
 
+#include "t..c"
+
  /* ts.c: minor string processing subroutines */
 int 
-match(char *s1, char *s2)
+match(const char *s1, const char *s2)
 {
 	while (*s1 == *s2)
 		if (*s1++ == '\0')
@@ -34,7 +36,7 @@ match(char *s1, char *s2)
 }
 
 int 
-prefix(char *small, char *big) {
+prefix(const char *small, const char *big) {
 	int c;
 	while ((c= *small++) == *big++)
 		if (c==0) return(1);
@@ -43,7 +45,7 @@ prefix(char *small, char *big) {
 
 /* returns: 1 for match, 0 else */
 int
-cprefix(char *ctl, char *line)
+cprefix(const char *ctl, const char *line)
 {
 	char c;
 

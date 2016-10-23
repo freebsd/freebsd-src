@@ -59,13 +59,13 @@ prefix(const char *t, const char *s)
 	return(c==0 ? 1: 0);
 }
 
-char *
+const char *
 mindex(const char *s, int c)
 {
 	register const char *p;
 	for( p=s; *p; p++)
 		if (*p ==c)
-			return((char *)p);
+			return(p);
 	return(0);
 }
 

@@ -137,6 +137,26 @@
  *	netmap:foo-k			the k-th NIC ring pair
  *	netmap:foo{k			PIPE ring pair k, master side
  *	netmap:foo}k			PIPE ring pair k, slave side
+ *
+ * Some notes about host rings:
+ *
+ * + The RX host ring is used to store those packets that the host network
+ *   stack is trying to transmit through a NIC queue, but only if that queue
+ *   is currently in netmap mode. Netmap will not intercept host stack mbufs
+ *   designated to NIC queues that are not in netmap mode. As a consequence,
+ *   registering a netmap port with netmap:foo^ is not enough to intercept
+ *   mbufs in the RX host ring; the netmap port should be registered with
+ *   netmap:foo*, or another registration should be done to open at least a
+ *   NIC TX queue in netmap mode.
+ *
+ * + Netmap is not currently able to deal with intercepted trasmit mbufs which
+ *   require offloadings like TSO, UFO, checksumming offloadings, etc. It is
+ *   responsibility of the user to disable those offloadings (e.g. using
+ *   ifconfig on FreeBSD or ethtool -K on Linux) for an interface that is being
+ *   used in netmap mode. If the offloadings are not disabled, GSO and/or
+ *   unchecksummed packets may be dropped immediately or end up in the host RX
+ *   ring, and will be dropped as soon as the packet reaches another netmap
+ *   adapter.
  */
 
 /*
@@ -277,7 +297,11 @@ struct netmap_ring {
 	struct timeval	ts;		/* (k) time of last *sync() */
 
 	/* opaque room for a mutex or similar object */
-	uint8_t		sem[128] __attribute__((__aligned__(NM_CACHE_ALIGN)));
+#if !defined(_WIN32) || defined(__CYGWIN__)
+	uint8_t	__attribute__((__aligned__(NM_CACHE_ALIGN))) sem[128];
+#else
+	uint8_t	__declspec(align(NM_CACHE_ALIGN)) sem[128];
+#endif
 
 	/* the slots follow. This struct has variable size */
 	struct netmap_slot slot[0];	/* array of slots. */
@@ -496,6 +520,11 @@ struct nmreq {
 #define NETMAP_BDG_OFFSET	NETMAP_BDG_VNET_HDR	/* deprecated alias */
 #define NETMAP_BDG_NEWIF	6	/* create a virtual port */
 #define NETMAP_BDG_DELIF	7	/* destroy a virtual port */
+#define NETMAP_PT_HOST_CREATE	8	/* create ptnetmap kthreads */
+#define NETMAP_PT_HOST_DELETE	9	/* delete ptnetmap kthreads */
+#define NETMAP_BDG_POLLING_ON	10	/* delete polling kthread */
+#define NETMAP_BDG_POLLING_OFF	11	/* delete polling kthread */
+#define NETMAP_VNET_HDR_GET	12      /* get the port virtio-net-hdr length */
 	uint16_t	nr_arg1;	/* reserve extra rings in NIOCREGIF */
 #define NETMAP_BDG_HOST		1	/* attach the host stack on ATTACH */
 
@@ -521,7 +550,61 @@ enum {	NR_REG_DEFAULT	= 0,	/* backward compat, should not be used. */
 #define NR_ZCOPY_MON	0x400
 /* request exclusive access to the selected rings */
 #define NR_EXCLUSIVE	0x800
+/* request ptnetmap host support */
+#define NR_PASSTHROUGH_HOST	NR_PTNETMAP_HOST /* deprecated */
+#define NR_PTNETMAP_HOST	0x1000
+#define NR_RX_RINGS_ONLY	0x2000
+#define NR_TX_RINGS_ONLY	0x4000
+/* Applications set this flag if they are able to deal with virtio-net headers,
+ * that is send/receive frames that start with a virtio-net header.
+ * If not set, NIOCREGIF will fail with netmap ports that require applications
+ * to use those headers. If the flag is set, the application can use the
+ * NETMAP_VNET_HDR_GET command to figure out the header length. */
+#define NR_ACCEPT_VNET_HDR	0x8000
 
+#define	NM_BDG_NAME		"vale"	/* prefix for bridge port name */
+
+/*
+ * Windows does not have _IOWR(). _IO(), _IOW() and _IOR() are defined
+ * in ws2def.h but not sure if they are in the form we need.
+ * XXX so we redefine them
+ * in a convenient way to use for DeviceIoControl signatures
+ */
+#ifdef _WIN32
+#undef _IO	// ws2def.h
+#define _WIN_NM_IOCTL_TYPE 40000
+#define _IO(_c, _n)	CTL_CODE(_WIN_NM_IOCTL_TYPE, ((_n) + 0x800) , \
+		METHOD_BUFFERED, FILE_ANY_ACCESS  )
+#define _IO_direct(_c, _n)	CTL_CODE(_WIN_NM_IOCTL_TYPE, ((_n) + 0x800) , \
+		METHOD_OUT_DIRECT, FILE_ANY_ACCESS  )
+
+#define _IOWR(_c, _n, _s)	_IO(_c, _n)
+
+/* We havesome internal sysctl in addition to the externally visible ones */
+#define NETMAP_MMAP _IO_direct('i', 160)	// note METHOD_OUT_DIRECT
+#define NETMAP_POLL _IO('i', 162)
+
+/* and also two setsockopt for sysctl emulation */
+#define NETMAP_SETSOCKOPT _IO('i', 140)
+#define NETMAP_GETSOCKOPT _IO('i', 141)
+
+
+//These linknames are for the Netmap Core Driver
+#define NETMAP_NT_DEVICE_NAME			L"\\Device\\NETMAP"
+#define NETMAP_DOS_DEVICE_NAME			L"\\DosDevices\\netmap"
+
+//Definition of a structure used to pass a virtual address within an IOCTL
+typedef struct _MEMORY_ENTRY {
+	PVOID       pUsermodeVirtualAddress;
+} MEMORY_ENTRY, *PMEMORY_ENTRY;
+
+typedef struct _POLL_REQUEST_DATA {
+	int events;
+	int timeout;
+	int revents;
+} POLL_REQUEST_DATA;
+
+#endif /* _WIN32 */
 
 /*
  * FreeBSD uses the size value embedded in the _IOWR to determine
@@ -561,4 +644,29 @@ struct nm_ifreq {
 	char data[NM_IFRDATA_LEN];
 };
 
+/*
+ * netmap kernel thread configuration
+ */
+/* bhyve/vmm.ko MSIX parameters for IOCTL */
+struct ptn_vmm_ioctl_msix {
+	uint64_t        msg;
+	uint64_t        addr;
+};
+
+/* IOCTL parameters */
+struct nm_kth_ioctl {
+	uint64_t com;
+	/* We use union to support more ioctl commands. */
+	union {
+		struct ptn_vmm_ioctl_msix msix;
+	} data;
+};
+
+/* Configuration of a ptnetmap ring */
+struct ptnet_ring_cfg {
+	uint64_t ioeventfd;		/* eventfd in linux, tsleep() parameter in FreeBSD */
+	uint64_t irqfd;			/* eventfd in linux, ioctl fd in FreeBSD */
+	struct nm_kth_ioctl ioctl;	/* ioctl parameter to send irq (only used in bhyve/FreeBSD) */
+	uint64_t reserved[4];		/* reserved to support of more hypervisors */
+};
 #endif /* _NET_NETMAP_H_ */

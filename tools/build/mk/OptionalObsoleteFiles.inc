@@ -676,6 +676,7 @@ OLD_FILES+=usr/libexec/bsdinstall/distextract
 OLD_FILES+=usr/libexec/bsdinstall/distfetch
 OLD_FILES+=usr/libexec/bsdinstall/docsinstall
 OLD_FILES+=usr/libexec/bsdinstall/entropy
+OLD_FILES+=usr/libexec/bsdinstall/hardening
 OLD_FILES+=usr/libexec/bsdinstall/hostname
 OLD_FILES+=usr/libexec/bsdinstall/jail
 OLD_FILES+=usr/libexec/bsdinstall/keymap
@@ -1089,6 +1090,7 @@ OLD_FILES+=boot/gptzfsboot
 OLD_FILES+=boot/zfsboot
 OLD_FILES+=boot/zfsloader
 OLD_FILES+=etc/rc.d/zfs
+OLD_FILES+=etc/rc.d/zfsbe
 OLD_FILES+=etc/rc.d/zvol
 OLD_FILES+=etc/devd/zfs.conf
 OLD_FILES+=etc/periodic/daily/404.status-zfs
@@ -1346,12 +1348,10 @@ OLD_FILES+=usr/lib/libdpv.so
 OLD_FILES+=usr/lib/libdpv.so.1
 OLD_FILES+=usr/lib/libdpv_p.a
 OLD_FILES+=usr/sbin/bsdconfig
-OLD_FILES+=usr/sbin/tzsetup
 OLD_FILES+=usr/share/man/man1/dialog.1.gz
 OLD_FILES+=usr/share/man/man1/dpv.1.gz
 OLD_FILES+=usr/share/man/man3/dialog.3.gz
 OLD_FILES+=usr/share/man/man3/dpv.3.gz
-OLD_FILES+=usr/share/man/man8/tzsetup.8.gz
 OLD_FILES+=usr/share/man/man8/bsdconfig.8.gz
 .endif
 
@@ -2172,86 +2172,38 @@ OLD_FILES+=usr/share/man/man3/gpio_pin_tristate.3.gz
 OLD_FILES+=usr/share/man/man8/gpioctl.8.gz
 .endif
 
-.if ${MK_GSSAPI} == no
-OLD_FILES+=usr/include/gssapi/gssapi.h
-OLD_DIRS+=usr/include/gssapi
-OLD_FILES+=usr/include/gssapi.h
-OLD_FILES+=usr/lib/libgssapi.a
-OLD_FILES+=usr/lib/libgssapi.so
-OLD_LIBS+=usr/lib/libgssapi.so.10
-OLD_FILES+=usr/lib/libgssapi_p.a
-OLD_FILES+=usr/lib/librpcsec_gss.a
-OLD_FILES+=usr/lib/librpcsec_gss.so
-OLD_LIBS+=usr/lib/librpcsec_gss.so.1
-.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
-OLD_FILES+=usr/lib32/libgssapi.a
-OLD_FILES+=usr/lib32/libgssapi.so
-OLD_LIBS+=usr/lib32/libgssapi.so.10
-OLD_FILES+=usr/lib32/libgssapi_p.a
-OLD_FILES+=usr/lib32/librpcsec_gss.a
-OLD_FILES+=usr/lib32/librpcsec_gss.so
-OLD_LIBS+=usr/lib32/librpcsec_gss.so.1
+
+.if ${MK_GNU_DIFF} == no
+OLD_FILES+=usr/bin/diff
+OLD_FILES+=usr/bin/diff3
+OLD_FILES+=usr/share/man/man1/diff.1.gz
+OLD_FILES+=usr/share/man/man1/diff3.1.gz
+OLD_FILES+=usr/share/man/man7/diff.7.gz
 .endif
-OLD_FILES+=usr/sbin/gssd
-OLD_FILES+=usr/share/man/man3/gss_accept_sec_context.3.gz
-OLD_FILES+=usr/share/man/man3/gss_acquire_cred.3.gz
-OLD_FILES+=usr/share/man/man3/gss_add_cred.3.gz
-OLD_FILES+=usr/share/man/man3/gss_add_oid_set_member.3.gz
-OLD_FILES+=usr/share/man/man3/gss_canonicalize_name.3.gz
-OLD_FILES+=usr/share/man/man3/gss_compare_name.3.gz
-OLD_FILES+=usr/share/man/man3/gss_context_time.3.gz
-OLD_FILES+=usr/share/man/man3/gss_create_empty_oid_set.3.gz
-OLD_FILES+=usr/share/man/man3/gss_delete_sec_context.3.gz
-OLD_FILES+=usr/share/man/man3/gss_display_name.3.gz
-OLD_FILES+=usr/share/man/man3/gss_display_status.3.gz
-OLD_FILES+=usr/share/man/man3/gss_duplicate_name.3.gz
-OLD_FILES+=usr/share/man/man3/gss_export_name.3.gz
-OLD_FILES+=usr/share/man/man3/gss_export_sec_context.3.gz
-OLD_FILES+=usr/share/man/man3/gss_get_mic.3.gz
-OLD_FILES+=usr/share/man/man3/gss_import_name.3.gz
-OLD_FILES+=usr/share/man/man3/gss_import_sec_context.3.gz
-OLD_FILES+=usr/share/man/man3/gss_indicate_mechs.3.gz
-OLD_FILES+=usr/share/man/man3/gss_init_sec_context.3.gz
-OLD_FILES+=usr/share/man/man3/gss_inquire_context.3.gz
-OLD_FILES+=usr/share/man/man3/gss_inquire_cred.3.gz
-OLD_FILES+=usr/share/man/man3/gss_inquire_cred_by_mech.3.gz
-OLD_FILES+=usr/share/man/man3/gss_inquire_mechs_for_name.3.gz
-OLD_FILES+=usr/share/man/man3/gss_inquire_names_for_mech.3.gz
-OLD_FILES+=usr/share/man/man3/gss_process_context_token.3.gz
-OLD_FILES+=usr/share/man/man3/gss_release_buffer.3.gz
-OLD_FILES+=usr/share/man/man3/gss_release_cred.3.gz
-OLD_FILES+=usr/share/man/man3/gss_release_name.3.gz
-OLD_FILES+=usr/share/man/man3/gss_release_oid_set.3.gz
-OLD_FILES+=usr/share/man/man3/gss_seal.3.gz
-OLD_FILES+=usr/share/man/man3/gss_sign.3.gz
-OLD_FILES+=usr/share/man/man3/gss_test_oid_set_member.3.gz
-OLD_FILES+=usr/share/man/man3/gss_unseal.3.gz
-OLD_FILES+=usr/share/man/man3/gss_unwrap.3.gz
-OLD_FILES+=usr/share/man/man3/gss_verify.3.gz
-OLD_FILES+=usr/share/man/man3/gss_verify_mic.3.gz
-OLD_FILES+=usr/share/man/man3/gss_wrap.3.gz
-OLD_FILES+=usr/share/man/man3/gss_wrap_size_limit.3.gz
-OLD_FILES+=usr/share/man/man3/gssapi.3.gz
-OLD_FILES+=usr/share/man/man3/rpc_gss_get_error.3.gz
-OLD_FILES+=usr/share/man/man3/rpc_gss_get_mech_info.3.gz
-OLD_FILES+=usr/share/man/man3/rpc_gss_get_mechanisms.3.gz
-OLD_FILES+=usr/share/man/man3/rpc_gss_get_principal_name.3.gz
-OLD_FILES+=usr/share/man/man3/rpc_gss_get_versions.3.gz
-OLD_FILES+=usr/share/man/man3/rpc_gss_getcred.3.gz
-OLD_FILES+=usr/share/man/man3/rpc_gss_is_installed.3.gz
-OLD_FILES+=usr/share/man/man3/rpc_gss_max_data_length.3.gz
-OLD_FILES+=usr/share/man/man3/rpc_gss_mech_to_oid.3.gz
-OLD_FILES+=usr/share/man/man3/rpc_gss_oid_to_mech.3.gz
-OLD_FILES+=usr/share/man/man3/rpc_gss_qop_to_num.3.gz
-OLD_FILES+=usr/share/man/man3/rpc_gss_seccreate.3.gz
-OLD_FILES+=usr/share/man/man3/rpc_gss_set_callback.3.gz
-OLD_FILES+=usr/share/man/man3/rpc_gss_set_defaults.3.gz
-OLD_FILES+=usr/share/man/man3/rpc_gss_set_svc_name.3.gz
-OLD_FILES+=usr/share/man/man3/rpc_gss_svc_max_data_length.3.gz
-OLD_FILES+=usr/share/man/man3/rpcsec_gss.3.gz
-OLD_FILES+=usr/share/man/man5/mech.5.gz
-OLD_FILES+=usr/share/man/man5/qop.5.gz
-OLD_FILES+=usr/share/man/man8/gssd.8.gz
+
+.if ${MK_GNU_GREP} == no
+OLD_FILES+=usr/bin/gnugrep
+OLD_FILES+=usr/share/man/man1/gnugrep.1.gz
+.if ${MK_BSD_GREP} == no
+OLD_FILES+=usr/bin/bzgrep
+OLD_FILES+=usr/bin/bzegrep
+OLD_FILES+=usr/bin/bzfgrep
+OLD_FILES+=usr/bin/egrep
+OLD_FILES+=usr/bin/fgrep
+OLD_FILES+=usr/bin/grep
+OLD_FILES+=usr/bin/zegrep
+OLD_FILES+=usr/bin/zfgrep
+OLD_FILES+=usr/bin/zgrep
+OLD_FILES+=usr/share/man/man1/bzegrep.1.gz
+OLD_FILES+=usr/share/man/man1/bzfgrep.1.gz
+OLD_FILES+=usr/share/man/man1/bzgrep.1.gz
+OLD_FILES+=usr/share/man/man1/egrep.1.gz
+OLD_FILES+=usr/share/man/man1/fgrep.1.gz
+OLD_FILES+=usr/share/man/man1/grep.1.gz
+OLD_FILES+=usr/share/man/man1/zegrep.1.gz
+OLD_FILES+=usr/share/man/man1/zfgrep.1.gz
+OLD_FILES+=usr/share/man/man1/zgrep.1.gz
+.endif
 .endif
 
 .if ${MK_HAST} == no
@@ -5463,6 +5415,10 @@ OLD_FILES+=usr/share/man/whatis
 OLD_FILES+=usr/share/openssl/man/whatis
 .endif
 
+.if ${MK_MANDOCDB} != no
+OLD_FILES+=usr/share/man/man1/makewhatis.1.gz
+.endif
+
 .if ${MK_NDIS} == no
 OLD_FILES+=usr/sbin/ndiscvt
 OLD_FILES+=usr/sbin/ndisgen
@@ -5523,6 +5479,13 @@ OLD_FILES+=usr/share/snmp/mibs/BEGEMOT-NETGRAPH.txt
 .endif
 
 .if ${MK_NIS} == no
+OLD_FILES+=etc/rc.d/ypbind
+OLD_FILES+=etc/rc.d/ypldap
+OLD_FILES+=etc/rc.d/yppasswdd
+OLD_FILES+=etc/rc.d/ypserv
+OLD_FILES+=etc/rc.d/ypset
+OLD_FILES+=etc/rc.d/ypupdated
+OLD_FILES+=etc/rc.d/ypxfrd
 OLD_FILES+=usr/bin/ypcat
 OLD_FILES+=usr/bin/ypchfn
 OLD_FILES+=usr/bin/ypchpass
@@ -6252,29 +6215,6 @@ OLD_FILES+=usr/share/man/man1/rwho.1.gz
 OLD_FILES+=usr/share/man/man8/rlogind.8.gz
 OLD_FILES+=usr/share/man/man8/rshd.8.gz
 OLD_FILES+=usr/share/man/man8/rwhod.8.gz
-.endif
-
-.if ${MK_RCS} == no
-OLD_FILES+=usr/bin/ci
-OLD_FILES+=usr/bin/co
-OLD_FILES+=usr/bin/merge
-OLD_FILES+=usr/bin/rcs
-OLD_FILES+=usr/bin/rcsclean
-OLD_FILES+=usr/bin/rcsdiff
-OLD_FILES+=usr/bin/rcsfreeze
-OLD_FILES+=usr/bin/rcsmerge
-OLD_FILES+=usr/bin/rlog
-OLD_FILES+=usr/share/man/man1/ci.1.gz
-OLD_FILES+=usr/share/man/man1/co.1.gz
-OLD_FILES+=usr/share/man/man1/merge.1.gz
-OLD_FILES+=usr/share/man/man1/rcs.1.gz
-OLD_FILES+=usr/share/man/man1/rcsclean.1.gz
-OLD_FILES+=usr/share/man/man1/rcsdiff.1.gz
-OLD_FILES+=usr/share/man/man1/rcsfreeze.1.gz
-OLD_FILES+=usr/share/man/man1/rcsintro.1.gz
-OLD_FILES+=usr/share/man/man1/rcsmerge.1.gz
-OLD_FILES+=usr/share/man/man1/rlog.1.gz
-OLD_FILES+=usr/share/man/man5/rcsfile.5.gz
 .endif
 
 #.if ${MK_RESCUE} == no
@@ -8067,6 +8007,7 @@ OLD_FILES+=usr/share/man/man4/otus.4.gz
 OLD_FILES+=usr/share/man/man4/otusfw.4.gz
 OLD_FILES+=usr/share/man/man4/rsu.4.gz
 OLD_FILES+=usr/share/man/man4/rsufw.4.gz
+OLD_FILES+=usr/share/man/man4/rtwn_usb.4.gz
 OLD_FILES+=usr/share/man/man4/u3g.4.gz
 OLD_FILES+=usr/share/man/man4/u3gstub.4.gz
 OLD_FILES+=usr/share/man/man4/uark.4.gz
@@ -8108,8 +8049,6 @@ OLD_FILES+=usr/share/man/man4/ural.4.gz
 OLD_FILES+=usr/share/man/man4/urio.4.gz
 OLD_FILES+=usr/share/man/man4/urndis.4.gz
 OLD_FILES+=usr/share/man/man4/urtw.4.gz
-OLD_FILES+=usr/share/man/man4/urtwn.4.gz
-OLD_FILES+=usr/share/man/man4/urtwnfw.4.gz
 OLD_FILES+=usr/share/man/man4/usb.4.gz
 OLD_FILES+=usr/share/man/man4/usb_quirk.4.gz
 OLD_FILES+=usr/share/man/man4/usb_template.4.gz

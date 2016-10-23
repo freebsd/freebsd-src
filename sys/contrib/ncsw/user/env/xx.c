@@ -368,7 +368,7 @@ XX_Dispatch(void *arg)
 }
 
 t_Error
-XX_PreallocAndBindIntr(int irq, unsigned int cpu)
+XX_PreallocAndBindIntr(uintptr_t irq, unsigned int cpu)
 {
 	struct resource *r;
 	unsigned int inum;
@@ -388,7 +388,7 @@ XX_PreallocAndBindIntr(int irq, unsigned int cpu)
 }
 
 t_Error
-XX_DeallocIntr(int irq)
+XX_DeallocIntr(uintptr_t irq)
 {
 	struct resource *r;
 	unsigned int inum;
@@ -404,7 +404,7 @@ XX_DeallocIntr(int irq)
 }
 
 t_Error
-XX_SetIntr(int irq, t_Isr *f_Isr, t_Handle handle)
+XX_SetIntr(uintptr_t irq, t_Isr *f_Isr, t_Handle handle)
 {
 	device_t dev;
 	struct resource *r;
@@ -453,7 +453,7 @@ finish:
 }
 
 t_Error
-XX_FreeIntr(int irq)
+XX_FreeIntr(uintptr_t irq)
 {
 	device_t dev;
 	struct resource *r;
@@ -477,7 +477,7 @@ XX_FreeIntr(int irq)
 }
 
 t_Error
-XX_EnableIntr(int irq)
+XX_EnableIntr(uintptr_t irq)
 {
 	struct resource *r;
 
@@ -490,7 +490,7 @@ XX_EnableIntr(int irq)
 }
 
 t_Error
-XX_DisableIntr(int irq)
+XX_DisableIntr(uintptr_t irq)
 {
 	struct resource *r;
 

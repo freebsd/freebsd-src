@@ -124,8 +124,8 @@ print_ip6(struct buf_pr *bp, ipfw_insn_ip6 *cmd, char const *s)
 	       if (inet_ntop(AF_INET6,  a, trad, sizeof( trad ) ) == NULL)
 		   bprintf(bp, "Error ntop in print_ip6\n");
 	       bprintf(bp, "%s",  trad );
-	       if (mb < 0)     /* XXX not really legal... */
-		   bprintf(bp, ":%s",
+	       if (mb < 0) /* mask not contiguous */
+		   bprintf(bp, "/%s",
 		       inet_ntop(AF_INET6, &a[1], trad, sizeof(trad)));
 	       else if (mb < 128)
 		   bprintf(bp, "/%d", mb);
@@ -325,9 +325,10 @@ lookup_host6 (char *host, struct in6_addr *ip6addr)
  *     any     matches any IP6. Actually returns an empty instruction.
  *     me      returns O_IP6_*_ME
  *
- *     03f1::234:123:0342		single IP6 address
- *     03f1::234:123:0342/24	    address/mask
- *     03f1::234:123:0342/24,03f1::234:123:0343/	       List of address
+ *     03f1::234:123:0342			single IP6 address
+ *     03f1::234:123:0342/24			address/masklen
+ *     03f1::234:123:0342/ffff::ffff:ffff	address/mask
+ *     03f1::234:123:0342/24,03f1::234:123:0343/	List of address
  *
  * Set of address (as in ipv6) not supported because ipv6 address
  * are typically random past the initial prefix.
@@ -382,13 +383,18 @@ fill_ip6(ipfw_insn_ip6 *cmd, char *av, int cblen)
 		 * or ',' indicating another address follows.
 		 */
 
-		char *p;
+		char *p, *q;
 		int masklen;
 		char md = '\0';
 
 		CHECK_LENGTH(cblen, 1 + len + 2 * F_INSN_SIZE(struct in6_addr));
 
-		if ((p = strpbrk(av, "/,")) ) {
+		if ((q = strchr(av, ',')) ) {
+			*q = '\0';
+			q++;
+		}
+
+		if ((p = strchr(av, '/')) ) {
 			md = *p;	/* save the separator */
 			*p = '\0';	/* terminate address string */
 			p++;		/* and skip past it */
@@ -401,22 +407,22 @@ fill_ip6(ipfw_insn_ip6 *cmd, char *av, int cblen)
 			errx(EX_DATAERR, "bad address \"%s\"", av);
 		}
 		/* next, look at the mask, if any */
-		masklen = (md == '/') ? atoi(p) : 128;
-		if (masklen > 128 || masklen < 0)
-			errx(EX_DATAERR, "bad width \"%s\''", p);
-		else
-			n2mask(&d[1], masklen);
+		if (md == '/' && strchr(p, ':')) {
+			if (!inet_pton(AF_INET6, p, &d[1]))
+				errx(EX_DATAERR, "bad mask \"%s\"", p);
+
+			masklen = contigmask((uint8_t *)&(d[1]), 128);
+		} else {
+			masklen = (md == '/') ? atoi(p) : 128;
+			if (masklen > 128 || masklen < 0)
+				errx(EX_DATAERR, "bad width \"%s\''", p);
+			else
+				n2mask(&d[1], masklen);
+		}
 
 		APPLY_MASK(d, &d[1])   /* mask base address with mask */
 
-		/* find next separator */
-
-		if (md == '/') {	/* find separator past the mask */
-			p = strpbrk(p, ",");
-			if (p != NULL)
-				p++;
-		}
-		av = p;
+		av = q;
 
 		/* Check this entry */
 		if (masklen == 0) {

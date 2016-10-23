@@ -278,7 +278,7 @@ casehlm(void)
 void
 casehcode(void)
 {
-	tchar	c, d;
+	tchar	c, _d;
 	int	k;
 
 	lgf++;
@@ -288,15 +288,15 @@ casehcode(void)
 		c = getch();
 		if (skip(1))
 			break;
-		d = getch();
-		if (c && d && !ismot(c) && !ismot(d)) {
+		_d = getch();
+		if (c && _d && !ismot(c) && !ismot(_d)) {
 			if ((k = cbits(c)) >= nhcode) {
 				hcode = realloc(hcode, (k+1) * sizeof *hcode);
 				memset(&hcode[nhcode], 0,
 					(k+1-nhcode) * sizeof *hcode);
 				nhcode = k+1;
 			}
-			hcode[k] = cbits(d);
+			hcode[k] = cbits(_d);
 		}
 	} while (!skip(0));
 }
@@ -324,26 +324,26 @@ casehylen(void)
 void
 casehypp(void)
 {
-	float	t;
+	float	_t;
 
 	if (skip(0))
 		hypp = hypp2 = hypp3 = 0;
 	else {
-		t = atop();
+		_t = atop();
 		if (!nonumb)
-			hypp = t;
+			hypp = _t;
 		if (skip(0))
 			hypp2 = hypp3 = 0;
 		else {
-			t = atop();
+			_t = atop();
 			if (!nonumb)
-				hypp2 = t;
+				hypp2 = _t;
 			if (skip(0))
 				hypp3 = 0;
 			else {
-				t = atop();
+				_t = atop();
 				if (!nonumb)
-					hypp3 = t;
+					hypp3 = _t;
 			}
 		}
 	}
@@ -2440,13 +2440,13 @@ caseab(void)
 #ifdef	USG
 #include <termios.h>
 #define	ECHO_USG (ECHO | ECHOE | ECHOK | ECHONL)
-struct termios	ttys;
+static struct termios	ttys;
 #else
 #include <sgtty.h>
 struct	sgttyb	ttys[2];
 #endif	/* USG */
 
-int	ttysave[2] = {-1, -1};
+static int	ttysave[2] = {-1, -1};
 
 void
 save_tty(void)			/*save any tty settings that may be changed*/

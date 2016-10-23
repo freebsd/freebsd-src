@@ -67,12 +67,12 @@
  * hyphenation
  */
 
-int	*hbuf;
-int	NHEX;
-int	*nexth;
-tchar	*hyend;
+static int	*hbuf;
+static int	NHEX;
+static int	*nexth;
+static tchar	*hyend;
 #define THRESH 160 /*digram goodness threshold*/
-int	thresh = THRESH;
+static int	thresh = THRESH;
 
 static	void		hyphenhnj(void);
 

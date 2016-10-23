@@ -38,7 +38,7 @@
  */
 #define	MAXSIZ 700
 #define QSIZE 400
-struct words {
+static struct words {
 	char 	inp;
 	char	out;
 	struct	words *nst;
@@ -47,16 +47,16 @@ struct words {
 } 
 *www, *smax, *q;
 
-char	buf[2*BUFSIZ];
-int	nsucc;
-int	need;
-char	*instr;
-int	inct;
-int	rflag;
-int	xargc;
-char	**xargv;
-int	numwords;
-int	nfound;
+static char	buf[2*BUFSIZ];
+static int	nsucc;
+static int	need;
+static char	*instr;
+static int	inct;
+static int	rflag;
+static int	xargc;
+static char	**xargv;
+static int	numwords;
+static int	nfound;
 static int flag = 0;
 
 static void execute(void);

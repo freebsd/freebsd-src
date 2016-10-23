@@ -92,11 +92,15 @@ extern int	markline;	/* 1 if this EQ/EN contains mark or lineup */
 extern char	*progname;
 
 typedef struct s_tbl {
-	char	*name;
-	char	*defn;
+	const char	*name;
+	const char	*defn;
 	struct s_tbl *next;
 } tbl;
 extern  char    *spaceval;  /* use in place of normal \x (for pic) */
+
+extern tbl	*keytbl[];	/* key words */
+extern tbl	*restbl[];	/* reserved words */
+extern tbl	*deftbl[];	/* user-defined names */
 
 /* diacrit.c */
 void diacrit(int, int);
@@ -147,7 +151,7 @@ char *strsave(char *);
 void include(void);
 void delim(void);
 /* lookup.c */
-tbl *lookup(tbl **, char *, char *);
+tbl *lookup(tbl **, const char *, const char *);
 void init_tbl(void);
 /* mark.c */
 void mark(int);
@@ -161,7 +165,7 @@ void move(int, int, int);
 void boverb(int, int);
 /* paren.c */
 void paren(int, int, int);
-void brack(int, char *, char *, char *);
+void brack(int, const char *, const char *, const char *);
 /* pile.c */
 void lpile(int, int, int);
 /* shift.c */

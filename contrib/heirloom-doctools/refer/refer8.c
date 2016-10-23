@@ -29,7 +29,7 @@ static int peeked = 0;
 static char *noteof = (char *) 1;
 
 char *
-input(char *s, size_t l)
+input(char *s, size_t l __unused)
 {
 	if (peeked) {
 		peeked = 0;

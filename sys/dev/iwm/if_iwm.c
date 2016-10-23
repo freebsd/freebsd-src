@@ -2918,14 +2918,14 @@ iwm_mvm_rx_rx_mpdu(struct iwm_softc *sc,
 		device_printf(sc->sc_dev,
 		    "dsp size out of range [0,20]: %d\n",
 		    phy_info->cfg_phy_cnt);
-		return;
+		goto fail;
 	}
 
 	if (!(rx_pkt_status & IWM_RX_MPDU_RES_STATUS_CRC_OK) ||
 	    !(rx_pkt_status & IWM_RX_MPDU_RES_STATUS_OVERRUN_OK)) {
 		IWM_DPRINTF(sc, IWM_DEBUG_RECV,
 		    "Bad CRC or FIFO: 0x%08X.\n", rx_pkt_status);
-		return; /* drop */
+		goto fail;
 	}
 
 	if (sc->sc_capaflags & IWM_UCODE_TLV_FLAGS_RX_ENERGY_API) {
@@ -2947,7 +2947,7 @@ iwm_mvm_rx_rx_mpdu(struct iwm_softc *sc,
 	if (iwm_rx_addbuf(sc, IWM_RBUF_SIZE, sc->rxq.cur) != 0) {
 		device_printf(sc->sc_dev, "%s: unable to add more buffers\n",
 		    __func__);
-		return;
+		goto fail;
 	}
 
 	IWM_DPRINTF(sc, IWM_DEBUG_RECV,
@@ -2977,6 +2977,8 @@ iwm_mvm_rx_rx_mpdu(struct iwm_softc *sc,
 	/* rssi is in 1/2db units */
 	rxs.c_rssi = rssi * 2;
 	rxs.c_nf = sc->sc_noise;
+	if (ieee80211_add_rx_params(m, &rxs) == 0)
+		goto fail;
 
 	if (ieee80211_radiotap_active_vap(vap)) {
 		struct iwm_rx_radiotap_header *tap = &sc->sc_rxtap;
@@ -3013,13 +3015,17 @@ iwm_mvm_rx_rx_mpdu(struct iwm_softc *sc,
 	IWM_UNLOCK(sc);
 	if (ni != NULL) {
 		IWM_DPRINTF(sc, IWM_DEBUG_RECV, "input m %p\n", m);
-		ieee80211_input_mimo(ni, m, &rxs);
+		ieee80211_input_mimo(ni, m);
 		ieee80211_free_node(ni);
 	} else {
 		IWM_DPRINTF(sc, IWM_DEBUG_RECV, "inputall m %p\n", m);
-		ieee80211_input_mimo_all(ic, m, &rxs);
+		ieee80211_input_mimo_all(ic, m);
 	}
 	IWM_LOCK(sc);
+
+	return;
+
+fail:	counter_u64_add(ic->ic_ierrors, 1);
 }
 
 static int

@@ -70,14 +70,14 @@
 #include <unistd.h>
 
 #define	MHASH(x)	((x>>6)^x)&0177
-struct	contab **mhash;	/* size must be 128 == the 0177 on line above */
+static struct	contab **mhash;	/* size must be 128 == the 0177 on line above */
 #define	blisti(i)	(((i)-ENV_BLK*BLK) / BLK)
-filep	*blist;
-int	nblist;
-int	pagech = '%';
-int	strflg;
+static filep	*blist;
+static int	nblist;
+static int	pagech = '%';
+static int	strflg;
 
-tchar *wbuf;
+static tchar *wbuf;
 tchar *corebuf;
 
 struct contab	*oldmn;
@@ -99,7 +99,7 @@ static int	getls(int, int *, int);
 static void	addcon(int, char *, void(*)(int));
 
 static const struct {
-	char	*n;
+	const char	*n;
 	void	(*f)(int);
 } longrequests[] = {
 	{ "aln",		(void(*)(int))casealn },
@@ -704,7 +704,8 @@ copyb(void)
 	int	req;
 	filep savoff = 0, tailoff = 0;
 	tchar	tailc = 0;
-	char	*contp, *mn;
+	const char	*contp;
+	char	*mn;
 	size_t l;
 
 	if (skip(0) || !(j = getrq(1)))
@@ -836,7 +837,7 @@ ffree (		/*free blist[i] and blocks pointed to*/
 {
 	register int j;
 
-	while (blist[j = blisti(i)] != (unsigned) ~0) {
+	while (blist[j = blisti(i)] != (int) ~0) {
 		i = (filep) blist[j];
 		blist[j] = 0;
 	}
@@ -873,7 +874,7 @@ wbf (			/*store i into blist[offset] (?) */
 			errprint("Out of temp file space");
 			done2(01);
 		}
-		if (blist[j] == (unsigned) ~0) {
+		if (blist[j] == (int) ~0) {
 			if (alloc() == 0) {
 				errprint("Out of temp file space");
 				done2(01);
@@ -926,7 +927,7 @@ rbf (void)		/*return next char from blist[] block*/
 	/* this is an inline expansion of incoff: also dirty */
 	p = ++ip;
 	if ((p & (BLK - 1)) == 0) {
-		if ((ip = blist[blisti(p-1)]) == (unsigned) ~0) {
+		if ((ip = blist[blisti(p-1)]) == (int) ~0) {
 			errprint("Bad storage allocation");
 			ip = 0;
 			done2(-5);
@@ -958,7 +959,7 @@ incoff (		/*get next blist[] block*/
 {
 	p++;
 	if ((p & (BLK - 1)) == 0) {
-		if ((p = blist[blisti(p-1)]) == (unsigned) ~0) {
+		if ((p = blist[blisti(p-1)]) == (int) ~0) {
 			errprint("Bad storage allocation");
 			done2(-5);
 		}
@@ -971,7 +972,7 @@ tchar
 popi(void)
 {
 	register struct s *p;
-	tchar	c, d;
+	tchar	c, _d;
 
 	if (frame == stk)
 		return(0);
@@ -987,11 +988,11 @@ popi(void)
 	lastpbp = p->lastpbp;
 	c = p->pch;
 	if (p->loopf & LOOP_NEXT) {
-		d = ch;
+		_d = ch;
 		ch = c;
 		pushi(p->newip, p->mname, p->flags);
 		c = 0;
-		ch = d;
+		ch = _d;
 	} else
 		if (p->loopf & LOOP_FREE)
 			ffree(p->newip);
@@ -1413,7 +1414,7 @@ void
 caseals(void)
 {
 	struct contab	*contp;
-	int	i, j, t;
+	int	i, j, _t;
 	int	flags = 0;
 
 	if (skip(1))
@@ -1428,19 +1429,19 @@ caseals(void)
 	}
 	if (contp->nlink == 0) {
 		munhash(contp);
-		t = makerq(NULL);
-		contp->rq = t;
+		_t = makerq(NULL);
+		contp->rq = _t;
 		maddhash(contp);
 		if (contp->flags & FLAG_LOCAL)
 			dl++;
 		if (finds(j, 0, 0) != 0 && newmn) {
-			newmn->als = t;
+			newmn->als = _t;
 			newmn->rq = j;
 			maddhash(newmn);
 			contp->nlink = 1;
 		}
 	} else
-		t = j;
+		_t = j;
 	if (contp->flags & FLAG_LOCAL)
 		dl++;
 	if (finds(i, 0, !dl) != 0) {
@@ -1451,7 +1452,7 @@ caseals(void)
 		if (newmn) {
 			if (newmn->rq)
 				munhash(newmn);
-			newmn->als = t;
+			newmn->als = _t;
 			newmn->rq = i;
 			newmn->flags |= flags;
 			maddhash(newmn);
@@ -1538,7 +1539,7 @@ prwatch(struct contab *contp, int rq, int prc)
 		000
 	};
 	char	*buf = NULL;
-	char	*local;
+	const char	*local;
 	filep	savip;
 	tchar	c;
 	int	j, k;
@@ -2155,7 +2156,7 @@ stackdump (void)	/* dumps stack of macros in process */
 
 static char	laststr[NC+1];
 
-char *
+const char *
 macname(int rq)
 {
 	static char	buf[4][3];
@@ -2186,7 +2187,7 @@ static tchar
 mgetach(void)
 {
 	tchar	i;
-	int	j;
+	size_t	j;
 
 	lgf++;
 	i = getch();
@@ -2215,8 +2216,8 @@ int
 maybemore(int sofar, int flags)
 {
 	char	c, buf[NC+1], pb[] = { '\n', 0 };
-	int	i = 2, n, _raw = raw, _init = init, _app = app;
-	size_t	l;
+	int	n, _raw = raw, _init = init, _app = app;
+	size_t	i = 2, l;
 
 	if (xflag < 2)
 		return sofar;
@@ -2283,8 +2284,8 @@ static int
 getls(int termc, int *strp, int create)
 {
 	char	c, buf[NC+1];
-	int	i = 0, j = -1, n = -1;
-	size_t	l;
+	int	j = -1, n = -1;
+	size_t	i = 0, l;
 
 	do {
 		c = xflag < 3 ? getach() : mgetach();
@@ -2352,14 +2353,14 @@ makerq(const char *name)
 }
 
 static void
-addcon(int t, char *rs, void(*f)(int))
+addcon(int _t, char *rs, void(*f)(int))
 {
 	int	n = hadn;
 
 	if (hadn++ >= alcd)
 		had = realloc(had, (alcd += 20) * sizeof *had);
 	had[n] = rs;
-	contab[t].rq = MAXRQ2 + n;
-	contab[t].f = f;
+	contab[_t].rq = MAXRQ2 + n;
+	contab[_t].f = f;
 	mapadd(rs, n);
 }

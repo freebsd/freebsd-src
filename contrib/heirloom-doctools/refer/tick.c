@@ -26,6 +26,7 @@
 # include "time.h"
 # include "stdio.h"
 # include "sys/types.h"
+# include "refer..c"
 
 struct tbuffer {
 	long	proc_user_time;

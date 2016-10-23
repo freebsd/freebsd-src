@@ -118,14 +118,17 @@ FILES=	DAEMON \
 	ugidfw \
 	${_utx} \
 	var \
-	watchdogd \
-	ypbind \
+	watchdogd
+
+.if ${MK_NIS} != "no"
+FILES+=	ypbind \
 	ypldap \
 	yppasswdd \
 	ypserv \
 	ypset \
 	ypupdated \
 	ypxfrd
+.endif
 
 .if ${MK_ACCT} != "no"
 FILESGROUPS+=	ACCT
@@ -314,6 +317,7 @@ FILES+=		wpa_supplicant
 .if ${MK_ZFS} != "no"
 FILESGROUPS+=	ZFS
 ZFS+=		zfs
+ZFS+=		zfsbe
 ZFS+=		zfsd
 ZFS+=		zvol
 ZFSPACKAGE=	zfs

@@ -2,47 +2,24 @@
 
 .include <src.opts.mk>
 
-SUBDIR= ${_binutils} \
-	${_cc} \
-	diff \
-	diff3 \
-	${_dtc} \
-	${_gdb} \
-	${_gperf} \
-	grep \
-	${_rcs} \
-	${_tests}
-
 SUBDIR_DEPEND_gdb= ${_binutils}
 
-.if ${MK_CXX} != "no" || ${MK_GCC} != "no"
-_gperf=		gperf
+.if ${MK_CXX} != "no"
+SUBDIR.${MK_GCC}+=	gperf
 .endif
 
-.if ${MK_GPL_DTC} != "no"
-_dtc=		dtc
-.endif
-
-.if ${MK_RCS} != "no"
-_rcs=		rcs
-.endif
-
-.if ${MK_TESTS} != "no"
-_tests=		tests
-.endif
+SUBDIR.${MK_BINUTILS}+=	binutils
+SUBDIR.${MK_DIALOG}+=	dialog
 
 .if ${MK_BINUTILS} != "no"
-_binutils=	binutils
-.if ${MK_GDB} != "no"
-_gdb=		gdb
-.endif
+SUBDIR.${MK_GDB}+=	gdb
 .endif
 
-.if ${MK_GCC} != "no"
-_cc=		cc
-.endif
-
-SUBDIR.${MK_DIALOG}+=	dialog
+SUBDIR.${MK_GCC}+=	cc
+SUBDIR.${MK_GNU_DIFF}+=	diff diff3
+SUBDIR.${MK_GNU_GREP}+=	grep
+SUBDIR.${MK_GPL_DTC}+=	dtc
+SUBDIR.${MK_TESTS}+=	tests
 
 SUBDIR_PARALLEL=
 

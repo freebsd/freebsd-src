@@ -31,20 +31,20 @@
 #define move(x, y) close(y); dup(x); close(x);
 
 int
-corout(char *in, char *out, char *rprog, char *arg, int outlen)
+corout(char *_in, char *out, const char *rprog, char *arg, int outlen)
 {
 	int pipev[2], fr1, fr2, fw1, fw2, n;
 	int	pid;
 
 # if D1
 	fprintf(stderr, "in corout, rprog /%s/ in /%s/\n", 
-		rprog ? rprog : "", strlen(in) ? in : "");
+		rprog ? rprog : "", strlen(_in) ? _in : "");
 # endif
 
 	if (strcmp (rprog, "hunt") ==0)
-		return(callhunt(in, out, arg, outlen));
+		return(callhunt(_in, out, arg, outlen));
 	if (strcmp (rprog, "deliv")==0)
-		return(dodeliv(in, out, arg, outlen));
+		return(dodeliv(_in, out, arg, outlen));
 	pipe (pipev); 
 	fr1= pipev[0]; 
 	fw1 = pipev[1];
@@ -64,8 +64,8 @@ corout(char *in, char *out, char *rprog, char *arg, int outlen)
 	}
 	close(fw2); 
 	close(fr1);
-	if (strlen(in) > 0)
-		write (fw1, in , strlen(in));
+	if (strlen(_in) > 0)
+		write (fw1, _in , strlen(_in));
 	close(fw1);
 	while (wait(0) != pid);
 	n = read (fr2, out, outlen);
@@ -74,10 +74,10 @@ corout(char *in, char *out, char *rprog, char *arg, int outlen)
 	return 0;
 }
 
-# define ALEN 50
+# define ALEN 100
 
 int
-callhunt(char *in, char *out, char *arg, int outlen)
+callhunt(char *_in, char *out, char *arg, int outlen)
 {
 	char *argv[20], abuff[ALEN];
 	int argc;
@@ -85,7 +85,7 @@ callhunt(char *in, char *out, char *arg, int outlen)
 	extern int onelen;
 	argv[0] = "hunt";
 	argv[1] = "-i";
-	argv[2] = in;
+	argv[2] = _in;
 	argv[3] = "-t";
 	argv[4] = out;
 	argv[5] = (char *)(intptr_t)outlen;
@@ -104,7 +104,7 @@ callhunt(char *in, char *out, char *arg, int outlen)
 }
 
 int
-dodeliv(char *in, char *out, char *arg, int outlen)
+dodeliv(char *_in, char *out, char *arg, int outlen)
 {
 	char *mout;
 	int mlen;
@@ -114,7 +114,7 @@ dodeliv(char *in, char *out, char *arg, int outlen)
 	if (arg && arg[0])
 		chdir(arg);
 
-	mlen = findline(in, &mout, outlen,0L);
+	mlen = findline(_in, &mout, outlen,0L);
 
 	if (mlen>0)
 	{

@@ -26,8 +26,8 @@
 # include "t..c"
 # include <inttypes.h>
 # define realsplit ((ct=='a'||ct=='n') && table[nl][c].rcol)
-int watchout;
-int once;
+static int watchout;
+static int once;
 void
 putline (
 	/* i is line number for deciding format */
@@ -140,9 +140,9 @@ putline (
 	for(c=0; c<ncol; c++)
 	{
 		if (utf8 || tlp) {
-			char *s = table[nl][c ? c-1 : 0].col;
-			if ((lwid = lefdata(i, c)) && (!ifline(s) ||
-			    *s == '\\')) {
+			char *_s = table[nl][c ? c-1 : 0].col;
+			if ((lwid = lefdata(i, c)) && (!ifline(_s) ||
+			    *_s == '\\')) {
 				tohcol(c);
 				fprintf(tabout, "%s",
 				    tlp       ? "|"         :
@@ -412,13 +412,13 @@ funnies(int stl, int lin)
 		fprintf(tabout,"\n");
 }
 void
-putfont(char *fn)
+putfont(const char *fn)
 {
 	if (fn && *fn)
 		fprintf(tabout,  fn[1] ? "\\f(%.2s" : "\\f%.2s",  fn);
 }
 void
-putsize(char *s)
+putsize(const char *s)
 {
 	if (s && *s)
 		fprintf(tabout, "\\s%s",s);

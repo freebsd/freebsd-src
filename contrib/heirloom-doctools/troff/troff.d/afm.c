@@ -31,6 +31,10 @@
 #include "dev.h"
 #include "afm.h"
 
+#ifndef __unused
+#define	__unused __attribute__((unused))
+#endif
+
 extern	char		*chname;
 extern	short		*chtab;
 extern	int		nchtab;
@@ -44,9 +48,9 @@ static	void	addkernpair(struct afmtab *, char *_line);
 /*
  * This table maps troff special characters to PostScript names.
  */
-const struct names {
-	char	*trname;
-	char	*psname;
+static const struct names {
+	const char	*trname;
+	const char	*psname;
 } names[] = {
 	{ "hy",	"hyphen" },
 	{ "ct",	"cent" },
@@ -81,7 +85,7 @@ const struct names {
 /*
  * Names for Symbol fonts only.
  */
-const struct names greeknames[] = {
+static const struct names greeknames[] = {
 	{ "*A",	"Alpha" },
 	{ "*B",	"Beta" },
 	{ "*C",	"Xi" },
@@ -133,7 +137,7 @@ const struct names greeknames[] = {
 	{ 0,	0 }
 };
 
-const struct names mathnames[] = {
+static const struct names mathnames[] = {
 	{ "!=",	"notequal" },
 	{ "**",	"asteriskmath" },
 	{ "+-",	"plusminus" },
@@ -187,7 +191,7 @@ const struct names mathnames[] = {
 	{ 0,	0 },
 };
 
-const struct names largenames[] = {
+static const struct names largenames[] = {
 	{ "bv",	"braceex" },
 	{ "lb",	"braceleftbt" },
 	{ "lc",	"bracketlefttp" },
@@ -203,7 +207,7 @@ const struct names largenames[] = {
 	{ 0,	0 }
 };
 
-const struct names punctnames[] = {
+static const struct names punctnames[] = {
 	{ "or",	"bar" },
 	{ "\\-","endash" },
 	{ "aa","acute" },
@@ -216,7 +220,7 @@ const struct names punctnames[] = {
 /*
  * These names are only used with the S font.
  */
-const struct names Snames[] = {
+static const struct names Snames[] = {
 	{ "br",	"parenleftex" },
 	{ "ul",	"underscore" },
 	{ "vr",	"bracketleftex" },
@@ -226,7 +230,7 @@ const struct names Snames[] = {
 /*
  * These names are only used with the S1 font.
  */
-const struct names S1names[] = {
+static const struct names S1names[] = {
 	{ "ru",	"underscore" },
 	{ 0,	0 }
 };
@@ -499,7 +503,7 @@ nextprime(int n)
 		268435399, 536870909, 1073741789, 2147483647
 	};
 	int	mprime = 7;
-	int	i;
+	size_t	i;
 
 	for (i = 0; i < sizeof primes / sizeof *primes; i++)
 		if ((mprime = primes[i]) >= (n < 65536 ? n*4 :
@@ -530,7 +534,7 @@ struct namecache *
 afmnamelook(struct afmtab *a, const char *name)
 {
 	struct namecache	*np;
-	unsigned	h, c, n = 0;
+	int	h, c, n = 0;
 
 	h = pjw(name) % a->nameprime;
 	np = &a->namecache[c = h];
@@ -632,7 +636,7 @@ afmremap(struct afmtab *a)
 
 #ifndef	DUMP
 static int
-asciiequiv(int code, const char *psc, enum spec s)
+asciiequiv(int code __unused, const char *psc, enum spec s)
 {
 	int	i;
 
@@ -655,7 +659,7 @@ asciiequiv(int code, const char *psc, enum spec s)
 }
 
 static char *
-thisword(const char *text, const char *wrd)
+thisword(char *text, const char *wrd)
 {
 	while (*text == *wrd)
 		text++, wrd++;
@@ -665,7 +669,7 @@ thisword(const char *text, const char *wrd)
 			*text == '\r') {
 		while (*text != 0 && (*text == ' ' || *text == '\t'))
 			text++;
-		return (char *)text;
+		return text;
 	}
 	return NULL;
 }

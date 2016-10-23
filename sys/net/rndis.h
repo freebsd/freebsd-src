@@ -87,6 +87,7 @@
 #define	OID_802_3_XMIT_LATE_COLLISIONS	0x01020207
 
 #define	OID_TCP_OFFLOAD_PARAMETERS	0xFC01020C
+#define	OID_TCP_OFFLOAD_HARDWARE_CAPABILITIES	0xFC01020D
 
 #define	RNDIS_MEDIUM_802_3		0x00000000
 
@@ -318,6 +319,10 @@ struct rndis_status_msg {
 	uint32_t rm_stbufoffset;
 	/* rndis_diag_info */
 };
+
+/* stbuf offset from the beginning of rndis_status_msg. */
+#define	RNDIS_STBUFOFFSET_ABS(ofs)	\
+	((ofs) + __offsetof(struct rndis_status_msg, rm_status))
 
 /*
  * Immediately after rndis_status_msg.rm_stbufoffset, if a control

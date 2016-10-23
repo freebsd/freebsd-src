@@ -21,6 +21,8 @@
  * Sccsid @(#)inv3.c	1.3 (gritter) 10/22/05
  */
 
+#include "refer..c"
+
 int
 getargs(char *s, char **arps)
 {

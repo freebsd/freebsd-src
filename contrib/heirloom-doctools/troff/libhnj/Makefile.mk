@@ -1,4 +1,4 @@
-FLAGS =
+FLAGS = -Wall -Wunused-parameter -Wmissing-prototypes
 
 .c.o:
 	$(CC) $(CFLAGS) $(WARN) $(CPPFLAGS) $(FLAGS) -c $<

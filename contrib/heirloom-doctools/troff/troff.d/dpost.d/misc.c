@@ -57,12 +57,12 @@
 #include "asciitype.h"
 
 
-static int	nolist = 0;		/* number of specified ranges */
+static size_t	nolist = 0;		/* number of specified ranges */
 static int	olist[512];		/* processing range pairs */
 
 
 void
-error(int kind, char *mesg, ...)
+error(int kind, const char *mesg, ...)
 {
 
 
@@ -102,7 +102,7 @@ error(int kind, char *mesg, ...)
 
 /*****************************************************************************/
 /* for the AFM handling functions from troff */
-void
+static void
 verrprint(char *fmt, va_list ap)
 {
     fprintf(stderr, "%s: ", prog_name);
@@ -176,7 +176,7 @@ in_olist (
 {
 
 
-    int		i;			/* just a loop index */
+    size_t		i;			/* just a loop index */
 
 
 /*
@@ -202,9 +202,9 @@ in_olist (
 /*****************************************************************************/
 
 
-int 
+int
 cat (
-    char *file,			/* copy this file to out */
+    const char *file,			/* copy this file to out */
     FILE *out
 )
 
@@ -284,11 +284,7 @@ str_convert (
 
 
 void interrupt(
-
-
-    int		sig)			/* signal that we caught */
-
-
+    int		sig __unused)			/* signal that we caught */
 {
 
 
@@ -379,7 +375,8 @@ char *psgetline(char **line, size_t *linesize, size_t *llen, FILE *fp)
 int
 sget(char *buf, size_t size, FILE *fp)
 {
-    int	c, n = 0;
+    int	c;
+    size_t n = 0;
 
     do
 	c = getc(fp);

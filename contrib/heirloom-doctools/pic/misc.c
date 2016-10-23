@@ -93,8 +93,8 @@ double getcomp(obj *p, int t)	/* return component of a position */
 	return 0;
 }
 
-double	exprlist[100];
-int	nexpr	= 0;
+static double	exprlist[100];
+static int	nexpr	= 0;
 
 void exprsave(double f)
 {
@@ -177,7 +177,7 @@ void printpos(obj *p)	/* print position for debugging */
 	printf("%g, %g\n", p->o_x, p->o_y);
 }
 
-char *tostring(char *s)
+char *tostring(const char *s)
 {
 	register char *p;
 	size_t l;

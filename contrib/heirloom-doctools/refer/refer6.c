@@ -144,7 +144,7 @@ tabs (char **sv, char *line)
 	return(n-1);
 }
 
-char *
+const char *
 class (int nt, char **tv)
 {
 	if (hastype (nt, tv, 'J'))

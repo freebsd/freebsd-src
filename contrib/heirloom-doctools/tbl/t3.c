@@ -25,7 +25,7 @@
 # include "t..c"
 # include <string.h>
 # include <stdlib.h>
-struct optstr {char *optnam; int *optadd;} options [] = {
+static struct optstr {const char *optnam; int *optadd;} options [] = {
 	{ "expand", &expflg },
 	{ "EXPAND", &expflg },
 	{ "center", &ctrflg },

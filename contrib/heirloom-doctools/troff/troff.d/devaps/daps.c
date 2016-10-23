@@ -46,6 +46,10 @@
  * contributors.
  */
 
+#ifndef __unused
+#define __unused __attribute__((unused))
+#endif
+
 char *xxxvers = "troff.d/devaps/daps.c	1.2";
 
 
@@ -897,7 +901,7 @@ done (void)
 
 void 
 float_err (
-    int sig						/* signal number - not used */
+    int sig __unused						/* signal number - not used */
 )
 
 
@@ -925,7 +929,7 @@ float_err (
 
 void 
 wrap_up (
-    int sig						/* signal number - not used */
+    int sig __unused					/* signal number - not used */
 )
 
 
@@ -1113,7 +1117,7 @@ drawfunct(
 
 
 	char	buf[],						/* drawing command */
-	FILE	*fp
+	FILE	*fp __unused
 )
 
 

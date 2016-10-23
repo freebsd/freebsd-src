@@ -207,7 +207,6 @@ struct hn_softc {
 	struct ifnet    *hn_ifp;
 	struct ifmedia	hn_media;
 	device_t        hn_dev;
-	int             hn_carrier;
 	int             hn_if_flags;
 	struct sx	hn_lock;
 	struct vmbus_channel *hn_prichan;
@@ -233,6 +232,13 @@ struct hn_softc {
 	struct vmbus_xact_ctx *hn_xact;
 	uint32_t	hn_nvs_ver;
 
+	struct taskqueue	*hn_mgmt_taskq;
+	struct taskqueue	*hn_mgmt_taskq0;
+	struct task		hn_link_task;
+	struct task		hn_netchg_init;
+	struct timeout_task	hn_netchg_status;
+	uint32_t		hn_link_flags;	/* HN_LINK_FLAG_ */
+
 	uint32_t		hn_caps;	/* HN_CAP_ */
 	uint32_t		hn_flags;	/* HN_FLAG_ */
 	void			*hn_rxbuf;
@@ -244,6 +250,8 @@ struct hn_softc {
 
 	uint32_t		hn_rndis_rid;
 	uint32_t		hn_ndis_ver;
+	int			hn_ndis_tso_szmax;
+	int			hn_ndis_tso_sgmin;
 
 	struct ndis_rssprm_toeplitz hn_rss;
 };
@@ -263,13 +271,16 @@ struct hn_softc {
 #define HN_CAP_UDP6CS			0x0040
 #define HN_CAP_TSO4			0x0080
 #define HN_CAP_TSO6			0x0100
+#define HN_CAP_HASHVAL			0x0200
+
+#define HN_LINK_FLAG_LINKUP		0x0001
+#define HN_LINK_FLAG_NETCHG		0x0002
 
 /*
  * Externs
  */
 struct hn_send_ctx;
 
-void netvsc_linkstatus_callback(struct hn_softc *sc, uint32_t status);
 int hv_nv_on_send(struct vmbus_channel *chan, uint32_t rndis_mtype,
 	struct hn_send_ctx *sndc, struct vmbus_gpa *gpa, int gpa_cnt);
 

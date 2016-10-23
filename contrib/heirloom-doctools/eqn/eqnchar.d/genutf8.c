@@ -14,7 +14,7 @@
 #include <wctype.h>
 #include <stdio.h>
 
-const char *const ctl[] = {
+static const char *const ctl[] = {
 	"nul",
 	"soh",
 	"stx",

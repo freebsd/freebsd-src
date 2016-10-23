@@ -9,6 +9,7 @@
 TARGET_ENDIANNESS= 1234
 .elif ${MACHINE_ARCH} == "powerpc" || \
     ${MACHINE_ARCH} == "powerpc64" || \
+    ${MACHINE_ARCH} == "powerpcspe" || \
     ${MACHINE_ARCH} == "sparc64" || \
     (${MACHINE} == "arm" && ${MACHINE_ARCH:Marm*eb*} != "") || \
     ${MACHINE_ARCH:Mmips*} != ""

@@ -282,9 +282,17 @@ do_el1h_sync(struct trapframe *frame)
 	switch(exception) {
 	case EXCP_FP_SIMD:
 	case EXCP_TRAP_FP:
-		print_registers(frame);
-		printf(" esr:         %.8lx\n", esr);
-		panic("VFP exception in the kernel");
+#ifdef VFP
+		if ((curthread->td_pcb->pcb_fpflags & PCB_FP_KERN) != 0) {
+			vfp_restore_state();
+		} else
+#endif
+		{
+			print_registers(frame);
+			printf(" esr:         %.8lx\n", esr);
+			panic("VFP exception in the kernel");
+		}
+		break;
 	case EXCP_INSN_ABORT:
 	case EXCP_DATA_ABORT:
 		far = READ_SPECIALREG(far_el1);
@@ -409,6 +417,12 @@ do_el0_sync(struct trapframe *frame)
 		userret(td, frame);
 		break;
 	}
+
+	KASSERT((curthread->td_pcb->pcb_fpflags & ~PCB_FP_USERMASK) == 0,
+	    ("Kernel VFP flags set while entering userspace"));
+	KASSERT(
+	    curthread->td_pcb->pcb_fpusaved == &curthread->td_pcb->pcb_fpustate,
+	    ("Kernel VFP state in use when entering userspace"));
 }
 
 void

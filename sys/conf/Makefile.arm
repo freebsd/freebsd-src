@@ -74,7 +74,7 @@ FILES_CPU_FUNC = \
 	$S/$M/$M/cpufunc_asm_pj4b.S $S/$M/$M/cpufunc_asm_armv6.S \
 	$S/$M/$M/cpufunc_asm_armv7.S
 
-.if ${TARGET_ARCH} != "armv6" && defined(KERNPHYSADDR)
+.if ${MACHINE_ARCH} != "armv6" && defined(KERNPHYSADDR)
 KERNEL_EXTRA=trampoline
 KERNEL_EXTRA_INSTALL=kernel.gz.tramp
 trampoline: ${KERNEL_KO}.tramp

@@ -26,7 +26,7 @@
 # include "t..c"
 # include <stdlib.h>
 # include <string.h>
-int oncol;
+static int oncol;
 static int morecols(int);
 static int moreheads(int);
 static void initspec(int);

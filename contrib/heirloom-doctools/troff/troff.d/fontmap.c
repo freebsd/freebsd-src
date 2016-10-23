@@ -46,7 +46,7 @@ static char *filepath;
 static char *bufp;
 static char *bufe;
 
-struct bst map = {
+static struct bst map = {
 	NULL,
 	mapcmp
 };

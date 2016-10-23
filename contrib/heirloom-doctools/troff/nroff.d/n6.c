@@ -52,11 +52,11 @@
 
 #include <stdio.h>
 #include <string.h>
-#ifdef	EUC
+//#ifdef	EUC
 #include <limits.h>
 #include <stdlib.h>
 #include <wchar.h>
-#endif
+//#endif
 #include <ctype.h>
 #include "tdef.h"
 #include "tw.h"
@@ -68,7 +68,7 @@
 */
 
 int	initbdtab[NFONT+1] ={ 0, 0, 0, 3, 3, 0, };
-int	sbold = 0;
+static int	sbold = 0;
 int	initfontlab[NFONT+1] = { 0, 'R', 'I', 'B', PAIR('B','I'), 'S', 0 };
 
 extern	int	nchtab;
@@ -221,7 +221,7 @@ setabs (void)		/* set absolute char from \C'...' */
 }
 
 int
-tr2un(tchar c, int f)
+tr2un(tchar c, int f __unused)
 {
 	int	k;
 

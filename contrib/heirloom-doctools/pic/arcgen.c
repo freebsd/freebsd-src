@@ -30,7 +30,7 @@ obj *arcgen(int type)	/* handles circular and (eventually) elliptical arcs */
 	static int nexthv[2][4] ={ {U_DIR, L_DIR, D_DIR, R_DIR}, {D_DIR,
 	    R_DIR, U_DIR, L_DIR} };
 	double dx2, dy2, ht, phi, r, d;
-	int i, head, to, at, cw, invis, ddtype, battr;
+	int i, head, to, at, _cw, invis, ddtype, battr;
 	obj *p, *ppos;
 	double fromx, fromy, tox = 0, toy = 0, fillval = 0;
 	Attr *ap;
@@ -40,7 +40,7 @@ obj *arcgen(int type)	/* handles circular and (eventually) elliptical arcs */
 	prevw = getfval("arrowwid");
 	fromx = curx;
 	fromy = cury;
-	head = to = at = cw = invis = ddtype = battr = 0;
+	head = to = at = _cw = invis = ddtype = battr = 0;
 	for (i = 0; i < nattr; i++) {
 		ap = &attr[i];
 		switch (ap->a_type) {
@@ -66,7 +66,7 @@ obj *arcgen(int type)	/* handles circular and (eventually) elliptical arcs */
 			prevrad = ap->a_val.f / 2;
 			break;
 		case CW:
-			cw = 1;
+			_cw = 1;
 			break;
 		case FROM:	/* start point of arc */
 			ppos = ap->a_val.o;
@@ -107,16 +107,16 @@ obj *arcgen(int type)	/* handles circular and (eventually) elliptical arcs */
 		}
 	}
 	if (!at && !to) {	/* the defaults are mostly OK */
-		curx = fromx + prevrad * dctrx[cw][hvmode];
-		cury = fromy + prevrad * dctry[cw][hvmode];
-		tox = fromx + prevrad * dtox[cw][hvmode];
-		toy = fromy + prevrad * dtoy[cw][hvmode];
-		hvmode = nexthv[cw][hvmode];
+		curx = fromx + prevrad * dctrx[_cw][hvmode];
+		cury = fromy + prevrad * dctry[_cw][hvmode];
+		tox = fromx + prevrad * dtox[_cw][hvmode];
+		toy = fromy + prevrad * dtoy[_cw][hvmode];
+		hvmode = nexthv[_cw][hvmode];
 	}
 	else if (!at) {
 		dx2 = (tox - fromx) / 2;
 		dy2 = (toy - fromy) / 2;
-		phi = atan2(dy2, dx2) + (cw ? -PI/2 : PI/2);
+		phi = atan2(dy2, dx2) + (_cw ? -PI/2 : PI/2);
 		if (prevrad <= 0.0)
 			prevrad = dx2*dx2+dy2*dy2;
 		for (r=prevrad; (d = r*r - (dx2*dx2+dy2*dy2)) <= 0.0; r *= 2)
@@ -129,11 +129,11 @@ obj *arcgen(int type)	/* handles circular and (eventually) elliptical arcs */
 			dx2, dy2, phi, r, ht);
 	}
 	else if (at && !to) {	/* do we have all the cases??? */
-		tox = fromx + prevrad * dtox[cw][hvmode];
-		toy = fromy + prevrad * dtoy[cw][hvmode];
-		hvmode = nexthv[cw][hvmode];
+		tox = fromx + prevrad * dtox[_cw][hvmode];
+		toy = fromy + prevrad * dtoy[_cw][hvmode];
+		hvmode = nexthv[_cw][hvmode];
 	}
-	if (cw) {	/* interchange roles of from-to and heads */
+	if (_cw) {	/* interchange roles of from-to and heads */
 		double temp;
 		temp = fromx; fromx = tox; tox = temp;
 		temp = fromy; fromy = toy; toy = temp;
@@ -148,7 +148,7 @@ obj *arcgen(int type)	/* handles circular and (eventually) elliptical arcs */
 	p->o_val[1] = fromy;
 	p->o_val[2] = tox;
 	p->o_val[3] = toy;
-	if (cw) {
+	if (_cw) {
 		curx = fromx;
 		cury = fromy;
 	} else {
@@ -158,7 +158,7 @@ obj *arcgen(int type)	/* handles circular and (eventually) elliptical arcs */
 	p->o_val[4] = prevw;
 	p->o_val[5] = prevh;
 	p->o_val[6] = prevrad;
-	p->o_attr = head | (cw ? CW_ARC : 0) | invis | ddtype | battr;
+	p->o_attr = head | (_cw ? CW_ARC : 0) | invis | ddtype | battr;
 	p->o_fillval = fillval;
 	if (head)
 		p->o_nhead = getfval("arrowhead");
@@ -191,36 +191,36 @@ void arc_extreme(double x0, double y0, double x1, double y1, double xc, double y
 			  /* start, end, center */
 {
 	/* assumes center isn't too far out */
-	double r, xmin, ymin, xmax, ymax;
+	double r, _xmin, _ymin, _xmax, _ymax;
 	int j, k;
 	x0 -= xc; y0 -= yc;	/* move to center */
 	x1 -= xc; y1 -= yc;
-	xmin = (x0<x1)?x0:x1; ymin = (y0<y1)?y0:y1;
-	xmax = (x0>x1)?x0:x1; ymax = (y0>y1)?y0:y1;
+	_xmin = (x0<x1)?x0:x1; _ymin = (y0<y1)?y0:y1;
+	_xmax = (x0>x1)?x0:x1; _ymax = (y0>y1)?y0:y1;
 	r = sqrt(x0*x0 + y0*y0);
 	if (r > 0.0) {
 		j = quadrant(x0,y0);
 		k = quadrant(x1,y1);
 		if (j == k && y1*x0 < x1*y0) {
 			/* viewed as complex numbers, if Im(z1/z0)<0, arc is big */
-			if( xmin > -r) xmin = -r; if( ymin > -r) ymin = -r;
-			if( xmax <  r) xmax =  r; if( ymax <  r) ymax =  r;
+			if( _xmin > -r) _xmin = -r; if( _ymin > -r) _ymin = -r;
+			if( _xmax <  r) _xmax =  r; if( _ymax <  r) _ymax =  r;
 		} else {
 			while (j != k) {
 				switch (j) {
-					case 1: if( ymax <  r) ymax =  r; break; /* north */
-					case 2: if( xmin > -r) xmin = -r; break; /* west */
-					case 3: if( ymin > -r) ymin = -r; break; /* south */
-					case 4: if( xmax <  r) xmax =  r; break; /* east */
+					case 1: if( _ymax <  r) _ymax =  r; break; /* north */
+					case 2: if( _xmin > -r) _xmin = -r; break; /* west */
+					case 3: if( _ymin > -r) _ymin = -r; break; /* south */
+					case 4: if( _xmax <  r) _xmax =  r; break; /* east */
 				}
 				j = j%4 + 1;
 			}
 		}
 	}
-	xmin += xc; ymin += yc;
-	xmax += xc; ymax += yc;
-	extreme(xmin, ymin);
-	extreme(xmax, ymax);
+	_xmin += xc; _ymin += yc;
+	_xmax += xc; _ymax += yc;
+	extreme(_xmin, _ymin);
+	extreme(_xmax, _ymax);
 }
 
 int

@@ -627,7 +627,6 @@ translate_acl(struct archive_read_disk *a,
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "Unknown ACL brand");
 		return (ARCHIVE_WARN);
-		break;
 	}
 #endif
 

@@ -1,12 +1,13 @@
 # $FreeBSD$
 
-NO_WERROR=
+#NO_WERROR=
 PROG=	truss
 SRCS=	main.c setup.c syscalls.c
 
 LIBADD=	sysdecode
 
-CFLAGS+= -I${.CURDIR} -I. -I${.CURDIR}/../../sys
+#CFLAGS+= -I${.CURDIR} -I. -I${.CURDIR}/../../sys
+CFLAGS+= -I${.CURDIR}/../../sys
 
 ABIS+=		freebsd
 # Each ABI is expected to have an ABI.c, MACHINE_ARCH-ABI.c or

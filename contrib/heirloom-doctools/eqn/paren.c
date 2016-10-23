@@ -163,7 +163,7 @@ paren(int leftc, int p1, int rightc) {
 }
 
 void
-brack(int m, char *t, char *c, char *b) {
+brack(int m, const char *t, const char *c, const char *b) {
 	int j;
 	printf("\\b'%s", t);
 	for( j=0; j<m; j++)

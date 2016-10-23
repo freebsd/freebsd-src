@@ -60,7 +60,7 @@ static size_t	bufsize;
 typedef struct {long start, end;} Section;
 
 static void copy(FILE *, FILE *, Section *);
-static char *_has(const char *, const char *);
+static char *_has(char *, const char *);
 static void addfonts(char *);
 
 /*****************************************************************************/
@@ -98,7 +98,7 @@ ps_include(
     double	o = outline != 0;
     double	s = scaleboth != 0;
     int		i;			/* loop index */
-    int		lineno = 0;
+    int		lno = 0;
     int		epsf = 0;
     int		hires = 0;
     int		state = 0;
@@ -142,7 +142,7 @@ ps_include(
 	fseek(fin, 0L, SEEK_SET);
 
 	while ( psgetline(&buf, &bufsize, NULL, fin) != NULL ) {
-		if (++lineno == 1 && strncmp(buf, "%!PS-", 5) == 0) {
+		if (++lno == 1 && strncmp(buf, "%!PS-", 5) == 0) {
 			for (bp = buf; !spacechar(*bp&0377); bp++);
 			while (*bp && *bp != '\n' && *bp != '\r' &&
 					spacechar(*bp&0377))
@@ -324,18 +324,18 @@ copy(FILE *fin, FILE *fout, Section *s)
 }
 
 static char *
-_has(const char *buf, const char *word)
+_has(char *buffer, const char *word)
 {
 	int	n;
 
 	n = strlen(word);
-	if (strncmp(buf, word, n) != 0)
+	if (strncmp(buffer, word, n) != 0)
 		return NULL;
-	if (buf[n] == ' ' || buf[n] == '\t' || buf[n] == '\r' ||
-			buf[n] == '\n' || buf[n] == 0) {
-		while (buf[n] == ' ' || buf[n] == '\t')
+	if (buffer[n] == ' ' || buffer[n] == '\t' || buffer[n] == '\r' ||
+			buffer[n] == '\n' || buffer[n] == 0) {
+		while (buffer[n] == ' ' || buffer[n] == '\t')
 			n++;
-		return (char *)&buf[n];
+		return &buffer[n];
 	}
 	return NULL;
 }

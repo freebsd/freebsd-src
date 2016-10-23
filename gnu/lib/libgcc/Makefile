@@ -173,7 +173,7 @@ LIB2FUNCS_EXTRA+= fixdfdi.c fixunssfsi.c
 .endif
 .endif
 
-.if ${TARGET_ARCH} == "powerpc"
+.if ${TARGET_ARCH} == "powerpc" || ${TARGET_ARCH} == "powerpcspe"
 #	from config/rs6000/t-ppccomm
 LIB2FUNCS_EXTRA = tramp.asm
 LIB2FUNCS_STATIC_EXTRA = eabi.asm

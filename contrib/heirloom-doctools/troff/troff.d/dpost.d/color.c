@@ -181,7 +181,7 @@ newcolor (
 
 
     char	*p;			/* next character in *name */
-    int		i;			/* goes in color[i] */
+    size_t	i;			/* goes in color[i] */
 
 
 /*

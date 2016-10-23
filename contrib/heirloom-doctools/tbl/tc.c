@@ -29,7 +29,7 @@ int
 choochar(void) {
 	/* choose funny characters to delimit fields */
 	int had[128], ilin, icol, k;
-	char *s;
+	const char *s;
 	for(icol=0; icol<128; icol++)
 		had[icol]=0;
 	F1 = F2 = 0;
@@ -43,7 +43,7 @@ choochar(void) {
 			s = table[ilin][icol].col;
 			if (point((intptr_t)s))
 				while (*s) {
-					if (*s > 0 && *(unsigned char *)s <= 127)
+					if (*s > 0 && *(unsigned const char *)s <= 127)
 						had[(int)*s++]=1;
 					else
 						s++;
@@ -51,7 +51,7 @@ choochar(void) {
 			s=table[ilin][icol].rcol;
 			if (point((intptr_t)s))
 				while (*s) {
-					if (*s > 0 && *(unsigned char *)s <= 127)
+					if (*s > 0 && *(unsigned const char *)s <= 127)
 						had[(int)*s++]=1;
 					else
 						s++;

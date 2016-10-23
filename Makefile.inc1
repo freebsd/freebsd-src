@@ -358,6 +358,7 @@ KNOWN_ARCHES?=	aarch64/arm64 \
 		mipsn32/mips \
 		powerpc \
 		powerpc64/powerpc \
+		powerpcspe/powerpc \
 		riscv64/riscv \
 		sparc64
 
@@ -1582,7 +1583,7 @@ _strfile=	usr.bin/fortune/strfile
 _gperf=		gnu/usr.bin/gperf
 .endif
 
-.if ${MK_SHAREDOCS} != "no" || ${MK_DOCTOOLS} != "no"
+.if ${MK_SHAREDOCS} != "no" && ${MK_DOCTOOLS} != "no"
 _doctools=	cddl/usr.bin/doctools \
 		usr.bin/soelim \
 		usr.bin/col
@@ -1980,7 +1981,10 @@ libraries: .MAKE .PHONY
 #
 # static libgcc.a prerequisite for shared libc
 #
-_prereq_libs= gnu/lib/libssp/libssp_nonshared gnu/lib/libgcc lib/libcompiler_rt
+_prereq_libs= gnu/lib/libgcc lib/libcompiler_rt
+.if ${MK_SSP} != "no"
+_prereq_libs+= gnu/lib/libssp/libssp_nonshared
+.endif
 
 # These dependencies are not automatically generated:
 #

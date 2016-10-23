@@ -63,6 +63,7 @@ struct wpi_tx_data {
 	bus_addr_t		cmd_paddr;
 	struct mbuf		*m;
 	struct ieee80211_node	*ni;
+	int			hdrlen;
 };
 
 struct wpi_tx_ring {

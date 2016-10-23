@@ -39,6 +39,7 @@ options 	FFS			#Berkeley Fast Filesystem
 
 options 	INET
 options 	INET6
+options 	TCP_HHOOK		# hhook(9) framework for TCP
 options 	KGSSAPI
 options 	NFSCL
 options 	NFSLOCKD

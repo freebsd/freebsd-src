@@ -563,7 +563,6 @@ efirt_modevents(module_t m, int event, void *arg __unused)
 	switch (event) {
 	case MOD_LOAD:
 		return (efi_init());
-		break;
 
 	case MOD_UNLOAD:
 		efi_uninit();

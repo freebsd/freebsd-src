@@ -13,7 +13,6 @@ SUBDIR=	title \
 	10.exref \
 	11.vitut \
 	12.vi \
-	13.viref \
 	18.msdiffs \
 	21.troff \
 	22.trofftut

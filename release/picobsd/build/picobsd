@@ -8,6 +8,10 @@
 #	picobsd [options] image_type [site_name]
 #
 # CWARNFLAGS can be used to pass -Wall or similar options
+#export CWARNFLAGS=-D______________sxasxa__________________________
+#export WARNS=2
+# EFIABI... unused attributes ?
+export NO_WERROR=1
 #
 # Where image_type is a directory with the picobsd config info,
 # and ${image_type}/floppy.tree.${site_name} contains
@@ -165,7 +169,7 @@ create_includes_and_libraries2() { # opt_dir opt_target
     local no
     log "create_includes_and_libraries2() for ${SRC} $1"
 
-    no="-DNO_CLEAN -DNO_PROFILE -DNO_GAMES -DNO_LIBC_R" # WITHOUT_CDDL=1"
+    no="-DNO_CLEAN -DMK_PROFILE=no -DNO_GAMES -DNO_LIBC_R" # WITHOUT_CDDL=1"
     no="$no -DWITHOUT_CASPER"
     no="$no -DMALLOC_PRODUCTION"
 
@@ -674,7 +678,7 @@ populate_mfs_tree() {
     ) || fail $? crunch
 
     log "Setting up host key for sshd:"
-    for K in rsa1 rsa dsa ; do
+    for K in rsa dsa ; do
 	if [ $K = rsa1 ] ; then
 	    i=ssh_host_key
 	else
@@ -844,6 +848,7 @@ fill_floppy_image() {
     mkdir -p ${dst}
     (
     cd ${BUILDDIR}
+    # old style mfs lookup, find markers in kernel
     set 0 0 # reset variables
     # $1 takes the offset of the MFS filesystem
     set `strings -at d kernel | grep "MFS Filesystem goes here"`
@@ -852,6 +857,16 @@ fill_floppy_image() {
     set `strings -at d kernel | grep "MFS Filesystem had better"`
     mfs_end=$1
     mfs_size="$((${mfs_end} - ${mfs_start}))"
+    if [ ${mfs_start} = 0 -o ${mfs_end} = 0 ] ; then
+	# similar to sys/tools/embed_mfs.sh
+	local x="`objdump -h kernel | grep oldmfs`"
+	mfs_size=`echo ${x} | awk '{printf("%d", "0x" $3)}' 2> /dev/null`
+	mfs_start=`echo ${x} | awk '{printf("%d", "0x" $6)}' 2> /dev/null`
+	if [ ${mfs_start} = 0 -o ${mfs_size} = 0 ] ; then
+	    log "-- old style mfs location not found, have"
+	    logverbose "$x"
+	fi
+    fi
     set -- `ls -l ${c_fs}`; imgsize="$5"
     if [ ${mfs_start} -gt 0 -a ${mfs_size} -ge ${imgsize} ] ; then
 	mfs_ofs=$((${mfs_start} + 8192))
@@ -953,9 +968,15 @@ set_build_parameters() {
     OSVERSION=$3
     log "OSVERSION is ${OSVERSION}"
 
-	export MAKEOBJDIRPREFIX=${l_objtree}
-	export TARGET_ARCH=${o_arch} TARGET=${o_arch}
-	# XXX 20131001 see if CLANG fixes the build
+    export MAKEOBJDIRPREFIX=${l_objtree}
+    export TARGET_ARCH=${o_arch} TARGET=${o_arch}
+    # XXX 20131001 see if CLANG fixes the build
+    if true; then
+	echo "--- build with clang"
+	export WITHOUT_CLANG=yes
+	export WITHOUT_CLANG_BOOTSTRAP=yes
+	# export WITH_CLANG_BOOTSTRAP=yes
+    else
 	export WITHOUT_CLANG_IS_CC=yes
 	export WITHOUT_CLANG_BOOTSTRAP=yes
 	export WITH_GCC=yes
@@ -964,14 +985,15 @@ set_build_parameters() {
 	export WITHOUT_CLANG=yes
 	export WITHOUT_ICONV=yes
 	export WITHOUT_TESTS=yes
+    fi
 
-	# XXX why change machine_arch ?
-	#-- export MACHINE_ARCH=`uname -m` MACHINE=`uname -m`
-	# export CWARNFLAGS="-Wextra -Wno-sign-compare -Wno-missing-field-initializers"
-	# XXX BINMAKE does not really exist anymore
-	eval "export BINMAKE=\"`cd ${SRC}; make -f Makefile -V BINMAKE`\""
-	[ "$BINMAKE" = "" ] && \
-	   eval "export BINMAKE=\"`cd ${SRC}; make -f Makefile -V SUB_MAKE`\""
+    # XXX why change machine_arch ?
+    #-- export MACHINE_ARCH=`uname -m` MACHINE=`uname -m`
+    # export CWARNFLAGS="-Wextra -Wno-sign-compare -Wno-missing-field-initializers"
+    # XXX BINMAKE does not really exist anymore
+    eval "export BINMAKE=\"`cd ${SRC}; make -f Makefile -V BINMAKE`\""
+    [ "$BINMAKE" = "" ] && \
+       eval "export BINMAKE=\"`cd ${SRC}; make -f Makefile -V SUB_MAKE`\""
 
     if [ "${o_init_src}" != "" ] ; then
 	create_includes_and_libraries2

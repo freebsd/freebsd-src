@@ -56,7 +56,7 @@ integral(int p, int p1, int p2) {
 
 void
 setintegral(void) {
-	char *f;
+	const char *f;
 
 	yyval.token = oalloc();
 	f = "\\(is";

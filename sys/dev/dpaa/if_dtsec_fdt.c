@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <contrib/ncsw/inc/xx_ext.h>
 
 #include "if_dtsec.h"
+#include "fman.h"
 
 
 static int	dtsec_fdt_probe(device_t dev);
@@ -106,6 +107,28 @@ dtsec_fdt_probe(device_t dev)
 }
 
 static int
+find_mdio(phandle_t phy_node, device_t mac, device_t *mdio_dev)
+{
+	device_t bus;
+
+	while (phy_node > 0) {
+		if (ofw_bus_node_is_compatible(phy_node, "fsl,fman-mdio"))
+			break;
+		phy_node = OF_parent(phy_node);
+	}
+
+	if (phy_node <= 0)
+		return (ENOENT);
+
+	if (fman_get_dev(&bus) < 0)
+		return (ENOENT);
+
+	*mdio_dev = ofw_bus_find_child_device_by_phandle(bus, phy_node);
+
+	return (0);
+}
+
+static int
 dtsec_fdt_attach(device_t dev)
 {
 	struct dtsec_softc *sc;
@@ -127,13 +150,9 @@ dtsec_fdt_attach(device_t dev)
 
 	if (OF_getprop(enet_node, "local-mac-address",
 	    (void *)sc->sc_mac_addr, 6) == -1) {
-		if (device_get_unit(dev) != 0) {
-			device_printf(dev,
-			    "Could not load local-mac-addr property "
-			    "from DTS\n");
-			return (ENXIO);
-		}
-		sc->sc_hidden = true;
+		device_printf(dev,
+		    "Could not load local-mac-addr property from DTS\n");
+		return (ENXIO);
 	}
 
 	/* Get link speed */
@@ -158,6 +177,9 @@ dtsec_fdt_attach(device_t dev)
 
 	if (OF_getprop(phy_node, "reg", (void *)&sc->sc_phy_addr,
 	    sizeof(sc->sc_phy_addr)) <= 0)
+		return (ENXIO);
+
+	if (find_mdio(phy_node, dev, &sc->sc_mdio) != 0)
 		return (ENXIO);
 
 	/* Get PHY connection type */

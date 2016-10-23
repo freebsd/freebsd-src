@@ -28,7 +28,7 @@
 # include <stdlib.h>
 
 int
-error(char *s) {
+error(const char *s) {
 	fprintf(stderr, "\n%s: line %d: %s\n", ifile, iline, s);
 	fprintf(stderr, "%s quits\n", progname);
 	return -1;
@@ -43,8 +43,9 @@ char *
 gets1(char **bp, char **sp, size_t *zp)
 {
 char *s, *p = 0;
-int c, n = 0;
+int c;
 int nbl;
+size_t n = 0;
 for (;;)
 	{
 	iline++;
@@ -91,8 +92,8 @@ for (;;)
 return(p);
 }
 # define BACKMAX 500
-char backup[BACKMAX];
-char *backp = backup;
+static char backup[BACKMAX];
+static char *backp = backup;
 void
 un1getc(int c)
 {
