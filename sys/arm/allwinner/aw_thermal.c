@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/reboot.h>
 #include <sys/module.h>
+#include <sys/cpu.h>
 #include <machine/bus.h>
 
 #include <dev/ofw/ofw_bus.h>
@@ -50,6 +51,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/extres/hwreset/hwreset.h>
 
 #include <arm/allwinner/aw_sid.h>
+
+#include "cpufreq_if.h"
 
 #define	THS_CTRL0		0x00
 #define	THS_CTRL1		0x04
@@ -70,6 +73,14 @@ __FBSDID("$FreeBSD$");
 #define	 ALARM_INT2_STS		(1 << 2)
 #define	 ALARM_INT1_STS		(1 << 1)
 #define	 ALARM_INT0_STS		(1 << 0)
+#define	THS_ALARM0_CTRL		0x50
+#define	 ALARM_T_HOT_MASK	0xfff
+#define	 ALARM_T_HOT_SHIFT	16
+#define	 ALARM_T_HYST_MASK	0xfff
+#define	 ALARM_T_HYST_SHIFT	0
+#define	THS_SHUTDOWN0_CTRL	0x60
+#define	 SHUT_T_HOT_MASK	0xfff
+#define	 SHUT_T_HOT_SHIFT	16
 #define	THS_FILTER		0x70
 #define	THS_CALIB0		0x74
 #define	THS_CALIB1		0x78
@@ -97,16 +108,24 @@ __FBSDID("$FreeBSD$");
 #define	H3_ADC_ACQUIRE_TIME	0x3f
 #define	H3_FILTER		0x6
 #define	H3_INTC			0x191000
-#define	H3_TEMP_BASE		217000000
-#define	H3_TEMP_MUL		121168
-#define	H3_TEMP_DIV		1000000
+#define	H3_TEMP_BASE		2794000
+#define	H3_TEMP_MUL		1000
+#define	H3_TEMP_DIV		-14882
 #define	H3_CLK_RATE		4000000
 
 #define	TEMP_C_TO_K		273
 #define	SENSOR_ENABLE_ALL	(SENSOR0_EN|SENSOR1_EN|SENSOR2_EN)
 #define	SHUT_INT_ALL		(SHUT_INT0_STS|SHUT_INT1_STS|SHUT_INT2_STS)
+#define	ALARM_INT_ALL		(ALARM_INT0_STS)
 
 #define	MAX_SENSORS	3
+#define	MAX_CF_LEVELS	64
+
+#define	THROTTLE_ENABLE_DEFAULT	1
+
+/* Enable thermal throttling */
+static int aw_thermal_throttle_enable = THROTTLE_ENABLE_DEFAULT;
+TUNABLE_INT("hw.aw_thermal.throttle_enable", &aw_thermal_throttle_enable);
 
 struct aw_thermal_sensor {
 	const char		*name;
@@ -118,13 +137,22 @@ struct aw_thermal_config {
 	int				nsensors;
 	uint64_t			clk_rate;
 	uint32_t			adc_acquire_time;
+	int				adc_cali_en;
 	uint32_t			filter;
 	uint32_t			intc;
+	int				(*to_temp)(uint32_t);
 	int				temp_base;
 	int				temp_mul;
 	int				temp_div;
-	int				calib;
+	int				calib0, calib1;
+	uint32_t			calib0_mask, calib1_mask;
 };
+
+static int
+a83t_to_temp(uint32_t val)
+{
+	return ((A83T_TEMP_BASE - (val * A83T_TEMP_MUL)) / A83T_TEMP_DIV);
+}
 
 static const struct aw_thermal_config a83t_config = {
 	.nsensors = 3,
@@ -144,13 +172,21 @@ static const struct aw_thermal_config a83t_config = {
 	},
 	.clk_rate = A83T_CLK_RATE,
 	.adc_acquire_time = A83T_ADC_ACQUIRE_TIME,
+	.adc_cali_en = 1,
 	.filter = A83T_FILTER,
 	.intc = A83T_INTC,
-	.temp_base = A83T_TEMP_BASE,
-	.temp_mul = A83T_TEMP_MUL,
-	.temp_div = A83T_TEMP_DIV,
-	.calib = 1,
+	.to_temp = a83t_to_temp,
+	.calib0 = 1,
+	.calib0_mask = 0xffffffff,
+	.calib1 = 1,
+	.calib1_mask = 0xffffffff,
 };
+
+static int
+a64_to_temp(uint32_t val)
+{
+	return ((A64_TEMP_BASE - (val * A64_TEMP_MUL)) / A64_TEMP_DIV);
+}
 
 static const struct aw_thermal_config a64_config = {
 	.nsensors = 3,
@@ -172,10 +208,14 @@ static const struct aw_thermal_config a64_config = {
 	.adc_acquire_time = A64_ADC_ACQUIRE_TIME,
 	.filter = A64_FILTER,
 	.intc = A64_INTC,
-	.temp_base = A64_TEMP_BASE,
-	.temp_mul = A64_TEMP_MUL,
-	.temp_div = A64_TEMP_DIV,
+	.to_temp = a64_to_temp,
 };
+
+static int
+h3_to_temp(uint32_t val)
+{
+	return (((int)(val * H3_TEMP_MUL) - H3_TEMP_BASE) / H3_TEMP_DIV);
+}
 
 static const struct aw_thermal_config h3_config = {
 	.nsensors = 1,
@@ -189,9 +229,9 @@ static const struct aw_thermal_config h3_config = {
 	.adc_acquire_time = H3_ADC_ACQUIRE_TIME,
 	.filter = H3_FILTER,
 	.intc = H3_INTC,
-	.temp_base = H3_TEMP_BASE,
-	.temp_mul = H3_TEMP_MUL,
-	.temp_div = H3_TEMP_DIV,
+	.to_temp = h3_to_temp,
+	.calib0 = 1,
+	.calib0_mask = 0xfff,
 };
 
 static struct ofw_compat_data compat_data[] = {
@@ -205,8 +245,14 @@ static struct ofw_compat_data compat_data[] = {
 	(void *)ofw_bus_search_compatible((d), compat_data)->ocd_data
 
 struct aw_thermal_softc {
+	device_t			dev;
 	struct resource			*res[2];
 	struct aw_thermal_config	*conf;
+
+	int				throttle;
+	int				min_freq;
+	struct cf_level			levels[MAX_CF_LEVELS];
+	eventhandler_tag		cf_pre_tag;
 };
 
 static struct resource_spec aw_thermal_spec[] = {
@@ -224,15 +270,20 @@ aw_thermal_init(struct aw_thermal_softc *sc)
 	uint32_t calib0, calib1;
 	int error;
 
-	if (sc->conf->calib) {
+	if (sc->conf->calib0 != 0 || sc->conf->calib1 != 0) {
 		/* Read calibration settings from SRAM */
 		error = aw_sid_read_tscalib(&calib0, &calib1);
 		if (error != 0)
 			return (error);
 
+		calib0 &= sc->conf->calib0_mask;
+		calib1 &= sc->conf->calib1_mask;
+
 		/* Write calibration settings to thermal controller */
-		WR4(sc, THS_CALIB0, calib0);
-		WR4(sc, THS_CALIB1, calib1);
+		if (sc->conf->calib0 != 0 && calib0 != 0)
+			WR4(sc, THS_CALIB0, calib0);
+		if (sc->conf->calib1 != 0 && calib1 != 0)
+			WR4(sc, THS_CALIB1, calib1);
 	}
 
 	/* Configure ADC acquire time (CLK_IN/(N+1)) and enable sensors */
@@ -245,19 +296,12 @@ aw_thermal_init(struct aw_thermal_softc *sc)
 
 	/* Enable interrupts */
 	WR4(sc, THS_INTS, RD4(sc, THS_INTS));
-	WR4(sc, THS_INTC, sc->conf->intc | SHUT_INT_ALL);
+	WR4(sc, THS_INTC, sc->conf->intc | SHUT_INT_ALL | ALARM_INT_ALL);
 
 	/* Enable sensors */
 	WR4(sc, THS_CTRL2, RD4(sc, THS_CTRL2) | SENSOR_ENABLE_ALL);
 
 	return (0);
-}
-
-static int
-aw_thermal_reg_to_temp(struct aw_thermal_softc *sc, uint32_t val)
-{
-	return ((sc->conf->temp_base - (val * sc->conf->temp_mul)) /
-	    sc->conf->temp_div);
 }
 
 static int
@@ -267,7 +311,40 @@ aw_thermal_gettemp(struct aw_thermal_softc *sc, int sensor)
 
 	val = RD4(sc, THS_DATA0 + (sensor * 4));
 
-	return (aw_thermal_reg_to_temp(sc, val) + TEMP_C_TO_K);
+	return (sc->conf->to_temp(val) + TEMP_C_TO_K);
+}
+
+static int
+aw_thermal_getshut(struct aw_thermal_softc *sc, int sensor)
+{
+	uint32_t val;
+
+	val = RD4(sc, THS_SHUTDOWN0_CTRL + (sensor * 4));
+	val = (val >> SHUT_T_HOT_SHIFT) & SHUT_T_HOT_MASK;
+
+	return (sc->conf->to_temp(val) + TEMP_C_TO_K);
+}
+
+static int
+aw_thermal_gethyst(struct aw_thermal_softc *sc, int sensor)
+{
+	uint32_t val;
+
+	val = RD4(sc, THS_ALARM0_CTRL + (sensor * 4));
+	val = (val >> ALARM_T_HYST_SHIFT) & ALARM_T_HYST_MASK;
+
+	return (sc->conf->to_temp(val) + TEMP_C_TO_K);
+}
+
+static int
+aw_thermal_getalarm(struct aw_thermal_softc *sc, int sensor)
+{
+	uint32_t val;
+
+	val = RD4(sc, THS_ALARM0_CTRL + (sensor * 4));
+	val = (val >> ALARM_T_HOT_SHIFT) & ALARM_T_HOT_MASK;
+
+	return (sc->conf->to_temp(val) + TEMP_C_TO_K);
 }
 
 static int
@@ -285,6 +362,55 @@ aw_thermal_sysctl(SYSCTL_HANDLER_ARGS)
 }
 
 static void
+aw_thermal_throttle(struct aw_thermal_softc *sc, int enable)
+{
+	device_t cf_dev;
+	int count, error;
+
+	if (enable == sc->throttle)
+		return;
+
+	if (enable != 0) {
+		/* Set the lowest available frequency */
+		cf_dev = devclass_get_device(devclass_find("cpufreq"), 0);
+		if (cf_dev == NULL)
+			return;
+		count = MAX_CF_LEVELS;
+		error = CPUFREQ_LEVELS(cf_dev, sc->levels, &count);
+		if (error != 0 || count == 0)
+			return;
+		sc->min_freq = sc->levels[count - 1].total_set.freq;
+		error = CPUFREQ_SET(cf_dev, &sc->levels[count - 1],
+		    CPUFREQ_PRIO_USER);
+		if (error != 0)
+			return;
+	}
+
+	sc->throttle = enable;
+}
+
+static void
+aw_thermal_cf_pre_change(void *arg, const struct cf_level *level, int *status)
+{
+	struct aw_thermal_softc *sc;
+	int temp_cur, temp_alarm;
+
+	sc = arg;
+
+	if (aw_thermal_throttle_enable == 0 || sc->throttle == 0 ||
+	    level->total_set.freq == sc->min_freq)
+		return;
+
+	temp_cur = aw_thermal_gettemp(sc, 0);
+	temp_alarm = aw_thermal_getalarm(sc, 0);
+
+	if (temp_cur < temp_alarm)
+		aw_thermal_throttle(sc, 0);
+	else
+		*status = ENXIO;
+}
+
+static void
 aw_thermal_intr(void *arg)
 {
 	struct aw_thermal_softc *sc;
@@ -299,9 +425,12 @@ aw_thermal_intr(void *arg)
 
 	if ((ints & SHUT_INT_ALL) != 0) {
 		device_printf(dev,
-		   "WARNING - current temperature exceeds safe limits\n");
+		    "WARNING - current temperature exceeds safe limits\n");
 		shutdown_nice(RB_POWEROFF);
 	}
+
+	if ((ints & ALARM_INT_ALL) != 0)
+		aw_thermal_throttle(sc, 1);
 }
 
 static int
@@ -382,6 +511,18 @@ aw_thermal_attach(device_t dev)
 		    CTLTYPE_INT | CTLFLAG_RD,
 		    sc, i, aw_thermal_sysctl, "IK0",
 		    sc->conf->sensors[i].desc);
+
+	if (bootverbose)
+		for (i = 0; i < sc->conf->nsensors; i++) {
+			device_printf(dev,
+			    "#%d: alarm %dC hyst %dC shut %dC\n", i,
+			    aw_thermal_getalarm(sc, i) - TEMP_C_TO_K,
+			    aw_thermal_gethyst(sc, i) - TEMP_C_TO_K,
+			    aw_thermal_getshut(sc, i) - TEMP_C_TO_K);
+		}
+
+	sc->cf_pre_tag = EVENTHANDLER_REGISTER(cpufreq_pre_change,
+	    aw_thermal_cf_pre_change, sc, EVENTHANDLER_PRI_FIRST);
 
 	return (0);
 
