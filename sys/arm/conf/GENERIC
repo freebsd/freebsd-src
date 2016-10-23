@@ -59,6 +59,9 @@ device		phy
 device		hwreset
 device		regulator
 
+# CPU frequency control
+device		cpufreq
+
 # Interrupt controller
 options 	INTRNG
 device		gic
