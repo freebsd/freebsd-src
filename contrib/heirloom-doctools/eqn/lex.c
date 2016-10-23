@@ -77,9 +77,9 @@ openinfile(void)
 }
 
 void
-pbstr(register char *str)
+pbstr(register const char *str)
 {
-	register char *p;
+	register const char *p;
 
 	p = str;
 	while (*p++);

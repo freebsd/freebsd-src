@@ -1703,7 +1703,7 @@ free_INDEX(struct INDEX *ip)
 }
 
 static struct INDEX *
-get_INDEX(long *op)
+get_INDEX(unsigned long *op)
 {
 	struct INDEX	*ip;
 	int	i;

@@ -210,11 +210,10 @@ void getdata(void)
 	int ln;
 	void reset(void), openpl(char *), closepl(char *);
 	int yyparse(void);
-	char *fgetline(char **, size_t *, size_t *, FILE *);
 
 	curfile->lineno = 0;
 	printlf(1, curfile->fname);
-	while (fgetline(&buf, &size, NULL, curfile->fin) != NULL) {
+	while (getline(&buf, &size, curfile->fin) > 0) {
 		curfile->lineno++;
 		if (buf[0] == '.' && buf[1] == 'l' && buf[2] == 'f') {
 			buf1 = realloc(buf1, size);

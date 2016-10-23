@@ -50,10 +50,6 @@ extern FILE *_f[];
 
 # define ever (;;)
 
-#ifndef __unused
-#define __unused __attribute__((unused))
-#endif
-
 # ifndef gcos
 static void badsig(int);
 # endif
@@ -109,17 +105,17 @@ swapin(void)
 	while (sargc>0 && **sargv=='-') /* Mem fault if no test on sargc */
 	{
 		if (sargc<=0) return(0);
-		if (match("-me", *sargv))
+		if (strcmp("-me", *sargv) == 0)
 			{
 			*sargv = MEMACSS;
 			break;
 			}
-		if (match("-ms", *sargv))
+		if (strcmp("-ms", *sargv) == 0)
 			{
 			*sargv = MACROSS;
 			break;
 			}
-		if (match("-mm", *sargv))
+		if (strcmp("-mm", *sargv) == 0)
 			{
 			*sargv = PYMACSS;
 			break;
@@ -151,7 +147,7 @@ swapin(void)
 				}
 			}
 		}
-		else if (match("-g", *sargv))
+		else if (strcmp("-g", *sargv) == 0)
 		{
 			Graphics=1;
 			utf8 = 0;

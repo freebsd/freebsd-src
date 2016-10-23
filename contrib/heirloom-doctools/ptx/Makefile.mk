@@ -1,6 +1,6 @@
 OBJ = ptx.o
 
-FLAGS = -DLIBDIR='"$(LIBDIR)"' $(EUC)
+FLAGS = -DLIBDIR='"$(LIBDIR)"' $(EUC) -I../include
 
 .c.o:
 	$(CC) $(CFLAGS) $(WARN) $(CPPFLAGS) $(FLAGS) -c $<

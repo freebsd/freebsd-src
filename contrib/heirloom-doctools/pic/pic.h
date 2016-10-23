@@ -187,7 +187,7 @@ void	copyfile(char *);
 void	copydef(struct symtab *);
 void	definition(const char *);
 void	freesymtab(struct symtab *);
-void	setfval(char *s, double f);
+void	setfval(const char *s, double f);
 struct symtab *copythru(const char *);
 #ifdef	FLEX_SCANNER
 int	xxinput(void);
@@ -247,7 +247,6 @@ void	ellipse(double, double, double, double);
 void	arc(double, double, double, double, double, double);
 void	dot(void);
 void	arrow(double, double, double, double, double, double, double, int);
-char	*fgetline(char **, size_t *, size_t *, FILE *);
 
 struct pushstack {
 	double	p_x;

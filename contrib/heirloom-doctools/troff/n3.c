@@ -96,7 +96,7 @@ static void	caseindex(void);
 static void	caseasciify(void);
 static void	caseunformat(int);
 static int	getls(int, int *, int);
-static void	addcon(int, char *, void(*)(int));
+static void	addcon(int, const char *, void(*)(int));
 
 static const struct {
 	const char	*n;
@@ -706,15 +706,12 @@ copyb(void)
 	tchar	tailc = 0;
 	const char	*contp;
 	char	*mn;
-	size_t l;
 
 	if (skip(0) || !(j = getrq(1)))
 		j = '.';
 	req = j;
 	contp = macname(req);
-	l = strlen(contp) + 1;
-	mn = malloc(l);
-	n_strcpy(mn, contp, l);
+	mn = strdup(contp);
 	copyf++;
 	flushi();
 	nlflg = 0;
@@ -2217,7 +2214,7 @@ maybemore(int sofar, int flags)
 {
 	char	c, buf[NC+1], pb[] = { '\n', 0 };
 	int	n, _raw = raw, _init = init, _app = app;
-	size_t	i = 2, l;
+	size_t	i = 2;
 
 	if (xflag < 2)
 		return sofar;
@@ -2265,9 +2262,7 @@ maybemore(int sofar, int flags)
 		}
 		if (n >= alcd)
 			had = realloc(had, (alcd += 20) * sizeof *had);
-		l = strlen(buf) + 1;
-		had[n] = malloc(l);
-		n_strcpy(had[n], buf, l);
+		had[n] = strdup(buf);
 		hadn = n+1;
 		mapadd(buf, n);
 	}
@@ -2285,7 +2280,7 @@ getls(int termc, int *strp, int create)
 {
 	char	c, buf[NC+1];
 	int	j = -1, n = -1;
-	size_t	i = 0, l;
+	size_t	i = 0;
 
 	do {
 		c = xflag < 3 ? getach() : mgetach();
@@ -2312,9 +2307,7 @@ getls(int termc, int *strp, int create)
 				if (hadn++ >= alcd)
 					had = realloc(had, (alcd += 20) *
 							sizeof *had);
-				l = strlen(buf) + 1;
-				had[n] = malloc(l);
-				n_strcpy(had[n], buf, l);
+				had[n] = strdup(buf);
 				hadn = n + 1;
 				mapadd(buf, n);
 			} else {
@@ -2332,7 +2325,6 @@ makerq(const char *name)
 	static int	t;
 	char	_name[20];
 	int	n;
-	size_t	l;
 
 	if (name == NULL) {
 		roff_sprintf(_name, sizeof(_name), "\13%d", ++t);
@@ -2344,16 +2336,14 @@ makerq(const char *name)
 		return MAXRQ2 + n;
 	if (hadn++ >= alcd)
 		had = realloc(had, (alcd += 20) * sizeof *had);
-	l = strlen(name) + 1;
-	had[n] = malloc(l);
-	n_strcpy(had[n], name, l);
+	had[n] = strdup(name);
 	hadn = n + 1;
 	mapadd(name, n);
 	return MAXRQ2 + n;
 }
 
 static void
-addcon(int _t, char *rs, void(*f)(int))
+addcon(int _t, const char *rs, void(*f)(int))
 {
 	int	n = hadn;
 

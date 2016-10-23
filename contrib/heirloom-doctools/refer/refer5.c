@@ -109,7 +109,7 @@ putsig (int nf, char **flds, int nref, char *nstline,
 		else
 			snprintf(t, sizeof(t), "%d", nref);
 	}
-	another = (sd = lookat()) ? prefix(".[", sd) : 0;
+	another = (sd = lookat()) ? prefix(sd, ".[") : 0;
 	if (another && (strcmp(".[\n", sd) != SAME))
 		fprintf(stderr, "File %s line %d: punctuation ignored from: %s",
 			Ifile, Iline, sd);
@@ -207,11 +207,11 @@ fpar (int nf, char **flds, char *out, size_t outsiz __unused, int c, int seq,
 			/* for titles use first word otherwise last */
 			if (c == 'T' || c == 'J') {
 				p = flds[i]+3;
-				if (prefix("A ", p))
+				if (prefix(p, "A "))
 					p += 2;
-				if (prefix("An ", p))
+				if (prefix(p, "An "))
 					p += 3;
-				if (prefix("The ", p))
+				if (prefix(p, "The "))
 					p += 4;
 				mycpy2(out, p, 20);
 				return(out);
@@ -240,7 +240,7 @@ fpar (int nf, char **flds, char *out, size_t outsiz __unused, int c, int seq,
 }
 
 void
-putkey(int nf, char **flds, int nref, char *_keystr)
+putkey(int nf, char **flds, int nref, const char *_keystr)
 {
 	char t1[50], *sf;
 	int ctype, i, count;

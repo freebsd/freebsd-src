@@ -156,12 +156,11 @@ void getdata(void)		/* read input */
 	char *buf = NULL, *buf1 = NULL;
 	size_t size = 0;
 	int ln;
-	char *fgetline(char **, size_t *, size_t *, FILE *);
 
 	fin = curfile->fin;
 	curfile->lineno = 0;
 	printf(".lf 1 %s\n", curfile->fname);
-	while (fgetline(&buf, &size, NULL, fin) != NULL) {
+	while (getline(&buf, &size, fin) > 0) {
 		curfile->lineno++;
 		if (*buf == '.' && *(buf+1) == 'G' && *(buf+2) == '1') {
 			setup();

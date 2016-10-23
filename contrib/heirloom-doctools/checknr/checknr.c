@@ -179,7 +179,6 @@ static void checkknown(char *mac);
 static void addcmd(char *line);
 static void addmac(char *mac);
 static int binsrch(char *mac);
-static char *fgetline(char **line, size_t *linesize, size_t *llen, FILE *fp);
 
 static void
 growstk(void)
@@ -307,7 +306,7 @@ process(FILE *f)
 	int pl;
 
 	stktop = -1;
-	for (lineno = 1; fgetline(&line, &linesize, NULL, f); lineno++) {
+	for (lineno = 1; getline(&line, &linesize, f) > 0; lineno++) {
 		if (line[0] == '.') {
 			/*
 			 * find and isolate the macro/command name.
@@ -635,35 +634,4 @@ binsrch(char *mac)
 	}
 	slot = bot;	/* place it would have gone */
 	return (-1);
-}
-
-#define	LSIZE	256
-
-static char *
-fgetline(char **line, size_t *linesize, size_t *llen, FILE *fp)
-{
-	int c;
-	size_t n = 0;
-
-	if (*line == NULL || *linesize < LSIZE + n + 1)
-		*line = realloc(*line, *linesize = LSIZE + n + 1);
-	for (;;) {
-		if (n >= *linesize - LSIZE / 2)
-			*line = realloc(*line, *linesize += LSIZE);
-		c = getc(fp);
-		if (c != EOF) {
-			(*line)[n++] = c;
-			(*line)[n] = '\0';
-			if (c == '\n')
-				break;
-		} else {
-			if (n > 0)
-				break;
-			else
-				return NULL;
-		}
-	}
-	if (llen)
-		*llen = n;
-	return *line;
 }

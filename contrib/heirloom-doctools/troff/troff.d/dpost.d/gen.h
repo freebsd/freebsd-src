@@ -39,9 +39,6 @@
  */
 
 
-#ifndef __unused
-#define __unused __attribute__((unused))
-#endif
 extern const char	creator[];
 
 
@@ -64,20 +61,6 @@ extern const char	creator[];
 #define PI		3.141592654
 #endif
 
-
-/*
- *
- * A few simple macros.
- *
- */
-
-
-#define ABS(A)		((A) >= 0 ? (A) : -(A))
-#undef	MIN
-#define MIN(A, B)	((A) < (B) ? (A) : (B))
-#undef	MAX
-#define MAX(A, B)	((A) > (B) ? (A) : (B))
- 
 /* color.c */
 void getcolor(void);
 void newcolor(char *);
@@ -98,7 +81,7 @@ void loadfont(int, const char *, char *, int, int);
 void loadspecial(void);
 void loaddefault(void);
 void fontprint(int);
-const char *mapfont(char *);
+const char *mapfont(const char *);
 void getdevmap(void);
 char *mapdevfont(char *);
 void reset(void);
@@ -174,5 +157,5 @@ void ps_include(const char *, FILE *, FILE *, int, int, int, int,
 /* request.c */
 void saverequest(char *);
 void writerequest(int, FILE *);
-void dumprequest(char *, char *, FILE *);
+void dumprequest(char *, const char *, FILE *);
 /* tempnam.c */

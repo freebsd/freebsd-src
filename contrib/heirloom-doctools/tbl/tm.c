@@ -38,13 +38,13 @@ maknew(char *str)
 	if (ba==0) {
 		for (dpoint=0; *str; str++) {
 			if ((*str&0377)==decimalpoint && !ineqn(str,p) &&
-				((str>p && digit(*(str-1))) ||
-				digit(*(str+1))))
+				((str>p && isdigit(*(str-1))) ||
+				isdigit(*(str+1))))
 					dpoint=str;
 		}
 		if (dpoint==0)
 			for(; str>p; str--) {
-			if (digit( * (str-1) ) && !ineqn(str, p))
+			if (isdigit( * (str-1) ) && !ineqn(str, p))
 				break;
 			}
 		if (!dpoint && p==str) /* not numerical, don't split */

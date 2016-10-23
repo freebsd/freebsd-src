@@ -1,6 +1,6 @@
 OBJ = misc.o page.o queue.o range.o slug.o version.o
 
-FLAGS = $(EUC) $(DEFINES)
+FLAGS = $(EUC) $(DEFINES) -I../include
 
 .c.o:
 	$(CC) $(CFLAGS) $(WARN) $(FLAGS) $(CPPFLAGS) -c $<

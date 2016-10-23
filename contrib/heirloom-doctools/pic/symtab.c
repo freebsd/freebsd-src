@@ -41,7 +41,7 @@ double getfval(const char *s)	/* return float value of variable s */
 	return y.f;
 }
 
-void setfval(char *s, double f)	/* set variable s to f */
+void setfval(const char *s, double f)	/* set variable s to f */
 {
 	struct symtab *p;
 

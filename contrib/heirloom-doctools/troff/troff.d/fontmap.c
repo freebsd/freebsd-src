@@ -94,8 +94,8 @@ rdftmap(char *path) {
 	free(buf);
 }
 
-char *
-mapft(char *name) {
+const char *
+mapft(const char *name) {
 	struct bst_node *n;
 	if (map.root && !bst_srch(&map, (union bst_val)(void *)name, &n))
 		name = n->data.p;

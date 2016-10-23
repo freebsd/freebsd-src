@@ -143,9 +143,6 @@ extern	int	pointsize, ps_set;
 #define	Exp(x)	errcheck(exp(x), "exp")
 #define	Sqrt(x)	errcheck(sqrt(x), "sqrt")
 
-#define	min(x,y)	(((x) <= (y)) ? (x) : (y))
-#define	max(x,y)	(((x) >= (y)) ? (x) : (y))
-
 extern	void	yyerror(char *);
 extern void coord_x(Point);
 extern void coord_y(Point);

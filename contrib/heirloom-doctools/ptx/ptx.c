@@ -76,6 +76,8 @@ static const char sccsid[] USED = "@(#)/usr/ucb/ptx.sl	1.5 (gritter) 11/6/05";
 #include <unistd.h>
 #include <locale.h>
 #include <limits.h>
+#include "global.h"
+
 #define DEFLTX LIBDIR "/eign"
 #define TILDE 0177
 #define SORT "sort"
@@ -86,17 +88,6 @@ static const char sccsid[] USED = "@(#)/usr/ucb/ptx.sl	1.5 (gritter) 11/6/05";
 #define SET	1
 
 #define isabreak(c) (btable[c])
-
-#ifdef	__GLIBC__
-#ifdef	_IO_getc_unlocked
-#undef	getc
-#define	getc(f)		_IO_getc_unlocked(f)
-#endif
-#ifdef	_IO_putc_unlocked
-#undef	putc
-#define	putc(c, f)	_IO_putc_unlocked(c, f)
-#endif
-#endif
 
 #define	getline		xxgetline
 

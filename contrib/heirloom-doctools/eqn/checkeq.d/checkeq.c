@@ -31,7 +31,6 @@ static const char sccsid[] USED = "@(#)/usr/ucb/checkeq.sl	4.1 (gritter) 9/15/05
 #include <stdlib.h>
 
 static void check(FILE *);
-static char *fgetline(char **, size_t *, FILE *);
 
 static	FILE	*fin;
 static	int	delim	= '$';
@@ -62,7 +61,7 @@ check(FILE *f)
 	size_t insize = 0;
 
 	start = eq = line = ndel = totdel = 0;
-	while (fgetline(&in, &insize, f) != NULL) {
+	while (getline(&in, &insize, f) > 0) {
 		line++;
 		ndel = 0;
 		for (p = in; *p; p++)
@@ -126,23 +125,4 @@ check(FILE *f)
 		printf("   Unfinished %c%c\n", delim, delim);
 	if (eq)
 		printf("   Unfinished EQ\n");
-}
-
-static char *
-fgetline(char **lp, size_t *zp, FILE *fp)
-{
-	size_t	n = 0;
-	int	c;
-
-	while ((c = getc(fp)) != EOF) {
-		if (n >= *zp)
-			*lp = realloc(*lp, *zp += 600);
-		(*lp)[n++] = c;
-		if (c == '\n')
-			break;
-	}
-	if (n >= *zp)
-		*lp = realloc(*lp, *zp += 600);
-	(*lp)[n] = 0;
-	return c != EOF ? *lp : NULL;
 }

@@ -25,6 +25,8 @@
 # include "t..c"
 # include <string.h>
 # include <stdlib.h>
+# include "global.h"
+
 static struct optstr {const char *optnam; int *optadd;} options [] = {
 	{ "expand", &expflg },
 	{ "EXPAND", &expflg },
@@ -82,7 +84,7 @@ getcomm(void) {
 		if (!letter(c)) continue;
 		found=0;
 		for(lp= options; lp->optnam; lp++) {
-			if (prefix(lp->optnam, cp)) {
+			if (prefix(cp, lp->optnam)) {
 				cp += strlen(lp->optnam);
 				if (letter(*cp))
 					return

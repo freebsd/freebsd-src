@@ -25,6 +25,7 @@
 # include "t..c"
 # include <stdlib.h>
 # include <inttypes.h>
+# include <string.h>
 
 /* get_text was originally gettext and was renamed */
 char *
@@ -76,7 +77,7 @@ get_text(char *sp, int ilin, int icol, char *fn, char *sz)
 	while (gets1(&line, &line, &linesize))
 		{
 		if (line[0]=='T' && line[1]=='}' && line[2]== tab) break;
-		if (match("T}", line)) break;
+		if (strcmp("T}", line) == 0) break;
 		fprintf(tabout, "%s\n", line);
 		}
 	if (fn && *fn) fprintf(tabout, ".ft \\n(%d\n", S1);

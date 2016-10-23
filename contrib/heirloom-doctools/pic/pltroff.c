@@ -15,13 +15,7 @@
 #include <string.h>
 #include "pic.h"
 
-#ifndef __unused
-#define __unused __attribute__((unused))
-#endif
 extern int dbg;
-
-#define	abs(n)	(n >= 0 ? n : -(n))
-#define	max(x,y)	((x)>(y) ? (x) : (y))
 
 static const char	*textshift = "\\v'.2m'";	/* move text this far down */
 
@@ -156,11 +150,6 @@ void hgoto(double n)
 void vgoto(double n)
 {
 	vpos = n;
-}
-
-double fabs(double x)
-{
-	return x < 0 ? -x : x;
 }
 
 void hvflush(void)	/* get to proper point for output */
@@ -355,7 +344,7 @@ void ellipse(double x, double y, double r1, double r2)
 	hvflush();
 	ir1 = xsc(r1);
 	ir2 = ysc(r2);
-	printf("\\D'e%.3fi %.3fi'\n", 2 * ir1, 2 * abs(ir2));
+	printf("\\D'e%.3fi %.3fi'\n", 2 * ir1, 2 * fabs(ir2));
 	flyback();
 }
 

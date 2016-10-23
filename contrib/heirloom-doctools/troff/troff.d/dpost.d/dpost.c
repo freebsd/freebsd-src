@@ -281,17 +281,6 @@
 #include	"afm.h"
 #include	"fontmap.h"
 
-
-#if defined (__GLIBC__) && defined (_IO_getc_unlocked)
-#undef	getc
-#define	getc(f)		_IO_getc_unlocked(f)
-#endif
-#if defined (__GLIBC__) && defined (_IO_putc_unlocked)
-#undef	putc
-#define	putc(c, f)	_IO_putc_unlocked(c, f)
-#endif
-
-
 char			*progname;
 static const char	*prologue = DPOST;	/* the basic PostScript prologue */
 const char		*colorfile = COLOR;	/* things needed for color support */
@@ -1257,14 +1246,6 @@ setpaths (
 
 /*****************************************************************************/
 
-static int
-prefix(const char *str, const char *pfx)
-{
-    while (*pfx && *str == *pfx)
-	str++, pfx++;
-    return *str == 0;
-}
-
 static void
 setmarks(char *str)
 {
@@ -1926,7 +1907,7 @@ loadfont (
     char	*fpout = NULL;		/* for reading *s file */
     int		fin;			/* for reading *s.afm file */
     int		nw;			/* number of width table entries */
-    char	*p;
+    const char	*p;
     char	*path;
     size_t	l;
 
@@ -1991,9 +1972,7 @@ loadfont (
 	    goto fail;
 	}
 	close(fin);
-	l = strlen(path) + 1;
-	a->path = malloc(l);
-	n_strcpy(a->path, path, l);
+	a->path = strdup(path);
 	if (path != temp)
 	    free(path);
 	a->file = s;
@@ -2167,7 +2146,7 @@ fontprint (
 
 const char *
 mapfont (
-    char *name			/* troff wanted this font */
+    const char *name			/* troff wanted this font */
 )
 
 
@@ -2390,7 +2369,7 @@ t_init(void)
 	if (eflag == 0)
 	    realencoding = encoding = dev.encoding;
 	if (encoding == 5) {
-	    LanguageLevel = MAX(LanguageLevel, 2);
+	    LanguageLevel = max(LanguageLevel, 2);
 	    Binary++;
 	}
 	slop = pointslop * res / POINTS + .5;
@@ -2630,7 +2609,7 @@ supplyotf(char *fnt, char *path, FILE *fp)
     }
     fprintf(rf, "%%%%EndResource\n");
     free(contents);
-    LanguageLevel = MAX(LanguageLevel, 3);
+    LanguageLevel = max(LanguageLevel, 3);
 }
 
 static void
@@ -2655,7 +2634,7 @@ supplyttf(char *fnt, char *path, FILE *fp)
     otft42(fnt, path, contents, sz, rf);
     fprintf(rf, "%%%%EndResource\n");
     free(contents);
-    LanguageLevel = MAX(LanguageLevel, 2);
+    LanguageLevel = max(LanguageLevel, 2);
 }
 
 static void
@@ -3721,7 +3700,7 @@ oprep(int stext)
     if (stext) {
         starttext();
 
-        if ( ABS(hpos - lastx) > slop )
+        if ( fabsf(hpos - lastx) > slop )
 	    endstring();
     }
     wordspace = 0;

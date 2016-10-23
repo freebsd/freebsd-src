@@ -46,6 +46,7 @@
 #include "ext.h"
 #include "path.h"
 #include "asciitype.h"
+#include "global.h"
 
 
 #define var(x)		fprintf(fout, "/%s %g def\n", #x, x)
@@ -199,7 +200,7 @@ ps_include(
 		} else if (has("%%LanguageLevel:")) {
 			int	n;
 			sscanf(buf, "%%%%LanguageLevel: %d", &n);
-			LanguageLevel = MAX(LanguageLevel, n);
+			LanguageLevel = max(LanguageLevel, n);
 		} else if ((bp = has("%%DocumentNeededFonts:")) != NULL ||
 				(bp = has("%%DocumentFonts:")) != NULL) {
 			cont = DOCUMENTFONTS;

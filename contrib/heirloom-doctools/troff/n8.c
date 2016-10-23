@@ -550,9 +550,7 @@ casehylang(void)
 		path = malloc(l);
 		snprintf(path, l, "%s/hyph_%s.dic", HYPDIR, hylang);
 	} else {
-		l = strlen(hylang) + 1;
-		path = malloc(l);
-		n_strcpy(path, hylang, l);
+		path = strdup(hylang);
 	}
 	if ((dicthnj = hnj_hyphen_load(path)) == NULL) {
 		errprint("Can't load %s", path);

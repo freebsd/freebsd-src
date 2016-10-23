@@ -138,7 +138,7 @@ dumprequest(
 
 
     char	*want,			/* look for this string */
-    char	*file,			/* in this file */
+    const char	*file,			/* in this file */
     FILE	*fp_out			/* and write the value out here */
 )
 

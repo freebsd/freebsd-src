@@ -226,11 +226,6 @@ putout(int p1) {
 
 }
 
-float
-max(float i,float j) {
-	return (i>j ? i : j);
-}
-
 int
 oalloc(void) {
 	int i;

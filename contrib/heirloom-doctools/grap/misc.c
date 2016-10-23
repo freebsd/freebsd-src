@@ -45,14 +45,11 @@ void setsize(int op, double expr)
 
 char *tostring(char *s)
 {
-	register char *p;
-	size_t l;
+	char *p;
 
-	l = strlen(s)+1;
-	p = malloc(l);
+	p = strdup(s);
 	if (p == NULL)
 		FATAL("out of space in tostring on %s", s);
-	n_strcpy(p, s, l);
 	return(p);
 }
 

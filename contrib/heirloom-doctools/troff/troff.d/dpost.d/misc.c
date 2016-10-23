@@ -51,6 +51,7 @@
 #include <string.h>
 #include <fcntl.h>
 
+#include "global.h"
 #include "gen.h"			/* a few general purpose definitions */
 #include "ext.h"			/* external variable declarations */
 #include "path.h"
@@ -320,11 +321,6 @@ tempname(const char *sfx)
 
 /*****************************************************************************/
 
-
-#if defined (__GLIBC__) && defined (_IO_getc_unlocked)
-#undef	getc
-#define	getc(f)		_IO_getc_unlocked(f)
-#endif
 
 #define	LSIZE	512
 

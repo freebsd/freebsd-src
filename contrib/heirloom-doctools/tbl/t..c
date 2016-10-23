@@ -26,11 +26,7 @@
 # include <stdio.h>
 # include <ctype.h>
 # include <inttypes.h>
-
-# if defined (__GLIBC__) && defined (_IO_getc_unlocked)
-# undef getc
-# define getc(f) _IO_getc_unlocked(f)
-# endif
+# include "global.h"
 
 # define MAXCHS 2000
 # define MAXSTR 1024
@@ -191,17 +187,11 @@ int up1(int);
 char *maknew(char *);
 int ineqn(char *, char *);
 /* ts.c */
-int match(const char *, const char *);
-int prefix(const char *, const char *);
 int cprefix(const char *, const char *);
 int letter(int);
-int numb(char *);
-int digit(int);
-int max(int, int);
 void tcopy(char *, char *);
 /* tt.c */
 int ctype(int, int);
-int min(int, int);
 int fspan(int, int);
 int lspan(int, int);
 int ctspan(int, int);

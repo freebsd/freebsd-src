@@ -1,4 +1,4 @@
-OBJ = picpack.o getopt.o
+OBJ = picpack.o
 
 FLAGS = -I../troff/troff.d/dpost.d
 

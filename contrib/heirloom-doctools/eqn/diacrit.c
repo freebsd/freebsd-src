@@ -35,7 +35,7 @@ diacrit(int p1, int type) {
 	t = oalloc();
 #ifdef NEQN
 	nrwid(p1, ps, p1);
-	printf(".nr 10 %gu\n", max(eht[p1]-ebase[p1]-VERT(2),0));
+	printf(".nr 10 %gu\n", (float)max(eht[p1]-ebase[p1]-VERT(2),0));
 #else /* NEQN */
 	effps = EFFPS(ps);
 	nrwid(p1, effps, p1);

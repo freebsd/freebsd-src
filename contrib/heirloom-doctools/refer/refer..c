@@ -43,10 +43,6 @@
 #define NSERCH 20
 #define MXSIG 200		/* max bytes in aggregate signal */
 
-#ifndef __unused
-#define __unused __attribute__((unused))
-#endif
-
 extern FILE *in;
 extern int endpush, sort, labels, keywant, bare;
 extern int biblio, science, postpunct;
@@ -86,7 +82,6 @@ extern char *sinput, *soutput, *tagout;
 /* deliv2.c */
 int hash(const char *);
 void err(const char *, ...);
-int prefix(const char *, const char *);
 const char *mindex(const char *, int);
 void *zalloc(int, int);
 /* glue1.c */
@@ -164,7 +159,7 @@ char *trimnl(char *);
 /* refer5.c */
 void putsig(int, char **, int, char *, char *, int);
 char *fpar(int, char **, char *, size_t, int, int, int);
-void putkey(int, char **, int, char *);
+void putkey(int, char **, int, const char *);
 void tokeytab(const char *, int);
 int keylet(char *, int);
 void mycpy(char *, const char *);

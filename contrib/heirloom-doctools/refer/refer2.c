@@ -48,7 +48,7 @@ doref(char *line1)
 		n_strcat(dbuff, line1, sizeof(dbuff));
 	while (input(line, sizeof(line))) {		/* get query */
 		Iline++;
-		if (prefix(".]", line))
+		if (prefix(line, ".]"))
 			break;
 		if (biblio && line[0] == '\n')
 			break;
