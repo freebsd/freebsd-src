@@ -26,6 +26,9 @@
  * IF THERE ARE NO EXCHANGES (IEX=0) ON A SWEEP
  * THE COMPARISON GAP (IGAP) IS HALVED FOR THE NEXT SWEEP
  */
+
+#include "refer..c"
+
 void
 shell (int n, int (*comp)(int, int), int (*exch)(int, int))
 {

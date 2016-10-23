@@ -51,7 +51,7 @@ typedef struct {
 
 	char	*want;
 	int	page;
-	char	*file;
+	const char	*file;
 
 } Request;
 

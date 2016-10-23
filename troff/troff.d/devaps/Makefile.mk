@@ -1,4 +1,4 @@
-OBJ = daps.o build.o draw.o getopt.o version.o
+OBJ = daps.o build.o draw.o version.o
 
 FONTS = B I R S CT CW CX GB GI GR GS HI HK HX PO PX S1 SC SM TX DESC \
 	C G H BI CE CI HB HL MB MI MR MX PA PB PI TB

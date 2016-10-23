@@ -62,5 +62,5 @@ version.o: ../version.c
 otfdump_vs.o: ../version.c
 afm.o: dev.h afm.h
 otf.o: dev.h afm.h unimap.h
-otfdump.o: afm.h afm.c otf.c otfdump.c dpost.d/getopt.c dev.h
+otfdump.o: afm.h afm.c otf.c otfdump.c dev.h
 fontmap.o: fontmap.h

@@ -17,7 +17,7 @@
 #include "pic.h"
 #include "y.tab.h"
 
-YYSTYPE getvar(char *s)	/* return value of variable s (usually pointer) */
+YYSTYPE getvar(const char *s)	/* return value of variable s (usually pointer) */
 {
 	struct symtab *p;
 	static YYSTYPE bug;
@@ -33,7 +33,7 @@ YYSTYPE getvar(char *s)	/* return value of variable s (usually pointer) */
 	return(p->s_val);
 }
 
-double getfval(char *s)	/* return float value of variable s */
+double getfval(const char *s)	/* return float value of variable s */
 {
 	YYSTYPE y;
 
@@ -41,7 +41,7 @@ double getfval(char *s)	/* return float value of variable s */
 	return y.f;
 }
 
-void setfval(char *s, double f)	/* set variable s to f */
+void setfval(const char *s, double f)	/* set variable s to f */
 {
 	struct symtab *p;
 
@@ -70,7 +70,7 @@ struct symtab *makevar(char *s, int t, YYSTYPE v)	/* make variable named s in ta
 	return(p);
 }
 
-struct symtab *lookup(char *s)	/* find s in symtab */
+struct symtab *lookup(const char *s)	/* find s in symtab */
 {
 	int i;
 	struct symtab *p;

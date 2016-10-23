@@ -415,6 +415,7 @@ extern int	c_rooten;
 extern int	c_boxrule;
 extern int	c_lefthand;
 extern int	c_dagger;
+extern int	c_isalnum;
 
 struct lgtab {
 	struct lgtab	*next;

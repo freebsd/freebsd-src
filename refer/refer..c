@@ -46,10 +46,10 @@
 extern FILE *in;
 extern int endpush, sort, labels, keywant, bare;
 extern int biblio, science, postpunct;
-extern char *smallcaps;
+extern const char *smallcaps;
 extern char *comname;
-extern char *keystr;
-extern char *convert;
+extern const char *keystr;
+extern const char *convert;
 extern int authrev;
 extern int nmlen, dtlen;
 extern char *rdata[], **search;
@@ -61,14 +61,28 @@ extern char tfile[];
 extern char gfile[];
 extern char ofile[];
 extern char hidenam[];
-extern char *Ifile; extern int Iline;
+extern const char *Ifile; extern int Iline;
 extern FILE *fo, *ftemp;
+extern char *fgnames[];
+extern char **fgnamp;
+extern int keepold;
+extern int lmaster;
+extern int reached;
+extern int colevel;
+extern int prfreqs;
+extern int typeindex;
+extern long indexdate;
+extern int *hfreq;
+extern int hfrflg;
+extern int iflong;
+extern FILE *fd;
+extern char usedir[];
+extern char *sinput, *soutput, *tagout;
 
 /* deliv2.c */
 int hash(const char *);
 void err(const char *, ...);
-int prefix(const char *, const char *);
-char *mindex(const char *, int);
+const char *mindex(const char *, int);
 void *zalloc(int, int);
 /* glue1.c */
 void huntmain(int, char **);
@@ -78,7 +92,7 @@ int setfrom(int);
 void savedir(void);
 void restodir(void);
 /* glue3.c */
-int corout(char *, char *, char *, char *, int);
+int corout(char *, char *, const char *, char *, int);
 int callhunt(char *, char *, char *, int);
 int dodeliv(char *, char *, char *, int);
 /* glue4.c */
@@ -124,11 +138,10 @@ void whash(FILE *, FILE *, FILE *, int, int, long *, int *);
 void putl(long, FILE *);
 long getl(FILE *);
 /* mkey2.c */
-void dofile(FILE *, char *);
+void dofile(FILE *, const char *);
 int outkey(char *, int, int);
 long grec(char *, FILE *);
 char *trimnl(char *);
-void chkey(int, char *);
 /* mkey3.c */
 int common(char *);
 void cominit(void);
@@ -138,8 +151,6 @@ void doref(char *);
 int newline(const char *);
 void choices(char *);
 int control(int);
-/* refer3.c */
-int corout(char *, char *, char *, char *, int);
 /* refer4.c */
 void output(const char *);
 void append(char *);
@@ -148,7 +159,7 @@ char *trimnl(char *);
 /* refer5.c */
 void putsig(int, char **, int, char *, char *, int);
 char *fpar(int, char **, char *, size_t, int, int, int);
-void putkey(int, char **, int, char *);
+void putkey(int, char **, int, const char *);
 void tokeytab(const char *, int);
 int keylet(char *, int);
 void mycpy(char *, const char *);
@@ -158,7 +169,7 @@ char *artskp(char *);
 /* refer6.c */
 void putref(int, char **);
 int tabs(char **, char *);
-char *class(int, char **);
+const char *class(int, char **);
 int hastype(int, char **, int);
 char *caps(char *, char *);
 char *revauth(char *, char *);

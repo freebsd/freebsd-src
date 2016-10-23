@@ -44,9 +44,8 @@ double	deltx	= 6;	/* max x value in output, for scaling */
 double	delty	= 6;	/* max y value in output, for scaling */
 int	dbg	= 0;
 int	lineno	= 0;
-char	*filename	= "-";
 int	synerr	= 0;
-int	anyerr	= 0;	/* becomes 1 if synerr ever 1 */
+static int	anyerr	= 0;	/* becomes 1 if synerr ever 1 */
 char	*cmdname;
 int	Sflag;
 
@@ -57,7 +56,6 @@ double	ymax	= -30000;
 
 void	fpecatch(int);
 void	getdata(void), setdefaults(void);
-void	setfval(char *, double);
 int	getpid(void);
 
 int
@@ -122,7 +120,7 @@ void fpecatch(int n)
 	FATAL("floating point exception %d", n);
 }
 
-char *grow(char *ptr, char *name, int num, int size)	/* make array bigger */
+char *grow(char *ptr, const char *name, int num, int size)	/* make array bigger */
 {
 	char *p;
 
@@ -136,7 +134,7 @@ char *grow(char *ptr, char *name, int num, int size)	/* make array bigger */
 }
 
 static struct {
-	char *name;
+	const char *name;
 	double val;
 	short scalable;		/* 1 => adjust when "scale" changes */
 } defaults[] ={
@@ -210,13 +208,12 @@ void getdata(void)
 	char *p, *buf = NULL, *buf1 = NULL;
 	size_t size = 0;
 	int ln;
-	void reset(void), openpl(char *), closepl(char *), print(void);
+	void reset(void), openpl(char *), closepl(char *);
 	int yyparse(void);
-	char *fgetline(char **, size_t *, size_t *, FILE *);
 
 	curfile->lineno = 0;
 	printlf(1, curfile->fname);
-	while (fgetline(&buf, &size, NULL, curfile->fin) != NULL) {
+	while (getline(&buf, &size, curfile->fin) > 0) {
 		curfile->lineno++;
 		if (buf[0] == '.' && buf[1] == 'l' && buf[2] == 'f') {
 			buf1 = realloc(buf1, size);
@@ -289,7 +286,6 @@ void reset(void)
 	obj *op;
 	int i;
 	extern int nstack;
-	extern	void freesymtab(struct symtab *);
 
 	for (i = 0; i < nobj; i++) {
 		op = objlist[i];

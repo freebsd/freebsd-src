@@ -21,29 +21,13 @@
  * Sccsid @(#)ts.c	1.3 (gritter) 7/23/05
  */
 
- /* ts.c: minor string processing subroutines */
-int 
-match(char *s1, char *s2)
-{
-	while (*s1 == *s2)
-		if (*s1++ == '\0')
-			return(1);
-		else
-			s2++;
-	return(0);
-}
+#include "t..c"
 
-int 
-prefix(char *small, char *big) {
-	int c;
-	while ((c= *small++) == *big++)
-		if (c==0) return(1);
-	return(c==0);
-}
+ /* ts.c: minor string processing subroutines */
 
 /* returns: 1 for match, 0 else */
 int
-cprefix(char *ctl, char *line)
+cprefix(const char *ctl, const char *line)
 {
 	char c;
 
@@ -54,35 +38,17 @@ cprefix(char *ctl, char *line)
 	return !c;
 }
 
-int 
+int
 letter(int ch)
-	{
+{
 	if (ch >= 'a' && ch <= 'z')
 		return(1);
 	if (ch >= 'A' && ch <= 'Z')
 		return(1);
 	return(0);
-	}
-int 
-numb(char *str)
-	{
-	/* convert to integer */
-	int k;
-	for (k=0; *str >= '0' && *str <= '9'; str++)
-		k = k*10 + *str - '0';
-	return(k);
-	}
-int 
-digit(int x)
-	{
-	return(x>= '0' && x<= '9');
-	}
-int 
-max(int a, int b)
-{
-return( a>b ? a : b);
 }
-void 
+
+void
 tcopy(char *s, char *t)
 {
 	while ((*s++ = *t++));

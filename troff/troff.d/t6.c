@@ -92,7 +92,7 @@ int	**ftrtab;
 struct lgtab	**lgtab;
 int	***lgrevtab;
 struct tracktab	*tracktab;
-int	sbold = 0;
+static int	sbold = 0;
 int	kern = 0;
 struct box	mediasize, bleedat, trimat, cropat;
 int	psmaxcode;
@@ -100,7 +100,7 @@ struct ref	*anchors, *links, *ulinks;
 static int	_minflg;
 int	lastrst;
 int	lastrsb;
-int	spacewidth;
+static int	spacewidth;
 
 static void	kernsingle(int **);
 static int	_ps2cc(const char *name, int create);
@@ -248,7 +248,7 @@ getcw(register int i)
 		goto g1;
 	}
 	if ((j = fitab[xfont][i]) == 0) {	/* it's not on current font */
-		int ii, jj, t;
+		int ii, jj, _t;
 		/* search through search list of xfont
 		 * to see what font it ought to be on.
 		 * first searches explicit fallbacks, then
@@ -259,8 +259,8 @@ getcw(register int i)
 			for (jj = 0; fallbacktab[xfont][jj] != 0; jj++) {
 				if ((ii = findft(fallbacktab[xfont][jj],0)) < 0)
 					continue;
-				t = ftrans(ii, i + 32) - 32;
-				j = fitab[ii][t];
+				_t = ftrans(ii, i + 32) - 32;
+				j = fitab[ii][_t];
 				if (j != 0) {
 					xfont = ii;
 					goto found;
@@ -271,8 +271,8 @@ getcw(register int i)
 			for (ii=smnt, jj=0; jj < nfonts; jj++, ii=ii % nfonts + 1) {
 				if (fontbase[ii] == NULL)
 					continue;
-				t = ftrans(ii, i + 32) - 32;
-				j = fitab[ii][t];
+				_t = ftrans(ii, i + 32) - 32;
+				j = fitab[ii][_t];
 				if (j != 0) {
 					/*
 					 * troff traditionally relies on the
@@ -288,8 +288,8 @@ getcw(register int i)
 				found:	p = fontab[ii];
 					k = *(p + j);
 					if (afmtab &&
-					    (t=fontbase[ii]->afmpos-1)>=0) {
-						a = afmtab[t];
+					    (_t=fontbase[ii]->afmpos-1)>=0) {
+						a = afmtab[_t];
 						if (a->bbtab[j]) {
 							lastrst = a->bbtab[j][3];
 							lastrsb = a->bbtab[j][1];
@@ -459,20 +459,20 @@ getdescender(void)
 }
 
 int
-kernadjust(tchar c, tchar d)
+kernadjust(tchar c, tchar e)
 {
 	lastkern = 0;
-	if (!kern || ismot(c) || ismot(d) || html)
+	if (!kern || ismot(c) || ismot(e) || html)
 		return 0;
 	if (!isdi(c)) {
 		c = trtab[cbits(c)] | (c & SFMASK);
 		c = ftrans(fbits(c), cbits(c)) | (c & SFMASK);
 	}
-	if (!isdi(d)) {
-		d = trtab[cbits(d)] | (d & SFMASK);
-		d = ftrans(fbits(d), cbits(d)) | (d & SFMASK);
+	if (!isdi(e)) {
+		e = trtab[cbits(e)] | (e & SFMASK);
+		e = ftrans(fbits(e), cbits(e)) | (e & SFMASK);
 	}
-	return getkw(c, d);
+	return getkw(c, e);
 }
 
 #define	kprime		1021
@@ -486,17 +486,17 @@ static struct knode {
 } **ktable;
 
 static void
-kadd(tchar c, tchar d, int n)
+kadd(tchar c, tchar e, int n)
 {
 	struct knode	*kn;
 	int	h;
 
 	if (ktable == NULL)
 		ktable = calloc(kprime, sizeof *ktable);
-	h = khash(c, d);
+	h = khash(c, e);
 	kn = calloc(1, sizeof *kn);
 	kn->c = c;
-	kn->d = d;
+	kn->d = e;
 	kn->n = n;
 	kn->next = ktable[h];
 	ktable[h] = kn;
@@ -554,22 +554,22 @@ found:
 }
 
 static struct knode *
-klook(tchar c, tchar d)
+klook(tchar c, tchar e)
 {
 	struct knode	*kp;
 	int	h;
 
 	c = findchar(c);
-	d = findchar(d);
-	h = khash(c, d);
+	e = findchar(e);
+	h = khash(c, e);
 	for (kp = ktable[h]; kp; kp = kp->next)
-		if (kp->c == c && kp->d == d)
+		if (kp->c == c && kp->d == e)
 			break;
 	return kp && kp->n != INT_MAX ? kp : NULL;
 }
 
 int
-getkw(tchar c, tchar d)
+getkw(tchar c, tchar e)
 {
 	struct knode	*kp;
 	struct afmtab	*a;
@@ -578,27 +578,27 @@ getkw(tchar c, tchar d)
 
 	if (isxfunc(c, CHAR))
 		c = charout[sbits(c)].ch;
-	if (isxfunc(d, CHAR))
-		d = charout[sbits(d)].ch;
+	if (isxfunc(e, CHAR))
+		e = charout[sbits(e)].ch;
 	lastkern = 0;
-	if (!kern || iszbit(c) || iszbit(d) || ismot(c) || ismot(d))
+	if (!kern || iszbit(c) || iszbit(e) || ismot(c) || ismot(e))
 		return 0;
-	if (sbits(c) != sbits(d))
+	if (sbits(c) != sbits(e))
 		return 0;
 	f = fbits(c);
-	g = fbits(d);
+	g = fbits(e);
 	if ((s = sbits(c)) == 0) {
 		s = xpts;
 		if (f == 0)
 			f = xfont;
 	}
 	i = cbits(c);
-	j = cbits(d);
+	j = cbits(e);
 	if (i == SLANT || j == SLANT || i == XFUNC || j == XFUNC || cstab[f])
 		return 0;
 	k = 0;
 	if (i >= 32 && j >= 32) {
-		if (ktable != NULL && (kp = klook(c, d)) != NULL)
+		if (ktable != NULL && (kp = klook(c, e)) != NULL)
 			k = kp->n;
 		else if ((n = (fontbase[f]->afmpos)-1) >= 0 &&
 				n == (fontbase[g]->afmpos)-1 &&
@@ -616,8 +616,8 @@ getkw(tchar c, tchar d)
 		}
 		if (j>32 && kernafter != NULL && kernafter[fbits(c)] != NULL)
 			k += kernafter[fbits(c)][i];
-		if (i>32 && kernbefore != NULL && kernbefore[fbits(d)] != NULL)
-			k += kernbefore[fbits(d)][j];
+		if (i>32 && kernbefore != NULL && kernbefore[fbits(e)] != NULL)
+			k += kernbefore[fbits(e)][j];
 	}
 	if (k != 0) {
 		k = (k * u2pts(s) + (Unitwidth / 2)) / Unitwidth;
@@ -713,9 +713,9 @@ postchar(const char *temp, int *fp)
 	return 0;
 }
 
-const struct amap {
-	char *alias;
-	char *trname;
+static const struct amap {
+	const char *alias;
+	const char *trname;
 } amap[] = {
 	{ "lq", "``" },
 	{ "rq", "''" },
@@ -726,13 +726,14 @@ tchar
 setch(int delim) {
 	register int j;
 	char	temp[NC];
-	tchar	c, d[2] = {0, 0};
-	int	f, n;
+	tchar	c, e[2] = {0, 0};
+	int	f;
+	size_t	n;
 	const struct amap *ap;
 
 	n = 0;
 	if (delim == 'C')
-		d[0] = getach();
+		e[0] = getach();
 	do {
 		c = getach();
 		if (c == 0 && n < 2)
@@ -741,7 +742,7 @@ setch(int delim) {
 			temp[n-1] = 0;
 			break;
 		}
-		if ((delim == '[' && c == ']') || (delim == 'C' && c == d[0])) {
+		if ((delim == '[' && c == ']') || (delim == 'C' && c == e[0])) {
 			temp[n] = 0;
 			break;
 		}
@@ -754,7 +755,7 @@ setch(int delim) {
 	for (ap = amap; ap->alias; ap++)
 		if (!strcmp(ap->alias, temp)) {
 			size_t l;
-			char *s = ap->trname;
+			const char *s = ap->trname;
 			if ((l = strlen(s) + 1) > NC) {
 				fprintf(stderr, "%s %i: strlen(%s)+1 > %d\n",
 				    __FILE__, __LINE__, s, NC);
@@ -767,8 +768,8 @@ setch(int delim) {
 		nodelim(']');
 		return ' ';
 	}
-	if (delim == 'C' && c != d[0]) {
-		nodelim(d[0]);
+	if (delim == 'C' && c != e[0]) {
+		nodelim(e[0]);
 		return ' ';
 	}
 	c = 0;
@@ -780,7 +781,6 @@ setch(int delim) {
 			    && isxdigit((unsigned)temp[2])
 			    && isxdigit((unsigned)temp[3])
 			    && isxdigit((unsigned)temp[4])) {
-				int n;
 				n = strtol(temp + 1, NULL, 16);
 				if (n)
 					c = setuc0(n);
@@ -816,7 +816,7 @@ setch(int delim) {
 			c = 0;
 	}
 	if (c == 0 && warn & WARN_CHAR)
-		errprint("missing glyph \\%c%s%s%s%s", delim, d, temp, d,
+		errprint("missing glyph \\%c%s%s%s%s", delim, e, temp, e,
 				delim == '[' ? "]" : "");
 	if (c == 0 && !tryglf)
 		c = ' ';
@@ -843,7 +843,8 @@ findft(register int i, int required)
 {
 	register int k;
 	int nk;
-	char	*mn, *mp;
+	const char	*mn;
+	char *mp;
 
 	if ((k = i - '0') >= 0 && k <= nfonts && k < smnt && fontbase[k])
 		return(k);
@@ -1270,7 +1271,8 @@ tchar getlg(tchar i)
 {
 	tchar j, k, pb[NC];
 	struct lgtab *lp;
-	int c, f, n, lgn;
+	int c, f;
+	size_t n, lgn;
 
 	f = fbits(i);
 	if (lgtab[f] == NULL)	/* font lacks ligatures */
@@ -1504,7 +1506,8 @@ getflig(int f, int mode)
 {
 	int	delete, allnum;
 	tchar	from[NC], to;
-	int	c, i, j;
+	int	c;
+	size_t	i, j;
 	char	number[NC];
 
 	if (skip(0))
@@ -1597,14 +1600,9 @@ casefp(int spec)
 				goto bad;
 			setfp(i, j, 0);
 		} else {		/* 3rd argument = filename */
-			size_t l;
-			l = strlen(nextf) + 1;
-			file = malloc(l);
-			n_strcpy(file, nextf, l);
+			file = strdup(nextf);
 			if (!skip(0) && getname()) {
-				l = strlen(nextf) + 1;
-				supply = malloc(l);
-				n_strcpy(supply, nextf, l);
+				supply = strdup(nextf);
 			} else
 				supply = NULL;
 			if (loadafm(i?i:-1, j, file, supply, 0, spec) == 0) {
@@ -1637,7 +1635,8 @@ casefps(void)
 		{ SPEC_NONE,	NULL }
 	};
 	char	name[NC];
-	int	c = 0, i;
+	int	c = 0;
+	size_t	i;
 	enum spec	s = SPEC_NONE;
 
 	if (skip(1))
@@ -1663,7 +1662,8 @@ casefps(void)
 int
 setfp(int pos, int f, char *truename)	/* mount font f at position pos[0...nfonts] */
 {
-	char longname[4096], *shortname, *ap;
+	char longname[4096], *ap;
+	const char *shortname;
 	char *fpout;
 	int i, nw;
 
@@ -1974,7 +1974,7 @@ tchar xlss(void)
 struct afmtab **afmtab;
 int nafm;
 
-char *
+static char *
 onefont(char *prefix, char *file, char *type)
 {
 	char	*path, *fp, *tp;
@@ -2009,9 +2009,7 @@ getfontpath(char *file, char *type)
 	size_t	l;
 
 	if ((troffonts = getenv("TROFFONTS")) != NULL) {
-		l = strlen(troffonts) + 1;
-		tp = malloc(l);
-		n_strcpy(tp, troffonts, l);
+		tp = strdup(troffonts);
 		troffonts = tp;
 		do {
 			for (tq = tp; *tq && *tq != ':'; tq++);
@@ -2091,9 +2089,7 @@ loadafm(int nf, int rq, char *file, char *supply, int required, enum spec spec)
 			break;
 		}
 	a->path = path;
-	l = strlen(file) + 1;
-	a->file = malloc(l);
-	n_strcpy(a->file, file, l);
+	a->file = strdup(file);
 	a->spec = spec;
 	a->rq = rq;
 	a->Font.namefont[0] = rq&0377;
@@ -2193,7 +2189,7 @@ done:	afmtab = realloc(afmtab, (nafm+1) * sizeof *afmtab);
 	return 1;
 }
 
-int
+static int
 tracknum(void)
 {
 	skip(1);
@@ -2337,7 +2333,7 @@ static void
 setpapersize(int setmedia)
 {
 	const struct {
-		char	*name;
+		const char	*name;
 		int	width;
 		int	heigth;
 	} papersizes[] = {
@@ -2380,7 +2376,8 @@ setpapersize(int setmedia)
 		{ NULL,		   0,	   0 }
 	};
 	int	c;
-	int	x = 0, y = 0, n;
+	int	x = 0, y = 0;
+	size_t	n;
 	char	buf[NC];
 
 	lgf++;
@@ -2499,7 +2496,7 @@ casekernpair(void)
 {
 	int	savfont = font, savfont1 = font1;
 	int	f, g, i, j, n;
-	tchar	c, d, *cp = NULL, *dp = NULL;
+	tchar	c, e, *cp = NULL, *dp = NULL;
 	int	a = 0, b = 0;
 
 	lgf++;
@@ -2555,12 +2552,12 @@ casekernpair(void)
 			if (c == UNPAD)
 				c = ' ';
 			setfbits(c, f);
-			if ((d = cbits(dp[j])) == 0)
+			if ((e = cbits(dp[j])) == 0)
 				continue;
-			if (d == UNPAD)
-				d = ' ';
-			setfbits(d, g);
-			kadd(c, d, n);
+			if (e == UNPAD)
+				e = ' ';
+			setfbits(e, g);
+			kadd(c, e, n);
 		}
 done:
 	free(cp);
@@ -2666,7 +2663,8 @@ static int
 getfeature(struct afmtab *a, int f)
 {
 	char	name[NC];
-	int	ch1, ch2, c, i, j, minus;
+	int	ch1, ch2, c, j, minus;
+	size_t	i;
 	struct feature	*fp;
 
 	if (skip(0))
@@ -2948,9 +2946,9 @@ _setlink(struct ref **rstart, int oncode, int offcode, int *cnt)
 {
 	struct ref	*rp;
 	char	*np;
-	int	sv;
+	int	_sv;
 
-	sv = linkin;
+	_sv = linkin;
 	if ((linkin = !linkin)) {
 		if ((np = getref()) != NULL) {
 			rp = calloc(1, sizeof *rp);
@@ -2965,7 +2963,7 @@ _setlink(struct ref **rstart, int oncode, int offcode, int *cnt)
 			return mkxfunc(oncode, 0);
 		}
 	} else
-		return mkxfunc(offcode, sv > 0 ? sv : 0);
+		return mkxfunc(offcode, _sv > 0 ? _sv : 0);
 }
 
 tchar

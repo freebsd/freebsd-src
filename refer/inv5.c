@@ -30,7 +30,7 @@ int
 recopy (FILE *ft, FILE *fb, FILE *fa, int nhash)
 {
 	/* copy fb (old hash items/pointers) to ft (new ones) */
-	int n, i, iflong;
+	int n, i, _iflong;
 	int *hpt_s = 0;
 	int (*getfun)(FILE *);
 	long *hpt_l = 0;
@@ -41,8 +41,8 @@ recopy (FILE *ft, FILE *fb, FILE *fa, int nhash)
 		return 0;
 	}
 	fread(&n, sizeof(n), 1, fa);
-	fread(&iflong, sizeof(iflong), 1, fa);
-	if (iflong)
+	fread(&_iflong, sizeof(_iflong), 1, fa);
+	if (_iflong)
 	{
 		hpt_l = calloc(sizeof(*hpt_l), n+1);
 		n =fread(hpt_l, sizeof(*hpt_l), n, fa);
@@ -55,7 +55,7 @@ recopy (FILE *ft, FILE *fb, FILE *fa, int nhash)
 	if (n!= nhash)
 		fprintf(stderr, "Changing hash value to old %d\n",n);
 	fclose(fa);
-	if (iflong)
+	if (_iflong)
 		getfun = (int(*)(FILE *))getl;
 	else
 #ifdef	EUC
@@ -65,7 +65,7 @@ recopy (FILE *ft, FILE *fb, FILE *fa, int nhash)
 #endif
 	for(i=0; i<n; i++)
 	{
-		if (iflong)
+		if (_iflong)
 			lp = hpt_l[i];
 		else
 			lp = hpt_s[i];

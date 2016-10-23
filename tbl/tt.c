@@ -34,11 +34,7 @@ ctype(int il, int ic)
 	il = stynum[il];
 	return(style[il][ic]);
 }
-int 
-min(int a, int b)
-{
-return(a<b ? a : b);
-}
+
 int 
 fspan(int i, int c)
 {

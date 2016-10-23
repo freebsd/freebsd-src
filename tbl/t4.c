@@ -26,7 +26,10 @@
 # include "t..c"
 # include <stdlib.h>
 # include <string.h>
-int oncol;
+# include <ctype.h>
+# include "global.h"
+
+static int oncol;
 static int morecols(int);
 static int moreheads(int);
 static void initspec(int);
@@ -190,7 +193,7 @@ readspec(void)
 					else
 						*snp++=c;
 				else
-				if (digit(c))
+				if (isdigit(c))
 					*snp++ = c;
 				else break;
 				if (snp-temp>20)
@@ -215,7 +218,7 @@ readspec(void)
 					else
 						*snp++=c;
 				else
-				if (digit(c))
+				if (isdigit(c))
 					*snp++ = c;
 				else break;
 				if (snp-temp>20)
@@ -290,10 +293,10 @@ readspec(void)
 		case '5': case '6': case '7': case '8': case '9': 
 			sn[0] = c;
 			snp=sn+1;
-			while (digit(*snp++ = c = get1char()))
+			while (isdigit(*snp++ = c = get1char()))
 				;
 			un1getc(c);
-			sep[icol-1] = max(sep[icol-1], numb(sn));
+			sep[icol-1] = max(sep[icol-1], strtol(sn, NULL, 10));
 			continue;
 		case '|':
 			lefline[nclin][icol]++;

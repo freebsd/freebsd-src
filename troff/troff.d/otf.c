@@ -41,6 +41,10 @@
 #include "dev.h"
 #include "afm.h"
 
+#ifndef __unused
+#define	__unused __attribute__((unused))
+#endif
+
 extern	struct dev	dev;
 extern	char		*chname;
 extern	short		*chtab;
@@ -56,8 +60,8 @@ static unsigned short	numTables;
 static int	ttf;
 static const char	*filename;
 unsigned short	unitsPerEm;
-short	xMin, yMin, xMax, yMax;
-short	indexToLocFormat;
+static short	xMin, yMin, xMax, yMax;
+static short	indexToLocFormat;
 static struct afmtab	*a;
 static int	nc;
 static int	fsType;
@@ -103,26 +107,26 @@ static struct table {
 	int	in_sfnts;
 	uint32_t	checksum;
 } tables[] = {
-	{ "CFF ",	&pos_CFF,	0 },
-	{ "cmap",	&pos_cmap,	0 },
-	{ "cvt ",	&pos_cvt,	1 },
-	{ "fpgm",	&pos_fpgm,	1 },
-	{ "GPOS",	&pos_GPOS,	0 },
-	{ "GSUB",	&pos_GSUB,	0 },
-	{ "head",	&pos_head,	2 },
-	{ "hhea",	&pos_hhea,	1 },
-	{ "hmtx",	&pos_hmtx,	1 },
-	{ "kern",	&pos_kern,	0 },
-	{ "loca",	&pos_loca,	1 },
-	{ "maxp",	&pos_maxp,	1 },
-	{ "name",	&pos_name,	0 },
-	{ "OS/2",	&pos_OS_2,	0 },
-	{ "post",	&pos_post,	0 },
-	{ "prep",	&pos_prep,	1 },
-	{ "vhea",	&pos_vhea,	1 },
-	{ "vmtx",	&pos_vmtx,	1 },
-	{ "glyf",	&pos_glyf,	3 },	/* holds glyph data */
-	{ NULL,		NULL,		0 }
+	{ "CFF ",	&pos_CFF,	0,	0 },
+	{ "cmap",	&pos_cmap,	0,	0 },
+	{ "cvt ",	&pos_cvt,	1,	0 },
+	{ "fpgm",	&pos_fpgm,	1,	0 },
+	{ "GPOS",	&pos_GPOS,	0,	0 },
+	{ "GSUB",	&pos_GSUB,	0,	0 },
+	{ "head",	&pos_head,	2,	0 },
+	{ "hhea",	&pos_hhea,	1,	0 },
+	{ "hmtx",	&pos_hmtx,	1,	0 },
+	{ "kern",	&pos_kern,	0,	0 },
+	{ "loca",	&pos_loca,	1,	0 },
+	{ "maxp",	&pos_maxp,	1,	0 },
+	{ "name",	&pos_name,	0,	0 },
+	{ "OS/2",	&pos_OS_2,	0,	0 },
+	{ "post",	&pos_post,	0,	0 },
+	{ "prep",	&pos_prep,	1,	0 },
+	{ "vhea",	&pos_vhea,	1,	0 },
+	{ "vmtx",	&pos_vmtx,	1,	0 },
+	{ "glyf",	&pos_glyf,	3,	0 },	/* holds glyph data */
+	{ NULL,		NULL,		0,	0 }
 };
 
 static unsigned short	*gid2sid;
@@ -1699,7 +1703,7 @@ free_INDEX(struct INDEX *ip)
 }
 
 static struct INDEX *
-get_INDEX(long *op)
+get_INDEX(unsigned long *op)
 {
 	struct INDEX	*ip;
 	int	i;
@@ -1898,7 +1902,7 @@ otfalloc(int _nc)
 static void
 get_CFF(void)
 {
-	long	o;
+	size_t	o;
 	char	buf[4];
 
 	if (pos_CFF < 0)
@@ -1936,7 +1940,7 @@ get_CFF(void)
 
 /*ARGSUSED*/
 static void
-get_ttf_post_1_0(int o)
+get_ttf_post_1_0(int o __unused)
 {
 	int	i;
 
@@ -1948,9 +1952,9 @@ get_ttf_post_1_0(int o)
 static void
 get_ttf_post_2_0(int o)
 {
-	int	numberOfGlyphs;
-	int	numberNewGlyphs;
-	int	i, j, n;
+	size_t	numberOfGlyphs;
+	size_t	numberNewGlyphs;
+	size_t	i, j, n;
 	char	*cp, *sp;
 
 	numberOfGlyphs = pbe16(&contents[o+32]);
@@ -1991,8 +1995,8 @@ get_ttf_post_2_0(int o)
 static void
 get_ttf_post_2_5(int o)
 {
-	int	numberOfGlyphs;
-	int	i, offset;
+	size_t	numberOfGlyphs, i;
+	int	offset;
 
 	numberOfGlyphs = pbe16(&contents[o+32]);
 	if (34+numberOfGlyphs > table_directories[pos_post].length)
@@ -2055,8 +2059,14 @@ addunimap(int gid, int c)
 }
 #endif	/* !DPOST && !DUMP */
 
+#if defined(DPOST) || defined(DUMP)
+#define __actual_use __unused
+#else
+#define __actual_use
+#endif
+
 static void
-addunitab(int c, int u)
+addunitab(int c __actual_use, int u __actual_use)
 {
 #if !defined (DPOST) && !defined (DUMP)
 	if (c >= a->nunitab) {
@@ -2099,7 +2109,8 @@ get_ms_unicode_cmap4(int o, int addchar)
 	int	idDelta;
 	int	idRangeOffset;
 	/* int	glyphIdArray; */
-	int	c, e, i, d, r, s, gid, x;
+	int	c, e, i, d, r, s, gid;
+	size_t	x;
 
 	/* length = */ pbe16(&contents[o+2]);
 	segCount = pbe16(&contents[o+6]) / 2;
@@ -2176,11 +2187,11 @@ get_ms_unicode_cmap(int o, int addchar)
 static int
 get_cmap(int addchar)
 {
-	int	numTables;
+	size_t	nTables, i;
 	int	platformID;
 	int	encodingID;
 	int	offset;
-	int	i, o;
+	int	o;
 	int	want_tbl;
 	int	gotit = 0;
 
@@ -2195,8 +2206,8 @@ get_cmap(int addchar)
 			error("can only handle version 0 cmap tables");
 		return gotit;
 	}
-	numTables = pbe16(&contents[o+2]);
-	if (4 + 8*numTables > table_directories[pos_cmap].length) {
+	nTables = pbe16(&contents[o+2]);
+	if (4 + 8*nTables > table_directories[pos_cmap].length) {
 		if (addchar)
 			error("cmap table too small for values inside");
 		return gotit;
@@ -2204,7 +2215,7 @@ get_cmap(int addchar)
 	if (addchar)
 		otfalloc(numGlyphs);
 	want_tbl = -1;
-	for (i = 0; i < numTables; i++) {
+	for (i = 0; i < nTables; i++) {
 		platformID = pbe16(&contents[o+4+8*i]);
 		encodingID = pbe16(&contents[o+4+8*i+2]);
 		if ((platformID == 3 && encodingID == 10) ||
@@ -2221,7 +2232,7 @@ get_cmap(int addchar)
 }
 
 static void
-get_ttf_post_3_0(int o)
+get_ttf_post_3_0(int o __unused)
 {
 	int	i, n;
 	int	gotit;
@@ -3294,7 +3305,7 @@ CalcTableChecksum(uint32_t sum, const char *cp, int length)
 }
 
 static void
-sfnts1(struct table *tp, int *offset, uint32_t *ccs, FILE *fp)
+sfnts1(struct table *tp, int *offset, uint32_t *ccs, FILE *fp __unused)
 {
 	int	o, length;
 
@@ -3396,30 +3407,30 @@ static void
 build_sfnts(FILE *fp)
 {
 	int	i, o, n;
-	unsigned short	numTables;
+	unsigned short	nTables;
 	unsigned short	searchRange;
 	unsigned short	entrySelector;
 	unsigned short	rangeShift;
 	uint32_t	ccs;
 
-	numTables = 0;
+	nTables = 0;
 	for (i = 0; tables[i].name; i++)
 		if (tables[i].in_sfnts && *tables[i].pos >= 0)
-			numTables++;
+			nTables++;
 	entrySelector = 0;
-	for (searchRange = 1; searchRange*2 < numTables; searchRange *= 2)
+	for (searchRange = 1; searchRange*2 < nTables; searchRange *= 2)
 		entrySelector++;
 	searchRange *= 16;
-	rangeShift = numTables * 16 - searchRange;
+	rangeShift = nTables * 16 - searchRange;
 	fprintf(fp, "<%08X%04hX%04hX%04hX%04hX\n", 0x00010000,
-			numTables, searchRange, entrySelector, rangeShift);
-	ccs = 0x00010000 + (numTables<<16) + searchRange +
+			nTables, searchRange, entrySelector, rangeShift);
+	ccs = 0x00010000 + (nTables<<16) + searchRange +
 		(entrySelector<<16) + rangeShift;
-	o = 12 + numTables * 16;
+	o = 12 + nTables * 16;
 	for (i = 0; tables[i].name; i++)
 		if (tables[i].in_sfnts && *tables[i].pos >= 0)
 			sfnts1(&tables[i], &o, &ccs, fp);
-	o = 12 + numTables * 16;
+	o = 12 + nTables * 16;
 	n = 0;
 	for (i = 0; tables[i].name; i++) {
 		if (tables[i].in_sfnts && *tables[i].pos >= 0) {
@@ -3437,7 +3448,7 @@ build_sfnts(FILE *fp)
 int
 otft42(char *font, char *path, char *_contents, size_t _size, FILE *fp)
 {
-	char	*cp;
+	const char	*cp;
 	int	ok = 0;
 	int	i;
 

@@ -34,12 +34,12 @@
 extern YYSTYPE yyval;
 
 #define	SSIZE	400
-char	token[SSIZE];
-int	sp;
+static char	token[SSIZE];
+static int	sp;
 #define	putbak(c)	*ip++ = c;
 #define	PUSHBACK	300	/* maximum pushback characters */
-char	ibuf[PUSHBACK+SSIZE];	/* pushback buffer for definitions, etc. */
-char	*ip	= ibuf;
+static char	ibuf[PUSHBACK+SSIZE];	/* pushback buffer for definitions, etc. */
+static char	*ip	= ibuf;
 
 int
 gtc(void) {
@@ -77,9 +77,9 @@ openinfile(void)
 }
 
 void
-pbstr(register char *str)
+pbstr(register const char *str)
 {
-	register char *p;
+	register const char *p;
 
 	p = str;
 	while (*p++);

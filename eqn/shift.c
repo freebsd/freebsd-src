@@ -35,7 +35,7 @@ bshiftb(int p1, int dir, int p2) {
 #ifndef NEQN
 	float shval, d1, h1, b1, h2, b2;
 	float diffps, effps, effps2;
-	char *sh1, *sh2;
+	const char *sh1, *sh2;
 #else	/* NEQN */
 	int shval, d1, h1, b1, h2, b2;
 #endif /* NEQN */

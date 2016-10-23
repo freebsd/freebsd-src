@@ -52,7 +52,7 @@ matrix(int p1) {
 	int hb, b;
 #endif	/* NEQN */
 	int nrow, ncol, i, j, k, val[100];
-	char *space;
+	const char *space;
 
 	space = "\\ \\ ";
 	nrow = lp[p1];	/* disaster if rows inconsistent */

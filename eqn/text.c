@@ -30,17 +30,17 @@
 
 extern YYSTYPE yyval;
 
-int	csp;
-int	psp;
+static int	csp;
+static int	psp;
 #define	CSSIZE	400
-char	cs[420];
+static char	cs[420];
 
-int	lf, rf;	/* temporary spots for left and right fonts */
+static int	lf, rf;	/* temporary spots for left and right fonts */
 
 void
 text(int t,char *p1) {
 	int c;
-	char *p;
+	const char *p;
 	tbl *tp;
 	extern tbl *restbl;
 

@@ -18,6 +18,7 @@ FLAGS =	-DMACDIR='"$(MACDIR)"' -DREFDIR='"$(REFDIR)"' $(EUC) $(DEFINES) \
 	$(CC) $(CFLAGS) $(WARN) $(FLAGS) $(CPPFLAGS) -c $<
 
 all: refer addbib lookbib sortbib roffbib indxbib mkey inv hunt papers/runinv
+	cd papers && PATH=..:$$PATH sh runinv
 
 refer: $(ROBJ)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(ROBJ) $(LIBS) -o $@
@@ -74,7 +75,9 @@ install: all
 	    papers/Rbstjissue $(ROOT)$(REFDIR)/papers/Rbstjissue
 	$(INSTALL) -c -m 644 papers/Rv7man $(ROOT)$(REFDIR)/papers/Rv7man
 	$(INSTALL) -c papers/runinv $(ROOT)$(REFDIR)/papers/runinv
-	cd $(ROOT)$(REFDIR)/papers && PATH=$(ROOT)$(REFDIR):$$PATH ./runinv
+	for i in a b c; do \
+		$(INSTALL) -m 644 papers/Ind.i$$i $(ROOT)$(REFDIR)/papers/; \
+	done
 	for i in addbib.1 lookbib.1 refer.1 roffbib.1 sortbib.1; \
 	do \
 		$(INSTALL) -c -m 644 $$i $(ROOT)$(MANDIR)/man1/$$i || exit; \
@@ -85,7 +88,8 @@ install: all
 clean:
 	rm -f $(ROBJ) refer $(AOBJ) addbib $(LOBJ) lookbib \
 		$(SOBJ) sortbib roffbib indxbib $(MOBJ) mkey \
-		$(IOBJ) inv $(HOBJ) hunt papers/runinv core log *~
+		$(IOBJ) inv $(HOBJ) hunt papers/runinv core log *~ \
+		papers/Ind.i?
 
 mrproper: clean
 

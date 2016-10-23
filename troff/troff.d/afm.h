@@ -123,7 +123,7 @@ extern	int	afmget(struct afmtab *, char *, size_t);
 extern	int	otfget(struct afmtab *, char *, size_t);
 extern	struct namecache	*afmnamelook(struct afmtab *, const char *);
 extern	int	afmgetkern(struct afmtab *, int, int);
-extern	void	makefont(int, char *, char *, char *, char *, int);
+extern	void	makefont(int, const char *, const char *, const char *, const char *, int);
 extern	int	unitconv(int);
 extern	void	afmalloc(struct afmtab *, int);
 extern	void	afmremap(struct afmtab *);

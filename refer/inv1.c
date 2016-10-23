@@ -47,7 +47,7 @@ main(int argc, char **argv)
 	 */
 
 	FILE *fa, *fb, *fc, *fta, *ftb;
-	FILE *fd = NULL;
+	FILE *_fd = NULL;
 	int nhash = 256;
 	int appflg = 1;
 	int keepkey = 0, pipein = 0;
@@ -56,8 +56,8 @@ main(int argc, char **argv)
 	char *remove = NULL;
 	int chatty = 0, docs, hashes;
 	long keys;
-	int iflong =0;
-	char *sortdir;
+	int _iflong =0;
+	const char *sortdir;
 
 	sortdir = (access("/crp/tmp", 06)==0) ? "/crp/tmp" : "/var/tmp";
 	while (argc>1 && argv[1][0] == '-')
@@ -132,8 +132,8 @@ main(int argc, char **argv)
 	}
 	fc = fopen(nmc,  appflg ? "a" : "w");
 	if (keepkey)
-		fd = keepkey ? fopen(nmd, "w") : 0;
-	docs = newkeys(fta, stdin, fc, nhash, fd, &iflong);
+		_fd = keepkey ? fopen(nmd, "w") : 0;
+	docs = newkeys(fta, stdin, fc, nhash, _fd, &_iflong);
 	fclose(stdin);
 	if (remove != NULL)
 		unlink(remove);
@@ -160,7 +160,7 @@ main(int argc, char **argv)
 	fta = fopen(tmpa, "r");
 	fa = fopen(nma, "w");
 	fb = fopen(nmb, "w");
-	whash(fta, fa, fb, nhash, iflong, &keys, &hashes);
+	whash(fta, fa, fb, nhash, _iflong, &keys, &hashes);
 	fclose(fta);
 # ifndef D1
 	unlink(tmpa);

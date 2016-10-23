@@ -112,7 +112,7 @@ static const char sccsid[] USED = "@(#)picpack.sl	5.1 (gritter) 10/25/05";
 
 #include	"glob.c"
 
-static	char	*keys[11] = {".BP", ".PI", NULL};
+static	const char	*keys[11] = {".BP", ".PI", NULL};
 static	int	quiet = FALSE;
 
 static	FILE	*fp_in;			/* input */
@@ -125,8 +125,6 @@ static	void	picpack(void);
 static	void	do_inline(char *);
 static	int	gotpicfile(char *);
 static	void	addpicfile(char *);
-
-char	 *fgetline(char **line, size_t *linesize, size_t *llen, FILE *fp);
 
 /*****************************************************************************/
 
@@ -418,7 +416,7 @@ picpack(void)
  */
 
 
-    while ( fgetline(&line, &linesize, NULL, fp_in) != NULL )  {
+    while ( getline(&line, &linesize, fp_in) > 0 )  {
 	for ( i = 0; keys[i] != NULL; i++ )
 	    if ( strncmp(line, keys[i], strlen(keys[i])) == 0 )  {
 		if ( sscanf(line, "%*s %s", name) == 1 )  {
@@ -564,53 +562,6 @@ addpicfile(char *name)
 }   /* End of addpicfile */
 
 
-/*****************************************************************************/
-
-void *
-srealloc(void *p, size_t size)
-{
-	if ((p = realloc(p, size)) == NULL) {
-		write(2, "Can't malloc\n", 13);
-		_exit(0177);
-	}
-	return p;
-}
-
-#define	LSIZE	128	/* initial line size */
-
-#if defined (__GLIBC__) && defined (_IO_getc_unlocked)
-#undef	getc
-#define	getc(f)	_IO_getc_unlocked(f)
-#endif
-
-char *
-fgetline(char **line, size_t *linesize, size_t *llen, FILE *fp)
-{
-	int c;
-	size_t n = 0;
-
-	if (*line == NULL || *linesize < LSIZE + n + 1)
-		*line = srealloc(*line, *linesize = LSIZE + n + 1);
-	for (;;) {
-		if (n >= *linesize - LSIZE / 2)
-			*line = srealloc(*line, *linesize += LSIZE);
-		c = getc(fp);
-		if (c != EOF) {
-			(*line)[n++] = c;
-			(*line)[n] = '\0';
-			if (c == '\n')
-				break;
-		} else {
-			if (n > 0)
-				break;
-			else
-				return NULL;
-		}
-	}
-	if (llen)
-		*llen = n;
-	return *line;
-}
 /*	from OpenSolaris "misc.c	1.6	05/06/08 SMI"	*/
 /*	Copyright (c) 1984, 1986, 1987, 1988, 1989 AT&T	*/
 /*	  All Rights Reserved  	*/
@@ -622,7 +573,7 @@ fgetline(char **line, size_t *linesize, size_t *llen, FILE *fp)
  * Portions Copyright (c) 2005 Gunnar Ritter, Freiburg i. Br., Germany
  */
 void
-error(int kind, char *mesg, ...)
+error(int kind, const char *mesg, ...)
 {
 
 

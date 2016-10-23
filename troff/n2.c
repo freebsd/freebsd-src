@@ -52,6 +52,7 @@
  * output, cleanup
  */
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>
 #include <unistd.h>
@@ -69,7 +70,7 @@
 #include "ext.h"
 
 extern	jmp_buf	sjbuf;
-int	toolate;
+static int	toolate;
 int	error;
 
 static void	outtp(tchar);
@@ -213,8 +214,8 @@ pchar1(register tchar i)
 			return;
 		}
 	}
-	if (cbits(i) == 'x')
-		fmtchar = fmtchar;
+/*	if (cbits(i) == 'x')
+		fmtchar = fmtchar; */
 	if (_olt) {
 		_olp[0] = i;
 		olt[nolt++] = fetchrq(_olp);
@@ -236,10 +237,10 @@ outtp(tchar i)
 
 #ifdef	EUC
 	if (iscopy(i))
-		fdprintf(ptid, "%lc", j);
+		dprintf(ptid, "%lc", j);
 	else
 #endif	/* EUC */
-		fdprintf(ptid, "%c", j);
+		dprintf(ptid, "%c", j);
 #endif
 }
 
@@ -333,7 +334,7 @@ oput(i)
 */
 
 void
-oputs(register char *i)
+oputs(register const char *i)
 {
 	while (*i != 0)
 		oput(*i++&0377);

@@ -32,7 +32,7 @@
  * bl            |   ||
  * c         |<  ~   >|  */
 
-static char *udbdc[2][3][3][3] = { /* vs. uhbdc */
+static const char *udbdc[2][3][3][3] = { /* vs. uhbdc */
 	{ { { NULL                ,       /* 0000 */
 	      NULL                ,       /* 0001 */
 	      NULL                } ,     /* 0002 */
@@ -89,8 +89,8 @@ static char *udbdc[2][3][3][3] = { /* vs. uhbdc */
 	      "\\U'2563'" /* ╣ */ } } }   /* 1222 */
 };
 
-static char *grbe(int i, int lintype);
-static char *glibe(int, int, int, int, int);
+static const char *grbe(int i, int lintype);
+static const char *glibe(int, int, int, int, int);
 
 void
 makeline(int i, int c, int lintype)
@@ -133,7 +133,7 @@ fullwide(int i, int lintype)
 void
 drawline(int i, int cl, int cr, int lintype, int noheight, int shortl)
 {
-	char *exhr, *exhl, *lnch;
+	const char *exhr, *exhl, *lnch;
 	int lcount, ln, linpos, oldpos, nodata;
 	lcount=0;
 	exhr=exhl= "";
@@ -251,7 +251,7 @@ drawline(int i, int cl, int cr, int lintype, int noheight, int shortl)
 		fprintf(tabout, "\\v'+.5m'");
 	if (!shortl && (utf8 || tlp)) {
 		int corred, c, ccr, licr;
-		char *s;
+		const char *s;
 		ccr = cr;
 		if (ccr == cl) ccr++;
 		corred = 0;
@@ -280,8 +280,8 @@ drawline(int i, int cl, int cr, int lintype, int noheight, int shortl)
 	}
 }
 
-static char *glibe(int i, int c, int cl, int cr, int lintype) {
-	char *s = NULL;
+static const char *glibe(int i, int c, int cl, int cr, int lintype) {
+	const char *s = NULL;
 	int tl, bl;
 	int cx = c == cl ? 0 :
 	         c == cr ? 2 : 1 ;
@@ -310,7 +310,7 @@ static char *glibe(int i, int c, int cl, int cr, int lintype) {
 	return s;
 }
 
-static char *grbe(int i, int lintype) {
+static const char *grbe(int i, int lintype) {
 	int tl, bl;
 	lintype = lintype == '=' ? 1 : 0;
 	tl = !i      ? 0 :

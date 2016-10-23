@@ -78,7 +78,7 @@ tchar	gettch(void);
 #if defined (EUC) && defined (NROFF) && defined (ZWDELIMS)
 wchar_t	cwc, owc, wceoll;
 #endif /* EUC && NROFF && ZWDELIMS */
-int	brflg;
+static int	brflg;
 
 #undef	iswascii
 #define	iswascii(c)	(((c) & ~(wchar_t)0177) == 0)
@@ -1228,7 +1228,7 @@ int
 getword(int x)
 {
 	register int j, k = 0, w;
-	register tchar i = 0, *wp, nexti, gotspc = 0, t;
+	register tchar i = 0, *wp, nexti, gotspc = 0, _t;
 	int noword, n, inword = 0;
 	int lastsp = ' ';
 	static int dv;
@@ -1340,21 +1340,21 @@ getword(int x)
 a0:
 #endif /* EUC && NROFF && ZWDELIMS */
 	if (spbits && xflag) {
-		t = lastsp | spbits;
-		w = width(t);
+		_t = lastsp | spbits;
+		w = width(_t);
 	} else {
-		t = lastsp | chbits;
+		_t = lastsp | chbits;
 		w = sps;
 	}
 	cdp = cht = 0;
 	if (chompend) {
 		chompend = 0;
 	} else {
-		storeword(t, w + k);
+		storeword(_t, w + k);
 	}
 	if (spflg) {
 		if (xflag == 0 || ses != 0)
-			storeword(t | SENTSP, ses);
+			storeword(_t | SENTSP, ses);
 		spflg = 0;
 	}
 	if (!nwd)
@@ -1384,21 +1384,21 @@ g0:
 		}
 		if (maybreak(j, dv)) {
 			if (wordp > word + 1) {
-				int i;
+				int _i;
 				if (!xflag)
 					hyoff = 2;
 				if (gemu && hyp > hyptr && wordp > word
 				    && hyp[-1] == wordp && (
-				    (i = cbits(wordp[-1])) == '-'
-				    || i == EMDASH))
+				    (_i = cbits(wordp[-1])) == '-'
+				    || _i == EMDASH))
 					hyp--;
 				*hyp++ = wordp + 1;
 				if (hyp > (hyptr + NHYP - 1))
 					hyp = hyptr + NHYP - 1;
 			}
 		} else {
-			int i = cbits(j);
-			dv = alph(j) || (i >= '0' && i <= '9');
+			int _i = cbits(j);
+			dv = alph(j) || (_i >= '0' && _i <= '9');
 		}
 		if (xflag && nhychar(j))
 			hyoff = 2;
@@ -1411,10 +1411,10 @@ g0:
 		nexti = GETCH();
 		if (ev == oev) {
 			if (cbits(nexti) == '\n')
-				t = ' ' | chbits;
+				_t = ' ' | chbits;
 			else
-				t = nexti;
-			k = kernadjust(i, t);
+				_t = nexti;
+			k = kernadjust(i, _t);
 			wne += k;
 			widthp += k;
 			numtab[HP].val += k;
@@ -1627,7 +1627,7 @@ sethtdp(void)
 }
 
 static void
-leftend(tchar c, int hang, int dolpfx)
+leftend(tchar c __unused, int hang, int dolpfx)
 {
 	int	k, w;
 
@@ -1788,35 +1788,35 @@ lspcomp(int idiff)
 static double
 penalty(int k, int s, int h, int h2, int h3)
 {
-	double	t, d;
+	double	_t, _d;
 
-	t = nel - k;
-	t = t >= 0 ? t * 5 / 3 : -t;
+	_t = nel - k;
+	_t = _t >= 0 ? _t * 5 / 3 : -_t;
 	if (ad && !admod) {
-		d = s;
+		_d = s;
 		if (k - s && (letsps || lshmin || lshmax))
-			d += (double)(k - s) / 100;
-		if (d)
-			t /= d;
+			_d += (double)(k - s) / 100;
+		if (_d)
+			_t /= _d;
 	} else
-		t /= nel / 10;
+		_t /= nel / 10;
 	if (h && hypp)
-		t += hypp;
+		_t += hypp;
 	if (h2 && hypp2)
-		t += hypp2;
+		_t += hypp2;
 	if (h3 && hypp3)
-		t += hypp3;
-	t = t * t * t;
-	if (t > MAXPENALTY)
-		t = MAXPENALTY;
-	return t;
+		_t += hypp3;
+	_t = _t * _t * _t;
+	if (_t > MAXPENALTY)
+		_t = MAXPENALTY;
+	return _t;
 }
 
 static void
 parcomp(int start)
 {
 	double	*cost, *_cost;
-	long double	t;
+	long double	_t;
 	int	*prevbreak, *hypc, *_hypc, *brcnt, *_brcnt;
 	int	i, j, k, m, h, v, s;
 
@@ -1855,13 +1855,13 @@ parcomp(int start)
 			if (v - m - pglgeh[j] <= nel) {
 				if (!spread && j == pgwords - 1 &&
 						pgpenal[j] == 0)
-					t = 0;
+					_t = 0;
 				else
-					t = penalty(v, s, pghyphw[j],
+					_t = penalty(v, s, pghyphw[j],
 						pghyphw[j] && hypc[i-1],
 						pghyphw[j] && j >= pglastw);
-				t += pgpenal[j];
-				t += cost[i-1];
+				_t += pgpenal[j];
+				_t += cost[i-1];
 				/*fprintf(stderr, "%c%c%c%c to %c%c%c%c "
 				                 "t=%g cost[%d]=%g "
 						 "brcnt=%d oldbrcnt=%d\n",
@@ -1877,7 +1877,7 @@ parcomp(int start)
 						1 + brcnt[i-1],
 						brcnt[j]
 					);*/
-				if ((double)t <= cost[j]) {
+				if ((double)_t <= cost[j]) {
 					if (pghyphw[j])
 						h = hypc[i-1] + 1;
 					else
@@ -1892,15 +1892,15 @@ parcomp(int start)
 					 */
 					if (hlm < 0 || h <= hlm) {
 						hypc[j] = h;
-						cost[j] = t;
+						cost[j] = _t;
 						prevbreak[j] = i;
 						brcnt[j] = 1 + brcnt[i-1];
 					}
 				}
 			} else {
 				if (j == i) {
-					t = 1 + cost[i-1];
-					cost[j] = t;
+					_t = 1 + cost[i-1];
+					cost[j] = _t;
 					prevbreak[j] = i;
 					brcnt[j] = 1 + brcnt[i-1];
 				}
@@ -2191,7 +2191,7 @@ pbreak(int sprd, int lastf, struct s *s)
 	}
 }
 
-void
+static void
 parpr(struct s *s)
 {
 	int	i, j, k = 0, nw = 0, w, stretches, _spread = spread, hc;

@@ -27,7 +27,7 @@
 #include "refer..c"
 
 void
-whash(FILE *ft, FILE *fa, FILE *fb, int nhash, int iflong, long *ptotct, int *phused)
+whash(FILE *ft, FILE *fa, FILE *fb, int nhash, int _iflong, long *ptotct, int *phused)
 {
 	char line[100];
 	int hash = 0, hused = 0;
@@ -38,12 +38,12 @@ whash(FILE *ft, FILE *fa, FILE *fb, int nhash, int iflong, long *ptotct, int *ph
 	int k; 
 	long lp;
 	long *hpt;
-	int *hfreq;
+	int *_hfreq;
 
 	hpt = calloc (nhash+1, sizeof(*hpt));
 	assert (hpt != NULL);
-	hfreq = calloc (nhash, sizeof(*hfreq));
-	assert (hfreq != NULL);
+	_hfreq = calloc (nhash, sizeof(*_hfreq));
+	assert (_hfreq != NULL);
 	hpt[0] = 0;
 	lp= 0;
 	while (fgets(line, 100, ft))
@@ -53,38 +53,38 @@ whash(FILE *ft, FILE *fa, FILE *fb, int nhash, int iflong, long *ptotct, int *ph
 		if (hash < k)
 		{
 			hused++;
-			if (iflong) putl(-1L, fb); 
+			if (_iflong) putl(-1L, fb); 
 			else putw(-1, fb);
-			hfreq[hash]=ct;
+			_hfreq[hash]=ct;
 			while (hash<k)
 			{
 				hpt[++hash] = lp;
-				hfreq[hash] = 0;
+				_hfreq[hash] = 0;
 			}
-			hpt[hash] = lp += iflong? sizeof(long) : sizeof(int);
+			hpt[hash] = lp += _iflong? sizeof(long) : sizeof(int);
 			opoint= -1;
 			ct=0;
 		}
 		if (point!=opoint)
 		{
-			if (iflong)
+			if (_iflong)
 				putl(opoint=point, fb);
 			else
 				putw( (int)(opoint=point), fb);
-			lp += iflong? sizeof(long) : sizeof(int);
+			lp += _iflong? sizeof(long) : sizeof(int);
 			ct++;
 		}
 	}
-	if (iflong) putl(-1L, fb); 
+	if (_iflong) putl(-1L, fb); 
 	else putw(-1,fb);
 	while (hash<nhash)
 		hpt[++hash]=lp;
 	fwrite(&nhash, sizeof(nhash), 1, fa);
-	fwrite(&iflong, sizeof(iflong), 1, fa);
+	fwrite(&_iflong, sizeof(_iflong), 1, fa);
 	fwrite(hpt, sizeof(*hpt), nhash, fa);
 	free(hpt);
-	fwrite (hfreq, sizeof(*hfreq), nhash, fa);
-	free(hfreq);
+	fwrite (_hfreq, sizeof(*_hfreq), nhash, fa);
+	free(_hfreq);
 	*ptotct = totct;
 	*phused = hused;
 }

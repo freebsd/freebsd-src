@@ -58,9 +58,9 @@ static void free_node(struct bst_node *);
 static int coordcmp(union bst_val, union bst_val);
 static void postproc(struct bst_node *);
 static void chkcoord(uint64_t);
-static void drawat(int, int, char *);
+static void drawat(int, int, const char *);
 
-struct bst coords = {
+static struct bst coords = {
 	NULL,
 	coordcmp
 };
@@ -167,7 +167,7 @@ chkcoord(uint64_t xy) {
 }
 
 static void
-drawat(int x, int y, char *s) {
+drawat(int x, int y, const char *s) {
 	size_t l = 0;
 	char buf[100];
 	x -= po + in + ne;

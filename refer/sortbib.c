@@ -32,11 +32,11 @@
 #define	BUF BUFSIZ
 #define	MXFILES 16
 
-char tempfile[32];		/* temporary file for sorting keys */
-int tmpfd = -1;
-char *keystr = "AD";		/* default sorting on author and date */
-int multauth = 0;		/* by default sort on senior author only */
-int oneauth;			/* has there been author in the record? */
+static char tempfile[32];		/* temporary file for sorting keys */
+static int tmpfd = -1;
+static char *keystr = "AD";		/* default sorting on author and date */
+static int multauth = 0;		/* by default sort on senior author only */
+static int oneauth;			/* has there been author in the record? */
 
 static void sortbib(FILE *, FILE *, int);
 static void deliver(FILE **, FILE *);
@@ -295,11 +295,11 @@ article(const char *str)		/* see if string contains an article */
 }
 
 static void
-eval(char *keystr)		/* evaluate key string for A+ marking */
+eval(char *kstr)		/* evaluate key string for A+ marking */
 {
 	int i, j;
 
-	for (i = 0, j = 0; keystr[i]; i++, j++)
+	for (i = 0, j = 0; kstr[i]; i++, j++)
 	{
 		if (keystr[i] == '+')
 		{
@@ -308,9 +308,9 @@ eval(char *keystr)		/* evaluate key string for A+ marking */
 		}
 		if (keystr[i] == 0)
 			break;
-		keystr[j] = keystr[i];
+		kstr[j] = kstr[i];
 	}
-	keystr[j] = 0;
+	kstr[j] = 0;
 }
 
 static void
@@ -321,7 +321,7 @@ error(const char *s)		/* exit in case of various system errors */
 }
 
 static void
-onintr(int unused)		/* remove tempfile in case of interrupt */
+onintr(int unused __unused)		/* remove tempfile in case of interrupt */
 {
 	fprintf(stderr, "\nInterrupt\n");
 	unlink(tempfile);

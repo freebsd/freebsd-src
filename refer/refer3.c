@@ -28,7 +28,7 @@
 #define move(x, y) close(y); dup(x); close(x);
 
 int
-corout(char *in, char *out, char *rprog, char *arg, int outlen)
+corout(char *_in, char *out, const char *rprog, char *arg, int outlen)
 {
 	int pipev[2], fr1, fr2, fw1, fw2, n;
 	int pid, status;
@@ -50,7 +50,7 @@ corout(char *in, char *out, char *rprog, char *arg, int outlen)
 	}
 	close(fw2); 
 	close(fr1);
-	write(fw1, in , strlen(in));
+	write(fw1, _in , strlen(_in));
 	close(fw1);
 	while (wait(&status) != pid);
 	n = read(fr2, out, outlen);

@@ -33,8 +33,8 @@ tbl	*keytbl[TBLSIZE];	/* key words */
 tbl	*restbl[TBLSIZE];	/* reserved words */
 tbl	*deftbl[TBLSIZE];	/* user-defined names */
 
-struct {
-	char	*key;
+static struct {
+	const char	*key;
 	int	keyval;
 } keyword[]	={
 	{ "sub", 	SUB },
@@ -104,9 +104,9 @@ struct {
 	{ NULL, 	0 }
 };
 
-struct {
-	char	*res;
-	char	*resval;
+static struct {
+	const char	*res;
+	const char	*resval;
 } resword[]	={
 	{ ">=",	"\\(>=" },
 	{ "<=",	"\\(<=" },
@@ -220,11 +220,11 @@ struct {
 };
 
 tbl *
-lookup(tbl **tblp, char *name, char *defn)	/* find name in tbl. if defn non-null, install */
+lookup(tbl **tblp, const char *name, const char *defn)	/* find name in tbl. if defn non-null, install */
 {
 	register tbl *p;
 	register int h;
-	register unsigned char *s = (unsigned char *)name;
+	register unsigned const char *s = (unsigned const char *)name;
 
 	for (h = 0; *s != '\0'; )
 		h += *s++;

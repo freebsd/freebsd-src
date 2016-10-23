@@ -45,9 +45,14 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "hyphen.h"
+#include "hnjalloc.h"
+
+#ifndef __unused
+#define	__unused __attribute__ ((unused))
+#endif
 
 void *
-hnj_malloc (int size, HyphenDict *hp)
+hnj_malloc (int size, HyphenDict *hp __unused)
 {
   void *p;
 
@@ -70,7 +75,7 @@ hnj_malloc (int size, HyphenDict *hp)
 }
 
 void *
-hnj_realloc (void *p, int size, HyphenDict *hp)
+hnj_realloc (void *p, int size, HyphenDict *hp __unused)
 {
 #if 0
   if (hp && p >= (void *)hp->space && p < (void *)&hp->space[hp->spacesize])
@@ -86,7 +91,7 @@ hnj_realloc (void *p, int size, HyphenDict *hp)
 }
 
 void
-hnj_free (void *p, HyphenDict *hp)
+hnj_free (void *p, HyphenDict *hp __unused)
 {
 #if 0
   if (hp && p >= (void *)hp->space && p < (void *)&hp->space[hp->spacesize])

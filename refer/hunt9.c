@@ -21,8 +21,10 @@
  * Sccsid @(#)hunt9.c	1.3 (gritter) 10/22/05
  */
 
+#include "refer..c"
+
 void
-remote(const char *in, const char *out)
+remote(const char *_in __unused, const char *out __unused)
 {
 	/* "in" is a long distance file name: get it */
 	;

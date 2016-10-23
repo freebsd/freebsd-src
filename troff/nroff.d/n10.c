@@ -75,9 +75,8 @@ Device interfaces
 
 struct t t;	/* terminal characteristics */
 
-int	dtab;
-int	plotmode;
-int	esct;
+static int	dtab;
+static int	esct;
 
 int	nchtab;
 
@@ -357,7 +356,7 @@ skipstr (	/* skip over leading space plus string */
 char *
 getstr (	/* find next string in s, copy to t */
     char *s,
-    char *t
+    char *_t
 )
 {
 	int quote = 0;
@@ -376,37 +375,37 @@ getstr (	/* find next string in s, copy to t */
 		if (!quote && (*s == ' ' || *s == '\t' || *s == '\n'))
 			break;
 		if (*s != '\\')
-			*t++ = *s++;
+			*_t++ = *s++;
 		else {
 			s++;	/* skip \\ */
 			if (isdigit((unsigned char)s[0]) &&
 			    isdigit((unsigned char)s[1]) &&
 			    isdigit((unsigned char)s[2])) {
-				*t++ = (s[0]-'0')<<6 | (s[1]-'0')<<3 | (s[2]-'0');
+				*_t++ = (s[0]-'0')<<6 | (s[1]-'0')<<3 | (s[2]-'0');
 				s += 2;
 			} else if (s[0] == 'x' &&
 			           isxdigit((unsigned char)s[1]) &&
 			           isxdigit((unsigned char)s[2])) {
-				*t++ = hex2nibble(s[1]) << 4 |
+				*_t++ = hex2nibble(s[1]) << 4 |
 				       hex2nibble(s[2])      ;
 				s += 2;
 			} else if (isdigit((unsigned char)s[0])) {
-				*t++ = *s - '0';
+				*_t++ = *s - '0';
 			} else if (*s == 'b') {
-				*t++ = '\b';
+				*_t++ = '\b';
 			} else if (*s == 'n') {
-				*t++ = '\n';
+				*_t++ = '\n';
 			} else if (*s == 'r') {
-				*t++ = '\r';
+				*_t++ = '\r';
 			} else if (*s == 't') {
-				*t++ = '\t';
+				*_t++ = '\t';
 			} else {
-				*t++ = *s;
+				*_t++ = *s;
 			}
 			s++;
 		}
 	}
-	*t = '\0';
+	*_t = '\0';
 	return s;
 }
 
@@ -432,7 +431,7 @@ specnames(void)
 {
 	static struct {
 		int	*n;
-		char	*v;
+		const char	*v;
 	} spnames[] = {
 		{ &c_hyphen, "hy"	},
 		{ &c_emdash, "em"	},
@@ -462,7 +461,7 @@ specnames(void)
 
 
 int 
-findch(char *s) {
+findch(const char *s) {
 	struct bst_node *n;
 	if (bst_srch(&chnames, (union bst_val)(void *)s, &n))
 		return 0;
@@ -491,7 +490,6 @@ twdone(void)
 	}
 	restore_tty();
 }
-
 
 void
 ptout(tchar i)
@@ -738,7 +736,7 @@ void
 move(void)
 {
 	register int k;
-	register char	*i, *j;
+	register const char	*i, *j;
 	char	*p, *q;
 	int	iesct, dt;
 
@@ -833,7 +831,7 @@ dostop(void)
 
 /*ARGSUSED*/
 void
-newpage(int unused)
+newpage(int unused __unused)
 {
 	realpage++;
 }

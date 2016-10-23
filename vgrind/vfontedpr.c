@@ -23,11 +23,7 @@
 #ifdef	EUC
 #include <wchar.h>
 #endif
-
-#if defined (__GLIBC__) && defined (_IO_getc_unlocked)
-#undef	getc
-#define	getc(f)	_IO_getc_unlocked(f)
-#endif
+#include "global.h"
 
 #define boolean int
 #define TRUE 1

@@ -67,12 +67,12 @@
  * hyphenation
  */
 
-int	*hbuf;
-int	NHEX;
-int	*nexth;
-tchar	*hyend;
+static int	*hbuf;
+static int	NHEX;
+static int	*nexth;
+static tchar	*hyend;
 #define THRESH 160 /*digram goodness threshold*/
-int	thresh = THRESH;
+static int	thresh = THRESH;
 
 static	void		hyphenhnj(void);
 
@@ -550,9 +550,7 @@ casehylang(void)
 		path = malloc(l);
 		snprintf(path, l, "%s/hyph_%s.dic", HYPDIR, hylang);
 	} else {
-		l = strlen(hylang) + 1;
-		path = malloc(l);
-		n_strcpy(path, hylang, l);
+		path = strdup(hylang);
 	}
 	if ((dicthnj = hnj_hyphen_load(path)) == NULL) {
 		errprint("Can't load %s", path);

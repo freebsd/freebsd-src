@@ -50,8 +50,8 @@ static int full = 1000;
 static int tags = 0;
 char *sinput, *soutput, *tagout;
 long indexdate = 0;
-int soutlen = 1000;
-int taglen = 1000;
+static int soutlen = 1000;
+static int taglen = 1000;
 
 void
 huntmain(int argc,char **argv)

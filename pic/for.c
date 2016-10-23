@@ -25,10 +25,10 @@ typedef struct {
 	char	*str;	/* string to push back */
 } For;
 
-For	forstk[10];	/* stack of for loops */
-For	*forp = forstk;	/* pointer to current top */
+static For	forstk[10];	/* stack of for loops */
+static For	*forp = forstk;	/* pointer to current top */
 
-void	setfval(char *, double);
+void	setfval(const char *, double);
 void	nextfor(void);
 
 void forloop(char *var, double from, double to, int op,

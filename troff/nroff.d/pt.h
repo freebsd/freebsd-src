@@ -10,7 +10,7 @@ extern char	*skipstr(char *);
 extern char	*getstr(char *, char *);
 extern char	*getint(char *, int *);
 extern void	specnames(void);
-extern int	findch(register char *);
+extern int	findch(register const char *);
 extern void	twdone(void);
 extern void	ptout1(void);
 extern char	*plot(char *);

@@ -25,6 +25,7 @@
 #include <locale.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <string.h>
 #include "refer..c"
 
 static void signals(void);
@@ -146,7 +147,7 @@ main(int argc,char **argv)		/* process command-line arguments */
 				doref(line);
 			else if (biblio && Iline == 1 && *line == '%')
 				doref(line);
-			else if (!prefix(".[", line))
+			else if (!prefix(line, ".["))
 				output(line);
 			else
 				doref(line);
@@ -173,7 +174,7 @@ signals(void)
 	signal(SIGTERM, intr);
 }
 
-static void intr(int unused)
+static void intr(int unused __unused)
 {
 	signal(SIGINT, SIG_IGN);
 	cleanup();

@@ -49,23 +49,13 @@ err (const char *s, ...)
 	exit(1);
 }
 
-int
-prefix(const char *t, const char *s)
-{
-	int c;
-
-	while ((c= *t++) == *s++)
-		if (c==0) return(1);
-	return(c==0 ? 1: 0);
-}
-
-char *
+const char *
 mindex(const char *s, int c)
 {
 	register const char *p;
 	for( p=s; *p; p++)
 		if (*p ==c)
-			return((char *)p);
+			return(p);
 	return(0);
 }
 

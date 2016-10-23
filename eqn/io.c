@@ -26,9 +26,9 @@
 #include <stdlib.h>
 #include <libgen.h>
 
-char	*in;	/* input buffer */
-size_t	insize;	/* input buffer size */
-int noeqn;
+static char	*in;	/* input buffer */
+static size_t	insize;	/* input buffer size */
+static int noeqn;
 
 int
 main(int argc,char **argv) {
@@ -95,7 +95,8 @@ eqn(int argc,char **argv) {
 
 int
 getline(char **sp, size_t *np) {
-	register int c, n = 0, esc = 0, par = 0, brack = 0;
+	register int c, esc = 0, par = 0, brack = 0;
+	size_t n = 0;
 	char *xp;
 	for (;;) {
 		c = gtc();
@@ -223,11 +224,6 @@ putout(int p1) {
 		spaceval = NULL;
 	}
 
-}
-
-float
-max(float i,float j) {
-	return (i>j ? i : j);
 }
 
 int

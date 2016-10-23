@@ -148,8 +148,8 @@ typedef struct {
 
 typedef struct {
 
-	char	*name;			/* font name we're looking for */
-	char	*use;			/* and this is what we should use */
+	const char	*name;			/* font name we're looking for */
+	const char	*use;			/* and this is what we should use */
 
 } Fontmap;
 

@@ -63,7 +63,7 @@ extern	int	DY;	/* step size in y */
 extern	int	drawdot;	/* character to use when drawing */
 extern	int	drawsize;	/* shrink point size by this facter */
 
-int	maxdots	= 32000;	/* maximum number of dots in an object */
+static int	maxdots	= 32000;	/* maximum number of dots in an object */
 
 #define	sgn(n)	((n > 0) ? 1 : ((n < 0) ? -1 : 0))
 #define	abs(n)	((n) >= 0 ? (n) : -(n))
@@ -76,7 +76,7 @@ extern void vgoto(int);
 extern int t_size(int);
 extern void put1(int);
 
-void drawline(int, int, char *);
+void drawline(int, int, const char *);
 void drawwig(char *);
 char *getstr(char *, char *);
 void drawcirc(int);
@@ -87,7 +87,7 @@ void conicarc(int, int, int, int, int, int, int, int);
 void putdot(int, int);
 
 void
-drawline(int dx, int dy, char *s) /* draw line from here to dx, dy using s */
+drawline(int dx, int dy, const char *s __unused) /* draw line from here to dx, dy using s */
 {
 	int xd, yd;
 	float val, slope;
@@ -171,8 +171,9 @@ drawwig(char *s)	/* draw wiggly line */
 {
 	int x[50], y[50], xp, yp, pxp, pyp;
 	float t1, t2, t3, w;
-	int i, j, numdots, N;
-	int osize;
+	int j, numdots;
+	size_t i, N;
+	size_t osize;
 	char temp[50], *p;
 
 	osize = size;

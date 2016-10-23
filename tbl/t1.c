@@ -50,12 +50,13 @@ extern FILE *_f[];
 
 # define ever (;;)
 
+# ifndef gcos
+static void badsig(int);
+# endif
+
 int 
 main(int argc, char *argv[])
 {
-# ifndef gcos
-void badsig(int);
-# endif
 	progname = basename(argv[0]);
 # ifndef gcos
 signal(SIGPIPE, badsig);
@@ -85,8 +86,8 @@ fclose(tabin);
 free(line);
 return(0);
 }
-int sargc;
-char **sargv;
+static int sargc;
+static char **sargv;
 void 
 setinp(int argc, char **argv)
 {
@@ -104,17 +105,17 @@ swapin(void)
 	while (sargc>0 && **sargv=='-') /* Mem fault if no test on sargc */
 	{
 		if (sargc<=0) return(0);
-		if (match("-me", *sargv))
+		if (strcmp("-me", *sargv) == 0)
 			{
 			*sargv = MEMACSS;
 			break;
 			}
-		if (match("-ms", *sargv))
+		if (strcmp("-ms", *sargv) == 0)
 			{
 			*sargv = MACROSS;
 			break;
 			}
-		if (match("-mm", *sargv))
+		if (strcmp("-mm", *sargv) == 0)
 			{
 			*sargv = PYMACSS;
 			break;
@@ -146,7 +147,7 @@ swapin(void)
 				}
 			}
 		}
-		else if (match("-g", *sargv))
+		else if (strcmp("-g", *sargv) == 0)
 		{
 			Graphics=1;
 			utf8 = 0;
@@ -181,7 +182,7 @@ swapin(void)
 }
 # ifndef gcos
 void 
-badsig(int unused)
+badsig(int unused __unused)
 {
 signal(SIGPIPE, SIG_IGN);
  exit(0);

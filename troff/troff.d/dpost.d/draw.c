@@ -139,9 +139,9 @@
 #include "ext.h"			/* external variable definitions */
 
 
-int	gotdraw = FALSE;		/* TRUE when *drawfile has been added */
-int	gotbaseline = FALSE;		/* TRUE after *baselinefile is added */
-int	inpath = FALSE;			/* TRUE if we're putting pieces together */
+static int	gotdraw = FALSE;		/* TRUE when *drawfile has been added */
+static int	gotbaseline = FALSE;		/* TRUE after *baselinefile is added */
+static int	inpath = FALSE;			/* TRUE if we're putting pieces together */
 
 
 /*
@@ -349,7 +349,7 @@ drawspline(
 
 
     int		x[100], y[100];
-    int		i, N;
+    size_t	i, N;
 
 
 /*

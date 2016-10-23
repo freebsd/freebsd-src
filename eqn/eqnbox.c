@@ -37,7 +37,7 @@ eqnbox(int p1, int p2, int lu) {
 #else	/* NEQN */
 	int b, h;
 #endif	/* NEQN */
-	char *sh;
+	const char *sh;
 
 	yyval.token = p1;
 	b = max(ebase[p1], ebase[p2]);

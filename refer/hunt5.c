@@ -24,6 +24,7 @@
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include "refer..c"
 
 extern char *soutput, *tagout, usedir[];
 union ptr {

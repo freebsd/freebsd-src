@@ -1,2 +1,2 @@
 void rdftmap(char *);
-char *mapft(char *);
+const char *mapft(const char *);

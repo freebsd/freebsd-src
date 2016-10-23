@@ -30,8 +30,6 @@
 #include "refer..c"
 #define unopen(fil) {if (fil!=NULL) {fclose(fil); fil=NULL;}}
 
-extern long indexdate;
-
 void
 runbib (const char *s)
 {

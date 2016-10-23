@@ -26,11 +26,7 @@
 # include <stdio.h>
 # include <ctype.h>
 # include <inttypes.h>
-
-# if defined (__GLIBC__) && defined (_IO_getc_unlocked)
-# undef getc
-# define getc(f) _IO_getc_unlocked(f)
-# endif
+# include "global.h"
 
 # define MAXCHS 2000
 # define MAXSTR 1024
@@ -80,7 +76,8 @@ extern int *sep;
 extern int *used, *lused, *rused;
 extern int *linestop;
 extern char *leftover;
-extern char *last, *ifile;
+extern char *last;
+extern const char *ifile;
 extern int *topat;
 extern intptr_t texname;
 extern int texct;
@@ -146,8 +143,8 @@ void deftail(void);
 void putline(int, int);
 void puttext(char *, char *, char *);
 void funnies(int, int);
-void putfont(char *);
-void putsize(char *);
+void putfont(const char *);
+void putsize(const char *);
 /* t9.c */
 int yetmore(void);
 int domore(char *);
@@ -162,7 +159,7 @@ void release(void);
 int choochar(void);
 int point(int);
 /* te.c */
-int error(char *);
+int error(const char *);
 char *errmsg(int);
 char *gets1(char **, char **, size_t *);
 void un1getc(int);
@@ -190,17 +187,11 @@ int up1(int);
 char *maknew(char *);
 int ineqn(char *, char *);
 /* ts.c */
-int match(char *, char *);
-int prefix(char *, char *);
-int cprefix(char *, char *);
+int cprefix(const char *, const char *);
 int letter(int);
-int numb(char *);
-int digit(int);
-int max(int, int);
 void tcopy(char *, char *);
 /* tt.c */
 int ctype(int, int);
-int min(int, int);
 int fspan(int, int);
 int lspan(int, int);
 int ctspan(int, int);

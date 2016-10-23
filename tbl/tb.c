@@ -59,9 +59,9 @@ if (!point((intptr_t)s)) return(1);
 if (*s==0) return(0);
 return(1);
 }
-int spcount = 0;
-int maxvec = 0;
-char **spvecs;
+static int spcount = 0;
+static int maxvec = 0;
+static char **spvecs;
 
 char *
 chspace(void) {
@@ -111,9 +111,9 @@ for (i = 0; i < spcount; i++)
 }
 
 static int MAXPC;
-char *thisvec;
-int tpcount = -1;
-char **tpvecs;
+static char *thisvec;
+static int tpcount = -1;
+static char **tpvecs;
 
 struct colstr *
 alocv(int n) {

@@ -29,11 +29,6 @@
 #include <inttypes.h>
 #include "global.h"
 
-#if defined (__GLIBC__) && defined (_IO_getc_unlocked)
-#undef	getc
-#define	getc(f)	_IO_getc_unlocked(f)
-#endif
-
 #define	FATAL	1
 #define	ROM	'1'
 #ifndef NEQN
@@ -92,8 +87,8 @@ extern int	markline;	/* 1 if this EQ/EN contains mark or lineup */
 extern char	*progname;
 
 typedef struct s_tbl {
-	char	*name;
-	char	*defn;
+	const char	*name;
+	const char	*defn;
 	struct s_tbl *next;
 } tbl;
 extern  char    *spaceval;  /* use in place of normal \x (for pic) */
@@ -125,7 +120,6 @@ int eqn(int, char **);
 int getline(char **, size_t *);
 void do_inline(void);
 void putout(int);
-float max(float, float);
 int oalloc(void);
 void ofree(int);
 void setps(float);
@@ -137,7 +131,7 @@ void error(int, const char *, ...);
 /* lex.c */
 int gtc(void);
 int openinfile(void);
-void pbstr(register char *);
+void pbstr(register const char *);
 int yylex(void);
 int getstr(char *, register int);
 int cstr(char *, int, int);
@@ -147,7 +141,7 @@ char *strsave(char *);
 void include(void);
 void delim(void);
 /* lookup.c */
-tbl *lookup(tbl **, char *, char *);
+tbl *lookup(tbl **, const char *, const char *);
 void init_tbl(void);
 /* mark.c */
 void mark(int);
@@ -161,7 +155,7 @@ void move(int, int, int);
 void boverb(int, int);
 /* paren.c */
 void paren(int, int, int);
-void brack(int, char *, char *, char *);
+void brack(int, const char *, const char *, const char *);
 /* pile.c */
 void lpile(int, int, int);
 /* shift.c */

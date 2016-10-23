@@ -32,7 +32,7 @@ extern YYSTYPE yyval;
 
 void
 funny(int n) {
-	char *f = NULL;
+	const char *f = NULL;
 
 	yyval.token = oalloc();
 	switch(n) {

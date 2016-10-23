@@ -27,7 +27,7 @@
 #include <string.h>
 #include <unistd.h>
 
-int newr[250];
+static int newr[250];
 
 int
 chkdup(const char *tag)

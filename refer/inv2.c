@@ -28,7 +28,7 @@
 #define LINESIZ 1250
 
 int
-newkeys (FILE *outf, FILE *inf, FILE *recf, int nhash, FILE *fd, int *iflong)
+newkeys (FILE *outf, FILE *inf, FILE *recf, int nhash, FILE *_fd, int *_iflong)
 {
 	/* reads key lines from inf; hashes and writes on outf;
 	 * writes orig key on recf, records pointer on outf too.
@@ -51,7 +51,7 @@ newkeys (FILE *outf, FILE *inf, FILE *recf, int nhash, FILE *fd, int *iflong)
 		while (*p != '\t') p++;
 		*p++ =0;
 		fputs(line, recf);
-		if (fd)
+		if (_fd)
 		{
 			snprintf(bkeys, sizeof(bkeys), ";%ld", ld);
 			ll = strlen(p);
@@ -61,7 +61,7 @@ newkeys (FILE *outf, FILE *inf, FILE *recf, int nhash, FILE *fd, int *iflong)
 			lt += strlen(bkeys);
 			fputs(bkeys, recf);
 			ld += ll;
-			fputs(p, fd);
+			fputs(p, _fd);
 		}
 		putc('\n',recf);
 		for(s=p; *s; s++);
@@ -72,7 +72,7 @@ newkeys (FILE *outf, FILE *inf, FILE *recf, int nhash, FILE *fd, int *iflong)
 		}
 		else
 			more=1;
-		assert (fd==0 || more==0);
+		assert (_fd==0 || more==0);
 		nk = getargs(p, keyv);
 		if (more)
 			nk--;
@@ -102,8 +102,8 @@ newkeys (FILE *outf, FILE *inf, FILE *recf, int nhash, FILE *fd, int *iflong)
 		lp += (strlen(line)+lt+1);
 		ndoc++;
 	}
-	*iflong = (lp>=65536L);
-	if (sizeof(int)>2) *iflong=1; /* force long on VAX */
+	*_iflong = (lp>=65536L);
+	if (sizeof(int)>2) *_iflong=1; /* force long on VAX */
 	fclose(recf);
 	return(ndoc);
 }

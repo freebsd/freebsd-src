@@ -69,7 +69,7 @@ int *linestop;	/* linestop[MAXLIN] */
 int *topat;	/* topat[MAXLIN] */
 int nlin, ncol;
 int iline = 1;
-char *ifile = "Input";
+const char *ifile = "Input";
 intptr_t texname = 'a';
 int texct = 0;
 int texct2 = -1;

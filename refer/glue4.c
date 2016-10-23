@@ -35,7 +35,7 @@ extern char gfile[];
 extern char usedir[];
 
 int
-grepcall (char *in, char *out, char *arg)
+grepcall (char *_in, char *out, char *arg)
 {
 	char line[200], *s, argig[100], *cv[50];
 	char *inp, inb[500];
@@ -44,11 +44,11 @@ grepcall (char *in, char *out, char *arg)
 	int sv0, sv1;
 	n_strcpy (argig, arg, sizeof(argig)); 
 	n_strcat(argig, ".ig", sizeof(argig));
-	n_strcpy (inp=inb, in, sizeof(inb));
+	n_strcpy (inp=inb, _in, sizeof(inb));
 	if (gfile[0]==0)
 		sprintf(gfile, "/tmp/rj%dg", (int)getpid());
 # if D1
-	fprintf(stderr, "in grepcall, gfile %s in %o out %o\n", gfile,in,out);
+	fprintf(stderr, "in grepcall, gfile %s in %o out %o\n", gfile,_in,out);
 # endif
 	for(cv[nv++] = "fgrep"; (c = *inp); inp++)
 	{

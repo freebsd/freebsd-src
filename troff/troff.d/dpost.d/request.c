@@ -53,9 +53,9 @@
 #include "path.h"			/* for the default request file */
 
 
-Request	request[MAXREQUEST];		/* next page or global request */
-int	nextreq = 0;			/* goes in request[nextreq] */
-char	*requestfile = REQUESTFILE;	/* default lookup file */
+static Request	request[MAXREQUEST];		/* next page or global request */
+static int	nextreq = 0;			/* goes in request[nextreq] */
+static const char	*requestfile = REQUESTFILE;	/* default lookup file */
 
 
 /*****************************************************************************/
@@ -138,7 +138,7 @@ dumprequest(
 
 
     char	*want,			/* look for this string */
-    char	*file,			/* in this file */
+    const char	*file,			/* in this file */
     FILE	*fp_out			/* and write the value out here */
 )
 

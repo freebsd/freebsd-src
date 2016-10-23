@@ -27,7 +27,7 @@
 void
 drawvert(int start, int end, int c, int lwid)
 {
-	char *exb=0, *ext=0;
+	const char *exb=0, *ext=0;
 	int tp=0, sl, ln, pos, epb, ept, vm;
 	end++;
 	vm='v';

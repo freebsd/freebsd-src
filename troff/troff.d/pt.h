@@ -80,12 +80,12 @@ extern double	u2pts(int);
 /* t10.c */
 extern void	ptinit(void);
 extern void	specnames(void);
-extern int	findch(register char *);
+extern int	findch(register const char *);
 extern void	ptout(register tchar);
 extern tchar	*ptout0(tchar *, tchar *);
 extern void	ptps(void);
 extern void	ptfont(void);
-extern void	ptfpcmd(int, char *, char *, int);
+extern void	ptfpcmd(int, const char *, char *, int);
 extern void	ptlead(void);
 extern void	ptesc(void);
 extern void	newpage(int);
