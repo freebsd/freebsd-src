@@ -91,7 +91,7 @@ qman_fdt_probe(device_t dev)
 static device_probe_t qman_portals_fdt_probe;
 static device_attach_t qman_portals_fdt_attach;
 
-static device_method_t bm_portals_methods[] = {
+static device_method_t qm_portals_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		qman_portals_fdt_probe),
 	DEVMETHOD(device_attach,	qman_portals_fdt_attach),
@@ -100,14 +100,14 @@ static device_method_t bm_portals_methods[] = {
 	{ 0, 0 }
 };
 
-static driver_t bm_portals_driver = {
+static driver_t qm_portals_driver = {
 	"qman-portals",
-	bm_portals_methods,
+	qm_portals_methods,
 	sizeof(struct dpaa_portals_softc),
 };
 
-static devclass_t bm_portals_devclass;
-DRIVER_MODULE(qman_portals, ofwbus, bm_portals_driver, bm_portals_devclass, 0, 0);
+static devclass_t qm_portals_devclass;
+DRIVER_MODULE(qman_portals, ofwbus, qm_portals_driver, qm_portals_devclass, 0, 0);
 
 static void
 get_addr_props(phandle_t node, uint32_t *addrp, uint32_t *sizep)
