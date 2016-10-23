@@ -769,9 +769,9 @@ fix_unaligned(struct thread *td, struct trapframe *frame)
 		 * the registers, and that their current state is in
 		 * the PCB.
 		 */
-		if (vecthread != td) {
-			if (vecthread)
-				save_vec(vecthread);
+		if (fputhread != td) {
+			if (fputhread)
+				save_vec(fputhread);
 			enable_vec(td);
 		}
 		save_vec(td);
