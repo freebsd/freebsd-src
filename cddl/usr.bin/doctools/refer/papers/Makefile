@@ -44,9 +44,6 @@ inv: ${INVSRCS}
 	${CC} -o ${.TARGET} ${CFLAGS} ${.IMPSRC} ${INVSRCS}
 
 Ind.ia Ind.ib Ind.ic: Rbstjissue Rv7man mkey inv
-	./mkey ${DOCTOOLSDIR}/refer/papers/R* | ./inv -v -h997 -n Xind
-	mv Xind.ia Ind.ia
-	mv Xind.ib Ind.ib
-	mv Xind.ic Ind.ic
+	${.OBJDIR}/mkey ${DOCTOOLSDIR}/refer/papers/R* | ${.OBJDIR}/inv -v -h997 -n Ind
 
 .PATH:	${DOCTOOLSDIR}/refer/papers
