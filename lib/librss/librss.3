@@ -1,6 +1,6 @@
 .\" $FreeBSD$
 .\"
-.Dd September 29, 2016
+.Dd October 23, 2016
 .Dt LIBRSS 3
 .Os
 .Sh NAME
@@ -9,6 +9,8 @@
 .Sh LIBRARY
 .Lb librss
 .Sh SYNOPSIS
+.In sys/param.h
+.In sys/cpuset.h
 .In librss.h
 .Ft struct rss_config *
 .Fn rss_config_get "void"
@@ -16,6 +18,8 @@
 .Fn rss_config_free "struct rss_config *cfg"
 .Ft int
 .Fn rss_config_get_bucket_count "struct rss_config *cfg"
+.Ft int
+.Fn rss_get_bucket_cpuset "struct rss_config *rc" "rss_bucket_type_t btype" "int bucket" "cpuset_t *cs"
 .Ft int
 .Fn rss_set_bucket_rebalance_cb "rss_bucket_rebalance_cb_t *cb" "void *cbdata"
 .Ft int
