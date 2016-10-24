@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/reboot.h>
 #include <sys/module.h>
 #include <sys/cpu.h>
+#include <sys/taskqueue.h>
 #include <machine/bus.h>
 
 #include <dev/ofw/ofw_bus.h>
@@ -249,6 +250,7 @@ struct aw_thermal_softc {
 	struct resource			*res[2];
 	struct aw_thermal_config	*conf;
 
+	struct task			cf_task;
 	int				throttle;
 	int				min_freq;
 	struct cf_level			levels[MAX_CF_LEVELS];
@@ -390,6 +392,16 @@ aw_thermal_throttle(struct aw_thermal_softc *sc, int enable)
 }
 
 static void
+aw_thermal_cf_task(void *arg, int pending)
+{
+	struct aw_thermal_softc *sc;
+
+	sc = arg;
+
+	aw_thermal_throttle(sc, 1);
+}
+
+static void
 aw_thermal_cf_pre_change(void *arg, const struct cf_level *level, int *status)
 {
 	struct aw_thermal_softc *sc;
@@ -430,7 +442,7 @@ aw_thermal_intr(void *arg)
 	}
 
 	if ((ints & ALARM_INT_ALL) != 0)
-		aw_thermal_throttle(sc, 1);
+		taskqueue_enqueue(taskqueue_thread, &sc->cf_task);
 }
 
 static int
@@ -461,6 +473,7 @@ aw_thermal_attach(device_t dev)
 	ih = NULL;
 
 	sc->conf = THS_CONF(dev);
+	TASK_INIT(&sc->cf_task, 0, aw_thermal_cf_task, sc);
 
 	if (bus_alloc_resources(dev, aw_thermal_spec, sc->res) != 0) {
 		device_printf(dev, "cannot allocate resources for device\n");
