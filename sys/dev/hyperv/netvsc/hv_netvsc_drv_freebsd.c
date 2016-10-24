@@ -1783,19 +1783,6 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			break;
 		}
 
-		/* Obtain and record requested MTU */
-		ifp->if_mtu = ifr->ifr_mtu;
-
-#if __FreeBSD_version >= 1100099
-		/*
-		 * Make sure that LRO aggregation length limit is still
-		 * valid, after the MTU change.
-		 */
-		if (sc->hn_rx_ring[0].hn_lro.lro_length_lim <
-		    HN_LRO_LENLIM_MIN(ifp))
-			hn_set_lro_lenlim(sc, HN_LRO_LENLIM_MIN(ifp));
-#endif
-
 		/*
 		 * Suspend this interface before the synthetic parts
 		 * are ripped.
@@ -1810,13 +1797,31 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		/*
 		 * Reattach the synthetic parts, i.e. NVS and RNDIS,
 		 * with the new MTU setting.
-		 * XXX check error.
 		 */
-		hn_synth_attach(sc, ifr->ifr_mtu);
+		error = hn_synth_attach(sc, ifr->ifr_mtu);
+		if (error) {
+			HN_UNLOCK(sc);
+			break;
+		}
 
+		/*
+		 * Commit the requested MTU, after the synthetic parts
+		 * have been successfully attached.
+		 */
+		ifp->if_mtu = ifr->ifr_mtu;
+
+		/*
+		 * Make sure that various parameters based on MTU are
+		 * still valid, after the MTU change.
+		 */
 		if (sc->hn_tx_ring[0].hn_chim_size > sc->hn_chim_szmax)
 			hn_set_chim_size(sc, sc->hn_chim_szmax);
-		hn_set_tso_maxsize(sc, hn_tso_maxlen, ifr->ifr_mtu);
+		hn_set_tso_maxsize(sc, hn_tso_maxlen, ifp->if_mtu);
+#if __FreeBSD_version >= 1100099
+		if (sc->hn_rx_ring[0].hn_lro.lro_length_lim <
+		    HN_LRO_LENLIM_MIN(ifp))
+			hn_set_lro_lenlim(sc, HN_LRO_LENLIM_MIN(ifp));
+#endif
 
 		/*
 		 * All done!  Resume the interface now.
