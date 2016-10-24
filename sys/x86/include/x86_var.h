@@ -85,6 +85,7 @@ struct	reg;
 struct	fpreg;
 struct  dbreg;
 struct	dumperinfo;
+struct	trapframe;
 
 /*
  * The interface type of the interrupt handler entry point cannot be
@@ -107,6 +108,10 @@ bool	fix_cpuid(void);
 void	fillw(int /*u_short*/ pat, void *base, size_t cnt);
 int	is_physical_memory(vm_paddr_t addr);
 int	isa_nmi(int cd);
+bool	nmi_call_kdb(u_int cpu, u_int type, struct trapframe *frame,
+	    bool panic);
+bool	nmi_call_kdb_smp(u_int type, struct trapframe *frame, bool panic);
+int	nmi_handle_intr(u_int type, struct trapframe *frame, bool panic);
 void	pagecopy(void *from, void *to);
 void	printcpuinfo(void);
 int	user_dbreg_trap(void);
