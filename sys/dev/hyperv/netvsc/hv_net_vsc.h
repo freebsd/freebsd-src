@@ -232,6 +232,7 @@ struct hn_softc {
 	struct sysctl_oid *hn_rx_sysctl_tree;
 	struct vmbus_xact_ctx *hn_xact;
 	uint32_t	hn_nvs_ver;
+	uint32_t	hn_rx_filter;
 
 	struct taskqueue	*hn_mgmt_taskq;
 	struct taskqueue	*hn_mgmt_taskq0;
