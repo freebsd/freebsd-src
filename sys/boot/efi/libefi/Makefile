@@ -26,6 +26,7 @@ CFLAGS+=	-msoft-float -mgeneral-regs-only
 .if ${MACHINE_ARCH} == "amd64"
 CFLAGS+= -fPIC -mno-red-zone
 .endif
+CFLAGS+= -I${.CURDIR}/../../ficl -I${.CURDIR}/../../ficl/${MACHINE}
 CFLAGS+= -I${.CURDIR}/../include
 CFLAGS+= -I${.CURDIR}/../include/${MACHINE}
 CFLAGS+= -I${.CURDIR}/../../../../lib/libstand
