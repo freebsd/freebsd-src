@@ -50,14 +50,92 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/gpio/gpiobusvar.h>
 
-#include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+
+#include <dev/extres/regulator/regulator.h>
 
 #include <arm/allwinner/axp209reg.h>
 
 #include "iicbus_if.h"
 #include "gpio_if.h"
+#include "regdev_if.h"
+
+MALLOC_DEFINE(M_AXP209_REG, "Axp209 regulator", "Axp209 power regulator");
+
+struct axp209_regdef {
+	intptr_t		id;
+	char			*name;
+	uint8_t			enable_reg;
+	uint8_t			enable_mask;
+	uint8_t			voltage_reg;
+	uint8_t			voltage_mask;
+	uint8_t			voltage_shift;
+	int			voltage_min;
+	int			voltage_max;
+	int			voltage_step;
+	int			voltage_nstep;
+};
+
+static struct axp209_regdef axp209_regdefs[] = {
+	{
+		.id = AXP209_REG_ID_DCDC2,
+		.name = "dcdc2",
+		.enable_reg = AXP209_POWERCTL,
+		.enable_mask = AXP209_POWERCTL_DCDC2,
+		.voltage_reg = AXP209_REG_DCDC2_VOLTAGE,
+		.voltage_mask = 0x3f,
+		.voltage_min = 700,
+		.voltage_max = 2275,
+		.voltage_step = 25,
+		.voltage_nstep = 64,
+	},
+	{
+		.id = AXP209_REG_ID_DCDC3,
+		.name = "dcdc3",
+		.enable_reg = AXP209_POWERCTL,
+		.enable_mask = AXP209_POWERCTL_DCDC3,
+		.voltage_reg = AXP209_REG_DCDC3_VOLTAGE,
+		.voltage_mask = 0x7f,
+		.voltage_min = 700,
+		.voltage_max = 3500,
+		.voltage_step = 25,
+		.voltage_nstep = 128,
+	},
+	{
+		.id = AXP209_REG_ID_LDO2,
+		.name = "ldo2",
+		.enable_reg = AXP209_POWERCTL,
+		.enable_mask = AXP209_POWERCTL_LDO2,
+		.voltage_reg = AXP209_REG_LDO24_VOLTAGE,
+		.voltage_mask = 0xf0,
+		.voltage_shift = 4,
+		.voltage_min = 1800,
+		.voltage_max = 3300,
+		.voltage_step = 100,
+		.voltage_nstep = 16,
+	},
+	{
+		.id = AXP209_REG_ID_LDO3,
+		.name = "ldo3",
+		.enable_reg = AXP209_POWERCTL,
+		.enable_mask = AXP209_POWERCTL_LDO3,
+		.voltage_reg = AXP209_REG_LDO3_VOLTAGE,
+		.voltage_mask = 0x7f,
+		.voltage_min = 700,
+		.voltage_max = 2275,
+		.voltage_step = 25,
+		.voltage_nstep = 128,
+	},
+};
+
+struct axp209_reg_sc {
+	struct regnode		*regnode;
+	device_t		base_dev;
+	struct axp209_regdef	*def;
+	phandle_t		xref;
+	struct regnode_std_param *param;
+};
 
 struct axp209_softc {
 	device_t		dev;
@@ -67,6 +145,10 @@ struct axp209_softc {
 	struct intr_config_hook	intr_hook;
 	device_t		gpiodev;
 	struct mtx		mtx;
+
+	/* Regulators */
+	struct axp209_reg_sc	**regs;
+	int			nregs;
 };
 
 /* GPIO3 is different, don't expose it for now */
@@ -123,6 +205,115 @@ axp209_write(device_t dev, uint8_t reg, uint8_t data)
 
 	return (iicbus_transfer(dev, &msg, 1));
 }
+
+static int
+axp209_regnode_init(struct regnode *regnode)
+{
+	return (0);
+}
+
+static int
+axp209_regnode_enable(struct regnode *regnode, bool enable, int *udelay)
+{
+	struct axp209_reg_sc *sc;
+	uint8_t val;
+
+	sc = regnode_get_softc(regnode);
+
+	axp209_read(sc->base_dev, sc->def->enable_reg, &val, 1);
+	if (enable)
+		val |= sc->def->enable_mask;
+	else
+		val &= ~sc->def->enable_mask;
+	axp209_write(sc->base_dev, sc->def->enable_reg, val);
+
+	*udelay = 0;
+
+	return (0);
+}
+
+static void
+axp209_regnode_reg_to_voltage(struct axp209_reg_sc *sc, uint8_t val, int *uv)
+{
+	if (val < sc->def->voltage_nstep)
+		*uv = sc->def->voltage_min + val * sc->def->voltage_step;
+	else
+		*uv = sc->def->voltage_min +
+		       (sc->def->voltage_nstep * sc->def->voltage_step);
+	*uv *= 1000;
+}
+
+static int
+axp209_regnode_voltage_to_reg(struct axp209_reg_sc *sc, int min_uvolt,
+    int max_uvolt, uint8_t *val)
+{
+	uint8_t nval;
+	int nstep, uvolt;
+
+	nval = 0;
+	uvolt = sc->def->voltage_min * 1000;
+
+	for (nstep = 0; nstep < sc->def->voltage_nstep && uvolt < min_uvolt;
+	     nstep++) {
+		++nval;
+		uvolt += (sc->def->voltage_step * 1000);
+	}
+	if (uvolt > max_uvolt)
+		return (EINVAL);
+
+	*val = nval;
+	return (0);
+}
+
+static int
+axp209_regnode_set_voltage(struct regnode *regnode, int min_uvolt,
+    int max_uvolt, int *udelay)
+{
+	struct axp209_reg_sc *sc;
+	uint8_t val;
+
+	sc = regnode_get_softc(regnode);
+
+	if (!sc->def->voltage_step)
+		return (ENXIO);
+
+	if (axp209_regnode_voltage_to_reg(sc, min_uvolt, max_uvolt, &val) != 0)
+		return (ERANGE);
+
+	axp209_write(sc->base_dev, sc->def->voltage_reg, val);
+
+	*udelay = 0;
+
+	return (0);
+}
+
+static int
+axp209_regnode_get_voltage(struct regnode *regnode, int *uvolt)
+{
+	struct axp209_reg_sc *sc;
+	uint8_t val;
+
+	sc = regnode_get_softc(regnode);
+
+	if (!sc->def->voltage_step)
+		return (ENXIO);
+
+	axp209_read(sc->base_dev, sc->def->voltage_reg, &val, 1);
+	axp209_regnode_reg_to_voltage(sc, val & sc->def->voltage_mask, uvolt);
+
+	return (0);
+}
+
+static regnode_method_t axp209_regnode_methods[] = {
+	/* Regulator interface */
+	REGNODEMETHOD(regnode_init,		axp209_regnode_init),
+	REGNODEMETHOD(regnode_enable,		axp209_regnode_enable),
+	REGNODEMETHOD(regnode_set_voltage,	axp209_regnode_set_voltage),
+	REGNODEMETHOD(regnode_get_voltage,	axp209_regnode_get_voltage),
+	REGNODEMETHOD_END
+};
+DEFINE_CLASS_1(axp209_regnode, axp209_regnode_class, axp209_regnode_methods,
+    sizeof(struct axp209_reg_sc), regnode_class);
 
 static int
 axp209_sysctl(SYSCTL_HANDLER_ARGS)
@@ -517,6 +708,63 @@ axp209_get_node(device_t dev, device_t bus)
 	return (ofw_bus_get_node(dev));
 }
 
+static struct axp209_reg_sc *
+axp209_reg_attach(device_t dev, phandle_t node,
+    struct axp209_regdef *def)
+{
+	struct axp209_reg_sc *reg_sc;
+	struct regnode_init_def initdef;
+	struct regnode *regnode;
+
+	memset(&initdef, 0, sizeof(initdef));
+	if (regulator_parse_ofw_stdparam(dev, node, &initdef) != 0) {
+		device_printf(dev, "cannot create regulator\n");
+		return (NULL);
+	}
+	if (initdef.std_param.min_uvolt == 0)
+		initdef.std_param.min_uvolt = def->voltage_min * 1000;
+	if (initdef.std_param.max_uvolt == 0)
+		initdef.std_param.max_uvolt = def->voltage_max * 1000;
+	initdef.id = def->id;
+	initdef.ofw_node = node;
+	regnode = regnode_create(dev, &axp209_regnode_class, &initdef);
+	if (regnode == NULL) {
+		device_printf(dev, "cannot create regulator\n");
+		return (NULL);
+	}
+
+	reg_sc = regnode_get_softc(regnode);
+	reg_sc->regnode = regnode;
+	reg_sc->base_dev = dev;
+	reg_sc->def = def;
+	reg_sc->xref = OF_xref_from_node(node);
+	reg_sc->param = regnode_get_stdparam(regnode);
+
+	regnode_register(regnode);
+
+	return (reg_sc);
+}
+
+static int
+axp209_regdev_map(device_t dev, phandle_t xref, int ncells, pcell_t *cells,
+    intptr_t *num)
+{
+	struct axp209_softc *sc;
+	int i;
+
+	sc = device_get_softc(dev);
+	for (i = 0; i < sc->nregs; i++) {
+		if (sc->regs[i] == NULL)
+			continue;
+		if (sc->regs[i]->xref == xref) {
+			*num = sc->regs[i]->def->id;
+			return (0);
+		}
+	}
+
+	return (ENXIO);
+}
+
 static void
 axp209_start(void *pdev)
 {
@@ -654,6 +902,9 @@ static int
 axp209_attach(device_t dev)
 {
 	struct axp209_softc *sc;
+	struct axp209_reg_sc *reg;
+	phandle_t rnode, child;
+	int i;
 
 	sc = device_get_softc(dev);
 	mtx_init(&sc->mtx, device_get_nameunit(dev), NULL, MTX_DEF);
@@ -668,6 +919,29 @@ axp209_attach(device_t dev)
 
 	if (config_intrhook_establish(&sc->intr_hook) != 0)
 		return (ENOMEM);
+
+	sc->nregs = nitems(axp209_regdefs);
+	sc->regs = malloc(sizeof(struct axp209_reg_sc *) * sc->nregs,
+	    M_AXP209_REG, M_WAITOK | M_ZERO);
+
+	/* Attach known regulators that exist in the DT */
+	rnode = ofw_bus_find_child(ofw_bus_get_node(dev), "regulators");
+	if (rnode > 0) {
+		for (i = 0; i < sc->nregs; i++) {
+			child = ofw_bus_find_child(rnode,
+			    axp209_regdefs[i].name);
+			if (child == 0)
+				continue;
+			reg = axp209_reg_attach(dev, child, &axp209_regdefs[i]);
+			if (reg == NULL) {
+				device_printf(dev,
+				    "cannot attach regulator %s\n",
+				    axp209_regdefs[i].name);
+				continue;
+			}
+			sc->regs[i] = reg;
+		}
+	}
 
 	sc->gpiodev = gpiobus_attach_bus(dev);
 
@@ -689,6 +963,9 @@ static device_method_t axp209_methods[] = {
 	DEVMETHOD(gpio_pin_set,		axp209_gpio_pin_set),
 	DEVMETHOD(gpio_pin_toggle,	axp209_gpio_pin_toggle),
 	DEVMETHOD(gpio_map_gpios,	axp209_gpio_map_gpios),
+
+	/* Regdev interface */
+	DEVMETHOD(regdev_map,		axp209_regdev_map),
 
 	/* OFW bus interface */
 	DEVMETHOD(ofw_bus_get_node,	axp209_get_node),
