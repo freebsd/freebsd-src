@@ -1162,6 +1162,35 @@ assertion_file_contains_lines_any_order(const char *file, int line,
 	return (0);
 }
 
+/* Verify that a text file does not contains the specified strings */
+int
+assertion_file_contains_no_invalid_strings(const char *file, int line,
+    const char *pathname, const char *strings[])
+{
+	char *buff;
+	int i;
+
+	buff = slurpfile(NULL, "%s", pathname);
+	if (buff == NULL) {
+		failure_start(file, line, "Can't read file: %s", pathname);
+		failure_finish(NULL);
+		return (0);
+	}
+
+	for (i = 0; strings[i] != NULL; ++i) {
+		if (strstr(buff, strings[i]) != NULL) {
+			failure_start(file, line, "Invalid string in %s: %s", pathname,
+			    strings[i]);
+			failure_finish(NULL);
+			free(buff);
+			return(0);
+		}
+	}
+
+	free(buff);
+	return (0);
+}
+
 /* Test that two paths point to the same file. */
 /* As a side-effect, asserts that both files exist. */
 static int
@@ -1381,6 +1410,8 @@ assertion_file_mode(const char *file, int line, const char *pathname, int expect
 	assertion_count(file, line);
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	failure_start(file, line, "assertFileMode not yet implemented for Windows");
+	(void)mode; /* UNUSED */
+	(void)r; /* UNUSED */
 #else
 	{
 		struct stat st;

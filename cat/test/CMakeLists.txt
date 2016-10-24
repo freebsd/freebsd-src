@@ -58,7 +58,8 @@ IF(ENABLE_CAT AND ENABLE_TEST)
   # Experimental new test handling
   ADD_CUSTOM_TARGET(run_bsdcat_test
 	COMMAND	bsdcat_test -p $<TARGET_FILE:bsdcat>
-			    -r ${CMAKE_CURRENT_SOURCE_DIR})
+			    -r ${CMAKE_CURRENT_SOURCE_DIR}
+			    -vv)
   ADD_DEPENDENCIES(run_bsdcat_test bsdcat)
   ADD_DEPENDENCIES(run_all_tests run_bsdcat_test)
 
