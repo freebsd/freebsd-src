@@ -158,14 +158,6 @@ static char *trap_msg[] = {
 int has_f00f_bug = 0;		/* Initialized so that it can be patched. */
 #endif
 
-#ifdef KDB
-static int kdb_on_nmi = 1;
-SYSCTL_INT(_machdep, OID_AUTO, kdb_on_nmi, CTLFLAG_RWTUN,
-	&kdb_on_nmi, 0, "Go to KDB on NMI");
-#endif
-static int panic_on_nmi = 1;
-SYSCTL_INT(_machdep, OID_AUTO, panic_on_nmi, CTLFLAG_RWTUN,
-	&panic_on_nmi, 0, "Panic on NMI");
 static int prot_fault_translation = 0;
 SYSCTL_INT(_machdep, OID_AUTO, prot_fault_translation, CTLFLAG_RW,
 	&prot_fault_translation, 0, "Select signal to deliver on protection fault");
@@ -467,7 +459,7 @@ user_trctrap_out:
 			}
 			goto userout;
 #else /* !POWERFAIL_NMI */
-			nmi_handle_intr(type, frame, true);
+			nmi_handle_intr(type, frame);
 			break;
 #endif /* POWERFAIL_NMI */
 #endif /* DEV_ISA */
@@ -716,10 +708,8 @@ kernel_trctrap:
 			}
 			goto out;
 #else /* !POWERFAIL_NMI */
-			if (nmi_handle_intr(type, frame, false) ||
-			    !panic_on_nmi)
-				goto out;
-			/* FALLTHROUGH */
+			nmi_handle_intr(type, frame);
+			goto out;
 #endif /* POWERFAIL_NMI */
 #endif /* DEV_ISA */
 		}

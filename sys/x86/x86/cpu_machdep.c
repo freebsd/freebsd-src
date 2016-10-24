@@ -524,6 +524,10 @@ idle_sysctl(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_machdep, OID_AUTO, idle, CTLTYPE_STRING | CTLFLAG_RW, 0, 0,
     idle_sysctl, "A", "currently selected idle function");
 
+static int panic_on_nmi = 1;
+SYSCTL_INT(_machdep, OID_AUTO, panic_on_nmi, CTLFLAG_RWTUN,
+    &panic_on_nmi, 0,
+    "Panic on NMI");
 int nmi_is_broadcast = 1;
 SYSCTL_INT(_machdep, OID_AUTO, nmi_is_broadcast, CTLFLAG_RWTUN,
     &nmi_is_broadcast, 0,
@@ -536,8 +540,8 @@ SYSCTL_INT(_machdep, OID_AUTO, kdb_on_nmi, CTLFLAG_RWTUN,
 #endif
 
 #ifdef DEV_ISA
-bool
-nmi_call_kdb(u_int cpu, u_int type, struct trapframe *frame, bool do_panic)
+void
+nmi_call_kdb(u_int cpu, u_int type, struct trapframe *frame)
 {
 
 	/* machine/parity/power fail/"kitchen sink" faults */
@@ -549,26 +553,25 @@ nmi_call_kdb(u_int cpu, u_int type, struct trapframe *frame, bool do_panic)
 		if (kdb_on_nmi) {
 			printf ("NMI/cpu%d ... going to debugger\n", cpu);
 			kdb_trap(type, 0, frame);
-			return (true);
 		}
-	} else
 #endif /* KDB */
-	if (do_panic)
+	} else if (panic_on_nmi) {
 		panic("NMI indicates hardware failure");
-	return (false);
+	}
 }
 #endif
 
-int
-nmi_handle_intr(u_int type, struct trapframe *frame, bool panic)
+void
+nmi_handle_intr(u_int type, struct trapframe *frame)
 {
 
 #ifdef DEV_ISA
 #ifdef SMP
-	if (nmi_is_broadcast)
-		return (nmi_call_kdb_smp(type, frame, panic));
-	else
+	if (nmi_is_broadcast) {
+		nmi_call_kdb_smp(type, frame);
+		return;
+	}
 #endif
-		return (nmi_call_kdb(0, type, frame, panic));
+	nmi_call_kdb(0, type, frame);
 #endif
 }
