@@ -951,6 +951,8 @@ hn_txdesc_dmamap_load(struct hn_tx_ring *txr, struct hn_txdesc *txd,
 	struct mbuf *m = *m_head;
 	int error;
 
+	KASSERT(txd->chim_index == HN_NVS_CHIM_IDX_INVALID, ("txd uses chim"));
+
 	error = bus_dmamap_load_mbuf_sg(txr->hn_tx_data_dtag, txd->data_dmap,
 	    m, segs, nsegs, BUS_DMA_NOWAIT);
 	if (error == EFBIG) {
@@ -974,19 +976,6 @@ hn_txdesc_dmamap_load(struct hn_tx_ring *txr, struct hn_txdesc *txd,
 	return error;
 }
 
-static __inline void
-hn_txdesc_dmamap_unload(struct hn_tx_ring *txr, struct hn_txdesc *txd)
-{
-
-	if (txd->flags & HN_TXD_FLAG_DMAMAP) {
-		bus_dmamap_sync(txr->hn_tx_data_dtag,
-		    txd->data_dmap, BUS_DMASYNC_POSTWRITE);
-		bus_dmamap_unload(txr->hn_tx_data_dtag,
-		    txd->data_dmap);
-		txd->flags &= ~HN_TXD_FLAG_DMAMAP;
-	}
-}
-
 static __inline int
 hn_txdesc_put(struct hn_tx_ring *txr, struct hn_txdesc *txd)
 {
@@ -998,14 +987,25 @@ hn_txdesc_put(struct hn_tx_ring *txr, struct hn_txdesc *txd)
 	if (atomic_fetchadd_int(&txd->refs, -1) != 1)
 		return 0;
 
-	hn_txdesc_dmamap_unload(txr, txd);
+	if (txd->chim_index != HN_NVS_CHIM_IDX_INVALID) {
+		KASSERT((txd->flags & HN_TXD_FLAG_DMAMAP) == 0,
+		    ("chim txd uses dmamap"));
+		hn_chim_free(txr->hn_sc, txd->chim_index);
+		txd->chim_index = HN_NVS_CHIM_IDX_INVALID;
+	} else if (txd->flags & HN_TXD_FLAG_DMAMAP) {
+		bus_dmamap_sync(txr->hn_tx_data_dtag,
+		    txd->data_dmap, BUS_DMASYNC_POSTWRITE);
+		bus_dmamap_unload(txr->hn_tx_data_dtag,
+		    txd->data_dmap);
+		txd->flags &= ~HN_TXD_FLAG_DMAMAP;
+	}
+
 	if (txd->m != NULL) {
 		m_freem(txd->m);
 		txd->m = NULL;
 	}
 
 	txd->flags |= HN_TXD_FLAG_ONLIST;
-
 #ifndef HN_USE_TXDESC_BUFRING
 	mtx_lock_spin(&txr->hn_txlist_spin);
 	KASSERT(txr->hn_txdesc_avail >= 0 &&
@@ -1046,7 +1046,9 @@ hn_txdesc_get(struct hn_tx_ring *txr)
 		atomic_subtract_int(&txr->hn_txdesc_avail, 1);
 #endif
 		KASSERT(txd->m == NULL && txd->refs == 0 &&
-		    (txd->flags & HN_TXD_FLAG_ONLIST), ("invalid txd"));
+		    txd->chim_index == HN_NVS_CHIM_IDX_INVALID &&
+		    (txd->flags & HN_TXD_FLAG_ONLIST) &&
+		    (txd->flags & HN_TXD_FLAG_DMAMAP) == 0, ("invalid txd"));
 		txd->flags &= ~HN_TXD_FLAG_ONLIST;
 		txd->refs = 1;
 	}
@@ -1092,9 +1094,6 @@ hn_tx_done(struct hn_send_ctx *sndc, struct hn_softc *sc,
 {
 	struct hn_txdesc *txd = sndc->hn_cbarg;
 	struct hn_tx_ring *txr;
-
-	if (txd->chim_index != HN_NVS_CHIM_IDX_INVALID)
-		hn_chim_free(sc, txd->chim_index);
 
 	txr = txd->txr;
 	KASSERT(txr->hn_chan == chan,
@@ -2820,6 +2819,7 @@ hn_create_tx_ring(struct hn_softc *sc, int id)
 		struct hn_txdesc *txd = &txr->hn_txdesc[i];
 
 		txd->txr = txr;
+		txd->chim_index = HN_NVS_CHIM_IDX_INVALID;
 
 		/*
 		 * Allocate and load RNDIS packet message.
