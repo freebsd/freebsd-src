@@ -1188,7 +1188,7 @@ assertion_file_contains_no_invalid_strings(const char *file, int line,
 			return(0);
 		}
 	}
-	
+
 	free(buff);
 	return (0);
 }
@@ -1412,6 +1412,8 @@ assertion_file_mode(const char *file, int line, const char *pathname, int expect
 	assertion_count(file, line);
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	failure_start(file, line, "assertFileMode not yet implemented for Windows");
+	(void)mode; /* UNUSED */
+	(void)r; /* UNUSED */
 #else
 	{
 		struct stat st;
