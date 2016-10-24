@@ -61,7 +61,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 
 #include <dev/hyperv/include/hyperv.h>
+#include <dev/hyperv/include/vmbus.h>
 #include <dev/hyperv/utilities/hv_utilreg.h>
+#include <dev/hyperv/utilities/vmbus_icreg.h>
 
 #include "hv_util.h"
 #include "unicode.h"
@@ -73,6 +75,12 @@ __FBSDID("$FreeBSD$");
 #define KVP_SUCCESS	0
 #define KVP_ERROR	1
 #define kvp_hdr		hdr.kvp_hdr
+
+#define KVP_FWVER_MAJOR		3
+#define KVP_FWVER		VMBUS_IC_VERSION(KVP_FWVER_MAJOR, 0)
+
+#define KVP_MSGVER_MAJOR	4
+#define KVP_MSGVER		VMBUS_IC_VERSION(KVP_MSGVER_MAJOR, 0)
 
 /* hv_kvp debug control */
 static int hv_kvp_log = 0;
@@ -208,51 +216,9 @@ hv_kvp_transaction_init(hv_kvp_sc *sc, uint32_t rcv_len,
 	sc->host_msg_id = request_id;
 	sc->rcv_buf = rcv_buf;
 	sc->host_kvp_msg = (struct hv_kvp_msg *)&rcv_buf[
-		sizeof(struct hv_vmbus_pipe_hdr) +
-		sizeof(struct hv_vmbus_icmsg_hdr)];
+	    sizeof(struct hv_vmbus_pipe_hdr) +
+	    sizeof(struct hv_vmbus_icmsg_hdr)];
 }
-
-
-/*
- * hv_kvp - version neogtiation function
- */
-static void
-hv_kvp_negotiate_version(struct hv_vmbus_icmsg_hdr *icmsghdrp, uint8_t *buf)
-{
-	struct hv_vmbus_icmsg_negotiate *negop;
-	int icframe_vercnt;
-	int icmsg_vercnt;
-
-	icmsghdrp->icmsgsize = 0x10;
-
-	negop = (struct hv_vmbus_icmsg_negotiate *)&buf[
-		sizeof(struct hv_vmbus_pipe_hdr) +
-		sizeof(struct hv_vmbus_icmsg_hdr)];
-	icframe_vercnt = negop->icframe_vercnt;
-	icmsg_vercnt = negop->icmsg_vercnt;
-
-	/*
-	 * Select the framework version number we will support
-	 */
-	if ((icframe_vercnt >= 2) && (negop->icversion_data[1].major == 3)) {
-		icframe_vercnt = 3;
-		if (icmsg_vercnt > 2)
-			icmsg_vercnt = 4;
-		else
-			icmsg_vercnt = 3;
-	} else {
-		icframe_vercnt = 1;
-		icmsg_vercnt = 1;
-	}
-
-	negop->icframe_vercnt = 1;
-	negop->icmsg_vercnt = 1;
-	negop->icversion_data[0].major = icframe_vercnt;
-	negop->icversion_data[0].minor = 0;
-	negop->icversion_data[1].major = icmsg_vercnt;
-	negop->icversion_data[1].minor = 0;
-}
-
 
 /*
  * Convert ip related info in umsg from utf8 to utf16 and store in hmsg
@@ -578,7 +544,8 @@ hv_kvp_respond_host(hv_kvp_sc *sc, int error)
 		error = HV_KVP_E_FAIL;
 
 	hv_icmsg_hdrp->status = error;
-	hv_icmsg_hdrp->icflags = HV_ICMSGHDRFLAG_TRANSACTION | HV_ICMSGHDRFLAG_RESPONSE;
+	hv_icmsg_hdrp->icflags = HV_ICMSGHDRFLAG_TRANSACTION |
+	    HV_ICMSGHDRFLAG_RESPONSE;
 
 	error = vmbus_chan_send(vmbus_get_channel(sc->dev),
 	    VMBUS_CHANPKT_TYPE_INBAND, 0, sc->rcv_buf, sc->host_msg_len,
@@ -622,8 +589,8 @@ hv_kvp_process_request(void *context, int pending)
 	uint32_t recvlen = 0;
 	uint64_t requestid;
 	struct hv_vmbus_icmsg_hdr *icmsghdrp;
-	int ret = 0;
-	hv_kvp_sc		*sc;
+	int ret = 0, error;
+	hv_kvp_sc *sc;
 
 	hv_kvp_log_info("%s: entering hv_kvp_process_request\n", __func__);
 
@@ -637,14 +604,15 @@ hv_kvp_process_request(void *context, int pending)
 	/* XXX check recvlen to make sure that it contains enough data */
 
 	while ((ret == 0) && (recvlen > 0)) {
-
 		icmsghdrp = (struct hv_vmbus_icmsg_hdr *)
-			&kvp_buf[sizeof(struct hv_vmbus_pipe_hdr)];
+		    &kvp_buf[sizeof(struct hv_vmbus_pipe_hdr)];
 
 		hv_kvp_transaction_init(sc, recvlen, requestid, kvp_buf);
 		if (icmsghdrp->icmsgtype == HV_ICMSGTYPE_NEGOTIATE) {
-			hv_kvp_negotiate_version(icmsghdrp, kvp_buf);
-			hv_kvp_respond_host(sc, ret);
+			error = vmbus_ic_negomsg(&sc->util_sc,
+			    kvp_buf, &recvlen, KVP_FWVER, KVP_MSGVER);
+			/* XXX handle vmbus_ic_negomsg failure. */
+			hv_kvp_respond_host(sc, error);
 
 			/*
 			 * It is ok to not acquire the mutex before setting
