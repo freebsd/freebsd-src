@@ -1216,18 +1216,17 @@ ipi_nmi_handler(void)
 #ifdef DEV_ISA
 int nmi_kdb_lock;
 
-bool
-nmi_call_kdb_smp(u_int type, struct trapframe *frame, bool do_panic)
+void
+nmi_call_kdb_smp(u_int type, struct trapframe *frame)
 {
 	int cpu;
-	bool call_post, ret;
+	bool call_post;
 
 	cpu = PCPU_GET(cpuid);
 	if (atomic_cmpset_acq_int(&nmi_kdb_lock, 0, 1)) {
-		ret = nmi_call_kdb(cpu, type, frame, do_panic);
+		nmi_call_kdb(cpu, type, frame);
 		call_post = false;
 	} else {
-		ret = true;
 		savectx(&stoppcbs[cpu]);
 		CPU_SET_ATOMIC(cpu, &stopped_cpus);
 		while (!atomic_cmpset_acq_int(&nmi_kdb_lock, 0, 1))
@@ -1237,7 +1236,6 @@ nmi_call_kdb_smp(u_int type, struct trapframe *frame, bool do_panic)
 	atomic_store_rel_int(&nmi_kdb_lock, 0);
 	if (call_post)
 		cpustop_handler_post(cpu);
-	return (ret);
 }
 #endif
 
