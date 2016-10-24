@@ -240,9 +240,9 @@ d_tags(u_int64_t tag)
 	case 0x6ffffff0:	return "DT_GNU_VERSYM";
 	/* 0x70000000 - 0x7fffffff processor-specific semantics */
 	case 0x70000000:	return "DT_IA_64_PLT_RESERVE";
-	case 0x7ffffffd:	return "DT_SUNW_AUXILIARY";
-	case 0x7ffffffe:	return "DT_SUNW_USED";
-	case 0x7fffffff:	return "DT_SUNW_FILTER";
+	case DT_AUXILIARY:	return "DT_AUXILIARY";
+	case DT_USED:		return "DT_USED";
+	case DT_FILTER:		return "DT_FILTER";
 	}
 	snprintf(unknown_tag, sizeof(unknown_tag),
 		"ERROR: TAG NOT DEFINED -- tag 0x%jx", (uintmax_t)tag);
