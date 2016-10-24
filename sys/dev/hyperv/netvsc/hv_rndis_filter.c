@@ -585,8 +585,7 @@ hn_rndis_xact_exec1(struct hn_softc *sc, struct vmbus_xact *xact, size_t reqlen,
 	 * message.
 	 */
 	vmbus_xact_activate(xact);
-	error = hv_nv_on_send(sc->hn_prichan, HN_NVS_RNDIS_MTYPE_CTRL, sndc,
-	    gpa, gpa_cnt);
+	error = hn_nvs_send_rndis_ctrl(sc->hn_prichan, sndc, gpa, gpa_cnt);
 	if (error) {
 		vmbus_xact_deactivate(xact);
 		if_printf(sc->hn_ifp, "RNDIS ctrl send failed: %d\n", error);
@@ -1165,7 +1164,7 @@ hn_rndis_halt(struct hn_softc *sc)
 	halt->rm_rid = hn_rndis_rid(sc);
 
 	/* No RNDIS completion; rely on NVS message send completion */
-	hn_send_ctx_init_simple(&sndc, hn_nvs_sent_xact, xact);
+	hn_send_ctx_init(&sndc, hn_nvs_sent_xact, xact);
 	hn_rndis_xact_exec1(sc, xact, sizeof(*halt), &sndc, &comp_len);
 
 	vmbus_xact_put(xact);
