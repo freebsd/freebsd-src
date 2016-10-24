@@ -33,7 +33,7 @@ DEFINE_TEST(test_option_b)
 
 	assertMakeFile("file1", 0644, "file1");
 	if (systemf("cat file1 > test_cat.out 2> test_cat.err") != 0) {
-		skipping("Platform doesn't have cat");
+		skipping("This test requires a `cat` program");
 		return;
 	}
 	testprog_ustar = malloc(strlen(testprog) + sizeof(USTAR_OPT) + 1);
