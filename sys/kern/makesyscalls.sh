@@ -62,7 +62,6 @@ if [ -n "$2" ]; then
 fi
 
 sed -e '
-s/\$//g
 :join
 	/\\$/{a\
 
@@ -140,7 +139,7 @@ s/\$//g
 		printf " * $%s$\n", "FreeBSD" > systrace
 	}
 	NR == 1 {
-		gsub("[$]FreeBSD: ", "", $0)
+		gsub("[$]FreeBSD: ", "FreeBSD: ", $0)
 		gsub(" [$]", "", $0)
 
 		printf " * created from%s\n */\n\n", $0 > syssw
