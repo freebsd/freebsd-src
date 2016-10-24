@@ -467,21 +467,7 @@ user_trctrap_out:
 			}
 			goto userout;
 #else /* !POWERFAIL_NMI */
-			/* machine/parity/power fail/"kitchen sink" faults */
-			if (isa_nmi(frame->tf_err) == 0) {
-#ifdef KDB
-				/*
-				 * NMI can be hooked up to a pushbutton
-				 * for debugging.
-				 */
-				if (kdb_on_nmi) {
-					printf ("NMI ... going to debugger\n");
-					kdb_trap(type, 0, frame);
-				}
-#endif /* KDB */
-				goto userout;
-			} else if (panic_on_nmi)
-				panic("NMI indicates hardware failure");
+			nmi_handle_intr(type, frame, true);
 			break;
 #endif /* POWERFAIL_NMI */
 #endif /* DEV_ISA */
@@ -730,20 +716,8 @@ kernel_trctrap:
 			}
 			goto out;
 #else /* !POWERFAIL_NMI */
-			/* machine/parity/power fail/"kitchen sink" faults */
-			if (isa_nmi(frame->tf_err) == 0) {
-#ifdef KDB
-				/*
-				 * NMI can be hooked up to a pushbutton
-				 * for debugging.
-				 */
-				if (kdb_on_nmi) {
-					printf ("NMI ... going to debugger\n");
-					kdb_trap(type, 0, frame);
-				}
-#endif /* KDB */
-				goto out;
-			} else if (panic_on_nmi == 0)
+			if (nmi_handle_intr(type, frame, false) ||
+			    !panic_on_nmi)
 				goto out;
 			/* FALLTHROUGH */
 #endif /* POWERFAIL_NMI */
