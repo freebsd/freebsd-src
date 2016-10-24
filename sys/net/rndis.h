@@ -351,7 +351,7 @@ struct rndis_keepalive_comp {
 	uint32_t rm_status;
 };
 
-/* packet filter bits used by OID_GEN_CURRENT_PACKET_FILTER */
+/* Packet filter bits used by OID_GEN_CURRENT_PACKET_FILTER */
 #define	NDIS_PACKET_TYPE_DIRECTED		0x00000001
 #define	NDIS_PACKET_TYPE_MULTICAST		0x00000002
 #define	NDIS_PACKET_TYPE_ALL_MULTICAST		0x00000004
@@ -364,6 +364,14 @@ struct rndis_keepalive_comp {
 #define	NDIS_PACKET_TYPE_ALL_FUNCTIONAL		0x00002000
 #define	NDIS_PACKET_TYPE_FUNCTIONAL		0x00004000
 #define	NDIS_PACKET_TYPE_MAC_FRAME		0x00008000
+
+/*
+ * Packet filter description for use with printf(9) %b identifier.
+ */
+#define	NDIS_PACKET_TYPES				\
+	"\20\1DIRECT\2MULTICAST\3ALLMULTI\4BROADCAST"	\
+	"\5SRCROUTE\6PROMISC\7SMT\10ALLLOCAL"		\
+	"\11GROUP\12ALLFUNC\13FUNC\14MACFRAME"
 
 /* RNDIS offsets */
 #define	RNDIS_HEADER_OFFSET	((uint32_t)sizeof(struct rndis_msghdr))
