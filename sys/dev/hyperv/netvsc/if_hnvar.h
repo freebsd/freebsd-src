@@ -48,11 +48,6 @@ struct hn_send_ctx {
 	void			*hn_cbarg;
 };
 
-struct rndis_hash_info;
-struct rndix_hash_value;
-struct ndis_8021q_info_;
-struct rndis_tcp_ip_csum_info_;
-
 #define HN_NDIS_VLAN_INFO_INVALID	0xffffffff
 #define HN_NDIS_RXCSUM_INFO_INVALID	0
 #define HN_NDIS_HASH_INFO_INVALID	0
