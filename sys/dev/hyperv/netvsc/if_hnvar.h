@@ -46,8 +46,6 @@ typedef void		(*hn_sent_callback_t)
 struct hn_send_ctx {
 	hn_sent_callback_t	hn_cb;
 	void			*hn_cbarg;
-	uint32_t		hn_chim_idx;
-	int			hn_chim_sz;
 };
 
 struct rndis_hash_info;
@@ -66,31 +64,18 @@ struct hn_recvinfo {
 	uint32_t			hash_value;
 };
 
-#define HN_SEND_CTX_INITIALIZER(cb, cbarg)		\
-{							\
-	.hn_cb		= cb,				\
-	.hn_cbarg	= cbarg,			\
-	.hn_chim_idx	= HN_NVS_CHIM_IDX_INVALID,	\
-	.hn_chim_sz	= 0				\
+#define HN_SEND_CTX_INITIALIZER(cb, cbarg)	\
+{						\
+	.hn_cb		= cb,			\
+	.hn_cbarg	= cbarg			\
 }
 
 static __inline void
-hn_send_ctx_init(struct hn_send_ctx *sndc, hn_sent_callback_t cb,
-    void *cbarg, uint32_t chim_idx, int chim_sz)
+hn_send_ctx_init(struct hn_send_ctx *sndc, hn_sent_callback_t cb, void *cbarg)
 {
 
 	sndc->hn_cb = cb;
 	sndc->hn_cbarg = cbarg;
-	sndc->hn_chim_idx = chim_idx;
-	sndc->hn_chim_sz = chim_sz;
-}
-
-static __inline void
-hn_send_ctx_init_simple(struct hn_send_ctx *sndc, hn_sent_callback_t cb,
-    void *cbarg)
-{
-
-	hn_send_ctx_init(sndc, cb, cbarg, HN_NVS_CHIM_IDX_INVALID, 0);
 }
 
 static __inline int
@@ -134,6 +119,9 @@ void		hn_nvs_detach(struct hn_softc *sc);
 int		hn_nvs_alloc_subchans(struct hn_softc *sc, int *nsubch);
 void		hn_nvs_sent_xact(struct hn_send_ctx *sndc, struct hn_softc *sc,
 		    struct vmbus_channel *chan, const void *data, int dlen);
+int		hn_nvs_send_rndis_ctrl(struct vmbus_channel *chan,
+		    struct hn_send_ctx *sndc, struct vmbus_gpa *gpa,
+		    int gpa_cnt);
 
 int		hn_rxpkt(struct hn_rx_ring *rxr, const void *data, int dlen,
 		    const struct hn_recvinfo *info);

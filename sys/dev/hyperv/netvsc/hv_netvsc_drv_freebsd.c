@@ -169,6 +169,8 @@ struct hn_txdesc {
 	int		refs;
 	uint32_t	flags;		/* HN_TXD_FLAG_ */
 	struct hn_send_ctx send_ctx;
+	uint32_t	chim_index;
+	int		chim_size;
 
 	bus_dmamap_t	data_dmap;
 
@@ -363,6 +365,8 @@ static void hn_tx_resume(struct hn_softc *, int);
 static void hn_tx_ring_qflush(struct hn_tx_ring *);
 static int netvsc_detach(device_t dev);
 static void hn_link_status(struct hn_softc *);
+static int hn_sendpkt_rndis_sglist(struct hn_tx_ring *, struct hn_txdesc *);
+static int hn_sendpkt_rndis_chim(struct hn_tx_ring *, struct hn_txdesc *);
 
 static void hn_nvs_handle_notify(struct hn_softc *sc,
 		const struct vmbus_chanpkt_hdr *pkt);
@@ -398,6 +402,57 @@ hn_set_lro_lenlim(struct hn_softc *sc, int lenlim)
 		sc->hn_rx_ring[i].hn_lro.lro_length_lim = lenlim;
 }
 #endif
+
+static __inline int
+hn_nvs_send_rndis_sglist1(struct vmbus_channel *chan, uint32_t rndis_mtype,
+    struct hn_send_ctx *sndc, struct vmbus_gpa *gpa, int gpa_cnt)
+{
+	struct hn_nvs_rndis rndis;
+
+	rndis.nvs_type = HN_NVS_TYPE_RNDIS;
+	rndis.nvs_rndis_mtype = rndis_mtype;
+	rndis.nvs_chim_idx = HN_NVS_CHIM_IDX_INVALID;
+	rndis.nvs_chim_sz = 0;
+
+	return (hn_nvs_send_sglist(chan, gpa, gpa_cnt,
+	    &rndis, sizeof(rndis), sndc));
+}
+
+int
+hn_nvs_send_rndis_ctrl(struct vmbus_channel *chan,
+    struct hn_send_ctx *sndc, struct vmbus_gpa *gpa, int gpa_cnt)
+{
+
+	return hn_nvs_send_rndis_sglist1(chan, HN_NVS_RNDIS_MTYPE_CTRL,
+	    sndc, gpa, gpa_cnt);
+}
+
+static int
+hn_sendpkt_rndis_sglist(struct hn_tx_ring *txr, struct hn_txdesc *txd)
+{
+
+	KASSERT(txd->chim_index == HN_NVS_CHIM_IDX_INVALID &&
+	    txd->chim_size == 0, ("invalid rndis sglist txd"));
+	return (hn_nvs_send_rndis_sglist1(txr->hn_chan, HN_NVS_RNDIS_MTYPE_DATA,
+	    &txd->send_ctx, txr->hn_gpa, txr->hn_gpa_cnt));
+}
+
+static int
+hn_sendpkt_rndis_chim(struct hn_tx_ring *txr, struct hn_txdesc *txd)
+{
+	struct hn_nvs_rndis rndis;
+
+	KASSERT(txd->chim_index != HN_NVS_CHIM_IDX_INVALID &&
+	    txd->chim_size > 0, ("invalid rndis chim txd"));
+
+	rndis.nvs_type = HN_NVS_TYPE_RNDIS;
+	rndis.nvs_rndis_mtype = HN_NVS_RNDIS_MTYPE_DATA;
+	rndis.nvs_chim_idx = txd->chim_index;
+	rndis.nvs_chim_sz = txd->chim_size;
+
+	return (hn_nvs_send(txr->hn_chan, VMBUS_CHANPKT_FLAG_RC,
+	    &rndis, sizeof(rndis), &txd->send_ctx));
+}
 
 static int
 hn_get_txswq_depth(const struct hn_tx_ring *txr)
@@ -1038,8 +1093,8 @@ hn_tx_done(struct hn_send_ctx *sndc, struct hn_softc *sc,
 	struct hn_txdesc *txd = sndc->hn_cbarg;
 	struct hn_tx_ring *txr;
 
-	if (sndc->hn_chim_idx != HN_NVS_CHIM_IDX_INVALID)
-		hn_chim_free(sc, sndc->hn_chim_idx);
+	if (txd->chim_index != HN_NVS_CHIM_IDX_INVALID)
+		hn_chim_free(sc, txd->chim_index);
 
 	txr = txd->txr;
 	KASSERT(txr->hn_chan == chan,
@@ -1096,9 +1151,8 @@ hn_encap(struct hn_tx_ring *txr, struct hn_txdesc *txd, struct mbuf **m_head0)
 	int error, nsegs, i;
 	struct mbuf *m_head = *m_head0;
 	struct rndis_packet_msg *pkt;
-	uint32_t send_buf_section_idx;
-	int send_buf_section_size, pktlen;
 	uint32_t *pi_data;
+	int pktlen;
 
 	/*
 	 * extension points to the area reserved for the
@@ -1211,18 +1265,19 @@ hn_encap(struct hn_tx_ring *txr, struct hn_txdesc *txd, struct mbuf **m_head0)
 	 */
 	if (pkt->rm_len < txr->hn_chim_size) {
 		txr->hn_tx_chimney_tried++;
-		send_buf_section_idx = hn_chim_alloc(txr->hn_sc);
-		if (send_buf_section_idx != HN_NVS_CHIM_IDX_INVALID) {
+		txd->chim_index = hn_chim_alloc(txr->hn_sc);
+		if (txd->chim_index != HN_NVS_CHIM_IDX_INVALID) {
 			uint8_t *dest = txr->hn_sc->hn_chim +
-			    (send_buf_section_idx * txr->hn_sc->hn_chim_szmax);
+			    (txd->chim_index * txr->hn_sc->hn_chim_szmax);
 
 			memcpy(dest, pkt, pktlen);
 			dest += pktlen;
 			m_copydata(m_head, 0, m_head->m_pkthdr.len, dest);
 
-			send_buf_section_size = pkt->rm_len;
+			txd->chim_size = pkt->rm_len;
 			txr->hn_gpa_cnt = 0;
 			txr->hn_tx_chimney++;
+			txr->hn_sendpkt = hn_sendpkt_rndis_chim;
 			goto done;
 		}
 	}
@@ -1267,14 +1322,14 @@ hn_encap(struct hn_tx_ring *txr, struct hn_txdesc *txd, struct mbuf **m_head0)
 		gpa->gpa_len = segs[i].ds_len;
 	}
 
-	send_buf_section_idx = HN_NVS_CHIM_IDX_INVALID;
-	send_buf_section_size = 0;
+	txd->chim_index = HN_NVS_CHIM_IDX_INVALID;
+	txd->chim_size = 0;
+	txr->hn_sendpkt = hn_sendpkt_rndis_sglist;
 done:
 	txd->m = m_head;
 
 	/* Set the completion routine */
-	hn_send_ctx_init(&txd->send_ctx, hn_tx_done, txd,
-	    send_buf_section_idx, send_buf_section_size);
+	hn_send_ctx_init(&txd->send_ctx, hn_tx_done, txd);
 
 	return 0;
 }
@@ -1294,8 +1349,7 @@ again:
 	 * Make sure that txd is not freed before ETHER_BPF_MTAP.
 	 */
 	hn_txdesc_hold(txd);
-	error = hv_nv_on_send(txr->hn_chan, HN_NVS_RNDIS_MTYPE_DATA,
-	    &txd->send_ctx, txr->hn_gpa, txr->hn_gpa_cnt);
+	error = txr->hn_sendpkt(txr, txd);
 	if (!error) {
 		ETHER_BPF_MTAP(ifp, txd->m);
 		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
