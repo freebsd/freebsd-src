@@ -126,10 +126,6 @@ fbt_excluded(const char *name)
 		return (1);
 	}
 
-	/* Exclude some internal functions */
-	if (name[0] == '_' && name[1] == '_')
-		return (1);
-
 	/*
 	 * When DTrace is built into the kernel we need to exclude
 	 * the FBT functions from instrumentation.
