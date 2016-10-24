@@ -824,9 +824,8 @@ void ficlCompilePlatform(FICL_SYSTEM *pSys)
     dictAppendWord(dp, "uuid-from-string", ficlUuidFromString, FW_DEFAULT);
     dictAppendWord(dp, "uuid-to-string", ficlUuidToString, FW_DEFAULT);
 
-    SET_FOREACH(fnpp, Xficl_compile_set) {
+    SET_FOREACH(fnpp, Xficl_compile_set)
 	(*fnpp)(pSys);
-    }
 
 #if defined(PC98)
     ficlSetEnv(pSys, "arch-pc98",         FICL_TRUE);
