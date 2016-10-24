@@ -174,9 +174,6 @@ fbt_provide_module_function(linker_file_t lf, int symindx,
 		return (0);
 	}
 
-	if (name[0] == '_' && name[1] == '_')
-		return (0);
-
 	size = symval->size;
 
 	instr = (uint8_t *) symval->value;
