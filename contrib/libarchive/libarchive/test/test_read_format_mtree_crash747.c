@@ -33,6 +33,11 @@ DEFINE_TEST(test_read_format_mtree_crash747)
 	const char *reffile = "test_read_format_mtree_crash747.mtree.bz2";
 	struct archive *a;
 
+	if (archive_bzlib_version() == NULL) {
+		skipping("This test requires bzlib");
+		return;
+	}
+
 	extract_reference_file(reffile);
 
 	assert((a = archive_read_new()) != NULL);
