@@ -55,6 +55,10 @@ extern char bootprog_rev[];
 extern char bootprog_date[];
 extern char bootprog_maker[];
 
+/* Force a reference to bring in EFI support from the library */
+extern int efi_variable_support;
+int *dummy1 = &efi_variable_support;
+
 struct arch_switch archsw;	/* MI/MD interface boundary */
 
 EFI_GUID acpi = ACPI_TABLE_GUID;
@@ -906,8 +910,8 @@ command_efi_show(int argc, char *argv[])
 		return (rv);
 	}
 
-	if (argc != 0) {
-		printf("Too many args\n");
+	if (argc > 0) {
+		printf("Too many args %d\n", argc);
 		pager_close();
 		return (CMD_ERROR);
 	}
