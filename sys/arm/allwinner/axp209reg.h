@@ -146,6 +146,19 @@
 
 #define	AXP209_GPIO_DATA(x)	(1 << (x + 4))
 
+/* Regulators registers */
+#define	AXP209_POWERCTL			0x12
+#define	 AXP209_POWERCTL_DCDC3		(1 << 1)
+#define	 AXP209_POWERCTL_LDO2		(1 << 2)
+#define	 AXP209_POWERCTL_LDO4		(1 << 3)
+#define	 AXP209_POWERCTL_DCDC2		(1 << 4)
+#define	 AXP209_POWERCTL_LDO3		(1 << 6)
+
+#define	AXP209_REG_DCDC2_VOLTAGE	0x23
+#define	AXP209_REG_DCDC3_VOLTAGE	0x27
+#define	AXP209_REG_LDO24_VOLTAGE	0x28
+#define	AXP209_REG_LDO3_VOLTAGE		0x29
+
 enum axp209_sensor {
 	AXP209_TEMP,
 	AXP209_ACVOLT,
@@ -155,6 +168,17 @@ enum axp209_sensor {
 	AXP209_BATVOLT,
 	AXP209_BATCHARGECURRENT,
 	AXP209_BATDISCHARGECURRENT,
+};
+
+enum axp209_regulators {
+	AXP209_REG_ID_DCDC2,
+	AXP209_REG_ID_DCDC3,
+	AXP209_REG_ID_LDO1,
+	AXP209_REG_ID_LDO2,
+	AXP209_REG_ID_LDO3,
+	/* LDO4 is weird, need to find a correct way to handle it */
+	/* AXP209_REG_ID_LDO4, */
+	AXP209_REG_ID_LDO5,
 };
 
 #endif /* _AXP209REG_H_ */
