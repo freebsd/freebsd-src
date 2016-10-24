@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_apic.h"
 #endif
 #include "opt_cpu.h"
+#include "opt_isa.h"
 #include "opt_kstack_pages.h"
 #include "opt_pmap.h"
 #include "opt_sched.h"
@@ -140,6 +141,7 @@ int cpu_apic_ids[MAXCPU];
 volatile u_int cpu_ipi_pending[MAXCPU];
 
 static void	release_aps(void *dummy);
+static void	cpustop_handler_post(u_int cpu);
 
 static int	hyperthreading_allowed = 1;
 SYSCTL_INT(_machdep, OID_AUTO, hyperthreading_allowed, CTLFLAG_RDTUN,
@@ -1211,6 +1213,34 @@ ipi_nmi_handler(void)
 	return (0);
 }
 
+#ifdef DEV_ISA
+int nmi_kdb_lock;
+
+bool
+nmi_call_kdb_smp(u_int type, struct trapframe *frame, bool do_panic)
+{
+	int cpu;
+	bool call_post, ret;
+
+	cpu = PCPU_GET(cpuid);
+	if (atomic_cmpset_acq_int(&nmi_kdb_lock, 0, 1)) {
+		ret = nmi_call_kdb(cpu, type, frame, do_panic);
+		call_post = false;
+	} else {
+		ret = true;
+		savectx(&stoppcbs[cpu]);
+		CPU_SET_ATOMIC(cpu, &stopped_cpus);
+		while (!atomic_cmpset_acq_int(&nmi_kdb_lock, 0, 1))
+			ia32_pause();
+		call_post = true;
+	}
+	atomic_store_rel_int(&nmi_kdb_lock, 0);
+	if (call_post)
+		cpustop_handler_post(cpu);
+	return (ret);
+}
+#endif
+
 /*
  * Handle an IPI_STOP by saving our current context and spinning until we
  * are resumed.
@@ -1230,6 +1260,13 @@ cpustop_handler(void)
 	/* Wait for restart */
 	while (!CPU_ISSET(cpu, &started_cpus))
 	    ia32_pause();
+
+	cpustop_handler_post(cpu);
+}
+
+static void
+cpustop_handler_post(u_int cpu)
+{
 
 	CPU_CLR_ATOMIC(cpu, &started_cpus);
 	CPU_CLR_ATOMIC(cpu, &stopped_cpus);
