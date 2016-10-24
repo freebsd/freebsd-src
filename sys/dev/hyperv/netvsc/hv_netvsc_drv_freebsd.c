@@ -3908,12 +3908,18 @@ static void
 hn_resume_mgmt(struct hn_softc *sc)
 {
 
-	/*
-	 * Kick off network change detection, which will
-	 * do link status check too.
-	 */
 	sc->hn_mgmt_taskq = sc->hn_mgmt_taskq0;
-	hn_network_change(sc);
+
+	/*
+	 * Kick off network change detection, if it was pending.
+	 * If no network change was pending, start link status
+	 * checks, which is more lightweight than network change
+	 * detection.
+	 */
+	if (sc->hn_link_flags & HN_LINK_FLAG_NETCHG)
+		hn_network_change(sc);
+	else
+		hn_link_status_update(sc);
 }
 
 static void
