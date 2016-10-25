@@ -517,7 +517,8 @@ svm_vminit(struct vm *vm, pmap_t pmap)
 	vm_paddr_t msrpm_pa, iopm_pa, pml4_pa;	
 	int i;
 
-	svm_sc = malloc(sizeof (struct svm_softc), M_SVM, M_WAITOK | M_ZERO);
+	svm_sc = contigmalloc(sizeof (*svm_sc), M_SVM, M_WAITOK | M_ZERO,
+	    0, BUS_SPACE_MAXADDR, PAGE_SIZE, 0);
 	svm_sc->vm = vm;
 	svm_sc->nptp = (vm_offset_t)vtophys(pmap->pm_pml4);
 
@@ -2042,7 +2043,7 @@ svm_vmcleanup(void *arg)
 {
 	struct svm_softc *sc = arg;
 
-	free(sc, M_SVM);
+	contigfree(sc, sizeof (*sc), M_SVM);
 }
 
 static register_t *
