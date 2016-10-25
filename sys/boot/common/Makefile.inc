@@ -60,6 +60,7 @@ SRCS+=	pnp.c
 # Forth interpreter
 .if defined(BOOT_FORTH)
 SRCS+=	interp_forth.c
+.include "${SRCTOP}/sys/boot/Makefile.ficl"
 .endif
 
 .if defined(BOOT_PROMPT_123)
