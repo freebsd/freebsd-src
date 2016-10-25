@@ -6059,6 +6059,13 @@ OLD_FILES+=usr/share/snmp/mibs/BEGEMOT-NETGRAPH.txt
 .endif
 
 .if ${MK_NIS} == no
+OLD_FILES+=etc/rc.d/ypbind
+OLD_FILES+=etc/rc.d/ypldap
+OLD_FILES+=etc/rc.d/yppasswdd
+OLD_FILES+=etc/rc.d/ypserv
+OLD_FILES+=etc/rc.d/ypset
+OLD_FILES+=etc/rc.d/ypupdated
+OLD_FILES+=etc/rc.d/ypxfrd
 OLD_FILES+=usr/bin/ypcat
 OLD_FILES+=usr/bin/ypchfn
 OLD_FILES+=usr/bin/ypchpass
