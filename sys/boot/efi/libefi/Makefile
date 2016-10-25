@@ -1,16 +1,23 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
+
 LIB=	efi
 INTERNALLIB=
 WARNS?=	2
 
-SRCS=	delay.c devpath.c efi_console.c efinet.c efipart.c env.c errno.c \
+SRCS=	delay.c devpath.c efi_console.c efinet.c efipart.c errno.c \
 	handles.c libefi.c
 
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
 SRCS+=	time.c
 .elif ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "arm"
 SRCS+=	time_event.c
+.endif
+.if ${MK_FORTH} != "no"
+SRCS+=	env.c
+CFLAGS+= -I${.CURDIR}/../../ficl
+CFLAGS+= -I${.CURDIR}/../../ficl/${MACHINE_CPUARCH}
 .endif
 
 # We implement a slightly non-standard %S in that it always takes a
@@ -26,7 +33,6 @@ CFLAGS+=	-msoft-float -mgeneral-regs-only
 .if ${MACHINE_ARCH} == "amd64"
 CFLAGS+= -fPIC -mno-red-zone
 .endif
-CFLAGS+= -I${.CURDIR}/../../ficl -I${.CURDIR}/../../ficl/${MACHINE}
 CFLAGS+= -I${.CURDIR}/../include
 CFLAGS+= -I${.CURDIR}/../include/${MACHINE}
 CFLAGS+= -I${.CURDIR}/../../../../lib/libstand
