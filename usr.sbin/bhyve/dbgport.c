@@ -73,7 +73,7 @@ again:
 			printf("Waiting for connection from gdb\r\n");
 			printonce = 1;
 		}
-		conn_fd = accept4(listen_fd, NULL, NULL, O_NONBLOCK);
+		conn_fd = accept4(listen_fd, NULL, NULL, SOCK_NONBLOCK);
 		if (conn_fd < 0 && errno != EINTR)
 			perror("accept");
 	}
