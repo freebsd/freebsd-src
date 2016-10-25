@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/vmm.h>
 #include <machine/vmm_dev.h>
 #include <machine/vmm_instruction_emul.h>
+#include <machine/vmparam.h>
 
 #include "vmm_lapic.h"
 #include "vmm_stat.h"
@@ -518,7 +519,7 @@ svm_vminit(struct vm *vm, pmap_t pmap)
 	int i;
 
 	svm_sc = contigmalloc(sizeof (*svm_sc), M_SVM, M_WAITOK | M_ZERO,
-	    0, BUS_SPACE_MAXADDR, PAGE_SIZE, 0);
+	    0, VM_MAX_ADDRESS, PAGE_SIZE, 0);
 	svm_sc->vm = vm;
 	svm_sc->nptp = (vm_offset_t)vtophys(pmap->pm_pml4);
 
