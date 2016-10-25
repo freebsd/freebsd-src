@@ -11,6 +11,10 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20161025	p49	FreeBSD-SA-16:15.sysarch [revised]
+
+	Fix incorrect argument validation in sysarch(2). [SA-16:15]
+
 20161010	p48	FreeBSD-SA-16:28.bind
 			FreeBSD-SA-16:29.bspatch
 			FreeBSD-SA-16:30.portsnap
