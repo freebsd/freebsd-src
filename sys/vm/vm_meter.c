@@ -93,29 +93,31 @@ SYSCTL_PROC(_vm, VM_LOADAVG, loadavg, CTLTYPE_STRUCT | CTLFLAG_RD |
     CTLFLAG_MPSAFE, NULL, 0, sysctl_vm_loadavg, "S,loadavg",
     "Machine loadaverage history");
 
+/*
+ * This function aims to determine if the object is mapped,
+ * specifically, if it is referenced by a vm_map_entry.  Because
+ * objects occasionally acquire transient references that do not
+ * represent a mapping, the method used here is inexact.  However, it
+ * has very low overhead and is good enough for the advisory
+ * vm.vmtotal sysctl.
+ */
+static bool
+is_object_active(vm_object_t obj)
+{
+
+	return (obj->ref_count > obj->shadow_count);
+}
+
 static int
 vmtotal(SYSCTL_HANDLER_ARGS)
 {
-	struct proc *p;
 	struct vmtotal total;
-	vm_map_entry_t entry;
 	vm_object_t object;
-	vm_map_t map;
-	int paging;
+	struct proc *p;
 	struct thread *td;
-	struct vmspace *vm;
 
 	bzero(&total, sizeof(total));
-	/*
-	 * Mark all objects as inactive.
-	 */
-	mtx_lock(&vm_object_list_mtx);
-	TAILQ_FOREACH(object, &vm_object_list, object_list) {
-		VM_OBJECT_WLOCK(object);
-		vm_object_clear_flag(object, OBJ_ACTIVE);
-		VM_OBJECT_WUNLOCK(object);
-	}
-	mtx_unlock(&vm_object_list_mtx);
+
 	/*
 	 * Calculate process statistics.
 	 */
@@ -136,11 +138,15 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 				case TDS_INHIBITED:
 					if (TD_IS_SWAPPED(td))
 						total.t_sw++;
-					else if (TD_IS_SLEEPING(td) &&
-					    td->td_priority <= PZERO)
-						total.t_dw++;
-					else
-						total.t_sl++;
+					else if (TD_IS_SLEEPING(td)) {
+						if (td->td_priority <= PZERO)
+							total.t_dw++;
+						else
+							total.t_sl++;
+						if (td->td_wchan ==
+						    &cnt.v_free_count)
+							total.t_pw++;
+					}
 					break;
 
 				case TDS_CAN_RUN:
@@ -158,29 +164,6 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 			}
 		}
 		PROC_UNLOCK(p);
-		/*
-		 * Note active objects.
-		 */
-		paging = 0;
-		vm = vmspace_acquire_ref(p);
-		if (vm == NULL)
-			continue;
-		map = &vm->vm_map;
-		vm_map_lock_read(map);
-		for (entry = map->header.next;
-		    entry != &map->header; entry = entry->next) {
-			if ((entry->eflags & MAP_ENTRY_IS_SUB_MAP) ||
-			    (object = entry->object.vm_object) == NULL)
-				continue;
-			VM_OBJECT_WLOCK(object);
-			vm_object_set_flag(object, OBJ_ACTIVE);
-			paging |= object->paging_in_progress;
-			VM_OBJECT_WUNLOCK(object);
-		}
-		vm_map_unlock_read(map);
-		vmspace_free(vm);
-		if (paging)
-			total.t_pw++;
 	}
 	sx_sunlock(&allproc_lock);
 	/*
@@ -206,9 +189,18 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 			 */
 			continue;
 		}
+		if (object->ref_count == 1 &&
+		    (object->flags & OBJ_NOSPLIT) != 0) {
+			/*
+			 * Also skip otherwise unreferenced swap
+			 * objects backing tmpfs vnodes, and POSIX or
+			 * SysV shared memory.
+			 */
+			continue;
+		}
 		total.t_vm += object->size;
 		total.t_rm += object->resident_page_count;
-		if (object->flags & OBJ_ACTIVE) {
+		if (is_object_active(object)) {
 			total.t_avm += object->size;
 			total.t_arm += object->resident_page_count;
 		}
@@ -216,7 +208,7 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 			/* shared object */
 			total.t_vmshr += object->size;
 			total.t_rmshr += object->resident_page_count;
-			if (object->flags & OBJ_ACTIVE) {
+			if (is_object_active(object)) {
 				total.t_avmshr += object->size;
 				total.t_armshr += object->resident_page_count;
 			}

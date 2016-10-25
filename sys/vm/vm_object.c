@@ -737,6 +737,10 @@ vm_object_terminate(vm_object_t object)
 
 		vinvalbuf(vp, V_SAVE, 0, 0);
 
+		BO_LOCK(&vp->v_bufobj);
+		vp->v_bufobj.bo_flag |= BO_DEAD;
+		BO_UNLOCK(&vp->v_bufobj);
+
 		VM_OBJECT_WLOCK(object);
 	}
 
@@ -1722,6 +1726,9 @@ vm_object_collapse(vm_object_t object)
 		 * case.
 		 */
 		if (backing_object->ref_count == 1) {
+			vm_object_pip_add(object, 1);
+			vm_object_pip_add(backing_object, 1);
+
 			/*
 			 * If there is exactly one reference to the backing
 			 * object, we can collapse it into the parent.  
@@ -1793,11 +1800,13 @@ vm_object_collapse(vm_object_t object)
 			KASSERT(backing_object->ref_count == 1, (
 "backing_object %p was somehow re-referenced during collapse!",
 			    backing_object));
+			vm_object_pip_wakeup(backing_object);
 			backing_object->type = OBJT_DEAD;
 			backing_object->ref_count = 0;
 			VM_OBJECT_WUNLOCK(backing_object);
 			vm_object_destroy(backing_object);
 
+			vm_object_pip_wakeup(object);
 			object_collapses++;
 		} else {
 			vm_object_t new_backing_object;
@@ -2130,6 +2139,7 @@ vm_object_coalesce(vm_object_t prev_object, vm_ooffset_t prev_offset,
 		 */
 		if (!reserved && !swap_reserve_by_cred(ptoa(next_size),
 		    prev_object->cred)) {
+			VM_OBJECT_WUNLOCK(prev_object);
 			return (FALSE);
 		}
 		prev_object->charge += ptoa(next_size);
