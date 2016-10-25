@@ -17,7 +17,9 @@ __FBSDID("$FreeBSD$");
 #include <stand.h>
 #include <string.h>
 #include <bootstrap.h>
+#ifdef BOOT_FORTH
 #include "ficl.h"
+#endif
 
 static struct pnpinfo_stql pnp_devices;
 static int		pnp_devices_initted = 0;
@@ -186,6 +188,7 @@ pnp_eisaformat(u_int8_t *data)
     return(idbuf);
 }
 
+#ifdef BOOT_FORTH
 void
 ficlPnpdevices(FICL_VM *pVM)
 {
@@ -230,3 +233,4 @@ static void ficlCompilePnp(FICL_SYSTEM *pSys)
 }
 
 FICL_COMPILE_SET(ficlCompilePnp);
+#endif
