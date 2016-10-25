@@ -7,7 +7,7 @@ FLAGS = $(DEFINES) -I../include
 all: $(BIN)
 
 $(BIN): $(OBJ)
-	$(CC) ${CFLAGS} $(LDFLAGS) $(OBJ) -o $(BIN)
+	$(CC) ${_CFLAGS} $(_LDFLAGS) $(OBJ) -o $(BIN)
 
 install:
 	$(INSTALL) -c $(BIN) $(ROOT)$(BINDIR)/$(BIN)
@@ -19,4 +19,4 @@ clean:
 mrproper: clean
 
 .c.o:
-	${CC} ${CFLAGS} ${CPPFLAGS} $(FLAGS) -c $<
+	${CC} ${_CFLAGS} $(FLAGS) -c $<

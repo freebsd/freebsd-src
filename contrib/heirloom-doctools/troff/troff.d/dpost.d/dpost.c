@@ -2419,7 +2419,7 @@ t_supply(char *fnt)		/* supply a font */
 
     while (*fnt == ' ' || *fnt == '\t')
 	fnt++;
-    for (np = font; *np && *np != ' ' && *np != '\t' && *np != '\n'; np++);
+    for (np = fnt; *np && *np != ' ' && *np != '\t' && *np != '\n'; np++);
     if (*np == '\0' || *np == '\n')
 	return;
     *np = '\0';
@@ -3303,7 +3303,7 @@ t_sf(int forceflush)
 	    fprintf(tf, "%d %g changefont\n", fontname[font].fontslant, (fontname[font].fontheight != 0) ? (double)fontname[font].fontheight : (double)fractsize);
     }
 
-    if (tracked < 0 || tracked > 0 && forceflush)
+    if (tracked < 0 || (tracked > 0 && forceflush))
 	t_strack();
 
 }   /* End of t_sf */

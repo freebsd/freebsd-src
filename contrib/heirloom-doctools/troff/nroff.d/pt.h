@@ -12,7 +12,6 @@ extern char	*getint(char *, int *);
 extern void	specnames(void);
 extern int	findch(register const char *);
 extern void	twdone(void);
-extern void	ptout(tchar);
 extern void	ptout1(void);
 extern char	*plot(char *);
 extern void	move(void);

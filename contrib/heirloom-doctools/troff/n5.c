@@ -418,6 +418,24 @@ caselpfx(void)
 	}
 }
 
+int
+max(int aa, int bb)
+{
+	if (aa > bb)
+		return (aa);
+	else
+		return (bb);
+}
+
+int
+min(int aa, int bb)
+{
+	if (aa < bb)
+		return (aa);
+	else
+		return (bb);
+}
+
 static void
 cerj(int dorj)
 {

@@ -3,12 +3,12 @@ OBJ = regexp.o vfontedpr.o vgrindefs.o version.o
 FLAGS = $(EUC) -DLIBDIR='"$(LIBDIR)"' $(DEFINES) -I../include
 
 .c.o:
-	$(CC) $(CFLAGS) $(WARN) $(FLAGS) $(CPPFLAGS) -c $<
+	$(CC) $(_CFLAGS) $(FLAGS) -c $<
 
 all: vgrind vfontedpr
 
 vfontedpr: $(OBJ)
-	$(CC) $(CFLAGS) $(LDFLAGS) $(OBJ) $(LIBS) -o vfontedpr
+	$(CC) $(_CFLAGS) $(_LDFLAGS) $(OBJ) $(LIBS) -o vfontedpr
 
 vgrind: vgrind.sh
 	rm -f $@

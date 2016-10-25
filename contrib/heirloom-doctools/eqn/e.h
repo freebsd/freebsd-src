@@ -93,10 +93,6 @@ typedef struct s_tbl {
 } tbl;
 extern  char    *spaceval;  /* use in place of normal \x (for pic) */
 
-extern tbl	*keytbl[];	/* key words */
-extern tbl	*restbl[];	/* reserved words */
-extern tbl	*deftbl[];	/* user-defined names */
-
 /* diacrit.c */
 void diacrit(int, int);
 /* e.c */

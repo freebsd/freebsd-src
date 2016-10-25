@@ -10,18 +10,18 @@ FLAGS = -DUSG $(EUC) -I. -I.. -I../../include -DMACDIR='"$(MACDIR)"' \
 	-DSHELL='"$(SHELL)"' -DRELEASE='"$(RELEASE)"' $(DEFINES) -I$(BST)
 
 .c.o:
-	$(CC) $(CFLAGS) $(WARN) $(CPPFLAGS) $(FLAGS) -c $<
+	$(CC) $(_CFLAGS) $(FLAGS) -c $<
 
 all: troff ta otfdump
 
 troff: $(OBJ) $(LIBHNJ)/libhnj.a
-	$(CC) $(CFLAGS) $(LDFLAGS) $(OBJ) -L$(LIBHNJ) -lhnj $(LIBS) -o troff
+	$(CC) $(_CFLAGS) $(_LDFLAGS) $(OBJ) -L$(LIBHNJ) -lhnj $(LIBS) -o troff
 
 ta: draw.o ta.o
-	$(CC) $(CFLAGS) $(LDFLAGS) draw.o ta.o $(LIBS) -lm -o $@
+	$(CC) $(_CFLAGS) $(_LDFLAGS) draw.o ta.o $(LIBS) -lm -o $@
 
 otfdump: otfdump.o otfdump_vs.o
-	$(CC) $(CFLAGS) $(LDFLAGS) otfdump.o otfdump_vs.o $(LIBS) -o $@
+	$(CC) $(_CFLAGS) $(_LDFLAGS) otfdump.o otfdump_vs.o $(LIBS) -o $@
 
 install:
 	$(INSTALL) -c troff $(ROOT)$(BINDIR)/troff

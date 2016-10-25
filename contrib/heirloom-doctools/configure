@@ -86,7 +86,7 @@ gen_mk () {
 	[ -n "$LIB_AVLBST" ] && echo "LIB_AVLBST=$LIB_AVLBST" >> $OUTMK
 	[ -n "$LIB_LEX" ] && echo "LIB_LEX=$LIB_LEX" >> $OUTMK
 	[ -n "$__CDBG" ] && echo "__CDBG=$__CDBG" >> $OUTMK
-	[ -n "$__SAN" ] && echo "__SAN=$__SAN" >> $OUTMK
+	[ -n "$__CLDBG" ] && echo "__CLDBG=$__CLDBG" >> $OUTMK
 	cat $INMK >> $OUTMK || exit 1
 }
 check_make () {
@@ -225,6 +225,7 @@ rm -f $LOG
 gen_mk
 
 check_make
+#check_Sanitizer
 check_lex
 check_strlcpy
 check_strlcat

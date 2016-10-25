@@ -6,15 +6,15 @@ FONTS = B I R S CT CW CX GB GI GR GS HI HK HX PO PX S1 SC SM TX DESC \
 FLAGS = -I. -I.. -DFNTDIR='"$(FNTDIR)"'
 
 .c.o:
-	$(CC) $(CFLAGS) $(WARN) $(CPPFLAGS) $(FLAGS) -c $<
+	$(CC) $(_CFLAGS) $(FLAGS) -c $<
 
 all: daps makedev fonts HM.out
 
 daps: $(OBJ)
-	$(CC) $(LDFLAGS) $(OBJ) $(LIBS) -lm -o daps
+	$(CC) $(_LDFLAGS) $(OBJ) $(LIBS) -lm -o daps
 
 makedev: makedev.o
-	$(CC) $(LDFLAGS) makedev.o $(LIBS) -o makedev
+	$(CC) $(_LDFLAGS) makedev.o $(LIBS) -o makedev
 
 fonts: makedev
 	for i in $(FONTS); \

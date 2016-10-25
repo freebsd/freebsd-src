@@ -42,6 +42,7 @@ text(int t,char *p1) {
 	int c;
 	const char *p;
 	tbl *tp;
+	extern tbl *restbl;
 
 	yyval.token = oalloc();
 	ebase[yyval.token] = 0;

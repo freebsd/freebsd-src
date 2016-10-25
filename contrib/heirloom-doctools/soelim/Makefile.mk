@@ -3,12 +3,12 @@ OBJ = soelim.o
 FLAGS =
 
 .c.o:
-	$(CC) $(CFLAGS) $(WARN) $(CPPFLAGS) $(FLAGS) -c $<
+	$(CC) $(_CFLAGS) $(FLAGS) -c $<
 
 all: soelim
 
 soelim: $(OBJ)
-	$(CC) $(CFLAGS) $(LDFLAGS) $(OBJ) $(LIBS) -o soelim
+	$(CC) $(_CFLAGS) $(_LDFLAGS) $(OBJ) $(LIBS) -o soelim
 
 install:
 	$(INSTALL) -c soelim $(ROOT)$(BINDIR)/soelim

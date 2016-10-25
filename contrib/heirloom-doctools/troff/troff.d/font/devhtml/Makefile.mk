@@ -20,4 +20,4 @@ clean:
 mrproper:	clean
 
 $(BIN):		$(OBJS)
-		$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(OBJS) -o $@
+		$(CC) $(_CFLAGS) $(_LDFLAGS) $(OBJS) -o $@

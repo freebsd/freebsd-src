@@ -6,12 +6,12 @@ FLAGS = -DLIBDIR='"$(LIBDIR)"' $(DEFINES) -I../include
 YFLAGS = -d
 
 .c.o:
-	$(CC) $(CFLAGS) $(WARN) $(FLAGS) $(CPPFLAGS) -c $<
+	$(CC) $(_CFLAGS) $(FLAGS) -c $<
 
 all: grap.c grapl.c grap
 
 grap: $(OBJ)
-	$(CC) $(CFLAGS) $(LDFLAGS) $(OBJ) $(LIBS) -lm -o grap
+	$(CC) $(_CFLAGS) $(_LDFLAGS) $(OBJ) $(LIBS) -lm -o grap
 
 y.tab.h: grap.c
 

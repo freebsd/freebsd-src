@@ -6,12 +6,12 @@ OBJ = diacrit.o e.o eqnbox.o font.o fromto.o funny.o glob.o integral.o \
 FLAGS = -I. -I.. -I../../include $(DEFINES)
 
 .c.o:
-	$(CC) $(CFLAGS) $(WARN) $(CPPFLAGS) $(FLAGS) -c $<
+	$(CC) $(_CFLAGS) $(FLAGS) -c $<
 
 all: eqn
 
 eqn: $(OBJ)
-	$(CC) $(CFLAGS) $(LDFLAGS) $(OBJ) $(LIBS) -o eqn
+	$(CC) $(_CFLAGS) $(_LDFLAGS) $(OBJ) $(LIBS) -o eqn
 
 e.c: e.y
 	$(YACC) -d ../e.y

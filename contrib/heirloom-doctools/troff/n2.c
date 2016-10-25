@@ -52,7 +52,6 @@
  * output, cleanup
  */
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>
 #include <unistd.h>
@@ -237,10 +236,10 @@ outtp(tchar i)
 
 #ifdef	EUC
 	if (iscopy(i))
-		dprintf(ptid, "%lc", j);
+		fdprintf(ptid, "%lc", j);
 	else
 #endif	/* EUC */
-		dprintf(ptid, "%c", j);
+		fdprintf(ptid, "%c", j);
 #endif
 }
 

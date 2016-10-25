@@ -49,6 +49,7 @@
 #include	<stdio.h>
 #include	<stdlib.h>
 #include	<math.h>
+#include	"global.h"
 #define	PI	3.141592654
 #define	hmot(n)		hpos += n
 #define	hgoto(n)	hpos = n
@@ -70,10 +71,6 @@ static int	maxdots	= 32000;	/* maximum number of dots in an object */
 #define	max(x,y)	((x) > (y) ? (x) : (y))
 #define	min(x,y)	((x) < (y) ? (x) : (y))
 #define	arcmove(x,y)	{ hgoto(x); vmot(-vpos-(y)); }
-
-#ifndef __unused
-#define __unused __attribute__((unused))
-#endif
 
 extern void setsize(int);
 extern void vgoto(int);

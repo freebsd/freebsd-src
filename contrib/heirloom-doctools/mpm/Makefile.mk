@@ -3,15 +3,15 @@ OBJ = misc.o page.o queue.o range.o slug.o version.o
 FLAGS = $(EUC) $(DEFINES) -I../include
 
 .c.o:
-	$(CC) $(CFLAGS) $(WARN) $(FLAGS) $(CPPFLAGS) -c $<
+	$(CC) $(_CFLAGS) $(FLAGS) -c $<
 
 .cc.o:
-	$(CXX) $(CFLAGS) $(WARN) $(FLAGS) $(CPPFLAGS) -c $<
+	$(CXX) $(_CFLAGS) $(FLAGS) -c $<
 
 all: pm
 
 pm: $(OBJ)
-	$(CXX) $(CFLAGS) $(LDFLAGS) $(OBJ) $(LIBS) -lm -o pm
+	$(CXX) $(_CFLAGS) $(_LDFLAGS) $(OBJ) $(LIBS) -lm -o pm
 
 install: all
 	test -d $(ROOT)$(LIBDIR) || mkdir -p $(ROOT)$(LIBDIR)

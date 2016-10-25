@@ -94,6 +94,7 @@ int
 yylex(void) {
 	register int c;
 	tbl *tp;
+	extern tbl *keytbl[], *deftbl[];
 
   beg:
 	while ((c=gtc())==' ' || c=='\n')

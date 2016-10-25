@@ -1,7 +1,7 @@
-FLAGS = -Wall -Wunused-parameter -Wmissing-prototypes
+FLAGS =
 
 .c.o:
-	$(CC) $(CFLAGS) $(WARN) $(CPPFLAGS) $(FLAGS) -c $<
+	$(CC) $(_CFLAGS) $(FLAGS) -c $<
 
 OBJ = hnjalloc.o hyphen.o
 
@@ -11,7 +11,7 @@ libhnj.a: $(OBJ)
 	$(AR) crs $@ $(OBJ)
 
 test: test.o libhnj.a
-	$(CC) $(CFLAGS) $(LDFLAGS) test.o -L. -lhnj -o test
+	$(CC) $(_CFLAGS) $(_LDFLAGS) test.o -L. -lhnj -o test
 
 install:
 

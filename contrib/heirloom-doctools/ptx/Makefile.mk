@@ -3,12 +3,12 @@ OBJ = ptx.o
 FLAGS = -DLIBDIR='"$(LIBDIR)"' $(EUC) -I../include
 
 .c.o:
-	$(CC) $(CFLAGS) $(WARN) $(CPPFLAGS) $(FLAGS) -c $<
+	$(CC) $(_CFLAGS) $(FLAGS) -c $<
 
 all: ptx
 
 ptx: $(OBJ)
-	$(CC) $(CFLAGS) $(LDFLAGS) $(OBJ) $(LIBS) -o ptx
+	$(CC) $(_CFLAGS) $(_LDFLAGS) $(OBJ) $(LIBS) -o ptx
 
 install:
 	$(INSTALL) -c ptx $(ROOT)$(BINDIR)/ptx

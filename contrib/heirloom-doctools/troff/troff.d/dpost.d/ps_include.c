@@ -167,6 +167,8 @@ ps_include(
 				break;
 			case DOCUMENTNEEDEDRESOURCES:
 				goto needres;
+			case NORMAL: /* TODO: case is not in original code */
+				break;
 			}
 			continue;
 		} else

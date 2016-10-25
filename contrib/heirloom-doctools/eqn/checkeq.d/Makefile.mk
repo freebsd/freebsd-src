@@ -4,12 +4,12 @@ OBJ = checkeq.o
 FLAGS =
 
 .c.o:
-	$(CC) $(CFLAGS) $(WARN) $(CPPFLAGS) $(FLAGS) -c $<
+	$(CC) $(_CFLAGS) $(FLAGS) -c $<
 
 all: checkeq
 
 checkeq: $(OBJ)
-	$(CC) $(CFLAGS) $(LDFLAGS) $(OBJ) $(LIBS) -o checkeq
+	$(CC) $(_CFLAGS) $(_LDFLAGS) $(OBJ) $(LIBS) -o checkeq
 
 install:
 	$(INSTALL) -c checkeq $(ROOT)$(BINDIR)/checkeq

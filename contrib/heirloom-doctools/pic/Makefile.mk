@@ -7,12 +7,12 @@ FLAGS = $(DEFINES) -I../include
 YFLAGS = -d
 
 .c.o:
-	$(CC) $(CFLAGS) $(WARN) $(FLAGS) $(CPPFLAGS) -c $<
+	$(CC) $(_CFLAGS) $(FLAGS) -c $<
 
 all: picy.c picl.c pic
 
 pic: $(OBJ)
-	$(CC) $(CFLAGS) $(LDFLAGS) $(OBJ) $(LIBS) -lm -o pic
+	$(CC) $(_CFLAGS) $(_LDFLAGS) $(OBJ) $(LIBS) -lm -o pic
 
 y.tab.h: picy.c
 

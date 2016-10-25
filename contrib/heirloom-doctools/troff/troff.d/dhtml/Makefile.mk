@@ -17,10 +17,10 @@ clean:
 mrproper:	clean
 
 $(BIN):		$(OBJ)
-		$(CC) $(CFLAGS) $(LDFLAGS) $(OBJ) -o $@
+		$(CC) $(_CFLAGS) $(_LDFLAGS) $(OBJ) -o $@
 
 .c.o:
-		$(CC) $(CFLAGS) $(CPPFLAGS) -c $<
+		$(CC) $(_CFLAGS) -c $<
 
 char.o:		char.h main.h $(BST)/bst.h lib.h tr_out.h
 dhtml.o:	dhtml.h tr_out.h char.h main.h

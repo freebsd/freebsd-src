@@ -110,6 +110,14 @@ wchar_t	twc = 0;
 static unsigned char escoff[126-31];
 
 static void	initg(void);
+static void	printlong(long, int);
+static void	printn(long, long);
+static char	*sprintlong(char *s, long, int);
+static char	*sprintn(char *s, long n, int b);
+#ifndef	NROFF
+#define	vfdprintf	xxvfdprintf
+static void	vfdprintf(int fd, const char *fmt, va_list ap);
+#endif
 static tchar	setyon(void);
 static void	_setenv(void);
 static tchar	setZ(void);
@@ -595,6 +603,182 @@ errprint(const char *s, ...)	/* error message printer */
 	va_start(ap, s);
 	verrprint(s, ap);
 	va_end(ap);
+}
+
+#ifndef	NROFF
+/*
+ * Scaled down version of C Library printf.
+ * Only %s %u %d (==%u) %o %c %x %D are recognized.
+ */
+#undef putchar
+#define	putchar(n)	(*pfbp++ = (n))	/* NO CHECKING! */
+
+static char	pfbuf[NTM];
+static char	*pfbp = pfbuf;
+
+void
+fdprintf(int fd, const char *fmt, ...)
+{
+	va_list	ap;
+
+	va_start(ap, fmt);
+	vfdprintf(fd, fmt, ap);
+	va_end(ap);
+}
+
+static void
+vfdprintf(int fd, const char *fmt, va_list ap)
+{
+	register int c;
+	char	*s;
+	register int i;
+
+	pfbp = pfbuf;
+loop:
+	while ((c = *fmt++) != '%') {
+		if (c == '\0') {
+			if (fd == 2)
+				write(STDERR_FILENO, pfbuf, pfbp - pfbuf);
+			else {
+				*pfbp = 0;
+				pfbp = pfbuf;
+				while (*pfbp) {
+					*obufp++ = *pfbp++;
+					if (obufp >= &obuf[OBUFSZ])
+						flusho();
+				}
+			}
+			return;
+		}
+		putchar(c);
+	}
+	c = *fmt++;
+	if (c == 'd' || c == 'u' || c == 'o' || c == 'x') {
+		i = va_arg(ap, int);
+		printlong(i, c);
+	} else if (c == 'c') {
+		if (c > 0177 || c < 040)
+			putchar('\\');
+		putchar(va_arg(ap, int) & 0177);
+	} else if (c == 's') {
+		s = va_arg(ap, char *);
+		while ((c = *s++))
+			putchar(c);
+	} else if (c == 'D') {
+		printn(va_arg(ap, long), 10);
+	} else if (c == 'O') {
+		printn(va_arg(ap, long), 8);
+	} else if (c == 'e' || c == 'E' ||
+			c == 'f' || c == 'F' ||
+			c == 'g' || c == 'G') {
+		char	tmp[40];
+		char	fmt[] = "%%";
+		fmt[1] = c;
+		snprintf(s = tmp, sizeof(tmp), fmt, va_arg(ap, double));
+		while ((c = *s++))
+			putchar(c);
+	} else if (c == 'p') {
+		i = (intptr_t)va_arg(ap, void *);
+		putchar('0');
+		putchar('x');
+		printlong(i, 'x');
+	} else if (c == 'l') {
+		c = *fmt++;
+		if (c == 'd' || c == 'u' || c == 'o' || c == 'x') {
+			i = va_arg(ap, long);
+			printlong(i, c);
+		} else if (c == 'c') {
+			i = va_arg(ap, int);
+			if (c & ~0177) {
+#ifdef	EUC
+				char	mb[MB_LEN_MAX];
+				int	j, n;
+				n = wctomb(mb, i);
+				for (j = 0; j < n; j++)
+					putchar(mb[j]&0377);
+#endif	/* EUC */
+			} else
+				putchar(i);
+		}
+	} else if (c == 'C') {
+		extern int	nchtab;
+		tchar	t = va_arg(ap, tchar);
+		if ((i = cbits(t)) < 0177) {
+			putchar(i);
+		} else if (i < 128 + nchtab) {
+			putchar('\\');
+			putchar('(');
+			putchar(chname[chtab[i-128]]);
+			putchar(chname[chtab[i-128]+1]);
+		}
+		else if ((i = tr2un(i, fbits(t))) != -1)
+			goto U;
+	} else if (c == 'U') {
+		i = va_arg(ap, int);
+	U:
+		putchar('U');
+		putchar('+');
+		if (i < 0x1000)
+			putchar('0');
+		if (i < 0x100)
+			putchar('0');
+		if (i < 0x10)
+			putchar('0');
+		printn((long)i, 16);
+#ifdef	EUC
+		if (iswprint(i)) {
+			char	mb[MB_LEN_MAX];
+			int	j, n;
+			n = wctomb(mb, i);
+			putchar(' ');
+			putchar('(');
+			for (j = 0; j < n; j++)
+				putchar(mb[j]&0377);
+			putchar(')');
+		}
+#endif	/* EUC */
+	}
+	goto loop;
+}
+#endif	/* !NROFF */
+
+
+static void
+printlong(long i, int fmt)
+{
+	switch (fmt) {
+	case 'd':
+		if (i < 0) {
+			putchar('-');
+			i = -i;
+		}
+		/*FALLTHRU*/
+	case 'u':
+		printn(i, 10);
+		break;
+	case 'o':
+		printn(i, 8);
+		break;
+	case 'x':
+		printn(i, 16);
+		break;
+	}
+}
+
+/*
+ * Print an unsigned integer in base b.
+ */
+static void printn(register long n, register long b)
+{
+	register long	a;
+
+	if (n < 0) {	/* shouldn't happen */
+		putchar('-');
+		n = -n;
+	}
+	if ((a = n / b))
+		printn(a, b);
+	putchar("0123456789ABCDEF"[(int)(n%b)]);
 }
 
 /* returns pointer to \0 that ends the string */

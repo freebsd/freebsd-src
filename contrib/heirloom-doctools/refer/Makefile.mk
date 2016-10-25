@@ -15,31 +15,31 @@ FLAGS =	-DMACDIR='"$(MACDIR)"' -DREFDIR='"$(REFDIR)"' $(EUC) $(DEFINES) \
 	-I../include
 
 .c.o:
-	$(CC) $(CFLAGS) $(WARN) $(FLAGS) $(CPPFLAGS) -c $<
+	$(CC) $(_CFLAGS) $(FLAGS) -c $<
 
 all: refer addbib lookbib sortbib roffbib indxbib mkey inv hunt papers/runinv
 	cd papers && PATH=..:$$PATH sh runinv
 
 refer: $(ROBJ)
-	$(CC) $(CFLAGS) $(LDFLAGS) $(ROBJ) $(LIBS) -o $@
+	$(CC) $(_CFLAGS) $(_LDFLAGS) $(ROBJ) $(LIBS) -o $@
 
 addbib: $(AOBJ)
-	$(CC) $(CFLAGS) $(LDFLAGS) $(AOBJ) $(LIBS) -o $@
+	$(CC) $(_CFLAGS) $(_LDFLAGS) $(AOBJ) $(LIBS) -o $@
 
 lookbib: $(LOBJ)
-	$(CC) $(CFLAGS) $(LDFLAGS) $(LOBJ) $(LIBS) -o $@
+	$(CC) $(_CFLAGS) $(_LDFLAGS) $(LOBJ) $(LIBS) -o $@
 
 sortbib: $(SOBJ)
-	$(CC) $(CFLAGS) $(LDFLAGS) $(SOBJ) $(LIBS) -o $@
+	$(CC) $(_CFLAGS) $(_LDFLAGS) $(SOBJ) $(LIBS) -o $@
 
 mkey: $(MOBJ)
-	$(CC) $(CFLAGS) $(LDFLAGS) $(MOBJ) $(LIBS) -o $@
+	$(CC) $(_CFLAGS) $(_LDFLAGS) $(MOBJ) $(LIBS) -o $@
 
 inv: $(IOBJ)
-	$(CC) $(CFLAGS) $(LDFLAGS) $(IOBJ) $(LIBS) -o $@
+	$(CC) $(_CFLAGS) $(_LDFLAGS) $(IOBJ) $(LIBS) -o $@
 
 hunt: $(HOBJ)
-	$(CC) $(CFLAGS) $(LDFLAGS) $(HOBJ) $(LIBS) -o $@
+	$(CC) $(_CFLAGS) $(_LDFLAGS) $(HOBJ) $(LIBS) -o $@
 
 indxbib: indxbib.sh
 	rm -f $@

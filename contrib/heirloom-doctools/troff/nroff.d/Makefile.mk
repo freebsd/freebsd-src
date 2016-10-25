@@ -10,15 +10,15 @@ OBJ = n10.o n6.o hytab.o n1.o n2.o n3.o n4.o n5.o \
 FLAGS = -DNROFF -DUSG $(EUC) -I. -I.. -I../../include -DMACDIR='"$(MACDIR)"' \
 	-DFNTDIR='"$(FNTDIR)"' -DTABDIR='"$(TABDIR)"' -DHYPDIR='"$(HYPDIR)"' \
 	-DSHELL='"$(SHELL)"' -DRELEASE='"$(RELEASE)"' $(DEFINES) \
-	-I$(BST) -Wmissing-prototypes
+	-I$(BST)
 
 .c.o:
-	$(CC) $(CFLAGS) $(WARN) $(CPPFLAGS) $(FLAGS) -c $<
+	$(CC) $(_CFLAGS) $(FLAGS) -c $<
 
 all: nroff
 
 nroff: $(OBJ) $(LIBHNJ)/libhnj.a
-	$(CC) $(CFLAGS) $(LDFLAGS) $(OBJ) -L$(LIBHNJ) -lhnj $(LIBS) -o nroff
+	$(CC) $(_CFLAGS) $(_LDFLAGS) $(OBJ) -L$(LIBHNJ) -lhnj $(LIBS) -o nroff
 
 install:
 	$(INSTALL) -c nroff $(ROOT)$(BINDIR)/nroff

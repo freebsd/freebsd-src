@@ -561,6 +561,7 @@ addpicfile(char *name)
 
 }   /* End of addpicfile */
 
+
 /*	from OpenSolaris "misc.c	1.6	05/06/08 SMI"	*/
 /*	Copyright (c) 1984, 1986, 1987, 1988, 1989 AT&T	*/
 /*	  All Rights Reserved  	*/

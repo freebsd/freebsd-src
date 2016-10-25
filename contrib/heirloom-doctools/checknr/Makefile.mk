@@ -3,12 +3,12 @@ OBJ = checknr.o
 FLAGS = $(DEFINES) -I../include
 
 .c.o:
-	$(CC) $(CFLAGS) $(WARN) $(CPPFLAGS) $(FLAGS) -c $<
+	$(CC) $(_CFLAGS) $(FLAGS) -c $<
 
 all: checknr
 
 checknr: $(OBJ)
-	$(CC) $(CFLAGS) $(LDFLAGS) $(OBJ) $(LIBS) -o checknr
+	$(CC) $(_CFLAGS) $(_LDFLAGS) $(OBJ) $(LIBS) -o checknr
 
 install:
 	$(INSTALL) -c checknr $(ROOT)$(BINDIR)/checknr
