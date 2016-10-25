@@ -284,8 +284,6 @@ void	armv7_cpu_sleep			(int);
 void	armv7_setup			(void);
 void	armv7_drain_writebuf		(void);
 
-void	armadaxp_idcache_wbinv_all	(void);
-
 void 	cortexa_setup			(void);
 #endif
 #if defined(CPU_MV_PJ4B)
