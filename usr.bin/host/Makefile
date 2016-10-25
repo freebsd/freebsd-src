@@ -1,5 +1,8 @@
 # $FreeBSD$
 
+# Fails to link
+WANT_CHERI=none
+
 LDNSDIR=	${.CURDIR}/../../contrib/ldns
 LDNSHOSTDIR=	${.CURDIR}/../../contrib/ldns-host
 
