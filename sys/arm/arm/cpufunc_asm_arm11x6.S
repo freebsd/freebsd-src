@@ -64,14 +64,6 @@ __FBSDID("$FreeBSD$");
 
 	.cpu arm1176jz-s
 
-ENTRY(arm11x6_setttb)
-	mov	r1, #0
-	mcr	p15, 0, r0, c2, c0, 0	/* load new TTB */
-	mcr	p15, 0, r1, c8, c7, 0	/* invalidate I+D TLBs */
-	mcr	p15, 0, r1, c7, c10, 4	/* drain write buffer */
-	RET
-END(arm11x6_setttb)
-
 /*
  * Preload the cache before issuing the WFI by conditionally disabling the
  * mcr intstructions the first time around the loop. Ensure the function is
