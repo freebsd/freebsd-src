@@ -324,9 +324,9 @@ man_display_page() {
 	if ! eval "$cattool $manpage | $testline" ;then
 		if which -s picpack; then
 			if [ -z "$tflags" ]; then
-				pipeline="soelim | tbl | eqn | troff -u1 -Tps -man - | dpost"
+				pipeline="soelim | tbl | eqn | troff -u1 -Tps -mdoc -man - | dpost"
 			else
-				pipeline="soelim | tbl | eqn | nroff -u1 -Tlocale -man - | col -x | $MANPAGER"
+				pipeline="soelim | tbl | eqn | nroff -u1 -Tlocale -mdoc -man - | col -x | $MANPAGER"
 			fi
 		elif which -s groff; then
 			man_display_page_groff
