@@ -114,7 +114,7 @@ ficlEfiSetenv(FICL_VM *pVM)
 
 #ifndef TESTMAIN
 	guid = (char*)ficlMalloc(guids);
-	if (guid != NULL)
+	if (guid == NULL)
 		vmThrowErr(pVM, "Error: out of memory");
 	memcpy(guid, guidp, guids);
 	uuid_from_string(guid, &u, &ustatus);
@@ -131,7 +131,7 @@ ficlEfiSetenv(FICL_VM *pVM)
 	name[names] = (CHAR16)0;
 
 	value = (char*)ficlMalloc(values + 1);
-	if (value != NULL)
+	if (value == NULL)
 		vmThrowErr(pVM, "Error: out of memory");
 	memcpy(value, valuep, values);
 
@@ -166,7 +166,7 @@ ficlEfiGetenv(FICL_VM *pVM)
 
 #ifndef TESTMAIN
 	name = (char*) ficlMalloc(names+1);
-	if (!name)
+	if (name == NULL)
 		vmThrowErr(pVM, "Error: out of memory");
 	strncpy(name, namep, names);
 	name[names] = '\0';
@@ -201,7 +201,7 @@ ficlEfiUnsetenv(FICL_VM *pVM)
 
 #ifndef TESTMAIN
 	name = (char*) ficlMalloc(names+1);
-	if (!name)
+	if (name == NULL)
 		vmThrowErr(pVM, "Error: out of memory");
 	strncpy(name, namep, names);
 	name[names] = '\0';
