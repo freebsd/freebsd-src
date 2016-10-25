@@ -54,6 +54,10 @@ int	psci_smc_despatch(register_t, register_t, register_t, register_t);
 #define	PSCI_RETVAL_INTERNAL_FAILURE	-6
 #define	PSCI_RETVAL_NOT_PRESENT		-7
 #define	PSCI_RETVAL_DISABLED		-8
+/*
+ * Used to signal PSCI is not available, e.g. to start a CPU.
+ */
+#define	PSCI_MISSING			1
 
 /*
  * PSCI function codes (as per PSCI v0.2).
