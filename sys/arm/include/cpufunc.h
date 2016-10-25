@@ -279,7 +279,6 @@ void	armv6_idcache_wbinv_all		(void);
 #endif
 #if defined(CPU_CORTEXA8) || defined(CPU_CORTEXA_MP) || \
     defined(CPU_MV_PJ4B) || defined(CPU_KRAIT)
-void	armv7_setttb			(u_int);
 void	armv7_idcache_wbinv_all		(void);
 void	armv7_cpu_sleep			(int);
 void	armv7_setup			(void);
@@ -297,7 +296,6 @@ void	pj4bv7_setup			(void);
 #if defined(CPU_ARM1176)
 void	arm11_drain_writebuf	(void);
 
-void    arm11x6_setttb                  (u_int);
 void    arm11x6_setup                   (void);
 void    arm11x6_sleep                   (int);  /* no ref. for errata */
 #endif
