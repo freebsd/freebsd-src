@@ -192,6 +192,16 @@ struct aw_pll_factor {
 #define	PLLFACTOR(_n, _k, _m, _p, _freq)	\
 	{ .n = (_n), .k = (_k), .m = (_m), .p = (_p), .freq = (_freq) }
 
+static struct aw_pll_factor aw_a10_pll1_factors[] = {
+	PLLFACTOR(6, 0, 0, 0, 144000000),
+	PLLFACTOR(12, 0, 0, 0, 312000000),
+	PLLFACTOR(21, 0, 0, 0, 528000000),
+	PLLFACTOR(29, 0, 0, 0, 720000000),
+	PLLFACTOR(18, 1, 0, 0, 864000000),
+	PLLFACTOR(19, 1, 0, 0, 912000000),
+	PLLFACTOR(20, 1, 0, 0, 960000000),
+};
+
 static struct aw_pll_factor aw_a23_pll1_factors[] = {
 	PLLFACTOR(9, 0, 0, 2, 60000000),
 	PLLFACTOR(10, 0, 0, 2, 66000000),
@@ -298,6 +308,47 @@ struct aw_pll_funcs {
 #define	PLL_WRITE(sc, val)	CLKDEV_WRITE_4((sc)->clkdev, (sc)->reg, (val))
 #define	DEVICE_LOCK(sc)		CLKDEV_DEVICE_LOCK((sc)->clkdev)
 #define	DEVICE_UNLOCK(sc)	CLKDEV_DEVICE_UNLOCK((sc)->clkdev)
+
+static int
+a10_pll1_init(device_t dev, bus_addr_t reg, struct clknode_init_def *def)
+{
+	/* Allow changing PLL frequency while enabled */
+	def->flags = CLK_NODE_GLITCH_FREE;
+
+	return (0);
+}
+
+static int
+a10_pll1_set_freq(struct aw_pll_sc *sc, uint64_t fin, uint64_t *fout,
+    int flags)
+{
+	struct aw_pll_factor *f;
+	uint32_t val;
+	int n;
+
+	f = NULL;
+	for (n = 0; n < nitems(aw_a10_pll1_factors); n++) {
+		if (aw_a10_pll1_factors[n].freq == *fout) {
+			f = &aw_a10_pll1_factors[n];
+			break;
+		}
+	}
+	if (f == NULL)
+		return (EINVAL);
+
+	DEVICE_LOCK(sc);
+	PLL_READ(sc, &val);
+	val &= ~(A10_PLL1_FACTOR_N|A10_PLL1_FACTOR_K|A10_PLL1_FACTOR_M|
+		A10_PLL1_OUT_EXT_DIVP);
+	val |= (f->p << A10_PLL1_OUT_EXT_DIVP_SHIFT);
+	val |= (f->n << A10_PLL1_FACTOR_N_SHIFT);
+	val |= (f->k << A10_PLL1_FACTOR_K_SHIFT);
+	val |= (f->m << A10_PLL1_FACTOR_M_SHIFT);
+	PLL_WRITE(sc, val);
+	DEVICE_UNLOCK(sc);
+
+	return (0);
+}
 
 static int
 a10_pll1_recalc(struct aw_pll_sc *sc, uint64_t *freq)
@@ -948,7 +999,7 @@ a83t_pllcpux_set_freq(struct aw_pll_sc *sc, uint64_t fin, uint64_t *fout,
 	}
 
 static struct aw_pll_funcs aw_pll_func[] = {
-	PLL(AWPLL_A10_PLL1, a10_pll1_recalc, NULL, NULL),
+	PLL(AWPLL_A10_PLL1, a10_pll1_recalc, a10_pll1_set_freq, a10_pll1_init),
 	PLL(AWPLL_A10_PLL2, a10_pll2_recalc, a10_pll2_set_freq, NULL),
 	PLL(AWPLL_A10_PLL3, a10_pll3_recalc, a10_pll3_set_freq, a10_pll3_init),
 	PLL(AWPLL_A10_PLL5, a10_pll5_recalc, NULL, NULL),
