@@ -55,9 +55,11 @@ extern char bootprog_rev[];
 extern char bootprog_date[];
 extern char bootprog_maker[];
 
+#ifdef BOOT_FORTH
 /* Force a reference to bring in EFI support from the library */
 extern int efi_variable_support;
 int *dummy1 = &efi_variable_support;
+#endif
 
 struct arch_switch archsw;	/* MI/MD interface boundary */
 
