@@ -20,6 +20,7 @@ CFLAGS+=	-DINET6
 WARNS?=		2
 
 LIBADD=		telnet ncursesw
+LIBADD+=	pthread
 
 .if !defined(RELEASE_CRUNCH)
 CFLAGS+=	-DIPSEC

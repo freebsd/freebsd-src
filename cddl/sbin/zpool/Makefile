@@ -28,5 +28,6 @@ CFLAGS+= -I${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libzpool/common
 CFLAGS+= -I${.CURDIR}/../../../cddl/contrib/opensolaris/cmd/stat/common
 
 LIBADD=	geom nvpair uutil zfs
+LIBADD+=	pthread
 
 .include <bsd.prog.mk>

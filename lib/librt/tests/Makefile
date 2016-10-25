@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 LIBADD=	rt
+LIBADD+=	pthread
 
 NETBSD_ATF_TESTS_C=	sched_test
 NETBSD_ATF_TESTS_C+=	sem_test
