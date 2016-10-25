@@ -2,6 +2,10 @@
 
 .include <src.opts.mk>
 
+.if ${MK_FORTH} != "no"
+.include "${.CURDIR}/../../Makefile.ficl"
+.endif
+
 LIB=	efi
 INTERNALLIB=
 WARNS?=	2
@@ -16,8 +20,6 @@ SRCS+=	time_event.c
 .endif
 .if ${MK_FORTH} != "no"
 SRCS+=	env.c
-CFLAGS+= -I${.CURDIR}/../../ficl
-CFLAGS+= -I${.CURDIR}/../../ficl/${MACHINE_CPUARCH}
 .endif
 
 # We implement a slightly non-standard %S in that it always takes a
