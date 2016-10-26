@@ -47,11 +47,14 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/extres/clk/clk.h>
 
-#include <dt-bindings/clock/sun4i-a10-pll2.h>
-
 #include <arm/allwinner/aw_machdep.h>
 
 #include "clkdev_if.h"
+
+#define	SUN4I_A10_PLL2_1X		0
+#define	SUN4I_A10_PLL2_2X		1
+#define	SUN4I_A10_PLL2_4X		2
+#define	SUN4I_A10_PLL2_8X		3
 
 #define	AW_PLL_ENABLE			(1 << 31)
 
