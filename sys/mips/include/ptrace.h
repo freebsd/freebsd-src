@@ -34,4 +34,13 @@
 #ifndef _MACHINE_PTRACE_H_
 #define	_MACHINE_PTRACE_H_
 
+#define	__HAVE_PTRACE_MACHDEP
+
+/*
+ * Query, enable, and disable Qemu ISA-level tracing on threads.  To use this
+ * feature, the sysctl hw.qemu_trace_perthread must be enabled.
+ */
+#define	PT_GETQTRACE	(PT_FIRSTMACH + 100)
+#define	PT_SETQTRACE	(PT_FIRSTMACH + 101)
+
 #endif

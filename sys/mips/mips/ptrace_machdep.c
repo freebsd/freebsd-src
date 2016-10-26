@@ -25,13 +25,41 @@
  *
  */
 
-#if 0
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-/*
- * This file is a place holder for MIPS.  Some models of MIPS may need special
- * functions here, but for now nothing is needed.  The MI parts of ptrace
- * suffice.
- */
+#include <sys/types.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/proc.h>
+#include <sys/ptrace.h>
+
+int
+cpu_ptrace(struct thread *td, int req, void *addr, int data)
+{
+	int error;
+
+	switch (req) {
+#ifdef CPU_QEMU_MALTA
+	case PT_GETQTRACE:
+		curthread->td_retval[0] = (td->td_md.md_flags & MDTD_QTRACE) ?
+		    1 : 0;
+		error = 0;
+		break;
+	case PT_SETQTRACE:
+		thread_lock(td);
+		if (data)
+			td->td_md.md_flags |= MDTD_QTRACE;
+		else
+			td->td_md.md_flags &= ~MDTD_QTRACE;
+		thread_unlock(td);
+		error = 0;
+		break;
 #endif
+	default:
+		error = EINVAL;
+		break;
+	}
+
+	return (error);
+}
