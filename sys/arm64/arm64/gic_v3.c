@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr.h>
 
 #ifdef FDT
+#include <dev/fdt/fdt_intr.h>
 #include <dev/ofw/ofw_bus_subr.h>
 #endif
 
@@ -470,20 +471,20 @@ gic_map_fdt(device_t dev, u_int ncells, pcell_t *cells, u_int *irqp,
 		return (EINVAL);
 	}
 
-	switch (cells[2] & 0xf) {
-	case 1:
+	switch (cells[2] & FDT_INTR_MASK) {
+	case FDT_INTR_EDGE_RISING:
 		*trigp = INTR_TRIGGER_EDGE;
 		*polp = INTR_POLARITY_HIGH;
 		break;
-	case 2:
+	case FDT_INTR_EDGE_FALLING:
 		*trigp = INTR_TRIGGER_EDGE;
 		*polp = INTR_POLARITY_LOW;
 		break;
-	case 4:
+	case FDT_INTR_LEVEL_HIGH:
 		*trigp = INTR_TRIGGER_LEVEL;
 		*polp = INTR_POLARITY_HIGH;
 		break;
-	case 8:
+	case FDT_INTR_LEVEL_LOW:
 		*trigp = INTR_TRIGGER_LEVEL;
 		*polp = INTR_POLARITY_LOW;
 		break;

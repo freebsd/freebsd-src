@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/smp.h>
 
 #include <dev/fdt/fdt_common.h>
+#include <dev/fdt/fdt_intr.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <arm/arm/gic.h>
@@ -821,13 +822,15 @@ gic_map_fdt(device_t dev, u_int ncells, pcell_t *cells, u_int *irqp,
 		}
 
 		tripol = cells[2] & 0xff;
-		if (tripol & 0xf0 || (tripol & 0x0a && cells[0] == 0))
+		if (tripol & 0xf0 || (tripol & FDT_INTR_LOW_MASK &&
+		    cells[0] == 0))
 			device_printf(dev, "unsupported trigger/polarity "
 			    "configuration 0x%02x\n", tripol);
 
 		*irqp = irq;
 		*polp = INTR_POLARITY_CONFORM;
-		*trigp = tripol & 0x03 ? INTR_TRIGGER_EDGE : INTR_TRIGGER_LEVEL;
+		*trigp = tripol & FDT_INTR_EDGE_MASK ?
+		    INTR_TRIGGER_EDGE : INTR_TRIGGER_LEVEL;
 		return (0);
 	}
 	return (EINVAL);
