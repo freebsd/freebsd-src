@@ -2675,13 +2675,13 @@ ses_get_elm_devnames(enc_softc_t *enc, encioc_elm_devnames_t *elmdn)
 	if (len < 0)
 		return (EINVAL);
 
-	sbuf_new(&sb, elmdn->elm_devnames, len, 0);
-
 	cam_periph_unlock(enc->periph);
+	sbuf_new(&sb, NULL, len, SBUF_FIXEDLEN);
 	ses_paths_iter(enc, &enc->enc_cache.elm_map[elmdn->elm_idx],
 		       ses_elmdevname_callback, &sb);
 	sbuf_finish(&sb);
 	elmdn->elm_names_len = sbuf_len(&sb);
+	copyout(sbuf_data(&sb), elmdn->elm_devnames, elmdn->elm_names_len + 1);
 	cam_periph_lock(enc->periph);
 	return (elmdn->elm_names_len > 0 ? 0 : ENODEV);
 }
