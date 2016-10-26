@@ -38,7 +38,6 @@
 
 #ifdef FDT
 #include <dev/ofw/ofw_bus_subr.h>
-#include <gnu/dts/include/dt-bindings/gpio/gpio.h>
 #endif
 
 #ifdef	INTRNG
