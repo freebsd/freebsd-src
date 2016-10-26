@@ -250,7 +250,7 @@ print_registers(struct trapframe *frame)
 {
 	u_int reg;
 
-	for (reg = 0; reg < 31; reg++) {
+	for (reg = 0; reg < nitems(frame->tf_x); reg++) {
 		printf(" %sx%d: %16lx\n", (reg < 10) ? " " : "", reg,
 		    frame->tf_x[reg]);
 	}
