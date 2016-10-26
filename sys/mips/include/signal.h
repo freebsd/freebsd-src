@@ -68,10 +68,13 @@ struct	sigcontext {
 	int		sc_onstack;	/* sigstack state to restore */
 	__register_t	sc_pc;		/* pc at time of signal */
 	__register_t	sc_regs[32];	/* processor regs 0 to 31 */
+	__register_t	sr;		/* status register */
 	__register_t	mullo, mulhi;	/* mullo and mulhi registers... */
 	int		sc_fpused;	/* fp has been used */
 	f_register_t	sc_fpregs[33];	/* fp regs 0 to 31 and csr */
 	__register_t	sc_fpc_eir;	/* fp exception instruction reg */
+	void		*sc_tls;	/* pointer to TLS area */
+	__register_t	cause;		/* cause register */
 
 	/*
 	 * Optional externally referenced storage for coprocessors.  Modeled
@@ -88,9 +91,9 @@ struct	sigcontext {
 	 * differently.
 	 */
 #if (defined(__mips_n32) || defined(__mips_n64))
-	int		xxx[4];		/* XXX reserved */
+	int		__spare__[2];	/* XXX reserved */
 #else
-	int		xxx[6];		/* XXX reserved */
+	int		__spare__[5];	/* XXX reserved */
 #endif
 };
 
