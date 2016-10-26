@@ -310,15 +310,6 @@ struct aw_pll_funcs {
 #define	DEVICE_UNLOCK(sc)	CLKDEV_DEVICE_UNLOCK((sc)->clkdev)
 
 static int
-a10_pll1_init(device_t dev, bus_addr_t reg, struct clknode_init_def *def)
-{
-	/* Allow changing PLL frequency while enabled */
-	def->flags = CLK_NODE_GLITCH_FREE;
-
-	return (0);
-}
-
-static int
 a10_pll1_set_freq(struct aw_pll_sc *sc, uint64_t fin, uint64_t *fout,
     int flags)
 {
@@ -999,7 +990,7 @@ a83t_pllcpux_set_freq(struct aw_pll_sc *sc, uint64_t fin, uint64_t *fout,
 	}
 
 static struct aw_pll_funcs aw_pll_func[] = {
-	PLL(AWPLL_A10_PLL1, a10_pll1_recalc, a10_pll1_set_freq, a10_pll1_init),
+	PLL(AWPLL_A10_PLL1, a10_pll1_recalc, a10_pll1_set_freq, NULL),
 	PLL(AWPLL_A10_PLL2, a10_pll2_recalc, a10_pll2_set_freq, NULL),
 	PLL(AWPLL_A10_PLL3, a10_pll3_recalc, a10_pll3_set_freq, a10_pll3_init),
 	PLL(AWPLL_A10_PLL5, a10_pll5_recalc, NULL, NULL),
