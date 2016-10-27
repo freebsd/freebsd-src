@@ -34,26 +34,30 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#include <net/if.h>
-#include <net/if_arp.h>
-#include <net/if_var.h>
+#include <sys/taskqueue.h>
+
+#include <machine/atomic.h>
+
 #include <net/ethernet.h>
+#include <net/if.h>
+#include <net/if_var.h>
+#include <net/if_media.h>
 #include <net/rndis.h>
+
 #include <netinet/in.h>
 #include <netinet/ip.h>
-#include <sys/types.h>
-#include <machine/atomic.h>
-#include <sys/sema.h>
-#include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/pmap.h>
+#include <netinet/tcp_lro.h>
 
 #include <dev/hyperv/include/hyperv.h>
+#include <dev/hyperv/include/hyperv_busdma.h>
+#include <dev/hyperv/include/vmbus.h>
 #include <dev/hyperv/include/vmbus_xact.h>
+
+#include <dev/hyperv/netvsc/ndis.h>
+#include <dev/hyperv/netvsc/if_hnreg.h>
+#include <dev/hyperv/netvsc/if_hnvar.h>
 #include <dev/hyperv/netvsc/hv_net_vsc.h>
 #include <dev/hyperv/netvsc/hv_rndis_filter.h>
-#include <dev/hyperv/netvsc/if_hnreg.h>
-#include <dev/hyperv/netvsc/ndis.h>
 
 #define HV_RF_RECVINFO_VLAN	0x1
 #define HV_RF_RECVINFO_CSUM	0x2
@@ -549,7 +553,7 @@ hn_rndis_get_linkstatus(struct hn_softc *sc, uint32_t *link_status)
 
 static const void *
 hn_rndis_xact_exec1(struct hn_softc *sc, struct vmbus_xact *xact, size_t reqlen,
-    struct hn_send_ctx *sndc, size_t *comp_len)
+    struct hn_nvs_sendctx *sndc, size_t *comp_len)
 {
 	struct vmbus_gpa gpa[HN_XACT_REQ_PGCNT];
 	int gpa_cnt, error;
@@ -608,7 +612,7 @@ hn_rndis_xact_execute(struct hn_softc *sc, struct vmbus_xact *xact, uint32_t rid
 	/*
 	 * Execute the xact setup by the caller.
 	 */
-	comp = hn_rndis_xact_exec1(sc, xact, reqlen, &hn_send_ctx_none,
+	comp = hn_rndis_xact_exec1(sc, xact, reqlen, &hn_nvs_sendctx_none,
 	    &comp_len);
 	if (comp == NULL)
 		return (NULL);
@@ -1214,7 +1218,7 @@ hn_rndis_halt(struct hn_softc *sc)
 {
 	struct vmbus_xact *xact;
 	struct rndis_halt_req *halt;
-	struct hn_send_ctx sndc;
+	struct hn_nvs_sendctx sndc;
 	size_t comp_len;
 
 	xact = vmbus_xact_get(sc->hn_xact, sizeof(*halt));
@@ -1228,7 +1232,7 @@ hn_rndis_halt(struct hn_softc *sc)
 	halt->rm_rid = hn_rndis_rid(sc);
 
 	/* No RNDIS completion; rely on NVS message send completion */
-	hn_send_ctx_init(&sndc, hn_nvs_sent_xact, xact);
+	hn_nvs_sendctx_init(&sndc, hn_nvs_sent_xact, xact);
 	hn_rndis_xact_exec1(sc, xact, sizeof(*halt), &sndc, &comp_len);
 
 	vmbus_xact_put(xact);
