@@ -66,8 +66,6 @@
 
 #define HN_USE_TXDESC_BUFRING
 
-MALLOC_DECLARE(M_NETVSC);
-
 /*
  * The following arguably belongs in a separate header file
  */
