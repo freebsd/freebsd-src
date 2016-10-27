@@ -46,6 +46,9 @@ strstr(const char *s, const char *find)
 {
 	char c, sc;
 	size_t len;
+	
+	if (!s || !find)
+        	return ((char *)s);
 
 	if ((c = *find++) != '\0') {
 		len = strlen(find);
