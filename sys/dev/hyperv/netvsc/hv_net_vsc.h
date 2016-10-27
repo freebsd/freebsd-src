@@ -31,31 +31,76 @@
 #ifndef __HV_NET_VSC_H__
 #define __HV_NET_VSC_H__
 
-#include <sys/param.h>
-#include <sys/kernel.h>
-#include <sys/lock.h>
-#include <sys/malloc.h>
-#include <sys/queue.h>
-#include <sys/taskqueue.h>
-#include <sys/sema.h>
-#include <sys/sx.h>
+struct hn_nvs_sendctx;
+struct vmbus_channel;
+struct hn_softc;
 
-#include <machine/bus.h>
-#include <sys/bus.h>
-#include <sys/bus_dma.h>
+typedef void		(*hn_nvs_sent_t)
+			(struct hn_nvs_sendctx *, struct hn_softc *,
+			 struct vmbus_channel *, const void *, int);
 
-#include <netinet/in.h>
-#include <netinet/tcp_lro.h>
+struct hn_nvs_sendctx {
+	hn_nvs_sent_t	hn_cb;
+	void		*hn_cbarg;
+};
 
-#include <net/ethernet.h>
-#include <net/if.h>
-#include <net/if_media.h>
+#define HN_NVS_SENDCTX_INITIALIZER(cb, cbarg)	\
+{						\
+	.hn_cb		= cb,			\
+	.hn_cbarg	= cbarg			\
+}
 
-#include <dev/hyperv/include/hyperv.h>
-#include <dev/hyperv/include/hyperv_busdma.h>
-#include <dev/hyperv/include/vmbus.h>
+static __inline void
+hn_nvs_sendctx_init(struct hn_nvs_sendctx *sndc, hn_nvs_sent_t cb, void *cbarg)
+{
 
-#include <dev/hyperv/netvsc/ndis.h>
+	sndc->hn_cb = cb;
+	sndc->hn_cbarg = cbarg;
+}
+
+static __inline int
+hn_nvs_send(struct vmbus_channel *chan, uint16_t flags,
+    void *nvs_msg, int nvs_msglen, struct hn_nvs_sendctx *sndc)
+{
+
+	return (vmbus_chan_send(chan, VMBUS_CHANPKT_TYPE_INBAND, flags,
+	    nvs_msg, nvs_msglen, (uint64_t)(uintptr_t)sndc));
+}
+
+static __inline int
+hn_nvs_send_sglist(struct vmbus_channel *chan, struct vmbus_gpa sg[], int sglen,
+    void *nvs_msg, int nvs_msglen, struct hn_nvs_sendctx *sndc)
+{
+
+	return (vmbus_chan_send_sglist(chan, sg, sglen, nvs_msg, nvs_msglen,
+	    (uint64_t)(uintptr_t)sndc));
+}
+
+static __inline int
+hn_nvs_send_rndis_sglist(struct vmbus_channel *chan, uint32_t rndis_mtype,
+    struct hn_nvs_sendctx *sndc, struct vmbus_gpa *gpa, int gpa_cnt)
+{
+	struct hn_nvs_rndis rndis;
+
+	rndis.nvs_type = HN_NVS_TYPE_RNDIS;
+	rndis.nvs_rndis_mtype = rndis_mtype;
+	rndis.nvs_chim_idx = HN_NVS_CHIM_IDX_INVALID;
+	rndis.nvs_chim_sz = 0;
+
+	return (hn_nvs_send_sglist(chan, gpa, gpa_cnt,
+	    &rndis, sizeof(rndis), sndc));
+}
+
+int		hn_nvs_attach(struct hn_softc *sc, int mtu);
+void		hn_nvs_detach(struct hn_softc *sc);
+int		hn_nvs_alloc_subchans(struct hn_softc *sc, int *nsubch);
+void		hn_nvs_sent_xact(struct hn_nvs_sendctx *sndc,
+		    struct hn_softc *sc, struct vmbus_channel *chan,
+		    const void *data, int dlen);
+int		hn_nvs_send_rndis_ctrl(struct vmbus_channel *chan,
+		    struct hn_nvs_sendctx *sndc, struct vmbus_gpa *gpa,
+		    int gpa_cnt);
+
+extern struct hn_nvs_sendctx	hn_nvs_sendctx_none;
 
 #endif  /* __HV_NET_VSC_H__ */
-
