@@ -329,6 +329,7 @@ static int hn_hwassist_sysctl(SYSCTL_HANDLER_ARGS);
 static int hn_rxfilter_sysctl(SYSCTL_HANDLER_ARGS);
 static int hn_rss_key_sysctl(SYSCTL_HANDLER_ARGS);
 static int hn_rss_ind_sysctl(SYSCTL_HANDLER_ARGS);
+static int hn_rss_hash_sysctl(SYSCTL_HANDLER_ARGS);
 static int hn_check_iplen(const struct mbuf *, int);
 static int hn_create_tx_ring(struct hn_softc *, int);
 static void hn_destroy_tx_ring(struct hn_tx_ring *);
@@ -770,6 +771,11 @@ netvsc_attach(device_t dev)
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "rxfilter",
 	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
 	    hn_rxfilter_sysctl, "A", "rxfilter");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "rss_hash",
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
+	    hn_rss_hash_sysctl, "A", "RSS hash");
+	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "rss_ind_size",
+	    CTLFLAG_RD, &sc->hn_rss_ind_size, 0, "RSS indirect entry count");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "rss_key",
 	    CTLTYPE_OPAQUE | CTLFLAG_RW | CTLFLAG_MPSAFE, sc, 0,
 	    hn_rss_key_sysctl, "IU", "RSS key");
@@ -2479,6 +2485,20 @@ back:
 }
 
 static int
+hn_rss_hash_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct hn_softc *sc = arg1;
+	char hash_str[128];
+	uint32_t hash;
+
+	HN_LOCK(sc);
+	hash = sc->hn_rss_hash;
+	HN_UNLOCK(sc);
+	snprintf(hash_str, sizeof(hash_str), "%b", hash, NDIS_HASH_BITS);
+	return sysctl_handle_string(oidp, hash_str, sizeof(hash_str), req);
+}
+
+static int
 hn_check_iplen(const struct mbuf *m, int hoff)
 {
 	const struct ip *ip;
@@ -3642,6 +3662,10 @@ hn_synth_attach(struct hn_softc *sc, int mtu)
 	old_caps = sc->hn_caps;
 	sc->hn_caps = 0;
 
+	/* Clear RSS stuffs. */
+	sc->hn_rss_ind_size = 0;
+	sc->hn_rss_hash = 0;
+
 	/*
 	 * Attach the primary channel _before_ attaching NVS and RNDIS.
 	 */
@@ -3716,7 +3740,6 @@ hn_synth_attach(struct hn_softc *sc, int mtu)
 			if_printf(sc->hn_ifp, "setup default RSS indirect "
 			    "table\n");
 		}
-		/* TODO: Take ndis_rss_caps.ndis_nind into account. */
 		for (i = 0; i < NDIS_HASH_INDCNT; ++i)
 			rss->rss_ind[i] = i % nchan;
 		sc->hn_flags |= HN_FLAG_HAS_RSSIND;
