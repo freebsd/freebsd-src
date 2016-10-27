@@ -913,7 +913,7 @@ nm_bdg_create_kthreads(struct nm_bdg_polling_state *bps)
 
 		kcfg.type = i;
 		kcfg.worker_private = t;
-		t->nmk = nm_os_kthread_create(&kcfg);
+		t->nmk = nm_os_kthread_create(&kcfg, 0, NULL);
 		if (t->nmk == NULL) {
 			goto cleanup;
 		}
