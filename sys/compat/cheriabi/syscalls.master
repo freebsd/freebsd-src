@@ -474,11 +474,12 @@
 227	AUE_MSGRCV	NOSTD|NOPROTO	{ int msgrcv(int msqid, \
 				    _Out_writes_bytes_(msgsz) void *msgp, \
 				    size_t msgsz, long msgtyp, int msgflg); }
-228	AUE_SHMAT	NOSTD|NOPARSE	{ void *cheriabi_shmat( \
-				    int shmid, void *shmaddr, int shmflg); }
+228	AUE_SHMAT	NOSTD|NOPROTO	{ void *shmat( int shmid, \
+				    _Pagerange_vmmap_opt_(1)void *shmaddr, \
+				    int shmflg); }
 229	AUE_SHMCTL	OBSOL	shmctl
-230	AUE_SHMDT	NOSTD|NOPARSE { int cheriabi_shmdt( \
-				    void *shmaddr); }
+230	AUE_SHMDT	NOSTD|NOPROTO	{ int shmdt( \
+				    _Pagerange_vmmap_opt_(1) void *shmaddr); }
 231	AUE_SHMGET	NOSTD|NOPROTO	{ int shmget(key_t key, int size, \
 				    int shmflg); }
 232	AUE_NULL	NOPROTO	{ int clock_gettime(clockid_t clock_id, \

@@ -3262,11 +3262,57 @@ CHERIABI_SYS_msgrcv_fill_uap(struct thread *td,
 	return (0);
 }
 
-static inline int	CHERIABI_SYS_cheriabi_shmat_fill_uap(struct thread *td,
-    struct cheriabi_shmat_args *uap);
+static inline int
+CHERIABI_SYS_shmat_fill_uap(struct thread *td,
+    struct shmat_args *uap)
+{
+	struct chericap tmpcap;
 
-static inline int	CHERIABI_SYS_cheriabi_shmdt_fill_uap(struct thread *td,
-    struct cheriabi_shmdt_args *uap);
+	/* [0] int shmid */
+	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_shmat, 0);
+	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
+	CHERI_CTOINT(uap->shmid, CHERI_CR_CTEMP0);
+
+	/* [2] int shmflg */
+	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_shmat, 2);
+	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
+	CHERI_CTOINT(uap->shmflg, CHERI_CR_CTEMP0);
+
+	/* [1] _Pagerange_vmmap_opt_(1) void * shmaddr */
+	{
+		int error;
+		register_t reqperms = (CHERI_PERM_CHERIABI_VMMAP);
+
+		cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_shmat, 1);
+		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->shmaddr),
+		    &tmpcap, 1, reqperms, 1);
+		if (error != 0)
+			return (error);
+	}
+
+	return (0);
+}
+
+static inline int
+CHERIABI_SYS_shmdt_fill_uap(struct thread *td,
+    struct shmdt_args *uap)
+{
+	struct chericap tmpcap;
+
+	/* [0] _Pagerange_vmmap_opt_(1) void * shmaddr */
+	{
+		int error;
+		register_t reqperms = (CHERI_PERM_CHERIABI_VMMAP);
+
+		cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_shmdt, 0);
+		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->shmaddr),
+		    &tmpcap, 1, reqperms, 1);
+		if (error != 0)
+			return (error);
+	}
+
+	return (0);
+}
 
 static inline int
 CHERIABI_SYS_shmget_fill_uap(struct thread *td,

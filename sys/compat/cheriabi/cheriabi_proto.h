@@ -95,14 +95,6 @@ struct cheriabi_sysarch_args {
 	char op_l_[PADL_(int)]; int op; char op_r_[PADR_(int)];
 	char parms_l_[PADL_(char *)]; char * parms; char parms_r_[PADR_(char *)];
 };
-struct cheriabi_shmat_args {
-	char shmid_l_[PADL_(int)]; int shmid; char shmid_r_[PADR_(int)];
-	char shmaddr_l_[PADL_(void *)]; void * shmaddr; char shmaddr_r_[PADR_(void *)];
-	char shmflg_l_[PADL_(int)]; int shmflg; char shmflg_r_[PADR_(int)];
-};
-struct cheriabi_shmdt_args {
-	char shmaddr_l_[PADL_(void *)]; void * shmaddr; char shmaddr_r_[PADR_(void *)];
-};
 struct cheriabi_ktimer_create_args {
 	char clock_id_l_[PADL_(clockid_t)]; clockid_t clock_id; char clock_id_r_[PADR_(clockid_t)];
 	char evp_l_[PADL_(struct sigevent_c *)]; struct sigevent_c * evp; char evp_r_[PADR_(struct sigevent_c *)];
@@ -359,8 +351,6 @@ int	cheriabi_writev(struct thread *, struct cheriabi_writev_args *);
 int	cheriabi_nlm_syscall(struct thread *, struct cheriabi_nlm_syscall_args *);
 int	cheriabi_nfssvc(struct thread *, struct cheriabi_nfssvc_args *);
 int	cheriabi_sysarch(struct thread *, struct cheriabi_sysarch_args *);
-int	cheriabi_shmat(struct thread *, struct cheriabi_shmat_args *);
-int	cheriabi_shmdt(struct thread *, struct cheriabi_shmdt_args *);
 int	cheriabi_ktimer_create(struct thread *, struct cheriabi_ktimer_create_args *);
 int	cheriabi_aio_read(struct thread *, struct cheriabi_aio_read_args *);
 int	cheriabi_aio_write(struct thread *, struct cheriabi_aio_write_args *);
@@ -468,8 +458,6 @@ int	cheriabi_procctl(struct thread *, struct cheriabi_procctl_args *);
 #define	CHERIABI_SYS_AUE_cheriabi_nlm_syscall	AUE_NULL
 #define	CHERIABI_SYS_AUE_cheriabi_nfssvc	AUE_NFS_SVC
 #define	CHERIABI_SYS_AUE_cheriabi_sysarch	AUE_SYSARCH
-#define	CHERIABI_SYS_AUE_cheriabi_shmat	AUE_SHMAT
-#define	CHERIABI_SYS_AUE_cheriabi_shmdt	AUE_SHMDT
 #define	CHERIABI_SYS_AUE_cheriabi_ktimer_create	AUE_NULL
 #define	CHERIABI_SYS_AUE_cheriabi_aio_read	AUE_NULL
 #define	CHERIABI_SYS_AUE_cheriabi_aio_write	AUE_NULL

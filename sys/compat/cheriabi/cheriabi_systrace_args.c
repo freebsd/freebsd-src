@@ -1103,18 +1103,18 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 5;
 		break;
 	}
-	/* cheriabi_shmat */
+	/* shmat */
 	case 228: {
-		struct cheriabi_shmat_args *p = params;
+		struct shmat_args *p = params;
 		iarg[0] = p->shmid; /* int */
 		uarg[1] = (intptr_t) p->shmaddr; /* void * */
 		iarg[2] = p->shmflg; /* int */
 		*n_args = 3;
 		break;
 	}
-	/* cheriabi_shmdt */
+	/* shmdt */
 	case 230: {
-		struct cheriabi_shmdt_args *p = params;
+		struct shmdt_args *p = params;
 		uarg[0] = (intptr_t) p->shmaddr; /* void * */
 		*n_args = 1;
 		break;
@@ -4873,7 +4873,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* cheriabi_shmat */
+	/* shmat */
 	case 228:
 		switch(ndx) {
 		case 0:
@@ -4889,7 +4889,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* cheriabi_shmdt */
+	/* shmdt */
 	case 230:
 		switch(ndx) {
 		case 0:
@@ -8989,12 +8989,12 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* cheriabi_shmat */
+	/* shmat */
 	case 228:
 		if (ndx == 0 || ndx == 1)
 			p = "*";
 		break;
-	/* cheriabi_shmdt */
+	/* shmdt */
 	case 230:
 		if (ndx == 0 || ndx == 1)
 			p = "int";

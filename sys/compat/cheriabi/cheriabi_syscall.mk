@@ -131,8 +131,8 @@ MIASM =  \
 	msgget.o \
 	msgsnd.o \
 	msgrcv.o \
-	cheriabi_shmat.o \
-	cheriabi_shmdt.o \
+	shmat.o \
+	shmdt.o \
 	shmget.o \
 	clock_gettime.o \
 	clock_settime.o \

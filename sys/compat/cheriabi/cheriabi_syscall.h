@@ -203,9 +203,9 @@
 #define	CHERIABI_SYS_msgget	225
 #define	CHERIABI_SYS_msgsnd	226
 #define	CHERIABI_SYS_msgrcv	227
-#define	CHERIABI_SYS_cheriabi_shmat	228
+#define	CHERIABI_SYS_shmat	228
 				/* 229 is obsolete shmctl */
-#define	CHERIABI_SYS_cheriabi_shmdt	230
+#define	CHERIABI_SYS_shmdt	230
 #define	CHERIABI_SYS_shmget	231
 #define	CHERIABI_SYS_clock_gettime	232
 #define	CHERIABI_SYS_clock_settime	233
