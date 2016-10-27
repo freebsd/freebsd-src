@@ -3849,8 +3849,8 @@ hn_suspend_data(struct hn_softc *sc)
 	/*
 	 * Disable RX by clearing RX filter.
 	 */
-	hn_rndis_set_rxfilter(sc, 0);
-	sc->hn_rx_filter = 0;
+	sc->hn_rx_filter = NDIS_PACKET_TYPE_NONE;
+	hn_rndis_set_rxfilter(sc, sc->hn_rx_filter);
 
 	/*
 	 * Give RNDIS enough time to flush all pending data packets.
