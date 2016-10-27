@@ -73,6 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/buf_ring.h>
+#include <sys/taskqueue.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -91,6 +92,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip.h>
 #include <netinet/if_ether.h>
 #include <netinet/tcp.h>
+#include <netinet/tcp_lro.h>
 #include <netinet/udp.h>
 #include <netinet/ip6.h>
 
@@ -116,11 +118,14 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/hyperv/include/hyperv.h>
 #include <dev/hyperv/include/hyperv_busdma.h>
+#include <dev/hyperv/include/vmbus.h>
 #include <dev/hyperv/include/vmbus_xact.h>
 
+#include <dev/hyperv/netvsc/ndis.h>
+#include <dev/hyperv/netvsc/if_hnreg.h>
+#include <dev/hyperv/netvsc/if_hnvar.h>
 #include <dev/hyperv/netvsc/hv_net_vsc.h>
 #include <dev/hyperv/netvsc/hv_rndis_filter.h>
-#include <dev/hyperv/netvsc/ndis.h>
 
 #include "vmbus_if.h"
 
@@ -155,7 +160,7 @@ __FBSDID("$FreeBSD$");
 #define HN_TX_DATA_MAXSIZE		IP_MAXPACKET
 #define HN_TX_DATA_SEGSIZE		PAGE_SIZE
 /* -1 for RNDIS packet message */
-#define HN_TX_DATA_SEGCNT_MAX		(NETVSC_PACKET_MAXPAGE - 1)
+#define HN_TX_DATA_SEGCNT_MAX		(HN_GPACNT_MAX - 1)
 
 #define HN_DIRECT_TX_SIZE_DEF		128
 
@@ -1855,7 +1860,7 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 	switch (cmd) {
 	case SIOCSIFMTU:
-		if (ifr->ifr_mtu > NETVSC_MAX_CONFIGURABLE_MTU) {
+		if (ifr->ifr_mtu > HN_MTU_MAX) {
 			error = EINVAL;
 			break;
 		}
@@ -2631,7 +2636,7 @@ hn_create_rx_data(struct hn_softc *sc, int ring_cnt)
 	 *   may further limit the usable space.
 	 */
 	sc->hn_rxbuf = hyperv_dmamem_alloc(bus_get_dma_tag(dev),
-	    PAGE_SIZE, 0, NETVSC_RECEIVE_BUFFER_SIZE, &sc->hn_rxbuf_dma,
+	    PAGE_SIZE, 0, HN_RXBUF_SIZE, &sc->hn_rxbuf_dma,
 	    BUS_DMA_WAITOK | BUS_DMA_ZERO);
 	if (sc->hn_rxbuf == NULL) {
 		device_printf(sc->hn_dev, "allocate rxbuf failed\n");
@@ -2665,9 +2670,7 @@ hn_create_rx_data(struct hn_softc *sc, int ring_cnt)
 		struct hn_rx_ring *rxr = &sc->hn_rx_ring[i];
 
 		rxr->hn_br = hyperv_dmamem_alloc(bus_get_dma_tag(dev),
-		    PAGE_SIZE, 0,
-		    NETVSC_DEVICE_RING_BUFFER_SIZE +
-		    NETVSC_DEVICE_RING_BUFFER_SIZE,
+		    PAGE_SIZE, 0, HN_TXBR_SIZE + HN_RXBR_SIZE,
 		    &rxr->hn_br_dma, BUS_DMA_WAITOK);
 		if (rxr->hn_br == NULL) {
 			device_printf(dev, "allocate bufring failed\n");
@@ -2683,7 +2686,7 @@ hn_create_rx_data(struct hn_softc *sc, int ring_cnt)
 		rxr->hn_ifp = sc->hn_ifp;
 		if (i < sc->hn_tx_ring_cnt)
 			rxr->hn_txr = &sc->hn_tx_ring[i];
-		rxr->hn_rdbuf = malloc(NETVSC_PACKET_SIZE, M_DEVBUF, M_WAITOK);
+		rxr->hn_pktbuf = malloc(HN_PKTBUF_LEN, M_DEVBUF, M_WAITOK);
 		rxr->hn_rx_idx = i;
 		rxr->hn_rxbuf = sc->hn_rxbuf;
 
@@ -2830,7 +2833,7 @@ hn_destroy_rx_data(struct hn_softc *sc)
 #if defined(INET) || defined(INET6)
 		tcp_lro_free(&rxr->hn_lro);
 #endif
-		free(rxr->hn_rdbuf, M_DEVBUF);
+		free(rxr->hn_pktbuf, M_DEVBUF);
 	}
 	free(sc->hn_rx_ring, M_DEVBUF);
 	sc->hn_rx_ring = NULL;
@@ -3090,7 +3093,7 @@ hn_create_tx_data(struct hn_softc *sc, int ring_cnt)
 	 * NOTE: It is shared by all channels.
 	 */
 	sc->hn_chim = hyperv_dmamem_alloc(bus_get_dma_tag(sc->hn_dev),
-	    PAGE_SIZE, 0, NETVSC_SEND_BUFFER_SIZE, &sc->hn_chim_dma,
+	    PAGE_SIZE, 0, HN_CHIM_SIZE, &sc->hn_chim_dma,
 	    BUS_DMA_WAITOK | BUS_DMA_ZERO);
 	if (sc->hn_chim == NULL) {
 		device_printf(sc->hn_dev, "allocate txbuf failed\n");
@@ -3508,8 +3511,8 @@ hn_chan_attach(struct hn_softc *sc, struct vmbus_channel *chan)
 	 */
 	cbr.cbr = rxr->hn_br;
 	cbr.cbr_paddr = rxr->hn_br_dma.hv_paddr;
-	cbr.cbr_txsz = NETVSC_DEVICE_RING_BUFFER_SIZE;
-	cbr.cbr_rxsz = NETVSC_DEVICE_RING_BUFFER_SIZE;
+	cbr.cbr_txsz = HN_TXBR_SIZE;
+	cbr.cbr_rxsz = HN_RXBR_SIZE;
 	error = vmbus_chan_open_br(chan, &cbr, NULL, 0, hn_chan_callback, rxr);
 	if (error) {
 		if_printf(sc->hn_ifp, "open chan%u failed: %d\n",
@@ -4126,7 +4129,7 @@ hn_nvs_handle_rxbuf(struct hn_softc *sc, struct hn_rx_ring *rxr,
 
 		ofs = pkt->cp_rxbuf[i].rb_ofs;
 		len = pkt->cp_rxbuf[i].rb_len;
-		if (__predict_false(ofs + len > NETVSC_RECEIVE_BUFFER_SIZE)) {
+		if (__predict_false(ofs + len > HN_RXBUF_SIZE)) {
 			if_printf(rxr->hn_ifp, "%dth RNDIS msg overflow rxbuf, "
 			    "ofs %d, len %d\n", i, ofs, len);
 			continue;
@@ -4181,9 +4184,9 @@ hn_chan_callback(struct vmbus_channel *chan, void *xrxr)
 	struct hn_rx_ring *rxr = xrxr;
 	struct hn_softc *sc = rxr->hn_ifp->if_softc;
 	void *buffer;
-	int bufferlen = NETVSC_PACKET_SIZE;
+	int bufferlen = HN_PKTBUF_LEN;
 
-	buffer = rxr->hn_rdbuf;
+	buffer = rxr->hn_pktbuf;
 	do {
 		struct vmbus_chanpkt_hdr *pkt = buffer;
 		uint32_t bytes_rxed;
@@ -4210,7 +4213,7 @@ hn_chan_callback(struct vmbus_channel *chan, void *xrxr)
 			}
 		} else if (ret == ENOBUFS) {
 			/* Handle large packet */
-			if (bufferlen > NETVSC_PACKET_SIZE) {
+			if (bufferlen > HN_PKTBUF_LEN) {
 				free(buffer, M_DEVBUF);
 				buffer = NULL;
 			}
@@ -4231,7 +4234,7 @@ hn_chan_callback(struct vmbus_channel *chan, void *xrxr)
 		}
 	} while (1);
 
-	if (bufferlen > NETVSC_PACKET_SIZE)
+	if (bufferlen > HN_PKTBUF_LEN)
 		free(buffer, M_DEVBUF);
 
 	hv_rf_channel_rollup(rxr, rxr->hn_txr);
