@@ -52,8 +52,6 @@
 #include <dev/hyperv/netvsc/if_hnreg.h>
 #include <dev/hyperv/netvsc/if_hnvar.h>
 
-MALLOC_DEFINE(M_NETVSC, "netvsc", "Hyper-V netvsc driver");
-
 /*
  * Forward declarations
  */
@@ -308,7 +306,7 @@ hn_nvs_conn_chim(struct hn_softc *sc)
 
 	sc->hn_chim_bmap_cnt = sc->hn_chim_cnt / LONG_BIT;
 	sc->hn_chim_bmap = malloc(sc->hn_chim_bmap_cnt * sizeof(u_long),
-	    M_NETVSC, M_WAITOK | M_ZERO);
+	    M_DEVBUF, M_WAITOK | M_ZERO);
 
 	/* Done! */
 	sc->hn_flags |= HN_FLAG_CHIM_CONNECTED;
@@ -427,7 +425,7 @@ hn_nvs_disconn_chim(struct hn_softc *sc)
 	}
 
 	if (sc->hn_chim_bmap != NULL) {
-		free(sc->hn_chim_bmap, M_NETVSC);
+		free(sc->hn_chim_bmap, M_DEVBUF);
 		sc->hn_chim_bmap = NULL;
 	}
 	return (0);
