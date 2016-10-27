@@ -1318,7 +1318,7 @@ invlcache_handler(void)
 	 * Reading the generation here allows greater parallelism
 	 * since wbinvd is a serializing instruction.  Without the
 	 * temporary, we'd wait for wbinvd to complete, then the read
-	 * would execute, then the dependent write, whuch must then
+	 * would execute, then the dependent write, which must then
 	 * complete before return from interrupt.
 	 */
 	generation = smp_tlb_generation;
