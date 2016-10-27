@@ -255,6 +255,8 @@ struct hn_softc {
 	int			hn_ndis_tso_szmax;
 	int			hn_ndis_tso_sgmin;
 
+	int			hn_rss_ind_size;
+	uint32_t		hn_rss_hash;	/* NDIS_HASH_ */
 	struct ndis_rssprm_toeplitz hn_rss;
 };
 
