@@ -2379,18 +2379,7 @@ hn_caps_sysctl(SYSCTL_HANDLER_ARGS)
 	HN_LOCK(sc);
 	caps = sc->hn_caps;
 	HN_UNLOCK(sc);
-	snprintf(caps_str, sizeof(caps_str), "%b", caps,
-	    "\020"
-	    "\001VLAN"
-	    "\002MTU"
-	    "\003IPCS"
-	    "\004TCP4CS"
-	    "\005TCP6CS"
-	    "\006UDP4CS"
-	    "\007UDP6CS"
-	    "\010TSO4"
-	    "\011TSO6"
-	    "\012HASHVAL");
+	snprintf(caps_str, sizeof(caps_str), "%b", caps, HN_CAP_BITS);
 	return sysctl_handle_string(oidp, caps_str, sizeof(caps_str), req);
 }
 
