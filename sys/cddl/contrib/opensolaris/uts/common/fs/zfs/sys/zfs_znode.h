@@ -355,6 +355,8 @@ extern zil_get_data_t zfs_get_data;
 extern zil_replay_func_t *zfs_replay_vector[TX_MAX_TYPE];
 extern int zfsfstype;
 
+extern int zfs_znode_parent_and_name(znode_t *zp, znode_t **dzpp, char *buf);
+
 #endif /* _KERNEL */
 
 extern int zfs_obj_to_path(objset_t *osp, uint64_t obj, char *buf, int len);
