@@ -73,33 +73,6 @@ static const uint32_t		hn_nvs_version[] = {
 	HN_NVS_VERSION_1
 };
 
-uint32_t
-hn_chim_alloc(struct hn_softc *sc)
-{
-	int i, bmap_cnt = sc->hn_chim_bmap_cnt;
-	u_long *bmap = sc->hn_chim_bmap;
-	uint32_t ret = HN_NVS_CHIM_IDX_INVALID;
-
-	for (i = 0; i < bmap_cnt; ++i) {
-		int idx;
-
-		idx = ffsl(~bmap[i]);
-		if (idx == 0)
-			continue;
-
-		--idx; /* ffsl is 1-based */
-		KASSERT(i * LONG_BIT + idx < sc->hn_chim_cnt,
-		    ("invalid i %d and idx %d", i, idx));
-
-		if (atomic_testandset_long(&bmap[i], idx))
-			continue;
-
-		ret = i * LONG_BIT + idx;
-		break;
-	}
-	return (ret);
-}
-
 static const void *
 hn_nvs_xact_execute(struct hn_softc *sc, struct vmbus_xact *xact,
     void *req, int reqlen, size_t *resplen0, uint32_t type)
@@ -646,25 +619,6 @@ hn_nvs_sent_none(struct hn_send_ctx *sndc __unused,
     const void *data __unused, int dlen __unused)
 {
 	/* EMPTY */
-}
-
-void
-hn_chim_free(struct hn_softc *sc, uint32_t chim_idx)
-{
-	u_long mask;
-	uint32_t idx;
-
-	idx = chim_idx / LONG_BIT;
-	KASSERT(idx < sc->hn_chim_bmap_cnt,
-	    ("invalid chimney index 0x%x", chim_idx));
-
-	mask = 1UL << (chim_idx % LONG_BIT);
-	KASSERT(sc->hn_chim_bmap[idx] & mask,
-	    ("index bitmap 0x%lx, chimney index %u, "
-	     "bitmap idx %d, bitmask 0x%lx",
-	     sc->hn_chim_bmap[idx], chim_idx, idx, mask));
-
-	atomic_clear_long(&sc->hn_chim_bmap[idx], mask);
 }
 
 int
