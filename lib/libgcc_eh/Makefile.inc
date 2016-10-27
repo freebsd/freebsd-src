@@ -4,7 +4,7 @@ COMPILERRTDIR=	${SRCTOP}/contrib/compiler-rt
 UNWINDINCDIR=	${SRCTOP}/contrib/llvm/projects/libunwind/include
 UNWINDSRCDIR=	${SRCTOP}/contrib/llvm/projects/libunwind/src
 
-CFLAGS+=${PICFLAG} -fvisibility=hidden -DVISIBILITY_HIDDEN
+STATIC_CFLAGS+=${PICFLAG} -fvisibility=hidden -DVISIBILITY_HIDDEN
 
 .PATH: ${COMPILERRTDIR}/lib/builtins
 .PATH: ${UNWINDSRCDIR}
