@@ -174,7 +174,7 @@ struct hn_txdesc {
 	struct hn_tx_ring *txr;
 	int		refs;
 	uint32_t	flags;		/* HN_TXD_FLAG_ */
-	struct hn_send_ctx send_ctx;
+	struct hn_nvs_sendctx send_ctx;
 	uint32_t	chim_index;
 	int		chim_size;
 
@@ -412,37 +412,13 @@ hn_set_lro_lenlim(struct hn_softc *sc, int lenlim)
 }
 #endif
 
-static __inline int
-hn_nvs_send_rndis_sglist1(struct vmbus_channel *chan, uint32_t rndis_mtype,
-    struct hn_send_ctx *sndc, struct vmbus_gpa *gpa, int gpa_cnt)
-{
-	struct hn_nvs_rndis rndis;
-
-	rndis.nvs_type = HN_NVS_TYPE_RNDIS;
-	rndis.nvs_rndis_mtype = rndis_mtype;
-	rndis.nvs_chim_idx = HN_NVS_CHIM_IDX_INVALID;
-	rndis.nvs_chim_sz = 0;
-
-	return (hn_nvs_send_sglist(chan, gpa, gpa_cnt,
-	    &rndis, sizeof(rndis), sndc));
-}
-
-int
-hn_nvs_send_rndis_ctrl(struct vmbus_channel *chan,
-    struct hn_send_ctx *sndc, struct vmbus_gpa *gpa, int gpa_cnt)
-{
-
-	return hn_nvs_send_rndis_sglist1(chan, HN_NVS_RNDIS_MTYPE_CTRL,
-	    sndc, gpa, gpa_cnt);
-}
-
 static int
 hn_sendpkt_rndis_sglist(struct hn_tx_ring *txr, struct hn_txdesc *txd)
 {
 
 	KASSERT(txd->chim_index == HN_NVS_CHIM_IDX_INVALID &&
 	    txd->chim_size == 0, ("invalid rndis sglist txd"));
-	return (hn_nvs_send_rndis_sglist1(txr->hn_chan, HN_NVS_RNDIS_MTYPE_DATA,
+	return (hn_nvs_send_rndis_sglist(txr->hn_chan, HN_NVS_RNDIS_MTYPE_DATA,
 	    &txd->send_ctx, txr->hn_gpa, txr->hn_gpa_cnt));
 }
 
@@ -1190,7 +1166,7 @@ hn_txeof(struct hn_tx_ring *txr)
 }
 
 static void
-hn_tx_done(struct hn_send_ctx *sndc, struct hn_softc *sc,
+hn_tx_done(struct hn_nvs_sendctx *sndc, struct hn_softc *sc,
     struct vmbus_channel *chan, const void *data __unused, int dlen __unused)
 {
 	struct hn_txdesc *txd = sndc->hn_cbarg;
@@ -1429,7 +1405,7 @@ done:
 	txd->m = m_head;
 
 	/* Set the completion routine */
-	hn_send_ctx_init(&txd->send_ctx, hn_tx_done, txd);
+	hn_nvs_sendctx_init(&txd->send_ctx, hn_tx_done, txd);
 
 	return 0;
 }
@@ -4070,9 +4046,9 @@ static void
 hn_nvs_handle_comp(struct hn_softc *sc, struct vmbus_channel *chan,
     const struct vmbus_chanpkt_hdr *pkt)
 {
-	struct hn_send_ctx *sndc;
+	struct hn_nvs_sendctx *sndc;
 
-	sndc = (struct hn_send_ctx *)(uintptr_t)pkt->cph_xactid;
+	sndc = (struct hn_nvs_sendctx *)(uintptr_t)pkt->cph_xactid;
 	sndc->hn_cb(sndc, sc, chan, VMBUS_CHANPKT_CONST_DATA(pkt),
 	    VMBUS_CHANPKT_DATALEN(pkt));
 	/*

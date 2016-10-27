@@ -51,25 +51,6 @@
 
 #define HN_GPACNT_MAX			32
 
-struct vmbus_channel;
-struct hn_softc;
-struct hn_send_ctx;
-
-typedef void		(*hn_sent_callback_t)
-			(struct hn_send_ctx *, struct hn_softc *,
-			 struct vmbus_channel *, const void *, int);
-
-struct hn_send_ctx {
-	hn_sent_callback_t	hn_cb;
-	void			*hn_cbarg;
-};
-
-#define HN_SEND_CTX_INITIALIZER(cb, cbarg)	\
-{						\
-	.hn_cb		= cb,			\
-	.hn_cbarg	= cbarg			\
-}
-
 #define HN_NDIS_VLAN_INFO_INVALID	0xffffffff
 #define HN_NDIS_RXCSUM_INFO_INVALID	0
 #define HN_NDIS_HASH_INFO_INVALID	0
@@ -261,33 +242,6 @@ struct hn_softc {
 #define HN_LINK_FLAG_LINKUP		0x0001
 #define HN_LINK_FLAG_NETCHG		0x0002
 
-static __inline void
-hn_send_ctx_init(struct hn_send_ctx *sndc, hn_sent_callback_t cb, void *cbarg)
-{
-
-	sndc->hn_cb = cb;
-	sndc->hn_cbarg = cbarg;
-}
-
-static __inline int
-hn_nvs_send(struct vmbus_channel *chan, uint16_t flags,
-    void *nvs_msg, int nvs_msglen, struct hn_send_ctx *sndc)
-{
-
-	return (vmbus_chan_send(chan, VMBUS_CHANPKT_TYPE_INBAND, flags,
-	    nvs_msg, nvs_msglen, (uint64_t)(uintptr_t)sndc));
-}
-
-static __inline int
-hn_nvs_send_sglist(struct vmbus_channel *chan, struct vmbus_gpa sg[], int sglen,
-    void *nvs_msg, int nvs_msglen, struct hn_send_ctx *sndc)
-{
-
-	return (vmbus_chan_send_sglist(chan, sg, sglen, nvs_msg, nvs_msglen,
-	    (uint64_t)(uintptr_t)sndc));
-}
-
-struct vmbus_xact;
 struct rndis_packet_msg;
 
 int		hn_rndis_attach(struct hn_softc *sc, int mtu);
@@ -302,21 +256,10 @@ int		hn_rndis_get_linkstatus(struct hn_softc *sc,
 /* filter: NDIS_PACKET_TYPE_. */
 int		hn_rndis_set_rxfilter(struct hn_softc *sc, uint32_t filter);
 
-int		hn_nvs_attach(struct hn_softc *sc, int mtu);
-void		hn_nvs_detach(struct hn_softc *sc);
-int		hn_nvs_alloc_subchans(struct hn_softc *sc, int *nsubch);
-void		hn_nvs_sent_xact(struct hn_send_ctx *sndc, struct hn_softc *sc,
-		    struct vmbus_channel *chan, const void *data, int dlen);
-int		hn_nvs_send_rndis_ctrl(struct vmbus_channel *chan,
-		    struct hn_send_ctx *sndc, struct vmbus_gpa *gpa,
-		    int gpa_cnt);
-
 int		hn_rxpkt(struct hn_rx_ring *rxr, const void *data, int dlen,
 		    const struct hn_recvinfo *info);
 void		hn_chan_rollup(struct hn_rx_ring *rxr, struct hn_tx_ring *txr);
 void		hn_link_status_update(struct hn_softc *sc);
 void		hn_network_change(struct hn_softc *sc);
-
-extern struct hn_send_ctx	hn_send_ctx_none;
 
 #endif	/* !_IF_HNVAR_H_ */
