@@ -20,10 +20,10 @@
 	${CC} ${STATIC_CFLAGS} ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
-.c.bc:
+.c.bco:
 	${CC} -emit-llvm ${IR_CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 
-.c.ll:
+.c.llo:
 	${CC} -emit-llvm ${IR_CFLAGS} -S ${.IMPSRC} -o ${.TARGET}
 
 .cc .cpp .cxx .C:
@@ -32,10 +32,10 @@
 .cc.o .cpp.o .cxx.o .C.o:
 	${CXX} ${STATIC_CXXFLAGS} ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 
-.cc.bc .cpp.bc .cxx.bc .C.bc:
+.cc.bco .cpp.bco .cxx.bco .C.bco:
 	${CXX} -emit-llvm ${IR_CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 
-.cc.ll .cpp.ll .cxx.ll .C.ll:
+.cc.llo .cpp.llo .cxx.llo .C.llo:
 	${CXX} -emit-llvm ${IR_CXXFLAGS} -S ${.IMPSRC} -o ${.TARGET}
 
 .m.o:
