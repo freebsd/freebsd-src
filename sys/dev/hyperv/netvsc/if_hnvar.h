@@ -106,7 +106,7 @@ int		hn_rndis_query_rsscaps(struct hn_softc *sc, int *rxr_cnt);
 int		hn_rndis_get_eaddr(struct hn_softc *sc, uint8_t *eaddr);
 int		hn_rndis_get_linkstatus(struct hn_softc *sc,
 		    uint32_t *link_status);
-/* filter: NDIS_PACKET_TYPE_ or 0. */
+/* filter: NDIS_PACKET_TYPE_. */
 int		hn_rndis_set_rxfilter(struct hn_softc *sc, uint32_t filter);
 
 int		hn_nvs_attach(struct hn_softc *sc, int mtu);
