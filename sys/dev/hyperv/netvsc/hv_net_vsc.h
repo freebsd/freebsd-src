@@ -275,6 +275,11 @@ struct hn_softc {
 #define HN_CAP_TSO6			0x0100
 #define HN_CAP_HASHVAL			0x0200
 
+/* Capability description for use with printf(9) %b identifier. */
+#define HN_CAP_BITS				\
+	"\020\1VLAN\2MTU\3IPCS\4TCP4CS\5TCP6CS"	\
+	"\6UDP4CS\7UDP6CS\10TSO4\11TSO6\12HASHVAL"
+
 #define HN_LINK_FLAG_LINKUP		0x0001
 #define HN_LINK_FLAG_NETCHG		0x0002
 
