@@ -422,6 +422,12 @@ cheriabi_set_syscall_retval(struct thread *td, int error)
 			}
 			break;
 
+		case CHERIABI_SYS_shmat:
+			cheri_capability_copy(&locr0->c3, &td->td_retcap);
+			locr0->v0 = 0;
+			locr0->a3 = 0;
+			break;
+
 		default:
 			panic("%s: unsupported syscall (%u) returning pointer",
 			    __func__, code);

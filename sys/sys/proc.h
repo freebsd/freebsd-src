@@ -316,8 +316,12 @@ struct thread {
 	union {
 		register_t	tdu_retval[2];
 		off_t		tdu_off;	
+#ifdef CPU_CHERI
+		struct chericap	tdu_retcap;
+#endif
 	} td_uretoff;			/* (k) Syscall aux returns. */
 #define td_retval	td_uretoff.tdu_retval
+#define td_retcap	td_uretoff.tdu_retcap
 	u_int		td_cowgen;	/* (k) Generation of COW pointers. */
 	struct callout	td_slpcallout;	/* (h) Callout for sleep. */
 	struct trapframe *td_frame;	/* (k) */

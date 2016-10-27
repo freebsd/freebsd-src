@@ -87,6 +87,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysproto.h>
 #include <sys/jail.h>
 
+#ifdef COMPAT_CHERIABI
+#include <compat/cheriabi/cheriabi_syscall.h>
+#include <compat/cheriabi/cheriabi_util.h>
+#endif
+
 #include <security/mac/mac_framework.h>
 
 #include <vm/vm.h>
@@ -376,10 +381,14 @@ kern_shmat_locked(struct thread *td, int shmid, const void *shmaddr,
 	struct proc *p = td->td_proc;
 	struct shmid_kernel *shmseg;
 	struct shmmap_state *shmmap_s;
-	vm_offset_t attach_va;
+	vm_offset_t attach_va, max_va = 0;
 	vm_prot_t prot;
 	vm_size_t size;
-	int error, i, rv;
+	int error, findspace, i, rv;
+#ifdef COMPAT_CHERIABI
+	struct chericap shmaddr_cap;
+	vm_offset_t cap_base;
+#endif
 
 	SYSVSHM_ASSERT_LOCKED();
 	rpr = shm_find_prison(td->td_ucred);
@@ -418,24 +427,78 @@ kern_shmat_locked(struct thread *td, int shmid, const void *shmaddr,
 	if ((shmflg & SHM_RDONLY) == 0)
 		prot |= VM_PROT_WRITE;
 	if (shmaddr != NULL) {
+		findspace = VMFS_NO_SPACE;
 		if ((shmflg & SHM_RND) != 0)
 			attach_va = rounddown2((vm_offset_t)shmaddr, SHMLBA);
 		else if (((vm_offset_t)shmaddr & (SHMLBA-1)) == 0)
 			attach_va = (vm_offset_t)shmaddr;
 		else
 			return (EINVAL);
+#ifdef COMPAT_CHERIABI
+		if (SV_CURPROC_FLAG(SV_CHERI)) {
+			cheriabi_fetch_syscall_arg(td, &shmaddr_cap,
+			    CHERIABI_SYS_shmat, 1);
+		}
+#endif
 	} else {
-		/*
-		 * This is just a hint to vm_map_find() about where to
-		 * put it.
-		 */
-		attach_va = round_page((vm_offset_t)p->p_vmspace->vm_daddr +
-		    lim_max(td, RLIMIT_DATA));
+#ifdef COMPAT_CHERIABI
+		if (!SV_CURPROC_FLAG(SV_CHERI)) {
+#endif
+			findspace = VMFS_OPTIMAL_SPACE;
+			/*
+			 * This is just a hint to vm_map_find() about where to
+			 * put it.
+			 */
+			attach_va = round_page(
+			    (vm_offset_t)p->p_vmspace->vm_daddr +
+			    lim_max(td, RLIMIT_DATA));
+#ifdef COMPAT_CHERIABI
+		} else {
+			/*
+			 * Require representable alignment for large objects
+			 * and preserve the fragmentation promoting default
+			 * of attempting to superpage align other objects.
+			 *
+			 * XXX: 12 should probably be the superpage shift.
+			 */
+			findspace = CHERI_ALIGN_SHIFT(size) < 12 ?
+			    VMFS_OPTIMAL_SPACE :
+			    VMFS_ALIGNED_SPACE(CHERI_ALIGN_SHIFT(size));
+			PROC_LOCK(td->td_proc);
+			cheri_capability_copy(&shmaddr_cap,
+			    &td->td_proc->p_md.md_cheri_mmap_cap);
+			PROC_UNLOCK(td->td_proc);
+		}
+#endif
 	}
+#ifdef COMPAT_CHERIABI
+	if (SV_CURPROC_FLAG(SV_CHERI)) {
+		size_t cap_len, cap_offset;
+		register_t	usertag;
+		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &shmaddr_cap, 0);
+		CHERI_CGETTAG(usertag, CHERI_CR_CTEMP0);
+		if (!usertag)
+			return (EINVAL);
+		CHERI_CGETBASE(cap_base, CHERI_CR_CTEMP0);
+		CHERI_CGETLEN(cap_len, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(cap_offset, CHERI_CR_CTEMP0);
+		if (attach_va == 0) {
+			attach_va = cap_base;
+		} else {
+			size_t shift = (vaddr_t)shmaddr - attach_va;
+			if (cap_offset > cap_len || \
+			    cap_offset < shift || \
+			    cap_len - cap_offset + shift < size)
+				return (EINVAL);
+		}
+		max_va = cap_base + cap_len;
+		/* XXX-BD: what to do about perms? */
+	}
+#endif
 
 	vm_object_reference(shmseg->object);
 	rv = vm_map_find(&p->p_vmspace->vm_map, shmseg->object, 0, &attach_va,
-	    size, 0, shmaddr != NULL ? VMFS_NO_SPACE : VMFS_OPTIMAL_SPACE,
+	    size, max_va, findspace,
 	    prot, prot, MAP_INHERIT_SHARE | MAP_PREFAULT_PARTIAL);
 	if (rv != KERN_SUCCESS) {
 		vm_object_deallocate(shmseg->object);
@@ -447,7 +510,20 @@ kern_shmat_locked(struct thread *td, int shmid, const void *shmaddr,
 	shmseg->u.shm_lpid = p->p_pid;
 	shmseg->u.shm_atime = time_second;
 	shmseg->u.shm_nattch++;
-	td->td_retval[0] = attach_va;
+#ifdef COMPAT_CHERIABI
+	if (!SV_CURPROC_FLAG(SV_CHERI)) {
+#endif
+		td->td_retval[0] = attach_va;
+#ifdef COMPAT_CHERIABI
+	} else {
+		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &shmaddr_cap, 0);
+		CHERI_CSETOFFSET(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0,
+		    attach_va - cap_base);
+		CHERI_CSETBOUNDS(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0, size);
+		/* XXX: set perms */
+		CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &td->td_retcap, 0);
+	}
+#endif
 	return (error);
 }
 
