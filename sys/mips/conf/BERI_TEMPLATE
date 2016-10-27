@@ -41,6 +41,8 @@ options 	FFS			#Berkeley Fast Filesystem
 options 	MSDOSFS			#MSDOS Filesystem
 options 	GEOM_PART_MBR
 
+options 	SYSVSHM
+
 options 	INET
 options 	INET6
 options 	TCP_HHOOK		# hhook(9) framework for TCP

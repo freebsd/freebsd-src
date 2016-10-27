@@ -26,6 +26,7 @@ options 	NFSCL			#Network Filesystem Client
 options 	NFS_ROOT		#NFS usable as /, requires NFSCL
 options 	PSEUDOFS		#Pseudo-filesystem framework
 options 	_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
+options 	SYSVSHM
 
 options 	FFS			#Berkeley Fast Filesystem
 options 	SOFTUPDATES		#Enable FFS soft updates support
