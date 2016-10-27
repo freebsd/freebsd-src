@@ -119,6 +119,12 @@ device		gpio
 device		gpioled
 device		gpioregulator
 
+# EVDEV support
+device		evdev			# input event device support
+options		EVDEV_SUPPORT		# evdev support in legacy drivers
+device		uinput			# install /dev/uinput cdev
+device		aw_cir
+
 # SPI
 device		spibus
 device		bcm2835_spi
