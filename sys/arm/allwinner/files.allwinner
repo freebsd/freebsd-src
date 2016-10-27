@@ -29,6 +29,7 @@ dev/usb/controller/generic_usb_if.m	optional	ohci
 arm/allwinner/aw_sid.c			standard
 arm/allwinner/aw_thermal.c		standard
 dev/iicbus/sy8106a.c			optional	sy8106a
+arm/allwinner/aw_cir.c			optional	aw_cir evdev
 #arm/allwinner/console.c		standard
 
 arm/allwinner/a10_fb.c			optional	vt
