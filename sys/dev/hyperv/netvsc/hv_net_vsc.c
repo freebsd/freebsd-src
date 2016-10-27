@@ -24,21 +24,23 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-/**
- * HyperV vmbus network VSC (virtual services client) module
- *
+/*
+ * Network Virtualization Service.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
+#include "opt_inet6.h"
+#include "opt_inet.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>
-#include <sys/socket.h>
 #include <sys/limits.h>
-#include <sys/lock.h>
+#include <sys/socket.h>
+#include <sys/systm.h>
 #include <sys/taskqueue.h>
 
 #include <net/if.h>
@@ -58,18 +60,22 @@
 #include <dev/hyperv/netvsc/if_hnvar.h>
 #include <dev/hyperv/netvsc/hv_net_vsc.h>
 
-/*
- * Forward declarations
- */
-static int  hn_nvs_conn_chim(struct hn_softc *sc);
-static int  hn_nvs_conn_rxbuf(struct hn_softc *);
-static int  hn_nvs_disconn_chim(struct hn_softc *sc);
-static int  hn_nvs_disconn_rxbuf(struct hn_softc *sc);
-static void hn_nvs_sent_none(struct hn_nvs_sendctx *sndc,
-    struct hn_softc *, struct vmbus_channel *chan,
-    const void *, int);
+static int			hn_nvs_conn_chim(struct hn_softc *);
+static int			hn_nvs_conn_rxbuf(struct hn_softc *);
+static int			hn_nvs_disconn_chim(struct hn_softc *);
+static int			hn_nvs_disconn_rxbuf(struct hn_softc *);
+static int			hn_nvs_conf_ndis(struct hn_softc *, int);
+static int			hn_nvs_init_ndis(struct hn_softc *);
+static int			hn_nvs_doinit(struct hn_softc *, uint32_t);
+static int			hn_nvs_init(struct hn_softc *);
+static const void		*hn_nvs_xact_execute(struct hn_softc *,
+				    struct vmbus_xact *, void *, int,
+				    size_t *, uint32_t);
+static void			hn_nvs_sent_none(struct hn_nvs_sendctx *,
+				    struct hn_softc *, struct vmbus_channel *,
+				    const void *, int);
 
-struct hn_nvs_sendctx	hn_nvs_sendctx_none =
+struct hn_nvs_sendctx		hn_nvs_sendctx_none =
     HN_NVS_SENDCTX_INITIALIZER(hn_nvs_sent_none, NULL);
 
 static const uint32_t		hn_nvs_version[] = {
