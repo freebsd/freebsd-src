@@ -58,7 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/hyperv/netvsc/if_hnreg.h>
 #include <dev/hyperv/netvsc/if_hnvar.h>
 #include <dev/hyperv/netvsc/hn_nvs.h>
-#include <dev/hyperv/netvsc/hv_rndis_filter.h>
+#include <dev/hyperv/netvsc/hn_rndis.h>
 
 #define HN_RNDIS_RID_COMPAT_MASK	0xffff
 #define HN_RNDIS_RID_COMPAT_MAX		HN_RNDIS_RID_COMPAT_MASK
