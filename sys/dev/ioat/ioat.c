@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
+#include <sys/fail.h>
 #include <sys/ioccom.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -951,8 +952,12 @@ ioat_release(bus_dmaengine_t dmaengine)
 	struct ioat_softc *ioat;
 
 	ioat = to_ioat_softc(dmaengine);
-	CTR3(KTR_IOAT, "%s channel=%u dispatch hw_head=%u", __func__,
-	    ioat->chan_idx, ioat->hw_head & UINT16_MAX);
+	CTR4(KTR_IOAT, "%s channel=%u dispatch1 hw_head=%u head=%u", __func__,
+	    ioat->chan_idx, ioat->hw_head & UINT16_MAX, ioat->head);
+	KFAIL_POINT_CODE(DEBUG_FP, ioat_release, /* do nothing */);
+	CTR4(KTR_IOAT, "%s channel=%u dispatch2 hw_head=%u head=%u", __func__,
+	    ioat->chan_idx, ioat->hw_head & UINT16_MAX, ioat->head);
+
 	ioat_write_2(ioat, IOAT_DMACOUNT_OFFSET, (uint16_t)ioat->hw_head);
 
 	if (!ioat->is_completion_pending) {
