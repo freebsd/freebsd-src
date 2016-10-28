@@ -891,8 +891,13 @@ single_user(void)
 	if (Reboot) {
 		/* Instead of going single user, let's reboot the machine */
 		sync();
-		reboot(howto);
-		_exit(0);
+		if (reboot(howto) == -1) {
+			emergency("reboot(%#x) failed, %s", howto,
+			    strerror(errno));
+			_exit(1); /* panic and reboot */
+		}
+		warning("reboot(%#x) returned", howto);
+		_exit(0); /* panic as well */
 	}
 
 	shell = get_shell();
