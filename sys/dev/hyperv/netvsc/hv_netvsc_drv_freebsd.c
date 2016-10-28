@@ -358,6 +358,7 @@ static void hn_chan_detach(struct hn_softc *, struct vmbus_channel *);
 static int hn_attach_subchans(struct hn_softc *);
 static void hn_detach_allchans(struct hn_softc *);
 static void hn_chan_callback(struct vmbus_channel *chan, void *xrxr);
+static void hn_chan_rollup(struct hn_rx_ring *, struct hn_tx_ring *);
 static void hn_set_ring_inuse(struct hn_softc *, int);
 static int hn_synth_attach(struct hn_softc *, int);
 static void hn_synth_detach(struct hn_softc *);
@@ -1188,7 +1189,7 @@ hn_tx_done(struct hn_nvs_sendctx *sndc, struct hn_softc *sc,
 	}
 }
 
-void
+static void
 hn_chan_rollup(struct hn_rx_ring *rxr, struct hn_tx_ring *txr)
 {
 #if defined(INET) || defined(INET6)
@@ -4213,7 +4214,7 @@ hn_chan_callback(struct vmbus_channel *chan, void *xrxr)
 	if (bufferlen > HN_PKTBUF_LEN)
 		free(buffer, M_DEVBUF);
 
-	hv_rf_channel_rollup(rxr, rxr->hn_txr);
+	hn_chan_rollup(rxr, rxr->hn_txr);
 }
 
 static void

@@ -1352,10 +1352,3 @@ hn_rndis_detach(struct hn_softc *sc)
 	/* Halt the RNDIS. */
 	hn_rndis_halt(sc);
 }
-
-void
-hv_rf_channel_rollup(struct hn_rx_ring *rxr, struct hn_tx_ring *txr)
-{
-
-	hn_chan_rollup(rxr, txr);
-}
