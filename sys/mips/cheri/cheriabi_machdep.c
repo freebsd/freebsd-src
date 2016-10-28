@@ -60,6 +60,7 @@
 #include <sys/syscallsubr.h>
 #include <sys/sysproto.h>
 #include <sys/ucontext.h>
+#include <sys/user.h>
 
 /* Required by cheriabi_fill_uap.h */
 #include <sys/capsicum.h>

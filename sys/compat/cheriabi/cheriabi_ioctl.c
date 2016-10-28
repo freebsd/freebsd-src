@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <sys/systm.h>
+#include <sys/user.h>
 
 #include <machine/endian.h>
 

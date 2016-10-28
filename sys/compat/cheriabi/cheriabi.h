@@ -210,6 +210,100 @@ struct thr_param_c {
 	struct chericap	spare[2];
 };
 
+struct kinfo_proc_c {
+	int	ki_structsize;
+	int	ki_layout;
+	struct chericap	ki_args;		/* struct pargs */
+	struct chericap	ki_paddr;		/* struct proc */
+	struct chericap	ki_addr;		/* struct user */
+	struct chericap	ki_tracep;		/* struct vnode */
+	struct chericap	ki_textvp;		/* struct vnode */
+	struct chericap	ki_fd;			/* struct filedesc */
+	struct chericap	ki_vmspace;		/* struct vmspace */
+	struct chericap	ki_wchan;		/* void */
+	pid_t	ki_pid;
+	pid_t	ki_ppid;
+	pid_t	ki_pgid;
+	pid_t	ki_tpgid;
+	pid_t	ki_sid;
+	pid_t	ki_tsid;
+	short	ki_jobc;
+	short	ki_spare_short1;
+	dev_t	ki_tdev;
+	sigset_t ki_siglist;
+	sigset_t ki_sigmask;
+	sigset_t ki_sigignore;
+	sigset_t ki_sigcatch;
+	uid_t	ki_uid;
+	uid_t	ki_ruid;
+	uid_t	ki_svuid;
+	gid_t	ki_rgid;
+	gid_t	ki_svgid;
+	short	ki_ngroups;
+	short	ki_spare_short2;
+	gid_t	ki_groups[KI_NGROUPS];
+	vm_size_t ki_size;
+	segsz_t ki_rssize;
+	segsz_t ki_swrss;
+	segsz_t ki_tsize;
+	segsz_t ki_dsize;
+	segsz_t ki_ssize;
+	u_short	ki_xstat;
+	u_short	ki_acflag;
+	fixpt_t	ki_pctcpu;
+	u_int	ki_estcpu;
+	u_int	ki_slptime;
+	u_int	ki_swtime;
+	u_int	ki_cow;
+	u_int64_t ki_runtime;
+	struct	timeval ki_start;
+	struct	timeval ki_childtime;
+	long	ki_flag;
+	long	ki_kiflag;
+	int	ki_traceflag;
+	char	ki_stat;
+	signed char ki_nice;
+	char	ki_lock;
+	char	ki_rqindex;
+	u_char	ki_oncpu_old;
+	u_char	ki_lastcpu_old;
+	char	ki_tdname[TDNAMLEN+1];
+	char	ki_wmesg[WMESGLEN+1];
+	char	ki_login[LOGNAMELEN+1];
+	char	ki_lockname[LOCKNAMELEN+1];
+	char	ki_comm[COMMLEN+1];
+	char	ki_emul[KI_EMULNAMELEN+1];
+	char	ki_loginclass[LOGINCLASSLEN+1];
+	/*
+	 * When adding new variables, take space for char-strings from the
+	 * front of ki_sparestrings, and ints from the end of ki_spareints.
+	 * That way the spare room from both arrays will remain contiguous.
+	 */
+	char	ki_sparestrings[50];
+	int	ki_spareints[KI_NSPARE_INT];
+	int	ki_oncpu;
+	int	ki_lastcpu;
+	int	ki_tracer;
+	int	ki_flag2;
+	int	ki_fibnum;
+	u_int	ki_cr_flags;
+	int	ki_jid;
+	int	ki_numthreads;
+	lwpid_t	ki_tid;
+	struct	priority ki_pri;
+	struct	rusage ki_rusage;
+	/* XXX - most fields in ki_rusage_ch are not (yet) filled in */
+	struct	rusage ki_rusage_ch;
+	struct chericap	ki_pcb;				/* struct pcb  */
+	struct chericap	ki_kstack;			/* void	*/
+	struct chericap	ki_udata;			/* void	*/
+	struct chericap	ki_tdaddr;			/* struct thread  */
+	struct chericap	ki_spareptrs[KI_NSPARE_PTR];	/* void */
+	long	ki_sparelongs[KI_NSPARE_LONG];
+	long	ki_sflag;
+	long	ki_tdflags;
+};
+
 struct mac_c {
 	size_t		m_buflen;
 	struct chericap	m_string;
