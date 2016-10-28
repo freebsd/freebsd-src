@@ -75,9 +75,10 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/vm_kern.h>
-#include <vm/vm_pageout.h>
-#include <vm/vm_page.h>
 #include <vm/vm_object.h>
+#include <vm/vm_page.h>
+#include <vm/vm_pageout.h>
+#include <vm/vm_pager.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_map.h>
 #include <vm/swap_pager.h>
@@ -4634,6 +4635,161 @@ bdata2bio(struct buf *bp, struct bio *bip)
 		bip->bio_data = bp->b_data;
 		bip->bio_ma = NULL;
 	}
+}
+
+static int buf_pager_relbuf;
+SYSCTL_INT(_vfs, OID_AUTO, buf_pager_relbuf, CTLFLAG_RWTUN,
+    &buf_pager_relbuf, 0,
+    "Make buffer pager release buffers after reading");
+
+/*
+ * The buffer pager.  It uses buffer reads to validate pages.
+ *
+ * In contrast to the generic local pager from vm/vnode_pager.c, this
+ * pager correctly and easily handles volumes where the underlying
+ * device block size is greater than the machine page size.  The
+ * buffer cache transparently extends the requested page run to be
+ * aligned at the block boundary, and does the necessary bogus page
+ * replacements in the addends to avoid obliterating already valid
+ * pages.
+ *
+ * The only non-trivial issue is that the exclusive busy state for
+ * pages, which is assumed by the vm_pager_getpages() interface, is
+ * incompatible with the VMIO buffer cache's desire to share-busy the
+ * pages.  This function performs a trivial downgrade of the pages'
+ * state before reading buffers, and a less trivial upgrade from the
+ * shared-busy to excl-busy state after the read.
+ */
+int
+vfs_bio_getpages(struct vnode *vp, vm_page_t *ma, int count,
+    int *rbehind, int *rahead, vbg_get_lblkno_t get_lblkno,
+    vbg_get_blksize_t get_blksize)
+{
+	vm_page_t m;
+	vm_object_t object;
+	struct buf *bp;
+	daddr_t lbn, lbnp;
+	vm_ooffset_t la, lb, poff, poffe;
+	long bsize;
+	int bo_bs, error, i;
+	bool redo, lpart;
+
+	object = vp->v_object;
+	la = IDX_TO_OFF(ma[count - 1]->pindex);
+	if (la >= object->un_pager.vnp.vnp_size)
+		return (VM_PAGER_BAD);
+	lpart = la + PAGE_SIZE > object->un_pager.vnp.vnp_size;
+	bo_bs = get_blksize(vp, get_lblkno(vp, IDX_TO_OFF(ma[0]->pindex)));
+	if (rbehind != NULL) {
+		lb = IDX_TO_OFF(ma[0]->pindex);
+		*rbehind = OFF_TO_IDX(lb - rounddown2(lb, bo_bs));
+	}
+	if (rahead != NULL) {
+		*rahead = OFF_TO_IDX(roundup2(la, bo_bs) - la);
+		if (la + IDX_TO_OFF(*rahead) >= object->un_pager.vnp.vnp_size) {
+			*rahead = OFF_TO_IDX(roundup2(object->un_pager.
+			    vnp.vnp_size, PAGE_SIZE) - la);
+		}
+	}
+	VM_OBJECT_WLOCK(object);
+again:
+	for (i = 0; i < count; i++)
+		vm_page_busy_downgrade(ma[i]);
+	VM_OBJECT_WUNLOCK(object);
+
+	lbnp = -1;
+	for (i = 0; i < count; i++) {
+		m = ma[i];
+
+		/*
+		 * Pages are shared busy and the object lock is not
+		 * owned, which together allow for the pages'
+		 * invalidation.  The racy test for validity avoids
+		 * useless creation of the buffer for the most typical
+		 * case when invalidation is not used in redo or for
+		 * parallel read.  The shared->excl upgrade loop at
+		 * the end of the function catches the race in a
+		 * reliable way (protected by the object lock).
+		 */
+		if (m->valid == VM_PAGE_BITS_ALL)
+			continue;
+
+		poff = IDX_TO_OFF(m->pindex);
+		poffe = MIN(poff + PAGE_SIZE, object->un_pager.vnp.vnp_size);
+		for (; poff < poffe; poff += bsize) {
+			lbn = get_lblkno(vp, poff);
+			if (lbn == lbnp)
+				goto next_page;
+			lbnp = lbn;
+
+			bsize = get_blksize(vp, lbn);
+			error = bread_gb(vp, lbn, bsize, NOCRED, GB_UNMAPPED,
+			    &bp);
+			if (error != 0)
+				goto end_pages;
+			if (LIST_EMPTY(&bp->b_dep)) {
+				/*
+				 * Invalidation clears m->valid, but
+				 * may leave B_CACHE flag if the
+				 * buffer existed at the invalidation
+				 * time.  In this case, recycle the
+				 * buffer to do real read on next
+				 * bread() after redo.
+				 *
+				 * Otherwise B_RELBUF is not strictly
+				 * necessary, enable to reduce buf
+				 * cache pressure.
+				 */
+				if (buf_pager_relbuf ||
+				    m->valid != VM_PAGE_BITS_ALL)
+					bp->b_flags |= B_RELBUF;
+
+				bp->b_flags &= ~B_NOCACHE;
+				brelse(bp);
+			} else {
+				bqrelse(bp);
+			}
+		}
+		KASSERT(1 /* racy, enable for debugging */ ||
+		    m->valid == VM_PAGE_BITS_ALL || i == count - 1,
+		    ("buf %d %p invalid", i, m));
+		if (i == count - 1 && lpart) {
+			VM_OBJECT_WLOCK(object);
+			if (m->valid != 0 &&
+			    m->valid != VM_PAGE_BITS_ALL)
+				vm_page_zero_invalid(m, TRUE);
+			VM_OBJECT_WUNLOCK(object);
+		}
+next_page:;
+	}
+end_pages:
+
+	VM_OBJECT_WLOCK(object);
+	redo = false;
+	for (i = 0; i < count; i++) {
+		vm_page_sunbusy(ma[i]);
+		ma[i] = vm_page_grab(object, ma[i]->pindex, VM_ALLOC_NORMAL);
+
+		/*
+		 * Since the pages were only sbusy while neither the
+		 * buffer nor the object lock was held by us, or
+		 * reallocated while vm_page_grab() slept for busy
+		 * relinguish, they could have been invalidated.
+		 * Recheck the valid bits and re-read as needed.
+		 *
+		 * Note that the last page is made fully valid in the
+		 * read loop, and partial validity for the page at
+		 * index count - 1 could mean that the page was
+		 * invalidated or removed, so we must restart for
+		 * safety as well.
+		 */
+		if (ma[i]->valid != VM_PAGE_BITS_ALL)
+			redo = true;
+	}
+	if (redo && error == 0)
+		goto again;
+	VM_OBJECT_WUNLOCK(object);
+	return (error != 0 ? VM_PAGER_ERROR : VM_PAGER_OK);
 }
 
 #include "opt_ddb.h"
