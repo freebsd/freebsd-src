@@ -1835,6 +1835,7 @@ __elfN(note_prpsinfo)(void *arg, struct sbuf *sb, size_t *sizep)
 				*cp = ' ';
 			}
 		}
+		psinfo->pr_pid = p->p_pid;
 		sbuf_bcat(sb, psinfo, sizeof(*psinfo));
 		free(psinfo, M_TEMP);
 	}
