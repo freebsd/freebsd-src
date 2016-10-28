@@ -68,6 +68,7 @@ extern struct bio_ops {
 } bioops;
 
 struct vm_object;
+struct vm_page;
 
 typedef unsigned char b_xflags_t;
 
@@ -536,6 +537,12 @@ void	reassignbuf(struct buf *);
 struct	buf *trypbuf(int *);
 void	bwait(struct buf *, u_char, const char *);
 void	bdone(struct buf *);
+
+typedef daddr_t (vbg_get_lblkno_t)(struct vnode *, vm_ooffset_t);
+typedef int (vbg_get_blksize_t)(struct vnode *, daddr_t);
+int	vfs_bio_getpages(struct vnode *vp, struct vm_page **ma, int count,
+	    int *rbehind, int *rahead, vbg_get_lblkno_t get_lblkno,
+	    vbg_get_blksize_t get_blksize);
 
 #endif /* _KERNEL */
 
