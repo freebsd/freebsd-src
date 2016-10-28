@@ -28,8 +28,8 @@
  * $FreeBSD$
  */
 
-#ifndef __HV_RNDIS_FILTER_H__
-#define __HV_RNDIS_FILTER_H__
+#ifndef _HN_RNDIS_H_
+#define _HN_RNDIS_H_
 
 struct hn_softc;
 
@@ -46,4 +46,4 @@ int		hn_rndis_set_rxfilter(struct hn_softc *sc, uint32_t filter);
 void		hn_rndis_rx_ctrl(struct hn_softc *sc, const void *data,
 		    int dlen);
 
-#endif  /* __HV_RNDIS_FILTER_H__ */
+#endif  /* !_HN_RNDIS_H_ */
