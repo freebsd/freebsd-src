@@ -278,10 +278,6 @@ vdev_geom_detach(struct g_consumer *cp, boolean_t open_for_read)
 	    cp->provider && cp->provider->name ? cp->provider->name : "NULL");
 
 	vd = cp->private;
-	if (vd != NULL) {
-		vd->vdev_tsd = NULL;
-		vd->vdev_delayed_close = B_FALSE;
-	}
 	cp->private = NULL;
 
 	gp = cp->geom;
@@ -313,6 +309,8 @@ vdev_geom_close_locked(vdev_t *vd)
 	g_topology_assert();
 
 	cp = vd->vdev_tsd;
+	vd->vdev_tsd = NULL;
+	vd->vdev_delayed_close = B_FALSE;
 	if (cp == NULL)
 		return;
 
