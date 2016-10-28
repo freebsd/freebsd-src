@@ -236,6 +236,17 @@ copies:
 	cd ${.CURDIR}/../sys/rpc; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 types.h \
 	    ${DESTDIR}${INCLUDEDIR}/rpc
+.if ${MK_CDDL} != "no"
+	cd ${.CURDIR}/../cddl/contrib/opensolaris/lib/libzfs_core/common; \
+	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 libzfs_core.h \
+	    ${DESTDIR}${INCLUDEDIR}
+	cd ${.CURDIR}/../cddl/contrib/opensolaris/lib/libnvpair; \
+	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 libnvpair.h \
+	    ${DESTDIR}${INCLUDEDIR}
+	cd ${.CURDIR}/../sys/cddl/contrib/opensolaris/uts/common/sys; \
+	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 nvpair.h \
+	    ${DESTDIR}${INCLUDEDIR}/sys
+.endif
 
 symlinks:
 	@${ECHO} "Setting up symlinks to kernel source tree..."
