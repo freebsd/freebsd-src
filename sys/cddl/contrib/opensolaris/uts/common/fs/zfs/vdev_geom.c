@@ -223,7 +223,7 @@ vdev_geom_attach(struct g_provider *pp, vdev_t *vd)
 		}
 		error = g_access(cp, 1, 0, 1);
 		if (error != 0) {
-			ZFS_LOG(1, "%s(%d): g_access failed: %d\n", __func__,
+			ZFS_LOG(1, "%s(%d): g_access failed: %d", __func__,
 			       __LINE__, error);
 			vdev_geom_detach(cp, B_FALSE);
 			return (NULL);
@@ -293,7 +293,7 @@ vdev_geom_detach(struct g_consumer *cp, boolean_t open_for_read)
 
 	g_topology_assert();
 
-	ZFS_LOG(1, "Detaching consumer. Provider %s.",
+	ZFS_LOG(1, "Detaching from %s.",
 	    cp->provider && cp->provider->name ? cp->provider->name : "NULL");
 
 	vd = cp->private;
@@ -307,7 +307,7 @@ vdev_geom_detach(struct g_consumer *cp, boolean_t open_for_read)
 		if (cp->acw > 0)
 			g_access(cp, 0, -cp->acw, 0);
 		if (cp->provider != NULL) {
-			ZFS_LOG(1, "Destroying consumer to %s.",
+			ZFS_LOG(1, "Destroying consumer for %s.",
 			    cp->provider->name ? cp->provider->name : "NULL");
 			g_detach(cp);
 		}
