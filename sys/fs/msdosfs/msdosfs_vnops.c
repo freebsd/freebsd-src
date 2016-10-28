@@ -62,11 +62,13 @@
 #include <sys/namei.h>
 #include <sys/priv.h>
 #include <sys/stat.h>
+#include <sys/sysctl.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
+#include <vm/vnode_pager.h>
 
 #include <fs/msdosfs/bpb.h>
 #include <fs/msdosfs/direntry.h>
@@ -97,6 +99,7 @@ static vop_rmdir_t	msdosfs_rmdir;
 static vop_symlink_t	msdosfs_symlink;
 static vop_readdir_t	msdosfs_readdir;
 static vop_bmap_t	msdosfs_bmap;
+static vop_getpages_t	msdosfs_getpages;
 static vop_strategy_t	msdosfs_strategy;
 static vop_print_t	msdosfs_print;
 static vop_pathconf_t	msdosfs_pathconf;
@@ -1798,6 +1801,38 @@ msdosfs_bmap(struct vop_bmap_args *ap)
 	return (0);
 }
 
+SYSCTL_NODE(_vfs, OID_AUTO, msdosfs, CTLFLAG_RW, 0, "msdos filesystem");
+static int use_buf_pager = 1;
+SYSCTL_INT(_vfs_msdosfs, OID_AUTO, use_buf_pager, CTLFLAG_RWTUN,
+    &use_buf_pager, 0,
+    "Use buffer pager instead of bmap");
+
+static daddr_t
+msdosfs_gbp_getblkno(struct vnode *vp, vm_ooffset_t off)
+{
+
+	return (de_cluster(VTODE(vp)->de_pmp, off));
+}
+
+static int
+msdosfs_gbp_getblksz(struct vnode *vp, daddr_t lbn)
+{
+
+	return (VTODE(vp)->de_pmp->pm_bpcluster);
+}
+
+static int
+msdosfs_getpages(struct vop_getpages_args *ap)
+{
+
+	if (use_buf_pager)
+		return (vfs_bio_getpages(ap->a_vp, ap->a_m, ap->a_count,
+		    ap->a_rbehind, ap->a_rahead, msdosfs_gbp_getblkno,
+		    msdosfs_gbp_getblksz));
+	return (vnode_pager_generic_getpages(ap->a_vp, ap->a_m, ap->a_count,
+	    ap->a_rbehind, ap->a_rahead, NULL, NULL));
+}
+
 static int
 msdosfs_strategy(struct vop_strategy_args *ap)
 {
@@ -1898,6 +1933,7 @@ struct vop_vector msdosfs_vnodeops = {
 
 	.vop_access =		msdosfs_access,
 	.vop_bmap =		msdosfs_bmap,
+	.vop_getpages =		msdosfs_getpages,
 	.vop_cachedlookup =	msdosfs_lookup,
 	.vop_open =		msdosfs_open,
 	.vop_close =		msdosfs_close,
