@@ -3466,11 +3466,14 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	PMAP_LOCK(pmap);
 	sched_pin();
 
-	/*
-	 * In the case that a page table page is not
-	 * resident, we are creating it here.
-	 */
+	pde = pmap_pde(pmap, va);
 	if (va < VM_MAXUSER_ADDRESS) {
+		/*
+		 * va is for UVA.
+		 * In the case that a page table page is not resident,
+		 * we are creating it here.  pmap_allocpte() handles
+		 * demotion.
+		 */
 		mpte = pmap_allocpte(pmap, va, flags);
 		if (mpte == NULL) {
 			KASSERT((flags & PMAP_ENTER_NOSLEEP) != 0,
@@ -3480,19 +3483,28 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 			PMAP_UNLOCK(pmap);
 			return (KERN_RESOURCE_SHORTAGE);
 		}
+	} else {
+		/*
+		 * va is for KVA, so pmap_demote_pde() will never fail
+		 * to install a page table page.  PG_V is also
+		 * asserted by pmap_demote_pde().
+		 */
+		KASSERT(pde != NULL && (*pde & PG_V) != 0,
+		    ("KVA %#x invalid pde pdir %#jx", va,
+		    (uintmax_t)pmap->pm_pdir[PTDPTDI]));
+		if ((*pde & PG_PS) != 0)
+			pmap_demote_pde(pmap, pde, va);
 	}
-
-	pde = pmap_pde(pmap, va);
-	if ((*pde & PG_PS) != 0)
-		panic("pmap_enter: attempted pmap_enter on 4MB page");
 	pte = pmap_pte_quick(pmap, va);
 
 	/*
-	 * Page Directory table entry not valid, we need a new PT page
+	 * Page Directory table entry is not valid, which should not
+	 * happen.  We should have either allocated the page table
+	 * page or demoted the existing mapping above.
 	 */
 	if (pte == NULL) {
 		panic("pmap_enter: invalid page directory pdir=%#jx, va=%#x",
-			(uintmax_t)pmap->pm_pdir[PTDPTDI], va);
+		    (uintmax_t)pmap->pm_pdir[PTDPTDI], va);
 	}
 
 	pa = VM_PAGE_TO_PHYS(m);
