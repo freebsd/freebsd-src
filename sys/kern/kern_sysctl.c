@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/rmlock.h>
 #include <sys/sbuf.h>
+#include <sys/sysent.h>
 #include <sys/sx.h>
 #include <sys/sysproto.h>
 #include <sys/uio.h>
@@ -1893,8 +1894,14 @@ struct sysctl_args {
 int
 sys___sysctl(struct thread *td, struct sysctl_args *uap)
 {
-	int error, i, name[CTL_MAXNAME];
+	int error, flags, i, name[CTL_MAXNAME];
 	size_t j;
+
+	flags = 0;
+#ifdef COMPAT_CHERIABI
+	if (SV_CURPROC_FLAG(SV_CHERI))
+		flags = SCTL_CHERIABI;
+#endif
 
 	if (uap->namelen > CTL_MAXNAME || uap->namelen < 2)
 		return (EINVAL);
@@ -1905,7 +1912,7 @@ sys___sysctl(struct thread *td, struct sysctl_args *uap)
 
 	error = userland_sysctl(td, name, uap->namelen,
 		uap->old, uap->oldlenp, 0,
-		uap->new, uap->newlen, &j, 0);
+		uap->new, uap->newlen, &j, flags);
 	if (error && error != ENOMEM)
 		return (error);
 	if (uap->oldlenp) {

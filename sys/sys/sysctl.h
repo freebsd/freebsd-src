@@ -148,6 +148,9 @@ struct ctlname {
     (defined(__mips__) && defined(__mips_n64))
 #define	SCTL_MASK32	1	/* 32 bit emulation */
 #endif
+#ifdef COMPAT_CHERIABI
+#define	SCTL_CHERIABI	2	/* CheriABI support */
+#endif
 
 /*
  * This describes the access space for a sysctl request.  This is needed
