@@ -327,52 +327,82 @@ nvlist_get_guids(nvlist_t *list, uint64_t *pguid, uint64_t *vguid)
 	(void) nvlist_lookup_uint64(list, ZPOOL_CONFIG_POOL_GUID, pguid);
 }
 
-static int
-vdev_geom_io(struct g_consumer *cp, int cmd, void *data, off_t offset, off_t size)
+/*
+ * Issue one or more bios to the vdev in parallel
+ * cmds, datas, offsets, errors, and sizes are arrays of length ncmds.  Each IO
+ * operation is described by parallel entries from each array.  There may be
+ * more bios actually issued than entries in the array
+ */
+static void
+vdev_geom_io(struct g_consumer *cp, int *cmds, void **datas, off_t *offsets,
+    off_t *sizes, int *errors, int ncmds)
 {
-	struct bio *bp;
+	struct bio **bios;
 	u_char *p;
-	off_t off, maxio;
-	int error;
+	off_t off, maxio, s, end;
+	int i, n_bios, j;
+	size_t bios_size;
 
-	ASSERT((offset % cp->provider->sectorsize) == 0);
-	ASSERT((size % cp->provider->sectorsize) == 0);
-
-	bp = g_alloc_bio();
-	off = offset;
-	offset += size;
-	p = data;
 	maxio = MAXPHYS - (MAXPHYS % cp->provider->sectorsize);
-	error = 0;
+	n_bios = 0;
 
-	for (; off < offset; off += maxio, p += maxio, size -= maxio) {
-		bzero(bp, sizeof(*bp));
-		bp->bio_cmd = cmd;
-		bp->bio_done = NULL;
-		bp->bio_offset = off;
-		bp->bio_length = MIN(size, maxio);
-		bp->bio_data = p;
-		g_io_request(bp, cp);
-		error = biowait(bp, "vdev_geom_io");
-		if (error != 0)
-			break;
+	/* How many bios are required for all commands ? */
+	for (i = 0; i < ncmds; i++)
+		n_bios += (sizes[i] + maxio - 1) / maxio;
+
+	/* Allocate memory for the bios */
+	bios_size = n_bios * sizeof(struct bio*);
+	bios = kmem_zalloc(bios_size, KM_SLEEP);
+
+	/* Prepare and issue all of the bios */
+	for (i = j = 0; i < ncmds; i++) {
+		off = offsets[i];
+		p = datas[i];
+		s = sizes[i];
+		end = off + s;
+		ASSERT((off % cp->provider->sectorsize) == 0);
+		ASSERT((s % cp->provider->sectorsize) == 0);
+
+		for (; off < end; off += maxio, p += maxio, s -= maxio, j++) {
+			bios[j] = g_alloc_bio();
+			bios[j]->bio_cmd = cmds[i];
+			bios[j]->bio_done = NULL;
+			bios[j]->bio_offset = off;
+			bios[j]->bio_length = MIN(s, maxio);
+			bios[j]->bio_data = p;
+			g_io_request(bios[j], cp);
+		}
 	}
+	ASSERT(j == n_bios);
 
-	g_destroy_bio(bp);
-	return (error);
+	/* Wait for all of the bios to complete, and clean them up */
+	for (i = j = 0; i < ncmds; i++) {
+		off = offsets[i];
+		s = sizes[i];
+		end = off + s;
+
+		for (; off < end; off += maxio, s -= maxio, j++) {
+			errors[i] = biowait(bios[j], "vdev_geom_io") || errors[i];
+			g_destroy_bio(bios[j]);
+		}
+	}
+	kmem_free(bios, bios_size);
 }
 
 static int
 vdev_geom_read_config(struct g_consumer *cp, nvlist_t **config)
 {
 	struct g_provider *pp;
-	vdev_label_t *label;
+	vdev_phys_t *vdev_lists[VDEV_LABELS];
 	char *p, *buf;
 	size_t buflen;
-	uint64_t psize;
-	off_t offset, size;
-	uint64_t state, txg;
-	int error, l, len;
+	uint64_t psize, state, txg;
+	off_t offsets[VDEV_LABELS];
+	off_t size;
+	off_t sizes[VDEV_LABELS];
+	int cmds[VDEV_LABELS];
+	int errors[VDEV_LABELS];
+	int l, len;
 
 	g_topology_assert_not();
 
@@ -382,22 +412,32 @@ vdev_geom_read_config(struct g_consumer *cp, nvlist_t **config)
 	psize = pp->mediasize;
 	psize = P2ALIGN(psize, (uint64_t)sizeof(vdev_label_t));
 
-	size = sizeof(*label) + pp->sectorsize -
-	    ((sizeof(*label) - 1) % pp->sectorsize) - 1;
+	size = sizeof(*vdev_lists[0]) + pp->sectorsize -
+	    ((sizeof(*vdev_lists[0]) - 1) % pp->sectorsize) - 1;
 
-	label = kmem_alloc(size, KM_SLEEP);
-	buflen = sizeof(label->vl_vdev_phys.vp_nvlist);
+	buflen = sizeof(vdev_lists[0]->vp_nvlist);
 
 	*config = NULL;
+	/* Create all of the IO requests */
 	for (l = 0; l < VDEV_LABELS; l++) {
+		cmds[l] = BIO_READ;
+		vdev_lists[l] = kmem_alloc(size, KM_SLEEP);
+		offsets[l] = vdev_label_offset(psize, l, 0) + VDEV_SKIP_SIZE;
+		sizes[l] = size;
+		errors[l] = 0;
+		ASSERT(offsets[l] % pp->sectorsize == 0);
+	}
 
-		offset = vdev_label_offset(psize, l, 0);
-		if ((offset % pp->sectorsize) != 0)
+	/* Issue the IO requests */
+	vdev_geom_io(cp, cmds, (void**)vdev_lists, offsets, sizes, errors,
+	    VDEV_LABELS);
+
+	/* Parse the labels */
+	for (l = 0; l < VDEV_LABELS; l++) {
+		if (errors[l] != 0)
 			continue;
 
-		if (vdev_geom_io(cp, BIO_READ, label, offset, size) != 0)
-			continue;
-		buf = label->vl_vdev_phys.vp_nvlist;
+		buf = vdev_lists[l]->vp_nvlist;
 
 		if (nvlist_unpack(buf, buflen, config, 0) != 0)
 			continue;
@@ -409,7 +449,8 @@ vdev_geom_read_config(struct g_consumer *cp, nvlist_t **config)
 			continue;
 		}
 
-		if (state != POOL_STATE_SPARE && state != POOL_STATE_L2CACHE &&
+		if (state != POOL_STATE_SPARE &&
+		    state != POOL_STATE_L2CACHE &&
 		    (nvlist_lookup_uint64(*config, ZPOOL_CONFIG_POOL_TXG,
 		    &txg) != 0 || txg == 0)) {
 			nvlist_free(*config);
@@ -420,7 +461,10 @@ vdev_geom_read_config(struct g_consumer *cp, nvlist_t **config)
 		break;
 	}
 
-	kmem_free(label, size);
+	/* Free the label storage */
+	for (l = 0; l < VDEV_LABELS; l++)
+		kmem_free(vdev_lists[l], size);
+
 	return (*config == NULL ? ENOENT : 0);
 }
 
