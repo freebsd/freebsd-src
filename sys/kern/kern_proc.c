@@ -168,6 +168,11 @@ CTASSERT(sizeof(struct kinfo_proc) == KINFO_PROC_SIZE);
 #ifdef COMPAT_FREEBSD32
 CTASSERT(sizeof(struct kinfo_proc32) == KINFO_PROC32_SIZE);
 #endif
+#ifdef COMPAT_CHERIABI
+#ifdef NOTYET
+CTASSERT(sizeof(struct kinfo_proc_c) == KINFO_PROC_C_SIZE);
+#endif
+#endif
 
 /*
  * Initialize global process hashing structures.
@@ -1286,7 +1291,116 @@ freebsd32_kinfo_proc_out(const struct kinfo_proc *ki, struct kinfo_proc32 *ki32)
 	CP(*ki, *ki32, ki_sflag);
 	CP(*ki, *ki32, ki_tdflags);
 }
-#endif
+#endif	/* COMPAT_FREEBSD32 */
+
+#ifdef COMPAT_CHERIABI
+static void
+ptr2cap(struct chericap *cap, void *ptr)
+{
+
+	/*
+	 * Convert pointers to NULL capabilities with the offset of the
+	 * virtual address to avoid leaking kernel capbilities.  One
+	 * alternative to consider is sealed capabilities, but would seem
+	 * to complicate attempts to impose hardware enforced flow control.
+	 */
+	cheri_capability_set_null(cap);
+	cheri_capability_setoffset(cap, (vaddr_t)ptr);
+}
+
+#define PTREXPAND_CP(src,dst,fld) \
+	do { ptr2cap(&(dst).fld, (src).fld); } while (0)
+
+static void
+cheriabi_kinfo_proc_out(const struct kinfo_proc *ki, struct kinfo_proc_c *ki_c)
+{
+	int i;
+
+	bzero(ki_c, sizeof(struct kinfo_proc_c));
+	ki_c->ki_structsize = sizeof(struct kinfo_proc_c);
+	CP(*ki, *ki_c, ki_layout);
+	PTREXPAND_CP(*ki, *ki_c, ki_args);
+	PTREXPAND_CP(*ki, *ki_c, ki_paddr);
+	PTREXPAND_CP(*ki, *ki_c, ki_addr);
+	PTREXPAND_CP(*ki, *ki_c, ki_tracep);
+	PTREXPAND_CP(*ki, *ki_c, ki_textvp);
+	PTREXPAND_CP(*ki, *ki_c, ki_fd);
+	PTREXPAND_CP(*ki, *ki_c, ki_vmspace);
+	PTREXPAND_CP(*ki, *ki_c, ki_wchan);
+	CP(*ki, *ki_c, ki_pid);
+	CP(*ki, *ki_c, ki_ppid);
+	CP(*ki, *ki_c, ki_pgid);
+	CP(*ki, *ki_c, ki_tpgid);
+	CP(*ki, *ki_c, ki_sid);
+	CP(*ki, *ki_c, ki_tsid);
+	CP(*ki, *ki_c, ki_jobc);
+	CP(*ki, *ki_c, ki_tdev);
+	CP(*ki, *ki_c, ki_siglist);
+	CP(*ki, *ki_c, ki_sigmask);
+	CP(*ki, *ki_c, ki_sigignore);
+	CP(*ki, *ki_c, ki_sigcatch);
+	CP(*ki, *ki_c, ki_uid);
+	CP(*ki, *ki_c, ki_ruid);
+	CP(*ki, *ki_c, ki_svuid);
+	CP(*ki, *ki_c, ki_rgid);
+	CP(*ki, *ki_c, ki_svgid);
+	CP(*ki, *ki_c, ki_ngroups);
+	for (i = 0; i < KI_NGROUPS; i++)
+		CP(*ki, *ki_c, ki_groups[i]);
+	CP(*ki, *ki_c, ki_size);
+	CP(*ki, *ki_c, ki_rssize);
+	CP(*ki, *ki_c, ki_swrss);
+	CP(*ki, *ki_c, ki_tsize);
+	CP(*ki, *ki_c, ki_dsize);
+	CP(*ki, *ki_c, ki_ssize);
+	CP(*ki, *ki_c, ki_xstat);
+	CP(*ki, *ki_c, ki_acflag);
+	CP(*ki, *ki_c, ki_pctcpu);
+	CP(*ki, *ki_c, ki_estcpu);
+	CP(*ki, *ki_c, ki_slptime);
+	CP(*ki, *ki_c, ki_swtime);
+	CP(*ki, *ki_c, ki_cow);
+	CP(*ki, *ki_c, ki_runtime);
+	CP(*ki, *ki_c, ki_start);
+	CP(*ki, *ki_c, ki_childtime);
+	CP(*ki, *ki_c, ki_flag);
+	CP(*ki, *ki_c, ki_kiflag);
+	CP(*ki, *ki_c, ki_traceflag);
+	CP(*ki, *ki_c, ki_stat);
+	CP(*ki, *ki_c, ki_nice);
+	CP(*ki, *ki_c, ki_lock);
+	CP(*ki, *ki_c, ki_rqindex);
+	CP(*ki, *ki_c, ki_oncpu);
+	CP(*ki, *ki_c, ki_lastcpu);
+
+	/* XXX TODO: wrap cpu value as appropriate */
+	CP(*ki, *ki_c, ki_oncpu_old);
+	CP(*ki, *ki_c, ki_lastcpu_old);
+
+	bcopy(ki->ki_tdname, ki_c->ki_tdname, TDNAMLEN + 1);
+	bcopy(ki->ki_wmesg, ki_c->ki_wmesg, WMESGLEN + 1);
+	bcopy(ki->ki_login, ki_c->ki_login, LOGNAMELEN + 1);
+	bcopy(ki->ki_lockname, ki_c->ki_lockname, LOCKNAMELEN + 1);
+	bcopy(ki->ki_comm, ki_c->ki_comm, COMMLEN + 1);
+	bcopy(ki->ki_emul, ki_c->ki_emul, KI_EMULNAMELEN + 1);
+	bcopy(ki->ki_loginclass, ki_c->ki_loginclass, LOGINCLASSLEN + 1);
+	CP(*ki, *ki_c, ki_tracer);
+	CP(*ki, *ki_c, ki_flag2);
+	CP(*ki, *ki_c, ki_fibnum);
+	CP(*ki, *ki_c, ki_cr_flags);
+	CP(*ki, *ki_c, ki_jid);
+	CP(*ki, *ki_c, ki_numthreads);
+	CP(*ki, *ki_c, ki_tid);
+	CP(*ki, *ki_c, ki_pri);
+	CP(*ki, *ki_c, ki_rusage);
+	CP(*ki, *ki_c, ki_rusage_ch);
+	PTREXPAND_CP(*ki, *ki_c, ki_pcb);
+	PTREXPAND_CP(*ki, *ki_c, ki_kstack);
+	PTREXPAND_CP(*ki, *ki_c, ki_udata);
+	CP(*ki, *ki_c, ki_sflag);
+	CP(*ki, *ki_c, ki_tdflags);
+}
+#endif	/* COMPAT_CHERIABI */
 
 int
 kern_proc_out(struct proc *p, struct sbuf *sb, int flags)
@@ -1295,6 +1409,9 @@ kern_proc_out(struct proc *p, struct sbuf *sb, int flags)
 	struct kinfo_proc ki;
 #ifdef COMPAT_FREEBSD32
 	struct kinfo_proc32 ki32;
+#endif
+#ifdef COMPAT_CHERIABI
+	struct kinfo_proc_c ki_c;
 #endif
 	int error;
 
@@ -1311,6 +1428,13 @@ kern_proc_out(struct proc *p, struct sbuf *sb, int flags)
 				error = ENOMEM;
 		} else
 #endif
+#ifdef COMPAT_CHERIABI
+		if ((flags & KERN_PROC_CHERIABI) != 0) {
+			cheriabi_kinfo_proc_out(&ki, &ki_c);
+			if (sbuf_bcat(sb, &ki_c, sizeof(ki_c)) != 0)
+				error = ENOMEM;
+		} else
+#endif
 			if (sbuf_bcat(sb, &ki, sizeof(ki)) != 0)
 				error = ENOMEM;
 	} else {
@@ -1320,6 +1444,13 @@ kern_proc_out(struct proc *p, struct sbuf *sb, int flags)
 			if ((flags & KERN_PROC_MASK32) != 0) {
 				freebsd32_kinfo_proc_out(&ki, &ki32);
 				if (sbuf_bcat(sb, &ki32, sizeof(ki32)) != 0)
+					error = ENOMEM;
+			} else
+#endif
+#ifdef COMPAT_CHERIABI
+			if ((flags & KERN_PROC_CHERIABI) != 0) {
+				cheriabi_kinfo_proc_out(&ki, &ki_c);
+				if (sbuf_bcat(sb, &ki_c, sizeof(ki_c)) != 0)
 					error = ENOMEM;
 			} else
 #endif
@@ -1390,6 +1521,10 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 #ifdef COMPAT_FREEBSD32
 	if (req->flags & SCTL_MASK32)
 		flags |= KERN_PROC_MASK32;
+#endif
+#ifdef COMPAT_CHERIABI
+	if (req->flags & SCTL_CHERIABI)
+		flags |= KERN_PROC_CHERIABI;
 #endif
 	if (oid_number == KERN_PROC_PID) {
 		if (namelen != 1)

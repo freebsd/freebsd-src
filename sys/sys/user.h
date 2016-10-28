@@ -538,6 +538,7 @@ struct kinfo_sigtramp {
 /* Flags for kern_proc_out function. */
 #define KERN_PROC_NOTHREADS	0x1
 #define KERN_PROC_MASK32	0x2
+#define KERN_PROC_CHERIABI	0x4
 
 /* Flags for kern_proc_filedesc_out. */
 #define	KERN_FILEDESC_PACK_KINFO	0x00000001U
