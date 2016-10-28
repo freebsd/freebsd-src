@@ -1804,6 +1804,8 @@ static void
 ioat_submit_single(struct ioat_softc *ioat)
 {
 
+	mtx_assert(&ioat->submit_lock, MA_OWNED);
+
 	ioat_get(ioat, IOAT_ACTIVE_DESCR_REF);
 	atomic_add_rel_int(&ioat->head, 1);
 	atomic_add_rel_int(&ioat->hw_head, 1);
