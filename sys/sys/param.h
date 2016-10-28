@@ -44,7 +44,7 @@
 #define BSD4_3	1
 #define BSD4_4	1
 
-/* 
+/*
  * __FreeBSD_version numbers are documented in the Porter's Handbook.
  * If you bump the version for any reason, you should update the documentation
  * there.
@@ -239,7 +239,7 @@
  *
  * BKVASIZE -	Nominal buffer space per buffer, in bytes.  BKVASIZE is the
  *		minimum KVM memory reservation the kernel is willing to make.
- *		Filesystems can of course request smaller chunks.  Actual 
+ *		Filesystems can of course request smaller chunks.  Actual
  *		backing memory uses a chunk size of a page (PAGE_SIZE).
  *		The default value here can be overridden on a per-architecture
  *		basis by defining it in <machine/param.h>.  This should
@@ -248,8 +248,8 @@
  *
  *		If you make BKVASIZE too small you risk seriously fragmenting
  *		the buffer KVM map which may slow things down a bit.  If you
- *		make it too big the kernel will not be able to optimally use 
- *		the KVM memory reserved for the buffer cache and will wind 
+ *		make it too big the kernel will not be able to optimally use
+ *		the KVM memory reserved for the buffer cache and will wind
  *		up with too-few buffers.
  *
  *		The default is 16384, roughly 2x the block size used by a
@@ -342,7 +342,7 @@ __END_DECLS
 
 #define dbtoc(db)			/* calculates devblks to pages */ \
 	((db + (ctodb(1) - 1)) >> (PAGE_SHIFT - DEV_BSHIFT))
- 
+
 #define ctodb(db)			/* calculates pages to devblks */ \
 	((db) << (PAGE_SHIFT - DEV_BSHIFT))
 
