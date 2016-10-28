@@ -47,7 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/vmm.h>
 #include <machine/vmm_dev.h>
 #include <machine/vmm_instruction_emul.h>
-#include <machine/vmparam.h>
 
 #include "vmm_lapic.h"
 #include "vmm_stat.h"
@@ -515,11 +514,11 @@ svm_vminit(struct vm *vm, pmap_t pmap)
 {
 	struct svm_softc *svm_sc;
 	struct svm_vcpu *vcpu;
-	vm_paddr_t msrpm_pa, iopm_pa, pml4_pa;	
+	vm_paddr_t msrpm_pa, iopm_pa, pml4_pa
 	int i;
 
 	svm_sc = contigmalloc(sizeof (*svm_sc), M_SVM, M_WAITOK | M_ZERO,
-	    0, VM_MAX_ADDRESS, PAGE_SIZE, 0);
+	    0, ~(vm_paddr_t)0, PAGE_SIZE, 0);
 	svm_sc->vm = vm;
 	svm_sc->nptp = (vm_offset_t)vtophys(pmap->pm_pml4);
 
@@ -536,7 +535,7 @@ svm_vminit(struct vm *vm, pmap_t pmap)
 	svm_msr_rw_ok(svm_sc->msr_bitmap, MSR_GSBASE);
 	svm_msr_rw_ok(svm_sc->msr_bitmap, MSR_FSBASE);
 	svm_msr_rw_ok(svm_sc->msr_bitmap, MSR_KGSBASE);
-	
+
 	svm_msr_rw_ok(svm_sc->msr_bitmap, MSR_STAR);
 	svm_msr_rw_ok(svm_sc->msr_bitmap, MSR_LSTAR);
 	svm_msr_rw_ok(svm_sc->msr_bitmap, MSR_CSTAR);
