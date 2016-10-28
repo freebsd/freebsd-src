@@ -34,6 +34,10 @@
 
 #define n(flags) (~(flags) & (flags))
 
+/* Order constants for smbus children. */
+#define SMBUS_ORDER_HINTED	20
+#define SMBUS_ORDER_PNP		40
+
 /*
  * How tsleep() is called in smb_request_bus().
  */
