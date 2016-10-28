@@ -338,14 +338,6 @@ vdev_geom_close_locked(vdev_t *vd)
 	vdev_geom_detach(cp, B_TRUE);
 }
 
-static void
-nvlist_get_guids(nvlist_t *list, uint64_t *pguid, uint64_t *vguid)
-{
-
-	(void) nvlist_lookup_uint64(list, ZPOOL_CONFIG_GUID, vguid);
-	(void) nvlist_lookup_uint64(list, ZPOOL_CONFIG_POOL_GUID, pguid);
-}
-
 /*
  * Issue one or more bios to the vdev in parallel
  * cmds, datas, offsets, errors, and sizes are arrays of length ncmds.  Each IO
@@ -606,58 +598,69 @@ vdev_geom_read_pool_label(const char *name,
 	return (*count > 0 ? 0 : ENOENT);
 }
 
-static void
-vdev_geom_read_guids(struct g_consumer *cp, uint64_t *pguid, uint64_t *vguid)
-{
-	nvlist_t *config;
+enum match {
+	NO_MATCH,
+	TOP_MATCH,
+	FULL_MATCH
+};
 
-	g_topology_assert_not();
-
-	*pguid = 0;
-	*vguid = 0;
-	if (vdev_geom_read_config(cp, &config) == 0) {
-		nvlist_get_guids(config, pguid, vguid);
-		nvlist_free(config);
-	}
-}
-
-static boolean_t
+static enum match
 vdev_attach_ok(vdev_t *vd, struct g_provider *pp)
 {
-	uint64_t pool_guid;
-	uint64_t vdev_guid;
-	struct g_consumer *zcp;
-	boolean_t pool_ok;
-	boolean_t vdev_ok;
+	nvlist_t *config;
+	uint64_t pool_guid, top_guid, vdev_guid;
+	struct g_consumer *cp;
 
-	zcp = vdev_geom_attach(pp, NULL);
-	if (zcp == NULL) {
+	cp = vdev_geom_attach(pp, NULL);
+	if (cp == NULL) {
 		ZFS_LOG(1, "Unable to attach tasting instance to %s.",
 		    pp->name);
-		return (B_FALSE);
+		return (NO_MATCH);
 	}
 	g_topology_unlock();
-	vdev_geom_read_guids(zcp, &pool_guid, &vdev_guid);
-	g_topology_lock();
-	vdev_geom_detach(zcp, B_TRUE);
-
-	/* 
-	 * Check that the label's vdev guid matches the desired guid.  If the
-	 * label has a pool guid, check that it matches too. (Inactive spares
-	 * and L2ARCs do not have any pool guid in the label.)
-	 */
-	if ((pool_guid == 0 || pool_guid == spa_guid(vd->vdev_spa)) &&
-	    vdev_guid == vd->vdev_guid) {
-		ZFS_LOG(1, "guids match for provider %s.", vd->vdev_path);
-		return (B_TRUE);
-	} else {
-		ZFS_LOG(1, "guid mismatch for provider %s: "
-		    "%ju:%ju != %ju:%ju.", vd->vdev_path,
-		    (uintmax_t)spa_guid(vd->vdev_spa),
-		    (uintmax_t)vd->vdev_guid,
-		    (uintmax_t)pool_guid, (uintmax_t)vdev_guid);
-		return (B_FALSE);
+	if (vdev_geom_read_config(cp, &config) != 0) {
+		g_topology_lock();
+		vdev_geom_detach(cp, B_TRUE);
+		ZFS_LOG(1, "Unable to read config from %s.", pp->name);
+		return (NO_MATCH);
 	}
+	g_topology_lock();
+	vdev_geom_detach(cp, B_TRUE);
+
+	pool_guid = 0;
+	(void) nvlist_lookup_uint64(config, ZPOOL_CONFIG_POOL_GUID, &pool_guid);
+	top_guid = 0;
+	(void) nvlist_lookup_uint64(config, ZPOOL_CONFIG_TOP_GUID, &top_guid);
+	vdev_guid = 0;
+	(void) nvlist_lookup_uint64(config, ZPOOL_CONFIG_GUID, &vdev_guid);
+	nvlist_free(config);
+
+	/*
+	 * Check that the label's pool guid matches the desired guid.
+	 * Inactive spares and L2ARCs do not have any pool guid in the label.
+	 */
+	if (pool_guid != 0 && pool_guid != spa_guid(vd->vdev_spa)) {
+		ZFS_LOG(1, "pool guid mismatch for provider %s: %ju != %ju.",
+		    pp->name,
+		    (uintmax_t)spa_guid(vd->vdev_spa), (uintmax_t)pool_guid);
+		return (NO_MATCH);
+	}
+
+	/*
+	 * Check that the label's vdev guid matches the desired guid.
+	 * The second condition handles possible race on vdev detach, when
+	 * remaining vdev receives GUID of destroyed top level mirror vdev.
+	 */
+	if (vdev_guid == vd->vdev_guid) {
+		ZFS_LOG(1, "guids match for provider %s.", pp->name);
+		return (FULL_MATCH);
+	} else if (top_guid == vd->vdev_guid && vd == vd->vdev_top) {
+		ZFS_LOG(1, "top vdev guid match for provider %s.", pp->name);
+		return (TOP_MATCH);
+	}
+	ZFS_LOG(1, "vdev guid mismatch for provider %s: %ju != %ju.",
+	    pp->name, (uintmax_t)vd->vdev_guid, (uintmax_t)vdev_guid);
+	return (NO_MATCH);
 }
 
 static struct g_consumer *
@@ -667,6 +670,7 @@ vdev_geom_attach_by_guids(vdev_t *vd)
 	struct g_geom *gp;
 	struct g_provider *pp;
 	struct g_consumer *cp;
+	enum match m;
 
 	g_topology_assert();
 
@@ -678,23 +682,26 @@ vdev_geom_attach_by_guids(vdev_t *vd)
 			if (gp->flags & G_GEOM_WITHER)
 				continue;
 			LIST_FOREACH(pp, &gp->provider, provider) {
-				if (!vdev_attach_ok(vd, pp))
+				m = vdev_attach_ok(vd, pp);
+				if (m == NO_MATCH)
 					continue;
+				if (cp != NULL) {
+					if (m == FULL_MATCH)
+						vdev_geom_detach(cp, B_TRUE);
+					else
+						continue;
+				}
 				cp = vdev_geom_attach(pp, vd);
 				if (cp == NULL) {
 					printf("ZFS WARNING: Unable to "
 					    "attach to %s.\n", pp->name);
 					continue;
 				}
-				break;
+				if (m == FULL_MATCH)
+					return (cp);
 			}
-			if (cp != NULL)
-				break;
 		}
-		if (cp != NULL)
-			break;
 	}
-end:
 	return (cp);
 }
 
@@ -742,7 +749,7 @@ vdev_geom_open_by_path(vdev_t *vd, int check_guid)
 	pp = g_provider_by_name(vd->vdev_path + sizeof("/dev/") - 1);
 	if (pp != NULL) {
 		ZFS_LOG(1, "Found provider by name %s.", vd->vdev_path);
-		if (!check_guid || vdev_attach_ok(vd, pp))
+		if (!check_guid || vdev_attach_ok(vd, pp) == FULL_MATCH)
 			cp = vdev_geom_attach(pp, vd);
 	}
 
