@@ -95,6 +95,7 @@ __FBSDID("$FreeBSD$");
 static int uaudio_default_rate = 0;		/* use rate list */
 static int uaudio_default_bits = 32;
 static int uaudio_default_channels = 0;		/* use default */
+static int uaudio_buffer_ms = 8;
 
 #ifdef USB_DEBUG
 static int uaudio_debug = 0;
@@ -115,9 +116,32 @@ SYSCTL_INT(_hw_usb_uaudio, OID_AUTO, default_bits, CTLFLAG_RW,
 TUNABLE_INT("hw.usb.uaudio.default_channels", &uaudio_default_channels);
 SYSCTL_INT(_hw_usb_uaudio, OID_AUTO, default_channels, CTLFLAG_RW,
     &uaudio_default_channels, 0, "uaudio default sample channels");
+
+static int
+uaudio_buffer_ms_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	int err, val;
+
+	val = uaudio_buffer_ms;
+	err = sysctl_handle_int(oidp, &val, 0, req);
+
+	if (err != 0 || req->newptr == NULL || val == uaudio_buffer_ms)
+		return (err);
+
+	if (val > 8)
+		val = 8;
+	else if (val < 2)
+		val = 2;
+
+	uaudio_buffer_ms = val;
+
+	return (0);
+}
+SYSCTL_PROC(_hw_usb_uaudio, OID_AUTO, buffer_ms, CTLTYPE_INT | CTLFLAG_RWTUN,
+    0, sizeof(int), uaudio_buffer_ms_sysctl, "I",
+    "uaudio buffering delay from 2ms to 8ms");
 #endif
 
-#define	UAUDIO_IRQS	(8000 / UAUDIO_NFRAMES)	/* interrupts per second */
 #define	UAUDIO_NFRAMES		64	/* must be factor of 8 due HS-USB */
 #define	UAUDIO_NCHANBUFS	2	/* number of outstanding request */
 #define	UAUDIO_RECURSE_LIMIT	255	/* rounds */
@@ -1284,10 +1308,10 @@ uaudio_configure_msg_sub(struct uaudio_softc *sc,
 
 	if (fps < 8000) {
 		/* FULL speed USB */
-		frames = 8;
+		frames = uaudio_buffer_ms;
 	} else {
 		/* HIGH speed USB */
-		frames = UAUDIO_NFRAMES;
+		frames = uaudio_buffer_ms * 8;
 	}
 
 	fps_shift = usbd_xfer_get_fps_shift(chan->xfer[0]);
@@ -2164,8 +2188,9 @@ tr_setup:
 		}
 
 		/* start the SYNC transfer one time per second, if any */
-		if (++(ch->intr_counter) >= UAUDIO_IRQS) {
-			ch->intr_counter = 0;
+		ch->intr_counter += ch->intr_frames;
+		if (ch->intr_counter >= ch->frames_per_second) {
+			ch->intr_counter -= ch->frames_per_second;
 			usbd_transfer_start(ch->xfer[UAUDIO_NCHANBUFS]);
 		}
 
