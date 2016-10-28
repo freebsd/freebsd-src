@@ -28,8 +28,8 @@
  * $FreeBSD$
  */
 
-#ifndef __HV_NET_VSC_H__
-#define __HV_NET_VSC_H__
+#ifndef _HN_NVS_H_
+#define _HN_NVS_H_
 
 struct hn_nvs_sendctx;
 struct vmbus_channel;
@@ -103,4 +103,4 @@ int		hn_nvs_send_rndis_ctrl(struct vmbus_channel *chan,
 
 extern struct hn_nvs_sendctx	hn_nvs_sendctx_none;
 
-#endif  /* __HV_NET_VSC_H__ */
+#endif  /* !_HN_NVS_H_ */
