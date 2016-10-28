@@ -31,16 +31,9 @@
 #ifndef __HV_RNDIS_FILTER_H__
 #define __HV_RNDIS_FILTER_H__
 
-#include <sys/param.h>
-#include <net/ethernet.h>
-#include <dev/hyperv/netvsc/if_hnvar.h>
+struct hn_softc;
 
-/*
- * Externs
- */
-struct hn_rx_ring;
-
-void hv_rf_on_receive(struct hn_softc *sc, struct hn_rx_ring *rxr,
-    const void *data, int dlen);
+void		hn_rndis_rx_ctrl(struct hn_softc *sc, const void *data,
+		    int dlen);
 
 #endif  /* __HV_RNDIS_FILTER_H__ */
