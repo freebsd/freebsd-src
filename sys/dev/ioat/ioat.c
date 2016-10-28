@@ -677,7 +677,7 @@ ioat_process_events(struct ioat_softc *ioat)
 	}
 
 	completed = 0;
-	comp_update = ioat_get_chansts(ioat);
+	comp_update = *ioat->comp_update;
 	status = comp_update & IOAT_CHANSTS_COMPLETED_DESCRIPTOR_MASK;
 
 	if (status == ioat->last_seen) {
@@ -691,7 +691,7 @@ ioat_process_events(struct ioat_softc *ioat)
 	    __func__, ioat->chan_idx, comp_update, ioat->last_seen);
 
 	desc = ioat_get_ring_entry(ioat, ioat->tail - 1);
-	while (desc->hw_desc_bus_addr != status && ioat_get_active(ioat) > 0) {
+	while (desc->hw_desc_bus_addr != status) {
 		desc = ioat_get_ring_entry(ioat, ioat->tail);
 		dmadesc = &desc->bus_dmadesc;
 		CTR5(KTR_IOAT, "channel=%u completing desc idx %u (%p) ok  cb %p(%p)",
