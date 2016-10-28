@@ -478,13 +478,14 @@ cheriabi_ioctl_translate_in(u_long com, void *data, u_long *t_comp,
 
 }
 
-static void
+static int
 cheriabi_ioctl_translate_out(u_long com, void *data, void *t_data)
 {
+	int error = 0;
 
 	if (!(com & IOC_OUT)) {
 		free(t_data, M_IOCTLOPS);
-		return;
+		return (0);
 	}
 
 	switch (com) {
@@ -634,11 +635,12 @@ cheriabi_ioctl_translate_out(u_long com, void *data, void *t_data)
 	/* Other struct ifreq consumers don't allocate translation space. */
 
 	default:
-		panic("%s: unhandled IOC_OUT command %lu", __func__, com);
+		printf("%s: unhandled IOC_OUT command 0x%lx\n", __func__, com);
+		error = EINVAL;
 	}
 
 	free(t_data, M_IOCTLOPS);
-	return;
+	return (error);
 }
 
 int
@@ -829,8 +831,8 @@ cheriabi_ioctl(struct thread *td, struct cheriabi_ioctl_args *uap)
 	else
 		error = kern_ioctl(td, uap->fd, com, t_data);
 
-	if (t_data)
-		cheriabi_ioctl_translate_out(com, data, t_data);
+	if (t_data && error == 0)
+		error = cheriabi_ioctl_translate_out(com, data, t_data);
 	if (error == 0 && (com & IOC_OUT)) {
 		if (t_data)
 			error = copyoutcap(data, uap->data, (u_int)size);
