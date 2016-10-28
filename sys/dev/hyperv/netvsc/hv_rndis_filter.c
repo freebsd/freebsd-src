@@ -29,11 +29,12 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_inet6.h"
+#include "opt_inet.h"
+
 #include <sys/param.h>
-#include <sys/mbuf.h>
 #include <sys/socket.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
+#include <sys/systm.h>
 #include <sys/taskqueue.h>
 
 #include <machine/atomic.h>
@@ -76,19 +77,23 @@ __FBSDID("$FreeBSD$");
 #define HN_NDIS_LSOV2_CAP_IP6		\
 	(NDIS_LSOV2_CAP_IP6EXT | NDIS_LSOV2_CAP_TCP6OPT)
 
-/*
- * Forward declarations
- */
-static int hn_rndis_query(struct hn_softc *sc, uint32_t oid,
-    const void *idata, size_t idlen, void *odata, size_t *odlen0);
-static int hn_rndis_query2(struct hn_softc *sc, uint32_t oid,
-    const void *idata, size_t idlen, void *odata, size_t *odlen0,
-    size_t min_odlen);
-static int hn_rndis_set(struct hn_softc *sc, uint32_t oid, const void *data,
-    size_t dlen);
-static int hn_rndis_conf_offload(struct hn_softc *sc, int mtu);
-static int hn_rndis_query_hwcaps(struct hn_softc *sc,
-    struct ndis_offload *caps);
+static const void	*hn_rndis_xact_exec1(struct hn_softc *,
+			    struct vmbus_xact *, size_t,
+			    struct hn_nvs_sendctx *, size_t *);
+static const void	*hn_rndis_xact_execute(struct hn_softc *,
+			    struct vmbus_xact *, uint32_t, size_t, size_t *,
+			    uint32_t);
+static int		hn_rndis_query(struct hn_softc *, uint32_t,
+			    const void *, size_t, void *, size_t *);
+static int		hn_rndis_query2(struct hn_softc *, uint32_t,
+			    const void *, size_t, void *, size_t *, size_t);
+static int		hn_rndis_set(struct hn_softc *, uint32_t,
+			    const void *, size_t);
+static int		hn_rndis_init(struct hn_softc *);
+static int		hn_rndis_halt(struct hn_softc *);
+static int		hn_rndis_conf_offload(struct hn_softc *, int);
+static int		hn_rndis_query_hwcaps(struct hn_softc *,
+			    struct ndis_offload *);
 
 static __inline uint32_t
 hn_rndis_rid(struct hn_softc *sc)
