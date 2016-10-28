@@ -104,42 +104,6 @@ again:
 	return ((rid & 0xffff) << 16);
 }
 
-void *
-hn_rndis_pktinfo_append(struct rndis_packet_msg *pkt, size_t pktsize,
-    size_t pi_dlen, uint32_t pi_type)
-{
-	const size_t pi_size = HN_RNDIS_PKTINFO_SIZE(pi_dlen);
-	struct rndis_pktinfo *pi;
-
-	KASSERT((pi_size & RNDIS_PACKET_MSG_OFFSET_ALIGNMASK) == 0,
-	    ("unaligned pktinfo size %zu, pktinfo dlen %zu", pi_size, pi_dlen));
-
-	/*
-	 * Per-packet-info does not move; it only grows.
-	 *
-	 * NOTE:
-	 * rm_pktinfooffset in this phase counts from the beginning
-	 * of rndis_packet_msg.
-	 */
-	KASSERT(pkt->rm_pktinfooffset + pkt->rm_pktinfolen + pi_size <= pktsize,
-	    ("%u pktinfo overflows RNDIS packet msg", pi_type));
-	pi = (struct rndis_pktinfo *)((uint8_t *)pkt + pkt->rm_pktinfooffset +
-	    pkt->rm_pktinfolen);
-	pkt->rm_pktinfolen += pi_size;
-
-	pi->rm_size = pi_size;
-	pi->rm_type = pi_type;
-	pi->rm_pktinfooffset = RNDIS_PKTINFO_OFFSET;
-
-	/* Data immediately follow per-packet-info. */
-	pkt->rm_dataoffset += pi_size;
-
-	/* Update RNDIS packet msg length */
-	pkt->rm_len += pi_size;
-
-	return (pi->rm_data);
-}
-
 void
 hn_rndis_rx_ctrl(struct hn_softc *sc, const void *data, int dlen)
 {
