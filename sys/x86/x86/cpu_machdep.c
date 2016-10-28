@@ -551,7 +551,7 @@ nmi_call_kdb(u_int cpu, u_int type, struct trapframe *frame)
 		 * NMI can be hooked up to a pushbutton for debugging.
 		 */
 		if (kdb_on_nmi) {
-			printf ("NMI/cpu%d ... going to debugger\n", cpu);
+			printf("NMI/cpu%d ... going to debugger\n", cpu);
 			kdb_trap(type, 0, frame);
 		}
 #endif /* KDB */
@@ -572,6 +572,6 @@ nmi_handle_intr(u_int type, struct trapframe *frame)
 		return;
 	}
 #endif
-	nmi_call_kdb(0, type, frame);
+	nmi_call_kdb(PCPU_GET(cpuid), type, frame);
 #endif
 }
