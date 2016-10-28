@@ -972,12 +972,14 @@ extendfile(struct denode *dep, u_long count, struct buf **bpp, u_long *ncp,
 	while (count > 0) {
 		/*
 		 * Allocate a new cluster chain and cat onto the end of the
-		 * file.  * If the file is empty we make de_StartCluster point
-		 * to the new block.  Note that de_StartCluster being 0 is
-		 * sufficient to be sure the file is empty since we exclude
-		 * attempts to extend the root directory above, and the root
-		 * dir is the only file with a startcluster of 0 that has
-		 * blocks allocated (sort of).
+		 * file.
+		 * If the file is empty we make de_StartCluster point
+		 * to the new block.  Note that de_StartCluster being
+		 * 0 is sufficient to be sure the file is empty since
+		 * we exclude attempts to extend the root directory
+		 * above, and the root dir is the only file with a
+		 * startcluster of 0 that has blocks allocated (sort
+		 * of).
 		 */
 		if (dep->de_StartCluster == 0)
 			cn = 0;
