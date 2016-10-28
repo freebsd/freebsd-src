@@ -1123,36 +1123,30 @@ zvol_open(struct g_provider *pp, int flag, int count)
 		return (err);
 	}
 #else	/* !illumos */
-	boolean_t locked = B_FALSE;
-
-	/*
-	 * Protect against recursively entering spa_namespace_lock
-	 * when spa_open() is used for a pool on a (local) ZVOL(s).
-	 * This is needed since we replaced upstream zfsdev_state_lock
-	 * with spa_namespace_lock in the ZVOL code.
-	 * We are using the same trick as spa_open().
-	 * Note that calls in zvol_first_open which need to resolve
-	 * pool name to a spa object will enter spa_open()
-	 * recursively, but that function already has all the
-	 * necessary protection.
-	 */
-	if (!MUTEX_HELD(&zfsdev_state_lock)) {
-		mutex_enter(&zfsdev_state_lock);
-		locked = B_TRUE;
+	if (tsd_get(zfs_geom_probe_vdev_key) != NULL) {
+		/*
+		 * if zfs_geom_probe_vdev_key is set, that means that zfs is
+		 * attempting to probe geom providers while looking for a
+		 * replacement for a missing VDEV.  In this case, the
+		 * spa_namespace_lock will not be held, but it is still illegal
+		 * to use a zvol as a vdev.  Deadlocks can result if another
+		 * thread has spa_namespace_lock
+		 */
+		return (EOPNOTSUPP);
 	}
+
+	mutex_enter(&zfsdev_state_lock);
 
 	zv = pp->private;
 	if (zv == NULL) {
-		if (locked)
-			mutex_exit(&zfsdev_state_lock);
+		mutex_exit(&zfsdev_state_lock);
 		return (SET_ERROR(ENXIO));
 	}
 
 	if (zv->zv_total_opens == 0) {
 		err = zvol_first_open(zv);
 		if (err) {
-			if (locked)
-				mutex_exit(&zfsdev_state_lock);
+			mutex_exit(&zfsdev_state_lock);
 			return (err);
 		}
 		pp->mediasize = zv->zv_volsize;
@@ -1186,8 +1180,7 @@ zvol_open(struct g_provider *pp, int flag, int count)
 	mutex_exit(&zfsdev_state_lock);
 #else
 	zv->zv_total_opens += count;
-	if (locked)
-		mutex_exit(&zfsdev_state_lock);
+	mutex_exit(&zfsdev_state_lock);
 #endif
 
 	return (err);
@@ -1197,8 +1190,7 @@ out:
 #ifdef illumos
 	mutex_exit(&zfsdev_state_lock);
 #else
-	if (locked)
-		mutex_exit(&zfsdev_state_lock);
+	mutex_exit(&zfsdev_state_lock);
 #endif
 	return (err);
 }
