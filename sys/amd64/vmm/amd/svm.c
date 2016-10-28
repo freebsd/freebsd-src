@@ -514,7 +514,7 @@ svm_vminit(struct vm *vm, pmap_t pmap)
 {
 	struct svm_softc *svm_sc;
 	struct svm_vcpu *vcpu;
-	vm_paddr_t msrpm_pa, iopm_pa, pml4_pa
+	vm_paddr_t msrpm_pa, iopm_pa, pml4_pa;
 	int i;
 
 	svm_sc = contigmalloc(sizeof (*svm_sc), M_SVM, M_WAITOK | M_ZERO,
