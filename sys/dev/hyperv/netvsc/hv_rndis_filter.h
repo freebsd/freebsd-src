@@ -42,7 +42,5 @@ struct hn_rx_ring;
 
 void hv_rf_on_receive(struct hn_softc *sc, struct hn_rx_ring *rxr,
     const void *data, int dlen);
-void hv_rf_channel_rollup(struct hn_rx_ring *rxr, struct hn_tx_ring *txr);
 
 #endif  /* __HV_RNDIS_FILTER_H__ */
-
