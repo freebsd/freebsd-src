@@ -4,8 +4,6 @@
  * Tree search generalized from Knuth (6.2.2) Algorithm T just like
  * the AT&T man page says.
  *
- * The node_t structure is for internal use only, lint doesn't grok it.
- *
  * Written by reading the System V Interface Definition, not the code.
  *
  * Totally public domain.
@@ -23,12 +21,11 @@ __FBSDID("$FreeBSD$");
 #include <search.h>
 #include <stdlib.h>
 
-typedef void (*cmp_fn_t)(const void *, VISIT, int);
+typedef void (*cmp_fn_t)(const posix_tnode *, VISIT, int);
 
 /* Walk the nodes of a tree */
 static void
-trecurse(const node_t *root,	/* Root of the tree to be walked */
-	cmp_fn_t action, int level)
+trecurse(const posix_tnode *root, cmp_fn_t action, int level)
 {
 
 	if (root->llink == NULL && root->rlink == NULL)
@@ -46,7 +43,7 @@ trecurse(const node_t *root,	/* Root of the tree to be walked */
 
 /* Walk the nodes of a tree */
 void
-twalk(const void *vroot, cmp_fn_t action) /* Root of the tree to be walked */
+twalk(const posix_tnode *vroot, cmp_fn_t action)
 {
 	if (vroot != NULL && action != NULL)
 		trecurse(vroot, action, 0);
