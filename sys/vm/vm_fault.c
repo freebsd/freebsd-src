@@ -153,6 +153,16 @@ unlock_map(struct faultstate *fs)
 }
 
 static void
+unlock_vp(struct faultstate *fs)
+{
+
+	if (fs->vp != NULL) {
+		vput(fs->vp);
+		fs->vp = NULL;
+	}
+}
+
+static void
 unlock_and_deallocate(struct faultstate *fs)
 {
 
@@ -168,11 +178,8 @@ unlock_and_deallocate(struct faultstate *fs)
 		fs->first_m = NULL;
 	}
 	vm_object_deallocate(fs->first_object);
-	unlock_map(fs);	
-	if (fs->vp != NULL) { 
-		vput(fs->vp);
-		fs->vp = NULL;
-	}
+	unlock_map(fs);
+	unlock_vp(fs);
 }
 
 static void
@@ -339,10 +346,7 @@ RetryFault:;
 		vm_map_lock(fs.map);
 		if (vm_map_lookup_entry(fs.map, vaddr, &fs.entry) &&
 		    (fs.entry->eflags & MAP_ENTRY_IN_TRANSITION)) {
-			if (fs.vp != NULL) {
-				vput(fs.vp);
-				fs.vp = NULL;
-			}
+			unlock_vp(&fs);
 			fs.entry->eflags |= MAP_ENTRY_NEEDS_WAKEUP;
 			vm_map_unlock_and_wait(fs.map, 0);
 		} else
@@ -642,10 +646,7 @@ readrest:
 				vp = fs.object->handle;
 				if (vp == fs.vp)
 					goto vnode_locked;
-				else if (fs.vp != NULL) {
-					vput(fs.vp);
-					fs.vp = NULL;
-				}
+				unlock_vp(&fs);
 				locked = VOP_ISLOCKED(vp);
 
 				if (locked != LK_EXCLUSIVE)
