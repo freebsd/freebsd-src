@@ -707,8 +707,7 @@ adaclose(struct disk *dp)
 
 		if (error != 0)
 			xpt_print(periph->path, "Synchronize cache failed\n");
-		else
-			softc->flags &= ~ADA_FLAG_DIRTY;
+		softc->flags &= ~ADA_FLAG_DIRTY;
 		xpt_release_ccb(ccb);
 		cam_periph_unhold(periph);
 	}
