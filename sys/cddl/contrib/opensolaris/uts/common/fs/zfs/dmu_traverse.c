@@ -42,9 +42,11 @@
 int32_t zfs_pd_bytes_max = 50 * 1024 * 1024;	/* 50MB */
 boolean_t send_holes_without_birth_time = B_TRUE;
 
+#ifdef _KERNEL
 SYSCTL_DECL(_vfs_zfs);
 SYSCTL_UINT(_vfs_zfs, OID_AUTO, send_holes_without_birth_time, CTLFLAG_RWTUN,
     &send_holes_without_birth_time, 0, "Send holes without birth time");
+#endif
 
 typedef struct prefetch_data {
 	kmutex_t pd_mtx;
