@@ -43,6 +43,8 @@ struct que_elem {
 	struct que_elem *next;
 	struct que_elem *prev;
 };
+#else
+typedef void posix_tnode;
 #endif
 
 __BEGIN_DECLS
