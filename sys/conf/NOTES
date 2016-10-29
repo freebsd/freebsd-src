@@ -982,6 +982,8 @@ device		lagg
 # TCPPCAP enables code which keeps the last n packets sent and received
 # on a TCP socket.
 #
+# TCP_HHOOK enables the hhook(9) framework hooks for the TCP stack.
+#
 # RADIX_MPATH provides support for equal-cost multi-path routing.
 #
 options 	MROUTING		# Multicast routing
@@ -1001,6 +1003,7 @@ options 	IPSTEALTH		#support for stealth forwarding
 options 	PF_DEFAULT_TO_DROP	#drop everything by default
 options 	TCPDEBUG
 options 	TCPPCAP
+options 	TCP_HHOOK
 options 	RADIX_MPATH
 
 # The MBUF_STRESS_TEST option enables options which create
@@ -2524,7 +2527,12 @@ device		ismt
 
 device		smb
 
+# SMBus peripheral devices
 #
+# jedec_ts	Temperature Sensor compliant with JEDEC Standard 21-C
+#
+device		jedec_ts
+
 # I2C Bus
 #
 # Philips i2c bus support is provided by the `iicbus' device.
@@ -3054,6 +3062,8 @@ options 	GZIO
 options		BHND_LOGLEVEL	# Logging threshold level
 
 # evdev interface 
-options 	EVDEV
-options 	EVDEV_DEBUG
-options 	UINPUT_DEBUG
+device		evdev		# input event device support
+options 	EVDEV_SUPPORT	# evdev support in legacy drivers
+options 	EVDEV_DEBUG	# enable event debug msgs
+device		uinput		# install /dev/uinput cdev
+options 	UINPUT_DEBUG	# enable uinput debug msgs

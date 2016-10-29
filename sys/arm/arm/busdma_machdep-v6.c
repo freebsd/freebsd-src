@@ -33,7 +33,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#define _ARM32_BUS_DMA_PRIVATE
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -61,13 +60,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu-v6.h>
 #include <machine/md_var.h>
 
-#if __ARM_ARCH < 6
-#define	BUSDMA_DCACHE_ALIGN	arm_dcache_align
-#define	BUSDMA_DCACHE_MASK	arm_dcache_align_mask
-#else
 #define	BUSDMA_DCACHE_ALIGN	cpuinfo.dcache_line_size
 #define	BUSDMA_DCACHE_MASK	cpuinfo.dcache_line_mask
-#endif
 
 #define	MAX_BPAGES		64
 #define	MAX_DMA_SEGMENTS	4096
@@ -95,14 +89,6 @@ struct bus_dma_tag {
 	bus_dma_lock_t		*lockfunc;
 	void			*lockfuncarg;
 	struct bounce_zone	*bounce_zone;
-	/*
-	 * DMA range for this tag.  If the page doesn't fall within
-	 * one of these ranges, an error is returned.  The caller
-	 * may then decide what to do with the transfer.  If the
-	 * range pointer is NULL, it is ignored.
-	 */
-	struct arm32_dma_range	*ranges;
-	int			_nranges;
 };
 
 struct bounce_page {
@@ -340,7 +326,7 @@ cacheline_bounce(bus_dmamap_t map, bus_addr_t addr, bus_size_t size)
 
 	if (map->flags & (DMAMAP_DMAMEM_ALLOC | DMAMAP_COHERENT | DMAMAP_MBUF))
 		return (0);
-	return ((addr | size) & arm_dcache_align_mask);
+	return ((addr | size) & BUSDMA_DCACHE_MASK);
 }
 
 /*
@@ -405,22 +391,6 @@ must_bounce(bus_dma_tag_t dmat, bus_dmamap_t map, bus_addr_t paddr,
 	}
 
 	return (0);
-}
-
-static __inline struct arm32_dma_range *
-_bus_dma_inrange(struct arm32_dma_range *ranges, int nranges,
-    bus_addr_t curaddr)
-{
-	struct arm32_dma_range *dr;
-	int i;
-
-	for (i = 0, dr = ranges; i < nranges; i++, dr++) {
-		if (curaddr >= dr->dr_sysbase &&
-		    round_page(curaddr) <= (dr->dr_sysbase + dr->dr_len))
-			return (dr);
-	}
-
-	return (NULL);
 }
 
 /*
@@ -507,8 +477,6 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 	newtag->flags = flags;
 	newtag->ref_count = 1; /* Count ourself */
 	newtag->map_count = 0;
-	newtag->ranges = bus_dma_get_range();
-	newtag->_nranges = bus_dma_get_range_nb();
 	if (lockfunc != NULL) {
 		newtag->lockfunc = lockfunc;
 		newtag->lockfuncarg = lockfuncarg;
@@ -990,22 +958,6 @@ _bus_dmamap_addseg(bus_dma_tag_t dmat, bus_dmamap_t map, bus_addr_t curaddr,
 		baddr = (curaddr + dmat->boundary) & bmask;
 		if (sgsize > (baddr - curaddr))
 			sgsize = (baddr - curaddr);
-	}
-
-	if (dmat->ranges) {
-		struct arm32_dma_range *dr;
-
-		dr = _bus_dma_inrange(dmat->ranges, dmat->_nranges,
-		    curaddr);
-		if (dr == NULL) {
-			_bus_dmamap_unload(dmat, map);
-			return (0);
-		}
-		/*
-		 * In a valid DMA range.  Translate the physical
-		 * memory address to an address in the DMA window.
-		 */
-		curaddr = (curaddr - dr->dr_sysbase) + dr->dr_busbase;
 	}
 
 	/*

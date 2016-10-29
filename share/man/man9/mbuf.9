@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 30, 2016
+.Dd October 10, 2016
 .Dt MBUF 9
 .Os
 .\"
@@ -79,8 +79,6 @@
 .Ft struct mbuf *
 .Fn m_getcl "int how" "short type" "int flags"
 .Ft struct mbuf *
-.Fn m_getclr "int how" "short type"
-.Ft struct mbuf *
 .Fn m_gethdr "int how" "short type"
 .Ft struct mbuf *
 .Fn m_free "struct mbuf *mbuf"
@@ -107,7 +105,7 @@
 .Ft struct mbuf *
 .Fn m_copypacket "struct mbuf *mbuf" "int how"
 .Ft struct mbuf *
-.Fn m_dup "struct mbuf *mbuf" "int how"
+.Fn m_dup "const struct mbuf *mbuf" "int how"
 .Ft void
 .Fn m_copydata "const struct mbuf *mbuf" "int offset" "int len" "caddr_t buf"
 .Ft void
@@ -126,8 +124,8 @@
 .Fn m_catpkt "struct mbuf *m" "struct mbuf *n"
 .Ft u_int
 .Fn m_fixhdr "struct mbuf *mbuf"
-.Ft void
-.Fn m_dup_pkthdr "struct mbuf *to" "struct mbuf *from"
+.Ft int
+.Fn m_dup_pkthdr "struct mbuf *to" "const struct mbuf *from" "int how"
 .Ft void
 .Fn m_move_pkthdr "struct mbuf *to" "struct mbuf *from"
 .Ft u_int
@@ -602,10 +600,6 @@ This is like
 but it the size of the cluster allocated will be large enough for
 .Fa size
 bytes.
-.It Fn m_getclr how type
-Allocate an
-.Vt mbuf
-and zero out the data region.
 .It Fn m_free mbuf
 Frees
 .Vt mbuf .

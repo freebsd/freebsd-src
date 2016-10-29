@@ -1936,7 +1936,6 @@ zfs_create_fs(objset_t *os, cred_t *cr, nvlist_t *zplprops, dmu_tx_t *tx)
 		mutex_destroy(&zfsvfs->z_hold_mtx[i]);
 	kmem_free(zfsvfs, sizeof (zfsvfs_t));
 }
-
 #endif /* _KERNEL */
 
 static int
@@ -2192,3 +2191,35 @@ zfs_obj_to_stats(objset_t *osp, uint64_t obj, zfs_stat_t *sb,
 	zfs_release_sa_handle(hdl, db, FTAG);
 	return (error);
 }
+
+#ifdef _KERNEL
+int
+zfs_znode_parent_and_name(znode_t *zp, znode_t **dzpp, char *buf)
+{
+	zfsvfs_t *zfsvfs = zp->z_zfsvfs;
+	uint64_t parent;
+	int is_xattrdir;
+	int err;
+
+	/* Extended attributes should not be visible as regular files. */
+	if ((zp->z_pflags & ZFS_XATTR) != 0)
+		return (SET_ERROR(EINVAL));
+
+	err = zfs_obj_to_pobj(zfsvfs->z_os, zp->z_sa_hdl, zfsvfs->z_attr_table,
+	    &parent, &is_xattrdir);
+	if (err != 0)
+		return (err);
+	ASSERT0(is_xattrdir);
+
+	/* No name as this is a root object. */
+	if (parent == zp->z_id)
+		return (SET_ERROR(EINVAL));
+
+	err = zap_value_search(zfsvfs->z_os, parent, zp->z_id,
+	    ZFS_DIRENT_OBJ(-1ULL), buf);
+	if (err != 0)
+		return (err);
+	err = zfs_zget(zfsvfs, parent, dzpp);
+	return (err);
+}
+#endif /* _KERNEL */

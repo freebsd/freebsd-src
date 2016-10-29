@@ -27,17 +27,14 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/linker_set.h>
-#include <sys/queue.h>
 #include <sys/stat.h>
-#include <sys/types.h>
-#include <sys/uuid.h>
 #include <errno.h>
 #include <err.h>
 #include <fcntl.h>
 #include <getopt.h>
 #include <libutil.h>
 #include <limits.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -62,7 +59,7 @@ static struct option longopts[] = {
 
 static uint64_t capacity;
 
-struct partlisthead partlist = STAILQ_HEAD_INITIALIZER(partlist);
+struct partlisthead partlist = TAILQ_HEAD_INITIALIZER(partlist);
 u_int nparts = 0;
 
 u_int unit_testing;
@@ -73,24 +70,25 @@ u_int nheads = 1;
 u_int nsecs = 1;
 u_int secsz = 512;
 u_int blksz = 0;
+uint32_t active_partition = 0;
 
 static void
 print_formats(int usage)
 {
-	struct mkimg_format *f, **f_iter;
+	struct mkimg_format *f;
 	const char *sep;
 
 	if (usage) {
 		fprintf(stderr, "    formats:\n");
-		SET_FOREACH(f_iter, formats) {
-			f = *f_iter;
+		f = NULL;
+		while ((f = format_iterate(f)) != NULL) {
 			fprintf(stderr, "\t%s\t-  %s\n", f->name,
 			    f->description);
 		}
 	} else {
 		sep = "";
-		SET_FOREACH(f_iter, formats) {
-			f = *f_iter;
+		f = NULL;
+		while ((f = format_iterate(f)) != NULL) {
 			printf("%s%s", sep, f->name);
 			sep = " ";
 		}
@@ -101,20 +99,20 @@ print_formats(int usage)
 static void
 print_schemes(int usage)
 {
-	struct mkimg_scheme *s, **s_iter;
+	struct mkimg_scheme *s;
 	const char *sep;
 
 	if (usage) {
 		fprintf(stderr, "    schemes:\n");
-		SET_FOREACH(s_iter, schemes) {
-			s = *s_iter;
+		s = NULL;
+		while ((s = scheme_iterate(s)) != NULL) {
 			fprintf(stderr, "\t%s\t-  %s\n", s->name,
 			    s->description);
 		}
 	} else {
 		sep = "";
-		SET_FOREACH(s_iter, schemes) {
-			s = *s_iter;
+		s = NULL;
+		while ((s = scheme_iterate(s)) != NULL) {
 			printf("%s%s", sep, s->name);
 			sep = " ";
 		}
@@ -148,6 +146,7 @@ usage(const char *why)
 	fprintf(stderr, "\t--schemes\t-  list partition schemes\n");
 	fprintf(stderr, "\t--version\t-  show version information\n");
 	fputc('\n', stderr);
+	fprintf(stderr, "\t-a <num>\t-  mark num'th partion as active\n");
 	fprintf(stderr, "\t-b <file>\t-  file containing boot code\n");
 	fprintf(stderr, "\t-c <num>\t-  capacity (in bytes) of the disk\n");
 	fprintf(stderr, "\t-f <format>\n");
@@ -302,7 +301,7 @@ parse_part(const char *spec)
 	}
 
 	part->index = nparts;
-	STAILQ_INSERT_TAIL(&partlist, part, link);
+	TAILQ_INSERT_TAIL(&partlist, part, link);
 	nparts++;
 	return (0);
 
@@ -376,22 +375,6 @@ mkimg_chs(lba_t lba, u_int maxcyl, u_int *cylp, u_int *hdp, u_int *secp)
 	*secp = sec;
 }
 
-void
-mkimg_uuid(struct uuid *uuid)
-{
-	static uint8_t gen[sizeof(struct uuid)];
-	u_int i;
-
-	if (!unit_testing) {
-		uuidgen(uuid, 1);
-		return;
-	}
-
-	for (i = 0; i < sizeof(gen); i++)
-		gen[i]++;
-	memcpy(uuid, gen, sizeof(uuid_t));
-}
-
 static int
 capacity_resize(lba_t end)
 {
@@ -413,14 +396,14 @@ mkimg(void)
 	int error, fd;
 
 	/* First check partition information */
-	STAILQ_FOREACH(part, &partlist, link) {
+	TAILQ_FOREACH(part, &partlist, link) {
 		error = scheme_check_part(part);
 		if (error)
 			errc(EX_DATAERR, error, "partition %d", part->index+1);
 	}
 
 	block = scheme_metadata(SCHEME_META_IMG_START, 0);
-	STAILQ_FOREACH(part, &partlist, link) {
+	TAILQ_FOREACH(part, &partlist, link) {
 		block = scheme_metadata(SCHEME_META_PART_BEFORE, block);
 		if (verbose)
 			fprintf(stderr, "partition %d: starting block %llu "
@@ -463,13 +446,16 @@ mkimg(void)
 
 	block = scheme_metadata(SCHEME_META_IMG_END, block);
 	error = image_set_size(block);
-	if (!error)
+	if (!error) {
 		error = capacity_resize(block);
-	if (!error)
+		block = image_get_size();
+	}
+	if (!error) {
 		error = format_resize(block);
+		block = image_get_size();
+	}
 	if (error)
 		errc(EX_IOERR, error, "image sizing");
-	block = image_get_size();
 	ncyls = block / (nsecs * nheads);
 	error = scheme_write(block);
 	if (error)
@@ -484,9 +470,14 @@ main(int argc, char *argv[])
 
 	bcfd = -1;
 	outfd = 1;	/* Write to stdout by default */
-	while ((c = getopt_long(argc, argv, "b:c:f:o:p:s:vyH:P:S:T:",
+	while ((c = getopt_long(argc, argv, "a:b:c:f:o:p:s:vyH:P:S:T:",
 	    longopts, NULL)) != -1) {
 		switch (c) {
+		case 'a':	/* ACTIVE PARTITION, if supported */
+			error = parse_uint32(&active_partition, 1, 100, optarg);
+			if (error)
+				errc(EX_DATAERR, error, "Partition ordinal");
+			break;
 		case 'b':	/* BOOT CODE */
 			if (bcfd != -1)
 				usage("multiple bootcode given");
@@ -495,7 +486,7 @@ main(int argc, char *argv[])
 				err(EX_UNAVAILABLE, "%s", optarg);
 			break;
 		case 'c':	/* CAPACITY */
-			error = parse_uint64(&capacity, 1, OFF_MAX, optarg);
+			error = parse_uint64(&capacity, 1, INT64_MAX, optarg);
 			if (error)
 				errc(EX_DATAERR, error, "capacity in bytes");
 			break;

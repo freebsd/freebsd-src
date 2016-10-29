@@ -132,16 +132,12 @@ static void (*NATIVE_BITS_CB(void (*cb)(int, short, void*)))(int, short, void*)
 #define EVFLAG_AUTO 0
 #endif
 
-#define AS_EVENT_BASE(x) \
-	(((union {struct ub_event_base* a; struct event_base* b;})x).b)
-#define AS_UB_EVENT_BASE(x) \
-	(((union {struct event_base* a; struct ub_event_base* b;})x).b)
-#define AS_EVENT(x) \
-	(((union {struct ub_event* a; struct event* b;})x).b)
-#define AS_UB_EVENT(x) \
-	(((union {struct event* a; struct ub_event* b;})x).b)
+#define AS_EVENT_BASE(x) ((struct event_base*)x)
+#define AS_UB_EVENT_BASE(x) ((struct ub_event_base*)x)
+#define AS_EVENT(x) ((struct event*)x)
+#define AS_UB_EVENT(x) ((struct ub_event*)x)
 
-const char* ub_event_get_version()
+const char* ub_event_get_version(void)
 {
 	return event_get_version();
 }

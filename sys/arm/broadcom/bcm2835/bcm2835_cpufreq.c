@@ -44,6 +44,11 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/intr.h>
 
+#include <dev/fdt/fdt_common.h>
+
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+
 #include <arm/broadcom/bcm2835/bcm2835_mbox.h>
 #include <arm/broadcom/bcm2835/bcm2835_mbox_prop.h>
 #include <arm/broadcom/bcm2835/bcm2835_vcbus.h>
@@ -117,6 +122,13 @@ struct bcm2835_cpufreq_softc {
 
 	/* initial hook for waiting mbox intr */
 	struct intr_config_hook	init_hook;
+};
+
+static struct ofw_compat_data compat_data[] = {
+	{ "broadcom,bcm2835-vc",	1 },
+	{ "broadcom,bcm2708-vc",	1 },
+	{ "brcm,bcm2709",	1 },
+	{ NULL, 0 }
 };
 
 static int cpufreq_verbose = 0;
@@ -1244,6 +1256,16 @@ bcm2835_cpufreq_init(void *arg)
 static void
 bcm2835_cpufreq_identify(driver_t *driver, device_t parent)
 {
+	const struct ofw_compat_data *compat;
+	phandle_t root;
+
+	root = OF_finddevice("/");
+	for (compat = compat_data; compat->ocd_str != NULL; compat++)
+		if (fdt_is_compatible(root, compat->ocd_str))
+			break;
+
+	if (compat->ocd_data == 0)
+		return;
 
 	DPRINTF("driver=%p, parent=%p\n", driver, parent);
 	if (device_find_child(parent, "bcm2835_cpufreq", -1) != NULL)

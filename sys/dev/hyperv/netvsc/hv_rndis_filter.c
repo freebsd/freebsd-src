@@ -29,58 +29,71 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_inet6.h"
+#include "opt_inet.h"
+
 #include <sys/param.h>
-#include <sys/mbuf.h>
 #include <sys/socket.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <net/if.h>
-#include <net/if_arp.h>
-#include <net/if_var.h>
-#include <net/ethernet.h>
-#include <net/rndis.h>
-#include <sys/types.h>
+#include <sys/systm.h>
+#include <sys/taskqueue.h>
+
 #include <machine/atomic.h>
-#include <sys/sema.h>
-#include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/pmap.h>
+
+#include <net/ethernet.h>
+#include <net/if.h>
+#include <net/if_var.h>
+#include <net/if_media.h>
+#include <net/rndis.h>
+
+#include <netinet/in.h>
+#include <netinet/ip.h>
+#include <netinet/tcp_lro.h>
 
 #include <dev/hyperv/include/hyperv.h>
+#include <dev/hyperv/include/hyperv_busdma.h>
+#include <dev/hyperv/include/vmbus.h>
 #include <dev/hyperv/include/vmbus_xact.h>
-#include <dev/hyperv/netvsc/hv_net_vsc.h>
-#include <dev/hyperv/netvsc/hv_rndis_filter.h>
-#include <dev/hyperv/netvsc/if_hnreg.h>
-#include <dev/hyperv/netvsc/ndis.h>
 
-#define HV_RF_RECVINFO_VLAN	0x1
-#define HV_RF_RECVINFO_CSUM	0x2
-#define HV_RF_RECVINFO_HASHINF	0x4
-#define HV_RF_RECVINFO_HASHVAL	0x8
-#define HV_RF_RECVINFO_ALL		\
-	(HV_RF_RECVINFO_VLAN |		\
-	 HV_RF_RECVINFO_CSUM |		\
-	 HV_RF_RECVINFO_HASHINF |	\
-	 HV_RF_RECVINFO_HASHVAL)
+#include <dev/hyperv/netvsc/ndis.h>
+#include <dev/hyperv/netvsc/if_hnreg.h>
+#include <dev/hyperv/netvsc/if_hnvar.h>
+#include <dev/hyperv/netvsc/hn_nvs.h>
+#include <dev/hyperv/netvsc/hn_rndis.h>
 
 #define HN_RNDIS_RID_COMPAT_MASK	0xffff
 #define HN_RNDIS_RID_COMPAT_MAX		HN_RNDIS_RID_COMPAT_MASK
 
 #define HN_RNDIS_XFER_SIZE		2048
 
-/*
- * Forward declarations
- */
-static void hv_rf_receive_indicate_status(struct hn_softc *sc,
-    const void *data, int dlen);
-static void hv_rf_receive_data(struct hn_rx_ring *rxr,
-    const void *data, int dlen);
+#define HN_NDIS_TXCSUM_CAP_IP4		\
+	(NDIS_TXCSUM_CAP_IP4 | NDIS_TXCSUM_CAP_IP4OPT)
+#define HN_NDIS_TXCSUM_CAP_TCP4		\
+	(NDIS_TXCSUM_CAP_TCP4 | NDIS_TXCSUM_CAP_TCP4OPT)
+#define HN_NDIS_TXCSUM_CAP_TCP6		\
+	(NDIS_TXCSUM_CAP_TCP6 | NDIS_TXCSUM_CAP_TCP6OPT | \
+	 NDIS_TXCSUM_CAP_IP6EXT)
+#define HN_NDIS_TXCSUM_CAP_UDP6		\
+	(NDIS_TXCSUM_CAP_UDP6 | NDIS_TXCSUM_CAP_IP6EXT)
+#define HN_NDIS_LSOV2_CAP_IP6		\
+	(NDIS_LSOV2_CAP_IP6EXT | NDIS_LSOV2_CAP_TCP6OPT)
 
-static int hn_rndis_query(struct hn_softc *sc, uint32_t oid,
-    const void *idata, size_t idlen, void *odata, size_t *odlen0);
-static int hn_rndis_set(struct hn_softc *sc, uint32_t oid, const void *data,
-    size_t dlen);
-static int hn_rndis_conf_offload(struct hn_softc *sc);
+static const void	*hn_rndis_xact_exec1(struct hn_softc *,
+			    struct vmbus_xact *, size_t,
+			    struct hn_nvs_sendctx *, size_t *);
+static const void	*hn_rndis_xact_execute(struct hn_softc *,
+			    struct vmbus_xact *, uint32_t, size_t, size_t *,
+			    uint32_t);
+static int		hn_rndis_query(struct hn_softc *, uint32_t,
+			    const void *, size_t, void *, size_t *);
+static int		hn_rndis_query2(struct hn_softc *, uint32_t,
+			    const void *, size_t, void *, size_t *, size_t);
+static int		hn_rndis_set(struct hn_softc *, uint32_t,
+			    const void *, size_t);
+static int		hn_rndis_init(struct hn_softc *);
+static int		hn_rndis_halt(struct hn_softc *);
+static int		hn_rndis_conf_offload(struct hn_softc *, int);
+static int		hn_rndis_query_hwcaps(struct hn_softc *,
+			    struct ndis_offload *);
 
 static __inline uint32_t
 hn_rndis_rid(struct hn_softc *sc)
@@ -96,353 +109,22 @@ again:
 	return ((rid & 0xffff) << 16);
 }
 
-void *
-hn_rndis_pktinfo_append(struct rndis_packet_msg *pkt, size_t pktsize,
-    size_t pi_dlen, uint32_t pi_type)
-{
-	const size_t pi_size = HN_RNDIS_PKTINFO_SIZE(pi_dlen);
-	struct rndis_pktinfo *pi;
-
-	KASSERT((pi_size & RNDIS_PACKET_MSG_OFFSET_ALIGNMASK) == 0,
-	    ("unaligned pktinfo size %zu, pktinfo dlen %zu", pi_size, pi_dlen));
-
-	/*
-	 * Per-packet-info does not move; it only grows.
-	 *
-	 * NOTE:
-	 * rm_pktinfooffset in this phase counts from the beginning
-	 * of rndis_packet_msg.
-	 */
-	KASSERT(pkt->rm_pktinfooffset + pkt->rm_pktinfolen + pi_size <= pktsize,
-	    ("%u pktinfo overflows RNDIS packet msg", pi_type));
-	pi = (struct rndis_pktinfo *)((uint8_t *)pkt + pkt->rm_pktinfooffset +
-	    pkt->rm_pktinfolen);
-	pkt->rm_pktinfolen += pi_size;
-
-	pi->rm_size = pi_size;
-	pi->rm_type = pi_type;
-	pi->rm_pktinfooffset = RNDIS_PKTINFO_OFFSET;
-
-	/* Data immediately follow per-packet-info. */
-	pkt->rm_dataoffset += pi_size;
-
-	/* Update RNDIS packet msg length */
-	pkt->rm_len += pi_size;
-
-	return (pi->rm_data);
-}
-
-/*
- * RNDIS filter receive indicate status
- */
-static void 
-hv_rf_receive_indicate_status(struct hn_softc *sc, const void *data, int dlen)
-{
-	const struct rndis_status_msg *msg;
-
-	if (dlen < sizeof(*msg)) {
-		if_printf(sc->hn_ifp, "invalid RNDIS status\n");
-		return;
-	}
-	msg = data;
-
-	switch (msg->rm_status) {
-	case RNDIS_STATUS_MEDIA_CONNECT:
-		netvsc_linkstatus_callback(sc, 1);
-		break;
-
-	case RNDIS_STATUS_MEDIA_DISCONNECT:
-		netvsc_linkstatus_callback(sc, 0);
-		break;
-
-	default:
-		/* TODO: */
-		if_printf(sc->hn_ifp, "unknown RNDIS status 0x%08x\n",
-		    msg->rm_status);
-		break;
-	}
-}
-
-static int
-hn_rndis_rxinfo(const void *info_data, int info_dlen, struct hn_recvinfo *info)
-{
-	const struct rndis_pktinfo *pi = info_data;
-	uint32_t mask = 0;
-
-	while (info_dlen != 0) {
-		const void *data;
-		uint32_t dlen;
-
-		if (__predict_false(info_dlen < sizeof(*pi)))
-			return (EINVAL);
-		if (__predict_false(info_dlen < pi->rm_size))
-			return (EINVAL);
-		info_dlen -= pi->rm_size;
-
-		if (__predict_false(pi->rm_size & RNDIS_PKTINFO_SIZE_ALIGNMASK))
-			return (EINVAL);
-		if (__predict_false(pi->rm_size < pi->rm_pktinfooffset))
-			return (EINVAL);
-		dlen = pi->rm_size - pi->rm_pktinfooffset;
-		data = pi->rm_data;
-
-		switch (pi->rm_type) {
-		case NDIS_PKTINFO_TYPE_VLAN:
-			if (__predict_false(dlen < NDIS_VLAN_INFO_SIZE))
-				return (EINVAL);
-			info->vlan_info = *((const uint32_t *)data);
-			mask |= HV_RF_RECVINFO_VLAN;
-			break;
-
-		case NDIS_PKTINFO_TYPE_CSUM:
-			if (__predict_false(dlen < NDIS_RXCSUM_INFO_SIZE))
-				return (EINVAL);
-			info->csum_info = *((const uint32_t *)data);
-			mask |= HV_RF_RECVINFO_CSUM;
-			break;
-
-		case HN_NDIS_PKTINFO_TYPE_HASHVAL:
-			if (__predict_false(dlen < HN_NDIS_HASH_VALUE_SIZE))
-				return (EINVAL);
-			info->hash_value = *((const uint32_t *)data);
-			mask |= HV_RF_RECVINFO_HASHVAL;
-			break;
-
-		case HN_NDIS_PKTINFO_TYPE_HASHINF:
-			if (__predict_false(dlen < HN_NDIS_HASH_INFO_SIZE))
-				return (EINVAL);
-			info->hash_info = *((const uint32_t *)data);
-			mask |= HV_RF_RECVINFO_HASHINF;
-			break;
-
-		default:
-			goto next;
-		}
-
-		if (mask == HV_RF_RECVINFO_ALL) {
-			/* All found; done */
-			break;
-		}
-next:
-		pi = (const struct rndis_pktinfo *)
-		    ((const uint8_t *)pi + pi->rm_size);
-	}
-
-	/*
-	 * Final fixup.
-	 * - If there is no hash value, invalidate the hash info.
-	 */
-	if ((mask & HV_RF_RECVINFO_HASHVAL) == 0)
-		info->hash_info = HN_NDIS_HASH_INFO_INVALID;
-	return (0);
-}
-
-static __inline bool
-hn_rndis_check_overlap(int off, int len, int check_off, int check_len)
-{
-
-	if (off < check_off) {
-		if (__predict_true(off + len <= check_off))
-			return (false);
-	} else if (off > check_off) {
-		if (__predict_true(check_off + check_len <= off))
-			return (false);
-	}
-	return (true);
-}
-
-/*
- * RNDIS filter receive data
- */
-static void
-hv_rf_receive_data(struct hn_rx_ring *rxr, const void *data, int dlen)
-{
-	const struct rndis_packet_msg *pkt;
-	struct hn_recvinfo info;
-	int data_off, pktinfo_off, data_len, pktinfo_len;
-
-	/*
-	 * Check length.
-	 */
-	if (__predict_false(dlen < sizeof(*pkt))) {
-		if_printf(rxr->hn_ifp, "invalid RNDIS packet msg\n");
-		return;
-	}
-	pkt = data;
-
-	if (__predict_false(dlen < pkt->rm_len)) {
-		if_printf(rxr->hn_ifp, "truncated RNDIS packet msg, "
-		    "dlen %d, msglen %u\n", dlen, pkt->rm_len);
-		return;
-	}
-	if (__predict_false(pkt->rm_len <
-	    pkt->rm_datalen + pkt->rm_oobdatalen + pkt->rm_pktinfolen)) {
-		if_printf(rxr->hn_ifp, "invalid RNDIS packet msglen, "
-		    "msglen %u, data %u, oob %u, pktinfo %u\n",
-		    pkt->rm_len, pkt->rm_datalen, pkt->rm_oobdatalen,
-		    pkt->rm_pktinfolen);
-		return;
-	}
-	if (__predict_false(pkt->rm_datalen == 0)) {
-		if_printf(rxr->hn_ifp, "invalid RNDIS packet msg, no data\n");
-		return;
-	}
-
-	/*
-	 * Check offests.
-	 */
-#define IS_OFFSET_INVALID(ofs)			\
-	((ofs) < RNDIS_PACKET_MSG_OFFSET_MIN ||	\
-	 ((ofs) & RNDIS_PACKET_MSG_OFFSET_ALIGNMASK))
-
-	/* XXX Hyper-V does not meet data offset alignment requirement */
-	if (__predict_false(pkt->rm_dataoffset < RNDIS_PACKET_MSG_OFFSET_MIN)) {
-		if_printf(rxr->hn_ifp, "invalid RNDIS packet msg, "
-		    "data offset %u\n", pkt->rm_dataoffset);
-		return;
-	}
-	if (__predict_false(pkt->rm_oobdataoffset > 0 &&
-	    IS_OFFSET_INVALID(pkt->rm_oobdataoffset))) {
-		if_printf(rxr->hn_ifp, "invalid RNDIS packet msg, "
-		    "oob offset %u\n", pkt->rm_oobdataoffset);
-		return;
-	}
-	if (__predict_true(pkt->rm_pktinfooffset > 0) &&
-	    __predict_false(IS_OFFSET_INVALID(pkt->rm_pktinfooffset))) {
-		if_printf(rxr->hn_ifp, "invalid RNDIS packet msg, "
-		    "pktinfo offset %u\n", pkt->rm_pktinfooffset);
-		return;
-	}
-
-#undef IS_OFFSET_INVALID
-
-	data_off = RNDIS_PACKET_MSG_OFFSET_ABS(pkt->rm_dataoffset);
-	data_len = pkt->rm_datalen;
-	pktinfo_off = RNDIS_PACKET_MSG_OFFSET_ABS(pkt->rm_pktinfooffset);
-	pktinfo_len = pkt->rm_pktinfolen;
-
-	/*
-	 * Check OOB coverage.
-	 */
-	if (__predict_false(pkt->rm_oobdatalen != 0)) {
-		int oob_off, oob_len;
-
-		if_printf(rxr->hn_ifp, "got oobdata\n");
-		oob_off = RNDIS_PACKET_MSG_OFFSET_ABS(pkt->rm_oobdataoffset);
-		oob_len = pkt->rm_oobdatalen;
-
-		if (__predict_false(oob_off + oob_len > pkt->rm_len)) {
-			if_printf(rxr->hn_ifp, "invalid RNDIS packet msg, "
-			    "oob overflow, msglen %u, oob abs %d len %d\n",
-			    pkt->rm_len, oob_off, oob_len);
-			return;
-		}
-
-		/*
-		 * Check against data.
-		 */
-		if (hn_rndis_check_overlap(oob_off, oob_len,
-		    data_off, data_len)) {
-			if_printf(rxr->hn_ifp, "invalid RNDIS packet msg, "
-			    "oob overlaps data, oob abs %d len %d, "
-			    "data abs %d len %d\n",
-			    oob_off, oob_len, data_off, data_len);
-			return;
-		}
-
-		/*
-		 * Check against pktinfo.
-		 */
-		if (pktinfo_len != 0 &&
-		    hn_rndis_check_overlap(oob_off, oob_len,
-		    pktinfo_off, pktinfo_len)) {
-			if_printf(rxr->hn_ifp, "invalid RNDIS packet msg, "
-			    "oob overlaps pktinfo, oob abs %d len %d, "
-			    "pktinfo abs %d len %d\n",
-			    oob_off, oob_len, pktinfo_off, pktinfo_len);
-			return;
-		}
-	}
-
-	/*
-	 * Check per-packet-info coverage and find useful per-packet-info.
-	 */
-	info.vlan_info = HN_NDIS_VLAN_INFO_INVALID;
-	info.csum_info = HN_NDIS_RXCSUM_INFO_INVALID;
-	info.hash_info = HN_NDIS_HASH_INFO_INVALID;
-	if (__predict_true(pktinfo_len != 0)) {
-		bool overlap;
-		int error;
-
-		if (__predict_false(pktinfo_off + pktinfo_len > pkt->rm_len)) {
-			if_printf(rxr->hn_ifp, "invalid RNDIS packet msg, "
-			    "pktinfo overflow, msglen %u, "
-			    "pktinfo abs %d len %d\n",
-			    pkt->rm_len, pktinfo_off, pktinfo_len);
-			return;
-		}
-
-		/*
-		 * Check packet info coverage.
-		 */
-		overlap = hn_rndis_check_overlap(pktinfo_off, pktinfo_len,
-		    data_off, data_len);
-		if (__predict_false(overlap)) {
-			if_printf(rxr->hn_ifp, "invalid RNDIS packet msg, "
-			    "pktinfo overlap data, pktinfo abs %d len %d, "
-			    "data abs %d len %d\n",
-			    pktinfo_off, pktinfo_len, data_off, data_len);
-			return;
-		}
-
-		/*
-		 * Find useful per-packet-info.
-		 */
-		error = hn_rndis_rxinfo(((const uint8_t *)pkt) + pktinfo_off,
-		    pktinfo_len, &info);
-		if (__predict_false(error)) {
-			if_printf(rxr->hn_ifp, "invalid RNDIS packet msg "
-			    "pktinfo\n");
-			return;
-		}
-	}
-
-	if (__predict_false(data_off + data_len > pkt->rm_len)) {
-		if_printf(rxr->hn_ifp, "invalid RNDIS packet msg, "
-		    "data overflow, msglen %u, data abs %d len %d\n",
-		    pkt->rm_len, data_off, data_len);
-		return;
-	}
-	hn_rxpkt(rxr, ((const uint8_t *)pkt) + data_off, data_len, &info);
-}
-
-/*
- * RNDIS filter on receive
- */
 void
-hv_rf_on_receive(struct hn_softc *sc, struct hn_rx_ring *rxr,
-    const void *data, int dlen)
+hn_rndis_rx_ctrl(struct hn_softc *sc, const void *data, int dlen)
 {
 	const struct rndis_comp_hdr *comp;
 	const struct rndis_msghdr *hdr;
 
-	if (__predict_false(dlen < sizeof(*hdr))) {
-		if_printf(rxr->hn_ifp, "invalid RNDIS msg\n");
-		return;
-	}
+	KASSERT(dlen >= sizeof(*hdr), ("invalid RNDIS msg\n"));
 	hdr = data;
 
 	switch (hdr->rm_type) {
-	case REMOTE_NDIS_PACKET_MSG:
-		hv_rf_receive_data(rxr, data, dlen);
-		break;
-
 	case REMOTE_NDIS_INITIALIZE_CMPLT:
 	case REMOTE_NDIS_QUERY_CMPLT:
 	case REMOTE_NDIS_SET_CMPLT:
 	case REMOTE_NDIS_KEEPALIVE_CMPLT:	/* unused */
 		if (dlen < sizeof(*comp)) {
-			if_printf(rxr->hn_ifp, "invalid RNDIS cmplt\n");
+			if_printf(sc->hn_ifp, "invalid RNDIS cmplt\n");
 			return;
 		}
 		comp = data;
@@ -450,10 +132,6 @@ hv_rf_on_receive(struct hn_softc *sc, struct hn_rx_ring *rxr,
 		KASSERT(comp->rm_rid > HN_RNDIS_RID_COMPAT_MAX,
 		    ("invalid RNDIS rid 0x%08x\n", comp->rm_rid));
 		vmbus_xact_ctx_wakeup(sc->hn_xact, comp, dlen);
-		break;
-
-	case REMOTE_NDIS_INDICATE_STATUS_MSG:
-		hv_rf_receive_indicate_status(sc, data, dlen);
 		break;
 
 	case REMOTE_NDIS_RESET_CMPLT:
@@ -464,11 +142,11 @@ hv_rf_on_receive(struct hn_softc *sc, struct hn_rx_ring *rxr,
 		 * RESET is not issued by hn(4), so this message should
 		 * _not_ be observed.
 		 */
-		if_printf(rxr->hn_ifp, "RESET cmplt received\n");
+		if_printf(sc->hn_ifp, "RESET cmplt received\n");
 		break;
 
 	default:
-		if_printf(rxr->hn_ifp, "unknown RNDIS msg 0x%x\n",
+		if_printf(sc->hn_ifp, "unknown RNDIS msg 0x%x\n",
 		    hdr->rm_type);
 		break;
 	}
@@ -512,7 +190,7 @@ hn_rndis_get_linkstatus(struct hn_softc *sc, uint32_t *link_status)
 
 static const void *
 hn_rndis_xact_exec1(struct hn_softc *sc, struct vmbus_xact *xact, size_t reqlen,
-    struct hn_send_ctx *sndc, size_t *comp_len)
+    struct hn_nvs_sendctx *sndc, size_t *comp_len)
 {
 	struct vmbus_gpa gpa[HN_XACT_REQ_PGCNT];
 	int gpa_cnt, error;
@@ -548,8 +226,7 @@ hn_rndis_xact_exec1(struct hn_softc *sc, struct vmbus_xact *xact, size_t reqlen,
 	 * message.
 	 */
 	vmbus_xact_activate(xact);
-	error = hv_nv_on_send(sc->hn_prichan, HN_NVS_RNDIS_MTYPE_CTRL, sndc,
-	    gpa, gpa_cnt);
+	error = hn_nvs_send_rndis_ctrl(sc->hn_prichan, sndc, gpa, gpa_cnt);
 	if (error) {
 		vmbus_xact_deactivate(xact);
 		if_printf(sc->hn_ifp, "RNDIS ctrl send failed: %d\n", error);
@@ -572,7 +249,7 @@ hn_rndis_xact_execute(struct hn_softc *sc, struct vmbus_xact *xact, uint32_t rid
 	/*
 	 * Execute the xact setup by the caller.
 	 */
-	comp = hn_rndis_xact_exec1(sc, xact, reqlen, &hn_send_ctx_none,
+	comp = hn_rndis_xact_exec1(sc, xact, reqlen, &hn_nvs_sendctx_none,
 	    &comp_len);
 	if (comp == NULL)
 		return (NULL);
@@ -615,6 +292,15 @@ static int
 hn_rndis_query(struct hn_softc *sc, uint32_t oid,
     const void *idata, size_t idlen, void *odata, size_t *odlen0)
 {
+
+	return (hn_rndis_query2(sc, oid, idata, idlen, odata, odlen0, *odlen0));
+}
+
+static int
+hn_rndis_query2(struct hn_softc *sc, uint32_t oid,
+    const void *idata, size_t idlen, void *odata, size_t *odlen0,
+    size_t min_odlen)
+{
 	struct rndis_query_req *req;
 	const struct rndis_query_comp *comp;
 	struct vmbus_xact *xact;
@@ -652,7 +338,7 @@ hn_rndis_query(struct hn_softc *sc, uint32_t oid,
 		memcpy(req + 1, idata, idlen);
 	}
 
-	comp_len = sizeof(*comp) + odlen;
+	comp_len = sizeof(*comp) + min_odlen;
 	comp = hn_rndis_xact_execute(sc, xact, rid, reqlen, &comp_len,
 	    REMOTE_NDIS_QUERY_CMPLT);
 	if (comp == NULL) {
@@ -702,18 +388,17 @@ done:
 }
 
 int
-hn_rndis_get_rsscaps(struct hn_softc *sc, int *rxr_cnt)
+hn_rndis_query_rsscaps(struct hn_softc *sc, int *rxr_cnt0)
 {
 	struct ndis_rss_caps in, caps;
 	size_t caps_len;
-	int error;
+	int error, indsz, rxr_cnt, hash_fnidx;
+	uint32_t hash_func = 0, hash_types = 0;
 
-	/*
-	 * Only NDIS 6.30+ is supported.
-	 */
-	KASSERT(sc->hn_ndis_ver >= HN_NDIS_VERSION_6_30,
-	    ("NDIS 6.30+ is required, NDIS version 0x%08x", sc->hn_ndis_ver));
-	*rxr_cnt = 0;
+	*rxr_cnt0 = 0;
+
+	if (sc->hn_ndis_ver < HN_NDIS_VERSION_6_20)
+		return (EOPNOTSUPP);
 
 	memset(&in, 0, sizeof(in));
 	in.ndis_hdr.ndis_type = NDIS_OBJTYPE_RSS_CAPS;
@@ -721,28 +406,101 @@ hn_rndis_get_rsscaps(struct hn_softc *sc, int *rxr_cnt)
 	in.ndis_hdr.ndis_size = NDIS_RSS_CAPS_SIZE;
 
 	caps_len = NDIS_RSS_CAPS_SIZE;
-	error = hn_rndis_query(sc, OID_GEN_RECEIVE_SCALE_CAPABILITIES,
-	    &in, NDIS_RSS_CAPS_SIZE, &caps, &caps_len);
+	error = hn_rndis_query2(sc, OID_GEN_RECEIVE_SCALE_CAPABILITIES,
+	    &in, NDIS_RSS_CAPS_SIZE, &caps, &caps_len, NDIS_RSS_CAPS_SIZE_6_0);
 	if (error)
 		return (error);
-	if (caps_len < NDIS_RSS_CAPS_SIZE_6_0) {
-		if_printf(sc->hn_ifp, "invalid NDIS RSS caps len %zu",
-		    caps_len);
+
+	/*
+	 * Preliminary verification.
+	 */
+	if (caps.ndis_hdr.ndis_type != NDIS_OBJTYPE_RSS_CAPS) {
+		if_printf(sc->hn_ifp, "invalid NDIS objtype 0x%02x\n",
+		    caps.ndis_hdr.ndis_type);
+		return (EINVAL);
+	}
+	if (caps.ndis_hdr.ndis_rev < NDIS_RSS_CAPS_REV_1) {
+		if_printf(sc->hn_ifp, "invalid NDIS objrev 0x%02x\n",
+		    caps.ndis_hdr.ndis_rev);
+		return (EINVAL);
+	}
+	if (caps.ndis_hdr.ndis_size > caps_len) {
+		if_printf(sc->hn_ifp, "invalid NDIS objsize %u, "
+		    "data size %zu\n", caps.ndis_hdr.ndis_size, caps_len);
+		return (EINVAL);
+	} else if (caps.ndis_hdr.ndis_size < NDIS_RSS_CAPS_SIZE_6_0) {
+		if_printf(sc->hn_ifp, "invalid NDIS objsize %u\n",
+		    caps.ndis_hdr.ndis_size);
 		return (EINVAL);
 	}
 
+	/*
+	 * Save information for later RSS configuration.
+	 */
 	if (caps.ndis_nrxr == 0) {
 		if_printf(sc->hn_ifp, "0 RX rings!?\n");
 		return (EINVAL);
 	}
-	*rxr_cnt = caps.ndis_nrxr;
+	if (bootverbose)
+		if_printf(sc->hn_ifp, "%u RX rings\n", caps.ndis_nrxr);
+	rxr_cnt = caps.ndis_nrxr;
 
-	if (caps_len == NDIS_RSS_CAPS_SIZE) {
+	if (caps.ndis_hdr.ndis_size == NDIS_RSS_CAPS_SIZE &&
+	    caps.ndis_hdr.ndis_rev >= NDIS_RSS_CAPS_REV_2) {
+		if (caps.ndis_nind > NDIS_HASH_INDCNT) {
+			if_printf(sc->hn_ifp,
+			    "too many RSS indirect table entries %u\n",
+			    caps.ndis_nind);
+			return (EOPNOTSUPP);
+		}
+		if (!powerof2(caps.ndis_nind)) {
+			if_printf(sc->hn_ifp, "RSS indirect table size is not "
+			    "power-of-2 %u\n", caps.ndis_nind);
+		}
+
 		if (bootverbose) {
 			if_printf(sc->hn_ifp, "RSS indirect table size %u\n",
 			    caps.ndis_nind);
 		}
+		indsz = caps.ndis_nind;
+	} else {
+		indsz = NDIS_HASH_INDCNT;
 	}
+	if (indsz < rxr_cnt) {
+		if_printf(sc->hn_ifp, "# of RX rings (%d) > "
+		    "RSS indirect table size %d\n", rxr_cnt, indsz);
+		rxr_cnt = indsz;
+	}
+
+	/*
+	 * NOTE:
+	 * Toeplitz is at the lowest bit, and it is prefered; so ffs(),
+	 * instead of fls(), is used here.
+	 */
+	hash_fnidx = ffs(caps.ndis_caps & NDIS_RSS_CAP_HASHFUNC_MASK);
+	if (hash_fnidx == 0) {
+		if_printf(sc->hn_ifp, "no hash functions, caps 0x%08x\n",
+		    caps.ndis_caps);
+		return (EOPNOTSUPP);
+	}
+	hash_func = 1 << (hash_fnidx - 1); /* ffs is 1-based */
+
+	if (caps.ndis_caps & NDIS_RSS_CAP_IPV4)
+		hash_types |= NDIS_HASH_IPV4 | NDIS_HASH_TCP_IPV4;
+	if (caps.ndis_caps & NDIS_RSS_CAP_IPV6)
+		hash_types |= NDIS_HASH_IPV6 | NDIS_HASH_TCP_IPV6;
+	if (caps.ndis_caps & NDIS_RSS_CAP_IPV6_EX)
+		hash_types |= NDIS_HASH_IPV6_EX | NDIS_HASH_TCP_IPV6_EX;
+	if (hash_types == 0) {
+		if_printf(sc->hn_ifp, "no hash types, caps 0x%08x\n",
+		    caps.ndis_caps);
+		return (EOPNOTSUPP);
+	}
+
+	/* Commit! */
+	sc->hn_rss_ind_size = indsz;
+	sc->hn_rss_hash = hash_func | hash_types;
+	*rxr_cnt0 = rxr_cnt;
 	return (0);
 }
 
@@ -797,12 +555,19 @@ done:
 }
 
 static int
-hn_rndis_conf_offload(struct hn_softc *sc)
+hn_rndis_conf_offload(struct hn_softc *sc, int mtu)
 {
+	struct ndis_offload hwcaps;
 	struct ndis_offload_params params;
-	uint32_t caps;
+	uint32_t caps = 0;
 	size_t paramsz;
-	int error;
+	int error, tso_maxsz, tso_minsg;
+
+	error = hn_rndis_query_hwcaps(sc, &hwcaps);
+	if (error) {
+		if_printf(sc->hn_ifp, "hwcaps query failed: %d\n", error);
+		return (error);
+	}
 
 	/* NOTE: 0 means "no change" */
 	memset(&params, 0, sizeof(params));
@@ -817,18 +582,136 @@ hn_rndis_conf_offload(struct hn_softc *sc)
 	}
 	params.ndis_hdr.ndis_size = paramsz;
 
-	caps = HN_CAP_IPCS | HN_CAP_TCP4CS | HN_CAP_TCP6CS;
-	params.ndis_ip4csum = NDIS_OFFLOAD_PARAM_TXRX;
-	params.ndis_tcp4csum = NDIS_OFFLOAD_PARAM_TXRX;
-	params.ndis_tcp6csum = NDIS_OFFLOAD_PARAM_TXRX;
-	if (sc->hn_ndis_ver >= HN_NDIS_VERSION_6_30) {
-		caps |= HN_CAP_UDP4CS | HN_CAP_UDP6CS;
-		params.ndis_udp4csum = NDIS_OFFLOAD_PARAM_TXRX;
-		params.ndis_udp6csum = NDIS_OFFLOAD_PARAM_TXRX;
+	/*
+	 * TSO4/TSO6 setup.
+	 */
+	tso_maxsz = IP_MAXPACKET;
+	tso_minsg = 2;
+	if (hwcaps.ndis_lsov2.ndis_ip4_encap & NDIS_OFFLOAD_ENCAP_8023) {
+		caps |= HN_CAP_TSO4;
+		params.ndis_lsov2_ip4 = NDIS_OFFLOAD_LSOV2_ON;
+
+		if (hwcaps.ndis_lsov2.ndis_ip4_maxsz < tso_maxsz)
+			tso_maxsz = hwcaps.ndis_lsov2.ndis_ip4_maxsz;
+		if (hwcaps.ndis_lsov2.ndis_ip4_minsg > tso_minsg)
+			tso_minsg = hwcaps.ndis_lsov2.ndis_ip4_minsg;
 	}
-	caps |= HN_CAP_TSO4;
-	params.ndis_lsov2_ip4 = NDIS_OFFLOAD_LSOV2_ON;
-	/* XXX ndis_lsov2_ip6 = NDIS_OFFLOAD_LSOV2_ON */
+	if ((hwcaps.ndis_lsov2.ndis_ip6_encap & NDIS_OFFLOAD_ENCAP_8023) &&
+	    (hwcaps.ndis_lsov2.ndis_ip6_opts & HN_NDIS_LSOV2_CAP_IP6) ==
+	    HN_NDIS_LSOV2_CAP_IP6) {
+#ifdef notyet
+		caps |= HN_CAP_TSO6;
+		params.ndis_lsov2_ip6 = NDIS_OFFLOAD_LSOV2_ON;
+
+		if (hwcaps.ndis_lsov2.ndis_ip6_maxsz < tso_maxsz)
+			tso_maxsz = hwcaps.ndis_lsov2.ndis_ip6_maxsz;
+		if (hwcaps.ndis_lsov2.ndis_ip6_minsg > tso_minsg)
+			tso_minsg = hwcaps.ndis_lsov2.ndis_ip6_minsg;
+#endif
+	}
+	sc->hn_ndis_tso_szmax = 0;
+	sc->hn_ndis_tso_sgmin = 0;
+	if (caps & (HN_CAP_TSO4 | HN_CAP_TSO6)) {
+		KASSERT(tso_maxsz <= IP_MAXPACKET,
+		    ("invalid NDIS TSO maxsz %d", tso_maxsz));
+		KASSERT(tso_minsg >= 2,
+		    ("invalid NDIS TSO minsg %d", tso_minsg));
+		if (tso_maxsz < tso_minsg * mtu) {
+			if_printf(sc->hn_ifp, "invalid NDIS TSO config: "
+			    "maxsz %d, minsg %d, mtu %d; "
+			    "disable TSO4 and TSO6\n",
+			    tso_maxsz, tso_minsg, mtu);
+			caps &= ~(HN_CAP_TSO4 | HN_CAP_TSO6);
+			params.ndis_lsov2_ip4 = NDIS_OFFLOAD_LSOV2_OFF;
+			params.ndis_lsov2_ip6 = NDIS_OFFLOAD_LSOV2_OFF;
+		} else {
+			sc->hn_ndis_tso_szmax = tso_maxsz;
+			sc->hn_ndis_tso_sgmin = tso_minsg;
+			if (bootverbose) {
+				if_printf(sc->hn_ifp, "NDIS TSO "
+				    "szmax %d sgmin %d\n",
+				    sc->hn_ndis_tso_szmax,
+				    sc->hn_ndis_tso_sgmin);
+			}
+		}
+	}
+
+	/* IPv4 checksum */
+	if ((hwcaps.ndis_csum.ndis_ip4_txcsum & HN_NDIS_TXCSUM_CAP_IP4) ==
+	    HN_NDIS_TXCSUM_CAP_IP4) {
+		caps |= HN_CAP_IPCS;
+		params.ndis_ip4csum = NDIS_OFFLOAD_PARAM_TX;
+	}
+	if (hwcaps.ndis_csum.ndis_ip4_rxcsum & NDIS_RXCSUM_CAP_IP4) {
+		if (params.ndis_ip4csum == NDIS_OFFLOAD_PARAM_TX)
+			params.ndis_ip4csum = NDIS_OFFLOAD_PARAM_TXRX;
+		else
+			params.ndis_ip4csum = NDIS_OFFLOAD_PARAM_RX;
+	}
+
+	/* TCP4 checksum */
+	if ((hwcaps.ndis_csum.ndis_ip4_txcsum & HN_NDIS_TXCSUM_CAP_TCP4) ==
+	    HN_NDIS_TXCSUM_CAP_TCP4) {
+		caps |= HN_CAP_TCP4CS;
+		params.ndis_tcp4csum = NDIS_OFFLOAD_PARAM_TX;
+	}
+	if (hwcaps.ndis_csum.ndis_ip4_rxcsum & NDIS_RXCSUM_CAP_TCP4) {
+		if (params.ndis_tcp4csum == NDIS_OFFLOAD_PARAM_TX)
+			params.ndis_tcp4csum = NDIS_OFFLOAD_PARAM_TXRX;
+		else
+			params.ndis_tcp4csum = NDIS_OFFLOAD_PARAM_RX;
+	}
+
+	/* UDP4 checksum */
+	if (hwcaps.ndis_csum.ndis_ip4_txcsum & NDIS_TXCSUM_CAP_UDP4) {
+		caps |= HN_CAP_UDP4CS;
+		params.ndis_udp4csum = NDIS_OFFLOAD_PARAM_TX;
+	}
+	if (hwcaps.ndis_csum.ndis_ip4_rxcsum & NDIS_RXCSUM_CAP_UDP4) {
+		if (params.ndis_udp4csum == NDIS_OFFLOAD_PARAM_TX)
+			params.ndis_udp4csum = NDIS_OFFLOAD_PARAM_TXRX;
+		else
+			params.ndis_udp4csum = NDIS_OFFLOAD_PARAM_RX;
+	}
+
+	/* TCP6 checksum */
+	if ((hwcaps.ndis_csum.ndis_ip6_txcsum & HN_NDIS_TXCSUM_CAP_TCP6) ==
+	    HN_NDIS_TXCSUM_CAP_TCP6) {
+		caps |= HN_CAP_TCP6CS;
+		params.ndis_tcp6csum = NDIS_OFFLOAD_PARAM_TX;
+	}
+	if (hwcaps.ndis_csum.ndis_ip6_rxcsum & NDIS_RXCSUM_CAP_TCP6) {
+		if (params.ndis_tcp6csum == NDIS_OFFLOAD_PARAM_TX)
+			params.ndis_tcp6csum = NDIS_OFFLOAD_PARAM_TXRX;
+		else
+			params.ndis_tcp6csum = NDIS_OFFLOAD_PARAM_RX;
+	}
+
+	/* UDP6 checksum */
+	if ((hwcaps.ndis_csum.ndis_ip6_txcsum & HN_NDIS_TXCSUM_CAP_UDP6) ==
+	    HN_NDIS_TXCSUM_CAP_UDP6) {
+		caps |= HN_CAP_UDP6CS;
+		params.ndis_udp6csum = NDIS_OFFLOAD_PARAM_TX;
+	}
+	if (hwcaps.ndis_csum.ndis_ip6_rxcsum & NDIS_RXCSUM_CAP_UDP6) {
+		if (params.ndis_udp6csum == NDIS_OFFLOAD_PARAM_TX)
+			params.ndis_udp6csum = NDIS_OFFLOAD_PARAM_TXRX;
+		else
+			params.ndis_udp6csum = NDIS_OFFLOAD_PARAM_RX;
+	}
+
+	if (bootverbose) {
+		if_printf(sc->hn_ifp, "offload csum: "
+		    "ip4 %u, tcp4 %u, udp4 %u, tcp6 %u, udp6 %u\n",
+		    params.ndis_ip4csum,
+		    params.ndis_tcp4csum,
+		    params.ndis_udp4csum,
+		    params.ndis_tcp6csum,
+		    params.ndis_udp6csum);
+		if_printf(sc->hn_ifp, "offload lsov2: ip4 %u, ip6 %u\n",
+		    params.ndis_lsov2_ip4,
+		    params.ndis_lsov2_ip6);
+	}
 
 	error = hn_rndis_set(sc, OID_TCP_OFFLOAD_PARAMETERS, &params, paramsz);
 	if (error) {
@@ -847,29 +730,39 @@ hn_rndis_conf_rss(struct hn_softc *sc, uint16_t flags)
 {
 	struct ndis_rssprm_toeplitz *rss = &sc->hn_rss;
 	struct ndis_rss_params *prm = &rss->rss_params;
-	int error;
+	int error, rss_size;
 
 	/*
-	 * Only NDIS 6.30+ is supported.
+	 * Only NDIS 6.20+ is supported:
+	 * We only support 4bytes element in indirect table, which has been
+	 * adopted since NDIS 6.20.
 	 */
-	KASSERT(sc->hn_ndis_ver >= HN_NDIS_VERSION_6_30,
-	    ("NDIS 6.30+ is required, NDIS version 0x%08x", sc->hn_ndis_ver));
+	KASSERT(sc->hn_ndis_ver >= HN_NDIS_VERSION_6_20,
+	    ("NDIS 6.20+ is required, NDIS version 0x%08x", sc->hn_ndis_ver));
+
+	/* XXX only one can be specified through, popcnt? */
+	KASSERT((sc->hn_rss_hash & NDIS_HASH_FUNCTION_MASK), ("no hash func"));
+	KASSERT((sc->hn_rss_hash & NDIS_HASH_TYPE_MASK), ("no hash types"));
+	KASSERT(sc->hn_rss_ind_size > 0, ("no indirect table size"));
+
+	if (bootverbose) {
+		if_printf(sc->hn_ifp, "RSS indirect table size %d, "
+		    "hash 0x%08x\n", sc->hn_rss_ind_size, sc->hn_rss_hash);
+	}
 
 	/*
 	 * NOTE:
 	 * DO NOT whack rss_key and rss_ind, which are setup by the caller.
 	 */
 	memset(prm, 0, sizeof(*prm));
+	rss_size = NDIS_RSSPRM_TOEPLITZ_SIZE(sc->hn_rss_ind_size);
 
 	prm->ndis_hdr.ndis_type = NDIS_OBJTYPE_RSS_PARAMS;
 	prm->ndis_hdr.ndis_rev = NDIS_RSS_PARAMS_REV_2;
-	prm->ndis_hdr.ndis_size = sizeof(*rss);
+	prm->ndis_hdr.ndis_size = rss_size;
 	prm->ndis_flags = flags;
-	prm->ndis_hash = NDIS_HASH_FUNCTION_TOEPLITZ |
-	    NDIS_HASH_IPV4 | NDIS_HASH_TCP_IPV4 |
-	    NDIS_HASH_IPV6 | NDIS_HASH_TCP_IPV6;
-	/* TODO: Take ndis_rss_caps.ndis_nind into account */
-	prm->ndis_indsize = sizeof(rss->rss_ind);
+	prm->ndis_hash = sc->hn_rss_hash;
+	prm->ndis_indsize = sizeof(rss->rss_ind[0]) * sc->hn_rss_ind_size;
 	prm->ndis_indoffset =
 	    __offsetof(struct ndis_rssprm_toeplitz, rss_ind[0]);
 	prm->ndis_keysize = sizeof(rss->rss_key);
@@ -877,7 +770,7 @@ hn_rndis_conf_rss(struct hn_softc *sc, uint16_t flags)
 	    __offsetof(struct ndis_rssprm_toeplitz, rss_key[0]);
 
 	error = hn_rndis_set(sc, OID_GEN_RECEIVE_SCALE_PARAMETERS,
-	    rss, sizeof(*rss));
+	    rss, rss_size);
 	if (error) {
 		if_printf(sc->hn_ifp, "RSS config failed: %d\n", error);
 	} else {
@@ -887,7 +780,7 @@ hn_rndis_conf_rss(struct hn_softc *sc, uint16_t flags)
 	return (error);
 }
 
-static int
+int
 hn_rndis_set_rxfilter(struct hn_softc *sc, uint32_t filter)
 {
 	int error;
@@ -957,15 +850,12 @@ done:
 	return (error);
 }
 
-/*
- * RNDIS filter halt device
- */
 static int
-hv_rf_halt_device(struct hn_softc *sc)
+hn_rndis_halt(struct hn_softc *sc)
 {
 	struct vmbus_xact *xact;
 	struct rndis_halt_req *halt;
-	struct hn_send_ctx sndc;
+	struct hn_nvs_sendctx sndc;
 	size_t comp_len;
 
 	xact = vmbus_xact_get(sc->hn_xact, sizeof(*halt));
@@ -979,7 +869,7 @@ hv_rf_halt_device(struct hn_softc *sc)
 	halt->rm_rid = hn_rndis_rid(sc);
 
 	/* No RNDIS completion; rely on NVS message send completion */
-	hn_send_ctx_init_simple(&sndc, hn_nvs_sent_xact, xact);
+	hn_nvs_sendctx_init(&sndc, hn_nvs_sent_xact, xact);
 	hn_rndis_xact_exec1(sc, xact, sizeof(*halt), &sndc, &comp_len);
 
 	vmbus_xact_put(xact);
@@ -988,8 +878,92 @@ hv_rf_halt_device(struct hn_softc *sc)
 	return (0);
 }
 
+static int
+hn_rndis_query_hwcaps(struct hn_softc *sc, struct ndis_offload *caps)
+{
+	struct ndis_offload in;
+	size_t caps_len, size;
+	int error;
+
+	memset(&in, 0, sizeof(in));
+	in.ndis_hdr.ndis_type = NDIS_OBJTYPE_OFFLOAD;
+	if (sc->hn_ndis_ver >= HN_NDIS_VERSION_6_30) {
+		in.ndis_hdr.ndis_rev = NDIS_OFFLOAD_REV_3;
+		size = NDIS_OFFLOAD_SIZE;
+	} else if (sc->hn_ndis_ver >= HN_NDIS_VERSION_6_1) {
+		in.ndis_hdr.ndis_rev = NDIS_OFFLOAD_REV_2;
+		size = NDIS_OFFLOAD_SIZE_6_1;
+	} else {
+		in.ndis_hdr.ndis_rev = NDIS_OFFLOAD_REV_1;
+		size = NDIS_OFFLOAD_SIZE_6_0;
+	}
+	in.ndis_hdr.ndis_size = size;
+
+	caps_len = NDIS_OFFLOAD_SIZE;
+	error = hn_rndis_query2(sc, OID_TCP_OFFLOAD_HARDWARE_CAPABILITIES,
+	    &in, size, caps, &caps_len, NDIS_OFFLOAD_SIZE_6_0);
+	if (error)
+		return (error);
+
+	/*
+	 * Preliminary verification.
+	 */
+	if (caps->ndis_hdr.ndis_type != NDIS_OBJTYPE_OFFLOAD) {
+		if_printf(sc->hn_ifp, "invalid NDIS objtype 0x%02x\n",
+		    caps->ndis_hdr.ndis_type);
+		return (EINVAL);
+	}
+	if (caps->ndis_hdr.ndis_rev < NDIS_OFFLOAD_REV_1) {
+		if_printf(sc->hn_ifp, "invalid NDIS objrev 0x%02x\n",
+		    caps->ndis_hdr.ndis_rev);
+		return (EINVAL);
+	}
+	if (caps->ndis_hdr.ndis_size > caps_len) {
+		if_printf(sc->hn_ifp, "invalid NDIS objsize %u, "
+		    "data size %zu\n", caps->ndis_hdr.ndis_size, caps_len);
+		return (EINVAL);
+	} else if (caps->ndis_hdr.ndis_size < NDIS_OFFLOAD_SIZE_6_0) {
+		if_printf(sc->hn_ifp, "invalid NDIS objsize %u\n",
+		    caps->ndis_hdr.ndis_size);
+		return (EINVAL);
+	}
+
+	if (bootverbose) {
+		/*
+		 * NOTE:
+		 * caps->ndis_hdr.ndis_size MUST be checked before accessing
+		 * NDIS 6.1+ specific fields.
+		 */
+		if_printf(sc->hn_ifp, "hwcaps rev %u\n",
+		    caps->ndis_hdr.ndis_rev);
+
+		if_printf(sc->hn_ifp, "hwcaps csum: "
+		    "ip4 tx 0x%x/0x%x rx 0x%x/0x%x, "
+		    "ip6 tx 0x%x/0x%x rx 0x%x/0x%x\n",
+		    caps->ndis_csum.ndis_ip4_txcsum,
+		    caps->ndis_csum.ndis_ip4_txenc,
+		    caps->ndis_csum.ndis_ip4_rxcsum,
+		    caps->ndis_csum.ndis_ip4_rxenc,
+		    caps->ndis_csum.ndis_ip6_txcsum,
+		    caps->ndis_csum.ndis_ip6_txenc,
+		    caps->ndis_csum.ndis_ip6_rxcsum,
+		    caps->ndis_csum.ndis_ip6_rxenc);
+		if_printf(sc->hn_ifp, "hwcaps lsov2: "
+		    "ip4 maxsz %u minsg %u encap 0x%x, "
+		    "ip6 maxsz %u minsg %u encap 0x%x opts 0x%x\n",
+		    caps->ndis_lsov2.ndis_ip4_maxsz,
+		    caps->ndis_lsov2.ndis_ip4_minsg,
+		    caps->ndis_lsov2.ndis_ip4_encap,
+		    caps->ndis_lsov2.ndis_ip6_maxsz,
+		    caps->ndis_lsov2.ndis_ip6_minsg,
+		    caps->ndis_lsov2.ndis_ip6_encap,
+		    caps->ndis_lsov2.ndis_ip6_opts);
+	}
+	return (0);
+}
+
 int
-hn_rndis_attach(struct hn_softc *sc)
+hn_rndis_attach(struct hn_softc *sc, int mtu)
 {
 	int error;
 
@@ -1004,59 +978,14 @@ hn_rndis_attach(struct hn_softc *sc)
 	 * Configure NDIS offload settings.
 	 * XXX no offloading, if error happened?
 	 */
-	hn_rndis_conf_offload(sc);
+	hn_rndis_conf_offload(sc, mtu);
 	return (0);
 }
 
-/*
- * RNDIS filter on device remove
- */
-int
-hv_rf_on_device_remove(struct hn_softc *sc)
-{
-	int ret;
-
-	/* Halt and release the rndis device */
-	ret = hv_rf_halt_device(sc);
-
-	/* Pass control to inner driver to remove the device */
-	ret |= hv_nv_on_device_remove(sc);
-
-	return (ret);
-}
-
-/*
- * RNDIS filter on open
- */
-int
-hv_rf_on_open(struct hn_softc *sc)
-{
-	uint32_t filter;
-
-	/* XXX */
-	if (hv_promisc_mode != 1) {
-		filter = NDIS_PACKET_TYPE_BROADCAST |
-		    NDIS_PACKET_TYPE_ALL_MULTICAST |
-		    NDIS_PACKET_TYPE_DIRECTED;
-	} else {
-		filter = NDIS_PACKET_TYPE_PROMISCUOUS;
-	}
-	return (hn_rndis_set_rxfilter(sc, filter));
-}
-
-/*
- * RNDIS filter on close
- */
-int 
-hv_rf_on_close(struct hn_softc *sc)
-{
-
-	return (hn_rndis_set_rxfilter(sc, 0));
-}
-
 void
-hv_rf_channel_rollup(struct hn_rx_ring *rxr, struct hn_tx_ring *txr)
+hn_rndis_detach(struct hn_softc *sc)
 {
 
-	hn_chan_rollup(rxr, txr);
+	/* Halt the RNDIS. */
+	hn_rndis_halt(sc);
 }

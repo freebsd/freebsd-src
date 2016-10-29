@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2014 John Baldwin
- * Copyright (c) 2014 The FreeBSD Foundation
+ * Copyright (c) 2014, 2016 The FreeBSD Foundation
  *
  * Portions of this software were developed by Konstantin Belousov
  * under sponsorship from the FreeBSD Foundation.

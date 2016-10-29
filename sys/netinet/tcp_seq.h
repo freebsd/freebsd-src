@@ -75,20 +75,17 @@
  * tcp_ts_getticks() in ms, should be 1ms < x < 1000ms according to RFC 1323.
  * We always use 1ms granularity independent of hz.
  */
-static __inline u_int
+static __inline uint32_t
 tcp_ts_getticks(void)
 {
 	struct timeval tv;
-	u_long ms;
 
 	/*
 	 * getmicrouptime() should be good enough for any 1-1000ms granularity.
 	 * Do not use getmicrotime() here as it might break nfsroot/tcp.
 	 */
 	getmicrouptime(&tv);
-	ms = tv.tv_sec * 1000 + tv.tv_usec / 1000;
-
-	return (ms);
+	return (tv.tv_sec * 1000 + tv.tv_usec / 1000);
 }
 #endif /* _KERNEL */
 

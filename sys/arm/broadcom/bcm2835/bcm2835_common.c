@@ -46,17 +46,14 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/vmparam.h>
 
-struct fdt_fixup_entry fdt_fixup_table[] = {
-	{ NULL, NULL }
-};
-
 #ifndef INTRNG
 static int
 fdt_intc_decode_ic(phandle_t node, pcell_t *intr, int *interrupt, int *trig,
     int *pol)
 {
 
-	if (fdt_is_compatible(node, "broadcom,bcm2835-armctrl-ic")) {
+	if (fdt_is_compatible(node, "broadcom,bcm2835-armctrl-ic") ||
+	    fdt_is_compatible(node, "brcm,bcm2836-armctrl-ic")) {
 		*interrupt = fdt32_to_cpu(intr[0]);
 		*trig = INTR_TRIGGER_CONFORM;
 		*pol = INTR_POLARITY_CONFORM;

@@ -44,32 +44,6 @@
 #define OP_RA(x) (((x) & 0x001F0000) >> 16)
 #define OP_RB(x) (((x) & 0x0000F100) >> 11)
 
-static int
-uread(proc_t *p, void *kaddr, size_t len, uintptr_t uaddr)
-{
-	ssize_t n;
-
-	PHOLD(p);
-	n = proc_readmem(curthread, p, uaddr, kaddr, len);
-	PRELE(p);
-	if (n <= 0 || n < len)
-		return (ENOMEM);
-	return (0);
-}
-
-static int
-uwrite(proc_t *p, void *kaddr, size_t len, uintptr_t uaddr)
-{
-	ssize_t n;
-
-	PHOLD(p);
-	n = proc_writemem(curthread, p, uaddr, kaddr, len);
-	PRELE(p);
-	if (n <= 0 || n < len)
-		return (ENOMEM);
-	return (0);
-}
-
 int
 fasttrap_tracepoint_install(proc_t *p, fasttrap_tracepoint_t *tp)
 {

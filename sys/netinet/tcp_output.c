@@ -40,7 +40,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/domain.h>
+#ifdef TCP_HHOOK
 #include <sys/hhook.h>
+#endif
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mbuf.h>
@@ -140,17 +142,20 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, sendbuf_max, CTLFLAG_VNET | CTLFLAG_RW,
 	    tcp_timer_active((tp), TT_PERSIST),				\
 	    ("neither rexmt nor persist timer is set"))
 
+#ifdef TCP_HHOOK
 static void inline	hhook_run_tcp_est_out(struct tcpcb *tp,
 			    struct tcphdr *th, struct tcpopt *to,
-			    long len, int tso);
+			    uint32_t len, int tso);
+#endif
 static void inline	cc_after_idle(struct tcpcb *tp);
 
+#ifdef TCP_HHOOK
 /*
  * Wrapper for the TCP established output helper hook.
  */
 static void inline
 hhook_run_tcp_est_out(struct tcpcb *tp, struct tcphdr *th,
-    struct tcpopt *to, long len, int tso)
+    struct tcpopt *to, uint32_t len, int tso)
 {
 	struct tcp_hhook_data hhook_data;
 
@@ -165,6 +170,7 @@ hhook_run_tcp_est_out(struct tcpcb *tp, struct tcphdr *th,
 		    tp->osd);
 	}
 }
+#endif
 
 /*
  * CC wrapper hook functions
@@ -185,7 +191,8 @@ int
 tcp_output(struct tcpcb *tp)
 {
 	struct socket *so = tp->t_inpcb->inp_socket;
-	long len, recwin, sendwin;
+	int32_t len;
+	uint32_t recwin, sendwin;
 	int off, flags, error = 0;	/* Keep compiler happy */
 	struct mbuf *m;
 	struct ip *ip = NULL;
@@ -223,7 +230,7 @@ tcp_output(struct tcpcb *tp)
 	 * For TFO connections in SYN_RECEIVED, only allow the initial
 	 * SYN|ACK and those sent by the retransmit timer.
 	 */
-	if ((tp->t_flags & TF_FASTOPEN) &&
+	if (IS_FASTOPEN(tp->t_flags) &&
 	    (tp->t_state == TCPS_SYN_RECEIVED) &&
 	    SEQ_GT(tp->snd_max, tp->snd_una) &&    /* initial SYN|ACK sent */
 	    (tp->snd_nxt != tp->snd_una))          /* not a retransmit */
@@ -277,11 +284,10 @@ again:
 	p = NULL;
 	if ((tp->t_flags & TF_SACK_PERMIT) && IN_FASTRECOVERY(tp->t_flags) &&
 	    (p = tcp_sack_output(tp, &sack_bytes_rxmt))) {
-		long cwin;
+		uint32_t cwin;
 		
-		cwin = min(tp->snd_wnd, tp->snd_cwnd) - sack_bytes_rxmt;
-		if (cwin < 0)
-			cwin = 0;
+		cwin =
+		    imax(min(tp->snd_wnd, tp->snd_cwnd) - sack_bytes_rxmt, 0);
 		/* Do not retransmit SACK segments beyond snd_recover */
 		if (SEQ_GT(p->end, tp->snd_recover)) {
 			/*
@@ -300,10 +306,10 @@ again:
 				goto after_sack_rexmit;
 			} else
 				/* Can rexmit part of the current hole */
-				len = ((long)ulmin(cwin,
+				len = ((int32_t)ulmin(cwin,
 						   tp->snd_recover - p->rxmit));
 		} else
-			len = ((long)ulmin(cwin, p->end - p->rxmit));
+			len = ((int32_t)ulmin(cwin, p->end - p->rxmit));
 		off = p->rxmit - tp->snd_una;
 		KASSERT(off >= 0,("%s: sack block to the left of una : %d",
 		    __func__, off));
@@ -376,17 +382,17 @@ after_sack_rexmit:
 	 */
 	if (sack_rxmit == 0) {
 		if (sack_bytes_rxmt == 0)
-			len = ((long)ulmin(sbavail(&so->so_snd), sendwin) -
+			len = ((int32_t)ulmin(sbavail(&so->so_snd), sendwin) -
 			    off);
 		else {
-			long cwin;
+			int32_t cwin;
 
                         /*
 			 * We are inside of a SACK recovery episode and are
 			 * sending new data, having retransmitted all the
 			 * data possible in the scoreboard.
 			 */
-			len = ((long)ulmin(sbavail(&so->so_snd), tp->snd_wnd) -
+			len = ((int32_t)min(sbavail(&so->so_snd), tp->snd_wnd) -
 			    off);
 			/*
 			 * Don't remove this (len > 0) check !
@@ -402,7 +408,7 @@ after_sack_rexmit:
 					sack_bytes_rxmt;
 				if (cwin < 0)
 					cwin = 0;
-				len = lmin(len, cwin);
+				len = imin(len, cwin);
 			}
 		}
 	}
@@ -420,7 +426,7 @@ after_sack_rexmit:
 		 * When sending additional segments following a TFO SYN|ACK,
 		 * do not include the SYN bit.
 		 */
-		if ((tp->t_flags & TF_FASTOPEN) &&
+		if (IS_FASTOPEN(tp->t_flags) &&
 		    (tp->t_state == TCPS_SYN_RECEIVED))
 			flags &= ~TH_SYN;
 #endif
@@ -443,7 +449,7 @@ after_sack_rexmit:
 	 * don't include data, as the presence of data may have caused the
 	 * original SYN|ACK to have been dropped by a middlebox.
 	 */
-	if ((tp->t_flags & TF_FASTOPEN) &&
+	if (IS_FASTOPEN(tp->t_flags) &&
 	    (((tp->t_state == TCPS_SYN_RECEIVED) && (tp->t_rxtshift > 0)) ||
 	     (flags & TH_RST)))
 		len = 0;
@@ -566,7 +572,8 @@ after_sack_rexmit:
 			flags &= ~TH_FIN;
 	}
 
-	recwin = sbspace(&so->so_rcv);
+	recwin = lmin(lmax(sbspace(&so->so_rcv), 0),
+	    (long)TCP_MAXWIN << tp->rcv_scale);
 
 	/*
 	 * Sender silly window avoidance.   We transmit under the following
@@ -592,7 +599,7 @@ after_sack_rexmit:
 		 */
 		if (!(tp->t_flags & TF_MORETOCOME) &&	/* normal case */
 		    (idle || (tp->t_flags & TF_NODELAY)) &&
-		    len + off >= sbavail(&so->so_snd) &&
+		    (uint32_t)len + (uint32_t)off >= sbavail(&so->so_snd) &&
 		    (tp->t_flags & TF_NOPUSH) == 0) {
 			goto send;
 		}
@@ -643,10 +650,10 @@ after_sack_rexmit:
 		 * taking into account that we are limited by
 		 * TCP_MAXWIN << tp->rcv_scale.
 		 */
-		long adv;
+		int32_t adv;
 		int oldwin;
 
-		adv = min(recwin, (long)TCP_MAXWIN << tp->rcv_scale);
+		adv = recwin;
 		if (SEQ_GT(tp->rcv_adv, tp->rcv_nxt)) {
 			oldwin = (tp->rcv_adv - tp->rcv_nxt);
 			adv -= oldwin;
@@ -654,15 +661,16 @@ after_sack_rexmit:
 			oldwin = 0;
 
 		/* 
-		 * If the new window size ends up being the same as the old
-		 * size when it is scaled, then don't force a window update.
+		 * If the new window size ends up being the same as or less
+		 * than the old size when it is scaled, then don't force
+		 * a window update.
 		 */
-		if (oldwin >> tp->rcv_scale == (adv + oldwin) >> tp->rcv_scale)
+		if (oldwin >> tp->rcv_scale >= (adv + oldwin) >> tp->rcv_scale)
 			goto dontupdate;
 
-		if (adv >= (long)(2 * tp->t_maxseg) &&
-		    (adv >= (long)(so->so_rcv.sb_hiwat / 4) ||
-		     recwin <= (long)(so->so_rcv.sb_hiwat / 8) ||
+		if (adv >= (int32_t)(2 * tp->t_maxseg) &&
+		    (adv >= (int32_t)(so->so_rcv.sb_hiwat / 4) ||
+		     recwin <= (so->so_rcv.sb_hiwat / 8) ||
 		     so->so_rcv.sb_hiwat <= 8 * tp->t_maxseg))
 			goto send;
 	}
@@ -778,7 +786,7 @@ send:
 			 * the TFO option may have caused the original
 			 * SYN|ACK to have been dropped by a middlebox.
 			 */
-			if ((tp->t_flags & TF_FASTOPEN) &&
+			if (IS_FASTOPEN(tp->t_flags) &&
 			    (tp->t_state == TCPS_SYN_RECEIVED) &&
 			    (tp->t_rxtshift == 0)) {
 				to.to_tfo_len = TCP_FASTOPEN_COOKIE_LEN;
@@ -949,7 +957,8 @@ send:
 			 * emptied:
 			 */
 			max_len = (tp->t_maxseg - optlen);
-			if ((off + len) < sbavail(&so->so_snd)) {
+			if (((uint32_t)off + (uint32_t)len) <
+			    sbavail(&so->so_snd)) {
 				moff = len % max_len;
 				if (moff != 0) {
 					len -= moff;
@@ -1045,7 +1054,7 @@ send:
 		mb = sbsndptr(&so->so_snd, off, len, &moff);
 
 		if (len <= MHLEN - hdrlen - max_linkhdr) {
-			m_copydata(mb, moff, (int)len,
+			m_copydata(mb, moff, len,
 			    mtod(m, caddr_t) + hdrlen);
 			m->m_len += len;
 		} else {
@@ -1065,7 +1074,8 @@ send:
 		 * give data to the user when a buffer fills or
 		 * a PUSH comes in.)
 		 */
-		if ((off + len == sbused(&so->so_snd)) && !(flags & TH_SYN))
+		if (((uint32_t)off + (uint32_t)len == sbused(&so->so_snd)) &&
+		    !(flags & TH_SYN))
 			flags |= TH_PUSH;
 		SOCKBUF_UNLOCK(&so->so_snd);
 	} else {
@@ -1198,14 +1208,12 @@ send:
 	 * Calculate receive window.  Don't shrink window,
 	 * but avoid silly window syndrome.
 	 */
-	if (recwin < (long)(so->so_rcv.sb_hiwat / 4) &&
-	    recwin < (long)tp->t_maxseg)
+	if (recwin < (so->so_rcv.sb_hiwat / 4) &&
+	    recwin < tp->t_maxseg)
 		recwin = 0;
 	if (SEQ_GT(tp->rcv_adv, tp->rcv_nxt) &&
-	    recwin < (long)(tp->rcv_adv - tp->rcv_nxt))
-		recwin = (long)(tp->rcv_adv - tp->rcv_nxt);
-	if (recwin > (long)TCP_MAXWIN << tp->rcv_scale)
-		recwin = (long)TCP_MAXWIN << tp->rcv_scale;
+	    recwin < (tp->rcv_adv - tp->rcv_nxt))
+		recwin = (tp->rcv_adv - tp->rcv_nxt);
 
 	/*
 	 * According to RFC1323 the window field in a SYN (i.e., a <SYN>
@@ -1296,16 +1304,18 @@ send:
 
 #ifdef IPSEC
 	KASSERT(len + hdrlen + ipoptlen - ipsec_optlen == m_length(m, NULL),
-	    ("%s: mbuf chain shorter than expected: %ld + %u + %u - %u != %u",
+	    ("%s: mbuf chain shorter than expected: %d + %u + %u - %u != %u",
 	    __func__, len, hdrlen, ipoptlen, ipsec_optlen, m_length(m, NULL)));
 #else
 	KASSERT(len + hdrlen + ipoptlen == m_length(m, NULL),
-	    ("%s: mbuf chain shorter than expected: %ld + %u + %u != %u",
+	    ("%s: mbuf chain shorter than expected: %d + %u + %u != %u",
 	    __func__, len, hdrlen, ipoptlen, m_length(m, NULL)));
 #endif
 
+#ifdef TCP_HHOOK
 	/* Run HHOOK_TCP_ESTABLISHED_OUT helper hooks. */
 	hhook_run_tcp_est_out(tp, th, &to, len, tso);
+#endif
 
 #ifdef TCPDEBUG
 	/*
@@ -1519,7 +1529,7 @@ timer:
 			tp->t_flags |= TF_SENTFIN;
 		}
 		if (SEQ_GT(tp->snd_nxt + xlen, tp->snd_max))
-			tp->snd_max = tp->snd_nxt + len;
+			tp->snd_max = tp->snd_nxt + xlen;
 	}
 
 	if (error) {
@@ -1596,7 +1606,7 @@ timer:
 	 * then remember the size of the advertised window.
 	 * Any pending ACK has now been sent.
 	 */
-	if (recwin >= 0 && SEQ_GT(tp->rcv_nxt + recwin, tp->rcv_adv))
+	if (SEQ_GT(tp->rcv_nxt + recwin, tp->rcv_adv))
 		tp->rcv_adv = tp->rcv_nxt + recwin;
 	tp->last_ack_sent = tp->rcv_nxt;
 	tp->t_flags &= ~(TF_ACKNOW | TF_DELACK);

@@ -256,7 +256,7 @@ struct nd_prefixctl {
 	struct prf_ra ndpr_flags;
 };
 
-
+LIST_HEAD(nd_prhead, nd_prefix);
 struct nd_prefix {
 	struct ifnet *ndpr_ifp;
 	LIST_ENTRY(nd_prefix) ndpr_entry;
@@ -275,7 +275,8 @@ struct nd_prefix {
 	/* list of routers that advertise the prefix: */
 	LIST_HEAD(pr_rtrhead, nd_pfxrouter) ndpr_advrtrs;
 	u_char	ndpr_plen;
-	int	ndpr_refcnt;	/* reference couter from addresses */
+	int	ndpr_addrcnt;	/* count of derived addresses */
+	volatile u_int ndpr_refcnt;
 };
 
 #define ndpr_raf		ndpr_flags
@@ -314,8 +315,6 @@ struct nd_pfxrouter {
 	struct nd_defrouter *router;
 };
 
-LIST_HEAD(nd_prhead, nd_prefix);
-
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_IP6NDP);
 #endif
@@ -346,16 +345,29 @@ VNET_DECLARE(int, nd6_onlink_ns_rfc4861);
 
 /* Lock for the prefix and default router lists. */
 VNET_DECLARE(struct rwlock, nd6_lock);
+VNET_DECLARE(uint64_t, nd6_list_genid);
 #define	V_nd6_lock			VNET(nd6_lock)
+#define	V_nd6_list_genid		VNET(nd6_list_genid)
 
 #define	ND6_RLOCK()			rw_rlock(&V_nd6_lock)
 #define	ND6_RUNLOCK()			rw_runlock(&V_nd6_lock)
 #define	ND6_WLOCK()			rw_wlock(&V_nd6_lock)
 #define	ND6_WUNLOCK()			rw_wunlock(&V_nd6_lock)
+#define	ND6_TRY_UPGRADE()		rw_try_upgrade(&V_nd6_lock)
 #define	ND6_WLOCK_ASSERT()		rw_assert(&V_nd6_lock, RA_WLOCKED)
 #define	ND6_RLOCK_ASSERT()		rw_assert(&V_nd6_lock, RA_RLOCKED)
 #define	ND6_LOCK_ASSERT()		rw_assert(&V_nd6_lock, RA_LOCKED)
 #define	ND6_UNLOCK_ASSERT()		rw_assert(&V_nd6_lock, RA_UNLOCKED)
+
+/* Mutex for prefix onlink/offlink transitions. */
+VNET_DECLARE(struct mtx, nd6_onlink_mtx);
+#define	V_nd6_onlink_mtx		VNET(nd6_onlink_mtx)
+
+#define	ND6_ONLINK_LOCK()		mtx_lock(&V_nd6_onlink_mtx)
+#define	ND6_ONLINK_TRYLOCK()		mtx_trylock(&V_nd6_onlink_mtx)
+#define	ND6_ONLINK_UNLOCK()		mtx_unlock(&V_nd6_onlink_mtx)
+#define	ND6_ONLINK_LOCK_ASSERT()	mtx_assert(&V_nd6_onlink_mtx, MA_OWNED)
+#define	ND6_ONLINK_UNLOCK_ASSERT()	mtx_assert(&V_nd6_onlink_mtx, MA_NOTOWNED)
 
 #define nd6log(x)	do { if (V_nd6_debug) log x; } while (/*CONSTCOND*/ 0)
 
@@ -463,9 +475,14 @@ void defrouter_rele(struct nd_defrouter *);
 bool defrouter_remove(struct in6_addr *, struct ifnet *);
 void defrouter_unlink(struct nd_defrouter *, struct nd_drhead *);
 void defrouter_del(struct nd_defrouter *);
-void prelist_remove(struct nd_prefix *);
 int nd6_prelist_add(struct nd_prefixctl *, struct nd_defrouter *,
-	struct nd_prefix **);
+    struct nd_prefix **);
+void nd6_prefix_unlink(struct nd_prefix *, struct nd_prhead *);
+void nd6_prefix_del(struct nd_prefix *);
+void nd6_prefix_ref(struct nd_prefix *);
+void nd6_prefix_rele(struct nd_prefix *);
+int nd6_prefix_onlink(struct nd_prefix *);
+int nd6_prefix_offlink(struct nd_prefix *);
 void pfxlist_onlink_check(void);
 struct nd_defrouter *defrouter_lookup(struct in6_addr *, struct ifnet *);
 struct nd_defrouter *defrouter_lookup_locked(struct in6_addr *, struct ifnet *);

@@ -1,5 +1,5 @@
 .\" $FreeBSD$
-.Dd June 23, 2008
+.Dd October 5, 2016
 .Dt NATD 8
 .Os
 .Sh NAME
@@ -426,7 +426,7 @@ Options can be divided to several sections.
 Each section applies to own
 .Nm
 instance.
-This ability allows to configure one
+This ability allows the configuration of one
 .Nm
 process for several NAT instances.
 The first instance that always exists is a "default" instance.
@@ -808,6 +808,11 @@ are forwarded to the appropriate router on that interface.
 .Xr init 8 ,
 .Xr ipfw 8 ,
 .Xr ppp 8
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 3.0 .
 .Sh AUTHORS
 This program is the result of the efforts of many people at different
 times:

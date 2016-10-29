@@ -22,7 +22,10 @@ MAN+=	config.5 des_modes.7
 # base sources
 SRCS=	cpt_err.c cryptlib.c cversion.c ex_data.c mem.c mem_dbg.c o_dir.c \
 	o_fips.c o_init.c o_str.c o_time.c uid.c
-.if defined(ASM_amd64)
+.if defined(ASM_aarch64)
+SRCS+=	arm64cpuid.S armcap.c mem_clr.c
+ACFLAGS.arm64cpuid.S=	-march=armv8-a+crypto
+.elif defined(ASM_amd64)
 SRCS+=	x86_64cpuid.S
 .elif defined(ASM_arm)
 SRCS+=	armcap.c armv4cpuid.S
@@ -35,7 +38,10 @@ INCS+=	crypto.h ebcdic.h opensslv.h ossl_typ.h symhacks.h ../e_os2.h
 
 # aes
 SRCS+=	aes_cfb.c aes_ctr.c aes_ecb.c aes_ige.c aes_misc.c aes_ofb.c aes_wrap.c
-.if defined(ASM_amd64)
+.if defined(ASM_aarch64)
+SRCS+=	aes_cbc.c aes_core.c aesv8-armx.S
+ACFLAGS.aesv8-armx.S=	-march=armv8-a+crypto
+.elif defined(ASM_amd64)
 SRCS+=	aes-x86_64.S aesni-mb-x86_64.S aesni-sha1-x86_64.S \
 	aesni-sha256-x86_64.S aesni-x86_64.S bsaes-x86_64.S vpaes-x86_64.S
 .elif defined(ASM_arm)
@@ -238,7 +244,10 @@ INCS+=	mdc2.h
 # modes
 SRCS+=	cbc128.c ccm128.c cfb128.c ctr128.c cts128.c gcm128.c ofb128.c \
 	wrap128.c xts128.c
-.if defined(ASM_amd64)
+.if defined(ASM_aarch64)
+SRCS+=	ghashv8-armx.S
+ACFLAGS.ghashv8-armx.S=	-march=armv8-a+crypto
+.elif defined(ASM_amd64)
 SRCS+=	aesni-gcm-x86_64.S ghash-x86_64.S
 .elif defined(ASM_arm)
 SRCS+=	ghash-armv4.S ghashv8-armx.S
@@ -324,7 +333,9 @@ INCS+=	seed.h
 
 # sha
 SRCS+=	sha1_one.c sha1dgst.c sha256.c sha512.c sha_dgst.c sha_one.c
-.if defined(ASM_amd64)
+.if defined(ASM_aarch64)
+SRCS+=	sha1-armv8.S sha256-armv8.S sha512-armv8.S
+.elif defined(ASM_amd64)
 SRCS+=	sha1-mb-x86_64.S sha1-x86_64.S sha256-mb-x86_64.S sha256-x86_64.S \
 	sha512-x86_64.S
 .elif defined(ASM_arm)

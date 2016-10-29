@@ -146,7 +146,8 @@ pmsu_boot_secondary_cpu(void)
 	    pmap_kextract((vm_offset_t)mpentry));
 
 	dcache_wbinv_poc_all();
-	armv7_sev();
+	dsb();
+	sev();
 
 	bus_space_unmap(fdtbus_bs_tag, vaddr, MV_PMSU_REGS_LEN);
 

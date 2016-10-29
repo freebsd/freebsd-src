@@ -468,6 +468,26 @@ tcp_timer_keep(void *xtp)
 	}
 	KASSERT((tp->t_timers->tt_flags & TT_STOPPED) == 0,
 		("%s: tp %p tcpcb can't be stopped here", __func__, tp));
+
+	/*
+	 * Because we don't regularly reset the keepalive callout in
+	 * the ESTABLISHED state, it may be that we don't actually need
+	 * to send a keepalive yet. If that occurs, schedule another
+	 * call for the next time the keepalive timer might expire.
+	 */
+	if (TCPS_HAVEESTABLISHED(tp->t_state)) {
+		u_int idletime;
+
+		idletime = ticks - tp->t_rcvtime;
+		if (idletime < TP_KEEPIDLE(tp)) {
+			callout_reset(&tp->t_timers->tt_keep,
+			    TP_KEEPIDLE(tp) - idletime, tcp_timer_keep, tp);
+			INP_WUNLOCK(inp);
+			CURVNET_RESTORE();
+			return;
+		}
+	}
+
 	/*
 	 * Keep-alive timer went off; send something
 	 * or drop connection if idle for too long.

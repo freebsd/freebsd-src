@@ -322,6 +322,11 @@
 		broadcom,depth = <0>;		/* Set by VideoCore */
 	};
 
+	rpi_ft5406 { 
+		compatible = "rpi,rpi-ft5406"; 
+		status = "okay"; 
+	}; 
+
 	leds {
 		compatible = "gpio-leds";
 

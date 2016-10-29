@@ -238,6 +238,7 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp)
 	vm_offset_t	startkernel, endkernel;
 	void		*kmdp;
         char		*env;
+        bool		ofw_bootargs = false;
 #ifdef DDB
 	vm_offset_t ksym_start;
 	vm_offset_t ksym_end;
@@ -295,6 +296,7 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp)
 		bzero(__bss_start, _end - __bss_start);
 #endif
 		init_static_kenv(init_kenv, sizeof(init_kenv));
+		ofw_bootargs = true;
 	}
 	/* Store boot environment state */
 	OF_initial_setup((void *)fdt, NULL, (int (*)(void *))ofentry);
@@ -337,7 +339,8 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp)
 
 	OF_bootstrap();
 
-	ofw_parse_bootargs();
+	if (ofw_bootargs)
+		ofw_parse_bootargs();
 
 	/*
 	 * Initialize the console before printing anything.

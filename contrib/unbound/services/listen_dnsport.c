@@ -43,6 +43,9 @@
 #  include <sys/types.h>
 #endif
 #include <sys/time.h>
+#ifdef USE_TCP_FASTOPEN
+#include <netinet/tcp.h>
+#endif
 #include "services/listen_dnsport.h"
 #include "services/outside_network.h"
 #include "util/netevent.h"
@@ -184,14 +187,6 @@ create_udp_sock(int family, int socktype, struct sockaddr* addr,
 #else
 		(void)reuseport;
 #endif /* defined(SO_REUSEPORT) */
-#ifdef IP_FREEBIND
-		if (freebind &&
-		    setsockopt(s, IPPROTO_IP, IP_FREEBIND, (void*)&on,
-		    (socklen_t)sizeof(on)) < 0) {
-			log_warn("setsockopt(.. IP_FREEBIND ..) failed: %s",
-			strerror(errno));
-		}
-#endif /* IP_FREEBIND */
 #ifdef IP_TRANSPARENT
 		if (transparent &&
 		    setsockopt(s, IPPROTO_IP, IP_TRANSPARENT, (void*)&on,
@@ -209,6 +204,14 @@ create_udp_sock(int family, int socktype, struct sockaddr* addr,
 		}
 #endif /* IP_TRANSPARENT || IP_BINDANY */
 	}
+#ifdef IP_FREEBIND
+	if(freebind &&
+	    setsockopt(s, IPPROTO_IP, IP_FREEBIND, (void*)&on,
+	    (socklen_t)sizeof(on)) < 0) {
+		log_warn("setsockopt(.. IP_FREEBIND ..) failed: %s",
+		strerror(errno));
+	}
+#endif /* IP_FREEBIND */
 	if(rcv) {
 #ifdef SO_RCVBUF
 		int got;
@@ -509,6 +512,9 @@ create_tcp_accept_sock(struct addrinfo *addr, int v6only, int* noproto,
 #if defined(SO_REUSEADDR) || defined(SO_REUSEPORT) || defined(IPV6_V6ONLY) || defined(IP_TRANSPARENT) || defined(IP_BINDANY) || defined(IP_FREEBIND)
 	int on = 1;
 #endif
+#ifdef USE_TCP_FASTOPEN
+	int qlen;
+#endif
 #if !defined(IP_TRANSPARENT) && !defined(IP_BINDANY)
 	(void)transparent;
 #endif
@@ -669,6 +675,22 @@ create_tcp_accept_sock(struct addrinfo *addr, int v6only, int* noproto,
 #endif
 		return -1;
 	}
+#ifdef USE_TCP_FASTOPEN
+	/* qlen specifies how many outstanding TFO requests to allow. Limit is a defense
+	   against IP spoofing attacks as suggested in RFC7413 */
+#ifdef __APPLE__
+	/* OS X implementation only supports qlen of 1 via this call. Actual
+	   value is configured by the net.inet.tcp.fastopen_backlog kernel parm. */
+	qlen = 1;
+#else
+	/* 5 is recommended on linux */
+	qlen = 5;
+#endif
+	if ((setsockopt(s, IPPROTO_TCP, TCP_FASTOPEN, &qlen, 
+		  sizeof(qlen))) == -1 ) {
+		log_err("Setting TCP Fast Open as server failed: %s", strerror(errno));
+	}
+#endif
 	return s;
 }
 
@@ -682,7 +704,7 @@ create_local_accept_sock(const char *path, int* noproto)
 	verbose(VERB_ALGO, "creating unix socket %s", path);
 #ifdef HAVE_STRUCT_SOCKADDR_UN_SUN_LEN
 	/* this member exists on BSDs, not Linux */
-	usock.sun_len = (socklen_t)sizeof(usock);
+	usock.sun_len = (unsigned)sizeof(usock);
 #endif
 	usock.sun_family = AF_LOCAL;
 	/* length is 92-108, 104 on FreeBSD */

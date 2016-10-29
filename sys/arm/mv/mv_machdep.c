@@ -432,6 +432,7 @@ platform_devmap_init(void)
 	return (0);
 }
 
+#if __ARM_ARCH < 6
 struct arm32_dma_range *
 bus_dma_get_range(void)
 {
@@ -445,6 +446,7 @@ bus_dma_get_range_nb(void)
 
 	return (0);
 }
+#endif
 
 #if defined(CPU_MV_PJ4B)
 #ifdef DDB

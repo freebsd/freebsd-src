@@ -114,10 +114,9 @@ bman_attach(device_t dev)
 	bp.totalNumOfBuffers = BMAN_MAX_BUFFERS;
 	bp.f_Exception = bman_exception;
 	bp.h_App = sc;
-	bp.errIrq = (int)sc->sc_ires;
+	bp.errIrq = (uintptr_t)sc->sc_ires;
 	bp.partBpidBase = 0;
 	bp.partNumOfPools = BM_MAX_NUM_OF_POOLS;
-	printf("base address: %llx\n", (uint64_t)bp.baseAddress);
 
 	sc->sc_bh = BM_Config(&bp);
 	if (sc->sc_bh == NULL)

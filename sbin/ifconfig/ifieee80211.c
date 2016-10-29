@@ -3290,8 +3290,8 @@ printmimo(const struct ieee80211_mimo_info *mi)
 	/* NB: don't muddy display unless there's something to show */
 	if (mi->rssi[0] != 0 || mi->rssi[1] != 0 || mi->rssi[2] != 0) {
 		/* XXX ignore EVM for now */
-		printf(" (rssi %d:%d:%d nf %d:%d:%d)",
-		    mi->rssi[0], mi->rssi[1], mi->rssi[2],
+		printf(" (rssi %.1f:%.1f:%.1f nf %d:%d:%d)",
+		    mi->rssi[0] / 2.0, mi->rssi[1] / 2.0, mi->rssi[2] / 2.0,
 		    mi->noise[0], mi->noise[1], mi->noise[2]);
 	}
 }

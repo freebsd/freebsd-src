@@ -70,6 +70,8 @@ extern int evdev_rcpt_mask;
 #define	EVDEV_FLAG_SOFTREPEAT	0x00	/* use evdev to repeat keys */
 #define	EVDEV_FLAG_MT_STCOMPAT	0x01	/* autogenerate ST-compatible events
 					 * for MT protocol type B reports */
+#define	EVDEV_FLAG_MT_AUTOREL	0x02	/* Autorelease MT-slots not listed in
+					 * current MT protocol type B report */
 #define	EVDEV_FLAG_MAX		0x1F
 #define	EVDEV_FLAG_CNT		(EVDEV_FLAG_MAX + 1)
 
@@ -89,12 +91,12 @@ void evdev_set_name(struct evdev_dev *, const char *);
 void evdev_set_id(struct evdev_dev *, uint16_t, uint16_t, uint16_t, uint16_t);
 void evdev_set_phys(struct evdev_dev *, const char *);
 void evdev_set_serial(struct evdev_dev *, const char *);
-void evdev_set_methods(struct evdev_dev *, void *, struct evdev_methods *);
+void evdev_set_methods(struct evdev_dev *, void *,
+    const struct evdev_methods *);
 int evdev_register(struct evdev_dev *);
+int evdev_register_mtx(struct evdev_dev *, struct mtx *);
 int evdev_unregister(struct evdev_dev *);
 int evdev_push_event(struct evdev_dev *, uint16_t, uint16_t, int32_t);
-int evdev_sync(struct evdev_dev *);
-int evdev_mt_sync(struct evdev_dev *);
 void evdev_support_prop(struct evdev_dev *, uint16_t);
 void evdev_support_event(struct evdev_dev *, uint16_t);
 void evdev_support_key(struct evdev_dev *, uint16_t);
@@ -124,5 +126,69 @@ void evdev_push_mouse_btn(struct evdev_dev *, int);
 void evdev_push_leds(struct evdev_dev *, int);
 void evdev_push_repeats(struct evdev_dev *, keyboard_t *);
 evdev_event_t evdev_ev_kbd_event;
+
+/* Event reporting shortcuts: */
+static __inline int
+evdev_sync(struct evdev_dev *evdev)
+{
+
+	return (evdev_push_event(evdev, EV_SYN, SYN_REPORT, 1));
+}
+
+static __inline int
+evdev_mt_sync(struct evdev_dev *evdev)
+{
+
+	return (evdev_push_event(evdev, EV_SYN, SYN_MT_REPORT, 1));
+}
+
+static __inline int
+evdev_push_key(struct evdev_dev *evdev, uint16_t code, int32_t value)
+{
+
+	return (evdev_push_event(evdev, EV_KEY, code, value != 0));
+}
+
+static __inline int
+evdev_push_rel(struct evdev_dev *evdev, uint16_t code, int32_t value)
+{
+
+	return (evdev_push_event(evdev, EV_REL, code, value));
+}
+
+static __inline int
+evdev_push_abs(struct evdev_dev *evdev, uint16_t code, int32_t value)
+{
+
+	return (evdev_push_event(evdev, EV_ABS, code, value));
+}
+
+static __inline int
+evdev_push_msc(struct evdev_dev *evdev, uint16_t code, int32_t value)
+{
+
+	return (evdev_push_event(evdev, EV_MSC, code, value));
+}
+
+static __inline int
+evdev_push_led(struct evdev_dev *evdev, uint16_t code, int32_t value)
+{
+
+	return (evdev_push_event(evdev, EV_LED, code, value != 0));
+}
+
+static __inline int
+evdev_push_snd(struct evdev_dev *evdev, uint16_t code, int32_t value)
+{
+
+	return (evdev_push_event(evdev, EV_SND, code, value != 0));
+}
+
+static __inline int
+evdev_push_sw(struct evdev_dev *evdev, uint16_t code, int32_t value)
+{
+
+	return (evdev_push_event(evdev, EV_SW, code, value != 0));
+}
 
 #endif	/* _DEV_EVDEV_EVDEV_H */

@@ -61,6 +61,7 @@ static const char rcsid[] =
  * validation check: there are 664579 primes between 0 and 10^7
  */
 
+#include <sys/capsicum.h>
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
@@ -70,6 +71,7 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <nl_types.h>
 #include <unistd.h>
 
 #include "primes.h"
@@ -98,6 +100,12 @@ main(int argc, char *argv[])
 	ubig stop;		/* don't generate at or above this value */
 	int ch;
 	char *p;
+
+	/* Cache NLS data, for strerror, for err(3), before cap_enter. */
+	(void)catopen("libc", NL_CAT_LOCALE);
+
+	if (cap_enter() < 0 && errno != ENOSYS)
+		err(1, "cap_enter");
 
 	while ((ch = getopt(argc, argv, "h")) != -1)
 		switch (ch) {

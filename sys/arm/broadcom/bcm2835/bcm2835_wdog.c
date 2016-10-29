@@ -40,7 +40,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <machine/bus.h>
-#include <machine/cpufunc.h>
 #include <machine/machdep.h>
 
 #include <arm/broadcom/bcm2835/bcm2835_wdog.h>
@@ -53,8 +52,8 @@ __FBSDID("$FreeBSD$");
 #define BCM2835_WDOG_TIME_MASK	0x000fffff
 #define BCM2835_WDOG_TIME_SHIFT	0
 
-#define	READ(_sc, _r) bus_space_read_4((_sc)->bst, (_sc)->bsh, (_r))
-#define	WRITE(_sc, _r, _v) bus_space_write_4((_sc)->bst, (_sc)->bsh, (_r), (_v))
+#define	READ(_sc, _r) bus_space_read_4((_sc)->bst, (_sc)->bsh, (_r) + (_sc)->regs_offset)
+#define	WRITE(_sc, _r, _v) bus_space_write_4((_sc)->bst, (_sc)->bsh, (_r) + (_sc)->regs_offset, (_v))
 
 #define BCM2835_RSTC_WRCFG_CLR		0xffffffcf
 #define BCM2835_RSTC_WRCFG_SET		0x00000030
@@ -76,6 +75,17 @@ struct bcmwd_softc {
 	int			wdog_period;
 	char			wdog_passwd;
 	struct mtx		mtx;
+	int			regs_offset;
+};
+
+#define	BSD_DTB		1
+#define	UPSTREAM_DTB	2
+#define	UPSTREAM_DTB_REGS_OFFSET	0x1c
+
+static struct ofw_compat_data compat_data[] = {
+	{"broadcom,bcm2835-wdt",	BSD_DTB},
+	{"brcm,bcm2835-pm-wdt",		UPSTREAM_DTB},
+	{NULL,				0}
 };
 
 static void bcmwd_watchdog_fn(void *private, u_int cmd, int *error);
@@ -87,12 +97,12 @@ bcmwd_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (ofw_bus_is_compatible(dev, "broadcom,bcm2835-wdt")) {
-		device_set_desc(dev, "BCM2708/2835 Watchdog");
-		return (BUS_PROBE_DEFAULT);
-	}
+	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
+		return (ENXIO);
 
-	return (ENXIO);
+	device_set_desc(dev, "BCM2708/2835 Watchdog");
+
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int
@@ -119,6 +129,11 @@ bcmwd_attach(device_t dev)
 
 	sc->bst = rman_get_bustag(sc->res);
 	sc->bsh = rman_get_bushandle(sc->res);
+
+	/* compensate base address difference */
+	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data
+	   == UPSTREAM_DTB)
+		sc->regs_offset = UPSTREAM_DTB_REGS_OFFSET;
 
 	bcmwd_lsc = sc;
 	mtx_init(&sc->mtx, "BCM2835 Watchdog", "bcmwd", MTX_DEF);

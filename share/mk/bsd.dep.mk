@@ -152,8 +152,8 @@ ${_D}.o: ${_DSRC} ${OBJS:S/^${_D}.o$//}
 	@rm -f ${.TARGET}
 	${DTRACE} ${DTRACEFLAGS} -G -o ${.TARGET} -s ${.ALLSRC:N*.h}
 .if defined(LIB)
-CLEANFILES+= ${_D}.So ${_D}.po
-${_D}.So: ${_DSRC} ${SOBJS:S/^${_D}.So$//}
+CLEANFILES+= ${_D}.pico ${_D}.po
+${_D}.pico: ${_DSRC} ${SOBJS:S/^${_D}.pico$//}
 	@rm -f ${.TARGET}
 	${DTRACE} ${DTRACEFLAGS} -G -o ${.TARGET} -s ${.ALLSRC:N*.h}
 ${_D}.po: ${_DSRC} ${POBJS:S/^${_D}.po$//}

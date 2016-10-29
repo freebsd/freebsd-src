@@ -42,9 +42,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/callout.h>
 #include <sys/eventhandler.h>
+#ifdef TCP_HHOOK
 #include <sys/hhook.h>
+#endif
 #include <sys/kernel.h>
+#ifdef TCP_HHOOK
 #include <sys/khelp.h>
+#endif
 #include <sys/sysctl.h>
 #include <sys/jail.h>
 #include <sys/malloc.h>
@@ -238,7 +242,9 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, signature_verify_input, CTLFLAG_RW,
 VNET_DEFINE(uma_zone_t, sack_hole_zone);
 #define	V_sack_hole_zone		VNET(sack_hole_zone)
 
+#ifdef TCP_HHOOK
 VNET_DEFINE(struct hhook_head *, tcp_hhh[HHOOK_TCP_LAST+1]);
+#endif
 
 static struct inpcb *tcp_notify(struct inpcb *, int);
 static struct inpcb *tcp_mtudisc_notify(struct inpcb *, int);
@@ -449,7 +455,9 @@ struct tcpcb_mem {
 	struct	tcpcb		tcb;
 	struct	tcp_timer	tt;
 	struct	cc_var		ccv;
+#ifdef TCP_HHOOK
 	struct	osd		osd;
+#endif
 };
 
 static VNET_DEFINE(uma_zone_t, tcpcb_zone);
@@ -605,12 +613,14 @@ tcp_init(void)
 
 	tcbhash_tuneable = "net.inet.tcp.tcbhashsize";
 
+#ifdef TCP_HHOOK
 	if (hhook_head_register(HHOOK_TYPE_TCP, HHOOK_TCP_EST_IN,
 	    &V_tcp_hhh[HHOOK_TCP_EST_IN], HHOOK_NOWAIT|HHOOK_HEADISINVNET) != 0)
 		printf("%s: WARNING: unable to register helper hook\n", __func__);
 	if (hhook_head_register(HHOOK_TYPE_TCP, HHOOK_TCP_EST_OUT,
 	    &V_tcp_hhh[HHOOK_TCP_EST_OUT], HHOOK_NOWAIT|HHOOK_HEADISINVNET) != 0)
 		printf("%s: WARNING: unable to register helper hook\n", __func__);
+#endif
 	hashsize = TCBHASHSIZE;
 	TUNABLE_INT_FETCH(tcbhash_tuneable, &hashsize);
 	if (hashsize == 0) {
@@ -732,7 +742,10 @@ tcp_init(void)
 static void
 tcp_destroy(void *unused __unused)
 {
-	int error, n;
+	int n;
+#ifdef TCP_HHOOK
+	int error;
+#endif
 
 	/*
 	 * All our processes are gone, all our sockets should be cleaned
@@ -763,6 +776,7 @@ tcp_destroy(void *unused __unused)
 	tcp_fastopen_destroy();
 #endif
 
+#ifdef TCP_HHOOK
 	error = hhook_head_deregister(V_tcp_hhh[HHOOK_TCP_EST_IN]);
 	if (error != 0) {
 		printf("%s: WARNING: unable to deregister helper hook "
@@ -775,6 +789,7 @@ tcp_destroy(void *unused __unused)
 		    "type=%d, id=%d: error %d returned\n", __func__,
 		    HHOOK_TYPE_TCP, HHOOK_TCP_EST_OUT, error);
 	}
+#endif
 }
 VNET_SYSUNINIT(tcp, SI_SUB_PROTO_DOMAIN, SI_ORDER_FOURTH, tcp_destroy, NULL);
 #endif
@@ -913,8 +928,8 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 	if (tp != NULL) {
 		if (!(flags & TH_RST)) {
 			win = sbspace(&inp->inp_socket->so_rcv);
-			if (win > (long)TCP_MAXWIN << tp->rcv_scale)
-				win = (long)TCP_MAXWIN << tp->rcv_scale;
+			if (win > TCP_MAXWIN << tp->rcv_scale)
+				win = TCP_MAXWIN << tp->rcv_scale;
 		}
 		if ((tp->t_flags & TF_NOOPT) == 0)
 			incl_opts = true;
@@ -1204,6 +1219,7 @@ tcp_newtcpcb(struct inpcb *inp)
 			return (NULL);
 		}
 
+#ifdef TCP_HHOOK
 	tp->osd = &tm->osd;
 	if (khelp_init_osd(HELPER_CLASS_TCP, tp->osd)) {
 		if (tp->t_fb->tfb_tcp_fb_fini)
@@ -1212,6 +1228,7 @@ tcp_newtcpcb(struct inpcb *inp)
 		uma_zfree(V_tcpcb_zone, tm);
 		return (NULL);
 	}
+#endif
 
 #ifdef VIMAGE
 	tp->t_vnet = inp->inp_vnet;
@@ -1412,7 +1429,7 @@ tcp_discardcb(struct tcpcb *tp)
 	 */
 	if (tp->t_rttupdated >= 4) {
 		struct hc_metrics_lite metrics;
-		u_long ssthresh;
+		uint32_t ssthresh;
 
 		bzero(&metrics, sizeof(metrics));
 		/*
@@ -1433,7 +1450,7 @@ tcp_discardcb(struct tcpcb *tp)
 			ssthresh = (ssthresh + tp->t_maxseg / 2) / tp->t_maxseg;
 			if (ssthresh < 2)
 				ssthresh = 2;
-			ssthresh *= (u_long)(tp->t_maxseg +
+			ssthresh *= (tp->t_maxseg +
 #ifdef INET6
 			    (isipv6 ? sizeof (struct ip6_hdr) +
 				sizeof (struct tcphdr) :
@@ -1477,7 +1494,9 @@ tcp_discardcb(struct tcpcb *tp)
 	if (CC_ALGO(tp)->cb_destroy != NULL)
 		CC_ALGO(tp)->cb_destroy(tp->ccv);
 
+#ifdef TCP_HHOOK
 	khelp_destroy_osd(tp->osd);
+#endif
 
 	CC_ALGO(tp) = NULL;
 	inp->inp_ppcb = NULL;
@@ -1949,7 +1968,8 @@ tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 	if (cmd == PRC_MSGSIZE)
 		notify = tcp_mtudisc_notify;
 	else if (V_icmp_may_rst && (cmd == PRC_UNREACH_ADMIN_PROHIB ||
-		cmd == PRC_UNREACH_PORT || cmd == PRC_TIMXCEED_INTRANS) && ip)
+		cmd == PRC_UNREACH_PORT || cmd == PRC_UNREACH_PROTOCOL || 
+		cmd == PRC_TIMXCEED_INTRANS) && ip)
 		notify = tcp_drop_syn_sent;
 
 	/*
@@ -2081,8 +2101,8 @@ tcp6_ctlinput(int cmd, struct sockaddr *sa, void *d)
 	if (cmd == PRC_MSGSIZE)
 		notify = tcp_mtudisc_notify;
 	else if (V_icmp_may_rst && (cmd == PRC_UNREACH_ADMIN_PROHIB ||
-		cmd == PRC_UNREACH_PORT || cmd == PRC_TIMXCEED_INTRANS) &&
-		ip6 != NULL)
+		cmd == PRC_UNREACH_PORT || cmd == PRC_UNREACH_PROTOCOL || 
+		cmd == PRC_TIMXCEED_INTRANS) && ip6 != NULL)
 		notify = tcp_drop_syn_sent;
 
 	/*
@@ -2382,12 +2402,12 @@ tcp_mtudisc(struct inpcb *inp, int mtuoffer)
  * is called by TCP routines that access the rmx structure and by
  * tcp_mss_update to get the peer/interface MTU.
  */
-u_long
+uint32_t
 tcp_maxmtu(struct in_conninfo *inc, struct tcp_ifcap *cap)
 {
 	struct nhop4_extended nh4;
 	struct ifnet *ifp;
-	u_long maxmtu = 0;
+	uint32_t maxmtu = 0;
 
 	KASSERT(inc != NULL, ("tcp_maxmtu with NULL in_conninfo pointer"));
 
@@ -2417,14 +2437,14 @@ tcp_maxmtu(struct in_conninfo *inc, struct tcp_ifcap *cap)
 #endif /* INET */
 
 #ifdef INET6
-u_long
+uint32_t
 tcp_maxmtu6(struct in_conninfo *inc, struct tcp_ifcap *cap)
 {
 	struct nhop6_extended nh6;
 	struct in6_addr dst6;
 	uint32_t scopeid;
 	struct ifnet *ifp;
-	u_long maxmtu = 0;
+	uint32_t maxmtu = 0;
 
 	KASSERT(inc != NULL, ("tcp_maxmtu6 with NULL in_conninfo pointer"));
 

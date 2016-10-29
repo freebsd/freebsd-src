@@ -121,7 +121,7 @@ static void vm_pageout(void);
 static void vm_pageout_init(void);
 static int vm_pageout_clean(vm_page_t m);
 static int vm_pageout_cluster(vm_page_t m);
-static void vm_pageout_scan(struct vm_domain *vmd, int pass);
+static bool vm_pageout_scan(struct vm_domain *vmd, int pass);
 static void vm_pageout_mightbe_oom(struct vm_domain *vmd, int page_shortage,
     int starting_page_shortage);
 
@@ -845,17 +845,20 @@ unlock_mp:
  *	pass 0 - Update active LRU/deactivate pages
  *	pass 1 - Free inactive pages
  *	pass 2 - Launder dirty pages
+ *
+ * Returns true if pass was zero or enough pages were freed by the inactive
+ * queue scan to meet the target.
  */
-static void
+static bool
 vm_pageout_scan(struct vm_domain *vmd, int pass)
 {
 	vm_page_t m, next;
 	struct vm_pagequeue *pq;
 	vm_object_t object;
 	long min_scan;
-	int act_delta, addl_page_shortage, deficit, error, maxlaunder, maxscan;
-	int page_shortage, scan_tick, scanned, starting_page_shortage;
-	int vnodes_skipped;
+	int act_delta, addl_page_shortage, deficit, error, inactq_shortage;
+	int maxlaunder, maxscan, page_shortage, scan_tick, scanned;
+	int starting_page_shortage, vnodes_skipped;
 	boolean_t pageout_ok, queue_locked;
 
 	/*
@@ -886,7 +889,9 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 	addl_page_shortage = 0;
 
 	/*
-	 * Calculate the number of pages that we want to free.
+	 * Calculate the number of pages that we want to free.  This number
+	 * can be negative if many pages are freed between the wakeup call to
+	 * the page daemon and this calculation.
 	 */
 	if (pass > 0) {
 		deficit = atomic_readandclear_int(&vm_pageout_deficit);
@@ -956,7 +961,7 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 			 * Held pages are essentially stuck in the
 			 * queue.  So, they ought to be discounted
 			 * from the inactive count.  See the
-			 * calculation of the page_shortage for the
+			 * calculation of inactq_shortage before the
 			 * loop over the active queue below.
 			 */
 			addl_page_shortage++;
@@ -1164,7 +1169,7 @@ relock_queue:
 	 * Compute the number of pages we want to try to move from the
 	 * active queue to the inactive queue.
 	 */
-	page_shortage = vm_cnt.v_inactive_target - vm_cnt.v_inactive_count +
+	inactq_shortage = vm_cnt.v_inactive_target - vm_cnt.v_inactive_count +
 	    vm_paging_target() + deficit + addl_page_shortage;
 
 	pq = &vmd->vmd_pagequeues[PQ_ACTIVE];
@@ -1182,7 +1187,7 @@ relock_queue:
 		min_scan /= hz * vm_pageout_update_period;
 	} else
 		min_scan = 0;
-	if (min_scan > 0 || (page_shortage > 0 && maxscan > 0))
+	if (min_scan > 0 || (inactq_shortage > 0 && maxscan > 0))
 		vmd->vmd_last_active_scan = scan_tick;
 
 	/*
@@ -1191,7 +1196,7 @@ relock_queue:
 	 * candidates.  Held pages may be deactivated.
 	 */
 	for (m = TAILQ_FIRST(&pq->pq_pl), scanned = 0; m != NULL && (scanned <
-	    min_scan || (page_shortage > 0 && scanned < maxscan)); m = next,
+	    min_scan || (inactq_shortage > 0 && scanned < maxscan)); m = next,
 	    scanned++) {
 		KASSERT(m->queue == PQ_ACTIVE,
 		    ("vm_pageout_scan: page %p isn't active", m));
@@ -1256,7 +1261,7 @@ relock_queue:
 			/* Dequeue to avoid later lock recursion. */
 			vm_page_dequeue_locked(m);
 			vm_page_deactivate(m);
-			page_shortage--;
+			inactq_shortage--;
 		} else
 			vm_page_requeue_locked(m);
 		vm_page_unlock(m);
@@ -1275,6 +1280,7 @@ relock_queue:
 		}
 	}
 #endif
+	return (page_shortage <= 0);
 }
 
 static int vm_pageout_oom_vote;
@@ -1503,10 +1509,13 @@ static void
 vm_pageout_worker(void *arg)
 {
 	struct vm_domain *domain;
-	int domidx;
+	int domidx, pass;
+	bool target_met;
 
 	domidx = (uintptr_t)arg;
 	domain = &vm_dom[domidx];
+	pass = 0;
+	target_met = true;
 
 	/*
 	 * XXXKIB It could be useful to bind pageout daemon threads to
@@ -1545,11 +1554,11 @@ vm_pageout_worker(void *arg)
 		}
 
 		/*
-		 * Do not clear vm_pageout_wanted until we reach our target.
-		 * Otherwise, we may be awakened over and over again, wasting
-		 * CPU time.
+		 * Do not clear vm_pageout_wanted until we reach our free page
+		 * target.  Otherwise, we may be awakened over and over again,
+		 * wasting CPU time.
 		 */
-		if (vm_pageout_wanted && !vm_paging_needed())
+		if (vm_pageout_wanted && target_met)
 			vm_pageout_wanted = false;
 
 		/*
@@ -1567,9 +1576,9 @@ vm_pageout_worker(void *arg)
 			 * and try again later.
 			 */
 			mtx_unlock(&vm_page_queue_free_mtx);
-			if (domain->vmd_pass > 1)
+			if (pass > 1)
 				pause("psleep", hz / 2);
-			domain->vmd_pass++;
+			pass++;
 		} else {
 			/*
 			 * Yes.  Sleep until pages need to be reclaimed or
@@ -1579,12 +1588,12 @@ vm_pageout_worker(void *arg)
 			    &vm_page_queue_free_mtx, PDROP | PVM, "psleep",
 			    hz) == 0) {
 				PCPU_INC(cnt.v_pdwakeups);
-				domain->vmd_pass = 1;
+				pass = 1;
 			} else
-				domain->vmd_pass = 0;
+				pass = 0;
 		}
 
-		vm_pageout_scan(domain, domain->vmd_pass);
+		target_met = vm_pageout_scan(domain, pass);
 	}
 }
 

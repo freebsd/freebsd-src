@@ -80,6 +80,10 @@ static const struct bhnd_pmu_io bhnd_pmu_res_io = {
 	.rd_chipst	= bhnd_pmu_read_chipst
 };
 
+#define	BPMU_ASSERT_CLKCTL_AVAIL(_pinfo)			\
+	KASSERT(!bhnd_is_hw_suspended((_pinfo)->pm_dev),	\
+	    ("reading clkctl on suspended core will trigger system livelock"))
+
 #define	BPMU_CLKCTL_READ_4(_pinfo)		\
 	bhnd_bus_read_4((_pinfo)->pm_res, (_pinfo)->pm_regs)
 
@@ -304,6 +308,8 @@ bhnd_pmu_core_req_clock(device_t dev, struct bhnd_core_pmu_info *pinfo,
 	uint32_t		 avail;
 	uint32_t		 req;
 
+	BPMU_ASSERT_CLKCTL_AVAIL(pinfo);
+
 	sc = device_get_softc(dev);
 
 	avail = 0x0;
@@ -350,6 +356,8 @@ bhnd_pmu_core_en_clocks(device_t dev, struct bhnd_core_pmu_info *pinfo,
 	struct bhnd_pmu_softc	*sc;
 	uint32_t		 avail;
 	uint32_t		 req;
+
+	BPMU_ASSERT_CLKCTL_AVAIL(pinfo);
 
 	sc = device_get_softc(dev);
 
@@ -404,6 +412,8 @@ bhnd_pmu_core_req_ext_rsrc(device_t dev, struct bhnd_core_pmu_info *pinfo,
 	uint32_t		 req;
 	uint32_t		 avail;
 
+	BPMU_ASSERT_CLKCTL_AVAIL(pinfo);
+
 	sc = device_get_softc(dev);
 
 	if (rsrc > BHND_CCS_ERSRC_MAX)
@@ -433,6 +443,8 @@ bhnd_pmu_core_release_ext_rsrc(device_t dev, struct bhnd_core_pmu_info *pinfo,
 	struct bhnd_pmu_softc	*sc;
 	uint32_t		 mask;
 
+	BPMU_ASSERT_CLKCTL_AVAIL(pinfo);
+
 	sc = device_get_softc(dev);
 
 	if (rsrc > BHND_CCS_ERSRC_MAX)
@@ -454,6 +466,11 @@ bhnd_pmu_core_release(device_t dev, struct bhnd_core_pmu_info *pinfo)
 	struct bhnd_pmu_softc	*sc;
 
 	sc = device_get_softc(dev);
+
+	/* On PMU-equipped hardware, clkctl is cleared on RESET (and
+	 * attempting to access it will trigger a system livelock). */
+	if (bhnd_is_hw_suspended(pinfo->pm_dev))
+		return (0);
 
 	BPMU_LOCK(sc);
 

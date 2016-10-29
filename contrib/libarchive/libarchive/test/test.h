@@ -174,6 +174,9 @@
 /* Assert that file contents match a string. */
 #define assertFileContents(data, data_size, pathname) \
   assertion_file_contents(__FILE__, __LINE__, data, data_size, pathname)
+/* Verify that a file does not contain invalid strings */
+#define assertFileContainsNoInvalidStrings(pathname, strings) \
+  assertion_file_contains_no_invalid_strings(__FILE__, __LINE__, pathname, strings)
 #define assertFileMtime(pathname, sec, nsec)	\
   assertion_file_mtime(__FILE__, __LINE__, pathname, sec, nsec)
 #define assertFileMtimeRecent(pathname) \
@@ -241,14 +244,15 @@ int assertion_file_atime_recent(const char *, int, const char *);
 int assertion_file_birthtime(const char *, int, const char *, long, long);
 int assertion_file_birthtime_recent(const char *, int, const char *);
 int assertion_file_contains_lines_any_order(const char *, int, const char *, const char **);
+int assertion_file_contains_no_invalid_strings(const char *, int, const char *, const char **);
 int assertion_file_contents(const char *, int, const void *, int, const char *);
 int assertion_file_exists(const char *, int, const char *);
+int assertion_file_mode(const char *, int, const char *, int);
 int assertion_file_mtime(const char *, int, const char *, long, long);
 int assertion_file_mtime_recent(const char *, int, const char *);
 int assertion_file_nlinks(const char *, int, const char *, int);
 int assertion_file_not_exists(const char *, int, const char *);
 int assertion_file_size(const char *, int, const char *, long);
-int assertion_file_mode(const char *, int, const char *, int);
 int assertion_is_dir(const char *, int, const char *, int);
 int assertion_is_hardlink(const char *, int, const char *, const char *);
 int assertion_is_not_hardlink(const char *, int, const char *, const char *);
@@ -328,6 +332,9 @@ void copy_reference_file(const char *);
  * List must be NULL terminated.
  */
 void extract_reference_files(const char **);
+
+/* Subtract umask from mode */
+mode_t umasked(mode_t expected_mode);
 
 /* Path to working directory for current test */
 extern const char *testworkdir;

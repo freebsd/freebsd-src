@@ -137,35 +137,24 @@ arc4_sysctl(u_char *buf, size_t size)
 static void
 arc4_stir(void)
 {
-	int done, fd, i;
-	struct {
-		struct timeval	tv;
-		pid_t		pid;
-		u_char	 	rnd[KEYSIZE];
-	} rdat;
+	u_char rdat[KEYSIZE];
+	int i;
 
 	if (!rs_initialized) {
 		arc4_init();
 		rs_initialized = 1;
 	}
-	done = 0;
-	if (arc4_sysctl((u_char *)&rdat, KEYSIZE) == KEYSIZE)
-		done = 1;
-	if (!done) {
-		fd = _open(RANDOMDEV, O_RDONLY | O_CLOEXEC, 0);
-		if (fd >= 0) {
-			if (_read(fd, &rdat, KEYSIZE) == KEYSIZE)
-				done = 1;
-			(void)_close(fd);
-		}
-	}
-	if (!done) {
-		(void)gettimeofday(&rdat.tv, NULL);
-		rdat.pid = getpid();
-		/* We'll just take whatever was on the stack too... */
+	if (arc4_sysctl(rdat, KEYSIZE) != KEYSIZE) {
+		/*
+		 * The sysctl cannot fail. If it does fail on some FreeBSD
+		 * derivative or after some future change, just abort so that
+		 * the problem will be found and fixed. abort is not normally
+		 * suitable for a library but makes sense here.
+		 */
+		abort();
 	}
 
-	arc4_addrandom((u_char *)&rdat, KEYSIZE);
+	arc4_addrandom(rdat, KEYSIZE);
 
 	/*
 	 * Discard early keystream, as per recommendations in:

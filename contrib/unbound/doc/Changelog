@@ -1,8 +1,219 @@
+20 September 2016: Wouter
+	- iana portlist update.
+	- Fix #835: fix --disable-dsa with nettle verify.
+	- tag for 1.5.10rc1 release.
+
+15 September 2016: Wouter
+	- Fix 883: error for duplicate local zone entry.
+	- Test for openssl init_crypto and init_ssl functions.
+
+15 September 2016: Ralph
+	- fix potential memory leak in daemon/remote.c and nullpointer
+	  dereference in validator/autotrust.
+	- iana portlist update.
+
+13 September 2016: Wouter
+	- Silenced flex-generated sign-unsigned warning print with gcc
+	  diagnostic pragma.
+	- Fix for new splint on FreeBSD.  Fix cast for sockaddr_un.sun_len.
+
+9 September 2016: Wouter
+	- Fix #831: workaround for spurious fread_chk warning against petal.c
+
+5 September 2016: Ralph
+	- Take configured minimum TTL into consideration when reducing TTL
+	  to original TTL from RRSIG.
+
+5 September 2016: Wouter
+	- Fix #829: doc of sldns_wire2str_rdata_buf() return value has an
+	  off-by-one typo, from Jinmei Tatuya (Infoblox).
+	- Fix incomplete prototypes reported by Dag-Erling Smørgrav.
+	- Fix #828: missing type in access-control-tag-action redirect results
+	  in NXDOMAIN.
+
+2 September 2016: Wouter
+	- Fix compile with openssl 1.1.0 with api=1.1.0.
+
+1 September 2016: Wouter
+	- RFC 7958 is now out, updated docs for unbound-anchor.
+	- Fix for compile without warnings with openssl 1.1.0.
+	- Fix #826: Fix refuse_non_local could result in a broken response.
+	- iana portlist update.
+
+29 August 2016: Wouter
+	- Fix #777: OpenSSL 1.1.0 compatibility, patch from Sebastian A.
+	  Siewior.
+	- Add default root hints for IPv6 E.ROOT-SERVERS.NET, 2001:500:a8::e.
+
+25 August 2016: Ralph
+	- Clarify local-zone-override entry in unbound.conf.5 
+	
+25 August 2016: Wouter
+	- 64bit build option for makedist windows compile, -w64.
+
+24 August 2016: Ralph
+	- Fix #820: set sldns_str2wire_rr_buf() dual meaning len parameter
+	  in each iteration in find_tag_datas().
+	- unbound.conf.5 entries for define-tag, access-control-tag,
+	  access-control-tag-action, access-control-tag-data, local-zone-tag,
+	  and local-zone-override.
+	  
+23 August 2016: Wouter
+	- Fix #804: unbound stops responding after outage.  Fixes queries
+	  that attempt to wait for an empty list of subqueries.
+	- Fix #804: lower num_target_queries for iterator also for failed
+	  lookups.
+
+8 August 2016: Wouter
+	- Note that OPENPGPKEY type is RFC 7929.
+
+4 August 2016: Wouter
+	- Fix #807: workaround for possible some "unused" function parameters
+	  in test code, from Jinmei Tatuya.
+
+3 August 2016: Wouter
+	- use sendmsg instead of sendto for TFO.
+
+28 July 2016: Wouter
+	- Fix #806: wrong comment removed.
+
+26 July 2016: Wouter
+	- nicer ratelimit-below-domain explanation.
+
+22 July 2016: Wouter
+	- Fix #801: missing error condition handling in
+	  daemon_create_workers().
+	- Fix #802: workaround for function parameters that are "unused"
+	  without log_assert.
+	- Fix #803: confusing (and incorrect) code comment in daemon_cleanup().
+
+20 July 2016: Wouter
+	- Fix typo in unbound.conf.
+
+18 July 2016: Wouter
+	- Fix #798: Client-side TCP fast open fails (Linux).
+
+14 July 2016: Wouter
+	- TCP Fast open patch from Sara Dickinson.
+	- Fixed unbound.doxygen for 1.8.11.
+
+7 July 2016: Wouter
+	- access-control-tag-data implemented. verbose(4) prints tag debug.
+
+5 July 2016: Wouter
+	- Fix dynamic link of anchor-update.exe on windows.
+	- Fix detect of mingw for MXE package build.
+	- Fixes for 64bit windows compile.
+	- Fix #788 for nettle 3.0: Failed to build with Nettle >= 3.0 and
+	  --with-libunbound-only --with-nettle.
+
+4 July 2016: Wouter
+	- For #787: prefer-ip6 option for unbound.conf prefers to send
+	  upstream queries to ipv6 servers.
+	- Fix #787: outgoing-interface netblock/64 ipv6 option to use linux
+	  freebind to use 64bits of entropy for every query with random local
+	  part.
+
+30 June 2016: Wouter
+	- Document always_transparent, always_refuse, always_nxdomain types.
+
+29 June 2016: Wouter
+	- Fix static compile on windows missing gdi32.
+
+28 June 2016: Wouter
+	- Create a pkg-config file for libunbound in contrib.
+
+27 June 2016: Wouter
+	- Fix #784: Build configure assumess that having getpwnam means there
+	  is endpwent function available.
+	- Updated repository with newer flex and bison output.
+
+24 June 2016: Ralph
+	- Possibility to specify local-zone type for an acl/tag pair
+	- Possibility to specify (override) local-zone type for a source address
+	  block
+16 June 2016: Ralph
+	- Decrease dp attempts at each QNAME minimisation iteration
+
+16 June 2016: Wouter
+	- Fix tcp timeouts in tv.usec.
+
+15 June 2016: Wouter
+	- TCP_TIMEOUT is specified in milliseconds.
+	- If more than half of tcp connections are in use, a shorter timeout
+	  is used (200 msec, vs 2 minutes) to pressure tcp for new connects.
+
+14 June 2016: Ralph
+	- QNAME minimisation unit test for dropped QTYPE=A queries.
+
+14 June 2016: Wouter
+	- Fix 775: unbound-host and unbound-anchor crash on windows, ignore
+	  null delete for wsaevent.
+	- Fix spelling in freebind option man page text.
+	- Fix windows link of ssl with crypt32.
+	- Fix 779: Union casting is non-portable.
+	- Fix 780: MAP_ANON not defined in HP-UX 11.31.
+	- Fix 781: prealloc() is an HP-UX system library call.
+
+13 June 2016: Ralph
+	- Use QTYPE=A for QNAME minimisation.
+	- Keep track of number of time-outs when performing QNAME minimisation.
+	  Stop minimising when number of time-outs for a QNAME/QTYPE pair is
+	  more than three.
+
+13 June 2016: Wouter
+	- Fix #778: unbound 1.5.9: -h segfault (null deref).
+	- Fix directory: fix for unbound-checkconf, it restores cwd.
+
+10 June 2016: Wouter
+	- And delete service.conf.shipped on uninstall.
+	- In unbound.conf directory: dir immediately changes to that directory,
+	  so that include: file below that is relative to that directory.
+	  With chroot, make the directory an absolute path inside chroot.
+	- keep debug symbols in windows build.
+	- do not delete service.conf on windows uninstall.
+	- document directory immediate fix and allow EXECUTABLE syntax in it
+	  on windows.
+
+9 June 2016: Wouter
+	- Trunk is called 1.5.10 (with previous fixes already in there to 2
+	  june).
+	- Revert fix for NetworkService account on windows due to breakage
+	  it causes.
+	- Fix that windows install will not overwrite existing service.conf
+	  file (and ignore gui config choices if it exists).
+
+7 June 2016: Ralph
+	- Lookup localzones by taglist from acl.
+	- Possibility to lookup local_zone, regardless the taglist.
+	- Added local_zone/taglist/acl unit test.
+
+7 June 2016: Wouter
+	- Fix #773: Non-standard Python location build failure with pyunbound.
+	- Improve threadsafety for openssl 0.9.8 ecdsa dnssec signatures.
+
+6 June 2016: Wouter
+	- Better help text from -h (from Ray Griffith).
+	- access-control-tag config directive.
+	- local-zone-override config directive.
+	- access-control-tag-action and access-control-tag-data config
+	  directives.
+	- free acl-tags, acltag-action and acltag-data config lists during
+	  initialisation to free up memory for more entries.
+
+3 June 2016: Wouter
+	- Fix to not ignore return value of chown() in daemon startup.
+
 2 June 2016: Wouter
 	- Fix libubound for edns optlist feature.
 	- Fix distinction between free and CRYPTO_free in dsa and ecdsa alloc.
 	- Fix #752: retry resource temporarily unavailable on control pipe.
 	- un-document localzone tags.
+	- tag for release 1.5.9rc1.
+	  And this also became release 1.5.9.
+	- Fix (for 1.5.10): Fix unbound-anchor.exe file location defaults to
+	  Program Files with (x86) appended.
+	- re-documented localzone tags in example.conf.
 
 31 May 2016: Wouter
 	- Fix windows service to be created run with limited rights, as a

@@ -3,8 +3,8 @@
 .include <bsd.own.mk>
 
 # OpenSSL version used for manual page generation
-OPENSSL_VER=	1.0.2i
-OPENSSL_DATE=	2016-09-22
+OPENSSL_VER=	1.0.2j
+OPENSSL_DATE=	2016-09-26
 
 LCRYPTO_SRC=	${.CURDIR}/../../../crypto/openssl
 LCRYPTO_DOC=	${LCRYPTO_SRC}/doc
@@ -21,7 +21,9 @@ CFLAGS+=-DL_ENDIAN
 CFLAGS+=-DB_ENDIAN
 .endif
 
-.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
+.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "arm"
+ASM_${MACHINE_CPUARCH}=
+.elif ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
 _ASM_AVX!=	{ \
 		    echo vzeroall | \
 		    ${CC} -x assembler -o /dev/null -c - 2> /dev/null; \
@@ -29,11 +31,11 @@ _ASM_AVX!=	{ \
 .if ${_ASM_AVX} == yes
 ASM_${MACHINE_CPUARCH}=
 .endif
-.elif ${MACHINE_CPUARCH} == "arm"
-ASM_arm=
 .endif
 
-.if defined(ASM_amd64)
+.if defined(ASM_aarch64)
+CFLAGS+=-DSHA1_ASM -DSHA256_ASM -DSHA512_ASM
+.elif defined(ASM_amd64)
 CFLAGS+=-DOPENSSL_IA32_SSE2
 CFLAGS+=-DAES_ASM -DBSAES_ASM -DVPAES_ASM
 CFLAGS+=-DECP_NISTZ256_ASM

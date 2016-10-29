@@ -130,6 +130,13 @@ __FBSDID("$FreeBSD$");
 # include <crtdbg.h>
 #endif
 
+mode_t umasked(mode_t expected_mode)
+{
+	mode_t mode = umask(0);
+	umask(mode);
+	return expected_mode & ~mode;
+}
+
 /* Path to working directory for current test */
 const char *testworkdir;
 #ifdef PROGRAM
@@ -1157,6 +1164,35 @@ assertion_file_contains_lines_any_order(const char *file, int line,
 	return (0);
 }
 
+/* Verify that a text file does not contains the specified strings */
+int
+assertion_file_contains_no_invalid_strings(const char *file, int line,
+    const char *pathname, const char *strings[])
+{
+	char *buff;
+	int i;
+
+	buff = slurpfile(NULL, "%s", pathname);
+	if (buff == NULL) {
+		failure_start(file, line, "Can't read file: %s", pathname);
+		failure_finish(NULL);
+		return (0);
+	}
+
+	for (i = 0; strings[i] != NULL; ++i) {
+		if (strstr(buff, strings[i]) != NULL) {
+			failure_start(file, line, "Invalid string in %s: %s", pathname,
+			    strings[i]);
+			failure_finish(NULL);
+			free(buff);
+			return(0);
+		}
+	}
+
+	free(buff);
+	return (0);
+}
+
 /* Test that two paths point to the same file. */
 /* As a side-effect, asserts that both files exist. */
 static int
@@ -1294,6 +1330,11 @@ assertion_file_time(const char *file, int line,
 	switch (type) {
 	case 'a': filet_nsec = st.st_atimespec.tv_nsec; break;
 	case 'b': filet = st.st_birthtime;
+		/* FreeBSD filesystems that don't support birthtime
+		 * (e.g., UFS1) always return -1 here. */
+		if (filet == -1) {
+			return (1);
+		}
 		filet_nsec = st.st_birthtimespec.tv_nsec; break;
 	case 'm': filet_nsec = st.st_mtimespec.tv_nsec; break;
 	default: fprintf(stderr, "INTERNAL: Bad type %c for file time", type);
@@ -1361,6 +1402,33 @@ assertion_file_birthtime_recent(const char *file, int line,
 	return assertion_file_time(file, line, pathname, 0, 0, 'b', 1);
 }
 
+/* Verify mode of 'pathname'. */
+int
+assertion_file_mode(const char *file, int line, const char *pathname, int expected_mode)
+{
+	int mode;
+	int r;
+
+	assertion_count(file, line);
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	failure_start(file, line, "assertFileMode not yet implemented for Windows");
+	(void)mode; /* UNUSED */
+	(void)r; /* UNUSED */
+#else
+	{
+		struct stat st;
+		r = lstat(pathname, &st);
+		mode = (int)(st.st_mode & 0777);
+	}
+	if (r == 0 && mode == expected_mode)
+			return (1);
+	failure_start(file, line, "File %s has mode %o, expected %o",
+	    pathname, mode, expected_mode);
+#endif
+	failure_finish(NULL);
+	return (0);
+}
+
 /* Verify mtime of 'pathname'. */
 int
 assertion_file_mtime(const char *file, int line,
@@ -1400,7 +1468,7 @@ assertion_file_nlinks(const char *file, int line,
 	assertion_count(file, line);
 	r = lstat(pathname, &st);
 	if (r == 0 && (int)st.st_nlink == nlinks)
-			return (1);
+		return (1);
 	failure_start(file, line, "File %s has %d links, expected %d",
 	    pathname, st.st_nlink, nlinks);
 	failure_finish(NULL);
@@ -1579,8 +1647,12 @@ assertion_make_dir(const char *file, int line, const char *dirname, int mode)
 	if (0 == _mkdir(dirname))
 		return (1);
 #else
-	if (0 == mkdir(dirname, mode))
-		return (1);
+	if (0 == mkdir(dirname, mode)) {
+		if (0 == chmod(dirname, mode)) {
+			assertion_file_mode(file, line, dirname, mode);
+			return (1);
+		}
+	}
 #endif
 	failure_start(file, line, "Could not create directory %s", dirname);
 	failure_finish(NULL);
@@ -1629,6 +1701,12 @@ assertion_make_file(const char *file, int line,
 		failure_finish(NULL);
 		return (0);
 	}
+	if (0 != chmod(path, mode)) {
+		failure_start(file, line, "Could not chmod %s", path);
+		failure_finish(NULL);
+		close(fd);
+		return (0);
+	}
 	if (contents != NULL) {
 		ssize_t wsize;
 
@@ -1641,10 +1719,12 @@ assertion_make_file(const char *file, int line,
 			failure_start(file, line,
 			    "Could not write to %s", path);
 			failure_finish(NULL);
+			close(fd);
 			return (0);
 		}
 	}
 	close(fd);
+	assertion_file_mode(file, line, path, mode);
 	return (1);
 #endif
 }

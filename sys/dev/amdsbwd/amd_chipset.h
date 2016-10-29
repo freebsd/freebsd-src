@@ -36,18 +36,24 @@
  * At present there are three classes of supported chipsets:
  * - SB600 and S7x0 southbridges where the SMBus controller device has
  *   a PCI Device ID of 0x43851002 and a revision less than 0x40
- * - SB8x0, SB9x0 southbridges and FCHs where the SMBus controller device has
- *   a PCI Device ID of 0x43851002 and a revision greater than or equal to 0x40
- *   or the controller has an ID of 0x780b1022 and a revision less than 0x41
- * - FCHs where the SMBus controller device has a PCI Device ID of 0x780b1022
- *   and a revision greater than or equal to 0x41
+ * - several types of southbridges and FCHs:
+ *   o SB8x0, SB9x0 southbridges where the SMBus controller device has a PCI
+ *     Device ID of 0x43851002 and a revision greater than or equal to 0x40
+ *   o FCHs where the controller has an ID of 0x780b1022 and a revision less
+ *     than 0x41 (various variants of "Hudson" and "Bolton" as well as FCHs
+ *     integrated into processors, e.g. "Kabini")
+ *   o FCHs where the controller has an ID of 0x790b1022 and a revision less
+ *     than 0x49
+ * - several types of FCHs:
+ *   o FCHs where the SMBus controller device has a PCI Device ID of 0x780b1022
+ *     and a revision greater than or equal to 0x41 (integrated into "Mullins"
+ *     processors, code named "ML")
+ *   o FCHs where the controller has an ID of 0x790b1022 and a revision greater
+ *     than or equal to 0x49 (integrated into "Carrizo" processors, code named
+ *     "KERNCZ" or "CZ")
+ *
  * The register definitions are compatible within the classes and may be
  * incompatible accross them.
- * So far there is no public documentation for "KERNCZ" FCH where the SMBus
- * controller has a PCI ID of 0x790b1022.  Based on some code in Linux it is
- * assumed that revisions less than 0x49 are compatible with the SB8x0 class
- * and revisions greater than or equal to 0x49 are compatible with the class
- * of FCHs with 0x41+ revisions.
  */
 
 /*
@@ -126,6 +132,8 @@
  * SB600 RRG 2.3.1.1,
  * SB7xx RRG 2.3.1.1,
  * SB8xx RRG 2.3.1,
+ * BKDG for Family 15h Models 60h-6Fh 3.26.6.1,
+ * BKDG for Family 15h Models 70h-7Fh 3.26.6.1,
  * BKDG for Family 16h Models 00h-0Fh 3.26.7.1,
  * BKDG for Family 16h Models 30h-3Fh 3.26.7.1.
  * Also, see i2c-piix4 aka piix4_smbus Linux driver.

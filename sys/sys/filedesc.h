@@ -229,12 +229,14 @@ fdeget_locked(struct filedesc *fdp, int fd)
 	return (fde);
 }
 
+#ifdef CAPABILITIES
 static __inline bool
 fd_modified(struct filedesc *fdp, int fd, seq_t seq)
 {
 
 	return (!seq_consistent(fd_seq(fdp->fd_files, fd), seq));
 }
+#endif
 
 /* cdir/rdir/jdir manipulation functions. */
 void	pwd_chdir(struct thread *td, struct vnode *vp);

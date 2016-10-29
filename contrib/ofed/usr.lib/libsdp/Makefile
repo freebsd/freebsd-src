@@ -22,4 +22,4 @@ CFLAGS+= -I${OFEDSYS}/include
 
 # Remove .[ly] since the checked-in version is preferred.
 .SUFFIXES:
-.SUFFIXES: .o .po .So .c .ln
+.SUFFIXES: .o .po .pico .c .ln

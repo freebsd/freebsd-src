@@ -47,11 +47,14 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/extres/clk/clk.h>
 
-#include <dt-bindings/clock/sun4i-a10-pll2.h>
-
 #include <arm/allwinner/aw_machdep.h>
 
 #include "clkdev_if.h"
+
+#define	SUN4I_A10_PLL2_1X		0
+#define	SUN4I_A10_PLL2_2X		1
+#define	SUN4I_A10_PLL2_4X		2
+#define	SUN4I_A10_PLL2_8X		3
 
 #define	AW_PLL_ENABLE			(1 << 31)
 
@@ -192,13 +195,87 @@ struct aw_pll_factor {
 #define	PLLFACTOR(_n, _k, _m, _p, _freq)	\
 	{ .n = (_n), .k = (_k), .m = (_m), .p = (_p), .freq = (_freq) }
 
+static struct aw_pll_factor aw_a10_pll1_factors[] = {
+	PLLFACTOR(6, 0, 0, 0, 144000000),
+	PLLFACTOR(12, 0, 0, 0, 312000000),
+	PLLFACTOR(21, 0, 0, 0, 528000000),
+	PLLFACTOR(29, 0, 0, 0, 720000000),
+	PLLFACTOR(18, 1, 0, 0, 864000000),
+	PLLFACTOR(19, 1, 0, 0, 912000000),
+	PLLFACTOR(20, 1, 0, 0, 960000000),
+};
+
 static struct aw_pll_factor aw_a23_pll1_factors[] = {
+	PLLFACTOR(9, 0, 0, 2, 60000000),
+	PLLFACTOR(10, 0, 0, 2, 66000000),
+	PLLFACTOR(11, 0, 0, 2, 72000000),
+	PLLFACTOR(12, 0, 0, 2, 78000000),
+	PLLFACTOR(13, 0, 0, 2, 84000000),
+	PLLFACTOR(14, 0, 0, 2, 90000000),
+	PLLFACTOR(15, 0, 0, 2, 96000000),
+	PLLFACTOR(16, 0, 0, 2, 102000000),
+	PLLFACTOR(17, 0, 0, 2, 108000000),
+	PLLFACTOR(18, 0, 0, 2, 114000000),
+	PLLFACTOR(9, 0, 0, 1, 120000000),
+	PLLFACTOR(10, 0, 0, 1, 132000000),
+	PLLFACTOR(11, 0, 0, 1, 144000000),
+	PLLFACTOR(12, 0, 0, 1, 156000000),
+	PLLFACTOR(13, 0, 0, 1, 168000000),
+	PLLFACTOR(14, 0, 0, 1, 180000000),
+	PLLFACTOR(15, 0, 0, 1, 192000000),
+	PLLFACTOR(16, 0, 0, 1, 204000000),
+	PLLFACTOR(17, 0, 0, 1, 216000000),
+	PLLFACTOR(18, 0, 0, 1, 228000000),
+	PLLFACTOR(9, 0, 0, 0, 240000000),
+	PLLFACTOR(10, 0, 0, 0, 264000000),
+	PLLFACTOR(11, 0, 0, 0, 288000000),
+	PLLFACTOR(12, 0, 0, 0, 312000000),
+	PLLFACTOR(13, 0, 0, 0, 336000000),
+	PLLFACTOR(14, 0, 0, 0, 360000000),
+	PLLFACTOR(15, 0, 0, 0, 384000000),
 	PLLFACTOR(16, 0, 0, 0, 408000000),
+	PLLFACTOR(17, 0, 0, 0, 432000000),
+	PLLFACTOR(18, 0, 0, 0, 456000000),
+	PLLFACTOR(19, 0, 0, 0, 480000000),
+	PLLFACTOR(20, 0, 0, 0, 504000000),
+	PLLFACTOR(21, 0, 0, 0, 528000000),
+	PLLFACTOR(22, 0, 0, 0, 552000000),
+	PLLFACTOR(23, 0, 0, 0, 576000000),
+	PLLFACTOR(24, 0, 0, 0, 600000000),
+	PLLFACTOR(25, 0, 0, 0, 624000000),
 	PLLFACTOR(26, 0, 0, 0, 648000000),
+	PLLFACTOR(27, 0, 0, 0, 672000000),
+	PLLFACTOR(28, 0, 0, 0, 696000000),
+	PLLFACTOR(29, 0, 0, 0, 720000000),
+	PLLFACTOR(15, 1, 0, 0, 768000000),
+	PLLFACTOR(10, 2, 0, 0, 792000000),
 	PLLFACTOR(16, 1, 0, 0, 816000000),
+	PLLFACTOR(17, 1, 0, 0, 864000000),
+	PLLFACTOR(18, 1, 0, 0, 912000000),
+	PLLFACTOR(12, 2, 0, 0, 936000000),
+	PLLFACTOR(19, 1, 0, 0, 960000000),
 	PLLFACTOR(20, 1, 0, 0, 1008000000),
+	PLLFACTOR(21, 1, 0, 0, 1056000000),
+	PLLFACTOR(14, 2, 0, 0, 1080000000),
+	PLLFACTOR(22, 1, 0, 0, 1104000000),
+	PLLFACTOR(23, 1, 0, 0, 1152000000),
 	PLLFACTOR(24, 1, 0, 0, 1200000000),
+	PLLFACTOR(16, 2, 0, 0, 1224000000),
+	PLLFACTOR(25, 1, 0, 0, 1248000000),
 	PLLFACTOR(26, 1, 0, 0, 1296000000),
+	PLLFACTOR(27, 1, 0, 0, 1344000000),
+	PLLFACTOR(18, 2, 0, 0, 1368000000),
+	PLLFACTOR(28, 1, 0, 0, 1392000000),
+	PLLFACTOR(29, 1, 0, 0, 1440000000),
+	PLLFACTOR(20, 2, 0, 0, 1512000000),
+	PLLFACTOR(15, 3, 0, 0, 1536000000),
+	PLLFACTOR(21, 2, 0, 0, 1584000000),
+	PLLFACTOR(16, 3, 0, 0, 1632000000),
+	PLLFACTOR(22, 2, 0, 0, 1656000000),
+	PLLFACTOR(23, 2, 0, 0, 1728000000),
+	PLLFACTOR(24, 2, 0, 0, 1800000000),
+	PLLFACTOR(18, 3, 0, 0, 1824000000),
+	PLLFACTOR(25, 2, 0, 0, 1872000000),
 };
 
 enum aw_pll_type {
@@ -234,6 +311,38 @@ struct aw_pll_funcs {
 #define	PLL_WRITE(sc, val)	CLKDEV_WRITE_4((sc)->clkdev, (sc)->reg, (val))
 #define	DEVICE_LOCK(sc)		CLKDEV_DEVICE_LOCK((sc)->clkdev)
 #define	DEVICE_UNLOCK(sc)	CLKDEV_DEVICE_UNLOCK((sc)->clkdev)
+
+static int
+a10_pll1_set_freq(struct aw_pll_sc *sc, uint64_t fin, uint64_t *fout,
+    int flags)
+{
+	struct aw_pll_factor *f;
+	uint32_t val;
+	int n;
+
+	f = NULL;
+	for (n = 0; n < nitems(aw_a10_pll1_factors); n++) {
+		if (aw_a10_pll1_factors[n].freq == *fout) {
+			f = &aw_a10_pll1_factors[n];
+			break;
+		}
+	}
+	if (f == NULL)
+		return (EINVAL);
+
+	DEVICE_LOCK(sc);
+	PLL_READ(sc, &val);
+	val &= ~(A10_PLL1_FACTOR_N|A10_PLL1_FACTOR_K|A10_PLL1_FACTOR_M|
+		A10_PLL1_OUT_EXT_DIVP);
+	val |= (f->p << A10_PLL1_OUT_EXT_DIVP_SHIFT);
+	val |= (f->n << A10_PLL1_FACTOR_N_SHIFT);
+	val |= (f->k << A10_PLL1_FACTOR_K_SHIFT);
+	val |= (f->m << A10_PLL1_FACTOR_M_SHIFT);
+	PLL_WRITE(sc, val);
+	DEVICE_UNLOCK(sc);
+
+	return (0);
+}
 
 static int
 a10_pll1_recalc(struct aw_pll_sc *sc, uint64_t *freq)
@@ -884,7 +993,7 @@ a83t_pllcpux_set_freq(struct aw_pll_sc *sc, uint64_t fin, uint64_t *fout,
 	}
 
 static struct aw_pll_funcs aw_pll_func[] = {
-	PLL(AWPLL_A10_PLL1, a10_pll1_recalc, NULL, NULL),
+	PLL(AWPLL_A10_PLL1, a10_pll1_recalc, a10_pll1_set_freq, NULL),
 	PLL(AWPLL_A10_PLL2, a10_pll2_recalc, a10_pll2_set_freq, NULL),
 	PLL(AWPLL_A10_PLL3, a10_pll3_recalc, a10_pll3_set_freq, a10_pll3_init),
 	PLL(AWPLL_A10_PLL5, a10_pll5_recalc, NULL, NULL),

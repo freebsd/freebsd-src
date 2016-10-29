@@ -98,4 +98,6 @@ do {						\
 #define	DB_SMALL_VALUE_MAX	0x7fffffff
 #define	DB_SMALL_VALUE_MIN	(-0x400001)
 
+int	db_segsize(struct trapframe *tfp);
+
 #endif /* !_MACHINE_DB_MACHDEP_H_ */

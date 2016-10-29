@@ -102,8 +102,6 @@ struct aac_ident
 	 "Adaptec RAID Controller"},
 	{0x9005, 0x028d, 0, 0, AAC_HWIF_SRCV, 0,
 	 "Adaptec RAID Controller"},
-	{0x9005, 0x028f, 0, 0, AAC_HWIF_SRCV, 0,
-	 "Adaptec RAID Controller"},
 	{0, 0, 0, 0, 0, 0, 0}
 };
 

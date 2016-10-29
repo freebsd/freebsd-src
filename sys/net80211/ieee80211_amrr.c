@@ -69,11 +69,11 @@ static void	amrr_node_deinit(struct ieee80211_node *);
 static int	amrr_update(struct ieee80211_amrr *,
     			struct ieee80211_amrr_node *, struct ieee80211_node *);
 static int	amrr_rate(struct ieee80211_node *, void *, uint32_t);
-static void	amrr_tx_complete(const struct ieee80211vap *,
-    			const struct ieee80211_node *, int, 
-			void *, void *);
-static void	amrr_tx_update(const struct ieee80211vap *vap,
-			const struct ieee80211_node *, void *, void *, void *);
+static void	amrr_tx_complete(const struct ieee80211_node *,
+			const struct ieee80211_ratectl_tx_status *);
+static void	amrr_tx_update_cb(void *, struct ieee80211_node *);
+static void	amrr_tx_update(struct ieee80211vap *vap,
+			struct ieee80211_ratectl_tx_stats *);
 static void	amrr_sysctlattach(struct ieee80211vap *,
 			struct sysctl_ctx_list *, struct sysctl_oid *);
 static void	amrr_node_stats(struct ieee80211_node *ni, struct sbuf *s);
@@ -360,17 +360,38 @@ amrr_rate(struct ieee80211_node *ni, void *arg __unused, uint32_t iarg __unused)
  * retransmissions (i.e. xmit attempts - 1).
  */
 static void
-amrr_tx_complete(const struct ieee80211vap *vap,
-    const struct ieee80211_node *ni, int ok,
-    void *arg1, void *arg2 __unused)
+amrr_tx_complete(const struct ieee80211_node *ni,
+    const struct ieee80211_ratectl_tx_status *status)
 {
 	struct ieee80211_amrr_node *amn = ni->ni_rctls;
-	int retries = *(int *)arg1;
+	int retries;
+
+	retries = 0;
+	if (status->flags & IEEE80211_RATECTL_STATUS_LONG_RETRY)
+		retries = status->long_retries;
 
 	amn->amn_txcnt++;
-	if (ok)
+	if (status->status == IEEE80211_RATECTL_TX_SUCCESS)
 		amn->amn_success++;
 	amn->amn_retrycnt += retries;
+}
+
+static void
+amrr_tx_update_cb(void *arg, struct ieee80211_node *ni)
+{
+	struct ieee80211_ratectl_tx_stats *stats = arg;
+	struct ieee80211_amrr_node *amn = ni->ni_rctls;
+	int txcnt, success, retrycnt;
+
+	txcnt = stats->nframes;
+	success = stats->nsuccess;
+	retrycnt = 0;
+	if (stats->flags & IEEE80211_RATECTL_TX_STATS_RETRIES)
+		retrycnt = stats->nretries;
+
+	amn->amn_txcnt += txcnt;
+	amn->amn_success += success;
+	amn->amn_retrycnt += retrycnt;
 }
 
 /*
@@ -379,15 +400,16 @@ amrr_tx_complete(const struct ieee80211vap *vap,
  * in the device.
  */
 static void
-amrr_tx_update(const struct ieee80211vap *vap, const struct ieee80211_node *ni,
-    void *arg1, void *arg2, void *arg3)
+amrr_tx_update(struct ieee80211vap *vap,
+    struct ieee80211_ratectl_tx_stats *stats)
 {
-	struct ieee80211_amrr_node *amn = ni->ni_rctls;
-	int txcnt = *(int *)arg1, success = *(int *)arg2, retrycnt = *(int *)arg3;
 
-	amn->amn_txcnt = txcnt;
-	amn->amn_success = success;
-	amn->amn_retrycnt = retrycnt;
+	if (stats->flags & IEEE80211_RATECTL_TX_STATS_NODE)
+		amrr_tx_update_cb(stats, stats->ni);
+	else {
+		ieee80211_iterate_nodes_vap(&vap->iv_ic->ic_sta, vap,
+		    amrr_tx_update_cb, stats);
+	}
 }
 
 static int

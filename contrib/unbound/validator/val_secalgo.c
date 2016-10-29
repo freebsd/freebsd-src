@@ -350,6 +350,23 @@ i	 * the '44' is the total remaining length.
 }
 #endif /* USE_ECDSA */
 
+#ifdef USE_ECDSA_EVP_WORKAROUND
+static EVP_MD ecdsa_evp_256_md;
+static EVP_MD ecdsa_evp_384_md;
+void ecdsa_evp_workaround_init(void)
+{
+	/* openssl before 1.0.0 fixes RSA with the SHA256
+	 * hash in EVP.  We create one for ecdsa_sha256 */
+	ecdsa_evp_256_md = *EVP_sha256();
+	ecdsa_evp_256_md.required_pkey_type[0] = EVP_PKEY_EC;
+	ecdsa_evp_256_md.verify = (void*)ECDSA_verify;
+
+	ecdsa_evp_384_md = *EVP_sha384();
+	ecdsa_evp_384_md.required_pkey_type[0] = EVP_PKEY_EC;
+	ecdsa_evp_384_md.verify = (void*)ECDSA_verify;
+}
+#endif /* USE_ECDSA_EVP_WORKAROUND */
+
 /**
  * Setup key and digest for verification. Adjust sig if necessary.
  *
@@ -478,20 +495,7 @@ setup_key_digest(int algo, EVP_PKEY** evp_key, const EVP_MD** digest_type,
 				return 0;
 			}
 #ifdef USE_ECDSA_EVP_WORKAROUND
-			/* openssl before 1.0.0 fixes RSA with the SHA256
-			 * hash in EVP.  We create one for ecdsa_sha256 */
-			{
-				static int md_ecdsa_256_done = 0;
-				static EVP_MD md;
-				if(!md_ecdsa_256_done) {
-					EVP_MD m = *EVP_sha256();
-					md_ecdsa_256_done = 1;
-					m.required_pkey_type[0] = (*evp_key)->type;
-					m.verify = (void*)ECDSA_verify;
-					md = m;
-				}
-				*digest_type = &md;
-			}
+			*digest_type = &ecdsa_evp_256_md;
 #else
 			*digest_type = EVP_sha256();
 #endif
@@ -505,20 +509,7 @@ setup_key_digest(int algo, EVP_PKEY** evp_key, const EVP_MD** digest_type,
 				return 0;
 			}
 #ifdef USE_ECDSA_EVP_WORKAROUND
-			/* openssl before 1.0.0 fixes RSA with the SHA384
-			 * hash in EVP.  We create one for ecdsa_sha384 */
-			{
-				static int md_ecdsa_384_done = 0;
-				static EVP_MD md;
-				if(!md_ecdsa_384_done) {
-					EVP_MD m = *EVP_sha384();
-					md_ecdsa_384_done = 1;
-					m.required_pkey_type[0] = (*evp_key)->type;
-					m.verify = (void*)ECDSA_verify;
-					md = m;
-				}
-				*digest_type = &md;
-			}
+			*digest_type = &ecdsa_evp_384_md;
 #else
 			*digest_type = EVP_sha384();
 #endif
@@ -601,7 +592,7 @@ verify_canonrrset(sldns_buffer* buf, int algo, unsigned char* sigblock,
 		log_err("EVP_MD_CTX_new: malloc failure");
 		EVP_PKEY_free(evp_key);
 		if(dofree) free(sigblock);
-		else if(docrypto_free) CRYPTO_free(sigblock);
+		else if(docrypto_free) OPENSSL_free(sigblock);
 		return sec_status_unchecked;
 	}
 	if(EVP_VerifyInit(ctx, digest_type) == 0) {
@@ -609,7 +600,7 @@ verify_canonrrset(sldns_buffer* buf, int algo, unsigned char* sigblock,
 		EVP_MD_CTX_destroy(ctx);
 		EVP_PKEY_free(evp_key);
 		if(dofree) free(sigblock);
-		else if(docrypto_free) CRYPTO_free(sigblock);
+		else if(docrypto_free) OPENSSL_free(sigblock);
 		return sec_status_unchecked;
 	}
 	if(EVP_VerifyUpdate(ctx, (unsigned char*)sldns_buffer_begin(buf), 
@@ -618,7 +609,7 @@ verify_canonrrset(sldns_buffer* buf, int algo, unsigned char* sigblock,
 		EVP_MD_CTX_destroy(ctx);
 		EVP_PKEY_free(evp_key);
 		if(dofree) free(sigblock);
-		else if(docrypto_free) CRYPTO_free(sigblock);
+		else if(docrypto_free) OPENSSL_free(sigblock);
 		return sec_status_unchecked;
 	}
 
@@ -632,7 +623,7 @@ verify_canonrrset(sldns_buffer* buf, int algo, unsigned char* sigblock,
 	EVP_PKEY_free(evp_key);
 
 	if(dofree) free(sigblock);
-	else if(docrypto_free) CRYPTO_free(sigblock);
+	else if(docrypto_free) OPENSSL_free(sigblock);
 
 	if(res == 1) {
 		return sec_status_secure;
@@ -1207,6 +1198,9 @@ verify_canonrrset(sldns_buffer* buf, int algo, unsigned char* sigblock,
 #include "macros.h"
 #include "rsa.h"
 #include "dsa.h"
+#ifdef HAVE_NETTLE_DSA_COMPAT_H
+#include "dsa-compat.h"
+#endif
 #include "asn1.h"
 #ifdef USE_ECDSA
 #include "ecdsa.h"
@@ -1367,6 +1361,7 @@ dnskey_algo_id_is_supported(int id)
 	}
 }
 
+#ifdef USE_DSA
 static char *
 _verify_nettle_dsa(sldns_buffer* buf, unsigned char* sigblock,
 	unsigned int sigblock_len, unsigned char* key, unsigned int keylen)
@@ -1454,6 +1449,7 @@ _verify_nettle_dsa(sldns_buffer* buf, unsigned char* sigblock,
 	else
 		return NULL;
 }
+#endif /* USE_DSA */
 
 static char *
 _verify_nettle_rsa(sldns_buffer* buf, unsigned int digest_size, char* sigblock,

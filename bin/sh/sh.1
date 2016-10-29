@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd May 30, 2016
+.Dd October 8, 2016
 .Dt SH 1
 .Os
 .Sh NAME
@@ -1349,13 +1349,13 @@ used in tilde expansion and as a default directory for the
 built-in.
 .It Va IFS
 Input Field Separators.
-The default value is
+This is initialized at startup to
 .Aq space ,
 .Aq tab ,
 and
 .Aq newline
 in that order.
-This default also applies if
+This value also applies if
 .Va IFS
 is unset, but not if it is set to the empty string.
 See the

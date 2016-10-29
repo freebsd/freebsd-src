@@ -872,7 +872,7 @@ static struct module_func_block dns64_block = {
  * Function for returning the above function block.
  */
 struct module_func_block *
-dns64_get_funcblock()
+dns64_get_funcblock(void)
 {
 	return &dns64_block;
 }

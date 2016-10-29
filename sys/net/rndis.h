@@ -31,6 +31,8 @@
 #define	RNDIS_STATUS_PENDING 		0x00000103L
 #define	RNDIS_STATUS_MEDIA_CONNECT 	0x4001000BL
 #define	RNDIS_STATUS_MEDIA_DISCONNECT 	0x4001000CL
+#define	RNDIS_STATUS_NETWORK_CHANGE	0x40010018L
+#define	RNDIS_STATUS_TASK_OFFLOAD_CURRENT_CONFIG	0x40020006L
 #define	RNDIS_STATUS_BUFFER_OVERFLOW 	0x80000005L
 #define	RNDIS_STATUS_FAILURE 		0xC0000001L
 #define	RNDIS_STATUS_NOT_SUPPORTED 	0xC00000BBL
@@ -85,6 +87,7 @@
 #define	OID_802_3_XMIT_LATE_COLLISIONS	0x01020207
 
 #define	OID_TCP_OFFLOAD_PARAMETERS	0xFC01020C
+#define	OID_TCP_OFFLOAD_HARDWARE_CAPABILITIES	0xFC01020D
 
 #define	RNDIS_MEDIUM_802_3		0x00000000
 
@@ -317,6 +320,10 @@ struct rndis_status_msg {
 	/* rndis_diag_info */
 };
 
+/* stbuf offset from the beginning of rndis_status_msg. */
+#define	RNDIS_STBUFOFFSET_ABS(ofs)	\
+	((ofs) + __offsetof(struct rndis_status_msg, rm_status))
+
 /*
  * Immediately after rndis_status_msg.rm_stbufoffset, if a control
  * message is malformatted, or a packet message contains inappropriate
@@ -344,7 +351,8 @@ struct rndis_keepalive_comp {
 	uint32_t rm_status;
 };
 
-/* packet filter bits used by OID_GEN_CURRENT_PACKET_FILTER */
+/* Packet filter bits used by OID_GEN_CURRENT_PACKET_FILTER */
+#define	NDIS_PACKET_TYPE_NONE			0x00000000
 #define	NDIS_PACKET_TYPE_DIRECTED		0x00000001
 #define	NDIS_PACKET_TYPE_MULTICAST		0x00000002
 #define	NDIS_PACKET_TYPE_ALL_MULTICAST		0x00000004
@@ -357,6 +365,14 @@ struct rndis_keepalive_comp {
 #define	NDIS_PACKET_TYPE_ALL_FUNCTIONAL		0x00002000
 #define	NDIS_PACKET_TYPE_FUNCTIONAL		0x00004000
 #define	NDIS_PACKET_TYPE_MAC_FRAME		0x00008000
+
+/*
+ * Packet filter description for use with printf(9) %b identifier.
+ */
+#define	NDIS_PACKET_TYPES				\
+	"\20\1DIRECT\2MULTICAST\3ALLMULTI\4BROADCAST"	\
+	"\5SRCROUTE\6PROMISC\7SMT\10ALLLOCAL"		\
+	"\11GROUP\12ALLFUNC\13FUNC\14MACFRAME"
 
 /* RNDIS offsets */
 #define	RNDIS_HEADER_OFFSET	((uint32_t)sizeof(struct rndis_msghdr))

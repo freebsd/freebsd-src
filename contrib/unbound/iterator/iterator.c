@@ -148,6 +148,7 @@ iter_new(struct module_qstate* qstate, int id)
 	iq->qchase = qstate->qinfo;
 	outbound_list_init(&iq->outlist);
 	iq->minimise_count = 0;
+	iq->minimise_timeout_count = 0;
 	if (qstate->env->cfg->qname_minimisation)
 		iq->minimisation_state = INIT_MINIMISE_STATE;
 	else
@@ -215,6 +216,7 @@ error_supers(struct module_qstate* qstate, int id, struct module_qstate* super)
 		qstate->qinfo.qtype == LDNS_RR_TYPE_AAAA) {
 		/* mark address as failed. */
 		struct delegpt_ns* dpns = NULL;
+		super_iq->num_target_queries--; 
 		if(super_iq->dp)
 			dpns = delegpt_find_ns(super_iq->dp, 
 				qstate->qinfo.qname, qstate->qinfo.qname_len);
@@ -234,7 +236,6 @@ error_supers(struct module_qstate* qstate, int id, struct module_qstate* super)
 				log_err("out of memory adding missing");
 		}
 		dpns->resolved = 1; /* mark as failed */
-		super_iq->num_target_queries--; 
 	}
 	if(qstate->qinfo.qtype == LDNS_RR_TYPE_NS) {
 		/* prime failed to get delegation */
@@ -2008,7 +2009,7 @@ processQueryTargets(struct module_qstate* qstate, struct iter_qstate* iq,
 				iq->dp->name))) {
 			iq->qinfo_out.qname = iq->dp->name;
 			iq->qinfo_out.qname_len = iq->dp->namelen;
-			iq->qinfo_out.qtype = LDNS_RR_TYPE_NS;
+			iq->qinfo_out.qtype = LDNS_RR_TYPE_A;
 			iq->qinfo_out.qclass = iq->qchase.qclass;
 			iq->minimise_count = 0;
 		}
@@ -2023,6 +2024,9 @@ processQueryTargets(struct module_qstate* qstate, struct iter_qstate* iq,
 		iq->qinfo_out.qname = iq->qchase.qname;
 		iq->qinfo_out.qname_len = iq->qchase.qname_len;
 		iq->minimise_count++;
+		iq->minimise_timeout_count = 0;
+
+		iter_dec_attempts(iq->dp, 1);
 
 		/* Limit number of iterations for QNAMEs with more
 		 * than MAX_MINIMISE_COUNT labels. Send first MINIMISE_ONE_LAB
@@ -2059,8 +2063,9 @@ processQueryTargets(struct module_qstate* qstate, struct iter_qstate* iq,
 				&iq->qinfo_out.qname_len, 
 				labdiff-1);
 		}
-		if(labdiff < 1 || 
-			(labdiff < 2 && iq->qchase.qtype == LDNS_RR_TYPE_DS))
+		if(labdiff < 1 || (labdiff < 2 
+			&& (iq->qchase.qtype == LDNS_RR_TYPE_DS
+			|| iq->qchase.qtype == LDNS_RR_TYPE_A)))
 			/* Stop minimising this query, resolve "as usual" */
 			iq->minimisation_state = DONOT_MINIMISE_STATE;
 		else {
@@ -2077,10 +2082,17 @@ processQueryTargets(struct module_qstate* qstate, struct iter_qstate* iq,
 				return 1;
 		}
 	}
-	if(iq->minimisation_state == SKIP_MINIMISE_STATE)
-		/* Do not increment qname, continue incrementing next 
-		 * iteration */
-		iq->minimisation_state = MINIMISE_STATE;
+	if(iq->minimisation_state == SKIP_MINIMISE_STATE) {
+		iq->minimise_timeout_count++;
+		if(iq->minimise_timeout_count < MAX_MINIMISE_TIMEOUT_COUNT)
+			/* Do not increment qname, continue incrementing next 
+			 * iteration */
+			iq->minimisation_state = MINIMISE_STATE;
+		else
+			/* Too many time-outs detected for this QNAME and QTYPE.
+			 * We give up, disable QNAME minimisation. */
+			iq->minimisation_state = DONOT_MINIMISE_STATE;
+	}
 	if(iq->minimisation_state == DONOT_MINIMISE_STATE)
 		iq->qinfo_out = iq->qchase;
 
@@ -2158,7 +2170,7 @@ processQueryResponse(struct module_qstate* qstate, struct iter_qstate* iq,
 	iq->num_current_queries--;
 	if(iq->response == NULL) {
 		/* Don't increment qname when QNAME minimisation is enabled */
-		if (qstate->env->cfg->qname_minimisation)
+		if(qstate->env->cfg->qname_minimisation)
 			iq->minimisation_state = SKIP_MINIMISE_STATE;
 		iq->chase_to_rd = 0;
 		iq->dnssec_lame_query = 0;
@@ -2649,6 +2661,10 @@ processTargetResponse(struct module_qstate* qstate, int id,
 	log_query_info(VERB_ALGO, "processTargetResponse", &qstate->qinfo);
 	log_query_info(VERB_ALGO, "processTargetResponse super", &forq->qinfo);
 
+	/* Tell the originating event that this target query has finished
+	 * (regardless if it succeeded or not). */
+	foriq->num_target_queries--;
+
 	/* check to see if parent event is still interested (in orig name).  */
 	if(!foriq->dp) {
 		verbose(VERB_ALGO, "subq: parent not interested, was reset");
@@ -2663,10 +2679,6 @@ processTargetResponse(struct module_qstate* qstate, int id,
 		   and a new identical query arrived, that does not want it*/
 		return;
 	}
-
-	/* Tell the originating event that this target query has finished
-	 * (regardless if it succeeded or not). */
-	foriq->num_target_queries--;
 
 	/* if iq->query_for_pside_glue then add the pside_glue (marked lame) */
 	if(iq->pside_glue) {

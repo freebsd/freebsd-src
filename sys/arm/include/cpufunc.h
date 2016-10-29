@@ -59,7 +59,7 @@ breakpoint(void)
 struct cpu_functions {
 
 	/* CPU functions */
-
+#if __ARM_ARCH < 6
 	void	(*cf_cpwait)		(void);
 
 	/* MMU functions */
@@ -139,6 +139,7 @@ struct cpu_functions {
 	void	(*cf_idcache_inv_all)	(void);
 	void	(*cf_idcache_wbinv_all)	(void);
 	void	(*cf_idcache_wbinv_range) (vm_offset_t, vm_size_t);
+#endif
 	void	(*cf_l2cache_wbinv_all) (void);
 	void	(*cf_l2cache_wbinv_range) (vm_offset_t, vm_size_t);
 	void	(*cf_l2cache_inv_range)	  (vm_offset_t, vm_size_t);
@@ -147,13 +148,17 @@ struct cpu_functions {
 
 	/* Other functions */
 
+#if __ARM_ARCH < 6
 	void	(*cf_drain_writebuf)	(void);
+#endif
 
 	void	(*cf_sleep)		(int mode);
 
+#if __ARM_ARCH < 6
 	/* Soft functions */
 
 	void	(*cf_context_switch)	(void);
+#endif
 
 	void	(*cf_setup)		(void);
 };
@@ -163,10 +168,8 @@ extern u_int cputype;
 
 #if __ARM_ARCH < 6
 #define	cpu_cpwait()		cpufuncs.cf_cpwait()
-#endif
 
 #define cpu_control(c, e)	cpufuncs.cf_control(c, e)
-#if __ARM_ARCH < 6
 #define cpu_setttb(t)		cpufuncs.cf_setttb(t)
 
 #define	cpu_tlb_flushID()	cpufuncs.cf_tlb_flushID()
@@ -185,6 +188,7 @@ extern u_int cputype;
 #define	cpu_idcache_wbinv_all()	cpufuncs.cf_idcache_wbinv_all()
 #define	cpu_idcache_wbinv_range(a, s) cpufuncs.cf_idcache_wbinv_range((a), (s))
 #endif
+
 #define cpu_l2cache_wbinv_all()	cpufuncs.cf_l2cache_wbinv_all()
 #define cpu_l2cache_wb_range(a, s) cpufuncs.cf_l2cache_wb_range((a), (s))
 #define cpu_l2cache_inv_range(a, s) cpufuncs.cf_l2cache_inv_range((a), (s))
@@ -273,26 +277,12 @@ void	sheeva_l2cache_wbinv_all	(void);
 #if defined(CPU_MV_PJ4B)
 void	armv6_idcache_wbinv_all		(void);
 #endif
-#if defined(CPU_MV_PJ4B) || defined(CPU_CORTEXA) || defined(CPU_KRAIT)
-void	armv7_setttb			(u_int);
-void	armv7_tlb_flushID		(void);
-void	armv7_tlb_flushID_SE		(u_int);
-void	armv7_icache_sync_range		(vm_offset_t, vm_size_t);
-void	armv7_idcache_wbinv_range	(vm_offset_t, vm_size_t);
-void	armv7_idcache_inv_all		(void);
-void	armv7_dcache_wbinv_all		(void);
+#if defined(CPU_CORTEXA8) || defined(CPU_CORTEXA_MP) || \
+    defined(CPU_MV_PJ4B) || defined(CPU_KRAIT)
 void	armv7_idcache_wbinv_all		(void);
-void	armv7_dcache_wbinv_range	(vm_offset_t, vm_size_t);
-void	armv7_dcache_inv_range		(vm_offset_t, vm_size_t);
-void	armv7_dcache_wb_range		(vm_offset_t, vm_size_t);
 void	armv7_cpu_sleep			(int);
 void	armv7_setup			(void);
-void	armv7_context_switch		(void);
 void	armv7_drain_writebuf		(void);
-void	armv7_sev			(void);
-u_int	armv7_auxctrl			(u_int, u_int);
-
-void	armadaxp_idcache_wbinv_all	(void);
 
 void 	cortexa_setup			(void);
 #endif
@@ -302,26 +292,8 @@ void	pj4bv7_setup			(void);
 #endif
 
 #if defined(CPU_ARM1176)
-void	arm11_tlb_flushID	(void);
-void	arm11_tlb_flushID_SE	(u_int);
-void	arm11_tlb_flushD	(void);
-void	arm11_tlb_flushD_SE	(u_int va);
-
-void	arm11_context_switch	(void);
-
 void	arm11_drain_writebuf	(void);
 
-void	armv6_dcache_wbinv_range	(vm_offset_t, vm_size_t);
-void	armv6_dcache_inv_range		(vm_offset_t, vm_size_t);
-void	armv6_dcache_wb_range		(vm_offset_t, vm_size_t);
-
-void	armv6_idcache_inv_all		(void);
-
-void    arm11x6_setttb                  (u_int);
-void    arm11x6_idcache_wbinv_all       (void);
-void    arm11x6_dcache_wbinv_all        (void);
-void    arm11x6_icache_sync_range       (vm_offset_t, vm_size_t);
-void    arm11x6_idcache_wbinv_range     (vm_offset_t, vm_size_t);
 void    arm11x6_setup                   (void);
 void    arm11x6_sleep                   (int);  /* no ref. for errata */
 #endif

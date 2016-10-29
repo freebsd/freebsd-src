@@ -301,6 +301,15 @@ get_line_size(const char *b, ssize_t avail, ssize_t *nlsize)
 	return (avail);
 }
 
+/*
+ *  <---------------- ravail --------------------->
+ *  <-- diff ------> <---  avail ----------------->
+ *                   <---- len ----------->
+ * | Previous lines | line being parsed  nl extra |
+ *                  ^
+ *                  b
+ *
+ */
 static ssize_t
 next_line(struct archive_read *a,
     const char **b, ssize_t *avail, ssize_t *ravail, ssize_t *nl)
@@ -339,7 +348,7 @@ next_line(struct archive_read *a,
 		*b += diff;
 		*avail -= diff;
 		tested = len;/* Skip some bytes we already determinated. */
-		len = get_line_size(*b, *avail, nl);
+		len = get_line_size(*b + len, *avail - len, nl);
 		if (len >= 0)
 			len += tested;
 	}

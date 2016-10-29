@@ -52,11 +52,13 @@ STAILQ_HEAD(cpsw_slots, cpsw_slot);
 struct cpsw_queue {
 	struct mtx	lock;
 	int		running;
+	int		teardown;
 	struct cpsw_slots active;
 	struct cpsw_slots avail;
 	uint32_t	queue_adds; /* total bufs added */
 	uint32_t	queue_removes; /* total bufs removed */
 	uint32_t	queue_removes_at_last_tick; /* Used by watchdog */
+	uint32_t	queue_restart;
 	int		queue_slots;
 	int		active_queue_len;
 	int		max_active_queue_len;
@@ -77,13 +79,14 @@ struct cpsw_softc {
 	int		active_slave;
 	int		debug;
 	int		dualemac;
+	int		rx_batch;
 	phandle_t	node;
 	struct bintime	attach_uptime; /* system uptime when attach happened. */
 	struct cpsw_port port[2];
+	unsigned	coal_us;
 
 	/* RX and TX buffer tracking */
 	struct cpsw_queue rx, tx;
-	uint32_t	last_hdp;
 
 	/* We expect 1 memory resource and 4 interrupts from the device tree. */
 	int		mem_rid;

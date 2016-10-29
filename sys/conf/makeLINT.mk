@@ -21,6 +21,7 @@ LINT: ${NOTES} ../../conf/makeLINT.sed
 	echo 'makeoptions MKMODULESENV+="WITHOUT_INET_SUPPORT="'  >> ${.TARGET}-NOINET
 	echo "nooptions INET"		>> ${.TARGET}-NOINET
 	echo "nodevice gre"		>> ${.TARGET}-NOINET
+	echo "nodevice netmap"		>> ${.TARGET}-NOINET
 	echo "include ${.TARGET}"	>  ${.TARGET}-NOINET6
 	echo "ident ${.TARGET}-NOINET6"	>> ${.TARGET}-NOINET6
 	echo 'makeoptions MKMODULESENV+="WITHOUT_INET6_SUPPORT="' >> ${.TARGET}-NOINET6
@@ -45,6 +46,7 @@ LINT: ${NOTES} ../../conf/makeLINT.sed
 	echo "nodevice sk"		>> ${.TARGET}-NOIP
 	echo "nodevice txp"		>> ${.TARGET}-NOIP
 	echo "nodevice vxge"		>> ${.TARGET}-NOIP
+	echo "nodevice netmap"		>> ${.TARGET}-NOIP
 .endif
 .if ${TARGET} == "mips"
 	echo "machine	${TARGET} ${TARGET_ARCH}" >> ${.TARGET}

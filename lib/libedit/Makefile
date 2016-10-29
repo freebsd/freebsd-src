@@ -76,7 +76,7 @@ historyn.c: makelist Makefile
 	sh ${.CURDIR}/makelist -n history.c > ${.TARGET}
 
 # minimal dependency to make "make depend" optional
-editline.o editline.po editline.So editline.ln:	\
+editline.o editline.po editline.pico editline.ln:	\
 	common.h emacs.h fcns.c fcns.h help.c help.h vi.h
 
 tc1.o: ${.CURDIR}/TEST/tc1.c

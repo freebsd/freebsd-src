@@ -54,7 +54,7 @@ $ac_distutils_result])
         AC_MSG_CHECKING([for Python library path])
         if test -z "$PYTHON_LDFLAGS"; then
                 PYTHON_LDFLAGS=`$PYTHON -c "from distutils.sysconfig import *; \
-                        print(get_config_var('BLDLIBRARY'));"`
+                        print('-L'+get_config_var('LIBDIR')+' -L'+get_config_var('LIBDEST')+' '+get_config_var('BLDLIBRARY'));"`
         fi
         AC_MSG_RESULT([$PYTHON_LDFLAGS])
         AC_SUBST([PYTHON_LDFLAGS])

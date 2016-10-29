@@ -50,9 +50,9 @@ extern symbol *mksymbol(type t, class c, name id);
 
 %%
 declaration: class type namelist($1, $2)
-	{ $$ = $3; }
+	{ $$ = $3; @$ = @3; }
 	| type locnamelist($1)
-	{ $$ = $2; }
+	{ $$ = $2; @$ = @-1; }
 	;
 
 class	: GLOBAL { $$ = cGLOBAL; }

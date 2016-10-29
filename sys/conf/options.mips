@@ -119,6 +119,17 @@ AR71XX_ENV_ROUTERBOOT		opt_ar71xx.h
 AR71XX_ATH_EEPROM		opt_ar71xx.h
 
 #
+# Options for AR531X SOC. AR531X_1ST_GENERATION is AR5311 to AR5314.
+#
+
+AR531X_1ST_GENERATION		opt_ar531x.h
+AR531X_REALMEM			opt_ar531x.h
+AR531X_ENV_UBOOT		opt_ar531x.h
+AR531X_APB_DEBUG		opt_ar531x.h
+ARE_MDIO			opt_ar531x.h
+ARE_MII				opt_ar531x.h
+
+#
 # Options that control the Ralink RT305xF Etherenet MAC.
 #
 IF_RT_DEBUG			opt_if_rt.h

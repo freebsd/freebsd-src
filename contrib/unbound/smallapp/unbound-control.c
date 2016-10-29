@@ -65,7 +65,7 @@
 
 /** Give unbound-control usage, and exit (1). */
 static void
-usage()
+usage(void)
 {
 	printf("Usage:	unbound-control [options] command\n");
 	printf("	Remote control utility for unbound server.\n");
@@ -212,7 +212,7 @@ contact_server(const char* svr, struct config_file* cfg, int statuscmd)
 		struct sockaddr_un* usock = (struct sockaddr_un *) &addr;
 		usock->sun_family = AF_LOCAL;
 #ifdef HAVE_STRUCT_SOCKADDR_UN_SUN_LEN
-		usock->sun_len = (socklen_t)sizeof(usock);
+		usock->sun_len = (unsigned)sizeof(usock);
 #endif
 		(void)strlcpy(usock->sun_path, svr, sizeof(usock->sun_path));
 		addrlen = (socklen_t)sizeof(struct sockaddr_un);
@@ -418,10 +418,22 @@ int main(int argc, char* argv[])
 		cfgfile = CONFIGFILE;
 #endif
 
+#ifdef HAVE_ERR_LOAD_CRYPTO_STRINGS
 	ERR_load_crypto_strings();
+#endif
 	ERR_load_SSL_strings();
+#if OPENSSL_VERSION_NUMBER < 0x10100000 || !defined(HAVE_OPENSSL_INIT_CRYPTO)
 	OpenSSL_add_all_algorithms();
+#else
+	OPENSSL_init_crypto(OPENSSL_INIT_ADD_ALL_CIPHERS
+		| OPENSSL_INIT_ADD_ALL_DIGESTS
+		| OPENSSL_INIT_LOAD_CRYPTO_STRINGS, NULL);
+#endif
+#if OPENSSL_VERSION_NUMBER < 0x10100000 || !defined(HAVE_OPENSSL_INIT_SSL)
 	(void)SSL_library_init();
+#else
+	(void)OPENSSL_init_ssl(0, NULL);
+#endif
 
 	if(!RAND_status()) {
                 /* try to seed it */

@@ -143,7 +143,7 @@ static void
 usage(void)
 {
 	fprintf(stderr,
-	    "usage: bridge [-v] [-i ifa] [-i ifb] [-b burst] [-w wait_time] [iface]\n");
+	    "usage: bridge [-v] [-i ifa] [-i ifb] [-b burst] [-w wait_time] [ifa [ifb [burst]]]\n");
 	exit(1);
 }
 
@@ -201,12 +201,12 @@ main(int argc, char **argv)
 	argc -= optind;
 	argv += optind;
 
+	if (argc > 0)
+		ifa = argv[0];
 	if (argc > 1)
-		ifa = argv[1];
+		ifb = argv[1];
 	if (argc > 2)
-		ifb = argv[2];
-	if (argc > 3)
-		burst = atoi(argv[3]);
+		burst = atoi(argv[2]);
 	if (!ifb)
 		ifb = ifa;
 	if (!ifa) {
@@ -233,7 +233,7 @@ main(int argc, char **argv)
 		D("cannot open %s", ifa);
 		return (1);
 	}
-	// XXX use a single mmap ?
+	/* try to reuse the mmap() of the first interface, if possible */
 	pb = nm_open(ifb, NULL, NM_OPEN_NO_MMAP, pa);
 	if (pb == NULL) {
 		D("cannot open %s", ifb);
@@ -262,6 +262,23 @@ main(int argc, char **argv)
 		pollfd[0].revents = pollfd[1].revents = 0;
 		n0 = pkt_queued(pa, 0);
 		n1 = pkt_queued(pb, 0);
+#if defined(_WIN32) || defined(BUSYWAIT)
+		if (n0){
+			ioctl(pollfd[1].fd, NIOCTXSYNC, NULL);
+			pollfd[1].revents = POLLOUT;
+		}
+		else {
+			ioctl(pollfd[0].fd, NIOCRXSYNC, NULL);
+		}
+		if (n1){
+			ioctl(pollfd[0].fd, NIOCTXSYNC, NULL);
+			pollfd[0].revents = POLLOUT;
+		}
+		else {
+			ioctl(pollfd[1].fd, NIOCRXSYNC, NULL);
+		}
+		ret = 1;
+#else
 		if (n0)
 			pollfd[1].events |= POLLOUT;
 		else
@@ -271,6 +288,7 @@ main(int argc, char **argv)
 		else
 			pollfd[1].events |= POLLIN;
 		ret = poll(pollfd, 2, 2500);
+#endif //defined(_WIN32) || defined(BUSYWAIT)
 		if (ret <= 0 || verbose)
 		    D("poll %s [0] ev %x %x rx %d@%d tx %d,"
 			     " [1] ev %x %x rx %d@%d tx %d",

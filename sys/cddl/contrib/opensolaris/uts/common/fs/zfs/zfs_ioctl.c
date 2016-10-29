@@ -31,6 +31,7 @@
  * Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
  * Copyright (c) 2013 Steven Hartland. All rights reserved.
  * Copyright (c) 2014 Integros [integros.com]
+ * Copyright 2016 Toomas Soome <tsoome@me.com>
  */
 
 /*
@@ -3471,6 +3472,53 @@ zfs_ioc_log_history(const char *unused, nvlist_t *innvl, nvlist_t *outnvl)
 	return (error);
 }
 
+#ifdef __FreeBSD__
+static int
+zfs_ioc_nextboot(const char *unused, nvlist_t *innvl, nvlist_t *outnvl)
+{
+	char name[MAXNAMELEN];
+	spa_t *spa;
+	vdev_t *vd;
+	char *command;
+	uint64_t pool_guid;
+	uint64_t vdev_guid;
+	int error;
+
+	if (nvlist_lookup_uint64(innvl,
+	    ZPOOL_CONFIG_POOL_GUID, &pool_guid) != 0)
+		return (EINVAL);
+	if (nvlist_lookup_uint64(innvl,
+	    ZPOOL_CONFIG_GUID, &vdev_guid) != 0)
+		return (EINVAL);
+	if (nvlist_lookup_string(innvl,
+	    "command", &command) != 0)
+		return (EINVAL);
+
+	mutex_enter(&spa_namespace_lock);
+	spa = spa_by_guid(pool_guid, vdev_guid);
+	if (spa != NULL)
+		strcpy(name, spa_name(spa));
+	mutex_exit(&spa_namespace_lock);
+	if (spa == NULL)
+		return (ENOENT);
+
+	if ((error = spa_open(name, &spa, FTAG)) != 0)
+		return (error);
+	spa_vdev_state_enter(spa, SCL_ALL);
+	vd = spa_lookup_by_guid(spa, vdev_guid, B_TRUE);
+	if (vd == NULL) {
+		(void) spa_vdev_state_exit(spa, NULL, ENXIO);
+		spa_close(spa, FTAG);
+		return (ENODEV);
+	}
+	error = vdev_label_write_pad2(vd, command, strlen(command));
+	(void) spa_vdev_state_exit(spa, NULL, 0);
+	txg_wait_synced(spa->spa_dsl_pool, 0);
+	spa_close(spa, FTAG);
+	return (error);
+}
+#endif
+
 /*
  * The dp_config_rwlock must not be held when calling this, because the
  * unmount may need to write out data.
@@ -3943,16 +3991,6 @@ zfs_check_settable(const char *dsname, nvpair_t *pair, cred_t *cr)
 		if (nvpair_value_uint64(pair, &intval) == 0 &&
 		    intval > SPA_OLD_MAXBLOCKSIZE) {
 			spa_t *spa;
-
-			/*
-			 * If this is a bootable dataset then
-			 * the we don't allow large (>128K) blocks,
-			 * because GRUB doesn't support them.
-			 */
-			if (zfs_is_bootfs(dsname) &&
-			    intval > SPA_OLD_MAXBLOCKSIZE) {
-				return (SET_ERROR(ERANGE));
-			}
 
 			/*
 			 * We don't allow setting the property above 1MB,
@@ -6033,6 +6071,9 @@ zfs_ioctl_init(void)
 	    zfs_secpolicy_config, POOL_CHECK_NONE);
 	zfs_ioctl_register_dataset_nolog(ZFS_IOC_UNJAIL, zfs_ioc_unjail,
 	    zfs_secpolicy_config, POOL_CHECK_NONE);
+	zfs_ioctl_register("fbsd_nextboot", ZFS_IOC_NEXTBOOT,
+	    zfs_ioc_nextboot, zfs_secpolicy_config, NO_NAME,
+	    POOL_CHECK_NONE, B_FALSE, B_FALSE);
 #endif
 }
 

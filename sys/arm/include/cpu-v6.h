@@ -56,6 +56,8 @@ extern uint32_t	ccnt_hi[MAXCPU];
 extern int pmu_attched;
 #endif /* DEV_PMU */
 
+#define sev()  __asm __volatile("sev" : : : "memory")
+#define wfe()  __asm __volatile("wfe" : : : "memory")
 
 /*
  * Macros to generate CP15 (system control processor) read/write functions.
@@ -345,12 +347,21 @@ tlb_flush_range_local(vm_offset_t va, vm_size_t size)
 /* Broadcasting operations. */
 #if __ARM_ARCH >= 7 && defined SMP
 
+#if defined(CPU_CORTEXA8)
+#define	ARM_HAVE_MP_EXTENSIONS	(cpuinfo.mp_ext != 0)
+#else
+#define	ARM_HAVE_MP_EXTENSIONS	1
+#endif
+
 static __inline void
 tlb_flush_all(void)
 {
 
 	dsb();
-	_CP15_TLBIALLIS();
+	if (ARM_HAVE_MP_EXTENSIONS)
+		_CP15_TLBIALLIS();
+	else
+		_CP15_TLBIALL();
 	dsb();
 }
 
@@ -359,7 +370,10 @@ tlb_flush_all_ng(void)
 {
 
 	dsb();
-	_CP15_TLBIASIDIS(CPU_ASID_KERNEL);
+	if (ARM_HAVE_MP_EXTENSIONS)
+		_CP15_TLBIASIDIS(CPU_ASID_KERNEL);
+	else
+		_CP15_TLBIASID(CPU_ASID_KERNEL);
 	dsb();
 }
 
@@ -370,7 +384,10 @@ tlb_flush(vm_offset_t va)
 	KASSERT((va & PAGE_MASK) == 0, ("%s: va %#x not aligned", __func__, va));
 
 	dsb();
-	_CP15_TLBIMVAAIS(va);
+	if (ARM_HAVE_MP_EXTENSIONS)
+		_CP15_TLBIMVAAIS(va);
+	else
+		_CP15_TLBIMVA(va | CPU_ASID_KERNEL);
 	dsb();
 }
 
@@ -384,8 +401,13 @@ tlb_flush_range(vm_offset_t va,  vm_size_t size)
 	    size));
 
 	dsb();
-	for (; va < eva; va += PAGE_SIZE)
-		_CP15_TLBIMVAAIS(va);
+	if (ARM_HAVE_MP_EXTENSIONS) {
+		for (; va < eva; va += PAGE_SIZE)
+			_CP15_TLBIMVAAIS(va);
+	} else {
+		for (; va < eva; va += PAGE_SIZE)
+			_CP15_TLBIMVA(va | CPU_ASID_KERNEL);
+	}
 	dsb();
 }
 #else /* SMP */
@@ -409,19 +431,23 @@ icache_sync(vm_offset_t va, vm_size_t size)
 
 	dsb();
 	va &= ~cpuinfo.dcache_line_mask;
-	for ( ; va < eva; va += cpuinfo.dcache_line_size) {
 #if __ARM_ARCH >= 7 && defined SMP
-		_CP15_DCCMVAU(va);
-#else
-		_CP15_DCCMVAC(va);
+	if (ARM_HAVE_MP_EXTENSIONS) {
+		for ( ; va < eva; va += cpuinfo.dcache_line_size)
+			_CP15_DCCMVAU(va);
+	} else
 #endif
+	{
+		for ( ; va < eva; va += cpuinfo.dcache_line_size)
+			_CP15_DCCMVAC(va);
 	}
 	dsb();
 #if __ARM_ARCH >= 7 && defined SMP
-	_CP15_ICIALLUIS();
-#else
-	_CP15_ICIALLU();
+	if (ARM_HAVE_MP_EXTENSIONS)
+		_CP15_ICIALLUIS();
+	else
 #endif
+		_CP15_ICIALLU();
 	dsb();
 	isb();
 }
@@ -431,10 +457,11 @@ static __inline void
 icache_inv_all(void)
 {
 #if __ARM_ARCH >= 7 && defined SMP
-	_CP15_ICIALLUIS();
-#else
-	_CP15_ICIALLU();
+	if (ARM_HAVE_MP_EXTENSIONS)
+		_CP15_ICIALLUIS();
+	else
 #endif
+		_CP15_ICIALLU();
 	dsb();
 	isb();
 }
@@ -444,10 +471,11 @@ static __inline void
 bpb_inv_all(void)
 {
 #if __ARM_ARCH >= 7 && defined SMP
-	_CP15_BPIALLIS();
-#else
-	_CP15_BPIALL();
+	if (ARM_HAVE_MP_EXTENSIONS)
+		_CP15_BPIALLIS();
+	else
 #endif
+		_CP15_BPIALL();
 	dsb();
 	isb();
 }
@@ -460,12 +488,15 @@ dcache_wb_pou(vm_offset_t va, vm_size_t size)
 
 	dsb();
 	va &= ~cpuinfo.dcache_line_mask;
-	for ( ; va < eva; va += cpuinfo.dcache_line_size) {
 #if __ARM_ARCH >= 7 && defined SMP
-		_CP15_DCCMVAU(va);
-#else
-		_CP15_DCCMVAC(va);
+	if (ARM_HAVE_MP_EXTENSIONS) {
+		for ( ; va < eva; va += cpuinfo.dcache_line_size)
+			_CP15_DCCMVAU(va);
+	} else
 #endif
+	{
+		for ( ; va < eva; va += cpuinfo.dcache_line_size)
+			_CP15_DCCMVAC(va);
 	}
 	dsb();
 }

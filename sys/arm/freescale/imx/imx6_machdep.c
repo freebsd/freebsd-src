@@ -52,10 +52,6 @@ __FBSDID("$FreeBSD$");
 
 #include "platform_if.h"
 
-struct fdt_fixup_entry fdt_fixup_table[] = {
-	{ NULL, NULL }
-};
-
 static uint32_t gpio1_node;
 
 #ifndef INTRNG
@@ -227,8 +223,8 @@ imx6_devmap_init(platform_t plat)
 	return (0);
 }
 
-void
-cpu_reset(void)
+static void
+imx6_cpu_reset(platform_t plat)
 {
 	const uint32_t IMX6_WDOG_CR_PHYS = 0x020bc000;
 
@@ -350,6 +346,7 @@ static platform_method_t imx6_methods[] = {
 	PLATFORMMETHOD(platform_lastaddr,	imx6_lastaddr),
 	PLATFORMMETHOD(platform_devmap_init,	imx6_devmap_init),
 	PLATFORMMETHOD(platform_late_init,	imx6_late_init),
+	PLATFORMMETHOD(platform_cpu_reset,	imx6_cpu_reset),
 
 	PLATFORMMETHOD_END,
 };

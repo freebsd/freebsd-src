@@ -52,6 +52,15 @@ __FBSDID("$FreeBSD$");
 #define debugf(fmt, args...)
 #endif
 
+#if defined(__arm__)
+#if defined(SOC_MV_ARMADAXP) || defined(SOC_MV_ARMADA38X) || \
+    defined(SOC_MV_DISCOVERY) || defined(SOC_MV_DOVE) || \
+    defined(SOC_MV_FREY) || defined(SOC_MV_KIRKWOOD) || \
+    defined(SOC_MV_LOKIPLUS) || defined(SOC_MV_ORION)
+#define FDT_MARVELL
+#endif
+#endif
+
 static int ofw_fdt_init(ofw_t, void *);
 static phandle_t ofw_fdt_peer(ofw_t, phandle_t);
 static phandle_t ofw_fdt_child(ofw_t, phandle_t);
@@ -415,7 +424,7 @@ ofw_fdt_package_to_path(ofw_t ofw, phandle_t package, char *buf, size_t len)
 	return (-1);
 }
 
-#if defined(__arm__) || defined(__powerpc__)
+#if defined(FDT_MARVELL) || defined(__powerpc__)
 static int
 ofw_fdt_fixup(ofw_t ofw)
 {
@@ -454,7 +463,7 @@ ofw_fdt_fixup(ofw_t ofw)
 static int
 ofw_fdt_interpret(ofw_t ofw, const char *cmd, int nret, cell_t *retvals)
 {
-#if defined(__arm__) || defined(__powerpc__)
+#if defined(FDT_MARVELL) || defined(__powerpc__)
 	int rv;
 
 	/*

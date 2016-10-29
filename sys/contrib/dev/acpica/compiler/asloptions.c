@@ -70,6 +70,9 @@ AslDoResponseFile (
 #define ASL_TOKEN_SEPARATORS    " \t\n"
 #define ASL_SUPPORTED_OPTIONS   "@:a:b|c|d^D:e:f^gh^i|I:l^m:no|p:P^r:s|t|T+G^v^w|x:z"
 
+static char ASL_BUILD_DATE[] = __DATE__;
+static char ASL_BUILD_TIME[] = __TIME__;
+
 
 /*******************************************************************************
  *
@@ -275,10 +278,24 @@ AslDoOptions (
         {
         case '^':
 
+            /* Get the required argument */
+
+            if (AcpiGetoptArgument (argc, argv))
+            {
+                return (-1);
+            }
+
             Gbl_DoCompile = FALSE;
             break;
 
         case 'a':
+
+            /* Get the required argument */
+
+            if (AcpiGetoptArgument (argc, argv))
+            {
+                return (-1);
+            }
 
             Gbl_DoCompile = FALSE;
             Gbl_DisassembleAll = TRUE;
@@ -388,6 +405,11 @@ AslDoOptions (
         case 'c':
 
             UtDisplayConstantOpcodes ();
+            exit (0);
+
+        case 'd':
+
+            AslDisassemblyHelp ();
             exit (0);
 
         case 'f':
@@ -537,6 +559,13 @@ AslDoOptions (
             /* Display compile time(s) */
 
             Gbl_CompileTimesFlag = TRUE;
+            break;
+
+        case 'd':
+
+            /* Disable disassembler code optimizations */
+
+            AcpiGbl_DoDisassemblerOptimizations = FALSE;
             break;
 
         case 'e':
@@ -697,6 +726,12 @@ AslDoOptions (
 
             Gbl_NoErrors = TRUE;
             break;
+
+        case 'd':
+
+            printf ("%s Build date/time: %s %s\n",
+                ASL_COMPILER_NAME, ASL_BUILD_DATE, ASL_BUILD_TIME);
+            exit (0);
 
         case 'e':
 

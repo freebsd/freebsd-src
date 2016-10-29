@@ -34,7 +34,6 @@ __FBSDID("$FreeBSD$");
  * through a previously registered kernel object.
  */
 
-#define	_ARM32_BUS_DMA_PRIVATE
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
@@ -187,6 +186,20 @@ platform_late_init(void)
 {
 
 	PLATFORM_LATE_INIT(plat_obj);
+}
+
+void
+cpu_reset(void)
+{
+
+	PLATFORM_CPU_RESET(plat_obj);
+
+	printf("cpu_reset failed");
+
+	intr_disable();
+	while(1) {
+		cpu_sleep(0);
+	}
 }
 
 #ifdef MULTIDELAY

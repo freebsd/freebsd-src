@@ -1270,9 +1270,12 @@ rsu_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	default:
 		break;
 	}
-	sc->sc_calibrating = 1;
-	/* Start periodic calibration. */
-	taskqueue_enqueue_timeout(taskqueue_thread, &sc->calib_task, hz);
+	if (startcal != 0) {
+		sc->sc_calibrating = 1;
+		/* Start periodic calibration. */
+		taskqueue_enqueue_timeout(taskqueue_thread, &sc->calib_task,
+		    hz);
+	}
 	RSU_UNLOCK(sc);
 	IEEE80211_LOCK(ic);
 	return (uvp->newstate(vap, nstate, arg));
@@ -1531,12 +1534,14 @@ rsu_event_survey(struct rsu_softc *sc, uint8_t *buf, int len)
 	rxs.c_ieee = le32toh(bss->config.dsconfig);
 	rxs.c_freq = ieee80211_ieee2mhz(rxs.c_ieee, IEEE80211_CHAN_2GHZ);
 	/* This is a number from 0..100; so let's just divide it down a bit */
-	rxs.rssi = le32toh(bss->rssi) / 2;
-	rxs.nf = -96;
+	rxs.c_rssi = le32toh(bss->rssi) / 2;
+	rxs.c_nf = -96;
+	if (ieee80211_add_rx_params(m, &rxs) == 0)
+		return;
 
 	/* XXX avoid a LOR */
 	RSU_UNLOCK(sc);
-	ieee80211_input_mimo_all(ic, m, &rxs);
+	ieee80211_input_mimo_all(ic, m);
 	RSU_LOCK(sc);
 }
 

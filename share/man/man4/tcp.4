@@ -34,7 +34,7 @@
 .\"     From: @(#)tcp.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd June 28, 2016
+.Dd October 21, 2016
 .Dt TCP 4
 .Os
 .Sh NAME
@@ -586,6 +586,12 @@ downshift.
 List of available TCP function blocks (TCP stacks).
 .It Va functions_default
 The default TCP function block (TCP stack).
+.It Va insecure_rst
+Use criteria defined in RFC793 instead of RFC5961 for accepting RST segments.
+Default is false.
+.It Va insecure_syn
+Use criteria defined in RFC793 instead of RFC5961 for accepting SYN segments.
+Default is false.
 .El
 .Sh ERRORS
 A socket operation may fail with one of the following errors returned:

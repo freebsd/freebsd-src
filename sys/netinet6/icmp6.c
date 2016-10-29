@@ -490,7 +490,7 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 			break;
 		case ICMP6_DST_UNREACH_ADMIN:
 			icmp6_ifstat_inc(ifp, ifs6_in_adminprohib);
-			code = PRC_UNREACH_PROTOCOL; /* is this a good code? */
+			code = PRC_UNREACH_ADMIN_PROHIB;
 			break;
 		case ICMP6_DST_UNREACH_BEYONDSCOPE:
 			/* I mean "source address was incorrect." */
@@ -2146,7 +2146,7 @@ icmp6_reflect(struct mbuf *m, size_t off)
 		 * that we do not own.  Select a source address based on the
 		 * source address of the erroneous packet.
 		 */
-		in6_splitscope(&ip6->ip6_dst, &dst6, &scopeid);
+		in6_splitscope(&ip6->ip6_src, &dst6, &scopeid);
 		error = in6_selectsrc_addr(RT_DEFAULT_FIB, &dst6,
 		    scopeid, NULL, &src6, &hlim);
 

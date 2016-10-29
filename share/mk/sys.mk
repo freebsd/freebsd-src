@@ -13,7 +13,7 @@ unix		?=	We run FreeBSD, not UNIX.
 # and/or endian.  This is called MACHINE_CPU in NetBSD, but that's used
 # for something different in FreeBSD.
 #
-MACHINE_CPUARCH=${MACHINE_ARCH:C/mips(n32|64)?(el)?/mips/:C/arm(v6)?(eb|hf)?/arm/:C/powerpc64/powerpc/:C/riscv64/riscv/}
+MACHINE_CPUARCH=${MACHINE_ARCH:C/mips(n32|64)?(el)?/mips/:C/arm(v6)?(eb|hf)?/arm/:C/powerpc(64|spe)/powerpc/:C/riscv64/riscv/}
 .endif
 
 
@@ -121,7 +121,7 @@ META_MODE?= normal
 .if defined(%POSIX)
 .SUFFIXES:	.o .c .y .l .a .sh .f
 .else
-.SUFFIXES:	.out .a .ln .o .c .cc .cpp .cxx .C .m .F .f .e .r .y .l .S .asm .s .cl .p .h .sh
+.SUFFIXES:	.out .a .ln .o .bco .llo .c .cc .cpp .cxx .C .m .F .f .e .r .y .l .S .asm .s .cl .p .h .sh
 .endif
 
 AR		?=	ar
@@ -153,6 +153,7 @@ CFLAGS		?=	-O2 -pipe
 CFLAGS		+=	-fno-strict-aliasing
 .endif
 .endif
+IR_CFLAGS	?=	${STATIC_CFLAGS:N-O*} ${CFLAGS:N-O*}
 PO_CFLAGS	?=	${CFLAGS}
 
 # cp(1) is used to copy source files to ${.OBJDIR}, make sure it can handle
@@ -173,6 +174,7 @@ CTFFLAGS	+=	-g
 
 CXX		?=	c++
 CXXFLAGS	?=	${CFLAGS:N-std=*:N-Wnested-externs:N-W*-prototypes:N-Wno-pointer-sign:N-Wold-style-definition}
+IR_CXXFLAGS	?=	${STATIC_CXXFLAGS:N-O*} ${CXXFLAGS:N-O*}
 PO_CXXFLAGS	?=	${CXXFLAGS}
 
 DTRACE		?=	dtrace
@@ -229,6 +231,8 @@ LINTLIBFLAGS	?=	-cghapbxu -C ${LIB}
 MAKE		?=	make
 
 .if !defined(%POSIX)
+LORDER		?=	lorder
+
 NM		?=	nm
 NMFLAGS		?=
 
@@ -242,6 +246,9 @@ PFLAGS		?=
 
 RC		?=	f77
 RFLAGS		?=
+
+TSORT		?=	tsort
+TSORTFLAGS	?=	-q
 .endif
 
 SHELL		?=	sh
@@ -259,162 +266,12 @@ YFLAGS		?=	-d
 
 .if defined(%POSIX)
 
-# Posix 1003.2 mandated rules
-#
-# Quoted directly from the Posix 1003.2 draft, only the macros
-# $@, $< and $* have been replaced by ${.TARGET}, ${.IMPSRC}, and
-# ${.PREFIX}, resp.
-
-# SINGLE SUFFIX RULES
-.c:
-	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.IMPSRC}
-
-.f:
-	${FC} ${FFLAGS} ${LDFLAGS} -o ${.TARGET} ${.IMPSRC}
-
-.sh:
-	cp -f ${.IMPSRC} ${.TARGET}
-	chmod a+x ${.TARGET}
-
-# DOUBLE SUFFIX RULES
-
-.c.o:
-	${CC} ${CFLAGS} -c ${.IMPSRC}
-
-.f.o:
-	${FC} ${FFLAGS} -c ${.IMPSRC}
-
-.y.o:
-	${YACC} ${YFLAGS} ${.IMPSRC}
-	${CC} ${CFLAGS} -c y.tab.c
-	rm -f y.tab.c
-	mv y.tab.o ${.TARGET}
-
-.l.o:
-	${LEX} ${LFLAGS} ${.IMPSRC}
-	${CC} ${CFLAGS} -c lex.yy.c
-	rm -f lex.yy.c
-	mv lex.yy.o ${.TARGET}
-
-.y.c:
-	${YACC} ${YFLAGS} ${.IMPSRC}
-	mv y.tab.c ${.TARGET}
-
-.l.c:
-	${LEX} ${LFLAGS} ${.IMPSRC}
-	mv lex.yy.c ${.TARGET}
-
-.c.a:
-	${CC} ${CFLAGS} -c ${.IMPSRC}
-	${AR} ${ARFLAGS} ${.TARGET} ${.PREFIX}.o
-	rm -f ${.PREFIX}.o
-
-.f.a:
-	${FC} ${FFLAGS} -c ${.IMPSRC}
-	${AR} ${ARFLAGS} ${.TARGET} ${.PREFIX}.o
-	rm -f ${.PREFIX}.o
+.include "bsd.suffixes-posix.mk"
 
 .else
 
 # non-Posix rule set
-
-.sh:
-	cp -f ${.IMPSRC} ${.TARGET}
-	chmod a+x ${.TARGET}
-
-.c.ln:
-	${LINT} ${LINTOBJFLAGS} ${CFLAGS:M-[DIU]*} ${.IMPSRC} || \
-	    touch ${.TARGET}
-
-.cc.ln .C.ln .cpp.ln .cxx.ln:
-	${LINT} ${LINTOBJFLAGS} ${CXXFLAGS:M-[DIU]*} ${.IMPSRC} || \
-	    touch ${.TARGET}
-
-.c:
-	${CC} ${CFLAGS} ${LDFLAGS} ${.IMPSRC} ${LDLIBS} -o ${.TARGET}
-	${CTFCONVERT_CMD}
-
-.c.o:
-	${CC} ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-	${CTFCONVERT_CMD}
-
-.cc .cpp .cxx .C:
-	${CXX} ${CXXFLAGS} ${LDFLAGS} ${.IMPSRC} ${LDLIBS} -o ${.TARGET}
-
-.cc.o .cpp.o .cxx.o .C.o:
-	${CXX} ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-
-.m.o:
-	${OBJC} ${OBJCFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-	${CTFCONVERT_CMD}
-
-.p.o:
-	${PC} ${PFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-	${CTFCONVERT_CMD}
-
-.e .r .F .f:
-	${FC} ${RFLAGS} ${EFLAGS} ${FFLAGS} ${LDFLAGS} ${.IMPSRC} ${LDLIBS} \
-	    -o ${.TARGET}
-
-.e.o .r.o .F.o .f.o:
-	${FC} ${RFLAGS} ${EFLAGS} ${FFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-
-.S.o:
-	${CC:N${CCACHE_BIN}} ${CFLAGS} ${ACFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-	${CTFCONVERT_CMD}
-
-.asm.o:
-	${CC:N${CCACHE_BIN}} -x assembler-with-cpp ${CFLAGS} ${ACFLAGS} -c ${.IMPSRC} \
-	    -o ${.TARGET}
-	${CTFCONVERT_CMD}
-
-.s.o:
-	${AS} ${AFLAGS} -o ${.TARGET} ${.IMPSRC}
-	${CTFCONVERT_CMD}
-
-# XXX not -j safe
-.y.o:
-	${YACC} ${YFLAGS} ${.IMPSRC}
-	${CC} ${CFLAGS} -c y.tab.c -o ${.TARGET}
-	rm -f y.tab.c
-	${CTFCONVERT_CMD}
-
-.l.o:
-	${LEX} -t ${LFLAGS} ${.IMPSRC} > ${.PREFIX}.tmp.c
-	${CC} ${CFLAGS} -c ${.PREFIX}.tmp.c -o ${.TARGET}
-	rm -f ${.PREFIX}.tmp.c
-	${CTFCONVERT_CMD}
-
-# XXX not -j safe
-.y.c:
-	${YACC} ${YFLAGS} ${.IMPSRC}
-	mv y.tab.c ${.TARGET}
-
-.l.c:
-	${LEX} -t ${LFLAGS} ${.IMPSRC} > ${.TARGET}
-
-.s.out .c.out .o.out:
-	${CC} ${CFLAGS} ${LDFLAGS} ${.IMPSRC} ${LDLIBS} -o ${.TARGET}
-	${CTFCONVERT_CMD}
-
-.f.out .F.out .r.out .e.out:
-	${FC} ${EFLAGS} ${RFLAGS} ${FFLAGS} ${LDFLAGS} ${.IMPSRC} \
-	    ${LDLIBS} -o ${.TARGET}
-	rm -f ${.PREFIX}.o
-	${CTFCONVERT_CMD}
-
-# XXX not -j safe
-.y.out:
-	${YACC} ${YFLAGS} ${.IMPSRC}
-	${CC} ${CFLAGS} ${LDFLAGS} y.tab.c ${LDLIBS} -ly -o ${.TARGET}
-	rm -f y.tab.c
-	${CTFCONVERT_CMD}
-
-.l.out:
-	${LEX} -t ${LFLAGS} ${.IMPSRC} > ${.PREFIX}.tmp.c
-	${CC} ${CFLAGS} ${LDFLAGS} ${.PREFIX}.tmp.c ${LDLIBS} -ll -o ${.TARGET}
-	rm -f ${.PREFIX}.tmp.c
-	${CTFCONVERT_CMD}
+.include "bsd.suffixes.mk"
 
 # Pull in global settings.
 __MAKE_CONF?=/etc/make.conf

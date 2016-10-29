@@ -358,6 +358,7 @@ KNOWN_ARCHES?=	aarch64/arm64 \
 		mipsn32/mips \
 		powerpc \
 		powerpc64/powerpc \
+		powerpcspe/powerpc \
 		riscv64/riscv \
 		sparc64
 
@@ -452,7 +453,7 @@ PACKAGE=	kernel
 #
 
 BOOTSTRAPPING?=	0
-# Keep these in sync
+# Keep these in sync -- see below for special case exception
 MINIMUM_SUPPORTED_OSREL?= 900044
 MINIMUM_SUPPORTED_REL?= 9.1
 
@@ -1556,10 +1557,23 @@ _elftoolchain_libs= lib/libelf lib/libdwarf
 .endif
 
 legacy: .PHONY
+# Temporary special case for automatically detecting the clang compiler issue
+# Note: 9.x didn't have FreeBSD_version bumps often enough, so you may need to
+# set BOOTSTRAPPING to 0 if you're stable/9 tree post-dates r286035 but is before
+# the version bump in r296219 (from July 29, 2015 -> Feb 29, 2016).
+.if ${BOOTSTRAPPING} != 0 && \
+	${WANT_COMPILER_TYPE} == "clang" && ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} < 30601
+.if   ${BOOTSTRAPPING} > 10000000 && ${BOOTSTRAPPING} < 1002501
+	@echo "ERROR: Source upgrades from stable/10 prior to r286033 are not supported."; false
+.elif ${BOOTSTRAPPING} >  9000000 && ${BOOTSTRAPPING} <  903509
+	@echo "ERROR: Source upgrades from stable/9 prior to r286035 are not supported."; false
+.endif
+.endif
 .if ${BOOTSTRAPPING} < ${MINIMUM_SUPPORTED_OSREL} && ${BOOTSTRAPPING} != 0
 	@echo "ERROR: Source upgrades from versions prior to ${MINIMUM_SUPPORTED_REL} are not supported."; \
 	false
 .endif
+
 .for _tool in tools/build ${_elftoolchain_libs}
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,includes,all,install)"; \
 	    cd ${.CURDIR}/${_tool}; \
@@ -1586,7 +1600,7 @@ _strfile=	usr.bin/fortune/strfile
 _gperf=		gnu/usr.bin/gperf
 .endif
 
-.if ${MK_GROFF} != "no"
+.if ${MK_SHAREDOCS} != "no" && ${MK_GROFF} != "no"
 _groff=		gnu/usr.bin/groff \
 		usr.bin/soelim
 .endif
@@ -1983,7 +1997,10 @@ libraries: .MAKE .PHONY
 #
 # static libgcc.a prerequisite for shared libc
 #
-_prereq_libs= gnu/lib/libssp/libssp_nonshared gnu/lib/libgcc lib/libcompiler_rt
+_prereq_libs= gnu/lib/libgcc lib/libcompiler_rt
+.if ${MK_SSP} != "no"
+_prereq_libs+= gnu/lib/libssp/libssp_nonshared
+.endif
 
 # These dependencies are not automatically generated:
 #
@@ -2032,13 +2049,17 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} \
 		${_cddl_lib_libctf} \
 		lib/libutil lib/libpjdlog ${_lib_libypclnt} lib/libz lib/msun \
 		${_secure_lib_libcrypto} ${_lib_libldns} \
-		${_secure_lib_libssh} ${_secure_lib_libssl} \
-		gnu/lib/libdialog
+		${_secure_lib_libssh} ${_secure_lib_libssl}
 
 .if ${MK_GNUCXX} != "no"
 _prebuild_libs+= gnu/lib/libstdc++ gnu/lib/libsupc++
 gnu/lib/libstdc++__L: lib/msun__L
 gnu/lib/libsupc++__L: gnu/lib/libstdc++__L
+.endif
+
+.if ${MK_DIALOG} != "no"
+_prebuild_libs+= gnu/lib/libdialog
+gnu/lib/libdialog__L: lib/msun__L lib/ncurses/ncursesw__L
 .endif
 
 .if ${MK_LIBCPLUSPLUS} != "no"
@@ -2189,8 +2210,6 @@ lib/libproc__L: lib/libcxxrt__L
 lib/libproc__L: gnu/lib/libsupc++__L
 .endif
 .endif
-
-gnu/lib/libdialog__L: lib/msun__L lib/ncurses/ncursesw__L
 
 .for _lib in ${_prereq_libs}
 ${_lib}__PL: .PHONY .MAKE

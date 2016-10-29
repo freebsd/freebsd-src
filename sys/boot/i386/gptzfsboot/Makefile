@@ -19,7 +19,7 @@ ORG2=	0x0
 
 CFLAGS=	-DBOOTPROG=\"gptzfsboot\" \
 	-O1 \
-	-DGPT -DBOOT2 \
+	-DGPT -DZFS -DBOOT2 \
 	-DSIOPRT=${BOOT_COMCONSOLE_PORT} \
 	-DSIOFMT=${B2SIOFMT} \
 	-DSIOSPD=${BOOT_COMCONSOLE_SPEED} \
@@ -35,6 +35,9 @@ CFLAGS=	-DBOOTPROG=\"gptzfsboot\" \
 	-Wmissing-declarations -Wmissing-prototypes -Wnested-externs \
 	-Wpointer-arith -Wshadow -Wstrict-prototypes -Wwrite-strings \
 	-Winline -Wno-tentative-definition-incomplete-type -Wno-pointer-sign
+
+# Do not unroll skein loops, reduce code size
+CFLAGS+=	-DSKEIN_LOOP=111
 
 .if !defined(LOADER_NO_GELI_SUPPORT)
 CFLAGS+=	-DLOADER_GELI_SUPPORT
@@ -75,7 +78,7 @@ gptzfsboot.bin: gptzfsboot.out
 
 gptzfsboot.out: ${BTXCRT} zfsboot.o sio.o gpt.o drv.o cons.o util.o \
 	skein.o skein_block.o ${OPENCRYPTO_XTS}
-	${LD} ${LD_FLAGS} -Ttext ${ORG2} -o ${.TARGET} ${.ALLSRC} ${LIBSTAND} ${LIBGELIBOOT}
+	${LD} ${LD_FLAGS} -Ttext ${ORG2} -o ${.TARGET} ${.ALLSRC} ${LIBGELIBOOT} ${LIBSTAND}
 
 zfsboot.o: ${.CURDIR}/../../zfs/zfsimpl.c
 

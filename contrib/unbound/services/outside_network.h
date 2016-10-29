@@ -165,6 +165,10 @@ struct port_if {
 	/** length of addr field */
 	socklen_t addrlen;
 
+	/** prefix length of network address (in bits), for randomisation.
+	 * if 0, no randomisation. */
+	int pfxlen;
+
 	/** the available ports array. These are unused.
 	 * Only the first total-inuse part is filled. */
 	int* avail_ports;

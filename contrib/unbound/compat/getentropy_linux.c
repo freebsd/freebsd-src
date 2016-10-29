@@ -60,6 +60,9 @@
 #include <sys/auxv.h>
 #endif
 #include <sys/vfs.h>
+#ifndef MAP_ANON
+#define MAP_ANON MAP_ANONYMOUS
+#endif
 
 #define REPEAT 5
 #define min(a, b) (((a) < (b)) ? (a) : (b))

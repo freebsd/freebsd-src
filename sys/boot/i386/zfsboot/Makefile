@@ -18,7 +18,7 @@ ORG2=	0x2000
 
 CFLAGS=	-DBOOTPROG=\"zfsboot\" \
 	-O1 \
-	-DBOOT2 \
+	-DZFS -DBOOT2 \
 	-DSIOPRT=${BOOT_COMCONSOLE_PORT} \
 	-DSIOFMT=${B2SIOFMT} \
 	-DSIOSPD=${BOOT_COMCONSOLE_SPEED} \
@@ -35,6 +35,8 @@ CFLAGS=	-DBOOTPROG=\"zfsboot\" \
 	-Winline
 
 CFLAGS.gcc+=	--param max-inline-insns-single=100
+# Do not unroll skein loops, reduce code size
+CFLAGS+=	-DSKEIN_LOOP=111
 
 LD_FLAGS=${LD_FLAGS_BIN}
 

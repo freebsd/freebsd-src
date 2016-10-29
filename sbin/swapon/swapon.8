@@ -28,7 +28,7 @@
 .\"     @(#)swapon.8	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd November 22, 2013
+.Dd October 21, 2016
 .Dt SWAPON 8
 .Os
 .Sh NAME
@@ -96,15 +96,13 @@ option is used, all swap devices in
 .Pa /etc/fstab
 will be removed, unless their
 .Dq noauto
-or
-.Dq late
 option is also set.
 If the
 .Fl L
 option is specified,
-swap devices with the
+only swap devices with the
 .Dq late
-option will be removed as well as ones with no option.
+option will be removed.
 If the
 .Fl q
 option is used,

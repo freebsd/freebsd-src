@@ -80,8 +80,10 @@
 #  endif
 #endif
 
-/** The TCP reading or writing query timeout in seconds */
-#define TCP_QUERY_TIMEOUT 120 
+/** The TCP reading or writing query timeout in milliseconds */
+#define TCP_QUERY_TIMEOUT 120000
+/** The TCP timeout in msec for fast queries, above half are used */
+#define TCP_QUERY_TIMEOUT_FAST 200
 
 #ifndef NONBLOCKING_IS_BROKEN
 /** number of UDP reads to perform per read indication from select */
@@ -710,14 +712,20 @@ comm_point_udp_callback(int fd, short event, void* arg)
 
 /** Use a new tcp handler for new query fd, set to read query */
 static void
-setup_tcp_handler(struct comm_point* c, int fd) 
+setup_tcp_handler(struct comm_point* c, int fd, int cur, int max) 
 {
 	log_assert(c->type == comm_tcp);
 	log_assert(c->fd == -1);
 	sldns_buffer_clear(c->buffer);
 	c->tcp_is_reading = 1;
 	c->tcp_byte_count = 0;
-	comm_point_start_listening(c, fd, TCP_QUERY_TIMEOUT);
+	c->tcp_timeout_msec = TCP_QUERY_TIMEOUT;
+	/* if more than half the tcp handlers are in use, use a shorter
+	 * timeout for this TCP connection, we need to make space for
+	 * other connections to be able to get attention */
+	if(cur > max/2)
+		c->tcp_timeout_msec = TCP_QUERY_TIMEOUT_FAST;
+	comm_point_start_listening(c, fd, c->tcp_timeout_msec);
 }
 
 void comm_base_handle_slow_accept(int ATTR_UNUSED(fd),
@@ -769,7 +777,7 @@ int comm_point_perform_accept(struct comm_point* c,
 				(*b->stop_accept)(b->cb_arg);
 				/* set timeout, no mallocs */
 				tv.tv_sec = NETEVENT_SLOW_ACCEPT_TIME/1000;
-				tv.tv_usec = NETEVENT_SLOW_ACCEPT_TIME%1000;
+				tv.tv_usec = (NETEVENT_SLOW_ACCEPT_TIME%1000)*1000;
 				b->eb->slow_accept = ub_event_new(b->eb->base,
 					-1, UB_EV_TIMEOUT,
 					comm_base_handle_slow_accept, b);
@@ -862,6 +870,7 @@ comm_point_tcp_accept_callback(int fd, short event, void* arg)
 	/* accept incoming connection. */
 	c_hdl = c->tcp_free;
 	log_assert(fd != -1);
+	(void)fd;
 	new_fd = comm_point_perform_accept(c, &c_hdl->repinfo.addr,
 		&c_hdl->repinfo.addrlen);
 	if(new_fd == -1)
@@ -886,7 +895,7 @@ comm_point_tcp_accept_callback(int fd, short event, void* arg)
 		/* stop accepting incoming queries for now. */
 		comm_point_stop_listening(c);
 	}
-	setup_tcp_handler(c_hdl, new_fd);
+	setup_tcp_handler(c_hdl, new_fd, c->cur_tcp_count, c->max_tcp_count);
 }
 
 /** Make tcp handler free for next assignment */
@@ -940,7 +949,7 @@ tcp_callback_reader(struct comm_point* c)
 		comm_point_stop_listening(c);
 	fptr_ok(fptr_whitelist_comm_point(c->callback));
 	if( (*c->callback)(c, c->cb_arg, NETEVENT_NOERROR, &c->repinfo) ) {
-		comm_point_start_listening(c, -1, TCP_QUERY_TIMEOUT);
+		comm_point_start_listening(c, -1, c->tcp_timeout_msec);
 	}
 }
 
@@ -1348,6 +1357,59 @@ comm_point_tcp_handle_write(int fd, struct comm_point* c)
 	if(c->ssl)
 		return ssl_handle_it(c);
 
+#ifdef USE_MSG_FASTOPEN
+	/* Only try this on first use of a connection that uses tfo, 
+	   otherwise fall through to normal write */
+	/* Also, TFO support on WINDOWS not implemented at the moment */
+	if(c->tcp_do_fastopen == 1) {
+		/* this form of sendmsg() does both a connect() and send() so need to
+		   look for various flavours of error*/
+		uint16_t len = htons(sldns_buffer_limit(c->buffer));
+		struct msghdr msg;
+		struct iovec iov[2];
+		c->tcp_do_fastopen = 0;
+		memset(&msg, 0, sizeof(msg));
+		iov[0].iov_base = (uint8_t*)&len + c->tcp_byte_count;
+		iov[0].iov_len = sizeof(uint16_t) - c->tcp_byte_count;
+		iov[1].iov_base = sldns_buffer_begin(c->buffer);
+		iov[1].iov_len = sldns_buffer_limit(c->buffer);
+		log_assert(iov[0].iov_len > 0);
+		log_assert(iov[1].iov_len > 0);
+		msg.msg_name = &c->repinfo.addr;
+		msg.msg_namelen = c->repinfo.addrlen;
+		msg.msg_iov = iov;
+		msg.msg_iovlen = 2;
+		r = sendmsg(fd, &msg, MSG_FASTOPEN);
+		if (r == -1) {
+#if defined(EINPROGRESS) && defined(EWOULDBLOCK)
+			/* Handshake is underway, maybe because no TFO cookie available.
+			   Come back to write the messsage*/
+			if(errno == EINPROGRESS || errno == EWOULDBLOCK)
+				return 1;
+#endif
+			if(errno == EINTR || errno == EAGAIN)
+				return 1;
+			/* Not handling EISCONN here as shouldn't ever hit that case.*/
+			if(errno != 0 && verbosity < 2)
+				return 0; /* silence lots of chatter in the logs */
+			else if(errno != 0) 
+				log_err_addr("tcp sendmsg", strerror(errno),
+					&c->repinfo.addr, c->repinfo.addrlen);
+			return 0;
+		} else {
+			c->tcp_byte_count += r;
+			if(c->tcp_byte_count < sizeof(uint16_t))
+				return 1;
+			sldns_buffer_set_position(c->buffer, c->tcp_byte_count - 
+				sizeof(uint16_t));
+			if(sldns_buffer_remaining(c->buffer) == 0) {
+				tcp_callback_writer(c);
+				return 1;
+			}
+		}
+	}
+#endif /* USE_MSG_FASTOPEN */
+
 	if(c->tcp_byte_count < sizeof(uint16_t)) {
 		uint16_t len = htons(sldns_buffer_limit(c->buffer));
 #ifdef HAVE_WRITEV
@@ -1540,6 +1602,9 @@ comm_point_create_udp(struct comm_base *base, int fd, sldns_buffer* buffer,
 	c->do_not_close = 0;
 	c->tcp_do_toggle_rw = 0;
 	c->tcp_check_nb_connect = 0;
+#ifdef USE_MSG_FASTOPEN
+	c->tcp_do_fastopen = 0;
+#endif
 	c->inuse = 0;
 	c->callback = callback;
 	c->cb_arg = callback_arg;
@@ -1593,6 +1658,9 @@ comm_point_create_udp_ancil(struct comm_base *base, int fd,
 	c->inuse = 0;
 	c->tcp_do_toggle_rw = 0;
 	c->tcp_check_nb_connect = 0;
+#ifdef USE_MSG_FASTOPEN
+	c->tcp_do_fastopen = 0;
+#endif
 	c->callback = callback;
 	c->cb_arg = callback_arg;
 	evbits = UB_EV_READ | UB_EV_PERSIST;
@@ -1655,6 +1723,9 @@ comm_point_create_tcp_handler(struct comm_base *base,
 	c->do_not_close = 0;
 	c->tcp_do_toggle_rw = 1;
 	c->tcp_check_nb_connect = 0;
+#ifdef USE_MSG_FASTOPEN
+	c->tcp_do_fastopen = 0;
+#endif
 	c->repinfo.c = c;
 	c->callback = callback;
 	c->cb_arg = callback_arg;
@@ -1715,6 +1786,9 @@ comm_point_create_tcp(struct comm_base *base, int fd, int num, size_t bufsize,
 	c->do_not_close = 0;
 	c->tcp_do_toggle_rw = 0;
 	c->tcp_check_nb_connect = 0;
+#ifdef USE_MSG_FASTOPEN
+	c->tcp_do_fastopen = 0;
+#endif
 	c->callback = NULL;
 	c->cb_arg = NULL;
 	evbits = UB_EV_READ | UB_EV_PERSIST;
@@ -1780,6 +1854,9 @@ comm_point_create_tcp_out(struct comm_base *base, size_t bufsize,
 	c->do_not_close = 0;
 	c->tcp_do_toggle_rw = 1;
 	c->tcp_check_nb_connect = 1;
+#ifdef USE_MSG_FASTOPEN
+	c->tcp_do_fastopen = 1;
+#endif
 	c->repinfo.c = c;
 	c->callback = callback;
 	c->cb_arg = callback_arg;
@@ -1834,6 +1911,9 @@ comm_point_create_local(struct comm_base *base, int fd, size_t bufsize,
 	c->do_not_close = 1;
 	c->tcp_do_toggle_rw = 0;
 	c->tcp_check_nb_connect = 0;
+#ifdef USE_MSG_FASTOPEN
+	c->tcp_do_fastopen = 0;
+#endif
 	c->callback = callback;
 	c->cb_arg = callback_arg;
 	/* ub_event stuff */
@@ -1887,6 +1967,9 @@ comm_point_create_raw(struct comm_base* base, int fd, int writing,
 	c->do_not_close = 1;
 	c->tcp_do_toggle_rw = 0;
 	c->tcp_check_nb_connect = 0;
+#ifdef USE_MSG_FASTOPEN
+	c->tcp_do_fastopen = 0;
+#endif
 	c->callback = callback;
 	c->cb_arg = callback_arg;
 	/* ub_event stuff */
@@ -1983,7 +2066,8 @@ comm_point_send_reply(struct comm_reply *repinfo)
 			dt_msg_send_client_response(repinfo->c->tcp_parent->dtenv,
 			&repinfo->addr, repinfo->c->type, repinfo->c->buffer);
 #endif
-		comm_point_start_listening(repinfo->c, -1, TCP_QUERY_TIMEOUT);
+		comm_point_start_listening(repinfo->c, -1,
+			repinfo->c->tcp_timeout_msec);
 	}
 }
 
@@ -2009,7 +2093,7 @@ comm_point_stop_listening(struct comm_point* c)
 }
 
 void 
-comm_point_start_listening(struct comm_point* c, int newfd, int sec)
+comm_point_start_listening(struct comm_point* c, int newfd, int msec)
 {
 	verbose(VERB_ALGO, "comm point start listening %d", 
 		c->fd==-1?newfd:c->fd);
@@ -2017,7 +2101,7 @@ comm_point_start_listening(struct comm_point* c, int newfd, int sec)
 		/* no use to start listening no free slots. */
 		return;
 	}
-	if(sec != -1 && sec != 0) {
+	if(msec != -1 && msec != 0) {
 		if(!c->timeout) {
 			c->timeout = (struct timeval*)malloc(sizeof(
 				struct timeval));
@@ -2028,8 +2112,8 @@ comm_point_start_listening(struct comm_point* c, int newfd, int sec)
 		}
 		ub_event_add_bits(c->ev->ev, UB_EV_TIMEOUT);
 #ifndef S_SPLINT_S /* splint fails on struct timeval. */
-		c->timeout->tv_sec = sec;
-		c->timeout->tv_usec = 0;
+		c->timeout->tv_sec = msec/1000;
+		c->timeout->tv_usec = (msec%1000)*1000;
 #endif /* S_SPLINT_S */
 	}
 	if(c->type == comm_tcp) {
@@ -2049,7 +2133,7 @@ comm_point_start_listening(struct comm_point* c, int newfd, int sec)
 		c->fd = newfd;
 		ub_event_set_fd(c->ev->ev, c->fd);
 	}
-	if(ub_event_add(c->ev->ev, sec==0?NULL:c->timeout) != 0) {
+	if(ub_event_add(c->ev->ev, msec==0?NULL:c->timeout) != 0) {
 		log_err("event_add failed. in cpsl.");
 	}
 }

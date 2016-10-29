@@ -27,7 +27,6 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
-#include "common.h"
 #include "extern.h"
 
 #define DIFF_PATH	"/usr/bin/diff"
@@ -138,24 +137,25 @@ static struct option longopts[] = {
 };
 
 static const char *help_msg[] = {
-	"\nusage: sdiff [-abdilstW] [-I regexp] [-o outfile] [-w width] file1 file2\n",
-	"\t-l, --left-column, Only print the left column for identical lines.",
-	"\t-o OUTFILE, --output=OUTFILE, nteractively merge file1 and file2 into outfile.",
-	"\t-s, --suppress-common-lines, Skip identical lines.",
-	"\t-w WIDTH, --width=WIDTH, Print a maximum of WIDTH characters on each line.",
-	"\tOptions passed to diff(1) are:",
-	"\t\t-a, --text, Treat file1 and file2 as text files.",
-	"\t\t-b, --ignore-trailing-cr, Ignore trailing blank spaces.",
-	"\t\t-d, --minimal, Minimize diff size.",
-	"\t\t-I RE, --ignore-matching-lines=RE, Ignore changes whose line matches RE.",
-	"\t\t-i, --ignore-case, Do a case-insensitive comparison.",
-	"\t\t-t, --expand-tabs Expand tabs to spaces.",
-	"\t\t-W, --ignore-all-spaces, Ignore all spaces.",
-	"\t\t--speed-large-files, Assume large file with scattered changes.",
-	"\t\t--strip-trailing-cr, Strip trailing carriage return.",
-	"\t\t--ignore-file-name-case, Ignore case of file names.",
-	"\t\t--no-ignore-file-name-case, Do not ignore file name case",
-	"\t\t--tabsize NUM, Change size of tabs (default 8.)",
+	"usage: sdiff [-abdilstW] [-I regexp] [-o outfile] [-w width] file1 file2\n",
+	"-l, --left-column: only print the left column for identical lines.",
+	"-o OUTFILE, --output=OUTFILE: interactively merge file1 and file2 into outfile.",
+	"-s, --suppress-common-lines: skip identical lines.",
+	"-w WIDTH, --width=WIDTH: print a maximum of WIDTH characters on each line.",
+	"",
+	"Options passed to diff(1) are:",
+	"\t-a, --text: treat file1 and file2 as text files.",
+	"\t-b, --ignore-trailing-cr: ignore trailing blank spaces.",
+	"\t-d, --minimal: minimize diff size.",
+	"\t-I RE, --ignore-matching-lines=RE: ignore changes whose line matches RE.",
+	"\t-i, --ignore-case: do a case-insensitive comparison.",
+	"\t-t, --expand-tabs: sxpand tabs to spaces.",
+	"\t-W, --ignore-all-spaces: ignore all spaces.",
+	"\t--speed-large-files: assume large file with scattered changes.",
+	"\t--strip-trailing-cr: strip trailing carriage return.",
+	"\t--ignore-file-name-case: ignore case of file names.",
+	"\t--no-ignore-file-name-case: do not ignore file name case",
+	"\t--tabsize NUM: change size of tabs (default 8.)",
 
 	NULL,
 };

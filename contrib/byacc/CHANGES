@@ -1,3 +1,82 @@
+2016-06-06  Thomas E. Dickey  <tom@invisible-island.net>
+
+	* configure: regen
+
+	* aclocal.m4: improved autoconf macros:
+	CF_CC_ENV_FLAGS - don't limit the check to -I, -U and -D options, since the
+		added options can include various compiler options before and after
+		preprocessor options.
+	CF_PROG_LINT - add cpplint to programs to use; drop ad hoc tdlint and alint.
+
+	* VERSION, package/byacc.spec, package/debian/changelog, package/mingw-byacc.spec, package/pkgsrc/Makefile:
+	bump
+
+	* lalr.c: indented
+
+	* btyaccpar.c: regen
+
+	* skel2c:
+	adjust whitespace so that generated skeleton will follow the same format
+	as other code
+
+	* mkpar.c, verbose.c, lr0.c, reader.c, error.c, output.c: indented
+
+	* reader.c: fix two compiler warnings
+
+	* test/btyacc/inherit2.tab.c, test/btyacc/ok_syntax1.tab.c, test/btyacc/pure_calc.tab.c, test/btyacc/pure_error.tab.c, test/btyacc/quote_calc-s.tab.c, test/btyacc/quote_calc.tab.c, test/btyacc/quote_calc2-s.tab.c, test/btyacc/quote_calc2.tab.c, test/btyacc/quote_calc3-s.tab.c, test/btyacc/quote_calc3.tab.c, test/btyacc/quote_calc4-s.tab.c, test/btyacc/quote_calc4.tab.c, test/btyacc/varsyntax_calc1.tab.c, test/btyacc/err_syntax12.tab.c, test/btyacc/err_syntax18.tab.c, test/btyacc/err_syntax20.tab.c, test/btyacc/error.tab.c, test/btyacc/grammar.tab.c, test/btyacc/inherit0.tab.c, test/btyacc/inherit1.tab.c, test/btyacc/btyacc_calc1.tab.c, test/btyacc/btyacc_demo.tab.c, test/btyacc/btyacc_destroy1.tab.c, test/btyacc/btyacc_destroy2.tab.c, test/btyacc/btyacc_destroy3.tab.c, test/btyacc/calc.tab.c, test/btyacc/calc1.tab.c, test/btyacc/calc2.tab.c, test/btyacc/calc3.tab.c, test/btyacc/code_calc.code.c, test/btyacc/code_error.code.c, test/btyacc/empty.tab.c, test/btyacc/err_inherit3.tab.c, test/btyacc/err_inherit4.tab.c, test/btyacc/err_syntax10.tab.c, test/btyacc/err_syntax11.tab.c, test/btyacc/rename_debug.c, btyaccpar.c, test/yacc/quote_calc2-s.tab.c, test/yacc/quote_calc2.tab.c, test/yacc/quote_calc3-s.tab.c, test/yacc/quote_calc3.tab.c, test/yacc/quote_calc4-s.tab.c, test/yacc/quote_calc4.tab.c, test/yacc/varsyntax_calc1.tab.c, test/yacc/err_syntax20.tab.c, test/yacc/error.tab.c, test/yacc/grammar.tab.c, test/yacc/ok_syntax1.tab.c, test/yacc/pure_calc.tab.c, test/yacc/pure_error.tab.c, test/yacc/quote_calc-s.tab.c, test/yacc/quote_calc.tab.c, test/yacc/calc.tab.c, test/yacc/calc1.tab.c, test/yacc/calc2.tab.c, test/yacc/calc3.tab.c, test/yacc/code_calc.code.c, test/yacc/code_error.code.c, test/yacc/empty.tab.c, test/yacc/err_syntax10.tab.c, test/yacc/err_syntax11.tab.c, test/yacc/err_syntax12.tab.c, test/yacc/err_syntax18.tab.c, test/yacc/rename_debug.c, yaccpar.c:
+	regen
+
+2016-06-06  Tom.Shields
+
+	* btyaccpar.skel, yaccpar.skel:
+	small fix for an edge case of initialized data in Chris Dodd's btyacc changes:
+	"Avoid crash when input pops up an Action error at the first token"
+
+2016-06-01  Thomas E. Dickey  <tom@invisible-island.net>
+
+	* test/yacc/quote_calc2-s.tab.c, test/yacc/quote_calc3-s.tab.c, test/yacc/quote_calc3.tab.c, test/yacc/quote_calc4-s.tab.c, test/yacc/quote_calc4.tab.c, test/yacc/varsyntax_calc1.tab.c, test/yacc/err_syntax18.tab.c, test/yacc/err_syntax20.tab.c, test/yacc/err_syntax24.error, test/yacc/error.tab.c, test/yacc/grammar.tab.c, test/yacc/ok_syntax1.tab.c, test/yacc/pure_calc.tab.c, test/yacc/pure_error.tab.c, test/yacc/quote_calc-s.tab.c, test/yacc/quote_calc.tab.c, test/yacc/quote_calc2.tab.c, test/yacc/calc.tab.c, test/yacc/calc1.tab.c, test/yacc/calc2.tab.c, test/yacc/calc3.tab.c, test/yacc/code_calc.code.c, test/yacc/code_calc.tab.c, test/yacc/code_calc.tab.h, test/yacc/code_error.code.c, test/yacc/empty.tab.c, test/yacc/err_syntax10.tab.c, test/yacc/err_syntax11.tab.c, test/yacc/err_syntax12.tab.c, test/yacc/rename_debug.c, yaccpar.c, test/btyacc/quote_calc-s.tab.c, test/btyacc/quote_calc.tab.c, test/btyacc/quote_calc2-s.tab.c, test/btyacc/quote_calc2.tab.c, test/btyacc/quote_calc3-s.tab.c, test/btyacc/quote_calc3.tab.c, test/btyacc/quote_calc4-s.tab.c, test/btyacc/quote_calc4.tab.c, test/btyacc/varsyntax_calc1.tab.c, test/btyacc/err_syntax13.tab.c, test/btyacc/err_syntax14.tab.c, test/btyacc/err_syntax15.tab.c, test/btyacc/err_syntax16.tab.c, test/btyacc/err_syntax17.tab.c, test/btyacc/err_syntax18.tab.c, test/btyacc/err_syntax19.tab.c, test/btyacc/err_syntax2.tab.c, test/btyacc/err_syntax20.tab.c, test/btyacc/err_syntax21.tab.c, test/btyacc/err_syntax22.tab.c, test/btyacc/err_syntax23.tab.c, test/btyacc/err_syntax24.error, test/btyacc/err_syntax24.tab.c, test/btyacc/err_syntax25.tab.c, test/btyacc/err_syntax26.tab.c, test/btyacc/err_syntax27.tab.c, test/btyacc/err_syntax3.tab.c, test/btyacc/err_syntax4.tab.c, test/btyacc/err_syntax5.tab.c, test/btyacc/err_syntax6.tab.c, test/btyacc/err_syntax7.tab.c, test/btyacc/err_syntax7a.tab.c, test/btyacc/err_syntax7b.tab.c, test/btyacc/err_syntax8.tab.c, test/btyacc/err_syntax8a.tab.c, test/btyacc/err_syntax9.tab.c, test/btyacc/error.tab.c, test/btyacc/grammar.tab.c, test/btyacc/inherit0.tab.c, test/btyacc/inherit1.tab.c, test/btyacc/inherit2.output, test/btyacc/inherit2.tab.c, test/btyacc/ok_syntax1.tab.c, test/btyacc/pure_calc.tab.c, test/btyacc/pure_error.tab.c, test/btyacc/btyacc_calc1.tab.c, test/btyacc/btyacc_demo.error, test/btyacc/btyacc_demo.output, test/btyacc/btyacc_demo.tab.c, test/btyacc/btyacc_destroy1.tab.c, test/btyacc/btyacc_destroy2.tab.c, test/btyacc/btyacc_destroy3.tab.c, test/btyacc/calc.tab.c, test/btyacc/calc1.tab.c, test/btyacc/calc2.tab.c, test/btyacc/calc3.tab.c, test/btyacc/code_calc.code.c, test/btyacc/code_calc.tab.c, test/btyacc/code_calc.tab.h, test/btyacc/code_error.code.c, test/btyacc/empty.tab.c, test/btyacc/err_inherit1.tab.c, test/btyacc/err_inherit2.tab.c, test/btyacc/err_inherit3.output, test/btyacc/err_inherit3.tab.c, test/btyacc/err_inherit4.output, test/btyacc/err_inherit4.tab.c, test/btyacc/err_inherit5.tab.c, test/btyacc/err_syntax1.tab.c, test/btyacc/err_syntax10.tab.c, test/btyacc/err_syntax11.tab.c, test/btyacc/err_syntax12.tab.c, test/btyacc/rename_debug.c, btyaccpar.c:
+	regen
+
+2016-06-01  Tom.Shields
+
+	* btyaccpar.skel, defs.h, error.c, output.c, reader.c, test/code_calc.y, test/err_inherit4.y, test/run_make.sh, yaccpar.skel:
+	fixes for issues in btyacc (report by Francis Andre):
+
+	+ correction to the placement of the #line directive for a %union specification
+
+	+ recovery of a set of casts originally added into btyaccpar.c rather than into
+	  btyaccpar.skel, and so are lost whenever building from scratch
+
+	+ Chris Dodd's btyacc improved handling of inherited attributes to eliminate
+	  implicit empty copy rules that are not necessary, and thereby avoiding the
+	  introduction of extra parsing ambiguity
+
+	+ Chris Dodd's added support for @-N syntax to reference inherited position
+	  information
+
+	+ correction to bad interaction between %token-table and YYDEBUG, where YYDEBUG
+	  was required to be defined in order to compile the generated code
+
+	+ correction to yyname[] access in code included with YYDEBUG defined for
+	  single character symbols not recognized (e.g., input containing '&' character
+	  where grammar doesn't define that as a symbol) - map to existing
+	  "illegal-symbol" entry in byname[]
+
+	+ fixes to test/run_make.sh:  skip test-err_* files; in the bison test phase
+	  skip additional files that contain features not supported by bison and
+	  inhibit new bison warning messages
+
+	+ minor changes to btyaccpar.skel & yaccpar.skel so they are more similar in
+	  their commonality; makes it easier to maintain the pair of files using
+	  vimdiff
+
+	+ changes to a couple of test cases for coverage of #3, #4 and #5 above
+
+2016-06-01  Thomas E. Dickey  <tom@invisible-island.net>
+
+	* VERSION, package/byacc.spec, package/debian/changelog, package/mingw-byacc.spec, package/pkgsrc/Makefile:
+	bump
+
 2016-03-24  Thomas E. Dickey  <tom@invisible-island.net>
 
 	* reader.c: unused variable

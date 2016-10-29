@@ -201,7 +201,11 @@ arm64_cpu_attach(device_t dev)
 static void
 release_aps(void *dummy __unused)
 {
-	int cpu, i;
+	int i;
+
+	/* Only release CPUs if they exist */
+	if (mp_ncpus == 1)
+		return;
 
 	intr_pic_ipi_setup(IPI_AST, "ast", ipi_ast, NULL);
 	intr_pic_ipi_setup(IPI_PREEMPT, "preempt", ipi_preempt, NULL);
@@ -217,14 +221,8 @@ release_aps(void *dummy __unused)
 	printf("Release APs\n");
 
 	for (i = 0; i < 2000; i++) {
-		if (smp_started) {
-			for (cpu = 0; cpu <= mp_maxid; cpu++) {
-				if (CPU_ABSENT(cpu))
-					continue;
-				print_cpu_features(cpu);
-			}
+		if (smp_started)
 			return;
-		}
 		DELAY(1000);
 	}
 
@@ -467,9 +465,13 @@ cpu_init_fdt(u_int id, phandle_t node, u_int addr_size, pcell_t *reg)
 
 	err = psci_cpu_on(target_cpu, pa, cpuid);
 	if (err != PSCI_RETVAL_SUCCESS) {
-		/* Panic here if INVARIANTS are enabled */
-		KASSERT(0, ("Failed to start CPU %u (%lx)\n", id,
-		    target_cpu));
+		/*
+		 * Panic here if INVARIANTS are enabled and PSCI failed to
+		 * start the requested CPU. If psci_cpu_on returns PSCI_MISSING
+		 * to indicate we are unable to use it to start the given CPU.
+		 */
+		KASSERT(err == PSCI_MISSING,
+		    ("Failed to start CPU %u (%lx)\n", id, target_cpu));
 
 		pcpu_destroy(pcpup);
 		kmem_free(kernel_arena, (vm_offset_t)dpcpu[cpuid - 1],

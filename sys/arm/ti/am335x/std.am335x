@@ -3,6 +3,8 @@
 files		"../ti/am335x/files.am335x"
 include		"../ti/std.ti"
 
+cpu 		CPU_CORTEXA8
+
 options		KERNVIRTADDR=0xc0200000		# Used in ldscript.arm
 makeoptions	KERNVIRTADDR=0xc0200000
 

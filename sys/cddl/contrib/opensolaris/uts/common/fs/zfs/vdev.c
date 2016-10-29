@@ -25,6 +25,7 @@
  * Copyright 2015 Nexenta Systems, Inc.  All rights reserved.
  * Copyright 2013 Martin Matuska <mm@FreeBSD.org>. All rights reserved.
  * Copyright (c) 2014 Integros [integros.com]
+ * Copyright 2016 Toomas Soome <tsoome@me.com>
  */
 
 #include <sys/zfs_context.h>
@@ -3474,16 +3475,10 @@ vdev_set_state(vdev_t *vd, boolean_t isopen, vdev_state_t state, vdev_aux_t aux)
 
 /*
  * Check the vdev configuration to ensure that it's capable of supporting
- * a root pool.
+ * a root pool. We do not support partial configuration.
+ * In addition, only a single top-level vdev is allowed.
  *
- * On Solaris, we do not support RAID-Z or partial configuration.  In
- * addition, only a single top-level vdev is allowed and none of the
- * leaves can be wholedisks.
- *
- * For FreeBSD, we can boot from any configuration. There is a
- * limitation that the boot filesystem must be either uncompressed or
- * compresses with lzjb compression but I'm not sure how to enforce
- * that here.
+ * FreeBSD does not have above limitations.
  */
 boolean_t
 vdev_is_bootable(vdev_t *vd)
@@ -3495,8 +3490,7 @@ vdev_is_bootable(vdev_t *vd)
 		if (strcmp(vdev_type, VDEV_TYPE_ROOT) == 0 &&
 		    vd->vdev_children > 1) {
 			return (B_FALSE);
-		} else if (strcmp(vdev_type, VDEV_TYPE_RAIDZ) == 0 ||
-		    strcmp(vdev_type, VDEV_TYPE_MISSING) == 0) {
+		} else if (strcmp(vdev_type, VDEV_TYPE_MISSING) == 0) {
 			return (B_FALSE);
 		}
 	}

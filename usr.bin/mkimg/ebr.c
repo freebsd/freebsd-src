@@ -27,27 +27,21 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
-#include <sys/diskmbr.h>
-#include <sys/endian.h>
 #include <sys/errno.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
+#include <mbr.h>
+
+#include "endian.h"
 #include "image.h"
 #include "mkimg.h"
 #include "scheme.h"
 
-#ifndef DOSPTYP_FAT16B
-#define	DOSPTYP_FAT16B	0x06
-#endif
-#ifndef DOSPTYP_FAT32
-#define	DOSPTYP_FAT32	0x0b
-#endif
-
 static struct mkimg_alias ebr_aliases[] = {
-    {	ALIAS_FAT16B, ALIAS_INT2TYPE(DOSPTYP_FAT16B) },
+    {	ALIAS_FAT16B, ALIAS_INT2TYPE(DOSPTYP_FAT16) },
     {	ALIAS_FAT32, ALIAS_INT2TYPE(DOSPTYP_FAT32) },
     {	ALIAS_FREEBSD, ALIAS_INT2TYPE(DOSPTYP_386BSD) },
     {	ALIAS_NONE, 0 }
@@ -88,7 +82,7 @@ ebr_write(lba_t imgsz __unused, void *bootcode __unused)
 	le16enc(ebr + DOSMAGICOFFSET, DOSMAGIC);
 
 	error = 0;
-	STAILQ_FOREACH_SAFE(part, &partlist, link, next) {
+	TAILQ_FOREACH(part, &partlist, link) {
 		block = part->block - nsecs;
 		size = round_track(part->size);
 		dp = (void *)(ebr + DOSPARTOFF);
@@ -100,6 +94,7 @@ ebr_write(lba_t imgsz __unused, void *bootcode __unused)
 		le32enc(&dp->dp_size, size);
 
 		/* Add link entry */
+		next = TAILQ_NEXT(part, link);
 		if (next != NULL) {
 			size = round_track(next->size);
 			dp++;

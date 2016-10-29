@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/intr.h>
+#include <machine/machdep.h>
 
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
@@ -101,6 +102,8 @@ static struct bcm_systimer_softc *bcm_systimer_sc = NULL;
 
 static unsigned bcm_systimer_tc_get_timecount(struct timecounter *);
 
+static delay_func bcm_systimer_delay;
+
 static struct timecounter bcm_systimer_tc = {
 	.tc_name           = DEFAULT_TIMER_NAME,
 	.tc_get_timecount  = bcm_systimer_tc_get_timecount,
@@ -113,6 +116,9 @@ static struct timecounter bcm_systimer_tc = {
 static unsigned
 bcm_systimer_tc_get_timecount(struct timecounter *tc)
 {
+	if (bcm_systimer_sc == NULL)
+		return (0);
+
 	return bcm_systimer_tc_read_4(SYSTIMER_CLO);
 }
 
@@ -147,7 +153,7 @@ restart:
 		intr_restore(s);
 
 		return (0);
-	} 
+	}
 
 	return (EINVAL);
 }
@@ -167,7 +173,7 @@ bcm_systimer_intr(void *arg)
 	struct systimer *st = (struct systimer *)arg;
 	uint32_t cs;
 
- 	cs = bcm_systimer_tc_read_4(SYSTIMER_CS);
+	cs = bcm_systimer_tc_read_4(SYSTIMER_CS);
 	if ((cs & (1 << st->index)) == 0)
 		return (FILTER_STRAY);
 
@@ -254,6 +260,9 @@ bcm_systimer_attach(device_t dev)
 
 	bcm_systimer_sc = sc;
 
+	if (device_get_unit(dev) == 0)
+		arm_set_delay(bcm_systimer_delay, sc);
+
 	bcm_systimer_tc.tc_frequency = DEFAULT_FREQUENCY;
 	tc_init(&bcm_systimer_tc);
 
@@ -276,19 +285,14 @@ static devclass_t bcm_systimer_devclass;
 
 DRIVER_MODULE(bcm_systimer, simplebus, bcm_systimer_driver, bcm_systimer_devclass, 0, 0);
 
-void
-DELAY(int usec)
+static void
+bcm_systimer_delay(int usec, void *arg)
 {
+	struct bcm_systimer_softc *sc;
 	int32_t counts;
 	uint32_t first, last;
 
-	if (bcm_systimer_sc == NULL) {
-		for (; usec > 0; usec--)
-			for (counts = 200; counts > 0; counts--)
-				/* Prevent gcc from optimizing  out the loop */
-				cpufunc_nullop();
-		return;
-	}
+	sc = (struct bcm_systimer_softc *) arg;
 
 	/* Get the number of times to count */
 	counts = usec * (bcm_systimer_tc.tc_frequency / 1000000) + 1;

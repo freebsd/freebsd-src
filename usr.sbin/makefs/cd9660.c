@@ -98,10 +98,11 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <string.h>
-#include <ctype.h>
 #include <sys/param.h>
 #include <sys/queue.h>
+#include <ctype.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "makefs.h"
 #include "cd9660.h"
@@ -1622,6 +1623,7 @@ cd9660_level1_convert_filename(const char *oldname, char *newname, int is_file)
 			if (diskStructure.archimedes_enabled &&
 			    *oldname == ',' && strlen(oldname) == 4)
 				break;
+
 			/* Enforce 12.3 / 8 */
 			if (namelen == 8 && !found_ext)
 				break;
@@ -1629,7 +1631,7 @@ cd9660_level1_convert_filename(const char *oldname, char *newname, int is_file)
 			if (islower((unsigned char)*oldname))
 				*newname++ = toupper((unsigned char)*oldname);
 			else if (isupper((unsigned char)*oldname)
-				    || isdigit((unsigned char)*oldname))
+			    || isdigit((unsigned char)*oldname))
 				*newname++ = *oldname;
 			else
 				*newname++ = '_';
@@ -1639,7 +1641,7 @@ cd9660_level1_convert_filename(const char *oldname, char *newname, int is_file)
 			else
 				namelen++;
 		}
-		oldname ++;
+		oldname++;
 	}
 	if (is_file) {
 		if (!found_ext && !diskStructure.omit_trailing_period)

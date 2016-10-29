@@ -45,6 +45,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/fdt.h>
 #include <machine/intr.h>
+#include <machine/platformvar.h>
+
+#include <arm/broadcom/bcm2835/bcm2836_mp.h>
 
 #ifdef DEBUG
 #define	DPRINTF(fmt, ...) do {			\
@@ -77,7 +80,7 @@ static bus_space_handle_t bs_periph;
 	bus_space_write_4(fdtbus_bs_tag, bs_periph, (addr), (val))
 
 void
-platform_mp_setmaxid(void)
+bcm2836_mp_setmaxid(platform_t plat)
 {
 
 	DPRINTF("platform_mp_setmaxid\n");
@@ -90,7 +93,7 @@ platform_mp_setmaxid(void)
 }
 
 void
-platform_mp_start_ap(void)
+bcm2836_mp_start_ap(platform_t plat)
 {
 	uint32_t val;
 	int i, retry;
@@ -132,7 +135,8 @@ platform_mp_start_ap(void)
 		} while (1);
 
 		/* dsb and sev */
-		armv7_sev();
+		dsb();
+		sev();
 
 		/* recode AP in CPU map */
 		CPU_SET(i, &all_cpus);

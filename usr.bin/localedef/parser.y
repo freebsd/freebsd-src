@@ -27,6 +27,8 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 /*
@@ -321,21 +323,18 @@ ctype_kw	: T_ISUPPER cc_list T_NL
 		| T_TOLOWER conv_list T_NL
 		;
 
+cc_list		: cc_list T_SEMI cc_range_end
+		| cc_list T_SEMI cc_char
+		| cc_char
+		;
 
-cc_list		: cc_list T_SEMI T_CHAR
+cc_range_end	: T_ELLIPSIS T_SEMI T_CHAR
 		{
-			add_ctype($3);
+			add_ctype_range($3);
 		}
-		| cc_list T_SEMI T_SYMBOL
-		{
-			add_charmap_undefined($3);
-		}
-		| cc_list T_SEMI T_ELLIPSIS T_SEMI T_CHAR
-		{
-			/* note that the endpoints *must* be characters */
-			add_ctype_range($5);
-		}
-		| T_CHAR
+		;
+
+cc_char		: T_CHAR
 		{
 			add_ctype($1);
 		}

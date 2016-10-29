@@ -2170,7 +2170,7 @@ ffs_bdflush(bo, bp)
 
 	td = curthread;
 	vp = bp->b_vp;
-	devvp = bo->__bo_vnode;
+	devvp = bo2vnode(bo);
 	KASSERT(vp == devvp, ("devvp != vp %p %p", bo, bp));
 
 	VI_LOCK(devvp);

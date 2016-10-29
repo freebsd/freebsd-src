@@ -278,7 +278,6 @@ NoEcho('
 %type <n> PackageElement
 %type <n> PackageList
 %type <n> PackageTerm
-%type <n> VarPackageLengthTerm
 
 /* Macros */
 
@@ -350,9 +349,9 @@ NoEcho('
 %type <n> OptionalAddressRange
 %type <n> OptionalBitsPerByte
 %type <n> OptionalBuffer_Last
-%type <n> OptionalBufferLength
 %type <n> OptionalByteConstExpr
 %type <n> OptionalCount
+%type <n> OptionalDataCount
 %type <n> OptionalDecodeType
 %type <n> OptionalDevicePolarity
 %type <n> OptionalDWordConstExpr
@@ -369,6 +368,7 @@ NoEcho('
 %type <n> OptionalObjectTypeKeyword
 %type <n> OptionalParameterTypePackage
 %type <n> OptionalParameterTypesPackage
+%type <n> OptionalParentheses
 %type <n> OptionalParityType
 %type <n> OptionalPredicate
 %type <n> OptionalQWordConstExpr
@@ -393,8 +393,53 @@ NoEcho('
 %type <n> OptionalXferSize
 
 /*
- * C-style expression parser
+ * ASL+ (C-style) parser
  */
+
+/* Expressions and symbolic operators */
+
 %type <n> Expression
 %type <n> EqualsTerm
 %type <n> IndexExpTerm
+
+/* ASL+ Named object declaration support */
+/*
+%type <n> NameTermAslPlus
+
+%type <n> BufferBegin
+%type <n> BufferEnd
+%type <n> PackageBegin
+%type <n> PackageEnd
+%type <n> OptionalLength
+*/
+/* ASL+ Structure declarations */
+/*
+%type <n> StructureTerm
+%type <n> StructureTermBegin
+%type <n> StructureType
+%type <n> StructureTag
+%type <n> StructureElementList
+%type <n> StructureElement
+%type <n> StructureElementType
+%type <n> OptionalStructureElementType
+%type <n> StructureId
+*/
+/* Structure instantiantion */
+/*
+%type <n> StructureInstanceTerm
+%type <n> StructureTagReference
+%type <n> StructureInstanceEnd
+*/
+/* Pseudo-instantiantion for method Args/Locals */
+/*
+%type <n> MethodStructureTerm
+%type <n> LocalStructureName
+*/
+/* Direct structure references via the Index operator */
+/*
+%type <n> StructureReference
+%type <n> StructureIndexTerm
+%type <n> StructurePointerTerm
+%type <n> StructurePointerReference
+%type <n> OptionalDefinePointer
+*/

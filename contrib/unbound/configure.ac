@@ -10,14 +10,14 @@ sinclude(dnstap/dnstap.m4)
 # must be numbers. ac_defun because of later processing
 m4_define([VERSION_MAJOR],[1])
 m4_define([VERSION_MINOR],[5])
-m4_define([VERSION_MICRO],[9])
+m4_define([VERSION_MICRO],[10])
 AC_INIT(unbound, m4_defn([VERSION_MAJOR]).m4_defn([VERSION_MINOR]).m4_defn([VERSION_MICRO]), unbound-bugs@nlnetlabs.nl, unbound)
 AC_SUBST(UNBOUND_VERSION_MAJOR, [VERSION_MAJOR])
 AC_SUBST(UNBOUND_VERSION_MINOR, [VERSION_MINOR])
 AC_SUBST(UNBOUND_VERSION_MICRO, [VERSION_MICRO])
 
 LIBUNBOUND_CURRENT=6
-LIBUNBOUND_REVISION=1
+LIBUNBOUND_REVISION=2
 LIBUNBOUND_AGE=4
 # 1.0.0 had 0:12:0
 # 1.0.1 had 0:13:0
@@ -66,6 +66,7 @@ LIBUNBOUND_AGE=4
 # 1.5.7 had 5:10:3
 # 1.5.8 had 6:0:4 # adds ub_ctx_set_stub
 # 1.5.9 had 6:1:4
+# 1.5.10 had 6:2:4
 
 #   Current  -- the number of the binary API that we're implementing
 #   Revision -- which iteration of the implementation of the binary
@@ -107,7 +108,7 @@ esac
 # are we on MinGW?
 if uname -s 2>&1 | grep MINGW32 >/dev/null; then on_mingw="yes"
 else 
-	if echo $target | grep mingw32 >/dev/null; then on_mingw="yes"
+	if echo $host $target | grep mingw32 >/dev/null; then on_mingw="yes"
 	else on_mingw="no"; fi
 fi
 
@@ -117,7 +118,7 @@ fi
 if test $on_mingw = "no"; then
   ub_conf_file=`eval echo "${sysconfdir}/unbound/unbound.conf"`
 else
-  ub_conf_file="C:\\Program Files\\Unbound\\service.conf"
+  ub_conf_file="C:\\Program Files (x86)\\Unbound\\service.conf"
 fi
 AC_ARG_WITH([conf_file],
         AC_HELP_STRING([--with-conf-file=path], 
@@ -187,7 +188,7 @@ AC_ARG_WITH(rootkey-file,
 if test $on_mingw = no; then
     UNBOUND_ROOTKEY_FILE="$UNBOUND_RUN_DIR/root.key"
 else
-    UNBOUND_ROOTKEY_FILE="C:\\Program Files\\Unbound\\root.key"
+    UNBOUND_ROOTKEY_FILE="C:\\Program Files (x86)\\Unbound\\root.key"
 fi
 )
 AC_SUBST(UNBOUND_ROOTKEY_FILE)
@@ -201,7 +202,7 @@ AC_ARG_WITH(rootcert-file,
 if test $on_mingw = no; then
     UNBOUND_ROOTCERT_FILE="$UNBOUND_RUN_DIR/icannbundle.pem"
 else
-    UNBOUND_ROOTCERT_FILE="C:\\Program Files\\Unbound\\icannbundle.pem"
+    UNBOUND_ROOTCERT_FILE="C:\\Program Files (x86)\\Unbound\\icannbundle.pem"
 fi
 )
 AC_SUBST(UNBOUND_ROOTCERT_FILE)
@@ -629,6 +630,7 @@ AC_ARG_WITH([nettle], AC_HELP_STRING([--with-nettle=path],
 	[
 	USE_NETTLE="yes"
 	AC_DEFINE(HAVE_NETTLE, 1, [Use libnettle for crypto])
+	AC_CHECK_HEADERS([nettle/dsa-compat.h],,, [AC_INCLUDES_DEFAULT])
 	if test "$withval" != "" -a "$withval" != "yes"; then
 		CPPFLAGS="$CPPFLAGS -I$withval/include/nettle"
 		LDFLAGS="$LDFLAGS -L$withval/lib"
@@ -646,6 +648,20 @@ if test $USE_NSS = "no" -a $USE_NETTLE = "no"; then
 ACX_WITH_SSL
 ACX_LIB_SSL
 SSLLIB="-lssl"
+
+# check if -lcrypt32 is needed because CAPIENG needs that. (on windows)
+BAKLIBS="$LIBS"
+LIBS="-lssl $LIBS"
+AC_MSG_CHECKING([if libssl needs -lcrypt32])
+AC_TRY_LINK_FUNC([HMAC_Update], [
+	AC_MSG_RESULT([no])
+	LIBS="$BAKLIBS"
+], [
+	AC_MSG_RESULT([yes])
+	LIBS="$BAKLIBS"
+	LIBS="$LIBS -lcrypt32"
+])
+
 AC_MSG_CHECKING([for LibreSSL])
 if grep VERSION_TEXT $ssldir/include/openssl/opensslv.h | grep "LibreSSL" >/dev/null; then
 	AC_MSG_RESULT([yes])
@@ -656,9 +672,15 @@ if grep VERSION_TEXT $ssldir/include/openssl/opensslv.h | grep "LibreSSL" >/dev/
 else
 	AC_MSG_RESULT([no])
 fi
-AC_CHECK_HEADERS([openssl/conf.h],,, [AC_INCLUDES_DEFAULT])
-AC_CHECK_HEADERS([openssl/engine.h],,, [AC_INCLUDES_DEFAULT])
-AC_CHECK_FUNCS([OPENSSL_config EVP_sha1 EVP_sha256 EVP_sha512 FIPS_mode EVP_MD_CTX_new])
+AC_CHECK_HEADERS([openssl/conf.h openssl/engine.h openssl/bn.h openssl/dh.h openssl/dsa.h openssl/rsa.h],,, [AC_INCLUDES_DEFAULT])
+AC_CHECK_FUNCS([OPENSSL_config EVP_sha1 EVP_sha256 EVP_sha512 FIPS_mode EVP_MD_CTX_new OpenSSL_add_all_digests OPENSSL_init_crypto EVP_cleanup ERR_load_crypto_strings CRYPTO_cleanup_all_ex_data ERR_free_strings RAND_cleanup])
+
+# these check_funcs need -lssl
+BAKLIBS="$LIBS"
+LIBS="-lssl $LIBS"
+AC_CHECK_FUNCS([OPENSSL_init_ssl])
+LIBS="$BAKLIBS"
+
 AC_CHECK_DECLS([SSL_COMP_get_compression_methods,sk_SSL_COMP_pop_free,SSL_CTX_set_ecdh_auto], [], [], [
 AC_INCLUDES_DEFAULT
 #ifdef HAVE_OPENSSL_ERR_H
@@ -865,6 +887,42 @@ case "$enable_event_api" in
       ;;
 esac
 
+AC_ARG_ENABLE(tfo-client, AC_HELP_STRING([--enable-tfo-client], [Enable TCP Fast Open for client mode]))
+case "$enable_tfo_client" in
+	yes)
+		case `uname` in
+			Linux) AC_CHECK_DECL([MSG_FASTOPEN], [AC_MSG_WARN([Check the platform specific TFO kernel parameters are correctly configured to support client mode TFO])],
+			                     [AC_MSG_ERROR([TCP Fast Open is not available for client mode: please rerun without --enable-tfo-client])], 
+			                     [AC_INCLUDES_DEFAULT 
+#include <netinet/tcp.h>
+])
+					AC_DEFINE_UNQUOTED([USE_MSG_FASTOPEN], [1], [Define this to enable client TCP Fast Open.])
+			  ;;
+			Darwin) AC_CHECK_DECL([CONNECT_RESUME_ON_READ_WRITE], [AC_MSG_WARN([Check the platform specific TFO kernel parameters are correctly configured to support client mode TFO])], 
+			                      [AC_MSG_ERROR([TCP Fast Open is not available for client mode: please rerun without --enable-tfo-client])], 
+			                      [AC_INCLUDES_DEFAULT
+#include <sys/socket.h>
+])
+					AC_DEFINE_UNQUOTED([USE_OSX_MSG_FASTOPEN], [1], [Define this to enable client TCP Fast Open.])
+			  ;;
+		esac
+	;;
+	no|*)
+		;;
+esac
+
+AC_ARG_ENABLE(tfo-server, AC_HELP_STRING([--enable-tfo-server], [Enable TCP Fast Open for server mode]))
+case "$enable_tfo_server" in
+	yes)
+	      AC_CHECK_DECL([TCP_FASTOPEN], [AC_MSG_WARN([Check the platform specific TFO kernel parameters are correctly configured to support server mode TFO])], [AC_MSG_ERROR([TCP Fast Open is not available for server mode: please rerun without --enable-tfo-server])], [AC_INCLUDES_DEFAULT
+#include <netinet/tcp.h>
+	      ])
+		AC_DEFINE_UNQUOTED([USE_TCP_FASTOPEN], [1], [Define this to enable server TCP Fast Open.])
+		;;
+	no|*)
+		;;
+esac
+
 # check for libevent
 AC_ARG_WITH(libevent, AC_HELP_STRING([--with-libevent=pathname],
     [use libevent (will check /usr/local /opt/local /usr/lib /usr/pkg /usr/sfw /usr  or you can specify an explicit path). Slower, but allows use of large outgoing port ranges.]),
@@ -985,10 +1043,8 @@ if test x_$enable_static_exe = x_yes; then
 	staticexe="-static"
 	if test "$on_mingw" = yes; then
 		staticexe="-all-static"
-		# for static crosscompile, include gdi32 and zlib here.
-		if test "`uname`" = "Linux"; then
-			LIBS="$LIBS -lgdi32 -lz"
-		fi
+		# for static compile, include gdi32 and zlib here.
+		LIBS="$LIBS -lgdi32 -lz"
 	fi
 fi
 
@@ -1082,7 +1138,7 @@ AC_INCLUDES_DEFAULT
 #endif
 ])
 AC_SEARCH_LIBS([setusercontext], [util])
-AC_CHECK_FUNCS([tzset sigprocmask fcntl getpwnam getrlimit setrlimit setsid chroot kill chown sleep usleep random srandom recvmsg sendmsg writev socketpair glob initgroups strftime localtime_r setusercontext _beginthreadex endservent endprotoent fsync])
+AC_CHECK_FUNCS([tzset sigprocmask fcntl getpwnam endpwent getrlimit setrlimit setsid chroot kill chown sleep usleep random srandom recvmsg sendmsg writev socketpair glob initgroups strftime localtime_r setusercontext _beginthreadex endservent endprotoent fsync])
 AC_CHECK_FUNCS([setresuid],,[AC_CHECK_FUNCS([setreuid])])
 AC_CHECK_FUNCS([setresgid],,[AC_CHECK_FUNCS([setregid])])
 
@@ -1523,6 +1579,6 @@ dnl if this is a distro tarball, that was already done by makedist.sh
 AC_SUBST(version, [VERSION_MAJOR.VERSION_MINOR.VERSION_MICRO])
 AC_SUBST(date, [`date +'%b %e, %Y'`])
 
-AC_CONFIG_FILES([Makefile doc/example.conf doc/libunbound.3 doc/unbound.8 doc/unbound-anchor.8 doc/unbound-checkconf.8 doc/unbound.conf.5 doc/unbound-control.8 doc/unbound-host.1 smallapp/unbound-control-setup.sh dnstap/dnstap_config.h])
+AC_CONFIG_FILES([Makefile doc/example.conf doc/libunbound.3 doc/unbound.8 doc/unbound-anchor.8 doc/unbound-checkconf.8 doc/unbound.conf.5 doc/unbound-control.8 doc/unbound-host.1 smallapp/unbound-control-setup.sh dnstap/dnstap_config.h contrib/libunbound.pc])
 AC_CONFIG_HEADER([config.h])
 AC_OUTPUT

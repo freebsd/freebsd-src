@@ -70,10 +70,6 @@ struct platform_kobj {
 	struct platform_class *cls;
 };
 
-struct platform_data {
-	int delay_count;
-};
-
 typedef struct platform_kobj	*platform_t;
 typedef struct platform_class	platform_def_t;
 #define platform_method_t	kobj_method_t
@@ -97,13 +93,8 @@ extern platform_method_t fdt_platform_methods[];
 #ifdef MULTIDELAY
 #define	FDT_PLATFORM_CTASSERT(delay)	CTASSERT(delay > 0)
 #else
-#define	FDT_PLATFORM_CTASSERT(delay)	CTASSERT(delay == 0)
+#define	FDT_PLATFORM_CTASSERT(delay)
 #endif
-
-#define	PLATFORM_DATA(NAME, delay)					\
-static struct platform_data NAME ## _platc = {				\
-	.delay_count = delay;						\
-};
 
 #define FDT_PLATFORM_DEF2(NAME, VAR_NAME, NAME_STR, size, compatible,	\
     delay)								\

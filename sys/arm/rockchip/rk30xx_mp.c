@@ -163,7 +163,8 @@ platform_mp_start_ap(void)
 		val &= ~(1 << i);
 	bus_space_write_4(fdtbus_bs_tag, pmu, PMU_PWRDN_CON, val);
 
-	armv7_sev();
+	dsb();
+	sev();
 
 	bus_space_unmap(fdtbus_bs_tag, scu, SCU_SIZE);
 	bus_space_unmap(fdtbus_bs_tag, imem, IMEM_SIZE);

@@ -125,7 +125,7 @@ ATF_TC_BODY(nice_priority, tc)
 		if (pid == 0) {
 
 			errno = 0;
-#ifdef __FreeBSD__
+#ifdef __NetBSD__
 			pri = getpriority(PRIO_PROCESS, 0);
 #else
 			pri2 = getpriority(PRIO_PROCESS, 0);

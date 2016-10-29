@@ -35,7 +35,7 @@ SYMS = _gcov _gcov_merge_add _gcov_merge_single _gcov_merge_delta \
 OBJS=		${SYMS:S/$/.o/}
 OBJS_T=		${SYMS:S/$/.o/}
 OBJS_P=		${SYMS:S/$/.po/}
-OBJS_S=		${SYMS:S/$/.So/}
+OBJS_S=		${SYMS:S/$/.pico/}
 
 #-----------------------------------------------------------------------
 #

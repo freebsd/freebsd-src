@@ -27,7 +27,7 @@
 .\"	OpenBSD: tsearch.3,v 1.2 1998/06/21 22:13:49 millert Exp
 .\" $FreeBSD$
 .\"
-.Dd December 6, 2015
+.Dd October 9, 2016
 .Dt TSEARCH 3
 .Os
 .Sh NAME
@@ -36,13 +36,13 @@
 .Sh SYNOPSIS
 .In search.h
 .Ft void *
-.Fn tdelete "const void * restrict key" "void ** restrict rootp" "int (*compar) (const void *, const void *)"
-.Ft void *
-.Fn tfind "const void *key" "void * const *rootp" "int (*compar) (const void *, const void *)"
-.Ft void *
-.Fn tsearch "const void *key" "void **rootp" "int (*compar) (const void *, const void *)"
+.Fn tdelete "const void * restrict key" "posix_tnode ** restrict rootp" "int (*compar) (const void *, const void *)"
+.Ft posix_tnode *
+.Fn tfind "const void *key" "posix_tnode * const *rootp" "int (*compar) (const void *, const void *)"
+.Ft posix_tnode *
+.Fn tsearch "const void *key" "posix_tnode **rootp" "int (*compar) (const void *, const void *)"
 .Ft void
-.Fn twalk "const void *root" "void (*action) (const void *, VISIT, int)"
+.Fn twalk "const posix_tnode *root" "void (*action) (const posix_tnode *, VISIT, int)"
 .Sh DESCRIPTION
 The
 .Fn tdelete ,
@@ -134,3 +134,18 @@ function returns no value.
 .Xr bsearch 3 ,
 .Xr hsearch 3 ,
 .Xr lsearch 3
+.Sh STANDARDS
+These functions conform to
+.St -p1003.1-2008 .
+.Pp
+The
+.Fa posix_tnode
+type is not part of
+.St -p1003.1-2008 ,
+but is expected to be standardized by future versions of the standard.
+It is defined as
+.Fa void
+for source-level compatibility.
+Using
+.Fa posix_tnode
+makes distinguishing between nodes and keys easier.
