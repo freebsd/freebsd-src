@@ -329,8 +329,7 @@ RetryFault:;
 			growstack = FALSE;
 			goto RetryFault;
 		}
-		if (fs.vp != NULL)
-			vput(fs.vp);
+		unlock_vp(&fs);
 		return (result);
 	}
 
