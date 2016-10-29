@@ -296,20 +296,20 @@ vm_fault_hold(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 	u_int flags;
 	int map_generation;
 	vm_object_t next_object;
-	int hardfault;
 	struct faultstate fs;
 	struct vnode *vp;
 	vm_offset_t e_end, e_start;
 	vm_page_t m;
 	int ahead, behind, cluster_offset, error, locked, rv;
 	u_char behavior;
+	bool hardfault;
 
-	hardfault = 0;
 	growstack = TRUE;
 	PCPU_INC(cnt.v_vm_faults);
 	fs.vp = NULL;
 	faultcount = 0;
 	nera = -1;
+	hardfault = false;
 
 RetryFault:;
 
@@ -716,7 +716,7 @@ vnode_locked:
 			    &behind, &ahead);
 			if (rv == VM_PAGER_OK) {
 				faultcount = behind + 1 + ahead;
-				hardfault++;
+				hardfault = true;
 				break; /* break to PAGE HAS BEEN FOUND */
 			}
 			if (rv == VM_PAGER_ERROR)
