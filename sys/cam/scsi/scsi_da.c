@@ -1375,8 +1375,7 @@ daclose(struct disk *dp)
 			error = cam_periph_runccb(ccb, daerror, /*cam_flags*/0,
 			    /*sense_flags*/SF_RETRY_UA | SF_QUIET_IR,
 			    softc->disk->d_devstat);
-			if (error == 0)
-				softc->flags &= ~DA_FLAG_DIRTY;
+			softc->flags &= ~DA_FLAG_DIRTY;
 			xpt_release_ccb(ccb);
 		}
 
