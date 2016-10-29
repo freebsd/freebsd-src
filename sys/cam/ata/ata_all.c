@@ -88,6 +88,7 @@ ata_op_string(struct ata_cmd *cmd)
 		}
 		return "DSM";
 	case 0x08: return ("DEVICE_RESET");
+	case 0x0b: return ("REQUEST_SENSE_DATA_EXT");
 	case 0x20: return ("READ");
 	case 0x24: return ("READ48");
 	case 0x25: return ("READ_DMA48");
@@ -117,6 +118,12 @@ ata_op_string(struct ata_cmd *cmd)
 		}
 		return "WRITE_UNCORRECTABLE48";
 	case 0x51: return ("CONFIGURE_STREAM");
+	case 0x57: return ("WRITE_LOG_DMA_EXT");
+	case 0x5b: return ("TRUSTED_NON_DATA");
+	case 0x5c: return ("TRUSTED_RECEIVE");
+	case 0x5d: return ("TRUSTED_RECEIVE_DMA");
+	case 0x5e: return ("TRUSTED_SEND");
+	case 0x5f: return ("TRUSTED_SEND_DMA");
 	case 0x60: return ("READ_FPDMA_QUEUED");
 	case 0x61: return ("WRITE_FPDMA_QUEUED");
 	case 0x63: return ("NCQ_NON_DATA");
@@ -133,9 +140,13 @@ ata_op_string(struct ata_cmd *cmd)
 		}
 		return ("SEP_ATTN");
 	case 0x70: return ("SEEK");
+	case 0x77: return ("SET_DATE_TIME_EXT");
+	case 0x78: return ("ACCESSIBLE_MAX_ADDRESS_CONFIGURATION");
 	case 0x87: return ("CFA_TRANSLATE_SECTOR");
 	case 0x90: return ("EXECUTE_DEVICE_DIAGNOSTIC");
 	case 0x92: return ("DOWNLOAD_MICROCODE");
+	case 0x93: return ("DOWNLOAD_MICROCODE_DMA");
+	case 0x9a: return ("ZAC_MANAGEMENT_OUT");
 	case 0xa0: return ("PACKET");
 	case 0xa1: return ("ATAPI_IDENTIFY");
 	case 0xa2: return ("SERVICE");
@@ -152,6 +163,7 @@ ata_op_string(struct ata_cmd *cmd)
 		}
 		return ("SMART");
 	case 0xb1: return ("DEVICE CONFIGURATION");
+	case 0xb4: return ("SANITIZE_DEVICE");
 	case 0xc0: return ("CFA_ERASE");
 	case 0xc4: return ("READ_MUL");
 	case 0xc5: return ("WRITE_MUL");
