@@ -1375,6 +1375,10 @@ zvol_get_data(void *arg, lr_write_t *lr, char *buf, zio_t *zio)
  * Otherwise we will later flush the data out via dmu_sync().
  */
 ssize_t zvol_immediate_write_sz = 32768;
+#ifdef _KERNEL
+SYSCTL_LONG(_vfs_zfs_vol, OID_AUTO, immediate_write_sz, CTLFLAG_RWTUN,
+    &zvol_immediate_write_sz, 0, "Minimal size for indirect log write");
+#endif
 
 static void
 zvol_log_write(zvol_state_t *zv, dmu_tx_t *tx, offset_t off, ssize_t resid,
