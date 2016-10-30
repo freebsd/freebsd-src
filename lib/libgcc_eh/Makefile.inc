@@ -8,15 +8,20 @@ STATIC_CFLAGS+=${PICFLAG} -fvisibility=hidden -DVISIBILITY_HIDDEN
 
 .PATH: ${COMPILERRTDIR}/lib/builtins
 .PATH: ${UNWINDSRCDIR}
-SRCS+=	gcc_personality_v0.c
-SRCS+=	int_util.c
-SRCS+=	Unwind-EHABI.cpp
-SRCS+=	Unwind-sjlj.c
-SRCS+=	UnwindLevel1-gcc-ext.c
-SRCS+=	UnwindLevel1.c
-SRCS+=	UnwindRegistersRestore.S
-SRCS+=	UnwindRegistersSave.S
-SRCS+=	libunwind.cpp
+SRCS_EXC+=	gcc_personality_v0.c
+SRCS_EXC+=	int_util.c
+SRCS_EXC+=	Unwind-EHABI.cpp
+SRCS_EXC+=	Unwind-sjlj.c
+SRCS_EXC+=	UnwindLevel1-gcc-ext.c
+SRCS_EXC+=	UnwindLevel1.c
+SRCS_EXC+=	UnwindRegistersRestore.S
+SRCS_EXC+=	UnwindRegistersSave.S
+SRCS_EXC+=	libunwind.cpp
+
+SRCS+=		${SRCS_EXC}
+.for file in ${SRCS_EXC:M*.c}
+CFLAGS.${file}+=	-fexceptions
+.endfor
 
 CFLAGS+=	-I${UNWINDINCDIR} -I${.CURDIR} -D_LIBUNWIND_IS_NATIVE_ONLY
 .if empty(CXXFLAGS:M-std=*)
