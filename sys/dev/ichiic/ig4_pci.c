@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 #include <dev/smbus/smbconf.h>
+#include <dev/iicbus/iiconf.h>
 
 #include "smbus_if.h"
 
@@ -180,6 +181,10 @@ static device_method_t ig4iic_pci_methods[] = {
 	DEVMETHOD(smbus_bread, ig4iic_smb_bread),
 	DEVMETHOD(smbus_trans, ig4iic_smb_trans),
 
+	DEVMETHOD(iicbus_transfer, ig4iic_transfer),
+	DEVMETHOD(iicbus_reset, ig4iic_reset),
+	DEVMETHOD(iicbus_callback, iicbus_null_callback),
+
 	DEVMETHOD_END
 };
 
@@ -191,7 +196,9 @@ static driver_t ig4iic_pci_driver = {
 
 static devclass_t ig4iic_pci_devclass;
 
-DRIVER_MODULE(ig4iic, pci, ig4iic_pci_driver, ig4iic_pci_devclass, 0, 0);
+DRIVER_MODULE_ORDERED(ig4iic, pci, ig4iic_pci_driver, ig4iic_pci_devclass, 0, 0,
+    SI_ORDER_ANY);
 MODULE_DEPEND(ig4iic, pci, 1, 1, 1);
 MODULE_DEPEND(ig4iic, smbus, SMBUS_MINVER, SMBUS_PREFVER, SMBUS_MAXVER);
+MODULE_DEPEND(ig4iic, iicbus, IICBUS_MINVER, IICBUS_PREFVER, IICBUS_MAXVER);
 MODULE_VERSION(ig4iic, 1);
