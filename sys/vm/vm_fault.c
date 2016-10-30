@@ -291,14 +291,13 @@ vm_fault_hold(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
     int fault_flags, vm_page_t *m_hold)
 {
 	vm_prot_t prot;
-	int alloc_req, era, faultcount, nera, result;
-	int map_generation;
 	vm_object_t next_object;
 	struct faultstate fs;
 	struct vnode *vp;
 	vm_offset_t e_end, e_start;
 	vm_page_t m;
-	int ahead, behind, cluster_offset, error, locked, rv;
+	int ahead, alloc_req, behind, cluster_offset, error, era, faultcount;
+	int locked, map_generation, nera, result, rv;
 	u_char behavior;
 	boolean_t wired;	/* Passed by reference. */
 	bool dead, growstack, hardfault, is_first_object_locked;
