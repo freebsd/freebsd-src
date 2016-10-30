@@ -395,7 +395,6 @@ vm_page_domain_init(struct vm_domain *vmd)
 	vmd->vmd_free_count = 0;
 	vmd->vmd_segs = 0;
 	vmd->vmd_oom = FALSE;
-	vmd->vmd_pass = 0;
 	for (i = 0; i < PQ_COUNT; i++) {
 		pq = &vmd->vmd_pagequeues[i];
 		TAILQ_INIT(&pq->pq_pl);
@@ -3949,14 +3948,12 @@ DB_SHOW_COMMAND(pageq, vm_page_print_pageq_info)
 	db_printf("pq_free %d pq_cache %d\n",
 	    vm_cnt.v_free_count, vm_cnt.v_cache_count);
 	for (dom = 0; dom < vm_ndomains; dom++) {
-		db_printf(
-	"dom %d page_cnt %d free %d pq_act %d pq_inact %d pass %d\n",
+		db_printf("dom %d page_cnt %d free %d pq_act %d pq_inact %d\n",
 		    dom,
 		    vm_dom[dom].vmd_page_count,
 		    vm_dom[dom].vmd_free_count,
 		    vm_dom[dom].vmd_pagequeues[PQ_ACTIVE].pq_cnt,
-		    vm_dom[dom].vmd_pagequeues[PQ_INACTIVE].pq_cnt,
-		    vm_dom[dom].vmd_pass);
+		    vm_dom[dom].vmd_pagequeues[PQ_INACTIVE].pq_cnt);
 	}
 }
 
