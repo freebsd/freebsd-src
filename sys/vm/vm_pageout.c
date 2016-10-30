@@ -1508,11 +1508,12 @@ static void
 vm_pageout_worker(void *arg)
 {
 	struct vm_domain *domain;
-	int domidx;
+	int domidx, pass;
 	bool target_met;
 
 	domidx = (uintptr_t)arg;
 	domain = &vm_dom[domidx];
+	pass = 0;
 	target_met = true;
 
 	/*
@@ -1574,9 +1575,9 @@ vm_pageout_worker(void *arg)
 			 * and try again later.
 			 */
 			mtx_unlock(&vm_page_queue_free_mtx);
-			if (domain->vmd_pass > 1)
+			if (pass > 1)
 				pause("psleep", hz / 2);
-			domain->vmd_pass++;
+			pass++;
 		} else {
 			/*
 			 * Yes.  Sleep until pages need to be reclaimed or
@@ -1586,12 +1587,12 @@ vm_pageout_worker(void *arg)
 			    &vm_page_queue_free_mtx, PDROP | PVM, "psleep",
 			    hz) == 0) {
 				PCPU_INC(cnt.v_pdwakeups);
-				domain->vmd_pass = 1;
+				pass = 1;
 			} else
-				domain->vmd_pass = 0;
+				pass = 0;
 		}
 
-		target_met = vm_pageout_scan(domain, domain->vmd_pass);
+		target_met = vm_pageout_scan(domain, pass);
 	}
 }
 
