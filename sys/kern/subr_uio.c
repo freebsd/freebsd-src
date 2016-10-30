@@ -534,7 +534,7 @@ fueword32(volatile const void *base, int32_t *val)
 int
 fueword64(volatile const void *base, int64_t *val)
 {
-	int32_t res;
+	int64_t res;
 
 	res = fuword64(base);
 	if (res == -1)
