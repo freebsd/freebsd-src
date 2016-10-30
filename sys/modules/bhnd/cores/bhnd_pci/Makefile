@@ -5,6 +5,6 @@
 
 KMOD=	bhnd_pci
 SRCS=	bhnd_pci.c bhnd_pcie2.c
-SRCS+=	device_if.h bus_if.h bhnd_bus_if.h
+SRCS+=	device_if.h bus_if.h bhnd_bus_if.h opt_global.h
 
 .include <bsd.kmod.mk>
