@@ -51,6 +51,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 ****************************** SPECIAL WARNING: ******************************
 
+20161030:
+	isl(4) and cyapa(4) drivers now require a new driver,
+	chromebook_platform(4), to work properly on Chromebook-class hardware.
+	On other types of hardware the drivers may need to be configured using
+	device hints.  Please see the corresponding manual pages for details.
+
 20161017:
 	The urtwn(4) driver was merged into rtwn(4) and now consists of
 	rtwn(4) main module + rtwn_usb(4) and rtwn_pci(4) bus-specific

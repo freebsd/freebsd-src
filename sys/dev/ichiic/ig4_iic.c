@@ -61,6 +61,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 #include <dev/smbus/smbconf.h>
+#include <dev/iicbus/iicbus.h>
+#include <dev/iicbus/iiconf.h>
 
 #include <dev/ichiic/ig4_reg.h>
 #include <dev/ichiic/ig4_var.h>
@@ -120,7 +122,7 @@ set_controller(ig4iic_softc_t *sc, uint32_t ctl)
 		reg_write(sc, IG4_REG_INTR_MASK, 0);
 
 	reg_write(sc, IG4_REG_I2C_EN, ctl);
-	error = SMB_ETIMEOUT;
+	error = IIC_ETIMEOUT;
 
 	for (retry = 100; retry > 0; --retry) {
 		v = reg_read(sc, IG4_REG_ENABLE_STATUS);
@@ -148,7 +150,7 @@ wait_status(ig4iic_softc_t *sc, uint32_t status)
 	u_int count_us = 0;
 	u_int limit_us = 25000; /* 25ms */
 
-	error = SMB_ETIMEOUT;
+	error = IIC_ETIMEOUT;
 
 	for (;;) {
 		/*
@@ -484,6 +486,236 @@ done:
 }
 
 /*
+ *				IICBUS API FUNCTIONS
+ */
+static int
+ig4iic_xfer_start(ig4iic_softc_t *sc, uint16_t slave)
+{
+	/* XXX 10-bit address support? */
+	set_slave_addr(sc, slave >> 1, 0);
+	return (0);
+}
+
+static int
+ig4iic_read(ig4iic_softc_t *sc, uint8_t *buf, uint16_t len,
+    bool repeated_start, bool stop)
+{
+	uint32_t cmd;
+	uint16_t i;
+	int error;
+
+	if (len == 0)
+		return (0);
+
+	cmd = IG4_DATA_COMMAND_RD;
+	cmd |= repeated_start ? IG4_DATA_RESTART : 0;
+	cmd |= stop && len == 1 ? IG4_DATA_STOP : 0;
+
+	/* Issue request for the first byte (could be last as well). */
+	reg_write(sc, IG4_REG_DATA_CMD, cmd);
+
+	for (i = 0; i < len; i++) {
+		/*
+		 * Maintain a pipeline by queueing the allowance for the next
+		 * read before waiting for the current read.
+		 */
+		cmd = IG4_DATA_COMMAND_RD;
+		if (i < len - 1) {
+			cmd = IG4_DATA_COMMAND_RD;
+			cmd |= stop && i == len - 2 ? IG4_DATA_STOP : 0;
+			reg_write(sc, IG4_REG_DATA_CMD, cmd);
+		}
+		error = wait_status(sc, IG4_STATUS_RX_NOTEMPTY);
+		if (error)
+			break;
+		buf[i] = data_read(sc);
+	}
+
+	(void)reg_read(sc, IG4_REG_TX_ABRT_SOURCE);
+	return (error);
+}
+
+static int
+ig4iic_write(ig4iic_softc_t *sc, uint8_t *buf, uint16_t len,
+    bool repeated_start, bool stop)
+{
+	uint32_t cmd;
+	uint16_t i;
+	int error;
+
+	if (len == 0)
+		return (0);
+
+	cmd = repeated_start ? IG4_DATA_RESTART : 0;
+	for (i = 0; i < len; i++) {
+		error = wait_status(sc, IG4_STATUS_TX_NOTFULL);
+		if (error)
+			break;
+		cmd |= buf[i];
+		cmd |= stop && i == len - 1 ? IG4_DATA_STOP : 0;
+		reg_write(sc, IG4_REG_DATA_CMD, cmd);
+		cmd = 0;
+	}
+
+	(void)reg_read(sc, IG4_REG_TX_ABRT_SOURCE);
+	return (error);
+}
+
+int
+ig4iic_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
+{
+	ig4iic_softc_t *sc = device_get_softc(dev);
+	const char *reason = NULL;
+	uint32_t i;
+	int error;
+	int unit;
+	bool rpstart;
+	bool stop;
+
+	/*
+	 * The hardware interface imposes limits on allowed I2C messages.
+	 * It is not possible to explicitly send a start or stop.
+	 * They are automatically sent (or not sent, depending on the
+	 * configuration) when a data byte is transferred.
+	 * For this reason it's impossible to send a message with no data
+	 * at all (like an SMBus quick message).
+	 * The start condition is automatically generated after the stop
+	 * condition, so it's impossible to not have a start after a stop.
+	 * The repeated start condition is automatically sent if a change
+	 * of the transfer direction happens, so it's impossible to have
+	 * a change of direction without a (repeated) start.
+	 * The repeated start can be forced even without the change of
+	 * direction.
+	 * Changing the target slave address requires resetting the hardware
+	 * state, so it's impossible to do that without the stop followed
+	 * by the start.
+	 */
+	for (i = 0; i < nmsgs; i++) {
+#if 0
+		if (i == 0 && (msgs[i].flags & IIC_M_NOSTART) != 0) {
+			reason = "first message without start";
+			break;
+		}
+		if (i == nmsgs - 1 && (msgs[i].flags & IIC_M_NOSTOP) != 0) {
+			reason = "last message without stop";
+			break;
+		}
+#endif
+		if (msgs[i].len == 0) {
+			reason = "message with no data";
+			break;
+		}
+		if (i > 0) {
+			if ((msgs[i].flags & IIC_M_NOSTART) != 0 &&
+			    (msgs[i - 1].flags & IIC_M_NOSTOP) == 0) {
+				reason = "stop not followed by start";
+				break;
+			}
+			if ((msgs[i - 1].flags & IIC_M_NOSTOP) != 0 &&
+			    msgs[i].slave != msgs[i - 1].slave) {
+				reason = "change of slave without stop";
+				break;
+			}
+			if ((msgs[i].flags & IIC_M_NOSTART) != 0 &&
+			    (msgs[i].flags & IIC_M_RD) !=
+			    (msgs[i - 1].flags & IIC_M_RD)) {
+				reason = "change of direction without repeated"
+				    " start";
+				break;
+			}
+		}
+	}
+	if (reason != NULL) {
+		if (bootverbose)
+			device_printf(dev, "%s\n", reason);
+		return (IIC_ENOTSUPP);
+	}
+
+	sx_xlock(&sc->call_lock);
+	mtx_lock(&sc->io_lock);
+
+	/* Debugging - dump registers. */
+	if (ig4_dump) {
+		unit = device_get_unit(dev);
+		if (ig4_dump & (1 << unit)) {
+			ig4_dump &= ~(1 << unit);
+			ig4iic_dump(sc);
+		}
+	}
+
+	/*
+	 * Clear any previous abort condition that may have been holding
+	 * the txfifo in reset.
+	 */
+	reg_read(sc, IG4_REG_CLR_TX_ABORT);
+
+	/*
+	 * Clean out any previously received data.
+	 */
+	if (sc->rpos != sc->rnext && bootverbose) {
+		device_printf(sc->dev, "discarding %d bytes of spurious data\n",
+		    sc->rnext - sc->rpos);
+	}
+	sc->rpos = 0;
+	sc->rnext = 0;
+
+	rpstart = false;
+	error = 0;
+	for (i = 0; i < nmsgs; i++) {
+		if ((msgs[i].flags & IIC_M_NOSTART) == 0) {
+			error = ig4iic_xfer_start(sc, msgs[i].slave);
+		} else {
+			if (!sc->slave_valid ||
+			    (msgs[i].slave >> 1) != sc->last_slave) {
+				device_printf(dev, "start condition suppressed"
+				    "but slave address is not set up");
+				error = EINVAL;
+				break;
+			}
+			rpstart = false;
+		}
+		if (error != 0)
+			break;
+
+		stop = (msgs[i].flags & IIC_M_NOSTOP) == 0;
+		if (msgs[i].flags & IIC_M_RD)
+			error = ig4iic_read(sc, msgs[i].buf, msgs[i].len,
+			    rpstart, stop);
+		else
+			error = ig4iic_write(sc, msgs[i].buf, msgs[i].len,
+			    rpstart, stop);
+		if (error != 0)
+			break;
+
+		rpstart = !stop;
+	}
+
+	mtx_unlock(&sc->io_lock);
+	sx_unlock(&sc->call_lock);
+	return (error);
+}
+
+int
+ig4iic_reset(device_t dev, u_char speed, u_char addr, u_char *oldaddr)
+{
+	ig4iic_softc_t *sc = device_get_softc(dev);
+
+	sx_xlock(&sc->call_lock);
+	mtx_lock(&sc->io_lock);
+
+	/* TODO handle speed configuration? */
+	if (oldaddr != NULL)
+		*oldaddr = sc->last_slave << 1;
+	set_slave_addr(sc, addr >> 1, 0);
+	if (addr == IIC_UNKNOWN)
+		sc->slave_valid = false;
+
+	mtx_unlock(&sc->io_lock);
+	sx_unlock(&sc->call_lock);
+	return (0);
+}
+
+/*
  *				SMBUS API FUNCTIONS
  *
  * Called from ig4iic_pci_attach/detach()
@@ -549,9 +781,9 @@ ig4iic_attach(ig4iic_softc_t *sc)
 		  IG4_CTL_RESTARTEN |
 		  IG4_CTL_SPEED_STD);
 
-	sc->smb = device_add_child(sc->dev, "smbus", -1);
-	if (sc->smb == NULL) {
-		device_printf(sc->dev, "smbus driver not found\n");
+	sc->iicbus = device_add_child(sc->dev, "iicbus", -1);
+	if (sc->iicbus == NULL) {
+		device_printf(sc->dev, "iicbus driver not found\n");
 		error = ENXIO;
 		goto done;
 	}
@@ -624,15 +856,15 @@ ig4iic_detach(ig4iic_softc_t *sc)
 		if (error)
 			return (error);
 	}
-	if (sc->smb)
-		device_delete_child(sc->dev, sc->smb);
+	if (sc->iicbus)
+		device_delete_child(sc->dev, sc->iicbus);
 	if (sc->intr_handle)
 		bus_teardown_intr(sc->dev, sc->intr_res, sc->intr_handle);
 
 	sx_xlock(&sc->call_lock);
 	mtx_lock(&sc->io_lock);
 
-	sc->smb = NULL;
+	sc->iicbus = NULL;
 	sc->intr_handle = NULL;
 	reg_write(sc, IG4_REG_INTR_MASK, 0);
 	set_controller(sc, 0);
@@ -976,4 +1208,4 @@ ig4iic_dump(ig4iic_softc_t *sc)
 }
 #undef REGDUMP
 
-DRIVER_MODULE(smbus, ig4iic, smbus_driver, smbus_devclass, NULL, NULL);
+DRIVER_MODULE(iicbus, ig4iic, iicbus_driver, iicbus_devclass, NULL, NULL);

@@ -73,6 +73,7 @@ SUBDIR=	\
 	cd9660_iconv \
 	${_ce} \
 	${_cfi} \
+	${_chromebook_platform} \
 	${_ciss} \
 	cloudabi \
 	${_cloudabi32} \
@@ -604,6 +605,7 @@ _amdtemp=	amdtemp
 _arcmsr=	arcmsr
 _asmc=		asmc
 _ciss=		ciss
+_chromebook_platform=	chromebook_platform
 _cmx=		cmx
 _coretemp=	coretemp
 .if ${MK_SOURCELESS_HOST} != "no"
