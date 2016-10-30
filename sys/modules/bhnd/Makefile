@@ -37,6 +37,8 @@ SRCS+=	bhnd_nvram_if.c bhnd_nvram_if.h
 
 SRCS+=	device_if.h bus_if.h
 
+SRCS+=	opt_global.h
+
 SUBDIR=	bcma \
 	bcma_bhndb \
 	bhndb \

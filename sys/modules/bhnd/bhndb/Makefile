@@ -12,6 +12,6 @@ SRCS+=	bhnd_bus_if.h \
 	bhnd_erom_if.h \
 	bhnd_nvram_if.h
 
-SRCS+=	device_if.h bus_if.h pci_if.h
+SRCS+=	device_if.h bus_if.h pci_if.h opt_global.h
 
 .include <bsd.kmod.mk>
