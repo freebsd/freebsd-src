@@ -8,6 +8,6 @@ SRCS=	bhndb_pci.c bhndb_pci_hwdata.c \
 SRCS+=	bhnd_bus_if.h bhndb_bus_if.h bhndb_if.h
 SRCS+=	bhnd_nvram_if.h
 
-SRCS+=	device_if.h bus_if.h pci_if.h opt_global.h
+SRCS+=	device_if.h bus_if.h pci_if.h
 
 .include <bsd.kmod.mk>
