@@ -104,6 +104,13 @@
 	<entry><para>Fix SCSI INQUIRY checks and error
 	    handling</para></entry>
       </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-16:17.vm.asc">FreeBSD-EN-16:17.vm</link></entry>
+	<entry>25&nbsp;October&nbsp;2016</entry>
+	<entry><para>Several virtual memory issues</para></entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>
