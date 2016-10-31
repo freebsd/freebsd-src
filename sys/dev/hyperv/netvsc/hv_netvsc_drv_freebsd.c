@@ -1754,6 +1754,13 @@ hn_rxpkt(struct hn_rx_ring *rxr, const void *data, int dlen,
 				rxr->hn_csum_udp++;
 		}
 
+		/*
+		 * XXX
+		 * As of this write (Oct 28th, 2016), host side will turn
+		 * on only TCPCS_OK and IPCS_OK even for UDP datagrams, so
+		 * the do_lro setting here is actually _not_ accurate.  We
+		 * depend on the RSS hash type check to reset do_lro.
+		 */
 		if ((info->csum_info &
 		     (NDIS_RXCSUM_INFO_TCPCS_OK | NDIS_RXCSUM_INFO_IPCS_OK)) ==
 		    (NDIS_RXCSUM_INFO_TCPCS_OK | NDIS_RXCSUM_INFO_IPCS_OK))
@@ -1828,9 +1835,16 @@ skip:
 		    NDIS_HASH_FUNCTION_TOEPLITZ) {
 			uint32_t type = (info->hash_info & NDIS_HASH_TYPE_MASK);
 
+			/*
+			 * NOTE:
+			 * do_lro is resetted, if the hash types are not TCP
+			 * related.  See the comment in the above csum_flags
+			 * setup section.
+			 */
 			switch (type) {
 			case NDIS_HASH_IPV4:
 				hash_type = M_HASHTYPE_RSS_IPV4;
+				do_lro = 0;
 				break;
 
 			case NDIS_HASH_TCP_IPV4:
@@ -1839,10 +1853,12 @@ skip:
 
 			case NDIS_HASH_IPV6:
 				hash_type = M_HASHTYPE_RSS_IPV6;
+				do_lro = 0;
 				break;
 
 			case NDIS_HASH_IPV6_EX:
 				hash_type = M_HASHTYPE_RSS_IPV6_EX;
+				do_lro = 0;
 				break;
 
 			case NDIS_HASH_TCP_IPV6:
