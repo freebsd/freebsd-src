@@ -77,6 +77,7 @@ struct hn_rx_ring {
 	u_long		hn_small_pkts;
 	u_long		hn_pkts;
 	u_long		hn_rss_pkts;
+	u_long		hn_ack_failed;
 
 	/* Rarely used stuffs */
 	struct sysctl_oid *hn_rx_sysctl_tree;
