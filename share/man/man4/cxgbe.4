@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 20, 2014
+.Dd December 2, 2015
 .Dt CXGBE 4
 .Os
 .Sh NAME
@@ -170,6 +170,16 @@ The default is 2 or the
 number of CPU cores in the system, whichever is less.
 .It Va hw.cxgbe.nofldrxq1g
 The number of TOE rx queues to use for a 1Gb port.
+The default is 1.
+.It Va hw.cxgbe.num_vis
+The number of virtual interfaces (VIs) created for each port.
+Each virtual interface creates a separate network interface.
+The first virtual interface on each port is required and represents
+the primary network interface on the port.
+Additional virtual interfaces on a port are named vcxgbe (T4) or
+vcxl (T5) and only use a single rx and tx queue.
+Additional virtual interfaces use a single pair of queues
+for rx and tx as well an additional pair of queues for TOE rx and tx.
 The default is 1.
 .It Va hw.cxgbe.holdoff_timer_idx_10G
 .It Va hw.cxgbe.holdoff_timer_idx_1G
