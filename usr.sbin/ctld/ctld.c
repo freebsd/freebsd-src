@@ -227,7 +227,7 @@ auth_check_secret_length(struct auth *auth)
 			else
 				log_warnx("mutual secret for user \"%s\", "
 				    "target \"%s\", is too short; it should be "
-				    "at least 16 characters long",
+				    "at least 12 characters long",
 				    auth->a_user,
 				    auth->a_auth_group->ag_target->t_name);
 		}
