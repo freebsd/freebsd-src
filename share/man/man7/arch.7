@@ -57,9 +57,13 @@ On all supported architectures,
 .It i386        Ta 4 Ta 12
 .It mips        Ta 4 Ta  8
 .It mipsel      Ta 4 Ta  8
+.It mipselhf    Ta 4 Ta  8
+.It mipshf      Ta 4 Ta  8
 .It mipsn32     Ta 4 Ta  8
 .It mips64      Ta 8 Ta  8
 .It mips64el    Ta 8 Ta  8
+.It mips64elhf  Ta 8 Ta  8
+.It mips64hf    Ta 8 Ta  8
 .It powerpc     Ta 4 Ta  8
 .It powerpc64   Ta 8 Ta  8
 .It riscv       Ta 8 Ta
@@ -76,9 +80,13 @@ On all supported architectures,
 .It i386        Ta little Ta   signed
 .It mips        Ta big    Ta   signed
 .It mipsel      Ta little Ta   signed
+.It mipselhf    Ta little Ta   signed
+.It mipshf      Ta big    Ta   signed
 .It mipsn32     Ta big    Ta   signed
 .It mips64      Ta big    Ta   signed
 .It mips64el    Ta little Ta   signed
+.It mips64elhf  Ta little Ta   signed
+.It mips64hf    Ta big    Ta   signed
 .It powerpc     Ta big    Ta unsigned
 .It powerpc64   Ta big    Ta unsigned
 .It riscv       Ta little Ta   signed
@@ -95,9 +103,13 @@ On all supported architectures,
 .It i386        Ta 4K, 2M (PAE), 4M
 .It mips        Ta 4K
 .It mipsel      Ta 4K
+.It mipselhf    Ta 4K
+.It mipshf      Ta 4K
 .It mipsn32     Ta 4K
 .It mips64      Ta 4K
 .It mips64el    Ta 4K
+.It mips64elhf  Ta 4K
+.It mips64hf    Ta 4K
 .It powerpc     Ta 4K
 .It powerpc64   Ta 4K
 .It riscv       Ta 4K
@@ -114,9 +126,13 @@ On all supported architectures,
 .It i386        Ta hard Ta hard, 80 bit
 .It mips        Ta soft Ta identical to double
 .It mipsel      Ta soft Ta identical to double
-.It mipsn32     Ta soft Ta  identical to double
+.It mipselhf    Ta hard Ta identical to double
+.It mipshf      Ta hard Ta identical to double
+.It mipsn32     Ta soft Ta identical to double
 .It mips64      Ta soft Ta identical to double
 .It mips64el    Ta soft Ta identical to double
+.It mips64elhf  Ta hard Ta identical to double
+.It mips64hf    Ta hard Ta identical to double
 .It powerpc     Ta hard Ta hard, double precision
 .It powerpc64   Ta hard Ta hard, double precision
 .It riscv       Ta
@@ -155,9 +171,13 @@ Architecture-specific macros:
 .It i386        Ta Dv __i386__
 .It mips        Ta Dv __mips__, Dv __MIPSEB__, Dv __mips_o32
 .It mipsel      Ta Dv __mips__, Dv __mips_o32
+.It mipselhf    Ta Dv __mips__, Dv __mips_o32
+.It mipshf      Ta Dv __mips__, Dv __MIPSEB__, Dv __mips_o32
 .It mipsn32     Ta Dv __mips__, Dv __MIPSEB__, Dv __mips_n32
 .It mips64      Ta Dv __mips__, Dv __MIPSEB__, Dv __mips_n64
 .It mips64el    Ta Dv __mips__, Dv __mips_n64
+.It mips64elhf  Ta Dv __mips__, Dv __mips_n64
+.It mips64hf    Ta Dv __mips__, Dv __MIPSEB__, Dv __mips_n64
 .It powerpc     Ta Dv __powerpc__
 .It powerpc64   Ta Dv __powerpc__, Dv __powerpc64__
 .It riscv       Ta Dv __riscv__, Dv __riscv64

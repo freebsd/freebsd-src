@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.if ${TARGET_ARCH:Mmips*el} != ""
+.if ${TARGET_ARCH:Mmips*el*} != ""
 _EMULATION_ENDIAN=little
 .else
 _EMULATION_ENDIAN=big
