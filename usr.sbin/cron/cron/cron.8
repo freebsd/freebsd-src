@@ -17,7 +17,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 21, 2016
+.Dd Octobre 31, 2016
 .Dt CRON 8
 .Os
 .Sh NAME
@@ -53,7 +53,11 @@ The
 .Nm
 utility also searches for
 .Pa /etc/crontab
-which is in a different format (see
+and files in
+.Pa /etc/cron.d
+and
+.Pa /usr/local/etc/cron.d
+which are in a different format (see
 .Xr crontab 5 ) .
 .Pp
 The
