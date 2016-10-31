@@ -95,6 +95,42 @@
 	<entry>25&nbsp;July&nbsp;2016</entry>
 	<entry><para>heap overflow vulnerability</para></entry>
       </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-16:26.openssl.asc">FreeBSD-SA-16:26.openssl</link></entry>
+	<entry>23&nbsp;September&nbsp;2016</entry>
+	<entry><para>Multiple vulnerabilities</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-16:27.openssl.asc">FreeBSD-SA-16:27.openssl</link></entry>
+	<entry>26&nbsp;September&nbsp;2016</entry>
+	<entry><para>Regression in <application>OpenSSL</application>
+	    suite</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-16:29.bspatch.asc">FreeBSD-SA-16:29.bspatch</link></entry>
+	<entry>10&nbsp;October&nbsp;2016</entry>
+	<entry><para>Heap overflow vulnerability</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-16:30.portsnap.asc">FreeBSD-SA-16:30.portsnap</link></entry>
+	<entry>10&nbsp;October&nbsp;2016</entry>
+	<entry><para>Multiple vulnerabilities</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-16:31.libarchive.asc">FreeBSD-SA-16:31.libarchive</link></entry>
+	<entry>10&nbsp;October&nbsp;2016</entry>
+	<entry><para>Multiple vulnerabilities</para></entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>
