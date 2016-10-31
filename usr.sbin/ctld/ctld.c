@@ -198,7 +198,7 @@ auth_check_secret_length(struct auth *auth)
 			    auth->a_auth_group->ag_name);
 		else
 			log_warnx("secret for user \"%s\", target \"%s\", "
-			    "is too short; it should be at least 16 characters "
+			    "is too short; it should be at least 12 characters "
 			    "long", auth->a_user,
 			    auth->a_auth_group->ag_target->t_name);
 	}
