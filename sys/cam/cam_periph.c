@@ -1427,6 +1427,11 @@ camperiphscsisenseerror(union ccb *ccb, union ccb **orig,
 	union ccb *orig_ccb = ccb;
 	int error, recoveryccb;
 
+#if defined(BUF_TRACKING) || defined(FULL_BUF_TRACKING)
+	if (ccb->ccb_h.func_code == XPT_SCSI_IO && ccb->csio.bio != NULL)
+		biotrack(ccb->csio.bio, __func__);
+#endif
+
 	periph = xpt_path_periph(ccb->ccb_h.path);
 	recoveryccb = (ccb->ccb_h.cbfcnp == camperiphdone);
 	if ((periph->flags & CAM_PERIPH_RECOVERY_INPROG) && !recoveryccb) {
