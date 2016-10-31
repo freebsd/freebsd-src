@@ -250,7 +250,7 @@ copies:
 symlinks:
 .for i in ${LDIRS}
 	rm -rf ${DESTDIR}${BINDIR}/$i
-	ln -s ${.CURDIR}/$i ${DESTDIR}${BINDIR}/$i
+	${INSTALL} ${TAG_ARGS} -l s ${.CURDIR}/$i ${DESTDIR}${BINDIR}/$i
 .endfor
 
 etc-examples:
