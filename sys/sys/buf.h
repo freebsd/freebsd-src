@@ -140,6 +140,15 @@ struct buf {
 	void	*b_fsprivate1;
 	void	*b_fsprivate2;
 	void	*b_fsprivate3;
+
+#if defined(FULL_BUF_TRACKING)
+#define BUF_TRACKING_SIZE	32
+#define BUF_TRACKING_ENTRY(x)	((x) & (BUF_TRACKING_SIZE - 1))
+	const char	*b_io_tracking[BUF_TRACKING_SIZE];
+	uint32_t	b_io_tcnt;
+#elif defined(BUF_TRACKING)
+	const char	*b_io_tracking;
+#endif
 };
 
 #define b_object	b_bufobj->bo_object
@@ -427,6 +436,17 @@ buf_countdeps(struct buf *bp, int i)
 		return ((*bioops.io_countdeps)(bp, i));
 	else
 		return (0);
+}
+
+static __inline void
+buf_track(struct buf *bp, const char *location)
+{
+
+#if defined(FULL_BUF_TRACKING)
+	bp->b_io_tracking[BUF_TRACKING_ENTRY(bp->b_io_tcnt++)] = location;
+#elif defined(BUF_TRACKING)
+	bp->b_io_tracking = location;
+#endif
 }
 
 #endif /* _KERNEL */
