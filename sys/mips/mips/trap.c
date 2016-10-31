@@ -590,7 +590,8 @@ trap(struct trapframe *trapframe)
 			break;
 		}
 		if ((last_badvaddr == this_badvaddr) &&
-		    ((type & ~T_USER) != T_SYSCALL)) {
+		    ((type & ~T_USER) != T_SYSCALL) &&
+		    ((type & ~T_USER) != T_COP_UNUSABLE)) {
 			if (++count == 3) {
 				trap_frame_dump(trapframe);
 				panic("too many faults at %p\n", (void *)last_badvaddr);
@@ -980,7 +981,11 @@ dofault:
 			addr = trapframe->pc;
 			MipsSwitchFPState(PCPU_GET(fpcurthread), td->td_frame);
 			PCPU_SET(fpcurthread, td);
+#if defined(__mips_n64)
+			td->td_frame->sr |= MIPS_SR_COP_1_BIT | MIPS_SR_FR;
+#else
 			td->td_frame->sr |= MIPS_SR_COP_1_BIT;
+#endif
 			td->td_md.md_flags |= MDTD_FPUSED;
 			goto out;
 #endif
