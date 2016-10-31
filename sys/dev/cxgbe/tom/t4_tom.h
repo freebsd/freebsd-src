@@ -96,7 +96,7 @@ struct toepcb {
 	u_int flags;		/* miscellaneous flags */
 	struct tom_data *td;
 	struct inpcb *inp;	/* backpointer to host stack's PCB */
-	struct port_info *port;	/* physical port */
+	struct vi_info *vi;	/* virtual interface */
 	struct sge_wrq *ofld_txq;
 	struct sge_ofld_rxq *ofld_rxq;
 	struct sge_wrq *ctrlq;
@@ -221,7 +221,7 @@ td_adapter(struct tom_data *td)
 }
 
 /* t4_tom.c */
-struct toepcb *alloc_toepcb(struct port_info *, int, int, int);
+struct toepcb *alloc_toepcb(struct vi_info *, int, int, int);
 void free_toepcb(struct toepcb *);
 void offload_socket(struct socket *, struct toepcb *);
 void undo_offload_socket(struct socket *);
@@ -234,9 +234,9 @@ void release_tid(struct adapter *, int, struct sge_wrq *);
 int find_best_mtu_idx(struct adapter *, struct in_conninfo *, int);
 u_long select_rcv_wnd(struct socket *);
 int select_rcv_wscale(void);
-uint64_t calc_opt0(struct socket *, struct port_info *, struct l2t_entry *,
+uint64_t calc_opt0(struct socket *, struct vi_info *, struct l2t_entry *,
     int, int, int, int);
-uint64_t select_ntuple(struct port_info *, struct l2t_entry *);
+uint64_t select_ntuple(struct vi_info *, struct l2t_entry *);
 void set_tcpddp_ulp_mode(struct toepcb *);
 int negative_advice(int);
 struct clip_entry *hold_lip(struct tom_data *, struct in6_addr *);
