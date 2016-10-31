@@ -1216,7 +1216,7 @@ dofault:
 		break;
 #else
 		if (!emulate_fp) {
-			i = SIGILL;
+			i = SIGFPE;
 			addr = trapframe->pc;
 			break;
 		}
