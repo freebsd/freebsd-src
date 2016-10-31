@@ -1033,7 +1033,7 @@ dofault:
 
 	case T_FPE + T_USER:
 		if (!emulate_fp) {
-			i = SIGILL;
+			i = SIGFPE;
 			addr = trapframe->pc;
 			break;
 		}
