@@ -111,7 +111,7 @@ NOASM=
 .include "${LIBC_SRCTOP}/xdr/Makefile.inc"
 .if (${LIBC_ARCH} == "arm" && \
 	(${MACHINE_ARCH:Marmv6*} == "" || (defined(CPUTYPE) && ${CPUTYPE:M*soft*}))) || \
-     ${LIBC_ARCH} == "mips"
+     (${LIBC_ARCH} == "mips" && ${MACHINE_ARCH:Mmips*hf} == "")
 .include "${LIBC_SRCTOP}/softfloat/Makefile.inc"
 .endif
 .if ${LIBC_ARCH} == "i386" || ${LIBC_ARCH} == "amd64"

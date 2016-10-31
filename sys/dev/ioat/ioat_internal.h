@@ -523,6 +523,15 @@ struct ioat_softc {
 void ioat_test_attach(void);
 void ioat_test_detach(void);
 
+/*
+ * XXX DO NOT USE this routine for obtaining the current completed descriptor.
+ *
+ * The double_4 read on ioat<3.3 appears to result in torn reads.  And v3.2
+ * hardware is still commonplace (Broadwell Xeon has it).  Instead, use the
+ * device-pushed *comp_update.
+ *
+ * It is safe to use ioat_get_chansts() for the low status bits.
+ */
 static inline uint64_t
 ioat_get_chansts(struct ioat_softc *ioat)
 {

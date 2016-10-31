@@ -5603,7 +5603,7 @@ bxe_tx_start(if_t ifp)
 
     fp = &sc->fp[0];
 
-    if (ifp->if_drv_flags & IFF_DRV_OACTIVE) {
+    if (if_getdrvflags(ifp) & IFF_DRV_OACTIVE) {
         fp->eth_q_stats.tx_queue_full_return++;
         return;
     }
@@ -5643,7 +5643,7 @@ bxe_tx_mq_start_locked(struct bxe_softc    *sc,
         }
     }
 
-    if (!sc->link_vars.link_up || !(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+    if (!sc->link_vars.link_up || !(if_getdrvflags(ifp) & IFF_DRV_RUNNING)) {
         fp->eth_q_stats.tx_request_link_down_failures++;
         goto bxe_tx_mq_start_locked_exit;
     }

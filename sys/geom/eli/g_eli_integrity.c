@@ -444,12 +444,17 @@ g_eli_auth_run(struct g_eli_worker *wr, struct bio *bp)
 		size += sizeof(*crde) * nsec;
 		size += sizeof(*crda) * nsec;
 		size += G_ELI_AUTH_SECKEYLEN * nsec;
+		size += sizeof(uintptr_t);	/* Space for alignment. */
 		data = malloc(size, M_ELI, M_WAITOK);
 		bp->bio_driver2 = data;
 		p = data + encr_secsize * nsec;
 	}
 	bp->bio_inbed = 0;
 	bp->bio_children = nsec;
+
+#if defined(__mips_n64) || defined(__mips_o64)
+	p = (char *)roundup((uintptr_t)p, sizeof(uintptr_t));
+#endif
 
 	for (i = 1; i <= nsec; i++, dstoff += encr_secsize) {
 		crp = (struct cryptop *)p;	p += sizeof(*crp);

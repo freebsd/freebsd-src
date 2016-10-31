@@ -1273,6 +1273,7 @@ dev/cfi/cfi_bus_nexus.c		optional cfi
 dev/cfi/cfi_core.c		optional cfi
 dev/cfi/cfi_dev.c		optional cfi
 dev/cfi/cfi_disk.c		optional cfid
+dev/chromebook_platform/chromebook_platform.c	optional chromebook_platform
 dev/ciss/ciss.c			optional ciss
 dev/cm/smc90cx6.c		optional cm
 dev/cmx/cmx.c			optional cmx
@@ -1389,7 +1390,7 @@ t5fw.fw			optional cxgbe					\
 dev/cy/cy.c			optional cy
 dev/cy/cy_isa.c			optional cy isa
 dev/cy/cy_pci.c			optional cy pci
-dev/cyapa/cyapa.c		optional cyapa smbus
+dev/cyapa/cyapa.c		optional cyapa iicbus
 dev/dc/if_dc.c			optional dc pci
 dev/dc/dcphy.c			optional dc pci
 dev/dc/pnphy.c			optional dc pci
@@ -1631,8 +1632,8 @@ dev/hptiop/hptiop.c		optional hptiop scbus
 dev/hwpmc/hwpmc_logging.c	optional hwpmc
 dev/hwpmc/hwpmc_mod.c		optional hwpmc
 dev/hwpmc/hwpmc_soft.c		optional hwpmc
-dev/ichiic/ig4_iic.c		optional ig4 smbus
-dev/ichiic/ig4_pci.c		optional ig4 pci smbus
+dev/ichiic/ig4_iic.c		optional ig4 iicbus
+dev/ichiic/ig4_pci.c		optional ig4 pci iicbus
 dev/ichsmb/ichsmb.c		optional ichsmb
 dev/ichsmb/ichsmb_pci.c		optional ichsmb pci
 dev/ida/ida.c			optional ida
@@ -1726,7 +1727,7 @@ dev/iscsi_initiator/isc_soc.c	optional iscsi_initiator scbus
 dev/iscsi_initiator/isc_sm.c	optional iscsi_initiator scbus
 dev/iscsi_initiator/isc_subr.c	optional iscsi_initiator scbus
 dev/ismt/ismt.c			optional ismt
-dev/isl/isl.c			optional isl smbus
+dev/isl/isl.c			optional isl iicbus
 dev/isp/isp.c			optional isp
 dev/isp/isp_freebsd.c		optional isp
 dev/isp/isp_library.c		optional isp
@@ -2062,6 +2063,7 @@ dev/ixgbe/ixgbe_dcb_82598.c	optional ix inet | ixv inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
 dev/ixgbe/ixgbe_dcb_82599.c	optional ix inet | ixv inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
+dev/jedec_ts/jedec_ts.c		optional jedec_ts smbus
 dev/jme/if_jme.c		optional jme pci
 dev/joy/joy.c			optional joy
 dev/joy/joy_isa.c		optional joy isa
@@ -3181,6 +3183,7 @@ dev/xen/xenstore/xenstore_dev.c	optional xenhvm
 dev/xen/xenstore/xenstored_dev.c	optional xenhvm
 dev/xen/evtchn/evtchn_dev.c	optional xenhvm
 dev/xen/privcmd/privcmd.c	optional xenhvm
+dev/xen/gntdev/gntdev.c		optional xenhvm
 dev/xen/debug/debug.c		optional xenhvm
 dev/xl/if_xl.c			optional xl pci
 dev/xl/xlphy.c			optional xl pci

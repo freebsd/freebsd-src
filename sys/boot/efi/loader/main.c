@@ -55,6 +55,22 @@ extern char bootprog_rev[];
 extern char bootprog_date[];
 extern char bootprog_maker[];
 
+#ifdef BOOT_FORTH
+/*
+ * Normally, efi.o from libefi.a would be brought in due to a function we call
+ * there that's defined there.  However, none of its functions are callable from
+ * here since it just adds words to the FORTH environment or implement those
+ * words. So, add a reference to a symbol in efi.o to force it to be be brought
+ * in so the init function there gets added to the "compile" linker set happens
+ * correctly.
+ *
+ * This assumes there's no global analysys that notices dummy1 isn't used
+ * anywhere and tries to eliminate it.
+ */
+extern int efi_variable_support;
+int *dummy1 = &efi_variable_support;
+#endif
+
 struct arch_switch archsw;	/* MI/MD interface boundary */
 
 EFI_GUID acpi = ACPI_TABLE_GUID;
@@ -221,6 +237,11 @@ find_currdev(EFI_LOADED_IMAGE *img, struct devsw **dev, int *unit,
 		}
 	}
 
+	/* Try to fallback on first device */
+	if (devsw[0] != NULL) {
+		*dev = devsw[0];
+		return (0);
+	}
 	return (ENOENT);
 }
 
@@ -906,8 +927,8 @@ command_efi_show(int argc, char *argv[])
 		return (rv);
 	}
 
-	if (argc != 0) {
-		printf("Too many args\n");
+	if (argc > 0) {
+		printf("Too many args %d\n", argc);
 		pager_close();
 		return (CMD_ERROR);
 	}

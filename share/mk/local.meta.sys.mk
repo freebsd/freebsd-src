@@ -46,7 +46,7 @@ OBJROOT:= ${OBJROOT:H:tA}/${OBJROOT:T}
 TARGET_ARCHES_arm?=     arm armeb armv6
 TARGET_ARCHES_arm64?=   aarch64
 TARGET_ARCHES_mips?=    mipsel mips mips64el mips64 mipsn32 mipsn32el
-TARGET_ARCHES_powerpc?= powerpc powerpc64
+TARGET_ARCHES_powerpc?= powerpc powerpc64 powerpcspe
 TARGET_ARCHES_pc98?=    i386
 TARGET_ARCHES_riscv?=   riscv64
 

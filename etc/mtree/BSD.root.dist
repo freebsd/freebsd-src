@@ -32,6 +32,8 @@
         ..
         casper
         ..
+        cron.d
+        ..
         defaults
         ..
         devd

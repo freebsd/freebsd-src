@@ -548,11 +548,11 @@ static int krping_setup_buffers(struct krping_cb *cb)
 
 	DEBUG_LOG(cb, "krping_setup_buffers called on cb %p\n", cb);
 
-	cb->recv_dma_addr = dma_map_single(cb->pd->device->dma_device, 
+	cb->recv_dma_addr = ib_dma_map_single(cb->pd->device, 
 				   &cb->recv_buf, 
 				   sizeof(cb->recv_buf), DMA_BIDIRECTIONAL);
 	pci_unmap_addr_set(cb, recv_mapping, cb->recv_dma_addr);
-	cb->send_dma_addr = dma_map_single(cb->pd->device->dma_device, 
+	cb->send_dma_addr = ib_dma_map_single(cb->pd->device, 
 					   &cb->send_buf, sizeof(cb->send_buf),
 					   DMA_BIDIRECTIONAL);
 	pci_unmap_addr_set(cb, send_mapping, cb->send_dma_addr);
@@ -606,7 +606,7 @@ static int krping_setup_buffers(struct krping_cb *cb)
 		goto bail;
 	}
 
-	cb->rdma_dma_addr = dma_map_single(cb->pd->device->dma_device, 
+	cb->rdma_dma_addr = ib_dma_map_single(cb->pd->device, 
 			       cb->rdma_buf, cb->size, 
 			       DMA_BIDIRECTIONAL);
 	pci_unmap_addr_set(cb, rdma_mapping, cb->rdma_dma_addr);
@@ -676,7 +676,7 @@ static int krping_setup_buffers(struct krping_cb *cb)
 			goto bail;
 		}
 
-		cb->start_dma_addr = dma_map_single(cb->pd->device->dma_device, 
+		cb->start_dma_addr = ib_dma_map_single(cb->pd->device, 
 						   cb->start_buf, cb->size, 
 						   DMA_BIDIRECTIONAL);
 		pci_unmap_addr_set(cb, start_mapping, cb->start_dma_addr);
@@ -1707,7 +1707,7 @@ static void krping_fr_test5(struct krping_cb *cb)
 			goto err2;
 		}
 		DEBUG_LOG(cb, "%s buf[%u] %p\n", __func__, scnt, buf[scnt]);
-		dma_addr[scnt] = dma_map_single(cb->pd->device->dma_device,
+		dma_addr[scnt] = ib_dma_map_single(cb->pd->device,
 						   buf[scnt], cb->size,
 						   DMA_BIDIRECTIONAL);
 		if (dma_mapping_error(cb->pd->device->dma_device,
@@ -2032,7 +2032,7 @@ static void krping_fr_test6(struct krping_cb *cb)
 			goto err2;
 		}
 		DEBUG_LOG(cb, "%s buf[%u] %p\n", __func__, scnt, buf[scnt]);
-		dma_addr[scnt] = dma_map_single(cb->pd->device->dma_device,
+		dma_addr[scnt] = ib_dma_map_single(cb->pd->device,
 						   buf[scnt], cb->size,
 						   DMA_BIDIRECTIONAL);
 		if (dma_mapping_error(cb->pd->device->dma_device,

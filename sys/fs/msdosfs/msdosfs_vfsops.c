@@ -742,7 +742,7 @@ mountmsdosfs(struct vnode *devvp, struct mount *mp)
 	mp->mnt_stat.f_fsid.val[1] = mp->mnt_vfc->vfc_typenum;
 	MNT_ILOCK(mp);
 	mp->mnt_flag |= MNT_LOCAL;
-	mp->mnt_kern_flag |= MNTK_USES_BCACHE;
+	mp->mnt_kern_flag |= MNTK_USES_BCACHE | MNTK_NO_IOPF;
 	MNT_IUNLOCK(mp);
 
 	if (pmp->pm_flags & MSDOSFS_LARGEFS)
@@ -760,8 +760,7 @@ error_exit:
 	}
 	if (pmp) {
 		lockdestroy(&pmp->pm_fatlock);
-		if (pmp->pm_inusemap)
-			free(pmp->pm_inusemap, M_MSDOSFSFAT);
+		free(pmp->pm_inusemap, M_MSDOSFSFAT);
 		free(pmp, M_MSDOSFSMNT);
 		mp->mnt_data = NULL;
 	}
