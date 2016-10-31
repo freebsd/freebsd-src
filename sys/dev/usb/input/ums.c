@@ -295,8 +295,11 @@ ums_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 		}
 
 		if ((info->sc_flags & UMS_FLAG_T_AXIS) &&
-		    (id == info->sc_iid_t))
+		    (id == info->sc_iid_t)) {
 			dt -= hid_get_data(buf, len, &info->sc_loc_t);
+			/* T-axis is translated into button presses */
+			buttons_found |= (1UL << 5) | (1UL << 6);
+		}
 
 		for (i = 0; i < info->sc_buttons; i++) {
 			uint32_t mask;
