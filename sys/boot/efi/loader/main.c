@@ -237,6 +237,11 @@ find_currdev(EFI_LOADED_IMAGE *img, struct devsw **dev, int *unit,
 		}
 	}
 
+	/* Try to fallback on first device */
+	if (devsw[0] != NULL) {
+		*dev = devsw[0];
+		return (0);
+	}
 	return (ENOENT);
 }
 
