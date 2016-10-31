@@ -279,9 +279,9 @@ em_netmap_rxsync(struct netmap_kring *kring, int flags)
 			if (addr == NETMAP_BUF_BASE(na)) /* bad buf */
 				goto ring_reset;
 
+			curr->read.buffer_addr = htole64(paddr);
 			if (slot->flags & NS_BUF_CHANGED) {
 				/* buffer has changed, reload map */
-				curr->read.buffer_addr = htole64(paddr);
 				netmap_reload_map(na, rxr->rxtag, rxbuf->map, addr);
 				slot->flags &= ~NS_BUF_CHANGED;
 			}
