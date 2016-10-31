@@ -4627,6 +4627,10 @@ hn_chan_callback(struct vmbus_channel *chan, void *xrxr)
 static void
 hn_tx_taskq_create(void *arg __unused)
 {
+
+	if (vm_guest != VM_GUEST_HV)
+		return;
+
 	if (!hn_share_tx_taskq)
 		return;
 
@@ -4645,16 +4649,17 @@ hn_tx_taskq_create(void *arg __unused)
 		taskqueue_start_threads(&hn_tx_taskq, 1, PI_NET, "hn tx");
 	}
 }
-SYSINIT(hn_txtq_create, SI_SUB_DRIVERS, SI_ORDER_FIRST,
+SYSINIT(hn_txtq_create, SI_SUB_DRIVERS, SI_ORDER_SECOND,
     hn_tx_taskq_create, NULL);
 
 static void
 hn_tx_taskq_destroy(void *arg __unused)
 {
+
 	if (hn_tx_taskq != NULL)
 		taskqueue_free(hn_tx_taskq);
 }
-SYSUNINIT(hn_txtq_destroy, SI_SUB_DRIVERS, SI_ORDER_FIRST,
+SYSUNINIT(hn_txtq_destroy, SI_SUB_DRIVERS, SI_ORDER_SECOND,
     hn_tx_taskq_destroy, NULL);
 
 static device_method_t netvsc_methods[] = {
