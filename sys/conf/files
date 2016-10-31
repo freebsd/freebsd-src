@@ -3183,6 +3183,7 @@ dev/xen/xenstore/xenstore_dev.c	optional xenhvm
 dev/xen/xenstore/xenstored_dev.c	optional xenhvm
 dev/xen/evtchn/evtchn_dev.c	optional xenhvm
 dev/xen/privcmd/privcmd.c	optional xenhvm
+dev/xen/gntdev/gntdev.c		optional xenhvm
 dev/xen/debug/debug.c		optional xenhvm
 dev/xl/if_xl.c			optional xl pci
 dev/xl/xlphy.c			optional xl pci
