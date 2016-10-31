@@ -63,7 +63,7 @@ DEFINE_TEST(test_symlink_dir)
 		/* "dir2" is a symlink to a non-existing "real_dir2" */
 		assertMakeSymlink("dest1/dir2", "real_dir2");
 	} else {
-		skipping("some symlink checks");
+		skipping("Symlinks are not supported on this platform");
 	}
 	/* "dir3" is a symlink to an existing "non_dir3" */
 	assertMakeFile("dest1/non_dir3", 0755, "abcdef");
