@@ -6,6 +6,7 @@ SYSDIR?=${.CURDIR}/../..
 SUBDIR=	geom_bde \
 	geom_cache \
 	geom_concat \
+	geom_eli \
 	geom_gate \
 	geom_journal \
 	geom_label \
@@ -27,11 +28,6 @@ SUBDIR=	geom_bde \
 
 .if ${MK_CCD} != "no" || defined(ALL_MODULES)
 SUBDIR+=	geom_ccd
-.endif
-
-# Alignment issues in g_eli_auth_run() on MIPS64 causes kernel panic
-.if ${MACHINE_ARCH} != "mips64" && ${MACHINE_ARCH} != "mips64el"
-SUBDIR+=	geom_eli
 .endif
 
 .include <bsd.subdir.mk>
