@@ -18,7 +18,7 @@ SRCS+=	load_elf32.c reloc_elf32.c
 SRCS+=	load_elf64.c reloc_elf64.c
 .elif ${MACHINE_CPUARCH} == "sparc64"
 SRCS+=	load_elf64.c reloc_elf64.c
-.elif ${MACHINE_ARCH} == "mips64" || ${MACHINE_ARCH} == "mips64el"
+.elif ${MACHINE_ARCH:Mmips64*} != ""
 SRCS+= load_elf64.c reloc_elf64.c
 .elif ${MACHINE} == "mips"
 SRCS+=	load_elf32.c reloc_elf32.c

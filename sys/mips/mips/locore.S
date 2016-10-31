@@ -126,7 +126,7 @@ VECTOR(_locore, unknown)
 	li	t1, MIPS_SR_COP_1_BIT
 #endif
 #ifdef __mips_n64
-	or	t1, MIPS_SR_KX | MIPS_SR_SX | MIPS_SR_UX
+	or	t1, MIPS_SR_KX | MIPS_SR_SX | MIPS_SR_UX | MIPS_SR_FR
 #endif
 #endif
 	/*
