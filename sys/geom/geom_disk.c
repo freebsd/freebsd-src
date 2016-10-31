@@ -421,6 +421,8 @@ g_disk_start(struct bio *bp)
 	int error;
 	off_t off;
 
+	biotrack(bp, __func__);
+
 	sc = bp->bio_to->private;
 	if (sc == NULL || (dp = sc->dp) == NULL || dp->d_destroyed) {
 		g_io_deliver(bp, ENXIO);
