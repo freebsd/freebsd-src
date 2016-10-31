@@ -20,6 +20,7 @@ CFLAGS+=	-mno-aes
 
 .if ${MACHINE_CPUARCH} == "aarch64"
 CFLAGS+=	-fshort-wchar
+CFLAGS+=	-fPIC
 .endif
 
 .include "../Makefile.inc"
