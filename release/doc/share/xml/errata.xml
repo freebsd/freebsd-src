@@ -19,9 +19,10 @@
 
     <tbody>
       <row>
-	<entry><para>No errata notices.</para></entry>
-	<entry><para>&nbsp;</para></entry>
-	<entry><para>&nbsp;</para></entry>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-16:18.loader.asc">FreeBSD-EN-16:18.loader</link></entry>
+	<entry>25&nbsp;October&nbsp;2016</entry>
+	<entry><para>Loader may hang during boot</para></entry>
       </row>
     </tbody>
   </tgroup>

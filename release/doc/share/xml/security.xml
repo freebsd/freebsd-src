@@ -19,9 +19,10 @@
 
     <tbody>
       <row>
-	<entry><para>No advisories.</para></entry>
-	<entry><para>&nbsp;</para></entry>
-	<entry><para>&nbsp;</para></entry>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-16:32.bhyve.asc">FreeBSD-SA-16:32.bhyve</link></entry>
+	<entry>25&nbsp;October&nbsp;2016</entry>
+	<entry><para>Privilege escalation vulnerability</para></entry>
       </row>
     </tbody>
   </tgroup>
