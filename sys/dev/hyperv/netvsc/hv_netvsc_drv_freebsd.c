@@ -414,7 +414,8 @@ static void hn_nvs_handle_comp(struct hn_softc *sc, struct vmbus_channel *chan,
 static void hn_nvs_handle_rxbuf(struct hn_rx_ring *rxr,
 		struct vmbus_channel *chan,
 		const struct vmbus_chanpkt_hdr *pkthdr);
-static void hn_nvs_ack_rxbuf(struct vmbus_channel *chan, uint64_t tid);
+static void hn_nvs_ack_rxbuf(struct hn_rx_ring *, struct vmbus_channel *,
+		uint64_t);
 
 static int hn_transmit(struct ifnet *, struct mbuf *);
 static void hn_xmit_qflush(struct ifnet *);
@@ -2843,6 +2844,10 @@ hn_create_rx_data(struct hn_softc *sc, int ring_cnt)
 	    CTLTYPE_ULONG | CTLFLAG_RW | CTLFLAG_MPSAFE, sc,
 	    __offsetof(struct hn_rx_ring, hn_small_pkts),
 	    hn_rx_stat_ulong_sysctl, "LU", "# of small packets received");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "rx_ack_failed",
+	    CTLTYPE_ULONG | CTLFLAG_RW | CTLFLAG_MPSAFE, sc,
+	    __offsetof(struct hn_rx_ring, hn_ack_failed),
+	    hn_rx_stat_ulong_sysctl, "LU", "# of RXBUF ack failures");
 	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "rx_ring_cnt",
 	    CTLFLAG_RD, &sc->hn_rx_ring_cnt, 0, "# created RX rings");
 	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "rx_ring_inuse",
@@ -4499,43 +4504,43 @@ hn_nvs_handle_rxbuf(struct hn_rx_ring *rxr, struct vmbus_channel *chan,
 	}
 
 	/*
-	 * Moved completion call back here so that all received 
-	 * messages (not just data messages) will trigger a response
-	 * message back to the host.
+	 * Ack the consumed RXBUF associated w/ this channel packet,
+	 * so that this RXBUF can be recycled by the hypervisor.
 	 */
-	hn_nvs_ack_rxbuf(chan, pkt->cp_hdr.cph_xactid);
+	hn_nvs_ack_rxbuf(rxr, chan, pkt->cp_hdr.cph_xactid);
 }
 
-/*
- * Net VSC on receive completion
- *
- * Send a receive completion packet to RNDIS device (ie NetVsp)
- */
 static void
-hn_nvs_ack_rxbuf(struct vmbus_channel *chan, uint64_t tid)
+hn_nvs_ack_rxbuf(struct hn_rx_ring *rxr, struct vmbus_channel *chan,
+    uint64_t tid)
 {
 	struct hn_nvs_rndis_ack ack;
-	int retries = 0;
-	int ret = 0;
+	int retries, error;
 	
 	ack.nvs_type = HN_NVS_TYPE_RNDIS_ACK;
 	ack.nvs_status = HN_NVS_STATUS_OK;
 
-retry_send_cmplt:
-	/* Send the completion */
-	ret = vmbus_chan_send(chan, VMBUS_CHANPKT_TYPE_COMP,
+	retries = 0;
+again:
+	error = vmbus_chan_send(chan, VMBUS_CHANPKT_TYPE_COMP,
 	    VMBUS_CHANPKT_FLAG_NONE, &ack, sizeof(ack), tid);
-	if (ret == 0) {
-		/* success */
-		/* no-op */
-	} else if (ret == EAGAIN) {
-		/* no more room... wait a bit and attempt to retry 3 times */
+	if (__predict_false(error == EAGAIN)) {
+		/*
+		 * NOTE:
+		 * This should _not_ happen in real world, since the
+		 * consumption of the TX bufring from the TX path is
+		 * controlled.
+		 */
+		if (rxr->hn_ack_failed == 0)
+			if_printf(rxr->hn_ifp, "RXBUF ack retry\n");
+		rxr->hn_ack_failed++;
 		retries++;
-
-		if (retries < 4) {
+		if (retries < 10) {
 			DELAY(100);
-			goto retry_send_cmplt;
+			goto again;
 		}
+		/* RXBUF leaks! */
+		if_printf(rxr->hn_ifp, "RXBUF ack failed\n");
 	}
 }
 
