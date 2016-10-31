@@ -176,6 +176,8 @@ __FBSDID("$FreeBSD$");
 	 HN_RXINFO_HASHINF |		\
 	 HN_RXINFO_HASHVAL)
 
+#define HN_PKTBUF_LEN_DEF		(16 * 1024)
+
 struct hn_txdesc {
 #ifndef HN_USE_TXDESC_BUFRING
 	SLIST_ENTRY(hn_txdesc) link;
@@ -2720,7 +2722,8 @@ hn_create_rx_data(struct hn_softc *sc, int ring_cnt)
 		rxr->hn_ifp = sc->hn_ifp;
 		if (i < sc->hn_tx_ring_cnt)
 			rxr->hn_txr = &sc->hn_tx_ring[i];
-		rxr->hn_pktbuf = malloc(HN_PKTBUF_LEN, M_DEVBUF, M_WAITOK);
+		rxr->hn_pktbuf_len = HN_PKTBUF_LEN_DEF;
+		rxr->hn_pktbuf = malloc(rxr->hn_pktbuf_len, M_DEVBUF, M_WAITOK);
 		rxr->hn_rx_idx = i;
 		rxr->hn_rxbuf = sc->hn_rxbuf;
 
@@ -2763,6 +2766,11 @@ hn_create_rx_data(struct hn_softc *sc, int ring_cnt)
 				    OID_AUTO, "rss_pkts", CTLFLAG_RW,
 				    &rxr->hn_rss_pkts,
 				    "# of packets w/ RSS info received");
+				SYSCTL_ADD_INT(ctx,
+				    SYSCTL_CHILDREN(rxr->hn_rx_sysctl_tree),
+				    OID_AUTO, "pktbuf_len", CTLFLAG_RD,
+				    &rxr->hn_pktbuf_len, 0,
+				    "Temporary channel packet buffer length");
 			}
 		}
 	}
@@ -4536,60 +4544,62 @@ hn_chan_callback(struct vmbus_channel *chan, void *xrxr)
 {
 	struct hn_rx_ring *rxr = xrxr;
 	struct hn_softc *sc = rxr->hn_ifp->if_softc;
-	void *buffer;
-	int bufferlen = HN_PKTBUF_LEN;
 
-	buffer = rxr->hn_pktbuf;
-	do {
-		struct vmbus_chanpkt_hdr *pkt = buffer;
-		uint32_t bytes_rxed;
-		int ret;
+	for (;;) {
+		struct vmbus_chanpkt_hdr *pkt = rxr->hn_pktbuf;
+		int error, pktlen;
 
-		bytes_rxed = bufferlen;
-		ret = vmbus_chan_recv_pkt(chan, pkt, &bytes_rxed);
-		if (ret == 0) {
-			switch (pkt->cph_type) {
-			case VMBUS_CHANPKT_TYPE_COMP:
-				hn_nvs_handle_comp(sc, chan, pkt);
-				break;
-			case VMBUS_CHANPKT_TYPE_RXBUF:
-				hn_nvs_handle_rxbuf(rxr, chan, pkt);
-				break;
-			case VMBUS_CHANPKT_TYPE_INBAND:
-				hn_nvs_handle_notify(sc, pkt);
-				break;
-			default:
-				if_printf(rxr->hn_ifp,
-				    "unknown chan pkt %u\n",
-				    pkt->cph_type);
-				break;
-			}
-		} else if (ret == ENOBUFS) {
-			/* Handle large packet */
-			if (bufferlen > HN_PKTBUF_LEN) {
-				free(buffer, M_DEVBUF);
-				buffer = NULL;
-			}
+		pktlen = rxr->hn_pktbuf_len;
+		error = vmbus_chan_recv_pkt(chan, pkt, &pktlen);
+		if (__predict_false(error == ENOBUFS)) {
+			void *nbuf;
+			int nlen;
 
-			/* alloc new buffer */
-			buffer = malloc(bytes_rxed, M_DEVBUF, M_NOWAIT);
-			if (buffer == NULL) {
-				if_printf(rxr->hn_ifp,
-				    "hv_cb malloc buffer failed, len=%u\n",
-				    bytes_rxed);
-				bufferlen = 0;
-				break;
-			}
-			bufferlen = bytes_rxed;
-		} else {
-			/* No more packets */
+			/*
+			 * Expand channel packet buffer.
+			 *
+			 * XXX
+			 * Use M_WAITOK here, since allocation failure
+			 * is fatal.
+			 */
+			nlen = rxr->hn_pktbuf_len * 2;
+			while (nlen < pktlen)
+				nlen *= 2;
+			nbuf = malloc(nlen, M_DEVBUF, M_WAITOK);
+
+			if_printf(rxr->hn_ifp, "expand pktbuf %d -> %d\n",
+			    rxr->hn_pktbuf_len, nlen);
+
+			free(rxr->hn_pktbuf, M_DEVBUF);
+			rxr->hn_pktbuf = nbuf;
+			rxr->hn_pktbuf_len = nlen;
+			/* Retry! */
+			continue;
+		} else if (__predict_false(error == EAGAIN)) {
+			/* No more channel packets; done! */
 			break;
 		}
-	} while (1);
+		KASSERT(!error, ("vmbus_chan_recv_pkt failed: %d", error));
 
-	if (bufferlen > HN_PKTBUF_LEN)
-		free(buffer, M_DEVBUF);
+		switch (pkt->cph_type) {
+		case VMBUS_CHANPKT_TYPE_COMP:
+			hn_nvs_handle_comp(sc, chan, pkt);
+			break;
 
+		case VMBUS_CHANPKT_TYPE_RXBUF:
+			hn_nvs_handle_rxbuf(rxr, chan, pkt);
+			break;
+
+		case VMBUS_CHANPKT_TYPE_INBAND:
+			hn_nvs_handle_notify(sc, pkt);
+			break;
+
+		default:
+			if_printf(rxr->hn_ifp, "unknown chan pkt %u\n",
+			    pkt->cph_type);
+			break;
+		}
+	}
 	hn_chan_rollup(rxr, rxr->hn_txr);
 }
 
