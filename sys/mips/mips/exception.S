@@ -1098,11 +1098,17 @@ END(MipsTLBMissException)
 NESTED(MipsFPTrap, CALLFRAME_SIZ, ra)
 	PTR_SUBU	sp, sp, CALLFRAME_SIZ
 	mfc0	t0, MIPS_COP_0_STATUS
+	HAZARD_DELAY
 	REG_S	ra, CALLFRAME_RA(sp)
 	.mask	0x80000000, (CALLFRAME_RA - CALLFRAME_SIZ)
 
+#if defined(__mips_n64)
+	or	t1, t0, MIPS_SR_COP_1_BIT | MIPS_SR_FR
+#else
 	or	t1, t0, MIPS_SR_COP_1_BIT
+#endif
 	mtc0	t1, MIPS_COP_0_STATUS
+	HAZARD_DELAY
 	ITLBNOPFIX
 	cfc1	t1, MIPS_FPU_CSR		# stall til FP done
 	cfc1	t1, MIPS_FPU_CSR		# now get status
