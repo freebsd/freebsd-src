@@ -2154,6 +2154,8 @@ g_part_start(struct bio *bp)
 	struct g_provider *pp;
 	char buf[64];
 
+	biotrack(bp, __func__);
+
 	pp = bp->bio_to;
 	gp = pp->geom;
 	table = gp->softc;
