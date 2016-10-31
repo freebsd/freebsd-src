@@ -42,6 +42,12 @@
 #define VMBUS_IC_VERSION(major, minor)	((major) | (((uint32_t)(minor)) << 16))
 #define VMBUS_ICVER_MAJOR(ver)		((ver) & 0xffff)
 #define VMBUS_ICVER_MINOR(ver)		(((ver) & 0xffff0000) >> 16)
+#define VMBUS_ICVER_SWAP(ver)		\
+	((VMBUS_ICVER_MAJOR((ver)) << 16) | VMBUS_ICVER_MINOR((ver)))
+#define VMBUS_ICVER_LE(v1, v2)		\
+	(VMBUS_ICVER_SWAP((v1)) <= VMBUS_ICVER_SWAP((v2)))
+#define VMBUS_ICVER_GT(v1, v2)		\
+	(VMBUS_ICVER_SWAP((v1)) > VMBUS_ICVER_SWAP((v2)))
 
 struct vmbus_pipe_hdr {
 	uint32_t		ph_flags;

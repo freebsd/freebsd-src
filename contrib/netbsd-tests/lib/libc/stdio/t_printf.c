@@ -120,12 +120,6 @@ ATF_TC_BODY(snprintf_posarg_error, tc)
 {
 	char s[16], fmt[32];
 
-#ifndef __NetBSD__
-	atf_tc_expect_signal(SIGSEGV,
-	    "some non-NetBSD platforms including FreeBSD don't validate "
-	    "negative size; testcase blows up with SIGSEGV");
-#endif
-
 	snprintf(fmt, sizeof(fmt), "%%%zu$d", SIZE_MAX / sizeof(size_t));
 
 	ATF_CHECK(snprintf(s, sizeof(s), fmt, -23) == -1);

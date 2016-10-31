@@ -560,13 +560,34 @@ ptnetmap_print_configuration(struct ptnetmap_cfg *cfg)
 {
 	int k;
 
-	D("[PTN] configuration:");
-	D("  CSB ptrings @%p, num_rings=%u, features %08x", cfg->ptrings,
-	  cfg->num_rings, cfg->features);
+	D("ptnetmap configuration:");
+	D("  CSB ptrings @%p, num_rings=%u, cfgtype %08x", cfg->ptrings,
+	  cfg->num_rings, cfg->cfgtype);
 	for (k = 0; k < cfg->num_rings; k++) {
-		D("    ring #%d: iofd=%llu, irqfd=%llu", k,
-		  (unsigned long long)cfg->entries[k].ioeventfd,
-		  (unsigned long long)cfg->entries[k].irqfd);
+		switch (cfg->cfgtype) {
+		case PTNETMAP_CFGTYPE_QEMU: {
+			struct ptnetmap_cfgentry_qemu *e =
+				(struct ptnetmap_cfgentry_qemu *)(cfg+1) + k;
+			D("    ring #%d: ioeventfd=%lu, irqfd=%lu", k,
+				(unsigned long)e->ioeventfd,
+				(unsigned long)e->irqfd);
+			break;
+		}
+
+		case PTNETMAP_CFGTYPE_BHYVE:
+		{
+			struct ptnetmap_cfgentry_bhyve *e =
+				(struct ptnetmap_cfgentry_bhyve *)(cfg+1) + k;
+			D("    ring #%d: wchan=%lu, ioctl_fd=%lu, "
+			  "ioctl_cmd=%lu, msix_msg_data=%lu, msix_addr=%lu",
+				k, (unsigned long)e->wchan,
+				(unsigned long)e->ioctl_fd,
+				(unsigned long)e->ioctl_cmd,
+				(unsigned long)e->ioctl_data.msg_data,
+				(unsigned long)e->ioctl_data.addr);
+			break;
+		}
+		}
 	}
 
 }
@@ -632,6 +653,7 @@ ptnetmap_create_kthreads(struct netmap_pt_host_adapter *pth_na,
 	struct ptnetmap_state *ptns = pth_na->ptns;
 	struct nm_kthread_cfg nmk_cfg;
 	unsigned int num_rings;
+	uint8_t *cfg_entries = (uint8_t *)(cfg + 1);
 	int k;
 
 	num_rings = pth_na->up.num_tx_rings +
@@ -640,7 +662,6 @@ ptnetmap_create_kthreads(struct netmap_pt_host_adapter *pth_na,
 	for (k = 0; k < num_rings; k++) {
 		nmk_cfg.attach_user = 1; /* attach kthread to user process */
 		nmk_cfg.worker_private = ptnetmap_kring(pth_na, k);
-		nmk_cfg.event = *(cfg->entries + k);
 		nmk_cfg.type = k;
 		if (k < pth_na->up.num_tx_rings) {
 			nmk_cfg.worker_fn = ptnetmap_tx_handler;
@@ -648,7 +669,8 @@ ptnetmap_create_kthreads(struct netmap_pt_host_adapter *pth_na,
 			nmk_cfg.worker_fn = ptnetmap_rx_handler;
 		}
 
-		ptns->kthreads[k] = nm_os_kthread_create(&nmk_cfg);
+		ptns->kthreads[k] = nm_os_kthread_create(&nmk_cfg,
+			cfg->cfgtype, cfg_entries + k * cfg->entry_size);
 		if (ptns->kthreads[k] == NULL) {
 			goto err;
 		}
@@ -727,7 +749,7 @@ ptnetmap_read_cfg(struct nmreq *nmr)
 		return NULL;
 	}
 
-	cfglen = sizeof(tmp) + tmp.num_rings * sizeof(struct ptnet_ring_cfg);
+	cfglen = sizeof(tmp) + tmp.num_rings * tmp.entry_size;
 	cfg = malloc(cfglen, M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (!cfg) {
 		return NULL;
@@ -750,7 +772,6 @@ static int
 ptnetmap_create(struct netmap_pt_host_adapter *pth_na,
 		struct ptnetmap_cfg *cfg)
 {
-    unsigned ft_mask = (PTNETMAP_CFG_FEAT_CSB | PTNETMAP_CFG_FEAT_EVENTFD);
     struct ptnetmap_state *ptns;
     unsigned int num_rings;
     int ret, i;
@@ -758,12 +779,6 @@ ptnetmap_create(struct netmap_pt_host_adapter *pth_na,
     /* Check if ptnetmap state is already there. */
     if (pth_na->ptns) {
         D("ERROR adapter %p already in ptnetmap mode", pth_na->parent);
-        return EINVAL;
-    }
-
-    if ((cfg->features & ft_mask) != ft_mask) {
-        D("ERROR ptnetmap_cfg(%x) does not contain CSB and EVENTFD",
-	  cfg->features);
         return EINVAL;
     }
 
@@ -1240,9 +1255,9 @@ put_out_noputparent:
 
 #ifdef WITH_PTNETMAP_GUEST
 /*
- * GUEST ptnetmap generic txsync()/rxsync() used in e1000/virtio-net device
- * driver notify is set when we need to send notification to the host
- * (driver-specific)
+ * Guest ptnetmap txsync()/rxsync() routines, used in ptnet device drivers.
+ * These routines are reused across the different operating systems supported
+ * by netmap.
  */
 
 /*

@@ -713,6 +713,7 @@ int	ieee80211_add_rx_params(struct mbuf *m,
 	    const struct ieee80211_rx_stats *rxs);
 int	ieee80211_get_rx_params(struct mbuf *m,
 	    struct ieee80211_rx_stats *rxs);
+const struct ieee80211_rx_stats * ieee80211_get_rx_params_ptr(struct mbuf *m);
 
 struct ieee80211_toa_params {
 	int request_id;

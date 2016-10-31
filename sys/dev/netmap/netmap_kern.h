@@ -2009,13 +2009,14 @@ typedef void (*nm_kthread_worker_fn_t)(void *data);
 /* kthread configuration */
 struct nm_kthread_cfg {
 	long				type;		/* kthread type/identifier */
-	struct ptnet_ring_cfg		event;		/* event/ioctl fd */
 	nm_kthread_worker_fn_t		worker_fn;	/* worker function */
 	void				*worker_private;/* worker parameter */
 	int				attach_user;	/* attach kthread to user process */
 };
 /* kthread configuration */
-struct nm_kthread *nm_os_kthread_create(struct nm_kthread_cfg *cfg);
+struct nm_kthread *nm_os_kthread_create(struct nm_kthread_cfg *cfg,
+					unsigned int cfgtype,
+					void *opaque);
 int nm_os_kthread_start(struct nm_kthread *);
 void nm_os_kthread_stop(struct nm_kthread *);
 void nm_os_kthread_delete(struct nm_kthread *);
@@ -2053,8 +2054,6 @@ nm_ptnetmap_host_on(struct netmap_adapter *na)
 #ifdef WITH_PTNETMAP_GUEST
 /* ptnetmap GUEST routines */
 
-typedef uint32_t (*nm_pt_guest_ptctl_t)(struct ifnet *, uint32_t);
-
 /*
  * netmap adapter for guest ptnetmap ports
  */
@@ -2076,8 +2075,8 @@ struct netmap_pt_guest_adapter {
 
 };
 
-int netmap_pt_guest_attach(struct netmap_adapter *, void *,
-			   unsigned int, nm_pt_guest_ptctl_t);
+int netmap_pt_guest_attach(struct netmap_adapter *na, void *csb,
+			   unsigned int nifp_offset, unsigned int memid);
 struct ptnet_ring;
 bool netmap_pt_guest_txsync(struct ptnet_ring *ptring, struct netmap_kring *kring,
 			    int flags);

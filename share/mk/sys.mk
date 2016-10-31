@@ -13,7 +13,7 @@ unix		?=	We run FreeBSD, not UNIX.
 # and/or endian.  This is called MACHINE_CPU in NetBSD, but that's used
 # for something different in FreeBSD.
 #
-MACHINE_CPUARCH=${MACHINE_ARCH:C/mips(n32|64)?(el)?/mips/:C/arm(v6)?(eb|hf)?/arm/:C/powerpc64/powerpc/:C/riscv64/riscv/}
+MACHINE_CPUARCH=${MACHINE_ARCH:C/mips(n32|64)?(el)?(hf)?/mips/:C/arm(v6)?(eb|hf)?/arm/:C/powerpc(64|spe)/powerpc/:C/riscv64/riscv/}
 .endif
 
 
@@ -121,7 +121,7 @@ META_MODE?= normal
 .if defined(%POSIX)
 .SUFFIXES:	.o .c .y .l .a .sh .f
 .else
-.SUFFIXES:	.out .a .ln .o .c .cc .cpp .cxx .C .m .F .f .e .r .y .l .S .asm .s .cl .p .h .sh
+.SUFFIXES:	.out .a .ln .o .bco .llo .c .cc .cpp .cxx .C .m .F .f .e .r .y .l .S .asm .s .cl .p .h .sh
 .endif
 
 AR		?=	ar

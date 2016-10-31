@@ -918,10 +918,6 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 	tp->t_keepcnt = sototcpcb(lso)->t_keepcnt;
 	tcp_timer_activate(tp, TT_KEEP, TP_KEEPINIT(tp));
 
-	if ((so->so_options & SO_ACCEPTFILTER) == 0) {
-		soisconnected(so);
-	}
-
 	TCPSTAT_INC(tcps_accepts);
 	return (so);
 

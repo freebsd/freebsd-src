@@ -42,6 +42,7 @@
 #include "device_if.h"
 #include "pci_if.h"
 #include "smbus_if.h"
+#include "iicbus_if.h"
 
 #define IG4_RBUFSIZE	128
 #define IG4_RBUFMASK	(IG4_RBUFSIZE - 1)
@@ -51,7 +52,7 @@ enum ig4_op { IG4_IDLE, IG4_READ, IG4_WRITE };
 struct ig4iic_softc {
 	device_t	dev;
 	struct		intr_config_hook enum_hook;
-	device_t	smb;
+	device_t	iicbus;
 	struct resource	*regs_res;
 	int		regs_rid;
 	struct resource	*intr_res;
@@ -115,5 +116,7 @@ extern smbus_pcall_t    ig4iic_smb_pcall;
 extern smbus_bwrite_t   ig4iic_smb_bwrite;
 extern smbus_bread_t    ig4iic_smb_bread;
 extern smbus_trans_t    ig4iic_smb_trans;
+extern iicbus_transfer_t ig4iic_transfer;
+extern iicbus_reset_t   ig4iic_reset;
 
 #endif

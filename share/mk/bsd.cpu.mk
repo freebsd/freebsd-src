@@ -137,6 +137,8 @@ _CPUCFLAGS = -Wa,-me500 -msoft-float
 .  else
 _CPUCFLAGS = -mcpu=${CPUTYPE} -mno-powerpc64
 .  endif
+. elif ${MACHINE_ARCH} == "powerpcspe"
+_CPUCFLAGS = -Wa,-me500 -mspe=yes -mabi=spe -mfloat-gprs=double
 . elif ${MACHINE_ARCH} == "powerpc64"
 _CPUCFLAGS = -mcpu=${CPUTYPE}
 . elif ${MACHINE_CPUARCH} == "mips"
@@ -301,6 +303,9 @@ MACHINE_CPU = v9 ultrasparc ultrasparc3
 
 .if ${MACHINE_CPUARCH} == "mips"
 CFLAGS += -G0
+.if ${TARGET_ARCH:Mmips*hf}
+CFLAGS += -mhard-float
+.endif
 .endif
 
 ########## arm
@@ -325,6 +330,10 @@ MACHINE_CPU += softfp
 # not a nice optimization.
 CFLAGS += -mfloat-abi=softfp
 .endif
+.endif
+
+.if ${MACHINE_ARCH} == "powerpcspe"
+CFLAGS += -mcpu=8540 -Wa,-me500 -mspe=yes -mabi=spe -mfloat-gprs=double
 .endif
 
 .if ${MACHINE_CPUARCH} == "riscv"

@@ -28,7 +28,7 @@
 .\"     @(#)swapon.8	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd October 2, 2016
+.Dd October 21, 2016
 .Dt SWAPON 8
 .Os
 .Sh NAME
@@ -97,6 +97,12 @@ option is used, all swap devices in
 will be removed, unless their
 .Dq noauto
 option is also set.
+If the
+.Fl L
+option is specified,
+only swap devices with the
+.Dq late
+option will be removed.
 If the
 .Fl q
 option is used,

@@ -98,10 +98,11 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <string.h>
-#include <ctype.h>
 #include <sys/param.h>
 #include <sys/queue.h>
+#include <ctype.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "makefs.h"
 #include "cd9660.h"

@@ -32,8 +32,8 @@ CFLAGS+= -DYES_HESIOD
 CFLAGS+= -DHOST_CPU=\"${MACHINE_CPUARCH}\" -DHOST_ARCH=\"${MACHINE_ARCH}\"
 
 RPCCOM=		RPCGEN_CPP=${CPP:Q} rpcgen
-MOUNT_X=	${DESTDIR}/usr/include/rpcsvc/mount.x
-NFS_PROT_X=	${DESTDIR}/usr/include/rpcsvc/nfs_prot.x
+MOUNT_X=	${SRCTOP}/include/rpcsvc/mount.x
+NFS_PROT_X=	${SRCTOP}/include/rpcsvc/nfs_prot.x
 
 WARNS?=	1
 

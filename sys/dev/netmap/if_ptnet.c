@@ -291,7 +291,7 @@ static inline void ptnet_kick(struct ptnet_queue *pq)
 static int
 ptnet_attach(device_t dev)
 {
-	uint32_t ptfeatures = PTNETMAP_F_BASE;
+	uint32_t ptfeatures = 0;
 	unsigned int num_rx_rings, num_tx_rings;
 	struct netmap_adapter na_arg;
 	unsigned int nifp_offset;
@@ -315,19 +315,12 @@ ptnet_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	/* Check if we are supported by the hypervisor. If not,
-	 * bail out immediately. */
+	/* Negotiate features with the hypervisor. */
 	if (ptnet_vnet_hdr) {
 		ptfeatures |= PTNETMAP_F_VNET_HDR;
 	}
 	bus_write_4(sc->iomem, PTNET_IO_PTFEAT, ptfeatures); /* wanted */
 	ptfeatures = bus_read_4(sc->iomem, PTNET_IO_PTFEAT); /* acked */
-	if (!(ptfeatures & PTNETMAP_F_BASE)) {
-		device_printf(dev, "Hypervisor does not support netmap "
-				   "passthorugh\n");
-		err = ENXIO;
-		goto err_path;
-	}
 	sc->ptfeatures = ptfeatures;
 
 	/* Allocate CSB and carry out CSB allocation protocol (CSBBAH first,
@@ -474,7 +467,8 @@ ptnet_attach(device_t dev)
 	na_arg.nm_txsync = ptnet_nm_txsync;
 	na_arg.nm_rxsync = ptnet_nm_rxsync;
 
-	netmap_pt_guest_attach(&na_arg, sc->csb, nifp_offset, ptnet_nm_ptctl);
+	netmap_pt_guest_attach(&na_arg, sc->csb, nifp_offset,
+                                bus_read_4(sc->iomem, PTNET_IO_HOSTMEMID));
 
 	/* Now a netmap adapter for this ifp has been allocated, and it
 	 * can be accessed through NA(ifp). We also have to initialize the CSB
@@ -1082,13 +1076,12 @@ static uint32_t
 ptnet_nm_ptctl(if_t ifp, uint32_t cmd)
 {
 	struct ptnet_softc *sc = if_getsoftc(ifp);
-	int ret;
-
+	/*
+	 * Write a command and read back error status,
+	 * with zero meaning success.
+	 */
 	bus_write_4(sc->iomem, PTNET_IO_PTCTL, cmd);
-	ret = bus_read_4(sc->iomem, PTNET_IO_PTSTS);
-	device_printf(sc->dev, "PTCTL %u, ret %u\n", cmd, ret);
-
-	return ret;
+	return bus_read_4(sc->iomem, PTNET_IO_PTCTL);
 }
 
 static int
@@ -1196,7 +1189,7 @@ ptnet_nm_register(struct netmap_adapter *na, int onoff)
 
 			/* Make sure the host adapter passed through is ready
 			 * for txsync/rxsync. */
-			ret = ptnet_nm_ptctl(ifp, PTNETMAP_PTCTL_REGIF);
+			ret = ptnet_nm_ptctl(ifp, PTNETMAP_PTCTL_CREATE);
 			if (ret) {
 				return ret;
 			}
@@ -1246,7 +1239,7 @@ ptnet_nm_register(struct netmap_adapter *na, int onoff)
 		}
 
 		if (sc->ptna->backend_regifs == 0) {
-			ret = ptnet_nm_ptctl(ifp, PTNETMAP_PTCTL_UNREGIF);
+			ret = ptnet_nm_ptctl(ifp, PTNETMAP_PTCTL_DELETE);
 		}
 	}
 

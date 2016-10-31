@@ -288,7 +288,7 @@ parse_secparams(struct asn_buf *b, struct snmp_pdu *pdu)
 	memset(buf, 0, 256);
 	tb.asn_ptr = buf;
 	tb.asn_len = 256;
-	u_int len;
+	u_int len = 256;
 
 	if (asn_get_octetstring(b, buf, &len) != ASN_ERR_OK) {
 		snmp_error("cannot parse usm header");

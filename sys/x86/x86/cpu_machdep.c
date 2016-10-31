@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_ddb.h"
 #include "opt_inet.h"
 #include "opt_isa.h"
+#include "opt_kdb.h"
 #include "opt_kstack_pages.h"
 #include "opt_maxmem.h"
 #include "opt_mp_watchdog.h"
@@ -522,3 +523,55 @@ idle_sysctl(SYSCTL_HANDLER_ARGS)
 
 SYSCTL_PROC(_machdep, OID_AUTO, idle, CTLTYPE_STRING | CTLFLAG_RW, 0, 0,
     idle_sysctl, "A", "currently selected idle function");
+
+static int panic_on_nmi = 1;
+SYSCTL_INT(_machdep, OID_AUTO, panic_on_nmi, CTLFLAG_RWTUN,
+    &panic_on_nmi, 0,
+    "Panic on NMI");
+int nmi_is_broadcast = 1;
+SYSCTL_INT(_machdep, OID_AUTO, nmi_is_broadcast, CTLFLAG_RWTUN,
+    &nmi_is_broadcast, 0,
+    "Chipset NMI is broadcast");
+#ifdef KDB
+int kdb_on_nmi = 1;
+SYSCTL_INT(_machdep, OID_AUTO, kdb_on_nmi, CTLFLAG_RWTUN,
+    &kdb_on_nmi, 0,
+    "Go to KDB on NMI");
+#endif
+
+#ifdef DEV_ISA
+void
+nmi_call_kdb(u_int cpu, u_int type, struct trapframe *frame)
+{
+
+	/* machine/parity/power fail/"kitchen sink" faults */
+	if (isa_nmi(frame->tf_err) == 0) {
+#ifdef KDB
+		/*
+		 * NMI can be hooked up to a pushbutton for debugging.
+		 */
+		if (kdb_on_nmi) {
+			printf("NMI/cpu%d ... going to debugger\n", cpu);
+			kdb_trap(type, 0, frame);
+		}
+#endif /* KDB */
+	} else if (panic_on_nmi) {
+		panic("NMI indicates hardware failure");
+	}
+}
+#endif
+
+void
+nmi_handle_intr(u_int type, struct trapframe *frame)
+{
+
+#ifdef DEV_ISA
+#ifdef SMP
+	if (nmi_is_broadcast) {
+		nmi_call_kdb_smp(type, frame);
+		return;
+	}
+#endif
+	nmi_call_kdb(PCPU_GET(cpuid), type, frame);
+#endif
+}

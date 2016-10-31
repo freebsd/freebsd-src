@@ -863,7 +863,7 @@ vmbus_intr_setup(struct vmbus_softc *sc)
 		device_printf(sc->vmbus_dev, "cannot find free IDT vector\n");
 		return ENXIO;
 	}
-	if(bootverbose) {
+	if (bootverbose) {
 		device_printf(sc->vmbus_dev, "vmbus IDT vector %d\n",
 		    sc->vmbus_idtvec);
 	}

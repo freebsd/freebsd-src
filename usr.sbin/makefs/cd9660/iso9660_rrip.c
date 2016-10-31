@@ -35,14 +35,16 @@
  * defined in iso9660_rrip.h
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
+#include <sys/queue.h>
+#include <sys/types.h>
+#include <stdio.h>
+
 #include "makefs.h"
 #include "cd9660.h"
 #include "iso9660_rrip.h"
-#include <sys/queue.h>
-#include <stdio.h>
-
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 
 static void cd9660_rrip_initialize_inode(cd9660node *);
 static int cd9660_susp_handle_continuation(cd9660node *);

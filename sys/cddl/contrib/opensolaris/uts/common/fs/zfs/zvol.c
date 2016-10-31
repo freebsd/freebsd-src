@@ -782,8 +782,10 @@ zvol_remove_zv(zvol_state_t *zv)
 		g_topology_lock();
 		zvol_geom_destroy(zv);
 		g_topology_unlock();
-	} else if (zv->zv_volmode == ZFS_VOLMODE_DEV)
-		destroy_dev(zv->zv_dev);
+	} else if (zv->zv_volmode == ZFS_VOLMODE_DEV) {
+		if (zv->zv_dev != NULL)
+			destroy_dev(zv->zv_dev);
+	}
 #endif
 
 	avl_destroy(&zv->zv_znode.z_range_avl);
@@ -1373,6 +1375,10 @@ zvol_get_data(void *arg, lr_write_t *lr, char *buf, zio_t *zio)
  * Otherwise we will later flush the data out via dmu_sync().
  */
 ssize_t zvol_immediate_write_sz = 32768;
+#ifdef _KERNEL
+SYSCTL_LONG(_vfs_zfs_vol, OID_AUTO, immediate_write_sz, CTLFLAG_RWTUN,
+    &zvol_immediate_write_sz, 0, "Minimal size for indirect log write");
+#endif
 
 static void
 zvol_log_write(zvol_state_t *zv, dmu_tx_t *tx, offset_t off, ssize_t resid,
@@ -2973,14 +2979,14 @@ zvol_rename_minor(zvol_state_t *zv, const char *newname)
 	} else if (zv->zv_volmode == ZFS_VOLMODE_DEV) {
 		struct make_dev_args args;
 
-		dev = zv->zv_dev;
-		ASSERT(dev != NULL);
-		zv->zv_dev = NULL;
-		destroy_dev(dev);
-		if (zv->zv_total_opens > 0) {
-			zv->zv_flags &= ~ZVOL_EXCL;
-			zv->zv_total_opens = 0;
-			zvol_last_close(zv);
+		if ((dev = zv->zv_dev) != NULL) {
+			zv->zv_dev = NULL;
+			destroy_dev(dev);
+			if (zv->zv_total_opens > 0) {
+				zv->zv_flags &= ~ZVOL_EXCL;
+				zv->zv_total_opens = 0;
+				zvol_last_close(zv);
+			}
 		}
 
 		make_dev_args_init(&args);

@@ -85,7 +85,7 @@ LIBFDT=		${.OBJDIR}/../../fdt/libfdt.a
 # Enable BootForth
 BOOT_FORTH=	yes
 CFLAGS+=	-DBOOT_FORTH -I${.CURDIR}/../../ficl
-.if ${MACHINE_ARCH} == "mips64" || ${MACHINE_ARCH} == "mips64el"
+.if ${MACHINE_ARCH:Mmips64*} != ""
 CFLAGS+=	-I${.CURDIR}/../../ficl/mips64
 .else
 CFLAGS+=	-I${.CURDIR}/../../ficl/mips

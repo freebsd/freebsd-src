@@ -2527,7 +2527,12 @@ device		ismt
 
 device		smb
 
+# SMBus peripheral devices
 #
+# jedec_ts	Temperature Sensor compliant with JEDEC Standard 21-C
+#
+device		jedec_ts
+
 # I2C Bus
 #
 # Philips i2c bus support is provided by the `iicbus' device.
@@ -2783,7 +2788,7 @@ device		rue
 # Davicom DM9601E USB to fast ethernet. Supports the Corega FEther USB-TXC.
 device		udav
 #
-# RealTek RTL8152 USB to fast ethernet.
+# RealTek RTL8152/RTL8153 USB Ethernet driver
 device		ure
 #
 # Moschip MCS7730/MCS7840 USB to fast ethernet. Supports the Sitecom LN030.

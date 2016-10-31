@@ -242,6 +242,11 @@ ivor_setup(void)
 	case FSL_E500mc:
 	case FSL_E5500:
 		SET_TRAP(SPR_IVOR7, int_fpu);
+		break;
+	case FSL_E500v1:
+	case FSL_E500v2:
+		SET_TRAP(SPR_IVOR32, int_vec);
+		break;
 	}
 }
 
