@@ -459,7 +459,7 @@ distrib-dirs: ${MTREES:N/*} distrib-cleanup .PHONY
 .endif
 
 etc-examples-install: ${META_DEPS}
-	cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
+	cd ${.CURDIR}; ${INSTALL} ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 \
 	    ${BIN1} ${BIN2} nsmb.conf opieaccess \
 	    ${DESTDIR}${SHAREDIR}/examples/etc
 
