@@ -1881,6 +1881,18 @@ passdoioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread 
 			break;
 		}
 
+		if (ccb->ccb_h.flags & CAM_CDB_POINTER) {
+			if (ccb->csio.cdb_len > IOCDBLEN) {
+				error = EINVAL;
+				break;
+			}
+			error = copyin(ccb->csio.cdb_io.cdb_ptr,
+			    ccb->csio.cdb_io.cdb_bytes, ccb->csio.cdb_len);
+			if (error)
+				break;
+			ccb->ccb_h.flags &= ~CAM_CDB_POINTER;
+		}
+
 		/*
 		 * Some CCB types, like scan bus and scan lun can only go
 		 * through the transport layer device.
@@ -2148,6 +2160,7 @@ passsendccb(struct cam_periph *periph, union ccb *ccb, union ccb *inccb)
 {
 	struct pass_softc *softc;
 	struct cam_periph_map_info mapinfo;
+	uint8_t *cmd;
 	xpt_opcode fc;
 	int error;
 
@@ -2158,6 +2171,14 @@ passsendccb(struct cam_periph *periph, union ccb *ccb, union ccb *inccb)
 	 * preserved, the rest we get from the user.
 	 */
 	xpt_merge_ccb(ccb, inccb);
+
+	if (ccb->ccb_h.flags & CAM_CDB_POINTER) {
+		cmd = __builtin_alloca(ccb->csio.cdb_len);
+		error = copyin(ccb->csio.cdb_io.cdb_ptr, cmd, ccb->csio.cdb_len);
+		if (error)
+			return (error);
+		ccb->csio.cdb_io.cdb_ptr = cmd;
+	}
 
 	/*
 	 */
