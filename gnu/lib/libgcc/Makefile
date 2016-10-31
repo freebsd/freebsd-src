@@ -397,11 +397,11 @@ _libinstall: _lib-eh-install
 
 _lib-eh-install:
 .if ${MK_INSTALLLIB} != "no"
-	${INSTALL} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
+	${INSTALL} ${TAG_ARGS} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 		${_INSTALLFLAGS} libgcc_eh.a ${DESTDIR}${LIBDIR}
 .endif
 .if ${MK_PROFILE} != "no"
-	${INSTALL} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
+	${INSTALL} ${TAG_ARGS} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 		${_INSTALLFLAGS} libgcc_eh_p.a ${DESTDIR}${LIBDIR}
 .endif
 
