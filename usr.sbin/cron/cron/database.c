@@ -44,7 +44,7 @@ load_database(old_db)
 {
 	DIR		*dir;
 	struct stat	statbuf;
-	struct stat	syscron_stat;
+	struct stat	syscron_stat, st;
 	time_t		maxmtime;
 	DIR_T   	*dp;
 	cron_db		new_db;
@@ -124,7 +124,8 @@ load_database(old_db)
 		while (NULL != (dp = readdir(dir))) {
 			if (dp->d_name[0] == '.')
 				continue;
-			if (dp->d_type != DT_REG)
+			if (fstatat(dirfd(dir), dp->d_name, &st, 0) == 0 &&
+			    !S_ISREG(st.st_mode))
 				continue;
 			snprintf(tabname, sizeof(tabname), "%s/%s",
 			    syscrontabs[i].name, dp->d_name);
