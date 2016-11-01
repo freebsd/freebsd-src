@@ -1674,7 +1674,7 @@ zvol_strategy(struct bio *bp)
 		if (error != 0) {
 			dmu_tx_abort(tx);
 		} else {
-			zvol_log_truncate(zv, tx, off, resid, B_TRUE);
+			zvol_log_truncate(zv, tx, off, resid, sync);
 			dmu_tx_commit(tx);
 			error = dmu_free_long_range(zv->zv_objset, ZVOL_OBJ,
 			    off, resid);
@@ -3118,9 +3118,9 @@ zvol_d_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct threa
 {
 	zvol_state_t *zv;
 	rl_t *rl;
-	off_t offset, length, chunk;
+	off_t offset, length;
 	int i, error;
-	u_int u;
+	boolean_t sync;
 
 	zv = dev->si_drv2;
 
@@ -3158,15 +3158,17 @@ zvol_d_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct threa
 		dmu_tx_t *tx = dmu_tx_create(zv->zv_objset);
 		error = dmu_tx_assign(tx, TXG_WAIT);
 		if (error != 0) {
+			sync = FALSE;
 			dmu_tx_abort(tx);
 		} else {
-			zvol_log_truncate(zv, tx, offset, length, B_TRUE);
+			sync = (zv->zv_objset->os_sync == ZFS_SYNC_ALWAYS);
+			zvol_log_truncate(zv, tx, offset, length, sync);
 			dmu_tx_commit(tx);
 			error = dmu_free_long_range(zv->zv_objset, ZVOL_OBJ,
 			    offset, length);
 		}
 		zfs_range_unlock(rl);
-		if (zv->zv_objset->os_sync == ZFS_SYNC_ALWAYS)
+		if (sync)
 			zil_commit(zv->zv_zilog, ZVOL_OBJ);
 		break;
 	case DIOCGSTRIPESIZE:
