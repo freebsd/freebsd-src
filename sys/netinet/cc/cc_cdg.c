@@ -474,7 +474,9 @@ cdg_cong_signal(struct cc_var *ccv, uint32_t signal_type)
 		ENTER_RECOVERY(CCV(ccv, t_flags));
 		break;
 	case CC_RTO:
-		CCV(ccv, snd_ssthresh) = max(2*mss, cwin/2);
+		CCV(ccv, snd_ssthresh) =
+		    max((CCV(ccv, snd_max) - CCV(ccv, snd_una)) / 2 / mss, 2)
+			* mss;
 		CCV(ccv, snd_cwnd) = mss;
 		break;
 	default:
