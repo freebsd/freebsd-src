@@ -413,19 +413,7 @@ struct bus_dmadesc {
 
 struct ioat_descriptor {
 	struct bus_dmadesc	bus_dmadesc;
-	union {
-		struct ioat_generic_hw_descriptor	*generic;
-		struct ioat_dma_hw_descriptor		*dma;
-		struct ioat_fill_hw_descriptor		*fill;
-		struct ioat_crc32_hw_descriptor		*crc32;
-		struct ioat_xor_hw_descriptor		*xor;
-		struct ioat_xor_ext_hw_descriptor	*xor_ext;
-		struct ioat_pq_hw_descriptor		*pq;
-		struct ioat_pq_ext_hw_descriptor	*pq_ext;
-		struct ioat_raw_hw_descriptor		*raw;
-	} u;
 	uint32_t		id;
-	bus_addr_t		hw_desc_bus_addr;
 };
 
 /* Unused by this driver at this time. */
@@ -500,7 +488,22 @@ struct ioat_softc {
 	uint32_t		ring_size_order;
 	bus_addr_t		last_seen;
 
-	struct ioat_descriptor	**ring;
+	struct ioat_descriptor	*ring;
+
+	union ioat_hw_descriptor {
+		struct ioat_generic_hw_descriptor	generic;
+		struct ioat_dma_hw_descriptor		dma;
+		struct ioat_fill_hw_descriptor		fill;
+		struct ioat_crc32_hw_descriptor		crc32;
+		struct ioat_xor_hw_descriptor		xor;
+		struct ioat_xor_ext_hw_descriptor	xor_ext;
+		struct ioat_pq_hw_descriptor		pq;
+		struct ioat_pq_ext_hw_descriptor	pq_ext;
+		struct ioat_raw_hw_descriptor		raw;
+	} *hw_desc_ring;
+	bus_addr_t		hw_desc_bus_addr;
+#define	RING_PHYS_ADDR(sc, i)	(sc)->hw_desc_bus_addr + \
+    (((i) % (1 << (sc)->ring_size_order)) * sizeof(struct ioat_dma_hw_descriptor))
 
 	struct mtx		cleanup_lock;
 	volatile uint32_t	refcnt;
