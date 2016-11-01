@@ -144,6 +144,7 @@ int	noretr = 0;		/* RETR command is disabled.	*/
 int	noguestretr = 0;	/* RETR command is disabled for anon users. */
 int	noguestmkd = 0;		/* MKD command is disabled for anon users. */
 int	noguestmod = 1;		/* anon users may not modify existing files. */
+int	use_blacklist = 0;
 
 off_t	file_size;
 off_t	byte_count;
@@ -305,7 +306,7 @@ main(int argc, char *argv[], char **envp)
 	openlog("ftpd", LOG_PID | LOG_NDELAY, LOG_FTP);
 
 	while ((ch = getopt(argc, argv,
-	                    "468a:AdDEhlmMoOp:P:rRSt:T:u:UvW")) != -1) {
+	                    "468a:ABdDEhlmMoOp:P:rRSt:T:u:UvW")) != -1) {
 		switch (ch) {
 		case '4':
 			family = (family == AF_INET6) ? AF_UNSPEC : AF_INET;
@@ -325,6 +326,14 @@ main(int argc, char *argv[], char **envp)
 
 		case 'A':
 			anon_only = 1;
+			break;
+
+		case 'B':
+#ifdef USE_BLACKLIST
+			use_blacklist = 1;
+#else
+			syslog(LOG_WARNING, "not compiled with USE_BLACKLIST support");
+#endif
 			break;
 
 		case 'd':
@@ -644,9 +653,7 @@ gotchild:
 		reply(220, "%s FTP server (%s) ready.", hostname, version);
 	else
 		reply(220, "FTP server ready.");
-#ifdef USE_BLACKLIST
-	blacklist_init();
-#endif
+	BLACKLIST_INIT();
 	for (;;)
 		(void) yyparse();
 	/* NOTREACHED */
@@ -1422,9 +1429,7 @@ skip:
 		 */
 		if (rval) {
 			reply(530, "Login incorrect.");
-#ifdef USE_BLACKLIST
-			blacklist_notify(1, STDIN_FILENO, "Login incorrect");
-#endif
+			BLACKLIST_NOTIFY(BLACKLIST_AUTH_FAIL, STDIN_FILENO, "Login incorrect");
 			if (logging) {
 				syslog(LOG_NOTICE,
 				    "FTP LOGIN FAILED FROM %s",
@@ -1441,12 +1446,9 @@ skip:
 				exit(0);
 			}
 			return;
+		} else {
+			BLACKLIST_NOTIFY(BLACKLIST_AUTH_OK, STDIN_FILENO, "Login successful");
 		}
-#ifdef USE_BLACKLIST
-		 else {
-			blacklist_notify(0, STDIN_FILENO, "Login successful");
-		}
-#endif
 	}
 	login_attempts = 0;		/* this time successful */
 	if (setegid(pw->pw_gid) < 0) {

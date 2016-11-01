@@ -36,7 +36,7 @@
 .Nd Internet File Transfer Protocol server
 .Sh SYNOPSIS
 .Nm
-.Op Fl 468ADdEhMmOoRrSUvW
+.Op Fl 468ABDdEhMmOoRrSUvW
 .Op Fl l Op Fl l
 .Op Fl a Ar address
 .Op Fl P Ar port
@@ -95,6 +95,14 @@ When
 .Fl D
 is specified, accept connections only on the specified
 .Ar address .
+.It Fl B
+With this option set,
+.Nm
+sends authentication success and failure messages to the
+.Xr blacklistd 8
+daemon.  If this option is not specified, no communcation with the
+.Xr blacklistd 8
+daemon is attempted.
 .It Fl D
 With this option set,
 .Nm
