@@ -303,11 +303,9 @@ again:
 
 /*
  * ipfw processing for ethernet packets (in and out).
- * Inteface is NULL from ether_demux, and ifp from
- * ether_output_frame.
  */
 int
-ipfw_check_frame(void *arg, struct mbuf **m0, struct ifnet *dst, int dir,
+ipfw_check_frame(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir,
     struct inpcb *inp)
 {
 	struct ether_header *eh;
@@ -348,7 +346,7 @@ ipfw_check_frame(void *arg, struct mbuf **m0, struct ifnet *dst, int dir,
 	m_adj(m, ETHER_HDR_LEN);	/* strip ethernet header */
 
 	args.m = m;		/* the packet we are looking at		*/
-	args.oif = dir == PFIL_OUT ? dst: NULL;	/* destination, if any	*/
+	args.oif = dir == PFIL_OUT ? ifp: NULL;	/* destination, if any	*/
 	args.next_hop = NULL;	/* we do not support forward yet	*/
 	args.next_hop6 = NULL;	/* we do not support forward yet	*/
 	args.eh = &save_eh;	/* MAC header for bridged/MAC packets	*/
@@ -383,14 +381,13 @@ ipfw_check_frame(void *arg, struct mbuf **m0, struct ifnet *dst, int dir,
 
 	case IP_FW_DUMMYNET:
 		ret = EACCES;
-		int dir;
 
 		if (ip_dn_io_ptr == NULL)
 			break; /* i.e. drop */
 
 		*m0 = NULL;
-		dir = PROTO_LAYER2 | (dst ? DIR_OUT : DIR_IN);
-		ip_dn_io_ptr(&m, dir, &args);
+		dir = (dir == PFIL_IN) ? DIR_IN : DIR_OUT;
+		ip_dn_io_ptr(&m, dir | PROTO_LAYER2, &args);
 		return 0;
 
 	default:
