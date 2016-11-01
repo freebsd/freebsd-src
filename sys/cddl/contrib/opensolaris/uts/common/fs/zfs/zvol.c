@@ -169,6 +169,7 @@ typedef struct zvol_state {
 	uint32_t	zv_open_count[OTYPCNT];	/* open counts */
 #endif
 	uint32_t	zv_total_opens;	/* total open count */
+	uint32_t	zv_sync_cnt;	/* synchronous open count */
 	zilog_t		*zv_zilog;	/* ZIL handle */
 	list_t		zv_extents;	/* List of extents for dump */
 	znode_t		zv_znode;	/* for range locking */
@@ -1441,7 +1442,9 @@ zvol_log_write(zvol_state_t *zv, dmu_tx_t *tx, offset_t off, ssize_t resid,
 		BP_ZERO(&lr->lr_blkptr);
 
 		itx->itx_private = zv;
-		itx->itx_sync = sync;
+
+		if (!sync && (zv->zv_sync_cnt == 0))
+			itx->itx_sync = B_FALSE;
 
 		zil_itx_assign(zilog, itx, tx);
 
@@ -2083,7 +2086,7 @@ zvol_log_truncate(zvol_state_t *zv, dmu_tx_t *tx, uint64_t off, uint64_t len,
 	lr->lr_offset = off;
 	lr->lr_length = len;
 
-	itx->itx_sync = sync;
+	itx->itx_sync = (sync || zv->zv_sync_cnt != 0);
 	zil_itx_assign(zilog, itx, tx);
 }
 
@@ -3075,6 +3078,11 @@ zvol_d_open(struct cdev *dev, int flags, int fmt, struct thread *td)
 #endif
 
 	zv->zv_total_opens++;
+	if (flags & (FSYNC | FDSYNC)) {
+		zv->zv_sync_cnt++;
+		if (zv->zv_sync_cnt == 1)
+			zil_async_to_sync(zv->zv_zilog, ZVOL_OBJ);
+	}
 	mutex_exit(&zfsdev_state_lock);
 	return (err);
 out:
@@ -3105,6 +3113,8 @@ zvol_d_close(struct cdev *dev, int flags, int fmt, struct thread *td)
 	 * You may get multiple opens, but only one close.
 	 */
 	zv->zv_total_opens--;
+	if (flags & (FSYNC | FDSYNC))
+		zv->zv_sync_cnt--;
 
 	if (zv->zv_total_opens == 0)
 		zvol_last_close(zv);
