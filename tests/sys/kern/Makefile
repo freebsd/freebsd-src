@@ -14,6 +14,11 @@ ATF_TESTS_C+=	unix_passfd_test
 TEST_METADATA.unix_seqpacket_test+=	timeout="15"
 ATF_TESTS_C+=	waitpid_nohang
 
+ATF_TESTS_SH+=	coredump_phnum_test
+
+BINDIR=		${TESTSDIR}
+PROGS+=		coredump_phnum_helper
+
 LIBADD.ptrace_test+=			pthread
 LIBADD.unix_seqpacket_test+=		pthread
 
