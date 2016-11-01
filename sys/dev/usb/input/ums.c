@@ -330,10 +330,13 @@ ums_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 			    dx, dy, dz, dt, dw, buttons);
 
 			/* translate T-axis into button presses until further */
-			if (dt > 0)
+			if (dt > 0) {
+				ums_put_queue(sc, 0, 0, 0, 0, buttons);
 				buttons |= 1UL << 5;
-			else if (dt < 0)
+			} else if (dt < 0) {
+				ums_put_queue(sc, 0, 0, 0, 0, buttons);
 				buttons |= 1UL << 6;
+			}
 
 			sc->sc_status.button = buttons;
 			sc->sc_status.dx += dx;
