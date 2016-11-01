@@ -231,6 +231,8 @@ LINTLIBFLAGS	?=	-cghapbxu -C ${LIB}
 MAKE		?=	make
 
 .if !defined(%POSIX)
+LLVM_LINK	?=	llvm-link
+
 LORDER		?=	lorder
 
 NM		?=	nm
