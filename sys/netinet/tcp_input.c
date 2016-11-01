@@ -3754,7 +3754,15 @@ tcp_mss(struct tcpcb *tp, int offer)
 			(void)sbreserve_locked(&so->so_snd, bufsize, so, NULL);
 	}
 	SOCKBUF_UNLOCK(&so->so_snd);
-	tp->t_maxseg = mss;
+	/*
+	 * Sanity check: make sure that maxseg will be large
+	 * enough to allow some data on segments even if the
+	 * all the option space is used (40bytes).  Otherwise
+	 * funny things may happen in tcp_output.
+	 *
+	 * XXXGL: shouldn't we reserve space for IP/IPv6 options?
+	 */
+	tp->t_maxseg = max(mss, 64);
 
 	SOCKBUF_LOCK(&so->so_rcv);
 	if ((so->so_rcv.sb_hiwat == V_tcp_recvspace) && metrics.rmx_recvpipe)
