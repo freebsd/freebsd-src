@@ -547,6 +547,80 @@ hn_chim_free(struct hn_softc *sc, uint32_t chim_idx)
 	atomic_clear_long(&sc->hn_chim_bmap[idx], mask);
 }
 
+#if defined(INET6) || defined(INET)
+/*
+ * NOTE: If this function failed, the m_head would be freed.
+ */
+static __inline struct mbuf *
+hn_tso_fixup(struct mbuf *m_head)
+{
+	struct ether_vlan_header *evl;
+	struct tcphdr *th;
+	int ehlen;
+
+	KASSERT(M_WRITABLE(m_head), ("TSO mbuf not writable"));
+
+#define PULLUP_HDR(m, len)				\
+do {							\
+	if (__predict_false((m)->m_len < (len))) {	\
+		(m) = m_pullup((m), (len));		\
+		if ((m) == NULL)			\
+			return (NULL);			\
+	}						\
+} while (0)
+
+	PULLUP_HDR(m_head, sizeof(*evl));
+	evl = mtod(m_head, struct ether_vlan_header *);
+	if (evl->evl_encap_proto == ntohs(ETHERTYPE_VLAN))
+		ehlen = ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN;
+	else
+		ehlen = ETHER_HDR_LEN;
+
+#ifdef INET
+	if (m_head->m_pkthdr.csum_flags & CSUM_IP_TSO) {
+		struct ip *ip;
+		int iphlen;
+
+		PULLUP_HDR(m_head, ehlen + sizeof(*ip));
+		ip = mtodo(m_head, ehlen);
+		iphlen = ip->ip_hl << 2;
+
+		PULLUP_HDR(m_head, ehlen + iphlen + sizeof(*th));
+		th = mtodo(m_head, ehlen + iphlen);
+
+		ip->ip_len = 0;
+		ip->ip_sum = 0;
+		th->th_sum = in_pseudo(ip->ip_src.s_addr,
+		    ip->ip_dst.s_addr, htons(IPPROTO_TCP));
+	}
+#endif
+#if defined(INET6) && defined(INET)
+	else
+#endif
+#ifdef INET6
+	{
+		struct ip6_hdr *ip6;
+
+		PULLUP_HDR(m_head, ehlen + sizeof(*ip6));
+		ip6 = mtodo(m_head, ehlen);
+		if (ip6->ip6_nxt != IPPROTO_TCP) {
+			m_freem(m_head);
+			return (NULL);
+		}
+
+		PULLUP_HDR(m_head, ehlen + sizeof(*ip6) + sizeof(*th));
+		th = mtodo(m_head, ehlen + sizeof(*ip6));
+
+		ip6->ip6_plen = 0;
+		th->th_sum = in6_cksum_pseudo(ip6, 0, IPPROTO_TCP, 0);
+	}
+#endif
+	return (m_head);
+
+#undef PULLUP_HDR
+}
+#endif	/* INET6 || INET */
+
 static int
 hn_set_rxfilter(struct hn_softc *sc)
 {
@@ -1358,32 +1432,10 @@ hn_encap(struct hn_tx_ring *txr, struct hn_txdesc *txd, struct mbuf **m_head0)
 
 	if (m_head->m_pkthdr.csum_flags & CSUM_TSO) {
 #if defined(INET6) || defined(INET)
-		struct ether_vlan_header *eh;
-		int ether_len;
-
-		/*
-		 * XXX need m_pullup and use mtodo
-		 */
-		eh = mtod(m_head, struct ether_vlan_header*);
-		if (eh->evl_encap_proto == htons(ETHERTYPE_VLAN))
-			ether_len = ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN;
-		else
-			ether_len = ETHER_HDR_LEN;
-
 		pi_data = hn_rndis_pktinfo_append(pkt, HN_RNDIS_PKT_LEN,
 		    NDIS_LSO2_INFO_SIZE, NDIS_PKTINFO_TYPE_LSO);
 #ifdef INET
 		if (m_head->m_pkthdr.csum_flags & CSUM_IP_TSO) {
-			struct ip *ip =
-			    (struct ip *)(m_head->m_data + ether_len);
-			unsigned long iph_len = ip->ip_hl << 2;
-			struct tcphdr *th =
-			    (struct tcphdr *)((caddr_t)ip + iph_len);
-
-			ip->ip_len = 0;
-			ip->ip_sum = 0;
-			th->th_sum = in_pseudo(ip->ip_src.s_addr,
-			    ip->ip_dst.s_addr, htons(IPPROTO_TCP));
 			*pi_data = NDIS_LSO2_INFO_MAKEIPV4(0,
 			    m_head->m_pkthdr.tso_segsz);
 		}
@@ -1393,12 +1445,6 @@ hn_encap(struct hn_tx_ring *txr, struct hn_txdesc *txd, struct mbuf **m_head0)
 #endif
 #ifdef INET6
 		{
-			struct ip6_hdr *ip6 = (struct ip6_hdr *)
-			    (m_head->m_data + ether_len);
-			struct tcphdr *th = (struct tcphdr *)(ip6 + 1);
-
-			ip6->ip6_plen = 0;
-			th->th_sum = in6_cksum_pseudo(ip6, 0, IPPROTO_TCP, 0);
 			*pi_data = NDIS_LSO2_INFO_MAKEIPV6(0,
 			    m_head->m_pkthdr.tso_segsz);
 		}
@@ -3280,6 +3326,16 @@ hn_start_locked(struct hn_tx_ring *txr, int len)
 			return 1;
 		}
 
+#if defined(INET6) || defined(INET)
+		if (m_head->m_pkthdr.csum_flags & CSUM_TSO) {
+			m_head = hn_tso_fixup(m_head);
+			if (__predict_false(m_head == NULL)) {
+				if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
+				continue;
+			}
+		}
+#endif
+
 		txd = hn_txdesc_get(txr);
 		if (txd == NULL) {
 			txr->hn_no_txdescs++;
@@ -3441,6 +3497,20 @@ hn_transmit(struct ifnet *ifp, struct mbuf *m)
 	struct hn_softc *sc = ifp->if_softc;
 	struct hn_tx_ring *txr;
 	int error, idx = 0;
+
+#if defined(INET6) || defined(INET)
+	/*
+	 * Perform TSO packet header fixup now, since the TSO
+	 * packet header should be cache-hot.
+	 */
+	if (m->m_pkthdr.csum_flags & CSUM_TSO) {
+		m = hn_tso_fixup(m);
+		if (__predict_false(m == NULL)) {
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
+			return EIO;
+		}
+	}
+#endif
 
 	/*
 	 * Select the TX ring based on flowid
