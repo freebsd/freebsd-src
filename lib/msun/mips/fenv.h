@@ -29,6 +29,10 @@
 #ifndef	_FENV_H_
 #define	_FENV_H_
 
+#if !defined(SOFTFLOAT) && defined(__mips_soft_float) && __mips_soft_float == 1
+#define SOFTFLOAT
+#endif
+
 #include <sys/_types.h>
 
 #ifndef	__fenv_static
