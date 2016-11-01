@@ -1394,15 +1394,28 @@ hn_encap(struct hn_tx_ring *txr, struct hn_txdesc *txd, struct mbuf **m_head0)
 	struct mbuf *m_head = *m_head0;
 	struct rndis_packet_msg *pkt;
 	uint32_t *pi_data;
+	void *chim = NULL;
 	int pktlen;
 
-	/*
-	 * extension points to the area reserved for the
-	 * rndis_filter_packet, which is placed just after
-	 * the netvsc_packet (and rppi struct, if present;
-	 * length is updated later).
-	 */
 	pkt = txd->rndis_pkt;
+	if (m_head->m_pkthdr.len + HN_RNDIS_PKT_LEN < txr->hn_chim_size) {
+		/*
+		 * This packet is small enough to fit into a chimney sending
+		 * buffer.  Try allocating one chimney sending buffer now.
+		 */
+		txr->hn_tx_chimney_tried++;
+		txd->chim_index = hn_chim_alloc(txr->hn_sc);
+		if (txd->chim_index != HN_NVS_CHIM_IDX_INVALID) {
+			chim = txr->hn_sc->hn_chim +
+			    (txd->chim_index * txr->hn_sc->hn_chim_szmax);
+			/*
+			 * Directly fill the chimney sending buffer w/ the
+			 * RNDIS packet message.
+			 */
+			pkt = chim;
+		}
+	}
+
 	pkt->rm_type = REMOTE_NDIS_PACKET_MSG;
 	pkt->rm_len = sizeof(*pkt) + m_head->m_pkthdr.len;
 	pkt->rm_dataoffset = sizeof(*pkt);
@@ -1475,26 +1488,25 @@ hn_encap(struct hn_tx_ring *txr, struct hn_txdesc *txd, struct mbuf **m_head0)
 	pkt->rm_pktinfooffset = hn_rndis_pktmsg_offset(pkt->rm_pktinfooffset);
 
 	/*
-	 * Chimney send, if the packet could fit into one chimney buffer.
+	 * Fast path: Chimney sending.
 	 */
-	if (pkt->rm_len < txr->hn_chim_size) {
-		txr->hn_tx_chimney_tried++;
-		txd->chim_index = hn_chim_alloc(txr->hn_sc);
-		if (txd->chim_index != HN_NVS_CHIM_IDX_INVALID) {
-			uint8_t *dest = txr->hn_sc->hn_chim +
-			    (txd->chim_index * txr->hn_sc->hn_chim_szmax);
+	if (chim != NULL) {
+		KASSERT(txd->chim_index != HN_NVS_CHIM_IDX_INVALID,
+		    ("chimney buffer is not used"));
+		KASSERT(pkt == chim, ("RNDIS pkt not in chimney buffer"));
 
-			memcpy(dest, pkt, pktlen);
-			dest += pktlen;
-			m_copydata(m_head, 0, m_head->m_pkthdr.len, dest);
+		m_copydata(m_head, 0, m_head->m_pkthdr.len,
+		    ((uint8_t *)chim) + pktlen);
 
-			txd->chim_size = pkt->rm_len;
-			txr->hn_gpa_cnt = 0;
-			txr->hn_tx_chimney++;
-			txr->hn_sendpkt = hn_txpkt_chim;
-			goto done;
-		}
+		txd->chim_size = pkt->rm_len;
+		txr->hn_gpa_cnt = 0;
+		txr->hn_tx_chimney++;
+		txr->hn_sendpkt = hn_txpkt_chim;
+		goto done;
 	}
+	KASSERT(txd->chim_index == HN_NVS_CHIM_IDX_INVALID,
+	    ("chimney buffer is used"));
+	KASSERT(pkt == txd->rndis_pkt, ("RNDIS pkt not in txdesc"));
 
 	error = hn_txdesc_dmamap_load(txr, txd, &m_head, segs, &nsegs);
 	if (error) {
