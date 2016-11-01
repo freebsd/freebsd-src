@@ -5071,18 +5071,6 @@ iwm_nic_error(struct iwm_softc *sc)
 }
 #endif
 
-#define SYNC_RESP_STRUCT(_var_, _pkt_)					\
-do {									\
-	bus_dmamap_sync(ring->data_dmat, data->map, BUS_DMASYNC_POSTREAD);\
-	_var_ = (void *)((_pkt_)+1);					\
-} while (/*CONSTCOND*/0)
-
-#define SYNC_RESP_PTR(_ptr_, _len_, _pkt_)				\
-do {									\
-	bus_dmamap_sync(ring->data_dmat, data->map, BUS_DMASYNC_POSTREAD);\
-	_ptr_ = (void *)((_pkt_)+1);					\
-} while (/*CONSTCOND*/0)
-
 #define ADVANCE_RXQ(sc) (sc->rxq.cur = (sc->rxq.cur + 1) % IWM_RX_RING_COUNT);
 
 /*
@@ -5105,12 +5093,12 @@ iwm_notif_intr(struct iwm_softc *sc)
 	 */
 	while (sc->rxq.cur != hw) {
 		struct iwm_rx_ring *ring = &sc->rxq;
-		struct iwm_rx_data *data = &sc->rxq.data[sc->rxq.cur];
+		struct iwm_rx_data *data = &ring->data[ring->cur];
 		struct iwm_rx_packet *pkt;
 		struct iwm_cmd_response *cresp;
 		int qid, idx, code;
 
-		bus_dmamap_sync(sc->rxq.data_dmat, data->map,
+		bus_dmamap_sync(ring->data_dmat, data->map,
 		    BUS_DMASYNC_POSTREAD);
 		pkt = mtod(data->m, struct iwm_rx_packet *);
 
@@ -5120,7 +5108,7 @@ iwm_notif_intr(struct iwm_softc *sc)
 		code = IWM_WIDE_ID(pkt->hdr.flags, pkt->hdr.code);
 		IWM_DPRINTF(sc, IWM_DEBUG_INTR,
 		    "rx packet qid=%d idx=%d type=%x %d %d\n",
-		    pkt->hdr.qid & ~0x80, pkt->hdr.idx, code, sc->rxq.cur, hw);
+		    pkt->hdr.qid & ~0x80, pkt->hdr.idx, code, ring->cur, hw);
 
 		/*
 		 * randomly get these from the firmware, no idea why.
@@ -5152,7 +5140,7 @@ iwm_notif_intr(struct iwm_softc *sc)
 			/* XXX look at mac_id to determine interface ID */
 			struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 
-			SYNC_RESP_STRUCT(resp, pkt);
+			resp = (void *)pkt->data;
 			missed = le32toh(resp->consec_missed_beacons);
 
 			IWM_DPRINTF(sc, IWM_DEBUG_BEACON | IWM_DEBUG_STATE,
@@ -5192,7 +5180,7 @@ iwm_notif_intr(struct iwm_softc *sc)
 			struct iwm_mvm_alive_resp_v3 *resp3;
 
 			if (iwm_rx_packet_payload_len(pkt) == sizeof(*resp1)) {
-				SYNC_RESP_STRUCT(resp1, pkt);
+				resp1 = (void *)pkt->data;
 				sc->sc_uc.uc_error_event_table
 				    = le32toh(resp1->error_event_table_ptr);
 				sc->sc_uc.uc_log_event_table
@@ -5205,7 +5193,7 @@ iwm_notif_intr(struct iwm_softc *sc)
 			}
 
 			if (iwm_rx_packet_payload_len(pkt) == sizeof(*resp2)) {
-				SYNC_RESP_STRUCT(resp2, pkt);
+				resp2 = (void *)pkt->data;
 				sc->sc_uc.uc_error_event_table
 				    = le32toh(resp2->error_event_table_ptr);
 				sc->sc_uc.uc_log_event_table
@@ -5220,7 +5208,7 @@ iwm_notif_intr(struct iwm_softc *sc)
 			}
 
 			if (iwm_rx_packet_payload_len(pkt) == sizeof(*resp3)) {
-				SYNC_RESP_STRUCT(resp3, pkt);
+				resp3 = (void *)pkt->data;
 				sc->sc_uc.uc_error_event_table
 				    = le32toh(resp3->error_event_table_ptr);
 				sc->sc_uc.uc_log_event_table
@@ -5240,7 +5228,7 @@ iwm_notif_intr(struct iwm_softc *sc)
 
 		case IWM_CALIB_RES_NOTIF_PHY_DB: {
 			struct iwm_calib_res_notif_phy_db *phy_db_notif;
-			SYNC_RESP_STRUCT(phy_db_notif, pkt);
+			phy_db_notif = (void *)pkt->data;
 
 			iwm_phy_db_set_section(sc, phy_db_notif);
 
@@ -5248,7 +5236,7 @@ iwm_notif_intr(struct iwm_softc *sc)
 
 		case IWM_STATISTICS_NOTIFICATION: {
 			struct iwm_notif_statistics *stats;
-			SYNC_RESP_STRUCT(stats, pkt);
+			stats = (void *)pkt->data;
 			memcpy(&sc->sc_stats, stats, sizeof(sc->sc_stats));
 			sc->sc_noise = iwm_get_noise(sc, &stats->rx.general);
 			break; }
@@ -5256,8 +5244,6 @@ iwm_notif_intr(struct iwm_softc *sc)
 		case IWM_NVM_ACCESS_CMD:
 		case IWM_MCC_UPDATE_CMD:
 			if (sc->sc_wantresp == ((qid << 16) | idx)) {
-				bus_dmamap_sync(sc->rxq.data_dmat, data->map,
-				    BUS_DMASYNC_POSTREAD);
 				memcpy(sc->sc_cmd_resp,
 				    pkt, sizeof(sc->sc_cmd_resp));
 			}
@@ -5265,7 +5251,7 @@ iwm_notif_intr(struct iwm_softc *sc)
 
 		case IWM_MCC_CHUB_UPDATE_CMD: {
 			struct iwm_mcc_chub_notif *notif;
-			SYNC_RESP_STRUCT(notif, pkt);
+			notif = (void *)pkt->data;
 
 			sc->sc_fw_mcc[0] = (notif->mcc & 0xff00) >> 8;
 			sc->sc_fw_mcc[1] = notif->mcc & 0xff;
@@ -5298,7 +5284,7 @@ iwm_notif_intr(struct iwm_softc *sc)
 		case IWM_LQ_CMD:
 		case IWM_BT_CONFIG:
 		case IWM_REPLY_THERMAL_MNG_BACKOFF:
-			SYNC_RESP_STRUCT(cresp, pkt);
+			cresp = (void *)pkt->data;
 			if (sc->sc_wantresp == ((qid << 16) | idx)) {
 				memcpy(sc->sc_cmd_resp,
 				    pkt, sizeof(*pkt)+sizeof(*cresp));
@@ -5316,20 +5302,20 @@ iwm_notif_intr(struct iwm_softc *sc)
 
 		case IWM_SCAN_OFFLOAD_COMPLETE: {
 			struct iwm_periodic_scan_complete *notif;
-			SYNC_RESP_STRUCT(notif, pkt);
+			notif = (void *)pkt->data;
 			break;
 		}
 
 		case IWM_SCAN_ITERATION_COMPLETE: {
 			struct iwm_lmac_scan_complete_notif *notif;
- 			SYNC_RESP_STRUCT(notif, pkt);
+			notif = (void *)pkt->data;
 			ieee80211_runtask(&sc->sc_ic, &sc->sc_es_task);
  			break;
 		}
  
 		case IWM_SCAN_COMPLETE_UMAC: {
 			struct iwm_umac_scan_complete *notif;
-			SYNC_RESP_STRUCT(notif, pkt);
+			notif = (void *)pkt->data;
 
 			IWM_DPRINTF(sc, IWM_DEBUG_SCAN,
 			    "UMAC scan complete, status=0x%x\n",
@@ -5342,7 +5328,7 @@ iwm_notif_intr(struct iwm_softc *sc)
 
 		case IWM_SCAN_ITERATION_COMPLETE_UMAC: {
 			struct iwm_umac_scan_iter_complete_notif *notif;
-			SYNC_RESP_STRUCT(notif, pkt);
+			notif = (void *)pkt->data;
 
 			IWM_DPRINTF(sc, IWM_DEBUG_SCAN, "UMAC scan iteration "
 			    "complete, status=0x%x, %d channels scanned\n",
@@ -5353,7 +5339,7 @@ iwm_notif_intr(struct iwm_softc *sc)
 
 		case IWM_REPLY_ERROR: {
 			struct iwm_error_resp *resp;
-			SYNC_RESP_STRUCT(resp, pkt);
+			resp = (void *)pkt->data;
 
 			device_printf(sc->sc_dev,
 			    "firmware error 0x%x, cmd 0x%x\n",
@@ -5364,7 +5350,7 @@ iwm_notif_intr(struct iwm_softc *sc)
 
 		case IWM_TIME_EVENT_NOTIFICATION: {
 			struct iwm_time_event_notif *notif;
-			SYNC_RESP_STRUCT(notif, pkt);
+			notif = (void *)pkt->data;
 
 			IWM_DPRINTF(sc, IWM_DEBUG_INTR,
 			    "TE notif status = 0x%x action = 0x%x\n",
@@ -5377,7 +5363,7 @@ iwm_notif_intr(struct iwm_softc *sc)
 
 		case IWM_SCD_QUEUE_CFG: {
 			struct iwm_scd_txq_cfg_rsp *rsp;
-			SYNC_RESP_STRUCT(rsp, pkt);
+			rsp = (void *)pkt->data;
 
 			IWM_DPRINTF(sc, IWM_DEBUG_CMD,
 			    "queue cfg token=0x%x sta_id=%d "
