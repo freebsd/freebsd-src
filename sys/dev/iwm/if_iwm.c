@@ -5879,6 +5879,8 @@ iwm_attach(device_t dev)
 	    IEEE80211_C_SHPREAMBLE	/* short preamble supported */
 //	    IEEE80211_C_BGSCAN		/* capable of bg scanning */
 	    ;
+	/* Advertise full-offload scanning */
+	ic->ic_flags_ext = IEEE80211_FEXT_SCAN_OFFLOAD;
 	for (i = 0; i < nitems(sc->sc_phyctxt); i++) {
 		sc->sc_phyctxt[i].id = i;
 		sc->sc_phyctxt[i].color = 0;
