@@ -1292,33 +1292,82 @@ cheriabi_abort2(struct thread *td, struct cheriabi_abort2_args *uap)
 	return (sys_abort2(td, &a2args));
 }
 
-#if 0
 int
-syscallcheri_register(int *offset, struct sysent *new_sysent,
+cheriabi_syscall_register(int *offset, struct sysent *new_sysent,
     struct sysent *old_sysent, int flags)
 {
+
+	if ((flags & ~SY_THR_STATIC) != 0)
+		return (EINVAL);
+
+	if (*offset == NO_SYSCALL) {
+		/*
+		 * XXX-BD: Supporting dynamic syscalls requires handling
+		 * argument registers and uap filling.  Don't allow for now.
+		 *
+		 * NB: cheriabi_syscall_helper_register() doesn't support
+		 * NO_SYSCALL at all.
+		 */
+		return (EINVAL);
+	} else if (*offset < 0 || *offset >= SYS_MAXSYSCALL)
+		return (EINVAL);
+	else if (cheriabi_sysent[*offset].sy_call != (sy_call_t *)lkmnosys &&
+	    cheriabi_sysent[*offset].sy_call != (sy_call_t *)lkmressys)
+		return (EEXIST);
+
+	*old_sysent = cheriabi_sysent[*offset];
+	cheriabi_sysent[*offset] = *new_sysent;
+	atomic_store_rel_32(&cheriabi_sysent[*offset].sy_thrcnt, flags);
+	return (0);
 }
 
 int
-syscallcheri_deregister(int *offset, struct sysent *old_sysent)
+cheriabi_syscall_deregister(int *offset, struct sysent *old_sysent)
 {
+
+	if (*offset == 0)
+		return (0);
+
+	cheriabi_sysent[*offset] = *old_sysent;
+	return (0);
 }
 
+#ifdef NOTYET
 int
-syscallcheri_module_handler(struct module *mod, int what, void *arg)
-{
-}
-
-int
-syscallcheri_helper_register(struct syscall_helper_data *sd, int flags)
-{
-}
-
-int
-syscallcheri_helper_unregister(struct syscall_helper_data *sd)
+cheriabi_syscall_module_handler(struct module *mod, int what, void *arg)
 {
 }
 #endif
+
+int
+cheriabi_syscall_helper_register(struct syscall_helper_data *sd, int flags)
+{
+	struct syscall_helper_data *sd1;
+	int error;
+
+	for (sd1 = sd; sd1->syscall_no != NO_SYSCALL; sd1++) {
+		cheriabi_syscall_register(&sd1->syscall_no, &sd1->new_sysent,
+		    &sd1->old_sysent, flags);
+		if (error != 0) {
+			cheriabi_syscall_helper_unregister(sd);
+			return (error);
+		}
+		sd1->registered = 1;
+	}
+	return (0);
+}
+
+int
+cheriabi_syscall_helper_unregister(struct syscall_helper_data *sd)
+{
+	struct syscall_helper_data *sd1;
+
+	for (sd1 = sd; sd1->registered != 0; sd1++) {
+		cheriabi_syscall_deregister(&sd1->syscall_no, &sd1->old_sysent);
+		sd1->registered = 0;
+	}
+	return (0);
+}
 
 #define sucap(uaddr, base, offset, length, perms)			\
 	do {								\

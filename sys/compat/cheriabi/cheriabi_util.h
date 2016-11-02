@@ -68,55 +68,55 @@ typedef struct {	/* Auxiliary vector entry on initial stack */
 
 extern struct sysent cheriabi_sysent[];
 
-#if 0
-#define SYSCALL32_MODULE(name, offset, new_sysent, evh, arg)   \
-static struct syscall_module_data name##_syscall32_mod = {     \
-       evh, arg, offset, new_sysent, { 0, NULL }               \
-};                                                             \
-                                                               \
-static moduledata_t name##32_mod = {                           \
-       "sys32/" #name,                                         \
-       syscall32_module_handler,                               \
-       &name##_syscall32_mod                                   \
-};                                                             \
-DECLARE_MODULE(name##32, name##32_mod, SI_SUB_SYSCALLS, SI_ORDER_MIDDLE)
+#define CHERIABI_SYSCALL_MODULE(name, offset, new_sysent, evh, arg)	\
+static struct syscall_module_data name##_cheriabi_syscall_mod = {	\
+	evh, arg, offset, new_sysent, { 0, NULL }			\
+};									\
+									\
+static moduledata_t cheriabi_##name##_mod = {				\
+	"cheriabi_sys/" #name,						\
+	cheriabi_syscall_module_handler,				\
+	&name##_cheriabi_syscall_mod					\
+};									\
+DECLARE_MODULE(cheriabi_##name##32, cheriabi_##name##_mod,		\
+    SI_SUB_SYSCALLS, SI_ORDER_MIDDLE)
 
-#define SYSCALL32_MODULE_HELPER(syscallname)            \
-static int syscallname##_syscall32 = CHERIABI_SYS_##syscallname; \
-static struct sysent syscallname##_sysent32 = {         \
-    (sizeof(struct syscallname ## _args )               \
-     / sizeof(register_t)),                             \
-    (sy_call_t *)& syscallname                          \
-};                                                      \
-SYSCALL32_MODULE(syscallname,                           \
-    & syscallname##_syscall32, & syscallname##_sysent32,\
-    NULL, NULL);
+#define CHERIABI_SYSCALL_MODULE_HELPER(syscallname)			\
+static int syscallname##_cheriabi_syscall = CHERIABI_SYS_##syscallname;	\
+static struct sysent syscallname##_cheriabi_sysent = {			\
+	(sizeof(struct syscallname ## _args )				\
+	/ sizeof(register_t)),						\
+	(sy_call_t *)& syscallname					\
+};									\
+CHERIABI_SYSCALL_MODULE(syscallname,					\
+	& syscallname##_cheriabi_syscall,				\
+	& syscallname##_cheriabi_sysent,				\
+	NULL, NULL);
 
-#define SYSCALL32_INIT_HELPER(syscallname) {			\
-    .new_sysent = {						\
-	.sy_narg = (sizeof(struct syscallname ## _args )	\
-	    / sizeof(register_t)),				\
-	.sy_call = (sy_call_t *)& syscallname,			\
-    },								\
-    .syscall_no = CHERIABI_SYS_##syscallname			\
+#define CHERIABI_SYSCALL_INIT_HELPER(syscallname) {			\
+	.new_sysent = {							\
+	.sy_narg = (sizeof(struct syscallname ## _args )		\
+		/ sizeof(register_t)),					\
+	.sy_call = (sy_call_t *)& syscallname,				\
+	},								\
+	.syscall_no = CHERIABI_SYS_##syscallname			\
 }
 
-#define SYSCALL32_INIT_HELPER_COMPAT(syscallname) {		\
-    .new_sysent = {						\
-	.sy_narg = (sizeof(struct syscallname ## _args )	\
-	    / sizeof(register_t)),				\
-	.sy_call = (sy_call_t *)& sys_ ## syscallname,		\
-    },								\
-    .syscall_no = CHERIABI_SYS_##syscallname			\
+#define CHERIABI_SYSCALL_INIT_HELPER_COMPAT(syscallname) {		\
+	.new_sysent = {							\
+	.sy_narg = (sizeof(struct syscallname ## _args )		\
+		/ sizeof(register_t)),					\
+	.sy_call = (sy_call_t *)& sys_ ## syscallname,			\
+	},								\
+	.syscall_no = CHERIABI_SYS_##syscallname			\
 }
 
-int    syscallcheri_register(int *offset, struct sysent *new_sysent,
+int    cheriabi_syscall_register(int *offset, struct sysent *new_sysent,
 	    struct sysent *old_sysent, int flags);
-int    syscallcheri_deregister(int *offset, struct sysent *old_sysent);
-int    syscallcheri_module_handler(struct module *mod, int what, void *arg);
-int    syscallcheri_helper_register(struct syscall_helper_data *sd, int flags);
-int    syscallcheri_helper_unregister(struct syscall_helper_data *sd);
-#endif
+int    cheriabi_syscall_deregister(int *offset, struct sysent *old_sysent);
+int    cheriabi_syscall_module_handler(struct module *mod, int what, void *arg);
+int    cheriabi_syscall_helper_register(struct syscall_helper_data *sd, int flags);
+int    cheriabi_syscall_helper_unregister(struct syscall_helper_data *sd);
 
 struct iovec_c;
 register_t *cheriabi_copyout_strings(struct image_params *imgp);
