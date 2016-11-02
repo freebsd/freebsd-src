@@ -389,6 +389,8 @@
  */
 # define SSL_MAX_DIGEST 6
 
+# define MAX_WARN_ALERT_COUNT    5
+
 # define TLS1_PRF_DGST_MASK      (0xff << TLS1_PRF_DGST_SHIFT)
 
 # define TLS1_PRF_DGST_SHIFT 10
