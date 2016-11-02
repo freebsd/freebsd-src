@@ -24,7 +24,11 @@
       This document summarizes changes since BIND 9.9.9:
     </para>
     <para>
-      BIND 9.10.9-P3 addresses the security issue described in
+      BIND 9.9.9-P4 addresses the security issue described in
+      CVE-2016-8864.
+    </para>
+    <para>
+      BIND 9.9.9-P3 addresses the security issue described in
       CVE-2016-2776.
     </para>
     <para>
@@ -51,6 +55,12 @@
 
   <section xml:id="relnotes_security"><info><title>Security Fixes</title></info>
     <itemizedlist>
+      <listitem>
+	<para>
+	  It was possible to trigger assertions when processing
+	  a response. This flaw is disclosed in CVE-2016-8864. [RT #43465]
+	</para>
+      </listitem>
       <listitem>
 	<para>
 	  It was possible to trigger a assertion when rendering a

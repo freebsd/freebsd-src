@@ -3,7 +3,7 @@
 /* config.h.  Generated from config.h.in by configure.  */
 /* config.h.in.  Generated from configure.in by autoheader.  */
 /*
- * Copyright (C) 2004, 2005, 2007, 2008, 2012, 2014  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2008, 2012, 2014, 2016  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -153,6 +153,9 @@ int sigwait(const unsigned int *set, int *sig);
 /* Define if threads need PTHREAD_SCOPE_SYSTEM */
 /* #undef NEED_PTHREAD_SCOPE_SYSTEM */
 
+/* Define to 1 if you have the uname library function. */
+#define HAVE_UNAME 1
+
 /* Define if building universal (internal helper macro) */
 /* #undef AC_APPLE_UNIVERSAL_BUILD */
 
@@ -193,6 +196,9 @@ int sigwait(const unsigned int *set, int *sig);
    instead. Don't use 'offsetof (struct s, d[0])', as this doesn't work with
    MSVC and with C++ compilers. */
 #define FLEXIBLE_ARRAY_MEMBER /**/
+
+/* Define to 1 if the compiler supports __builtin_expect. */
+#define HAVE_BUILTIN_EXPECT 1
 
 /* Define to 1 if you have the `chroot' function. */
 #define HAVE_CHROOT 1

@@ -51,6 +51,10 @@ BIND 9
 	For up-to-date release notes and errata, see
 	http://www.isc.org/software/bind9/releasenotes
 
+BIND 9.9.9-P4
+
+	This version contains a fix for CVE-2016-8864.
+
 BIND 9.9.9-P3
 
 	This version contains a fix for CVE-2016-2776.

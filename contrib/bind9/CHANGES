@@ -1,3 +1,8 @@
+	--- 9.9.9-P4 released ---
+
+4489.	[security]	It was possible to trigger assertions when processing
+			a response. (CVE-2016-8864) [RT #43465]
+
 	--- 9.9.9-P3 released ---
 
 4467.	[security]	It was possible to trigger a assertion when rendering

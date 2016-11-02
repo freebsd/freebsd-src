@@ -21,7 +21,7 @@
 </head>
 <body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="article"><div class="section">
 <div class="titlepage"><div><div><h2 class="title" style="clear: both">
-<a name="id-1.2"></a>Release Notes for BIND Version 9.9.9-P3</h2></div></div></div>
+<a name="id-1.2"></a>Release Notes for BIND Version 9.9.9-P4</h2></div></div></div>
 <div class="section">
 <div class="titlepage"><div><div><h3 class="title">
 <a name="relnotes_intro"></a>Introduction</h3></div></div></div>
@@ -29,7 +29,11 @@
       This document summarizes changes since BIND 9.9.9:
     </p>
 <p>
-      BIND 9.10.9-P3 addresses the security issue described in
+      BIND 9.9.9-P4 addresses the security issue described in
+      CVE-2016-8864.
+    </p>
+<p>
+      BIND 9.9.9-P3 addresses the security issue described in
       CVE-2016-2776.
     </p>
 <p>
@@ -57,6 +61,10 @@
 <div class="titlepage"><div><div><h3 class="title">
 <a name="relnotes_security"></a>Security Fixes</h3></div></div></div>
 <div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; ">
+<li class="listitem"><p>
+	  It was possible to trigger assertions when processing
+	  a response. This flaw is disclosed in CVE-2016-8864. [RT #43465]
+	</p></li>
 <li class="listitem"><p>
 	  It was possible to trigger a assertion when rendering a
 	  message using a specially crafted request. This flaw is
