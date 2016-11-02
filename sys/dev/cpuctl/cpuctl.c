@@ -57,7 +57,7 @@ static d_ioctl_t cpuctl_ioctl;
 
 #define	CPUCTL_VERSION 1
 
-#ifdef DEBUG
+#ifdef CPUCTL_DEBUG
 # define	DPRINTF(format,...) printf(format, __VA_ARGS__);
 #else
 # define	DPRINTF(...)
