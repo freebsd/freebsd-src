@@ -591,8 +591,16 @@ lem_attach(device_t dev)
 	}
 #endif /* NIC_PARAVIRT */
 
-	tsize = roundup2(adapter->num_tx_desc * sizeof(struct e1000_tx_desc),
-	    EM_DBA_ALIGN);
+	/*
+	 * It seems that the descriptor DMA engine on some PCI cards
+	 * fetches memory past the end of the last descriptor in the
+	 * ring.  These reads are problematic when VT-d (DMAR) busdma
+	 * is used.  Allocate the scratch space to avoid getting
+	 * faults from DMAR, by requesting scratch memory for one more
+	 * descriptor.
+	 */
+	tsize = roundup2((adapter->num_tx_desc + 1) *
+	    sizeof(struct e1000_tx_desc), EM_DBA_ALIGN);
 
 	/* Allocate Transmit Descriptor ring */
 	if (lem_dma_malloc(adapter, tsize, &adapter->txdma, BUS_DMA_NOWAIT)) {
@@ -603,8 +611,11 @@ lem_attach(device_t dev)
 	adapter->tx_desc_base = 
 	    (struct e1000_tx_desc *)adapter->txdma.dma_vaddr;
 
-	rsize = roundup2(adapter->num_rx_desc * sizeof(struct e1000_rx_desc),
-	    EM_DBA_ALIGN);
+	/*
+	 * See comment above txdma allocation for rationale behind +1.
+	 */
+	rsize = roundup2((adapter->num_rx_desc + 1) *
+	    sizeof(struct e1000_rx_desc), EM_DBA_ALIGN);
 
 	/* Allocate Receive Descriptor ring */
 	if (lem_dma_malloc(adapter, rsize, &adapter->rxdma, BUS_DMA_NOWAIT)) {
