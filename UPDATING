@@ -16,6 +16,10 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20161102	p3	FreeBSD-SA-16:33.openssh
+
+	Fix Fix OpenSSH remote Denial of Service vulnerability.
+
 20161025	p2	FreeBSD-SA-16:15.sysarch [revised]
 			FreeBSD-SA-16:32.bhyve
 
