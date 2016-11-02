@@ -869,12 +869,10 @@ fsl_sdhci_attach(device_t dev)
 	 *
 	 * XXX need named constants for this stuff.
 	 */
-#ifdef __powerpc__
 	/* P1022 has the '*_BRST_LEN' fields as reserved, always reading 0x10 */
 	if (ofw_bus_is_compatible(dev, "fsl,p1022-esdhc"))
 		WR4(sc, SDHC_WTMK_LVL, 0x10801080);
 	else
-#endif
 		WR4(sc, SDHC_WTMK_LVL, 0x08800880);
 
 	/*
