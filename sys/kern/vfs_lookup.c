@@ -79,12 +79,22 @@ uma_zone_t namei_zone;
 /* Placeholder vnode for mp traversal. */
 static struct vnode *vp_crossmp;
 
+struct nameicap_tracker {
+	struct vnode *dp;
+	TAILQ_ENTRY(nameicap_tracker) nm_link;
+};
+
+/* Zone for cap mode tracker elements used for dotdot capability checks. */
+static uma_zone_t nt_zone;
+
 static void
 nameiinit(void *dummy __unused)
 {
 
 	namei_zone = uma_zcreate("NAMEI", MAXPATHLEN, NULL, NULL, NULL, NULL,
 	    UMA_ALIGN_PTR, 0);
+	nt_zone = uma_zcreate("rentr", sizeof(struct nameicap_tracker),
+	    NULL, NULL, NULL, NULL, sizeof(void *), 0);
 	getnewvnode("crossmp", NULL, &dead_vnodeops, &vp_crossmp);
 	vn_lock(vp_crossmp, LK_EXCLUSIVE);
 	VN_LOCK_ASHARE(vp_crossmp);
@@ -95,6 +105,76 @@ SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_SECOND, nameiinit, NULL);
 static int lookup_shared = 1;
 SYSCTL_INT(_vfs, OID_AUTO, lookup_shared, CTLFLAG_RWTUN, &lookup_shared, 0,
     "enables shared locks for path name translation");
+
+/*
+ * Intent is that lookup_cap_dotdot becomes unconditionally enabled,
+ * but it defaults to the disabled state until verification efforts
+ * are complete.
+ */
+static int lookup_cap_dotdot = 0;
+SYSCTL_INT(_vfs, OID_AUTO, lookup_cap_dotdot, CTLFLAG_RWTUN,
+    &lookup_cap_dotdot, 0,
+    "enables \"..\" components in path lookup in capability mode");
+static int lookup_cap_dotdot_nonlocal = 0;
+SYSCTL_INT(_vfs, OID_AUTO, lookup_cap_dotdot_nonlocal, CTLFLAG_RWTUN,
+    &lookup_cap_dotdot_nonlocal, 0,
+    "enables \"..\" components in path lookup in capability mode "
+    "on non-local mount");
+
+static void
+nameicap_tracker_add(struct nameidata *ndp, struct vnode *dp)
+{
+	struct nameicap_tracker *nt;
+
+	if ((ndp->ni_lcf & NI_LCF_CAP_DOTDOT) == 0 || dp->v_type != VDIR)
+		return;
+	nt = uma_zalloc(nt_zone, M_WAITOK);
+	vhold(dp);
+	nt->dp = dp;
+	TAILQ_INSERT_TAIL(&ndp->ni_cap_tracker, nt, nm_link);
+}
+
+static void
+nameicap_cleanup(struct nameidata *ndp)
+{
+	struct nameicap_tracker *nt, *nt1;
+
+	KASSERT(TAILQ_EMPTY(&ndp->ni_cap_tracker) ||
+	    (ndp->ni_lcf & NI_LCF_CAP_DOTDOT) != 0, ("not strictrelative"));
+	TAILQ_FOREACH_SAFE(nt, &ndp->ni_cap_tracker, nm_link, nt1) {
+		TAILQ_REMOVE(&ndp->ni_cap_tracker, nt, nm_link);
+		vdrop(nt->dp);
+		uma_zfree(nt_zone, nt);
+	}
+}
+
+/*
+ * For dotdot lookups in capability mode, only allow the component
+ * lookup to succeed if the resulting directory was already traversed
+ * during the operation.  Also fail dotdot lookups for non-local
+ * filesystems, where external agents might assist local lookups to
+ * escape the compartment.
+ */
+static int
+nameicap_check_dotdot(struct nameidata *ndp, struct vnode *dp)
+{
+	struct nameicap_tracker *nt;
+	struct mount *mp;
+
+	if ((ndp->ni_lcf & NI_LCF_CAP_DOTDOT) == 0 || dp == NULL ||
+	    dp->v_type != VDIR)
+		return (0);
+	mp = dp->v_mount;
+	if (lookup_cap_dotdot_nonlocal == 0 && mp != NULL &&
+	    (mp->mnt_flag & MNT_LOCAL) == 0)
+		return (ENOTCAPABLE);
+	TAILQ_FOREACH_REVERSE(nt, &ndp->ni_cap_tracker, nameicap_tracker_head,
+	    nm_link) {
+		if (dp == nt->dp)
+			return (0);
+	}
+	return (ENOTCAPABLE);
+}
 
 static void
 namei_cleanup_cnp(struct componentname *cnp)
@@ -113,7 +193,7 @@ namei_handle_root(struct nameidata *ndp, struct vnode **dpp)
 	struct componentname *cnp;
 
 	cnp = &ndp->ni_cnd;
-	if (ndp->ni_strictrelative != 0) {
+	if ((ndp->ni_lcf & NI_LCF_STRICTRELATIVE) != 0) {
 #ifdef KTRACE
 		if (KTRPOINT(curthread, KTR_CAPFAIL))
 			ktrcapfail(CAPFAIL_LOOKUP, NULL, NULL);
@@ -177,6 +257,8 @@ namei(struct nameidata *ndp)
 	if (!lookup_shared)
 		cnp->cn_flags &= ~LOCKSHARED;
 	fdp = p->p_fd;
+	TAILQ_INIT(&ndp->ni_cap_tracker);
+	ndp->ni_lcf = 0;
 
 	/* We will set this ourselves if we need it. */
 	cnp->cn_flags &= ~TRAILINGSLASH;
@@ -202,13 +284,21 @@ namei(struct nameidata *ndp)
 
 #ifdef CAPABILITY_MODE
 	/*
-	 * In capability mode, lookups must be "strictly relative" (i.e.
-	 * not an absolute path, and not containing '..' components) to
-	 * a real file descriptor, not the pseudo-descriptor AT_FDCWD.
+	 * In capability mode, lookups must be restricted to happen in
+	 * the subtree with the root specified by the file descriptor:
+	 * - The root must be real file descriptor, not the pseudo-descriptor
+	 *   AT_FDCWD.
+	 * - The passed path must be relative and not absolute.
+	 * - If lookup_cap_dotdot is disabled, path must not contain the
+	 *   '..' components.
+	 * - If lookup_cap_dotdot is enabled, we verify that all '..'
+	 *   components lookups result in the directories which were
+	 *   previously walked by us, which prevents an escape from
+	 *   the relative root.
 	 */
 	if (error == 0 && IN_CAPABILITY_MODE(td) &&
 	    (cnp->cn_flags & NOCAPCHECK) == 0) {
-		ndp->ni_strictrelative = 1;
+		ndp->ni_lcf |= NI_LCF_STRICTRELATIVE;
 		if (ndp->ni_dirfd == AT_FDCWD) {
 #ifdef KTRACE
 			if (KTRPOINT(td, KTR_CAPFAIL))
@@ -282,7 +372,7 @@ namei(struct nameidata *ndp)
 			    &rights) ||
 			    ndp->ni_filecaps.fc_fcntls != CAP_FCNTL_ALL ||
 			    ndp->ni_filecaps.fc_nioctls != -1) {
-				ndp->ni_strictrelative = 1;
+				ndp->ni_lcf |= NI_LCF_STRICTRELATIVE;
 			}
 #endif
 		}
@@ -297,6 +387,9 @@ namei(struct nameidata *ndp)
 			vrele(dp);
 		goto out;
 	}
+	if ((ndp->ni_lcf & NI_LCF_STRICTRELATIVE) != 0 &&
+	    lookup_cap_dotdot != 0)
+		ndp->ni_lcf |= NI_LCF_CAP_DOTDOT;
 	SDT_PROBE3(vfs, namei, lookup, entry, dp, cnp->cn_pnbuf,
 	    cnp->cn_flags);
 	for (;;) {
@@ -313,7 +406,7 @@ namei(struct nameidata *ndp)
 				namei_cleanup_cnp(cnp);
 			} else
 				cnp->cn_flags |= HASBUF;
-
+			nameicap_cleanup(ndp);
 			SDT_PROBE2(vfs, namei, lookup, return, 0, ndp->ni_vp);
 			return (0);
 		}
@@ -387,6 +480,7 @@ namei(struct nameidata *ndp)
 out:
 	vrele(ndp->ni_rootdir);
 	namei_cleanup_cnp(cnp);
+	nameicap_cleanup(ndp);
 	SDT_PROBE2(vfs, namei, lookup, return, error, NULL);
 	return (error);
 }
@@ -583,6 +677,8 @@ dirloop:
 		goto bad;
 	}
 
+	nameicap_tracker_add(ndp, dp);
+
 	/*
 	 * Check for degenerate name (e.g. / or "")
 	 * which is a way of talking about a directory,
@@ -618,9 +714,8 @@ dirloop:
 
 	/*
 	 * Handle "..": five special cases.
-	 * 0. If doing a capability lookup, return ENOTCAPABLE (this is a
-	 *    fairly conservative design choice, but it's the only one that we
-	 *    are satisfied guarantees the property we're looking for).
+	 * 0. If doing a capability lookup and lookup_cap_dotdot is
+	 *    disabled, return ENOTCAPABLE.
 	 * 1. Return an error if this is the last component of
 	 *    the name and the operation is DELETE or RENAME.
 	 * 2. If at root directory (e.g. after chroot)
@@ -632,9 +727,15 @@ dirloop:
 	 *    .. in the other filesystem.
 	 * 4. If the vnode is the top directory of
 	 *    the jail or chroot, don't let them out.
+	 * 5. If doing a capability lookup and lookup_cap_dotdot is
+	 *    enabled, return ENOTCAPABLE if the lookup would escape
+	 *    from the initial file descriptor directory.  Checks are
+	 *    done by ensuring that namei() already traversed the
+	 *    result of dotdot lookup.
 	 */
 	if (cnp->cn_flags & ISDOTDOT) {
-		if (ndp->ni_strictrelative != 0) {
+		if ((ndp->ni_lcf & (NI_LCF_STRICTRELATIVE | NI_LCF_CAP_DOTDOT))
+		    == NI_LCF_STRICTRELATIVE) {
 #ifdef KTRACE
 			if (KTRPOINT(curthread, KTR_CAPFAIL))
 				ktrcapfail(CAPFAIL_LOOKUP, NULL, NULL);
@@ -676,6 +777,14 @@ dirloop:
 			vn_lock(dp,
 			    compute_cn_lkflags(dp->v_mount, cnp->cn_lkflags |
 			    LK_RETRY, ISDOTDOT));
+			error = nameicap_check_dotdot(ndp, dp);
+			if (error != 0) {
+#ifdef KTRACE
+				if (KTRPOINT(curthread, KTR_CAPFAIL))
+					ktrcapfail(CAPFAIL_LOOKUP, NULL, NULL);
+#endif
+				goto bad;
+			}
 		}
 	}
 
@@ -735,6 +844,7 @@ unionlookup:
 			vn_lock(dp,
 			    compute_cn_lkflags(dp->v_mount, cnp->cn_lkflags |
 			    LK_RETRY, cnp->cn_flags));
+			nameicap_tracker_add(ndp, dp);
 			goto unionlookup;
 		}
 
@@ -854,6 +964,16 @@ nextname:
 		else
 			vrele(ndp->ni_dvp);
 		goto dirloop;
+	}
+	if (cnp->cn_flags & ISDOTDOT) {
+		error = nameicap_check_dotdot(ndp, ndp->ni_vp);
+		if (error != 0) {
+#ifdef KTRACE
+			if (KTRPOINT(curthread, KTR_CAPFAIL))
+				ktrcapfail(CAPFAIL_LOOKUP, NULL, NULL);
+#endif
+			goto bad2;
+		}
 	}
 	if (*ndp->ni_next == '/') {
 		cnp->cn_nameptr = ndp->ni_next;
@@ -1081,7 +1201,6 @@ NDINIT_ALL(struct nameidata *ndp, u_long op, u_long flags, enum uio_seg segflg,
 	ndp->ni_dirp = namep;
 	ndp->ni_dirfd = dirfd;
 	ndp->ni_startdir = startdir;
-	ndp->ni_strictrelative = 0;
 	if (rightsp != NULL)
 		ndp->ni_rightsneeded = *rightsp;
 	else
