@@ -247,6 +247,8 @@
 # define DEC32(a)        ((a)=((a)-1)&0xffffffffL)
 # define MAX_MAC_SIZE    20     /* up from 16 for SSLv3 */
 
+# define MAX_WARN_ALERT_COUNT    5
+
 /*
  * Define the Bitmasks for SSL_CIPHER.algorithms.
  * This bits are used packed as dense as possible. If new methods/ciphers
