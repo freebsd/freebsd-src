@@ -794,6 +794,7 @@ dump_nvlist(nvlist_t *list, int indent)
 {
 	nvpair_t	*elem = NULL;
 	boolean_t	bool_value;
+	boolean_t	*bool_array_value;
 	nvlist_t	*nvlist_value;
 	nvlist_t	**nvlist_array_value;
 	uint_t		i, count;
@@ -852,6 +853,16 @@ dump_nvlist(nvlist_t *list, int indent)
 
 		case DATA_TYPE_STRING:
 			NVP(elem, string, char *, char *, "'%s'");
+			break;
+
+		case DATA_TYPE_BOOLEAN_ARRAY:
+			(void) nvpair_value_boolean_array(elem,
+			    &bool_array_value, &count);
+			for (i = 0; i < count; i++) {
+				(void) printf("%*s%s[%d]: %s\n", indent, "",
+				    nvpair_name(elem), i,
+				    bool_array_value[i] ? "true" : "false");
+			}
 			break;
 
 		case DATA_TYPE_BYTE_ARRAY:
