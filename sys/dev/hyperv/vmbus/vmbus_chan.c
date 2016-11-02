@@ -1534,65 +1534,6 @@ vmbus_chan_destroy_all(struct vmbus_softc *sc)
 	}
 }
 
-/*
- * The channel whose vcpu binding is closest to the currect vcpu will
- * be selected.
- * If no multi-channel, always select primary channel.
- */
-struct vmbus_channel *
-vmbus_chan_cpu2chan(struct vmbus_channel *prichan, int cpu)
-{
-	struct vmbus_channel *sel, *chan;
-	uint32_t vcpu, sel_dist;
-
-	KASSERT(cpu >= 0 && cpu < mp_ncpus, ("invalid cpuid %d", cpu));
-	if (TAILQ_EMPTY(&prichan->ch_subchans))
-		return prichan;
-
-	vcpu = VMBUS_PCPU_GET(prichan->ch_vmbus, vcpuid, cpu);
-
-#define CHAN_VCPU_DIST(ch, vcpu)		\
-	(((ch)->ch_vcpuid > (vcpu)) ?		\
-	 ((ch)->ch_vcpuid - (vcpu)) : ((vcpu) - (ch)->ch_vcpuid))
-
-#define CHAN_SELECT(ch)				\
-do {						\
-	sel = ch;				\
-	sel_dist = CHAN_VCPU_DIST(ch, vcpu);	\
-} while (0)
-
-	CHAN_SELECT(prichan);
-
-	mtx_lock(&prichan->ch_subchan_lock);
-	TAILQ_FOREACH(chan, &prichan->ch_subchans, ch_sublink) {
-		uint32_t dist;
-
-		KASSERT(chan->ch_stflags & VMBUS_CHAN_ST_OPENED,
-		    ("chan%u is not opened", chan->ch_id));
-
-		if (chan->ch_vcpuid == vcpu) {
-			/* Exact match; done */
-			CHAN_SELECT(chan);
-			break;
-		}
-
-		dist = CHAN_VCPU_DIST(chan, vcpu);
-		if (sel_dist <= dist) {
-			/* Far or same distance; skip */
-			continue;
-		}
-
-		/* Select the closer channel. */
-		CHAN_SELECT(chan);
-	}
-	mtx_unlock(&prichan->ch_subchan_lock);
-
-#undef CHAN_SELECT
-#undef CHAN_VCPU_DIST
-
-	return sel;
-}
-
 struct vmbus_channel **
 vmbus_subchan_get(struct vmbus_channel *pri_chan, int subchan_cnt)
 {

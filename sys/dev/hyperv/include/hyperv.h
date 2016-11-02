@@ -44,15 +44,4 @@ struct hyperv_guid {
 
 int		hyperv_guid2str(const struct hyperv_guid *, char *, size_t);
 
-/**
- * @brief Get physical address from virtual
- */
-static inline unsigned long
-hv_get_phys_addr(void *virt)
-{
-	unsigned long ret;
-	ret = (vtophys(virt) | ((vm_offset_t) virt & PAGE_MASK));
-	return (ret);
-}
-
 #endif  /* _HYPERV_H_ */
