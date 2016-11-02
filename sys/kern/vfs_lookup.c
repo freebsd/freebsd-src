@@ -73,13 +73,10 @@ SDT_PROBE_DEFINE3(vfs, namei, lookup, entry, "struct vnode *", "char *",
     "unsigned long");
 SDT_PROBE_DEFINE2(vfs, namei, lookup, return, "int", "struct vnode *");
 
-/*
- * Allocation zone for namei
- */
+/* Allocation zone for namei. */
 uma_zone_t namei_zone;
-/*
- * Placeholder vnode for mp traversal
- */
+
+/* Placeholder vnode for mp traversal. */
 static struct vnode *vp_crossmp;
 
 static void
@@ -97,11 +94,12 @@ SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_SECOND, nameiinit, NULL);
 
 static int lookup_shared = 1;
 SYSCTL_INT(_vfs, OID_AUTO, lookup_shared, CTLFLAG_RWTUN, &lookup_shared, 0,
-    "Enables/Disables shared locks for path name translation");
+    "enables shared locks for path name translation");
 
 static void
 namei_cleanup_cnp(struct componentname *cnp)
 {
+
 	uma_zfree(namei_zone, cnp->cn_pnbuf);
 #ifdef DIAGNOSTIC
 	cnp->cn_pnbuf = NULL;
@@ -158,12 +156,16 @@ namei(struct nameidata *ndp)
 	char *cp;		/* pointer into pathname argument */
 	struct vnode *dp;	/* the directory we are searching */
 	struct iovec aiov;		/* uio for reading symbolic links */
+	struct componentname *cnp;
+	struct thread *td;
+	struct proc *p;
+	cap_rights_t rights;
 	struct uio auio;
 	int error, linklen, startdir_used;
-	struct componentname *cnp = &ndp->ni_cnd;
-	struct thread *td = cnp->cn_thread;
-	struct proc *p = td->td_proc;
 
+	cnp = &ndp->ni_cnd;
+	td = cnp->cn_thread;
+	p = td->td_proc;
 	ndp->ni_cnd.cn_cred = ndp->ni_cnd.cn_thread->td_ucred;
 	KASSERT(cnp->cn_cred && p, ("namei: bad cred/proc"));
 	KASSERT((cnp->cn_nameiop & (~OPMASK)) == 0,
@@ -258,8 +260,6 @@ namei(struct nameidata *ndp)
 			dp = fdp->fd_cdir;
 			VREF(dp);
 		} else {
-			cap_rights_t rights;
-
 			rights = ndp->ni_rightsneeded;
 			cap_rights_set(&rights, CAP_LOOKUP);
 
