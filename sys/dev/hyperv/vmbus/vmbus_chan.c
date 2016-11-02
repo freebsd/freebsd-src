@@ -926,28 +926,28 @@ vmbus_chan_recv(struct vmbus_channel *chan, void *data, int *dlen0,
 
 int
 vmbus_chan_recv_pkt(struct vmbus_channel *chan,
-    struct vmbus_chanpkt_hdr *pkt0, int *pktlen0)
+    struct vmbus_chanpkt_hdr *pkt, int *pktlen0)
 {
-	struct vmbus_chanpkt_hdr pkt;
-	int error, pktlen;
+	int error, pktlen, pkt_hlen;
 
-	error = vmbus_rxbr_peek(&chan->ch_rxbr, &pkt, sizeof(pkt));
+	pkt_hlen = sizeof(*pkt);
+	error = vmbus_rxbr_peek(&chan->ch_rxbr, pkt, pkt_hlen);
 	if (error)
 		return (error);
 
-	if (__predict_false(pkt.cph_hlen < VMBUS_CHANPKT_HLEN_MIN)) {
-		vmbus_chan_printf(chan, "invalid hlen %u\n", pkt.cph_hlen);
+	if (__predict_false(pkt->cph_hlen < VMBUS_CHANPKT_HLEN_MIN)) {
+		vmbus_chan_printf(chan, "invalid hlen %u\n", pkt->cph_hlen);
 		/* XXX this channel is dead actually. */
 		return (EIO);
 	}
-	if (__predict_false(pkt.cph_hlen > pkt.cph_tlen)) {
+	if (__predict_false(pkt->cph_hlen > pkt->cph_tlen)) {
 		vmbus_chan_printf(chan, "invalid hlen %u and tlen %u\n",
-		    pkt.cph_hlen, pkt.cph_tlen);
+		    pkt->cph_hlen, pkt->cph_tlen);
 		/* XXX this channel is dead actually. */
 		return (EIO);
 	}
 
-	pktlen = VMBUS_CHANPKT_GETLEN(pkt.cph_tlen);
+	pktlen = VMBUS_CHANPKT_GETLEN(pkt->cph_tlen);
 	if (*pktlen0 < pktlen) {
 		/* Return the size of this packet. */
 		*pktlen0 = pktlen;
@@ -955,8 +955,12 @@ vmbus_chan_recv_pkt(struct vmbus_channel *chan,
 	}
 	*pktlen0 = pktlen;
 
-	/* Include packet header */
-	error = vmbus_rxbr_read(&chan->ch_rxbr, pkt0, pktlen, 0);
+	/*
+	 * Skip the fixed-size packet header, which has been filled
+	 * by the above vmbus_rxbr_peek().
+	 */
+	error = vmbus_rxbr_read(&chan->ch_rxbr, pkt + 1,
+	    pktlen - pkt_hlen, pkt_hlen);
 	KASSERT(!error, ("vmbus_rxbr_read failed"));
 
 	return (0);
@@ -1528,65 +1532,6 @@ vmbus_chan_destroy_all(struct vmbus_softc *sc)
 
 		taskqueue_enqueue(chan->ch_mgmt_tq, &chan->ch_detach_task);
 	}
-}
-
-/*
- * The channel whose vcpu binding is closest to the currect vcpu will
- * be selected.
- * If no multi-channel, always select primary channel.
- */
-struct vmbus_channel *
-vmbus_chan_cpu2chan(struct vmbus_channel *prichan, int cpu)
-{
-	struct vmbus_channel *sel, *chan;
-	uint32_t vcpu, sel_dist;
-
-	KASSERT(cpu >= 0 && cpu < mp_ncpus, ("invalid cpuid %d", cpu));
-	if (TAILQ_EMPTY(&prichan->ch_subchans))
-		return prichan;
-
-	vcpu = VMBUS_PCPU_GET(prichan->ch_vmbus, vcpuid, cpu);
-
-#define CHAN_VCPU_DIST(ch, vcpu)		\
-	(((ch)->ch_vcpuid > (vcpu)) ?		\
-	 ((ch)->ch_vcpuid - (vcpu)) : ((vcpu) - (ch)->ch_vcpuid))
-
-#define CHAN_SELECT(ch)				\
-do {						\
-	sel = ch;				\
-	sel_dist = CHAN_VCPU_DIST(ch, vcpu);	\
-} while (0)
-
-	CHAN_SELECT(prichan);
-
-	mtx_lock(&prichan->ch_subchan_lock);
-	TAILQ_FOREACH(chan, &prichan->ch_subchans, ch_sublink) {
-		uint32_t dist;
-
-		KASSERT(chan->ch_stflags & VMBUS_CHAN_ST_OPENED,
-		    ("chan%u is not opened", chan->ch_id));
-
-		if (chan->ch_vcpuid == vcpu) {
-			/* Exact match; done */
-			CHAN_SELECT(chan);
-			break;
-		}
-
-		dist = CHAN_VCPU_DIST(chan, vcpu);
-		if (sel_dist <= dist) {
-			/* Far or same distance; skip */
-			continue;
-		}
-
-		/* Select the closer channel. */
-		CHAN_SELECT(chan);
-	}
-	mtx_unlock(&prichan->ch_subchan_lock);
-
-#undef CHAN_SELECT
-#undef CHAN_VCPU_DIST
-
-	return sel;
 }
 
 struct vmbus_channel **

@@ -420,8 +420,7 @@ fast_failed:
 	 * they will stay around as well.
 	 *
 	 * Bump the paging-in-progress count to prevent size changes (e.g. 
-	 * truncation operations) during I/O.  This must be done after
-	 * obtaining the vnode lock in order to avoid possible deadlocks.
+	 * truncation operations) during I/O.
 	 */
 	vm_object_reference_locked(fs.first_object);
 	vm_object_pip_add(fs.first_object, 1);
@@ -647,7 +646,13 @@ readrest:
 
 				if (locked != LK_EXCLUSIVE)
 					locked = LK_SHARED;
-				/* Do not sleep for vnode lock while fs.m is busy */
+
+				/*
+				 * We must not sleep acquiring the vnode lock
+				 * while we have the page exclusive busied or
+				 * the object's paging-in-progress count
+				 * incremented.  Otherwise, we could deadlock.
+				 */
 				error = vget(vp, locked | LK_CANRECURSE |
 				    LK_NOWAIT, curthread);
 				if (error != 0) {

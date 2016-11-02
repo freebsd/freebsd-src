@@ -37,7 +37,7 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * Intel fourth generation mobile cpus integrated I2C device, smbus driver.
+ * Intel fourth generation mobile cpus integrated I2C device.
  *
  * See ig4_reg.h for datasheet reference and notes.
  * See ig4_var.h for locking semantics.
@@ -60,7 +60,6 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
-#include <dev/smbus/smbconf.h>
 #include <dev/iicbus/iicbus.h>
 #include <dev/iicbus/iiconf.h>
 
@@ -236,18 +235,13 @@ data_read(ig4iic_softc_t *sc)
  * the target address for when the controller later issues a START.
  */
 static void
-set_slave_addr(ig4iic_softc_t *sc, uint8_t slave, int trans_op)
+set_slave_addr(ig4iic_softc_t *sc, uint8_t slave)
 {
 	uint32_t tar;
 	uint32_t ctl;
 	int use_10bit;
 
-	use_10bit = sc->use_10bit;
-	if (trans_op & SMB_TRANS_7BIT)
-		use_10bit = 0;
-	if (trans_op & SMB_TRANS_10BIT)
-		use_10bit = 1;
-
+	use_10bit = 0;
 	if (sc->slave_valid && sc->last_slave == slave &&
 	    sc->use_10bit == use_10bit) {
 		return;
@@ -291,208 +285,12 @@ set_slave_addr(ig4iic_softc_t *sc, uint8_t slave, int trans_op)
 }
 
 /*
- * Issue START with byte command, possible count, and a variable length
- * read or write buffer, then possible turn-around read.  The read also
- * has a possible count received.
- *
- * For SMBUS -
- *
- * Quick:		START+ADDR+RD/WR STOP
- *
- * Normal:		START+ADDR+WR CMD DATA..DATA STOP
- *
- *			START+ADDR+RD CMD
- *			RESTART+ADDR RDATA..RDATA STOP
- *			(can also be used for I2C transactions)
- *
- * Process Call:	START+ADDR+WR CMD DATAL DATAH
- *			RESTART+ADDR+RD RDATAL RDATAH STOP
- *
- * Block:		START+ADDR+RD CMD
- *			RESTART+ADDR+RD RCOUNT DATA... STOP
- *
- * 			START+ADDR+WR CMD
- *			RESTART+ADDR+WR WCOUNT DATA... STOP
- *
- * For I2C - basically, no *COUNT fields, possibly no *CMD field.  If the
- *	     sender needs to issue a 2-byte command it will incorporate it
- *	     into the write buffer and also set NOCMD.
- *
- * Generally speaking, the START+ADDR / RESTART+ADDR is handled automatically
- * by the controller at the beginning of a command sequence or on a data
- * direction turn-around, and we only need to tell it when to issue the STOP.
- */
-static int
-smb_transaction(ig4iic_softc_t *sc, char cmd, int op,
-		char *wbuf, int wcount, char *rbuf, int rcount, int *actualp)
-{
-	int error;
-	int unit;
-	uint32_t last;
-
-	/*
-	 * Debugging - dump registers
-	 */
-	if (ig4_dump) {
-		unit = device_get_unit(sc->dev);
-		if (ig4_dump & (1 << unit)) {
-			ig4_dump &= ~(1 << unit);
-			ig4iic_dump(sc);
-		}
-	}
-
-	/*
-	 * Issue START or RESTART with next data byte, clear any previous
-	 * abort condition that may have been holding the txfifo in reset.
-	 */
-	last = IG4_DATA_RESTART;
-	reg_read(sc, IG4_REG_CLR_TX_ABORT);
-	if (actualp)
-		*actualp = 0;
-
-	/*
-	 * Issue command if not told otherwise (smbus).
-	 */
-	if ((op & SMB_TRANS_NOCMD) == 0) {
-		error = wait_status(sc, IG4_STATUS_TX_NOTFULL);
-		if (error)
-			goto done;
-		last |= (u_char)cmd;
-		if (wcount == 0 && rcount == 0 && (op & SMB_TRANS_NOSTOP) == 0)
-			last |= IG4_DATA_STOP;
-		reg_write(sc, IG4_REG_DATA_CMD, last);
-		last = 0;
-	}
-
-	/*
-	 * Clean out any previously received data.
-	 */
-	if (sc->rpos != sc->rnext &&
-	    (op & SMB_TRANS_NOREPORT) == 0) {
-		device_printf(sc->dev,
-			      "discarding %d bytes of spurious data\n",
-			      sc->rnext - sc->rpos);
-	}
-	sc->rpos = 0;
-	sc->rnext = 0;
-
-	/*
-	 * If writing and not told otherwise, issue the write count (smbus).
-	 */
-	if (wcount && (op & SMB_TRANS_NOCNT) == 0) {
-		error = wait_status(sc, IG4_STATUS_TX_NOTFULL);
-		if (error)
-			goto done;
-		last |= (u_char)cmd;
-		reg_write(sc, IG4_REG_DATA_CMD, last);
-		last = 0;
-	}
-
-	/*
-	 * Bulk write (i2c)
-	 */
-	while (wcount) {
-		error = wait_status(sc, IG4_STATUS_TX_NOTFULL);
-		if (error)
-			goto done;
-		last |= (u_char)*wbuf;
-		if (wcount == 1 && rcount == 0 && (op & SMB_TRANS_NOSTOP) == 0)
-			last |= IG4_DATA_STOP;
-		reg_write(sc, IG4_REG_DATA_CMD, last);
-		--wcount;
-		++wbuf;
-		last = 0;
-	}
-
-	/*
-	 * Issue reads to xmit FIFO (strange, I know) to tell the controller
-	 * to clock in data.  At the moment just issue one read ahead to
-	 * pipeline the incoming data.
-	 *
-	 * NOTE: In the case of NOCMD and wcount == 0 we still issue a
-	 *	 RESTART here, even if the data direction has not changed
-	 *	 from the previous CHAINing call.  This we force the RESTART.
-	 *	 (A new START is issued automatically by the controller in
-	 *	 the other nominal cases such as a data direction change or
-	 *	 a previous STOP was issued).
-	 *
-	 * If this will be the last byte read we must also issue the STOP
-	 * at the end of the read.
-	 */
-	if (rcount) {
-		last = IG4_DATA_RESTART | IG4_DATA_COMMAND_RD;
-		if (rcount == 1 &&
-		    (op & (SMB_TRANS_NOSTOP | SMB_TRANS_NOCNT)) ==
-		    SMB_TRANS_NOCNT) {
-			last |= IG4_DATA_STOP;
-		}
-		reg_write(sc, IG4_REG_DATA_CMD, last);
-		last = IG4_DATA_COMMAND_RD;
-	}
-
-	/*
-	 * Bulk read (i2c) and count field handling (smbus)
-	 */
-	while (rcount) {
-		/*
-		 * Maintain a pipeline by queueing the allowance for the next
-		 * read before waiting for the current read.
-		 */
-		if (rcount > 1) {
-			if (op & SMB_TRANS_NOCNT)
-				last = (rcount == 2) ? IG4_DATA_STOP : 0;
-			else
-				last = 0;
-			reg_write(sc, IG4_REG_DATA_CMD, IG4_DATA_COMMAND_RD |
-							last);
-		}
-		error = wait_status(sc, IG4_STATUS_RX_NOTEMPTY);
-		if (error) {
-			if ((op & SMB_TRANS_NOREPORT) == 0) {
-				device_printf(sc->dev,
-					      "rx timeout addr 0x%02x\n",
-					      sc->last_slave);
-			}
-			goto done;
-		}
-		last = data_read(sc);
-
-		if (op & SMB_TRANS_NOCNT) {
-			*rbuf = (u_char)last;
-			++rbuf;
-			--rcount;
-			if (actualp)
-				++*actualp;
-		} else {
-			/*
-			 * Handle count field (smbus), which is not part of
-			 * the rcount'ed buffer.  The first read data in a
-			 * bulk transfer is the count.
-			 *
-			 * XXX if rcount is loaded as 0 how do I generate a
-			 *     STOP now without issuing another RD or WR?
-			 */
-			if (rcount > (u_char)last)
-				rcount = (u_char)last;
-			op |= SMB_TRANS_NOCNT;
-		}
-	}
-	error = 0;
-done:
-	/* XXX wait for xmit buffer to become empty */
-	last = reg_read(sc, IG4_REG_TX_ABRT_SOURCE);
-
-	return (error);
-}
-
-/*
  *				IICBUS API FUNCTIONS
  */
 static int
 ig4iic_xfer_start(ig4iic_softc_t *sc, uint16_t slave)
 {
-	/* XXX 10-bit address support? */
-	set_slave_addr(sc, slave >> 1, 0);
+	set_slave_addr(sc, slave >> 1);
 	return (0);
 }
 
@@ -706,7 +504,7 @@ ig4iic_reset(device_t dev, u_char speed, u_char addr, u_char *oldaddr)
 	/* TODO handle speed configuration? */
 	if (oldaddr != NULL)
 		*oldaddr = sc->last_slave << 1;
-	set_slave_addr(sc, addr >> 1, 0);
+	set_slave_addr(sc, addr >> 1);
 	if (addr == IIC_UNKNOWN)
 		sc->slave_valid = false;
 
@@ -716,8 +514,6 @@ ig4iic_reset(device_t dev, u_char speed, u_char addr, u_char *oldaddr)
 }
 
 /*
- *				SMBUS API FUNCTIONS
- *
  * Called from ig4iic_pci_attach/detach()
  */
 int
@@ -836,15 +632,12 @@ ig4iic_start(void *xdev)
 
 	config_intrhook_disestablish(&sc->enum_hook);
 
-	/* Attach us to the smbus */
 	error = bus_generic_attach(sc->dev);
 	if (error) {
 		device_printf(sc->dev,
 			      "failed to attach child: error %d\n", error);
 	}
 }
-
-
 
 int
 ig4iic_detach(ig4iic_softc_t *sc)
@@ -872,276 +665,6 @@ ig4iic_detach(ig4iic_softc_t *sc)
 	mtx_unlock(&sc->io_lock);
 	sx_xunlock(&sc->call_lock);
 	return (0);
-}
-
-int
-ig4iic_smb_callback(device_t dev, int index, void *data)
-{
-	int error;
-
-	switch (index) {
-	case SMB_REQUEST_BUS:
-		error = 0;
-		break;
-	case SMB_RELEASE_BUS:
-		error = 0;
-		break;
-	default:
-		error = SMB_EABORT;
-		break;
-	}
-
-	return (error);
-}
-
-/*
- * Quick command.  i.e. START + cmd + R/W + STOP and no data.  It is
- * unclear to me how I could implement this with the intel i2c controller
- * because the controller sends STARTs and STOPs automatically with data.
- */
-int
-ig4iic_smb_quick(device_t dev, u_char slave, int how)
-{
-
-	return (SMB_ENOTSUPP);
-}
-
-/*
- * Incremental send byte without stop (?).  It is unclear why the slave
- * address is specified if this presumably is used in combination with
- * ig4iic_smb_quick().
- *
- * (Also, how would this work anyway?  Issue the last byte with writeb()?)
- */
-int
-ig4iic_smb_sendb(device_t dev, u_char slave, char byte)
-{
-	ig4iic_softc_t *sc = device_get_softc(dev);
-	uint32_t cmd;
-	int error;
-
-	sx_xlock(&sc->call_lock);
-	mtx_lock(&sc->io_lock);
-
-	set_slave_addr(sc, slave, 0);
-	cmd = byte;
-	if (wait_status(sc, IG4_STATUS_TX_NOTFULL) == 0) {
-		reg_write(sc, IG4_REG_DATA_CMD, cmd);
-		error = 0;
-	} else {
-		error = SMB_ETIMEOUT;
-	}
-
-	mtx_unlock(&sc->io_lock);
-	sx_xunlock(&sc->call_lock);
-	return (error);
-}
-
-/*
- * Incremental receive byte without stop (?).  It is unclear why the slave
- * address is specified if this presumably is used in combination with
- * ig4iic_smb_quick().
- */
-int
-ig4iic_smb_recvb(device_t dev, u_char slave, char *byte)
-{
-	ig4iic_softc_t *sc = device_get_softc(dev);
-	int error;
-
-	sx_xlock(&sc->call_lock);
-	mtx_lock(&sc->io_lock);
-
-	set_slave_addr(sc, slave, 0);
-	reg_write(sc, IG4_REG_DATA_CMD, IG4_DATA_COMMAND_RD);
-	if (wait_status(sc, IG4_STATUS_RX_NOTEMPTY) == 0) {
-		*byte = data_read(sc);
-		error = 0;
-	} else {
-		*byte = 0;
-		error = SMB_ETIMEOUT;
-	}
-
-	mtx_unlock(&sc->io_lock);
-	sx_xunlock(&sc->call_lock);
-	return (error);
-}
-
-/*
- * Write command and single byte in transaction.
- */
-int
-ig4iic_smb_writeb(device_t dev, u_char slave, char cmd, char byte)
-{
-	ig4iic_softc_t *sc = device_get_softc(dev);
-	int error;
-
-	sx_xlock(&sc->call_lock);
-	mtx_lock(&sc->io_lock);
-
-	set_slave_addr(sc, slave, 0);
-	error = smb_transaction(sc, cmd, SMB_TRANS_NOCNT,
-				&byte, 1, NULL, 0, NULL);
-
-	mtx_unlock(&sc->io_lock);
-	sx_xunlock(&sc->call_lock);
-	return (error);
-}
-
-/*
- * Write command and single word in transaction.
- */
-int
-ig4iic_smb_writew(device_t dev, u_char slave, char cmd, short word)
-{
-	ig4iic_softc_t *sc = device_get_softc(dev);
-	char buf[2];
-	int error;
-
-	sx_xlock(&sc->call_lock);
-	mtx_lock(&sc->io_lock);
-
-	set_slave_addr(sc, slave, 0);
-	buf[0] = word & 0xFF;
-	buf[1] = word >> 8;
-	error = smb_transaction(sc, cmd, SMB_TRANS_NOCNT,
-				buf, 2, NULL, 0, NULL);
-
-	mtx_unlock(&sc->io_lock);
-	sx_xunlock(&sc->call_lock);
-	return (error);
-}
-
-/*
- * write command and read single byte in transaction.
- */
-int
-ig4iic_smb_readb(device_t dev, u_char slave, char cmd, char *byte)
-{
-	ig4iic_softc_t *sc = device_get_softc(dev);
-	int error;
-
-	sx_xlock(&sc->call_lock);
-	mtx_lock(&sc->io_lock);
-
-	set_slave_addr(sc, slave, 0);
-	error = smb_transaction(sc, cmd, SMB_TRANS_NOCNT,
-				NULL, 0, byte, 1, NULL);
-
-	mtx_unlock(&sc->io_lock);
-	sx_xunlock(&sc->call_lock);
-	return (error);
-}
-
-/*
- * write command and read word in transaction.
- */
-int
-ig4iic_smb_readw(device_t dev, u_char slave, char cmd, short *word)
-{
-	ig4iic_softc_t *sc = device_get_softc(dev);
-	char buf[2];
-	int error;
-
-	sx_xlock(&sc->call_lock);
-	mtx_lock(&sc->io_lock);
-
-	set_slave_addr(sc, slave, 0);
-	if ((error = smb_transaction(sc, cmd, SMB_TRANS_NOCNT,
-				     NULL, 0, buf, 2, NULL)) == 0) {
-		*word = (u_char)buf[0] | ((u_char)buf[1] << 8);
-	}
-
-	mtx_unlock(&sc->io_lock);
-	sx_xunlock(&sc->call_lock);
-	return (error);
-}
-
-/*
- * write command and word and read word in transaction
- */
-int
-ig4iic_smb_pcall(device_t dev, u_char slave, char cmd,
-		 short sdata, short *rdata)
-{
-	ig4iic_softc_t *sc = device_get_softc(dev);
-	char rbuf[2];
-	char wbuf[2];
-	int error;
-
-	sx_xlock(&sc->call_lock);
-	mtx_lock(&sc->io_lock);
-
-	set_slave_addr(sc, slave, 0);
-	wbuf[0] = sdata & 0xFF;
-	wbuf[1] = sdata >> 8;
-	if ((error = smb_transaction(sc, cmd, SMB_TRANS_NOCNT,
-				     wbuf, 2, rbuf, 2, NULL)) == 0) {
-		*rdata = (u_char)rbuf[0] | ((u_char)rbuf[1] << 8);
-	}
-
-	mtx_unlock(&sc->io_lock);
-	sx_xunlock(&sc->call_lock);
-	return (error);
-}
-
-int
-ig4iic_smb_bwrite(device_t dev, u_char slave, char cmd,
-		  u_char wcount, char *buf)
-{
-	ig4iic_softc_t *sc = device_get_softc(dev);
-	int error;
-
-	sx_xlock(&sc->call_lock);
-	mtx_lock(&sc->io_lock);
-
-	set_slave_addr(sc, slave, 0);
-	error = smb_transaction(sc, cmd, 0,
-				buf, wcount, NULL, 0, NULL);
-
-	mtx_unlock(&sc->io_lock);
-	sx_xunlock(&sc->call_lock);
-	return (error);
-}
-
-int
-ig4iic_smb_bread(device_t dev, u_char slave, char cmd,
-		 u_char *countp_char, char *buf)
-{
-	ig4iic_softc_t *sc = device_get_softc(dev);
-	int rcount = *countp_char;
-	int error;
-
-	sx_xlock(&sc->call_lock);
-	mtx_lock(&sc->io_lock);
-
-	set_slave_addr(sc, slave, 0);
-	error = smb_transaction(sc, cmd, 0,
-				NULL, 0, buf, rcount, &rcount);
-	*countp_char = rcount;
-
-	mtx_unlock(&sc->io_lock);
-	sx_xunlock(&sc->call_lock);
-	return (error);
-}
-
-int
-ig4iic_smb_trans(device_t dev, int slave, char cmd, int op,
-		 char *wbuf, int wcount, char *rbuf, int rcount,
-		 int *actualp)
-{
-	ig4iic_softc_t *sc = device_get_softc(dev);
-	int error;
-
-	sx_xlock(&sc->call_lock);
-	mtx_lock(&sc->io_lock);
-
-	set_slave_addr(sc, slave, op);
-	error = smb_transaction(sc, cmd, op,
-				wbuf, wcount, rbuf, rcount, actualp);
-
-	mtx_unlock(&sc->io_lock);
-	sx_xunlock(&sc->call_lock);
-	return (error);
 }
 
 /*

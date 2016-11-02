@@ -1872,6 +1872,10 @@ mpssas_action_scsiio(struct mpssas_softc *sassc, union ccb *ccb)
 		}
 	}
 
+#if defined(BUF_TRACKING) || defined(FULL_BUF_TRACKING)
+	if (csio->bio != NULL)
+		biotrack(csio->bio, __func__);
+#endif
 	callout_reset_sbt(&cm->cm_callout, SBT_1MS * ccb->ccb_h.timeout, 0,
 	    mpssas_scsiio_timeout, cm, 0);
 
@@ -2124,6 +2128,11 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 	cm->cm_targ->outstanding--;
 	TAILQ_REMOVE(&cm->cm_targ->commands, cm, cm_link);
 	ccb->ccb_h.status &= ~(CAM_STATUS_MASK | CAM_SIM_QUEUED);
+
+#if defined(BUF_TRACKING) || defined(FULL_BUF_TRACKING)
+	if (ccb->csio.bio != NULL)
+		biotrack(ccb->csio.bio, __func__);
+#endif
 
 	if (cm->cm_state == MPS_CM_STATE_TIMEDOUT) {
 		TAILQ_REMOVE(&cm->cm_targ->timedout_commands, cm, cm_recovery);
