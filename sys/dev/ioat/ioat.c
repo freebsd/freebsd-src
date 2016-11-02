@@ -747,6 +747,12 @@ out:
 		wakeup(&ioat->tail);
 	}
 
+	/*
+	 * The device doesn't seem to reliably push suspend/halt statuses to
+	 * the channel completion memory address, so poll the device register
+	 * here.
+	 */
+	comp_update = ioat_get_chansts(ioat) & IOAT_CHANSTS_STATUS;
 	if (!is_ioat_halted(comp_update) && !is_ioat_suspended(comp_update))
 		return;
 
