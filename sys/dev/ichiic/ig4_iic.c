@@ -37,7 +37,7 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * Intel fourth generation mobile cpus integrated I2C deviceer.
+ * Intel fourth generation mobile cpus integrated I2C device.
  *
  * See ig4_reg.h for datasheet reference and notes.
  * See ig4_var.h for locking semantics.
