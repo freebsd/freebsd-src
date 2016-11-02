@@ -2717,6 +2717,7 @@ void ERR_load_SSL_strings(void);
 # define SSL_R_TLS_HEARTBEAT_PENDING                      366
 # define SSL_R_TLS_ILLEGAL_EXPORTER_LABEL                 367
 # define SSL_R_TLS_INVALID_ECPOINTFORMAT_LIST             157
+# define SSL_R_TOO_MANY_WARN_ALERTS                       409
 # define SSL_R_TLS_PEER_DID_NOT_RESPOND_WITH_CERTIFICATE_LIST 233
 # define SSL_R_TLS_RSA_ENCRYPTED_VALUE_LENGTH_IS_WRONG    234
 # define SSL_R_TRIED_TO_USE_UNSUPPORTED_CIPHER            235
