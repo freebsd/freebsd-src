@@ -47,14 +47,14 @@
  * I am also using the linux driver code as a reference to help resolve any
  * issues that come.  These will be specifically documented in the code.
  *
- * Please see protocol notes in section 5.21.  This controller is an I2C
- * master only and cannot act as a slave.  The IO voltage should be set by
- * the BIOS.  Standard (100Kb/s) and Fast (400Kb/s) and fast mode plus
- * (1MB/s) is supported.  High speed mode (3.4 MB/s) is NOT supported.
+ * This controller is an I2C master only and cannot act as a slave.  The IO
+ * voltage should be set by the BIOS.  Standard (100Kb/s) and Fast (400Kb/s)
+ * and fast mode plus (1MB/s) is supported.  High speed mode (3.4 MB/s) is NOT
+ * supported.
  */
 
-#ifndef _BUS_SMBUS_INTELGEN4_IG4_REG_H_
-#define _BUS_SMBUS_INTELGEN4_IG4_REG_H_
+#ifndef _ICHIIC_IG4_REG_H_
+#define _ICHIIC_IG4_REG_H_
 
 /*
  * 22.2 MMIO registers can be accessed through BAR0 in PCI mode or through
@@ -619,4 +619,4 @@
 #define IG4_SWLTR_SNOOP_VALUE_DECODE(v)	 ((v) & 0x3F)
 #define IG4_SWLTR_SNOOP_VALUE_ENCODE(v)	 ((v) & 0x3F)
 
-#endif
+#endif /* _ICHIIC_IG4_REG_H_ */
