@@ -24,6 +24,14 @@
 	<entry>25&nbsp;October&nbsp;2016</entry>
 	<entry><para>Privilege escalation vulnerability</para></entry>
       </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-16:33.openssh.asc">FreeBSD-SA-16:33.openssh</link></entry>
+	<entry>2&nbsp;November&nbsp;2016</entry>
+	<entry><para>Remote Denial of Service
+	    vulnerability</para></entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>
