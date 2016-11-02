@@ -757,13 +757,24 @@ mprsas_add_device(struct mpr_softc *sc, u16 handle, u8 linkrate){
 		}
 	}
 
-	id = mpr_mapping_get_sas_id(sc, sas_address, handle);
+	/*
+	 * use_phynum:
+	 *  1 - use the PhyNum field as a fallback to the mapping logic
+	 *  0 - never use the PhyNum field
+	 * -1 - only use the PhyNum field
+	 */
+	id = MPR_MAP_BAD_ID;
+	if (sc->use_phynum != -1) 
+		id = mpr_mapping_get_sas_id(sc, sas_address, handle);
 	if (id == MPR_MAP_BAD_ID) {
-		printf("failure at %s:%d/%s()! Could not get ID for device "
-		    "with handle 0x%04x\n", __FILE__, __LINE__, __func__,
-		    handle);
-		error = ENXIO;
-		goto out;
+		if ((sc->use_phynum == 0)
+		 || ((id = config_page.PhyNum) > sassc->maxtargets)) {
+			mpr_dprint(sc, MPR_INFO, "failure at %s:%d/%s()! "
+			    "Could not get ID for device with handle 0x%04x\n",
+			    __FILE__, __LINE__, __func__, handle);
+			error = ENXIO;
+			goto out;
+		}
 	}
 
 	if (mprsas_check_id(sassc, id) != 0) {
@@ -772,9 +783,16 @@ mprsas_add_device(struct mpr_softc *sc, u16 handle, u8 linkrate){
 		goto out;
 	}
 
+	targ = &sassc->targets[id];
+	if (targ->handle != 0x0) {
+		mpr_dprint(sc, MPR_MAPPING, "Attempting to reuse target id "
+		    "%d handle 0x%04x\n", id, targ->handle);
+		error = ENXIO;
+		goto out;
+	}
+
 	mpr_dprint(sc, MPR_MAPPING, "SAS Address from SAS device page0 = %jx\n",
 	    sas_address);
-	targ = &sassc->targets[id];
 	targ->devinfo = device_info;
 	targ->devname = le32toh(config_page.DeviceName.High);
 	targ->devname = (targ->devname << 32) | 
