@@ -21,6 +21,7 @@
 ident		GENERIC
 
 cpu		CPU_CORTEXA_MP
+cpu		CPU_CORTEXA8
 machine 	arm armv6
 makeoptions	CONF_CFLAGS="-march=armv7a"
 
@@ -37,6 +38,8 @@ files		"../broadcom/bcm2835/files.bcm2836"
 files		"../broadcom/bcm2835/files.bcm283x"
 files		"../nvidia/tegra124/files.tegra124"
 files		"../qemu/files.qemu"
+files		"../ti/files.ti"
+files		"../ti/am335x/files.am335x"
 
 options 	SOC_ALLWINNER_A20
 options 	SOC_ALLWINNER_A31
@@ -44,6 +47,7 @@ options 	SOC_ALLWINNER_A31S
 options 	SOC_ALLWINNER_A83T
 options 	SOC_ALLWINNER_H3
 options 	SOC_BCM2836
+options		SOC_TI_AM335X
 
 options 	SCHED_ULE		# ULE scheduler
 options 	SMP			# Enable multiple cores
@@ -65,6 +69,9 @@ device		cpufreq
 # Interrupt controller
 options 	INTRNG
 device		gic
+
+# PMU support (for CCNT).
+device		pmu
 
 # ARM Generic Timer
 device		generic_timer
@@ -113,9 +120,14 @@ device		axp81x			# AXP813/818 Power Management Unit
 device		bcm2835_bsc
 device		icee
 device		sy8106a			# SY8106A Buck Regulator
+device		ti_i2c
+device		am335x_pmic		# AM335x Power Management IC (TPC65217)
+device		am335x_rtc		# RTC support (power management only)
+#define 	am335x_dmtpps		# Pulse Per Second capture driver
 
 # GPIO
 device		gpio
+device		gpiobacklight
 device		gpioled
 device		gpioregulator
 
@@ -128,6 +140,16 @@ device		aw_cir
 # SPI
 device		spibus
 device		bcm2835_spi
+device		ti_spi
+
+# ADC support
+device		ti_adc
+
+# Watchdog support
+# If we don't enable the watchdog driver, the BealeBone could potentially
+# reboot automatically because the boot loader might have enabled the
+# watchdog.
+device		ti_wdt
 
 device		scbus			# SCSI bus (required for ATA/SCSI)
 device		da			# Direct Access (disks)
@@ -141,10 +163,15 @@ device		usb
 device		ohci
 device		ehci
 device		dwcotg			# DWC OTG controller
+device		musb
 
 device		umass			# Disks/Mass storage - Requires scbus and da
 device		uhid			# "Human Interface Devices"
 device		ukbd			# Allow keyboard like HIDs to control console
+
+# Device mode support and USFS template
+device		usb_template    	# Control of the gadget
+device		usfs
 
 # Ethernet
 device		loop
@@ -175,6 +202,12 @@ device		vchiq
 
 # Pinmux
 device		fdt_pinctrl
+
+# TI Programmable Realtime Unit support
+device		ti_pruss
+
+# Mailbox support
+device		ti_mbox
 
 # Extensible Firmware Interface
 options 	EFI
