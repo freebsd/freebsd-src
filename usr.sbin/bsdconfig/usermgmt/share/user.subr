@@ -145,12 +145,12 @@ f_user_copy_dotfiles()
 		[ -e "$file" ] || continue # no-match
 
 		f_shell_escape "$file" "_file"
-		f_eval_catch $funcname cp "cp -n '%s' '%s'" \
+		f_eval_catch $funcname cp "cp -R -n '%s' '%s'" \
 			"$_file" "$_user_home_dir/${_file#dot}"
 		retval=$?
 		[ $retval -eq $SUCCESS ] || break
 		f_eval_catch $funcname chown \
-			"chown -h '%i:%i' '%s'" \
+			"chown -R -h '%i:%i' '%s'" \
 			"$_user_uid" "$_user_gid" \
 			"$_user_home_dir/${_file#dot}"
 		retval=$?
