@@ -50,7 +50,6 @@ struct smbus_ivar
 /*
  * Autoconfiguration and support routines for System Management bus
  */
-static void smbus_probe_device(device_t dev, u_char addr);
 
 static int
 smbus_probe(device_t dev)
@@ -65,13 +64,9 @@ static int
 smbus_attach(device_t dev)
 {
 	struct smbus_softc *sc = device_get_softc(dev);
-	unsigned char addr;
 
 	mtx_init(&sc->lock, device_get_nameunit(dev), "smbus", MTX_DEF);
 	bus_generic_probe(dev);
-	for (addr = SMBUS_ADDR_MIN; addr < SMBUS_ADDR_MAX; ++addr) {
-		smbus_probe_device(dev, addr);
-	}
 	bus_enumerate_hinted_children(dev);
 	bus_generic_attach(dev);
 
@@ -96,30 +91,6 @@ smbus_detach(device_t dev)
 void
 smbus_generic_intr(device_t dev, u_char devaddr, char low, char high, int err)
 {
-}
-
-static void
-smbus_probe_device(device_t dev, u_char addr)
-{
-	device_t child;
-	int error;
-	u_char cmd;
-	u_char buf[2];
-	struct smbus_ivar *devi;
-
-	cmd = 0x01;
-	error = smbus_trans(dev, addr, cmd,
-			    SMB_TRANS_NOCNT | SMB_TRANS_NOREPORT,
-			    NULL, 0, buf, 1, NULL);
-	if (error == 0) {
-		if (bootverbose)
-			device_printf(dev, "Probed address 0x%02x\n", addr);
-		child = BUS_ADD_CHILD(dev, SMBUS_ORDER_PNP, NULL, -1);
-		if (child == NULL)
-			return;
-		devi = device_get_ivars(child);
-		devi->addr = addr;
-	}
 }
 
 static device_t
