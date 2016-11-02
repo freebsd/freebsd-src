@@ -587,6 +587,8 @@ typedef struct ssl3_state_st {
     char is_probably_safari;
 #   endif                       /* !OPENSSL_NO_EC */
 #  endif                        /* !OPENSSL_NO_TLSEXT */
+    /* Count of the number of consecutive warning alerts received */
+    unsigned int alert_count;
 } SSL3_STATE;
 
 # endif

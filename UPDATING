@@ -16,6 +16,13 @@ from older versions of FreeBSD, try WITHOUT_CLANG to bootstrap to the tip of
 stable/10, and then rebuild without this option. The bootstrap process from
 older version of current is a bit fragile.
 
+20161102	p12	FreeBSD-SA-16:33.openssh
+			FreeBSD-SA-16:35.openssl
+
+	Fix OpenSSH remote Denial of Service vulnerability. [SA-16:33]
+
+	Fix OpenSSL remote DoS vulnerability. [SA-16:35]
+
 20161025	p11	FreeBSD-SA-16:15.sysarch [revised]
 			FreeBSD-EN-16:17.vm
 
