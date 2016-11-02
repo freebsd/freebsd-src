@@ -91,6 +91,7 @@ static struct ucode_handler {
 	ucode_update_t *update;
 } handlers[] = {
 	{ intel_probe, intel_update },
+	{ amd10h_probe, amd10h_update },
 	{ amd_probe, amd_update },
 	{ via_probe, via_update },
 };

@@ -377,13 +377,24 @@ fail:
 	return (ret);
 }
 
+/*
+ * NB: MSR 0xc0010020, MSR_K8_UCODE_UPDATE, is not documented by AMD.
+ * Coreboot, illumos and Linux source code was used to understand
+ * its workings.
+ */
+static void
+amd_ucode_wrmsr(void *ucode_ptr)
+{
+	uint32_t tmp[4];
+
+	wrmsr_safe(MSR_K8_UCODE_UPDATE, (uintptr_t)ucode_ptr);
+	do_cpuid(0, tmp);
+}
+
 static int
 update_amd(int cpu, cpuctl_update_args_t *args, struct thread *td)
 {
-	void *ptr = NULL;
-	uint32_t tmp[4];
-	int is_bound = 0;
-	int oldcpu;
+	void *ptr;
 	int ret;
 
 	if (args->size == 0 || args->data == NULL) {
@@ -394,41 +405,23 @@ update_amd(int cpu, cpuctl_update_args_t *args, struct thread *td)
 		DPRINTF("[cpuctl,%d]: firmware image too large", __LINE__);
 		return (EINVAL);
 	}
+
 	/*
-	 * XXX Might not require contignous address space - needs check
+	 * 16 byte alignment required.  Rely on the fact that
+	 * malloc(9) always returns the pointer aligned at least on
+	 * the size of the allocation.
 	 */
-	ptr = contigmalloc(args->size, M_CPUCTL, 0, 0, 0xffffffff, 16, 0);
-	if (ptr == NULL) {
-		DPRINTF("[cpuctl,%d]: cannot allocate %zd bytes of memory",
-		    __LINE__, args->size);
-		return (ENOMEM);
-	}
+	ptr = malloc(args->size + 16, M_CPUCTL, M_ZERO | M_WAITOK);
 	if (copyin(args->data, ptr, args->size) != 0) {
 		DPRINTF("[cpuctl,%d]: copyin %p->%p of %zd bytes failed",
 		    __LINE__, args->data, ptr, args->size);
 		ret = EFAULT;
 		goto fail;
 	}
-	oldcpu = td->td_oncpu;
-	is_bound = cpu_sched_is_bound(td);
-	set_cpu(cpu, td);
-	critical_enter();
-
-	/*
-	 * Perform update.
-	 */
-	wrmsr_safe(MSR_K8_UCODE_UPDATE, (uintptr_t)ptr);
-
-	/*
-	 * Serialize instruction flow.
-	 */
-	do_cpuid(0, tmp);
-	critical_exit();
-	restore_cpu(oldcpu, is_bound, td);
+	smp_rendezvous(NULL, amd_ucode_wrmsr, NULL, ptr);
 	ret = 0;
 fail:
-	if (ptr != NULL)
-		contigfree(ptr, args->size, M_CPUCTL);
+	free(ptr, M_CPUCTL);
 	return (ret);
 }
 
