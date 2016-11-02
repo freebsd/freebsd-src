@@ -35,13 +35,12 @@
  * $FreeBSD$
  */
 
-#ifndef _BUS_SMBUS_INTELGEN4_IG4_VAR_H_
-#define _BUS_SMBUS_INTELGEN4_IG4_VAR_H_
+#ifndef _ICHIIC_IG4_VAR_H_
+#define _ICHIIC_IG4_VAR_H_
 
 #include "bus_if.h"
 #include "device_if.h"
 #include "pci_if.h"
-#include "smbus_if.h"
 #include "iicbus_if.h"
 
 #define IG4_RBUFSIZE	128
@@ -75,12 +74,12 @@ struct ig4iic_softc {
 	/*
 	 * Locking semantics:
 	 *
-	 * Functions implementing the smbus interface that interact
+	 * Functions implementing the icbus interface that interact
 	 * with the controller acquire an exclusive lock on call_lock
 	 * to prevent interleaving of calls to the interface and a lock on
 	 * io_lock right afterwards, to synchronize controller I/O activity.
-	 * 
-	 * The interrupt handler can only read data while no ig4iic_smb_* call
+	 *
+	 * The interrupt handler can only read data while no iicbus call
 	 * is in progress or while io_lock is dropped during mtx_sleep in
 	 * wait_status and set_controller. It is safe to drop io_lock in those
 	 * places, because the interrupt handler only accesses those registers:
@@ -91,7 +90,7 @@ struct ig4iic_softc {
 	 *
 	 * Locking outside of those places is required to make the content
 	 * of rpos/rnext predictable (e.g. whenever data_read is called and in
-	 * smb_transaction).
+	 * ig4iic_transfer).
 	 */
 	struct sx	call_lock;
 	struct mtx	io_lock;
@@ -103,20 +102,8 @@ typedef struct ig4iic_softc ig4iic_softc_t;
 int ig4iic_attach(ig4iic_softc_t *sc);
 int ig4iic_detach(ig4iic_softc_t *sc);
 
-/* SMBus methods */
-extern smbus_callback_t ig4iic_smb_callback;
-extern smbus_quick_t    ig4iic_smb_quick;
-extern smbus_sendb_t    ig4iic_smb_sendb;
-extern smbus_recvb_t    ig4iic_smb_recvb;
-extern smbus_writeb_t   ig4iic_smb_writeb;
-extern smbus_writew_t   ig4iic_smb_writew;
-extern smbus_readb_t    ig4iic_smb_readb;
-extern smbus_readw_t    ig4iic_smb_readw;
-extern smbus_pcall_t    ig4iic_smb_pcall;
-extern smbus_bwrite_t   ig4iic_smb_bwrite;
-extern smbus_bread_t    ig4iic_smb_bread;
-extern smbus_trans_t    ig4iic_smb_trans;
+/* iicbus methods */
 extern iicbus_transfer_t ig4iic_transfer;
 extern iicbus_reset_t   ig4iic_reset;
 
-#endif
+#endif /* _ICHIIC_IG4_VAR_H_ */
