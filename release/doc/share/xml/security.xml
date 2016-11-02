@@ -131,6 +131,22 @@
 	<entry>10&nbsp;October&nbsp;2016</entry>
 	<entry><para>Multiple vulnerabilities</para></entry>
       </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-16:33.openssh.asc">FreeBSD-SA-16:33.openssh</link></entry>
+	<entry>2&nbsp;November&nbsp;2016</entry>
+	<entry><para>Remote Denial of Service
+	    vulnerability</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-16:35.openssl.asc">FreeBSD-SA-16:35.openssl</link></entry>
+	<entry>2&nbsp;November&nbsp;2016</entry>
+	<entry><para>Remote Denial of Service
+	    vulnerability</para></entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>
