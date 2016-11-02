@@ -31,6 +31,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/bio.h>
 #include <sys/bus.h>
 #include <sys/systm.h>
 #include <sys/types.h>
@@ -4471,6 +4472,12 @@ xpt_done(union ccb *done_ccb)
 	struct cam_doneq *queue;
 	int	run, hash;
 
+#if defined(BUF_TRACKING) || defined(FULL_BUF_TRACKING)
+	if (done_ccb->ccb_h.func_code == XPT_SCSI_IO &&
+	    done_ccb->csio.bio != NULL)
+		biotrack(done_ccb->csio.bio, __func__);
+#endif
+
 	CAM_DEBUG(done_ccb->ccb_h.path, CAM_DEBUG_TRACE,
 	    ("xpt_done: func= %#x %s status %#x\n",
 		done_ccb->ccb_h.func_code,
@@ -5188,6 +5195,16 @@ xpt_done_process(struct ccb_hdr *ccb_h)
 	struct cam_sim *sim;
 	struct cam_devq *devq;
 	struct mtx *mtx = NULL;
+
+#if defined(BUF_TRACKING) || defined(FULL_BUF_TRACKING)
+	struct ccb_scsiio *csio;
+
+	if (ccb_h->func_code == XPT_SCSI_IO) {
+		csio = &((union ccb *)ccb_h)->csio;
+		if (csio->bio != NULL)
+			biotrack(csio->bio, __func__);
+	}
+#endif
 
 	if (ccb_h->flags & CAM_HIGH_POWER) {
 		struct highpowerlist	*hphead;

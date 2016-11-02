@@ -78,7 +78,7 @@ CTFFLAGS+= -g
 
 # prefer .s to a .c, add .po, remove stuff not used in the BSD libraries
 # .pico used for PIC object files
-.SUFFIXES: .out .o .po .pico .S .asm .s .c .cc .cpp .cxx .C .f .y .l .ln
+.SUFFIXES: .out .o .bc .ll .po .pico .S .asm .s .c .cc .cpp .cxx .C .f .y .l .ln
 
 .if !defined(PICFLAG)
 .if ${MACHINE_CPUARCH} == "sparc64"
@@ -197,6 +197,18 @@ lib${LIB_PRIVATE}${LIB}_p.a: ${POBJS}
 	${AR} ${ARFLAGS} ${.TARGET} `NM='${NM}' NMFLAGS='${NMFLAGS}' \
 	    ${LORDER} ${POBJS} | ${TSORT} ${TSORTFLAGS}` ${ARADD}
 	${RANLIB} ${RANLIBFLAGS} ${.TARGET}
+.endif
+
+.if defined(LLVM_LINK)
+BCOBJS=		${OBJS:.o=.bco} ${STATICOBJS:.o=.bco}
+LLOBJS=		${OBJS:.o=.llo} ${STATICOBJS:.o=.llo}
+CLEANFILES+=	${BCOBJS} ${LLOBJS}
+
+lib${LIB_PRIVATE}${LIB}.bc: ${BCOBJS}
+	${LLVM_LINK} -o ${.TARGET} ${BCOBJS}
+
+lib${LIB_PRIVATE}${LIB}.ll: ${LLOBJS}
+	${LLVM_LINK} -S -o ${.TARGET} ${LLOBJS}
 .endif
 
 .if defined(SHLIB_NAME) || \

@@ -325,7 +325,9 @@ htcp_cong_signal(struct cc_var *ccv, uint32_t type)
 		 */
 		if (CCV(ccv, t_rxtshift) >= 2)
 			htcp_data->t_last_cong = ticks;
-		CCV(ccv, snd_ssthresh) = max(2 * mss, cwin / 2);
+		CCV(ccv, snd_ssthresh) =
+		    max((CCV(ccv, snd_max) - CCV(ccv, snd_una)) / 2 / mss, 2)
+			* mss;
 		CCV(ccv, snd_cwnd) = mss;
 		break;
 	}
@@ -518,6 +520,10 @@ htcp_ssthresh_update(struct cc_var *ccv)
 		CCV(ccv, snd_ssthresh) = ((u_long)CCV(ccv, snd_cwnd) *
 		    htcp_data->beta) >> HTCP_SHIFT;
 	}
+
+	/* Align ssthresh to MSS boundary */
+	CCV(ccv, snd_ssthresh) = (CCV(ccv, snd_ssthresh) / CCV(ccv, t_maxseg))
+	    * CCV(ccv, t_maxseg);
 }
 
 

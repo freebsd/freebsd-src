@@ -1952,6 +1952,7 @@ bufwrite(struct buf *bp)
 	if (oldflags & B_ASYNC)
 		BUF_KERNPROC(bp);
 	bp->b_iooffset = dbtob(bp->b_blkno);
+	buf_track(bp, __func__);
 	bstrategy(bp);
 
 	if ((oldflags & B_ASYNC) == 0) {
@@ -2077,6 +2078,8 @@ bdwrite(struct buf *bp)
 	if (vp->v_type != VCHR && bp->b_lblkno == bp->b_blkno) {
 		VOP_BMAP(vp, bp->b_lblkno, NULL, &bp->b_blkno, NULL, NULL);
 	}
+
+	buf_track(bp, __func__);
 
 	/*
 	 * Set the *dirty* buffer range based upon the VM system dirty
@@ -2386,6 +2389,8 @@ brelse(struct buf *bp)
 			brelvp(bp);
 	}
 
+	buf_track(bp, __func__);
+
 	/* buffers with no memory */
 	if (bp->b_bufsize == 0) {
 		buf_free(bp);
@@ -2470,6 +2475,7 @@ bqrelse(struct buf *bp)
 	binsfree(bp, qindex);
 
 out:
+	buf_track(bp, __func__);
 	/* unlock */
 	BUF_UNLOCK(bp);
 	if (qindex == QUEUE_CLEAN)
@@ -3716,6 +3722,7 @@ loop:
 	CTR4(KTR_BUF, "getblk(%p, %ld, %d) = %p", vp, (long)blkno, size, bp);
 	BUF_ASSERT_HELD(bp);
 end:
+	buf_track(bp, __func__);
 	KASSERT(bp->b_bufobj == bo,
 	    ("bp %p wrong b_bufobj %p should be %p", bp, bp->b_bufobj, bo));
 	return (bp);
@@ -3892,6 +3899,7 @@ biodone(struct bio *bp)
 	void (*done)(struct bio *);
 	vm_offset_t start, end;
 
+	biotrack(bp, __func__);
 	if ((bp->bio_flags & BIO_TRANSIENT_MAPPING) != 0) {
 		bp->bio_flags &= ~BIO_TRANSIENT_MAPPING;
 		bp->bio_flags |= BIO_UNMAPPED;
@@ -3948,6 +3956,15 @@ biofinish(struct bio *bp, struct devstat *stat, int error)
 	biodone(bp);
 }
 
+#if defined(BUF_TRACKING) || defined(FULL_BUF_TRACKING)
+void
+biotrack_buf(struct bio *bp, const char *location)
+{
+
+	buf_track(bp->bio_track_bp, location);
+}
+#endif
+
 /*
  *	bufwait:
  *
@@ -3998,6 +4015,7 @@ bufdone(struct buf *bp)
 	struct bufobj *dropobj;
 	void    (*biodone)(struct buf *);
 
+	buf_track(bp, __func__);
 	CTR3(KTR_BUF, "bufdone(%p) vp %p flags %X", bp, bp->b_vp, bp->b_flags);
 	dropobj = NULL;
 
@@ -4801,6 +4819,9 @@ DB_SHOW_COMMAND(buffer, db_show_buffer)
 {
 	/* get args */
 	struct buf *bp = (struct buf *)addr;
+#ifdef FULL_BUF_TRACKING
+	uint32_t i, j;
+#endif
 
 	if (!have_addr) {
 		db_printf("usage: show buffer <addr>\n");
@@ -4837,6 +4858,16 @@ DB_SHOW_COMMAND(buffer, db_show_buffer)
 		}
 		db_printf("\n");
 	}
+#if defined(FULL_BUF_TRACKING)
+	db_printf("b_io_tracking: b_io_tcnt = %u\n", bp->b_io_tcnt);
+
+	i = bp->b_io_tcnt % BUF_TRACKING_SIZE;
+	for (j = 1; j <= BUF_TRACKING_SIZE; j++)
+		db_printf(" %2u: %s\n", j,
+		    bp->b_io_tracking[BUF_TRACKING_ENTRY(i - j)]);
+#elif defined(BUF_TRACKING)
+	db_printf("b_io_tracking: %s\n", bp->b_io_tracking);
+#endif
 	db_printf(" ");
 	BUF_LOCKPRINTINFO(bp);
 }

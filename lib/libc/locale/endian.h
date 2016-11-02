@@ -1,9 +1,14 @@
 /*-
- * Copyright (c) 2016 The FreeBSD Foundation
+ * Copyright (c) 2016 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
- * This software was developed by Kurt Lidl under sponsorship from the
- * FreeBSD Foundation.
+ * Portions of this software were developed by SRI International and the
+ * University of Cambridge Computer Laboratory under DARPA/AFRL contract
+ * FA8750-10-C-0237 ("CTSRD"), as part of the DARPA CRASH research programme.
+ *
+ * Portions of this software were developed by the University of Cambridge
+ * Computer Laboratory as part of the CTSRD Project, with support from the
+ * UK Higher Education Innovation Fund (HEIF).
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -17,37 +22,31 @@
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE. */
+ * SUCH DAMAGE.
+ *
+ * $FreeBSD$
+ */
 
-/* $FreeBSD$ */
+#include <sys/endian.h>
 
-#ifndef BLACKLIST_CLIENT_H
-#define BLACKLIST_CLIENT_H
+/*
+ * We assume locale files were generated on EL machine
+ * (e.g. during cross build on amd64 host), but used on EB
+ * machine (e.g. MIPS64EB), so convert it to host endianness.
+ *
+ * TODO: detect host endianness on the build machine and use
+ * correct macros here.
+ */
 
-enum {
-	BLACKLIST_AUTH_OK = 0,
-	BLACKLIST_AUTH_FAIL
-};
-
-#ifdef USE_BLACKLIST
-void blacklist_init(void);
-void blacklist_notify(int, int, char *);
-
-#define BLACKLIST_INIT() blacklist_init()
-#define BLACKLIST_NOTIFY(x, y, z) blacklist_notify(x, y, z)
-
+#if BYTE_ORDER == BIG_ENDIAN && defined(__mips__)
+#define	BSWAP(x)	le32toh(x)
 #else
-
-#define BLACKLIST_INIT()
-#define BLACKLIST_NOTIFY(x, y, z)
-
+#define	BSWAP(x)	x
 #endif
-
-#endif /* BLACKLIST_CLIENT_H */

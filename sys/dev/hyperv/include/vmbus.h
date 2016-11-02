@@ -146,8 +146,6 @@ int		vmbus_chan_gpadl_disconnect(struct vmbus_channel *chan,
 
 void		vmbus_chan_cpu_set(struct vmbus_channel *chan, int cpu);
 void		vmbus_chan_cpu_rr(struct vmbus_channel *chan);
-struct vmbus_channel *
-		vmbus_chan_cpu2chan(struct vmbus_channel *chan, int cpu);
 void		vmbus_chan_set_readbatch(struct vmbus_channel *chan, bool on);
 
 struct vmbus_channel **
