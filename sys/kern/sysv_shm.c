@@ -88,6 +88,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/jail.h>
 
 #ifdef COMPAT_CHERIABI
+#include <sys/user.h>
 #include <compat/cheriabi/cheriabi_syscall.h>
 #include <compat/cheriabi/cheriabi_util.h>
 #endif
@@ -972,6 +973,18 @@ static struct syscall_helper_data shm32_syscalls[] = {
 };
 #endif
 
+#ifdef COMPAT_CHERIABI
+#include <compat/cheriabi/cheriabi.h>
+
+static struct syscall_helper_data cheriabi_shm_syscalls[] = {
+	CHERIABI_SYSCALL_INIT_HELPER_COMPAT(shmat),
+	CHERIABI_SYSCALL_INIT_HELPER_COMPAT(shmdt),
+	CHERIABI_SYSCALL_INIT_HELPER_COMPAT(shmget),
+	CHERIABI_SYSCALL_INIT_HELPER_COMPAT(shmctl),
+	SYSCALL_INIT_LAST
+};
+#endif /* COMPAT_CHERIABI */
+
 static int
 shminit(void)
 {
@@ -1044,6 +1057,11 @@ shminit(void)
 	if (error != 0)
 		return (error);
 #endif
+#ifdef COMPAT_CHERIABI
+	error = cheriabi_syscall_helper_register(cheriabi_shm_syscalls, SY_THR_STATIC_KLD);
+	if (error != 0)
+		return (error);
+#endif
 	return (0);
 }
 
@@ -1057,6 +1075,9 @@ shmunload(void)
 
 #ifdef COMPAT_FREEBSD32
 	syscall32_helper_unregister(shm32_syscalls);
+#endif
+#ifdef COMPAT_CHERIABI
+	cheriabi_syscall_helper_unregister(cheriabi_shm_syscalls);
 #endif
 	syscall_helper_unregister(shm_syscalls);
 	if (shm_prison_slot != 0)
