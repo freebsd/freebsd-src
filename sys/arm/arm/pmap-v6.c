@@ -500,7 +500,8 @@ pmap_set_tex(void)
 
 	/* Add shareable bits for normal memory in SMP case. */
 #ifdef SMP
-	prrr |= PRRR_NS1;
+	if (ARM_USE_MP_EXTENSIONS)
+		prrr |= PRRR_NS1;
 #endif
 	cp15_prrr_set(prrr);
 	cp15_nmrr_set(nmrr);
