@@ -811,7 +811,9 @@ fsl_sdhci_attach(device_t dev)
 	struct fsl_sdhci_softc *sc = device_get_softc(dev);
 	int rid, err;
 	phandle_t node;
+#ifdef __powerpc__
 	uint32_t protctl;
+#endif
 
 	sc->dev = dev;
 
@@ -869,7 +871,7 @@ fsl_sdhci_attach(device_t dev)
 	 */
 #ifdef __powerpc__
 	/* P1022 has the '*_BRST_LEN' fields as reserved, always reading 0x10 */
-	if ((SVR_VER(mfspr(SPR_SVR)) & 0xfff6) == SVR_P1022 )
+	if (ofw_bus_is_compatible(dev, "fsl,p1022-esdhc"))
 		WR4(sc, SDHC_WTMK_LVL, 0x10801080);
 	else
 #endif
