@@ -1030,7 +1030,7 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 		 * understand exactly what would happen, and we don't think
 		 * that it ever should.
 		 */
-		if (nd.ni_strictrelative == 0 &&
+		if ((nd.ni_lcf & NI_LCF_STRICTRELATIVE) == 0 &&
 		    (error == ENODEV || error == ENXIO) &&
 		    td->td_dupfd >= 0) {
 			error = dupfdopen(td, fdp, td->td_dupfd, flags, error,
@@ -1076,7 +1076,7 @@ success:
 		struct filecaps *fcaps;
 
 #ifdef CAPABILITIES
-		if (nd.ni_strictrelative == 1)
+		if ((nd.ni_lcf & NI_LCF_STRICTRELATIVE) != 0)
 			fcaps = &nd.ni_filecaps;
 		else
 #endif
