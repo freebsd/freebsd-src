@@ -63,6 +63,7 @@ dev/ofw/ofw_subr.c		optional	aim powerpc
 dev/powermac_nvram/powermac_nvram.c optional	powermac_nvram powermac
 dev/quicc/quicc_bfe_fdt.c	optional	quicc mpc85xx
 dev/scc/scc_bfe_macio.c		optional	scc powermac
+dev/sdhci/fsl_sdhci.c		optional	mpc85xx sdhci
 dev/sec/sec.c			optional	sec mpc85xx
 dev/sound/macio/aoa.c		optional	snd_davbus | snd_ai2s powermac
 dev/sound/macio/davbus.c	optional	snd_davbus powermac
@@ -137,7 +138,6 @@ powerpc/mpc85xx/atpic.c		optional	mpc85xx isa
 powerpc/mpc85xx/ds1553_bus_fdt.c	optional	ds1553 fdt
 powerpc/mpc85xx/ds1553_core.c	optional	ds1553
 powerpc/mpc85xx/fsl_diu.c	optional	mpc85xx diu
-powerpc/mpc85xx/fsl_sdhc.c	optional	mpc85xx sdhc
 powerpc/mpc85xx/i2c.c		optional	iicbus fdt
 powerpc/mpc85xx/isa.c		optional	mpc85xx isa
 powerpc/mpc85xx/lbc.c		optional	mpc85xx
