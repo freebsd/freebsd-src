@@ -303,7 +303,7 @@ MACHINE_CPU = v9 ultrasparc ultrasparc3
 
 .if ${MACHINE_CPUARCH} == "mips"
 CFLAGS += -G0
-.if ${TARGET_ARCH:Mmips*hf}
+.if ${MACHINE_ARCH:Mmips*hf}
 CFLAGS += -mhard-float
 .endif
 .endif
