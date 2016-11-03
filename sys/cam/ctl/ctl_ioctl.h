@@ -317,20 +317,20 @@ typedef enum {
  *
  * flags:	Flags for the parameter, see above for values.
  *
- * vallen:	Length of the value in bytes.
+ * vallen:	Length of the value in bytes, including the terminating NUL.
  *
- * value:	Value to be set/fetched.
+ * value:	Value to be set/fetched. This must be NUL-terminated.
  *
  * kname:	For kernel use only.
  *
  * kvalue:	For kernel use only.
  */
 struct ctl_be_arg {
-	int	namelen;
-	char	*name;
-	int	flags;
-	int	vallen;
-	void	*value;
+	unsigned int	namelen;
+	char		*name;
+	int		flags;
+	unsigned int	vallen;
+	void		*value;
 
 	char	*kname;
 	void	*kvalue;
