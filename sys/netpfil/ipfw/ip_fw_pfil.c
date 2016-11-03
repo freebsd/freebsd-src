@@ -315,20 +315,15 @@ ipfw_check_frame(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir,
 	struct ip_fw_args args;
 	struct m_tag *mtag;
 
-	/* fetch start point from rule, if any */
+	/* fetch start point from rule, if any.  remove the tag if present. */
 	mtag = m_tag_locate(*m0, MTAG_IPFW_RULE, 0, NULL);
 	if (mtag == NULL) {
 		args.rule.slot = 0;
 	} else {
-		/* dummynet packet, already partially processed */
-		struct ipfw_rule_ref *r;
-
-		/* XXX can we free it after use ? */
-		mtag->m_tag_id = PACKET_TAG_NONE;
-		r = (struct ipfw_rule_ref *)(mtag + 1);
-		if (r->info & IPFW_ONEPASS)
+		args.rule = *((struct ipfw_rule_ref *)(mtag+1));
+		m_tag_delete(*m0, mtag);
+		if (args.rule.info & IPFW_ONEPASS)
 			return (0);
-		args.rule = *r;
 	}
 
 	/* I need some amt of data to be contiguous */
