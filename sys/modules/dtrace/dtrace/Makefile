@@ -60,7 +60,7 @@ assym.o: assym.s
 
 .if ${MACHINE_CPUARCH} == "riscv"
 assym.o: assym.s
-	${AS} -msoft-float -o assym.o assym.s
+	${AS} -mfloat-abi=soft -o assym.o assym.s
 .endif
 
 .include <bsd.kmod.mk>
