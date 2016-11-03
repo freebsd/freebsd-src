@@ -4,7 +4,7 @@
 #
 
 # PROVIDE: zfs
-# REQUIRE: mountcritlocal
+# REQUIRE: zfsbe
 # BEFORE: FILESYSTEMS var
 
 . /etc/rc.subr
