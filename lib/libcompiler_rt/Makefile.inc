@@ -123,8 +123,11 @@ SRCF+=		udivti3
 SRCF+=		umoddi3
 SRCF+=		umodti3
 
-# 128-bit quad precision long double support, only used on arm64
-.if ${MACHINE_CPUARCH} == "aarch64"
+#
+# 128-bit quad precision long double support,
+# only used on arm64 and riscv.
+#
+.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "riscv"
 SRCF+=		addtf3
 SRCF+=		comparetf2
 SRCF+=		divtf3
