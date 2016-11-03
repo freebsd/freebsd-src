@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_compat.h"
 #include "opt_kbd.h"
 #include "opt_atkbd.h"
+#include "opt_evdev.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -49,6 +50,11 @@ __FBSDID("$FreeBSD$");
 #include <dev/atkbdc/atkbdreg.h>
 #include <dev/atkbdc/atkbdcreg.h>
 
+#ifdef EVDEV_SUPPORT
+#include <dev/evdev/evdev.h>
+#include <dev/evdev/input.h>
+#endif
+
 typedef struct atkbd_state {
 	KBDC		kbdc;		/* keyboard controller */
 	int		ks_mode;	/* input mode (K_XLATE,K_RAW,K_CODE) */
@@ -60,6 +66,10 @@ typedef struct atkbd_state {
 	u_int		ks_composed_char; /* composed char code (> 0) */
 	u_char		ks_prefix;	/* AT scan code prefix */
 	struct callout	ks_timer;
+#ifdef EVDEV_SUPPORT
+	struct evdev_dev *ks_evdev;
+	int		ks_evdev_state;
+#endif
 } atkbd_state_t;
 
 static void		atkbd_timeout(void *arg);
@@ -71,6 +81,11 @@ static int		atkbd_reset(KBDC kbdc, int flags, int c);
 
 #define DEFAULT_DELAY		0x1  /* 500ms */
 #define DEFAULT_RATE		0x10 /* 14Hz */
+
+#ifdef EVDEV_SUPPORT
+#define PS2_KEYBOARD_VENDOR	1
+#define PS2_KEYBOARD_PRODUCT	1
+#endif
 
 int
 atkbd_probe_unit(device_t dev, int irq, int flags)
@@ -250,6 +265,12 @@ static int		typematic(int delay, int rate);
 static int		typematic_delay(int delay);
 static int		typematic_rate(int rate);
 
+#ifdef EVDEV_SUPPORT
+static const struct evdev_methods atkbd_evdev_methods = {
+	.ev_event = evdev_ev_kbd_event,
+};
+#endif
+
 /* local variables */
 
 /* the initial key map, accent map and fkey strings */
@@ -352,6 +373,10 @@ atkbd_init(int unit, keyboard_t **kbdp, void *arg, int flags)
 	int delay[2];
 	int *data = (int *)arg;	/* data[0]: controller, data[1]: irq */
 	int error, needfree;
+#ifdef EVDEV_SUPPORT
+	struct evdev_dev *evdev;
+	char phys_loc[8];
+#endif
 
 	/* XXX */
 	if (unit == ATKBD_DEFAULT) {
@@ -436,6 +461,34 @@ atkbd_init(int unit, keyboard_t **kbdp, void *arg, int flags)
 		delay[0] = kbd->kb_delay1;
 		delay[1] = kbd->kb_delay2;
 		atkbd_ioctl(kbd, KDSETREPEAT, (caddr_t)delay);
+
+#ifdef EVDEV_SUPPORT
+		/* register as evdev provider on first init */
+		if (state->ks_evdev == NULL) {
+			snprintf(phys_loc, sizeof(phys_loc), "atkbd%d", unit);
+			evdev = evdev_alloc();
+			evdev_set_name(evdev, "AT keyboard");
+			evdev_set_phys(evdev, phys_loc);
+			evdev_set_id(evdev, BUS_I8042, PS2_KEYBOARD_VENDOR,
+			    PS2_KEYBOARD_PRODUCT, 0);
+			evdev_set_methods(evdev, kbd, &atkbd_evdev_methods);
+			evdev_support_event(evdev, EV_SYN);
+			evdev_support_event(evdev, EV_KEY);
+			evdev_support_event(evdev, EV_LED);
+			evdev_support_event(evdev, EV_REP);
+			evdev_support_all_known_keys(evdev);
+			evdev_support_led(evdev, LED_NUML);
+			evdev_support_led(evdev, LED_CAPSL);
+			evdev_support_led(evdev, LED_SCROLLL);
+
+			if (evdev_register(evdev))
+				evdev_free(evdev);
+			else
+				state->ks_evdev = evdev;
+			state->ks_evdev_state = 0;
+		}
+#endif
+
 		KBD_INIT_DONE(kbd);
 	}
 	if (!KBD_IS_CONFIGURED(kbd)) {
@@ -618,6 +671,20 @@ next_code:
 
 #if KBDIO_DEBUG >= 10
 	printf("atkbd_read_char(): scancode:0x%x\n", scancode);
+#endif
+
+#ifdef EVDEV_SUPPORT
+	/* push evdev event */
+	if (evdev_rcpt_mask & EVDEV_RCPT_HW_KBD && state->ks_evdev != NULL) {
+		keycode = evdev_scancode2key(&state->ks_evdev_state,
+		    scancode);
+
+		if (keycode != KEY_RESERVED) {
+			evdev_push_event(state->ks_evdev, EV_KEY,
+			    (uint16_t)keycode, scancode & 0x80 ? 0 : 1);
+			evdev_sync(state->ks_evdev);
+		}
+	}
 #endif
 
 	/* return the byte as is for the K_RAW mode */
@@ -930,6 +997,12 @@ atkbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 				return error;
 			}
 		}
+#ifdef EVDEV_SUPPORT
+		/* push LED states to evdev */
+		if (state->ks_evdev != NULL &&
+		    evdev_rcpt_mask & EVDEV_RCPT_HW_KBD)
+			evdev_push_leds(state->ks_evdev, *(int *)arg);
+#endif
 		KBD_LED_VAL(kbd) = *(int *)arg;
 		break;
 
@@ -963,6 +1036,11 @@ atkbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 		if (error == 0) {
 			kbd->kb_delay1 = typematic_delay(i);
 			kbd->kb_delay2 = typematic_rate(i);
+#ifdef EVDEV_SUPPORT
+			if (state->ks_evdev != NULL &&
+			    evdev_rcpt_mask & EVDEV_RCPT_HW_KBD)
+				evdev_push_repeats(state->ks_evdev, kbd);
+#endif
 		}
 		return error;
 
@@ -981,6 +1059,11 @@ atkbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 		if (error == 0) {
 			kbd->kb_delay1 = typematic_delay(*(int *)arg);
 			kbd->kb_delay2 = typematic_rate(*(int *)arg);
+#ifdef EVDEV_SUPPORT
+			if (state->ks_evdev != NULL &&
+			    evdev_rcpt_mask & EVDEV_RCPT_HW_KBD)
+				evdev_push_repeats(state->ks_evdev, kbd);
+#endif
 		}
 		return error;
 
