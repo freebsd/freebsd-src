@@ -5612,12 +5612,15 @@ void t4_get_port_stats_offset(struct adapter *adap, int idx,
 void t4_get_port_stats(struct adapter *adap, int idx, struct port_stats *p)
 {
 	u32 bgmap = t4_get_mps_bg_map(adap, idx);
+	u32 stat_ctl;
 
 #define GET_STAT(name) \
 	t4_read_reg64(adap, \
 	(is_t4(adap) ? PORT_REG(idx, A_MPS_PORT_STAT_##name##_L) : \
 	T5_PORT_REG(idx, A_MPS_PORT_STAT_##name##_L)))
 #define GET_STAT_COM(name) t4_read_reg64(adap, A_MPS_STAT_##name##_L)
+
+	stat_ctl = t4_read_reg(adap, A_MPS_STAT_CTL);
 
 	p->tx_pause		= GET_STAT(TX_PORT_PAUSE);
 	p->tx_octets		= GET_STAT(TX_PORT_BYTES);
@@ -5642,6 +5645,12 @@ void t4_get_port_stats(struct adapter *adap, int idx, struct port_stats *p)
 	p->tx_ppp5		= GET_STAT(TX_PORT_PPP5);
 	p->tx_ppp6		= GET_STAT(TX_PORT_PPP6);
 	p->tx_ppp7		= GET_STAT(TX_PORT_PPP7);
+
+	if (stat_ctl & F_COUNTPAUSESTATTX) {
+		p->tx_frames -= p->tx_pause;
+		p->tx_octets -= p->tx_pause * 64;
+		p->tx_mcast_frames -= p->tx_pause;
+	}
 
 	p->rx_pause		= GET_STAT(RX_PORT_PAUSE);
 	p->rx_octets		= GET_STAT(RX_PORT_BYTES);
@@ -5670,6 +5679,12 @@ void t4_get_port_stats(struct adapter *adap, int idx, struct port_stats *p)
 	p->rx_ppp5		= GET_STAT(RX_PORT_PPP5);
 	p->rx_ppp6		= GET_STAT(RX_PORT_PPP6);
 	p->rx_ppp7		= GET_STAT(RX_PORT_PPP7);
+
+	if (stat_ctl & F_COUNTPAUSESTATRX) {
+		p->rx_frames -= p->rx_pause;
+		p->rx_octets -= p->rx_pause * 64;
+		p->rx_mcast_frames -= p->rx_pause;
+	}
 
 	p->rx_ovflow0 = (bgmap & 1) ? GET_STAT_COM(RX_BG_0_MAC_DROP_FRAME) : 0;
 	p->rx_ovflow1 = (bgmap & 2) ? GET_STAT_COM(RX_BG_1_MAC_DROP_FRAME) : 0;
