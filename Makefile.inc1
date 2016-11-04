@@ -2149,7 +2149,7 @@ libraries: .MAKE .PHONY
 #
 # static libgcc.a prerequisite for shared libc
 #
-_prereq_libs= gnu/lib/libgcc lib/libcompiler_rt
+_prereq_libs= lib/libcompiler_rt
 .if ${MK_SSP} != "no"
 _prereq_libs+= gnu/lib/libssp/libssp_nonshared
 .endif
@@ -2164,7 +2164,6 @@ _startup_libs+=	lib/csu
 .if ${MK_CHERI} != "no"
 _startup_libs+= lib/libc_cheri
 .endif
-_startup_libs+=	gnu/lib/libgcc
 _startup_libs+=	lib/libcompiler_rt
 _startup_libs+=	lib/libc
 _startup_libs+=	lib/libc_nonshared
@@ -2172,10 +2171,26 @@ _startup_libs+=	lib/libc_nonshared
 _startup_libs+=	lib/libcxxrt
 .endif
 
+.if ${MK_LLVM_LIBUNWIND} != "no"
+_prereq_libs+=	lib/libgcc_eh lib/libgcc_s
+_startup_libs+=	lib/libgcc_eh lib/libgcc_s
+
+lib/libgcc_s__L: lib/libc__L
+lib/libgcc_s__L: lib/libc_nonshared__L
+.if ${MK_LIBCPLUSPLUS} != "no"
+lib/libcxxrt__L: lib/libgcc_s__L
+.endif
+
+.else # MK_LLVM_LIBUNWIND == no
+
+_prereq_libs+=	gnu/lib/libgcc
+_startup_libs+=	gnu/lib/libgcc
+
 gnu/lib/libgcc__L: lib/libc__L
 gnu/lib/libgcc__L: lib/libc_nonshared__L
 .if ${MK_LIBCPLUSPLUS} != "no"
 lib/libcxxrt__L: gnu/lib/libgcc__L
+.endif
 .endif
 
 _prebuild_libs=	${_kerberos5_lib_libasn1} \
