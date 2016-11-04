@@ -390,6 +390,7 @@ aw_ir_attach(device_t dev)
 	uint32_t val = 0;
 
 	clk_ir = clk_gate = NULL;
+	rst_abp = NULL;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
