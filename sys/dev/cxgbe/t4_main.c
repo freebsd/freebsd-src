@@ -4346,12 +4346,12 @@ cxgbe_refresh_stats(struct adapter *sc, struct port_info *pi)
 
 	t4_get_port_stats(sc, pi->tx_chan, s);
 
-	ifp->if_opackets = s->tx_frames - s->tx_pause;
-	ifp->if_ipackets = s->rx_frames - s->rx_pause;
-	ifp->if_obytes = s->tx_octets - s->tx_pause * 64;
-	ifp->if_ibytes = s->rx_octets - s->rx_pause * 64;
-	ifp->if_omcasts = s->tx_mcast_frames - s->tx_pause;
-	ifp->if_imcasts = s->rx_mcast_frames - s->rx_pause;
+	ifp->if_opackets = s->tx_frames;
+	ifp->if_ipackets = s->rx_frames;
+	ifp->if_obytes = s->tx_octets;
+	ifp->if_ibytes = s->rx_octets;
+	ifp->if_omcasts = s->tx_mcast_frames;
+	ifp->if_imcasts = s->rx_mcast_frames;
 	ifp->if_iqdrops = s->rx_ovflow0 + s->rx_ovflow1 + s->rx_ovflow2 +
 	    s->rx_ovflow3 + s->rx_trunc0 + s->rx_trunc1 + s->rx_trunc2 +
 	    s->rx_trunc3;
