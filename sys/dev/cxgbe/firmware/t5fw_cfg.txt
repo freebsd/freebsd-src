@@ -20,6 +20,12 @@
 	# enable TP_OUT_CONFIG.IPIDSPLITMODE
 	reg[0x7d04] = 0x00010000/0x00010000
 
+	# disable TP_PARA_REG3.RxFragEn
+	reg[0x7d6c] = 0x00000000/0x00007000
+
+	# enable TP_PARA_REG6.EnableCSnd
+	reg[0x7d78] = 0x00000400/0x00000000
+
 	# TP_SHIFT_CNT
 	reg[0x7dc0] = 0x62f8849
 
@@ -51,6 +57,10 @@
 	# MC configuration
 	mc_mode_brc[0] = 1		# mc0 - 1: enable BRC, 0: enable RBC
 	mc_mode_brc[1] = 1		# mc1 - 1: enable BRC, 0: enable RBC
+
+	# ULP_TX_CONFIG
+	reg[0x8dc0] = 0x00000004/0x00000004 # Enable more error msg for ...
+					    # TPT error.
 
 # PFs 0-3.  These get 8 MSI/8 MSI-X vectors each.  VFs are supported by
 # these 4 PFs only.  Not used here at all.
@@ -176,7 +186,7 @@
 
 [fini]
 	version = 0x1
-	checksum = 0x6b54f66d
+	checksum = 0x7044b7fd
 #
 # $FreeBSD$
 #

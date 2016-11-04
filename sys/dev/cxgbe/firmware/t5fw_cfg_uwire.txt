@@ -121,6 +121,12 @@
 	# enable TP_OUT_CONFIG.IPIDSPLITMODE
 	reg[0x7d04] = 0x00010000/0x00010000
 
+	# disable TP_PARA_REG3.RxFragEn
+	reg[0x7d6c] = 0x00000000/0x00007000
+
+	# enable TP_PARA_REG6.EnableCSnd
+	reg[0x7d78] = 0x00000400/0x00000000
+
 	reg[0x7dc0] = 0x0e2f8849	# TP_SHIFT_CNT
 
 	# TP_VLAN_PRI_MAP to select filter tuples and enable ServerSram
@@ -175,6 +181,10 @@
 	# MC configuration
 	mc_mode_brc[0] = 1		# mc0 - 1: enable BRC, 0: enable RBC
 	mc_mode_brc[1] = 1		# mc1 - 1: enable BRC, 0: enable RBC
+
+	# ULP_TX_CONFIG
+	reg[0x8dc0] = 0x00000004/0x00000004 # Enable more error msg for ...
+					    # TPT error.
 
 # Some "definitions" to make the rest of this a bit more readable.  We support
 # 4 ports, 3 functions (NIC, FCoE and iSCSI), scaling up to 8 "CPU Queue Sets"
@@ -592,7 +602,7 @@
 
 [fini]
 	version = 0x1425001c
-	checksum = 0xb1c3ae38
+	checksum = 0xa4a80156
 
 # Total resources used by above allocations:
 #   Virtual Interfaces: 104
