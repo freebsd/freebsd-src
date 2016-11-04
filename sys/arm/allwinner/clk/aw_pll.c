@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dt-bindings/clock/sun4i-a10-pll2.h>
 
-#include <arm/allwinner/allwinner_machdep.h>
+#include <arm/allwinner/aw_machdep.h>
 
 #include "clkdev_if.h"
 
