@@ -4310,8 +4310,14 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 				 * direct access or optical disk device,
 				 * as long as it doesn't return a "Logical
 				 * unit not supported" (0x25) error.
+				 * "Internal Target Failure" (0x44) is also
+				 * special and typically means that the
+				 * device is a SATA drive behind a SATL
+				 * translation that's fallen into a
+				 * terminally fatal state.
 				 */
-				if ((have_sense) && (asc != 0x25)
+				if ((have_sense)
+				 && (asc != 0x25) && (asc != 0x44)
 				 && (error_code == SSD_CURRENT_ERROR)) {
 					const char *sense_key_desc;
 					const char *asc_desc;
