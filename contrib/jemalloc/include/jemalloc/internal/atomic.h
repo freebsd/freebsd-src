@@ -169,8 +169,8 @@ atomic_add_uint64(uint64_t *p, uint64_t x)
 #ifndef __CHERI_PURE_CAPABILITY__
 	return (atomic_fetchadd_long(p, (unsigned long)x) + x);
 #else
-	/* XXX: not atomic! */
-	return (*p += x);
+	return (__c11_atomic_fetch_add((_Atomic(uint64_t)*)p, x,
+	    __ATOMIC_SEQ_CST) + x);
 #endif
 }
 
@@ -183,8 +183,8 @@ atomic_sub_uint64(uint64_t *p, uint64_t x)
 #ifndef __CHERI_PURE_CAPABILITY__
 	return (atomic_fetchadd_long(p, (unsigned long)(-(long)x)) - x);
 #else
-	/* XXX: not atomic! */
-	return (*p -= x);
+	return (__c11_atomic_fetch_sub((_Atomic(uint64_t)*)p, x,
+	    __ATOMIC_SEQ_CST) - x);
 #endif
 }
 
@@ -551,11 +551,27 @@ atomic_cas_p(void **p, void *c, void *s)
 	return (atomic_cas_uint32((uint32_t *)p, (uint32_t)c, (uint32_t)s));
 #endif
 #else
-	/* XXX: not atomic! */
-	if (*p != c)
-		return (true);
-	*p = s;
-		return (false);
+	void *old;
+	long result, cmp;
+	__asm__ volatile(
+	    "1:\n"
+	    "cllc	%[old], %[addr]\n"
+	    "cexeq	%[cmp], %[old], %[expected]\n"
+	    "beqz	%[cmp], 2f\n"
+	    "nop\n"
+	    "cscc	%[result], %[new], %[addr]\n"
+	    "beqz	%[result], 1b\n"
+	    "move	%[result], $zero\n"
+	    "b 3f\n"
+	    "nop\n"
+	    "2:\n"
+	    "lui	%[result], 1\n"
+	    "3:"
+	    : [old] "+C" (old), [result] "=r" (result), [cmp] "=r" (cmp),
+	      [addr] "+C" (p)
+	    : [expected] "C" (c), [new] "C" (s)
+	    : "memory");
+	return (result);
 #endif
 }
 
@@ -563,9 +579,15 @@ atomic_cas_p(void **p, void *c, void *s)
 JEMALLOC_INLINE void *
 atomic_read_p(void **p)
 {
-
-	/* XXX: not atomic! */
-	return (*p);
+	void *result;
+	__asm__ volatile(
+	    "sync\n"
+	    "clc	%[out], $zero, 0(%[addr])\n"
+	    "sync\n"
+	    : [out] "=C" (result)
+	    : [addr] "C" (p)
+	    : "memory");
+	return (result);
 }
 #endif
 
@@ -580,8 +602,13 @@ atomic_write_p(void **p, const void *x)
 	atomic_write_uint32((uint32_t *)p, (uint32_t)x);
 #endif
 #else
-	/* XXX: not atomic! */
-	*p = (void *)(uintptr_t)x;
+	__asm__ volatile(
+	    "sync\n"
+	    "csc	%[in], $zero, 0(%[addr])\n"
+	    "sync\n"
+	    :
+	    : [in] "C" (x), [addr] "C" (p)
+	    : "memory");
 #endif
 }
 
