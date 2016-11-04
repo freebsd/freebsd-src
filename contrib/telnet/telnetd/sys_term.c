@@ -1161,9 +1161,9 @@ addarg(char **argv, const char *val)
 		if (argv == NULL)
 			return(NULL);
 		*argv++ = (char *)10;
-		*argv = (char *)0;
+		*argv = NULL;
 	}
-	for (cpp = argv; *cpp; cpp++)
+	for (cpp = argv; *cpp != NULL; cpp++)
 		;
 	if (cpp == &argv[(intptr_t)argv[-1]]) {
 		--argv;
@@ -1176,7 +1176,7 @@ addarg(char **argv, const char *val)
 		cpp = &argv[(intptr_t)argv[-1] - 10];
 	}
 	*cpp++ = strdup(val);
-	*cpp = 0;
+	*cpp = NULL;
 	return(argv);
 }
 
