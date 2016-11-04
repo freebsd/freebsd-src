@@ -3,6 +3,7 @@
  */
 
 GCC_3.0 {
+global:
 	__absvdi2;
 	__absvsi2;
 	__addvdi3;
@@ -62,6 +63,8 @@ GCC_3.0 {
 	_Unwind_Resume;
 	_Unwind_SetGR;
 	_Unwind_SetIP;
+local:
+	*;
 };
 
 GCC_3.3 {
