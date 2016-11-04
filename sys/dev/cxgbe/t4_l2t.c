@@ -306,7 +306,6 @@ sysctl_l2t(SYSCTL_HANDLER_ARGS)
 		}
 
 		/*
-		 * XXX: e->ifp may not be around.
 		 * XXX: IPv6 addresses may not align properly in the output.
 		 */
 		sbuf_printf(sb, "\n%4u %-15s %02x:%02x:%02x:%02x:%02x:%02x %4d"
@@ -315,7 +314,7 @@ sysctl_l2t(SYSCTL_HANDLER_ARGS)
 			   e->dmac[3], e->dmac[4], e->dmac[5],
 			   e->vlan & 0xfff, vlan_prio(e), e->lport,
 			   l2e_state(e), atomic_load_acq_int(&e->refcnt),
-			   e->ifp->if_xname);
+			   e->ifp ? e->ifp->if_xname : "-");
 skip:
 		mtx_unlock(&e->lock);
 	}
