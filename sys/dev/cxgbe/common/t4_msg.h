@@ -126,7 +126,6 @@ enum {
 	CPL_RDMA_IMM_DATA_SE  = 0xAD,
 
 	CPL_TRACE_PKT         = 0xB0,
-	CPL_TRACE_PKT_T5      = 0x48,
 	CPL_RX2TX_DATA        = 0xB1,
 	CPL_ISCSI_DATA        = 0xB2,
 	CPL_FCOE_DATA         = 0xB3,
