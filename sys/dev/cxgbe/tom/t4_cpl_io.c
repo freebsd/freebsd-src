@@ -295,6 +295,7 @@ make_established(struct toepcb *toep, uint32_t snd_isn, uint32_t rcv_isn,
 	uint16_t tcpopt = be16toh(opt);
 	struct flowc_tx_params ftxp;
 
+	CURVNET_SET(so->so_vnet);
 	INP_WLOCK_ASSERT(inp);
 	KASSERT(tp->t_state == TCPS_SYN_SENT ||
 	    tp->t_state == TCPS_SYN_RECEIVED,
@@ -345,6 +346,7 @@ make_established(struct toepcb *toep, uint32_t snd_isn, uint32_t rcv_isn,
 	send_flowc_wr(toep, &ftxp);
 
 	soisconnected(so);
+	CURVNET_RESTORE();
 }
 
 static int
@@ -676,7 +678,6 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 			}
 		}
 
-		shove = m == NULL && !(tp->t_flags & TF_MORETOCOME);
 		space = sbspace(sb);
 
 		if (space <= sb->sb_hiwat * 3 / 8 &&
@@ -713,6 +714,7 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 		if (__predict_false(toep->flags & TPF_FIN_SENT))
 			panic("%s: excess tx.", __func__);
 
+		shove = m == NULL && !(tp->t_flags & TF_MORETOCOME);
 		if (plen <= max_imm) {
 
 			/* Immediate data tx */
@@ -1501,7 +1503,11 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		ddp_placed = be32toh(cpl->seq) - tp->rcv_nxt;
 
 	tp->rcv_nxt += len;
-	KASSERT(tp->rcv_wnd >= len, ("%s: negative window size", __func__));
+	if (tp->rcv_wnd < len) {
+		KASSERT(toep->ulp_mode == ULP_MODE_RDMA,
+				("%s: negative window size", __func__));
+	}
+
 	tp->rcv_wnd -= len;
 	tp->t_rcvtime = ticks;
 
@@ -1527,6 +1533,7 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	}
 
 	/* receive buffer autosize */
+	CURVNET_SET(so->so_vnet);
 	if (sb->sb_flags & SB_AUTOSIZE &&
 	    V_tcp_do_autorcvbuf &&
 	    sb->sb_hiwat < V_tcp_autorcvbuf_max &&
@@ -1615,6 +1622,7 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	SOCKBUF_UNLOCK_ASSERT(sb);
 
 	INP_WUNLOCK(inp);
+	CURVNET_RESTORE();
 	return (0);
 }
 
