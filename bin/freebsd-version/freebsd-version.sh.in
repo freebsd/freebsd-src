@@ -36,7 +36,7 @@ USERLAND_VERSION="@@REVISION@@-@@BRANCH@@"
 : ${LOADER_CONF_FILES:=$LOADER_DIR/defaults/loader.conf $LOADER_DIR/loader.conf $LOADER_DIR/loader.conf.local}
 LOADER_RE1='^\([A-Z_a-z][0-9A-Z_a-z]*=[-./0-9A-Z_a-z]\{1,\}\).*$'
 LOADER_RE2='^\([A-Z_a-z][0-9A-Z_a-z]*="[-./0-9A-Z_a-z]\{1,\}"\).*$'
-KERNEL_RE='^@(#)@@TYPE@@ \([-.0-9A-Za-z]\{1,\}\) .*$'
+KERNEL_RE='^@@TYPE@@ \([-.0-9A-Za-z]\{1,\}\) .*$'
 
 progname=$(basename $0)
 
@@ -67,7 +67,7 @@ kernel_version() {
 	if [ ! -f "$kernfile" -o ! -r "$kernfile" ] ; then
 		error "unable to locate kernel"
 	fi
-	strings "$kernfile" | sed -n "s/$KERNEL_RE/\\1/p"
+	what -qs "$kernfile" | sed -n "s/$KERNEL_RE/\\1/p"
 }
 
 #
