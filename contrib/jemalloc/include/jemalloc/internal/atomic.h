@@ -554,20 +554,24 @@ atomic_cas_p(void **p, void *c, void *s)
 	void *old;
 	long result, cmp;
 	__asm__ volatile(
+	    "1:\n"
 	    "cllc	%[old], %[addr]\n"
 	    "cexeq	%[cmp], %[old], %[expected]\n"
-	    "bnez	%[cmp], 1f\n"
+	    "beqz	%[cmp], 2f\n"
 	    "nop\n"
-	    "b 2f\n"
 	    "cscc	%[result], %[new], %[addr]\n"
-	    "1:\n"
+	    "beqz	%[result], 1b\n"
 	    "move	%[result], $zero\n"
-	    "2:"
-	    : [old] "=C" (old), [result] "=r" (result), [cmp] "=r" (cmp)
-	    : [addr] "C" (p), [expected] "r" (c), [new] "C" (s)
+	    "b 3f\n"
+	    "nop\n"
+	    "2:\n"
+	    "lui	%[result], 1\n"
+	    "3:"
+	    : [old] "+C" (old), [result] "=r" (result), [cmp] "=r" (cmp),
+	      [addr] "+C" (p)
+	    : [expected] "C" (c), [new] "C" (s)
 	    : "memory");
 	return (result);
-
 #endif
 }
 
@@ -602,8 +606,8 @@ atomic_write_p(void **p, const void *x)
 	    "sync\n"
 	    "csc	%[in], $zero, 0(%[addr])\n"
 	    "sync\n"
-	    : [in] "=C" (x), [addr] "=C" (p)
 	    :
+	    : [in] "C" (x), [addr] "C" (p)
 	    : "memory");
 #endif
 }
