@@ -14,6 +14,7 @@ arm/allwinner/aw_nmi.c			optional	intrng
 arm/allwinner/aw_if_dwc.c		optional	dwc
 arm/allwinner/aw_rsb.c			optional	rsb
 arm/allwinner/aw_rtc.c			standard
+arm/allwinner/aw_ts.c			standard
 arm/allwinner/aw_wdog.c			standard
 arm/allwinner/aw_machdep.c		standard
 arm/allwinner/aw_mp.c			optional	smp
