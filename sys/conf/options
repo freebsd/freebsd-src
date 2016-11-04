@@ -106,6 +106,7 @@ GEOM_LABEL	opt_geom.h
 GEOM_LINUX_LVM	opt_geom.h
 GEOM_MBR	opt_geom.h
 GEOM_MIRROR	opt_geom.h
+GEOM_MOUNTVER	opt_geom.h
 GEOM_MULTIPATH	opt_geom.h
 GEOM_NOP	opt_geom.h
 GEOM_PART_APM	opt_geom.h
