@@ -1165,14 +1165,15 @@ addarg(char **argv, const char *val)
 	}
 	for (cpp = argv; *cpp; cpp++)
 		;
-	if (cpp == &argv[(long)argv[-1]]) {
+	if (cpp == &argv[(intptr_t)argv[-1]]) {
 		--argv;
-		*argv = (char *)((long)(*argv) + 10);
-		argv = (char **)realloc(argv, sizeof(*argv)*((long)(*argv) + 2));
+		*argv = (char *)((intptr_t)(*argv) + 10);
+		argv = (char **)realloc(argv,
+		    sizeof(*argv)*((intptr_t)(*argv) + 2));
 		if (argv == NULL)
 			return(NULL);
 		argv++;
-		cpp = &argv[(long)argv[-1] - 10];
+		cpp = &argv[(intptr_t)argv[-1] - 10];
 	}
 	*cpp++ = strdup(val);
 	*cpp = 0;
