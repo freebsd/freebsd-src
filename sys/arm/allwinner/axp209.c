@@ -27,9 +27,11 @@
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
+
 /*
-* X-Power AXP209 PMU for Allwinner SoCs
+* X-Power AXP209/AXP211 PMU for Allwinner SoCs
 */
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/eventhandler.h>
@@ -61,9 +63,9 @@ __FBSDID("$FreeBSD$");
 #include "gpio_if.h"
 #include "regdev_if.h"
 
-MALLOC_DEFINE(M_AXP209_REG, "Axp209 regulator", "Axp209 power regulator");
+MALLOC_DEFINE(M_AXP2XX_REG, "Axp2XX regulator", "Axp2XX power regulator");
 
-struct axp209_regdef {
+struct axp2xx_regdef {
 	intptr_t		id;
 	char			*name;
 	uint8_t			enable_reg;
@@ -77,7 +79,7 @@ struct axp209_regdef {
 	int			voltage_nstep;
 };
 
-static struct axp209_regdef axp209_regdefs[] = {
+static struct axp2xx_regdef axp209_regdefs[] = {
 	{
 		.id = AXP209_REG_ID_DCDC2,
 		.name = "dcdc2",
@@ -129,36 +131,503 @@ static struct axp209_regdef axp209_regdefs[] = {
 	},
 };
 
-struct axp209_reg_sc {
+static struct axp2xx_regdef axp221_regdefs[] = {
+	{
+		.id = AXP221_REG_ID_DLDO1,
+		.name = "dldo1",
+		.enable_reg = AXP221_POWERCTL_2,
+		.enable_mask = AXP221_POWERCTL2_DLDO1,
+		.voltage_reg = AXP221_REG_DLDO1_VOLTAGE,
+		.voltage_mask = 0x1f,
+		.voltage_min = 700,
+		.voltage_max = 3300,
+		.voltage_step = 100,
+		.voltage_nstep = 26,
+	},
+	{
+		.id = AXP221_REG_ID_DLDO2,
+		.name = "dldo2",
+		.enable_reg = AXP221_POWERCTL_2,
+		.enable_mask = AXP221_POWERCTL2_DLDO2,
+		.voltage_reg = AXP221_REG_DLDO2_VOLTAGE,
+		.voltage_mask = 0x1f,
+		.voltage_min = 700,
+		.voltage_max = 3300,
+		.voltage_step = 100,
+		.voltage_nstep = 26,
+	},
+	{
+		.id = AXP221_REG_ID_DLDO3,
+		.name = "dldo3",
+		.enable_reg = AXP221_POWERCTL_2,
+		.enable_mask = AXP221_POWERCTL2_DLDO3,
+		.voltage_reg = AXP221_REG_DLDO3_VOLTAGE,
+		.voltage_mask = 0x1f,
+		.voltage_min = 700,
+		.voltage_max = 3300,
+		.voltage_step = 100,
+		.voltage_nstep = 26,
+	},
+	{
+		.id = AXP221_REG_ID_DLDO4,
+		.name = "dldo4",
+		.enable_reg = AXP221_POWERCTL_2,
+		.enable_mask = AXP221_POWERCTL2_DLDO4,
+		.voltage_reg = AXP221_REG_DLDO4_VOLTAGE,
+		.voltage_mask = 0x1f,
+		.voltage_min = 700,
+		.voltage_max = 3300,
+		.voltage_step = 100,
+		.voltage_nstep = 26,
+	},
+	{
+		.id = AXP221_REG_ID_ELDO1,
+		.name = "eldo1",
+		.enable_reg = AXP221_POWERCTL_2,
+		.enable_mask = AXP221_POWERCTL2_ELDO1,
+		.voltage_reg = AXP221_REG_ELDO1_VOLTAGE,
+		.voltage_mask = 0x1f,
+		.voltage_min = 700,
+		.voltage_max = 3300,
+		.voltage_step = 100,
+		.voltage_nstep = 26,
+	},
+	{
+		.id = AXP221_REG_ID_ELDO2,
+		.name = "eldo2",
+		.enable_reg = AXP221_POWERCTL_2,
+		.enable_mask = AXP221_POWERCTL2_ELDO2,
+		.voltage_reg = AXP221_REG_ELDO2_VOLTAGE,
+		.voltage_mask = 0x1f,
+		.voltage_min = 700,
+		.voltage_max = 3300,
+		.voltage_step = 100,
+		.voltage_nstep = 26,
+	},
+	{
+		.id = AXP221_REG_ID_ELDO3,
+		.name = "eldo3",
+		.enable_reg = AXP221_POWERCTL_2,
+		.enable_mask = AXP221_POWERCTL2_ELDO3,
+		.voltage_reg = AXP221_REG_ELDO3_VOLTAGE,
+		.voltage_mask = 0x1f,
+		.voltage_min = 700,
+		.voltage_max = 3300,
+		.voltage_step = 100,
+		.voltage_nstep = 26,
+	},
+	{
+		.id = AXP221_REG_ID_DC5LDO,
+		.name = "dc5ldo",
+		.enable_reg = AXP221_POWERCTL_1,
+		.enable_mask = AXP221_POWERCTL1_DC5LDO,
+		.voltage_reg = AXP221_REG_DC5LDO_VOLTAGE,
+		.voltage_mask = 0x3,
+		.voltage_min = 700,
+		.voltage_max = 1400,
+		.voltage_step = 100,
+		.voltage_nstep = 7,
+	},
+	{
+		.id = AXP221_REG_ID_DCDC1,
+		.name = "dcdc1",
+		.enable_reg = AXP221_POWERCTL_1,
+		.enable_mask = AXP221_POWERCTL1_DCDC1,
+		.voltage_reg = AXP221_REG_DCDC1_VOLTAGE,
+		.voltage_mask = 0x1f,
+		.voltage_min = 1600,
+		.voltage_max = 3400,
+		.voltage_step = 100,
+		.voltage_nstep = 18,
+	},
+	{
+		.id = AXP221_REG_ID_DCDC2,
+		.name = "dcdc2",
+		.enable_reg = AXP221_POWERCTL_1,
+		.enable_mask = AXP221_POWERCTL1_DCDC2,
+		.voltage_reg = AXP221_REG_DCDC2_VOLTAGE,
+		.voltage_mask = 0x3f,
+		.voltage_min = 600,
+		.voltage_max = 1540,
+		.voltage_step = 20,
+		.voltage_nstep = 47,
+	},
+	{
+		.id = AXP221_REG_ID_DCDC3,
+		.name = "dcdc3",
+		.enable_reg = AXP221_POWERCTL_1,
+		.enable_mask = AXP221_POWERCTL1_DCDC3,
+		.voltage_reg = AXP221_REG_DCDC3_VOLTAGE,
+		.voltage_mask = 0x3f,
+		.voltage_min = 600,
+		.voltage_max = 1860,
+		.voltage_step = 20,
+		.voltage_nstep = 63,
+	},
+	{
+		.id = AXP221_REG_ID_DCDC4,
+		.name = "dcdc4",
+		.enable_reg = AXP221_POWERCTL_1,
+		.enable_mask = AXP221_POWERCTL1_DCDC4,
+		.voltage_reg = AXP221_REG_DCDC4_VOLTAGE,
+		.voltage_mask = 0x3f,
+		.voltage_min = 600,
+		.voltage_max = 1540,
+		.voltage_step = 20,
+		.voltage_nstep = 47,
+	},
+	{
+		.id = AXP221_REG_ID_DCDC5,
+		.name = "dcdc5",
+		.enable_reg = AXP221_POWERCTL_1,
+		.enable_mask = AXP221_POWERCTL1_DCDC5,
+		.voltage_reg = AXP221_REG_DCDC5_VOLTAGE,
+		.voltage_mask = 0x1f,
+		.voltage_min = 1000,
+		.voltage_max = 2550,
+		.voltage_step = 50,
+		.voltage_nstep = 31,
+	},
+	{
+		.id = AXP221_REG_ID_ALDO1,
+		.name = "aldo1",
+		.enable_reg = AXP221_POWERCTL_1,
+		.enable_mask = AXP221_POWERCTL1_ALDO1,
+		.voltage_reg = AXP221_REG_ALDO1_VOLTAGE,
+		.voltage_mask = 0x1f,
+		.voltage_min = 700,
+		.voltage_max = 3300,
+		.voltage_step = 100,
+		.voltage_nstep = 26,
+	},
+	{
+		.id = AXP221_REG_ID_ALDO2,
+		.name = "aldo2",
+		.enable_reg = AXP221_POWERCTL_1,
+		.enable_mask = AXP221_POWERCTL1_ALDO2,
+		.voltage_reg = AXP221_REG_ALDO2_VOLTAGE,
+		.voltage_mask = 0x1f,
+		.voltage_min = 700,
+		.voltage_max = 3300,
+		.voltage_step = 100,
+		.voltage_nstep = 26,
+	},
+	{
+		.id = AXP221_REG_ID_ALDO3,
+		.name = "aldo3",
+		.enable_reg = AXP221_POWERCTL_3,
+		.enable_mask = AXP221_POWERCTL3_ALDO3,
+		.voltage_reg = AXP221_REG_ALDO3_VOLTAGE,
+		.voltage_mask = 0x1f,
+		.voltage_min = 700,
+		.voltage_max = 3300,
+		.voltage_step = 100,
+		.voltage_nstep = 26,
+	},
+	{
+		.id = AXP221_REG_ID_DC1SW,
+		.name = "dc1sw",
+		.enable_reg = AXP221_POWERCTL_2,
+		.enable_mask = AXP221_POWERCTL2_DC1SW,
+	},
+};
+
+struct axp2xx_reg_sc {
 	struct regnode		*regnode;
 	device_t		base_dev;
-	struct axp209_regdef	*def;
+	struct axp2xx_regdef	*def;
 	phandle_t		xref;
 	struct regnode_std_param *param;
 };
 
-struct axp209_softc {
+struct axp2xx_pins {
+	const char	*name;
+	uint8_t		ctrl_reg;
+	uint8_t		status_reg;
+	uint8_t		status_mask;
+	uint8_t		status_shift;
+};
+
+/* GPIO3 is different, don't expose it for now */
+static const struct axp2xx_pins axp209_pins[] = {
+	{
+		.name = "GPIO0",
+		.ctrl_reg = AXP2XX_GPIO0_CTRL,
+		.status_reg = AXP2XX_GPIO_STATUS,
+		.status_mask = 0x10,
+		.status_shift = 4,
+	},
+	{
+		.name = "GPIO1",
+		.ctrl_reg = AXP2XX_GPIO1_CTRL,
+		.status_reg = AXP2XX_GPIO_STATUS,
+		.status_mask = 0x20,
+		.status_shift = 5,
+	},
+	{
+		.name = "GPIO2",
+		.ctrl_reg = AXP209_GPIO2_CTRL,
+		.status_reg = AXP2XX_GPIO_STATUS,
+		.status_mask = 0x40,
+		.status_shift = 6,
+	},
+};
+
+static const struct axp2xx_pins axp221_pins[] = {
+	{
+		.name = "GPIO0",
+		.ctrl_reg = AXP2XX_GPIO0_CTRL,
+		.status_reg = AXP2XX_GPIO_STATUS,
+		.status_mask = 0x1,
+		.status_shift = 0x0,
+	},
+	{
+		.name = "GPIO1",
+		.ctrl_reg = AXP2XX_GPIO0_CTRL,
+		.status_reg = AXP2XX_GPIO_STATUS,
+		.status_mask = 0x2,
+		.status_shift = 0x1,
+	},
+};
+
+struct axp2xx_sensors {
+	int		id;
+	const char	*name;
+	const char	*desc;
+	const char	*format;
+	uint8_t		enable_reg;
+	uint8_t		enable_mask;
+	uint8_t		value_reg;
+	uint8_t		value_size;
+	uint8_t		h_value_mask;
+	uint8_t		h_value_shift;
+	uint8_t		l_value_mask;
+	uint8_t		l_value_shift;
+	int		value_step;
+	int		value_convert;
+};
+
+static const struct axp2xx_sensors axp209_sensors[] = {
+	{
+		.id = AXP209_ACVOLT,
+		.name = "acvolt",
+		.desc = "AC Voltage (microvolt)",
+		.format = "I",
+		.enable_reg = AXP2XX_ADC_ENABLE1,
+		.enable_mask = AXP209_ADC1_ACVOLT,
+		.value_reg = AXP209_ACIN_VOLTAGE,
+		.value_size = 2,
+		.h_value_mask = 0xff,
+		.h_value_shift = 4,
+		.l_value_mask = 0xf,
+		.l_value_shift = 0,
+		.value_step = AXP209_VOLT_STEP,
+	},
+	{
+		.id = AXP209_ACCURRENT,
+		.name = "accurrent",
+		.desc = "AC Current (microAmpere)",
+		.format = "I",
+		.enable_reg = AXP2XX_ADC_ENABLE1,
+		.enable_mask = AXP209_ADC1_ACCURRENT,
+		.value_reg = AXP209_ACIN_CURRENT,
+		.value_size = 2,
+		.h_value_mask = 0xff,
+		.h_value_shift = 4,
+		.l_value_mask = 0xf,
+		.l_value_shift = 0,
+		.value_step = AXP209_ACCURRENT_STEP,
+	},
+	{
+		.id = AXP209_VBUSVOLT,
+		.name = "vbusvolt",
+		.desc = "VBUS Voltage (microVolt)",
+		.format = "I",
+		.enable_reg = AXP2XX_ADC_ENABLE1,
+		.enable_mask = AXP209_ADC1_VBUSVOLT,
+		.value_reg = AXP209_VBUS_VOLTAGE,
+		.value_size = 2,
+		.h_value_mask = 0xff,
+		.h_value_shift = 4,
+		.l_value_mask = 0xf,
+		.l_value_shift = 0,
+		.value_step = AXP209_VOLT_STEP,
+	},
+	{
+		.id = AXP209_VBUSCURRENT,
+		.name = "vbuscurrent",
+		.desc = "VBUS Current (microAmpere)",
+		.format = "I",
+		.enable_reg = AXP2XX_ADC_ENABLE1,
+		.enable_mask = AXP209_ADC1_VBUSCURRENT,
+		.value_reg = AXP209_VBUS_CURRENT,
+		.value_size = 2,
+		.h_value_mask = 0xff,
+		.h_value_shift = 4,
+		.l_value_mask = 0xf,
+		.l_value_shift = 0,
+		.value_step = AXP209_VBUSCURRENT_STEP,
+	},
+	{
+		.id = AXP2XX_BATVOLT,
+		.name = "batvolt",
+		.desc = "Battery Voltage (microVolt)",
+		.format = "I",
+		.enable_reg = AXP2XX_ADC_ENABLE1,
+		.enable_mask = AXP2XX_ADC1_BATVOLT,
+		.value_reg = AXP2XX_BAT_VOLTAGE,
+		.value_size = 2,
+		.h_value_mask = 0xff,
+		.h_value_shift = 4,
+		.l_value_mask = 0xf,
+		.l_value_shift = 0,
+		.value_step = AXP2XX_BATVOLT_STEP,
+	},
+	{
+		.id = AXP2XX_BATCHARGECURRENT,
+		.name = "batchargecurrent",
+		.desc = "Battery Charging Current (microAmpere)",
+		.format = "I",
+		.enable_reg = AXP2XX_ADC_ENABLE1,
+		.enable_mask = AXP2XX_ADC1_BATCURRENT,
+		.value_reg = AXP2XX_BAT_CHARGE_CURRENT,
+		.value_size = 2,
+		.h_value_mask = 0xff,
+		.h_value_shift = 5,
+		.l_value_mask = 0x1f,
+		.l_value_shift = 0,
+		.value_step = AXP2XX_BATCURRENT_STEP,
+	},
+	{
+		.id = AXP2XX_BATDISCHARGECURRENT,
+		.name = "batdischargecurrent",
+		.desc = "Battery Discharging Current (microAmpere)",
+		.format = "I",
+		.enable_reg = AXP2XX_ADC_ENABLE1,
+		.enable_mask = AXP2XX_ADC1_BATCURRENT,
+		.value_reg = AXP2XX_BAT_DISCHARGE_CURRENT,
+		.value_size = 2,
+		.h_value_mask = 0xff,
+		.h_value_shift = 5,
+		.l_value_mask = 0x1f,
+		.l_value_shift = 0,
+		.value_step = AXP2XX_BATCURRENT_STEP,
+	},
+	{
+		.id = AXP2XX_TEMP,
+		.name = "temp",
+		.desc = "Internal Temperature",
+		.format = "IK",
+		.enable_reg = AXP209_ADC_ENABLE2,
+		.enable_mask = AXP209_ADC2_TEMP,
+		.value_reg = AXP209_TEMPMON,
+		.value_size = 2,
+		.h_value_mask = 0xff,
+		.h_value_shift = 4,
+		.l_value_mask = 0xf,
+		.l_value_shift = 0,
+		.value_step = 1,
+		.value_convert = -(AXP209_TEMPMON_MIN - AXP209_0C_TO_K),
+	},
+};
+
+static const struct axp2xx_sensors axp221_sensors[] = {
+	{
+		.id = AXP2XX_BATVOLT,
+		.name = "batvolt",
+		.desc = "Battery Voltage (microVolt)",
+		.format = "I",
+		.enable_reg = AXP2XX_ADC_ENABLE1,
+		.enable_mask = AXP2XX_ADC1_BATVOLT,
+		.value_reg = AXP2XX_BAT_VOLTAGE,
+		.value_size = 2,
+		.h_value_mask = 0xff,
+		.h_value_shift = 4,
+		.l_value_mask = 0xf,
+		.l_value_shift = 0,
+		.value_step = AXP2XX_BATVOLT_STEP,
+	},
+	{
+		.id = AXP2XX_BATCHARGECURRENT,
+		.name = "batchargecurrent",
+		.desc = "Battery Charging Current (microAmpere)",
+		.format = "I",
+		.enable_reg = AXP2XX_ADC_ENABLE1,
+		.enable_mask = AXP2XX_ADC1_BATCURRENT,
+		.value_reg = AXP2XX_BAT_CHARGE_CURRENT,
+		.value_size = 2,
+		.h_value_mask = 0xff,
+		.h_value_shift = 5,
+		.l_value_mask = 0x1f,
+		.l_value_shift = 0,
+		.value_step = AXP2XX_BATCURRENT_STEP,
+	},
+	{
+		.id = AXP2XX_BATDISCHARGECURRENT,
+		.name = "batdischargecurrent",
+		.desc = "Battery Discharging Current (microAmpere)",
+		.format = "I",
+		.enable_reg = AXP2XX_ADC_ENABLE1,
+		.enable_mask = AXP2XX_ADC1_BATCURRENT,
+		.value_reg = AXP2XX_BAT_DISCHARGE_CURRENT,
+		.value_size = 2,
+		.h_value_mask = 0xff,
+		.h_value_shift = 5,
+		.l_value_mask = 0x1f,
+		.l_value_shift = 0,
+		.value_step = AXP2XX_BATCURRENT_STEP,
+	},
+	{
+		.id = AXP2XX_TEMP,
+		.name = "temp",
+		.desc = "Internal Temperature",
+		.format = "IK",
+		.enable_reg = AXP2XX_ADC_ENABLE1,
+		.enable_mask = AXP221_ADC1_TEMP,
+		.value_reg = AXP221_TEMPMON,
+		.value_size = 2,
+		.h_value_mask = 0xff,
+		.h_value_shift = 4,
+		.l_value_mask = 0xf,
+		.l_value_shift = 0,
+		.value_step = 1,
+		.value_convert = -(AXP221_TEMPMON_MIN - AXP209_0C_TO_K),
+	},
+};
+
+enum AXP2XX_TYPE {
+	AXP209 = 1,
+	AXP221,
+};
+
+struct axp2xx_softc {
 	device_t		dev;
 	uint32_t		addr;
 	struct resource *	res[1];
 	void *			intrcookie;
 	struct intr_config_hook	intr_hook;
-	device_t		gpiodev;
 	struct mtx		mtx;
+	uint8_t			type;
+
+	/* GPIO */
+	device_t		gpiodev;
+	int			npins;
+	const struct axp2xx_pins	*pins;
+
+	/* Sensors */
+	const struct axp2xx_sensors	*sensors;
+	int				nsensors;
 
 	/* Regulators */
-	struct axp209_reg_sc	**regs;
+	struct axp2xx_reg_sc	**regs;
 	int			nregs;
+	struct axp2xx_regdef	*regdefs;
 };
 
-/* GPIO3 is different, don't expose it for now */
-static const struct {
-	const char *name;
-	uint8_t	ctrl_reg;
-} axp209_pins[] = {
-	{ "GPIO0", AXP209_GPIO0_CTRL },
-	{ "GPIO1", AXP209_GPIO1_CTRL },
-	{ "GPIO2", AXP209_GPIO2_CTRL },
+static struct ofw_compat_data compat_data[] = {
+	{ "x-powers,axp209",		AXP209 },
+	{ "x-powers,axp221",		AXP221 },
+	{ NULL,				0 }
 };
 
 static struct resource_spec axp_res_spec[] = {
@@ -170,9 +639,9 @@ static struct resource_spec axp_res_spec[] = {
 #define	AXP_UNLOCK(sc)	mtx_unlock(&(sc)->mtx)
 
 static int
-axp209_read(device_t dev, uint8_t reg, uint8_t *data, uint8_t size)
+axp2xx_read(device_t dev, uint8_t reg, uint8_t *data, uint8_t size)
 {
-	struct axp209_softc *sc = device_get_softc(dev);
+	struct axp2xx_softc *sc = device_get_softc(dev);
 	struct iic_msg msg[2];
 
 	msg[0].slave = sc->addr;
@@ -189,43 +658,62 @@ axp209_read(device_t dev, uint8_t reg, uint8_t *data, uint8_t size)
 }
 
 static int
-axp209_write(device_t dev, uint8_t reg, uint8_t data)
+axp2xx_write(device_t dev, uint8_t reg, uint8_t data)
 {
 	uint8_t buffer[2];
-	struct axp209_softc *sc = device_get_softc(dev);
-	struct iic_msg msg;
+	struct axp2xx_softc *sc = device_get_softc(dev);
+	struct iic_msg msg[2];
+	int nmsgs = 0;
 
-	buffer[0] = reg;
-	buffer[1] = data;
+	if (sc->type == AXP209) {
+		buffer[0] = reg;
+		buffer[1] = data;
 
-	msg.slave = sc->addr;
-	msg.flags = IIC_M_WR;
-	msg.len = 2;
-	msg.buf = buffer;
+		msg[0].slave = sc->addr;
+		msg[0].flags = IIC_M_WR;
+		msg[0].len = 2;
+		msg[0].buf = buffer;
 
-	return (iicbus_transfer(dev, &msg, 1));
+		nmsgs = 1;
+	}
+	else if (sc->type == AXP221) {
+		msg[0].slave = sc->addr;
+		msg[0].flags = IIC_M_WR;
+		msg[0].len = 1;
+		msg[0].buf = &reg;
+
+		msg[1].slave = sc->addr;
+		msg[1].flags = IIC_M_WR;
+		msg[1].len = 1;
+		msg[1].buf = &data;
+		nmsgs = 2;
+	}
+	else
+		return (EINVAL);
+
+	return (iicbus_transfer(dev, msg, nmsgs));
 }
 
 static int
-axp209_regnode_init(struct regnode *regnode)
+axp2xx_regnode_init(struct regnode *regnode)
 {
 	return (0);
 }
 
 static int
-axp209_regnode_enable(struct regnode *regnode, bool enable, int *udelay)
+axp2xx_regnode_enable(struct regnode *regnode, bool enable, int *udelay)
 {
-	struct axp209_reg_sc *sc;
+	struct axp2xx_reg_sc *sc;
 	uint8_t val;
 
 	sc = regnode_get_softc(regnode);
 
-	axp209_read(sc->base_dev, sc->def->enable_reg, &val, 1);
+	axp2xx_read(sc->base_dev, sc->def->enable_reg, &val, 1);
 	if (enable)
 		val |= sc->def->enable_mask;
 	else
 		val &= ~sc->def->enable_mask;
-	axp209_write(sc->base_dev, sc->def->enable_reg, val);
+	axp2xx_write(sc->base_dev, sc->def->enable_reg, val);
 
 	*udelay = 0;
 
@@ -233,7 +721,7 @@ axp209_regnode_enable(struct regnode *regnode, bool enable, int *udelay)
 }
 
 static void
-axp209_regnode_reg_to_voltage(struct axp209_reg_sc *sc, uint8_t val, int *uv)
+axp2xx_regnode_reg_to_voltage(struct axp2xx_reg_sc *sc, uint8_t val, int *uv)
 {
 	if (val < sc->def->voltage_nstep)
 		*uv = sc->def->voltage_min + val * sc->def->voltage_step;
@@ -244,7 +732,7 @@ axp209_regnode_reg_to_voltage(struct axp209_reg_sc *sc, uint8_t val, int *uv)
 }
 
 static int
-axp209_regnode_voltage_to_reg(struct axp209_reg_sc *sc, int min_uvolt,
+axp2xx_regnode_voltage_to_reg(struct axp2xx_reg_sc *sc, int min_uvolt,
     int max_uvolt, uint8_t *val)
 {
 	uint8_t nval;
@@ -266,10 +754,10 @@ axp209_regnode_voltage_to_reg(struct axp209_reg_sc *sc, int min_uvolt,
 }
 
 static int
-axp209_regnode_set_voltage(struct regnode *regnode, int min_uvolt,
+axp2xx_regnode_set_voltage(struct regnode *regnode, int min_uvolt,
     int max_uvolt, int *udelay)
 {
-	struct axp209_reg_sc *sc;
+	struct axp2xx_reg_sc *sc;
 	uint8_t val;
 
 	sc = regnode_get_softc(regnode);
@@ -277,10 +765,10 @@ axp209_regnode_set_voltage(struct regnode *regnode, int min_uvolt,
 	if (!sc->def->voltage_step)
 		return (ENXIO);
 
-	if (axp209_regnode_voltage_to_reg(sc, min_uvolt, max_uvolt, &val) != 0)
+	if (axp2xx_regnode_voltage_to_reg(sc, min_uvolt, max_uvolt, &val) != 0)
 		return (ERANGE);
 
-	axp209_write(sc->base_dev, sc->def->voltage_reg, val);
+	axp2xx_write(sc->base_dev, sc->def->voltage_reg, val);
 
 	*udelay = 0;
 
@@ -288,9 +776,9 @@ axp209_regnode_set_voltage(struct regnode *regnode, int min_uvolt,
 }
 
 static int
-axp209_regnode_get_voltage(struct regnode *regnode, int *uvolt)
+axp2xx_regnode_get_voltage(struct regnode *regnode, int *uvolt)
 {
-	struct axp209_reg_sc *sc;
+	struct axp2xx_reg_sc *sc;
 	uint8_t val;
 
 	sc = regnode_get_softc(regnode);
@@ -298,106 +786,60 @@ axp209_regnode_get_voltage(struct regnode *regnode, int *uvolt)
 	if (!sc->def->voltage_step)
 		return (ENXIO);
 
-	axp209_read(sc->base_dev, sc->def->voltage_reg, &val, 1);
-	axp209_regnode_reg_to_voltage(sc, val & sc->def->voltage_mask, uvolt);
+	axp2xx_read(sc->base_dev, sc->def->voltage_reg, &val, 1);
+	axp2xx_regnode_reg_to_voltage(sc, val & sc->def->voltage_mask, uvolt);
 
 	return (0);
 }
 
-static regnode_method_t axp209_regnode_methods[] = {
+static regnode_method_t axp2xx_regnode_methods[] = {
 	/* Regulator interface */
-	REGNODEMETHOD(regnode_init,		axp209_regnode_init),
-	REGNODEMETHOD(regnode_enable,		axp209_regnode_enable),
-	REGNODEMETHOD(regnode_set_voltage,	axp209_regnode_set_voltage),
-	REGNODEMETHOD(regnode_get_voltage,	axp209_regnode_get_voltage),
+	REGNODEMETHOD(regnode_init,		axp2xx_regnode_init),
+	REGNODEMETHOD(regnode_enable,		axp2xx_regnode_enable),
+	REGNODEMETHOD(regnode_set_voltage,	axp2xx_regnode_set_voltage),
+	REGNODEMETHOD(regnode_get_voltage,	axp2xx_regnode_get_voltage),
 	REGNODEMETHOD_END
 };
-DEFINE_CLASS_1(axp209_regnode, axp209_regnode_class, axp209_regnode_methods,
-    sizeof(struct axp209_reg_sc), regnode_class);
+DEFINE_CLASS_1(axp2xx_regnode, axp2xx_regnode_class, axp2xx_regnode_methods,
+    sizeof(struct axp2xx_reg_sc), regnode_class);
 
 static int
-axp209_sysctl(SYSCTL_HANDLER_ARGS)
+axp2xx_sysctl(SYSCTL_HANDLER_ARGS)
 {
+	struct axp2xx_softc *sc;
 	device_t dev = arg1;
-	enum axp209_sensor sensor = arg2;
+	enum axp2xx_sensor sensor = arg2;
 	uint8_t data[2];
-	int val, error;
+	int val, error, i, found;
 
-	switch (sensor) {
-	case AXP209_TEMP:
-		error = axp209_read(dev, AXP209_TEMPMON, data, 2);
-		if (error != 0)
-			return (error);
+	sc = device_get_softc(dev);
 
-		/* Temperature is between -144.7C and 264.8C, step +0.1C */
-		val = (AXP209_SENSOR_H(data[0]) | AXP209_SENSOR_L(data[1])) -
-		    AXP209_TEMPMON_MIN + AXP209_0C_TO_K;
-		break;
-	case AXP209_ACVOLT:
-		error = axp209_read(dev, AXP209_ACIN_VOLTAGE, data, 2);
-		if (error != 0)
-			return (error);
-
-		val = (AXP209_SENSOR_H(data[0]) | AXP209_SENSOR_L(data[1])) *
-		    AXP209_VOLT_STEP;
-		break;
-	case AXP209_ACCURRENT:
-		error = axp209_read(dev, AXP209_ACIN_CURRENT, data, 2);
-		if (error != 0)
-			return (error);
-
-		val = (AXP209_SENSOR_H(data[0]) | AXP209_SENSOR_L(data[1])) *
-		    AXP209_ACCURRENT_STEP;
-		break;
-	case AXP209_VBUSVOLT:
-		error = axp209_read(dev, AXP209_VBUS_VOLTAGE, data, 2);
-		if (error != 0)
-			return (error);
-
-		val = (AXP209_SENSOR_H(data[0]) | AXP209_SENSOR_L(data[1])) *
-		    AXP209_VOLT_STEP;
-		break;
-	case AXP209_VBUSCURRENT:
-		error = axp209_read(dev, AXP209_VBUS_CURRENT, data, 2);
-		if (error != 0)
-			return (error);
-
-		val = (AXP209_SENSOR_H(data[0]) | AXP209_SENSOR_L(data[1])) *
-		    AXP209_VBUSCURRENT_STEP;
-		break;
-	case AXP209_BATVOLT:
-		error = axp209_read(dev, AXP209_BAT_VOLTAGE, data, 2);
-		if (error != 0)
-			return (error);
-
-		val = (AXP209_SENSOR_H(data[0]) | AXP209_SENSOR_L(data[1])) *
-		    AXP209_BATVOLT_STEP;
-		break;
-	case AXP209_BATCHARGECURRENT:
-		error = axp209_read(dev, AXP209_BAT_CHARGE_CURRENT, data, 2);
-		if (error != 0)
-			return (error);
-
-		val = (AXP209_SENSOR_H(data[0]) | AXP209_SENSOR_L(data[1])) *
-		    AXP209_BATCURRENT_STEP;
-		break;
-	case AXP209_BATDISCHARGECURRENT:
-		error = axp209_read(dev, AXP209_BAT_DISCHARGE_CURRENT, data, 2);
-		if (error != 0)
-			return (error);
-
-		val = (AXP209_SENSOR_BAT_H(data[0]) |
-		    AXP209_SENSOR_BAT_L(data[1])) * AXP209_BATCURRENT_STEP;
-		break;
-	default:
-		return (ENOENT);
+	for (found = 0, i = 0; i < sc->nsensors; i++) {
+		if (sc->sensors[i].id == sensor) {
+			found = 1;
+			break;
+		}
 	}
+
+	if (found == 0)
+		return (ENOENT);
+
+	error = axp2xx_read(dev, sc->sensors[i].value_reg, data, 2);
+	if (error != 0)
+		return (error);
+
+	val = ((data[0] & sc->sensors[i].h_value_mask) <<
+	    sc->sensors[i].h_value_shift);
+	val |= ((data[1] & sc->sensors[i].l_value_mask) <<
+	    sc->sensors[i].l_value_shift);
+	val *= sc->sensors[i].value_step;
+	val += sc->sensors[i].value_convert;
 
 	return sysctl_handle_opaque(oidp, &val, sizeof(val), req);
 }
 
 static void
-axp209_shutdown(void *devp, int howto)
+axp2xx_shutdown(void *devp, int howto)
 {
 	device_t dev;
 
@@ -406,77 +848,77 @@ axp209_shutdown(void *devp, int howto)
 	dev = (device_t)devp;
 
 	if (bootverbose)
-		device_printf(dev, "Shutdown AXP209\n");
+		device_printf(dev, "Shutdown AXP2xx\n");
 
-	axp209_write(dev, AXP209_SHUTBAT, AXP209_SHUTBAT_SHUTDOWN);
+	axp2xx_write(dev, AXP2XX_SHUTBAT, AXP2XX_SHUTBAT_SHUTDOWN);
 }
 
 static void
-axp_intr(void *arg)
+axp2xx_intr(void *arg)
 {
-	struct axp209_softc *sc;
+	struct axp2xx_softc *sc;
 	uint8_t reg;
 
 	sc = arg;
 
-	axp209_read(sc->dev, AXP209_IRQ1_STATUS, &reg, 1);
+	axp2xx_read(sc->dev, AXP2XX_IRQ1_STATUS, &reg, 1);
 	if (reg) {
-		if (reg & AXP209_IRQ1_AC_OVERVOLT)
+		if (reg & AXP2XX_IRQ1_AC_OVERVOLT)
 			devctl_notify("PMU", "AC", "overvoltage", NULL);
-		if (reg & AXP209_IRQ1_VBUS_OVERVOLT)
+		if (reg & AXP2XX_IRQ1_VBUS_OVERVOLT)
 			devctl_notify("PMU", "USB", "overvoltage", NULL);
-		if (reg & AXP209_IRQ1_VBUS_LOW)
+		if (reg & AXP2XX_IRQ1_VBUS_LOW)
 			devctl_notify("PMU", "USB", "undervoltage", NULL);
-		if (reg & AXP209_IRQ1_AC_CONN)
+		if (reg & AXP2XX_IRQ1_AC_CONN)
 			devctl_notify("PMU", "AC", "plugged", NULL);
-		if (reg & AXP209_IRQ1_AC_DISCONN)
+		if (reg & AXP2XX_IRQ1_AC_DISCONN)
 			devctl_notify("PMU", "AC", "unplugged", NULL);
-		if (reg & AXP209_IRQ1_VBUS_CONN)
+		if (reg & AXP2XX_IRQ1_VBUS_CONN)
 			devctl_notify("PMU", "USB", "plugged", NULL);
-		if (reg & AXP209_IRQ1_VBUS_DISCONN)
+		if (reg & AXP2XX_IRQ1_VBUS_DISCONN)
 			devctl_notify("PMU", "USB", "unplugged", NULL);
-		axp209_write(sc->dev, AXP209_IRQ1_STATUS, AXP209_IRQ_ACK);
+		axp2xx_write(sc->dev, AXP2XX_IRQ1_STATUS, AXP2XX_IRQ_ACK);
 	}
 
-	axp209_read(sc->dev, AXP209_IRQ2_STATUS, &reg, 1);
+	axp2xx_read(sc->dev, AXP2XX_IRQ2_STATUS, &reg, 1);
 	if (reg) {
-		if (reg & AXP209_IRQ2_BATT_CHARGED)
+		if (reg & AXP2XX_IRQ2_BATT_CHARGED)
 			devctl_notify("PMU", "Battery", "charged", NULL);
-		if (reg & AXP209_IRQ2_BATT_CHARGING)
+		if (reg & AXP2XX_IRQ2_BATT_CHARGING)
 			devctl_notify("PMU", "Battery", "charging", NULL);
-		if (reg & AXP209_IRQ2_BATT_CONN)
+		if (reg & AXP2XX_IRQ2_BATT_CONN)
 			devctl_notify("PMU", "Battery", "connected", NULL);
-		if (reg & AXP209_IRQ2_BATT_DISCONN)
+		if (reg & AXP2XX_IRQ2_BATT_DISCONN)
 			devctl_notify("PMU", "Battery", "disconnected", NULL);
-		if (reg & AXP209_IRQ2_BATT_TEMP_LOW)
+		if (reg & AXP2XX_IRQ2_BATT_TEMP_LOW)
 			devctl_notify("PMU", "Battery", "low temp", NULL);
-		if (reg & AXP209_IRQ2_BATT_TEMP_OVER)
+		if (reg & AXP2XX_IRQ2_BATT_TEMP_OVER)
 			devctl_notify("PMU", "Battery", "high temp", NULL);
-		axp209_write(sc->dev, AXP209_IRQ2_STATUS, AXP209_IRQ_ACK);
+		axp2xx_write(sc->dev, AXP2XX_IRQ2_STATUS, AXP2XX_IRQ_ACK);
 	}
 
-	axp209_read(sc->dev, AXP209_IRQ3_STATUS, &reg, 1);
+	axp2xx_read(sc->dev, AXP2XX_IRQ3_STATUS, &reg, 1);
 	if (reg) {
-		if (reg & AXP209_IRQ3_PEK_SHORT)
+		if (reg & AXP2XX_IRQ3_PEK_SHORT)
 			shutdown_nice(RB_POWEROFF);
-		axp209_write(sc->dev, AXP209_IRQ3_STATUS, AXP209_IRQ_ACK);
+		axp2xx_write(sc->dev, AXP2XX_IRQ3_STATUS, AXP2XX_IRQ_ACK);
 	}
 
-	axp209_read(sc->dev, AXP209_IRQ4_STATUS, &reg, 1);
+	axp2xx_read(sc->dev, AXP2XX_IRQ4_STATUS, &reg, 1);
 	if (reg) {
-		axp209_write(sc->dev, AXP209_IRQ4_STATUS, AXP209_IRQ_ACK);
+		axp2xx_write(sc->dev, AXP2XX_IRQ4_STATUS, AXP2XX_IRQ_ACK);
 	}
 
-	axp209_read(sc->dev, AXP209_IRQ5_STATUS, &reg, 1);
+	axp2xx_read(sc->dev, AXP2XX_IRQ5_STATUS, &reg, 1);
 	if (reg) {
-		axp209_write(sc->dev, AXP209_IRQ5_STATUS, AXP209_IRQ_ACK);
+		axp2xx_write(sc->dev, AXP2XX_IRQ5_STATUS, AXP2XX_IRQ_ACK);
 	}
 }
 
 static device_t
-axp209_gpio_get_bus(device_t dev)
+axp2xx_gpio_get_bus(device_t dev)
 {
-	struct axp209_softc *sc;
+	struct axp2xx_softc *sc;
 
 	sc = device_get_softc(dev);
 
@@ -484,17 +926,25 @@ axp209_gpio_get_bus(device_t dev)
 }
 
 static int
-axp209_gpio_pin_max(device_t dev, int *maxpin)
+axp2xx_gpio_pin_max(device_t dev, int *maxpin)
 {
-	*maxpin = nitems(axp209_pins) - 1;
+	struct axp2xx_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	*maxpin = sc->npins - 1;
 
 	return (0);
 }
 
 static int
-axp209_gpio_pin_getname(device_t dev, uint32_t pin, char *name)
+axp2xx_gpio_pin_getname(device_t dev, uint32_t pin, char *name)
 {
-	if (pin >= nitems(axp209_pins))
+	struct axp2xx_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	if (pin >= sc->npins)
 		return (EINVAL);
 
 	snprintf(name, GPIOMAXNAME, "%s", axp209_pins[pin].name);
@@ -503,9 +953,13 @@ axp209_gpio_pin_getname(device_t dev, uint32_t pin, char *name)
 }
 
 static int
-axp209_gpio_pin_getcaps(device_t dev, uint32_t pin, uint32_t *caps)
+axp2xx_gpio_pin_getcaps(device_t dev, uint32_t pin, uint32_t *caps)
 {
-	if (pin >= nitems(axp209_pins))
+	struct axp2xx_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	if (pin >= sc->npins)
 		return (EINVAL);
 
 	*caps = GPIO_PIN_INPUT | GPIO_PIN_OUTPUT;
@@ -514,25 +968,25 @@ axp209_gpio_pin_getcaps(device_t dev, uint32_t pin, uint32_t *caps)
 }
 
 static int
-axp209_gpio_pin_getflags(device_t dev, uint32_t pin, uint32_t *flags)
+axp2xx_gpio_pin_getflags(device_t dev, uint32_t pin, uint32_t *flags)
 {
-	struct axp209_softc *sc;
+	struct axp2xx_softc *sc;
 	uint8_t data, func;
 	int error;
 
-	if (pin >= nitems(axp209_pins))
-		return (EINVAL);
-
 	sc = device_get_softc(dev);
 
+	if (pin >= sc->npins)
+		return (EINVAL);
+
 	AXP_LOCK(sc);
-	error = axp209_read(dev, axp209_pins[pin].ctrl_reg, &data, 1);
+	error = axp2xx_read(dev, sc->pins[pin].ctrl_reg, &data, 1);
 	if (error == 0) {
-		func = data & AXP209_GPIO_FUNC_MASK;
-		if (func == AXP209_GPIO_FUNC_INPUT)
+		func = data & AXP2XX_GPIO_FUNC_MASK;
+		if (func == AXP2XX_GPIO_FUNC_INPUT)
 			*flags = GPIO_PIN_INPUT;
-		else if (func == AXP209_GPIO_FUNC_DRVLO ||
-		    func == AXP209_GPIO_FUNC_DRVHI)
+		else if (func == AXP2XX_GPIO_FUNC_DRVLO ||
+		    func == AXP2XX_GPIO_FUNC_DRVHI)
 			*flags = GPIO_PIN_OUTPUT;
 		else
 			*flags = 0;
@@ -543,26 +997,26 @@ axp209_gpio_pin_getflags(device_t dev, uint32_t pin, uint32_t *flags)
 }
 
 static int
-axp209_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
+axp2xx_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 {
-	struct axp209_softc *sc;
+	struct axp2xx_softc *sc;
 	uint8_t data;
 	int error;
 
-	if (pin >= nitems(axp209_pins))
-		return (EINVAL);
-
 	sc = device_get_softc(dev);
 
+	if (pin >= sc->npins)
+		return (EINVAL);
+
 	AXP_LOCK(sc);
-	error = axp209_read(dev, axp209_pins[pin].ctrl_reg, &data, 1);
+	error = axp2xx_read(dev, sc->pins[pin].ctrl_reg, &data, 1);
 	if (error == 0) {
-		data &= ~AXP209_GPIO_FUNC_MASK;
+		data &= ~AXP2XX_GPIO_FUNC_MASK;
 		if ((flags & (GPIO_PIN_INPUT|GPIO_PIN_OUTPUT)) != 0) {
 			if ((flags & GPIO_PIN_OUTPUT) == 0)
-				data |= AXP209_GPIO_FUNC_INPUT;
+				data |= AXP2XX_GPIO_FUNC_INPUT;
 		}
-		error = axp209_write(dev, axp209_pins[pin].ctrl_reg, data);
+		error = axp2xx_write(dev, sc->pins[pin].ctrl_reg, data);
 	}
 	AXP_UNLOCK(sc);
 
@@ -570,32 +1024,35 @@ axp209_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 }
 
 static int
-axp209_gpio_pin_get(device_t dev, uint32_t pin, unsigned int *val)
+axp2xx_gpio_pin_get(device_t dev, uint32_t pin, unsigned int *val)
 {
-	struct axp209_softc *sc;
+	struct axp2xx_softc *sc;
 	uint8_t data, func;
 	int error;
 
-	if (pin >= nitems(axp209_pins))
-		return (EINVAL);
-
 	sc = device_get_softc(dev);
 
+	if (pin >= sc->npins)
+		return (EINVAL);
+
 	AXP_LOCK(sc);
-	error = axp209_read(dev, axp209_pins[pin].ctrl_reg, &data, 1);
+	error = axp2xx_read(dev, sc->pins[pin].ctrl_reg, &data, 1);
 	if (error == 0) {
-		func = data & AXP209_GPIO_FUNC_MASK;
+		func = data & AXP2XX_GPIO_FUNC_MASK;
 		switch (func) {
-		case AXP209_GPIO_FUNC_DRVLO:
+		case AXP2XX_GPIO_FUNC_DRVLO:
 			*val = 0;
 			break;
-		case AXP209_GPIO_FUNC_DRVHI:
+		case AXP2XX_GPIO_FUNC_DRVHI:
 			*val = 1;
 			break;
-		case AXP209_GPIO_FUNC_INPUT:
-			error = axp209_read(dev, AXP209_GPIO_STATUS, &data, 1);
-			if (error == 0)
-				*val = (data & AXP209_GPIO_DATA(pin)) ? 1 : 0;
+		case AXP2XX_GPIO_FUNC_INPUT:
+			error = axp2xx_read(dev, sc->pins[pin].status_reg,
+			    &data, 1);
+			if (error == 0) {
+				*val = (data & sc->pins[pin].status_mask);
+				*val >>= sc->pins[pin].status_shift;
+			}
 			break;
 		default:
 			error = EIO;
@@ -608,30 +1065,30 @@ axp209_gpio_pin_get(device_t dev, uint32_t pin, unsigned int *val)
 }
 
 static int
-axp209_gpio_pin_set(device_t dev, uint32_t pin, unsigned int val)
+axp2xx_gpio_pin_set(device_t dev, uint32_t pin, unsigned int val)
 {
-	struct axp209_softc *sc;
+	struct axp2xx_softc *sc;
 	uint8_t data, func;
 	int error;
 
-	if (pin >= nitems(axp209_pins))
-		return (EINVAL);
-
 	sc = device_get_softc(dev);
 
+	if (pin >= sc->npins)
+		return (EINVAL);
+
 	AXP_LOCK(sc);
-	error = axp209_read(dev, axp209_pins[pin].ctrl_reg, &data, 1);
+	error = axp2xx_read(dev, sc->pins[pin].ctrl_reg, &data, 1);
 	if (error == 0) {
-		func = data & AXP209_GPIO_FUNC_MASK;
+		func = data & AXP2XX_GPIO_FUNC_MASK;
 		switch (func) {
-		case AXP209_GPIO_FUNC_DRVLO:
-		case AXP209_GPIO_FUNC_DRVHI:
+		case AXP2XX_GPIO_FUNC_DRVLO:
+		case AXP2XX_GPIO_FUNC_DRVHI:
 			/* GPIO2 can't be set to 1 */
 			if (pin == 2 && val == 1) {
 				error = EINVAL;
 				break;
 			}
-			data &= ~AXP209_GPIO_FUNC_MASK;
+			data &= ~AXP2XX_GPIO_FUNC_MASK;
 			data |= val;
 			break;
 		default:
@@ -640,7 +1097,7 @@ axp209_gpio_pin_set(device_t dev, uint32_t pin, unsigned int val)
 		}
 	}
 	if (error == 0)
-		error = axp209_write(dev, axp209_pins[pin].ctrl_reg, data);
+		error = axp2xx_write(dev, sc->pins[pin].ctrl_reg, data);
 	AXP_UNLOCK(sc);
 
 	return (error);
@@ -648,34 +1105,34 @@ axp209_gpio_pin_set(device_t dev, uint32_t pin, unsigned int val)
 
 
 static int
-axp209_gpio_pin_toggle(device_t dev, uint32_t pin)
+axp2xx_gpio_pin_toggle(device_t dev, uint32_t pin)
 {
-	struct axp209_softc *sc;
+	struct axp2xx_softc *sc;
 	uint8_t data, func;
 	int error;
 
-	if (pin >= nitems(axp209_pins))
-		return (EINVAL);
-
 	sc = device_get_softc(dev);
 
+	if (pin >= sc->npins)
+		return (EINVAL);
+
 	AXP_LOCK(sc);
-	error = axp209_read(dev, axp209_pins[pin].ctrl_reg, &data, 1);
+	error = axp2xx_read(dev, sc->pins[pin].ctrl_reg, &data, 1);
 	if (error == 0) {
-		func = data & AXP209_GPIO_FUNC_MASK;
+		func = data & AXP2XX_GPIO_FUNC_MASK;
 		switch (func) {
-		case AXP209_GPIO_FUNC_DRVLO:
+		case AXP2XX_GPIO_FUNC_DRVLO:
 			/* Pin 2 can't be set to 1*/
 			if (pin == 2) {
 				error = EINVAL;
 				break;
 			}
-			data &= ~AXP209_GPIO_FUNC_MASK;
-			data |= AXP209_GPIO_FUNC_DRVHI;
+			data &= ~AXP2XX_GPIO_FUNC_MASK;
+			data |= AXP2XX_GPIO_FUNC_DRVHI;
 			break;
-		case AXP209_GPIO_FUNC_DRVHI:
-			data &= ~AXP209_GPIO_FUNC_MASK;
-			data |= AXP209_GPIO_FUNC_DRVLO;
+		case AXP2XX_GPIO_FUNC_DRVHI:
+			data &= ~AXP2XX_GPIO_FUNC_MASK;
+			data |= AXP2XX_GPIO_FUNC_DRVLO;
 			break;
 		default:
 			error = EIO;
@@ -683,17 +1140,21 @@ axp209_gpio_pin_toggle(device_t dev, uint32_t pin)
 		}
 	}
 	if (error == 0)
-		error = axp209_write(dev, axp209_pins[pin].ctrl_reg, data);
+		error = axp2xx_write(dev, sc->pins[pin].ctrl_reg, data);
 	AXP_UNLOCK(sc);
 
 	return (error);
 }
 
 static int
-axp209_gpio_map_gpios(device_t bus, phandle_t dev, phandle_t gparent,
+axp2xx_gpio_map_gpios(device_t bus, phandle_t dev, phandle_t gparent,
     int gcells, pcell_t *gpios, uint32_t *pin, uint32_t *flags)
 {
-	if (gpios[0] >= nitems(axp209_pins))
+	struct axp2xx_softc *sc;
+
+	sc = device_get_softc(bus);
+
+	if (gpios[0] >= sc->npins)
 		return (EINVAL);
 
 	*pin = gpios[0];
@@ -703,16 +1164,16 @@ axp209_gpio_map_gpios(device_t bus, phandle_t dev, phandle_t gparent,
 }
 
 static phandle_t
-axp209_get_node(device_t dev, device_t bus)
+axp2xx_get_node(device_t dev, device_t bus)
 {
 	return (ofw_bus_get_node(dev));
 }
 
-static struct axp209_reg_sc *
-axp209_reg_attach(device_t dev, phandle_t node,
-    struct axp209_regdef *def)
+static struct axp2xx_reg_sc *
+axp2xx_reg_attach(device_t dev, phandle_t node,
+    struct axp2xx_regdef *def)
 {
-	struct axp209_reg_sc *reg_sc;
+	struct axp2xx_reg_sc *reg_sc;
 	struct regnode_init_def initdef;
 	struct regnode *regnode;
 
@@ -727,7 +1188,7 @@ axp209_reg_attach(device_t dev, phandle_t node,
 		initdef.std_param.max_uvolt = def->voltage_max * 1000;
 	initdef.id = def->id;
 	initdef.ofw_node = node;
-	regnode = regnode_create(dev, &axp209_regnode_class, &initdef);
+	regnode = regnode_create(dev, &axp2xx_regnode_class, &initdef);
 	if (regnode == NULL) {
 		device_printf(dev, "cannot create regulator\n");
 		return (NULL);
@@ -746,10 +1207,10 @@ axp209_reg_attach(device_t dev, phandle_t node,
 }
 
 static int
-axp209_regdev_map(device_t dev, phandle_t xref, int ncells, pcell_t *cells,
+axp2xx_regdev_map(device_t dev, phandle_t xref, int ncells, pcell_t *cells,
     intptr_t *num)
 {
-	struct axp209_softc *sc;
+	struct axp2xx_softc *sc;
 	int i;
 
 	sc = device_get_softc(dev);
@@ -766,12 +1227,13 @@ axp209_regdev_map(device_t dev, phandle_t xref, int ncells, pcell_t *cells,
 }
 
 static void
-axp209_start(void *pdev)
+axp2xx_start(void *pdev)
 {
 	device_t dev;
-	struct axp209_softc *sc;
+	struct axp2xx_softc *sc;
 	const char *pwr_name[] = {"Battery", "AC", "USB", "AC and USB"};
-	uint8_t data;
+	int i;
+	uint8_t reg, data;
 	uint8_t pwr_src;
 
 	dev = pdev;
@@ -786,123 +1248,96 @@ axp209_start(void *pdev)
 		 * Shift the AC presence into bit 0.
 		 * Shift the Battery presence into bit 1.
 		 */
-		axp209_read(dev, AXP209_PSR, &data, 1);
-		pwr_src = ((data & AXP209_PSR_ACIN) >> AXP209_PSR_ACIN_SHIFT) |
-		    ((data & AXP209_PSR_VBUS) >> (AXP209_PSR_VBUS_SHIFT - 1));
+		axp2xx_read(dev, AXP2XX_PSR, &data, 1);
+		pwr_src = ((data & AXP2XX_PSR_ACIN) >> AXP2XX_PSR_ACIN_SHIFT) |
+		    ((data & AXP2XX_PSR_VBUS) >> (AXP2XX_PSR_VBUS_SHIFT - 1));
 
-		device_printf(dev, "AXP209 Powered by %s\n",
+		device_printf(dev, "Powered by %s\n",
 		    pwr_name[pwr_src]);
 	}
 
 	/* Only enable interrupts that we are interested in */
-	axp209_write(dev, AXP209_IRQ1_ENABLE,
-	    AXP209_IRQ1_AC_OVERVOLT |
-	    AXP209_IRQ1_AC_DISCONN |
-	    AXP209_IRQ1_AC_CONN |
-	    AXP209_IRQ1_VBUS_OVERVOLT |
-	    AXP209_IRQ1_VBUS_DISCONN |
-	    AXP209_IRQ1_VBUS_CONN);
-	axp209_write(dev, AXP209_IRQ2_ENABLE,
-	    AXP209_IRQ2_BATT_CONN |
-	    AXP209_IRQ2_BATT_DISCONN |
-	    AXP209_IRQ2_BATT_CHARGE_ACCT_ON |
-	    AXP209_IRQ2_BATT_CHARGE_ACCT_OFF |
-	    AXP209_IRQ2_BATT_CHARGING |
-	    AXP209_IRQ2_BATT_CHARGED |
-	    AXP209_IRQ2_BATT_TEMP_OVER |
-	    AXP209_IRQ2_BATT_TEMP_LOW);
-	axp209_write(dev, AXP209_IRQ3_ENABLE,
-	    AXP209_IRQ3_PEK_SHORT | AXP209_IRQ3_PEK_LONG);
-	axp209_write(dev, AXP209_IRQ4_ENABLE, AXP209_IRQ4_APS_LOW_2);
-	axp209_write(dev, AXP209_IRQ5_ENABLE, 0x0);
+	axp2xx_write(dev, AXP2XX_IRQ1_ENABLE,
+	    AXP2XX_IRQ1_AC_OVERVOLT |
+	    AXP2XX_IRQ1_AC_DISCONN |
+	    AXP2XX_IRQ1_AC_CONN |
+	    AXP2XX_IRQ1_VBUS_OVERVOLT |
+	    AXP2XX_IRQ1_VBUS_DISCONN |
+	    AXP2XX_IRQ1_VBUS_CONN);
+	axp2xx_write(dev, AXP2XX_IRQ2_ENABLE,
+	    AXP2XX_IRQ2_BATT_CONN |
+	    AXP2XX_IRQ2_BATT_DISCONN |
+	    AXP2XX_IRQ2_BATT_CHARGE_ACCT_ON |
+	    AXP2XX_IRQ2_BATT_CHARGE_ACCT_OFF |
+	    AXP2XX_IRQ2_BATT_CHARGING |
+	    AXP2XX_IRQ2_BATT_CHARGED |
+	    AXP2XX_IRQ2_BATT_TEMP_OVER |
+	    AXP2XX_IRQ2_BATT_TEMP_LOW);
+	axp2xx_write(dev, AXP2XX_IRQ3_ENABLE,
+	    AXP2XX_IRQ3_PEK_SHORT | AXP2XX_IRQ3_PEK_LONG);
+	axp2xx_write(dev, AXP2XX_IRQ4_ENABLE, AXP2XX_IRQ4_APS_LOW_2);
+	axp2xx_write(dev, AXP2XX_IRQ5_ENABLE, 0x0);
 
-	EVENTHANDLER_REGISTER(shutdown_final, axp209_shutdown, dev,
+	EVENTHANDLER_REGISTER(shutdown_final, axp2xx_shutdown, dev,
 	    SHUTDOWN_PRI_LAST);
 
 	/* Enable ADC sensors */
-	if (axp209_write(dev, AXP209_ADC_ENABLE1,
-	    AXP209_ADC1_BATVOLT | AXP209_ADC1_BATCURRENT |
-	    AXP209_ADC1_ACVOLT | AXP209_ADC1_ACCURRENT |
-	    AXP209_ADC1_VBUSVOLT | AXP209_ADC1_VBUSCURRENT) != -1) {
+	for (i = 0; i < sc->nsensors; i++) {
+		if (axp2xx_read(dev, sc->sensors[i].enable_reg, &reg, 1) == -1) {
+			device_printf(dev, "Cannot enable sensor '%s'\n",
+			    sc->sensors[i].name);
+			continue;
+		}
+		reg |= sc->sensors[i].enable_mask;
+		if (axp2xx_write(dev, sc->sensors[i].enable_reg, reg) == -1) {
+			device_printf(dev, "Cannot enable sensor '%s'\n",
+			    sc->sensors[i].name);
+			continue;
+		}
 		SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-		    OID_AUTO, "acvolt",
+		    OID_AUTO, sc->sensors[i].name,
 		    CTLTYPE_INT | CTLFLAG_RD,
-		    dev, AXP209_ACVOLT, axp209_sysctl, "I",
-		    "AC Voltage (microVolt)");
-		SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-		    OID_AUTO, "accurrent",
-		    CTLTYPE_INT | CTLFLAG_RD,
-		    dev, AXP209_ACCURRENT, axp209_sysctl, "I",
-		    "AC Current (microAmpere)");
-		SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-		    OID_AUTO, "vbusvolt",
-		    CTLTYPE_INT | CTLFLAG_RD,
-		    dev, AXP209_VBUSVOLT, axp209_sysctl, "I",
-		    "VBUS Voltage (microVolt)");
-		SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-		    OID_AUTO, "vbuscurrent",
-		    CTLTYPE_INT | CTLFLAG_RD,
-		    dev, AXP209_VBUSCURRENT, axp209_sysctl, "I",
-		    "VBUS Current (microAmpere)");
-		SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-		    OID_AUTO, "batvolt",
-		    CTLTYPE_INT | CTLFLAG_RD,
-		    dev, AXP209_BATVOLT, axp209_sysctl, "I",
-		    "Battery Voltage (microVolt)");
-		SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-		    OID_AUTO, "batchargecurrent",
-		    CTLTYPE_INT | CTLFLAG_RD,
-		    dev, AXP209_BATCHARGECURRENT, axp209_sysctl, "I",
-		    "Battery Charging Current (microAmpere)");
-		SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-		    OID_AUTO, "batdischargecurrent",
-		    CTLTYPE_INT | CTLFLAG_RD,
-		    dev, AXP209_BATDISCHARGECURRENT, axp209_sysctl, "I",
-		    "Battery Discharging Current (microAmpere)");
-	} else {
-		device_printf(dev, "Couldn't enable ADC sensors\n");
+		    dev, sc->sensors[i].id, axp2xx_sysctl,
+		    sc->sensors[i].format,
+		    sc->sensors[i].desc);
 	}
 
-	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    OID_AUTO, "temp",
-	    CTLTYPE_INT | CTLFLAG_RD,
-	    dev, AXP209_TEMP, axp209_sysctl, "IK", "Internal temperature");
-
 	if ((bus_setup_intr(dev, sc->res[0], INTR_TYPE_MISC | INTR_MPSAFE,
-	      NULL, axp_intr, sc, &sc->intrcookie)))
+	      NULL, axp2xx_intr, sc, &sc->intrcookie)))
 		device_printf(dev, "unable to register interrupt handler\n");
 
 	config_intrhook_disestablish(&sc->intr_hook);
 }
 
 static int
-axp209_probe(device_t dev)
+axp2xx_probe(device_t dev)
 {
 
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (!ofw_bus_is_compatible(dev, "x-powers,axp209"))
+	switch (ofw_bus_search_compatible(dev, compat_data)->ocd_data)
+	{
+	case AXP209:
+		device_set_desc(dev, "X-Powers AXP209 Power Management Unit");
+		break;
+	case AXP221:
+		device_set_desc(dev, "X-Powers AXP221 Power Management Unit");
+		break;
+	default:
 		return (ENXIO);
-
-	device_set_desc(dev, "X-Powers AXP209 Power Management Unit");
+	}
 
 	return (BUS_PROBE_DEFAULT);
 }
 
 static int
-axp209_attach(device_t dev)
+axp2xx_attach(device_t dev)
 {
-	struct axp209_softc *sc;
-	struct axp209_reg_sc *reg;
+	struct axp2xx_softc *sc;
+	struct axp2xx_reg_sc *reg;
+	struct axp2xx_regdef *regdefs;
 	phandle_t rnode, child;
 	int i;
 
@@ -914,80 +1349,106 @@ axp209_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	sc->intr_hook.ich_func = axp209_start;
+	sc->type = ofw_bus_search_compatible(dev, compat_data)->ocd_data;
+	switch (sc->type) {
+	case AXP209:
+		sc->pins = axp209_pins;
+		sc->npins = nitems(axp209_pins);
+		sc->gpiodev = gpiobus_attach_bus(dev);
+
+		sc->sensors = axp209_sensors;
+		sc->nsensors = nitems(axp209_sensors);
+
+		regdefs = axp209_regdefs;
+		sc->nregs = nitems(axp209_regdefs);
+		break;
+	case AXP221:
+		sc->pins = axp221_pins;
+		sc->npins = nitems(axp221_pins);
+		sc->gpiodev = gpiobus_attach_bus(dev);
+
+		sc->sensors = axp221_sensors;
+		sc->nsensors = nitems(axp221_sensors);
+
+		regdefs = axp221_regdefs;
+		sc->nregs = nitems(axp221_regdefs);
+		break;
+	}
+
+	sc->regs = malloc(sizeof(struct axp2xx_reg_sc *) * sc->nregs,
+	    M_AXP2XX_REG, M_WAITOK | M_ZERO);
+
+	sc->intr_hook.ich_func = axp2xx_start;
 	sc->intr_hook.ich_arg = dev;
 
 	if (config_intrhook_establish(&sc->intr_hook) != 0)
 		return (ENOMEM);
-
-	sc->nregs = nitems(axp209_regdefs);
-	sc->regs = malloc(sizeof(struct axp209_reg_sc *) * sc->nregs,
-	    M_AXP209_REG, M_WAITOK | M_ZERO);
 
 	/* Attach known regulators that exist in the DT */
 	rnode = ofw_bus_find_child(ofw_bus_get_node(dev), "regulators");
 	if (rnode > 0) {
 		for (i = 0; i < sc->nregs; i++) {
 			child = ofw_bus_find_child(rnode,
-			    axp209_regdefs[i].name);
+			    regdefs[i].name);
 			if (child == 0)
 				continue;
-			reg = axp209_reg_attach(dev, child, &axp209_regdefs[i]);
+			reg = axp2xx_reg_attach(dev, child, &regdefs[i]);
 			if (reg == NULL) {
 				device_printf(dev,
 				    "cannot attach regulator %s\n",
-				    axp209_regdefs[i].name);
+				    regdefs[i].name);
 				continue;
 			}
 			sc->regs[i] = reg;
+			if (bootverbose)
+				device_printf(dev, "Regulator %s attached\n",
+				    regdefs[i].name);
 		}
 	}
-
-	sc->gpiodev = gpiobus_attach_bus(dev);
 
 	return (0);
 }
 
-static device_method_t axp209_methods[] = {
-	DEVMETHOD(device_probe,		axp209_probe),
-	DEVMETHOD(device_attach,	axp209_attach),
+static device_method_t axp2xx_methods[] = {
+	DEVMETHOD(device_probe,		axp2xx_probe),
+	DEVMETHOD(device_attach,	axp2xx_attach),
 
 	/* GPIO interface */
-	DEVMETHOD(gpio_get_bus,		axp209_gpio_get_bus),
-	DEVMETHOD(gpio_pin_max,		axp209_gpio_pin_max),
-	DEVMETHOD(gpio_pin_getname,	axp209_gpio_pin_getname),
-	DEVMETHOD(gpio_pin_getcaps,	axp209_gpio_pin_getcaps),
-	DEVMETHOD(gpio_pin_getflags,	axp209_gpio_pin_getflags),
-	DEVMETHOD(gpio_pin_setflags,	axp209_gpio_pin_setflags),
-	DEVMETHOD(gpio_pin_get,		axp209_gpio_pin_get),
-	DEVMETHOD(gpio_pin_set,		axp209_gpio_pin_set),
-	DEVMETHOD(gpio_pin_toggle,	axp209_gpio_pin_toggle),
-	DEVMETHOD(gpio_map_gpios,	axp209_gpio_map_gpios),
+	DEVMETHOD(gpio_get_bus,		axp2xx_gpio_get_bus),
+	DEVMETHOD(gpio_pin_max,		axp2xx_gpio_pin_max),
+	DEVMETHOD(gpio_pin_getname,	axp2xx_gpio_pin_getname),
+	DEVMETHOD(gpio_pin_getcaps,	axp2xx_gpio_pin_getcaps),
+	DEVMETHOD(gpio_pin_getflags,	axp2xx_gpio_pin_getflags),
+	DEVMETHOD(gpio_pin_setflags,	axp2xx_gpio_pin_setflags),
+	DEVMETHOD(gpio_pin_get,		axp2xx_gpio_pin_get),
+	DEVMETHOD(gpio_pin_set,		axp2xx_gpio_pin_set),
+	DEVMETHOD(gpio_pin_toggle,	axp2xx_gpio_pin_toggle),
+	DEVMETHOD(gpio_map_gpios,	axp2xx_gpio_map_gpios),
 
 	/* Regdev interface */
-	DEVMETHOD(regdev_map,		axp209_regdev_map),
+	DEVMETHOD(regdev_map,		axp2xx_regdev_map),
 
 	/* OFW bus interface */
-	DEVMETHOD(ofw_bus_get_node,	axp209_get_node),
+	DEVMETHOD(ofw_bus_get_node,	axp2xx_get_node),
 
 	DEVMETHOD_END
 };
 
-static driver_t axp209_driver = {
-	"axp209_pmu",
-	axp209_methods,
-	sizeof(struct axp209_softc),
+static driver_t axp2xx_driver = {
+	"axp2xx_pmu",
+	axp2xx_methods,
+	sizeof(struct axp2xx_softc),
 };
 
-static devclass_t axp209_devclass;
+static devclass_t axp2xx_devclass;
 extern devclass_t ofwgpiobus_devclass, gpioc_devclass;
 extern driver_t ofw_gpiobus_driver, gpioc_driver;
 
-EARLY_DRIVER_MODULE(axp209, iicbus, axp209_driver, axp209_devclass,
+EARLY_DRIVER_MODULE(axp2xx, iicbus, axp2xx_driver, axp2xx_devclass,
   0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);
-EARLY_DRIVER_MODULE(ofw_gpiobus, axp209_pmu, ofw_gpiobus_driver,
+EARLY_DRIVER_MODULE(ofw_gpiobus, axp2xx_pmu, ofw_gpiobus_driver,
     ofwgpiobus_devclass, 0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);
-DRIVER_MODULE(gpioc, axp209_pmu, gpioc_driver, gpioc_devclass,
+DRIVER_MODULE(gpioc, axp2xx_pmu, gpioc_driver, gpioc_devclass,
     0, 0);
-MODULE_VERSION(axp209, 1);
-MODULE_DEPEND(axp209, iicbus, 1, 1, 1);
+MODULE_VERSION(axp2xx, 1);
+MODULE_DEPEND(axp2xx, iicbus, 1, 1, 1);
