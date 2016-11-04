@@ -1,5 +1,8 @@
 # $FreeBSD$
 
+# linker error
+WANT_CHERI=none
+
 PROG=	kcc
 MAN=	klist.1 kswitch.1
 LINKS=	${BINDIR}/kcc ${BINDIR}/klist \

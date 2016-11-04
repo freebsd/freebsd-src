@@ -1,5 +1,8 @@
 # $FreeBSD$
 
+# linker error
+WANT_CHERI=none
+
 PROG=	ksu
 .if defined(ENABLE_SUID_K5SU)
 BINMODE=4555

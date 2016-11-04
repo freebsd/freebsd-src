@@ -3,6 +3,9 @@
 # Do not define -DKLUDGELINEMODE, as it does not interact well with many
 # telnet implementations.
 
+# linker errors
+WANT_CHERI=none
+
 .include <src.opts.mk>
 
 TELNETDIR=	${.CURDIR}/../../contrib/telnet

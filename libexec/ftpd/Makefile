@@ -1,6 +1,9 @@
 #	@(#)Makefile	8.2 (Berkeley) 4/4/94
 # $FreeBSD$
 
+# linker error
+WANT_CHERI=none
+
 .include <src.opts.mk>
 
 PROG=	ftpd

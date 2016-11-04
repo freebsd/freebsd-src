@@ -1,5 +1,8 @@
 # $FreeBSD$
 
+# linker error
+WANT_CHERI=none
+
 PROG=	ktutil
 MAN=	ktutil.8
 

@@ -1,5 +1,8 @@
 # $FreeBSD$
 
+# linker error
+WANT_CHERI=none
+
 PROG=	kf
 MAN=	kf.1
 CFLAGS+=	-I${KRB5DIR}/lib/asn1 \

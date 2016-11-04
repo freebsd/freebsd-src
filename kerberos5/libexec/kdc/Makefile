@@ -1,5 +1,8 @@
 # $FreeBSD$
 
+# linker error
+WANT_CHERI=none
+
 PROG=	kdc
 MAN=	kdc.8
 

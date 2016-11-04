@@ -1,5 +1,8 @@
 # $FreeBSD$
 
+# linker error
+WANT_CHERI=none
+
 PROG=	digest-service
 MAN=
 CFLAGS+=	-I${KRB5DIR}/kdc \

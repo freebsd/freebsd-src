@@ -4,6 +4,9 @@
 # linker:
 # make DEBUG_FLAGS=-g DEBUG=-DDEBUG MK_TESTS=no all
 
+# Not adapted for CHERI
+WANT_CHERI=none
+
 .include <src.opts.mk>
 PACKAGE=	clibs
 MK_SSP=		no

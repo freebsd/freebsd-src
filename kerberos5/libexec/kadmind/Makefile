@@ -1,5 +1,8 @@
 # $FreeBSD$
 
+# linker error
+WANT_CHERI=none
+
 PROG=	kadmind
 MAN=	kadmind.8
 SRCS=	rpc.c \
