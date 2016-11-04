@@ -10,6 +10,7 @@ CXGBE=	${.CURDIR}/../../../dev/cxgbe
 KMOD=	if_cxgbe
 SRCS=	bus_if.h
 SRCS+=	device_if.h
+SRCS+=	opt_ddb.h
 SRCS+=	opt_inet.h
 SRCS+=	opt_inet6.h
 SRCS+=	opt_ofed.h
