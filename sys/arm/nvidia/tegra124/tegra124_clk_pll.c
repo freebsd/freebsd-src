@@ -205,6 +205,16 @@ static struct pdiv_table pllu_map[] = {
 	{0, 0}
 };
 
+static struct pdiv_table pllrefe_map[] = {
+	{1, 0},
+	{2, 1},
+	{3, 2},
+	{4, 3},
+	{5, 4},
+	{6, 5},
+	{0, 0},
+};
+
 static struct clk_pll_def pll_clks[] = {
 /* PLLM: 880 MHz Clock source for EMC 2x clock */
 	{
@@ -342,6 +352,7 @@ static struct clk_pll_def pll_clks[] = {
 		.lock_enable = PLLRE_MISC_LOCK_ENABLE,
 		.iddq_reg = PLLRE_MISC,
 		.iddq_mask = 1 << PLLRE_IDDQ_BIT,
+		.pdiv_table = pllrefe_map,
 		.mnp_bits = {8, 8, 4, 16},
 	},
 /* PLLE: generate the 100 MHz reference clock for USB 3.0 (spread spectrum) */
@@ -433,14 +444,14 @@ pdiv_to_reg(struct pll_sc *sc, uint32_t p_div)
 
 	tbl = sc->pdiv_table;
 	if (tbl == NULL)
-		return (ffs(p_div));
+		return (ffs(p_div) - 1);
 
 	while (tbl->divider != 0) {
 		if (p_div <= tbl->divider)
 			return (tbl->value);
 		tbl++;
 	}
-	return ~0;
+	return (0xFFFFFFFF);
 }
 
 static uint32_t
@@ -449,15 +460,15 @@ reg_to_pdiv(struct pll_sc *sc, uint32_t reg)
 	struct pdiv_table *tbl;
 
 	tbl = sc->pdiv_table;
-	if (tbl != NULL) {
-		while (tbl->divider) {
-			if (reg == tbl->value)
-				return (tbl->divider);
-			tbl++;
-		}
-		return (0);
+	if (tbl == NULL)
+		return (1 << reg);
+
+	while (tbl->divider) {
+		if (reg == tbl->value)
+			return (tbl->divider);
+		tbl++;
 	}
-	return (1 << reg);
+	return (0);
 }
 
 static uint32_t
@@ -790,6 +801,7 @@ pllrefe_set_freq(struct pll_sc *sc, uint64_t fin, uint64_t *fout, int flags)
 	m = 1;
 	p = 1;
 	n = *fout * p * m / fin;
+	dprintf("%s: m: %d, n: %d, p: %d\n", __func__, m, n, p);
 	return (pll_set_std(sc, fin, fout, flags, m, n, p));
 }
 
@@ -902,6 +914,7 @@ tegra124_pll_set_freq(struct clknode *clknode, uint64_t fin, uint64_t *fout,
 		rv = ENXIO;
 		break;
 	}
+
 	return (rv);
 }
 
@@ -919,6 +932,11 @@ tegra124_pll_init(struct clknode *clk, device_t dev)
 	if (reg & PLL_BASE_ENABLE) {
 		RD4(sc, sc->misc_reg, &reg);
 		reg |= sc->lock_enable;
+		WR4(sc, sc->misc_reg, reg);
+	}
+	if (sc->type == PLL_REFE) {
+		RD4(sc, sc->misc_reg, &reg);
+		reg &= ~(1 << 29);	/* Diasble lock override */
 		WR4(sc, sc->misc_reg, reg);
 	}
 
