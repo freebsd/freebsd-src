@@ -954,6 +954,7 @@ vmbus_delete_child(struct vmbus_channel *chan)
 	if (chan->ch_dev != NULL) {
 		error = device_delete_child(chan->ch_vmbus->vmbus_dev,
 		    chan->ch_dev);
+		chan->ch_dev = NULL;
 	}
 	mtx_unlock(&Giant);
 	return (error);
