@@ -2,9 +2,6 @@
 
 .include "Makefile.common"
 
-# C++
-WANT_CHERI=none
-
 PROG_CXX=	zfsd
 MAN=		zfsd.8
 

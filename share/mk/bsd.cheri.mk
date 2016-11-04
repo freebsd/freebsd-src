@@ -12,6 +12,10 @@
 WANT_CHERI:= ${NEED_CHERI}
 .endif
 
+.if defined(LIB_CXX) || defined(PROG_CXX) || defined(SHLIB_CXX)
+WANT_CHERI=	none
+.endif
+
 .if ${MK_CHERI} != "no" && defined(WANT_CHERI) && ${WANT_CHERI} != "none"
 .if !defined(CHERI_CC)
 .error CHERI is enabled and request, but CHERI_CC is undefined
