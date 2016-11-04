@@ -2362,8 +2362,8 @@ eth_tx(struct mp_ring *r, u_int cidx, u_int pidx)
 		} else {
 			total++;
 			remaining--;
-			n = write_txpkt_wr(txq, (void *)wr, m0, available);
 			ETHER_BPF_MTAP(ifp, m0);
+			n = write_txpkt_wr(txq, (void *)wr, m0, available);
 		}
 		MPASS(n >= 1 && n <= available && n <= SGE_MAX_WR_NDESC);
 
