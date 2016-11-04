@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011 Chelsio Communications, Inc.
+ * Copyright (c) 2011, 2016 Chelsio Communications, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -332,11 +332,18 @@
 #define M_TCB_PDU_HDR_LEN    0xffULL
 #define V_TCB_PDU_HDR_LEN(x) ((x) << S_TCB_PDU_HDR_LEN)
 
-/* 1023:1001 */
+/* 1019:1001 */
 #define W_TCB_AUX1_SLUSH1    31
 #define S_TCB_AUX1_SLUSH1    9
-#define M_TCB_AUX1_SLUSH1    0x7fffffULL
+#define M_TCB_AUX1_SLUSH1    0x7ffffULL
 #define V_TCB_AUX1_SLUSH1(x) ((x) << S_TCB_AUX1_SLUSH1)
+
+/* 1023:1020 */
+#define W_TCB_ULP_EXT    31
+#define S_TCP_ULP_EXT    28
+#define M_TCB_ULP_EXT    0xfULL
+#define V_TCB_ULP_EXT(x) ((x) << S_TCP_ULP_EXT)
+
 
 /* 840:832 */
 #define W_TCB_IRS_ULP    26

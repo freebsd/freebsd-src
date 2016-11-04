@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012-2014 Chelsio Communications, Inc.
+ * Copyright (c) 2012-2016 Chelsio Communications, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -135,7 +135,13 @@ enum fw_wr_opcodes {
 	FW_POFCOE_ULPTX_WR	= 0x43,
 	FW_ISCSI_TX_DATA_WR	= 0x45,
 	FW_PTP_TX_PKT_WR        = 0x46,
-	FW_LASTC2E_WR		= 0x70
+	FW_SEC_LOOKASIDE_LPBK_WR= 0x6d,
+	FW_COiSCSI_TGT_WR	= 0x70,
+	FW_COiSCSI_TGT_CONN_WR	= 0x71,
+	FW_COiSCSI_TGT_XMIT_WR	= 0x72,
+	FW_ISNS_WR		= 0x75,
+	FW_ISNS_XMIT_WR		= 0x76,
+	FW_LASTC2E_WR		= 0x80
 };
 
 /*
@@ -907,6 +913,7 @@ enum fw_flowc_mnem {
 	FW_FLOWC_MNEM_DCBPRIO		= 12,
 	FW_FLOWC_MNEM_SND_SCALE		= 13,
 	FW_FLOWC_MNEM_RCV_SCALE		= 14,
+	FW_FLOWC_MNEM_MAX		= 15,
 };
 
 struct fw_flowc_mnemval {
@@ -1376,6 +1383,7 @@ enum fw_ri_res_type {
 	FW_RI_RES_TYPE_SQ,
 	FW_RI_RES_TYPE_RQ,
 	FW_RI_RES_TYPE_CQ,
+	FW_RI_RES_TYPE_SRQ,
 };
 
 enum fw_ri_res_op {
@@ -1409,6 +1417,20 @@ struct fw_ri_res {
 			__be32 r6_lo;
 			__be64 r7;
 		} cq;
+		struct fw_ri_res_srq {
+			__u8   restype;
+			__u8   op;
+			__be16 r3;
+			__be32 eqid;
+			__be32 r4[2];
+			__be32 fetchszm_to_iqid;
+			__be32 dcaen_to_eqsize;
+			__be64 eqaddr;
+			__be32 srqid;
+			__be32 pdid;
+			__be32 hwsrqsize;
+			__be32 hwsrqaddr;
+		} srq;
 	} u;
 };
 
@@ -1872,6 +1894,10 @@ enum fw_ri_init_p2ptype {
 	FW_RI_INIT_P2PTYPE_SEND_WITH_SE		= FW_RI_SEND_WITH_SE,
 	FW_RI_INIT_P2PTYPE_SEND_WITH_SE_INV	= FW_RI_SEND_WITH_SE_INV,
 	FW_RI_INIT_P2PTYPE_DISABLED		= 0xf,
+};
+
+enum fw_ri_init_rqeqid_srq {
+	FW_RI_INIT_RQEQID_SRQ			= 1 << 31,
 };
 
 struct fw_ri_wr {
@@ -2511,6 +2537,197 @@ struct fw_foiscsi_chap_wr {
 	__u8   chap_id[FW_FOISCSI_NAME_MAX_LEN];
 	__u8   chap_sec[FW_FOISCSI_CHAP_SEC_MAX_LEN];
 };
+
+/******************************************************************************
+ *  C O i S C S I  W O R K R E Q U E S T S
+ ********************************************/
+
+enum fw_chnet_addr_type {
+	FW_CHNET_ADDD_TYPE_NONE = 0,
+	FW_CHNET_ADDR_TYPE_IPV4,
+	FW_CHNET_ADDR_TYPE_IPV6,
+};
+
+enum fw_msg_wr_type {
+	FW_MSG_WR_TYPE_RPL = 0,
+	FW_MSG_WR_TYPE_ERR,
+	FW_MSG_WR_TYPE_PLD,
+};
+
+struct fw_coiscsi_tgt_wr {
+	__be32 op_compl;
+	__be32 flowid_len16;
+	__u64  cookie;
+	__u8   subop;
+	__u8   status;
+	__be16 r4;
+	__be32 flags;
+	struct fw_coiscsi_tgt_conn_attr {
+		__be32 in_tid;
+		__be16 in_port;
+		__u8   in_type;
+		__u8   r6;
+		union fw_coiscsi_tgt_conn_attr_addr {
+			struct fw_coiscsi_tgt_conn_attr_in_addr {
+				__be32 addr;
+				__be32 r7;
+				__be32 r8[2];
+			} in_addr;
+			struct fw_coiscsi_tgt_conn_attr_in_addr6 {
+				__be64 addr[2];
+			} in_addr6;
+		} u;
+	} conn_attr;
+};
+
+struct fw_coiscsi_tgt_conn_wr {
+	__be32 op_compl;
+	__be32 flowid_len16;
+	__u64  cookie;
+	__u8   subop;
+	__u8   status;
+	__be16 iq_id;
+	__be32 in_stid;
+	__be32 io_id;
+	__be32 flags;
+	struct fw_coiscsi_tgt_conn_tcp {
+		__be16 in_sport;
+		__be16 in_dport;
+		__be32 r4;
+		union fw_coiscsi_tgt_conn_tcp_addr {
+			struct fw_coiscsi_tgt_conn_tcp_in_addr {
+				__be32 saddr;
+				__be32 daddr;
+			} in_addr;
+			struct fw_coiscsi_tgt_conn_tcp_in_addr6 {
+				__be64 saddr[2];
+				__be64 daddr[2];
+			} in_addr6;
+		} u;
+	} conn_tcp;
+	struct fw_coiscsi_tgt_conn_iscsi {
+		__be32 hdigest_to_ddp_pgsz;
+		__be32 tgt_id;
+		__be16 max_r2t;
+		__be16 r5;
+		__be32 max_burst;
+		__be32 max_rdsl;
+		__be32 max_tdsl;
+		__be32 nxt_sn;
+		__be32 r6;
+	} conn_iscsi;
+};
+
+struct fw_coiscsi_tgt_xmit_wr {
+	__be32 op_to_immdlen;
+	__be32 flowid_len16;
+	__be64 cookie;
+	__be16 iq_id;
+	__be16 r4;
+	__be32 datasn;
+	__be32 t_xfer_len;
+	__be32 flags;
+	__be32 tag;
+	__be32 tidx;
+	__be32 r5[2];
+};
+
+#define S_FW_COiSCSI_TGT_XMIT_WR_DDGST		23
+#define M_FW_COiSCSI_TGT_XMIT_WR_DDGST		0x1
+#define V_FW_COiSCSI_TGT_XMIT_WR_DDGST(x)	\
+    ((x) << S_FW_COiSCSI_TGT_XMIT_WR_DDGST)
+#define G_FW_COiSCSI_TGT_XMIT_WR_DDGST(x)	\
+    (((x) >> S_FW_COiSCSI_TGT_XMIT_WR_DDGST) & M_FW_COiSCSI_TGT_XMIT_WR_DDGST)
+#define F_FW_COiSCSI_TGT_XMIT_WR_DDGST	V_FW_COiSCSI_TGT_XMIT_WR_DDGST(1U)
+
+#define S_FW_COiSCSI_TGT_XMIT_WR_HDGST		22
+#define M_FW_COiSCSI_TGT_XMIT_WR_HDGST		0x1
+#define V_FW_COiSCSI_TGT_XMIT_WR_HDGST(x)	\
+    ((x) << S_FW_COiSCSI_TGT_XMIT_WR_HDGST)
+#define G_FW_COiSCSI_TGT_XMIT_WR_HDGST(x)	\
+    (((x) >> S_FW_COiSCSI_TGT_XMIT_WR_HDGST) & M_FW_COiSCSI_TGT_XMIT_WR_HDGST)
+#define F_FW_COiSCSI_TGT_XMIT_WR_HDGST	V_FW_COiSCSI_TGT_XMIT_WR_HDGST(1U)
+
+#define S_FW_COiSCSI_TGT_XMIT_WR_DDP	20
+#define M_FW_COiSCSI_TGT_XMIT_WR_DDP	0x1
+#define V_FW_COiSCSI_TGT_XMIT_WR_DDP(x)	((x) << S_FW_COiSCSI_TGT_XMIT_WR_DDP)
+#define G_FW_COiSCSI_TGT_XMIT_WR_DDP(x)	\
+    (((x) >> S_FW_COiSCSI_TGT_XMIT_WR_DDP) & M_FW_COiSCSI_TGT_XMIT_WR_DDP)
+#define F_FW_COiSCSI_TGT_XMIT_WR_DDP	V_FW_COiSCSI_TGT_XMIT_WR_DDP(1U)
+
+#define S_FW_COiSCSI_TGT_XMIT_WR_ABORT		19
+#define M_FW_COiSCSI_TGT_XMIT_WR_ABORT		0x1
+#define V_FW_COiSCSI_TGT_XMIT_WR_ABORT(x)	\
+    ((x) << S_FW_COiSCSI_TGT_XMIT_WR_ABORT)
+#define G_FW_COiSCSI_TGT_XMIT_WR_ABORT(x)	\
+    (((x) >> S_FW_COiSCSI_TGT_XMIT_WR_ABORT) & M_FW_COiSCSI_TGT_XMIT_WR_ABORT)
+#define F_FW_COiSCSI_TGT_XMIT_WR_ABORT	V_FW_COiSCSI_TGT_XMIT_WR_ABORT(1U)
+
+#define S_FW_COiSCSI_TGT_XMIT_WR_FINAL		18
+#define M_FW_COiSCSI_TGT_XMIT_WR_FINAL		0x1
+#define V_FW_COiSCSI_TGT_XMIT_WR_FINAL(x)	\
+    ((x) << S_FW_COiSCSI_TGT_XMIT_WR_FINAL)
+#define G_FW_COiSCSI_TGT_XMIT_WR_FINAL(x)	\
+    (((x) >> S_FW_COiSCSI_TGT_XMIT_WR_FINAL) & M_FW_COiSCSI_TGT_XMIT_WR_FINAL)
+#define F_FW_COiSCSI_TGT_XMIT_WR_FINAL	V_FW_COiSCSI_TGT_XMIT_WR_FINAL(1U)
+
+#define S_FW_COiSCSI_TGT_XMIT_WR_PADLEN		16
+#define M_FW_COiSCSI_TGT_XMIT_WR_PADLEN		0x3
+#define V_FW_COiSCSI_TGT_XMIT_WR_PADLEN(x)	\
+    ((x) << S_FW_COiSCSI_TGT_XMIT_WR_PADLEN)
+#define G_FW_COiSCSI_TGT_XMIT_WR_PADLEN(x)	\
+    (((x) >> S_FW_COiSCSI_TGT_XMIT_WR_PADLEN) & \
+     M_FW_COiSCSI_TGT_XMIT_WR_PADLEN)
+
+#define S_FW_COiSCSI_TGT_XMIT_WR_IMMDLEN	0
+#define M_FW_COiSCSI_TGT_XMIT_WR_IMMDLEN	0xff
+#define V_FW_COiSCSI_TGT_XMIT_WR_IMMDLEN(x)	\
+    ((x) << S_FW_COiSCSI_TGT_XMIT_WR_IMMDLEN)
+#define G_FW_COiSCSI_TGT_XMIT_WR_IMMDLEN(x)	\
+    (((x) >> S_FW_COiSCSI_TGT_XMIT_WR_IMMDLEN) & \
+     M_FW_COiSCSI_TGT_XMIT_WR_IMMDLEN)
+
+struct fw_isns_wr {
+	__be32 op_compl;
+	__be32 flowid_len16;
+	__u64  cookie;
+	__u8   subop;
+	__u8   status;
+	__be16 iq_id;
+	__be32 r4;
+	struct fw_tcp_conn_attr {
+		__be32 in_tid;
+		__be16 in_port;
+		__u8   in_type;
+		__u8   r6;
+		union fw_tcp_conn_attr_addr {
+			struct fw_tcp_conn_attr_in_addr {
+				__be32 addr;
+				__be32 r7;
+				__be32 r8[2];
+			} in_addr;
+			struct fw_tcp_conn_attr_in_addr6 {
+				__be64 addr[2];
+			} in_addr6;
+		} u;
+	} conn_attr;
+};
+
+struct fw_isns_xmit_wr {
+	__be32 op_to_immdlen;
+	__be32 flowid_len16;
+	__be64 cookie;
+	__be16 iq_id;
+	__be16 r4;
+	__be32 xfer_len;
+	__be64 r5;
+};
+
+#define S_FW_ISNS_XMIT_WR_IMMDLEN	0
+#define M_FW_ISNS_XMIT_WR_IMMDLEN	0xff
+#define V_FW_ISNS_XMIT_WR_IMMDLEN(x)	((x) << S_FW_ISNS_XMIT_WR_IMMDLEN)
+#define G_FW_ISNS_XMIT_WR_IMMDLEN(x)	\
+    (((x) >> S_FW_ISNS_XMIT_WR_IMMDLEN) & M_FW_ISNS_XMIT_WR_IMMDLEN)
 
 /******************************************************************************
  *  F O F C O E   W O R K R E Q U E S T s
@@ -3168,6 +3385,127 @@ struct fw_pi_error {
     (((x) >> S_FW_PI_ERROR_ERR_TYPE) & M_FW_PI_ERROR_ERR_TYPE)
 
 
+struct fw_sec_lookaside_lpbk_wr {
+        __be32 op_to_cctx_size;
+        __be32 len16_pkd;
+        __be32 session_id;
+        __be32 rx_chid_to_rx_q_id;
+        __be32 key_addr;
+        __be32 pld_size_hash_size;
+        __be64 cookie;
+};
+
+#define S_FW_SEC_LOOKASIDE_LPBK_WR_OPCODE 24
+#define M_FW_SEC_LOOKASIDE_LPBK_WR_OPCODE 0xff
+#define V_FW_SEC_LOOKASIDE_LPBK_WR_OPCODE(x) \
+    ((x) << S_FW_SEC_LOOKASIDE_LPBK_WR_OPCODE)
+#define G_FW_SEC_LOOKASIDE_LPBK_WR_OPCODE(x) \
+    (((x) >> S_FW_SEC_LOOKASIDE_LPBK_WR_OPCODE) & \
+     M_FW_SEC_LOOKASIDE_LPBK_WR_OPCODE)
+
+#define S_FW_SEC_LOOKASIDE_LPBK_WR_COMPL 23
+#define M_FW_SEC_LOOKASIDE_LPBK_WR_COMPL 0x1
+#define V_FW_SEC_LOOKASIDE_LPBK_WR_COMPL(x) \
+    ((x) << S_FW_SEC_LOOKASIDE_LPBK_WR_COMPL)
+#define G_FW_SEC_LOOKASIDE_LPBK_WR_COMPL(x) \
+    (((x) >> S_FW_SEC_LOOKASIDE_LPBK_WR_COMPL) & \
+     M_FW_SEC_LOOKASIDE_LPBK_WR_COMPL)
+#define F_FW_SEC_LOOKASIDE_LPBK_WR_COMPL V_FW_SEC_LOOKASIDE_LPBK_WR_COMPL(1U)
+
+#define S_FW_SEC_LOOKASIDE_LPBK_WR_IMM_LEN 15
+#define M_FW_SEC_LOOKASIDE_LPBK_WR_IMM_LEN 0xff
+#define V_FW_SEC_LOOKASIDE_LPBK_WR_IMM_LEN(x) \
+    ((x) << S_FW_SEC_LOOKASIDE_LPBK_WR_IMM_LEN)
+#define G_FW_SEC_LOOKASIDE_LPBK_WR_IMM_LEN(x) \
+    (((x) >> S_FW_SEC_LOOKASIDE_LPBK_WR_IMM_LEN) & \
+     M_FW_SEC_LOOKASIDE_LPBK_WR_IMM_LEN)
+
+#define S_FW_SEC_LOOKASIDE_LPBK_WR_CCTX_LOC 5
+#define M_FW_SEC_LOOKASIDE_LPBK_WR_CCTX_LOC 0x3
+#define V_FW_SEC_LOOKASIDE_LPBK_WR_CCTX_LOC(x) \
+    ((x) << S_FW_SEC_LOOKASIDE_LPBK_WR_CCTX_LOC)
+#define G_FW_SEC_LOOKASIDE_LPBK_WR_CCTX_LOC(x) \
+    (((x) >> S_FW_SEC_LOOKASIDE_LPBK_WR_CCTX_LOC) & \
+     M_FW_SEC_LOOKASIDE_LPBK_WR_CCTX_LOC)
+
+#define S_FW_SEC_LOOKASIDE_LPBK_WR_CCTX_SIZE 0
+#define M_FW_SEC_LOOKASIDE_LPBK_WR_CCTX_SIZE 0x1f
+#define V_FW_SEC_LOOKASIDE_LPBK_WR_CCTX_SIZE(x) \
+    ((x) << S_FW_SEC_LOOKASIDE_LPBK_WR_CCTX_SIZE)
+#define G_FW_SEC_LOOKASIDE_LPBK_WR_CCTX_SIZE(x) \
+    (((x) >> S_FW_SEC_LOOKASIDE_LPBK_WR_CCTX_SIZE) & \
+     M_FW_SEC_LOOKASIDE_LPBK_WR_CCTX_SIZE)
+
+#define S_FW_SEC_LOOKASIDE_LPBK_WR_LEN16 0
+#define M_FW_SEC_LOOKASIDE_LPBK_WR_LEN16 0xff
+#define V_FW_SEC_LOOKASIDE_LPBK_WR_LEN16(x) \
+    ((x) << S_FW_SEC_LOOKASIDE_LPBK_WR_LEN16)
+#define G_FW_SEC_LOOKASIDE_LPBK_WR_LEN16(x) \
+    (((x) >> S_FW_SEC_LOOKASIDE_LPBK_WR_LEN16) & \
+     M_FW_SEC_LOOKASIDE_LPBK_WR_LEN16)
+
+#define S_FW_SEC_LOOKASIDE_LPBK_WR_RX_CHID 29
+#define M_FW_SEC_LOOKASIDE_LPBK_WR_RX_CHID 0x3
+#define V_FW_SEC_LOOKASIDE_LPBK_WR_RX_CHID(x) \
+    ((x) << S_FW_SEC_LOOKASIDE_LPBK_WR_RX_CHID)
+#define G_FW_SEC_LOOKASIDE_LPBK_WR_RX_CHID(x) \
+    (((x) >> S_FW_SEC_LOOKASIDE_LPBK_WR_RX_CHID) & \
+     M_FW_SEC_LOOKASIDE_LPBK_WR_RX_CHID)
+
+#define S_FW_SEC_LOOKASIDE_LPBK_WR_LCB  27
+#define M_FW_SEC_LOOKASIDE_LPBK_WR_LCB  0x3
+#define V_FW_SEC_LOOKASIDE_LPBK_WR_LCB(x) \
+    ((x) << S_FW_SEC_LOOKASIDE_LPBK_WR_LCB)
+#define G_FW_SEC_LOOKASIDE_LPBK_WR_LCB(x) \
+    (((x) >> S_FW_SEC_LOOKASIDE_LPBK_WR_LCB) & M_FW_SEC_LOOKASIDE_LPBK_WR_LCB)
+
+#define S_FW_SEC_LOOKASIDE_LPBK_WR_PHASH 25
+#define M_FW_SEC_LOOKASIDE_LPBK_WR_PHASH 0x3
+#define V_FW_SEC_LOOKASIDE_LPBK_WR_PHASH(x) \
+    ((x) << S_FW_SEC_LOOKASIDE_LPBK_WR_PHASH)
+#define G_FW_SEC_LOOKASIDE_LPBK_WR_PHASH(x) \
+    (((x) >> S_FW_SEC_LOOKASIDE_LPBK_WR_PHASH) & \
+     M_FW_SEC_LOOKASIDE_LPBK_WR_PHASH)
+
+#define S_FW_SEC_LOOKASIDE_LPBK_WR_IV   23
+#define M_FW_SEC_LOOKASIDE_LPBK_WR_IV   0x3
+#define V_FW_SEC_LOOKASIDE_LPBK_WR_IV(x) \
+    ((x) << S_FW_SEC_LOOKASIDE_LPBK_WR_IV)
+#define G_FW_SEC_LOOKASIDE_LPBK_WR_IV(x) \
+    (((x) >> S_FW_SEC_LOOKASIDE_LPBK_WR_IV) & M_FW_SEC_LOOKASIDE_LPBK_WR_IV)
+
+#define S_FW_SEC_LOOKASIDE_LPBK_WR_TX_CH 10
+#define M_FW_SEC_LOOKASIDE_LPBK_WR_TX_CH 0x3
+#define V_FW_SEC_LOOKASIDE_LPBK_WR_TX_CH(x) \
+    ((x) << S_FW_SEC_LOOKASIDE_LPBK_WR_TX_CH)
+#define G_FW_SEC_LOOKASIDE_LPBK_WR_TX_CH(x) \
+    (((x) >> S_FW_SEC_LOOKASIDE_LPBK_WR_TX_CH) & \
+     M_FW_SEC_LOOKASIDE_LPBK_WR_TX_CH)
+
+#define S_FW_SEC_LOOKASIDE_LPBK_WR_RX_Q_ID 0
+#define M_FW_SEC_LOOKASIDE_LPBK_WR_RX_Q_ID 0x3ff
+#define V_FW_SEC_LOOKASIDE_LPBK_WR_RX_Q_ID(x) \
+    ((x) << S_FW_SEC_LOOKASIDE_LPBK_WR_RX_Q_ID)
+#define G_FW_SEC_LOOKASIDE_LPBK_WR_RX_Q_ID(x) \
+    (((x) >> S_FW_SEC_LOOKASIDE_LPBK_WR_RX_Q_ID) & \
+     M_FW_SEC_LOOKASIDE_LPBK_WR_RX_Q_ID)
+
+#define S_FW_SEC_LOOKASIDE_LPBK_WR_PLD_SIZE 24
+#define M_FW_SEC_LOOKASIDE_LPBK_WR_PLD_SIZE 0xff
+#define V_FW_SEC_LOOKASIDE_LPBK_WR_PLD_SIZE(x) \
+    ((x) << S_FW_SEC_LOOKASIDE_LPBK_WR_PLD_SIZE)
+#define G_FW_SEC_LOOKASIDE_LPBK_WR_PLD_SIZE(x) \
+    (((x) >> S_FW_SEC_LOOKASIDE_LPBK_WR_PLD_SIZE) & \
+     M_FW_SEC_LOOKASIDE_LPBK_WR_PLD_SIZE)
+
+#define S_FW_SEC_LOOKASIDE_LPBK_WR_HASH_SIZE 17
+#define M_FW_SEC_LOOKASIDE_LPBK_WR_HASH_SIZE 0x7f
+#define V_FW_SEC_LOOKASIDE_LPBK_WR_HASH_SIZE(x) \
+    ((x) << S_FW_SEC_LOOKASIDE_LPBK_WR_HASH_SIZE)
+#define G_FW_SEC_LOOKASIDE_LPBK_WR_HASH_SIZE(x) \
+    (((x) >> S_FW_SEC_LOOKASIDE_LPBK_WR_HASH_SIZE) & \
+     M_FW_SEC_LOOKASIDE_LPBK_WR_HASH_SIZE)
+
 /******************************************************************************
  *  C O M M A N D s
  *********************/
@@ -3232,7 +3570,8 @@ enum fw_cmd_opcodes {
 	FW_FCOE_SPARAMS_CMD            = 0x35,
 	FW_FCOE_STATS_CMD              = 0x37,
 	FW_FCOE_FCF_CMD                = 0x38,
-	FW_PTP_CMD                     = 0x39,
+	FW_DCB_IEEE_CMD		       = 0x3a,
+	FW_PTP_CMD                     = 0x3e,
 	FW_LASTC2E_CMD                 = 0x40,
 	FW_ERROR_CMD                   = 0x80,
 	FW_DEBUG_CMD                   = 0x81,
@@ -3703,6 +4042,7 @@ enum fw_caps_config_hm {
 #define FW_T4VF_MPS_BASE_ADDR      0x0100
 #define FW_T4VF_PL_BASE_ADDR       0x0200
 #define FW_T4VF_MBDATA_BASE_ADDR   0x0240
+#define FW_T6VF_MBDATA_BASE_ADDR   0x0280 /* aligned to mbox size 128B */
 #define FW_T4VF_CIM_BASE_ADDR      0x0300
 
 #define FW_T4VF_REGMAP_START       0x0000
@@ -3751,6 +4091,12 @@ enum fw_caps_config_iscsi {
 	FW_CAPS_CONFIG_ISCSI_INITIATOR_SSNOFLD = 0x00000010,
 	FW_CAPS_CONFIG_ISCSI_TARGET_SSNOFLD = 0x00000020,
 	FW_CAPS_CONFIG_ISCSI_T10DIF = 0x00000040,
+	FW_CAPS_CONFIG_ISCSI_INITIATOR_CMDOFLD = 0x00000080,
+	FW_CAPS_CONFIG_ISCSI_TARGET_CMDOFLD = 0x00000100,
+};
+
+enum fw_caps_config_tls {
+	FW_CAPS_CONFIG_TLSKEYS = 0x00000001,
 };
 
 enum fw_caps_config_fcoe {
@@ -3782,7 +4128,7 @@ struct fw_caps_config_cmd {
 	__be16 niccaps;
 	__be16 toecaps;
 	__be16 rdmacaps;
-	__be16 r4;
+	__be16 tlscaps;
 	__be16 iscsicaps;
 	__be16 fcoecaps;
 	__be32 cfcsum;
@@ -3923,6 +4269,8 @@ enum fw_params_param_pfvf {
 	FW_PARAMS_PARAM_PFVF_SQRQ_END	= 0x16,
 	FW_PARAMS_PARAM_PFVF_CQ_START	= 0x17,
 	FW_PARAMS_PARAM_PFVF_CQ_END	= 0x18,
+	FW_PARAMS_PARAM_PFVF_SRQ_START	= 0x19,
+	FW_PARAMS_PARAM_PFVF_SRQ_END	= 0x1A,
 	FW_PARAMS_PARAM_PFVF_SCHEDCLASS_ETH = 0x20,
 	FW_PARAMS_PARAM_PFVF_VIID	= 0x24,
 	FW_PARAMS_PARAM_PFVF_CPMASK	= 0x25,
@@ -3937,7 +4285,13 @@ enum fw_params_param_pfvf {
 	FW_PARAMS_PARAM_PFVF_ACTIVE_FILTER_END = 0x2E,
 	FW_PARAMS_PARAM_PFVF_ETHOFLD_START = 0x2F,
 	FW_PARAMS_PARAM_PFVF_ETHOFLD_END = 0x30,
-	FW_PARAMS_PARAM_PFVF_CPLFW4MSG_ENCAP = 0x31
+	FW_PARAMS_PARAM_PFVF_CPLFW4MSG_ENCAP = 0x31,
+	FW_PARAMS_PARAM_PFVF_HPFILTER_START = 0x32,
+	FW_PARAMS_PARAM_PFVF_HPFILTER_END = 0x33,
+	FW_PARAMS_PARAM_PFVF_TLS_START = 0x34,
+        FW_PARAMS_PARAM_PFVF_TLS_END = 0x35,
+	FW_PARAMS_PARAM_PFVF_RAWF_START	= 0x36,
+	FW_PARAMS_PARAM_PFVF_RAWF_END	= 0x37,
 };
 
 /*
@@ -3947,11 +4301,14 @@ enum fw_params_param_dmaq {
 	FW_PARAMS_PARAM_DMAQ_IQ_DCAEN_DCACPU = 0x00,
 	FW_PARAMS_PARAM_DMAQ_IQ_INTCNTTHRESH = 0x01,
 	FW_PARAMS_PARAM_DMAQ_IQ_INTIDX	= 0x02,
+	FW_PARAMS_PARAM_DMAQ_IQ_DCA	= 0x03,
 	FW_PARAMS_PARAM_DMAQ_EQ_CMPLIQID_MNGT = 0x10,
 	FW_PARAMS_PARAM_DMAQ_EQ_CMPLIQID_CTRL = 0x11,
 	FW_PARAMS_PARAM_DMAQ_EQ_SCHEDCLASS_ETH = 0x12,
 	FW_PARAMS_PARAM_DMAQ_EQ_DCBPRIO_ETH = 0x13,
-	FW_PARAMS_PARAM_DMAQ_CONM_CTXT = 0x20,
+	FW_PARAMS_PARAM_DMAQ_EQ_DCA	= 0x14,
+	FW_PARAMS_PARAM_DMAQ_CONM_CTXT	= 0x20,
+	FW_PARAMS_PARAM_DMAQ_FLM_DCA	= 0x30
 };
 
 /*
@@ -4002,6 +4359,29 @@ enum fw_params_param_chnet_flags {
 #define V_FW_PARAMS_PARAM_YZ(x) ((x) << S_FW_PARAMS_PARAM_YZ)
 #define G_FW_PARAMS_PARAM_YZ(x) \
     (((x) >> S_FW_PARAMS_PARAM_YZ) & M_FW_PARAMS_PARAM_YZ)
+
+#define S_FW_PARAMS_PARAM_DMAQ_DCA_TPHINTEN 31
+#define M_FW_PARAMS_PARAM_DMAQ_DCA_TPHINTEN 0x1
+#define V_FW_PARAMS_PARAM_DMAQ_DCA_TPHINTEN(x) \
+    ((x) << S_FW_PARAMS_PARAM_DMAQ_DCA_TPHINTEN)
+#define G_FW_PARAMS_PARAM_DMAQ_DCA_TPHINTEN(x) \
+    (((x) >> S_FW_PARAMS_PARAM_DMAQ_DCA_TPHINTEN) & \
+	M_FW_PARAMS_PARAM_DMAQ_DCA_TPHINTEN)
+
+#define S_FW_PARAMS_PARAM_DMAQ_DCA_TPHINT 24
+#define M_FW_PARAMS_PARAM_DMAQ_DCA_TPHINT 0x3
+#define V_FW_PARAMS_PARAM_DMAQ_DCA_TPHINT(x) \
+    ((x) << S_FW_PARAMS_PARAM_DMAQ_DCA_TPHINT)
+#define G_FW_PARAMS_PARAM_DMAQ_DCA_TPHINT(x) \
+    (((x) >> S_FW_PARAMS_PARAM_DMAQ_DCA_TPHINT) & \
+	M_FW_PARAMS_PARAM_DMAQ_DCA_TPHINT)
+
+#define S_FW_PARAMS_PARAM_DMAQ_DCA_ST	0
+#define M_FW_PARAMS_PARAM_DMAQ_DCA_ST	0x7ff
+#define V_FW_PARAMS_PARAM_DMAQ_DCA_ST(x) \
+    ((x) << S_FW_PARAMS_PARAM_DMAQ_DCA_ST)
+#define G_FW_PARAMS_PARAM_DMAQ_DCA_ST(x) \
+    (((x) >> S_FW_PARAMS_PARAM_DMAQ_DCA_ST) & M_FW_PARAMS_PARAM_DMAQ_DCA_ST)
 
 struct fw_params_cmd {
 	__be32 op_to_vfn;
@@ -5546,6 +5926,12 @@ enum fw_vi_mac_result {
 	FW_VI_MAC_R_F_ACL_CHECK
 };
 
+enum fw_vi_mac_entry_types {
+	FW_VI_MAC_TYPE_EXACTMAC,
+	FW_VI_MAC_TYPE_HASHVEC,
+	FW_VI_MAC_TYPE_RAW,
+};
+
 struct fw_vi_mac_cmd {
 	__be32 op_to_viid;
 	__be32 freemacs_to_len16;
@@ -5557,6 +5943,13 @@ struct fw_vi_mac_cmd {
 		struct fw_vi_mac_hash {
 			__be64 hashvec;
 		} hash;
+		struct fw_vi_mac_raw {
+			__be32 raw_idx_pkd;
+			__be32 data0_pkd;
+			__be32 data1[2];
+			__be64 data0m_pkd;
+			__be32 data1m[2];
+		} raw;
 	} u;
 };
 
@@ -5573,12 +5966,11 @@ struct fw_vi_mac_cmd {
     (((x) >> S_FW_VI_MAC_CMD_FREEMACS) & M_FW_VI_MAC_CMD_FREEMACS)
 #define F_FW_VI_MAC_CMD_FREEMACS	V_FW_VI_MAC_CMD_FREEMACS(1U)
 
-#define S_FW_VI_MAC_CMD_HASHVECEN	23
-#define M_FW_VI_MAC_CMD_HASHVECEN	0x1
-#define V_FW_VI_MAC_CMD_HASHVECEN(x)	((x) << S_FW_VI_MAC_CMD_HASHVECEN)
-#define G_FW_VI_MAC_CMD_HASHVECEN(x)	\
-    (((x) >> S_FW_VI_MAC_CMD_HASHVECEN) & M_FW_VI_MAC_CMD_HASHVECEN)
-#define F_FW_VI_MAC_CMD_HASHVECEN	V_FW_VI_MAC_CMD_HASHVECEN(1U)
+#define S_FW_VI_MAC_CMD_ENTRY_TYPE	23
+#define M_FW_VI_MAC_CMD_ENTRY_TYPE	0x7
+#define V_FW_VI_MAC_CMD_ENTRY_TYPE(x)	((x) << S_FW_VI_MAC_CMD_ENTRY_TYPE)
+#define G_FW_VI_MAC_CMD_ENTRY_TYPE(x)	\
+    (((x) >> S_FW_VI_MAC_CMD_ENTRY_TYPE) & M_FW_VI_MAC_CMD_ENTRY_TYPE)
 
 #define S_FW_VI_MAC_CMD_HASHUNIEN	22
 #define M_FW_VI_MAC_CMD_HASHUNIEN	0x1
@@ -5611,6 +6003,18 @@ struct fw_vi_mac_cmd {
 #define V_FW_VI_MAC_CMD_IDX(x)		((x) << S_FW_VI_MAC_CMD_IDX)
 #define G_FW_VI_MAC_CMD_IDX(x)		\
     (((x) >> S_FW_VI_MAC_CMD_IDX) & M_FW_VI_MAC_CMD_IDX)
+
+#define S_FW_VI_MAC_CMD_RAW_IDX		16
+#define M_FW_VI_MAC_CMD_RAW_IDX		0xffff
+#define V_FW_VI_MAC_CMD_RAW_IDX(x)	((x) << S_FW_VI_MAC_CMD_RAW_IDX)
+#define G_FW_VI_MAC_CMD_RAW_IDX(x)	\
+    (((x) >> S_FW_VI_MAC_CMD_RAW_IDX) & M_FW_VI_MAC_CMD_RAW_IDX)
+
+#define S_FW_VI_MAC_CMD_DATA0		0
+#define M_FW_VI_MAC_CMD_DATA0		0xffff
+#define V_FW_VI_MAC_CMD_DATA0(x)	((x) << S_FW_VI_MAC_CMD_DATA0)
+#define G_FW_VI_MAC_CMD_DATA0(x)	\
+    (((x) >> S_FW_VI_MAC_CMD_DATA0) & M_FW_VI_MAC_CMD_DATA0)
 
 /* T4 max MTU supported */
 #define T4_MAX_MTU_SUPPORTED	9600
@@ -6827,9 +7231,9 @@ struct fw_ptp_cmd {
 		} init;
 		struct fw_ptp_ts {
 			__u8   sc;
-			__u8   r3;
-			__be16 ppb;
-			__be32 r4;
+			__u8   sign;
+			__be16 r3;
+			__be32 ppb;
 			__be64 tm;
 		} ts;
 	} u;
@@ -7369,7 +7773,8 @@ enum fw_devlog_facility {
 	FW_DEVLOG_FACILITY_FOISCSI	= 0x30,
 	FW_DEVLOG_FACILITY_FOFCOE	= 0x32,
 	FW_DEVLOG_FACILITY_CHNET	= 0x34,
-	FW_DEVLOG_FACILITY_MAX		= 0x34
+	FW_DEVLOG_FACILITY_COiSCSI	= 0x36,
+	FW_DEVLOG_FACILITY_MAX		= 0x38,
 };
 
 /*
@@ -7882,6 +8287,180 @@ enum fw_error_type {
 	FW_ERROR_TYPE_ACL		= 0x3,
 };
 
+enum fw_dcb_ieee_locations {
+	FW_IEEE_LOC_LOCAL,
+	FW_IEEE_LOC_PEER,
+	FW_IEEE_LOC_OPERATIONAL,
+};
+
+struct fw_dcb_ieee_cmd {
+	__be32 op_to_location;
+	__be32 changed_to_len16;
+	union fw_dcbx_stats {
+		struct fw_dcbx_pfc_stats_ieee {
+			__be32 pfc_mbc_pkd;
+			__be32 pfc_willing_to_pfc_en;
+		} dcbx_pfc_stats;
+		struct fw_dcbx_ets_stats_ieee {
+			__be32 cbs_to_ets_max_tc;
+			__be32 pg_table;
+			__u8   pg_percent[8];
+			__u8   tsa[8];
+		} dcbx_ets_stats;
+		struct fw_dcbx_app_stats_ieee {
+			__be32 num_apps_pkd;
+			__be32 r6;
+			__be32 app[4];
+		} dcbx_app_stats;
+		struct fw_dcbx_control {
+			__be32 multi_peer_invalidated;
+			__be32 r5_lo;
+		} dcbx_control;
+	} u;
+};
+
+#define S_FW_DCB_IEEE_CMD_PORT		8
+#define M_FW_DCB_IEEE_CMD_PORT		0x7
+#define V_FW_DCB_IEEE_CMD_PORT(x)	((x) << S_FW_DCB_IEEE_CMD_PORT)
+#define G_FW_DCB_IEEE_CMD_PORT(x)	\
+    (((x) >> S_FW_DCB_IEEE_CMD_PORT) & M_FW_DCB_IEEE_CMD_PORT)
+
+#define S_FW_DCB_IEEE_CMD_FEATURE	2
+#define M_FW_DCB_IEEE_CMD_FEATURE	0x7
+#define V_FW_DCB_IEEE_CMD_FEATURE(x)	((x) << S_FW_DCB_IEEE_CMD_FEATURE)
+#define G_FW_DCB_IEEE_CMD_FEATURE(x)	\
+    (((x) >> S_FW_DCB_IEEE_CMD_FEATURE) & M_FW_DCB_IEEE_CMD_FEATURE)
+
+#define S_FW_DCB_IEEE_CMD_LOCATION	0
+#define M_FW_DCB_IEEE_CMD_LOCATION	0x3
+#define V_FW_DCB_IEEE_CMD_LOCATION(x)	((x) << S_FW_DCB_IEEE_CMD_LOCATION)
+#define G_FW_DCB_IEEE_CMD_LOCATION(x)	\
+    (((x) >> S_FW_DCB_IEEE_CMD_LOCATION) & M_FW_DCB_IEEE_CMD_LOCATION)
+
+#define S_FW_DCB_IEEE_CMD_CHANGED	20
+#define M_FW_DCB_IEEE_CMD_CHANGED	0x1
+#define V_FW_DCB_IEEE_CMD_CHANGED(x)	((x) << S_FW_DCB_IEEE_CMD_CHANGED)
+#define G_FW_DCB_IEEE_CMD_CHANGED(x)	\
+    (((x) >> S_FW_DCB_IEEE_CMD_CHANGED) & M_FW_DCB_IEEE_CMD_CHANGED)
+#define F_FW_DCB_IEEE_CMD_CHANGED	V_FW_DCB_IEEE_CMD_CHANGED(1U)
+
+#define S_FW_DCB_IEEE_CMD_RECEIVED	19
+#define M_FW_DCB_IEEE_CMD_RECEIVED	0x1
+#define V_FW_DCB_IEEE_CMD_RECEIVED(x)	((x) << S_FW_DCB_IEEE_CMD_RECEIVED)
+#define G_FW_DCB_IEEE_CMD_RECEIVED(x)	\
+    (((x) >> S_FW_DCB_IEEE_CMD_RECEIVED) & M_FW_DCB_IEEE_CMD_RECEIVED)
+#define F_FW_DCB_IEEE_CMD_RECEIVED	V_FW_DCB_IEEE_CMD_RECEIVED(1U)
+
+#define S_FW_DCB_IEEE_CMD_APPLY		18
+#define M_FW_DCB_IEEE_CMD_APPLY		0x1
+#define V_FW_DCB_IEEE_CMD_APPLY(x)	((x) << S_FW_DCB_IEEE_CMD_APPLY)
+#define G_FW_DCB_IEEE_CMD_APPLY(x)	\
+    (((x) >> S_FW_DCB_IEEE_CMD_APPLY) & M_FW_DCB_IEEE_CMD_APPLY)
+#define F_FW_DCB_IEEE_CMD_APPLY	V_FW_DCB_IEEE_CMD_APPLY(1U)
+
+#define S_FW_DCB_IEEE_CMD_DISABLED	17
+#define M_FW_DCB_IEEE_CMD_DISABLED	0x1
+#define V_FW_DCB_IEEE_CMD_DISABLED(x)	((x) << S_FW_DCB_IEEE_CMD_DISABLED)
+#define G_FW_DCB_IEEE_CMD_DISABLED(x)	\
+    (((x) >> S_FW_DCB_IEEE_CMD_DISABLED) & M_FW_DCB_IEEE_CMD_DISABLED)
+#define F_FW_DCB_IEEE_CMD_DISABLED	V_FW_DCB_IEEE_CMD_DISABLED(1U)
+
+#define S_FW_DCB_IEEE_CMD_MORE		16
+#define M_FW_DCB_IEEE_CMD_MORE		0x1
+#define V_FW_DCB_IEEE_CMD_MORE(x)	((x) << S_FW_DCB_IEEE_CMD_MORE)
+#define G_FW_DCB_IEEE_CMD_MORE(x)	\
+    (((x) >> S_FW_DCB_IEEE_CMD_MORE) & M_FW_DCB_IEEE_CMD_MORE)
+#define F_FW_DCB_IEEE_CMD_MORE	V_FW_DCB_IEEE_CMD_MORE(1U)
+
+#define S_FW_DCB_IEEE_CMD_PFC_MBC	0
+#define M_FW_DCB_IEEE_CMD_PFC_MBC	0x1
+#define V_FW_DCB_IEEE_CMD_PFC_MBC(x)	((x) << S_FW_DCB_IEEE_CMD_PFC_MBC)
+#define G_FW_DCB_IEEE_CMD_PFC_MBC(x)	\
+    (((x) >> S_FW_DCB_IEEE_CMD_PFC_MBC) & M_FW_DCB_IEEE_CMD_PFC_MBC)
+#define F_FW_DCB_IEEE_CMD_PFC_MBC	V_FW_DCB_IEEE_CMD_PFC_MBC(1U)
+
+#define S_FW_DCB_IEEE_CMD_PFC_WILLING		16
+#define M_FW_DCB_IEEE_CMD_PFC_WILLING		0x1
+#define V_FW_DCB_IEEE_CMD_PFC_WILLING(x)	\
+    ((x) << S_FW_DCB_IEEE_CMD_PFC_WILLING)
+#define G_FW_DCB_IEEE_CMD_PFC_WILLING(x)	\
+    (((x) >> S_FW_DCB_IEEE_CMD_PFC_WILLING) & M_FW_DCB_IEEE_CMD_PFC_WILLING)
+#define F_FW_DCB_IEEE_CMD_PFC_WILLING	V_FW_DCB_IEEE_CMD_PFC_WILLING(1U)
+
+#define S_FW_DCB_IEEE_CMD_PFC_MAX_TC	8
+#define M_FW_DCB_IEEE_CMD_PFC_MAX_TC	0xff
+#define V_FW_DCB_IEEE_CMD_PFC_MAX_TC(x)	((x) << S_FW_DCB_IEEE_CMD_PFC_MAX_TC)
+#define G_FW_DCB_IEEE_CMD_PFC_MAX_TC(x)	\
+    (((x) >> S_FW_DCB_IEEE_CMD_PFC_MAX_TC) & M_FW_DCB_IEEE_CMD_PFC_MAX_TC)
+
+#define S_FW_DCB_IEEE_CMD_PFC_EN	0
+#define M_FW_DCB_IEEE_CMD_PFC_EN	0xff
+#define V_FW_DCB_IEEE_CMD_PFC_EN(x)	((x) << S_FW_DCB_IEEE_CMD_PFC_EN)
+#define G_FW_DCB_IEEE_CMD_PFC_EN(x)	\
+    (((x) >> S_FW_DCB_IEEE_CMD_PFC_EN) & M_FW_DCB_IEEE_CMD_PFC_EN)
+
+#define S_FW_DCB_IEEE_CMD_CBS		16
+#define M_FW_DCB_IEEE_CMD_CBS		0x1
+#define V_FW_DCB_IEEE_CMD_CBS(x)	((x) << S_FW_DCB_IEEE_CMD_CBS)
+#define G_FW_DCB_IEEE_CMD_CBS(x)	\
+    (((x) >> S_FW_DCB_IEEE_CMD_CBS) & M_FW_DCB_IEEE_CMD_CBS)
+#define F_FW_DCB_IEEE_CMD_CBS	V_FW_DCB_IEEE_CMD_CBS(1U)
+
+#define S_FW_DCB_IEEE_CMD_ETS_WILLING		8
+#define M_FW_DCB_IEEE_CMD_ETS_WILLING		0x1
+#define V_FW_DCB_IEEE_CMD_ETS_WILLING(x)	\
+    ((x) << S_FW_DCB_IEEE_CMD_ETS_WILLING)
+#define G_FW_DCB_IEEE_CMD_ETS_WILLING(x)	\
+    (((x) >> S_FW_DCB_IEEE_CMD_ETS_WILLING) & M_FW_DCB_IEEE_CMD_ETS_WILLING)
+#define F_FW_DCB_IEEE_CMD_ETS_WILLING	V_FW_DCB_IEEE_CMD_ETS_WILLING(1U)
+
+#define S_FW_DCB_IEEE_CMD_ETS_MAX_TC	0
+#define M_FW_DCB_IEEE_CMD_ETS_MAX_TC	0xff
+#define V_FW_DCB_IEEE_CMD_ETS_MAX_TC(x)	((x) << S_FW_DCB_IEEE_CMD_ETS_MAX_TC)
+#define G_FW_DCB_IEEE_CMD_ETS_MAX_TC(x)	\
+    (((x) >> S_FW_DCB_IEEE_CMD_ETS_MAX_TC) & M_FW_DCB_IEEE_CMD_ETS_MAX_TC)
+
+#define S_FW_DCB_IEEE_CMD_NUM_APPS	0
+#define M_FW_DCB_IEEE_CMD_NUM_APPS	0x7
+#define V_FW_DCB_IEEE_CMD_NUM_APPS(x)	((x) << S_FW_DCB_IEEE_CMD_NUM_APPS)
+#define G_FW_DCB_IEEE_CMD_NUM_APPS(x)	\
+    (((x) >> S_FW_DCB_IEEE_CMD_NUM_APPS) & M_FW_DCB_IEEE_CMD_NUM_APPS)
+
+#define S_FW_DCB_IEEE_CMD_MULTI_PEER	31
+#define M_FW_DCB_IEEE_CMD_MULTI_PEER	0x1
+#define V_FW_DCB_IEEE_CMD_MULTI_PEER(x)	((x) << S_FW_DCB_IEEE_CMD_MULTI_PEER)
+#define G_FW_DCB_IEEE_CMD_MULTI_PEER(x)	\
+    (((x) >> S_FW_DCB_IEEE_CMD_MULTI_PEER) & M_FW_DCB_IEEE_CMD_MULTI_PEER)
+#define F_FW_DCB_IEEE_CMD_MULTI_PEER	V_FW_DCB_IEEE_CMD_MULTI_PEER(1U)
+
+#define S_FW_DCB_IEEE_CMD_INVALIDATED		30
+#define M_FW_DCB_IEEE_CMD_INVALIDATED		0x1
+#define V_FW_DCB_IEEE_CMD_INVALIDATED(x)	\
+    ((x) << S_FW_DCB_IEEE_CMD_INVALIDATED)
+#define G_FW_DCB_IEEE_CMD_INVALIDATED(x)	\
+    (((x) >> S_FW_DCB_IEEE_CMD_INVALIDATED) & M_FW_DCB_IEEE_CMD_INVALIDATED)
+#define F_FW_DCB_IEEE_CMD_INVALIDATED	V_FW_DCB_IEEE_CMD_INVALIDATED(1U)
+
+/* Hand-written */
+#define S_FW_DCB_IEEE_CMD_APP_PROTOCOL	16
+#define M_FW_DCB_IEEE_CMD_APP_PROTOCOL	0xffff
+#define V_FW_DCB_IEEE_CMD_APP_PROTOCOL(x)	((x) << S_FW_DCB_IEEE_CMD_APP_PROTOCOL)
+#define G_FW_DCB_IEEE_CMD_APP_PROTOCOL(x)	\
+    (((x) >> S_FW_DCB_IEEE_CMD_APP_PROTOCOL) & M_FW_DCB_IEEE_CMD_APP_PROTOCOL)
+
+#define S_FW_DCB_IEEE_CMD_APP_SELECT	3
+#define M_FW_DCB_IEEE_CMD_APP_SELECT	0x7
+#define V_FW_DCB_IEEE_CMD_APP_SELECT(x)	((x) << S_FW_DCB_IEEE_CMD_APP_SELECT)
+#define G_FW_DCB_IEEE_CMD_APP_SELECT(x)	\
+    (((x) >> S_FW_DCB_IEEE_CMD_APP_SELECT) & M_FW_DCB_IEEE_CMD_APP_SELECT)
+
+#define S_FW_DCB_IEEE_CMD_APP_PRIORITY	0
+#define M_FW_DCB_IEEE_CMD_APP_PRIORITY	0x7
+#define V_FW_DCB_IEEE_CMD_APP_PRIORITY(x)	((x) << S_FW_DCB_IEEE_CMD_APP_PRIORITY)
+#define G_FW_DCB_IEEE_CMD_APP_PRIORITY(x)	\
+    (((x) >> S_FW_DCB_IEEE_CMD_APP_PRIORITY) & M_FW_DCB_IEEE_CMD_APP_PRIORITY)
+
+
 struct fw_error_cmd {
 	__be32 op_to_type;
 	__be32 len16_pkd;
@@ -8197,13 +8776,13 @@ enum fw_hdr_chip {
 
 enum {
 	T4FW_VERSION_MAJOR	= 0x01,
-	T4FW_VERSION_MINOR	= 0x0e,
-	T4FW_VERSION_MICRO	= 0x04,
+	T4FW_VERSION_MINOR	= 0x05,
+	T4FW_VERSION_MICRO	= 0x25,
 	T4FW_VERSION_BUILD	= 0x00,
 
 	T5FW_VERSION_MAJOR	= 0x01,
-	T5FW_VERSION_MINOR	= 0x0e,
-	T5FW_VERSION_MICRO	= 0x04,
+	T5FW_VERSION_MINOR	= 0x05,
+	T5FW_VERSION_MICRO	= 0x25,
 	T5FW_VERSION_BUILD	= 0x00,
 };
 
@@ -8249,6 +8828,26 @@ enum {
 
 enum fw_hdr_flags {
 	FW_HDR_FLAGS_RESET_HALT	= 0x00000001,
+};
+
+/*
+ *	External PHY firmware binary header format
+ */
+struct fw_ephy_hdr {
+	__u8	ver;
+	__u8	reserved;
+	__be16	len512;			/* bin length in units of 512-bytes */
+	__be32	magic;
+
+	__be16	vendor_id;
+	__be16	device_id;
+	__be32	version;
+
+	__be32	reserved1[4];
+};
+
+enum {
+	FW_EPHY_HDR_MAGIC	= 0x65706879,
 };
 
 #endif /* _T4FW_INTERFACE_H_ */

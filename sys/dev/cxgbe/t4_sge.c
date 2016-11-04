@@ -165,8 +165,8 @@ static struct mbuf *get_fl_payload(struct adapter *, struct sge_fl *, uint32_t);
 static int t4_eth_rx(struct sge_iq *, const struct rss_header *, struct mbuf *);
 static inline void init_iq(struct sge_iq *, struct adapter *, int, int, int);
 static inline void init_fl(struct adapter *, struct sge_fl *, int, int, char *);
-static inline void init_eq(struct sge_eq *, int, int, uint8_t, uint16_t,
-    char *);
+static inline void init_eq(struct adapter *, struct sge_eq *, int, int, uint8_t,
+    uint16_t, char *);
 static int alloc_ring(struct adapter *, size_t, bus_dma_tag_t *, bus_dmamap_t *,
     bus_addr_t *, void **);
 static int free_ring(struct adapter *, bus_dma_tag_t, bus_dmamap_t, bus_addr_t,
@@ -494,7 +494,7 @@ t4_tweak_chip_settings(struct adapter *sc)
 static inline int
 hwsz_ok(struct adapter *sc, int hwsz)
 {
-	int mask = fl_pad ? sc->sge.pad_boundary - 1 : 16 - 1;
+	int mask = fl_pad ? sc->params.sge.pad_boundary - 1 : 16 - 1;
 
 	return (hwsz >= 64 && (hwsz & mask) == 0);
 }
@@ -506,6 +506,7 @@ int
 t4_read_chip_settings(struct adapter *sc)
 {
 	struct sge *s = &sc->sge;
+	struct sge_params *sp = &sc->params.sge;
 	int i, j, n, rc = 0;
 	uint32_t m, v, r;
 	uint16_t indsz = min(RX_COPY_THRESHOLD - 1, M_INDICATESIZE);
@@ -520,36 +521,21 @@ t4_read_chip_settings(struct adapter *sc)
 	struct sw_zone_info *swz, *safe_swz;
 	struct hw_buf_info *hwb;
 
-	m = V_PKTSHIFT(M_PKTSHIFT) | F_RXPKTCPLMODE | F_EGRSTATUSPAGESIZE;
-	v = V_PKTSHIFT(fl_pktshift) | F_RXPKTCPLMODE |
-	    V_EGRSTATUSPAGESIZE(spg_len == 128);
+	t4_init_sge_params(sc);
+
+	m = F_RXPKTCPLMODE;
+	v = F_RXPKTCPLMODE;
 	r = t4_read_reg(sc, A_SGE_CONTROL);
 	if ((r & m) != v) {
 		device_printf(sc->dev, "invalid SGE_CONTROL(0x%x)\n", r);
 		rc = EINVAL;
 	}
-	s->pad_boundary = 1 << (G_INGPADBOUNDARY(r) + 5);
 
-	if (is_t4(sc))
-		s->pack_boundary = s->pad_boundary;
-	else {
-		r = t4_read_reg(sc, A_SGE_CONTROL2);
-		if (G_INGPACKBOUNDARY(r) == 0)
-			s->pack_boundary = 16;
-		else
-			s->pack_boundary = 1 << (G_INGPACKBOUNDARY(r) + 5);
-	}
-
-	v = V_HOSTPAGESIZEPF0(PAGE_SHIFT - 10) |
-	    V_HOSTPAGESIZEPF1(PAGE_SHIFT - 10) |
-	    V_HOSTPAGESIZEPF2(PAGE_SHIFT - 10) |
-	    V_HOSTPAGESIZEPF3(PAGE_SHIFT - 10) |
-	    V_HOSTPAGESIZEPF4(PAGE_SHIFT - 10) |
-	    V_HOSTPAGESIZEPF5(PAGE_SHIFT - 10) |
-	    V_HOSTPAGESIZEPF6(PAGE_SHIFT - 10) |
-	    V_HOSTPAGESIZEPF7(PAGE_SHIFT - 10);
-	r = t4_read_reg(sc, A_SGE_HOST_PAGE_SIZE);
-	if (r != v) {
+	/*
+	 * If this changes then every single use of PAGE_SHIFT in the driver
+	 * needs to be carefully reviewed for PAGE_SHIFT vs sp->page_shift.
+	 */
+	if (sp->page_shift != PAGE_SHIFT) {
 		device_printf(sc->dev, "invalid SGE_HOST_PAGE_SIZE(0x%x)\n", r);
 		rc = EINVAL;
 	}
@@ -588,7 +574,7 @@ t4_read_chip_settings(struct adapter *sc)
 
 		if (swz->size < PAGE_SIZE) {
 			MPASS(powerof2(swz->size));
-			if (fl_pad && (swz->size % sc->sge.pad_boundary != 0))
+			if (fl_pad && (swz->size % sp->pad_boundary != 0))
 				continue;
 		}
 
@@ -601,7 +587,7 @@ t4_read_chip_settings(struct adapter *sc)
 				continue;
 #ifdef INVARIANTS
 			if (fl_pad)
-				MPASS(hwb->size % sc->sge.pad_boundary == 0);
+				MPASS(hwb->size % sp->pad_boundary == 0);
 #endif
 			hwb->zidx = i;
 			if (head == -1)
@@ -652,7 +638,7 @@ t4_read_chip_settings(struct adapter *sc)
 			hwb = &s->hw_buf_info[i];
 #ifdef INVARIANTS
 			if (fl_pad)
-				MPASS(hwb->size % sc->sge.pad_boundary == 0);
+				MPASS(hwb->size % sp->pad_boundary == 0);
 #endif
 			spare = safe_swz->size - hwb->size;
 			if (spare >= CL_METADATA_SIZE) {
@@ -661,22 +647,6 @@ t4_read_chip_settings(struct adapter *sc)
 			}
 		}
 	}
-
-	r = t4_read_reg(sc, A_SGE_INGRESS_RX_THRESHOLD);
-	s->counter_val[0] = G_THRESHOLD_0(r);
-	s->counter_val[1] = G_THRESHOLD_1(r);
-	s->counter_val[2] = G_THRESHOLD_2(r);
-	s->counter_val[3] = G_THRESHOLD_3(r);
-
-	r = t4_read_reg(sc, A_SGE_TIMER_VALUE_0_AND_1);
-	s->timer_val[0] = G_TIMERVALUE0(r) / core_ticks_per_usec(sc);
-	s->timer_val[1] = G_TIMERVALUE1(r) / core_ticks_per_usec(sc);
-	r = t4_read_reg(sc, A_SGE_TIMER_VALUE_2_AND_3);
-	s->timer_val[2] = G_TIMERVALUE2(r) / core_ticks_per_usec(sc);
-	s->timer_val[3] = G_TIMERVALUE3(r) / core_ticks_per_usec(sc);
-	r = t4_read_reg(sc, A_SGE_TIMER_VALUE_4_AND_5);
-	s->timer_val[4] = G_TIMERVALUE4(r) / core_ticks_per_usec(sc);
-	s->timer_val[5] = G_TIMERVALUE5(r) / core_ticks_per_usec(sc);
 
 	v = V_HPZ0(0) | V_HPZ1(2) | V_HPZ2(4) | V_HPZ3(6);
 	r = t4_read_reg(sc, A_ULP_RX_TDDP_PSZ);
@@ -700,25 +670,6 @@ t4_read_chip_settings(struct adapter *sc)
 		device_printf(sc->dev, "invalid TP_PARA_REG5(0x%x)\n", r);
 		rc = EINVAL;
 	}
-
-	r = t4_read_reg(sc, A_SGE_CONM_CTRL);
-	s->fl_starve_threshold = G_EGRTHRESHOLD(r) * 2 + 1;
-	if (is_t4(sc))
-		s->fl_starve_threshold2 = s->fl_starve_threshold;
-	else
-		s->fl_starve_threshold2 = G_EGRTHRESHOLDPACKING(r) * 2 + 1;
-
-	/* egress queues: log2 of # of doorbells per BAR2 page */
-	r = t4_read_reg(sc, A_SGE_EGRESS_QUEUES_PER_PAGE_PF);
-	r >>= S_QUEUESPERPAGEPF0 +
-	    (S_QUEUESPERPAGEPF1 - S_QUEUESPERPAGEPF0) * sc->pf;
-	s->eq_s_qpp = r & M_QUEUESPERPAGEPF0;
-
-	/* ingress queues: log2 of # of doorbells per BAR2 page */
-	r = t4_read_reg(sc, A_SGE_INGRESS_QUEUES_PER_PAGE_PF);
-	r >>= S_QUEUESPERPAGEPF0 +
-	    (S_QUEUESPERPAGEPF1 - S_QUEUESPERPAGEPF0) * sc->pf;
-	s->iq_s_qpp = r & M_QUEUESPERPAGEPF0;
 
 	t4_init_tp_params(sc);
 
@@ -749,25 +700,26 @@ void
 t4_sge_sysctls(struct adapter *sc, struct sysctl_ctx_list *ctx,
     struct sysctl_oid_list *children)
 {
+	struct sge_params *sp = &sc->params.sge;
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "buffer_sizes",
 	    CTLTYPE_STRING | CTLFLAG_RD, &sc->sge, 0, sysctl_bufsizes, "A",
 	    "freelist buffer sizes");
 
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "fl_pktshift", CTLFLAG_RD,
-	    NULL, fl_pktshift, "payload DMA offset in rx buffer (bytes)");
+	    NULL, sp->fl_pktshift, "payload DMA offset in rx buffer (bytes)");
 
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "fl_pad", CTLFLAG_RD,
-	    NULL, sc->sge.pad_boundary, "payload pad boundary (bytes)");
+	    NULL, sp->pad_boundary, "payload pad boundary (bytes)");
 
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "spg_len", CTLFLAG_RD,
-	    NULL, spg_len, "status page size (bytes)");
+	    NULL, sp->spg_len, "status page size (bytes)");
 
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "cong_drop", CTLFLAG_RD,
 	    NULL, cong_drop, "congestion drop setting");
 
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "fl_pack", CTLFLAG_RD,
-	    NULL, sc->sge.pack_boundary, "payload pack boundary (bytes)");
+	    NULL, sp->pack_boundary, "payload pack boundary (bytes)");
 }
 
 int
@@ -904,8 +856,8 @@ mtu_to_max_payload(struct adapter *sc, int mtu, const int toe)
 	} else {
 #endif
 		/* large enough even when hw VLAN extraction is disabled */
-		payload = fl_pktshift + ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN +
-		    mtu;
+		payload = sc->params.sge.fl_pktshift + ETHER_HDR_LEN +
+		    ETHER_VLAN_ENCAP_LEN + mtu;
 #ifdef TCP_OFFLOAD
 	}
 #endif
@@ -1078,7 +1030,7 @@ t4_setup_vi_queues(struct vi_info *vi)
 		iqid = vi_intr_iq(vi, j)->cntxt_id;
 		snprintf(name, sizeof(name), "%s txq%d",
 		    device_get_nameunit(vi->dev), i);
-		init_eq(&txq->eq, EQ_ETH, vi->qsize_txq, pi->tx_chan, iqid,
+		init_eq(sc, &txq->eq, EQ_ETH, vi->qsize_txq, pi->tx_chan, iqid,
 		    name);
 
 		rc = alloc_txq(vi, txq, i, oid);
@@ -1095,7 +1047,7 @@ t4_setup_vi_queues(struct vi_info *vi)
 		iqid = vi_intr_iq(vi, j)->cntxt_id;
 		snprintf(name, sizeof(name), "%s ofld_txq%d",
 		    device_get_nameunit(vi->dev), i);
-		init_eq(&ofld_txq->eq, EQ_OFLD, vi->qsize_txq, pi->tx_chan,
+		init_eq(sc, &ofld_txq->eq, EQ_OFLD, vi->qsize_txq, pi->tx_chan,
 		    iqid, name);
 
 		snprintf(name, sizeof(name), "%d", i);
@@ -1119,7 +1071,8 @@ t4_setup_vi_queues(struct vi_info *vi)
 	ctrlq = &sc->sge.ctrlq[pi->port_id];
 	iqid = vi_intr_iq(vi, 0)->cntxt_id;
 	snprintf(name, sizeof(name), "%s ctrlq", device_get_nameunit(vi->dev));
-	init_eq(&ctrlq->eq, EQ_CTRL, CTRL_EQ_QSIZE, pi->tx_chan, iqid, name);
+	init_eq(sc, &ctrlq->eq, EQ_CTRL, CTRL_EQ_QSIZE, pi->tx_chan, iqid,
+	    name);
 	rc = alloc_wrq(sc, vi, ctrlq, oid);
 
 done:
@@ -1715,6 +1668,7 @@ t4_eth_rx(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m0)
 {
 	struct sge_rxq *rxq = iq_to_rxq(iq);
 	struct ifnet *ifp = rxq->ifp;
+	struct adapter *sc = iq->adapter;
 	const struct cpl_rx_pkt *cpl = (const void *)(rss + 1);
 #if defined(INET) || defined(INET6)
 	struct lro_ctrl *lro = &rxq->lro;
@@ -1723,9 +1677,9 @@ t4_eth_rx(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m0)
 	KASSERT(m0 != NULL, ("%s: no payload with opcode %02x", __func__,
 	    rss->opcode));
 
-	m0->m_pkthdr.len -= fl_pktshift;
-	m0->m_len -= fl_pktshift;
-	m0->m_data += fl_pktshift;
+	m0->m_pkthdr.len -= sc->params.sge.fl_pktshift;
+	m0->m_len -= sc->params.sge.fl_pktshift;
+	m0->m_data += sc->params.sge.fl_pktshift;
 
 	m0->m_pkthdr.rcvif = ifp;
 	M_HASHTYPE_SET(m0, M_HASHTYPE_OPAQUE);
@@ -2464,7 +2418,7 @@ init_iq(struct sge_iq *iq, struct adapter *sc, int tmr_idx, int pktc_idx,
 		iq->intr_pktc_idx = pktc_idx;
 	}
 	iq->qsize = roundup2(qsize, 16);	/* See FW_IQ_CMD/iqsize */
-	iq->sidx = iq->qsize - spg_len / IQ_ESIZE;
+	iq->sidx = iq->qsize - sc->params.sge.spg_len / IQ_ESIZE;
 }
 
 static inline void
@@ -2472,7 +2426,7 @@ init_fl(struct adapter *sc, struct sge_fl *fl, int qsize, int maxp, char *name)
 {
 
 	fl->qsize = qsize;
-	fl->sidx = qsize - spg_len / EQ_ESIZE;
+	fl->sidx = qsize - sc->params.sge.spg_len / EQ_ESIZE;
 	strlcpy(fl->lockname, name, sizeof(fl->lockname));
 	if (sc->flags & BUF_PACKING_OK &&
 	    ((!is_t4(sc) && buffer_packing) ||	/* T5+: enabled unless 0 */
@@ -2483,16 +2437,15 @@ init_fl(struct adapter *sc, struct sge_fl *fl, int qsize, int maxp, char *name)
 }
 
 static inline void
-init_eq(struct sge_eq *eq, int eqtype, int qsize, uint8_t tx_chan,
-    uint16_t iqid, char *name)
+init_eq(struct adapter *sc, struct sge_eq *eq, int eqtype, int qsize,
+    uint8_t tx_chan, uint16_t iqid, char *name)
 {
-	KASSERT(tx_chan < NCHAN, ("%s: bad tx channel %d", __func__, tx_chan));
 	KASSERT(eqtype <= EQ_TYPEMASK, ("%s: bad qtype %d", __func__, eqtype));
 
 	eq->flags = eqtype & EQ_TYPEMASK;
 	eq->tx_chan = tx_chan;
 	eq->iqid = iqid;
-	eq->sidx = qsize - spg_len / EQ_ESIZE;
+	eq->sidx = qsize - sc->params.sge.spg_len / EQ_ESIZE;
 	strlcpy(eq->lockname, name, sizeof(eq->lockname));
 }
 
@@ -2563,6 +2516,7 @@ alloc_iq_fl(struct vi_info *vi, struct sge_iq *iq, struct sge_fl *fl,
 	struct fw_iq_cmd c;
 	struct port_info *pi = vi->pi;
 	struct adapter *sc = iq->adapter;
+	struct sge_params *sp = &sc->params.sge;
 	__be32 v = 0;
 
 	len = iq->qsize * IQ_ESIZE;
@@ -2622,14 +2576,14 @@ alloc_iq_fl(struct vi_info *vi, struct sge_iq *iq, struct sge_fl *fl,
 		}
 
 		if (fl->flags & FL_BUF_PACKING) {
-			fl->lowat = roundup2(sc->sge.fl_starve_threshold2, 8);
-			fl->buf_boundary = sc->sge.pack_boundary;
+			fl->lowat = roundup2(sp->fl_starve_threshold2, 8);
+			fl->buf_boundary = sp->pack_boundary;
 		} else {
-			fl->lowat = roundup2(sc->sge.fl_starve_threshold, 8);
+			fl->lowat = roundup2(sp->fl_starve_threshold, 8);
 			fl->buf_boundary = 16;
 		}
-		if (fl_pad && fl->buf_boundary < sc->sge.pad_boundary)
-			fl->buf_boundary = sc->sge.pad_boundary;
+		if (fl_pad && fl->buf_boundary < sp->pad_boundary)
+			fl->buf_boundary = sp->pad_boundary;
 
 		c.iqns_to_fl0congen |=
 		    htobe32(V_FW_IQ_CMD_FL0HOSTFCMODE(X_HOSTFCMODE_NONE) |
@@ -2687,7 +2641,7 @@ alloc_iq_fl(struct vi_info *vi, struct sge_iq *iq, struct sge_fl *fl,
 
 		qid = fl->cntxt_id;
 		if (isset(&sc->doorbells, DOORBELL_UDB)) {
-			uint32_t s_qpp = sc->sge.eq_s_qpp;
+			uint32_t s_qpp = sc->params.sge.eq_s_qpp;
 			uint32_t mask = (1 << s_qpp) - 1;
 			volatile uint8_t *udb;
 
@@ -2700,9 +2654,7 @@ alloc_iq_fl(struct vi_info *vi, struct sge_iq *iq, struct sge_fl *fl,
 			}
 			fl->udb = (volatile void *)udb;
 		}
-		fl->dbval = F_DBPRIO | V_QID(qid);
-		if (is_t5(sc))
-			fl->dbval |= F_DBTYPE;
+		fl->dbval = V_QID(qid) | sc->chip_params->sge_fl_db;
 
 		FL_LOCK(fl);
 		/* Enough to make sure the SGE doesn't think it's starved */
@@ -2878,7 +2830,7 @@ alloc_mgmtq(struct adapter *sc)
 	    NULL, "management queue");
 
 	snprintf(name, sizeof(name), "%s mgmtq", device_get_nameunit(sc->dev));
-	init_eq(&mgmtq->eq, EQ_CTRL, CTRL_EQ_QSIZE, sc->port[0]->tx_chan,
+	init_eq(sc, &mgmtq->eq, EQ_CTRL, CTRL_EQ_QSIZE, sc->port[0]->tx_chan,
 	    sc->sge.fwq.cntxt_id, name);
 	rc = alloc_wrq(sc, NULL, mgmtq, oid);
 	if (rc != 0) {
@@ -3063,7 +3015,7 @@ alloc_nm_rxq(struct vi_info *vi, struct sge_nm_rxq *nm_rxq, int intr_idx,
 	if (rc != 0)
 		return (rc);
 
-	len = na->num_rx_desc * EQ_ESIZE + spg_len;
+	len = na->num_rx_desc * EQ_ESIZE + sc->params.sge.spg_len;
 	rc = alloc_ring(sc, len, &nm_rxq->fl_desc_tag, &nm_rxq->fl_desc_map,
 	    &nm_rxq->fl_ba, (void **)&nm_rxq->fl_desc);
 	if (rc != 0)
@@ -3072,7 +3024,7 @@ alloc_nm_rxq(struct vi_info *vi, struct sge_nm_rxq *nm_rxq, int intr_idx,
 	nm_rxq->vi = vi;
 	nm_rxq->nid = idx;
 	nm_rxq->iq_cidx = 0;
-	nm_rxq->iq_sidx = vi->qsize_rxq - spg_len / IQ_ESIZE;
+	nm_rxq->iq_sidx = vi->qsize_rxq - sc->params.sge.spg_len / IQ_ESIZE;
 	nm_rxq->iq_gen = F_RSPD_GEN;
 	nm_rxq->fl_pidx = nm_rxq->fl_cidx = 0;
 	nm_rxq->fl_sidx = na->num_rx_desc;
@@ -3138,7 +3090,7 @@ alloc_nm_txq(struct vi_info *vi, struct sge_nm_txq *nm_txq, int iqidx, int idx,
 	char name[16];
 	struct sysctl_oid_list *children = SYSCTL_CHILDREN(oid);
 
-	len = na->num_tx_desc * EQ_ESIZE + spg_len;
+	len = na->num_tx_desc * EQ_ESIZE + sc->params.sge.spg_len;
 	rc = alloc_ring(sc, len, &nm_txq->desc_tag, &nm_txq->desc_map,
 	    &nm_txq->ba, (void **)&nm_txq->desc);
 	if (rc)
@@ -3186,7 +3138,7 @@ ctrl_eq_alloc(struct adapter *sc, struct sge_eq *eq)
 {
 	int rc, cntxt_id;
 	struct fw_eq_ctrl_cmd c;
-	int qsize = eq->sidx + spg_len / EQ_ESIZE;
+	int qsize = eq->sidx + sc->params.sge.spg_len / EQ_ESIZE;
 
 	bzero(&c, sizeof(c));
 
@@ -3230,7 +3182,7 @@ eth_eq_alloc(struct adapter *sc, struct vi_info *vi, struct sge_eq *eq)
 {
 	int rc, cntxt_id;
 	struct fw_eq_eth_cmd c;
-	int qsize = eq->sidx + spg_len / EQ_ESIZE;
+	int qsize = eq->sidx + sc->params.sge.spg_len / EQ_ESIZE;
 
 	bzero(&c, sizeof(c));
 
@@ -3274,7 +3226,7 @@ ofld_eq_alloc(struct adapter *sc, struct vi_info *vi, struct sge_eq *eq)
 {
 	int rc, cntxt_id;
 	struct fw_eq_ofld_cmd c;
-	int qsize = eq->sidx + spg_len / EQ_ESIZE;
+	int qsize = eq->sidx + sc->params.sge.spg_len / EQ_ESIZE;
 
 	bzero(&c, sizeof(c));
 
@@ -3320,7 +3272,7 @@ alloc_eq(struct adapter *sc, struct vi_info *vi, struct sge_eq *eq)
 
 	mtx_init(&eq->eq_lock, eq->lockname, NULL, MTX_DEF);
 
-	qsize = eq->sidx + spg_len / EQ_ESIZE;
+	qsize = eq->sidx + sc->params.sge.spg_len / EQ_ESIZE;
 	len = qsize * EQ_ESIZE;
 	rc = alloc_ring(sc, len, &eq->desc_tag, &eq->desc_map,
 	    &eq->ba, (void **)&eq->desc);
@@ -3359,7 +3311,7 @@ alloc_eq(struct adapter *sc, struct vi_info *vi, struct sge_eq *eq)
 	if (isset(&eq->doorbells, DOORBELL_UDB) ||
 	    isset(&eq->doorbells, DOORBELL_UDBWC) ||
 	    isset(&eq->doorbells, DOORBELL_WCWR)) {
-		uint32_t s_qpp = sc->sge.eq_s_qpp;
+		uint32_t s_qpp = sc->params.sge.eq_s_qpp;
 		uint32_t mask = (1 << s_qpp) - 1;
 		volatile uint8_t *udb;
 
@@ -4545,10 +4497,10 @@ done:
 		 * Do not inline mbufs if doing so would violate the pad/pack
 		 * boundary alignment requirement.
 		 */
-		if (fl_pad && (MSIZE % sc->sge.pad_boundary) != 0)
+		if (fl_pad && (MSIZE % sc->params.sge.pad_boundary) != 0)
 			continue;
 		if (fl->flags & FL_BUF_PACKING &&
-		    (MSIZE % sc->sge.pack_boundary) != 0)
+		    (MSIZE % sc->params.sge.pack_boundary) != 0)
 			continue;
 
 		if (spare < CL_METADATA_SIZE + MSIZE)
@@ -4634,7 +4586,7 @@ find_safe_refill_source(struct adapter *sc, struct sge_fl *fl)
 	fl->cll_alt.hwidx = hwidx;
 	fl->cll_alt.zidx = hwb->zidx;
 	if (allow_mbufs_in_cluster &&
-	    (fl_pad == 0 || (MSIZE % sc->sge.pad_boundary) == 0))
+	    (fl_pad == 0 || (MSIZE % sc->params.sge.pad_boundary) == 0))
 		fl->cll_alt.region1 = ((spare - CL_METADATA_SIZE) / MSIZE) * MSIZE;
 	else
 		fl->cll_alt.region1 = 0;

@@ -1041,5 +1041,4 @@ void your_reg_device(struct c4iw_dev *dev);
 
 #define SGE_CTRLQ_NUM	0
 
-extern int spg_creds;/* Status Page size in credit units(1 unit = 64) */
 #endif
