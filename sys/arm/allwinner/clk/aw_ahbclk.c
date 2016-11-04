@@ -350,6 +350,12 @@ aw_ahbclk_attach(device_t dev)
 		goto fail;
 	}
 
+	error = clk_set_assigned(dev, node);
+	if (error != 0) {
+		device_printf(dev, "cannot set assigned parents: %d\n", error);
+		goto fail;
+	}
+
 	if (bootverbose)
 		clkdom_dump(clkdom);
 
