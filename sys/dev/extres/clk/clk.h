@@ -129,7 +129,9 @@ int clk_set_parent_by_clk(clk_t clk, clk_t parent);
 const char *clk_get_name(clk_t clk);
 
 #ifdef FDT
+int clk_set_assigned(device_t dev, phandle_t node);
 int clk_get_by_ofw_index(device_t dev, phandle_t node, int idx, clk_t *clk);
+int clk_get_by_ofw_index_prop(device_t dev, phandle_t cnode, const char *prop, int idx, clk_t *clk);
 int clk_get_by_ofw_name(device_t dev, phandle_t node, const char *name,
      clk_t *clk);
 int clk_parse_ofw_out_names(device_t dev, phandle_t node,
