@@ -435,6 +435,29 @@ struct hw_buf_info {
 };
 
 enum {
+	NUM_MEMWIN = 3,
+
+	MEMWIN0_APERTURE = 2048,
+	MEMWIN0_BASE     = 0x1b800,
+
+	MEMWIN1_APERTURE = 32768,
+	MEMWIN1_BASE     = 0x28000,
+
+	MEMWIN2_APERTURE_T4 = 65536,
+	MEMWIN2_BASE_T4     = 0x30000,
+
+	MEMWIN2_APERTURE_T5 = 128 * 1024,
+	MEMWIN2_BASE_T5     = 0x60000,
+};
+
+struct memwin {
+	struct rwlock mw_lock __aligned(CACHE_LINE_SIZE);
+	uint32_t mw_base;	/* constant after setup_memwin */
+	uint32_t mw_aperture;	/* ditto */
+	uint32_t mw_curpos;	/* protected by mw_lock */
+};
+
+enum {
 	FL_STARVING	= (1 << 0), /* on the adapter's list of starving fl's */
 	FL_DOOMED	= (1 << 1), /* about to be destroyed */
 	FL_BUF_PACKING	= (1 << 2), /* buffer packing enabled */
@@ -791,7 +814,9 @@ struct adapter {
 	TAILQ_HEAD(, sge_fl) sfl;
 	struct callout sfl_callout;
 
-	struct mtx regwin_lock;	/* for indirect reads and memory windows */
+	struct mtx reg_lock;	/* for indirect register access */
+
+	struct memwin memwin[NUM_MEMWIN];	/* memory windows */
 
 	an_handler_t an_handler __aligned(CACHE_LINE_SIZE);
 	fw_msg_handler_t fw_msg_handler[7];	/* NUM_FW6_TYPES */

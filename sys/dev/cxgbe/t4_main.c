@@ -417,12 +417,17 @@ struct filter_entry {
 static int map_bars_0_and_4(struct adapter *);
 static int map_bar_2(struct adapter *);
 static void setup_memwin(struct adapter *);
+static void position_memwin(struct adapter *, int, uint32_t);
+static int rw_via_memwin(struct adapter *, int, uint32_t, uint32_t *, int, int);
+static inline int read_via_memwin(struct adapter *, int, uint32_t, uint32_t *,
+    int);
+static inline int write_via_memwin(struct adapter *, int, uint32_t,
+    const uint32_t *, int);
 static int validate_mem_range(struct adapter *, uint32_t, int);
 static int fwmtype_to_hwmtype(int);
 static int validate_mt_off_len(struct adapter *, int, uint32_t, int,
     uint32_t *);
-static void memwin_info(struct adapter *, int, uint32_t *, uint32_t *);
-static uint32_t position_memwin(struct adapter *, int, uint32_t);
+static int fixup_devlog_params(struct adapter *);
 static int cfg_itype_and_nqueues(struct adapter *, int, int, int,
     struct intrs_and_queues *);
 static int prep_firmware(struct adapter *);
@@ -706,7 +711,7 @@ t4_attach(device_t dev)
 	TAILQ_INIT(&sc->sfl);
 	callout_init_mtx(&sc->sfl_callout, &sc->sfl_lock, 0);
 
-	mtx_init(&sc->regwin_lock, "register and memory window", 0, MTX_DEF);
+	mtx_init(&sc->reg_lock, "indirect register access", 0, MTX_DEF);
 
 	rc = map_bars_0_and_4(sc);
 	if (rc != 0)
@@ -747,6 +752,8 @@ t4_attach(device_t dev)
 	 * will work even in "recovery mode".
 	 */
 	setup_memwin(sc);
+	if (t4_init_devlog_params(sc, 0) == 0)
+		fixup_devlog_params(sc);
 	sc->cdev = make_dev(is_t4(sc) ? &t4_cdevsw : &t5_cdevsw,
 	    device_get_unit(dev), UID_ROOT, GID_WHEEL, 0600, "%s",
 	    device_get_nameunit(dev));
@@ -1169,8 +1176,15 @@ t4_detach(device_t dev)
 		mtx_destroy(&sc->sfl_lock);
 	if (mtx_initialized(&sc->ifp_lock))
 		mtx_destroy(&sc->ifp_lock);
-	if (mtx_initialized(&sc->regwin_lock))
-		mtx_destroy(&sc->regwin_lock);
+	if (mtx_initialized(&sc->reg_lock))
+		mtx_destroy(&sc->reg_lock);
+
+	for (i = 0; i < NUM_MEMWIN; i++) {
+		struct memwin *mw = &sc->memwin[i];
+
+		if (rw_initialized(&mw->mw_lock))
+			rw_destroy(&mw->mw_lock);
+	}
 
 	bzero(sc, sizeof(*sc));
 
@@ -1856,13 +1870,18 @@ map_bar_2(struct adapter *sc)
 	return (0);
 }
 
-static const struct memwin t4_memwin[] = {
+struct memwin_init {
+	uint32_t base;
+	uint32_t aperture;
+};
+
+static const struct memwin_init t4_memwin[NUM_MEMWIN] = {
 	{ MEMWIN0_BASE, MEMWIN0_APERTURE },
 	{ MEMWIN1_BASE, MEMWIN1_APERTURE },
 	{ MEMWIN2_BASE_T4, MEMWIN2_APERTURE_T4 }
 };
 
-static const struct memwin t5_memwin[] = {
+static const struct memwin_init t5_memwin[NUM_MEMWIN] = {
 	{ MEMWIN0_BASE, MEMWIN0_APERTURE },
 	{ MEMWIN1_BASE, MEMWIN1_APERTURE },
 	{ MEMWIN2_BASE_T5, MEMWIN2_APERTURE_T5 },
@@ -1871,8 +1890,9 @@ static const struct memwin t5_memwin[] = {
 static void
 setup_memwin(struct adapter *sc)
 {
-	const struct memwin *mw;
-	int i, n;
+	const struct memwin_init *mw_init;
+	struct memwin *mw;
+	int i;
 	uint32_t bar0;
 
 	if (is_t4(sc)) {
@@ -1886,21 +1906,26 @@ setup_memwin(struct adapter *sc)
 		bar0 = t4_hw_pci_read_cfg4(sc, PCIR_BAR(0));
 		bar0 &= (uint32_t) PCIM_BAR_MEM_BASE;
 
-		mw = &t4_memwin[0];
-		n = nitems(t4_memwin);
+		mw_init = &t4_memwin[0];
 	} else {
-		/* T5 uses the relative offset inside the PCIe BAR */
+		/* T5+ use the relative offset inside the PCIe BAR */
 		bar0 = 0;
 
-		mw = &t5_memwin[0];
-		n = nitems(t5_memwin);
+		mw_init = &t5_memwin[0];
 	}
 
-	for (i = 0; i < n; i++, mw++) {
+	for (i = 0, mw = &sc->memwin[0]; i < NUM_MEMWIN; i++, mw_init++, mw++) {
+		rw_init(&mw->mw_lock, "memory window access");
+		mw->mw_base = mw_init->base;
+		mw->mw_aperture = mw_init->aperture;
+		mw->mw_curpos = 0;
 		t4_write_reg(sc,
 		    PCIE_MEM_ACCESS_REG(A_PCIE_MEM_ACCESS_BASE_WIN, i),
-		    (mw->base + bar0) | V_BIR(0) |
-		    V_WINDOW(ilog2(mw->aperture) - 10));
+		    (mw->mw_base + bar0) | V_BIR(0) |
+		    V_WINDOW(ilog2(mw->mw_aperture) - 10));
+		rw_wlock(&mw->mw_lock);
+		position_memwin(sc, i, 0);
+		rw_wunlock(&mw->mw_lock);
 	}
 
 	/* flush */
@@ -1908,51 +1933,227 @@ setup_memwin(struct adapter *sc)
 }
 
 /*
- * Verify that the memory range specified by the addr/len pair is valid and lies
- * entirely within a single region (EDCx or MCx).
+ * Positions the memory window at the given address in the card's address space.
+ * There are some alignment requirements and the actual position may be at an
+ * address prior to the requested address.  mw->mw_curpos always has the actual
+ * position of the window.
+ */
+static void
+position_memwin(struct adapter *sc, int idx, uint32_t addr)
+{
+	struct memwin *mw;
+	uint32_t pf;
+	uint32_t reg;
+
+	MPASS(idx >= 0 && idx < NUM_MEMWIN);
+	mw = &sc->memwin[idx];
+	rw_assert(&mw->mw_lock, RA_WLOCKED);
+
+	if (is_t4(sc)) {
+		pf = 0;
+		mw->mw_curpos = addr & ~0xf;	/* start must be 16B aligned */
+	} else {
+		pf = V_PFNUM(sc->pf);
+		mw->mw_curpos = addr & ~0x7f;	/* start must be 128B aligned */
+	}
+	reg = PCIE_MEM_ACCESS_REG(A_PCIE_MEM_ACCESS_OFFSET, idx);
+	t4_write_reg(sc, reg, mw->mw_curpos | pf);
+	t4_read_reg(sc, reg);	/* flush */
+}
+
+static int
+rw_via_memwin(struct adapter *sc, int idx, uint32_t addr, uint32_t *val,
+    int len, int rw)
+{
+	struct memwin *mw;
+	uint32_t mw_end, v;
+
+	MPASS(idx >= 0 && idx < NUM_MEMWIN);
+
+	/* Memory can only be accessed in naturally aligned 4 byte units */
+	if (addr & 3 || len & 3 || len <= 0)
+		return (EINVAL);
+
+	mw = &sc->memwin[idx];
+	while (len > 0) {
+		rw_rlock(&mw->mw_lock);
+		mw_end = mw->mw_curpos + mw->mw_aperture;
+		if (addr >= mw_end || addr < mw->mw_curpos) {
+			/* Will need to reposition the window */
+			if (!rw_try_upgrade(&mw->mw_lock)) {
+				rw_runlock(&mw->mw_lock);
+				rw_wlock(&mw->mw_lock);
+			}
+			rw_assert(&mw->mw_lock, RA_WLOCKED);
+			position_memwin(sc, idx, addr);
+			rw_downgrade(&mw->mw_lock);
+			mw_end = mw->mw_curpos + mw->mw_aperture;
+		}
+		rw_assert(&mw->mw_lock, RA_RLOCKED);
+		while (addr < mw_end && len > 0) {
+			if (rw == 0) {
+				v = t4_read_reg(sc, mw->mw_base + addr -
+				    mw->mw_curpos);
+				*val++ = le32toh(v);
+			} else {
+				v = *val++;
+				t4_write_reg(sc, mw->mw_base + addr -
+				    mw->mw_curpos, htole32(v));;
+			}
+			addr += 4;
+			len -= 4;
+		}
+		rw_runlock(&mw->mw_lock);
+	}
+
+	return (0);
+}
+
+static inline int
+read_via_memwin(struct adapter *sc, int idx, uint32_t addr, uint32_t *val,
+    int len)
+{
+
+	return (rw_via_memwin(sc, idx, addr, val, len, 0));
+}
+
+static inline int
+write_via_memwin(struct adapter *sc, int idx, uint32_t addr,
+    const uint32_t *val, int len)
+{
+
+	return (rw_via_memwin(sc, idx, addr, (void *)(uintptr_t)val, len, 1));
+}
+
+static int
+t4_range_cmp(const void *a, const void *b)
+{
+	return ((const struct t4_range *)a)->start -
+	       ((const struct t4_range *)b)->start;
+}
+
+/*
+ * Verify that the memory range specified by the addr/len pair is valid within
+ * the card's address space.
  */
 static int
 validate_mem_range(struct adapter *sc, uint32_t addr, int len)
 {
-	uint32_t em, addr_len, maddr, mlen;
+	struct t4_range mem_ranges[4], *r, *next;
+	uint32_t em, addr_len;
+	int i, n, remaining;
 
 	/* Memory can only be accessed in naturally aligned 4 byte units */
-	if (addr & 3 || len & 3 || len == 0)
+	if (addr & 3 || len & 3 || len <= 0)
 		return (EINVAL);
 
 	/* Enabled memories */
 	em = t4_read_reg(sc, A_MA_TARGET_MEM_ENABLE);
+
+	r = &mem_ranges[0];
+	n = 0;
+	bzero(r, sizeof(mem_ranges));
 	if (em & F_EDRAM0_ENABLE) {
 		addr_len = t4_read_reg(sc, A_MA_EDRAM0_BAR);
-		maddr = G_EDRAM0_BASE(addr_len) << 20;
-		mlen = G_EDRAM0_SIZE(addr_len) << 20;
-		if (mlen > 0 && addr >= maddr && addr < maddr + mlen &&
-		    addr + len <= maddr + mlen)
-			return (0);
+		r->size = G_EDRAM0_SIZE(addr_len) << 20;
+		if (r->size > 0) {
+			r->start = G_EDRAM0_BASE(addr_len) << 20;
+			if (addr >= r->start &&
+			    addr + len <= r->start + r->size)
+				return (0);
+			r++;
+			n++;
+		}
 	}
 	if (em & F_EDRAM1_ENABLE) {
 		addr_len = t4_read_reg(sc, A_MA_EDRAM1_BAR);
-		maddr = G_EDRAM1_BASE(addr_len) << 20;
-		mlen = G_EDRAM1_SIZE(addr_len) << 20;
-		if (mlen > 0 && addr >= maddr && addr < maddr + mlen &&
-		    addr + len <= maddr + mlen)
-			return (0);
+		r->size = G_EDRAM1_SIZE(addr_len) << 20;
+		if (r->size > 0) {
+			r->start = G_EDRAM1_BASE(addr_len) << 20;
+			if (addr >= r->start &&
+			    addr + len <= r->start + r->size)
+				return (0);
+			r++;
+			n++;
+		}
 	}
 	if (em & F_EXT_MEM_ENABLE) {
 		addr_len = t4_read_reg(sc, A_MA_EXT_MEMORY_BAR);
-		maddr = G_EXT_MEM_BASE(addr_len) << 20;
-		mlen = G_EXT_MEM_SIZE(addr_len) << 20;
-		if (mlen > 0 && addr >= maddr && addr < maddr + mlen &&
-		    addr + len <= maddr + mlen)
-			return (0);
+		r->size = G_EXT_MEM_SIZE(addr_len) << 20;
+		if (r->size > 0) {
+			r->start = G_EXT_MEM_BASE(addr_len) << 20;
+			if (addr >= r->start &&
+			    addr + len <= r->start + r->size)
+				return (0);
+			r++;
+			n++;
+		}
 	}
-	if (!is_t4(sc) && em & F_EXT_MEM1_ENABLE) {
+	if (is_t5(sc) && em & F_EXT_MEM1_ENABLE) {
 		addr_len = t4_read_reg(sc, A_MA_EXT_MEMORY1_BAR);
-		maddr = G_EXT_MEM1_BASE(addr_len) << 20;
-		mlen = G_EXT_MEM1_SIZE(addr_len) << 20;
-		if (mlen > 0 && addr >= maddr && addr < maddr + mlen &&
-		    addr + len <= maddr + mlen)
-			return (0);
+		r->size = G_EXT_MEM1_SIZE(addr_len) << 20;
+		if (r->size > 0) {
+			r->start = G_EXT_MEM1_BASE(addr_len) << 20;
+			if (addr >= r->start &&
+			    addr + len <= r->start + r->size)
+				return (0);
+			r++;
+			n++;
+		}
+	}
+	MPASS(n <= nitems(mem_ranges));
+
+	if (n > 1) {
+		/* Sort and merge the ranges. */
+		qsort(mem_ranges, n, sizeof(struct t4_range), t4_range_cmp);
+
+		/* Start from index 0 and examine the next n - 1 entries. */
+		r = &mem_ranges[0];
+		for (remaining = n - 1; remaining > 0; remaining--, r++) {
+
+			MPASS(r->size > 0);	/* r is a valid entry. */
+			next = r + 1;
+			MPASS(next->size > 0);	/* and so is the next one. */
+
+			while (r->start + r->size >= next->start) {
+				/* Merge the next one into the current entry. */
+				r->size = max(r->start + r->size,
+				    next->start + next->size) - r->start;
+				n--;	/* One fewer entry in total. */
+				if (--remaining == 0)
+					goto done;	/* short circuit */
+				next++;
+			}
+			if (next != r + 1) {
+				/*
+				 * Some entries were merged into r and next
+				 * points to the first valid entry that couldn't
+				 * be merged.
+				 */
+				MPASS(next->size > 0);	/* must be valid */
+				memcpy(r + 1, next, remaining * sizeof(*r));
+#ifdef INVARIANTS
+				/*
+				 * This so that the foo->size assertion in the
+				 * next iteration of the loop do the right
+				 * thing for entries that were pulled up and are
+				 * no longer valid.
+				 */
+				MPASS(n < nitems(mem_ranges));
+				bzero(&mem_ranges[n], (nitems(mem_ranges) - n) *
+				    sizeof(struct t4_range));
+#endif
+			}
+		}
+done:
+		/* Done merging the ranges. */
+		MPASS(n > 0);
+		r = &mem_ranges[0];
+		for (i = 0; i < n; i++, r++) {
+			if (addr >= r->start &&
+			    addr + len <= r->start + r->size)
+				return (0);
+		}
 	}
 
 	return (EFAULT);
@@ -1985,7 +2186,7 @@ static int
 validate_mt_off_len(struct adapter *sc, int mtype, uint32_t off, int len,
     uint32_t *addr)
 {
-	uint32_t em, addr_len, maddr, mlen;
+	uint32_t em, addr_len, maddr;
 
 	/* Memory can only be accessed in naturally aligned 4 byte units */
 	if (off & 3 || len & 3 || len == 0)
@@ -1998,91 +2199,43 @@ validate_mt_off_len(struct adapter *sc, int mtype, uint32_t off, int len,
 			return (EINVAL);
 		addr_len = t4_read_reg(sc, A_MA_EDRAM0_BAR);
 		maddr = G_EDRAM0_BASE(addr_len) << 20;
-		mlen = G_EDRAM0_SIZE(addr_len) << 20;
 		break;
 	case MEM_EDC1:
 		if (!(em & F_EDRAM1_ENABLE))
 			return (EINVAL);
 		addr_len = t4_read_reg(sc, A_MA_EDRAM1_BAR);
 		maddr = G_EDRAM1_BASE(addr_len) << 20;
-		mlen = G_EDRAM1_SIZE(addr_len) << 20;
 		break;
 	case MEM_MC:
 		if (!(em & F_EXT_MEM_ENABLE))
 			return (EINVAL);
 		addr_len = t4_read_reg(sc, A_MA_EXT_MEMORY_BAR);
 		maddr = G_EXT_MEM_BASE(addr_len) << 20;
-		mlen = G_EXT_MEM_SIZE(addr_len) << 20;
 		break;
 	case MEM_MC1:
-		if (is_t4(sc) || !(em & F_EXT_MEM1_ENABLE))
+		if (!is_t5(sc) || !(em & F_EXT_MEM1_ENABLE))
 			return (EINVAL);
 		addr_len = t4_read_reg(sc, A_MA_EXT_MEMORY1_BAR);
 		maddr = G_EXT_MEM1_BASE(addr_len) << 20;
-		mlen = G_EXT_MEM1_SIZE(addr_len) << 20;
 		break;
 	default:
 		return (EINVAL);
 	}
 
-	if (mlen > 0 && off < mlen && off + len <= mlen) {
-		*addr = maddr + off;	/* global address */
-		return (0);
-	}
-
-	return (EFAULT);
+	*addr = maddr + off;	/* global address */
+	return (validate_mem_range(sc, *addr, len));
 }
 
-static void
-memwin_info(struct adapter *sc, int win, uint32_t *base, uint32_t *aperture)
+static int
+fixup_devlog_params(struct adapter *sc)
 {
-	const struct memwin *mw;
+	struct devlog_params *dparams = &sc->params.devlog;
+	int rc;
 
-	if (is_t4(sc)) {
-		KASSERT(win >= 0 && win < nitems(t4_memwin),
-		    ("%s: incorrect memwin# (%d)", __func__, win));
-		mw = &t4_memwin[win];
-	} else {
-		KASSERT(win >= 0 && win < nitems(t5_memwin),
-		    ("%s: incorrect memwin# (%d)", __func__, win));
-		mw = &t5_memwin[win];
-	}
+	rc = validate_mt_off_len(sc, dparams->memtype, dparams->start,
+	    dparams->size, &dparams->addr);
 
-	if (base != NULL)
-		*base = mw->base;
-	if (aperture != NULL)
-		*aperture = mw->aperture;
-}
-
-/*
- * Positions the memory window such that it can be used to access the specified
- * address in the chip's address space.  The return value is the offset of addr
- * from the start of the window.
- */
-static uint32_t
-position_memwin(struct adapter *sc, int n, uint32_t addr)
-{
-	uint32_t start, pf;
-	uint32_t reg;
-
-	KASSERT(n >= 0 && n <= 3,
-	    ("%s: invalid window %d.", __func__, n));
-	KASSERT((addr & 3) == 0,
-	    ("%s: addr (0x%x) is not at a 4B boundary.", __func__, addr));
-
-	if (is_t4(sc)) {
-		pf = 0;
-		start = addr & ~0xf;	/* start must be 16B aligned */
-	} else {
-		pf = V_PFNUM(sc->pf);
-		start = addr & ~0x7f;	/* start must be 128B aligned */
-	}
-	reg = PCIE_MEM_ACCESS_REG(A_PCIE_MEM_ACCESS_OFFSET, n);
-
-	t4_write_reg(sc, reg, start | pf);
-	t4_read_reg(sc, reg);
-
-	return (addr - start);
+	return (rc);
 }
 
 static int
@@ -2680,9 +2833,9 @@ partition_resources(struct adapter *sc, const struct firmware *default_cfg,
 	}
 
 	if (strncmp(sc->cfg_file, FLASH_CF, sizeof(sc->cfg_file)) != 0) {
-		u_int cflen, i, n;
+		u_int cflen;
 		const uint32_t *cfdata;
-		uint32_t param, val, addr, off, mw_base, mw_aperture;
+		uint32_t param, val, addr;
 
 		KASSERT(cfg != NULL || default_cfg != NULL,
 		    ("%s: no config to upload", __func__));
@@ -2732,16 +2885,7 @@ partition_resources(struct adapter *sc, const struct firmware *default_cfg,
 			    __func__, mtype, moff, cflen, rc);
 			goto use_config_on_flash;
 		}
-
-		memwin_info(sc, 2, &mw_base, &mw_aperture);
-		while (cflen) {
-			off = position_memwin(sc, 2, addr);
-			n = min(cflen, mw_aperture - off);
-			for (i = 0; i < n; i += 4)
-				t4_write_reg(sc, mw_base + off + i, *cfdata++);
-			cflen -= n;
-			addr += n;
-		}
+		write_via_memwin(sc, 2, addr, cfdata, cflen);
 	} else {
 use_config_on_flash:
 		mtype = FW_MEMTYPE_FLASH;
@@ -2812,8 +2956,6 @@ get_params__pre_init(struct adapter *sc)
 {
 	int rc;
 	uint32_t param[2], val[2];
-	struct fw_devlog_cmd cmd;
-	struct devlog_params *dlog = &sc->params.devlog;
 
 	param[0] = FW_PARAM_DEV(PORTVEC);
 	param[1] = FW_PARAM_DEV(CCLK);
@@ -2829,21 +2971,13 @@ get_params__pre_init(struct adapter *sc)
 	sc->params.vpd.cclk = val[1];
 
 	/* Read device log parameters. */
-	bzero(&cmd, sizeof(cmd));
-	cmd.op_to_write = htobe32(V_FW_CMD_OP(FW_DEVLOG_CMD) |
-	    F_FW_CMD_REQUEST | F_FW_CMD_READ);
-	cmd.retval_len16 = htobe32(FW_LEN16(cmd));
-	rc = -t4_wr_mbox(sc, sc->mbox, &cmd, sizeof(cmd), &cmd);
-	if (rc != 0) {
+	rc = -t4_init_devlog_params(sc, 1);
+	if (rc == 0)
+		fixup_devlog_params(sc);
+	else {
 		device_printf(sc->dev,
 		    "failed to get devlog parameters: %d.\n", rc);
-		bzero(dlog, sizeof (*dlog));
 		rc = 0;	/* devlog isn't critical for device operation */
-	} else {
-		val[0] = be32toh(cmd.memtype_devlog_memaddr16_devlog);
-		dlog->memtype = G_FW_DEVLOG_CMD_MEMTYPE_DEVLOG(val[0]);
-		dlog->start = G_FW_DEVLOG_CMD_MEMADDR16_DEVLOG(val[0]) << 4;
-		dlog->size = be32toh(cmd.memsize_devlog);
 	}
 
 	return (rc);
@@ -4078,7 +4212,7 @@ read_vf_stat(struct adapter *sc, unsigned int viid, int reg)
 {
 	u32 stats[2];
 
-	mtx_assert(&sc->regwin_lock, MA_OWNED);
+	mtx_assert(&sc->reg_lock, MA_OWNED);
 	t4_write_reg(sc, A_PL_INDIR_CMD, V_PL_AUTOINC(1) |
 	    V_PL_VFID(G_FW_VIID_VIN(viid)) | V_PL_ADDR(VF_MPS_REG(reg)));
 	stats[0] = t4_read_reg(sc, A_PL_INDIR_DATA);
@@ -4145,7 +4279,7 @@ vi_refresh_stats(struct adapter *sc, struct vi_info *vi)
 	if (timevalcmp(&tv, &vi->last_refreshed, <))
 		return;
 
-	mtx_lock(&sc->regwin_lock);
+	mtx_lock(&sc->reg_lock);
 	t4_get_vi_stats(sc, vi->viid, &vi->stats);
 
 	ifp->if_ipackets = s->rx_bcast_frames + s->rx_mcast_frames +
@@ -4167,7 +4301,7 @@ vi_refresh_stats(struct adapter *sc, struct vi_info *vi)
 	ifp->if_snd.ifq_drops = drops;
 
 	getmicrotime(&vi->last_refreshed);
-	mtx_unlock(&sc->regwin_lock);
+	mtx_unlock(&sc->reg_lock);
 }
 
 static void
@@ -4201,10 +4335,10 @@ cxgbe_refresh_stats(struct adapter *sc, struct port_info *pi)
 		if (pi->rx_chan_map & (1 << i)) {
 			uint32_t v;
 
-			mtx_lock(&sc->regwin_lock);
+			mtx_lock(&sc->reg_lock);
 			t4_read_indirect(sc, A_TP_MIB_INDEX, A_TP_MIB_DATA, &v,
 			    1, A_TP_MIB_TNL_CNG_DROP_0 + i);
-			mtx_unlock(&sc->regwin_lock);
+			mtx_unlock(&sc->reg_lock);
 			ifp->if_iqdrops += v;
 		}
 	}
@@ -5632,9 +5766,9 @@ sysctl_cpl_stats(SYSCTL_HANDLER_ARGS)
 	if (sb == NULL)
 		return (ENOMEM);
 
-	mtx_lock(&sc->regwin_lock);
+	mtx_lock(&sc->reg_lock);
 	t4_tp_get_cpl_stats(sc, &stats);
-	mtx_unlock(&sc->regwin_lock);
+	mtx_unlock(&sc->reg_lock);
 
 	if (sc->chip_params->nchan > 2) {
 		sbuf_printf(sb, "                 channel 0  channel 1"
@@ -5685,7 +5819,7 @@ sysctl_ddp_stats(SYSCTL_HANDLER_ARGS)
 	return (rc);
 }
 
-const char *devlog_level_strings[] = {
+static const char * const devlog_level_strings[] = {
 	[FW_DEVLOG_LEVEL_EMERG]		= "EMERG",
 	[FW_DEVLOG_LEVEL_CRIT]		= "CRIT",
 	[FW_DEVLOG_LEVEL_ERR]		= "ERR",
@@ -5694,7 +5828,7 @@ const char *devlog_level_strings[] = {
 	[FW_DEVLOG_LEVEL_DEBUG]		= "DEBUG"
 };
 
-const char *devlog_facility_strings[] = {
+static const char * const devlog_facility_strings[] = {
 	[FW_DEVLOG_FACILITY_CORE]	= "CORE",
 	[FW_DEVLOG_FACILITY_CF]		= "CF",
 	[FW_DEVLOG_FACILITY_SCHED]	= "SCHED",
@@ -5718,7 +5852,8 @@ const char *devlog_facility_strings[] = {
 	[FW_DEVLOG_FACILITY_ISCSI]	= "ISCSI",
 	[FW_DEVLOG_FACILITY_FCOE]	= "FCOE",
 	[FW_DEVLOG_FACILITY_FOISCSI]	= "FOISCSI",
-	[FW_DEVLOG_FACILITY_FOFCOE]	= "FOFCOE"
+	[FW_DEVLOG_FACILITY_FOFCOE]	= "FOFCOE",
+	[FW_DEVLOG_FACILITY_CHNET]	= "CHNET",
 };
 
 static int
@@ -5727,27 +5862,22 @@ sysctl_devlog(SYSCTL_HANDLER_ARGS)
 	struct adapter *sc = arg1;
 	struct devlog_params *dparams = &sc->params.devlog;
 	struct fw_devlog_e *buf, *e;
-	int i, j, rc, nentries, first = 0, m;
+	int i, j, rc, nentries, first = 0;
 	struct sbuf *sb;
 	uint64_t ftstamp = UINT64_MAX;
 
-	if (dparams->start == 0) {
-		dparams->memtype = FW_MEMTYPE_EDC0;
-		dparams->start = 0x84000;
-		dparams->size = 32768;
-	}
-
-	nentries = dparams->size / sizeof(struct fw_devlog_e);
+	if (dparams->addr == 0)
+		return (ENXIO);
 
 	buf = malloc(dparams->size, M_CXGBE, M_NOWAIT);
 	if (buf == NULL)
 		return (ENOMEM);
 
-	m = fwmtype_to_hwmtype(dparams->memtype);
-	rc = -t4_mem_read(sc, m, dparams->start, dparams->size, (void *)buf);
+	rc = read_via_memwin(sc, 1, dparams->addr, (void *)buf, dparams->size);
 	if (rc != 0)
 		goto done;
 
+	nentries = dparams->size / sizeof(struct fw_devlog_e);
 	for (i = 0; i < nentries; i++) {
 		e = &buf[i];
 
@@ -6612,9 +6742,9 @@ sysctl_rdma_stats(SYSCTL_HANDLER_ARGS)
 	if (sb == NULL)
 		return (ENOMEM);
 
-	mtx_lock(&sc->regwin_lock);
+	mtx_lock(&sc->reg_lock);
 	t4_tp_get_rdma_stats(sc, &stats);
-	mtx_unlock(&sc->regwin_lock);
+	mtx_unlock(&sc->reg_lock);
 
 	sbuf_printf(sb, "NoRQEModDefferals: %u\n", stats.rqe_dfr_mod);
 	sbuf_printf(sb, "NoRQEPktDefferals: %u", stats.rqe_dfr_pkt);
@@ -6641,9 +6771,9 @@ sysctl_tcp_stats(SYSCTL_HANDLER_ARGS)
 	if (sb == NULL)
 		return (ENOMEM);
 
-	mtx_lock(&sc->regwin_lock);
+	mtx_lock(&sc->reg_lock);
 	t4_tp_get_tcp_stats(sc, &v4, &v6);
-	mtx_unlock(&sc->regwin_lock);
+	mtx_unlock(&sc->reg_lock);
 
 	sbuf_printf(sb,
 	    "                                IP                 IPv6\n");
@@ -6743,9 +6873,9 @@ sysctl_tp_err_stats(SYSCTL_HANDLER_ARGS)
 	if (sb == NULL)
 		return (ENOMEM);
 
-	mtx_lock(&sc->regwin_lock);
+	mtx_lock(&sc->reg_lock);
 	t4_tp_get_err_stats(sc, &stats);
-	mtx_unlock(&sc->regwin_lock);
+	mtx_unlock(&sc->reg_lock);
 
 	if (sc->chip_params->nchan > 2) {
 		sbuf_printf(sb, "                 channel 0  channel 1"
@@ -7350,22 +7480,22 @@ done:
 static inline uint64_t
 get_filter_hits(struct adapter *sc, uint32_t fid)
 {
-	uint32_t mw_base, off, tcb_base = t4_read_reg(sc, A_TP_CMM_TCB_BASE);
-	uint64_t hits;
+	uint32_t tcb_addr;
 
-	memwin_info(sc, 0, &mw_base, NULL);
+	tcb_addr = t4_read_reg(sc, A_TP_CMM_TCB_BASE) +
+	    (fid + sc->tids.ftid_base) * TCB_SIZE;
 
-	off = position_memwin(sc, 0,
-	    tcb_base + (fid + sc->tids.ftid_base) * TCB_SIZE);
 	if (is_t4(sc)) {
-		hits = t4_read_reg64(sc, mw_base + off + 16);
-		hits = be64toh(hits);
-	} else {
-		hits = t4_read_reg(sc, mw_base + off + 24);
-		hits = be32toh(hits);
-	}
+		uint64_t hits;
 
-	return (hits);
+		read_via_memwin(sc, 0, tcb_addr + 16, (uint32_t *)&hits, 8);
+		return (be64toh(hits));
+	} else {
+		uint32_t hits;
+
+		read_via_memwin(sc, 0, tcb_addr + 24, &hits, 4);
+		return (be32toh(hits));
+	}
 }
 
 static int
@@ -7839,12 +7969,12 @@ done:
 	return (rc);
 }
 
+#define MAX_READ_BUF_SIZE (128 * 1024)
 static int
 read_card_mem(struct adapter *sc, int win, struct t4_mem_range *mr)
 {
-	uint32_t addr, off, remaining, i, n;
-	uint32_t *buf, *b;
-	uint32_t mw_base, mw_aperture;
+	uint32_t addr, remaining, n;
+	uint32_t *buf;
 	int rc;
 	uint8_t *dst;
 
@@ -7852,25 +7982,19 @@ read_card_mem(struct adapter *sc, int win, struct t4_mem_range *mr)
 	if (rc != 0)
 		return (rc);
 
-	memwin_info(sc, win, &mw_base, &mw_aperture);
-	buf = b = malloc(min(mr->len, mw_aperture), M_CXGBE, M_WAITOK);
+	buf = malloc(min(mr->len, MAX_READ_BUF_SIZE), M_CXGBE, M_WAITOK);
 	addr = mr->addr;
 	remaining = mr->len;
 	dst = (void *)mr->data;
 
 	while (remaining) {
-		off = position_memwin(sc, win, addr);
-
-		/* number of bytes that we'll copy in the inner loop */
-		n = min(remaining, mw_aperture - off);
-		for (i = 0; i < n; i += 4)
-			*b++ = t4_read_reg(sc, mw_base + off + i);
+		n = min(remaining, MAX_READ_BUF_SIZE);
+		read_via_memwin(sc, 2, addr, buf, n);
 
 		rc = copyout(buf, dst, n);
 		if (rc != 0)
 			break;
 
-		b = buf;
 		dst += n;
 		remaining -= n;
 		addr += n;
@@ -7879,6 +8003,7 @@ read_card_mem(struct adapter *sc, int win, struct t4_mem_range *mr)
 	free(buf, M_CXGBE);
 	return (rc);
 }
+#undef MAX_READ_BUF_SIZE
 
 static int
 read_i2c(struct adapter *sc, struct t4_i2c_data *i2cd)
@@ -8347,12 +8472,12 @@ t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 		/* MAC stats */
 		t4_clr_port_stats(sc, pi->tx_chan);
 		pi->tx_parse_error = 0;
-		mtx_lock(&sc->regwin_lock);
+		mtx_lock(&sc->reg_lock);
 		for_each_vi(pi, v, vi) {
 			if (vi->flags & VI_INIT_DONE)
 				t4_clr_vi_stats(sc, vi->viid);
 		}
-		mtx_unlock(&sc->regwin_lock);
+		mtx_unlock(&sc->reg_lock);
 
 		/*
 		 * Since this command accepts a port, clear stats for
