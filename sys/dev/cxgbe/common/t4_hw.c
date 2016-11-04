@@ -378,7 +378,7 @@ int t4_wr_mbox_meat_timeout(struct adapter *adap, int mbox, const void *cmd,
 			/*
 			 * Retrieve the command reply and release the mailbox.
 			 */
-			get_mbox_rpl(adap, cmd_rpl, size/8, data_reg);
+			get_mbox_rpl(adap, cmd_rpl, MBOX_LEN/8, data_reg);
 			t4_write_reg(adap, ctl_reg, V_MBOWNER(X_MBOWNER_NONE));
 
 			CH_DUMP_MBOX(adap, mbox, data_reg);
