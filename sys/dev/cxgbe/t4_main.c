@@ -494,10 +494,16 @@ static int sysctl_rdma_stats(SYSCTL_HANDLER_ARGS);
 static int sysctl_tcp_stats(SYSCTL_HANDLER_ARGS);
 static int sysctl_tids(SYSCTL_HANDLER_ARGS);
 static int sysctl_tp_err_stats(SYSCTL_HANDLER_ARGS);
+static int sysctl_tp_la_mask(SYSCTL_HANDLER_ARGS);
 static int sysctl_tp_la(SYSCTL_HANDLER_ARGS);
 static int sysctl_tx_rate(SYSCTL_HANDLER_ARGS);
 static int sysctl_ulprx_la(SYSCTL_HANDLER_ARGS);
 static int sysctl_wcwr_stats(SYSCTL_HANDLER_ARGS);
+#endif
+#ifdef TCP_OFFLOAD
+static int sysctl_tp_tick(SYSCTL_HANDLER_ARGS);
+static int sysctl_tp_dack_timer(SYSCTL_HANDLER_ARGS);
+static int sysctl_tp_timer(SYSCTL_HANDLER_ARGS);
 #endif
 static uint32_t fconf_iconf_to_mode(uint32_t, uint32_t);
 static uint32_t mode_to_fconf(uint32_t);
@@ -2711,7 +2717,24 @@ prep_firmware(struct adapter *sc)
 	    G_FW_HDR_FW_VER_MINOR(sc->params.fw_vers),
 	    G_FW_HDR_FW_VER_MICRO(sc->params.fw_vers),
 	    G_FW_HDR_FW_VER_BUILD(sc->params.fw_vers));
+
 	t4_get_tp_version(sc, &sc->params.tp_vers);
+	snprintf(sc->tp_version, sizeof(sc->tp_version), "%u.%u.%u.%u",
+	    G_FW_HDR_FW_VER_MAJOR(sc->params.tp_vers),
+	    G_FW_HDR_FW_VER_MINOR(sc->params.tp_vers),
+	    G_FW_HDR_FW_VER_MICRO(sc->params.tp_vers),
+	    G_FW_HDR_FW_VER_BUILD(sc->params.tp_vers));
+
+	if (t4_get_exprom_version(sc, &sc->params.exprom_vers) != 0)
+		sc->params.exprom_vers = 0;
+	else {
+		snprintf(sc->exprom_version, sizeof(sc->exprom_version),
+		    "%u.%u.%u.%u",
+		    G_FW_HDR_FW_VER_MAJOR(sc->params.exprom_vers),
+		    G_FW_HDR_FW_VER_MINOR(sc->params.exprom_vers),
+		    G_FW_HDR_FW_VER_MICRO(sc->params.exprom_vers),
+		    G_FW_HDR_FW_VER_BUILD(sc->params.exprom_vers));
+	}
 
 	/* Reset device */
 	if (need_fw_reset &&
@@ -4529,6 +4552,14 @@ t4_sysctls(struct adapter *sc)
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "hw_revision", CTLFLAG_RD,
 	    NULL, chip_rev(sc), "chip hardware revision");
 
+	SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "tp_version",
+	    CTLFLAG_RD, sc->tp_version, 0, "TP microcode version");
+
+	if (sc->params.exprom_vers != 0) {
+		SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "exprom_version",
+		    CTLFLAG_RD, sc->exprom_version, 0, "expansion ROM version");
+	}
+
 	SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "firmware_version",
 	    CTLFLAG_RD, sc->fw_version, 0, "firmware version");
 
@@ -4736,6 +4767,10 @@ t4_sysctls(struct adapter *sc)
 	    CTLTYPE_STRING | CTLFLAG_RD, sc, 0,
 	    sysctl_tp_err_stats, "A", "TP error statistics");
 
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "tp_la_mask",
+	    CTLTYPE_INT | CTLFLAG_RW, sc, 0, sysctl_tp_la_mask, "I",
+	    "TP logic analyzer event capture mask");
+
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "tp_la",
 	    CTLTYPE_STRING | CTLFLAG_RD, sc, 0,
 	    sysctl_tp_la, "A", "TP logic analyzer");
@@ -4788,6 +4823,54 @@ t4_sysctls(struct adapter *sc)
 		sc->tt.tx_align = 1;
 		SYSCTL_ADD_INT(ctx, children, OID_AUTO, "tx_align",
 		    CTLFLAG_RW, &sc->tt.tx_align, 0, "chop and align payload");
+
+		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "timer_tick",
+		    CTLTYPE_STRING | CTLFLAG_RD, sc, 0, sysctl_tp_tick, "A",
+		    "TP timer tick (us)");
+
+		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "timestamp_tick",
+		    CTLTYPE_STRING | CTLFLAG_RD, sc, 1, sysctl_tp_tick, "A",
+		    "TCP timestamp tick (us)");
+
+		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "dack_tick",
+		    CTLTYPE_STRING | CTLFLAG_RD, sc, 2, sysctl_tp_tick, "A",
+		    "DACK tick (us)");
+
+		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "dack_timer",
+		    CTLTYPE_UINT | CTLFLAG_RD, sc, 0, sysctl_tp_dack_timer,
+		    "IU", "DACK timer (us)");
+
+		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "rexmt_min",
+		    CTLTYPE_ULONG | CTLFLAG_RD, sc, A_TP_RXT_MIN,
+		    sysctl_tp_timer, "LU", "Retransmit min (us)");
+
+		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "rexmt_max",
+		    CTLTYPE_ULONG | CTLFLAG_RD, sc, A_TP_RXT_MAX,
+		    sysctl_tp_timer, "LU", "Retransmit max (us)");
+
+		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "persist_min",
+		    CTLTYPE_ULONG | CTLFLAG_RD, sc, A_TP_PERS_MIN,
+		    sysctl_tp_timer, "LU", "Persist timer min (us)");
+
+		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "persist_max",
+		    CTLTYPE_ULONG | CTLFLAG_RD, sc, A_TP_PERS_MAX,
+		    sysctl_tp_timer, "LU", "Persist timer max (us)");
+
+		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "keepalive_idle",
+		    CTLTYPE_ULONG | CTLFLAG_RD, sc, A_TP_KEEP_IDLE,
+		    sysctl_tp_timer, "LU", "Keepidle idle timer (us)");
+
+		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "keepalive_intvl",
+		    CTLTYPE_ULONG | CTLFLAG_RD, sc, A_TP_KEEP_INTVL,
+		    sysctl_tp_timer, "LU", "Keepidle interval (us)");
+
+		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "initial_srtt",
+		    CTLTYPE_ULONG | CTLFLAG_RD, sc, A_TP_INIT_SRTT,
+		    sysctl_tp_timer, "LU", "Initial SRTT (us)");
+
+		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "finwait2_timer",
+		    CTLTYPE_ULONG | CTLFLAG_RD, sc, A_TP_FINWAIT2_TIMER,
+		    sysctl_tp_timer, "LU", "FINWAIT2 timer (us)");
 	}
 #endif
 }
@@ -4900,6 +4983,9 @@ cxgbe_sysctls(struct port_info *pi)
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "pause_settings",
 	    CTLTYPE_STRING | CTLFLAG_RW, pi, PAUSE_TX, sysctl_pause_settings,
 	    "A", "PAUSE settings (bit 0 = rx_pause, bit 1 = tx_pause)");
+
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "max_speed", CTLFLAG_RD, NULL,
+	    port_top_speed(pi), "max speed (in Gbps)");
 
 	/*
 	 * dev.cxgbe.X.stats.
@@ -6127,6 +6213,9 @@ mem_region_show(struct sbuf *sb, const char *name, unsigned int from,
 {
 	unsigned int size;
 
+	if (from == to)
+		return;
+
 	size = to - from + 1;
 	if (size == 0)
 		return;
@@ -6230,13 +6319,10 @@ sysctl_meminfo(SYSCTL_HANDLER_ARGS)
 	md++;
 
 	if (t4_read_reg(sc, A_LE_DB_CONFIG) & F_HASHEN) {
-		if (chip_id(sc) <= CHELSIO_T5) {
-			hi = t4_read_reg(sc, A_LE_DB_TID_HASHBASE) / 4;
+		if (chip_id(sc) <= CHELSIO_T5)
 			md->base = t4_read_reg(sc, A_LE_DB_HASH_TID_BASE);
-		} else {
-			hi = t4_read_reg(sc, A_LE_DB_HASH_TID_BASE);
+		else
 			md->base = t4_read_reg(sc, A_LE_DB_HASH_TBL_BASE_ADDR);
-		}
 		md->limit = 0;
 	} else {
 		md->base = 0;
@@ -6933,6 +7019,26 @@ sysctl_tp_err_stats(SYSCTL_HANDLER_ARGS)
 	return (rc);
 }
 
+static int
+sysctl_tp_la_mask(SYSCTL_HANDLER_ARGS)
+{
+	struct adapter *sc = arg1;
+	struct tp_params *tpp = &sc->params.tp;
+	u_int mask;
+	int rc;
+
+	mask = tpp->la_mask >> 16;
+	rc = sysctl_handle_int(oidp, &mask, 0, req);
+	if (rc != 0 || req->newptr == NULL)
+		return (rc);
+	if (mask > 0xffff)
+		return (EINVAL);
+	tpp->la_mask = mask << 16;
+	t4_set_reg_field(sc, A_TP_DBG_LA_CONFIG, 0xffff0000U, tpp->la_mask);
+
+	return (0);
+}
+
 struct field_desc {
 	const char *name;
 	u_int start;
@@ -7274,6 +7380,92 @@ sysctl_wcwr_stats(SYSCTL_HANDLER_ARGS)
 	sbuf_delete(sb);
 
 	return (rc);
+}
+#endif
+
+#ifdef TCP_OFFLOAD
+static void
+unit_conv(char *buf, size_t len, u_int val, u_int factor)
+{
+	u_int rem = val % factor;
+
+	if (rem == 0)
+		snprintf(buf, len, "%u", val / factor);
+	else {
+		while (rem % 10 == 0)
+			rem /= 10;
+		snprintf(buf, len, "%u.%u", val / factor, rem);
+	}
+}
+
+static int
+sysctl_tp_tick(SYSCTL_HANDLER_ARGS)
+{
+	struct adapter *sc = arg1;
+	char buf[16];
+	u_int res, re;
+	u_int cclk_ps = 1000000000 / sc->params.vpd.cclk;
+
+	res = t4_read_reg(sc, A_TP_TIMER_RESOLUTION);
+	switch (arg2) {
+	case 0:
+		/* timer_tick */
+		re = G_TIMERRESOLUTION(res);
+		break;
+	case 1:
+		/* TCP timestamp tick */
+		re = G_TIMESTAMPRESOLUTION(res);
+		break;
+	case 2:
+		/* DACK tick */
+		re = G_DELAYEDACKRESOLUTION(res);
+		break;
+	default:
+		return (EDOOFUS);
+	}
+
+	unit_conv(buf, sizeof(buf), (cclk_ps << re), 1000000);
+
+	return (sysctl_handle_string(oidp, buf, sizeof(buf), req));
+}
+
+static int
+sysctl_tp_dack_timer(SYSCTL_HANDLER_ARGS)
+{
+	struct adapter *sc = arg1;
+	u_int res, dack_re, v;
+	u_int cclk_ps = 1000000000 / sc->params.vpd.cclk;
+
+	res = t4_read_reg(sc, A_TP_TIMER_RESOLUTION);
+	dack_re = G_DELAYEDACKRESOLUTION(res);
+	v = ((cclk_ps << dack_re) / 1000000) * t4_read_reg(sc, A_TP_DACK_TIMER);
+
+	return (sysctl_handle_int(oidp, &v, 0, req));
+}
+
+static int
+sysctl_tp_timer(SYSCTL_HANDLER_ARGS)
+{
+	struct adapter *sc = arg1;
+	int reg = arg2;
+	u_int tre;
+	u_long tp_tick_us, v;
+	u_int cclk_ps = 1000000000 / sc->params.vpd.cclk;
+
+	MPASS(reg == A_TP_RXT_MIN || reg == A_TP_RXT_MAX ||
+	    reg == A_TP_PERS_MIN || reg == A_TP_PERS_MAX ||
+	    reg == A_TP_KEEP_IDLE || A_TP_KEEP_INTVL || reg == A_TP_INIT_SRTT ||
+	    reg == A_TP_FINWAIT2_TIMER);
+
+	tre = G_TIMERRESOLUTION(t4_read_reg(sc, A_TP_TIMER_RESOLUTION));
+	tp_tick_us = (cclk_ps << tre) / 1000000;
+
+	if (reg == A_TP_INIT_SRTT)
+		v = tp_tick_us * G_INITSRTT(t4_read_reg(sc, reg));
+	else
+		v = tp_tick_us * t4_read_reg(sc, reg);
+
+	return (sysctl_handle_long(oidp, &v, 0, req));
 }
 #endif
 

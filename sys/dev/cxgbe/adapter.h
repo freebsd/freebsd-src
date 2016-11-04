@@ -787,7 +787,9 @@ struct adapter {
 	int tracer_valid;	/* bitmap of valid tracers */
 	int tracer_enabled;	/* bitmap of enabled tracers */
 
-	char fw_version[32];
+	char fw_version[16];
+	char tp_version[16];
+	char exprom_version[16];
 	char cfg_file[32];
 	u_int cfcsum;
 	struct adapter_params params;
@@ -1012,6 +1014,22 @@ is_40G_port(const struct port_info *pi)
 {
 
 	return ((pi->link_cfg.supported & FW_PORT_CAP_SPEED_40G) != 0);
+}
+
+static inline int
+port_top_speed(const struct port_info *pi)
+{
+
+	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_100G)
+		return (100);
+	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_40G)
+		return (40);
+	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_10G)
+		return (10);
+	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_1G)
+		return (1);
+
+	return (0);
 }
 
 static inline int
