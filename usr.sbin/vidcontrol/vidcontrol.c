@@ -393,8 +393,8 @@ load_vt4mappingtable(unsigned int nmappings, FILE *f)
 	if (nmappings == 0)
 		return (NULL);
 
-	if ((t = malloc(sizeof *t * nmappings)) == NULL) {
-		warn("malloc");
+	if ((t = calloc(nmappings, sizeof(*t))) == NULL) {
+		warn("calloc");
 		return (NULL);
 	}
 
