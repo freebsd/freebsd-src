@@ -917,6 +917,9 @@ rtwn_tsf_sync_adhoc_task(void *arg, int pending)
 	/* Accept beacons with the same BSSID. */
 	rtwn_set_rx_bssid_all(sc, 0);
 
+	/* Deny RCR updates. */
+	sc->sc_flags |= RTWN_RCR_LOCKED;
+
 	/* Enable synchronization. */
 	rtwn_setbits_1(sc, R92C_BCN_CTRL(uvp->id),
 	    R92C_BCN_CTRL_DIS_TSF_UDT0, 0);
@@ -929,6 +932,7 @@ rtwn_tsf_sync_adhoc_task(void *arg, int pending)
 	    0, R92C_BCN_CTRL_DIS_TSF_UDT0);
 
 	/* Accept all beacons. */
+	sc->sc_flags &= ~RTWN_RCR_LOCKED;
 	rtwn_set_rx_bssid_all(sc, 1);
 
 	/* Schedule next TSF synchronization. */
@@ -1193,7 +1197,6 @@ rtwn_run(struct rtwn_softc *sc, struct ieee80211vap *vap)
 	struct ieee80211com *ic = vap->iv_ic;
 	struct rtwn_vap *uvp = RTWN_VAP(vap);
 	struct ieee80211_node *ni;
-	uint32_t reg;
 	uint8_t mode;
 	int error;
 
@@ -1244,18 +1247,6 @@ rtwn_run(struct rtwn_softc *sc, struct ieee80211vap *vap)
 
 		/* Flush all AC queues. */
 		rtwn_write_1(sc, R92C_TXPAUSE, 0);
-	}
-
-	/* Allow Rx from our BSSID only. */
-	if (ic->ic_promisc == 0) {
-		reg = rtwn_read_4(sc, R92C_RCR);
-
-		if (sc->bcn_vaps == 0)
-			reg |= R92C_RCR_CBSSID_BCN;
-		if (sc->ap_vaps == 0)
-			reg |= R92C_RCR_CBSSID_DATA;
-
-		rtwn_write_4(sc, R92C_RCR, reg);
 	}
 
 #ifndef RTWN_WITHOUT_UCODE
