@@ -575,7 +575,6 @@ xusbpadctl_attach(device_t dev)
 	return (0);
 }
 
-
 static device_method_t tegra_xusbpadctl_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,         xusbpadctl_probe),
@@ -591,13 +590,8 @@ static device_method_t tegra_xusbpadctl_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t tegra_xusbpadctl_driver = {
-	"tegra_xusbpadctl",
-	tegra_xusbpadctl_methods,
-	sizeof(struct xusbpadctl_softc),
-};
-
 static devclass_t tegra_xusbpadctl_devclass;
-
+static DEFINE_CLASS_0(xusbpadctl, tegra_xusbpadctl_driver,
+    tegra_xusbpadctl_methods, sizeof(struct xusbpadctl_softc));
 EARLY_DRIVER_MODULE(tegra_xusbpadctl, simplebus, tegra_xusbpadctl_driver,
-    tegra_xusbpadctl_devclass, 0, 0, 73);
+    tegra_xusbpadctl_devclass, NULL, NULL, 73);
