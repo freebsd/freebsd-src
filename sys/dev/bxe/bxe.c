@@ -12691,6 +12691,7 @@ bxe_init_ifnet(struct bxe_softc *sc)
          IFCAP_WOL_MAGIC);
 #endif
     if_setcapabilitiesbit(ifp, capabilities, 0); /* XXX */
+    if_setcapenable(ifp, if_getcapabilities(ifp));
     if_setbaudrate(ifp, IF_Gbps(10));
 /* XXX */
     if_setsendqlen(ifp, sc->tx_ring_size);
