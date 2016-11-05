@@ -25,14 +25,14 @@ SRCS+=	ops_unionfs.c opts.c readdir.c restart.c rpc_fwd.c sched.c
 SRCS+=	srvr_amfs_auto.c srvr_nfs.c
 
 CFLAGS+= -I${.CURDIR}/../../../contrib/amd/amd \
-	 -I${DESTDIR}/usr/include/rpcsvc
+	 -I${.OBJDIR}/../../../include/rpcsvc
 
 DPADD=	${LIBAMU} ${LIBWRAP}
 LDADD=	${LIBAMU} -lwrap
 
 CLEANFILES+=	conf_parse.c conf_parse.h conf_tok.c
 
-conf_tok.o: conf_parse.h
+conf_tok.o:	conf_parse.h
 
 #		These are generated at compile time
 SRCS+=		mount_xdr.c
