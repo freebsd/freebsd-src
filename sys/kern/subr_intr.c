@@ -31,8 +31,9 @@ __FBSDID("$FreeBSD$");
 /*
  *	New-style Interrupt Framework
  *
- *  TODO: - to support IPI (PPI) enabling on other CPUs if already started
- *        - to complete things for removable PICs
+ *  TODO: - add support for disconnected PICs.
+ *        - to support IPI (PPI) enabling on other CPUs if already started.
+ *        - to complete things for removable PICs.
  */
 
 #include "opt_ddb.h"
@@ -141,6 +142,11 @@ char intrnames[INTRCNT_COUNT * INTRNAME_LEN];
 size_t sintrcnt = sizeof(intrcnt);
 size_t sintrnames = sizeof(intrnames);
 static u_int intrcnt_index;
+
+static struct intr_irqsrc *intr_map_get_isrc(u_int res_id);
+static void intr_map_set_isrc(u_int res_id, struct intr_irqsrc *isrc);
+static void intr_map_copy_map_data(u_int res_id, device_t *dev, intptr_t *xref,
+    struct intr_map_data **data);
 
 /*
  *  Interrupt framework initialization routine.
@@ -411,18 +417,6 @@ isrc_free_irq(struct intr_irqsrc *isrc)
 	irq_sources[isrc->isrc_irq] = NULL;
 	isrc->isrc_irq = INTR_IRQ_INVALID;	/* just to be safe */
 	return (0);
-}
-
-/*
- *  Lookup interrupt source by interrupt number (resource handle).
- */
-static inline struct intr_irqsrc *
-isrc_lookup(u_int irq)
-{
-
-	if (irq < nitems(irq_sources))
-		return (irq_sources[irq]);
-	return (NULL);
 }
 
 /*
@@ -899,13 +893,12 @@ intr_pic_add_handler(device_t parent, struct intr_pic *pic,
 	return (pic);
 }
 
-int
-intr_map_irq(device_t dev, intptr_t xref, struct intr_map_data *data,
-    u_int *irqp)
+static int
+intr_resolve_irq(device_t dev, intptr_t xref, struct intr_map_data *data,
+    struct intr_irqsrc **isrc)
 {
-	int error;
-	struct intr_irqsrc *isrc;
 	struct intr_pic *pic;
+	struct intr_map_data_msi *msi;
 
 	if (data == NULL)
 		return (EINVAL);
@@ -914,48 +907,77 @@ intr_map_irq(device_t dev, intptr_t xref, struct intr_map_data *data,
 	if (pic == NULL)
 		return (ESRCH);
 
-	KASSERT((pic->pic_flags & FLAG_PIC) != 0,
-	    ("%s: Found a non-PIC controller: %s", __func__,
-	     device_get_name(pic->pic_dev)));
+	switch (data->type) {
+	case INTR_MAP_DATA_MSI:
+		KASSERT((pic->pic_flags & FLAG_MSI) != 0,
+		    ("%s: Found a non-MSI controller: %s", __func__,
+		     device_get_name(pic->pic_dev)));
+		msi = (struct intr_map_data_msi *)data;
+		*isrc = msi->isrc;
+		return (0);
 
-	error = PIC_MAP_INTR(pic->pic_dev, data, &isrc);
-	if (error == 0)
-		*irqp = isrc->isrc_irq;
+	default:
+		KASSERT((pic->pic_flags & FLAG_PIC) != 0,
+		    ("%s: Found a non-PIC controller: %s", __func__,
+		     device_get_name(pic->pic_dev)));
+		return (PIC_MAP_INTR(pic->pic_dev, data, isrc));
+
+	}
+}
+
+int
+intr_activate_irq(device_t dev, struct resource *res)
+{
+	device_t map_dev;
+	intptr_t map_xref;
+	struct intr_map_data *data;
+	struct intr_irqsrc *isrc;
+	u_int res_id;
+	int error;
+
+	KASSERT(rman_get_start(res) == rman_get_end(res),
+	    ("%s: more interrupts in resource", __func__));
+
+	res_id = (u_int)rman_get_start(res);
+	if (intr_map_get_isrc(res_id) != NULL)
+		panic("Attempt to double activation of resource id: %u\n",
+		    res_id);
+	intr_map_copy_map_data(res_id, &map_dev, &map_xref, &data);
+	error = intr_resolve_irq(map_dev, map_xref, data, &isrc);
+	if (error != 0) {
+		free(data, M_INTRNG);
+		/* XXX TODO DISCONECTED PICs */
+		/* if (error == EINVAL) return(0); */
+		return (error);
+	}
+	intr_map_set_isrc(res_id, isrc);
+	rman_set_virtual(res, data);
+	return (PIC_ACTIVATE_INTR(isrc->isrc_dev, isrc, res, data));
+}
+
+int
+intr_deactivate_irq(device_t dev, struct resource *res)
+{
+	struct intr_map_data *data;
+	struct intr_irqsrc *isrc;
+	u_int res_id;
+	int error;
+
+	KASSERT(rman_get_start(res) == rman_get_end(res),
+	    ("%s: more interrupts in resource", __func__));
+
+	res_id = (u_int)rman_get_start(res);
+	isrc = intr_map_get_isrc(res_id);
+	if (isrc == NULL)
+		panic("Attempt to deactivate non-active resource id: %u\n",
+		    res_id);
+
+	data = rman_get_virtual(res);
+	error = PIC_DEACTIVATE_INTR(isrc->isrc_dev, isrc, res, data);
+	intr_map_set_isrc(res_id, NULL);
+	rman_set_virtual(res, NULL);
+	free(data, M_INTRNG);
 	return (error);
-}
-
-int
-intr_alloc_irq(device_t dev, struct resource *res)
-{
-	struct intr_map_data *data;
-	struct intr_irqsrc *isrc;
-
-	KASSERT(rman_get_start(res) == rman_get_end(res),
-	    ("%s: more interrupts in resource", __func__));
-
-	isrc = isrc_lookup(rman_get_start(res));
-	if (isrc == NULL)
-		return (EINVAL);
-
-	data = rman_get_virtual(res);
-	return (PIC_ALLOC_INTR(isrc->isrc_dev, isrc, res, data));
-}
-
-int
-intr_release_irq(device_t dev, struct resource *res)
-{
-	struct intr_map_data *data;
-	struct intr_irqsrc *isrc;
-
-	KASSERT(rman_get_start(res) == rman_get_end(res),
-	    ("%s: more interrupts in resource", __func__));
-
-	isrc = isrc_lookup(rman_get_start(res));
-	if (isrc == NULL)
-		return (EINVAL);
-
-	data = rman_get_virtual(res);
-	return (PIC_RELEASE_INTR(isrc->isrc_dev, isrc, res, data));
 }
 
 int
@@ -966,13 +988,17 @@ intr_setup_irq(device_t dev, struct resource *res, driver_filter_t filt,
 	struct intr_map_data *data;
 	struct intr_irqsrc *isrc;
 	const char *name;
+	u_int res_id;
 
 	KASSERT(rman_get_start(res) == rman_get_end(res),
 	    ("%s: more interrupts in resource", __func__));
 
-	isrc = isrc_lookup(rman_get_start(res));
-	if (isrc == NULL)
+	res_id = (u_int)rman_get_start(res);
+	isrc = intr_map_get_isrc(res_id);
+	if (isrc == NULL) {
+		/* XXX TODO DISCONECTED PICs */
 		return (EINVAL);
+	}
 
 	data = rman_get_virtual(res);
 	name = device_get_nameunit(dev);
@@ -1027,11 +1053,13 @@ intr_teardown_irq(device_t dev, struct resource *res, void *cookie)
 	int error;
 	struct intr_map_data *data;
 	struct intr_irqsrc *isrc;
+	u_int res_id;
 
 	KASSERT(rman_get_start(res) == rman_get_end(res),
 	    ("%s: more interrupts in resource", __func__));
 
-	isrc = isrc_lookup(rman_get_start(res));
+	res_id = (u_int)rman_get_start(res);
+	isrc = intr_map_get_isrc(res_id);
 	if (isrc == NULL || isrc->isrc_handlers == 0)
 		return (EINVAL);
 
@@ -1075,11 +1103,13 @@ intr_describe_irq(device_t dev, struct resource *res, void *cookie,
 {
 	int error;
 	struct intr_irqsrc *isrc;
+	u_int res_id;
 
 	KASSERT(rman_get_start(res) == rman_get_end(res),
 	    ("%s: more interrupts in resource", __func__));
 
-	isrc = isrc_lookup(rman_get_start(res));
+	res_id = (u_int)rman_get_start(res);
+	isrc = intr_map_get_isrc(res_id);
 	if (isrc == NULL || isrc->isrc_handlers == 0)
 		return (EINVAL);
 #ifdef INTR_SOLO
@@ -1107,11 +1137,13 @@ int
 intr_bind_irq(device_t dev, struct resource *res, int cpu)
 {
 	struct intr_irqsrc *isrc;
+	u_int res_id;
 
 	KASSERT(rman_get_start(res) == rman_get_end(res),
 	    ("%s: more interrupts in resource", __func__));
 
-	isrc = isrc_lookup(rman_get_start(res));
+	res_id = (u_int)rman_get_start(res);
+	isrc = intr_map_get_isrc(res_id);
 	if (isrc == NULL || isrc->isrc_handlers == 0)
 		return (EINVAL);
 #ifdef INTR_SOLO
@@ -1191,6 +1223,28 @@ intr_irq_next_cpu(u_int current_cpu, cpuset_t *cpumask)
 #endif
 
 /*
+ * Allocate memory for new intr_map_data structure.
+ * Initialize common fields.
+ */
+struct intr_map_data *
+intr_alloc_map_data(enum intr_map_data_type type, size_t len, int flags)
+{
+	struct intr_map_data *data;
+
+	data = malloc(len, M_INTRNG, flags);
+	data->type = type;
+	data->len = len;
+	return (data);
+}
+
+void intr_free_intr_map_data(struct intr_map_data *data)
+{
+
+	free(data, M_INTRNG);
+}
+
+
+/*
  *  Register a MSI/MSI-X interrupt controller
  */
 int
@@ -1218,6 +1272,7 @@ intr_alloc_msi(device_t pci, device_t child, intptr_t xref, int count,
 	struct intr_irqsrc **isrc;
 	struct intr_pic *pic;
 	device_t pdev;
+	struct intr_map_data_msi *msi;
 	int err, i;
 
 	pic = pic_lookup(NULL, xref);
@@ -1230,12 +1285,19 @@ intr_alloc_msi(device_t pci, device_t child, intptr_t xref, int count,
 
 	isrc = malloc(sizeof(*isrc) * count, M_INTRNG, M_WAITOK);
 	err = MSI_ALLOC_MSI(pic->pic_dev, child, count, maxcount, &pdev, isrc);
-	if (err == 0) {
-		for (i = 0; i < count; i++) {
-			irqs[i] = isrc[i]->isrc_irq;
-		}
+	if (err != 0) {
+		free(isrc, M_INTRNG);
+		return (err);
 	}
 
+	for (i = 0; i < count; i++) {
+		msi = (struct intr_map_data_msi *)intr_alloc_map_data(
+		    INTR_MAP_DATA_MSI, sizeof(*msi), M_WAITOK | M_ZERO);
+		msi-> isrc = isrc[i];
+		irqs[i] = intr_map_irq(pic->pic_dev, xref,
+		    (struct intr_map_data *)msi);
+
+	}
 	free(isrc, M_INTRNG);
 
 	return (err);
@@ -1259,15 +1321,16 @@ intr_release_msi(device_t pci, device_t child, intptr_t xref, int count,
 
 	isrc = malloc(sizeof(*isrc) * count, M_INTRNG, M_WAITOK);
 
-	for (i = 0; i < count; i++) {
-		isrc[i] = isrc_lookup(irqs[i]);
-		if (isrc == NULL) {
-			free(isrc, M_INTRNG);
-			return (EINVAL);
-		}
-	}
+	for (i = 0; i < count; i++)
+		isrc[i] = intr_map_get_isrc(irqs[i]);
 
 	err = MSI_RELEASE_MSI(pic->pic_dev, child, count, isrc);
+
+	for (i = 0; i < count; i++) {
+		if (isrc[i] != NULL)
+			intr_unmap_irq(irqs[i]);
+	}
+
 	free(isrc, M_INTRNG);
 	return (err);
 }
@@ -1278,6 +1341,7 @@ intr_alloc_msix(device_t pci, device_t child, intptr_t xref, int *irq)
 	struct intr_irqsrc *isrc;
 	struct intr_pic *pic;
 	device_t pdev;
+	struct intr_map_data_msi *msi;
 	int err;
 
 	pic = pic_lookup(NULL, xref);
@@ -1288,11 +1352,15 @@ intr_alloc_msix(device_t pci, device_t child, intptr_t xref, int *irq)
 	    ("%s: Found a non-MSI controller: %s", __func__,
 	     device_get_name(pic->pic_dev)));
 
+
 	err = MSI_ALLOC_MSIX(pic->pic_dev, child, &pdev, &isrc);
 	if (err != 0)
 		return (err);
 
-	*irq = isrc->isrc_irq;
+	msi = (struct intr_map_data_msi *)intr_alloc_map_data(
+		    INTR_MAP_DATA_MSI, sizeof(*msi), M_WAITOK | M_ZERO);
+	msi->isrc = isrc;
+	*irq = intr_map_irq(pic->pic_dev, xref, (struct intr_map_data *)msi);
 	return (0);
 }
 
@@ -1311,11 +1379,15 @@ intr_release_msix(device_t pci, device_t child, intptr_t xref, int irq)
 	    ("%s: Found a non-MSI controller: %s", __func__,
 	     device_get_name(pic->pic_dev)));
 
-	isrc = isrc_lookup(irq);
-	if (isrc == NULL)
+	isrc = intr_map_get_isrc(irq);
+	if (isrc == NULL) {
+		intr_unmap_irq(irq);
 		return (EINVAL);
+	}
 
 	err = MSI_RELEASE_MSIX(pic->pic_dev, child, isrc);
+	intr_unmap_irq(irq);
+
 	return (err);
 }
 
@@ -1335,7 +1407,7 @@ intr_map_msi(device_t pci, device_t child, intptr_t xref, int irq,
 	    ("%s: Found a non-MSI controller: %s", __func__,
 	     device_get_name(pic->pic_dev)));
 
-	isrc = isrc_lookup(irq);
+	isrc = intr_map_get_isrc(irq);
 	if (isrc == NULL)
 		return (EINVAL);
 
@@ -1390,3 +1462,161 @@ DB_SHOW_COMMAND(irqs, db_show_irqs)
 	db_printf("irq total %u\n", irqsum);
 }
 #endif
+
+/*
+ * Interrupt mapping table functions.
+ *
+ * Please, keep this part separately, it can be transformed to
+ * extension of standard resources.
+ */
+struct intr_map_entry
+{
+	device_t 		dev;
+	intptr_t 		xref;
+	struct intr_map_data 	*map_data;
+	struct intr_irqsrc 	*isrc;
+	/* XXX TODO DISCONECTED PICs */
+	/*int			flags */
+};
+
+/* XXX Convert irq_map[] to dynamicaly expandable one. */
+static struct intr_map_entry *irq_map[2 * NIRQ];
+static int irq_map_count = nitems(irq_map);
+static int irq_map_first_free_idx;
+static struct mtx irq_map_lock;
+
+static struct intr_irqsrc *
+intr_map_get_isrc(u_int res_id)
+{
+	struct intr_irqsrc *isrc;
+
+	mtx_lock(&irq_map_lock);
+	if ((res_id >= irq_map_count) || (irq_map[res_id] == NULL)) {
+		mtx_unlock(&irq_map_lock);
+		return (NULL);
+	}
+	isrc = irq_map[res_id]->isrc;
+	mtx_unlock(&irq_map_lock);
+	return (isrc);
+}
+
+static void
+intr_map_set_isrc(u_int res_id, struct intr_irqsrc *isrc)
+{
+
+	mtx_lock(&irq_map_lock);
+	if ((res_id >= irq_map_count) || (irq_map[res_id] == NULL)) {
+		mtx_unlock(&irq_map_lock);
+		return;
+	}
+	irq_map[res_id]->isrc = isrc;
+	mtx_unlock(&irq_map_lock);
+}
+
+/*
+ * Get a copy of intr_map_entry data
+ */
+static void
+intr_map_copy_map_data(u_int res_id, device_t *map_dev, intptr_t *map_xref,
+    struct intr_map_data **data)
+{
+	size_t len;
+
+	len = 0;
+	mtx_lock(&irq_map_lock);
+	if (res_id >= irq_map_count || irq_map[res_id] == NULL)
+		panic("Attempt to copy invalid resource id: %u\n", res_id);
+	if (irq_map[res_id]->map_data != NULL)
+		len = irq_map[res_id]->map_data->len;
+	mtx_unlock(&irq_map_lock);
+
+	if (len == 0)
+		*data = NULL;
+	else
+		*data = malloc(len, M_INTRNG, M_WAITOK | M_ZERO);
+	mtx_lock(&irq_map_lock);
+	if (irq_map[res_id] == NULL)
+		panic("Attempt to copy invalid resource id: %u\n", res_id);
+	if (len != 0) {
+		if (len != irq_map[res_id]->map_data->len)
+			panic("Resource id: %u has changed.\n", res_id);
+		memcpy(*data, irq_map[res_id]->map_data, len);
+	}
+	*map_dev = irq_map[res_id]->dev;
+	*map_xref = irq_map[res_id]->xref;
+	mtx_unlock(&irq_map_lock);
+}
+
+
+/*
+ * Allocate and fill new entry in irq_map table.
+ */
+u_int
+intr_map_irq(device_t dev, intptr_t xref, struct intr_map_data *data)
+{
+	u_int i;
+	struct intr_map_entry *entry;
+
+	/* Prepare new entry first. */
+	entry = malloc(sizeof(*entry), M_INTRNG, M_WAITOK | M_ZERO);
+
+	entry->dev = dev;
+	entry->xref = xref;
+	entry->map_data = data;
+	entry->isrc = NULL;
+
+	mtx_lock(&irq_map_lock);
+	for (i = irq_map_first_free_idx; i < irq_map_count; i++) {
+		if (irq_map[i] == NULL) {
+			irq_map[i] = entry;
+			irq_map_first_free_idx = i + 1;
+			mtx_unlock(&irq_map_lock);
+			return (i);
+		}
+	}
+	mtx_unlock(&irq_map_lock);
+
+	/* XXX Expand irq_map table */
+	panic("IRQ mapping table is full.");
+}
+
+/*
+ * Remove and free mapping entry.
+ */
+void
+intr_unmap_irq(u_int res_id)
+{
+	struct intr_map_entry *entry;
+
+	mtx_lock(&irq_map_lock);
+	if ((res_id >= irq_map_count) || (irq_map[res_id] == NULL))
+		panic("Attempt to unmap invalid resource id: %u\n", res_id);
+	entry = irq_map[res_id];
+	irq_map[res_id] = NULL;
+	irq_map_first_free_idx = res_id;
+	mtx_unlock(&irq_map_lock);
+	intr_free_intr_map_data(entry->map_data);
+	free(entry, M_INTRNG);
+}
+
+/*
+ * Clone mapping entry.
+ */
+u_int
+intr_map_clone_irq(u_int old_res_id)
+{
+	device_t map_dev;
+	intptr_t map_xref;
+	struct intr_map_data *data;
+
+	intr_map_copy_map_data(old_res_id, &map_dev, &map_xref, &data);
+	return (intr_map_irq(map_dev, map_xref, data));
+}
+
+static void
+intr_map_init(void *dummy __unused)
+{
+
+	mtx_init(&irq_map_lock, "intr map table", NULL, MTX_DEF);
+}
+SYSINIT(intr_map_init, SI_SUB_INTR, SI_ORDER_FIRST, intr_map_init, NULL);
