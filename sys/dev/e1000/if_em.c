@@ -369,11 +369,6 @@ MODULE_DEPEND(em, netmap, 1, 1, 1);
 #define MAX_INTS_PER_SEC	8000
 #define DEFAULT_ITR		(1000000000/(MAX_INTS_PER_SEC * 256))
 
-/* Allow common code without TSO */
-#ifndef CSUM_TSO
-#define CSUM_TSO	0
-#endif
-
 #define TSO_WORKAROUND	4
 
 static SYSCTL_NODE(_hw, OID_AUTO, em, CTLFLAG_RD, 0, "EM driver parameters");
@@ -1396,15 +1391,9 @@ em_init_locked(struct adapter *adapter)
 	if_clearhwassist(ifp);
 	if (if_getcapenable(ifp) & IFCAP_TXCSUM)
 		if_sethwassistbits(ifp, CSUM_TCP | CSUM_UDP, 0);
-	/* 
-	** There have proven to be problems with TSO when not
-	** at full gigabit speed, so disable the assist automatically
-	** when at lower speeds.  -jfv
-	*/
-	if (if_getcapenable(ifp) & IFCAP_TSO4) {
-		if (adapter->link_speed == SPEED_1000)
-			if_sethwassistbits(ifp, CSUM_TSO, 0);
-	}
+
+	if (if_getcapenable(ifp) & IFCAP_TSO4)
+		if_sethwassistbits(ifp, CSUM_TSO, 0);
 
 	/* Configure for OS presence */
 	em_init_manageability(adapter);
@@ -2412,6 +2401,18 @@ em_update_link_status(struct adapter *adapter)
 	if (link_check && (adapter->link_active == 0)) {
 		e1000_get_speed_and_duplex(hw, &adapter->link_speed,
 		    &adapter->link_duplex);
+		/* 
+		** There have proven to be problems with TSO when not
+		** at full gigabit speed, so disable the assist automatically
+		** when at lower speeds.  -jfv
+		*/
+		if (adapter->link_speed != SPEED_1000) {
+			if_sethwassistbits(ifp, 0, CSUM_TSO);
+			if_setcapenablebit(ifp, 0, IFCAP_TSO4);
+        		if_setcapabilitiesbit(ifp, 0, IFCAP_TSO4);
+
+		}
+
 		/* Check if we must disable SPEED_MODE bit on PCI-E */
 		if ((adapter->link_speed != SPEED_1000) &&
 		    ((hw->mac.type == e1000_82571) ||
