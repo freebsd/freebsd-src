@@ -73,8 +73,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/gpio.h>
 
 #include <machine/bus.h>
-#include <machine/cpu.h>
-#include <machine/cpufunc.h>
 #include <machine/resource.h>
 #include <machine/intr.h>
 #include <machine/fdt.h>
