@@ -293,7 +293,8 @@ tegra_pci_get_ranges(phandle_t node,  struct tegra_pci_range **ranges)
 #define	 RP_LINK_CONTROL_STATUS_DL_LINK_ACTIVE	0x20000000
 #define	 RP_LINK_CONTROL_STATUS_LINKSTAT_MASK	0x3fff0000
 
-#define	TEGRA_PCIE_LINKUP_TIMEOUT	200
+/* Wait 50 ms (per port) for link. */
+#define	TEGRA_PCIE_LINKUP_TIMEOUT	50000
 
 #define	DEBUG
 #ifdef DEBUG
@@ -1257,6 +1258,7 @@ tegra_pcib_wait_for_link(struct tegra_pcib_softc *sc,
 		    RP_VEND_XP, 4);
 		if (reg & RP_VEND_XP_DL_UP)
 				break;
+		DELAY(1);
 
 	}
 	if (i <= 0)
@@ -1268,6 +1270,7 @@ tegra_pcib_wait_for_link(struct tegra_pcib_softc *sc,
 		if (reg & RP_LINK_CONTROL_STATUS_DL_LINK_ACTIVE)
 				break;
 
+		DELAY(1);
 	}
 	if (i <= 0)
 		return (ETIMEDOUT);
