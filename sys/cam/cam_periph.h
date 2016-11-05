@@ -166,7 +166,6 @@ void		cam_periph_unmapmem(union ccb *ccb,
 				    struct cam_periph_map_info *mapinfo);
 union ccb	*cam_periph_getccb(struct cam_periph *periph,
 				   u_int32_t priority);
-void		cam_periph_ccbwait(union ccb *ccb);
 int		cam_periph_runccb(union ccb *ccb,
 				  int (*error_routine)(union ccb *ccb,
 						       cam_flags camflags,
