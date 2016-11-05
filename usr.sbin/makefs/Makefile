@@ -20,7 +20,6 @@ WARNS?=	2
 .include "${SRCDIR}/ffs/Makefile.inc"
 
 CFLAGS+=-DHAVE_STRUCT_STAT_ST_FLAGS=1
-CFLAGS+=-DHAVE_STRUCT_STAT_ST_GEN=1
 
 .PATH: ${SRCTOP}/contrib/mtree
 CFLAGS+=-I${SRCTOP}/contrib/mtree
