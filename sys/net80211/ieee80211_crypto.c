@@ -633,6 +633,61 @@ ieee80211_crypto_decap(struct ieee80211_node *ni, struct mbuf *m, int hdrlen)
 #undef IEEE80211_WEP_HDRLEN
 }
 
+
+/*
+ * Check and remove any MIC.
+ */
+int
+ieee80211_crypto_demic(struct ieee80211vap *vap, struct ieee80211_key *k,
+    struct mbuf *m, int force)
+{
+	const struct ieee80211_cipher *cip;
+	const struct ieee80211_rx_stats *rxs;
+	struct ieee80211_frame *wh;
+
+	rxs = ieee80211_get_rx_params_ptr(m);
+	wh = mtod(m, struct ieee80211_frame *);
+
+	/*
+	 * Handle demic / mic errors from hardware-decrypted offload devices.
+	 */
+	if ((rxs != NULL) && (rxs->c_pktflags & IEEE80211_RX_F_DECRYPTED)) {
+		if (rxs->c_pktflags & IEEE80211_RX_F_FAIL_MIC) {
+			/*
+			 * Hardware has said MIC failed.  We don't care about
+			 * whether it was stripped or not.
+			 *
+			 * Eventually - teach the demic methods in crypto
+			 * modules to handle a NULL key and not to dereference
+			 * it.
+			 */
+			ieee80211_notify_michael_failure(vap, wh, -1);
+			return (0);
+		}
+
+		if (rxs->c_pktflags & IEEE80211_RX_F_MMIC_STRIP) {
+			/*
+			 * Hardware has decrypted and not indicated a
+			 * MIC failure and has stripped the MIC.
+			 * We may not have a key, so for now just
+			 * return OK.
+			 */
+			return (1);
+		}
+	}
+
+	/*
+	 * If we don't have a key at this point then we don't
+	 * have to demic anything.
+	 */
+	if (k == NULL)
+		return (1);
+
+	cip = k->wk_cipher;
+	return (cip->ic_miclen > 0 ? cip->ic_demic(k, m, force) : 1);
+}
+
+
 static void
 load_ucastkey(void *arg, struct ieee80211_node *ni)
 {
