@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_radiotap.h>
 
 #include <dev/rtwn/if_rtwnvar.h>
+#include <dev/rtwn/if_rtwn_rx.h>
 
 #include <dev/rtwn/rtl8812a/r12a.h>
 #include <dev/rtwn/rtl8812a/r12a_reg.h>
@@ -89,19 +90,13 @@ r12a_ioctl_net(struct ieee80211com *ic, u_long cmd, void *data)
 			changed = 1;
 		}
 		if (changed) {
-			if (rxmask == 0) {
+			if (rxmask == 0)
 				sc->rcr &= ~R12A_RCR_TCP_OFFLD_EN;
-				if (sc->sc_flags & RTWN_RUNNING) {
-					rtwn_setbits_4(sc, R92C_RCR,
-					    R12A_RCR_TCP_OFFLD_EN, 0);
-				}
-			} else {
+			else
 				sc->rcr |= R12A_RCR_TCP_OFFLD_EN;
-				if (sc->sc_flags & RTWN_RUNNING) {
-					rtwn_setbits_4(sc, R92C_RCR,
-					    0, R12A_RCR_TCP_OFFLD_EN);
-				}
-			}
+
+			if (sc->sc_flags & RTWN_RUNNING)
+				rtwn_rxfilter_set(sc);
 		}
 		RTWN_UNLOCK(sc);
 

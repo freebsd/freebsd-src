@@ -186,6 +186,7 @@ struct rtwn_softc {
 #define RTWN_RUNNING		0x10
 #define RTWN_FW_LOADED		0x20
 #define RTWN_TEMP_MEASURED	0x40
+#define RTWN_RCR_LOCKED		0x80
 
 #define RTWN_CHIP_HAS_BCNQ1(_sc)	\
 	((_sc)->bcn_status_reg[0] != (_sc)->bcn_status_reg[1])
