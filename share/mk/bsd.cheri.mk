@@ -7,7 +7,7 @@
 .error NEED_CHERI must be 'hybrid', 'pure', or 'sandbox'
 .endif
 .if defined(WHAT_CHERI)
-.error WANT_CHERI should not be defined in NEED_CHERI is
+.error WANT_CHERI should not be defined if NEED_CHERI is
 .endif
 WANT_CHERI:= ${NEED_CHERI}
 .endif
