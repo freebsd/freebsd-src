@@ -1513,6 +1513,8 @@ rtwn_scan_start(struct ieee80211com *ic)
 	struct rtwn_softc *sc = ic->ic_softc;
 
 	RTWN_LOCK(sc);
+	/* Pause beaconing. */
+	rtwn_setbits_1(sc, R92C_TXPAUSE, 0, R92C_TX_QUEUE_BCN);
 	/* Receive beacons / probe responses from any BSSID. */
 	if (sc->bcn_vaps == 0)
 		rtwn_set_rx_bssid_all(sc, 1);
@@ -1547,6 +1549,9 @@ rtwn_scan_end(struct ieee80211com *ic)
 
 	/* Restore basic rates mask. */
 	rtwn_calc_basicrates(sc);
+
+	/* Resume beaconing. */
+	rtwn_setbits_1(sc, R92C_TXPAUSE, R92C_TX_QUEUE_BCN, 0);
 	RTWN_UNLOCK(sc);
 }
 
