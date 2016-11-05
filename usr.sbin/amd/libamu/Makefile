@@ -23,7 +23,7 @@ SRCS+=		nfs_prot_x.c xdr_func_%undef.c
 CLEANFILES+=	nfs_prot_x.c xdr_func_%undef.c
 
 CFLAGS+= -I${.CURDIR}/../../../contrib/amd/libamu \
-	 -I${DESTDIR}/usr/include/rpcsvc
+	 -I${.OBJDIR}/../../../include/rpcsvc
 
 nfs_prot_x.c: ${NFS_PROT_X}
 	${RPCCOM} -c -C -DWANT_NFS3 ${NFS_PROT_X} -o ${.TARGET}

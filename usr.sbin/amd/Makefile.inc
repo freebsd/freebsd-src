@@ -37,8 +37,8 @@ LIBAMUDIR=	${.CURDIR}/../libamu
 LIBAMU=		${LIBAMUDIR}/libamu.a
 
 RPCCOM=		RPCGEN_CPP=${CPP:Q} rpcgen
-MOUNT_X=	${DESTDIR}/usr/include/rpcsvc/mount.x
-NFS_PROT_X=	${DESTDIR}/usr/include/rpcsvc/nfs_prot.x
+MOUNT_X=	${SRCTOP}/include/rpcsvc/mount.x
+NFS_PROT_X=	${SRCTOP}/include/rpcsvc/nfs_prot.x
 
 WARNS?=	1
 
