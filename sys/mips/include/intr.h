@@ -63,6 +63,8 @@ void cpu_establish_hardintr(const char *, driver_filter_t *, driver_intr_t *,
     void *, int, int, void **);
 void cpu_establish_softintr(const char *, driver_filter_t *, void (*)(void*),
     void *, int, int, void **);
+int cpu_create_intr_map(int);
+struct resource *cpu_get_irq_resource(int);
 /* MIPS interrupt C entry point */
 void cpu_intr(struct trapframe *);
 

@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #ifdef FDT
+#include <dev/ofw/ofw_bus_subr.h>
 #include <dev/ofw/openfirm.h>
 #include "ofw_bus_if.h"
 #endif
@@ -429,6 +430,19 @@ nexus_activate_resource(device_t bus, device_t child, int type, int rid,
 		}
 		rman_set_virtual(r, vaddr);
 		rman_set_bushandle(r, (bus_space_handle_t)(uintptr_t)vaddr);
+	} else if (type == SYS_RES_IRQ) {
+#ifdef INTRNG
+#ifdef FDT
+		intr_activate_irq(child, r);
+#else
+		/*
+		 * INTRNG without FDT needs to have the interrupt properly
+		 * mapped first. cpu_create_intr_map() will do that and
+		 * call intr_activate_irq() at the end.
+		 */
+		cpu_create_intr_map(rman_get_start(r));
+#endif
+#endif
 	}
 
 	return (rman_activate_resource(r));
@@ -448,6 +462,10 @@ nexus_deactivate_resource(device_t bus, device_t child, int type, int rid,
 		bus_space_unmap(rman_get_bustag(r), vaddr, psize);
 		rman_set_virtual(r, NULL);
 		rman_set_bushandle(r, 0);
+	} else if (type == SYS_RES_IRQ) {
+#ifdef INTRNG
+		intr_deactivate_irq(child, r);
+#endif
 	}
 
 	return (rman_deactivate_resource(r));
@@ -457,9 +475,13 @@ static int
 nexus_setup_intr(device_t dev, device_t child, struct resource *res, int flags,
     driver_filter_t *filt, driver_intr_t *intr, void *arg, void **cookiep)
 {
-
 #ifdef INTRNG
-	return (intr_setup_irq(child, res, filt, intr, arg, flags, cookiep));
+	struct resource *r = res;
+
+#ifndef FDT
+	r = cpu_get_irq_resource(rman_get_start(r));
+#endif
+	return (intr_setup_irq(child, r, filt, intr, arg, flags, cookiep));
 #else
 	int irq;
 	register_t s;
@@ -523,12 +545,18 @@ static int
 nexus_ofw_map_intr(device_t dev, device_t child, phandle_t iparent, int icells,
     pcell_t *intr)
 {
+	u_int irq;
+	struct intr_map_data_fdt *fdt_data;
+	size_t len;
 
-#ifdef INTRNG
-	return (INTR_IRQ_INVALID);
-#else
-	return (intr_fdt_map_irq(iparent, intr, icells));
-#endif
+	len = sizeof(*fdt_data) + icells * sizeof(pcell_t);
+	fdt_data = (struct intr_map_data_fdt *)intr_alloc_map_data(
+	    INTR_MAP_DATA_FDT, len, M_WAITOK | M_ZERO);
+	fdt_data->iparent = iparent;
+	fdt_data->ncells = icells;
+	memcpy(fdt_data->cells, intr, icells * sizeof(pcell_t));
+	irq = intr_map_irq(NULL, iparent, (struct intr_map_data *)fdt_data);
+	return (irq);
 }
 #endif
 #endif /* INTRNG */
