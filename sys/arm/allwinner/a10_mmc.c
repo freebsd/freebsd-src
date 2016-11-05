@@ -166,7 +166,7 @@ a10_mmc_attach(device_t dev)
 	callout_init_mtx(&sc->a10_timeoutc, &sc->a10_mtx, 0);
 
 	/* De-assert reset */
-	if (hwreset_get_by_ofw_name(dev, "ahb", &sc->a10_rst_ahb) == 0) {
+	if (hwreset_get_by_ofw_name(dev, 0, "ahb", &sc->a10_rst_ahb) == 0) {
 		error = hwreset_deassert(sc->a10_rst_ahb);
 		if (error != 0) {
 			device_printf(dev, "cannot de-assert reset\n");
@@ -175,7 +175,7 @@ a10_mmc_attach(device_t dev)
 	}
 
 	/* Activate the module clock. */
-	error = clk_get_by_ofw_name(dev, "ahb", &sc->a10_clk_ahb);
+	error = clk_get_by_ofw_name(dev, 0, "ahb", &sc->a10_clk_ahb);
 	if (error != 0) {
 		device_printf(dev, "cannot get ahb clock\n");
 		goto fail;
@@ -185,7 +185,7 @@ a10_mmc_attach(device_t dev)
 		device_printf(dev, "cannot enable ahb clock\n");
 		goto fail;
 	}
-	error = clk_get_by_ofw_name(dev, "mmc", &sc->a10_clk_mmc);
+	error = clk_get_by_ofw_name(dev, 0, "mmc", &sc->a10_clk_mmc);
 	if (error != 0) {
 		device_printf(dev, "cannot get mmc clock\n");
 		goto fail;

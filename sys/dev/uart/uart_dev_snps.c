@@ -119,12 +119,12 @@ snps_get_clocks(device_t dev, clk_t *baudclk, clk_t *apb_pclk)
 	/* Baud clock is either named "baudclk", or there is a single
 	 * unnamed clock.
 	 */
-	if (clk_get_by_ofw_name(dev, "baudclk", baudclk) != 0 &&
-	    clk_get_by_ofw_index(dev, 0, baudclk) != 0)
+	if (clk_get_by_ofw_name(dev, 0, "baudclk", baudclk) != 0 &&
+	    clk_get_by_ofw_index(dev, 0, 0, baudclk) != 0)
 		return (ENOENT);
 
 	/* APB peripheral clock is optional */
-	(void)clk_get_by_ofw_name(dev, "apb_pclk", apb_pclk);
+	(void)clk_get_by_ofw_name(dev, 0, "apb_pclk", apb_pclk);
 
 	return (0);
 }
@@ -163,7 +163,7 @@ snps_probe(device_t dev)
 		clock = 0;
 
 #ifdef EXT_RESOURCES
-	if (hwreset_get_by_ofw_idx(dev, 0, &reset) == 0) {
+	if (hwreset_get_by_ofw_idx(dev, 0, 0, &reset) == 0) {
 		error = hwreset_deassert(reset);
 		if (error != 0) {
 			device_printf(dev, "cannot de-assert reset\n");

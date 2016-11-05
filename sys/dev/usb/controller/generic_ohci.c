@@ -161,7 +161,7 @@ generic_ohci_attach(device_t dev)
 #ifdef EXT_RESOURCES
 	TAILQ_INIT(&sc->clk_list);
 	/* Enable clock */
-	for (off = 0; clk_get_by_ofw_index(dev, off, &clk) == 0; off++) {
+	for (off = 0; clk_get_by_ofw_index(dev, 0, off, &clk) == 0; off++) {
 		err = clk_enable(clk);
 		if (err != 0) {
 			device_printf(dev, "Could not enable clock %s\n",
@@ -174,7 +174,7 @@ generic_ohci_attach(device_t dev)
 	}
 
 	/* De-assert reset */
-	if (hwreset_get_by_ofw_idx(dev, 0, &sc->rst) == 0) {
+	if (hwreset_get_by_ofw_idx(dev, 0, 0, &sc->rst) == 0) {
 		err = hwreset_deassert(sc->rst);
 		if (err != 0) {
 			device_printf(dev, "Could not de-assert reset %d\n",
@@ -184,7 +184,7 @@ generic_ohci_attach(device_t dev)
 	}
 
 	/* Enable phy */
-	if (phy_get_by_ofw_name(dev, "usb", &sc->phy) == 0) {
+	if (phy_get_by_ofw_name(dev, 0, "usb", &sc->phy) == 0) {
 		err = phy_enable(dev, sc->phy);
 		if (err != 0) {
 			device_printf(dev, "Could not enable phy\n");
