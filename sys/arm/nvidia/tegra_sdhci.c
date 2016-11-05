@@ -448,18 +448,14 @@ static device_method_t tegra_sdhci_methods[] = {
 	DEVMETHOD(sdhci_write_4,	tegra_sdhci_write_4),
 	DEVMETHOD(sdhci_write_multi_4,	tegra_sdhci_write_multi_4),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static devclass_t tegra_sdhci_devclass;
-
-static driver_t tegra_sdhci_driver = {
-	"sdhci_tegra",
-	tegra_sdhci_methods,
-	sizeof(struct tegra_sdhci_softc),
-};
-
+static DEFINE_CLASS_0(sdhci, tegra_sdhci_driver, tegra_sdhci_methods,
+    sizeof(struct tegra_sdhci_softc));
 DRIVER_MODULE(sdhci_tegra, simplebus, tegra_sdhci_driver, tegra_sdhci_devclass,
-    0, 0);
+    NULL, NULL);
 MODULE_DEPEND(sdhci_tegra, sdhci, 1, 1, 1);
-DRIVER_MODULE(mmc, sdhci_tegra, mmc_driver, mmc_devclass, NULL, NULL);
+DRIVER_MODULE(mmc, sdhci, mmc_driver, mmc_devclass, NULL, NULL);
+MODULE_DEPEND(sdhci_tegra, mmc, 1, 1, 1);
