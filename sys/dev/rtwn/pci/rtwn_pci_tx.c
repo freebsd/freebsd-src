@@ -59,8 +59,8 @@ __FBSDID("$FreeBSD$");
 
 
 static int
-rtwn_pci_tx_start_common(struct rtwn_softc *sc, struct ieee80211_node *ni,
-    struct mbuf *m, uint8_t *tx_desc, uint8_t type, int id)
+rtwn_pci_tx_start_frame(struct rtwn_softc *sc, struct ieee80211_node *ni,
+    struct mbuf *m, uint8_t *tx_desc, uint8_t type)
 {
 	struct rtwn_pci_softc *pc = RTWN_PCI_SOFTC(sc);
 	struct rtwn_tx_ring *ring;
@@ -75,15 +75,12 @@ rtwn_pci_tx_start_common(struct rtwn_softc *sc, struct ieee80211_node *ni,
 	switch (type) {
 	case IEEE80211_FC0_TYPE_CTL:
 	case IEEE80211_FC0_TYPE_MGT:
-		qid = RTWN_PCI_VO_QUEUE;
+		qid = RTWN_PCI_MGNT_QUEUE;
 		break;
 	default:
 		qid = M_WME_GETAC(m);
 		break;
 	}
-
-	if (ni == NULL)		/* beacon frame */
-		qid = RTWN_PCI_BEACON_QUEUE;
 
 	ring = &pc->tx_ring[qid];
 	data = &ring->tx_data[ring->cur];
@@ -151,22 +148,78 @@ rtwn_pci_tx_start_common(struct rtwn_softc *sc, struct ieee80211_node *ni,
 
 	data->m = m;
 	data->ni = ni;
-	data->id = id;
 
 	ring->cur = (ring->cur + 1) % RTWN_PCI_TX_LIST_COUNT;
 
-	if (qid != RTWN_PCI_BEACON_QUEUE) {
-		ring->queued++;
-		if (ring->queued >= (RTWN_PCI_TX_LIST_COUNT - 1))
-			sc->qfullmsk |= (1 << qid);
+	ring->queued++;
+	if (ring->queued >= (RTWN_PCI_TX_LIST_COUNT - 1))
+		sc->qfullmsk |= (1 << qid);
 
 #ifndef D4054
-		sc->sc_tx_timer = 5;
+	sc->sc_tx_timer = 5;
 #endif
-	}
 
 	/* Kick TX. */
 	rtwn_write_2(sc, R92C_PCIE_CTRL_REG, (1 << qid));
+
+	return (0);
+}
+
+static int
+rtwn_pci_tx_start_beacon(struct rtwn_softc *sc, struct mbuf *m,
+    uint8_t *tx_desc, int id)
+{
+	struct rtwn_pci_softc *pc = RTWN_PCI_SOFTC(sc);
+	struct rtwn_tx_ring *ring;
+	struct rtwn_tx_data *data;
+	struct rtwn_tx_desc_common *txd;
+	bus_dma_segment_t segs[1];
+	int nsegs, error, own;
+
+	RTWN_ASSERT_LOCKED(sc);
+
+	KASSERT(id == 0 || id == 1, ("bogus vap id %d\n", id));
+
+	ring = &pc->tx_ring[RTWN_PCI_BEACON_QUEUE];
+	data = &ring->tx_data[id];
+	txd = (struct rtwn_tx_desc_common *)
+	    ((uint8_t *)ring->desc + id * sc->txdesc_len);
+
+	bus_dmamap_sync(ring->desc_dmat, ring->desc_map,
+	    BUS_DMASYNC_POSTREAD);
+	own = !!(txd->flags0 & RTWN_FLAGS0_OWN);
+	error = 0;
+	if (!own || txd->pktlen != htole16(m->m_pkthdr.len)) {
+		if (!own) {
+			/* Copy Tx descriptor. */
+			rtwn_pci_copy_tx_desc(pc, txd, tx_desc);
+			txd->offset = sc->txdesc_len;
+		} else {
+			/* Reload mbuf. */
+			bus_dmamap_unload(ring->data_dmat, data->map);
+		}
+
+		error = bus_dmamap_load_mbuf_sg(ring->data_dmat,
+		    data->map, m, segs, &nsegs, BUS_DMA_NOWAIT);
+		if (error != 0) {
+			device_printf(sc->sc_dev,
+			    "can't map beacon (error %d)\n", error);
+			txd->flags0 &= ~RTWN_FLAGS0_OWN;
+			goto end;
+		}
+
+		txd->pktlen = htole16(m->m_pkthdr.len);
+		rtwn_pci_tx_postsetup(pc, txd, segs);
+		txd->flags0 |= RTWN_FLAGS0_OWN;
+end:
+		bus_dmamap_sync(ring->desc_dmat, ring->desc_map,
+		    BUS_DMASYNC_PREWRITE);
+	}
+
+	/* Dump Tx descriptor. */
+	rtwn_dump_tx_desc(sc, txd);
+
+	bus_dmamap_sync(ring->data_dmat, data->map, BUS_DMASYNC_PREWRITE);
 
 	return (0);
 }
@@ -177,19 +230,12 @@ rtwn_pci_tx_start(struct rtwn_softc *sc, struct ieee80211_node *ni,
 {
 	int error = 0;
 
-	if (ni == NULL) {	/* beacon frame */
-		m = m_dup(m, M_NOWAIT);
-		if (__predict_false(m == NULL)) {
-			device_printf(sc->sc_dev,
-			    "%s: could not copy beacon frame\n", __func__);
-			return (ENOMEM);
-		}
+	RTWN_ASSERT_LOCKED(sc);
 
-		error = rtwn_pci_tx_start_common(sc, ni, m, tx_desc, type, id);
-		if (error != 0)
-			m_freem(m);
-	} else
-		error = rtwn_pci_tx_start_common(sc, ni, m, tx_desc, type, id);
+	if (ni == NULL)		/* beacon frame */
+		error = rtwn_pci_tx_start_beacon(sc, m, tx_desc, id);
+	else
+		error = rtwn_pci_tx_start_frame(sc, ni, m, tx_desc, type);
 
 	return (error);
 }

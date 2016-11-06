@@ -141,9 +141,7 @@ r92ce_adj_devcaps(struct rtwn_softc *sc)
 	/* XXX TODO: test everything that removed here before enabling. */
 	/* XX do NOT enable PMGT until RSVD_PAGE command will not be fixed. */
 	ic->ic_caps &= ~(
-		  IEEE80211_C_IBSS	/* check beaconing / tsf */
-		| IEEE80211_C_HOSTAP	/* the same */
-		| IEEE80211_C_PMGT	/* check null frame / device usability */
+		  IEEE80211_C_PMGT	/* check null frame / device usability */
 		| IEEE80211_C_SWAMSDUTX
 		| IEEE80211_C_FF
 	);
@@ -256,6 +254,12 @@ r92ce_attach(struct rtwn_pci_softc *pc)
 	sc->temp_delta			= R92C_CALIB_THRESHOLD;
 
 	sc->bcn_status_reg[0]		= R92C_TDECTRL;
+	/*
+	 * TODO: some additional setup is required
+	 * to maintain few beacons at the same time.
+	 *
+	 * XXX BCNQ1 mechanism is not needed here; move it to the USB module.
+	 */
 	sc->bcn_status_reg[1]		= R92C_TDECTRL;
 	sc->rcr				= 0;
 
