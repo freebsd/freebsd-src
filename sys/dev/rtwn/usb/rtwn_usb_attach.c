@@ -273,8 +273,10 @@ rtwn_usb_abort_xfers(struct rtwn_softc *sc)
 	RTWN_ASSERT_LOCKED(sc);
 
 	/* abort any pending transfers */
+	RTWN_UNLOCK(sc);
 	for (i = 0; i < RTWN_N_TRANSFER; i++)
-		usbd_transfer_stop(uc->uc_xfer[i]);
+		usbd_transfer_drain(uc->uc_xfer[i]);
+	RTWN_LOCK(sc);
 }
 
 static int
