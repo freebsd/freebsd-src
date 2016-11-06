@@ -640,10 +640,8 @@ readrest:
 			 */
 			unlock_map(&fs);
 
-			if (fs.object->type == OBJT_VNODE) {
-				vp = fs.object->handle;
-				if (vp == fs.vp)
-					goto vnode_locked;
+			if (fs.object->type == OBJT_VNODE &&
+			    (vp = fs.object->handle) != fs.vp) {
 				unlock_vp(&fs);
 				locked = VOP_ISLOCKED(vp);
 
@@ -666,7 +664,6 @@ readrest:
 				}
 				fs.vp = vp;
 			}
-vnode_locked:
 			KASSERT(fs.vp == NULL || !fs.map->system_map,
 			    ("vm_fault: vnode-backed object mapped by system map"));
 
