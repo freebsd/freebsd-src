@@ -1918,7 +1918,7 @@ bwi_dma_alloc(struct bwi_softc *sc)
 			       BUS_SPACE_MAXSIZE,	/* maxsize */
 			       BUS_SPACE_UNRESTRICTED,	/* nsegments */
 			       BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
-			       BUS_DMA_ALLOCNOW,	/* flags */
+			       0,			/* flags */
 			       NULL, NULL,		/* lockfunc, lockarg */
 			       &sc->sc_parent_dtag);
 	if (error) {
@@ -1939,7 +1939,7 @@ bwi_dma_alloc(struct bwi_softc *sc)
 				tx_ring_sz,
 				1,
 				BUS_SPACE_MAXSIZE_32BIT,
-				BUS_DMA_ALLOCNOW,
+				0,
 				NULL, NULL,
 				&sc->sc_txring_dtag);
 	if (error) {
@@ -1969,7 +1969,7 @@ bwi_dma_alloc(struct bwi_softc *sc)
 				rx_ring_sz,
 				1,
 				BUS_SPACE_MAXSIZE_32BIT,
-				BUS_DMA_ALLOCNOW,
+				0,
 				NULL, NULL,
 				&sc->sc_rxring_dtag);
 	if (error) {
@@ -2094,7 +2094,7 @@ bwi_dma_txstats_alloc(struct bwi_softc *sc, uint32_t ctrl_base,
 				dma_size,
 				1,
 				BUS_SPACE_MAXSIZE_32BIT,
-				BUS_DMA_ALLOCNOW,
+				0,
 				NULL, NULL,
 				&st->stats_ring_dtag);
 	if (error) {
@@ -2142,7 +2142,7 @@ bwi_dma_txstats_alloc(struct bwi_softc *sc, uint32_t ctrl_base,
 				dma_size,
 				1,
 				BUS_SPACE_MAXSIZE_32BIT,
-				BUS_DMA_ALLOCNOW,
+				0,
 				NULL, NULL,
 				&st->stats_dtag);
 	if (error) {
@@ -2224,7 +2224,7 @@ bwi_dma_mbuf_create(struct bwi_softc *sc)
 				NULL, NULL,
 				MCLBYTES,
 				1,
-				BUS_SPACE_MAXSIZE_32BIT,
+				MCLBYTES,
 				BUS_DMA_ALLOCNOW,
 				NULL, NULL,
 				&sc->sc_buf_dtag);
