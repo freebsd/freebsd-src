@@ -822,21 +822,6 @@ push:
 	return (ret);
 }
 
-inline int
-evdev_sync(struct evdev_dev *evdev)
-{
-
-	return (evdev_push_event(evdev, EV_SYN, SYN_REPORT, 1));
-}
-
-
-inline int
-evdev_mt_sync(struct evdev_dev *evdev)
-{
-
-	return (evdev_push_event(evdev, EV_SYN, SYN_MT_REPORT, 1));
-}
-
 int
 evdev_register_client(struct evdev_dev *evdev, struct evdev_client *client)
 {
