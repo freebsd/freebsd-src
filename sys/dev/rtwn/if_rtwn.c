@@ -1966,6 +1966,7 @@ rtwn_stop(struct rtwn_softc *sc)
 
 #ifndef D4054
 	callout_stop(&sc->sc_watchdog_to);
+	sc->sc_tx_timer = 0;
 #endif
 	sc->sc_flags &= ~(RTWN_STARTED | RTWN_RUNNING | RTWN_FW_LOADED);
 	sc->sc_flags &= ~RTWN_TEMP_MEASURED;
