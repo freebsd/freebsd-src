@@ -420,8 +420,7 @@ fast_failed:
 	 * they will stay around as well.
 	 *
 	 * Bump the paging-in-progress count to prevent size changes (e.g. 
-	 * truncation operations) during I/O.  This must be done after
-	 * obtaining the vnode lock in order to avoid possible deadlocks.
+	 * truncation operations) during I/O.
 	 */
 	vm_object_reference_locked(fs.first_object);
 	vm_object_pip_add(fs.first_object, 1);
@@ -565,6 +564,14 @@ fast_failed:
 
 readrest:
 		/*
+		 * At this point, we have either allocated a new page or found
+		 * an existing page that is only partially valid.
+		 *
+		 * We hold a reference on the current object and the page is
+		 * exclusive busied.
+		 */
+
+		/*
 		 * If the pager for the current object might have the page,
 		 * then determine the number of additional pages to read and
 		 * potentially reprioritize previously read pages for earlier
@@ -633,21 +640,32 @@ readrest:
 		 */
 		if (fs.object->type != OBJT_DEFAULT) {
 			/*
-			 * We have either allocated a new page or found an
-			 * existing page that is only partially valid.  We
-			 * hold a reference on fs.object and the page is
-			 * exclusive busied.
+			 * Release the map lock before locking the vnode or
+			 * sleeping in the pager.  (If the current object has
+			 * a shadow, then an earlier iteration of this loop
+			 * may have already unlocked the map.)
 			 */
 			unlock_map(&fs);
 
 			if (fs.object->type == OBJT_VNODE &&
 			    (vp = fs.object->handle) != fs.vp) {
+				/*
+				 * Perform an unlock in case the desired vnode
+				 * changed while the map was unlocked during a
+				 * retry.
+				 */
 				unlock_vp(&fs);
-				locked = VOP_ISLOCKED(vp);
 
+				locked = VOP_ISLOCKED(vp);
 				if (locked != LK_EXCLUSIVE)
 					locked = LK_SHARED;
-				/* Do not sleep for vnode lock while fs.m is busy */
+
+				/*
+				 * We must not sleep acquiring the vnode lock
+				 * while we have the page exclusive busied or
+				 * the object's paging-in-progress count
+				 * incremented.  Otherwise, we could deadlock.
+				 */
 				error = vget(vp, locked | LK_CANRECURSE |
 				    LK_NOWAIT, curthread);
 				if (error != 0) {
