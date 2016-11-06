@@ -597,6 +597,19 @@ ieee80211_ampdu_rx_start_ext(struct ieee80211_node *ni, int tid, int seq, int ba
 }
 
 /*
+ * Public function; manually stop the RX AMPDU state.
+ */
+void
+ieee80211_ampdu_rx_stop_ext(struct ieee80211_node *ni, int tid)
+{
+	struct ieee80211_rx_ampdu *rap;
+
+	/* XXX TODO: sanity check tid, seq, baw */
+	rap = &ni->ni_rx_ampdu[tid];
+	ampdu_rx_stop(ni, rap);
+}
+
+/*
  * Stop A-MPDU rx processing for the specified TID.
  */
 static void
