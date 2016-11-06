@@ -45,6 +45,8 @@ __FBSDID("$FreeBSD$");
 
 #include "ofw_bus_if.h"
 
+#define	OFW_COMPAT_LEN	255
+
 int
 ofw_bus_gen_setup_devinfo(struct ofw_bus_devinfo *obd, phandle_t node)
 {
@@ -178,7 +180,8 @@ ofw_bus_status_okay(device_t dev)
 }
 
 static int
-ofw_bus_node_is_compatible(const char *compat, int len, const char *onecompat)
+ofw_bus_node_is_compatible_int(const char *compat, int len,
+    const char *onecompat)
 {
 	int onelen, l, ret;
 
@@ -203,6 +206,25 @@ ofw_bus_node_is_compatible(const char *compat, int len, const char *onecompat)
 }
 
 int
+ofw_bus_node_is_compatible(phandle_t node, const char *compatstr)
+{
+	char compat[OFW_COMPAT_LEN];
+	int len, rv;
+
+	if ((len = OF_getproplen(node, "compatible")) <= 0)
+		return (0);
+
+	bzero(compat, OFW_COMPAT_LEN);
+
+	if (OF_getprop(node, "compatible", compat, OFW_COMPAT_LEN) < 0)
+		return (0);
+
+	rv = ofw_bus_node_is_compatible_int(compat, len, compatstr);
+
+	return (rv);
+}
+
+int
 ofw_bus_is_compatible(device_t dev, const char *onecompat)
 {
 	phandle_t node;
@@ -219,7 +241,7 @@ ofw_bus_is_compatible(device_t dev, const char *onecompat)
 	if ((len = OF_getproplen(node, "compatible")) <= 0)
 		return (0);
 
-	return (ofw_bus_node_is_compatible(compat, len, onecompat));
+	return (ofw_bus_node_is_compatible_int(compat, len, onecompat));
 }
 
 int
@@ -689,7 +711,7 @@ ofw_bus_find_compatible(phandle_t node, const char *onecompat)
 	for (child = OF_child(node); child != 0; child = OF_peer(child)) {
 		len = OF_getprop_alloc(child, "compatible", 1, &compat);
 		if (len >= 0) {
-			ret = ofw_bus_node_is_compatible(compat, len,
+			ret = ofw_bus_node_is_compatible_int(compat, len,
 			    onecompat);
 			free(compat, M_OFWPROP);
 			if (ret != 0)
