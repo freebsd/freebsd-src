@@ -122,7 +122,7 @@ struct faultstate {
 	vm_pindex_t first_pindex;
 	vm_map_t map;
 	vm_map_entry_t entry;
-	int lookup_still_valid;
+	bool lookup_still_valid;
 	struct vnode *vp;
 };
 
@@ -148,7 +148,7 @@ unlock_map(struct faultstate *fs)
 
 	if (fs->lookup_still_valid) {
 		vm_map_lookup_done(fs->map, fs->entry);
-		fs->lookup_still_valid = FALSE;
+		fs->lookup_still_valid = false;
 	}
 }
 
@@ -291,24 +291,23 @@ vm_fault_hold(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
     int fault_flags, vm_page_t *m_hold)
 {
 	vm_prot_t prot;
-	int alloc_req, era, faultcount, nera, result;
-	boolean_t dead, growstack, is_first_object_locked, wired;
-	int map_generation;
 	vm_object_t next_object;
-	int hardfault;
 	struct faultstate fs;
 	struct vnode *vp;
 	vm_offset_t e_end, e_start;
 	vm_page_t m;
-	int ahead, behind, cluster_offset, error, locked, rv;
+	int ahead, alloc_req, behind, cluster_offset, error, era, faultcount;
+	int locked, map_generation, nera, result, rv;
 	u_char behavior;
+	boolean_t wired;	/* Passed by reference. */
+	bool dead, growstack, hardfault, is_first_object_locked;
 
-	hardfault = 0;
-	growstack = TRUE;
 	PCPU_INC(cnt.v_vm_faults);
 	fs.vp = NULL;
 	faultcount = 0;
 	nera = -1;
+	growstack = true;
+	hardfault = false;
 
 RetryFault:;
 
@@ -325,7 +324,7 @@ RetryFault:;
 			result = vm_map_growstack(curproc, vaddr);
 			if (result != KERN_SUCCESS)
 				return (KERN_FAILURE);
-			growstack = FALSE;
+			growstack = false;
 			goto RetryFault;
 		}
 		unlock_vp(&fs);
@@ -427,7 +426,7 @@ fast_failed:
 	vm_object_reference_locked(fs.first_object);
 	vm_object_pip_add(fs.first_object, 1);
 
-	fs.lookup_still_valid = TRUE;
+	fs.lookup_still_valid = true;
 
 	fs.first_m = NULL;
 
@@ -708,7 +707,7 @@ vnode_locked:
 			    &behind, &ahead);
 			if (rv == VM_PAGER_OK) {
 				faultcount = behind + 1 + ahead;
-				hardfault++;
+				hardfault = true;
 				break; /* break to PAGE HAS BEEN FOUND */
 			}
 			if (rv == VM_PAGER_ERROR)
@@ -836,7 +835,7 @@ vnode_locked:
 			 * dirty in the first object so that it will go out 
 			 * to swap when needed.
 			 */
-			is_first_object_locked = FALSE;
+			is_first_object_locked = false;
 			if (
 				/*
 				 * Only one shadow object
@@ -941,7 +940,7 @@ vnode_locked:
 			unlock_and_deallocate(&fs);
 			goto RetryFault;
 		}
-		fs.lookup_still_valid = TRUE;
+		fs.lookup_still_valid = true;
 		if (fs.map->timestamp != map_generation) {
 			result = vm_map_lookup_locked(&fs.map, vaddr, fault_type,
 			    &fs.entry, &retry_object, &retry_pindex, &retry_prot, &wired);
