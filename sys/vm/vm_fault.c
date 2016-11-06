@@ -184,9 +184,9 @@ unlock_and_deallocate(struct faultstate *fs)
 
 static void
 vm_fault_dirty(vm_map_entry_t entry, vm_page_t m, vm_prot_t prot,
-    vm_prot_t fault_type, int fault_flags, boolean_t set_wd)
+    vm_prot_t fault_type, int fault_flags, bool set_wd)
 {
-	boolean_t need_dirty;
+	bool need_dirty;
 
 	if (((prot & VM_PROT_WRITE) == 0 &&
 	    (fault_flags & VM_FAULT_DIRTY) == 0) ||
@@ -397,7 +397,7 @@ RetryFault:;
 			vm_page_unlock(m);
 		}
 		vm_fault_dirty(fs.entry, m, prot, fault_type, fault_flags,
-		    FALSE);
+		    false);
 		VM_OBJECT_RUNLOCK(fs.first_object);
 		if (!wired)
 			vm_fault_prefault(&fs, vaddr, 0, 0);
@@ -982,7 +982,7 @@ readrest:
 	if (hardfault)
 		fs.entry->next_read = fs.pindex + faultcount - reqpage;
 
-	vm_fault_dirty(fs.entry, fs.m, prot, fault_type, fault_flags, TRUE);
+	vm_fault_dirty(fs.entry, fs.m, prot, fault_type, fault_flags, true);
 	vm_page_assert_xbusied(fs.m);
 
 	/*
