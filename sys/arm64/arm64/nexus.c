@@ -346,7 +346,11 @@ nexus_activate_resource(device_t bus, device_t child, int type, int rid,
 		rman_set_virtual(r, (void *)vaddr);
 		rman_set_bushandle(r, vaddr);
 	} else if (type == SYS_RES_IRQ) {
-		intr_activate_irq(child, r);
+		err = intr_activate_irq(child, r);
+		if (err != 0) {
+			rman_deactivate_resource(r);
+			return (err);
+		}
 	}
 	return (0);
 }
