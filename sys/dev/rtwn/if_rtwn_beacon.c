@@ -54,6 +54,7 @@ rtwn_reset_beacon_valid(struct rtwn_softc *sc, int id)
 
 	KASSERT (id == 0 || id == 1, ("wrong port id %d\n", id));
 
+	/* XXX cannot be cleared on RTL8188CE */
 	rtwn_setbits_1_shift(sc, sc->bcn_status_reg[id],
 	    R92C_TDECTRL_BCN_VALID, 0, 2);
 
@@ -79,7 +80,7 @@ rtwn_check_beacon_valid(struct rtwn_softc *sc, int id)
 			    __func__, id);
 			break;
 		}
-		rtwn_delay(sc, 100);
+		rtwn_delay(sc, sc->bcn_check_interval);
 	}
 	if (ntries == 10)
 		return (ETIMEDOUT);
@@ -123,8 +124,10 @@ rtwn_setup_beacon(struct rtwn_softc *sc, struct ieee80211_node *ni)
 		return (ENOMEM);
 	}
 
-	if (uvp->bcn_mbuf != NULL)
+	if (uvp->bcn_mbuf != NULL) {
+		rtwn_beacon_unload(sc, uvp->id);
 		m_freem(uvp->bcn_mbuf);
+	}
 
 	uvp->bcn_mbuf = m;
 
@@ -173,6 +176,7 @@ rtwn_update_beacon(struct ieee80211vap *vap, int item)
 			return;
 		}
 	}
+	rtwn_beacon_update_begin(sc, vap);
 	RTWN_UNLOCK(sc);
 
 	if (item == IEEE80211_BEACON_TIM)
@@ -183,6 +187,7 @@ rtwn_update_beacon(struct ieee80211vap *vap, int item)
 
 	RTWN_LOCK(sc);
 	rtwn_tx_beacon(sc, uvp);
+	rtwn_beacon_update_end(sc, vap);
 	RTWN_UNLOCK(sc);
 }
 

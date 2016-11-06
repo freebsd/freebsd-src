@@ -81,6 +81,7 @@ static void	rtwn_usb_start_xfers(struct rtwn_softc *);
 static void	rtwn_usb_abort_xfers(struct rtwn_softc *);
 static int	rtwn_usb_fw_write_block(struct rtwn_softc *,
 		    const uint8_t *, uint16_t, int);
+static void	rtwn_usb_drop_incorrect_tx(struct rtwn_softc *);
 static void	rtwn_usb_attach_methods(struct rtwn_softc *);
 
 #define RTWN_CONFIG_INDEX	0
@@ -318,6 +319,11 @@ rtwn_usb_attach_methods(struct rtwn_softc *sc)
 	sc->sc_get_qmap		= rtwn_usb_get_qmap;
 	sc->sc_set_desc_addr	= rtwn_nop_softc;
 	sc->sc_drop_incorrect_tx = rtwn_usb_drop_incorrect_tx;
+	sc->sc_beacon_update_begin = rtwn_nop_softc_vap;
+	sc->sc_beacon_update_end = rtwn_nop_softc_vap;
+	sc->sc_beacon_unload	= rtwn_nop_softc_int;
+
+	sc->bcn_check_interval	= 100;
 }
 
 static int

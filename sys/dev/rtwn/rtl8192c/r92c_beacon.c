@@ -68,6 +68,7 @@ r92c_beacon_init(struct rtwn_softc *sc, void *buf, int id)
 	rtwn_r92c_tx_setup_macid(sc, buf, id);
 	txd->txdw4 |= htole32(R92C_TXDW4_DRVRATE);
 	txd->txdw4 |= htole32(SM(R92C_TXDW4_SEQ_SEL, id));
+	txd->txdw4 |= htole32(SM(R92C_TXDW4_PORT_ID, id));
 	txd->txdw5 |= htole32(SM(R92C_TXDW5_DATARATE, RTWN_RIDX_CCK1));
 }
 

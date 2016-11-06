@@ -87,6 +87,10 @@ static int	rtwn_pci_fw_write_block(struct rtwn_softc *,
 		    const uint8_t *, uint16_t, int);
 static uint16_t	rtwn_pci_get_qmap(struct rtwn_softc *);
 static void	rtwn_pci_set_desc_addr(struct rtwn_softc *);
+static void	rtwn_pci_beacon_update_begin(struct rtwn_softc *,
+		    struct ieee80211vap *);
+static void	rtwn_pci_beacon_update_end(struct rtwn_softc *,
+		    struct ieee80211vap *);
 static void	rtwn_pci_attach_methods(struct rtwn_softc *);
 
 
@@ -539,6 +543,27 @@ rtwn_pci_set_desc_addr(struct rtwn_softc *sc)
 }
 
 static void
+rtwn_pci_beacon_update_begin(struct rtwn_softc *sc, struct ieee80211vap *vap)
+{
+	struct rtwn_vap *rvp = RTWN_VAP(vap);
+
+	RTWN_ASSERT_LOCKED(sc);
+
+	rtwn_beacon_enable(sc, rvp->id, 0);
+}
+
+static void
+rtwn_pci_beacon_update_end(struct rtwn_softc *sc, struct ieee80211vap *vap)
+{
+	struct rtwn_vap *rvp = RTWN_VAP(vap);
+
+	RTWN_ASSERT_LOCKED(sc);
+
+	if (rvp->curr_mode != R92C_MSR_NOLINK)
+		rtwn_beacon_enable(sc, rvp->id, 1);
+}
+
+static void
 rtwn_pci_attach_methods(struct rtwn_softc *sc)
 {
 	sc->sc_write_1		= rtwn_pci_write_1;
@@ -555,6 +580,11 @@ rtwn_pci_attach_methods(struct rtwn_softc *sc)
 	sc->sc_get_qmap		= rtwn_pci_get_qmap;
 	sc->sc_set_desc_addr	= rtwn_pci_set_desc_addr;
 	sc->sc_drop_incorrect_tx = rtwn_nop_softc;
+	sc->sc_beacon_update_begin = rtwn_pci_beacon_update_begin;
+	sc->sc_beacon_update_end = rtwn_pci_beacon_update_end;
+	sc->sc_beacon_unload	= rtwn_pci_reset_beacon_ring;
+
+	sc->bcn_check_interval	= 25000;
 }
 
 static int

@@ -50,7 +50,6 @@ struct rtwn_tx_data {
 	bus_dmamap_t		map;
 	struct mbuf		*m;
 	struct ieee80211_node	*ni;
-	uint8_t			id;
 };
 
 struct rtwn_tx_ring {

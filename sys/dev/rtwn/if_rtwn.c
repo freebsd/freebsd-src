@@ -628,10 +628,10 @@ rtwn_vap_delete(struct ieee80211vap *vap)
 	ieee80211_draintask(ic, &ic->ic_parent_task);
 
 	RTWN_LOCK(sc);
-	if (uvp->bcn_mbuf != NULL)
-		m_freem(uvp->bcn_mbuf);
 	/* Cancel any unfinished Tx. */
 	rtwn_reset_lists(sc, vap);
+	if (uvp->bcn_mbuf != NULL)
+		m_freem(uvp->bcn_mbuf);
 	rtwn_vap_decrement_counters(sc, vap->iv_opmode, uvp->id);
 	rtwn_set_ic_opmode(sc);
 	if (sc->sc_flags & RTWN_RUNNING)
@@ -822,8 +822,10 @@ rtwn_push_nulldata(struct rtwn_softc *sc, struct ieee80211vap *vap)
 	rtwn_setbits_1_shift(sc, R92C_FWHW_TXQ_CTRL,
 	    R92C_FWHW_TXQ_CTRL_REAL_BEACON, 0, 2);
 
-	if (uvp->bcn_mbuf != NULL)
+	if (uvp->bcn_mbuf != NULL) {
+		rtwn_beacon_unload(sc, uvp->id);
 		m_freem(uvp->bcn_mbuf);
+	}
 
 	m->m_pkthdr.len = m->m_len = required_size - sc->txdesc_len;
 	uvp->bcn_mbuf = m;
@@ -1268,6 +1270,9 @@ rtwn_run(struct rtwn_softc *sc, struct ieee80211vap *vap)
 	}
 #endif
 
+	/* Enable TSF synchronization. */
+	rtwn_tsf_sync_enable(sc, vap);
+
 	if (vap->iv_opmode == IEEE80211_M_HOSTAP ||
 	    vap->iv_opmode == IEEE80211_M_IBSS) {
 		error = rtwn_setup_beacon(sc, ni);
@@ -1281,9 +1286,6 @@ rtwn_run(struct rtwn_softc *sc, struct ieee80211vap *vap)
 
 	/* Set ACK preamble type. */
 	rtwn_set_ack_preamble(sc);
-
-	/* Enable TSF synchronization. */
-	rtwn_tsf_sync_enable(sc, vap);
 
 	/* Set basic rates mask. */
 	rtwn_calc_basicrates(sc);
