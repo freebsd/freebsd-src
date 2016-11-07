@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
  * Instruction disassembler.
  */
 #include <sys/param.h>
+#include <sys/kdb.h>
 
 #include <ddb/ddb.h>
 #include <ddb/db_access.h>
@@ -1168,9 +1169,17 @@ db_disasm(db_addr_t loc, bool altfmt)
 	int	len;
 	struct i_addr	address;
 
+	if (db_segsize(kdb_frame) == 16)
+	   altfmt = !altfmt;
 	get_value_inc(inst, loc, 1, FALSE);
-	short_addr = FALSE;
-	size = LONG;
+	if (altfmt) {
+	    short_addr = TRUE;
+	    size = WORD;
+	}
+	else {
+	    short_addr = FALSE;
+	    size = LONG;
+	}
 	seg = NULL;
 
 	/*
