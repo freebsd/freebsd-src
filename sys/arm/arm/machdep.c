@@ -76,7 +76,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/pcpu.h>
 #include <sys/ptrace.h>
 #include <sys/reboot.h>
+#if defined(LINUX_BOOT_ABI)
 #include <sys/boot.h>
+#endif
 #include <sys/rwlock.h>
 #include <sys/sched.h>
 #include <sys/signalvar.h>
