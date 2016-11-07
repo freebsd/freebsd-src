@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: jpeg,v 1.29 2015/04/10 15:36:02 christos Exp $
+# $File: jpeg,v 1.30 2016/07/04 15:18:23 christos Exp $
 # JPEG images
 # SunOS 5.5.1 had
 #
@@ -117,3 +117,10 @@
 # From: Mathieu Malaterre <mathieu.malaterre@gmail.com>
 0	belong		0xff4fff51						JPEG 2000 codestream
 45	beshort		0xff52
+
+# JPEG extended range
+0	string		\x49\x49\xbc
+>3	byte		1
+>>4	lelong%2	0	JPEG-XR
+!:mime	image/jxr
+!:ext	jxr

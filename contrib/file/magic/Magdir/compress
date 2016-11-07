@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: compress,v 1.65 2015/12/04 20:48:03 christos Exp $
+# $File: compress,v 1.66 2016/09/16 12:12:05 christos Exp $
 # compress:  file(1) magic for pure-compression formats (no archives)
 #
 # compress, gzip, pack, compact, huf, squeeze, crunch, freeze, yabba, etc.
@@ -219,6 +219,56 @@
 !:mime	application/x-lz4
 0	lelong		0x184c2102	LZ4 compressed data (v0.1-v0.9)
 !:mime	application/x-lz4
+
+# Zstandard/LZ4 skippable frames
+# https://github.com/facebook/zstd/blob/dev/zstd_compression_format.md
+0         lelong&0xFFFFFFF0  0x184D2A50
+>(4.l+8)  indirect
+
+# Zstandard Dictionary ID subroutine
+0     name        zstd-dictionary-id
+# Single Segment = True
+>0    byte        &0x20   \b, Dictionary ID:
+>>0   byte&0x03   0       None
+>>0   byte&0x03   1
+>>>1  byte        x       %u
+>>0   byte&0x03   2
+>>>1  leshort     x       %u
+>>0   byte&0x03   3
+>>>1  lelong      x       %u
+# Single Segment = False
+>0    byte        ^0x20   \b, Dictionary ID:
+>>0   byte&0x03   0       None
+>>0   byte&0x03   1
+>>>2  byte        x       %u
+>>0   byte&0x03   2
+>>>2  leshort     x       %u
+>>0   byte&0x03   3
+>>>2  lelong      x       %u
+
+# Zstandard compressed data
+# https://github.com/facebook/zstd/blob/dev/zstd_compression_format.md
+0     lelong       0xFD2FB522  Zstandard compressed data (v0.2)
+!:mime  application/x-zstd
+0     lelong       0xFD2FB523  Zstandard compressed data (v0.3)
+!:mime  application/x-zstd
+0     lelong       0xFD2FB524  Zstandard compressed data (v0.4)
+!:mime  application/x-zstd
+0     lelong       0xFD2FB525  Zstandard compressed data (v0.5)
+!:mime  application/x-zstd
+0     lelong       0xFD2FB526  Zstandard compressed data (v0.6)
+!:mime  application/x-zstd
+0     lelong       0xFD2FB527  Zstandard compressed data (v0.7)
+!:mime  application/x-zstd
+>4    use          zstd-dictionary-id
+0     lelong       0xFD2FB528  Zstandard compressed data (v0.8+)
+!:mime  application/x-zstd
+>4    use          zstd-dictionary-id
+
+# https://github.com/facebook/zstd/blob/dev/zstd_compression_format.md
+0  lelong    0xEC30A437  Zstandard dictionary
+!:mime  application/x-zstd-dictionary
+>4 lelong    x           (ID %u)
 
 # AFX compressed files (Wolfram Kleff)
 2	string		-afx-		AFX compressed file data

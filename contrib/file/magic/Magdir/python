@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: python,v 1.28 2015/09/16 22:19:54 christos Exp $
+# $File: python,v 1.29 2016/07/27 09:42:16 rrt Exp $
 # python:  file(1) magic for python
 #
 # Outlook puts """ too for urgent messages
@@ -9,7 +9,7 @@
 0	string/t	"""	Python script text executable
 # MAGIC as specified in Python/import.c (1.5 to 2.7a0 and 3.1a0, assuming
 # that Py_UnicodeFlag is off for Python 2)
-# 20121  ( YEAR - 1995 ) + MONTH  + DAY (little endian followed by "\r\n"
+# two bytes of magic followed by "\r\n" in little endian order
 0	belong		0x994e0d0a	python 1.5/1.6 byte-compiled
 0	belong		0x87c60d0a	python 2.0 byte-compiled
 0	belong		0x2aeb0d0a	python 2.1 byte-compiled
@@ -24,6 +24,7 @@
 0	belong		0x6c0c0d0a	python 3.2 byte-compiled
 0	belong		0x9e0c0d0a	python 3.3 byte-compiled
 0	belong		0xee0c0d0a	python 3.4 byte-compiled
+0	belong		0x160d0d0a	python 3.5 byte-compiled
 
 0	search/1/w	#!\ /usr/bin/python	Python script text executable
 !:strength + 15

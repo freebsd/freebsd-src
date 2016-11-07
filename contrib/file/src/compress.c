@@ -35,7 +35,7 @@
 #include "file.h"
 
 #ifndef lint
-FILE_RCSID("@(#)$File: compress.c,v 1.97 2016/05/13 23:02:28 christos Exp $")
+FILE_RCSID("@(#)$File: compress.c,v 1.100 2016/10/24 18:02:17 christos Exp $")
 #endif
 
 #include "magic.h"
@@ -132,6 +132,9 @@ static const char *lrzip_args[] = {
 static const char *lz4_args[] = {
 	"lz4", "-cd", NULL
 };
+static const char *zstd_args[] = {
+	"zstd", "-cd", NULL
+};
 
 private const struct {
 	const void *magic;
@@ -154,8 +157,9 @@ private const struct {
  	{ "\3757zXZ\0",	6, xz_args },		/* XZ Utils */
  	{ "LRZI",	4, lrzip_args },	/* LRZIP */
  	{ "\004\"M\030",4, lz4_args },		/* LZ4 */
+ 	{ "\x28\xB5\x2F\xFD", 4, zstd_args },	/* zstd */
 #ifdef ZLIBSUPPORT
-	{ zlibcmp,	0, zlib_args },		/* zlib */
+	{ RCAST(const void *, zlibcmp),	0, zlib_args },		/* zlib */
 #endif
 };
 
@@ -204,7 +208,7 @@ file_zmagic(struct magic_set *ms, int fd, const char *name,
 			continue;
 #ifdef ZLIBSUPPORT
 		if (compr[i].maglen == 0)
-			zm = (CAST(int (*)(const unsigned char *),
+			zm = (RCAST(int (*)(const unsigned char *),
 			    CCAST(void *, compr[i].magic)))(buf);
 		else
 #endif
@@ -362,7 +366,7 @@ nocheck:
 			return rn - n;
 		default:
 			n -= rv;
-			buf = ((char *)buf) + rv;
+			buf = CAST(char *, CCAST(void *, buf)) + rv;
 			break;
 		}
 	while (n > 0);
@@ -517,7 +521,7 @@ uncompresszlib(const unsigned char *old, unsigned char **newch,
 
 	return OKDATA;
 err:
-	strlcpy((char *)*newch, z.msg, bytes_max);
+	strlcpy((char *)*newch, z.msg ? z.msg : zError(rc), bytes_max);
 	*n = strlen((char *)*newch);
 	return ERRDATA;
 }

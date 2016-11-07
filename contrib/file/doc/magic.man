@@ -1,5 +1,5 @@
-.\" $File: magic.man,v 1.86 2015/09/08 13:48:44 christos Exp $
-.Dd January 1, 2015
+.\" $File: magic.man,v 1.88 2016/07/27 09:42:49 rrt Exp $
+.Dd July 20, 2016
 .Dt MAGIC __FSECTION__
 .Os
 .\" install as magic.4 on USG, magic.5 on V7, Berkeley and Linux systems.
@@ -535,13 +535,18 @@ the file.
 The value at that offset is read, and is used again as an offset
 in the file.
 Indirect offsets are of the form:
-.Em (( x [.[bislBISL]][+\-][ y ]) .
+.Em (( x [[.,][bislBISL]][+\-][ y ]) .
 The value of
 .Em x
 is used as an offset in the file.
 A byte, id3 length, short or long is read at that offset depending on the
 .Em [bislBISLm]
 type specifier.
+The value is treated as signed if
+.Dq ,
+is specified or unsigned if
+.Dq .
+is specified.
 The capitalized types interpret the number as a big endian
 value, whereas the small letter versions interpret the number as a little
 endian value;
@@ -564,9 +569,9 @@ That way variable length structures can be examined:
 \*[Gt]\*[Gt](0x3c.l)  string  LX\e0\e0  LX executable (OS/2)
 .Ed
 .Pp
-This strategy of examining has a drawback: You must make sure that
-you eventually print something, or users may get empty output (like, when
-there is neither PE\e0\e0 nor LE\e0\e0 in the above example)
+This strategy of examining has a drawback: you must make sure that you
+eventually print something, or users may get empty output (such as when
+there is neither PE\e0\e0 nor LE\e0\e0 in the above example).
 .Pp
 If this indirect offset cannot be used directly, simple calculations are
 possible: appending
