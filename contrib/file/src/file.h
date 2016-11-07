@@ -27,7 +27,7 @@
  */
 /*
  * file.h - definitions for file(1) program
- * @(#)$File: file.h,v 1.178 2016/03/31 17:51:12 christos Exp $
+ * @(#)$File: file.h,v 1.180 2016/07/20 11:27:08 christos Exp $
  */
 
 #ifndef __file_h__
@@ -134,11 +134,11 @@
 				   or directory */
 #define MAXDESC	64		/* max len of text description/MIME type */
 #define MAXMIME	80		/* max len of text MIME type */
-#define MAXstring 64		/* max len of "string" types */
+#define MAXstring 96		/* max len of "string" types */
 
 #define MAGICNO		0xF11E041C
-#define VERSIONNO	13
-#define FILE_MAGICSIZE	312
+#define VERSIONNO	14
+#define FILE_MAGICSIZE	344
 
 #define	FILE_LOAD	0
 #define FILE_CHECK	1
@@ -275,7 +275,7 @@ struct magic {
 #define				FILE_OPS_MASK	0x07 /* mask for above ops */
 #define				FILE_UNUSED_1	0x08
 #define				FILE_UNUSED_2	0x10
-#define				FILE_UNUSED_3	0x20
+#define				FILE_OPSIGNED	0x20
 #define				FILE_OPINVERSE	0x40
 #define				FILE_OPINDIRECT	0x80
 

@@ -32,7 +32,7 @@
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: file.c,v 1.171 2016/05/17 15:52:45 christos Exp $")
+FILE_RCSID("@(#)$File: file.c,v 1.172 2016/10/24 15:21:07 christos Exp $")
 #endif	/* lint */
 
 #include "magic.h"
@@ -431,6 +431,8 @@ private struct magic_set *
 load(const char *magicfile, int flags)
 {
 	struct magic_set *magic = magic_open(flags);
+	const char *e;
+
 	if (magic == NULL) {
 		(void)fprintf(stderr, "%s: %s\n", progname, strerror(errno));
 		return NULL;
@@ -441,6 +443,8 @@ load(const char *magicfile, int flags)
 		magic_close(magic);
 		return NULL;
 	}
+	if ((e = magic_error(magic)) != NULL)
+		(void)fprintf(stderr, "%s: Warning: %s\n", progname, e);
 	return magic;
 }
 
