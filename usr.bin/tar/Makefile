@@ -1,6 +1,9 @@
 # $FreeBSD$
 .include <src.opts.mk>
 
+# crashes
+WANT_CHERI=none
+
 _LIBARCHIVEDIR=	${.CURDIR}/../../contrib/libarchive
 
 PROG=	bsdtar
