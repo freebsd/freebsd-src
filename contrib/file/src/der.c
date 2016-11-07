@@ -35,13 +35,11 @@
 #include "file.h"
 
 #ifndef lint
-FILE_RCSID("@(#)$File: der.c,v 1.7 2016/06/01 22:01:15 christos Exp $")
+FILE_RCSID("@(#)$File: der.c,v 1.10 2016/10/24 18:02:17 christos Exp $")
 #endif
 #endif
 
 #include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/mman.h>
 
 #include <stdio.h>
 #include <fcntl.h>
@@ -53,6 +51,8 @@ FILE_RCSID("@(#)$File: der.c,v 1.7 2016/06/01 22:01:15 christos Exp $")
 #include "magic.h"
 #include "der.h"
 #else
+#include <sys/mman.h>
+#include <sys/stat.h>
 #include <err.h>
 #endif
 
@@ -181,6 +181,8 @@ getlength(const uint8_t *c, size_t *p, size_t l)
 
 	for (i = 0; i < digits; i++)
 		len = (len << 8) | c[(*p)++];
+	if (*p + len >= l)
+		return DER_BAD;
         return len;
 }
 
@@ -198,7 +200,7 @@ der_tag(char *buf, size_t len, uint32_t tag)
 static int
 der_data(char *buf, size_t blen, uint32_t tag, const void *q, uint32_t len)
 {
-	const uint8_t *d = q;
+	const uint8_t *d = CAST(const uint8_t *, q);
 	switch (tag) {
 	case DER_TAG_PRINTABLE_STRING:
 	case DER_TAG_UTF8_STRING:
@@ -220,7 +222,7 @@ der_data(char *buf, size_t blen, uint32_t tag, const void *q, uint32_t len)
 int32_t
 der_offs(struct magic_set *ms, struct magic *m, size_t nbytes)
 {
-	const uint8_t *b = CAST(const void *, ms->search.s);
+	const uint8_t *b = RCAST(const uint8_t *, ms->search.s);
 	size_t offs = 0, len = ms->search.s_len ? ms->search.s_len : nbytes;
 
 	if (gettag(b, &offs, len) == DER_BAD)
@@ -251,7 +253,7 @@ der_offs(struct magic_set *ms, struct magic *m, size_t nbytes)
 int
 der_cmp(struct magic_set *ms, struct magic *m)
 {
-	const uint8_t *b = CAST(const void *, ms->search.s);
+	const uint8_t *b = RCAST(const uint8_t *, ms->search.s);
 	const char *s = m->value.s;
 	size_t offs = 0, len = ms->search.s_len;
 	uint32_t tag, tlen;
