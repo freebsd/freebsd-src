@@ -1106,10 +1106,8 @@ usb_detach_device_sub(struct usb_device *udev, device_t *ppdev,
 					device_printf(dev, "Resume failed\n");
 				}
 			}
-			if (device_detach(dev)) {
-				goto error;
-			}
 		}
+		/* detach and delete child */
 		if (device_delete_child(udev->parent_dev, dev)) {
 			goto error;
 		}
