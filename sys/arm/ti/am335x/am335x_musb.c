@@ -366,14 +366,10 @@ static int
 musbotg_detach(device_t dev)
 {
 	struct musbotg_super_softc *sc = device_get_softc(dev);
-	device_t bdev;
 	int err;
 
-	if (sc->sc_otg.sc_bus.bdev) {
-		bdev = sc->sc_otg.sc_bus.bdev;
-		device_detach(bdev);
-		device_delete_child(dev, bdev);
-	}
+	/* during module unload there are lots of children leftover */
+	device_delete_children(dev);
 
 	if (sc->sc_otg.sc_irq_res && sc->sc_otg.sc_intr_hdl) {
 		/*
@@ -396,9 +392,6 @@ musbotg_detach(device_t dev)
 	if (sc->sc_otg.sc_irq_res)
 		bus_release_resource(dev, SYS_RES_IRQ, sc->sc_irq_rid,
 		    sc->sc_otg.sc_irq_res);
-
-	/* during module unload there are lots of children leftover */
-	device_delete_children(dev);
 
 	return (0);
 }
