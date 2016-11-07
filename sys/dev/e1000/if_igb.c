@@ -590,11 +590,20 @@ igb_attach(device_t dev)
 		error = EIO;
 		goto err_late;
 	}
-	/* Check its sanity */
-	if (!igb_is_valid_ether_addr(adapter->hw.mac.addr)) {
-		device_printf(dev, "Invalid MAC address\n");
-		error = EIO;
-		goto err_late;
+
+ 	/* Check its sanity */
+ 	if (!igb_is_valid_ether_addr(adapter->hw.mac.addr)) {
+		if (adapter->vf_ifp) {
+			u8 addr[ETHER_ADDR_LEN];
+			arc4rand(&addr, sizeof(addr), 0);
+			addr[0] &= 0xFE;
+			addr[0] |= 0x02;
+			bcopy(addr, adapter->hw.mac.addr, sizeof(addr));
+		} else {
+			device_printf(dev, "Invalid MAC address\n");
+			error = EIO;
+			goto err_late;
+		}
 	}
 
 	/* Setup OS specific network interface */
