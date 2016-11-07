@@ -167,7 +167,11 @@ int mlx5_query_hca_caps(struct mlx5_core_dev *dev)
 			return err;
 	}
 
-	if (MLX5_CAP_GEN(dev, nic_flow_table)) {
+	if ((MLX5_CAP_GEN(dev, port_type) ==
+	    MLX5_CMD_HCA_CAP_PORT_TYPE_ETHERNET &&
+	    MLX5_CAP_GEN(dev, nic_flow_table)) ||
+	    (MLX5_CAP_GEN(dev, port_type) == MLX5_CMD_HCA_CAP_PORT_TYPE_IB &&
+	    MLX5_CAP_GEN(dev, ipoib_enhanced_offloads))) {
 		err = mlx5_core_get_caps(dev, MLX5_CAP_FLOW_TABLE,
 					 HCA_CAP_OPMOD_GET_CUR);
 		if (err)
