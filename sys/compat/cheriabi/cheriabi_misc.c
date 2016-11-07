@@ -1965,9 +1965,13 @@ int
 cheriabi_mmap_set_retcap(struct thread *td, struct chericap *retcap,
    struct chericap *addr, size_t len, int prot, int flags)
 {
-	register_t perms, ret;
-	size_t addr_base, mmap_cap_base, mmap_cap_len;
+	register_t ret;
+	size_t mmap_cap_base, mmap_cap_len;
 	vm_map_t map;
+#ifndef COMPAT_CHERIABI_WEAK
+	register_t perms;
+	size_t addr_base;
+#endif
 
 	ret = td->td_retval[0];
 	/* On failure, return a NULL capability with an offset of -1. */
@@ -1978,14 +1982,22 @@ cheriabi_mmap_set_retcap(struct thread *td, struct chericap *retcap,
 		return (0);
 	}
 
+#ifdef COMPAT_CHERIABI_WEAK
 	/*
-	 * Leave addr alone in the MAP_CHERI_NOSETBOUNDS case.
+	 * In the weak case, return addr untouched for all fixed requests.
+	 */
+	if (flags & MAP_FIXED) {
+#else
+	/*
+	 * In the strong case, leave addr untouched when MAP_CHERI_NOSETBOUNDS
+	 * is set.
 	 *
 	 * NB: This means no permission changes.
-	 * The assumption is that the larger capability has the right
+	 * The assumption is that the larger capability has the correct
 	 * permissions and we're only intrested in adjusting page mappings.
 	 */
 	if (flags & MAP_CHERI_NOSETBOUNDS) {
+#endif
 		cheri_capability_copy(retcap, addr);
 		return (0);
 	}
@@ -1999,11 +2011,16 @@ cheriabi_mmap_set_retcap(struct thread *td, struct chericap *retcap,
 		PROC_UNLOCK(td->td_proc);
 	}
 
+#ifndef COMPAT_CHERIABI_WEAK
 	CHERI_CGETPERM(perms, CHERI_CR_CTEMP0);
 	CHERI_CANDPERM(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0,
 	    (~PERM_RWX | cheriabi_mmap_prot2perms(prot)));
+#endif
 
 	if (flags & MAP_FIXED) {
+#ifdef COMPAT_CHERIABI_WEAK
+		/* Handled above */
+#else
 		/*
 		 * If addr was under aligned, we need to return a
 		 * capability to the whole, properly aligned region
@@ -2020,6 +2037,7 @@ cheriabi_mmap_set_retcap(struct thread *td, struct chericap *retcap,
 		CHERI_CGETBASE(addr_base, CHERI_CR_CTEMP0);
 		CHERI_CSETOFFSET(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0,
 		    addr_base - ret);
+#endif
 	} else {
 		CHERI_CGETBASE(mmap_cap_base, CHERI_CR_CTEMP0);
 		CHERI_CGETLEN(mmap_cap_len, CHERI_CR_CTEMP0);
@@ -2034,9 +2052,10 @@ cheriabi_mmap_set_retcap(struct thread *td, struct chericap *retcap,
 		}
 		CHERI_CSETOFFSET(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0,
 		    ret - mmap_cap_base);
+#ifndef COMPAT_CHERIABI_WEAK
 		CHERI_CSETBOUNDS(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0,
 		    roundup2(len, PAGE_SIZE));
-
+#endif
 	}
 	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, retcap, 0);
 

@@ -57,6 +57,7 @@ MIPSN32
 COMPAT_FREEBSD32	opt_compat.h
 
 COMPAT_CHERIABI		opt_compat.h
+COMPAT_CHERIABI_WEAK	opt_compat.h
 
 YAMON		opt_global.h
 CFE		opt_global.h
