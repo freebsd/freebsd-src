@@ -73,9 +73,10 @@
  * XScale core 3 assembly functions for CPU / MMU / TLB specific operations
  */
 
-#include <machine/armreg.h>
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
+
+#include <machine/armreg.h>
 
 /*
  * Size of the XScale core D-cache.

@@ -29,10 +29,10 @@
  * SUCH DAMAGE.
  */
 
-#include <machine/armreg.h>
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
+#include <machine/armreg.h>
 #include <machine/param.h>
 
 .Lsheeva_cache_line_size:
