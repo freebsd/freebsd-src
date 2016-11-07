@@ -831,28 +831,32 @@ int mlx5_query_port_cong_statistics(struct mlx5_core_dev *mdev, int clear,
 					  out, out_size);
 }
 
-int mlx5_set_diagnostics(struct mlx5_core_dev *mdev, void *in, int in_size)
+int mlx5_set_diagnostic_params(struct mlx5_core_dev *mdev, void *in,
+			       int in_size)
 {
-	u32 out[MLX5_ST_SZ_DW(set_diagnostics_out)];
+	u32 out[MLX5_ST_SZ_DW(set_diagnostic_params_out)];
 
 	memset(out, 0, sizeof(out));
 
-	MLX5_SET(set_diagnostics_in, in, opcode, MLX5_CMD_OP_SET_DIAGNOSTICS);
+	MLX5_SET(set_diagnostic_params_in, in, opcode,
+		 MLX5_CMD_OP_SET_DIAGNOSTICS);
 
 	return mlx5_cmd_exec_check_status(mdev, in, in_size, out, sizeof(out));
 }
 
-int mlx5_query_diagnostics(struct mlx5_core_dev *mdev, u8 num_of_samples,
-			   u16 sample_index, void *out, int out_size)
+int mlx5_query_diagnostic_counters(struct mlx5_core_dev *mdev,
+				   u8 num_of_samples, u16 sample_index,
+				   void *out, int out_size)
 {
-	u32 in[MLX5_ST_SZ_DW(query_diagnostics_in)];
+	u32 in[MLX5_ST_SZ_DW(query_diagnostic_counters_in)];
 
 	memset(in, 0, sizeof(in));
 
-	MLX5_SET(query_diagnostics_in, in, opcode,
+	MLX5_SET(query_diagnostic_counters_in, in, opcode,
 		 MLX5_CMD_OP_QUERY_DIAGNOSTICS);
-	MLX5_SET(query_diagnostics_in, in, num_of_samples, num_of_samples);
-	MLX5_SET(query_diagnostics_in, in, sample_index, sample_index);
+	MLX5_SET(query_diagnostic_counters_in, in, num_of_samples,
+		 num_of_samples);
+	MLX5_SET(query_diagnostic_counters_in, in, sample_index, sample_index);
 
 	return mlx5_cmd_exec_check_status(mdev, in, sizeof(in), out, out_size);
 }
