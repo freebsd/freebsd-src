@@ -189,6 +189,16 @@
 #endif /* ! KSTACK_LARGE_PAGE */
 
 /*
+ * CHERI specific define required by SysV shared memory.  Depends
+ * on physically addressable memory.
+ */
+#ifdef __mips_n64
+/* 1MB allows all sizes for 40-bit address spaces with ISA v5 128-bit caps. */
+/* XXX-BD: only increase for compressed capabilities? */
+#define	CHERI_SHMLBA	(1 << 20)
+#endif
+
+/*
  * Mach derived conversion macros
  */
 #define	round_page(x)		(((x) + PAGE_MASK) & ~PAGE_MASK)

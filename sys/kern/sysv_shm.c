@@ -250,6 +250,10 @@ shm_deallocate_segment(struct shmid_kernel *shmseg)
 	vm_object_deallocate(shmseg->object);
 	shmseg->object = NULL;
 	size = round_page(shmseg->u.shm_segsz);
+#ifdef COMPAT_CHERIABI
+	if (SV_CURPROC_FLAG(SV_CHERI))
+		size = roundup2(size, 1 << CHERI_ALIGN_SHIFT(size));
+#endif
 	shm_committed -= btoc(size);
 	shm_nused--;
 	shmseg->u.shm_perm.mode = SHMSEG_FREE;
@@ -276,6 +280,10 @@ shm_delete_mapping(struct vmspace *vm, struct shmmap_state *shmmap_s)
 
 	shmseg = &shmsegs[segnum];
 	size = round_page(shmseg->u.shm_segsz);
+#ifdef COMPAT_CHERIABI
+	if (SV_CURPROC_FLAG(SV_CHERI))
+		size = roundup2(size, 1 << CHERI_ALIGN_SHIFT(size));
+#endif
 	result = vm_map_remove(&vm->vm_map, shmmap_s->va, shmmap_s->va + size);
 	if (result != KERN_SUCCESS)
 		return (EINVAL);
@@ -424,11 +432,28 @@ kern_shmat_locked(struct thread *td, int shmid, const void *shmaddr,
 	if (i >= shminfo.shmseg)
 		return (EMFILE);
 	size = round_page(shmseg->u.shm_segsz);
+#ifdef COMPAT_CHERIABI
+	if (SV_CURPROC_FLAG(SV_CHERI))
+		size = roundup2(size, 1 << CHERI_ALIGN_SHIFT(size));
+#endif
 	prot = VM_PROT_READ;
 	if ((shmflg & SHM_RDONLY) == 0)
 		prot |= VM_PROT_WRITE;
 	if (shmaddr != NULL) {
 		findspace = VMFS_NO_SPACE;
+#ifdef COMPAT_CHERIABI
+		if (SV_CURPROC_FLAG(SV_CHERI)) {
+			if ((shmflg & SHM_RND) != 0)
+				attach_va = rounddown2((vm_offset_t)shmaddr,
+				    CHERI_SHMLBA);
+			else if (((vm_offset_t)shmaddr & (SHMLBA-1)) == 0 &&
+			    ((vm_offset_t)shmaddr & CHERI_ALIGN_MASK(size))
+			    == 0)
+				attach_va = (vm_offset_t)shmaddr;
+			else
+				return (EINVAL);
+		}
+#endif
 		if ((shmflg & SHM_RND) != 0)
 			attach_va = rounddown2((vm_offset_t)shmaddr, SHMLBA);
 		else if (((vm_offset_t)shmaddr & (SHMLBA-1)) == 0)
@@ -756,6 +781,10 @@ shmget_allocate_segment(struct thread *td, struct shmget_args *uap, int mode)
 	if (shm_nused >= shminfo.shmmni) /* Any shmids left? */
 		return (ENOSPC);
 	size = round_page(uap->size);
+#ifdef COMPAT_CHERIABI
+	if (SV_CURPROC_FLAG(SV_CHERI))
+		size = roundup2(size, 1 << CHERI_ALIGN_SHIFT(size));
+#endif
 	if (shm_committed + btoc(size) > shminfo.shmall)
 		return (ENOMEM);
 	if (shm_last_free < 0) {
