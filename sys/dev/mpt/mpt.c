@@ -2695,7 +2695,11 @@ mpt_configure_ioc(struct mpt_softc *mpt, int tn, int needreset)
 	 */
 	mpt->max_cam_seg_cnt = min(mpt->max_seg_cnt, (MAXPHYS / PAGE_SIZE) + 1);
 
+	/* XXX Lame Locking! */
+	MPT_UNLOCK(mpt);
 	error = mpt_dma_buf_alloc(mpt);
+	MPT_LOCK(mpt);
+
 	if (error != 0) {
 		mpt_prt(mpt, "mpt_dma_buf_alloc() failed!\n");
 		return (EIO);
@@ -2745,6 +2749,7 @@ mpt_configure_ioc(struct mpt_softc *mpt, int tn, int needreset)
 		 * retrieved, we are responsible for re-downloading
 		 * the firmware after any hard-reset.
 		 */
+		MPT_UNLOCK(mpt);
 		mpt->fw_image_size = mpt->ioc_facts.FWImageSize;
 		error = mpt_dma_tag_create(mpt, mpt->parent_dmat, 1, 0,
 		    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
@@ -2752,6 +2757,7 @@ mpt_configure_ioc(struct mpt_softc *mpt, int tn, int needreset)
 		    &mpt->fw_dmat);
 		if (error != 0) {
 			mpt_prt(mpt, "cannot create firmware dma tag\n");
+			MPT_LOCK(mpt);
 			return (ENOMEM);
 		}
 		error = bus_dmamem_alloc(mpt->fw_dmat,
@@ -2760,6 +2766,7 @@ mpt_configure_ioc(struct mpt_softc *mpt, int tn, int needreset)
 		if (error != 0) {
 			mpt_prt(mpt, "cannot allocate firmware memory\n");
 			bus_dma_tag_destroy(mpt->fw_dmat);
+			MPT_LOCK(mpt);
 			return (ENOMEM);
 		}
 		mi.mpt = mpt;
@@ -2768,6 +2775,7 @@ mpt_configure_ioc(struct mpt_softc *mpt, int tn, int needreset)
 		    mpt->fw_image, mpt->fw_image_size, mpt_map_rquest, &mi, 0);
 		mpt->fw_phys = mi.phys;
 
+		MPT_LOCK(mpt);
 		error = mpt_upload_fw(mpt);
 		if (error != 0) {
 			mpt_prt(mpt, "firmware upload failed.\n");
