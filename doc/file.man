@@ -1,5 +1,5 @@
-.\" $File: file.man,v 1.121 2016/06/07 22:09:20 rrt Exp $
-.Dd March 13, 2016
+.\" $File: file.man,v 1.124 2016/10/19 20:52:45 christos Exp $
+.Dd October 19, 2016
 .Dt FILE __CSECTION__
 .Os
 .Sh NAME
@@ -8,7 +8,7 @@
 .Sh SYNOPSIS
 .Nm
 .Bk -words
-.Op Fl bcEhiklLNnprsvzZ0
+.Op Fl bcdEhiklLNnprsvzZ0
 .Op Fl Fl apple
 .Op Fl Fl extension
 .Op Fl Fl mime-encoding
@@ -181,6 +181,8 @@ Cause a checking printout of the parsed form of the magic file.
 This is usually used in conjunction with the
 .Fl m
 flag to debug a new magic file before installing it.
+.It Fl d
+Prints internal debugging information to stderr.
 .It Fl E
 On filesystem errors (file not found etc), instead of handling the error
 as regular output as POSIX mandates and keep going, issue an error message
@@ -208,7 +210,8 @@ Prints details of Compound Document Files.
 .It compress
 Checks for, and looks inside, compressed files.
 .It elf
-Prints ELF file details.
+Prints ELF file details, provided soft magic tests are enabled and the
+elf magic is found.
 .It soft
 Consults magic files.
 .It tar
@@ -312,7 +315,7 @@ attempt to preserve the access time of files analyzed, to pretend that
 never read them.
 .It Fl P , Fl Fl parameter Ar name=value
 Set various parameter limits.
-.Bl -column "elf_phnum" "Default" "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" -offset indent
+.Bl -column "elf_phnum" "Default" "XXXXXXXXXXXXXXXXXXXXXXXXXXX" -offset indent
 .It Sy "Name" Ta Sy "Default" Ta Sy "Explanation"
 .It Li indir Ta 15 Ta recursion limit for indirect magic
 .It Li name Ta 30 Ta use count limit for name/use magic
