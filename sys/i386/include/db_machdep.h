@@ -35,7 +35,10 @@
 typedef	vm_offset_t	db_addr_t;	/* address - unsigned */
 typedef	int		db_expr_t;	/* expression - signed */
 
-#define	PC_REGS()	((db_addr_t)kdb_thrctx->pcb_eip)
+#define	PC_REGS()	((db_addr_t)(kdb_frame->tf_eflags & PSL_VM ?	\
+			    (kdb_frame->tf_eip & 0xffff) +		\
+			    ((kdb_frame->tf_cs & 0xffff) << 4) :	\
+			    kdb_frame->tf_eip))
 
 #define	BKPT_INST	0xcc		/* breakpoint instruction */
 #define	BKPT_SIZE	(1)		/* size of breakpoint inst */
@@ -56,12 +59,16 @@ do {						\
 #define	db_clear_single_step	kdb_cpu_clear_singlestep
 #define	db_set_single_step	kdb_cpu_set_singlestep
 
-#define	IS_BREAKPOINT_TRAP(type, code)	((type) == T_BPTFLT)
 /*
- * Watchpoints are not supported.  The debug exception type is in %dr6
- * and not yet in the args to this macro.
+ * The debug exception type is copied from %dr6 to 'code' and used to
+ * disambiguate single step traps.  Watchpoints have no special support.
+ * Our hardware breakpoints are not well integrated with ddb and are too
+ * different from watchpoints.  ddb treats them as unknown traps with
+ * unknown addresses and doesn't turn them off while it is running.
  */
-#define IS_WATCHPOINT_TRAP(type, code)	0
+#define	IS_BREAKPOINT_TRAP(type, code)	((type) == T_BPTFLT)
+#define	IS_SSTEP_TRAP(type, code)	((type) == T_TRCTRAP && (code) & 0x4000)
+#define	IS_WATCHPOINT_TRAP(type, code)	0
 
 #define	I_CALL		0xe8
 #define	I_CALLI		0xff
@@ -90,5 +97,7 @@ do {						\
  */
 #define	DB_SMALL_VALUE_MAX	0x7fffffff
 #define	DB_SMALL_VALUE_MIN	(-0x400001)
+
+int	db_segsize(struct trapframe *tfp);
 
 #endif /* !_MACHINE_DB_MACHDEP_H_ */

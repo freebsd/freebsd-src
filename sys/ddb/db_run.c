@@ -48,15 +48,15 @@ __FBSDID("$FreeBSD$");
 #include <ddb/db_break.h>
 #include <ddb/db_access.h>
 
-static int	db_run_mode;
-#define	STEP_NONE	0
 #define	STEP_ONCE	1
 #define	STEP_RETURN	2
 #define	STEP_CALLT	3
 #define	STEP_CONTINUE	4
 #define	STEP_INVISIBLE	5
 #define	STEP_COUNT	6
+static int	db_run_mode = STEP_CONTINUE;
 
+static bool		db_sstep_multiple;
 static bool		db_sstep_print;
 static int		db_loop_count;
 static int		db_call_depth;
@@ -90,13 +90,14 @@ db_pc_is_singlestep(db_addr_t pc)
 #endif
 
 bool
-db_stop_at_pc(bool *is_breakpoint)
+db_stop_at_pc(int type, int code, bool *is_breakpoint, bool *is_watchpoint)
 {
 	db_addr_t	pc;
 	db_breakpoint_t bkpt;
 
+	*is_breakpoint = IS_BREAKPOINT_TRAP(type, code);
+	*is_watchpoint = IS_WATCHPOINT_TRAP(type, code);
 	pc = PC_REGS();
-
 	if (db_pc_is_singlestep(pc))
 		*is_breakpoint = false;
 
@@ -125,13 +126,39 @@ db_stop_at_pc(bool *is_breakpoint)
 		*is_breakpoint = true;
 		return (true);	/* stop here */
 	    }
+	    return (false);	/* continue the countdown */
 	} else if (*is_breakpoint) {
 #ifdef BKPT_SKIP
 		BKPT_SKIP;
 #endif
 	}
 
-	*is_breakpoint = false;
+	*is_breakpoint = false;	/* might be a breakpoint, but not ours */
+
+	/*
+	 * If not stepping, then silently ignore single-step traps
+	 * (except for clearing the single-step-flag above).
+	 *
+	 * If stepping, then abort if the trap type is unexpected.
+	 * Breakpoints owned by us are expected and were handled above.
+	 * Single-steps are expected and are handled below.  All others
+	 * are unexpected.
+	 *
+	 * Only do either of these if the MD layer claims to classify
+	 * single-step traps unambiguously (by defining IS_SSTEP_TRAP).
+	 * Otherwise, fall through to the bad historical behaviour
+	 * given by turning unexpected traps into expected traps: if not
+	 * stepping, then expect only breakpoints and stop, and if
+	 * stepping, then expect only single-steps and step.
+	 */
+#ifdef IS_SSTEP_TRAP
+	if (db_run_mode == STEP_CONTINUE && IS_SSTEP_TRAP(type, code))
+	    return (false);
+	if (db_run_mode != STEP_CONTINUE && !IS_SSTEP_TRAP(type, code)) {
+	    printf("Stepping aborted\n");
+	    return (true);
+	}
+#endif
 
 	if (db_run_mode == STEP_INVISIBLE) {
 	    db_run_mode = STEP_CONTINUE;
@@ -184,7 +211,6 @@ db_stop_at_pc(bool *is_breakpoint)
 		return (false);	/* continue */
 	    }
 	}
-	db_run_mode = STEP_NONE;
 	return (true);
 }
 
@@ -194,6 +220,7 @@ db_restart_at_pc(bool watchpt)
 	db_addr_t	pc = PC_REGS();
 
 	if ((db_run_mode == STEP_COUNT) ||
+	    ((db_run_mode == STEP_ONCE) && db_sstep_multiple) ||
 	    (db_run_mode == STEP_RETURN) ||
 	    (db_run_mode == STEP_CALLT)) {
 	    /*
@@ -321,6 +348,7 @@ db_single_step_cmd(db_expr_t addr, bool have_addr, db_expr_t count, char *modif)
 
 	db_run_mode = STEP_ONCE;
 	db_loop_count = count;
+	db_sstep_multiple = (count != 1);
 	db_sstep_print = print;
 	db_inst_count = 0;
 	db_load_count = 0;
