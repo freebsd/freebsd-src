@@ -1348,15 +1348,16 @@ struct mlx5_ifc_mcia_reg_bits {
 
 struct mlx5_mini_cqe8 {
 	union {
-		u32 rx_hash_result;
-		u32 checksum;
+		__be32 rx_hash_result;
+		__be16 checksum;
+		__be16 rsvd;
 		struct {
-			u16 wqe_counter;
+			__be16 wqe_counter;
 			u8  s_wqe_opcode;
 			u8  reserved;
 		} s_wqe_info;
 	};
-	u32 byte_cnt;
+	__be32 byte_cnt;
 };
 
 enum {
