@@ -702,20 +702,19 @@ static int mlx4_en_xmit(struct mlx4_en_priv *priv, int tx_ind, struct mbuf **mbp
 
 	/* check if TX ring is full */
 	if (unlikely(mlx4_en_tx_ring_is_full(ring))) {
-			/* every full native Tx ring stops queue */
-			if (ring->blocked == 0)
-				atomic_add_int(&priv->blocked, 1);
-			/* Set HW-queue-is-full flag */
-			atomic_set_int(&ifp->if_drv_flags, IFF_DRV_OACTIVE);
-			priv->port_stats.queue_stopped++;
-		ring->blocked = 1;
+		/* every full native Tx ring stops queue */
+		if (ring->blocked == 0)
+			atomic_add_int(&priv->blocked, 1);
+		/* Set HW-queue-is-full flag */
+		atomic_set_int(&ifp->if_drv_flags, IFF_DRV_OACTIVE);
 		priv->port_stats.queue_stopped++;
+		ring->blocked = 1;
 		ring->queue_stopped++;
 
 		/* Use interrupts to find out when queue opened */
 		mlx4_en_arm_cq(priv, priv->tx_cq[tx_ind]);
 		return (ENOBUFS);
-        }
+	}
 
 	/* sanity check we are not wrapping around */
 	KASSERT(((~ring->prod) & ring->size_mask) >=
