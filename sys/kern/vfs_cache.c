@@ -2245,17 +2245,35 @@ vn_fullpath1(struct thread *td, struct vnode *vp, struct vnode *rdir,
 		slash_prefixed = 1;
 	}
 	while (vp != rdir && vp != rootvnode) {
-		if (vp->v_vflag & VV_ROOT) {
-			if (vp->v_iflag & VI_DOOMED) {	/* forced unmount */
-				vrele(vp);
+		/*
+		 * The vp vnode must be already fully constructed,
+		 * since it is either found in namecache or obtained
+		 * from VOP_VPTOCNP().  We may test for VV_ROOT safely
+		 * without obtaining the vnode lock.
+		 */
+		if ((vp->v_vflag & VV_ROOT) != 0) {
+			vn_lock(vp, LK_RETRY | LK_SHARED);
+
+			/*
+			 * With the vnode locked, check for races with
+			 * unmount, forced or not.  Note that we
+			 * already verified that vp is not equal to
+			 * the root vnode, which means that
+			 * mnt_vnodecovered can be NULL only for the
+			 * case of unmount.
+			 */
+			if ((vp->v_iflag & VI_DOOMED) != 0 ||
+			    (vp1 = vp->v_mount->mnt_vnodecovered) == NULL ||
+			    vp1->v_mountedhere != vp->v_mount) {
+				vput(vp);
 				error = ENOENT;
 				SDT_PROBE3(vfs, namecache, fullpath, return,
 				    error, vp, NULL);
 				break;
 			}
-			vp1 = vp->v_mount->mnt_vnodecovered;
+
 			vref(vp1);
-			vrele(vp);
+			vput(vp);
 			vp = vp1;
 			continue;
 		}
