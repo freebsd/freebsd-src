@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: fonts,v 1.30 2016/03/22 22:27:47 christos Exp $
+# $File: fonts,v 1.33 2016/09/14 01:26:26 christos Exp $
 # fonts:  file(1) magic for font data
 #
 0	search/1	FONT		ASCII vfont text
@@ -14,6 +14,56 @@
 0	string		%!FontType1	PostScript Type 1 font program data
 6	string		%!FontType1	PostScript Type 1 font program data
 0	string		%!PS-Adobe-3.0\ Resource-Font	PostScript Type 1 font text
+
+# Summary:	PostScript Type 1 Printer Font Metrics
+# URL:		https://en.wikipedia.org/wiki/PostScript_fonts
+# Reference:	http://partners.adobe.com/public/developer/en/font/5178.PFM.pdf
+# Modified by:	Joerg Jenderek
+# Note:		moved from ./msdos magic 
+# dfVersion 256=0100h 
+0		uleshort	0x0100		
+# GRR: line above is too general as it catches also TrueType font,
+# raw G3 data FAX, WhatsApp encrypted and Panorama database
+# dfType 129=0081h
+>66		uleshort	0x0081		
+# dfVertRes 300=012Ch not needed as additional test
+#>>70		uleshort	0x012c		
+# dfHorizRes 300=012Ch
+#>>>72		uleshort	0x012c		
+# dfDriverInfo points to postscript information section
+>>(101.l)	string/c	Postscript	Printer Font Metrics
+# above labeled "PFM data" by ./msdos (version 5.28) or "Adobe Printer Font Metrics" by TrID
+!:mime	application/x-font-pfm
+# AppleShare Print Server
+#!:apple	ASPS????
+!:ext	pfm
+# dfCopyright 60 byte null padded Copyright string. uncomment it to get old looking
+#>>>6		string		>\060		- %-.60s
+# dfDriverInfo
+>>>139		ulelong		>0		
+# often abbreviated and same as filename
+>>>>(139.l)	string		x		%s
+# dfSize
+>>>2		ulelong		x		\b, %d bytes
+# dfFace 210=D2h 9Eh
+>>>105		ulelong		>0		
+# Windows font name
+>>>>(105.l)	string		x		\b, %s
+# dfItalic
+>>>80		ubyte		1		italic
+# dfUnderline
+>>>81		ubyte		1		underline
+# dfStrikeOut
+>>>82		ubyte		1		strikeout
+# dfWeight 400=0x0190 300=0x012c 500=0x01f4 600=0x0258 700=0x02bc
+>>>83		uleshort	>699		bold
+# dfPitchAndFamily 16 17 48 49 64 65
+>>>90		ubyte		16		serif
+>>>90		ubyte		17		serif proportional
+#>>>90		ubyte		48		other
+>>>90		ubyte		49		proportional
+>>>90		ubyte		64		script
+>>>90		ubyte		65		script proportional
 
 # X11 font files in SNF (Server Natural Format) format
 # updated by Joerg Jenderek at Feb 2013
@@ -110,7 +160,12 @@
 >14	string		x		version %s
 
 # EOT
-34	string		LP		Embedded OpenType (EOT)
+0x40	string		\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0
+>0x22	string		LP		Embedded OpenType (EOT)
+# workaround until there's lepstring16
+# >>0x52	lepstring16/h	>\0		\b, %s family
+>>0x52	short	!0
+>>>0x54	lestring16	x		\b, %s family
 !:mime application/vnd.ms-fontobject
 
 # Web Open Font Format (.woff)
