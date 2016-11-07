@@ -50,7 +50,7 @@ device		vlan			# 802.1Q VLAN support
 #device		tun			# Packet tunnel.
 device		md			# Memory "disks"
 #device		gif			# IPv6 and IPv4 tunneling
-#device		firmware		# firmware assist module
+device		firmware		# firmware assist module
 device		ether			# Ethernet support
 device		miibus			# Required for ethernet
 device		bpf			# Berkeley packet filter (required for DHCP)
@@ -86,6 +86,8 @@ device		pass			# Passthrough device (direct ATA/SCSI access)
 # USB support
 options 	USB_HOST_ALIGN=64	# Align usb buffers to cache line size.
 device		ehci			# EHCI USB interface
+device		xhci			# XHCI USB interface
+device		tegra124_xusb_fw	# Tegra XUSB firmware
 device		usb			# USB Bus (required)
 device		umass			# Disks/Mass storage - Requires scbus and da
 device		uhid			# "Human Interface Devices"
