@@ -45,6 +45,9 @@ extern u_int ipi_page;
 extern u_int ipi_range;
 extern u_int ipi_range_size;
 
+extern int nmi_kdb_lock;
+extern int nmi_is_broadcast;
+
 struct cpu_info {
 	int	cpu_present:1;
 	int	cpu_bsp:1;
