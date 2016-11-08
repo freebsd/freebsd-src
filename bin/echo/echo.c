@@ -45,6 +45,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 
 #include <assert.h>
+#include <capsicum_helpers.h>
+#include <err.h>
 #include <errno.h>
 #include <limits.h>
 #include <stdlib.h>
@@ -77,6 +79,9 @@ main(int argc, char *argv[])
 	char space[] = " ";
 	char newline[] = "\n";
 	char *progname = argv[0];
+
+	if (caph_limit_stdio() < 0 || (cap_enter() < 0 && errno != ENOSYS))
+		err(1, "capsicum");
 
 	/* This utility may NOT do getopt(3) option parsing. */
 	if (*++argv && !strcmp(*argv, "-n")) {
