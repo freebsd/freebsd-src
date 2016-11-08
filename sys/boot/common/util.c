@@ -114,7 +114,7 @@ strlen(const char *s)
 	return (len);
 }
 
-void
+int
 printf(const char *fmt, ...)
 {
 	va_list ap;
@@ -178,4 +178,5 @@ nextfmt:
 		}
 	}
 	va_end(ap);
+	return (0);
 }

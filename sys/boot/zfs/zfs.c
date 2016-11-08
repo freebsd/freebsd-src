@@ -514,20 +514,23 @@ zfs_probe_dev(const char *devname, uint64_t *pool_guid)
 /*
  * Print information about ZFS pools
  */
-static void
+static int
 zfs_dev_print(int verbose)
 {
 	spa_t *spa;
 	char line[80];
+	int ret = 0;
 
 	if (verbose) {
-		spa_all_status();
-		return;
+		return (spa_all_status());
 	}
 	STAILQ_FOREACH(spa, &zfs_pools, spa_link) {
-		sprintf(line, "    zfs:%s\n", spa->spa_name);
-		pager_output(line);
+		snprintf(line, sizeof(line), "    zfs:%s\n", spa->spa_name);
+		ret = pager_output(line);
+		if (ret != 0)
+			break;
 	}
+	return (ret);
 }
 
 /*

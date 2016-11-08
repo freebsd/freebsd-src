@@ -780,7 +780,7 @@ state_name(vdev_state_t state)
 
 #else
 
-static void
+static int
 pager_printf(const char *fmt, ...)
 {
 	char line[80];
@@ -789,14 +789,14 @@ pager_printf(const char *fmt, ...)
 	va_start(args, fmt);
 	vsprintf(line, fmt, args);
 	va_end(args);
-	pager_output(line);
+	return (pager_output(line));
 }
 
 #endif
 
 #define STATUS_FORMAT	"        %s %s\n"
 
-static void
+static int
 print_state(int indent, const char *name, vdev_state_t state)
 {
 	int i;
@@ -806,40 +806,56 @@ print_state(int indent, const char *name, vdev_state_t state)
 	for (i = 0; i < indent; i++)
 		strcat(buf, "  ");
 	strcat(buf, name);
-	pager_printf(STATUS_FORMAT, buf, state_name(state));
+	return (pager_printf(STATUS_FORMAT, buf, state_name(state)));
 	
 }
 
-static void
+static int
 vdev_status(vdev_t *vdev, int indent)
 {
 	vdev_t *kid;
-	print_state(indent, vdev->v_name, vdev->v_state);
+	int ret;
+	ret = print_state(indent, vdev->v_name, vdev->v_state);
+	if (ret != 0)
+		return (ret);
 
 	STAILQ_FOREACH(kid, &vdev->v_children, v_childlink) {
-		vdev_status(kid, indent + 1);
+		ret = vdev_status(kid, indent + 1);
+		if (ret != 0)
+			return (ret);
 	}
+	return (ret);
 }
 
-static void
+static int
 spa_status(spa_t *spa)
 {
 	static char bootfs[ZFS_MAXNAMELEN];
 	uint64_t rootid;
 	vdev_t *vdev;
-	int good_kids, bad_kids, degraded_kids;
+	int good_kids, bad_kids, degraded_kids, ret;
 	vdev_state_t state;
 
-	pager_printf("  pool: %s\n", spa->spa_name);
+	ret = pager_printf("  pool: %s\n", spa->spa_name);
+	if (ret != 0)
+		return (ret);
+
 	if (zfs_get_root(spa, &rootid) == 0 &&
 	    zfs_rlookup(spa, rootid, bootfs) == 0) {
 		if (bootfs[0] == '\0')
-			pager_printf("bootfs: %s\n", spa->spa_name);
+			ret = pager_printf("bootfs: %s\n", spa->spa_name);
 		else
-			pager_printf("bootfs: %s/%s\n", spa->spa_name, bootfs);
+			ret = pager_printf("bootfs: %s/%s\n", spa->spa_name,
+			    bootfs);
+		if (ret != 0)
+			return (ret);
 	}
-	pager_printf("config:\n\n");
-	pager_printf(STATUS_FORMAT, "NAME", "STATE");
+	ret = pager_printf("config:\n\n");
+	if (ret != 0)
+		return (ret);
+	ret = pager_printf(STATUS_FORMAT, "NAME", "STATE");
+	if (ret != 0)
+		return (ret);
 
 	good_kids = 0;
 	degraded_kids = 0;
@@ -859,24 +875,35 @@ spa_status(spa_t *spa)
 	else if ((good_kids + degraded_kids) > 0)
 		state = VDEV_STATE_DEGRADED;
 
-	print_state(0, spa->spa_name, state);
+	ret = print_state(0, spa->spa_name, state);
+	if (ret != 0)
+		return (ret);
 	STAILQ_FOREACH(vdev, &spa->spa_vdevs, v_childlink) {
-		vdev_status(vdev, 1);
+		ret = vdev_status(vdev, 1);
+		if (ret != 0)
+			return (ret);
 	}
+	return (ret);
 }
 
-static void
+static int
 spa_all_status(void)
 {
 	spa_t *spa;
-	int first = 1;
+	int first = 1, ret = 0;
 
 	STAILQ_FOREACH(spa, &zfs_pools, spa_link) {
-		if (!first)
-			pager_printf("\n");
+		if (!first) {
+			ret = pager_printf("\n");
+			if (ret != 0)
+				return (ret);
+		}
 		first = 0;
-		spa_status(spa);
+		ret = spa_status(spa);
+		if (ret != 0)
+			return (ret);
 	}
+	return (ret);
 }
 
 static int
