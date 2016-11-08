@@ -351,7 +351,7 @@ aw_ahbclk_attach(device_t dev)
 	}
 
 	error = clk_set_assigned(dev, node);
-	if (error != 0) {
+	if (error != 0 && error != ENOENT) {
 		device_printf(dev, "cannot set assigned parents: %d\n", error);
 		goto fail;
 	}
