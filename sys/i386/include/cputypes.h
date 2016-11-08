@@ -63,4 +63,9 @@
 #define	CPU_P4			16	/* Intel Pentium 4 */
 #define	CPU_GEODE1100		17	/* NS Geode SC1100 */
 
+#ifndef LOCORE
+extern int	cpu;
+extern int	cpu_class;
+#endif
+
 #endif /* !_MACHINE_CPUTYPES_H_ */
