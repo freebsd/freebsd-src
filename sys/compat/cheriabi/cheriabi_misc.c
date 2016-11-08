@@ -1789,8 +1789,8 @@ cheriabi_mmap(struct thread *td, struct cheriabi_mmap_args *uap)
 #ifdef KTRACE
 		if (KTRPOINT(td, KTR_SYSERRCAUSE))
 			ktrsyserrcause(
-			    "%s: capability has insufficient perms (0x%x) "
-			    "for request (0x%x)", __func__, perms, reqperms);
+			    "%s: capability has insufficient perms (0x%lx) "
+			    "for request (0x%lx)", __func__, perms, reqperms);
 #endif
 		return (EPROT);
 	}
@@ -1888,7 +1888,7 @@ cheriabi_mmap(struct thread *td, struct cheriabi_mmap_args *uap)
 			if (KTRPOINT(td, KTR_SYSERRCAUSE))
 				ktrsyserrcause(
 				    "%s: insufficent space to shift "
-				    "addr (%p) down in capability "
+				    "addr (0x%lx) down in capability "
 				    "(offset 0x%zx)", __func__,
 				    reqaddr, cap_offset);
 #endif

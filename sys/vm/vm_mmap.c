@@ -347,7 +347,7 @@ kern_mmap(struct thread *td, vm_offset_t addr, vm_offset_t max_addr,
 					ktrsyserrcause("%s: MAP_ALIGNED_CHERI "
 					    "and size (0x%zx) is "
 					    "insufficently rounded (mask "
-					    "0x%zx)",
+					    "0x%llx)",
 					    __func__, size,
 					    CHERI_ALIGN_MASK(size));
 #endif
@@ -369,7 +369,7 @@ kern_mmap(struct thread *td, vm_offset_t addr, vm_offset_t max_addr,
 					ktrsyserrcause("%s: "
 					    "MAP_ALIGNED_CHERI_SEAL and size "
 					    "(0x%zx) is insufficently "
-					    "rounded (mask 0x%zx)",
+					    "rounded (mask 0x%llx)",
 					    __func__, size,
 					    CHERI_SEAL_ALIGN_MASK(size));
 #endif

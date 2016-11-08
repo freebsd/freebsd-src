@@ -321,7 +321,7 @@ void	ktrcapfail(enum ktr_cap_fail_type, const cap_rights_t *,
 void	ktrccall(struct pcb *);
 void	ktrcreturn(struct pcb *);
 void	ktrcexception(struct trapframe *);
-void	ktrsyserrcause(const char *format, ...);
+void	ktrsyserrcause(const char *format, ...) __printflike(1, 2);
 
 #else
 
