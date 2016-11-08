@@ -489,7 +489,7 @@ g_raid_md_sii_start_disk(struct g_raid_disk *disk)
 	pd = (struct g_raid_md_sii_perdisk *)disk->d_md_data;
 	olddisk = NULL;
 
-	/* Find disk position in metadata by it's serial. */
+	/* Find disk position in metadata by its serial. */
 	if (pd->pd_meta != NULL)
 		disk_pos = sii_meta_disk_pos(meta, pd->pd_meta);
 	else

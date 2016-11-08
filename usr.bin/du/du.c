@@ -421,7 +421,7 @@ linkchk(FTSENT *p)
 		if (le->dev == st->st_dev && le->ino == st->st_ino) {
 			/*
 			 * Save memory by releasing an entry when we've seen
-			 * all of it's links.
+			 * all of its links.
 			 */
 			if (--le->links <= 0) {
 				if (le->previous != NULL)
