@@ -1205,7 +1205,9 @@ clk_set_assigned(device_t dev, phandle_t node)
 	    "assigned-clock-parents", "#clock-cells", &nclocks);
 
 	if (error != 0) {
-		device_printf(dev, "cannot parse assigned-clock-parents property\n");
+		if (error != ENOENT)
+			device_printf(dev,
+			    "cannot parse assigned-clock-parents property\n");
 		return (error);
 	}
 
