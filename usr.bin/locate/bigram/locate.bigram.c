@@ -57,6 +57,9 @@ static char sccsid[] = "@(#)locate.bigram.c	8.1 (Berkeley) 6/6/93";
  * Use 'code' to encode a file using this output.
  */
 
+#include <capsicum_helpers.h>
+#include <err.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/param.h>			/* for MAXPATHLEN */
@@ -72,6 +75,9 @@ main(void)
 	u_char *cp;
 	u_char *oldpath = buf1, *path = buf2;
 	u_int i, j;
+
+	if (caph_limit_stdio() < 0 || (cap_enter() < 0 && errno != ENOSYS))
+		err(1, "capsicum");
 
      	while (fgets(path, sizeof(buf2), stdin) != NULL) {
 
