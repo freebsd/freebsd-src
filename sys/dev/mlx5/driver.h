@@ -120,6 +120,7 @@ enum {
 	MLX5_REG_QETCR		 = 0x4005,
 	MLX5_REG_QPDP		 = 0x4007,
 	MLX5_REG_QTCT		 = 0x400A,
+	MLX5_REG_QHLL		 = 0x4016,
 	MLX5_REG_DCBX_PARAM	 = 0x4020,
 	MLX5_REG_DCBX_APP	 = 0x4021,
 	MLX5_REG_PCAP		 = 0x5001,
@@ -954,9 +955,11 @@ int mlx5_modify_port_cong_params(struct mlx5_core_dev *mdev,
 				 void *in, int in_size);
 int mlx5_query_port_cong_statistics(struct mlx5_core_dev *mdev, int clear,
 				    void *out, int out_size);
-int mlx5_set_diagnostics(struct mlx5_core_dev *mdev, void *in, int in_size);
-int mlx5_query_diagnostics(struct mlx5_core_dev *mdev, u8 num_of_samples,
-			   u16 sample_index, void *out, int out_size);
+int mlx5_set_diagnostic_params(struct mlx5_core_dev *mdev, void *in,
+			       int in_size);
+int mlx5_query_diagnostic_counters(struct mlx5_core_dev *mdev,
+				   u8 num_of_samples, u16 sample_index,
+				   void *out, int out_size);
 static inline u32 mlx5_mkey_to_idx(u32 mkey)
 {
 	return mkey >> 8;
