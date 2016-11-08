@@ -273,7 +273,6 @@ cpu_startup(dummy)
 	 */
 	startrtclock();
 	printcpuinfo();
-	panicifcpuunsupported();
 #ifdef PERFMON
 	perfmon_init();
 #endif
