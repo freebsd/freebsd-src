@@ -1346,7 +1346,7 @@ cheriabi_syscall_helper_register(struct syscall_helper_data *sd, int flags)
 	int error;
 
 	for (sd1 = sd; sd1->syscall_no != NO_SYSCALL; sd1++) {
-		cheriabi_syscall_register(&sd1->syscall_no, &sd1->new_sysent,
+		error = cheriabi_syscall_register(&sd1->syscall_no, &sd1->new_sysent,
 		    &sd1->old_sysent, flags);
 		if (error != 0) {
 			cheriabi_syscall_helper_unregister(sd);
