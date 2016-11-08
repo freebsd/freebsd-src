@@ -134,13 +134,13 @@ host_dev_init(void)
 	return (0);
 }
 
-static void
+static int
 host_dev_print(int verbose)
 {
 	char line[80];
 
-	sprintf(line, "    host%d:   Host filesystem\n", 0);
-	pager_output(line);
+	snprintf(line, sizeof(line), "    host%d:   Host filesystem\n", 0);
+	return (pager_output(line));
 }
 
 /*

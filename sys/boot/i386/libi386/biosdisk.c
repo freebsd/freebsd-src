@@ -135,7 +135,7 @@ static int bd_realstrategy(void *devdata, int flag, daddr_t dblk, size_t offset,
 static int bd_open(struct open_file *f, ...);
 static int bd_close(struct open_file *f);
 static int bd_ioctl(struct open_file *f, u_long cmd, void *data);
-static void bd_print(int verbose);
+static int bd_print(int verbose);
 static void bd_cleanup(void);
 
 #ifdef LOADER_GELI_SUPPORT
@@ -321,21 +321,21 @@ bd_int13probe(struct bdinfo *bd)
 /*
  * Print information about disks
  */
-static void
+static int
 bd_print(int verbose)
 {
 	static char line[80];
 	struct disk_devdesc dev;
-	int i;
+	int i, ret = 0;
 
-	pager_open();
 	for (i = 0; i < nbdinfo; i++) {
-		sprintf(line, "    disk%d:   BIOS drive %c (%ju X %u):\n", i,
+		snprintf(line, sizeof(line),
+		    "    disk%d:   BIOS drive %c (%ju X %u):\n", i,
 		    (bdinfo[i].bd_unit < 0x80) ? ('A' + bdinfo[i].bd_unit):
 		    ('C' + bdinfo[i].bd_unit - 0x80),
 		    (uintmax_t)bdinfo[i].bd_sectors,
 		    bdinfo[i].bd_sectorsize);
-		if (pager_output(line))
+		if ((ret = pager_output(line)) != 0)
 			break;
 		dev.d_dev = &biosdisk;
 		dev.d_unit = i;
@@ -346,12 +346,14 @@ bd_print(int verbose)
 		    bdinfo[i].bd_sectorsize,
 		    (bdinfo[i].bd_flags & BD_FLOPPY) ?
 		    DISK_F_NOCACHE: 0) == 0) {
-			sprintf(line, "    disk%d", i);
-			disk_print(&dev, line, verbose);
+			snprintf(line, sizeof(line), "    disk%d", i);
+			ret = disk_print(&dev, line, verbose);
 			disk_close(&dev);
+			if (ret != 0)
+			    return (ret);
 		}
 	}
-	pager_close();
+	return (ret);
 }
 
 /*
