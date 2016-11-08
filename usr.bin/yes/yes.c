@@ -41,12 +41,17 @@ static const char rcsid[] = "$FreeBSD$";
 #endif
 #endif /* not lint */
 
+#include <capsicum_helpers.h>
 #include <err.h>
 #include <stdio.h>
 
 int
 main(int argc, char **argv)
 {
+
+	if (caph_limit_stdio() < 0 || (cap_enter() < 0 && errno != ENOSYS))
+		err(1, "capsicum");
+
 	if (argc > 1)
 		while (puts(argv[1]) != EOF)
 			;
