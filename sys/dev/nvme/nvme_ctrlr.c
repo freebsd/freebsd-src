@@ -80,11 +80,12 @@ nvme_ctrlr_allocate_bar(struct nvme_controller *ctrlr)
 	return (0);
 }
 
-static void
+static int
 nvme_ctrlr_construct_admin_qpair(struct nvme_controller *ctrlr)
 {
 	struct nvme_qpair	*qpair;
 	uint32_t		num_entries;
+	int			error;
 
 	qpair = &ctrlr->adminq;
 
@@ -105,12 +106,13 @@ nvme_ctrlr_construct_admin_qpair(struct nvme_controller *ctrlr)
 	 * The admin queue's max xfer size is treated differently than the
 	 *  max I/O xfer size.  16KB is sufficient here - maybe even less?
 	 */
-	nvme_qpair_construct(qpair, 
-			     0, /* qpair ID */
-			     0, /* vector */
-			     num_entries,
-			     NVME_ADMIN_TRACKERS,
-			     ctrlr);
+	error = nvme_qpair_construct(qpair, 
+				     0, /* qpair ID */
+				     0, /* vector */
+				     num_entries,
+				     NVME_ADMIN_TRACKERS,
+				     ctrlr);
+	return (error);
 }
 
 static int
@@ -118,7 +120,7 @@ nvme_ctrlr_construct_io_qpairs(struct nvme_controller *ctrlr)
 {
 	struct nvme_qpair	*qpair;
 	union cap_lo_register	cap_lo;
-	int			i, num_entries, num_trackers;
+	int			i, error, num_entries, num_trackers;
 
 	num_entries = NVME_IO_ENTRIES;
 	TUNABLE_INT_FETCH("hw.nvme.io_entries", &num_entries);
@@ -163,12 +165,14 @@ nvme_ctrlr_construct_io_qpairs(struct nvme_controller *ctrlr)
 		 * For I/O queues, use the controller-wide max_xfer_size
 		 *  calculated in nvme_attach().
 		 */
-		nvme_qpair_construct(qpair,
+		error = nvme_qpair_construct(qpair,
 				     i+1, /* qpair ID */
 				     ctrlr->msix_enabled ? i+1 : 0, /* vector */
 				     num_entries,
 				     num_trackers,
 				     ctrlr);
+		if (error)
+			return (error);
 
 		/*
 		 * Do not bother binding interrupts if we only have one I/O
@@ -1098,7 +1102,8 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 	nvme_ctrlr_setup_interrupts(ctrlr);
 
 	ctrlr->max_xfer_size = NVME_MAX_XFER_SIZE;
-	nvme_ctrlr_construct_admin_qpair(ctrlr);
+	if (nvme_ctrlr_construct_admin_qpair(ctrlr) != 0)
+		return (ENXIO);
 
 	ctrlr->cdev = make_dev(&nvme_ctrlr_cdevsw, device_get_unit(dev),
 	    UID_ROOT, GID_WHEEL, 0600, "nvme%d", device_get_unit(dev));
