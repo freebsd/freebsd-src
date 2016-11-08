@@ -909,7 +909,7 @@ gettlen(const char *cp, const char **epp)
 }
 
 /*
- * Search a type by it's type string.
+ * Search a type by its type string.
  */
 static u_short
 findtype(const char *cp, size_t len, int h)

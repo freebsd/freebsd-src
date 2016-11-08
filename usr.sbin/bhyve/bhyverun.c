@@ -908,7 +908,7 @@ main(int argc, char *argv[])
 	sci_init(ctx);
 
 	/*
-	 * Exit if a device emulation finds an error in it's initilization
+	 * Exit if a device emulation finds an error in its initilization
 	 */
 	if (init_pci(ctx) != 0)
 		exit(1);

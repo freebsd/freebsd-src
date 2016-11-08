@@ -290,7 +290,7 @@ typedef enum {
 	/* SIM ready to take more commands */
 	CAM_RELEASE_SIMQ	= 0x100,
 
-	/* SIM has this command in it's queue */
+	/* SIM has this command in its queue */
 	CAM_SIM_QUEUED		= 0x200,
 
 	/* Quality of service data is valid */

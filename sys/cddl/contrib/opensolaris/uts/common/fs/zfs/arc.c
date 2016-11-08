@@ -3104,7 +3104,7 @@ arc_buf_size(arc_buf_t *buf)
 
 /*
  * Evict the arc_buf_hdr that is provided as a parameter. The resultant
- * state of the header is dependent on it's state prior to entering this
+ * state of the header is dependent on its state prior to entering this
  * function. The following transitions are possible:
  *
  *    - arc_mru -> arc_mru_ghost

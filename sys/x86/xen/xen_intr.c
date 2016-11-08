@@ -940,7 +940,7 @@ xen_intr_disable_source(struct intsrc *base_isrc, int eoi)
 	/*
 	 * NB: checking if the event channel is already masked is
 	 * needed because the event channel user-space device
-	 * masks event channels on it's filter as part of it's
+	 * masks event channels on its filter as part of its
 	 * normal operation, and those shouldn't be automatically
 	 * unmasked by the generic interrupt code. The event channel
 	 * device will unmask them when needed.

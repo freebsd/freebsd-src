@@ -1092,7 +1092,7 @@ efx_mcdi_read_assertion(
 
 	/*
 	 * Before we attempt to chat to the MC, we should verify that the MC
-	 * isn't in it's assertion handler, either due to a previous reboot,
+	 * isn't in its assertion handler, either due to a previous reboot,
 	 * or because we're reinitializing due to an eec_exception().
 	 *
 	 * Use GET_ASSERTS to read any assertion state that may be present.
