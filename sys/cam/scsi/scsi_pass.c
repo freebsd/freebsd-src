@@ -1777,6 +1777,10 @@ passdoioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread 
 		int ccb_malloced;
 
 		inccb = (union ccb *)addr;
+#if defined(BUF_TRACKING) || defined(FULL_BUF_TRACKING)
+		if (inccb->ccb_h.func_code == XPT_SCSI_IO)
+			inccb->csio.bio = NULL;
+#endif
 
 		/*
 		 * Some CCB types, like scan bus and scan lun can only go
@@ -1875,6 +1879,10 @@ passdoioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread 
 			cam_periph_lock(periph);
 			break;
 		}
+#if defined(BUF_TRACKING) || defined(FULL_BUF_TRACKING)
+		if (ccb->ccb_h.func_code == XPT_SCSI_IO)
+			ccb->csio.bio = NULL;
+#endif
 
 		if (ccb->ccb_h.flags & CAM_CDB_POINTER) {
 			if (ccb->csio.cdb_len > IOCDBLEN) {
