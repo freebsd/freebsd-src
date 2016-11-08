@@ -545,7 +545,11 @@ kern_shmat_locked(struct thread *td, int shmid, const void *shmaddr,
 		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &shmaddr_cap, 0);
 		CHERI_CSETOFFSET(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0,
 		    attach_va - cap_base);
-		CHERI_CSETBOUNDS(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0, size);
+#ifndef COMPAT_CHERIABI_WEAK
+		CHERI_CSETBOUNDS(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0,
+		    roundup2(shmseg->u.shm_segsz,
+		    1 << CHERI_ALIGN_SHIFT(shmseg->u.shm_segsz)));
+#endif
 		/* XXX: set perms */
 		CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &td->td_retcap, 0);
 	}
