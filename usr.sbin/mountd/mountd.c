@@ -489,11 +489,20 @@ main(int argc, char **argv)
 	rpc_control(RPC_SVC_CONNMAXREC_SET, &maxrec);
 
 	if (!resvport_only) {
-		if (sysctlbyname("vfs.nfsrv.nfs_privport", NULL, NULL,
-		    &resvport_only, sizeof(resvport_only)) != 0 &&
-		    errno != ENOENT) {
-			syslog(LOG_ERR, "sysctl: %m");
-			exit(1);
+		if (run_v4server != 0) {
+			if (sysctlbyname("vfs.nfsd.nfs_privport", NULL, NULL,
+			    &resvport_only, sizeof(resvport_only)) != 0 &&
+			    errno != ENOENT) {
+				syslog(LOG_ERR, "sysctl: %m");
+				exit(1);
+			}
+		} else {
+			if (sysctlbyname("vfs.nfsrv.nfs_privport", NULL, NULL,
+			    &resvport_only, sizeof(resvport_only)) != 0 &&
+			    errno != ENOENT) {
+				syslog(LOG_ERR, "sysctl: %m");
+				exit(1);
+			}
 		}
 	}
 
