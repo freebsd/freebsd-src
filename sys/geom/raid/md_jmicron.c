@@ -434,7 +434,7 @@ g_raid_md_jmicron_start_disk(struct g_raid_disk *disk)
 	pd = (struct g_raid_md_jmicron_perdisk *)disk->d_md_data;
 	olddisk = NULL;
 
-	/* Find disk position in metadata by it's serial. */
+	/* Find disk position in metadata by its serial. */
 	if (pd->pd_meta != NULL)
 		disk_pos = jmicron_meta_find_disk(meta, pd->pd_disk_id);
 	else
