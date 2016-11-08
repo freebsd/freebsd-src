@@ -3,7 +3,6 @@ kern/kern_clocksource.c			standard
 
 arm/allwinner/a10_ahci.c		optional	ahci
 arm/allwinner/a10_codec.c		optional	sound
-arm/allwinner/a10_common.c		standard
 arm/allwinner/a10_dmac.c		standard
 arm/allwinner/a31_dmac.c		standard
 arm/allwinner/a10_ehci.c		optional	ehci

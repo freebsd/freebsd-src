@@ -48,13 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#ifdef SOC_BCM2836
-#include <arm/broadcom/bcm2835/bcm2836.h>
-#endif
-
-#ifdef INTRNG
 #include "pic_if.h"
-#endif
 
 #define	INTC_PENDING_BASIC	0x00
 #define	INTC_PENDING_BANK1	0x04
@@ -105,17 +99,10 @@ __FBSDID("$FreeBSD$");
 #define	BANK1_END	(BANK1_START + 32 - 1)
 #define	BANK2_START	(BANK1_START + 32)
 #define	BANK2_END	(BANK2_START + 32 - 1)
-#ifndef INTRNG
-#define	BANK3_START	(BANK2_START + 32)
-#define	BANK3_END	(BANK3_START + 32 - 1)
-#endif
 
 #define	IS_IRQ_BASIC(n)	(((n) >= 0) && ((n) < BANK1_START))
 #define	IS_IRQ_BANK1(n)	(((n) >= BANK1_START) && ((n) <= BANK1_END))
 #define	IS_IRQ_BANK2(n)	(((n) >= BANK2_START) && ((n) <= BANK2_END))
-#ifndef INTRNG
-#define	ID_IRQ_BCM2836(n) (((n) >= BANK3_START) && ((n) <= BANK3_END))
-#endif
 #define	IRQ_BANK1(n)	((n) - BANK1_START)
 #define	IRQ_BANK2(n)	((n) - BANK2_START)
 
@@ -125,7 +112,6 @@ __FBSDID("$FreeBSD$");
 #define dprintf(fmt, args...)
 #endif
 
-#ifdef INTRNG
 #define BCM_INTC_NIRQS		72	/* 8 + 32 + 32 */
 
 struct bcm_intc_irqsrc {
@@ -135,18 +121,15 @@ struct bcm_intc_irqsrc {
 	uint16_t		bii_enable_reg;
 	uint32_t		bii_mask;
 };
-#endif
 
 struct bcm_intc_softc {
 	device_t		sc_dev;
 	struct resource *	intc_res;
 	bus_space_tag_t		intc_bst;
 	bus_space_handle_t	intc_bsh;
-#ifdef INTRNG
 	struct resource *	intc_irq_res;
 	void *			intc_irq_hdl;
 	struct bcm_intc_irqsrc	intc_isrcs[BCM_INTC_NIRQS];
-#endif
 };
 
 static struct bcm_intc_softc *bcm_intc_sc = NULL;
@@ -156,7 +139,6 @@ static struct bcm_intc_softc *bcm_intc_sc = NULL;
 #define	intc_write_4(_sc, reg, val)		\
     bus_space_write_4((_sc)->intc_bst, (_sc)->intc_bsh, (reg), (val))
 
-#ifdef INTRNG
 static inline void
 bcm_intc_isrc_mask(struct bcm_intc_softc *sc, struct bcm_intc_irqsrc *bii)
 {
@@ -375,7 +357,6 @@ bcm_intc_pic_register(struct bcm_intc_softc *sc, intptr_t xref)
 
 	return (0);
 }
-#endif
 
 static int
 bcm_intc_probe(device_t dev)
@@ -396,9 +377,7 @@ bcm_intc_attach(device_t dev)
 {
 	struct		bcm_intc_softc *sc = device_get_softc(dev);
 	int		rid = 0;
-#ifdef INTRNG
 	intptr_t	xref;
-#endif
 	sc->sc_dev = dev;
 
 	if (bcm_intc_sc)
@@ -410,7 +389,6 @@ bcm_intc_attach(device_t dev)
 		return (ENXIO);
 	}
 
-#ifdef INTRNG
 	xref = OF_xref_from_node(ofw_bus_get_node(dev));
 	if (bcm_intc_pic_register(sc, xref) != 0) {
 		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->intc_res);
@@ -435,7 +413,6 @@ bcm_intc_attach(device_t dev)
 			return (ENXIO);
 		}
 	}
-#endif
 	sc->intc_bst = rman_get_bustag(sc->intc_res);
 	sc->intc_bsh = rman_get_bushandle(sc->intc_res);
 
@@ -448,14 +425,12 @@ static device_method_t bcm_intc_methods[] = {
 	DEVMETHOD(device_probe,		bcm_intc_probe),
 	DEVMETHOD(device_attach,	bcm_intc_attach),
 
-#ifdef INTRNG
 	DEVMETHOD(pic_disable_intr,	bcm_intc_disable_intr),
 	DEVMETHOD(pic_enable_intr,	bcm_intc_enable_intr),
 	DEVMETHOD(pic_map_intr,		bcm_intc_map_intr),
 	DEVMETHOD(pic_post_filter,	bcm_intc_post_filter),
 	DEVMETHOD(pic_post_ithread,	bcm_intc_post_ithread),
 	DEVMETHOD(pic_pre_ithread,	bcm_intc_pre_ithread),
-#endif
 
 	{ 0, 0 }
 };
@@ -470,105 +445,3 @@ static devclass_t bcm_intc_devclass;
 
 EARLY_DRIVER_MODULE(intc, simplebus, bcm_intc_driver, bcm_intc_devclass,
     0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);
-
-#ifndef INTRNG
-int
-arm_get_next_irq(int last_irq)
-{
-	struct bcm_intc_softc *sc = bcm_intc_sc;
-	uint32_t pending;
-	int32_t irq = last_irq + 1;
-#ifdef SOC_BCM2836
-	int ret;
-#endif
-
-	/* Sanity check */
-	if (irq < 0)
-		irq = 0;
-
-#ifdef SOC_BCM2836
-	if ((ret = bcm2836_get_next_irq(irq)) < 0)
-		return (-1);
-	if (ret != BCM2836_GPU_IRQ)
-		return (ret + BANK3_START);
-#endif
-
-	/* TODO: should we mask last_irq? */
-	if (irq < BANK1_START) {
-		pending = intc_read_4(sc, INTC_PENDING_BASIC);
-		if ((pending & 0xFF) == 0) {
-			irq  = BANK1_START;	/* skip to next bank */
-		} else do {
-			if (pending & (1 << irq))
-				return irq;
-			irq++;
-		} while (irq < BANK1_START);
-	}
-	if (irq < BANK2_START) {
-		pending = intc_read_4(sc, INTC_PENDING_BANK1);
-		if (pending == 0) {
-			irq  = BANK2_START;	/* skip to next bank */
-		} else do {
-			if (pending & (1 << IRQ_BANK1(irq)))
-				return irq;
-			irq++;
-		} while (irq < BANK2_START);
-	}
-	if (irq < BANK3_START) {
-		pending = intc_read_4(sc, INTC_PENDING_BANK2);
-		if (pending != 0) do {
-			if (pending & (1 << IRQ_BANK2(irq)))
-				return irq;
-			irq++;
-		} while (irq < BANK3_START);
-	}
-	return (-1);
-}
-
-void
-arm_mask_irq(uintptr_t nb)
-{
-	struct bcm_intc_softc *sc = bcm_intc_sc;
-	dprintf("%s: %d\n", __func__, nb);
-
-	if (IS_IRQ_BASIC(nb))
-		intc_write_4(sc, INTC_DISABLE_BASIC, (1 << nb));
-	else if (IS_IRQ_BANK1(nb))
-		intc_write_4(sc, INTC_DISABLE_BANK1, (1 << IRQ_BANK1(nb)));
-	else if (IS_IRQ_BANK2(nb))
-		intc_write_4(sc, INTC_DISABLE_BANK2, (1 << IRQ_BANK2(nb)));
-#ifdef SOC_BCM2836
-	else if (ID_IRQ_BCM2836(nb))
-		bcm2836_mask_irq(nb - BANK3_START);
-#endif
-	else
-		printf("arm_mask_irq: Invalid IRQ number: %d\n", nb);
-}
-
-void
-arm_unmask_irq(uintptr_t nb)
-{
-	struct bcm_intc_softc *sc = bcm_intc_sc;
-	dprintf("%s: %d\n", __func__, nb);
-
-	if (IS_IRQ_BASIC(nb))
-		intc_write_4(sc, INTC_ENABLE_BASIC, (1 << nb));
-	else if (IS_IRQ_BANK1(nb))
-		intc_write_4(sc, INTC_ENABLE_BANK1, (1 << IRQ_BANK1(nb)));
-	else if (IS_IRQ_BANK2(nb))
-		intc_write_4(sc, INTC_ENABLE_BANK2, (1 << IRQ_BANK2(nb)));
-#ifdef SOC_BCM2836
-	else if (ID_IRQ_BCM2836(nb))
-		bcm2836_unmask_irq(nb - BANK3_START);
-#endif
-	else
-		printf("arm_mask_irq: Invalid IRQ number: %d\n", nb);
-}
-
-#ifdef SMP
-void
-intr_pic_init_secondary(void)
-{
-}
-#endif
-#endif
