@@ -252,6 +252,12 @@ typedef struct {
 #  define UTRACE(a, b, c)
 #endif
 
+#if defined(JEMALLOC_NO_PTR_BOUNDS) || !defined(__CHERI_PURE_CAPABILITY__)
+#define	BOUND_PTR(ptr, size)	(ptr)
+#else
+#define	BOUND_PTR(ptr, size)	cheri_csetbounds((ptr), (size))
+#endif
+
 /******************************************************************************/
 /*
  * Function prototypes for static functions that are referenced prior to
@@ -1568,11 +1574,7 @@ je_malloc(size_t size)
 		UTRACE(0, size, ret);
 		JEMALLOC_VALGRIND_MALLOC(ret != NULL, tsdn, ret, usize, false);
 	}
-#ifndef __CHERI_PURE_CAPABILITY__
-	return (ret);
-#else
-	return (cheri_csetbounds(ret, isalloc(tsdn, ret, false)));
-#endif
+	return (BOUND_PTR(ret, isalloc(tsdn, ret, false)));
 }
 
 static void *
@@ -1663,11 +1665,7 @@ imemalign(void **memptr, size_t alignment, size_t size, size_t min_alignment)
 		goto label_oom;
 	assert(((vaddr_t)result & (alignment - 1)) == ZU(0));
 
-#ifndef __CHERI_PURE_CAPABILITY__
-	*memptr = result;
-#else
-	*memptr = cheri_csetbounds(result, usize);
-#endif
+	*memptr = BOUND_PTR(result, usize);
 	ret = 0;
 label_return:
 	if (config_stats && likely(result != NULL)) {
@@ -1714,12 +1712,7 @@ je_aligned_alloc(size_t alignment, size_t size)
 		ret = NULL;
 		set_errno(err);
 	}
-#ifndef __CHERI_PURE_CAPABILITY__
-	return (ret);
-#else
-	/* XXX-BD: return actual size allocated */
-	return (cheri_csetbounds(ret, isalloc(tsdn_fetch(), ret, false)));
-#endif
+	return (BOUND_PTR(ret, isalloc(tsdn_fetch(), ret, false)));
 }
 
 JEMALLOC_EXPORT JEMALLOC_ALLOCATOR JEMALLOC_RESTRICT_RETURN
@@ -1757,11 +1750,7 @@ je_calloc(size_t num, size_t size)
 		JEMALLOC_VALGRIND_MALLOC(ret != NULL, tsdn, ret, usize, true);
 	}
 
-#ifndef __CHERI_PURE_CAPABILITY__
-	return (ret);
-#else
-	return (cheri_csetbounds(ret, isalloc(tsdn, ret, false)));
-#endif
+	return (BOUND_PTR(ret, isalloc(tsdn, ret, false)));
 }
 
 static void *
@@ -1935,11 +1924,7 @@ je_realloc(void *ptr, size_t size)
 	JEMALLOC_VALGRIND_REALLOC(true, tsdn, ret, usize, true, ptr, old_usize,
 	    old_rzsize, true, false);
 	witness_assert_lockless(tsdn);
-#ifndef __CHERI_PURE_CAPABILITY__
-	return (ret);
-#else
-	return (cheri_csetbounds(ret, isalloc(tsdn, ret, false)));
-#endif
+	return (BOUND_PTR(ret, isalloc(tsdn, ret, false)));
 }
 
 JEMALLOC_EXPORT void JEMALLOC_NOTHROW
@@ -2720,11 +2705,7 @@ je_allocm(void **ptr, size_t *rsize, size_t size, int flags)
 		return (ALLOCM_ERR_OOM);
 	if (rsize != NULL)
 		*rsize = isalloc(tsdn_fetch(), p, config_prof);
-#ifndef __CHERI_PURE_CAPABILITY__
-	*ptr = p;
-#else
-	*ptr =  cheri_csetbounds(p, isalloc(tsdn_fetch(), p, false));
-#endif
+	*ptr =  BOUND_PTR(p, isalloc(tsdn_fetch(), p, false));
 	return (ALLOCM_SUCCESS);
 }
 
@@ -2747,12 +2728,7 @@ je_rallocm(void **ptr, size_t *rsize, size_t size, size_t extra, int flags)
 	} else {
 		void *p = je_rallocx(*ptr, size+extra, flags);
 		if (p != NULL) {
-#ifndef __CHERI_PURE_CAPABILITY__
-			*ptr = p;
-#else
-			*ptr = cheri_csetbounds(p,
-			    isalloc(tsdn_fetch(), p, false));
-#endif
+			*ptr = BOUND_PTR(p, isalloc(tsdn_fetch(), p, false));
 			ret = ALLOCM_SUCCESS;
 		} else
 			ret = ALLOCM_ERR_OOM;
