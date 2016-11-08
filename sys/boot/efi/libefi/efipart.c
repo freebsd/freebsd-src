@@ -47,7 +47,7 @@ static int efipart_realstrategy(void *, int, daddr_t, size_t, size_t, char *,
     size_t *);
 static int efipart_open(struct open_file *, ...);
 static int efipart_close(struct open_file *);
-static void efipart_print(int);
+static int efipart_print(int);
 
 struct devsw efipart_dev = {
 	.dv_name = "part",
@@ -162,7 +162,7 @@ efipart_init(void)
 	return (err);
 }
 
-static void
+static int
 efipart_print(int verbose)
 {
 	char line[80];
@@ -170,28 +170,29 @@ efipart_print(int verbose)
 	EFI_HANDLE h;
 	EFI_STATUS status;
 	u_int unit;
+	int ret = 0;
 
-	pager_open();
 	for (unit = 0, h = efi_find_handle(&efipart_dev, 0);
 	    h != NULL; h = efi_find_handle(&efipart_dev, ++unit)) {
-		sprintf(line, "    %s%d:", efipart_dev.dv_name, unit);
-		if (pager_output(line))
+		snprintf(line, sizeof(line), "    %s%d:",
+		    efipart_dev.dv_name, unit);
+		if ((ret = pager_output(line)) != 0)
 			break;
 
 		status = BS->HandleProtocol(h, &blkio_guid, (void **)&blkio);
 		if (!EFI_ERROR(status)) {
-			sprintf(line, "    %llu blocks",
+			snprintf(line, sizeof(line), "    %llu blocks",
 			    (unsigned long long)(blkio->Media->LastBlock + 1));
-			if (pager_output(line))
+			if ((ret = pager_output(line)) != 0)
 				break;
 			if (blkio->Media->RemovableMedia)
-				if (pager_output(" (removable)"))
+				if ((ret = pager_output(" (removable)")) != 0)
 					break;
 		}
-		if (pager_output("\n"))
+		if ((ret = pager_output("\n")) != 0)
 			break;
 	}
-	pager_close();
+	return (ret);
 }
 
 static int

@@ -37,7 +37,7 @@ static int hostdisk_strategy(void *devdata, int flag, daddr_t dblk,
 static int hostdisk_open(struct open_file *f, ...);
 static int hostdisk_close(struct open_file *f);
 static int hostdisk_ioctl(struct open_file *f, u_long cmd, void *data);
-static void hostdisk_print(int verbose);
+static int hostdisk_print(int verbose);
 
 struct devsw hostdisk = {
 	"/dev",
@@ -117,9 +117,9 @@ hostdisk_ioctl(struct open_file *f, u_long cmd, void *data)
 	return (EINVAL);
 }
 
-static void
+static int
 hostdisk_print(int verbose)
 {
-
+	return (0);
 }
 

@@ -48,6 +48,6 @@ void strcat(char *dst, const char *src);
 char *strchr(const char *s, char ch);
 size_t strlen(const char *s);
 
-void printf(const char *fmt, ...);
+int printf(const char *fmt, ...);
 
 #endif	/* !_UTIL_H_ */
