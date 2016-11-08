@@ -780,8 +780,10 @@ zvol_remove_zv(zvol_state_t *zv)
 		g_topology_lock();
 		zvol_geom_destroy(zv);
 		g_topology_unlock();
-	} else if (zv->zv_volmode == ZFS_VOLMODE_DEV)
-		destroy_dev(zv->zv_dev);
+	} else if (zv->zv_volmode == ZFS_VOLMODE_DEV) {
+		if (zv->zv_dev != NULL)
+			destroy_dev(zv->zv_dev);
+	}
 #endif
 
 	avl_destroy(&zv->zv_znode.z_range_avl);
@@ -2952,14 +2954,14 @@ zvol_rename_minor(zvol_state_t *zv, const char *newname)
 	} else if (zv->zv_volmode == ZFS_VOLMODE_DEV) {
 		struct make_dev_args args;
 
-		dev = zv->zv_dev;
-		ASSERT(dev != NULL);
-		zv->zv_dev = NULL;
-		destroy_dev(dev);
-		if (zv->zv_total_opens > 0) {
-			zv->zv_flags &= ~ZVOL_EXCL;
-			zv->zv_total_opens = 0;
-			zvol_last_close(zv);
+		if ((dev = zv->zv_dev) != NULL) {
+			zv->zv_dev = NULL;
+			destroy_dev(dev);
+			if (zv->zv_total_opens > 0) {
+				zv->zv_flags &= ~ZVOL_EXCL;
+				zv->zv_total_opens = 0;
+				zvol_last_close(zv);
+			}
 		}
 
 		make_dev_args_init(&args);
