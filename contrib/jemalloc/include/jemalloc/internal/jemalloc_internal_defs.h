@@ -62,10 +62,18 @@
 #define JEMALLOC_HAVE_MADVISE 
 
 /*
+ * Defined if os_unfair_lock_*() functions are available, as provided by Darwin.
+ */
+/* #undef JEMALLOC_OS_UNFAIR_LOCK */
+
+/*
  * Defined if OSSpin*() functions are available, as provided by Darwin, and
  * documented in the spinlock(3) manual page.
  */
 /* #undef JEMALLOC_OSSPIN */
+
+/* Defined if syscall(2) is available. */
+#define JEMALLOC_HAVE_SYSCALL 
 
 /*
  * Defined if secure_getenv(3) is available.
@@ -76,6 +84,21 @@
  * Defined if issetugid(2) is available.
  */
 #define JEMALLOC_HAVE_ISSETUGID 
+
+/*
+ * Defined if clock_gettime(CLOCK_MONOTONIC_COARSE, ...) is available.
+ */
+/* #undef JEMALLOC_HAVE_CLOCK_MONOTONIC_COARSE */
+
+/*
+ * Defined if clock_gettime(CLOCK_MONOTONIC, ...) is available.
+ */
+#define JEMALLOC_HAVE_CLOCK_MONOTONIC 1
+
+/*
+ * Defined if mach_absolute_time() is available.
+ */
+/* #undef JEMALLOC_HAVE_MACH_ABSOLUTE_TIME */
 
 /*
  * Defined if _malloc_thread_cleanup() exists.  At least in the case of
@@ -188,6 +211,12 @@
 
 /* TLS is used to map arenas and magazine caches to threads. */
 #define JEMALLOC_TLS 
+
+/*
+ * Used to mark unreachable code to quiet "end of non-void" compiler warnings.
+ * Don't use this directly; instead use unreachable() from util.h
+ */
+#define JEMALLOC_INTERNAL_UNREACHABLE abort
 
 /*
  * ffs*() functions to use for bitmapping.  Don't use these directly; instead,
