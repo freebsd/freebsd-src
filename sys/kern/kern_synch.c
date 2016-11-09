@@ -196,13 +196,7 @@ _sleep(void *ident, struct lock_object *lock, int priority,
 	catch = priority & PCATCH;
 	pri = priority & PRIMASK;
 
-	/*
-	 * If we are already on a sleep queue, then remove us from that
-	 * sleep queue first.  We have to do this to handle recursive
-	 * sleeps.
-	 */
-	if (TD_ON_SLEEPQ(td))
-		sleepq_remove(td, td->td_wchan);
+	KASSERT(!TD_ON_SLEEPQ(td), ("recursive sleep"));
 
 	if ((uint8_t *)ident >= &pause_wchan[0] &&
 	    (uint8_t *)ident <= &pause_wchan[MAXCPU - 1])
