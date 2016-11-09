@@ -1,11 +1,11 @@
 diff --git a/doc/jemalloc.xml.in b/doc/jemalloc.xml.in
-index c4a44e3..4626e9b 100644
+index 3d2e721..b361db2 100644
 --- a/doc/jemalloc.xml.in
 +++ b/doc/jemalloc.xml.in
 @@ -53,11 +53,23 @@
      <para>This manual describes jemalloc @jemalloc_version@.  More information
      can be found at the <ulink
-     url="http://www.canonware.com/jemalloc/">jemalloc website</ulink>.</para>
+     url="http://jemalloc.net/">jemalloc website</ulink>.</para>
 +
 +    <para>The following configuration options are enabled in libc's built-in
 +    jemalloc: <option>--enable-fill</option>,
@@ -27,30 +27,30 @@ index c4a44e3..4626e9b 100644
        <refsect2>
          <title>Standard API</title>
          <funcprototype>
-@@ -2961,4 +2973,18 @@ malloc_conf = "lg_chunk:24";]]></programlisting></para>
-     <para>The <function>posix_memalign<parameter/></function> function conforms
-     to IEEE Std 1003.1-2001 (&ldquo;POSIX.1&rdquo;).</para>
+@@ -2963,4 +2975,18 @@ malloc_conf = "lg_chunk:24";]]></programlisting></para>
+     <para>The <function>posix_memalign()</function> function conforms
+     to IEEE Std 1003.1-2001 (<quote>POSIX.1</quote>).</para>
    </refsect1>
 +  <refsect1 id="history">
 +    <title>HISTORY</title>
-+    <para>The <function>malloc_usable_size<parameter/></function> and
-+    <function>posix_memalign<parameter/></function> functions first appeared in
-+    FreeBSD 7.0.</para>
++    <para>The <function>malloc_usable_size()</function> and
++    <function>posix_memalign()</function> functions first appeared in FreeBSD
++    7.0.</para>
 +
-+    <para>The <function>aligned_alloc<parameter/></function>,
-+    <function>malloc_stats_print<parameter/></function>, and
-+    <function>mallctl*<parameter/></function> functions first appeared in
-+    FreeBSD 10.0.</para>
++    <para>The <function>aligned_alloc()</function>,
++    <function>malloc_stats_print()</function>, and
++    <function>mallctl*()</function> functions first appeared in FreeBSD
++    10.0.</para>
 +
-+    <para>The <function>*allocx<parameter/></function> functions first appeared
-+    in FreeBSD 11.0.</para>
++    <para>The <function>*allocx()</function> functions first appeared in FreeBSD
++    11.0.</para>
 +  </refsect1>
  </refentry>
 diff --git a/include/jemalloc/internal/arena.h b/include/jemalloc/internal/arena.h
-index b1de2b6..da6b6d2 100644
+index f39ce54..a3ba55d 100644
 --- a/include/jemalloc/internal/arena.h
 +++ b/include/jemalloc/internal/arena.h
-@@ -718,8 +718,13 @@ arena_miscelm_get_mutable(arena_chunk_t *chunk, size_t pageind)
+@@ -719,8 +719,13 @@ arena_miscelm_get_mutable(arena_chunk_t *chunk, size_t pageind)
  JEMALLOC_ALWAYS_INLINE const arena_chunk_map_misc_t *
  arena_miscelm_get_const(const arena_chunk_t *chunk, size_t pageind)
  {
@@ -64,7 +64,7 @@ index b1de2b6..da6b6d2 100644
  }
  
  JEMALLOC_ALWAYS_INLINE size_t
-@@ -778,8 +783,13 @@ arena_mapbitsp_get_mutable(arena_chunk_t *chunk, size_t pageind)
+@@ -779,8 +784,13 @@ arena_mapbitsp_get_mutable(arena_chunk_t *chunk, size_t pageind)
  JEMALLOC_ALWAYS_INLINE const size_t *
  arena_mapbitsp_get_const(const arena_chunk_t *chunk, size_t pageind)
  {
@@ -79,7 +79,7 @@ index b1de2b6..da6b6d2 100644
  
  JEMALLOC_ALWAYS_INLINE size_t
 diff --git a/include/jemalloc/internal/jemalloc_internal.h.in b/include/jemalloc/internal/jemalloc_internal.h.in
-index 8f82edd..78e2df2 100644
+index fdc8fef..56a35a4 100644
 --- a/include/jemalloc/internal/jemalloc_internal.h.in
 +++ b/include/jemalloc/internal/jemalloc_internal.h.in
 @@ -8,6 +8,9 @@
@@ -108,7 +108,7 @@ index 8f82edd..78e2df2 100644
  static const bool config_prof =
  #ifdef JEMALLOC_PROF
 diff --git a/include/jemalloc/internal/jemalloc_internal_decls.h b/include/jemalloc/internal/jemalloc_internal_decls.h
-index 2b8ca5d..42d97f2 100644
+index c907d91..4626632 100644
 --- a/include/jemalloc/internal/jemalloc_internal_decls.h
 +++ b/include/jemalloc/internal/jemalloc_internal_decls.h
 @@ -1,6 +1,9 @@
@@ -122,10 +122,10 @@ index 2b8ca5d..42d97f2 100644
  #ifdef _WIN32
  #  include <windows.h>
 diff --git a/include/jemalloc/internal/mutex.h b/include/jemalloc/internal/mutex.h
-index 5221799..60ab041 100644
+index b442d2d..76518db 100644
 --- a/include/jemalloc/internal/mutex.h
 +++ b/include/jemalloc/internal/mutex.h
-@@ -52,9 +52,6 @@ struct malloc_mutex_s {
+@@ -57,9 +57,6 @@ struct malloc_mutex_s {
  
  #ifdef JEMALLOC_LAZY_LOCK
  extern bool isthreaded;
@@ -135,7 +135,7 @@ index 5221799..60ab041 100644
  #endif
  
  bool	malloc_mutex_init(malloc_mutex_t *mutex, const char *name,
-@@ -62,6 +59,7 @@ bool	malloc_mutex_init(malloc_mutex_t *mutex, const char *name,
+@@ -67,6 +64,7 @@ bool	malloc_mutex_init(malloc_mutex_t *mutex, const char *name,
  void	malloc_mutex_prefork(tsdn_t *tsdn, malloc_mutex_t *mutex);
  void	malloc_mutex_postfork_parent(tsdn_t *tsdn, malloc_mutex_t *mutex);
  void	malloc_mutex_postfork_child(tsdn_t *tsdn, malloc_mutex_t *mutex);
@@ -144,10 +144,10 @@ index 5221799..60ab041 100644
  
  #endif /* JEMALLOC_H_EXTERNS */
 diff --git a/include/jemalloc/internal/private_symbols.txt b/include/jemalloc/internal/private_symbols.txt
-index f2b6a55..69369c9 100644
+index 87c8c9b..df576f6 100644
 --- a/include/jemalloc/internal/private_symbols.txt
 +++ b/include/jemalloc/internal/private_symbols.txt
-@@ -311,7 +311,6 @@ iralloct_realign
+@@ -307,7 +307,6 @@ iralloct_realign
  isalloc
  isdalloct
  isqalloc
@@ -335,7 +335,7 @@ index f943891..47d032c 100755
 +#include "jemalloc_FreeBSD.h"
  EOF
 diff --git a/src/jemalloc.c b/src/jemalloc.c
-index 5d1f493..46dd1d1 100644
+index 38650ff..f659b55 100644
 --- a/src/jemalloc.c
 +++ b/src/jemalloc.c
 @@ -4,6 +4,10 @@
@@ -347,9 +347,9 @@ index 5d1f493..46dd1d1 100644
 +__sym_compat(_malloc_options, __malloc_options_1_0, FBSD_1.0);
 +
  /* Runtime configuration options. */
- const char	*je_malloc_conf JEMALLOC_ATTR(weak);
- bool	opt_abort =
-@@ -2673,6 +2677,107 @@ je_malloc_usable_size(JEMALLOC_USABLE_SIZE_CONST void *ptr)
+ const char	*je_malloc_conf
+ #ifndef _WIN32
+@@ -2756,6 +2760,107 @@ je_malloc_usable_size(JEMALLOC_USABLE_SIZE_CONST void *ptr)
   */
  /******************************************************************************/
  /*
@@ -457,7 +457,7 @@ index 5d1f493..46dd1d1 100644
   * The following functions are used by threading libraries for protection of
   * malloc during fork().
   */
-@@ -2814,4 +2919,11 @@ jemalloc_postfork_child(void)
+@@ -2894,4 +2999,11 @@ jemalloc_postfork_child(void)
  	ctl_postfork_child(tsd_tsdn(tsd));
  }
  
@@ -470,7 +470,7 @@ index 5d1f493..46dd1d1 100644
 +
  /******************************************************************************/
 diff --git a/src/mutex.c b/src/mutex.c
-index a1fac34..a24e420 100644
+index 6333e73..13f8d79 100644
 --- a/src/mutex.c
 +++ b/src/mutex.c
 @@ -66,6 +66,17 @@ pthread_create(pthread_t *__restrict thread,
@@ -491,7 +491,7 @@ index a1fac34..a24e420 100644
  #endif
  
  bool
-@@ -140,7 +151,7 @@ malloc_mutex_postfork_child(tsdn_t *tsdn, malloc_mutex_t *mutex)
+@@ -142,7 +153,7 @@ malloc_mutex_postfork_child(tsdn_t *tsdn, malloc_mutex_t *mutex)
  }
  
  bool
@@ -500,7 +500,7 @@ index a1fac34..a24e420 100644
  {
  
  #ifdef JEMALLOC_MUTEX_INIT_CB
-@@ -154,3 +165,14 @@ malloc_mutex_boot(void)
+@@ -156,3 +167,14 @@ malloc_mutex_boot(void)
  #endif
  	return (false);
  }
@@ -516,7 +516,7 @@ index a1fac34..a24e420 100644
 +#endif
 +}
 diff --git a/src/util.c b/src/util.c
-index a1c4a2a..04f9153 100644
+index 7905267..bee1c77 100644
 --- a/src/util.c
 +++ b/src/util.c
 @@ -67,6 +67,22 @@ wrtmessage(void *cbopaque, const char *s)
