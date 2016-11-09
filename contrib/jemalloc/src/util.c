@@ -49,7 +49,7 @@ static void
 wrtmessage(void *cbopaque, const char *s)
 {
 
-#if defined(SYS_write) && !defined(NO_SYSCALLS)
+#if defined(JEMALLOC_HAVE_SYSCALL) && defined(SYS_write) && !defined(NO_SYSCALLS)
 	/*
 	 * Use syscall(2) rather than write(2) when possible in order to avoid
 	 * the possibility of memory allocation within libc.  This is necessary
