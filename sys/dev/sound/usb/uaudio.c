@@ -2079,6 +2079,8 @@ uaudio_chan_play_sync_callback(struct usb_xfer *xfer, usb_error_t error)
 		 * recording channel:
 		 */
 		if (ch->priv_sc->sc_rec_chan.num_alt == 0) {
+			int32_t jitter_max = howmany(sample_rate, 16000);
+
 			/*
 			 * Range check the jitter values to avoid
 			 * bogus sample rate adjustments. The expected
@@ -2087,12 +2089,11 @@ uaudio_chan_play_sync_callback(struct usb_xfer *xfer, usb_error_t error)
 			 * mandates this requirement. Refer to chapter
 			 * 5.12.4.2 about feedback.
 			 */
-			if (temp > sample_rate)
-				ch->jitter_curr = 1;
-			else if (temp < sample_rate)
-				ch->jitter_curr = -1;
-			else
-				ch->jitter_curr = 0;
+			ch->jitter_curr = temp - sample_rate;
+			if (ch->jitter_curr > jitter_max)
+				ch->jitter_curr = jitter_max;
+			else if (ch->jitter_curr < -jitter_max)
+				ch->jitter_curr = -jitter_max;
 		}
 		ch->feedback_rate = temp;
 		break;
