@@ -390,6 +390,10 @@ vm_page_domain_init(struct vm_domain *vmd)
 	    "vm active pagequeue";
 	*__DECONST(u_int **, &vmd->vmd_pagequeues[PQ_ACTIVE].pq_vcnt) =
 	    &vm_cnt.v_active_count;
+	*__DECONST(char **, &vmd->vmd_pagequeues[PQ_LAUNDRY].pq_name) =
+	    "vm laundry pagequeue";
+	*__DECONST(int **, &vmd->vmd_pagequeues[PQ_LAUNDRY].pq_vcnt) =
+	    &vm_cnt.v_laundry_count;
 	vmd->vmd_page_count = 0;
 	vmd->vmd_free_count = 0;
 	vmd->vmd_segs = 0;
@@ -1730,9 +1734,7 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 		    ("vm_page_alloc: cached page %p is PG_ZERO", m));
 		KASSERT(m->valid != 0,
 		    ("vm_page_alloc: cached page %p is invalid", m));
-		if (m->object == object && m->pindex == pindex)
-			vm_cnt.v_reactivated++;
-		else
+		if (m->object != object || m->pindex != pindex)
 			m->valid = 0;
 		m_object = m->object;
 		vm_page_cache_remove(m);
@@ -2254,7 +2256,7 @@ retry:
 			}
 			KASSERT((m->flags & PG_UNHOLDFREE) == 0,
 			    ("page %p is PG_UNHOLDFREE", m));
-			/* Don't care: PG_NODUMP, PG_WINATCFLS, PG_ZERO. */
+			/* Don't care: PG_NODUMP, PG_ZERO. */
 			if (object->type != OBJT_DEFAULT &&
 			    object->type != OBJT_SWAP &&
 			    object->type != OBJT_VNODE)
@@ -2450,7 +2452,7 @@ retry:
 			}
 			KASSERT((m->flags & PG_UNHOLDFREE) == 0,
 			    ("page %p is PG_UNHOLDFREE", m));
-			/* Don't care: PG_NODUMP, PG_WINATCFLS, PG_ZERO. */
+			/* Don't care: PG_NODUMP, PG_ZERO. */
 			if (object->type != OBJT_DEFAULT &&
 			    object->type != OBJT_SWAP &&
 			    object->type != OBJT_VNODE)
@@ -2778,7 +2780,10 @@ struct vm_pagequeue *
 vm_page_pagequeue(vm_page_t m)
 {
 
-	return (&vm_phys_domain(m)->vmd_pagequeues[m->queue]);
+	if (vm_page_in_laundry(m))
+		return (&vm_dom[0].vmd_pagequeues[m->queue]);
+	else
+		return (&vm_phys_domain(m)->vmd_pagequeues[m->queue]);
 }
 
 /*
@@ -2840,7 +2845,10 @@ vm_page_enqueue(uint8_t queue, vm_page_t m)
 	KASSERT(queue < PQ_COUNT,
 	    ("vm_page_enqueue: invalid queue %u request for page %p",
 	    queue, m));
-	pq = &vm_phys_domain(m)->vmd_pagequeues[queue];
+	if (queue == PQ_LAUNDRY)
+		pq = &vm_dom[0].vmd_pagequeues[queue];
+	else
+		pq = &vm_phys_domain(m)->vmd_pagequeues[queue];
 	vm_pagequeue_lock(pq);
 	m->queue = queue;
 	TAILQ_INSERT_TAIL(&pq->pq_pl, m, plinks.q);
@@ -3124,11 +3132,8 @@ vm_page_unwire(vm_page_t m, uint8_t queue)
 		if (m->wire_count == 0) {
 			atomic_subtract_int(&vm_cnt.v_wire_count, 1);
 			if ((m->oflags & VPO_UNMANAGED) == 0 &&
-			    m->object != NULL && queue != PQ_NONE) {
-				if (queue == PQ_INACTIVE)
-					m->flags &= ~PG_WINATCFLS;
+			    m->object != NULL && queue != PQ_NONE)
 				vm_page_enqueue(queue, m);
-			}
 			return (TRUE);
 		} else
 			return (FALSE);
@@ -3181,7 +3186,6 @@ _vm_page_deactivate(vm_page_t m, boolean_t noreuse)
 		} else {
 			if (queue != PQ_NONE)
 				vm_page_dequeue(m);
-			m->flags &= ~PG_WINATCFLS;
 			vm_pagequeue_lock(pq);
 		}
 		m->queue = PQ_INACTIVE;
@@ -3221,24 +3225,25 @@ vm_page_deactivate_noreuse(vm_page_t m)
 }
 
 /*
- * vm_page_try_to_cache:
+ * vm_page_launder
  *
- * Returns 0 on failure, 1 on success
+ * 	Put a page in the laundry.
  */
-int
-vm_page_try_to_cache(vm_page_t m)
+void
+vm_page_launder(vm_page_t m)
 {
+	int queue;
 
-	vm_page_lock_assert(m, MA_OWNED);
-	VM_OBJECT_ASSERT_WLOCKED(m->object);
-	if (m->dirty || m->hold_count || m->wire_count ||
-	    (m->oflags & VPO_UNMANAGED) != 0 || vm_page_busied(m))
-		return (0);
-	pmap_remove_all(m);
-	if (m->dirty)
-		return (0);
-	vm_page_cache(m);
-	return (1);
+	vm_page_assert_locked(m);
+	if ((queue = m->queue) != PQ_LAUNDRY) {
+		if (m->wire_count == 0 && (m->oflags & VPO_UNMANAGED) == 0) {
+			if (queue != PQ_NONE)
+				vm_page_dequeue(m);
+			vm_page_enqueue(PQ_LAUNDRY, m);
+		} else
+			KASSERT(queue == PQ_NONE,
+			    ("wired page %p is queued", m));
+	}
 }
 
 /*
@@ -3262,112 +3267,6 @@ vm_page_try_to_free(vm_page_t m)
 		return (0);
 	vm_page_free(m);
 	return (1);
-}
-
-/*
- * vm_page_cache
- *
- * Put the specified page onto the page cache queue (if appropriate).
- *
- * The object and page must be locked.
- */
-void
-vm_page_cache(vm_page_t m)
-{
-	vm_object_t object;
-	boolean_t cache_was_empty;
-
-	vm_page_lock_assert(m, MA_OWNED);
-	object = m->object;
-	VM_OBJECT_ASSERT_WLOCKED(object);
-	if (vm_page_busied(m) || (m->oflags & VPO_UNMANAGED) ||
-	    m->hold_count || m->wire_count)
-		panic("vm_page_cache: attempting to cache busy page");
-	KASSERT(!pmap_page_is_mapped(m),
-	    ("vm_page_cache: page %p is mapped", m));
-	KASSERT(m->dirty == 0, ("vm_page_cache: page %p is dirty", m));
-	if (m->valid == 0 || object->type == OBJT_DEFAULT ||
-	    (object->type == OBJT_SWAP &&
-	    !vm_pager_has_page(object, m->pindex, NULL, NULL))) {
-		/*
-		 * Hypothesis: A cache-eligible page belonging to a
-		 * default object or swap object but without a backing
-		 * store must be zero filled.
-		 */
-		vm_page_free(m);
-		return;
-	}
-	KASSERT((m->flags & PG_CACHED) == 0,
-	    ("vm_page_cache: page %p is already cached", m));
-
-	/*
-	 * Remove the page from the paging queues.
-	 */
-	vm_page_remque(m);
-
-	/*
-	 * Remove the page from the object's collection of resident
-	 * pages.
-	 */
-	vm_radix_remove(&object->rtree, m->pindex);
-	TAILQ_REMOVE(&object->memq, m, listq);
-	object->resident_page_count--;
-
-	/*
-	 * Restore the default memory attribute to the page.
-	 */
-	if (pmap_page_get_memattr(m) != VM_MEMATTR_DEFAULT)
-		pmap_page_set_memattr(m, VM_MEMATTR_DEFAULT);
-
-	/*
-	 * Insert the page into the object's collection of cached pages
-	 * and the physical memory allocator's cache/free page queues.
-	 */
-	m->flags &= ~PG_ZERO;
-	mtx_lock(&vm_page_queue_free_mtx);
-	cache_was_empty = vm_radix_is_empty(&object->cache);
-	if (vm_radix_insert(&object->cache, m)) {
-		mtx_unlock(&vm_page_queue_free_mtx);
-		if (object->type == OBJT_VNODE &&
-		    object->resident_page_count == 0)
-			vdrop(object->handle);
-		m->object = NULL;
-		vm_page_free(m);
-		return;
-	}
-
-	/*
-	 * The above call to vm_radix_insert() could reclaim the one pre-
-	 * existing cached page from this object, resulting in a call to
-	 * vdrop().
-	 */
-	if (!cache_was_empty)
-		cache_was_empty = vm_radix_is_singleton(&object->cache);
-
-	m->flags |= PG_CACHED;
-	vm_cnt.v_cache_count++;
-	PCPU_INC(cnt.v_tcached);
-#if VM_NRESERVLEVEL > 0
-	if (!vm_reserv_free_page(m)) {
-#else
-	if (TRUE) {
-#endif
-		vm_phys_free_pages(m, 0);
-	}
-	vm_page_free_wakeup();
-	mtx_unlock(&vm_page_queue_free_mtx);
-
-	/*
-	 * Increment the vnode's hold count if this is the object's only
-	 * cached page.  Decrement the vnode's hold count if this was
-	 * the object's only resident page.
-	 */
-	if (object->type == OBJT_VNODE) {
-		if (cache_was_empty && object->resident_page_count != 0)
-			vhold(object->handle);
-		else if (!cache_was_empty && object->resident_page_count == 0)
-			vdrop(object->handle);
-	}
 }
 
 /*
@@ -3413,11 +3312,13 @@ vm_page_advise(vm_page_t m, int advice)
 	/*
 	 * Place clean pages near the head of the inactive queue rather than
 	 * the tail, thus defeating the queue's LRU operation and ensuring that
-	 * the page will be reused quickly.  Dirty pages are given a chance to
-	 * cycle once through the inactive queue before becoming eligible for
-	 * laundering.
+	 * the page will be reused quickly.  Dirty pages not already in the
+	 * laundry are moved there.
 	 */
-	_vm_page_deactivate(m, m->dirty == 0);
+	if (m->dirty == 0)
+		vm_page_deactivate_noreuse(m);
+	else
+		vm_page_launder(m);
 }
 
 /*
@@ -3926,6 +3827,7 @@ DB_SHOW_COMMAND(page, vm_page_print_page_info)
 	db_printf("vm_cnt.v_cache_count: %d\n", vm_cnt.v_cache_count);
 	db_printf("vm_cnt.v_inactive_count: %d\n", vm_cnt.v_inactive_count);
 	db_printf("vm_cnt.v_active_count: %d\n", vm_cnt.v_active_count);
+	db_printf("vm_cnt.v_laundry_count: %d\n", vm_cnt.v_laundry_count);
 	db_printf("vm_cnt.v_wire_count: %d\n", vm_cnt.v_wire_count);
 	db_printf("vm_cnt.v_free_reserved: %d\n", vm_cnt.v_free_reserved);
 	db_printf("vm_cnt.v_free_min: %d\n", vm_cnt.v_free_min);
@@ -3940,12 +3842,14 @@ DB_SHOW_COMMAND(pageq, vm_page_print_pageq_info)
 	db_printf("pq_free %d pq_cache %d\n",
 	    vm_cnt.v_free_count, vm_cnt.v_cache_count);
 	for (dom = 0; dom < vm_ndomains; dom++) {
-		db_printf("dom %d page_cnt %d free %d pq_act %d pq_inact %d\n",
+		db_printf(
+	    "dom %d page_cnt %d free %d pq_act %d pq_inact %d pq_laund %d\n",
 		    dom,
 		    vm_dom[dom].vmd_page_count,
 		    vm_dom[dom].vmd_free_count,
 		    vm_dom[dom].vmd_pagequeues[PQ_ACTIVE].pq_cnt,
-		    vm_dom[dom].vmd_pagequeues[PQ_INACTIVE].pq_cnt);
+		    vm_dom[dom].vmd_pagequeues[PQ_INACTIVE].pq_cnt,
+		    vm_dom[dom].vmd_pagequeues[PQ_LAUNDRY].pq_cnt);
 	}
 }
 
