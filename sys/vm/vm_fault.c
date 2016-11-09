@@ -290,12 +290,13 @@ int
 vm_fault_hold(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
     int fault_flags, vm_page_t *m_hold)
 {
-	vm_prot_t prot;
-	vm_object_t next_object;
 	struct faultstate fs;
 	struct vnode *vp;
+	vm_object_t next_object, retry_object;
 	vm_offset_t e_end, e_start;
 	vm_page_t m;
+	vm_pindex_t retry_pindex;
+	vm_prot_t prot, retry_prot;
 	int ahead, alloc_req, behind, cluster_offset, error, era, faultcount;
 	int locked, map_generation, nera, result, rv;
 	u_char behavior;
@@ -946,10 +947,6 @@ readrest:
 	 * lookup.
 	 */
 	if (!fs.lookup_still_valid) {
-		vm_object_t retry_object;
-		vm_pindex_t retry_pindex;
-		vm_prot_t retry_prot;
-
 		if (!vm_map_trylock_read(fs.map)) {
 			release_page(&fs);
 			unlock_and_deallocate(&fs);
