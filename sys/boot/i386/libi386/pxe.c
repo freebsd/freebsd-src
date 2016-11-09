@@ -311,6 +311,7 @@ pxe_open(struct open_file *f, ...)
 		setenv("boot.netif.ip", inet_ntoa(myip), 1);
 		setenv("boot.netif.netmask", intoa(netmask), 1);
 		setenv("boot.netif.gateway", inet_ntoa(gateip), 1);
+		setenv("boot.netif.server", inet_ntoa(rootip), 1);
 		if (bootplayer.Hardware == ETHER_TYPE) {
 		    sprintf(temp, "%6D", bootplayer.CAddr, ":");
 		    setenv("boot.netif.hwaddr", temp, 1);
@@ -324,12 +325,12 @@ pxe_open(struct open_file *f, ...)
 		printf("pxe_open: server path: %s\n", rootpath);
 		printf("pxe_open: gateway ip:  %s\n", inet_ntoa(gateip));
 
-		if (netproto == NET_NFS) {
+		if (netproto == NET_TFTP) {
+			setenv("boot.tftproot.server", inet_ntoa(rootip), 1);
+			setenv("boot.tftproot.path", rootpath, 1);
+		} else if (netproto == NET_NFS) {
 			setenv("boot.nfsroot.server", inet_ntoa(rootip), 1);
 			setenv("boot.nfsroot.path", rootpath, 1);
-		} else if (netproto == NET_TFTP) {
-			setenv("boot.netif.server", inet_ntoa(rootip), 1);
-			setenv("boot.tftproot.path", rootpath, 1);
 		}
 		setenv("dhcp.host-name", hostname, 1);
 
