@@ -578,7 +578,7 @@ nfs_keepalive(voidp v)
 		     ping_len[fs->fs_version - NFS_VERSION],
 		     fs->fs_ip,
 		     (struct sockaddr_in *) 0,
-		     (voidp) ((long) np->np_xid), /* cast needed for 64-bit archs */
+		     (voidp) ((intptr_t) np->np_xid),
 		     nfs_keepalive_callback);
 
   /*

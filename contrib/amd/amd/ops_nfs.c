@@ -571,7 +571,7 @@ call_mountd(fh_cache *fp, u_long proc, fwd_fun fun, wchan_t wchan)
 		       len,
 		       &fp->fh_sin,
 		       &fp->fh_sin,
-		       (opaque_t) ((long) fp->fh_id), /* cast to long needed for 64-bit archs */
+		       (opaque_t) ((intptr_t) fp->fh_id),
 		       fun);
   } else {
     error = -len;
@@ -668,7 +668,7 @@ webnfs_lookup(fh_cache *fp, fwd_fun fun, wchan_t wchan)
 		       len,
 		       &fp->fh_sin,
 		       &fp->fh_sin,
-		       (opaque_t) ((long) fp->fh_id), /* cast to long needed for 64-bit archs */
+		       (opaque_t) ((intptr_t) fp->fh_id),
 		       fun);
   } else {
     error = -len;
