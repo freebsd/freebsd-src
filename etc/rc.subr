@@ -1205,6 +1205,11 @@ $command $rc_flags $command_args"
 		# Apply protect(1) to the PID if ${name}_oomprotect is set.
 		case "$rc_arg" in
 		start)
+			# We cannot use protect(1) inside jails.
+			jailed="$(sysctl -n security.jail.jailed)"
+			if [ ${jailed} -eq 1 ]; then
+				return $_return
+			fi
 			if [ -n "$_oomprotect" ]; then
 				if [ -f "${PROTECT}" ]; then
 					pid=$(check_process $command)
