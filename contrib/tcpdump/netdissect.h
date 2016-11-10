@@ -381,7 +381,10 @@ typedef u_int (*if_printer)(const struct pcap_pkthdr *, const u_char *);
 extern if_ndo_printer lookup_ndo_printer(int);
 extern if_printer lookup_printer(int);
 
-#if __has_feature(capabilities)
+#ifdef CHERI_TCPDUMP
+#if !__has_feature(capabilities)
+#error cheri_tcpdump requires a CHERI aware compiler
+#endif
 extern struct cheri_object cheri_tcpdump;
 extern struct cheri_object g_next_object;
 #ifdef CHERI_TCPDUMP_INTERNAL
