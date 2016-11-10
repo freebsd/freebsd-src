@@ -171,7 +171,10 @@ snmp_pdu_create_response(const struct snmp_pdu *pdu, struct snmp_pdu *resp)
 	memset(resp, 0, sizeof(*resp));
 	strcpy(resp->community, pdu->community);
 	resp->version = pdu->version;
-	resp->type = SNMP_PDU_RESPONSE;
+	if (pdu->flags & SNMP_MSG_AUTODISCOVER)
+		resp->type = SNMP_PDU_REPORT; /* RFC 3414.4 */
+	else
+		resp->type = SNMP_PDU_RESPONSE;
 	resp->request_id = pdu->request_id;
 	resp->version = pdu->version;
 
