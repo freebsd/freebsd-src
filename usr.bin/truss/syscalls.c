@@ -859,12 +859,12 @@ get_syscall(const char *name, int nargs)
  * Copy a fixed amount of bytes from the process.
  */
 static int
-get_struct(pid_t pid, void *offset, void *buf, int len)
+get_struct(pid_t pid, uintptr_t offset, void *buf, int len)
 {
 	struct ptrace_io_desc iorequest;
 
 	iorequest.piod_op = PIOD_READ_D;
-	iorequest.piod_offs = offset;
+	iorequest.piod_offs = (void *)offset;
 	iorequest.piod_addr = buf;
 	iorequest.piod_len = len;
 	if (ptrace(PT_IO, pid, (caddr_t)&iorequest, 0) < 0)
@@ -880,7 +880,7 @@ get_struct(pid_t pid, void *offset, void *buf, int len)
  * only get that much.
  */
 static char *
-get_string(pid_t pid, void *addr, int max)
+get_string(pid_t pid, uintptr_t addr, int max)
 {
 	struct ptrace_io_desc iorequest;
 	char *buf, *nbuf;
@@ -891,7 +891,7 @@ get_string(pid_t pid, void *addr, int max)
 		size = max + 1;
 	else {
 		/* Read up to the end of the current page. */
-		size = PAGE_SIZE - ((uintptr_t)addr % PAGE_SIZE);
+		size = PAGE_SIZE - (addr % PAGE_SIZE);
 		if (size > MAXSIZE)
 			size = MAXSIZE;
 	}
@@ -901,7 +901,7 @@ get_string(pid_t pid, void *addr, int max)
 		return (NULL);
 	for (;;) {
 		iorequest.piod_op = PIOD_READ_D;
-		iorequest.piod_offs = (char *)addr + offset;
+		iorequest.piod_offs = (void *)(addr + offset);
 		iorequest.piod_addr = buf + offset;
 		iorequest.piod_len = size;
 		if (ptrace(PT_IO, pid, (caddr_t)&iorequest, 0) < 0) {
@@ -998,7 +998,7 @@ print_kevent(FILE *fp, struct kevent *ke, int input)
 	default:
 		fprintf(fp, "%#x", ke->fflags);
 	}
-	fprintf(fp, ",%p,%p", (void *)ke->data, (void *)ke->udata);
+	fprintf(fp, ",%p,%p", (void *)(intptr_t)ke->data, (void *)ke->udata);
 }
 
 static void
@@ -1059,7 +1059,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 		/* NULL-terminated string. */
 		char *tmp2;
 
-		tmp2 = get_string(pid, (void*)args[sc->offset], 0);
+		tmp2 = get_string(pid, args[sc->offset], 0);
 		fprintf(fp, "\"%s\"", tmp2);
 		free(tmp2);
 		break;
@@ -1089,7 +1089,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 			len = max_string;
 			truncated = 1;
 		}
-		if (len && get_struct(pid, (void*)args[sc->offset], &tmp2, len)
+		if (len && get_struct(pid, args[sc->offset], &tmp2, len)
 		    != -1) {
 			tmp3 = malloc(len * 4 + 1);
 			while (len) {
@@ -1143,7 +1143,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 		}
 
 		len = PAGE_SIZE - (addr & PAGE_MASK);
-		if (get_struct(pid, (void *)addr, u.buf, len) == -1) {
+		if (get_struct(pid, addr, u.buf, len) == -1) {
 			fprintf(fp, "0x%lx", args[sc->offset]);
 			break;
 		}
@@ -1152,7 +1152,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 		first = 1;
 		i = 0;
 		while (u.strarray[i] != NULL) {
-			string = get_string(pid, u.strarray[i], 0);
+			string = get_string(pid, (uintptr_t)u.strarray[i], 0);
 			fprintf(fp, "%s \"%s\"", first ? "" : ",", string);
 			free(string);
 			first = 0;
@@ -1161,7 +1161,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 			if (i == len / sizeof(char *)) {
 				addr += len;
 				len = PAGE_SIZE;
-				if (get_struct(pid, (void *)addr, u.buf, len) ==
+				if (get_struct(pid, addr, u.buf, len) ==
 				    -1) {
 					fprintf(fp, ", <inval>");
 					break;
@@ -1206,7 +1206,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 
 		if (retval[0] == -1)
 			break;
-		tmp2 = get_string(pid, (void*)args[sc->offset], retval[0]);
+		tmp2 = get_string(pid, args[sc->offset], retval[0]);
 		fprintf(fp, "\"%s\"", tmp2);
 		free(tmp2);
 		break;
@@ -1231,8 +1231,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 	case Timespec: {
 		struct timespec ts;
 
-		if (get_struct(pid, (void *)args[sc->offset], &ts,
-		    sizeof(ts)) != -1)
+		if (get_struct(pid, args[sc->offset], &ts, sizeof(ts)) != -1)
 			fprintf(fp, "{ %jd.%09ld }", (intmax_t)ts.tv_sec,
 			    ts.tv_nsec);
 		else
@@ -1244,8 +1243,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 		const char *sep;
 		unsigned int i;
 
-		if (get_struct(pid, (void *)args[sc->offset], &ts, sizeof(ts))
-		    != -1) {
+		if (get_struct(pid, args[sc->offset], &ts, sizeof(ts)) != -1) {
 			fputs("{ ", fp);
 			sep = "";
 			for (i = 0; i < nitems(ts); i++) {
@@ -1273,8 +1271,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 	case Timeval: {
 		struct timeval tv;
 
-		if (get_struct(pid, (void *)args[sc->offset], &tv, sizeof(tv))
-		    != -1)
+		if (get_struct(pid, args[sc->offset], &tv, sizeof(tv)) != -1)
 			fprintf(fp, "{ %jd.%06ld }", (intmax_t)tv.tv_sec,
 			    tv.tv_usec);
 		else
@@ -1284,8 +1281,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 	case Timeval2: {
 		struct timeval tv[2];
 
-		if (get_struct(pid, (void *)args[sc->offset], &tv, sizeof(tv))
-		    != -1)
+		if (get_struct(pid, args[sc->offset], &tv, sizeof(tv)) != -1)
 			fprintf(fp, "{ %jd.%06ld, %jd.%06ld }",
 			    (intmax_t)tv[0].tv_sec, tv[0].tv_usec,
 			    (intmax_t)tv[1].tv_sec, tv[1].tv_usec);
@@ -1296,8 +1292,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 	case Itimerval: {
 		struct itimerval itv;
 
-		if (get_struct(pid, (void *)args[sc->offset], &itv,
-		    sizeof(itv)) != -1)
+		if (get_struct(pid, args[sc->offset], &itv, sizeof(itv)) != -1)
 			fprintf(fp, "{ %jd.%06ld, %jd.%06ld }",
 			    (intmax_t)itv.it_interval.tv_sec,
 			    itv.it_interval.tv_usec,
@@ -1311,7 +1306,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 	{
 		struct linux_socketcall_args largs;
 
-		if (get_struct(pid, (void *)args[sc->offset], (void *)&largs,
+		if (get_struct(pid, args[sc->offset], (void *)&largs,
 		    sizeof(largs)) != -1)
 			fprintf(fp, "{ %s, 0x%lx }",
 			    lookup(linux_socketcall_ops, largs.what, 10),
@@ -1334,8 +1329,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 		if ((pfd = malloc(bytes)) == NULL)
 			err(1, "Cannot malloc %zu bytes for pollfd array",
 			    bytes);
-		if (get_struct(pid, (void *)args[sc->offset], pfd, bytes)
-		    != -1) {
+		if (get_struct(pid, args[sc->offset], pfd, bytes) != -1) {
 			fputs("{", fp);
 			for (i = 0; i < numfds; i++) {
 				fprintf(fp, " %d/%s", pfd[i].fd,
@@ -1362,8 +1356,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 		if ((fds = malloc(bytes)) == NULL)
 			err(1, "Cannot malloc %zu bytes for fd_set array",
 			    bytes);
-		if (get_struct(pid, (void *)args[sc->offset], fds, bytes)
-		    != -1) {
+		if (get_struct(pid, args[sc->offset], fds, bytes) != -1) {
 			fputs("{", fp);
 			for (i = 0; i < numfds; i++) {
 				if (FD_ISSET(i, fds))
@@ -1384,7 +1377,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 		int i, first;
 
 		sig = args[sc->offset];
-		if (get_struct(pid, (void *)args[sc->offset], (void *)&ss,
+		if (get_struct(pid, args[sc->offset], (void *)&ss,
 		    sizeof(ss)) == -1) {
 			fprintf(fp, "0x%lx", args[sc->offset]);
 			break;
@@ -1467,8 +1460,8 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 		 * the next argument contains a socklen_t by value.
 		 */
 		if (sc->type & OUT) {
-			if (get_struct(pid, (void *)args[sc->offset + 1],
-			    &len, sizeof(len)) == -1) {
+			if (get_struct(pid, args[sc->offset + 1], &len,
+			    sizeof(len)) == -1) {
 				fprintf(fp, "0x%lx", args[sc->offset]);
 				break;
 			}
@@ -1482,7 +1475,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 		}
 
 		sa = calloc(1, len);
-		if (get_struct(pid, (void *)args[sc->offset], sa, len) == -1) {
+		if (get_struct(pid, args[sc->offset], sa, len) == -1) {
 			free(sa);
 			fprintf(fp, "0x%lx", args[sc->offset]);
 			break;
@@ -1530,8 +1523,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 	case Sigaction: {
 		struct sigaction sa;
 
-		if (get_struct(pid, (void *)args[sc->offset], &sa, sizeof(sa))
-		    != -1) {
+		if (get_struct(pid, args[sc->offset], &sa, sizeof(sa)) != -1) {
 			fputs("{ ", fp);
 			if (sa.sa_handler == SIG_DFL)
 				fputs("SIG_DFL", fp);
@@ -1571,7 +1563,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 				    bytes);
 		} else
 			ke = NULL;
-		if (numevents >= 0 && get_struct(pid, (void *)args[sc->offset],
+		if (numevents >= 0 && get_struct(pid, args[sc->offset],
 		    ke, bytes) != -1) {
 			fputc('{', fp);
 			for (i = 0; i < numevents; i++) {
@@ -1588,7 +1580,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 	case Stat: {
 		struct stat st;
 
-		if (get_struct(pid, (void *)args[sc->offset], &st, sizeof(st))
+		if (get_struct(pid, args[sc->offset], &st, sizeof(st))
 		    != -1) {
 			char mode[12];
 
@@ -1606,7 +1598,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 		unsigned int i;
 		struct statfs buf;
 
-		if (get_struct(pid, (void *)args[sc->offset], &buf,
+		if (get_struct(pid, args[sc->offset], &buf,
 		    sizeof(buf)) != -1) {
 			char fsid[17];
 
@@ -1629,7 +1621,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 	case Rusage: {
 		struct rusage ru;
 
-		if (get_struct(pid, (void *)args[sc->offset], &ru, sizeof(ru))
+		if (get_struct(pid, args[sc->offset], &ru, sizeof(ru))
 		    != -1) {
 			fprintf(fp,
 			    "{ u=%jd.%06ld,s=%jd.%06ld,in=%ld,out=%ld }",
@@ -1643,7 +1635,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 	case Rlimit: {
 		struct rlimit rl;
 
-		if (get_struct(pid, (void *)args[sc->offset], &rl, sizeof(rl))
+		if (get_struct(pid, args[sc->offset], &rl, sizeof(rl))
 		    != -1) {
 			fprintf(fp, "{ cur=%ju,max=%ju }",
 			    rl.rlim_cur, rl.rlim_max);
@@ -1654,7 +1646,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 	case ExitStatus: {
 		int status;
 
-		if (get_struct(pid, (void *)args[sc->offset], &status,
+		if (get_struct(pid, args[sc->offset], &status,
 		    sizeof(status)) != -1) {
 			fputs("{ ", fp);
 			if (WIFCONTINUED(status))
@@ -1719,7 +1711,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 
 		len = args[sc->offset + 1];
 		utrace_addr = calloc(1, len);
-		if (get_struct(pid, (void *)args[sc->offset],
+		if (get_struct(pid, args[sc->offset],
 		    (void *)utrace_addr, len) != -1)
 			print_utrace(fp, utrace_addr, len);
 		else
@@ -1738,7 +1730,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 			ndescriptors = nitems(descriptors);
 			truncated = true;
 		}
-		if (get_struct(pid, (void *)args[sc->offset],
+		if (get_struct(pid, args[sc->offset],
 		    descriptors, ndescriptors * sizeof(descriptors[0])) != -1) {
 			fprintf(fp, "{");
 			for (i = 0; i < ndescriptors; i++)
@@ -1764,7 +1756,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 		break;
 	case CloudABIFDStat: {
 		cloudabi_fdstat_t fds;
-		if (get_struct(pid, (void *)args[sc->offset], &fds, sizeof(fds))
+		if (get_struct(pid, args[sc->offset], &fds, sizeof(fds))
 		    != -1) {
 			fprintf(fp, "{ %s, ",
 			    xlookup(cloudabi_filetype, fds.fs_filetype));
@@ -1776,7 +1768,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 	}
 	case CloudABIFileStat: {
 		cloudabi_filestat_t fsb;
-		if (get_struct(pid, (void *)args[sc->offset], &fsb, sizeof(fsb))
+		if (get_struct(pid, args[sc->offset], &fsb, sizeof(fsb))
 		    != -1)
 			fprintf(fp, "{ %s, %ju }",
 			    xlookup(cloudabi_filetype, fsb.st_filetype),
@@ -1818,7 +1810,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 		break;
 	case CloudABISockStat: {
 		cloudabi_sockstat_t ss;
-		if (get_struct(pid, (void *)args[sc->offset], &ss, sizeof(ss))
+		if (get_struct(pid, args[sc->offset], &ss, sizeof(ss))
 		    != -1) {
 			fprintf(fp, "{ %s, ", xlookup(
 			    cloudabi_sa_family, ss.ss_sockname.sa_family));
