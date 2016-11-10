@@ -2,6 +2,9 @@
 
 .include <src.opts.mk>
 
+# linker error
+WANT_CHERI=none
+
 .PATH:	${.CURDIR}/../../../contrib/ntp/sntp
 
 PROG=	sntp
