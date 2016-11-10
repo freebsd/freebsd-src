@@ -362,7 +362,7 @@ rtwn_rxfilter_update_mgt(struct rtwn_softc *sc)
 {
 	uint16_t filter;
 
-	filter = 0x7f3f;
+	filter = 0x7f7f;
 	if (sc->bcn_vaps == 0) {	/* STA and/or MONITOR mode vaps */
 		filter &= ~(
 		    R92C_RXFLTMAP_SUBTYPE(IEEE80211_FC0_SUBTYPE_ASSOC_REQ) |
@@ -393,7 +393,6 @@ rtwn_rxfilter_update(struct rtwn_softc *sc)
 void
 rtwn_rxfilter_init(struct rtwn_softc *sc)
 {
-	uint32_t rcr;
 
 	RTWN_ASSERT_LOCKED(sc);
 
@@ -406,47 +405,60 @@ rtwn_rxfilter_init(struct rtwn_softc *sc)
 	/* Reject all data frames. */
 	rtwn_write_2(sc, R92C_RXFLTMAP2, 0x0000);
 
-	rcr = sc->rcr;
-	rcr |= R92C_RCR_AM | R92C_RCR_AB | R92C_RCR_APM |
-	       R92C_RCR_HTC_LOC_CTRL | R92C_RCR_APP_PHYSTS |
-	       R92C_RCR_APP_ICV | R92C_RCR_APP_MIC;
-
-	/* Set Rx filter. */
-	rtwn_write_4(sc, R92C_RCR, rcr);
+	/* Append generic Rx filter bits. */
+	sc->rcr |= R92C_RCR_AM | R92C_RCR_AB | R92C_RCR_APM |
+	    R92C_RCR_HTC_LOC_CTRL | R92C_RCR_APP_PHYSTS |
+	    R92C_RCR_APP_ICV | R92C_RCR_APP_MIC;
 
 	/* Update dynamic Rx filter parts. */
 	rtwn_rxfilter_update(sc);
 }
 
 void
+rtwn_rxfilter_set(struct rtwn_softc *sc)
+{
+	if (!(sc->sc_flags & RTWN_RCR_LOCKED))
+		rtwn_write_4(sc, R92C_RCR, sc->rcr);
+}
+
+void
 rtwn_set_rx_bssid_all(struct rtwn_softc *sc, int enable)
 {
+
 	if (enable)
-		rtwn_setbits_4(sc, R92C_RCR, R92C_RCR_CBSSID_BCN, 0);
+		sc->rcr &= ~R92C_RCR_CBSSID_BCN;
 	else
-		rtwn_setbits_4(sc, R92C_RCR, 0, R92C_RCR_CBSSID_BCN);
+		sc->rcr |= R92C_RCR_CBSSID_BCN;
+	rtwn_rxfilter_set(sc);
 }
 
 void
 rtwn_set_promisc(struct rtwn_softc *sc)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
-	uint32_t mask1, mask2;
+	uint32_t mask_all, mask_min;
 
 	RTWN_ASSERT_LOCKED(sc);
 
-	mask1 = R92C_RCR_ACF | R92C_RCR_ADF | R92C_RCR_AMF | R92C_RCR_AAP;
-	mask2 = R92C_RCR_APM;
+	mask_all = R92C_RCR_ACF | R92C_RCR_ADF | R92C_RCR_AMF | R92C_RCR_AAP;
+	mask_min = R92C_RCR_APM;
 
-	if (sc->vaps_running != 0) {
-		if (sc->bcn_vaps == 0)
-			mask2 |= R92C_RCR_CBSSID_BCN;
-		if (sc->ap_vaps == 0)
-			mask2 |= R92C_RCR_CBSSID_DATA;
+	if (sc->bcn_vaps == 0)
+		mask_min |= R92C_RCR_CBSSID_BCN;
+	if (sc->ap_vaps == 0)
+		mask_min |= R92C_RCR_CBSSID_DATA;
+
+	if (ic->ic_promisc == 0 && sc->mon_vaps == 0) {
+		if (sc->bcn_vaps != 0)
+			mask_all |= R92C_RCR_CBSSID_BCN;
+		if (sc->ap_vaps != 0)	/* for Null data frames */
+			mask_all |= R92C_RCR_CBSSID_DATA;
+
+		sc->rcr &= ~mask_all;
+		sc->rcr |= mask_min;
+	} else {
+		sc->rcr &= ~mask_min;
+		sc->rcr |= mask_all;
 	}
-
-	if (ic->ic_promisc == 0 && sc->mon_vaps == 0)
-		rtwn_setbits_4(sc, R92C_RCR, mask1, mask2);
-	else
-		rtwn_setbits_4(sc, R92C_RCR, mask2, mask1);
+	rtwn_rxfilter_set(sc);
 }

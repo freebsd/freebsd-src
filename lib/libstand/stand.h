@@ -143,7 +143,7 @@ struct devsw {
     int		(*dv_open)(struct open_file *f, ...);
     int		(*dv_close)(struct open_file *f);
     int		(*dv_ioctl)(struct open_file *f, u_long cmd, void *data);
-    void	(*dv_print)(int verbose);	/* print device information */
+    int		(*dv_print)(int verbose);	/* print device information */
     void	(*dv_cleanup)(void);
 };
 

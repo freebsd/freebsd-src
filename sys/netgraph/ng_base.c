@@ -1179,7 +1179,7 @@ ng_destroy_hook(hook_p hook)
 		/*
 		 * Set the peer to point to ng_deadhook
 		 * from this moment on we are effectively independent it.
-		 * send it an rmhook message of it's own.
+		 * send it an rmhook message of its own.
 		 */
 		peer->hk_peer = &ng_deadhook;	/* They no longer know us */
 		hook->hk_peer = &ng_deadhook;	/* Nor us, them */
@@ -3005,7 +3005,7 @@ void
 ng_free_item(item_p item)
 {
 	/*
-	 * The item may hold resources on it's own. We need to free
+	 * The item may hold resources on its own. We need to free
 	 * these before we can free the item. What they are depends upon
 	 * what kind of item it is. it is important that nodes zero
 	 * out pointers to resources that they remove from the item
@@ -3577,7 +3577,7 @@ ng_address_hook(node_p here, item_p item, hook_p hook, ng_ID_t retaddr)
 	ITEM_DEBUG_CHECKS;
 	/*
 	 * Quick sanity check..
-	 * Since a hook holds a reference on it's node, once we know
+	 * Since a hook holds a reference on its node, once we know
 	 * that the peer is still connected (even if invalid,) we know
 	 * that the peer node is present, though maybe invalid.
 	 */

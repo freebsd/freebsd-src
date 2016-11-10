@@ -274,13 +274,14 @@ rtwn_pci_intr(void *arg)
 	status = rtwn_classify_intr(sc, &tx_rings, 0);
 	RTWN_DPRINTF(sc, RTWN_DEBUG_INTR, "%s: status %08X, tx_rings %08X\n",
 	    __func__, status, tx_rings);
-	if (status == 0 && tx_rings == 0) {
-		RTWN_UNLOCK(sc);
-		return;
-	}
+	if (status == 0 && tx_rings == 0)
+		goto unlock;
 
-	if (status & RTWN_PCI_INTR_RX)
+	if (status & RTWN_PCI_INTR_RX) {
 		rtwn_pci_rx_done(sc);
+		if (!(sc->sc_flags & RTWN_RUNNING))
+			goto unlock;
+	}
 
 	if (tx_rings != 0)
 		for (i = 0; i < RTWN_PCI_NTXQUEUES; i++)
@@ -289,5 +290,6 @@ rtwn_pci_intr(void *arg)
 
 	if (sc->sc_flags & RTWN_RUNNING)
 		rtwn_pci_enable_intr(pc);
+unlock:
 	RTWN_UNLOCK(sc);
 }

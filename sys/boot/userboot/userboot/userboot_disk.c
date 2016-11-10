@@ -60,7 +60,7 @@ static int	userdisk_realstrategy(void *devdata, int flag, daddr_t dblk,
 static int	userdisk_open(struct open_file *f, ...);
 static int	userdisk_close(struct open_file *f);
 static int	userdisk_ioctl(struct open_file *f, u_long cmd, void *data);
-static void	userdisk_print(int verbose);
+static int	userdisk_print(int verbose);
 
 struct devsw userboot_disk = {
 	"disk",
@@ -116,27 +116,33 @@ userdisk_cleanup(void)
 /*
  * Print information about disks
  */
-static void
+static int
 userdisk_print(int verbose)
 {
 	struct disk_devdesc dev;
 	char line[80];
-	int i;
+	int i, ret = 0;
 
 	for (i = 0; i < userdisk_maxunit; i++) {
-		sprintf(line, "    disk%d:   Guest drive image\n", i);
-		pager_output(line);
+		snprintf(line, sizeof(line),
+		    "    disk%d:   Guest drive image\n", i);
+		ret = pager_output(line);
+		if (ret != 0)
+			break;
 		dev.d_dev = &userboot_disk;
 		dev.d_unit = i;
 		dev.d_slice = -1;
 		dev.d_partition = -1;
 		if (disk_open(&dev, ud_info[i].mediasize,
 		    ud_info[i].sectorsize, 0) == 0) {
-			sprintf(line, "    disk%d", i);
-			disk_print(&dev, line, verbose);
+			snprintf(line, sizeof(line), "    disk%d", i);
+			ret = disk_print(&dev, line, verbose);
 			disk_close(&dev);
+			if (ret != 0)
+				break;
 		}
 	}
+	return (ret);
 }
 
 /*

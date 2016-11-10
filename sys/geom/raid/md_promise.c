@@ -673,7 +673,7 @@ g_raid_md_promise_start_disk(struct g_raid_disk *disk, int sdn,
 	meta = pv->pv_meta;
 
 	if (sdn >= 0) {
-		/* Find disk position in metadata by it's serial. */
+		/* Find disk position in metadata by its serial. */
 		md_disk_pos = promise_meta_find_disk(meta, pd->pd_meta[sdn]->disk.id);
 		/* For RAID0+1 we need to translate order. */
 		disk_pos = promise_meta_translate_disk(vol, md_disk_pos);

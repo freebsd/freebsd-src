@@ -73,19 +73,25 @@ typedef uint16_t ieee80211_keyix;	/* h/w key index */
 
 struct ieee80211_key {
 	uint8_t		wk_keylen;	/* key length in bytes */
-	uint8_t		wk_pad;
-	uint16_t	wk_flags;
-#define	IEEE80211_KEY_XMIT	0x0001	/* key used for xmit */
-#define	IEEE80211_KEY_RECV	0x0002	/* key used for recv */
-#define	IEEE80211_KEY_GROUP	0x0004	/* key used for WPA group operation */
-#define	IEEE80211_KEY_NOREPLAY	0x0008	/* ignore replay failures */
-#define	IEEE80211_KEY_SWENCRYPT	0x0010	/* host-based encrypt */
-#define	IEEE80211_KEY_SWDECRYPT	0x0020	/* host-based decrypt */
-#define	IEEE80211_KEY_SWENMIC	0x0040	/* host-based enmic */
-#define	IEEE80211_KEY_SWDEMIC	0x0080	/* host-based demic */
-#define	IEEE80211_KEY_DEVKEY	0x0100	/* device key request completed */
-#define	IEEE80211_KEY_CIPHER0	0x1000	/* cipher-specific action 0 */
-#define	IEEE80211_KEY_CIPHER1	0x2000	/* cipher-specific action 1 */
+	uint8_t		wk_pad;		/* .. some drivers use this. Fix that. */
+	uint8_t		wk_pad1[2];
+	uint32_t	wk_flags;
+#define	IEEE80211_KEY_XMIT	0x00000001	/* key used for xmit */
+#define	IEEE80211_KEY_RECV	0x00000002	/* key used for recv */
+#define	IEEE80211_KEY_GROUP	0x00000004	/* key used for WPA group operation */
+#define	IEEE80211_KEY_NOREPLAY	0x00000008	/* ignore replay failures */
+#define	IEEE80211_KEY_SWENCRYPT	0x00000010	/* host-based encrypt */
+#define	IEEE80211_KEY_SWDECRYPT	0x00000020	/* host-based decrypt */
+#define	IEEE80211_KEY_SWENMIC	0x00000040	/* host-based enmic */
+#define	IEEE80211_KEY_SWDEMIC	0x00000080	/* host-based demic */
+#define	IEEE80211_KEY_DEVKEY	0x00000100	/* device key request completed */
+#define	IEEE80211_KEY_CIPHER0	0x00001000	/* cipher-specific action 0 */
+#define	IEEE80211_KEY_CIPHER1	0x00002000	/* cipher-specific action 1 */
+#define	IEEE80211_KEY_NOIV	0x00004000	/* don't insert IV/MIC for !mgmt */
+#define	IEEE80211_KEY_NOIVMGT	0x00008000	/* don't insert IV/MIC for mgmt */
+#define	IEEE80211_KEY_NOMIC	0x00010000	/* don't insert MIC for !mgmt */
+#define	IEEE80211_KEY_NOMICMGT	0x00020000	/* don't insert MIC for mgmt */
+
 	ieee80211_keyix	wk_keyix;	/* h/w key index */
 	ieee80211_keyix	wk_rxkeyix;	/* optional h/w rx key index */
 	uint8_t		wk_key[IEEE80211_KEYBUF_SIZE+IEEE80211_MICBUF_SIZE];
@@ -203,18 +209,8 @@ struct ieee80211_key *ieee80211_crypto_encap(struct ieee80211_node *,
 		struct mbuf *);
 struct ieee80211_key *ieee80211_crypto_decap(struct ieee80211_node *,
 		struct mbuf *, int);
-
-/*
- * Check and remove any MIC.
- */
-static __inline int
-ieee80211_crypto_demic(struct ieee80211vap *vap, struct ieee80211_key *k,
-	struct mbuf *m, int force)
-{
-	const struct ieee80211_cipher *cip = k->wk_cipher;
-	return (cip->ic_miclen > 0 ? cip->ic_demic(k, m, force) : 1);
-}
-
+int ieee80211_crypto_demic(struct ieee80211vap *vap, struct ieee80211_key *k,
+		struct mbuf *, int);
 /*
  * Add any MIC.
  */

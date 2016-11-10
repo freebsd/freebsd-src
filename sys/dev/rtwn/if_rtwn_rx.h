@@ -32,6 +32,7 @@ void	rtwn_adhoc_recv_mgmt(struct ieee80211_node *, struct mbuf *, int,
 void	rtwn_set_multi(struct rtwn_softc *);
 void	rtwn_rxfilter_update(struct rtwn_softc *);
 void	rtwn_rxfilter_init(struct rtwn_softc *);
+void	rtwn_rxfilter_set(struct rtwn_softc *);
 void	rtwn_set_rx_bssid_all(struct rtwn_softc *, int);
 void	rtwn_set_promisc(struct rtwn_softc *);
 

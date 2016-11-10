@@ -393,11 +393,15 @@ load_vt4mappingtable(unsigned int nmappings, FILE *f)
 	if (nmappings == 0)
 		return (NULL);
 
-	t = malloc(sizeof *t * nmappings);
+	if ((t = calloc(nmappings, sizeof(*t))) == NULL) {
+		warn("calloc");
+		return (NULL);
+	}
 
 	if (fread(t, sizeof *t * nmappings, 1, f) != 1) {
-		perror("mappings");
-		exit(1);
+		warn("read mappings");
+		free(t);
+		return (NULL);
 	}
 
 	for (i = 0; i < nmappings; i++) {
@@ -422,7 +426,7 @@ load_default_vt4font(void)
 	}
 }
 
-static int
+static void
 load_vt4font(FILE *f)
 {
 	struct vt4font_header fh;
@@ -431,13 +435,13 @@ load_vt4font(FILE *f)
 	unsigned int i;
 
 	if (fread(&fh, sizeof fh, 1, f) != 1) {
-		perror("file_header");
-		return (1);
+		warn("read file_header");
+		return;
 	}
 
 	if (memcmp(fh.magic, "VFNT0002", 8) != 0) {
-		fprintf(stderr, "Bad magic\n");
-		return (1);
+		warnx("bad magic in font file\n");
+		return;
 	}
 
 	for (i = 0; i < VFNT_MAPS; i++)
@@ -447,21 +451,26 @@ load_vt4font(FILE *f)
 	vfnt.height = fh.height;
 
 	glyphsize = howmany(vfnt.width, 8) * vfnt.height * vfnt.glyph_count;
-	vfnt.glyphs = malloc(glyphsize);
+	if ((vfnt.glyphs = malloc(glyphsize)) == NULL) {
+		warn("malloc");
+		return;
+	}
 
 	if (fread(vfnt.glyphs, glyphsize, 1, f) != 1) {
-		perror("glyphs");
-		return (1);
+		warn("read glyphs");
+		free(vfnt.glyphs);
+		return;
 	}
 
 	for (i = 0; i < VFNT_MAPS; i++)
 		vfnt.map[i] = load_vt4mappingtable(vfnt.map_count[i], f);
 
-	if (ioctl(STDIN_FILENO, PIO_VFONT, &vfnt) == -1) {
-		perror("PIO_VFONT");
-		return (1);
-	}
-	return (0);
+	if (ioctl(STDIN_FILENO, PIO_VFONT, &vfnt) == -1)
+		warn("PIO_VFONT");
+
+	for (i = 0; i < VFNT_MAPS; i++)
+		free(vfnt.map[i]);
+	free(vfnt.glyphs);
 }
 
 /*
@@ -511,8 +520,7 @@ load_font(const char *type, const char *filename)
 	}
 
 	if (vt4_mode) {
-		if(load_vt4font(fd))
-			warn("failed to load font \"%s\"", filename);
+		load_vt4font(fd);
 		fclose(fd);
 		return;
 	}

@@ -186,6 +186,7 @@ struct rtwn_softc {
 #define RTWN_RUNNING		0x10
 #define RTWN_FW_LOADED		0x20
 #define RTWN_TEMP_MEASURED	0x40
+#define RTWN_RCR_LOCKED		0x80
 
 #define RTWN_CHIP_HAS_BCNQ1(_sc)	\
 	((_sc)->bcn_status_reg[0] != (_sc)->bcn_status_reg[1])
@@ -276,6 +277,14 @@ struct rtwn_softc {
 	uint16_t	(*sc_get_qmap)(struct rtwn_softc *);
 	void		(*sc_set_desc_addr)(struct rtwn_softc *);
 	void		(*sc_drop_incorrect_tx)(struct rtwn_softc *);
+	void		(*sc_beacon_update_begin)(struct rtwn_softc *,
+			    struct ieee80211vap *);
+	void		(*sc_beacon_update_end)(struct rtwn_softc *,
+			    struct ieee80211vap *);
+	void		(*sc_beacon_unload)(struct rtwn_softc *, int);
+
+	/* XXX drop checks for PCIe? */
+	int		bcn_check_interval;
 
 	/* Device-specific. */
 	uint32_t	(*sc_rf_read)(struct rtwn_softc *, int, uint8_t);
@@ -444,6 +453,12 @@ void	rtwn_suspend(struct rtwn_softc *);
 	(((_sc)->sc_set_desc_addr)((_sc)))
 #define rtwn_drop_incorrect_tx(_sc) \
 	(((_sc)->sc_drop_incorrect_tx)((_sc)))
+#define rtwn_beacon_update_begin(_sc, _vap) \
+	(((_sc)->sc_beacon_update_begin)((_sc), (_vap)))
+#define rtwn_beacon_update_end(_sc, _vap) \
+	(((_sc)->sc_beacon_update_end)((_sc), (_vap)))
+#define rtwn_beacon_unload(_sc, _id) \
+	(((_sc)->sc_beacon_unload)((_sc), (_id)))
 
 /* Aliases. */
 #define	rtwn_bb_write		rtwn_write_4

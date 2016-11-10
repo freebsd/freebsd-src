@@ -290,12 +290,13 @@ int
 vm_fault_hold(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
     int fault_flags, vm_page_t *m_hold)
 {
-	vm_prot_t prot;
-	vm_object_t next_object;
 	struct faultstate fs;
 	struct vnode *vp;
+	vm_object_t next_object, retry_object;
 	vm_offset_t e_end, e_start;
 	vm_page_t m;
+	vm_pindex_t retry_pindex;
+	vm_prot_t prot, retry_prot;
 	int ahead, alloc_req, behind, cluster_offset, error, era, faultcount;
 	int locked, map_generation, nera, result, rv;
 	u_char behavior;
@@ -564,6 +565,14 @@ fast_failed:
 
 readrest:
 		/*
+		 * At this point, we have either allocated a new page or found
+		 * an existing page that is only partially valid.
+		 *
+		 * We hold a reference on the current object and the page is
+		 * exclusive busied.
+		 */
+
+		/*
 		 * If the pager for the current object might have the page,
 		 * then determine the number of additional pages to read and
 		 * potentially reprioritize previously read pages for earlier
@@ -632,18 +641,23 @@ readrest:
 		 */
 		if (fs.object->type != OBJT_DEFAULT) {
 			/*
-			 * We have either allocated a new page or found an
-			 * existing page that is only partially valid.  We
-			 * hold a reference on fs.object and the page is
-			 * exclusive busied.
+			 * Release the map lock before locking the vnode or
+			 * sleeping in the pager.  (If the current object has
+			 * a shadow, then an earlier iteration of this loop
+			 * may have already unlocked the map.)
 			 */
 			unlock_map(&fs);
 
 			if (fs.object->type == OBJT_VNODE &&
 			    (vp = fs.object->handle) != fs.vp) {
+				/*
+				 * Perform an unlock in case the desired vnode
+				 * changed while the map was unlocked during a
+				 * retry.
+				 */
 				unlock_vp(&fs);
-				locked = VOP_ISLOCKED(vp);
 
+				locked = VOP_ISLOCKED(vp);
 				if (locked != LK_EXCLUSIVE)
 					locked = LK_SHARED;
 
@@ -933,10 +947,6 @@ readrest:
 	 * lookup.
 	 */
 	if (!fs.lookup_still_valid) {
-		vm_object_t retry_object;
-		vm_pindex_t retry_pindex;
-		vm_prot_t retry_prot;
-
 		if (!vm_map_trylock_read(fs.map)) {
 			release_page(&fs);
 			unlock_and_deallocate(&fs);

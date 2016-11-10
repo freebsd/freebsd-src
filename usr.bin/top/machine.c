@@ -178,7 +178,7 @@ char *cpustatenames[] = {
 
 int memory_stats[7];
 char *memorynames[] = {
-	"K Active, ", "K Inact, ", "K Wired, ", "K Cache, ", "K Buf, ",
+	"K Active, ", "K Inact, ", "K Laundry, ", "K Wired, ", "K Buf, ",
 	"K Free", NULL
 };
 
@@ -503,8 +503,8 @@ get_system_info(struct system_info *si)
 		GETSYSCTL("vfs.bufspace", bufspace);
 		GETSYSCTL("vm.stats.vm.v_active_count", memory_stats[0]);
 		GETSYSCTL("vm.stats.vm.v_inactive_count", memory_stats[1]);
-		GETSYSCTL("vm.stats.vm.v_wire_count", memory_stats[2]);
-		GETSYSCTL("vm.stats.vm.v_cache_count", memory_stats[3]);
+		GETSYSCTL("vm.stats.vm.v_laundry_count", memory_stats[2]);
+		GETSYSCTL("vm.stats.vm.v_wire_count", memory_stats[3]);
 		GETSYSCTL("vm.stats.vm.v_free_count", memory_stats[5]);
 		GETSYSCTL("vm.stats.vm.v_swappgsin", nspgsin);
 		GETSYSCTL("vm.stats.vm.v_swappgsout", nspgsout);

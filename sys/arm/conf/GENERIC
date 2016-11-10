@@ -30,6 +30,9 @@ options 	KERNVIRTADDR=0xc0000000
 
 include 	"std.armv6"
 files		"../allwinner/files.allwinner"
+files		"../allwinner/files.allwinner_up"
+files		"../allwinner/a10/files.a10"
+files		"../allwinner/a13/files.a13"
 files		"../allwinner/a20/files.a20"
 files		"../allwinner/a31/files.a31"
 files		"../allwinner/a83t/files.a83t"
@@ -41,6 +44,8 @@ files		"../qemu/files.qemu"
 files		"../ti/files.ti"
 files		"../ti/am335x/files.am335x"
 
+options 	SOC_ALLWINNER_A10
+options 	SOC_ALLWINNER_A13
 options 	SOC_ALLWINNER_A20
 options 	SOC_ALLWINNER_A31
 options 	SOC_ALLWINNER_A31S
@@ -180,7 +185,7 @@ device		vlan			# 802.1Q VLAN support
 device		mii
 device		bpf
 
-#device		emac			# 10/100 integrated EMAC controller
+device		emac			# 10/100 integrated EMAC controller
 device		dwc			# 10/100/1000 integrated GMAC controller
 device		awg			# 10/100/1000 integrated EMAC controller
 

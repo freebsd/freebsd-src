@@ -137,7 +137,7 @@ _start:
 
 	/* Create an L3 page for SBI */
 	la	s1, pagetable_l3_sbi
-	li	s2, 0x80009000
+	li	s2, 0x8000b000
 	srli	s2, s2, PAGE_SHIFT
 	li	a5, 511
 	li	t4, PTE_V | PTE_RX | PTE_W
