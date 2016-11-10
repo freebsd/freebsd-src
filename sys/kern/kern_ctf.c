@@ -236,7 +236,7 @@ link_elf_ctf_get(linker_file_t lf, linker_ctf_t *lc)
 	}
 
 	/*
-	 * Allocate memory to buffer the CTF data in it's decompressed
+	 * Allocate memory to buffer the CTF data in its decompressed
 	 * form.
 	 */
 	ctftab = malloc(sz, M_LINKER, M_WAITOK);

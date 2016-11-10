@@ -2329,9 +2329,9 @@ sysctl_vm_object_list(SYSCTL_HANDLER_ARGS)
 			 * sysctl is only meant to give an
 			 * approximation of the system anyway.
 			 */
-			if (m->queue == PQ_ACTIVE)
+			if (vm_page_active(m))
 				kvo.kvo_active++;
-			else if (m->queue == PQ_INACTIVE)
+			else if (vm_page_inactive(m))
 				kvo.kvo_inactive++;
 		}
 

@@ -17,6 +17,8 @@
 # in NOTES.
 #
 # $FreeBSD$
+#
+#NO_UNIVERSE
 
 ident		RPI2
 

@@ -2062,7 +2062,7 @@ do_zipwork(struct zipwork_entry *zwork)
  * Save information on any process we need to signal.  Any single
  * process may need to be sent different signal-values for different
  * log files, but usually a single signal-value will cause the process
- * to close and re-open all of it's log files.
+ * to close and re-open all of its log files.
  */
 static struct sigwork_entry *
 save_sigwork(const struct conf_entry *ent)

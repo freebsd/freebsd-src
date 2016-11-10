@@ -54,11 +54,12 @@ static void usage(void) __dead2;
 int
 main(int argc, char *argv[])
 {
-	int ch, sflag;
+	int ch, sflag, dflag;
 	char *p, hostname[MAXHOSTNAMELEN];
 
 	sflag = 0;
-	while ((ch = getopt(argc, argv, "fs")) != -1)
+	dflag = 0;
+	while ((ch = getopt(argc, argv, "fsd")) != -1)
 		switch (ch) {
 		case 'f':
 			/*
@@ -70,6 +71,9 @@ main(int argc, char *argv[])
 		case 's':
 			sflag = 1;
 			break;
+		case 'd':
+			dflag = 1;
+			break;
 		case '?':
 		default:
 			usage();
@@ -77,7 +81,7 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
-	if (argc > 1)
+	if (argc > 1 || (sflag && dflag))
 		usage();
 
 	if (*argv) {
@@ -90,6 +94,10 @@ main(int argc, char *argv[])
 			p = strchr(hostname, '.');
 			if (p != NULL)
 				*p = '\0';
+		} else if (dflag) {
+			p = strchr(hostname, '.');
+			if (p != NULL)
+				strcpy(hostname, ++p);
 		}
 		(void)printf("%s\n", hostname);
 	}
@@ -100,6 +108,6 @@ static void
 usage(void)
 {
 
-	(void)fprintf(stderr, "usage: hostname [-fs] [name-of-host]\n");
+	(void)fprintf(stderr, "usage: hostname [-f] [-s | -d] [name-of-host]\n");
 	exit(1);
 }

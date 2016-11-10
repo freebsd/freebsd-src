@@ -533,6 +533,7 @@ command_memmap(int argc, char *argv[])
 	UINT32 dver;
 	EFI_STATUS status;
 	int i, ndesc;
+	char line[80];
 	static char *types[] = {
 	    "Reserved",
 	    "LoaderCode",
@@ -564,14 +565,19 @@ command_memmap(int argc, char *argv[])
 	}
 
 	ndesc = sz / dsz;
-	printf("%23s %12s %12s %8s %4s\n",
+	snprintf(line, sizeof(line), "%23s %12s %12s %8s %4s\n",
 	    "Type", "Physical", "Virtual", "#Pages", "Attr");
+	pager_open();
+	if (pager_output(line)) {
+		pager_close();
+		return (CMD_OK);
+	}
 
 	for (i = 0, p = map; i < ndesc;
 	     i++, p = NextMemoryDescriptor(p, dsz)) {
 		printf("%23s %012jx %012jx %08jx ", types[p->Type],
-		   (uintmax_t)p->PhysicalStart, (uintmax_t)p->VirtualStart,
-		   (uintmax_t)p->NumberOfPages);
+		    (uintmax_t)p->PhysicalStart, (uintmax_t)p->VirtualStart,
+		    (uintmax_t)p->NumberOfPages);
 		if (p->Attribute & EFI_MEMORY_UC)
 			printf("UC ");
 		if (p->Attribute & EFI_MEMORY_WC)
@@ -588,9 +594,11 @@ command_memmap(int argc, char *argv[])
 			printf("RP ");
 		if (p->Attribute & EFI_MEMORY_XP)
 			printf("XP ");
-		printf("\n");
+		if (pager_output("\n"))
+			break;
 	}
 
+	pager_close();
 	return (CMD_OK);
 }
 
@@ -612,10 +620,17 @@ guid_to_string(EFI_GUID *guid)
 static int
 command_configuration(int argc, char *argv[])
 {
+	char line[80];
 	UINTN i;
 
-	printf("NumberOfTableEntries=%lu\n",
+	snprintf(line, sizeof(line), "NumberOfTableEntries=%lu\n",
 		(unsigned long)ST->NumberOfTableEntries);
+	pager_open();
+	if (pager_output(line)) {
+		pager_close();
+		return (CMD_OK);
+	}
+
 	for (i = 0; i < ST->NumberOfTableEntries; i++) {
 		EFI_GUID *guid;
 
@@ -642,9 +657,13 @@ command_configuration(int argc, char *argv[])
 			printf("FDT Table");
 		else
 			printf("Unknown Table (%s)", guid_to_string(guid));
-		printf(" at %p\n", ST->ConfigurationTable[i].VendorTable);
+		snprintf(line, sizeof(line), " at %p\n",
+		    ST->ConfigurationTable[i].VendorTable);
+		if (pager_output(line))
+			break;
 	}
 
+	pager_close();
 	return (CMD_OK);
 }
 

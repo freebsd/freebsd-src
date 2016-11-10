@@ -628,10 +628,10 @@ rtwn_vap_delete(struct ieee80211vap *vap)
 	ieee80211_draintask(ic, &ic->ic_parent_task);
 
 	RTWN_LOCK(sc);
-	if (uvp->bcn_mbuf != NULL)
-		m_freem(uvp->bcn_mbuf);
 	/* Cancel any unfinished Tx. */
 	rtwn_reset_lists(sc, vap);
+	if (uvp->bcn_mbuf != NULL)
+		m_freem(uvp->bcn_mbuf);
 	rtwn_vap_decrement_counters(sc, vap->iv_opmode, uvp->id);
 	rtwn_set_ic_opmode(sc);
 	if (sc->sc_flags & RTWN_RUNNING)
@@ -822,8 +822,10 @@ rtwn_push_nulldata(struct rtwn_softc *sc, struct ieee80211vap *vap)
 	rtwn_setbits_1_shift(sc, R92C_FWHW_TXQ_CTRL,
 	    R92C_FWHW_TXQ_CTRL_REAL_BEACON, 0, 2);
 
-	if (uvp->bcn_mbuf != NULL)
+	if (uvp->bcn_mbuf != NULL) {
+		rtwn_beacon_unload(sc, uvp->id);
 		m_freem(uvp->bcn_mbuf);
+	}
 
 	m->m_pkthdr.len = m->m_len = required_size - sc->txdesc_len;
 	uvp->bcn_mbuf = m;
@@ -917,6 +919,9 @@ rtwn_tsf_sync_adhoc_task(void *arg, int pending)
 	/* Accept beacons with the same BSSID. */
 	rtwn_set_rx_bssid_all(sc, 0);
 
+	/* Deny RCR updates. */
+	sc->sc_flags |= RTWN_RCR_LOCKED;
+
 	/* Enable synchronization. */
 	rtwn_setbits_1(sc, R92C_BCN_CTRL(uvp->id),
 	    R92C_BCN_CTRL_DIS_TSF_UDT0, 0);
@@ -929,6 +934,7 @@ rtwn_tsf_sync_adhoc_task(void *arg, int pending)
 	    0, R92C_BCN_CTRL_DIS_TSF_UDT0);
 
 	/* Accept all beacons. */
+	sc->sc_flags &= ~RTWN_RCR_LOCKED;
 	rtwn_set_rx_bssid_all(sc, 1);
 
 	/* Schedule next TSF synchronization. */
@@ -1193,7 +1199,6 @@ rtwn_run(struct rtwn_softc *sc, struct ieee80211vap *vap)
 	struct ieee80211com *ic = vap->iv_ic;
 	struct rtwn_vap *uvp = RTWN_VAP(vap);
 	struct ieee80211_node *ni;
-	uint32_t reg;
 	uint8_t mode;
 	int error;
 
@@ -1246,18 +1251,6 @@ rtwn_run(struct rtwn_softc *sc, struct ieee80211vap *vap)
 		rtwn_write_1(sc, R92C_TXPAUSE, 0);
 	}
 
-	/* Allow Rx from our BSSID only. */
-	if (ic->ic_promisc == 0) {
-		reg = rtwn_read_4(sc, R92C_RCR);
-
-		if (sc->bcn_vaps == 0)
-			reg |= R92C_RCR_CBSSID_BCN;
-		if (sc->ap_vaps == 0)
-			reg |= R92C_RCR_CBSSID_DATA;
-
-		rtwn_write_4(sc, R92C_RCR, reg);
-	}
-
 #ifndef RTWN_WITHOUT_UCODE
 	/* Upload (QoS) Null Data frame to firmware. */
 	/* Note: do this for port 0 only. */
@@ -1277,6 +1270,9 @@ rtwn_run(struct rtwn_softc *sc, struct ieee80211vap *vap)
 	}
 #endif
 
+	/* Enable TSF synchronization. */
+	rtwn_tsf_sync_enable(sc, vap);
+
 	if (vap->iv_opmode == IEEE80211_M_HOSTAP ||
 	    vap->iv_opmode == IEEE80211_M_IBSS) {
 		error = rtwn_setup_beacon(sc, ni);
@@ -1290,9 +1286,6 @@ rtwn_run(struct rtwn_softc *sc, struct ieee80211vap *vap)
 
 	/* Set ACK preamble type. */
 	rtwn_set_ack_preamble(sc);
-
-	/* Enable TSF synchronization. */
-	rtwn_tsf_sync_enable(sc, vap);
 
 	/* Set basic rates mask. */
 	rtwn_calc_basicrates(sc);
@@ -1513,6 +1506,8 @@ rtwn_scan_start(struct ieee80211com *ic)
 	struct rtwn_softc *sc = ic->ic_softc;
 
 	RTWN_LOCK(sc);
+	/* Pause beaconing. */
+	rtwn_setbits_1(sc, R92C_TXPAUSE, 0, R92C_TX_QUEUE_BCN);
 	/* Receive beacons / probe responses from any BSSID. */
 	if (sc->bcn_vaps == 0)
 		rtwn_set_rx_bssid_all(sc, 1);
@@ -1547,6 +1542,9 @@ rtwn_scan_end(struct ieee80211com *ic)
 
 	/* Restore basic rates mask. */
 	rtwn_calc_basicrates(sc);
+
+	/* Resume beaconing. */
+	rtwn_setbits_1(sc, R92C_TXPAUSE, R92C_TX_QUEUE_BCN, 0);
 	RTWN_UNLOCK(sc);
 }
 
@@ -1970,6 +1968,7 @@ rtwn_stop(struct rtwn_softc *sc)
 
 #ifndef D4054
 	callout_stop(&sc->sc_watchdog_to);
+	sc->sc_tx_timer = 0;
 #endif
 	sc->sc_flags &= ~(RTWN_STARTED | RTWN_RUNNING | RTWN_FW_LOADED);
 	sc->sc_flags &= ~RTWN_TEMP_MEASURED;

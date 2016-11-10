@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: animation,v 1.57 2015/11/29 22:11:07 christos Exp $
+# $File: animation,v 1.58 2016/07/03 14:13:11 christos Exp $
 # animation:  file(1) magic for animation/movie formats
 #
 # animation formats
@@ -1008,3 +1008,11 @@
 >4	lelong	x	%d x
 >8	lelong	x	%d,
 >12	lelong	x	%d frames
+
+# Material Exchange Format
+# More information:
+# https://en.wikipedia.org/wiki/Material_Exchange_Format
+# http://www.freemxf.org/
+0	string	\x06\x0e\x2b\x34\x02\x05\x01\x01\x0d\x01\x02\x01\x01\x02	Material exchange container format
+!:ext	mxf
+!:mime	application/mxf
