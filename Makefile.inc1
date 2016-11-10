@@ -1954,6 +1954,7 @@ native-xtools: .PHONY
     usr.bin/gzip \
     usr.bin/id \
     usr.bin/lex \
+    usr.bin/limits \
     usr.bin/lorder \
     usr.bin/mktemp \
     usr.bin/mt \
