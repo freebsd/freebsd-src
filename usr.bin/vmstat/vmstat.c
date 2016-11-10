@@ -567,7 +567,7 @@ fill_vmmeter(struct vmmeter *vmmp)
 		GET_VM_STATS(vm, v_reactivated);
 		GET_VM_STATS(vm, v_pdwakeups);
 		GET_VM_STATS(vm, v_pdpages);
-		GET_VM_STATS(vm, v_tcached);
+		GET_VM_STATS(vm, v_pdshortfalls);
 		GET_VM_STATS(vm, v_dfree);
 		GET_VM_STATS(vm, v_pfree);
 		GET_VM_STATS(vm, v_tfree);
@@ -581,7 +581,7 @@ fill_vmmeter(struct vmmeter *vmmp)
 		GET_VM_STATS(vm, v_active_count);
 		GET_VM_STATS(vm, v_inactive_target);
 		GET_VM_STATS(vm, v_inactive_count);
-		GET_VM_STATS(vm, v_cache_count);
+		GET_VM_STATS(vm, v_laundry_count);
 		GET_VM_STATS(vm, v_pageout_free_min);
 		GET_VM_STATS(vm, v_interrupt_free_min);
 		/*GET_VM_STATS(vm, v_free_severe);*/
@@ -1059,7 +1059,9 @@ dosum(void)
 		sum.v_pdwakeups);
 	xo_emit("{:page-daemon-pages/%9u} {N:pages examined by the page daemon}\n",
 		sum.v_pdpages);
-	xo_emit("{:reactivated/%9u} {N:pages reactivated}\n",
+	xo_emit("{:page-reclamation-shortfalls/%9u} {N:clean page reclamation shortfalls}\n",
+		sum.v_pdshortfalls);
+	xo_emit("{:reactivated/%9u} {N:pages reactivated by the page daemon}\n",
 		sum.v_reactivated);
 	xo_emit("{:copy-on-write-faults/%9u} {N:copy-on-write faults}\n",
 		sum.v_cow_faults);
@@ -1095,8 +1097,8 @@ dosum(void)
 		sum.v_active_count);
 	xo_emit("{:inactive-pages/%9u} {N:pages inactive}\n",
 		sum.v_inactive_count);
-	xo_emit("{:vm-cache/%9u} {N:pages in VM cache}\n",
-		sum.v_cache_count);
+	xo_emit("{:laundry-pages/%9u} {N:pages in the laundry queue}\n",
+		sum.v_laundry_count);
 	xo_emit("{:wired-pages/%9u} {N:pages wired down}\n",
 		sum.v_wire_count);
 	xo_emit("{:free-pages/%9u} {N:pages free}\n",
