@@ -2,7 +2,6 @@
 # Author: Shteryana Shopova <syrinx@FreeBSD.org>
 
 BINDIR?= /usr/bin
-PACKAGE=	bsnmp
 
 CFLAGS+= -I. -I${.CURDIR}
 
@@ -14,3 +13,5 @@ LIBBSNMPTOOLSDIR=      ${.CURDIR}/../libbsnmptools
 LIBBSNMPTOOLS=         ${LIBBSNMPTOOLSDIR}/libbsnmptools.a
 
 WARNS?=		6
+
+.include "../Makefile.inc"

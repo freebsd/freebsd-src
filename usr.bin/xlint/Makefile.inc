@@ -13,3 +13,5 @@ CFLAGS+=	-I${.CURDIR}/../arch/${MACHINE_CPUARCH}
 CFLAGS+=	-I${.CURDIR}/../common
 
 OBJECT_FMT=	ELF
+
+.include "../Makefile.inc"
