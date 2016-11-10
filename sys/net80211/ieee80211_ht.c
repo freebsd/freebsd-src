@@ -582,7 +582,13 @@ ieee80211_ampdu_rx_start_ext(struct ieee80211_node *ni, int tid, int seq, int ba
 	memset(rap, 0, sizeof(*rap));
 	rap->rxa_wnd = (baw== 0) ?
 	    IEEE80211_AGGR_BAWMAX : min(baw, IEEE80211_AGGR_BAWMAX);
-	rap->rxa_start = seq;
+	if (seq == -1) {
+		/* Wait for the first RX frame, use that as BAW */
+		rap->rxa_start = 0;
+		rap->rxa_flags |= IEEE80211_AGGR_WAITRX;
+	} else {
+		rap->rxa_start = seq;
+	}
 	rap->rxa_flags |=  IEEE80211_AGGR_RUNNING | IEEE80211_AGGR_XCHGPEND;
 
 	IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_11N, ni,
@@ -617,7 +623,9 @@ ampdu_rx_stop(struct ieee80211_node *ni, struct ieee80211_rx_ampdu *rap)
 {
 
 	ampdu_rx_purge(rap);
-	rap->rxa_flags &= ~(IEEE80211_AGGR_RUNNING | IEEE80211_AGGR_XCHGPEND);
+	rap->rxa_flags &= ~(IEEE80211_AGGR_RUNNING
+	    | IEEE80211_AGGR_XCHGPEND
+	    | IEEE80211_AGGR_WAITRX);
 }
 
 /*
@@ -842,6 +850,16 @@ ieee80211_ampdu_reorder(struct ieee80211_node *ni, struct mbuf *m)
 	}
 	rxseq >>= IEEE80211_SEQ_SEQ_SHIFT;
 	rap->rxa_nframes++;
+
+	/*
+	 * Handle waiting for the first frame to define the BAW.
+	 * Some firmware doesn't provide the RX of the starting point
+	 * of the BAW and we have to cope.
+	 */
+	if (rap->rxa_flags & IEEE80211_AGGR_WAITRX) {
+		rap->rxa_flags &= ~IEEE80211_AGGR_WAITRX;
+		rap->rxa_start = rxseq;
+	}
 again:
 	if (rxseq == rap->rxa_start) {
 		/*
