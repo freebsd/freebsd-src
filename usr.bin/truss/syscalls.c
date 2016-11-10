@@ -1142,7 +1142,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 			break;
 		}
 
-		len = PAGE_SIZE - (addr & PAGE_MASK);
+		len = PAGE_SIZE - (addr & (uintptr_t)PAGE_MASK);
 		if (get_struct(pid, addr, u.buf, len) == -1) {
 			fprintf(fp, "0x%lx", args[sc->offset]);
 			break;
