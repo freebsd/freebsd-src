@@ -25,6 +25,8 @@ CLEANFILES+=	version.c
 
 #.include "Makefile.print"
 
+CFLAGS+=	-DCHERI_TCPDUMP
+
 CFLAGS+= -I${.CURDIR} -I${TCPDUMP_DISTDIR}
 CFLAGS+= -I${.CURDIR}/../../../lib/libcheri
 CFLAGS+= -DHAVE_CONFIG_H
