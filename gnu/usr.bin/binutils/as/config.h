@@ -69,7 +69,6 @@
 /* #undef HAVE_REMOVE */
 
 /* Define to 1 if you have the `sbrk' function. */
-#define HAVE_SBRK 1
 
 /* Define to 1 if you have the <stdarg.h> header file. */
 #define HAVE_STDARG_H 1
