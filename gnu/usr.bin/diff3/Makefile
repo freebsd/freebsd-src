@@ -1,5 +1,11 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
+
+.if ${MK_CHERI_PURE} == "yes"
+WANT_CHERI=	pure
+.endif
+
 DIFFSRC=${.CURDIR}/../../../contrib/diff/src
 .PATH:  ${DIFFSRC} \
 	${.CURDIR}/../../../contrib/diff/lib \

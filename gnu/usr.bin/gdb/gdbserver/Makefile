@@ -1,5 +1,11 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
+
+.if ${MK_CHERI_PURE} == "yes"
+WANT_CHERI=	pure
+.endif
+
 # Not elf specific so don't install in /usr/libexec/elf
 BINDIR=/usr/bin
 

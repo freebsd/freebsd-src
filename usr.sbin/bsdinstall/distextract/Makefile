@@ -1,5 +1,8 @@
 # $FreeBSD$
 
+# linker error
+WANT_CHERI=none
+
 BINDIR= ${LIBEXECDIR}/bsdinstall
 PROG=	distextract
 LIBADD=	archive dpv figpar ncursesw dialog m

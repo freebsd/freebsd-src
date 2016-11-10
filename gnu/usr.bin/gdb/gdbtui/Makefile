@@ -1,5 +1,8 @@
 # $FreeBSD$
 
+# linker error
+WANT_CHERI=	none
+
 PROG=	gdbtui${GDB_SUFFIX}
 SRCS=	tui-main.c
 MAN=

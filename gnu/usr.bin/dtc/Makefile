@@ -1,6 +1,11 @@
 # $FreeBSD$
 
 .include <bsd.own.mk>
+.include <src.opts.mk>
+
+.if ${MK_CHERI_PURE} == "yes"
+WANT_CHERI=	pure
+.endif
 
 DTCDIR=	${.CURDIR}/../../../contrib/dtc
 _LIBFDTDIR= ${.CURDIR}/../../../sys/contrib/libfdt

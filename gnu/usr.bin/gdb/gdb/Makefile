@@ -1,5 +1,8 @@
 # $FreeBSD$
 
+# linker error
+WANT_CHERI=	none
+
 PROG=	gdb${GDB_SUFFIX}
 SRCS=	gdb.c
 

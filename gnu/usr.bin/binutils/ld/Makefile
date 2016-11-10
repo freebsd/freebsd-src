@@ -1,5 +1,11 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
+
+.if ${MK_CHERI_PURE} == "yes"
+WANT_CHERI=	pure
+.endif
+
 ELF_SCR_EXT=	x xbn xc xd xdc xdw xn xr xs xsc xsw xu xw
 .include "../Makefile.inc0"
 .include <src.opts.mk>

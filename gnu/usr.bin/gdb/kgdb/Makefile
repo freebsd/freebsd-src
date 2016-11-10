@@ -1,5 +1,8 @@
 # $FreeBSD$
 
+# linker error
+WANT_CHERI=	none
+
 PROG=	kgdb${GDB_SUFFIX}
 SRCS=	main.c kld.c kthr.c trgt.c trgt_${TARGET_CPUARCH}.c
 WARNS?=	2

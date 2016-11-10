@@ -1,6 +1,12 @@
 # $FreeBSD$
 
 .include <bsd.own.mk>
+.include <src.opts.mk>
+
+.if ${MK_CHERI_PURE} == "yes"
+WANT_CHERI=	pure
+.endif
+
 
 .include "../Makefile.inc"
 .include "../Makefile.ver"

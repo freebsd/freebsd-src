@@ -3,6 +3,9 @@
 MAN=
 .include <src.opts.mk>
 
+# linker error
+WANT_CHERI=	none
+
 .include "../Makefile.inc"
 
 .PATH: ${GCCDIR}
