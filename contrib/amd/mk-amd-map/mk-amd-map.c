@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2006 Erez Zadok
+ * Copyright (c) 1997-2014 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -16,11 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgment:
- *      This product includes software developed by the University of
- *      California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -93,7 +89,7 @@ read_line(char *buf, int size, FILE *fp)
 	/*
 	 * Skip leading white space on next line
 	 */
-	while ((ch = getc(fp)) != EOF && isascii(ch) && isspace(ch)) ;
+	while ((ch = getc(fp)) != EOF && isascii((unsigned char)ch) && isspace((unsigned char)ch)) ;
 	(void) ungetc(ch, fp);
       } else {
 	return done;
@@ -144,7 +140,7 @@ read_file(FILE *fp, char *map, voidp db)
     /*
      * Find start of key
      */
-    for (kp = key_val; *kp && isascii(*kp) && isspace((int)*kp); kp++) ;
+    for (kp = key_val; *kp && isascii((unsigned char)*kp) && isspace((unsigned char)*kp); kp++) ;
 
     /*
      * Ignore blank lines
@@ -155,7 +151,7 @@ read_file(FILE *fp, char *map, voidp db)
     /*
      * Find end of key
      */
-    for (cp = kp; *cp && (!isascii(*cp) || !isspace((int)*cp)); cp++) ;
+    for (cp = kp; *cp && (!isascii((unsigned char)*cp) || !isspace((unsigned char)*cp)); cp++) ;
 
     /*
      * Check whether key matches, or whether
@@ -163,7 +159,7 @@ read_file(FILE *fp, char *map, voidp db)
      */
     if (*cp)
       *cp++ = '\0';
-    while (*cp && isascii(*cp) && isspace((int)*cp))
+    while (*cp && isascii((unsigned char)*cp) && isspace((unsigned char)*cp))
       cp++;
     if (*kp == '+') {
       fprintf(stderr, "Can't interpolate %s\n", kp);

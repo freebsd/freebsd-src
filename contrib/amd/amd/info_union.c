@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2006 Erez Zadok
+ * Copyright (c) 1997-2014 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -16,11 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgment:
- *      This product includes software developed by the University of
- *      California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -77,7 +73,7 @@ union_init(mnt_map *m, char *map, time_t *tp)
 int
 union_search(mnt_map *m, char *map, char *key, char **pval, time_t *tp)
 {
-  char *mapd = strdup(map + UNION_PREFLEN);
+  char *mapd = xstrdup(map + UNION_PREFLEN);
   char **v = strsplit(mapd, ':', '\"');
   char **p;
   size_t l;
@@ -95,14 +91,15 @@ union_search(mnt_map *m, char *map, char *key, char **pval, time_t *tp)
 int
 union_reload(mnt_map *m, char *map, void (*fn) (mnt_map *, char *, char *))
 {
-  char *mapd = strdup(map + UNION_PREFLEN);
+  static const char fseq[] = "fs:=";
+  char *mapd = xstrdup(map + UNION_PREFLEN);
   char **v = strsplit(mapd, ':', '\"');
   char **dir;
 
   /*
    * Add fake /defaults entry
    */
-  (*fn) (m, strdup("/defaults"), strdup("type:=link;opts:=nounmount;sublink:=${key}"));
+  (*fn) (m, xstrdup("/defaults"), xstrdup("type:=link;opts:=nounmount;sublink:=${key}"));
 
   for (dir = v; *dir; dir++) {
     size_t l;
@@ -113,7 +110,7 @@ union_reload(mnt_map *m, char *map, void (*fn) (mnt_map *, char *, char *))
       plog(XLOG_USER, "Cannot read directory %s: %m", *dir);
       continue;
     }
-    l = strlen(*dir) + 5;
+    l = strlen(*dir) + sizeof(fseq);
 
     dlog("Reading directory %s...", *dir);
     while ((dp = readdir(dirp))) {
@@ -125,8 +122,8 @@ union_reload(mnt_map *m, char *map, void (*fn) (mnt_map *, char *, char *))
 
       dlog("... gives %s", dp->d_name);
       val = xmalloc(l);
-      xsnprintf(val, l + 5, "fs:=%s", *dir);
-      (*fn) (m, strdup(dp->d_name), val);
+      xsnprintf(val, l, "%s%s", fseq, *dir);
+      (*fn) (m, xstrdup(dp->d_name), val);
     }
     closedir(dirp);
   }
@@ -135,11 +132,11 @@ union_reload(mnt_map *m, char *map, void (*fn) (mnt_map *, char *, char *))
    * Add wildcard entry
    */
   {
-    size_t l = strlen(*(dir-1)) + 5;
+    size_t l = strlen(*(dir-1)) + sizeof(fseq);
     char *val = xmalloc(l);
 
-    xsnprintf(val, l, "fs:=%s", *(dir-1));
-    (*fn) (m, strdup("*"), val);
+    xsnprintf(val, l, "%s%s", fseq, *(dir-1));
+    (*fn) (m, xstrdup("*"), val);
   }
   XFREE(mapd);
   XFREE(v);

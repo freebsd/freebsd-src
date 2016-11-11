@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2006 Erez Zadok
+ * Copyright (c) 1997-2014 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -16,11 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgment:
- *      This product includes software developed by the University of
- *      California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -94,7 +90,7 @@ static rpc_forward *
 fwd_alloc(void)
 {
   time_t now = clocktime(NULL);
-  rpc_forward *p = 0, *p2;
+  rpc_forward *p = NULL, *p2;
 
   /*
    * First search for an existing expired one.
@@ -183,7 +179,7 @@ fwd_init(void)
   /*
    * Some things we talk to require a priv port - so make one here
    */
-  if (bind_resv_port(fwd_sock, (u_short *) 0) < 0)
+  if (bind_resv_port(fwd_sock, (u_short *) NULL) < 0)
     plog(XLOG_ERROR, "can't bind privileged port (rpc_fwd)");
 
   if (fcntl(fwd_sock, F_SETFL, FNDELAY) < 0

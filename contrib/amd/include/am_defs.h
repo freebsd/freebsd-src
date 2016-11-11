@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2006 Erez Zadok
+ * Copyright (c) 1997-2014 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -16,11 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgment:
- *      This product includes software developed by the University of
- *      California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -67,7 +63,7 @@
 #  define strchr index
 #  define strrchr rindex
 # endif /* not HAVE_STRCHR */
-char *strchr(), *strrchr(), *strdup();
+char *strchr(), *strrchr();
 #endif /* not STDC_HEADERS */
 
 /*
@@ -87,6 +83,14 @@ char *strchr(), *strrchr(), *strdup();
 #  define __printf__ printf
 # endif /* __GNUC__ < 2 ... */
 #endif /* not __attribute__ */
+
+#define __IGNORE(result) \
+    __ignore((unsigned long)result)
+
+static inline void
+__ignore(unsigned long result) {
+    (void)&result;
+}
 
 /*
  * How to handle signals of any type
@@ -134,11 +138,19 @@ struct sigevent;
 /*
  * Big-endian or little-endian?
  */
-#ifdef WORDS_BIGENDIAN
-# define ARCH_ENDIAN "big"
-#else /* not WORDS_BIGENDIAN */
-# define ARCH_ENDIAN "little"
-#endif /* not WORDS_BIGENDIAN */
+#ifndef BYTE_ORDER
+# if defined(WORDS_BIGENDIAN)
+#  define ARCH_ENDIAN "big"
+# else /* not WORDS_BIGENDIAN */
+#  define ARCH_ENDIAN "little"
+# endif /* not WORDS_BIGENDIAN */
+#else
+# if BYTE_ORDER == BIG_ENDIAN
+#  define ARCH_ENDIAN "big"
+# else
+#  define ARCH_ENDIAN "little"
+# endif
+#endif
 
 /*
  * Actions to take if HAVE_SYS_TYPES_H is defined.
@@ -209,12 +221,6 @@ struct sigevent;
  * Actions to take if HAVE_FCNTL_H is defined.
  */
 #if HAVE_FCNTL_H
-# ifdef HAVE_LINUX_LOOP_H
-/* so I can mount large files as loop devices */
-/* XXX: need to move these two LARGEFILE defines to a better place */
-#  define _LARGEFILE64_SOURCE
-#  define __USE_LARGEFILE64
-# endif /* HAVE_LINUX_LOOP_H */
 # include <fcntl.h>
 #endif /* HAVE_FCNTL_H */
 
@@ -316,14 +322,6 @@ typedef bool_t (*xdrproc_t) __P ((XDR *, __ptr_t, ...));
 # endif /* HAVE_STDIO_H */
 # include <mntent.h>
 #endif /* HAVE_MNTENT_H */
-
-/*
- * Actions to take if <sys/errno.h> exists.
- */
-#ifdef HAVE_SYS_ERRNO_H
-# include <sys/errno.h>
-extern int errno;
-#endif /* HAVE_SYS_ERRNO_H */
 
 /*
  * Actions to take if <sys/fsid.h> exists.
@@ -864,6 +862,10 @@ struct sockaddr_dl;
 #ifdef HAVE_SYS_FS_TMP_H
 # include <sys/fs/tmp.h>
 #endif /* HAVE_SYS_FS_TMP_H */
+#ifdef HAVE_FS_TMPFS_TMPFS_ARGS_H
+# include <fs/tmpfs/tmpfs_args.h>
+#endif /* HAVE_FS_TMPFS_TMPFS_ARGS_H */
+
 
 /*
  * Actions to take if <sys/fs/ufs_mount.h> exists.
@@ -886,6 +888,9 @@ struct sockaddr_dl;
 #ifdef HAVE_SYS_FS_EFS_CLNT_H
 # include <sys/fs/efs_clnt.h>
 #endif /* HAVE_SYS_FS_EFS_CLNT_H */
+#ifdef HAVE_FS_EFS_EFS_MOUNT_H
+# include <fs/efs/efs_mount.h>
+#endif /* HAVE_FS_EFS_EFS_MOUNT_H */
 
 /*
  * Actions to take if <sys/fs/xfs_clnt.h> exists.
@@ -927,6 +932,14 @@ struct sockaddr_dl;
  */
 #ifdef HAVE_ERRNO_H
 # include <errno.h>
+#else
+/*
+ * Actions to take if <sys/errno.h> exists.
+ */
+# ifdef HAVE_SYS_ERRNO_H
+#  include <sys/errno.h>
+extern int errno;
+# endif /* HAVE_SYS_ERRNO_H */
 #endif /* HAVE_ERRNO_H */
 
 /*
@@ -956,6 +969,13 @@ struct sockaddr_dl;
 #ifdef HAVE_ISOFS_CD9660_CD9660_MOUNT_H
 # include <isofs/cd9660/cd9660_mount.h>
 #endif /* HAVE_ISOFS_CD9660_CD9660_MOUNT_H */
+
+/*
+ * Actions to take if <fs/udf/udf_mount.h> exists.
+ */
+#ifdef HAVE_FS_UDF_UDF_MOUNT_H
+# include <fs/udf/udf_mount.h>
+#endif /* HAVE_FS_UDF_UDF_MOUNT_H */
 
 /*
  * Actions to take if <mount.h> exists.
@@ -1516,14 +1536,6 @@ extern unsigned int sleep(unsigned int seconds);
  */
 extern int strcasecmp(const char *s1, const char *s2);
 #endif /* not HAVE_EXTERN_STRCASECMP */
-
-#ifndef HAVE_EXTERN_STRDUP
-/*
- * define this extern even if function does not exist, for it will
- * be filled in by libamu/strdup.c
- */
-extern char *strdup(const char *s);
-#endif /* not HAVE_EXTERN_STRDUP */
 
 #ifndef HAVE_EXTERN_STRLCAT
 /*

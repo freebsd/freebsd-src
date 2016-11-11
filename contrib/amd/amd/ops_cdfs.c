@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2006 Erez Zadok
+ * Copyright (c) 1997-2014 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -16,11 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgment:
- *      This product includes software developed by the University of
- *      California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -97,7 +93,7 @@ cdfs_match(am_opts *fo)
   /*
    * Determine magic cookie to put in mtab
    */
-  return strdup(fo->opt_dev);
+  return xstrdup(fo->opt_dev);
 }
 
 
@@ -148,6 +144,7 @@ mount_cdfs(char *mntdir, char *fs_name, char *opts, int on_autofs)
   if (amu_hasmntopt(&mnt, MNTTAB_OPT_RRIP))
     cdfs_flags |= MNT2_CDFS_OPT_RRIP;
 #endif /* defined(MNT2_CDFS_OPT_RRIP) && defined(MNTTAB_OPT_RRIP) */
+
 #if defined(MNT2_CDFS_OPT_NORRIP) && defined(MNTTAB_OPT_NORRIP)
   if (amu_hasmntopt(&mnt, MNTTAB_OPT_NORRIP))
     cdfs_flags |= MNT2_CDFS_OPT_NORRIP;
@@ -157,10 +154,26 @@ mount_cdfs(char *mntdir, char *fs_name, char *opts, int on_autofs)
   if (amu_hasmntopt(&mnt, MNTTAB_OPT_GENS))
     cdfs_flags |= MNT2_CDFS_OPT_GENS;
 #endif /* defined(MNT2_CDFS_OPT_GENS) && defined(MNTTAB_OPT_GENS) */
+
 #if defined(MNT2_CDFS_OPT_EXTATT) && defined(MNTTAB_OPT_EXTATT)
   if (amu_hasmntopt(&mnt, MNTTAB_OPT_EXTATT))
     cdfs_flags |= MNT2_CDFS_OPT_EXTATT;
 #endif /* defined(MNT2_CDFS_OPT_EXTATT) && defined(MNTTAB_OPT_EXTATT) */
+
+#if defined(MNT2_CDFS_OPT_NOCASETRANS) && defined(MNTTAB_OPT_NOCASETRANS)
+  if (amu_hasmntopt(&mnt, MNTTAB_OPT_NOCASETRANS))
+    cdfs_flags |= MNT2_CDFS_OPT_NOCASETRANS;
+#endif /* defined(MNT2_CDFS_OPT_NOCASETRANS) && defined(MNTTAB_OPT_NOCASETRANS) */
+
+#if defined(MNT2_CDFS_OPT_NOJOLIET) && defined(MNTTAB_OPT_NOJOLIET)
+  if (amu_hasmntopt(&mnt, MNTTAB_OPT_NOJOLIET))
+    cdfs_flags |= MNT2_CDFS_OPT_NOJOLIET;
+#endif /* defined(MNT2_CDFS_OPT_NOJOLIET) && defined(MNTTAB_OPT_NOJOLIET) */
+
+#if defined(MNT2_CDFS_OPT_RRCASEINS) && defined(MNTTAB_OPT_RRCASEINS)
+  if (amu_hasmntopt(&mnt, MNTTAB_OPT_RRCASEINS))
+    cdfs_flags |= MNT2_CDFS_OPT_RRCASEINS;
+#endif /* defined(MNT2_CDFS_OPT_RRCASEINS) && defined(MNTTAB_OPT_RRCASEINS) */
 
   genflags = compute_mount_flags(&mnt);
 #ifdef HAVE_FS_AUTOFS

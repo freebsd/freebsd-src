@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2006 Erez Zadok
+ * Copyright (c) 1997-2014 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -16,11 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgment:
- *      This product includes software developed by the University of
- *      California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -96,6 +92,11 @@ static am_ops *vops[] =
 #ifdef HAVE_FS_XFS
   &xfs_ops,			/* Unix (irix) F/S */
 #endif /* HAVE_FS_XFS */
+#ifdef HAVE_FS_EXT
+  &ext2_ops,			/* Unix (linux) F/S */
+  &ext3_ops,			/* Unix (linux) F/S */
+  &ext4_ops,			/* Unix (linux) F/S */
+#endif /* HAVE_FS_EXT */
 #ifdef HAVE_FS_EFS
   &efs_ops,			/* Unix (irix) F/S */
 #endif /* HAVE_FS_EFS */
@@ -111,6 +112,9 @@ static am_ops *vops[] =
 #ifdef HAVE_FS_CACHEFS
   &cachefs_ops,			/* caching F/S */
 #endif /* HAVE_FS_CACHEFS */
+#ifdef HAVE_FS_TMPFS
+  &tmpfs_ops,			/* /tmp (in memory) F/S */
+#endif /* HAVE_FS_TMPFS */
 #ifdef HAVE_FS_NULLFS
 /* FILL IN */			/* null (loopback) F/S */
 #endif /* HAVE_FS_NULLFS */
@@ -120,6 +124,12 @@ static am_ops *vops[] =
 #ifdef HAVE_FS_UMAPFS
 /* FILL IN */			/* uid/gid mapping F/S */
 #endif /* HAVE_FS_UMAPFS */
+#ifdef HAVE_FS_UDF
+  &udf_ops,			/* UDF F/S */
+#endif /* HAVE_FS_UDF */
+#ifdef HAVE_FS_LUSTRE
+  &lustre_ops,			/* Lustre */
+#endif /* HAVE_FS_LUSTRE */
 
   /*
    * These 4 should be last, in the order:
@@ -316,7 +326,7 @@ merge_opts(const char *opts1, const char *opts2)
   char oneopt[80];		/* one option w/o value if any */
   char *revoneopt;		/* reverse of oneopt */
   size_t len = strlen(opts1) + strlen(opts2) + 2; /* space for "," and NULL */
-  char *s1 = strdup(opts1);	/* copy of opts1 to munge */
+  char *s1 = xstrdup(opts1);	/* copy of opts1 to munge */
 
   /* initialization */
   mnt2.mnt_opts = (char *) opts2;
@@ -327,13 +337,13 @@ merge_opts(const char *opts1, const char *opts2)
        tmpstr;
        tmpstr = strtok(NULL, ",")) {
     /* copy option to temp buffer */
-    xstrlcpy(oneopt, tmpstr, 80);
+    xstrlcpy(oneopt, tmpstr, sizeof(oneopt));
     /* if option has a value such as rsize=1024, chop the value part */
-    if ((eq = haseq(oneopt)))
+    if ((eq = strchr(oneopt, '=')))
       *eq = '\0';
     /* find reverse option of oneopt */
     revoneopt = reverse_option(oneopt);
-    /* if option orits reverse exist in opts2, ignore it */
+    /* if option or its reverse exist in opts2, ignore it */
     if (amu_hasmntopt(&mnt2, oneopt) || amu_hasmntopt(&mnt2, revoneopt))
       continue;
     /* add option to returned string */
@@ -362,7 +372,7 @@ am_ops *
 ops_search(char *type)
 {
   am_ops **vp;
-  am_ops *rop = 0;
+  am_ops *rop = NULL;
   for (vp = vops; (rop = *vp); vp++)
     if (STREQ(rop->fs_type, type))
       break;
@@ -373,7 +383,7 @@ ops_search(char *type)
 am_ops *
 ops_match(am_opts *fo, char *key, char *g_key, char *path, char *keym, char *map)
 {
-  am_ops *rop = 0;
+  am_ops *rop = NULL;
   char *link_dir;
 
   /*
@@ -400,7 +410,7 @@ ops_match(am_opts *fo, char *key, char *g_key, char *path, char *keym, char *map
    * Otherwise skip past any leading '-'.
    */
   if (fo->opt_opts == 0)
-    fo->opt_opts = strdup("rw,defaults");
+    fo->opt_opts = xstrdup("rw,defaults");
   else if (*fo->opt_opts == '-') {
     /*
      * We cannot simply do fo->opt_opts++ here since the opts
@@ -408,7 +418,7 @@ ops_match(am_opts *fo, char *key, char *g_key, char *path, char *keym, char *map
      * So just reallocate the thing -- stolcke 11/11/94
      */
     char *old = fo->opt_opts;
-    fo->opt_opts = strdup(old + 1);
+    fo->opt_opts = xstrdup(old + 1);
     XFREE(old);
   }
 
@@ -426,7 +436,7 @@ ops_match(am_opts *fo, char *key, char *g_key, char *path, char *keym, char *map
       XFREE(fo->opt_opts);
       XFREE(fo->opt_remopts);
       fo->opt_opts = mergedstr;
-      fo->opt_remopts = strdup(mergedstr);
+      fo->opt_remopts = xstrdup(mergedstr);
     } else {
       char *mergedstr, *remmergedstr;
       mergedstr = merge_opts(fo->opt_opts, fo->opt_addopts);
@@ -451,7 +461,7 @@ ops_match(am_opts *fo, char *key, char *g_key, char *path, char *keym, char *map
   /* Normalize the sublink and make it absolute */
   link_dir = fo->opt_sublink;
   if (link_dir && link_dir[0] && link_dir[0] != '/') {
-    link_dir = str3cat((char *) 0, fo->opt_fs, "/", link_dir);
+    link_dir = str3cat((char *) NULL, fo->opt_fs, "/", link_dir);
     normalize_slash(link_dir);
     XFREE(fo->opt_sublink);
     fo->opt_sublink = link_dir;
@@ -460,8 +470,7 @@ ops_match(am_opts *fo, char *key, char *g_key, char *path, char *keym, char *map
   /*
    * Check the filesystem is happy
    */
-  if (fo->fs_mtab)
-    XFREE(fo->fs_mtab);
+  XFREE(fo->fs_mtab);
 
   fo->fs_mtab = rop->fs_match(fo);
   if (fo->fs_mtab)
