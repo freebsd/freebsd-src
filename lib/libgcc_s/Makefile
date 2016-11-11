@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-PKG=		clibs
+PACKAGE=	clibs
 SHLIB_NAME=	libgcc_s.so.1
 SHLIBDIR?=	/lib
 
