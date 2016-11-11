@@ -11,7 +11,6 @@
 #include <sys/_ffcounter.h>
 #include <sys/_semaphore.h>
 #include <sys/socket.h>
-#include <sys/user.h>
 #include <sys/ucontext.h>
 #include <compat/cheriabi/cheriabi_signal.h>
 #if !defined(PAD64_REQUIRED) && (defined(__powerpc__) || defined(__mips__))
