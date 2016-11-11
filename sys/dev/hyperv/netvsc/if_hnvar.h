@@ -94,9 +94,6 @@ hn_nvs_send_sglist(struct vmbus_channel *chan, struct vmbus_gpa sg[], int sglen,
 struct vmbus_xact;
 struct rndis_packet_msg;
 
-uint32_t	hn_chim_alloc(struct hn_softc *sc);
-void		hn_chim_free(struct hn_softc *sc, uint32_t chim_idx);
-
 int		hn_rndis_attach(struct hn_softc *sc, int mtu);
 void		hn_rndis_detach(struct hn_softc *sc);
 int		hn_rndis_conf_rss(struct hn_softc *sc, uint16_t flags);
@@ -106,7 +103,7 @@ int		hn_rndis_query_rsscaps(struct hn_softc *sc, int *rxr_cnt);
 int		hn_rndis_get_eaddr(struct hn_softc *sc, uint8_t *eaddr);
 int		hn_rndis_get_linkstatus(struct hn_softc *sc,
 		    uint32_t *link_status);
-/* filter: NDIS_PACKET_TYPE_ or 0. */
+/* filter: NDIS_PACKET_TYPE_. */
 int		hn_rndis_set_rxfilter(struct hn_softc *sc, uint32_t filter);
 
 int		hn_nvs_attach(struct hn_softc *sc, int mtu);
