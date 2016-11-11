@@ -28,7 +28,6 @@
 
 #ifndef _KVP_H
 #define _KVP_H
-
 /*
  * An implementation of HyperV key value pair (KVP) functionality for FreeBSD
  *
@@ -178,9 +177,9 @@ struct hv_kvp_ipaddr_value {
 }__attribute__((packed));
 
 struct hv_kvp_hdr {
-	uint8_t  operation;
-	uint8_t  pool;
-	uint16_t pad;
+	uint8_t                 operation;
+	uint8_t                 pool;
+	uint16_t                pad;
 } __attribute__((packed));
 
 struct hv_kvp_exchg_msg_value {

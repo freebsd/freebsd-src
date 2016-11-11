@@ -76,16 +76,4 @@ typedef struct hv_vmbus_icmsg_negotiate {
 	hv_vmbus_ic_version	icversion_data[1]; /* any size array */
 } __packed hv_vmbus_icmsg_negotiate;
 
-typedef struct hv_vmbus_shutdown_msg_data {
-	uint32_t		reason_code;
-	uint32_t		timeout_seconds;
-	uint32_t 		flags;
-	uint8_t			display_message[2048];
-} __packed hv_vmbus_shutdown_msg_data;
-
-typedef struct hv_vmbus_heartbeat_msg_data {
-	uint64_t 		seq_num;
-	uint32_t 		reserved[8];
-} __packed hv_vmbus_heartbeat_msg_data;
-
 #endif	/* !_HV_UTILREG_H_ */
