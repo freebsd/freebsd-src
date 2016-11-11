@@ -147,7 +147,7 @@ struct xunpgen {
 	u_int	xug_count;
 	unp_gen_t xug_gen;
 	so_gen_t xug_sogen;
-};
+} __aligned(sizeof(void *));	/* Followed by struct xunpcb */
 #endif /* _SYS_SOCKETVAR_H_ */
 
 #endif /* _SYS_UNPCB_H_ */
