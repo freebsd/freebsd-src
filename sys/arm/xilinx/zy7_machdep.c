@@ -92,29 +92,6 @@ platform_devmap_init(void)
 	return (0);
 }
 
-
-#ifndef INTRNG
-static int
-fdt_gic_decode_ic(phandle_t node, pcell_t *intr, int *interrupt, int *trig,
-    int *pol)
-{
-
-	if (!fdt_is_compatible(node, "arm,gic"))
-		return (ENXIO);
-
-	*interrupt = fdt32_to_cpu(intr[0]);
-	*trig = INTR_TRIGGER_CONFORM;
-	*pol = INTR_POLARITY_CONFORM;
-
-	return (0);
-}
-
-fdt_pic_decode_t fdt_pic_table[] = {
-	&fdt_gic_decode_ic,
-	NULL
-};
-#endif
-
 void
 cpu_reset()
 {
