@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sockio.h>
+#include <sys/limits.h>
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
@@ -457,6 +458,52 @@ hn_sendpkt_rndis_chim(struct hn_tx_ring *txr, struct hn_txdesc *txd)
 
 	return (hn_nvs_send(txr->hn_chan, VMBUS_CHANPKT_FLAG_RC,
 	    &rndis, sizeof(rndis), &txd->send_ctx));
+}
+
+static __inline uint32_t
+hn_chim_alloc(struct hn_softc *sc)
+{
+	int i, bmap_cnt = sc->hn_chim_bmap_cnt;
+	u_long *bmap = sc->hn_chim_bmap;
+	uint32_t ret = HN_NVS_CHIM_IDX_INVALID;
+
+	for (i = 0; i < bmap_cnt; ++i) {
+		int idx;
+
+		idx = ffsl(~bmap[i]);
+		if (idx == 0)
+			continue;
+
+		--idx; /* ffsl is 1-based */
+		KASSERT(i * LONG_BIT + idx < sc->hn_chim_cnt,
+		    ("invalid i %d and idx %d", i, idx));
+
+		if (atomic_testandset_long(&bmap[i], idx))
+			continue;
+
+		ret = i * LONG_BIT + idx;
+		break;
+	}
+	return (ret);
+}
+
+static __inline void
+hn_chim_free(struct hn_softc *sc, uint32_t chim_idx)
+{
+	u_long mask;
+	uint32_t idx;
+
+	idx = chim_idx / LONG_BIT;
+	KASSERT(idx < sc->hn_chim_bmap_cnt,
+	    ("invalid chimney index 0x%x", chim_idx));
+
+	mask = 1UL << (chim_idx % LONG_BIT);
+	KASSERT(sc->hn_chim_bmap[idx] & mask,
+	    ("index bitmap 0x%lx, chimney index %u, "
+	     "bitmap idx %d, bitmask 0x%lx",
+	     sc->hn_chim_bmap[idx], chim_idx, idx, mask));
+
+	atomic_clear_long(&sc->hn_chim_bmap[idx], mask);
 }
 
 static int
@@ -2399,18 +2446,7 @@ hn_caps_sysctl(SYSCTL_HANDLER_ARGS)
 	HN_LOCK(sc);
 	caps = sc->hn_caps;
 	HN_UNLOCK(sc);
-	snprintf(caps_str, sizeof(caps_str), "%b", caps,
-	    "\020"
-	    "\001VLAN"
-	    "\002MTU"
-	    "\003IPCS"
-	    "\004TCP4CS"
-	    "\005TCP6CS"
-	    "\006UDP4CS"
-	    "\007UDP6CS"
-	    "\010TSO4"
-	    "\011TSO6"
-	    "\012HASHVAL");
+	snprintf(caps_str, sizeof(caps_str), "%b", caps, HN_CAP_BITS);
 	return sysctl_handle_string(oidp, caps_str, sizeof(caps_str), req);
 }
 
@@ -2626,7 +2662,7 @@ hn_create_rx_data(struct hn_softc *sc, int ring_cnt)
 	sc->hn_rx_ring_inuse = sc->hn_rx_ring_cnt;
 
 	sc->hn_rx_ring = malloc(sizeof(struct hn_rx_ring) * sc->hn_rx_ring_cnt,
-	    M_NETVSC, M_WAITOK | M_ZERO);
+	    M_DEVBUF, M_WAITOK | M_ZERO);
 
 #if defined(INET) || defined(INET6)
 #if __FreeBSD_version >= 1100095
@@ -2667,7 +2703,7 @@ hn_create_rx_data(struct hn_softc *sc, int ring_cnt)
 		rxr->hn_ifp = sc->hn_ifp;
 		if (i < sc->hn_tx_ring_cnt)
 			rxr->hn_txr = &sc->hn_tx_ring[i];
-		rxr->hn_rdbuf = malloc(NETVSC_PACKET_SIZE, M_NETVSC, M_WAITOK);
+		rxr->hn_rdbuf = malloc(NETVSC_PACKET_SIZE, M_DEVBUF, M_WAITOK);
 		rxr->hn_rx_idx = i;
 		rxr->hn_rxbuf = sc->hn_rxbuf;
 
@@ -2814,9 +2850,9 @@ hn_destroy_rx_data(struct hn_softc *sc)
 #if defined(INET) || defined(INET6)
 		tcp_lro_free(&rxr->hn_lro);
 #endif
-		free(rxr->hn_rdbuf, M_NETVSC);
+		free(rxr->hn_rdbuf, M_DEVBUF);
 	}
-	free(sc->hn_rx_ring, M_NETVSC);
+	free(sc->hn_rx_ring, M_DEVBUF);
 	sc->hn_rx_ring = NULL;
 
 	sc->hn_rx_ring_cnt = 0;
@@ -2841,11 +2877,11 @@ hn_create_tx_ring(struct hn_softc *sc, int id)
 
 	txr->hn_txdesc_cnt = HN_TX_DESC_CNT;
 	txr->hn_txdesc = malloc(sizeof(struct hn_txdesc) * txr->hn_txdesc_cnt,
-	    M_NETVSC, M_WAITOK | M_ZERO);
+	    M_DEVBUF, M_WAITOK | M_ZERO);
 #ifndef HN_USE_TXDESC_BUFRING
 	SLIST_INIT(&txr->hn_txlist);
 #else
-	txr->hn_txdesc_br = buf_ring_alloc(txr->hn_txdesc_cnt, M_NETVSC,
+	txr->hn_txdesc_br = buf_ring_alloc(txr->hn_txdesc_cnt, M_DEVBUF,
 	    M_WAITOK, &txr->hn_tx_lock);
 #endif
 
@@ -2863,7 +2899,7 @@ hn_create_tx_ring(struct hn_softc *sc, int id)
 		TASK_INIT(&txr->hn_txeof_task, 0, hn_xmit_txeof_taskfunc, txr);
 
 		br_depth = hn_get_txswq_depth(txr);
-		txr->hn_mbuf_br = buf_ring_alloc(br_depth, M_NETVSC,
+		txr->hn_mbuf_br = buf_ring_alloc(br_depth, M_DEVBUF,
 		    M_WAITOK, &txr->hn_tx_lock);
 	}
 
@@ -3046,14 +3082,14 @@ hn_destroy_tx_ring(struct hn_tx_ring *txr)
 		bus_dma_tag_destroy(txr->hn_tx_rndis_dtag);
 
 #ifdef HN_USE_TXDESC_BUFRING
-	buf_ring_free(txr->hn_txdesc_br, M_NETVSC);
+	buf_ring_free(txr->hn_txdesc_br, M_DEVBUF);
 #endif
 
-	free(txr->hn_txdesc, M_NETVSC);
+	free(txr->hn_txdesc, M_DEVBUF);
 	txr->hn_txdesc = NULL;
 
 	if (txr->hn_mbuf_br != NULL)
-		buf_ring_free(txr->hn_mbuf_br, M_NETVSC);
+		buf_ring_free(txr->hn_mbuf_br, M_DEVBUF);
 
 #ifndef HN_USE_TXDESC_BUFRING
 	mtx_destroy(&txr->hn_txlist_spin);
@@ -3085,7 +3121,7 @@ hn_create_tx_data(struct hn_softc *sc, int ring_cnt)
 	sc->hn_tx_ring_inuse = sc->hn_tx_ring_cnt;
 
 	sc->hn_tx_ring = malloc(sizeof(struct hn_tx_ring) * sc->hn_tx_ring_cnt,
-	    M_NETVSC, M_WAITOK | M_ZERO);
+	    M_DEVBUF, M_WAITOK | M_ZERO);
 
 	ctx = device_get_sysctl_ctx(sc->hn_dev);
 	child = SYSCTL_CHILDREN(device_get_sysctl_tree(sc->hn_dev));
@@ -3245,7 +3281,7 @@ hn_destroy_tx_data(struct hn_softc *sc)
 	for (i = 0; i < sc->hn_tx_ring_cnt; ++i)
 		hn_destroy_tx_ring(&sc->hn_tx_ring[i]);
 
-	free(sc->hn_tx_ring, M_NETVSC);
+	free(sc->hn_tx_ring, M_DEVBUF);
 	sc->hn_tx_ring = NULL;
 
 	sc->hn_tx_ring_cnt = 0;
@@ -3880,8 +3916,8 @@ hn_suspend_data(struct hn_softc *sc)
 	/*
 	 * Disable RX by clearing RX filter.
 	 */
-	hn_rndis_set_rxfilter(sc, 0);
-	sc->hn_rx_filter = 0;
+	sc->hn_rx_filter = NDIS_PACKET_TYPE_NONE;
+	hn_rndis_set_rxfilter(sc, sc->hn_rx_filter);
 
 	/*
 	 * Give RNDIS enough time to flush all pending data packets.
@@ -4195,12 +4231,12 @@ hn_chan_callback(struct vmbus_channel *chan, void *xrxr)
 		} else if (ret == ENOBUFS) {
 			/* Handle large packet */
 			if (bufferlen > NETVSC_PACKET_SIZE) {
-				free(buffer, M_NETVSC);
+				free(buffer, M_DEVBUF);
 				buffer = NULL;
 			}
 
 			/* alloc new buffer */
-			buffer = malloc(bytes_rxed, M_NETVSC, M_NOWAIT);
+			buffer = malloc(bytes_rxed, M_DEVBUF, M_NOWAIT);
 			if (buffer == NULL) {
 				if_printf(rxr->hn_ifp,
 				    "hv_cb malloc buffer failed, len=%u\n",
@@ -4216,7 +4252,7 @@ hn_chan_callback(struct vmbus_channel *chan, void *xrxr)
 	} while (1);
 
 	if (bufferlen > NETVSC_PACKET_SIZE)
-		free(buffer, M_NETVSC);
+		free(buffer, M_DEVBUF);
 
 	hv_rf_channel_rollup(rxr, rxr->hn_txr);
 }
