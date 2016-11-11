@@ -2,9 +2,6 @@
 
 .include <src.opts.mk>
 
-# failer in jemalloc internals near atomics
-WANT_CHERI=none
-
 PROG=	scp
 SRCS=	scp.c
 PACKAGE=	ssh
