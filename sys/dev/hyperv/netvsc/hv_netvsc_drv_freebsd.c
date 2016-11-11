@@ -178,6 +178,8 @@ __FBSDID("$FreeBSD$");
 	 HN_RXINFO_HASHINF |		\
 	 HN_RXINFO_HASHVAL)
 
+#define HN_PKTBUF_LEN_DEF		(16 * 1024)
+
 struct hn_txdesc {
 #ifndef HN_USE_TXDESC_BUFRING
 	SLIST_ENTRY(hn_txdesc) link;
@@ -414,7 +416,8 @@ static void hn_nvs_handle_comp(struct hn_softc *sc, struct vmbus_channel *chan,
 static void hn_nvs_handle_rxbuf(struct hn_rx_ring *rxr,
 		struct vmbus_channel *chan,
 		const struct vmbus_chanpkt_hdr *pkthdr);
-static void hn_nvs_ack_rxbuf(struct vmbus_channel *chan, uint64_t tid);
+static void hn_nvs_ack_rxbuf(struct hn_rx_ring *, struct vmbus_channel *,
+		uint64_t);
 
 static int hn_transmit(struct ifnet *, struct mbuf *);
 static void hn_xmit_qflush(struct ifnet *);
@@ -1778,6 +1781,13 @@ hn_rxpkt(struct hn_rx_ring *rxr, const void *data, int dlen,
 				rxr->hn_csum_udp++;
 		}
 
+		/*
+		 * XXX
+		 * As of this write (Oct 28th, 2016), host side will turn
+		 * on only TCPCS_OK and IPCS_OK even for UDP datagrams, so
+		 * the do_lro setting here is actually _not_ accurate.  We
+		 * depend on the RSS hash type check to reset do_lro.
+		 */
 		if ((info->csum_info &
 		     (NDIS_RXCSUM_INFO_TCPCS_OK | NDIS_RXCSUM_INFO_IPCS_OK)) ==
 		    (NDIS_RXCSUM_INFO_TCPCS_OK | NDIS_RXCSUM_INFO_IPCS_OK))
@@ -1851,9 +1861,16 @@ skip:
 		    NDIS_HASH_FUNCTION_TOEPLITZ) {
 			uint32_t type = (info->hash_info & NDIS_HASH_TYPE_MASK);
 
+			/*
+			 * NOTE:
+			 * do_lro is resetted, if the hash types are not TCP
+			 * related.  See the comment in the above csum_flags
+			 * setup section.
+			 */
 			switch (type) {
 			case NDIS_HASH_IPV4:
 				hash_type = M_HASHTYPE_RSS_IPV4;
+				do_lro = 0;
 				break;
 
 			case NDIS_HASH_TCP_IPV4:
@@ -1862,10 +1879,12 @@ skip:
 
 			case NDIS_HASH_IPV6:
 				hash_type = M_HASHTYPE_RSS_IPV6;
+				do_lro = 0;
 				break;
 
 			case NDIS_HASH_IPV6_EX:
 				hash_type = M_HASHTYPE_RSS_IPV6_EX;
+				do_lro = 0;
 				break;
 
 			case NDIS_HASH_TCP_IPV6:
@@ -2745,7 +2764,8 @@ hn_create_rx_data(struct hn_softc *sc, int ring_cnt)
 		rxr->hn_ifp = sc->hn_ifp;
 		if (i < sc->hn_tx_ring_cnt)
 			rxr->hn_txr = &sc->hn_tx_ring[i];
-		rxr->hn_pktbuf = malloc(HN_PKTBUF_LEN, M_DEVBUF, M_WAITOK);
+		rxr->hn_pktbuf_len = HN_PKTBUF_LEN_DEF;
+		rxr->hn_pktbuf = malloc(rxr->hn_pktbuf_len, M_DEVBUF, M_WAITOK);
 		rxr->hn_rx_idx = i;
 		rxr->hn_rxbuf = sc->hn_rxbuf;
 
@@ -2788,6 +2808,11 @@ hn_create_rx_data(struct hn_softc *sc, int ring_cnt)
 				    OID_AUTO, "rss_pkts", CTLFLAG_RW,
 				    &rxr->hn_rss_pkts,
 				    "# of packets w/ RSS info received");
+				SYSCTL_ADD_INT(ctx,
+				    SYSCTL_CHILDREN(rxr->hn_rx_sysctl_tree),
+				    OID_AUTO, "pktbuf_len", CTLFLAG_RD,
+				    &rxr->hn_pktbuf_len, 0,
+				    "Temporary channel packet buffer length");
 			}
 		}
 	}
@@ -2860,6 +2885,10 @@ hn_create_rx_data(struct hn_softc *sc, int ring_cnt)
 	    CTLTYPE_ULONG | CTLFLAG_RW | CTLFLAG_MPSAFE, sc,
 	    __offsetof(struct hn_rx_ring, hn_small_pkts),
 	    hn_rx_stat_ulong_sysctl, "LU", "# of small packets received");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "rx_ack_failed",
+	    CTLTYPE_ULONG | CTLFLAG_RW | CTLFLAG_MPSAFE, sc,
+	    __offsetof(struct hn_rx_ring, hn_ack_failed),
+	    hn_rx_stat_ulong_sysctl, "LU", "# of RXBUF ack failures");
 	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "rx_ring_cnt",
 	    CTLFLAG_RD, &sc->hn_rx_ring_cnt, 0, "# created RX rings");
 	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "rx_ring_inuse",
@@ -4516,43 +4545,43 @@ hn_nvs_handle_rxbuf(struct hn_rx_ring *rxr, struct vmbus_channel *chan,
 	}
 
 	/*
-	 * Moved completion call back here so that all received 
-	 * messages (not just data messages) will trigger a response
-	 * message back to the host.
+	 * Ack the consumed RXBUF associated w/ this channel packet,
+	 * so that this RXBUF can be recycled by the hypervisor.
 	 */
-	hn_nvs_ack_rxbuf(chan, pkt->cp_hdr.cph_xactid);
+	hn_nvs_ack_rxbuf(rxr, chan, pkt->cp_hdr.cph_xactid);
 }
 
-/*
- * Net VSC on receive completion
- *
- * Send a receive completion packet to RNDIS device (ie NetVsp)
- */
 static void
-hn_nvs_ack_rxbuf(struct vmbus_channel *chan, uint64_t tid)
+hn_nvs_ack_rxbuf(struct hn_rx_ring *rxr, struct vmbus_channel *chan,
+    uint64_t tid)
 {
 	struct hn_nvs_rndis_ack ack;
-	int retries = 0;
-	int ret = 0;
+	int retries, error;
 	
 	ack.nvs_type = HN_NVS_TYPE_RNDIS_ACK;
 	ack.nvs_status = HN_NVS_STATUS_OK;
 
-retry_send_cmplt:
-	/* Send the completion */
-	ret = vmbus_chan_send(chan, VMBUS_CHANPKT_TYPE_COMP,
+	retries = 0;
+again:
+	error = vmbus_chan_send(chan, VMBUS_CHANPKT_TYPE_COMP,
 	    VMBUS_CHANPKT_FLAG_NONE, &ack, sizeof(ack), tid);
-	if (ret == 0) {
-		/* success */
-		/* no-op */
-	} else if (ret == EAGAIN) {
-		/* no more room... wait a bit and attempt to retry 3 times */
+	if (__predict_false(error == EAGAIN)) {
+		/*
+		 * NOTE:
+		 * This should _not_ happen in real world, since the
+		 * consumption of the TX bufring from the TX path is
+		 * controlled.
+		 */
+		if (rxr->hn_ack_failed == 0)
+			if_printf(rxr->hn_ifp, "RXBUF ack retry\n");
+		rxr->hn_ack_failed++;
 		retries++;
-
-		if (retries < 4) {
+		if (retries < 10) {
 			DELAY(100);
-			goto retry_send_cmplt;
+			goto again;
 		}
+		/* RXBUF leaks! */
+		if_printf(rxr->hn_ifp, "RXBUF ack failed\n");
 	}
 }
 
@@ -4561,66 +4590,72 @@ hn_chan_callback(struct vmbus_channel *chan, void *xrxr)
 {
 	struct hn_rx_ring *rxr = xrxr;
 	struct hn_softc *sc = rxr->hn_ifp->if_softc;
-	void *buffer;
-	int bufferlen = HN_PKTBUF_LEN;
 
-	buffer = rxr->hn_pktbuf;
-	do {
-		struct vmbus_chanpkt_hdr *pkt = buffer;
-		uint32_t bytes_rxed;
-		int ret;
+	for (;;) {
+		struct vmbus_chanpkt_hdr *pkt = rxr->hn_pktbuf;
+		int error, pktlen;
 
-		bytes_rxed = bufferlen;
-		ret = vmbus_chan_recv_pkt(chan, pkt, &bytes_rxed);
-		if (ret == 0) {
-			switch (pkt->cph_type) {
-			case VMBUS_CHANPKT_TYPE_COMP:
-				hn_nvs_handle_comp(sc, chan, pkt);
-				break;
-			case VMBUS_CHANPKT_TYPE_RXBUF:
-				hn_nvs_handle_rxbuf(rxr, chan, pkt);
-				break;
-			case VMBUS_CHANPKT_TYPE_INBAND:
-				hn_nvs_handle_notify(sc, pkt);
-				break;
-			default:
-				if_printf(rxr->hn_ifp,
-				    "unknown chan pkt %u\n",
-				    pkt->cph_type);
-				break;
-			}
-		} else if (ret == ENOBUFS) {
-			/* Handle large packet */
-			if (bufferlen > HN_PKTBUF_LEN) {
-				free(buffer, M_DEVBUF);
-				buffer = NULL;
-			}
+		pktlen = rxr->hn_pktbuf_len;
+		error = vmbus_chan_recv_pkt(chan, pkt, &pktlen);
+		if (__predict_false(error == ENOBUFS)) {
+			void *nbuf;
+			int nlen;
 
-			/* alloc new buffer */
-			buffer = malloc(bytes_rxed, M_DEVBUF, M_NOWAIT);
-			if (buffer == NULL) {
-				if_printf(rxr->hn_ifp,
-				    "hv_cb malloc buffer failed, len=%u\n",
-				    bytes_rxed);
-				bufferlen = 0;
-				break;
-			}
-			bufferlen = bytes_rxed;
-		} else {
-			/* No more packets */
+			/*
+			 * Expand channel packet buffer.
+			 *
+			 * XXX
+			 * Use M_WAITOK here, since allocation failure
+			 * is fatal.
+			 */
+			nlen = rxr->hn_pktbuf_len * 2;
+			while (nlen < pktlen)
+				nlen *= 2;
+			nbuf = malloc(nlen, M_DEVBUF, M_WAITOK);
+
+			if_printf(rxr->hn_ifp, "expand pktbuf %d -> %d\n",
+			    rxr->hn_pktbuf_len, nlen);
+
+			free(rxr->hn_pktbuf, M_DEVBUF);
+			rxr->hn_pktbuf = nbuf;
+			rxr->hn_pktbuf_len = nlen;
+			/* Retry! */
+			continue;
+		} else if (__predict_false(error == EAGAIN)) {
+			/* No more channel packets; done! */
 			break;
 		}
-	} while (1);
+		KASSERT(!error, ("vmbus_chan_recv_pkt failed: %d", error));
 
-	if (bufferlen > HN_PKTBUF_LEN)
-		free(buffer, M_DEVBUF);
+		switch (pkt->cph_type) {
+		case VMBUS_CHANPKT_TYPE_COMP:
+			hn_nvs_handle_comp(sc, chan, pkt);
+			break;
 
+		case VMBUS_CHANPKT_TYPE_RXBUF:
+			hn_nvs_handle_rxbuf(rxr, chan, pkt);
+			break;
+
+		case VMBUS_CHANPKT_TYPE_INBAND:
+			hn_nvs_handle_notify(sc, pkt);
+			break;
+
+		default:
+			if_printf(rxr->hn_ifp, "unknown chan pkt %u\n",
+			    pkt->cph_type);
+			break;
+		}
+	}
 	hn_chan_rollup(rxr, rxr->hn_txr);
 }
 
 static void
 hn_tx_taskq_create(void *arg __unused)
 {
+
+	if (vm_guest != VM_GUEST_HV)
+		return;
+
 	if (!hn_share_tx_taskq)
 		return;
 
@@ -4640,16 +4675,17 @@ hn_tx_taskq_create(void *arg __unused)
 		taskqueue_drain(hn_tx_taskq, &cpuset_task);
 	}
 }
-SYSINIT(hn_txtq_create, SI_SUB_DRIVERS, SI_ORDER_FIRST,
+SYSINIT(hn_txtq_create, SI_SUB_DRIVERS, SI_ORDER_SECOND,
     hn_tx_taskq_create, NULL);
 
 static void
 hn_tx_taskq_destroy(void *arg __unused)
 {
+
 	if (hn_tx_taskq != NULL)
 		taskqueue_free(hn_tx_taskq);
 }
-SYSUNINIT(hn_txtq_destroy, SI_SUB_DRIVERS, SI_ORDER_FIRST,
+SYSUNINIT(hn_txtq_destroy, SI_SUB_DRIVERS, SI_ORDER_SECOND,
     hn_tx_taskq_destroy, NULL);
 
 static device_method_t netvsc_methods[] = {
