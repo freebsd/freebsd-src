@@ -28,261 +28,79 @@
  * $FreeBSD$
  */
 
-/*
- * HyperV vmbus (virtual machine bus) network VSC (virtual services client)
- * header file
- *
- * (Updated from unencumbered NvspProtocol.h)
- */
+#ifndef _HN_NVS_H_
+#define _HN_NVS_H_
 
-#ifndef __HV_NET_VSC_H__
-#define __HV_NET_VSC_H__
-
-#include <sys/param.h>
-#include <sys/kernel.h>
-#include <sys/lock.h>
-#include <sys/malloc.h>
-#include <sys/queue.h>
-#include <sys/taskqueue.h>
-#include <sys/sema.h>
-#include <sys/sx.h>
-
-#include <machine/bus.h>
-#include <sys/bus.h>
-#include <sys/bus_dma.h>
-
-#include <netinet/in.h>
-#include <netinet/tcp_lro.h>
-
-#include <net/ethernet.h>
-#include <net/if.h>
-#include <net/if_media.h>
-
-#include <dev/hyperv/include/hyperv.h>
-#include <dev/hyperv/include/hyperv_busdma.h>
-#include <dev/hyperv/include/vmbus.h>
-
-#include <dev/hyperv/netvsc/ndis.h>
-
-#define HN_USE_TXDESC_BUFRING
-
-/*
- * The following arguably belongs in a separate header file
- */
-
-/*
- * Defines
- */
-
-#define NETVSC_SEND_BUFFER_SIZE			(1024*1024*15)   /* 15M */
-
-#define NETVSC_RECEIVE_BUFFER_SIZE_LEGACY	(1024*1024*15) /* 15MB */
-#define NETVSC_RECEIVE_BUFFER_SIZE		(1024*1024*16) /* 16MB */
-
-/*
- * Maximum MTU we permit to be configured for a netvsc interface.
- * When the code was developed, a max MTU of 12232 was tested and
- * proven to work.  9K is a reasonable maximum for an Ethernet.
- */
-#define NETVSC_MAX_CONFIGURABLE_MTU		(9 * 1024)
-
-#define NETVSC_PACKET_SIZE			PAGE_SIZE
-
-/*
- * Data types
- */
-
+struct hn_nvs_sendctx;
 struct vmbus_channel;
+struct hn_softc;
 
-#define NETVSC_DEVICE_RING_BUFFER_SIZE	(128 * PAGE_SIZE)
-#define NETVSC_PACKET_MAXPAGE		32
+typedef void		(*hn_nvs_sent_t)
+			(struct hn_nvs_sendctx *, struct hn_softc *,
+			 struct vmbus_channel *, const void *, int);
 
-#define HN_XACT_REQ_PGCNT		2
-#define HN_XACT_RESP_PGCNT		2
-#define HN_XACT_REQ_SIZE		(HN_XACT_REQ_PGCNT * PAGE_SIZE)
-#define HN_XACT_RESP_SIZE		(HN_XACT_RESP_PGCNT * PAGE_SIZE)
-
-struct hn_txdesc;
-#ifndef HN_USE_TXDESC_BUFRING
-SLIST_HEAD(hn_txdesc_list, hn_txdesc);
-#else
-struct buf_ring;
-#endif
-
-struct hn_tx_ring;
-
-struct hn_rx_ring {
-	struct ifnet	*hn_ifp;
-	struct hn_tx_ring *hn_txr;
-	void		*hn_rdbuf;
-	uint8_t		*hn_rxbuf;	/* shadow sc->hn_rxbuf */
-	int		hn_rx_idx;
-
-	/* Trust csum verification on host side */
-	int		hn_trust_hcsum;	/* HN_TRUST_HCSUM_ */
-	struct lro_ctrl	hn_lro;
-
-	u_long		hn_csum_ip;
-	u_long		hn_csum_tcp;
-	u_long		hn_csum_udp;
-	u_long		hn_csum_trusted;
-	u_long		hn_lro_tried;
-	u_long		hn_small_pkts;
-	u_long		hn_pkts;
-	u_long		hn_rss_pkts;
-
-	/* Rarely used stuffs */
-	struct sysctl_oid *hn_rx_sysctl_tree;
-	int		hn_rx_flags;
-
-	void		*hn_br;		/* TX/RX bufring */
-	struct hyperv_dma hn_br_dma;
-} __aligned(CACHE_LINE_SIZE);
-
-#define HN_TRUST_HCSUM_IP	0x0001
-#define HN_TRUST_HCSUM_TCP	0x0002
-#define HN_TRUST_HCSUM_UDP	0x0004
-
-#define HN_RX_FLAG_ATTACHED	0x1
-
-struct hn_tx_ring {
-#ifndef HN_USE_TXDESC_BUFRING
-	struct mtx	hn_txlist_spin;
-	struct hn_txdesc_list hn_txlist;
-#else
-	struct buf_ring	*hn_txdesc_br;
-#endif
-	int		hn_txdesc_cnt;
-	int		hn_txdesc_avail;
-	u_short		hn_has_txeof;
-	u_short		hn_txdone_cnt;
-
-	int		hn_sched_tx;
-	void		(*hn_txeof)(struct hn_tx_ring *);
-	struct taskqueue *hn_tx_taskq;
-	struct task	hn_tx_task;
-	struct task	hn_txeof_task;
-
-	struct buf_ring	*hn_mbuf_br;
-	int		hn_oactive;
-	int		hn_tx_idx;
-	int		hn_tx_flags;
-
-	struct mtx	hn_tx_lock;
-	struct hn_softc	*hn_sc;
-	struct vmbus_channel *hn_chan;
-
-	int		hn_direct_tx_size;
-	int		hn_chim_size;
-	bus_dma_tag_t	hn_tx_data_dtag;
-	uint64_t	hn_csum_assist;
-
-	int		(*hn_sendpkt)(struct hn_tx_ring *, struct hn_txdesc *);
-	int		hn_suspended;
-	int		hn_gpa_cnt;
-	struct vmbus_gpa hn_gpa[NETVSC_PACKET_MAXPAGE];
-
-	u_long		hn_no_txdescs;
-	u_long		hn_send_failed;
-	u_long		hn_txdma_failed;
-	u_long		hn_tx_collapsed;
-	u_long		hn_tx_chimney_tried;
-	u_long		hn_tx_chimney;
-	u_long		hn_pkts;
-
-	/* Rarely used stuffs */
-	struct hn_txdesc *hn_txdesc;
-	bus_dma_tag_t	hn_tx_rndis_dtag;
-	struct sysctl_oid *hn_tx_sysctl_tree;
-} __aligned(CACHE_LINE_SIZE);
-
-#define HN_TX_FLAG_ATTACHED	0x1
-#define HN_TX_FLAG_HASHVAL	0x2	/* support HASHVAL pktinfo */
-
-/*
- * Device-specific softc structure
- */
-struct hn_softc {
-	struct ifnet    *hn_ifp;
-	struct arpcom   arpcom;
-	struct ifmedia	hn_media;
-	device_t        hn_dev;
-	int             hn_if_flags;
-	struct sx	hn_lock;
-	struct vmbus_channel *hn_prichan;
-
-	int		hn_rx_ring_cnt;
-	int		hn_rx_ring_inuse;
-	struct hn_rx_ring *hn_rx_ring;
-
-	int		hn_tx_ring_cnt;
-	int		hn_tx_ring_inuse;
-	struct hn_tx_ring *hn_tx_ring;
-
-	uint8_t		*hn_chim;
-	u_long		*hn_chim_bmap;
-	int		hn_chim_bmap_cnt;
-	int		hn_chim_cnt;
-	int		hn_chim_szmax;
-
-	int		hn_cpu;
-	struct taskqueue *hn_tx_taskq;
-	struct sysctl_oid *hn_tx_sysctl_tree;
-	struct sysctl_oid *hn_rx_sysctl_tree;
-	struct vmbus_xact_ctx *hn_xact;
-	uint32_t	hn_nvs_ver;
-	uint32_t	hn_rx_filter;
-
-	struct taskqueue	*hn_mgmt_taskq;
-	struct taskqueue	*hn_mgmt_taskq0;
-	struct task		hn_link_task;
-	struct task		hn_netchg_init;
-	struct timeout_task	hn_netchg_status;
-	uint32_t		hn_link_flags;	/* HN_LINK_FLAG_ */
-
-	uint32_t		hn_caps;	/* HN_CAP_ */
-	uint32_t		hn_flags;	/* HN_FLAG_ */
-	void			*hn_rxbuf;
-	uint32_t		hn_rxbuf_gpadl;
-	struct hyperv_dma	hn_rxbuf_dma;
-
-	uint32_t		hn_chim_gpadl;
-	struct hyperv_dma	hn_chim_dma;
-
-	uint32_t		hn_rndis_rid;
-	uint32_t		hn_ndis_ver;
-	int			hn_ndis_tso_szmax;
-	int			hn_ndis_tso_sgmin;
-
-	int			hn_rss_ind_size;
-	uint32_t		hn_rss_hash;	/* NDIS_HASH_ */
-	struct ndis_rssprm_toeplitz hn_rss;
+struct hn_nvs_sendctx {
+	hn_nvs_sent_t	hn_cb;
+	void		*hn_cbarg;
 };
 
-#define HN_FLAG_RXBUF_CONNECTED		0x0001
-#define HN_FLAG_CHIM_CONNECTED		0x0002
-#define HN_FLAG_HAS_RSSKEY		0x0004
-#define HN_FLAG_HAS_RSSIND		0x0008
-#define HN_FLAG_SYNTH_ATTACHED		0x0010
+#define HN_NVS_SENDCTX_INITIALIZER(cb, cbarg)	\
+{						\
+	.hn_cb		= cb,			\
+	.hn_cbarg	= cbarg			\
+}
 
-#define HN_CAP_VLAN			0x0001
-#define HN_CAP_MTU			0x0002
-#define HN_CAP_IPCS			0x0004
-#define HN_CAP_TCP4CS			0x0008
-#define HN_CAP_TCP6CS			0x0010
-#define HN_CAP_UDP4CS			0x0020
-#define HN_CAP_UDP6CS			0x0040
-#define HN_CAP_TSO4			0x0080
-#define HN_CAP_TSO6			0x0100
-#define HN_CAP_HASHVAL			0x0200
+static __inline void
+hn_nvs_sendctx_init(struct hn_nvs_sendctx *sndc, hn_nvs_sent_t cb, void *cbarg)
+{
 
-/* Capability description for use with printf(9) %b identifier. */
-#define HN_CAP_BITS				\
-	"\020\1VLAN\2MTU\3IPCS\4TCP4CS\5TCP6CS"	\
-	"\6UDP4CS\7UDP6CS\10TSO4\11TSO6\12HASHVAL"
+	sndc->hn_cb = cb;
+	sndc->hn_cbarg = cbarg;
+}
 
-#define HN_LINK_FLAG_LINKUP		0x0001
-#define HN_LINK_FLAG_NETCHG		0x0002
+static __inline int
+hn_nvs_send(struct vmbus_channel *chan, uint16_t flags,
+    void *nvs_msg, int nvs_msglen, struct hn_nvs_sendctx *sndc)
+{
 
-#endif  /* __HV_NET_VSC_H__ */
+	return (vmbus_chan_send(chan, VMBUS_CHANPKT_TYPE_INBAND, flags,
+	    nvs_msg, nvs_msglen, (uint64_t)(uintptr_t)sndc));
+}
 
+static __inline int
+hn_nvs_send_sglist(struct vmbus_channel *chan, struct vmbus_gpa sg[], int sglen,
+    void *nvs_msg, int nvs_msglen, struct hn_nvs_sendctx *sndc)
+{
+
+	return (vmbus_chan_send_sglist(chan, sg, sglen, nvs_msg, nvs_msglen,
+	    (uint64_t)(uintptr_t)sndc));
+}
+
+static __inline int
+hn_nvs_send_rndis_sglist(struct vmbus_channel *chan, uint32_t rndis_mtype,
+    struct hn_nvs_sendctx *sndc, struct vmbus_gpa *gpa, int gpa_cnt)
+{
+	struct hn_nvs_rndis rndis;
+
+	rndis.nvs_type = HN_NVS_TYPE_RNDIS;
+	rndis.nvs_rndis_mtype = rndis_mtype;
+	rndis.nvs_chim_idx = HN_NVS_CHIM_IDX_INVALID;
+	rndis.nvs_chim_sz = 0;
+
+	return (hn_nvs_send_sglist(chan, gpa, gpa_cnt,
+	    &rndis, sizeof(rndis), sndc));
+}
+
+int		hn_nvs_attach(struct hn_softc *sc, int mtu);
+void		hn_nvs_detach(struct hn_softc *sc);
+int		hn_nvs_alloc_subchans(struct hn_softc *sc, int *nsubch);
+void		hn_nvs_sent_xact(struct hn_nvs_sendctx *sndc,
+		    struct hn_softc *sc, struct vmbus_channel *chan,
+		    const void *data, int dlen);
+int		hn_nvs_send_rndis_ctrl(struct vmbus_channel *chan,
+		    struct hn_nvs_sendctx *sndc, struct vmbus_gpa *gpa,
+		    int gpa_cnt);
+
+extern struct hn_nvs_sendctx	hn_nvs_sendctx_none;
+
+#endif  /* !_HN_NVS_H_ */

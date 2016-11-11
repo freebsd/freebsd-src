@@ -24,46 +24,59 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-/**
- * HyperV vmbus network VSC (virtual services client) module
- *
+/*
+ * Network Virtualization Service.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
+#include "opt_inet6.h"
+#include "opt_inet.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>
-#include <sys/socket.h>
 #include <sys/limits.h>
-#include <sys/lock.h>
+#include <sys/socket.h>
+#include <sys/systm.h>
+#include <sys/taskqueue.h>
+
 #include <net/if.h>
 #include <net/if_arp.h>
-#include <machine/bus.h>
-#include <machine/atomic.h>
+#include <net/if_media.h>
+
+#include <netinet/in.h>
+#include <netinet/tcp_lro.h>
 
 #include <dev/hyperv/include/hyperv.h>
+#include <dev/hyperv/include/hyperv_busdma.h>
+#include <dev/hyperv/include/vmbus.h>
 #include <dev/hyperv/include/vmbus_xact.h>
-#include <dev/hyperv/netvsc/hv_net_vsc.h>
-#include <dev/hyperv/netvsc/hv_rndis_filter.h>
+
+#include <dev/hyperv/netvsc/ndis.h>
 #include <dev/hyperv/netvsc/if_hnreg.h>
 #include <dev/hyperv/netvsc/if_hnvar.h>
+#include <dev/hyperv/netvsc/hv_net_vsc.h>
 
-/*
- * Forward declarations
- */
-static int  hn_nvs_conn_chim(struct hn_softc *sc);
-static int  hn_nvs_conn_rxbuf(struct hn_softc *);
-static int  hn_nvs_disconn_chim(struct hn_softc *sc);
-static int  hn_nvs_disconn_rxbuf(struct hn_softc *sc);
-static void hn_nvs_sent_none(struct hn_send_ctx *sndc,
-    struct hn_softc *, struct vmbus_channel *chan,
-    const void *, int);
+static int			hn_nvs_conn_chim(struct hn_softc *);
+static int			hn_nvs_conn_rxbuf(struct hn_softc *);
+static int			hn_nvs_disconn_chim(struct hn_softc *);
+static int			hn_nvs_disconn_rxbuf(struct hn_softc *);
+static int			hn_nvs_conf_ndis(struct hn_softc *, int);
+static int			hn_nvs_init_ndis(struct hn_softc *);
+static int			hn_nvs_doinit(struct hn_softc *, uint32_t);
+static int			hn_nvs_init(struct hn_softc *);
+static const void		*hn_nvs_xact_execute(struct hn_softc *,
+				    struct vmbus_xact *, void *, int,
+				    size_t *, uint32_t);
+static void			hn_nvs_sent_none(struct hn_nvs_sendctx *,
+				    struct hn_softc *, struct vmbus_channel *,
+				    const void *, int);
 
-struct hn_send_ctx	hn_send_ctx_none =
-    HN_SEND_CTX_INITIALIZER(hn_nvs_sent_none, NULL);
+struct hn_nvs_sendctx		hn_nvs_sendctx_none =
+    HN_NVS_SENDCTX_INITIALIZER(hn_nvs_sent_none, NULL);
 
 static const uint32_t		hn_nvs_version[] = {
 	HN_NVS_VERSION_5,
@@ -76,7 +89,7 @@ static const void *
 hn_nvs_xact_execute(struct hn_softc *sc, struct vmbus_xact *xact,
     void *req, int reqlen, size_t *resplen0, uint32_t type)
 {
-	struct hn_send_ctx sndc;
+	struct hn_nvs_sendctx sndc;
 	size_t resplen, min_resplen = *resplen0;
 	const struct hn_nvs_hdr *hdr;
 	int error;
@@ -87,7 +100,7 @@ hn_nvs_xact_execute(struct hn_softc *sc, struct vmbus_xact *xact,
 	/*
 	 * Execute the xact setup by the caller.
 	 */
-	hn_send_ctx_init(&sndc, hn_nvs_sent_xact, xact);
+	hn_nvs_sendctx_init(&sndc, hn_nvs_sent_xact, xact);
 
 	vmbus_xact_activate(xact);
 	error = hn_nvs_send(sc->hn_prichan, VMBUS_CHANPKT_FLAG_RC,
@@ -120,7 +133,7 @@ hn_nvs_req_send(struct hn_softc *sc, void *req, int reqlen)
 {
 
 	return (hn_nvs_send(sc->hn_prichan, VMBUS_CHANPKT_FLAG_NONE,
-	    req, reqlen, &hn_send_ctx_none));
+	    req, reqlen, &hn_nvs_sendctx_none));
 }
 
 static int 
@@ -137,9 +150,9 @@ hn_nvs_conn_rxbuf(struct hn_softc *sc)
 	 * Limit RXBUF size for old NVS.
 	 */
 	if (sc->hn_nvs_ver <= HN_NVS_VERSION_2)
-		rxbuf_size = NETVSC_RECEIVE_BUFFER_SIZE_LEGACY;
+		rxbuf_size = HN_RXBUF_SIZE_COMPAT;
 	else
-		rxbuf_size = NETVSC_RECEIVE_BUFFER_SIZE;
+		rxbuf_size = HN_RXBUF_SIZE;
 
 	/*
 	 * Connect the RXBUF GPADL to the primary channel.
@@ -218,8 +231,7 @@ hn_nvs_conn_chim(struct hn_softc *sc)
 	 * Sub-channels just share this chimney sending buffer.
 	 */
 	error = vmbus_chan_gpadl_connect(sc->hn_prichan,
-  	    sc->hn_chim_dma.hv_paddr, NETVSC_SEND_BUFFER_SIZE,
-	    &sc->hn_chim_gpadl);
+  	    sc->hn_chim_dma.hv_paddr, HN_CHIM_SIZE, &sc->hn_chim_gpadl);
 	if (error) {
 		if_printf(sc->hn_ifp, "chim gpadl conn failed: %d\n", error);
 		goto cleanup;
@@ -266,8 +278,8 @@ hn_nvs_conn_chim(struct hn_softc *sc)
 	}
 
 	sc->hn_chim_szmax = sectsz;
-	sc->hn_chim_cnt = NETVSC_SEND_BUFFER_SIZE / sc->hn_chim_szmax;
-	if (NETVSC_SEND_BUFFER_SIZE % sc->hn_chim_szmax != 0) {
+	sc->hn_chim_cnt = HN_CHIM_SIZE / sc->hn_chim_szmax;
+	if (HN_CHIM_SIZE % sc->hn_chim_szmax != 0) {
 		if_printf(sc->hn_ifp, "chimney sending sections are "
 		    "not properly aligned\n");
 	}
@@ -604,7 +616,7 @@ hn_nvs_detach(struct hn_softc *sc)
 }
 
 void
-hn_nvs_sent_xact(struct hn_send_ctx *sndc,
+hn_nvs_sent_xact(struct hn_nvs_sendctx *sndc,
     struct hn_softc *sc __unused, struct vmbus_channel *chan __unused,
     const void *data, int dlen)
 {
@@ -613,7 +625,7 @@ hn_nvs_sent_xact(struct hn_send_ctx *sndc,
 }
 
 static void
-hn_nvs_sent_none(struct hn_send_ctx *sndc __unused,
+hn_nvs_sent_none(struct hn_nvs_sendctx *sndc __unused,
     struct hn_softc *sc __unused, struct vmbus_channel *chan __unused,
     const void *data __unused, int dlen __unused)
 {
@@ -669,4 +681,13 @@ hn_nvs_alloc_subchans(struct hn_softc *sc, int *nsubch0)
 done:
 	vmbus_xact_put(xact);
 	return (error);
+}
+
+int
+hn_nvs_send_rndis_ctrl(struct vmbus_channel *chan,
+    struct hn_nvs_sendctx *sndc, struct vmbus_gpa *gpa, int gpa_cnt)
+{
+
+	return hn_nvs_send_rndis_sglist(chan, HN_NVS_RNDIS_MTYPE_CTRL,
+	    sndc, gpa, gpa_cnt);
 }
