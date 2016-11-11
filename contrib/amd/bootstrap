@@ -5,6 +5,16 @@
 # this is not meant to go into the distributions
 # Erez Zadok <ezk@cs.columbia.edu>
 
+validateversion() {
+    local v="$(autoreconf --version 2>&1 | head -1)"
+    case "$v" in
+    *2.69)	;;
+    *)		echo "am-utils requires autoconf 2.69, you have:"
+		echo "	$v"
+		exit 1;;
+    esac
+}
+
 # test cwd
 test -f ../amd/amd.c && cd ..
 if [ ! -f amd/amd.c ]; then
@@ -37,67 +47,13 @@ test -f acinclude.m4 && mv -f acinclude.m4 acinclude.m4.old
  cat TRAILER
 ) > acinclude.m4
 
-# generate aclocal.m4 file
-echo "AMU: aclocal..."
-test -f aclocal.m4 && mv -f aclocal.m4 aclocal.m4.old
-# show version
-aclocal --version 2>&1 | head -1
-if aclocal ; then
+# generate the rest of the scripts
+echo "AMU: autoreconf..."
+validateversion
+if autoreconf -f -i; then
     :
 else
-    echo "aclocal command failed.  fix errors and rerun $0."
-    exit 2
-fi
-
-# produce new configure.in (temp) script
-echo "AMU: autoconf..."
-# show version
-autoconf --version 2>&1 | head -1
-LOG=/tmp/amu-$$.log
-rm -f ${LOG}
-autoconf configure.in > configure.new 2> ${LOG}
-# until Automake requires Autoconf 2.50, manual says to ignore this
-CUTWARNMSG1="warning: AC_PROG_LEX invoked multiple times|do not use m4_(patsubst|regexp):"
-egrep -v "${CUTWARNMSG1}" ${LOG} > ${LOG}.new
-mv ${LOG}.new ${LOG}
-if test -s ${LOG}; then
-    echo "AUTOCONF ERRORS (MUST FIX):"
-    cat ${LOG}
-    rm -f ${LOG}
-    exit 2
-fi
-# now prepare the real configure script
-test -f configure && mv -f configure configure.old
-mv -f configure.new configure
-chmod a+rx configure
-rm -f configure.old
-
-# run autoheader to produce C header .in files
-echo "AMU: autoheader..."
-# show version
-autoheader --version 2>&1 | head -1
-autoheader configure.in > config.h.in 2> ${LOG}
-CUTWARNMSG2="autoheader: \`config.h.in' is updated"
-egrep -v "${CUTWARNMSG2}" ${LOG} > ${LOG}.new
-mv ${LOG}.new ${LOG}
-if test -s ${LOG}; then
-    echo "AUTOHEADER ERRORS (MUST FIX):"
-    cat ${LOG}
-    rm -f ${LOG}
-    exit 2
-fi
-rm -f ${LOG}
-
-# generate makefiles
-cmd="automake --add-missing --copy --ignore-deps"
-#cmd="automake --add-missing"
-echo "AMU: $cmd..."
-# show version
-automake --version 2>&1 | head -1
-if ${cmd} ; then
-    :
-else
-    echo "automake command failed.  fix errors and rerun $0."
+    echo "autoreconf command failed.  fix errors and rerun $0."
     exit 2
 fi
 
