@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-# multiple definition of `vwarn'
+# linker error
 WANT_CHERI=none
 
 .PATH: ${.CURDIR}/../../../cddl/contrib/opensolaris/tools/ctf/common

@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-# relocation errors when linking
+# linker error
 WANT_CHERI=none
 
 PROG=	cron
