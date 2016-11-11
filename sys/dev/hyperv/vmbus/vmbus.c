@@ -948,7 +948,7 @@ vmbus_intr_setup(struct vmbus_softc *sc)
 		device_printf(sc->vmbus_dev, "cannot find free IDT vector\n");
 		return ENXIO;
 	}
-	if(bootverbose) {
+	if (bootverbose) {
 		device_printf(sc->vmbus_dev, "vmbus IDT vector %d\n",
 		    sc->vmbus_idtvec);
 	}
@@ -1036,6 +1036,7 @@ vmbus_delete_child(struct vmbus_channel *chan)
 	if (chan->ch_dev != NULL) {
 		error = device_delete_child(chan->ch_vmbus->vmbus_dev,
 		    chan->ch_dev);
+		chan->ch_dev = NULL;
 	}
 	mtx_unlock(&Giant);
 	return (error);
