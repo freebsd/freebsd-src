@@ -36,8 +36,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
-#include <dev/fdt/fdt_common.h>
-
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 #include <dev/ofw/ofw_subr.h>
@@ -154,7 +152,7 @@ qman_portals_fdt_attach(device_t dev)
 
 	/* Find portals tied to CPUs */
 	for (child = OF_child(node); child != 0; child = OF_peer(child)) {
-		if (!fdt_is_compatible(child, "fsl,qman-portal")) {
+		if (!ofw_bus_node_is_compatible(child, "fsl,qman-portal")) {
 			continue;
 		}
 		/* Checkout related cpu */
