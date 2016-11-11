@@ -785,39 +785,11 @@ intsmb_readw(device_t dev, u_char slave, char cmd, short *word)
 	return (error);
 }
 
-/*
- * Data sheet claims that it implements all function, but also claims
- * that it implements 7 function and not mention PCALL. So I don't know
- * whether it will work.
- */
 static int
 intsmb_pcall(device_t dev, u_char slave, char cmd, short sdata, short *rdata)
 {
-#ifdef PROCCALL_TEST
-	struct intsmb_softc *sc = device_get_softc(dev);
-	int error;
 
-	INTSMB_LOCK(sc);
-	error = intsmb_free(sc);
-	if (error) {
-		INTSMB_UNLOCK(sc);
-		return (error);
-	}
-	bus_write_1(sc->io_res, PIIX4_SMBHSTADD, slave & ~LSB);
-	bus_write_1(sc->io_res, PIIX4_SMBHSTCMD, cmd);
-	bus_write_1(sc->io_res, PIIX4_SMBHSTDAT0, sdata & 0xff);
-	bus_write_1(sc->io_res, PIIX4_SMBHSTDAT1, (sdata & 0xff) >> 8);
-	intsmb_start(sc, PIIX4_SMBHSTCNT_PROT_WDATA, 0);
-	error = intsmb_stop(sc);
-	if (error == 0) {
-		*rdata = bus_read_1(sc->io_res, PIIX4_SMBHSTDAT0);
-		*rdata |= bus_read_1(sc->io_res, PIIX4_SMBHSTDAT1) << 8;
-	}
-	INTSMB_UNLOCK(sc);
-	return (error);
-#else
 	return (SMB_ENOTSUPP);
-#endif
 }
 
 static int
@@ -857,9 +829,6 @@ intsmb_bread(device_t dev, u_char slave, char cmd, u_char *count, char *buf)
 	int error, i;
 	u_char data, nread;
 
-	if (*count > SMBBLOCKTRANS_MAX || *count == 0)
-		return (SMB_EINVAL);
-
 	INTSMB_LOCK(sc);
 	error = intsmb_free(sc);
 	if (error) {
@@ -872,18 +841,14 @@ intsmb_bread(device_t dev, u_char slave, char cmd, u_char *count, char *buf)
 
 	bus_write_1(sc->io_res, PIIX4_SMBHSTADD, slave | LSB);
 	bus_write_1(sc->io_res, PIIX4_SMBHSTCMD, cmd);
-	bus_write_1(sc->io_res, PIIX4_SMBHSTDAT0, *count);
 	intsmb_start(sc, PIIX4_SMBHSTCNT_PROT_BLOCK, 0);
 	error = intsmb_stop(sc);
 	if (error == 0) {
 		nread = bus_read_1(sc->io_res, PIIX4_SMBHSTDAT0);
 		if (nread != 0 && nread <= SMBBLOCKTRANS_MAX) {
-			for (i = 0; i < nread; i++) {
-				data = bus_read_1(sc->io_res, PIIX4_SMBBLKDAT);
-				if (i < *count)
-					buf[i] = data;
-			}
 			*count = nread;
+			for (i = 0; i < nread; i++)
+				data = bus_read_1(sc->io_res, PIIX4_SMBBLKDAT);
 		} else
 			error = SMB_EBUSERR;
 	}
