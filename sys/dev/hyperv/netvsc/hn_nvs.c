@@ -58,7 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/hyperv/netvsc/ndis.h>
 #include <dev/hyperv/netvsc/if_hnreg.h>
 #include <dev/hyperv/netvsc/if_hnvar.h>
-#include <dev/hyperv/netvsc/hv_net_vsc.h>
+#include <dev/hyperv/netvsc/hn_nvs.h>
 
 static int			hn_nvs_conn_chim(struct hn_softc *);
 static int			hn_nvs_conn_rxbuf(struct hn_softc *);
