@@ -111,6 +111,8 @@ __FBSDID("$FreeBSD$");
 
 #include "vmbus_if.h"
 
+#define HN_IFSTART_SUPPORT
+
 #define HN_RING_CNT_DEF_MAX		8
 
 /* YYY should get it from the underlying channel */
@@ -212,7 +214,9 @@ static void			hn_chan_callback(struct vmbus_channel *,
 
 static void			hn_init(void *);
 static int			hn_ioctl(struct ifnet *, u_long, caddr_t);
+#ifdef HN_IFSTART_SUPPORT
 static void			hn_start(struct ifnet *);
+#endif
 static int			hn_transmit(struct ifnet *, struct mbuf *);
 static void			hn_xmit_qflush(struct ifnet *);
 static int			hn_ifmedia_upd(struct ifnet *);
@@ -326,10 +330,12 @@ static int			hn_xmit(struct hn_tx_ring *, int);
 static void			hn_xmit_taskfunc(void *, int);
 static void			hn_xmit_txeof(struct hn_tx_ring *);
 static void			hn_xmit_txeof_taskfunc(void *, int);
+#ifdef HN_IFSTART_SUPPORT
 static int			hn_start_locked(struct hn_tx_ring *, int);
 static void			hn_start_taskfunc(void *, int);
 static void			hn_start_txeof(struct hn_tx_ring *);
 static void			hn_start_txeof_taskfunc(void *, int);
+#endif
 
 SYSCTL_NODE(_hw, OID_AUTO, hn, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
     "Hyper-V network interface");
@@ -397,10 +403,12 @@ static int			hn_bind_tx_taskq = -1;
 SYSCTL_INT(_hw_hn, OID_AUTO, bind_tx_taskq, CTLFLAG_RDTUN,
     &hn_bind_tx_taskq, 0, "Bind TX taskqueue to the specified cpu");
 
+#ifdef HN_IFSTART_SUPPORT
 /* Use ifnet.if_start instead of ifnet.if_transmit */
 static int			hn_use_if_start = 0;
 SYSCTL_INT(_hw_hn, OID_AUTO, use_if_start, CTLFLAG_RDTUN,
     &hn_use_if_start, 0, "Use if_start TX method");
+#endif
 
 /* # of channels to use */
 static int			hn_chan_cnt = 0;
@@ -790,10 +798,12 @@ hn_attach(device_t dev)
 	tx_ring_cnt = hn_tx_ring_cnt;
 	if (tx_ring_cnt <= 0 || tx_ring_cnt > ring_cnt)
 		tx_ring_cnt = ring_cnt;
+#ifdef HN_IFSTART_SUPPORT
 	if (hn_use_if_start) {
 		/* ifnet.if_start only needs one TX ring. */
 		tx_ring_cnt = 1;
 	}
+#endif
 
 	/*
 	 * Set the leader CPU for channels.
@@ -894,6 +904,7 @@ hn_attach(device_t dev)
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = hn_ioctl;
 	ifp->if_init = hn_init;
+#ifdef HN_IFSTART_SUPPORT
 	if (hn_use_if_start) {
 		int qdepth = hn_get_txswq_depth(&sc->hn_tx_ring[0]);
 
@@ -901,7 +912,9 @@ hn_attach(device_t dev)
 		IFQ_SET_MAXLEN(&ifp->if_snd, qdepth);
 		ifp->if_snd.ifq_drv_maxlen = qdepth - 1;
 		IFQ_SET_READY(&ifp->if_snd);
-	} else {
+	} else
+#endif
+	{
 		ifp->if_transmit = hn_transmit;
 		ifp->if_qflush = hn_xmit_qflush;
 	}
@@ -1536,7 +1549,10 @@ again:
 	if (!error) {
 		ETHER_BPF_MTAP(ifp, txd->m);
 		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
-		if (!hn_use_if_start) {
+#ifdef HN_IFSTART_SUPPORT
+		if (!hn_use_if_start)
+#endif
+		{
 			if_inc_counter(ifp, IFCOUNTER_OBYTES,
 			    txd->m->m_pkthdr.len);
 			if (txd->m->m_flags & M_MCAST)
@@ -1583,71 +1599,6 @@ again:
 		txr->hn_send_failed++;
 	}
 	return error;
-}
-
-/*
- * Start a transmit of one or more packets
- */
-static int
-hn_start_locked(struct hn_tx_ring *txr, int len)
-{
-	struct hn_softc *sc = txr->hn_sc;
-	struct ifnet *ifp = sc->hn_ifp;
-
-	KASSERT(hn_use_if_start,
-	    ("hn_start_locked is called, when if_start is disabled"));
-	KASSERT(txr == &sc->hn_tx_ring[0], ("not the first TX ring"));
-	mtx_assert(&txr->hn_tx_lock, MA_OWNED);
-
-	if (__predict_false(txr->hn_suspended))
-		return 0;
-
-	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
-	    IFF_DRV_RUNNING)
-		return 0;
-
-	while (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
-		struct hn_txdesc *txd;
-		struct mbuf *m_head;
-		int error;
-
-		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
-		if (m_head == NULL)
-			break;
-
-		if (len > 0 && m_head->m_pkthdr.len > len) {
-			/*
-			 * This sending could be time consuming; let callers
-			 * dispatch this packet sending (and sending of any
-			 * following up packets) to tx taskqueue.
-			 */
-			IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
-			return 1;
-		}
-
-		txd = hn_txdesc_get(txr);
-		if (txd == NULL) {
-			txr->hn_no_txdescs++;
-			IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
-			atomic_set_int(&ifp->if_drv_flags, IFF_DRV_OACTIVE);
-			break;
-		}
-
-		error = hn_encap(txr, txd, &m_head);
-		if (error) {
-			/* Both txd and m_head are freed */
-			continue;
-		}
-
-		error = hn_txpkt(ifp, txr, txd);
-		if (__predict_false(error)) {
-			/* txd is freed, but m_head is not */
-			IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
-			atomic_set_int(&ifp->if_drv_flags, IFF_DRV_OACTIVE);
-			break;
-		}
-	}
-	return 0;
 }
 
 /*
@@ -2150,61 +2101,6 @@ hn_stop(struct hn_softc *sc)
 	atomic_clear_int(&ifp->if_drv_flags, IFF_DRV_OACTIVE);
 	for (i = 0; i < sc->hn_tx_ring_inuse; ++i)
 		sc->hn_tx_ring[i].hn_oactive = 0;
-}
-
-static void
-hn_start(struct ifnet *ifp)
-{
-	struct hn_softc *sc = ifp->if_softc;
-	struct hn_tx_ring *txr = &sc->hn_tx_ring[0];
-
-	if (txr->hn_sched_tx)
-		goto do_sched;
-
-	if (mtx_trylock(&txr->hn_tx_lock)) {
-		int sched;
-
-		sched = hn_start_locked(txr, txr->hn_direct_tx_size);
-		mtx_unlock(&txr->hn_tx_lock);
-		if (!sched)
-			return;
-	}
-do_sched:
-	taskqueue_enqueue(txr->hn_tx_taskq, &txr->hn_tx_task);
-}
-
-static void
-hn_start_txeof(struct hn_tx_ring *txr)
-{
-	struct hn_softc *sc = txr->hn_sc;
-	struct ifnet *ifp = sc->hn_ifp;
-
-	KASSERT(txr == &sc->hn_tx_ring[0], ("not the first TX ring"));
-
-	if (txr->hn_sched_tx)
-		goto do_sched;
-
-	if (mtx_trylock(&txr->hn_tx_lock)) {
-		int sched;
-
-		atomic_clear_int(&ifp->if_drv_flags, IFF_DRV_OACTIVE);
-		sched = hn_start_locked(txr, txr->hn_direct_tx_size);
-		mtx_unlock(&txr->hn_tx_lock);
-		if (sched) {
-			taskqueue_enqueue(txr->hn_tx_taskq,
-			    &txr->hn_tx_task);
-		}
-	} else {
-do_sched:
-		/*
-		 * Release the OACTIVE earlier, with the hope, that
-		 * others could catch up.  The task will clear the
-		 * flag again with the hn_tx_lock to avoid possible
-		 * races.
-		 */
-		atomic_clear_int(&ifp->if_drv_flags, IFF_DRV_OACTIVE);
-		taskqueue_enqueue(txr->hn_tx_taskq, &txr->hn_txeof_task);
-	}
 }
 
 static void
@@ -2954,11 +2850,14 @@ hn_tx_ring_create(struct hn_softc *sc, int id)
 
 	txr->hn_tx_taskq = sc->hn_tx_taskq;
 
+#ifdef HN_IFSTART_SUPPORT
 	if (hn_use_if_start) {
 		txr->hn_txeof = hn_start_txeof;
 		TASK_INIT(&txr->hn_tx_task, 0, hn_start_taskfunc, txr);
 		TASK_INIT(&txr->hn_txeof_task, 0, hn_start_txeof_taskfunc, txr);
-	} else {
+	} else
+#endif
+	{
 		int br_depth;
 
 		txr->hn_txeof = hn_xmit_txeof;
@@ -3095,7 +2994,10 @@ hn_tx_ring_create(struct hn_softc *sc, int id)
 			SYSCTL_ADD_INT(ctx, child, OID_AUTO, "txdesc_avail",
 			    CTLFLAG_RD, &txr->hn_txdesc_avail, 0,
 			    "# of available TX descs");
-			if (!hn_use_if_start) {
+#ifdef HN_IFSTART_SUPPORT
+			if (!hn_use_if_start)
+#endif
+			{
 				SYSCTL_ADD_INT(ctx, child, OID_AUTO, "oactive",
 				    CTLFLAG_RD, &txr->hn_oactive, 0,
 				    "over active");
@@ -3355,6 +3257,8 @@ hn_destroy_tx_data(struct hn_softc *sc)
 	sc->hn_tx_ring_inuse = 0;
 }
 
+#ifdef HN_IFSTART_SUPPORT
+
 static void
 hn_start_taskfunc(void *xtxr, int pending __unused)
 {
@@ -3363,6 +3267,89 @@ hn_start_taskfunc(void *xtxr, int pending __unused)
 	mtx_lock(&txr->hn_tx_lock);
 	hn_start_locked(txr, 0);
 	mtx_unlock(&txr->hn_tx_lock);
+}
+
+static int
+hn_start_locked(struct hn_tx_ring *txr, int len)
+{
+	struct hn_softc *sc = txr->hn_sc;
+	struct ifnet *ifp = sc->hn_ifp;
+
+	KASSERT(hn_use_if_start,
+	    ("hn_start_locked is called, when if_start is disabled"));
+	KASSERT(txr == &sc->hn_tx_ring[0], ("not the first TX ring"));
+	mtx_assert(&txr->hn_tx_lock, MA_OWNED);
+
+	if (__predict_false(txr->hn_suspended))
+		return 0;
+
+	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
+	    IFF_DRV_RUNNING)
+		return 0;
+
+	while (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
+		struct hn_txdesc *txd;
+		struct mbuf *m_head;
+		int error;
+
+		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
+		if (m_head == NULL)
+			break;
+
+		if (len > 0 && m_head->m_pkthdr.len > len) {
+			/*
+			 * This sending could be time consuming; let callers
+			 * dispatch this packet sending (and sending of any
+			 * following up packets) to tx taskqueue.
+			 */
+			IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
+			return 1;
+		}
+
+		txd = hn_txdesc_get(txr);
+		if (txd == NULL) {
+			txr->hn_no_txdescs++;
+			IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
+			atomic_set_int(&ifp->if_drv_flags, IFF_DRV_OACTIVE);
+			break;
+		}
+
+		error = hn_encap(txr, txd, &m_head);
+		if (error) {
+			/* Both txd and m_head are freed */
+			continue;
+		}
+
+		error = hn_txpkt(ifp, txr, txd);
+		if (__predict_false(error)) {
+			/* txd is freed, but m_head is not */
+			IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
+			atomic_set_int(&ifp->if_drv_flags, IFF_DRV_OACTIVE);
+			break;
+		}
+	}
+	return 0;
+}
+
+static void
+hn_start(struct ifnet *ifp)
+{
+	struct hn_softc *sc = ifp->if_softc;
+	struct hn_tx_ring *txr = &sc->hn_tx_ring[0];
+
+	if (txr->hn_sched_tx)
+		goto do_sched;
+
+	if (mtx_trylock(&txr->hn_tx_lock)) {
+		int sched;
+
+		sched = hn_start_locked(txr, txr->hn_direct_tx_size);
+		mtx_unlock(&txr->hn_tx_lock);
+		if (!sched)
+			return;
+	}
+do_sched:
+	taskqueue_enqueue(txr->hn_tx_taskq, &txr->hn_tx_task);
 }
 
 static void
@@ -3376,6 +3363,42 @@ hn_start_txeof_taskfunc(void *xtxr, int pending __unused)
 	mtx_unlock(&txr->hn_tx_lock);
 }
 
+static void
+hn_start_txeof(struct hn_tx_ring *txr)
+{
+	struct hn_softc *sc = txr->hn_sc;
+	struct ifnet *ifp = sc->hn_ifp;
+
+	KASSERT(txr == &sc->hn_tx_ring[0], ("not the first TX ring"));
+
+	if (txr->hn_sched_tx)
+		goto do_sched;
+
+	if (mtx_trylock(&txr->hn_tx_lock)) {
+		int sched;
+
+		atomic_clear_int(&ifp->if_drv_flags, IFF_DRV_OACTIVE);
+		sched = hn_start_locked(txr, txr->hn_direct_tx_size);
+		mtx_unlock(&txr->hn_tx_lock);
+		if (sched) {
+			taskqueue_enqueue(txr->hn_tx_taskq,
+			    &txr->hn_tx_task);
+		}
+	} else {
+do_sched:
+		/*
+		 * Release the OACTIVE earlier, with the hope, that
+		 * others could catch up.  The task will clear the
+		 * flag again with the hn_tx_lock to avoid possible
+		 * races.
+		 */
+		atomic_clear_int(&ifp->if_drv_flags, IFF_DRV_OACTIVE);
+		taskqueue_enqueue(txr->hn_tx_taskq, &txr->hn_txeof_task);
+	}
+}
+
+#endif	/* HN_IFSTART_SUPPORT */
+
 static int
 hn_xmit(struct hn_tx_ring *txr, int len)
 {
@@ -3384,8 +3407,10 @@ hn_xmit(struct hn_tx_ring *txr, int len)
 	struct mbuf *m_head;
 
 	mtx_assert(&txr->hn_tx_lock, MA_OWNED);
+#ifdef HN_IFSTART_SUPPORT
 	KASSERT(hn_use_if_start == 0,
 	    ("hn_xmit is called, when if_start is enabled"));
+#endif
 
 	if (__predict_false(txr->hn_suspended))
 		return 0;
@@ -4082,7 +4107,10 @@ hn_resume_data(struct hn_softc *sc)
 	 */
 	hn_resume_tx(sc, sc->hn_tx_ring_cnt);
 
-	if (!hn_use_if_start) {
+#ifdef HN_IFSTART_SUPPORT
+	if (!hn_use_if_start)
+#endif
+	{
 		/*
 		 * Flush unused drbrs, since hn_tx_ring_inuse may be
 		 * reduced.
