@@ -208,7 +208,6 @@ struct hn_softc {
 	struct arpcom   arpcom;
 	struct ifmedia	hn_media;
 	device_t        hn_dev;
-	int             hn_carrier;
 	int             hn_if_flags;
 	struct sx	hn_lock;
 	struct vmbus_channel *hn_prichan;
@@ -237,6 +236,9 @@ struct hn_softc {
 	struct taskqueue	*hn_mgmt_taskq;
 	struct taskqueue	*hn_mgmt_taskq0;
 	struct task		hn_link_task;
+	struct task		hn_netchg_init;
+	struct timeout_task	hn_netchg_status;
+	uint32_t		hn_link_flags;	/* HN_LINK_FLAG_ */
 
 	uint32_t		hn_caps;	/* HN_CAP_ */
 	uint32_t		hn_flags;	/* HN_FLAG_ */
@@ -270,6 +272,10 @@ struct hn_softc {
 #define HN_CAP_UDP6CS			0x0040
 #define HN_CAP_TSO4			0x0080
 #define HN_CAP_TSO6			0x0100
+#define HN_CAP_HASHVAL			0x0200
+
+#define HN_LINK_FLAG_LINKUP		0x0001
+#define HN_LINK_FLAG_NETCHG		0x0002
 
 /*
  * Externs
