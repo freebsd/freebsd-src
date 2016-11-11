@@ -117,7 +117,7 @@ hn_nvs_xact_execute(struct hn_softc *sc, struct vmbus_xact *xact,
 	/*
 	 * Execute the xact setup by the caller.
 	 */
-	hn_send_ctx_init_simple(&sndc, hn_nvs_sent_xact, xact);
+	hn_send_ctx_init(&sndc, hn_nvs_sent_xact, xact);
 
 	vmbus_xact_activate(xact);
 	error = hn_nvs_send(sc->hn_prichan, VMBUS_CHANPKT_FLAG_RC,
@@ -667,34 +667,6 @@ hn_chim_free(struct hn_softc *sc, uint32_t chim_idx)
 	     sc->hn_chim_bmap[idx], chim_idx, idx, mask));
 
 	atomic_clear_long(&sc->hn_chim_bmap[idx], mask);
-}
-
-/*
- * Net VSC on send
- * Sends a packet on the specified Hyper-V device.
- * Returns 0 on success, non-zero on failure.
- */
-int
-hv_nv_on_send(struct vmbus_channel *chan, uint32_t rndis_mtype,
-    struct hn_send_ctx *sndc, struct vmbus_gpa *gpa, int gpa_cnt)
-{
-	struct hn_nvs_rndis rndis;
-	int ret;
-
-	rndis.nvs_type = HN_NVS_TYPE_RNDIS;
-	rndis.nvs_rndis_mtype = rndis_mtype;
-	rndis.nvs_chim_idx = sndc->hn_chim_idx;
-	rndis.nvs_chim_sz = sndc->hn_chim_sz;
-
-	if (gpa_cnt) {
-		ret = hn_nvs_send_sglist(chan, gpa, gpa_cnt,
-		    &rndis, sizeof(rndis), sndc);
-	} else {
-		ret = hn_nvs_send(chan, VMBUS_CHANPKT_FLAG_RC,
-		    &rndis, sizeof(rndis), sndc);
-	}
-
-	return (ret);
 }
 
 int
