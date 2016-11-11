@@ -765,6 +765,15 @@ out:
 	mtx_lock(&ioat->submit_lock);
 	mtx_lock(&ioat->cleanup_lock);
 	ioat->quiescing = TRUE;
+	/*
+	 * This is safe to do here because we have both locks and the submit
+	 * queue is quiesced.  We know that we will drain all outstanding
+	 * events, so ioat_reset_hw can't deadlock.  It is necessary to
+	 * protect other ioat_process_event threads from racing ioat_reset_hw,
+	 * reading an indeterminate hw state, and attempting to continue
+	 * issuing completions.
+	 */
+	ioat->resetting_cleanup = TRUE;
 
 	chanerr = ioat_read_4(ioat, IOAT_CHANERR_OFFSET);
 	if (1 <= g_ioat_debug_level)
