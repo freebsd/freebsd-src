@@ -742,7 +742,7 @@ mountmsdosfs(struct vnode *devvp, struct mount *mp)
 	mp->mnt_stat.f_fsid.val[1] = mp->mnt_vfc->vfc_typenum;
 	MNT_ILOCK(mp);
 	mp->mnt_flag |= MNT_LOCAL;
-	mp->mnt_kern_flag |= MNTK_USES_BCACHE;
+	mp->mnt_kern_flag |= MNTK_USES_BCACHE | MNTK_NO_IOPF;
 	MNT_IUNLOCK(mp);
 
 	if (pmp->pm_flags & MSDOSFS_LARGEFS)
