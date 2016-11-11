@@ -640,7 +640,7 @@ msdosfs_read(ap)
 		diff = blsize - bp->b_resid;
 		if (diff < n)
 			n = diff;
-		error = uiomove(bp->b_data + on, (int) n, uio);
+		error = vn_io_fault_uiomove(bp->b_data + on, (int) n, uio);
 		brelse(bp);
 	} while (error == 0 && uio->uio_resid > 0 && n != 0);
 	if (!isadir && (error == 0 || uio->uio_resid != orig_resid) &&
@@ -776,6 +776,12 @@ msdosfs_write(ap)
 			 * then no need to read data from disk.
 			 */
 			bp = getblk(thisvp, bn, pmp->pm_bpcluster, 0, 0, 0);
+			/*
+			 * This call to vfs_bio_clrbuf() ensures that
+			 * even if vn_io_fault_uiomove() below faults,
+			 * garbage from the newly instantiated buffer
+			 * is not exposed to the userspace via mmap().
+			 */
 			vfs_bio_clrbuf(bp);
 			/*
 			 * Do the bmap now, since pcbmap needs buffers
@@ -813,7 +819,7 @@ msdosfs_write(ap)
 		/*
 		 * Copy the data from user space into the buf header.
 		 */
-		error = uiomove(bp->b_data + croffset, n, uio);
+		error = vn_io_fault_uiomove(bp->b_data + croffset, n, uio);
 		if (error) {
 			brelse(bp);
 			break;
