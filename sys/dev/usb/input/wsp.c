@@ -88,8 +88,6 @@ static struct wsp_tuning {
 	int	pressure_tap_threshold;
 	int	scr_hor_threshold;
 	int	enable_single_tap_clicks;
-	int	enable_double_tap_and_drag;
-	int	enable_geographical_buttons;
 }
 	wsp_tuning =
 {
@@ -100,8 +98,6 @@ static struct wsp_tuning {
 	.pressure_tap_threshold = 120,
 	.scr_hor_threshold = 20,
 	.enable_single_tap_clicks = 1,
-	.enable_double_tap_and_drag = 1,
-	.enable_geographical_buttons = 0,
 };
 
 static void
@@ -114,8 +110,6 @@ wsp_runing_rangecheck(struct wsp_tuning *ptun)
 	WSP_CLAMP(ptun->pressure_tap_threshold, 1, 255);
 	WSP_CLAMP(ptun->scr_hor_threshold, 1, 255);
 	WSP_CLAMP(ptun->enable_single_tap_clicks, 0, 1);
-	WSP_CLAMP(ptun->enable_double_tap_and_drag, 0, 1);
-	WSP_CLAMP(ptun->enable_geographical_buttons, 0, 1);
 }
 
 SYSCTL_INT(_hw_usb_wsp, OID_AUTO, scale_factor, CTLFLAG_RWTUN,
@@ -132,10 +126,6 @@ SYSCTL_INT(_hw_usb_wsp, OID_AUTO, scr_hor_threshold, CTLFLAG_RWTUN,
     &wsp_tuning.scr_hor_threshold, 0, "horizontal scrolling threshold");
 SYSCTL_INT(_hw_usb_wsp, OID_AUTO, enable_single_tap_clicks, CTLFLAG_RWTUN,
     &wsp_tuning.enable_single_tap_clicks, 0, "enable single tap clicks");
-SYSCTL_INT(_hw_usb_wsp, OID_AUTO, enable_double_tap_and_drag, CTLFLAG_RWTUN,
-    &wsp_tuning.enable_double_tap_and_drag, 0, "enable double tap-and-drag to left-click and drag");
-SYSCTL_INT(_hw_usb_wsp, OID_AUTO, enable_geographical_buttons, CTLFLAG_RWTUN,
-    &wsp_tuning.enable_geographical_buttons, 0, "enable left-middle-right clicks based on tap location instead of number of tap fingers");
 
 /*
  * Some tables, structures, definitions and constant values for the
