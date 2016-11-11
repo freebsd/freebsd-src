@@ -320,6 +320,10 @@ struct rndis_status_msg {
 	/* rndis_diag_info */
 };
 
+/* stbuf offset from the beginning of rndis_status_msg. */
+#define	RNDIS_STBUFOFFSET_ABS(ofs)	\
+	((ofs) + __offsetof(struct rndis_status_msg, rm_status))
+
 /*
  * Immediately after rndis_status_msg.rm_stbufoffset, if a control
  * message is malformatted, or a packet message contains inappropriate

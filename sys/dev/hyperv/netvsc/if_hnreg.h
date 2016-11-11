@@ -36,6 +36,7 @@
  * NDIS protocol version numbers
  */
 #define HN_NDIS_VERSION_6_1		0x00060001
+#define HN_NDIS_VERSION_6_20		0x00060014
 #define HN_NDIS_VERSION_6_30		0x0006001e
 #define HN_NDIS_VERSION_MAJOR(ver)	(((ver) & 0xffff0000) >> 16)
 #define HN_NDIS_VERSION_MINOR(ver)	((ver) & 0xffff)
