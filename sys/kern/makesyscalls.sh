@@ -856,7 +856,7 @@ sed -e '
 			else if (arghasptrs != 0)
 				macro_suffix = "_ARGHASPTRS"
 			printf ("SYS_STUB%s(%s, %s, %s", macro_suffix,
-			    syscall, userrettype,
+			    syscall == "" ? "0" : syscall, userrettype,
 			    nocheri_funcname) > sysstubstubs
 			if (flag("VARARG"))
 				printf (", %s",
