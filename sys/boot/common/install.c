@@ -39,7 +39,6 @@ __FBSDID("$FreeBSD$");
 
 #include "bootstrap.h"
 
-extern struct in_addr rootip;
 extern struct in_addr servip;
 
 extern int pkgfs_init(const char *, struct fs_ops *);
@@ -50,6 +49,7 @@ COMMAND_SET(install, "install", "install software package", command_install);
 static char *inst_kernel;
 static char **inst_modules;
 static char *inst_rootfs;
+static char *inst_loader_rc;
 
 static int
 setpath(char **what, char *val)
@@ -146,6 +146,8 @@ read_metatags(int fd)
 			error = setmultipath(&inst_modules, val);
 		else if (strcmp(tag, "ROOTFS") == 0)
 			error = setpath(&inst_rootfs, val);
+		else if (strcmp(tag, "LOADER_RC") == 0)
+			error = setpath(&inst_loader_rc, val);
 
 		tag = p;
 	}
@@ -172,6 +174,10 @@ cleanup(void)
 	if (inst_rootfs != NULL) {
 		free(inst_rootfs);
 		inst_rootfs = NULL;
+	}
+	if (inst_loader_rc != NULL) {
+		free(inst_loader_rc);
+		inst_loader_rc = NULL;
 	}
 	pkgfs_cleanup();
 }
@@ -273,6 +279,16 @@ install(char *pkgname)
 	if (error) {
 		command_errmsg = "cannot load kernel from package";
 		goto fail;
+	}
+
+	/* If there is a loader.rc in the package, execute it */
+	s = (inst_loader_rc == NULL) ? "/loader.rc" : inst_loader_rc;
+	fd = open(s, O_RDONLY);
+	if (fd != -1) {
+		close(fd);
+		error = include(s);
+		if (error == CMD_ERROR)
+			goto fail;
 	}
 
 	i = 0;
