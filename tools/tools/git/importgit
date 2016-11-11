@@ -50,7 +50,7 @@ error()
 	exit 1
 }
 
-unset git range commit dry_run
+unset git_repo range commit dry_run
 
 while getopts ":c:g:nr:" o
 do
@@ -95,16 +95,16 @@ then
 	error -u "-g <repo> argument is mandatory"
 fi
 
-git="$git_repo/.git"
-
-if [ ! -d "$git" ]
-then
-	error "$git_repo does not seem to be a git repo"
-fi
-
 if ! type git > /dev/null 2> /dev/null
 then
 	error "Install devel/git first"
+fi
+
+GIT="git -C $git_repo"
+
+if ! $GIT rev-parse --git-dir 2> /dev/null > /dev/null
+then
+	error "$git_repo does not seem to be a git repo"
 fi
 
 if ! type svn > /dev/null 2> /dev/null
@@ -122,21 +122,21 @@ then
 	error "Could not communicate with svn server.  Is your ssh key loaded?"
 fi
 
-git --git-dir=$git log --format=%H $range | tail -r | while read -r commit
+$GIT log --format=%H $range | tail -r | while read -r commit
 do
-	echo "Applying `git --git-dir=$git show -s --oneline $commit`"
+	echo "Applying `$GIT show -s --oneline $commit`"
 
-	if [ -n "$(git --git-dir=$git show --diff-filter=CDRTUXB $commit)" ]
+	if [ -n "$($GIT show --diff-filter=CDRTUXB $commit)" ]
 	then
 		error "Commit performed unsupported change (e.g. delete/rename)"
 	fi
 
-	if [ "$(git --git-dir=$git show -s --format=%P $commit | wc -w)" -ne 1 ]
+	if [ "$($GIT show -s --format=%P $commit | wc -w)" -ne 1 ]
 	then
 		error "Cannot import merge commits"
 	fi
 
-	git --git-dir=$git diff --diff-filter=A --name-only \
+	$GIT diff --diff-filter=A --name-only \
 	    ${commit}~..$commit | while read -r newfile
 	do
 		if [ -f "$newfile" ]
@@ -158,10 +158,10 @@ do
 		continue
 	fi
 
-	git --git-dir=$git show $commit | patch -p 1 -s || \
+	$GIT show $commit | patch -p 1 -s || \
 	    error "Failed to apply patch"
 
-	git --git-dir=$git diff --diff-filter=A --name-only \
+	$GIT diff --diff-filter=A --name-only \
 	    ${commit}~..$commit | while read -r newfile
 	do
 		svn add --parents --depth=infinity $newfile || \
@@ -176,7 +176,7 @@ do
 		exit $ret
 	fi
 
-	git --git-dir=$git show -s --format='%B' $commit | svn commit -F - || \
+	$GIT show -s --format='%B' $commit | svn commit -F - || \
 	    error "Failed to commit"
 done
 

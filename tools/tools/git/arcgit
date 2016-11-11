@@ -69,7 +69,7 @@ create_review()
 
 	git checkout $commit > /dev/null || error "Could not checkout $commit"
 
-	arc_dir="$(git rev-parse --show-toplevel)/.git/arc"
+	arc_dir="$(git rev-parse --git-dir)/arc"
 	arc_msg="$arc_dir/create-message"
 	mkdir -p $arc_dir
 	git show -s --format='%B' HEAD > $arc_msg
