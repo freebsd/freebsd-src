@@ -731,8 +731,11 @@ chainalloc(pmp, start, count, fillwith, retcluster, got)
 		pmp->pm_nxtfree = CLUST_FIRST;
 	pmp->pm_flags |= MSDOSFS_FSIMOD;
 	error = fatchain(pmp, start, count, fillwith);
-	if (error != 0)
+	if (error != 0) {
+		for (cl = start, n = count; n-- > 0;)
+			usemap_free(pmp, cl++);
 		return (error);
+	}
 #ifdef MSDOSFS_DEBUG
 	printf("clusteralloc(): allocated cluster chain at %lu (%lu clusters)\n",
 	    start, count);
