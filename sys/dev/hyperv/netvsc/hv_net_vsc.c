@@ -544,8 +544,9 @@ hn_nvs_init(struct hn_softc *sc)
 		if (error) {
 			if_printf(sc->hn_ifp, "reinit NVS version 0x%x "
 			    "failed: %d\n", sc->hn_nvs_ver, error);
+			return (error);
 		}
-		return (error);
+		goto done;
 	}
 
 	/*
@@ -567,11 +568,16 @@ hn_nvs_init(struct hn_softc *sc)
 				    HN_NDIS_VERSION_MAJOR(sc->hn_ndis_ver),
 				    HN_NDIS_VERSION_MINOR(sc->hn_ndis_ver));
 			}
-			return (0);
+			goto done;
 		}
 	}
 	if_printf(sc->hn_ifp, "no NVS available\n");
 	return (ENXIO);
+
+done:
+	if (sc->hn_nvs_ver >= HN_NVS_VERSION_5)
+		sc->hn_caps |= HN_CAP_HASHVAL;
+	return (0);
 }
 
 int
