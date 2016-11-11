@@ -14,6 +14,13 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 #if !defined(PAD64_REQUIRED) && (defined(__powerpc__) || defined(__mips__))
 #define PAD64_REQUIRED
 #endif
+	/* cheriabi_syscall */
+	case 0: {
+		struct cheriabi_syscall_args *p = params;
+		iarg[0] = p->number; /* int */
+		*n_args = 1;
+		break;
+	}
 	/* sys_exit */
 	case 1: {
 		struct sys_exit_args *p = params;
@@ -3146,6 +3153,16 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 #if !defined(PAD64_REQUIRED) && (defined(__powerpc__) || defined(__mips__))
 #define PAD64_REQUIRED
 #endif
+	/* cheriabi_syscall */
+	case 0:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
 	/* sys_exit */
 	case 1:
 		switch(ndx) {
@@ -8365,6 +8382,11 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 #if !defined(PAD64_REQUIRED) && (defined(__powerpc__) || defined(__mips__))
 #define PAD64_REQUIRED
 #endif
+	/* cheriabi_syscall */
+	case 0:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* sys_exit */
 	case 1:
 		if (ndx == 0 || ndx == 1)

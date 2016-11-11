@@ -140,6 +140,23 @@ static int cheriabi_kevent_copyin(void *arg, struct kevent *kevp, int count);
 static register_t cheriabi_mmap_prot2perms(int prot);
 
 int
+cheriabi_syscall(struct thread *td, struct cheriabi_syscall_args *uap)
+{
+
+	/*
+	 * With generated uap fill functions, we'd have to alter the pcb
+	 * to support syscalls with integer arguments.  In practice, it
+	 * looks like we only really need fork (for libthr).
+	 */
+	switch (uap->number) {
+	case CHERIABI_SYS_fork:
+		return (sys_fork(td, NULL));
+	default:
+		return (EINVAL);
+	}
+}
+
+int
 cheriabi_wait6(struct thread *td, struct cheriabi_wait6_args *uap)
 {
 	struct __wrusage wru, *wrup;
