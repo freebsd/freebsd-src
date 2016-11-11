@@ -867,7 +867,12 @@ netvsc_attach(device_t dev)
 	 * Setup the ifnet for this interface.
 	 */
 
+#ifdef __LP64__
 	ifp->if_baudrate = IF_Gbps(10);
+#else
+	/* if_baudrate is 32bits on 32bit system. */
+	ifp->if_baudrate = IF_Gbps(1);
+#endif
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = hn_ioctl;
 	ifp->if_init = hn_init;
