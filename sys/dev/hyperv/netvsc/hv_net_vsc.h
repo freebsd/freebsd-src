@@ -104,8 +104,8 @@ struct vmbus_channel;
 #define HN_XACT_REQ_SIZE		(HN_XACT_REQ_PGCNT * PAGE_SIZE)
 #define HN_XACT_RESP_SIZE		(HN_XACT_RESP_PGCNT * PAGE_SIZE)
 
-#ifndef HN_USE_TXDESC_BUFRING
 struct hn_txdesc;
+#ifndef HN_USE_TXDESC_BUFRING
 SLIST_HEAD(hn_txdesc_list, hn_txdesc);
 #else
 struct buf_ring;
@@ -179,6 +179,7 @@ struct hn_tx_ring {
 	bus_dma_tag_t	hn_tx_data_dtag;
 	uint64_t	hn_csum_assist;
 
+	int		(*hn_sendpkt)(struct hn_tx_ring *, struct hn_txdesc *);
 	int		hn_suspended;
 	int		hn_gpa_cnt;
 	struct vmbus_gpa hn_gpa[NETVSC_PACKET_MAXPAGE];
@@ -276,14 +277,6 @@ struct hn_softc {
 
 #define HN_LINK_FLAG_LINKUP		0x0001
 #define HN_LINK_FLAG_NETCHG		0x0002
-
-/*
- * Externs
- */
-struct hn_send_ctx;
-
-int hv_nv_on_send(struct vmbus_channel *chan, uint32_t rndis_mtype,
-	struct hn_send_ctx *sndc, struct vmbus_gpa *gpa, int gpa_cnt);
 
 #endif  /* __HV_NET_VSC_H__ */
 
