@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/dirent.h>
 #include <sys/unistd.h>
 #include <sys/filio.h>
+#include <sys/sysctl.h>
 
 #include <vm/vm.h>
 #include <vm/vnode_pager.h>
@@ -74,6 +75,7 @@ static vop_readdir_t	cd9660_readdir;
 static vop_readlink_t	cd9660_readlink;
 static vop_strategy_t	cd9660_strategy;
 static vop_vptofh_t	cd9660_vptofh;
+static vop_getpages_t	cd9660_getpages;
 
 /*
  * Setattr call. Only allowed for block and character special devices.
@@ -836,6 +838,45 @@ cd9660_vptofh(ap)
 	return (0);
 }
 
+SYSCTL_NODE(_vfs, OID_AUTO, cd9660, CTLFLAG_RW, 0, "cd9660 filesystem");
+static int use_buf_pager = 0;
+SYSCTL_INT(_vfs_cd9660, OID_AUTO, use_buf_pager, CTLFLAG_RWTUN,
+    &use_buf_pager, 0,
+    "Use buffer pager instead of bmap");
+
+static daddr_t
+cd9660_gbp_getblkno(struct vnode *vp, vm_ooffset_t off)
+{
+
+	return (lblkno(VTOI(vp)->i_mnt, off));
+}
+
+static int
+cd9660_gbp_getblksz(struct vnode *vp, daddr_t lbn)
+{
+	struct iso_node *ip;
+
+	ip = VTOI(vp);
+	return (blksize(ip->i_mnt, ip, lbn));
+}
+
+static int
+cd9660_getpages(struct vop_getpages_args *ap)
+{
+	struct vnode *vp;
+
+	vp = ap->a_vp;
+	if (vp->v_type == VCHR || vp->v_type == VBLK)
+		return (EOPNOTSUPP);
+
+	if (use_buf_pager)
+		return (vfs_bio_getpages(vp, ap->a_m, ap->a_count,
+		    ap->a_rbehind, ap->a_rahead, cd9660_gbp_getblkno,
+		    cd9660_gbp_getblksz));
+	return (vnode_pager_generic_getpages(vp, ap->a_m, ap->a_count,
+	    ap->a_rbehind, ap->a_rahead, NULL, NULL));
+}
+
 /*
  * Global vfs data structures for cd9660
  */
@@ -857,6 +898,7 @@ struct vop_vector cd9660_vnodeops = {
 	.vop_setattr =		cd9660_setattr,
 	.vop_strategy =		cd9660_strategy,
 	.vop_vptofh =		cd9660_vptofh,
+	.vop_getpages =		cd9660_getpages,
 };
 
 /*
