@@ -126,7 +126,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/hyperv/netvsc/ndis.h>
 #include <dev/hyperv/netvsc/if_hnreg.h>
 #include <dev/hyperv/netvsc/if_hnvar.h>
-#include <dev/hyperv/netvsc/hv_net_vsc.h>
+#include <dev/hyperv/netvsc/hn_nvs.h>
 #include <dev/hyperv/netvsc/hv_rndis_filter.h>
 
 #include "vmbus_if.h"
