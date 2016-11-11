@@ -111,6 +111,7 @@ Summary:
 extern "C" {
 #endif
 
+#ifndef __CHERI_PURE_CAPABILITY__
 /* We use subtraction of (char *) 0 instead of casting to int
    because on word-addressable machines a simple cast to int
    may ignore the byte-within-word field of the pointer.  */
@@ -139,6 +140,17 @@ extern "C" {
 #  define PTR_INT_TYPE long
 # endif
 #endif
+
+#else /* __CHERI_PURE_CAPABILITY__ */
+/*
+ * CHERI code requires a modern C environment so assume the correct
+ * bits are available.
+ */
+#include <stdint.h>
+#define __PTR_TO_INT(P) ((intptr_t)(P))
+#define __INT_TO_PTR(P) ((void *)(intptr_t)(P))
+#define PTR_INT_TYPE intptr_t
+#endif /* __CHERI_PURE_CAPABILITY__ */
 
 #if defined _LIBC || defined HAVE_STRING_H
 # include <string.h>
@@ -469,7 +481,7 @@ __extension__								\
      __o1->maybe_empty_object = 1;					\
    __o1->next_free							\
      = __INT_TO_PTR ((__PTR_TO_INT (__o1->next_free)+__o1->alignment_mask)\
-		     & ~ (__o1->alignment_mask));			\
+		     & ~ (PTR_INT_TYPE)(__o1->alignment_mask));		\
    if (__o1->next_free - (char *)__o1->chunk				\
        > __o1->chunk_limit - (char *)__o1->chunk)			\
      __o1->next_free = __o1->chunk_limit;				\
