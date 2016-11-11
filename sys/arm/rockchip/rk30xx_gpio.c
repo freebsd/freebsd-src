@@ -614,7 +614,7 @@ rk30_gpio_init(void)
 				 */
 				ctrl = OF_node_from_xref(fdt32_to_cpu(gpios[0]));
 
-				if (fdt_is_compatible(ctrl, e->compat))
+				if (ofw_bus_node_is_compatible(ctrl, e->compat))
 					/* Call a handler. */
 					if ((rv = e->handler(ctrl,
 					    (pcell_t *)&gpios, len)))

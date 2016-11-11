@@ -195,7 +195,7 @@ aw_ccu_search_compatible(void)
 
 	root = OF_finddevice("/");
 	for (compat = compat_data; compat->ocd_str != NULL; compat++)
-		if (fdt_is_compatible(root, compat->ocd_str))
+		if (ofw_bus_node_is_compatible(root, compat->ocd_str))
 			break;
 
 	return (compat);
