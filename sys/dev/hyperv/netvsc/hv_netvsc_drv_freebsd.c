@@ -328,6 +328,7 @@ static int hn_tx_conf_int_sysctl(SYSCTL_HANDLER_ARGS);
 static int hn_ndis_version_sysctl(SYSCTL_HANDLER_ARGS);
 static int hn_caps_sysctl(SYSCTL_HANDLER_ARGS);
 static int hn_hwassist_sysctl(SYSCTL_HANDLER_ARGS);
+static int hn_rxfilter_sysctl(SYSCTL_HANDLER_ARGS);
 static int hn_rss_key_sysctl(SYSCTL_HANDLER_ARGS);
 static int hn_rss_ind_sysctl(SYSCTL_HANDLER_ARGS);
 static int hn_check_iplen(const struct mbuf *, int);
@@ -369,6 +370,7 @@ static int netvsc_detach(device_t dev);
 static void hn_link_status(struct hn_softc *);
 static int hn_sendpkt_rndis_sglist(struct hn_tx_ring *, struct hn_txdesc *);
 static int hn_sendpkt_rndis_chim(struct hn_tx_ring *, struct hn_txdesc *);
+static int hn_set_rxfilter(struct hn_softc *);
 
 static void hn_nvs_handle_notify(struct hn_softc *sc,
 		const struct vmbus_chanpkt_hdr *pkt);
@@ -454,6 +456,43 @@ hn_sendpkt_rndis_chim(struct hn_tx_ring *txr, struct hn_txdesc *txd)
 
 	return (hn_nvs_send(txr->hn_chan, VMBUS_CHANPKT_FLAG_RC,
 	    &rndis, sizeof(rndis), &txd->send_ctx));
+}
+
+static int
+hn_set_rxfilter(struct hn_softc *sc)
+{
+	struct ifnet *ifp = sc->hn_ifp;
+	uint32_t filter;
+	int error = 0;
+
+	HN_LOCK_ASSERT(sc);
+
+	if (ifp->if_flags & IFF_PROMISC) {
+		filter = NDIS_PACKET_TYPE_PROMISCUOUS;
+	} else {
+		filter = NDIS_PACKET_TYPE_DIRECTED;
+		if (ifp->if_flags & IFF_BROADCAST)
+			filter |= NDIS_PACKET_TYPE_BROADCAST;
+#ifdef notyet
+		/*
+		 * See the comment in SIOCADDMULTI/SIOCDELMULTI.
+		 */
+		/* TODO: support multicast list */
+		if ((ifp->if_flags & IFF_ALLMULTI) ||
+		    !TAILQ_EMPTY(&ifp->if_multiaddrs))
+			filter |= NDIS_PACKET_TYPE_ALL_MULTICAST;
+#else
+		/* Always enable ALLMULTI */
+		filter |= NDIS_PACKET_TYPE_ALL_MULTICAST;
+#endif
+	}
+
+	if (sc->hn_rx_filter != filter) {
+		error = hn_rndis_set_rxfilter(sc, filter);
+		if (!error)
+			sc->hn_rx_filter = filter;
+	}
+	return (error);
 }
 
 static int
@@ -744,6 +783,9 @@ netvsc_attach(device_t dev)
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "hwassist",
 	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
 	    hn_hwassist_sysctl, "A", "hwassist");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "rxfilter",
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
+	    hn_rxfilter_sysctl, "A", "rxfilter");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "rss_key",
 	    CTLTYPE_OPAQUE | CTLFLAG_RW | CTLFLAG_MPSAFE, sc, 0,
 	    hn_rss_key_sysctl, "IU", "RSS key");
@@ -1860,31 +1902,13 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		}
 
 		if (ifp->if_flags & IFF_UP) {
-			/*
-			 * If only the state of the PROMISC flag changed,
-			 * then just use the 'set promisc mode' command
-			 * instead of reinitializing the entire NIC. Doing
-			 * a full re-init means reloading the firmware and
-			 * waiting for it to start up, which may take a
-			 * second or two.
-			 */
-#ifdef notyet
-			/* Fixme:  Promiscuous mode? */
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
-			    ifp->if_flags & IFF_PROMISC &&
-			    !(sc->hn_if_flags & IFF_PROMISC)) {
-				/* do something here for Hyper-V */
-			} else if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
-			    !(ifp->if_flags & IFF_PROMISC) &&
-			    sc->hn_if_flags & IFF_PROMISC) {
-				/* do something here for Hyper-V */
-			} else
-#endif
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+				hn_set_rxfilter(sc);
+			else
 				hn_init_locked(sc);
 		} else {
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				hn_stop(sc);
-			}
 		}
 		sc->hn_if_flags = ifp->if_flags;
 
@@ -1942,12 +1966,27 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
-		/* Always all-multi */
+#ifdef notyet
 		/*
-		 * TODO:
-		 * Enable/disable all-multi according to the emptiness of
-		 * the mcast address list.
+		 * XXX
+		 * Multicast uses mutex, while RNDIS RX filter setting
+		 * sleeps.  We workaround this by always enabling
+		 * ALLMULTI.  ALLMULTI would actually always be on, even
+		 * if we supported the SIOCADDMULTI/SIOCDELMULTI, since
+		 * we don't support multicast address list configuration
+		 * for this driver.
 		 */
+		HN_LOCK(sc);
+
+		if ((sc->hn_flags & HN_FLAG_SYNTH_ATTACHED) == 0) {
+			HN_UNLOCK(sc);
+			break;
+		}
+		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+			hn_set_rxfilter(sc);
+
+		HN_UNLOCK(sc);
+#endif
 		break;
 
 	case SIOCSIFMEDIA:
@@ -2055,8 +2094,8 @@ hn_init_locked(struct hn_softc *sc)
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 		return;
 
-	/* TODO: add hn_rx_filter */
-	hn_rndis_set_rxfilter(sc, NDIS_PACKET_TYPE_PROMISCUOUS);
+	/* Configure RX filter */
+	hn_set_rxfilter(sc);
 
 	/* Clear OACTIVE bit. */
 	atomic_clear_int(&ifp->if_drv_flags, IFF_DRV_OACTIVE);
@@ -2380,6 +2419,21 @@ hn_hwassist_sysctl(SYSCTL_HANDLER_ARGS)
 	HN_UNLOCK(sc);
 	snprintf(assist_str, sizeof(assist_str), "%b", hwassist, CSUM_BITS);
 	return sysctl_handle_string(oidp, assist_str, sizeof(assist_str), req);
+}
+
+static int
+hn_rxfilter_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct hn_softc *sc = arg1;
+	char filter_str[128];
+	uint32_t filter;
+
+	HN_LOCK(sc);
+	filter = sc->hn_rx_filter;
+	HN_UNLOCK(sc);
+	snprintf(filter_str, sizeof(filter_str), "%b", filter,
+	    NDIS_PACKET_TYPES);
+	return sysctl_handle_string(oidp, filter_str, sizeof(filter_str), req);
 }
 
 static int
@@ -3803,6 +3857,7 @@ hn_suspend_data(struct hn_softc *sc)
 	 * Disable RX by clearing RX filter.
 	 */
 	hn_rndis_set_rxfilter(sc, 0);
+	sc->hn_rx_filter = 0;
 
 	/*
 	 * Give RNDIS enough time to flush all pending data packets.
@@ -3890,9 +3945,8 @@ hn_resume_data(struct hn_softc *sc)
 
 	/*
 	 * Re-enable RX.
-	 * TODO: add hn_rx_filter.
 	 */
-	hn_rndis_set_rxfilter(sc, NDIS_PACKET_TYPE_PROMISCUOUS);
+	hn_set_rxfilter(sc);
 
 	/*
 	 * Make sure to clear suspend status on "all" TX rings,
