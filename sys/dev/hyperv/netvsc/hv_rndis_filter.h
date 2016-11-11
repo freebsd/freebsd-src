@@ -28,21 +28,22 @@
  * $FreeBSD$
  */
 
-#ifndef __HV_RNDIS_FILTER_H__
-#define __HV_RNDIS_FILTER_H__
+#ifndef _HN_RNDIS_H_
+#define _HN_RNDIS_H_
 
-#include <sys/param.h>
-#include <net/ethernet.h>
-#include <dev/hyperv/netvsc/if_hnvar.h>
+struct hn_softc;
 
-/*
- * Externs
- */
-struct hn_rx_ring;
+int		hn_rndis_attach(struct hn_softc *sc, int mtu);
+void		hn_rndis_detach(struct hn_softc *sc);
+int		hn_rndis_conf_rss(struct hn_softc *sc, uint16_t flags);
+int		hn_rndis_query_rsscaps(struct hn_softc *sc, int *rxr_cnt);
+int		hn_rndis_get_eaddr(struct hn_softc *sc, uint8_t *eaddr);
+/* link_status: NDIS_MEDIA_STATE_ */
+int		hn_rndis_get_linkstatus(struct hn_softc *sc,
+		    uint32_t *link_status);
+/* filter: NDIS_PACKET_TYPE_. */
+int		hn_rndis_set_rxfilter(struct hn_softc *sc, uint32_t filter);
+void		hn_rndis_rx_ctrl(struct hn_softc *sc, const void *data,
+		    int dlen);
 
-void hv_rf_on_receive(struct hn_softc *sc, struct hn_rx_ring *rxr,
-    const void *data, int dlen);
-void hv_rf_channel_rollup(struct hn_rx_ring *rxr, struct hn_tx_ring *txr);
-
-#endif  /* __HV_RNDIS_FILTER_H__ */
-
+#endif  /* !_HN_RNDIS_H_ */
