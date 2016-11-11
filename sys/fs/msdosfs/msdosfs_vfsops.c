@@ -760,8 +760,7 @@ error_exit:
 	}
 	if (pmp) {
 		lockdestroy(&pmp->pm_fatlock);
-		if (pmp->pm_inusemap)
-			free(pmp->pm_inusemap, M_MSDOSFSFAT);
+		free(pmp->pm_inusemap, M_MSDOSFSFAT);
 		free(pmp, M_MSDOSFSMNT);
 		mp->mnt_data = NULL;
 	}
