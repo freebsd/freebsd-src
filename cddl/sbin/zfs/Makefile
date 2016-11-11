@@ -2,7 +2,7 @@
 
 .PATH: ${.CURDIR}/../../../cddl/contrib/opensolaris/cmd/zfs
 
-# linker crash
+# linker error
 WANT_CHERI=none
 
 PROG=	zfs

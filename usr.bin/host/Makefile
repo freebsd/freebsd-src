@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-# Fails to link
+# linker error
 WANT_CHERI=none
 
 LDNSDIR=	${.CURDIR}/../../contrib/ldns

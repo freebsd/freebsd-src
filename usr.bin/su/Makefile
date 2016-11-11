@@ -1,7 +1,7 @@
 #	@(#)Makefile	8.1 (Berkeley) 7/19/93
 # $FreeBSD$
 
-# Fails to link
+# linker error
 WANT_CHERI=none
 
 .include <src.opts.mk>

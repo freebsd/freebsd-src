@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-# linker
+# linker error
 WANT_CHERI=none
 
 .include <src.opts.mk>
