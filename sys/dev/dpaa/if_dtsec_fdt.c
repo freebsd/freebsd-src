@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 #include <dev/ofw/openfirm.h>
@@ -156,9 +155,9 @@ dtsec_fdt_attach(device_t dev)
 	}
 
 	/* Get link speed */
-	if (fdt_is_compatible(enet_node, "fsl,fman-1g-mac") != 0)
+	if (ofw_bus_node_is_compatible(enet_node, "fsl,fman-1g-mac") != 0)
 		sc->sc_eth_dev_type = ETH_DTSEC;
-	else if (fdt_is_compatible(enet_node, "fsl,fman-10g-mac") != 0)
+	else if (ofw_bus_node_is_compatible(enet_node, "fsl,fman-10g-mac") != 0)
 		sc->sc_eth_dev_type = ETH_10GSEC;
 	else
 		return(ENXIO);
@@ -211,10 +210,12 @@ dtsec_fdt_attach(device_t dev)
 	fman_rxtx_node[0] = OF_instance_to_package(fman_rxtx_node[0]);
 	fman_rxtx_node[1] = OF_instance_to_package(fman_rxtx_node[1]);
 
-	if (fdt_is_compatible(fman_rxtx_node[0], "fsl,fman-port-1g-rx") == 0)
+	if (ofw_bus_node_is_compatible(fman_rxtx_node[0],
+	    "fsl,fman-port-1g-rx") == 0)
 		return (ENXIO);
 
-	if (fdt_is_compatible(fman_rxtx_node[1], "fsl,fman-port-1g-tx") == 0)
+	if (ofw_bus_node_is_compatible(fman_rxtx_node[1],
+	    "fsl,fman-port-1g-tx") == 0)
 		return (ENXIO);
 
 	/* Get RX port HW id */
