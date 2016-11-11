@@ -2,9 +2,8 @@
 
 .include <src.opts.mk>
 
-.if ${MK_CHERI_PURE} == "yes"
-WANT_CHERI=	pure
-.endif
+# broken
+WANT_CHERI=	none
 
 GREP_LIBZ=YES
 
