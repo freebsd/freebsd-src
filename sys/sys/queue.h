@@ -472,6 +472,12 @@ struct {								\
  */
 
 #if (defined(_KERNEL) && defined(INVARIANTS))
+/*
+ * QMD_LIST_CHECK_HEAD(LIST_HEAD *head, LIST_ENTRY NAME)
+ *
+ * If the list is non-empty, validates that the first element of the list
+ * points back at 'head.'
+ */
 #define	QMD_LIST_CHECK_HEAD(head, field) do {				\
 	if (LIST_FIRST((head)) != NULL &&				\
 	    LIST_FIRST((head))->field.le_prev !=			\
@@ -479,6 +485,12 @@ struct {								\
 		panic("Bad list head %p first->prev != head", (head));	\
 } while (0)
 
+/*
+ * QMD_LIST_CHECK_NEXT(TYPE *elm, LIST_ENTRY NAME)
+ *
+ * If an element follows 'elm' in the list, validates that the next element
+ * points back at 'elm.'
+ */
 #define	QMD_LIST_CHECK_NEXT(elm, field) do {				\
 	if (LIST_NEXT((elm), field) != NULL &&				\
 	    LIST_NEXT((elm), field)->field.le_prev !=			\
@@ -486,6 +498,11 @@ struct {								\
 	     	panic("Bad link elm %p next->prev != elm", (elm));	\
 } while (0)
 
+/*
+ * QMD_LIST_CHECK_PREV(TYPE *elm, LIST_ENTRY NAME)
+ *
+ * Validates that the previous element (or head of the list) points to 'elm.'
+ */
 #define	QMD_LIST_CHECK_PREV(elm, field) do {				\
 	if (*(elm)->field.le_prev != (elm))				\
 		panic("Bad link elm %p prev->next != elm", (elm));	\
@@ -634,6 +651,12 @@ struct {								\
  * Tail queue functions.
  */
 #if (defined(_KERNEL) && defined(INVARIANTS))
+/*
+ * QMD_TAILQ_CHECK_HEAD(TAILQ_HEAD *head, TAILQ_ENTRY NAME)
+ *
+ * If the tailq is non-empty, validates that the first element of the tailq
+ * points back at 'head.'
+ */
 #define	QMD_TAILQ_CHECK_HEAD(head, field) do {				\
 	if (!TAILQ_EMPTY(head) &&					\
 	    TAILQ_FIRST((head))->field.tqe_prev !=			\
@@ -641,11 +664,22 @@ struct {								\
 		panic("Bad tailq head %p first->prev != head", (head));	\
 } while (0)
 
+/*
+ * QMD_TAILQ_CHECK_TAIL(TAILQ_HEAD *head, TAILQ_ENTRY NAME)
+ *
+ * Validates that the tail of the tailq is a pointer to pointer to NULL.
+ */
 #define	QMD_TAILQ_CHECK_TAIL(head, field) do {				\
 	if (*(head)->tqh_last != NULL)					\
 	    	panic("Bad tailq NEXT(%p->tqh_last) != NULL", (head)); 	\
 } while (0)
 
+/*
+ * QMD_TAILQ_CHECK_NEXT(TYPE *elm, TAILQ_ENTRY NAME)
+ *
+ * If an element follows 'elm' in the tailq, validates that the next element
+ * points back at 'elm.'
+ */
 #define	QMD_TAILQ_CHECK_NEXT(elm, field) do {				\
 	if (TAILQ_NEXT((elm), field) != NULL &&				\
 	    TAILQ_NEXT((elm), field)->field.tqe_prev !=			\
@@ -653,6 +687,11 @@ struct {								\
 		panic("Bad link elm %p next->prev != elm", (elm));	\
 } while (0)
 
+/*
+ * QMD_TAILQ_CHECK_PREV(TYPE *elm, TAILQ_ENTRY NAME)
+ *
+ * Validates that the previous element (or head of the tailq) points to 'elm.'
+ */
 #define	QMD_TAILQ_CHECK_PREV(elm, field) do {				\
 	if (*(elm)->field.tqe_prev != (elm))				\
 		panic("Bad link elm %p prev->next != elm", (elm));	\
