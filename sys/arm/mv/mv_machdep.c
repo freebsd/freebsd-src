@@ -66,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <arm/mv/mvwin.h>
 
 #include <dev/fdt/fdt_common.h>
+#include <dev/ofw/ofw_bus_subr.h>
 
 static int platform_mpp_init(void);
 #if defined(SOC_MV_ARMADAXP)
@@ -103,7 +104,7 @@ platform_mpp_init(void)
 	 * Try to access the MPP node directly i.e. through /aliases/mpp.
 	 */
 	if ((node = OF_finddevice("mpp")) != -1)
-		if (fdt_is_compatible(node, "mrvl,mpp"))
+		if (ofw_bus_node_is_compatible(node, "mrvl,mpp"))
 			goto moveon;
 	/*
 	 * Find the node the long way.
@@ -290,8 +291,8 @@ platform_sram_devmap(struct devmap_entry *map)
 	 * SRAM range.
 	 */
 	if ((child = OF_finddevice("/sram")) != 0)
-		if (fdt_is_compatible(child, "mrvl,cesa-sram") ||
-		    fdt_is_compatible(child, "mrvl,scratchpad"))
+		if (ofw_bus_node_is_compatible(child, "mrvl,cesa-sram") ||
+		    ofw_bus_node_is_compatible(child, "mrvl,scratchpad"))
 			goto moveon;
 
 	if ((root = OF_finddevice("/")) == 0)
@@ -406,7 +407,7 @@ platform_devmap_init(void)
 			i += 2;
 		}
 
-		if (fdt_is_compatible(child, "mrvl,lbc")) {
+		if (ofw_bus_node_is_compatible(child, "mrvl,lbc")) {
 			/* Check available space */
 			if (OF_getprop(child, "bank-count", (void *)&bank_count,
 			    sizeof(bank_count)) <= 0)

@@ -429,12 +429,12 @@ mv_pcib_attach(device_t self)
 
 	node = ofw_bus_get_node(self);
 	parnode = OF_parent(node);
-	if (fdt_is_compatible(node, "mrvl,pcie")) {
+	if (ofw_bus_node_is_compatible(node, "mrvl,pcie")) {
 		sc->sc_type = MV_TYPE_PCIE;
 		sc->sc_win_target = MV_WIN_PCIE_TARGET(unit);
 		sc->sc_mem_win_attr = MV_WIN_PCIE_MEM_ATTR(unit);
 		sc->sc_io_win_attr = MV_WIN_PCIE_IO_ATTR(unit);
-	} else if (fdt_is_compatible(node, "mrvl,pci")) {
+	} else if (ofw_bus_node_is_compatible(node, "mrvl,pci")) {
 		sc->sc_type = MV_TYPE_PCI;
 		sc->sc_win_target = MV_WIN_PCI_TARGET;
 		sc->sc_mem_win_attr = MV_WIN_PCI_MEM_ATTR;

@@ -312,7 +312,7 @@ gic_decode_fdt(phandle_t iparent, pcell_t *intr, int *interrupt,
 
 	if (self == 0) {
 		for (ocd = compat_data; ocd->ocd_str != NULL; ocd++) {
-			if (fdt_is_compatible(iparent, ocd->ocd_str)) {
+			if (ofw_bus_node_is_compatible(iparent, ocd->ocd_str)) {
 				self = iparent;
 				break;
 			}

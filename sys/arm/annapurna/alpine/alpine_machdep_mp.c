@@ -81,7 +81,7 @@ static boolean_t alpine_validate_cpu(u_int, phandle_t, u_int, pcell_t *);
 static boolean_t
 alpine_validate_cpu(u_int id, phandle_t child, u_int addr_cell, pcell_t *reg)
 {
-	return fdt_is_compatible(child, "arm,cortex-a15");
+	return ofw_bus_node_is_compatible(child, "arm,cortex-a15");
 }
 
 static int

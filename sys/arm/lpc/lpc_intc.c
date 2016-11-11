@@ -232,7 +232,7 @@ static int
 fdt_pic_decode_ic(phandle_t node, pcell_t *intr, int *interrupt, int *trig,
     int *pol)
 {
-	if (!fdt_is_compatible(node, "lpc,pic"))
+	if (!ofw_bus_node_is_compatible(node, "lpc,pic"))
 		return (ENXIO);
 
 	*interrupt = fdt32_to_cpu(intr[0]);
