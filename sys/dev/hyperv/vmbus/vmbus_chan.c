@@ -1721,3 +1721,10 @@ vmbus_chan_run_task(struct vmbus_channel *chan, struct task *task)
 	taskqueue_enqueue(chan->ch_tq, task);
 	taskqueue_drain(chan->ch_tq, task);
 }
+
+struct taskqueue *
+vmbus_chan_mgmt_tq(const struct vmbus_channel *chan)
+{
+
+	return (chan->ch_mgmt_tq);
+}
