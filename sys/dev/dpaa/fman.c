@@ -35,7 +35,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <sys/malloc.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/fdt/simplebus.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -49,6 +48,8 @@ __FBSDID("$FreeBSD$");
 
 #include "fman.h"
 
+
+static MALLOC_DEFINE(M_FMAN, "fman", "fman devices information");
 
 /**
  * @group FMan private defines.
@@ -259,6 +260,8 @@ fman_attach(device_t dev)
 {
 	struct fman_softc *sc;
 	struct fman_config cfg;
+	pcell_t qchan_range[2];
+	phandle_t node;
 
 	sc = device_get_softc(dev);
 	sc->sc_base.dev = dev;
@@ -272,6 +275,14 @@ fman_attach(device_t dev)
 
 	XX_TrackInit();
 
+	node = ofw_bus_get_node(dev);
+	if (OF_getencprop(node, "fsl,qman-channel-range", qchan_range,
+	    sizeof(qchan_range)) <= 0) {
+		device_printf(dev, "Missing QMan channel range property!\n");
+		return (ENXIO);
+	}
+	sc->qman_chan_base = qchan_range[0];
+	sc->qman_chan_count = qchan_range[1];
 	sc->mem_rid = 0;
 	sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->mem_rid,
 	    RF_ACTIVE | RF_SHAREABLE);
@@ -375,6 +386,23 @@ fman_resume(device_t dev)
 int
 fman_shutdown(device_t dev)
 {
+
+	return (0);
+}
+
+int
+fman_qman_channel_id(device_t dev, int port)
+{
+	struct fman_softc *sc;
+	int qman_port_id[] = {0x31, 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e,
+	    0x2f, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07};
+	int i;
+
+	sc = device_get_softc(dev);
+	for (i = 0; i < sc->qman_chan_count; i++) {
+		if (qman_port_id[i] == port)
+			return (sc->qman_chan_base + i);
+	}
 
 	return (0);
 }
