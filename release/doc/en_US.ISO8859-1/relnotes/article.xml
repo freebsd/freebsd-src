@@ -1376,12 +1376,12 @@
 	<filename>/etc/sysctl.conf</filename>.</para>
 
       <para revision="260582">Unmapped IO support has been added to
-	&man.virtio_blk.4;.</para>
+	&man.virtio.blk.4;.</para>
 
       <para revision="260583">Unmapped IO support has been added to
-	&man.virtio_scsi.4;.</para>
+	&man.virtio.scsi.4;.</para>
 
-      <para revision="260847">The &man.virtio_random.4; driver has
+      <para revision="260847">The &man.virtio.random.4; driver has
 	been added to harvest entropy from the host system.</para>
 
       <para revision="261504">&os;/&arch.i386; guests can be run under
