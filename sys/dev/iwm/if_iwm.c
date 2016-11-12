@@ -6192,7 +6192,8 @@ iwm_detach_local(struct iwm_softc *sc, int do_net80211)
 	device_t dev = sc->sc_dev;
 	int i;
 
-	ieee80211_draintask(&sc->sc_ic, &sc->sc_es_task);
+	if (do_net80211)
+		ieee80211_draintask(&sc->sc_ic, &sc->sc_es_task);
 
 	callout_drain(&sc->sc_led_blink_to);
 	callout_drain(&sc->sc_watchdog_to);
