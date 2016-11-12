@@ -6042,22 +6042,6 @@ inetout:	regs[rd] = (uintptr_t)end + 1;
 		break;
 	}
 #endif
-
-	case DIF_SUBR_TYPEREF: {
-		uintptr_t size = 4 * sizeof(uintptr_t);
-		uintptr_t *typeref = (uintptr_t *) P2ROUNDUP(mstate->dtms_scratch_ptr, sizeof(uintptr_t));
-		size_t scratch_size = ((uintptr_t) typeref - mstate->dtms_scratch_ptr) + size;
-
-		/* address, num_elements, type_str, type_len */
-		typeref[0] = tupregs[0].dttk_value;
-		typeref[1] = tupregs[1].dttk_value;
-		typeref[2] = tupregs[2].dttk_value;
-		typeref[3] = tupregs[3].dttk_value;
-
-		regs[rd] = (uintptr_t) typeref;
-		mstate->dtms_scratch_ptr += scratch_size;
-		break;
-	}
 	}
 }
 
@@ -7704,66 +7688,6 @@ dtrace_probe(dtrace_id_t id, uintptr_t arg0, uintptr_t arg1,
 				 * memory data in the buffer.
 				 */
 				val = memref[0];
-				break;
-			}
-
-			case DTRACEACT_PRINTT: {
-				/* The DIF returns a 'typeref'. */
-				uintptr_t *typeref = (uintptr_t *)(uintptr_t) val;
-				char c = '\0' + 1;
-				size_t s;
-
-				/*
-				 * Get the type string length and round it
-				 * up so that the data that follows is
-				 * aligned for easy access.
-				 */
-				size_t typs = strlen((char *) typeref[2]) + 1;
-				typs = roundup(typs,  sizeof(uintptr_t));
-
-				/*
-				 *Get the size from the typeref using the
-				 * number of elements and the type size.
-				 */
-				size = typeref[1] * typeref[3];
-
-				/*
-				 * Check if the size exceeds the allocated
-				 * buffer size.
-				 */
-				if (size + typs + 2 * sizeof(uintptr_t) > dp->dtdo_rtype.dtdt_size) {
-					/* Flag a drop! */
-					*flags |= CPU_DTRACE_DROP;
-				
-				}
-
-				/* Store the size in the buffer first. */
-				DTRACE_STORE(uintptr_t, tomax,
-				    valoffs, size);
-				valoffs += sizeof(uintptr_t);
-
-				/* Store the type size in the buffer. */
-				DTRACE_STORE(uintptr_t, tomax,
-				    valoffs, typeref[3]);
-				valoffs += sizeof(uintptr_t);
-
-				val = typeref[2];
-
-				for (s = 0; s < typs; s++) {
-					if (c != '\0')
-						c = dtrace_load8(val++);
-
-					DTRACE_STORE(uint8_t, tomax,
-					    valoffs++, c);
-				}
-
-				/*
-				 * Reset to the memory address rather than
-				 * the typeref array, then let the BYREF
-				 * code below do the work to store the 
-				 * memory data in the buffer.
-				 */
-				val = typeref[0];
 				break;
 			}
 
@@ -10342,12 +10266,12 @@ dtrace_difo_validate_helper(dtrace_difo_t *dp)
 			    subr == DIF_SUBR_NTOHS ||
 			    subr == DIF_SUBR_NTOHL ||
 			    subr == DIF_SUBR_NTOHLL ||
-			    subr == DIF_SUBR_MEMREF ||
-#ifndef illumos
-			    subr == DIF_SUBR_MEMSTR ||
-#endif
-			    subr == DIF_SUBR_TYPEREF)
+			    subr == DIF_SUBR_MEMREF)
 				break;
+#ifdef __FreeBSD__
+			if (subr == DIF_SUBR_MEMSTR)
+				break;
+#endif
 
 			err += efunc(pc, "invalid subr %u\n", subr);
 			break;
@@ -11644,10 +11568,6 @@ dtrace_ecb_action_add(dtrace_ecb_t *ecb, dtrace_actdesc_t *desc)
 			break;
 
 		case DTRACEACT_PRINTM:
-		    	size = dp->dtdo_rtype.dtdt_size;
-			break;
-
-		case DTRACEACT_PRINTT:
 		    	size = dp->dtdo_rtype.dtdt_size;
 			break;
 

@@ -308,7 +308,7 @@ typedef enum dtrace_probespec {
 #define	DIF_SUBR_TOUPPER		44
 #define	DIF_SUBR_TOLOWER		45
 #define	DIF_SUBR_MEMREF			46
-#define	DIF_SUBR_TYPEREF		47
+#define	DIF_SUBR_UNUSED			47
 #define	DIF_SUBR_SX_SHARED_HELD		48
 #define	DIF_SUBR_SX_EXCLUSIVE_HELD	49
 #define	DIF_SUBR_SX_ISEXCLUSIVE		50
@@ -429,7 +429,6 @@ typedef struct dtrace_difv {
 #define	DTRACEACT_TRACEMEM		6	/* tracemem() action */
 #define	DTRACEACT_TRACEMEM_DYNSIZE	7	/* dynamic tracemem() size */
 #define	DTRACEACT_PRINTM		8	/* printm() action (BSD) */
-#define	DTRACEACT_PRINTT		9	/* printt() action (BSD) */
 
 #define	DTRACEACT_PROC			0x0100
 #define	DTRACEACT_USTACK		(DTRACEACT_PROC + 1)
