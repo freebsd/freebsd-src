@@ -20,7 +20,9 @@
 #define IF_RTWN_TX_H
 
 void	rtwn_drain_mbufq(struct rtwn_softc *);
+#ifdef IEEE80211_SUPPORT_SUPERG
 void	rtwn_ff_flush_all(struct rtwn_softc *, union sec_param *);
+#endif
 int	rtwn_transmit(struct ieee80211com *, struct mbuf *);
 void	rtwn_start(struct rtwn_softc *);
 int	rtwn_raw_xmit(struct ieee80211_node *, struct mbuf *,
