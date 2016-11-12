@@ -776,7 +776,14 @@ vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *max_psize,
 		return (EINVAL);
 	}
 
-	vd->vdev_tsd = NULL;
+	/*
+	 * Reopen the device if it's not currently open. Otherwise,
+	 * just update the physical size of the device.
+	 */
+	if ((cp = vd->vdev_tsd) != NULL) {
+		ASSERT(vd->vdev_reopening);
+		goto skip_open;
+	}
 
 	DROP_GIANT();
 	g_topology_lock();
@@ -861,6 +868,7 @@ vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *max_psize,
 		vd->vdev_stat.vs_aux = VDEV_AUX_OPEN_FAILED;
 		return (error);
 	}
+skip_open:
 	pp = cp->provider;
 
 	/*
@@ -895,6 +903,9 @@ vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *max_psize,
 static void
 vdev_geom_close(vdev_t *vd)
 {
+
+	if (vd->vdev_reopening)
+		return;
 
 	DROP_GIANT();
 	g_topology_lock();
