@@ -470,7 +470,7 @@ g_multipath_access(struct g_provider *pp, int dr, int dw, int de)
 	gp = pp->geom;
 
 	/* Error used if we have no valid consumers. */
-	error = ENXIO;
+	error = (dr > 0 || dw > 0 || de > 0) ? ENXIO : 0;
 
 	LIST_FOREACH(cp, &gp->consumer, consumer) {
 		if (cp->index & MP_WITHER)
