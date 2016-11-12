@@ -326,7 +326,6 @@ maybe_preempt(struct thread *td)
 	 *  - The current thread has a higher (numerically lower) or
 	 *    equivalent priority.  Note that this prevents curthread from
 	 *    trying to preempt to itself.
-	 *  - It is too early in the boot for context switches (cold is set).
 	 *  - The current thread has an inhibitor set or is in the process of
 	 *    exiting.  In this case, the current thread is about to switch
 	 *    out anyways, so there's no point in preempting.  If we did,
@@ -347,7 +346,7 @@ maybe_preempt(struct thread *td)
 			("maybe_preempt: trying to run inhibited thread"));
 	pri = td->td_priority;
 	cpri = ctd->td_priority;
-	if (panicstr != NULL || pri >= cpri || cold /* || dumping */ ||
+	if (panicstr != NULL || pri >= cpri /* || dumping */ ||
 	    TD_IS_INHIBITED(ctd))
 		return (0);
 #ifndef FULL_PREEMPTION
@@ -1105,7 +1104,7 @@ forward_wakeup(int cpunum)
 	if ((!forward_wakeup_enabled) ||
 	     (forward_wakeup_use_mask == 0 && forward_wakeup_use_loop == 0))
 		return (0);
-	if (!smp_started || cold || panicstr)
+	if (!smp_started || panicstr)
 		return (0);
 
 	forward_wakeups_requested++;
