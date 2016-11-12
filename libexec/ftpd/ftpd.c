@@ -93,10 +93,7 @@ __FBSDID("$FreeBSD$");
 #include <security/pam_appl.h>
 #endif
 
-#ifdef USE_BLACKLIST
 #include "blacklist_client.h"
-#endif
-
 #include "pathnames.h"
 #include "extern.h"
 
