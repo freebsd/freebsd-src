@@ -2750,14 +2750,14 @@ is_managed(vm_paddr_t pa)
 	return ((m->oflags & VPO_UNMANAGED) == 0);
 }
 
-static __inline boolean_t
+static __inline bool
 pte1_is_managed(pt1_entry_t pte1)
 {
 
 	return (is_managed(pte1_pa(pte1)));
 }
 
-static __inline boolean_t
+static __inline bool
 pte2_is_managed(pt2_entry_t pte2)
 {
 
@@ -6097,7 +6097,7 @@ pmap_mincore(pmap_t pmap, vm_offset_t addr, vm_paddr_t *locked_pa)
 	pt1_entry_t *pte1p, pte1;
 	pt2_entry_t *pte2p, pte2;
 	vm_paddr_t pa;
-	boolean_t managed;
+	bool managed;
 	int val;
 
 	PMAP_LOCK(pmap);
@@ -6124,7 +6124,7 @@ retry:
 		if (pte2 & PTE2_A)
 			val |= MINCORE_REFERENCED | MINCORE_REFERENCED_OTHER;
 	} else {
-		managed = FALSE;
+		managed = false;
 		val = 0;
 	}
 	if ((val & (MINCORE_MODIFIED_OTHER | MINCORE_REFERENCED_OTHER)) !=
