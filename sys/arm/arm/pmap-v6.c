@@ -2739,21 +2739,15 @@ SYSCTL_INT(_vm_pmap, OID_AUTO, pv_entry_spare, CTLFLAG_RD, &pv_entry_spare, 0,
 /*
  *  Is given page managed?
  */
-static __inline boolean_t
+static __inline bool
 is_managed(vm_paddr_t pa)
 {
-	vm_offset_t pgnum;
 	vm_page_t m;
 
-	pgnum = atop(pa);
-	if (pgnum >= first_page) {
-		m = PHYS_TO_VM_PAGE(pa);
-		if (m == NULL)
-			return (FALSE);
-		if ((m->oflags & VPO_UNMANAGED) == 0)
-			return (TRUE);
-	}
-	return (FALSE);
+	m = PHYS_TO_VM_PAGE(pa);
+	if (m == NULL)
+		return (false);
+	return ((m->oflags & VPO_UNMANAGED) == 0);
 }
 
 static __inline boolean_t
