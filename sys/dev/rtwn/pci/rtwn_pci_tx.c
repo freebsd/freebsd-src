@@ -58,6 +58,37 @@ __FBSDID("$FreeBSD$");
 #include <dev/rtwn/rtl8192c/pci/r92ce_reg.h>
 
 
+static struct mbuf *
+rtwn_mbuf_defrag(struct mbuf *m0, int how)
+{
+	struct mbuf *m = NULL;
+
+	KASSERT(m0->m_flags & M_PKTHDR,
+	    ("M_PKTHDR flag is absent (m %p)!", m0));
+
+	/* NB: we need _exactly_ one mbuf (no less, no more). */
+	if (m0->m_pkthdr.len > MJUMPAGESIZE) {
+		/* XXX MJUM9BYTES? */
+		return (NULL);
+	} else if (m0->m_pkthdr.len > MCLBYTES) {
+		m = m_getjcl(how, MT_DATA, M_PKTHDR, MJUMPAGESIZE);
+		if (m == NULL)
+			return (NULL);
+
+		if (m_dup_pkthdr(m, m0, how) == 0) {
+			m_freem(m);
+			return (NULL);
+		}
+
+		m_copydata(m0, 0, m0->m_pkthdr.len, mtod(m, caddr_t));
+		m->m_len = m->m_pkthdr.len;
+		m_freem(m0);
+
+		return (m);
+	} else
+		return (m_defrag(m0, how));
+}
+
 static int
 rtwn_pci_tx_start_frame(struct rtwn_softc *sc, struct ieee80211_node *ni,
     struct mbuf *m, uint8_t *tx_desc, uint8_t type)
@@ -114,7 +145,7 @@ rtwn_pci_tx_start_frame(struct rtwn_softc *sc, struct ieee80211_node *ni,
 	if (error != 0) {
 		struct mbuf *mnew;
 
-		mnew = m_defrag(m, M_NOWAIT);
+		mnew = rtwn_mbuf_defrag(m, M_NOWAIT);
 		if (mnew == NULL) {
 			device_printf(sc->sc_dev, "can't defragment mbuf\n");
 			return (ENOBUFS);
