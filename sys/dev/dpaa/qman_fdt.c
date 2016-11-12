@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/bus.h>
 #include <sys/module.h>
+#include <sys/smp.h>
 
 #include <machine/bus.h>
 
@@ -105,7 +106,8 @@ static driver_t qm_portals_driver = {
 };
 
 static devclass_t qm_portals_devclass;
-DRIVER_MODULE(qman_portals, ofwbus, qm_portals_driver, qm_portals_devclass, 0, 0);
+EARLY_DRIVER_MODULE(qman_portals, ofwbus, qm_portals_driver,
+    qm_portals_devclass, 0, 0, BUS_PASS_BUS);
 
 static void
 get_addr_props(phandle_t node, uint32_t *addrp, uint32_t *sizep)
@@ -121,7 +123,7 @@ static int
 qman_portals_fdt_probe(device_t dev)
 {
 
-	if (!ofw_bus_is_compatible(dev, "qman-portals"))
+	if (!ofw_bus_is_compatible(dev, "fsl,qman-portals"))
 		return (ENXIO);
 
 	device_set_desc(dev, BMAN_PORT_DEVSTR);
@@ -129,36 +131,87 @@ qman_portals_fdt_probe(device_t dev)
 	return (BUS_PROBE_DEFAULT);
 }
 
+static phandle_t
+qman_portal_find_cpu(int cpu)
+{
+	phandle_t node;
+	pcell_t reg;
+
+	node = OF_finddevice("/cpus");
+	if (node == -1)
+		return (-1);
+
+	for (node = OF_child(node); node != 0; node = OF_peer(node)) {
+		if (OF_getprop(node, "reg", &reg, sizeof(reg)) <= 0)
+			continue;
+		if (reg == cpu)
+			return (node);
+	}
+	return (-1);
+}
+
 static int
 qman_portals_fdt_attach(device_t dev)
 {
 	struct dpaa_portals_softc *sc;
-	struct resource_list_entry *rle;
 	phandle_t node, child, cpu_node;
-	vm_paddr_t portal_pa;
+	vm_paddr_t portal_pa, portal_par_pa;
 	vm_size_t portal_size;
-	uint32_t addr, size;
+	uint32_t addr, paddr, size;
 	ihandle_t cpu;
 	int cpu_num, cpus, intr_rid;
 	struct dpaa_portals_devinfo di;
 	struct ofw_bus_devinfo ofw_di = {};
+	cell_t *range;
+	int nrange;
+	int i;
 
 	cpus = 0;
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
 
 	node = ofw_bus_get_node(dev);
+
+	/* Get this node's range */
+	get_addr_props(ofw_bus_get_node(device_get_parent(dev)), &paddr, &size);
 	get_addr_props(node, &addr, &size);
+
+	nrange = OF_getencprop_alloc(node, "ranges",
+	    sizeof(*range), (void **)&range);
+	if (nrange < addr + paddr + size)
+		return (ENXIO);
+	portal_pa = portal_par_pa = 0;
+	portal_size = 0;
+	for (i = 0; i < addr; i++) {
+		portal_pa <<= 32;
+		portal_pa |= range[i];
+	}
+	for (; i < paddr + addr; i++) {
+		portal_par_pa <<= 32;
+		portal_par_pa |= range[i];
+	}
+	portal_pa += portal_par_pa;
+	for (; i < size + paddr + addr; i++) {
+		portal_size = (uintmax_t)portal_size << 32;
+		portal_size |= range[i];
+	}
+	OF_prop_free(range);
+	sc->sc_dp_size = portal_size;
+	sc->sc_dp_pa = portal_pa;
 
 	/* Find portals tied to CPUs */
 	for (child = OF_child(node); child != 0; child = OF_peer(child)) {
+		if (cpus >= mp_ncpus)
+			break;
 		if (!ofw_bus_node_is_compatible(child, "fsl,qman-portal")) {
 			continue;
 		}
 		/* Checkout related cpu */
 		if (OF_getprop(child, "cpu-handle", (void *)&cpu,
 		    sizeof(cpu)) <= 0) {
-			continue;
+			cpu = qman_portal_find_cpu(cpus);
+			if (cpu <= 0)
+				continue;
 		}
 		/* Acquire cpu number */
 		cpu_node = OF_instance_to_package(cpu);
@@ -168,9 +221,6 @@ qman_portals_fdt_attach(device_t dev)
 		}
 
 		cpus++;
-
-		if (cpus > MAXCPU)
-			break;
 
 		if (ofw_bus_gen_setup_devinfo(&ofw_di, child) != 0) {
 			device_printf(dev, "could not set up devinfo\n");
@@ -192,17 +242,6 @@ qman_portals_fdt_attach(device_t dev)
 			continue;
 		}
 		di.di_intr_rid = intr_rid;
-		
-		ofw_reg_to_paddr(child, 0, &portal_pa, &portal_size, NULL);
-		rle = resource_list_find(&di.di_res, SYS_RES_MEMORY, 0);
-
-		if (sc->sc_dp_pa == 0)
-			sc->sc_dp_pa = portal_pa - rle->start;
-
-		portal_size = rle->end + 1;
-		rle = resource_list_find(&di.di_res, SYS_RES_MEMORY, 1);
-		portal_size = ulmax(rle->end + 1, portal_size);
-		sc->sc_dp_size = ulmax(sc->sc_dp_size, portal_size);
 
 		if (dpaa_portal_alloc_res(dev, &di, cpu_num))
 			goto err;
