@@ -49,8 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if_types.h>
 #include <net/if_arp.h>
 
-#include <dev/fdt/fdt_common.h>
-#include <dev/fdt/simplebus.h>
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
 #include <dev/ofw/ofw_bus.h>

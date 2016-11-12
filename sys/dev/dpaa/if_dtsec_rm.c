@@ -323,6 +323,7 @@ dtsec_rm_pool_rx_init(struct dtsec_softc *sc)
 	    DTSEC_RM_POOL_RX_HIGH_MARK, 0, 0, dtsec_rm_pool_rx_depleted, sc, NULL,
 	    NULL);
 	if (sc->sc_rx_pool == NULL) {
+		device_printf(sc->sc_dev, "NULL rx pool  somehow\n");
 		dtsec_rm_pool_rx_free(sc);
 		return (EIO);
 	}

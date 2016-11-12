@@ -69,8 +69,6 @@ contrib/ncsw/user/env/core.c				optional dpaa	\
 	no-depend compile-with "${DPAA_COMPILE_CMD}"
 
 # FreeBSD Wrappers
-dev/dpaa/dpaa.c					optional dpaa fdt	\
-	no-depend compile-with "${DPAA_COMPILE_CMD}"
 dev/dpaa/portals_common.c			optional dpaa		\
 	no-depend compile-with "${DPAA_COMPILE_CMD}"
 dev/dpaa/bman_portals.c				optional dpaa fdt	\

@@ -87,7 +87,7 @@ static driver_t dtsec_driver = {
 };
 
 static devclass_t dtsec_devclass;
-DRIVER_MODULE(dtsec, dpaa, dtsec_driver, dtsec_devclass, 0, 0);
+DRIVER_MODULE(dtsec, fman, dtsec_driver, dtsec_devclass, 0, 0);
 DRIVER_MODULE(miibus, dtsec, miibus_driver, miibus_devclass, 0, 0);
 MODULE_DEPEND(dtsec, ether, 1, 1, 1);
 MODULE_DEPEND(dtsec, miibus, 1, 1, 1);
@@ -96,7 +96,8 @@ static int
 dtsec_fdt_probe(device_t dev)
 {
 
-	if (!ofw_bus_is_compatible(dev, "fsl,dpa-ethernet"))
+	if (!ofw_bus_is_compatible(dev, "fsl,fman-dtsec") &&
+	    !ofw_bus_is_compatible(dev, "fsl,fman-xgec"))
 		return (ENXIO);
 
 	device_set_desc(dev, "Freescale Data Path Triple Speed Ethernet "
@@ -119,9 +120,7 @@ find_mdio(phandle_t phy_node, device_t mac, device_t *mdio_dev)
 	if (phy_node <= 0)
 		return (ENOENT);
 
-	if (fman_get_dev(&bus) < 0)
-		return (ENOENT);
-
+	bus = device_get_parent(mac);
 	*mdio_dev = ofw_bus_find_child_device_by_phandle(bus, phy_node);
 
 	return (0);
@@ -131,21 +130,13 @@ static int
 dtsec_fdt_attach(device_t dev)
 {
 	struct dtsec_softc *sc;
-	phandle_t node, enet_node, phy_node;
+	phandle_t enet_node, phy_node;
 	phandle_t fman_rxtx_node[2];
 	char phy_type[6];
+	pcell_t fman_tx_cell;
 
 	sc = device_get_softc(dev);
-	node = ofw_bus_get_node(dev);
-
-	if (OF_getprop(node, "fsl,fman-mac", (void *)&enet_node,
-	    sizeof(enet_node)) == -1) {
-		device_printf(dev, "Could not load fsl,fman-mac property "
-		    "from DTS\n");
-		return (ENXIO);
-	}
-
-	enet_node = OF_instance_to_package(enet_node);
+	enet_node = ofw_bus_get_node(dev);
 
 	if (OF_getprop(enet_node, "local-mac-address",
 	    (void *)sc->sc_mac_addr, 6) == -1) {
@@ -155,9 +146,9 @@ dtsec_fdt_attach(device_t dev)
 	}
 
 	/* Get link speed */
-	if (ofw_bus_node_is_compatible(enet_node, "fsl,fman-1g-mac") != 0)
+	if (ofw_bus_is_compatible(dev, "fsl,fman-dtsec") != 0)
 		sc->sc_eth_dev_type = ETH_DTSEC;
-	else if (ofw_bus_node_is_compatible(enet_node, "fsl,fman-10g-mac") != 0)
+	else if (ofw_bus_is_compatible(dev, "fsl,fman-xgec") != 0)
 		sc->sc_eth_dev_type = ETH_10GSEC;
 	else
 		return(ENXIO);
@@ -197,7 +188,7 @@ dtsec_fdt_attach(device_t dev)
 		return (ENXIO);
 
 	/* Get RX/TX port handles */
-	if (OF_getprop(enet_node, "fsl,port-handles", (void *)fman_rxtx_node,
+	if (OF_getprop(enet_node, "fsl,fman-ports", (void *)fman_rxtx_node,
 	    sizeof(fman_rxtx_node)) <= 0)
 		return (ENXIO);
 
@@ -211,11 +202,11 @@ dtsec_fdt_attach(device_t dev)
 	fman_rxtx_node[1] = OF_instance_to_package(fman_rxtx_node[1]);
 
 	if (ofw_bus_node_is_compatible(fman_rxtx_node[0],
-	    "fsl,fman-port-1g-rx") == 0)
+	    "fsl,fman-v2-port-rx") == 0)
 		return (ENXIO);
 
 	if (ofw_bus_node_is_compatible(fman_rxtx_node[1],
-	    "fsl,fman-port-1g-tx") == 0)
+	    "fsl,fman-v2-port-tx") == 0)
 		return (ENXIO);
 
 	/* Get RX port HW id */
@@ -228,11 +219,12 @@ dtsec_fdt_attach(device_t dev)
 	    sizeof(sc->sc_port_tx_hw_id)) <= 0)
 		return (ENXIO);
 
-	/* Get QMan channel */
-	if (OF_getprop(fman_rxtx_node[1], "fsl,qman-channel-id",
-	    (void *)&sc->sc_port_tx_qman_chan,
-	    sizeof(sc->sc_port_tx_qman_chan)) <= 0)
+	if (OF_getprop(fman_rxtx_node[1], "cell-index", &fman_tx_cell,
+	    sizeof(fman_tx_cell)) <= 0)
 		return (ENXIO);
+	/* Get QMan channel */
+	sc->sc_port_tx_qman_chan = fman_qman_channel_id(device_get_parent(dev),
+	    fman_tx_cell);
 
 	return (dtsec_attach(dev));
 }
