@@ -326,7 +326,8 @@ finish:
 	 * flush the FF staging queue if we're approaching idle.
 	 */
 #ifdef	IEEE80211_SUPPORT_SUPERG
-	if (!(sc->sc_flags & RTWN_FW_LOADED))
+	if (!(sc->sc_flags & RTWN_FW_LOADED) ||
+	    sc->sc_ratectl != RTWN_RATECTL_NET80211)
 		rtwn_cmd_sleepable(sc, NULL, 0, rtwn_ff_flush_all);
 #endif
 
