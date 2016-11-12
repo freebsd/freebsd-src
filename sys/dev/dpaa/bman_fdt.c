@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/bus.h>
 #include <sys/module.h>
+#include <sys/smp.h>
 
 #include <machine/bus.h>
 
@@ -105,7 +106,8 @@ static driver_t bm_portals_driver = {
 };
 
 static devclass_t bm_portals_devclass;
-DRIVER_MODULE(bman_portals, ofwbus, bm_portals_driver, bm_portals_devclass, 0, 0);
+EARLY_DRIVER_MODULE(bman_portals, ofwbus, bm_portals_driver,
+    bm_portals_devclass, 0, 0, BUS_PASS_BUS);
 
 static void
 get_addr_props(phandle_t node, uint32_t *addrp, uint32_t *sizep)
@@ -121,12 +123,31 @@ static int
 bman_portals_fdt_probe(device_t dev)
 {
 
-	if (!ofw_bus_is_compatible(dev, "bman-portals"))
+	if (!ofw_bus_is_compatible(dev, "fsl,bman-portals"))
 		return (ENXIO);
 
 	device_set_desc(dev, BMAN_PORT_DEVSTR);
 
 	return (BUS_PROBE_DEFAULT);
+}
+
+static phandle_t
+bman_portal_find_cpu(int cpu)
+{
+	phandle_t node;
+	pcell_t reg;
+
+	node = OF_finddevice("/cpus");
+	if (node == -1)
+		return (node);
+
+	for (node = OF_child(node); node != 0; node = OF_peer(node)) {
+		if (OF_getprop(node, "reg", &reg, sizeof(reg)) <= 0)
+			continue;
+		if (reg == cpu)
+			return (node);
+	}
+	return (-1);
 }
 
 static int
@@ -152,13 +173,17 @@ bman_portals_fdt_attach(device_t dev)
 
 	/* Find portals tied to CPUs */
 	for (child = OF_child(node); child != 0; child = OF_peer(child)) {
+		if (cpus >= mp_ncpus)
+			break;
 		if (!ofw_bus_node_is_compatible(child, "fsl,bman-portal")) {
 			continue;
 		}
 		/* Checkout related cpu */
 		if (OF_getprop(child, "cpu-handle", (void *)&cpu,
 		    sizeof(cpu)) <= 0) {
-			continue;
+			cpu = bman_portal_find_cpu(cpus);
+			if (cpu <= 0)
+				continue;
 		}
 		/* Acquire cpu number */
 		cpu_node = OF_instance_to_package(cpu);
@@ -168,9 +193,6 @@ bman_portals_fdt_attach(device_t dev)
 		}
 
 		cpus++;
-
-		if (cpus > MAXCPU)
-			break;
 
 		if (ofw_bus_gen_setup_devinfo(&ofw_di, child) != 0) {
 			device_printf(dev, "could not set up devinfo\n");

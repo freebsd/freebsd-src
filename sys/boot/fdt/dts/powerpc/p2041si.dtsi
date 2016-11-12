@@ -208,7 +208,7 @@
 	bman-portals@ff4000000 {
 		#address-cells = <0x1>;
 		#size-cells = <0x1>;
-		compatible = "bman-portals";
+		compatible = "fsl,bman-portals";
 		ranges = <0x0 0xf 0xfde00000 0x200000>;
 		bman-portal@0 {
 			cell-index = <0x0>;
@@ -281,7 +281,7 @@
 	qman-portals@ff4200000 {
 		#address-cells = <0x1>;
 		#size-cells = <0x1>;
-		compatible = "qman-portals";
+		compatible = "fsl,qman-portals";
 		ranges = <0x0 0xf 0xfdc00000 0x200000>;
 		qportal0: qman-portal@0 {
 			cell-index = <0x0>;
@@ -913,8 +913,8 @@
 		pme: pme@316000 {
 			compatible = "fsl,pme";
 			reg = <0x316000 0x10000>;
-			/* fsl,pme-pdsr = <0x0 0x23000000 0x0 0x01000000>; */
-			/* fsl,pme-sre = <0x0 0x24000000 0x0 0x00a00000>; */
+			/* "fsl,pme-pdsr = <0x0 0x23000000 0x0 0x01000000>; */
+			/* "fsl,pme-sre = <0x0 0x24000000 0x0 0x00a00000>; */
 			interrupts = <16 2 1 5>;
 		};
 
@@ -923,16 +923,16 @@
 			reg = <0x318000 0x1000>;
 			interrupts = <16 2 1 3>;
 			/* Commented out, use default allocation */
-			/* fsl,qman-fqd = <0x0 0x20000000 0x0 0x01000000>; */
-			/* fsl,qman-pfdr = <0x0 0x21000000 0x0 0x01000000>; */
+			/* "fsl,qman-fqd = <0x0 0x20000000 0x0 0x01000000>; */
+			/* "fsl,qman-pfdr = <0x0 0x21000000 0x0 0x01000000>; */
 		};
 
 		bman: bman@31a000 {
 			compatible = "fsl,p2041-bman", "fsl,bman";
 			reg = <0x31a000 0x1000>;
 			interrupts = <16 2 1 2>;
-			/* Same as fsl,qman-*, use default allocation */
-			/* fsl,bman-fbpr = <0x0 0x22000000 0x0 0x01000000>; */
+			/* Same as "fsl,qman-*, use default allocation */
+			/* "fsl,bman-fbpr = <0x0 0x22000000 0x0 0x01000000>; */
 		};
 
 		fman0: fman@400000 {
@@ -983,27 +983,27 @@
 
 			fman0_rx0: port@88000 {
 				cell-index = <0>;
-				compatible = "fsl,p2041-fman-port-1g-rx", "fsl,fman-port-1g-rx";
+				compatible = "fsl,p2041-fman-port-1g-rx", "fsl,fman-port-1g-rx", "fsl,fman-v2-port-rx";
 				reg = <0x88000 0x1000>;
 			};
 			fman0_rx1: port@89000 {
 				cell-index = <1>;
-				compatible = "fsl,p2041-fman-port-1g-rx", "fsl,fman-port-1g-rx";
+				compatible = "fsl,p2041-fman-port-1g-rx", "fsl,fman-port-1g-rx", "fsl,fman-v2-port-rx";
 				reg = <0x89000 0x1000>;
 			};
 			fman0_rx2: port@8a000 {
 				cell-index = <2>;
-				compatible = "fsl,p2041-fman-port-1g-rx", "fsl,fman-port-1g-rx";
+				compatible = "fsl,p2041-fman-port-1g-rx", "fsl,fman-port-1g-rx", "fsl,fman-v2-port-rx";
 				reg = <0x8a000 0x1000>;
 			};
 			fman0_rx3: port@8b000 {
 				cell-index = <3>;
-				compatible = "fsl,p2041-fman-port-1g-rx", "fsl,fman-port-1g-rx";
+				compatible = "fsl,p2041-fman-port-1g-rx", "fsl,fman-port-1g-rx", "fsl,fman-v2-port-rx";
 				reg = <0x8b000 0x1000>;
 			};
 			fman0_rx4: port@8c000 {
 				cell-index = <4>;
-				compatible = "fsl,p2041-fman-port-1g-rx", "fsl,fman-port-1g-rx";
+				compatible = "fsl,p2041-fman-port-1g-rx", "fsl,fman-port-1g-rx", "fsl,fman-v2-port-rx";
 				reg = <0x8c000 0x1000>;
 			};
 			fman0_rx5: port@90000 {
@@ -1020,31 +1020,31 @@
 			};
 			fman0_tx0: port@a8000 {
 				cell-index = <0>;
-				compatible = "fsl,p2041-fman-port-1g-tx", "fsl,fman-port-1g-tx";
+				compatible = "fsl,p2041-fman-port-1g-tx", "fsl,fman-port-1g-tx", "fsl,fman-v2-port-tx";
 				reg = <0xa8000 0x1000>;
 				fsl,qman-channel-id = <0x41>;
 			};
 			fman0_tx1: port@a9000 {
 				cell-index = <1>;
-				compatible = "fsl,p2041-fman-port-1g-tx", "fsl,fman-port-1g-tx";
+				compatible = "fsl,p2041-fman-port-1g-tx", "fsl,fman-port-1g-tx", "fsl,fman-v2-port-tx";
 				reg = <0xa9000 0x1000>;
 				fsl,qman-channel-id = <0x42>;
 			};
 			fman0_tx2: port@aa000 {
 				cell-index = <2>;
-				compatible = "fsl,p2041-fman-port-1g-tx", "fsl,fman-port-1g-tx";
+				compatible = "fsl,p2041-fman-port-1g-tx", "fsl,fman-port-1g-tx", "fsl,fman-v2-port-tx";
 				reg = <0xaa000 0x1000>;
 				fsl,qman-channel-id = <0x43>;
 			};
 			fman0_tx3: port@ab000 {
 				cell-index = <3>;
-				compatible = "fsl,p2041-fman-port-1g-tx", "fsl,fman-port-1g-tx";
+				compatible = "fsl,p2041-fman-port-1g-tx", "fsl,fman-port-1g-tx", "fsl,fman-v2-port-tx";
 				reg = <0xab000 0x1000>;
 				fsl,qman-channel-id = <0x44>;
 			};
 			fman0_tx4: port@ac000 {
 				cell-index = <4>;
-				compatible = "fsl,p2041-fman-port-1g-tx", "fsl,fman-port-1g-tx";
+				compatible = "fsl,p2041-fman-port-1g-tx", "fsl,fman-port-1g-tx", "fsl,fman-v2-port-tx";
 				reg = <0xac000 0x1000>;
 				fsl,qman-channel-id = <0x45>;
 			};
@@ -1093,7 +1093,7 @@
 
 			enet0: ethernet@e0000 {
 				cell-index = <0>;
-				compatible = "fsl,p2041-fman-1g-mac", "fsl,fman-1g-mac";
+				compatible = "fsl,p2041-fman-1g-mac", "fsl,fman-1g-mac", "fsl,fman-dtsec";
 				reg = <0xe0000 0x1000>;
 				fsl,port-handles = <&fman0_rx0 &fman0_tx0>;
 			};
@@ -1108,7 +1108,7 @@
 
 			enet1: ethernet@e2000 {
 				cell-index = <1>;
-				compatible = "fsl,p2041-fman-1g-mac", "fsl,fman-1g-mac";
+				compatible = "fsl,p2041-fman-1g-mac", "fsl,fman-1g-mac", "fsl,fman-dtsec";
 				reg = <0xe2000 0x1000>;
 				fsl,port-handles = <&fman0_rx1 &fman0_tx1>;
 			};
@@ -1123,7 +1123,7 @@
 
 			enet2: ethernet@e4000 {
 				cell-index = <2>;
-				compatible = "fsl,p2041-fman-1g-mac", "fsl,fman-1g-mac";
+				compatible = "fsl,p2041-fman-1g-mac", "fsl,fman-1g-mac", "fsl,fman-dtsec";
 				reg = <0xe4000 0x1000>;
 				fsl,port-handles = <&fman0_rx2 &fman0_tx2>;
 			};
@@ -1138,7 +1138,7 @@
 
 			enet3: ethernet@e6000 {
 				cell-index = <3>;
-				compatible = "fsl,p2041-fman-1g-mac", "fsl,fman-1g-mac";
+				compatible = "fsl,p2041-fman-1g-mac", "fsl,fman-1g-mac", "fsl,fman-dtsec";
 				reg = <0xe6000 0x1000>;
 				fsl,port-handles = <&fman0_rx3 &fman0_tx3>;
 			};
@@ -1153,7 +1153,7 @@
 
 			enet4: ethernet@e8000 {
 				cell-index = <4>;
-				compatible = "fsl,p2041-fman-1g-mac", "fsl,fman-1g-mac";
+				compatible = "fsl,p2041-fman-1g-mac", "fsl,fman-1g-mac", "fsl,fman-dtsec";
 				reg = <0xe8000 0x1000>;
 				fsl,port-handles = <&fman0_rx4 &fman0_tx4>;
 			};
@@ -1168,7 +1168,7 @@
 
 			enet5: ethernet@f0000 {
 				cell-index = <0>;
-				compatible = "fsl,p2041-fman-10g-mac", "fsl,fman-10g-mac";
+				compatible = "fsl,p2041-fman-10g-mac", "fsl,fman-10g-mac", "fsl,fman-xgec";
 				reg = <0xf0000 0x1000>;
 				fsl,port-handles = <&fman0_rx5 &fman0_tx5>;
 			};

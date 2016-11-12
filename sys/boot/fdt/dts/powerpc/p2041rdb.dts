@@ -442,47 +442,6 @@
 		};
 	};
 
-	fsl,dpaa {
-		compatible = "fsl,p2041-dpaa", "fsl,dpaa";
-
-		ethernet@0 {
-			compatible = "fsl,p2041-dpa-ethernet", "fsl,dpa-ethernet";
-			fsl,qman-channel = <&qpool1>;
-			fsl,fman-mac = <&enet0>;
-			status = "okay";
-		};
-		ethernet@1 {
-			compatible = "fsl,p2041-dpa-ethernet", "fsl,dpa-ethernet";
-			fsl,qman-channel = <&qpool1>;
-			fsl,fman-mac = <&enet1>;
-			status = "okay";
-		};
-		ethernet@2 {
-			compatible = "fsl,p2041-dpa-ethernet", "fsl,dpa-ethernet";
-			fsl,qman-channel = <&qpool1>;
-			fsl,fman-mac = <&enet2>;
-			status = "okay";
-		};
-		ethernet@3 {
-			compatible = "fsl,p2041-dpa-ethernet", "fsl,dpa-ethernet";
-			fsl,qman-channel = <&qpool1>;
-			fsl,fman-mac = <&enet3>;
-			status = "okay";
-		};
-		ethernet@4 {
-			compatible = "fsl,p2041-dpa-ethernet", "fsl,dpa-ethernet";
-			fsl,qman-channel = <&qpool1>;
-			fsl,fman-mac = <&enet4>;
-			status = "okay";
-		};
-		ethernet@5 {
-			compatible = "fsl,p2041-dpa-ethernet", "fsl,dpa-ethernet";
-			fsl,qman-channel = <&qpool1>;
-			fsl,fman-mac = <&enet5>;
-			status = "okay";
-		};
-	};
-
 	chosen {
 		stdin = "serial0";
 		stdout = "serial0";
