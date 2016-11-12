@@ -1353,40 +1353,6 @@ dt_cg_inline(dt_node_t *dnp, dt_irlist_t *dlp, dt_regset_t *drp)
 	}
 }
 
-static void
-dt_cg_func_typeref(dtrace_hdl_t *dtp, dt_node_t *dnp)
-{
-	dtrace_typeinfo_t dtt;
-	dt_node_t *addr = dnp->dn_args;
-	dt_node_t *nelm = addr->dn_list;
-	dt_node_t *strp = nelm->dn_list;
-	dt_node_t *typs = strp->dn_list;
-	char buf[DT_TYPE_NAMELEN];
-	char *p;
-
-	ctf_type_name(addr->dn_ctfp, addr->dn_type, buf, sizeof (buf));
-
-	/*
-	 * XXX Hack alert! XXX
-	 * The prototype has two dummy args that we munge to represent
-	 * the type string and the type size.
-	 *
-	 * Yes, I hear your grumble, but it works for now. We'll come
-	 * up with a more elegant implementation later. :-)
-	 */
-	free(strp->dn_string);
-
-	if ((p = strchr(buf, '*')) != NULL)
-		*p = '\0';
-
-	strp->dn_string = strdup(buf);
-
-	if (dtrace_lookup_by_type(dtp,  DTRACE_OBJ_EVERY, buf, &dtt) < 0)
-		return;
-
-	typs->dn_value = ctf_type_size(dtt.dtt_ctfp, dtt.dtt_type);
-}
-
 typedef struct dt_xlmemb {
 	dt_ident_t *dtxl_idp;		/* translated ident */
 	dt_irlist_t *dtxl_dlp;		/* instruction list */
@@ -2002,22 +1968,11 @@ dt_cg_node(dt_node_t *dnp, dt_irlist_t *dlp, dt_regset_t *drp)
 
 		switch (dnp->dn_kind) {
 		case DT_NODE_FUNC: {
-			dtrace_hdl_t *dtp = yypcb->pcb_hdl;
-
 			if ((idp = dnp->dn_ident)->di_kind != DT_IDENT_FUNC) {
 				dnerror(dnp, D_CG_EXPR, "%s %s( ) may not be "
 				    "called from a D expression (D program "
 				    "context required)\n",
 				    dt_idkind_name(idp->di_kind), idp->di_name);
-			}
-
-			switch (idp->di_id) {
-			case DIF_SUBR_TYPEREF:
-				dt_cg_func_typeref(dtp, dnp);
-				break;
-
-			default:
-				break;
 			}
 
 			dt_cg_arglist(dnp->dn_ident, dnp->dn_args, dlp, drp);
