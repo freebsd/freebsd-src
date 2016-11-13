@@ -248,7 +248,7 @@ mtk_soc_try_early_detect(void)
 		return;
 
 	for (i = 0; compat_data[i].ocd_str != NULL; i++) {
-		if (fdt_is_compatible(node, compat_data[i].ocd_str)) {
+		if (ofw_bus_node_is_compatible(node, compat_data[i].ocd_str)) {
 			mtk_soc_socid = compat_data[i].ocd_data;
 			break;
 		}
