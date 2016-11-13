@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_bus.h"
+#include "opt_ddb.h"
 
 #include <sys/param.h>
 #include <sys/conf.h>
@@ -64,6 +65,8 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/uma.h>
 #include <vm/vm.h>
+
+#include <ddb/ddb.h>
 
 SYSCTL_NODE(_hw, OID_AUTO, bus, CTLFLAG_RW, NULL, NULL);
 SYSCTL_ROOT_NODE(OID_AUTO, dev, CTLFLAG_RW, NULL, NULL);
@@ -143,6 +146,9 @@ static MALLOC_DEFINE(M_BUS_SC, "bus-sc", "Bus data structures, softc");
 
 static void devctl2_init(void);
 
+#define DRIVERNAME(d)	((d)? d->name : "no driver")
+#define DEVCLANAME(d)	((d)? d->name : "no devclass")
+
 #ifdef BUS_DEBUG
 
 static int bus_debug = 1;
@@ -151,8 +157,6 @@ SYSCTL_INT(_debug, OID_AUTO, bus_debug, CTLFLAG_RWTUN, &bus_debug, 0,
 
 #define PDEBUG(a)	if (bus_debug) {printf("%s:%d: ", __func__, __LINE__), printf a; printf("\n");}
 #define DEVICENAME(d)	((d)? device_get_name(d): "no device")
-#define DRIVERNAME(d)	((d)? d->name : "no driver")
-#define DEVCLANAME(d)	((d)? d->name : "no devclass")
 
 /**
  * Produce the indenting, indent*2 spaces plus a '.' ahead of that to
@@ -176,8 +180,6 @@ void print_devclass_list(void);
 /* Make the compiler ignore the function calls */
 #define PDEBUG(a)			/* nop */
 #define DEVICENAME(d)			/* nop */
-#define DRIVERNAME(d)			/* nop */
-#define DEVCLANAME(d)			/* nop */
 
 #define print_device_short(d,i)		/* nop */
 #define print_device(d,i)		/* nop */
@@ -5586,3 +5588,32 @@ devctl2_init(void)
 	make_dev_credf(MAKEDEV_ETERNAL, &devctl2_cdevsw, 0, NULL,
 	    UID_ROOT, GID_WHEEL, 0600, "devctl2");
 }
+
+#ifdef DDB
+DB_SHOW_COMMAND(device, db_show_device)
+{
+	device_t dev;
+
+	if (!have_addr)
+		return;
+
+	dev = (device_t)addr;
+
+	db_printf("name:    %s\n", device_get_nameunit(dev));
+	db_printf("  driver:  %s\n", DRIVERNAME(dev->driver));
+	db_printf("  class:   %s\n", DEVCLANAME(dev->devclass));
+	db_printf("  addr:    %p\n", dev);
+	db_printf("  parent:  %p\n", dev->parent);
+	db_printf("  softc:   %p\n", dev->softc);
+	db_printf("  ivars:   %p\n", dev->ivars);
+}
+
+DB_SHOW_ALL_COMMAND(devices, db_show_all_devices)
+{
+	device_t dev;
+
+	TAILQ_FOREACH(dev, &bus_data_devices, devlink) {
+		db_show_device((db_expr_t)dev, true, count, modif);
+	}
+}
+#endif
