@@ -15,10 +15,6 @@ __<bsd.init.mk>__:
 .endif
 .include <bsd.own.mk>
 .MAIN: all
-beforebuild: .PHONY .NOTMAIN
-.if !defined(_SKIP_BUILD)
-all: beforebuild .WAIT
-.endif
 
 .if ${.MAKE.LEVEL:U1} == 0 && ${BUILD_AT_LEVEL0:Uyes:tl} == "no" && !make(clean*)
 # this tells lib.mk and prog.mk to not actually build anything
@@ -26,6 +22,11 @@ _SKIP_BUILD = not building at level 0
 .endif
 .if ${.MAKE.LEVEL} > 0 && !empty(_SKIP_BUILD)
 .warning ${_SKIP_BUILD}
+.endif
+
+beforebuild: .PHONY .NOTMAIN
+.if !defined(_SKIP_BUILD)
+all: beforebuild .WAIT
 .endif
 
 .if ${MK_META_MODE} == "yes"
