@@ -1204,17 +1204,6 @@ int	drm_mmap_single(struct cdev *kdev, vm_ooffset_t *offset,
 	    vm_size_t size, struct vm_object **obj_res, int nprot);
 d_poll_t drm_poll;
 
-				/* Memory management support (drm_memory.h) */
-extern void drm_free_agp(DRM_AGP_MEM * handle, int pages);
-extern int drm_bind_agp(DRM_AGP_MEM * handle, unsigned int start);
-#ifdef FREEBSD_NOTYET
-extern DRM_AGP_MEM *drm_agp_bind_pages(struct drm_device *dev,
-				       struct page **pages,
-				       unsigned long num_pages,
-				       uint32_t gtt_offset,
-				       uint32_t type);
-#endif /* FREEBSD_NOTYET */
-extern int drm_unbind_agp(DRM_AGP_MEM * handle);
 
 				/* Misc. IOCTL support (drm_ioctl.h) */
 extern int drm_irq_by_busid(struct drm_device *dev, void *data,
@@ -1363,32 +1352,6 @@ extern void drm_vblank_post_modeset(struct drm_device *dev, int crtc);
 extern int drm_modeset_ctl(struct drm_device *dev, void *data,
 			   struct drm_file *file_priv);
 
-				/* AGP/GART support (drm_agpsupport.h) */
-extern struct drm_agp_head *drm_agp_init(struct drm_device *dev);
-extern int drm_agp_acquire(struct drm_device *dev);
-extern int drm_agp_acquire_ioctl(struct drm_device *dev, void *data,
-				 struct drm_file *file_priv);
-extern int drm_agp_release(struct drm_device *dev);
-extern int drm_agp_release_ioctl(struct drm_device *dev, void *data,
-				 struct drm_file *file_priv);
-extern int drm_agp_enable(struct drm_device *dev, struct drm_agp_mode mode);
-extern int drm_agp_enable_ioctl(struct drm_device *dev, void *data,
-				struct drm_file *file_priv);
-extern int drm_agp_info(struct drm_device *dev, struct drm_agp_info *info);
-extern int drm_agp_info_ioctl(struct drm_device *dev, void *data,
-			struct drm_file *file_priv);
-extern int drm_agp_alloc(struct drm_device *dev, struct drm_agp_buffer *request);
-extern int drm_agp_alloc_ioctl(struct drm_device *dev, void *data,
-			 struct drm_file *file_priv);
-extern int drm_agp_free(struct drm_device *dev, struct drm_agp_buffer *request);
-extern int drm_agp_free_ioctl(struct drm_device *dev, void *data,
-			struct drm_file *file_priv);
-extern int drm_agp_unbind(struct drm_device *dev, struct drm_agp_binding *request);
-extern int drm_agp_unbind_ioctl(struct drm_device *dev, void *data,
-			  struct drm_file *file_priv);
-extern int drm_agp_bind(struct drm_device *dev, struct drm_agp_binding *request);
-extern int drm_agp_bind_ioctl(struct drm_device *dev, void *data,
-			struct drm_file *file_priv);
 
 				/* Stub support (drm_stub.h) */
 extern int drm_setmaster_ioctl(struct drm_device *dev, void *data,
@@ -1813,6 +1776,176 @@ int ttm_bo_mmap_single(struct ttm_bo_device *bdev, vm_ooffset_t *offset,
     vm_size_t size, struct vm_object **obj_res, int nprot);
 struct ttm_buffer_object;
 void ttm_bo_release_mmap(struct ttm_buffer_object *bo);
+
+#if  __OS_HAS_AGP
+				/* Memory management support (drm_memory.h) */
+extern void drm_free_agp(DRM_AGP_MEM * handle, int pages);
+extern int drm_bind_agp(DRM_AGP_MEM * handle, unsigned int start);
+#ifdef FREEBSD_NOTYET
+extern DRM_AGP_MEM *drm_agp_bind_pages(struct drm_device *dev,
+				       struct page **pages,
+				       unsigned long num_pages,
+				       uint32_t gtt_offset,
+				       uint32_t type);
+#endif /* FREEBSD_NOTYET */
+extern int drm_unbind_agp(DRM_AGP_MEM * handle);
+
+				/* AGP/GART support (drm_agpsupport.h) */
+extern struct drm_agp_head *drm_agp_init(struct drm_device *dev);
+extern int drm_agp_acquire(struct drm_device *dev);
+extern int drm_agp_acquire_ioctl(struct drm_device *dev, void *data,
+				 struct drm_file *file_priv);
+extern int drm_agp_release(struct drm_device *dev);
+extern int drm_agp_release_ioctl(struct drm_device *dev, void *data,
+				 struct drm_file *file_priv);
+extern int drm_agp_enable(struct drm_device *dev, struct drm_agp_mode mode);
+extern int drm_agp_enable_ioctl(struct drm_device *dev, void *data,
+				struct drm_file *file_priv);
+extern int drm_agp_info(struct drm_device *dev, struct drm_agp_info *info);
+extern int drm_agp_info_ioctl(struct drm_device *dev, void *data,
+			struct drm_file *file_priv);
+extern int drm_agp_alloc(struct drm_device *dev, struct drm_agp_buffer *request);
+extern int drm_agp_alloc_ioctl(struct drm_device *dev, void *data,
+			 struct drm_file *file_priv);
+extern int drm_agp_free(struct drm_device *dev, struct drm_agp_buffer *request);
+extern int drm_agp_free_ioctl(struct drm_device *dev, void *data,
+			struct drm_file *file_priv);
+extern int drm_agp_unbind(struct drm_device *dev, struct drm_agp_binding *request);
+extern int drm_agp_unbind_ioctl(struct drm_device *dev, void *data,
+			  struct drm_file *file_priv);
+extern int drm_agp_bind(struct drm_device *dev, struct drm_agp_binding *request);
+extern int drm_agp_bind_ioctl(struct drm_device *dev, void *data,
+			struct drm_file *file_priv);
+
+#else
+
+static inline void drm_free_agp(DRM_AGP_MEM * handle, int pages)
+{
+}
+
+static inline int drm_bind_agp(DRM_AGP_MEM * handle, unsigned int start)
+{
+	return -ENODEV;
+}
+
+static inline int drm_unbind_agp(DRM_AGP_MEM * handle)
+{
+	return -ENODEV;
+}
+#ifdef FREEBSD_NOTYET
+static inline struct agp_memory *drm_agp_bind_pages(struct drm_device *dev,
+					      struct page **pages,
+					      unsigned long num_pages,
+					      uint32_t gtt_offset,
+					      uint32_t type)
+{
+	return NULL;
+}
+#endif
+static inline struct drm_agp_head *drm_agp_init(struct drm_device *dev)
+{
+	return NULL;
+}
+
+static inline void drm_agp_clear(struct drm_device *dev)
+{
+}
+
+static inline int drm_agp_acquire(struct drm_device *dev)
+{
+	return -ENODEV;
+}
+
+static inline int drm_agp_acquire_ioctl(struct drm_device *dev, void *data,
+					struct drm_file *file_priv)
+{
+	return -ENODEV;
+}
+
+static inline int drm_agp_release(struct drm_device *dev)
+{
+	return -ENODEV;
+}
+
+static inline int drm_agp_release_ioctl(struct drm_device *dev, void *data,
+					struct drm_file *file_priv)
+{
+	return -ENODEV;
+}
+
+static inline int drm_agp_enable(struct drm_device *dev,
+				 struct drm_agp_mode mode)
+{
+	return -ENODEV;
+}
+
+static inline int drm_agp_enable_ioctl(struct drm_device *dev, void *data,
+				       struct drm_file *file_priv)
+{
+	return -ENODEV;
+}
+
+static inline int drm_agp_info(struct drm_device *dev,
+			       struct drm_agp_info *info)
+{
+	return -ENODEV;
+}
+
+static inline int drm_agp_info_ioctl(struct drm_device *dev, void *data,
+				     struct drm_file *file_priv)
+{
+	return -ENODEV;
+}
+
+static inline int drm_agp_alloc(struct drm_device *dev,
+				struct drm_agp_buffer *request)
+{
+	return -ENODEV;
+}
+
+static inline int drm_agp_alloc_ioctl(struct drm_device *dev, void *data,
+				      struct drm_file *file_priv)
+{
+	return -ENODEV;
+}
+
+static inline int drm_agp_free(struct drm_device *dev,
+			       struct drm_agp_buffer *request)
+{
+	return -ENODEV;
+}
+
+static inline int drm_agp_free_ioctl(struct drm_device *dev, void *data,
+				     struct drm_file *file_priv)
+{
+	return -ENODEV;
+}
+
+static inline int drm_agp_unbind(struct drm_device *dev,
+				 struct drm_agp_binding *request)
+{
+	return -ENODEV;
+}
+
+static inline int drm_agp_unbind_ioctl(struct drm_device *dev, void *data,
+				       struct drm_file *file_priv)
+{
+	return -ENODEV;
+}
+
+static inline int drm_agp_bind(struct drm_device *dev,
+			       struct drm_agp_binding *request)
+{
+	return -ENODEV;
+}
+
+static inline int drm_agp_bind_ioctl(struct drm_device *dev, void *data,
+				     struct drm_file *file_priv)
+{
+	return -ENODEV;
+}
+
+#endif /* __OS_HAS_AGP */
 
 #endif				/* __KERNEL__ */
 #endif

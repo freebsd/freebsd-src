@@ -38,6 +38,8 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/drm2/drmP.h>
 
+#define	vunmap(handle)
+
 #if __OS_HAS_AGP
 static void *agp_remap(unsigned long offset, unsigned long size,
 		       struct drm_device * dev)
@@ -49,8 +51,6 @@ static void *agp_remap(unsigned long offset, unsigned long size,
 	 */
 	return NULL;
 }
-
-#define	vunmap(handle)
 
 /** Wrapper around agp_free_memory() */
 void drm_free_agp(DRM_AGP_MEM * handle, int pages)
