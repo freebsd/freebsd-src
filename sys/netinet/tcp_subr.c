@@ -2711,6 +2711,7 @@ tcp_signature_do_compute(struct mbuf *m, int len, int optlen,
 	 * Note: Upper-Layer Packet Length comes before Next Header.
 	 */
 	case (IPV6_VERSION >> 4):
+		ip6 = mtod(m, struct ip6_hdr *);
 		in6 = ip6->ip6_src;
 		in6_clearscope(&in6);
 		MD5Update(&ctx, (char *)&in6, sizeof(struct in6_addr));
