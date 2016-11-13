@@ -207,6 +207,7 @@ struct g_mirror_softc {
 	int		sc_idle;	/* DIRTY flags removed. */
 	time_t		sc_last_write;
 	u_int		sc_writes;
+	u_int		sc_refcnt;	/* Number of softc references */
 
 	TAILQ_HEAD(, g_mirror_event) sc_events;
 	struct mtx	sc_events_mtx;
