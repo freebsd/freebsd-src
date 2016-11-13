@@ -24,6 +24,7 @@ DIRDEPS = \
 	lib/libbz2 \
 	lib/libc \
 	lib/libcam \
+	lib/libcapsicum \
 	lib/libcompiler_rt \
 	lib/libcrypt \
 	lib/libdevstat \
