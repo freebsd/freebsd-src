@@ -16,11 +16,27 @@ __<bsd.init.mk>__:
 .include <bsd.own.mk>
 .MAIN: all
 
-.if ${.MAKE.LEVEL:U1} == 0 && ${BUILD_AT_LEVEL0:Uyes:tl} == "no" && !make(clean*)
-# this tells lib.mk and prog.mk to not actually build anything
-_SKIP_BUILD = not building at level 0
+# Some targets need to know when something may build.  This is used to
+# optimize targets that are only needed when building something, such as
+# (not) reading in depend files.  For DIRDEPS_BUILD, it will only calculate
+# the dependency graph at .MAKE.LEVEL==0, so nothing should be built there.
+# Skip "build" logic if:
+# - DIRDEPS_BUILD at MAKELEVEL 0
+# - make -V is used without an override
+# - make install is used without other targets.  This is to avoid breaking
+#   things like 'make all install' or 'make foo install'.
+# - non-build targets are called
+.if ${MK_DIRDEPS_BUILD} == "yes" && ${.MAKE.LEVEL:U1} == 0 && \
+    ${BUILD_AT_LEVEL0:Uyes:tl} == "no" && !make(clean*)
+_SKIP_BUILD=	not building at level 0
+.elseif !empty(.MAKEFLAGS:M-V${_V_DO_BUILD}) || \
+    ${.TARGETS:M*install*} == ${.TARGETS} || \
+    make(clean*) || make(obj) || make(analyze) || make(print-dir) || \
+    make(destroy*)
+# Skip building, but don't show a warning.
+_SKIP_BUILD=
 .endif
-.if ${.MAKE.LEVEL} > 0 && !empty(_SKIP_BUILD)
+.if ${MK_DIRDEPS_BUILD} == "yes" && ${.MAKE.LEVEL} > 0 && !empty(_SKIP_BUILD)
 .warning ${_SKIP_BUILD}
 .endif
 
