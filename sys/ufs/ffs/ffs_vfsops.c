@@ -147,7 +147,7 @@ ffs_mount(struct mount *mp)
 	struct ufsmount *ump = NULL;
 	struct fs *fs;
 	pid_t fsckpid = 0;
-	int error, flags;
+	int error, error1, flags;
 	uint64_t mntorflags;
 	accmode_t accmode;
 	struct nameidata ndp;
@@ -453,6 +453,11 @@ ffs_mount(struct mount *mp)
 		 */
 		if (mp->mnt_flag & MNT_SNAPSHOT)
 			return (ffs_snapshot(mp, fspec));
+
+		/*
+		 * Must not call namei() while owning busy ref.
+		 */
+		vfs_unbusy(mp);
 	}
 
 	/*
@@ -460,7 +465,18 @@ ffs_mount(struct mount *mp)
 	 * and verify that it refers to a sensible disk device.
 	 */
 	NDINIT(&ndp, LOOKUP, FOLLOW | LOCKLEAF, UIO_SYSSPACE, fspec, td);
-	if ((error = namei(&ndp)) != 0)
+	error = namei(&ndp);
+	if ((mp->mnt_flag & MNT_UPDATE) != 0) {
+		/*
+		 * Unmount does not start if MNT_UPDATE is set.  Mount
+		 * update busies mp before setting MNT_UPDATE.  We
+		 * must be able to retain our busy ref succesfully,
+		 * without sleep.
+		 */
+		error1 = vfs_busy(mp, MBF_NOWAIT);
+		MPASS(error1 == 0);
+	}
+	if (error != 0)
 		return (error);
 	NDFREE(&ndp, NDF_ONLY_PNBUF);
 	devvp = ndp.ni_vp;
