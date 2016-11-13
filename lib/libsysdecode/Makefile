@@ -110,8 +110,9 @@ CFLAGS.gcc.ioctl.c+= -Wno-unused
 
 CFLAGS.gcc+=	${CFLAGS.gcc.${.IMPSRC}}
 
+DEPENDOBJS+=	tables.h
 tables.h: mktables
-	sh ${.CURDIR}/mktables ${DESTDIR}${INCLUDEDIR} > ${.TARGET}
+	sh ${.CURDIR}/mktables ${DESTDIR}${INCLUDEDIR} ${.TARGET}
 
 ioctl.c: mkioctls
 	env MACHINE=${MACHINE} CPP="${CPP}" \
