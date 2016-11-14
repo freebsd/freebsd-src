@@ -473,15 +473,15 @@ bcmfb_configure(int flags)
 	if ((root != 0) && 
 	    (display = fdt_find_compatible(root, "broadcom,bcm2835-fb", 1))) {
 		if (sc->width == 0) {
-			if ((OF_getprop(display, "broadcom,width", 
+			if ((OF_getencprop(display, "broadcom,width",
 			    &cell, sizeof(cell))) > 0)
-				sc->width = (int)fdt32_to_cpu(cell);
+				sc->width = cell;
 		}
 
 		if (sc->height == 0) {
 			if ((OF_getprop(display, "broadcom,height", 
 			    &cell, sizeof(cell))) > 0)
-				sc->height = (int)fdt32_to_cpu(cell);
+				sc->height = cell;
 		}
 	}
 
