@@ -30,6 +30,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -39,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 
 #include <machine/atomic.h>
+#include <machine/stdarg.h>
 
 #include <dev/hyperv/include/hyperv_busdma.h>
 #include <dev/hyperv/vmbus/hyperv_var.h>
@@ -89,6 +91,9 @@ static void			vmbus_chan_msgproc_choffer(struct vmbus_softc *,
 static void			vmbus_chan_msgproc_chrescind(
 				    struct vmbus_softc *,
 				    const struct vmbus_message *);
+
+static int			vmbus_chan_printf(const struct vmbus_channel *,
+				    const char *, ...) __printflike(2, 3);
 
 /*
  * Vmbus channel message processing.
@@ -304,7 +309,7 @@ vmbus_chan_open(struct vmbus_channel *chan, int txbr_size, int rxbr_size,
 	    PAGE_SIZE, 0, txbr_size + rxbr_size, &chan->ch_bufring_dma,
 	    BUS_DMA_WAITOK);
 	if (chan->ch_bufring == NULL) {
-		device_printf(chan->ch_dev, "bufring allocation failed\n");
+		vmbus_chan_printf(chan, "bufring allocation failed\n");
 		return (ENOMEM);
 	}
 
@@ -336,7 +341,7 @@ vmbus_chan_open_br(struct vmbus_channel *chan, const struct vmbus_chan_br *cbr,
 	uint8_t *br;
 
 	if (udlen > VMBUS_CHANMSG_CHOPEN_UDATA_SIZE) {
-		device_printf(sc->vmbus_dev,
+		vmbus_chan_printf(chan,
 		    "invalid udata len %d for chan%u\n", udlen, chan->ch_id);
 		return EINVAL;
 	}
@@ -386,7 +391,7 @@ vmbus_chan_open_br(struct vmbus_channel *chan, const struct vmbus_chan_br *cbr,
 	error = vmbus_chan_gpadl_connect(chan, cbr->cbr_paddr,
 	    txbr_size + rxbr_size, &chan->ch_bufring_gpadl);
 	if (error) {
-		device_printf(sc->vmbus_dev,
+		vmbus_chan_printf(chan,
 		    "failed to connect bufring GPADL to chan%u\n", chan->ch_id);
 		goto failed;
 	}
@@ -402,7 +407,7 @@ vmbus_chan_open_br(struct vmbus_channel *chan, const struct vmbus_chan_br *cbr,
 	 */
 	mh = vmbus_msghc_get(sc, sizeof(*req));
 	if (mh == NULL) {
-		device_printf(sc->vmbus_dev,
+		vmbus_chan_printf(chan,
 		    "can not get msg hypercall for chopen(chan%u)\n",
 		    chan->ch_id);
 		error = ENXIO;
@@ -421,7 +426,7 @@ vmbus_chan_open_br(struct vmbus_channel *chan, const struct vmbus_chan_br *cbr,
 
 	error = vmbus_msghc_exec(sc, mh);
 	if (error) {
-		device_printf(sc->vmbus_dev,
+		vmbus_chan_printf(chan,
 		    "chopen(chan%u) msg hypercall exec failed: %d\n",
 		    chan->ch_id, error);
 		vmbus_msghc_put(sc, mh);
@@ -436,13 +441,12 @@ vmbus_chan_open_br(struct vmbus_channel *chan, const struct vmbus_chan_br *cbr,
 
 	if (status == 0) {
 		if (bootverbose) {
-			device_printf(sc->vmbus_dev, "chan%u opened\n",
-			    chan->ch_id);
+			vmbus_chan_printf(chan, "chan%u opened\n", chan->ch_id);
 		}
 		return 0;
 	}
 
-	device_printf(sc->vmbus_dev, "failed to open chan%u\n", chan->ch_id);
+	vmbus_chan_printf(chan, "failed to open chan%u\n", chan->ch_id);
 	error = ENXIO;
 
 failed:
@@ -485,7 +489,7 @@ vmbus_chan_gpadl_connect(struct vmbus_channel *chan, bus_addr_t paddr,
 	 * We don't support multiple GPA ranges.
 	 */
 	if (range_len > UINT16_MAX) {
-		device_printf(sc->vmbus_dev, "GPA too large, %d pages\n",
+		vmbus_chan_printf(chan, "GPA too large, %d pages\n",
 		    page_count);
 		return EOPNOTSUPP;
 	}
@@ -514,8 +518,8 @@ vmbus_chan_gpadl_connect(struct vmbus_channel *chan, bus_addr_t paddr,
 	    chm_range.gpa_page[cnt]);
 	mh = vmbus_msghc_get(sc, reqsz);
 	if (mh == NULL) {
-		device_printf(sc->vmbus_dev,
-		    "can not get msg hypercall for gpadl->chan%u\n",
+		vmbus_chan_printf(chan,
+		    "can not get msg hypercall for gpadl_conn(chan%u)\n",
 		    chan->ch_id);
 		return EIO;
 	}
@@ -533,8 +537,8 @@ vmbus_chan_gpadl_connect(struct vmbus_channel *chan, bus_addr_t paddr,
 
 	error = vmbus_msghc_exec(sc, mh);
 	if (error) {
-		device_printf(sc->vmbus_dev,
-		    "gpadl->chan%u msg hypercall exec failed: %d\n",
+		vmbus_chan_printf(chan,
+		    "gpadl_conn(chan%u) msg hypercall exec failed: %d\n",
 		    chan->ch_id, error);
 		vmbus_msghc_put(sc, mh);
 		return error;
@@ -570,13 +574,13 @@ vmbus_chan_gpadl_connect(struct vmbus_channel *chan, bus_addr_t paddr,
 	vmbus_msghc_put(sc, mh);
 
 	if (status != 0) {
-		device_printf(sc->vmbus_dev, "gpadl->chan%u failed: "
-		    "status %u\n", chan->ch_id, status);
+		vmbus_chan_printf(chan, "gpadl_conn(chan%u) failed: %u\n",
+		    chan->ch_id, status);
 		return EIO;
 	} else {
 		if (bootverbose) {
-			device_printf(sc->vmbus_dev, "gpadl->chan%u "
-			    "succeeded\n", chan->ch_id);
+			vmbus_chan_printf(chan,
+			    "gpadl_conn(chan%u) succeeded\n", chan->ch_id);
 		}
 	}
 	return 0;
@@ -595,8 +599,8 @@ vmbus_chan_gpadl_disconnect(struct vmbus_channel *chan, uint32_t gpadl)
 
 	mh = vmbus_msghc_get(sc, sizeof(*req));
 	if (mh == NULL) {
-		device_printf(sc->vmbus_dev,
-		    "can not get msg hypercall for gpa x->chan%u\n",
+		vmbus_chan_printf(chan,
+		    "can not get msg hypercall for gpadl_disconn(chan%u)\n",
 		    chan->ch_id);
 		return EBUSY;
 	}
@@ -608,8 +612,8 @@ vmbus_chan_gpadl_disconnect(struct vmbus_channel *chan, uint32_t gpadl)
 
 	error = vmbus_msghc_exec(sc, mh);
 	if (error) {
-		device_printf(sc->vmbus_dev,
-		    "gpa x->chan%u msg hypercall exec failed: %d\n",
+		vmbus_chan_printf(chan,
+		    "gpadl_disconn(chan%u) msg hypercall exec failed: %d\n",
 		    chan->ch_id, error);
 		vmbus_msghc_put(sc, mh);
 		return error;
@@ -681,7 +685,7 @@ vmbus_chan_close_internal(struct vmbus_channel *chan)
 	 */
 	mh = vmbus_msghc_get(sc, sizeof(*req));
 	if (mh == NULL) {
-		device_printf(sc->vmbus_dev,
+		vmbus_chan_printf(chan,
 		    "can not get msg hypercall for chclose(chan%u)\n",
 		    chan->ch_id);
 		return;
@@ -695,12 +699,12 @@ vmbus_chan_close_internal(struct vmbus_channel *chan)
 	vmbus_msghc_put(sc, mh);
 
 	if (error) {
-		device_printf(sc->vmbus_dev,
+		vmbus_chan_printf(chan,
 		    "chclose(chan%u) msg hypercall exec failed: %d\n",
 		    chan->ch_id, error);
 		return;
 	} else if (bootverbose) {
-		device_printf(sc->vmbus_dev, "close chan%u\n", chan->ch_id);
+		vmbus_chan_printf(chan, "close chan%u\n", chan->ch_id);
 	}
 
 	/*
@@ -890,13 +894,12 @@ vmbus_chan_recv(struct vmbus_channel *chan, void *data, int *dlen0,
 		return (error);
 
 	if (__predict_false(pkt.cph_hlen < VMBUS_CHANPKT_HLEN_MIN)) {
-		device_printf(chan->ch_dev, "invalid hlen %u\n",
-		    pkt.cph_hlen);
+		vmbus_chan_printf(chan, "invalid hlen %u\n", pkt.cph_hlen);
 		/* XXX this channel is dead actually. */
 		return (EIO);
 	}
 	if (__predict_false(pkt.cph_hlen > pkt.cph_tlen)) {
-		device_printf(chan->ch_dev, "invalid hlen %u and tlen %u\n",
+		vmbus_chan_printf(chan, "invalid hlen %u and tlen %u\n",
 		    pkt.cph_hlen, pkt.cph_tlen);
 		/* XXX this channel is dead actually. */
 		return (EIO);
@@ -933,13 +936,12 @@ vmbus_chan_recv_pkt(struct vmbus_channel *chan,
 		return (error);
 
 	if (__predict_false(pkt.cph_hlen < VMBUS_CHANPKT_HLEN_MIN)) {
-		device_printf(chan->ch_dev, "invalid hlen %u\n",
-		    pkt.cph_hlen);
+		vmbus_chan_printf(chan, "invalid hlen %u\n", pkt.cph_hlen);
 		/* XXX this channel is dead actually. */
 		return (EIO);
 	}
 	if (__predict_false(pkt.cph_hlen > pkt.cph_tlen)) {
-		device_printf(chan->ch_dev, "invalid hlen %u and tlen %u\n",
+		vmbus_chan_printf(chan, "invalid hlen %u and tlen %u\n",
 		    pkt.cph_hlen, pkt.cph_tlen);
 		/* XXX this channel is dead actually. */
 		return (EIO);
@@ -1082,8 +1084,8 @@ vmbus_chan_update_evtflagcnt(struct vmbus_softc *sc,
 			break;
 		if (atomic_cmpset_int(flag_cnt_ptr, old_flag_cnt, flag_cnt)) {
 			if (bootverbose) {
-				device_printf(sc->vmbus_dev,
-				    "channel%u update cpu%d flag_cnt to %d\n",
+				vmbus_chan_printf(chan,
+				    "chan%u update cpu%d flag_cnt to %d\n",
 				    chan->ch_id, chan->ch_cpuid, flag_cnt);
 			}
 			break;
@@ -1154,11 +1156,6 @@ vmbus_chan_add(struct vmbus_channel *newchan)
 		return EINVAL;
 	}
 
-	if (bootverbose) {
-		device_printf(sc->vmbus_dev, "chan%u subidx%u offer\n",
-		    newchan->ch_id, newchan->ch_subidx);
-	}
-
 	mtx_lock(&sc->vmbus_prichan_lock);
 	TAILQ_FOREACH(prichan, &sc->vmbus_prichans, ch_prilink) {
 		/*
@@ -1179,15 +1176,15 @@ vmbus_chan_add(struct vmbus_channel *newchan)
 			goto done;
 		} else {
 			mtx_unlock(&sc->vmbus_prichan_lock);
-			device_printf(sc->vmbus_dev, "duplicated primary "
-			    "chan%u\n", newchan->ch_id);
+			device_printf(sc->vmbus_dev,
+			    "duplicated primary chan%u\n", newchan->ch_id);
 			return EINVAL;
 		}
 	} else { /* Sub-channel */
 		if (prichan == NULL) {
 			mtx_unlock(&sc->vmbus_prichan_lock);
-			device_printf(sc->vmbus_dev, "no primary chan for "
-			    "chan%u\n", newchan->ch_id);
+			device_printf(sc->vmbus_dev,
+			    "no primary chan for chan%u\n", newchan->ch_id);
 			return EINVAL;
 		}
 		/*
@@ -1224,6 +1221,15 @@ done:
 	mtx_lock(&sc->vmbus_chan_lock);
 	vmbus_chan_ins_list(sc, newchan);
 	mtx_unlock(&sc->vmbus_chan_lock);
+
+	if (bootverbose) {
+		vmbus_chan_printf(newchan, "chan%u subidx%u offer\n",
+		    newchan->ch_id, newchan->ch_subidx);
+	}
+
+	/* Select default cpu for this channel. */
+	vmbus_chan_cpu_default(newchan);
+
 	return 0;
 }
 
@@ -1242,7 +1248,8 @@ vmbus_chan_cpu_set(struct vmbus_channel *chan, int cpu)
 	chan->ch_vcpuid = VMBUS_PCPU_GET(chan->ch_vmbus, vcpuid, cpu);
 
 	if (bootverbose) {
-		printf("vmbus_chan%u: assigned to cpu%u [vcpu%u]\n",
+		vmbus_chan_printf(chan,
+		    "chan%u assigned to cpu%u [vcpu%u]\n",
 		    chan->ch_id, chan->ch_cpuid, chan->ch_vcpuid);
 	}
 }
@@ -1338,9 +1345,6 @@ vmbus_chan_msgproc_choffer(struct vmbus_softc *sc,
 	TASK_INIT(&chan->ch_attach_task, 0, attach_fn, chan);
 	TASK_INIT(&chan->ch_detach_task, 0, detach_fn, chan);
 
-	/* Select default cpu for this channel. */
-	vmbus_chan_cpu_default(chan);
-
 	error = vmbus_chan_add(chan);
 	if (error) {
 		device_printf(sc->vmbus_dev, "add chan%u failed: %d\n",
@@ -1363,11 +1367,6 @@ vmbus_chan_msgproc_chrescind(struct vmbus_softc *sc,
 		device_printf(sc->vmbus_dev, "invalid rescinded chan%u\n",
 		    note->chm_chanid);
 		return;
-	}
-
-	if (bootverbose) {
-		device_printf(sc->vmbus_dev, "chan%u rescinded\n",
-		    note->chm_chanid);
 	}
 
 	/*
@@ -1400,6 +1399,9 @@ vmbus_chan_msgproc_chrescind(struct vmbus_softc *sc,
 		mtx_unlock(&sc->vmbus_prichan_lock);
 	}
 
+	if (bootverbose)
+		vmbus_chan_printf(chan, "chan%u rescinded\n", note->chm_chanid);
+
 	/* Detach the target channel. */
 	taskqueue_enqueue(chan->ch_mgmt_tq, &chan->ch_detach_task);
 }
@@ -1414,8 +1416,9 @@ vmbus_chan_release(struct vmbus_channel *chan)
 
 	mh = vmbus_msghc_get(sc, sizeof(*req));
 	if (mh == NULL) {
-		device_printf(sc->vmbus_dev, "can not get msg hypercall for "
-		    "chfree(chan%u)\n", chan->ch_id);
+		vmbus_chan_printf(chan,
+		    "can not get msg hypercall for chfree(chan%u)\n",
+		    chan->ch_id);
 		return (ENXIO);
 	}
 
@@ -1427,13 +1430,12 @@ vmbus_chan_release(struct vmbus_channel *chan)
 	vmbus_msghc_put(sc, mh);
 
 	if (error) {
-		device_printf(sc->vmbus_dev, "chfree(chan%u) failed: %d",
+		vmbus_chan_printf(chan,
+		    "chfree(chan%u) msg hypercall exec failed: %d\n",
 		    chan->ch_id, error);
 	} else {
-		if (bootverbose) {
-			device_printf(sc->vmbus_dev, "chan%u freed\n",
-			    chan->ch_id);
-		}
+		if (bootverbose)
+			vmbus_chan_printf(chan, "chan%u freed\n", chan->ch_id);
 	}
 	return (error);
 }
@@ -1712,6 +1714,26 @@ vmbus_chan_rx_empty(const struct vmbus_channel *chan)
 {
 
 	return (vmbus_rxbr_empty(&chan->ch_rxbr));
+}
+
+static int
+vmbus_chan_printf(const struct vmbus_channel *chan, const char *fmt, ...)
+{
+	va_list ap;
+	device_t dev;
+	int retval;
+
+	if (chan->ch_dev == NULL || !device_is_alive(chan->ch_dev))
+		dev = chan->ch_vmbus->vmbus_dev;
+	else
+		dev = chan->ch_dev;
+
+	retval = device_print_prettyname(dev);
+	va_start(ap, fmt);
+	retval += vprintf(fmt, ap);
+	va_end(ap);
+
+	return (retval);
 }
 
 void
