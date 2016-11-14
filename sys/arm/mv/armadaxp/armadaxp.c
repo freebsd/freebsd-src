@@ -40,7 +40,6 @@ __FBSDID("$FreeBSD$");
 #include <arm/mv/mvreg.h>
 #include <arm/mv/mvvar.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 
 #include <machine/fdt.h>

@@ -43,7 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/machdep.h>
 #include <machine/platformvar.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 
 #include <arm/nvidia/tegra124/tegra124_mp.h>

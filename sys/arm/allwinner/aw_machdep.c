@@ -48,8 +48,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/machdep.h>
 #include <machine/platformvar.h>
 
-#include <dev/fdt/fdt_common.h>
-
 #include <arm/allwinner/aw_mp.h>
 #include <arm/allwinner/aw_wdog.h>
 #include <arm/allwinner/aw_machdep.h>

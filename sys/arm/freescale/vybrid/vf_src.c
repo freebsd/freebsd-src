@@ -43,7 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/timetc.h>
 #include <sys/watchdog.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
