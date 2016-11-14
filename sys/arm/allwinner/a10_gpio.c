@@ -44,11 +44,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <machine/intr.h>
 
-#include <dev/fdt/fdt_common.h>
-#include <dev/fdt/fdt_pinctrl.h>
 #include <dev/gpio/gpiobusvar.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/fdt/fdt_pinctrl.h>
 
 #include <arm/allwinner/aw_machdep.h>
 #include <arm/allwinner/allwinner_pinctrl.h>
