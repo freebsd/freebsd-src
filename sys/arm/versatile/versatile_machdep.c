@@ -51,8 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/machdep.h>
 #include <machine/platform.h> 
 
-#include <dev/fdt/fdt_common.h>
-
 /* Start of address space used for bootstrap map */
 #define DEVMAP_BOOTSTRAP_MAP_START	0xE0000000
 

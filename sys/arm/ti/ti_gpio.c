@@ -58,7 +58,6 @@ __FBSDID("$FreeBSD$");
 #include <arm/ti/ti_prcm.h>
 #include <arm/ti/ti_hwmods.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/gpio/gpiobusvar.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
