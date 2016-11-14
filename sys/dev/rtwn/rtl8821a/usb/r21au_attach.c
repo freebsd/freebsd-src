@@ -61,7 +61,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/rtwn/rtl8188e/r88e.h>
 
 #include <dev/rtwn/rtl8812a/r12a_var.h>
-#include <dev/rtwn/rtl8812a/r12a_rom_defs.h>
 
 #include <dev/rtwn/rtl8812a/usb/r12au.h>
 #include <dev/rtwn/rtl8812a/usb/r12au_tx_desc.h>
