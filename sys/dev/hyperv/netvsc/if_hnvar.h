@@ -39,8 +39,6 @@
 /* Claimed to be 12232B */
 #define HN_MTU_MAX			(9 * 1024)
 
-#define HN_PKTBUF_LEN			4096
-
 #define HN_TXBR_SIZE			(128 * PAGE_SIZE)
 #define HN_RXBR_SIZE			(128 * PAGE_SIZE)
 
@@ -63,6 +61,7 @@ struct hn_rx_ring {
 	struct ifnet	*hn_ifp;
 	struct hn_tx_ring *hn_txr;
 	void		*hn_pktbuf;
+	int		hn_pktbuf_len;
 	uint8_t		*hn_rxbuf;	/* shadow sc->hn_rxbuf */
 	int		hn_rx_idx;
 
@@ -78,6 +77,7 @@ struct hn_rx_ring {
 	u_long		hn_small_pkts;
 	u_long		hn_pkts;
 	u_long		hn_rss_pkts;
+	u_long		hn_ack_failed;
 
 	/* Rarely used stuffs */
 	struct sysctl_oid *hn_rx_sysctl_tree;
