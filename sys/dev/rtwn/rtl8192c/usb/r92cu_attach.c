@@ -51,7 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/rtwn/usb/rtwn_usb_var.h>
 
 #include <dev/rtwn/rtl8192c/r92c_var.h>
-#include <dev/rtwn/rtl8192c/r92c_rom_defs.h>
 
 #include <dev/rtwn/rtl8192c/usb/r92cu.h>
 #include <dev/rtwn/rtl8192c/usb/r92cu_priv.h>
