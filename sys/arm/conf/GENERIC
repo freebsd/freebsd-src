@@ -182,17 +182,17 @@ device		usfs
 device		loop
 device		ether
 device		vlan			# 802.1Q VLAN support
-device		mii
 device		bpf
 
-device		emac			# 10/100 integrated EMAC controller
-device		dwc			# 10/100/1000 integrated GMAC controller
-device		awg			# 10/100/1000 integrated EMAC controller
-
-# USB ethernet support, requires miibus
-device		smcphy
-device		smsc
+# Ethernet NICs that use the common MII bus controller code.
+# NOTE: Be sure to keep the 'device miibus' line in order to use these NICs!
 device		miibus
+
+device		awg			# 10/100/1000 integrated EMAC controller
+device		cpsw			# TI Common Platform Ethernet Switch (CPSW)
+device		dwc			# 10/100/1000 integrated GMAC controller
+device		emac			# 10/100 integrated EMAC controller
+device		smsc			# SMSC LAN91C111
 
 # Sound support
 device		sound
