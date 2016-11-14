@@ -789,6 +789,7 @@ netvsc_attach(device_t dev)
 	 * Setup the ifnet for this interface.
 	 */
 
+	ifp->if_baudrate = IF_Gbps(10);
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = hn_ioctl;
 	ifp->if_init = hn_init;
