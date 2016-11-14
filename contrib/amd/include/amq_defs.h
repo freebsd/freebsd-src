@@ -66,7 +66,7 @@
 /*
  * TYPEDEFS
  */
-typedef long *time_type;
+typedef time_t *time_type;
 typedef struct amq_mount_info amq_mount_info;
 typedef struct amq_map_info amq_map_info;
 typedef struct amq_mount_stats amq_mount_stats;
