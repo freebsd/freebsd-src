@@ -347,7 +347,6 @@ ieee80211_ioctl_getscanresults(struct ieee80211vap *vap,
 }
 
 struct stainforeq {
-	struct ieee80211vap *vap;
 	struct ieee80211req_sta_info *si;
 	size_t	space;
 };
@@ -366,8 +365,6 @@ get_sta_space(void *arg, struct ieee80211_node *ni)
 	struct stainforeq *req = arg;
 	size_t ielen;
 
-	if (req->vap != ni->ni_vap)
-		return;
 	if (ni->ni_vap->iv_opmode == IEEE80211_M_HOSTAP &&
 	    ni->ni_associd == 0)	/* only associated stations */
 		return;
@@ -383,8 +380,6 @@ get_sta_info(void *arg, struct ieee80211_node *ni)
 	size_t ielen, len;
 	uint8_t *cp;
 
-	if (req->vap != ni->ni_vap)
-		return;
 	if (vap->iv_opmode == IEEE80211_M_HOSTAP &&
 	    ni->ni_associd == 0)	/* only associated stations */
 		return;
@@ -472,10 +467,10 @@ getstainfo_common(struct ieee80211vap *vap, struct ieee80211req *ireq,
 
 	error = 0;
 	req.space = 0;
-	req.vap = vap;
-	if (ni == NULL)
-		ieee80211_iterate_nodes(&ic->ic_sta, get_sta_space, &req);
-	else
+	if (ni == NULL) {
+		ieee80211_iterate_nodes_vap(&ic->ic_sta, vap, get_sta_space,
+		    &req);
+	} else
 		get_sta_space(&req, ni);
 	if (req.space > ireq->i_len)
 		req.space = ireq->i_len;
@@ -489,9 +484,10 @@ getstainfo_common(struct ieee80211vap *vap, struct ieee80211req *ireq,
 			goto bad;
 		}
 		req.si = p;
-		if (ni == NULL)
-			ieee80211_iterate_nodes(&ic->ic_sta, get_sta_info, &req);
-		else
+		if (ni == NULL) {
+			ieee80211_iterate_nodes_vap(&ic->ic_sta, vap,
+			    get_sta_info, &req);
+		} else
 			get_sta_info(&req, ni);
 		ireq->i_len = space - req.space;
 		error = copyout(p, (uint8_t *) ireq->i_data+off, ireq->i_len);

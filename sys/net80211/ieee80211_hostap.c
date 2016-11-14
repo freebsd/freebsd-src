@@ -107,9 +107,8 @@ hostap_vattach(struct ieee80211vap *vap)
 static void
 sta_disassoc(void *arg, struct ieee80211_node *ni)
 {
-	struct ieee80211vap *vap = arg;
 
-	if (ni->ni_vap == vap && ni->ni_associd != 0) {
+	if (ni->ni_associd != 0) {
 		IEEE80211_SEND_MGMT(ni, IEEE80211_FC0_SUBTYPE_DISASSOC,
 			IEEE80211_REASON_ASSOC_LEAVE);
 		ieee80211_node_leave(ni);
@@ -119,9 +118,9 @@ sta_disassoc(void *arg, struct ieee80211_node *ni)
 static void
 sta_csa(void *arg, struct ieee80211_node *ni)
 {
-	struct ieee80211vap *vap = arg;
+	struct ieee80211vap *vap = ni->ni_vap;
 
-	if (ni->ni_vap == vap && ni->ni_associd != 0)
+	if (ni->ni_associd != 0)
 		if (ni->ni_inact > vap->iv_inact_init) {
 			ni->ni_inact = vap->iv_inact_init;
 			IEEE80211_NOTE(vap, IEEE80211_MSG_INACT, ni,
@@ -132,9 +131,8 @@ sta_csa(void *arg, struct ieee80211_node *ni)
 static void
 sta_drop(void *arg, struct ieee80211_node *ni)
 {
-	struct ieee80211vap *vap = arg;
 
-	if (ni->ni_vap == vap && ni->ni_associd != 0)
+	if (ni->ni_associd != 0)
 		ieee80211_node_leave(ni);
 }
 
@@ -179,7 +177,8 @@ hostap_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			ieee80211_dfs_cac_stop(vap);
 			break;
 		case IEEE80211_S_RUN:
-			ieee80211_iterate_nodes(&ic->ic_sta, sta_disassoc, vap);
+			ieee80211_iterate_nodes_vap(&ic->ic_sta, vap,
+			    sta_disassoc, NULL);
 			break;
 		default:
 			break;
@@ -195,7 +194,8 @@ hostap_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		switch (ostate) {
 		case IEEE80211_S_CSA:
 		case IEEE80211_S_RUN:
-			ieee80211_iterate_nodes(&ic->ic_sta, sta_disassoc, vap);
+			ieee80211_iterate_nodes_vap(&ic->ic_sta, vap,
+			    sta_disassoc, NULL);
 			/*
 			 * Clear overlapping BSS state; the beacon frame
 			 * will be reconstructed on transition to the RUN
@@ -289,7 +289,8 @@ hostap_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			 * Shorten inactivity timer of associated stations
 			 * to weed out sta's that don't follow a CSA.
 			 */
-			ieee80211_iterate_nodes(&ic->ic_sta, sta_csa, vap);
+			ieee80211_iterate_nodes_vap(&ic->ic_sta, vap,
+			    sta_csa, NULL);
 			/*
 			 * Update bss node channel to reflect where
 			 * we landed after CSA.
@@ -340,7 +341,8 @@ hostap_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			 * such as capabilities and the negotiated rate
 			 * set may/will be wrong).
 			 */
-			ieee80211_iterate_nodes(&ic->ic_sta, sta_drop, vap);
+			ieee80211_iterate_nodes_vap(&ic->ic_sta, vap,
+			    sta_drop, NULL);
 		}
 		break;
 	default:
