@@ -44,7 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <machine/intr.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
@@ -506,10 +505,10 @@ ti_sdhci_attach(device_t dev)
 	 * See if we've got a GPIO-based write detect pin.  This is not the
 	 * standard documented property for this, we added it in freebsd.
 	 */
-	if ((OF_getprop(node, "mmchs-wp-gpio-pin", &prop, sizeof(prop))) <= 0)
+	if ((OF_getencprop(node, "mmchs-wp-gpio-pin", &prop, sizeof(prop))) <= 0)
 		sc->wp_gpio_pin = 0xffffffff;
 	else
-		sc->wp_gpio_pin = fdt32_to_cpu(prop);
+		sc->wp_gpio_pin = prop;
 
 	if (sc->wp_gpio_pin != 0xffffffff) {
 		sc->gpio_dev = devclass_get_device(devclass_find("gpio"), 0);

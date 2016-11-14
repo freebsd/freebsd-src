@@ -32,7 +32,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/kernel.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 
 #include <machine/bus.h>
@@ -44,16 +43,15 @@ void
 cpu_reset(void)
 {
 	phandle_t src;
-	uint32_t addr, paddr;
+	uint32_t paddr;
 	bus_addr_t vaddr;
 
 	if (src_swreset() == 0)
 		goto end;
 
 	src = OF_finddevice("src");
-	if ((src != 0) && (OF_getprop(src, "reg", &paddr, sizeof(paddr))) > 0) {
-		addr = fdt32_to_cpu(paddr);
-		if (bus_space_map(fdtbus_bs_tag, addr, 0x10, 0, &vaddr) == 0) {
+	if ((src != 0) && (OF_getencprop(src, "reg", &paddr, sizeof(paddr))) > 0) {
+		if (bus_space_map(fdtbus_bs_tag, paddr, 0x10, 0, &vaddr) == 0) {
 			bus_space_write_4(fdtbus_bs_tag, vaddr, 0x00, SW_RST);
 		}
 	}

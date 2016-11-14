@@ -113,7 +113,7 @@ struct gpio_ctrl_entry {
 	gpios_phandler_t	handler;
 };
 
-int mv_handle_gpios_prop(phandle_t ctrl, pcell_t *gpios, int len);
+static int mv_handle_gpios_prop(phandle_t ctrl, pcell_t *gpios, int len);
 int gpio_get_config_from_dt(void);
 
 struct gpio_ctrl_entry gpio_controllers[] = {
@@ -540,7 +540,7 @@ mv_gpio_value_set(uint32_t pin, uint8_t val)
 		mv_gpio_reg_clear(reg, pin);
 }
 
-int
+static int
 mv_handle_gpios_prop(phandle_t ctrl, pcell_t *gpios, int len)
 {
 	pcell_t gpio_cells, pincnt;
@@ -554,10 +554,8 @@ mv_handle_gpios_prop(phandle_t ctrl, pcell_t *gpios, int len)
 		/* Node is not a GPIO controller. */
 		return (ENXIO);
 
-	if (OF_getprop(ctrl, "#gpio-cells", &gpio_cells, sizeof(pcell_t)) < 0)
+	if (OF_getencprop(ctrl, "#gpio-cells", &gpio_cells, sizeof(pcell_t)) < 0)
 		return (ENXIO);
-
-	gpio_cells = fdt32_to_cpu(gpio_cells);
 	if (gpio_cells != 3)
 		return (ENXIO);
 
@@ -567,9 +565,9 @@ mv_handle_gpios_prop(phandle_t ctrl, pcell_t *gpios, int len)
 	if (fdt_regsize(ctrl, &gpio_ctrl, &size))
 		return (ENXIO);
 
-	if (OF_getprop(ctrl, "pin-count", &pincnt, sizeof(pcell_t)) < 0)
+	if (OF_getencprop(ctrl, "pin-count", &pincnt, sizeof(pcell_t)) < 0)
 		return (ENXIO);
-	sc.pin_num = fdt32_to_cpu(pincnt);
+	sc.pin_num = pincnt;
 
 	/*
 	 * Skip controller reference, since controller's phandle is given
@@ -579,9 +577,9 @@ mv_handle_gpios_prop(phandle_t ctrl, pcell_t *gpios, int len)
 	gpios += inc;
 
 	for (t = 0; t < tuples; t++) {
-		pin = fdt32_to_cpu(gpios[0]);
-		dir = fdt32_to_cpu(gpios[1]);
-		flags = fdt32_to_cpu(gpios[2]);
+		pin = gpios[0];
+		dir = gpios[1];
+		flags = gpios[2];
 
 		mv_gpio_configure(pin, flags);
 
@@ -630,7 +628,7 @@ mv_gpio_init(void)
 				return (ENXIO);
 
 			/* Get 'gpios' property. */
-			OF_getprop(child, "gpios", &gpios, len);
+			OF_getencprop(child, "gpios", gpios, len);
 
 			e = (struct gpio_ctrl_entry *)&gpio_controllers;
 
@@ -641,7 +639,7 @@ mv_gpio_init(void)
 				 * contain a ref. to a node defining GPIO
 				 * controller.
 				 */
-				ctrl = OF_node_from_xref(fdt32_to_cpu(gpios[0]));
+				ctrl = OF_node_from_xref(gpios[0]);
 
 				if (ofw_bus_node_is_compatible(ctrl, e->compat))
 					/* Call a handler. */
