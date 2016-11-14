@@ -24,7 +24,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	$FreeBSD$
-.Dd June 24, 2009
+.Dd November 14, 2016
 .Dt USBDI 9
 .Os
 .Sh NAME
@@ -84,6 +84,33 @@
 .In dev/usb/usb.h
 .In dev/usb/usbdi.h
 .In dev/usb/usbdi_util.h
+.Ft "usb_error_t"
+.Fo "usbd_transfer_setup"
+.Fa "struct usb_device *udev"
+.Fa "const uint8_t *ifaces"
+.Fa "struct usb_xfer **pxfer"
+.Fa "const struct usb_config *setup_start"
+.Fa "uint16_t n_setup"
+.Fa "void *priv_sc"
+.Fa "struct mtx *priv_mtx"
+.Fc
+.Ft "void"
+.Fo "usbd_transfer_unsetup"
+.Fa "struct usb_xfer **pxfer"
+.Fa "uint16_t n_setup"
+.Fc
+.Ft "void"
+.Fo "usbd_transfer_start"
+.Fa "struct usb_xfer *xfer"
+.Fc
+.Ft "void"
+.Fo "usbd_transfer_stop"
+.Fa "struct usb_xfer *xfer"
+.Fc
+.Ft "void"
+.Fo "usbd_transfer_drain"
+.Fa "struct usb_xfer *xfer"
+.Fc
 .Sh DESCRIPTION
 The Universal Serial Bus (USB) driver programming interface provides
 USB peripheral drivers with a host controller independent API for
@@ -91,53 +118,6 @@ controlling and communicating with USB peripherals.
 The
 .Nm usb
 module supports both USB Host and USB Device side mode.
-.
-.Sh USB KERNEL PROGRAMMING
-Here is a list of commonly used functions:
-.Pp
-.
-.Ft "usb_error_t"
-.Fo "usbd_transfer_setup"
-.Fa "udev"
-.Fa "ifaces"
-.Fa "pxfer"
-.Fa "setup_start"
-.Fa "n_setup"
-.Fa "priv_sc"
-.Fa "priv_mtx"
-.Fc
-.
-.Pp
-.
-.Ft "void"
-.Fo "usbd_transfer_unsetup"
-.Fa "pxfer"
-.Fa "n_setup"
-.Fc
-.
-.Pp
-.
-.Ft "void"
-.Fo "usbd_transfer_start"
-.Fa "xfer"
-.Fc
-.
-.Pp
-.
-.Ft "void"
-.Fo "usbd_transfer_stop"
-.Fa "xfer"
-.Fc
-.
-.Pp
-.
-.Ft "void"
-.Fo "usbd_transfer_drain"
-.Fa "xfer"
-.Fc
-.
-.
-.
 .Sh USB TRANSFER MANAGEMENT FUNCTIONS
 The USB standard defines four types of USB transfers.
 .
@@ -552,7 +532,7 @@ for the 8-bytes of SETUP header.
 These 8-bytes are not counted by the "xfer->max_data_length"
 variable.
 .
-This flag can not be changed during operation.
+This flag cannot be changed during operation.
 .
 .
 .It ext_buffer
@@ -561,7 +541,7 @@ allocated.
 .
 Instead the USB client must supply a data buffer.
 .
-This flag can not be changed during operation.
+This flag cannot be changed during operation.
 .
 .
 .It manual_status
@@ -579,7 +559,7 @@ This flag can be changed during operation.
 .
 .It no_pipe_ok
 Setting this flag causes the USB_ERR_NO_PIPE error to be ignored.
-This flag can not be changed during operation.
+This flag cannot be changed during operation.
 .
 .
 .It stall_pipe
