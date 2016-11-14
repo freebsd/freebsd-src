@@ -249,7 +249,8 @@ MIPS_RW32_COP0_SEL(config5, MIPS_COP_0_CONFIG, 5);
 #if defined(CPU_NLM) || defined(BERI_LARGE_TLB)
 MIPS_RW32_COP0_SEL(config6, MIPS_COP_0_CONFIG, 6);
 #endif
-#if defined(CPU_NLM) || defined(CPU_MIPS1004K)
+#if defined(CPU_NLM) || defined(CPU_MIPS1004K) || defined (CPU_MIPS74K) || \
+    defined(CPU_MIPS24K)
 MIPS_RW32_COP0_SEL(config7, MIPS_COP_0_CONFIG, 7);
 #endif
 MIPS_RW32_COP0(count, MIPS_COP_0_COUNT);
