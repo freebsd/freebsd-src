@@ -38,6 +38,7 @@
  */
 
 
+#include <stdint.h>
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif /* HAVE_CONFIG_H */
@@ -201,7 +202,7 @@ make_entry_chain(am_node *mp, const nfsentry *current_chain, int fully_browsable
 static int
 amfs_readdir_browsable(am_node *mp, nfscookie cookie, nfsdirlist *dp, nfsentry *ep, u_int count, int fully_browsable)
 {
-  u_int gen = *(u_int *) cookie;
+  u_int gen = *(u_int *) (uintptr_t) cookie;
   int chain_length, i;
   static nfsentry *te, *te_next;
   static int j;
@@ -364,7 +365,7 @@ amfs_readdir_browsable(am_node *mp, nfscookie cookie, nfsdirlist *dp, nfsentry *
 static int
 amfs_readdir(am_node *mp, nfscookie cookie, nfsdirlist *dp, nfsentry *ep, u_int count)
 {
-  u_int gen = *(u_int *) cookie;
+  u_int gen = *(u_int *) (uintptr_t) cookie;
   am_node *xp;
 
   dp->dl_eof = FALSE;		/* assume readdir not done */
@@ -639,7 +640,7 @@ amfs_readdir3_browsable(am_node *mp, am_cookie3 cookie,
 			am_dirlist3 *dp, am_entry3 *ep, u_int count,
 			int fully_browsable)
 {
-  uint64 gen = *(uint64 *) cookie;
+  uint64 gen = *(uint64 *) (uintptr_t) cookie;
   int chain_length, i;
   static am_entry3 *te, *te_next;
   static int j;
@@ -796,7 +797,7 @@ static int
 amfs_readdir3(am_node *mp, am_cookie3 cookie,
 	      am_dirlist3 *dp, am_entry3 *ep, u_int count)
 {
-  uint64 gen = *(uint64 *) cookie;
+  uint64 gen = *(uint64 *) (uintptr_t) cookie;
   am_node *xp;
 
   if (amuDebug(D_READDIR))
@@ -944,8 +945,8 @@ amfs_generic_readdir(am_node *mp, voidp cookie, voidp dp, voidp ep, u_int count)
       return amfs_readdir(mp, cookie, dp, ep, count);
   } else {
     if (browsable)
-      return amfs_readdir3_browsable(mp, (am_cookie3) cookie, dp, ep, count, full);
+      return amfs_readdir3_browsable(mp, (am_cookie3) (uintptr_t) cookie, dp, ep, count, full);
     else
-      return amfs_readdir3(mp, (am_cookie3) cookie, dp, ep, count);
+      return amfs_readdir3(mp, (am_cookie3) (uintptr_t) cookie, dp, ep, count);
   }
 }
