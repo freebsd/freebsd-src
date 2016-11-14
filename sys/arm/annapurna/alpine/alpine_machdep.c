@@ -45,8 +45,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/platform.h>
 #include <machine/fdt.h>
 
-#include <dev/fdt/fdt_common.h>
-
 #include "opt_ddb.h"
 #include "opt_platform.h"
 

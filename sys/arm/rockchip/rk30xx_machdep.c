@@ -47,8 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/machdep.h>
 #include <machine/platform.h> 
 
-#include <dev/fdt/fdt_common.h>
-
 #include <arm/rockchip/rk30xx_wdog.h>
 
 vm_offset_t
