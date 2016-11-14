@@ -60,7 +60,6 @@ __FBSDID("$FreeBSD$");
 #endif
 #ifdef CPU_MV_PJ4B
 #include <arm/mv/mvwin.h>
-#include <dev/fdt/fdt_common.h>
 #endif
 
 extern struct pcpu __pcpu[];

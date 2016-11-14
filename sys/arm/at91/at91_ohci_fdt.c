@@ -61,7 +61,6 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/at91/at91_pmcvar.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
