@@ -209,9 +209,9 @@ tdma_vdetach(struct ieee80211vap *vap)
 static void
 sta_leave(void *arg, struct ieee80211_node *ni)
 {
-	struct ieee80211vap *vap = arg;
+	struct ieee80211vap *vap = ni->ni_vap;
 
-	if (ni->ni_vap == vap && ni != vap->iv_bss)
+	if (ni != vap->iv_bss)
 		ieee80211_node_leave(ni);
 }
 
@@ -246,7 +246,8 @@ tdma_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		ieee80211_cancel_scan(vap);		/* background scan */
 		if (ostate == IEEE80211_S_RUN) {
 			/* purge station table; entries are stale */
-			ieee80211_iterate_nodes(&ic->ic_sta, sta_leave, vap);
+			ieee80211_iterate_nodes_vap(&ic->ic_sta, vap,
+			    sta_leave, NULL);
 		}
 		if (vap->iv_flags_ext & IEEE80211_FEXT_SCANREQ) {
 			ieee80211_check_scan(vap,

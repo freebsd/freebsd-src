@@ -2717,7 +2717,6 @@ done:
 }
 
 struct rssiinfo {
-	struct ieee80211vap *vap;
 	int	rssi_samples;
 	uint32_t rssi_total;
 };
@@ -2729,8 +2728,6 @@ get_hostap_rssi(void *arg, struct ieee80211_node *ni)
 	struct ieee80211vap *vap = ni->ni_vap;
 	int8_t rssi;
 
-	if (info->vap != vap)
-		return;
 	/* only associated stations */
 	if (ni->ni_associd == 0)
 		return;
@@ -2748,8 +2745,6 @@ get_adhoc_rssi(void *arg, struct ieee80211_node *ni)
 	struct ieee80211vap *vap = ni->ni_vap;
 	int8_t rssi;
 
-	if (info->vap != vap)
-		return;
 	/* only neighbors */
 	/* XXX check bssid */
 	if ((ni->ni_capinfo & IEEE80211_CAPINFO_IBSS) == 0)
@@ -2769,8 +2764,6 @@ get_mesh_rssi(void *arg, struct ieee80211_node *ni)
 	struct ieee80211vap *vap = ni->ni_vap;
 	int8_t rssi;
 
-	if (info->vap != vap)
-		return;
 	/* only neighbors that peered successfully */
 	if (ni->ni_mlstate != IEEE80211_NODE_MESH_ESTABLISHED)
 		return;
@@ -2791,18 +2784,20 @@ ieee80211_getrssi(struct ieee80211vap *vap)
 
 	info.rssi_total = 0;
 	info.rssi_samples = 0;
-	info.vap = vap;
 	switch (vap->iv_opmode) {
 	case IEEE80211_M_IBSS:		/* average of all ibss neighbors */
 	case IEEE80211_M_AHDEMO:	/* average of all neighbors */
-		ieee80211_iterate_nodes(&ic->ic_sta, get_adhoc_rssi, &info);
+		ieee80211_iterate_nodes_vap(&ic->ic_sta, vap, get_adhoc_rssi,
+		    &info);
 		break;
 	case IEEE80211_M_HOSTAP:	/* average of all associated stations */
-		ieee80211_iterate_nodes(&ic->ic_sta, get_hostap_rssi, &info);
+		ieee80211_iterate_nodes_vap(&ic->ic_sta, vap, get_hostap_rssi,
+		    &info);
 		break;
 #ifdef IEEE80211_SUPPORT_MESH
 	case IEEE80211_M_MBSS:		/* average of all mesh neighbors */
-		ieee80211_iterate_nodes(&ic->ic_sta, get_mesh_rssi, &info);
+		ieee80211_iterate_nodes_vap(&ic->ic_sta, vap, get_mesh_rssi,
+		    &info);
 		break;
 #endif
 	case IEEE80211_M_MONITOR:	/* XXX */

@@ -120,9 +120,9 @@ adhoc_vattach(struct ieee80211vap *vap)
 static void
 sta_leave(void *arg, struct ieee80211_node *ni)
 {
-	struct ieee80211vap *vap = arg;
+	struct ieee80211vap *vap = ni->ni_vap;
 
-	if (ni->ni_vap == vap && ni != vap->iv_bss)
+	if (ni != vap->iv_bss)
 		ieee80211_node_leave(ni);
 }
 
@@ -164,7 +164,8 @@ adhoc_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		switch (ostate) {
 		case IEEE80211_S_RUN:		/* beacon miss */
 			/* purge station table; entries are stale */
-			ieee80211_iterate_nodes(&ic->ic_sta, sta_leave, vap);
+			ieee80211_iterate_nodes_vap(&ic->ic_sta, vap,
+			    sta_leave, NULL);
 			/* fall thru... */
 		case IEEE80211_S_INIT:
 			if (vap->iv_des_chan != IEEE80211_CHAN_ANYC &&
