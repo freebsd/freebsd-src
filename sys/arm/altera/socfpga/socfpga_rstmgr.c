@@ -47,7 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/timetc.h>
 #include <sys/sysctl.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -84,7 +83,7 @@ enum {
 static int
 l3remap(struct rstmgr_softc *sc, int remap, int enable)
 {
-	uint32_t addr, paddr;
+	uint32_t paddr;
 	bus_addr_t vaddr;
 	phandle_t node;
 	int reg;
@@ -106,9 +105,8 @@ l3remap(struct rstmgr_softc *sc, int remap, int enable)
 		return (1);
 	}
 
-	if ((OF_getprop(node, "reg", &paddr, sizeof(paddr))) > 0) {
-		addr = fdt32_to_cpu(paddr);
-		if (bus_space_map(fdtbus_bs_tag, addr, 0x4, 0, &vaddr) == 0) {
+	if ((OF_getencprop(node, "reg", &paddr, sizeof(paddr))) > 0) {
+		if (bus_space_map(fdtbus_bs_tag, paddr, 0x4, 0, &vaddr) == 0) {
 			bus_space_write_4(fdtbus_bs_tag, vaddr,
 			    L3REGS_REMAP, reg);
 			return (0);

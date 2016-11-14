@@ -49,7 +49,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -767,14 +766,17 @@ ti_adc_attach(device_t dev)
 	/* Read "tsc" node properties */
 	child = ofw_bus_find_child(node, "tsc");
 	if (child != 0 && OF_hasprop(child, "ti,wires")) {
-		if ((OF_getprop(child, "ti,wires", &cell, sizeof(cell))) > 0)
-			sc->sc_tsc_wires = fdt32_to_cpu(cell);
-		if ((OF_getprop(child, "ti,coordinate-readouts", &cell, sizeof(cell))) > 0)
-			sc->sc_coord_readouts = fdt32_to_cpu(cell);
-		if ((OF_getprop(child, "ti,x-plate-resistance", &cell, sizeof(cell))) > 0)
-			sc->sc_x_plate_resistance = fdt32_to_cpu(cell);
-		if ((OF_getprop(child, "ti,charge-delay", &cell, sizeof(cell))) > 0)
-			sc->sc_charge_delay = fdt32_to_cpu(cell);
+		if ((OF_getencprop(child, "ti,wires", &cell, sizeof(cell))) > 0)
+			sc->sc_tsc_wires = cell;
+		if ((OF_getencprop(child, "ti,coordinate-readouts", &cell,
+		    sizeof(cell))) > 0)
+			sc->sc_coord_readouts = cell;
+		if ((OF_getencprop(child, "ti,x-plate-resistance", &cell,
+		    sizeof(cell))) > 0)
+			sc->sc_x_plate_resistance = cell;
+		if ((OF_getencprop(child, "ti,charge-delay", &cell,
+		    sizeof(cell))) > 0)
+			sc->sc_charge_delay = cell;
 		nwire_configs = OF_getencprop_alloc(child, "ti,wire-config",
 		    sizeof(*wire_configs), (void **)&wire_configs);
 		if (nwire_configs != sc->sc_tsc_wires) {

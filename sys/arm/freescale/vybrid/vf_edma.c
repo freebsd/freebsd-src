@@ -43,7 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/timetc.h>
 #include <sys/watchdog.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -284,8 +283,8 @@ edma_attach(device_t dev)
 	if ((len = OF_getproplen(node, "device-id")) <= 0)
 		return (ENXIO);
 
-	OF_getprop(node, "device-id", &dts_value, len);
-	sc->device_id = fdt32_to_cpu(dts_value);
+	OF_getencprop(node, "device-id", &dts_value, len);
+	sc->device_id = dts_value;
 
 	sc->dma_stop = dma_stop;
 	sc->dma_setup = dma_setup;
