@@ -57,6 +57,7 @@ SUBDIR=	\
 	${_bios} \
 	${_bktr} \
 	${_bm} \
+	bnxt \
 	bridgestp \
 	bwi \
 	bwn \
