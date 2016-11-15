@@ -861,7 +861,13 @@ err_destroy_rq:
 static void
 mlx5e_close_rq(struct mlx5e_rq *rq)
 {
+	mtx_lock(&rq->mtx);
 	rq->enabled = 0;
+	callout_stop(&rq->watchdog);
+	mtx_unlock(&rq->mtx);
+
+	callout_drain(&rq->watchdog);
+
 	mlx5e_modify_rq(rq, MLX5_RQC_STATE_RDY, MLX5_RQC_STATE_ERR);
 }
 
@@ -1444,6 +1450,8 @@ mlx5e_chan_mtx_init(struct mlx5e_channel *c)
 	int tc;
 
 	mtx_init(&c->rq.mtx, "mlx5rx", MTX_NETWORK_LOCK, MTX_DEF);
+
+	callout_init_mtx(&c->rq.watchdog, &c->rq.mtx, 0);
 
 	for (tc = 0; tc < c->num_tc; tc++) {
 		struct mlx5e_sq *sq = c->sq + tc;
