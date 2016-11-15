@@ -118,7 +118,6 @@ struct vm_object {
 	vm_ooffset_t backing_object_offset;/* Offset in backing object */
 	TAILQ_ENTRY(vm_object) pager_object_list; /* list of all objects of this pager type */
 	LIST_HEAD(, vm_reserv) rvq;	/* list of reservations */
-	struct vm_radix cache;		/* (o + f) root of the cache page radix trie */
 	void *handle;
 	union {
 		/*
@@ -289,13 +288,6 @@ void vm_object_pip_subtract(vm_object_t object, short i);
 void vm_object_pip_wakeup(vm_object_t object);
 void vm_object_pip_wakeupn(vm_object_t object, short i);
 void vm_object_pip_wait(vm_object_t object, char *waitid);
-
-static __inline boolean_t
-vm_object_cache_is_empty(vm_object_t object)
-{
-
-	return (vm_radix_is_empty(&object->cache));
-}
 
 void umtx_shm_object_init(vm_object_t object);
 void umtx_shm_object_terminated(vm_object_t object);

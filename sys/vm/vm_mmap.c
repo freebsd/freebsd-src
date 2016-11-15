@@ -877,9 +877,6 @@ RestartScan:
 					pindex = OFF_TO_IDX(current->offset +
 					    (addr - current->start));
 					m = vm_page_lookup(object, pindex);
-					if (m == NULL &&
-					    vm_page_is_cached(object, pindex))
-						mincoreinfo = MINCORE_INCORE;
 					if (m != NULL && m->valid == 0)
 						m = NULL;
 					if (m != NULL)
