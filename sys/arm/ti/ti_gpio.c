@@ -710,7 +710,8 @@ ti_gpio_detach(device_t dev)
 	/* Disable all interrupts */
 	if (sc->sc_mem_res != NULL)
 		ti_gpio_intr_clr(sc, 0xffffffff);
-	gpiobus_detach_bus(dev);
+	if (sc->sc_busdev != NULL)
+		gpiobus_detach_bus(dev);
 	if (sc->sc_isrcs != NULL)
 		ti_gpio_pic_detach(sc);
 	/* Release the memory and IRQ resources. */
@@ -718,10 +719,12 @@ ti_gpio_detach(device_t dev)
 		bus_teardown_intr(dev, sc->sc_irq_res,
 		    sc->sc_irq_hdl);
 	}
-	bus_release_resource(dev, SYS_RES_IRQ, sc->sc_irq_rid,
-	    sc->sc_irq_res);
-	bus_release_resource(dev, SYS_RES_MEMORY, sc->sc_mem_rid,
-	    sc->sc_mem_res);
+	if (sc->sc_irq_res)
+		bus_release_resource(dev, SYS_RES_IRQ, sc->sc_irq_rid,
+		    sc->sc_irq_res);
+	if (sc->sc_mem_res)
+		bus_release_resource(dev, SYS_RES_MEMORY, sc->sc_mem_rid,
+		    sc->sc_mem_res);
 	TI_GPIO_LOCK_DESTROY(sc);
 
 	return (0);
