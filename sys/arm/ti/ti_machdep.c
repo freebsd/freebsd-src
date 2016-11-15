@@ -124,5 +124,5 @@ static platform_method_t am335x_methods[] = {
 	PLATFORMMETHOD_END,
 };
 
-FDT_PLATFORM_DEF(am335x, "am335x", 0, "ti,am335x", 200);
+FDT_PLATFORM_DEF(am335x, "am335x", 0, "ti,am33xx", 200);
 #endif
