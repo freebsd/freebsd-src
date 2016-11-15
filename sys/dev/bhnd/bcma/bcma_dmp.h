@@ -252,7 +252,7 @@
 #define	BCMA_DMP_IOST_MASK	0x0000FFFF
 
 /* resetctrl */
-#define	BMCA_DMP_RC_RESET	0x00000001
+#define	BCMA_DMP_RC_RESET	0x00000001
 
 /* config */
 #define	BCMA_DMP_CFG_OOB	0x00000020
