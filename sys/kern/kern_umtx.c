@@ -198,7 +198,9 @@ struct umtxq_chain {
 			 PRI_MAX_TIMESHARE : (td)->td_user_pri)
 
 #define	GOLDEN_RATIO_PRIME	2654404609U
+#ifndef	UMTX_CHAINS
 #define	UMTX_CHAINS		512
+#endif
 #define	UMTX_SHIFTS		(__WORD_BIT - 9)
 
 #define	GET_SHARE(flags)	\
