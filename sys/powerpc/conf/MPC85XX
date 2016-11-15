@@ -81,6 +81,8 @@ device		iicbus
 device		loop
 device		md
 device		miibus
+device  	mmc
+device  	mmcsd
 device		pass
 device		pci
 device		quicc
