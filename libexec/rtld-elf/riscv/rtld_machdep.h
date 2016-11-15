@@ -78,6 +78,9 @@ Elf_Addr reloc_jmpslot(Elf_Addr *where, Elf_Addr target,
 	__asm __volatile("mv    gp, %0" :: "r"(old1));			\
 })
 
+#define	call_ifunc_resolver(ptr) \
+	(((Elf_Addr (*)(void))ptr)())
+
 /*
  * Lazy binding entry point, called via PLT.
  */
