@@ -488,6 +488,7 @@ struct mlx5e_rq {
 	struct mlx5_wq_ctrl wq_ctrl;
 	u32	rqn;
 	struct mlx5e_channel *channel;
+	struct callout watchdog;
 } __aligned(MLX5E_CACHELINE_SIZE);
 
 struct mlx5e_sq_mbuf {
