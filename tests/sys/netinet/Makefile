@@ -5,7 +5,7 @@ BINDIR=		${TESTSDIR}
 
 ATF_TESTS_SH=	fibs_test
 
-PROGS=	udp_dontroute
+PROGS=	udp_dontroute tcp_user_cookie
 
 MAN=
 
