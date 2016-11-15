@@ -124,6 +124,8 @@
         ..
         hwpmc
         ..
+        hyperv
+        ..
         ic
         ..
         iicbus
