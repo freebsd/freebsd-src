@@ -61,6 +61,14 @@ reloc_jmpslot(Elf_Addr *where, Elf_Addr target,
 #define call_init_pointer(obj, target) \
 	(((InitArrFunc)(target))(main_argc, main_argv, environ))
 
+extern uint32_t cpu_feature;
+extern uint32_t cpu_feature2;
+extern uint32_t cpu_stdext_feature;
+extern uint32_t cpu_stdext_feature2;
+#define	call_ifunc_resolver(ptr) \
+	(((Elf_Addr (*)(uint32_t, uint32_t, uint32_t, uint32_t))ptr)( \
+	    cpu_feature, cpu_feature2, cpu_stdext_feature, cpu_stdext_feature2))
+
 #define round(size, align) \
 	(((size) + (align) - 1) & ~((align) - 1))
 #define calculate_first_tls_offset(size, align) \
