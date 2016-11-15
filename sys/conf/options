@@ -220,6 +220,7 @@ SYSVSHM		opt_sysvipc.h
 SW_WATCHDOG	opt_watchdog.h
 TURNSTILE_PROFILING
 UMTX_PROFILING
+UMTX_CHAINS	opt_global.h
 VERBOSE_SYSINIT
 
 # POSIX kernel options
@@ -996,3 +997,4 @@ GPIO_SPI_DEBUG	opt_gpio.h
 EVDEV_SUPPORT	opt_evdev.h
 EVDEV_DEBUG	opt_evdev.h
 UINPUT_DEBUG	opt_evdev.h
+
