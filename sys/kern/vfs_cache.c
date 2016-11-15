@@ -783,7 +783,7 @@ cache_negative_shrink_select(int start, struct namecache **ncpp,
 static void
 cache_negative_zap_one(void)
 {
-	struct namecache *ncp, *ncp2, *ncpc;
+	struct namecache *ncp, *ncp2;
 	struct neglist *neglist;
 	struct mtx *dvlp;
 	struct rwlock *blp;
@@ -791,7 +791,6 @@ cache_negative_zap_one(void)
 	if (!mtx_trylock(&ncneg_shrink_lock))
 		return;
 
-	ncpc = NULL;
 	mtx_lock(&ncneg_hot.nl_lock);
 	ncp = TAILQ_FIRST(&ncneg_hot.nl_list);
 	if (ncp != NULL) {
