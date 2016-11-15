@@ -1773,13 +1773,15 @@ done:
 static int
 sysctl_ifmalist(int af, struct walkarg *w)
 {
-	struct ifnet *ifp;
-	struct ifmultiaddr *ifma;
-	struct	rt_addrinfo info;
-	int	len, error = 0;
+	struct rt_addrinfo info;
 	struct ifaddr *ifa;
+	struct ifmultiaddr *ifma;
+	struct ifnet *ifp;
+	int error, len;
 
+	error = 0;
 	bzero((caddr_t)&info, sizeof(info));
+
 	IFNET_RLOCK_NOSLEEP();
 	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		if (w->w_arg && w->w_arg != ifp->if_index)
@@ -1799,7 +1801,7 @@ sysctl_ifmalist(int af, struct walkarg *w)
 			    ifma->ifma_lladdr : NULL;
 			error = rtsock_msg_buffer(RTM_NEWMADDR, &info, w, &len);
 			if (error != 0)
-				goto done;
+				break;
 			if (w->w_req && w->w_tmem) {
 				struct ifma_msghdr *ifmam;
 
@@ -1808,15 +1810,14 @@ sysctl_ifmalist(int af, struct walkarg *w)
 				ifmam->ifmam_flags = 0;
 				ifmam->ifmam_addrs = info.rti_addrs;
 				error = SYSCTL_OUT(w->w_req, w->w_tmem, len);
-				if (error) {
-					IF_ADDR_RUNLOCK(ifp);
-					goto done;
-				}
+				if (error != 0)
+					break;
 			}
 		}
 		IF_ADDR_RUNLOCK(ifp);
+		if (error != 0)
+			break;
 	}
-done:
 	IFNET_RUNLOCK_NOSLEEP();
 	return (error);
 }
