@@ -297,13 +297,13 @@ static device_method_t ti_aintc_methods[] = {
 };
 
 static driver_t ti_aintc_driver = {
-	"aintc",
+	"ti_aintc",
 	ti_aintc_methods,
 	sizeof(struct ti_aintc_softc),
 };
 
 static devclass_t ti_aintc_devclass;
 
-EARLY_DRIVER_MODULE(aintc, simplebus, ti_aintc_driver, ti_aintc_devclass,
+EARLY_DRIVER_MODULE(ti_aintc, simplebus, ti_aintc_driver, ti_aintc_devclass,
     0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
 SIMPLEBUS_PNP_INFO(compat_data);
