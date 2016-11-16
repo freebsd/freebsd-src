@@ -55,7 +55,7 @@ dt_opt_agg(dtrace_hdl_t *dtp, const char *arg, uintptr_t option)
 	if (arg != NULL)
 		return (dt_set_errno(dtp, EDT_BADOPTVAL));
 
-	agp->dtat_flags |= option;
+	agp->dtat_flags |= (int)option;
 	return (0);
 }
 
@@ -559,9 +559,9 @@ dt_opt_cflags(dtrace_hdl_t *dtp, const char *arg, uintptr_t option)
 		return (dt_set_errno(dtp, EDT_BADOPTVAL));
 
 	if (dtp->dt_pcb != NULL)
-		dtp->dt_pcb->pcb_cflags |= option;
+		dtp->dt_pcb->pcb_cflags |= (uint_t)option;
 	else
-		dtp->dt_cflags |= option;
+		dtp->dt_cflags |= (uint_t)option;
 
 	return (0);
 }
@@ -572,7 +572,7 @@ dt_opt_dflags(dtrace_hdl_t *dtp, const char *arg, uintptr_t option)
 	if (arg != NULL)
 		return (dt_set_errno(dtp, EDT_BADOPTVAL));
 
-	dtp->dt_dflags |= option;
+	dtp->dt_dflags |= (uint_t)option;
 	return (0);
 }
 
@@ -583,9 +583,9 @@ dt_opt_invcflags(dtrace_hdl_t *dtp, const char *arg, uintptr_t option)
 		return (dt_set_errno(dtp, EDT_BADOPTVAL));
 
 	if (dtp->dt_pcb != NULL)
-		dtp->dt_pcb->pcb_cflags &= ~option;
+		dtp->dt_pcb->pcb_cflags &= (uint_t)~option;
 	else
-		dtp->dt_cflags &= ~option;
+		dtp->dt_cflags &= (uint_t)~option;
 
 	return (0);
 }
