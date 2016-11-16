@@ -55,7 +55,7 @@ ${_CW:tu}CONF?=	${.CURDIR}/tools/${_CW:tl}.conf
 
 cw-${_CW:tl}:
 	mkdir -p ${.OBJDIR}/${.TARGET}
-	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
+	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} SWAPSIZE=${SWAPSIZE} \
 		${.CURDIR}/scripts/mk-vmimage.sh \
 		-C ${.CURDIR}/tools/vmimage.subr -d ${.OBJDIR}/${.TARGET} \
 		-i ${.OBJDIR}/${_CW:tl}.img -s ${VMSIZE} -f ${${_CW}_FORMAT} \
