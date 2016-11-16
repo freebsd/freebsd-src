@@ -479,7 +479,7 @@ bcmfb_configure(int flags)
 		}
 
 		if (sc->height == 0) {
-			if ((OF_getprop(display, "broadcom,height", 
+			if ((OF_getencprop(display, "broadcom,height", 
 			    &cell, sizeof(cell))) > 0)
 				sc->height = cell;
 		}
