@@ -60,7 +60,11 @@ assym.o: assym.s
 
 .if ${MACHINE_CPUARCH} == "riscv"
 assym.o: assym.s
+.if ${TARGET_ARCH:Mriscv*sf}
 	${AS} -mfloat-abi=soft -o assym.o assym.s
+.else
+	${AS} -mfloat-abi=double -o assym.o assym.s
+.endif
 .endif
 
 .include <bsd.kmod.mk>
