@@ -233,10 +233,6 @@ SUBDIR:=	csu \
 SUBDIR:=	${SUBDIR:Nlibc++:Nlibcxxrt:Nlibdevdctl}
 # header issue in ioctl.c, probably needs more porting for CheriABI
 SUBDIR:=	${SUBDIR:Nlibsysdecode}
-.if ${MK_CHERI_SHARED} == "yes"
-# symbol verison issues
-SUBDIR:=	${SUBDIR:Nlibdpv:Nlibpam}
-.endif
 .endif
 SUBDIR+=	libmalloc_simple
 SUBDIR+=	libcheri_syscalls

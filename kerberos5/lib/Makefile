@@ -10,21 +10,4 @@ SUBDIR=	libasn1 libgssapi_krb5 libgssapi_ntlm libgssapi_spnego libhdb \
 SUBDIR+= libkafs5  # requires krb_err.h from libkrb5
 SUBDIR_DEPEND_libkafs5=	libkrb5
 
-.if defined(LIBCHERI)
-.if ${MK_LIBCHERI_ALL} == "no"
-SUBDIR:=
-.else
-.if ${MK_LIBCHERI_BROKEN} == "no"
-# __DECONT-like thing in roken.h is broken
-SUBDIR:=	${SUBDIR:Nlibgssapi_krb5:Nlibgssapi_ntlm:Nlibgssapi_spnego:Nlibhx509}
-# missing krb_err.h
-SUBDIR:=	${SUBDIR:Nlibkafs5}
-.if ${MK_CHERI_SHARED} == "yes"
-# symbol version issues
-SUBDIR:=	${SUBDIR:Nlibasn1:Nlibhdb:Nlibheimntlm:Nlibkadm5clnt:Nlibkadm5srv:Nlibkrb5:Nlibkdc}
-.endif
-.endif
-.endif
-.endif
-
 .include <bsd.subdir.mk>
