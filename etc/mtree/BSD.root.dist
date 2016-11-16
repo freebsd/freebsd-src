@@ -78,6 +78,8 @@
         ..
         ssl
         ..
+        syslog.d
+        ..
         zfs
         ..
     ..
