@@ -62,9 +62,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr.h>
 #include <machine/smp.h>
 #include <machine/sbi.h>
-#ifdef VFP
-#include <machine/vfp.h>
-#endif
 
 #ifdef FDT
 #include <dev/ofw/openfirm.h>
@@ -241,10 +238,6 @@ init_secondary(uint64_t cpu)
 
 	/* Start per-CPU event timers. */
 	cpu_initclocks_ap();
-
-#ifdef VFP
-	/* TODO: init FPU */
-#endif
 
 	/* Enable interrupts */
 	intr_enable();

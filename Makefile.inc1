@@ -364,6 +364,7 @@ KNOWN_ARCHES?=	aarch64/arm64 \
 		powerpc64/powerpc \
 		powerpcspe/powerpc \
 		riscv64/riscv \
+		riscv64sf/riscv \
 		sparc64
 
 .if ${TARGET} == ${TARGET_ARCH}

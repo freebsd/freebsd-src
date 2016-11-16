@@ -155,8 +155,6 @@ _CPUCFLAGS = -march=${CPUTYPE}
 #	sb1, xlp, xlr
 _CPUCFLAGS = -march=${CPUTYPE:S/^mips//}
 . endif
-. elif ${MACHINE_CPUARCH} == "riscv"
-_CPUCFLAGS = -mno-float -march="IMAFD"
 . elif ${MACHINE_ARCH} == "sparc64"
 .  if ${CPUTYPE} == "v9"
 _CPUCFLAGS = -mcpu=v9
@@ -350,8 +348,10 @@ CFLAGS += -mcpu=8540 -Wa,-me500 -mspe=yes -mabi=spe -mfloat-gprs=double
 .endif
 
 .if ${MACHINE_CPUARCH} == "riscv"
+.if ${TARGET_ARCH:Mriscv*sf}
 CFLAGS += -mno-float
 ACFLAGS += -mno-float
+.endif
 .endif
 
 # NB: COPTFLAGS is handled in /usr/src/sys/conf/kern.pre.mk

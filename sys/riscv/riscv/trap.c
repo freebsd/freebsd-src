@@ -328,9 +328,11 @@ do_trap_user(struct trapframe *frame)
 	uint64_t exception;
 	struct thread *td;
 	uint64_t sstatus;
+	struct pcb *pcb;
 
 	td = curthread;
 	td->td_frame = frame;
+	pcb = td->td_pcb;
 
 	/* Ensure we came from usermode, interrupts disabled */
 	__asm __volatile("csrr %0, sstatus" : "=&r" (sstatus));
@@ -358,6 +360,17 @@ do_trap_user(struct trapframe *frame)
 		svc_handler(frame);
 		break;
 	case EXCP_ILLEGAL_INSTRUCTION:
+#ifdef FPE
+		if ((pcb->pcb_fpflags & PCB_FP_STARTED) == 0) {
+			/*
+			 * May be a FPE trap. Enable FPE usage
+			 * for this thread and try again.
+			 */
+			frame->tf_sstatus |= SSTATUS_FS_INITIAL;
+			pcb->pcb_fpflags |= PCB_FP_STARTED;
+			break;
+		}
+#endif
 		call_trapsignal(td, SIGILL, ILL_ILLTRP, (void *)frame->tf_sepc);
 		userret(td, frame);
 		break;
