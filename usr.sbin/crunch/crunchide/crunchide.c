@@ -26,7 +26,7 @@
  *			   University of Maryland at College Park
  */
 /*
- * crunchide.c - tiptoes through an a.out symbol table, hiding all defined
+ * crunchide.c - tiptoes through a symbol table, hiding all defined
  *	global symbols.  Allows the user to supply a "keep list" of symbols
  *	that are not to be hidden.  This program relies on the use of the
  * 	linker's -dc flag to actually put global bss data into the file's
@@ -73,7 +73,6 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <fcntl.h>
-#include <a.out.h>
 
 #include "extern.h"
 
