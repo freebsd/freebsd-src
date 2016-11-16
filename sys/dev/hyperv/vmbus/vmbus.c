@@ -77,6 +77,8 @@ static int			vmbus_child_pnpinfo_str(device_t, device_t,
 static uint32_t			vmbus_get_version_method(device_t, device_t);
 static int			vmbus_probe_guid_method(device_t, device_t,
 				    const struct hyperv_guid *);
+static uint32_t			vmbus_get_vcpu_id_method(device_t bus,
+				    device_t dev, int cpu);
 
 static int			vmbus_init(struct vmbus_softc *);
 static int			vmbus_connect(struct vmbus_softc *, uint32_t);
@@ -135,6 +137,7 @@ static device_method_t vmbus_methods[] = {
 	/* Vmbus interface */
 	DEVMETHOD(vmbus_get_version,		vmbus_get_version_method),
 	DEVMETHOD(vmbus_probe_guid,		vmbus_probe_guid_method),
+	DEVMETHOD(vmbus_get_vcpu_id,		vmbus_get_vcpu_id_method),
 
 	DEVMETHOD_END
 };
@@ -989,6 +992,14 @@ vmbus_probe_guid_method(device_t bus, device_t dev,
 	if (memcmp(&chan->ch_guid_type, guid, sizeof(struct hyperv_guid)) == 0)
 		return 0;
 	return ENXIO;
+}
+
+static uint32_t
+vmbus_get_vcpu_id_method(device_t bus, device_t dev, int cpu)
+{
+	const struct vmbus_softc *sc = device_get_softc(bus);
+
+	return (VMBUS_PCPU_GET(sc, vcpuid, cpu));
 }
 
 static int
