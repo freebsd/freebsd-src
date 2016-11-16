@@ -273,8 +273,6 @@ fman_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	XX_TrackInit();
-
 	node = ofw_bus_get_node(dev);
 	if (OF_getencprop(node, "fsl,qman-channel-range", qchan_range,
 	    sizeof(qchan_range)) <= 0) {
