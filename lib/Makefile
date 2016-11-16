@@ -219,21 +219,11 @@ SUBDIR_PARALLEL=
 .endif
 
 .if defined(LIBCHERI)
-.if ${MK_LIBCHERI_ALL} == "no"
-SUBDIR:=	csu \
-		libcompiler_rt \
-		libc \
-		libmd	\
-		libpng	\
-		libstand \
-		libz \
-		msun
-.else
 # No C++ support in cheri clang
 SUBDIR:=	${SUBDIR:Nlibc++:Nlibcxxrt:Nlibdevdctl}
 # header issue in ioctl.c, probably needs more porting for CheriABI
 SUBDIR:=	${SUBDIR:Nlibsysdecode}
-.endif
+
 SUBDIR+=	libmalloc_simple
 SUBDIR+=	libcheri_syscalls
 SUBDIR+=	libcheri_support

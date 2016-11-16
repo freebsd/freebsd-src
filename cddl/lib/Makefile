@@ -38,11 +38,4 @@ SUBDIR_DEPEND_libzpool=	libavl libnvpair libumem
 
 SUBDIR_PARALLEL=
 
-.if defined(LIBCHERI)
-.if ${MK_LIBCHERI_ALL} == "no"
-SUBDIR:=
-.else
-.endif
-.endif
-
 .include <bsd.subdir.mk>
