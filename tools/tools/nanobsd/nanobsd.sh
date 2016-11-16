@@ -40,6 +40,7 @@ do_clean=true
 do_kernel=true
 do_installkernel=true
 do_world=true
+do_installworld=true
 do_image=true
 do_copyout_partition=true
 do_native_xtools=false
@@ -48,7 +49,7 @@ do_native_xtools=false
 do_legacy=false
 
 set +e
-args=`getopt KXbc:fhiknqvw $*`
+args=`getopt BKXWbc:fhiknqvw $*`
 if [ $? -ne 0 ] ; then
 	usage
 	exit 2
@@ -60,12 +61,21 @@ for i
 do
 	case "$i"
 	in
+	-B)
+		do_installworld=false
+		do_installkernel=false
+		shift
+		;;
 	-K)
 		do_installkernel=false
 		shift
 		;;
 	-X)
 		do_native_xtools=true
+		shift
+		;;
+	-W)
+		do_installworld=false
 		shift
 		;;
 	-b)
@@ -174,10 +184,15 @@ else
 	pprint 2 "Skipping buildkernel (as instructed)"
 fi
 
-clean_world
-make_conf_install
-install_world
-install_etc
+if $do_installworld ; then
+    clean_world
+    make_conf_install
+    install_world
+    install_etc
+else
+    pprint 2 "Skipping installworld (as instructed)"
+fi
+
 if $do_native_xtools ; then
 	native_xtools
 fi
