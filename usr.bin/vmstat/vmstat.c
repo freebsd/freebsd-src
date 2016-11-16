@@ -1085,8 +1085,6 @@ dosum(void)
 		sum.v_vforkpages);
 	xo_emit("{:pages-rfork/%9u} {N:pages affected by rfork}()\n",
 		sum.v_rforkpages);
-	xo_emit("{:pages-total-cached/%9u} {N:pages cached}\n",
-		sum.v_tcached);
 	xo_emit("{:pages-freed/%9u} {N:pages freed}\n",
 		sum.v_tfree);
 	xo_emit("{:pages-freed-by-daemon/%9u} {N:pages freed by daemon}\n",
