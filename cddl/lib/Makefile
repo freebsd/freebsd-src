@@ -42,10 +42,6 @@ SUBDIR_PARALLEL=
 .if ${MK_LIBCHERI_ALL} == "no"
 SUBDIR:=
 .else
-.if ${MK_LIBCHERI_BROKEN} == "no"
-# dt_options.c stores pointers in ints (should store ints in pointers)
-SUBDIR:=	${SUBDIR:Nlibdtrace}
-.endif
 .endif
 .endif
 

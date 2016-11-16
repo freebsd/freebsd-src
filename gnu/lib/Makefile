@@ -34,14 +34,9 @@ SUBDIR:=
 SUBDIR:=	${SUBDIR:Nlibstdc++:Nlibsupc++}
 # Don't use csu for CheriABI
 SUBDIR:=	${SUBDIR:Ncsu}
-
-.if ${MK_LIBCHERI_BROKEN} == "no"
-# CHERI-Clang #38
+# We'll be using the libunwind based libgcc_eh and libgcc_eh when the time
+# comes.
 SUBDIR:=	${SUBDIR:Nlibgcc}
-# Broken and heading for the dustbin of history
-SUBDIR.${MK_GCC}:=	${SUBDIR.${MK_GCC}:Nlibgomp}
-# Include issue
-SUBDIR:=	${SUBDIR:Nlibreadline}
 .endif
 .endif
 .endif

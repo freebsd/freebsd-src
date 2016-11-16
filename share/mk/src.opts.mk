@@ -186,7 +186,6 @@ __DEFAULT_NO_OPTIONS = \
     DTRACE_TESTS \
     EISA \
     HESIOD \
-    LIBCHERI_BROKEN \
     LIBSOFT \
     NAND \
     OFED \
