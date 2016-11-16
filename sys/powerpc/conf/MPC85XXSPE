@@ -75,6 +75,7 @@ device		alc
 device		ether
 device		fxp
 device  	gpio
+device  	gpiopower
 device		iic
 device		iicbus
 #device		isa
