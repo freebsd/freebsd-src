@@ -120,11 +120,9 @@ net_open(struct open_file *f, ...)
 	devname = va_arg(args, char*);
 	va_end(args);
 
-#ifdef	NETIF_OPEN_CLOSE_ONCE
 	/* Before opening another interface, close the previous one first. */
 	if (netdev_sock >= 0 && strcmp(devname, netdev_name) != 0)
 		net_cleanup();
-#endif
 
 	/* On first open, do netif open, mount, etc. */
 	if (netdev_opens == 0) {
@@ -198,21 +196,6 @@ net_close(struct open_file *f)
 
 	f->f_devdata = NULL;
 
-#ifndef	NETIF_OPEN_CLOSE_ONCE
-	/* Extra close call? */
-	if (netdev_opens <= 0)
-		return (0);
-	netdev_opens--;
-	/* Not last close? */
-	if (netdev_opens > 0)
-		return (0);
-	/* On last close, do netif close, etc. */
-#ifdef	NETIF_DEBUG
-	if (debug)
-		printf("net_close: calling net_cleanup()\n");
-#endif
-	net_cleanup();
-#endif
 	return (0);
 }
 
