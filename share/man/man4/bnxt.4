@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 12, 2016
+.Dd November 16, 2016
 .Dt BNXT 4
 .Os
 .Sh NAME
@@ -89,7 +89,7 @@ Broadcom BCM57304 NetXtreme-C Virtual Function
 Broadcom BCM57404 NetXtreme-E Virtual Function
 .El
 .Sh SYSCTL VARIABLES
-These variables must be set before loading the driver, either via 
+These variables must be set before loading the driver, either via
 .Xr loader.conf 5
 or through the use of
 .Xr kenv 1 .
@@ -165,11 +165,12 @@ variables are read-only:
 .Bl -tag -width indent
 .It Va dev.bnxt.X.if_name
 Current interface name of the device.
-This will normally be 
+This will normally be
 .Va bnxtX ,
 but this can be changed using
 .Cm ifconfig name .
-This sysctl allows correlating an interface with a child of dev.bnxt.
+This sysctl allows correlating an interface with a child of
+.Va dev.bnxt .
 .It Va dev.bnxt.X.nvram.*
 Information about the NVRAM device which contains the device firmware.
 .It Va dev.bnxt.X.ver.*
@@ -191,10 +192,10 @@ reasons to ignore Ethernet frames.
 .It "bnxt%d: %s command returned %s error."
 Device firmware rejected a command from the driver.
 There might be a driver/firmware HWRM API mismatch.
-.It "bnxt%d: Timeout sending %s (timeout: %d) seq %d\n"
+.It "bnxt%d: Timeout sending %s (timeout: %d) seq %d"
 Device firmware unresponsive.
 A PCI device reset is likely needed.
-.It "bnxt%d: Timeout sending %s (timeout: %d) msg {0x%x 0x%x} len:%d v: %d\n"
+.It "bnxt%d: Timeout sending %s (timeout: %d) msg {0x%x 0x%x} len:%d v: %d"
 Partial firmware response.
 A PCI device reset is likely needed.
 .Pp
@@ -203,20 +204,21 @@ As of this writing, the system must be rebooted to initiate a PCI device reset.
 .Sh SEE ALSO
 .Xr altq 4 ,
 .Xr arp 4 ,
+.Xr iflib 4 ,
 .Xr netintro 4 ,
 .Xr ng_ether 4 ,
 .Xr vlan 4 ,
-.Xr ifconfig 8 ,
-.Xr iflib 4
+.Xr ifconfig 8
 .Sh HISTORY
 The
 .Nm
 device driver first appeared in
 .Fx 12.0 .
 .Sh AUTHORS
+.An -nosplit
 The
 .Nm
 driver was written by
-.An Jack Vogel Aq Mt jfvogel@gmail.com .
+.An Jack Vogel Aq Mt jfvogel@gmail.com ,
 and is currently maintained by
 .An Stephen Hurd Aq Mt stephen.hurd@broadcom.com .
