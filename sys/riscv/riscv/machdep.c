@@ -84,8 +84,8 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/asm.h>
 
-#ifdef VFP
-#include <machine/vfp.h>
+#ifdef FPE
+#include <machine/fpe.h>
 #endif
 
 #ifdef FDT
@@ -203,17 +203,39 @@ set_regs(struct thread *td, struct reg *regs)
 int
 fill_fpregs(struct thread *td, struct fpreg *regs)
 {
+#ifdef FPE
+	struct pcb *pcb;
 
-	/* TODO */
-	bzero(regs, sizeof(*regs));
+	pcb = td->td_pcb;
+
+	if ((pcb->pcb_fpflags & PCB_FP_STARTED) != 0) {
+		/*
+		 * If we have just been running FPE instructions we will
+		 * need to save the state to memcpy it below.
+		 */
+		fpe_state_save(td);
+
+		memcpy(regs->fp_x, pcb->pcb_x, sizeof(regs->fp_x));
+		regs->fp_fcsr = pcb->pcb_fcsr;
+	} else
+#endif
+		memset(regs->fp_x, 0, sizeof(regs->fp_x));
+
 	return (0);
 }
 
 int
 set_fpregs(struct thread *td, struct fpreg *regs)
 {
+#ifdef FPE
+	struct pcb *pcb;
 
-	/* TODO */
+	pcb = td->td_pcb;
+
+	memcpy(pcb->pcb_x, regs->fp_x, sizeof(regs->fp_x));
+	pcb->pcb_fcsr = regs->fp_fcsr;
+#endif
+
 	return (0);
 }
 
@@ -259,8 +281,10 @@ void
 exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 {
 	struct trapframe *tf;
+	struct pcb *pcb;
 
 	tf = td->td_frame;
+	pcb = td->td_pcb;
 
 	memset(tf, 0, sizeof(struct trapframe));
 
@@ -273,6 +297,8 @@ exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 	tf->tf_sp = STACKALIGN(stack);
 	tf->tf_ra = imgp->entry_addr;
 	tf->tf_sepc = imgp->entry_addr;
+
+	pcb->pcb_fpflags &= ~PCB_FP_STARTED;
 }
 
 /* Sanity check these are the same size, they will be memcpy'd to and fro */
@@ -337,13 +363,54 @@ set_mcontext(struct thread *td, mcontext_t *mcp)
 static void
 get_fpcontext(struct thread *td, mcontext_t *mcp)
 {
-	/* TODO */
+#ifdef FPE
+	struct pcb *curpcb;
+
+	critical_enter();
+
+	curpcb = curthread->td_pcb;
+
+	KASSERT(td->td_pcb == curpcb, ("Invalid fpe pcb"));
+
+	if ((curpcb->pcb_fpflags & PCB_FP_STARTED) != 0) {
+		/*
+		 * If we have just been running FPE instructions we will
+		 * need to save the state to memcpy it below.
+		 */
+		fpe_state_save(td);
+
+		KASSERT((curpcb->pcb_fpflags & ~PCB_FP_USERMASK) == 0,
+		    ("Non-userspace FPE flags set in get_fpcontext"));
+		memcpy(mcp->mc_fpregs.fp_x, curpcb->pcb_x,
+		    sizeof(mcp->mc_fpregs));
+		mcp->mc_fpregs.fp_fcsr = curpcb->pcb_fcsr;
+		mcp->mc_fpregs.fp_flags = curpcb->pcb_fpflags;
+		mcp->mc_flags |= _MC_FP_VALID;
+	}
+
+	critical_exit();
+#endif
 }
 
 static void
 set_fpcontext(struct thread *td, mcontext_t *mcp)
 {
-	/* TODO */
+#ifdef FPE
+	struct pcb *curpcb;
+
+	critical_enter();
+
+	if ((mcp->mc_flags & _MC_FP_VALID) != 0) {
+		curpcb = curthread->td_pcb;
+		/* FPE usage is enabled, override registers. */
+		memcpy(curpcb->pcb_x, mcp->mc_fpregs.fp_x,
+		    sizeof(mcp->mc_fpregs));
+		curpcb->pcb_fcsr = mcp->mc_fpregs.fp_fcsr;
+		curpcb->pcb_fpflags = mcp->mc_fpregs.fp_flags & PCB_FP_USERMASK;
+	}
+
+	critical_exit();
+#endif
 }
 
 void
@@ -572,6 +639,7 @@ init_proc0(vm_offset_t kstack)
 	proc_linkup0(&proc0, &thread0);
 	thread0.td_kstack = kstack;
 	thread0.td_pcb = (struct pcb *)(thread0.td_kstack) - 1;
+	thread0.td_pcb->pcb_fpflags = 0;
 	thread0.td_frame = &proc0_tf;
 	pcpup->pc_curpcb = thread0.td_pcb;
 }
