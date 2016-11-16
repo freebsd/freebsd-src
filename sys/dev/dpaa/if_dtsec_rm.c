@@ -136,7 +136,6 @@ static void
 dtsec_rm_fi_free(struct dtsec_softc *sc, struct dtsec_rm_frame_info *fi)
 {
 
-	XX_UntrackAddress(fi);
 	uma_zfree(sc->sc_fi_zone, fi);
 }
 /** @} */

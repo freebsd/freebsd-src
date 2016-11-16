@@ -78,7 +78,9 @@ struct cpu_release {
 #endif
 
 extern uint32_t *bootinfo;
+vm_paddr_t ccsrbar_pa;
 vm_offset_t ccsrbar_va;
+vm_size_t ccsrbar_size;
 
 static int cpu, maxcpu;
 
@@ -194,6 +196,8 @@ mpc85xx_attach(platform_t plat)
 		ccsrsize |= ranges[i];
 	}
 	ccsrbar_va = pmap_early_io_map(ccsrbar, ccsrsize);
+	ccsrbar_pa = ccsrbar;
+	ccsrbar_size = ccsrsize;
 
 #if 0
 	mpc85xx_fix_errata(ccsrbar_va);

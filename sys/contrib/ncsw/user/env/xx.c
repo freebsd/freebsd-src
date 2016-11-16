@@ -51,6 +51,7 @@
 #include <dev/dpaa/qman.h>
 #include <dev/dpaa/portals.h>
 
+#include <powerpc/mpc85xx/mpc85xx.h>
 #include "error_ext.h"
 #include "std_ext.h"
 #include "list_ext.h"
@@ -123,19 +124,6 @@ struct XX_PortalInfo {
 };
 
 static struct XX_PortalInfo XX_PInfo;
-
-/* The lower 9 bits, through emprical testing, tend to be 0. */
-#define	XX_MALLOC_TRACK_SHIFT	9
-
-typedef struct XX_MallocTrackStruct {
-	LIST_ENTRY(XX_MallocTrackStruct) entries;
-	physAddress_t pa;
-	void *va;
-} XX_MallocTrackStruct;
-
-LIST_HEAD(XX_MallocTrackerList, XX_MallocTrackStruct) *XX_MallocTracker;
-u_long XX_MallocHashMask;
-static XX_MallocTrackStruct * XX_FindTracker(physAddress_t pa);
 
 void
 XX_Exit(int status)
@@ -266,7 +254,6 @@ XX_FreeSmart(void *p)
 	KASSERT(XX_MallocSmartMap[start] > 0,
 	    ("XX_FreeSmart: Double or mid-block free!\n"));
 
-	XX_UntrackAddress(p);
 	/* Free region */
 	slices = XX_MallocSmartMap[start];
 	XX_MallocSmartMapClear(start, slices);
@@ -279,8 +266,6 @@ void
 XX_Free(void *p)
 {
 
-	if (p != NULL)
-		XX_UntrackAddress(p);
 	free(p, M_NETCOMMSW);
 }
 
@@ -758,6 +743,11 @@ XX_VirtToPhys(void *addr)
 	if (addr == NULL)
 		return (-1);
 
+	/* Check CCSR */
+	if ((vm_offset_t)addr >= ccsrbar_va &&
+	    (vm_offset_t)addr < ccsrbar_va + ccsrbar_size)
+		return (((vm_offset_t)addr - ccsrbar_va) + ccsrbar_pa);
+
 	/* Handle BMAN mappings */
 	if (((vm_offset_t)addr >= XX_PInfo.portal_ce_va[BM_PORTAL]) &&
 	    ((vm_offset_t)addr < XX_PInfo.portal_ce_va[BM_PORTAL] +
@@ -784,10 +774,12 @@ XX_VirtToPhys(void *addr)
 		return (XX_PInfo.portal_ci_pa[QM_PORTAL][cpu] +
 		    (vm_offset_t)addr - XX_PInfo.portal_ci_va[QM_PORTAL]);
 
-	paddr = XX_TrackAddress(addr);
-	if (paddr == -1)
+	paddr = pmap_kextract((vm_offset_t)addr);
+	if (paddr == 0)
 		printf("NetCommSW: "
 		    "Unable to translate virtual address 0x%08X!\n", addr);
+	else
+		pmap_track_page(kernel_pmap, (vm_offset_t)addr);
 
 	return (paddr);
 }
@@ -795,8 +787,14 @@ XX_VirtToPhys(void *addr)
 void *
 XX_PhysToVirt(physAddress_t addr)
 {
-	XX_MallocTrackStruct *ts;
+	struct pv_entry *pv;
+	vm_page_t page;
 	int cpu;
+
+	/* Check CCSR */
+	if (addr >= ccsrbar_pa && addr < ccsrbar_pa + ccsrbar_size)
+		return ((void *)((vm_offset_t)(addr - ccsrbar_pa) +
+		    ccsrbar_va));
 
 	cpu = PCPU_GET(cpuid);
 
@@ -826,12 +824,11 @@ XX_PhysToVirt(physAddress_t addr)
 		return ((void *)(XX_PInfo.portal_ci_va[QM_PORTAL] +
 		    (vm_offset_t)(addr - XX_PInfo.portal_ci_pa[QM_PORTAL][cpu])));
 
-	mtx_lock(&XX_MallocTrackLock);
-	ts = XX_FindTracker(addr);
-	mtx_unlock(&XX_MallocTrackLock);
+	page = PHYS_TO_VM_PAGE(addr);
+	pv = TAILQ_FIRST(&page->md.pv_list);
 
-	if (ts != NULL)
-		return ts->va;
+	if (pv != NULL)
+		return ((void *)(pv->pv_va + ((vm_offset_t)addr & PAGE_MASK)));
 
 	printf("NetCommSW: "
 	    "Unable to translate physical address 0x%08llX!\n", addr);
@@ -876,73 +873,4 @@ XX_PortalSetInfo(device_t dev)
 	XX_PInfo.portal_ci_va[type] = rman_get_bushandle(sc->sc_rres[1]);
 end:
 	free(dev_name, M_TEMP);
-}
-
-static inline XX_MallocTrackStruct *
-XX_FindTracker(physAddress_t pa)
-{
-	struct XX_MallocTrackerList *l;
-	XX_MallocTrackStruct *tp;
-
-	l = &XX_MallocTracker[(pa >> XX_MALLOC_TRACK_SHIFT) & XX_MallocHashMask];
-
-	LIST_FOREACH(tp, l, entries) {
-		if (tp->pa == pa)
-			return tp;
-	}
-
-	return NULL;
-}
-
-void
-XX_TrackInit(void)
-{
-	if (XX_MallocTracker == NULL) {
-		XX_MallocTracker = hashinit(64, M_NETCOMMSW_MT,
-		    &XX_MallocHashMask);
-	}
-}
-
-physAddress_t
-XX_TrackAddress(void *addr)
-{
-	physAddress_t pa;
-	struct XX_MallocTrackerList *l;
-	XX_MallocTrackStruct *ts;
-	
-	pa = pmap_kextract((vm_offset_t)addr);
-
-	l = &XX_MallocTracker[(pa >> XX_MALLOC_TRACK_SHIFT) & XX_MallocHashMask];
-
-	mtx_lock(&XX_MallocTrackLock);
-	if (XX_FindTracker(pa) == NULL) {
-		ts = malloc(sizeof(*ts), M_NETCOMMSW_MT, M_NOWAIT);
-		if (ts == NULL)
-			return (-1);
-		ts->va = addr;
-		ts->pa = pa;
-		LIST_INSERT_HEAD(l, ts, entries);
-	}
-	mtx_unlock(&XX_MallocTrackLock);
-
-	return (pa);
-}
-
-void
-XX_UntrackAddress(void *addr)
-{
-	physAddress_t pa;
-	XX_MallocTrackStruct *ts;
-	
-	pa = pmap_kextract((vm_offset_t)addr);
-
-	KASSERT(XX_MallocTracker != NULL,
-	    ("Untracking an address before it's even initialized!\n"));
-
-	mtx_lock(&XX_MallocTrackLock);
-	ts = XX_FindTracker(pa);
-	if (ts != NULL)
-		LIST_REMOVE(ts, entries);
-	mtx_unlock(&XX_MallocTrackLock);
-	free(ts, M_NETCOMMSW_MT);
 }

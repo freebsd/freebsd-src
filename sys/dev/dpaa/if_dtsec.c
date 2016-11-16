@@ -582,8 +582,6 @@ dtsec_attach(device_t dev)
 	if (XX_MallocSmartInit() != E_OK)
 		return (ENXIO);
 
-	XX_TrackInit();
-
 	/* Init locks */
 	mtx_init(&sc->sc_lock, device_get_nameunit(dev),
 	    "DTSEC Global Lock", MTX_DEF);

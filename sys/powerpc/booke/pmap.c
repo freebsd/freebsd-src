@@ -872,10 +872,11 @@ pte_remove(mmu_t mmu, pmap_t pmap, vm_offset_t va, uint8_t flags)
 	if (PTE_ISWIRED(pte))
 		pmap->pm_stats.wired_count--;
 
+	/* Get vm_page_t for mapped pte. */
+	m = PHYS_TO_VM_PAGE(PTE_PA(pte));
+
 	/* Handle managed entry. */
 	if (PTE_ISMANAGED(pte)) {
-		/* Get vm_page_t for mapped pte. */
-		m = PHYS_TO_VM_PAGE(PTE_PA(pte));
 
 		if (PTE_ISMODIFIED(pte))
 			vm_page_dirty(m);
@@ -884,6 +885,15 @@ pte_remove(mmu_t mmu, pmap_t pmap, vm_offset_t va, uint8_t flags)
 			vm_page_aflag_set(m, PGA_REFERENCED);
 
 		pv_remove(pmap, va, m);
+	} else if (m->md.pv_tracked) {
+		/*
+		 * Always pv_insert()/pv_remove() on MPC85XX, in case DPAA is
+		 * used.  This is needed by the NCSW support code for fast
+		 * VA<->PA translation.
+		 */
+		pv_remove(pmap, va, m);
+		if (TAILQ_EMPTY(&m->md.pv_list))
+			m->md.pv_tracked = false;
 	}
 
 	mtx_lock_spin(&tlbivax_mutex);
@@ -3465,6 +3475,33 @@ pmap_early_io_map(vm_paddr_t pa, vm_size_t size)
 
 	return (va);
 }
+
+void
+pmap_track_page(pmap_t pmap, vm_offset_t va)
+{
+	vm_paddr_t pa;
+	vm_page_t page;
+	struct pv_entry *pve;
+
+	va &= ~PAGE_MASK;
+	pa = pmap_kextract(va);
+
+	rw_wlock(&pvh_global_lock);
+	PMAP_LOCK(pmap);
+	page = PHYS_TO_VM_PAGE(pa);
+
+	TAILQ_FOREACH(pve, &page->md.pv_list, pv_link) {
+		if ((pmap == pve->pv_pmap) && (va == pve->pv_va)) {
+			goto out;
+		}
+	}
+	page->md.pv_tracked = true;
+	pv_insert(pmap, va, page);
+out:
+	PMAP_UNLOCK(pmap);
+	rw_wunlock(&pvh_global_lock);
+}
+
 
 /*
  * Setup MAS4 defaults.
