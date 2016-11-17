@@ -1049,8 +1049,10 @@ vdev_probe(vdev_phys_read_t *read, void *read_priv, spa_t **spap)
 	STAILQ_FOREACH(pool_vdev, &spa->spa_vdevs, v_childlink)
 		if (top_vdev == pool_vdev)
 			break;
-	if (!pool_vdev && top_vdev)
+	if (!pool_vdev && top_vdev) {
+		top_vdev->spa = spa;
 		STAILQ_INSERT_TAIL(&spa->spa_vdevs, top_vdev, v_childlink);
+	}
 
 	/*
 	 * We should already have created an incomplete vdev for this
