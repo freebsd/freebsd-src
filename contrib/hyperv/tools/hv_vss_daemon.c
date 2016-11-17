@@ -158,10 +158,9 @@ main(int argc, char* argv[])
 
 	struct pollfd hv_vss_poll_fd[1];
 	uint32_t op;
-	int ch, r, len, error;
+	int ch, r, error;
 	int hv_vss_dev_fd;
 
-	int freeze_thaw = UNDEF_FREEZE_THAW;
 	while ((ch = getopt(argc, argv, "dnh")) != -1) {
 		switch (ch) {
 		case 'n':
