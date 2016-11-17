@@ -341,6 +341,8 @@ AcpiTbParseFadt (
 {
     UINT32                  Length;
     ACPI_TABLE_HEADER       *Table;
+    ACPI_TABLE_DESC         *FadtDesc;
+    ACPI_STATUS             Status;
 
 
     /*
@@ -350,14 +352,13 @@ AcpiTbParseFadt (
      * Get a local copy of the FADT and convert it to a common format
      * Map entire FADT, assumed to be smaller than one page.
      */
-    Length = AcpiGbl_RootTableList.Tables[AcpiGbl_FadtIndex].Length;
-
-    Table = AcpiOsMapMemory (
-        AcpiGbl_RootTableList.Tables[AcpiGbl_FadtIndex].Address, Length);
-    if (!Table)
+    FadtDesc = &AcpiGbl_RootTableList.Tables[AcpiGbl_FadtIndex];
+    Status = AcpiTbGetTable (FadtDesc, &Table);
+    if (ACPI_FAILURE (Status))
     {
         return;
     }
+    Length = FadtDesc->Length;
 
     /*
      * Validate the FADT checksum before we copy the table. Ignore
@@ -371,7 +372,7 @@ AcpiTbParseFadt (
 
     /* All done with the real FADT, unmap it */
 
-    AcpiOsUnmapMemory (Table, Length);
+    AcpiTbPutTable (FadtDesc);
 
     /* Obtain the DSDT and FACS tables via their addresses within the FADT */
 
@@ -522,19 +523,17 @@ AcpiTbConvertFadt (
 
 
     /*
-     * For ACPI 1.0 FADTs (revision 1), ensure that reserved fields which
+     * For ACPI 1.0 FADTs (revision 1 or 2), ensure that reserved fields which
      * should be zero are indeed zero. This will workaround BIOSs that
      * inadvertently place values in these fields.
      *
      * The ACPI 1.0 reserved fields that will be zeroed are the bytes located
      * at offset 45, 55, 95, and the word located at offset 109, 110.
      *
-     * Note: The FADT revision value is unreliable because of BIOS errors.
-     * The table length is instead used as the final word on the version.
-     *
-     * Note: FADT revision 3 is the ACPI 2.0 version of the FADT.
+     * Note: The FADT revision value is unreliable. Only the length can be
+     * trusted.
      */
-    if (AcpiGbl_FADT.Header.Length <= ACPI_FADT_V3_SIZE)
+    if (AcpiGbl_FADT.Header.Length <= ACPI_FADT_V2_SIZE)
     {
         AcpiGbl_FADT.PreferredProfile = 0;
         AcpiGbl_FADT.PstateControl = 0;

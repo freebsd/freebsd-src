@@ -127,6 +127,11 @@ RsDoGeneralRegisterDescriptor (
             RsCreateByteField (InitializerOp, ACPI_RESTAG_ACCESSSIZE,
                 CurrentByteOffset + ASL_RESDESC_OFFSET (GenericReg.AccessSize));
 
+            if (Descriptor->GenericReg.AddressSpaceId == ACPI_ADR_SPACE_PLATFORM_COMM)
+            {
+                break;
+            }
+
             if (Descriptor->GenericReg.AccessSize > AML_FIELD_ACCESS_QWORD)
             {
                 AslError (ASL_ERROR, ASL_MSG_INVALID_ACCESS_SIZE,

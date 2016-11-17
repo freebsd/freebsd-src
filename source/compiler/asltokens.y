@@ -465,6 +465,9 @@ NoEcho('
 %left <i>  PARSEOP_EXP_INCREMENT
            PARSEOP_EXP_DECREMENT
 
+%left <i>  PARSEOP_OPEN_PAREN
+           PARSEOP_CLOSE_PAREN
+
 /* Brackets for Index() support */
 
 %left <i>  PARSEOP_EXP_INDEX_LEFT
