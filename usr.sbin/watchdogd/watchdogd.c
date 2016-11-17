@@ -80,7 +80,8 @@ static u_int timeout = WD_TO_128SEC;
 static u_int exit_timeout = WD_TO_NEVER;
 static u_int pretimeout = 0;
 static u_int timeout_sec;
-static u_int passive = 0;
+static u_int nap = 1;
+static int passive = 0;
 static int is_daemon = 0;
 static int is_dry_run = 0;  /* do not arm the watchdog, only
 			       report on timing of the watch
@@ -88,7 +89,6 @@ static int is_dry_run = 0;  /* do not arm the watchdog, only
 static int do_timedog = 0;
 static int do_syslog = 1;
 static int fd = -1;
-static int nap = 1;
 static int carp_thresh_seconds = -1;
 static char *test_cmd = NULL;
 
@@ -685,9 +685,14 @@ seconds_to_pow2ns(int seconds)
 static void
 parseargs(int argc, char *argv[])
 {
+	struct timespec ts;
 	int longindex;
 	int c;
 	const char *lopt;
+
+	/* Get the default value of timeout_sec from the default timeout. */
+	pow2ns_to_ts(timeout, &ts);
+	timeout_sec = ts.tv_sec;
 
 	/*
 	 * if we end with a 'd' aka 'watchdogd' then we are the daemon program,
@@ -731,9 +736,9 @@ parseargs(int argc, char *argv[])
 		case 't':
 			timeout_sec = atoi(optarg);
 			timeout = parse_timeout_to_pow2ns(c, NULL, optarg);
- 			if (debugging)
- 				printf("Timeout is 2^%d nanoseconds\n",
- 				    timeout);
+			if (debugging)
+				printf("Timeout is 2^%d nanoseconds\n",
+				    timeout);
 			break;
 		case 'T':
 			carp_thresh_seconds =
@@ -771,6 +776,9 @@ parseargs(int argc, char *argv[])
 		}
 	}
 
+	if (nap > timeout_sec / 2)
+		nap = timeout_sec / 2;
+
 	if (carp_thresh_seconds == -1)
 		carp_thresh_seconds = nap;
 
@@ -779,10 +787,7 @@ parseargs(int argc, char *argv[])
 	if (is_daemon && timeout < WD_TO_1SEC)
 		errx(EX_USAGE, "-t argument is less than one second.");
 	if (pretimeout_set) {
-		struct timespec ts;
-
-		pow2ns_to_ts(timeout, &ts);
-		if (pretimeout >= (uintmax_t)ts.tv_sec) {
+		if (pretimeout >= timeout_sec) {
 			errx(EX_USAGE,
 			    "pretimeout (%d) >= timeout (%d -> %ld)\n"
 			    "see manual section TIMEOUT RESOLUTION",
