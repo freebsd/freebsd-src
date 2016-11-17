@@ -746,6 +746,8 @@ tcp_do_slowpath(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				case TCPS_FIN_WAIT_1:
 				case TCPS_FIN_WAIT_2:
 				case TCPS_CLOSE_WAIT:
+				case TCPS_CLOSING:
+				case TCPS_LAST_ACK:
 					so->so_error = ECONNRESET;
 				close:
 					tcp_state_change(tp, TCPS_CLOSED);
