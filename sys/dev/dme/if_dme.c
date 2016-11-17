@@ -25,16 +25,7 @@
  * SUCH DAMAGE.
  */
 
-/*
- * A driver for the DM9000 MAC
- *
- * TODO:
- *  Get the interrupt working
- *  Port to non-S3C2440 systems
- *  Test with 8 and 32 bit busses
- *  Test on a big endian machine
- *  Implement the rest of dme_detach
- */
+/* A driver for the Davicom DM9000 MAC. */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
