@@ -62,6 +62,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_pager.h>
 
+extern vm_page_t bogus_page;
+
 /*
  * Structure describing a single sendfile(2) I/O, which may consist of
  * several underlying pager I/Os.
@@ -258,7 +260,8 @@ sendfile_iodone(void *arg, vm_page_t *pg, int count, int error)
 	struct socket *so;
 
 	for (int i = 0; i < count; i++)
-		vm_page_xunbusy(pg[i]);
+		if (pg[i] != bogus_page)
+			vm_page_xunbusy(pg[i]);
 
 	if (error)
 		sfio->error = error;
@@ -341,50 +344,52 @@ sendfile_swapin(vm_object_t obj, struct sf_io *sfio, off_t off, off_t len,
 		}
 
 		/*
-		 * Now 'i' points to first invalid page, iterate further
-		 * to make 'j' point at first valid after a bunch of
-		 * invalid ones.
-		 */
-		for (j = i + 1; j < npages; j++)
-			if (vm_page_is_valid(pa[j], vmoff(j, off) & PAGE_MASK,
-			    xfsize(j, npages, off, len))) {
-				SFSTAT_INC(sf_pages_valid);
-				break;
-			}
-
-		/*
-		 * Now we got region of invalid pages between 'i' and 'j'.
-		 * Check that they belong to pager.  They may not be there,
-		 * which is a regular situation for shmem pager.  For vnode
-		 * pager this happens only in case of sparse file.
+		 * Next page is invalid.  Check if it belongs to pager.  It
+		 * may not be there, which is a regular situation for shmem
+		 * pager.  For vnode pager this happens only in case of
+		 * a sparse file.
 		 *
 		 * Important feature of vm_pager_has_page() is the hint
 		 * stored in 'a', about how many pages we can pagein after
 		 * this page in a single I/O.
 		 */
-		while (!vm_pager_has_page(obj, OFF_TO_IDX(vmoff(i, off)),
-		    NULL, &a) && i < j) {
+		if (!vm_pager_has_page(obj, OFF_TO_IDX(vmoff(i, off)), NULL,
+		    &a)) {
 			pmap_zero_page(pa[i]);
 			pa[i]->valid = VM_PAGE_BITS_ALL;
 			pa[i]->dirty = 0;
 			vm_page_xunbusy(pa[i]);
 			i++;
-		}
-		if (i == j)
 			continue;
+		}
 
 		/*
 		 * We want to pagein as many pages as possible, limited only
 		 * by the 'a' hint and actual request.
-		 *
-		 * We should not pagein into already valid page, thus if
-		 * 'j' didn't reach last page, trim by that page.
-		 *
-		 * When the pagein fulfils the request, also specify readahead.
 		 */
-		if (j < npages)
-			a = min(a, j - i - 1);
 		count = min(a + 1, npages - i);
+
+		/*
+		 * We should not pagein into a valid page, thus we first trim
+		 * any valid pages off the end of request, and substitute
+		 * to bogus_page those, that are in the middle.
+		 */
+		for (j = i + count - 1; j > i; j--) {
+			if (vm_page_is_valid(pa[j], vmoff(j, off) & PAGE_MASK,
+			    xfsize(j, npages, off, len))) {
+				count--;
+				rhpages = 0;
+			} else
+				break;
+		}
+		for (j = i + 1; j < i + count - 1; j++)
+			if (vm_page_is_valid(pa[j], vmoff(j, off) & PAGE_MASK,
+			    xfsize(j, npages, off, len))) {
+				vm_page_xunbusy(pa[j]);
+				SFSTAT_INC(sf_pages_valid);
+				SFSTAT_INC(sf_pages_bogus);
+				pa[j] = bogus_page;
+			}
 
 		refcount_acquire(&sfio->nios);
 		rv = vm_pager_get_pages_async(obj, pa + i, count, NULL,
@@ -398,13 +403,18 @@ sendfile_swapin(vm_object_t obj, struct sf_io *sfio, off_t off, off_t len,
 		if (i + count == npages)
 			SFSTAT_ADD(sf_rhpages_read, rhpages);
 
-#ifdef INVARIANTS
-		for (j = i; j < i + count && j < npages; j++)
-			KASSERT(pa[j] == vm_page_lookup(obj,
-			    OFF_TO_IDX(vmoff(j, off))),
-			    ("pa[j] %p lookup %p\n", pa[j],
-			    vm_page_lookup(obj, OFF_TO_IDX(vmoff(j, off)))));
-#endif
+		/*
+		 * Restore the valid page pointers.  They are already
+		 * unbusied, but still wired.
+		 */
+		for (j = i; j < i + count; j++)
+			if (pa[j] == bogus_page) {
+				pa[j] = vm_page_lookup(obj,
+				    OFF_TO_IDX(vmoff(j, off)));
+				KASSERT(pa[j], ("%s: page %p[%d] disappeared",
+				    __func__, pa, j));
+
+			}
 		i += count;
 		nios++;
 	}
