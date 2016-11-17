@@ -130,7 +130,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 20160527:
 	CAM will now strip leading spaces from SCSI disks' serial numbers.
-	This will effect users who create UFS filesystems on SCSI disks using
+	This will affect users who create UFS filesystems on SCSI disks using
 	those disk's diskid device nodes.  For example, if /etc/fstab
 	previously contained a line like
 	"/dev/diskid/DISK-%20%20%20%20%20%20%20ABCDEFG0123456", you should
