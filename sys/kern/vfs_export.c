@@ -61,8 +61,10 @@ __FBSDID("$FreeBSD$");
 
 static MALLOC_DEFINE(M_NETADDR, "export_host", "Export host address structure");
 
+#if defined(INET) || defined(INET6)
 static struct radix_node_head *vfs_create_addrlist_af(
 		    struct radix_node_head **prnh, int off);
+#endif
 static void	vfs_free_addrlist(struct netexport *nep);
 static int	vfs_free_netcred(struct radix_node *rn, void *w);
 static void	vfs_free_addrlist_af(struct radix_node_head **prnh);
@@ -239,6 +241,7 @@ vfs_free_netcred(struct radix_node *rn, void *w)
 	return (0);
 }
 
+#if defined(INET) || defined(INET6)
 static struct radix_node_head *
 vfs_create_addrlist_af(struct radix_node_head **prnh, int off)
 {
@@ -248,6 +251,7 @@ vfs_create_addrlist_af(struct radix_node_head **prnh, int off)
 	RADIX_NODE_HEAD_LOCK_INIT(*prnh);
 	return (*prnh);
 }
+#endif
 
 static void
 vfs_free_addrlist_af(struct radix_node_head **prnh)
