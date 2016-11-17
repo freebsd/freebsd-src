@@ -1230,6 +1230,7 @@ done:
  * o bg scan is active
  * o no channel switch is pending
  * o there has not been any traffic recently
+ * o no full-offload scan support (no need for explicitly continuing scan then)
  *
  * Note we do not check if there is an administrative enable;
  * this is only done to start the scan.  We assume that any
@@ -1243,6 +1244,7 @@ contbgscan(struct ieee80211vap *vap)
 
 	return ((ic->ic_flags_ext & IEEE80211_FEXT_BGSCAN) &&
 	    (ic->ic_flags & IEEE80211_F_CSAPENDING) == 0 &&
+	    !(vap->iv_flags_ext & IEEE80211_FEXT_SCAN_OFFLOAD) &&
 	    vap->iv_state == IEEE80211_S_RUN &&		/* XXX? */
 	    ieee80211_time_after(ticks, ic->ic_lastdata + vap->iv_bgscanidle));
 }
@@ -1253,7 +1255,7 @@ contbgscan(struct ieee80211vap *vap)
  * o no channel switch is pending
  * o we are not boosted on a dynamic turbo channel
  * o there has not been a scan recently
- * o there has not been any traffic recently
+ * o there has not been any traffic recently (don't check if full-offload scan)
  */
 static __inline int
 startbgscan(struct ieee80211vap *vap)
@@ -1266,7 +1268,8 @@ startbgscan(struct ieee80211vap *vap)
 	    !IEEE80211_IS_CHAN_DTURBO(ic->ic_curchan) &&
 #endif
 	    ieee80211_time_after(ticks, ic->ic_lastscan + vap->iv_bgscanintvl) &&
-	    ieee80211_time_after(ticks, ic->ic_lastdata + vap->iv_bgscanidle));
+	    ((vap->iv_flags_ext & IEEE80211_FEXT_SCAN_OFFLOAD) ||
+	     ieee80211_time_after(ticks, ic->ic_lastdata + vap->iv_bgscanidle)));
 }
 
 static void
