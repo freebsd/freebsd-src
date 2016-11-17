@@ -289,7 +289,7 @@ OpcSetOptimalIntegerSize (
         Op->Asl.AmlOpcode = AML_DWORD_OP;
         return (4);
     }
-    else
+    else /* 64-bit integer */
     {
         if (AcpiGbl_IntegerByteWidth == 4)
         {
@@ -299,8 +299,12 @@ OpcSetOptimalIntegerSize (
             if (!Gbl_IgnoreErrors)
             {
                 /* Truncate the integer to 32-bit */
-                Op->Asl.AmlOpcode = AML_DWORD_OP;
-                return (4);
+
+                Op->Asl.Value.Integer &= ACPI_UINT32_MAX;
+
+                /* Now set the optimal integer size */
+
+                return (OpcSetOptimalIntegerSize (Op));
             }
         }
 

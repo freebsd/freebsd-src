@@ -112,8 +112,7 @@ AcpiEvInitializeOpRegions (
 
 ACPI_STATUS
 AcpiEvInitializeRegion (
-    ACPI_OPERAND_OBJECT     *RegionObj,
-    BOOLEAN                 AcpiNsLocked)
+    ACPI_OPERAND_OBJECT     *RegionObj)
 {
     return (AE_OK);
 }

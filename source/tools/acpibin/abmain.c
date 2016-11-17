@@ -52,7 +52,7 @@ AbDisplayUsage (
 
 
 #define AB_UTILITY_NAME             "ACPI Binary Table Dump Utility"
-#define AB_SUPPORTED_OPTIONS        "c:d:h:s:tv"
+#define AB_SUPPORTED_OPTIONS        "a:c:d:h:o:s:tv"
 
 
 /******************************************************************************
@@ -75,9 +75,11 @@ AbDisplayUsage (
 
     ACPI_USAGE_HEADER ("acpibin [options]");
 
-    ACPI_OPTION ("-c <File1> <File2>",      "Compare two binary AML files");
+    ACPI_OPTION ("-a <File1> <File2>",      "Compare two binary AML files, dump all mismatches");
+    ACPI_OPTION ("-c <File1> <File2>",      "Compare two binary AML files, dump first 100 mismatches");
     ACPI_OPTION ("-d <In> <Out>",           "Dump AML binary to text file");
     ACPI_OPTION ("-e <Sig> <In> <Out>",     "Extract binary AML table from acpidump file");
+    ACPI_OPTION ("-o <Value>",              "Start comparison at this offset into second file");
     ACPI_OPTION ("-h <File>",               "Display table header for binary AML file");
     ACPI_OPTION ("-s <File>",               "Update checksum for binary AML file");
     ACPI_OPTION ("-t",                      "Terse mode");
@@ -120,6 +122,12 @@ main (
 
     while ((j = AcpiGetopt (argc, argv, AB_SUPPORTED_OPTIONS)) != ACPI_OPT_END) switch(j)
     {
+    case 'a':   /* Compare Files, display all differences */
+
+        AbGbl_DisplayAllMiscompares = TRUE;
+
+        /* Fallthrough */
+
     case 'c':   /* Compare Files */
 
         if (argc < 4)
@@ -152,6 +160,11 @@ main (
 
         AbDisplayHeader (AcpiGbl_Optarg);
         return (0);
+
+    case 'o':
+
+        AbGbl_CompareOffset = atoi (AcpiGbl_Optarg);
+        continue;
 
     case 's':   /* Compute/update checksum */
 
