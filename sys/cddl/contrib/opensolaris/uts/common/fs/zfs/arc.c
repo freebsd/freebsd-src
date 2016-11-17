@@ -6945,7 +6945,22 @@ l2arc_write_buffers(spa_t *spa, l2arc_dev_t *dev, uint64_t target_sz)
 				continue;
 			}
 
-			if ((write_asize + HDR_GET_LSIZE(hdr)) > target_sz) {
+			/*
+			 * We rely on the L1 portion of the header below, so
+			 * it's invalid for this header to have been evicted out
+			 * of the ghost cache, prior to being written out. The
+			 * ARC_FLAG_L2_WRITING bit ensures this won't happen.
+			 */
+			ASSERT(HDR_HAS_L1HDR(hdr));
+
+			ASSERT3U(HDR_GET_PSIZE(hdr), >, 0);
+			ASSERT3P(hdr->b_l1hdr.b_pdata, !=, NULL);
+			ASSERT3U(arc_hdr_size(hdr), >, 0);
+			uint64_t size = arc_hdr_size(hdr);
+			uint64_t asize = vdev_psize_to_asize(dev->l2ad_vdev,
+			    size);
+
+			if ((write_psize + asize) > target_sz) {
 				full = B_TRUE;
 				mutex_exit(hash_lock);
 				ARCSTAT_BUMP(arcstat_l2_write_full);
@@ -6979,21 +6994,6 @@ l2arc_write_buffers(spa_t *spa, l2arc_dev_t *dev, uint64_t target_sz)
 			mutex_enter(&dev->l2ad_mtx);
 			list_insert_head(&dev->l2ad_buflist, hdr);
 			mutex_exit(&dev->l2ad_mtx);
-
-			/*
-			 * We rely on the L1 portion of the header below, so
-			 * it's invalid for this header to have been evicted out
-			 * of the ghost cache, prior to being written out. The
-			 * ARC_FLAG_L2_WRITING bit ensures this won't happen.
-			 */
-			ASSERT(HDR_HAS_L1HDR(hdr));
-
-			ASSERT3U(HDR_GET_PSIZE(hdr), >, 0);
-			ASSERT3P(hdr->b_l1hdr.b_pdata, !=, NULL);
-			ASSERT3U(arc_hdr_size(hdr), >, 0);
-			uint64_t size = arc_hdr_size(hdr);
-			uint64_t asize = vdev_psize_to_asize(dev->l2ad_vdev,
-			    size);
 
 			(void) refcount_add_many(&dev->l2ad_alloc, size, hdr);
 
