@@ -1206,22 +1206,17 @@ $command $rc_flags $command_args"
 		case "$rc_arg" in
 		start)
 			# We cannot use protect(1) inside jails.
-			jailed="$(sysctl -n security.jail.jailed)"
-			if [ ${jailed} -eq 1 ]; then
-				return $_return
-			fi
-			if [ -n "$_oomprotect" ]; then
-				if [ -f "${PROTECT}" ]; then
-					pid=$(check_process $command)
-					case $_oomprotect in
-					[Aa][Ll][Ll])
-						${PROTECT} -i -p ${pid}
-						;;
-					[Yy][Ee][Ss])
-						${PROTECT} -p ${pid}
-						;;
-					esac
-				fi
+			if [ -n "$_oomprotect" ] && [ -f "${PROTECT}" ] &&
+			    [ "$(sysctl -n security.jail.jailed)" -eq 0 ]; then
+				pid=$(check_process $command)
+				case $_oomprotect in
+				[Aa][Ll][Ll])
+					${PROTECT} -i -p ${pid}
+					;;
+				[Yy][Ee][Ss])
+					${PROTECT} -p ${pid}
+					;;
+				esac
 			fi	
 		;;
 		esac
