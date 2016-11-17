@@ -2908,20 +2908,21 @@ zio_dva_unallocate(zio_t *zio, zio_gang_node_t *gn, blkptr_t *bp)
  */
 int
 zio_alloc_zil(spa_t *spa, uint64_t txg, blkptr_t *new_bp, blkptr_t *old_bp,
-    uint64_t size, boolean_t use_slog)
+    uint64_t size, boolean_t *slog)
 {
 	int error = 1;
 
 	ASSERT(txg > spa_syncing_txg(spa));
 
-	if (use_slog) {
-		error = metaslab_alloc(spa, spa_log_class(spa), size,
-		    new_bp, 1, txg, old_bp, METASLAB_HINTBP_AVOID, NULL);
-	}
-
-	if (error) {
+	error = metaslab_alloc(spa, spa_log_class(spa), size,
+	    new_bp, 1, txg, old_bp, METASLAB_HINTBP_AVOID, NULL);
+	if (error == 0) {
+		*slog = TRUE;
+	} else {
 		error = metaslab_alloc(spa, spa_normal_class(spa), size,
 		    new_bp, 1, txg, old_bp, METASLAB_HINTBP_AVOID, NULL);
+		if (error == 0)
+			*slog = FALSE;
 	}
 
 	if (error == 0) {
