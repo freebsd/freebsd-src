@@ -308,7 +308,8 @@ set_vlangroup_vid(struct cfg *cfg, char *argv[])
 {
 	int v;
 	etherswitch_vlangroup_t vg;
-	
+
+	memset(&vg, 0, sizeof(vg));
 	v = strtol(argv[1], NULL, 0);
 	if (v < 0 || v > IEEE802DOT1Q_VID_MAX)
 		errx(EX_USAGE, "vlan must be between 0 and %d", IEEE802DOT1Q_VID_MAX);
@@ -327,8 +328,9 @@ set_vlangroup_members(struct cfg *cfg, char *argv[])
 	int member, untagged;
 	char *c, *d;
 	int v;
-	
+
 	member = untagged = 0;
+	memset(&vg, 0, sizeof(vg));
 	if (strcmp(argv[1], "none") != 0) {
 		for (c=argv[1]; *c; c=d) {
 			v = strtol(c, &d, 0);
