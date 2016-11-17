@@ -690,12 +690,13 @@ amd_intr(int cpu, struct trapframe *tf)
 		error = pmc_process_interrupt(cpu, PMC_HR, pm, tf,
 		    TRAPF_USERMODE(tf));
 		if (error == 0)
-			wrmsr(evsel, config | AMD_PMC_ENABLE);
+			wrmsr(evsel, config);
 	}
 
 	atomic_add_int(retval ? &pmc_stats.pm_intr_processed :
 	    &pmc_stats.pm_intr_ignored, 1);
 
+	PMCDBG1(MDP,INT,2, "retval=%d", retval);
 	return (retval);
 }
 
