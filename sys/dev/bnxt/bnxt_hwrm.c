@@ -424,7 +424,7 @@ bnxt_hwrm_func_qcaps(struct bnxt_softc *softc)
 		pf->max_rx_wm_flows = le32toh(resp->max_rx_wm_flows);
 	}
 	if (!_is_valid_ether_addr(func->mac_addr)) {
-		device_printf(softc->dev, "Invalid ethernet address, generating random locally administered address");
+		device_printf(softc->dev, "Invalid ethernet address, generating random locally administered address\n");
 		get_random_ether_addr(func->mac_addr);
 	}
 
