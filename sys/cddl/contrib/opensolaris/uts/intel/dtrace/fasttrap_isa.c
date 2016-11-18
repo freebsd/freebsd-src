@@ -1871,9 +1871,7 @@ fasttrap_getreg(struct reg *rp, uint_t reg)
 	case REG_ERR:		return (rp->r_err);
 	case REG_RIP:		return (rp->r_rip);
 	case REG_CS:		return (rp->r_cs);
-#ifdef illumos
-	case REG_RFL:		return (rp->r_rfl);
-#endif
+	case REG_RFL:		return (rp->r_rflags);
 	case REG_RSP:		return (rp->r_rsp);
 	case REG_SS:		return (rp->r_ss);
 	case REG_FS:		return (rp->r_fs);
