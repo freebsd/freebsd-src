@@ -822,6 +822,7 @@ static void
 bnxt_init(if_ctx_t ctx)
 {
 	struct bnxt_softc *softc = iflib_get_softc(ctx);
+	struct ifmediareq ifmr;
 	int i, j;
 	int rc;
 
@@ -975,6 +976,7 @@ bnxt_init(if_ctx_t ctx)
 	}
 
 	bnxt_do_enable_intr(&softc->def_cp_ring);
+	bnxt_media_status(softc->ctx, &ifmr);
 	return;
 
 fail:
