@@ -54,8 +54,8 @@ __FBSDID("$FreeBSD$");
  */
 long
 __CAPSUFFIX(strtol_l)(__CAPABILITY const char * __restrict nptr,
-		      __CAPABILITY char ** __restrict endptr, int base,
-		      locale_t locale)
+		      char * __CAPABILITY * __CAPABILITY __restrict endptr,
+		      int base, locale_t locale)
 {
 	__CAPABILITY const char *s;
 	unsigned long acc;
@@ -156,7 +156,8 @@ noconv:
 }
 long
 __CAPSUFFIX(strtol)(__CAPABILITY const char * __restrict nptr,
-		    __CAPABILITY char ** __restrict endptr, int base)
+		    char * __CAPABILITY * __CAPABILITY __restrict endptr,
+		    int base)
 {
 	return __CAPSUFFIX(strtol_l)(nptr, endptr, base, __get_locale());
 }

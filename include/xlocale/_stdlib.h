@@ -59,5 +59,5 @@ int			 ___mb_cur_max_l(locale_t);
 
 #if __has_feature(capabilities)
 long			 strtol_l_c(__capability const char *,
-			    char * __capability *, int, locale_t);
+			    char * __capability * __capability, int, locale_t);
 #endif
