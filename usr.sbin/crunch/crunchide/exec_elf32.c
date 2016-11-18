@@ -35,7 +35,7 @@ __RCSID("$NetBSD: exec_elf32.c,v 1.6 1999/09/20 04:12:16 christos Exp $");
 #endif
 #endif
 __FBSDID("$FreeBSD$");
- 
+
 #ifndef ELFSIZE
 #define ELFSIZE         32
 #endif
@@ -142,7 +142,7 @@ static void *
 xrealloc(void *ptr, size_t size, const char *fn, const char *use)
 {
 	void *rv;
-		
+
 	rv = realloc(ptr, size);
 	if (rv == NULL) {
 		free(ptr);
@@ -150,7 +150,7 @@ xrealloc(void *ptr, size_t size, const char *fn, const char *use)
 		    fn, use);
 	}
 	return (rv);
-} 
+}
 
 int
 ELFNAMEEND(check)(int fd, const char *fn)
