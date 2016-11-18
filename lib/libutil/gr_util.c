@@ -141,7 +141,7 @@ gr_tmp(int mfd)
 		errno = ENAMETOOLONG;
 		return (-1);
 	}
-	if ((tfd = mkostemp(tempname, O_SYNC)) == -1)
+	if ((tfd = mkostemp(tempname, 0)) == -1)
 		return (-1);
 	if (mfd != -1) {
 		while ((nr = read(mfd, buf, sizeof(buf))) > 0)

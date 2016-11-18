@@ -77,6 +77,7 @@ gr_update(struct group * grp, char const * group)
 		close(tfd);
 		err(1, "gr_copy()");
 	}
+	fsync(tfd);
 	close(tfd);
 	if (gr_mkdb() == -1) {
 		gr_fini();
