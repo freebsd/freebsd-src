@@ -70,15 +70,12 @@
 #define	CHIP_OMAP_4	0
 #define	CHIP_AM335X	1
 
+extern int _ti_chip;
+
 static __inline int ti_chip(void)
 {
-#if defined(SOC_OMAP4)
-	return CHIP_OMAP_4;
-#elif defined(SOC_TI_AM335X)
-	return CHIP_AM335X;
-#else
-#  error Chip type not defined, ensure SOC_xxxx is defined
-#endif
+	KASSERT(_ti_chip != -1, ("Can't determine TI Chip"));
+	return _ti_chip;
 }
 
 uint32_t ti_revision(void);
