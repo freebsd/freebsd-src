@@ -902,11 +902,12 @@ sed -e '
 				if (isptrtype(a_type)) {
 					if (a_type ~ /intptr_t/) {
 						sub(/uintptr_t/, "__uintcap_t",
-						   a_type)
+						    a_type)
 						sub(/intptr_t/, "__intcap_t",
-						   a_type)
+						    a_type)
 					} else
-						a_type = "__capability " a_type
+						gsub(/\*/, "* __capability ",
+						    a_type)
 				}
 				printf(", %s %s", a_type,
 				    argname[i]) > sysstubstubs
@@ -920,11 +921,12 @@ sed -e '
 				if (isptrtype(a_type)) {
 					if (a_type ~ /intptr_t/) {
 						sub(/uintptr_t/, "__uintcap_t",
-						   a_type)
+						    a_type)
 						sub(/intptr_t/, "__intcap_t",
-						   a_type)
+						    a_type)
 					} else
-						a_type = "__capability " a_type
+						gsub(/\*/, "* __capability ",
+						    a_type)
 				}
 				printf(", %s %s", a_type,
 				    argname[i]) > sysstubstubs
