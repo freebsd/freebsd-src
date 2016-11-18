@@ -79,7 +79,7 @@
 void
 cheritest_vm_tag_mmap_anon(const struct cheri_test *ctp __unused)
 {
-	__capability void * volatile *cp;
+	void * __capability volatile *cp;
 	__capability void *cp_value;
 	int v;
 
@@ -100,7 +100,7 @@ cheritest_vm_tag_mmap_anon(const struct cheri_test *ctp __unused)
 void
 cheritest_vm_tag_shm_open_anon_shared(const struct cheri_test *ctp __unused)
 {
-	__capability void * volatile *cp;
+	void * __capability volatile *cp;
 	__capability void *cp_value;
 	int fd, v;
 
@@ -128,7 +128,7 @@ cheritest_vm_tag_shm_open_anon_shared(const struct cheri_test *ctp __unused)
 void
 cheritest_vm_tag_shm_open_anon_private(const struct cheri_test *ctp __unused)
 {
-	__capability void * volatile *cp;
+	void * __capability volatile *cp;
 	__capability void *cp_value;
 	int fd, v;
 
@@ -156,7 +156,7 @@ cheritest_vm_tag_shm_open_anon_private(const struct cheri_test *ctp __unused)
 void
 cheritest_vm_tag_dev_zero_shared(const struct cheri_test *ctp __unused)
 {
-	__capability void * volatile *cp;
+	void * __capability volatile *cp;
 	__capability void *cp_value;
 	int fd, v;
 
@@ -182,7 +182,7 @@ cheritest_vm_tag_dev_zero_shared(const struct cheri_test *ctp __unused)
 void
 cheritest_vm_tag_dev_zero_private(const struct cheri_test *ctp __unused)
 {
-	__capability void * volatile *cp;
+	void * __capability volatile *cp;
 	__capability void *cp_value;
 	int fd, v;
 
@@ -211,7 +211,7 @@ cheritest_vm_tag_dev_zero_private(const struct cheri_test *ctp __unused)
 void
 cheritest_vm_notag_tmpfile_shared(const struct cheri_test *ctp __unused)
 {
-	__capability void * volatile *cp;
+	void * __capability volatile *cp;
 	__capability void *cp_value;
 	char template[] = "/tmp/cheritest.XXXXXXXX";
 	int fd, v;
@@ -234,7 +234,7 @@ cheritest_vm_notag_tmpfile_shared(const struct cheri_test *ctp __unused)
 void
 cheritest_vm_tag_tmpfile_private(const struct cheri_test *ctp __unused)
 {
-	__capability void * volatile *cp;
+	void * __capability volatile *cp;
 	__capability void *cp_value;
 	char template[] = "/tmp/cheritest.XXXXXXXX";
 	int fd, v;
@@ -264,7 +264,7 @@ cheritest_vm_tag_tmpfile_private(const struct cheri_test *ctp __unused)
 void
 cheritest_vm_tag_tmpfile_private_prefault(const struct cheri_test *ctp __unused)
 {
-	__capability void * volatile *cp;
+	void * __capability volatile *cp;
 	__capability void *cp_value;
 	char template[] = "/tmp/cheritest.XXXXXXXX";
 	int fd, v;
@@ -344,8 +344,8 @@ xfail_need_writable_non_tmpfs_tmp(const char *name)
 void
 cheritest_vm_cow_read(const struct cheri_test *ctp __unused)
 {
-	__capability void * volatile *cp_copy;
-	__capability void * volatile *cp_real;
+	void * __capability volatile *cp_copy;
+	void * __capability volatile *cp_real;
 	__capability void *cp;
 	int fd;
 
@@ -403,8 +403,8 @@ cheritest_vm_cow_read(const struct cheri_test *ctp __unused)
 void
 cheritest_vm_cow_write(const struct cheri_test *ctp __unused)
 {
-	__capability void * volatile *cp_copy;
-	__capability void * volatile *cp_real;
+	void * __capability volatile *cp_copy;
+	void * __capability volatile *cp_real;
 	__capability void *cp;
 	int fd;
 

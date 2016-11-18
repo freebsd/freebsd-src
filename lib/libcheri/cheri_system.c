@@ -118,7 +118,7 @@ cheri_system_clock_gettime(clockid_t clock_id, __capability struct timespec *tp)
 
 int
 cheri_system_calloc(size_t count, size_t size,
-    void __capability * __capability *ptrp)
+    void * __capability * __capability ptrp)
 {
 	__capability void *ptr;
 

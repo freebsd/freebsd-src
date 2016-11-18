@@ -222,7 +222,7 @@ quickhash(uint64_t v)
 static int
 dotest(int force_pageout)
 {
-	__capability void **p;
+	void * __capability *p;
 	__capability void *tmp, *sealer;
 	uint64_t hash, tags, found_tags;
 	size_t i, j, k, nsealed, ntagged, pagesz, sz;

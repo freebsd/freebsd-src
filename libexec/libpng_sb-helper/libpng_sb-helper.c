@@ -186,7 +186,7 @@ invoke(struct cheri_object c __unused, register_t v0 __unused,
 		if (info_ptr == NULL)
 			return (1);
 		else {
-			*(__capability void **)c7 = info_ptr;
+			*(void * __capability *)c7 = info_ptr;
 			return (0);
 		}
 

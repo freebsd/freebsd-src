@@ -323,10 +323,10 @@ __uint64_t
 
 #if __has_feature(capabilities)
 long	 strtol_c(__capability const char * __restrict,
-	    __capability char ** __restrict, int);
+	    char * __capability * __restrict, int);
 long double
 	 strtold_c(__capability const char * __restrict,
-	    __capability char ** __restrict);
+	    char * __capability * __restrict);
 #endif
 
 int timsort(void *base, size_t nel, size_t width,

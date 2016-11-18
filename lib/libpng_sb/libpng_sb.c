@@ -300,7 +300,7 @@ png_create_info_struct(png_structp png_ptr __unused)
 		psp->error_fn(png_ptr, "png_create_read_info failed in sandbox");
 		errx(1, "%s: error_fn returned", __func__);
 	}
-	if (pip->info_cap == NULL) {
+	if (pip->info_cap == (__capability void *)NULL) {
 		free(pip);
 		return (NULL);
 	}
@@ -446,7 +446,7 @@ png_read_image(png_structp png_ptr, png_bytepp image)
 	register_t v;
 	uint32_t height, i, rowbytes;
 	struct sb_png_struct *psp = (struct sb_png_struct *)png_ptr;
-	__capability void **row_pointer; /* XXX-BD was __capability png_bytepp */
+	void * __capability *row_pointer; /* XXX-BD was __capability png_bytepp */
 
 #if 0
 	printf("%s: psp at %p\n", __func__, psp);

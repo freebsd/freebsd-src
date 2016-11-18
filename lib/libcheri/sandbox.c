@@ -612,13 +612,13 @@ sandbox_object_invoke(struct sandbox_object *sbop, register_t methodnum,
 	register_t v0;
 
 	sbcp = sbop->sbo_sandbox_classp;
-	c3 = (c3p != NULL ? *(__capability void **)c3p : NULL);
-	c4 = (c4p != NULL ? *(__capability void **)c4p : NULL);
-	c5 = (c5p != NULL ? *(__capability void **)c5p : NULL);
-	c6 = (c6p != NULL ? *(__capability void **)c6p : NULL);
-	c7 = (c7p != NULL ? *(__capability void **)c7p : NULL);
-	c8 = (c8p != NULL ? *(__capability void **)c8p : NULL);
-	c9 = (c9p != NULL ? *(__capability void **)c9p : NULL);
+	c3 = (c3p != NULL ? *(void * __capability *)c3p : NULL);
+	c4 = (c4p != NULL ? *(void * __capability *)c4p : NULL);
+	c5 = (c5p != NULL ? *(void * __capability *)c5p : NULL);
+	c6 = (c6p != NULL ? *(void * __capability *)c6p : NULL);
+	c7 = (c7p != NULL ? *(void * __capability *)c7p : NULL);
+	c8 = (c8p != NULL ? *(void * __capability *)c8p : NULL);
+	c9 = (c9p != NULL ? *(void * __capability *)c9p : NULL);
 	c10 = (c10p != NULL ? (__capability void *)c10p : NULL);
 
 	v0 = sandbox_object_cinvoke(sbop,

@@ -161,8 +161,8 @@ void
 test_bounds_stack_static_cap(const struct cheri_test *ctp __unused)
 {
 	__capability void *c;
-	__capability void * __capability *cp =
-	    (__capability void * __capability *)&c;
+	void * __capability * __capability cp =
+	    (void * __capability * __capability)&c;
 
 	test_bounds_precise(cp, sizeof(*cp));
 }

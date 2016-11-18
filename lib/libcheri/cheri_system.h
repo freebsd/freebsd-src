@@ -77,7 +77,7 @@ int	cheri_system_clock_gettime(clockid_t clock_id,
 	    __capability struct timespec *tp);
 CHERI_SYSTEM_CCALL
 int	cheri_system_calloc(size_t number, size_t size,
-	    void __capability * __capability * ptrp);
+	    void * __capability * __capability ptrp);
 CHERI_SYSTEM_CCALL
 int	cheri_system_free(__capability void *ptr);
 CHERI_SYSTEM_CCALL

@@ -1026,7 +1026,7 @@ ZEXTERN int ZEXPORT inflateBackInit OF((z_streamp strm, int windowBits,
 */
 
 typedef unsigned (*in_func) OF((void FAR *,
-                                __capability z_const unsigned char FAR * FAR *));
+                                z_const unsigned char FAR * __capability FAR *));
 typedef int (*out_func) OF((void FAR *, __capability unsigned char FAR *,
                             unsigned));
 
