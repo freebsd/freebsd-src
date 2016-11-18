@@ -118,7 +118,7 @@ revision=`sed -e 's/^0$$//' -e 's/^[1-9].*$$/.&/' $(GROFF_DIST)/REVISION`
 	-e "s;@TMAC_MDIR@;$(tmacdir)/mm;g" \
 	-e "s;@BROKEN_SPOOLER_FLAGS@;$(BROKEN_SPOOLER_FLAGS);g" \
 	-e "s;@VERSION@;$(version)$(revision);g" \
-	-e "s;@MDATE@;`$(SHELL) ${GROFF_DIST}/mdate.sh $<`;g" \
+	-e "s;@MDATE@;$(MDATE);g" \
 	-e "s;@g@;$(g);g" \
 	-e "s;@G@;`echo $(g) | LC_ALL=C tr a-z A-Z`;g" \
 	$< >$@
@@ -140,4 +140,5 @@ TOPREL?=	..
 GROFF_DIST=	${.CURDIR}/${TOPREL}/../../../contrib/groff
 DIST_SUBDIR?=	${.CURDIR:T}
 DIST_DIR=	${GROFF_DIST}/${DIST_SUBDIR}
+MDATE!=		sh ${.CURDIR}/${TOPREL}/mdate.sh ${GROFF_DIST}/ChangeLog
 .PATH: ${DIST_DIR}
