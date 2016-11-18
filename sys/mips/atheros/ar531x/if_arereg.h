@@ -37,17 +37,17 @@ struct are_desc {
 	uint32_t	are_link;
 };
 
-#define ARE_DMASIZE(len)		((len)  & ((1 << 11)-1))		
-#define ARE_PKTSIZE(len)		((len & 0xffff0000) >> 16)
+#define	ARE_DMASIZE(len)		((len)  & ((1 << 11)-1))		
+#define	ARE_PKTSIZE(len)		((len & 0xffff0000) >> 16)
 
-#define ARE_RX_RING_CNT		128
-#define ARE_TX_RING_CNT		128
-#define ARE_TX_RING_SIZE		sizeof(struct are_desc) * ARE_TX_RING_CNT
-#define ARE_RX_RING_SIZE		sizeof(struct are_desc) * ARE_RX_RING_CNT
-#define ARE_RING_ALIGN		sizeof(struct are_desc)
-#define ARE_RX_ALIGN		sizeof(uint32_t)
-#define ARE_MAXFRAGS		8
-#define ARE_TX_INTR_THRESH	8
+#define	ARE_RX_RING_CNT		128
+#define	ARE_TX_RING_CNT		128
+#define	ARE_TX_RING_SIZE		sizeof(struct are_desc) * ARE_TX_RING_CNT
+#define	ARE_RX_RING_SIZE		sizeof(struct are_desc) * ARE_RX_RING_CNT
+#define	ARE_RING_ALIGN		sizeof(struct are_desc)
+#define	ARE_RX_ALIGN		sizeof(uint32_t)
+#define	ARE_MAXFRAGS		8
+#define	ARE_TX_INTR_THRESH	8
 
 #define	ARE_TX_RING_ADDR(sc, i)	\
     ((sc)->are_rdata.are_tx_ring_paddr + sizeof(struct are_desc) * (i))
@@ -123,6 +123,7 @@ struct are_softc {
 	struct are_ring_data	are_rdata;
 	int			are_link_status;
 	int			are_detach;
+	int			are_if_flags;   /* last if flags */
 };
 
 #define	ARE_LOCK(_sc)		mtx_lock(&(_sc)->are_mtx)
@@ -132,11 +133,11 @@ struct are_softc {
 /*
  * register space access macros
  */
-#define CSR_WRITE_4(sc, reg, val)	\
-	bus_space_write_4(sc->are_btag, sc->are_bhandle, reg, val)
+#define	CSR_WRITE_4(sc, reg, val)	\
+    bus_space_write_4(sc->are_btag, sc->are_bhandle, reg, val)
 
-#define CSR_READ_4(sc, reg)		\
-	bus_space_read_4(sc->are_btag, sc->are_bhandle, reg)
+#define	CSR_READ_4(sc, reg)		\
+    bus_space_read_4(sc->are_btag, sc->are_bhandle, reg)
 
 
 /*	$NetBSD: aereg.h,v 1.2 2008/04/28 20:23:28 martin Exp $	*/
