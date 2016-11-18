@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/platformvar.h>
 
 #include <arm/ti/omap4/omap4_reg.h>
+#include <arm/ti/omap4/omap4_mp.h>
 
 #include "platform_if.h"
 
@@ -110,6 +111,10 @@ static platform_method_t omap4_methods[] = {
 	PLATFORMMETHOD(platform_lastaddr,	ti_lastaddr),
 	PLATFORMMETHOD(platform_cpu_reset,	ti_plat_cpu_reset),
 
+#ifdef SMP
+	PLATFORMMETHOD(platform_mp_start_ap,	omap4_mp_start_ap),
+	PLATFORMMETHOD(platform_mp_setmaxid,	omap4_mp_setmaxid),
+#endif
 	PLATFORMMETHOD_END,
 };
 FDT_PLATFORM_DEF(omap4, "omap4", 0, "ti,omap4430", 0);
