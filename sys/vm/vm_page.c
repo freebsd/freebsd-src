@@ -2744,6 +2744,8 @@ vm_wait(void)
 		msleep(&vm_pageout_pages_needed, &vm_page_queue_free_mtx,
 		    PDROP | PSWP, "VMWait", 0);
 	} else {
+		if (__predict_false(pageproc == NULL))
+			panic("vm_wait in early boot");
 		if (!vm_pageout_wanted) {
 			vm_pageout_wanted = true;
 			wakeup(&vm_pageout_wanted);
