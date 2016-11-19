@@ -155,6 +155,10 @@ fw_print(int verbose)
 	int i, ret = 0;
 	struct fwohci_softc *sc;
 
+	printf("%s devices:", fwohci.dv_name);
+	if ((ret = pager_output("\n")) != 0)
+		return (ret);
+
 	for (i = 0; i < MAX_OHCI; i ++) {
 		sc = &fwinfo[i];
 		if (sc->state == FWOHCI_STATE_DEAD)

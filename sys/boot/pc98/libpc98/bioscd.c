@@ -179,6 +179,13 @@ bc_print(int verbose)
 	char line[80];
 	int i, ret = 0;
 
+	if (nbcinfo == 0)
+		return (0);
+
+	printf("%s devices:", bioscd.dv_name);
+	if ((ret = pager_output("\n")) != 0)
+		return (ret);
+
 	for (i = 0; i < nbcinfo; i++) {
 		sprintf(line, "    cd%d: Device 0x%x\n", i,
 		    bcinfo[i].bc_sp.sp_devicespec);

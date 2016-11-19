@@ -245,6 +245,13 @@ stor_print(int verbose)
 	static char line[80];
 	int i, ret = 0;
 
+	if (stor_info_no == 0)
+		return (ret);
+
+	printf("%s devices:", uboot_storage.dv_name);
+	if ((ret = pager_output("\n")) != 0)
+		return (ret);
+
 	for (i = 0; i < stor_info_no; i++) {
 		dev.d_dev = &uboot_storage;
 		dev.d_unit = i;
