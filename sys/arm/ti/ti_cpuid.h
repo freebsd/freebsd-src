@@ -74,6 +74,7 @@ extern int _ti_chip;
 
 static __inline int ti_chip(void)
 {
+	KASSERT(_ti_chip != -1, ("Can't determine TI Chip"));
 	return _ti_chip;
 }
 
