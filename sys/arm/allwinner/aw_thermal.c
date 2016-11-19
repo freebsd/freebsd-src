@@ -109,10 +109,13 @@ __FBSDID("$FreeBSD$");
 #define	H3_ADC_ACQUIRE_TIME	0x3f
 #define	H3_FILTER		0x6
 #define	H3_INTC			0x191000
-#define	H3_TEMP_BASE		1794000
+#define	H3_TEMP_BASE		217
 #define	H3_TEMP_MUL		1000
-#define	H3_TEMP_DIV		-8253
+#define	H3_TEMP_DIV		8253
+#define	H3_TEMP_MINUS		1794000
 #define	H3_CLK_RATE		4000000
+#define	H3_INIT_ALARM		90	/* degC */
+#define	H3_INIT_SHUT		105	/* degC */
 
 #define	TEMP_C_TO_K		273
 #define	SENSOR_ENABLE_ALL	(SENSOR0_EN|SENSOR1_EN|SENSOR2_EN)
@@ -131,6 +134,8 @@ TUNABLE_INT("hw.aw_thermal.throttle_enable", &aw_thermal_throttle_enable);
 struct aw_thermal_sensor {
 	const char		*name;
 	const char		*desc;
+	int			init_alarm;
+	int			init_shut;
 };
 
 struct aw_thermal_config {
@@ -142,6 +147,7 @@ struct aw_thermal_config {
 	uint32_t			filter;
 	uint32_t			intc;
 	int				(*to_temp)(uint32_t);
+	uint32_t			(*to_reg)(int);
 	int				temp_base;
 	int				temp_mul;
 	int				temp_div;
@@ -177,9 +183,7 @@ static const struct aw_thermal_config a83t_config = {
 	.filter = A83T_FILTER,
 	.intc = A83T_INTC,
 	.to_temp = a83t_to_temp,
-	.calib0 = 1,
 	.calib0_mask = 0xffffffff,
-	.calib1 = 1,
 	.calib1_mask = 0xffffffff,
 };
 
@@ -215,7 +219,13 @@ static const struct aw_thermal_config a64_config = {
 static int
 h3_to_temp(uint32_t val)
 {
-	return (((int)(val * H3_TEMP_MUL) - H3_TEMP_BASE) / H3_TEMP_DIV);
+	return (H3_TEMP_BASE - ((val * H3_TEMP_MUL) / H3_TEMP_DIV));
+}
+
+static uint32_t
+h3_to_reg(int val)
+{
+	return ((H3_TEMP_MINUS - (val * H3_TEMP_DIV)) / H3_TEMP_MUL);
 }
 
 static const struct aw_thermal_config h3_config = {
@@ -224,6 +234,8 @@ static const struct aw_thermal_config h3_config = {
 		[0] = {
 			.name = "cpu",
 			.desc = "CPU temperature",
+			.init_alarm = H3_INIT_ALARM,
+			.init_shut = H3_INIT_SHUT,
 		},
 	},
 	.clk_rate = H3_CLK_RATE,
@@ -231,7 +243,7 @@ static const struct aw_thermal_config h3_config = {
 	.filter = H3_FILTER,
 	.intc = H3_INTC,
 	.to_temp = h3_to_temp,
-	.calib0 = 1,
+	.to_reg = h3_to_reg,
 	.calib0_mask = 0xfff,
 };
 
@@ -272,7 +284,7 @@ aw_thermal_init(struct aw_thermal_softc *sc)
 	uint32_t calib0, calib1;
 	int error;
 
-	if (sc->conf->calib0 != 0 || sc->conf->calib1 != 0) {
+	if (sc->conf->calib0_mask != 0 || sc->conf->calib1_mask != 0) {
 		/* Read calibration settings from SRAM */
 		error = aw_sid_read_tscalib(&calib0, &calib1);
 		if (error != 0)
@@ -282,9 +294,9 @@ aw_thermal_init(struct aw_thermal_softc *sc)
 		calib1 &= sc->conf->calib1_mask;
 
 		/* Write calibration settings to thermal controller */
-		if (sc->conf->calib0 != 0 && calib0 != 0)
+		if (calib0 != 0)
 			WR4(sc, THS_CALIB0, calib0);
-		if (sc->conf->calib1 != 0 && calib1 != 0)
+		if (calib1 != 0)
 			WR4(sc, THS_CALIB1, calib1);
 	}
 
@@ -313,7 +325,7 @@ aw_thermal_gettemp(struct aw_thermal_softc *sc, int sensor)
 
 	val = RD4(sc, THS_DATA0 + (sensor * 4));
 
-	return (sc->conf->to_temp(val) + TEMP_C_TO_K);
+	return (sc->conf->to_temp(val));
 }
 
 static int
@@ -324,7 +336,18 @@ aw_thermal_getshut(struct aw_thermal_softc *sc, int sensor)
 	val = RD4(sc, THS_SHUTDOWN0_CTRL + (sensor * 4));
 	val = (val >> SHUT_T_HOT_SHIFT) & SHUT_T_HOT_MASK;
 
-	return (sc->conf->to_temp(val) + TEMP_C_TO_K);
+	return (sc->conf->to_temp(val));
+}
+
+static void
+aw_thermal_setshut(struct aw_thermal_softc *sc, int sensor, int temp)
+{
+	uint32_t val;
+
+	val = RD4(sc, THS_SHUTDOWN0_CTRL + (sensor * 4));
+	val &= ~(SHUT_T_HOT_MASK << SHUT_T_HOT_SHIFT);
+	val |= (sc->conf->to_reg(temp) << SHUT_T_HOT_SHIFT);
+	WR4(sc, THS_SHUTDOWN0_CTRL + (sensor * 4), val);
 }
 
 static int
@@ -335,7 +358,7 @@ aw_thermal_gethyst(struct aw_thermal_softc *sc, int sensor)
 	val = RD4(sc, THS_ALARM0_CTRL + (sensor * 4));
 	val = (val >> ALARM_T_HYST_SHIFT) & ALARM_T_HYST_MASK;
 
-	return (sc->conf->to_temp(val) + TEMP_C_TO_K);
+	return (sc->conf->to_temp(val));
 }
 
 static int
@@ -346,7 +369,18 @@ aw_thermal_getalarm(struct aw_thermal_softc *sc, int sensor)
 	val = RD4(sc, THS_ALARM0_CTRL + (sensor * 4));
 	val = (val >> ALARM_T_HOT_SHIFT) & ALARM_T_HOT_MASK;
 
-	return (sc->conf->to_temp(val) + TEMP_C_TO_K);
+	return (sc->conf->to_temp(val));
+}
+
+static void
+aw_thermal_setalarm(struct aw_thermal_softc *sc, int sensor, int temp)
+{
+	uint32_t val;
+
+	val = RD4(sc, THS_ALARM0_CTRL + (sensor * 4));
+	val &= ~(ALARM_T_HOT_MASK << ALARM_T_HOT_SHIFT);
+	val |= (sc->conf->to_reg(temp) << ALARM_T_HOT_SHIFT);
+	WR4(sc, THS_ALARM0_CTRL + (sensor * 4), val);
 }
 
 static int
@@ -358,7 +392,7 @@ aw_thermal_sysctl(SYSCTL_HANDLER_ARGS)
 	sc = arg1;
 	sensor = arg2;
 
-	val = aw_thermal_gettemp(sc, sensor);
+	val = aw_thermal_gettemp(sc, sensor) + TEMP_C_TO_K;
 
 	return sysctl_handle_opaque(oidp, &val, sizeof(val), req);
 }
@@ -514,6 +548,15 @@ aw_thermal_attach(device_t dev)
 		goto fail;
 	}
 
+	for (i = 0; i < sc->conf->nsensors; i++) {
+		if (sc->conf->sensors[i].init_alarm > 0)
+			aw_thermal_setalarm(sc, i,
+			    sc->conf->sensors[i].init_alarm);
+		if (sc->conf->sensors[i].init_shut > 0)
+			aw_thermal_setshut(sc, i,
+			    sc->conf->sensors[i].init_shut);
+	}
+
 	if (aw_thermal_init(sc) != 0)
 		goto fail;
 
@@ -529,9 +572,9 @@ aw_thermal_attach(device_t dev)
 		for (i = 0; i < sc->conf->nsensors; i++) {
 			device_printf(dev,
 			    "#%d: alarm %dC hyst %dC shut %dC\n", i,
-			    aw_thermal_getalarm(sc, i) - TEMP_C_TO_K,
-			    aw_thermal_gethyst(sc, i) - TEMP_C_TO_K,
-			    aw_thermal_getshut(sc, i) - TEMP_C_TO_K);
+			    aw_thermal_getalarm(sc, i),
+			    aw_thermal_gethyst(sc, i),
+			    aw_thermal_getshut(sc, i));
 		}
 
 	sc->cf_pre_tag = EVENTHANDLER_REGISTER(cpufreq_pre_change,
