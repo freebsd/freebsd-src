@@ -106,19 +106,6 @@ ip6_ipsec_filtertunnel(struct mbuf *m)
 }
 
 /*
- * Check if this packet has an active SA and needs to be dropped instead
- * of forwarded.
- * Called from ip6_forward().
- * 1 = drop packet, 0 = forward packet.
- */
-int
-ip6_ipsec_fwd(struct mbuf *m)
-{
-
-	return (ipsec6_in_reject(m, NULL));
-}
-
-/*
  * Check if protocol type doesn't have a further header and do IPSEC
  * decryption or reject right now.  Protocols with further headers get
  * their IPSEC treatment within the protocol specific processing.
@@ -221,53 +208,84 @@ ip6_ipsec_output(struct mbuf *m, struct inpcb *inp, int *error)
 	return (0);
 }
 
-#if 0
 /*
- * Compute the MTU for a forwarded packet that gets IPSEC encapsulated.
- * Called from ip_forward().
- * Returns MTU suggestion for ICMP needfrag reply.
+ * Called from ip6_forward().
+ * 1 = drop packet, 0 = forward packet.
  */
 int
-ip6_ipsec_mtu(struct mbuf *m)
+ip6_ipsec_forward(struct mbuf *m, int *error)
 {
-	int mtu = 0;
-	/*
-	 * If the packet is routed over IPsec tunnel, tell the
-	 * originator the tunnel MTU.
-	 *	tunnel MTU = if MTU - sizeof(IP) - ESP/AH hdrsiz
-	 * XXX quickhack!!!
-	 */
-#ifdef IPSEC
-	struct secpolicy *sp = NULL;
-	int ipsecerror;
-	int ipsechdr;
-	struct route *ro;
-	sp = ipsec_getpolicybyaddr(m,
-				   IPSEC_DIR_OUTBOUND,
-				   IP_FORWARDING,
-				   &ipsecerror);
-	if (sp != NULL) {
-		/* count IPsec header size */
-		ipsechdr = ipsec_hdrsiz(m, IPSEC_DIR_OUTBOUND, NULL);
+	struct secpolicy *sp;
+	int idx;
 
-		/*
-		 * find the correct route for outer IPv4
-		 * header, compute tunnel MTU.
-		 */
-		if (sp->req != NULL &&
-		    sp->req->sav != NULL &&
-		    sp->req->sav->sah != NULL) {
-			ro = &sp->req->sav->sah->route_cache.sa_route;
-			if (ro->ro_rt && ro->ro_rt->rt_ifp) {
-				mtu = ro->ro_rt->rt_mtu ? ro->ro_rt->rt_mtu :
-				    ro->ro_rt->rt_ifp->if_mtu;
-				mtu -= ipsechdr;
-			}
-		}
-		KEY_FREESP(&sp);
+	/*
+	 * Check if this packet has an active inbound SP and needs to be
+	 * dropped instead of forwarded.
+	 */
+	if (ipsec6_in_reject(m, NULL) != 0) {
+		*error = EACCES;
+		return (0);
 	}
-#endif /* IPSEC */
-	/* XXX else case missing. */
-	return mtu;
+	/*
+	 * Now check outbound SP.
+	 */
+	sp = ipsec6_checkpolicy(m, NULL, error);
+	/*
+	 * There are four return cases:
+	 *    sp != NULL		    apply IPsec policy
+	 *    sp == NULL, error == 0	    no IPsec handling needed
+	 *    sp == NULL, error == -EINVAL  discard packet w/o error
+	 *    sp == NULL, error != 0	    discard packet, report error
+	 */
+	if (sp != NULL) {
+		/*
+		 * We have SP with IPsec transform, but we should check that
+		 * it has tunnel mode request, because we can't use transport
+		 * mode when forwarding.
+		 *
+		 * RFC2473 says:
+		 * "A tunnel IPv6 packet resulting from the encapsulation of
+		 * an original packet is considered an IPv6 packet originating
+		 * from the tunnel entry-point node."
+		 * So, we don't need MTU checking, after IPsec processing
+		 * we will just fragment it if needed.
+		 */
+		for (idx = 0; idx < sp->tcount; idx++) {
+			if (sp->req[idx]->saidx.mode == IPSEC_MODE_TUNNEL)
+				break;
+		}
+		if (idx == sp->tcount) {
+			*error = EACCES;
+			IPSEC6STAT_INC(ips_out_inval);
+			key_freesp(&sp);
+			return (0);
+		}
+		/* NB: callee frees mbuf and releases reference to SP */
+		*error = ipsec6_process_packet(m, sp, NULL);
+		if (*error == EJUSTRETURN) {
+			/*
+			 * We had a SP with a level of 'use' and no SA. We
+			 * will just continue to process the packet without
+			 * IPsec processing and return without error.
+			 */
+			*error = 0;
+			return (0);
+		}
+		return (1);	/* mbuf consumed by IPsec */
+	} else {	/* sp == NULL */
+		if (*error != 0) {
+			/*
+			 * Hack: -EINVAL is used to signal that a packet
+			 * should be silently discarded.  This is typically
+			 * because we asked key management for an SA and
+			 * it was delayed (e.g. kicked up to IKE).
+			 */
+			if (*error == -EINVAL)
+				*error = 0;
+			m_freem(m);
+			return (1);
+		}
+		/* No IPsec processing for this packet. */
+	}
+	return (0);
 }
-#endif
