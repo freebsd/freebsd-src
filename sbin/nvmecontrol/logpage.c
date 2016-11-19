@@ -42,6 +42,11 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/endian.h>
+
+#if _BYTE_ORDER != _LITTLE_ENDIAN
+#error "Code only works on little endian machines"
+#endif
 
 #include "nvmecontrol.h"
 
@@ -49,6 +54,38 @@ __FBSDID("$FreeBSD$");
 #define MAX_FW_SLOTS	(7)
 
 typedef void (*print_fn_t)(void *buf, uint32_t size);
+
+
+/*
+ * 128-bit integer augments to standard values
+ */
+#define UINT128_DIG	39
+typedef __uint128_t uint128_t;
+
+static inline uint128_t
+to128(void *p)
+{
+	return *(uint128_t *)p;
+}
+
+static char *
+uint128_to_str(uint128_t u, char *buf, size_t buflen)
+{
+	char *end = buf + buflen - 1;
+
+	*end-- = '\0';
+	if (u == 0)
+		*end-- = '0';
+	while (u && end >= buf) {
+		*end-- = u % 10 + '0';
+		u /= 10;
+	}
+	end++;
+	if (u != 0)
+		return NULL;
+
+	return end;
+}
 
 static void *
 get_log_buffer(uint32_t size)
@@ -128,6 +165,7 @@ static void
 print_log_health(void *buf, uint32_t size __unused)
 {
 	struct nvme_health_information_page *health = buf;
+	char cbuf[UINT128_DIG + 1];
 
 	printf("SMART/Health Information Log\n");
 	printf("============================\n");
@@ -155,40 +193,26 @@ print_log_health(void *buf, uint32_t size __unused)
 	printf("Percentage used:                %u\n",
 	    health->percentage_used);
 
-	/* 
-	 * TODO: These are pretty ugly in hex. Is there a library that 
-	 *	 will convert 128-bit unsigned values to decimal?
-	 */
-	printf("Data units (512 byte) read:     0x%016jx%016jx\n",
-	    health->data_units_read[1],
-	    health->data_units_read[0]);
-	printf("Data units (512 byte) written:  0x%016jx%016jx\n",
-	    health->data_units_written[1],
-	    health->data_units_written[0]);
-	printf("Host read commands:             0x%016jx%016jx\n",
-	    health->host_read_commands[1],
-	    health->host_read_commands[0]);
-	printf("Host write commands:            0x%016jx%016jx\n",
-	    health->host_write_commands[1],
-	    health->host_write_commands[0]);
-	printf("Controller busy time (minutes): 0x%016jx%016jx\n",
-	    health->controller_busy_time[1],
-	    health->controller_busy_time[0]);
-	printf("Power cycles:                   0x%016jx%016jx\n",
-	    health->power_cycles[1],
-	    health->power_cycles[0]);
-	printf("Power on hours:                 0x%016jx%016jx\n",
-	    health->power_on_hours[1],
-	    health->power_on_hours[0]);
-	printf("Unsafe shutdowns:               0x%016jx%016jx\n",
-	    health->unsafe_shutdowns[1],
-	    health->unsafe_shutdowns[0]);
-	printf("Media errors:                   0x%016jx%016jx\n",
-	    health->media_errors[1],
-	    health->media_errors[0]);
-	printf("No. error info log entries:     0x%016jx%016jx\n",
-	    health->num_error_info_log_entries[1],
-	    health->num_error_info_log_entries[0]);
+	printf("Data units (512,000 byte) read:     %s\n",
+	    uint128_to_str(to128(health->data_units_read), cbuf, sizeof(cbuf)));
+	printf("Data units (512,000 byte) written:  %s\n",
+	    uint128_to_str(to128(health->data_units_written), cbuf, sizeof(cbuf)));
+	printf("Host read commands:             %s\n",
+	    uint128_to_str(to128(health->host_read_commands), cbuf, sizeof(cbuf)));
+	printf("Host write commands:            %s\n",
+	    uint128_to_str(to128(health->host_write_commands), cbuf, sizeof(cbuf)));
+	printf("Controller busy time (minutes): %s\n",
+	    uint128_to_str(to128(health->controller_busy_time), cbuf, sizeof(cbuf)));
+	printf("Power cycles:                   %s\n",
+	    uint128_to_str(to128(health->power_cycles), cbuf, sizeof(cbuf)));
+	printf("Power on hours:                 %s\n",
+	    uint128_to_str(to128(health->power_on_hours), cbuf, sizeof(cbuf)));
+	printf("Unsafe shutdowns:               %s\n",
+	    uint128_to_str(to128(health->unsafe_shutdowns), cbuf, sizeof(cbuf)));
+	printf("Media errors:                   %s\n",
+	    uint128_to_str(to128(health->media_errors), cbuf, sizeof(cbuf)));
+	printf("No. error info log entries:     %s\n",
+	    uint128_to_str(to128(health->num_error_info_log_entries), cbuf, sizeof(cbuf)));
 }
 
 static void
