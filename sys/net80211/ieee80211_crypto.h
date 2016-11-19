@@ -114,7 +114,8 @@ struct ieee80211_key {
 
 #define IEEE80211_KEY_DEVICE		/* flags owned by device driver */\
 	(IEEE80211_KEY_DEVKEY|IEEE80211_KEY_CIPHER0|IEEE80211_KEY_CIPHER1| \
-	 IEEE80211_KEY_SWCRYPT|IEEE80211_KEY_SWMIC)
+	 IEEE80211_KEY_SWCRYPT|IEEE80211_KEY_SWMIC|IEEE80211_KEY_NOIV | \
+	 IEEE80211_KEY_NOIVMGT|IEEE80211_KEY_NOMIC|IEEE80211_KEY_NOMICMGT)
 
 #define	IEEE80211_KEY_BITS \
 	"\20\1XMIT\2RECV\3GROUP\4SWENCRYPT\5SWDECRYPT\6SWENMIC\7SWDEMIC" \
@@ -207,8 +208,8 @@ struct ieee80211_key *ieee80211_crypto_get_txkey(struct ieee80211_node *,
 		struct mbuf *);
 struct ieee80211_key *ieee80211_crypto_encap(struct ieee80211_node *,
 		struct mbuf *);
-struct ieee80211_key *ieee80211_crypto_decap(struct ieee80211_node *,
-		struct mbuf *, int);
+int	ieee80211_crypto_decap(struct ieee80211_node *,
+		struct mbuf *, int, struct ieee80211_key **);
 int ieee80211_crypto_demic(struct ieee80211vap *vap, struct ieee80211_key *k,
 		struct mbuf *, int);
 /*
