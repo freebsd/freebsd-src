@@ -262,14 +262,6 @@ logpage(int argc, char *argv[])
 				    "\"%s\" not valid log page id.\n",
 				    optarg);
 				logpage_usage();
-			/* TODO: Define valid log page id ranges in nvme.h? */
-			} else if (log_page == 0 ||
-				   (log_page >= 0x04 && log_page <= 0x7F) ||
-				   (log_page >= 0x80 && log_page <= 0xBF)) {
-				fprintf(stderr,
-				    "\"%s\" not valid log page id.\n",
-				    optarg);
-				logpage_usage();
 			}
 			pageflag = true;
 			break;
