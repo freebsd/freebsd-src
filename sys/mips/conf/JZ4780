@@ -53,7 +53,7 @@ options 	INVARIANT_SUPPORT	#Extra sanity checks of internal structures, required
 #options 	WITNESS_SKIPSPIN	#Don't run witness on spinlocks for speed
 
 # Make an SMP-capable kernel by default
-# options 	SMP			# Symmetric MultiProcessor Kernel
+options 	SMP			# Symmetric MultiProcessor Kernel
 
 device		loop
 device		ether
