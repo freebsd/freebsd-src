@@ -261,23 +261,11 @@ omap_ehci_init(struct omap_ehci_softc *isc)
 static int
 omap_ehci_probe(device_t dev)
 {
-	phandle_t root;
-
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
 	if (!ofw_bus_is_compatible(dev, "ti,ehci-omap"))
 		return (ENXIO);
-
-#ifdef SOC_OMAP4
-	/* 
-	 * If we're running a Pandaboard, run Pandaboard-specific 
-	 * init code.
-	 */
-	root = OF_finddevice("/");
-	if (fdt_is_compatible(root, "ti,omap4-panda"))
-		pandaboard_usb_hub_init();
-#endif
 
 	device_set_desc(dev, OMAP_EHCI_HC_DEVSTR);
 	
@@ -303,8 +291,21 @@ omap_ehci_attach(device_t dev)
 {
 	struct omap_ehci_softc *isc = device_get_softc(dev);
 	ehci_softc_t *sc = &isc->base;
+#ifdef SOC_OMAP4
+	phandle_t root;
+#endif
 	int err;
 	int rid;
+
+#ifdef SOC_OMAP4
+	/* 
+	 * If we're running a Pandaboard, run Pandaboard-specific 
+	 * init code.
+	 */
+	root = OF_finddevice("/");
+	if (ofw_bus_node_is_compatible(root, "ti,omap4-panda"))
+		pandaboard_usb_hub_init();
+#endif
 
 	/* initialise some bus fields */
 	sc->sc_bus.parent = dev;
