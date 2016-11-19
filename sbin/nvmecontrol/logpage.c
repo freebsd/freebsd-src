@@ -56,6 +56,25 @@ __FBSDID("$FreeBSD$");
 typedef void (*print_fn_t)(void *buf, uint32_t size);
 
 
+struct kv_name
+{
+	uint32_t key;
+	const char *name;
+};
+
+static const char *
+kv_lookup(const struct kv_name *kv, size_t kv_count, uint32_t key)
+{
+	static char bad[32];
+	size_t i;
+
+	for (i = 0; i < kv_count; i++, kv++)
+		if (kv->key == key)
+			return kv->name;
+	snprintf(bad, sizeof(bad), "Attribute %#x", key);
+	return bad;
+}
+
 /*
  * 128-bit integer augments to standard values
  */
@@ -283,6 +302,405 @@ print_intel_temp_stats(void *buf, uint32_t size __unused)
 }
 
 /*
+ * HGST's 0xc1 page. This is a grab bag of additional data. Please see
+ * https://www.hgst.com/sites/default/files/resources/US_SN150_ProdManual.pdf
+ * https://www.hgst.com/sites/default/files/resources/US_SN100_ProdManual.pdf
+ * Appendix A for details
+ */
+
+typedef void (*subprint_fn_t)(void *buf, uint16_t subtype, uint8_t res, uint32_t size);
+
+struct subpage_print
+{
+	uint16_t key;
+	subprint_fn_t fn;
+};
+
+static void print_hgst_info_write_errors(void *buf, uint16_t subtype, uint8_t res, uint32_t size);
+static void print_hgst_info_read_errors(void *buf, uint16_t subtype, uint8_t res, uint32_t size);
+static void print_hgst_info_verify_errors(void *buf, uint16_t subtype, uint8_t res, uint32_t size);
+static void print_hgst_info_self_test(void *buf, uint16_t subtype, uint8_t res, uint32_t size);
+static void print_hgst_info_background_scan(void *buf, uint16_t subtype, uint8_t res, uint32_t size);
+static void print_hgst_info_erase_errors(void *buf, uint16_t subtype, uint8_t res, uint32_t size);
+static void print_hgst_info_erase_counts(void *buf, uint16_t subtype, uint8_t res, uint32_t size);
+static void print_hgst_info_temp_history(void *buf, uint16_t subtype, uint8_t res, uint32_t size);
+static void print_hgst_info_ssd_perf(void *buf, uint16_t subtype, uint8_t res, uint32_t size);
+static void print_hgst_info_firmware_load(void *buf, uint16_t subtype, uint8_t res, uint32_t size);
+
+static struct subpage_print hgst_subpage[] = {
+	{ 0x02, print_hgst_info_write_errors },
+	{ 0x03, print_hgst_info_read_errors },
+	{ 0x05, print_hgst_info_verify_errors },
+	{ 0x10, print_hgst_info_self_test },
+	{ 0x15, print_hgst_info_background_scan },
+	{ 0x30, print_hgst_info_erase_errors },
+	{ 0x31, print_hgst_info_erase_counts },
+	{ 0x32, print_hgst_info_temp_history },
+	{ 0x37, print_hgst_info_ssd_perf },
+	{ 0x38, print_hgst_info_firmware_load },
+};
+
+/* Print a subpage that is basically just key value pairs */
+static void
+print_hgst_info_subpage_gen(void *buf, uint16_t subtype __unused, uint32_t size,
+    const struct kv_name *kv, size_t kv_count)
+{
+	uint8_t *wsp, *esp;
+	uint16_t ptype;
+	uint8_t plen;
+	uint64_t param;
+	int i;
+
+	wsp = buf;
+	esp = wsp + size;
+	while (wsp < esp) {
+		ptype = le16dec(wsp);
+		wsp += 2;
+		wsp++;			/* Flags, just ignore */
+		plen = *wsp++;
+		param = 0;
+		for (i = 0; i < plen; i++)
+			param |= (uint64_t)*wsp++ << (i * 8);
+		printf("  %-30s: %jd\n", kv_lookup(kv, kv_count, ptype), (uintmax_t)param);
+	}
+}
+
+static void
+print_hgst_info_write_errors(void *buf, uint16_t subtype, uint8_t res __unused, uint32_t size)
+{
+	static struct kv_name kv[] =
+	{
+		{ 0x0000, "Corrected Without Delay" },
+		{ 0x0001, "Corrected Maybe Delayed" },
+		{ 0x0002, "Re-Writes" },
+		{ 0x0003, "Errors Corrected" },
+		{ 0x0004, "Correct Algorithm Used" },
+		{ 0x0005, "Bytes Processed" },
+		{ 0x0006, "Uncorrected Errors" },
+		{ 0x8000, "Flash Write Commands" },
+		{ 0x8001, "HGST Special" },
+	};
+
+	printf("Write Errors Subpage:\n");
+	print_hgst_info_subpage_gen(buf, subtype, size, kv, nitems(kv));
+}
+
+static void
+print_hgst_info_read_errors(void *buf, uint16_t subtype, uint8_t res __unused, uint32_t size)
+{
+	static struct kv_name kv[] =
+	{
+		{ 0x0000, "Corrected Without Delay" },
+		{ 0x0001, "Corrected Maybe Delayed" },
+		{ 0x0002, "Re-Reads" },
+		{ 0x0003, "Errors Corrected" },
+		{ 0x0004, "Correct Algorithm Used" },
+		{ 0x0005, "Bytes Processed" },
+		{ 0x0006, "Uncorrected Errors" },
+		{ 0x8000, "Flash Read Commands" },
+		{ 0x8001, "XOR Recovered" },
+		{ 0x8002, "Total Corrected Bits" },
+	};
+
+	printf("Read Errors Subpage:\n");
+	print_hgst_info_subpage_gen(buf, subtype, size, kv, nitems(kv));
+}
+
+static void
+print_hgst_info_verify_errors(void *buf, uint16_t subtype, uint8_t res __unused, uint32_t size)
+{
+	static struct kv_name kv[] =
+	{
+		{ 0x0000, "Corrected Without Delay" },
+		{ 0x0001, "Corrected Maybe Delayed" },
+		{ 0x0002, "Re-Reads" },
+		{ 0x0003, "Errors Corrected" },
+		{ 0x0004, "Correct Algorithm Used" },
+		{ 0x0005, "Bytes Processed" },
+		{ 0x0006, "Uncorrected Errors" },
+		{ 0x8000, "Commands Processed" },
+	};
+
+	printf("Verify Errors Subpage:\n");
+	print_hgst_info_subpage_gen(buf, subtype, size, kv, nitems(kv));
+}
+
+static void
+print_hgst_info_self_test(void *buf, uint16_t subtype __unused, uint8_t res __unused, uint32_t size)
+{
+	size_t i;
+	uint8_t *walker = buf;
+	uint16_t code, hrs;
+	uint32_t lba;
+
+	printf("Self Test Subpage:\n");
+	for (i = 0; i < size / 20; i++) {	/* Each entry is 20 bytes */
+		code = le16dec(walker);
+		walker += 2;
+		walker++;			/* Ignore fixed flags */
+		if (*walker == 0)		/* Last entry is zero length */
+			break;
+		if (*walker++ != 0x10) {
+			printf("Bad length for self test report\n");
+			return;
+		}
+		printf("  %-30s: %d\n", "Recent Test", code);
+		printf("    %-28s: %#x\n", "Self-Test Results", *walker & 0xf);
+		printf("    %-28s: %#x\n", "Self-Test Code", (*walker >> 5) & 0x7);
+		walker++;
+		printf("    %-28s: %#x\n", "Self-Test Number", *walker++);
+		hrs = le16dec(walker);
+		walker += 2;
+		lba = le32dec(walker);
+		walker += 4;
+		printf("    %-28s: %u\n", "Total Power On Hrs", hrs);
+		printf("    %-28s: %#jx (%jd)\n", "LBA", (uintmax_t)lba, (uintmax_t)lba);
+		printf("    %-28s: %#x\n", "Sense Key", *walker++ & 0xf);
+		printf("    %-28s: %#x\n", "Additional Sense Code", *walker++);
+		printf("    %-28s: %#x\n", "Additional Sense Qualifier", *walker++);
+		printf("    %-28s: %#x\n", "Vendor Specific Detail", *walker++);
+	}
+}
+
+static void
+print_hgst_info_background_scan(void *buf, uint16_t subtype __unused, uint8_t res __unused, uint32_t size)
+{
+	uint8_t *walker = buf;
+	uint8_t status;
+	uint16_t code, nscan, progress;
+	uint32_t pom, nand;
+
+	printf("Background Media Scan Subpage:\n");
+	/* Decode the header */
+	code = le16dec(walker);
+	walker += 2;
+	walker++;			/* Ignore fixed flags */
+	if (*walker++ != 0x10) {
+		printf("Bad length for background scan header\n");
+		return;
+	}
+	if (code != 0) {
+		printf("Expceted code 0, found code %#x\n", code);
+		return;
+	}
+	pom = le32dec(walker);
+	walker += 4;
+	walker++;			/* Reserved */
+	status = *walker++;
+	nscan = le16dec(walker);
+	walker += 2;
+	progress = le16dec(walker);
+	walker += 2;
+	walker += 6;			/* Reserved */
+	printf("  %-30s: %d\n", "Power On Minutes", pom);
+	printf("  %-30s: %x (%s)\n", "BMS Status", status,
+	    status == 0 ? "idle" : (status == 1 ? "active" : (status == 8 ? "suspended" : "unknown")));
+	printf("  %-30s: %d\n", "Number of BMS", nscan);
+	printf("  %-30s: %d\n", "Progress Current BMS", progress);
+	/* Report retirements */
+	if (walker - (uint8_t *)buf != 20) {
+		printf("Coding error, offset not 20\n");
+		return;
+	}
+	size -= 20;
+	printf("  %-30s: %d\n", "BMS retirements", size / 0x18);
+	while (size > 0) {
+		code = le16dec(walker);
+		walker += 2;
+		walker++;
+		if (*walker++ != 0x14) {
+			printf("Bad length parameter\n");
+			return;
+		}
+		pom = le32dec(walker);
+		walker += 4;
+		/*
+		 * Spec sheet says the following are hard coded, if true, just
+		 * print the NAND retirement.
+		 */
+		if (walker[0] == 0x41 &&
+		    walker[1] == 0x0b &&
+		    walker[2] == 0x01 &&
+		    walker[3] == 0x00 &&
+		    walker[4] == 0x00 &&
+		    walker[5] == 0x00 &&
+		    walker[6] == 0x00 &&
+		    walker[7] == 0x00) {
+			walker += 8;
+			walker += 4;	/* Skip reserved */
+			nand = le32dec(walker);
+			walker += 4;
+			printf("  %-30s: %d\n", "Retirement number", code);
+			printf("    %-28s: %#x\n", "NAND (C/T)BBBPPP", nand);
+		} else {
+			printf("Parameter %#x entry corrupt\n", code);
+			walker += 16;
+		}
+	}
+}
+
+static void
+print_hgst_info_erase_errors(void *buf, uint16_t subtype __unused, uint8_t res __unused, uint32_t size)
+{
+	static struct kv_name kv[] =
+	{
+		{ 0x0000, "Corrected Without Delay" },
+		{ 0x0001, "Corrected Maybe Delayed" },
+		{ 0x0002, "Re-Erase" },
+		{ 0x0003, "Errors Corrected" },
+		{ 0x0004, "Correct Algorithm Used" },
+		{ 0x0005, "Bytes Processed" },
+		{ 0x0006, "Uncorrected Errors" },
+		{ 0x8000, "Flash Erase Commands" },
+		{ 0x8001, "Mfg Defect Count" },
+		{ 0x8002, "Grown Defect Count" },
+		{ 0x8003, "Erase Count -- User" },
+		{ 0x8004, "Erase Count -- System" },
+	};
+
+	printf("Erase Errors Subpage:\n");
+	print_hgst_info_subpage_gen(buf, subtype, size, kv, nitems(kv));
+}
+
+static void
+print_hgst_info_erase_counts(void *buf, uint16_t subtype, uint8_t res __unused, uint32_t size)
+{
+	/* My drive doesn't export this -- so not coding up */
+	printf("XXX: Erase counts subpage: %p, %#x %d\n", buf, subtype, size);
+}
+
+static void
+print_hgst_info_temp_history(void *buf, uint16_t subtype __unused, uint8_t res __unused, uint32_t size __unused)
+{
+	uint8_t *walker = buf;
+	uint32_t min;
+
+	printf("Temperature History:\n");
+	printf("  %-30s: %d C\n", "Current Temperature", *walker++);
+	printf("  %-30s: %d C\n", "Reference Temperature", *walker++);
+	printf("  %-30s: %d C\n", "Maximum Temperature", *walker++);
+	printf("  %-30s: %d C\n", "Minimum Temperature", *walker++);
+	min = le32dec(walker);
+	walker += 4;
+	printf("  %-30s: %d:%02d:00\n", "Max Temperture Time", min / 60, min % 60);
+	min = le32dec(walker);
+	walker += 4;
+	printf("  %-30s: %d:%02d:00\n", "Over Temperture Duration", min / 60, min % 60);
+	min = le32dec(walker);
+	walker += 4;
+	printf("  %-30s: %d:%02d:00\n", "Min Temperture Time", min / 60, min % 60);
+}
+
+static void
+print_hgst_info_ssd_perf(void *buf, uint16_t subtype __unused, uint8_t res, uint32_t size __unused)
+{
+	uint8_t *walker = buf;
+	uint64_t val;
+
+	printf("SSD Performance Subpage Type %d:\n", res);
+	val = le64dec(walker);
+	walker += 8;
+	printf("  %-30s: %ju\n", "Host Read Commands", val);
+	val = le64dec(walker);
+	walker += 8;
+	printf("  %-30s: %ju\n", "Host Read Blocks", val);
+	val = le64dec(walker);
+	walker += 8;
+	printf("  %-30s: %ju\n", "Host Cache Read Hits Commands", val);
+	val = le64dec(walker);
+	walker += 8;
+	printf("  %-30s: %ju\n", "Host Cache Read Hits Blocks", val);
+	val = le64dec(walker);
+	walker += 8;
+	printf("  %-30s: %ju\n", "Host Read Commands Stalled", val);
+	val = le64dec(walker);
+	walker += 8;
+	printf("  %-30s: %ju\n", "Host Write Commands", val);
+	val = le64dec(walker);
+	walker += 8;
+	printf("  %-30s: %ju\n", "Host Write Blocks", val);
+	val = le64dec(walker);
+	walker += 8;
+	printf("  %-30s: %ju\n", "Host Write Odd Start Commands", val);
+	val = le64dec(walker);
+	walker += 8;
+	printf("  %-30s: %ju\n", "Host Write Odd End Commands", val);
+	val = le64dec(walker);
+	walker += 8;
+	printf("  %-30s: %ju\n", "Host Write Commands Stalled", val);
+	val = le64dec(walker);
+	walker += 8;
+	printf("  %-30s: %ju\n", "NAND Read Commands", val);
+	val = le64dec(walker);
+	walker += 8;
+	printf("  %-30s: %ju\n", "NAND Read Blocks", val);
+	val = le64dec(walker);
+	walker += 8;
+	printf("  %-30s: %ju\n", "NAND Write Commands", val);
+	val = le64dec(walker);
+	walker += 8;
+	printf("  %-30s: %ju\n", "NAND Write Blocks", val);
+	val = le64dec(walker);
+	walker += 8;
+	printf("  %-30s: %ju\n", "NAND Read Before Writes", val);
+}
+
+static void
+print_hgst_info_firmware_load(void *buf, uint16_t subtype __unused, uint8_t res __unused, uint32_t size __unused)
+{
+	uint8_t *walker = buf;
+
+	printf("Firmware Load Subpage:\n");
+	printf("  %-30s: %d\n", "Firmware Downloads", le32dec(walker));
+}
+
+static void
+kv_indirect(void *buf, uint32_t subtype, uint8_t res, uint32_t size, struct subpage_print *sp, size_t nsp)
+{
+	size_t i;
+
+	for (i = 0; i < nsp; i++, sp++) {
+		if (sp->key == subtype) {
+			sp->fn(buf, subtype, res, size);
+			return;
+		}
+	}
+	printf("No handler for page type %x\n", subtype);
+}
+
+static void
+print_hgst_info_log(void *buf, uint32_t size __unused)
+{
+	uint8_t	*walker, *end, *subpage;
+	int pages;
+	uint16_t len;
+	uint8_t subtype, res;
+
+	printf("HGST Extra Info Log\n");
+	printf("===================\n");
+
+	walker = buf;
+	pages = *walker++;
+	walker++;
+	len = le16dec(walker);
+	walker += 2;
+	end = walker + len;		/* Length is exclusive of this header */
+	
+	while (walker < end) {
+		subpage = walker + 4;
+		subtype = *walker++ & 0x3f;	/* subtype */
+		res = *walker++;		/* Reserved */
+		len = le16dec(walker);
+		walker += len + 2;		/* Length, not incl header */
+		if (walker > end) {
+			printf("Ooops! Off the end of the list\n");
+			break;
+		}
+		kv_indirect(subpage, subtype, res, len, hgst_subpage, nitems(hgst_subpage));
+	}
+}
+
+/*
  * Table of log page printer / sizing.
  *
  * This includes Intel specific pages that are widely implemented. Not
@@ -301,6 +719,8 @@ static struct logpage_function {
 	 sizeof(struct nvme_firmware_page)},
 	{INTEL_LOG_TEMP_STATS,		print_intel_temp_stats,
 	 sizeof(struct intel_log_temp_stats)},
+	{HGST_INFO_LOG,			print_hgst_info_log,
+	 DEFAULT_SIZE},
 	{0,				NULL,
 	 0},
 };
