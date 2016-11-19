@@ -97,6 +97,13 @@ dev/hwpmc/hwpmc_mips74k.c		optional	hwpmc_mips74k
 # ofw support
 dev/ofw/ofwpci.c			optional	fdt pci
 
+# INTRNG support code
+kern/msi_if.m				optional	intrng
+kern/pic_if.m				optional	intrng
+kern/subr_intr.c			optional	intrng
+# INTRNG compatible MIPS32 interrupt controller
+mips/mips/mips_pic.c			optional	intrng
+
 # DTrace
 cddl/compat/opensolaris/kern/opensolaris_atomic.c	optional zfs | dtrace compile-with "${CDDL_C}"
 cddl/dev/dtrace/mips/dtrace_asm.S			optional dtrace compile-with "${DTRACE_S}"

@@ -161,6 +161,8 @@ extern struct mips_cache_ops mips_cache_ops;
 /* PRIMARY CACHE VARIABLES */
 extern int mips_picache_linesize;
 extern int mips_pdcache_linesize;
+extern int mips_sdcache_linesize;
+extern int mips_dcache_max_linesize;
 
 #define	__mco_noargs(prefix, x)						\
 do {									\
