@@ -1126,7 +1126,7 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int *rbehind,
 	if (shift != 0) {
 		for (i = 1; i <= shift; i++) {
 			p = vm_page_alloc(object, m[0]->pindex - i,
-			    VM_ALLOC_NORMAL | VM_ALLOC_IFNOTCACHED);
+			    VM_ALLOC_NORMAL);
 			if (p == NULL) {
 				/* Shift allocated pages to the left. */
 				for (j = 0; j < i - 1; j++)
@@ -1144,8 +1144,7 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int *rbehind,
 	if (rahead != NULL) {
 		for (i = 0; i < *rahead; i++) {
 			p = vm_page_alloc(object,
-			    m[reqcount - 1]->pindex + i + 1,
-			    VM_ALLOC_NORMAL | VM_ALLOC_IFNOTCACHED);
+			    m[reqcount - 1]->pindex + i + 1, VM_ALLOC_NORMAL);
 			if (p == NULL)
 				break;
 			bp->b_pages[shift + reqcount + i] = p;

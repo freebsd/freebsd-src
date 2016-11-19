@@ -783,7 +783,7 @@ cache_negative_shrink_select(int start, struct namecache **ncpp,
 static void
 cache_negative_zap_one(void)
 {
-	struct namecache *ncp, *ncp2, *ncpc;
+	struct namecache *ncp, *ncp2;
 	struct neglist *neglist;
 	struct mtx *dvlp;
 	struct rwlock *blp;
@@ -791,7 +791,6 @@ cache_negative_zap_one(void)
 	if (!mtx_trylock(&ncneg_shrink_lock))
 		return;
 
-	ncpc = NULL;
 	mtx_lock(&ncneg_hot.nl_lock);
 	ncp = TAILQ_FIRST(&ncneg_hot.nl_list);
 	if (ncp != NULL) {
@@ -868,6 +867,13 @@ cache_zap_locked(struct namecache *ncp, bool neg_locked)
 		    nc_get_name(ncp), ncp->nc_neghits);
 	}
 	LIST_REMOVE(ncp, nc_hash);
+	if (!(ncp->nc_flag & NCF_NEGATIVE)) {
+		TAILQ_REMOVE(&ncp->nc_vp->v_cache_dst, ncp, nc_dst);
+		if (ncp == ncp->nc_vp->v_cache_dd)
+			ncp->nc_vp->v_cache_dd = NULL;
+	} else {
+		cache_negative_remove(ncp, neg_locked);
+	}
 	if (ncp->nc_flag & NCF_ISDOTDOT) {
 		if (ncp == ncp->nc_dvp->v_cache_dd)
 			ncp->nc_dvp->v_cache_dd = NULL;
@@ -877,13 +883,6 @@ cache_zap_locked(struct namecache *ncp, bool neg_locked)
 			ncp->nc_flag |= NCF_DVDROP;
 			atomic_subtract_rel_long(&numcachehv, 1);
 		}
-	}
-	if (!(ncp->nc_flag & NCF_NEGATIVE)) {
-		TAILQ_REMOVE(&ncp->nc_vp->v_cache_dst, ncp, nc_dst);
-		if (ncp == ncp->nc_vp->v_cache_dd)
-			ncp->nc_vp->v_cache_dd = NULL;
-	} else {
-		cache_negative_remove(ncp, neg_locked);
 	}
 	atomic_subtract_rel_long(&numcache, 1);
 }

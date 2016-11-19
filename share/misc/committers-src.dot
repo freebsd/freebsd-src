@@ -143,8 +143,10 @@ csjp [label="Christian S.J. Peron\ncsjp@FreeBSD.org\n2004/05/04"]
 das [label="David Schultz\ndas@FreeBSD.org\n2003/02/21"]
 davide [label="Davide Italiano\ndavide@FreeBSD.org\n2012/01/27"]
 dchagin [label="Dmitry Chagin\ndchagin@FreeBSD.org\n2009/02/28"]
+def [label="Konrad Witaszczyk\ndef@FreeBSD.org\n2016/11/02"]
 delphij [label="Xin Li\ndelphij@FreeBSD.org\n2004/09/14"]
 des [label="Dag-Erling Smorgrav\ndes@FreeBSD.org\n1998/04/03"]
+dexuan [label="Dexuan Cui\ndexuan@FreeBSD.org\n2016/10/24"]
 dfr [label="Doug Rabson\ndfr@FreeBSD.org\n????/??/??"]
 dg [label="David Greenman\ndg@FreeBSD.org\n1993/06/14"]
 dim [label="Dimitry Andric\ndim@FreeBSD.org\n2010/08/30"]
@@ -683,6 +685,7 @@ philip -> kp
 phk -> jkoshy
 phk -> mux
 
+pjd -> def
 pjd -> kib
 pjd -> lulf
 pjd -> oshogbo
@@ -752,6 +755,8 @@ scottl -> sah
 scottl -> sbruno
 scottl -> slm
 scottl -> yongari
+
+sephe -> dexuan
 
 sheldonh -> dwmalone
 sheldonh -> iedowse

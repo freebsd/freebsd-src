@@ -43,6 +43,7 @@ files		"../nvidia/tegra124/files.tegra124"
 files		"../qemu/files.qemu"
 files		"../ti/files.ti"
 files		"../ti/am335x/files.am335x"
+files		"../ti/omap4/files.omap4"
 
 options 	SOC_ALLWINNER_A10
 options 	SOC_ALLWINNER_A13
@@ -53,6 +54,7 @@ options 	SOC_ALLWINNER_A83T
 options 	SOC_ALLWINNER_H3
 options 	SOC_BCM2836
 options		SOC_TI_AM335X
+options		SOC_OMAP4
 
 options 	SCHED_ULE		# ULE scheduler
 options 	SMP			# Enable multiple cores
@@ -80,6 +82,7 @@ device		pmu
 
 # ARM Generic Timer
 device		generic_timer
+device		mpcore_timer
 
 # MMC/SD/SDIO Card slot support
 device		sdhci			# SD controller
@@ -129,6 +132,9 @@ device		ti_i2c
 device		am335x_pmic		# AM335x Power Management IC (TPC65217)
 device		am335x_rtc		# RTC support (power management only)
 #define 	am335x_dmtpps		# Pulse Per Second capture driver
+device		twl			# TI TWLX0X0/TPS659x0 Power Management
+device		twl_vreg		# twl voltage regulation
+device		twl_clks		# twl external clocks
 
 # GPIO
 device		gpio
@@ -182,17 +188,17 @@ device		usfs
 device		loop
 device		ether
 device		vlan			# 802.1Q VLAN support
-device		mii
 device		bpf
 
-device		emac			# 10/100 integrated EMAC controller
-device		dwc			# 10/100/1000 integrated GMAC controller
-device		awg			# 10/100/1000 integrated EMAC controller
-
-# USB ethernet support, requires miibus
-device		smcphy
-device		smsc
+# Ethernet NICs that use the common MII bus controller code.
+# NOTE: Be sure to keep the 'device miibus' line in order to use these NICs!
 device		miibus
+
+device		awg			# 10/100/1000 integrated EMAC controller
+device		cpsw			# TI Common Platform Ethernet Switch (CPSW)
+device		dwc			# 10/100/1000 integrated GMAC controller
+device		emac			# 10/100 integrated EMAC controller
+device		smsc			# SMSC LAN91C111
 
 # Sound support
 device		sound
@@ -214,9 +220,12 @@ device		ti_pruss
 # Mailbox support
 device		ti_mbox
 
+# DMA controller
+device		ti_sdma
+
 # Extensible Firmware Interface
 options 	EFI
 
 # Flattened Device Tree
 options 	FDT			# Configure using FDT/DTB data
-makeoptions	MODULES_EXTRA="dtb/allwinner dtb/nvidia dtb/rpi"
+makeoptions	MODULES_EXTRA="dtb/allwinner dtb/am335x dtb/nvidia dtb/rpi dtb/omap4"

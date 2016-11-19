@@ -107,9 +107,8 @@ hostap_vattach(struct ieee80211vap *vap)
 static void
 sta_disassoc(void *arg, struct ieee80211_node *ni)
 {
-	struct ieee80211vap *vap = arg;
 
-	if (ni->ni_vap == vap && ni->ni_associd != 0) {
+	if (ni->ni_associd != 0) {
 		IEEE80211_SEND_MGMT(ni, IEEE80211_FC0_SUBTYPE_DISASSOC,
 			IEEE80211_REASON_ASSOC_LEAVE);
 		ieee80211_node_leave(ni);
@@ -119,9 +118,9 @@ sta_disassoc(void *arg, struct ieee80211_node *ni)
 static void
 sta_csa(void *arg, struct ieee80211_node *ni)
 {
-	struct ieee80211vap *vap = arg;
+	struct ieee80211vap *vap = ni->ni_vap;
 
-	if (ni->ni_vap == vap && ni->ni_associd != 0)
+	if (ni->ni_associd != 0)
 		if (ni->ni_inact > vap->iv_inact_init) {
 			ni->ni_inact = vap->iv_inact_init;
 			IEEE80211_NOTE(vap, IEEE80211_MSG_INACT, ni,
@@ -132,9 +131,8 @@ sta_csa(void *arg, struct ieee80211_node *ni)
 static void
 sta_drop(void *arg, struct ieee80211_node *ni)
 {
-	struct ieee80211vap *vap = arg;
 
-	if (ni->ni_vap == vap && ni->ni_associd != 0)
+	if (ni->ni_associd != 0)
 		ieee80211_node_leave(ni);
 }
 
@@ -179,7 +177,8 @@ hostap_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			ieee80211_dfs_cac_stop(vap);
 			break;
 		case IEEE80211_S_RUN:
-			ieee80211_iterate_nodes(&ic->ic_sta, sta_disassoc, vap);
+			ieee80211_iterate_nodes_vap(&ic->ic_sta, vap,
+			    sta_disassoc, NULL);
 			break;
 		default:
 			break;
@@ -195,7 +194,8 @@ hostap_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		switch (ostate) {
 		case IEEE80211_S_CSA:
 		case IEEE80211_S_RUN:
-			ieee80211_iterate_nodes(&ic->ic_sta, sta_disassoc, vap);
+			ieee80211_iterate_nodes_vap(&ic->ic_sta, vap,
+			    sta_disassoc, NULL);
 			/*
 			 * Clear overlapping BSS state; the beacon frame
 			 * will be reconstructed on transition to the RUN
@@ -289,7 +289,8 @@ hostap_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			 * Shorten inactivity timer of associated stations
 			 * to weed out sta's that don't follow a CSA.
 			 */
-			ieee80211_iterate_nodes(&ic->ic_sta, sta_csa, vap);
+			ieee80211_iterate_nodes_vap(&ic->ic_sta, vap,
+			    sta_csa, NULL);
 			/*
 			 * Update bss node channel to reflect where
 			 * we landed after CSA.
@@ -340,7 +341,8 @@ hostap_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			 * such as capabilities and the negotiated rate
 			 * set may/will be wrong).
 			 */
-			ieee80211_iterate_nodes(&ic->ic_sta, sta_drop, vap);
+			ieee80211_iterate_nodes_vap(&ic->ic_sta, vap,
+			    sta_drop, NULL);
 		}
 		break;
 	default:
@@ -477,6 +479,16 @@ hostap_input(struct ieee80211_node *ni, struct mbuf *m,
 	int hdrspace, need_tap = 1;	/* mbuf need to be tapped. */
 	uint8_t dir, type, subtype, qos;
 	uint8_t *bssid;
+	int is_hw_decrypted = 0;
+	int has_decrypted = 0;
+
+	/*
+	 * Some devices do hardware decryption all the way through
+	 * to pretending the frame wasn't encrypted in the first place.
+	 * So, tag it appropriately so it isn't discarded inappropriately.
+	 */
+	if ((rxs != NULL) && (rxs->c_pktflags & IEEE80211_RX_F_DECRYPTED))
+		is_hw_decrypted = 1;
 
 	if (m->m_flags & M_AMPDU_MPDU) {
 		/*
@@ -666,7 +678,7 @@ hostap_input(struct ieee80211_node *ni, struct mbuf *m,
 		 * crypto cipher modules used to do delayed update
 		 * of replay sequence numbers.
 		 */
-		if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
+		if (is_hw_decrypted || wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
 			if ((vap->iv_flags & IEEE80211_F_PRIVACY) == 0) {
 				/*
 				 * Discard encrypted frames when privacy is off.
@@ -677,14 +689,14 @@ hostap_input(struct ieee80211_node *ni, struct mbuf *m,
 				IEEE80211_NODE_STAT(ni, rx_noprivacy);
 				goto out;
 			}
-			key = ieee80211_crypto_decap(ni, m, hdrspace);
-			if (key == NULL) {
+			if (ieee80211_crypto_decap(ni, m, hdrspace, &key) == 0) {
 				/* NB: stats+msgs handled in crypto_decap */
 				IEEE80211_NODE_STAT(ni, rx_wepfail);
 				goto out;
 			}
 			wh = mtod(m, struct ieee80211_frame *);
 			wh->i_fc[1] &= ~IEEE80211_FC1_PROTECTED;
+			has_decrypted = 1;
 		} else {
 			/* XXX M_WEP and IEEE80211_F_PRIVACY */
 			key = NULL;
@@ -767,7 +779,8 @@ hostap_input(struct ieee80211_node *ni, struct mbuf *m,
 			 * any non-PAE frames received without encryption.
 			 */
 			if ((vap->iv_flags & IEEE80211_F_DROPUNENC) &&
-			    (key == NULL && (m->m_flags & M_WEP) == 0) &&
+			    ((has_decrypted == 0) && (m->m_flags & M_WEP) == 0) &&
+			    (is_hw_decrypted == 0) &&
 			    eh->ether_type != htons(ETHERTYPE_PAE)) {
 				/*
 				 * Drop unencrypted frames.
@@ -849,13 +862,13 @@ hostap_input(struct ieee80211_node *ni, struct mbuf *m,
 				goto out;
 			}
 			hdrspace = ieee80211_hdrspace(ic, wh);
-			key = ieee80211_crypto_decap(ni, m, hdrspace);
-			if (key == NULL) {
+			if (ieee80211_crypto_decap(ni, m, hdrspace, &key) == 0) {
 				/* NB: stats+msgs handled in crypto_decap */
 				goto out;
 			}
 			wh = mtod(m, struct ieee80211_frame *);
 			wh->i_fc[1] &= ~IEEE80211_FC1_PROTECTED;
+			has_decrypted = 1;
 		}
 		/*
 		 * Pass the packet to radiotap before calling iv_recv_mgmt().

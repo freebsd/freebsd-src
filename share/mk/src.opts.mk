@@ -236,16 +236,16 @@ __DEFAULT_YES_OPTIONS+=GCC GCC_BOOTSTRAP GNUCXX
 __DEFAULT_NO_OPTIONS+=CLANG CLANG_BOOTSTRAP CLANG_FULL CLANG_IS_CC
 .endif
 # In-tree binutils/gcc are older versions without modern architecture support.
-.if ${__T} == "aarch64" || ${__T} == "riscv64"
+.if ${__T} == "aarch64" || ${__T:Mriscv*} != ""
 BROKEN_OPTIONS+=BINUTILS BINUTILS_BOOTSTRAP GCC GCC_BOOTSTRAP GDB
 .endif
-.if ${__T} == "riscv64"
+.if ${__T:Mriscv*} != ""
 BROKEN_OPTIONS+=PROFILE # "sorry, unimplemented: profiler support for RISC-V"
 BROKEN_OPTIONS+=TESTS   # "undefined reference to `_Unwind_Resume'"
 BROKEN_OPTIONS+=CXX     # "libcxxrt.so: undefined reference to `_Unwind_Resume_or_Rethrow'"
 .endif
 .if ${__T} == "aarch64" || ${__T} == "amd64" || ${__T} == "i386" || \
-    ${__T} == "riscv64"
+    ${__T:Mriscv*} != ""
 __DEFAULT_YES_OPTIONS+=LLVM_LIBUNWIND
 .else
 __DEFAULT_NO_OPTIONS+=LLVM_LIBUNWIND

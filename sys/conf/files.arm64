@@ -52,7 +52,6 @@ arm/arm/pmu.c			standard
 arm/broadcom/bcm2835/bcm2835_audio.c		optional sound vchiq \
 	compile-with "${NORMAL_C} -DUSE_VCHIQ_ARM -D__VCCOREVER__=0x04000000 -I$S/contrib/vchiq"
 arm/broadcom/bcm2835/bcm2835_bsc.c		optional bcm2835_bsc soc_brcm_bcm2837
-arm/broadcom/bcm2835/bcm2835_common.c		optional fdt soc_brcm_bcm2837
 arm/broadcom/bcm2835/bcm2835_cpufreq.c		optional soc_brcm_bcm2837
 arm/broadcom/bcm2835/bcm2835_dma.c		optional soc_brcm_bcm2837
 arm/broadcom/bcm2835/bcm2835_fbd.c		optional vt soc_brcm_bcm2837

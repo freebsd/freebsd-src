@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
+#include <dev/ofw/ofw_bus_subr.h>
 
 #include <machine/bus.h>
 #include <machine/fdt.h>
@@ -230,7 +231,8 @@ fdt_pm(phandle_t node)
 		if (dev_mask & (1 << i))
 			continue;
 
-		compat = fdt_is_compatible(node, fdt_pm_mask_table[i].compat);
+		compat = ofw_bus_node_is_compatible(node,
+		    fdt_pm_mask_table[i].compat);
 #if defined(SOC_MV_KIRKWOOD)
 		if (compat && (cpu_pm_ctrl & fdt_pm_mask_table[i].mask)) {
 			dev_mask |= (1 << i);
@@ -2092,7 +2094,7 @@ win_cpu_from_dt(void)
 	 * Retrieve CESA SRAM data.
 	 */
 	if ((node = OF_finddevice("sram")) != -1)
-		if (fdt_is_compatible(node, "mrvl,cesa-sram"))
+		if (ofw_bus_node_is_compatible(node, "mrvl,cesa-sram"))
 			goto moveon;
 
 	if ((node = OF_finddevice("/")) == 0)
@@ -2120,7 +2122,7 @@ moveon:
 
 	/* Check if there is a second CESA node */
 	while ((node = OF_peer(node)) != 0) {
-		if (fdt_is_compatible(node, "mrvl,cesa-sram")) {
+		if (ofw_bus_node_is_compatible(node, "mrvl,cesa-sram")) {
 			if (fdt_regsize(node, &sram_base, &sram_size) != 0)
 				return (EINVAL);
 			break;
@@ -2170,7 +2172,7 @@ fdt_win_setup(void)
 
 			soc_node = &soc_nodes[i];
 
-			if (!fdt_is_compatible(child, soc_node->compat))
+			if (!ofw_bus_node_is_compatible(child,soc_node->compat))
 				continue;
 
 			err = fdt_regsize(child, &base, &size);
@@ -2319,8 +2321,8 @@ fdt_pic_decode_ic(phandle_t node, pcell_t *intr, int *interrupt, int *trig,
     int *pol)
 {
 
-	if (!fdt_is_compatible(node, "mrvl,pic") &&
-	    !fdt_is_compatible(node, "mrvl,mpic"))
+	if (!ofw_bus_node_is_compatible(node, "mrvl,pic") &&
+	    !ofw_bus_node_is_compatible(node, "mrvl,mpic"))
 		return (ENXIO);
 
 	*interrupt = fdt32_to_cpu(intr[0]);

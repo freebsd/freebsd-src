@@ -45,10 +45,9 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
-#include <dev/fdt/fdt_common.h>
-#include <dev/fdt/fdt_pinctrl.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/fdt/fdt_pinctrl.h>
 
 #include <arm/amlogic/aml8726/aml8726_soc.h>
 #include <arm/amlogic/aml8726/aml8726_pinctrl.h>

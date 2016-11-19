@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/intr.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -223,8 +222,8 @@ sp804_timer_attach(device_t dev)
 	sc->sysclk_freq = DEFAULT_FREQUENCY;
 	/* Get the base clock frequency */
 	node = ofw_bus_get_node(dev);
-	if ((OF_getprop(node, "clock-frequency", &clock, sizeof(clock))) > 0) {
-		sc->sysclk_freq = fdt32_to_cpu(clock);
+	if ((OF_getencprop(node, "clock-frequency", &clock, sizeof(clock))) > 0) {
+		sc->sysclk_freq = clock;
 	}
 
 	/* Setup and enable the timer */

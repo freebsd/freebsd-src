@@ -39,7 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <arm/at91/at91var.h>
 #include <arm/at91/at91_piovar.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/fdt/fdt_pinctrl.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>

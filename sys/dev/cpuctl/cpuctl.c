@@ -63,7 +63,7 @@ static d_ioctl_t cpuctl_ioctl;
 # define	DPRINTF(...)
 #endif
 
-#define	UCODE_SIZE_MAX	(32 * 1024)
+#define	UCODE_SIZE_MAX	(4 * 1024 * 1024)
 
 static int cpuctl_do_msr(int cpu, cpuctl_msr_args_t *data, u_long cmd,
     struct thread *td);

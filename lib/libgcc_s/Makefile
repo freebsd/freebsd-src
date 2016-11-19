@@ -1,9 +1,10 @@
 # $FreeBSD$
 
-PKG=		clibs
+PACKAGE=	clibs
 SHLIB_NAME=	libgcc_s.so.1
 SHLIBDIR?=	/lib
 
+MK_SSP=		no
 WARNS?=	2
 
 LDFLAGS+=	-nodefaultlibs

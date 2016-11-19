@@ -180,9 +180,6 @@ __FBSDID("$FreeBSD$");
 #define	H3_PLL2_PRE_DIV			(0x1f << 0)
 #define	H3_PLL2_PRE_DIV_SHIFT		0
 
-#define	CLKID_A10_PLL3_1X		0
-#define	CLKID_A10_PLL3_2X		1
-
 #define	CLKID_A10_PLL5_DDR		0
 #define	CLKID_A10_PLL5_OTHER		1
 
@@ -476,9 +473,6 @@ a10_pll3_recalc(struct aw_pll_sc *sc, uint64_t *freq)
 			*freq = 297000000;
 	}
 
-	if (sc->id == CLKID_A10_PLL3_2X)
-		*freq *= 2;
-
 	return (0);
 }
 
@@ -489,14 +483,10 @@ a10_pll3_set_freq(struct aw_pll_sc *sc, uint64_t fin, uint64_t *fout,
 	uint32_t val, m, mode, func;
 
 	m = *fout / A10_PLL3_REF_FREQ;
-	if (sc->id == CLKID_A10_PLL3_2X)
-		m /= 2;
 
 	mode = A10_PLL3_MODE_SEL_INT;
 	func = 0;
 	*fout = m * A10_PLL3_REF_FREQ;
-	if (sc->id == CLKID_A10_PLL3_2X)
-		*fout *= 2;
 
 	DEVICE_LOCK(sc);
 	PLL_READ(sc, &val);

@@ -274,7 +274,7 @@ bcma_is_hw_suspended(device_t dev, device_t child)
 		return (true);
 	}
 
-	if (rst & BMCA_DMP_RC_RESET)
+	if (rst & BCMA_DMP_RC_RESET)
 		return (true);
 
 	/* Is core clocked? */
@@ -367,11 +367,11 @@ bcma_suspend_hw(device_t dev, device_t child)
 
 	/* Already in reset? */
 	rst = bhnd_bus_read_4(r, BCMA_DMP_RESETCTRL);
-	if (rst & BMCA_DMP_RC_RESET)
+	if (rst & BCMA_DMP_RC_RESET)
 		return (0);
 
 	/* Put core into reset */
-	if ((error = bcma_dmp_write_reset(child, dinfo, BMCA_DMP_RC_RESET)))
+	if ((error = bcma_dmp_write_reset(child, dinfo, BCMA_DMP_RC_RESET)))
 		return (error);
 
 	/* Clear core flags */

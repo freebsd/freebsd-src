@@ -332,11 +332,18 @@ net_print(int verbose)
 	int i, d, cnt;
 	int ret = 0;
 
+	if (netif_drivers[0] == NULL)
+		return (ret);
+
+	printf("%s devices:", netdev.dv_name);
+	if ((ret = pager_output("\n")) != 0)
+		return (ret);
+
 	cnt = 0;
 	for (d = 0; netif_drivers[d]; d++) {
 		drv = netif_drivers[d];
 		for (i = 0; i < drv->netif_nifs; i++) {
-			printf("\t%s%d:", "net", cnt++);
+			printf("\t%s%d:", netdev.dv_name, cnt++);
 			if (verbose) {
 				printf(" (%s%d)", drv->netif_bname,
 				    drv->netif_ifs[i].dif_unit);

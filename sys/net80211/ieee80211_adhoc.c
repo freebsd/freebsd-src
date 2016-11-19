@@ -120,9 +120,9 @@ adhoc_vattach(struct ieee80211vap *vap)
 static void
 sta_leave(void *arg, struct ieee80211_node *ni)
 {
-	struct ieee80211vap *vap = arg;
+	struct ieee80211vap *vap = ni->ni_vap;
 
-	if (ni->ni_vap == vap && ni != vap->iv_bss)
+	if (ni != vap->iv_bss)
 		ieee80211_node_leave(ni);
 }
 
@@ -164,7 +164,8 @@ adhoc_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		switch (ostate) {
 		case IEEE80211_S_RUN:		/* beacon miss */
 			/* purge station table; entries are stale */
-			ieee80211_iterate_nodes(&ic->ic_sta, sta_leave, vap);
+			ieee80211_iterate_nodes_vap(&ic->ic_sta, vap,
+			    sta_leave, NULL);
 			/* fall thru... */
 		case IEEE80211_S_INIT:
 			if (vap->iv_des_chan != IEEE80211_CHAN_ANYC &&
@@ -315,6 +316,16 @@ adhoc_input(struct ieee80211_node *ni, struct mbuf *m,
 	int hdrspace, need_tap = 1;	/* mbuf need to be tapped. */	
 	uint8_t dir, type, subtype, qos;
 	uint8_t *bssid;
+	int is_hw_decrypted = 0;
+	int has_decrypted = 0;
+
+	/*
+	 * Some devices do hardware decryption all the way through
+	 * to pretending the frame wasn't encrypted in the first place.
+	 * So, tag it appropriately so it isn't discarded inappropriately.
+	 */
+	if ((rxs != NULL) && (rxs->c_pktflags & IEEE80211_RX_F_DECRYPTED))
+		is_hw_decrypted = 1;
 
 	if (m->m_flags & M_AMPDU_MPDU) {
 		/*
@@ -478,7 +489,7 @@ adhoc_input(struct ieee80211_node *ni, struct mbuf *m,
 		 * crypto cipher modules used to do delayed update
 		 * of replay sequence numbers.
 		 */
-		if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
+		if (is_hw_decrypted || wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
 			if ((vap->iv_flags & IEEE80211_F_PRIVACY) == 0) {
 				/*
 				 * Discard encrypted frames when privacy is off.
@@ -489,14 +500,14 @@ adhoc_input(struct ieee80211_node *ni, struct mbuf *m,
 				IEEE80211_NODE_STAT(ni, rx_noprivacy);
 				goto out;
 			}
-			key = ieee80211_crypto_decap(ni, m, hdrspace);
-			if (key == NULL) {
+			if (ieee80211_crypto_decap(ni, m, hdrspace, &key) == 0) {
 				/* NB: stats+msgs handled in crypto_decap */
 				IEEE80211_NODE_STAT(ni, rx_wepfail);
 				goto out;
 			}
 			wh = mtod(m, struct ieee80211_frame *);
 			wh->i_fc[1] &= ~IEEE80211_FC1_PROTECTED;
+			has_decrypted = 1;
 		} else {
 			/* XXX M_WEP and IEEE80211_F_PRIVACY */
 			key = NULL;
@@ -527,7 +538,7 @@ adhoc_input(struct ieee80211_node *ni, struct mbuf *m,
 		/*
 		 * Next strip any MSDU crypto bits.
 		 */
-		if (key != NULL && !ieee80211_crypto_demic(vap, key, m, 0)) {
+		if (!ieee80211_crypto_demic(vap, key, m, 0)) {
 			IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_INPUT,
 			    ni->ni_macaddr, "data", "%s", "demic error");
 			vap->iv_stats.is_rx_demicfail++;
@@ -581,7 +592,8 @@ adhoc_input(struct ieee80211_node *ni, struct mbuf *m,
 			 * any non-PAE frames received without encryption.
 			 */
 			if ((vap->iv_flags & IEEE80211_F_DROPUNENC) &&
-			    (key == NULL && (m->m_flags & M_WEP) == 0) &&
+			    ((has_decrypted == 0) && (m->m_flags & M_WEP) == 0) &&
+			    (is_hw_decrypted == 0) &&
 			    eh->ether_type != htons(ETHERTYPE_PAE)) {
 				/*
 				 * Drop unencrypted frames.

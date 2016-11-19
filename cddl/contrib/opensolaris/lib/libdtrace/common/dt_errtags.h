@@ -265,8 +265,6 @@ typedef enum {
 	D_NOREG,			/* no available internal registers */
 	D_PRINTM_ADDR,			/* printm() memref bad type */
 	D_PRINTM_SIZE,			/* printm() size bad type */
-	D_PRINTT_ADDR,			/* printt() typeref bad type */
-	D_PRINTT_SIZE			/* printt() size bad type */
 } dt_errtag_t;
 
 extern const char *dt_errtag(dt_errtag_t);

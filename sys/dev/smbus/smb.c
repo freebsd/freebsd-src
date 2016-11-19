@@ -41,7 +41,9 @@
 
 #include "smbus_if.h"
 
-#define BUFSIZE 1024
+#define SMB_OLD_READB	_IOW('i', 7, struct smbcmd)
+#define SMB_OLD_READW	_IOW('i', 8, struct smbcmd)
+#define SMB_OLD_PCALL	_IOW('i', 9, struct smbcmd)
 
 struct smb_softc {
 	device_t sc_dev;
@@ -224,7 +226,9 @@ smbioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *t
 						s->cmd, s->wdata.word));
 		break;
 
+	case SMB_OLD_READB:
 	case SMB_READB:
+		/* NB: for SMB_OLD_READB the read data goes to rbuf only. */
 		error = smbus_error(smbus_readb(parent, s->slave, s->cmd,
 		    &s->rdata.byte));
 		if (error)
@@ -235,7 +239,9 @@ smbioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *t
 		}
 		break;
 
+	case SMB_OLD_READW:
 	case SMB_READW:
+		/* NB: for SMB_OLD_READW the read data goes to rbuf only. */
 		error = smbus_error(smbus_readw(parent, s->slave, s->cmd,
 		    &s->rdata.word));
 		if (error)
@@ -248,7 +254,9 @@ smbioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *t
 		}
 		break;
 
+	case SMB_OLD_PCALL:
 	case SMB_PCALL:
+		/* NB: for SMB_OLD_PCALL the read data goes to rbuf only. */
 		error = smbus_error(smbus_pcall(parent, s->slave, s->cmd,
 		    s->wdata.word, &s->rdata.word));
 		if (error)

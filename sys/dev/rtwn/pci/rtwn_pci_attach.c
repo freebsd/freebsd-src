@@ -149,8 +149,8 @@ rtwn_pci_alloc_rx_list(struct rtwn_softc *sc)
 
 	/* Create RX buffer DMA tag. */
 	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), 1, 0,
-	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES,
-	    1, MCLBYTES, 0, NULL, NULL, &rx_ring->data_dmat);
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
+	    MJUMPAGESIZE, 1, MJUMPAGESIZE, 0, NULL, NULL, &rx_ring->data_dmat);
 	if (error != 0) {
 		device_printf(sc->sc_dev, "could not create rx buf DMA tag\n");
 		goto fail;
@@ -166,7 +166,8 @@ rtwn_pci_alloc_rx_list(struct rtwn_softc *sc)
 			goto fail;
 		}
 
-		rx_data->m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
+		rx_data->m = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR,
+		    MJUMPAGESIZE);
 		if (rx_data->m == NULL) {
 			device_printf(sc->sc_dev,
 			    "could not allocate rx mbuf\n");
@@ -175,8 +176,8 @@ rtwn_pci_alloc_rx_list(struct rtwn_softc *sc)
 		}
 
 		error = bus_dmamap_load(rx_ring->data_dmat, rx_data->map,
-		    mtod(rx_data->m, void *), MCLBYTES, rtwn_pci_dma_map_addr,
-		    &rx_data->paddr, BUS_DMA_NOWAIT);
+		    mtod(rx_data->m, void *), MJUMPAGESIZE,
+		    rtwn_pci_dma_map_addr, &rx_data->paddr, BUS_DMA_NOWAIT);
 		if (error != 0) {
 			device_printf(sc->sc_dev,
 			    "could not load rx buf DMA map");
@@ -184,7 +185,7 @@ rtwn_pci_alloc_rx_list(struct rtwn_softc *sc)
 		}
 
 		rtwn_pci_setup_rx_desc(pc, &rx_ring->desc[i], rx_data->paddr,
-		    MCLBYTES, i);
+		    MJUMPAGESIZE, i);
 	}
 	rx_ring->cur = 0;
 
@@ -206,7 +207,7 @@ rtwn_pci_reset_rx_list(struct rtwn_softc *sc)
 	for (i = 0; i < RTWN_PCI_RX_LIST_COUNT; i++) {
 		rx_data = &rx_ring->rx_data[i];
 		rtwn_pci_setup_rx_desc(pc, &rx_ring->desc[i],
-		    rx_data->paddr, MCLBYTES, i);
+		    rx_data->paddr, MJUMPAGESIZE, i);
 	}
 	rx_ring->cur = 0;
 }
@@ -287,8 +288,8 @@ rtwn_pci_alloc_tx_list(struct rtwn_softc *sc, int qid)
 	    BUS_DMASYNC_PREWRITE);
 
 	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), 1, 0,
-	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES,
-	    1, MCLBYTES, 0, NULL, NULL, &tx_ring->data_dmat);
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
+	    MJUMPAGESIZE, 1, MJUMPAGESIZE, 0, NULL, NULL, &tx_ring->data_dmat);
 	if (error != 0) {
 		device_printf(sc->sc_dev, "could not create tx buf DMA tag\n");
 		goto fail;

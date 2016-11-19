@@ -179,7 +179,7 @@ void     slb_free_tree(pmap_t pm);
 struct slb **slb_alloc_user_cache(void);
 void	slb_free_user_cache(struct slb **);
 
-#else
+#elif defined(BOOKE)
 
 struct pmap {
 	struct mtx		pm_mtx;		/* pmap mutex */
@@ -204,6 +204,7 @@ typedef struct pv_entry *pv_entry_t;
 
 struct md_page {
 	TAILQ_HEAD(, pv_entry) pv_list;
+	int	pv_tracked;
 };
 
 #define	pmap_page_get_memattr(m)	VM_MEMATTR_DEFAULT
@@ -261,6 +262,7 @@ extern	int pmap_bootstrapped;
 
 vm_offset_t pmap_early_io_map(vm_paddr_t pa, vm_size_t size);
 void pmap_early_io_unmap(vm_offset_t va, vm_size_t size);
+void pmap_track_page(pmap_t pmap, vm_offset_t va);
 
 #endif
 

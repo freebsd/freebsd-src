@@ -77,14 +77,13 @@ _meta_filemon=	1
 .endif
 
 # Skip reading .depend when not needed to speed up tree-walks and simple
-# lookups.  For install, only do this if no other targets are specified.
+# lookups.  See _SKIP_BUILD logic in bsd.init.mk for more details.
 # Also skip generating or including .depend.* files if in meta+filemon mode
 # since it will track dependencies itself.  OBJS_DEPEND_GUESS is still used.
-.if !empty(.MAKEFLAGS:M-V${_V_READ_DEPEND}) || make(obj) || make(clean*) || \
-    ${.TARGETS:M*install*} == ${.TARGETS} || \
-    make(analyze) || defined(_meta_filemon) || make(print-dir)
+.if defined(_SKIP_BUILD) || defined(_meta_filemon)
 _SKIP_READ_DEPEND=	1
-.if ${MK_DIRDEPS_BUILD} == "no" || make(analyze) || make(print-dir)
+.if ${MK_DIRDEPS_BUILD} == "no" || make(analyze) || make(print-dir) || \
+    make(obj) || make(clean*) || make(destroy*)
 .MAKE.DEPENDFILE=	/dev/null
 .endif
 .endif
@@ -198,7 +197,7 @@ CFLAGS+=	${DEPEND_CFLAGS}
 .endif	# !defined(_meta_filemon)
 .endif	# defined(SRCS)
 
-.if ${MK_DIRDEPS_BUILD} == "yes" && !make(analyze) && !make(print-dir)
+.if ${MK_DIRDEPS_BUILD} == "yes" && ${.MAKE.DEPENDFILE} != "/dev/null"
 # Prevent meta.autodep.mk from tracking "local dependencies".
 .depend:
 .include <meta.autodep.mk>

@@ -4655,7 +4655,24 @@ bdata2bio(struct buf *bp, struct bio *bip)
 	}
 }
 
-static int buf_pager_relbuf;
+/*
+ * The MIPS pmap code currently doesn't handle aliased pages.
+ * The VIPT caches may not handle page aliasing themselves, leading
+ * to data corruption.
+ *
+ * As such, this code makes a system extremely unhappy if said
+ * system doesn't support unaliasing the above situation in hardware.
+ * Some "recent" systems (eg some mips24k/mips74k cores) don't enable
+ * this feature at build time, so it has to be handled in software.
+ *
+ * Once the MIPS pmap/cache code grows to support this function on
+ * earlier chips, it should be flipped back off.
+ */
+#ifdef	__mips__
+static int buf_pager_relbuf = 1;
+#else
+static int buf_pager_relbuf = 0;
+#endif
 SYSCTL_INT(_vfs, OID_AUTO, buf_pager_relbuf, CTLFLAG_RWTUN,
     &buf_pager_relbuf, 0,
     "Make buffer pager release buffers after reading");

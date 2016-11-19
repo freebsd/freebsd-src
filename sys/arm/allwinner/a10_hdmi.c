@@ -581,7 +581,7 @@ a10hdmi_get_tcon_config(struct a10hdmi_softc *sc, int *div, int *dbl)
 	/* Detect LCD CH1 special clock using a 1X or 2X source */
 	/* XXX */
 	pname = clk_get_name(clk_lcd_parent);
-	if (strcmp(pname, "pll3-1x") == 0 || strcmp(pname, "pll7-1x") == 0)
+	if (strcmp(pname, "pll3") == 0 || strcmp(pname, "pll7") == 0)
 		*dbl = 0;
 	else
 		*dbl = 1;

@@ -42,6 +42,8 @@ struct fman_softc {
 	int mem_rid;
 	int irq_rid;
 	int err_irq_rid;
+	int qman_chan_base;
+	int qman_chan_count;
 
 	t_Handle fm_handle;
 	t_Handle muram_handle;
@@ -59,6 +61,7 @@ int	fman_resume(device_t dev);
 int	fman_shutdown(device_t dev);
 int	fman_read_ivar(device_t dev, device_t child, int index,
 	    uintptr_t *result);
+int	fman_qman_channel_id(device_t, int);
 /** @} */
 
 uint32_t	fman_get_clock(struct fman_softc *sc);
