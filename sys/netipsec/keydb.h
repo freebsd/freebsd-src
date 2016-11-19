@@ -34,7 +34,7 @@
 #define _NETIPSEC_KEYDB_H_
 
 #ifdef _KERNEL
-
+#include <sys/counter.h>
 #include <netipsec/key_var.h>
 
 #ifndef _SOCKADDR_UNION_DEFINED
@@ -86,8 +86,11 @@ struct seclifetime {
 };
 
 /* Security Association Data Base */
+TAILQ_HEAD(secasvar_queue, secasvar);
 struct secashead {
-	LIST_ENTRY(secashead) chain;
+	TAILQ_ENTRY(secashead) chain;
+	LIST_ENTRY(secashead) addrhash;	/* hash by sproto+src+dst addresses */
+	LIST_ENTRY(secashead) drainq;	/* used ONLY by flush callout */
 
 	struct secasindex saidx;
 
@@ -95,10 +98,10 @@ struct secashead {
 	struct secident *identd;	/* destination identity */
 					/* XXX I don't know how to use them. */
 
-	u_int8_t state;			/* MATURE or DEAD. */
-	LIST_HEAD(_satree, secasvar) savtree[SADB_SASTATE_MAX+1];
-					/* SA chain */
-					/* The first of this list is newer SA */
+	volatile u_int refcnt;		/* reference count */
+	uint8_t state;			/* MATURE or DEAD. */
+	struct secasvar_queue savtree_alive;	/* MATURE and DYING SA */
+	struct secasvar_queue savtree_larval;	/* LARVAL SA */
 };
 
 struct xformsw;
@@ -106,38 +109,52 @@ struct enc_xform;
 struct auth_hash;
 struct comp_algo;
 
-/* Security Association */
+/*
+ * Security Association
+ *
+ * For INBOUND packets we do SA lookup using SPI, thus only SPIHASH is used.
+ * For OUTBOUND packets there may be several SA suitable for packet.
+ * We use key_preferred_oldsa variable to choose better SA. First of we do
+ * lookup for suitable SAH using packet's saidx. Then we use SAH's savtree
+ * to search better candidate. The newer SA (by created time) are placed
+ * in the beginning of the savtree list. There is no preference between
+ * DYING and MATURE.
+ */
 struct secasvar {
-	LIST_ENTRY(secasvar) chain;
-	struct mtx lock;		/* update/access lock */
+	TAILQ_ENTRY(secasvar) chain;
+	LIST_ENTRY(secasvar) spihash;
+	LIST_ENTRY(secasvar) drainq;	/* used ONLY by flush callout */
 
-	u_int refcnt;			/* reference count */
-	u_int8_t state;			/* Status of this Association */
+	uint32_t spi;			/* SPI Value, network byte order */
+	uint32_t flags;			/* holder for SADB_KEY_FLAGS */
 
-	u_int8_t alg_auth;		/* Authentication Algorithm Identifier*/
-	u_int8_t alg_enc;		/* Cipher Algorithm Identifier */
-	u_int8_t alg_comp;		/* Compression Algorithm Identifier */
-	u_int32_t spi;			/* SPI Value, network byte order */
-	u_int32_t flags;		/* holder for SADB_KEY_FLAGS */
-
-	struct seckey *key_auth;	/* Key for Authentication */
-	struct seckey *key_enc;	        /* Key for Encryption */
-	u_int ivlen;			/* length of IV */
-	void *sched;			/* intermediate encryption key */
-	size_t schedlen;
-	uint64_t cntr;			/* counter for GCM and CTR */
-
-	struct secreplay *replay;	/* replay prevention */
-	time_t created;			/* for lifetime */
-
-	struct seclifetime *lft_c;	/* CURRENT lifetime, it's constant. */
-	struct seclifetime *lft_h;	/* HARD lifetime */
-	struct seclifetime *lft_s;	/* SOFT lifetime */
-
-	u_int32_t seq;			/* sequence number */
+	uint32_t seq;			/* sequence number */
 	pid_t pid;			/* message's pid */
 
+	uint8_t state;			/* Status of this SA (pfkeyv2.h) */
+	uint8_t alg_auth;		/* Authentication Algorithm Identifier*/
+	uint8_t alg_enc;		/* Cipher Algorithm Identifier */
+	uint8_t alg_comp;		/* Compression Algorithm Identifier */
+
+	uint16_t natt_type;		/* IKE/ESP-marker in output. */
+	uint16_t natt_esp_frag_len;	/* MTU for payload fragmentation. */
+
 	struct secashead *sah;		/* back pointer to the secashead */
+	struct seckey *key_auth;	/* Key for Authentication */
+	struct seckey *key_enc;	        /* Key for Encryption */
+	struct secreplay *replay;	/* replay prevention */
+	uint64_t cntr;			/* counter for GCM and CTR */
+	u_int ivlen;			/* length of IV */
+
+	volatile u_int refcnt;		/* reference count */
+
+	uint64_t created;		/* time when SA was created */
+	uint64_t firstused;		/* time when SA was first used */
+	counter_u64_t lft_c;		/* CURRENT lifetime */
+#define	lft_c_allocations	lft_c
+#define	lft_c_bytes		lft_c + 1
+	struct seclifetime *lft_h;	/* HARD lifetime */
+	struct seclifetime *lft_s;	/* SOFT lifetime */
 
 	/*
 	 * NB: Fields with a tdb_ prefix are part of the "glue" used
@@ -148,13 +165,9 @@ struct secasvar {
 	struct enc_xform *tdb_encalgxform;	/* encoding algorithm */
 	struct auth_hash *tdb_authalgxform;	/* authentication algorithm */
 	struct comp_algo *tdb_compalgxform;	/* compression algorithm */
-	u_int64_t tdb_cryptoid;		/* crypto session id */
+	uint64_t tdb_cryptoid;		/* crypto session id */
 
-	/*
-	 * NAT-Traversal.
-	 */
-	u_int16_t natt_type;		/* IKE/ESP-marker in output. */
-	u_int16_t natt_esp_frag_len;	/* MTU for payload fragmentation. */
+	struct mtx lock;		/* update/access lock */
 };
 
 #define	SECASVAR_LOCK_INIT(_sav) \
@@ -190,10 +203,11 @@ struct secreg {
 /* acquiring list table. */
 struct secacq {
 	LIST_ENTRY(secacq) chain;
+	LIST_ENTRY(secacq) addrhash;
+	LIST_ENTRY(secacq) seqhash;
 
 	struct secasindex saidx;
-
-	u_int32_t seq;		/* sequence number */
+	uint32_t seq;		/* sequence number */
 	time_t created;		/* for lifetime */
 	int count;		/* for lifetime */
 };

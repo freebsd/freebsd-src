@@ -49,37 +49,32 @@
 #define	AH_HMAC_MAXHASHLEN	(SHA2_512_HASH_LEN/2)	/* Keep this updated */
 #define	AH_HMAC_INITIAL_RPL	1	/* replay counter initial value */
 
+struct secpolicy;
+struct secasvar;
+
 /*
  * Packet tag assigned on completion of IPsec processing; used
- * to speedup processing when/if the packet comes back for more
- * processing.
+ * to speedup security policy checking for INBOUND packets.
  */
-struct tdb_ident {
-	u_int32_t spi;
-	union sockaddr_union dst;
-	u_int8_t proto;
-	/* Cache those two for enc(4) in xform_ipip. */
-	u_int8_t alg_auth;
-	u_int8_t alg_enc;
+struct xform_history {
+	union sockaddr_union	dst;		/* destination address */
+	uint32_t		spi;		/* Security Parameters Index */
+	uint8_t			proto;		/* IPPROTO_ESP or IPPROTO_AH */
+	uint8_t			mode;		/* transport or tunnel */
 };
 
 /*
  * Opaque data structure hung off a crypto operation descriptor.
  */
-struct tdb_crypto {
-	struct ipsecrequest	*tc_isr;	/* ipsec request state */
-	u_int32_t		tc_spi;		/* associated SPI */
-	union sockaddr_union	tc_dst;		/* dst addr of packet */
-	u_int8_t		tc_proto;	/* current protocol, e.g. AH */
-	u_int8_t		tc_nxt;		/* next protocol, e.g. IPV4 */
-	int			tc_protoff;	/* current protocol offset */
-	int			tc_skip;	/* data offset */
-	caddr_t			tc_ptr;		/* associated crypto data */
-	struct secasvar 	*tc_sav;	/* related SA */
+struct xform_data {
+	struct secpolicy	*sp;		/* security policy */
+	struct secasvar		*sav;		/* related SA */
+	uint64_t		cryptoid;	/* used crypto session id */
+	u_int			idx;		/* IPsec request index */
+	int			protoff;	/* current protocol offset */
+	int			skip;		/* data offset */
+	uint8_t			nxt;		/* next protocol, e.g. IPV4 */
 };
-
-struct secasvar;
-struct ipescrequest;
 
 struct xformsw {
 	u_short	xf_type;		/* xform ID */
@@ -97,8 +92,8 @@ struct xformsw {
 	int	(*xf_zeroize)(struct secasvar*);		/* cleanup */
 	int	(*xf_input)(struct mbuf*, struct secasvar*,	/* input */
 			int, int);
-	int	(*xf_output)(struct mbuf*,	       		/* output */
-			struct ipsecrequest *, struct mbuf **, int, int);
+	int	(*xf_output)(struct mbuf*,			/* output */
+	    struct secpolicy *, struct secasvar *, u_int, int, int);
 	struct xformsw *xf_next;		/* list of registered xforms */
 };
 
