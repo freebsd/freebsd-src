@@ -69,6 +69,8 @@ vm_offset_t fdt_immr_size;
 
 struct fdt_ic_list fdt_ic_list_head = SLIST_HEAD_INITIALIZER(fdt_ic_list_head);
 
+static int fdt_is_compatible(phandle_t, const char *);
+
 static int
 fdt_get_range_by_busaddr(phandle_t node, u_long addr, u_long *base,
     u_long *size)
@@ -242,7 +244,7 @@ moveon:
  * Note the buffer has to be on the stack since malloc() is usually not
  * available in such cases either.
  */
-int
+static int
 fdt_is_compatible(phandle_t node, const char *compatstr)
 {
 	char buf[FDT_COMPAT_LEN];
