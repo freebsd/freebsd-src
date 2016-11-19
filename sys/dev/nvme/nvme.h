@@ -663,8 +663,11 @@ enum nvme_log_page {
 	NVME_LOG_ERROR			= 0x01,
 	NVME_LOG_HEALTH_INFORMATION	= 0x02,
 	NVME_LOG_FIRMWARE_SLOT		= 0x03,
-	/* 0x04-0x7F - reserved */
+	NVME_LOG_CHANGED_NAMESPACE	= 0x04,
+	NVME_LOG_COMMAND_EFFECT		= 0x05,
+	/* 0x06-0x7F - reserved */
 	/* 0x80-0xBF - I/O command set specific */
+	NVME_LOG_RES_NOTIFICATION	= 0x80
 	/* 0xC0-0xFF - vendor specific */
 };
 
