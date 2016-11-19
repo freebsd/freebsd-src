@@ -1,4 +1,0 @@
-# $FreeBSD$
-
-include	"../ti/omap4/std.omap4"
-files	"../ti/omap4/pandaboard/files.pandaboard"
