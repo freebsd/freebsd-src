@@ -335,6 +335,16 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 		}
 	}
 
+#ifdef IPSEC
+	/*
+	 * IPSec checking which handles several cases.
+	 * FAST IPSEC: We re-injected the packet.
+	 * XXX: need scope argument.
+	 */
+	if (IPSEC_OUTPUT(ipv6, m, inp, &error) != 0)
+		goto done;
+#endif /* IPSEC */
+
 	bzero(&exthdrs, sizeof(exthdrs));
 	if (opt) {
 		/* Hop-by-Hop options header */
@@ -358,24 +368,6 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 		/* Destination options header(2nd part) */
 		MAKE_EXTHDR(opt->ip6po_dest2, &exthdrs.ip6e_dest2);
 	}
-
-#ifdef IPSEC
-	/*
-	 * IPSec checking which handles several cases.
-	 * FAST IPSEC: We re-injected the packet.
-	 * XXX: need scope argument.
-	 */
-	switch(ip6_ipsec_output(&m, inp, &error))
-	{
-	case 1:                 /* Bad packet */
-		goto freehdrs;
-	case -1:                /* IPSec done */
-		goto done;
-	case 0:                 /* No IPSec */
-	default:
-		break;
-	}
-#endif /* IPSEC */
 
 	/*
 	 * Calculate the total length of the extension header chain.

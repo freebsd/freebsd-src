@@ -141,15 +141,13 @@ ip6_ipsec_input(struct mbuf *m, int nxt)
 
 /*
  * Called from ip6_output().
- * 1 = drop packet, 0 = continue processing packet,
- * -1 = packet was reinjected and stop processing packet
+ * 0 = continue processing packet
+ * 1 = packet was consumed, stop processing
  */
-
 int
-ip6_ipsec_output(struct mbuf **m, struct inpcb *inp, int *error)
+ip6_ipsec_output(struct mbuf *m, struct inpcb *inp, int *error)
 {
 	struct secpolicy *sp;
-
 	/*
 	 * Check the security policy (SP) for the packet and, if
 	 * required, do IPsec-related processing.  There are two
@@ -159,11 +157,10 @@ ip6_ipsec_output(struct mbuf **m, struct inpcb *inp, int *error)
 	 * AH, ESP, etc. processing), there will be a tag to bypass
 	 * the lookup and related policy checking.
 	 */
-	if (m_tag_find(*m, PACKET_TAG_IPSEC_OUT_DONE, NULL) != NULL) {
-		*error = 0;
+	*error = 0;
+	if (m_tag_find(m, PACKET_TAG_IPSEC_OUT_DONE, NULL) != NULL)
 		return (0);
-	}
-	sp = ipsec4_checkpolicy(*m, IPSEC_DIR_OUTBOUND, error, inp);
+	sp = ipsec6_checkpolicy(m, inp, error);
 	/*
 	 * There are four return cases:
 	 *    sp != NULL		    apply IPsec policy
@@ -177,46 +174,35 @@ ip6_ipsec_output(struct mbuf **m, struct inpcb *inp, int *error)
 		 * this is done in the normal processing path.
 		 */
 #ifdef INET
-		if ((*m)->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
-			in_delayed_cksum(*m);
-			(*m)->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
+		if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
+			in_delayed_cksum(m);
+			m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
 		}
 #endif
-		if ((*m)->m_pkthdr.csum_flags & CSUM_DELAY_DATA_IPV6) {
-			in6_delayed_cksum(*m, (*m)->m_pkthdr.len - sizeof(struct ip6_hdr),
-							sizeof(struct ip6_hdr));
-			(*m)->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA_IPV6;
+		if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA_IPV6) {
+			in6_delayed_cksum(m, m->m_pkthdr.len -
+			    sizeof(struct ip6_hdr), sizeof(struct ip6_hdr));
+			m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA_IPV6;
 		}
 #ifdef SCTP
-		if ((*m)->m_pkthdr.csum_flags & CSUM_SCTP_IPV6) {
-			sctp_delayed_cksum(*m, sizeof(struct ip6_hdr));
-			(*m)->m_pkthdr.csum_flags &= ~CSUM_SCTP_IPV6;
+		if (m->m_pkthdr.csum_flags & CSUM_SCTP_IPV6) {
+			sctp_delayed_cksum(m, sizeof(struct ip6_hdr));
+			m->m_pkthdr.csum_flags &= ~CSUM_SCTP_IPV6;
 		}
 #endif
 
-		/* NB: callee frees mbuf */
-		*error = ipsec6_process_packet(*m, sp->req);
-		KEY_FREESP(&sp);
+		/* NB: callee frees mbuf and releases reference to SP */
+		*error = ipsec6_process_packet(m, sp, inp);
 		if (*error == EJUSTRETURN) {
 			/*
 			 * We had a SP with a level of 'use' and no SA. We
 			 * will just continue to process the packet without
-			 * IPsec processing.
+			 * IPsec processing and return without error.
 			 */
 			*error = 0;
-			goto done;
+			return (0);
 		}
-
-		/*
-		 * Preserve KAME behaviour: ENOENT can be returned
-		 * when an SA acquire is in progress.  Don't propagate
-		 * this to user-level; it confuses applications.
-		 *
-		 * XXX this will go away when the SADB is redone.
-		 */
-		if (*error == ENOENT)
-			*error = 0;
-		goto reinjected;
+		return (1);	/* mbuf consumed by IPsec */
 	} else {	/* sp == NULL */
 		if (*error != 0) {
 			/*
@@ -227,18 +213,12 @@ ip6_ipsec_output(struct mbuf **m, struct inpcb *inp, int *error)
 			 */
 			if (*error == -EINVAL)
 				*error = 0;
-			goto bad;
+			m_freem(m);
+			return (1);
 		}
 		/* No IPsec processing for this packet. */
 	}
-done:
 	return (0);
-reinjected:
-	return (-1);
-bad:
-	if (sp != NULL)
-		KEY_FREESP(&sp);
-	return (1);
 }
 
 #if 0

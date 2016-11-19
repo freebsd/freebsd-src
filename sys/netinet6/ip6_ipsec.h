@@ -32,10 +32,12 @@
 #ifndef _NETINET_IP6_IPSEC_H_
 #define _NETINET_IP6_IPSEC_H_
 
+#define	IPSEC_OUTPUT(sc, m, inp, perr)	ip6_ipsec_output((m), (inp), (perr))
+
 int	ip6_ipsec_filtertunnel(struct mbuf *);
 int	ip6_ipsec_fwd(struct mbuf *);
 int	ip6_ipsec_input(struct mbuf *, int);
-int	ip6_ipsec_output(struct mbuf **, struct inpcb *, int *);
+int	ip6_ipsec_output(struct mbuf *, struct inpcb *, int *);
 #if 0
 int	ip6_ipsec_mtu(struct mbuf *);
 #endif
