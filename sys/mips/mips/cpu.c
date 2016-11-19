@@ -373,6 +373,10 @@ cpu_identify(void)
 	case MIPS_PRID_CID_CAVIUM:
 		printf("Cavium");
 		break;
+	case MIPS_PRID_CID_INGENIC:
+	case MIPS_PRID_CID_INGENIC2:
+		printf("Ingenic XBurst");
+		break;
 	case MIPS_PRID_CID_PREHISTORIC:
 	default:
 		printf("Unknown cid %#x", cpuinfo.cpu_vendor);
