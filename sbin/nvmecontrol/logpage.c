@@ -75,10 +75,18 @@ kv_lookup(const struct kv_name *kv, size_t kv_count, uint32_t key)
 }
 
 /*
- * 128-bit integer augments to standard values
+ * 128-bit integer augments to standard values. On i386 this
+ * doesn't exist, so we use 64-bit values. The 128-bit counters
+ * are crazy anyway, since for this purpose, you'd need a
+ * billion IOPs for billions of seconds to overflow them.
+ * So, on 32-bit i386, you'll get truncated values.
  */
 #define UINT128_DIG	39
+#ifdef __i386__
+typedef uint64_t uint128_t;
+#else
 typedef __uint128_t uint128_t;
+#endif
 
 static inline uint128_t
 to128(void *p)
