@@ -258,6 +258,13 @@ bd_print(int verbose)
     struct open_disk		*od;
     struct pc98_partition	*dptr;
     
+    if (nbdinfo == 0)
+	return (0);
+
+    printf("%s devices:", biosdisk.dv_name);
+    if ((ret = pager_output("\n")) != 0)
+	return (ret);
+
     for (i = 0; i < nbdinfo; i++) {
 	snprintf(line, sizeof(line), "    disk%d:   BIOS drive %c:\n",
 	    i, 'A' + i);

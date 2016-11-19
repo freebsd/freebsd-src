@@ -497,10 +497,8 @@ command_lsdev(int argc, char *argv[])
     pager_open();
     for (i = 0; devsw[i] != NULL; i++) {
 	if (devsw[i]->dv_print != NULL){
-	    sprintf(line, "%s devices:\n", devsw[i]->dv_name);
-	    if (pager_output(line))
-		    break;
-	    devsw[i]->dv_print(verbose);
+	    if (devsw[i]->dv_print(verbose))
+		break;
 	} else {
 	    sprintf(line, "%s: (unknown)\n", devsw[i]->dv_name);
 	    if (pager_output(line))

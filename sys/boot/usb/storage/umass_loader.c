@@ -175,6 +175,10 @@ umass_disk_print(int verbose)
 {
 	struct disk_devdesc dev;
 
+	printf("%s devices:", umass_disk.dv_name);
+	if (pager_output("\n") != 0)
+		return (1);
+
 	memset(&dev, 0, sizeof(dev));
 
 	ret = pager_output("    umass0   UMASS device\n");

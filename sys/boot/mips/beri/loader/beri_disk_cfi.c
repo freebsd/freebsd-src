@@ -119,6 +119,10 @@ beri_cfi_disk_print(int verbose)
 	char line[80];
 	int ret;
 
+	printf("%s devices:", beri_cfi_disk.dv_name);
+	if ((ret = pager_output("\n")) != 0)
+		return (ret);
+
 	snprintf(line, sizeof(line), "    cfi%d   CFI flash device\n", 0);
 	ret = pager_output(line);
 	if (ret != 0)

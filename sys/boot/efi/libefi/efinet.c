@@ -353,6 +353,10 @@ efinet_dev_print(int verbose)
 	EFI_HANDLE h;
 	int unit, ret = 0;
 
+	printf("%s devices:", efinet_dev.dv_name);
+	if ((ret = pager_output("\n")) != 0)
+		return (ret);
+
 	for (unit = 0, h = efi_find_handle(&efinet_dev, 0);
 	    h != NULL; h = efi_find_handle(&efinet_dev, ++unit)) {
 		printf("    %s%d:", efinet_dev.dv_name, unit);

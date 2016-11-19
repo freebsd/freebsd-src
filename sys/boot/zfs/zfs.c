@@ -521,6 +521,13 @@ zfs_dev_print(int verbose)
 	char line[80];
 	int ret = 0;
 
+	if (STAILQ_EMPTY(&zfs_pools))
+		return (0);
+
+	printf("%s devices:", zfs_dev.dv_name);
+	if ((ret = pager_output("\n")) != 0)
+		return (ret);
+
 	if (verbose) {
 		return (spa_all_status());
 	}

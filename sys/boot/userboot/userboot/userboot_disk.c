@@ -123,6 +123,13 @@ userdisk_print(int verbose)
 	char line[80];
 	int i, ret = 0;
 
+	if (userdisk_maxunit == 0)
+		return (0);
+
+	printf("%s devices:", userboot_disk.dv_name);
+	if ((ret = pager_output("\n")) != 0)
+		return (ret);
+
 	for (i = 0; i < userdisk_maxunit; i++) {
 		snprintf(line, sizeof(line),
 		    "    disk%d:   Guest drive image\n", i);
