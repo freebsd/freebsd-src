@@ -2206,7 +2206,6 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				case TCPS_LAST_ACK:
 					so->so_error = ECONNRESET;
 				close:
-					tcp_state_change(tp, TCPS_CLOSED);
 					/* FALLTHROUGH */
 				default:
 					tp = tcp_close(tp);

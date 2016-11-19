@@ -340,6 +340,7 @@ tcp_twstart(struct tcpcb *tp)
 		tcp_twrespond(tw, TH_ACK);
 	inp->inp_ppcb = tw;
 	inp->inp_flags |= INP_TIMEWAIT;
+	TCPSTATES_INC(TCPS_TIME_WAIT);
 	tcp_tw_2msl_reset(tw, 0);
 
 	/*
