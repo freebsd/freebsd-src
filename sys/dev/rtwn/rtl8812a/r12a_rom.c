@@ -65,7 +65,7 @@ r12a_parse_rom_common(struct rtwn_softc *sc, uint8_t *buf)
 {
 	struct r12a_softc *rs = sc->sc_priv;
 	struct r12a_rom *rom = (struct r12a_rom *)buf;
-	int i, j;
+	int i, j, k;
 
 	sc->thermal_meter = rom->thermal_meter;
 	rs->crystalcap = RTWN_GET_ROM_VAR(rom->crystalcap,
@@ -99,15 +99,15 @@ r12a_parse_rom_common(struct rtwn_softc *sc, uint8_t *buf)
 		    MS(pwr_diff_2g->ht20_ofdm, HIGH_PART));
 		rs->bw40_tx_pwr_diff_2g[i][0] = 0;
 
-		for (j = 1; j < nitems(pwr_diff_2g->diff123); j++) {
+		for (j = 1, k = 0; k < nitems(pwr_diff_2g->diff123); j++, k++) {
 			rs->cck_tx_pwr_diff_2g[i][j] = RTWN_SIGN4TO8(
-			    MS(pwr_diff_2g->diff123[j].ofdm_cck, LOW_PART));
+			    MS(pwr_diff_2g->diff123[k].ofdm_cck, LOW_PART));
 			rs->ofdm_tx_pwr_diff_2g[i][j] = RTWN_SIGN4TO8(
-			    MS(pwr_diff_2g->diff123[j].ofdm_cck, HIGH_PART));
+			    MS(pwr_diff_2g->diff123[k].ofdm_cck, HIGH_PART));
 			rs->bw20_tx_pwr_diff_2g[i][j] = RTWN_SIGN4TO8(
-			    MS(pwr_diff_2g->diff123[j].ht40_ht20, LOW_PART));
+			    MS(pwr_diff_2g->diff123[k].ht40_ht20, LOW_PART));
 			rs->bw40_tx_pwr_diff_2g[i][j] = RTWN_SIGN4TO8(
-			    MS(pwr_diff_2g->diff123[j].ht40_ht20, HIGH_PART));
+			    MS(pwr_diff_2g->diff123[k].ht40_ht20, HIGH_PART));
 		}
 
 		for (j = 0; j < R12A_GROUP_5G; j++) {
@@ -128,11 +128,12 @@ r12a_parse_rom_common(struct rtwn_softc *sc, uint8_t *buf)
 		rs->bw20_tx_pwr_diff_5g[i][0] = RTWN_SIGN4TO8(
 		    MS(pwr_diff_5g->ht20_ofdm, HIGH_PART));
 		rs->bw40_tx_pwr_diff_5g[i][0] = 0;
-		for (j = 1; j < nitems(pwr_diff_5g->ht40_ht20); j++) {
+		for (j = 1, k = 0; k < nitems(pwr_diff_5g->ht40_ht20);
+		    j++, k++) {
 			rs->bw20_tx_pwr_diff_5g[i][j] = RTWN_SIGN4TO8(
-			    MS(pwr_diff_5g->ht40_ht20[j], LOW_PART));
+			    MS(pwr_diff_5g->ht40_ht20[k], LOW_PART));
 			rs->bw40_tx_pwr_diff_5g[i][j] = RTWN_SIGN4TO8(
-			    MS(pwr_diff_5g->ht40_ht20[j], HIGH_PART));
+			    MS(pwr_diff_5g->ht40_ht20[k], HIGH_PART));
 		}
 
 		for (j = 0; j < nitems(pwr_diff_5g->ht80_ht160); j++) {

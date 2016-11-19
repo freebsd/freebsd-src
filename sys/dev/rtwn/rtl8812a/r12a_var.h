@@ -64,16 +64,16 @@ struct r12a_softc {
 	uint8_t	ht40_tx_pwr_2g[R12A_MAX_RF_PATH][R12A_GROUP_2G];
 	uint8_t	ht40_tx_pwr_5g[R12A_MAX_RF_PATH][R12A_GROUP_5G];
 
-	uint8_t cck_tx_pwr_diff_2g[R12A_MAX_RF_PATH][R12A_MAX_TX_COUNT];
-	uint8_t	ofdm_tx_pwr_diff_2g[R12A_MAX_RF_PATH][R12A_MAX_TX_COUNT];
-	uint8_t	bw20_tx_pwr_diff_2g[R12A_MAX_RF_PATH][R12A_MAX_TX_COUNT];
-	uint8_t	bw40_tx_pwr_diff_2g[R12A_MAX_RF_PATH][R12A_MAX_TX_COUNT];
+	int8_t	cck_tx_pwr_diff_2g[R12A_MAX_RF_PATH][R12A_MAX_TX_COUNT];
+	int8_t	ofdm_tx_pwr_diff_2g[R12A_MAX_RF_PATH][R12A_MAX_TX_COUNT];
+	int8_t	bw20_tx_pwr_diff_2g[R12A_MAX_RF_PATH][R12A_MAX_TX_COUNT];
+	int8_t	bw40_tx_pwr_diff_2g[R12A_MAX_RF_PATH][R12A_MAX_TX_COUNT];
 
-	uint8_t	ofdm_tx_pwr_diff_5g[R12A_MAX_RF_PATH][R12A_MAX_TX_COUNT];
-	uint8_t	bw20_tx_pwr_diff_5g[R12A_MAX_RF_PATH][R12A_MAX_TX_COUNT];
-	uint8_t	bw40_tx_pwr_diff_5g[R12A_MAX_RF_PATH][R12A_MAX_TX_COUNT];
-	uint8_t	bw80_tx_pwr_diff_5g[R12A_MAX_RF_PATH][R12A_MAX_TX_COUNT];
-	uint8_t	bw160_tx_pwr_diff_5g[R12A_MAX_RF_PATH][R12A_MAX_TX_COUNT];
+	int8_t	ofdm_tx_pwr_diff_5g[R12A_MAX_RF_PATH][R12A_MAX_TX_COUNT];
+	int8_t	bw20_tx_pwr_diff_5g[R12A_MAX_RF_PATH][R12A_MAX_TX_COUNT];
+	int8_t	bw40_tx_pwr_diff_5g[R12A_MAX_RF_PATH][R12A_MAX_TX_COUNT];
+	int8_t	bw80_tx_pwr_diff_5g[R12A_MAX_RF_PATH][R12A_MAX_TX_COUNT];
+	int8_t	bw160_tx_pwr_diff_5g[R12A_MAX_RF_PATH][R12A_MAX_TX_COUNT];
 
 	int		sc_ant;
 
