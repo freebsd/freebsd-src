@@ -222,12 +222,17 @@ print_log_firmware(void *buf, uint32_t size __unused)
 
 static struct logpage_function {
 	uint8_t		log_page;
-	print_fn_t	fn;
+	print_fn_t	print_fn;
+	size_t		size;
 } logfuncs[] = {
-	{NVME_LOG_ERROR,		print_log_error		},
-	{NVME_LOG_HEALTH_INFORMATION,	print_log_health	},
-	{NVME_LOG_FIRMWARE_SLOT,	print_log_firmware	},
-	{0,				NULL			},
+	{NVME_LOG_ERROR,		print_log_error,
+	 0},
+	{NVME_LOG_HEALTH_INFORMATION,	print_log_health,
+	 sizeof(struct nvme_health_information_page)},
+	{NVME_LOG_FIRMWARE_SLOT,	print_log_firmware,
+	 sizeof(struct nvme_firmware_page)},
+	{0,				NULL,
+	 0},
 };
 
 static void
@@ -308,6 +313,7 @@ logpage(int argc, char *argv[])
 	}
 
 	print_fn = print_hex;
+	size = DEFAULT_SIZE;
 	if (!hexflag) {
 		/*
 		 * See if there is a pretty print function for the
@@ -317,30 +323,20 @@ logpage(int argc, char *argv[])
 		f = logfuncs;
 		while (f->log_page > 0) {
 			if (log_page == f->log_page) {
-				print_fn = f->fn;
+				print_fn = f->print_fn;
+				size = f->size;
 				break;
 			}
 			f++;
 		}
 	}
 
-	/* Read the log page */
-	switch (log_page) {
-	case NVME_LOG_ERROR:
+	if (log_page == NVME_LOG_ERROR) {
 		size = sizeof(struct nvme_error_information_entry);
 		size *= (cdata.elpe + 1);
-		break;
-	case NVME_LOG_HEALTH_INFORMATION:
-		size = sizeof(struct nvme_health_information_page);
-		break;
-	case NVME_LOG_FIRMWARE_SLOT:
-		size = sizeof(struct nvme_firmware_page);
-		break;
-	default:
-		size = DEFAULT_SIZE;
-		break;
 	}
 
+	/* Read the log page */
 	buf = get_log_buffer(size);
 	read_logpage(fd, log_page, nsid, buf, size);
 	print_fn(buf, size);
