@@ -100,7 +100,7 @@ get_log_buffer(uint32_t size)
 }
 
 void
-read_logpage(int fd, uint8_t log_page, int nsid, void *payload, 
+read_logpage(int fd, uint8_t log_page, int nsid, void *payload,
     uint32_t payload_size)
 {
 	struct nvme_pt_command	pt;
@@ -259,6 +259,35 @@ print_log_firmware(void *buf, uint32_t size __unused)
 	}
 }
 
+static void
+print_intel_temp_stats(void *buf, uint32_t size __unused)
+{
+	struct intel_log_temp_stats	*temp = buf;
+
+	printf("Intel Temperature Log\n");
+	printf("=====================\n");
+
+	printf("Current:                        ");
+	print_temp(temp->current);
+	printf("Overtemp Last Flags             %#jx\n", (uintmax_t)temp->overtemp_flag_last);
+	printf("Overtemp Lifetime Flags         %#jx\n", (uintmax_t)temp->overtemp_flag_life);
+	printf("Max Temperature                 ");
+	print_temp(temp->max_temp);
+	printf("Min Temperature                 ");
+	print_temp(temp->min_temp);
+	printf("Max Operating Temperature       ");
+	print_temp(temp->max_oper_temp);
+	printf("Min Operating Temperature       ");
+	print_temp(temp->min_oper_temp);
+	printf("Estimated Temperature Offset:   %ju C/K\n", (uintmax_t)temp->est_offset);
+}
+
+/*
+ * Table of log page printer / sizing.
+ *
+ * This includes Intel specific pages that are widely implemented. Not
+ * sure how best to switch between different vendors.
+ */
 static struct logpage_function {
 	uint8_t		log_page;
 	print_fn_t	print_fn;
@@ -270,6 +299,8 @@ static struct logpage_function {
 	 sizeof(struct nvme_health_information_page)},
 	{NVME_LOG_FIRMWARE_SLOT,	print_log_firmware,
 	 sizeof(struct nvme_firmware_page)},
+	{INTEL_LOG_TEMP_STATS,		print_intel_temp_stats,
+	 sizeof(struct intel_log_temp_stats)},
 	{0,				NULL,
 	 0},
 };
