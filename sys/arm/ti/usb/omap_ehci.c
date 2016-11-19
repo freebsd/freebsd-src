@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/condvar.h>
 
 #include <dev/fdt/simplebus.h>
+#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <dev/usb/usb.h>
@@ -56,6 +57,8 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/ti/ti_prcm.h>
 #include <arm/ti/usb/omap_usb.h>
+
+#include <arm/ti/omap4/pandaboard/pandaboard.h>
 
 /* EHCI */
 #define	OMAP_USBHOST_HCCAPBASE                      0x0000
@@ -258,12 +261,23 @@ omap_ehci_init(struct omap_ehci_softc *isc)
 static int
 omap_ehci_probe(device_t dev)
 {
+	phandle_t root;
 
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
 	if (!ofw_bus_is_compatible(dev, "ti,ehci-omap"))
 		return (ENXIO);
+
+#ifdef SOC_OMAP4
+	/* 
+	 * If we're running a Pandaboard, run Pandaboard-specific 
+	 * init code.
+	 */
+	root = OF_finddevice("/");
+	if (fdt_is_compatible(root, "ti,omap4-panda"))
+		pandaboard_usb_hub_init();
+#endif
 
 	device_set_desc(dev, OMAP_EHCI_HC_DEVSTR);
 	
