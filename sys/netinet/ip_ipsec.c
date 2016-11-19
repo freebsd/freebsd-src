@@ -145,19 +145,14 @@ ip_ipsec_mtu(struct mbuf *m, int mtu)
 }
 
 /*
- * 
  * Called from ip_output().
- * 1 = drop packet, 0 = continue processing packet,
- * -1 = packet was reinjected and stop processing packet
+ * 0 = continue processing packet
+ * 1 = packet was consumed, stop processing
  */
 int
-ip_ipsec_output(struct mbuf **m, struct inpcb *inp, int *error)
+ip_ipsec_output(struct mbuf *m, struct inpcb *inp, int *error)
 {
 	struct secpolicy *sp;
-
-	if (!key_havesp(IPSEC_DIR_OUTBOUND))
-		return 0;
-
 	/*
 	 * Check the security policy (SP) for the packet and, if
 	 * required, do IPsec-related processing.  There are two
@@ -167,14 +162,13 @@ ip_ipsec_output(struct mbuf **m, struct inpcb *inp, int *error)
 	 * AH, ESP, etc. processing), there will be a tag to bypass
 	 * the lookup and related policy checking.
 	 */
-	if (m_tag_find(*m, PACKET_TAG_IPSEC_OUT_DONE, NULL) != NULL) {
-		*error = 0;
+	*error = 0;
+	if (m_tag_find(m, PACKET_TAG_IPSEC_OUT_DONE, NULL) != NULL)
 		return (0);
-	}
-	sp = ipsec4_checkpolicy(*m, IPSEC_DIR_OUTBOUND, error, inp);
+	sp = ipsec4_checkpolicy(m, inp, error);
 	/*
 	 * There are four return cases:
-	 *    sp != NULL	 	    apply IPsec policy
+	 *    sp != NULL		    apply IPsec policy
 	 *    sp == NULL, error == 0	    no IPsec handling needed
 	 *    sp == NULL, error == -EINVAL  discard packet w/o error
 	 *    sp == NULL, error != 0	    discard packet, report error
@@ -184,22 +178,21 @@ ip_ipsec_output(struct mbuf **m, struct inpcb *inp, int *error)
 		 * Do delayed checksums now because we send before
 		 * this is done in the normal processing path.
 		 */
-		if ((*m)->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
-			in_delayed_cksum(*m);
-			(*m)->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
+		if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
+			in_delayed_cksum(m);
+			m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
 		}
 #ifdef SCTP
-		if ((*m)->m_pkthdr.csum_flags & CSUM_SCTP) {
-			struct ip *ip = mtod(*m, struct ip *);
+		if (m->m_pkthdr.csum_flags & CSUM_SCTP) {
+			struct ip *ip = mtod(m, struct ip *);
 
-			sctp_delayed_cksum(*m, (uint32_t)(ip->ip_hl << 2));
-			(*m)->m_pkthdr.csum_flags &= ~CSUM_SCTP;
+			sctp_delayed_cksum(m, (uint32_t)(ip->ip_hl << 2));
+			m->m_pkthdr.csum_flags &= ~CSUM_SCTP;
 		}
 #endif
 
-		/* NB: callee frees mbuf */
-		*error = ipsec4_process_packet(*m, sp->req);
-		KEY_FREESP(&sp);
+		/* NB: callee frees mbuf and releases reference to SP */
+		*error = ipsec4_process_packet(m, sp, inp);
 		if (*error == EJUSTRETURN) {
 			/*
 			 * We had a SP with a level of 'use' and no SA. We
@@ -207,20 +200,10 @@ ip_ipsec_output(struct mbuf **m, struct inpcb *inp, int *error)
 			 * IPsec processing and return without error.
 			 */
 			*error = 0;
-			goto done;
+			return (0);
 		}
-		/*
-		 * Preserve KAME behaviour: ENOENT can be returned
-		 * when an SA acquire is in progress.  Don't propagate
-		 * this to user-level; it confuses applications.
-		 *
-		 * XXX this will go away when the SADB is redone.
-		 */
-		if (*error == ENOENT)
-			*error = 0;
-		goto reinjected;
+		return (1);	/* mbuf consumed by IPsec */
 	} else {	/* sp == NULL */
-
 		if (*error != 0) {
 			/*
 			 * Hack: -EINVAL is used to signal that a packet
@@ -230,16 +213,10 @@ ip_ipsec_output(struct mbuf **m, struct inpcb *inp, int *error)
 			 */
 			if (*error == -EINVAL)
 				*error = 0;
-			goto bad;
+			m_freem(m);
+			return (1);
 		}
 		/* No IPsec processing for this packet. */
 	}
-done:
 	return (0);
-reinjected:
-	return (-1);
-bad:
-	if (sp != NULL)
-		KEY_FREESP(&sp);
-	return 1;
 }

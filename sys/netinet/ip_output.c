@@ -556,15 +556,8 @@ again:
 
 sendit:
 #ifdef IPSEC
-	switch(ip_ipsec_output(&m, inp, &error)) {
-	case 1:
-		goto bad;
-	case -1:
+	if (IPSEC_OUTPUT(ipv4, m, inp, &error) != 0)
 		goto done;
-	case 0:
-	default:
-		break;	/* Continue with packet processing. */
-	}
 	/*
 	 * Check if there was a route for this packet; return error if not.
 	 */
