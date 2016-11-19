@@ -55,7 +55,6 @@ __FBSDID("$FreeBSD$");
 
 typedef void (*print_fn_t)(void *buf, uint32_t size);
 
-
 struct kv_name
 {
 	uint32_t key;
@@ -104,6 +103,15 @@ uint128_to_str(uint128_t u, char *buf, size_t buflen)
 		return NULL;
 
 	return end;
+}
+
+/* "fMissing" from endian.h */
+static __inline uint64_t
+le48dec(const void *pp)
+{
+	uint8_t const *p = (uint8_t const *)pp;
+
+	return (((uint64_t)le16dec(p + 4) << 32) | le32dec(p));
 }
 
 static void *
@@ -278,6 +286,13 @@ print_log_firmware(void *buf, uint32_t size __unused)
 	}
 }
 
+/*
+ * Intel specific log pages from
+ * http://www.intel.com/content/dam/www/public/us/en/documents/product-specifications/ssd-dc-p3700-spec.pdf
+ *
+ * Though the version as of this date has a typo for the size of log page 0xca,
+ * offset 147: it is only 1 byte, not 6.
+ */
 static void
 print_intel_temp_stats(void *buf, uint32_t size __unused)
 {
@@ -299,6 +314,68 @@ print_intel_temp_stats(void *buf, uint32_t size __unused)
 	printf("Min Operating Temperature       ");
 	print_temp(temp->min_oper_temp);
 	printf("Estimated Temperature Offset:   %ju C/K\n", (uintmax_t)temp->est_offset);
+}
+
+static void
+print_intel_add_smart(void *buf, uint32_t size __unused)
+{
+	uint8_t *walker = buf;
+	uint8_t *end = walker + 150;
+	const char *name;
+	uint64_t raw;
+	uint8_t normalized;
+
+	static struct kv_name kv[] =
+	{
+		{ 0xab, "Program Fail Count" },
+		{ 0xac, "Erase Fail Count" },
+		{ 0xad, "Wear Leveling Count" },
+		{ 0xb8, "End to End Error Count" },
+		{ 0xc7, "CRC Error Count" },
+		{ 0xe2, "Timed: Media Wear" },
+		{ 0xe3, "Timed: Host Read %" },
+		{ 0xe4, "Timed: Elapsed Time" },
+		{ 0xea, "Thermal Throttle Status" },
+		{ 0xf0, "Retry Buffer Overflows" },
+		{ 0xf3, "PLL Lock Loss Count" },
+		{ 0xf4, "NAND Bytes Written" },
+		{ 0xf5, "Host Bytes Written" },
+	};
+
+	printf("Additional SMART Data Log\n");
+	printf("=========================\n");
+	/*
+	 * walker[0] = Key
+	 * walker[1,2] = reserved
+	 * walker[3] = Normalized Value
+	 * walker[4] = reserved
+	 * walker[5..10] = Little Endian Raw value
+	 *	(or other represenations)
+	 * walker[11] = reserved
+	 */
+	while (walker < end) {
+		name = kv_lookup(kv, nitems(kv), *walker);
+		normalized = walker[3];
+		raw = le48dec(walker + 5);
+		switch (*walker){
+		case 0:
+			break;
+		case 0xad:
+			printf("%-32s: %3d min: %u max: %u ave: %u\n", name, normalized,
+			    le16dec(walker + 5), le16dec(walker + 7), le16dec(walker + 9));
+			break;
+		case 0xe2:
+			printf("%-32s: %3d %.3f%%\n", name, normalized, raw / 1024.0);
+			break;
+		case 0xea:
+			printf("%-32s: %3d %d%% %d times\n", name, normalized, walker[5], le32dec(walker+6));
+			break;
+		default:
+			printf("%-32s: %3d %ju\n", name, normalized, (uintmax_t)raw);
+			break;
+		}
+		walker += 12;
+	}
 }
 
 /*
@@ -719,6 +796,8 @@ static struct logpage_function {
 	 sizeof(struct nvme_firmware_page)},
 	{INTEL_LOG_TEMP_STATS,		print_intel_temp_stats,
 	 sizeof(struct intel_log_temp_stats)},
+	{INTEL_LOG_ADD_SMART,		print_intel_add_smart,
+	 DEFAULT_SIZE},
 	{HGST_INFO_LOG,			print_hgst_info_log,
 	 DEFAULT_SIZE},
 	{0,				NULL,
