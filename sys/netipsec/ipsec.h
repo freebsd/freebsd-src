@@ -65,35 +65,41 @@
  * specifies ICMPv6 type, and the port field in "dst" specifies ICMPv6 code.
  */
 struct secpolicyindex {
-	u_int8_t dir;			/* direction of packet flow, see below */
 	union sockaddr_union src;	/* IP src address for SP */
 	union sockaddr_union dst;	/* IP dst address for SP */
-	u_int8_t prefs;			/* prefix length in bits for src */
-	u_int8_t prefd;			/* prefix length in bits for dst */
-	u_int16_t ul_proto;		/* upper layer Protocol */
-#ifdef notyet
-	uid_t uids;
-	uid_t uidd;
-	gid_t gids;
-	gid_t gidd;
-#endif
+	uint8_t ul_proto;		/* upper layer Protocol */
+	uint8_t dir;			/* direction of packet flow */
+	uint8_t prefs;			/* prefix length in bits for src */
+	uint8_t prefd;			/* prefix length in bits for dst */
+};
+
+/* Request for IPsec */
+struct ipsecrequest {
+	struct secasindex saidx;/* hint for search proper SA */
+				/* if __ss_len == 0 then no address specified.*/
+	u_int level;		/* IPsec level defined below. */
 };
 
 /* Security Policy Data Base */
 struct secpolicy {
 	TAILQ_ENTRY(secpolicy) chain;
+	LIST_ENTRY(secpolicy) idhash;
+	LIST_ENTRY(secpolicy) drainq;
 
 	struct secpolicyindex spidx;	/* selector */
-	struct ipsecrequest *req;
-				/* pointer to the ipsec request tree, */
-				/* if policy == IPSEC else this value == NULL.*/
-	u_int refcnt;			/* reference count */
+#define	IPSEC_MAXREQ		4
+	struct ipsecrequest *req[IPSEC_MAXREQ];
+	u_int tcount;			/* IPsec transforms count */
+	volatile u_int refcnt;		/* reference count */
 	u_int policy;			/* policy_type per pfkeyv2.h */
 	u_int state;
 #define	IPSEC_SPSTATE_DEAD	0
-#define	IPSEC_SPSTATE_ALIVE	1
-	u_int32_t priority;		/* priority of this policy */
-	u_int32_t id;			/* It's unique number on the system. */
+#define	IPSEC_SPSTATE_LARVAL	1
+#define	IPSEC_SPSTATE_ALIVE	2
+#define	IPSEC_SPSTATE_PCB	3
+#define	IPSEC_SPSTATE_IFNET	4
+	uint32_t priority;		/* priority of this policy */
+	uint32_t id;			/* It's unique number on the system. */
 	/*
 	 * lifetime handler.
 	 * the policy can be used without limitiation if both lifetime and
@@ -107,41 +113,25 @@ struct secpolicy {
 	long validtime;		/* duration this policy is valid without use */
 };
 
-/* Request for IPsec */
-struct ipsecrequest {
-	struct ipsecrequest *next;
-				/* pointer to next structure */
-				/* If NULL, it means the end of chain. */
-	struct secasindex saidx;/* hint for search proper SA */
-				/* if __ss_len == 0 then no address specified.*/
-	u_int level;		/* IPsec level defined below. */
-
-	struct secasvar *sav;	/* place holder of SA for use */
-	struct secpolicy *sp;	/* back pointer to SP */
-	struct rwlock lock;	/* to interlock updates */
-};
-
 /*
- * Need recursion for when crypto callbacks happen directly,
- * as in the case of software crypto.  Need to look at how
- * hard it is to remove this...
+ * PCB security policies.
+ * Application can setup private security policies for socket.
+ * Such policies can have IPSEC, BYPASS and ENTRUST type.
+ * By default policies set to NULL, this mean that they have ENTRUST type.
+ * When application sets BYPASS or IPSEC type policy, flags field
+ * also updated. In case when flags is not set, the system could store
+ * used security policy into the sp_in/sp_out pointer to speedup further
+ * lookups.
  */
-#define	IPSECREQUEST_LOCK_INIT(_isr) \
-	rw_init_flags(&(_isr)->lock, "ipsec request", RW_RECURSE)
-#define	IPSECREQUEST_LOCK(_isr)		rw_rlock(&(_isr)->lock)
-#define	IPSECREQUEST_UNLOCK(_isr)	rw_runlock(&(_isr)->lock)
-#define	IPSECREQUEST_WLOCK(_isr)	rw_wlock(&(_isr)->lock)
-#define	IPSECREQUEST_WUNLOCK(_isr)	rw_wunlock(&(_isr)->lock)
-#define	IPSECREQUEST_UPGRADE(_isr)	rw_try_upgrade(&(_isr)->lock)
-#define	IPSECREQUEST_DOWNGRADE(_isr)	rw_downgrade(&(_isr)->lock)
-#define	IPSECREQUEST_LOCK_DESTROY(_isr)	rw_destroy(&(_isr)->lock)
-#define	IPSECREQUEST_LOCK_ASSERT(_isr)	rw_assert(&(_isr)->lock, RA_LOCKED)
-
-/* security policy in PCB */
 struct inpcbpolicy {
-	struct secpolicy *sp_in;
-	struct secpolicy *sp_out;
-	int priv;			/* privileged socket ? */
+	struct secpolicy	*sp_in;
+	struct secpolicy	*sp_out;
+
+	uint32_t		genid;
+	uint16_t		flags;
+#define	INP_INBOUND_POLICY	0x0001
+#define	INP_OUTBOUND_POLICY	0x0002
+	uint16_t		hdrsz;
 };
 
 /* SP acquiring list table. */

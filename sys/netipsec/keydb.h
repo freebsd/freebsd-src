@@ -54,9 +54,9 @@ union sockaddr_union {
 struct secasindex {
 	union sockaddr_union src;	/* source address for SA */
 	union sockaddr_union dst;	/* destination address for SA */
-	u_int16_t proto;		/* IPPROTO_ESP or IPPROTO_AH */
-	u_int8_t mode;			/* mode of protocol, see ipsec.h */
-	u_int32_t reqid;		/* reqid id who owned this SA */
+	uint8_t proto;			/* IPPROTO_ESP or IPPROTO_AH */
+	uint8_t mode;			/* mode of protocol, see ipsec.h */
+	uint32_t reqid;			/* reqid id who owned this SA */
 					/* see IPSEC_MANUAL_REQID_MAX. */
 };
 
