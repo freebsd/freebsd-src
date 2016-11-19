@@ -139,7 +139,7 @@ static platform_method_t omap4_methods[] = {
 #endif
 	PLATFORMMETHOD_END,
 };
-FDT_PLATFORM_DEF(omap4, "omap4", 0, "ti,omap4430", 0);
+FDT_PLATFORM_DEF(omap4, "omap4", 0, "ti,omap4430", 200);
 #endif
 
 #if defined(SOC_TI_AM335X)

@@ -295,7 +295,7 @@ const static struct ti_pinmux_padconf ti_padconf_devmap[] = {
 	{  .ballname = NULL  },
 };
 
-const struct ti_pinmux_device ti_pinmux_dev = {
+const struct ti_pinmux_device omap4_pinmux_dev = {
 	.padconf_muxmode_mask	= CONTROL_PADCONF_MUXMODE_MASK,
 	.padconf_sate_mask	= CONTROL_PADCONF_SATE_MASK,
 	.padstate		= ti_padstate_devmap,
