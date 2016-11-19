@@ -146,6 +146,9 @@ struct secspacq {
 };
 #endif /* _KERNEL */
 
+/* buffer size for formatted output of ipsec address */
+#define	IPSEC_ADDRSTRLEN	(INET6_ADDRSTRLEN + 11)
+
 /* according to IANA assignment, port 0x0000 and proto 0xff are reserved. */
 #define IPSEC_PORT_ANY		0
 #define IPSEC_ULPROTO_ANY	255
