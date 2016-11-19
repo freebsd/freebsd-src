@@ -1992,6 +1992,8 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		l2 = pmap_l1_to_l2(l1, sva);
 		if (l2 == NULL)
 			continue;
+		if (pmap_load(l2) == 0)
+			continue;
 		if ((pmap_load(l2) & PTE_RX) != 0)
 			continue;
 

@@ -44,8 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/intr.h>
 
-#include <dev/fdt/fdt_common.h>
-
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
@@ -1261,7 +1259,7 @@ bcm2835_cpufreq_identify(driver_t *driver, device_t parent)
 
 	root = OF_finddevice("/");
 	for (compat = compat_data; compat->ocd_str != NULL; compat++)
-		if (fdt_is_compatible(root, compat->ocd_str))
+		if (ofw_bus_node_is_compatible(root, compat->ocd_str))
 			break;
 
 	if (compat->ocd_data == 0)

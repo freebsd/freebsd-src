@@ -139,6 +139,10 @@ host_dev_print(int verbose)
 {
 	char line[80];
 
+	printf("%s devices:", host_dev.dv_name);
+	if (pager_output("\n") != 0)
+		return (1);
+
 	snprintf(line, sizeof(line), "    host%d:   Host filesystem\n", 0);
 	return (pager_output(line));
 }

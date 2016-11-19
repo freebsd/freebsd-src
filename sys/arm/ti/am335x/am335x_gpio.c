@@ -43,7 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr.h>
 #include <sys/gpio.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
@@ -66,13 +65,14 @@ static struct ofw_compat_data compat_data[] = {
 static int
 am335x_gpio_probe(device_t dev)
 {
-	if (ti_chip() != CHIP_AM335X)
-		return (ENXIO);
 
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
 	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
+		return (ENXIO);
+
+	if (ti_chip() != CHIP_AM335X)
 		return (ENXIO);
 
 	device_set_desc(dev, "TI AM335x General Purpose I/O (GPIO)");

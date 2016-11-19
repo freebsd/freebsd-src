@@ -118,13 +118,17 @@ beri_sdcard_disk_close(struct open_file *f)
 	return (disk_close(dev));
 }
 
-static void
+static int
 beri_sdcard_disk_print(int verbose)
 {
 	struct disk_devdesc dev;
 	char line[80];
 	int ret;
 
+	printf("%s devices:", beri_sdcard_disk.dv_name);
+	if ((ret = pager_output("\n")) != 0)
+		return (ret);
+	
 	snprintf(line, sizeof(line), "    sdcard%d   Altera SD card drive\n", 0);
 	ret = pager_output(line);
 	if (ret != 0)

@@ -389,6 +389,9 @@ pxe_print(int verbose)
 	if (pxe_call == NULL)
 		return (0);
 
+	printf("%s devices:", pxedisk.dv_name);
+	if (pager_output("\n") != 0)
+		return (1);
 	if (verbose) {
 		snprintf(line, sizeof(line), "    pxe0:    %s:%s\n",
 		    inet_ntoa(rootip), rootpath);

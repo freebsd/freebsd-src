@@ -155,8 +155,6 @@ _CPUCFLAGS = -march=${CPUTYPE}
 #	sb1, xlp, xlr
 _CPUCFLAGS = -march=${CPUTYPE:S/^mips//}
 . endif
-. elif ${MACHINE_CPUARCH} == "riscv"
-_CPUCFLAGS = -mno-float -march="IMAFD"
 . elif ${MACHINE_ARCH} == "sparc64"
 .  if ${CPUTYPE} == "v9"
 _CPUCFLAGS = -mcpu=v9
@@ -303,9 +301,22 @@ MACHINE_CPU = v9 ultrasparc ultrasparc3
 
 .if ${MACHINE_CPUARCH} == "mips"
 CFLAGS += -G0
-.if ${MACHINE_ARCH:Mmips*hf}
+. if ${MACHINE_ARCH:Mmips*el*} != ""
+ACFLAGS += -EL
+AFLAGS += -EL
+CFLAGS += -EL
+LDFLAGS += -EL
+. else
+ACFLAGS += -EB
+AFLAGS += -EB
+CFLAGS += -EB
+LDFLAGS += -EB
+. endif
+. if ${MACHINE_ARCH:Mmips*hf}
 CFLAGS += -mhard-float
-.endif
+. else
+CFLAGS += -msoft-float
+. endif
 .endif
 
 ########## arm
@@ -337,8 +348,10 @@ CFLAGS += -mcpu=8540 -Wa,-me500 -mspe=yes -mabi=spe -mfloat-gprs=double
 .endif
 
 .if ${MACHINE_CPUARCH} == "riscv"
+.if ${TARGET_ARCH:Mriscv*sf}
 CFLAGS += -mno-float
 ACFLAGS += -mno-float
+.endif
 .endif
 
 # NB: COPTFLAGS is handled in /usr/src/sys/conf/kern.pre.mk

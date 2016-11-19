@@ -56,7 +56,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/controller/dwc_otg_fdt.h>
 
 static device_probe_t dwc_otg_probe;
-static device_detach_t dwc_otg_detach;
 
 static int
 dwc_otg_probe(device_t dev)
@@ -159,7 +158,7 @@ error:
 	return (ENXIO);
 }
 
-static int
+int
 dwc_otg_detach(device_t dev)
 {
 	struct dwc_otg_fdt_softc *sc = device_get_softc(dev);

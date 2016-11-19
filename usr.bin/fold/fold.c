@@ -45,7 +45,6 @@ static char sccsid[] = "@(#)fold.c	8.1 (Berkeley) 6/6/93";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <capsicum_helpers.h>
 #include <err.h>
 #include <limits.h>
 #include <locale.h>
@@ -72,9 +71,6 @@ main(int argc, char **argv)
 	int rval, width;
 
 	(void) setlocale(LC_CTYPE, "");
-
-	if (caph_limit_stdio() < 0 || (cap_enter() < 0 && errno != ENOSYS))
-		err(1, "capsicum");
 
 	width = -1;
 	previous_ch = 0;

@@ -45,8 +45,13 @@
 #define	IER_ETXRDY	0x2
 #define	IER_ERLS	0x4
 #define	IER_EMSC	0x8
+/*
+ * Receive timeout interrupt enable.
+ * Implemented in Intel XScale, Ingenic XBurst.
+ */
+#define	IER_RXTMOUT	0x10
 
-#define	IER_BITS	"\20\1ERXRDY\2ETXRDY\3ERLS\4EMSC"
+#define	IER_BITS	"\20\1ERXRDY\2ETXRDY\3ERLS\4EMSC\5RXTMOUT"
 
 #define	com_iir		2	/* interrupt identification register (R) */
 #define	REG_IIR		com_iir
@@ -156,6 +161,9 @@
 #define	FIFO_XMT_RST	FCR_XMT_RST
 #define	FCR_DMA		0x08
 #define	FIFO_DMA_MODE	FCR_DMA
+#ifdef CPU_XBURST
+#define	FCR_UART_ON	0x10
+#endif
 #define	FCR_RX_LOW	0x00
 #define	FIFO_RX_LOW	FCR_RX_LOW
 #define	FCR_RX_MEDL	0x40

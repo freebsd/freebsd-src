@@ -328,6 +328,13 @@ bd_print(int verbose)
 	struct disk_devdesc dev;
 	int i, ret = 0;
 
+	if (nbdinfo == 0)
+		return (0);
+
+	printf("%s devices:", biosdisk.dv_name);
+	if ((ret = pager_output("\n")) != 0)
+		return (ret);
+
 	for (i = 0; i < nbdinfo; i++) {
 		snprintf(line, sizeof(line),
 		    "    disk%d:   BIOS drive %c (%ju X %u):\n", i,

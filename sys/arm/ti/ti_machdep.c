@@ -53,10 +53,32 @@ __FBSDID("$FreeBSD$");
 #include <machine/platformvar.h>
 
 #include <arm/ti/omap4/omap4_reg.h>
+#include <arm/ti/omap4/omap4_mp.h>
+#include <arm/ti/ti_cpuid.h>
 
 #include "platform_if.h"
 
 void (*ti_cpu_reset)(void) = NULL;
+
+int _ti_chip = -1;
+
+#if defined(SOC_OMAP4)
+static int
+omap4_attach(platform_t plat)
+{
+	_ti_chip = CHIP_OMAP_4;
+	return (0);
+}
+#endif
+
+#if defined(SOC_TI_AM335X)
+static int
+ti_am335x_attach(platform_t plat)
+{
+	_ti_chip = CHIP_AM335X;
+	return (0);
+}
+#endif
 
 static vm_offset_t
 ti_lastaddr(platform_t plat)
@@ -106,17 +128,23 @@ ti_plat_cpu_reset(platform_t plat)
 
 #if defined(SOC_OMAP4)
 static platform_method_t omap4_methods[] = {
+	PLATFORMMETHOD(platform_attach, 	omap4_attach),
 	PLATFORMMETHOD(platform_devmap_init,	ti_omap4_devmap_init),
 	PLATFORMMETHOD(platform_lastaddr,	ti_lastaddr),
 	PLATFORMMETHOD(platform_cpu_reset,	ti_plat_cpu_reset),
 
+#ifdef SMP
+	PLATFORMMETHOD(platform_mp_start_ap,	omap4_mp_start_ap),
+	PLATFORMMETHOD(platform_mp_setmaxid,	omap4_mp_setmaxid),
+#endif
 	PLATFORMMETHOD_END,
 };
-FDT_PLATFORM_DEF(omap4, "omap4", 0, "ti,omap4430", 0);
+FDT_PLATFORM_DEF(omap4, "omap4", 0, "ti,omap4430", 200);
 #endif
 
 #if defined(SOC_TI_AM335X)
 static platform_method_t am335x_methods[] = {
+	PLATFORMMETHOD(platform_attach, 	ti_am335x_attach),
 	PLATFORMMETHOD(platform_devmap_init,	ti_am335x_devmap_init),
 	PLATFORMMETHOD(platform_lastaddr,	ti_lastaddr),
 	PLATFORMMETHOD(platform_cpu_reset,	ti_plat_cpu_reset),
@@ -124,5 +152,5 @@ static platform_method_t am335x_methods[] = {
 	PLATFORMMETHOD_END,
 };
 
-FDT_PLATFORM_DEF(am335x, "am335x", 0, "ti,am335x", 200);
+FDT_PLATFORM_DEF(am335x, "am335x", 0, "ti,am33xx", 200);
 #endif

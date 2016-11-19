@@ -600,7 +600,7 @@ vtcon_ctrl_event_enqueue(struct vtcon_softc *sc,
 
 	sglist_init(&sg, 2, segs);
 	error = sglist_append(&sg, control,
-	    sizeof(struct virtio_console_control));
+	    sizeof(struct virtio_console_control) + VTCON_BULK_BUFSZ);
 	KASSERT(error == 0, ("%s: error %d adding control to sglist",
 	    __func__, error));
 
@@ -633,7 +633,8 @@ vtcon_ctrl_event_requeue(struct vtcon_softc *sc,
 {
 	int error;
 
-	bzero(control, sizeof(struct virtio_console_control));
+	bzero(control, sizeof(struct virtio_console_control) +
+	    VTCON_BULK_BUFSZ);
 
 	error = vtcon_ctrl_event_enqueue(sc, control);
 	KASSERT(error == 0,

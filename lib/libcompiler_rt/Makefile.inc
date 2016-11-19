@@ -130,7 +130,7 @@ SRCF+=		cpu_model
 
 #
 # 128-bit quad precision long double support,
-# only used on arm64 and riscv.
+# only used on some architectures.
 #
 .if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "riscv"
 SRCF+=		addtf3
@@ -151,8 +151,9 @@ SRCF+=		trunctfdf2
 SRCF+=		trunctfsf2
 .endif
 
-# These are already shipped by libc.a on arm and mips
-.if ${MACHINE_CPUARCH} != "arm" && ${MACHINE_CPUARCH} != "mips"
+# These are already shipped by libc.a on some architectures.
+.if ${MACHINE_CPUARCH} != "arm" && ${MACHINE_CPUARCH} != "mips" && \
+    ${MACHINE_CPUARCH} != "riscv"
 SRCF+=		adddf3
 SRCF+=		addsf3
 SRCF+=		divdf3
