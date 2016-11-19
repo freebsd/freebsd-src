@@ -59,6 +59,9 @@
 #define	MIPS_PRID_CID_LEXRA		0x0b	/* Lexra */
 #define	MIPS_PRID_CID_RMI		0x0c	/* RMI */
 #define	MIPS_PRID_CID_CAVIUM		0x0d	/* Cavium */
+#define	MIPS_PRID_CID_INGENIC		0xe1	/* Ingenic */
+#define	MIPS_PRID_CID_INGENIC2		0xd1	/* Ingenic */
+
 #define	MIPS_PRID_COPTS(x)	(((x) >> 24) & 0x00ff)	/* Company Options */
 
 #endif	/* _MIPS_LOCORE_H */
