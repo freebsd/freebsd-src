@@ -546,49 +546,6 @@ ipsec_getpolicybyaddr(const struct mbuf *m, u_int dir, int *error)
 	return (sp);
 }
 
-struct secpolicy *
-ipsec4_checkpolicy(const struct mbuf *m, u_int dir, int *error,
-    struct inpcb *inp)
-{
-	struct secpolicy *sp;
-
-	*error = 0;
-	if (inp == NULL)
-		sp = ipsec_getpolicybyaddr(m, dir, error);
-	else
-		sp = ipsec_getpolicybysock(m, dir, inp, error);
-	if (sp == NULL) {
-		IPSEC_ASSERT(*error != 0, ("getpolicy failed w/o error"));
-		IPSECSTAT_INC(ips_out_inval);
-		return (NULL);
-	}
-	IPSEC_ASSERT(*error == 0, ("sp w/ error set to %u", *error));
-	switch (sp->policy) {
-	case IPSEC_POLICY_ENTRUST:
-	default:
-		printf("%s: invalid policy %u\n", __func__, sp->policy);
-		/* FALLTHROUGH */
-	case IPSEC_POLICY_DISCARD:
-		IPSECSTAT_INC(ips_out_polvio);
-		*error = -EINVAL;	/* Packet is discarded by caller. */
-		break;
-	case IPSEC_POLICY_BYPASS:
-	case IPSEC_POLICY_NONE:
-		KEY_FREESP(&sp);
-		sp = NULL;		/* NB: force NULL result. */
-		break;
-	case IPSEC_POLICY_IPSEC:
-		if (sp->req == NULL)	/* Acquire a SA. */
-			*error = key_spdacquire(sp);
-		break;
-	}
-	if (*error != 0) {
-		KEY_FREESP(&sp);
-		sp = NULL;
-	}
-	return (sp);
-}
-
 static int
 ipsec_setspidx_inpcb(const struct mbuf *m, struct inpcb *inp)
 {
@@ -814,6 +771,36 @@ ipsec4_getpolicy(const struct mbuf *m, struct inpcb *inp, u_int dir)
 	}
 	if (sp == NULL)		/* No SP found, use system default. */
 		sp = key_allocsp_default();
+	return (sp);
+}
+
+/*
+ * Check security policy for *OUTBOUND* IPv4 packet.
+ */
+struct secpolicy *
+ipsec4_checkpolicy(const struct mbuf *m, struct inpcb *inp, int *error)
+{
+	struct secpolicy *sp;
+
+	*error = 0;
+	sp = ipsec4_getpolicy(m, inp, IPSEC_DIR_OUTBOUND);
+	if (sp != NULL)
+		sp = ipsec_checkpolicy(sp, inp, error);
+	if (sp == NULL) {
+		switch (*error) {
+		case 0: /* No IPsec required: BYPASS or NONE */
+			break;
+		case -EINVAL:
+			IPSECSTAT_INC(ips_out_polvio);
+			break;
+		default:
+			IPSECSTAT_INC(ips_out_inval);
+		}
+	}
+	KEYDBG(IPSEC_STAMP,
+	    printf("%s: using SP(%p), error %d\n", __func__, sp, *error));
+	if (sp != NULL)
+		KEYDBG(IPSEC_DATA, kdebug_secpolicy(sp));
 	return (sp);
 }
 
