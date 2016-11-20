@@ -551,7 +551,7 @@ after_sack_rexmit:
 	 * Pre-calculate here as we save another lookup into the darknesses
 	 * of IPsec that way and can actually decide if TSO is ok.
 	 */
-	ipsec_optlen = ipsec_hdrsiz_tcp(tp);
+	ipsec_optlen = ipsec_hdrsiz_inpcb(tp->t_inpcb);
 #endif
 	if ((tp->t_flags & TF_TSO) && V_tcp_do_tso && len > tp->t_maxseg &&
 	    ((tp->t_flags & TF_SIGNATURE) == 0) &&
