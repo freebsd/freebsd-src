@@ -1505,16 +1505,15 @@ ipsec_in_reject(struct secpolicy *sp, struct inpcb *inp, const struct mbuf *m)
 /*
  * Compute the byte size to be occupied by IPsec header.
  * In case it is tunnelled, it includes the size of outer IP header.
- * NOTE: SP passed is freed in this function.
  */
 static size_t
 ipsec_hdrsiz_internal(struct secpolicy *sp)
 {
-	struct ipsecrequest *isr;
 	size_t size;
+	int i;
 
-	KEYDEBUG(KEYDEBUG_IPSEC_DATA,
-		printf("%s: using SP\n", __func__); kdebug_secpolicy(sp));
+	KEYDBG(IPSEC_STAMP, printf("%s: using SP(%p)\n", __func__, sp));
+	KEYDBG(IPSEC_DATA, kdebug_secpolicy(sp));
 
 	switch (sp->policy) {
 	case IPSEC_POLICY_DISCARD:
@@ -1526,43 +1525,70 @@ ipsec_hdrsiz_internal(struct secpolicy *sp)
 	IPSEC_ASSERT(sp->policy == IPSEC_POLICY_IPSEC,
 		("invalid policy %u", sp->policy));
 
+	/*
+	 * XXX: for each transform we need to lookup suitable SA
+	 * and use info from SA to calculate headers size.
+	 * XXX: for NAT-T we need to cosider UDP header size.
+	 */
 	size = 0;
-	for (isr = sp->req; isr != NULL; isr = isr->next) {
-		size_t clen = 0;
-
-		switch (isr->saidx.proto) {
+	for (i = 0; i < sp->tcount; i++) {
+		switch (sp->req[i]->saidx.proto) {
 		case IPPROTO_ESP:
-			clen = esp_hdrsiz(isr->sav);
+			size += esp_hdrsiz(NULL);
 			break;
 		case IPPROTO_AH:
-			clen = ah_hdrsiz(isr->sav);
+			size += ah_hdrsiz(NULL);
 			break;
 		case IPPROTO_IPCOMP:
-			clen = sizeof(struct ipcomp);
+			size += sizeof(struct ipcomp);
 			break;
 		}
 
-		if (isr->saidx.mode == IPSEC_MODE_TUNNEL) {
-			switch (isr->saidx.dst.sa.sa_family) {
+		if (sp->req[i]->saidx.mode == IPSEC_MODE_TUNNEL) {
+			switch (sp->req[i]->saidx.dst.sa.sa_family) {
+#ifdef INET
 			case AF_INET:
-				clen += sizeof(struct ip);
+				size += sizeof(struct ip);
 				break;
+#endif
 #ifdef INET6
 			case AF_INET6:
-				clen += sizeof(struct ip6_hdr);
+				size += sizeof(struct ip6_hdr);
 				break;
 #endif
 			default:
 				ipseclog((LOG_ERR, "%s: unknown AF %d in "
 				    "IPsec tunnel SA\n", __func__,
-				    ((struct sockaddr *)&isr->saidx.dst)->sa_family));
+				    sp->req[i]->saidx.dst.sa.sa_family));
 				break;
 			}
 		}
-		size += clen;
 	}
-
 	return (size);
+}
+
+/*
+ * Compute ESP/AH header size for protocols with PCB, including
+ * outer IP header. Currently only tcp_output() uses it.
+ */
+size_t
+ipsec_hdrsiz_inpcb(struct inpcb *inp)
+{
+	struct secpolicyindex spidx;
+	struct secpolicy *sp;
+	size_t sz;
+
+	sp = ipsec_getpcbpolicy(inp, IPSEC_DIR_OUTBOUND);
+	if (sp == NULL && key_havesp(IPSEC_DIR_OUTBOUND)) {
+		ipsec_setspidx_inpcb(inp, &spidx);
+		spidx.dir = IPSEC_DIR_OUTBOUND;
+		sp = key_allocsp(&spidx, IPSEC_DIR_OUTBOUND);
+	}
+	if (sp == NULL)
+		sp = key_allocsp_default();
+	sz = ipsec_hdrsiz_internal(sp);
+	key_freesp(&sp);
+	return (sz);
 }
 
 /* 

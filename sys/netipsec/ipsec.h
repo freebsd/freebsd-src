@@ -311,21 +311,20 @@ extern int ipsec_init_policy(struct socket *so, struct inpcbpolicy **);
 extern int ipsec_copy_policy(struct inpcbpolicy *, struct inpcbpolicy *);
 
 u_int ipsec_get_reqlevel(struct secpolicy *, u_int);
+int ipsec4_in_reject(const struct mbuf *, struct inpcb *);
+size_t ipsec_hdrsiz_inpcb(struct inpcb *);
 
 extern int ipsec_set_policy(struct inpcb *inp, int optname,
 	caddr_t request, size_t len, struct ucred *cred);
 extern int ipsec_get_policy(struct inpcb *inpcb, caddr_t request,
     size_t len, struct mbuf **mp);
 extern int ipsec_delete_pcbpolicy(struct inpcb *);
-extern int ipsec4_in_reject(const struct mbuf *, struct inpcb *);
 
 struct secas;
-struct tcpcb;
 extern int ipsec_chkreplay(u_int32_t, struct secasvar *);
 extern int ipsec_updatereplay(u_int32_t, struct secasvar *);
 
 extern size_t ipsec_hdrsiz(const struct mbuf *, u_int, struct inpcb *);
-extern size_t ipsec_hdrsiz_tcp(struct tcpcb *);
 
 union sockaddr_union;
 extern char *ipsec_address(union sockaddr_union *, char *, socklen_t);
