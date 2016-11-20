@@ -283,6 +283,51 @@ key_allocsp_default(const char* where, int tag)
 #define	KEY_ALLOCSP_DEFAULT() \
 	key_allocsp_default(__FILE__, __LINE__)
 
+static struct secpolicy *
+ipsec_getpcbpolicy(struct inpcb *inp, u_int dir)
+{
+	struct secpolicy *sp;
+	int flags;
+
+	if (inp == NULL || inp->inp_sp == NULL)
+		return (NULL);
+
+	flags = inp->inp_sp->flags;
+	if (dir == IPSEC_DIR_OUTBOUND) {
+		sp = inp->inp_sp->sp_out;
+		flags &= INP_OUTBOUND_POLICY;
+	} else {
+		sp = inp->inp_sp->sp_in;
+		flags &= INP_INBOUND_POLICY;
+	}
+	/*
+	 * Check flags. If we have PCB SP, just return it.
+	 * Otherwise we need to check that cached SP entry isn't stale.
+	 */
+	if (flags == 0) {
+		if (sp == NULL)
+			return (NULL);
+		if (inp->inp_sp->genid != key_getspgen()) {
+			/*
+			 * Invalidate the cache.
+			 * Do not touch policy if it was set by PCB.
+			 */
+			if ((inp->inp_sp->flags & INP_INBOUND_POLICY) == 0)
+				inp->inp_sp->sp_in = NULL;
+			if ((inp->inp_sp->flags & INP_OUTBOUND_POLICY) == 0)
+				inp->inp_sp->sp_out = NULL;
+			return (NULL);
+		}
+		KEYDBG(IPSEC_STAMP,
+		    printf("%s: PCB(%p): cache hit SP(%p)\n",
+		    __func__, inp, sp));
+		/* Return referenced cached policy */
+	}
+	IPSEC_ASSERT(sp != NULL, ("null SP, but flags is 0x%04x", flags));
+	key_addref(sp);
+	return (sp);
+}
+
 /*
  * For OUTBOUND packet having a socket. Searching SPD for packet,
  * and return a pointer to SP.
