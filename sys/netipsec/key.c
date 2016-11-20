@@ -4304,13 +4304,13 @@ static void
 key_flush_spd(time_t now)
 {
 	SPTREE_RLOCK_TRACKER;
-	struct secpolicy *sp;
+	struct secpolicy_list drainq;
+	struct secpolicy *sp, *nextsp;
 	u_int dir;
 
-	/* SPD */
+	LIST_INIT(&drainq);
+	SPTREE_RLOCK();
 	for (dir = 0; dir < IPSEC_DIR_MAX; dir++) {
-restart:
-		SPTREE_RLOCK();
 		TAILQ_FOREACH(sp, &V_sptree[dir], chain) {
 			if (sp->lifetime == 0 && sp->validtime == 0)
 				continue;
@@ -4318,15 +4318,42 @@ restart:
 			    now - sp->created > sp->lifetime) ||
 			    (sp->validtime &&
 			    now - sp->lastused > sp->validtime)) {
+				/* Hold extra reference to send SPDEXPIRE */
 				SP_ADDREF(sp);
-				SPTREE_RUNLOCK();
-				key_spdexpire(sp);
-				key_unlink(sp);
-				KEY_FREESP(&sp);
-				goto restart;
+				LIST_INSERT_HEAD(&drainq, sp, drainq);
 			}
 		}
-		SPTREE_RUNLOCK();
+	}
+	SPTREE_RUNLOCK();
+	if (LIST_EMPTY(&drainq))
+		return;
+
+	SPTREE_WLOCK();
+	sp = LIST_FIRST(&drainq);
+	while (sp != NULL) {
+		nextsp = LIST_NEXT(sp, drainq);
+		/* Check that SP is still linked */
+		if (sp->state != IPSEC_SPSTATE_ALIVE) {
+			LIST_REMOVE(sp, drainq);
+			key_freesp(&sp); /* release extra reference */
+			sp = nextsp;
+			continue;
+		}
+		TAILQ_REMOVE(&V_sptree[sp->spidx.dir], sp, chain);
+		LIST_REMOVE(sp, idhash);
+		sp->state = IPSEC_SPSTATE_DEAD;
+		sp = nextsp;
+	}
+	V_sp_genid++;
+	SPTREE_WUNLOCK();
+
+	sp = LIST_FIRST(&drainq);
+	while (sp != NULL) {
+		nextsp = LIST_NEXT(sp, drainq);
+		key_spdexpire(sp);
+		key_freesp(&sp); /* release extra reference */
+		key_freesp(&sp); /* release last reference */
+		sp = nextsp;
 	}
 }
 
