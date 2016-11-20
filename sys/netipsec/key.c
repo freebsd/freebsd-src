@@ -141,6 +141,9 @@ static VNET_DEFINE(int, key_preferred_oldsa) = 1;
 static VNET_DEFINE(u_int32_t, acq_seq) = 0;
 #define	V_acq_seq		VNET(acq_seq)
 
+static VNET_DEFINE(uint32_t, sp_genid) = 0;
+#define	V_sp_genid		VNET(sp_genid)
+
 /* SPD */
 TAILQ_HEAD(secpolicy_queue, secpolicy);
 LIST_HEAD(secpolicy_list, secpolicy);
@@ -625,6 +628,16 @@ key_havesp(u_int dir)
 }
 
 /* %%% IPsec policy management */
+/*
+ * Return current SPDB generation.
+ */
+uint32_t
+key_getspgen(void)
+{
+
+	return (V_sp_genid);
+}
+
 /*
  * allocating a SP for OUTBOUND or INBOUND packet.
  * Must call key_freesp() later.
@@ -1271,21 +1284,25 @@ static void
 key_unlink(struct secpolicy *sp)
 {
 
-	IPSEC_ASSERT(sp != NULL, ("null sp"));
 	IPSEC_ASSERT(sp->spidx.dir == IPSEC_DIR_INBOUND ||
 	    sp->spidx.dir == IPSEC_DIR_OUTBOUND,
 	    ("invalid direction %u", sp->spidx.dir));
 	SPTREE_UNLOCK_ASSERT();
 
+	KEYDBG(KEY_STAMP,
+	    printf("%s: SP(%p)\n", __func__, sp));
 	SPTREE_WLOCK();
-	if (sp->state == IPSEC_SPSTATE_DEAD) {
+	if (sp->state != IPSEC_SPSTATE_ALIVE) {
+		/* SP is already unlinked */
 		SPTREE_WUNLOCK();
 		return;
 	}
 	sp->state = IPSEC_SPSTATE_DEAD;
 	TAILQ_REMOVE(&V_sptree[sp->spidx.dir], sp, chain);
+	LIST_REMOVE(sp, idhash);
+	V_sp_genid++;
 	SPTREE_WUNLOCK();
-	KEY_FREESP(&sp);
+	key_freesp(&sp);
 }
 
 /*
@@ -1296,7 +1313,7 @@ key_insertsp(struct secpolicy *newsp)
 {
 	struct secpolicy *sp;
 
-	SPTREE_WLOCK();
+	SPTREE_WLOCK_ASSERT();
 	TAILQ_FOREACH(sp, &V_sptree[newsp->spidx.dir], chain) {
 		if (newsp->priority < sp->priority) {
 			TAILQ_INSERT_BEFORE(sp, newsp, chain);
@@ -1307,8 +1324,9 @@ key_insertsp(struct secpolicy *newsp)
 	TAILQ_INSERT_TAIL(&V_sptree[newsp->spidx.dir], newsp, chain);
 
 done:
+	LIST_INSERT_HEAD(SPHASH_HASH(newsp->id), newsp, idhash);
 	newsp->state = IPSEC_SPSTATE_ALIVE;
-	SPTREE_WUNLOCK();
+	V_sp_genid++;
 }
 
 /*
@@ -2427,7 +2445,7 @@ key_spdacquire(struct secpolicy *sp)
 static int
 key_spdflush(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 {
-	TAILQ_HEAD(, secpolicy) drainq;
+	struct secpolicy_queue drainq;
 	struct sadb_msg *newmsg;
 	struct secpolicy *sp, *nextsp;
 	u_int dir;
@@ -2448,9 +2466,13 @@ key_spdflush(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 	/*
 	 * We need to set state to DEAD for each policy to be sure,
 	 * that another thread won't try to unlink it.
+	 * Also remove SP from sphash.
 	 */
-	TAILQ_FOREACH(sp, &drainq, chain)
+	TAILQ_FOREACH(sp, &drainq, chain) {
 		sp->state = IPSEC_SPSTATE_DEAD;
+		LIST_REMOVE(sp, idhash);
+	}
+	V_sp_genid++;
 	SPTREE_WUNLOCK();
 	sp = TAILQ_FIRST(&drainq);
 	while (sp != NULL) {
