@@ -252,7 +252,8 @@ static void ipsec4_setspidx_ipaddr(const struct mbuf *,
     struct secpolicyindex *);
 #ifdef INET6
 static void ipsec6_get_ulp(const struct mbuf *m, struct secpolicyindex *, int);
-static int ipsec6_setspidx_ipaddr(const struct mbuf *, struct secpolicyindex *);
+static void ipsec6_setspidx_ipaddr(const struct mbuf *,
+    struct secpolicyindex *);
 #endif
 static void ipsec_delpcbpolicy(struct inpcbpolicy *);
 static struct secpolicy *ipsec_deepcopy_policy(struct secpolicy *src);
@@ -891,7 +892,7 @@ ipsec6_get_ulp(const struct mbuf *m, struct secpolicyindex *spidx,
 }
 
 /* Assumes that m is sane. */
-static int
+static void
 ipsec6_setspidx_ipaddr(const struct mbuf *m, struct secpolicyindex *spidx)
 {
 	struct ip6_hdr ip6buf;
@@ -926,9 +927,77 @@ ipsec6_setspidx_ipaddr(const struct mbuf *m, struct secpolicyindex *spidx)
 		sin6->sin6_scope_id = ntohs(ip6->ip6_dst.s6_addr16[1]);
 	}
 	spidx->prefd = sizeof(struct in6_addr) << 3;
-
-	return (0);
 }
+
+static struct secpolicy *
+ipsec6_getpolicy(const struct mbuf *m, struct inpcb *inp, u_int dir)
+{
+	struct secpolicyindex spidx;
+	struct secpolicy *sp;
+
+	sp = ipsec_getpcbpolicy(inp, dir);
+	if (sp == NULL && key_havesp(dir)) {
+		/* Make an index to look for a policy. */
+		ipsec6_setspidx_ipaddr(m, &spidx);
+		/* Fill ports in spidx if we have inpcb. */
+		ipsec6_get_ulp(m, &spidx, inp != NULL);
+		spidx.dir = dir;
+		sp = key_allocsp(&spidx, dir);
+	}
+	if (sp == NULL)		/* No SP found, use system default. */
+		sp = key_allocsp_default();
+	return (sp);
+}
+
+/*
+ * Check security policy for *OUTBOUND* IPv6 packet.
+ */
+struct secpolicy *
+ipsec6_checkpolicy(const struct mbuf *m, struct inpcb *inp, int *error)
+{
+	struct secpolicy *sp;
+
+	*error = 0;
+	sp = ipsec6_getpolicy(m, inp, IPSEC_DIR_OUTBOUND);
+	if (sp != NULL)
+		sp = ipsec_checkpolicy(sp, inp, error);
+	if (sp == NULL) {
+		switch (*error) {
+		case 0: /* No IPsec required: BYPASS or NONE */
+			break;
+		case -EINVAL:
+			IPSEC6STAT_INC(ips_out_polvio);
+			break;
+		default:
+			IPSEC6STAT_INC(ips_out_inval);
+		}
+	}
+	KEYDBG(IPSEC_STAMP,
+	    printf("%s: using SP(%p), error %d\n", __func__, sp, *error));
+	if (sp != NULL)
+		KEYDBG(IPSEC_DATA, kdebug_secpolicy(sp));
+	return (sp);
+}
+
+/*
+ * Check IPv6 packet against inbound security policy.
+ * This function is called from tcp6_input(), udp6_input(),
+ * rip6_input() and sctp_input().
+ */
+int
+ipsec6_in_reject(const struct mbuf *m, struct inpcb *inp)
+{
+	struct secpolicy *sp;
+	int result;
+
+	sp = ipsec6_getpolicy(m, inp, IPSEC_DIR_INBOUND);
+	result = ipsec_in_reject(sp, inp, m);
+	key_freesp(&sp);
+	if (result)
+		IPSEC6STAT_INC(ips_in_polvio);
+	return (result);
+}
+
 #endif
 
 int
@@ -1476,55 +1545,6 @@ ipsec_in_reject(struct secpolicy *sp, struct inpcb *inp, const struct mbuf *m)
 	}
 	return (0);		/* Valid. */
 }
-
-/*
- * Non zero return value means security policy DISCARD or policy violation.
- */
-static int
-ipsec46_in_reject(const struct mbuf *m, struct inpcb *inp)
-{
-	struct secpolicy *sp;
-	int error;
-	int result;
-
-	if (!key_havesp(IPSEC_DIR_INBOUND))
-		return 0;
-
-	IPSEC_ASSERT(m != NULL, ("null mbuf"));
-
-	/* Get SP for this packet. */
-	if (inp == NULL)
-		sp = ipsec_getpolicybyaddr(m, IPSEC_DIR_INBOUND, &error);
-	else
-		sp = ipsec_getpolicybysock(m, IPSEC_DIR_INBOUND, inp, &error);
-
-	if (sp != NULL) {
-		result = ipsec_in_reject(sp, m);
-		KEY_FREESP(&sp);
-	} else {
-		result = 1;	/* treat errors as policy violation */
-	}
-	return (result);
-}
-
-#ifdef INET6
-/*
- * Check AH/ESP integrity.
- * This function is called from tcp6_input(), udp6_input(),
- * and {ah,esp}6_input for tunnel mode.
- */
-int
-ipsec6_in_reject(const struct mbuf *m, struct inpcb *inp)
-{
-	int result;
-
-	result = ipsec46_in_reject(m, inp);
-	if (result)
-		IPSEC6STAT_INC(ips_in_polvio);
-
-	return (result);
-}
-#endif
 
 /*
  * Compute the byte size to be occupied by IPsec header.
