@@ -808,6 +808,25 @@ ipsec4_checkpolicy(const struct mbuf *m, struct inpcb *inp, int *error)
 	return (sp);
 }
 
+/*
+ * Check IPv4 packet against *INBOUND* security policy.
+ * This function is called from tcp_input(), udp_input(),
+ * rip_input() and sctp_input().
+ */
+int
+ipsec4_in_reject(const struct mbuf *m, struct inpcb *inp)
+{
+	struct secpolicy *sp;
+	int result;
+
+	sp = ipsec4_getpolicy(m, inp, IPSEC_DIR_INBOUND);
+	result = ipsec_in_reject(sp, inp, m);
+	key_freesp(&sp);
+	if (result != 0)
+		IPSECSTAT_INC(ips_in_polvio);
+	return (result);
+}
+
 #endif /* INET */
 
 #ifdef INET6
@@ -1489,23 +1508,6 @@ ipsec46_in_reject(const struct mbuf *m, struct inpcb *inp)
 	} else {
 		result = 1;	/* treat errors as policy violation */
 	}
-	return (result);
-}
-
-/*
- * Check AH/ESP integrity.
- * This function is called from tcp_input(), udp_input(),
- * and {ah,esp}4_input for tunnel mode.
- */
-int
-ipsec4_in_reject(const struct mbuf *m, struct inpcb *inp)
-{
-	int result;
-
-	result = ipsec46_in_reject(m, inp);
-	if (result)
-		IPSECSTAT_INC(ips_in_polvio);
-
 	return (result);
 }
 
