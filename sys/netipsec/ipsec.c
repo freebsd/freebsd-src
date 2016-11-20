@@ -285,6 +285,49 @@ key_allocsp_default(const char* where, int tag)
 	key_allocsp_default(__FILE__, __LINE__)
 
 static struct secpolicy *
+ipsec_checkpolicy(struct secpolicy *sp, struct inpcb *inp, int *error)
+{
+	uint32_t genid;
+
+	if (inp != NULL &&
+	    (inp->inp_sp->flags & INP_OUTBOUND_POLICY) == 0 &&
+	    inp->inp_sp->sp_out == NULL) {
+		/*
+		 * Save found OUTBOUND policy into PCB SP cache.
+		 */
+		genid = key_getspgen();
+		inp->inp_sp->sp_out = sp;
+		if (genid != inp->inp_sp->genid) {
+			/* Reset INBOUND cached policy if genid is changed */
+			if ((inp->inp_sp->flags & INP_INBOUND_POLICY) == 0)
+				inp->inp_sp->sp_in = NULL;
+			inp->inp_sp->genid = genid;
+		}
+		KEYDBG(IPSEC_STAMP,
+		    printf("%s: PCB(%p): cached SP(%p)\n",
+		    __func__, inp, sp));
+	}
+	switch (sp->policy) {
+	default:
+		printf("%s: invalid policy %u\n", __func__, sp->policy);
+		/* FALLTHROUGH */
+	case IPSEC_POLICY_DISCARD:
+		*error = -EINVAL;	/* Packet is discarded by caller. */
+		/* FALLTHROUGH */
+	case IPSEC_POLICY_BYPASS:
+	case IPSEC_POLICY_NONE:
+		key_freesp(&sp);
+		sp = NULL;		/* NB: force NULL result. */
+		break;
+	case IPSEC_POLICY_IPSEC:
+		break;
+	}
+	KEYDBG(IPSEC_DUMP,
+	    printf("%s: get SP(%p), error %d\n", __func__, sp, *error));
+	return (sp);
+}
+
+static struct secpolicy *
 ipsec_getpcbpolicy(struct inpcb *inp, u_int dir)
 {
 	struct secpolicy *sp;
