@@ -176,6 +176,9 @@ SYSCTL_INT(_net_inet_ipsec, IPSECCTL_DEBUG, debug,
 SYSCTL_INT(_net_inet_ipsec, OID_AUTO, crypto_support,
 	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(crypto_support), 0,
 	"Crypto driver selection.");
+SYSCTL_INT(_net_inet_ipsec, OID_AUTO, check_policy_history,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(check_policy_history), 0,
+	"Use strict check of inbound packets to security policy compliance");
 SYSCTL_VNET_PCPUSTAT(_net_inet_ipsec, OID_AUTO, ipsecstats, struct ipsecstat,
     ipsec4stat, "IPsec IPv4 statistics.");
 
@@ -240,7 +243,8 @@ SYSCTL_VNET_PCPUSTAT(_net_inet6_ipsec6, IPSECCTL_STATS, ipsecstats,
     struct ipsecstat, ipsec6stat, "IPsec IPv6 statistics.");
 #endif /* INET6 */
 
-static int ipsec_in_reject(struct secpolicy *, const struct mbuf *);
+static int ipsec_in_reject(struct secpolicy *, struct inpcb *,
+    const struct mbuf *);
 static int ipsec_setspidx_inpcb(const struct mbuf *, struct inpcb *);
 static int ipsec_setspidx(const struct mbuf *, struct secpolicyindex *, int);
 static void ipsec4_get_ulp(const struct mbuf *m, struct secpolicyindex *, int);
@@ -1230,32 +1234,36 @@ ipsec_delete_pcbpolicy(struct inpcb *inp)
  * Either IPSEC_LEVEL_USE or IPSEC_LEVEL_REQUIRE are always returned.
  */
 u_int
-ipsec_get_reqlevel(struct ipsecrequest *isr)
+ipsec_get_reqlevel(struct secpolicy *sp, u_int idx)
 {
-	u_int level = 0;
+	struct ipsecrequest *isr;
 	u_int esp_trans_deflev, esp_net_deflev;
 	u_int ah_trans_deflev, ah_net_deflev;
+	u_int level = 0;
 
-	IPSEC_ASSERT(isr != NULL && isr->sp != NULL, ("null argument"));
-	IPSEC_ASSERT(isr->sp->spidx.src.sa.sa_family == isr->sp->spidx.dst.sa.sa_family,
-		("af family mismatch, src %u, dst %u",
-		 isr->sp->spidx.src.sa.sa_family,
-		 isr->sp->spidx.dst.sa.sa_family));
-
+	IPSEC_ASSERT(idx < sp->tcount, ("Wrong IPsec request index %d", idx));
 /* XXX Note that we have ipseclog() expanded here - code sync issue. */
 #define IPSEC_CHECK_DEFAULT(lev) \
-	(((lev) != IPSEC_LEVEL_USE && (lev) != IPSEC_LEVEL_REQUIRE	      \
-			&& (lev) != IPSEC_LEVEL_UNIQUE)			      \
-		? (V_ipsec_debug						      \
-			? log(LOG_INFO, "fixed system default level " #lev ":%d->%d\n",\
-				(lev), IPSEC_LEVEL_REQUIRE)		      \
-			: 0),						      \
-			(lev) = IPSEC_LEVEL_REQUIRE,			      \
-			(lev)						      \
-		: (lev))
+	(((lev) != IPSEC_LEVEL_USE && (lev) != IPSEC_LEVEL_REQUIRE &&	\
+	  (lev) != IPSEC_LEVEL_UNIQUE)					\
+		? (V_ipsec_debug  ?					\
+		log(LOG_INFO, "fixed system default level " #lev ":%d->%d\n",\
+		(lev), IPSEC_LEVEL_REQUIRE) : 0),			\
+		(lev) = IPSEC_LEVEL_REQUIRE, (lev) : (lev))
+
+	/*
+	 * IPsec VTI uses unique security policy with fake spidx filled
+	 * with zeroes. Just return IPSEC_LEVEL_REQUIRE instead of doing
+	 * full level lookup for such policies.
+	 */
+	if (sp->state == IPSEC_SPSTATE_IFNET) {
+		IPSEC_ASSERT(sp->req[idx]->level == IPSEC_LEVEL_UNIQUE,
+		    ("Wrong IPsec request level %d", sp->req[idx]->level));
+		return (IPSEC_LEVEL_REQUIRE);
+	}
 
 	/* Set default level. */
-	switch (((struct sockaddr *)&isr->sp->spidx.src)->sa_family) {
+	switch (sp->spidx.src.sa.sa_family) {
 #ifdef INET
 	case AF_INET:
 		esp_trans_deflev = IPSEC_CHECK_DEFAULT(V_ip4_esp_trans_deflev);
@@ -1274,11 +1282,12 @@ ipsec_get_reqlevel(struct ipsecrequest *isr)
 #endif /* INET6 */
 	default:
 		panic("%s: unknown af %u",
-			__func__, isr->sp->spidx.src.sa.sa_family);
+			__func__, sp->spidx.src.sa.sa_family);
 	}
 
 #undef IPSEC_CHECK_DEFAULT
 
+	isr = sp->req[idx];
 	/* Set level. */
 	switch (isr->level) {
 	case IPSEC_LEVEL_DEFAULT:
@@ -1323,6 +1332,45 @@ ipsec_get_reqlevel(struct ipsecrequest *isr)
 	return (level);
 }
 
+static int
+ipsec_check_history(const struct mbuf *m, struct secpolicy *sp, u_int idx)
+{
+	struct xform_history *xh;
+	struct m_tag *mtag;
+
+	mtag = NULL;
+	while ((mtag = m_tag_find(__DECONST(struct mbuf *, m),
+	    PACKET_TAG_IPSEC_IN_DONE, mtag)) != NULL) {
+		xh = (struct xform_history *)(mtag + 1);
+		KEYDBG(IPSEC_DATA,
+		    char buf[IPSEC_ADDRSTRLEN];
+		    printf("%s: mode %s proto %u dst %s\n", __func__,
+			kdebug_secasindex_mode(xh->mode), xh->proto,
+			ipsec_address(&xh->dst, buf, sizeof(buf))));
+		if (xh->proto != sp->req[idx]->saidx.proto)
+			continue;
+		/* If SA had IPSEC_MODE_ANY, consider this as match. */
+		if (xh->mode != sp->req[idx]->saidx.mode &&
+		    xh->mode != IPSEC_MODE_ANY)
+			continue;
+		/*
+		 * For transport mode IPsec request doesn't contain
+		 * addresses. We need to use address from spidx.
+		 */
+		if (sp->req[idx]->saidx.mode == IPSEC_MODE_TRANSPORT) {
+			if (key_sockaddrcmp_withmask(&xh->dst.sa,
+			    &sp->spidx.dst.sa, sp->spidx.prefd) != 0)
+				continue;
+		} else {
+			if (key_sockaddrcmp(&xh->dst.sa,
+			    &sp->req[idx]->saidx.dst.sa, 0) != 0)
+				continue;
+		}
+		return (0); /* matched */
+	}
+	return (1);
+}
+
 /*
  * Check security policy requirements against the actual
  * packet contents.  Return one if the packet should be
@@ -1334,14 +1382,33 @@ ipsec_get_reqlevel(struct ipsecrequest *isr)
  *	1: invalid
  */
 static int
-ipsec_in_reject(struct secpolicy *sp, const struct mbuf *m)
+ipsec_in_reject(struct secpolicy *sp, struct inpcb *inp, const struct mbuf *m)
 {
-	struct ipsecrequest *isr;
-	int need_auth;
+	uint32_t genid;
+	int i;
 
-	KEYDEBUG(KEYDEBUG_IPSEC_DATA,
-		printf("%s: using SP\n", __func__); kdebug_secpolicy(sp));
+	KEYDBG(IPSEC_STAMP,
+	    printf("%s: PCB(%p): using SP(%p)\n", __func__, inp, sp));
+	KEYDBG(IPSEC_DATA, kdebug_secpolicy(sp));
 
+	if (inp != NULL &&
+	    (inp->inp_sp->flags & INP_INBOUND_POLICY) == 0 &&
+	    inp->inp_sp->sp_in == NULL) {
+		/*
+		 * Save found INBOUND policy into PCB SP cache.
+		 */
+		genid = key_getspgen();
+		inp->inp_sp->sp_in = sp;
+		if (genid != inp->inp_sp->genid) {
+			/* Reset OUTBOUND cached policy if genid is changed */
+			if ((inp->inp_sp->flags & INP_OUTBOUND_POLICY) == 0)
+				inp->inp_sp->sp_out = NULL;
+			inp->inp_sp->genid = genid;
+		}
+		KEYDBG(IPSEC_STAMP,
+		    printf("%s: PCB(%p): cached SP(%p)\n",
+		    __func__, inp, sp));
+	}
 	/* Check policy. */
 	switch (sp->policy) {
 	case IPSEC_POLICY_DISCARD:
@@ -1354,47 +1421,41 @@ ipsec_in_reject(struct secpolicy *sp, const struct mbuf *m)
 	IPSEC_ASSERT(sp->policy == IPSEC_POLICY_IPSEC,
 		("invalid policy %u", sp->policy));
 
-	/* XXX Should compare policy against IPsec header history. */
-
-	need_auth = 0;
-	for (isr = sp->req; isr != NULL; isr = isr->next) {
-		if (ipsec_get_reqlevel(isr) != IPSEC_LEVEL_REQUIRE)
+	/*
+	 * ipsec[46]_common_input_cb after each transform adds
+	 * PACKET_TAG_IPSEC_IN_DONE mbuf tag. It contains SPI, proto, mode
+	 * and destination address from saidx. We can compare info from
+	 * these tags with requirements in SP.
+	 */
+	for (i = 0; i < sp->tcount; i++) {
+		/*
+		 * Do not check IPcomp, since IPcomp document
+		 * says that we shouldn't compress small packets.
+		 * IPComp policy should always be treated as being
+		 * in "use" level.
+		 */
+		if (sp->req[i]->saidx.proto == IPPROTO_IPCOMP ||
+		    ipsec_get_reqlevel(sp, i) != IPSEC_LEVEL_REQUIRE)
 			continue;
-		switch (isr->saidx.proto) {
+		if (V_check_policy_history != 0 &&
+		    ipsec_check_history(m, sp, i) != 0)
+			return (1);
+		else switch (sp->req[i]->saidx.proto) {
 		case IPPROTO_ESP:
 			if ((m->m_flags & M_DECRYPTED) == 0) {
-				KEYDEBUG(KEYDEBUG_IPSEC_DUMP,
+				KEYDBG(IPSEC_DUMP,
 				    printf("%s: ESP m_flags:%x\n", __func__,
-					    m->m_flags));
-				return (1);
-			}
-
-			if (!need_auth &&
-			    isr->sav != NULL &&
-			    isr->sav->tdb_authalgxform != NULL &&
-			    (m->m_flags & M_AUTHIPDGM) == 0) {
-				KEYDEBUG(KEYDEBUG_IPSEC_DUMP,
-				    printf("%s: ESP/AH m_flags:%x\n", __func__,
 					    m->m_flags));
 				return (1);
 			}
 			break;
 		case IPPROTO_AH:
-			need_auth = 1;
 			if ((m->m_flags & M_AUTHIPHDR) == 0) {
-				KEYDEBUG(KEYDEBUG_IPSEC_DUMP,
+				KEYDBG(IPSEC_DUMP,
 				    printf("%s: AH m_flags:%x\n", __func__,
 					    m->m_flags));
 				return (1);
 			}
-			break;
-		case IPPROTO_IPCOMP:
-			/*
-			 * We don't really care, as IPcomp document
-			 * says that we shouldn't compress small
-			 * packets.  IPComp policy should always be
-			 * treated as being in "use" level.
-			 */
 			break;
 		}
 	}

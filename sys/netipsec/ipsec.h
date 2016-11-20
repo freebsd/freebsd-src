@@ -301,18 +301,16 @@ VNET_DECLARE(int, crypto_support);
 extern	struct ipsecrequest *ipsec_newisr(void);
 extern	void ipsec_delisr(struct ipsecrequest *);
 
-struct tdb_ident;
-extern struct secpolicy *ipsec_getpolicy(struct tdb_ident*, u_int);
 struct inpcb;
-extern struct secpolicy *ipsec4_checkpolicy(const struct mbuf *, u_int,
-    int *, struct inpcb *);
+struct secpolicy *ipsec4_checkpolicy(const struct mbuf *, struct inpcb *,
+    int *);
 extern struct secpolicy * ipsec_getpolicybyaddr(const struct mbuf *, u_int,
     int *);
 
-struct inpcb;
 extern int ipsec_init_policy(struct socket *so, struct inpcbpolicy **);
 extern int ipsec_copy_policy(struct inpcbpolicy *, struct inpcbpolicy *);
-extern u_int ipsec_get_reqlevel(struct ipsecrequest *);
+
+u_int ipsec_get_reqlevel(struct secpolicy *, u_int);
 
 extern int ipsec_set_policy(struct inpcb *inp, int optname,
 	caddr_t request, size_t len, struct ucred *cred);
