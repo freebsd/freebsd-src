@@ -25,6 +25,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_platform.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -64,6 +66,17 @@ struct spigen_softc {
 	int sc_mmap_busy;
 	int sc_debug;
 };
+
+#ifdef FDT
+static void
+spigen_identify(driver_t *driver, device_t parent)
+{
+	if (device_find_child(parent, "spigen", -1) != NULL)
+		return;
+	if (BUS_ADD_CHILD(parent, 0, "spigen", -1) == NULL)
+		device_printf(parent, "add child failed\n");
+}
+#endif
 
 static int
 spigen_probe(device_t dev)
@@ -387,6 +400,9 @@ static devclass_t spigen_devclass;
 
 static device_method_t spigen_methods[] = {
 	/* Device interface */
+#ifdef FDT
+	DEVMETHOD(device_identify,	spigen_identify),
+#endif
 	DEVMETHOD(device_probe,		spigen_probe),
 	DEVMETHOD(device_attach,	spigen_attach),
 	DEVMETHOD(device_detach,	spigen_detach),
