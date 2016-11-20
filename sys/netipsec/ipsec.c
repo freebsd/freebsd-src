@@ -244,7 +244,8 @@ static int ipsec_in_reject(struct secpolicy *, const struct mbuf *);
 static int ipsec_setspidx_inpcb(const struct mbuf *, struct inpcb *);
 static int ipsec_setspidx(const struct mbuf *, struct secpolicyindex *, int);
 static void ipsec4_get_ulp(const struct mbuf *m, struct secpolicyindex *, int);
-static int ipsec4_setspidx_ipaddr(const struct mbuf *, struct secpolicyindex *);
+static void ipsec4_setspidx_ipaddr(const struct mbuf *,
+    struct secpolicyindex *);
 #ifdef INET6
 static void ipsec6_get_ulp(const struct mbuf *m, struct secpolicyindex *, int);
 static int ipsec6_setspidx_ipaddr(const struct mbuf *, struct secpolicyindex *);
@@ -645,16 +646,17 @@ ipsec_setspidx(const struct mbuf *m, struct secpolicyindex *spidx,
 	}
 }
 
+#ifdef INET
 static void
 ipsec4_get_ulp(const struct mbuf *m, struct secpolicyindex *spidx,
     int needport)
 {
-	u_int8_t nxt;
+	uint8_t nxt;
 	int off;
 
 	/* Sanity check. */
-	IPSEC_ASSERT(m != NULL, ("null mbuf"));
-	IPSEC_ASSERT(m->m_pkthdr.len >= sizeof(struct ip),("packet too short"));
+	IPSEC_ASSERT(m->m_pkthdr.len >= sizeof(struct ip),
+	    ("packet too short"));
 
 	if (m->m_len >= sizeof (struct ip)) {
 		const struct ip *ip = mtod(m, const struct ip *);
@@ -718,10 +720,12 @@ done:
 done_proto:
 	spidx->src.sin.sin_port = IPSEC_PORT_ANY;
 	spidx->dst.sin.sin_port = IPSEC_PORT_ANY;
+	KEYDBG(IPSEC_DUMP,
+	    printf("%s: ", __func__); kdebug_secpolicyindex(spidx, NULL));
 }
 
 /* Assumes that m is sane. */
-static int
+static void
 ipsec4_setspidx_ipaddr(const struct mbuf *m, struct secpolicyindex *spidx)
 {
 	static const struct sockaddr_in template = {
@@ -748,9 +752,29 @@ ipsec4_setspidx_ipaddr(const struct mbuf *m, struct secpolicyindex *spidx)
 
 	spidx->prefs = sizeof(struct in_addr) << 3;
 	spidx->prefd = sizeof(struct in_addr) << 3;
-
-	return (0);
 }
+
+static struct secpolicy *
+ipsec4_getpolicy(const struct mbuf *m, struct inpcb *inp, u_int dir)
+{
+	struct secpolicyindex spidx;
+	struct secpolicy *sp;
+
+	sp = ipsec_getpcbpolicy(inp, dir);
+	if (sp == NULL && key_havesp(dir)) {
+		/* Make an index to look for a policy. */
+		ipsec4_setspidx_ipaddr(m, &spidx);
+		/* Fill ports in spidx if we have inpcb. */
+		ipsec4_get_ulp(m, &spidx, inp != NULL);
+		spidx.dir = dir;
+		sp = key_allocsp(&spidx, dir);
+	}
+	if (sp == NULL)		/* No SP found, use system default. */
+		sp = key_allocsp_default();
+	return (sp);
+}
+
+#endif /* INET */
 
 #ifdef INET6
 static void
