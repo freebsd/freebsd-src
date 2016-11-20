@@ -834,22 +834,18 @@ static void
 ipsec6_get_ulp(const struct mbuf *m, struct secpolicyindex *spidx,
     int needport)
 {
-	int off, nxt;
 	struct tcphdr th;
 	struct udphdr uh;
 	struct icmp6_hdr ih;
+	int off, nxt;
 
-	/* Sanity check. */
-	if (m == NULL)
-		panic("%s: NULL pointer was passed.\n", __func__);
-
-	KEYDEBUG(KEYDEBUG_IPSEC_DUMP,
-		printf("%s:\n", __func__); kdebug_mbuf(m));
+	IPSEC_ASSERT(m->m_pkthdr.len >= sizeof(struct ip6_hdr),
+	    ("packet too short"));
 
 	/* Set default. */
 	spidx->ul_proto = IPSEC_ULPROTO_ANY;
-	((struct sockaddr_in6 *)&spidx->src)->sin6_port = IPSEC_PORT_ANY;
-	((struct sockaddr_in6 *)&spidx->dst)->sin6_port = IPSEC_PORT_ANY;
+	spidx->src.sin6.sin6_port = IPSEC_PORT_ANY;
+	spidx->dst.sin6.sin6_port = IPSEC_PORT_ANY;
 
 	nxt = -1;
 	off = ip6_lasthdr(m, 0, IPPROTO_IPV6, &nxt);
@@ -864,8 +860,8 @@ ipsec6_get_ulp(const struct mbuf *m, struct secpolicyindex *spidx,
 		if (off + sizeof(struct tcphdr) > m->m_pkthdr.len)
 			break;
 		m_copydata(m, off, sizeof(th), (caddr_t)&th);
-		((struct sockaddr_in6 *)&spidx->src)->sin6_port = th.th_sport;
-		((struct sockaddr_in6 *)&spidx->dst)->sin6_port = th.th_dport;
+		spidx->src.sin6.sin6_port = th.th_sport;
+		spidx->dst.sin6.sin6_port = th.th_dport;
 		break;
 	case IPPROTO_UDP:
 		spidx->ul_proto = nxt;
@@ -874,24 +870,24 @@ ipsec6_get_ulp(const struct mbuf *m, struct secpolicyindex *spidx,
 		if (off + sizeof(struct udphdr) > m->m_pkthdr.len)
 			break;
 		m_copydata(m, off, sizeof(uh), (caddr_t)&uh);
-		((struct sockaddr_in6 *)&spidx->src)->sin6_port = uh.uh_sport;
-		((struct sockaddr_in6 *)&spidx->dst)->sin6_port = uh.uh_dport;
+		spidx->src.sin6.sin6_port = uh.uh_sport;
+		spidx->dst.sin6.sin6_port = uh.uh_dport;
 		break;
 	case IPPROTO_ICMPV6:
 		spidx->ul_proto = nxt;
 		if (off + sizeof(struct icmp6_hdr) > m->m_pkthdr.len)
 			break;
 		m_copydata(m, off, sizeof(ih), (caddr_t)&ih);
-		((struct sockaddr_in6 *)&spidx->src)->sin6_port =
-		    htons((uint16_t)ih.icmp6_type);
-		((struct sockaddr_in6 *)&spidx->dst)->sin6_port =
-		    htons((uint16_t)ih.icmp6_code);
+		spidx->src.sin6.sin6_port = htons((uint16_t)ih.icmp6_type);
+		spidx->dst.sin6.sin6_port = htons((uint16_t)ih.icmp6_code);
 		break;
 	default:
 		/* XXX Intermediate headers??? */
 		spidx->ul_proto = nxt;
 		break;
 	}
+	KEYDBG(IPSEC_DUMP,
+	    printf("%s: ", __func__); kdebug_secpolicyindex(spidx, NULL));
 }
 
 /* Assumes that m is sane. */
