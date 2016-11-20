@@ -245,8 +245,8 @@ SYSCTL_VNET_PCPUSTAT(_net_inet6_ipsec6, IPSECCTL_STATS, ipsecstats,
 
 static int ipsec_in_reject(struct secpolicy *, struct inpcb *,
     const struct mbuf *);
-static int ipsec_setspidx_inpcb(const struct mbuf *, struct inpcb *);
-static int ipsec_setspidx(const struct mbuf *, struct secpolicyindex *, int);
+static void ipsec_setspidx_inpcb(struct inpcb *, struct secpolicyindex *);
+
 static void ipsec4_get_ulp(const struct mbuf *m, struct secpolicyindex *, int);
 static void ipsec4_setspidx_ipaddr(const struct mbuf *,
     struct secpolicyindex *);
@@ -551,105 +551,61 @@ ipsec_getpolicybyaddr(const struct mbuf *m, u_int dir, int *error)
 	return (sp);
 }
 
-static int
-ipsec_setspidx_inpcb(const struct mbuf *m, struct inpcb *inp)
+static void
+ipsec_setspidx_inpcb(struct inpcb *inp, struct secpolicyindex *spidx)
 {
-	int error;
 
-	IPSEC_ASSERT(inp != NULL, ("null inp"));
-	IPSEC_ASSERT(inp->inp_sp != NULL, ("null inp_sp"));
-	IPSEC_ASSERT(inp->inp_sp->sp_out != NULL && inp->inp_sp->sp_in != NULL,
-		("null sp_in || sp_out"));
-
-	error = ipsec_setspidx(m, &inp->inp_sp->sp_in->spidx, 1);
-	if (error == 0) {
-		inp->inp_sp->sp_in->spidx.dir = IPSEC_DIR_INBOUND;
-		inp->inp_sp->sp_out->spidx = inp->inp_sp->sp_in->spidx;
-		inp->inp_sp->sp_out->spidx.dir = IPSEC_DIR_OUTBOUND;
-	} else {
-		bzero(&inp->inp_sp->sp_in->spidx,
-			sizeof (inp->inp_sp->sp_in->spidx));
-		bzero(&inp->inp_sp->sp_out->spidx,
-			sizeof (inp->inp_sp->sp_in->spidx));
-	}
-	return (error);
-}
-
-/*
- * Configure security policy index (src/dst/proto/sport/dport)
- * by looking at the content of mbuf.
- * The caller is responsible for error recovery (like clearing up spidx).
- */
-static int
-ipsec_setspidx(const struct mbuf *m, struct secpolicyindex *spidx,
-    int needport)
-{
-	struct ip ipbuf;
-	const struct ip *ip = NULL;
-	const struct mbuf *n;
-	u_int v;
-	int len;
-	int error;
-
-	IPSEC_ASSERT(m != NULL, ("null mbuf"));
-
-	/*
-	 * Validate m->m_pkthdr.len.  We see incorrect length if we
-	 * mistakenly call this function with inconsistent mbuf chain
-	 * (like 4.4BSD tcp/udp processing).  XXX Should we panic here?
-	 */
-	len = 0;
-	for (n = m; n; n = n->m_next)
-		len += n->m_len;
-	if (m->m_pkthdr.len != len) {
-		KEYDEBUG(KEYDEBUG_IPSEC_DUMP,
-			printf("%s: pkthdr len(%d) mismatch (%d), ignored.\n",
-				__func__, len, m->m_pkthdr.len));
-		return (EINVAL);
-	}
-
-	if (m->m_pkthdr.len < sizeof(struct ip)) {
-		KEYDEBUG(KEYDEBUG_IPSEC_DUMP,
-			printf("%s: pkthdr len(%d) too small (v4), ignored.\n",
-			    __func__, m->m_pkthdr.len));
-		return (EINVAL);
-	}
-
-	if (m->m_len >= sizeof(*ip))
-		ip = mtod(m, const struct ip *);
-	else {
-		m_copydata(m, 0, sizeof(ipbuf), (caddr_t)&ipbuf);
-		ip = &ipbuf;
-	}
-	v = ip->ip_v;
-	switch (v) {
-	case 4:
-		error = ipsec4_setspidx_ipaddr(m, spidx);
-		if (error)
-			return (error);
-		ipsec4_get_ulp(m, spidx, needport);
-		return (0);
 #ifdef INET6
-	case 6:
-		if (m->m_pkthdr.len < sizeof(struct ip6_hdr)) {
-			KEYDEBUG(KEYDEBUG_IPSEC_DUMP,
-				printf("%s: pkthdr len(%d) too small (v6), "
-				"ignored\n", __func__, m->m_pkthdr.len));
-			return (EINVAL);
+	if (inp->inp_vflag & INP_IPV6) {
+		bzero(&spidx->src.sin6, sizeof(spidx->src.sin6));
+		spidx->src.sin6.sin6_family = AF_INET6;
+		spidx->src.sin6.sin6_len = sizeof(struct sockaddr_in6);
+		spidx->src.sin6.sin6_addr = inp->in6p_laddr;
+		spidx->src.sin6.sin6_port = inp->inp_lport;
+		if (IN6_IS_SCOPE_LINKLOCAL(&inp->in6p_laddr)) {
+			/* XXXAE: use in6p_zoneid */
+			spidx->src.sin6.sin6_addr.s6_addr16[1] = 0;
+			spidx->src.sin6.sin6_scope_id = ntohs(
+			    inp->in6p_laddr.s6_addr16[1]);
 		}
-		error = ipsec6_setspidx_ipaddr(m, spidx);
-		if (error)
-			return (error);
-		ipsec6_get_ulp(m, spidx, needport);
-		return (0);
-#endif
-	default:
-		KEYDEBUG(KEYDEBUG_IPSEC_DUMP,
-			printf("%s: " "unknown IP version %u, ignored.\n",
-				__func__, v));
-		return (EINVAL);
+		spidx->prefs = sizeof(struct in6_addr) << 3;
+
+		bzero(&spidx->dst.sin6, sizeof(spidx->dst.sin6));
+		spidx->dst.sin6.sin6_family = AF_INET6;
+		spidx->dst.sin6.sin6_len = sizeof(struct sockaddr_in6);
+		spidx->dst.sin6.sin6_addr = inp->in6p_faddr;
+		spidx->dst.sin6.sin6_port = inp->inp_fport;
+		if (IN6_IS_SCOPE_LINKLOCAL(&inp->in6p_faddr)) {
+			/* XXXAE: use in6p_zoneid */
+			spidx->dst.sin6.sin6_addr.s6_addr16[1] = 0;
+			spidx->dst.sin6.sin6_scope_id = ntohs(
+			    inp->in6p_faddr.s6_addr16[1]);
+		}
+		spidx->prefd = sizeof(struct in6_addr) << 3;
 	}
+#endif
+#ifdef INET
+	if (inp->inp_vflag & INP_IPV4) {
+		bzero(&spidx->src.sin, sizeof(spidx->src.sin));
+		spidx->src.sin.sin_family = AF_INET;
+		spidx->src.sin.sin_len = sizeof(struct sockaddr_in);
+		spidx->src.sin.sin_addr = inp->inp_laddr;
+		spidx->src.sin.sin_port = inp->inp_lport;
+		spidx->prefs = sizeof(struct in_addr) << 3;
+
+		bzero(&spidx->dst.sin, sizeof(spidx->dst.sin));
+		spidx->dst.sin.sin_family = AF_INET;
+		spidx->dst.sin.sin_len = sizeof(struct sockaddr_in);
+		spidx->dst.sin.sin_addr = inp->inp_faddr;
+		spidx->dst.sin.sin_port = inp->inp_fport;
+		spidx->prefd = sizeof(struct in_addr) << 3;
+	}
+#endif
+	spidx->ul_proto = inp->inp_ip_p;
+	KEYDBG(IPSEC_DUMP,
+	    printf("%s: ", __func__); kdebug_secpolicyindex(spidx, NULL));
 }
+
 
 #ifdef INET
 static void
