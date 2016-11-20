@@ -79,8 +79,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_carp.h>
 #ifdef IPSEC
 #include <netinet/ip_ipsec.h>
-#include <netipsec/ipsec.h>
-#include <netipsec/key.h>
 #endif /* IPSEC */
 #include <netinet/in_rss.h>
 
@@ -797,7 +795,7 @@ ours:
 	 * note that we do not visit this with protocols with pcb layer
 	 * code - like udp/tcp/raw ip.
 	 */
-	if (ip_ipsec_input(m, ip->ip_p) != 0)
+	if (IPSEC_INPUT(ipv4, m, ip->ip_p) != 0)
 		goto bad;
 #endif /* IPSEC */
 
@@ -940,24 +938,14 @@ ip_forward(struct mbuf *m, int srcrt)
 		m_freem(m);
 		return;
 	}
-#ifdef IPSEC
-	if (ip_ipsec_fwd(m) != 0) {
-		IPSTAT_INC(ips_cantforward);
-		m_freem(m);
+	if (
+#ifdef IPSTEALTH
+	    V_ipstealth == 0 &&
+#endif
+	    ip->ip_ttl <= IPTTLDEC) {
+		icmp_error(m, ICMP_TIMXCEED, ICMP_TIMXCEED_INTRANS, 0, 0);
 		return;
 	}
-#endif /* IPSEC */
-#ifdef IPSTEALTH
-	if (!V_ipstealth) {
-#endif
-		if (ip->ip_ttl <= IPTTLDEC) {
-			icmp_error(m, ICMP_TIMXCEED, ICMP_TIMXCEED_INTRANS,
-			    0, 0);
-			return;
-		}
-#ifdef IPSTEALTH
-	}
-#endif
 
 	bzero(&ro, sizeof(ro));
 	sin = (struct sockaddr_in *)&ro.ro_dst;
@@ -976,19 +964,6 @@ ip_forward(struct mbuf *m, int srcrt)
 		ifa_ref(&ia->ia_ifa);
 	} else
 		ia = NULL;
-#ifndef IPSEC
-	/*
-	 * 'ia' may be NULL if there is no route for this destination.
-	 * In case of IPsec, Don't discard it just yet, but pass it to
-	 * ip_output in case of outgoing IPsec policy.
-	 */
-	if (!srcrt && ia == NULL) {
-		icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_HOST, 0, 0);
-		RO_RTFREE(&ro);
-		return;
-	}
-#endif
-
 	/*
 	 * Save the IP header and at most 8 bytes of the payload,
 	 * in case we need to generate an ICMP message to the src.
@@ -1021,15 +996,26 @@ ip_forward(struct mbuf *m, int srcrt)
 		mcopy->m_pkthdr.len = mcopy->m_len;
 		m_copydata(m, 0, mcopy->m_len, mtod(mcopy, caddr_t));
 	}
-
 #ifdef IPSTEALTH
-	if (!V_ipstealth) {
+	if (V_ipstealth == 0)
 #endif
 		ip->ip_ttl -= IPTTLDEC;
-#ifdef IPSTEALTH
+#ifdef IPSEC
+	if (IPSEC_FORWARD(ipv4, m, &error) != 0) { /* mbuf consumed by IPsec */
+		m_freem(mcopy);
+		return;
 	}
-#endif
-
+	/*
+	 * mbuf wasn't consumed by IPsec, check error code.
+	 */
+	if (error != 0) {
+		IPSTAT_INC(ips_cantforward);
+		m_freem(m);
+		m_freem(mcopy);
+		return;
+	}
+	/* No IPsec processing required */
+#endif /* IPSEC */
 	/*
 	 * If forwarding packet using same interface that it came in on,
 	 * perhaps should send a redirect to sender to shortcut a hop.
@@ -1107,14 +1093,6 @@ ip_forward(struct mbuf *m, int srcrt)
 	case EMSGSIZE:
 		type = ICMP_UNREACH;
 		code = ICMP_UNREACH_NEEDFRAG;
-
-#ifdef IPSEC
-		/* 
-		 * If IPsec is configured for this path,
-		 * override any possibly mtu value set by ip_output.
-		 */ 
-		mtu = ip_ipsec_mtu(mcopy, mtu);
-#endif /* IPSEC */
 		/*
 		 * If the MTU was set before make sure we are below the
 		 * interface MTU.

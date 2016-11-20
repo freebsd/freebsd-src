@@ -32,11 +32,13 @@
 #ifndef _NETINET_IP_IPSEC_H_
 #define _NETINET_IP_IPSEC_H_
 
+#define	IPSEC_INPUT(sc, m, arg)		ip_ipsec_input((m), (arg))
+#define	IPSEC_FORWARD(sc, m, perr)	ip_ipsec_forward((m), (perr))
 #define	IPSEC_OUTPUT(sc, m, inp, perr)	ip_ipsec_output((m), (inp), (perr))
 
 int	ip_ipsec_filtertunnel(struct mbuf *);
-int	ip_ipsec_fwd(struct mbuf *);
 int	ip_ipsec_input(struct mbuf *, int);
 int	ip_ipsec_mtu(struct mbuf *, int);
+int	ip_ipsec_forward(struct mbuf *, int *);
 int	ip_ipsec_output(struct mbuf *, struct inpcb *, int *);
 #endif
