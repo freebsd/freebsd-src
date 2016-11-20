@@ -1229,6 +1229,24 @@ vfs_check_usecounts(struct mount *mp)
 	return (0);
 }
 
+static void
+dounmount_cleanup(struct mount *mp, struct vnode *coveredvp, int mntkflags)
+{
+
+	mtx_assert(MNT_MTX(mp), MA_OWNED);
+	mp->mnt_kern_flag &= ~mntkflags;
+	if ((mp->mnt_kern_flag & MNTK_MWAIT) != 0) {
+		mp->mnt_kern_flag &= ~MNTK_MWAIT;
+		wakeup(mp);
+	}
+	MNT_IUNLOCK(mp);
+	if (coveredvp != NULL) {
+		VOP_UNLOCK(coveredvp, 0);
+		vdrop(coveredvp);
+	}
+	vn_finished_write(mp);
+}
+
 /*
  * Do the actual filesystem unmount.
  */
@@ -1276,12 +1294,7 @@ dounmount(struct mount *mp, int flags, struct thread *td)
 	MNT_ILOCK(mp);
 	if ((mp->mnt_kern_flag & MNTK_UNMOUNT) != 0 ||
 	    !TAILQ_EMPTY(&mp->mnt_uppers)) {
-		MNT_IUNLOCK(mp);
-		if (coveredvp != NULL) {
-			VOP_UNLOCK(coveredvp, 0);
-			vdrop(coveredvp);
-		}
-		vn_finished_write(mp);
+		dounmount_cleanup(mp, coveredvp, 0);
 		return (EBUSY);
 	}
 	mp->mnt_kern_flag |= MNTK_UNMOUNT | MNTK_NOINSMNTQ;
@@ -1290,17 +1303,8 @@ dounmount(struct mount *mp, int flags, struct thread *td)
 		error = vfs_check_usecounts(mp);
 		MNT_ILOCK(mp);
 		if (error != 0) {
-			mp->mnt_kern_flag &= ~(MNTK_UNMOUNT | MNTK_NOINSMNTQ);
-			if (mp->mnt_kern_flag & MNTK_MWAIT) {
-				mp->mnt_kern_flag &= ~MNTK_MWAIT;
-				wakeup(mp);
-			}
-			MNT_IUNLOCK(mp);
-			if (coveredvp != NULL) {
-				VOP_UNLOCK(coveredvp, 0);
-				vdrop(coveredvp);
-			}
-			vn_finished_write(mp);
+			dounmount_cleanup(mp, coveredvp, MNTK_UNMOUNT |
+			    MNTK_NOINSMNTQ);
 			return (error);
 		}
 	}
