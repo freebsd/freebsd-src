@@ -1,0 +1,73 @@
+/*-
+ * Copyright (c) 2016 Jared McNeill <jmcneill@invisible.ca>
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * $FreeBSD$
+ */
+
+#include "sun8i-h3-nanopi-neo.dts"
+#include "h3.dtsi"
+
+/ {
+	vdd_cpu: reg_cpux_vset {
+		compatible = "regulator-gpio";
+
+		regulator-name = "cpux-supply";
+		regulator-min-microvolt = <1100000>;
+		regulator-max-microvolt = <1300000>;
+		regulator-boot-on;
+
+		gpios = <&r_pio 0 6 GPIO_ACTIVE_HIGH>;	/* GPIOL6 */
+		states = <1300000 0x1
+			  1100000 0x0>;
+
+		enable-active-high;
+	};
+};
+
+&r_i2c {
+	status = "okay";
+};
+
+&emac {
+        phy = <&phy1>;
+        phy-mode = "mii";
+	allwinner,use-internal-phy;
+	allwinner,leds-active-low;
+        status = "okay";
+
+        phy1: ethernet-phy@1 {
+                reg = <1>;
+        };
+};
+
+&cpu0 {
+	cpu-supply = <&vdd_cpu>;
+	operating-points = <
+		/* kHz    uV */
+		1008000 1300000
+		816000  1100000
+		480000  1100000
+		>;
+};
