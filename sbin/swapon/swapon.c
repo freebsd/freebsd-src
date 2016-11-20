@@ -176,6 +176,10 @@ main(int argc, char **argv)
 				    strstr(fsp->fs_mntops, "late") &&
 				    late == 0)
 					continue;
+				if (which_prog == SWAPOFF &&
+				    strstr(fsp->fs_mntops, "late") == NULL &&
+				    late != 0)
+					continue;
 				swfile = swap_on_off(fsp->fs_spec, 1,
 				    fsp->fs_mntops);
 				if (swfile == NULL) {

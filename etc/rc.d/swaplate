@@ -11,7 +11,7 @@
 
 name="swaplate"
 start_cmd='/sbin/swapon -aLq'
-stop_cmd='/sbin/swapoff -aq'
+stop_cmd='/sbin/swapoff -aLq'
 
 load_rc_config swap
 run_rc_command "$1"
