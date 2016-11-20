@@ -786,6 +786,13 @@ jz4780_gpio_intr(void *arg)
 	return (FILTER_HANDLED);
 }
 
+static phandle_t
+jz4780_gpio_bus_get_node(device_t bus, device_t dev)
+{
+
+	return (ofw_bus_get_node(bus));
+}
+
 static device_method_t jz4780_gpio_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		jz4780_gpio_probe),
@@ -814,6 +821,9 @@ static device_method_t jz4780_gpio_methods[] = {
 	DEVMETHOD(pic_post_filter,	jz4780_gpio_pic_post_filter),
 	DEVMETHOD(pic_post_ithread,	jz4780_gpio_pic_post_ithread),
 	DEVMETHOD(pic_pre_ithread,	jz4780_gpio_pic_pre_ithread),
+
+	/* ofw_bus interface */
+	DEVMETHOD(ofw_bus_get_node,	jz4780_gpio_bus_get_node),
 
 	DEVMETHOD_END
 };
