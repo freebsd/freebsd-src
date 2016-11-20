@@ -42,6 +42,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/fnv_hash.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/mbuf.h>
@@ -93,7 +94,6 @@
 #endif
 
 #include <netipsec/xform.h>
-
 #include <machine/stdarg.h>
 
 /* randomness */
@@ -141,8 +141,10 @@ static VNET_DEFINE(int, key_preferred_oldsa) = 1;
 static VNET_DEFINE(u_int32_t, acq_seq) = 0;
 #define	V_acq_seq		VNET(acq_seq)
 
-								/* SPD */
-static VNET_DEFINE(TAILQ_HEAD(_sptree, secpolicy), sptree[IPSEC_DIR_MAX]);
+/* SPD */
+TAILQ_HEAD(secpolicy_queue, secpolicy);
+LIST_HEAD(secpolicy_list, secpolicy);
+static VNET_DEFINE(struct secpolicy_queue, sptree[IPSEC_DIR_MAX]);
 static struct rmlock sptree_lock;
 #define	V_sptree		VNET(sptree)
 #define	SPTREE_LOCK_INIT()      rm_init(&sptree_lock, "sptree")
@@ -156,6 +158,17 @@ static struct rmlock sptree_lock;
 #define	SPTREE_WLOCK_ASSERT()   rm_assert(&sptree_lock, RA_WLOCKED)
 #define	SPTREE_UNLOCK_ASSERT()  rm_assert(&sptree_lock, RA_UNLOCKED)
 
+/* Hash table for lookup SP using unique id */
+static VNET_DEFINE(struct secpolicy_list *, sphashtbl);
+static VNET_DEFINE(u_long, sphash_mask);
+#define	V_sphashtbl		VNET(sphashtbl)
+#define	V_sphash_mask		VNET(sphash_mask)
+
+#define	SPHASH_NHASH_LOG2	7
+#define	SPHASH_NHASH		(1 << SPHASH_NHASH_LOG2)
+#define	SPHASH_HASHVAL(id)	(key_u32hash(id) & V_sphash_mask)
+#define	SPHASH_HASH(id)		&V_sphashtbl[SPHASH_HASHVAL(id)]
+
 static VNET_DEFINE(LIST_HEAD(_sahtree, secashead), sahtree);	/* SAD */
 #define	V_sahtree		VNET(sahtree)
 static struct mtx sahtree_lock;
@@ -166,6 +179,13 @@ static struct mtx sahtree_lock;
 #define	SAHTREE_LOCK()		mtx_lock(&sahtree_lock)
 #define	SAHTREE_UNLOCK()	mtx_unlock(&sahtree_lock)
 #define	SAHTREE_LOCK_ASSERT()	mtx_assert(&sahtree_lock, MA_OWNED)
+
+static uint32_t
+key_u32hash(uint32_t val)
+{
+
+	return (fnv_32_buf(&val, sizeof(val), FNV1_32_INIT));
+}
 
 							/* registed list */
 static VNET_DEFINE(LIST_HEAD(_regtree, secreg), regtree[SADB_SATYPE_MAX + 1]);
@@ -7676,6 +7696,7 @@ key_init(void)
 		TAILQ_INIT(&V_sptree[i]);
 
 	LIST_INIT(&V_sahtree);
+	V_sphashtbl = hashinit(SPHASH_NHASH, M_IPSEC_SP, &V_sphash_mask);
 
 	for (i = 0; i <= SADB_SATYPE_MAX; i++)
 		LIST_INIT(&V_regtree[i]);
@@ -7708,7 +7729,7 @@ key_init(void)
 void
 key_destroy(void)
 {
-	TAILQ_HEAD(, secpolicy) drainq;
+	struct secpolicy_queue drainq;
 	struct secpolicy *sp, *nextsp;
 	struct secacq *acq, *nextacq;
 	struct secspacq *spacq, *nextspacq;
@@ -7738,6 +7759,8 @@ key_destroy(void)
 		}
 	}
 	SAHTREE_UNLOCK();
+
+	hashdestroy(V_sphashtbl, M_IPSEC_SP, V_sphash_mask);
 
 	REGTREE_LOCK();
 	for (i = 0; i <= SADB_SATYPE_MAX; i++) {
