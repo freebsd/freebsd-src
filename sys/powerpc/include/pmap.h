@@ -74,6 +74,9 @@
 #include <machine/slb.h>
 #include <machine/tlb.h>
 
+struct pmap;
+typedef struct pmap *pmap_t;
+
 #if defined(AIM)
 
 #if !defined(NPMAPS)
@@ -81,8 +84,6 @@
 #endif /* !defined(NPMAPS) */
 
 struct	slbtnode;
-struct	pmap;
-typedef	struct pmap *pmap_t;
 
 struct pvo_entry {
 	LIST_ENTRY(pvo_entry) pvo_vlink;	/* Link to common virt page */
@@ -131,6 +132,7 @@ RB_PROTOTYPE(pvo_tree, pvo_entry, pvo_plink, pvo_vaddr_compare);
 #define	PVO_VSID(pvo)		((pvo)->pvo_vpn >> 16)
 
 struct	pmap {
+	struct		pmap_statistics	pm_stats;
 	struct	mtx	pm_mtx;
 	
     #ifdef __powerpc64__
@@ -143,7 +145,6 @@ struct	pmap {
 	cpuset_t	pm_active;
 
 	struct pmap	*pmap_phys;
-	struct		pmap_statistics	pm_stats;
 	struct pvo_tree pmap_pvo;
 };
 
@@ -182,10 +183,10 @@ void	slb_free_user_cache(struct slb **);
 #elif defined(BOOKE)
 
 struct pmap {
+	struct pmap_statistics	pm_stats;	/* pmap statistics */
 	struct mtx		pm_mtx;		/* pmap mutex */
 	tlbtid_t		pm_tid[MAXCPU];	/* TID to identify this pmap entries in TLB */
 	cpuset_t		pm_active;	/* active on cpus */
-	struct pmap_statistics	pm_stats;	/* pmap statistics */
 
 	/* Page table directory, array of pointers to page tables. */
 	pte_t			*pm_pdir[PDIR_NENTRIES];
@@ -193,7 +194,6 @@ struct pmap {
 	/* List of allocated ptbl bufs (ptbl kva regions). */
 	TAILQ_HEAD(, ptbl_buf)	pm_ptbl_list;
 };
-typedef	struct pmap *pmap_t;
 
 struct pv_entry {
 	pmap_t pv_pmap;
@@ -210,6 +210,16 @@ struct md_page {
 #define	pmap_page_get_memattr(m)	VM_MEMATTR_DEFAULT
 #define	pmap_page_is_mapped(m)	(!TAILQ_EMPTY(&(m)->md.pv_list))
 
+#else
+/*
+ * Common pmap members between AIM and BOOKE.
+ * libkvm needs pm_stats at the same location between both, as it doesn't define
+ * AIM nor BOOKE, and is expected to work across all.
+ */
+struct pmap {
+	struct pmap_statistics	pm_stats;	/* pmap statistics */
+	struct mtx		pm_mtx;		/* pmap mutex */
+};
 #endif /* AIM */
 
 extern	struct pmap kernel_pmap_store;

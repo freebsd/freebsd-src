@@ -28,10 +28,6 @@
 
 #include <sys/param.h>
 
-#define LIBMEMSTAT	/* Cause vm_page.h not to include opt_vmpage.h */
-#include <vm/vm.h>
-#include <vm/vm_page.h>
-
 #include <vm/uma.h>
 #include <vm/uma_int.h>
 
