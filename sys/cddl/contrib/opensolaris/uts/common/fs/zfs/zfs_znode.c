@@ -727,14 +727,7 @@ zfs_znode_alloc(zfsvfs_t *zfsvfs, dmu_buf_t *db, int blksz,
 	/*
 	 * Acquire vnode lock before making it available to the world.
 	 */
-#ifdef DIAGNOSTIC
-	vop_lock1_t *orig_lock = vp->v_op->vop_lock1;
-	vp->v_op->vop_lock1 = vop_stdlock;
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
-	vp->v_op->vop_lock1 = orig_lock;
-#else
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
-#endif
 	VN_LOCK_AREC(vp);
 	if (vp->v_type != VFIFO)
 		VN_LOCK_ASHARE(vp);
