@@ -464,7 +464,7 @@ static int key_spddump(struct socket *, struct mbuf *,
 	const struct sadb_msghdr *);
 static struct mbuf *key_setdumpsp(struct secpolicy *,
 	u_int8_t, u_int32_t, u_int32_t);
-static u_int key_getspreqmsglen(struct secpolicy *);
+static size_t key_getspreqmsglen(struct secpolicy *);
 static int key_spdexpire(struct secpolicy *);
 static struct secashead *key_newsah(struct secasindex *);
 static void key_delsah(struct secashead *);
@@ -2629,32 +2629,26 @@ fail:
 /*
  * get PFKEY message length for security policy and request.
  */
-static u_int
+static size_t
 key_getspreqmsglen(struct secpolicy *sp)
 {
-	u_int tlen;
+	size_t tlen, len;
+	int i;
 
 	tlen = sizeof(struct sadb_x_policy);
-
 	/* if is the policy for ipsec ? */
 	if (sp->policy != IPSEC_POLICY_IPSEC)
-		return tlen;
+		return (tlen);
 
 	/* get length of ipsec requests */
-    {
-	struct ipsecrequest *isr;
-	int len;
-
-	for (isr = sp->req; isr != NULL; isr = isr->next) {
+	for (i = 0; i < sp->tcount; i++) {
 		len = sizeof(struct sadb_x_ipsecrequest)
-			+ isr->saidx.src.sa.sa_len
-			+ isr->saidx.dst.sa.sa_len;
+			+ sp->req[i]->saidx.src.sa.sa_len
+			+ sp->req[i]->saidx.dst.sa.sa_len;
 
 		tlen += PFKEY_ALIGN8(len);
 	}
-    }
-
-	return tlen;
+	return (tlen);
 }
 
 /*
