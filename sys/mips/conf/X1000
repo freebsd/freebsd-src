@@ -87,3 +87,6 @@ device		mmcsd
 #device		ulpt		# Printer
 #device		umass		# Disks/Mass storage - Requires scbus and da
 #device		ums		# Mouse
+
+# FDT support
+options 	FDT
