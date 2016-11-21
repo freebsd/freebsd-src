@@ -41,4 +41,5 @@ int	ip_ipsec_input(struct mbuf *, int);
 int	ip_ipsec_mtu(struct mbuf *, int);
 int	ip_ipsec_forward(struct mbuf *, int *);
 int	ip_ipsec_output(struct mbuf *, struct inpcb *, int *);
+int	ip_ipsec_pcbctl(struct inpcb *, struct sockopt *);
 #endif

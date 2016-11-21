@@ -289,4 +289,16 @@ ip_ipsec_forward(struct mbuf *m, int *error)
 	return (0);
 }
 
+/*
+ * Handle IPsec related socket options.
+ * Called from ip_ctloutput().
+ */
+int
+ip_ipsec_pcbctl(struct inpcb *inp, struct sockopt *sopt)
+{
+
+	if (sopt->sopt_name != IP_IPSEC_POLICY)
+		return (ENOPROTOOPT);
+	return (ipsec_control_pcbpolicy(inp, sopt));
+}
 

@@ -295,3 +295,16 @@ ip6_ipsec_forward(struct mbuf *m, int *error)
 	}
 	return (0);
 }
+
+/*
+ * Handle IPsec related socket options.
+ * Called from ip6_ctloutput().
+ */
+int
+ip6_ipsec_pcbctl(struct inpcb *inp, struct sockopt *sopt)
+{
+
+	if (sopt->sopt_name != IPV6_IPSEC_POLICY)
+		return (ENOPROTOOPT);
+	return (ipsec_control_pcbpolicy(inp, sopt));
+}

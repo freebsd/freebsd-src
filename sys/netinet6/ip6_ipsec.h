@@ -39,4 +39,5 @@ int	ip6_ipsec_filtertunnel(struct mbuf *);
 int	ip6_ipsec_input(struct mbuf *, int);
 int	ip6_ipsec_forward(struct mbuf *, int *);
 int	ip6_ipsec_output(struct mbuf *, struct inpcb *, int *);
+int	ip6_ipsec_pcbctl(struct inpcb *, struct sockopt *);
 #endif

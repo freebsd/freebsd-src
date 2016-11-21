@@ -1183,21 +1183,8 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 
 #ifdef IPSEC
 		case IP_IPSEC_POLICY:
-		{
-			caddr_t req;
-			struct mbuf *m;
-
-			if ((error = soopt_getm(sopt, &m)) != 0) /* XXX */
-				break;
-			if ((error = soopt_mcopyin(sopt, m)) != 0) /* XXX */
-				break;
-			req = mtod(m, caddr_t);
-			error = ipsec_set_policy(inp, sopt->sopt_name, req,
-			    m->m_len, (sopt->sopt_td != NULL) ?
-			    sopt->sopt_td->td_ucred : NULL);
-			m_freem(m);
+			error = ip_ipsec_pcbctl(inp, sopt);
 			break;
-		}
 #endif /* IPSEC */
 
 		default:
@@ -1342,22 +1329,8 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 
 #ifdef IPSEC
 		case IP_IPSEC_POLICY:
-		{
-			struct mbuf *m = NULL;
-			caddr_t req = NULL;
-			size_t len = 0;
-
-			if (m != NULL) {
-				req = mtod(m, caddr_t);
-				len = m->m_len;
-			}
-			error = ipsec_get_policy(sotoinpcb(so), req, len, &m);
-			if (error == 0)
-				error = soopt_mcopyout(sopt, m); /* XXX */
-			if (error == 0)
-				m_freem(m);
+			error = ip_ipsec_pcbctl(inp, sopt);
 			break;
-		}
 #endif /* IPSEC */
 
 		default:
