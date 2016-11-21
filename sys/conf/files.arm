@@ -124,7 +124,8 @@ dev/hwpmc/hwpmc_arm.c		optional	hwpmc
 dev/hwpmc/hwpmc_armv7.c		optional	hwpmc armv6
 dev/iicbus/twsi/twsi.c		optional	twsi
 dev/ofw/ofwpci.c		optional	fdt pci
-dev/pci/pci_host_generic.c	optional	pci_host_generic pci fdt
+dev/pci/pci_host_generic.c	optional	pci_host_generic pci
+dev/pci/pci_host_generic_fdt.c	optional	pci_host_generic pci fdt
 dev/psci/psci.c			optional	psci
 dev/psci/psci_arm.S		optional	psci
 dev/syscons/scgfbrndr.c		optional	sc
