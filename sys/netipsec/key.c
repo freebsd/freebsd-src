@@ -296,6 +296,11 @@ static const int maxsize[] = {
 	sizeof(struct sadb_x_nat_t_frag),/* SADB_X_EXT_NAT_T_FRAG */
 };
 
+#define	SADB_CHECKLEN(_mhp, _ext)			\
+    ((_mhp)->extlen[(_ext)] < minsize[(_ext)] || (maxsize[(_ext)] != 0 && \
+	((_mhp)->extlen[(_ext)] > maxsize[(_ext)])))
+#define	SADB_CHECKHDR(_mhp, _ext)	((_mhp)->ext[(_ext)] == NULL)
+
 static VNET_DEFINE(int, ipsec_esp_keymin) = 256;
 static VNET_DEFINE(int, ipsec_esp_auth) = 0;
 static VNET_DEFINE(int, ipsec_ah_keymin) = 128;
