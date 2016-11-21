@@ -213,6 +213,7 @@ extern int zpool_get_state(zpool_handle_t *);
 extern const char *zpool_state_to_name(vdev_state_t, vdev_aux_t);
 extern const char *zpool_pool_state_to_name(pool_state_t);
 extern void zpool_free_handles(libzfs_handle_t *);
+extern int zpool_nextboot(libzfs_handle_t *, uint64_t, uint64_t, const char *);
 
 /*
  * Iterate over all active pools in the system.
