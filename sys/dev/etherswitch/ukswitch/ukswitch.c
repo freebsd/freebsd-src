@@ -67,6 +67,7 @@ struct ukswitch_softc {
 	int		media;		/* cpu port media */
 	int		cpuport;	/* which PHY is connected to the CPU */
 	int		phymask;	/* PHYs we manage */
+	int		phyoffset;	/* PHYs register offset */
 	int		numports;	/* number of ports */
 	int		ifpport[MII_NPHY];
 	int		*portphy;
@@ -133,7 +134,7 @@ ukswitch_attach_phys(struct ukswitch_softc *sc)
 		    M_WAITOK | M_ZERO);
 		err = mii_attach(sc->sc_dev, sc->miibus[port], sc->ifp[port],
 		    ukswitch_ifmedia_upd, ukswitch_ifmedia_sts, \
-		    BMSR_DEFCAPMASK, phy, MII_OFFSET_ANY, 0);
+		    BMSR_DEFCAPMASK, phy + sc->phyoffset, MII_OFFSET_ANY, 0);
 		DPRINTF(sc->sc_dev, "%s attached to pseudo interface %s\n",
 		    device_get_nameunit(*sc->miibus[port]),
 		    sc->ifp[port]->if_xname);
@@ -166,6 +167,7 @@ ukswitch_attach(device_t dev)
 	/* XXX Defaults */
 	sc->numports = 6;
 	sc->phymask = 0x0f;
+	sc->phyoffset = 0;
 	sc->cpuport = -1;
 	sc->media = 100;
 
@@ -173,6 +175,8 @@ ukswitch_attach(device_t dev)
 	    "numports", &sc->numports);
 	(void) resource_int_value(device_get_name(dev), device_get_unit(dev),
 	    "phymask", &sc->phymask);
+	(void) resource_int_value(device_get_name(dev), device_get_unit(dev),
+	    "phyoffset", &sc->phyoffset);
 	(void) resource_int_value(device_get_name(dev), device_get_unit(dev),
 	    "cpuport", &sc->cpuport);
 	(void) resource_int_value(device_get_name(dev), device_get_unit(dev),
