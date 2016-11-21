@@ -63,6 +63,7 @@ SUBDIR=	\
 	bwi \
 	bwn \
 	bwn_pci \
+	${_bytgpio} \
 	cam \
 	${_canbepm} \
 	${_canbus} \
@@ -551,6 +552,7 @@ _an=		an
 _aout=		aout
 _bktr=		bktr
 _bxe=		bxe
+_bytgpio=	bytgpio
 _cardbus=	cardbus
 _cbb=		cbb
 _cpuctl=	cpuctl
