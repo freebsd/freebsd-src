@@ -161,7 +161,7 @@
  * No variation between 256-bit and 128-bit CHERI for privileged capability
  * permissions -- at least, not anymore.
  */
-#define	CHERI_PERM_PRIV							\
+#define	CHERI_PERM_KERN							\
 	(CHERI_PERM_GLOBAL | CHERI_PERM_EXECUTE |			\
 	CHERI_PERM_LOAD | CHERI_PERM_STORE | CHERI_PERM_LOAD_CAP |	\
 	CHERI_PERM_STORE_CAP | CHERI_PERM_STORE_LOCAL_CAP |		\
@@ -221,14 +221,14 @@
 
 /*
  * Definition for kernel "privileged" capability able to name the entire
- * address space.  No object type is set here.
+ * address space.
  *
  * No variation required between 256-bit and 128-bit CHERI.
  */
-#define	CHERI_CAP_PRIV_PERMS		CHERI_PERM_PRIV
-#define	CHERI_CAP_PRIV_BASE		0x0
-#define	CHERI_CAP_PRIV_LENGTH		0xffffffffffffffff
-#define	CHERI_CAP_PRIV_OFFSET		0x0
+#define	CHERI_CAP_KERN_PERMS		CHERI_PERM_KERN
+#define	CHERI_CAP_KERN_BASE		0x0
+#define	CHERI_CAP_KERN_LENGTH		0xffffffffffffffff
+#define	CHERI_CAP_KERN_OFFSET		0x0
 
 #define	CHERI_CAP_KERN_TYPE_PERMS	CHERI_PERM_KERN_TYPE
 #define	CHERI_CAP_KERN_TYPE_BASE	CHERI_OTYPE_KERN_MIN
@@ -238,7 +238,7 @@
 
 /*
  * Definition for userspace "unprivileged" capability able to name the user
- * portion of the address space.  No object type is set here.
+ * portion of the address space.
  *
  * No variation required between 256-bit and 128-bit CHERI.
  */

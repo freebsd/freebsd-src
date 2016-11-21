@@ -182,11 +182,11 @@ cheri_capability_set(struct chericap *cp, uint32_t perms, void *basep,
  */
 #ifdef _UNUSED
 static void
-cheri_capability_set_priv(struct chericap *cp)
+cheri_capability_set_kern(struct chericap *cp)
 {
 
-	cheri_capability_set(cp, CHERI_CAP_PRIV_PERMS, CHERI_CAP_PRIV_BASE,
-	    CHERI_CAP_PRIV_LENGTH, CHERI_CAP_PRIV_OFFSET);
+	cheri_capability_set(cp, CHERI_CAP_KERN_PERMS, CHERI_CAP_KERN_BASE,
+	    CHERI_CAP_KERN_LENGTH, CHERI_CAP_KERN_OFFSET);
 }
 #endif
 
