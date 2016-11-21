@@ -584,31 +584,41 @@ static struct mbuf *key_setkey(struct seckey *src, u_int16_t exttype);
 static const char *key_getfqdn(void);
 static const char *key_getuserfqdn(void);
 #endif
-static void key_sa_chgstate(struct secasvar *, u_int8_t);
 
-static __inline void
-sa_initref(struct secasvar *sav)
-{
+#define	DBG_IPSEC_INITREF(t, p)	do {				\
+	refcount_init(&(p)->refcnt, 1);				\
+	KEYDBG(KEY_STAMP,					\
+	    printf("%s: Initialize refcnt %s(%p) = %u\n",	\
+	    __func__, #t, (p), (p)->refcnt));			\
+} while (0)
+#define	DBG_IPSEC_ADDREF(t, p)	do {				\
+	refcount_acquire(&(p)->refcnt);				\
+	KEYDBG(KEY_STAMP,					\
+	    printf("%s: Acquire refcnt %s(%p) -> %u\n",		\
+	    __func__, #t, (p), (p)->refcnt));			\
+} while (0)
+#define	DBG_IPSEC_DELREF(t, p)	do {				\
+	KEYDBG(KEY_STAMP,					\
+	    printf("%s: Release refcnt %s(%p) -> %u\n",		\
+	    __func__, #t, (p), (p)->refcnt - 1));		\
+	refcount_release(&(p)->refcnt);				\
+} while (0)
 
-	refcount_init(&sav->refcnt, 1);
-}
-static __inline void
-sa_addref(struct secasvar *sav)
-{
+#define	IPSEC_INITREF(t, p)	refcount_init(&(p)->refcnt, 1)
+#define	IPSEC_ADDREF(t, p)	refcount_acquire(&(p)->refcnt)
+#define	IPSEC_DELREF(t, p)	refcount_release(&(p)->refcnt)
 
-	refcount_acquire(&sav->refcnt);
-	IPSEC_ASSERT(sav->refcnt != 0, ("SA refcnt overflow"));
-}
-static __inline int
-sa_delref(struct secasvar *sav)
-{
+#define	SP_INITREF(p)	IPSEC_INITREF(SP, p)
+#define	SP_ADDREF(p)	IPSEC_ADDREF(SP, p)
+#define	SP_DELREF(p)	IPSEC_DELREF(SP, p)
 
-	IPSEC_ASSERT(sav->refcnt > 0, ("SA refcnt underflow"));
-	return (refcount_release(&sav->refcnt));
-}
+#define	SAH_INITREF(p)	IPSEC_INITREF(SAH, p)
+#define	SAH_ADDREF(p)	IPSEC_ADDREF(SAH, p)
+#define	SAH_DELREF(p)	IPSEC_DELREF(SAH, p)
 
-#define	SP_ADDREF(p)	refcount_acquire(&(p)->refcnt)
-#define	SP_DELREF(p)	refcount_release(&(p)->refcnt)
+#define	SAV_INITREF(p)	IPSEC_INITREF(SAV, p)
+#define	SAV_ADDREF(p)	IPSEC_ADDREF(SAV, p)
+#define	SAV_DELREF(p)	IPSEC_DELREF(SAV, p)
 
 /*
  * Update the refcnt while holding the SPTREE lock.
