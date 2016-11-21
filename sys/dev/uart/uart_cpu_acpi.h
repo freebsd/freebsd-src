@@ -40,6 +40,7 @@ struct uart_class;
 struct acpi_uart_compat_data {
 	const char *hid;
 	struct uart_class *clas;
+	uint16_t port_subtype;
 };
 
 /*

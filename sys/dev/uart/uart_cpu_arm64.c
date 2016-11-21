@@ -48,6 +48,12 @@ __FBSDID("$FreeBSD$");
 #include <dev/uart/uart_bus.h>
 #include <dev/uart/uart_cpu.h>
 
+#ifdef DEV_ACPI
+#include <contrib/dev/acpica/include/acpi.h>
+#include <contrib/dev/acpica/include/actables.h>
+#include <dev/uart/uart_cpu_acpi.h>
+#endif
+
 #ifdef FDT
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
@@ -72,6 +78,76 @@ uart_cpu_eqres(struct uart_bas *b1, struct uart_bas *b2)
 	return ((pmap_kextract(b1->bsh) == pmap_kextract(b2->bsh)) ? 1 : 0);
 }
 
+#ifdef DEV_ACPI
+static struct acpi_uart_compat_data *
+uart_cpu_acpi_scan(uint8_t interface_type)
+{
+	struct acpi_uart_compat_data **cd;
+
+	SET_FOREACH(cd, uart_acpi_class_and_device_set) {
+		if ((*cd)->port_subtype == interface_type)
+			return (*cd);
+	}
+
+	SET_FOREACH(cd, uart_acpi_class_set) {
+		if ((*cd)->port_subtype == interface_type)
+			return (*cd);
+	}
+
+	return (NULL);
+}
+
+static int
+uart_cpu_acpi_probe(struct uart_class **classp, bus_space_tag_t *bst,
+    bus_space_handle_t *bsh, int *baud, u_int *rclk, u_int *shiftp)
+{
+	struct acpi_uart_compat_data *cd;
+	ACPI_TABLE_SPCR *spcr;
+	vm_paddr_t spcr_physaddr;
+	int err;
+
+	err = ENXIO;
+	spcr_physaddr = acpi_find_table(ACPI_SIG_SPCR);
+	if (spcr_physaddr == 0)
+		return (ENXIO);
+
+	spcr = acpi_map_table(spcr_physaddr, ACPI_SIG_SPCR);
+
+	cd = uart_cpu_acpi_scan(spcr->InterfaceType);
+	if (cd == NULL)
+		goto out;
+
+	switch(spcr->BaudRate) {
+	case 3:
+		*baud = 9600;
+		break;
+	case 4:
+		*baud = 19200;
+		break;
+	case 6:
+		*baud = 57600;
+		break;
+	case 7:
+		*baud = 115200;
+		break;
+	default:
+		goto out;
+	}
+
+	err = acpi_map_addr(&spcr->SerialPort, bst, bsh, PAGE_SIZE);
+	if (err != 0)
+		goto out;
+
+	*classp = cd->clas;
+	*rclk = 0;
+	*shiftp = 2;
+
+out:
+	acpi_unmap_table(spcr);
+	return (err);
+}
+#endif
+
 int
 uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 {
@@ -91,8 +167,14 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 		return (ENXIO);
 
 	err = ENXIO;
+#ifdef DEV_ACPI
+	err = uart_cpu_acpi_probe(&class, &bst, &bsh, &br, &rclk, &shift);
+#endif
 #ifdef FDT
-	err = uart_cpu_fdt_probe(&class, &bst, &bsh, &br, &rclk, &shift);
+	if (err != 0) {
+		err = uart_cpu_fdt_probe(&class, &bst, &bsh, &br, &rclk,
+		    &shift);
+	}
 #endif
 	if (err != 0)
 		return (err);

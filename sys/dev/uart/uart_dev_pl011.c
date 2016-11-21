@@ -38,14 +38,17 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_cpu.h>
-#ifdef DEV_ACPI
-#include <dev/uart/uart_cpu_acpi.h>
-#endif
 #ifdef FDT
 #include <dev/uart/uart_cpu_fdt.h>
 #endif
 #include <dev/uart/uart_bus.h>
 #include "uart_if.h"
+
+#ifdef DEV_ACPI
+#include <dev/uart/uart_cpu_acpi.h>
+#include <contrib/dev/acpica/include/acpi.h>
+#include <contrib/dev/acpica/include/actables.h>
+#endif
 
 #include <sys/kdb.h>
 
@@ -296,8 +299,8 @@ UART_FDT_CLASS_AND_DEVICE(compat_data);
 
 #ifdef DEV_ACPI
 static struct acpi_uart_compat_data acpi_compat_data[] = {
-	{"ARMH0011", &uart_pl011_class},
-	{NULL, NULL},
+	{"ARMH0011", &uart_pl011_class, ACPI_DBG2_ARM_PL011},
+	{NULL, NULL, 0},
 };
 UART_ACPI_CLASS_AND_DEVICE(acpi_compat_data);
 #endif
