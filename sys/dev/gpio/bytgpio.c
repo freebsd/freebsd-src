@@ -86,6 +86,7 @@ struct bytgpio_softc {
 
 static int	bytgpio_probe(device_t dev);
 static int	bytgpio_attach(device_t dev);
+static int	bytgpio_detach(device_t dev);
 
 #define	SCORE_UID		1
 #define	SCORE_BANK_PREFIX	"GPIO_S0_SC"
@@ -567,6 +568,8 @@ bytgpio_attach(device_t dev)
 		return (ENXIO);
 	}
 
+	BYTGPIO_LOCK_INIT(sc);
+
 	switch (uid) {
 	case SCORE_UID:
 		sc->sc_npins = SCORE_PINS;
@@ -599,8 +602,6 @@ bytgpio_attach(device_t dev)
 		goto error;
 	}
 
-	BYTGPIO_LOCK_INIT(sc);
-
 	for (pin = 0; pin < sc->sc_npins; pin++) {
 	    reg = BYGPIO_PIN_REGISTER(sc, pin, BYTGPIO_PCONF0);
 	    val = bytgpio_read_4(sc, reg);
@@ -618,13 +619,39 @@ bytgpio_attach(device_t dev)
 	return (0);
 
 error:
+	BYTGPIO_LOCK_DESTROY(sc);
+
 	return (ENXIO);
+}
+
+
+static int
+bytgpio_detach(device_t dev)
+{
+	struct bytgpio_softc	*sc;
+
+	sc = device_get_softc(dev);
+
+	if (sc->sc_busdev)
+		gpiobus_detach_bus(dev);
+
+	BYTGPIO_LOCK_DESTROY(sc);
+
+	if (sc->sc_pad_funcs)
+		free(sc->sc_pad_funcs, M_DEVBUF);
+
+	if (sc->sc_mem_res != NULL)
+		bus_release_resource(dev, SYS_RES_MEMORY,
+		    sc->sc_mem_rid, sc->sc_mem_res);
+
+	return (0);
 }
 
 static device_method_t bytgpio_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe, bytgpio_probe),
 	DEVMETHOD(device_attach, bytgpio_attach),
+	DEVMETHOD(device_detach, bytgpio_detach),
 
 	/* GPIO protocol */
 	DEVMETHOD(gpio_get_bus, bytgpio_get_bus),
@@ -649,4 +676,4 @@ static driver_t bytgpio_driver = {
 static devclass_t bytgpio_devclass;
 DRIVER_MODULE(bytgpio, acpi, bytgpio_driver, bytgpio_devclass, 0, 0);
 MODULE_DEPEND(bytgpio, acpi, 1, 1, 1);
-MODULE_DEPEND(bytgpio, gpio, 1, 1, 1);
+MODULE_DEPEND(bytgpio, gpiobus, 1, 1, 1);
