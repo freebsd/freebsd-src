@@ -162,6 +162,8 @@ typedef enum {
 
 extern int vdev_label_init(vdev_t *vd, uint64_t txg, vdev_labeltype_t reason);
 
+extern int vdev_label_write_pad2(vdev_t *vd, const char *buf, size_t size);
+
 #ifdef	__cplusplus
 }
 #endif

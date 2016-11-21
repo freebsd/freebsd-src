@@ -40,9 +40,9 @@ struct dsk {
 };
 
 int drvread(struct dsk *dskp, void *buf, daddr_t lba, unsigned nblk);
-#ifdef GPT
+#if defined(GPT) || defined(ZFS)
 int drvwrite(struct dsk *dskp, void *buf, daddr_t lba, unsigned nblk);
 uint64_t drvsize(struct dsk *dskp);
-#endif	/* GPT */
+#endif	/* GPT || ZFS */
 
 #endif	/* !_DRV_H_ */
