@@ -42,6 +42,7 @@ SUBDIR=	\
 	${_apm} \
 	${_arcmsr} \
 	${_arcnet} \
+	${_armv8crypto} \
 	${_asmc} \
 	ata \
 	ath \
@@ -539,6 +540,7 @@ _cxgb=		cxgb
 .endif
 
 .if ${MACHINE_CPUARCH} == "aarch64"
+_armv8crypto=	armv8crypto
 _em=		em
 _igb=		igb
 .endif

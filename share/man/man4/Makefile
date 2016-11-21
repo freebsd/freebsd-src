@@ -53,6 +53,7 @@ MAN=	aac.4 \
 	${_aout.4} \
 	${_apic.4} \
 	arcmsr.4 \
+	${_armv8crypto.4} \
 	${_asmc.4} \
 	ata.4 \
 	ath.4 \
@@ -745,6 +746,10 @@ MLINKS+=${_wpi.4} ${_if_wpi.4}
 MLINKS+=xe.4 if_xe.4
 MLINKS+=xl.4 if_xl.4
 MLINKS+=zyd.4 if_zyd.4
+
+.if ${MACHINE_CPUARCH} == "aarch64"
+_armv8crypto.4=	armv8crypto.4
+.endif
 
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
 _acpi_asus.4=	acpi_asus.4
