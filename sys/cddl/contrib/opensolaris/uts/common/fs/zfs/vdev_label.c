@@ -857,6 +857,44 @@ retry:
 	return (error);
 }
 
+int
+vdev_label_write_pad2(vdev_t *vd, const char *buf, size_t size)
+{
+	spa_t *spa = vd->vdev_spa;
+	zio_t *zio;
+	char *pad2;
+	int flags = ZIO_FLAG_CONFIG_WRITER | ZIO_FLAG_CANFAIL;
+	int error;
+
+	if (size > VDEV_PAD_SIZE)
+		return (EINVAL);
+
+	if (!vd->vdev_ops->vdev_op_leaf)
+		return (ENODEV);
+	if (vdev_is_dead(vd))
+		return (ENXIO);
+
+	ASSERT(spa_config_held(spa, SCL_ALL, RW_WRITER) == SCL_ALL);
+
+	pad2 = zio_buf_alloc(VDEV_PAD_SIZE);
+	bzero(pad2, VDEV_PAD_SIZE);
+	memcpy(pad2, buf, size);
+
+retry:
+	zio = zio_root(spa, NULL, NULL, flags);
+	vdev_label_write(zio, vd, 0, pad2,
+	    offsetof(vdev_label_t, vl_pad2),
+	    VDEV_PAD_SIZE, NULL, NULL, flags);
+	error = zio_wait(zio);
+	if (error != 0 && !(flags & ZIO_FLAG_TRYHARD)) {
+		flags |= ZIO_FLAG_TRYHARD;
+		goto retry;
+	}
+
+	zio_buf_free(pad2, VDEV_PAD_SIZE);
+	return (error);
+}
+
 /*
  * ==========================================================================
  * uberblock load/sync

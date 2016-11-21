@@ -117,6 +117,7 @@ struct dmadat {
 static struct dmadat *dmadat;
 
 void exit(int);
+void reboot(void);
 static void load(void);
 static int parse(void);
 static void bios_getmem(void);
@@ -158,7 +159,7 @@ zfs_read(spa_t *spa, const dnode_phys_t *dnode, off_t *offp, void *start, size_t
 	n = size;
 	if (*offp + n > zp->zp_size)
 		n = zp->zp_size - *offp;
-	
+
 	rc = dnode_read(spa, dnode, *offp, start, n);
 	if (rc)
 		return (-1);
@@ -208,6 +209,35 @@ vdev_read(vdev_t *vdev, void *priv, off_t off, void *buf, size_t bytes)
 }
 
 static int
+vdev_write(vdev_t *vdev, void *priv, off_t off, void *buf, size_t bytes)
+{
+	char *p;
+	daddr_t lba;
+	unsigned int nb;
+	struct dsk *dsk = (struct dsk *) priv;
+
+	if ((off & (DEV_BSIZE - 1)) || (bytes & (DEV_BSIZE - 1)))
+		return -1;
+
+	p = buf;
+	lba = off / DEV_BSIZE;
+	lba += dsk->start;
+	while (bytes > 0) {
+		nb = bytes / DEV_BSIZE;
+		if (nb > READ_BUF_SIZE / DEV_BSIZE)
+			nb = READ_BUF_SIZE / DEV_BSIZE;
+		memcpy(dmadat->rdbuf, p, nb * DEV_BSIZE);
+		if (drvwrite(dsk, dmadat->rdbuf, lba, nb))
+			return -1;
+		p += nb * DEV_BSIZE;
+		lba += nb;
+		bytes -= nb * DEV_BSIZE;
+	}
+
+	return 0;
+}
+
+static int
 xfsread(const dnode_phys_t *dnode, off_t *offp, void *buf, size_t nbyte)
 {
     if ((size_t)zfs_read(spa, dnode, offp, buf, nbyte) != nbyte) {
@@ -215,6 +245,52 @@ xfsread(const dnode_phys_t *dnode, off_t *offp, void *buf, size_t nbyte)
 	return -1;
     }
     return 0;
+}
+
+/*
+ * Read Pad2 (formerly "Boot Block Header") area of the first
+ * vdev label of the given vdev.
+ */
+static int
+vdev_read_pad2(vdev_t *vdev, char *buf, size_t size)
+{
+	blkptr_t bp;
+	char *tmp = zap_scratch;
+	off_t off = offsetof(vdev_label_t, vl_pad2);
+
+	if (size > VDEV_PAD_SIZE)
+		size = VDEV_PAD_SIZE;
+
+	BP_ZERO(&bp);
+	BP_SET_LSIZE(&bp, VDEV_PAD_SIZE);
+	BP_SET_PSIZE(&bp, VDEV_PAD_SIZE);
+	BP_SET_CHECKSUM(&bp, ZIO_CHECKSUM_LABEL);
+	BP_SET_COMPRESS(&bp, ZIO_COMPRESS_OFF);
+	DVA_SET_OFFSET(BP_IDENTITY(&bp), off);
+	if (vdev_read_phys(vdev, &bp, tmp, off, 0))
+		return (EIO);
+	memcpy(buf, tmp, size);
+	return (0);
+}
+
+static int
+vdev_clear_pad2(vdev_t *vdev)
+{
+	char *zeroes = zap_scratch;
+	uint64_t *end;
+	off_t off = offsetof(vdev_label_t, vl_pad2);
+
+	memset(zeroes, 0, VDEV_PAD_SIZE);
+	end = (uint64_t *)(zeroes + VDEV_PAD_SIZE);
+	/* ZIO_CHECKSUM_LABEL magic and pre-calcualted checksum for all zeros */
+	end[-5] = 0x0210da7ab10c7a11;
+	end[-4] = 0x97f48f807f6e2a3f;
+	end[-3] = 0xaf909f1658aacefc;
+	end[-2] = 0xcbd1ea57ff6db48b;
+	end[-1] = 0x6ec692db0d465fab;
+	if (vdev_write(vdev, vdev->v_read_priv, off, zeroes, VDEV_PAD_SIZE))
+		return (EIO);
+	return (0);
 }
 
 static void
@@ -431,10 +507,12 @@ trymbr:
 int
 main(void)
 {
-    int autoboot, i;
     dnode_phys_t dn;
     off_t off;
     struct dsk *dsk;
+    int autoboot, i;
+    int nextboot;
+    int rc;
 
     dmadat = (void *)(roundup2(__base + (int32_t)&_end, 0x10000) - __base);
 
@@ -520,7 +598,39 @@ main(void)
     primary_spa = spa;
     primary_vdev = spa_get_primary_vdev(spa);
 
-    if (zfs_spa_init(spa) != 0 || zfs_mount(spa, 0, &zfsmount) != 0) {
+    nextboot = 0;
+    rc  = vdev_read_pad2(primary_vdev, cmd, sizeof(cmd));
+    if (vdev_clear_pad2(primary_vdev))
+	printf("failed to clear pad2 area of primary vdev\n");
+    if (rc == 0) {
+	if (*cmd) {
+	    /*
+	     * We could find an old-style ZFS Boot Block header here.
+	     * Simply ignore it.
+	     */
+	    if (*(uint64_t *)cmd != 0x2f5b007b10c) {
+		/*
+		 * Note that parse() is destructive to cmd[] and we also want
+		 * to honor RBX_QUIET option that could be present in cmd[].
+		 */
+		nextboot = 1;
+		memcpy(cmddup, cmd, sizeof(cmd));
+		if (parse()) {
+		    printf("failed to parse pad2 area of primary vdev\n");
+		    reboot();
+		}
+		if (!OPT_CHECK(RBX_QUIET))
+		    printf("zfs nextboot: %s\n", cmddup);
+	    }
+	    /* Do not process this command twice */
+	    *cmd = 0;
+	}
+    } else
+	printf("failed to read pad2 area of primary vdev\n");
+
+    /* Mount ZFS only if it's not already mounted via nextboot parsing. */
+    if (zfsmount.spa == NULL &&
+	(zfs_spa_init(spa) != 0 || zfs_mount(spa, 0, &zfsmount) != 0)) {
 	printf("%s: failed to mount default pool %s\n",
 	    BOOTPROG, spa->spa_name);
 	autoboot = 0;
@@ -543,6 +653,10 @@ main(void)
 	/* Do not process this command twice */
 	*cmd = 0;
     }
+
+    /* Do not risk waiting at the prompt forever. */
+    if (nextboot && !autoboot)
+	reboot();
 
     /*
      * Try to exec /boot/loader. If interrupted by a keypress,
@@ -593,6 +707,13 @@ main(void)
 void
 exit(int x)
 {
+    __exit(x);
+}
+
+void
+reboot(void)
+{
+    __exit(0);
 }
 
 static void

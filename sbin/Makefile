@@ -73,6 +73,7 @@ SUBDIR=adjkerntz \
 .if ${MK_ATM} != "no"
 SUBDIR+=	atm
 .endif
+SUBDIR.${MK_ZFS}+=	zfsbootcfg
 
 .if ${MK_CCD} != "no"
 SUBDIR+=	ccdconfig
