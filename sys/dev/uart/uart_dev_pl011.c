@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #ifdef DEV_ACPI
 #include <dev/uart/uart_cpu_acpi.h>
 #include <contrib/dev/acpica/include/acpi.h>
+#include <contrib/dev/acpica/include/accommon.h>
 #include <contrib/dev/acpica/include/actables.h>
 #endif
 
