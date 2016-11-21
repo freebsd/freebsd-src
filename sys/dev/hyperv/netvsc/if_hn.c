@@ -149,7 +149,11 @@ __FBSDID("$FreeBSD$");
 	sx_init(&(sc)->hn_lock, device_get_nameunit((sc)->hn_dev))
 #define HN_LOCK_DESTROY(sc)		sx_destroy(&(sc)->hn_lock)
 #define HN_LOCK_ASSERT(sc)		sx_assert(&(sc)->hn_lock, SA_XLOCKED)
-#define HN_LOCK(sc)			sx_xlock(&(sc)->hn_lock)
+#define HN_LOCK(sc)					\
+do {							\
+	while (sx_try_xlock(&(sc)->hn_lock) == 0)	\
+		DELAY(1000);				\
+} while (0)
 #define HN_UNLOCK(sc)			sx_xunlock(&(sc)->hn_lock)
 
 #define HN_CSUM_IP_MASK			(CSUM_IP | CSUM_IP_TCP | CSUM_IP_UDP)
@@ -667,18 +671,10 @@ hn_set_rxfilter(struct hn_softc *sc)
 		filter = NDIS_PACKET_TYPE_DIRECTED;
 		if (ifp->if_flags & IFF_BROADCAST)
 			filter |= NDIS_PACKET_TYPE_BROADCAST;
-#ifdef notyet
-		/*
-		 * See the comment in SIOCADDMULTI/SIOCDELMULTI.
-		 */
 		/* TODO: support multicast list */
 		if ((ifp->if_flags & IFF_ALLMULTI) ||
 		    !TAILQ_EMPTY(&ifp->if_multiaddrs))
 			filter |= NDIS_PACKET_TYPE_ALL_MULTICAST;
-#else
-		/* Always enable ALLMULTI */
-		filter |= NDIS_PACKET_TYPE_ALL_MULTICAST;
-#endif
 	}
 
 	if (sc->hn_rx_filter != filter) {
@@ -2338,10 +2334,18 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		}
 
 		if (ifp->if_flags & IFF_UP) {
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+				/*
+				 * Caller meight hold mutex, e.g.
+				 * bpf; use busy-wait for the RNDIS
+				 * reply.
+				 */
+				HN_NO_SLEEPING(sc);
 				hn_set_rxfilter(sc);
-			else
+				HN_SLEEPING_OK(sc);
+			} else {
 				hn_init_locked(sc);
+			}
 		} else {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				hn_stop(sc);
@@ -2402,27 +2406,23 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
-#ifdef notyet
-		/*
-		 * XXX
-		 * Multicast uses mutex, while RNDIS RX filter setting
-		 * sleeps.  We workaround this by always enabling
-		 * ALLMULTI.  ALLMULTI would actually always be on, even
-		 * if we supported the SIOCADDMULTI/SIOCDELMULTI, since
-		 * we don't support multicast address list configuration
-		 * for this driver.
-		 */
 		HN_LOCK(sc);
 
 		if ((sc->hn_flags & HN_FLAG_SYNTH_ATTACHED) == 0) {
 			HN_UNLOCK(sc);
 			break;
 		}
-		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+			/*
+			 * Multicast uses mutex; use busy-wait for
+			 * the RNDIS reply.
+			 */
+			HN_NO_SLEEPING(sc);
 			hn_set_rxfilter(sc);
+			HN_SLEEPING_OK(sc);
+		}
 
 		HN_UNLOCK(sc);
-#endif
 		break;
 
 	case SIOCSIFMEDIA:
