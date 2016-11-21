@@ -10,7 +10,6 @@ categories = [ base ]
 maintainer = "re@FreeBSD.org"
 www = "https://www.FreeBSD.org"
 prefix = "/"
-vital = true
 licenselogic = "single"
 licenses = [ BSD2CLAUSE ]
 desc = <<EOD
