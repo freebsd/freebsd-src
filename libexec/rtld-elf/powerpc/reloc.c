@@ -620,7 +620,7 @@ init_pltgot(Obj_Entry *obj)
 }
 
 void
-ifunc_init(Elf_Auxinfo aux_info[static AT_COUNT] __unused)
+ifunc_init(Elf_Auxinfo aux_info[__min_size(AT_COUNT)] __unused)
 {
 }
 
