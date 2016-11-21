@@ -159,10 +159,22 @@ __FBSDID("$FreeBSD$");
 #define HN_CSUM_IP6_HWASSIST(sc)	\
 	((sc)->hn_tx_ring[0].hn_csum_assist & HN_CSUM_IP6_MASK)
 
+#define HN_PKTSIZE_MIN(align)		\
+	roundup2(ETHER_MIN_LEN + ETHER_VLAN_ENCAP_LEN - ETHER_CRC_LEN + \
+	    HN_RNDIS_PKT_LEN, (align))
+#define HN_PKTSIZE(m, align)		\
+	roundup2((m)->m_pkthdr.len + HN_RNDIS_PKT_LEN, (align))
+
 struct hn_txdesc {
 #ifndef HN_USE_TXDESC_BUFRING
 	SLIST_ENTRY(hn_txdesc)		link;
 #endif
+	STAILQ_ENTRY(hn_txdesc)		agg_link;
+
+	/* Aggregated txdescs, in sending order. */
+	STAILQ_HEAD(, hn_txdesc)	agg_list;
+
+	/* The oldest packet, if transmission aggregation happens. */
 	struct mbuf			*m;
 	struct hn_tx_ring		*txr;
 	int				refs;
@@ -180,6 +192,7 @@ struct hn_txdesc {
 
 #define HN_TXD_FLAG_ONLIST		0x0001
 #define HN_TXD_FLAG_DMAMAP		0x0002
+#define HN_TXD_FLAG_ONAGG		0x0004
 
 struct hn_rxinfo {
 	uint32_t			vlan_info;
@@ -259,6 +272,10 @@ static int			hn_rxfilter_sysctl(SYSCTL_HANDLER_ARGS);
 static int			hn_rss_key_sysctl(SYSCTL_HANDLER_ARGS);
 static int			hn_rss_ind_sysctl(SYSCTL_HANDLER_ARGS);
 static int			hn_rss_hash_sysctl(SYSCTL_HANDLER_ARGS);
+static int			hn_txagg_size_sysctl(SYSCTL_HANDLER_ARGS);
+static int			hn_txagg_pkts_sysctl(SYSCTL_HANDLER_ARGS);
+static int			hn_txagg_pktmax_sysctl(SYSCTL_HANDLER_ARGS);
+static int			hn_txagg_align_sysctl(SYSCTL_HANDLER_ARGS);
 
 static void			hn_stop(struct hn_softc *);
 static void			hn_init_locked(struct hn_softc *);
@@ -306,7 +323,7 @@ static int			hn_create_tx_data(struct hn_softc *, int);
 static void			hn_fixup_tx_data(struct hn_softc *);
 static void			hn_destroy_tx_data(struct hn_softc *);
 static void			hn_txdesc_dmamap_destroy(struct hn_txdesc *);
-static int			hn_encap(struct hn_tx_ring *,
+static int			hn_encap(struct ifnet *, struct hn_tx_ring *,
 				    struct hn_txdesc *, struct mbuf **);
 static int			hn_txpkt(struct ifnet *, struct hn_tx_ring *,
 				    struct hn_txdesc *);
@@ -315,6 +332,10 @@ static void			hn_set_tso_maxsize(struct hn_softc *, int, int);
 static bool			hn_tx_ring_pending(struct hn_tx_ring *);
 static void			hn_tx_ring_qflush(struct hn_tx_ring *);
 static void			hn_resume_tx(struct hn_softc *, int);
+static void			hn_set_txagg(struct hn_softc *);
+static void			*hn_try_txagg(struct ifnet *,
+				    struct hn_tx_ring *, struct hn_txdesc *,
+				    int);
 static int			hn_get_txswq_depth(const struct hn_tx_ring *);
 static void			hn_txpkt_done(struct hn_nvs_sendctx *,
 				    struct hn_softc *, struct vmbus_channel *,
@@ -429,6 +450,16 @@ static u_int			hn_lro_mbufq_depth = 0;
 SYSCTL_UINT(_hw_hn, OID_AUTO, lro_mbufq_depth, CTLFLAG_RDTUN,
     &hn_lro_mbufq_depth, 0, "Depth of LRO mbuf queue");
 #endif
+
+/* Packet transmission aggregation size limit */
+static int			hn_tx_agg_size = -1;
+SYSCTL_INT(_hw_hn, OID_AUTO, tx_agg_size, CTLFLAG_RDTUN,
+    &hn_tx_agg_size, 0, "Packet transmission aggregation size limit");
+
+/* Packet transmission aggregation count limit */
+static int			hn_tx_agg_pkts = 0;
+SYSCTL_INT(_hw_hn, OID_AUTO, tx_agg_pkts, CTLFLAG_RDTUN,
+    &hn_tx_agg_pkts, 0, "Packet transmission aggregation packet limit");
 
 static u_int			hn_cpu_index;	/* next CPU for channel */
 static struct taskqueue		*hn_tx_taskq;	/* shared TX taskqueue */
@@ -658,6 +689,84 @@ hn_set_rxfilter(struct hn_softc *sc)
 	return (error);
 }
 
+static void
+hn_set_txagg(struct hn_softc *sc)
+{
+	uint32_t size, pkts;
+	int i;
+
+	/*
+	 * Setup aggregation size.
+	 */
+	if (sc->hn_agg_size < 0)
+		size = UINT32_MAX;
+	else
+		size = sc->hn_agg_size;
+
+	if (sc->hn_rndis_agg_size < size)
+		size = sc->hn_rndis_agg_size;
+
+	if (size <= 2 * HN_PKTSIZE_MIN(sc->hn_rndis_agg_align)) {
+		/* Disable */
+		size = 0;
+		pkts = 0;
+		goto done;
+	}
+
+	/* NOTE: Type of the per TX ring setting is 'int'. */
+	if (size > INT_MAX)
+		size = INT_MAX;
+
+	/* NOTE: We only aggregate packets using chimney sending buffers. */
+	if (size > (uint32_t)sc->hn_chim_szmax)
+		size = sc->hn_chim_szmax;
+
+	/*
+	 * Setup aggregation packet count.
+	 */
+	if (sc->hn_agg_pkts < 0)
+		pkts = UINT32_MAX;
+	else
+		pkts = sc->hn_agg_pkts;
+
+	if (sc->hn_rndis_agg_pkts < pkts)
+		pkts = sc->hn_rndis_agg_pkts;
+
+	if (pkts <= 1) {
+		/* Disable */
+		size = 0;
+		pkts = 0;
+		goto done;
+	}
+
+	/* NOTE: Type of the per TX ring setting is 'short'. */
+	if (pkts > SHRT_MAX)
+		pkts = SHRT_MAX;
+
+done:
+	/* NOTE: Type of the per TX ring setting is 'short'. */
+	if (sc->hn_rndis_agg_align > SHRT_MAX) {
+		/* Disable */
+		size = 0;
+		pkts = 0;
+	}
+
+	if (bootverbose) {
+		if_printf(sc->hn_ifp, "TX agg size %u, pkts %u, align %u\n",
+		    size, pkts, sc->hn_rndis_agg_align);
+	}
+
+	for (i = 0; i < sc->hn_tx_ring_cnt; ++i) {
+		struct hn_tx_ring *txr = &sc->hn_tx_ring[i];
+
+		mtx_lock(&txr->hn_tx_lock);
+		txr->hn_agg_szmax = size;
+		txr->hn_agg_pktmax = pkts;
+		txr->hn_agg_align = sc->hn_rndis_agg_align;
+		mtx_unlock(&txr->hn_tx_lock);
+	}
+}
+
 static int
 hn_get_txswq_depth(const struct hn_tx_ring *txr)
 {
@@ -783,6 +892,12 @@ hn_attach(device_t dev)
 	sc->hn_dev = dev;
 	sc->hn_prichan = vmbus_get_channel(dev);
 	HN_LOCK_INIT(sc);
+
+	/*
+	 * Initialize these tunables once.
+	 */
+	sc->hn_agg_size = hn_tx_agg_size;
+	sc->hn_agg_pkts = hn_tx_agg_pkts;
 
 	/*
 	 * Setup taskqueue for transmission.
@@ -939,6 +1054,24 @@ hn_attach(device_t dev)
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "rss_ind",
 	    CTLTYPE_OPAQUE | CTLFLAG_RW | CTLFLAG_MPSAFE, sc, 0,
 	    hn_rss_ind_sysctl, "IU", "RSS indirect table");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "rndis_agg_size",
+	    CTLFLAG_RD, &sc->hn_rndis_agg_size, 0,
+	    "RNDIS offered packet transmission aggregation size limit");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "rndis_agg_pkts",
+	    CTLFLAG_RD, &sc->hn_rndis_agg_pkts, 0,
+	    "RNDIS offered packet transmission aggregation count limit");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "rndis_agg_align",
+	    CTLFLAG_RD, &sc->hn_rndis_agg_align, 0,
+	    "RNDIS packet transmission aggregation alignment");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "agg_size",
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, sc, 0,
+	    hn_txagg_size_sysctl, "I",
+	    "Packet transmission aggregation size, 0 -- disable, -1 -- auto");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "agg_pkts",
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, sc, 0,
+	    hn_txagg_pkts_sysctl, "I",
+	    "Packet transmission aggregation packets, "
+	    "0 -- disable, -1 -- auto");
 
 	/*
 	 * Setup the ifmedia, which has been initialized earlier.
@@ -1189,16 +1322,45 @@ hn_txdesc_put(struct hn_tx_ring *txr, struct hn_txdesc *txd)
 
 	KASSERT((txd->flags & HN_TXD_FLAG_ONLIST) == 0,
 	    ("put an onlist txd %#x", txd->flags));
+	KASSERT((txd->flags & HN_TXD_FLAG_ONAGG) == 0,
+	    ("put an onagg txd %#x", txd->flags));
 
 	KASSERT(txd->refs > 0, ("invalid txd refs %d", txd->refs));
 	if (atomic_fetchadd_int(&txd->refs, -1) != 1)
 		return 0;
+
+	if (!STAILQ_EMPTY(&txd->agg_list)) {
+		struct hn_txdesc *tmp_txd;
+
+		while ((tmp_txd = STAILQ_FIRST(&txd->agg_list)) != NULL) {
+			int freed;
+
+			KASSERT(STAILQ_EMPTY(&tmp_txd->agg_list),
+			    ("resursive aggregation on aggregated txdesc"));
+			KASSERT((tmp_txd->flags & HN_TXD_FLAG_ONAGG),
+			    ("not aggregated txdesc"));
+			KASSERT((tmp_txd->flags & HN_TXD_FLAG_DMAMAP) == 0,
+			    ("aggregated txdesc uses dmamap"));
+			KASSERT(tmp_txd->chim_index == HN_NVS_CHIM_IDX_INVALID,
+			    ("aggregated txdesc consumes "
+			     "chimney sending buffer"));
+			KASSERT(tmp_txd->chim_size == 0,
+			    ("aggregated txdesc has non-zero "
+			     "chimney sending size"));
+
+			STAILQ_REMOVE_HEAD(&txd->agg_list, agg_link);
+			tmp_txd->flags &= ~HN_TXD_FLAG_ONAGG;
+			freed = hn_txdesc_put(txr, tmp_txd);
+			KASSERT(freed, ("failed to free aggregated txdesc"));
+		}
+	}
 
 	if (txd->chim_index != HN_NVS_CHIM_IDX_INVALID) {
 		KASSERT((txd->flags & HN_TXD_FLAG_DMAMAP) == 0,
 		    ("chim txd uses dmamap"));
 		hn_chim_free(txr->hn_sc, txd->chim_index);
 		txd->chim_index = HN_NVS_CHIM_IDX_INVALID;
+		txd->chim_size = 0;
 	} else if (txd->flags & HN_TXD_FLAG_DMAMAP) {
 		bus_dmamap_sync(txr->hn_tx_data_dtag,
 		    txd->data_dmap, BUS_DMASYNC_POSTWRITE);
@@ -1253,8 +1415,11 @@ hn_txdesc_get(struct hn_tx_ring *txr)
 		atomic_subtract_int(&txr->hn_txdesc_avail, 1);
 #endif
 		KASSERT(txd->m == NULL && txd->refs == 0 &&
+		    STAILQ_EMPTY(&txd->agg_list) &&
 		    txd->chim_index == HN_NVS_CHIM_IDX_INVALID &&
+		    txd->chim_size == 0 &&
 		    (txd->flags & HN_TXD_FLAG_ONLIST) &&
+		    (txd->flags & HN_TXD_FLAG_ONAGG) == 0 &&
 		    (txd->flags & HN_TXD_FLAG_DMAMAP) == 0, ("invalid txd"));
 		txd->flags &= ~HN_TXD_FLAG_ONLIST;
 		txd->refs = 1;
@@ -1269,6 +1434,22 @@ hn_txdesc_hold(struct hn_txdesc *txd)
 	/* 0->1 transition will never work */
 	KASSERT(txd->refs > 0, ("invalid refs %d", txd->refs));
 	atomic_add_int(&txd->refs, 1);
+}
+
+static __inline void
+hn_txdesc_agg(struct hn_txdesc *agg_txd, struct hn_txdesc *txd)
+{
+
+	KASSERT((agg_txd->flags & HN_TXD_FLAG_ONAGG) == 0,
+	    ("recursive aggregation on aggregating txdesc"));
+
+	KASSERT((txd->flags & HN_TXD_FLAG_ONAGG) == 0,
+	    ("already aggregated"));
+	KASSERT(STAILQ_EMPTY(&txd->agg_list),
+	    ("recursive aggregation on to-be-aggregated txdesc"));
+
+	txd->flags |= HN_TXD_FLAG_ONAGG;
+	STAILQ_INSERT_TAIL(&agg_txd->agg_list, txd, agg_link);
 }
 
 static bool
@@ -1382,12 +1563,123 @@ hn_rndis_pktinfo_append(struct rndis_packet_msg *pkt, size_t pktsize,
 	return (pi->rm_data);
 }
 
+static __inline int
+hn_flush_txagg(struct ifnet *ifp, struct hn_tx_ring *txr)
+{
+	struct hn_txdesc *txd;
+	struct mbuf *m;
+	int error, pkts;
+
+	txd = txr->hn_agg_txd;
+	KASSERT(txd != NULL, ("no aggregate txdesc"));
+
+	/*
+	 * Since hn_txpkt() will reset this temporary stat, save
+	 * it now, so that oerrors can be updated properly, if
+	 * hn_txpkt() ever fails.
+	 */
+	pkts = txr->hn_stat_pkts;
+
+	/*
+	 * Since txd's mbuf will _not_ be freed upon hn_txpkt()
+	 * failure, save it for later freeing, if hn_txpkt() ever
+	 * fails.
+	 */
+	m = txd->m;
+	error = hn_txpkt(ifp, txr, txd);
+	if (__predict_false(error)) {
+		/* txd is freed, but m is not. */
+		m_freem(m);
+
+		txr->hn_flush_failed++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, pkts);
+	}
+
+	/* Reset all aggregation states. */
+	txr->hn_agg_txd = NULL;
+	txr->hn_agg_szleft = 0;
+	txr->hn_agg_pktleft = 0;
+	txr->hn_agg_prevpkt = NULL;
+
+	return (error);
+}
+
+static void *
+hn_try_txagg(struct ifnet *ifp, struct hn_tx_ring *txr, struct hn_txdesc *txd,
+    int pktsize)
+{
+	void *chim;
+
+	if (txr->hn_agg_txd != NULL) {
+		if (txr->hn_agg_pktleft >= 1 && txr->hn_agg_szleft > pktsize) {
+			struct hn_txdesc *agg_txd = txr->hn_agg_txd;
+			struct rndis_packet_msg *pkt = txr->hn_agg_prevpkt;
+			int olen;
+
+			/*
+			 * Update the previous RNDIS packet's total length,
+			 * it can be increased due to the mandatory alignment
+			 * padding for this RNDIS packet.  And update the
+			 * aggregating txdesc's chimney sending buffer size
+			 * accordingly.
+			 *
+			 * XXX
+			 * Zero-out the padding, as required by the RNDIS spec.
+			 */
+			olen = pkt->rm_len;
+			pkt->rm_len = roundup2(olen, txr->hn_agg_align);
+			agg_txd->chim_size += pkt->rm_len - olen;
+
+			/* Link this txdesc to the parent. */
+			hn_txdesc_agg(agg_txd, txd);
+
+			chim = (uint8_t *)pkt + pkt->rm_len;
+			/* Save the current packet for later fixup. */
+			txr->hn_agg_prevpkt = chim;
+
+			txr->hn_agg_pktleft--;
+			txr->hn_agg_szleft -= pktsize;
+			if (txr->hn_agg_szleft <=
+			    HN_PKTSIZE_MIN(txr->hn_agg_align)) {
+				/*
+				 * Probably can't aggregate more packets,
+				 * flush this aggregating txdesc proactively.
+				 */
+				txr->hn_agg_pktleft = 0;
+			}
+			/* Done! */
+			return (chim);
+		}
+		hn_flush_txagg(ifp, txr);
+	}
+	KASSERT(txr->hn_agg_txd == NULL, ("lingering aggregating txdesc"));
+
+	txr->hn_tx_chimney_tried++;
+	txd->chim_index = hn_chim_alloc(txr->hn_sc);
+	if (txd->chim_index == HN_NVS_CHIM_IDX_INVALID)
+		return (NULL);
+	txr->hn_tx_chimney++;
+
+	chim = txr->hn_sc->hn_chim +
+	    (txd->chim_index * txr->hn_sc->hn_chim_szmax);
+
+	if (txr->hn_agg_pktmax > 1 &&
+	    txr->hn_agg_szmax > pktsize + HN_PKTSIZE_MIN(txr->hn_agg_align)) {
+		txr->hn_agg_txd = txd;
+		txr->hn_agg_pktleft = txr->hn_agg_pktmax - 1;
+		txr->hn_agg_szleft = txr->hn_agg_szmax - pktsize;
+		txr->hn_agg_prevpkt = chim;
+	}
+	return (chim);
+}
+
 /*
  * NOTE:
  * If this function fails, then both txd and m_head0 will be freed.
  */
 static int
-hn_encap(struct hn_tx_ring *txr, struct hn_txdesc *txd, struct mbuf **m_head0)
+hn_encap(struct ifnet *ifp, struct hn_tx_ring *txr, struct hn_txdesc *txd,
+    struct mbuf **m_head0)
 {
 	bus_dma_segment_t segs[HN_TX_DATA_SEGCNT_MAX];
 	int error, nsegs, i;
@@ -1395,33 +1687,30 @@ hn_encap(struct hn_tx_ring *txr, struct hn_txdesc *txd, struct mbuf **m_head0)
 	struct rndis_packet_msg *pkt;
 	uint32_t *pi_data;
 	void *chim = NULL;
-	int pktlen;
+	int pkt_hlen, pkt_size;
 
 	pkt = txd->rndis_pkt;
-	if (m_head->m_pkthdr.len + HN_RNDIS_PKT_LEN < txr->hn_chim_size) {
-		/*
-		 * This packet is small enough to fit into a chimney sending
-		 * buffer.  Try allocating one chimney sending buffer now.
-		 */
-		txr->hn_tx_chimney_tried++;
-		txd->chim_index = hn_chim_alloc(txr->hn_sc);
-		if (txd->chim_index != HN_NVS_CHIM_IDX_INVALID) {
-			chim = txr->hn_sc->hn_chim +
-			    (txd->chim_index * txr->hn_sc->hn_chim_szmax);
-			/*
-			 * Directly fill the chimney sending buffer w/ the
-			 * RNDIS packet message.
-			 */
+	pkt_size = HN_PKTSIZE(m_head, txr->hn_agg_align);
+	if (pkt_size < txr->hn_chim_size) {
+		chim = hn_try_txagg(ifp, txr, txd, pkt_size);
+		if (chim != NULL)
 			pkt = chim;
-		}
+	} else {
+		if (txr->hn_agg_txd != NULL)
+			hn_flush_txagg(ifp, txr);
 	}
 
 	pkt->rm_type = REMOTE_NDIS_PACKET_MSG;
 	pkt->rm_len = sizeof(*pkt) + m_head->m_pkthdr.len;
 	pkt->rm_dataoffset = sizeof(*pkt);
 	pkt->rm_datalen = m_head->m_pkthdr.len;
+	pkt->rm_oobdataoffset = 0;
+	pkt->rm_oobdatalen = 0;
+	pkt->rm_oobdataelements = 0;
 	pkt->rm_pktinfooffset = sizeof(*pkt);
 	pkt->rm_pktinfolen = 0;
+	pkt->rm_vchandle = 0;
+	pkt->rm_reserved = 0;
 
 	if (txr->hn_tx_flags & HN_TX_FLAG_HASHVAL) {
 		/*
@@ -1482,7 +1771,7 @@ hn_encap(struct hn_tx_ring *txr, struct hn_txdesc *txd, struct mbuf **m_head0)
 			*pi_data |= NDIS_TXCSUM_INFO_UDPCS;
 	}
 
-	pktlen = pkt->rm_pktinfooffset + pkt->rm_pktinfolen;
+	pkt_hlen = pkt->rm_pktinfooffset + pkt->rm_pktinfolen;
 	/* Convert RNDIS packet message offsets */
 	pkt->rm_dataoffset = hn_rndis_pktmsg_offset(pkt->rm_dataoffset);
 	pkt->rm_pktinfooffset = hn_rndis_pktmsg_offset(pkt->rm_pktinfooffset);
@@ -1491,25 +1780,36 @@ hn_encap(struct hn_tx_ring *txr, struct hn_txdesc *txd, struct mbuf **m_head0)
 	 * Fast path: Chimney sending.
 	 */
 	if (chim != NULL) {
-		KASSERT(txd->chim_index != HN_NVS_CHIM_IDX_INVALID,
-		    ("chimney buffer is not used"));
-		KASSERT(pkt == chim, ("RNDIS pkt not in chimney buffer"));
+		struct hn_txdesc *tgt_txd = txd;
+
+		if (txr->hn_agg_txd != NULL) {
+			tgt_txd = txr->hn_agg_txd;
+#ifdef INVARIANTS
+			*m_head0 = NULL;
+#endif
+		}
+
+		KASSERT(pkt == chim,
+		    ("RNDIS pkt not in chimney sending buffer"));
+		KASSERT(tgt_txd->chim_index != HN_NVS_CHIM_IDX_INVALID,
+		    ("chimney sending buffer is not used"));
+		tgt_txd->chim_size += pkt->rm_len;
 
 		m_copydata(m_head, 0, m_head->m_pkthdr.len,
-		    ((uint8_t *)chim) + pktlen);
+		    ((uint8_t *)chim) + pkt_hlen);
 
-		txd->chim_size = pkt->rm_len;
 		txr->hn_gpa_cnt = 0;
-		txr->hn_tx_chimney++;
 		txr->hn_sendpkt = hn_txpkt_chim;
 		goto done;
 	}
+
+	KASSERT(txr->hn_agg_txd == NULL, ("aggregating sglist txdesc"));
 	KASSERT(txd->chim_index == HN_NVS_CHIM_IDX_INVALID,
 	    ("chimney buffer is used"));
 	KASSERT(pkt == txd->rndis_pkt, ("RNDIS pkt not in txdesc"));
 
 	error = hn_txdesc_dmamap_load(txr, txd, &m_head, segs, &nsegs);
-	if (error) {
+	if (__predict_false(error)) {
 		int freed;
 
 		/*
@@ -1523,7 +1823,7 @@ hn_encap(struct hn_tx_ring *txr, struct hn_txdesc *txd, struct mbuf **m_head0)
 		    ("fail to free txd upon txdma error"));
 
 		txr->hn_txdma_failed++;
-		if_inc_counter(txr->hn_sc->hn_ifp, IFCOUNTER_OERRORS, 1);
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		return error;
 	}
 	*m_head0 = m_head;
@@ -1534,7 +1834,7 @@ hn_encap(struct hn_tx_ring *txr, struct hn_txdesc *txd, struct mbuf **m_head0)
 	/* send packet with page buffer */
 	txr->hn_gpa[0].gpa_page = atop(txd->rndis_pkt_paddr);
 	txr->hn_gpa[0].gpa_ofs = txd->rndis_pkt_paddr & PAGE_MASK;
-	txr->hn_gpa[0].gpa_len = pktlen;
+	txr->hn_gpa[0].gpa_len = pkt_hlen;
 
 	/*
 	 * Fill the page buffers with mbuf info after the page
@@ -1557,6 +1857,12 @@ done:
 	/* Set the completion routine */
 	hn_nvs_sendctx_init(&txd->send_ctx, hn_txpkt_done, txd);
 
+	/* Update temporary stats for later use. */
+	txr->hn_stat_pkts++;
+	txr->hn_stat_size += m_head->m_pkthdr.len;
+	if (m_head->m_flags & M_MCAST)
+		txr->hn_stat_mcasts++;
+
 	return 0;
 }
 
@@ -1572,23 +1878,34 @@ hn_txpkt(struct ifnet *ifp, struct hn_tx_ring *txr, struct hn_txdesc *txd)
 
 again:
 	/*
-	 * Make sure that txd is not freed before ETHER_BPF_MTAP.
+	 * Make sure that this txd and any aggregated txds are not freed
+	 * before ETHER_BPF_MTAP.
 	 */
 	hn_txdesc_hold(txd);
 	error = txr->hn_sendpkt(txr, txd);
 	if (!error) {
-		ETHER_BPF_MTAP(ifp, txd->m);
-		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
+		if (bpf_peers_present(ifp->if_bpf)) {
+			const struct hn_txdesc *tmp_txd;
+
+			ETHER_BPF_MTAP(ifp, txd->m);
+			STAILQ_FOREACH(tmp_txd, &txd->agg_list, agg_link)
+				ETHER_BPF_MTAP(ifp, tmp_txd->m);
+		}
+
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, txr->hn_stat_pkts);
 #ifdef HN_IFSTART_SUPPORT
 		if (!hn_use_if_start)
 #endif
 		{
 			if_inc_counter(ifp, IFCOUNTER_OBYTES,
-			    txd->m->m_pkthdr.len);
-			if (txd->m->m_flags & M_MCAST)
-				if_inc_counter(ifp, IFCOUNTER_OMCASTS, 1);
+			    txr->hn_stat_size);
+			if (txr->hn_stat_mcasts != 0) {
+				if_inc_counter(ifp, IFCOUNTER_OMCASTS,
+				    txr->hn_stat_mcasts);
+			}
 		}
-		txr->hn_pkts++;
+		txr->hn_pkts += txr->hn_stat_pkts;
+		txr->hn_sends++;
 	}
 	hn_txdesc_put(txr, txd);
 
@@ -1628,7 +1945,13 @@ again:
 
 		txr->hn_send_failed++;
 	}
-	return error;
+
+	/* Reset temporary stats, after this sending is done. */
+	txr->hn_stat_size = 0;
+	txr->hn_stat_pkts = 0;
+	txr->hn_stat_mcasts = 0;
+
+	return (error);
 }
 
 /*
@@ -2412,6 +2735,64 @@ hn_tx_conf_int_sysctl(SYSCTL_HANDLER_ARGS)
 }
 
 static int
+hn_txagg_size_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct hn_softc *sc = arg1;
+	int error, size;
+
+	size = sc->hn_agg_size;
+	error = sysctl_handle_int(oidp, &size, 0, req);
+	if (error || req->newptr == NULL)
+		return (error);
+
+	HN_LOCK(sc);
+	sc->hn_agg_size = size;
+	hn_set_txagg(sc);
+	HN_UNLOCK(sc);
+
+	return (0);
+}
+
+static int
+hn_txagg_pkts_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct hn_softc *sc = arg1;
+	int error, pkts;
+
+	pkts = sc->hn_agg_pkts;
+	error = sysctl_handle_int(oidp, &pkts, 0, req);
+	if (error || req->newptr == NULL)
+		return (error);
+
+	HN_LOCK(sc);
+	sc->hn_agg_pkts = pkts;
+	hn_set_txagg(sc);
+	HN_UNLOCK(sc);
+
+	return (0);
+}
+
+static int
+hn_txagg_pktmax_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct hn_softc *sc = arg1;
+	int pkts;
+
+	pkts = sc->hn_tx_ring[0].hn_agg_pktmax;
+	return (sysctl_handle_int(oidp, &pkts, 0, req));
+}
+
+static int
+hn_txagg_align_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct hn_softc *sc = arg1;
+	int align;
+
+	align = sc->hn_tx_ring[0].hn_agg_align;
+	return (sysctl_handle_int(oidp, &align, 0, req));
+}
+
+static int
 hn_ndis_version_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	struct hn_softc *sc = arg1;
@@ -2954,6 +3335,7 @@ hn_tx_ring_create(struct hn_softc *sc, int id)
 
 		txd->txr = txr;
 		txd->chim_index = HN_NVS_CHIM_IDX_INVALID;
+		STAILQ_INIT(&txd->agg_list);
 
 		/*
 		 * Allocate and load RNDIS packet message.
@@ -3037,6 +3419,8 @@ hn_tx_ring_create(struct hn_softc *sc, int id)
 			SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "packets",
 			    CTLFLAG_RW, &txr->hn_pkts,
 			    "# of packets transmitted");
+			SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "sends",
+			    CTLFLAG_RW, &txr->hn_sends, "# of sends");
 		}
 	}
 
@@ -3151,6 +3535,11 @@ hn_create_tx_data(struct hn_softc *sc, int ring_cnt)
 	    CTLTYPE_ULONG | CTLFLAG_RW | CTLFLAG_MPSAFE, sc,
 	    __offsetof(struct hn_tx_ring, hn_txdma_failed),
 	    hn_tx_stat_ulong_sysctl, "LU", "# of TX DMA failure");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "agg_flush_failed",
+	    CTLTYPE_ULONG | CTLFLAG_RW | CTLFLAG_MPSAFE, sc,
+	    __offsetof(struct hn_tx_ring, hn_flush_failed),
+	    hn_tx_stat_ulong_sysctl, "LU",
+	    "# of packet transmission aggregation flush failure");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "tx_collapsed",
 	    CTLTYPE_ULONG | CTLFLAG_RW | CTLFLAG_MPSAFE, sc,
 	    __offsetof(struct hn_tx_ring, hn_tx_collapsed),
@@ -3187,6 +3576,17 @@ hn_create_tx_data(struct hn_softc *sc, int ring_cnt)
 	    CTLFLAG_RD, &sc->hn_tx_ring_cnt, 0, "# created TX rings");
 	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "tx_ring_inuse",
 	    CTLFLAG_RD, &sc->hn_tx_ring_inuse, 0, "# used TX rings");
+	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "agg_szmax",
+	    CTLFLAG_RD, &sc->hn_tx_ring[0].hn_agg_szmax, 0,
+	    "Applied packet transmission aggregation size");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "agg_pktmax",
+	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
+	    hn_txagg_pktmax_sysctl, "I",
+	    "Applied packet transmission aggregation packets");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "agg_align",
+	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
+	    hn_txagg_align_sysctl, "I",
+	    "Applied packet transmission aggregation alignment");
 
 	return 0;
 }
@@ -3306,18 +3706,20 @@ hn_start_locked(struct hn_tx_ring *txr, int len)
 {
 	struct hn_softc *sc = txr->hn_sc;
 	struct ifnet *ifp = sc->hn_ifp;
+	int sched = 0;
 
 	KASSERT(hn_use_if_start,
 	    ("hn_start_locked is called, when if_start is disabled"));
 	KASSERT(txr == &sc->hn_tx_ring[0], ("not the first TX ring"));
 	mtx_assert(&txr->hn_tx_lock, MA_OWNED);
+	KASSERT(txr->hn_agg_txd == NULL, ("lingering aggregating txdesc"));
 
 	if (__predict_false(txr->hn_suspended))
-		return 0;
+		return (0);
 
 	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
 	    IFF_DRV_RUNNING)
-		return 0;
+		return (0);
 
 	while (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
 		struct hn_txdesc *txd;
@@ -3335,7 +3737,8 @@ hn_start_locked(struct hn_tx_ring *txr, int len)
 			 * following up packets) to tx taskqueue.
 			 */
 			IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
-			return 1;
+			sched = 1;
+			break;
 		}
 
 #if defined(INET6) || defined(INET)
@@ -3356,21 +3759,50 @@ hn_start_locked(struct hn_tx_ring *txr, int len)
 			break;
 		}
 
-		error = hn_encap(txr, txd, &m_head);
+		error = hn_encap(ifp, txr, txd, &m_head);
 		if (error) {
 			/* Both txd and m_head are freed */
+			KASSERT(txr->hn_agg_txd == NULL,
+			    ("encap failed w/ pending aggregating txdesc"));
 			continue;
 		}
 
-		error = hn_txpkt(ifp, txr, txd);
-		if (__predict_false(error)) {
-			/* txd is freed, but m_head is not */
-			IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
-			atomic_set_int(&ifp->if_drv_flags, IFF_DRV_OACTIVE);
-			break;
+		if (txr->hn_agg_pktleft == 0) {
+			if (txr->hn_agg_txd != NULL) {
+				KASSERT(m_head == NULL,
+				    ("pending mbuf for aggregating txdesc"));
+				error = hn_flush_txagg(ifp, txr);
+				if (__predict_false(error)) {
+					atomic_set_int(&ifp->if_drv_flags,
+					    IFF_DRV_OACTIVE);
+					break;
+				}
+			} else {
+				KASSERT(m_head != NULL, ("mbuf was freed"));
+				error = hn_txpkt(ifp, txr, txd);
+				if (__predict_false(error)) {
+					/* txd is freed, but m_head is not */
+					IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
+					atomic_set_int(&ifp->if_drv_flags,
+					    IFF_DRV_OACTIVE);
+					break;
+				}
+			}
 		}
+#ifdef INVARIANTS
+		else {
+			KASSERT(txr->hn_agg_txd != NULL,
+			    ("no aggregating txdesc"));
+			KASSERT(m_head == NULL,
+			    ("pending mbuf for aggregating txdesc"));
+		}
+#endif
 	}
-	return 0;
+
+	/* Flush pending aggerated transmission. */
+	if (txr->hn_agg_txd != NULL)
+		hn_flush_txagg(ifp, txr);
+	return (sched);
 }
 
 static void
@@ -3447,18 +3879,20 @@ hn_xmit(struct hn_tx_ring *txr, int len)
 	struct hn_softc *sc = txr->hn_sc;
 	struct ifnet *ifp = sc->hn_ifp;
 	struct mbuf *m_head;
+	int sched = 0;
 
 	mtx_assert(&txr->hn_tx_lock, MA_OWNED);
 #ifdef HN_IFSTART_SUPPORT
 	KASSERT(hn_use_if_start == 0,
 	    ("hn_xmit is called, when if_start is enabled"));
 #endif
+	KASSERT(txr->hn_agg_txd == NULL, ("lingering aggregating txdesc"));
 
 	if (__predict_false(txr->hn_suspended))
-		return 0;
+		return (0);
 
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 || txr->hn_oactive)
-		return 0;
+		return (0);
 
 	while ((m_head = drbr_peek(ifp, txr->hn_mbuf_br)) != NULL) {
 		struct hn_txdesc *txd;
@@ -3471,7 +3905,8 @@ hn_xmit(struct hn_tx_ring *txr, int len)
 			 * following up packets) to tx taskqueue.
 			 */
 			drbr_putback(ifp, txr->hn_mbuf_br, m_head);
-			return 1;
+			sched = 1;
+			break;
 		}
 
 		txd = hn_txdesc_get(txr);
@@ -3482,25 +3917,53 @@ hn_xmit(struct hn_tx_ring *txr, int len)
 			break;
 		}
 
-		error = hn_encap(txr, txd, &m_head);
+		error = hn_encap(ifp, txr, txd, &m_head);
 		if (error) {
 			/* Both txd and m_head are freed; discard */
+			KASSERT(txr->hn_agg_txd == NULL,
+			    ("encap failed w/ pending aggregating txdesc"));
 			drbr_advance(ifp, txr->hn_mbuf_br);
 			continue;
 		}
 
-		error = hn_txpkt(ifp, txr, txd);
-		if (__predict_false(error)) {
-			/* txd is freed, but m_head is not */
-			drbr_putback(ifp, txr->hn_mbuf_br, m_head);
-			txr->hn_oactive = 1;
-			break;
+		if (txr->hn_agg_pktleft == 0) {
+			if (txr->hn_agg_txd != NULL) {
+				KASSERT(m_head == NULL,
+				    ("pending mbuf for aggregating txdesc"));
+				error = hn_flush_txagg(ifp, txr);
+				if (__predict_false(error)) {
+					txr->hn_oactive = 1;
+					break;
+				}
+			} else {
+				KASSERT(m_head != NULL, ("mbuf was freed"));
+				error = hn_txpkt(ifp, txr, txd);
+				if (__predict_false(error)) {
+					/* txd is freed, but m_head is not */
+					drbr_putback(ifp, txr->hn_mbuf_br,
+					    m_head);
+					txr->hn_oactive = 1;
+					break;
+				}
+			}
 		}
+#ifdef INVARIANTS
+		else {
+			KASSERT(txr->hn_agg_txd != NULL,
+			    ("no aggregating txdesc"));
+			KASSERT(m_head == NULL,
+			    ("pending mbuf for aggregating txdesc"));
+		}
+#endif
 
 		/* Sent */
 		drbr_advance(ifp, txr->hn_mbuf_br);
 	}
-	return 0;
+
+	/* Flush pending aggerated transmission. */
+	if (txr->hn_agg_txd != NULL)
+		hn_flush_txagg(ifp, txr);
+	return (sched);
 }
 
 static int
@@ -3977,6 +4440,11 @@ back:
 	error = hn_attach_subchans(sc);
 	if (error)
 		return (error);
+
+	/*
+	 * Fixup transmission aggregation setup.
+	 */
+	hn_set_txagg(sc);
 
 	sc->hn_flags |= HN_FLAG_SYNTH_ATTACHED;
 	return (0);
