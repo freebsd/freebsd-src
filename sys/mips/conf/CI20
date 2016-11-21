@@ -2,10 +2,11 @@
 #
 # $FreeBSD$
 
+#NO_UNIVERSE
+
 include		"JZ4780"
 ident		CI20
 
-options 	FDT
 options 	FDT_DTB_STATIC
 makeoptions	FDT_DTS_FILE=ingenic/ci20.dts
 
@@ -27,5 +28,4 @@ options 	ROOTDEVNAME=\"ufs:mmcsd0\"
 makeoptions	TRAMPLOADADDR=0x88000000
 
 #options 	VERBOSE_SYSINIT
-device		dme
 options 	PRINTF_BUFR_SIZE=256
