@@ -1127,6 +1127,13 @@ hn_attach(device_t dev)
 	/* Enable all available capabilities by default. */
 	ifp->if_capenable = ifp->if_capabilities;
 
+	/*
+	 * Disable IPv6 TSO and TXCSUM by default, they still can
+	 * be enabled through SIOCSIFCAP.
+	 */
+	ifp->if_capenable &= ~(IFCAP_TXCSUM_IPV6 | IFCAP_TSO6);
+	ifp->if_hwassist &= ~(HN_CSUM_IP6_MASK | CSUM_IP6_TSO);
+
 	if (ifp->if_capabilities & (IFCAP_TSO6 | IFCAP_TSO4)) {
 		hn_set_tso_maxsize(sc, hn_tso_maxlen, ETHERMTU);
 		ifp->if_hw_tsomaxsegcount = HN_TX_DATA_SEGCNT_MAX;
@@ -3646,12 +3653,10 @@ hn_fixup_tx_data(struct hn_softc *sc)
 		csum_assist |= CSUM_IP_TCP;
 	if (sc->hn_caps & HN_CAP_UDP4CS)
 		csum_assist |= CSUM_IP_UDP;
-#ifdef notyet
 	if (sc->hn_caps & HN_CAP_TCP6CS)
 		csum_assist |= CSUM_IP6_TCP;
 	if (sc->hn_caps & HN_CAP_UDP6CS)
 		csum_assist |= CSUM_IP6_UDP;
-#endif
 	for (i = 0; i < sc->hn_tx_ring_cnt; ++i)
 		sc->hn_tx_ring[i].hn_csum_assist = csum_assist;
 
