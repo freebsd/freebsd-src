@@ -158,7 +158,7 @@
 #endif /* (!(CHERICAP_SIZE == 32)) */
 
 /*
- * No variation between 256-bia and 128-bit CHERI for privileged capability
+ * No variation between 256-bit and 128-bit CHERI for privileged capability
  * permissions -- at least, not anymore.
  */
 #define	CHERI_PERM_PRIV							\
