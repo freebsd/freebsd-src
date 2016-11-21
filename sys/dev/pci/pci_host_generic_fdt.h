@@ -31,47 +31,19 @@
  *
  */
 
-#ifndef __PCI_HOST_GENERIC_H_
-#define	__PCI_HOST_GENERIC_H_
+#ifndef __PCI_HOST_GENERIC_FDT_H_
+#define	__PCI_HOST_GENERIC_FDT_H_
 
-#include "pci_if.h"
-
-#define	MAX_RANGES_TUPLES	16
-#define	MIN_RANGES_TUPLES	2
-
-struct pcie_range {
-	uint64_t	pci_base;
-	uint64_t	phys_base;
-	uint64_t	size;
-	uint64_t	flags;
-#define	FLAG_IO		(1 << 0)
-#define	FLAG_MEM	(1 << 1)
+struct generic_pcie_fdt_softc {
+	struct generic_pcie_core_softc base;
+	struct ofw_bus_iinfo	pci_iinfo;
 };
 
-struct generic_pcie_core_softc {
-	struct pcie_range	ranges[MAX_RANGES_TUPLES];
-	int			nranges;
-	int			coherent;
-	struct rman		mem_rman;
-	struct rman		io_rman;
-	struct resource		*res;
-	struct resource		*res1;
-	int			ecam;
-	bus_space_tag_t		bst;
-	bus_space_handle_t	bsh;
-	device_t		dev;
-	bus_space_handle_t	ioh;
-	bus_dma_tag_t		dmat;
-};
+DECLARE_CLASS(generic_pcie_fdt_driver);
 
-DECLARE_CLASS(generic_pcie_core_driver);
-
-struct resource *pci_host_generic_core_alloc_resource(device_t,
+struct resource *pci_host_generic_alloc_resource(device_t,
     device_t, int, int *, rman_res_t, rman_res_t, rman_res_t, u_int);
-int pci_host_generic_core_attach(device_t);
-struct resource *pci_host_generic_core_alloc_resource(device_t, device_t, int,
-    int *, rman_res_t, rman_res_t, rman_res_t, u_int);
-int pci_host_generic_core_release_resource(device_t, device_t, int, int,
-    struct resource *);
+int pci_host_generic_attach(device_t);
+int generic_pcie_get_id(device_t, device_t, enum pci_id_type, uintptr_t *);
 
-#endif /* __PCI_HOST_GENERIC_H_ */
+#endif /* __PCI_HOST_GENERIC_FDT_H_ */
