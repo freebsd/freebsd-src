@@ -1647,8 +1647,17 @@ ipsec_address(union sockaddr_union* sa, char *buf, socklen_t size)
 #endif /* INET */
 #ifdef INET6
 	case AF_INET6:
-		return (inet_ntop(AF_INET6, &sa->sin6.sin6_addr, buf, size));
+		if (IN6_IS_SCOPE_LINKLOCAL(&sa->sin6.sin6_addr)) {
+			snprintf(buf, size, "%s%%%u", inet_ntop(AF_INET6,
+			    &sa->sin6.sin6_addr, buf, size),
+			    sa->sin6.sin6_scope_id);
+			return (buf);
+		} else
+			return (inet_ntop(AF_INET6, &sa->sin6.sin6_addr,
+			    buf, size));
 #endif /* INET6 */
+	case 0:
+		return ("*");
 	default:
 		return ("(unknown address family)");
 	}
@@ -1657,7 +1666,7 @@ ipsec_address(union sockaddr_union* sa, char *buf, socklen_t size)
 char *
 ipsec_logsastr(struct secasvar *sav, char *buf, size_t size)
 {
-	char sbuf[INET6_ADDRSTRLEN], dbuf[INET6_ADDRSTRLEN];
+	char sbuf[IPSEC_ADDRSTRLEN], dbuf[IPSEC_ADDRSTRLEN];
 
 	IPSEC_ASSERT(sav->sah->saidx.src.sa.sa_family ==
 	    sav->sah->saidx.dst.sa.sa_family, ("address family mismatch"));
