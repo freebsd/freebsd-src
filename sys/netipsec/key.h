@@ -99,7 +99,9 @@ extern int key_checkrequest(struct ipsecrequest *isr,
     const struct secasindex *);
 extern struct secpolicy *key_msg2sp(struct sadb_x_policy *,
     size_t, int *);
-extern struct mbuf *key_sp2msg(struct secpolicy *);
+
+int key_sp2msg(struct secpolicy *, void *request, size_t *len);
+
 extern int key_ismyaddr(struct sockaddr *);
 extern int key_spdacquire(struct secpolicy *);
 extern u_long key_random(void);

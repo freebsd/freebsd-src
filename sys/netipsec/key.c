@@ -464,6 +464,7 @@ static int key_spddump(struct socket *, struct mbuf *,
 	const struct sadb_msghdr *);
 static struct mbuf *key_setdumpsp(struct secpolicy *,
 	u_int8_t, u_int32_t, u_int32_t);
+static struct mbuf *key_sp2mbuf(struct secpolicy *);
 static size_t key_getspreqmsglen(struct secpolicy *);
 static int key_spdexpire(struct secpolicy *);
 static struct secashead *key_newsah(struct secasindex *);
@@ -1724,43 +1725,66 @@ key_newreqid()
 /*
  * copy secpolicy struct to sadb_x_policy structure indicated.
  */
-struct mbuf *
-key_sp2msg(struct secpolicy *sp)
+static struct mbuf *
+key_sp2mbuf(struct secpolicy *sp)
 {
-	struct sadb_x_policy *xpl;
-	int tlen;
-	caddr_t p;
 	struct mbuf *m;
-
-	IPSEC_ASSERT(sp != NULL, ("null policy"));
+	size_t tlen;
 
 	tlen = key_getspreqmsglen(sp);
-
 	m = m_get2(tlen, M_NOWAIT, MT_DATA, 0);
 	if (m == NULL)
 		return (NULL);
 	m_align(m, tlen);
 	m->m_len = tlen;
-	xpl = mtod(m, struct sadb_x_policy *);
-	bzero(xpl, tlen);
+	if (key_sp2msg(sp, m->m_data, &tlen) != 0) {
+		m_freem(m);
+		return (NULL);
+	}
+	return (m);
+}
 
-	xpl->sadb_x_policy_len = PFKEY_UNIT64(tlen);
+int
+key_sp2msg(struct secpolicy *sp, void *request, size_t *len)
+{
+	struct sadb_x_ipsecrequest *xisr;
+	struct sadb_x_policy *xpl;
+	struct ipsecrequest *isr;
+	size_t xlen, ilen;
+	caddr_t p;
+	int error, i;
+
+	IPSEC_ASSERT(sp != NULL, ("null policy"));
+
+	xlen = sizeof(*xpl);
+	if (*len < xlen)
+		return (EINVAL);
+
+	error = 0;
+	bzero(request, *len);
+	xpl = (struct sadb_x_policy *)request;
 	xpl->sadb_x_policy_exttype = SADB_X_EXT_POLICY;
 	xpl->sadb_x_policy_type = sp->policy;
 	xpl->sadb_x_policy_dir = sp->spidx.dir;
 	xpl->sadb_x_policy_id = sp->id;
 	xpl->sadb_x_policy_priority = sp->priority;
-	p = (caddr_t)xpl + sizeof(*xpl);
 
 	/* if is the policy for ipsec ? */
 	if (sp->policy == IPSEC_POLICY_IPSEC) {
-		struct sadb_x_ipsecrequest *xisr;
-		struct ipsecrequest *isr;
-
-		for (isr = sp->req; isr != NULL; isr = isr->next) {
-
+		p = (caddr_t)xpl + sizeof(*xpl);
+		for (i = 0; i < sp->tcount; i++) {
+			isr = sp->req[i];
+			ilen = PFKEY_ALIGN8(sizeof(*xisr) +
+			    isr->saidx.src.sa.sa_len +
+			    isr->saidx.dst.sa.sa_len);
+			xlen += ilen;
+			if (xlen > *len) {
+				error = ENOBUFS;
+				/* Calculate needed size */
+				continue;
+			}
 			xisr = (struct sadb_x_ipsecrequest *)p;
-
+			xisr->sadb_x_ipsecrequest_len = ilen;
 			xisr->sadb_x_ipsecrequest_proto = isr->saidx.proto;
 			xisr->sadb_x_ipsecrequest_mode = isr->saidx.mode;
 			xisr->sadb_x_ipsecrequest_level = isr->level;
@@ -1770,16 +1794,15 @@ key_sp2msg(struct secpolicy *sp)
 			bcopy(&isr->saidx.src, p, isr->saidx.src.sa.sa_len);
 			p += isr->saidx.src.sa.sa_len;
 			bcopy(&isr->saidx.dst, p, isr->saidx.dst.sa.sa_len);
-			p += isr->saidx.src.sa.sa_len;
-
-			xisr->sadb_x_ipsecrequest_len =
-				PFKEY_ALIGN8(sizeof(*xisr)
-					+ isr->saidx.src.sa.sa_len
-					+ isr->saidx.dst.sa.sa_len);
+			p += isr->saidx.dst.sa.sa_len;
 		}
 	}
-
-	return m;
+	xpl->sadb_x_policy_len = PFKEY_UNIT64(xlen);
+	if (error == 0)
+		*len = xlen;
+	else
+		*len = sizeof(*xpl);
+	return (error);
 }
 
 /* m will not be freed nor modified */
