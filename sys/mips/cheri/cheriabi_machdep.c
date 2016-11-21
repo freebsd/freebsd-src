@@ -715,11 +715,9 @@ cheriabi_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 		 * on the safe side.
 		 */
 		cheri_capability_set(&regs->c3, CHERI_CAP_USER_DATA_PERMS,
-		    CHERI_CAP_USER_DATA_OTYPE, (void *)(intptr_t)&sfp->sf_si,
-		    sizeof(sfp->sf_si), 0);
+		    (void *)(intptr_t)&sfp->sf_si, sizeof(sfp->sf_si), 0);
 		cheri_capability_set(&regs->c4, CHERI_CAP_USER_DATA_PERMS,
-		    CHERI_CAP_USER_DATA_OTYPE, (void *)(intptr_t)&sfp->sf_uc,
-		    sizeof(sfp->sf_uc), 0);
+		    (void *)(intptr_t)&sfp->sf_uc, sizeof(sfp->sf_uc), 0);
 		/* sf.sf_ahu.sf_action = (__siginfohandler_t *)catcher; */
 
 		/* fill siginfo structure */
@@ -807,9 +805,8 @@ cheriabi_exec_setregs(struct thread *td, struct image_params *imgp, u_long stack
 	    ("CheriABI stack pointer not properly aligned"));
 
 	cheri_capability_set(&td->td_proc->p_md.md_cheri_mmap_cap,
-	    CHERI_CAP_USER_MMAP_PERMS, CHERI_CAP_USER_MMAP_OTYPE,
-	    CHERI_CAP_USER_MMAP_BASE, CHERI_CAP_USER_MMAP_LENGTH,
-	    CHERI_CAP_USER_MMAP_OFFSET);
+	    CHERI_CAP_USER_MMAP_PERMS, CHERI_CAP_USER_MMAP_BASE,
+	    CHERI_CAP_USER_MMAP_LENGTH, CHERI_CAP_USER_MMAP_OFFSET);
 
 	td->td_frame->pc = imgp->entry_addr;
 	td->td_frame->sr = MIPS_SR_KSU_USER | MIPS_SR_EXL | MIPS_SR_INT_IE |
@@ -825,8 +822,7 @@ cheriabi_exec_setregs(struct thread *td, struct image_params *imgp, u_long stack
 	 * XXXBD: should likely be read only
 	 */
 	cheri_capability_set(&td->td_frame->c3, CHERI_CAP_USER_DATA_PERMS,
-	    CHERI_CAP_USER_DATA_OTYPE, (void *)stack,
-	    sizeof(struct cheriabi_execdata), 0);
+	    (void *)stack, sizeof(struct cheriabi_execdata), 0);
 
 	/*
 	 * Restrict the stack capability to the maximum region allowed for
@@ -840,7 +836,7 @@ cheriabi_exec_setregs(struct thread *td, struct image_params *imgp, u_long stack
 	    ("top of stack 0x%lx is below stack base 0x%lx", stack, stackbase));
 	stacklen = stack - stackbase;
 	cheri_capability_set(&td->td_frame->stc, CHERI_CAP_USER_DATA_PERMS,
-	    CHERI_CAP_USER_DATA_OTYPE, (void *)stackbase, stacklen, 0);
+	    (void *)stackbase, stacklen, 0);
 	td->td_frame->sp = stacklen;
 	/*
 	 * Also update the signal stack.  The default set in
@@ -848,7 +844,7 @@ cheriabi_exec_setregs(struct thread *td, struct image_params *imgp, u_long stack
 	 */
 	csigp = &td->td_pcb->pcb_cherisignal;
 	cheri_capability_set(&csigp->csig_stc, CHERI_CAP_USER_DATA_PERMS,
-	    CHERI_CAP_USER_DATA_OTYPE, (void *)stackbase, stacklen, 0);
+	    (void *)stackbase, stacklen, 0);
 	/* XXX: set sp for signal stack! */
 
 	td->td_md.md_flags &= ~MDTD_FPUSED;

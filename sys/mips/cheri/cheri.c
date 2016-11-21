@@ -116,20 +116,19 @@ SYSINIT(cheri_cpu_startup, SI_SUB_CPU, SI_ORDER_FIRST, cheri_cpu_startup,
 
 /*
  * Build a new capabilty derived from $kdc with the contents of the passed
- * flattened representation.
+ * flattened representation.  Only unsealed capabilities are supported;
+ * capabilities must be separately sealed if required.
  *
  * XXXRW: It's not yet clear how important ordering is here -- try to do the
  * privilege downgrade in a way that will work when doing an "in place"
  * downgrade, with permissions last.
  *
- * XXXRW: How about the sealed bit?
- *
  * XXXRW: In the new world order of CSetBounds, it's not clear that taking
  * explicit base/length/offset arguments is quite the right thing.
  */
 void
-cheri_capability_set(struct chericap *cp, uint32_t perms, void *otypep,
-    void *basep, size_t length, off_t off)
+cheri_capability_set(struct chericap *cp, uint32_t perms, void *basep,
+    size_t length, off_t off)
 {
 #ifdef INVARIANTS
 	register_t r;
@@ -141,10 +140,6 @@ cheri_capability_set(struct chericap *cp, uint32_t perms, void *otypep,
 	    (register_t)length);
 	CHERI_CANDPERM(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0, (register_t)perms);
 	CHERI_CINCOFFSET(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0, (register_t)off);
-#if 0
-	/* XXXRW: For now, don't set type. */
-	CHERI_CSETTYPE(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0, (register_t)otypep);
-#endif
 
 	/*
 	 * NB: With imprecise bounds, we want to assert that the results will
@@ -190,9 +185,8 @@ static void
 cheri_capability_set_priv(struct chericap *cp)
 {
 
-	cheri_capability_set(cp, CHERI_CAP_PRIV_PERMS, CHERI_CAP_PRIV_OTYPE,
-	    CHERI_CAP_PRIV_BASE, CHERI_CAP_PRIV_LENGTH,
-	    CHERI_CAP_PRIV_OFFSET);
+	cheri_capability_set(cp, CHERI_CAP_PRIV_PERMS, CHERI_CAP_PRIV_BASE,
+	    CHERI_CAP_PRIV_LENGTH, CHERI_CAP_PRIV_OFFSET);
 }
 #endif
 
@@ -201,8 +195,8 @@ cheri_capability_set_user_ddc(struct chericap *cp)
 {
 
 	cheri_capability_set(cp, CHERI_CAP_USER_DATA_PERMS,
-	    CHERI_CAP_USER_DATA_OTYPE, CHERI_CAP_USER_DATA_BASE,
-	    CHERI_CAP_USER_DATA_LENGTH, CHERI_CAP_USER_DATA_OFFSET);
+	    CHERI_CAP_USER_DATA_BASE, CHERI_CAP_USER_DATA_LENGTH,
+	    CHERI_CAP_USER_DATA_OFFSET);
 }
 
 static void
@@ -232,8 +226,8 @@ cheri_capability_set_user_pcc(struct chericap *cp)
 {
 
 	cheri_capability_set(cp, CHERI_CAP_USER_CODE_PERMS,
-	    CHERI_CAP_USER_CODE_OTYPE, CHERI_CAP_USER_CODE_BASE,
-	    CHERI_CAP_USER_CODE_LENGTH, CHERI_CAP_USER_CODE_OFFSET);
+	    CHERI_CAP_USER_CODE_BASE, CHERI_CAP_USER_CODE_LENGTH,
+	    CHERI_CAP_USER_CODE_OFFSET);
 }
 
 static void
@@ -245,8 +239,7 @@ cheri_capability_set_user_entry(struct chericap *cp, unsigned long entry_addr)
 	 * convention.
 	 */
 	cheri_capability_set(cp, CHERI_CAP_USER_CODE_PERMS,
-	    CHERI_CAP_USER_CODE_OTYPE, CHERI_CAP_USER_CODE_BASE,
-	    CHERI_CAP_USER_CODE_LENGTH, entry_addr);
+	    CHERI_CAP_USER_CODE_BASE, CHERI_CAP_USER_CODE_LENGTH, entry_addr);
 }
 
 static void
@@ -259,8 +252,8 @@ cheri_capability_set_user_sigcode(struct chericap *cp, struct sysentvec *se)
 	base = (uintptr_t)se->sv_psstrings - szsigcode;
 	base = rounddown2(base, sizeof(struct chericap));
 
-	cheri_capability_set(cp, CHERI_CAP_USER_CODE_PERMS,
-	    CHERI_CAP_USER_CODE_OTYPE, (void *)base, szsigcode, 0);
+	cheri_capability_set(cp, CHERI_CAP_USER_CODE_PERMS, (void *)base,
+	    szsigcode, 0);
 }
 
 static void
@@ -268,8 +261,8 @@ cheri_capability_set_user_type(struct chericap *cp)
 {
 
 	cheri_capability_set(cp, CHERI_CAP_USER_TYPE_PERMS,
-	    CHERI_CAP_USER_TYPE_OTYPE, CHERI_CAP_USER_TYPE_BASE,
-	    CHERI_CAP_USER_TYPE_LENGTH, CHERI_CAP_USER_TYPE_OFFSET);
+	    CHERI_CAP_USER_TYPE_BASE, CHERI_CAP_USER_TYPE_LENGTH,
+	    CHERI_CAP_USER_TYPE_OFFSET);
 }
 
 void

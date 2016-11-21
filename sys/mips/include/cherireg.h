@@ -167,6 +167,13 @@
 	CHERI_PERM_STORE_CAP | CHERI_PERM_STORE_LOCAL_CAP |		\
 	CHERI_PERM_SEAL | CHERI_PERM_RESERVED0 | CHERI_PERM_RESERVED1 |	\
 	CHERI_PERM_SYSTEM_REGS | CHERI_PERM_USER_PRIVS)
+
+/*
+ * Root "object-type" capability for the kernel.  This can be used neither as
+ * a data nor code capability.
+ */
+#define	CHERI_PERM_KERN_TYPE	(CHERI_PERM_GLOBAL | CHERI_PERM_SEAL)
+
 /*
  * Basic userspace permission mask; CHERI_PERM_EXECUTE will be added for
  * executable capabilities ($pcc); CHERI_PERM_STORE, CHERI_PERM_STORE_CAP,
@@ -197,44 +204,62 @@
 #define	CHERI_PERM_USER_TYPE	(CHERI_PERM_GLOBAL | CHERI_PERM_SEAL)
 
 /*
+ * The CHERI object-type space is split between userspace and kernel,
+ * permitting kernel object references to be delegated to userspace (if
+ * desired).  Currently, we provide 23 bits of namespace to each, with the top
+ * bit set for kernel object types, but it is easy to imagine other splits.
+ * User and kernel software should be written so as to not place assumptions
+ * about the specific values used here, as they may change.
+ */
+#define	CHERI_OTYPE_USER_MIN	(0)
+#define	CHERI_OTYPE_USER_MAX	((1 << 23) - 1)
+#define	CHERI_OTYPE_KERN_MIN	(1 << 24)
+#define	CHERI_OTYPE_KERN_MAX	((1 << 24) - 1)
+
+#define	CHERI_OTYPE_ISKERN(x)	(((x) & (1 << 23)) != 0)
+#define	CHERI_OTYPE_ISUSER(x)	(!(CHERI_OTYPE_ISKERN(x)))
+
+/*
  * Definition for kernel "privileged" capability able to name the entire
- * address space.
+ * address space.  No object type is set here.
  *
  * No variation required between 256-bit and 128-bit CHERI.
  */
 #define	CHERI_CAP_PRIV_PERMS		CHERI_PERM_PRIV
-#define	CHERI_CAP_PRIV_OTYPE		0x0
 #define	CHERI_CAP_PRIV_BASE		0x0
 #define	CHERI_CAP_PRIV_LENGTH		0xffffffffffffffff
 #define	CHERI_CAP_PRIV_OFFSET		0x0
 
+#define	CHERI_CAP_KERN_TYPE_PERMS	CHERI_PERM_KERN_TYPE
+#define	CHERI_CAP_KERN_TYPE_BASE	CHERI_OTYPE_KERN_MIN
+#define	CHERI_CAP_KERN_TYPE_LENGTH	\
+    (CHERI_OTYPE_KERN_MAX - CHERI_OTYPE_KERN_MIN)
+#define	CHERI_CAP_KERN_TYPE_OFFSET	0x0
+
 /*
  * Definition for userspace "unprivileged" capability able to name the user
- * portion of the address space.
+ * portion of the address space.  No object type is set here.
  *
  * No variation required between 256-bit and 128-bit CHERI.
  */
 #define	CHERI_CAP_USER_CODE_PERMS	CHERI_PERM_USER_CODE
-#define	CHERI_CAP_USER_CODE_OTYPE	0x0
 #define	CHERI_CAP_USER_CODE_BASE	MIPS_XUSEG_START
 #define	CHERI_CAP_USER_CODE_LENGTH	(MIPS_XUSEG_END - MIPS_XUSEG_START)
 #define	CHERI_CAP_USER_CODE_OFFSET	0x0
 
 #define	CHERI_CAP_USER_DATA_PERMS	CHERI_PERM_USER_DATA
-#define	CHERI_CAP_USER_DATA_OTYPE	0x0
 #define	CHERI_CAP_USER_DATA_BASE	MIPS_XUSEG_START
 #define	CHERI_CAP_USER_DATA_LENGTH	(MIPS_XUSEG_END - MIPS_XUSEG_START)
 #define	CHERI_CAP_USER_DATA_OFFSET	0x0
 
 #define	CHERI_CAP_USER_TYPE_PERMS	CHERI_PERM_USER_TYPE
-#define	CHERI_CAP_USER_TYPE_OTYPE	0x0
-#define	CHERI_CAP_USER_TYPE_BASE	MIPS_XUSEG_START
-#define	CHERI_CAP_USER_TYPE_LENGTH	(MIPS_XUSEG_END - MIPS_XUSEG_START)
+#define	CHERI_CAP_USER_TYPE_BASE	CHERI_OTYPE_USER_MIN
+#define	CHERI_CAP_USER_TYPE_LENGTH	\
+    (CHERI_OTYPE_USER_MAX - CHERI_OTYPE_USER_MIN)
 #define	CHERI_CAP_USER_TYPE_OFFSET	0x0
 
 #define	CHERI_CAP_USER_MMAP_PERMS	\
     (CHERI_PERM_USER_DATA | CHERI_PERM_USER_CODE | CHERI_PERM_CHERIABI_VMMAP)
-#define	CHERI_CAP_USER_MMAP_OTYPE	0x0
 #define	CHERI_CAP_USER_MMAP_BASE	MIPS_XUSEG_START
 #define	CHERI_CAP_USER_MMAP_LENGTH	(MIPS_XUSEG_END - MIPS_XUSEG_START)
 #define	CHERI_CAP_USER_MMAP_OFFSET	0x0

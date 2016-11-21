@@ -1389,7 +1389,7 @@ cheriabi_syscall_helper_unregister(struct syscall_helper_data *sd)
 #define sucap(uaddr, base, offset, length, perms)			\
 	do {								\
 		struct chericap	_tmpcap;				\
-		cheri_capability_set(&_tmpcap, (perms), NULL, (base),	\
+		cheri_capability_set(&_tmpcap, (perms), (base),		\
 		    (length), (offset));				\
 		copyoutcap(&_tmpcap, uaddr, sizeof(_tmpcap));		\
 	} while(0)
@@ -1468,7 +1468,7 @@ cheriabi_copyout_strings(struct image_params *imgp)
 	memset(&ce, 0, sizeof(ce));
 	ce.ce_len = sizeof(ce);
 	ce.ce_argc = imgp->args->argc;
-	cheri_capability_set(&ce.ce_ps_strings, CHERI_CAP_USER_DATA_PERMS, NULL,
+	cheri_capability_set(&ce.ce_ps_strings, CHERI_CAP_USER_DATA_PERMS,
 	    arginfo, sizeof(struct ps_strings), 0);
 
 	/*
@@ -1516,7 +1516,7 @@ cheriabi_copyout_strings(struct image_params *imgp)
 	/*
 	 * Fill in argument portion of vector table.
 	 */
-	cheri_capability_set(&ce.ce_argv, CHERI_CAP_USER_DATA_PERMS, NULL,
+	cheri_capability_set(&ce.ce_argv, CHERI_CAP_USER_DATA_PERMS,
 	    vectp, (argc + 1) * sizeof(struct chericap), 0);
 	for (; argc > 0; --argc) {
 		sucap(vectp++, (void *)destp, 0, strlen(stringp) + 1,
@@ -1538,7 +1538,7 @@ cheriabi_copyout_strings(struct image_params *imgp)
 	/*
 	 * Fill in environment portion of vector table.
 	 */
-	cheri_capability_set(&ce.ce_envp, CHERI_CAP_USER_DATA_PERMS, NULL,
+	cheri_capability_set(&ce.ce_envp, CHERI_CAP_USER_DATA_PERMS,
 	    vectp, (envc + 1) * sizeof(struct chericap), 0);
 	for (; envc > 0; --envc) {
 		sucap(vectp++, (void *)destp, 0, strlen(stringp) + 1,
@@ -1552,7 +1552,7 @@ cheriabi_copyout_strings(struct image_params *imgp)
 	/* XXX: suword clears the tag */
 	suword(vectp++, 0);
 
-	cheri_capability_set(&ce.ce_auxargs, CHERI_CAP_USER_DATA_PERMS, NULL,
+	cheri_capability_set(&ce.ce_auxargs, CHERI_CAP_USER_DATA_PERMS,
 	    vectp, imgp->auxarg_size * sizeof(struct chericap), 0);
 
 	stack_base -= sizeof(ce) / sizeof(*stack_base);

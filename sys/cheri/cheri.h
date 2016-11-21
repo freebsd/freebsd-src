@@ -147,7 +147,7 @@ struct cheri_stack {
 void	cheri_capability_copy(struct chericap *cp_to,
 	    struct chericap *cp_from);
 void	cheri_capability_set(struct chericap *cp, uint32_t uperms,
-	    void *otype, void *basep, size_t length, off_t off);
+	    void *basep, size_t length, off_t off);
 void	cheri_capability_set_null(struct chericap *cp);
 void	cheri_capability_setoffset(struct chericap *cp, register_t offset);
 
