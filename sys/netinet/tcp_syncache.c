@@ -1069,10 +1069,17 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	}
 
 	/*
-	 * If timestamps were negotiated the reflected timestamp
-	 * must be equal to what we actually sent in the SYN|ACK.
+	 * If timestamps were negotiated, the reflected timestamp
+	 * must be equal to what we actually sent in the SYN|ACK
+	 * except in the case of 0. Some boxes are known for sending
+	 * broken timestamp replies during the 3whs (and potentially
+	 * during the connection also).
+	 *
+	 * Accept the final ACK of 3whs with reflected timestamp of 0
+	 * instead of sending a RST and deleting the syncache entry.
 	 */
-	if ((to->to_flags & TOF_TS) && to->to_tsecr != sc->sc_ts) {
+	if ((to->to_flags & TOF_TS) && to->to_tsecr &&
+	    to->to_tsecr != sc->sc_ts) {
 		if ((s = tcp_log_addrs(inc, th, NULL, NULL)))
 			log(LOG_DEBUG, "%s; %s: TSECR %u != TS %u, "
 			    "segment rejected\n",
