@@ -69,6 +69,8 @@ static struct vmbus_xact	*vmbus_xact_alloc(struct vmbus_xact_ctx *,
 static void			vmbus_xact_free(struct vmbus_xact *);
 static struct vmbus_xact	*vmbus_xact_get1(struct vmbus_xact_ctx *,
 				    uint32_t);
+const void			*vmbus_xact_wait1(struct vmbus_xact *, size_t *,
+				    bool);
 
 static struct vmbus_xact *
 vmbus_xact_alloc(struct vmbus_xact_ctx *ctx, bus_dma_tag_t parent_dtag)
@@ -249,7 +251,8 @@ vmbus_xact_deactivate(struct vmbus_xact *xact)
 }
 
 const void *
-vmbus_xact_wait(struct vmbus_xact *xact, size_t *resp_len)
+vmbus_xact_wait1(struct vmbus_xact *xact, size_t *resp_len,
+    bool can_sleep)
 {
 	struct vmbus_xact_ctx *ctx = xact->x_ctx;
 	const void *resp;
@@ -258,8 +261,14 @@ vmbus_xact_wait(struct vmbus_xact *xact, size_t *resp_len)
 
 	KASSERT(ctx->xc_active == xact, ("xact mismatch"));
 	while (xact->x_resp == NULL) {
-		mtx_sleep(&ctx->xc_active, &ctx->xc_active_lock, 0,
-		    "wxact", 0);
+		if (can_sleep) {
+			mtx_sleep(&ctx->xc_active, &ctx->xc_active_lock, 0,
+			    "wxact", 0);
+		} else {
+			mtx_unlock(&ctx->xc_active_lock);
+			DELAY(1000);
+			mtx_lock(&ctx->xc_active_lock);
+		}
 	}
 	ctx->xc_active = NULL;
 
@@ -269,6 +278,20 @@ vmbus_xact_wait(struct vmbus_xact *xact, size_t *resp_len)
 	mtx_unlock(&ctx->xc_active_lock);
 
 	return (resp);
+}
+
+const void *
+vmbus_xact_wait(struct vmbus_xact *xact, size_t *resp_len)
+{
+
+	return (vmbus_xact_wait1(xact, resp_len, true /* can sleep */));
+}
+
+const void *
+vmbus_xact_busywait(struct vmbus_xact *xact, size_t *resp_len)
+{
+
+	return (vmbus_xact_wait1(xact, resp_len, false /* can't sleep */));
 }
 
 static void
