@@ -2186,10 +2186,10 @@ sys_kmq_setattr(struct thread *td, struct kmq_setattr_args *uap)
 	}
 	error = kern_kmq_setattr(td, uap->mqd, uap->attr != NULL ? &attr : NULL,
 	    &oattr);
-	if (error != 0)
-		return (error);
-	if (uap->oattr != NULL)
+	if (error == 0 && uap->oattr != NULL) {
+		bzero(oattr.__reserved, sizeof(oattr.__reserved));
 		error = copyout(&oattr, uap->oattr, sizeof(oattr));
+	}
 	return (error);
 }
 
@@ -2723,10 +2723,9 @@ freebsd32_kmq_setattr(struct thread *td, struct freebsd32_kmq_setattr_args *uap)
 	}
 	error = kern_kmq_setattr(td, uap->mqd, uap->attr != NULL ? &attr : NULL,
 	    &oattr);
-	if (error != 0)
-		return (error);
-	if (uap->oattr != NULL) {
+	if (error == 0 && uap->oattr != NULL) {
 		mq_attr_to32(&oattr, &oattr32);
+		bzero(oattr32.__reserved, sizeof(oattr32.__reserved));
 		error = copyout(&oattr32, uap->oattr, sizeof(oattr32));
 	}
 	return (error);
