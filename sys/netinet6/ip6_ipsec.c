@@ -195,8 +195,11 @@ ip6_ipsec_output(struct mbuf *m, struct inpcb *inp, int *error)
 			/*
 			 * Hack: -EINVAL is used to signal that a packet
 			 * should be silently discarded.  This is typically
-			 * because we asked key management for an SA and
-			 * it was delayed (e.g. kicked up to IKE).
+			 * because we have DISCARD policy or asked key
+			 * management for an SP and it was delayed (e.g.
+			 * kicked up to IKE).
+			 * XXX: maybe return EACCES to the caller would
+			 *      be more useful?
 			 */
 			if (*error == -EINVAL)
 				*error = 0;
@@ -277,8 +280,11 @@ ip6_ipsec_forward(struct mbuf *m, int *error)
 			/*
 			 * Hack: -EINVAL is used to signal that a packet
 			 * should be silently discarded.  This is typically
-			 * because we asked key management for an SA and
-			 * it was delayed (e.g. kicked up to IKE).
+			 * because we have DISCARD policy or asked key
+			 * management for an SP and it was delayed (e.g.
+			 * kicked up to IKE).
+			 * XXX: maybe return EACCES to the caller would
+			 *      be more useful?
 			 */
 			if (*error == -EINVAL)
 				*error = 0;
