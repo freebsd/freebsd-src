@@ -255,8 +255,6 @@ static void ipsec6_get_ulp(const struct mbuf *m, struct secpolicyindex *, int);
 static void ipsec6_setspidx_ipaddr(const struct mbuf *,
     struct secpolicyindex *);
 #endif
-static void ipsec_delpcbpolicy(struct inpcbpolicy *);
-static struct secpolicy *ipsec_deepcopy_policy(struct secpolicy *src);
 static void vshiftl(unsigned char *, int, int);
 
 MALLOC_DEFINE(M_IPSEC_INPCB, "inpcbpolicy", "inpcb-resident ipsec policy");
@@ -801,289 +799,300 @@ ipsec_run_hhooks(struct ipsec_ctx_data *ctx, int type)
 	return (0);
 }
 
-static void
-ipsec_delpcbpolicy(struct inpcbpolicy *p)
-{
-
-	free(p, M_IPSEC_INPCB);
-}
-
-/* Initialize policy in PCB. */
+/* Initialize PCB policy. */
 int
-ipsec_init_policy(struct socket *so, struct inpcbpolicy **pcb_sp)
+ipsec_init_pcbpolicy(struct inpcb *inp)
 {
-	struct inpcbpolicy *new;
 
-	/* Sanity check. */
-	if (so == NULL || pcb_sp == NULL)
-		panic("%s: NULL pointer was passed.\n", __func__);
+	IPSEC_ASSERT(inp != NULL, ("null inp"));
+	IPSEC_ASSERT(inp->inp_sp == NULL, ("inp_sp already initialized"));
 
-	new = (struct inpcbpolicy *) malloc(sizeof(struct inpcbpolicy),
-					    M_IPSEC_INPCB, M_NOWAIT|M_ZERO);
-	if (new == NULL) {
+	inp->inp_sp = malloc(sizeof(struct inpcbpolicy), M_IPSEC_INPCB,
+	    M_NOWAIT | M_ZERO);
+	if (inp->inp_sp == NULL) {
 		ipseclog((LOG_DEBUG, "%s: No more memory.\n", __func__));
 		return (ENOBUFS);
 	}
-
-	new->priv = IPSEC_IS_PRIVILEGED_SO(so);
-
-	if ((new->sp_in = KEY_NEWSP()) == NULL) {
-		ipsec_delpcbpolicy(new);
-		return (ENOBUFS);
-	}
-	new->sp_in->policy = IPSEC_POLICY_ENTRUST;
-	if ((new->sp_out = KEY_NEWSP()) == NULL) {
-		KEY_FREESP(&new->sp_in);
-		ipsec_delpcbpolicy(new);
-		return (ENOBUFS);
-	}
-	new->sp_out->policy = IPSEC_POLICY_ENTRUST;
-	*pcb_sp = new;
-
 	return (0);
+}
+
+/* Delete PCB policy. */
+int
+ipsec_delete_pcbpolicy(struct inpcb *inp)
+{
+
+	if (inp->inp_sp == NULL)
+		return (0);
+
+	if (inp->inp_sp->flags & INP_INBOUND_POLICY)
+		key_freesp(&inp->inp_sp->sp_in);
+
+	if (inp->inp_sp->flags & INP_OUTBOUND_POLICY)
+		key_freesp(&inp->inp_sp->sp_out);
+
+	free(inp->inp_sp, M_IPSEC_INPCB);
+	inp->inp_sp = NULL;
+	return (0);
+}
+
+/* Deep-copy a policy in PCB. */
+static struct secpolicy *
+ipsec_deepcopy_pcbpolicy(struct secpolicy *src)
+{
+	struct secpolicy *dst;
+	int i;
+
+	if (src == NULL)
+		return (NULL);
+
+	IPSEC_ASSERT(src->state == IPSEC_SPSTATE_PCB, ("SP isn't PCB"));
+
+	dst = key_newsp();
+	if (dst == NULL)
+		return (NULL);
+
+	dst->policy = src->policy;
+	dst->state = src->state;
+	dst->priority = src->priority;
+	/* Do not touch the refcnt field. */
+
+	/* Copy IPsec request chain. */
+	for (i = 0; i < src->tcount; i++) {
+		dst->req[i] = ipsec_newisr();
+		if (dst->req[i] == NULL) {
+			key_freesp(&dst);
+			return (NULL);
+		}
+		bcopy(src->req[i], dst->req[i], sizeof(struct ipsecrequest));
+		dst->tcount++;
+	}
+	KEYDBG(IPSEC_DUMP,
+	    printf("%s: copied SP(%p) -> SP(%p)\n", __func__, src, dst);
+	    kdebug_secpolicy(dst));
+	return (dst);
 }
 
 /* Copy old IPsec policy into new. */
 int
-ipsec_copy_policy(struct inpcbpolicy *old, struct inpcbpolicy *new)
+ipsec_copy_pcbpolicy(struct inpcb *old, struct inpcb *new)
 {
 	struct secpolicy *sp;
 
-	sp = ipsec_deepcopy_policy(old->sp_in);
-	if (sp) {
-		KEY_FREESP(&new->sp_in);
-		new->sp_in = sp;
+	/*
+	 * old->inp_sp can be NULL if PCB was created when an IPsec
+	 * support was unavailable. This is not an error, we don't have
+	 * policies in this PCB, so nothing to copy.
+	 */
+	if (old->inp_sp == NULL)
+		return (0);
+
+	IPSEC_ASSERT(new->inp_sp != NULL, ("new inp_sp is NULL"));
+	INP_WLOCK_ASSERT(new);
+
+	if (old->inp_sp->flags & INP_INBOUND_POLICY) {
+		sp = ipsec_deepcopy_pcbpolicy(old->inp_sp->sp_in);
+		if (sp == NULL)
+			return (ENOBUFS);
 	} else
-		return (ENOBUFS);
+		sp = NULL;
 
-	sp = ipsec_deepcopy_policy(old->sp_out);
-	if (sp) {
-		KEY_FREESP(&new->sp_out);
-		new->sp_out = sp;
+	if (new->inp_sp->flags & INP_INBOUND_POLICY)
+		key_freesp(&new->inp_sp->sp_in);
+
+	new->inp_sp->sp_in = sp;
+	if (sp != NULL)
+		new->inp_sp->flags |= INP_INBOUND_POLICY;
+	else
+		new->inp_sp->flags &= ~INP_INBOUND_POLICY;
+
+	if (old->inp_sp->flags & INP_OUTBOUND_POLICY) {
+		sp = ipsec_deepcopy_pcbpolicy(old->inp_sp->sp_out);
+		if (sp == NULL)
+			return (ENOBUFS);
 	} else
-		return (ENOBUFS);
+		sp = NULL;
 
-	new->priv = old->priv;
+	if (new->inp_sp->flags & INP_OUTBOUND_POLICY)
+		key_freesp(&new->inp_sp->sp_out);
 
+	new->inp_sp->sp_out = sp;
+	if (sp != NULL)
+		new->inp_sp->flags |= INP_OUTBOUND_POLICY;
+	else
+		new->inp_sp->flags &= ~INP_OUTBOUND_POLICY;
 	return (0);
+}
+
+static int
+ipsec_set_pcbpolicy(struct inpcb *inp, struct ucred *cred,
+    void *request, size_t len)
+{
+	struct sadb_x_policy *xpl;
+	struct secpolicy **spp, *newsp;
+	int error, flags;
+
+	xpl = (struct sadb_x_policy *)request;
+	/* Select direction. */
+	switch (xpl->sadb_x_policy_dir) {
+	case IPSEC_DIR_INBOUND:
+		spp = &inp->inp_sp->sp_in;
+		flags = INP_INBOUND_POLICY;
+		break;
+	case IPSEC_DIR_OUTBOUND:
+		spp = &inp->inp_sp->sp_out;
+		flags = INP_OUTBOUND_POLICY;
+		break;
+	default:
+		ipseclog((LOG_ERR, "%s: invalid direction=%u\n", __func__,
+			xpl->sadb_x_policy_dir));
+		return (EINVAL);
+	}
+	/*
+	 * Privileged sockets are allowed to set own security policy
+	 * and configure IPsec bypass. Unprivileged sockets only can
+	 * have ENTRUST policy.
+	 */
+	switch (xpl->sadb_x_policy_type) {
+	case IPSEC_POLICY_IPSEC:
+	case IPSEC_POLICY_BYPASS:
+		if (cred != NULL &&
+		    priv_check_cred(cred, PRIV_NETINET_IPSEC, 0) != 0)
+			return (EACCES);
+		/* Allocate new SP entry. */
+		newsp = key_msg2sp(xpl, len, &error);
+		if (newsp == NULL)
+			return (error);
+		newsp->state = IPSEC_SPSTATE_PCB;
+		break;
+	case IPSEC_POLICY_ENTRUST:
+		/* We just use NULL pointer for ENTRUST policy */
+		newsp = NULL;
+		break;
+	default:
+		/* Other security policy types aren't allowed for PCB */
+		return (EINVAL);
+	}
+
+	/* Clear old SP and set new SP. */
+	if (*spp != NULL)
+		key_freesp(spp);
+	*spp = newsp;
+	KEYDBG(IPSEC_DUMP,
+	    printf("%s: new SP(%p)\n", __func__, newsp));
+	if (newsp == NULL)
+		inp->inp_sp->flags &= ~flags;
+	else {
+		inp->inp_sp->flags |= flags;
+		KEYDBG(IPSEC_DUMP, kdebug_secpolicy(newsp));
+	}
+	return (0);
+}
+
+static int
+ipsec_get_pcbpolicy(struct inpcb *inp, void *request, size_t *len)
+{
+	struct sadb_x_policy *xpl;
+	struct secpolicy *sp;
+	int error, flags;
+
+	xpl = (struct sadb_x_policy *)request;
+	flags = inp->inp_sp->flags;
+	/* Select direction. */
+	switch (xpl->sadb_x_policy_dir) {
+	case IPSEC_DIR_INBOUND:
+		sp = inp->inp_sp->sp_in;
+		flags &= INP_INBOUND_POLICY;
+		break;
+	case IPSEC_DIR_OUTBOUND:
+		sp = inp->inp_sp->sp_out;
+		flags &= INP_OUTBOUND_POLICY;
+		break;
+	default:
+		ipseclog((LOG_ERR, "%s: invalid direction=%u\n", __func__,
+			xpl->sadb_x_policy_dir));
+		return (EINVAL);
+	}
+
+	if (flags == 0) {
+		/* Return ENTRUST policy */
+		xpl->sadb_x_policy_exttype = SADB_X_EXT_POLICY;
+		xpl->sadb_x_policy_type = IPSEC_POLICY_ENTRUST;
+		xpl->sadb_x_policy_id = 0;
+		xpl->sadb_x_policy_priority = 0;
+		xpl->sadb_x_policy_len = PFKEY_UNIT64(sizeof(*xpl));
+		*len = sizeof(*xpl);
+		return (0);
+	}
+
+	IPSEC_ASSERT(sp != NULL,
+	    ("sp is NULL, but flags is 0x%04x", inp->inp_sp->flags));
+
+	key_addref(sp);
+	error = key_sp2msg(sp, request, len);
+	key_freesp(&sp);
+	if (error == EINVAL)
+		return (error);
+	/*
+	 * We return "success", but user should check *len.
+	 * *len will be set to size of valid data and
+	 * sadb_x_policy_len will contain needed size.
+	 */
+	return (0);
+}
+
+/* Handle socket option control request for PCB */
+int
+ipsec_control_pcbpolicy(struct inpcb *inp, struct sockopt *sopt)
+{
+	void *optdata;
+	size_t optlen;
+	int error;
+
+	if (inp->inp_sp == NULL)
+		return (ENOPROTOOPT);
+
+	/* Limit maximum request size to PAGE_SIZE */
+	optlen = sopt->sopt_valsize;
+	if (optlen < sizeof(struct sadb_x_policy) || optlen > PAGE_SIZE)
+		return (EINVAL);
+
+	optdata = malloc(optlen, M_TEMP, sopt->sopt_td ? M_WAITOK: M_NOWAIT);
+	if (optdata == NULL)
+		return (ENOBUFS);
+	/*
+	 * We need a hint from the user, what policy is requested - input
+	 * or output? User should specify it in the buffer, even for
+	 * setsockopt().
+	 */
+	error = sooptcopyin(sopt, optdata, optlen, optlen);
+	if (error == 0) {
+		if (sopt->sopt_dir == SOPT_SET)
+			error = ipsec_set_pcbpolicy(inp,
+			    sopt->sopt_td ? sopt->sopt_td->td_ucred: NULL,
+			    optdata, optlen);
+		else {
+			error = ipsec_get_pcbpolicy(inp, optdata, &optlen);
+			if (error == 0)
+				error = sooptcopyout(sopt, optdata, optlen);
+		}
+	}
+	free(optdata, M_TEMP);
+	return (error);
 }
 
 struct ipsecrequest *
 ipsec_newisr(void)
 {
-	struct ipsecrequest *p;
 
-	p = malloc(sizeof(struct ipsecrequest), M_IPSEC_SR, M_NOWAIT|M_ZERO);
-	if (p != NULL)
-		IPSECREQUEST_LOCK_INIT(p);
-	return (p);
+	return (malloc(sizeof(struct ipsecrequest), M_IPSEC_SR,
+	    M_NOWAIT | M_ZERO));
 }
 
 void
 ipsec_delisr(struct ipsecrequest *p)
 {
 
-	IPSECREQUEST_LOCK_DESTROY(p);
 	free(p, M_IPSEC_SR);
-}
-
-/* Deep-copy a policy in PCB. */
-static struct secpolicy *
-ipsec_deepcopy_policy(struct secpolicy *src)
-{
-	struct ipsecrequest *newchain = NULL;
-	struct ipsecrequest *p;
-	struct ipsecrequest **q;
-	struct ipsecrequest *r;
-	struct secpolicy *dst;
-
-	if (src == NULL)
-		return (NULL);
-	dst = KEY_NEWSP();
-	if (dst == NULL)
-		return (NULL);
-
-	/*
-	 * Deep-copy IPsec request chain.  This is required since struct
-	 * ipsecrequest is not reference counted.
-	 */
-	q = &newchain;
-	for (p = src->req; p; p = p->next) {
-		*q = ipsec_newisr();
-		if (*q == NULL)
-			goto fail;
-		(*q)->saidx.proto = p->saidx.proto;
-		(*q)->saidx.mode = p->saidx.mode;
-		(*q)->level = p->level;
-		(*q)->saidx.reqid = p->saidx.reqid;
-
-		bcopy(&p->saidx.src, &(*q)->saidx.src, sizeof((*q)->saidx.src));
-		bcopy(&p->saidx.dst, &(*q)->saidx.dst, sizeof((*q)->saidx.dst));
-
-		(*q)->sp = dst;
-
-		q = &((*q)->next);
-	}
-
-	dst->req = newchain;
-	dst->policy = src->policy;
-	/* Do not touch the refcnt fields. */
-
-	return (dst);
-
-fail:
-	for (p = newchain; p; p = r) {
-		r = p->next;
-		ipsec_delisr(p);
-		p = NULL;
-	}
-	KEY_FREESP(&dst);
-	return (NULL);
-}
-
-/* Set policy and IPsec request if present. */
-static int
-ipsec_set_policy_internal(struct secpolicy **pcb_sp, int optname,
-    caddr_t request, size_t len, struct ucred *cred)
-{
-	struct sadb_x_policy *xpl;
-	struct secpolicy *newsp = NULL;
-	int error;
-
-	/* Sanity check. */
-	if (pcb_sp == NULL || *pcb_sp == NULL || request == NULL)
-		return (EINVAL);
-	if (len < sizeof(*xpl))
-		return (EINVAL);
-	xpl = (struct sadb_x_policy *)request;
-
-	KEYDEBUG(KEYDEBUG_IPSEC_DUMP,
-		printf("%s: passed policy\n", __func__);
-		kdebug_sadb_x_policy((struct sadb_ext *)xpl));
-
-	/* Check policy type. */
-	/* ipsec_set_policy_internal() accepts IPSEC, ENTRUST and BYPASS. */
-	if (xpl->sadb_x_policy_type == IPSEC_POLICY_DISCARD
-	 || xpl->sadb_x_policy_type == IPSEC_POLICY_NONE)
-		return (EINVAL);
-
-	/* Check privileged socket. */
-	if (cred != NULL && xpl->sadb_x_policy_type == IPSEC_POLICY_BYPASS) {
-		error = priv_check_cred(cred, PRIV_NETINET_IPSEC, 0);
-		if (error)
-			return (EACCES);
-	}
-
-	/* Allocating new SP entry. */
-	if ((newsp = key_msg2sp(xpl, len, &error)) == NULL)
-		return (error);
-
-	/* Clear old SP and set new SP. */
-	KEY_FREESP(pcb_sp);
-	*pcb_sp = newsp;
-	KEYDEBUG(KEYDEBUG_IPSEC_DUMP,
-		printf("%s: new policy\n", __func__);
-		kdebug_secpolicy(newsp));
-
-	return (0);
-}
-
-int
-ipsec_set_policy(struct inpcb *inp, int optname, caddr_t request,
-    size_t len, struct ucred *cred)
-{
-	struct sadb_x_policy *xpl;
-	struct secpolicy **pcb_sp;
-
-	/* Sanity check. */
-	if (inp == NULL || request == NULL)
-		return (EINVAL);
-	if (len < sizeof(*xpl))
-		return (EINVAL);
-	xpl = (struct sadb_x_policy *)request;
-
-	/* Select direction. */
-	switch (xpl->sadb_x_policy_dir) {
-	case IPSEC_DIR_INBOUND:
-		pcb_sp = &inp->inp_sp->sp_in;
-		break;
-	case IPSEC_DIR_OUTBOUND:
-		pcb_sp = &inp->inp_sp->sp_out;
-		break;
-	default:
-		ipseclog((LOG_ERR, "%s: invalid direction=%u\n", __func__,
-			xpl->sadb_x_policy_dir));
-		return (EINVAL);
-	}
-
-	return (ipsec_set_policy_internal(pcb_sp, optname, request, len, cred));
-}
-
-int
-ipsec_get_policy(struct inpcb *inp, caddr_t request, size_t len,
-    struct mbuf **mp)
-{
-	struct sadb_x_policy *xpl;
-	struct secpolicy *pcb_sp;
-
-	/* Sanity check. */
-	if (inp == NULL || request == NULL || mp == NULL)
-		return (EINVAL);
-	IPSEC_ASSERT(inp->inp_sp != NULL, ("null inp_sp"));
-	if (len < sizeof(*xpl))
-		return (EINVAL);
-	xpl = (struct sadb_x_policy *)request;
-
-	/* Select direction. */
-	switch (xpl->sadb_x_policy_dir) {
-	case IPSEC_DIR_INBOUND:
-		pcb_sp = inp->inp_sp->sp_in;
-		break;
-	case IPSEC_DIR_OUTBOUND:
-		pcb_sp = inp->inp_sp->sp_out;
-		break;
-	default:
-		ipseclog((LOG_ERR, "%s: invalid direction=%u\n", __func__,
-			xpl->sadb_x_policy_dir));
-		return (EINVAL);
-	}
-
-	/* Sanity check. Should be an IPSEC_ASSERT. */
-	if (pcb_sp == NULL)
-		return (EINVAL);
-
-	*mp = key_sp2msg(pcb_sp);
-	if (!*mp) {
-		ipseclog((LOG_DEBUG, "%s: No more memory.\n", __func__));
-		return (ENOBUFS);
-	}
-
-	(*mp)->m_type = MT_DATA;
-	KEYDEBUG(KEYDEBUG_IPSEC_DUMP,
-		printf("%s:\n", __func__); kdebug_mbuf(*mp));
-
-	return (0);
-}
-
-/* Delete policy in PCB. */
-int
-ipsec_delete_pcbpolicy(struct inpcb *inp)
-{
-	IPSEC_ASSERT(inp != NULL, ("null inp"));
-
-	if (inp->inp_sp == NULL)
-		return (0);
-
-	if (inp->inp_sp->sp_in != NULL)
-		KEY_FREESP(&inp->inp_sp->sp_in);
-
-	if (inp->inp_sp->sp_out != NULL)
-		KEY_FREESP(&inp->inp_sp->sp_out);
-
-	ipsec_delpcbpolicy(inp->inp_sp);
-	inp->inp_sp = NULL;
-
-	return (0);
 }
 
 /*

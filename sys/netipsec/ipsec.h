@@ -298,29 +298,24 @@ VNET_DECLARE(int, crypto_support);
 /* for openbsd compatibility */
 #define	DPRINTF(x)	do { if (V_ipsec_debug) printf x; } while (0)
 
-extern	struct ipsecrequest *ipsec_newisr(void);
-extern	void ipsec_delisr(struct ipsecrequest *);
-
 struct inpcb;
+struct secasvar;
+struct sockopt;
+
+struct ipsecrequest *ipsec_newisr(void);
+void ipsec_delisr(struct ipsecrequest *);
 struct secpolicy *ipsec4_checkpolicy(const struct mbuf *, struct inpcb *,
     int *);
-extern struct secpolicy * ipsec_getpolicybyaddr(const struct mbuf *, u_int,
-    int *);
-
-extern int ipsec_init_policy(struct socket *so, struct inpcbpolicy **);
-extern int ipsec_copy_policy(struct inpcbpolicy *, struct inpcbpolicy *);
 
 u_int ipsec_get_reqlevel(struct secpolicy *, u_int);
 int ipsec4_in_reject(const struct mbuf *, struct inpcb *);
 size_t ipsec_hdrsiz_inpcb(struct inpcb *);
 
-extern int ipsec_set_policy(struct inpcb *inp, int optname,
-	caddr_t request, size_t len, struct ucred *cred);
-extern int ipsec_get_policy(struct inpcb *inpcb, caddr_t request,
-    size_t len, struct mbuf **mp);
-extern int ipsec_delete_pcbpolicy(struct inpcb *);
+int ipsec_init_pcbpolicy(struct inpcb *);
+int ipsec_delete_pcbpolicy(struct inpcb *);
+int ipsec_copy_pcbpolicy(struct inpcb *, struct inpcb *);
+int ipsec_control_pcbpolicy(struct inpcb *, struct sockopt *);
 
-struct secas;
 extern int ipsec_chkreplay(u_int32_t, struct secasvar *);
 extern int ipsec_updatereplay(u_int32_t, struct secasvar *);
 

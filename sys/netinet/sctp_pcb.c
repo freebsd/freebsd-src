@@ -2460,7 +2460,7 @@ sctp_inpcb_alloc(struct socket *so, uint32_t vrf_id)
 		return (ENOBUFS);
 	}
 #ifdef IPSEC
-	error = ipsec_init_policy(so, &inp->ip_inp.inp.inp_sp);
+	error = ipsec_init_pcbpolicy(&inp->ip_inp.inp);
 	if (error != 0) {
 		crfree(inp->ip_inp.inp.inp_cred);
 		SCTP_ZONE_FREE(SCTP_BASE_INFO(ipi_zone_ep), inp);

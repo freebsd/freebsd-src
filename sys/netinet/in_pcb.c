@@ -304,7 +304,7 @@ in_pcballoc(struct socket *so, struct inpcbinfo *pcbinfo)
 	mac_inpcb_create(so, inp);
 #endif
 #ifdef IPSEC
-	error = ipsec_init_policy(so, &inp->inp_sp);
+	error = ipsec_init_pcbpolicy(inp);
 	if (error != 0) {
 #ifdef MAC
 		mac_inpcb_destroy(inp);
