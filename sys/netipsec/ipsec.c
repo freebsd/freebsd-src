@@ -265,12 +265,9 @@ MALLOC_DEFINE(M_IPSEC_INPCB, "inpcbpolicy", "inpcb-resident ipsec policy");
  * Return a held reference to the default SP.
  */
 static struct secpolicy *
-key_allocsp_default(const char* where, int tag)
+key_allocsp_default(void)
 {
 	struct secpolicy *sp;
-
-	KEYDEBUG(KEYDEBUG_IPSEC_STAMP,
-		printf("DP key_allocsp_default from %s:%u\n", where, tag));
 
 	sp = &V_def_policy;
 	if (sp->policy != IPSEC_POLICY_DISCARD &&
@@ -280,14 +277,8 @@ key_allocsp_default(const char* where, int tag)
 		sp->policy = IPSEC_POLICY_NONE;
 	}
 	key_addref(sp);
-
-	KEYDEBUG(KEYDEBUG_IPSEC_STAMP,
-		printf("DP key_allocsp_default returns SP:%p (%u)\n",
-			sp, sp->refcnt));
 	return (sp);
 }
-#define	KEY_ALLOCSP_DEFAULT() \
-	key_allocsp_default(__FILE__, __LINE__)
 
 static struct secpolicy *
 ipsec_checkpolicy(struct secpolicy *sp, struct inpcb *inp, int *error)
@@ -374,180 +365,6 @@ ipsec_getpcbpolicy(struct inpcb *inp, u_int dir)
 	}
 	IPSEC_ASSERT(sp != NULL, ("null SP, but flags is 0x%04x", flags));
 	key_addref(sp);
-	return (sp);
-}
-
-/*
- * For OUTBOUND packet having a socket. Searching SPD for packet,
- * and return a pointer to SP.
- * OUT:	NULL:	no apropreate SP found, the following value is set to error.
- *		0	: bypass
- *		EACCES	: discard packet.
- *		ENOENT	: ipsec_acquire() in progress, maybe.
- *		others	: error occurred.
- *	others:	a pointer to SP
- *
- * NOTE: IPv6 mapped adddress concern is implemented here.
- */
-struct secpolicy *
-ipsec_getpolicy(struct tdb_ident *tdbi, u_int dir)
-{
-	struct secpolicy *sp;
-
-	IPSEC_ASSERT(tdbi != NULL, ("null tdbi"));
-	IPSEC_ASSERT(dir == IPSEC_DIR_INBOUND || dir == IPSEC_DIR_OUTBOUND,
-		("invalid direction %u", dir));
-
-	sp = KEY_ALLOCSP2(tdbi->spi, &tdbi->dst, tdbi->proto, dir);
-	if (sp == NULL)			/*XXX????*/
-		sp = KEY_ALLOCSP_DEFAULT();
-	IPSEC_ASSERT(sp != NULL, ("null SP"));
-	return (sp);
-}
-
-/*
- * For OUTBOUND packet having a socket. Searching SPD for packet,
- * and return a pointer to SP.
- * OUT:	NULL:	no apropreate SP found, the following value is set to error.
- *		0	: bypass
- *		EACCES	: discard packet.
- *		ENOENT	: ipsec_acquire() in progress, maybe.
- *		others	: error occurred.
- *	others:	a pointer to SP
- *
- * NOTE: IPv6 mapped adddress concern is implemented here.
- */
-static struct secpolicy *
-ipsec_getpolicybysock(const struct mbuf *m, u_int dir, struct inpcb *inp,
-    int *error)
-{
-	struct inpcbpolicy *pcbsp;
-	struct secpolicy *currsp = NULL;	/* Policy on socket. */
-	struct secpolicy *sp;
-
-	IPSEC_ASSERT(m != NULL, ("null mbuf"));
-	IPSEC_ASSERT(inp != NULL, ("null inpcb"));
-	IPSEC_ASSERT(error != NULL, ("null error"));
-	IPSEC_ASSERT(dir == IPSEC_DIR_INBOUND || dir == IPSEC_DIR_OUTBOUND,
-		("invalid direction %u", dir));
-
-	if (!key_havesp(dir)) {
-		/* No SP found, use system default. */
-		sp = KEY_ALLOCSP_DEFAULT();
-		return (sp);
-	}
-
-	/* Set spidx in pcb. */
-	*error = ipsec_setspidx_inpcb(m, inp);
-	if (*error)
-		return (NULL);
-
-	pcbsp = inp->inp_sp;
-	IPSEC_ASSERT(pcbsp != NULL, ("null pcbsp"));
-	switch (dir) {
-	case IPSEC_DIR_INBOUND:
-		currsp = pcbsp->sp_in;
-		break;
-	case IPSEC_DIR_OUTBOUND:
-		currsp = pcbsp->sp_out;
-		break;
-	}
-	IPSEC_ASSERT(currsp != NULL, ("null currsp"));
-
-	if (pcbsp->priv) {			/* When privilieged socket. */
-		switch (currsp->policy) {
-		case IPSEC_POLICY_BYPASS:
-		case IPSEC_POLICY_IPSEC:
-			key_addref(currsp);
-			sp = currsp;
-			break;
-
-		case IPSEC_POLICY_ENTRUST:
-			/* Look for a policy in SPD. */
-			sp = KEY_ALLOCSP(&currsp->spidx, dir);
-			if (sp == NULL)		/* No SP found. */
-				sp = KEY_ALLOCSP_DEFAULT();
-			break;
-
-		default:
-			ipseclog((LOG_ERR, "%s: Invalid policy for PCB %d\n",
-				__func__, currsp->policy));
-			*error = EINVAL;
-			return (NULL);
-		}
-	} else {				/* Unpriv, SPD has policy. */
-		sp = KEY_ALLOCSP(&currsp->spidx, dir);
-		if (sp == NULL) {		/* No SP found. */
-			switch (currsp->policy) {
-			case IPSEC_POLICY_BYPASS:
-				ipseclog((LOG_ERR, "%s: Illegal policy for "
-					"non-priviliged defined %d\n",
-					__func__, currsp->policy));
-				*error = EINVAL;
-				return (NULL);
-
-			case IPSEC_POLICY_ENTRUST:
-				sp = KEY_ALLOCSP_DEFAULT();
-				break;
-
-			case IPSEC_POLICY_IPSEC:
-				key_addref(currsp);
-				sp = currsp;
-				break;
-
-			default:
-				ipseclog((LOG_ERR, "%s: Invalid policy for "
-					"PCB %d\n", __func__, currsp->policy));
-				*error = EINVAL;
-				return (NULL);
-			}
-		}
-	}
-	IPSEC_ASSERT(sp != NULL,
-		("null SP (priv %u policy %u", pcbsp->priv, currsp->policy));
-	KEYDEBUG(KEYDEBUG_IPSEC_STAMP,
-		printf("DP %s (priv %u policy %u) allocate SP:%p (refcnt %u)\n",
-			__func__, pcbsp->priv, currsp->policy, sp, sp->refcnt));
-	return (sp);
-}
-
-/*
- * For FORWADING packet or OUTBOUND without a socket. Searching SPD for packet,
- * and return a pointer to SP.
- * OUT:	positive: a pointer to the entry for security policy leaf matched.
- *	NULL:	no apropreate SP found, the following value is set to error.
- *		0	: bypass
- *		EACCES	: discard packet.
- *		ENOENT	: ipsec_acquire() in progress, maybe.
- *		others	: error occurred.
- */
-struct secpolicy *
-ipsec_getpolicybyaddr(const struct mbuf *m, u_int dir, int *error)
-{
-	struct secpolicyindex spidx;
-	struct secpolicy *sp;
-
-	IPSEC_ASSERT(m != NULL, ("null mbuf"));
-	IPSEC_ASSERT(error != NULL, ("null error"));
-	IPSEC_ASSERT(dir == IPSEC_DIR_INBOUND || dir == IPSEC_DIR_OUTBOUND,
-		("invalid direction %u", dir));
-
-	sp = NULL;
-	*error = 0;
-	if (key_havesp(dir)) {
-		/* Make an index to look for a policy. */
-		*error = ipsec_setspidx(m, &spidx, 0);
-		if (*error != 0) {
-			DPRINTF(("%s: setpidx failed, dir %u\n",
-				__func__, dir));
-			return (NULL);
-		}
-		spidx.dir = dir;
-		sp = KEY_ALLOCSP(&spidx, dir);
-	}
-	if (sp == NULL)			/* No SP found, use system default. */
-		sp = KEY_ALLOCSP_DEFAULT();
-	IPSEC_ASSERT(sp != NULL, ("null SP"));
 	return (sp);
 }
 
