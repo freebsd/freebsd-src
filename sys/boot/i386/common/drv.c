@@ -91,7 +91,7 @@ drvread(struct dsk *dskp, void *buf, daddr_t lba, unsigned nblk)
 	return (0);
 }
 
-#ifdef GPT
+#if defined(GPT) || defined(ZFS)
 int
 drvwrite(struct dsk *dskp, void *buf, daddr_t lba, unsigned nblk)
 {
@@ -114,4 +114,4 @@ drvwrite(struct dsk *dskp, void *buf, daddr_t lba, unsigned nblk)
 	}
 	return (0);
 }
-#endif	/* GPT */
+#endif	/* GPT || ZFS */
