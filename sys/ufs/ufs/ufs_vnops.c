@@ -105,7 +105,7 @@ static vop_create_t	ufs_create;
 static vop_getattr_t	ufs_getattr;
 static vop_ioctl_t	ufs_ioctl;
 static vop_link_t	ufs_link;
-static int ufs_makeinode(int mode, struct vnode *, struct vnode **, struct componentname *);
+static int ufs_makeinode(int mode, struct vnode *, struct vnode **, struct componentname *, const char *);
 static vop_markatime_t	ufs_markatime;
 static vop_mkdir_t	ufs_mkdir;
 static vop_mknod_t	ufs_mknod;
@@ -204,7 +204,7 @@ ufs_create(ap)
 
 	error =
 	    ufs_makeinode(MAKEIMODE(ap->a_vap->va_type, ap->a_vap->va_mode),
-	    ap->a_dvp, ap->a_vpp, ap->a_cnp);
+	    ap->a_dvp, ap->a_vpp, ap->a_cnp, "ufs_create");
 	if (error != 0)
 		return (error);
 	if ((ap->a_cnp->cn_flags & MAKEENTRY) != 0)
@@ -232,7 +232,7 @@ ufs_mknod(ap)
 	int error;
 
 	error = ufs_makeinode(MAKEIMODE(vap->va_type, vap->va_mode),
-	    ap->a_dvp, vpp, ap->a_cnp);
+	    ap->a_dvp, vpp, ap->a_cnp, "ufs_mknod");
 	if (error)
 		return (error);
 	ip = VTOI(*vpp);
@@ -944,6 +944,17 @@ out:
 	return (error);
 }
 
+static void
+print_bad_link_count(const char *funcname, struct vnode *dvp)
+{
+	struct inode *dip;
+
+	dip = VTOI(dvp);
+	uprintf("%s: Bad link count %d on parent inode %d in file system %s\n",
+	    funcname, dip->i_effnlink, dip->i_number,
+	    dvp->v_mount->mnt_stat.f_mntonname);
+}
+
 /*
  * link vnode call
  */
@@ -966,9 +977,11 @@ ufs_link(ap)
 	if ((cnp->cn_flags & HASBUF) == 0)
 		panic("ufs_link: no name");
 #endif
-	if (VTOI(tdvp)->i_effnlink < 2)
-		panic("ufs_link: Bad link count %d on parent",
-		    VTOI(tdvp)->i_effnlink);
+	if (VTOI(tdvp)->i_effnlink < 2) {
+		print_bad_link_count("ufs_link", tdvp);
+		error = EINVAL;
+		goto out;
+	}
 	ip = VTOI(vp);
 	if ((nlink_t)ip->i_nlink >= LINK_MAX) {
 		error = EMLINK;
@@ -1712,10 +1725,10 @@ ufs_do_posix1e_acl_inheritance_file(struct vnode *dvp, struct vnode *tvp,
 		 * XXX: This should not happen, as EOPNOTSUPP above was
 		 * supposed to free acl.
 		 */
-		printf("ufs_makeinode: VOP_GETACL() but no "
-		    "VOP_SETACL()\n");
-		/* panic("ufs_makeinode: VOP_GETACL() but no "
-		    "VOP_SETACL()"); */
+		printf("ufs_do_posix1e_acl_inheritance_file: VOP_GETACL() "
+		    "but no VOP_SETACL()\n");
+		/* panic("ufs_do_posix1e_acl_inheritance_file: VOP_GETACL() "
+		    "but no VOP_SETACL()"); */
 		break;
 
 	default:
@@ -1793,6 +1806,11 @@ ufs_mkdir(ap)
 	 * but not have it entered in the parent directory. The entry is
 	 * made later after writing "." and ".." entries.
 	 */
+	if (dp->i_effnlink < 2) {
+		print_bad_link_count("ufs_mkdir", dvp);
+		error = EINVAL;
+		goto out;
+	}
 	error = UFS_VALLOC(dvp, dmode, cnp->cn_cred, &tvp);
 	if (error)
 		goto out;
@@ -2023,13 +2041,12 @@ ufs_rmdir(ap)
 	 * tries to remove a locally mounted on directory).
 	 */
 	error = 0;
-	if (ip->i_effnlink < 2) {
+	if (dp->i_effnlink <= 2) {
+		if (dp->i_effnlink == 2)
+			print_bad_link_count("ufs_rmdir", dvp);
 		error = EINVAL;
 		goto out;
 	}
-	if (dp->i_effnlink < 3)
-		panic("ufs_dirrem: Bad link count %d on parent",
-		    dp->i_effnlink);
 	if (!ufs_dirempty(ip, dp->i_number, cnp->cn_cred)) {
 		error = ENOTEMPTY;
 		goto out;
@@ -2108,7 +2125,7 @@ ufs_symlink(ap)
 	int len, error;
 
 	error = ufs_makeinode(IFLNK | ap->a_vap->va_mode, ap->a_dvp,
-	    vpp, ap->a_cnp);
+	    vpp, ap->a_cnp, "ufs_symlink");
 	if (error)
 		return (error);
 	vp = *vpp;
@@ -2564,11 +2581,12 @@ ufs_vinit(mntp, fifoops, vpp)
  * Vnode dvp must be locked.
  */
 static int
-ufs_makeinode(mode, dvp, vpp, cnp)
+ufs_makeinode(mode, dvp, vpp, cnp, callfunc)
 	int mode;
 	struct vnode *dvp;
 	struct vnode **vpp;
 	struct componentname *cnp;
+	const char *callfunc;
 {
 	struct inode *ip, *pdir;
 	struct direct newdir;
@@ -2578,15 +2596,16 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 	pdir = VTOI(dvp);
 #ifdef INVARIANTS
 	if ((cnp->cn_flags & HASBUF) == 0)
-		panic("ufs_makeinode: no name");
+		panic("%s: no name", callfunc);
 #endif
 	*vpp = NULL;
 	if ((mode & IFMT) == 0)
 		mode |= IFREG;
 
-	if (VTOI(dvp)->i_effnlink < 2)
-		panic("ufs_makeinode: Bad link count %d on parent",
-		    VTOI(dvp)->i_effnlink);
+	if (pdir->i_effnlink < 2) {
+		print_bad_link_count(callfunc, dvp);
+		return (EINVAL);
+	}
 	error = UFS_VALLOC(dvp, mode, cnp->cn_cred, &tvp);
 	if (error)
 		return (error);
