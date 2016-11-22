@@ -2825,6 +2825,85 @@ key_getsavbyspi(uint32_t spi)
 	return (sav);
 }
 
+static int
+key_updatelifetimes(struct secasvar *sav, const struct sadb_msghdr *mhp)
+{
+	struct seclifetime *lft_h, *lft_s, *tmp;
+
+	/* Lifetime extension is optional, check that it is present. */
+	if (SADB_CHECKHDR(mhp, SADB_EXT_LIFETIME_HARD) &&
+	    SADB_CHECKHDR(mhp, SADB_EXT_LIFETIME_SOFT)) {
+		/*
+		 * In case of SADB_UPDATE we may need to change
+		 * existing lifetimes.
+		 */
+		if (sav->state == SADB_SASTATE_MATURE) {
+			lft_h = lft_s = NULL;
+			goto reset;
+		}
+		return (0);
+	}
+	/* XXXAE: what should we do with CURRENT lifetime? */
+	/* Both HARD and SOFT extensions must present */
+	if ((SADB_CHECKHDR(mhp, SADB_EXT_LIFETIME_HARD) &&
+	    !SADB_CHECKHDR(mhp, SADB_EXT_LIFETIME_SOFT)) ||
+	    (SADB_CHECKHDR(mhp, SADB_EXT_LIFETIME_SOFT) &&
+	    !SADB_CHECKHDR(mhp, SADB_EXT_LIFETIME_HARD))) {
+		ipseclog((LOG_DEBUG,
+		    "%s: invalid message: missing required header.\n",
+		    __func__));
+		return (EINVAL);
+	}
+	if (SADB_CHECKLEN(mhp, SADB_EXT_LIFETIME_HARD) ||
+	    SADB_CHECKLEN(mhp, SADB_EXT_LIFETIME_SOFT)) {
+		ipseclog((LOG_DEBUG,
+		    "%s: invalid message: wrong header size.\n", __func__));
+		return (EINVAL);
+	}
+	lft_h = key_dup_lifemsg((const struct sadb_lifetime *)
+	    mhp->ext[SADB_EXT_LIFETIME_HARD], M_IPSEC_MISC);
+	if (lft_h == NULL) {
+		PFKEYSTAT_INC(in_nomem);
+		ipseclog((LOG_DEBUG, "%s: No more memory.\n", __func__));
+		return (ENOBUFS);
+	}
+	lft_s = key_dup_lifemsg((const struct sadb_lifetime *)
+	    mhp->ext[SADB_EXT_LIFETIME_SOFT], M_IPSEC_MISC);
+	if (lft_s == NULL) {
+		PFKEYSTAT_INC(in_nomem);
+		free(lft_h, M_IPSEC_MISC);
+		ipseclog((LOG_DEBUG, "%s: No more memory.\n", __func__));
+		return (ENOBUFS);
+	}
+reset:
+	if (sav->state != SADB_SASTATE_LARVAL) {
+		/*
+		 * key_update() holds reference to this SA,
+		 * so it won't be deleted in meanwhile.
+		 */
+		SECASVAR_LOCK(sav);
+		tmp = sav->lft_h;
+		sav->lft_h = lft_h;
+		lft_h = tmp;
+
+		tmp = sav->lft_s;
+		sav->lft_s = lft_s;
+		lft_s = tmp;
+		SECASVAR_UNLOCK(sav);
+		if (lft_h != NULL)
+			free(lft_h, M_IPSEC_MISC);
+		if (lft_s != NULL)
+			free(lft_s, M_IPSEC_MISC);
+		return (0);
+	}
+	/* We can update lifetime without holding a lock */
+	IPSEC_ASSERT(sav->lft_h == NULL, ("lft_h is already initialized\n"));
+	IPSEC_ASSERT(sav->lft_s == NULL, ("lft_s is already initialized\n"));
+	sav->lft_h = lft_h;
+	sav->lft_s = lft_s;
+	return (0);
+}
+
 /*
  * copy SA values from PF_KEY message except *SPI, SEQ, PID, STATE and TYPE*.
  * You must update these if need.
