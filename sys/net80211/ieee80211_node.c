@@ -896,6 +896,10 @@ ieee80211_sta_join(struct ieee80211vap *vap, struct ieee80211_channel *chan,
 		if (ni->ni_ies.tdma_ie != NULL)
 			ieee80211_parse_tdma(ni, ni->ni_ies.tdma_ie);
 #endif
+
+		/* XXX parse VHT IEs */
+		/* XXX parse BSSLOAD IE */
+		/* XXX parse APCHANREP IE */
 	}
 
 	vap->iv_dtim_period = se->se_dtimperiod;
@@ -1055,6 +1059,21 @@ ieee80211_ies_expand(struct ieee80211_ies *ies)
 			ies->meshid_ie = ie;
 			break;
 #endif
+		case IEEE80211_ELEMID_VHT_CAP:
+			ies->vhtcap_ie = ie;
+			break;
+		case IEEE80211_ELEMID_VHT_OPMODE:
+			ies->vhtopmode_ie = ie;
+			break;
+		case IEEE80211_ELEMID_VHT_PWR_ENV:
+			ies->vhtpwrenv_ie = ie;
+			break;
+		case IEEE80211_ELEMID_BSSLOAD:
+			ies->bssload_ie = ie;
+			break;
+		case IEEE80211_ELEMID_APCHANREP:
+			ies->apchanrep_ie = ie;
+			break;
 		}
 		ielen -= 2 + ie[1];
 		ie += 2 + ie[1];
