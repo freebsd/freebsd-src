@@ -19,8 +19,6 @@ MIPS_ABIS=elf32btsmip_fbsd elf32ltsmip_fbsd elf64btsmip_fbsd elf64ltsmip_fbsd \
 .if ${MK_CHERI} == "yes"
 MIPS_ABIS+=elf64btsmip_cheri_fbsd
 LIBSEARCHPATH.elf64btsmip_cheri_fbsd=\"=/usr/libcheri\"
-.else
-.error wtf
 .endif
 .for abi in ${MIPS_ABIS}
 #.if (${abi} != ${NATIVE_EMULATION})
