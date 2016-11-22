@@ -773,21 +773,20 @@ adhoc_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 				 * filling the node table with nodes that
 				 * aren't ours.
 				 */
-				if (ieee80211_ibss_node_check_new(ni, &scan))
+				if (ieee80211_ibss_node_check_new(ni, &scan)) {
 					ni = ieee80211_add_neighbor(vap, wh, &scan);
-				else
+					/*
+					 * Send a probe request so we announce 11n
+					 * capabilities.
+					 */
+					ieee80211_send_probereq(ni, /* node */
+					    vap->iv_myaddr, /* SA */
+					    ni->ni_macaddr, /* DA */
+					    vap->iv_bss->ni_bssid, /* BSSID */
+					    vap->iv_bss->ni_essid,
+					    vap->iv_bss->ni_esslen); /* SSID */
+				} else
 					ni = NULL;
-
-				/*
-				 * Send a probe request so we announce 11n
-				 * capabilities.
-				 */
-				ieee80211_send_probereq(ni, /* node */
-					vap->iv_myaddr, /* SA */
-					ni->ni_macaddr, /* DA */
-					vap->iv_bss->ni_bssid, /* BSSID */
-					vap->iv_bss->ni_essid,
-					vap->iv_bss->ni_esslen); /* SSID */
 
 			} else if (ni->ni_capinfo == 0) {
 				/*
