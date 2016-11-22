@@ -78,7 +78,8 @@ __BEGIN_DECLS
 
 void	SHA256_Init(SHA256_CTX *);
 void	SHA256_Update(SHA256_CTX *, const void *, size_t);
-void	SHA256_Final(unsigned char [static SHA256_DIGEST_LENGTH], SHA256_CTX *);
+void	SHA256_Final(unsigned char [__min_size(SHA256_DIGEST_LENGTH)],
+    SHA256_CTX *);
 #ifndef _KERNEL
 char   *SHA256_End(SHA256_CTX *, char *);
 char   *SHA256_Data(const void *, unsigned int, char *);
