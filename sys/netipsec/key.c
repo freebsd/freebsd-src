@@ -2484,74 +2484,59 @@ key_spdexpire(struct secpolicy *sp)
 
 /* %%% SAD management */
 /*
- * allocating a memory for new SA head, and copy from the values of mhp.
+ * allocating and initialize new SA head.
  * OUT:	NULL	: failure due to the lack of memory.
  *	others	: pointer to new SA head.
  */
 static struct secashead *
 key_newsah(struct secasindex *saidx)
 {
-	struct secashead *newsah;
+	struct secashead *sah;
 
-	IPSEC_ASSERT(saidx != NULL, ("null saidx"));
+	sah = malloc(sizeof(struct secashead), M_IPSEC_SAH,
+	    M_NOWAIT | M_ZERO);
+	if (sah == NULL)
+		return (NULL);
+	TAILQ_INIT(&sah->savtree_larval);
+	TAILQ_INIT(&sah->savtree_alive);
+	sah->saidx = *saidx;
+	sah->state = SADB_SASTATE_DEAD;
+	SAH_INITREF(sah);
 
-	newsah = malloc(sizeof(struct secashead), M_IPSEC_SAH, M_NOWAIT|M_ZERO);
-	if (newsah != NULL) {
-		int i;
-		for (i = 0; i < sizeof(newsah->savtree)/sizeof(newsah->savtree[0]); i++)
-			LIST_INIT(&newsah->savtree[i]);
-		newsah->saidx = *saidx;
-
-		/* add to saidxtree */
-		newsah->state = SADB_SASTATE_MATURE;
-
-		SAHTREE_LOCK();
-		LIST_INSERT_HEAD(&V_sahtree, newsah, chain);
-		SAHTREE_UNLOCK();
-	}
-	return(newsah);
+	KEYDBG(KEY_STAMP,
+	    printf("%s: SAH(%p)\n", __func__, sah));
+	KEYDBG(KEY_DATA, kdebug_secash(sah, NULL));
+	return (sah);
 }
 
-/*
- * delete SA index and all SA registerd.
- */
+static void
+key_freesah(struct secashead **psah)
+{
+	struct secashead *sah = *psah;
+
+	if (SAH_DELREF(sah) == 0)
+		return;
+
+	KEYDBG(KEY_STAMP,
+	    printf("%s: last reference to SAH(%p)\n", __func__, sah));
+	KEYDBG(KEY_DATA, kdebug_secash(sah, NULL));
+
+	*psah = NULL;
+	key_delsah(sah);
+}
+
 static void
 key_delsah(struct secashead *sah)
 {
-	struct secasvar *sav, *nextsav;
-	u_int stateidx;
-	int zombie = 0;
-
 	IPSEC_ASSERT(sah != NULL, ("NULL sah"));
-	SAHTREE_LOCK_ASSERT();
+	IPSEC_ASSERT(sah->state == SADB_SASTATE_DEAD,
+	    ("Attempt to free non DEAD SAH %p", sah));
+	IPSEC_ASSERT(TAILQ_EMPTY(&sah->savtree_larval),
+	    ("Attempt to free SAH %p with LARVAL SA", sah));
+	IPSEC_ASSERT(TAILQ_EMPTY(&sah->savtree_alive),
+	    ("Attempt to free SAH %p with ALIVE SA", sah));
 
-	/* searching all SA registerd in the secindex. */
-	for (stateidx = 0;
-	     stateidx < _ARRAYLEN(saorder_state_any);
-	     stateidx++) {
-		u_int state = saorder_state_any[stateidx];
-		LIST_FOREACH_SAFE(sav, &sah->savtree[state], chain, nextsav) {
-			if (sav->refcnt == 0) {
-				/* sanity check */
-				KEY_CHKSASTATE(state, sav->state, __func__);
-				/* 
-				 * do NOT call KEY_FREESAV here:
-				 * it will only delete the sav if refcnt == 1,
-				 * where we already know that refcnt == 0
-				 */
-				key_delsav(sav);
-			} else {
-				/* give up to delete this sa */
-				zombie++;
-			}
-		}
-	}
-	if (!zombie) {		/* delete only if there are savs */
-		/* remove from tree of SA index */
-		if (__LIST_CHAINED(sah))
-			LIST_REMOVE(sah, chain);
-		free(sah, M_IPSEC_SAH);
-	}
+	free(sah, M_IPSEC_SAH);
 }
 
 /*
