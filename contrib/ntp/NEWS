@@ -1,4 +1,311 @@
 ---
+NTP 4.2.8p9 (Harlan Stenn <stenn@ntp.org>, 2016/11/21) 
+
+Focus: Security, Bug fixes, enhancements.
+
+Severity: HIGH
+
+In addition to bug fixes and enhancements, this release fixes the
+following 1 high- (Windows only), 2 medium-, 2 medium-/low, and
+5 low-severity vulnerabilities, and provides 28 other non-security
+fixes and improvements:
+
+* Trap crash
+   Date Resolved: 21 November 2016; Dev (4.3.94) 21 November 2016
+   References: Sec 3119 / CVE-2016-9311 / VU#633847
+   Affects: ntp-4.0.90 (21 July 1999), possibly earlier, up to but not
+   	including 4.2.8p9, and ntp-4.3.0 up to but not including ntp-4.3.94.
+   CVSS2: MED 4.9 (AV:N/AC:H/Au:N/C:N/I:N/A:C)
+   CVSS3: MED 4.4 CVSS:3.0/AV:N/AC:H/PR:H/UI:N/S:U/C:N/I:N/A:H
+   Summary: 
+	ntpd does not enable trap service by default. If trap service
+	has been explicitly enabled, an attacker can send a specially
+	crafted packet to cause a null pointer dereference that will
+	crash ntpd, resulting in a denial of service. 
+   Mitigation:
+        Implement BCP-38.
+	Use "restrict default noquery ..." in your ntp.conf file. Only
+	    allow mode 6 queries from trusted networks and hosts. 
+        Upgrade to 4.2.8p9, or later, from the NTP Project Download Page
+	    or the NTP Public Services Project Download Page
+        Properly monitor your ntpd instances, and auto-restart ntpd
+	    (without -g) if it stops running. 
+   Credit: This weakness was discovered by Matthew Van Gundy of Cisco.
+
+* Mode 6 information disclosure and DDoS vector
+   Date Resolved: 21 November 2016; Dev (4.3.94) 21 November 2016
+   References: Sec 3118 / CVE-2016-9310 / VU#633847
+   Affects: ntp-4.0.90 (21 July 1999), possibly earlier, up to but not
+	including 4.2.8p9, and ntp-4.3.0 up to but not including ntp-4.3.94.
+   CVSS2: MED 6.4 (AV:A/AC:L/Au:N/C:N/I:N/A:P)
+   CVSS3: MED 6.5 CVSS:3.0/AV:L/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L
+   Summary: 
+	An exploitable configuration modification vulnerability exists
+	in the control mode (mode 6) functionality of ntpd. If, against
+	long-standing BCP recommendations, "restrict default noquery ..."
+	is not specified, a specially crafted control mode packet can set
+	ntpd traps, providing information disclosure and DDoS
+	amplification, and unset ntpd traps, disabling legitimate
+	monitoring. A remote, unauthenticated, network attacker can
+	trigger this vulnerability. 
+   Mitigation:
+        Implement BCP-38.
+	Use "restrict default noquery ..." in your ntp.conf file.
+        Upgrade to 4.2.8p9, or later, from the NTP Project Download Page
+	    or the NTP Public Services Project Download Page
+        Properly monitor your ntpd instances, and auto-restart ntpd
+	    (without -g) if it stops running. 
+   Credit: This weakness was discovered by Matthew Van Gundy of Cisco.
+
+* Broadcast Mode Replay Prevention DoS
+   Date Resolved: 21 November 2016; Dev (4.3.94) 21 November 2016
+   References: Sec 3114 / CVE-2016-7427 / VU#633847
+   Affects: ntp-4.2.8p6, up to but not including ntp-4.2.8p9, and 
+	ntp-4.3.90 up to, but not including ntp-4.3.94.
+   CVSS2: LOW 3.3 (AV:A/AC:L/Au:N/C:N/I:N/A:P)
+   CVSS3: MED 4.3 CVSS:3.0/AV:L/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L
+   Summary: 
+	The broadcast mode of NTP is expected to only be used in a
+	trusted network. If the broadcast network is accessible to an
+	attacker, a potentially exploitable denial of service
+	vulnerability in ntpd's broadcast mode replay prevention
+	functionality can be abused. An attacker with access to the NTP
+	broadcast domain can periodically inject specially crafted
+	broadcast mode NTP packets into the broadcast domain which,
+	while being logged by ntpd, can cause ntpd to reject broadcast
+	mode packets from legitimate NTP broadcast servers. 
+   Mitigation:
+        Implement BCP-38.
+        Upgrade to 4.2.8p9, or later, from the NTP Project Download Page
+	    or the NTP Public Services Project Download Page
+        Properly monitor your ntpd instances, and auto-restart ntpd
+	    (without -g) if it stops running. 
+   Credit: This weakness was discovered by Matthew Van Gundy of Cisco.
+
+* Broadcast Mode Poll Interval Enforcement DoS
+   Date Resolved: 21 November 2016; Dev (4.3.94) 21 November 2016
+   References: Sec 3113 / CVE-2016-7428 / VU#633847
+   Affects: ntp-4.2.8p6, up to but not including ntp-4.2.8p9, and
+	ntp-4.3.90 up to, but not including ntp-4.3.94
+   CVSS2: LOW 3.3 (AV:A/AC:L/Au:N/C:N/I:N/A:P)
+   CVSS3: MED 4.3 CVSS:3.0/AV:A/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L
+   Summary: 
+	The broadcast mode of NTP is expected to only be used in a
+	trusted network. If the broadcast network is accessible to an
+	attacker, a potentially exploitable denial of service
+	vulnerability in ntpd's broadcast mode poll interval enforcement
+	functionality can be abused. To limit abuse, ntpd restricts the
+	rate at which each broadcast association will process incoming
+	packets. ntpd will reject broadcast mode packets that arrive
+	before the poll interval specified in the preceding broadcast
+	packet expires. An attacker with access to the NTP broadcast
+	domain can send specially crafted broadcast mode NTP packets to
+	the broadcast domain which, while being logged by ntpd, will
+	cause ntpd to reject broadcast mode packets from legitimate NTP
+	broadcast servers. 
+   Mitigation:
+        Implement BCP-38.
+        Upgrade to 4.2.8p9, or later, from the NTP Project Download Page
+	    or the NTP Public Services Project Download Page
+        Properly monitor your ntpd instances, and auto-restart ntpd
+	    (without -g) if it stops running. 
+   Credit: This weakness was discovered by Matthew Van Gundy of Cisco.
+
+* Windows: ntpd DoS by oversized UDP packet
+   Date Resolved: 21 November 2016; Dev (4.3.94) 21 November 2016
+   References: Sec 3110 / CVE-2016-9312 / VU#633847
+   Affects Windows only: ntp-4.?.?, up to but not including ntp-4.2.8p9,
+	and ntp-4.3.0 up to, but not including ntp-4.3.94. 
+   CVSS2: HIGH 7.8 (AV:N/AC:L/Au:N/C:N/I:N/A:C)
+   CVSS3: HIGH 7.5 CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H
+   Summary: 
+	If a vulnerable instance of ntpd on Windows receives a crafted
+	malicious packet that is "too big", ntpd will stop working. 
+   Mitigation:
+        Implement BCP-38.
+        Upgrade to 4.2.8p9, or later, from the NTP Project Download Page
+	    or the NTP Public Services Project Download Page
+        Properly monitor your ntpd instances, and auto-restart ntpd
+	    (without -g) if it stops running. 
+   Credit: This weakness was discovered by Robert Pajak of ABB.
+
+* 0rigin (zero origin) issues
+   Date Resolved: 21 November 2016; Dev (4.3.94) 21 November 2016
+   References: Sec 3102 / CVE-2016-7431 / VU#633847
+   Affects: ntp-4.2.8p8, and ntp-4.3.93.
+   CVSS2: MED 5.0 (AV:N/AC:L/Au:N/C:N/I:P/A:N)
+   CVSS3: MED 5.3 CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:L/A:N
+   Summary: 
+	Zero Origin timestamp problems were fixed by Bug 2945 in
+	ntp-4.2.8p6. However, subsequent timestamp validation checks
+	introduced a regression in the handling of some Zero origin
+	timestamp checks.
+   Mitigation:
+        Implement BCP-38.
+        Upgrade to 4.2.8p9, or later, from the NTP Project Download Page
+	    or the NTP Public Services Project Download Page
+        Properly monitor your ntpd instances, and auto-restart ntpd
+	    (without -g) if it stops running. 
+   Credit: This weakness was discovered by Sharon Goldberg and Aanchal
+	Malhotra of Boston University.
+
+* read_mru_list() does inadequate incoming packet checks
+   Date Resolved: 21 November 2016; Dev (4.3.94) 21 November 2016
+   References: Sec 3082 / CVE-2016-7434 / VU#633847
+   Affects: ntp-4.2.7p22, up to but not including ntp-4.2.8p9, and
+	ntp-4.3.0 up to, but not including ntp-4.3.94.
+   CVSS2: LOW 3.8 (AV:L/AC:H/Au:S/C:N/I:N/A:C)
+   CVSS3: LOW 3.8 CVSS:3.0/AV:P/AC:H/PR:H/UI:R/S:U/C:N/I:N/A:H
+   Summary: 
+	If ntpd is configured to allow mrulist query requests from a
+	server that sends a crafted malicious packet, ntpd will crash
+	on receipt of that crafted malicious mrulist query packet.
+   Mitigation:
+	Only allow mrulist query packets from trusted hosts.
+        Implement BCP-38.
+        Upgrade to 4.2.8p9, or later, from the NTP Project Download Page
+	    or the NTP Public Services Project Download Page
+        Properly monitor your ntpd instances, and auto-restart ntpd
+	    (without -g) if it stops running. 
+   Credit: This weakness was discovered by Magnus Stubman.
+
+* Attack on interface selection
+   Date Resolved: 21 November 2016; Dev (4.3.94) 21 November 2016
+   References: Sec 3072 / CVE-2016-7429 / VU#633847
+   Affects: ntp-4.2.7p385, up to but not including ntp-4.2.8p9, and
+	ntp-4.3.0 up to, but not including ntp-4.3.94
+   CVSS2: LOW 1.0 (AV:L/AC:H/Au:S/C:N/I:N/A:P)
+   CVSS3: LOW 1.6 CVSS:3.0/AV:P/AC:H/PR:H/UI:R/S:U/C:N/I:N/A:L
+   Summary: 
+	When ntpd receives a server response on a socket that corresponds
+	to a different interface than was used for the request, the peer
+	structure is updated to use the interface for new requests. If
+	ntpd is running on a host with multiple interfaces in separate
+	networks and the operating system doesn't check source address in
+	received packets (e.g. rp_filter on Linux is set to 0), an
+	attacker that knows the address of the source can send a packet
+	with spoofed source address which will cause ntpd to select wrong
+	interface for the source and prevent it from sending new requests
+	until the list of interfaces is refreshed, which happens on
+	routing changes or every 5 minutes by default. If the attack is
+	repeated often enough (once per second), ntpd will not be able to
+	synchronize with the source.
+   Mitigation:
+        Implement BCP-38.
+        Upgrade to 4.2.8p9, or later, from the NTP Project Download Page
+	    or the NTP Public Services Project Download Page
+	If you are going to configure your OS to disable source address
+	    checks, also configure your firewall configuration to control
+	    what interfaces can receive packets from what networks.
+        Properly monitor your ntpd instances, and auto-restart ntpd
+	    (without -g) if it stops running. 
+   Credit: This weakness was discovered by Miroslav Lichvar of Red Hat.
+
+* Client rate limiting and server responses
+   Date Resolved: 21 November 2016; Dev (4.3.94) 21 November 2016
+   References: Sec 3071 / CVE-2016-7426 / VU#633847
+   Affects: ntp-4.2.5p203, up to but not including ntp-4.2.8p9, and
+	ntp-4.3.0 up to, but not including ntp-4.3.94
+   CVSS2: LOW 1.0 (AV:L/AC:H/Au:S/C:N/I:N/A:P)
+   CVSS3: LOW 1.6 CVSS:3.0/AV:P/AC:H/PR:H/UI:R/S:U/C:N/I:N/A:L
+   Summary: 
+	When ntpd is configured with rate limiting for all associations
+	(restrict default limited in ntp.conf), the limits are applied
+	also to responses received from its configured sources. An
+	attacker who knows the sources (e.g., from an IPv4 refid in
+	server response) and knows the system is (mis)configured in this
+	way can periodically send packets with spoofed source address to
+	keep the rate limiting activated and prevent ntpd from accepting
+	valid responses from its sources. 
+
+	While this blanket rate limiting can be useful to prevent
+	brute-force attacks on the origin timestamp, it allows this DoS
+	attack. Similarly, it allows the attacker to prevent mobilization
+	of ephemeral associations.  
+   Mitigation:
+        Implement BCP-38.
+        Upgrade to 4.2.8p9, or later, from the NTP Project Download Page
+	    or the NTP Public Services Project Download Page
+        Properly monitor your ntpd instances, and auto-restart ntpd
+	    (without -g) if it stops running. 
+   Credit: This weakness was discovered by Miroslav Lichvar of Red Hat.
+
+* Fix for bug 2085 broke initial sync calculations 
+   Date Resolved: 21 November 2016; Dev (4.3.94) 21 November 2016
+   References: Sec 3067 / CVE-2016-7433 / VU#633847
+   Affects: ntp-4.2.7p385, up to but not including ntp-4.2.8p9, and
+	ntp-4.3.0 up to, but not including ntp-4.3.94. But the
+	root-distance calculation in general is incorrect in all versions
+	of ntp-4 until this release. 
+   CVSS2: LOW 1.2 (AV:L/AC:H/Au:N/C:N/I:N/A:P)
+   CVSS3: LOW 1.6 CVSS:3.0/AV:P/AC:H/PR:H/UI:N/S:U/C:N/I:N/A:L
+   Summary: 
+	Bug 2085 described a condition where the root delay was included
+	twice, causing the jitter value to be higher than expected. Due
+	to a misinterpretation of a small-print variable in The Book, the
+	fix for this problem was incorrect, resulting in a root distance
+	that did not include the peer dispersion. The calculations and
+	formulae have been reviewed and reconciled, and the code has been
+	updated accordingly. 
+   Mitigation:
+        Upgrade to 4.2.8p9, or later, from the NTP Project Download Page
+	    or the NTP Public Services Project Download Page
+        Properly monitor your ntpd instances, and auto-restart ntpd
+	    (without -g) if it stops running. 
+   Credit: This weakness was discovered independently by Brian Utterback of
+	Oracle, and Sharon Goldberg and Aanchal Malhotra of Boston University. 
+
+Other fixes:
+
+* [Bug 3142] bug in netmask prefix length detection <perlinger@ntp.org>
+* [Bug 3138] gpsdjson refclock should honor fudgetime1. stenn@ntp.org
+* [Bug 3129] Unknown hosts can put resolver thread into a hard loop
+  - moved retry decision where it belongs. <perlinger@ntp.org>
+* [Bug 3125] NTPD doesn't fully start when ntp.conf entries are out of order
+  using the loopback-ppsapi-provider.dll <perlinger@ntp.org>
+* [Bug 3116] unit tests for NTP time stamp expansion. <perlinger@ntp.org>
+* [Bug 3100] ntpq can't retrieve daemon_version <perlinger@ntp.org>
+  - fixed extended sysvar lookup (bug introduced with bug 3008 fix)
+* [Bug 3095] Compatibility with openssl 1.1 <perlinger@ntp.org>
+  - applied patches by Kurt Roeckx <kurt@roeckx.be> to source
+  - added shim layer for SSL API calls with issues (both directions)
+* [Bug 3089] Serial Parser does not work anymore for hopfser like device
+  - simplified / refactored hex-decoding in driver. <perlinger@ntp.org>
+* [Bug 3084] update-leap mis-parses the leapfile name.  HStenn.
+* [Bug 3068] Linker warnings when building on Solaris. perlinger@ntp.org
+  - applied patch thanks to Andrew Stormont <andyjstormont@gmail.com>
+* [Bug 3067] Root distance calculation needs improvement.  HStenn
+* [Bug 3066] NMEA clock ignores pps. perlinger@ntp.org
+  - PPS-HACK works again.
+* [Bug 3059] Potential buffer overrun from oversized hash <perlinger@ntp.org>
+  - applied patch by Brian Utterback <brian.utterback@oracle.com>
+* [Bug 3053] ntp_loopfilter.c frequency calc precedence error.  Sarah White.
+* [Bug 3050] Fix for bug #2960 causes [...] spurious error message.
+  <perlinger@ntp.org>
+  - patches by Reinhard Max <max@suse.com> and Havard Eidnes <he@uninett.no>
+* [Bug 3047] Fix refclock_jjy C-DEX JST2000. abe@ntp.org
+  - Patch provided by Kuramatsu.
+* [Bug 3021] unity_fixture.c needs pragma weak <perlinger@ntp.org>
+  - removed unnecessary & harmful decls of 'setUp()' & 'tearDown()'
+* [Bug 3019] Windows: ERROR_HOST_UNREACHABLE block packet processing. DMayer
+* [Bug 2998] sntp/tests/packetProcessing.c broken without openssl. JPerlinger
+* [Bug 2961] sntp/tests/packetProcessing.c assumes AUTOKEY.  HStenn.
+* [Bug 2959] refclock_jupiter: gps week correction <perlinger@ntp.org>
+  - fixed GPS week expansion to work based on build date. Special thanks
+    to Craig Leres for initial patch and testing.
+* [Bug 2951] ntpd tests fail: multiple definition of `send_via_ntp_signd'
+  - fixed Makefile.am <perlinger@ntp.org>
+* [Bug 2689] ATOM driver processes last PPS pulse at startup,
+             even if it is very old <perlinger@ntp.org>
+  - make sure PPS source is alive before processing samples
+  - improve stability close to the 500ms phase jump (phase gate)
+* Fix typos in include/ntp.h.
+* Shim X509_get_signature_nid() if needed
+* git author attribution cleanup
+* bk ignore file cleanup
+* remove locks in Windows IO, use rpc-like thread synchronisation instead
+
+---
 NTP 4.2.8p8 (Harlan Stenn <stenn@ntp.org>, 2016/06/02) 
 
 Focus: Security, Bug fixes, enhancements.
