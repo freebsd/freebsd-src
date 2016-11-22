@@ -2755,27 +2755,28 @@ key_delsav(struct secasvar *sav)
 	uma_zfree(V_key_lft_zone, sav->lft_c);
 	free(sav, M_IPSEC_SA);
 }
+
 /*
- * search SAD.
+ * search SAH.
  * OUT:
  *	NULL	: not found
- *	others	: found, pointer to a SA.
+ *	others	: found, referenced pointer to a SAH.
  */
 static struct secashead *
 key_getsah(struct secasindex *saidx)
 {
+	SAHTREE_RLOCK_TRACKER;
 	struct secashead *sah;
 
-	SAHTREE_LOCK();
-	LIST_FOREACH(sah, &V_sahtree, chain) {
-		if (sah->state == SADB_SASTATE_DEAD)
-			continue;
-		if (key_cmpsaidx(&sah->saidx, saidx, CMP_REQID))
-			break;
+	SAHTREE_RLOCK();
+	LIST_FOREACH(sah, SAHADDRHASH_HASH(saidx), addrhash) {
+	    if (key_cmpsaidx(&sah->saidx, saidx, CMP_MODE_REQID) != 0) {
+		    SAH_ADDREF(sah);
+		    break;
+	    }
 	}
-	SAHTREE_UNLOCK();
-
-	return sah;
+	SAHTREE_RUNLOCK();
+	return (sah);
 }
 
 /*
