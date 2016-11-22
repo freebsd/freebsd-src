@@ -1154,19 +1154,14 @@ key_getspbyid(uint32_t id)
 }
 
 struct secpolicy *
-key_newsp(const char* where, int tag)
+key_newsp(void)
 {
-	struct secpolicy *newsp = NULL;
+	struct secpolicy *sp;
 
-	newsp = (struct secpolicy *)
-		malloc(sizeof(struct secpolicy), M_IPSEC_SP, M_NOWAIT|M_ZERO);
-	if (newsp)
-		refcount_init(&newsp->refcnt, 1);
-
-	KEYDEBUG(KEYDEBUG_IPSEC_STAMP,
-		printf("DP %s from %s:%u return SP:%p\n", __func__,
-			where, tag, newsp));
-	return newsp;
+	sp = malloc(sizeof(*sp), M_IPSEC_SP, M_NOWAIT | M_ZERO);
+	if (sp != NULL)
+		SP_INITREF(sp);
+	return (sp);
 }
 
 /*
