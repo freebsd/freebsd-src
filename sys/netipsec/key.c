@@ -1829,9 +1829,9 @@ static int
 key_spddelete(struct socket *so, struct mbuf *m,
     const struct sadb_msghdr *mhp)
 {
+	struct secpolicyindex spidx;
 	struct sadb_address *src0, *dst0;
 	struct sadb_x_policy *xpl0;
-	struct secpolicyindex spidx;
 	struct secpolicy *sp;
 
 	IPSEC_ASSERT(so != NULL, ("null so"));
@@ -1839,18 +1839,19 @@ key_spddelete(struct socket *so, struct mbuf *m,
 	IPSEC_ASSERT(mhp != NULL, ("null msghdr"));
 	IPSEC_ASSERT(mhp->msg != NULL, ("null msg"));
 
-	if (mhp->ext[SADB_EXT_ADDRESS_SRC] == NULL ||
-	    mhp->ext[SADB_EXT_ADDRESS_DST] == NULL ||
-	    mhp->ext[SADB_X_EXT_POLICY] == NULL) {
-		ipseclog((LOG_DEBUG, "%s: invalid message is passed.\n",
-			__func__));
+	if (SADB_CHECKHDR(mhp, SADB_EXT_ADDRESS_SRC) ||
+	    SADB_CHECKHDR(mhp, SADB_EXT_ADDRESS_DST) ||
+	    SADB_CHECKHDR(mhp, SADB_X_EXT_POLICY)) {
+		ipseclog((LOG_DEBUG,
+		    "%s: invalid message: missing required header.\n",
+		    __func__));
 		return key_senderror(so, m, EINVAL);
 	}
-	if (mhp->extlen[SADB_EXT_ADDRESS_SRC] < sizeof(struct sadb_address) ||
-	    mhp->extlen[SADB_EXT_ADDRESS_DST] < sizeof(struct sadb_address) ||
-	    mhp->extlen[SADB_X_EXT_POLICY] < sizeof(struct sadb_x_policy)) {
-		ipseclog((LOG_DEBUG, "%s: invalid message is passed.\n",
-			__func__));
+	if (SADB_CHECKLEN(mhp, SADB_EXT_ADDRESS_SRC) ||
+	    SADB_CHECKLEN(mhp, SADB_EXT_ADDRESS_DST) ||
+	    SADB_CHECKLEN(mhp, SADB_X_EXT_POLICY)) {
+		ipseclog((LOG_DEBUG,
+		    "%s: invalid message: wrong header size.\n", __func__));
 		return key_senderror(so, m, EINVAL);
 	}
 
@@ -1858,13 +1859,35 @@ key_spddelete(struct socket *so, struct mbuf *m,
 	dst0 = (struct sadb_address *)mhp->ext[SADB_EXT_ADDRESS_DST];
 	xpl0 = (struct sadb_x_policy *)mhp->ext[SADB_X_EXT_POLICY];
 
+	/* check the direciton */
+	switch (xpl0->sadb_x_policy_dir) {
+	case IPSEC_DIR_INBOUND:
+	case IPSEC_DIR_OUTBOUND:
+		break;
+	default:
+		ipseclog((LOG_DEBUG, "%s: invalid SP direction.\n", __func__));
+		return key_senderror(so, m, EINVAL);
+	}
+	/* Only DISCARD, NONE and IPSEC are allowed */
+	if (xpl0->sadb_x_policy_type != IPSEC_POLICY_DISCARD &&
+	    xpl0->sadb_x_policy_type != IPSEC_POLICY_NONE &&
+	    xpl0->sadb_x_policy_type != IPSEC_POLICY_IPSEC) {
+		ipseclog((LOG_DEBUG, "%s: invalid policy type.\n", __func__));
+		return key_senderror(so, m, EINVAL);
+	}
+
 	/*
 	 * Note: do not parse SADB_X_EXT_NAT_T_* here:
 	 * we are processing traffic endpoints.
 	 */
 
+	if (key_checksockaddrs((struct sockaddr *)(src0 + 1),
+	    (struct sockaddr *)(dst0 + 1)) != 0 ||
+	    src0->sadb_address_proto != dst0->sadb_address_proto) {
+		ipseclog((LOG_DEBUG, "%s: invalid sockaddr.\n", __func__));
+		return key_senderror(so, m, EINVAL);
+	}
 	/* make secindex */
-	/* XXX boundary check against sa_len */
 	KEY_SETSECSPIDX(xpl0->sadb_x_policy_dir,
 	                src0 + 1,
 	                dst0 + 1,
@@ -1872,16 +1895,6 @@ key_spddelete(struct socket *so, struct mbuf *m,
 	                dst0->sadb_address_prefixlen,
 	                src0->sadb_address_proto,
 	                &spidx);
-
-	/* checking the direciton. */
-	switch (xpl0->sadb_x_policy_dir) {
-	case IPSEC_DIR_INBOUND:
-	case IPSEC_DIR_OUTBOUND:
-		break;
-	default:
-		ipseclog((LOG_DEBUG, "%s: Invalid SP direction.\n", __func__));
-		return key_senderror(so, m, EINVAL);
-	}
 
 	/* Is there SP in SPD ? */
 	if ((sp = key_getsp(&spidx)) == NULL) {
@@ -1892,8 +1905,11 @@ key_spddelete(struct socket *so, struct mbuf *m,
 	/* save policy id to buffer to be returned. */
 	xpl0->sadb_x_policy_id = sp->id;
 
+	KEYDBG(KEY_STAMP,
+	    printf("%s: SP(%p)\n", __func__, sp));
+	KEYDBG(KEY_DATA, kdebug_secpolicy(sp));
 	key_unlink(sp);
-	KEY_FREESP(&sp);
+	key_freesp(&sp);
 
     {
 	struct mbuf *n;
