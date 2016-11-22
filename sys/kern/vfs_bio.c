@@ -4707,7 +4707,7 @@ vfs_bio_getpages(struct vnode *vp, vm_page_t *ma, int count,
 	daddr_t lbn, lbnp;
 	vm_ooffset_t la, lb, poff, poffe;
 	long bsize;
-	int bo_bs, br_flags, error, i;
+	int bo_bs, br_flags, error, i, pgsin, pgsin_a, pgsin_b;
 	bool redo, lpart;
 
 	object = vp->v_object;
@@ -4717,17 +4717,26 @@ vfs_bio_getpages(struct vnode *vp, vm_page_t *ma, int count,
 		return (VM_PAGER_BAD);
 	lpart = la + PAGE_SIZE > object->un_pager.vnp.vnp_size;
 	bo_bs = get_blksize(vp, get_lblkno(vp, IDX_TO_OFF(ma[0]->pindex)));
-	if (rbehind != NULL) {
-		lb = IDX_TO_OFF(ma[0]->pindex);
-		*rbehind = OFF_TO_IDX(lb - rounddown2(lb, bo_bs));
-	}
-	if (rahead != NULL) {
-		*rahead = OFF_TO_IDX(roundup2(la, bo_bs) - la);
-		if (la + IDX_TO_OFF(*rahead) >= object->un_pager.vnp.vnp_size) {
-			*rahead = OFF_TO_IDX(roundup2(object->un_pager.
-			    vnp.vnp_size, PAGE_SIZE) - la);
-		}
-	}
+
+	/*
+	 * Calculate read-ahead, behind and total pages.
+	 */
+	pgsin = count;
+	lb = IDX_TO_OFF(ma[0]->pindex);
+	pgsin_b = OFF_TO_IDX(lb - rounddown2(lb, bo_bs));
+	pgsin += pgsin_b;
+	if (rbehind != NULL)
+		*rbehind = pgsin_b;
+	pgsin_a = OFF_TO_IDX(roundup2(la, bo_bs) - la);
+	if (la + IDX_TO_OFF(pgsin_a) >= object->un_pager.vnp.vnp_size)
+		pgsin_a = OFF_TO_IDX(roundup2(object->un_pager.vnp.vnp_size,
+		    PAGE_SIZE) - la);
+	pgsin += pgsin_a;
+	if (rahead != NULL)
+		*rahead = pgsin_a;
+	PCPU_INC(cnt.v_vnodein);
+	PCPU_ADD(cnt.v_vnodepgsin, pgsin);
+
 	br_flags = (mp != NULL && (mp->mnt_kern_flag & MNTK_UNMAPPED_BUFS)
 	    != 0) ? GB_UNMAPPED : 0;
 	VM_OBJECT_WLOCK(object);
