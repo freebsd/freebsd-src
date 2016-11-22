@@ -972,30 +972,23 @@ key_allocsa_tunnel(union sockaddr_union *src, union sockaddr_union *dst,
 
 /*
  * Must be called after calling key_allocsp().
- * For both the packet without socket and key_freeso().
  */
 void
-_key_freesp(struct secpolicy **spp, const char* where, int tag)
+key_freesp(struct secpolicy **spp)
 {
-	struct ipsecrequest *isr, *nextisr;
 	struct secpolicy *sp = *spp;
 
 	IPSEC_ASSERT(sp != NULL, ("null sp"));
-	KEYDEBUG(KEYDEBUG_IPSEC_STAMP,
-		printf("DP %s SP:%p (ID=%u) from %s:%u; refcnt now %u\n",
-			__func__, sp, sp->id, where, tag, sp->refcnt));
-
 	if (SP_DELREF(sp) == 0)
 		return;
+
+	KEYDBG(IPSEC_STAMP,
+	    printf("%s: last reference to SP(%p)\n", __func__, sp));
+	KEYDBG(IPSEC_DATA, kdebug_secpolicy(sp));
+
 	*spp = NULL;
-	for (isr = sp->req; isr != NULL; isr = nextisr) {
-		if (isr->sav != NULL) {
-			KEY_FREESAV(&isr->sav);
-			isr->sav = NULL;
-		}
-		nextisr = isr->next;
-		ipsec_delisr(isr);
-	}
+	while (sp->tcount > 0)
+		ipsec_delisr(sp->req[--sp->tcount]);
 	free(sp, M_IPSEC_SP);
 }
 
