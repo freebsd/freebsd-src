@@ -1032,62 +1032,11 @@ key_insertsp(struct secpolicy *newsp)
 			goto done;
 		}
 	}
-
 	TAILQ_INSERT_TAIL(&V_sptree[newsp->spidx.dir], newsp, chain);
-
 done:
 	LIST_INSERT_HEAD(SPHASH_HASH(newsp->id), newsp, idhash);
 	newsp->state = IPSEC_SPSTATE_ALIVE;
 	V_sp_genid++;
-}
-
-/*
- * Must be called after calling key_allocsp().
- * For the packet with socket.
- */
-void
-key_freeso(struct socket *so)
-{
-	IPSEC_ASSERT(so != NULL, ("null so"));
-
-	switch (so->so_proto->pr_domain->dom_family) {
-#if defined(INET) || defined(INET6)
-#ifdef INET
-	case PF_INET:
-#endif
-#ifdef INET6
-	case PF_INET6:
-#endif
-	    {
-		struct inpcb *pcb = sotoinpcb(so);
-
-		/* Does it have a PCB ? */
-		if (pcb == NULL)
-			return;
-		key_freesp_so(&pcb->inp_sp->sp_in);
-		key_freesp_so(&pcb->inp_sp->sp_out);
-	    }
-		break;
-#endif /* INET || INET6 */
-	default:
-		ipseclog((LOG_DEBUG, "%s: unknown address family=%d.\n",
-		    __func__, so->so_proto->pr_domain->dom_family));
-		return;
-	}
-}
-
-static void
-key_freesp_so(struct secpolicy **sp)
-{
-	IPSEC_ASSERT(sp != NULL && *sp != NULL, ("null sp"));
-
-	if ((*sp)->policy == IPSEC_POLICY_ENTRUST ||
-	    (*sp)->policy == IPSEC_POLICY_BYPASS)
-		return;
-
-	IPSEC_ASSERT((*sp)->policy == IPSEC_POLICY_IPSEC,
-		("invalid policy %u", (*sp)->policy));
-	KEY_FREESP(sp);
 }
 
 void
@@ -1097,7 +1046,7 @@ key_addrefsa(struct secasvar *sav, const char* where, int tag)
 	IPSEC_ASSERT(sav != NULL, ("null sav"));
 	IPSEC_ASSERT(sav->refcnt > 0, ("refcount must exist"));
 
-	sa_addref(sav);
+	SAV_ADDREF(sav);
 }
 
 /*
@@ -1106,23 +1055,19 @@ key_addrefsa(struct secasvar *sav, const char* where, int tag)
  * for a policy.
  */
 void
-key_freesav(struct secasvar **psav, const char* where, int tag)
+key_freesav(struct secasvar **psav)
 {
 	struct secasvar *sav = *psav;
 
 	IPSEC_ASSERT(sav != NULL, ("null sav"));
+	if (SAV_DELREF(sav) == 0)
+		return;
 
-	if (sa_delref(sav)) {
-		KEYDEBUG(KEYDEBUG_IPSEC_STAMP,
-			printf("DP %s SA:%p (SPI %u) from %s:%u; refcnt now %u\n",
-				__func__, sav, ntohl(sav->spi), where, tag, sav->refcnt));
-		*psav = NULL;
-		key_delsav(sav);
-	} else {
-		KEYDEBUG(KEYDEBUG_IPSEC_STAMP,
-			printf("DP %s SA:%p (SPI %u) from %s:%u; refcnt now %u\n",
-				__func__, sav, ntohl(sav->spi), where, tag, sav->refcnt));
-	}
+	KEYDBG(IPSEC_STAMP,
+	    printf("%s: last reference to SA(%p)\n", __func__, sav));
+
+	*psav = NULL;
+	key_delsav(sav);
 }
 
 /* %%% SPD management */
