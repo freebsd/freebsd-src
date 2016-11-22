@@ -33,9 +33,9 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#dir">(dir)</a>
 <p>This document describes the configuration file for the NTP Project's
 <code>ntpd</code> program.
 
-  <p>This document applies to version 4.2.8p8 of <code>ntp.conf</code>.
+  <p>This document applies to version 4.2.8p9 of <code>ntp.conf</code>.
 
-  <div class="shortcontents">
+       <div class="shortcontents">
 <h2>Short Contents</h2>
 <ul>
 <a href="#Top">NTP's Configuration File User Manual</a>
@@ -1926,9 +1926,25 @@ scheme starts all over from the beginning and
 the expanding ring shrinks to the minimum and increments
 from there while collecting all servers in scope.
 
-<h5 class="subsubsection">Manycast Options</h5>
+<h5 class="subsubsection">Broadcast Options</h5>
 
      <dl>
+<dt><code>tos</code> <code>[bcpollbstep </code><kbd>gate</kbd><code>]</code><dd>This command provides a way to delay,
+by the specified number of broadcast poll intervals,
+believing backward time steps from a broadcast server. 
+Broadcast time networks are expected to be trusted. 
+In the event a broadcast server's time is stepped backwards,
+there is clear benefit to having the clients notice this change
+as soon as possible. 
+Attacks such as replay attacks can happen, however,
+and even though there are a number of protections built in to
+broadcast mode, attempts to perform  a replay attack are possible. 
+This value defaults to 0, but can be changed
+to any number of poll intervals between 0 and 4.
+
+<h5 class="subsubsection">Manycast Options</h5>
+
+          <dl>
 <dt><code>tos</code> <code>[ceiling </code><kbd>ceiling</kbd><code> | cohort { 0 | 1 } | floor </code><kbd>floor</kbd><code> | minclock </code><kbd>minclock</kbd><code> | minsane </code><kbd>minsane</kbd><code>]</code><dd>This command affects the clock selection and clustering
 algorithms. 
 It can be used to select the quality and
@@ -1936,7 +1952,7 @@ quantity of peers used to synchronize the system clock
 and is most useful in manycast mode. 
 The variables operate
 as follows:
-          <dl>
+               <dl>
 <dt><code>ceiling</code> <kbd>ceiling</kbd><dd>Peers with strata above
 <code>ceiling</code>
 will be discarded if there are at least
@@ -1978,14 +1994,14 @@ Byzantine agreement,
 should be at least 4 in order to detect and discard
 a single falseticker. 
 </dl>
-     <br><dt><code>ttl</code> <kbd>hop</kbd> <kbd>...</kbd><dd>This command specifies a list of TTL values in increasing
+          <br><dt><code>ttl</code> <kbd>hop</kbd> <kbd>...</kbd><dd>This command specifies a list of TTL values in increasing
 order, up to 8 values can be specified. 
 In manycast mode these values are used in turn
 in an expanding-ring search. 
 The default is eight
 multiples of 32 starting at 31. 
 </dl>
-<div class="node">
+     <div class="node">
 <p><hr>
 <a name="Reference-Clock-Support"></a>
 <br>
@@ -1993,7 +2009,7 @@ multiples of 32 starting at 31.
 
 <h4 class="subsection">Reference Clock Support</h4>
 
-<p>The NTP Version 4 daemon supports some three dozen different radio,
+     <p>The NTP Version 4 daemon supports some three dozen different radio,
 satellite and modem reference clocks plus a special pseudo-clock
 used for backup or when no other clock source is available. 
 Detailed descriptions of individual device drivers and options can
@@ -2030,7 +2046,7 @@ page
 provided in
 <span class="file">/usr/share/doc/ntp</span>).
 
-  <p>A reference clock will generally (though not always) be a radio
+       <p>A reference clock will generally (though not always) be a radio
 timecode receiver which is synchronized to a source of standard
 time such as the services offered by the NRC in Canada and NIST and
 USNO in the US. 
@@ -2046,7 +2062,7 @@ or the hardware port has not been appropriately configured results
 in a scalding remark to the system log file, but is otherwise non
 hazardous.
 
-  <p>For the purposes of configuration,
+       <p>For the purposes of configuration,
 <code>ntpd(1ntpdmdoc)</code>
 treats
 reference clocks in a manner analogous to normal NTP peers as much
@@ -2067,7 +2083,7 @@ While it may seem overkill, it is in fact
 sometimes useful to configure multiple reference clocks of the same
 type, in which case the unit numbers must be unique.
 
-  <p>The
+       <p>The
 <code>server</code>
 command is used to configure a reference
 clock, where the
@@ -2105,7 +2121,7 @@ meaning only for selected clock drivers.
 See the individual clock
 driver document pages for additional information.
 
-  <p>The
+       <p>The
 <code>fudge</code>
 command is used to provide additional
 information for individual clock drivers and normally follows
@@ -2127,7 +2143,7 @@ in the
 <code>fudge</code>
 command as well.
 
-  <p>The stratum number of a reference clock is by default zero. 
+       <p>The stratum number of a reference clock is by default zero. 
 Since the
 <code>ntpd(1ntpdmdoc)</code>
 daemon adds one to the stratum of each
@@ -2150,11 +2166,11 @@ these options apply to all clock drivers.
 
 <h5 class="subsubsection">Reference Clock Commands</h5>
 
-     <dl>
+          <dl>
 <dt><code>server</code> <code>127.127.</code><kbd>t</kbd>.<kbd>u</kbd> <code>[prefer]</code> <code>[mode </code><kbd>int</kbd><code>]</code> <code>[minpoll </code><kbd>int</kbd><code>]</code> <code>[maxpoll </code><kbd>int</kbd><code>]</code><dd>This command can be used to configure reference clocks in
 special ways. 
 The options are interpreted as follows:
-          <dl>
+               <dl>
 <dt><code>prefer</code><dd>Marks the reference clock as preferred. 
 All other things being
 equal, this host will be chosen for synchronization among a set of
@@ -2187,7 +2203,7 @@ defaults to 10 (17.1 m) and
 defaults to 14 (4.5 h). 
 The allowable range is 4 (16 s) to 17 (36.4 h) inclusive. 
 </dl>
-     <br><dt><code>fudge</code> <code>127.127.</code><kbd>t</kbd>.<kbd>u</kbd> <code>[time1 </code><kbd>sec</kbd><code>]</code> <code>[time2 </code><kbd>sec</kbd><code>]</code> <code>[stratum </code><kbd>int</kbd><code>]</code> <code>[refid </code><kbd>string</kbd><code>]</code> <code>[mode </code><kbd>int</kbd><code>]</code> <code>[flag1 0 | 1]</code> <code>[flag2 0 | 1]</code> <code>[flag3 0 | 1]</code> <code>[flag4 0 | 1]</code><dd>This command can be used to configure reference clocks in
+          <br><dt><code>fudge</code> <code>127.127.</code><kbd>t</kbd>.<kbd>u</kbd> <code>[time1 </code><kbd>sec</kbd><code>]</code> <code>[time2 </code><kbd>sec</kbd><code>]</code> <code>[stratum </code><kbd>int</kbd><code>]</code> <code>[refid </code><kbd>string</kbd><code>]</code> <code>[mode </code><kbd>int</kbd><code>]</code> <code>[flag1 0 | 1]</code> <code>[flag2 0 | 1]</code> <code>[flag3 0 | 1]</code> <code>[flag4 0 | 1]</code><dd>This command can be used to configure reference clocks in
 special ways. 
 It must immediately follow the
 <code>server</code>
@@ -2198,7 +2214,7 @@ is possible at run time using the
 program. 
 The options are interpreted as
 follows:
-          <dl>
+               <dl>
 <dt><code>time1</code> <kbd>sec</kbd><dd>Specifies a constant to be added to the time offset produced by
 the driver, a fixed-point decimal number in seconds. 
 This is used
@@ -2269,8 +2285,8 @@ Further information on the
 command can be found in
 <a href="#Monitoring-Options">Monitoring Options</a>. 
 </dl>
-     </dl>
-<div class="node">
+          </dl>
+     <div class="node">
 <p><hr>
 <a name="Miscellaneous-Options"></a>
 <br>
@@ -2278,7 +2294,7 @@ command can be found in
 
 <h4 class="subsection">Miscellaneous Options</h4>
 
-     <dl>
+          <dl>
 <dt><code>broadcastdelay</code> <kbd>seconds</kbd><dd>The broadcast and multicast modes require a special calibration
 to determine the network delay between the local and remote
 servers. 
@@ -2311,7 +2327,7 @@ frequency of zero and creates the file when writing it for the first time.
 If this command is not given, the daemon will always start with an initial
 frequency of zero.
 
-     <p>The file format consists of a single line containing a single
+          <p>The file format consists of a single line containing a single
 floating point number, which records the frequency offset measured
 in parts-per-million (PPM). 
 The file is updated by first writing
@@ -2331,7 +2347,7 @@ Note that all of these flags
 can be controlled remotely using the
 <code>ntpdc(1ntpdcmdoc)</code>
 utility program.
-          <dl>
+               <dl>
 <dt><code>auth</code><dd>Enables the server to synchronize with unconfigured peers only if the
 peer has been correctly authenticated using either public key or
 private key cryptography. 
@@ -2466,7 +2482,7 @@ The
 default for this flag is
 <code>enable</code>. 
 </dl>
-     <br><dt><code>includefile</code> <kbd>includefile</kbd><dd>This command allows additional configuration commands
+          <br><dt><code>includefile</code> <kbd>includefile</kbd><dd>This command allows additional configuration commands
 to be included from a separate file. 
 Include files may
 be nested to a depth of five; upon reaching the end of any
@@ -2527,7 +2543,7 @@ and
 status messages
 (<code>status</code>).
 
-     <p>Configuration keywords are formed by concatenating the message class with
+          <p>Configuration keywords are formed by concatenating the message class with
 the event class. 
 The
 <code>all</code>
@@ -2539,20 +2555,20 @@ keyword to enable/disable all
 messages of the respective message class. 
 Thus, a minimal log configuration
 could look like this:
-<pre class="verbatim">     
-     logconfig =syncstatus +sysevents
-</pre>
+<pre class="verbatim">          
+          logconfig =syncstatus +sysevents
+     </pre>
 
-     <p>This would just list the synchronizations state of
+          <p>This would just list the synchronizations state of
 <code>ntpd(1ntpdmdoc)</code>
 and the major system events. 
 For a simple reference server, the
 following minimum message configuration could be useful:
-<pre class="verbatim">     
-     logconfig =syncall +clockall
-</pre>
+<pre class="verbatim">          
+          logconfig =syncall +clockall
+     </pre>
 
-     <p>This configuration will list all clock information and
+          <p>This configuration will list all clock information and
 synchronization information. 
 All other events and messages about
 peers, system events and so on is suppressed. 
@@ -2611,8 +2627,8 @@ for them.
 Emphasis added: twisters are on their own and can expect
 no help from the support group.
 
-     <p>The variables operate as follows:
-          <dl>
+          <p>The variables operate as follows:
+               <dl>
 <dt><code>allan</code> <kbd>allan</kbd><dd>The argument becomes the new value for the minimum Allan
 intercept, which is a parameter of the PLL/FLL clock discipline
 algorithm. 
@@ -2661,8 +2677,8 @@ be set to any positive number in seconds.
 If set to zero, the stepout
 pulses will not be suppressed. 
 </dl>
-     <br><dt><code>rlimit</code> <code>[memlock </code><kbd>Nmegabytes</kbd><code> | stacksize </code><kbd>N4kPages</kbd><code> filenum </code><kbd>Nfiledescriptors</kbd><code>]</code><dd>
-          <dl>
+          <br><dt><code>rlimit</code> <code>[memlock </code><kbd>Nmegabytes</kbd><code> | stacksize </code><kbd>N4kPages</kbd><code> filenum </code><kbd>Nfiledescriptors</kbd><code>]</code><dd>
+               <dl>
 <dt><code>memlock</code> <kbd>Nmegabytes</kbd><dd>Specify the number of megabytes of memory that should be
 allocated and locked. 
 Probably only available under Linux, this option may be useful
@@ -2679,7 +2695,7 @@ Defaults to 50 4k pages (200 4k pages in OpenBSD).
 <br><dt><code>filenum</code> <kbd>Nfiledescriptors</kbd><dd>Specifies the maximum number of file descriptors ntpd may have open at once. 
 Defaults to the system default. 
 </dl>
-     <br><dt><code>trap</code> <kbd>host_address</kbd> <code>[port </code><kbd>port_number</kbd><code>]</code> <code>[interface </code><kbd>interface_address</kbd><code>]</code><dd>This command configures a trap receiver at the given host
+          <br><dt><code>trap</code> <kbd>host_address</kbd> <code>[port </code><kbd>port_number</kbd><code>]</code> <code>[interface </code><kbd>interface_address</kbd><code>]</code><dd>This command configures a trap receiver at the given host
 address and port number for sending messages with the specified
 local interface address. 
 If the port number is unspecified, a value
@@ -2690,7 +2706,7 @@ message is sent through.
 Note that on a multihomed host the
 interface used may vary from time to time with routing changes.
 
-     <p>The trap receiver will generally log event messages and other
+          <p>The trap receiver will generally log event messages and other
 information from the server in a log file. 
 While such monitor
 programs may also request their own trap dynamically, configuring a
@@ -2704,11 +2720,11 @@ The default is eight multiples of 32 starting at
 31. 
 </dl>
 
-  <p>This section was generated by <strong>AutoGen</strong>,
+       <p>This section was generated by <strong>AutoGen</strong>,
 using the <code>agtexi-cmd</code> template and the option descriptions for the <code>ntp.conf</code> program. 
 This software is released under the NTP license, &lt;http://ntp.org/license&gt;.
 
-<ul class="menu">
+     <ul class="menu">
 <li><a accesskey="1" href="#ntp_002econf-Files">ntp.conf Files</a>:                   Files
 <li><a accesskey="2" href="#ntp_002econf-See-Also">ntp.conf See Also</a>:                See Also
 <li><a accesskey="3" href="#ntp_002econf-Bugs">ntp.conf Bugs</a>:                    Bugs
@@ -2723,14 +2739,14 @@ This software is released under the NTP license, &lt;http://ntp.org/license&gt;.
 
 <h4 class="subsection">ntp.conf Files</h4>
 
-     <dl>
+          <dl>
 <dt><span class="file">/etc/ntp.conf</span><dd>the default name of the configuration file
 <br><dt><span class="file">ntp.keys</span><dd>private MD5 keys
 <br><dt><span class="file">ntpkey</span><dd>RSA private key
 <br><dt><span class="file">ntpkey_</span><kbd>host</kbd><dd>RSA public key
 <br><dt><span class="file">ntp_dh</span><dd>Diffie-Hellman agreement parameters
 </dl>
-<div class="node">
+     <div class="node">
 <p><hr>
 <a name="ntp_002econf-See-Also"></a>
 <br>
@@ -2738,11 +2754,11 @@ This software is released under the NTP license, &lt;http://ntp.org/license&gt;.
 
 <h4 class="subsection">ntp.conf See Also</h4>
 
-<p><code>ntpd(1ntpdmdoc)</code>,
+     <p><code>ntpd(1ntpdmdoc)</code>,
 <code>ntpdc(1ntpdcmdoc)</code>,
 <code>ntpq(1ntpqmdoc)</code>
 
-  <p>In addition to the manual pages provided,
+       <p>In addition to the manual pages provided,
 comprehensive documentation is available on the world wide web
 at
 <code>http://www.ntp.org/</code>. 
@@ -2750,7 +2766,7 @@ A snapshot of this documentation is available in HTML format in
 <span class="file">/usr/share/doc/ntp</span>. 
 <br>
 
-  <p><br>
+       <p><br>
 David L. Mills, <em>Network Time Protocol (Version 4)</em>, RFC5905
 <div class="node">
 <p><hr>
@@ -2760,11 +2776,11 @@ David L. Mills, <em>Network Time Protocol (Version 4)</em>, RFC5905
 
 <h4 class="subsection">ntp.conf Bugs</h4>
 
-<p>The syntax checking is not picky; some combinations of
+     <p>The syntax checking is not picky; some combinations of
 ridiculous and even hilarious options and modes may not be
 detected.
 
-  <p>The
+       <p>The
 <span class="file">ntpkey_</span><kbd>host</kbd>
 files are really digital
 certificates. 
@@ -2778,7 +2794,7 @@ services when they become universally available.
 
 <h4 class="subsection">ntp.conf Notes</h4>
 
-<p>This document was derived from FreeBSD.
+     <p>This document was derived from FreeBSD.
 
 </body></html>
 

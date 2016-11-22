@@ -26,7 +26,7 @@ controlkey 12
 requestkey 12
 enable auth ntp monitor stats
 disable bclient calibrate kernel mode7 peer_clear_digest_early unpeer_crypto_early unpeer_crypto_nak_early unpeer_digest_early
-tos beacon 3600 ceiling 16 cohort 0 floor 1 maxclock 10 maxdist 1.5 minclock 3 mindist 0.001 minsane 1 orphan 16 orphanwait 300
+tos beacon 3600 ceiling 16 cohort 0 floor 1 maxclock 10 maxdist 1.5 minclock 3 mindist 0.001 minsane 1 orphan 16 orphanwait 300 bcpollbstep 3
 rlimit@HAVE_RLIMIT_MEMLOCK@@HAVE_RLIMIT_STACK@
 tinker allan 1500 dispersion 15 freq 0 huffpuff 7200 panic 1000 step 0.128 stepout 900 tick 0.01
 broadcastclient

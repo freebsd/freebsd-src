@@ -89,6 +89,11 @@
 /* Unix timestamp for the GPS epoch: January 6, 1980 */
 #define GPS_EPOCH 315964800
 
+/* Rata Die Number of first day of GPS epoch. This is the number of days
+ * since 0000-12-31 to 1980-01-06 in the proleptic Gregorian Calendar.
+ */
+#define RDN_GPS_EPOCH (4*146097 + 138431 + 1)
+
 /* Double short to unsigned int */
 #define DS2UI(p) ((getshort((p)[1]) << 16) | getshort((p)[0]))
 
@@ -153,6 +158,10 @@ static	void	jupiter_reqonemsg(struct instance *, u_int);
 static	char *	jupiter_send	(struct instance *, struct jheader *);
 static	void	jupiter_shutdown(int, struct peer *);
 static	int	jupiter_start	(int, struct peer *);
+
+static	u_int	get_full_week(u_int base_week, u_int gpos_week);
+static	u_int	get_base_week(void);
+
 
 /*
  * Transfer vector
@@ -846,8 +855,14 @@ jupiter_parse_gpos(struct instance *instance, u_short *sp)
 		return ("Navigation solution not valid");
 	}
 
-	instance->gpos_gweek = jg->gweek;
 	instance->gpos_sweek = DS2UI(jg->sweek);
+	instance->gpos_gweek = get_full_week(get_base_week(),
+					     getshort(jg->gweek));
+
+	/* according to the protocol spec, the seconds-in-week cannot
+	 * exceed the nominal value: Is it really necessary to normalise
+	 * the seconds???
+	 */
 	while(instance->gpos_sweek >= WEEKSECS) {
 		instance->gpos_sweek -= WEEKSECS;
 		++instance->gpos_gweek;
@@ -1113,6 +1128,56 @@ jupiter_recv(struct instance *instance)
 		cc += n;
 	}
 	return (cc);
+}
+
+static u_int
+get_base_week(void)
+{
+	static int 	init_done /* = 0 */;
+	static u_int	base_week;
+
+	/* Get the build date, convert to days since GPS epoch and
+	 * finally weeks since GPS epoch.  Note that the build stamp is
+	 * trusted once it is fetched -- only dates before the GPS epoch
+	 * are not permitted. This will permit proper synchronisation
+	 * for a time range of 1024 weeks starting with 00:00:00 of the
+	 * last Sunday on or before the build time.
+	 *
+	 * If the impossible happens and fetching the build date fails,
+	 * a 1024-week cycle starting with 2016-01-03 is assumed to
+	 * avoid catastropic errors. This will work until 2035-08-19.
+	 */
+	if (!init_done) {
+		struct calendar bd;
+		if (ntpcal_get_build_date(&bd)) {
+			int32_t days = ntpcal_date_to_rd(&bd);
+			if (days > RDN_GPS_EPOCH)
+				days -= RDN_GPS_EPOCH;
+			else
+				days = 0;
+			base_week = days / 7; 
+		} else {
+			base_week = 1878; /* 2016-01-03, Sunday */
+			msyslog(LOG_ERR,
+				"refclock_jupiter: ntpcal_get_build_date() failed: %s",
+				"using 2016-01-03 as GPS base!");
+		}
+		init_done = 1;
+	}
+	return base_week;
+}
+
+static u_int
+get_full_week(
+	u_int base_week,
+	u_int gpos_week
+	)
+{
+	/* Periodic extension on base week. Since the period is 1024
+	 * weeks and we do unsigned arithmetic here, we can do wonderful
+	 * things with masks and the well-defined overflow behaviour.
+	 */
+	return base_week + ((gpos_week - base_week) & 1023);
 }
 
 #else /* not (REFCLOCK && CLOCK_JUPITER && HAVE_PPSAPI) */

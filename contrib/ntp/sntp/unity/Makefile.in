@@ -134,8 +134,9 @@ libunity_a_AR = $(AR) $(ARFLAGS)
 libunity_a_LIBADD =
 am__objects_1 =
 am_libunity_a_OBJECTS = libunity_a-colcomp.$(OBJEXT) \
-	libunity_a-unity.$(OBJEXT) libunity_a-unity_fixture.$(OBJEXT) \
-	$(am__objects_1)
+	libunity_a-unity.$(OBJEXT) libunity_a-ulib_setup.$(OBJEXT) \
+	libunity_a-ulib_teardown.$(OBJEXT) \
+	libunity_a-unity_fixture.$(OBJEXT) $(am__objects_1)
 libunity_a_OBJECTS = $(am_libunity_a_OBJECTS)
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
@@ -453,6 +454,8 @@ libunity_a_CFLAGS = \
 libunity_a_SOURCES = \
 	../libpkgver/colcomp.c			\
 	unity.c					\
+	ulib_setup.c				\
+	ulib_teardown.c				\
 	unity.h					\
 	unity_config.h				\
 	unity_internals.h			\
@@ -518,6 +521,8 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libunity_a-colcomp.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libunity_a-ulib_setup.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libunity_a-ulib_teardown.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libunity_a-unity.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libunity_a-unity_fixture.Po@am__quote@
 
@@ -569,6 +574,34 @@ libunity_a-unity.obj: unity.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='unity.c' object='libunity_a-unity.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libunity_a_CFLAGS) $(CFLAGS) -c -o libunity_a-unity.obj `if test -f 'unity.c'; then $(CYGPATH_W) 'unity.c'; else $(CYGPATH_W) '$(srcdir)/unity.c'; fi`
+
+libunity_a-ulib_setup.o: ulib_setup.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libunity_a_CFLAGS) $(CFLAGS) -MT libunity_a-ulib_setup.o -MD -MP -MF $(DEPDIR)/libunity_a-ulib_setup.Tpo -c -o libunity_a-ulib_setup.o `test -f 'ulib_setup.c' || echo '$(srcdir)/'`ulib_setup.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libunity_a-ulib_setup.Tpo $(DEPDIR)/libunity_a-ulib_setup.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='ulib_setup.c' object='libunity_a-ulib_setup.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libunity_a_CFLAGS) $(CFLAGS) -c -o libunity_a-ulib_setup.o `test -f 'ulib_setup.c' || echo '$(srcdir)/'`ulib_setup.c
+
+libunity_a-ulib_setup.obj: ulib_setup.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libunity_a_CFLAGS) $(CFLAGS) -MT libunity_a-ulib_setup.obj -MD -MP -MF $(DEPDIR)/libunity_a-ulib_setup.Tpo -c -o libunity_a-ulib_setup.obj `if test -f 'ulib_setup.c'; then $(CYGPATH_W) 'ulib_setup.c'; else $(CYGPATH_W) '$(srcdir)/ulib_setup.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libunity_a-ulib_setup.Tpo $(DEPDIR)/libunity_a-ulib_setup.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='ulib_setup.c' object='libunity_a-ulib_setup.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libunity_a_CFLAGS) $(CFLAGS) -c -o libunity_a-ulib_setup.obj `if test -f 'ulib_setup.c'; then $(CYGPATH_W) 'ulib_setup.c'; else $(CYGPATH_W) '$(srcdir)/ulib_setup.c'; fi`
+
+libunity_a-ulib_teardown.o: ulib_teardown.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libunity_a_CFLAGS) $(CFLAGS) -MT libunity_a-ulib_teardown.o -MD -MP -MF $(DEPDIR)/libunity_a-ulib_teardown.Tpo -c -o libunity_a-ulib_teardown.o `test -f 'ulib_teardown.c' || echo '$(srcdir)/'`ulib_teardown.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libunity_a-ulib_teardown.Tpo $(DEPDIR)/libunity_a-ulib_teardown.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='ulib_teardown.c' object='libunity_a-ulib_teardown.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libunity_a_CFLAGS) $(CFLAGS) -c -o libunity_a-ulib_teardown.o `test -f 'ulib_teardown.c' || echo '$(srcdir)/'`ulib_teardown.c
+
+libunity_a-ulib_teardown.obj: ulib_teardown.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libunity_a_CFLAGS) $(CFLAGS) -MT libunity_a-ulib_teardown.obj -MD -MP -MF $(DEPDIR)/libunity_a-ulib_teardown.Tpo -c -o libunity_a-ulib_teardown.obj `if test -f 'ulib_teardown.c'; then $(CYGPATH_W) 'ulib_teardown.c'; else $(CYGPATH_W) '$(srcdir)/ulib_teardown.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libunity_a-ulib_teardown.Tpo $(DEPDIR)/libunity_a-ulib_teardown.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='ulib_teardown.c' object='libunity_a-ulib_teardown.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libunity_a_CFLAGS) $(CFLAGS) -c -o libunity_a-ulib_teardown.obj `if test -f 'ulib_teardown.c'; then $(CYGPATH_W) 'ulib_teardown.c'; else $(CYGPATH_W) '$(srcdir)/ulib_teardown.c'; fi`
 
 libunity_a-unity_fixture.o: unity_fixture.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libunity_a_CFLAGS) $(CFLAGS) -MT libunity_a-unity_fixture.o -MD -MP -MF $(DEPDIR)/libunity_a-unity_fixture.Tpo -c -o libunity_a-unity_fixture.o `test -f 'unity_fixture.c' || echo '$(srcdir)/'`unity_fixture.c

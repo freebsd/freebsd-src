@@ -33,6 +33,7 @@
 # include "ntp_syscall.h"
 #endif
 
+#include "libssl_compat.h"
 
 /*
  * Structure to hold request procedure information
@@ -120,14 +121,14 @@ static const struct ctl_proc control_codes[] = {
 	{ CTL_OP_READVAR,		NOAUTH,	read_variables },
 	{ CTL_OP_WRITEVAR,		AUTH,	write_variables },
 	{ CTL_OP_READCLOCK,		NOAUTH,	read_clockstatus },
-	{ CTL_OP_WRITECLOCK,		NOAUTH,	write_clockstatus },
-	{ CTL_OP_SETTRAP,		NOAUTH,	set_trap },
+	{ CTL_OP_WRITECLOCK,		AUTH,	write_clockstatus },
+	{ CTL_OP_SETTRAP,		AUTH,	set_trap },
 	{ CTL_OP_CONFIGURE,		AUTH,	configure },
 	{ CTL_OP_SAVECONFIG,		AUTH,	save_config },
 	{ CTL_OP_READ_MRU,		NOAUTH,	read_mru_list },
 	{ CTL_OP_READ_ORDLIST_A,	AUTH,	read_ordlist },
 	{ CTL_OP_REQ_NONCE,		NOAUTH,	req_nonce },
-	{ CTL_OP_UNSETTRAP,		NOAUTH,	unset_trap },
+	{ CTL_OP_UNSETTRAP,		AUTH,	unset_trap },
 	{ NO_REQUEST,			0,	NULL }
 };
 
@@ -3158,15 +3159,21 @@ ctl_getitem(
 
 	for (v = var_list; !(EOV & v->flags); ++v)
 		if (!(PADDING & v->flags)) {
-			/* check if the var name matches the buffer */
+			/* Check if the var name matches the buffer. The
+			 * name is bracketed by [reqpt..tp] and not NUL
+			 * terminated, and it contains no '=' char. The
+			 * lookup value IS NUL-terminated but might
+			 * include a '='... We have to look out for
+			 * that!
+			 */
 			const char *sp1 = reqpt;
 			const char *sp2 = v->text;
-			
-			while ((sp1 != tp) && *sp2 && (*sp1 == *sp2)) {
+
+			while ((sp1 != tp) && (*sp1 == *sp2)) {
 				++sp1;
 				++sp2;
 			}
-			if (sp1 == tp && !*sp2)
+			if (sp1 == tp && (*sp2 == '\0' || *sp2 == '='))
 				break;
 		}
 
@@ -3649,7 +3656,7 @@ static u_int32 derive_nonce(
 		u_char	digest[EVP_MAX_MD_SIZE];
 		u_int32 extract;
 	}		d;
-	EVP_MD_CTX	ctx;
+	EVP_MD_CTX	*ctx;
 	u_int		len;
 
 	while (!salt[0] || current_time - last_salt_update >= 3600) {
@@ -3660,19 +3667,21 @@ static u_int32 derive_nonce(
 		last_salt_update = current_time;
 	}
 
-	EVP_DigestInit(&ctx, EVP_get_digestbynid(NID_md5));
-	EVP_DigestUpdate(&ctx, salt, sizeof(salt));
-	EVP_DigestUpdate(&ctx, &ts_i, sizeof(ts_i));
-	EVP_DigestUpdate(&ctx, &ts_f, sizeof(ts_f));
+	ctx = EVP_MD_CTX_new();
+	EVP_DigestInit(ctx, EVP_get_digestbynid(NID_md5));
+	EVP_DigestUpdate(ctx, salt, sizeof(salt));
+	EVP_DigestUpdate(ctx, &ts_i, sizeof(ts_i));
+	EVP_DigestUpdate(ctx, &ts_f, sizeof(ts_f));
 	if (IS_IPV4(addr))
-		EVP_DigestUpdate(&ctx, &SOCK_ADDR4(addr),
+		EVP_DigestUpdate(ctx, &SOCK_ADDR4(addr),
 			         sizeof(SOCK_ADDR4(addr)));
 	else
-		EVP_DigestUpdate(&ctx, &SOCK_ADDR6(addr),
+		EVP_DigestUpdate(ctx, &SOCK_ADDR6(addr),
 			         sizeof(SOCK_ADDR6(addr)));
-	EVP_DigestUpdate(&ctx, &NSRCPORT(addr), sizeof(NSRCPORT(addr)));
-	EVP_DigestUpdate(&ctx, salt, sizeof(salt));
-	EVP_DigestFinal(&ctx, d.digest, &len);
+	EVP_DigestUpdate(ctx, &NSRCPORT(addr), sizeof(NSRCPORT(addr)));
+	EVP_DigestUpdate(ctx, salt, sizeof(salt));
+	EVP_DigestFinal(ctx, d.digest, &len);
+	EVP_MD_CTX_free(ctx);
 
 	return d.extract;
 }
@@ -3954,15 +3963,17 @@ static void read_mru_list(
 	int restrict_mask
 	)
 {
-	const char		nonce_text[] =		"nonce";
-	const char		frags_text[] =		"frags";
-	const char		limit_text[] =		"limit";
-	const char		mincount_text[] =	"mincount";
-	const char		resall_text[] =		"resall";
-	const char		resany_text[] =		"resany";
-	const char		maxlstint_text[] =	"maxlstint";
-	const char		laddr_text[] =		"laddr";
-	const char		resaxx_fmt[] =		"0x%hx";
+	static const char	nulltxt[1] = 		{ '\0' };	
+	static const char	nonce_text[] =		"nonce";
+	static const char	frags_text[] =		"frags";
+	static const char	limit_text[] =		"limit";
+	static const char	mincount_text[] =	"mincount";
+	static const char	resall_text[] =		"resall";
+	static const char	resany_text[] =		"resany";
+	static const char	maxlstint_text[] =	"maxlstint";
+	static const char	laddr_text[] =		"laddr";
+	static const char	resaxx_fmt[] =		"0x%hx";
+	
 	u_int			limit;
 	u_short			frags;
 	u_short			resall;
@@ -3979,7 +3990,7 @@ static void read_mru_list(
 	char			buf[128];
 	struct ctl_var *	in_parms;
 	const struct ctl_var *	v;
-	char *			val;
+	const char *		val;
 	const char *		pch;
 	char *			pnonce;
 	int			nonce_valid;
@@ -4031,46 +4042,68 @@ static void read_mru_list(
 	ZERO(last);
 	ZERO(addr);
 
-	while (NULL != (v = ctl_getitem(in_parms, &val)) &&
+	/* have to go through '(void*)' to drop 'const' property from pointer.
+	 * ctl_getitem()' needs some cleanup, too.... perlinger@ntp.org
+	 */
+	while (NULL != (v = ctl_getitem(in_parms, (void*)&val)) &&
 	       !(EOV & v->flags)) {
 		int si;
 
+		if (NULL == val)
+			val = nulltxt;
+
 		if (!strcmp(nonce_text, v->text)) {
-			if (NULL != pnonce)
-				free(pnonce);
-			pnonce = estrdup(val);
+			free(pnonce);
+			pnonce = (*val) ? estrdup(val) : NULL;
 		} else if (!strcmp(frags_text, v->text)) {
-			sscanf(val, "%hu", &frags);
+			if (1 != sscanf(val, "%hu", &frags))
+				goto blooper;
 		} else if (!strcmp(limit_text, v->text)) {
-			sscanf(val, "%u", &limit);
+			if (1 != sscanf(val, "%u", &limit))
+				goto blooper;
 		} else if (!strcmp(mincount_text, v->text)) {
-			if (1 != sscanf(val, "%d", &mincount) ||
-			    mincount < 0)
+			if (1 != sscanf(val, "%d", &mincount))
+				goto blooper;
+			if (mincount < 0)
 				mincount = 0;
 		} else if (!strcmp(resall_text, v->text)) {
-			sscanf(val, resaxx_fmt, &resall);
+			if (1 != sscanf(val, resaxx_fmt, &resall))
+				goto blooper;
 		} else if (!strcmp(resany_text, v->text)) {
-			sscanf(val, resaxx_fmt, &resany);
+			if (1 != sscanf(val, resaxx_fmt, &resany))
+				goto blooper;
 		} else if (!strcmp(maxlstint_text, v->text)) {
-			sscanf(val, "%u", &maxlstint);
+			if (1 != sscanf(val, "%u", &maxlstint))
+				goto blooper;
 		} else if (!strcmp(laddr_text, v->text)) {
-			if (decodenetnum(val, &laddr))
-				lcladr = getinterface(&laddr, 0);
+			if (!decodenetnum(val, &laddr))
+				goto blooper;
+			lcladr = getinterface(&laddr, 0);
 		} else if (1 == sscanf(v->text, last_fmt, &si) &&
 			   (size_t)si < COUNTOF(last)) {
-			if (2 == sscanf(val, "0x%08x.%08x", &ui, &uf)) {
-				last[si].l_ui = ui;
-				last[si].l_uf = uf;
-				if (!SOCK_UNSPEC(&addr[si]) &&
-				    si == priors)
-					priors++;
-			}
+			if (2 != sscanf(val, "0x%08x.%08x", &ui, &uf))
+				goto blooper;
+			last[si].l_ui = ui;
+			last[si].l_uf = uf;
+			if (!SOCK_UNSPEC(&addr[si]) && si == priors)
+				priors++;
 		} else if (1 == sscanf(v->text, addr_fmt, &si) &&
 			   (size_t)si < COUNTOF(addr)) {
-			if (decodenetnum(val, &addr[si])
-			    && last[si].l_ui && last[si].l_uf &&
-			    si == priors)
+			if (!decodenetnum(val, &addr[si]))
+				goto blooper;
+			if (last[si].l_ui && last[si].l_uf && si == priors)
 				priors++;
+		} else {
+			DPRINTF(1, ("read_mru_list: invalid key item: '%s' (ignored)\n",
+				    v->text));
+			continue;
+
+		blooper:
+			DPRINTF(1, ("read_mru_list: invalid param for '%s': '%s' (bailing)\n",
+				    v->text, val));
+			free(pnonce);
+			pnonce = NULL;
+			break;
 		}
 	}
 	free_varlist(in_parms);
@@ -4997,6 +5030,22 @@ report_event(
 	if (num_ctl_traps <= 0)
 		return;
 
+	/* [Bug 3119]
+	 * Peer Events should be associated with a peer -- hence the
+	 * name. But there are instances where this function is called
+	 * *without* a valid peer. This happens e.g. with an unsolicited
+	 * CryptoNAK, or when a leap second alarm is going off while
+	 * currently without a system peer.
+	 *
+	 * The most sensible approach to this seems to bail out here if
+	 * this happens. Avoiding to call this function would also
+	 * bypass the log reporting in the first part of this function,
+	 * and this is probably not the best of all options.
+	 *   -*-perlinger@ntp.org-*-
+	 */
+	if ((err & PEER_EVENT) && !peer)
+		return;
+
 	/*
 	 * Set up the outgoing packet variables
 	 */
@@ -5013,15 +5062,14 @@ report_event(
 		/* Include the core system variables and the list. */
 		for (i = 1; i <= CS_VARLIST; i++)
 			ctl_putsys(i);
-	} else {
-		INSIST(peer != NULL);
+	} else if (NULL != peer) { /* paranoia -- skip output */
 		rpkt.associd = htons(peer->associd);
 		rpkt.status = htons(ctlpeerstatus(peer));
 
 		/* Dump it all. Later, maybe less. */
 		for (i = 1; i <= CP_MAX_NOAUTOKEY; i++)
 			ctl_putpeer(i, peer);
-#ifdef REFCLOCK
+#	    ifdef REFCLOCK
 		/*
 		 * for clock exception events: add clock variables to
 		 * reflect info on exception
@@ -5047,7 +5095,7 @@ report_event(
 						    FALSE);
 			free_varlist(cs.kv_list);
 		}
-#endif /* REFCLOCK */
+#	    endif /* REFCLOCK */
 	}
 
 	/*

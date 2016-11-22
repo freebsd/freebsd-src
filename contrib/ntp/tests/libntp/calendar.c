@@ -2,6 +2,7 @@
 
 #include "ntp_stdlib.h" /* test fail without this include, for some reason */
 #include "ntp_calendar.h"
+#include "ntp_unixtime.h"
 #include "unity.h"
 
 #include <string.h>
@@ -19,6 +20,7 @@ char *	DateFromCalToString(const struct calendar *cal);
 char *	DateFromIsoToString(const struct isodate *iso);
 int	IsEqualDateCal(const struct calendar *expected, const struct calendar *actual);
 int	IsEqualDateIso(const struct isodate *expected, const struct isodate *actual);
+
 void	test_DaySplitMerge(void);
 void	test_SplitYearDays1(void);
 void	test_SplitYearDays2(void);
@@ -35,6 +37,8 @@ void	test_IsoCalWeeksToYearStart(void);
 void	test_IsoCalWeeksToYearEnd(void);
 void	test_DaySecToDate(void);
 
+void	test_NtpToNtp(void);
+void	test_NtpToTime(void);
 
 void
 setUp(void)
@@ -607,4 +611,127 @@ test_DaySecToDate(void)
 		"failed for 86400");
 
 	return;
+}
+
+/* --------------------------------------------------------------------
+ * unfolding of (truncated) NTP time stamps to full 64bit values.
+ *
+ * Note: These tests need a 64bit time_t to be useful.
+ */
+
+void
+test_NtpToNtp(void)
+{
+#   if SIZEOF_TIME_T <= 4
+	
+	TEST_IGNORE_MESSAGE("test only useful for sizeof(time_t) > 4, skipped");
+
+#   else
+	
+	static const uint32_t ntp_vals[6] = {
+		UINT32_C(0x00000000),
+		UINT32_C(0x00000001),
+		UINT32_C(0x7FFFFFFF),
+		UINT32_C(0x80000000),
+		UINT32_C(0x80000001),
+		UINT32_C(0xFFFFFFFF)
+	};
+
+	static char	lbuf[128];
+	vint64		hold;
+	time_t		pivot, texp, diff;
+	int		loops, iloop;
+	
+	pivot = 0;
+	for (loops = 0; loops < 16; ++loops) {
+		for (iloop = 0; iloop < 6; ++iloop) {
+			hold = ntpcal_ntp_to_ntp(
+				ntp_vals[iloop], &pivot);
+			texp = vint64_to_time(&hold);
+
+			/* constraint 1: texp must be in the
+			 * (right-open) intervall [p-(2^31), p+(2^31)[,
+			 * but the pivot 'p' must be taken in full NTP
+			 * time scale!
+			 */
+			diff = texp - (pivot + JAN_1970);
+			snprintf(lbuf, sizeof(lbuf),
+				 "bounds check: piv=%lld exp=%lld dif=%lld",
+				 (long long)pivot,
+				 (long long)texp,
+				 (long long)diff);
+			TEST_ASSERT_MESSAGE((diff >= INT32_MIN) && (diff <= INT32_MAX),
+					    lbuf);
+
+			/* constraint 2: low word must be equal to
+			 * input
+			 */
+			snprintf(lbuf, sizeof(lbuf),
+				 "low check: ntp(in)=$%08lu ntp(out[0:31])=$%08lu",
+				 (unsigned long)ntp_vals[iloop],
+				 (unsigned long)hold.D_s.lo);
+			TEST_ASSERT_EQUAL_MESSAGE(ntp_vals[iloop], hold.D_s.lo, lbuf);
+		}
+		pivot += 0x20000000;
+	}
+#   endif
+}
+
+void
+test_NtpToTime(void)
+{
+#   if SIZEOF_TIME_T <= 4
+	
+	TEST_IGNORE_MESSAGE("test only useful for sizeof(time_t) > 4, skipped");
+	
+#   else
+	
+	static const uint32_t ntp_vals[6] = {
+		UINT32_C(0x00000000),
+		UINT32_C(0x00000001),
+		UINT32_C(0x7FFFFFFF),
+		UINT32_C(0x80000000),
+		UINT32_C(0x80000001),
+		UINT32_C(0xFFFFFFFF)
+	};
+
+	static char	lbuf[128];
+	vint64		hold;
+	time_t		pivot, texp, diff;
+	uint32_t	back;
+	int		loops, iloop;
+	
+	pivot = 0;
+	for (loops = 0; loops < 16; ++loops) {
+		for (iloop = 0; iloop < 6; ++iloop) {
+			hold = ntpcal_ntp_to_time(
+				ntp_vals[iloop], &pivot);
+			texp = vint64_to_time(&hold);
+
+			/* constraint 1: texp must be in the
+			 * (right-open) intervall [p-(2^31), p+(2^31)[
+			 */
+			diff = texp - pivot;
+			snprintf(lbuf, sizeof(lbuf),
+				 "bounds check: piv=%lld exp=%lld dif=%lld",
+				 (long long)pivot,
+				 (long long)texp,
+				 (long long)diff);
+			TEST_ASSERT_MESSAGE((diff >= INT32_MIN) && (diff <= INT32_MAX),
+					    lbuf);
+
+			/* constraint 2: conversion from full time back
+			 * to truncated NTP time must yield same result
+			 * as input.
+			*/
+			back = (uint32_t)texp + JAN_1970;
+			snprintf(lbuf, sizeof(lbuf),
+				 "modulo check: ntp(in)=$%08lu ntp(out)=$%08lu",
+				 (unsigned long)ntp_vals[iloop],
+				 (unsigned long)back);
+			TEST_ASSERT_EQUAL_MESSAGE(ntp_vals[iloop], back, lbuf);
+		}
+		pivot += 0x20000000;
+	}
+#   endif
 }

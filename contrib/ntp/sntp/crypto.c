@@ -2,6 +2,7 @@
 #include "crypto.h"
 #include <ctype.h>
 #include "isc/string.h"
+#include "libssl_compat.h"
 
 struct key *key_ptr;
 size_t key_cnt = 0;
@@ -17,7 +18,7 @@ make_mac(
 {
 	u_int		len = mac_size;
 	int		key_type;
-	EVP_MD_CTX	ctx;
+	EVP_MD_CTX *	ctx;
 	
 	if (cmp_key->key_len > 64)
 		return 0;
@@ -26,11 +27,14 @@ make_mac(
 
 	INIT_SSL();
 	key_type = keytype_from_text(cmp_key->type, NULL);
-	EVP_DigestInit(&ctx, EVP_get_digestbynid(key_type));
-	EVP_DigestUpdate(&ctx, (const u_char *)cmp_key->key_seq, (u_int)cmp_key->key_len);
-	EVP_DigestUpdate(&ctx, pkt_data, (u_int)pkt_size);
-	EVP_DigestFinal(&ctx, digest, &len);
-
+	
+	ctx = EVP_MD_CTX_new();
+	EVP_DigestInit(ctx, EVP_get_digestbynid(key_type));
+	EVP_DigestUpdate(ctx, (const u_char *)cmp_key->key_seq, (u_int)cmp_key->key_len);
+	EVP_DigestUpdate(ctx, pkt_data, (u_int)pkt_size);
+	EVP_DigestFinal(ctx, digest, &len);
+	EVP_MD_CTX_free(ctx);
+	
 	return (int)len;
 }
 
@@ -64,7 +68,7 @@ auth_md5(
 		 * with.  sntp is a 1-shot program, so snooping for
 		 * timing attacks is Harder.
 		 */
-		authentic = !memcmp(digest, pkt_data + pkt_size + 4,
+		authentic = !memcmp(digest, (const char*)pkt_data + pkt_size + 4,
 				    hash_len);
 	}
 	return authentic;

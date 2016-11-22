@@ -16,6 +16,7 @@ noinst_HEADERS =	\
 	intreswork.h	\
 	iosignal.h	\
 	l_stdlib.h	\
+	libssl_compat.h	\
 	lib_strbuf.h	\
 	libntp.h	\
 	mbg_gps166.h	\

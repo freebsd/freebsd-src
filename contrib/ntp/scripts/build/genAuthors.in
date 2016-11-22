@@ -34,21 +34,23 @@ use warnings;
 
 my $bk_u = "bk changes -and:USER: | sort -u |";
 chomp(my $bk_root = `bk root`);
-my $A_path = "$bk_root/BitKeeper/etc/authors.txt";
+my $A_dir = "$bk_root/BitKeeper/etc/Authors";
+my $A_file = "$bk_root/BitKeeper/etc/authors.txt";
 my %authors;
 my $problem = 0;
 
-die "bkroot: <$bk_root>, A_path: <$A_path>\n" if (! -r $A_path);
+die "bkroot: <$bk_root>, A_dir: <$A_dir>\n" if (! -r $A_dir);
+die "bkroot: <$bk_root>, A_file: <$A_file>\n" if (! -r $A_file);
 
 # Process the authors.txt file
-open(my $FILE, '<', $A_path) or die "Could not open <$A_path>: $!\n";
+open(my $FILE, '<', $A_file) or die "Could not open <$A_file>: $!\n";
 while (<$FILE>) {
   chomp;
   if (/^([\S]+) = ([\V]+) <([\w.-]+\@[\w.-]+)>$/) {
     # print "Got '$1 = $2 <$3>'\n";
     $authors{$1} = "";
   } else {
-    print "In $A_path: unrecognized line: '$_'\n";
+    print "In $A_file: unrecognized line: '$_'\n";
     $problem = 1;
   }
 }
@@ -69,7 +71,7 @@ while (<BKU>) {
   if (!defined($authors{$Name})) {
     $problem = 1;
     print "<$Name> is not a defined author!\n";
-    open(my $FILE, '>>', "$A_path/$name.txt") || die "Cannot create '$A_path/$name.txt': $!\n";
+    open(my $FILE, '>>', "$A_dir/$name.txt") || die "Cannot create '$A_dir/$name.txt': $!\n";
     print $FILE "$Name = \n";
     close($FILE);
   }

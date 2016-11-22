@@ -34,6 +34,7 @@
 #include "openssl/evp.h"
 #include "openssl/objects.h"
 #include "openssl/err.h"
+#include "libssl_compat.h"
 #endif
 #include <ssl_applink.c>
 
@@ -3582,7 +3583,7 @@ static void list_md_fn(const EVP_MD *m, const char *from, const char *to, void *
     size_t len, n;
     const char *name, *cp, **seen;
     struct hstate *hstate = arg;
-    EVP_MD_CTX ctx;
+    EVP_MD_CTX *ctx;
     u_int digest_len;
     u_char digest[EVP_MAX_MD_SIZE];
 
@@ -3613,8 +3614,10 @@ static void list_md_fn(const EVP_MD *m, const char *from, const char *to, void *
      * Keep this consistent with keytype_from_text() in ssl_init.c.
      */
 
-    EVP_DigestInit(&ctx, EVP_get_digestbyname(name));
-    EVP_DigestFinal(&ctx, digest, &digest_len);
+    ctx = EVP_MD_CTX_new();
+    EVP_DigestInit(ctx, EVP_get_digestbyname(name));
+    EVP_DigestFinal(ctx, digest, &digest_len);
+    EVP_MD_CTX_free(ctx);
     if (digest_len > (MAX_MAC_LEN - sizeof(keyid_t)))
         return;
 

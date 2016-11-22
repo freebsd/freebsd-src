@@ -10,11 +10,11 @@
 .ds B-Font B
 .ds I-Font I
 .ds R-Font R
-.TH ntp.conf 5man "02 Jun 2016" "4.2.8p8" "File Formats"
+.TH ntp.conf 5man "21 Nov 2016" "4.2.8p9" "File Formats"
 .\"
-.\" EDIT THIS FILE WITH CAUTION (/tmp/.ag-OzaOIT/ag-3zaGHT)
+.\" EDIT THIS FILE WITH CAUTION (/tmp/.ag-Q_ai3f/ag-2_aa2f)
 .\"
-.\" It has been AutoGen-ed June 2, 2016 at 07:35:50 AM by AutoGen 5.18.5
+.\" It has been AutoGen-ed November 21, 2016 at 08:01:41 AM by AutoGen 5.18.5
 .\" From the definitions ntp.conf.def
 .\" and the template file agman-cmd.tpl
 .SH NAME
@@ -2174,7 +2174,23 @@ At the same time, the manycast
 scheme starts all over from the beginning and
 the expanding ring shrinks to the minimum and increments
 from there while collecting all servers in scope.
+.SS Broadcast Options
+.TP 7
+.NOP \f\*[B-Font]tos\f[] [\f\*[B-Font]bcpollbstep\f[] \f\*[I-Font]gate\f[]]
+This command provides a way to delay,
+by the specified number of broadcast poll intervals,
+believing backward time steps from a broadcast server.
+Broadcast time networks are expected to be trusted.
+In the event a broadcast server's time is stepped backwards,
+there is clear benefit to having the clients notice this change
+as soon as possible.
+Attacks such as replay attacks can happen, however,
+and even though there are a number of protections built in to
+broadcast mode, attempts to perform  a replay attack are possible.
+This value defaults to 0, but can be changed
+to any number of poll intervals between 0 and 4.
 .SS Manycast Options
+.RS
 .TP 7
 .NOP \f\*[B-Font]tos\f[] [\f\*[B-Font]ceiling\f[] \f\*[I-Font]ceiling\f[] | \f\*[B-Font]cohort\f[] { \f\*[B-Font]0\f[] | \f\*[B-Font]1\f[] } | \f\*[B-Font]floor\f[] \f\*[I-Font]floor\f[] | \f\*[B-Font]minclock\f[] \f\*[I-Font]minclock\f[] | \f\*[B-Font]minsane\f[] \f\*[I-Font]minsane\f[]]
 This command affects the clock selection and clustering
@@ -2244,7 +2260,7 @@ In manycast mode these values are used in turn
 in an expanding-ring search.
 The default is eight
 multiples of 32 starting at 31.
-.PP
+.RE
 .SH Reference Clock Support
 The NTP Version 4 daemon supports some three dozen different radio,
 satellite and modem reference clocks plus a special pseudo-clock
@@ -2411,6 +2427,7 @@ option is used for this purpose.
 Except where noted,
 these options apply to all clock drivers.
 .SS Reference Clock Commands
+.RS
 .TP 7
 .NOP \f\*[B-Font]server\f[] \f[C]127.127.\f[]\f\*[I-Font]t\f[].\f\*[I-Font]u\f[] [\f\*[B-Font]prefer\f[]] [\f\*[B-Font]mode\f[] \f\*[I-Font]int\f[]] [\f\*[B-Font]minpoll\f[] \f\*[I-Font]int\f[]] [\f\*[B-Font]maxpoll\f[] \f\*[I-Font]int\f[]]
 This command can be used to configure reference clocks in
@@ -2559,8 +2576,9 @@ Further information on the
 command can be found in
 \fIMonitoring\f[] \fIOptions\f[].
 .RE
-.PP
+.RE
 .SH Miscellaneous Options
+.RS
 .TP 7
 .NOP \f\*[B-Font]broadcastdelay\f[] \f\*[I-Font]seconds\f[]
 The broadcast and multicast modes require a special calibration
@@ -3079,8 +3097,9 @@ In manycast mode these values are used in turn in
 an expanding-ring search.
 The default is eight multiples of 32 starting at
 31.
-.PP
+.RE
 .SH "OPTIONS"
+.RS
 .TP
 .NOP \f\*[B-Font]\-\-help\f[]
 Display usage information and exit.
@@ -3092,7 +3111,7 @@ Pass the extended usage information through a pager.
 Output version of program and exit.  The default mode is `v', a simple
 version.  The `c' mode will print copyright information and `n' will
 print the full copyright notice.
-.PP
+.RE
 .SH "OPTION PRESETS"
 Any option that is not marked as \fInot presettable\fP may be preset
 by loading values from environment variables named:
@@ -3103,6 +3122,7 @@ by loading values from environment variables named:
 .SH "ENVIRONMENT"
 See \fBOPTION PRESETS\fP for configuration environment variables.
 .SH FILES
+.RS
 .TP 15
 .NOP \fI/etc/ntp.conf\f[]
 the default name of the configuration file
@@ -3126,9 +3146,10 @@ RSA public key
 .TP 15
 .NOP \fIntp_dh\f[]
 Diffie-Hellman agreement parameters
-.PP
+.RE
 .SH "EXIT STATUS"
 One of the following exit values will be returned:
+.RS
 .TP
 .NOP 0 " (EXIT_SUCCESS)"
 Successful program execution.
@@ -3139,7 +3160,7 @@ The operation failed or the command syntax was not valid.
 .NOP 70 " (EX_SOFTWARE)"
 libopts had an internal operational error.  Please report
 it to autogen-users@lists.sourceforge.net.  Thank you.
-.PP
+.RE
 .SH "SEE ALSO"
 \fCntpd\f[]\fR(1ntpdmdoc)\f[],
 \fCntpdc\f[]\fR(1ntpdcmdoc)\f[],

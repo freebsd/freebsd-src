@@ -17,10 +17,6 @@ int (*outputChar)(int) = putchar;
 
 int verbose = 0;
 
-void setUp(void);
-void tearDown(void);
-void setUp(void)    { /*does nothing*/ }
-void tearDown(void) { /*does nothing*/ }
 
 static void announceTestRun(unsigned int runNumber)
 {

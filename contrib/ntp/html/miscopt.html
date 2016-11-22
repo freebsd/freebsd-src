@@ -11,7 +11,7 @@
 <img src="pic/boom3.gif" alt="gif" align="left"><a href="http://www.eecis.udel.edu/~mills/pictures.html">from <i>Pogo</i>, Walt Kelly</a>
 <p>We have three, now looking for more.</p>
 <p>Last update:
-  <!-- #BeginDate format:En2m -->17-May-2016  06:26<!-- #EndDate -->
+  <!-- #BeginDate format:En2m -->9-Nov-2016  12:26<!-- #EndDate -->
     UTC</p>
 <br clear="left">
 <h4>Related Links</h4>
@@ -145,10 +145,12 @@
       <dd>Specifies the stepout threshold in seconds. The default without this command is 300 s. Since this option also affects the training and startup intervals, it should not be set less than the default. Further details are on the <a href="clock.html">Clock State Machine</a> page.</dd>
     </dl>
   </dd>
-  <dt id="tos"><tt>tos [beacon <i>beacon</i> | ceiling <i>ceiling</i> | cohort {0 | 1} | floor <i>floor</i> | maxclock <i>maxclock </i>| maxdist <i>maxdist</i> | minclock <i>minclock</i> | mindist <i>mindist </i>| minsane <i>minsane</i> | orphan <i>stratum</i> | orphanwait <em>delay</em>]</tt></dt>
+  <dt id="tos"><tt>tos [bcpollbstep <i>poll-gate</i> | beacon <i>beacon</i> | ceiling <i>ceiling</i> | cohort {0 | 1} | floor <i>floor</i> | maxclock <i>maxclock </i>| maxdist <i>maxdist</i> | minclock <i>minclock</i> | mindist <i>mindist </i>| minsane <i>minsane</i> | orphan <i>stratum</i> | orphanwait <em>delay</em>]</tt></dt>
   <dd>This command alters certain system variables used by the the clock selection and clustering algorithms. The default values of these variables have been carefully optimized for a wide range of network speeds and reliability expectations. Very rarely is it necessary to change the default values; but, some folks can't resist twisting the knobs. It can be used to select the quality and quantity of peers used to synchronize the system clock and is most useful in dynamic server discovery schemes. The options are as follows:</dd>
   <dd>
     <dl>
+      <dt><tt>bcpollbstep <i>poll-gate</i></tt></dt>
+      <dd>This option will cause the client to delay believing backward time steps from a broadcast server for <tt>bcpollbstep</tt> poll intervals.  NTP Broadcast networks are expected to be trusted, and if the server's time gets stepped backwards then it's desireable that the clients follow this change as soon as possible.  However, in spite of various protections built-in to the broadcast protocol, it is possible that an attacker could perform a carefully-constructed replay attack and cause clients to erroneously step their clocks backward.  If the risk of a successful broadcast replay attack is greater than the risk of the clients being out of sync in the event that there is a backward step on the broadcast time servers, this option may be used to cause the clients to delay beliveving backward time steps until <i>poll-gate</i> consecutive polls have been received.  The default is 0, which means the client will accept these steps upon receipt.  Any value from 0 to 4 can be specified.</dd>
       <dt><tt>beacon <i>beacon</i></tt></dt>
       <dd>The manycast server sends packets at intervals of 64 s if less than <tt>maxclock</tt> servers are available. Otherwise, it sends packets at the <i><tt>beacon</tt></i> interval in seconds. The default is 3600 s. See the <a href="discover.html">Automatic Server Discovery</a> page for further details.</dd>
       <dt><tt>ceiling <i>ceiling</i></tt></dt>

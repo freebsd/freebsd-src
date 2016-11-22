@@ -53,6 +53,12 @@
 #include "ntp_parser.h"
 #include "ntpd-opts.h"
 
+#ifndef IGNORE_DNS_ERRORS
+# define DNSFLAGS 0
+#else
+# define DNSFLAGS GAIR_F_IGNDNSERR
+#endif
+
 extern int yyparse(void);
 
 /* Bug 2817 */
@@ -2002,6 +2008,21 @@ config_tos(
 			INSIST(0);
 			break;
 
+		case T_Bcpollbstep:
+			if (val > 4) {
+				msyslog(LOG_WARNING,
+					"Using maximum bcpollbstep ceiling %d, %g requested",
+					4, val);
+				val = 4;
+			} else if (val < 0) {
+				msyslog(LOG_WARNING,
+					"Using minimum bcpollbstep floor %d, %g requested",
+					0, val);
+				val = 0;
+			}
+			item = PROTO_BCPOLLBSTEP;
+			break;
+
 		case T_Ceiling:
 			if (val > STRATUM_UNSPEC - 1) {
 				msyslog(LOG_WARNING,
@@ -3813,11 +3834,11 @@ config_peers(
 			hints.ai_socktype = SOCK_DGRAM;
 			hints.ai_protocol = IPPROTO_UDP;
 
-			getaddrinfo_sometime(*cmdline_servers,
+			getaddrinfo_sometime_ex(*cmdline_servers,
 					     "ntp", &hints,
 					     INITIAL_DNS_RETRY,
 					     &peer_name_resolved,
-					     (void *)ctx);
+					     (void *)ctx, DNSFLAGS);
 # else	/* !WORKER follows */
 			msyslog(LOG_ERR,
 				"hostname %s can not be used, please use IP address instead.",
@@ -3891,10 +3912,11 @@ config_peers(
 			hints.ai_socktype = SOCK_DGRAM;
 			hints.ai_protocol = IPPROTO_UDP;
 
-			getaddrinfo_sometime(curr_peer->addr->address,
+			getaddrinfo_sometime_ex(curr_peer->addr->address,
 					     "ntp", &hints,
 					     INITIAL_DNS_RETRY,
-					     &peer_name_resolved, ctx);
+					     &peer_name_resolved, ctx,
+					     DNSFLAGS);
 # else	/* !WORKER follows */
 			msyslog(LOG_ERR,
 				"hostname %s can not be used, please use IP address instead.",
@@ -3935,16 +3957,10 @@ peer_name_resolved(
 	DPRINTF(1, ("peer_name_resolved(%s) rescode %d\n", name, rescode));
 
 	if (rescode) {
-#ifndef IGNORE_DNS_ERRORS
 		free(ctx);
 		msyslog(LOG_ERR,
 			"giving up resolving host %s: %s (%d)",
 			name, gai_strerror(rescode), rescode);
-#else	/* IGNORE_DNS_ERRORS follows */
-		getaddrinfo_sometime(name, service, hints,
-				     INITIAL_DNS_RETRY,
-				     &peer_name_resolved, context);
-#endif
 		return;
 	}
 
