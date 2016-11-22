@@ -784,34 +784,23 @@ key_allocsp(struct secpolicyindex *spidx, u_int dir)
 }
 
 /*
- * allocating an SA entry for an *OUTBOUND* packet.
- * checking each request entries in SP, and acquire an SA if need.
- * OUT:	0: there are valid requests.
- *	ENOENT: policy may be valid, but SA with REQUIRE is on acquiring.
+ * Allocating an SA entry for an *OUTBOUND* packet.
+ * OUT:	positive:	corresponding SA for given saidx found.
+ *	NULL:		SA not found, but will be acquired, check *error
+ *			for acquiring status.
  */
-int
-key_checkrequest(struct ipsecrequest *isr, const struct secasindex *saidx)
+struct secasvar *
+key_allocsa_policy(struct secpolicy *sp, const struct secasindex *saidx,
+    int *error)
 {
-	u_int level;
-	int error;
+	SAHTREE_RLOCK_TRACKER;
+	struct secashead *sah;
 	struct secasvar *sav;
 
-	IPSEC_ASSERT(isr != NULL, ("null isr"));
 	IPSEC_ASSERT(saidx != NULL, ("null saidx"));
 	IPSEC_ASSERT(saidx->mode == IPSEC_MODE_TRANSPORT ||
 		saidx->mode == IPSEC_MODE_TUNNEL,
 		("unexpected policy %u", saidx->mode));
-
-	/*
-	 * XXX guard against protocol callbacks from the crypto
-	 * thread as they reference ipsecrequest.sav which we
-	 * temporarily null out below.  Need to rethink how we
-	 * handle bundled SA's in the callback thread.
-	 */
-	IPSECREQUEST_LOCK_ASSERT(isr);
-
-	/* get current level */
-	level = ipsec_get_reqlevel(isr);
 
 	/*
 	 * We check new SA in the IPsec request because a different
@@ -819,230 +808,51 @@ key_checkrequest(struct ipsecrequest *isr, const struct secasindex *saidx)
 	 * because new SAs are being configured, or this request is
 	 * associated with an unconnected datagram socket, or this request
 	 * is associated with a system default policy.
-	 *
-	 * key_allocsa_policy should allocate the oldest SA available.
-	 * See key_do_allocsa_policy(), and draft-jenkins-ipsec-rekeying-03.txt.
 	 */
-	sav = key_allocsa_policy(saidx);
-	if (sav != isr->sav) {
-		/* SA need to be updated. */
-		if (!IPSECREQUEST_UPGRADE(isr)) {
-			/* Kick everyone off. */
-			IPSECREQUEST_UNLOCK(isr);
-			IPSECREQUEST_WLOCK(isr);
-		}
-		if (isr->sav != NULL)
-			KEY_FREESAV(&isr->sav);
-		isr->sav = sav;
-		IPSECREQUEST_DOWNGRADE(isr);
-	} else if (sav != NULL)
-		KEY_FREESAV(&sav);
+	SAHTREE_RLOCK();
+	LIST_FOREACH(sah, SAHADDRHASH_HASH(saidx), addrhash) {
+		KEYDBG(IPSEC_DUMP,
+		    printf("%s: checking SAH\n", __func__);
+		    kdebug_secash(sah, "  "));
+		if (key_cmpsaidx(&sah->saidx, saidx, CMP_MODE_REQID))
+			break;
 
-	/* When there is SA. */
-	if (isr->sav != NULL) {
-		if (isr->sav->state != SADB_SASTATE_MATURE &&
-		    isr->sav->state != SADB_SASTATE_DYING)
-			return EINVAL;
-		return 0;
+	}
+	if (sah != NULL) {
+		/*
+		 * Allocate the oldest SA available according to
+		 * draft-jenkins-ipsec-rekeying-03.
+		 */
+		if (V_key_preferred_oldsa)
+			sav = TAILQ_LAST(&sah->savtree_alive, secasvar_queue);
+		else
+			sav = TAILQ_FIRST(&sah->savtree_alive);
+		if (sav != NULL)
+			SAV_ADDREF(sav);
+	} else
+		sav = NULL;
+	SAHTREE_RUNLOCK();
+
+	if (sav != NULL) {
+		*error = 0;
+		KEYDBG(IPSEC_STAMP,
+		    printf("%s: chosen SA(%p) for SP(%p)\n", __func__,
+			sav, sp));
+		KEYDBG(IPSEC_DATA, kdebug_secasv(sav));
+		return (sav); /* return referenced SA */
 	}
 
 	/* there is no SA */
-	error = key_acquire(saidx, isr->sp);
-	if (error != 0) {
-		/* XXX What should I do ? */
-		ipseclog((LOG_DEBUG, "%s: error %d returned from key_acquire\n",
-			__func__, error));
-		return error;
-	}
-
-	if (level != IPSEC_LEVEL_REQUIRE) {
-		/* XXX sigh, the interface to this routine is botched */
-		IPSEC_ASSERT(isr->sav == NULL, ("unexpected SA"));
-		return 0;
-	} else {
-		return ENOENT;
-	}
-}
-
-/*
- * allocating a SA for policy entry from SAD.
- * NOTE: searching SAD of aliving state.
- * OUT:	NULL:	not found.
- *	others:	found and return the pointer.
- */
-static struct secasvar *
-key_allocsa_policy(const struct secasindex *saidx)
-{
-#define	N(a)	_ARRAYLEN(a)
-	struct secashead *sah;
-	struct secasvar *sav;
-	u_int stateidx, arraysize;
-	const u_int *state_valid;
-
-	state_valid = NULL;	/* silence gcc */
-	arraysize = 0;		/* silence gcc */
-
-	SAHTREE_LOCK();
-	LIST_FOREACH(sah, &V_sahtree, chain) {
-		if (sah->state == SADB_SASTATE_DEAD)
-			continue;
-		if (key_cmpsaidx(&sah->saidx, saidx, CMP_MODE_REQID)) {
-			if (V_key_preferred_oldsa) {
-				state_valid = saorder_state_valid_prefer_old;
-				arraysize = N(saorder_state_valid_prefer_old);
-			} else {
-				state_valid = saorder_state_valid_prefer_new;
-				arraysize = N(saorder_state_valid_prefer_new);
-			}
-			break;
-		}
-	}
-	SAHTREE_UNLOCK();
-	if (sah == NULL)
-		return NULL;
-
-	/* search valid state */
-	for (stateidx = 0; stateidx < arraysize; stateidx++) {
-		sav = key_do_allocsa_policy(sah, state_valid[stateidx]);
-		if (sav != NULL)
-			return sav;
-	}
-
-	return NULL;
-#undef N
-}
-
-/*
- * searching SAD with direction, protocol, mode and state.
- * called by key_allocsa_policy().
- * OUT:
- *	NULL	: not found
- *	others	: found, pointer to a SA.
- */
-static struct secasvar *
-key_do_allocsa_policy(struct secashead *sah, u_int state)
-{
-	struct secasvar *sav, *nextsav, *candidate, *d;
-
-	/* initialize */
-	candidate = NULL;
-
-	SAHTREE_LOCK();
-	for (sav = LIST_FIRST(&sah->savtree[state]);
-	     sav != NULL;
-	     sav = nextsav) {
-
-		nextsav = LIST_NEXT(sav, chain);
-
-		/* sanity check */
-		KEY_CHKSASTATE(sav->state, state, __func__);
-
-		/* initialize */
-		if (candidate == NULL) {
-			candidate = sav;
-			continue;
-		}
-
-		/* Which SA is the better ? */
-
-		IPSEC_ASSERT(candidate->lft_c != NULL,
-			("null candidate lifetime"));
-		IPSEC_ASSERT(sav->lft_c != NULL, ("null sav lifetime"));
-
-		/* What the best method is to compare ? */
-		if (V_key_preferred_oldsa) {
-			if (candidate->lft_c->addtime >
-					sav->lft_c->addtime) {
-				candidate = sav;
-			}
-			continue;
-			/*NOTREACHED*/
-		}
-
-		/* preferred new sa rather than old sa */
-		if (candidate->lft_c->addtime <
-				sav->lft_c->addtime) {
-			d = candidate;
-			candidate = sav;
-		} else
-			d = sav;
-
-		/*
-		 * prepared to delete the SA when there is more
-		 * suitable candidate and the lifetime of the SA is not
-		 * permanent.
-		 */
-		if (d->lft_h->addtime != 0) {
-			struct mbuf *m, *result;
-			u_int8_t satype;
-
-			key_sa_chgstate(d, SADB_SASTATE_DEAD);
-
-			IPSEC_ASSERT(d->refcnt > 0, ("bogus ref count"));
-
-			satype = key_proto2satype(d->sah->saidx.proto);
-			if (satype == 0)
-				goto msgfail;
-
-			m = key_setsadbmsg(SADB_DELETE, 0,
-			    satype, 0, 0, d->refcnt - 1);
-			if (!m)
-				goto msgfail;
-			result = m;
-
-			/* set sadb_address for saidx's. */
-			m = key_setsadbaddr(SADB_EXT_ADDRESS_SRC,
-				&d->sah->saidx.src.sa,
-				d->sah->saidx.src.sa.sa_len << 3,
-				IPSEC_ULPROTO_ANY);
-			if (!m)
-				goto msgfail;
-			m_cat(result, m);
-
-			/* set sadb_address for saidx's. */
-			m = key_setsadbaddr(SADB_EXT_ADDRESS_DST,
-				&d->sah->saidx.dst.sa,
-				d->sah->saidx.dst.sa.sa_len << 3,
-				IPSEC_ULPROTO_ANY);
-			if (!m)
-				goto msgfail;
-			m_cat(result, m);
-
-			/* create SA extension */
-			m = key_setsadbsa(d);
-			if (!m)
-				goto msgfail;
-			m_cat(result, m);
-
-			if (result->m_len < sizeof(struct sadb_msg)) {
-				result = m_pullup(result,
-						sizeof(struct sadb_msg));
-				if (result == NULL)
-					goto msgfail;
-			}
-
-			result->m_pkthdr.len = 0;
-			for (m = result; m; m = m->m_next)
-				result->m_pkthdr.len += m->m_len;
-			mtod(result, struct sadb_msg *)->sadb_msg_len =
-				PFKEY_UNIT64(result->m_pkthdr.len);
-
-			if (key_sendup_mbuf(NULL, result,
-					KEY_SENDUP_REGISTERED))
-				goto msgfail;
-		 msgfail:
-			KEY_FREESAV(&d);
-		}
-	}
-	if (candidate) {
-		sa_addref(candidate);
-		KEYDEBUG(KEYDEBUG_IPSEC_STAMP,
-			printf("DP %s cause refcnt++:%d SA:%p\n",
-				__func__, candidate->refcnt, candidate));
-	}
-	SAHTREE_UNLOCK();
-
-	return candidate;
+	*error = key_acquire(saidx, sp);
+	if ((*error) != 0)
+		ipseclog((LOG_DEBUG,
+		    "%s: error %d returned from key_acquire()\n",
+			__func__, *error));
+	KEYDBG(IPSEC_STAMP,
+	    printf("%s: acquire SA for SP(%p), error %d\n",
+		__func__, sp, *error));
+	KEYDBG(IPSEC_DATA, kdebug_secasindex(saidx, NULL));
+	return (NULL);
 }
 
 /*
