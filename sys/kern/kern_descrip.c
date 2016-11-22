@@ -495,6 +495,8 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 	p = td->td_proc;
 	fdp = p->p_fd;
 
+	AUDIT_ARG_FD(cmd);
+	AUDIT_ARG_CMD(cmd);
 	switch (cmd) {
 	case F_DUPFD:
 		tmp = arg;
