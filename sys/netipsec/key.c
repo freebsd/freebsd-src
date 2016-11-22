@@ -3123,18 +3123,19 @@ fail:
  * subroutine for SADB_GET and SADB_DUMP.
  */
 static struct mbuf *
-key_setdumpsa(struct secasvar *sav, u_int8_t type, u_int8_t satype,
-    u_int32_t seq, u_int32_t pid)
+key_setdumpsa(struct secasvar *sav, uint8_t type, uint8_t satype,
+    uint32_t seq, uint32_t pid)
 {
+	struct seclifetime lft_c;
 	struct mbuf *result = NULL, *tres = NULL, *m;
-	int i;
-	int dumporder[] = {
+	int i, dumporder[] = {
 		SADB_EXT_SA, SADB_X_EXT_SA2,
 		SADB_EXT_LIFETIME_HARD, SADB_EXT_LIFETIME_SOFT,
 		SADB_EXT_LIFETIME_CURRENT, SADB_EXT_ADDRESS_SRC,
-		SADB_EXT_ADDRESS_DST, SADB_EXT_ADDRESS_PROXY, SADB_EXT_KEY_AUTH,
-		SADB_EXT_KEY_ENCRYPT, SADB_EXT_IDENTITY_SRC,
-		SADB_EXT_IDENTITY_DST, SADB_EXT_SENSITIVITY,
+		SADB_EXT_ADDRESS_DST, SADB_EXT_ADDRESS_PROXY,
+		SADB_EXT_KEY_AUTH, SADB_EXT_KEY_ENCRYPT,
+		SADB_EXT_IDENTITY_SRC, SADB_EXT_IDENTITY_DST,
+		SADB_EXT_SENSITIVITY,
 #ifdef IPSEC_NAT_T
 		SADB_X_EXT_NAT_T_TYPE,
 		SADB_X_EXT_NAT_T_SPORT, SADB_X_EXT_NAT_T_DPORT,
@@ -3198,10 +3199,12 @@ key_setdumpsa(struct secasvar *sav, u_int8_t type, u_int8_t satype,
 			break;
 
 		case SADB_EXT_LIFETIME_CURRENT:
-			if (!sav->lft_c)
-				continue;
-			m = key_setlifetime(sav->lft_c, 
-					    SADB_EXT_LIFETIME_CURRENT);
+			lft_c.addtime = sav->created;
+			lft_c.allocations = (uint32_t)counter_u64_fetch(
+			    sav->lft_c_allocations);
+			lft_c.bytes = counter_u64_fetch(sav->lft_c_bytes);
+			lft_c.usetime = sav->firstused;
+			m = key_setlifetime(&lft_c, SADB_EXT_LIFETIME_CURRENT);
 			if (!m)
 				goto fail;
 			break;
@@ -3231,10 +3234,10 @@ key_setdumpsa(struct secasvar *sav, u_int8_t type, u_int8_t satype,
 			if (!m)
 				goto fail;
 			break;
-		
+
 		case SADB_X_EXT_NAT_T_DPORT:
 			m = key_setsadbxport(
-			    KEY_PORTFROMSADDR(&sav->sah->saidx.dst),
+			    key_portfromsaddr(&sav->sah->saidx.dst.sa),
 			    SADB_X_EXT_NAT_T_DPORT);
 			if (!m)
 				goto fail;
@@ -3242,7 +3245,7 @@ key_setdumpsa(struct secasvar *sav, u_int8_t type, u_int8_t satype,
 
 		case SADB_X_EXT_NAT_T_SPORT:
 			m = key_setsadbxport(
-			    KEY_PORTFROMSADDR(&sav->sah->saidx.src),
+			    key_portfromsaddr(&sav->sah->saidx.src.sa),
 			    SADB_X_EXT_NAT_T_SPORT);
 			if (!m)
 				goto fail;
@@ -3269,7 +3272,6 @@ key_setdumpsa(struct secasvar *sav, u_int8_t type, u_int8_t satype,
 		if (tres)
 			m_cat(m, tres);
 		tres = m;
-		  
 	}
 
 	m_cat(result, tres);
