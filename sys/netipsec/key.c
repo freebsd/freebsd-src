@@ -2905,59 +2905,51 @@ reset:
 }
 
 /*
- * copy SA values from PF_KEY message except *SPI, SEQ, PID, STATE and TYPE*.
- * You must update these if need.
+ * copy SA values from PF_KEY message except *SPI, SEQ, PID and TYPE*.
+ * You must update these if need. Expects only LARVAL SAs.
  * OUT:	0:	success.
  *	!0:	failure.
- *
- * does not modify mbuf.  does not free mbuf on error.
  */
 static int
-key_setsaval(struct secasvar *sav, struct mbuf *m,
-    const struct sadb_msghdr *mhp)
+key_setsaval(struct secasvar *sav, const struct sadb_msghdr *mhp)
 {
-	int error = 0;
+	const struct sadb_sa *sa0;
+	const struct sadb_key *key0;
+	size_t len;
+	int error;
 
-	IPSEC_ASSERT(m != NULL, ("null mbuf"));
 	IPSEC_ASSERT(mhp != NULL, ("null msghdr"));
 	IPSEC_ASSERT(mhp->msg != NULL, ("null msg"));
+	IPSEC_ASSERT(sav->state == SADB_SASTATE_LARVAL,
+	    ("Attempt to update non LARVAL SA"));
 
-	/* initialization */
-	sav->replay = NULL;
-	sav->key_auth = NULL;
-	sav->key_enc = NULL;
-	sav->sched = NULL;
-	sav->schedlen = 0;
-	sav->lft_c = NULL;
-	sav->lft_h = NULL;
-	sav->lft_s = NULL;
-	sav->tdb_xform = NULL;		/* transform */
-	sav->tdb_encalgxform = NULL;	/* encoding algorithm */
-	sav->tdb_authalgxform = NULL;	/* authentication algorithm */
-	sav->tdb_compalgxform = NULL;	/* compression algorithm */
-	/*  Initialize even if NAT-T not compiled in: */
-	sav->natt_type = 0;
-	sav->natt_esp_frag_len = 0;
+	/* XXX rewrite */
+	error = key_setident(sav->sah, mhp);
+	if (error != 0)
+		goto fail;
+
+	error = key_setnatt(sav, mhp);
+	if (error != 0)
+		goto fail;
 
 	/* SA */
-	if (mhp->ext[SADB_EXT_SA] != NULL) {
-		const struct sadb_sa *sa0;
-
-		sa0 = (const struct sadb_sa *)mhp->ext[SADB_EXT_SA];
-		if (mhp->extlen[SADB_EXT_SA] < sizeof(*sa0)) {
+	if (!SADB_CHECKHDR(mhp, SADB_EXT_SA)) {
+		if (SADB_CHECKLEN(mhp, SADB_EXT_SA)) {
 			error = EINVAL;
 			goto fail;
 		}
-
+		sa0 = (const struct sadb_sa *)mhp->ext[SADB_EXT_SA];
 		sav->alg_auth = sa0->sadb_sa_auth;
 		sav->alg_enc = sa0->sadb_sa_encrypt;
 		sav->flags = sa0->sadb_sa_flags;
 
 		/* replay window */
 		if ((sa0->sadb_sa_flags & SADB_X_EXT_OLD) == 0) {
-			sav->replay = (struct secreplay *)
-				malloc(sizeof(struct secreplay)+sa0->sadb_sa_replay, M_IPSEC_MISC, M_NOWAIT|M_ZERO);
+			sav->replay = malloc(sizeof(struct secreplay) +
+			    sa0->sadb_sa_replay, M_IPSEC_MISC,
+			    M_NOWAIT | M_ZERO);
 			if (sav->replay == NULL) {
+				PFKEYSTAT_INC(in_nomem);
 				ipseclog((LOG_DEBUG, "%s: No more memory.\n",
 					__func__));
 				error = ENOBUFS;
@@ -2970,18 +2962,14 @@ key_setsaval(struct secasvar *sav, struct mbuf *m,
 	}
 
 	/* Authentication keys */
-	if (mhp->ext[SADB_EXT_KEY_AUTH] != NULL) {
-		const struct sadb_key *key0;
-		int len;
-
-		key0 = (const struct sadb_key *)mhp->ext[SADB_EXT_KEY_AUTH];
-		len = mhp->extlen[SADB_EXT_KEY_AUTH];
-
-		error = 0;
-		if (len < sizeof(*key0)) {
+	if (!SADB_CHECKHDR(mhp, SADB_EXT_KEY_AUTH)) {
+		if (SADB_CHECKLEN(mhp, SADB_EXT_KEY_AUTH)) {
 			error = EINVAL;
 			goto fail;
 		}
+		error = 0;
+		key0 = (const struct sadb_key *)mhp->ext[SADB_EXT_KEY_AUTH];
+		len = mhp->extlen[SADB_EXT_KEY_AUTH];
 		switch (mhp->msg->sadb_msg_satype) {
 		case SADB_SATYPE_AH:
 		case SADB_SATYPE_ESP:
@@ -3001,29 +2989,25 @@ key_setsaval(struct secasvar *sav, struct mbuf *m,
 			goto fail;
 		}
 
-		sav->key_auth = (struct seckey *)key_dup_keymsg(key0, len,
-								M_IPSEC_MISC);
+		sav->key_auth = key_dup_keymsg(key0, len, M_IPSEC_MISC);
 		if (sav->key_auth == NULL ) {
 			ipseclog((LOG_DEBUG, "%s: No more memory.\n",
 				  __func__));
+			PFKEYSTAT_INC(in_nomem);
 			error = ENOBUFS;
 			goto fail;
 		}
 	}
 
 	/* Encryption key */
-	if (mhp->ext[SADB_EXT_KEY_ENCRYPT] != NULL) {
-		const struct sadb_key *key0;
-		int len;
-
-		key0 = (const struct sadb_key *)mhp->ext[SADB_EXT_KEY_ENCRYPT];
-		len = mhp->extlen[SADB_EXT_KEY_ENCRYPT];
-
-		error = 0;
-		if (len < sizeof(*key0)) {
+	if (!SADB_CHECKHDR(mhp, SADB_EXT_KEY_ENCRYPT)) {
+		if (SADB_CHECKLEN(mhp, SADB_EXT_KEY_ENCRYPT)) {
 			error = EINVAL;
 			goto fail;
 		}
+		error = 0;
+		key0 = (const struct sadb_key *)mhp->ext[SADB_EXT_KEY_ENCRYPT];
+		len = mhp->extlen[SADB_EXT_KEY_ENCRYPT];
 		switch (mhp->msg->sadb_msg_satype) {
 		case SADB_SATYPE_ESP:
 			if (len == PFKEY_ALIGN8(sizeof(struct sadb_key)) &&
@@ -3031,12 +3015,11 @@ key_setsaval(struct secasvar *sav, struct mbuf *m,
 				error = EINVAL;
 				break;
 			}
-			sav->key_enc = (struct seckey *)key_dup_keymsg(key0,
-								       len,
-								       M_IPSEC_MISC);
+			sav->key_enc = key_dup_keymsg(key0, len, M_IPSEC_MISC);
 			if (sav->key_enc == NULL) {
 				ipseclog((LOG_DEBUG, "%s: No more memory.\n",
 					__func__));
+				PFKEYSTAT_INC(in_nomem);
 				error = ENOBUFS;
 				goto fail;
 			}
@@ -3061,87 +3044,80 @@ key_setsaval(struct secasvar *sav, struct mbuf *m,
 
 	/* set iv */
 	sav->ivlen = 0;
-
 	switch (mhp->msg->sadb_msg_satype) {
 	case SADB_SATYPE_AH:
+		if (sav->flags & SADB_X_EXT_DERIV) {
+			ipseclog((LOG_DEBUG, "%s: invalid flag (derived) "
+			    "given to AH SA.\n", __func__));
+			error = EINVAL;
+			goto fail;
+		}
+		if (sav->alg_enc != SADB_EALG_NONE) {
+			ipseclog((LOG_DEBUG, "%s: protocol and algorithm "
+			    "mismated.\n", __func__));
+			error = EINVAL;
+			goto fail;
+		}
 		error = xform_init(sav, XF_AH);
 		break;
 	case SADB_SATYPE_ESP:
+		if ((sav->flags & (SADB_X_EXT_OLD | SADB_X_EXT_DERIV)) ==
+		    (SADB_X_EXT_OLD | SADB_X_EXT_DERIV)) {
+			ipseclog((LOG_DEBUG, "%s: invalid flag (derived) "
+			    "given to old-esp.\n", __func__));
+			error = EINVAL;
+			goto fail;
+		}
 		error = xform_init(sav, XF_ESP);
 		break;
 	case SADB_X_SATYPE_IPCOMP:
+		if (sav->alg_auth != SADB_AALG_NONE) {
+			ipseclog((LOG_DEBUG, "%s: protocol and algorithm "
+			    "mismated.\n", __func__));
+			error = EINVAL;
+			goto fail;
+		}
+		if ((sav->flags & SADB_X_EXT_RAWCPI) == 0 &&
+		    ntohl(sav->spi) >= 0x10000) {
+			ipseclog((LOG_DEBUG, "%s: invalid cpi for IPComp.\n",
+			    __func__));
+			error = EINVAL;
+			goto fail;
+		}
 		error = xform_init(sav, XF_IPCOMP);
 		break;
 	case SADB_X_SATYPE_TCPSIGNATURE:
+		if (sav->alg_enc != SADB_EALG_NONE) {
+			ipseclog((LOG_DEBUG, "%s: protocol and algorithm "
+			    "mismated.\n", __func__));
+			error = EINVAL;
+			goto fail;
+		}
 		error = xform_init(sav, XF_TCPSIGNATURE);
 		break;
+	default:
+		ipseclog((LOG_DEBUG, "%s: Invalid satype.\n", __func__));
+		error = EPROTONOSUPPORT;
+		goto fail;
 	}
 	if (error) {
 		ipseclog((LOG_DEBUG, "%s: unable to initialize SA type %u.\n",
-		        __func__, mhp->msg->sadb_msg_satype));
+		    __func__, mhp->msg->sadb_msg_satype));
 		goto fail;
 	}
 
-	/* reset created */
+	/* Initialize lifetime for CURRENT */
+	sav->firstused = 0;
 	sav->created = time_second;
 
-	/* make lifetime for CURRENT */
-	sav->lft_c = malloc(sizeof(struct seclifetime), M_IPSEC_MISC, M_NOWAIT);
-	if (sav->lft_c == NULL) {
-		ipseclog((LOG_DEBUG, "%s: No more memory.\n", __func__));
-		error = ENOBUFS;
-		goto fail;
-	}
-
-	sav->lft_c->allocations = 0;
-	sav->lft_c->bytes = 0;
-	sav->lft_c->addtime = time_second;
-	sav->lft_c->usetime = 0;
-
 	/* lifetimes for HARD and SOFT */
-    {
-	const struct sadb_lifetime *lft0;
-
-	lft0 = (struct sadb_lifetime *)mhp->ext[SADB_EXT_LIFETIME_HARD];
-	if (lft0 != NULL) {
-		if (mhp->extlen[SADB_EXT_LIFETIME_HARD] < sizeof(*lft0)) {
-			error = EINVAL;
-			goto fail;
-		}
-		sav->lft_h = key_dup_lifemsg(lft0, M_IPSEC_MISC);
-		if (sav->lft_h == NULL) {
-			ipseclog((LOG_DEBUG, "%s: No more memory.\n",__func__));
-			error = ENOBUFS;
-			goto fail;
-		}
-		/* to be initialize ? */
-	}
-
-	lft0 = (struct sadb_lifetime *)mhp->ext[SADB_EXT_LIFETIME_SOFT];
-	if (lft0 != NULL) {
-		if (mhp->extlen[SADB_EXT_LIFETIME_SOFT] < sizeof(*lft0)) {
-			error = EINVAL;
-			goto fail;
-		}
-		sav->lft_s = key_dup_lifemsg(lft0, M_IPSEC_MISC);
-		if (sav->lft_s == NULL) {
-			ipseclog((LOG_DEBUG, "%s: No more memory.\n",__func__));
-			error = ENOBUFS;
-			goto fail;
-		}
-		/* to be initialize ? */
-	}
-    }
-
-	return 0;
-
- fail:
-	/* initialization */
+	error = key_updatelifetimes(sav, mhp);
+	if (error == 0)
+		return (0);
+fail:
 	key_cleansav(sav);
-
-	return error;
+	return (error);
 }
-
 /*
  * validation with a secasvar entry, and set SADB_SATYPE_MATURE.
  * OUT:	0:	valid
