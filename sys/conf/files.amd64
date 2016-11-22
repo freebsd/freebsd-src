@@ -187,6 +187,7 @@ crypto/via/padlock_cipher.c	optional	padlock
 crypto/via/padlock_hash.c	optional	padlock
 dev/acpica/acpi_if.m		standard
 dev/acpica/acpi_hpet.c		optional acpi
+dev/acpica/acpi_timer.c		optional	acpi
 dev/acpi_support/acpi_wmi_if.m	standard
 dev/agp/agp_amd64.c		optional	agp
 dev/agp/agp_i810.c		optional	agp
