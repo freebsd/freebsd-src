@@ -667,7 +667,6 @@ dev/acpica/acpi_resource.c	optional acpi
 dev/acpica/acpi_smbat.c		optional acpi
 dev/acpica/acpi_thermal.c	optional acpi
 dev/acpica/acpi_throttle.c	optional acpi
-dev/acpica/acpi_timer.c		optional acpi
 dev/acpica/acpi_video.c		optional acpi_video acpi
 dev/acpica/acpi_dock.c		optional acpi_dock acpi
 dev/adlink/adlink.c		optional adlink
