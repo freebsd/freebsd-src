@@ -91,7 +91,7 @@
 /*
  *---------------------------------------------------------------------
  * replacing the 'time()' function
- * --------------------------------------------------------------------
+ *---------------------------------------------------------------------
  */
 
 static systime_func_ptr systime_func = &time;
@@ -395,7 +395,7 @@ ntpcal_get_build_date(
 /*
  *---------------------------------------------------------------------
  * basic calendar stuff
- * --------------------------------------------------------------------
+ *---------------------------------------------------------------------
  */
 
 /* month table for a year starting with March,1st */
@@ -443,11 +443,11 @@ static const uint16_t real_month_table[2][13] = {
  */
 
 /*
- * ==================================================================
+ * ====================================================================
  *
  * General algorithmic stuff
  *
- * ==================================================================
+ * ====================================================================
  */
 
 /*
@@ -495,7 +495,7 @@ static const uint16_t real_month_table[2][13] = {
  * 32/16bit divisions and is still performant is a bit more
  * difficult. Since most usecases can be coded in a way that does only
  * require the 32-bit version a 64bit version is NOT provided here.
- * ---------------------------------------------------------------------
+ *---------------------------------------------------------------------
  */
 int32_t
 ntpcal_periodic_extend(
@@ -542,8 +542,35 @@ ntpcal_periodic_extend(
 	return pivot;
 }
 
+/*---------------------------------------------------------------------
+ * Note to the casual reader
+ *
+ * In the next two functions you will find (or would have found...)
+ * the expression
+ *
+ *   res.Q_s -= 0x80000000;
+ *
+ * There was some ruckus about a possible programming error due to
+ * integer overflow and sign propagation.
+ *
+ * This assumption is based on a lack of understanding of the C
+ * standard. (Though this is admittedly not one of the most 'natural'
+ * aspects of the 'C' language and easily to get wrong.)
+ *
+ * see 
+ *	http://www.open-std.org/jtc1/sc22/wg14/www/docs/n1570.pdf
+ *	"ISO/IEC 9899:201x Committee Draft — April 12, 2011"
+ *	6.4.4.1 Integer constants, clause 5
+ *
+ * why there is no sign extension/overflow problem here.
+ *
+ * But to ease the minds of the doubtful, I added back the 'u' qualifiers
+ * that somehow got lost over the last years. 
+ */
+
+
 /*
- *-------------------------------------------------------------------
+ *---------------------------------------------------------------------
  * Convert a timestamp in NTP scale to a 64bit seconds value in the UN*X
  * scale with proper epoch unfolding around a given pivot or the current
  * system time. This function happily accepts negative pivot values as
@@ -553,7 +580,7 @@ ntpcal_periodic_extend(
  * This is also a periodic extension, but since the cycle is 2^32 and
  * the shift is 2^31, we can do some *very* fast math without explicit
  * divisions.
- *-------------------------------------------------------------------
+ *---------------------------------------------------------------------
  */
 vint64
 ntpcal_ntp_to_time(
@@ -568,7 +595,7 @@ ntpcal_ntp_to_time(
 	res.q_s = (pivot != NULL)
 		      ? *pivot
 		      : now();
-	res.Q_s -= 0x80000000;		/* unshift of half range */
+	res.Q_s -= 0x80000000u;		/* unshift of half range */
 	ntp	-= (uint32_t)JAN_1970;	/* warp into UN*X domain */
 	ntp	-= res.D_s.lo;		/* cycle difference	 */
 	res.Q_s += (uint64_t)ntp;	/* get expanded time	 */
@@ -581,7 +608,7 @@ ntpcal_ntp_to_time(
 		  ? *pivot
 		  : now();
 	res = time_to_vint64(&tmp);
-	M_SUB(res.D_s.hi, res.D_s.lo, 0, 0x80000000);
+	M_SUB(res.D_s.hi, res.D_s.lo, 0, 0x80000000u);
 	ntp -= (uint32_t)JAN_1970;	/* warp into UN*X domain */
 	ntp -= res.D_s.lo;		/* cycle difference	 */
 	M_ADD(res.D_s.hi, res.D_s.lo, 0, ntp);
@@ -592,7 +619,7 @@ ntpcal_ntp_to_time(
 }
 
 /*
- *-------------------------------------------------------------------
+ *---------------------------------------------------------------------
  * Convert a timestamp in NTP scale to a 64bit seconds value in the NTP
  * scale with proper epoch unfolding around a given pivot or the current
  * system time.
@@ -602,7 +629,7 @@ ntpcal_ntp_to_time(
  * This is also a periodic extension, but since the cycle is 2^32 and
  * the shift is 2^31, we can do some *very* fast math without explicit
  * divisions.
- *-------------------------------------------------------------------
+ *---------------------------------------------------------------------
  */
 vint64
 ntpcal_ntp_to_ntp(
@@ -617,7 +644,7 @@ ntpcal_ntp_to_ntp(
 	res.q_s = (pivot)
 		      ? *pivot
 		      : now();
-	res.Q_s -= 0x80000000;		/* unshift of half range */
+	res.Q_s -= 0x80000000u;		/* unshift of half range */
 	res.Q_s += (uint32_t)JAN_1970;	/* warp into NTP domain	 */
 	ntp	-= res.D_s.lo;		/* cycle difference	 */
 	res.Q_s += (uint64_t)ntp;	/* get expanded time	 */
@@ -642,20 +669,20 @@ ntpcal_ntp_to_ntp(
 
 
 /*
- * ==================================================================
+ * ====================================================================
  *
  * Splitting values to composite entities
  *
- * ==================================================================
+ * ====================================================================
  */
 
 /*
- *-------------------------------------------------------------------
+ *---------------------------------------------------------------------
  * Split a 64bit seconds value into elapsed days in 'res.hi' and
  * elapsed seconds since midnight in 'res.lo' using explicit floor
  * division. This function happily accepts negative time values as
  * timestamps before the respective epoch start.
- * -------------------------------------------------------------------
+ *---------------------------------------------------------------------
  */
 ntpcal_split
 ntpcal_daysplit(
@@ -736,11 +763,11 @@ ntpcal_daysplit(
 }
 
 /*
- *-------------------------------------------------------------------
+ *---------------------------------------------------------------------
  * Split a 32bit seconds value into h/m/s and excessive days.  This
  * function happily accepts negative time values as timestamps before
  * midnight.
- * -------------------------------------------------------------------
+ *---------------------------------------------------------------------
  */
 static int32_t
 priv_timesplit(
@@ -773,7 +800,7 @@ priv_timesplit(
 }
 
 /*
- * ---------------------------------------------------------------------
+ *---------------------------------------------------------------------
  * Given the number of elapsed days in the calendar era, split this
  * number into the number of elapsed years in 'res.hi' and the number
  * of elapsed days of that year in 'res.lo'.
@@ -1053,11 +1080,11 @@ ntpcal_time_to_date(
 
 
 /*
- * ==================================================================
+ * ====================================================================
  *
  * merging composite entities
  *
- * ==================================================================
+ * ====================================================================
  */
 
 /*
@@ -1251,8 +1278,8 @@ ntpcal_edate_to_eradays(
  * Convert ELAPSED years/months/days of gregorian calendar to elapsed
  * days in year.
  *
- * Note: This will give the true difference to the start of the given year,
- * even if months & days are off-scale.
+ * Note: This will give the true difference to the start of the given
+ * year, even if months & days are off-scale.
  *---------------------------------------------------------------------
  */
 int32_t
@@ -1434,11 +1461,11 @@ ntpcal_date_to_time(
 
 
 /*
- * ==================================================================
+ * ====================================================================
  *
  * extended and unchecked variants of caljulian/caltontp
  *
- * ==================================================================
+ * ====================================================================
  */
 int
 ntpcal_ntp64_to_date(
@@ -1500,11 +1527,11 @@ ntpcal_date_to_ntp(
 
 
 /*
- * ==================================================================
+ * ====================================================================
  *
  * day-of-week calculations
  *
- * ==================================================================
+ * ====================================================================
  */
 /*
  * Given a RataDie and a day-of-week, calculate a RDN that is reater-than,
@@ -1557,7 +1584,7 @@ ntpcal_weekday_lt(
 }
 
 /*
- * ==================================================================
+ * ====================================================================
  *
  * ISO week-calendar conversions
  *
@@ -1601,7 +1628,7 @@ ntpcal_weekday_lt(
  * smallest possible powers of two, so the division can be implemented
  * as shifts if the optimiser chooses to do so.
  *
- * ==================================================================
+ * ====================================================================
  */
 
 /*

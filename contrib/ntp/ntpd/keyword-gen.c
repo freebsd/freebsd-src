@@ -148,6 +148,7 @@ struct key_tok ntp_keywords[] = {
 { "cohort",		T_Cohort,		FOLLBY_TOKEN },
 { "mindist",		T_Mindist,		FOLLBY_TOKEN },
 { "maxdist",		T_Maxdist,		FOLLBY_TOKEN },
+{ "bcpollbstep",	T_Bcpollbstep,		FOLLBY_TOKEN },
 { "beacon",		T_Beacon,		FOLLBY_TOKEN },
 { "orphan",		T_Orphan,		FOLLBY_TOKEN },
 { "orphanwait",		T_Orphanwait,		FOLLBY_TOKEN },
