@@ -1166,8 +1166,8 @@ key_newsp(void)
 
 /*
  * create secpolicy structure from sadb_x_policy structure.
- * NOTE: `state', `secpolicyindex' in secpolicy structure are not set,
- * so must be set properly later.
+ * NOTE: `state', `secpolicyindex' and 'id' in secpolicy structure
+ * are not set, so must be set properly later.
  */
 struct secpolicy *
 key_msg2sp(struct sadb_x_policy *xpl0, size_t len, int *error)
@@ -1183,7 +1183,7 @@ key_msg2sp(struct sadb_x_policy *xpl0, size_t len, int *error)
 		return NULL;
 	}
 
-	if ((newsp = KEY_NEWSP()) == NULL) {
+	if ((newsp = key_newsp()) == NULL) {
 		*error = ENOBUFS;
 		return NULL;
 	}
@@ -1191,6 +1191,7 @@ key_msg2sp(struct sadb_x_policy *xpl0, size_t len, int *error)
 	newsp->spidx.dir = xpl0->sadb_x_policy_dir;
 	newsp->policy = xpl0->sadb_x_policy_type;
 	newsp->priority = xpl0->sadb_x_policy_priority;
+	newsp->tcount = 0;
 
 	/* check policy */
 	switch (xpl0->sadb_x_policy_type) {
@@ -1198,20 +1199,19 @@ key_msg2sp(struct sadb_x_policy *xpl0, size_t len, int *error)
 	case IPSEC_POLICY_NONE:
 	case IPSEC_POLICY_ENTRUST:
 	case IPSEC_POLICY_BYPASS:
-		newsp->req = NULL;
 		break;
 
 	case IPSEC_POLICY_IPSEC:
 	    {
-		int tlen;
 		struct sadb_x_ipsecrequest *xisr;
-		struct ipsecrequest **p_isr = &newsp->req;
+		struct ipsecrequest *isr;
+		int tlen;
 
 		/* validity check */
 		if (PFKEY_EXTLEN(xpl0) < sizeof(*xpl0)) {
 			ipseclog((LOG_DEBUG, "%s: Invalid msg length.\n",
 				__func__));
-			KEY_FREESP(&newsp);
+			key_freesp(&newsp);
 			*error = EINVAL;
 			return NULL;
 		}
@@ -1224,21 +1224,32 @@ key_msg2sp(struct sadb_x_policy *xpl0, size_t len, int *error)
 			if (xisr->sadb_x_ipsecrequest_len < sizeof(*xisr)) {
 				ipseclog((LOG_DEBUG, "%s: invalid ipsecrequest "
 					"length.\n", __func__));
-				KEY_FREESP(&newsp);
+				key_freesp(&newsp);
 				*error = EINVAL;
 				return NULL;
 			}
 
+			if (newsp->tcount >= IPSEC_MAXREQ) {
+				ipseclog((LOG_DEBUG,
+				    "%s: too many ipsecrequests.\n",
+				    __func__));
+				key_freesp(&newsp);
+				*error = EINVAL;
+				return (NULL);
+			}
+
 			/* allocate request buffer */
 			/* NB: data structure is zero'd */
-			*p_isr = ipsec_newisr();
-			if ((*p_isr) == NULL) {
+			isr = ipsec_newisr();
+			if (isr == NULL) {
 				ipseclog((LOG_DEBUG,
 				    "%s: No more memory.\n", __func__));
-				KEY_FREESP(&newsp);
+				key_freesp(&newsp);
 				*error = ENOBUFS;
 				return NULL;
 			}
+
+			newsp->req[newsp->tcount++] = isr;
 
 			/* set values */
 			switch (xisr->sadb_x_ipsecrequest_proto) {
@@ -1250,11 +1261,12 @@ key_msg2sp(struct sadb_x_policy *xpl0, size_t len, int *error)
 				ipseclog((LOG_DEBUG,
 				    "%s: invalid proto type=%u\n", __func__,
 				    xisr->sadb_x_ipsecrequest_proto));
-				KEY_FREESP(&newsp);
+				key_freesp(&newsp);
 				*error = EPROTONOSUPPORT;
 				return NULL;
 			}
-			(*p_isr)->saidx.proto = xisr->sadb_x_ipsecrequest_proto;
+			isr->saidx.proto =
+			    (uint8_t)xisr->sadb_x_ipsecrequest_proto;
 
 			switch (xisr->sadb_x_ipsecrequest_mode) {
 			case IPSEC_MODE_TRANSPORT:
@@ -1265,11 +1277,11 @@ key_msg2sp(struct sadb_x_policy *xpl0, size_t len, int *error)
 				ipseclog((LOG_DEBUG,
 				    "%s: invalid mode=%u\n", __func__,
 				    xisr->sadb_x_ipsecrequest_mode));
-				KEY_FREESP(&newsp);
+				key_freesp(&newsp);
 				*error = EINVAL;
 				return NULL;
 			}
-			(*p_isr)->saidx.mode = xisr->sadb_x_ipsecrequest_mode;
+			isr->saidx.mode = xisr->sadb_x_ipsecrequest_mode;
 
 			switch (xisr->sadb_x_ipsecrequest_level) {
 			case IPSEC_LEVEL_DEFAULT:
@@ -1296,16 +1308,16 @@ key_msg2sp(struct sadb_x_policy *xpl0, size_t len, int *error)
 				if (xisr->sadb_x_ipsecrequest_reqid == 0) {
 					u_int32_t reqid;
 					if ((reqid = key_newreqid()) == 0) {
-						KEY_FREESP(&newsp);
+						key_freesp(&newsp);
 						*error = ENOBUFS;
 						return NULL;
 					}
-					(*p_isr)->saidx.reqid = reqid;
+					isr->saidx.reqid = reqid;
 					xisr->sadb_x_ipsecrequest_reqid = reqid;
 				} else {
 				/* set it for manual keying. */
-					(*p_isr)->saidx.reqid =
-						xisr->sadb_x_ipsecrequest_reqid;
+					isr->saidx.reqid =
+					    xisr->sadb_x_ipsecrequest_reqid;
 				}
 				break;
 
@@ -1313,59 +1325,61 @@ key_msg2sp(struct sadb_x_policy *xpl0, size_t len, int *error)
 				ipseclog((LOG_DEBUG, "%s: invalid level=%u\n",
 					__func__,
 					xisr->sadb_x_ipsecrequest_level));
-				KEY_FREESP(&newsp);
+				key_freesp(&newsp);
 				*error = EINVAL;
 				return NULL;
 			}
-			(*p_isr)->level = xisr->sadb_x_ipsecrequest_level;
+			isr->level = xisr->sadb_x_ipsecrequest_level;
 
 			/* set IP addresses if there */
+			/* XXXAE: those are needed only for tunnel mode */
 			if (xisr->sadb_x_ipsecrequest_len > sizeof(*xisr)) {
 				struct sockaddr *paddr;
 
 				paddr = (struct sockaddr *)(xisr + 1);
-
 				/* validity check */
 				if (paddr->sa_len
-				    > sizeof((*p_isr)->saidx.src)) {
+				    > sizeof(isr->saidx.src)) {
 					ipseclog((LOG_DEBUG, "%s: invalid "
 						"request address length.\n",
 						__func__));
-					KEY_FREESP(&newsp);
+					key_freesp(&newsp);
 					*error = EINVAL;
 					return NULL;
 				}
-				bcopy(paddr, &(*p_isr)->saidx.src,
-					paddr->sa_len);
-
-				paddr = (struct sockaddr *)((caddr_t)paddr
-							+ paddr->sa_len);
+				bcopy(paddr, &isr->saidx.src, paddr->sa_len);
+				paddr = (struct sockaddr *)((caddr_t)paddr +
+				    paddr->sa_len);
 
 				/* validity check */
 				if (paddr->sa_len
-				    > sizeof((*p_isr)->saidx.dst)) {
+				    > sizeof(isr->saidx.dst)) {
 					ipseclog((LOG_DEBUG, "%s: invalid "
 						"request address length.\n",
 						__func__));
-					KEY_FREESP(&newsp);
+					key_freesp(&newsp);
 					*error = EINVAL;
 					return NULL;
 				}
-				bcopy(paddr, &(*p_isr)->saidx.dst,
-					paddr->sa_len);
+				/* AF family should match */
+				if (paddr->sa_family !=
+				    isr->saidx.src.sa.sa_family) {
+					ipseclog((LOG_DEBUG, "%s: address "
+					    "family doesn't match.\n",
+						__func__));
+					key_freesp(&newsp);
+					*error = EINVAL;
+					return (NULL);
+				}
+				bcopy(paddr, &isr->saidx.dst, paddr->sa_len);
 			}
-
-			(*p_isr)->sp = newsp;
-
-			/* initialization for the next. */
-			p_isr = &(*p_isr)->next;
 			tlen -= xisr->sadb_x_ipsecrequest_len;
 
 			/* validity check */
 			if (tlen < 0) {
 				ipseclog((LOG_DEBUG, "%s: becoming tlen < 0.\n",
 					__func__));
-				KEY_FREESP(&newsp);
+				key_freesp(&newsp);
 				*error = EINVAL;
 				return NULL;
 			}
@@ -1373,19 +1387,26 @@ key_msg2sp(struct sadb_x_policy *xpl0, size_t len, int *error)
 			xisr = (struct sadb_x_ipsecrequest *)((caddr_t)xisr
 			                 + xisr->sadb_x_ipsecrequest_len);
 		}
+		/* XXXAE: LARVAL SP */
+		if (newsp->tcount < 1) {
+			ipseclog((LOG_DEBUG, "%s: valid IPSEC transforms "
+			    "not found.\n", __func__));
+			key_freesp(&newsp);
+			*error = EINVAL;
+			return (NULL);
+		}
 	    }
 		break;
 	default:
 		ipseclog((LOG_DEBUG, "%s: invalid policy type.\n", __func__));
-		KEY_FREESP(&newsp);
+		key_freesp(&newsp);
 		*error = EINVAL;
 		return NULL;
 	}
 
 	*error = 0;
-	return newsp;
+	return (newsp);
 }
-
 static u_int32_t
 key_newreqid()
 {
