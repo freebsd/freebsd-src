@@ -240,12 +240,12 @@ ccall_validate_args:
 	dli		AT, 0	/* Set if failure; will be regnum.
 				   (hoisted from ccall_check_globals,
 				   ignored if branch is taken) */
-	bnez		t0, ccall_push_stack/* Skip global checks if it's
-					   a system capability */
+	bnez		t0, ccall_skip_global_check /* Skip global checks if
+					   it's a system capability */
 #else
 	srl		t0, t0, 22	/* Is this a system capability? */
-	bnez		t0, ccall_push_stack/* Skip global checks if it's
-					   a system capability */
+	bnez		t0, ccall_skip_global_check /* Skip global checks if
+					   it's a system capability */
 	dli		AT, 0	/* Set if failure; will be regnum.
 				   (hoisted from ccall_check_globals,
 				   ignored if branch is taken) */
@@ -344,6 +344,7 @@ ccall_check_globals:
 	 * Begin by retrieving the current PCB pointer to reach the trusted
 	 * stack.
 	 */
+ccall_skip_global_check:
 ccall_push_stack:
 	GET_CPU_PCPU(k1)
 	PTR_L		k1, PC_CURPCB(k1)
