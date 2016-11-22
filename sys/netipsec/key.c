@@ -1951,30 +1951,36 @@ static int
 key_spddelete2(struct socket *so, struct mbuf *m,
     const struct sadb_msghdr *mhp)
 {
-	u_int32_t id;
 	struct secpolicy *sp;
+	uint32_t id;
 
 	IPSEC_ASSERT(so != NULL, ("null socket"));
 	IPSEC_ASSERT(m != NULL, ("null mbuf"));
 	IPSEC_ASSERT(mhp != NULL, ("null msghdr"));
 	IPSEC_ASSERT(mhp->msg != NULL, ("null msg"));
 
-	if (mhp->ext[SADB_X_EXT_POLICY] == NULL ||
-	    mhp->extlen[SADB_X_EXT_POLICY] < sizeof(struct sadb_x_policy)) {
-		ipseclog((LOG_DEBUG, "%s: invalid message is passed.\n", __func__));
+	if (SADB_CHECKHDR(mhp, SADB_X_EXT_POLICY) ||
+	    SADB_CHECKLEN(mhp, SADB_X_EXT_POLICY)) {
+		ipseclog((LOG_DEBUG, "%s: invalid message is passed.",
+		    __func__));
 		return key_senderror(so, m, EINVAL);
 	}
 
-	id = ((struct sadb_x_policy *)mhp->ext[SADB_X_EXT_POLICY])->sadb_x_policy_id;
+	id = ((struct sadb_x_policy *)
+	    mhp->ext[SADB_X_EXT_POLICY])->sadb_x_policy_id;
 
 	/* Is there SP in SPD ? */
 	if ((sp = key_getspbyid(id)) == NULL) {
-		ipseclog((LOG_DEBUG, "%s: no SP found id:%u.\n", __func__, id));
+		ipseclog((LOG_DEBUG, "%s: no SP found for id %u.\n",
+		    __func__, id));
 		return key_senderror(so, m, EINVAL);
 	}
 
+	KEYDBG(KEY_STAMP,
+	    printf("%s: SP(%p)\n", __func__, sp));
+	KEYDBG(KEY_DATA, kdebug_secpolicy(sp));
 	key_unlink(sp);
-	KEY_FREESP(&sp);
+	key_freesp(&sp);
 
     {
 	struct mbuf *n, *nn;
