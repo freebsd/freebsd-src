@@ -2545,103 +2545,150 @@ key_delsah(struct secashead *sah)
 }
 
 /*
- * allocating a new SA with LARVAL state.  key_add() and key_getspi() call,
+ * allocating a new SA for key_add() and key_getspi() call,
  * and copy the values of mhp into new buffer.
- * When SAD message type is GETSPI:
- *	to set sequence number from acq_seq++,
- *	to set zero to SPI.
- *	not to call key_setsava().
+ * When SAD message type is SADB_GETSPI set SA state to LARVAL.
+ * For SADB_ADD create and initialize SA with MATURE state.
  * OUT:	NULL	: fail
  *	others	: pointer to new secasvar.
- *
- * does not modify mbuf.  does not free mbuf on error.
  */
 static struct secasvar *
-key_newsav(struct mbuf *m, const struct sadb_msghdr *mhp,
-    struct secashead *sah, int *errp, const char *where, int tag)
+key_newsav(const struct sadb_msghdr *mhp, struct secasindex *saidx,
+    uint32_t spi, int *errp)
 {
-	struct secasvar *newsav;
-	const struct sadb_sa *xsa;
+	struct secashead *sah;
+	struct secasvar *sav;
+	int isnew;
 
-	IPSEC_ASSERT(m != NULL, ("null mbuf"));
 	IPSEC_ASSERT(mhp != NULL, ("null msghdr"));
 	IPSEC_ASSERT(mhp->msg != NULL, ("null msg"));
-	IPSEC_ASSERT(sah != NULL, ("null secashead"));
+	IPSEC_ASSERT(mhp->msg->sadb_msg_type == SADB_GETSPI ||
+	    mhp->msg->sadb_msg_type == SADB_ADD, ("wrong message type"));
 
-	newsav = malloc(sizeof(struct secasvar), M_IPSEC_SA, M_NOWAIT|M_ZERO);
-	if (newsav == NULL) {
+	sav = NULL;
+	sah = NULL;
+	/* check SPI value */
+	switch (saidx->proto) {
+	case IPPROTO_ESP:
+	case IPPROTO_AH:
+		/*
+		 * RFC 4302, 2.4. Security Parameters Index (SPI), SPI values
+		 * 1-255 reserved by IANA for future use,
+		 * 0 for implementation specific, local use.
+		 */
+		if (ntohl(spi) <= 255) {
+			ipseclog((LOG_DEBUG, "%s: illegal range of SPI %u.\n",
+			    __func__, ntohl(spi)));
+			*errp = EINVAL;
+			goto done;
+		}
+		break;
+	}
+
+	sav = malloc(sizeof(struct secasvar), M_IPSEC_SA, M_NOWAIT | M_ZERO);
+	if (sav == NULL) {
 		ipseclog((LOG_DEBUG, "%s: No more memory.\n", __func__));
 		*errp = ENOBUFS;
 		goto done;
 	}
-
-	switch (mhp->msg->sadb_msg_type) {
-	case SADB_GETSPI:
-		newsav->spi = 0;
-
-#ifdef IPSEC_DOSEQCHECK
-		/* sync sequence number */
-		if (mhp->msg->sadb_msg_seq == 0)
-			newsav->seq =
-				(V_acq_seq = (V_acq_seq == ~0 ? 1 : ++V_acq_seq));
-		else
-#endif
-			newsav->seq = mhp->msg->sadb_msg_seq;
-		break;
-
-	case SADB_ADD:
-		/* sanity check */
-		if (mhp->ext[SADB_EXT_SA] == NULL) {
-			free(newsav, M_IPSEC_SA);
-			newsav = NULL;
-			ipseclog((LOG_DEBUG, "%s: invalid message is passed.\n",
-				__func__));
-			*errp = EINVAL;
-			goto done;
-		}
-		xsa = (const struct sadb_sa *)mhp->ext[SADB_EXT_SA];
-		newsav->spi = xsa->sadb_sa_spi;
-		newsav->seq = mhp->msg->sadb_msg_seq;
-		break;
-	default:
-		free(newsav, M_IPSEC_SA);
-		newsav = NULL;
-		*errp = EINVAL;
+	sav->lft_c = uma_zalloc(V_key_lft_zone, M_NOWAIT);
+	if (sav->lft_c == NULL) {
+		ipseclog((LOG_DEBUG, "%s: No more memory.\n", __func__));
+		free(sav, M_IPSEC_SA), sav = NULL;
+		*errp = ENOBUFS;
 		goto done;
 	}
+	counter_u64_zero(sav->lft_c_allocations);
+	counter_u64_zero(sav->lft_c_bytes);
 
-
-	/* copy sav values */
-	if (mhp->msg->sadb_msg_type != SADB_GETSPI) {
-		*errp = key_setsaval(newsav, m, mhp);
-		if (*errp) {
-			free(newsav, M_IPSEC_SA);
-			newsav = NULL;
+	sav->spi = spi;
+	sav->seq = mhp->msg->sadb_msg_seq;
+	sav->state = SADB_SASTATE_LARVAL;
+	sav->pid = (pid_t)mhp->msg->sadb_msg_pid;
+	SAV_INITREF(sav);
+	SECASVAR_LOCK_INIT(sav);
+again:
+	sah = key_getsah(saidx);
+	if (sah == NULL) {
+		/* create a new SA index */
+		sah = key_newsah(saidx);
+		if (sah == NULL) {
+			ipseclog((LOG_DEBUG,
+			    "%s: No more memory.\n", __func__));
+			*errp = ENOBUFS;
 			goto done;
 		}
+		isnew = 1;
+	} else
+		isnew = 0;
+
+	sav->sah = sah;
+	if (mhp->msg->sadb_msg_type == SADB_GETSPI) {
+		sav->created = time_second;
+	} else if (sav->state == SADB_SASTATE_LARVAL) {
+		/*
+		 * Do not call key_setsaval() second time in case
+		 * of `goto again`. We will have MATURE state.
+		 */
+		*errp = key_setsaval(sav, mhp);
+		if (*errp != 0)
+			goto done;
+		sav->state = SADB_SASTATE_MATURE;
 	}
 
-	SECASVAR_LOCK_INIT(newsav);
-
-	/* reset created */
-	newsav->created = time_second;
-	newsav->pid = mhp->msg->sadb_msg_pid;
-
-	/* add to satree */
-	newsav->sah = sah;
-	sa_initref(newsav);
-	newsav->state = SADB_SASTATE_LARVAL;
-
-	SAHTREE_LOCK();
-	LIST_INSERT_TAIL(&sah->savtree[SADB_SASTATE_LARVAL], newsav,
-			secasvar, chain);
-	SAHTREE_UNLOCK();
+	SAHTREE_WLOCK();
+	/*
+	 * Check that existing SAH wasn't unlinked.
+	 * Since we didn't hold the SAHTREE lock, it is possible,
+	 * that callout handler or key_flush() or key_delete() could
+	 * unlink this SAH.
+	 */
+	if (isnew == 0 && sah->state == SADB_SASTATE_DEAD) {
+		SAHTREE_WUNLOCK();
+		key_freesah(&sah);	/* reference from key_getsah() */
+		goto again;
+	}
+	if (isnew != 0) {
+		/*
+		 * Add new SAH into SADB.
+		 *
+		 * XXXAE: we can serialize key_add and key_getspi calls, so
+		 * several threads will not fight in the race.
+		 * Otherwise we should check under SAHTREE lock, that this
+		 * SAH would not added twice.
+		 */
+		TAILQ_INSERT_HEAD(&V_sahtree, sah, chain);
+		/* Add new SAH into hash by addresses */
+		LIST_INSERT_HEAD(SAHADDRHASH_HASH(saidx), sah, addrhash);
+		/* Now we are linked in the chain */
+		sah->state = SADB_SASTATE_MATURE;
+		/*
+		 * SAV references this new SAH.
+		 * In case of existing SAH we reuse reference
+		 * from key_getsah().
+		 */
+		SAH_ADDREF(sah);
+	}
+	/* Link SAV with SAH */
+	if (sav->state == SADB_SASTATE_MATURE)
+		TAILQ_INSERT_HEAD(&sah->savtree_alive, sav, chain);
+	else
+		TAILQ_INSERT_HEAD(&sah->savtree_larval, sav, chain);
+	/* Add SAV into SPI hash */
+	LIST_INSERT_HEAD(SAVHASH_HASH(sav->spi), sav, spihash);
+	SAHTREE_WUNLOCK();
+	*errp = 0;	/* success */
 done:
-	KEYDEBUG(KEYDEBUG_IPSEC_STAMP,
-		printf("DP %s from %s:%u return SP:%p\n", __func__,
-			where, tag, newsav));
-
-	return newsav;
+	if (*errp != 0) {
+		if (sav != NULL) {
+			SECASVAR_LOCK_DESTROY(sav);
+			uma_zfree(V_key_lft_zone, sav->lft_c);
+			free(sav, M_IPSEC_SA), sav = NULL;
+		}
+		if (sah != NULL)
+			key_freesah(&sah);
+	}
+	return (sav);
 }
 
 /*
