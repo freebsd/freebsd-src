@@ -22,41 +22,38 @@ typedef struct interface	endpt;
 typedef struct recvbuf		recvbuf_t;
 
 /* ---------------------------------------------------------------------
- * shared lock to avoid concurrent deletes on IO related stuff like
- * RIO or ENDPOINT blocks.
- *
- * Basically we wwould need a multiple-reader/single-writer lock,
- * but for now we do full mutual exclusion.
+ * shared control structure for IO. Removal of communication handles
+ * or other detach-like operations must be done exclusively by the IO
+ * thread, or Bad Things (tm) are bound to happen!
  */
-typedef struct SharedLock SharedLock_t;
-typedef const struct SharedLock CSharedLock_t;
-struct SharedLock {
-	CRITICAL_SECTION	mutex[1];
+typedef struct IoHndPad IoHndPad_T;
+typedef const struct IoHndPad CIoHndPad_T;
+struct IoHndPad {
 	volatile u_long		refc_count;
 	union {
 		RIO_t *		 rio;	/*  RIO back-link (for offload)	*/
-		endpt *		 ept;	/*  inetrface backlink		*/
+		endpt *		 ept;	/*  interface backlink		*/
 		ULONG_PTR	 key;	/*  as key for IOCPL queue	*/
 		void *		 any;
 	}			rsrc;	/* registered source		*/
 	HANDLE			handles[2]; /* 0->COM/SOCK 1->BCASTSOCK	*/
+
+	/* COMPORT specific stuff */
 	int			riofd;	/* FD for comports		*/
+	unsigned int		flDropEmpty : 1;	/* no empty line*/
+	unsigned int		flFirstSeen : 1;
 };
 
-typedef BOOL(__fastcall * LockPredicateT)(CSharedLock_t*);
+typedef BOOL(__fastcall * IoPreCheck_T)(CIoHndPad_T*);
 
-extern SharedLock_t* __fastcall	slCreate(void * rsrc);
-extern SharedLock_t* __fastcall	slAttach(SharedLock_t*);
-extern SharedLock_t* __fastcall	slDetach(SharedLock_t*);
-extern SharedLock_t* __fastcall	slAttachShared(SharedLock_t*);
-extern SharedLock_t* __fastcall	slDetachShared(SharedLock_t*);
-extern SharedLock_t* __fastcall	slAttachExclusive(SharedLock_t*);
-extern SharedLock_t* __fastcall	slDetachExclusive(SharedLock_t*);
+extern IoHndPad_T* __fastcall	iohpCreate(void * rsrc);
+extern IoHndPad_T* __fastcall	iohpAttach(IoHndPad_T*);
+extern IoHndPad_T* __fastcall	iohpDetach(IoHndPad_T*);
 
-extern BOOL __fastcall	slRefClockOK(CSharedLock_t*);
-extern BOOL __fastcall	slEndPointOK(CSharedLock_t*);
+extern BOOL __fastcall	iohpRefClockOK(CIoHndPad_T*);
+extern BOOL __fastcall	iohpEndPointOK(CIoHndPad_T*);
 
-extern BOOL	slQueueLocked(SharedLock_t*, LockPredicateT, recvbuf_t*);
+extern BOOL	iohpQueueLocked(CIoHndPad_T*, IoPreCheck_T, recvbuf_t*);
 
 
 /* ---------------------------------------------------------------------
@@ -131,10 +128,11 @@ struct IoCtx {
 		SOCKET		 sfd;		/*  socket descriptor		*/
 	}			io;		/* the IO resource used		*/
 	IoCompleteFunc		onIoDone;	/* HL callback to execute	*/
-	SharedLock_t *		slock;
+	IoHndPad_T *		iopad;
 	DevCtx_t *		devCtx;
 	DWORD			errCode;	/* error code of last I/O	*/
 	DWORD			byteCount;	/* byte count     "             */
+	DWORD			ioFlags;	/* in/out flags for recvfrom()	*/
 	u_int			flRawMem : 1;	/* buffer is raw memory -> free */
 	struct {
 		l_fp		DCDSTime;	/* PPS-hack: time of DCD ON	*/
@@ -151,10 +149,10 @@ struct IoCtx {
 
 typedef BOOL (__fastcall *IoCtxStarterT)(IoCtx_t*, recvbuf_t*);
 
-extern IoCtx_t* __fastcall IoCtxAlloc(SharedLock_t*, DevCtx_t*);
+extern IoCtx_t* __fastcall IoCtxAlloc(IoHndPad_T*, DevCtx_t*);
 extern void	__fastcall IoCtxFree(IoCtx_t*);
 extern void	__fastcall IoCtxRelease(IoCtx_t*);
 
-extern BOOL	IoCtxStartLocked(IoCtx_t*, IoCtxStarterT, recvbuf_t*);
+extern BOOL	IoCtxStartChecked(IoCtx_t*, IoCtxStarterT, recvbuf_t*);
 
 #endif /*!defined(NTP_IOCPLTYPES_H)*/

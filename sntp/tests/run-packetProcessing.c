@@ -66,24 +66,24 @@ int main(int argc, char *argv[])
 {
   progname = argv[0];
   UnityBegin("packetProcessing.c");
-  RUN_TEST(test_TooShortLength, 25);
-  RUN_TEST(test_LengthNotMultipleOfFour, 26);
-  RUN_TEST(test_TooShortExtensionFieldLength, 27);
-  RUN_TEST(test_UnauthenticatedPacketReject, 28);
-  RUN_TEST(test_CryptoNAKPacketReject, 29);
-  RUN_TEST(test_AuthenticatedPacketInvalid, 30);
-  RUN_TEST(test_AuthenticatedPacketUnknownKey, 31);
-  RUN_TEST(test_ServerVersionTooOld, 32);
-  RUN_TEST(test_ServerVersionTooNew, 33);
-  RUN_TEST(test_NonWantedMode, 34);
-  RUN_TEST(test_KoDRate, 35);
-  RUN_TEST(test_KoDDeny, 36);
-  RUN_TEST(test_RejectUnsyncedServer, 37);
-  RUN_TEST(test_RejectWrongResponseServerMode, 38);
-  RUN_TEST(test_AcceptNoSentPacketBroadcastMode, 39);
-  RUN_TEST(test_CorrectUnauthenticatedPacket, 40);
-  RUN_TEST(test_CorrectAuthenticatedPacketMD5, 41);
-  RUN_TEST(test_CorrectAuthenticatedPacketSHA1, 42);
+  RUN_TEST(test_TooShortLength, 20);
+  RUN_TEST(test_LengthNotMultipleOfFour, 21);
+  RUN_TEST(test_TooShortExtensionFieldLength, 22);
+  RUN_TEST(test_UnauthenticatedPacketReject, 23);
+  RUN_TEST(test_CryptoNAKPacketReject, 24);
+  RUN_TEST(test_AuthenticatedPacketInvalid, 25);
+  RUN_TEST(test_AuthenticatedPacketUnknownKey, 26);
+  RUN_TEST(test_ServerVersionTooOld, 27);
+  RUN_TEST(test_ServerVersionTooNew, 28);
+  RUN_TEST(test_NonWantedMode, 29);
+  RUN_TEST(test_KoDRate, 30);
+  RUN_TEST(test_KoDDeny, 31);
+  RUN_TEST(test_RejectUnsyncedServer, 32);
+  RUN_TEST(test_RejectWrongResponseServerMode, 33);
+  RUN_TEST(test_AcceptNoSentPacketBroadcastMode, 34);
+  RUN_TEST(test_CorrectUnauthenticatedPacket, 35);
+  RUN_TEST(test_CorrectAuthenticatedPacketMD5, 36);
+  RUN_TEST(test_CorrectAuthenticatedPacketSHA1, 37);
 
   return (UnityEnd());
 }

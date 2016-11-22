@@ -29,16 +29,15 @@
  * lock is NOT aquired, and all IO handles or FDs are set to an
  * invalid value.
  */
-SharedLock_t*  __fastcall
-slCreate(
+IoHndPad_T*  __fastcall
+iohpCreate(
 	void *	src
 	)
 {
-	SharedLock_t* retv;
+	IoHndPad_T* retv;
 
-	retv = IOCPLPoolAlloc(sizeof(SharedLock_t), "Lock");
+	retv = IOCPLPoolAlloc(sizeof(IoHndPad_T), "Lock");
 	if (retv != NULL) {
-		InitializeCriticalSection(retv->mutex);
 		retv->refc_count = 1;
 		retv->rsrc.any   = src;
 		retv->handles[0] = INVALID_HANDLE_VALUE;
@@ -52,9 +51,9 @@ slCreate(
  * Attach to a lock. This just increments the use count, but does not
  * aquire the internal lock. Return a pointer to the lock.
  */
-SharedLock_t*  __fastcall
-slAttach(
-	SharedLock_t *	lp
+IoHndPad_T*  __fastcall
+iohpAttach(
+	IoHndPad_T *	lp
 	)
 {
 	if (lp != NULL)
@@ -70,75 +69,16 @@ slAttach(
  *
  * THE CALLER MUST NOT OWN THE INTERNAL LOCK WHEN DOING THIS!
  */
-SharedLock_t*  __fastcall
-slDetach(
-	SharedLock_t *	lp
+IoHndPad_T*  __fastcall
+iohpDetach(
+	IoHndPad_T *	lp
 	)
 {
 	if (lp != NULL && !InterlockedDecrement(&lp->refc_count)) {
-		DeleteCriticalSection(lp->mutex);
-		memset(lp, 0xFF, sizeof(SharedLock_t));
+		memset(lp, 0xFF, sizeof(IoHndPad_T));
 		IOCPLPoolFree(lp, "Lock");
 	}
 	return NULL;
-}
-
-/* --------------------------------------------------------------------
- * Attach and aquire the lock for READ access. (This might block)
- */
-SharedLock_t*  __fastcall
-slAttachShared(
-	SharedLock_t *	lp
-	)
-{
-	if (NULL != (lp = slAttach(lp)))
-		EnterCriticalSection(lp->mutex);
-	return lp;
-}
-
-/* --------------------------------------------------------------------
- * Release the READ lock and detach from shared lock.
- * Alwys returns NULL.
- *
- * THE CALLER MUST OWN THE READ LOCK WHEN DOING THIS.
- */
-SharedLock_t*  __fastcall
-slDetachShared(
-	SharedLock_t *	lp
-	)
-{
-	if (lp != NULL)
-		LeaveCriticalSection(lp->mutex);
-	return slDetach(lp);
-}
-
-/* --------------------------------------------------------------------
- * Attach and aquire the lock for WRITE access. (This might block)
- */
-SharedLock_t*  __fastcall
-slAttachExclusive(
-	SharedLock_t *	lp
-)
-{
-	if (NULL != (lp = slAttach(lp)))
-		EnterCriticalSection(lp->mutex);
-	return lp;
-}
-
-/* --------------------------------------------------------------------
- * Release the WRITE lock and detach from shared lock.
- * Alwys returns NULL.
- *
- * THE CALLER MUST OWN THE WRITE LOCK WHEN DOING THIS.
- */
-SharedLock_t*  __fastcall
-slDetachExclusive(
-	SharedLock_t *	lp
-	)
-{
-	if (lp != NULL)
-		LeaveCriticalSection(lp->mutex);
-	return slDetach(lp);
 }
 
 /* --------------------------------------------------------------------
@@ -146,8 +86,8 @@ slDetachExclusive(
  * active state?
  */
 BOOL __fastcall
-slRefClockOK(
-	const SharedLock_t *	lp
+iohpRefClockOK(
+	const IoHndPad_T *	lp
 	)
 {
 	return	lp->rsrc.rio && lp->rsrc.rio->active;
@@ -158,8 +98,8 @@ slRefClockOK(
  * interface accepting packets?
  */
 BOOL __fastcall
-slEndPointOK(
-const SharedLock_t *	lp
+iohpEndPointOK(
+const IoHndPad_T *	lp
 )
 {
 	return	lp->rsrc.ept &&	!lp->rsrc.ept->ignore_packets;
@@ -175,18 +115,17 @@ const SharedLock_t *	lp
  * independent of the function result!
  */
 BOOL
-slQueueLocked(
-	SharedLock_t *	lp,
-	LockPredicateT	pred,
+iohpQueueLocked(
+	CIoHndPad_T *	lp,
+	IoPreCheck_T	pred,
 	recvbuf_t *	buf
 	)
 {
 	BOOL	done = FALSE;
-	if (slAttachShared(lp)) {
+	if (lp) {
 		done = (*pred)(lp);
 		if (done)
 			add_full_recv_buffer(buf);
-		slDetachShared(lp);
 	}
 	if (done)
 		SetEvent(WaitableIoEventHandle);
@@ -211,10 +150,10 @@ DevCtxAlloc(void)
 	/* allocate struct and tag all slots as invalid */
 	devCtx = (DevCtx_t *)IOCPLPoolAlloc(sizeof(DevCtx_t), "DEV ctx");
 	if (devCtx != NULL) {
+		devCtx->ref_count = 1;	/* already owned! */
 		/* The initial COV values make sure there is no busy
 		* loop on unused/empty slots.
 		*/
-		devCtx->cov_count = 1;	/* already owned! */
 		for (slot = 0; slot < PPS_QUEUE_LEN; slot++)
 			devCtx->pps_buff[slot].cov_count = ~slot;
 	}
@@ -253,7 +192,7 @@ DevCtxDetach(
  */
 IoCtx_t * __fastcall
 IoCtxAlloc(
-	SharedLock_t *	lock,
+	IoHndPad_T *	lock,
 	DevCtx_t *	devCtx
 	)
 {
@@ -261,7 +200,7 @@ IoCtxAlloc(
 
 	ctx = (IoCtx_t *)IOCPLPoolAlloc(sizeof(IoCtx_t), "IO ctx");
 	if (ctx != NULL) {
-		ctx->slock = slAttach(lock);
+		ctx->iopad = iohpAttach(lock);
 		ctx->devCtx = DevCtxAttach(devCtx);
 	}
 	return ctx;
@@ -280,7 +219,7 @@ IoCtxFree(
 	)
 {
 	if (ctx) {
-		ctx->slock  = slDetach(ctx->slock);
+		ctx->iopad  = iohpDetach(ctx->iopad);
 		ctx->devCtx = DevCtxDetach(ctx->devCtx);
 		IOCPLPoolFree(ctx, "IO ctx");
 	}
@@ -299,7 +238,7 @@ IoCtxRelease(
 	)
 {
 	static const char *const dmsg =
-		"overlapped IO data buffer";
+		"Release overlapped IO data buffer";
 
 	if (ctx) {
 		if (ctx->flRawMem)
@@ -322,15 +261,13 @@ IoCtxAlive(
 	)
 {
 	return ctx			&&
-		ctx->slock		&&
-		ctx->slock->rsrc.any;
+		ctx->iopad		&&
+		ctx->iopad->rsrc.any;
 }
 
 /* --------------------------------------------------------------------
  * Start an IO operation on a given context object with a specified
  * function and buffer.
- * This locks the shared lock on the context, checks for the lock
- * being active, and only then runs the starter function.
  *
  * Returns TRUE if the starter was executed successfully, FALSE in
  * all other cases.
@@ -339,22 +276,21 @@ IoCtxAlive(
  * call IN ANY CASE, independent of the function result!
  */
 BOOL
-IoCtxStartLocked(
+IoCtxStartChecked(
 	IoCtx_t *	lpo,
 	IoCtxStarterT	func,
 	recvbuf_t *	buf
 	)
 {
-	BOOL		done = FALSE;
-	SharedLock_t *	slock = slAttachShared(lpo->slock);
-	if (slock != NULL) {
-		if ((lpo->io.hnd == slock->handles[0]) ||
-		    (lpo->io.hnd == slock->handles[1])  )
+	BOOL		done  = FALSE;
+	IoHndPad_T *	iopad = lpo->iopad;
+	if (iopad != NULL) {
+		if ((lpo->io.hnd == iopad->handles[0]) ||
+		    (lpo->io.hnd == iopad->handles[1])  )
 		{
 			done = (func)(lpo, buf);
-			lpo = NULL; /* consumed by 'func' */
+			lpo  = NULL; /* consumed by 'func' */
 		}
-		slDetachShared(slock);
 	}
 	if (lpo != NULL) {
 		freerecvbuf(buf);
