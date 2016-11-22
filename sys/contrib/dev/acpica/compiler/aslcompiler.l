@@ -156,8 +156,14 @@ NamePathTail                [.]{NameSeg}
 "^="                        { count (3); return (PARSEOP_EXP_XOR_EQ); }
 "|="                        { count (3); return (PARSEOP_EXP_OR_EQ); }
 
-"["                         { count (3); return(PARSEOP_EXP_INDEX_LEFT); }
-"]"                         { count (0); return(PARSEOP_EXP_INDEX_RIGHT); }
+"["                         { count (3); return (PARSEOP_EXP_INDEX_LEFT); }
+"]"                         { count (0); return (PARSEOP_EXP_INDEX_RIGHT); }
+"("                         { count (0); return (PARSEOP_OPEN_PAREN); }
+")"                         { count (0); return (PARSEOP_CLOSE_PAREN); }
+
+"{"                         { count (0); return ('{'); }
+"}"                         { count (0); return ('}'); }
+","                         { count (0); return (','); }
 
 
     /*
@@ -690,12 +696,6 @@ NamePathTail                [.]{NameSeg}
 "__LINE__"                  { count (0); return (PARSEOP___LINE__); }
 "__PATH__"                  { count (0); return (PARSEOP___PATH__); }
 
-
-"{"                         { count (0); return('{'); }
-"}"                         { count (0); return('}'); }
-","                         { count (0); return(','); }
-"("                         { count (0); return('('); }
-")"                         { count (0); return(')'); }
 
 {NameSeg}                   { char *s;
                                 count (0);
