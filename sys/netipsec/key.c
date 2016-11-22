@@ -654,6 +654,35 @@ key_getspgen(void)
 	return (V_sp_genid);
 }
 
+static int
+key_checksockaddrs(struct sockaddr *src, struct sockaddr *dst)
+{
+
+	/* family match */
+	if (src->sa_family != dst->sa_family)
+		return (EINVAL);
+	/* sa_len match */
+	if (src->sa_len != dst->sa_len)
+		return (EINVAL);
+	switch (src->sa_family) {
+#ifdef INET
+	case AF_INET:
+		if (src->sa_len != sizeof(struct sockaddr_in))
+			return (EINVAL);
+		break;
+#endif
+#ifdef INET6
+	case AF_INET6:
+		if (src->sa_len != sizeof(struct sockaddr_in6))
+			return (EINVAL);
+		break;
+#endif
+	default:
+		return (EAFNOSUPPORT);
+	}
+	return (0);
+}
+
 /*
  * allocating a SP for OUTBOUND or INBOUND packet.
  * Must call key_freesp() later.
