@@ -690,8 +690,7 @@ key_checksockaddrs(struct sockaddr *src, struct sockaddr *dst)
  *	others:	found and return the pointer.
  */
 struct secpolicy *
-key_allocsp(struct secpolicyindex *spidx, u_int dir, const char* where,
-    int tag)
+key_allocsp(struct secpolicyindex *spidx, u_int dir)
 {
 	SPTREE_RLOCK_TRACKER;
 	struct secpolicy *sp;
@@ -700,38 +699,26 @@ key_allocsp(struct secpolicyindex *spidx, u_int dir, const char* where,
 	IPSEC_ASSERT(dir == IPSEC_DIR_INBOUND || dir == IPSEC_DIR_OUTBOUND,
 		("invalid direction %u", dir));
 
-	KEYDEBUG(KEYDEBUG_IPSEC_STAMP,
-		printf("DP %s from %s:%u\n", __func__, where, tag));
-
-	/* get a SP entry */
-	KEYDEBUG(KEYDEBUG_IPSEC_DATA,
-		printf("*** objects\n");
-		kdebug_secpolicyindex(spidx));
-
 	SPTREE_RLOCK();
 	TAILQ_FOREACH(sp, &V_sptree[dir], chain) {
-		KEYDEBUG(KEYDEBUG_IPSEC_DATA,
-			printf("*** in SPD\n");
-			kdebug_secpolicyindex(&sp->spidx));
-		if (key_cmpspidx_withmask(&sp->spidx, spidx))
-			goto found;
-	}
-	sp = NULL;
-found:
-	if (sp) {
-		/* sanity check */
-		KEY_CHKSPDIR(sp->spidx.dir, dir, __func__);
-
-		/* found a SPD entry */
-		sp->lastused = time_second;
-		SP_ADDREF(sp);
+		if (key_cmpspidx_withmask(&sp->spidx, spidx)) {
+			SP_ADDREF(sp);
+			break;
+		}
 	}
 	SPTREE_RUNLOCK();
 
-	KEYDEBUG(KEYDEBUG_IPSEC_STAMP,
-		printf("DP %s return SP:%p (ID=%u) refcnt %u\n", __func__,
-			sp, sp ? sp->id : 0, sp ? sp->refcnt : 0));
-	return sp;
+	if (sp != NULL) {	/* found a SPD entry */
+		sp->lastused = time_second;
+		KEYDBG(IPSEC_STAMP,
+		    printf("%s: return SP(%p)\n", __func__, sp));
+		KEYDBG(IPSEC_DATA, kdebug_secpolicy(sp));
+	} else {
+		KEYDBG(IPSEC_DATA,
+		    printf("%s: lookup failed for ", __func__);
+		    kdebug_secpolicyindex(spidx, NULL));
+	}
+	return (sp);
 }
 
 /*
