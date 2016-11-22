@@ -1070,6 +1070,41 @@ key_freesav(struct secasvar **psav)
 	key_delsav(sav);
 }
 
+/*
+ * Unlink SA from SAH and SPI hash under SAHTREE_WLOCK.
+ * Expect that SA has extra reference due to lookup.
+ * Release this references, also release SAH reference after unlink.
+ */
+static void
+key_unlinksav(struct secasvar *sav)
+{
+	struct secashead *sah;
+
+	KEYDBG(KEY_STAMP,
+	    printf("%s: SA(%p)\n", __func__, sav));
+
+	SAHTREE_UNLOCK_ASSERT();
+	SAHTREE_WLOCK();
+	if (sav->state == SADB_SASTATE_DEAD) {
+		/* SA is already unlinked */
+		SAHTREE_WUNLOCK();
+		return;
+	}
+	/* Unlink from SAH */
+	if (sav->state == SADB_SASTATE_LARVAL)
+		TAILQ_REMOVE(&sav->sah->savtree_larval, sav, chain);
+	else
+		TAILQ_REMOVE(&sav->sah->savtree_alive, sav, chain);
+	/* Unlink from SPI hash */
+	LIST_REMOVE(sav, spihash);
+	sav->state = SADB_SASTATE_DEAD;
+	sah = sav->sah;
+	SAHTREE_WUNLOCK();
+	key_freesav(&sav);
+	/* Since we are unlinked, release reference to SAH */
+	key_freesah(&sah);
+}
+
 /* %%% SPD management */
 /*
  * search SPD
