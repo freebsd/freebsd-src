@@ -391,7 +391,7 @@ struct peer {
 	 * Statistic counters
 	 */
 	u_long	timereset;	/* time stat counters were reset */
-	u_long	timelastrec;	/* last packet received time */
+	u_long	timelastrec;	/* last packet received time, incl. trash */
 	u_long	timereceived;	/* last (clean) packet received time */
 	u_long	timereachable;	/* last reachable/unreachable time */
 
@@ -419,8 +419,7 @@ struct peer {
  * MODE_BROADCAST and MODE_BCLIENT appear in the transition
  * function. MODE_CONTROL and MODE_PRIVATE can appear in packets,
  * but those never survive to the transition function.
- * is a
-/ */
+ */
 #define	MODE_UNSPEC	0	/* unspecified (old version) */
 #define	MODE_ACTIVE	1	/* symmetric active mode */
 #define	MODE_PASSIVE	2	/* symmetric passive mode */
@@ -433,7 +432,7 @@ struct peer {
 #define	MODE_CONTROL	6	/* control mode */
 #define	MODE_PRIVATE	7	/* private mode */
 /*
- * This is a madeup mode for broadcast client.
+ * This is a made-up mode for broadcast client.
  */
 #define	MODE_BCLIENT	6	/* broadcast client mode */
 
@@ -724,6 +723,7 @@ struct pkt {
 #define	PROTO_UECRYPTONAK	30
 #define	PROTO_UEDIGEST		31
 #define	PROTO_PCEDIGEST		32
+#define	PROTO_BCPOLLBSTEP	33
 
 /*
  * Configuration items for the loop filter
@@ -731,7 +731,7 @@ struct pkt {
 #define	LOOP_DRIFTINIT		1	/* iniitialize frequency */
 #define	LOOP_KERN_CLEAR		2	/* set initial frequency offset */
 #define LOOP_MAX		3	/* set both step offsets */
-#define LOOP_MAX_BACK		4	/* set bacward-step offset */
+#define LOOP_MAX_BACK		4	/* set backward-step offset */
 #define LOOP_MAX_FWD		5	/* set forward-step offset */
 #define LOOP_PANIC		6	/* set panic offseet */
 #define LOOP_PHI		7	/* set dispersion rate */
