@@ -4068,38 +4068,44 @@ key_flush_spd(time_t now)
 static void
 key_flush_sad(time_t now)
 {
+	SAHTREE_RLOCK_TRACKER;
+	struct secashead_list emptyq;
+	struct secasvar_list drainq, hexpireq, sexpireq, freeq;
 	struct secashead *sah, *nextsah;
 	struct secasvar *sav, *nextsav;
 
-	/* SAD */
-	SAHTREE_LOCK();
-	LIST_FOREACH_SAFE(sah, &V_sahtree, chain, nextsah) {
-		/* if sah has been dead, then delete it and process next sah. */
-		if (sah->state == SADB_SASTATE_DEAD) {
-			key_delsah(sah);
+	LIST_INIT(&drainq);
+	LIST_INIT(&hexpireq);
+	LIST_INIT(&sexpireq);
+	LIST_INIT(&emptyq);
+
+	SAHTREE_RLOCK();
+	TAILQ_FOREACH(sah, &V_sahtree, chain) {
+		/* Check for empty SAH */
+		if (TAILQ_EMPTY(&sah->savtree_larval) &&
+		    TAILQ_EMPTY(&sah->savtree_alive)) {
+			SAH_ADDREF(sah);
+			LIST_INSERT_HEAD(&emptyq, sah, drainq);
 			continue;
 		}
-
-		/* if LARVAL entry doesn't become MATURE, delete it. */
-		LIST_FOREACH_SAFE(sav, &sah->savtree[SADB_SASTATE_LARVAL], chain, nextsav) {
-			/* Need to also check refcnt for a larval SA ??? */
-			if (now - sav->created > V_key_larval_lifetime)
-				KEY_FREESAV(&sav);
-		}
-
-		/*
-		 * check MATURE entry to start to send expire message
-		 * whether or not.
-		 */
-		LIST_FOREACH_SAFE(sav, &sah->savtree[SADB_SASTATE_MATURE], chain, nextsav) {
-			/* we don't need to check. */
-			if (sav->lft_s == NULL)
+		/* Add all stale LARVAL SAs into drainq */
+		TAILQ_FOREACH(sav, &sah->savtree_larval, chain) {
+			if (now - sav->created < V_key_larval_lifetime)
 				continue;
-
-			/* sanity check */
-			if (sav->lft_c == NULL) {
-				ipseclog((LOG_DEBUG,"%s: there is no CURRENT "
-					"time, why?\n", __func__));
+			SAV_ADDREF(sav);
+			LIST_INSERT_HEAD(&drainq, sav, drainq);
+		}
+		TAILQ_FOREACH(sav, &sah->savtree_alive, chain) {
+			/* lifetimes aren't specified */
+			if (sav->lft_h == NULL)
+				continue;
+			SECASVAR_LOCK(sav);
+			/*
+			 * Check again with lock held, because it may
+			 * be updated by SADB_UPDATE.
+			 */
+			if (sav->lft_h == NULL) {
+				SECASVAR_UNLOCK(sav);
 				continue;
 			}
 			/*
@@ -4112,84 +4118,149 @@ key_flush_sad(time_t now)
 			/* check HARD lifetime */
 			if ((sav->lft_h->addtime != 0 &&
 			    now - sav->created > sav->lft_h->addtime) ||
-			    (sav->lft_h->bytes != 0 &&
-			    sav->lft_h->bytes < sav->lft_c->bytes)) {
-				key_sa_chgstate(sav, SADB_SASTATE_DEAD);
-				key_expire(sav, 1);
-				KEY_FREESAV(&sav);
+			    (sav->lft_h->usetime != 0 && sav->firstused &&
+			    now - sav->firstused > sav->lft_h->usetime) ||
+			    (sav->lft_h->bytes != 0 && counter_u64_fetch(
+			        sav->lft_c_bytes) > sav->lft_h->bytes)) {
+				SECASVAR_UNLOCK(sav);
+				SAV_ADDREF(sav);
+				LIST_INSERT_HEAD(&hexpireq, sav, drainq);
+				continue;
 			}
-			/* check SOFT lifetime */
-			else if ((sav->lft_s->addtime != 0 &&
+			/* check SOFT lifetime (only for MATURE SAs) */
+			if (sav->state == SADB_SASTATE_MATURE && (
+			    (sav->lft_s->addtime != 0 &&
 			    now - sav->created > sav->lft_s->addtime) ||
-			    (sav->lft_s->bytes != 0 &&
-			    sav->lft_s->bytes < sav->lft_c->bytes)) {
-				key_sa_chgstate(sav, SADB_SASTATE_DYING);
-				key_expire(sav, 0);
-			}
-		}
-
-		/* check DYING entry to change status to DEAD. */
-		LIST_FOREACH_SAFE(sav, &sah->savtree[SADB_SASTATE_DYING], chain, nextsav) {
-			/* we don't need to check. */
-			if (sav->lft_h == NULL)
-				continue;
-
-			/* sanity check */
-			if (sav->lft_c == NULL) {
-				ipseclog((LOG_DEBUG, "%s: there is no CURRENT "
-					"time, why?\n", __func__));
+			    (sav->lft_s->usetime != 0 && sav->firstused &&
+			    now - sav->firstused > sav->lft_s->usetime) ||
+			    (sav->lft_s->bytes != 0 && counter_u64_fetch(
+				sav->lft_c_bytes) > sav->lft_s->bytes))) {
+				SECASVAR_UNLOCK(sav);
+				SAV_ADDREF(sav);
+				LIST_INSERT_HEAD(&sexpireq, sav, drainq);
 				continue;
 			}
-
-			if (sav->lft_h->addtime != 0 &&
-			    now - sav->created > sav->lft_h->addtime) {
-				key_sa_chgstate(sav, SADB_SASTATE_DEAD);
-				key_expire(sav, 1);
-				KEY_FREESAV(&sav);
-			}
-#if 0	/* XXX Should we keep to send expire message until HARD lifetime ? */
-			else if (sav->lft_s != NULL
-			      && sav->lft_s->addtime != 0
-			      && now - sav->created > sav->lft_s->addtime) {
-				/*
-				 * XXX: should be checked to be
-				 * installed the valid SA.
-				 */
-
-				/*
-				 * If there is no SA then sending
-				 * expire message.
-				 */
-				key_expire(sav, 0);
-			}
-#endif
-			/* check HARD lifetime by bytes */
-			else if (sav->lft_h->bytes != 0 &&
-			    sav->lft_h->bytes < sav->lft_c->bytes) {
-				key_sa_chgstate(sav, SADB_SASTATE_DEAD);
-				key_expire(sav, 1);
-				KEY_FREESAV(&sav);
-			}
-		}
-
-		/* delete entry in DEAD */
-		LIST_FOREACH_SAFE(sav, &sah->savtree[SADB_SASTATE_DEAD], chain, nextsav) {
-			/* sanity check */
-			if (sav->state != SADB_SASTATE_DEAD) {
-				ipseclog((LOG_DEBUG, "%s: invalid sav->state "
-					"(queue: %d SA: %d): kill it anyway\n",
-					__func__,
-					SADB_SASTATE_DEAD, sav->state));
-			}
-			/*
-			 * do not call key_freesav() here.
-			 * sav should already be freed, and sav->refcnt
-			 * shows other references to sav
-			 * (such as from SPD).
-			 */
+			SECASVAR_UNLOCK(sav);
 		}
 	}
-	SAHTREE_UNLOCK();
+	SAHTREE_RUNLOCK();
+
+	if (LIST_EMPTY(&emptyq) && LIST_EMPTY(&drainq) &&
+	    LIST_EMPTY(&hexpireq) && LIST_EMPTY(&sexpireq))
+		return;
+
+	LIST_INIT(&freeq);
+	SAHTREE_WLOCK();
+	/* Unlink stale LARVAL SAs */
+	sav = LIST_FIRST(&drainq);
+	while (sav != NULL) {
+		nextsav = LIST_NEXT(sav, drainq);
+		/* Check that SA is still LARVAL */
+		if (sav->state != SADB_SASTATE_LARVAL) {
+			LIST_REMOVE(sav, drainq);
+			LIST_INSERT_HEAD(&freeq, sav, drainq);
+			sav = nextsav;
+			continue;
+		}
+		TAILQ_REMOVE(&sav->sah->savtree_larval, sav, chain);
+		LIST_REMOVE(sav, spihash);
+		sav->state = SADB_SASTATE_DEAD;
+		sav = nextsav;
+	}
+	/* Unlink all SAs with expired HARD lifetime */
+	sav = LIST_FIRST(&hexpireq);
+	while (sav != NULL) {
+		nextsav = LIST_NEXT(sav, drainq);
+		/* Check that SA is not unlinked */
+		if (sav->state == SADB_SASTATE_DEAD) {
+			LIST_REMOVE(sav, drainq);
+			LIST_INSERT_HEAD(&freeq, sav, drainq);
+			sav = nextsav;
+			continue;
+		}
+		TAILQ_REMOVE(&sav->sah->savtree_alive, sav, chain);
+		LIST_REMOVE(sav, spihash);
+		sav->state = SADB_SASTATE_DEAD;
+		sav = nextsav;
+	}
+	/* Mark all SAs with expired SOFT lifetime as DYING */
+	sav = LIST_FIRST(&sexpireq);
+	while (sav != NULL) {
+		nextsav = LIST_NEXT(sav, drainq);
+		/* Check that SA is not unlinked */
+		if (sav->state == SADB_SASTATE_DEAD) {
+			LIST_REMOVE(sav, drainq);
+			LIST_INSERT_HEAD(&freeq, sav, drainq);
+			sav = nextsav;
+			continue;
+		}
+		/*
+		 * NOTE: this doesn't change SA order in the chain.
+		 */
+		sav->state = SADB_SASTATE_DYING;
+		sav = nextsav;
+	}
+	/* Unlink empty SAHs */
+	sah = LIST_FIRST(&emptyq);
+	while (sah != NULL) {
+		nextsah = LIST_NEXT(sah, drainq);
+		/* Check that SAH is still empty and not unlinked */
+		if (sah->state == SADB_SASTATE_DEAD ||
+		    !TAILQ_EMPTY(&sah->savtree_larval) ||
+		    !TAILQ_EMPTY(&sah->savtree_alive)) {
+			LIST_REMOVE(sah, drainq);
+			key_freesah(&sah); /* release extra reference */
+			sah = nextsah;
+			continue;
+		}
+		TAILQ_REMOVE(&V_sahtree, sah, chain);
+		LIST_REMOVE(sah, addrhash);
+		sah->state = SADB_SASTATE_DEAD;
+		sah = nextsah;
+	}
+	SAHTREE_WUNLOCK();
+
+	/* Send SPDEXPIRE messages */
+	sav = LIST_FIRST(&hexpireq);
+	while (sav != NULL) {
+		nextsav = LIST_NEXT(sav, drainq);
+		key_expire(sav, 1);
+		key_freesah(&sav->sah); /* release reference from SAV */
+		key_freesav(&sav); /* release extra reference */
+		key_freesav(&sav); /* release last reference */
+		sav = nextsav;
+	}
+	sav = LIST_FIRST(&sexpireq);
+	while (sav != NULL) {
+		nextsav = LIST_NEXT(sav, drainq);
+		key_expire(sav, 0);
+		key_freesav(&sav); /* release extra reference */
+		sav = nextsav;
+	}
+	/* Free stale LARVAL SAs */
+	sav = LIST_FIRST(&drainq);
+	while (sav != NULL) {
+		nextsav = LIST_NEXT(sav, drainq);
+		key_freesah(&sav->sah); /* release reference from SAV */
+		key_freesav(&sav); /* release extra reference */
+		key_freesav(&sav); /* release last reference */
+		sav = nextsav;
+	}
+	/* Free SAs that were unlinked/changed by someone else */
+	sav = LIST_FIRST(&freeq);
+	while (sav != NULL) {
+		nextsav = LIST_NEXT(sav, drainq);
+		key_freesav(&sav); /* release extra reference */
+		sav = nextsav;
+	}
+	/* Free empty SAH */
+	sah = LIST_FIRST(&emptyq);
+	while (sah != NULL) {
+		nextsah = LIST_NEXT(sah, drainq);
+		key_freesah(&sah); /* release extra reference */
+		key_freesah(&sah); /* release last reference */
+		sah = nextsah;
+	}
 }
 
 static void
