@@ -227,6 +227,7 @@ SUBDIR:=	${SUBDIR:Nlibsysdecode}
 SUBDIR+=	libmalloc_simple
 SUBDIR+=	libcheri_syscalls
 SUBDIR+=	libcheri_support
+SUBDIR_BOOTSTRAP:=	libgcc_s libgcc_eh ${SUBDIR_BOOTSTRAP}
 .endif
 
 .include <bsd.subdir.mk>
