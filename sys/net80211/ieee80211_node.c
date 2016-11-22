@@ -324,10 +324,11 @@ ieee80211_create_ibss(struct ieee80211vap* vap, struct ieee80211_channel *chan)
 	struct ieee80211_node *ni;
 
 	IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN,
-		"%s: creating %s on channel %u%c\n", __func__,
+		"%s: creating %s on channel %u%c flags 0x%08x\n", __func__,
 		ieee80211_opmode_name[vap->iv_opmode],
 		ieee80211_chan2ieee(ic, chan),
-		ieee80211_channel_type_char(chan));
+		ieee80211_channel_type_char(chan),
+		chan->ic_flags);
 
 	ni = ieee80211_alloc_node(&ic->ic_sta, vap, vap->iv_myaddr);
 	if (ni == NULL) {
@@ -406,6 +407,14 @@ ieee80211_create_ibss(struct ieee80211vap* vap, struct ieee80211_channel *chan)
 			ieee80211_setbasicrates(&ni->ni_rates,
 				IEEE80211_MODE_11B);
 		}
+	}
+
+	/* XXX TODO: other bits and pieces - eg fast-frames? */
+
+	/* If we're an 11n channel then initialise the 11n bits */
+	if (IEEE80211_IS_CHAN_HT(ni->ni_chan)) {
+		/* XXX what else? */
+		ieee80211_ht_node_init(ni);
 	}
 
 	(void) ieee80211_sta_join1(ieee80211_ref_node(ni));
@@ -1549,6 +1558,9 @@ ieee80211_fakeup_adhoc_node(struct ieee80211vap *vap,
 			 * so we can do interesting things (e.g. use
 			 * WME to disable ACK's).
 			 */
+			/*
+			 * XXX TODO: 11n?
+			 */
 			if (vap->iv_flags & IEEE80211_F_WME)
 				ni->ni_flags |= IEEE80211_NODE_QOS;
 #ifdef IEEE80211_SUPPORT_SUPERG
@@ -1558,8 +1570,44 @@ ieee80211_fakeup_adhoc_node(struct ieee80211vap *vap,
 		}
 		ieee80211_node_setuptxparms(ni);
 		ieee80211_ratectl_node_init(ni);
+
+		/*
+		 * XXX TODO: 11n? At least 20MHz, at least A-MPDU RX,
+		 * not A-MPDU TX; not 11n rates, etc.  We'll cycle
+		 * that after we hear that we can indeed do 11n
+		 * (either by a beacon frame or by a probe response.)
+		 */
+
+		/*
+		 * This is the first time we see the node.
+		 */
 		if (ic->ic_newassoc != NULL)
 			ic->ic_newassoc(ni, 1);
+
+		/*
+		 * Kick off a probe request to the given node;
+		 * we will then use the probe response to update
+		 * 11n/etc configuration state.
+		 *
+		 * XXX TODO: this isn't guaranteed, and until we get
+		 * a probe response, we won't be able to actually
+		 * do anything 802.11n related to the node.
+		 * So if this does indeed work, maybe we should hold
+		 * off on sending responses until we get the probe
+		 * response, or just default to some sensible subset
+		 * of 802.11n behaviour (eg always allow aggregation
+		 * negotiation TO us, but not FROM us, etc) so we
+		 * aren't entirely busted.
+		 */
+		if (vap->iv_opmode == IEEE80211_M_IBSS) {
+			ieee80211_send_probereq(ni, /* node */
+				vap->iv_myaddr, /* SA */
+				ni->ni_macaddr, /* DA */
+				vap->iv_bss->ni_bssid, /* BSSID */
+				vap->iv_bss->ni_essid,
+				vap->iv_bss->ni_esslen); /* SSID */
+		}
+
 		/* XXX not right for 802.1x/WPA */
 		ieee80211_node_authorize(ni);
 	}
@@ -1632,6 +1680,21 @@ ieee80211_init_neighbor(struct ieee80211_node *ni,
 		    ni->ni_ies.htinfo_ie);
 		ieee80211_node_setuptxparms(ni);
 		ieee80211_ratectl_node_init(ni);
+
+		/* Reassociate; we're now 11n */
+		/*
+		 * XXX TODO: this is the wrong thing to do -
+		 * we're calling it with isnew=1 so the ath(4)
+		 * driver reinitialises the rate tables.
+		 * This "mostly" works for ath(4), but it won't
+		 * be right for firmware devices which allocate
+		 * node states.
+		 *
+		 * So, do we just create a new node and delete
+		 * the old one? Or?
+		 */
+		if (ni->ni_ic->ic_newassoc)
+			ni->ni_ic->ic_newassoc(ni, 1);
 	}
 }
 
@@ -1808,6 +1871,10 @@ ieee80211_find_txnode(struct ieee80211vap *vap,
 			 * Note that we need an additional reference for the
 			 * caller to be consistent with
 			 * ieee80211_find_node_locked.
+			 */
+			/*
+			 * XXX TODO: this doesn't fake up 11n state; we need
+			 * to find another way to get it upgraded.
 			 */
 			ni = ieee80211_fakeup_adhoc_node(vap, macaddr);
 			if (ni != NULL)
