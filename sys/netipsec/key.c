@@ -2802,41 +2802,27 @@ key_checkspidup(uint32_t spi)
 }
 
 /*
- * search SAD litmited alive SA, protocol, SPI.
+ * Search SA by SPI.
  * OUT:
  *	NULL	: not found
- *	others	: found, pointer to a SA.
+ *	others	: found, referenced pointer to a SA.
  */
 static struct secasvar *
-key_getsavbyspi(struct secashead *sah, u_int32_t spi)
+key_getsavbyspi(uint32_t spi)
 {
+	SAHTREE_RLOCK_TRACKER;
 	struct secasvar *sav;
-	u_int stateidx, state;
 
-	sav = NULL;
-	SAHTREE_LOCK_ASSERT();
-	/* search all status */
-	for (stateidx = 0;
-	     stateidx < _ARRAYLEN(saorder_state_alive);
-	     stateidx++) {
-
-		state = saorder_state_alive[stateidx];
-		LIST_FOREACH(sav, &sah->savtree[state], chain) {
-
-			/* sanity check */
-			if (sav->state != state) {
-				ipseclog((LOG_DEBUG, "%s: "
-				    "invalid sav->state (queue: %d SA: %d)\n",
-				    __func__, state, sav->state));
-				continue;
-			}
-
-			if (sav->spi == spi)
-				return sav;
-		}
+	/* Assume SPI is in network byte order */
+	SAHTREE_RLOCK();
+	LIST_FOREACH(sav, SAVHASH_HASH(spi), spihash) {
+		if (sav->spi != spi)
+			continue;
+		SAV_ADDREF(sav);
+		break;
 	}
-
-	return NULL;
+	SAHTREE_RUNLOCK();
+	return (sav);
 }
 
 /*
