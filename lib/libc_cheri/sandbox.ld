@@ -63,7 +63,7 @@ SECTIONS
 	.text.invoke_vector : {
 		crt_invoke.o(.text .data .bss)
 	}
-	.= __code_body__;
+	. = __code_body__;
 	.init : {
 		KEEP (*(.init))
 	} = 0
