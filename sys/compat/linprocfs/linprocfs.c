@@ -176,7 +176,7 @@ linprocfs_domeminfo(PFS_FILL_ARGS)
 	 * like unstaticizing it just for linprocfs's sake.
 	 */
 	buffers = 0;
-	cached = vm_cnt.v_cache_count * PAGE_SIZE;
+	cached = vm_cnt.v_inactive_count * PAGE_SIZE;
 
 	sbuf_printf(sb,
 	    "MemTotal: %9lu kB\n"
