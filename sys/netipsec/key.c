@@ -2780,38 +2780,25 @@ key_getsah(struct secasindex *saidx)
 }
 
 /*
- * check not to be duplicated SPI.
- * NOTE: this function is too slow due to searching all SAD.
+ * Check not to be duplicated SPI.
  * OUT:
- *	NULL	: not found
- *	others	: found, pointer to a SA.
+ *	0	: not found
+ *	1	: found SA with given SPI.
  */
-static struct secasvar *
-key_checkspidup(struct secasindex *saidx, u_int32_t spi)
+static int
+key_checkspidup(uint32_t spi)
 {
-	struct secashead *sah;
+	SAHTREE_RLOCK_TRACKER;
 	struct secasvar *sav;
 
-	/* check address family */
-	if (saidx->src.sa.sa_family != saidx->dst.sa.sa_family) {
-		ipseclog((LOG_DEBUG, "%s: address family mismatched.\n",
-			__func__));
-		return NULL;
-	}
-
-	sav = NULL;
-	/* check all SAD */
-	SAHTREE_LOCK();
-	LIST_FOREACH(sah, &V_sahtree, chain) {
-		if (!key_ismyaddr((struct sockaddr *)&sah->saidx.dst))
-			continue;
-		sav = key_getsavbyspi(sah, spi);
-		if (sav != NULL)
+	/* Assume SPI is in network byte order */
+	SAHTREE_RLOCK();
+	LIST_FOREACH(sav, SAVHASH_HASH(spi), spihash) {
+		if (sav->spi == spi)
 			break;
 	}
-	SAHTREE_UNLOCK();
-
-	return sav;
+	SAHTREE_RUNLOCK();
+	return (sav != NULL);
 }
 
 /*
