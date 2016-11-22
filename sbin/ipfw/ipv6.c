@@ -334,7 +334,7 @@ lookup_host6 (char *host, struct in6_addr *ip6addr)
  * Return 1 on success, 0 on failure.
  */
 static int
-fill_ip6(ipfw_insn_ip6 *cmd, char *av, int cblen)
+fill_ip6(ipfw_insn_ip6 *cmd, char *av, int cblen, struct tidx *tstate)
 {
 	int len = 0;
 	struct in6_addr *d = &(cmd->addr6);
@@ -360,18 +360,7 @@ fill_ip6(ipfw_insn_ip6 *cmd, char *av, int cblen)
 	}
 
 	if (strncmp(av, "table(", 6) == 0) {
-		char *p = strchr(av + 6, ',');
-		uint32_t *dm = ((ipfw_insn_u32 *)cmd)->d;
-
-		if (p)
-			*p++ = '\0';
-		cmd->o.opcode = O_IP_DST_LOOKUP;
-		cmd->o.arg1 = strtoul(av + 6, NULL, 0);
-		if (p) {
-			cmd->o.len |= F_INSN_SIZE(ipfw_insn_u32);
-			dm[0] = strtoul(p, NULL, 0);
-		} else
-			cmd->o.len |= F_INSN_SIZE(ipfw_insn);
+		fill_table(&cmd->o, av, O_IP_DST_LOOKUP, tstate);
 		return (1);
 	}
 
@@ -492,10 +481,10 @@ fill_flow6( ipfw_insn_u32 *cmd, char *av, int cblen)
 }
 
 ipfw_insn *
-add_srcip6(ipfw_insn *cmd, char *av, int cblen)
+add_srcip6(ipfw_insn *cmd, char *av, int cblen, struct tidx *tstate)
 {
 
-	fill_ip6((ipfw_insn_ip6 *)cmd, av, cblen);
+	fill_ip6((ipfw_insn_ip6 *)cmd, av, cblen, tstate);
 	if (cmd->opcode == O_IP_DST_SET)			/* set */
 		cmd->opcode = O_IP_SRC_SET;
 	else if (cmd->opcode == O_IP_DST_LOOKUP)		/* table */
@@ -514,10 +503,10 @@ add_srcip6(ipfw_insn *cmd, char *av, int cblen)
 }
 
 ipfw_insn *
-add_dstip6(ipfw_insn *cmd, char *av, int cblen)
+add_dstip6(ipfw_insn *cmd, char *av, int cblen, struct tidx *tstate)
 {
 
-	fill_ip6((ipfw_insn_ip6 *)cmd, av, cblen);
+	fill_ip6((ipfw_insn_ip6 *)cmd, av, cblen, tstate);
 	if (cmd->opcode == O_IP_DST_SET)			/* set */
 		;
 	else if (cmd->opcode == O_IP_DST_LOOKUP)		/* table */
