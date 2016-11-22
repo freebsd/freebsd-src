@@ -427,8 +427,12 @@ adhoc_input(struct ieee80211_node *ni, struct mbuf *m,
 				goto err;
 			}
 			/*
-			 * Fake up a node for this newly
-			 * discovered member of the IBSS.
+			 * Fake up a node for this newly discovered member
+			 * of the IBSS.
+			 *
+			 * Note: This doesn't "upgrade" the node to 11n;
+			 * that will happen after a probe request/response
+			 * exchange.
 			 */
 			ni = ieee80211_fakeup_adhoc_node(vap, wh->i_addr2);
 			if (ni == NULL) {
@@ -773,12 +777,35 @@ adhoc_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 					ni = ieee80211_add_neighbor(vap, wh, &scan);
 				else
 					ni = NULL;
+
+				/*
+				 * Send a probe request so we announce 11n
+				 * capabilities.
+				 */
+				ieee80211_send_probereq(ni, /* node */
+					vap->iv_myaddr, /* SA */
+					ni->ni_macaddr, /* DA */
+					vap->iv_bss->ni_bssid, /* BSSID */
+					vap->iv_bss->ni_essid,
+					vap->iv_bss->ni_esslen); /* SSID */
+
 			} else if (ni->ni_capinfo == 0) {
 				/*
 				 * Update faked node created on transmit.
 				 * Note this also updates the tsf.
 				 */
 				ieee80211_init_neighbor(ni, wh, &scan);
+
+				/*
+				 * Send a probe request so we announce 11n
+				 * capabilities.
+				 */
+				ieee80211_send_probereq(ni, /* node */
+					vap->iv_myaddr, /* SA */
+					ni->ni_macaddr, /* DA */
+					vap->iv_bss->ni_bssid, /* BSSID */
+					vap->iv_bss->ni_essid,
+					vap->iv_bss->ni_esslen); /* SSID */
 			} else {
 				/*
 				 * Record tsf for potential resync.
@@ -889,6 +916,12 @@ adhoc_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 		 */
 		ieee80211_send_proberesp(vap, wh->i_addr2,
 		    is11bclient(rates, xrates) ? IEEE80211_SEND_LEGACY_11B : 0);
+
+		/*
+		 * Note: we don't benefit from stashing the probe request
+		 * IEs away to use for IBSS negotiation, because we
+		 * typically don't get all of the IEs.
+		 */
 		break;
 
 	case IEEE80211_FC0_SUBTYPE_ACTION:
