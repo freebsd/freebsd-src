@@ -39,7 +39,7 @@ void test_PositiveInteger(void)
 
 void test_NegativeInteger(void)
 {
-	s_fp test = -200 << 16; // exact -200.000000
+	s_fp test = -(200 << 16); // exact -200.000000
 
 	TEST_ASSERT_EQUAL_STRING("-200.000000", fptoa(test, SFP_MAX_PRECISION));
 	TEST_ASSERT_EQUAL_STRING("-200000.000", fptoms(test, SFP_MAX_PRECISION));
@@ -55,7 +55,7 @@ void test_PositiveIntegerPositiveFraction(void)
 
 void test_NegativeIntegerNegativeFraction(void)
 {
-	s_fp test = (-200 << 16) - (1 << 15); // -200 - 0.5
+	s_fp test = -(200 << 16) - (1 << 15); // -200 - 0.5
 
 	TEST_ASSERT_EQUAL_STRING("-200.500000", fptoa(test, SFP_MAX_PRECISION));
 	TEST_ASSERT_EQUAL_STRING("-200500.000", fptoms(test, SFP_MAX_PRECISION));
@@ -71,7 +71,7 @@ void test_PositiveIntegerNegativeFraction(void)
 
 void test_NegativeIntegerPositiveFraction(void)
 {
-	s_fp test = (-200 << 16) + (1 << 14)*3; // -200 + 0.75
+	s_fp test = -(200 << 16) + (1 << 14)*3; // -200 + 0.75
 
 	TEST_ASSERT_EQUAL_STRING("-199.250000", fptoa(test, SFP_MAX_PRECISION));
 	TEST_ASSERT_EQUAL_STRING("-199250.000", fptoms(test, SFP_MAX_PRECISION));

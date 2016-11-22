@@ -34,7 +34,10 @@ my $QUIET = "";
 my $VERBOSE = "";
 
 # Where to get the file
-my $LEAPSRC="ftp://time.nist.gov/pub/leap-seconds.list";
+# Choices:
+#	https://www.ietf.org/timezones/data/leap-seconds.list
+#	ftp://time.nist.gov/pub/leap-seconds.list
+my $LEAPSRC="https://www.ietf.org/timezones/data/leap-seconds.list";
 my $LEAPFILE;
 
 # How many times to try to download new file
@@ -300,7 +303,7 @@ sub verifySHA {
 open(LF, $NTPCONF) || die "Can't open <$NTPCONF>: $!\n";
 while (<LF>) {
     chomp;
-    if (/^ *leapfile\s+(\S+)/) {
+    if (/^ *leapfile\s+"(\S+)"/) {
 	$LEAPFILE = $1;
     }
 }
