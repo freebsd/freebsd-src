@@ -3499,10 +3499,10 @@ key_setsadbxport(u_int16_t port, u_int16_t type)
 	return (m);
 }
 
-/* 
+/*
  * Get port from sockaddr. Port is in network byte order.
  */
-u_int16_t
+uint16_t
 key_portfromsaddr(struct sockaddr *sa)
 {
 
@@ -3516,9 +3516,6 @@ key_portfromsaddr(struct sockaddr *sa)
 		return ((struct sockaddr_in6 *)sa)->sin6_port;
 #endif
 	}
-	KEYDEBUG(KEYDEBUG_IPSEC_STAMP,
-		printf("DP %s unexpected address family %d\n",
-			__func__, sa->sa_family));
 	return (0);
 }
 #endif /* IPSEC_NAT_T */
@@ -3527,7 +3524,7 @@ key_portfromsaddr(struct sockaddr *sa)
  * Set port in struct sockaddr. Port is in network byte order.
  */
 static void
-key_porttosaddr(struct sockaddr *sa, u_int16_t port)
+key_porttosaddr(struct sockaddr *sa, uint16_t port)
 {
 
 	switch (sa->sa_family) {
@@ -3620,20 +3617,18 @@ key_dup_keymsg(const struct sadb_key *src, u_int len,
 static struct seclifetime *
 key_dup_lifemsg(const struct sadb_lifetime *src, struct malloc_type *type)
 {
-	struct seclifetime *dst = NULL;
+	struct seclifetime *dst;
 
-	dst = (struct seclifetime *)malloc(sizeof(struct seclifetime), 
-					   type, M_NOWAIT);
+	dst = malloc(sizeof(*dst), type, M_NOWAIT);
 	if (dst == NULL) {
-		/* XXX counter */
 		ipseclog((LOG_DEBUG, "%s: No more memory.\n", __func__));
-	} else {
-		dst->allocations = src->sadb_lifetime_allocations;
-		dst->bytes = src->sadb_lifetime_bytes;
-		dst->addtime = src->sadb_lifetime_addtime;
-		dst->usetime = src->sadb_lifetime_usetime;
+		return (NULL);
 	}
-	return dst;
+	dst->allocations = src->sadb_lifetime_allocations;
+	dst->bytes = src->sadb_lifetime_bytes;
+	dst->addtime = src->sadb_lifetime_addtime;
+	dst->usetime = src->sadb_lifetime_usetime;
+	return (dst);
 }
 
 /* compare my own address
@@ -3892,11 +3887,6 @@ key_cmpspidx_withmask(struct secpolicyindex *spidx0,
 	return 1;
 }
 
-/* returns 0 on match */
-static int
-key_sockaddrcmp(const struct sockaddr *sa1, const struct sockaddr *sa2,
-    int port)
-{
 #ifdef satosin
 #undef satosin
 #endif
@@ -3905,10 +3895,16 @@ key_sockaddrcmp(const struct sockaddr *sa1, const struct sockaddr *sa2,
 #undef satosin6
 #endif
 #define satosin6(s) ((const struct sockaddr_in6 *)s)
+/* returns 0 on match */
+static int
+key_sockaddrcmp(const struct sockaddr *sa1, const struct sockaddr *sa2,
+    int port)
+{
 	if (sa1->sa_family != sa2->sa_family || sa1->sa_len != sa2->sa_len)
 		return 1;
 
 	switch (sa1->sa_family) {
+#ifdef INET
 	case AF_INET:
 		if (sa1->sa_len != sizeof(struct sockaddr_in))
 			return 1;
@@ -3919,6 +3915,8 @@ key_sockaddrcmp(const struct sockaddr *sa1, const struct sockaddr *sa2,
 		if (port && satosin(sa1)->sin_port != satosin(sa2)->sin_port)
 			return 1;
 		break;
+#endif
+#ifdef INET6
 	case AF_INET6:
 		if (sa1->sa_len != sizeof(struct sockaddr_in6))
 			return 1;	/*EINVAL*/
@@ -3935,6 +3933,7 @@ key_sockaddrcmp(const struct sockaddr *sa1, const struct sockaddr *sa2,
 			return 1;
 		}
 		break;
+#endif
 	default:
 		if (bcmp(sa1, sa2, sa1->sa_len) != 0)
 			return 1;
@@ -3942,9 +3941,35 @@ key_sockaddrcmp(const struct sockaddr *sa1, const struct sockaddr *sa2,
 	}
 
 	return 0;
+}
+
+/* returns 0 on match */
+int
+key_sockaddrcmp_withmask(const struct sockaddr *sa1,
+    const struct sockaddr *sa2, size_t mask)
+{
+	if (sa1->sa_family != sa2->sa_family || sa1->sa_len != sa2->sa_len)
+		return (1);
+
+	switch (sa1->sa_family) {
+#ifdef INET
+	case AF_INET:
+		return (!key_bbcmp(&satosin(sa1)->sin_addr,
+		    &satosin(sa2)->sin_addr, mask));
+#endif
+#ifdef INET6
+	case AF_INET6:
+		if (satosin6(sa1)->sin6_scope_id !=
+		    satosin6(sa2)->sin6_scope_id)
+			return (1);
+		return (!key_bbcmp(&satosin6(sa1)->sin6_addr,
+		    &satosin6(sa2)->sin6_addr, mask));
+#endif
+	}
+	return (1);
+}
 #undef satosin
 #undef satosin6
-}
 
 /*
  * compare two buffers with mask.
