@@ -487,11 +487,11 @@ udf_read(struct vop_read_args *ap)
 		} else {
 			error = bread(vp, lbn, size, NOCRED, &bp);
 		}
-		n = min(n, size - bp->b_resid);
-		if (error) {
+		if (error != 0) {
 			brelse(bp);
 			return (error);
 		}
+		n = min(n, size - bp->b_resid);
 
 		error = uiomove(bp->b_data + on, (int)n, uio);
 		brelse(bp);
