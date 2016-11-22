@@ -171,6 +171,12 @@ init_param1(void)
 	tick_sbt = SBT_1S / hz;
 	tick_bt = sbttobt(tick_sbt);
 
+	/*
+	 * Arrange for ticks to wrap 10 minutes after boot to help catch
+	 * sign problems sooner.
+	 */
+	ticks = INT_MAX - (hz * 10 * 60);
+
 #ifdef VM_SWZONE_SIZE_MAX
 	maxswzone = VM_SWZONE_SIZE_MAX;
 #endif
