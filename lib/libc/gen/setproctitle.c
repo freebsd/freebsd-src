@@ -23,13 +23,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/exec.h>
 #include <sys/sysctl.h>
 
-#include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/pmap.h>
-
-#ifdef __CHERI_PURE_CAPABILITY__
-#include <assert.h>
-#endif
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
