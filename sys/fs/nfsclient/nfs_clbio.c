@@ -96,8 +96,8 @@ ncl_getpages(struct vop_getpages_args *ap)
 
 	vp = ap->a_vp;
 	np = VTONFS(vp);
-	td = curthread;				/* XXX */
-	cred = curthread->td_ucred;		/* XXX */
+	td = curthread;
+	cred = curthread->td_ucred;
 	nmp = VFSTONFS(vp->v_mount);
 	pages = ap->a_m;
 	npages = ap->a_count;
