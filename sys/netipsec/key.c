@@ -59,6 +59,8 @@
 #include <sys/refcount.h>
 #include <sys/syslog.h>
 
+#include <vm/uma.h>
+
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/vnet.h>
@@ -461,6 +463,9 @@ MALLOC_DEFINE(M_IPSEC_SR, "ipsecrequest", "ipsec security request");
 MALLOC_DEFINE(M_IPSEC_MISC, "ipsec-misc", "ipsec miscellaneous");
 MALLOC_DEFINE(M_IPSEC_SAQ, "ipsec-saq", "ipsec sa acquire");
 MALLOC_DEFINE(M_IPSEC_SAR, "ipsec-reg", "ipsec sa acquire");
+
+static VNET_DEFINE(uma_zone_t, key_lft_zone);
+#define	V_key_lft_zone		VNET(key_lft_zone)
 
 /*
  * set parameters into secpolicyindex buffer.
@@ -7438,6 +7443,10 @@ key_init(void)
 	for (i = 0; i < IPSEC_DIR_MAX; i++)
 		TAILQ_INIT(&V_sptree[i]);
 
+	V_key_lft_zone = uma_zcreate("IPsec SA lft_c",
+	    sizeof(uint64_t) * 2, NULL, NULL, NULL, NULL,
+	    UMA_ALIGN_PTR, UMA_ZONE_PCPU);
+
 	LIST_INIT(&V_sahtree);
 	V_sphashtbl = hashinit(SPHASH_NHASH, M_IPSEC_SP, &V_sphash_mask);
 	V_savhashtbl = hashinit(SAVHASH_NHASH, M_IPSEC_SA, &V_savhash_mask);
@@ -7542,6 +7551,7 @@ key_destroy(void)
 		}
 	}
 	SPACQ_UNLOCK();
+	uma_zdestroy(V_key_lft_zone);
 }
 #endif
 
