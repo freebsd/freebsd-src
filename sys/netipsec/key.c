@@ -4615,13 +4615,12 @@ fail:
  * called by key_getspi().
  * OUT:
  *	0:	failure.
- *	others: success.
+ *	others: success, SPI in network byte order.
  */
-static u_int32_t
+static uint32_t
 key_do_getnewspi(struct sadb_spirange *spirange, struct secasindex *saidx)
 {
-	u_int32_t newspi;
-	u_int32_t min, max;
+	uint32_t min, max, newspi, t;
 	int count = V_key_spi_trycnt;
 
 	/* set spi range to allocate */
@@ -4634,7 +4633,6 @@ key_do_getnewspi(struct sadb_spirange *spirange, struct secasindex *saidx)
 	}
 	/* IPCOMP needs 2-byte SPI */
 	if (saidx->proto == IPPROTO_IPCOMP) {
-		u_int32_t t;
 		if (min >= 0x10000)
 			min = 0xffff;
 		if (max >= 0x10000)
@@ -4645,15 +4643,14 @@ key_do_getnewspi(struct sadb_spirange *spirange, struct secasindex *saidx)
 	}
 
 	if (min == max) {
-		if (key_checkspidup(saidx, min) != NULL) {
+		if (!key_checkspidup(htonl(min))) {
 			ipseclog((LOG_DEBUG, "%s: SPI %u exists already.\n",
-				__func__, min));
+			    __func__, min));
 			return 0;
 		}
 
 		count--; /* taking one cost. */
 		newspi = min;
-
 	} else {
 
 		/* init SPI */
@@ -4663,23 +4660,22 @@ key_do_getnewspi(struct sadb_spirange *spirange, struct secasindex *saidx)
 		while (count--) {
 			/* generate pseudo-random SPI value ranged. */
 			newspi = min + (key_random() % (max - min + 1));
-
-			if (key_checkspidup(saidx, newspi) == NULL)
+			if (!key_checkspidup(htonl(newspi)))
 				break;
 		}
 
 		if (count == 0 || newspi == 0) {
-			ipseclog((LOG_DEBUG, "%s: to allocate spi is failed.\n",
-				__func__));
+			ipseclog((LOG_DEBUG,
+			    "%s: failed to allocate SPI.\n", __func__));
 			return 0;
 		}
 	}
 
 	/* statistics */
 	keystat.getspi_count =
-		(keystat.getspi_count + V_key_spi_trycnt - count) / 2;
+	    (keystat.getspi_count + V_key_spi_trycnt - count) / 2;
 
-	return newspi;
+	return (htonl(newspi));
 }
 
 /*
