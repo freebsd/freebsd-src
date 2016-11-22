@@ -2697,6 +2697,7 @@ done:
 static void
 key_cleansav(struct secasvar *sav)
 {
+
 	/*
 	 * Cleanup xform state.  Note that zeroize'ing causes the
 	 * keys to be cleared; otherwise we must do it ourself.
@@ -2722,18 +2723,9 @@ key_cleansav(struct secasvar *sav)
 		free(sav->key_enc, M_IPSEC_MISC);
 		sav->key_enc = NULL;
 	}
-	if (sav->sched) {
-		bzero(sav->sched, sav->schedlen);
-		free(sav->sched, M_IPSEC_MISC);
-		sav->sched = NULL;
-	}
 	if (sav->replay != NULL) {
 		free(sav->replay, M_IPSEC_MISC);
 		sav->replay = NULL;
-	}
-	if (sav->lft_c != NULL) {
-		free(sav->lft_c, M_IPSEC_MISC);
-		sav->lft_c = NULL;
 	}
 	if (sav->lft_h != NULL) {
 		free(sav->lft_h, M_IPSEC_MISC);
@@ -2752,16 +2744,17 @@ static void
 key_delsav(struct secasvar *sav)
 {
 	IPSEC_ASSERT(sav != NULL, ("null sav"));
-	IPSEC_ASSERT(sav->refcnt == 0, ("reference count %u > 0", sav->refcnt));
+	IPSEC_ASSERT(sav->state == SADB_SASTATE_DEAD,
+	    ("attempt to free non DEAD SA %p", sav));
+	IPSEC_ASSERT(sav->refcnt == 0, ("reference count %u > 0",
+	    sav->refcnt));
 
-	/* remove from SA header */
-	if (__LIST_CHAINED(sav))
-		LIST_REMOVE(sav, chain);
+	/* SA must be unlinked from the chain and hashtbl */
 	key_cleansav(sav);
 	SECASVAR_LOCK_DESTROY(sav);
+	uma_zfree(V_key_lft_zone, sav->lft_c);
 	free(sav, M_IPSEC_SA);
 }
-
 /*
  * search SAD.
  * OUT:
