@@ -4367,8 +4367,8 @@ key_randomfill(void *p, size_t l)
  * OUT:
  *	0: invalid satype.
  */
-static u_int16_t
-key_satype2proto(u_int8_t satype)
+static uint8_t
+key_satype2proto(uint8_t satype)
 {
 	switch (satype) {
 	case SADB_SATYPE_UNSPEC:
@@ -4392,8 +4392,8 @@ key_satype2proto(u_int8_t satype)
  * OUT:
  *	0: invalid protocol type.
  */
-static u_int8_t
-key_proto2satype(u_int16_t proto)
+static uint8_t
+key_proto2satype(uint8_t proto)
 {
 	switch (proto) {
 	case IPPROTO_AH:
@@ -4426,39 +4426,56 @@ key_proto2satype(u_int16_t proto)
 static int
 key_getspi(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 {
-	struct sadb_address *src0, *dst0;
 	struct secasindex saidx;
-	struct secashead *newsah;
-	struct secasvar *newsav;
-	u_int8_t proto;
-	u_int32_t spi;
-	u_int8_t mode;
-	u_int32_t reqid;
+	struct sadb_address *src0, *dst0;
+	struct secasvar *sav;
+	uint32_t reqid, spi;
 	int error;
+	uint8_t mode, proto;
 
 	IPSEC_ASSERT(so != NULL, ("null socket"));
 	IPSEC_ASSERT(m != NULL, ("null mbuf"));
 	IPSEC_ASSERT(mhp != NULL, ("null msghdr"));
 	IPSEC_ASSERT(mhp->msg != NULL, ("null msg"));
 
-	if (mhp->ext[SADB_EXT_ADDRESS_SRC] == NULL ||
-	    mhp->ext[SADB_EXT_ADDRESS_DST] == NULL) {
-		ipseclog((LOG_DEBUG, "%s: invalid message is passed.\n",
-			__func__));
-		return key_senderror(so, m, EINVAL);
+	if (SADB_CHECKHDR(mhp, SADB_EXT_ADDRESS_SRC) ||
+	    SADB_CHECKHDR(mhp, SADB_EXT_ADDRESS_DST)
+#ifdef PFKEY_STRICT_CHECKS
+	    || SADB_CHECKHDR(mhp, SADB_EXT_SPIRANGE)
+#endif
+	    ) {
+		ipseclog((LOG_DEBUG,
+		    "%s: invalid message: missing required header.\n",
+		    __func__));
+		error = EINVAL;
+		goto fail;
 	}
-	if (mhp->extlen[SADB_EXT_ADDRESS_SRC] < sizeof(struct sadb_address) ||
-	    mhp->extlen[SADB_EXT_ADDRESS_DST] < sizeof(struct sadb_address)) {
-		ipseclog((LOG_DEBUG, "%s: invalid message is passed.\n",
-			__func__));
-		return key_senderror(so, m, EINVAL);
+	if (SADB_CHECKLEN(mhp, SADB_EXT_ADDRESS_SRC) ||
+	    SADB_CHECKLEN(mhp, SADB_EXT_ADDRESS_DST)
+#ifdef PFKEY_STRICT_CHECKS
+	    || SADB_CHECKLEN(mhp, SADB_EXT_SPIRANGE)
+#endif
+	    ) {
+		ipseclog((LOG_DEBUG,
+		    "%s: invalid message: wrong header size.\n", __func__));
+		error = EINVAL;
+		goto fail;
 	}
-	if (mhp->ext[SADB_X_EXT_SA2] != NULL) {
-		mode = ((struct sadb_x_sa2 *)mhp->ext[SADB_X_EXT_SA2])->sadb_x_sa2_mode;
-		reqid = ((struct sadb_x_sa2 *)mhp->ext[SADB_X_EXT_SA2])->sadb_x_sa2_reqid;
-	} else {
+	if (SADB_CHECKHDR(mhp, SADB_X_EXT_SA2)) {
 		mode = IPSEC_MODE_ANY;
 		reqid = 0;
+	} else {
+		if (SADB_CHECKLEN(mhp, SADB_X_EXT_SA2)) {
+			ipseclog((LOG_DEBUG,
+			    "%s: invalid message: wrong header size.\n",
+			    __func__));
+			error = EINVAL;
+			goto fail;
+		}
+		mode = ((struct sadb_x_sa2 *)
+		    mhp->ext[SADB_X_EXT_SA2])->sadb_x_sa2_mode;
+		reqid = ((struct sadb_x_sa2 *)
+		    mhp->ext[SADB_X_EXT_SA2])->sadb_x_sa2_reqid;
 	}
 
 	src0 = (struct sadb_address *)(mhp->ext[SADB_EXT_ADDRESS_SRC]);
@@ -4468,121 +4485,61 @@ key_getspi(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 	if ((proto = key_satype2proto(mhp->msg->sadb_msg_satype)) == 0) {
 		ipseclog((LOG_DEBUG, "%s: invalid satype is passed.\n",
 			__func__));
-		return key_senderror(so, m, EINVAL);
+		error = EINVAL;
+		goto fail;
 	}
-
+	error = key_checksockaddrs((struct sockaddr *)(src0 + 1),
+	    (struct sockaddr *)(dst0 + 1));
+	if (error != 0) {
+		ipseclog((LOG_DEBUG, "%s: invalid sockaddr.\n", __func__));
+		error = EINVAL;
+		goto fail;
+	}
+	KEY_SETSECASIDX(proto, mode, reqid, src0 + 1, dst0 + 1, &saidx);
 	/*
 	 * Make sure the port numbers are zero.
 	 * In case of NAT-T we will update them later if needed.
 	 */
-	switch (((struct sockaddr *)(src0 + 1))->sa_family) {
-	case AF_INET:
-		if (((struct sockaddr *)(src0 + 1))->sa_len !=
-		    sizeof(struct sockaddr_in))
-			return key_senderror(so, m, EINVAL);
-		((struct sockaddr_in *)(src0 + 1))->sin_port = 0;
-		break;
-	case AF_INET6:
-		if (((struct sockaddr *)(src0 + 1))->sa_len !=
-		    sizeof(struct sockaddr_in6))
-			return key_senderror(so, m, EINVAL);
-		((struct sockaddr_in6 *)(src0 + 1))->sin6_port = 0;
-		break;
-	default:
-		; /*???*/
-	}
-	switch (((struct sockaddr *)(dst0 + 1))->sa_family) {
-	case AF_INET:
-		if (((struct sockaddr *)(dst0 + 1))->sa_len !=
-		    sizeof(struct sockaddr_in))
-			return key_senderror(so, m, EINVAL);
-		((struct sockaddr_in *)(dst0 + 1))->sin_port = 0;
-		break;
-	case AF_INET6:
-		if (((struct sockaddr *)(dst0 + 1))->sa_len !=
-		    sizeof(struct sockaddr_in6))
-			return key_senderror(so, m, EINVAL);
-		((struct sockaddr_in6 *)(dst0 + 1))->sin6_port = 0;
-		break;
-	default:
-		; /*???*/
-	}
-
-	/* XXX boundary check against sa_len */
-	KEY_SETSECASIDX(proto, mode, reqid, src0 + 1, dst0 + 1, &saidx);
-
-#ifdef IPSEC_NAT_T
-	/*
-	 * Handle NAT-T info if present.
-	 * We made sure the port numbers are zero above, so we do
-	 * not have to worry in case we do not update them.
-	 */
-	if (mhp->ext[SADB_X_EXT_NAT_T_OAI] != NULL)
-		ipseclog((LOG_DEBUG, "%s: NAT-T OAi present\n", __func__));
-	if (mhp->ext[SADB_X_EXT_NAT_T_OAR] != NULL)
-		ipseclog((LOG_DEBUG, "%s: NAT-T OAr present\n", __func__));
-
-	if (mhp->ext[SADB_X_EXT_NAT_T_TYPE] != NULL &&
-	    mhp->ext[SADB_X_EXT_NAT_T_SPORT] != NULL &&
-	    mhp->ext[SADB_X_EXT_NAT_T_DPORT] != NULL) {
-		struct sadb_x_nat_t_type *type;
-		struct sadb_x_nat_t_port *sport, *dport;
-
-		if (mhp->extlen[SADB_X_EXT_NAT_T_TYPE] < sizeof(*type) ||
-		    mhp->extlen[SADB_X_EXT_NAT_T_SPORT] < sizeof(*sport) ||
-		    mhp->extlen[SADB_X_EXT_NAT_T_DPORT] < sizeof(*dport)) {
-			ipseclog((LOG_DEBUG, "%s: invalid nat-t message "
-			    "passed.\n", __func__));
-			return key_senderror(so, m, EINVAL);
-		}
-
-		sport = (struct sadb_x_nat_t_port *)
-		    mhp->ext[SADB_X_EXT_NAT_T_SPORT];
-		dport = (struct sadb_x_nat_t_port *)
-		    mhp->ext[SADB_X_EXT_NAT_T_DPORT];
-
-		if (sport)
-			KEY_PORTTOSADDR(&saidx.src, sport->sadb_x_nat_t_port_port);
-		if (dport)
-			KEY_PORTTOSADDR(&saidx.dst, dport->sadb_x_nat_t_port_port);
-	}
-#endif
+	KEY_PORTTOSADDR(&saidx.src, 0);
+	KEY_PORTTOSADDR(&saidx.dst, 0);
 
 	/* SPI allocation */
-	spi = key_do_getnewspi((struct sadb_spirange *)mhp->ext[SADB_EXT_SPIRANGE],
-	                       &saidx);
-	if (spi == 0)
-		return key_senderror(so, m, EINVAL);
-
-	/* get a SA index */
-	if ((newsah = key_getsah(&saidx)) == NULL) {
-		/* create a new SA index */
-		if ((newsah = key_newsah(&saidx)) == NULL) {
-			ipseclog((LOG_DEBUG, "%s: No more memory.\n",__func__));
-			return key_senderror(so, m, ENOBUFS);
-		}
+	spi = key_do_getnewspi(
+	    (struct sadb_spirange *)mhp->ext[SADB_EXT_SPIRANGE], &saidx);
+	if (spi == 0) {
+		/*
+		 * Requested SPI or SPI range is not available or
+		 * already used.
+		 */
+		error = EEXIST;
+		goto fail;
 	}
+	sav = key_newsav(mhp, &saidx, spi, &error);
+	if (sav == NULL)
+		goto fail;
 
-	/* get a new SA */
-	/* XXX rewrite */
-	newsav = KEY_NEWSAV(m, mhp, newsah, &error);
-	if (newsav == NULL) {
-		/* XXX don't free new SA index allocated in above. */
-		return key_senderror(so, m, error);
+	if (sav->seq != 0) {
+		/*
+		 * RFC2367:
+		 * If the SADB_GETSPI message is in response to a
+		 * kernel-generated SADB_ACQUIRE, the sadb_msg_seq
+		 * MUST be the same as the SADB_ACQUIRE message.
+		 *
+		 * XXXAE: However it doesn't definethe behaviour how to
+		 * check this and what to do if it doesn't match.
+		 * Also what we should do if it matches?
+		 *
+		 * We can compare saidx used in SADB_ACQUIRE with saidx
+		 * used in SADB_GETSPI, but this probably can break
+		 * existing software. For now just warn if it doesn't match.
+		 *
+		 * XXXAE: anyway it looks useless.
+		 */
+		key_acqdone(&saidx, sav->seq);
 	}
-
-	/* set spi */
-	newsav->spi = htonl(spi);
-
-	/* delete the entry in acqtree */
-	if (mhp->msg->sadb_msg_seq != 0) {
-		struct secacq *acq;
-		if ((acq = key_getacqbyseq(mhp->msg->sadb_msg_seq)) != NULL) {
-			/* reset counter in order to deletion by timehandler. */
-			acq->created = time_second;
-			acq->count = 0;
-		}
-    	}
+	KEYDBG(KEY_STAMP,
+	    printf("%s: SA(%p)\n", __func__, sav));
+	KEYDBG(KEY_DATA, kdebug_secasv(sav));
 
     {
 	struct mbuf *n, *nn;
@@ -4601,8 +4558,10 @@ key_getspi(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 			n = NULL;
 		}
 	}
-	if (!n)
-		return key_senderror(so, m, ENOBUFS);
+	if (!n) {
+		error = ENOBUFS;
+		goto fail;
+	}
 
 	n->m_len = len;
 	n->m_next = NULL;
@@ -4614,7 +4573,7 @@ key_getspi(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 	m_sa = (struct sadb_sa *)(mtod(n, caddr_t) + off);
 	m_sa->sadb_sa_len = PFKEY_UNIT64(sizeof(struct sadb_sa));
 	m_sa->sadb_sa_exttype = SADB_EXT_SA;
-	m_sa->sadb_sa_spi = htonl(spi);
+	m_sa->sadb_sa_spi = spi; /* SPI is already in network byte order */
 	off += PFKEY_ALIGN8(sizeof(struct sadb_sa));
 
 	IPSEC_ASSERT(off == len,
@@ -4624,7 +4583,8 @@ key_getspi(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 	    SADB_EXT_ADDRESS_DST);
 	if (!n->m_next) {
 		m_freem(n);
-		return key_senderror(so, m, ENOBUFS);
+		error = ENOBUFS;
+		goto fail;
 	}
 
 	if (n->m_len < sizeof(struct sadb_msg)) {
@@ -4638,13 +4598,16 @@ key_getspi(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 		n->m_pkthdr.len += nn->m_len;
 
 	newmsg = mtod(n, struct sadb_msg *);
-	newmsg->sadb_msg_seq = newsav->seq;
+	newmsg->sadb_msg_seq = sav->seq;
 	newmsg->sadb_msg_errno = 0;
 	newmsg->sadb_msg_len = PFKEY_UNIT64(n->m_pkthdr.len);
 
 	m_freem(m);
 	return key_sendup_mbuf(so, n, KEY_SENDUP_ONE);
     }
+
+fail:
+	return (key_senderror(so, m, error));
 }
 
 /*
