@@ -172,16 +172,78 @@ static VNET_DEFINE(u_long, sphash_mask);
 #define	SPHASH_HASHVAL(id)	(key_u32hash(id) & V_sphash_mask)
 #define	SPHASH_HASH(id)		&V_sphashtbl[SPHASH_HASHVAL(id)]
 
-static VNET_DEFINE(LIST_HEAD(_sahtree, secashead), sahtree);	/* SAD */
+/* SAD */
+TAILQ_HEAD(secashead_queue, secashead);
+LIST_HEAD(secashead_list, secashead);
+static VNET_DEFINE(struct secashead_queue, sahtree);
+static struct rmlock sahtree_lock;
 #define	V_sahtree		VNET(sahtree)
-static struct mtx sahtree_lock;
-#define	SAHTREE_LOCK_INIT() \
-	mtx_init(&sahtree_lock, "sahtree", \
-		"fast ipsec security association database", MTX_DEF)
-#define	SAHTREE_LOCK_DESTROY()	mtx_destroy(&sahtree_lock)
-#define	SAHTREE_LOCK()		mtx_lock(&sahtree_lock)
-#define	SAHTREE_UNLOCK()	mtx_unlock(&sahtree_lock)
-#define	SAHTREE_LOCK_ASSERT()	mtx_assert(&sahtree_lock, MA_OWNED)
+#define	SAHTREE_LOCK_INIT()	rm_init(&sahtree_lock, "sahtree")
+#define	SAHTREE_LOCK_DESTROY()	rm_destroy(&sahtree_lock)
+#define	SAHTREE_RLOCK_TRACKER	struct rm_priotracker sahtree_tracker
+#define	SAHTREE_RLOCK()		rm_rlock(&sahtree_lock, &sahtree_tracker)
+#define	SAHTREE_RUNLOCK()	rm_runlock(&sahtree_lock, &sahtree_tracker)
+#define	SAHTREE_RLOCK_ASSERT()	rm_assert(&sahtree_lock, RA_RLOCKED)
+#define	SAHTREE_WLOCK()		rm_wlock(&sahtree_lock)
+#define	SAHTREE_WUNLOCK()	rm_wunlock(&sahtree_lock)
+#define	SAHTREE_WLOCK_ASSERT()	rm_assert(&sahtree_lock, RA_WLOCKED)
+#define	SAHTREE_UNLOCK_ASSERT()	rm_assert(&sahtree_lock, RA_UNLOCKED)
+
+/* Hash table for lookup in SAD using SA addresses */
+static VNET_DEFINE(struct secashead_list *, sahaddrhashtbl);
+static VNET_DEFINE(u_long, sahaddrhash_mask);
+#define	V_sahaddrhashtbl	VNET(sahaddrhashtbl)
+#define	V_sahaddrhash_mask	VNET(sahaddrhash_mask)
+
+#define	SAHHASH_NHASH_LOG2	7
+#define	SAHHASH_NHASH		(1 << SAHHASH_NHASH_LOG2)
+#define	SAHADDRHASH_HASHVAL(saidx)	\
+    (key_saidxhash(saidx) & V_sahaddrhash_mask)
+#define	SAHADDRHASH_HASH(saidx)		\
+    &V_sahaddrhashtbl[SAHADDRHASH_HASHVAL(saidx)]
+
+/* Hash table for lookup in SAD using SPI */
+LIST_HEAD(secasvar_list, secasvar);
+static VNET_DEFINE(struct secasvar_list *, savhashtbl);
+static VNET_DEFINE(u_long, savhash_mask);
+#define	V_savhashtbl		VNET(savhashtbl)
+#define	V_savhash_mask		VNET(savhash_mask)
+#define	SAVHASH_NHASH_LOG2	7
+#define	SAVHASH_NHASH		(1 << SAVHASH_NHASH_LOG2)
+#define	SAVHASH_HASHVAL(spi)	(key_u32hash(spi) & V_savhash_mask)
+#define	SAVHASH_HASH(spi)	&V_savhashtbl[SAVHASH_HASHVAL(spi)]
+
+static uint32_t
+key_saidxhash(const struct secasindex *saidx)
+{
+	uint32_t hval;
+
+	hval = fnv_32_buf(&saidx->proto, sizeof(saidx->proto),
+	    FNV1_32_INIT);
+	switch (saidx->dst.sa.sa_family) {
+#ifdef INET
+	case AF_INET:
+		hval = fnv_32_buf(&saidx->src.sin.sin_addr,
+		    sizeof(in_addr_t), hval);
+		hval = fnv_32_buf(&saidx->dst.sin.sin_addr,
+		    sizeof(in_addr_t), hval);
+		break;
+#endif
+#ifdef INET6
+	case AF_INET6:
+		hval = fnv_32_buf(&saidx->src.sin6.sin6_addr,
+		    sizeof(struct in6_addr), hval);
+		hval = fnv_32_buf(&saidx->dst.sin6.sin6_addr,
+		    sizeof(struct in6_addr), hval);
+		break;
+#endif
+	default:
+		hval = 0;
+		ipseclog((LOG_DEBUG, "%s: unknown address family %d",
+		    __func__, saidx->dst.sa.sa_family));
+	}
+	return (hval);
+}
 
 static uint32_t
 key_u32hash(uint32_t val)
@@ -7658,6 +7720,9 @@ key_init(void)
 
 	LIST_INIT(&V_sahtree);
 	V_sphashtbl = hashinit(SPHASH_NHASH, M_IPSEC_SP, &V_sphash_mask);
+	V_savhashtbl = hashinit(SAVHASH_NHASH, M_IPSEC_SA, &V_savhash_mask);
+	V_sahaddrhashtbl = hashinit(SAHHASH_NHASH, M_IPSEC_SAH,
+	    &V_sahaddrhash_mask);
 
 	for (i = 0; i <= SADB_SATYPE_MAX; i++)
 		LIST_INIT(&V_regtree[i]);
@@ -7722,6 +7787,8 @@ key_destroy(void)
 	SAHTREE_UNLOCK();
 
 	hashdestroy(V_sphashtbl, M_IPSEC_SP, V_sphash_mask);
+	hashdestroy(V_savhashtbl, M_IPSEC_SA, V_savhash_mask);
+	hashdestroy(V_sahaddrhashtbl, M_IPSEC_SAH, V_sahaddrhash_mask);
 
 	REGTREE_LOCK();
 	for (i = 0; i <= SADB_SATYPE_MAX; i++) {
