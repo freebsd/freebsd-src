@@ -15,7 +15,7 @@ digraph src {
 #   foo [label="Foo Bar\nfoo@FreeBSD.org\n????/??/??"]
 #
 # ????/??/?? is the date when the commit bit was obtained, usually the one you
-# can find looking at svn logs for the svnadmin/access file.
+# can find looking at svn logs for the svnadmin/conf/access file.
 # Use YYYY/MM/DD format.
 #
 # For returned commit bits, the node definition will follow this example:
@@ -140,6 +140,7 @@ cognet [label="Olivier Houchard\ncognet@FreeBSD.org\n2002/10/09"]
 cokane [label="Coleman Kane\ncokane@FreeBSD.org\n2000/06/19"]
 cperciva [label="Colin Percival\ncperciva@FreeBSD.org\n2004/01/20"]
 csjp [label="Christian S.J. Peron\ncsjp@FreeBSD.org\n2004/05/04"]
+dab [label="David Bright\ndab@FreeBSD.org\n2016/10/24"]
 das [label="David Schultz\ndas@FreeBSD.org\n2003/02/21"]
 davide [label="Davide Italiano\ndavide@FreeBSD.org\n2012/01/27"]
 dchagin [label="Dmitry Chagin\ndchagin@FreeBSD.org\n2009/02/28"]
@@ -783,6 +784,7 @@ ume -> suz
 ume -> tshiozak
 
 vangyzen -> badger
+vangyzen -> dab
 
 wes -> scf
 
