@@ -1407,17 +1407,19 @@ key_msg2sp(struct sadb_x_policy *xpl0, size_t len, int *error)
 	*error = 0;
 	return (newsp);
 }
-static u_int32_t
-key_newreqid()
-{
-	static u_int32_t auto_reqid = IPSEC_MANUAL_REQID_MAX + 1;
 
-	auto_reqid = (auto_reqid == ~0
-			? IPSEC_MANUAL_REQID_MAX + 1 : auto_reqid + 1);
+uint32_t
+key_newreqid(void)
+{
+	static uint32_t auto_reqid = IPSEC_MANUAL_REQID_MAX + 1;
+
+	if (auto_reqid == ~0)
+		auto_reqid = IPSEC_MANUAL_REQID_MAX + 1;
+	else
+		auto_reqid++;
 
 	/* XXX should be unique check */
-
-	return auto_reqid;
+	return (auto_reqid);
 }
 
 /*
@@ -1783,30 +1785,32 @@ key_spdadd(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
  *	0:	failure.
  *	others: success.
  */
-static u_int32_t
-key_getnewspid()
+static uint32_t
+key_getnewspid(void)
 {
-	u_int32_t newid = 0;
-	int count = V_key_spi_trycnt;	/* XXX */
 	struct secpolicy *sp;
+	uint32_t newid = 0;
+	int count = V_key_spi_trycnt;	/* XXX */
 
-	/* when requesting to allocate spi ranged */
+	SPTREE_WLOCK_ASSERT();
 	while (count--) {
-		newid = (V_policy_id = (V_policy_id == ~0 ? 1 : V_policy_id + 1));
-
-		if ((sp = key_getspbyid(newid)) == NULL)
+		if (V_policy_id == ~0) /* overflowed */
+			newid = V_policy_id = 1;
+		else
+			newid = ++V_policy_id;
+		LIST_FOREACH(sp, SPHASH_HASH(newid), idhash) {
+			if (sp->id == newid)
+				break;
+		}
+		if (sp == NULL)
 			break;
-
-		KEY_FREESP(&sp);
 	}
-
 	if (count == 0 || newid == 0) {
-		ipseclog((LOG_DEBUG, "%s: to allocate policy id is failed.\n",
-			__func__));
-		return 0;
+		ipseclog((LOG_DEBUG, "%s: failed to allocate policy id.\n",
+		    __func__));
+		return (0);
 	}
-
-	return newid;
+	return (newid);
 }
 
 /*
