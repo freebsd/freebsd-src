@@ -1134,32 +1134,23 @@ key_getsp(struct secpolicyindex *spidx)
 /*
  * get SP by index.
  * OUT:	NULL	: not found
- *	others	: found, pointer to a SP.
+ *	others	: found, pointer to referenced SP.
  */
 static struct secpolicy *
-key_getspbyid(u_int32_t id)
+key_getspbyid(uint32_t id)
 {
 	SPTREE_RLOCK_TRACKER;
 	struct secpolicy *sp;
 
 	SPTREE_RLOCK();
-	TAILQ_FOREACH(sp, &V_sptree[IPSEC_DIR_INBOUND], chain) {
+	LIST_FOREACH(sp, SPHASH_HASH(id), idhash) {
 		if (sp->id == id) {
 			SP_ADDREF(sp);
-			goto done;
+			break;
 		}
 	}
-
-	TAILQ_FOREACH(sp, &V_sptree[IPSEC_DIR_OUTBOUND], chain) {
-		if (sp->id == id) {
-			SP_ADDREF(sp);
-			goto done;
-		}
-	}
-done:
 	SPTREE_RUNLOCK();
-
-	return sp;
+	return (sp);
 }
 
 struct secpolicy *
