@@ -2020,7 +2020,7 @@ zfs_suspend_fs(zfsvfs_t *zfsvfs)
  * zfsvfs, held, and long held on entry.
  */
 int
-zfs_resume_fs(zfsvfs_t *zfsvfs, const char *osname)
+zfs_resume_fs(zfsvfs_t *zfsvfs, dsl_dataset_t *ds)
 {
 	int err;
 	znode_t *zp;
@@ -2029,14 +2029,13 @@ zfs_resume_fs(zfsvfs_t *zfsvfs, const char *osname)
 	ASSERT(RW_WRITE_HELD(&zfsvfs->z_teardown_inactive_lock));
 
 	/*
-	 * We already own this, so just hold and rele it to update the
-	 * objset_t, as the one we had before may have been evicted.
+	 * We already own this, so just update the objset_t, as the one we
+	 * had before may have been evicted.
 	 */
 	objset_t *os;
-	VERIFY0(dmu_objset_hold(osname, zfsvfs, &os));
-	VERIFY3P(os->os_dsl_dataset->ds_owner, ==, zfsvfs);
-	VERIFY(dsl_dataset_long_held(os->os_dsl_dataset));
-	dmu_objset_rele(os, zfsvfs);
+	VERIFY3P(ds->ds_owner, ==, zfsvfs);
+	VERIFY(dsl_dataset_long_held(ds));
+	VERIFY0(dmu_objset_from_ds(ds, &os));
 
 	err = zfsvfs_init(zfsvfs, os);
 	if (err != 0)
