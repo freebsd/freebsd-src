@@ -319,8 +319,8 @@ ath_tx_rate_fill_rcflags(struct ath_softc *sc, struct ath_buf *bf)
 			 * and we're not doing positioning, enable STBC.
 			 */
 			if (ic->ic_htcaps & IEEE80211_HTCAP_TXSTBC &&
-			    ni->ni_vap->iv_flags_ht & IEEE80211_FHT_STBC_TX &&
-			    ni->ni_htcap & IEEE80211_HTCAP_RXSTBC_1STREAM &&
+			    (ni->ni_vap->iv_flags_ht & IEEE80211_FHT_STBC_TX) &&
+			    (ni->ni_htcap & IEEE80211_HTCAP_RXSTBC) &&
 			    (sc->sc_cur_txchainmask > 1) &&
 			    (HT_RC_2_STREAMS(rate) == 1) &&
 			    (bf->bf_flags & ATH_BUF_TOA_PROBE) == 0) {
@@ -404,24 +404,40 @@ static int
 ath_compute_num_delims(struct ath_softc *sc, struct ath_buf *first_bf,
     uint16_t pktlen)
 {
+#define	MS(_v, _f)	(((_v) & _f) >> _f##_S)
 	const HAL_RATE_TABLE *rt = sc->sc_currates;
 	struct ieee80211_node *ni = first_bf->bf_node;
 	struct ieee80211vap *vap = ni->ni_vap;
 	int ndelim, mindelim = 0;
-	int mpdudensity;	 /* in 1/100'th of a microsecond */
+	int mpdudensity;	/* in 1/100'th of a microsecond */
+	int peer_mpdudensity;	/* net80211 value */
 	uint8_t rc, rix, flags;
 	int width, half_gi;
 	uint32_t nsymbits, nsymbols;
 	uint16_t minlen;
 
 	/*
-	 * vap->iv_ampdu_density is a value, rather than the actual
-	 * density.
+	 * Get the advertised density from the node.
 	 */
-	if (vap->iv_ampdu_density > IEEE80211_HTCAP_MPDUDENSITY_16)
+	peer_mpdudensity = MS(ni->ni_htparam, IEEE80211_HTCAP_MPDUDENSITY);
+
+	/*
+	 * vap->iv_ampdu_density is a net80211 value, rather than the actual
+	 * density.  Larger values are longer A-MPDU density spacing values,
+	 * and we want to obey larger configured / negotiated density values
+	 * per station if we get it.
+	 */
+	if (vap->iv_ampdu_density > peer_mpdudensity)
+		peer_mpdudensity = vap->iv_ampdu_density;
+
+	/*
+	 * Convert the A-MPDU density net80211 value to a 1/100 microsecond
+	 * value for subsequent calculations.
+	 */
+	if (peer_mpdudensity > IEEE80211_HTCAP_MPDUDENSITY_16)
 		mpdudensity = 1600;		/* maximum density */
 	else
-		mpdudensity = ieee80211_mpdudensity_map[vap->iv_ampdu_density];
+		mpdudensity = ieee80211_mpdudensity_map[peer_mpdudensity];
 
 	/* Select standard number of delimiters based on frame length */
 	ndelim = ATH_AGGR_GET_NDELIM(pktlen);
@@ -509,21 +525,48 @@ ath_compute_num_delims(struct ath_softc *sc, struct ath_buf *first_bf,
 	    __func__, pktlen, minlen, rix, rc, width, half_gi, ndelim);
 
 	return ndelim;
+#undef	MS
 }
 
 /*
  * Fetch the aggregation limit.
  *
  * It's the lowest of the four rate series 4ms frame length.
+ *
+ * Also take into account the hardware specific limits (8KiB on AR5416)
+ * and per-peer limits in non-STA mode.
  */
 static int
-ath_get_aggr_limit(struct ath_softc *sc, struct ath_buf *bf)
+ath_get_aggr_limit(struct ath_softc *sc, struct ieee80211_node *ni,
+    struct ath_buf *bf)
 {
+#define	MS(_v, _f)	(((_v) & _f) >> _f##_S)
 	int amin = ATH_AGGR_MAXSIZE;
 	int i;
 
+	/* Extract out the maximum configured driver A-MPDU limit */
 	if (sc->sc_aggr_limit > 0 && sc->sc_aggr_limit < ATH_AGGR_MAXSIZE)
 		amin = sc->sc_aggr_limit;
+
+	/*
+	 * Check the HTCAP field for the maximum size the node has
+	 * negotiated.  If it's smaller than what we have, cap it there.
+	 */
+	switch (MS(ni->ni_htparam, IEEE80211_HTCAP_MAXRXAMPDU)) {
+	case IEEE80211_HTCAP_MAXRXAMPDU_16K:
+		amin = MIN(amin, 16384);
+		break;
+	case IEEE80211_HTCAP_MAXRXAMPDU_32K:
+		amin = MIN(amin, 32768);
+		break;
+	case IEEE80211_HTCAP_MAXRXAMPDU_64K:
+		amin = MIN(amin, 65536);
+		break;
+	case IEEE80211_HTCAP_MAXRXAMPDU_8K:
+	default:
+		amin = MIN(amin, 8192);
+		break;
+	}
 
 	for (i = 0; i < ATH_RC_NUM; i++) {
 		if (bf->bf_state.bfs_rc[i].tries == 0)
@@ -535,6 +578,7 @@ ath_get_aggr_limit(struct ath_softc *sc, struct ath_buf *bf)
 	    __func__, amin);
 
 	return amin;
+#undef	MS
 }
 
 /*
@@ -787,7 +831,8 @@ ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an,
 			 * set the aggregation limit based on the
 			 * rate control decision that has been made.
 			 */
-			aggr_limit = ath_get_aggr_limit(sc, bf_first);
+			aggr_limit = ath_get_aggr_limit(sc, &an->an_node,
+			    bf_first);
 		}
 
 		/* Set this early just so things don't get confused */
