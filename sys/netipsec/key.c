@@ -871,92 +871,59 @@ key_allocsa_policy(struct secpolicy *sp, const struct secasindex *saidx,
  * keep source address in IPsec SA.  We see a tricky situation here.
  */
 struct secasvar *
-key_allocsa(union sockaddr_union *dst, u_int proto, u_int32_t spi,
-    const char* where, int tag)
+key_allocsa(union sockaddr_union *dst, uint8_t proto, uint32_t spi)
 {
-	struct secashead *sah;
+	SAHTREE_RLOCK_TRACKER;
 	struct secasvar *sav;
-	u_int stateidx, arraysize, state;
-	const u_int *saorder_state_valid;
-#ifdef IPSEC_NAT_T
-	int natt_chkport;
-#endif
+	int chkport;
 
 	IPSEC_ASSERT(dst != NULL, ("null dst address"));
 
-	KEYDEBUG(KEYDEBUG_IPSEC_STAMP,
-		printf("DP %s from %s:%u\n", __func__, where, tag));
-
-#ifdef IPSEC_NAT_T
-        natt_chkport = (dst->sa.sa_family == AF_INET &&
-	    dst->sa.sa_len == sizeof(struct sockaddr_in) &&
-	    dst->sin.sin_port != 0);
-#endif
-
+	chkport = 0;
+	SAHTREE_RLOCK();
+	LIST_FOREACH(sav, SAVHASH_HASH(spi), spihash) {
+		if (sav->spi == spi)
+			break;
+	}
 	/*
-	 * searching SAD.
-	 * XXX: to be checked internal IP header somewhere.  Also when
-	 * IPsec tunnel packet is received.  But ESP tunnel mode is
-	 * encrypted so we can't check internal IP header.
+	 * We use single SPI namespace for all protocols, so it is
+	 * impossible to have SPI duplicates in the SAVHASH.
+	 * XXXAE: this breaks TCP_SIGNATURE.
 	 */
-	SAHTREE_LOCK();
-	if (V_key_preferred_oldsa) {
-		saorder_state_valid = saorder_state_valid_prefer_old;
-		arraysize = _ARRAYLEN(saorder_state_valid_prefer_old);
-	} else {
-		saorder_state_valid = saorder_state_valid_prefer_new;
-		arraysize = _ARRAYLEN(saorder_state_valid_prefer_new);
-	}
-	LIST_FOREACH(sah, &V_sahtree, chain) {
-		int checkport;
-
-		/* search valid state */
-		for (stateidx = 0; stateidx < arraysize; stateidx++) {
-			state = saorder_state_valid[stateidx];
-			LIST_FOREACH(sav, &sah->savtree[state], chain) {
-				/* sanity check */
-				KEY_CHKSASTATE(sav->state, state, __func__);
-				/* do not return entries w/ unusable state */
-				if (sav->state != SADB_SASTATE_MATURE &&
-				    sav->state != SADB_SASTATE_DYING)
-					continue;
-				if (proto != sav->sah->saidx.proto)
-					continue;
-				if (spi != sav->spi)
-					continue;
-				checkport = 0;
+	if (sav != NULL) {
 #ifdef IPSEC_NAT_T
-				/*
-				 * Really only check ports when this is a NAT-T
-				 * SA.  Otherwise other lookups providing ports
-				 * might suffer.
-				 */
-				if (sav->natt_type && natt_chkport)
-					checkport = 1;
+		/*
+		 * Really only check ports when this is a NAT-T
+		 * SA.  Otherwise other lookups providing ports
+		 * might suffer.
+		 */
+		chkport = (sav->natt_type != 0 &&
+		    dst->sa.sa_family == AF_INET &&
+		    dst->sa.sa_len == sizeof(struct sockaddr_in) &&
+		    dst->sin.sin_port != 0);
 #endif
-#if 0	/* don't check src */
-				/* check src address */
-				if (key_sockaddrcmp(&src->sa,	
-				    &sav->sah->saidx.src.sa, checkport) != 0)
-					continue;
-#endif
-				/* check dst address */
-				if (key_sockaddrcmp(&dst->sa,
-				    &sav->sah->saidx.dst.sa, checkport) != 0)
-					continue;
-				sa_addref(sav);
-				goto done;
-			}
-		}
+		if (sav->state != SADB_SASTATE_LARVAL &&
+		    sav->sah->saidx.proto == proto &&
+		    key_sockaddrcmp(&dst->sa, &sav->sah->saidx.dst.sa,
+			chkport) == 0)
+			SAV_ADDREF(sav);
+		else
+			sav = NULL;
 	}
-	sav = NULL;
-done:
-	SAHTREE_UNLOCK();
+	SAHTREE_RUNLOCK();
 
-	KEYDEBUG(KEYDEBUG_IPSEC_STAMP,
-		printf("DP %s return SA:%p; refcnt %u\n", __func__,
-			sav, sav ? sav->refcnt : 0));
-	return sav;
+	if (sav == NULL) {
+		KEYDBG(IPSEC_STAMP,
+		    char buf[IPSEC_ADDRSTRLEN];
+		    printf("%s: SA not found for spi %u proto %u dst %s\n",
+			__func__, ntohl(spi), proto, ipsec_address(dst, buf,
+			sizeof(buf))));
+	} else {
+		KEYDBG(IPSEC_STAMP,
+		    printf("%s: return SA(%p)\n", __func__, sav));
+		KEYDBG(IPSEC_DATA, kdebug_secasv(sav));
+	}
+	return (sav);
 }
 
 struct secasvar *
