@@ -132,7 +132,7 @@
 
       <para>&intel; EM64T is an extended version of IA-32 (x86) and
 	different from &intel; IA-64 (Itanium) architecture, which
-	&os;/ia64 supports.  Some &intel;'s old documentation refers
+	&os;/ia64 supports.  Some of &intel;'s old documentation refers
 	to &intel; EM64T as <quote>64-bit extension technology</quote>
 	or <quote>IA-32e</quote>.</para>
 
