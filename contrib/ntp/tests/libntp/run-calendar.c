@@ -25,6 +25,7 @@
 #include "config.h"
 #include "ntp_stdlib.h"
 #include "ntp_calendar.h"
+#include "ntp_unixtime.h"
 #include <string.h>
 
 //=======External Functions This Runner Calls=====
@@ -45,6 +46,8 @@ extern void test_IsoCalYearsToWeeks(void);
 extern void test_IsoCalWeeksToYearStart(void);
 extern void test_IsoCalWeeksToYearEnd(void);
 extern void test_DaySecToDate(void);
+extern void test_NtpToNtp(void);
+extern void test_NtpToTime(void);
 
 
 //=======Test Reset Option=====
@@ -63,21 +66,23 @@ int main(int argc, char *argv[])
 {
   progname = argv[0];
   UnityBegin("calendar.c");
-  RUN_TEST(test_DaySplitMerge, 22);
-  RUN_TEST(test_SplitYearDays1, 23);
-  RUN_TEST(test_SplitYearDays2, 24);
-  RUN_TEST(test_RataDie1, 25);
-  RUN_TEST(test_LeapYears1, 26);
-  RUN_TEST(test_LeapYears2, 27);
-  RUN_TEST(test_RoundTripDate, 28);
-  RUN_TEST(test_RoundTripYearStart, 29);
-  RUN_TEST(test_RoundTripMonthStart, 30);
-  RUN_TEST(test_RoundTripWeekStart, 31);
-  RUN_TEST(test_RoundTripDayStart, 32);
-  RUN_TEST(test_IsoCalYearsToWeeks, 33);
-  RUN_TEST(test_IsoCalWeeksToYearStart, 34);
-  RUN_TEST(test_IsoCalWeeksToYearEnd, 35);
-  RUN_TEST(test_DaySecToDate, 36);
+  RUN_TEST(test_DaySplitMerge, 24);
+  RUN_TEST(test_SplitYearDays1, 25);
+  RUN_TEST(test_SplitYearDays2, 26);
+  RUN_TEST(test_RataDie1, 27);
+  RUN_TEST(test_LeapYears1, 28);
+  RUN_TEST(test_LeapYears2, 29);
+  RUN_TEST(test_RoundTripDate, 30);
+  RUN_TEST(test_RoundTripYearStart, 31);
+  RUN_TEST(test_RoundTripMonthStart, 32);
+  RUN_TEST(test_RoundTripWeekStart, 33);
+  RUN_TEST(test_RoundTripDayStart, 34);
+  RUN_TEST(test_IsoCalYearsToWeeks, 35);
+  RUN_TEST(test_IsoCalWeeksToYearStart, 36);
+  RUN_TEST(test_IsoCalWeeksToYearEnd, 37);
+  RUN_TEST(test_DaySecToDate, 38);
+  RUN_TEST(test_NtpToNtp, 40);
+  RUN_TEST(test_NtpToTime, 41);
 
   return (UnityEnd());
 }
