@@ -1592,15 +1592,16 @@ fail:
  * SPDSETIDX like SPDADD without a part of policy requests.
  * SPDUPDATE replace a unique policy entry.
  *
+ * XXXAE: serialize this in PF_KEY to avoid races.
  * m will always be freed.
  */
 static int
 key_spdadd(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 {
+	struct secpolicyindex spidx;
 	struct sadb_address *src0, *dst0;
 	struct sadb_x_policy *xpl0, *xpl;
 	struct sadb_lifetime *lft = NULL;
-	struct secpolicyindex spidx;
 	struct secpolicy *newsp;
 	int error;
 
@@ -1609,24 +1610,26 @@ key_spdadd(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 	IPSEC_ASSERT(mhp != NULL, ("null msghdr"));
 	IPSEC_ASSERT(mhp->msg != NULL, ("null msg"));
 
-	if (mhp->ext[SADB_EXT_ADDRESS_SRC] == NULL ||
-	    mhp->ext[SADB_EXT_ADDRESS_DST] == NULL ||
-	    mhp->ext[SADB_X_EXT_POLICY] == NULL) {
-		ipseclog((LOG_DEBUG, "key_spdadd: invalid message is passed.\n"));
+	if (SADB_CHECKHDR(mhp, SADB_EXT_ADDRESS_SRC) ||
+	    SADB_CHECKHDR(mhp, SADB_EXT_ADDRESS_DST) ||
+	    SADB_CHECKHDR(mhp, SADB_X_EXT_POLICY)) {
+		ipseclog((LOG_DEBUG,
+		    "%s: invalid message: missing required header.\n",
+		    __func__));
 		return key_senderror(so, m, EINVAL);
 	}
-	if (mhp->extlen[SADB_EXT_ADDRESS_SRC] < sizeof(struct sadb_address) ||
-	    mhp->extlen[SADB_EXT_ADDRESS_DST] < sizeof(struct sadb_address) ||
-	    mhp->extlen[SADB_X_EXT_POLICY] < sizeof(struct sadb_x_policy)) {
-		ipseclog((LOG_DEBUG, "%s: invalid message is passed.\n",
-			__func__));
+	if (SADB_CHECKLEN(mhp, SADB_EXT_ADDRESS_SRC) ||
+	    SADB_CHECKLEN(mhp, SADB_EXT_ADDRESS_DST) ||
+	    SADB_CHECKLEN(mhp, SADB_X_EXT_POLICY)) {
+		ipseclog((LOG_DEBUG,
+		    "%s: invalid message: wrong header size.\n", __func__));
 		return key_senderror(so, m, EINVAL);
 	}
-	if (mhp->ext[SADB_EXT_LIFETIME_HARD] != NULL) {
-		if (mhp->extlen[SADB_EXT_LIFETIME_HARD]
-			< sizeof(struct sadb_lifetime)) {
-			ipseclog((LOG_DEBUG, "%s: invalid message is passed.\n",
-				__func__));
+	if (!SADB_CHECKHDR(mhp, SADB_EXT_LIFETIME_HARD)) {
+		if (SADB_CHECKLEN(mhp, SADB_EXT_LIFETIME_HARD)) {
+			ipseclog((LOG_DEBUG,
+			    "%s: invalid message: wrong header size.\n",
+			    __func__));
 			return key_senderror(so, m, EINVAL);
 		}
 		lft = (struct sadb_lifetime *)mhp->ext[SADB_EXT_LIFETIME_HARD];
@@ -1636,13 +1639,44 @@ key_spdadd(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 	dst0 = (struct sadb_address *)mhp->ext[SADB_EXT_ADDRESS_DST];
 	xpl0 = (struct sadb_x_policy *)mhp->ext[SADB_X_EXT_POLICY];
 
-	/* 
+	/*
 	 * Note: do not parse SADB_X_EXT_NAT_T_* here:
 	 * we are processing traffic endpoints.
 	 */
 
+	/* check the direciton */
+	switch (xpl0->sadb_x_policy_dir) {
+	case IPSEC_DIR_INBOUND:
+	case IPSEC_DIR_OUTBOUND:
+		break;
+	default:
+		ipseclog((LOG_DEBUG, "%s: invalid SP direction.\n", __func__));
+		return key_senderror(so, m, EINVAL);
+	}
+	/* key_spdadd() accepts DISCARD, NONE and IPSEC. */
+	if (xpl0->sadb_x_policy_type != IPSEC_POLICY_DISCARD &&
+	    xpl0->sadb_x_policy_type != IPSEC_POLICY_NONE &&
+	    xpl0->sadb_x_policy_type != IPSEC_POLICY_IPSEC) {
+		ipseclog((LOG_DEBUG, "%s: invalid policy type.\n", __func__));
+		return key_senderror(so, m, EINVAL);
+	}
+
+	/* policy requests are mandatory when action is ipsec. */
+	if (xpl0->sadb_x_policy_type == IPSEC_POLICY_IPSEC &&
+	    mhp->extlen[SADB_X_EXT_POLICY] <= sizeof(*xpl0)) {
+		ipseclog((LOG_DEBUG,
+		    "%s: policy requests required.\n", __func__));
+		return key_senderror(so, m, EINVAL);
+	}
+
+	error = key_checksockaddrs((struct sockaddr *)(src0 + 1),
+	    (struct sockaddr *)(dst0 + 1));
+	if (error != 0 ||
+	    src0->sadb_address_proto != dst0->sadb_address_proto) {
+		ipseclog((LOG_DEBUG, "%s: invalid sockaddr.\n", __func__));
+		return key_senderror(so, m, error);
+	}
 	/* make secindex */
-	/* XXX boundary check against sa_len */
 	KEY_SETSECSPIDX(xpl0->sadb_x_policy_dir,
 	                src0 + 1,
 	                dst0 + 1,
@@ -1650,116 +1684,47 @@ key_spdadd(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 	                dst0->sadb_address_prefixlen,
 	                src0->sadb_address_proto,
 	                &spidx);
-
-	/* checking the direciton. */
-	switch (xpl0->sadb_x_policy_dir) {
-	case IPSEC_DIR_INBOUND:
-	case IPSEC_DIR_OUTBOUND:
-		break;
-	default:
-		ipseclog((LOG_DEBUG, "%s: Invalid SP direction.\n", __func__));
-		mhp->msg->sadb_msg_errno = EINVAL;
-		return 0;
-	}
-
-	/* check policy */
-	/* key_spdadd() accepts DISCARD, NONE and IPSEC. */
-	if (xpl0->sadb_x_policy_type == IPSEC_POLICY_ENTRUST
-	 || xpl0->sadb_x_policy_type == IPSEC_POLICY_BYPASS) {
-		ipseclog((LOG_DEBUG, "%s: Invalid policy type.\n", __func__));
-		return key_senderror(so, m, EINVAL);
-	}
-
-	/* policy requests are mandatory when action is ipsec. */
-        if (mhp->msg->sadb_msg_type != SADB_X_SPDSETIDX
-	 && xpl0->sadb_x_policy_type == IPSEC_POLICY_IPSEC
-	 && mhp->extlen[SADB_X_EXT_POLICY] <= sizeof(*xpl0)) {
-		ipseclog((LOG_DEBUG, "%s: some policy requests part required\n",
-			__func__));
-		return key_senderror(so, m, EINVAL);
-	}
-
-	/*
-	 * checking there is SP already or not.
-	 * SPDUPDATE doesn't depend on whether there is a SP or not.
-	 * If the type is either SPDADD or SPDSETIDX AND a SP is found,
-	 * then error.
-	 */
+	/* Checking there is SP already or not. */
 	newsp = key_getsp(&spidx);
-	if (mhp->msg->sadb_msg_type == SADB_X_SPDUPDATE) {
-		if (newsp) {
+	if (newsp != NULL) {
+		if (mhp->msg->sadb_msg_type == SADB_X_SPDUPDATE) {
+			KEYDBG(KEY_STAMP,
+			    printf("%s: unlink SP(%p) for SPDUPDATE\n",
+				__func__, newsp));
+			KEYDBG(KEY_DATA, kdebug_secpolicy(newsp));
 			key_unlink(newsp);
-			KEY_FREESP(&newsp);
-		}
-	} else {
-		if (newsp != NULL) {
-			KEY_FREESP(&newsp);
-			ipseclog((LOG_DEBUG, "%s: a SP entry exists already.\n",
-				__func__));
-			return key_senderror(so, m, EEXIST);
+			key_freesp(&newsp);
+		} else {
+			key_freesp(&newsp);
+			ipseclog((LOG_DEBUG, "%s: a SP entry exists already.",
+			    __func__));
+			return (key_senderror(so, m, EEXIST));
 		}
 	}
 
-	/* XXX: there is race between key_getsp and key_msg2sp. */
-
-	/* allocation new SP entry */
+	/* allocate new SP entry */
 	if ((newsp = key_msg2sp(xpl0, PFKEY_EXTLEN(xpl0), &error)) == NULL) {
 		return key_senderror(so, m, error);
 	}
 
-	if ((newsp->id = key_getnewspid()) == 0) {
-		KEY_FREESP(&newsp);
-		return key_senderror(so, m, ENOBUFS);
-	}
-
-	/* XXX boundary check against sa_len */
-	KEY_SETSECSPIDX(xpl0->sadb_x_policy_dir,
-	                src0 + 1,
-	                dst0 + 1,
-	                src0->sadb_address_prefixlen,
-	                dst0->sadb_address_prefixlen,
-	                src0->sadb_address_proto,
-	                &newsp->spidx);
-
-	/* sanity check on addr pair */
-	if (((struct sockaddr *)(src0 + 1))->sa_family !=
-			((struct sockaddr *)(dst0+ 1))->sa_family) {
-		KEY_FREESP(&newsp);
-		return key_senderror(so, m, EINVAL);
-	}
-	if (((struct sockaddr *)(src0 + 1))->sa_len !=
-			((struct sockaddr *)(dst0+ 1))->sa_len) {
-		KEY_FREESP(&newsp);
-		return key_senderror(so, m, EINVAL);
-	}
-#if 1
-	if (newsp->req && newsp->req->saidx.src.sa.sa_family &&
-	    newsp->req->saidx.dst.sa.sa_family) {
-		if (newsp->req->saidx.src.sa.sa_family !=
-		    newsp->req->saidx.dst.sa.sa_family) {
-			KEY_FREESP(&newsp);
-			return key_senderror(so, m, EINVAL);
-		}
-	}
-#endif
-
-	newsp->created = time_second;
-	newsp->lastused = newsp->created;
+	newsp->lastused = newsp->created = time_second;
 	newsp->lifetime = lft ? lft->sadb_lifetime_addtime : 0;
 	newsp->validtime = lft ? lft->sadb_lifetime_usetime : 0;
+	bcopy(&spidx, &newsp->spidx, sizeof(spidx));
 
+	/* XXXAE: there is race between key_getsp() and key_insertsp() */
+	SPTREE_WLOCK();
+	if ((newsp->id = key_getnewspid()) == 0) {
+		SPTREE_WUNLOCK();
+		key_freesp(&newsp);
+		return key_senderror(so, m, ENOBUFS);
+	}
 	key_insertsp(newsp);
+	SPTREE_WUNLOCK();
 
-	/* delete the entry in spacqtree */
-	if (mhp->msg->sadb_msg_type == SADB_X_SPDUPDATE) {
-		struct secspacq *spacq = key_getspacq(&spidx);
-		if (spacq != NULL) {
-			/* reset counter in order to deletion by timehandler. */
-			spacq->created = time_second;
-			spacq->count = 0;
-			SPACQ_UNLOCK();
-		}
-    	}
+	KEYDBG(KEY_STAMP,
+	    printf("%s: SP(%p)\n", __func__, newsp));
+	KEYDBG(KEY_DATA, kdebug_secpolicy(newsp));
 
     {
 	struct mbuf *n, *mpolicy;
