@@ -2377,14 +2377,15 @@ key_getspreqmsglen(struct secpolicy *sp)
 static int
 key_spdexpire(struct secpolicy *sp)
 {
-	struct mbuf *result = NULL, *m;
-	int len;
-	int error = -1;
 	struct sadb_lifetime *lt;
-
-	/* XXX: Why do we lock ? */
+	struct mbuf *result = NULL, *m;
+	int len, error = -1;
 
 	IPSEC_ASSERT(sp != NULL, ("null secpolicy"));
+
+	KEYDBG(KEY_STAMP,
+	    printf("%s: SP(%p)\n", __func__, sp));
+	KEYDBG(KEY_DATA, kdebug_secpolicy(sp));
 
 	/* set msg header */
 	m = key_setsadbmsg(SADB_X_SPDEXPIRE, 0, 0, 0, 0, 0);
@@ -2446,7 +2447,7 @@ key_spdexpire(struct secpolicy *sp)
 	m_cat(result, m);
 
 	/* set secpolicy */
-	m = key_sp2msg(sp);
+	m = key_sp2mbuf(sp);
 	if (!m) {
 		error = ENOBUFS;
 		goto fail;
