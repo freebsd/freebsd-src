@@ -11,16 +11,135 @@
 #include "ntp_assert.h"
 #include "win32_io.h"
 
+#include "ntp_iocplmem.h"
+#include "ntp_iocpltypes.h"
+
+/* -------------------------------------------------------------------
+ * COM port management
+ *
+ * com port handling needs some special functionality, especially for
+ * PPS support. There are things that are shared by the Windows Kernel
+ * on device level, not handle level. These include IOCPL membership,
+ * event wait slot, ... It's also no so simple to open a device a
+ * second time, and so we must manage the handles on open com ports
+ * in userland. Well, partially.
+ */
 #define MAX_SERIAL 255	/* COM1: - COM255: */
+#define MAX_COMDUP 8	/* max. allowed number of dupes per device */
 
 typedef struct comhandles_tag {
-	HANDLE		h;
-	size_t		opens;
-	HANDLE *	dupes;
+	uint16_t	unit;	/* COMPORT number		*/
+	uint16_t	nhnd;	/* number of open handles	*/
+	char *		comName;/* windows device name		*/
+	DevCtx_t *	devCtx;	/* shared device context	*/
+	HANDLE		htab[MAX_COMDUP];	/* OS handles	*/
 } comhandles;
 
-comhandles *	hnds;	/* handle/dupes array */
-size_t		c_hnds;	/* current array size */
+comhandles **	tab_comh;	/* device data table		*/
+size_t		num_comh;	/* current used array size	*/
+size_t		max_comh;	/* current allocated array size	*/
+
+/* lookup a COM unit by a handle
+ * Scans all used units for a matching handle. Returns the slot
+ * or NULL on failure.
+ *
+ * If 'phidx' is given, the index in the slots handle table that
+ * holds the handle is also returned.
+ *
+ * This a simple 2d table scan. But since we don't expect to have
+ * hundreds of com ports open, this should be no problem.
+ */
+static comhandles*
+lookup_com_handle(
+	HANDLE		h,
+	size_t *	phidx
+	)
+{
+	size_t		tidx, hidx;
+	comhandles *	slot;
+	for (tidx = 0; tidx < num_comh; ++tidx) {
+		slot = tab_comh[tidx];
+		for (hidx = 0; hidx < slot->nhnd; ++hidx) {
+			if (slot->htab[hidx] == h) {
+				if (phidx != NULL)
+					*phidx = hidx;
+				return slot;
+			}
+		}
+	}
+	return NULL;
+}
+
+/* lookup the list of COM units by unit number. This will always return
+ * a valid location -- eventually the table gets expanded, and a new
+ * entry is returned. In that case, the structure is set up with all
+ * entries valid and *no* file handles yet.
+ */
+static comhandles*
+insert_com_unit(
+	uint16_t unit
+)
+{
+	size_t		tidx;
+	comhandles *	slot;
+
+	/* search for matching entry and return if found */
+	for (tidx = 0; tidx < num_comh; ++tidx)
+		if (tab_comh[tidx]->unit == unit)
+			return tab_comh[tidx];
+
+	/* search failed. make sure we can add a new slot */
+	if (num_comh >= max_comh) {
+		/* round up to next multiple of 4 */
+		max_comh = (num_comh + 4) & ~(size_t)3;
+		tab_comh = erealloc(tab_comh, max_comh * sizeof(tab_comh[0]));
+	}
+
+	/* create a new slot and populate it. */
+	slot = emalloc_zero(sizeof(comhandles));
+	LIB_GETBUF(slot->comName);
+	snprintf(slot->comName, LIB_BUFLENGTH, "\\\\.\\COM%d", unit);
+	slot->comName = estrdup(slot->comName);
+	slot->devCtx  = DevCtxAlloc();
+	slot->unit    = unit;
+
+	/* plug it into table and return it */
+	tab_comh[num_comh++] = slot;
+	return slot;
+}
+
+/* remove a COM slot from the table and destroy it. */
+static void
+remove_com_slot(
+	comhandles *	slot	/* must be valid! */
+	)
+{
+	size_t	tidx;
+	for (tidx = 0; tidx < num_comh; ++tidx)
+		if (tab_comh[tidx] == slot) {
+			tab_comh[tidx] = tab_comh[--num_comh];
+			break;
+		}
+
+	DevCtxDetach(slot->devCtx);
+	free(slot->comName);
+	free(slot);
+}
+
+/* fetch the stored device context block.
+ * This does NOT step the reference counter!
+ */
+DevCtx_t*
+serial_devctx(
+	HANDLE	h
+	)
+{
+	comhandles * slot = NULL;
+	if (INVALID_HANDLE_VALUE != h && NULL != h)
+		slot = lookup_com_handle(h, NULL);
+	return (NULL != slot) ? slot->devCtx : NULL;
+}
+
 
 /*
  * common_serial_open ensures duplicate opens of the same port
@@ -30,16 +149,13 @@ size_t		c_hnds;	/* current array size */
 HANDLE
 common_serial_open(
 	const char *	dev,
-	char **		pwindev
+	const char **	pwindev
 	)
 {
-	char *		windev;
 	HANDLE		handle;
 	size_t		unit;
-	size_t		prev_c_hnds;
-	size_t		opens;
 	const char *	pch;
-	u_int		uibuf;
+	comhandles *	slot;
 
 	/*
 	 * This is odd, but we'll take any unix device path
@@ -55,147 +171,105 @@ common_serial_open(
 
 	TRACE(1, ("common_serial_open given %s\n", dev));
 
+	handle = INVALID_HANDLE_VALUE;
+
 	pch = NULL;
 	if ('/' == dev[0]) {
-		pch = dev + strlen(dev) - 1;
-
-		if (isdigit(pch[0])) {
-			while (isdigit(pch[0])) {
-				pch--;
-			}
-			pch++;
-		}
+		pch = dev + strlen(dev);
+		while (isdigit((u_char)pch[-1]))
+			--pch;
 		TRACE(1, ("common_serial_open skipped to ending digits leaving %s\n", pch));
-	} else if ('c' == tolower(dev[0])
-		   && 'o' == tolower(dev[1])
-		   && 'm' == tolower(dev[2])) {
+	} else if (0 == _strnicmp("COM", dev, 3)) {
 		pch = dev + 3;
 		TRACE(1, ("common_serial_open skipped COM leaving %s\n", pch));
 	}
 
-	if (!pch || !isdigit(pch[0])) {
+	if (!pch || !isdigit((u_char)pch[0])) {
 		TRACE(1, ("not a digit: %s\n", pch ? pch : "[NULL]"));
 		return INVALID_HANDLE_VALUE;
 	}
 
-	if (1 != sscanf(pch, "%u", &uibuf) 
-	    || (unit = uibuf) > MAX_SERIAL) {
-		TRACE(1, ("sscanf failure of %s\n", pch));
+	unit = strtoul(pch, (char**)&pch, 10);
+	if (*pch || unit > MAX_SERIAL) {
+		TRACE(1, ("conversion failure: unit=%u at '%s'\n", pch));
 		return INVALID_HANDLE_VALUE;
 	}
 
-
-	if (c_hnds < unit + 1) {
-		prev_c_hnds = c_hnds;
-		c_hnds = unit + 1;
-		/* round up to closest multiple of 4 to avoid churn */
-		c_hnds = (c_hnds + 3) & ~3;
-		hnds = erealloc_zero(hnds, c_hnds * sizeof(hnds[0]),
-				     prev_c_hnds * sizeof(hnds[0]));
-	}
-
-	if (NULL == hnds[unit].h) {
-		INSIST(0 == hnds[unit].opens);
-		LIB_GETBUF(windev);
-		snprintf(windev, LIB_BUFLENGTH, "\\\\.\\COM%d", unit);
-		TRACE(1, ("windows device %s\n", windev));
-		*pwindev = windev;
-		hnds[unit].h =
-		    CreateFile(
-			windev,
+	/* Now.... find the COM slot, and either create a new file
+	 * (if there is no handle yet) or duplicate one of the existing
+	 * handles. Unless the dup table for one com port would overflow,
+	 * but that's an indication of a programming error somewhere.
+	 */
+	slot = insert_com_unit(unit);
+	if (slot->nhnd == 0) {
+		TRACE(1, ("windows device %s\n", slot->comName));
+		slot->htab[0] = CreateFileA(
+				slot->comName,
 			GENERIC_READ | GENERIC_WRITE,
 			0, /* sharing prohibited */
 			NULL, /* default security */
 			OPEN_EXISTING,
 			FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED,
 			NULL);
-		if (INVALID_HANDLE_VALUE == hnds[unit].h)
-			hnds[unit].h = NULL;
+		if (INVALID_HANDLE_VALUE != slot->htab[0]) {
+			slot->nhnd     = 1;
+			handle         = slot->htab[0];
+			*pwindev       = slot->comName;
+		}
+	} else if (slot->nhnd >= MAX_COMDUP) {
+		SetLastError(ERROR_TOO_MANY_OPEN_FILES);
+	} else if (DuplicateHandle(GetCurrentProcess(), slot->htab[0],
+				   GetCurrentProcess(), &slot->htab[slot->nhnd],
+				   0, FALSE, DUPLICATE_SAME_ACCESS))
+	{
+		handle = slot->htab[slot->nhnd++];
+		*pwindev = slot->comName;
 	}
 
-	if (NULL != hnds[unit].h) {
-		/* think handle = dup(hnds[unit].h); */
-		DuplicateHandle(
-			GetCurrentProcess(),
-			hnds[unit].h,
-			GetCurrentProcess(),
-			&handle,
-			0,
-			FALSE,
-			DUPLICATE_SAME_ACCESS
-			);
-		hnds[unit].opens++;
-		opens = hnds[unit].opens;
-		hnds[unit].dupes = erealloc(hnds[unit].dupes, opens *
-					    sizeof(hnds[unit].dupes[0]));
-		hnds[unit].dupes[opens - 1] = handle;
-		return handle;
-	}
-
-	return INVALID_HANDLE_VALUE;
+	return handle;
 }
-
 
 /*
  * closeserial() is used in place of close by ntpd refclock I/O for ttys
  */
 int
-closeserial(int fd)
+closeserial(
+	int	fd
+	)
 {
 	HANDLE	h;
-	BOOL	found;
-	size_t	u;
-	size_t	d;
+	size_t	hidx;
+	comhandles *	slot;
 
 	h = (HANDLE)_get_osfhandle(fd);
-	if (INVALID_HANDLE_VALUE == h) {
-		errno = EBADF;
-		return -1;
-	}
+	if (INVALID_HANDLE_VALUE == h)
+		goto onerror;
 
-	d = 0;		/* silence potent. uninit. warning */
-	found = FALSE;
-	for (u = 0; u < c_hnds; u++) {
-		for (d = 0; d < hnds[u].opens; d++) {
-			if (hnds[u].dupes[d] == h) {
-				found = TRUE;
-				break;
-			}
-		}
-		if (found)
-			break;
-	}
-	if (found) {
-		hnds[u].opens--;
-		if (d < hnds[u].opens)
-			memmove(&hnds[u].dupes[d],
-				&hnds[u].dupes[d + 1],
-				hnds[u].opens - d *
-				    sizeof(hnds[u].dupes[d]));
-		if (0 == hnds[u].opens) {
-			CloseHandle(hnds[u].h);
-			hnds[u].h = NULL;
-		}
-	}
+	slot = lookup_com_handle(h, &hidx);
+	if (NULL == slot)
+		goto onerror;
 
-	return close(fd);
+	slot->htab[hidx] = slot->htab[--slot->nhnd];
+	if (slot->nhnd == 0)
+		remove_com_slot(slot);
+
+	return close(fd); /* closes system handle, too! */
+
+onerror:
+	errno = EBADF;
+	return -1;
 }
 
 /*
  * isserialhandle() -- check if a handle is a COM port handle
  */
-int isserialhandle(
+int/*BOOL*/
+isserialhandle(
 	HANDLE h
 	)
 {
-	size_t	u;
-	size_t	d;
-
-
-	for (u = 0; u < c_hnds; u++)
-		for (d = 0; d < hnds[u].opens; d++)
-			if (hnds[u].dupes[d] == h)
-				return TRUE;
+	if (INVALID_HANDLE_VALUE != h && NULL != h)
+		return lookup_com_handle(h, NULL) != NULL;
 	return FALSE;
 }
 
@@ -206,23 +280,21 @@ int isserialhandle(
  * This routine opens a serial port for and returns the 
  * file descriptor if success and -1 if failure.
  */
-int tty_open(
+int
+tty_open(
 	const char *dev,	/* device name pointer */
 	int access,		/* O_RDWR */
 	int mode		/* unused */
 	)
 {
-	HANDLE	Handle;
-	char *	windev;
+	HANDLE		Handle;
+	const char *	windev;
 
 	/*
 	 * open communication port handle
 	 */
-	windev = NULL;
+	windev = dev;
 	Handle = common_serial_open(dev, &windev);
-	windev = (windev)
-		     ? windev
-		     : dev;
 
 	if (Handle == INVALID_HANDLE_VALUE) {  
 		msyslog(LOG_ERR, "tty_open: device %s CreateFile error: %m", windev);
@@ -230,7 +302,7 @@ int tty_open(
 		return -1;
 	}
 
-	return (int)_open_osfhandle((intptr_t)Handle, _O_TEXT);
+	return _open_osfhandle((intptr_t)Handle, _O_TEXT);
 }
 
 
@@ -247,7 +319,7 @@ refclock_open(
 	u_int		flags	/* line discipline flags */
 	)
 {
-	char *		windev;
+	const char *	windev;
 	HANDLE		h;
 	COMMTIMEOUTS	timeouts;
 	DCB		dcb;
@@ -258,9 +330,8 @@ refclock_open(
 	/*
 	 * open communication port handle
 	 */
-	windev = NULL;
+	windev = dev;
 	h = common_serial_open(dev, &windev);
-	windev = (windev) ? windev : dev;
 
 	if (INVALID_HANDLE_VALUE == h) {
 		SAVE_ERRNO(

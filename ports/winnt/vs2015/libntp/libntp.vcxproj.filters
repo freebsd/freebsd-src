@@ -329,6 +329,9 @@
     <ClCompile Include="..\..\..\..\lib\isc\tsmemcmp.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\..\libntp\libssl_compat.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\..\sntp\libopts\ag-char-map.h">
@@ -563,6 +566,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\..\include\safecast.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\include\libntp.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\include\libssl_compat.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

@@ -333,7 +333,15 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\..\libntp\libssl_compat.c"
+				>
+			</File>
+			<File
 				RelativePath="..\..\..\sntp\libopts\libopts.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\libntp\libssl_compat.c"
 				>
 			</File>
 			<File

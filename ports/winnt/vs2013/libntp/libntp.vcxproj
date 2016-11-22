@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="DebugXP|Win32">
@@ -239,6 +239,7 @@
     <ClCompile Include="..\..\..\..\libntp\icom.c" />
     <ClCompile Include="..\..\..\..\libntp\iosignal.c" />
     <ClCompile Include="..\..\..\..\libntp\is_ip_address.c" />
+    <ClCompile Include="..\..\..\..\libntp\libssl_compat.c" />
     <ClCompile Include="..\..\..\..\libntp\lib_strbuf.c" />
     <ClCompile Include="..\..\..\..\libntp\machines.c" />
     <ClCompile Include="..\..\..\..\libntp\mktime.c" />
@@ -324,6 +325,8 @@
     <ClInclude Include="..\..\..\..\include\intreswork.h" />
     <ClInclude Include="..\..\..\..\include\iosignal.h" />
     <ClInclude Include="..\..\..\..\include\isc\mem.h" />
+    <ClInclude Include="..\..\..\..\include\libntp.h" />
+    <ClInclude Include="..\..\..\..\include\libssl_compat.h" />
     <ClInclude Include="..\..\..\..\include\lib_strbuf.h" />
     <ClInclude Include="..\..\..\..\include\l_stdlib.h" />
     <ClInclude Include="..\..\..\..\include\ntp.h" />

@@ -444,6 +444,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\..\..\libntp\libssl_compat.c"
+				>
+			</File>
+			<File
 				RelativePath="..\..\..\..\lib\isc\log.c"
 				>
 			</File>
@@ -766,6 +770,14 @@
 			</File>
 			<File
 				RelativePath="..\..\..\..\include\lib_strbuf.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\..\include\libntp.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\..\include\libssl_compat.h"
 				>
 			</File>
 			<File

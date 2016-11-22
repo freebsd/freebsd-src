@@ -211,4 +211,7 @@ extern	int	tcgetattr	(int, struct termios *);
 extern	int	tcflush		(int, int);
 extern	int	isserialhandle	(HANDLE);
 
+typedef struct DeviceContext DevCtx_t;
+extern	DevCtx_t*	serial_devctx(HANDLE);
+
 #endif	/* NTP_WIN_TERMIOS_H */

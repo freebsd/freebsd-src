@@ -21,7 +21,7 @@ extern	void	io_completion_port_remove_interface(struct interface*);
 extern	BOOL	io_completion_port_add_socket(SOCKET fd, struct interface *, BOOL bcast);
 extern	void	io_completion_port_remove_socket(SOCKET fd, struct interface*);
 
-extern	int	io_completion_port_sendto(struct interface*, SOCKET, void *, size_t, sockaddr_u *);
+extern	int	io_completion_port_sendto(endpt*, SOCKET, void *, size_t, sockaddr_u *);
 
 extern	BOOL	io_completion_port_add_clock_io(struct refclockio *rio);
 extern	void	io_completion_port_remove_clock_io(struct refclockio *rio);

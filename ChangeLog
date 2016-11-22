@@ -1,4 +1,73 @@
 ---
+(4.2.8p9) 2016/11/21 Released by Harlan Stenn <stenn@ntp.org>
+(4.2.8p9) 2016/MM/DD Released by Harlan Stenn <stenn@ntp.org>
+
+* [Sec 3119] Trap crash <perlinger@ntp.org>
+* [Sec 3118] Mode 6 information disclosure and DDoS vector <perlinger@ntp.org>
+  - TRAP config via mode 6 packet requires AUTH now.
+* [Sec 3114] Broadcast Mode Replay Prevention DoS
+  - applied patches by Matthew Van Gundy. <perlinger@ntp.org>
+  - with bcpollbstep, tweaks and cleanup by stenn@ntp.org
+* [Sec 3113] Broadcast Mode Poll Interval Enforcement DoS <perlinger@ntp.org>
+  - applied fix as suggested by Matthew Van Gundy
+* [Sec 3110] Windows: ntpd DoS by oversized UDP packet
+  - fixed error handling for truncated UDP packets. <perlinger@ntp.org>
+* [Sec 3102] Zero origin issues.  HStenn.
+* [Sec 3082] null pointer dereference in _IO_str_init_static_internal()
+  - more hardening to read_mru_list(). perlinger@ntp.org
+* [Sec 3072] Attack on interface selection <perlinger@ntp.org>
+  - implemented Miroslav Lichvars <mlichvar@redhat.com> suggestion
+    to skip interface updates based on incoming packets
+* [Bug 3142] bug in netmask prefix length detection <perlinger@ntp.org>
+* [Bug 3138] gpsdjson refclock should honor fudgetime1. stenn@ntp.org
+* [Bug 3129] Unknown hosts can put resolver thread into a hard loop
+  - moved retry decision where it belongs. <perlinger@ntp.org>
+* [Bug 3125] NTPD doesn't fully start when ntp.conf entries are out of order
+  using the loopback-ppsapi-provider.dll <perlinger@ntp.org>
+* [Bug 3116] unit tests for NTP time stamp expansion. <perlinger@ntp.org>
+* [Bug 3100] ntpq can't retrieve daemon_version <perlinger@ntp.org>
+  - fixed extended sysvar lookup (bug introduced with bug 3008 fix)
+* [Bug 3095] Compatibility with openssl 1.1 <perlinger@ntp.org>
+  - applied patches by Kurt Roeckx <kurt@roeckx.be> to source
+  - added shim layer for SSL API calls with issues (both directions)
+* [Bug 3089] Serial Parser does not work anymore for hopfser like device
+  - simplified / refactored hex-decoding in driver. <perlinger@ntp.org>
+* [Bug 3084] update-leap mis-parses the leapfile name.  HStenn.
+* [Bug 3068] Linker warnings when building on Solaris. perlinger@ntp.org
+  - applied patch thanks to Andrew Stormont <andyjstormont@gmail.com>
+* [Bug 3067] Root distance calculation needs improvement.  HStenn.
+* [Bug 3066] NMEA clock ignores pps. perlinger@ntp.org
+  - PPS-HACK works again.
+* [Bug 3059] Potential buffer overrun from oversized hash <perlinger@ntp.org>
+  - applied patch by Brian Utterback <brian.utterback@oracle.com>
+* [Bug 3053] ntp_loopfilter.c frequency calc precedence error.  Sarah White.
+* [Bug 3050]  Fix for bug #2960 causes [...] spurious error message.
+  <perlinger@ntp.org>
+  - patches by Reinhard Max <max@suse.com> and Havard Eidnes <he@uninett.no>
+* [Bug 3047] Fix refclock_jjy C-DEX JST2000. abe@ntp.org
+  - Patch provided by Kuramatsu.
+* [Bug 3021] unity_fixture.c needs pragma weak <perlinger@ntp.org>
+  - removed unnecessary & harmful decls of 'setUp()' & 'tearDown()'
+* [Bug 3019] Windows: ERROR_HOST_UNREACHABLE block packet processing.
+  DMayer and JPerlinger.
+* [Bug 2998] sntp/tests/packetProcessing.c broken without openssl. JPerlinger
+* [Bug 2961] sntp/tests/packetProcessing.c assumes AUTOKEY.  HStenn.
+* [Bug 2959] refclock_jupiter: gps week correction <perlinger@ntp.org>
+  - fixed GPS week expansion to work based on build date. Special thanks
+    to Craig Leres for initial patch and testing.
+* [Bug 2951] ntpd tests fail: multiple definition of `send_via_ntp_signd'
+  - fixed Makefile.am <perlinger@ntp.org>
+* [Bug 2689] ATOM driver processes last PPS pulse at startup,
+             even if it is very old <perlinger@ntp.org>
+  - make sure PPS source is alive before processing samples
+  - improve stability close to the 500ms phase jump (phase gate)
+* Fix typos in include/ntp.h.
+* Shim X509_get_signature_nid() if needed.
+* git author attribution cleanup
+* bk ignore file cleanup
+* remove locks in Windows IO, use rpc-like thread synchronisation instead
+
+---
 (4.2.8p8) 2016/06/02 Released by Harlan Stenn <stenn@ntp.org>
 
 * [Sec 3042] Broadcast Interleave.  HStenn.
@@ -19,7 +88,7 @@
 * Fix typo in ntp-wait and plot_summary.  HStenn.
 * Make sure we have an "author" file for git imports.  HStenn.
 * Update the sntp problem tests for MacOS.  HStenn.
-  
+
 ---
 (4.2.8p7) 2016/04/26 Released by Harlan Stenn <stenn@ntp.org>
 
