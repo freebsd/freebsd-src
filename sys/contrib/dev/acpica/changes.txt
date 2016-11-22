@@ -1,4 +1,83 @@
 ----------------------------------------
+17 November 2016. Summary of changes for version 20161117:
+
+
+1) ACPICA kernel-resident subsystem:
+
+Table Manager: Fixed a regression introduced in 20160729, "FADT support 
+cleanup". This was an attempt to remove all references in the source to 
+the FADT version 2, which never was a legal version number. It was 
+skipped because it was an early version of 64-bit support that was 
+eventually abandoned for the current 64-bit support.
+
+Interpreter: Fixed a problem where runtime implicit conversion was 
+incorrectly disabled for the ASL operators below. This brings the 
+behavior into compliance with the ACPI specification:
+    FromBCD
+    ToBCD
+    ToDecimalString
+    ToHexString
+    ToInteger
+    ToBuffer
+
+Table Manager: Added a new public interface, AcpiPutTable, used to 
+release and free an ACPI table returned by AcpiGetTable and related 
+interfaces. Lv Zheng.
+
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib produced by the Microsoft Visual C++ 9.0 32-bit compiler. The 
+debug version of the code includes the debug output trace mechanism and 
+has a much larger code and data size.
+
+  Current Release:
+    Non-Debug Version: 140.5K Code, 58.5K Data, 198.9K Total
+    Debug Version:     201.3K Code, 82.7K Data, 284.0K Total
+  Previous Release:
+    Non-Debug Version: 140.4K Code, 58.1K Data, 198.5K Total
+    Debug Version:     200.7K Code, 82.1K Data, 282.8K Total
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+Disassembler: Fixed a regression for disassembly of Resource Template. 
+Detection of templates in the AML stream missed some types of templates.
+
+iASL: Fixed a problem where an Access Size error was returned for the PCC 
+address space when the AccessSize of the GAS register is greater than a 
+DWORD. Hoan Tran.
+
+iASL: Implemented several grammar changes for the operators below. These 
+changes are slated for the next version of the ACPI specification:
+    RefOf        - Disallow method invocation as an operand
+    CondRefOf    - Disallow method invocation as an operand
+    DerefOf      - Disallow operands that use the result from operators 
+that
+                   do not return a reference (Changed TermArg to 
+SuperName).
+
+iASL: Control method invocations are now allowed for Target operands, as 
+per the ACPI specification. Removed error for using a control method 
+invocation as a Target operand.
+
+Disassembler: Improved detection of Resource Templates, Unicode, and 
+Strings within Buffer objects. These subtypes do not contain a specific 
+opcode to indicate the originating ASL code, and they must be detected by 
+other means within the disassembler. 
+
+iASL: Implemented an optimization improvement for 32-bit ACPI tables 
+(DSDT/SSDT). For the 32-bit case only, compute the optimum integer opcode 
+only after 64-bit to 32-bit truncation. A truncation warning message is 
+still emitted, however.
+
+AcpiXtract: Implemented handling for both types of line terminators (LF 
+or CR/LF) so that it can accept AcpiDump output files from any system. 
+Peter Wu.
+
+AcpiBin: Added two new options for comparing AML files:
+    -a: compare and display ALL mismatches
+    -o: start compare at this offset into the second file
+
+----------------------------------------
 30 September 2016. Summary of changes for version 20160930:
 
 

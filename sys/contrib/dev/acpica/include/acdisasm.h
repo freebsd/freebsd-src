@@ -280,8 +280,8 @@ extern ACPI_DMTABLE_INFO        AcpiDmTableInfoErst[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoErst0[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoFacs[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoFadt1[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoFadt2[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoFadt3[];
-extern ACPI_DMTABLE_INFO        AcpiDmTableInfoFadt4[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoFadt5[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoFadt6[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoFpdt[];
@@ -424,9 +424,6 @@ extern ACPI_DMTABLE_INFO        AcpiDmTableInfoWpbt0[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoXenv[];
 
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoGeneric[][2];
-
-extern ACPI_DMTABLE_INFO        *FadtRevisionInfo [ACPI_FADT_MAX_VERSION + 1];
-
 
 /*
  * dmtable and ahtable

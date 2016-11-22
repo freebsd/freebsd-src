@@ -185,11 +185,14 @@ AcpiTbLoadTable (
 
 ACPI_STATUS
 AcpiTbInstallAndLoadTable (
-    ACPI_TABLE_HEADER       *Table,
     ACPI_PHYSICAL_ADDRESS   Address,
     UINT8                   Flags,
     BOOLEAN                 Override,
     UINT32                  *TableIndex);
+
+ACPI_STATUS
+AcpiTbUnloadTable (
+    UINT32                  TableIndex);
 
 void
 AcpiTbTerminate (
@@ -252,6 +255,15 @@ AcpiTbInstallTableWithOverride (
 ACPI_STATUS
 AcpiTbParseRootTable (
     ACPI_PHYSICAL_ADDRESS   RsdpAddress);
+
+ACPI_STATUS
+AcpiTbGetTable (
+    ACPI_TABLE_DESC        *TableDesc,
+    ACPI_TABLE_HEADER      **OutTable);
+
+void
+AcpiTbPutTable (
+    ACPI_TABLE_DESC        *TableDesc);
 
 
 /*

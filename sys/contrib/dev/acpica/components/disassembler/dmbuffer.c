@@ -439,12 +439,16 @@ AcpiDmIsUnicodeBuffer (
         return (FALSE);
     }
 
-    /* For each word, 1st byte must be ascii (1-0x7F), 2nd byte must be zero */
-
+    /*
+     * For each word, 1st byte must be printable ascii, and the
+     * 2nd byte must be zero. This does not allow for escape
+     * sequences, but it is the most secure way to detect a
+     * unicode string.
+     */
     for (i = 0; i < (ByteCount - 2); i += 2)
     {
         if ((ByteData[i] == 0) ||
-            (ByteData[i] > 0x7F) ||
+            !(isprint (ByteData[i])) ||
             (ByteData[(ACPI_SIZE) i + 1] != 0))
         {
             return (FALSE);
@@ -507,11 +511,26 @@ AcpiDmIsStringBuffer (
         return (FALSE);
     }
 
+    /*
+     * Check for a possible standalone resource EndTag, ignore it
+     * here. However, this sequence is also the string "Y", but
+     * this seems rare enough to be acceptable.
+     */
+    if ((ByteCount == 2) && (ByteData[0] == 0x79))
+    {
+        return (FALSE);
+    }
+
+    /* Check all bytes for ASCII */
+
     for (i = 0; i < (ByteCount - 1); i++)
     {
-        /* TBD: allow some escapes (non-ascii chars).
+        /*
+         * TBD: allow some escapes (non-ascii chars).
          * they will be handled in the string output routine
          */
+
+        /* Not a string if not printable ascii */
 
         if (!isprint (ByteData[i]))
         {

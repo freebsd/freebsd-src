@@ -154,7 +154,9 @@ Unlock:
     ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
         "**** Begin Table Object Initialization\n"));
 
+    AcpiExEnterInterpreter ();
     Status = AcpiDsInitializeObjects (TableIndex, Node);
+    AcpiExExitInterpreter ();
 
     ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
         "**** Completed Table Object Initialization\n"));
