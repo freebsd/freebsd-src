@@ -6,7 +6,7 @@ SRCS=	cheri_bench-helper.c
 
 INCS=	cheri_bench-helper.h
 
-LDFLAGS+=	-Wl,--script=${.CURDIR}/../../lib/libc_cheri/sandbox.ld \
+LDFLAGS+=	-Wl,-T,${.CURDIR}/../../lib/libc_cheri/sandbox.ld \
 		-nostdlib
 MAN=
 

@@ -7,7 +7,7 @@ SRCS=	cheritest-helper.c			\
 
 INCS=	cheritest-helper.h cheritest-helper-internal.h
 
-LDFLAGS+=	-Wl,--script=${.CURDIR}/../../lib/libc_cheri/sandbox.ld \
+LDFLAGS+=	-Wl,-T,${.CURDIR}/../../lib/libc_cheri/sandbox.ld \
 		-nostdlib
 MAN=
 

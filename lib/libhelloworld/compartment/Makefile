@@ -4,7 +4,7 @@ COMPARTMENT_NAME=	helloworld
 
 # XXXBD: stuff below this line should come from a bsd.c9t.mk
 
-LDFLAGS+=	-Wl,--script=${.CURDIR}/../../libc_cheri/sandbox.ld \
+LDFLAGS+=	-Wl,-T,${.CURDIR}/../../libc_cheri/sandbox.ld \
 		-nostdlib
 
 LIBADD=	c_cheri

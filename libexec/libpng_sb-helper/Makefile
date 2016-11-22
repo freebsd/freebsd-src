@@ -5,7 +5,7 @@ PROG=	libpng_sb-helper
 SRCS=	libpng_sb-helper.c
 INCS=	libpng_sb-helper.h
 
-LDFLAGS+=	-Wl,--script=${.CURDIR}/../../lib/libc_cheri/sandbox.ld \
+LDFLAGS+=	-Wl,-T,${.CURDIR}/../../lib/libc_cheri/sandbox.ld \
 		-nostdlib
 MAN=
 

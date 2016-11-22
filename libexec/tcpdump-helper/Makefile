@@ -31,7 +31,7 @@ CFLAGS+=	-DHAVE_CONFIG_H \
 .if ${MK_DEMO_VULNERABILITIES} != "no"
 CFLAGS+=	-DCHERI_TCPDUMP_VULNERABILITY
 .endif
-LDFLAGS+=	-Wl,--script=${.CURDIR}/../../lib/libc_cheri/sandbox.ld \
+LDFLAGS+=	-Wl,-T,${.CURDIR}/../../lib/libc_cheri/sandbox.ld \
 		-nostdlib
 WARNS=	3
 

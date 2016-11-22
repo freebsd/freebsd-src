@@ -13,7 +13,7 @@ SRCS+=	decode_png.c
 
 MAN=
 
-LDFLAGS+=	-Wl,--script=${.CURDIR}/../../../lib/libc_cheri/sandbox.ld \
+LDFLAGS+=	-Wl,-T,${.CURDIR}/../../../lib/libc_cheri/sandbox.ld \
 		-nostdlib
 #STRIP=
 CFLAGS+=	-I${.CURDIR}/../../lib/libimagebox
