@@ -1759,14 +1759,20 @@ ses_process_elm_addlstatus(enc_softc_t *enc, struct enc_fsm_state *state,
 		eip = ses_elm_addlstatus_eip(elm_hdr);
 		if (eip && !ignore_index) {
 			struct ses_elm_addlstatus_eip_hdr *eip_hdr;
-			int expected_index;
+			int expected_index, index;
+			ses_elem_index_type_t index_type;
 
 			eip_hdr = (struct ses_elm_addlstatus_eip_hdr *)elm_hdr;
-			expected_index = iter.individual_element_index;
+			if (eip_hdr->byte2 & SES_ADDL_EIP_EIIOE) {
+				index_type = SES_ELEM_INDEX_GLOBAL;
+				expected_index = iter.global_element_index;
+			} else {
+				index_type = SES_ELEM_INDEX_INDIVIDUAL;
+				expected_index = iter.individual_element_index;
+			}
 			titer = iter;
 			telement = ses_iter_seek_to(&titer,
-						   eip_hdr->element_index,
-						   SES_ELEM_INDEX_INDIVIDUAL);
+			    eip_hdr->element_index, index_type);
 			if (telement != NULL &&
 			    (ses_typehasaddlstatus(enc, titer.type_index) !=
 			     TYPE_ADDLSTATUS_NONE ||
@@ -1776,13 +1782,18 @@ ses_process_elm_addlstatus(enc_softc_t *enc, struct enc_fsm_state *state,
 			} else
 				ignore_index = 1;
 
-			if (iter.individual_element_index > expected_index
+			if (eip_hdr->byte2 & SES_ADDL_EIP_EIIOE)
+				index = iter.global_element_index;
+			else
+				index = iter.individual_element_index;
+			if (index > expected_index
 			 && status_type == TYPE_ADDLSTATUS_MANDATORY) {
-				ENC_VLOG(enc, "%s: provided element "
+				ENC_VLOG(enc, "%s: provided %s element"
 					"index %d skips mandatory status "
 					" element at index %d\n",
-					__func__, eip_hdr->element_index,
-					expected_index);
+					__func__, (eip_hdr->byte2 &
+					SES_ADDL_EIP_EIIOE) ? "global " : "",
+					index, expected_index);
 			}
 		}
 		elmpriv = element->elm_private;
