@@ -5037,6 +5037,74 @@ key_add(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
     }
 }
 
+static int
+key_setnatt(struct secasvar *sav, const struct sadb_msghdr *mhp)
+{
+#ifdef IPSEC_NAT_T
+	struct sadb_x_nat_t_port *sport, *dport;
+	struct sadb_x_nat_t_type *type;
+
+	if (!SADB_CHECKHDR(mhp, SADB_X_EXT_NAT_T_TYPE) &&
+	    !SADB_CHECKHDR(mhp, SADB_X_EXT_NAT_T_SPORT) &&
+	    !SADB_CHECKHDR(mhp, SADB_X_EXT_NAT_T_DPORT)) {
+		if (SADB_CHECKLEN(mhp, SADB_X_EXT_NAT_T_TYPE) ||
+		    SADB_CHECKLEN(mhp, SADB_X_EXT_NAT_T_SPORT) ||
+		    SADB_CHECKLEN(mhp, SADB_X_EXT_NAT_T_DPORT)) {
+			ipseclog((LOG_DEBUG,
+			    "%s: invalid message: wrong header size.\n",
+			    __func__));
+			return (EINVAL);
+		}
+
+		type = (struct sadb_x_nat_t_type *)
+		    mhp->ext[SADB_X_EXT_NAT_T_TYPE];
+		sport = (struct sadb_x_nat_t_port *)
+		    mhp->ext[SADB_X_EXT_NAT_T_SPORT];
+		dport = (struct sadb_x_nat_t_port *)
+		    mhp->ext[SADB_X_EXT_NAT_T_DPORT];
+
+		sav->natt_type = type->sadb_x_nat_t_type_type;
+		KEY_PORTTOSADDR(&sav->sah->saidx.src,
+		    sport->sadb_x_nat_t_port_port);
+		KEY_PORTTOSADDR(&sav->sah->saidx.dst,
+		    dport->sadb_x_nat_t_port_port);
+	} else
+		return (0);
+	if (!SADB_CHECKHDR(mhp, SADB_X_EXT_NAT_T_OAI) &&
+	    !SADB_CHECKHDR(mhp, SADB_X_EXT_NAT_T_OAR)) {
+		if (SADB_CHECKLEN(mhp, SADB_X_EXT_NAT_T_OAI) ||
+		    SADB_CHECKLEN(mhp, SADB_X_EXT_NAT_T_OAR)) {
+			ipseclog((LOG_DEBUG,
+			    "%s: invalid message: wrong header size.\n",
+			    __func__));
+			return (EINVAL);
+		}
+		ipseclog((LOG_DEBUG, "%s: NAT-T OAi/r present\n", __func__));
+	}
+	if (!SADB_CHECKHDR(mhp, SADB_X_EXT_NAT_T_FRAG)) {
+		if (SADB_CHECKLEN(mhp, SADB_X_EXT_NAT_T_FRAG)) {
+			ipseclog((LOG_DEBUG,
+			    "%s: invalid message: wrong header size.\n",
+			    __func__));
+			return (EINVAL);
+		}
+		ipseclog((LOG_DEBUG, "%s: NAT-T frag present\n", __func__));
+#if 0
+		struct sadb_x_nat_t_frag *frag;
+		frag = (struct sadb_x_nat_t_frag *)
+		    mhp->ext[SADB_X_EXT_NAT_T_FRAG];
+		/*
+		 * In case SADB_X_EXT_NAT_T_FRAG was not given, leave it at 0.
+		 * We should actually check for a minimum MTU here, if we
+		 * want to support it in ip_output.
+		 */
+		sav->natt_esp_frag_len = frag->sadb_x_nat_t_frag_fraglen;
+#endif
+	}
+#endif
+	return (0);
+}
+
 /* m is retained */
 static int
 key_setident(struct secashead *sah, struct mbuf *m,
