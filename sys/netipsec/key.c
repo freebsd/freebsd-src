@@ -6830,15 +6830,13 @@ key_flush(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 static int
 key_dump(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 {
+	SAHTREE_RLOCK_TRACKER;
 	struct secashead *sah;
 	struct secasvar *sav;
-	u_int16_t proto;
-	u_int stateidx;
-	u_int8_t satype;
-	u_int8_t state;
-	int cnt;
 	struct sadb_msg *newmsg;
 	struct mbuf *n;
+	uint32_t cnt;
+	uint8_t proto, satype;
 
 	IPSEC_ASSERT(so != NULL, ("null socket"));
 	IPSEC_ASSERT(m != NULL, ("null mbuf"));
@@ -6848,69 +6846,66 @@ key_dump(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 	/* map satype to proto */
 	if ((proto = key_satype2proto(mhp->msg->sadb_msg_satype)) == 0) {
 		ipseclog((LOG_DEBUG, "%s: invalid satype is passed.\n",
-			__func__));
+		    __func__));
 		return key_senderror(so, m, EINVAL);
 	}
 
 	/* count sav entries to be sent to the userland. */
 	cnt = 0;
-	SAHTREE_LOCK();
-	LIST_FOREACH(sah, &V_sahtree, chain) {
-		if (mhp->msg->sadb_msg_satype != SADB_SATYPE_UNSPEC
-		 && proto != sah->saidx.proto)
+	SAHTREE_RLOCK();
+	TAILQ_FOREACH(sah, &V_sahtree, chain) {
+		if (mhp->msg->sadb_msg_satype != SADB_SATYPE_UNSPEC &&
+		    proto != sah->saidx.proto)
 			continue;
 
-		for (stateidx = 0;
-		     stateidx < _ARRAYLEN(saorder_state_any);
-		     stateidx++) {
-			state = saorder_state_any[stateidx];
-			LIST_FOREACH(sav, &sah->savtree[state], chain) {
-				cnt++;
-			}
-		}
+		TAILQ_FOREACH(sav, &sah->savtree_larval, chain)
+			cnt++;
+		TAILQ_FOREACH(sav, &sah->savtree_alive, chain)
+			cnt++;
 	}
 
 	if (cnt == 0) {
-		SAHTREE_UNLOCK();
+		SAHTREE_RUNLOCK();
 		return key_senderror(so, m, ENOENT);
 	}
 
 	/* send this to the userland, one at a time. */
 	newmsg = NULL;
-	LIST_FOREACH(sah, &V_sahtree, chain) {
-		if (mhp->msg->sadb_msg_satype != SADB_SATYPE_UNSPEC
-		 && proto != sah->saidx.proto)
+	TAILQ_FOREACH(sah, &V_sahtree, chain) {
+		if (mhp->msg->sadb_msg_satype != SADB_SATYPE_UNSPEC &&
+		    proto != sah->saidx.proto)
 			continue;
 
 		/* map proto to satype */
 		if ((satype = key_proto2satype(sah->saidx.proto)) == 0) {
-			SAHTREE_UNLOCK();
+			SAHTREE_RUNLOCK();
 			ipseclog((LOG_DEBUG, "%s: there was invalid proto in "
-				"SAD.\n", __func__));
+			    "SAD.\n", __func__));
 			return key_senderror(so, m, EINVAL);
 		}
-
-		for (stateidx = 0;
-		     stateidx < _ARRAYLEN(saorder_state_any);
-		     stateidx++) {
-			state = saorder_state_any[stateidx];
-			LIST_FOREACH(sav, &sah->savtree[state], chain) {
-				n = key_setdumpsa(sav, SADB_DUMP, satype,
-				    --cnt, mhp->msg->sadb_msg_pid);
-				if (!n) {
-					SAHTREE_UNLOCK();
-					return key_senderror(so, m, ENOBUFS);
-				}
-				key_sendup_mbuf(so, n, KEY_SENDUP_ONE);
+		TAILQ_FOREACH(sav, &sah->savtree_larval, chain) {
+			n = key_setdumpsa(sav, SADB_DUMP, satype,
+			    --cnt, mhp->msg->sadb_msg_pid);
+			if (n == NULL) {
+				SAHTREE_RUNLOCK();
+				return key_senderror(so, m, ENOBUFS);
 			}
+			key_sendup_mbuf(so, n, KEY_SENDUP_ONE);
+		}
+		TAILQ_FOREACH(sav, &sah->savtree_alive, chain) {
+			n = key_setdumpsa(sav, SADB_DUMP, satype,
+			    --cnt, mhp->msg->sadb_msg_pid);
+			if (n == NULL) {
+				SAHTREE_RUNLOCK();
+				return key_senderror(so, m, ENOBUFS);
+			}
+			key_sendup_mbuf(so, n, KEY_SENDUP_ONE);
 		}
 	}
-	SAHTREE_UNLOCK();
-
+	SAHTREE_RUNLOCK();
 	m_freem(m);
-	return 0;
+	return (0);
 }
-
 /*
  * SADB_X_PROMISC processing
  *
