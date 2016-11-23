@@ -5105,31 +5105,28 @@ key_setnatt(struct secasvar *sav, const struct sadb_msghdr *mhp)
 	return (0);
 }
 
-/* m is retained */
 static int
-key_setident(struct secashead *sah, struct mbuf *m,
-    const struct sadb_msghdr *mhp)
+key_setident(struct secashead *sah, const struct sadb_msghdr *mhp)
 {
 	const struct sadb_ident *idsrc, *iddst;
 	int idsrclen, iddstlen;
 
 	IPSEC_ASSERT(sah != NULL, ("null secashead"));
-	IPSEC_ASSERT(m != NULL, ("null mbuf"));
 	IPSEC_ASSERT(mhp != NULL, ("null msghdr"));
 	IPSEC_ASSERT(mhp->msg != NULL, ("null msg"));
 
 	/* don't make buffer if not there */
-	if (mhp->ext[SADB_EXT_IDENTITY_SRC] == NULL &&
-	    mhp->ext[SADB_EXT_IDENTITY_DST] == NULL) {
+	if (SADB_CHECKHDR(mhp, SADB_EXT_IDENTITY_SRC) &&
+	    SADB_CHECKHDR(mhp, SADB_EXT_IDENTITY_DST)) {
 		sah->idents = NULL;
 		sah->identd = NULL;
-		return 0;
+		return (0);
 	}
-	
-	if (mhp->ext[SADB_EXT_IDENTITY_SRC] == NULL ||
-	    mhp->ext[SADB_EXT_IDENTITY_DST] == NULL) {
+
+	if (SADB_CHECKHDR(mhp, SADB_EXT_IDENTITY_SRC) ||
+	    SADB_CHECKHDR(mhp, SADB_EXT_IDENTITY_DST)) {
 		ipseclog((LOG_DEBUG, "%s: invalid identity.\n", __func__));
-		return EINVAL;
+		return (EINVAL);
 	}
 
 	idsrc = (const struct sadb_ident *)mhp->ext[SADB_EXT_IDENTITY_SRC];
