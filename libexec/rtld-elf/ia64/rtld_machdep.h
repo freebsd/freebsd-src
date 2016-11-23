@@ -54,6 +54,9 @@ void *make_function_pointer(const Elf_Sym *, const struct Struct_Obj_Entry *);
 void call_initfini_pointer(const struct Struct_Obj_Entry *, Elf_Addr);
 void call_init_pointer(const struct Struct_Obj_Entry *, Elf_Addr);
 
+#define        call_ifunc_resolver(ptr) \
+       (((Elf_Addr (*)(void))ptr)())
+
 #define	TLS_TCB_SIZE	16
 
 #define round(size, align) \

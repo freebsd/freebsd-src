@@ -34,6 +34,7 @@
 #include <sys/param.h>
 #include <sys/mman.h>
 #include <machine/sysarch.h>
+#include <machine/cpufunc.h>
 
 #include <dlfcn.h>
 #include <err.h>
@@ -406,7 +407,7 @@ reloc_iresolve(Obj_Entry *obj, RtldLockState *lockstate)
 	  ptr = (Elf_Addr *)(obj->relocbase + rela->r_addend);
 	  where = (Elf_Addr *)(obj->relocbase + rela->r_offset);
 	  lock_release(rtld_bind_lock, lockstate);
-	  target = ((Elf_Addr (*)(void))ptr)();
+	  target = call_ifunc_resolver(ptr);
 	  wlock_acquire(rtld_bind_lock, lockstate);
 	  *where = target;
 	  break;
@@ -448,6 +449,25 @@ reloc_gnu_ifunc(Obj_Entry *obj, int flags, RtldLockState *lockstate)
     }
     obj->gnu_ifunc = false;
     return (0);
+}
+
+uint32_t cpu_feature, cpu_feature2, cpu_stdext_feature, cpu_stdext_feature2;
+
+void
+ifunc_init(Elf_Auxinfo aux_info[__min_size(AT_COUNT)] __unused)
+{
+	u_int p[4], cpu_high;
+
+	do_cpuid(1, p);
+	cpu_feature = p[3];
+	cpu_feature2 = p[2];
+	do_cpuid(0, p);
+	cpu_high = p[0];
+	if (cpu_high >= 7) {
+		cpuid_count(7, 0, p);
+		cpu_stdext_feature = p[1];
+		cpu_stdext_feature2 = p[2];
+	}
 }
 
 void
