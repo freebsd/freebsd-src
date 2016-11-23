@@ -311,22 +311,6 @@ static struct mtx spacq_lock;
 #define	SPACQ_UNLOCK()		mtx_unlock(&spacq_lock)
 #define	SPACQ_LOCK_ASSERT()	mtx_assert(&spacq_lock, MA_OWNED)
 
-/* search order for SAs */
-static const u_int saorder_state_valid_prefer_old[] = {
-	SADB_SASTATE_DYING, SADB_SASTATE_MATURE,
-};
-static const u_int saorder_state_valid_prefer_new[] = {
-	SADB_SASTATE_MATURE, SADB_SASTATE_DYING,
-};
-static const u_int saorder_state_alive[] = {
-	/* except DEAD */
-	SADB_SASTATE_MATURE, SADB_SASTATE_DYING, SADB_SASTATE_LARVAL
-};
-static const u_int saorder_state_any[] = {
-	SADB_SASTATE_MATURE, SADB_SASTATE_DYING,
-	SADB_SASTATE_LARVAL, SADB_SASTATE_DEAD
-};
-
 static const int minsize[] = {
 	sizeof(struct sadb_msg),	/* SADB_EXT_RESERVED */
 	sizeof(struct sadb_sa),		/* SADB_EXT_SA */
@@ -450,35 +434,6 @@ SYSCTL_INT(_net_key, KEYCTL_PREFERED_OLDSA, preferred_oldsa,
 
 #define __LIST_CHAINED(elm) \
 	(!((elm)->chain.le_next == NULL && (elm)->chain.le_prev == NULL))
-#define LIST_INSERT_TAIL(head, elm, type, field) \
-do {\
-	struct type *curelm = LIST_FIRST(head); \
-	if (curelm == NULL) {\
-		LIST_INSERT_HEAD(head, elm, field); \
-	} else { \
-		while (LIST_NEXT(curelm, field)) \
-			curelm = LIST_NEXT(curelm, field);\
-		LIST_INSERT_AFTER(curelm, elm, field);\
-	}\
-} while (0)
-
-#define KEY_CHKSASTATE(head, sav, name) \
-do { \
-	if ((head) != (sav)) {						\
-		ipseclog((LOG_DEBUG, "%s: state mismatched (TREE=%d SA=%d)\n", \
-			(name), (head), (sav)));			\
-		break;							\
-	}								\
-} while (0)
-
-#define KEY_CHKSPDIR(head, sp, name) \
-do { \
-	if ((head) != (sp)) {						\
-		ipseclog((LOG_DEBUG, "%s: direction mismatched (TREE=%d SP=%d), " \
-			"anyway continue.\n",				\
-			(name), (head), (sp)));				\
-	}								\
-} while (0)
 
 MALLOC_DEFINE(M_IPSEC_SA, "secasvar", "ipsec security association");
 MALLOC_DEFINE(M_IPSEC_SAH, "sahead", "ipsec sa head");
@@ -536,18 +491,14 @@ struct sadb_msghdr {
 static struct callout key_timer;
 #endif
 
-static struct secasvar *key_allocsa_policy(const struct secasindex *);
-static void key_freesp_so(struct secpolicy **);
-static struct secasvar *key_do_allocsa_policy(struct secashead *, u_int);
 static void key_unlink(struct secpolicy *);
 static struct secpolicy *key_getsp(struct secpolicyindex *);
 static struct secpolicy *key_getspbyid(u_int32_t);
-static u_int32_t key_newreqid(void);
 static struct mbuf *key_gather_mbuf(struct mbuf *,
 	const struct sadb_msghdr *, int, int, ...);
 static int key_spdadd(struct socket *, struct mbuf *,
 	const struct sadb_msghdr *);
-static u_int32_t key_getnewspid(void);
+static uint32_t key_getnewspid(void);
 static int key_spddelete(struct socket *, struct mbuf *,
 	const struct sadb_msghdr *);
 static int key_spddelete2(struct socket *, struct mbuf *,
@@ -564,19 +515,18 @@ static struct mbuf *key_sp2mbuf(struct secpolicy *);
 static size_t key_getspreqmsglen(struct secpolicy *);
 static int key_spdexpire(struct secpolicy *);
 static struct secashead *key_newsah(struct secasindex *);
+static void key_freesah(struct secashead **);
 static void key_delsah(struct secashead *);
-static struct secasvar *key_newsav(struct mbuf *,
-	const struct sadb_msghdr *, struct secashead *, int *,
-	const char*, int);
-#define	KEY_NEWSAV(m, sadb, sah, e)				\
-	key_newsav(m, sadb, sah, e, __FILE__, __LINE__)
+static struct secasvar *key_newsav(const struct sadb_msghdr *,
+    struct secasindex *, uint32_t, int *);
 static void key_delsav(struct secasvar *);
+static void key_unlinksav(struct secasvar *);
 static struct secashead *key_getsah(struct secasindex *);
-static struct secasvar *key_checkspidup(struct secasindex *, u_int32_t);
-static struct secasvar *key_getsavbyspi(struct secashead *, u_int32_t);
-static int key_setsaval(struct secasvar *, struct mbuf *,
-	const struct sadb_msghdr *);
-static int key_mature(struct secasvar *);
+static int key_checkspidup(uint32_t);
+static struct secasvar *key_getsavbyspi(uint32_t);
+static int key_setnatt(struct secasvar *, const struct sadb_msghdr *);
+static int key_setsaval(struct secasvar *, const struct sadb_msghdr *);
+static int key_updatelifetimes(struct secasvar *, const struct sadb_msghdr *);
 static struct mbuf *key_setdumpsa(struct secasvar *, u_int8_t,
 	u_int8_t, u_int32_t, u_int32_t);
 static struct mbuf *key_setsadbmsg(u_int8_t, u_int16_t, u_int8_t,
@@ -594,10 +544,10 @@ static void key_porttosaddr(struct sockaddr *, u_int16_t);
 static struct mbuf *key_setsadbxsa2(u_int8_t, u_int32_t, u_int32_t);
 static struct mbuf *key_setsadbxpolicy(u_int16_t, u_int8_t,
 	u_int32_t, u_int32_t);
-static struct seckey *key_dup_keymsg(const struct sadb_key *, u_int, 
-				     struct malloc_type *);
+static struct seckey *key_dup_keymsg(const struct sadb_key *, size_t,
+    struct malloc_type *);
 static struct seclifetime *key_dup_lifemsg(const struct sadb_lifetime *src,
-					    struct malloc_type *type);
+    struct malloc_type *);
 #ifdef INET6
 static int key_ismyaddr6(struct sockaddr_in6 *);
 #endif
@@ -613,11 +563,9 @@ static int key_cmpspidx_exactly(struct secpolicyindex *,
     struct secpolicyindex *);
 static int key_cmpspidx_withmask(struct secpolicyindex *,
     struct secpolicyindex *);
-static int key_sockaddrcmp(const struct sockaddr *,
-    const struct sockaddr *, int);
 static int key_bbcmp(const void *, const void *, u_int);
-static u_int16_t key_satype2proto(u_int8_t);
-static u_int8_t key_proto2satype(u_int16_t);
+static uint8_t key_satype2proto(uint8_t);
+static uint8_t key_proto2satype(uint8_t);
 
 static int key_getspi(struct socket *, struct mbuf *,
 	const struct sadb_msghdr *);
@@ -630,14 +578,13 @@ static struct secasvar *key_getsavbyseq(struct secashead *, u_int32_t);
 #endif
 static int key_add(struct socket *, struct mbuf *,
 	const struct sadb_msghdr *);
-static int key_setident(struct secashead *, struct mbuf *,
-	const struct sadb_msghdr *);
+static int key_setident(struct secashead *, const struct sadb_msghdr *);
 static struct mbuf *key_getmsgbuf_x1(struct mbuf *,
 	const struct sadb_msghdr *);
 static int key_delete(struct socket *, struct mbuf *,
 	const struct sadb_msghdr *);
 static int key_delete_all(struct socket *, struct mbuf *,
-	const struct sadb_msghdr *, u_int16_t);
+	const struct sadb_msghdr *, struct secasindex *);
 static int key_get(struct socket *, struct mbuf *,
 	const struct sadb_msghdr *);
 
@@ -648,9 +595,10 @@ static struct mbuf *key_getcomb_ipcomp(void);
 static struct mbuf *key_getprop(const struct secasindex *);
 
 static int key_acquire(const struct secasindex *, struct secpolicy *);
-static struct secacq *key_newacq(const struct secasindex *);
-static struct secacq *key_getacq(const struct secasindex *);
-static struct secacq *key_getacqbyseq(u_int32_t);
+static uint32_t key_newacq(const struct secasindex *, int *);
+static uint32_t key_getacq(const struct secasindex *, int *);
+static int key_acqdone(const struct secasindex *, uint32_t);
+static int key_acqreset(uint32_t);
 static struct secspacq *key_newspacq(struct secpolicyindex *);
 static struct secspacq *key_getspacq(struct secpolicyindex *);
 static int key_acquire2(struct socket *, struct mbuf *,
@@ -7566,25 +7514,6 @@ key_destroy(void)
 }
 #endif
 
-/*
- * XXX: maybe This function is called after INBOUND IPsec processing.
- *
- * Special check for tunnel-mode packets.
- * We must make some checks for consistency between inner and outer IP header.
- *
- * xxx more checks to be provided
- */
-int
-key_checktunnelsanity(struct secasvar *sav, u_int family, caddr_t src,
-    caddr_t dst)
-{
-	IPSEC_ASSERT(sav->sah != NULL, ("null SA header"));
-
-	/* XXX: check inner IP header */
-
-	return 1;
-}
-
 /* record data transfer on SA, and update timestamps */
 void
 key_sa_recordxfer(struct secasvar *sav, struct mbuf *m)
@@ -7618,20 +7547,6 @@ key_sa_recordxfer(struct secasvar *sav, struct mbuf *m)
 	 */
 	if (sav->firstused == 0)
 		sav->firstused = time_second;
-}
-
-static void
-key_sa_chgstate(struct secasvar *sav, u_int8_t state)
-{
-	IPSEC_ASSERT(sav != NULL, ("NULL sav"));
-	SAHTREE_LOCK_ASSERT();
-
-	if (sav->state != state) {
-		if (__LIST_CHAINED(sav))
-			LIST_REMOVE(sav, chain);
-		sav->state = state;
-		LIST_INSERT_HEAD(&sav->sah->savtree[state], sav, chain);
-	}
 }
 
 /*
