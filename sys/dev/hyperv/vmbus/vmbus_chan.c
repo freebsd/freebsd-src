@@ -1220,7 +1220,7 @@ vmbus_chan_add(struct vmbus_channel *newchan)
 	wakeup(prichan);
 done:
 	/*
-	 * Hook this channel up for later rescind.
+	 * Hook this channel up for later revocation.
 	 */
 	mtx_lock(&sc->vmbus_chan_lock);
 	vmbus_chan_ins_list(sc, newchan);
@@ -1368,7 +1368,7 @@ vmbus_chan_msgproc_chrescind(struct vmbus_softc *sc,
 
 	note = (const struct vmbus_chanmsg_chrescind *)msg->msg_data;
 	if (note->chm_chanid > VMBUS_CHAN_MAX) {
-		device_printf(sc->vmbus_dev, "invalid rescinded chan%u\n",
+		device_printf(sc->vmbus_dev, "invalid revoked chan%u\n",
 		    note->chm_chanid);
 		return;
 	}
@@ -1403,8 +1403,12 @@ vmbus_chan_msgproc_chrescind(struct vmbus_softc *sc,
 		mtx_unlock(&sc->vmbus_prichan_lock);
 	}
 
+	if (atomic_testandset_int(&chan->ch_stflags,
+	    VMBUS_CHAN_ST_REVOKED_SHIFT))
+		panic("channel has already been revoked");
+
 	if (bootverbose)
-		vmbus_chan_printf(chan, "chan%u rescinded\n", note->chm_chanid);
+		vmbus_chan_printf(chan, "chan%u revoked\n", note->chm_chanid);
 
 	/* Detach the target channel. */
 	taskqueue_enqueue(chan->ch_mgmt_tq, &chan->ch_detach_task);
@@ -1694,4 +1698,13 @@ vmbus_chan_mgmt_tq(const struct vmbus_channel *chan)
 {
 
 	return (chan->ch_mgmt_tq);
+}
+
+bool
+vmbus_chan_is_revoked(const struct vmbus_channel *chan)
+{
+
+	if (chan->ch_stflags & VMBUS_CHAN_ST_REVOKED)
+		return (true);
+	return (false);
 }

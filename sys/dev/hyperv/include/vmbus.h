@@ -172,6 +172,7 @@ int		vmbus_chan_send_prplist(struct vmbus_channel *chan,
 uint32_t	vmbus_chan_id(const struct vmbus_channel *chan);
 uint32_t	vmbus_chan_subidx(const struct vmbus_channel *chan);
 bool		vmbus_chan_is_primary(const struct vmbus_channel *chan);
+bool		vmbus_chan_is_revoked(const struct vmbus_channel *chan);
 const struct hyperv_guid *
 		vmbus_chan_guid_inst(const struct vmbus_channel *chan);
 int		vmbus_chan_prplist_nelem(int br_size, int prpcnt_max,
