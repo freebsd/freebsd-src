@@ -1780,6 +1780,8 @@ nchinit(void *dummy __unused)
 
 	nchashtbl = hashinit(desiredvnodes * 2, M_VFSCACHE, &nchash);
 	numbucketlocks = cache_roundup_2(mp_ncpus * 64);
+	if (numbucketlocks > nchash + 1)
+		numbucketlocks = nchash + 1;
 	bucketlocks = malloc(sizeof(*bucketlocks) * numbucketlocks, M_VFSCACHE,
 	    M_WAITOK | M_ZERO);
 	for (i = 0; i < numbucketlocks; i++)
@@ -1828,7 +1830,11 @@ cache_changesize(int newmaxvnodes)
 	uint32_t hash;
 	int i;
 
-	new_nchashtbl = hashinit(newmaxvnodes * 2, M_VFSCACHE, &new_nchash);
+	newmaxvnodes = cache_roundup_2(newmaxvnodes * 2);
+	if (newmaxvnodes < numbucketlocks)
+		newmaxvnodes = numbucketlocks;
+
+	new_nchashtbl = hashinit(newmaxvnodes, M_VFSCACHE, &new_nchash);
 	/* If same hash table size, nothing to do */
 	if (nchash == new_nchash) {
 		free(new_nchashtbl, M_VFSCACHE);
