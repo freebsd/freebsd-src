@@ -380,6 +380,7 @@ void dump_Elf_Rela(Obj_Entry *, const Elf_Rela *, u_long);
 unsigned long elf_hash(const char *);
 const Elf_Sym *find_symdef(unsigned long, const Obj_Entry *,
   const Obj_Entry **, int, SymCache *, struct Struct_RtldLockState *);
+void ifunc_init(Elf_Auxinfo *);
 void init_pltgot(Obj_Entry *);
 void lockdflt_init(void);
 void digest_notes(Obj_Entry *, Elf_Addr, Elf_Addr);

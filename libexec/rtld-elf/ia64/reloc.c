@@ -603,6 +603,11 @@ call_init_pointer(const Obj_Entry *obj, Elf_Addr target)
 	((InitArrFunc) &fptr)(main_argc, main_argv, environ);
 }
 
+void  
+ifunc_init(Elf_Auxinfo aux_info[__min_size(AT_COUNT)] __unused)
+{
+}
+
 /* Initialize the special PLT entries. */
 void
 init_pltgot(Obj_Entry *obj)
