@@ -283,18 +283,14 @@ fetch_resolve(const char *addr, int port, int af)
 	}
 
 	/* resolve */
-	fetch_info("resolving host = %s service = %s af = %d",
-	    host, service, af);
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = af;
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = AI_ADDRCONFIG;
 	if ((err = getaddrinfo(host, service, &hints, &res)) != 0) {
 		netdb_seterr(err);
-		fetch_info("getaddrinfo() failed: %s", gai_strerror(err));
 		return (NULL);
 	}
-	fetch_info("getaddrinfo() succeeded %p", res);
 	return (res);
 }
 
