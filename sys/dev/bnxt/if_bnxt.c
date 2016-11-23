@@ -1912,6 +1912,7 @@ bnxt_add_media_types(struct bnxt_softc *softc)
 		if (supported & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_SPEEDS_10GB)
 			ifmedia_add(softc->media, IFM_ETHER | IFM_10G_KR, 0,
 			    NULL);
+		break;
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASELR:
 		if (supported & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_SPEEDS_100GB)
 			ifmedia_add(softc->media, IFM_ETHER | IFM_100G_LR4, 0,
