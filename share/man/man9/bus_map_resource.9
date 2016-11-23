@@ -135,6 +135,8 @@ By default memory mappings use the
 .Dv VM_MEMATTR_UNCACHEABLE
 attribute.
 .El
+.Sh RETURN VALUES
+Zero is returned on success, otherwise an error is returned.
 .Sh EXAMPLES
 This maps a PCI memory BAR with the write-combining memory attribute and
 reads the first 32-bit word:
@@ -153,9 +155,6 @@ reads the first 32-bit word:
 	bus_map_resource(dev, SYS_RES_MEMORY, r, &args, &map);
 	val = bus_read_4(&map, 0);
 .Ed
-.Pp
-.Sh RETURN VALUES
-Zero is returned on success, otherwise an error is returned.
 .Sh SEE ALSO
 .Xr bus_activate_resource 9 ,
 .Xr bus_alloc_resource 9 ,
