@@ -166,6 +166,7 @@ matthew [label="Matthew Seaman\nmatthew@FreeBSD.org\n2012/02/07"]
 mezz [label="Jeremy Messenger\nmezz@FreeBSD.org\n2004/04/30"]
 mharo [label="Michael Haro\nmharo@FreeBSD.org\n1999/04/13"]
 milki [label="Jonathan Chu\nmilki@FreeBSD.org\n2013/12/15"]
+misha [label="Mikhail Pchelin\nmisha@FreeBSD.org\n2016/11/15"]
 miwi [label="Martin Wilke\nmiwi@FreeBSD.org\n2006/06/04"]
 mm [label="Martin Matuska\nmm@FreeBSD.org\n2007/04/04"]
 mnag [label="Marcus Alves Grando\nmnag@FreeBSD.org\n2005/09/15"]
@@ -378,6 +379,7 @@ flz -> johans
 flz -> laszlof
 flz -> romain
 
+jpaetzel -> misha
 jpaetzel -> wg
 
 gabor -> lippe
@@ -617,6 +619,7 @@ wen -> pawel
 wg -> alexey
 wg -> danilo
 wg -> dvl
+wg -> misha
 wg -> nemysis
 
 will -> lioux
