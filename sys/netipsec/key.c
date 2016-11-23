@@ -7591,23 +7591,19 @@ key_sa_recordxfer(struct secasvar *sav, struct mbuf *m)
 {
 	IPSEC_ASSERT(sav != NULL, ("Null secasvar"));
 	IPSEC_ASSERT(m != NULL, ("Null mbuf"));
-	if (!sav->lft_c)
-		return;
 
 	/*
 	 * XXX Currently, there is a difference of bytes size
 	 * between inbound and outbound processing.
 	 */
-	sav->lft_c->bytes += m->m_pkthdr.len;
-	/* to check bytes lifetime is done in key_timehandler(). */
+	counter_u64_add(sav->lft_c_bytes, m->m_pkthdr.len);
 
 	/*
 	 * We use the number of packets as the unit of
 	 * allocations.  We increment the variable
 	 * whenever {esp,ah}_{in,out}put is called.
 	 */
-	sav->lft_c->allocations++;
-	/* XXX check for expires? */
+	counter_u64_add(sav->lft_c_allocations, 1);
 
 	/*
 	 * NOTE: We record CURRENT usetime by using wall clock,
@@ -7620,10 +7616,8 @@ key_sa_recordxfer(struct secasvar *sav, struct mbuf *m)
 	 *	<--------------> HARD
 	 *	<-----> SOFT
 	 */
-	sav->lft_c->usetime = time_second;
-	/* XXX check for expires? */
-
-	return;
+	if (sav->firstused == 0)
+		sav->firstused = time_second;
 }
 
 static void
