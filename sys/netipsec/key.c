@@ -6543,15 +6543,18 @@ key_freereg(struct socket *so)
 static int
 key_expire(struct secasvar *sav, int hard)
 {
-	int satype;
 	struct mbuf *result = NULL, *m;
-	int len;
-	int error = -1;
 	struct sadb_lifetime *lt;
+	int error, len;
+	uint8_t satype;
 
 	IPSEC_ASSERT (sav != NULL, ("null sav"));
 	IPSEC_ASSERT (sav->sah != NULL, ("null sa header"));
 
+	KEYDBG(KEY_STAMP,
+	    printf("%s: SA(%p) expired %s lifetime\n", __func__,
+		sav, hard ? "hard": "soft"));
+	KEYDBG(KEY_DATA, kdebug_secasv(sav));
 	/* set msg header */
 	satype = key_proto2satype(sav->sah->saidx.proto);
 	IPSEC_ASSERT(satype != 0, ("invalid proto, satype %u", satype));
@@ -6593,10 +6596,12 @@ key_expire(struct secasvar *sav, int hard)
 	lt = mtod(m, struct sadb_lifetime *);
 	lt->sadb_lifetime_len = PFKEY_UNIT64(sizeof(struct sadb_lifetime));
 	lt->sadb_lifetime_exttype = SADB_EXT_LIFETIME_CURRENT;
-	lt->sadb_lifetime_allocations = sav->lft_c->allocations;
-	lt->sadb_lifetime_bytes = sav->lft_c->bytes;
-	lt->sadb_lifetime_addtime = sav->lft_c->addtime;
-	lt->sadb_lifetime_usetime = sav->lft_c->usetime;
+	lt->sadb_lifetime_allocations =
+	    (uint32_t)counter_u64_fetch(sav->lft_c_allocations);
+	lt->sadb_lifetime_bytes =
+	    counter_u64_fetch(sav->lft_c_bytes);
+	lt->sadb_lifetime_addtime = sav->created;
+	lt->sadb_lifetime_usetime = sav->firstused;
 	lt = (struct sadb_lifetime *)(mtod(m, caddr_t) + len / 2);
 	lt->sadb_lifetime_len = PFKEY_UNIT64(sizeof(struct sadb_lifetime));
 	if (hard) {
