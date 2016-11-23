@@ -82,7 +82,7 @@
 #else
 #define	PCPU_MD_MIPS32_FIELDS						\
 	PCPU_MD_COMMON_FIELDS						\
-	char		__pad[(133 - (PCPU_NUM_EXC_CNTRS * 4))]
+	char		__pad[(193 - (PCPU_NUM_EXC_CNTRS * 4))]
 #endif
 
 #ifdef	__mips_n64
