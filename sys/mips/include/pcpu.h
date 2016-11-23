@@ -48,7 +48,7 @@
 #else
 #define	PCPU_MD_MIPS32_FIELDS						\
 	PCPU_MD_COMMON_FIELDS						\
-	char		__pad[133]
+	char		__pad[193]
 #endif
 
 #ifdef	__mips_n64
