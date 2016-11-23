@@ -785,16 +785,6 @@ initializecpu(void)
 			init_transmeta();
 			break;
 		}
-#if defined(PAE) || defined(PAE_TABLES)
-		if ((amd_feature & AMDID_NX) != 0) {
-			uint64_t msr;
-
-			msr = rdmsr(MSR_EFER) | EFER_NXE;
-			wrmsr(MSR_EFER, msr);
-			pg_nx = PG_NX;
-			elf32_nxstack = 1;
-		}
-#endif
 		break;
 #endif
 	default:
@@ -804,6 +794,16 @@ initializecpu(void)
 	if ((cpu_feature & CPUID_XMM) && (cpu_feature & CPUID_FXSR)) {
 		load_cr4(rcr4() | CR4_FXSR | CR4_XMM);
 		cpu_fxsr = hw_instruction_sse = 1;
+	}
+#endif
+#if defined(PAE) || defined(PAE_TABLES)
+	if ((amd_feature & AMDID_NX) != 0) {
+		uint64_t msr;
+
+		msr = rdmsr(MSR_EFER) | EFER_NXE;
+		wrmsr(MSR_EFER, msr);
+		pg_nx = PG_NX;
+		elf32_nxstack = 1;
 	}
 #endif
 }
