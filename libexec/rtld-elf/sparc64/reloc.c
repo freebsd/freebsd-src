@@ -786,6 +786,11 @@ reloc_jmpslot(Elf_Addr *wherep, Elf_Addr target, const Obj_Entry *obj,
 	return (target);
 }
 
+void
+ifunc_init(Elf_Auxinfo aux_info[__min_size(AT_COUNT)] __unused)
+{
+}
+
 /*
  * Install rtld function call into this PLT slot.
  */
