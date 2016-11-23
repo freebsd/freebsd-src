@@ -50,16 +50,17 @@ struct vmbus_xact {
 };
 
 struct vmbus_xact_ctx {
-	uint32_t			xc_flags;
 	size_t				xc_req_size;
 	size_t				xc_resp_size;
 	size_t				xc_priv_size;
 
+	struct mtx			xc_lock;
+	/*
+	 * Protected by xc_lock.
+	 */
+	uint32_t			xc_flags;	/* VMBUS_XACT_CTXF_ */
 	struct vmbus_xact		*xc_free;
-	struct mtx			xc_free_lock;
-
 	struct vmbus_xact		*xc_active;
-	struct mtx			xc_active_lock;
 };
 
 #define VMBUS_XACT_CTXF_DESTROY		0x0001
@@ -110,10 +111,10 @@ vmbus_xact_get1(struct vmbus_xact_ctx *ctx, uint32_t dtor_flag)
 {
 	struct vmbus_xact *xact;
 
-	mtx_lock(&ctx->xc_free_lock);
+	mtx_lock(&ctx->xc_lock);
 
 	while ((ctx->xc_flags & dtor_flag) == 0 && ctx->xc_free == NULL)
-		mtx_sleep(&ctx->xc_free, &ctx->xc_free_lock, 0, "gxact", 0);
+		mtx_sleep(&ctx->xc_free, &ctx->xc_lock, 0, "gxact", 0);
 	if (ctx->xc_flags & dtor_flag) {
 		/* Being destroyed */
 		xact = NULL;
@@ -124,7 +125,7 @@ vmbus_xact_get1(struct vmbus_xact_ctx *ctx, uint32_t dtor_flag)
 		ctx->xc_free = NULL;
 	}
 
-	mtx_unlock(&ctx->xc_free_lock);
+	mtx_unlock(&ctx->xc_lock);
 
 	return (xact);
 }
@@ -146,8 +147,7 @@ vmbus_xact_ctx_create(bus_dma_tag_t dtag, size_t req_size, size_t resp_size,
 		return (NULL);
 	}
 
-	mtx_init(&ctx->xc_free_lock, "vmbus xact free", NULL, MTX_DEF);
-	mtx_init(&ctx->xc_active_lock, "vmbus xact active", NULL, MTX_DEF);
+	mtx_init(&ctx->xc_lock, "vmbus xact", NULL, MTX_DEF);
 
 	return (ctx);
 }
@@ -157,9 +157,9 @@ vmbus_xact_ctx_destroy(struct vmbus_xact_ctx *ctx)
 {
 	struct vmbus_xact *xact;
 
-	mtx_lock(&ctx->xc_free_lock);
+	mtx_lock(&ctx->xc_lock);
 	ctx->xc_flags |= VMBUS_XACT_CTXF_DESTROY;
-	mtx_unlock(&ctx->xc_free_lock);
+	mtx_unlock(&ctx->xc_lock);
 	wakeup(&ctx->xc_free);
 
 	xact = vmbus_xact_get1(ctx, 0);
@@ -167,8 +167,7 @@ vmbus_xact_ctx_destroy(struct vmbus_xact_ctx *ctx)
 		panic("can't get xact");
 
 	vmbus_xact_free(xact);
-	mtx_destroy(&ctx->xc_free_lock);
-	mtx_destroy(&ctx->xc_active_lock);
+	mtx_destroy(&ctx->xc_lock);
 	free(ctx, M_DEVBUF);
 }
 
@@ -196,10 +195,10 @@ vmbus_xact_put(struct vmbus_xact *xact)
 	KASSERT(ctx->xc_active == NULL, ("pending active xact"));
 	xact->x_resp = NULL;
 
-	mtx_lock(&ctx->xc_free_lock);
+	mtx_lock(&ctx->xc_lock);
 	KASSERT(ctx->xc_free == NULL, ("has free xact"));
 	ctx->xc_free = xact;
-	mtx_unlock(&ctx->xc_free_lock);
+	mtx_unlock(&ctx->xc_lock);
 	wakeup(&ctx->xc_free);
 }
 
@@ -233,10 +232,10 @@ vmbus_xact_activate(struct vmbus_xact *xact)
 
 	KASSERT(xact->x_resp == NULL, ("xact has pending response"));
 
-	mtx_lock(&ctx->xc_active_lock);
+	mtx_lock(&ctx->xc_lock);
 	KASSERT(ctx->xc_active == NULL, ("pending active xact"));
 	ctx->xc_active = xact;
-	mtx_unlock(&ctx->xc_active_lock);
+	mtx_unlock(&ctx->xc_lock);
 }
 
 void
@@ -244,10 +243,10 @@ vmbus_xact_deactivate(struct vmbus_xact *xact)
 {
 	struct vmbus_xact_ctx *ctx = xact->x_ctx;
 
-	mtx_lock(&ctx->xc_active_lock);
+	mtx_lock(&ctx->xc_lock);
 	KASSERT(ctx->xc_active == xact, ("xact mismatch"));
 	ctx->xc_active = NULL;
-	mtx_unlock(&ctx->xc_active_lock);
+	mtx_unlock(&ctx->xc_lock);
 }
 
 const void *
@@ -257,17 +256,17 @@ vmbus_xact_wait1(struct vmbus_xact *xact, size_t *resp_len,
 	struct vmbus_xact_ctx *ctx = xact->x_ctx;
 	const void *resp;
 
-	mtx_lock(&ctx->xc_active_lock);
+	mtx_lock(&ctx->xc_lock);
 
 	KASSERT(ctx->xc_active == xact, ("xact mismatch"));
 	while (xact->x_resp == NULL) {
 		if (can_sleep) {
-			mtx_sleep(&ctx->xc_active, &ctx->xc_active_lock, 0,
+			mtx_sleep(&ctx->xc_active, &ctx->xc_lock, 0,
 			    "wxact", 0);
 		} else {
-			mtx_unlock(&ctx->xc_active_lock);
+			mtx_unlock(&ctx->xc_lock);
 			DELAY(1000);
-			mtx_lock(&ctx->xc_active_lock);
+			mtx_lock(&ctx->xc_lock);
 		}
 	}
 	ctx->xc_active = NULL;
@@ -275,7 +274,7 @@ vmbus_xact_wait1(struct vmbus_xact *xact, size_t *resp_len,
 	resp = xact->x_resp;
 	*resp_len = xact->x_resp_len;
 
-	mtx_unlock(&ctx->xc_active_lock);
+	mtx_unlock(&ctx->xc_lock);
 
 	return (resp);
 }
@@ -300,7 +299,7 @@ vmbus_xact_save_resp(struct vmbus_xact *xact, const void *data, size_t dlen)
 	struct vmbus_xact_ctx *ctx = xact->x_ctx;
 	size_t cplen = dlen;
 
-	mtx_assert(&ctx->xc_active_lock, MA_OWNED);
+	mtx_assert(&ctx->xc_lock, MA_OWNED);
 
 	if (cplen > ctx->xc_resp_size) {
 		printf("vmbus: xact response truncated %zu -> %zu\n",
@@ -319,18 +318,18 @@ vmbus_xact_wakeup(struct vmbus_xact *xact, const void *data, size_t dlen)
 {
 	struct vmbus_xact_ctx *ctx = xact->x_ctx;
 
-	mtx_lock(&ctx->xc_active_lock);
+	mtx_lock(&ctx->xc_lock);
 	vmbus_xact_save_resp(xact, data, dlen);
-	mtx_unlock(&ctx->xc_active_lock);
+	mtx_unlock(&ctx->xc_lock);
 	wakeup(&ctx->xc_active);
 }
 
 void
 vmbus_xact_ctx_wakeup(struct vmbus_xact_ctx *ctx, const void *data, size_t dlen)
 {
-	mtx_lock(&ctx->xc_active_lock);
+	mtx_lock(&ctx->xc_lock);
 	KASSERT(ctx->xc_active != NULL, ("no pending xact"));
 	vmbus_xact_save_resp(ctx->xc_active, data, dlen);
-	mtx_unlock(&ctx->xc_active_lock);
+	mtx_unlock(&ctx->xc_lock);
 	wakeup(&ctx->xc_active);
 }
