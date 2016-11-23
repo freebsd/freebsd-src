@@ -6671,6 +6671,36 @@ key_expire(struct secasvar *sav, int hard)
 	return error;
 }
 
+static void
+key_freesah_flushed(struct secashead_queue *flushq)
+{
+	struct secashead *sah, *nextsah;
+	struct secasvar *sav, *nextsav;
+
+	sah = TAILQ_FIRST(flushq);
+	while (sah != NULL) {
+		sav = TAILQ_FIRST(&sah->savtree_larval);
+		while (sav != NULL) {
+			nextsav = TAILQ_NEXT(sav, chain);
+			TAILQ_REMOVE(&sah->savtree_larval, sav, chain);
+			key_freesav(&sav); /* release last reference */
+			key_freesah(&sah); /* release reference from SAV */
+			sav = nextsav;
+		}
+		sav = TAILQ_FIRST(&sah->savtree_alive);
+		while (sav != NULL) {
+			nextsav = TAILQ_NEXT(sav, chain);
+			TAILQ_REMOVE(&sah->savtree_alive, sav, chain);
+			key_freesav(&sav); /* release last reference */
+			key_freesah(&sah); /* release reference from SAV */
+			sav = nextsav;
+		}
+		nextsah = TAILQ_NEXT(sah, chain);
+		key_freesah(&sah);	/* release last reference */
+		sah = nextsah;
+	}
+}
+
 /*
  * SADB_FLUSH processing
  * receive
@@ -6686,12 +6716,12 @@ key_expire(struct secasvar *sav, int hard)
 static int
 key_flush(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 {
+	struct secashead_queue flushq;
 	struct sadb_msg *newmsg;
 	struct secashead *sah, *nextsah;
-	struct secasvar *sav, *nextsav;
-	u_int16_t proto;
-	u_int8_t state;
-	u_int stateidx;
+	struct secasvar *sav;
+	uint8_t proto;
+	int i;
 
 	IPSEC_ASSERT(so != NULL, ("null socket"));
 	IPSEC_ASSERT(mhp != NULL, ("null msghdr"));
@@ -6703,37 +6733,71 @@ key_flush(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 			__func__));
 		return key_senderror(so, m, EINVAL);
 	}
+	KEYDBG(KEY_STAMP,
+	    printf("%s: proto %u\n", __func__, proto));
 
-	/* no SATYPE specified, i.e. flushing all SA. */
-	SAHTREE_LOCK();
-	for (sah = LIST_FIRST(&V_sahtree);
-	     sah != NULL;
-	     sah = nextsah) {
-		nextsah = LIST_NEXT(sah, chain);
-
-		if (mhp->msg->sadb_msg_satype != SADB_SATYPE_UNSPEC
-		 && proto != sah->saidx.proto)
-			continue;
-
-		for (stateidx = 0;
-		     stateidx < _ARRAYLEN(saorder_state_alive);
-		     stateidx++) {
-			state = saorder_state_any[stateidx];
-			for (sav = LIST_FIRST(&sah->savtree[state]);
-			     sav != NULL;
-			     sav = nextsav) {
-
-				nextsav = LIST_NEXT(sav, chain);
-
-				key_sa_chgstate(sav, SADB_SASTATE_DEAD);
-				KEY_FREESAV(&sav);
+	TAILQ_INIT(&flushq);
+	if (proto == IPSEC_PROTO_ANY) {
+		/* no SATYPE specified, i.e. flushing all SA. */
+		SAHTREE_WLOCK();
+		/* Move all SAHs into flushq */
+		TAILQ_CONCAT(&flushq, &V_sahtree, chain);
+		/* Flush all buckets in SPI hash */
+		for (i = 0; i < V_savhash_mask + 1; i++)
+			LIST_INIT(&V_savhashtbl[i]);
+		/* Flush all buckets in SAHADDRHASH */
+		for (i = 0; i < V_sahaddrhash_mask + 1; i++)
+			LIST_INIT(&V_sahaddrhashtbl[i]);
+		/* Mark all SAHs as unlinked */
+		TAILQ_FOREACH(sah, &flushq, chain) {
+			sah->state = SADB_SASTATE_DEAD;
+			/*
+			 * Callout handler makes its job using
+			 * RLOCK and drain queues. In case, when this
+			 * function will be called just before it
+			 * acquires WLOCK, we need to mark SAs as
+			 * unlinked to prevent second unlink.
+			 */
+			TAILQ_FOREACH(sav, &sah->savtree_larval, chain) {
+				sav->state = SADB_SASTATE_DEAD;
+			}
+			TAILQ_FOREACH(sav, &sah->savtree_alive, chain) {
+				sav->state = SADB_SASTATE_DEAD;
 			}
 		}
-
-		sah->state = SADB_SASTATE_DEAD;
+		SAHTREE_WUNLOCK();
+	} else {
+		SAHTREE_WLOCK();
+		sah = TAILQ_FIRST(&V_sahtree);
+		while (sah != NULL) {
+			IPSEC_ASSERT(sah->state != SADB_SASTATE_DEAD,
+			    ("DEAD SAH %p in SADB_FLUSH", sah));
+			nextsah = TAILQ_NEXT(sah, chain);
+			if (sah->saidx.proto != proto) {
+				sah = nextsah;
+				continue;
+			}
+			sah->state = SADB_SASTATE_DEAD;
+			TAILQ_REMOVE(&V_sahtree, sah, chain);
+			LIST_REMOVE(sah, addrhash);
+			/* Unlink all SAs from SPI hash */
+			TAILQ_FOREACH(sav, &sah->savtree_larval, chain) {
+				LIST_REMOVE(sav, spihash);
+				sav->state = SADB_SASTATE_DEAD;
+			}
+			TAILQ_FOREACH(sav, &sah->savtree_alive, chain) {
+				LIST_REMOVE(sav, spihash);
+				sav->state = SADB_SASTATE_DEAD;
+			}
+			/* Add SAH into flushq */
+			TAILQ_INSERT_HEAD(&flushq, sah, chain);
+			sah = nextsah;
+		}
+		SAHTREE_WUNLOCK();
 	}
-	SAHTREE_UNLOCK();
 
+	key_freesah_flushed(&flushq);
+	/* Free all queued SAs and SAHs */
 	if (m->m_len < sizeof(struct sadb_msg) ||
 	    sizeof(struct sadb_msg) > m->m_len + M_TRAILINGSPACE(m)) {
 		ipseclog((LOG_DEBUG, "%s: No more memory.\n", __func__));
@@ -7420,6 +7484,7 @@ key_init(void)
 void
 key_destroy(void)
 {
+	struct secashead_queue sahdrainq;
 	struct secpolicy_queue drainq;
 	struct secpolicy *sp, *nextsp;
 	struct secacq *acq, *nextacq;
@@ -7428,6 +7493,10 @@ key_destroy(void)
 	struct secreg *reg;
 	int i;
 
+	/*
+	 * XXX: can we just call free() for each object without
+	 * walking through safe way with releasing references?
+	 */
 	TAILQ_INIT(&drainq);
 	SPTREE_WLOCK();
 	for (i = 0; i < IPSEC_DIR_MAX; i++) {
@@ -7441,16 +7510,25 @@ key_destroy(void)
 		sp = nextsp;
 	}
 
-	SAHTREE_LOCK();
-	for (sah = LIST_FIRST(&V_sahtree); sah != NULL; sah = nextsah) {
-		nextsah = LIST_NEXT(sah, chain);
-		if (__LIST_CHAINED(sah)) {
-			LIST_REMOVE(sah, chain);
-			free(sah, M_IPSEC_SAH);
+	TAILQ_INIT(&sahdrainq);
+	SAHTREE_WLOCK();
+	TAILQ_CONCAT(&sahdrainq, &V_sahtree, chain);
+	for (i = 0; i < V_savhash_mask + 1; i++)
+		LIST_INIT(&V_savhashtbl[i]);
+	for (i = 0; i < V_sahaddrhash_mask + 1; i++)
+		LIST_INIT(&V_sahaddrhashtbl[i]);
+	TAILQ_FOREACH(sah, &sahdrainq, chain) {
+		sah->state = SADB_SASTATE_DEAD;
+		TAILQ_FOREACH(sav, &sah->savtree_larval, chain) {
+			sav->state = SADB_SASTATE_DEAD;
+		}
+		TAILQ_FOREACH(sav, &sah->savtree_alive, chain) {
+			sav->state = SADB_SASTATE_DEAD;
 		}
 	}
-	SAHTREE_UNLOCK();
+	SAHTREE_WUNLOCK();
 
+	key_freesah_flushed(&sahdrainq);
 	hashdestroy(V_sphashtbl, M_IPSEC_SP, V_sphash_mask);
 	hashdestroy(V_savhashtbl, M_IPSEC_SA, V_savhash_mask);
 	hashdestroy(V_sahaddrhashtbl, M_IPSEC_SAH, V_sahaddrhash_mask);
