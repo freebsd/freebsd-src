@@ -4694,21 +4694,13 @@ key_do_getnewspi(struct sadb_spirange *spirange, struct secasindex *saidx)
 static int
 key_update(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 {
-	struct sadb_sa *sa0;
-	struct sadb_address *src0, *dst0;
-#ifdef IPSEC_NAT_T
-	struct sadb_x_nat_t_type *type;
-	struct sadb_x_nat_t_port *sport, *dport;
-	struct sadb_address *iaddr, *raddr;
-	struct sadb_x_nat_t_frag *frag;
-#endif
 	struct secasindex saidx;
-	struct secashead *sah;
+	struct sadb_address *src0, *dst0;
+	struct sadb_sa *sa0;
 	struct secasvar *sav;
-	u_int16_t proto;
-	u_int8_t mode;
-	u_int32_t reqid;
+	uint32_t reqid;
 	int error;
+	uint8_t mode, proto;
 
 	IPSEC_ASSERT(so != NULL, ("null socket"));
 	IPSEC_ASSERT(m != NULL, ("null mbuf"));
@@ -4718,48 +4710,72 @@ key_update(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 	/* map satype to proto */
 	if ((proto = key_satype2proto(mhp->msg->sadb_msg_satype)) == 0) {
 		ipseclog((LOG_DEBUG, "%s: invalid satype is passed.\n",
-			__func__));
+		    __func__));
 		return key_senderror(so, m, EINVAL);
 	}
 
-	if (mhp->ext[SADB_EXT_SA] == NULL ||
-	    mhp->ext[SADB_EXT_ADDRESS_SRC] == NULL ||
-	    mhp->ext[SADB_EXT_ADDRESS_DST] == NULL ||
-	    (mhp->msg->sadb_msg_satype == SADB_SATYPE_ESP &&
-	     mhp->ext[SADB_EXT_KEY_ENCRYPT] == NULL) ||
-	    (mhp->msg->sadb_msg_satype == SADB_SATYPE_AH &&
-	     mhp->ext[SADB_EXT_KEY_AUTH] == NULL) ||
-	    (mhp->ext[SADB_EXT_LIFETIME_HARD] != NULL &&
-	     mhp->ext[SADB_EXT_LIFETIME_SOFT] == NULL) ||
-	    (mhp->ext[SADB_EXT_LIFETIME_HARD] == NULL &&
-	     mhp->ext[SADB_EXT_LIFETIME_SOFT] != NULL)) {
-		ipseclog((LOG_DEBUG, "%s: invalid message is passed.\n",
-			__func__));
+	if (SADB_CHECKHDR(mhp, SADB_EXT_SA) ||
+	    SADB_CHECKHDR(mhp, SADB_EXT_ADDRESS_SRC) ||
+	    SADB_CHECKHDR(mhp, SADB_EXT_ADDRESS_DST) ||
+	    (mhp->msg->sadb_msg_satype == SADB_SATYPE_ESP && (
+		SADB_CHECKHDR(mhp, SADB_EXT_KEY_ENCRYPT) ||
+		SADB_CHECKLEN(mhp, SADB_EXT_KEY_ENCRYPT))) ||
+	    (mhp->msg->sadb_msg_satype == SADB_SATYPE_AH && (
+		SADB_CHECKHDR(mhp, SADB_EXT_KEY_AUTH) ||
+		SADB_CHECKLEN(mhp, SADB_EXT_KEY_AUTH))) ||
+	    (SADB_CHECKHDR(mhp, SADB_EXT_LIFETIME_HARD) &&
+		!SADB_CHECKHDR(mhp, SADB_EXT_LIFETIME_SOFT)) ||
+	    (SADB_CHECKHDR(mhp, SADB_EXT_LIFETIME_SOFT) &&
+		!SADB_CHECKHDR(mhp, SADB_EXT_LIFETIME_HARD))) {
+		ipseclog((LOG_DEBUG,
+		    "%s: invalid message: missing required header.\n",
+		    __func__));
 		return key_senderror(so, m, EINVAL);
 	}
-	if (mhp->extlen[SADB_EXT_SA] < sizeof(struct sadb_sa) ||
-	    mhp->extlen[SADB_EXT_ADDRESS_SRC] < sizeof(struct sadb_address) ||
-	    mhp->extlen[SADB_EXT_ADDRESS_DST] < sizeof(struct sadb_address)) {
-		ipseclog((LOG_DEBUG, "%s: invalid message is passed.\n",
-			__func__));
+	if (SADB_CHECKLEN(mhp, SADB_EXT_SA) ||
+	    SADB_CHECKLEN(mhp, SADB_EXT_ADDRESS_SRC) ||
+	    SADB_CHECKLEN(mhp, SADB_EXT_ADDRESS_DST)) {
+		ipseclog((LOG_DEBUG,
+		    "%s: invalid message: wrong header size.\n", __func__));
 		return key_senderror(so, m, EINVAL);
 	}
-	if (mhp->ext[SADB_X_EXT_SA2] != NULL) {
-		mode = ((struct sadb_x_sa2 *)mhp->ext[SADB_X_EXT_SA2])->sadb_x_sa2_mode;
-		reqid = ((struct sadb_x_sa2 *)mhp->ext[SADB_X_EXT_SA2])->sadb_x_sa2_reqid;
-	} else {
+	if (SADB_CHECKHDR(mhp, SADB_X_EXT_SA2)) {
 		mode = IPSEC_MODE_ANY;
 		reqid = 0;
+	} else {
+		if (SADB_CHECKLEN(mhp, SADB_X_EXT_SA2)) {
+			ipseclog((LOG_DEBUG,
+			    "%s: invalid message: wrong header size.\n",
+			    __func__));
+			return key_senderror(so, m, EINVAL);
+		}
+		mode = ((struct sadb_x_sa2 *)
+		    mhp->ext[SADB_X_EXT_SA2])->sadb_x_sa2_mode;
+		reqid = ((struct sadb_x_sa2 *)
+		    mhp->ext[SADB_X_EXT_SA2])->sadb_x_sa2_reqid;
 	}
-	/* XXX boundary checking for other extensions */
 
 	sa0 = (struct sadb_sa *)mhp->ext[SADB_EXT_SA];
 	src0 = (struct sadb_address *)(mhp->ext[SADB_EXT_ADDRESS_SRC]);
 	dst0 = (struct sadb_address *)(mhp->ext[SADB_EXT_ADDRESS_DST]);
 
-	/* XXX boundary check against sa_len */
+	/*
+	 * Only SADB_SASTATE_MATURE SAs may be submitted in an
+	 * SADB_UPDATE message.
+	 */
+	if (sa0->sadb_sa_state != SADB_SASTATE_MATURE) {
+		ipseclog((LOG_DEBUG, "%s: invalid state.\n", __func__));
+#ifdef PFKEY_STRICT_CHECKS
+		return key_senderror(so, m, EINVAL);
+#endif
+	}
+	error = key_checksockaddrs((struct sockaddr *)(src0 + 1),
+	    (struct sockaddr *)(dst0 + 1));
+	if (error != 0) {
+		ipseclog((LOG_DEBUG, "%s: invalid sockaddr.\n", __func__));
+		return key_senderror(so, m, error);
+	}
 	KEY_SETSECASIDX(proto, mode, reqid, src0 + 1, dst0 + 1, &saidx);
-
 	/*
 	 * Make sure the port numbers are zero.
 	 * In case of NAT-T we will update them later if needed.
@@ -4767,150 +4783,97 @@ key_update(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 	KEY_PORTTOSADDR(&saidx.src, 0);
 	KEY_PORTTOSADDR(&saidx.dst, 0);
 
-#ifdef IPSEC_NAT_T
-	/*
-	 * Handle NAT-T info if present.
-	 */
-	if (mhp->ext[SADB_X_EXT_NAT_T_TYPE] != NULL &&
-	    mhp->ext[SADB_X_EXT_NAT_T_SPORT] != NULL &&
-	    mhp->ext[SADB_X_EXT_NAT_T_DPORT] != NULL) {
-
-		if (mhp->extlen[SADB_X_EXT_NAT_T_TYPE] < sizeof(*type) ||
-		    mhp->extlen[SADB_X_EXT_NAT_T_SPORT] < sizeof(*sport) ||
-		    mhp->extlen[SADB_X_EXT_NAT_T_DPORT] < sizeof(*dport)) {
-			ipseclog((LOG_DEBUG, "%s: invalid message.\n",
-			    __func__));
-			return key_senderror(so, m, EINVAL);
-		}
-
-		type = (struct sadb_x_nat_t_type *)
-		    mhp->ext[SADB_X_EXT_NAT_T_TYPE];
-		sport = (struct sadb_x_nat_t_port *)
-		    mhp->ext[SADB_X_EXT_NAT_T_SPORT];
-		dport = (struct sadb_x_nat_t_port *)
-		    mhp->ext[SADB_X_EXT_NAT_T_DPORT];
-	} else {
-		type = NULL;
-		sport = dport = NULL;
-	}
-	if (mhp->ext[SADB_X_EXT_NAT_T_OAI] != NULL &&
-	    mhp->ext[SADB_X_EXT_NAT_T_OAR] != NULL) {
-		if (mhp->extlen[SADB_X_EXT_NAT_T_OAI] < sizeof(*iaddr) ||
-		    mhp->extlen[SADB_X_EXT_NAT_T_OAR] < sizeof(*raddr)) {
-			ipseclog((LOG_DEBUG, "%s: invalid message\n",
-			    __func__));
-			return key_senderror(so, m, EINVAL);
-		}
-		iaddr = (struct sadb_address *)mhp->ext[SADB_X_EXT_NAT_T_OAI];
-		raddr = (struct sadb_address *)mhp->ext[SADB_X_EXT_NAT_T_OAR];
-		ipseclog((LOG_DEBUG, "%s: NAT-T OAi/r present\n", __func__));
-	} else {
-		iaddr = raddr = NULL;
-	}
-	if (mhp->ext[SADB_X_EXT_NAT_T_FRAG] != NULL) {
-		if (mhp->extlen[SADB_X_EXT_NAT_T_FRAG] < sizeof(*frag)) {
-			ipseclog((LOG_DEBUG, "%s: invalid message\n",
-			    __func__));
-			return key_senderror(so, m, EINVAL);
-		}
-		frag = (struct sadb_x_nat_t_frag *)
-		    mhp->ext[SADB_X_EXT_NAT_T_FRAG];
-	} else {
-		frag = NULL;
-	}
-#endif
-
-	/* get a SA header */
-	if ((sah = key_getsah(&saidx)) == NULL) {
-		ipseclog((LOG_DEBUG, "%s: no SA index found.\n", __func__));
-		return key_senderror(so, m, ENOENT);
-	}
-
-	/* set spidx if there */
-	/* XXX rewrite */
-	error = key_setident(sah, m, mhp);
-	if (error)
-		return key_senderror(so, m, error);
-
-	/* find a SA with sequence number. */
-#ifdef IPSEC_DOSEQCHECK
-	if (mhp->msg->sadb_msg_seq != 0
-	 && (sav = key_getsavbyseq(sah, mhp->msg->sadb_msg_seq)) == NULL) {
-		ipseclog((LOG_DEBUG, "%s: no larval SA with sequence %u "
-			"exists.\n", __func__, mhp->msg->sadb_msg_seq));
-		return key_senderror(so, m, ENOENT);
-	}
-#else
-	SAHTREE_LOCK();
-	sav = key_getsavbyspi(sah, sa0->sadb_sa_spi);
-	SAHTREE_UNLOCK();
+	sav = key_getsavbyspi(sa0->sadb_sa_spi);
 	if (sav == NULL) {
-		ipseclog((LOG_DEBUG, "%s: no such a SA found (spi:%u)\n",
-			__func__, (u_int32_t)ntohl(sa0->sadb_sa_spi)));
+		ipseclog((LOG_DEBUG, "%s: no SA found for SPI %u\n",
+		    __func__, ntohl(sa0->sadb_sa_spi)));
 		return key_senderror(so, m, EINVAL);
 	}
-#endif
-
-	/* validity check */
-	if (sav->sah->saidx.proto != proto) {
-		ipseclog((LOG_DEBUG, "%s: protocol mismatched "
-			"(DB=%u param=%u)\n", __func__,
-			sav->sah->saidx.proto, proto));
-		return key_senderror(so, m, EINVAL);
-	}
-#ifdef IPSEC_DOSEQCHECK
-	if (sav->spi != sa0->sadb_sa_spi) {
-		ipseclog((LOG_DEBUG, "%s: SPI mismatched (DB:%u param:%u)\n",
-		    __func__,
-		    (u_int32_t)ntohl(sav->spi),
-		    (u_int32_t)ntohl(sa0->sadb_sa_spi)));
-		return key_senderror(so, m, EINVAL);
-	}
-#endif
+	/*
+	 * Check that SADB_UPDATE issued by the same process that did
+	 * SADB_GETSPI or SADB_ADD.
+	 */
 	if (sav->pid != mhp->msg->sadb_msg_pid) {
-		ipseclog((LOG_DEBUG, "%s: pid mismatched (DB:%u param:%u)\n",
-		    __func__, sav->pid, mhp->msg->sadb_msg_pid));
+		ipseclog((LOG_DEBUG,
+		    "%s: pid mismatched (SPI %u, pid %u vs. %u)\n", __func__,
+		    ntohl(sav->spi), sav->pid, mhp->msg->sadb_msg_pid));
+		key_freesav(&sav);
 		return key_senderror(so, m, EINVAL);
 	}
-
-	/* copy sav values */
-	error = key_setsaval(sav, m, mhp);
-	if (error) {
-		KEY_FREESAV(&sav);
-		return key_senderror(so, m, error);
+	/*
+	 * XXXAE: saidx should match with SA. Use CMP_MODE_REQID since we
+	 * didn't set ports for NAT-T yet and exactly match may fail.
+	 */
+	if (key_cmpsaidx(&sav->sah->saidx, &saidx, CMP_MODE_REQID) == 0) {
+		ipseclog((LOG_DEBUG, "%s: saidx mismatched for SPI %u",
+		    __func__, ntohl(sav->spi)));
+		key_freesav(&sav);
+		return key_senderror(so, m, ESRCH);
 	}
 
-#ifdef IPSEC_NAT_T
-	/*
-	 * Handle more NAT-T info if present,
-	 * now that we have a sav to fill.
-	 */
-	if (type)
-		sav->natt_type = type->sadb_x_nat_t_type_type;
-
-	if (sport)
-		KEY_PORTTOSADDR(&sav->sah->saidx.src,
-		    sport->sadb_x_nat_t_port_port);
-	if (dport)
-		KEY_PORTTOSADDR(&sav->sah->saidx.dst,
-		    dport->sadb_x_nat_t_port_port);
-
-#if 0
-	/*
-	 * In case SADB_X_EXT_NAT_T_FRAG was not given, leave it at 0.
-	 * We should actually check for a minimum MTU here, if we
-	 * want to support it in ip_output.
-	 */
-	if (frag)
-		sav->natt_esp_frag_len = frag->sadb_x_nat_t_frag_fraglen;
-#endif
-#endif
-
-	/* check SA values to be mature. */
-	if ((mhp->msg->sadb_msg_errno = key_mature(sav)) != 0) {
-		KEY_FREESAV(&sav);
-		return key_senderror(so, m, 0);
+	if (sav->state == SADB_SASTATE_LARVAL) {
+		/*
+		 * We can set any values except src, dst and SPI.
+		 */
+		error = key_setsaval(sav, mhp);
+		if (error != 0) {
+			key_freesav(&sav);
+			return (key_senderror(so, m, error));
+		}
+		/* Change SA state to MATURE */
+		SAHTREE_WLOCK();
+		if (sav->state != SADB_SASTATE_LARVAL) {
+			/* SA was deleted or another thread made it MATURE. */
+			SAHTREE_WUNLOCK();
+			key_freesav(&sav);
+			return (key_senderror(so, m, ESRCH));
+		}
+		/*
+		 * NOTE: we keep SAs in savtree_alive ordered by created
+		 * time. When SA's state changed from LARVAL to MATURE,
+		 * we update its created time in key_setsaval() and move
+		 * it into head of savtree_alive.
+		 */
+		TAILQ_REMOVE(&sav->sah->savtree_larval, sav, chain);
+		TAILQ_INSERT_HEAD(&sav->sah->savtree_alive, sav, chain);
+		sav->state = SADB_SASTATE_MATURE;
+		SAHTREE_WUNLOCK();
+	} else {
+		/*
+		 * For DYING and MATURE SA we can change only state
+		 * and lifetimes. Report EINVAL if something else attempted
+		 * to change.
+		 */
+		if (!SADB_CHECKHDR(mhp, SADB_EXT_KEY_ENCRYPT) ||
+		    !SADB_CHECKHDR(mhp, SADB_EXT_KEY_AUTH)) {
+			key_freesav(&sav);
+			return (key_senderror(so, m, EINVAL));
+		}
+		error = key_updatelifetimes(sav, mhp);
+		if (error != 0) {
+			key_freesav(&sav);
+			return (key_senderror(so, m, error));
+		}
+		/* Check that SA is still alive */
+		SAHTREE_WLOCK();
+		if (sav->state == SADB_SASTATE_DEAD) {
+			/* SA was unlinked */
+			SAHTREE_WUNLOCK();
+			key_freesav(&sav);
+			return (key_senderror(so, m, ESRCH));
+		}
+		/*
+		 * NOTE: there is possible state moving from DYING to MATURE,
+		 * but this doesn't change created time, so we won't reorder
+		 * this SA.
+		 */
+		sav->state = SADB_SASTATE_MATURE;
+		SAHTREE_WUNLOCK();
 	}
+	KEYDBG(KEY_STAMP,
+	    printf("%s: SA(%p)\n", __func__, sav));
+	KEYDBG(KEY_DATA, kdebug_secasv(sav));
+	key_freesav(&sav);
 
     {
 	struct mbuf *n;
