@@ -5328,88 +5328,38 @@ key_delete(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
  */
 static int
 key_delete_all(struct socket *so, struct mbuf *m,
-    const struct sadb_msghdr *mhp, u_int16_t proto)
+    const struct sadb_msghdr *mhp, struct secasindex *saidx)
 {
-	struct sadb_address *src0, *dst0;
-	struct secasindex saidx;
+	struct secasvar_queue drainq;
 	struct secashead *sah;
 	struct secasvar *sav, *nextsav;
-	u_int stateidx, state;
 
-	src0 = (struct sadb_address *)(mhp->ext[SADB_EXT_ADDRESS_SRC]);
-	dst0 = (struct sadb_address *)(mhp->ext[SADB_EXT_ADDRESS_DST]);
-
-	/* XXX boundary check against sa_len */
-	KEY_SETSECASIDX(proto, IPSEC_MODE_ANY, 0, src0 + 1, dst0 + 1, &saidx);
-
-	/*
-	 * Make sure the port numbers are zero.
-	 * In case of NAT-T we will update them later if needed.
-	 */
-	KEY_PORTTOSADDR(&saidx.src, 0);
-	KEY_PORTTOSADDR(&saidx.dst, 0);
-
-#ifdef IPSEC_NAT_T
-	/*
-	 * Handle NAT-T info if present.
-	 */
-
-	if (mhp->ext[SADB_X_EXT_NAT_T_SPORT] != NULL &&
-	    mhp->ext[SADB_X_EXT_NAT_T_DPORT] != NULL) {
-		struct sadb_x_nat_t_port *sport, *dport;
-
-		if (mhp->extlen[SADB_X_EXT_NAT_T_SPORT] < sizeof(*sport) ||
-		    mhp->extlen[SADB_X_EXT_NAT_T_DPORT] < sizeof(*dport)) {
-			ipseclog((LOG_DEBUG, "%s: invalid message.\n",
-			    __func__));
-			return key_senderror(so, m, EINVAL);
-		}
-
-		sport = (struct sadb_x_nat_t_port *)
-		    mhp->ext[SADB_X_EXT_NAT_T_SPORT];
-		dport = (struct sadb_x_nat_t_port *)
-		    mhp->ext[SADB_X_EXT_NAT_T_DPORT];
-
-		if (sport)
-			KEY_PORTTOSADDR(&saidx.src,
-			    sport->sadb_x_nat_t_port_port);
-		if (dport)
-			KEY_PORTTOSADDR(&saidx.dst,
-			    dport->sadb_x_nat_t_port_port);
-	}
-#endif
-
-	SAHTREE_LOCK();
-	LIST_FOREACH(sah, &V_sahtree, chain) {
-		if (sah->state == SADB_SASTATE_DEAD)
+	TAILQ_INIT(&drainq);
+	SAHTREE_WLOCK();
+	LIST_FOREACH(sah, SAHADDRHASH_HASH(saidx), addrhash) {
+		if (key_cmpsaidx(&sah->saidx, saidx, CMP_HEAD) == 0)
 			continue;
-		if (key_cmpsaidx(&sah->saidx, &saidx, CMP_HEAD) == 0)
-			continue;
-
-		/* Delete all non-LARVAL SAs. */
-		for (stateidx = 0;
-		     stateidx < _ARRAYLEN(saorder_state_alive);
-		     stateidx++) {
-			state = saorder_state_alive[stateidx];
-			if (state == SADB_SASTATE_LARVAL)
-				continue;
-			for (sav = LIST_FIRST(&sah->savtree[state]);
-			     sav != NULL; sav = nextsav) {
-				nextsav = LIST_NEXT(sav, chain);
-				/* sanity check */
-				if (sav->state != state) {
-					ipseclog((LOG_DEBUG, "%s: invalid "
-						"sav->state (queue %d SA %d)\n",
-						__func__, state, sav->state));
-					continue;
-				}
-				
-				key_sa_chgstate(sav, SADB_SASTATE_DEAD);
-				KEY_FREESAV(&sav);
-			}
-		}
+		/* Move all ALIVE SAs into drainq */
+		TAILQ_CONCAT(&drainq, &sah->savtree_alive, chain);
 	}
-	SAHTREE_UNLOCK();
+	/* Unlink all queued SAs from SPI hash */
+	TAILQ_FOREACH(sav, &drainq, chain) {
+		sav->state = SADB_SASTATE_DEAD;
+		LIST_REMOVE(sav, spihash);
+	}
+	SAHTREE_WUNLOCK();
+	/* Now we can release reference for all SAs in drainq */
+	sav = TAILQ_FIRST(&drainq);
+	while (sav != NULL) {
+		KEYDBG(KEY_STAMP,
+		    printf("%s: SA(%p)\n", __func__, sav));
+		KEYDBG(KEY_DATA, kdebug_secasv(sav));
+		nextsav = TAILQ_NEXT(sav, chain);
+		key_freesah(&sav->sah); /* release reference from SAV */
+		key_freesav(&sav); /* release last reference */
+		sav = nextsav;
+	}
+
     {
 	struct mbuf *n;
 	struct sadb_msg *newmsg;
