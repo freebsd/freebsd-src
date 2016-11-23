@@ -1280,6 +1280,7 @@ vnode_pager_generic_putpages(struct vnode *vp, vm_page_t *ma, int bytecount,
 	else if ((flags & VM_PAGER_CLUSTER_OK) == 0)
 		ioflags |= IO_ASYNC;
 	ioflags |= (flags & VM_PAGER_PUT_INVAL) ? IO_INVAL: 0;
+	ioflags |= (flags & VM_PAGER_PUT_NOREUSE) ? IO_NOREUSE : 0;
 	ioflags |= IO_SEQMAX << IO_SEQSHIFT;
 
 	aiov.iov_base = (caddr_t) 0;
