@@ -265,16 +265,40 @@ static struct mtx regtree_lock;
 #define	REGTREE_UNLOCK()	mtx_unlock(&regtree_lock)
 #define	REGTREE_LOCK_ASSERT()	mtx_assert(&regtree_lock, MA_OWNED)
 
-static VNET_DEFINE(LIST_HEAD(_acqtree, secacq), acqtree); /* acquiring list */
+/* Acquiring list */
+LIST_HEAD(secacq_list, secacq);
+static VNET_DEFINE(struct secacq_list, acqtree);
 #define	V_acqtree		VNET(acqtree)
 static struct mtx acq_lock;
 #define	ACQ_LOCK_INIT() \
-	mtx_init(&acq_lock, "acqtree", "fast ipsec acquire list", MTX_DEF)
+    mtx_init(&acq_lock, "acqtree", "ipsec SA acquiring list", MTX_DEF)
 #define	ACQ_LOCK_DESTROY()	mtx_destroy(&acq_lock)
 #define	ACQ_LOCK()		mtx_lock(&acq_lock)
 #define	ACQ_UNLOCK()		mtx_unlock(&acq_lock)
 #define	ACQ_LOCK_ASSERT()	mtx_assert(&acq_lock, MA_OWNED)
 
+/* Hash table for lookup in ACQ list using SA addresses */
+static VNET_DEFINE(struct secacq_list *, acqaddrhashtbl);
+static VNET_DEFINE(u_long, acqaddrhash_mask);
+#define	V_acqaddrhashtbl	VNET(acqaddrhashtbl)
+#define	V_acqaddrhash_mask	VNET(acqaddrhash_mask)
+
+/* Hash table for lookup in ACQ list using SEQ number */
+static VNET_DEFINE(struct secacq_list *, acqseqhashtbl);
+static VNET_DEFINE(u_long, acqseqhash_mask);
+#define	V_acqseqhashtbl		VNET(acqseqhashtbl)
+#define	V_acqseqhash_mask	VNET(acqseqhash_mask)
+
+#define	ACQHASH_NHASH_LOG2	7
+#define	ACQHASH_NHASH		(1 << ACQHASH_NHASH_LOG2)
+#define	ACQADDRHASH_HASHVAL(saidx)	\
+    (key_saidxhash(saidx) & V_acqaddrhash_mask)
+#define	ACQSEQHASH_HASHVAL(seq)		\
+    (key_u32hash(seq) & V_acqseqhash_mask)
+#define	ACQADDRHASH_HASH(saidx)	\
+    &V_acqaddrhashtbl[ACQADDRHASH_HASHVAL(saidx)]
+#define	ACQSEQHASH_HASH(seq)	\
+    &V_acqseqhashtbl[ACQSEQHASH_HASHVAL(seq)]
 							/* SP acquiring list */
 static VNET_DEFINE(LIST_HEAD(_spacqtree, secspacq), spacqtree);
 #define	V_spacqtree		VNET(spacqtree)
@@ -4270,13 +4294,16 @@ key_flush_acq(time_t now)
 
 	/* ACQ tree */
 	ACQ_LOCK();
-	for (acq = LIST_FIRST(&V_acqtree); acq != NULL; acq = nextacq) {
+	acq = LIST_FIRST(&V_acqtree);
+	while (acq != NULL) {
 		nextacq = LIST_NEXT(acq, chain);
-		if (now - acq->created > V_key_blockacq_lifetime
-		 && __LIST_CHAINED(acq)) {
+		if (now - acq->created > V_key_blockacq_lifetime) {
 			LIST_REMOVE(acq, chain);
+			LIST_REMOVE(acq, addrhash);
+			LIST_REMOVE(acq, seqhash);
 			free(acq, M_IPSEC_SAQ);
 		}
+		acq = nextacq;
 	}
 	ACQ_UNLOCK();
 }
@@ -6021,34 +6048,122 @@ key_newacq(const struct secasindex *saidx)
 	return newacq;
 }
 
-static struct secacq *
-key_getacq(const struct secasindex *saidx)
+static uint32_t
+key_newacq(const struct secasindex *saidx, int *perror)
 {
 	struct secacq *acq;
+	uint32_t seq;
 
-	ACQ_LOCK();
-	LIST_FOREACH(acq, &V_acqtree, chain) {
-		if (key_cmpsaidx(saidx, &acq->saidx, CMP_EXACTLY))
-			break;
+	acq = malloc(sizeof(*acq), M_IPSEC_SAQ, M_NOWAIT | M_ZERO);
+	if (acq == NULL) {
+		ipseclog((LOG_DEBUG, "%s: No more memory.\n", __func__));
+		*perror = ENOBUFS;
+		return (0);
 	}
-	ACQ_UNLOCK();
 
-	return acq;
+	/* copy secindex */
+	bcopy(saidx, &acq->saidx, sizeof(acq->saidx));
+	acq->created = time_second;
+	acq->count = 0;
+
+	/* add to acqtree */
+	ACQ_LOCK();
+	seq = acq->seq = (V_acq_seq == ~0 ? 1 : ++V_acq_seq);
+	LIST_INSERT_HEAD(&V_acqtree, acq, chain);
+	LIST_INSERT_HEAD(ACQADDRHASH_HASH(saidx), acq, addrhash);
+	LIST_INSERT_HEAD(ACQSEQHASH_HASH(seq), acq, seqhash);
+	ACQ_UNLOCK();
+	*perror = 0;
+	return (seq);
 }
 
-static struct secacq *
-key_getacqbyseq(u_int32_t seq)
+static uint32_t
+key_getacq(const struct secasindex *saidx, int *perror)
+{
+	struct secacq *acq;
+	uint32_t seq;
+
+	ACQ_LOCK();
+	LIST_FOREACH(acq, ACQADDRHASH_HASH(saidx), addrhash) {
+		if (key_cmpsaidx(&acq->saidx, saidx, CMP_EXACTLY)) {
+			if (acq->count > V_key_blockacq_count) {
+				/*
+				 * Reset counter and send message.
+				 * Also reset created time to keep ACQ for
+				 * this saidx.
+				 */
+				acq->created = time_second;
+				acq->count = 0;
+				seq = acq->seq;
+			} else {
+				/*
+				 * Increment counter and do nothing.
+				 * We send SADB_ACQUIRE message only
+				 * for each V_key_blockacq_count packet.
+				 */
+				acq->count++;
+				seq = 0;
+			}
+			break;
+		}
+	}
+	ACQ_UNLOCK();
+	if (acq != NULL) {
+		*perror = 0;
+		return (seq);
+	}
+	/* allocate new  entry */
+	return (key_newacq(saidx, perror));
+}
+
+static int
+key_acqreset(uint32_t seq)
 {
 	struct secacq *acq;
 
 	ACQ_LOCK();
-	LIST_FOREACH(acq, &V_acqtree, chain) {
+	LIST_FOREACH(acq, ACQSEQHASH_HASH(seq), seqhash) {
+		if (acq->seq == seq) {
+			acq->count = 0;
+			acq->created = time_second;
+			break;
+		}
+	}
+	ACQ_UNLOCK();
+	if (acq == NULL)
+		return (ESRCH);
+	return (0);
+}
+/*
+ * Mark ACQ entry as stale to remove it in key_flush_acq().
+ * Called after successful SADB_GETSPI message.
+ */
+static int
+key_acqdone(const struct secasindex *saidx, uint32_t seq)
+{
+	struct secacq *acq;
+
+	ACQ_LOCK();
+	LIST_FOREACH(acq, ACQSEQHASH_HASH(seq), seqhash) {
 		if (acq->seq == seq)
 			break;
 	}
+	if (acq != NULL) {
+		if (key_cmpsaidx(&acq->saidx, saidx, CMP_EXACTLY) == 0) {
+			ipseclog((LOG_DEBUG,
+			    "%s: Mismatched saidx for ACQ %u", __func__, seq));
+			acq = NULL;
+		} else {
+			acq->created = 0;
+		}
+	} else {
+		ipseclog((LOG_DEBUG,
+		    "%s: ACQ %u is not found.", __func__, seq));
+	}
 	ACQ_UNLOCK();
-
-	return acq;
+	if (acq == NULL)
+		return (ESRCH);
+	return (0);
 }
 
 static struct secspacq *
@@ -7285,11 +7400,15 @@ key_init(void)
 	    sizeof(uint64_t) * 2, NULL, NULL, NULL, NULL,
 	    UMA_ALIGN_PTR, UMA_ZONE_PCPU);
 
-	LIST_INIT(&V_sahtree);
+	TAILQ_INIT(&V_sahtree);
 	V_sphashtbl = hashinit(SPHASH_NHASH, M_IPSEC_SP, &V_sphash_mask);
 	V_savhashtbl = hashinit(SAVHASH_NHASH, M_IPSEC_SA, &V_savhash_mask);
 	V_sahaddrhashtbl = hashinit(SAHHASH_NHASH, M_IPSEC_SAH,
 	    &V_sahaddrhash_mask);
+	V_acqaddrhashtbl = hashinit(ACQHASH_NHASH, M_IPSEC_SAQ,
+	    &V_acqaddrhash_mask);
+	V_acqseqhashtbl = hashinit(ACQHASH_NHASH, M_IPSEC_SAQ,
+	    &V_acqseqhash_mask);
 
 	for (i = 0; i <= SADB_SATYPE_MAX; i++)
 		LIST_INIT(&V_regtree[i]);
@@ -7370,12 +7489,12 @@ key_destroy(void)
 	REGTREE_UNLOCK();
 
 	ACQ_LOCK();
-	for (acq = LIST_FIRST(&V_acqtree); acq != NULL; acq = nextacq) {
+	acq = LIST_FIRST(&V_acqtree);
+	while (acq != NULL) {
 		nextacq = LIST_NEXT(acq, chain);
-		if (__LIST_CHAINED(acq)) {
-			LIST_REMOVE(acq, chain);
-			free(acq, M_IPSEC_SAQ);
-		}
+		LIST_REMOVE(acq, chain);
+		free(acq, M_IPSEC_SAQ);
+		acq = nextacq;
 	}
 	ACQ_UNLOCK();
 
@@ -7389,6 +7508,8 @@ key_destroy(void)
 		}
 	}
 	SPACQ_UNLOCK();
+	hashdestroy(V_acqaddrhashtbl, M_IPSEC_SAQ, V_acqaddrhash_mask);
+	hashdestroy(V_acqseqhashtbl, M_IPSEC_SAQ, V_acqseqhash_mask);
 	uma_zdestroy(V_key_lft_zone);
 }
 #endif
