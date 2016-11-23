@@ -511,6 +511,7 @@ cpu_mp_announce(void)
 {
 }
 
+#ifdef FDT
 static boolean_t
 cpu_find_cpu0_fdt(u_int id, phandle_t node, u_int addr_size, pcell_t *reg)
 {
@@ -531,6 +532,7 @@ cpu_find_cpu0_fdt(u_int id, phandle_t node, u_int addr_size, pcell_t *reg)
 
 	return (TRUE);
 }
+#endif
 
 void
 cpu_mp_setmaxid(void)
