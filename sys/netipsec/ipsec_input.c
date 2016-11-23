@@ -209,7 +209,7 @@ ipsec_common_input(struct mbuf *m, int skip, int protoff, int af, int sproto)
 	}
 
 	/* NB: only pass dst since key_allocsa follows RFC2401 */
-	sav = KEY_ALLOCSA(&dst_address, sproto, spi);
+	sav = key_allocsa(&dst_address, sproto, spi);
 	if (sav == NULL) {
 		DPRINTF(("%s: no key association found for SA %s/%08lx/%u\n",
 		    __func__, ipsec_address(&dst_address, buf, sizeof(buf)),
@@ -234,8 +234,9 @@ ipsec_common_input(struct mbuf *m, int skip, int protoff, int af, int sproto)
 	 * everything else.
 	 */
 	error = (*sav->tdb_xform->xf_input)(m, sav, skip, protoff);
-	KEY_FREESAV(&sav);
-	return error;
+	if (error != 0)
+		key_freesav(&sav);
+	return (error);
 }
 
 #ifdef INET
@@ -309,21 +310,19 @@ int
 ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
     int protoff)
 {
-	char buf[INET6_ADDRSTRLEN];
+	char buf[IPSEC_ADDRSTRLEN];
 	struct ipsec_ctx_data ctx;
-	int prot, af, sproto, isr_prot;
-	struct ip *ip;
-	struct m_tag *mtag;
-	struct tdb_ident *tdbi;
+	struct xform_history *xh;
 	struct secasindex *saidx;
-	int error;
+	struct m_tag *mtag;
+	struct ip *ip;
+	int error, prot, af, sproto, isr_prot;
 #ifdef INET6
 #ifdef notyet
-	char ip6buf[INET6_ADDRSTRLEN];
+	char ip6buf[IPSEC_ADDRSTRLEN];
 #endif
 #endif
 
-	IPSEC_ASSERT(m != NULL, ("null mbuf"));
 	IPSEC_ASSERT(sav != NULL, ("null SA"));
 	IPSEC_ASSERT(sav->sah != NULL, ("null SAH"));
 	saidx = &sav->sah->saidx;
@@ -360,7 +359,7 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
 	IPSEC_INIT_CTX(&ctx, &m, sav, AF_INET, IPSEC_ENC_BEFORE);
 	if ((error = ipsec_run_hhooks(&ctx, HHOOK_TYPE_IPSEC_IN)) != 0)
 		goto bad;
-	ip = mtod(m, struct ip *);
+	ip = mtod(m, struct ip *);	/* update pointer */
 
 	/* IP-in-IP encapsulation */
 	if (prot == IPPROTO_IPIP &&
@@ -445,8 +444,8 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
 		/*
 		 * When mode is wildcard, inner protocol is IPv6 and
 		 * we have no INET6 support - drop this packet a bit later.
-		 * In other cases we assume transport mode and outer
-		 * header was already stripped in xform_xxx_cb.
+		 * In other cases we assume transport mode. Set prot to
+		 * correctly choose netisr.
 		 */
 		prot = IPPROTO_IPIP;
 	}
@@ -457,7 +456,7 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
 	 */
 	if (sproto != IPPROTO_IPCOMP) {
 		mtag = m_tag_get(PACKET_TAG_IPSEC_IN_DONE,
-		    sizeof(struct tdb_ident), M_NOWAIT);
+		    sizeof(struct xform_history), M_NOWAIT);
 		if (mtag == NULL) {
 			DPRINTF(("%s: failed to get tag\n", __func__));
 			IPSEC_ISTAT(sproto, hdrops);
@@ -465,14 +464,11 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
 			goto bad;
 		}
 
-		tdbi = (struct tdb_ident *)(mtag + 1);
-		bcopy(&saidx->dst, &tdbi->dst, saidx->dst.sa.sa_len);
-		tdbi->proto = sproto;
-		tdbi->spi = sav->spi;
-		/* Cache those two for enc(4) in xform_ipip. */
-		tdbi->alg_auth = sav->alg_auth;
-		tdbi->alg_enc = sav->alg_enc;
-
+		xh = (struct xform_history *)(mtag + 1);
+		bcopy(&saidx->dst, &xh->dst, saidx->dst.sa.sa_len);
+		xh->spi = sav->spi;
+		xh->proto = sproto;
+		xh->mode = saidx->mode;
 		m_tag_prepend(m, mtag);
 	}
 
@@ -509,17 +505,20 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
 	IPSEC_INIT_CTX(&ctx, &m, sav, af, IPSEC_ENC_AFTER);
 	if ((error = ipsec_run_hhooks(&ctx, HHOOK_TYPE_IPSEC_IN)) != 0)
 		goto bad;
+
 	error = netisr_queue_src(isr_prot, (uintptr_t)sav->spi, m);
+	key_freesav(&sav);
 	if (error) {
 		IPSEC_ISTAT(sproto, qfull);
 		DPRINTF(("%s: queue full; proto %u packet dropped\n",
 			__func__, sproto));
-		return error;
 	}
-	return 0;
+	return (error);
 bad:
-	m_freem(m);
-	return error;
+	key_freesav(&sav);
+	if (m != NULL)
+		m_freem(m);
+	return (error);
 }
 
 void
@@ -582,21 +581,20 @@ int
 ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
     int protoff)
 {
-	char buf[INET6_ADDRSTRLEN];
+	char buf[IPSEC_ADDRSTRLEN];
 	struct ipsec_ctx_data ctx;
-	int prot, af, sproto;
+	struct xform_history *xh;
+	struct secasindex *saidx;
 	struct ip6_hdr *ip6;
 	struct m_tag *mtag;
-	struct tdb_ident *tdbi;
-	struct secasindex *saidx;
+	int prot, af, sproto;
 	int nxt, isr_prot;
-	u_int8_t nxt8;
 	int error, nest;
+	uint8_t nxt8;
 #ifdef notyet
-	char ip6buf[INET6_ADDRSTRLEN];
+	char ip6buf[IPSEC_ADDRSTRLEN];
 #endif
 
-	IPSEC_ASSERT(m != NULL, ("null mbuf"));
 	IPSEC_ASSERT(sav != NULL, ("null SA"));
 	IPSEC_ASSERT(sav->sah != NULL, ("null SAH"));
 	saidx = &sav->sah->saidx;
@@ -620,12 +618,13 @@ ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
 		goto bad;
 	}
 
-	ip6 = mtod(m, struct ip6_hdr *);
-	ip6->ip6_plen = htons(m->m_pkthdr.len - sizeof(struct ip6_hdr));
-
 	IPSEC_INIT_CTX(&ctx, &m, sav, af, IPSEC_ENC_BEFORE);
 	if ((error = ipsec_run_hhooks(&ctx, HHOOK_TYPE_IPSEC_IN)) != 0)
 		goto bad;
+
+	ip6 = mtod(m, struct ip6_hdr *);
+	ip6->ip6_plen = htons(m->m_pkthdr.len - sizeof(struct ip6_hdr));
+
 	/* Save protocol */
 	m_copydata(m, protoff, 1, &nxt8);
 	prot = nxt8;
@@ -715,7 +714,7 @@ ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
 	 */
 	if (sproto != IPPROTO_IPCOMP) {
 		mtag = m_tag_get(PACKET_TAG_IPSEC_IN_DONE,
-		    sizeof(struct tdb_ident), M_NOWAIT);
+		    sizeof(struct xform_history), M_NOWAIT);
 		if (mtag == NULL) {
 			DPRINTF(("%s: failed to get tag\n", __func__));
 			IPSEC_ISTAT(sproto, hdrops);
@@ -723,19 +722,15 @@ ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
 			goto bad;
 		}
 
-		tdbi = (struct tdb_ident *)(mtag + 1);
-		bcopy(&saidx->dst, &tdbi->dst, sizeof(union sockaddr_union));
-		tdbi->proto = sproto;
-		tdbi->spi = sav->spi;
-		/* Cache those two for enc(4) in xform_ipip. */
-		tdbi->alg_auth = sav->alg_auth;
-		tdbi->alg_enc = sav->alg_enc;
-
+		xh = (struct xform_history *)(mtag + 1);
+		bcopy(&saidx->dst, &xh->dst, saidx->dst.sa.sa_len);
+		xh->spi = sav->spi;
+		xh->proto = sproto;
+		xh->mode = saidx->mode;
 		m_tag_prepend(m, mtag);
 	}
 
 	key_sa_recordxfer(sav, m);
-
 
 #ifdef INET
 	if (prot == IPPROTO_IPIP)
@@ -768,6 +763,7 @@ ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
 			goto bad;
 		}
 		error = netisr_queue_src(isr_prot, (uintptr_t)sav->spi, m);
+		key_freesav(&sav);
 		if (error) {
 			IPSEC_ISTAT(sproto, qfull);
 			DPRINTF(("%s: queue full; proto %u packet dropped\n",
@@ -810,13 +806,14 @@ ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
 		}
 		nxt = (*inet6sw[ip6_protox[nxt]].pr_input)(&m, &skip, nxt);
 	}
-	return 0;
+	key_freesav(&sav);
+	return (0);
 bad:
+	key_freesav(&sav);
 	if (m)
 		m_freem(m);
-	return error;
+	return (error);
 }
-
 void
 esp6_ctlinput(int cmd, struct sockaddr *sa, void *d)
 {
@@ -884,11 +881,11 @@ esp6_ctlinput(int cmd, struct sockaddr *sa, void *d)
 			 * Check to see if we have a valid SA corresponding to
 			 * the address in the ICMP message payload.
 			 */
-			sav = KEY_ALLOCSA((union sockaddr_union *)sa,
+			sav = key_allocsa((union sockaddr_union *)sa,
 					IPPROTO_ESP, spi);
 			valid = (sav != NULL);
 			if (sav)
-				KEY_FREESAV(&sav);
+				key_freesav(&sav);
 
 			/* XXX Further validation? */
 
