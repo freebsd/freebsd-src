@@ -1701,15 +1701,6 @@ ext2_ind_read(struct vop_read_args *ap)
 		}
 
 		/*
-		 * If IO_DIRECT then set B_DIRECT for the buffer.  This
-		 * will cause us to attempt to release the buffer later on
-		 * and will cause the buffer cache to attempt to free the
-		 * underlying pages.
-		 */
-		if (ioflag & IO_DIRECT)
-			bp->b_flags |= B_DIRECT;
-
-		/*
 		 * We should only get non-zero b_resid when an I/O error
 		 * has occurred, which should cause us to break above.
 		 * However, if the short read did not cause an error,
@@ -1726,25 +1717,7 @@ ext2_ind_read(struct vop_read_args *ap)
 			(int)xfersize, uio);
 		if (error)
 			break;
-
-		if (ioflag & (IO_VMIO|IO_DIRECT)) {
-			/*
-			 * If it's VMIO or direct I/O, then we don't
-			 * need the buf, mark it available for
-			 * freeing. If it's non-direct VMIO, the VM has
-			 * the data.
-			 */
-			bp->b_flags |= B_RELBUF;
-			brelse(bp);
-		} else {
-			/*
-			 * Otherwise let whoever
-			 * made the request take care of
-			 * freeing it. We just queue
-			 * it onto another list.
-			 */
-			bqrelse(bp);
-		}
+		vfs_bio_brelse(bp, ioflag);
 	}
 
 	/* 
@@ -1753,14 +1726,8 @@ ext2_ind_read(struct vop_read_args *ap)
 	 * and on normal completion has not set a new value into it.
 	 * so it must have come from a 'break' statement
 	 */
-	if (bp != NULL) {
-		if (ioflag & (IO_VMIO|IO_DIRECT)) {
-			bp->b_flags |= B_RELBUF;
-			brelse(bp);
-		} else {
-			bqrelse(bp);
-		}
-	}
+	if (bp != NULL)
+		vfs_bio_brelse(bp, ioflag);
 
 	if ((error == 0 || uio->uio_resid != orig_resid) &&
 	    (vp->v_mount->mnt_flag & (MNT_NOATIME | MNT_RDONLY)) == 0)
@@ -2018,9 +1985,8 @@ ext2_write(struct vop_write_args *ap)
 		if (error != 0 && (bp->b_flags & B_CACHE) == 0 &&
 		    fs->e2fs_bsize == xfersize)
 			vfs_bio_clrbuf(bp);
-		if (ioflag & (IO_VMIO|IO_DIRECT)) {
-			bp->b_flags |= B_RELBUF;
-		}
+
+		vfs_bio_set_flags(bp, ioflag);
 
 		/*
 		 * If IO_SYNC each buffer is written synchronously.  Otherwise

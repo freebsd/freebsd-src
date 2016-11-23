@@ -95,6 +95,7 @@ extern struct pagerops mgtdevicepagerops;
 
 #define	VM_PAGER_PUT_SYNC		0x0001
 #define	VM_PAGER_PUT_INVAL		0x0002
+#define	VM_PAGER_PUT_NOREUSE		0x0004
 #define VM_PAGER_CLUSTER_OK		0x0008
 
 #ifdef _KERNEL
