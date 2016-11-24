@@ -117,10 +117,10 @@ static void ipsec4_common_ctlinput(int, struct sockaddr *, void *, int);
 int
 ipsec_common_input(struct mbuf *m, int skip, int protoff, int af, int sproto)
 {
-	char buf[INET6_ADDRSTRLEN];
+	char buf[IPSEC_ADDRSTRLEN];
 	union sockaddr_union dst_address;
 	struct secasvar *sav;
-	u_int32_t spi;
+	uint32_t spi;
 	int error;
 #ifdef INET
 #ifdef IPSEC_NAT_T
@@ -224,7 +224,7 @@ ipsec_common_input(struct mbuf *m, int skip, int protoff, int af, int sproto)
 		    __func__, ipsec_address(&dst_address, buf, sizeof(buf)),
 		    (u_long) ntohl(spi), sproto));
 		IPSEC_ISTAT(sproto, noxform);
-		KEY_FREESAV(&sav);
+		key_freesav(&sav);
 		m_freem(m);
 		return ENXIO;
 	}
