@@ -201,10 +201,10 @@ tcp_tw_destroy(void)
 {
 	struct tcptw *tw;
 
-	INP_INFO_WLOCK(&V_tcbinfo);
+	INP_INFO_RLOCK(&V_tcbinfo);
 	while ((tw = TAILQ_FIRST(&V_twq_2msl)) != NULL)
 		tcp_twclose(tw, 0);
-	INP_INFO_WUNLOCK(&V_tcbinfo);
+	INP_INFO_RUNLOCK(&V_tcbinfo);
 
 	TW_LOCK_DESTROY(V_tw_lock);
 	uma_zdestroy(V_tcptw_zone);
@@ -227,7 +227,7 @@ tcp_twstart(struct tcpcb *tp)
 	int isipv6 = inp->inp_inc.inc_flags & INC_ISIPV6;
 #endif
 
-	INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
+	INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
 	INP_WLOCK_ASSERT(inp);
 
 	/* A dropped inp should never transition to TIME_WAIT state. */
@@ -268,8 +268,8 @@ tcp_twstart(struct tcpcb *tp)
 		 * allowed. Remove a connection from TIMEWAIT queue in LRU
 		 * fashion to make room for this connection.
 		 *
-		 * pcbinfo lock is needed here to prevent deadlock as
-		 * two inpcb locks can be acquired simultaneously.
+		 * XXX:  Check if it possible to always have enough room
+		 * in advance based on guarantees provided by uma_zalloc().
 		 */
 		tw = tcp_tw_2msl_scan(1);
 		if (tw == NULL) {
@@ -380,7 +380,7 @@ tcp_twrecycleable(struct tcptw *tw)
 	tcp_seq new_iss = tw->iss;
 	tcp_seq new_irs = tw->irs;
 
-	INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
+	INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
 	new_iss += (ticks - tw->t_starttime) * (ISN_BYTES_PER_SECOND / hz);
 	new_irs += (ticks - tw->t_starttime) * (MS_ISN_BYTES_PER_SECOND / hz);
 
@@ -403,7 +403,7 @@ tcp_twcheck(struct inpcb *inp, struct tcpopt *to __unused, struct tcphdr *th,
 	int thflags;
 	tcp_seq seq;
 
-	INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
+	INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
 	INP_WLOCK_ASSERT(inp);
 
 	/*
@@ -504,7 +504,7 @@ tcp_twclose(struct tcptw *tw, int reuse)
 	inp = tw->tw_inpcb;
 	KASSERT((inp->inp_flags & INP_TIMEWAIT), ("tcp_twclose: !timewait"));
 	KASSERT(intotw(inp) == tw, ("tcp_twclose: inp_ppcb != tw"));
-	INP_INFO_WLOCK_ASSERT(&V_tcbinfo);	/* in_pcbfree() */
+	INP_INFO_RLOCK_ASSERT(&V_tcbinfo);	/* in_pcbfree() */
 	INP_WLOCK_ASSERT(inp);
 
 	tcp_tw_2msl_stop(tw, reuse);
@@ -659,7 +659,7 @@ static void
 tcp_tw_2msl_reset(struct tcptw *tw, int rearm)
 {
 
-	INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
+	INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
 	INP_WLOCK_ASSERT(tw->tw_inpcb);
 
 	TW_WLOCK(V_tw_lock);
@@ -677,7 +677,7 @@ tcp_tw_2msl_stop(struct tcptw *tw, int reuse)
 	struct inpcb *inp;
 	int released;
 
-	INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
+	INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
 
 	TW_WLOCK(V_tw_lock);
 	inp = tw->tw_inpcb;
@@ -707,13 +707,18 @@ tcp_tw_2msl_scan(int reuse)
 #ifdef INVARIANTS
 	if (reuse) {
 		/*
-		 * pcbinfo lock is needed in reuse case to prevent deadlock
-		 * as two inpcb locks can be acquired simultaneously:
+		 * Exclusive pcbinfo lock is not required in reuse case even if
+		 * two inpcb locks can be acquired simultaneously:
 		 *  - the inpcb transitioning to TIME_WAIT state in
 		 *    tcp_tw_start(),
 		 *  - the inpcb closed by tcp_twclose().
+		 *
+		 * It is because only inpcbs in FIN_WAIT2 or CLOSING states can
+		 * transition in TIME_WAIT state.  Then a pcbcb cannot be in
+		 * TIME_WAIT list and transitioning to TIME_WAIT state at same
+		 * time.
 		 */
-		INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
+		INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
 	}
 #endif
 
@@ -731,26 +736,26 @@ tcp_tw_2msl_scan(int reuse)
 		in_pcbref(inp);
 		TW_RUNLOCK(V_tw_lock);
 
-		if (INP_INFO_TRY_WLOCK(&V_tcbinfo)) {
+		if (INP_INFO_TRY_RLOCK(&V_tcbinfo)) {
 
 			INP_WLOCK(inp);
 			tw = intotw(inp);
 			if (in_pcbrele_wlocked(inp)) {
 				KASSERT(tw == NULL, ("%s: held last inp "
 				    "reference but tw not NULL", __func__));
-				INP_INFO_WUNLOCK(&V_tcbinfo);
+				INP_INFO_RUNLOCK(&V_tcbinfo);
 				continue;
 			}
 
 			if (tw == NULL) {
 				/* tcp_twclose() has already been called */
 				INP_WUNLOCK(inp);
-				INP_INFO_WUNLOCK(&V_tcbinfo);
+				INP_INFO_RUNLOCK(&V_tcbinfo);
 				continue;
 			}
 
 			tcp_twclose(tw, reuse);
-			INP_INFO_WUNLOCK(&V_tcbinfo);
+			INP_INFO_RUNLOCK(&V_tcbinfo);
 			if (reuse)
 			    return tw;
 		} else {
