@@ -665,6 +665,8 @@ done:
 
 /*
  * Build a new TCP socket structure from a syncache entry.
+ *
+ * On success return the newly created socket with its underlying inp locked.
  */
 static struct socket *
 syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
@@ -675,7 +677,7 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 	int error;
 	char *s;
 
-	INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
+	INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
 
 	/*
 	 * Ok, create the full blown connection, and set things up
@@ -706,6 +708,15 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 	inp = sotoinpcb(so);
 	inp->inp_inc.inc_fibnum = so->so_fibnum;
 	INP_WLOCK(inp);
+	/*
+	 * Exclusive pcbinfo lock is not required in syncache socket case even
+	 * if two inpcb locks can be acquired simultaneously:
+	 *  - the inpcb in LISTEN state,
+	 *  - the newly created inp.
+	 *
+	 * In this case, an inp cannot be at same time in LISTEN state and
+	 * just created by an accept() call.
+	 */
 	INP_HASH_WLOCK(&V_tcbinfo);
 
 	/* Insert new socket into PCB hash list. */
@@ -920,8 +931,6 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 	tp->t_keepcnt = sototcpcb(lso)->t_keepcnt;
 	tcp_timer_activate(tp, TT_KEEP, TP_KEEPINIT(tp));
 
-	INP_WUNLOCK(inp);
-
 	TCPSTAT_INC(tcps_accepts);
 	return (so);
 
@@ -939,6 +948,9 @@ abort2:
  * in the syncache, and if its there, we pull it out of
  * the cache and turn it into a full-blown connection in
  * the SYN-RECEIVED state.
+ *
+ * On syncache_socket() success the newly created socket
+ * has its underlying inp locked.
  */
 int
 syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
@@ -953,7 +965,7 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	 * Global TCP locks are held because we manipulate the PCB lists
 	 * and create a new socket.
 	 */
-	INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
+	INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
 	KASSERT((th->th_flags & (TH_RST|TH_ACK|TH_SYN)) == TH_ACK,
 	    ("%s: can handle only ACK", __func__));
 
@@ -1105,7 +1117,7 @@ syncache_tfo_expand(struct syncache *sc, struct socket **lsop, struct mbuf *m,
 	 * Global TCP locks are held because we manipulate the PCB lists
 	 * and create a new socket.
 	 */
-	INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
+	INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
 
 	pending_counter = intotcpcb(sotoinpcb(*lsop))->t_tfo_pending;
 	*lsop = syncache_socket(sc, *lsop, m);

@@ -931,7 +931,7 @@ t4_offload_socket(struct toedev *tod, void *arg, struct socket *so)
 	struct cpl_pass_establish *cpl = mtod(synqe->syn, void *);
 	struct toepcb *toep = *(struct toepcb **)(cpl + 1);
 
-	INP_INFO_LOCK_ASSERT(&V_tcbinfo); /* prevents bad race with accept() */
+	INP_INFO_RLOCK_ASSERT(&V_tcbinfo); /* prevents bad race with accept() */
 	INP_WLOCK_ASSERT(inp);
 	KASSERT(synqe->flags & TPF_SYNQE,
 	    ("%s: %p not a synq_entry?", __func__, arg));
@@ -1332,15 +1332,15 @@ found:
 		REJECT_PASS_ACCEPT();
 	rpl = wrtod(wr);
 
-	INP_INFO_WLOCK(&V_tcbinfo);	/* for 4-tuple check */
+	INP_INFO_RLOCK(&V_tcbinfo);	/* for 4-tuple check */
 
 	/* Don't offload if the 4-tuple is already in use */
 	if (toe_4tuple_check(&inc, &th, ifp) != 0) {
-		INP_INFO_WUNLOCK(&V_tcbinfo);
+		INP_INFO_RUNLOCK(&V_tcbinfo);
 		free(wr, M_CXGBE);
 		REJECT_PASS_ACCEPT();
 	}
-	INP_INFO_WUNLOCK(&V_tcbinfo);
+	INP_INFO_RUNLOCK(&V_tcbinfo);
 
 	inp = lctx->inp;		/* listening socket, not owned by TOE */
 	INP_WLOCK(inp);
@@ -1398,7 +1398,7 @@ found:
 	hold_synqe(synqe);	/* hold for the duration it's in the synq */
 	hold_lctx(lctx);	/* A synqe on the list has a ref on its lctx */
 
-	/*
+        /*
 	 * If all goes well t4_syncache_respond will get called during
 	 * syncache_add.  Note that syncache_add releases the pcb lock.
 	 */
@@ -1516,7 +1516,7 @@ do_pass_establish(struct sge_iq *iq, const struct rss_header *rss,
 	unsigned int tid = GET_TID(cpl);
 	struct synq_entry *synqe = lookup_tid(sc, tid);
 	struct listen_ctx *lctx = synqe->lctx;
-	struct inpcb *inp = lctx->inp;
+	struct inpcb *inp = lctx->inp, *new_inp;
 	struct socket *so;
 	struct tcphdr th;
 	struct tcpopt to;
@@ -1534,7 +1534,7 @@ do_pass_establish(struct sge_iq *iq, const struct rss_header *rss,
 	KASSERT(synqe->flags & TPF_SYNQE,
 	    ("%s: tid %u (ctx %p) not a synqe", __func__, tid, synqe));
 
-	INP_INFO_WLOCK(&V_tcbinfo);	/* for syncache_expand */
+	INP_INFO_RLOCK(&V_tcbinfo);	/* for syncache_expand */
 	INP_WLOCK(inp);
 
 	CTR6(KTR_CXGBE,
@@ -1550,7 +1550,7 @@ do_pass_establish(struct sge_iq *iq, const struct rss_header *rss,
 		}
 
 		INP_WUNLOCK(inp);
-		INP_INFO_WUNLOCK(&V_tcbinfo);
+		INP_INFO_RUNLOCK(&V_tcbinfo);
 		return (0);
 	}
 
@@ -1575,7 +1575,7 @@ reset:
 		 */
 		send_reset_synqe(TOEDEV(ifp), synqe);
 		INP_WUNLOCK(inp);
-		INP_INFO_WUNLOCK(&V_tcbinfo);
+		INP_INFO_RUNLOCK(&V_tcbinfo);
 		return (0);
 	}
 	toep->tid = tid;
@@ -1609,6 +1609,10 @@ reset:
 		goto reset;
 	}
 
+	/* New connection inpcb is already locked by syncache_expand(). */
+	new_inp = sotoinpcb(so);
+	INP_WLOCK_ASSERT(new_inp);
+
 	/*
 	 * This is for the unlikely case where the syncache entry that we added
 	 * has been evicted from the syncache, but the syncache_expand above
@@ -1619,20 +1623,18 @@ reset:
 	 * this somewhat defeats the purpose of having a tod_offload_socket :-(
 	 */
 	if (__predict_false(!(synqe->flags & TPF_SYNQE_EXPANDED))) {
-		struct inpcb *new_inp = sotoinpcb(so);
-
-		INP_WLOCK(new_inp);
 		tcp_timer_activate(intotcpcb(new_inp), TT_KEEP, 0);
 		t4_offload_socket(TOEDEV(ifp), synqe, so);
-		INP_WUNLOCK(new_inp);
 	}
+
+	INP_WUNLOCK(new_inp);
 
 	/* Done with the synqe */
 	TAILQ_REMOVE(&lctx->synq, synqe, link);
 	inp = release_lctx(sc, lctx);
 	if (inp != NULL)
 		INP_WUNLOCK(inp);
-	INP_INFO_WUNLOCK(&V_tcbinfo);
+	INP_INFO_RUNLOCK(&V_tcbinfo);
 	release_synqe(synqe);
 
 	return (0);
