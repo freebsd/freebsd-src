@@ -142,6 +142,8 @@ struct vmbus_channel {
 	struct sx			ch_orphan_lock;
 	struct vmbus_xact_ctx		*ch_orphan_xact;
 
+	int				ch_refs;
+
 	struct sysctl_ctx_list		ch_sysctl_ctx;
 } __aligned(CACHE_LINE_SIZE);
 
