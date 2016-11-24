@@ -88,6 +88,201 @@
 #include <netinet/udp.h>
 #endif
 
+#define	IPSEC_OSTAT_INC(proto, name)	do {		\
+	if ((proto) == IPPROTO_ESP)	\
+		ESPSTAT_INC(esps_##name);	\
+	else if ((proto) == IPPROTO_AH)\
+		AHSTAT_INC(ahs_##name);		\
+	else					\
+		IPCOMPSTAT_INC(ipcomps_##name);	\
+} while (0)
+
+#ifdef INET
+static struct secasvar *
+ipsec4_allocsa(struct mbuf *m, struct secpolicy *sp, u_int *pidx, int *error)
+{
+	struct secasindex *saidx, tmpsaidx;
+	struct ipsecrequest *isr;
+	struct sockaddr_in *sin;
+	struct secasvar *sav;
+	struct ip *ip;
+
+	/*
+	 * Check system global policy controls.
+	 */
+next:
+	isr = sp->req[*pidx];
+	if ((isr->saidx.proto == IPPROTO_ESP && !V_esp_enable) ||
+	    (isr->saidx.proto == IPPROTO_AH && !V_ah_enable) ||
+	    (isr->saidx.proto == IPPROTO_IPCOMP && !V_ipcomp_enable)) {
+		DPRINTF(("%s: IPsec outbound packet dropped due"
+			" to policy (check your sysctls)\n", __func__));
+		IPSEC_OSTAT_INC(isr->saidx.proto, pdrops);
+		*error = EHOSTUNREACH;
+		return (NULL);
+	}
+	/*
+	 * Craft SA index to search for proper SA.  Note that
+	 * we only initialize unspecified SA peers for transport
+	 * mode; for tunnel mode they must already be filled in.
+	 */
+	if (isr->saidx.mode == IPSEC_MODE_TRANSPORT) {
+		saidx = &tmpsaidx;
+		*saidx = isr->saidx;
+		ip = mtod(m, struct ip *);
+		if (saidx->src.sa.sa_len == 0) {
+			sin = &saidx->src.sin;
+			sin->sin_len = sizeof(*sin);
+			sin->sin_family = AF_INET;
+			sin->sin_port = IPSEC_PORT_ANY;
+			sin->sin_addr = ip->ip_src;
+		}
+		if (saidx->dst.sa.sa_len == 0) {
+			sin = &saidx->dst.sin;
+			sin->sin_len = sizeof(*sin);
+			sin->sin_family = AF_INET;
+			sin->sin_port = IPSEC_PORT_ANY;
+			sin->sin_addr = ip->ip_dst;
+		}
+	} else
+		saidx = &sp->req[*pidx]->saidx;
+	/*
+	 * Lookup SA and validate it.
+	 */
+	sav = key_allocsa_policy(sp, saidx, error);
+	if (sav == NULL) {
+		IPSECSTAT_INC(ips_out_nosa);
+		if (*error != 0)
+			return (NULL);
+		if (ipsec_get_reqlevel(sp, *pidx) != IPSEC_LEVEL_REQUIRE) {
+			/*
+			 * We have no SA and policy that doesn't require
+			 * this IPsec transform, thus we can continue w/o
+			 * IPsec processing, i.e. return EJUSTRETURN.
+			 * But first check if there is some bundled transform.
+			 */
+			if (sp->tcount > (*pidx)) {
+				(*pidx)++;
+				goto next;
+			}
+			*error = EJUSTRETURN;
+		}
+		return (NULL);
+	}
+	/*
+	 * Sanity check the SA content for the caller
+	 * before they invoke the xform output method.
+	 */
+	if (sav->tdb_xform == NULL) {
+		DPRINTF(("%s: no transform for SA\n", __func__));
+		IPSEC_OSTAT_INC(isr->saidx.proto, noxform);
+		key_freesav(&sav);
+		*error = EHOSTUNREACH;
+		return (NULL);
+	}
+	return (sav);
+}
+#endif
+
+#ifdef INET6
+static struct secasvar *
+ipsec6_allocsa(struct mbuf *m, struct secpolicy *sp, u_int *pidx, int *error)
+{
+	struct secasindex *saidx, tmpsaidx;
+	struct ipsecrequest *isr;
+	struct sockaddr_in6 *sin6;
+	struct secasvar *sav;
+	struct ip6_hdr *ip6;
+
+	/*
+	 * Check system global policy controls.
+	 */
+next:
+	isr = sp->req[*pidx];
+	if ((isr->saidx.proto == IPPROTO_ESP && !V_esp_enable) ||
+	    (isr->saidx.proto == IPPROTO_AH && !V_ah_enable) ||
+	    (isr->saidx.proto == IPPROTO_IPCOMP && !V_ipcomp_enable)) {
+		DPRINTF(("%s: IPsec outbound packet dropped due"
+			" to policy (check your sysctls)\n", __func__));
+		IPSEC_OSTAT_INC(isr->saidx.proto, pdrops);
+		*error = EHOSTUNREACH;
+		return (NULL);
+	}
+	/*
+	 * Craft SA index to search for proper SA.  Note that
+	 * we only fillin unspecified SA peers for transport
+	 * mode; for tunnel mode they must already be filled in.
+	 */
+	if (isr->saidx.mode == IPSEC_MODE_TRANSPORT) {
+		saidx = &tmpsaidx;
+		*saidx = isr->saidx;
+		ip6 = mtod(m, struct ip6_hdr *);
+		if (saidx->src.sin6.sin6_len == 0) {
+			sin6 = (struct sockaddr_in6 *)&saidx->src;
+			sin6->sin6_len = sizeof(*sin6);
+			sin6->sin6_family = AF_INET6;
+			sin6->sin6_port = IPSEC_PORT_ANY;
+			sin6->sin6_addr = ip6->ip6_src;
+			if (IN6_IS_SCOPE_LINKLOCAL(&ip6->ip6_src)) {
+				/* fix scope id for comparing SPD */
+				sin6->sin6_addr.s6_addr16[1] = 0;
+				sin6->sin6_scope_id =
+				    ntohs(ip6->ip6_src.s6_addr16[1]);
+			}
+		}
+		if (saidx->dst.sin6.sin6_len == 0) {
+			sin6 = (struct sockaddr_in6 *)&saidx->dst;
+			sin6->sin6_len = sizeof(*sin6);
+			sin6->sin6_family = AF_INET6;
+			sin6->sin6_port = IPSEC_PORT_ANY;
+			sin6->sin6_addr = ip6->ip6_dst;
+			if (IN6_IS_SCOPE_LINKLOCAL(&ip6->ip6_dst)) {
+				/* fix scope id for comparing SPD */
+				sin6->sin6_addr.s6_addr16[1] = 0;
+				sin6->sin6_scope_id =
+				    ntohs(ip6->ip6_dst.s6_addr16[1]);
+			}
+		}
+	} else
+		saidx = &sp->req[*pidx]->saidx;
+	/*
+	 * Lookup SA and validate it.
+	 */
+	sav = key_allocsa_policy(sp, saidx, error);
+	if (sav == NULL) {
+		IPSEC6STAT_INC(ips_out_nosa);
+		if (*error != 0)
+			return (NULL);
+		if (ipsec_get_reqlevel(sp, *pidx) != IPSEC_LEVEL_REQUIRE) {
+			/*
+			 * We have no SA and policy that doesn't require
+			 * this IPsec transform, thus we can continue w/o
+			 * IPsec processing, i.e. return EJUSTRETURN.
+			 * But first check if there is some bundled transform.
+			 */
+			if (sp->tcount > (*pidx)) {
+				(*pidx)++;
+				goto next;
+			}
+			*error = EJUSTRETURN;
+		}
+		return (NULL);
+	}
+	/*
+	 * Sanity check the SA content for the caller
+	 * before they invoke the xform output method.
+	 */
+	if (sav->tdb_xform == NULL) {
+		DPRINTF(("%s: no transform for SA\n", __func__));
+		IPSEC_OSTAT_INC(isr->saidx.proto, noxform);
+		key_freesav(&sav);
+		*error = EHOSTUNREACH;
+		return (NULL);
+	}
+	return (sav);
+}
+#endif /* INET6 */
+
 int
 ipsec_process_done(struct mbuf *m, struct ipsecrequest *isr)
 {
