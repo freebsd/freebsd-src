@@ -5963,10 +5963,6 @@ zfs_vptocnp(struct vop_vptocnp_args *ap)
 }
 
 #ifdef DIAGNOSTIC
-#define CHECK_LOR	((flags & LK_NOWAIT) == 0 && vp->v_mount != NULL && \
-    (vp->v_iflag & VI_DOOMED) == 0 && vp->v_data != NULL && \
-    (zp->z_pflags & ZFS_XATTR) == 0)
-
 static int
 zfs_lock(ap)
 	struct vop_lock1_args /* {
@@ -5976,28 +5972,20 @@ zfs_lock(ap)
 		int line;
 	} */ *ap;
 {
-	zfsvfs_t *zfsvfs;
-	znode_t *zp;
 	vnode_t *vp;
-	int flags;
+	znode_t *zp;
 	int err;
 
-	vp = ap->a_vp;
-	zp = vp->v_data;
-	flags = ap->a_flags;
-	if ((flags & LK_INTERLOCK) == 0 && CHECK_LOR) {
-		zfsvfs = zp->z_zfsvfs;
-		VERIFY(!RRM_LOCK_HELD(&zfsvfs->z_teardown_lock));
-	}
 	err = vop_stdlock(ap);
-	if ((flags & LK_INTERLOCK) != 0 && CHECK_LOR) {
-		zfsvfs = zp->z_zfsvfs;
-		VERIFY(!RRM_LOCK_HELD(&zfsvfs->z_teardown_lock));
+	if (err == 0 && (ap->a_flags & LK_NOWAIT) == 0) {
+		vp = ap->a_vp;
+		zp = vp->v_data;
+		if (vp->v_mount != NULL && (vp->v_iflag & VI_DOOMED) == 0 &&
+		    zp != NULL && (zp->z_pflags & ZFS_XATTR) == 0)
+			VERIFY(!RRM_LOCK_HELD(&zp->z_zfsvfs->z_teardown_lock));
 	}
 	return (err);
 }
-
-#undef CHECK_LOR
 #endif
 
 struct vop_vector zfs_vnodeops;
