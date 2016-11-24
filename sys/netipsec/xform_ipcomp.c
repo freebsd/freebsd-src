@@ -116,10 +116,10 @@ ipcomp_encapcheck(union sockaddr_union *src, union sockaddr_union *dst)
 {
 	struct secasvar *sav;
 
-	sav = KEY_ALLOCSA_TUNNEL(src, dst, IPPROTO_IPCOMP);
+	sav = key_allocsa_tunnel(src, dst, IPPROTO_IPCOMP);
 	if (sav == NULL)
 		return (0);
-	KEY_FREESAV(&sav);
+	key_freesav(&sav);
 
 	if (src->sa.sa_family == AF_INET)
 		return (sizeof(struct in_addr) << 4);
@@ -201,7 +201,7 @@ ipcomp_zeroize(struct secasvar *sav)
 static int
 ipcomp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 {
-	struct tdb_crypto *tc;
+	struct xform_data *xd;
 	struct cryptodesc *crdc;
 	struct cryptop *crp;
 	struct ipcomp *ipcomp;
@@ -236,12 +236,12 @@ ipcomp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 		return ENOBUFS;
 	}
 	/* Get IPsec-specific opaque pointer */
-	tc = (struct tdb_crypto *) malloc(sizeof (*tc), M_XDATA, M_NOWAIT|M_ZERO);
-	if (tc == NULL) {
-		m_freem(m);
-		crypto_freereq(crp);
-		DPRINTF(("%s: cannot allocate tdb_crypto\n", __func__));
+	xd = malloc(sizeof(*xd), M_XDATA, M_NOWAIT | M_ZERO);
+	if (xd == NULL) {
+		DPRINTF(("%s: cannot allocate xform_data\n", __func__));
 		IPCOMPSTAT_INC(ipcomps_crypto);
+		crypto_freereq(crp);
+		m_freem(m);
 		return ENOBUFS;
 	}
 	crdc = crp->crp_desc;
@@ -250,27 +250,25 @@ ipcomp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	crdc->crd_len = m->m_pkthdr.len - (skip + hlen);
 	crdc->crd_inject = skip;
 
-	tc->tc_ptr = 0;
-
 	/* Decompression operation */
 	crdc->crd_alg = sav->tdb_compalgxform->type;
+
 
 	/* Crypto operation descriptor */
 	crp->crp_ilen = m->m_pkthdr.len - (skip + hlen);
 	crp->crp_flags = CRYPTO_F_IMBUF | CRYPTO_F_CBIFSYNC;
 	crp->crp_buf = (caddr_t) m;
 	crp->crp_callback = ipcomp_input_cb;
-	crp->crp_sid = sav->tdb_cryptoid;
-	crp->crp_opaque = (caddr_t) tc;
+	crp->crp_opaque = (caddr_t) xd;
 
 	/* These are passed as-is to the callback */
-	tc->tc_spi = sav->spi;
-	tc->tc_dst = sav->sah->saidx.dst;
-	tc->tc_proto = sav->sah->saidx.proto;
-	tc->tc_protoff = protoff;
-	tc->tc_skip = skip;
-	KEY_ADDREFSA(sav);
-	tc->tc_sav = sav;
+	xd->sav = sav;
+	xd->protoff = protoff;
+	xd->skip = skip;
+
+	SECASVAR_LOCK(sav);
+	crp->crp_sid = xd->cryptoid = sav->tdb_cryptoid;
+	SECASVAR_UNLOCK(sav);
 
 	return crypto_dispatch(crp);
 }
@@ -281,28 +279,26 @@ ipcomp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 static int
 ipcomp_input_cb(struct cryptop *crp)
 {
-	char buf[INET6_ADDRSTRLEN];
+	char buf[IPSEC_ADDRSTRLEN];
 	struct cryptodesc *crd;
-	struct tdb_crypto *tc;
-	int skip, protoff;
+	struct xform_data *xd;
 	struct mbuf *m;
 	struct secasvar *sav;
 	struct secasindex *saidx;
-	int hlen = IPCOMP_HLENGTH, error, clen;
-	u_int8_t nproto;
 	caddr_t addr;
+	uint64_t cryptoid;
+	int hlen = IPCOMP_HLENGTH, error, clen;
+	int skip, protoff;
+	uint8_t nproto;
 
 	crd = crp->crp_desc;
 
-	tc = (struct tdb_crypto *) crp->crp_opaque;
-	IPSEC_ASSERT(tc != NULL, ("null opaque crypto data area!"));
-	skip = tc->tc_skip;
-	protoff = tc->tc_protoff;
 	m = (struct mbuf *) crp->crp_buf;
-
-	sav = tc->tc_sav;
-	IPSEC_ASSERT(sav != NULL, ("null SA!"));
-
+	xd = (struct xform_data *) crp->crp_opaque;
+	sav = xd->sav;
+	skip = xd->skip;
+	protoff = xd->protoff;
+	cryptoid = xd->cryptoid;
 	saidx = &sav->sah->saidx;
 	IPSEC_ASSERT(saidx->dst.sa.sa_family == AF_INET ||
 		saidx->dst.sa.sa_family == AF_INET6,
@@ -310,12 +306,12 @@ ipcomp_input_cb(struct cryptop *crp)
 
 	/* Check for crypto errors */
 	if (crp->crp_etype) {
-		/* Reset the session ID */
-		if (sav->tdb_cryptoid != 0)
-			sav->tdb_cryptoid = crp->crp_sid;
-
 		if (crp->crp_etype == EAGAIN) {
-			return crypto_dispatch(crp);
+			/* Reset the session ID */
+			if (ipsec_updateid(sav, &crp->crp_sid, &cryptoid) != 0)
+				crypto_freesession(cryptoid);
+			xd->cryptoid = crp->crp_sid;
+			return (crypto_dispatch(crp));
 		}
 		IPCOMPSTAT_INC(ipcomps_noxform);
 		DPRINTF(("%s: crypto error %d\n", __func__, crp->crp_etype));
@@ -334,7 +330,7 @@ ipcomp_input_cb(struct cryptop *crp)
 	clen = crp->crp_olen;		/* Length of data after processing */
 
 	/* Release the crypto descriptors */
-	free(tc, M_XDATA), tc = NULL;
+	free(xd, M_XDATA), xd = NULL;
 	crypto_freereq(crp), crp = NULL;
 
 	/* In case it's not done already, adjust the size of the mbuf chain */
@@ -379,17 +375,15 @@ ipcomp_input_cb(struct cryptop *crp)
 		panic("%s: Unexpected address family: %d saidx=%p", __func__,
 		    saidx->dst.sa.sa_family, saidx);
 	}
-
-	KEY_FREESAV(&sav);
 	return error;
 bad:
-	if (sav)
-		KEY_FREESAV(&sav);
-	if (m)
+	if (sav != NULL)
+		key_freesav(&sav);
+	if (m != NULL)
 		m_freem(m);
-	if (tc != NULL)
-		free(tc, M_XDATA);
-	if (crp)
+	if (xd != NULL)
+		free(xd, M_XDATA);
+	if (crp != NULL)
 		crypto_freereq(crp);
 	return error;
 }
