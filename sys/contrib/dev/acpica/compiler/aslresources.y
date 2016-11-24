@@ -56,7 +56,8 @@ NoEcho('
  * Also, insert the EndTag at the end of the template.
  */
 ResourceTemplateTerm
-    : PARSEOP_RESOURCETEMPLATE OptionalParentheses
+    : PARSEOP_RESOURCETEMPLATE
+        OptionalParentheses
         '{'
         ResourceMacroList '}'       {$$ = TrCreateNode (PARSEOP_RESOURCETEMPLATE,4,
                                           TrCreateLeafNode (PARSEOP_DEFAULT_ARG),
@@ -67,7 +68,8 @@ ResourceTemplateTerm
 
 OptionalParentheses
     :                               {$$ = NULL;}
-    | '(' ')'                       {$$ = NULL;}
+    | PARSEOP_OPEN_PAREN
+        PARSEOP_CLOSE_PAREN         {$$ = NULL;}
     ;
 
 ResourceMacroList
@@ -116,19 +118,22 @@ ResourceMacroTerm
     ;
 
 DMATerm
-    : PARSEOP_DMA '('               {$<n>$ = TrCreateLeafNode (PARSEOP_DMA);}
+    : PARSEOP_DMA
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_DMA);}
         DMATypeKeyword
         OptionalBusMasterKeyword
         ',' XferTypeKeyword
         OptionalNameString_Last
-        ')' '{'
+        PARSEOP_CLOSE_PAREN '{'
             ByteList '}'            {$$ = TrLinkChildren ($<n>3,5,$4,$5,$7,$8,$11);}
-    | PARSEOP_DMA '('
-        error ')'                   {$$ = AslDoError(); yyclearin;}
+    | PARSEOP_DMA
+        PARSEOP_OPEN_PAREN
+        error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
     ;
 
 DWordIOTerm
-    : PARSEOP_DWORDIO '('           {$<n>$ = TrCreateLeafNode (PARSEOP_DWORDIO);}
+    : PARSEOP_DWORDIO
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_DWORDIO);}
         OptionalResourceType_First
         OptionalMinType
         OptionalMaxType
@@ -144,14 +149,16 @@ DWordIOTerm
         OptionalNameString
         OptionalType
         OptionalTranslationType_Last
-        ')'                         {$$ = TrLinkChildren ($<n>3,15,
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,15,
                                         $4,$5,$6,$7,$8,$10,$12,$14,$16,$18,$19,$20,$21,$22,$23);}
-    | PARSEOP_DWORDIO '('
-        error ')'                   {$$ = AslDoError(); yyclearin;}
+    | PARSEOP_DWORDIO
+        PARSEOP_OPEN_PAREN
+        error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
     ;
 
 DWordMemoryTerm
-    : PARSEOP_DWORDMEMORY '('       {$<n>$ = TrCreateLeafNode (PARSEOP_DWORDMEMORY);}
+    : PARSEOP_DWORDMEMORY
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_DWORDMEMORY);}
         OptionalResourceType_First
         OptionalDecodeType
         OptionalMinType
@@ -168,14 +175,16 @@ DWordMemoryTerm
         OptionalNameString
         OptionalAddressRange
         OptionalType_Last
-        ')'                         {$$ = TrLinkChildren ($<n>3,16,
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,16,
                                         $4,$5,$6,$7,$8,$10,$12,$14,$16,$18,$20,$21,$22,$23,$24,$25);}
-    | PARSEOP_DWORDMEMORY '('
-        error ')'                   {$$ = AslDoError(); yyclearin;}
+    | PARSEOP_DWORDMEMORY
+        PARSEOP_OPEN_PAREN
+        error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
     ;
 
 DWordSpaceTerm
-    : PARSEOP_DWORDSPACE '('        {$<n>$ = TrCreateLeafNode (PARSEOP_DWORDSPACE);}
+    : PARSEOP_DWORDSPACE
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_DWORDSPACE);}
         ByteConstExpr               {UtCheckIntegerRange ($4, 0xC0, 0xFF);}
         OptionalResourceType
         OptionalDecodeType
@@ -190,21 +199,25 @@ DWordSpaceTerm
         OptionalByteConstExpr
         OptionalStringData
         OptionalNameString_Last
-        ')'                         {$$ = TrLinkChildren ($<n>3,14,
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,14,
                                         $4,$6,$7,$8,$9,$11,$13,$15,$17,$19,$21,$22,$23,$24);}
-    | PARSEOP_DWORDSPACE '('
-        error ')'                   {$$ = AslDoError(); yyclearin;}
+    | PARSEOP_DWORDSPACE
+        PARSEOP_OPEN_PAREN
+        error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
     ;
 
 EndDependentFnTerm
-    : PARSEOP_ENDDEPENDENTFN '('
-        ')'                         {$$ = TrCreateLeafNode (PARSEOP_ENDDEPENDENTFN);}
-    | PARSEOP_ENDDEPENDENTFN '('
-        error ')'                   {$$ = AslDoError(); yyclearin;}
+    : PARSEOP_ENDDEPENDENTFN
+        PARSEOP_OPEN_PAREN
+        PARSEOP_CLOSE_PAREN         {$$ = TrCreateLeafNode (PARSEOP_ENDDEPENDENTFN);}
+    | PARSEOP_ENDDEPENDENTFN
+        PARSEOP_OPEN_PAREN
+        error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
     ;
 
 ExtendedIOTerm
-    : PARSEOP_EXTENDEDIO '('        {$<n>$ = TrCreateLeafNode (PARSEOP_EXTENDEDIO);}
+    : PARSEOP_EXTENDEDIO
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_EXTENDEDIO);}
         OptionalResourceType_First
         OptionalMinType
         OptionalMaxType
@@ -219,14 +232,16 @@ ExtendedIOTerm
         OptionalNameString
         OptionalType
         OptionalTranslationType_Last
-        ')'                         {$$ = TrLinkChildren ($<n>3,14,
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,14,
                                         $4,$5,$6,$7,$8,$10,$12,$14,$16,$18,$19,$20,$21,$22);}
-    | PARSEOP_EXTENDEDIO '('
-        error ')'                   {$$ = AslDoError(); yyclearin;}
+    | PARSEOP_EXTENDEDIO
+        PARSEOP_OPEN_PAREN
+        error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
     ;
 
 ExtendedMemoryTerm
-    : PARSEOP_EXTENDEDMEMORY '('    {$<n>$ = TrCreateLeafNode (PARSEOP_EXTENDEDMEMORY);}
+    : PARSEOP_EXTENDEDMEMORY
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_EXTENDEDMEMORY);}
         OptionalResourceType_First
         OptionalDecodeType
         OptionalMinType
@@ -242,14 +257,15 @@ ExtendedMemoryTerm
         OptionalNameString
         OptionalAddressRange
         OptionalType_Last
-        ')'                         {$$ = TrLinkChildren ($<n>3,15,
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,15,
                                         $4,$5,$6,$7,$8,$10,$12,$14,$16,$18,$20,$21,$22,$23,$24);}
-    | PARSEOP_EXTENDEDMEMORY '('
-        error ')'                   {$$ = AslDoError(); yyclearin;}
+    | PARSEOP_EXTENDEDMEMORY
+        PARSEOP_OPEN_PAREN
+        error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
     ;
 
 ExtendedSpaceTerm
-    : PARSEOP_EXTENDEDSPACE '('     {$<n>$ = TrCreateLeafNode (PARSEOP_EXTENDEDSPACE);}
+    : PARSEOP_EXTENDEDSPACE PARSEOP_OPEN_PAREN     {$<n>$ = TrCreateLeafNode (PARSEOP_EXTENDEDSPACE);}
         ByteConstExpr               {UtCheckIntegerRange ($4, 0xC0, 0xFF);}
         OptionalResourceType
         OptionalDecodeType
@@ -263,35 +279,41 @@ ExtendedSpaceTerm
         ',' QWordConstExpr
         OptionalQWordConstExpr
         OptionalNameString_Last
-        ')'                         {$$ = TrLinkChildren ($<n>3,13,
+        PARSEOP_CLOSE_PAREN                         {$$ = TrLinkChildren ($<n>3,13,
                                         $4,$6,$7,$8,$9,$11,$13,$15,$17,$19,$21,$22,$23);}
-    | PARSEOP_EXTENDEDSPACE '('
-        error ')'                   {$$ = AslDoError(); yyclearin;}
+    | PARSEOP_EXTENDEDSPACE
+        PARSEOP_OPEN_PAREN
+        error PARSEOP_CLOSE_PAREN                   {$$ = AslDoError(); yyclearin;}
     ;
 
 FixedDmaTerm
-    : PARSEOP_FIXEDDMA '('          {$<n>$ = TrCreateLeafNode (PARSEOP_FIXEDDMA);}
+    : PARSEOP_FIXEDDMA
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_FIXEDDMA);}
         WordConstExpr               /* 04: DMA RequestLines */
         ',' WordConstExpr           /* 06: DMA Channels */
         OptionalXferSize            /* 07: DMA TransferSize */
         OptionalNameString          /* 08: DescriptorName */
-        ')'                         {$$ = TrLinkChildren ($<n>3,4,$4,$6,$7,$8);}
-    | PARSEOP_FIXEDDMA '('
-        error ')'                   {$$ = AslDoError(); yyclearin;}
+        PARSEOP_CLOSE_PAREN                         {$$ = TrLinkChildren ($<n>3,4,$4,$6,$7,$8);}
+    | PARSEOP_FIXEDDMA
+        PARSEOP_OPEN_PAREN
+        error PARSEOP_CLOSE_PAREN                   {$$ = AslDoError(); yyclearin;}
     ;
 
 FixedIOTerm
-    : PARSEOP_FIXEDIO '('           {$<n>$ = TrCreateLeafNode (PARSEOP_FIXEDIO);}
+    : PARSEOP_FIXEDIO
+        PARSEOP_OPEN_PAREN           {$<n>$ = TrCreateLeafNode (PARSEOP_FIXEDIO);}
         WordConstExpr
         ',' ByteConstExpr
         OptionalNameString_Last
-        ')'                         {$$ = TrLinkChildren ($<n>3,3,$4,$6,$7);}
-    | PARSEOP_FIXEDIO '('
-        error ')'                   {$$ = AslDoError(); yyclearin;}
+        PARSEOP_CLOSE_PAREN                         {$$ = TrLinkChildren ($<n>3,3,$4,$6,$7);}
+    | PARSEOP_FIXEDIO
+        PARSEOP_OPEN_PAREN
+        error PARSEOP_CLOSE_PAREN                   {$$ = AslDoError(); yyclearin;}
     ;
 
 GpioIntTerm
-    : PARSEOP_GPIO_INT '('          {$<n>$ = TrCreateLeafNode (PARSEOP_GPIO_INT);}
+    : PARSEOP_GPIO_INT
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_GPIO_INT);}
         InterruptTypeKeyword        /* 04: InterruptType */
         ',' InterruptLevel          /* 06: InterruptLevel */
         OptionalShareType           /* 07: SharedType */
@@ -302,15 +324,17 @@ GpioIntTerm
         OptionalResourceType        /* 14: ResourceType */
         OptionalNameString          /* 15: DescriptorName */
         OptionalBuffer_Last         /* 16: VendorData */
-        ')' '{'
+        PARSEOP_CLOSE_PAREN '{'
             DWordConstExpr '}'      {$$ = TrLinkChildren ($<n>3,11,
                                         $4,$6,$7,$9,$10,$12,$13,$14,$15,$16,$19);}
-    | PARSEOP_GPIO_INT '('
-        error ')'                   {$$ = AslDoError(); yyclearin;}
+    | PARSEOP_GPIO_INT
+        PARSEOP_OPEN_PAREN
+        error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
     ;
 
 GpioIoTerm
-    : PARSEOP_GPIO_IO '('           {$<n>$ = TrCreateLeafNode (PARSEOP_GPIO_IO);}
+    : PARSEOP_GPIO_IO
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_GPIO_IO);}
         OptionalShareType_First     /* 04: SharedType */
         ',' PinConfigByte           /* 06: PinConfig */
         OptionalWordConstExpr       /* 07: DebounceTimeout */
@@ -321,15 +345,17 @@ GpioIoTerm
         OptionalResourceType        /* 13: ResourceType */
         OptionalNameString          /* 14: DescriptorName */
         OptionalBuffer_Last         /* 15: VendorData */
-        ')' '{'
+        PARSEOP_CLOSE_PAREN '{'
             DWordList '}'           {$$ = TrLinkChildren ($<n>3,11,
                                         $4,$6,$7,$8,$9,$11,$12,$13,$14,$15,$18);}
-    | PARSEOP_GPIO_IO '('
-        error ')'                   {$$ = AslDoError(); yyclearin;}
+    | PARSEOP_GPIO_IO
+        PARSEOP_OPEN_PAREN
+        error PARSEOP_CLOSE_PAREN                   {$$ = AslDoError(); yyclearin;}
     ;
 
 I2cSerialBusTerm
-    : PARSEOP_I2C_SERIALBUS '('     {$<n>$ = TrCreateLeafNode (PARSEOP_I2C_SERIALBUS);}
+    : PARSEOP_I2C_SERIALBUS
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_I2C_SERIALBUS);}
         WordConstExpr               /* 04: SlaveAddress */
         OptionalSlaveMode           /* 05: SlaveMode */
         ',' DWordConstExpr          /* 07: ConnectionSpeed */
@@ -339,15 +365,17 @@ I2cSerialBusTerm
         OptionalResourceType        /* 12: ResourceType */
         OptionalNameString          /* 13: DescriptorName */
         OptionalBuffer_Last         /* 14: VendorData */
-        ')'                         {$$ = TrLinkChildren ($<n>3,10,
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,10,
                                         $4,$5,$7,$8,$10,$11,$12,$13,
                                         TrCreateLeafNode (PARSEOP_DEFAULT_ARG),$14);}
-    | PARSEOP_I2C_SERIALBUS '('
-        error ')'                   {$$ = AslDoError(); yyclearin;}
+    | PARSEOP_I2C_SERIALBUS
+        PARSEOP_OPEN_PAREN
+        error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
     ;
 
 I2cSerialBusTermV2
-    : PARSEOP_I2C_SERIALBUS_V2 '('  {$<n>$ = TrCreateLeafNode (PARSEOP_I2C_SERIALBUS_V2);}
+    : PARSEOP_I2C_SERIALBUS_V2
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_I2C_SERIALBUS_V2);}
         WordConstExpr               /* 04: SlaveAddress */
         OptionalSlaveMode           /* 05: SlaveMode */
         ',' DWordConstExpr          /* 07: ConnectionSpeed */
@@ -358,14 +386,16 @@ I2cSerialBusTermV2
         OptionalNameString          /* 13: DescriptorName */
         OptionalShareType           /* 14: Share */
         OptionalBuffer_Last         /* 15: VendorData */
-        ')'                         {$$ = TrLinkChildren ($<n>3,10,
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,10,
                                         $4,$5,$7,$8,$10,$11,$12,$13,$14,$15);}
-    | PARSEOP_I2C_SERIALBUS_V2 '('
-        error ')'                   {$$ = AslDoError(); yyclearin;}
+    | PARSEOP_I2C_SERIALBUS_V2
+        PARSEOP_OPEN_PAREN
+        error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
     ;
 
 InterruptTerm
-    : PARSEOP_INTERRUPT '('         {$<n>$ = TrCreateLeafNode (PARSEOP_INTERRUPT);}
+    : PARSEOP_INTERRUPT
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_INTERRUPT);}
         OptionalResourceType_First
         ',' InterruptTypeKeyword
         ',' InterruptLevel
@@ -373,86 +403,100 @@ InterruptTerm
         OptionalByteConstExpr
         OptionalStringData
         OptionalNameString_Last
-        ')' '{'
+        PARSEOP_CLOSE_PAREN '{'
             DWordList '}'           {$$ = TrLinkChildren ($<n>3,8,
                                         $4,$6,$8,$9,$10,$11,$12,$15);}
-    | PARSEOP_INTERRUPT '('
-        error ')'                   {$$ = AslDoError(); yyclearin;}
+    | PARSEOP_INTERRUPT
+        PARSEOP_OPEN_PAREN
+        error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
     ;
 
 IOTerm
-    : PARSEOP_IO '('                {$<n>$ = TrCreateLeafNode (PARSEOP_IO);}
+    : PARSEOP_IO
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_IO);}
         IODecodeKeyword
         ',' WordConstExpr
         ',' WordConstExpr
         ',' ByteConstExpr
         ',' ByteConstExpr
         OptionalNameString_Last
-        ')'                         {$$ = TrLinkChildren ($<n>3,6,$4,$6,$8,$10,$12,$13);}
-    | PARSEOP_IO '('
-        error ')'                   {$$ = AslDoError(); yyclearin;}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,6,$4,$6,$8,$10,$12,$13);}
+    | PARSEOP_IO
+        PARSEOP_OPEN_PAREN
+        error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
     ;
 
 IRQNoFlagsTerm
-    : PARSEOP_IRQNOFLAGS '('        {$<n>$ = TrCreateLeafNode (PARSEOP_IRQNOFLAGS);}
+    : PARSEOP_IRQNOFLAGS
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_IRQNOFLAGS);}
         OptionalNameString_First
-        ')' '{'
+        PARSEOP_CLOSE_PAREN '{'
             ByteList '}'            {$$ = TrLinkChildren ($<n>3,2,$4,$7);}
-    | PARSEOP_IRQNOFLAGS '('
-        error ')'                   {$$ = AslDoError(); yyclearin;}
+    | PARSEOP_IRQNOFLAGS
+        PARSEOP_OPEN_PAREN
+        error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
     ;
 
 IRQTerm
-    : PARSEOP_IRQ '('               {$<n>$ = TrCreateLeafNode (PARSEOP_IRQ);}
+    : PARSEOP_IRQ
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_IRQ);}
         InterruptTypeKeyword
         ',' InterruptLevel
         OptionalShareType
         OptionalNameString_Last
-        ')' '{'
+        PARSEOP_CLOSE_PAREN '{'
             ByteList '}'            {$$ = TrLinkChildren ($<n>3,5,$4,$6,$7,$8,$11);}
-    | PARSEOP_IRQ '('
-        error ')'                   {$$ = AslDoError(); yyclearin;}
+    | PARSEOP_IRQ
+        PARSEOP_OPEN_PAREN
+        error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
     ;
 
 Memory24Term
-    : PARSEOP_MEMORY24 '('          {$<n>$ = TrCreateLeafNode (PARSEOP_MEMORY24);}
+    : PARSEOP_MEMORY24
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_MEMORY24);}
         OptionalReadWriteKeyword
         ',' WordConstExpr
         ',' WordConstExpr
         ',' WordConstExpr
         ',' WordConstExpr
         OptionalNameString_Last
-        ')'                         {$$ = TrLinkChildren ($<n>3,6,$4,$6,$8,$10,$12,$13);}
-    | PARSEOP_MEMORY24 '('
-        error ')'                   {$$ = AslDoError(); yyclearin;}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,6,$4,$6,$8,$10,$12,$13);}
+    | PARSEOP_MEMORY24
+        PARSEOP_OPEN_PAREN
+        error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
     ;
 
 Memory32FixedTerm
-    : PARSEOP_MEMORY32FIXED '('     {$<n>$ = TrCreateLeafNode (PARSEOP_MEMORY32FIXED);}
+    : PARSEOP_MEMORY32FIXED
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_MEMORY32FIXED);}
         OptionalReadWriteKeyword
         ',' DWordConstExpr
         ',' DWordConstExpr
         OptionalNameString_Last
-        ')'                         {$$ = TrLinkChildren ($<n>3,4,$4,$6,$8,$9);}
-    | PARSEOP_MEMORY32FIXED '('
-        error ')'                   {$$ = AslDoError(); yyclearin;}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,4,$4,$6,$8,$9);}
+    | PARSEOP_MEMORY32FIXED
+        PARSEOP_OPEN_PAREN
+        error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
     ;
 
 Memory32Term
-    : PARSEOP_MEMORY32 '('          {$<n>$ = TrCreateLeafNode (PARSEOP_MEMORY32);}
+    : PARSEOP_MEMORY32
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_MEMORY32);}
         OptionalReadWriteKeyword
         ',' DWordConstExpr
         ',' DWordConstExpr
         ',' DWordConstExpr
         ',' DWordConstExpr
         OptionalNameString_Last
-        ')'                         {$$ = TrLinkChildren ($<n>3,6,$4,$6,$8,$10,$12,$13);}
-    | PARSEOP_MEMORY32 '('
-        error ')'                   {$$ = AslDoError(); yyclearin;}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,6,$4,$6,$8,$10,$12,$13);}
+    | PARSEOP_MEMORY32
+        PARSEOP_OPEN_PAREN
+        error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
     ;
 
 QWordIOTerm
-    : PARSEOP_QWORDIO '('           {$<n>$ = TrCreateLeafNode (PARSEOP_QWORDIO);}
+    : PARSEOP_QWORDIO
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_QWORDIO);}
         OptionalResourceType_First
         OptionalMinType
         OptionalMaxType
@@ -468,14 +512,16 @@ QWordIOTerm
         OptionalNameString
         OptionalType
         OptionalTranslationType_Last
-        ')'                         {$$ = TrLinkChildren ($<n>3,15,
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,15,
                                         $4,$5,$6,$7,$8,$10,$12,$14,$16,$18,$19,$20,$21,$22,$23);}
-    | PARSEOP_QWORDIO '('
-        error ')'                   {$$ = AslDoError(); yyclearin;}
+    | PARSEOP_QWORDIO
+        PARSEOP_OPEN_PAREN
+        error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
     ;
 
 QWordMemoryTerm
-    : PARSEOP_QWORDMEMORY '('       {$<n>$ = TrCreateLeafNode (PARSEOP_QWORDMEMORY);}
+    : PARSEOP_QWORDMEMORY
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_QWORDMEMORY);}
         OptionalResourceType_First
         OptionalDecodeType
         OptionalMinType
@@ -492,14 +538,16 @@ QWordMemoryTerm
         OptionalNameString
         OptionalAddressRange
         OptionalType_Last
-        ')'                         {$$ = TrLinkChildren ($<n>3,16,
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,16,
                                         $4,$5,$6,$7,$8,$10,$12,$14,$16,$18,$20,$21,$22,$23,$24,$25);}
-    | PARSEOP_QWORDMEMORY '('
-        error ')'                   {$$ = AslDoError(); yyclearin;}
+    | PARSEOP_QWORDMEMORY
+        PARSEOP_OPEN_PAREN
+        error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
     ;
 
 QWordSpaceTerm
-    : PARSEOP_QWORDSPACE '('        {$<n>$ = TrCreateLeafNode (PARSEOP_QWORDSPACE);}
+    : PARSEOP_QWORDSPACE
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_QWORDSPACE);}
         ByteConstExpr               {UtCheckIntegerRange ($4, 0xC0, 0xFF);}
         OptionalResourceType
         OptionalDecodeType
@@ -514,27 +562,31 @@ QWordSpaceTerm
         OptionalByteConstExpr
         OptionalStringData
         OptionalNameString_Last
-        ')'                         {$$ = TrLinkChildren ($<n>3,14,
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,14,
                                         $4,$6,$7,$8,$9,$11,$13,$15,$17,$19,$21,$22,$23,$24);}
-    | PARSEOP_QWORDSPACE '('
-        error ')'                   {$$ = AslDoError(); yyclearin;}
+    | PARSEOP_QWORDSPACE
+        PARSEOP_OPEN_PAREN
+        error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
     ;
 
 RegisterTerm
-    : PARSEOP_REGISTER '('          {$<n>$ = TrCreateLeafNode (PARSEOP_REGISTER);}
+    : PARSEOP_REGISTER
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_REGISTER);}
         AddressSpaceKeyword
         ',' ByteConstExpr
         ',' ByteConstExpr
         ',' QWordConstExpr
         OptionalAccessSize
         OptionalNameString_Last
-        ')'                         {$$ = TrLinkChildren ($<n>3,6,$4,$6,$8,$10,$11,$12);}
-    | PARSEOP_REGISTER '('
-        error ')'                   {$$ = AslDoError(); yyclearin;}
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,6,$4,$6,$8,$10,$11,$12);}
+    | PARSEOP_REGISTER
+        PARSEOP_OPEN_PAREN
+        error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
     ;
 
 SpiSerialBusTerm
-    : PARSEOP_SPI_SERIALBUS '('     {$<n>$ = TrCreateLeafNode (PARSEOP_SPI_SERIALBUS);}
+    : PARSEOP_SPI_SERIALBUS
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_SPI_SERIALBUS);}
         WordConstExpr               /* 04: DeviceSelection */
         OptionalDevicePolarity      /* 05: DevicePolarity */
         OptionalWireMode            /* 06: WireMode */
@@ -548,15 +600,17 @@ SpiSerialBusTerm
         OptionalResourceType        /* 19: ResourceType */
         OptionalNameString          /* 20: DescriptorName */
         OptionalBuffer_Last         /* 21: VendorData */
-        ')'                         {$$ = TrLinkChildren ($<n>3,14,
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,14,
                                         $4,$5,$6,$8,$9,$11,$13,$15,$17,$18,$19,$20,
                                         TrCreateLeafNode (PARSEOP_DEFAULT_ARG),$21);}
-    | PARSEOP_SPI_SERIALBUS '('
-        error ')'                   {$$ = AslDoError(); yyclearin;}
+    | PARSEOP_SPI_SERIALBUS
+        PARSEOP_OPEN_PAREN
+        error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
     ;
 
 SpiSerialBusTermV2
-    : PARSEOP_SPI_SERIALBUS_V2 '('  {$<n>$ = TrCreateLeafNode (PARSEOP_SPI_SERIALBUS_V2);}
+    : PARSEOP_SPI_SERIALBUS_V2
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_SPI_SERIALBUS_V2);}
         WordConstExpr               /* 04: DeviceSelection */
         OptionalDevicePolarity      /* 05: DevicePolarity */
         OptionalWireMode            /* 06: WireMode */
@@ -571,32 +625,38 @@ SpiSerialBusTermV2
         OptionalNameString          /* 20: DescriptorName */
         OptionalShareType           /* 21: Share */
         OptionalBuffer_Last         /* 22: VendorData */
-        ')'                         {$$ = TrLinkChildren ($<n>3,14,
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,14,
                                         $4,$5,$6,$8,$9,$11,$13,$15,$17,$18,$19,$20,$21,$22);}
-    | PARSEOP_SPI_SERIALBUS_V2 '('
-        error ')'                   {$$ = AslDoError(); yyclearin;}
+    | PARSEOP_SPI_SERIALBUS_V2
+        PARSEOP_OPEN_PAREN
+        error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
     ;
 
 StartDependentFnNoPriTerm
-    : PARSEOP_STARTDEPENDENTFN_NOPRI '('    {$<n>$ = TrCreateLeafNode (PARSEOP_STARTDEPENDENTFN_NOPRI);}
-        ')' '{'
+    : PARSEOP_STARTDEPENDENTFN_NOPRI
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_STARTDEPENDENTFN_NOPRI);}
+        PARSEOP_CLOSE_PAREN '{'
         ResourceMacroList '}'       {$$ = TrLinkChildren ($<n>3,1,$6);}
-    | PARSEOP_STARTDEPENDENTFN_NOPRI '('
-        error ')'                   {$$ = AslDoError(); yyclearin;}
+    | PARSEOP_STARTDEPENDENTFN_NOPRI
+        PARSEOP_OPEN_PAREN
+        error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
     ;
 
 StartDependentFnTerm
-    : PARSEOP_STARTDEPENDENTFN '('  {$<n>$ = TrCreateLeafNode (PARSEOP_STARTDEPENDENTFN);}
+    : PARSEOP_STARTDEPENDENTFN
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_STARTDEPENDENTFN);}
         ByteConstExpr
         ',' ByteConstExpr
-        ')' '{'
+        PARSEOP_CLOSE_PAREN '{'
         ResourceMacroList '}'       {$$ = TrLinkChildren ($<n>3,3,$4,$6,$9);}
-    | PARSEOP_STARTDEPENDENTFN '('
-        error ')'                   {$$ = AslDoError(); yyclearin;}
+    | PARSEOP_STARTDEPENDENTFN
+        PARSEOP_OPEN_PAREN
+        error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
     ;
 
 UartSerialBusTerm
-    : PARSEOP_UART_SERIALBUS '('    {$<n>$ = TrCreateLeafNode (PARSEOP_UART_SERIALBUS);}
+    : PARSEOP_UART_SERIALBUS
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_UART_SERIALBUS);}
         DWordConstExpr              /* 04: ConnectionSpeed */
         OptionalBitsPerByte         /* 05: BitsPerByte */
         OptionalStopBits            /* 06: StopBits */
@@ -611,15 +671,17 @@ UartSerialBusTerm
         OptionalResourceType        /* 19: ResourceType */
         OptionalNameString          /* 20: DescriptorName */
         OptionalBuffer_Last         /* 21: VendorData */
-        ')'                         {$$ = TrLinkChildren ($<n>3,15,
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,15,
                                         $4,$5,$6,$8,$9,$10,$11,$13,$15,$17,$18,$19,$20,
                                         TrCreateLeafNode (PARSEOP_DEFAULT_ARG),$21);}
-    | PARSEOP_UART_SERIALBUS '('
-        error ')'                   {$$ = AslDoError(); yyclearin;}
+    | PARSEOP_UART_SERIALBUS
+        PARSEOP_OPEN_PAREN
+        error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
     ;
 
 UartSerialBusTermV2
-    : PARSEOP_UART_SERIALBUS_V2 '(' {$<n>$ = TrCreateLeafNode (PARSEOP_UART_SERIALBUS_V2);}
+    : PARSEOP_UART_SERIALBUS_V2
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_UART_SERIALBUS_V2);}
         DWordConstExpr              /* 04: ConnectionSpeed */
         OptionalBitsPerByte         /* 05: BitsPerByte */
         OptionalStopBits            /* 06: StopBits */
@@ -635,32 +697,38 @@ UartSerialBusTermV2
         OptionalNameString          /* 20: DescriptorName */
         OptionalShareType           /* 21: Share */
         OptionalBuffer_Last         /* 22: VendorData */
-        ')'                         {$$ = TrLinkChildren ($<n>3,15,
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,15,
                                         $4,$5,$6,$8,$9,$10,$11,$13,$15,$17,$18,$19,$20,$21,$22);}
-    | PARSEOP_UART_SERIALBUS_V2 '('
-        error ')'                   {$$ = AslDoError(); yyclearin;}
+    | PARSEOP_UART_SERIALBUS_V2
+        PARSEOP_OPEN_PAREN
+        error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
     ;
 
 VendorLongTerm
-    : PARSEOP_VENDORLONG '('        {$<n>$ = TrCreateLeafNode (PARSEOP_VENDORLONG);}
+    : PARSEOP_VENDORLONG
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_VENDORLONG);}
         OptionalNameString_First
-        ')' '{'
+        PARSEOP_CLOSE_PAREN '{'
             ByteList '}'            {$$ = TrLinkChildren ($<n>3,2,$4,$7);}
-    | PARSEOP_VENDORLONG '('
-        error ')'                   {$$ = AslDoError(); yyclearin;}
+    | PARSEOP_VENDORLONG
+        PARSEOP_OPEN_PAREN
+        error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
     ;
 
 VendorShortTerm
-    : PARSEOP_VENDORSHORT '('       {$<n>$ = TrCreateLeafNode (PARSEOP_VENDORSHORT);}
+    : PARSEOP_VENDORSHORT
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_VENDORSHORT);}
         OptionalNameString_First
-        ')' '{'
+        PARSEOP_CLOSE_PAREN '{'
             ByteList '}'            {$$ = TrLinkChildren ($<n>3,2,$4,$7);}
-    | PARSEOP_VENDORSHORT '('
-        error ')'                   {$$ = AslDoError(); yyclearin;}
+    | PARSEOP_VENDORSHORT
+        PARSEOP_OPEN_PAREN
+        error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
     ;
 
 WordBusNumberTerm
-    : PARSEOP_WORDBUSNUMBER '('     {$<n>$ = TrCreateLeafNode (PARSEOP_WORDBUSNUMBER);}
+    : PARSEOP_WORDBUSNUMBER
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_WORDBUSNUMBER);}
         OptionalResourceType_First
         OptionalMinType
         OptionalMaxType
@@ -673,14 +741,16 @@ WordBusNumberTerm
         OptionalByteConstExpr
         OptionalStringData
         OptionalNameString_Last
-        ')'                         {$$ = TrLinkChildren ($<n>3,12,
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,12,
                                         $4,$5,$6,$7,$9,$11,$13,$15,$17,$18,$19,$20);}
-    | PARSEOP_WORDBUSNUMBER '('
-        error ')'                   {$$ = AslDoError(); yyclearin;}
+    | PARSEOP_WORDBUSNUMBER
+        PARSEOP_OPEN_PAREN
+        error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
     ;
 
 WordIOTerm
-    : PARSEOP_WORDIO '('            {$<n>$ = TrCreateLeafNode (PARSEOP_WORDIO);}
+    : PARSEOP_WORDIO
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_WORDIO);}
         OptionalResourceType_First
         OptionalMinType
         OptionalMaxType
@@ -696,14 +766,16 @@ WordIOTerm
         OptionalNameString
         OptionalType
         OptionalTranslationType_Last
-        ')'                         {$$ = TrLinkChildren ($<n>3,15,
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,15,
                                         $4,$5,$6,$7,$8,$10,$12,$14,$16,$18,$19,$20,$21,$22,$23);}
-    | PARSEOP_WORDIO '('
-        error ')'                   {$$ = AslDoError(); yyclearin;}
+    | PARSEOP_WORDIO
+        PARSEOP_OPEN_PAREN
+        error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
     ;
 
 WordSpaceTerm
-    : PARSEOP_WORDSPACE '('         {$<n>$ = TrCreateLeafNode (PARSEOP_WORDSPACE);}
+    : PARSEOP_WORDSPACE
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_WORDSPACE);}
         ByteConstExpr               {UtCheckIntegerRange ($4, 0xC0, 0xFF);}
         OptionalResourceType
         OptionalDecodeType
@@ -718,8 +790,9 @@ WordSpaceTerm
         OptionalByteConstExpr
         OptionalStringData
         OptionalNameString_Last
-        ')'                         {$$ = TrLinkChildren ($<n>3,14,
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,14,
                                         $4,$6,$7,$8,$9,$11,$13,$15,$17,$19,$21,$22,$23,$24);}
-    | PARSEOP_WORDSPACE '('
-        error ')'                   {$$ = AslDoError(); yyclearin;}
+    | PARSEOP_WORDSPACE
+        PARSEOP_OPEN_PAREN
+        error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
     ;

@@ -129,11 +129,8 @@ DtCompileFadt (
     DT_SUBTABLE             *ParentTable;
     DT_FIELD                **PFieldList = (DT_FIELD **) List;
     ACPI_TABLE_HEADER       *Table;
-    UINT8                   FadtRevision;
-    UINT32                  i;
+    UINT8                   Revision;
 
-
-    /* Minimum table is the FADT version 1 (ACPI 1.0) */
 
     Status = DtCompileTable (PFieldList, AcpiDmTableInfoFadt1,
         &Subtable, TRUE);
@@ -146,41 +143,11 @@ DtCompileFadt (
     DtInsertSubtable (ParentTable, Subtable);
 
     Table = ACPI_CAST_PTR (ACPI_TABLE_HEADER, ParentTable->Buffer);
-    FadtRevision = Table->Revision;
+    Revision = Table->Revision;
 
-    /* Revision 0 and 2 are illegal */
-
-    if ((FadtRevision == 0) ||
-        (FadtRevision == 2))
+    if (Revision == 2)
     {
-        DtError (ASL_ERROR, 0, NULL,
-            "Invalid value for FADT revision");
-
-        return (AE_BAD_VALUE);
-    }
-
-    /* Revision out of supported range? */
-
-    if (FadtRevision > ACPI_FADT_MAX_VERSION)
-    {
-        DtError (ASL_ERROR, 0, NULL,
-            "Unknown or unsupported value for FADT revision");
-
-        return (AE_BAD_VALUE);
-    }
-
-    /* Compile individual sub-parts of the FADT, per-revision */
-
-    for (i = 3; i <= ACPI_FADT_MAX_VERSION; i++)
-    {
-        if (i > FadtRevision)
-        {
-            break;
-        }
-
-        /* Compile the fields specific to this FADT revision */
-
-        Status = DtCompileTable (PFieldList, FadtRevisionInfo[i],
+        Status = DtCompileTable (PFieldList, AcpiDmTableInfoFadt2,
             &Subtable, TRUE);
         if (ACPI_FAILURE (Status))
         {
@@ -188,6 +155,41 @@ DtCompileFadt (
         }
 
         DtInsertSubtable (ParentTable, Subtable);
+    }
+    else if (Revision >= 2)
+    {
+        Status = DtCompileTable (PFieldList, AcpiDmTableInfoFadt3,
+            &Subtable, TRUE);
+        if (ACPI_FAILURE (Status))
+        {
+            return (Status);
+        }
+
+        DtInsertSubtable (ParentTable, Subtable);
+
+        if (Revision >= 5)
+        {
+            Status = DtCompileTable (PFieldList, AcpiDmTableInfoFadt5,
+                &Subtable, TRUE);
+            if (ACPI_FAILURE (Status))
+            {
+                return (Status);
+            }
+
+            DtInsertSubtable (ParentTable, Subtable);
+        }
+
+        if (Revision >= 6)
+        {
+            Status = DtCompileTable (PFieldList, AcpiDmTableInfoFadt6,
+                &Subtable, TRUE);
+            if (ACPI_FAILURE (Status))
+            {
+                return (Status);
+            }
+
+            DtInsertSubtable (ParentTable, Subtable);
+        }
     }
 
     return (AE_OK);

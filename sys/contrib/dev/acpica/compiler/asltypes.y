@@ -68,7 +68,7 @@ NoEcho('
 %type <n> ParameterTypesPackage
 %type <n> ParameterTypesPackageList
 %type <n> RequiredTarget
-%type <n> SimpleTarget
+%type <n> SimpleName
 %type <n> StringData
 %type <n> Target
 %type <n> Term
@@ -252,7 +252,10 @@ NoEcho('
 /* Types */
 
 %type <n> SuperName
-%type <n> ObjectTypeName
+%type <n> ObjectTypeSource
+%type <n> DerefOfSource
+%type <n> RefOfSource
+%type <n> CondRefOfSource
 %type <n> ArgTerm
 %type <n> LocalTerm
 %type <n> DebugTerm

@@ -106,6 +106,10 @@
 /*  2015/05/15							      */
 /*    [Add]    Support the SEIKO TIME SYSTEMS TDC-300		      */
 /*								      */
+/*  2016/05/08							      */
+/*    [Fix]    C-DEX JST2000                                          */
+/*             Thanks to Mr. Kuramatsu for the report and the patch.  */
+/*								      */
 /**********************************************************************/
 
 #ifdef HAVE_CONFIG_H
@@ -1499,9 +1503,9 @@ jjy_receive_cdex_jst2000 ( struct recvbuf *rbufp )
 		return JJY_RECEIVE_ERROR ;
 	}
 
-	/* JYYMMDD HHMMSSS */
+	/* JYYMMDDWHHMMSSS */
 
-	rc = sscanf ( pBuf, "J%2d%2d%2d %2d%2d%2d%1d",
+	rc = sscanf ( pBuf, "J%2d%2d%2d%*1d%2d%2d%2d%1d",
 		      &up->year, &up->month, &up->day,
 		      &up->hour, &up->minute, &up->second,
 		      &up->msecond ) ;

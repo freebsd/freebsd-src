@@ -483,8 +483,8 @@ more:
 	if (ib != 0 && pageout_count < vm_pageout_page_count)
 		goto more;
 
-	return (vm_pageout_flush(&mc[page_base], pageout_count, 0, 0, NULL,
-	    NULL));
+	return (vm_pageout_flush(&mc[page_base], pageout_count,
+	    VM_PAGER_PUT_NOREUSE, 0, NULL, NULL));
 }
 
 /*

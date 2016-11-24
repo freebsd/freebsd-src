@@ -189,6 +189,9 @@ __FBSDID("$FreeBSD$");
 #define	DDC_ADDR		0x50
 #define	EDDC_ADDR		0x60
 #define	EDID_LENGTH		128
+#define	DDC_CTRL_LINE		0x540
+#define	DDC_LINE_SCL_ENABLE	(1 << 8)
+#define	DDC_LINE_SDA_ENABLE	(1 << 9)
 #define	HDMI_ENABLE_DELAY	50000
 #define	DDC_READ_RETRY		4
 #define	EXT_TAG			0x00
@@ -493,6 +496,10 @@ a10hdmi_get_edid(device_t dev, uint8_t **edid, uint32_t *edid_len)
 
 		/* Configure DDC clock */
 		HDMI_WRITE(sc, DDC_CLOCK, DDC_CLOCK_M | DDC_CLOCK_N);
+
+		/* Enable SDA/SCL */
+		HDMI_WRITE(sc, DDC_CTRL_LINE,
+		    DDC_LINE_SCL_ENABLE | DDC_LINE_SDA_ENABLE);
 
 		/* Read EDID block */
 		error = a10hdmi_ddc_read(sc, 0, sc->edid);

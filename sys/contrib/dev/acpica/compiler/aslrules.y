@@ -81,14 +81,15 @@ AslCode
  * The ObjectList term is obsolete and has been removed.
  */
 DefinitionBlockTerm
-    : PARSEOP_DEFINITION_BLOCK '('  {$<n>$ = TrCreateLeafNode (PARSEOP_DEFINITION_BLOCK);}
+    : PARSEOP_DEFINITION_BLOCK
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_DEFINITION_BLOCK);}
         String ','
         String ','
         ByteConst ','
         String ','
         String ','
         DWordConst
-        ')'                         {TrSetEndLineNumber ($<n>3);}
+        PARSEOP_CLOSE_PAREN         {TrSetEndLineNumber ($<n>3);}
             '{' TermList '}'        {$$ = TrLinkChildren ($<n>3,7,
                                         $4,$6,$8,$10,$12,$14,$18);}
     ;
@@ -98,6 +99,9 @@ DefinitionBlockList
     | DefinitionBlockTerm
         DefinitionBlockList         {$$ = TrLinkPeerNodes (2, $1,$2);}
     ;
+
+
+/******* Basic ASCII identifiers **************************************************/
 
 /* Allow IO, DMA, IRQ Resource macro and FOR macro names to also be used as identifiers */
 
@@ -112,20 +116,31 @@ NameString
 /*
 NameSeg
     : PARSEOP_NAMESEG               {$$ = TrCreateValuedLeafNode (PARSEOP_NAMESEG, (ACPI_NATIVE_INT)
-                                            TrNormalizeNameSeg ($1));}
+                                        TrNormalizeNameSeg ($1));}
     ;
 */
 
 NameSeg
     : PARSEOP_NAMESEG               {$$ = TrCreateValuedLeafNode (PARSEOP_NAMESEG,
-                                            (ACPI_NATIVE_INT) AslCompilerlval.s);}
+                                        (ACPI_NATIVE_INT) AslCompilerlval.s);}
     ;
 
 
+/******* Fundamental argument/statement types ***********************************/
+
+Term
+    : Object                        {}
+    | Type1Opcode                   {}
+    | Type2Opcode                   {}
+    | Type2IntegerOpcode            {$$ = TrSetNodeFlags ($1, NODE_COMPILE_TIME_CONST);}
+    | Type2StringOpcode             {$$ = TrSetNodeFlags ($1, NODE_COMPILE_TIME_CONST);}
+    | Type2BufferOpcode             {}
+    | Type2BufferOrStringOpcode     {}
+    | error                         {$$ = AslDoError(); yyclearin;}
+    ;
+
 SuperName
-    : NameString                    {}
-    | ArgTerm                       {}
-    | LocalTerm                     {}
+    : SimpleName                    {}
     | DebugTerm                     {}
     | Type6Opcode                   {}
     ;
@@ -136,14 +151,19 @@ Target
     | ',' SuperName                 {$$ = TrSetNodeFlags ($2, NODE_IS_TARGET);}
     ;
 
+RequiredTarget
+    : ',' SuperName                 {$$ = TrSetNodeFlags ($2, NODE_IS_TARGET);}
+    ;
+
 TermArg
-    : Type2Opcode                   {$$ = TrSetNodeFlags ($1, NODE_IS_TERM_ARG);}
+    : SimpleName                    {$$ = TrSetNodeFlags ($1, NODE_IS_TERM_ARG);}
+    | Type2Opcode                   {$$ = TrSetNodeFlags ($1, NODE_IS_TERM_ARG);}
     | DataObject                    {$$ = TrSetNodeFlags ($1, NODE_IS_TERM_ARG);}
-    | NameString                    {$$ = TrSetNodeFlags ($1, NODE_IS_TERM_ARG);}
-    | ArgTerm                       {$$ = TrSetNodeFlags ($1, NODE_IS_TERM_ARG);}
-    | LocalTerm                     {$$ = TrSetNodeFlags ($1, NODE_IS_TERM_ARG);}
-
-
+/*
+    | PARSEOP_OPEN_PAREN
+        TermArg
+        PARSEOP_CLOSE_PAREN         {}
+*/
     ;
 
 /*
@@ -156,8 +176,10 @@ TermArg
 */
 
 MethodInvocationTerm
-    : NameString '('                {TrUpdateNode (PARSEOP_METHODCALL, $1);}
-        ArgList ')'                 {$$ = TrLinkChildNode ($1,$4);}
+    : NameString
+        PARSEOP_OPEN_PAREN          {TrUpdateNode (PARSEOP_METHODCALL, $1);}
+        ArgList
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildNode ($1,$4);}
     ;
 
 /* OptionalCount must appear before ByteList or an incorrect reduction will result */
@@ -176,22 +198,43 @@ OptionalDataCount
 
         /* Legacy ASL */
     :                               {$$ = NULL;}
-    | '(' TermArg ')'               {$$ = $2;}
-    | '('  ')'                      {$$ = NULL;}
+    | PARSEOP_OPEN_PAREN
+        TermArg
+        PARSEOP_CLOSE_PAREN         {$$ = $2;}
+    | PARSEOP_OPEN_PAREN
+        PARSEOP_CLOSE_PAREN         {$$ = NULL;}
 
         /* C-style (ASL+) -- adds equals term */
 
     |  PARSEOP_EXP_EQUALS           {$$ = NULL;}
 
-    | '(' TermArg ')'
+    | PARSEOP_OPEN_PAREN
+        TermArg
+        PARSEOP_CLOSE_PAREN
         PARSEOP_EXP_EQUALS          {$$ = $2;}
 
-    | '('  ')' String
+    | PARSEOP_OPEN_PAREN
+        PARSEOP_CLOSE_PAREN
+        String
         PARSEOP_EXP_EQUALS          {$$ = NULL;}
     ;
 
 
 /******* List Terms **************************************************/
+
+    /* ACPI 3.0 -- allow semicolons between terms */
+
+TermList
+    :                               {$$ = NULL;}
+    | TermList Term                 {$$ = TrLinkPeerNode (
+                                        TrSetNodeFlags ($1, NODE_RESULT_NOT_USED),$2);}
+    | TermList Term ';'             {$$ = TrLinkPeerNode (
+                                        TrSetNodeFlags ($1, NODE_RESULT_NOT_USED),$2);}
+    | TermList ';' Term             {$$ = TrLinkPeerNode (
+                                        TrSetNodeFlags ($1, NODE_RESULT_NOT_USED),$3);}
+    | TermList ';' Term ';'         {$$ = TrLinkPeerNode (
+                                        TrSetNodeFlags ($1, NODE_RESULT_NOT_USED),$3);}
+    ;
 
 ArgList
     :                               {$$ = NULL;}
@@ -299,38 +342,13 @@ OptionalParameterTypesPackage
                                         TrCreateLeafNode (PARSEOP_DEFAULT_ARG),1,$2);}
     ;
 
-    /* ACPI 3.0 -- allow semicolons between terms */
-
-TermList
-    :                               {$$ = NULL;}
-    | TermList Term                 {$$ = TrLinkPeerNode (
-                                        TrSetNodeFlags ($1, NODE_RESULT_NOT_USED),$2);}
-    | TermList Term ';'             {$$ = TrLinkPeerNode (
-                                        TrSetNodeFlags ($1, NODE_RESULT_NOT_USED),$2);}
-    | TermList ';' Term             {$$ = TrLinkPeerNode (
-                                        TrSetNodeFlags ($1, NODE_RESULT_NOT_USED),$3);}
-    | TermList ';' Term ';'         {$$ = TrLinkPeerNode (
-                                        TrSetNodeFlags ($1, NODE_RESULT_NOT_USED),$3);}
-    ;
-
-Term
-    : Object                        {}
-    | Type1Opcode                   {}
-    | Type2Opcode                   {}
-    | Type2IntegerOpcode            {$$ = TrSetNodeFlags ($1, NODE_COMPILE_TIME_CONST);}
-    | Type2StringOpcode             {$$ = TrSetNodeFlags ($1, NODE_COMPILE_TIME_CONST);}
-    | Type2BufferOpcode             {}
-    | Type2BufferOrStringOpcode     {}
-    | error                         {$$ = AslDoError(); yyclearin;}
-    ;
-
 /*
  * Case-Default list; allow only one Default term and unlimited Case terms
  */
 CaseDefaultTermList
     :                               {$$ = NULL;}
-    | CaseTerm  {}
-    | DefaultTerm   {}
+    | CaseTerm                      {}
+    | DefaultTerm                   {}
     | CaseDefaultTermList
         CaseTerm                    {$$ = TrLinkPeerNode ($1,$2);}
     | CaseDefaultTermList
@@ -520,32 +538,59 @@ NameSpaceModifier
     | ScopeTerm                     {}
     ;
 
-/* For ObjectType: SuperName except for MethodInvocationTerm */
-
-ObjectTypeName
+SimpleName
     : NameString                    {}
-    | ArgTerm                       {}
     | LocalTerm                     {}
+    | ArgTerm                       {}
+    ;
+
+/* For ObjectType(), SuperName except for MethodInvocationTerm */
+
+ObjectTypeSource
+    : SimpleName                    {}
     | DebugTerm                     {}
     | RefOfTerm                     {}
     | DerefOfTerm                   {}
     | IndexTerm                     {}
     | IndexExpTerm                  {}
-/*    | MethodInvocationTerm          {} */  /* Caused reduce/reduce with Type6Opcode->MethodInvocationTerm */
     ;
 
-RequiredTarget
-    : ',' SuperName                 {$$ = TrSetNodeFlags ($2, NODE_IS_TARGET);}
+/* For DeRefOf(), SuperName except for DerefOf and Debug */
+
+DerefOfSource
+    : SimpleName                    {}
+    | RefOfTerm                     {}
+    | DerefOfTerm                   {}
+    | IndexTerm                     {}
+    | IndexExpTerm                  {}
+    | StoreTerm                     {}
+    | EqualsTerm                    {}
+    | MethodInvocationTerm          {}
     ;
 
-SimpleTarget
-    : NameString                    {}
-    | LocalTerm                     {}
-    | ArgTerm                       {}
+/* For RefOf(), SuperName except for RefOf and MethodInvocationTerm */
+
+RefOfSource
+    : SimpleName                    {}
+    | DebugTerm                     {}
+    | DerefOfTerm                   {}
+    | IndexTerm                     {}
+    | IndexExpTerm                  {}
     ;
 
-/* Opcode types */
+/* For CondRefOf(), SuperName except for RefOf and MethodInvocationTerm */
 
+CondRefOfSource
+    : SimpleName                    {}
+    | DebugTerm                     {}
+    | DerefOfTerm                   {}
+    | IndexTerm                     {}
+    | IndexExpTerm                  {}
+    ;
+
+/*
+ * Opcode types, as defined in the ACPI specification
+ */
 Type1Opcode
     : BreakTerm                     {}
     | BreakPointTerm                {}

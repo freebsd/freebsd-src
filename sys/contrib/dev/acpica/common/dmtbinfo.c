@@ -400,7 +400,7 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoFacs[] =
  *
  ******************************************************************************/
 
-/* FADT version 1 (ACPI 1.0) */
+/* ACPI 1.0 FADT (Version 1) */
 
 ACPI_DMTABLE_INFO           AcpiDmTableInfoFadt1[] =
 {
@@ -486,7 +486,18 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoFadt1[] =
     ACPI_DMT_TERMINATOR
 };
 
-/* FADT version 3 (ACPI 2.0) */
+/* ACPI 1.0 MS Extensions (FADT version 2) */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoFadt2[] =
+{
+    {ACPI_DMT_GAS,      ACPI_FADT_OFFSET (ResetRegister),           "Reset Register", 0},
+    {ACPI_DMT_UINT8,    ACPI_FADT_OFFSET (ResetValue),              "Value to cause reset", 0},
+    {ACPI_DMT_UINT16,   ACPI_FADT_OFFSET (ArmBootFlags),            "Reserved", 0},
+    {ACPI_DMT_UINT8,    ACPI_FADT_OFFSET (MinorRevision),           "Reserved", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+/* ACPI 2.0+ Extensions (FADT version 3, 4, and 5) */
 
 ACPI_DMTABLE_INFO           AcpiDmTableInfoFadt3[] =
 {
@@ -510,23 +521,16 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoFadt3[] =
     ACPI_DMT_TERMINATOR
 };
 
-/* FADT version 4 (ACPI 3.0 and ACPI 4.0) */
-
-ACPI_DMTABLE_INFO           AcpiDmTableInfoFadt4[] =
-{
-    {ACPI_DMT_GAS,      ACPI_FADT_OFFSET (SleepControl),            "Sleep Control Register", 0},
-    ACPI_DMT_TERMINATOR
-};
-
-/* FADT version 5 (ACPI 5.0) */
+/* ACPI 5.0 Extensions (FADT version 5) */
 
 ACPI_DMTABLE_INFO           AcpiDmTableInfoFadt5[] =
 {
+    {ACPI_DMT_GAS,      ACPI_FADT_OFFSET (SleepControl),            "Sleep Control Register", 0},
     {ACPI_DMT_GAS,      ACPI_FADT_OFFSET (SleepStatus),             "Sleep Status Register", 0},
     ACPI_DMT_TERMINATOR
 };
 
-/* FADT version 6 (ACPI 6.0) */
+/* ACPI 6.0 Extensions (FADT version 6) */
 
 ACPI_DMTABLE_INFO           AcpiDmTableInfoFadt6[] =
 {

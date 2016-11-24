@@ -78,6 +78,8 @@ device 		da
 device		mmc
 device		mmcsd
 
+device		dme
+
 # USB support
 options 	USB_DEBUG	# enable debug msgs
 options 	USB_HOST_ALIGN=128 # L2 cache line size
@@ -90,3 +92,6 @@ device		uhid		# "Human Interface Devices"
 #device		ulpt		# Printer
 device		umass		# Disks/Mass storage - Requires scbus and da
 device		ums		# Mouse
+
+# FDT support
+options 	FDT

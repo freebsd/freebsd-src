@@ -1,9 +1,9 @@
-.Dd June 2 2016
+.Dd November 21 2016
 .Dt NTP_CONF 5 File Formats
 .Os
 .\"  EDIT THIS FILE WITH CAUTION  (ntp.mdoc)
 .\"
-.\"  It has been AutoGen-ed  June  2, 2016 at 07:36:16 AM by AutoGen 5.18.5
+.\"  It has been AutoGen-ed  November 21, 2016 at 08:02:03 AM by AutoGen 5.18.5
 .\"  From the definitions    ntp.conf.def
 .\"  and the template file   agmdoc-cmd.tpl
 .Sh NAME
@@ -1995,6 +1995,25 @@ At the same time, the manycast
 scheme starts all over from the beginning and
 the expanding ring shrinks to the minimum and increments
 from there while collecting all servers in scope.
+.Ss Broadcast Options
+.Bl -tag -width indent
+.It Xo Ic tos
+.Oo
+.Cm bcpollbstep Ar gate
+.Oc
+.Xc
+This command provides a way to delay,
+by the specified number of broadcast poll intervals,
+believing backward time steps from a broadcast server.
+Broadcast time networks are expected to be trusted.
+In the event a broadcast server's time is stepped backwards,
+there is clear benefit to having the clients notice this change
+as soon as possible.
+Attacks such as replay attacks can happen, however,
+and even though there are a number of protections built in to
+broadcast mode, attempts to perform  a replay attack are possible.
+This value defaults to 0, but can be changed
+to any number of poll intervals between 0 and 4.
 .Ss Manycast Options
 .Bl -tag -width indent
 .It Xo Ic tos

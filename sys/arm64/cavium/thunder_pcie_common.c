@@ -58,6 +58,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pci_private.h>
 #include <dev/pci/pcib_private.h>
 #include <dev/pci/pci_host_generic.h>
+#ifdef FDT
+#include <dev/pci/pci_host_generic_fdt.h>
+#endif
 
 #include "thunder_pcie_common.h"
 

@@ -241,7 +241,7 @@ ccmp_decap(struct ieee80211_key *k, struct mbuf *m, int hdrlen)
 
 	rxs = ieee80211_get_rx_params_ptr(m);
 
-	if ((rxs != NULL) & (rxs->c_pktflags & IEEE80211_RX_F_IV_STRIP))
+	if ((rxs != NULL) && (rxs->c_pktflags & IEEE80211_RX_F_IV_STRIP))
 		goto finish;
 
 	/*
@@ -286,7 +286,7 @@ finish:
 	/*
 	 * Copy up 802.11 header and strip crypto bits.
 	 */
-	if (! ((rxs != NULL) & (rxs->c_pktflags & IEEE80211_RX_F_IV_STRIP))) {
+	if (! ((rxs != NULL) && (rxs->c_pktflags & IEEE80211_RX_F_IV_STRIP))) {
 		ovbcopy(mtod(m, void *), mtod(m, uint8_t *) + ccmp.ic_header,
 		    hdrlen);
 		m_adj(m, ccmp.ic_header);
@@ -295,13 +295,13 @@ finish:
 	/*
 	 * XXX TODO: see if MMIC_STRIP also covers CCMP MIC trailer.
 	 */
-	if (! ((rxs != NULL) & (rxs->c_pktflags & IEEE80211_RX_F_MMIC_STRIP)))
+	if (! ((rxs != NULL) && (rxs->c_pktflags & IEEE80211_RX_F_MMIC_STRIP)))
 		m_adj(m, -ccmp.ic_trailer);
 
 	/*
 	 * Ok to update rsc now.
 	 */
-	if (! ((rxs != NULL) & (rxs->c_pktflags & IEEE80211_RX_F_IV_STRIP))) {
+	if (! ((rxs != NULL) && (rxs->c_pktflags & IEEE80211_RX_F_IV_STRIP))) {
 		k->wk_keyrsc[tid] = pn;
 	}
 

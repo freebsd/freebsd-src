@@ -48,32 +48,35 @@ wcstold_l(const wchar_t * __restrict nptr, wchar_t ** __restrict endptr,
 	mbstate_t mbs;
 	long double val;
 	char *buf, *end;
-	const wchar_t *wcp = nptr;
+	const wchar_t *wcp;
 	size_t len;
-	size_t spaces = 0;
+	size_t spaces;
 	FIX_LOCALE(locale);
 
+	wcp = nptr;
+	spaces = 0;
 	while (iswspace_l(*wcp, locale)) {
 		wcp++;
 		spaces++;
 	}
 
-	wcp = nptr;
 	mbs = initial;
 	if ((len = wcsrtombs_l(NULL, &wcp, 0, &mbs, locale)) == (size_t)-1) {
 		if (endptr != NULL)
 			*endptr = (wchar_t *)nptr;
 		return (0.0);
 	}
-	if ((buf = malloc(len + 1)) == NULL)
+	if ((buf = malloc(len + 1)) == NULL) {
+		if (endptr != NULL)
+			*endptr = (wchar_t *)nptr;
 		return (0.0);
+	}
 	mbs = initial;
 	wcsrtombs_l(buf, &wcp, len + 1, &mbs, locale);
 
 	val = strtold_l(buf, &end, locale);
 
 	if (endptr != NULL) {
-		/* XXX Assume each wide char is one byte. */
 		*endptr = (wchar_t *)nptr + (end - buf);
 		if (buf != end)
 			*endptr += spaces;
