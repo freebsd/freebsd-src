@@ -336,8 +336,13 @@ hn_nvs_disconn_rxbuf(struct hn_softc *sc)
 
 		/*
 		 * Wait for the hypervisor to receive this NVS request.
+		 *
+		 * NOTE:
+		 * The TX bufring will not be drained by the hypervisor,
+		 * if the primary channel is revoked.
 		 */
-		while (!vmbus_chan_tx_empty(sc->hn_prichan))
+		while (!vmbus_chan_tx_empty(sc->hn_prichan) &&
+		    !vmbus_chan_is_revoked(sc->hn_prichan))
 			pause("waittx", 1);
 		/*
 		 * Linger long enough for NVS to disconnect RXBUF.
@@ -387,8 +392,13 @@ hn_nvs_disconn_chim(struct hn_softc *sc)
 
 		/*
 		 * Wait for the hypervisor to receive this NVS request.
+		 *
+		 * NOTE:
+		 * The TX bufring will not be drained by the hypervisor,
+		 * if the primary channel is revoked.
 		 */
-		while (!vmbus_chan_tx_empty(sc->hn_prichan))
+		while (!vmbus_chan_tx_empty(sc->hn_prichan) &&
+		    !vmbus_chan_is_revoked(sc->hn_prichan))
 			pause("waittx", 1);
 		/*
 		 * Linger long enough for NVS to disconnect chimney
