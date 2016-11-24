@@ -389,21 +389,19 @@ bad:
 }
 
 /*
- * IPComp output routine, called by ipsec[46]_process_packet()
+ * IPComp output routine, called by ipsec[46]_perform_request()
  */
 static int
-ipcomp_output(struct mbuf *m, struct ipsecrequest *isr, struct mbuf **mp,
-    int skip, int protoff)
+ipcomp_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
+    u_int idx, int skip, int protoff)
 {
-	char buf[INET6_ADDRSTRLEN];
-	struct secasvar *sav;
+	char buf[IPSEC_ADDRSTRLEN];
 	struct comp_algo *ipcompx;
-	int error, ralen, maxpacketsize;
 	struct cryptodesc *crdc;
 	struct cryptop *crp;
-	struct tdb_crypto *tc;
+	struct xform_data *xd;
+	int error, ralen, maxpacketsize;
 
-	sav = isr->sav;
 	IPSEC_ASSERT(sav != NULL, ("null SA"));
 	ipcompx = sav->tdb_compalgxform;
 	IPSEC_ASSERT(ipcompx != NULL, ("null compression xform"));
@@ -416,7 +414,7 @@ ipcomp_output(struct mbuf *m, struct ipsecrequest *isr, struct mbuf **mp,
 	 */
 	if (m->m_pkthdr.len <= ipcompx->minlen) {
 		IPCOMPSTAT_INC(ipcomps_threshold);
-		return ipsec_process_done(m, isr);
+		return ipsec_process_done(m, sp, sav, idx);
 	}
 
 	ralen = m->m_pkthdr.len - skip;	/* Raw payload length before comp. */
@@ -490,33 +488,31 @@ ipcomp_output(struct mbuf *m, struct ipsecrequest *isr, struct mbuf **mp,
 	crdc->crd_alg = ipcompx->type;
 
 	/* IPsec-specific opaque crypto info */
-	tc = (struct tdb_crypto *) malloc(sizeof(struct tdb_crypto),
-		M_XDATA, M_NOWAIT|M_ZERO);
-	if (tc == NULL) {
+	xd =  malloc(sizeof(struct xform_data), M_XDATA, M_NOWAIT | M_ZERO);
+	if (xd == NULL) {
 		IPCOMPSTAT_INC(ipcomps_crypto);
-		DPRINTF(("%s: failed to allocate tdb_crypto\n", __func__));
+		DPRINTF(("%s: failed to allocate xform_data\n", __func__));
 		crypto_freereq(crp);
 		error = ENOBUFS;
 		goto bad;
 	}
 
-	key_addref(isr->sp);
-	tc->tc_isr = isr;
-	KEY_ADDREFSA(sav);
-	tc->tc_sav = sav;
-	tc->tc_spi = sav->spi;
-	tc->tc_dst = sav->sah->saidx.dst;
-	tc->tc_proto = sav->sah->saidx.proto;
-	tc->tc_protoff = protoff;
-	tc->tc_skip = skip;
+	xd->sp = sp;
+	xd->sav = sav;
+	xd->idx = idx;
+	xd->skip = skip;
+	xd->protoff = protoff;
 
 	/* Crypto operation descriptor */
 	crp->crp_ilen = m->m_pkthdr.len;	/* Total input length */
 	crp->crp_flags = CRYPTO_F_IMBUF | CRYPTO_F_CBIFSYNC;
 	crp->crp_buf = (caddr_t) m;
 	crp->crp_callback = ipcomp_output_cb;
-	crp->crp_opaque = (caddr_t) tc;
-	crp->crp_sid = sav->tdb_cryptoid;
+	crp->crp_opaque = (caddr_t) xd;
+
+	SECASVAR_LOCK(sav);
+	crp->crp_sid = xd->cryptoid = sav->tdb_cryptoid;
+	SECASVAR_UNLOCK(sav);
 
 	return crypto_dispatch(crp);
 bad:
@@ -531,39 +527,32 @@ bad:
 static int
 ipcomp_output_cb(struct cryptop *crp)
 {
-	char buf[INET6_ADDRSTRLEN];
-	struct tdb_crypto *tc;
-	struct ipsecrequest *isr;
+	char buf[IPSEC_ADDRSTRLEN];
+	struct xform_data *xd;
+	struct secpolicy *sp;
 	struct secasvar *sav;
 	struct mbuf *m;
-	int error, skip;
+	uint64_t cryptoid;
+	u_int idx;
+	int error, skip, protoff;
 
-	tc = (struct tdb_crypto *) crp->crp_opaque;
-	IPSEC_ASSERT(tc != NULL, ("null opaque data area!"));
 	m = (struct mbuf *) crp->crp_buf;
-	skip = tc->tc_skip;
-
-	isr = tc->tc_isr;
-	IPSEC_ASSERT(isr->sp != NULL, ("NULL isr->sp"));
-	IPSECREQUEST_LOCK(isr);
-	sav = tc->tc_sav;
-	/* With the isr lock released SA pointer can be updated. */
-	if (sav != isr->sav) {
-		IPCOMPSTAT_INC(ipcomps_notdb);
-		DPRINTF(("%s: SA expired while in crypto\n", __func__));
-		error = ENOBUFS;		/*XXX*/
-		goto bad;
-	}
+	xd = (struct xform_data *) crp->crp_opaque;
+	idx = xd->idx;
+	sp = xd->sp;
+	sav = xd->sav;
+	skip = xd->skip;
+	protoff = xd->protoff;
+	cryptoid = xd->cryptoid;
 
 	/* Check for crypto errors */
 	if (crp->crp_etype) {
-		/* Reset the session ID */
-		if (sav->tdb_cryptoid != 0)
-			sav->tdb_cryptoid = crp->crp_sid;
-
 		if (crp->crp_etype == EAGAIN) {
-			IPSECREQUEST_UNLOCK(isr);
-			return crypto_dispatch(crp);
+			/* Reset the session ID */
+			if (ipsec_updateid(sav, &crp->crp_sid, &cryptoid) != 0)
+				crypto_freesession(cryptoid);
+			xd->cryptoid = crp->crp_sid;
+			return (crypto_dispatch(crp));
 		}
 		IPCOMPSTAT_INC(ipcomps_noxform);
 		DPRINTF(("%s: crypto error %d\n", __func__, crp->crp_etype));
@@ -589,7 +578,8 @@ ipcomp_output_cb(struct cryptop *crp)
 		mo = m_makespace(m, skip, IPCOMP_HLENGTH, &roff);
 		if (mo == NULL) {
 			IPCOMPSTAT_INC(ipcomps_wrap);
-			DPRINTF(("%s: IPCOMP header inject failed for IPCA %s/%08lx\n",
+			DPRINTF(("%s: IPCOMP header inject failed "
+			    "for IPCA %s/%08lx\n",
 			    __func__, ipsec_address(&sav->sah->saidx.dst, buf,
 			    sizeof(buf)), (u_long) ntohl(sav->spi)));
 			error = ENOBUFS;
@@ -616,7 +606,7 @@ ipcomp_output_cb(struct cryptop *crp)
 
 		/* Fix Next Protocol in IPv4/IPv6 header */
 		prot = IPPROTO_IPCOMP;
-		m_copyback(m, tc->tc_protoff, sizeof(u_int8_t),
+		m_copyback(m, protoff, sizeof(u_int8_t),
 		    (u_char *)&prot);
 
 		/* Adjust the length in the IP header */
@@ -652,24 +642,19 @@ ipcomp_output_cb(struct cryptop *crp)
 	}
 
 	/* Release the crypto descriptor */
-	free(tc, M_XDATA);
+	free(xd, M_XDATA);
 	crypto_freereq(crp);
 
 	/* NB: m is reclaimed by ipsec_process_done. */
-	error = ipsec_process_done(m, isr);
-	KEY_FREESAV(&sav);
-	IPSECREQUEST_UNLOCK(isr);
-	KEY_FREESP(&isr->sp);
+	error = ipsec_process_done(m, sp, sav, idx);
 	return (error);
 bad:
-	if (sav)
-		KEY_FREESAV(&sav);
-	IPSECREQUEST_UNLOCK(isr);
-	KEY_FREESP(&isr->sp);
 	if (m)
 		m_freem(m);
-	free(tc, M_XDATA);
+	free(xd, M_XDATA);
 	crypto_freereq(crp);
+	key_freesav(&sav);
+	key_freesp(&sp);
 	return (error);
 }
 
