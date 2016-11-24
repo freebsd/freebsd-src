@@ -78,8 +78,6 @@
 #include "HexagonTargetMachine.h"
 
 #include <functional>
-#include <set>
-#include <vector>
 
 using namespace llvm;
 
@@ -359,7 +357,7 @@ bool HexagonEarlyIfConversion::isValidCandidate(const MachineBasicBlock *B)
     // update the use of it after predication). PHI uses will be updated
     // to use a result of a MUX, and a MUX cannot be created for predicate
     // registers.
-    for (ConstMIOperands MO(&MI); MO.isValid(); ++MO) {
+    for (ConstMIOperands MO(MI); MO.isValid(); ++MO) {
       if (!MO->isReg() || !MO->isDef())
         continue;
       unsigned R = MO->getReg();
@@ -377,7 +375,7 @@ bool HexagonEarlyIfConversion::isValidCandidate(const MachineBasicBlock *B)
 
 
 bool HexagonEarlyIfConversion::usesUndefVReg(const MachineInstr *MI) const {
-  for (ConstMIOperands MO(MI); MO.isValid(); ++MO) {
+  for (ConstMIOperands MO(*MI); MO.isValid(); ++MO) {
     if (!MO->isReg() || !MO->isUse())
       continue;
     unsigned R = MO->getReg();
@@ -445,7 +443,7 @@ unsigned HexagonEarlyIfConversion::computePhiCost(MachineBasicBlock *B) const {
     }
     MachineInstr *Def1 = MRI->getVRegDef(RO1.getReg());
     MachineInstr *Def3 = MRI->getVRegDef(RO3.getReg());
-    if (!TII->isPredicable(Def1) || !TII->isPredicable(Def3))
+    if (!TII->isPredicable(*Def1) || !TII->isPredicable(*Def3))
       Cost++;
   }
   return Cost;
@@ -456,7 +454,7 @@ unsigned HexagonEarlyIfConversion::countPredicateDefs(
       const MachineBasicBlock *B) const {
   unsigned PredDefs = 0;
   for (auto &MI : *B) {
-    for (ConstMIOperands MO(&MI); MO.isValid(); ++MO) {
+    for (ConstMIOperands MO(MI); MO.isValid(); ++MO) {
       if (!MO->isReg() || !MO->isDef())
         continue;
       unsigned R = MO->getReg();
@@ -721,7 +719,7 @@ void HexagonEarlyIfConversion::predicateInstr(MachineBasicBlock *ToB,
     assert(COpc);
     MachineInstrBuilder MIB = BuildMI(*ToB, At, DL, TII->get(COpc))
       .addReg(PredR);
-    for (MIOperands MO(MI); MO.isValid(); ++MO)
+    for (MIOperands MO(*MI); MO.isValid(); ++MO)
       MIB.addOperand(*MO);
 
     // Set memory references.
@@ -962,7 +960,7 @@ void HexagonEarlyIfConversion::eliminatePhis(MachineBasicBlock *B) {
       // MRI.replaceVregUsesWith does not allow to update the subregister,
       // so instead of doing the use-iteration here, create a copy into a
       // "non-subregistered" register.
-      DebugLoc DL = PN->getDebugLoc();
+      const DebugLoc &DL = PN->getDebugLoc();
       const TargetRegisterClass *RC = MRI->getRegClass(DefR);
       NewR = MRI->createVirtualRegister(RC);
       NonPHI = BuildMI(*B, NonPHI, DL, TII->get(TargetOpcode::COPY), NewR)
@@ -980,7 +978,7 @@ void HexagonEarlyIfConversion::replacePhiEdges(MachineBasicBlock *OldB,
     MachineBasicBlock *SB = *I;
     MachineBasicBlock::iterator P, N = SB->getFirstNonPHI();
     for (P = SB->begin(); P != N; ++P) {
-      MachineInstr *PN = &*P;
+      MachineInstr &PN = *P;
       for (MIOperands MO(PN); MO.isValid(); ++MO)
         if (MO->isMBB() && MO->getMBB() == OldB)
           MO->setMBB(NewB);
@@ -1034,6 +1032,9 @@ void HexagonEarlyIfConversion::simplifyFlowGraph(const FlowPattern &FP) {
 
 
 bool HexagonEarlyIfConversion::runOnMachineFunction(MachineFunction &MF) {
+  if (skipFunction(*MF.getFunction()))
+    return false;
+
   auto &ST = MF.getSubtarget();
   TII = ST.getInstrInfo();
   TRI = ST.getRegisterInfo();

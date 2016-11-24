@@ -13,6 +13,9 @@ GENDIRDEPS_FILTER+= \
 	Ntargets/pseudo/stage* \
 	Ntools/*
 
+# Clang has nested directories in its OBJDIR.
+GENDIRDEPS_FILTER+= C,(lib/clang/lib[^/]*)/.*,\1,
+
 # Exclude toolchain which is handled special.
 .if ${RELDIR:Mtargets*} == ""
 .if ${RELDIR:Nusr.bin/clang/*:Ngnu/usr.bin/cc/*:Nlib/clang*} != ""
@@ -22,7 +25,7 @@ GENDIRDEPS_FILTER.host+= \
 
 .endif
 GENDIRDEPS_FILTER_HOST_TOOLS+= \
-	Nlib/clang/include \
+	Nlib/clang/headers \
 	Nusr.bin/addr2line \
 	Nusr.bin/ar \
 	Nusr.bin/clang/clang \

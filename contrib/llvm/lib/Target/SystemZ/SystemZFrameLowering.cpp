@@ -81,6 +81,12 @@ void SystemZFrameLowering::determineCalleeSaves(MachineFunction &MF,
     for (unsigned I = MFI->getVarArgsFirstGPR(); I < SystemZ::NumArgGPRs; ++I)
       SavedRegs.set(SystemZ::ArgGPRs[I]);
 
+  // If there are any landing pads, entering them will modify r6/r7.
+  if (!MF.getMMI().getLandingPads().empty()) {
+    SavedRegs.set(SystemZ::R6D);
+    SavedRegs.set(SystemZ::R7D);
+  }
+
   // If the function requires a frame pointer, record that the hard
   // frame pointer will be clobbered.
   if (HasFP)
@@ -258,7 +264,8 @@ restoreCalleeSavedRegisters(MachineBasicBlock &MBB,
     // Do a second scan adding regs as being defined by instruction
     for (unsigned I = 0, E = CSI.size(); I != E; ++I) {
       unsigned Reg = CSI[I].getReg();
-      if (Reg != LowGPR && Reg != HighGPR)
+      if (Reg != LowGPR && Reg != HighGPR &&
+          SystemZ::GR64BitRegClass.contains(Reg))
         MIB.addReg(Reg, RegState::ImplicitDefine);
     }
   }
@@ -353,6 +360,15 @@ void SystemZFrameLowering::emitPrologue(MachineFunction &MF,
 
   uint64_t StackSize = getAllocatedStackSize(MF);
   if (StackSize) {
+    // Determine if we want to store a backchain.
+    bool StoreBackchain = MF.getFunction()->hasFnAttribute("backchain");
+
+    // If we need backchain, save current stack pointer.  R1 is free at this
+    // point.
+    if (StoreBackchain)
+      BuildMI(MBB, MBBI, DL, ZII->get(SystemZ::LGR))
+        .addReg(SystemZ::R1D, RegState::Define).addReg(SystemZ::R15D);
+
     // Allocate StackSize bytes.
     int64_t Delta = -int64_t(StackSize);
     emitIncrement(MBB, MBBI, DL, SystemZ::R15D, Delta, ZII);
@@ -363,6 +379,10 @@ void SystemZFrameLowering::emitPrologue(MachineFunction &MF,
     BuildMI(MBB, MBBI, DL, ZII->get(TargetOpcode::CFI_INSTRUCTION))
         .addCFIIndex(CFIIndex);
     SPOffsetFromCFA += Delta;
+
+    if (StoreBackchain)
+      BuildMI(MBB, MBBI, DL, ZII->get(SystemZ::STG))
+        .addReg(SystemZ::R1D, RegState::Kill).addReg(SystemZ::R15D).addImm(0).addReg(0);
   }
 
   if (HasFP) {
@@ -511,7 +531,7 @@ SystemZFrameLowering::hasReservedCallFrame(const MachineFunction &MF) const {
   return true;
 }
 
-void SystemZFrameLowering::
+MachineBasicBlock::iterator SystemZFrameLowering::
 eliminateCallFramePseudoInstr(MachineFunction &MF,
                               MachineBasicBlock &MBB,
                               MachineBasicBlock::iterator MI) const {
@@ -520,7 +540,7 @@ eliminateCallFramePseudoInstr(MachineFunction &MF,
   case SystemZ::ADJCALLSTACKUP:
     assert(hasReservedCallFrame(MF) &&
            "ADJSTACKDOWN and ADJSTACKUP should be no-ops");
-    MBB.erase(MI);
+    return MBB.erase(MI);
     break;
 
   default:

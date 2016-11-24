@@ -13,7 +13,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/Transforms/IPO/InlinerPass.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/AliasAnalysis.h"
@@ -21,6 +20,7 @@
 #include "llvm/Analysis/BasicAliasAnalysis.h"
 #include "llvm/Analysis/CallGraph.h"
 #include "llvm/Analysis/InlineCost.h"
+#include "llvm/Analysis/ProfileSummaryInfo.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/IR/CallSite.h"
 #include "llvm/IR/DataLayout.h"
@@ -28,9 +28,9 @@
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/Module.h"
-#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Transforms/IPO/InlinerPass.h"
 #include "llvm/Transforms/Utils/Cloning.h"
 #include "llvm/Transforms/Utils/Local.h"
 using namespace llvm;
@@ -47,40 +47,19 @@ STATISTIC(NumMergedAllocas, "Number of allocas merged together");
 // if those would be more profitable and blocked inline steps.
 STATISTIC(NumCallerCallersAnalyzed, "Number of caller-callers analyzed");
 
-static cl::opt<int>
-InlineLimit("inline-threshold", cl::Hidden, cl::init(225), cl::ZeroOrMore,
-        cl::desc("Control the amount of inlining to perform (default = 225)"));
+Inliner::Inliner(char &ID) : CallGraphSCCPass(ID), InsertLifetime(true) {}
 
-static cl::opt<int>
-HintThreshold("inlinehint-threshold", cl::Hidden, cl::init(325),
-              cl::desc("Threshold for inlining functions with inline hint"));
-
-// We instroduce this threshold to help performance of instrumentation based
-// PGO before we actually hook up inliner with analysis passes such as BPI and
-// BFI.
-static cl::opt<int>
-ColdThreshold("inlinecold-threshold", cl::Hidden, cl::init(225),
-              cl::desc("Threshold for inlining functions with cold attribute"));
-
-// Threshold to use when optsize is specified (and there is no -inline-limit).
-const int OptSizeThreshold = 75;
-
-Inliner::Inliner(char &ID)
-    : CallGraphSCCPass(ID), InlineThreshold(InlineLimit), InsertLifetime(true) {
-}
-
-Inliner::Inliner(char &ID, int Threshold, bool InsertLifetime)
-    : CallGraphSCCPass(ID),
-      InlineThreshold(InlineLimit.getNumOccurrences() > 0 ? InlineLimit
-                                                          : Threshold),
-      InsertLifetime(InsertLifetime) {}
+Inliner::Inliner(char &ID, bool InsertLifetime)
+    : CallGraphSCCPass(ID), InsertLifetime(InsertLifetime) {}
 
 /// For this class, we declare that we require and preserve the call graph.
 /// If the derived class implements this method, it should
 /// always explicitly call the implementation here.
 void Inliner::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.addRequired<AssumptionCacheTracker>();
+  AU.addRequired<ProfileSummaryInfoWrapperPass>();
   AU.addRequired<TargetLibraryInfoWrapperPass>();
+  getAAResultsAnalysisUsage(AU);
   CallGraphSCCPass::getAnalysisUsage(AU);
 }
 
@@ -243,72 +222,81 @@ static bool InlineCallIfPossible(Pass &P, CallSite CS, InlineFunctionInfo &IFI,
   return true;
 }
 
-unsigned Inliner::getInlineThreshold(CallSite CS) const {
-  int Threshold = InlineThreshold; // -inline-threshold or else selected by
-                                   // overall opt level
-
-  // If -inline-threshold is not given, listen to the optsize attribute when it
-  // would decrease the threshold.
-  Function *Caller = CS.getCaller();
-  bool OptSize = Caller && !Caller->isDeclaration() &&
-                 // FIXME: Use Function::optForSize().
-                 Caller->hasFnAttribute(Attribute::OptimizeForSize);
-  if (!(InlineLimit.getNumOccurrences() > 0) && OptSize &&
-      OptSizeThreshold < Threshold)
-    Threshold = OptSizeThreshold;
-
-  Function *Callee = CS.getCalledFunction();
-  if (!Callee || Callee->isDeclaration())
-    return Threshold;
-
-  // If profile information is available, use that to adjust threshold of hot
-  // and cold functions.
-  // FIXME: The heuristic used below for determining hotness and coldness are
-  // based on preliminary SPEC tuning and may not be optimal. Replace this with
-  // a well-tuned heuristic based on *callsite* hotness and not callee hotness.
-  uint64_t FunctionCount = 0, MaxFunctionCount = 0;
-  bool HasPGOCounts = false;
-  if (Callee->getEntryCount() &&
-      Callee->getParent()->getMaximumFunctionCount()) {
-    HasPGOCounts = true;
-    FunctionCount = Callee->getEntryCount().getValue();
-    MaxFunctionCount =
-        Callee->getParent()->getMaximumFunctionCount().getValue();
-  }
-
-  // Listen to the inlinehint attribute or profile based hotness information
-  // when it would increase the threshold and the caller does not need to
-  // minimize its size.
-  bool InlineHint =
-      Callee->hasFnAttribute(Attribute::InlineHint) ||
-      (HasPGOCounts &&
-       FunctionCount >= (uint64_t)(0.3 * (double)MaxFunctionCount));
-  if (InlineHint && HintThreshold > Threshold &&
-      !Caller->hasFnAttribute(Attribute::MinSize))
-    Threshold = HintThreshold;
-
-  // Listen to the cold attribute or profile based coldness information
-  // when it would decrease the threshold.
-  bool ColdCallee =
-      Callee->hasFnAttribute(Attribute::Cold) ||
-      (HasPGOCounts &&
-       FunctionCount <= (uint64_t)(0.01 * (double)MaxFunctionCount));
-  // Command line argument for InlineLimit will override the default
-  // ColdThreshold. If we have -inline-threshold but no -inlinecold-threshold,
-  // do not use the default cold threshold even if it is smaller.
-  if ((InlineLimit.getNumOccurrences() == 0 ||
-       ColdThreshold.getNumOccurrences() > 0) && ColdCallee &&
-      ColdThreshold < Threshold)
-    Threshold = ColdThreshold;
-
-  return Threshold;
-}
-
 static void emitAnalysis(CallSite CS, const Twine &Msg) {
   Function *Caller = CS.getCaller();
   LLVMContext &Ctx = Caller->getContext();
   DebugLoc DLoc = CS.getInstruction()->getDebugLoc();
   emitOptimizationRemarkAnalysis(Ctx, DEBUG_TYPE, *Caller, DLoc, Msg);
+}
+
+bool Inliner::shouldBeDeferred(Function *Caller, CallSite CS, InlineCost IC,
+                               int &TotalSecondaryCost) {
+
+  // For now we only handle local or inline functions.
+  if (!Caller->hasLocalLinkage() && !Caller->hasLinkOnceODRLinkage())
+    return false;
+  // Try to detect the case where the current inlining candidate caller (call
+  // it B) is a static or linkonce-ODR function and is an inlining candidate
+  // elsewhere, and the current candidate callee (call it C) is large enough
+  // that inlining it into B would make B too big to inline later. In these
+  // circumstances it may be best not to inline C into B, but to inline B into
+  // its callers.
+  //
+  // This only applies to static and linkonce-ODR functions because those are
+  // expected to be available for inlining in the translation units where they
+  // are used. Thus we will always have the opportunity to make local inlining
+  // decisions. Importantly the linkonce-ODR linkage covers inline functions
+  // and templates in C++.
+  //
+  // FIXME: All of this logic should be sunk into getInlineCost. It relies on
+  // the internal implementation of the inline cost metrics rather than
+  // treating them as truly abstract units etc.
+  TotalSecondaryCost = 0;
+  // The candidate cost to be imposed upon the current function.
+  int CandidateCost = IC.getCost() - (InlineConstants::CallPenalty + 1);
+  // This bool tracks what happens if we do NOT inline C into B.
+  bool callerWillBeRemoved = Caller->hasLocalLinkage();
+  // This bool tracks what happens if we DO inline C into B.
+  bool inliningPreventsSomeOuterInline = false;
+  for (User *U : Caller->users()) {
+    CallSite CS2(U);
+
+    // If this isn't a call to Caller (it could be some other sort
+    // of reference) skip it.  Such references will prevent the caller
+    // from being removed.
+    if (!CS2 || CS2.getCalledFunction() != Caller) {
+      callerWillBeRemoved = false;
+      continue;
+    }
+
+    InlineCost IC2 = getInlineCost(CS2);
+    ++NumCallerCallersAnalyzed;
+    if (!IC2) {
+      callerWillBeRemoved = false;
+      continue;
+    }
+    if (IC2.isAlways())
+      continue;
+
+    // See if inlining or original callsite would erase the cost delta of
+    // this callsite. We subtract off the penalty for the call instruction,
+    // which we would be deleting.
+    if (IC2.getCostDelta() <= CandidateCost) {
+      inliningPreventsSomeOuterInline = true;
+      TotalSecondaryCost += IC2.getCost();
+    }
+  }
+  // If all outer calls to Caller would get inlined, the cost for the last
+  // one is set very low by getInlineCost, in anticipation that Caller will
+  // be removed entirely.  We did not account for this above unless there
+  // is only one caller of Caller.
+  if (callerWillBeRemoved && !Caller->use_empty())
+    TotalSecondaryCost += InlineConstants::LastCallToStaticBonus;
+
+  if (inliningPreventsSomeOuterInline && TotalSecondaryCost < IC.getCost())
+    return true;
+
+  return false;
 }
 
 /// Return true if the inliner should attempt to inline at the given CallSite.
@@ -342,77 +330,17 @@ bool Inliner::shouldInline(CallSite CS) {
                          Twine(IC.getCostDelta() + IC.getCost()) + ")");
     return false;
   }
-  
-  // Try to detect the case where the current inlining candidate caller (call
-  // it B) is a static or linkonce-ODR function and is an inlining candidate
-  // elsewhere, and the current candidate callee (call it C) is large enough
-  // that inlining it into B would make B too big to inline later. In these
-  // circumstances it may be best not to inline C into B, but to inline B into
-  // its callers.
-  //
-  // This only applies to static and linkonce-ODR functions because those are
-  // expected to be available for inlining in the translation units where they
-  // are used. Thus we will always have the opportunity to make local inlining
-  // decisions. Importantly the linkonce-ODR linkage covers inline functions
-  // and templates in C++.
-  //
-  // FIXME: All of this logic should be sunk into getInlineCost. It relies on
-  // the internal implementation of the inline cost metrics rather than
-  // treating them as truly abstract units etc.
-  if (Caller->hasLocalLinkage() || Caller->hasLinkOnceODRLinkage()) {
-    int TotalSecondaryCost = 0;
-    // The candidate cost to be imposed upon the current function.
-    int CandidateCost = IC.getCost() - (InlineConstants::CallPenalty + 1);
-    // This bool tracks what happens if we do NOT inline C into B.
-    bool callerWillBeRemoved = Caller->hasLocalLinkage();
-    // This bool tracks what happens if we DO inline C into B.
-    bool inliningPreventsSomeOuterInline = false;
-    for (User *U : Caller->users()) {
-      CallSite CS2(U);
 
-      // If this isn't a call to Caller (it could be some other sort
-      // of reference) skip it.  Such references will prevent the caller
-      // from being removed.
-      if (!CS2 || CS2.getCalledFunction() != Caller) {
-        callerWillBeRemoved = false;
-        continue;
-      }
-
-      InlineCost IC2 = getInlineCost(CS2);
-      ++NumCallerCallersAnalyzed;
-      if (!IC2) {
-        callerWillBeRemoved = false;
-        continue;
-      }
-      if (IC2.isAlways())
-        continue;
-
-      // See if inlining or original callsite would erase the cost delta of
-      // this callsite. We subtract off the penalty for the call instruction,
-      // which we would be deleting.
-      if (IC2.getCostDelta() <= CandidateCost) {
-        inliningPreventsSomeOuterInline = true;
-        TotalSecondaryCost += IC2.getCost();
-      }
-    }
-    // If all outer calls to Caller would get inlined, the cost for the last
-    // one is set very low by getInlineCost, in anticipation that Caller will
-    // be removed entirely.  We did not account for this above unless there
-    // is only one caller of Caller.
-    if (callerWillBeRemoved && !Caller->use_empty())
-      TotalSecondaryCost += InlineConstants::LastCallToStaticBonus;
-
-    if (inliningPreventsSomeOuterInline && TotalSecondaryCost < IC.getCost()) {
-      DEBUG(dbgs() << "    NOT Inlining: " << *CS.getInstruction() <<
-           " Cost = " << IC.getCost() <<
-           ", outer Cost = " << TotalSecondaryCost << '\n');
-      emitAnalysis(
-          CS, Twine("Not inlining. Cost of inlining " +
-                    CS.getCalledFunction()->getName() +
-                    " increases the cost of inlining " +
-                    CS.getCaller()->getName() + " in other contexts"));
-      return false;
-    }
+  int TotalSecondaryCost = 0;
+  if (shouldBeDeferred(Caller, CS, IC, TotalSecondaryCost)) {
+    DEBUG(dbgs() << "    NOT Inlining: " << *CS.getInstruction()
+          << " Cost = " << IC.getCost()
+          << ", outer Cost = " << TotalSecondaryCost << '\n');
+    emitAnalysis(CS, Twine("Not inlining. Cost of inlining " +
+                           CS.getCalledFunction()->getName() +
+                           " increases the cost of inlining " +
+                           CS.getCaller()->getName() + " in other contexts"));
+    return false;
   }
 
   DEBUG(dbgs() << "    Inlining: cost=" << IC.getCost()
@@ -440,8 +368,15 @@ static bool InlineHistoryIncludes(Function *F, int InlineHistoryID,
 }
 
 bool Inliner::runOnSCC(CallGraphSCC &SCC) {
+  if (skipSCC(SCC))
+    return false;
+  return inlineCalls(SCC);
+}
+
+bool Inliner::inlineCalls(CallGraphSCC &SCC) {
   CallGraph &CG = getAnalysis<CallGraphWrapperPass>().getCallGraph();
   ACT = &getAnalysis<AssumptionCacheTracker>();
+  PSI = getAnalysis<ProfileSummaryInfoWrapperPass>().getPSI(CG.getModule());
   auto &TLI = getAnalysis<TargetLibraryInfoWrapperPass>().getTLI();
 
   SmallPtrSet<Function*, 8> SCCFunctions;

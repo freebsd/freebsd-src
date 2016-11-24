@@ -11,11 +11,11 @@
 #define LLVM_LIB_CODEGEN_ASMPRINTER_DEBUGLOCENTRY_H
 
 #include "DebugLocStream.h"
-#include "llvm/ADT/SmallString.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DebugInfo.h"
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/MC/MachineLocation.h"
+#include "llvm/Support/Debug.h"
 
 namespace llvm {
 class AsmPrinter;
@@ -76,6 +76,20 @@ public:
     const DIExpression *getExpression() const { return Expression; }
     friend bool operator==(const Value &, const Value &);
     friend bool operator<(const Value &, const Value &);
+    void dump() const {
+      if (isLocation()) {
+        llvm::dbgs() << "Loc = { reg=" << Loc.getReg() << " ";
+        if (Loc.isIndirect())
+          llvm::dbgs() << '+' << Loc.getOffset();
+        llvm::dbgs() << "} ";
+      }
+      else if (isConstantInt())
+        Constant.CIP->dump();
+      else if (isConstantFP())
+        Constant.CFP->dump();
+      if (Expression)
+        Expression->dump();
+    }
   };
 
 private:

@@ -55,7 +55,8 @@ public:
 
   bool mayNeedRelaxation(const MCInst &Inst) const override { return false; }
 
-  void relaxInstruction(const MCInst &Inst, MCInst &Res) const override {}
+  void relaxInstruction(const MCInst &Inst, const MCSubtargetInfo &STI,
+                        MCInst &Res) const override {}
 
   bool writeNopData(uint64_t Count, MCObjectWriter *OW) const override;
 };
@@ -73,8 +74,10 @@ void WebAssemblyAsmBackend::applyFixup(const MCFixup &Fixup, char *Data,
                                        unsigned DataSize, uint64_t Value,
                                        bool IsPCRel) const {
   const MCFixupKindInfo &Info = getFixupKindInfo(Fixup.getKind());
-  unsigned NumBytes = RoundUpToAlignment(Info.TargetSize, 8);
-  if (!Value)
+  assert(Info.Flags == 0 && "WebAssembly does not use MCFixupKindInfo flags");
+
+  unsigned NumBytes = (Info.TargetSize + 7) / 8;
+  if (Value == 0)
     return; // Doesn't change encoding.
 
   // Shift the value into position.

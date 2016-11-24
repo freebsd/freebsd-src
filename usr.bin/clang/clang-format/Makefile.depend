@@ -7,22 +7,15 @@ DIRDEPS = \
 	include \
 	include/xlocale \
 	lib/${CSU_DIR} \
-	lib/clang/libclangast \
-	lib/clang/libclangbasic \
-	lib/clang/libclangformat \
-	lib/clang/libclanglex \
-	lib/clang/libclangrewrite \
-	lib/clang/libclangtoolingcore \
-	lib/clang/libllvmcore \
-	lib/clang/libllvmmc \
-	lib/clang/libllvmsupport \
+	lib/clang/libclang \
+	lib/clang/libllvm \
 	lib/libc \
 	lib/libc++ \
 	lib/libcompiler_rt \
+	lib/libcxxrt \
 	lib/libthr \
 	lib/msun \
 	lib/ncurses/ncursesw \
-	usr.bin/clang/clang-tblgen.host \
 
 
 .include <dirdeps.mk>

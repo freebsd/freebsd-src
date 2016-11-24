@@ -179,6 +179,11 @@ struct AArch64CollectLOH : public MachineFunctionPass {
 
   bool runOnMachineFunction(MachineFunction &MF) override;
 
+  MachineFunctionProperties getRequiredProperties() const override {
+    return MachineFunctionProperties().set(
+        MachineFunctionProperties::Property::AllVRegsAllocated);
+  }
+
   const char *getPassName() const override {
     return AARCH64_COLLECT_LOH_NAME;
   }
@@ -623,10 +628,7 @@ static void computeADRP(const InstrToInstrs &UseToDefs,
         continue;
       }
       DEBUG(dbgs() << "Record AdrpAdrp:\n" << *L2 << '\n' << *L1 << '\n');
-      SmallVector<const MachineInstr *, 2> Args;
-      Args.push_back(L2);
-      Args.push_back(L1);
-      AArch64FI.addLOHDirective(MCLOH_AdrpAdrp, Args);
+      AArch64FI.addLOHDirective(MCLOH_AdrpAdrp, {L2, L1});
       ++NumADRPSimpleCandidate;
     }
 #ifdef DEBUG
@@ -760,13 +762,9 @@ static bool registerADRCandidate(const MachineInstr &Use,
          "ADD already involved in LOH.");
   DEBUG(dbgs() << "Record AdrpAdd\n" << Def << '\n' << Use << '\n');
 
-  SmallVector<const MachineInstr *, 2> Args;
-  Args.push_back(&Def);
-  Args.push_back(&Use);
-
-  AArch64FI.addLOHDirective(Use.getOpcode() == AArch64::ADDXri ? MCLOH_AdrpAdd
-                                                           : MCLOH_AdrpLdrGot,
-                          Args);
+  AArch64FI.addLOHDirective(
+      Use.getOpcode() == AArch64::ADDXri ? MCLOH_AdrpAdd : MCLOH_AdrpLdrGot,
+      {&Def, &Use});
   return true;
 }
 
@@ -1036,6 +1034,9 @@ static void collectInvolvedReg(const MachineFunction &MF, MapRegToId &RegToId,
 }
 
 bool AArch64CollectLOH::runOnMachineFunction(MachineFunction &MF) {
+  if (skipFunction(*MF.getFunction()))
+    return false;
+
   const TargetRegisterInfo *TRI = MF.getSubtarget().getRegisterInfo();
   const MachineDominatorTree *MDT = &getAnalysis<MachineDominatorTree>();
 

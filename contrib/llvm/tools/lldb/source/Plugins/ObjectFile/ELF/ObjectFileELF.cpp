@@ -31,7 +31,9 @@
 
 #include "llvm/ADT/PointerUnion.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/Support/ARMBuildAttributes.h"
 #include "llvm/Support/MathExtras.h"
+#include "llvm/Support/MipsABIFlags.h"
 
 #define CASE_AND_STREAM(s, def, width)                  \
     case def: s->Printf("%-*s", width, #def); break;
@@ -283,7 +285,7 @@ ELFNote::Parse(const DataExtractor &data, lldb::offset_t *offset)
         }
     }
 
-    const char *cstr = data.GetCStr(offset, llvm::RoundUpToAlignment (n_namesz, 4));
+    const char *cstr = data.GetCStr(offset, llvm::alignTo (n_namesz, 4));
     if (cstr == NULL)
     {
         Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_SYMBOLS));
@@ -729,7 +731,10 @@ ObjectFileELF::GetModuleSpecifications (const lldb_private::FileSpec& file,
                     SectionHeaderColl section_headers;
                     lldb_private::UUID &uuid = spec.GetUUID();
 
-                    GetSectionHeaderInfo(section_headers, data, header, uuid, gnu_debuglink_file, gnu_debuglink_crc, spec.GetArchitecture ());
+                    using namespace std::placeholders;
+                    const SetDataFunction set_data = std::bind(&ObjectFileELF::SetData, std::cref(data), _1, _2, _3);
+                    GetSectionHeaderInfo(section_headers, set_data, header, uuid, gnu_debuglink_file, gnu_debuglink_crc, spec.GetArchitecture ());
+
 
                     llvm::Triple &spec_triple = spec.GetArchitecture ().GetTriple ();
 
@@ -759,7 +764,7 @@ ObjectFileELF::GetModuleSpecifications (const lldb_private::FileSpec& file,
                                     data.SetData(data_sp);
                                 }
                                 ProgramHeaderColl program_headers;
-                                GetProgramHeaderInfo(program_headers, data, header);
+                                GetProgramHeaderInfo(program_headers, set_data, header);
 
                                 size_t segment_data_end = 0;
                                 for (ProgramHeaderCollConstIter I = program_headers.begin();
@@ -918,10 +923,14 @@ ObjectFileELF::SetLoadAddress (Target &target,
                 // Iterate through the object file sections to find all
                 // of the sections that have SHF_ALLOC in their flag bits.
                 SectionSP section_sp (section_list->GetSectionAtIndex (sect_idx));
-                // if (section_sp && !section_sp->IsThreadSpecific())
                 if (section_sp && section_sp->Test(SHF_ALLOC))
                 {
-                    lldb::addr_t load_addr = section_sp->GetFileAddress() + value;
+                    lldb::addr_t load_addr = section_sp->GetFileAddress();
+                    // We don't want to update the load address of a section with type
+                    // eSectionTypeAbsoluteAddress as they already have the absolute load address
+                    // already specified
+                    if (section_sp->GetType() != eSectionTypeAbsoluteAddress)
+                        load_addr += value;
 
                     // On 32-bit systems the load address have to fit into 4 bytes. The rest of
                     // the bytes are the overflow from the addition.
@@ -1256,7 +1265,7 @@ ObjectFileELF::ParseDependentModules()
 //----------------------------------------------------------------------
 size_t
 ObjectFileELF::GetProgramHeaderInfo(ProgramHeaderColl &program_headers,
-                                    DataExtractor &object_data,
+                                    const SetDataFunction &set_data,
                                     const ELFHeader &header)
 {
     // We have already parsed the program headers
@@ -1274,7 +1283,7 @@ ObjectFileELF::GetProgramHeaderInfo(ProgramHeaderColl &program_headers,
     const size_t ph_size = header.e_phnum * header.e_phentsize;
     const elf_off ph_offset = header.e_phoff;
     DataExtractor data;
-    if (data.SetData(object_data, ph_offset, ph_size) != ph_size)
+    if (set_data(data, ph_offset, ph_size) != ph_size)
         return 0;
 
     uint32_t idx;
@@ -1298,7 +1307,10 @@ ObjectFileELF::GetProgramHeaderInfo(ProgramHeaderColl &program_headers,
 size_t
 ObjectFileELF::ParseProgramHeaders()
 {
-    return GetProgramHeaderInfo(m_program_headers, m_data, m_header);
+    using namespace std::placeholders;
+    return GetProgramHeaderInfo(m_program_headers,
+                                std::bind(&ObjectFileELF::SetDataWithReadMemoryFallback, this, _1, _2, _3),
+                                m_header);
 }
 
 lldb_private::Error
@@ -1400,8 +1412,9 @@ ObjectFileELF::RefineModuleDetailsFromNote (lldb_private::DataExtractor &data, l
                     // Only bother processing this if we don't already have the uuid set.
                     if (!uuid.IsValid())
                     {
-                        // 16 bytes is UUID|MD5, 20 bytes is SHA1
-                        if ((note.n_descsz == 16 || note.n_descsz == 20))
+                        // 16 bytes is UUID|MD5, 20 bytes is SHA1. Other linkers may produce a build-id of a different
+                        // length. Accept it as long as it's at least 4 bytes as it will be better than our own crc32.
+                        if (note.n_descsz >= 4 && note.n_descsz <= 20)
                         {
                             uint8_t uuidbuf[20];
                             if (data.GetU8 (&offset, &uuidbuf, note.n_descsz) == nullptr)
@@ -1449,7 +1462,7 @@ ObjectFileELF::RefineModuleDetailsFromNote (lldb_private::DataExtractor &data, l
             // this ELF targets.
             if(note.n_descsz)
             {
-                const char *cstr = data.GetCStr(&offset, llvm::RoundUpToAlignment (note.n_descsz, 4));
+                const char *cstr = data.GetCStr(&offset, llvm::alignTo (note.n_descsz, 4));
                 (void)cstr;
             }
         }
@@ -1505,13 +1518,87 @@ ObjectFileELF::RefineModuleDetailsFromNote (lldb_private::DataExtractor &data, l
     return error;
 }
 
+void
+ObjectFileELF::ParseARMAttributes(DataExtractor &data, uint64_t length, ArchSpec &arch_spec)
+{
+    lldb::offset_t Offset = 0;
+
+    uint8_t FormatVersion = data.GetU8(&Offset);
+    if (FormatVersion != llvm::ARMBuildAttrs::Format_Version)
+      return;
+
+    Offset = Offset + sizeof(uint32_t); // Section Length
+    llvm::StringRef VendorName = data.GetCStr(&Offset);
+
+    if (VendorName != "aeabi")
+      return;
+
+    if (arch_spec.GetTriple().getEnvironment() == llvm::Triple::UnknownEnvironment)
+        arch_spec.GetTriple().setEnvironment(llvm::Triple::EABI);
+
+    while (Offset < length)
+    {
+        uint8_t Tag = data.GetU8(&Offset);
+        uint32_t Size = data.GetU32(&Offset);
+
+        if (Tag != llvm::ARMBuildAttrs::File || Size == 0)
+            continue;
+
+        while (Offset < length)
+        {
+            uint64_t Tag = data.GetULEB128(&Offset);
+            switch (Tag)
+            {
+                default:
+                    if (Tag < 32)
+                        data.GetULEB128(&Offset);
+                    else if (Tag % 2 == 0)
+                        data.GetULEB128(&Offset);
+                    else
+                        data.GetCStr(&Offset);
+
+                    break;
+
+                case llvm::ARMBuildAttrs::CPU_raw_name:
+                case llvm::ARMBuildAttrs::CPU_name:
+                    data.GetCStr(&Offset);
+
+                    break;
+
+                case llvm::ARMBuildAttrs::ABI_VFP_args:
+                {
+                    uint64_t VFPArgs = data.GetULEB128(&Offset);
+
+                    if (VFPArgs == llvm::ARMBuildAttrs::BaseAAPCS)
+                    {
+                        if (arch_spec.GetTriple().getEnvironment() == llvm::Triple::UnknownEnvironment ||
+                            arch_spec.GetTriple().getEnvironment() == llvm::Triple::EABIHF)
+                            arch_spec.GetTriple().setEnvironment(llvm::Triple::EABI);
+
+                        arch_spec.SetFlags(ArchSpec::eARM_abi_soft_float);
+                    }
+                    else if (VFPArgs == llvm::ARMBuildAttrs::HardFPAAPCS)
+                    {
+                        if (arch_spec.GetTriple().getEnvironment() == llvm::Triple::UnknownEnvironment ||
+                            arch_spec.GetTriple().getEnvironment() == llvm::Triple::EABI)
+                            arch_spec.GetTriple().setEnvironment(llvm::Triple::EABIHF);
+
+                        arch_spec.SetFlags(ArchSpec::eARM_abi_hard_float);
+                    }
+
+                    break;
+                }
+            }
+        }
+    }
+}
 
 //----------------------------------------------------------------------
 // GetSectionHeaderInfo
 //----------------------------------------------------------------------
 size_t
 ObjectFileELF::GetSectionHeaderInfo(SectionHeaderColl &section_headers,
-                                    lldb_private::DataExtractor &object_data,
+                                    const SetDataFunction &set_data,
                                     const elf::ELFHeader &header,
                                     lldb_private::UUID &uuid,
                                     std::string &gnu_debuglink_file,
@@ -1556,6 +1643,15 @@ ObjectFileELF::GetSectionHeaderInfo(SectionHeaderColl &section_headers,
         }
     }
 
+    if (arch_spec.GetMachine() == llvm::Triple::arm ||
+        arch_spec.GetMachine() == llvm::Triple::thumb)
+    {
+        if (header.e_flags & llvm::ELF::EF_ARM_SOFT_FLOAT)
+            arch_spec.SetFlags (ArchSpec::eARM_abi_soft_float);
+        else if (header.e_flags & llvm::ELF::EF_ARM_VFP_FLOAT)
+            arch_spec.SetFlags (ArchSpec::eARM_abi_hard_float);
+    }
+
     // If there are no section headers we are done.
     if (header.e_shnum == 0) {
 #if 0
@@ -1574,7 +1670,7 @@ ObjectFileELF::GetSectionHeaderInfo(SectionHeaderColl &section_headers,
     const size_t sh_size = header.e_shnum * header.e_shentsize;
     const elf_off sh_offset = header.e_shoff;
     DataExtractor sh_data;
-    if (sh_data.SetData (object_data, sh_offset, sh_size) != sh_size)
+    if (set_data (sh_data, sh_offset, sh_size) != sh_size)
         return 0;
 
     uint32_t idx;
@@ -1595,7 +1691,7 @@ ObjectFileELF::GetSectionHeaderInfo(SectionHeaderColl &section_headers,
         const Elf64_Off offset = sheader.sh_offset;
         lldb_private::DataExtractor shstr_data;
 
-        if (shstr_data.SetData (object_data, offset, byte_size) == byte_size)
+        if (set_data (shstr_data, offset, byte_size) == byte_size)
         {
             for (SectionHeaderCollIter I = section_headers.begin();
                  I != section_headers.end(); ++I)
@@ -1607,40 +1703,93 @@ ObjectFileELF::GetSectionHeaderInfo(SectionHeaderColl &section_headers,
 
                 I->section_name = name;
 
-                if (arch_spec.GetMachine() == llvm::Triple::mips || arch_spec.GetMachine() == llvm::Triple::mipsel
-                    || arch_spec.GetMachine() == llvm::Triple::mips64 || arch_spec.GetMachine() == llvm::Triple::mips64el)
+                if (arch_spec.IsMIPS())
                 {
                     uint32_t arch_flags = arch_spec.GetFlags ();
                     DataExtractor data;
                     if (sheader.sh_type == SHT_MIPS_ABIFLAGS)
                     {
 
-                        if (section_size && (data.SetData (object_data, sheader.sh_offset, section_size) == section_size))
+                        if (section_size && (set_data (data, sheader.sh_offset, section_size) == section_size))
                         {
-                            lldb::offset_t ase_offset = 12; // MIPS ABI Flags Version: 0
-                            arch_flags |= data.GetU32 (&ase_offset);
+                            // MIPS ASE Mask is at offset 12 in MIPS.abiflags section
+                            lldb::offset_t offset = 12; // MIPS ABI Flags Version: 0
+                            arch_flags |= data.GetU32 (&offset);
+
+                            // The floating point ABI is at offset 7
+                            offset = 7;
+                            switch (data.GetU8 (&offset))
+                            {
+                                case llvm::Mips::Val_GNU_MIPS_ABI_FP_ANY :
+                                    arch_flags |= lldb_private::ArchSpec::eMIPS_ABI_FP_ANY;
+                                    break;
+                                case llvm::Mips::Val_GNU_MIPS_ABI_FP_DOUBLE :
+                                    arch_flags |= lldb_private::ArchSpec::eMIPS_ABI_FP_DOUBLE;
+                                    break;
+                                case llvm::Mips::Val_GNU_MIPS_ABI_FP_SINGLE :
+                                    arch_flags |= lldb_private::ArchSpec::eMIPS_ABI_FP_SINGLE;
+                                    break;
+                                case llvm::Mips::Val_GNU_MIPS_ABI_FP_SOFT :
+                                    arch_flags |= lldb_private::ArchSpec::eMIPS_ABI_FP_SOFT;
+                                    break;
+                                case llvm::Mips::Val_GNU_MIPS_ABI_FP_OLD_64 :
+                                    arch_flags |= lldb_private::ArchSpec::eMIPS_ABI_FP_OLD_64;
+                                    break;
+                                case llvm::Mips::Val_GNU_MIPS_ABI_FP_XX :
+                                    arch_flags |= lldb_private::ArchSpec::eMIPS_ABI_FP_XX;
+                                    break;
+                                case llvm::Mips::Val_GNU_MIPS_ABI_FP_64 :
+                                    arch_flags |= lldb_private::ArchSpec::eMIPS_ABI_FP_64;
+                                    break;
+                                case llvm::Mips::Val_GNU_MIPS_ABI_FP_64A :
+                                    arch_flags |= lldb_private::ArchSpec::eMIPS_ABI_FP_64A;
+                                    break;
+                            }
                         }
                     }
                     // Settings appropriate ArchSpec ABI Flags
-                    if (header.e_flags & llvm::ELF::EF_MIPS_ABI2)
+                    switch(header.e_flags & llvm::ELF::EF_MIPS_ABI)
                     {
-                        arch_flags |= lldb_private::ArchSpec::eMIPSABI_N32;
-                    }
-                    else if (header.e_flags & llvm::ELF::EF_MIPS_ABI_O32)
-                    {
-                         arch_flags |= lldb_private::ArchSpec::eMIPSABI_O32;
+                        case llvm::ELF::EF_MIPS_ABI_O32:
+                            arch_flags |= lldb_private::ArchSpec::eMIPSABI_O32;
+                            break;
+                        case EF_MIPS_ABI_O64:
+                            arch_flags |= lldb_private::ArchSpec::eMIPSABI_O64;
+                            break;
+                        case EF_MIPS_ABI_EABI32:
+                            arch_flags |= lldb_private::ArchSpec::eMIPSABI_EABI32;
+                            break;
+                        case EF_MIPS_ABI_EABI64:
+                            arch_flags |= lldb_private::ArchSpec::eMIPSABI_EABI64;
+                            break;
+                        default:
+                            // ABI Mask doesn't cover N32 and N64 ABI.
+                            if (header.e_ident[EI_CLASS] == llvm::ELF::ELFCLASS64)
+                                arch_flags |= lldb_private::ArchSpec::eMIPSABI_N64;
+                            else if (header.e_flags && llvm::ELF::EF_MIPS_ABI2)
+                                arch_flags |= lldb_private::ArchSpec::eMIPSABI_N32;
+                                break;                    
                     }
                     arch_spec.SetFlags (arch_flags);
+                }
+
+                if (arch_spec.GetMachine() == llvm::Triple::arm || arch_spec.GetMachine() == llvm::Triple::thumb)
+                {
+                    DataExtractor data;
+
+                    if (sheader.sh_type == SHT_ARM_ATTRIBUTES && section_size != 0 && 
+                        set_data(data, sheader.sh_offset, section_size) == section_size)
+                        ParseARMAttributes(data, section_size, arch_spec);
                 }
 
                 if (name == g_sect_name_gnu_debuglink)
                 {
                     DataExtractor data;
-                    if (section_size && (data.SetData (object_data, sheader.sh_offset, section_size) == section_size))
+                    if (section_size && (set_data (data, sheader.sh_offset, section_size) == section_size))
                     {
                         lldb::offset_t gnu_debuglink_offset = 0;
                         gnu_debuglink_file = data.GetCStr (&gnu_debuglink_offset);
-                        gnu_debuglink_offset = llvm::RoundUpToAlignment (gnu_debuglink_offset, 4);
+                        gnu_debuglink_offset = llvm::alignTo (gnu_debuglink_offset, 4);
                         data.GetU32 (&gnu_debuglink_offset, &gnu_debuglink_crc, 1);
                     }
                 }
@@ -1658,7 +1807,7 @@ ObjectFileELF::GetSectionHeaderInfo(SectionHeaderColl &section_headers,
                 {
                     // Allow notes to refine module info.
                     DataExtractor data;
-                    if (section_size && (data.SetData (object_data, sheader.sh_offset, section_size) == section_size))
+                    if (section_size && (set_data (data, sheader.sh_offset, section_size) == section_size))
                     {
                         Error error = RefineModuleDetailsFromNote (data, arch_spec, uuid);
                         if (error.Fail ())
@@ -1724,7 +1873,41 @@ ObjectFileELF::StripLinkerSymbolAnnotations(llvm::StringRef symbol_name) const
 size_t
 ObjectFileELF::ParseSectionHeaders()
 {
-    return GetSectionHeaderInfo(m_section_headers, m_data, m_header, m_uuid, m_gnu_debuglink_file, m_gnu_debuglink_crc, m_arch_spec);
+    using namespace std::placeholders;
+
+    return GetSectionHeaderInfo(m_section_headers,
+                                std::bind(&ObjectFileELF::SetDataWithReadMemoryFallback, this, _1, _2, _3),
+                                m_header,
+                                m_uuid,
+                                m_gnu_debuglink_file,
+                                m_gnu_debuglink_crc,
+                                m_arch_spec);
+}
+
+lldb::offset_t
+ObjectFileELF::SetData(const lldb_private::DataExtractor &src, lldb_private::DataExtractor &dst, lldb::offset_t offset, lldb::offset_t length)
+{
+    return dst.SetData(src, offset, length);
+}
+
+lldb::offset_t
+ObjectFileELF::SetDataWithReadMemoryFallback(lldb_private::DataExtractor &dst, lldb::offset_t offset, lldb::offset_t length)
+{
+    if (offset + length <= m_data.GetByteSize())
+        return dst.SetData(m_data, offset, length);
+
+    const auto process_sp = m_process_wp.lock();
+    if (process_sp != nullptr)
+    {
+        addr_t file_size = offset + length;
+
+        DataBufferSP data_sp = ReadMemory(process_sp, m_memory_addr, file_size);
+        if (!data_sp)
+            return false;
+        m_data.SetData(data_sp, 0, file_size);
+    }
+
+    return dst.SetData(m_data, offset, length);
 }
 
 const ObjectFileELF::ELFSectionHeaderInfo *
@@ -1854,6 +2037,9 @@ ObjectFileELF::CreateSections(SectionList &unified_section_list)
             else if (name == g_sect_name_arm_extab)                   sect_type = eSectionTypeARMextab;
             else if (name == g_sect_name_go_symtab)                   sect_type = eSectionTypeGoSymtab;
 
+            const uint32_t permissions = ((header.sh_flags & SHF_ALLOC) ? ePermissionsReadable : 0) |
+                                         ((header.sh_flags & SHF_WRITE) ? ePermissionsWritable : 0) |
+                                         ((header.sh_flags & SHF_EXECINSTR) ? ePermissionsExecutable : 0);
             switch (header.sh_type)
             {
                 case SHT_SYMTAB:
@@ -1905,6 +2091,7 @@ ObjectFileELF::CreateSections(SectionList &unified_section_list)
                                               header.sh_flags,    // Flags for this section.
                                               target_bytes_size));// Number of host bytes per target byte
 
+            section_sp->SetPermissions(permissions);
             if (is_thread_specific)
                 section_sp->SetIsThreadSpecific (is_thread_specific);
             m_sections_ap->AddSection(section_sp);
@@ -2002,7 +2189,7 @@ ObjectFileELF::ParseSymbols (Symtab *symtab,
     static ConstString bss_section_name(".bss");
     static ConstString opd_section_name(".opd");    // For ppc64
 
-    // On Android the oatdata and the oatexec symbols in system@framework@boot.oat covers the full
+    // On Android the oatdata and the oatexec symbols in the oat and odex files covers the full
     // .text section what causes issues with displaying unusable symbol name to the user and very
     // slow unwinding speed because the instruction emulation based unwind plans try to emulate all
     // instructions in these symbols. Don't add these symbols to the symbol list as they have no
@@ -2010,10 +2197,13 @@ ObjectFileELF::ParseSymbols (Symtab *symtab,
     // Filtering can't be restricted to Android because this special object file don't contain the
     // note section specifying the environment to Android but the custom extension and file name
     // makes it highly unlikely that this will collide with anything else.
-    bool skip_oatdata_oatexec = m_file.GetFilename() == ConstString("system@framework@boot.oat");
+    ConstString file_extension = m_file.GetFileNameExtension();
+    bool skip_oatdata_oatexec = file_extension == ConstString("oat") || file_extension == ConstString("odex");
 
     ArchSpec arch;
     GetArchitecture(arch);
+    ModuleSP module_sp(GetModule());
+    SectionList* module_section_list = module_sp ? module_sp->GetSectionList() : nullptr;
 
     // Local cache to avoid doing a FindSectionByName for each symbol. The "const char*" key must
     // came from a ConstString object so they can be compared by pointer
@@ -2039,9 +2229,9 @@ ObjectFileELF::ParseSymbols (Symtab *symtab,
 
         SectionSP symbol_section_sp;
         SymbolType symbol_type = eSymbolTypeInvalid;
-        Elf64_Half symbol_idx = symbol.st_shndx;
+        Elf64_Half section_idx = symbol.st_shndx;
 
-        switch (symbol_idx)
+        switch (section_idx)
         {
         case SHN_ABS:
             symbol_type = eSymbolTypeAbsolute;
@@ -2050,7 +2240,7 @@ ObjectFileELF::ParseSymbols (Symtab *symtab,
             symbol_type = eSymbolTypeUndefined;
             break;
         default:
-            symbol_section_sp = section_list->GetSectionAtIndex(symbol_idx);
+            symbol_section_sp = section_list->GetSectionAtIndex(section_idx);
             break;
         }
 
@@ -2097,7 +2287,7 @@ ObjectFileELF::ParseSymbols (Symtab *symtab,
             }
         }
 
-        if (symbol_type == eSymbolTypeInvalid)
+        if (symbol_type == eSymbolTypeInvalid && symbol.getType() != STT_SECTION)
         {
             if (symbol_section_sp)
             {
@@ -2234,30 +2424,44 @@ ObjectFileELF::ParseSymbols (Symtab *symtab,
             }
         }
 
-        // symbol_value_offset may contain 0 for ARM symbols or -1 for
-        // THUMB symbols. See above for more details.
+        // symbol_value_offset may contain 0 for ARM symbols or -1 for THUMB symbols. See above for
+        // more details.
         uint64_t symbol_value = symbol.st_value + symbol_value_offset;
+
+        if (symbol_section_sp == nullptr && section_idx == SHN_ABS && symbol.st_size != 0)
+        {
+            // We don't have a section for a symbol with non-zero size. Create a new section for it
+            // so the address range covered by the symbol is also covered by the module (represented
+            // through the section list). It is needed so module lookup for the addresses covered
+            // by this symbol will be successfull. This case happens for absolute symbols.
+            ConstString fake_section_name(std::string(".absolute.") + symbol_name);
+            symbol_section_sp = std::make_shared<Section>(module_sp,
+                                                          this,
+                                                          SHN_ABS,
+                                                          fake_section_name,
+                                                          eSectionTypeAbsoluteAddress,
+                                                          symbol_value,
+                                                          symbol.st_size,
+                                                          0, 0, 0,
+                                                          SHF_ALLOC);
+
+            module_section_list->AddSection(symbol_section_sp);
+            section_list->AddSection(symbol_section_sp);
+        }
+
         if (symbol_section_sp && CalculateType() != ObjectFile::Type::eTypeObjectFile)
             symbol_value -= symbol_section_sp->GetFileAddress();
 
-        if (symbol_section_sp)
+        if (symbol_section_sp && module_section_list && module_section_list != section_list)
         {
-            ModuleSP module_sp(GetModule());
-            if (module_sp)
-            {
-                SectionList *module_section_list = module_sp->GetSectionList();
-                if (module_section_list && module_section_list != section_list)
-                {
-                    const ConstString &sect_name = symbol_section_sp->GetName();
-                    auto section_it = section_name_to_section.find(sect_name.GetCString());
-                    if (section_it == section_name_to_section.end())
-                        section_it = section_name_to_section.emplace(
-                            sect_name.GetCString(),
-                            module_section_list->FindSectionByName (sect_name)).first;
-                    if (section_it->second && section_it->second->GetFileSize())
-                        symbol_section_sp = section_it->second;
-                }
-            }
+            const ConstString &sect_name = symbol_section_sp->GetName();
+            auto section_it = section_name_to_section.find(sect_name.GetCString());
+            if (section_it == section_name_to_section.end())
+                section_it = section_name_to_section.emplace(
+                    sect_name.GetCString(),
+                    module_section_list->FindSectionByName (sect_name)).first;
+            if (section_it->second && section_it->second->GetFileSize())
+                symbol_section_sp = section_it->second;
         }
 
         bool is_global = symbol.getBinding() == STB_GLOBAL;
@@ -2288,6 +2492,12 @@ ObjectFileELF::ParseSymbols (Symtab *symtab,
                 mangled.SetDemangledName( ConstString((demangled_name + suffix).str()) );
         }
 
+        // In ELF all symbol should have a valid size but it is not true for some function symbols
+        // coming from hand written assembly. As none of the function symbol should have 0 size we
+        // try to calculate the size for these symbols in the symtab with saying that their original
+        // size is not valid.
+        bool symbol_size_valid = symbol.st_size != 0 || symbol.getType() != STT_FUNC;
+
         Symbol dc_symbol(
             i + start_id,       // ID is the original symbol table index.
             mangled,
@@ -2300,7 +2510,7 @@ ObjectFileELF::ParseSymbols (Symtab *symtab,
                 symbol_section_sp,  // Section in which this symbol is defined or null.
                 symbol_value,       // Offset in section or symbol value.
                 symbol.st_size),    // Size in bytes of this symbol.
-            symbol.st_size != 0,    // Size is valid if it is not 0
+            symbol_size_valid,      // Symbol size is valid
             has_suffix,             // Contains linker annotations?
             flags);                 // Symbol flags.
         symtab->AddSymbol(dc_symbol);
@@ -2309,7 +2519,9 @@ ObjectFileELF::ParseSymbols (Symtab *symtab,
 }
 
 unsigned
-ObjectFileELF::ParseSymbolTable(Symtab *symbol_table, user_id_t start_id, lldb_private::Section *symtab)
+ObjectFileELF::ParseSymbolTable(Symtab *symbol_table,
+                                user_id_t start_id,
+                                lldb_private::Section *symtab)
 {
     if (symtab->GetObjectFile() != this)
     {
@@ -2435,9 +2647,12 @@ GetPltEntrySizeAndOffset(const ELFSectionHeader* rel_hdr, const ELFSectionHeader
     // Clang 3.3 sets entsize to 4 for 32-bit binaries, but the plt entries are 16 bytes.
     // So round the entsize up by the alignment if addralign is set.
     elf_xword plt_entsize = plt_hdr->sh_addralign ?
-        llvm::RoundUpToAlignment (plt_hdr->sh_entsize, plt_hdr->sh_addralign) : plt_hdr->sh_entsize;
+        llvm::alignTo (plt_hdr->sh_entsize, plt_hdr->sh_addralign) : plt_hdr->sh_entsize;
 
-    if (plt_entsize == 0)
+    // Some linkers e.g ld for arm, fill plt_hdr->sh_entsize field incorrectly.
+    // PLT entries relocation code in general requires multiple instruction and
+    // should be greater than 4 bytes in most cases. Try to guess correct size just in case.
+    if (plt_entsize <= 4)
     {
         // The linker haven't set the plt_hdr->sh_entsize field. Try to guess the size of the plt
         // entries based on the number of entries and the size of the plt section with the
@@ -2538,17 +2753,17 @@ ObjectFileELF::ParseTrampolineSymbols(Symtab *symbol_table,
 {
     assert(rel_hdr->sh_type == SHT_RELA || rel_hdr->sh_type == SHT_REL);
 
-    // The link field points to the associated symbol table. The info field
-    // points to the section holding the plt.
+    // The link field points to the associated symbol table.
     user_id_t symtab_id = rel_hdr->sh_link;
-    user_id_t plt_id = rel_hdr->sh_info;
 
     // If the link field doesn't point to the appropriate symbol name table then
     // try to find it by name as some compiler don't fill in the link fields.
     if (!symtab_id)
         symtab_id = GetSectionIndexByName(".dynsym");
-    if (!plt_id)
-        plt_id = GetSectionIndexByName(".plt");
+
+    // Get PLT section.  We cannot use rel_hdr->sh_info, since current linkers
+    // point that to the .got.plt or .got section instead of .plt.
+    user_id_t plt_id = GetSectionIndexByName(".plt");
 
     if (!symtab_id || !plt_id)
         return 0;
@@ -2765,7 +2980,7 @@ ObjectFileELF::GetSymtab()
             return NULL;
 
         uint64_t symbol_id = 0;
-        lldb_private::Mutex::Locker locker(module_sp->GetMutex());
+        std::lock_guard<std::recursive_mutex> guard(module_sp->GetMutex());
 
         // Sharable objects and dynamic executables usually have 2 distinct symbol
         // tables, one named ".symtab", and the other ".dynsym". The dynsym is a smaller
@@ -2811,6 +3026,14 @@ ObjectFileELF::GetSymtab()
             }
         }
 
+        DWARFCallFrameInfo* eh_frame = GetUnwindTable().GetEHFrameInfo();
+        if (eh_frame)
+        {
+            if (m_symtab_ap == nullptr)
+                m_symtab_ap.reset(new Symtab(this));
+            ParseUnwindSymbols (m_symtab_ap.get(), eh_frame);
+        }
+
         // If we still don't have any symtab then create an empty instance to avoid do the section
         // lookup next time.
         if (m_symtab_ap == nullptr)
@@ -2840,57 +3063,64 @@ ObjectFileELF::GetSymtab()
     return m_symtab_ap.get();
 }
 
-Symbol *
-ObjectFileELF::ResolveSymbolForAddress(const Address& so_addr, bool verify_unique)
+void
+ObjectFileELF::ParseUnwindSymbols(Symtab *symbol_table, DWARFCallFrameInfo* eh_frame)
 {
-    if (!m_symtab_ap.get())
-        return nullptr; // GetSymtab() should be called first.
-
-    const SectionList *section_list = GetSectionList();
+    SectionList* section_list = GetSectionList();
     if (!section_list)
-        return nullptr;
+        return;
 
-    if (DWARFCallFrameInfo *eh_frame = GetUnwindTable().GetEHFrameInfo())
-    {
-        AddressRange range;
-        if (eh_frame->GetAddressRange (so_addr, range))
+    // First we save the new symbols into a separate list and add them to the symbol table after
+    // we colleced all symbols we want to add. This is neccessary because adding a new symbol
+    // invalidates the internal index of the symtab what causing the next lookup to be slow because
+    // it have to recalculate the index first.
+    std::vector<Symbol> new_symbols;
+
+    eh_frame->ForEachFDEEntries(
+        [this, symbol_table, section_list, &new_symbols](lldb::addr_t file_addr,
+                                                         uint32_t size,
+                                                         dw_offset_t) {
+        Symbol* symbol = symbol_table->FindSymbolAtFileAddress(file_addr);
+        if (symbol)
         {
-            const addr_t file_addr = range.GetBaseAddress().GetFileAddress();
-            Symbol * symbol = verify_unique ? m_symtab_ap->FindSymbolContainingFileAddress(file_addr) : nullptr;
-            if (symbol)
-                return symbol;
-
-            // Note that a (stripped) symbol won't be found by GetSymtab()...
-            lldb::SectionSP eh_sym_section_sp = section_list->FindSectionContainingFileAddress(file_addr);
-            if (eh_sym_section_sp.get())
+            if (!symbol->GetByteSizeIsValid())
             {
-                addr_t section_base = eh_sym_section_sp->GetFileAddress();
-                addr_t offset = file_addr - section_base;
-                uint64_t symbol_id = m_symtab_ap->GetNumSymbols();
-
-                Symbol eh_symbol(
-                        symbol_id,            // Symbol table index.
-                        "???",                // Symbol name.
-                        false,                // Is the symbol name mangled?
-                        eSymbolTypeCode,      // Type of this symbol.
-                        true,                 // Is this globally visible?
-                        false,                // Is this symbol debug info?
-                        false,                // Is this symbol a trampoline?
-                        true,                 // Is this symbol artificial?
-                        eh_sym_section_sp,    // Section in which this symbol is defined or null.
-                        offset,               // Offset in section or symbol value.
-                        range.GetByteSize(),  // Size in bytes of this symbol.
-                        true,                 // Size is valid.
-                        false,                // Contains linker annotations?
-                        0);                   // Symbol flags.
-                if (symbol_id == m_symtab_ap->AddSymbol(eh_symbol))
-                    return m_symtab_ap->SymbolAtIndex(symbol_id);
+                symbol->SetByteSize(size);
+                symbol->SetSizeIsSynthesized(true);
             }
         }
-    }
-    return nullptr;
-}
+        else
+        {
+            SectionSP section_sp = section_list->FindSectionContainingFileAddress(file_addr);
+            if (section_sp)
+            {
+                addr_t offset = file_addr - section_sp->GetFileAddress();
+                const char* symbol_name = GetNextSyntheticSymbolName().GetCString();
+                uint64_t symbol_id = symbol_table->GetNumSymbols();
+                Symbol eh_symbol(
+                        symbol_id,       // Symbol table index.
+                        symbol_name,     // Symbol name.
+                        false,           // Is the symbol name mangled?
+                        eSymbolTypeCode, // Type of this symbol.
+                        true,            // Is this globally visible?
+                        false,           // Is this symbol debug info?
+                        false,           // Is this symbol a trampoline?
+                        true,            // Is this symbol artificial?
+                        section_sp,      // Section in which this symbol is defined or null.
+                        offset,          // Offset in section or symbol value.
+                        0,               // Size:          Don't specify the size as an FDE can
+                        false,           // Size is valid: cover multiple symbols.
+                        false,           // Contains linker annotations?
+                        0);              // Symbol flags.
+                new_symbols.push_back(eh_symbol);
+            }
+        }
+        return true;
+    });
 
+    for (const Symbol& s : new_symbols)
+        symbol_table->AddSymbol(s);
+}
 
 bool
 ObjectFileELF::IsStripped ()
@@ -2908,6 +3138,22 @@ ObjectFileELF::IsStripped ()
 void
 ObjectFileELF::Dump(Stream *s)
 {
+    ModuleSP module_sp(GetModule());
+    if (!module_sp)
+    {
+        return;
+    }
+
+    std::lock_guard<std::recursive_mutex> guard(module_sp->GetMutex());
+    s->Printf("%p: ", static_cast<void *>(this));
+    s->Indent();
+    s->PutCString("ObjectFileELF");
+
+    ArchSpec header_arch;
+    GetArchitecture(header_arch);
+
+    *s << ", file = '" << m_file << "', arch = " << header_arch.GetArchitectureName() << "\n";
+
     DumpELFHeader(s, m_header);
     s->EOL();
     DumpELFProgramHeaders(s);
