@@ -40,6 +40,16 @@
 
 #define	CPSW_SYSCTL_COUNT	34
 
+#ifdef CPSW_ETHERSWITCH
+#define	CPSW_CPU_PORT		0
+#define	CPSW_PORTS_MASK		0x7
+#define	CPSW_VLANS		128	/* Arbitrary number. */
+
+struct cpsw_vlangroups {
+	int vid;
+};
+#endif
+
 struct cpsw_slot {
 	uint32_t bd_offset;  /* Offset of corresponding BD within CPPI RAM. */
 	bus_dmamap_t dmamap;
