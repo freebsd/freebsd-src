@@ -1612,6 +1612,52 @@ ok:
 	return (0);
 }
 
+int
+ipsec_updateid(struct secasvar *sav, uint64_t *new, uint64_t *old)
+{
+	uint64_t tmp;
+
+	/*
+	 * tdb_cryptoid is initialized by xform_init().
+	 * Then it can be changed only when some crypto error occurred or
+	 * when SA is deleted. We stored used cryptoid in the xform_data
+	 * structure. In case when crypto error occurred and crypto
+	 * subsystem has reinited the session, it returns new cryptoid
+	 * and EAGAIN error code.
+	 *
+	 * This function will be called when we got EAGAIN from crypto
+	 * subsystem.
+	 * *new is cryptoid that was returned by crypto subsystem in
+	 * the crp_sid.
+	 * *old is the original cryptoid that we stored in xform_data.
+	 *
+	 * For first failed request *old == sav->tdb_cryptoid, then
+	 * we update sav->tdb_cryptoid and redo crypto_dispatch().
+	 * For next failed request *old != sav->tdb_cryptoid, then
+	 * we store cryptoid from first request into the *new variable
+	 * and crp_sid from this second session will be returned via
+	 * *old pointer, so caller can release second session.
+	 *
+	 * XXXAE: check this more carefully.
+	 */
+	KEYDBG(IPSEC_STAMP,
+	    printf("%s: SA(%p) moves cryptoid %jd -> %jd\n",
+		__func__, sav, (uintmax_t)(*old), (uintmax_t)(*new)));
+	KEYDBG(IPSEC_DATA, kdebug_secasv(sav));
+	SECASVAR_LOCK(sav);
+	if (sav->tdb_cryptoid != *old) {
+		/* cryptoid was already updated */
+		tmp = *new;
+		*new = sav->tdb_cryptoid;
+		*old = tmp;
+		SECASVAR_UNLOCK(sav);
+		return (1);
+	}
+	sav->tdb_cryptoid = *new;
+	SECASVAR_UNLOCK(sav);
+	return (0);
+}
+
 /*
  * Shift variable length buffer to left.
  * IN:	bitmap: pointer to the buffer

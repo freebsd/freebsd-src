@@ -582,13 +582,13 @@ static int
 ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 {
 	char buf[128];
-	struct auth_hash *ahx;
-	struct tdb_crypto *tc;
-	struct newah *ah;
-	int hl, rplen, authsize, error;
-
 	struct cryptodesc *crda;
 	struct cryptop *crp;
+	struct auth_hash *ahx;
+	struct xform_data *xd;
+	struct newah *ah;
+	uint64_t cryptoid;
+	int hl, rplen, authsize, error;
 
 	IPSEC_ASSERT(sav != NULL, ("null SA"));
 	IPSEC_ASSERT(sav->key_auth != NULL, ("null authentication key"));
@@ -608,13 +608,18 @@ ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	}
 
 	/* Check replay window, if applicable. */
-	if (sav->replay && !ipsec_chkreplay(ntohl(ah->ah_seq), sav)) {
+	SECASVAR_LOCK(sav);
+	if (sav->replay != NULL && sav->replay->wsize != 0 &&
+	    ipsec_chkreplay(ntohl(ah->ah_seq), sav) == 0) {
+		SECASVAR_UNLOCK(sav);
 		AHSTAT_INC(ahs_replay);
 		DPRINTF(("%s: packet replay failure: %s\n", __func__,
 		    ipsec_logsastr(sav, buf, sizeof(buf))));
 		m_freem(m);
-		return ENOBUFS;
+		return (EACCES);
 	}
+	cryptoid = sav->tdb_cryptoid;
+	SECASVAR_UNLOCK(sav);
 
 	/* Verify AH header length. */
 	hl = ah->ah_len * sizeof (u_int32_t);
@@ -635,7 +640,8 @@ ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	/* Get crypto descriptors. */
 	crp = crypto_getreq(1);
 	if (crp == NULL) {
-		DPRINTF(("%s: failed to acquire crypto descriptor\n",__func__));
+		DPRINTF(("%s: failed to acquire crypto descriptor\n",
+		    __func__));
 		AHSTAT_INC(ahs_crypto);
 		m_freem(m);
 		return ENOBUFS;
@@ -654,10 +660,10 @@ ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	crda->crd_key = sav->key_auth->key_data;
 
 	/* Allocate IPsec-specific opaque crypto info. */
-	tc = (struct tdb_crypto *) malloc(sizeof (struct tdb_crypto) +
-	    skip + rplen + authsize, M_XDATA, M_NOWAIT | M_ZERO);
-	if (tc == NULL) {
-		DPRINTF(("%s: failed to allocate tdb_crypto\n", __func__));
+	xd = malloc(sizeof(*xd) + skip + rplen + authsize, M_XDATA,
+	    M_NOWAIT | M_ZERO);
+	if (xd == NULL) {
+		DPRINTF(("%s: failed to allocate xform_data\n", __func__));
 		AHSTAT_INC(ahs_crypto);
 		crypto_freereq(crp);
 		m_freem(m);
@@ -668,7 +674,7 @@ ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	 * Save the authenticator, the skipped portion of the packet,
 	 * and the AH header.
 	 */
-	m_copydata(m, 0, skip + rplen + authsize, (caddr_t)(tc+1));
+	m_copydata(m, 0, skip + rplen + authsize, (caddr_t)(xd + 1));
 
 	/* Zeroize the authenticator on the packet. */
 	m_copyback(m, skip + rplen, authsize, ipseczeroes);
@@ -679,7 +685,7 @@ ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	if (error != 0) {
 		/* NB: mbuf is free'd by ah_massage_headers */
 		AHSTAT_INC(ahs_hdrops);
-		free(tc, M_XDATA);
+		free(xd, M_XDATA);
 		crypto_freereq(crp);
 		return (error);
 	}
@@ -689,18 +695,15 @@ ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	crp->crp_flags = CRYPTO_F_IMBUF | CRYPTO_F_CBIFSYNC;
 	crp->crp_buf = (caddr_t) m;
 	crp->crp_callback = ah_input_cb;
-	crp->crp_sid = sav->tdb_cryptoid;
-	crp->crp_opaque = (caddr_t) tc;
+	crp->crp_sid = cryptoid;
+	crp->crp_opaque = (caddr_t) xd;
 
 	/* These are passed as-is to the callback. */
-	tc->tc_spi = sav->spi;
-	tc->tc_dst = sav->sah->saidx.dst;
-	tc->tc_proto = sav->sah->saidx.proto;
-	tc->tc_nxt = ah->ah_nxt;
-	tc->tc_protoff = protoff;
-	tc->tc_skip = skip;
-	KEY_ADDREFSA(sav);
-	tc->tc_sav = sav;
+	xd->sav = sav;
+	xd->nxt = ah->ah_nxt;
+	xd->protoff = protoff;
+	xd->skip = skip;
+	xd->cryptoid = cryptoid;
 	return (crypto_dispatch(crp));
 }
 
@@ -710,31 +713,27 @@ ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 static int
 ah_input_cb(struct cryptop *crp)
 {
-	char buf[INET6_ADDRSTRLEN];
-	int rplen, error, skip, protoff;
+	char buf[IPSEC_ADDRSTRLEN];
 	unsigned char calc[AH_ALEN_MAX];
 	struct mbuf *m;
 	struct cryptodesc *crd;
 	struct auth_hash *ahx;
-	struct tdb_crypto *tc;
+	struct xform_data *xd;
 	struct secasvar *sav;
 	struct secasindex *saidx;
-	u_int8_t nxt;
 	caddr_t ptr;
-	int authsize;
+	uint64_t cryptoid;
+	int authsize, rplen, error, skip, protoff;
+	uint8_t nxt;
 
 	crd = crp->crp_desc;
-
-	tc = (struct tdb_crypto *) crp->crp_opaque;
-	IPSEC_ASSERT(tc != NULL, ("null opaque crypto data area!"));
-	skip = tc->tc_skip;
-	nxt = tc->tc_nxt;
-	protoff = tc->tc_protoff;
 	m = (struct mbuf *) crp->crp_buf;
-
-	sav = tc->tc_sav;
-	IPSEC_ASSERT(sav != NULL, ("null SA!"));
-
+	xd = (struct xform_data *) crp->crp_opaque;
+	sav = xd->sav;
+	skip = xd->skip;
+	nxt = xd->nxt;
+	protoff = xd->protoff;
+	cryptoid = xd->cryptoid;
 	saidx = &sav->sah->saidx;
 	IPSEC_ASSERT(saidx->dst.sa.sa_family == AF_INET ||
 		saidx->dst.sa.sa_family == AF_INET6,
@@ -744,12 +743,13 @@ ah_input_cb(struct cryptop *crp)
 
 	/* Check for crypto errors. */
 	if (crp->crp_etype) {
-		if (sav->tdb_cryptoid != 0)
-			sav->tdb_cryptoid = crp->crp_sid;
-
-		if (crp->crp_etype == EAGAIN)
+		if (crp->crp_etype == EAGAIN) {
+			/* Reset the session ID */
+			if (ipsec_updateid(sav, &crp->crp_sid, &cryptoid) != 0)
+				crypto_freesession(cryptoid);
+			xd->cryptoid = crp->crp_sid;
 			return (crypto_dispatch(crp));
-
+		}
 		AHSTAT_INC(ahs_noxform);
 		DPRINTF(("%s: crypto error %d\n", __func__, crp->crp_etype));
 		error = crp->crp_etype;
@@ -776,7 +776,7 @@ ah_input_cb(struct cryptop *crp)
 	m_copydata(m, skip + rplen, authsize, calc);
 
 	/* Verify authenticator. */
-	ptr = (caddr_t) (tc + 1);
+	ptr = (caddr_t) (xd + 1);
 	if (timingsafe_bcmp(ptr + skip + rplen, calc, authsize)) {
 		DPRINTF(("%s: authentication hash mismatch for packet "
 		    "in SA %s/%08lx\n", __func__,
@@ -787,11 +787,11 @@ ah_input_cb(struct cryptop *crp)
 		goto bad;
 	}
 	/* Fix the Next Protocol field. */
-	((u_int8_t *) ptr)[protoff] = nxt;
+	((uint8_t *) ptr)[protoff] = nxt;
 
 	/* Copyback the saved (uncooked) network headers. */
 	m_copyback(m, 0, skip, ptr);
-	free(tc, M_XDATA), tc = NULL;			/* No longer needed */
+	free(xd, M_XDATA), xd = NULL;			/* No longer needed */
 
 	/*
 	 * Header is now authenticated.
@@ -806,11 +806,14 @@ ah_input_cb(struct cryptop *crp)
 
 		m_copydata(m, skip + offsetof(struct newah, ah_seq),
 			   sizeof (seq), (caddr_t) &seq);
+		SECASVAR_LOCK(sav);
 		if (ipsec_updatereplay(ntohl(seq), sav)) {
+			SECASVAR_UNLOCK(sav);
 			AHSTAT_INC(ahs_replay);
-			error = ENOBUFS;			/*XXX as above*/
+			error = EACCES;
 			goto bad;
 		}
+		SECASVAR_UNLOCK(sav);
 	}
 
 	/*
@@ -840,16 +843,14 @@ ah_input_cb(struct cryptop *crp)
 		panic("%s: Unexpected address family: %d saidx=%p", __func__,
 		    saidx->dst.sa.sa_family, saidx);
 	}
-
-	KEY_FREESAV(&sav);
 	return error;
 bad:
 	if (sav)
-		KEY_FREESAV(&sav);
+		key_freesav(&sav);
 	if (m != NULL)
 		m_freem(m);
-	if (tc != NULL)
-		free(tc, M_XDATA);
+	if (xd != NULL)
+		free(xd, M_XDATA);
 	if (crp != NULL)
 		crypto_freereq(crp);
 	return error;
