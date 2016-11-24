@@ -38,7 +38,7 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
-# 2016mmdd: new clang import which bumps version from 3.8.0 to 3.9.0.
+# 20161124: new clang import which bumps version from 3.8.0 to 3.9.0.
 OLD_FILES+=usr/lib/clang/3.8.0/include/sanitizer/allocator_interface.h
 OLD_FILES+=usr/lib/clang/3.8.0/include/sanitizer/asan_interface.h
 OLD_FILES+=usr/lib/clang/3.8.0/include/sanitizer/common_interface_defs.h
