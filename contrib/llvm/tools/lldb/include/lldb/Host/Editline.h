@@ -27,11 +27,12 @@
 
 #include <sstream>
 #include <vector>
+#include <locale>
 
 // components needed to handle wide characters ( <codecvt>, codecvt_utf8, libedit built with '--enable-widec' )
-// are not consistenly available on non-OSX platforms.  The wchar_t versions of libedit functions will only be
+// are available on some platforms. The wchar_t versions of libedit functions will only be
 // used in cases where this is true.  This is a compile time dependecy, for now selected per target Platform
-#if defined (__APPLE__)
+#if defined (__APPLE__) || defined(__NetBSD__)
 #define LLDB_EDITLINE_USE_WCHAR 1
 #include <codecvt>
 #else
@@ -49,13 +50,13 @@
 #endif
 #endif
 
+#include <mutex>
 #include <string>
 #include <vector>
 
 #include "lldb/Host/Condition.h"
 #include "lldb/Host/ConnectionFileDescriptor.h"
 #include "lldb/Host/FileSpec.h"
-#include "lldb/Host/Mutex.h"
 #include "lldb/Host/Predicate.h"
 
 namespace lldb_private {
@@ -278,11 +279,15 @@ namespace lldb_private {
         /// Prompt implementation for EditLine.
         const char *
         Prompt();
-        
-        /// Line break command used when return is pressed in multi-line mode.
+
+        /// Line break command used when meta+return is pressed in multi-line mode.
         unsigned char
         BreakLineCommand (int ch);
-        
+
+        /// Command used when return is pressed in multi-line mode.
+        unsigned char
+        EndOrAddLineCommand(int ch);
+
         /// Delete command used when delete is pressed in multi-line mode.
         unsigned char
         DeleteNextCharCommand (int ch);
@@ -298,7 +303,15 @@ namespace lldb_private {
         /// Line navigation command used when ^N or down arrow are pressed in multi-line mode.
         unsigned char
         NextLineCommand (int ch);
-        
+
+        /// History navigation command used when Alt + up arrow is pressed in multi-line mode.
+        unsigned char
+        PreviousHistoryCommand(int ch);
+
+        /// History navigation command used when Alt + down arrow is pressed in multi-line mode.
+        unsigned char
+        NextHistoryCommand(int ch);
+
         /// Buffer start command used when Esc < is typed in multi-line emacs mode.
         unsigned char
         BufferStartCommand (int ch);
@@ -358,7 +371,7 @@ namespace lldb_private {
         CompleteCallbackType m_completion_callback = nullptr;
         void * m_completion_callback_baton = nullptr;
 
-        Mutex m_output_mutex;
+        std::mutex m_output_mutex;
     };
 }
 

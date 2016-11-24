@@ -372,16 +372,20 @@ void WhitespaceManager::alignTrailingComments() {
       unsigned CommentColumn = SourceMgr.getSpellingColumnNumber(
           Changes[i].OriginalWhitespaceRange.getEnd());
       for (unsigned j = i + 1; j != e; ++j) {
-        if (Changes[j].Kind != tok::comment) { // Skip over comments.
-          unsigned NextColumn = SourceMgr.getSpellingColumnNumber(
-              Changes[j].OriginalWhitespaceRange.getEnd());
-          // The start of the next token was previously aligned with the
-          // start of this comment.
-          WasAlignedWithStartOfNextLine =
-              CommentColumn == NextColumn ||
-              CommentColumn == NextColumn + Style.IndentWidth;
-          break;
-        }
+        if (Changes[j].Kind == tok::comment ||
+            Changes[j].Kind == tok::unknown)
+          // Skip over comments and unknown tokens. "unknown tokens are used for
+          // the continuation of multiline comments.
+          continue;
+
+        unsigned NextColumn = SourceMgr.getSpellingColumnNumber(
+            Changes[j].OriginalWhitespaceRange.getEnd());
+        // The start of the next token was previously aligned with the
+        // start of this comment.
+        WasAlignedWithStartOfNextLine =
+            CommentColumn == NextColumn ||
+            CommentColumn == NextColumn + Style.IndentWidth;
+        break;
       }
     }
     if (!Style.AlignTrailingComments || FollowsRBraceInColumn0) {
@@ -549,6 +553,14 @@ void WhitespaceManager::appendIndentText(std::string &Text,
       if (Indentation > Spaces)
         Indentation = Spaces;
       unsigned Tabs = Indentation / Style.TabWidth;
+      Text.append(Tabs, '\t');
+      Spaces -= Tabs * Style.TabWidth;
+    }
+    Text.append(Spaces, ' ');
+    break;
+  case FormatStyle::UT_ForContinuationAndIndentation:
+    if (WhitespaceStartColumn == 0) {
+      unsigned Tabs = Spaces / Style.TabWidth;
       Text.append(Tabs, '\t');
       Spaces -= Tabs * Style.TabWidth;
     }

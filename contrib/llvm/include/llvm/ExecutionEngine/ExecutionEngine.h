@@ -22,7 +22,6 @@
 #include "llvm/IR/Module.h"
 #include "llvm/IR/ValueHandle.h"
 #include "llvm/IR/ValueMap.h"
-#include "llvm/MC/MCCodeGenInfo.h"
 #include "llvm/Object/Binary.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/Mutex.h"
@@ -290,7 +289,8 @@ public:
   /// at the specified location.  This is used internally as functions are JIT'd
   /// and as global variables are laid out in memory.  It can and should also be
   /// used by clients of the EE that want to have an LLVM global overlay
-  /// existing data in memory.  Mappings are automatically removed when their
+  /// existing data in memory. Values to be mapped should be named, and have
+  /// external or weak linkage. Mappings are automatically removed when their
   /// GlobalValue is destroyed.
   void addGlobalMapping(const GlobalValue *GV, void *Addr);
   void addGlobalMapping(StringRef Name, uint64_t Addr);
@@ -477,11 +477,11 @@ public:
   /// specified function pointer is invoked to create it.  If it returns null,
   /// the JIT will abort.
   void InstallLazyFunctionCreator(FunctionCreator C) {
-    LazyFunctionCreator = C;
+    LazyFunctionCreator = std::move(C);
   }
 
 protected:
-  ExecutionEngine(const DataLayout DL) : DL(std::move(DL)){}
+  ExecutionEngine(DataLayout DL) : DL(std::move(DL)) {}
   explicit ExecutionEngine(DataLayout DL, std::unique_ptr<Module> M);
   explicit ExecutionEngine(std::unique_ptr<Module> M);
 
@@ -518,7 +518,7 @@ private:
   std::shared_ptr<MCJITMemoryManager> MemMgr;
   std::shared_ptr<RuntimeDyld::SymbolResolver> Resolver;
   TargetOptions Options;
-  Reloc::Model RelocModel;
+  Optional<Reloc::Model> RelocModel;
   CodeModel::Model CMModel;
   std::string MArch;
   std::string MCPU;

@@ -14,6 +14,7 @@
 #ifndef LLVM_CLANG_AST_MANGLE_H
 #define LLVM_CLANG_AST_MANGLE_H
 
+#include "clang/AST/Decl.h"
 #include "clang/AST/Type.h"
 #include "clang/Basic/ABI.h"
 #include "llvm/ADT/DenseMap.h"
@@ -123,6 +124,7 @@ public:
   void mangleBlock(const DeclContext *DC, const BlockDecl *BD,
                    raw_ostream &Out);
 
+  void mangleObjCMethodNameWithoutSize(const ObjCMethodDecl *MD, raw_ostream &);
   void mangleObjCMethodName(const ObjCMethodDecl *MD, raw_ostream &);
 
   virtual void mangleStaticGuardVariable(const VarDecl *D, raw_ostream &) = 0;
@@ -206,7 +208,8 @@ public:
                                                raw_ostream &Out) = 0;
 
   virtual void mangleCXXThrowInfo(QualType T, bool IsConst, bool IsVolatile,
-                                  uint32_t NumEntries, raw_ostream &Out) = 0;
+                                  bool IsUnaligned, uint32_t NumEntries,
+                                  raw_ostream &Out) = 0;
 
   virtual void mangleCXXCatchableTypeArray(QualType T, uint32_t NumEntries,
                                            raw_ostream &Out) = 0;

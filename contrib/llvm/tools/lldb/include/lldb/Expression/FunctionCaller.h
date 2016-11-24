@@ -99,17 +99,23 @@ public:
     //------------------------------------------------------------------
     /// Compile the wrapper function
     ///
-    /// @param[in] errors
-    ///     The stream to print parser errors to.
+    /// @param[in] thread_to_use_sp
+    ///     Compilation might end up calling functions.  Pass in the thread you
+    ///     want the compilation to use.  If you pass in an empty ThreadSP it will
+    ///     use the currently selected thread.
+    ///
+    /// @param[in] diagnostic_manager
+    ///     The diagnostic manager to report parser errors to.
     ///
     /// @return
     ///     The number of errors.
     //------------------------------------------------------------------
     virtual unsigned
-    CompileFunction (Stream &errors) = 0;
-    
+    CompileFunction (lldb::ThreadSP thread_to_use_sp,
+                     DiagnosticManager &diagnostic_manager) = 0;
+
     //------------------------------------------------------------------
-    /// Insert the default function wrapper and its default argument struct  
+    /// Insert the default function wrapper and its default argument struct
     ///
     /// @param[in] exe_ctx
     ///     The execution context to insert the function and its arguments
@@ -120,16 +126,14 @@ public:
     ///     be LLDB_INVALID_ADDRESS; if it is, a new structure is allocated
     ///     and args_addr_ref is pointed to it.
     ///
-    /// @param[in] errors
-    ///     The stream to write errors to.
+    /// @param[in] diagnostic_manager
+    ///     The diagnostic manager to report errors to.
     ///
     /// @return
     ///     True on success; false otherwise.
     //------------------------------------------------------------------
     bool
-    InsertFunction (ExecutionContext &exe_ctx,
-                    lldb::addr_t &args_addr_ref,
-                    Stream &errors);
+    InsertFunction(ExecutionContext &exe_ctx, lldb::addr_t &args_addr_ref, DiagnosticManager &diagnostic_manager);
 
     //------------------------------------------------------------------
     /// Insert the default function wrapper (using the JIT)
@@ -138,17 +142,17 @@ public:
     ///     The execution context to insert the function and its arguments
     ///     into.
     ///
-    /// @param[in] errors
-    ///     The stream to write errors to.
+    /// @param[in] diagnostic_manager
+    ///     The diagnostic manager to report errors to.
     ///
     /// @return
     ///     True on success; false otherwise.
     //------------------------------------------------------------------
-    bool WriteFunctionWrapper (ExecutionContext &exe_ctx, 
-                               Stream &errors);
-    
+    bool
+    WriteFunctionWrapper(ExecutionContext &exe_ctx, DiagnosticManager &diagnostic_manager);
+
     //------------------------------------------------------------------
-    /// Insert the default function argument struct  
+    /// Insert the default function argument struct
     ///
     /// @param[in] exe_ctx
     ///     The execution context to insert the function and its arguments
@@ -159,16 +163,16 @@ public:
     ///     be LLDB_INVALID_ADDRESS; if it is, a new structure is allocated
     ///     and args_addr_ref is pointed to it.
     ///
-    /// @param[in] errors
-    ///     The stream to write errors to.
+    /// @param[in] diagnostic_manager
+    ///     The diagnostic manager to report errors to.
     ///
     /// @return
     ///     True on success; false otherwise.
     //------------------------------------------------------------------
-    bool WriteFunctionArguments (ExecutionContext &exe_ctx, 
-                                 lldb::addr_t &args_addr_ref, 
-                                 Stream &errors);
-    
+    bool
+    WriteFunctionArguments(ExecutionContext &exe_ctx, lldb::addr_t &args_addr_ref,
+                           DiagnosticManager &diagnostic_manager);
+
     //------------------------------------------------------------------
     /// Insert an argument struct with a non-default function address and
     /// non-default argument values
@@ -185,16 +189,15 @@ public:
     /// @param[in] arg_values
     ///     The values of the function's arguments.
     ///
-    /// @param[in] errors
-    ///     The stream to write errors to.
+    /// @param[in] diagnostic_manager
+    ///     The diagnostic manager to report errors to.
     ///
     /// @return
     ///     True on success; false otherwise.
     //------------------------------------------------------------------
-    bool WriteFunctionArguments (ExecutionContext &exe_ctx, 
-                                 lldb::addr_t &args_addr_ref, 
-                                 ValueList &arg_values,
-                                 Stream &errors);
+    bool
+    WriteFunctionArguments(ExecutionContext &exe_ctx, lldb::addr_t &args_addr_ref, ValueList &arg_values,
+                           DiagnosticManager &diagnostic_manager);
 
     //------------------------------------------------------------------
     /// Run the function this FunctionCaller was created with.
@@ -211,8 +214,8 @@ public:
     ///     for deallocating it.  And if passed in with a value other than LLDB_INVALID_ADDRESS,
     ///     this should point to an already allocated structure with the values already written.
     ///
-    /// @param[in] errors
-    ///     Errors will be written here if there are any.
+    /// @param[in] diagnostic_manager
+    ///     The diagnostic manager to report errors to.
     ///
     /// @param[in] options
     ///     The options for this expression execution.
@@ -224,12 +227,9 @@ public:
     ///     Returns one of the ExpressionResults enum indicating function call status.
     //------------------------------------------------------------------
     lldb::ExpressionResults
-    ExecuteFunction(ExecutionContext &exe_ctx, 
-                    lldb::addr_t *args_addr_ptr, 
-                    const EvaluateExpressionOptions &options,
-                    Stream &errors,
-                    Value &results);
-    
+    ExecuteFunction(ExecutionContext &exe_ctx, lldb::addr_t *args_addr_ptr, const EvaluateExpressionOptions &options,
+                    DiagnosticManager &diagnostic_manager, Value &results);
+
     //------------------------------------------------------------------
     /// Get a thread plan to run the function this FunctionCaller was created with.
     ///
@@ -243,8 +243,8 @@ public:
     /// @param[in] args_addr
     ///     The address of the argument struct.
     ///
-    /// @param[in] errors
-    ///     The stream to write errors to.
+    /// @param[in] diagnostic_manager
+    ///     The diagnostic manager to report errors to.
     ///
     /// @param[in] stop_others
     ///     True if other threads should pause during execution.
@@ -256,11 +256,9 @@ public:
     ///     A ThreadPlan shared pointer for executing the function.
     //------------------------------------------------------------------
     lldb::ThreadPlanSP
-    GetThreadPlanToCallFunction (ExecutionContext &exe_ctx, 
-                                 lldb::addr_t args_addr,
-                                 const EvaluateExpressionOptions &options,
-                                 Stream &errors);
-    
+    GetThreadPlanToCallFunction(ExecutionContext &exe_ctx, lldb::addr_t args_addr,
+                                const EvaluateExpressionOptions &options, DiagnosticManager &diagnostic_manager);
+
     //------------------------------------------------------------------
     /// Get the result of the function from its struct
     ///

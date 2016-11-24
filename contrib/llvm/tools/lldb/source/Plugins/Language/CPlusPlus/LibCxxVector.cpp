@@ -50,18 +50,16 @@ namespace lldb_private {
             ValueObject* m_finish;
             CompilerType m_element_type;
             uint32_t m_element_size;
-            std::map<size_t,lldb::ValueObjectSP> m_children;
         };
     } // namespace formatters
 } // namespace lldb_private
 
 lldb_private::formatters::LibcxxStdVectorSyntheticFrontEnd::LibcxxStdVectorSyntheticFrontEnd (lldb::ValueObjectSP valobj_sp) :
-SyntheticChildrenFrontEnd(*valobj_sp.get()),
-m_start(NULL),
-m_finish(NULL),
-m_element_type(),
-m_element_size(0),
-m_children()
+    SyntheticChildrenFrontEnd(*valobj_sp),
+    m_start(nullptr),
+    m_finish(nullptr),
+    m_element_type(),
+    m_element_size(0)
 {
     if (valobj_sp)
         Update();
@@ -100,24 +98,20 @@ lldb_private::formatters::LibcxxStdVectorSyntheticFrontEnd::GetChildAtIndex (siz
     if (!m_start || !m_finish)
         return lldb::ValueObjectSP();
     
-    auto cached = m_children.find(idx);
-    if (cached != m_children.end())
-        return cached->second;
-    
     uint64_t offset = idx * m_element_size;
     offset = offset + m_start->GetValueAsUnsigned(0);
     StreamString name;
     name.Printf("[%" PRIu64 "]", (uint64_t)idx);
-    ValueObjectSP child_sp = CreateValueObjectFromAddress(name.GetData(), offset, m_backend.GetExecutionContextRef(), m_element_type);
-    m_children[idx] = child_sp;
-    return child_sp;
+    return CreateValueObjectFromAddress(name.GetData(),
+                                        offset,
+                                        m_backend.GetExecutionContextRef(),
+                                        m_element_type);
 }
 
 bool
 lldb_private::formatters::LibcxxStdVectorSyntheticFrontEnd::Update()
 {
-    m_start = m_finish = NULL;
-    m_children.clear();
+    m_start = m_finish = nullptr;
     ValueObjectSP data_type_finder_sp(m_backend.GetChildMemberWithName(ConstString("__end_cap_"),true));
     if (!data_type_finder_sp)
         return false;
@@ -153,7 +147,5 @@ lldb_private::formatters::LibcxxStdVectorSyntheticFrontEnd::GetIndexOfChildWithN
 lldb_private::SyntheticChildrenFrontEnd*
 lldb_private::formatters::LibcxxStdVectorSyntheticFrontEndCreator (CXXSyntheticChildren*, lldb::ValueObjectSP valobj_sp)
 {
-    if (!valobj_sp)
-        return NULL;
-    return (new LibcxxStdVectorSyntheticFrontEnd(valobj_sp));
+    return (valobj_sp ? new LibcxxStdVectorSyntheticFrontEnd(valobj_sp) : nullptr);
 }

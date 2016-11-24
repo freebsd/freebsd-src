@@ -14,8 +14,10 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Analysis/LoopPass.h"
+#include "llvm/Analysis/LoopPassManager.h"
 #include "llvm/IR/IRPrintingPasses.h"
 #include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/OptBisect.h"
 #include "llvm/IR/PassManager.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/Timer.h"
@@ -45,8 +47,10 @@ public:
     auto BBI = find_if(L->blocks().begin(), L->blocks().end(),
                        [](BasicBlock *BB) { return BB; });
     if (BBI != L->blocks().end() &&
-        isFunctionInPrintList((*BBI)->getParent()->getName()))
-      P.run(*L);
+        isFunctionInPrintList((*BBI)->getParent()->getName())) {
+      AnalysisManager<Loop> DummyLAM;
+      P.run(*L, DummyLAM);
+    }
     return false;
   }
 };
@@ -105,9 +109,7 @@ void LPPassManager::cloneBasicBlockSimpleAnalysis(BasicBlock *From,
 /// deleteSimpleAnalysisValue - Invoke deleteAnalysisValue hook for all passes.
 void LPPassManager::deleteSimpleAnalysisValue(Value *V, Loop *L) {
   if (BasicBlock *BB = dyn_cast<BasicBlock>(V)) {
-    for (BasicBlock::iterator BI = BB->begin(), BE = BB->end(); BI != BE;
-         ++BI) {
-      Instruction &I = *BI;
+    for (Instruction &I : *BB) {
       deleteSimpleAnalysisValue(&I, L);
     }
   }
@@ -335,11 +337,16 @@ void LoopPass::assignPassManager(PMStack &PMS,
   LPPM->add(this);
 }
 
-// Containing function has Attribute::OptimizeNone and transformation
-// passes should skip it.
-bool LoopPass::skipOptnoneFunction(const Loop *L) const {
+bool LoopPass::skipLoop(const Loop *L) const {
   const Function *F = L->getHeader()->getParent();
-  if (F && F->hasFnAttribute(Attribute::OptimizeNone)) {
+  if (!F)
+    return false;
+  // Check the opt bisect limit.
+  LLVMContext &Context = F->getContext();
+  if (!Context.getOptBisect().shouldRunPass(this, *L))
+    return true;
+  // Check for the OptimizeNone attribute.
+  if (F->hasFnAttribute(Attribute::OptimizeNone)) {
     // FIXME: Report this to dbgs() only once per function.
     DEBUG(dbgs() << "Skipping pass '" << getPassName()
           << "' in function " << F->getName() << "\n");

@@ -551,6 +551,35 @@ public:
     GetUnwindTable () { return m_unwind_table; }
 
     //------------------------------------------------------------------
+    /// Returns if the function bounds for symbols in this symbol file
+    /// are likely accurate.
+    ///
+    /// The unwinder can emulate the instructions of functions to understand
+    /// prologue/epilogue code sequences, where registers are spilled on
+    /// the stack, etc.  This feature relies on having the correct start 
+    /// addresses of all functions.  If the ObjectFile has a way to tell
+    /// that symbols have been stripped and there's no way to reconstruct
+    /// start addresses (e.g. LC_FUNCTION_STARTS on Mach-O, or eh_frame
+    /// unwind info), the ObjectFile should indicate that assembly emulation
+    /// should not be used for this module.
+    ///
+    /// It is uncommon for this to return false.  An ObjectFile needs to
+    /// be sure that symbol start addresses are unavailable before false
+    /// is returned.  If it is unclear, this should return true.
+    ///
+    /// @return
+    ///     Returns true if assembly emulation should be used for this
+    ///     module.  
+    ///     Only returns false if the ObjectFile is sure that symbol 
+    ///     addresses are insufficient for accurate assembly emulation.
+    //------------------------------------------------------------------
+    virtual bool
+    AllowAssemblyEmulationUnwindPlans () 
+    { 
+        return true; 
+    }
+
+    //------------------------------------------------------------------
     /// Similar to Process::GetImageInfoAddress().
     ///
     /// Some platforms embed auxiliary structures useful to debuggers in the
@@ -860,6 +889,7 @@ protected:
     const lldb::addr_t m_memory_addr;
     std::unique_ptr<lldb_private::SectionList> m_sections_ap;
     std::unique_ptr<lldb_private::Symtab> m_symtab_ap;
+    uint32_t m_synthetic_symbol_idx;
     
     //------------------------------------------------------------------
     /// Sets the architecture for a module.  At present the architecture
@@ -873,7 +903,11 @@ protected:
     ///     Returns \b true if the architecture was changed, \b
     ///     false otherwise.
     //------------------------------------------------------------------
-    bool SetModulesArchitecture (const ArchSpec &new_arch);
+    bool
+    SetModulesArchitecture (const ArchSpec &new_arch);
+
+    ConstString
+    GetNextSyntheticSymbolName();
 
 private:
     DISALLOW_COPY_AND_ASSIGN (ObjectFile);

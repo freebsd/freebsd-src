@@ -59,7 +59,7 @@ public:
     CanLoadImage() override;
 
     lldb::addr_t
-    GetThreadLocalData(const lldb::ModuleSP module, const lldb::ThreadSP thread) override;
+    GetThreadLocalData(const lldb::ModuleSP module, const lldb::ThreadSP thread, lldb::addr_t tls_file_addr) override;
 
     //------------------------------------------------------------------
     // PluginInterface protocol
@@ -122,14 +122,6 @@ protected:
     /// @param module The module to traverse.
     void
     UnloadSections(const lldb::ModuleSP module) override;
-
-    /// Locates or creates a module given by @p file and updates/loads the
-    /// resulting module at the virtual base address @p base_addr.
-    lldb::ModuleSP
-    LoadModuleAtAddress(const lldb_private::FileSpec &file,
-                        lldb::addr_t link_map_addr,
-                        lldb::addr_t base_addr,
-                        bool base_addr_is_offset) override;
 
     /// Callback routine invoked when we hit the breakpoint on process entry.
     ///

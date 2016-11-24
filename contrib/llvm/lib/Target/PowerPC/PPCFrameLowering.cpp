@@ -76,9 +76,7 @@ static unsigned computeBasePointerSaveOffset(const PPCSubtarget &STI) {
   // SVR4 ABI: First slot in the general register save area.
   return STI.isPPC64()
              ? -16U
-             : (STI.getTargetMachine().getRelocationModel() == Reloc::PIC_)
-                   ? -12U
-                   : -8U;
+             : STI.getTargetMachine().isPositionIndependent() ? -12U : -8U;
 }
 
 PPCFrameLowering::PPCFrameLowering(const PPCSubtarget &STI)
@@ -596,7 +594,7 @@ PPCFrameLowering::findScratchRegister(MachineBasicBlock *MBB,
       (!UseAtEnd && (&MBB->getParent()->front() == MBB)))
     return true;
 
-  RS.enterBasicBlock(MBB);
+  RS.enterBasicBlock(*MBB);
 
   if (UseAtEnd && !MBB->empty()) {
     // The scratch register will be used at the end of the block, so must
@@ -653,7 +651,7 @@ PPCFrameLowering::findScratchRegister(MachineBasicBlock *MBB,
 
   // Now that we've done our best to provide both registers, double check
   // whether we were unable to provide enough.
-  if (BV.count() < (TwoUniqueRegsRequired ? 2 : 1))
+  if (BV.count() < (TwoUniqueRegsRequired ? 2U : 1U))
     return false;
 
   return true;
@@ -675,8 +673,9 @@ PPCFrameLowering::twoUniqueScratchRegsRequired(MachineBasicBlock *MBB) const {
   bool IsLargeFrame = !isInt<16>(NegFrameSize);
   MachineFrameInfo *MFI = MF.getFrameInfo();
   unsigned MaxAlign = MFI->getMaxAlignment();
+  bool HasRedZone = Subtarget.isPPC64() || !Subtarget.isSVR4ABI();
 
-  return IsLargeFrame && HasBP && MaxAlign > 1;
+  return (IsLargeFrame || !HasRedZone) && HasBP && MaxAlign > 1;
 }
 
 bool PPCFrameLowering::canUseAsPrologue(const MachineBasicBlock &MBB) const {
@@ -745,6 +744,7 @@ void PPCFrameLowering::emitPrologue(MachineFunction &MF,
   // Do we have a frame pointer and/or base pointer for this function?
   bool HasFP = hasFP(MF);
   bool HasBP = RegInfo->hasBasePointer(MF);
+  bool HasRedZone = isPPC64 || !isSVR4ABI;
 
   unsigned SPReg       = isPPC64 ? PPC::X1  : PPC::R1;
   unsigned BPReg       = RegInfo->getBaseRegister(MF);
@@ -838,13 +838,20 @@ void PPCFrameLowering::emitPrologue(MachineFunction &MF,
   // If we need to spill the CR and the LR but we don't have two separate
   // registers available, we must spill them one at a time
   if (MustSaveCR && SingleScratchReg && MustSaveLR) {
-    // FIXME: In the ELFv2 ABI, we are not required to save all CR fields.
-    // If only one or two CR fields are clobbered, it could be more
-    // efficient to use mfocrf to selectively save just those fields.
+    // In the ELFv2 ABI, we are not required to save all CR fields.
+    // If only one or two CR fields are clobbered, it is more efficient to use
+    // mfocrf to selectively save just those fields, because mfocrf has short
+    // latency compares to mfcr.
+    unsigned MfcrOpcode = PPC::MFCR8;
+    unsigned CrState = RegState::ImplicitKill;
+    if (isELFv2ABI && MustSaveCRs.size() == 1) {
+      MfcrOpcode = PPC::MFOCRF8;
+      CrState = RegState::Kill;
+    }
     MachineInstrBuilder MIB =
-      BuildMI(MBB, MBBI, dl, TII.get(PPC::MFCR8), TempReg);
+      BuildMI(MBB, MBBI, dl, TII.get(MfcrOpcode), TempReg);
     for (unsigned i = 0, e = MustSaveCRs.size(); i != e; ++i)
-      MIB.addReg(MustSaveCRs[i], RegState::ImplicitKill);
+      MIB.addReg(MustSaveCRs[i], CrState);
     BuildMI(MBB, MBBI, dl, TII.get(PPC::STW8))
       .addReg(TempReg, getKillRegState(true))
       .addImm(8)
@@ -856,62 +863,72 @@ void PPCFrameLowering::emitPrologue(MachineFunction &MF,
 
   if (MustSaveCR &&
       !(SingleScratchReg && MustSaveLR)) { // will only occur for PPC64
-    // FIXME: In the ELFv2 ABI, we are not required to save all CR fields.
-    // If only one or two CR fields are clobbered, it could be more
-    // efficient to use mfocrf to selectively save just those fields.
+    // In the ELFv2 ABI, we are not required to save all CR fields.
+    // If only one or two CR fields are clobbered, it is more efficient to use
+    // mfocrf to selectively save just those fields, because mfocrf has short
+    // latency compares to mfcr.
+    unsigned MfcrOpcode = PPC::MFCR8;
+    unsigned CrState = RegState::ImplicitKill;
+    if (isELFv2ABI && MustSaveCRs.size() == 1) {
+      MfcrOpcode = PPC::MFOCRF8;
+      CrState = RegState::Kill;
+    }
     MachineInstrBuilder MIB =
-      BuildMI(MBB, MBBI, dl, TII.get(PPC::MFCR8), TempReg);
+      BuildMI(MBB, MBBI, dl, TII.get(MfcrOpcode), TempReg);
     for (unsigned i = 0, e = MustSaveCRs.size(); i != e; ++i)
-      MIB.addReg(MustSaveCRs[i], RegState::ImplicitKill);
+      MIB.addReg(MustSaveCRs[i], CrState);
   }
 
-  if (HasFP)
-    // FIXME: On PPC32 SVR4, we must not spill before claiming the stackframe.
-    BuildMI(MBB, MBBI, dl, StoreInst)
-      .addReg(FPReg)
-      .addImm(FPOffset)
-      .addReg(SPReg);
-
-  if (FI->usesPICBase())
-    // FIXME: On PPC32 SVR4, we must not spill before claiming the stackframe.
-    BuildMI(MBB, MBBI, dl, StoreInst)
-      .addReg(PPC::R30)
-      .addImm(PBPOffset)
-      .addReg(SPReg);
-
-  if (HasBP)
-    // FIXME: On PPC32 SVR4, we must not spill before claiming the stackframe.
-    BuildMI(MBB, MBBI, dl, StoreInst)
-      .addReg(BPReg)
-      .addImm(BPOffset)
-      .addReg(SPReg);
+  if (HasRedZone) {
+    if (HasFP)
+      BuildMI(MBB, MBBI, dl, StoreInst)
+        .addReg(FPReg)
+        .addImm(FPOffset)
+        .addReg(SPReg);
+    if (FI->usesPICBase())
+      BuildMI(MBB, MBBI, dl, StoreInst)
+        .addReg(PPC::R30)
+        .addImm(PBPOffset)
+        .addReg(SPReg);
+    if (HasBP)
+      BuildMI(MBB, MBBI, dl, StoreInst)
+        .addReg(BPReg)
+        .addImm(BPOffset)
+        .addReg(SPReg);
+  }
 
   if (MustSaveLR)
-    // FIXME: On PPC32 SVR4, we must not spill before claiming the stackframe.
     BuildMI(MBB, MBBI, dl, StoreInst)
-      .addReg(ScratchReg)
+      .addReg(ScratchReg, getKillRegState(true))
       .addImm(LROffset)
       .addReg(SPReg);
 
   if (MustSaveCR &&
-      !(SingleScratchReg && MustSaveLR)) // will only occur for PPC64
+      !(SingleScratchReg && MustSaveLR)) { // will only occur for PPC64
+    assert(HasRedZone && "A red zone is always available on PPC64");
     BuildMI(MBB, MBBI, dl, TII.get(PPC::STW8))
       .addReg(TempReg, getKillRegState(true))
       .addImm(8)
       .addReg(SPReg);
+  }
 
   // Skip the rest if this is a leaf function & all spills fit in the Red Zone.
-  if (!FrameSize) return;
+  if (!FrameSize)
+    return;
 
   // Adjust stack pointer: r1 += NegFrameSize.
   // If there is a preferred stack alignment, align R1 now
 
-  if (HasBP) {
+  if (HasBP && HasRedZone) {
     // Save a copy of r1 as the base pointer.
     BuildMI(MBB, MBBI, dl, OrInst, BPReg)
       .addReg(SPReg)
       .addReg(SPReg);
   }
+
+  // Have we generated a STUX instruction to claim stack frame? If so,
+  // the frame size will be placed in ScratchReg.
+  bool HasSTUX = false;
 
   // This condition must be kept in sync with canUseAsPrologue.
   if (HasBP && MaxAlign > 1) {
@@ -941,10 +958,12 @@ void PPCFrameLowering::emitPrologue(MachineFunction &MF,
         .addReg(ScratchReg, RegState::Kill)
         .addReg(TempReg, RegState::Kill);
     }
+
     BuildMI(MBB, MBBI, dl, StoreUpdtIdxInst, SPReg)
       .addReg(SPReg, RegState::Kill)
       .addReg(SPReg)
       .addReg(ScratchReg);
+    HasSTUX = true;
 
   } else if (!isLargeFrame) {
     BuildMI(MBB, MBBI, dl, StoreUpdtInst, SPReg)
@@ -962,6 +981,65 @@ void PPCFrameLowering::emitPrologue(MachineFunction &MF,
       .addReg(SPReg, RegState::Kill)
       .addReg(SPReg)
       .addReg(ScratchReg);
+    HasSTUX = true;
+  }
+
+  if (!HasRedZone) {
+    assert(!isPPC64 && "A red zone is always available on PPC64");
+    if (HasSTUX) {
+      // The frame size is in ScratchReg, and the SPReg has been advanced
+      // (downwards) by the frame size: SPReg = old SPReg + ScratchReg.
+      // Set ScratchReg to the original SPReg: ScratchReg = SPReg - ScratchReg.
+      BuildMI(MBB, MBBI, dl, TII.get(PPC::SUBF), ScratchReg)
+        .addReg(ScratchReg, RegState::Kill)
+        .addReg(SPReg);
+
+      // Now that the stack frame has been allocated, save all the necessary
+      // registers using ScratchReg as the base address.
+      if (HasFP)
+        BuildMI(MBB, MBBI, dl, StoreInst)
+          .addReg(FPReg)
+          .addImm(FPOffset)
+          .addReg(ScratchReg);
+      if (FI->usesPICBase())
+        BuildMI(MBB, MBBI, dl, StoreInst)
+          .addReg(PPC::R30)
+          .addImm(PBPOffset)
+          .addReg(ScratchReg);
+      if (HasBP) {
+        BuildMI(MBB, MBBI, dl, StoreInst)
+          .addReg(BPReg)
+          .addImm(BPOffset)
+          .addReg(ScratchReg);
+        BuildMI(MBB, MBBI, dl, OrInst, BPReg)
+          .addReg(ScratchReg, RegState::Kill)
+          .addReg(ScratchReg);
+      }
+    } else {
+      // The frame size is a known 16-bit constant (fitting in the immediate
+      // field of STWU). To be here we have to be compiling for PPC32.
+      // Since the SPReg has been decreased by FrameSize, add it back to each
+      // offset.
+      if (HasFP)
+        BuildMI(MBB, MBBI, dl, StoreInst)
+          .addReg(FPReg)
+          .addImm(FrameSize + FPOffset)
+          .addReg(SPReg);
+      if (FI->usesPICBase())
+        BuildMI(MBB, MBBI, dl, StoreInst)
+          .addReg(PPC::R30)
+          .addImm(FrameSize + PBPOffset)
+          .addReg(SPReg);
+      if (HasBP) {
+        BuildMI(MBB, MBBI, dl, StoreInst)
+          .addReg(BPReg)
+          .addImm(FrameSize + BPOffset)
+          .addReg(SPReg);
+        BuildMI(MBB, MBBI, dl, TII.get(PPC::ADDI), BPReg)
+          .addReg(SPReg)
+          .addImm(FrameSize);
+      }
+    }
   }
 
   // Add Call Frame Information for the instructions we generated above.
@@ -1315,33 +1393,50 @@ void PPCFrameLowering::emitEpilogue(MachineFunction &MF,
           .addReg(FPReg)
           .addReg(ScratchReg);
       }
-    } else if (RetOpcode == PPC::TCRETURNdi) {
-      MBBI = MBB.getLastNonDebugInstr();
-      MachineOperand &JumpTarget = MBBI->getOperand(0);
-      BuildMI(MBB, MBBI, dl, TII.get(PPC::TAILB)).
-        addGlobalAddress(JumpTarget.getGlobal(), JumpTarget.getOffset());
-    } else if (RetOpcode == PPC::TCRETURNri) {
-      MBBI = MBB.getLastNonDebugInstr();
-      assert(MBBI->getOperand(0).isReg() && "Expecting register operand.");
-      BuildMI(MBB, MBBI, dl, TII.get(PPC::TAILBCTR));
-    } else if (RetOpcode == PPC::TCRETURNai) {
-      MBBI = MBB.getLastNonDebugInstr();
-      MachineOperand &JumpTarget = MBBI->getOperand(0);
-      BuildMI(MBB, MBBI, dl, TII.get(PPC::TAILBA)).addImm(JumpTarget.getImm());
-    } else if (RetOpcode == PPC::TCRETURNdi8) {
-      MBBI = MBB.getLastNonDebugInstr();
-      MachineOperand &JumpTarget = MBBI->getOperand(0);
-      BuildMI(MBB, MBBI, dl, TII.get(PPC::TAILB8)).
-        addGlobalAddress(JumpTarget.getGlobal(), JumpTarget.getOffset());
-    } else if (RetOpcode == PPC::TCRETURNri8) {
-      MBBI = MBB.getLastNonDebugInstr();
-      assert(MBBI->getOperand(0).isReg() && "Expecting register operand.");
-      BuildMI(MBB, MBBI, dl, TII.get(PPC::TAILBCTR8));
-    } else if (RetOpcode == PPC::TCRETURNai8) {
-      MBBI = MBB.getLastNonDebugInstr();
-      MachineOperand &JumpTarget = MBBI->getOperand(0);
-      BuildMI(MBB, MBBI, dl, TII.get(PPC::TAILBA8)).addImm(JumpTarget.getImm());
+    } else {
+      createTailCallBranchInstr(MBB);
     }
+  }
+}
+
+void PPCFrameLowering::createTailCallBranchInstr(MachineBasicBlock &MBB) const {
+  MachineBasicBlock::iterator MBBI = MBB.getFirstTerminator();
+  DebugLoc dl;
+
+  if (MBBI != MBB.end())
+    dl = MBBI->getDebugLoc();
+
+  const PPCInstrInfo &TII =
+      *static_cast<const PPCInstrInfo *>(Subtarget.getInstrInfo());
+
+  // Create branch instruction for pseudo tail call return instruction
+  unsigned RetOpcode = MBBI->getOpcode();
+  if (RetOpcode == PPC::TCRETURNdi) {
+    MBBI = MBB.getLastNonDebugInstr();
+    MachineOperand &JumpTarget = MBBI->getOperand(0);
+    BuildMI(MBB, MBBI, dl, TII.get(PPC::TAILB)).
+      addGlobalAddress(JumpTarget.getGlobal(), JumpTarget.getOffset());
+  } else if (RetOpcode == PPC::TCRETURNri) {
+    MBBI = MBB.getLastNonDebugInstr();
+    assert(MBBI->getOperand(0).isReg() && "Expecting register operand.");
+    BuildMI(MBB, MBBI, dl, TII.get(PPC::TAILBCTR));
+  } else if (RetOpcode == PPC::TCRETURNai) {
+    MBBI = MBB.getLastNonDebugInstr();
+    MachineOperand &JumpTarget = MBBI->getOperand(0);
+    BuildMI(MBB, MBBI, dl, TII.get(PPC::TAILBA)).addImm(JumpTarget.getImm());
+  } else if (RetOpcode == PPC::TCRETURNdi8) {
+    MBBI = MBB.getLastNonDebugInstr();
+    MachineOperand &JumpTarget = MBBI->getOperand(0);
+    BuildMI(MBB, MBBI, dl, TII.get(PPC::TAILB8)).
+      addGlobalAddress(JumpTarget.getGlobal(), JumpTarget.getOffset());
+  } else if (RetOpcode == PPC::TCRETURNri8) {
+    MBBI = MBB.getLastNonDebugInstr();
+    assert(MBBI->getOperand(0).isReg() && "Expecting register operand.");
+    BuildMI(MBB, MBBI, dl, TII.get(PPC::TAILBCTR8));
+  } else if (RetOpcode == PPC::TCRETURNai8) {
+    MBBI = MBB.getLastNonDebugInstr();
+    MachineOperand &JumpTarget = MBBI->getOperand(0);
+    BuildMI(MBB, MBBI, dl, TII.get(PPC::TAILBA8)).addImm(JumpTarget.getImm());
   }
 }
 
@@ -1391,6 +1486,17 @@ void PPCFrameLowering::determineCalleeSaves(MachineFunction &MF,
     FI->setPICBasePointerSaveIndex(PBPSI);
   }
 
+  // Make sure we don't explicitly spill r31, because, for example, we have
+  // some inline asm which explicity clobbers it, when we otherwise have a
+  // frame pointer and are using r31's spill slot for the prologue/epilogue
+  // code. Same goes for the base pointer and the PIC base register.
+  if (needsFP(MF))
+    SavedRegs.reset(isPPC64 ? PPC::X31 : PPC::R31);
+  if (RegInfo->hasBasePointer(MF))
+    SavedRegs.reset(RegInfo->getBaseRegister(MF));
+  if (FI->usesPICBase())
+    SavedRegs.reset(PPC::R30);
+
   // Reserve stack space to move the linkage area to in case of a tail call.
   int TCSPDelta = 0;
   if (MF.getTarget().Options.GuaranteedTailCallOpt &&
@@ -1420,6 +1526,18 @@ void PPCFrameLowering::processFunctionBeforeFrameFinalized(MachineFunction &MF,
   // Get callee saved register information.
   MachineFrameInfo *FFI = MF.getFrameInfo();
   const std::vector<CalleeSavedInfo> &CSI = FFI->getCalleeSavedInfo();
+
+  // If the function is shrink-wrapped, and if the function has a tail call, the
+  // tail call might not be in the new RestoreBlock, so real branch instruction
+  // won't be generated by emitEpilogue(), because shrink-wrap has chosen new
+  // RestoreBlock. So we handle this case here.
+  if (FFI->getSavePoint() && FFI->hasTailCall()) {
+    MachineBasicBlock *RestoreBlock = FFI->getRestorePoint();
+    for (MachineBasicBlock &MBB : MF) {
+      if (MBB.isReturnBlock() && (&MBB) != RestoreBlock)
+        createTailCallBranchInstr(MBB);
+    }
+  }
 
   // Early exit if no callee saved registers are modified!
   if (CSI.empty() && !needsFP(MF)) {
@@ -1770,7 +1888,7 @@ restoreCRs(bool isPPC64, bool is31,
                .addReg(MoveReg, getKillRegState(true)));
 }
 
-void PPCFrameLowering::
+MachineBasicBlock::iterator PPCFrameLowering::
 eliminateCallFramePseudoInstr(MachineFunction &MF, MachineBasicBlock &MBB,
                               MachineBasicBlock::iterator I) const {
   const TargetInstrInfo &TII = *Subtarget.getInstrInfo();
@@ -1787,7 +1905,7 @@ eliminateCallFramePseudoInstr(MachineFunction &MF, MachineBasicBlock &MBB,
       unsigned LISInstr = is64Bit ? PPC::LIS8 : PPC::LIS;
       unsigned ORIInstr = is64Bit ? PPC::ORI8 : PPC::ORI;
       MachineInstr *MI = I;
-      DebugLoc dl = MI->getDebugLoc();
+      const DebugLoc &dl = MI->getDebugLoc();
 
       if (isInt<16>(CalleeAmt)) {
         BuildMI(MBB, I, dl, TII.get(ADDIInstr), StackReg)
@@ -1807,7 +1925,7 @@ eliminateCallFramePseudoInstr(MachineFunction &MF, MachineBasicBlock &MBB,
     }
   }
   // Simply discard ADJCALLSTACKDOWN, ADJCALLSTACKUP instructions.
-  MBB.erase(I);
+  return MBB.erase(I);
 }
 
 bool

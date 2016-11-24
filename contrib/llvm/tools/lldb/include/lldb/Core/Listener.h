@@ -14,18 +14,21 @@
 // C++ Includes
 #include <list>
 #include <map>
+#include <mutex>
 #include <string>
 #include <vector>
 
 // Other libraries and framework includes
 // Project includes
 #include "lldb/lldb-private.h"
-#include "lldb/Host/Predicate.h"
+#include "lldb/Core/Broadcaster.h"
+#include "lldb/Host/Condition.h"
 #include "lldb/Core/Event.h"
 
 namespace lldb_private {
 
-class Listener
+class Listener :
+    public std::enable_shared_from_this<Listener>
 {
 public:
     typedef bool (*HandleBroadcastCallback) (lldb::EventSP &event_sp, void *baton);
@@ -36,8 +39,16 @@ public:
     //------------------------------------------------------------------
     // Constructors and Destructors
     //------------------------------------------------------------------
+    //
+    // Listeners have to be constructed into shared pointers - at least if you want them to listen to
+    // Broadcasters, 
+protected:
     Listener (const char *name);
 
+public:
+    static lldb::ListenerSP
+    MakeListener(const char *name);
+    
     ~Listener ();
 
     void
@@ -53,11 +64,11 @@ public:
     }
 
     uint32_t
-    StartListeningForEventSpec (BroadcasterManager &manager, 
+    StartListeningForEventSpec (lldb::BroadcasterManagerSP manager_sp,
                                  const BroadcastEventSpec &event_spec);
     
     bool
-    StopListeningForEventSpec (BroadcasterManager &manager, 
+    StopListeningForEventSpec (lldb::BroadcasterManagerSP manager_sp,
                                  const BroadcastEventSpec &event_spec);
     
     uint32_t
@@ -133,12 +144,15 @@ private:
         void *callback_user_data;
     };
 
-    typedef std::multimap<Broadcaster*, BroadcasterInfo> broadcaster_collection;
+    typedef std::multimap<Broadcaster::BroadcasterImplWP,
+                          BroadcasterInfo,
+                          std::owner_less<Broadcaster::BroadcasterImplWP>> broadcaster_collection;
     typedef std::list<lldb::EventSP> event_collection;
-    typedef std::vector<BroadcasterManager *> broadcaster_manager_collection;
+    typedef std::vector<lldb::BroadcasterManagerWP> broadcaster_manager_collection;
 
     bool
-    FindNextEventInternal(Broadcaster *broadcaster,   // nullptr for any broadcaster
+    FindNextEventInternal(Mutex::Locker& lock,
+                          Broadcaster *broadcaster,   // nullptr for any broadcaster
                           const ConstString *sources, // nullptr for any event
                           uint32_t num_sources,
                           uint32_t event_type_mask,
@@ -162,17 +176,17 @@ private:
 
     std::string m_name;
     broadcaster_collection m_broadcasters;
-    Mutex m_broadcasters_mutex; // Protects m_broadcasters
+    std::recursive_mutex m_broadcasters_mutex; // Protects m_broadcasters
     event_collection m_events;
     Mutex m_events_mutex; // Protects m_broadcasters and m_events
-    Predicate<bool> m_cond_wait;
+    Condition m_events_condition;
     broadcaster_manager_collection m_broadcaster_managers;
 
     void
     BroadcasterWillDestruct (Broadcaster *);
     
     void
-    BroadcasterManagerWillDestruct (BroadcasterManager *manager);
+    BroadcasterManagerWillDestruct (lldb::BroadcasterManagerSP manager_sp);
     
 
 //    broadcaster_collection::iterator

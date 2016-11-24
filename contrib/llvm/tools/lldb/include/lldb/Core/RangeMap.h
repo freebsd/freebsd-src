@@ -202,7 +202,13 @@ namespace lldb_private {
         {
             m_entries.push_back (entry);
         }
-        
+
+        void
+        Append (B base, S size)
+        {
+            m_entries.emplace_back(base, size);
+        }
+
         bool
         RemoveEntrtAtIndex (uint32_t idx)
         {
@@ -471,7 +477,13 @@ namespace lldb_private {
         {
             m_entries.push_back (entry);
         }
-        
+
+        void
+        Append (B base, S size)
+        {
+            m_entries.emplace_back(base, size);
+        }
+
         bool
         RemoveEntrtAtIndex (uint32_t idx)
         {
@@ -1123,7 +1135,7 @@ namespace lldb_private {
         // Calculate the byte size of ranges with zero byte sizes by finding
         // the next entry with a base address > the current base address
         void
-        CalculateSizesOfZeroByteSizeRanges ()
+        CalculateSizesOfZeroByteSizeRanges (S full_size = 0)
         {
 #ifdef ASSERT_RANGEMAP_ARE_SORTED
             assert (IsSorted());
@@ -1148,6 +1160,8 @@ namespace lldb_private {
                             break;
                         }
                     }
+                    if (next == end && full_size > curr_base)
+                        pos->SetByteSize (full_size - curr_base);
                 }
             }
         }
@@ -1181,7 +1195,13 @@ namespace lldb_private {
         {
             return ((i < m_entries.size()) ? &m_entries[i] : nullptr);
         }
-        
+
+        Entry *
+        GetMutableEntryAtIndex (size_t i)
+        {
+            return ((i < m_entries.size()) ? &m_entries[i] : nullptr);
+        }
+
         // Clients must ensure that "i" is a valid index prior to calling this function
         const Entry &
         GetEntryRef (size_t i) const
@@ -1305,6 +1325,42 @@ namespace lldb_private {
             return nullptr;
         }
         
+        const Entry*
+        FindEntryStartsAt (B addr) const
+        {
+#ifdef ASSERT_RANGEMAP_ARE_SORTED
+            assert (IsSorted());
+#endif
+            if (!m_entries.empty())
+            {
+                auto begin = m_entries.begin(), end = m_entries.end();
+                auto pos = std::lower_bound (begin, end, Entry(addr, 1), BaseLessThan);
+                if (pos != end && pos->base == addr)
+                    return &(*pos);
+            }
+            return nullptr;
+        }
+
+        const Entry *
+        FindEntryThatContainsOrFollows(B addr) const
+        {
+#ifdef ASSERT_RANGEMAP_ARE_SORTED
+            assert(IsSorted());
+#endif
+            if (!m_entries.empty())
+            {
+                typename Collection::const_iterator end = m_entries.end();
+                typename Collection::const_iterator pos =
+                    std::lower_bound(m_entries.begin(), end, addr, [](const Entry &lhs, B rhs_base) -> bool {
+                        return lhs.GetRangeEnd() <= rhs_base;
+                    });
+
+                if (pos != end)
+                    return &(*pos);
+            }
+            return nullptr;
+        }
+
         Entry *
         Back()
         {

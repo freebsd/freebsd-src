@@ -99,15 +99,15 @@ public:
   typedef multilib_list::iterator iterator;
   typedef multilib_list::const_iterator const_iterator;
 
-  typedef std::function<std::vector<std::string>(
-      StringRef InstallDir, StringRef Triple, const Multilib &M)>
-  IncludeDirsFunc;
+  typedef std::function<std::vector<std::string>(const Multilib &M)>
+      IncludeDirsFunc;
 
   typedef llvm::function_ref<bool(const Multilib &)> FilterCallback;
 
 private:
   multilib_list Multilibs;
   IncludeDirsFunc IncludeCallback;
+  IncludeDirsFunc FilePathsCallback;
 
 public:
   MultilibSet() {}
@@ -158,6 +158,12 @@ public:
     return *this;
   }
   const IncludeDirsFunc &includeDirsCallback() const { return IncludeCallback; }
+
+  MultilibSet &setFilePathsCallback(IncludeDirsFunc F) {
+    FilePathsCallback = std::move(F);
+    return *this;
+  }
+  const IncludeDirsFunc &filePathsCallback() const { return FilePathsCallback; }
 
 private:
   /// Apply the filter to Multilibs and return the subset that remains

@@ -38,8 +38,18 @@
 #include "lldb/Symbol/Symbol.h"
 #include "lldb/Target/RegisterContext.h"
 #include "lldb/Target/ThreadPlan.h"
+#ifndef LLDB_DISABLE_CURSES
+#include "lldb/Core/ValueObject.h"
+#include "lldb/Symbol/VariableList.h"
+#include "lldb/Target/Target.h"
+#include "lldb/Target/Process.h"
+#include "lldb/Target/Thread.h"
+#include "lldb/Target/StackFrame.h"
+#endif
 
-
+#ifdef _MSC_VER
+#include <Windows.h>
+#endif
 
 using namespace lldb;
 using namespace lldb_private;
@@ -67,7 +77,7 @@ IOHandler::IOHandler (Debugger &debugger,
     m_popped (false),
     m_flags (flags),
     m_type (type),
-    m_user_data (NULL),
+    m_user_data(nullptr),
     m_done (false),
     m_active (false)
 {
@@ -83,49 +93,37 @@ IOHandler::~IOHandler() = default;
 int
 IOHandler::GetInputFD()
 {
-    if (m_input_sp)
-        return m_input_sp->GetFile().GetDescriptor();
-    return -1;
+    return (m_input_sp ? m_input_sp->GetFile().GetDescriptor() : -1);
 }
 
 int
 IOHandler::GetOutputFD()
 {
-    if (m_output_sp)
-        return m_output_sp->GetFile().GetDescriptor();
-    return -1;
+    return (m_output_sp ? m_output_sp->GetFile().GetDescriptor() : -1);
 }
 
 int
 IOHandler::GetErrorFD()
 {
-    if (m_error_sp)
-        return m_error_sp->GetFile().GetDescriptor();
-    return -1;
+    return (m_error_sp ? m_error_sp->GetFile().GetDescriptor() : -1);
 }
 
 FILE *
 IOHandler::GetInputFILE()
 {
-    if (m_input_sp)
-        return m_input_sp->GetFile().GetStream();
-    return NULL;
+    return (m_input_sp ? m_input_sp->GetFile().GetStream() : nullptr);
 }
 
 FILE *
 IOHandler::GetOutputFILE()
 {
-    if (m_output_sp)
-        return m_output_sp->GetFile().GetStream();
-    return NULL;
+    return (m_output_sp ? m_output_sp->GetFile().GetStream() : nullptr);
 }
 
 FILE *
 IOHandler::GetErrorFILE()
 {
-    if (m_error_sp)
-        return m_error_sp->GetFile().GetStream();
-    return NULL;
+    return (m_error_sp ? m_error_sp->GetFile().GetStream() : nullptr);
 }
 
 StreamFileSP &
@@ -171,13 +169,13 @@ IOHandler::WaitForPop ()
 }
 
 void
-IOHandlerStack::PrintAsync (Stream *stream, const char *s, size_t len)
+IOHandlerStack::PrintAsync(Stream *stream, const char *s, size_t len)
 {
     if (stream)
     {
-        Mutex::Locker locker (m_mutex);
+        std::lock_guard<std::recursive_mutex> guard(m_mutex);
         if (m_top)
-            m_top->PrintAsync (stream, s, len);
+            m_top->PrintAsync(stream, s, len);
     }
 }
 
@@ -186,9 +184,9 @@ IOHandlerConfirm::IOHandlerConfirm (Debugger &debugger,
                                     bool default_response) :
     IOHandlerEditline(debugger,
                       IOHandler::Type::Confirm,
-                      NULL,     // NULL editline_name means no history loaded/saved
-                      NULL,     // No prompt
-                      NULL,     // No continuation prompt
+                      nullptr,  // nullptr editline_name means no history loaded/saved
+                      nullptr,  // No prompt
+                      nullptr,  // No continuation prompt
                       false,    // Multi-line
                       false,    // Don't colorize the prompt (i.e. the confirm message.)
                       0,
@@ -204,7 +202,6 @@ IOHandlerConfirm::IOHandlerConfirm (Debugger &debugger,
         prompt_stream.Printf(": [y/N] ");
     
     SetPrompt (prompt_stream.GetString().c_str());
-    
 }
 
 IOHandlerConfirm::~IOHandlerConfirm() = default;
@@ -304,14 +301,14 @@ IOHandlerDelegate::IOHandlerComplete (IOHandler &io_handler,
                 --word_start;
             while (word_start > current_line && !isspace(*word_start))
                 --word_start;
-            CommandCompletions::InvokeCommonCompletionCallbacks (io_handler.GetDebugger().GetCommandInterpreter(),
-                                                                 CommandCompletions::eVariablePathCompletion,
-                                                                 word_start,
-                                                                 skip_first_n_matches,
-                                                                 max_matches,
-                                                                 NULL,
-                                                                 word_complete,
-                                                                 matches);
+            CommandCompletions::InvokeCommonCompletionCallbacks(io_handler.GetDebugger().GetCommandInterpreter(),
+                                                                CommandCompletions::eVariablePathCompletion,
+                                                                word_start,
+                                                                skip_first_n_matches,
+                                                                max_matches,
+                                                                nullptr,
+                                                                word_complete,
+                                                                matches);
             
             size_t num_matches = matches.GetSize();
             if (num_matches > 0)
@@ -382,7 +379,7 @@ IOHandlerEditline::IOHandlerEditline (Debugger &debugger,
     m_delegate (delegate),
     m_prompt (),
     m_continuation_prompt(),
-    m_current_lines_ptr (NULL),
+    m_current_lines_ptr(nullptr),
     m_base_line_number (line_number_start),
     m_curr_line_idx (UINT32_MAX),
     m_multi_line (multi_line),
@@ -460,12 +457,12 @@ IOHandlerEditline::GetLine (std::string &line, bool &interrupted)
         {
             if (GetIsInteractive())
             {
-                const char *prompt = NULL;
+                const char *prompt = nullptr;
                 
                 if (m_multi_line && m_curr_line_idx > 0)
                     prompt = GetContinuationPrompt();
                 
-                if (prompt == NULL)
+                if (prompt == nullptr)
                     prompt = GetPrompt();
                 
                 if (prompt && prompt[0])
@@ -484,7 +481,7 @@ IOHandlerEditline::GetLine (std::string &line, bool &interrupted)
             m_editing = true;
             while (!done)
             {
-                if (fgets(buffer, sizeof(buffer), in) == NULL)
+                if (fgets(buffer, sizeof(buffer), in) == nullptr)
                 {
                     const int saved_errno = errno;
                     if (feof(in))
@@ -531,7 +528,6 @@ IOHandlerEditline::GetLine (std::string &line, bool &interrupted)
     }
 #endif
 }
-
 
 #ifndef LLDB_DISABLE_LIBEDIT
 bool
@@ -587,7 +583,7 @@ IOHandlerEditline::GetPrompt ()
     {
 #endif
         if (m_prompt.empty())
-            return NULL;
+            return nullptr;
 #ifndef LLDB_DISABLE_LIBEDIT
     }
 #endif
@@ -603,7 +599,7 @@ IOHandlerEditline::SetPrompt (const char *p)
         m_prompt.clear();
 #ifndef LLDB_DISABLE_LIBEDIT
     if (m_editline_ap)
-        m_editline_ap->SetPrompt (m_prompt.empty() ? NULL : m_prompt.c_str());
+        m_editline_ap->SetPrompt(m_prompt.empty() ? nullptr : m_prompt.c_str());
 #endif
     return true;
 }
@@ -611,9 +607,7 @@ IOHandlerEditline::SetPrompt (const char *p)
 const char *
 IOHandlerEditline::GetContinuationPrompt ()
 {
-    if (m_continuation_prompt.empty())
-        return NULL;
-    return m_continuation_prompt.c_str();
+    return (m_continuation_prompt.empty() ? nullptr : m_continuation_prompt.c_str());
 }
 
 void
@@ -626,7 +620,7 @@ IOHandlerEditline::SetContinuationPrompt (const char *p)
 
 #ifndef LLDB_DISABLE_LIBEDIT
     if (m_editline_ap)
-        m_editline_ap->SetContinuationPrompt (m_continuation_prompt.empty() ? NULL : m_continuation_prompt.c_str());
+        m_editline_ap->SetContinuationPrompt(m_continuation_prompt.empty() ? nullptr : m_continuation_prompt.c_str());
 #endif
 }
 
@@ -671,7 +665,7 @@ IOHandlerEditline::GetLines (StringList &lines, bool &interrupted)
             {
                 FILE *out = GetOutputFILE();
                 if (out)
-                    ::fprintf(out, "%u%s", m_base_line_number + (uint32_t)lines.GetSize(), GetPrompt() == NULL ? " " : "");
+                    ::fprintf(out, "%u%s", m_base_line_number + (uint32_t)lines.GetSize(), GetPrompt() == nullptr ? " " : "");
             }
             
             m_curr_line_idx = lines.GetSize();
@@ -783,19 +777,31 @@ IOHandlerEditline::PrintAsync (Stream *stream, const char *s, size_t len)
         m_editline_ap->PrintAsync(stream, s, len);
     else
 #endif
+    {
+        const char *prompt = GetPrompt();
+#ifdef _MSC_VER
+        if (prompt)
+        {
+            // Back up over previous prompt using Windows API
+            CONSOLE_SCREEN_BUFFER_INFO screen_buffer_info;
+            HANDLE console_handle = GetStdHandle(STD_OUTPUT_HANDLE);
+            GetConsoleScreenBufferInfo(console_handle, &screen_buffer_info);
+            COORD coord = screen_buffer_info.dwCursorPosition;
+            coord.X -= strlen(prompt);
+            if (coord.X < 0)
+                coord.X = 0;
+            SetConsoleCursorPosition(console_handle, coord);
+        }
+#endif
         IOHandler::PrintAsync(stream, s, len);
+        if (prompt)
+            IOHandler::PrintAsync(GetOutputStreamFile().get(), prompt, strlen(prompt));
+    }
 }
 
 // we may want curses to be disabled for some builds
 // for instance, windows
 #ifndef LLDB_DISABLE_CURSES
-
-#include "lldb/Core/ValueObject.h"
-#include "lldb/Symbol/VariableList.h"
-#include "lldb/Target/Target.h"
-#include "lldb/Target/Process.h"
-#include "lldb/Target/Thread.h"
-#include "lldb/Target/StackFrame.h"
 
 #define KEY_RETURN   10
 #define KEY_ESCAPE  27
@@ -1078,13 +1084,13 @@ type summary add -s "${var.origin%S} ${var.size%S}" curses::Rect
         virtual const char *
         WindowDelegateGetHelpText ()
         {
-            return NULL;
+            return nullptr;
         }
 
         virtual KeyHelp *
         WindowDelegateGetKeyHelp ()
         {
-            return NULL;
+            return nullptr;
         }
     };
     
@@ -1124,9 +1130,9 @@ type summary add -s "${var.origin%S} ${var.size%S}" curses::Rect
     public:
         Window (const char *name) :
             m_name (name),
-            m_window (NULL),
-            m_panel (NULL),
-            m_parent (NULL),
+            m_window(nullptr),
+            m_panel(nullptr),
+            m_parent(nullptr),
             m_subwindows (),
             m_delegate_sp (),
             m_curr_active_window_idx (UINT32_MAX),
@@ -1140,9 +1146,9 @@ type summary add -s "${var.origin%S} ${var.size%S}" curses::Rect
         
         Window (const char *name, WINDOW *w, bool del = true) :
             m_name (name),
-            m_window (NULL),
-            m_panel (NULL),
-            m_parent (NULL),
+            m_window(nullptr),
+            m_panel(nullptr),
+            m_parent(nullptr),
             m_subwindows (),
             m_delegate_sp (),
             m_curr_active_window_idx (UINT32_MAX),
@@ -1158,8 +1164,8 @@ type summary add -s "${var.origin%S} ${var.size%S}" curses::Rect
         
         Window (const char *name, const Rect &bounds) :
             m_name (name),
-            m_window (NULL),
-            m_parent (NULL),
+            m_window(nullptr),
+            m_parent(nullptr),
             m_subwindows (),
             m_delegate_sp (),
             m_curr_active_window_idx (UINT32_MAX),
@@ -1180,7 +1186,7 @@ type summary add -s "${var.origin%S} ${var.size%S}" curses::Rect
         }
         
         void
-        Reset (WINDOW *w = NULL, bool del = true)
+        Reset(WINDOW *w = nullptr, bool del = true)
         {
             if (m_window == w)
                 return;
@@ -1188,12 +1194,12 @@ type summary add -s "${var.origin%S} ${var.size%S}" curses::Rect
             if (m_panel)
             {
                 ::del_panel (m_panel);
-                m_panel = NULL;
+                m_panel = nullptr;
             }
             if (m_window && m_delete)
             {
                 ::delwin (m_window);
-                m_window = NULL;
+                m_window = nullptr;
                 m_delete = false;
             }
             if (w)
@@ -1415,7 +1421,7 @@ type summary add -s "${var.origin%S} ${var.size%S}" curses::Rect
         // Window drawing utilities
         //----------------------------------------------------------------------
         void
-        DrawTitleBox (const char *title, const char *bottom_message = NULL)
+        DrawTitleBox(const char *title, const char *bottom_message = nullptr)
         {
             attr_t attr = 0;
             if (IsActive())
@@ -1456,7 +1462,6 @@ type summary add -s "${var.origin%S} ${var.size%S}" curses::Rect
             }
             if (attr)
                 AttributeOff(attr);
-            
         }
 
         virtual void
@@ -1554,7 +1559,7 @@ type summary add -s "${var.origin%S} ${var.size%S}" curses::Rect
             Windows subwindows (m_subwindows);
             for (auto subwindow_sp : subwindows)
             {
-                if (subwindow_sp->m_can_activate == false)
+                if (!subwindow_sp->m_can_activate)
                 {
                     HandleCharResult result = subwindow_sp->HandleChar(key);
                     if (result != eKeyNotHandled)
@@ -1569,7 +1574,7 @@ type summary add -s "${var.origin%S} ${var.size%S}" curses::Rect
         SetActiveWindow (Window *window)
         {
             const size_t num_subwindows = m_subwindows.size();
-            for (size_t i=0; i<num_subwindows; ++i)
+            for (size_t i = 0; i < num_subwindows; ++i)
             {
                 if (m_subwindows[i].get() == window)
                 {
@@ -1601,7 +1606,7 @@ type summary add -s "${var.origin%S} ${var.size%S}" curses::Rect
                         
                         // Find first window that wants to be active if this window is active
                         const size_t num_subwindows = m_subwindows.size();
-                        for (size_t i=0; i<num_subwindows; ++i)
+                        for (size_t i = 0; i < num_subwindows; ++i)
                         {
                             if (m_subwindows[i]->GetCanBeActive())
                             {
@@ -1944,7 +1949,7 @@ type summary add -s "${var.origin%S} ${var.size%S}" curses::Rect
         m_max_submenu_name_length (0),
         m_max_submenu_key_name_length (0),
         m_selected (0),
-        m_parent (NULL),
+        m_parent(nullptr),
         m_submenus (),
         m_canned_result (MenuActionResult::NotHandled),
         m_delegate_sp()
@@ -1965,7 +1970,7 @@ type summary add -s "${var.origin%S} ${var.size%S}" curses::Rect
         m_max_submenu_name_length (0),
         m_max_submenu_key_name_length (0),
         m_selected (0),
-        m_parent (NULL),
+        m_parent(nullptr),
         m_submenus (),
         m_canned_result (MenuActionResult::NotHandled),
         m_delegate_sp()
@@ -1990,7 +1995,7 @@ type summary add -s "${var.origin%S} ${var.size%S}" curses::Rect
         m_max_submenu_key_name_length = 0;
         Menus &submenus = GetSubmenus();
         const size_t num_submenus = submenus.size();
-        for (size_t i=0; i<num_submenus; ++i)
+        for (size_t i = 0; i < num_submenus; ++i)
         {
             Menu *submenu = submenus[i].get();
             if (static_cast<size_t>(m_max_submenu_name_length) < submenu->m_name.size())
@@ -2022,7 +2027,7 @@ type summary add -s "${var.origin%S} ${var.size%S}" curses::Rect
             if (width > 2)
             {
                 width -= 2;
-                for (int i=0; i< width; ++i)
+                for (int i = 0; i < width; ++i)
                     window.PutChar(ACS_HLINE);
             }
             window.PutChar(ACS_RTEE);
@@ -2097,7 +2102,7 @@ type summary add -s "${var.origin%S} ${var.size%S}" curses::Rect
             {
                 window.SetBackground(2);
                 window.MoveCursor(0, 0);
-                for (size_t i=0; i<num_submenus; ++i)
+                for (size_t i = 0; i < num_submenus; ++i)
                 {
                     Menu *menu = submenus[i].get();
                     if (i > 0)
@@ -2121,7 +2126,7 @@ type summary add -s "${var.origin%S} ${var.size%S}" curses::Rect
                 window.Erase();
                 window.SetBackground(2);
                 window.Box();
-                for (size_t i=0; i<num_submenus; ++i)
+                for (size_t i = 0; i < num_submenus; ++i)
                 {
                     const bool is_selected =
                       (i == static_cast<size_t>(selected_idx));
@@ -2171,7 +2176,6 @@ type summary add -s "${var.origin%S} ${var.size%S}" curses::Rect
                     break;
                     
                 case KEY_RIGHT:
-                {
                     ++m_selected;
                     if (m_selected >= static_cast<int>(num_submenus))
                         m_selected = 0;
@@ -2180,11 +2184,9 @@ type summary add -s "${var.origin%S} ${var.size%S}" curses::Rect
                     else if (!submenus.empty())
                         run_menu_sp = submenus.front();
                     result = eKeyHandled;
-                }
                     break;
                     
                 case KEY_LEFT:
-                {
                     --m_selected;
                     if (m_selected < 0)
                         m_selected = num_submenus - 1;
@@ -2193,11 +2195,10 @@ type summary add -s "${var.origin%S} ${var.size%S}" curses::Rect
                     else if (!submenus.empty())
                         run_menu_sp = submenus.front();
                     result = eKeyHandled;
-                }
                     break;
                     
                 default:
-                    for (size_t i=0; i<num_submenus; ++i)
+                    for (size_t i = 0; i < num_submenus; ++i)
                     {
                         if (submenus[i]->GetKeyValue() == key)
                         {
@@ -2285,8 +2286,7 @@ type summary add -s "${var.origin%S} ${var.size%S}" curses::Rect
                     return eKeyHandled;
                     
                 default:
-                {
-                    for (size_t i=0; i<num_submenus; ++i)
+                    for (size_t i = 0; i < num_submenus; ++i)
                     {
                         Menu *menu = submenus[i].get();
                         if (menu->GetKeyValue() == key)
@@ -2298,9 +2298,7 @@ type summary add -s "${var.origin%S} ${var.size%S}" curses::Rect
                             return eKeyHandled;
                         }
                     }
-                }
                     break;
-                    
             }
         }
         else if (menu_type == Menu::Type::Separator)
@@ -2314,11 +2312,10 @@ type summary add -s "${var.origin%S} ${var.size%S}" curses::Rect
     public:
         Application (FILE *in, FILE *out) :
             m_window_sp(),
-            m_screen (NULL),
+            m_screen(nullptr),
             m_in (in),
             m_out (out)
         {
-            
         }
         
         ~Application ()
@@ -2328,7 +2325,7 @@ type summary add -s "${var.origin%S} ${var.size%S}" curses::Rect
             if (m_screen)
             {
                 ::delscreen(m_screen);
-                m_screen = NULL;
+                m_screen = nullptr;
             }
         }
         
@@ -2340,7 +2337,7 @@ type summary add -s "${var.origin%S} ${var.size%S}" curses::Rect
 #if 0
             ::initscr();
 #else
-            m_screen = ::newterm(NULL, m_out, m_in);
+            m_screen = ::newterm(nullptr, m_out, m_in);
 #endif
             ::start_color();
             ::curs_set(0);
@@ -2369,7 +2366,7 @@ type summary add -s "${var.origin%S} ${var.size%S}" curses::Rect
             
             halfdelay(delay_in_tenths_of_a_second); // Poll using some number of tenths of seconds seconds when calling Window::GetChar()
 
-            ListenerSP listener_sp (new Listener ("lldb.IOHandler.curses.Application"));
+            ListenerSP listener_sp (Listener::MakeListener("lldb.IOHandler.curses.Application"));
             ConstString broadcaster_class_target(Target::GetStaticBroadcasterClass());
             ConstString broadcaster_class_process(Process::GetStaticBroadcasterClass());
             ConstString broadcaster_class_thread(Thread::GetStaticBroadcasterClass());
@@ -2457,7 +2454,7 @@ type summary add -s "${var.origin%S} ${var.size%S}" curses::Rect
                                     ConstString broadcaster_class (broadcaster->GetBroadcasterClass());
                                     if (broadcaster_class == broadcaster_class_process)
                                     {
-                                        debugger.GetCommandInterpreter().UpdateExecutionContext(NULL);
+                                        debugger.GetCommandInterpreter().UpdateExecutionContext(nullptr);
                                         update = true;
                                         continue; // Don't get any key, just update our view
                                     }
@@ -2472,7 +2469,7 @@ type summary add -s "${var.origin%S} ${var.size%S}" curses::Rect
                     switch (key_result)
                     {
                         case eKeyHandled:
-                            debugger.GetCommandInterpreter().UpdateExecutionContext(NULL);
+                            debugger.GetCommandInterpreter().UpdateExecutionContext(nullptr);
                             update = true;
                             break;
                         case eKeyNotHandled:
@@ -2556,7 +2553,7 @@ struct Row
             if (valobj)
             {
                 const size_t num_children = valobj->GetNumChildren();
-                for (size_t i=0; i<num_children; ++i)
+                for (size_t i = 0; i < num_children; ++i)
                 {
                     children.push_back(Row (valobj->GetChildAtIndex(i, true), this));
                 }
@@ -2646,7 +2643,7 @@ class TreeItem;
 class TreeDelegate
 {
 public:
-    TreeDelegate() {}
+    TreeDelegate() = default;
     virtual ~TreeDelegate() = default;
 
     virtual void TreeDelegateDrawTreeItem (TreeItem &item, Window &window) = 0;
@@ -2659,11 +2656,10 @@ typedef std::shared_ptr<TreeDelegate> TreeDelegateSP;
 class TreeItem
 {
 public:
-    
     TreeItem (TreeItem *parent, TreeDelegate &delegate, bool might_have_children) :
         m_parent (parent),
         m_delegate (delegate),
-        m_user_data (NULL),
+        m_user_data(nullptr),
         m_identifier (0),
         m_row_idx (-1),
         m_children (),
@@ -2751,7 +2747,7 @@ public:
         // The root item must calculate its children,
         // or we must calculate the number of children
         // if the item is expanded
-        if (m_parent == NULL || expanded)
+        if (m_parent == nullptr || expanded)
             GetNumChildren();
         
         for (auto &item : m_children)
@@ -2849,7 +2845,7 @@ public:
             {
                 // If we displayed all the rows and item.Draw() returns
                 // false we are done drawing and can exit this for loop
-                if (item.Draw(window, first_visible_row, selected_row_idx, row_idx, num_rows_left) == false)
+                if (!item.Draw(window, first_visible_row, selected_row_idx, row_idx, num_rows_left))
                     break;
             }
         }
@@ -2897,7 +2893,7 @@ public:
         if (static_cast<uint32_t>(m_row_idx) == row_idx)
             return this;
         if (m_children.empty())
-            return NULL;
+            return nullptr;
         if (IsExpanded())
         {
             for (auto &item : m_children)
@@ -2907,7 +2903,7 @@ public:
                     return selected_item_ptr;
             }
         }
-        return NULL;
+        return nullptr;
     }
     
     void *
@@ -2957,8 +2953,8 @@ public:
     TreeWindowDelegate (Debugger &debugger, const TreeDelegateSP &delegate_sp) :
         m_debugger (debugger),
         m_delegate_sp (delegate_sp),
-        m_root (NULL, *delegate_sp, true),
-        m_selected_item (NULL),
+        m_root(nullptr, *delegate_sp, true),
+        m_selected_item(nullptr),
         m_num_rows (0),
         m_selected_row_idx (0),
         m_first_visible_row (0),
@@ -3031,12 +3027,11 @@ public:
         }
         else
         {
-            m_selected_item = NULL;
+            m_selected_item = nullptr;
         }
         
         window.DeferredRefresh();
-        
-        
+
         return true; // Drawing handled
     }
 
@@ -3060,7 +3055,7 @@ public:
             { ' ', "Toggle item expansion" },
             { ',', "Page up" },
             { '.', "Page down" },
-            { '\0', NULL }
+            { '\0', nullptr }
         };
         return g_source_view_key_help;
     }
@@ -3205,7 +3200,7 @@ public:
                 StreamString strm;
                 const SymbolContext &sc = frame_sp->GetSymbolContext(eSymbolContextEverything);
                 ExecutionContext exe_ctx (frame_sp);
-                if (FormatEntity::Format(m_format, strm, &sc, &exe_ctx, NULL, NULL, false, false))
+                if (FormatEntity::Format(m_format, strm, &sc, &exe_ctx, nullptr, nullptr, false, false))
                 {
                     int right_pad = 1;
                     window.PutCStringTruncated(strm.GetString().c_str(), right_pad);
@@ -3276,7 +3271,7 @@ public:
         {
             StreamString strm;
             ExecutionContext exe_ctx (thread_sp);
-            if (FormatEntity::Format (m_format, strm, NULL, &exe_ctx, NULL, NULL, false, false))
+            if (FormatEntity::Format(m_format, strm, nullptr, &exe_ctx, nullptr, nullptr, false, false))
             {
                 int right_pad = 1;
                 window.PutCStringTruncated(strm.GetString().c_str(), right_pad);
@@ -3310,7 +3305,7 @@ public:
                     TreeItem t (&item, *m_frame_delegate_sp, false);
                     size_t num_frames = thread_sp->GetStackFrameCount();
                     item.Resize (num_frames, t);
-                    for (size_t i=0; i<num_frames; ++i)
+                    for (size_t i = 0; i < num_frames; ++i)
                     {
                         item[i].SetUserData(thread_sp.get());
                         item[i].SetIdentifier(i);
@@ -3335,7 +3330,7 @@ public:
                 if (thread_sp)
                 {
                     ThreadList &thread_list = thread_sp->GetProcess()->GetThreadList();
-                    Mutex::Locker locker (thread_list.GetMutex());
+                    std::lock_guard<std::recursive_mutex> guard(thread_list.GetMutex());
                     ThreadSP selected_thread_sp = thread_list.GetSelectedThread();
                     if (selected_thread_sp->GetID() != thread_sp->GetID())
                     {
@@ -3385,7 +3380,7 @@ public:
         {
             StreamString strm;
             ExecutionContext exe_ctx (process_sp);
-            if (FormatEntity::Format (m_format, strm, NULL, &exe_ctx, NULL, NULL, false, false))
+            if (FormatEntity::Format(m_format, strm, nullptr, &exe_ctx, nullptr, nullptr, false, false))
             {
                 int right_pad = 1;
                 window.PutCStringTruncated(strm.GetString().c_str(), right_pad);
@@ -3417,10 +3412,10 @@ public:
                 
                 TreeItem t (&item, *m_thread_delegate_sp, false);
                 ThreadList &threads = process_sp->GetThreadList();
-                Mutex::Locker locker (threads.GetMutex());
+                std::lock_guard<std::recursive_mutex> guard(threads.GetMutex());
                 size_t num_threads = threads.GetSize();
                 item.Resize (num_threads, t);
-                for (size_t i=0; i<num_threads; ++i)
+                for (size_t i = 0; i < num_threads; ++i)
                 {
                     item[i].SetIdentifier(threads.GetThreadAtIndex(i)->GetID());
                     item[i].SetMightHaveChildren(true);
@@ -3450,7 +3445,7 @@ public:
     ValueObjectListDelegate () :
         m_valobj_list (),
         m_rows (),
-        m_selected_row (NULL),
+        m_selected_row(nullptr),
         m_selected_row_idx (0),
         m_first_visible_row (0),
         m_num_rows (0),
@@ -3462,7 +3457,7 @@ public:
     ValueObjectListDelegate (ValueObjectList &valobj_list) :
         m_valobj_list (valobj_list),
         m_rows (),
-        m_selected_row (NULL),
+        m_selected_row(nullptr),
         m_selected_row_idx (0),
         m_first_visible_row (0),
         m_num_rows (0),
@@ -3477,15 +3472,15 @@ public:
     void
     SetValues (ValueObjectList &valobj_list)
     {
-        m_selected_row = NULL;
+        m_selected_row = nullptr;
         m_selected_row_idx = 0;
         m_first_visible_row = 0;
         m_num_rows = 0;
         m_rows.clear();
         m_valobj_list = valobj_list;
         const size_t num_values = m_valobj_list.GetSize();
-        for (size_t i=0; i<num_values; ++i)
-            m_rows.push_back(Row(m_valobj_list.GetValueObjectAtIndex(i), NULL));
+        for (size_t i = 0; i < num_values; ++i)
+            m_rows.push_back(Row(m_valobj_list.GetValueObjectAtIndex(i), nullptr));
     }
     
     bool
@@ -3560,7 +3555,7 @@ public:
             { ' ', "Toggle item expansion" },
             { ',', "Page up" },
             { '.', "Page down" },
-            { '\0', NULL }
+            { '\0', nullptr }
         };
         return g_source_view_key_help;
     }
@@ -3713,10 +3708,10 @@ protected:
     {
         ValueObject *valobj = row.valobj.get();
         
-        if (valobj == NULL)
+        if (valobj == nullptr)
             return false;
     
-        const char *type_name = options.show_types ? valobj->GetTypeName().GetCString() : NULL;
+        const char *type_name = options.show_types ? valobj->GetTypeName().GetCString() : nullptr;
         const char *name = valobj->GetName().GetCString();
         const char *value = valobj->GetValueAsCString ();
         const char *summary = valobj->GetSummaryAsCString ();
@@ -3844,7 +3839,7 @@ protected:
                 }
             }
         }
-        return NULL;
+        return nullptr;
     }
     
     Row *
@@ -3868,7 +3863,7 @@ public:
     FrameVariablesWindowDelegate (Debugger &debugger) :
         ValueObjectListDelegate (),
         m_debugger (debugger),
-        m_frame_block (NULL)
+        m_frame_block(nullptr)
     {
     }
 
@@ -3885,8 +3880,8 @@ public:
     {
         ExecutionContext exe_ctx (m_debugger.GetCommandInterpreter().GetExecutionContext());
         Process *process = exe_ctx.GetProcessPtr();
-        Block *frame_block = NULL;
-        StackFrame *frame = NULL;
+        Block *frame_block = nullptr;
+        StackFrame *frame = nullptr;
         
         if (process)
         {
@@ -3916,7 +3911,7 @@ public:
                 {
                     const DynamicValueType use_dynamic = eDynamicDontRunTarget;
                     const size_t num_locals = locals->GetSize();
-                    for (size_t i=0; i<num_locals; ++i)
+                    for (size_t i = 0; i < num_locals; ++i)
                     {
                         ValueObjectSP value_sp = frame->GetValueObjectForFrameVariable (locals->GetVariableAtIndex(i), use_dynamic);
                         if (value_sp)
@@ -3926,7 +3921,6 @@ public:
                                 local_values.Append(synthetic_value_sp);
                             else
                                 local_values.Append(value_sp);
-
                         }
                     }
                     // Update the values
@@ -3936,7 +3930,7 @@ public:
         }
         else
         {
-            m_frame_block = NULL;
+            m_frame_block = nullptr;
             // Update the values with an empty list if there is no frame
             SetValues(local_values);
         }
@@ -4121,7 +4115,7 @@ CursesKeyToCString (int ch)
                 snprintf(g_desc, sizeof(g_desc), "\\x%2.2x", ch);
             return g_desc;
     }
-    return NULL;
+    return nullptr;
 }
 
 HelpDialogDelegate::HelpDialogDelegate (const char *text, KeyHelp *key_help_array) :
@@ -4328,7 +4322,7 @@ public:
             { KEY_RIGHT, "Expand" },
             { KEY_PPAGE, "Page up" },
             { KEY_NPAGE, "Page down" },
-            { '\0', NULL }
+            { '\0', nullptr }
         };
         return g_source_view_key_help;
     }
@@ -4437,9 +4431,9 @@ public:
                             submenus.erase (submenus.begin() + 8, submenus.end());
                         
                         ThreadList &threads = process->GetThreadList();
-                        Mutex::Locker locker (threads.GetMutex());
+                        std::lock_guard<std::recursive_mutex> guard(threads.GetMutex());
                         size_t num_threads = threads.GetSize();
-                        for (size_t i=0; i<num_threads; ++i)
+                        for (size_t i = 0; i < num_threads; ++i)
                         {
                             ThreadSP thread_sp = threads.GetThreadAtIndex(i);
                             char menu_char = '\0';
@@ -4456,7 +4450,7 @@ public:
                                 if (queue_name && queue_name[0])
                                     thread_menu_title.Printf (" %s", queue_name);
                             }
-                            menu.AddSubmenu (MenuSP (new Menu(thread_menu_title.GetString().c_str(), NULL, menu_char, thread_sp->GetID())));
+                            menu.AddSubmenu(MenuSP(new Menu(thread_menu_title.GetString().c_str(), nullptr, menu_char, thread_sp->GetID())));
                         }
                     }
                     else if (submenus.size() > 7)
@@ -4629,7 +4623,7 @@ public:
             if (StateIsStoppedState(state, true))
             {
                 StreamString strm;
-                if (thread && FormatEntity::Format (m_format, strm, NULL, &exe_ctx, NULL, NULL, false, false))
+                if (thread && FormatEntity::Format(m_format, strm, nullptr, &exe_ctx, nullptr, nullptr, false, false))
                 {
                     window.MoveCursor (40, 0);
                     window.PutCStringTruncated(strm.GetString().c_str(), 1);
@@ -4666,7 +4660,7 @@ public:
         m_debugger (debugger),
         m_sc (),
         m_file_sp (),
-        m_disassembly_scope (NULL),
+        m_disassembly_scope(nullptr),
         m_disassembly_sp (),
         m_disassembly_range (),
         m_title (),
@@ -4725,7 +4719,7 @@ public:
             { 'S', "Step in (single instruction)" },
             { ',', "Page up" },
             { '.', "Page down" },
-            { '\0', NULL }
+            { '\0', nullptr }
         };
         return g_source_view_key_help;
     }
@@ -4735,7 +4729,7 @@ public:
     {
         ExecutionContext exe_ctx = m_debugger.GetCommandInterpreter().GetExecutionContext();
         Process *process = exe_ctx.GetProcessPtr();
-        Thread *thread = NULL;
+        Thread *thread = nullptr;
 
         bool update_location = false;
         if (process)
@@ -4870,7 +4864,7 @@ public:
                         if (m_disassembly_scope != m_sc.function)
                         {
                             m_disassembly_scope = m_sc.function;
-                            m_disassembly_sp = m_sc.function->GetInstructions (exe_ctx, NULL, prefer_file_cache);
+                            m_disassembly_sp = m_sc.function->GetInstructions(exe_ctx, nullptr, prefer_file_cache);
                             if (m_disassembly_sp)
                             {
                                 set_selected_line_to_pc = true;
@@ -4891,7 +4885,7 @@ public:
                         if (m_disassembly_scope != m_sc.symbol)
                         {
                             m_disassembly_scope = m_sc.symbol;
-                            m_disassembly_sp = m_sc.symbol->GetInstructions (exe_ctx, NULL, prefer_file_cache);
+                            m_disassembly_sp = m_sc.symbol->GetInstructions(exe_ctx, nullptr, prefer_file_cache);
                             if (m_disassembly_sp)
                             {
                                 set_selected_line_to_pc = true;
@@ -4965,7 +4959,7 @@ public:
             const attr_t selected_highlight_attr = A_REVERSE;
             const attr_t pc_highlight_attr = COLOR_PAIR(1);
 
-            for (size_t i=0; i<num_visible_lines; ++i)
+            for (size_t i = 0; i < num_visible_lines; ++i)
             {
                 const uint32_t curr_line = m_first_visible_line + i;
                 if (curr_line < num_source_lines)
@@ -5095,7 +5089,7 @@ public:
                         m_first_visible_line = pc_idx - non_visible_pc_offset;
                 }
 
-                for (size_t i=0; i<num_visible_lines; ++i)
+                for (size_t i = 0; i < num_visible_lines; ++i)
                 {
                     const uint32_t inst_idx = m_first_visible_line + i;
                     Instruction *inst = insts.GetInstructionAtIndex(inst_idx).get();
@@ -5141,20 +5135,20 @@ public:
                     const char *operands = inst->GetOperands(&exe_ctx);
                     const char *comment = inst->GetComment(&exe_ctx);
 
-                    if (mnemonic && mnemonic[0] == '\0')
-                        mnemonic = NULL;
-                    if (operands && operands[0] == '\0')
-                        operands = NULL;
-                    if (comment && comment[0] == '\0')
-                        comment = NULL;
+                    if (mnemonic != nullptr && mnemonic[0] == '\0')
+                        mnemonic = nullptr;
+                    if (operands != nullptr && operands[0] == '\0')
+                        operands = nullptr;
+                    if (comment != nullptr && comment[0] == '\0')
+                        comment = nullptr;
 
                     strm.Clear();
 
-                    if (mnemonic && operands && comment)
+                    if (mnemonic != nullptr && operands != nullptr && comment != nullptr)
                         strm.Printf ("%-8s %-25s ; %s", mnemonic, operands, comment);
-                    else if (mnemonic && operands)
+                    else if (mnemonic != nullptr && operands != nullptr)
                         strm.Printf ("%-8s %s", mnemonic, operands);
-                    else if (mnemonic)
+                    else if (mnemonic != nullptr)
                         strm.Printf ("%s", mnemonic);
 
                     int right_pad = 1;
@@ -5275,14 +5269,15 @@ public:
                     ExecutionContext exe_ctx = m_debugger.GetCommandInterpreter().GetExecutionContext();
                     if (exe_ctx.HasProcessScope() && exe_ctx.GetProcessRef().IsAlive())
                     {
-                        BreakpointSP bp_sp = exe_ctx.GetTargetRef().CreateBreakpoint (NULL,                      // Don't limit the breakpoint to certain modules
-                                                                                      m_file_sp->GetFileSpec(),  // Source file
-                                                                                      m_selected_line + 1,       // Source line number (m_selected_line is zero based)
-                                                                                      eLazyBoolCalculate,        // Check inlines using global setting
-                                                                                      eLazyBoolCalculate,        // Skip prologue using global setting,
-                                                                                      false,                     // internal
-                                                                                      false,                     // request_hardware
-                                                                                      eLazyBoolCalculate);       // move_to_nearest_code
+                        BreakpointSP bp_sp = exe_ctx.GetTargetRef().CreateBreakpoint(nullptr,                   // Don't limit the breakpoint to certain modules
+                                                                                     m_file_sp->GetFileSpec(),  // Source file
+                                                                                     m_selected_line + 1,       // Source line number (m_selected_line is zero based)
+                                                                                     0,                         // No offset
+                                                                                     eLazyBoolCalculate,        // Check inlines using global setting
+                                                                                     eLazyBoolCalculate,        // Skip prologue using global setting,
+                                                                                     false,                     // internal
+                                                                                     false,                     // request_hardware
+                                                                                     eLazyBoolCalculate);       // move_to_nearest_code
                         // Make breakpoint one shot
                         bp_sp->GetOptions()->SetOneShot(true);
                         exe_ctx.GetProcessRef().Resume();
@@ -5311,14 +5306,15 @@ public:
                     ExecutionContext exe_ctx = m_debugger.GetCommandInterpreter().GetExecutionContext();
                     if (exe_ctx.HasTargetScope())
                     {
-                        BreakpointSP bp_sp = exe_ctx.GetTargetRef().CreateBreakpoint (NULL,                      // Don't limit the breakpoint to certain modules
-                                                                                      m_file_sp->GetFileSpec(),  // Source file
-                                                                                      m_selected_line + 1,       // Source line number (m_selected_line is zero based)
-                                                                                      eLazyBoolCalculate,        // Check inlines using global setting
-                                                                                      eLazyBoolCalculate,        // Skip prologue using global setting,
-                                                                                      false,                     // internal
-                                                                                      false,                     // request_hardware
-                                                                                      eLazyBoolCalculate);       // move_to_nearest_code
+                        BreakpointSP bp_sp = exe_ctx.GetTargetRef().CreateBreakpoint(nullptr,                   // Don't limit the breakpoint to certain modules
+                                                                                     m_file_sp->GetFileSpec(),  // Source file
+                                                                                     m_selected_line + 1,       // Source line number (m_selected_line is zero based)
+                                                                                     0,                         // No offset
+                                                                                     eLazyBoolCalculate,        // Check inlines using global setting
+                                                                                     eLazyBoolCalculate,        // Skip prologue using global setting,
+                                                                                     false,                     // internal
+                                                                                     false,                     // request_hardware
+                                                                                     eLazyBoolCalculate);       // move_to_nearest_code
                     }
                 }
                 else if (m_selected_line < GetNumDisassemblyLines())
@@ -5452,38 +5448,38 @@ IOHandlerCursesGUI::Activate ()
         
         MenuDelegateSP app_menu_delegate_sp = std::static_pointer_cast<MenuDelegate>(app_delegate_sp);
         MenuSP lldb_menu_sp(new Menu("LLDB" , "F1", KEY_F(1), ApplicationDelegate::eMenuID_LLDB));
-        MenuSP exit_menuitem_sp(new Menu("Exit", NULL, 'x', ApplicationDelegate::eMenuID_LLDBExit));
+        MenuSP exit_menuitem_sp(new Menu("Exit", nullptr, 'x', ApplicationDelegate::eMenuID_LLDBExit));
         exit_menuitem_sp->SetCannedResult(MenuActionResult::Quit);
-        lldb_menu_sp->AddSubmenu (MenuSP (new Menu("About LLDB", NULL, 'a', ApplicationDelegate::eMenuID_LLDBAbout)));
+        lldb_menu_sp->AddSubmenu (MenuSP (new Menu("About LLDB", nullptr, 'a', ApplicationDelegate::eMenuID_LLDBAbout)));
         lldb_menu_sp->AddSubmenu (MenuSP (new Menu(Menu::Type::Separator)));
         lldb_menu_sp->AddSubmenu (exit_menuitem_sp);
         
         MenuSP target_menu_sp(new Menu("Target" ,"F2", KEY_F(2), ApplicationDelegate::eMenuID_Target));
-        target_menu_sp->AddSubmenu (MenuSP (new Menu("Create", NULL, 'c', ApplicationDelegate::eMenuID_TargetCreate)));
-        target_menu_sp->AddSubmenu (MenuSP (new Menu("Delete", NULL, 'd', ApplicationDelegate::eMenuID_TargetDelete)));
+        target_menu_sp->AddSubmenu (MenuSP (new Menu("Create", nullptr, 'c', ApplicationDelegate::eMenuID_TargetCreate)));
+        target_menu_sp->AddSubmenu (MenuSP (new Menu("Delete", nullptr, 'd', ApplicationDelegate::eMenuID_TargetDelete)));
         
         MenuSP process_menu_sp(new Menu("Process", "F3", KEY_F(3), ApplicationDelegate::eMenuID_Process));
-        process_menu_sp->AddSubmenu (MenuSP (new Menu("Attach"  , NULL, 'a', ApplicationDelegate::eMenuID_ProcessAttach)));
-        process_menu_sp->AddSubmenu (MenuSP (new Menu("Detach"  , NULL, 'd', ApplicationDelegate::eMenuID_ProcessDetach)));
-        process_menu_sp->AddSubmenu (MenuSP (new Menu("Launch"  , NULL, 'l', ApplicationDelegate::eMenuID_ProcessLaunch)));
+        process_menu_sp->AddSubmenu (MenuSP (new Menu("Attach"  , nullptr, 'a', ApplicationDelegate::eMenuID_ProcessAttach)));
+        process_menu_sp->AddSubmenu (MenuSP (new Menu("Detach"  , nullptr, 'd', ApplicationDelegate::eMenuID_ProcessDetach)));
+        process_menu_sp->AddSubmenu (MenuSP (new Menu("Launch"  , nullptr, 'l', ApplicationDelegate::eMenuID_ProcessLaunch)));
         process_menu_sp->AddSubmenu (MenuSP (new Menu(Menu::Type::Separator)));
-        process_menu_sp->AddSubmenu (MenuSP (new Menu("Continue", NULL, 'c', ApplicationDelegate::eMenuID_ProcessContinue)));
-        process_menu_sp->AddSubmenu (MenuSP (new Menu("Halt"    , NULL, 'h', ApplicationDelegate::eMenuID_ProcessHalt)));
-        process_menu_sp->AddSubmenu (MenuSP (new Menu("Kill"    , NULL, 'k', ApplicationDelegate::eMenuID_ProcessKill)));
+        process_menu_sp->AddSubmenu (MenuSP (new Menu("Continue", nullptr, 'c', ApplicationDelegate::eMenuID_ProcessContinue)));
+        process_menu_sp->AddSubmenu (MenuSP (new Menu("Halt"    , nullptr, 'h', ApplicationDelegate::eMenuID_ProcessHalt)));
+        process_menu_sp->AddSubmenu (MenuSP (new Menu("Kill"    , nullptr, 'k', ApplicationDelegate::eMenuID_ProcessKill)));
         
         MenuSP thread_menu_sp(new Menu("Thread", "F4", KEY_F(4), ApplicationDelegate::eMenuID_Thread));
-        thread_menu_sp->AddSubmenu (MenuSP (new Menu("Step In"  , NULL, 'i', ApplicationDelegate::eMenuID_ThreadStepIn)));
-        thread_menu_sp->AddSubmenu (MenuSP (new Menu("Step Over", NULL, 'v', ApplicationDelegate::eMenuID_ThreadStepOver)));
-        thread_menu_sp->AddSubmenu (MenuSP (new Menu("Step Out" , NULL, 'o', ApplicationDelegate::eMenuID_ThreadStepOut)));
+        thread_menu_sp->AddSubmenu (MenuSP (new Menu("Step In"  , nullptr, 'i', ApplicationDelegate::eMenuID_ThreadStepIn)));
+        thread_menu_sp->AddSubmenu (MenuSP (new Menu("Step Over", nullptr, 'v', ApplicationDelegate::eMenuID_ThreadStepOver)));
+        thread_menu_sp->AddSubmenu (MenuSP (new Menu("Step Out" , nullptr, 'o', ApplicationDelegate::eMenuID_ThreadStepOut)));
         
         MenuSP view_menu_sp(new Menu("View", "F5", KEY_F(5), ApplicationDelegate::eMenuID_View));
-        view_menu_sp->AddSubmenu (MenuSP (new Menu("Backtrace", NULL, 'b', ApplicationDelegate::eMenuID_ViewBacktrace)));
-        view_menu_sp->AddSubmenu (MenuSP (new Menu("Registers", NULL, 'r', ApplicationDelegate::eMenuID_ViewRegisters)));
-        view_menu_sp->AddSubmenu (MenuSP (new Menu("Source"   , NULL, 's', ApplicationDelegate::eMenuID_ViewSource)));
-        view_menu_sp->AddSubmenu (MenuSP (new Menu("Variables", NULL, 'v', ApplicationDelegate::eMenuID_ViewVariables)));
+        view_menu_sp->AddSubmenu (MenuSP (new Menu("Backtrace", nullptr, 'b', ApplicationDelegate::eMenuID_ViewBacktrace)));
+        view_menu_sp->AddSubmenu (MenuSP (new Menu("Registers", nullptr, 'r', ApplicationDelegate::eMenuID_ViewRegisters)));
+        view_menu_sp->AddSubmenu (MenuSP (new Menu("Source"   , nullptr, 's', ApplicationDelegate::eMenuID_ViewSource)));
+        view_menu_sp->AddSubmenu (MenuSP (new Menu("Variables", nullptr, 'v', ApplicationDelegate::eMenuID_ViewVariables)));
         
         MenuSP help_menu_sp(new Menu("Help", "F6", KEY_F(6), ApplicationDelegate::eMenuID_Help));
-        help_menu_sp->AddSubmenu (MenuSP (new Menu("GUI Help", NULL, 'g', ApplicationDelegate::eMenuID_HelpGUIHelp)));
+        help_menu_sp->AddSubmenu (MenuSP (new Menu("GUI Help", nullptr, 'g', ApplicationDelegate::eMenuID_HelpGUIHelp)));
         
         m_app_ap->Initialize();
         WindowSP &main_window_sp = m_app_ap->GetMainWindow();

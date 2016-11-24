@@ -27,6 +27,7 @@
 #include "clang/Lex/HeaderSearch.h"
 #include "clang/Lex/PreprocessingRecord.h"
 #include "clang/Sema/ExternalSemaSource.h"
+#include "clang/Sema/IdentifierResolver.h"
 #include "clang/Serialization/ASTBitCodes.h"
 #include "clang/Serialization/ContinuousRangeMap.h"
 #include "clang/Serialization/Module.h"
@@ -390,6 +391,11 @@ private:
   /// \brief The module manager which manages modules and their dependencies
   ModuleManager ModuleMgr;
 
+  /// \brief A dummy identifier resolver used to merge TU-scope declarations in
+  /// C, for the cases where we don't have a Sema object to provide a real
+  /// identifier resolver.
+  IdentifierResolver DummyIdResolver;
+
   /// A mapping from extension block names to module file extensions.
   llvm::StringMap<IntrusiveRefCntPtr<ModuleFileExtension>> ModuleFileExtensions;
 
@@ -468,21 +474,6 @@ private:
   /// canonical declaration (used only for deduplication) and the value is a
   /// declaration that has an exception specification.
   llvm::SmallMapVector<Decl *, FunctionDecl *, 4> PendingExceptionSpecUpdates;
-
-  struct ReplacedDeclInfo {
-    ModuleFile *Mod;
-    uint64_t Offset;
-    unsigned RawLoc;
-
-    ReplacedDeclInfo() : Mod(nullptr), Offset(0), RawLoc(0) {}
-    ReplacedDeclInfo(ModuleFile *Mod, uint64_t Offset, unsigned RawLoc)
-      : Mod(Mod), Offset(Offset), RawLoc(RawLoc) {}
-  };
-
-  typedef llvm::DenseMap<serialization::DeclID, ReplacedDeclInfo>
-      DeclReplacementMap;
-  /// \brief Declarations that have been replaced in a later file in the chain.
-  DeclReplacementMap ReplacedDecls;
 
   /// \brief Declarations that have been imported and have typedef names for
   /// linkage purposes.
@@ -668,6 +659,10 @@ private:
   /// global method pool for this selector.
   llvm::DenseMap<Selector, unsigned> SelectorGeneration;
 
+  /// Whether a selector is out of date. We mark a selector as out of date
+  /// if we load another module after the method pool entry was pulled in.
+  llvm::DenseMap<Selector, bool> SelectorOutOfDate;
+
   struct PendingMacroInfo {
     ModuleFile *M;
     uint64_t MacroDirectivesOffset;
@@ -785,6 +780,13 @@ private:
   /// \brief The pragma clang optimize location (if the pragma state is "off").
   SourceLocation OptimizeOffPragmaLocation;
 
+  /// \brief The PragmaMSStructKind pragma ms_struct state if set, or -1.
+  int PragmaMSStructState;
+
+  /// \brief The PragmaMSPointersToMembersKind pragma pointers_to_members state.
+  int PragmaMSPointersToMembersState;
+  SourceLocation PointersToMembersPragmaLocation;
+
   /// \brief The OpenCL extension settings.
   SmallVector<uint64_t, 1> OpenCLExtensions;
 
@@ -840,6 +842,9 @@ private:
 
   /// \brief Whether we have tried loading the global module index yet.
   bool TriedLoadingGlobalIndex;
+
+  ///\brief Whether we are currently processing update records.
+  bool ProcessingUpdateRecords;
 
   typedef llvm::DenseMap<unsigned, SwitchCase *> SwitchCaseMapTy;
   /// \brief Mapping from switch-case IDs in the chain to switch-case statements
@@ -1040,6 +1045,23 @@ private:
     ~ReadingKindTracker() { Reader.ReadingKind = PrevKind; }
   };
 
+  /// \brief RAII object to mark the start of processing updates.
+  class ProcessingUpdatesRAIIObj {
+    ASTReader &Reader;
+    bool PrevState;
+
+    ProcessingUpdatesRAIIObj(const ProcessingUpdatesRAIIObj &) = delete;
+    void operator=(const ProcessingUpdatesRAIIObj &) = delete;
+
+  public:
+    ProcessingUpdatesRAIIObj(ASTReader &reader)
+      : Reader(reader), PrevState(Reader.ProcessingUpdateRecords) {
+      Reader.ProcessingUpdateRecords = true;
+    }
+
+    ~ProcessingUpdatesRAIIObj() { Reader.ProcessingUpdateRecords = PrevState; }
+  };
+
   /// \brief Suggested contents of the predefines buffer, after this
   /// PCH file has been processed.
   ///
@@ -1183,7 +1205,7 @@ private:
   Decl *getMostRecentExistingDecl(Decl *D);
 
   RecordLocation DeclCursorForID(serialization::DeclID ID,
-                                 unsigned &RawLocation);
+                                 SourceLocation &Location);
   void loadDeclUpdateRecords(serialization::DeclID ID, Decl *D);
   void loadPendingDeclChain(Decl *D, uint64_t LocalOffset);
   void loadObjCCategories(serialization::GlobalDeclID ID, ObjCInterfaceDecl *D,
@@ -1364,7 +1386,7 @@ public:
   /// \param ClientLoadCapabilities The set of client load-failure
   /// capabilities, represented as a bitset of the enumerators of
   /// LoadFailureCapabilities.
-  ASTReadResult ReadAST(const std::string &FileName, ModuleKind Type,
+  ASTReadResult ReadAST(StringRef FileName, ModuleKind Type,
                         SourceLocation ImportLoc,
                         unsigned ClientLoadCapabilities);
 
@@ -1695,11 +1717,6 @@ public:
   /// redeclaration chain for \p D.
   void CompleteRedeclChain(const Decl *D) override;
 
-  /// \brief Read a CXXBaseSpecifiers ID form the given record and
-  /// return its global bit offset.
-  uint64_t readCXXBaseSpecifiers(ModuleFile &M, const RecordData &Record,
-                                 unsigned &Idx);
-
   CXXBaseSpecifier *GetExternalCXXBaseSpecifiers(uint64_t Offset) override;
 
   /// \brief Resolve the offset of a statement into a statement.
@@ -1794,13 +1811,17 @@ public:
   /// selector.
   void ReadMethodPool(Selector Sel) override;
 
+  /// Load the contents of the global method pool for a given
+  /// selector if necessary.
+  void updateOutOfDateSelector(Selector Sel) override;
+
   /// \brief Load the set of namespaces that are known to the external source,
   /// which will be used during typo correction.
   void ReadKnownNamespaces(
                          SmallVectorImpl<NamespaceDecl *> &Namespaces) override;
 
   void ReadUndefinedButUsed(
-               llvm::DenseMap<NamedDecl *, SourceLocation> &Undefined) override;
+      llvm::MapVector<NamedDecl *, SourceLocation> &Undefined) override;
 
   void ReadMismatchingDeleteExpressions(llvm::MapVector<
       FieldDecl *, llvm::SmallVector<std::pair<SourceLocation, bool>, 4>> &
@@ -1979,18 +2000,27 @@ public:
   ReadCXXCtorInitializers(ModuleFile &F, const RecordData &Record,
                           unsigned &Idx);
 
-  /// \brief Read a CXXCtorInitializers ID from the given record and
-  /// return its global bit offset.
-  uint64_t ReadCXXCtorInitializersRef(ModuleFile &M, const RecordData &Record,
-                                      unsigned &Idx);
-
   /// \brief Read the contents of a CXXCtorInitializer array.
   CXXCtorInitializer **GetExternalCXXCtorInitializers(uint64_t Offset) override;
 
+  /// \brief Read a source location from raw form and return it in its
+  /// originating module file's source location space.
+  SourceLocation ReadUntranslatedSourceLocation(uint32_t Raw) const {
+    return SourceLocation::getFromRawEncoding((Raw >> 1) | (Raw << 31));
+  }
+
   /// \brief Read a source location from raw form.
-  SourceLocation ReadSourceLocation(ModuleFile &ModuleFile, unsigned Raw) const {
-    SourceLocation Loc = SourceLocation::getFromRawEncoding(Raw);
-    assert(ModuleFile.SLocRemap.find(Loc.getOffset()) != ModuleFile.SLocRemap.end() &&
+  SourceLocation ReadSourceLocation(ModuleFile &ModuleFile, uint32_t Raw) const {
+    SourceLocation Loc = ReadUntranslatedSourceLocation(Raw);
+    return TranslateSourceLocation(ModuleFile, Loc);
+  }
+
+  /// \brief Translate a source location from another module file's source
+  /// location space into ours.
+  SourceLocation TranslateSourceLocation(ModuleFile &ModuleFile,
+                                         SourceLocation Loc) const {
+    assert(ModuleFile.SLocRemap.find(Loc.getOffset()) !=
+               ModuleFile.SLocRemap.end() &&
            "Cannot find offset to remap.");
     int Remap = ModuleFile.SLocRemap.find(Loc.getOffset())->second;
     return Loc.getLocWithOffset(Remap);
@@ -2096,6 +2126,11 @@ public:
   /// imported.
   Sema *getSema() { return SemaObj; }
 
+  /// \brief Get the identifier resolver used for name lookup / updates
+  /// in the translation unit scope. We have one of these even if we don't
+  /// have a Sema object.
+  IdentifierResolver &getIdResolver();
+
   /// \brief Retrieve the identifier table associated with the
   /// preprocessor.
   IdentifierTable &getIdentifierTable();
@@ -2115,6 +2150,8 @@ public:
 
   /// \brief Loads comments ranges.
   void ReadComments() override;
+
+  bool isProcessingUpdateRecords() { return ProcessingUpdateRecords; }
 };
 
 /// \brief Helper class that saves the current stream position and

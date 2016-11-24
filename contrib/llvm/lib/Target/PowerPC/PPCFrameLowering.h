@@ -66,6 +66,13 @@ class PPCFrameLowering: public TargetFrameLowering {
                            unsigned *SR2 = nullptr) const;
   bool twoUniqueScratchRegsRequired(MachineBasicBlock *MBB) const;
 
+  /**
+   * \brief Create branch instruction for PPC::TCRETURN* (tail call return)
+   *
+   * \param[in] MBB that is terminated by PPC::TCRETURN*
+   */
+  void createTailCallBranchInstr(MachineBasicBlock &MBB) const;
+
 public:
   PPCFrameLowering(const PPCSubtarget &STI);
 
@@ -93,9 +100,9 @@ public:
                                  const std::vector<CalleeSavedInfo> &CSI,
                                  const TargetRegisterInfo *TRI) const override;
 
-  void eliminateCallFramePseudoInstr(MachineFunction &MF,
-                                  MachineBasicBlock &MBB,
-                                  MachineBasicBlock::iterator I) const override;
+  MachineBasicBlock::iterator
+  eliminateCallFramePseudoInstr(MachineFunction &MF, MachineBasicBlock &MBB,
+                                MachineBasicBlock::iterator I) const override;
 
   bool restoreCalleeSavedRegisters(MachineBasicBlock &MBB,
                                   MachineBasicBlock::iterator MI,

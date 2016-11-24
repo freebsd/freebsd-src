@@ -793,8 +793,8 @@ GDBRemoteCommunication::PacketType
 GDBRemoteCommunication::CheckForPacket (const uint8_t *src, size_t src_len, StringExtractorGDBRemote &packet)
 {
     // Put the packet data into the buffer in a thread safe fashion
-    Mutex::Locker locker(m_bytes_mutex);
-    
+    std::lock_guard<std::recursive_mutex> guard(m_bytes_mutex);
+
     Log *log (ProcessGDBRemoteLog::GetLogIfAllCategoriesSet (GDBR_LOG_PACKETS));
 
     if (src && src_len > 0)
@@ -845,7 +845,7 @@ GDBRemoteCommunication::CheckForPacket (const uint8_t *src, size_t src_len, Stri
 
             case '%': // Async notify packet
                 isNotifyPacket = true;
-                // Intentional fall through
+                LLVM_FALLTHROUGH;
 
             case '$':
                 // Look for a standard gdb packet?
@@ -1120,7 +1120,7 @@ GDBRemoteCommunication::StartDebugserverProcess (const char *url,
 {
     Log *log (ProcessGDBRemoteLog::GetLogIfAllCategoriesSet (GDBR_LOG_PROCESS));
     if (log)
-        log->Printf ("GDBRemoteCommunication::%s(url=%s, port=%" PRIu16, __FUNCTION__, url ? url : "<empty>", port ? *port : uint16_t(0));
+        log->Printf ("GDBRemoteCommunication::%s(url=%s, port=%" PRIu16 ")", __FUNCTION__, url ? url : "<empty>", port ? *port : uint16_t(0));
 
     Error error;
     // If we locate debugserver, keep that located version around
@@ -1352,7 +1352,14 @@ GDBRemoteCommunication::StartDebugserverProcess (const char *url,
         launch_info.AppendSuppressFileAction (STDIN_FILENO, true, false);
         launch_info.AppendSuppressFileAction (STDOUT_FILENO, false, true);
         launch_info.AppendSuppressFileAction (STDERR_FILENO, false, true);
-        
+
+        if (log)
+        {
+            StreamString string_stream;
+            Platform *const platform = nullptr;
+            launch_info.Dump(string_stream, platform);
+            log->Printf("launch info for gdb-remote stub:\n%s", string_stream.GetString().c_str());
+        }
         error = Host::LaunchProcess(launch_info);
         
         if (error.Success() &&

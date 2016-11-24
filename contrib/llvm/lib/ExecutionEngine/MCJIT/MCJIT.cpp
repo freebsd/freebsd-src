@@ -85,6 +85,9 @@ MCJIT::MCJIT(std::unique_ptr<Module> M, std::unique_ptr<TargetMachine> TM,
   std::unique_ptr<Module> First = std::move(Modules[0]);
   Modules.clear();
 
+  if (First->getDataLayout().isDefault())
+    First->setDataLayout(getDataLayout());
+
   OwnedModules.addModule(std::move(First));
   RegisterJITEventListener(JITEventListener::createGDBRegistrationListener());
 }
@@ -103,6 +106,10 @@ MCJIT::~MCJIT() {
 
 void MCJIT::addModule(std::unique_ptr<Module> M) {
   MutexGuard locked(lock);
+
+  if (M->getDataLayout().isDefault())
+    M->setDataLayout(getDataLayout());
+
   OwnedModules.addModule(std::move(M));
 }
 
@@ -192,11 +199,7 @@ void MCJIT::generateCodeForModule(Module *M) {
   if (ObjCache)
     ObjectToLoad = ObjCache->getObject(M);
 
-  if (M->getDataLayout().isDefault()) {
-    M->setDataLayout(getDataLayout());
-  } else {
-    assert(M->getDataLayout() == getDataLayout() && "DataLayout Mismatch");
-  }
+  assert(M->getDataLayout() == getDataLayout() && "DataLayout Mismatch");
 
   // If the cache did not contain a suitable object, compile the object
   if (!ObjectToLoad) {
@@ -206,8 +209,15 @@ void MCJIT::generateCodeForModule(Module *M) {
 
   // Load the object into the dynamic linker.
   // MCJIT now owns the ObjectImage pointer (via its LoadedObjects list).
-  ErrorOr<std::unique_ptr<object::ObjectFile>> LoadedObject =
+  Expected<std::unique_ptr<object::ObjectFile>> LoadedObject =
     object::ObjectFile::createObjectFile(ObjectToLoad->getMemBufferRef());
+  if (!LoadedObject) {
+    std::string Buf;
+    raw_string_ostream OS(Buf);
+    logAllUnhandledErrors(LoadedObject.takeError(), OS, "");
+    OS.flush();
+    report_fatal_error(Buf);
+  }
   std::unique_ptr<RuntimeDyld::LoadedObjectInfo> L =
     Dyld.loadObject(*LoadedObject.get());
 
@@ -317,15 +327,19 @@ RuntimeDyld::SymbolInfo MCJIT::findSymbol(const std::string &Name,
   for (object::OwningBinary<object::Archive> &OB : Archives) {
     object::Archive *A = OB.getBinary();
     // Look for our symbols in each Archive
-    object::Archive::child_iterator ChildIt = A->findSym(Name);
-    if (std::error_code EC = ChildIt->getError())
-      report_fatal_error(EC.message());
-    if (ChildIt != A->child_end()) {
+    auto OptionalChildOrErr = A->findSym(Name);
+    if (!OptionalChildOrErr)
+      report_fatal_error(OptionalChildOrErr.takeError());
+    auto &OptionalChild = *OptionalChildOrErr;
+    if (OptionalChild) {
       // FIXME: Support nested archives?
-      ErrorOr<std::unique_ptr<object::Binary>> ChildBinOrErr =
-          (*ChildIt)->getAsBinary();
-      if (ChildBinOrErr.getError())
+      Expected<std::unique_ptr<object::Binary>> ChildBinOrErr =
+          OptionalChild->getAsBinary();
+      if (!ChildBinOrErr) {
+        // TODO: Actually report errors helpfully.
+        consumeError(ChildBinOrErr.takeError());
         continue;
+      }
       std::unique_ptr<object::Binary> &ChildBin = ChildBinOrErr.get();
       if (ChildBin->isObject()) {
         std::unique_ptr<object::ObjectFile> OF(
@@ -480,6 +494,7 @@ GenericValue MCJIT::runFunction(Function *F, ArrayRef<GenericValue> ArgValues) {
   assert(F && "Function *F was null at entry to run()");
 
   void *FPtr = getPointerToFunction(F);
+  finalizeModule(F->getParent());
   assert(FPtr && "Pointer to fn's code was null after getPointerToFunction");
   FunctionType *FTy = F->getFunctionType();
   Type *RetTy = FTy->getReturnType();

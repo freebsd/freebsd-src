@@ -9,18 +9,17 @@
 
 #define DEBUG_TYPE "hexbit"
 
-#include "llvm/CodeGen/Passes.h"
+#include "HexagonBitTracker.h"
+#include "HexagonTargetMachine.h"
 #include "llvm/CodeGen/MachineDominators.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
-#include "llvm/Support/CommandLine.h"
+#include "llvm/CodeGen/Passes.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetInstrInfo.h"
-#include "HexagonTargetMachine.h"
-#include "HexagonBitTracker.h"
+#include "llvm/Target/TargetMachine.h"
 
 using namespace llvm;
 
@@ -159,8 +158,6 @@ namespace {
     static void getInstrUses(const MachineInstr &MI, RegisterSet &Uses);
     static bool isEqual(const BitTracker::RegisterCell &RC1, uint16_t B1,
         const BitTracker::RegisterCell &RC2, uint16_t B2, uint16_t W);
-    static bool isConst(const BitTracker::RegisterCell &RC, uint16_t B,
-        uint16_t W);
     static bool isZero(const BitTracker::RegisterCell &RC, uint16_t B,
         uint16_t W);
     static bool getConst(const BitTracker::RegisterCell &RC, uint16_t B,
@@ -283,17 +280,6 @@ bool HexagonBitSimplify::isEqual(const BitTracker::RegisterCell &RC1,
   }
   return true;
 }
-
-
-bool HexagonBitSimplify::isConst(const BitTracker::RegisterCell &RC,
-      uint16_t B, uint16_t W) {
-  assert(B < RC.width() && B+W <= RC.width());
-  for (uint16_t i = B; i < B+W; ++i)
-    if (!RC[i].num())
-      return false;
-  return true;
-}
-
 
 bool HexagonBitSimplify::isZero(const BitTracker::RegisterCell &RC,
       uint16_t B, uint16_t W) {
@@ -876,6 +862,12 @@ const TargetRegisterClass *HexagonBitSimplify::getFinalVRegClass(
     case Hexagon::DoubleRegsRegClassID:
       VerifySR(RR.Sub);
       return &Hexagon::IntRegsRegClass;
+    case Hexagon::VecDblRegsRegClassID:
+      VerifySR(RR.Sub);
+      return &Hexagon::VectorRegsRegClass;
+    case Hexagon::VecDblRegs128BRegClassID:
+      VerifySR(RR.Sub);
+      return &Hexagon::VectorRegs128BRegClass;
   }
   return nullptr;
 }
@@ -1297,7 +1289,7 @@ bool RedundantInstrElimination::processBlock(MachineBasicBlock &B,
         continue;
 
       // If found, replace the instruction with a COPY.
-      DebugLoc DL = MI->getDebugLoc();
+      const DebugLoc &DL = MI->getDebugLoc();
       const TargetRegisterClass *FRC = HBS::getFinalVRegClass(RD, MRI);
       unsigned NewR = MRI.createVirtualRegister(FRC);
       BuildMI(B, At, DL, HII.get(TargetOpcode::COPY), NewR)
@@ -1326,7 +1318,7 @@ namespace {
       : Transformation(true), HII(hii), MRI(mri), BT(bt) {}
     bool processBlock(MachineBasicBlock &B, const RegisterSet &AVs) override;
   private:
-    bool isTfrConst(const MachineInstr *MI) const;
+    bool isTfrConst(const MachineInstr &MI) const;
     bool isConst(unsigned R, int64_t &V) const;
     unsigned genTfrConst(const TargetRegisterClass *RC, int64_t C,
         MachineBasicBlock &B, MachineBasicBlock::iterator At, DebugLoc &DL);
@@ -1354,9 +1346,8 @@ bool ConstGeneration::isConst(unsigned R, int64_t &C) const {
   return true;
 }
 
-
-bool ConstGeneration::isTfrConst(const MachineInstr *MI) const {
-  unsigned Opc = MI->getOpcode();
+bool ConstGeneration::isTfrConst(const MachineInstr &MI) const {
+  unsigned Opc = MI.getOpcode();
   switch (Opc) {
     case Hexagon::A2_combineii:
     case Hexagon::A4_combineii:
@@ -1426,7 +1417,7 @@ bool ConstGeneration::processBlock(MachineBasicBlock &B, const RegisterSet&) {
   RegisterSet Defs;
 
   for (auto I = B.begin(), E = B.end(); I != E; ++I) {
-    if (isTfrConst(I))
+    if (isTfrConst(*I))
       continue;
     Defs.clear();
     HBS::getInstrDefs(*I, Defs);
@@ -1960,11 +1951,10 @@ bool BitSimplification::genExtractHalf(MachineInstr *MI,
     NewR = MRI.createVirtualRegister(&Hexagon::IntRegsRegClass);
     BuildMI(B, At, DL, HII.get(Hexagon::A2_zxth), NewR)
         .addReg(L.Reg, 0, L.Sub);
-  } else if (!L.Low && Opc != Hexagon::S2_extractu) {
+  } else if (!L.Low && Opc != Hexagon::S2_lsr_i_r) {
     NewR = MRI.createVirtualRegister(&Hexagon::IntRegsRegClass);
-    BuildMI(B, MI, DL, HII.get(Hexagon::S2_extractu), NewR)
+    BuildMI(B, MI, DL, HII.get(Hexagon::S2_lsr_i_r), NewR)
         .addReg(L.Reg, 0, L.Sub)
-        .addImm(16)
         .addImm(16);
   }
   if (NewR == 0)
@@ -2187,6 +2177,9 @@ bool BitSimplification::processBlock(MachineBasicBlock &B,
 
 
 bool HexagonBitSimplify::runOnMachineFunction(MachineFunction &MF) {
+  if (skipFunction(*MF.getFunction()))
+    return false;
+
   auto &HST = MF.getSubtarget<HexagonSubtarget>();
   auto &HRI = *HST.getRegisterInfo();
   auto &HII = *HST.getInstrInfo();
@@ -2729,6 +2722,9 @@ bool HexagonLoopRescheduling::processLoop(LoopCand &C) {
 
 
 bool HexagonLoopRescheduling::runOnMachineFunction(MachineFunction &MF) {
+  if (skipFunction(*MF.getFunction()))
+    return false;
+
   auto &HST = MF.getSubtarget<HexagonSubtarget>();
   HII = HST.getInstrInfo();
   HRI = HST.getRegisterInfo();

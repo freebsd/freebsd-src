@@ -68,7 +68,7 @@ struct InstRegexOp : public SetTheory::Operator {
       }
       RegexList.push_back(Regex(pat));
     }
-    for (const CodeGenInstruction *Inst : Target.instructions()) {
+    for (const CodeGenInstruction *Inst : Target.getInstructionsByEnumValue()) {
       for (auto &R : RegexList) {
         if (R.match(Inst->TheDef->getName()))
           Elts.insert(Inst->TheDef);
@@ -120,12 +120,18 @@ CodeGenSchedModels::CodeGenSchedModels(RecordKeeper &RK,
   // (For per-operand resources mapped to itinerary classes).
   collectProcItinRW();
 
+  // Find UnsupportedFeatures records for each processor.
+  // (For per-operand resources mapped to itinerary classes).
+  collectProcUnsupportedFeatures();
+
   // Infer new SchedClasses from SchedVariant.
   inferSchedClasses();
 
   // Populate each CodeGenProcModel's WriteResDefs, ReadAdvanceDefs, and
   // ProcResourceDefs.
   collectProcResources();
+
+  checkCompleteness();
 }
 
 /// Gather all processor models.
@@ -204,7 +210,7 @@ void CodeGenSchedModels::collectSchedRW() {
 
   // Find all SchedReadWrites referenced by instruction defs.
   RecVec SWDefs, SRDefs;
-  for (const CodeGenInstruction *Inst : Target.instructions()) {
+  for (const CodeGenInstruction *Inst : Target.getInstructionsByEnumValue()) {
     Record *SchedDef = Inst->TheDef;
     if (SchedDef->isValueUnset("SchedRW"))
       continue;
@@ -498,7 +504,7 @@ void CodeGenSchedModels::collectSchedClasses() {
 
   // Create a SchedClass for each unique combination of itinerary class and
   // SchedRW list.
-  for (const CodeGenInstruction *Inst : Target.instructions()) {
+  for (const CodeGenInstruction *Inst : Target.getInstructionsByEnumValue()) {
     Record *ItinDef = Inst->TheDef->getValueAsDef("Itinerary");
     IdxVec Writes, Reads;
     if (!Inst->TheDef->isValueUnset("SchedRW"))
@@ -523,11 +529,12 @@ void CodeGenSchedModels::collectSchedClasses() {
   if (!EnableDump)
     return;
 
-  for (const CodeGenInstruction *Inst : Target.instructions()) {
+  for (const CodeGenInstruction *Inst : Target.getInstructionsByEnumValue()) {
     std::string InstName = Inst->TheDef->getName();
     unsigned SCIdx = InstrClassMap.lookup(Inst->TheDef);
     if (!SCIdx) {
-      dbgs() << "No machine model for " << Inst->TheDef->getName() << '\n';
+      if (!Inst->hasNoSchedulingInfo)
+        dbgs() << "No machine model for " << Inst->TheDef->getName() << '\n';
       continue;
     }
     CodeGenSchedClass &SC = getSchedClass(SCIdx);
@@ -823,6 +830,15 @@ void CodeGenSchedModels::collectProcItinRW() {
                     + ModelDef->getName());
     }
     ProcModels[I->second].ItinRWDefs.push_back(*II);
+  }
+}
+
+// Gather the unsupported features for processor models.
+void CodeGenSchedModels::collectProcUnsupportedFeatures() {
+  for (CodeGenProcModel &ProcModel : ProcModels) {
+    for (Record *Pred : ProcModel.ModelDef->getValueAsListOfDefs("UnsupportedFeatures")) {
+       ProcModel.UnsupportedFeaturesDefs.push_back(Pred);
+    }
   }
 }
 
@@ -1426,6 +1442,9 @@ void CodeGenSchedModels::verifyProcResourceGroups(CodeGenProcModel &PM) {
 
 // Collect and sort WriteRes, ReadAdvance, and ProcResources.
 void CodeGenSchedModels::collectProcResources() {
+  ProcResourceDefs = Records.getAllDerivedDefinitions("ProcResourceUnits");
+  ProcResGroups = Records.getAllDerivedDefinitions("ProcResGroup");
+
   // Add any subtarget-specific SchedReadWrites that are directly associated
   // with processor resources. Refer to the parent SchedClass's ProcIndices to
   // determine which processors they apply to.
@@ -1520,6 +1539,63 @@ void CodeGenSchedModels::collectProcResources() {
       dbgs() << '\n');
     verifyProcResourceGroups(PM);
   }
+
+  ProcResourceDefs.clear();
+  ProcResGroups.clear();
+}
+
+void CodeGenSchedModels::checkCompleteness() {
+  bool Complete = true;
+  bool HadCompleteModel = false;
+  for (const CodeGenProcModel &ProcModel : procModels()) {
+    if (!ProcModel.ModelDef->getValueAsBit("CompleteModel"))
+      continue;
+    for (const CodeGenInstruction *Inst : Target.getInstructionsByEnumValue()) {
+      if (Inst->hasNoSchedulingInfo)
+        continue;
+      if (ProcModel.isUnsupported(*Inst))
+        continue;
+      unsigned SCIdx = getSchedClassIdx(*Inst);
+      if (!SCIdx) {
+        if (Inst->TheDef->isValueUnset("SchedRW") && !HadCompleteModel) {
+          PrintError("No schedule information for instruction '"
+                     + Inst->TheDef->getName() + "'");
+          Complete = false;
+        }
+        continue;
+      }
+
+      const CodeGenSchedClass &SC = getSchedClass(SCIdx);
+      if (!SC.Writes.empty())
+        continue;
+      if (SC.ItinClassDef != nullptr)
+        continue;
+
+      const RecVec &InstRWs = SC.InstRWs;
+      auto I = std::find_if(InstRWs.begin(), InstRWs.end(),
+                            [&ProcModel] (const Record *R) {
+                              return R->getValueAsDef("SchedModel") ==
+                                     ProcModel.ModelDef;
+                            });
+      if (I == InstRWs.end()) {
+        PrintError("'" + ProcModel.ModelName + "' lacks information for '" +
+                   Inst->TheDef->getName() + "'");
+        Complete = false;
+      }
+    }
+    HadCompleteModel = true;
+  }
+  if (!Complete) {
+    errs() << "\n\nIncomplete schedule models found.\n"
+      << "- Consider setting 'CompleteModel = 0' while developing new models.\n"
+      << "- Pseudo instructions can be marked with 'hasNoSchedulingInfo = 1'.\n"
+      << "- Instructions should usually have Sched<[...]> as a superclass, "
+         "you may temporarily use an empty list.\n"
+      << "- Instructions related to unsupported features can be excluded with "
+         "list<Predicate> UnsupportedFeatures = [HasA,..,HasY]; in the "
+         "processor model.\n\n";
+    PrintFatalError("Incomplete schedule model");
+  }
 }
 
 // Collect itinerary class resources for each processor.
@@ -1600,8 +1676,8 @@ Record *CodeGenSchedModels::findProcResUnits(Record *ProcResKind,
     return ProcResKind;
 
   Record *ProcUnitDef = nullptr;
-  RecVec ProcResourceDefs =
-    Records.getAllDerivedDefinitions("ProcResourceUnits");
+  assert(!ProcResourceDefs.empty());
+  assert(!ProcResGroups.empty());
 
   for (RecIter RI = ProcResourceDefs.begin(), RE = ProcResourceDefs.end();
        RI != RE; ++RI) {
@@ -1616,7 +1692,6 @@ Record *CodeGenSchedModels::findProcResUnits(Record *ProcResKind,
       ProcUnitDef = *RI;
     }
   }
-  RecVec ProcResGroups = Records.getAllDerivedDefinitions("ProcResGroup");
   for (RecIter RI = ProcResGroups.begin(), RE = ProcResGroups.end();
        RI != RE; ++RI) {
 
@@ -1697,6 +1772,16 @@ unsigned CodeGenProcModel::getProcResourceIdx(Record *PRDef) const {
                     "the ProcResources list for " + ModelName);
   // Idx=0 is reserved for invalid.
   return 1 + (PRPos - ProcResourceDefs.begin());
+}
+
+bool CodeGenProcModel::isUnsupported(const CodeGenInstruction &Inst) const {
+  for (const Record *TheDef : UnsupportedFeaturesDefs) {
+    for (const Record *PredDef : Inst.TheDef->getValueAsListOfDefs("Predicates")) {
+      if (TheDef->getName() == PredDef->getName())
+        return true;
+    }
+  }
+  return false;
 }
 
 #ifndef NDEBUG

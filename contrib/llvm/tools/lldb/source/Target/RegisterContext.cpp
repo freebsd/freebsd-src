@@ -21,6 +21,9 @@
 #include "lldb/Target/Process.h"
 #include "lldb/Target/Thread.h"
 #include "lldb/Target/Target.h"
+#include "lldb/Core/Module.h"
+#include "lldb/Expression/DWARFExpression.h"
+#include "lldb/Core/Value.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -32,12 +35,7 @@ RegisterContext::RegisterContext (Thread &thread, uint32_t concrete_frame_idx) :
 {
 }
 
-//----------------------------------------------------------------------
-// Destructor
-//----------------------------------------------------------------------
-RegisterContext::~RegisterContext()
-{
-}
+RegisterContext::~RegisterContext() = default;
 
 void
 RegisterContext::InvalidateIfNeeded (bool force)
@@ -61,7 +59,6 @@ RegisterContext::InvalidateIfNeeded (bool force)
     }
 }
 
-
 const RegisterInfo *
 RegisterContext::GetRegisterInfoByName (const char *reg_name, uint32_t start_idx)
 {
@@ -72,14 +69,54 @@ RegisterContext::GetRegisterInfoByName (const char *reg_name, uint32_t start_idx
         {
             const RegisterInfo * reg_info = GetRegisterInfoAtIndex(reg);
 
-            if ((reg_info->name != NULL && ::strcasecmp (reg_info->name, reg_name) == 0) ||
-                (reg_info->alt_name != NULL && ::strcasecmp (reg_info->alt_name, reg_name) == 0))
+            if ((reg_info->name != nullptr && ::strcasecmp (reg_info->name, reg_name) == 0) ||
+                (reg_info->alt_name != nullptr && ::strcasecmp (reg_info->alt_name, reg_name) == 0))
             {
                 return reg_info;
             }
         }
     }
-    return NULL;
+    return nullptr;
+}
+
+uint32_t
+RegisterContext::UpdateDynamicRegisterSize (const lldb_private::ArchSpec &arch,
+                                            RegisterInfo* reg_info)
+{
+    ExecutionContext exe_ctx (CalculateThread());
+
+    // In MIPS, the floating point registers size is depends on FR bit of SR register.
+    // if SR.FR  == 1 then all floating point registers are 64 bits.
+    // else they are all 32 bits.
+    
+    int expr_result;
+    uint32_t addr_size =  arch.GetAddressByteSize ();
+    const uint8_t* dwarf_opcode_ptr = reg_info->dynamic_size_dwarf_expr_bytes;
+    const size_t dwarf_opcode_len = reg_info->dynamic_size_dwarf_len;
+
+    DataExtractor dwarf_data (dwarf_opcode_ptr, dwarf_opcode_len, 
+                              arch.GetByteOrder (), addr_size);
+    ModuleSP opcode_ctx;
+    DWARFExpression dwarf_expr (opcode_ctx, dwarf_data, nullptr, 0, dwarf_opcode_len);
+    Value result;
+    Error error;
+    const lldb::offset_t offset = 0;
+    if (dwarf_expr.Evaluate (&exe_ctx, nullptr, nullptr, this, opcode_ctx, dwarf_data, nullptr,
+                             offset, dwarf_opcode_len, eRegisterKindDWARF, nullptr, nullptr, result, &error))
+    {
+        expr_result = result.GetScalar ().SInt (-1);
+        switch (expr_result)
+        {
+            case 0: return 4;
+            case 1: return 8;
+            default: return reg_info->byte_size;
+        }
+    }
+    else
+    {
+        printf ("Error executing DwarfExpression::Evaluate %s\n", error.AsCString());
+        return reg_info->byte_size;
+    }
 }
 
 const RegisterInfo *
@@ -87,7 +124,7 @@ RegisterContext::GetRegisterInfo (lldb::RegisterKind kind, uint32_t num)
 {
     const uint32_t reg_num = ConvertRegisterKindToRegisterNumber(kind, num);
     if (reg_num == LLDB_INVALID_REGNUM)
-        return NULL;
+        return nullptr;
     return GetRegisterInfoAtIndex (reg_num);
 }
 
@@ -97,7 +134,7 @@ RegisterContext::GetRegisterName (uint32_t reg)
     const RegisterInfo * reg_info = GetRegisterInfoAtIndex(reg);
     if (reg_info)
         return reg_info->name;
-    return NULL;
+    return nullptr;
 }
 
 uint64_t
@@ -190,7 +227,6 @@ RegisterContext::GetFlags (uint64_t fail_value)
     uint32_t reg = ConvertRegisterKindToRegisterNumber (eRegisterKindGeneric, LLDB_REGNUM_GENERIC_FLAGS);
     return ReadRegisterAsUnsigned (reg, fail_value);
 }
-
 
 uint64_t
 RegisterContext::ReadRegisterAsUnsigned (uint32_t reg, uint64_t fail_value)
@@ -297,7 +333,6 @@ RegisterContext::ClearHardwareBreakpoint (uint32_t hw_idx)
     return false;
 }
 
-
 uint32_t
 RegisterContext::NumSupportedHardwareWatchpoints ()
 {
@@ -329,13 +364,12 @@ RegisterContext::ReadRegisterValueFromMemory (const RegisterInfo *reg_info,
                                               RegisterValue &reg_value)
 {
     Error error;
-    if (reg_info == NULL)
+    if (reg_info == nullptr)
     {
         error.SetErrorString ("invalid register info argument.");
         return error;
     }
 
-    
     // Moving from addr into a register
     //
     // Case 1: src_len == dst_len
@@ -408,7 +442,6 @@ RegisterContext::WriteRegisterValueToMemory (const RegisterInfo *reg_info,
                                              uint32_t dst_len, 
                                              const RegisterValue &reg_value)
 {
-    
     uint8_t dst[RegisterValue::kMaxRegisterByteSize];
 
     Error error;
@@ -451,7 +484,6 @@ RegisterContext::WriteRegisterValueToMemory (const RegisterInfo *reg_info,
         error.SetErrorString("invalid process");
 
     return error;
-
 }
 
 bool
@@ -471,7 +503,6 @@ RegisterContext::CalculateTarget ()
 {
     return m_thread.CalculateTarget();
 }
-
 
 ProcessSP
 RegisterContext::CalculateProcess ()
@@ -500,7 +531,6 @@ RegisterContext::CalculateExecutionContext (ExecutionContext &exe_ctx)
     m_thread.CalculateExecutionContext (exe_ctx);
 }
 
-
 bool
 RegisterContext::ConvertBetweenRegisterKinds (lldb::RegisterKind source_rk, uint32_t source_regnum, lldb::RegisterKind target_rk, uint32_t& target_regnum)
 {
@@ -512,14 +542,7 @@ RegisterContext::ConvertBetweenRegisterKinds (lldb::RegisterKind source_rk, uint
         if (reg_info->kinds[source_rk] == source_regnum)
         {
             target_regnum = reg_info->kinds[target_rk];
-            if (target_regnum == LLDB_INVALID_REGNUM)
-            {
-                return false;
-            }
-            else
-            {
-                return true;
-            }
+            return (target_regnum != LLDB_INVALID_REGNUM);
         } 
     }
     return false;

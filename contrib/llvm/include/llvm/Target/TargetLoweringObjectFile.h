@@ -71,7 +71,8 @@ public:
   /// placed in.
   virtual MCSection *getSectionForConstant(const DataLayout &DL,
                                            SectionKind Kind,
-                                           const Constant *C) const;
+                                           const Constant *C,
+                                           unsigned &Align) const;
 
   /// Classify the specified global variable into a set of target independent
   /// categories embodied in SectionKind.
@@ -154,8 +155,8 @@ public:
   virtual const MCExpr *getDebugThreadLocalSymbol(const MCSymbol *Sym) const;
 
   virtual const MCExpr *
-  getExecutableRelativeSymbol(const ConstantExpr *CE, Mangler &Mang,
-                              const TargetMachine &TM) const {
+  lowerRelativeReference(const GlobalValue *LHS, const GlobalValue *RHS,
+                         Mangler &Mang, const TargetMachine &TM) const {
     return nullptr;
   }
 

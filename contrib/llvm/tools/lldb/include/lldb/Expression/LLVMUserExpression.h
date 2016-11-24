@@ -16,6 +16,9 @@
 #include <map>
 #include <vector>
 
+// Other libraries and framework includes
+#include "llvm/IR/LegacyPassManager.h"
+
 // Project includes
 #include "lldb/Expression/UserExpression.h"
 
@@ -34,26 +37,28 @@ namespace lldb_private
 //----------------------------------------------------------------------
 class LLVMUserExpression : public UserExpression
 {
-  public:
-    LLVMUserExpression(ExecutionContextScope &exe_scope,
-                       const char *expr,
-                       const char *expr_prefix,
-                       lldb::LanguageType language,
-                       ResultType desired_type,
+public:
+    // The IRPasses struct is filled in by a runtime after an expression is compiled and can be used to to run
+    // fixups/analysis passes as required. EarlyPasses are run on the generated module before lldb runs its own IR
+    // fixups and inserts instrumentation code/pointer checks. LatePasses are run after the module has been processed by
+    // llvm, before the module is assembled and run in the ThreadPlan.
+    struct IRPasses
+    {
+        IRPasses() : EarlyPasses(nullptr), LatePasses(nullptr){};
+        std::shared_ptr<llvm::legacy::PassManager> EarlyPasses;
+        std::shared_ptr<llvm::legacy::PassManager> LatePasses;
+    };
+
+    LLVMUserExpression(ExecutionContextScope &exe_scope, const char *expr, const char *expr_prefix,
+                       lldb::LanguageType language, ResultType desired_type,
                        const EvaluateExpressionOptions &options);
     ~LLVMUserExpression() override;
 
-    lldb::ExpressionResults Execute(Stream &error_stream,
-                                    ExecutionContext &exe_ctx,
-                                    const EvaluateExpressionOptions &options,
-                                    lldb::UserExpressionSP &shared_ptr_to_me,
-                                    lldb::ExpressionVariableSP &result) override;
-
-    bool FinalizeJITExecution(Stream &error_stream,
-                              ExecutionContext &exe_ctx,
-                              lldb::ExpressionVariableSP &result,
-                              lldb::addr_t function_stack_bottom = LLDB_INVALID_ADDRESS,
-                              lldb::addr_t function_stack_top = LLDB_INVALID_ADDRESS) override;
+    bool
+    FinalizeJITExecution(DiagnosticManager &diagnostic_manager, ExecutionContext &exe_ctx,
+                         lldb::ExpressionVariableSP &result,
+                         lldb::addr_t function_stack_bottom = LLDB_INVALID_ADDRESS,
+                         lldb::addr_t function_stack_top = LLDB_INVALID_ADDRESS) override;
 
     bool
     CanInterpret() override
@@ -73,17 +78,22 @@ class LLVMUserExpression : public UserExpression
 
     lldb::ModuleSP GetJITModule() override;
 
-  protected:
-    virtual void ScanContext(ExecutionContext &exe_ctx, lldb_private::Error &err) = 0;
+protected:
+    lldb::ExpressionResults
+    DoExecute(DiagnosticManager &diagnostic_manager, ExecutionContext &exe_ctx,
+              const EvaluateExpressionOptions &options, lldb::UserExpressionSP &shared_ptr_to_me,
+              lldb::ExpressionVariableSP &result) override;
 
-    bool PrepareToExecuteJITExpression(Stream &error_stream, ExecutionContext &exe_ctx, lldb::addr_t &struct_address);
+    virtual void
+    ScanContext(ExecutionContext &exe_ctx, lldb_private::Error &err) = 0;
+
+    bool
+    PrepareToExecuteJITExpression(DiagnosticManager &diagnostic_manager, ExecutionContext &exe_ctx,
+                                  lldb::addr_t &struct_address);
 
     virtual bool
-    AddArguments (ExecutionContext &exe_ctx,
-                  std::vector<lldb::addr_t> &args,
-                  lldb::addr_t struct_address,
-                  Stream &error_stream) = 0;
-
+    AddArguments(ExecutionContext &exe_ctx, std::vector<lldb::addr_t> &args, lldb::addr_t struct_address,
+                 DiagnosticManager &diagnostic_manager) = 0;
 
     lldb::addr_t m_stack_frame_bottom; ///< The bottom of the allocated stack frame.
     lldb::addr_t m_stack_frame_top;    ///< The top of the allocated stack frame.

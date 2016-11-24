@@ -22,6 +22,8 @@
 #include "clang/Basic/LangOptions.h"
 #include "clang/Basic/SourceLocation.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/Support/Error.h"
+#include <map>
 #include <set>
 #include <string>
 #include <vector>
@@ -55,6 +57,11 @@ public:
   bool contains(Range RHS) const {
     return RHS.Offset >= Offset &&
            (RHS.Offset + RHS.Length) <= (Offset + Length);
+  }
+
+  /// \brief Whether this range equals to \p RHS or not.
+  bool operator==(const Range &RHS) const {
+    return Offset == RHS.getOffset() && Length == RHS.getLength();
   }
   /// @}
 
@@ -159,9 +166,13 @@ bool applyAllReplacements(const std::vector<Replacement> &Replaces,
 
 /// \brief Applies all replacements in \p Replaces to \p Code.
 ///
-/// This completely ignores the path stored in each replacement. If one or more
-/// replacements cannot be applied, this returns an empty \c string.
-std::string applyAllReplacements(StringRef Code, const Replacements &Replaces);
+/// This completely ignores the path stored in each replacement. If all
+/// replacements are applied successfully, this returns the code with
+/// replacements applied; otherwise, an llvm::Error carrying llvm::StringError
+/// is returned (the Error message can be converted to string using
+/// `llvm::toString()` and 'std::error_code` in the `Error` should be ignored).
+llvm::Expected<std::string> applyAllReplacements(StringRef Code,
+                                                 const Replacements &Replaces);
 
 /// \brief Calculates how a code \p Position is shifted when \p Replaces are
 /// applied.
@@ -197,28 +208,30 @@ struct TranslationUnitReplacements {
   std::vector<Replacement> Replacements;
 };
 
-/// \brief Apply all replacements in \p Replaces to the Rewriter \p Rewrite.
+/// \brief Calculates the ranges in a single file that are affected by the
+/// Replacements. Overlapping ranges will be merged.
 ///
-/// Replacement applications happen independently of the success of
-/// other applications.
+/// \pre Replacements must be for the same file.
 ///
-/// \returns true if all replacements apply. false otherwise.
-bool applyAllReplacements(const Replacements &Replaces, Rewriter &Rewrite);
+/// \returns a non-overlapping and sorted ranges.
+std::vector<Range> calculateChangedRanges(const Replacements &Replaces);
 
-/// \brief Apply all replacements in \p Replaces to the Rewriter \p Rewrite.
+/// \brief Calculates the new ranges after \p Replaces are applied. These
+/// include both the original \p Ranges and the affected ranges of \p Replaces
+/// in the new code.
 ///
-/// Replacement applications happen independently of the success of
-/// other applications.
+/// \pre Replacements must be for the same file.
 ///
-/// \returns true if all replacements apply. false otherwise.
-bool applyAllReplacements(const std::vector<Replacement> &Replaces,
-                          Rewriter &Rewrite);
+/// \return The new ranges after \p Replaces are applied. The new ranges will be
+/// sorted and non-overlapping.
+std::vector<Range>
+calculateRangesAfterReplacements(const Replacements &Replaces,
+                                 const std::vector<Range> &Ranges);
 
-/// \brief Applies all replacements in \p Replaces to \p Code.
-///
-/// This completely ignores the path stored in each replacement. If one or more
-/// replacements cannot be applied, this returns an empty \c string.
-std::string applyAllReplacements(StringRef Code, const Replacements &Replaces);
+/// \brief Groups a random set of replacements by file path. Replacements
+/// related to the same file entry are put into the same vector.
+std::map<std::string, Replacements>
+groupReplacementsByFile(const Replacements &Replaces);
 
 /// \brief Merges two sets of replacements with the second set referring to the
 /// code after applying the first set. Within both 'First' and 'Second',

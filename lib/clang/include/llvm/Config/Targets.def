@@ -1,5 +1,9 @@
 /* $FreeBSD$ */
 
+#ifndef LLVM_TARGET
+#  error Please define the macro LLVM_TARGET(TargetName)
+#endif
+
 LLVM_TARGET(AArch64)
 LLVM_TARGET(ARM)
 LLVM_TARGET(Mips)

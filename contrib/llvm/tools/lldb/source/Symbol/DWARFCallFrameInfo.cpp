@@ -308,13 +308,21 @@ DWARFCallFrameInfo::GetFDEIndex ()
     
     if (m_fde_index_initialized)
         return;
-    
-    Mutex::Locker locker(m_fde_index_mutex);
-    
+
+    std::lock_guard<std::mutex> guard(m_fde_index_mutex);
+
     if (m_fde_index_initialized) // if two threads hit the locker
         return;
 
     Timer scoped_timer (__PRETTY_FUNCTION__, "%s - %s", __PRETTY_FUNCTION__, m_objfile.GetFileSpec().GetFilename().AsCString(""));
+
+    bool clear_address_zeroth_bit = false;
+    ArchSpec arch;
+    if (m_objfile.GetArchitecture (arch))
+    {
+        if (arch.GetTriple().getArch() == llvm::Triple::arm || arch.GetTriple().getArch() == llvm::Triple::thumb)
+            clear_address_zeroth_bit = true;
+    }
 
     lldb::offset_t offset = 0;
     if (m_cfi_data_initialized == false)
@@ -376,6 +384,9 @@ DWARFCallFrameInfo::GetFDEIndex ()
             const lldb::addr_t data_addr = LLDB_INVALID_ADDRESS;
 
             lldb::addr_t addr = m_cfi_data.GetGNUEHPointer(&offset, cie->ptr_encoding, pc_rel_addr, text_addr, data_addr);
+            if (clear_address_zeroth_bit)
+                addr &= ~1ull;
+
             lldb::addr_t length = m_cfi_data.GetGNUEHPointer(&offset, cie->ptr_encoding & DW_EH_PE_MASK_ENCODING, pc_rel_addr, text_addr, data_addr);
             FDEEntryMap::Entry fde (addr, length, current_entry);
             m_fde_index.Append(fde);
@@ -397,6 +408,7 @@ DWARFCallFrameInfo::GetFDEIndex ()
 bool
 DWARFCallFrameInfo::FDEToUnwindPlan (dw_offset_t dwarf_offset, Address startaddr, UnwindPlan& unwind_plan)
 {
+    Log *log = GetLogIfAllCategoriesSet(LIBLLDB_LOG_UNWIND);
     lldb::offset_t offset = dwarf_offset;
     lldb::offset_t current_entry = offset;
 
@@ -637,10 +649,30 @@ DWARFCallFrameInfo::FDEToUnwindPlan (dw_offset_t dwarf_offset, Address startaddr
                         // the stack and place them in the current row. (This operation is
                         // useful for compilers that move epilogue code into the body of a
                         // function.)
+                        if (stack.empty())
+                        {
+                            if (log)
+                                log->Printf(
+                                    "DWARFCallFrameInfo::%s(dwarf_offset: %" PRIx32 ", startaddr: %" PRIx64
+                                    " encountered DW_CFA_restore_state but state stack is empty. Corrupt unwind info?",
+                                    __FUNCTION__, dwarf_offset, startaddr.GetFileAddress());
+                            break;
+                        }
                         lldb::addr_t offset = row->GetOffset ();
                         row = stack.back ();
                         stack.pop_back ();
                         row->SetOffset (offset);
+                        break;
+                    }
+
+                    case DW_CFA_GNU_args_size: // 0x2e
+                    {
+                        // The DW_CFA_GNU_args_size instruction takes an unsigned LEB128 operand
+                        // representing an argument size. This instruction specifies the total of
+                        // the size of the arguments which have been pushed onto the stack.
+
+                        // TODO: Figure out how we should handle this.
+                        m_cfi_data.GetULEB128(&offset);
                         break;
                     }
 
@@ -898,4 +930,18 @@ DWARFCallFrameInfo::HandleCommonDwarfOpcode(uint8_t primary_opcode,
         }
     }
     return false;
+}
+
+void
+DWARFCallFrameInfo::ForEachFDEEntries(
+    const std::function<bool(lldb::addr_t, uint32_t, dw_offset_t)>& callback)
+{
+    GetFDEIndex();
+
+    for (size_t i = 0, c = m_fde_index.GetSize(); i < c; ++i)
+    {
+        const FDEEntryMap::Entry& entry = m_fde_index.GetEntryRef(i);
+        if (!callback(entry.base, entry.size, entry.data))
+            break;
+    }
 }

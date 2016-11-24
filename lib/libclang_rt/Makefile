@@ -3,19 +3,21 @@
 .include <src.opts.mk>
 
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
-SUBDIR+= include\
-	 asan\
-	 asan-preinit\
-	 asan_dynamic\
-	 asan_cxx\
-	 safestack\
-	 ubsan_standalone\
-	 ubsan_standalone_cxx
+SUBDIR+=	include
+SUBDIR+=	asan
+SUBDIR+=	asan-preinit
+SUBDIR+=	asan_dynamic
+SUBDIR+=	asan_cxx
+SUBDIR+=	safestack
+SUBDIR+=	stats
+SUBDIR+=	stats_client
+SUBDIR+=	ubsan_standalone
+SUBDIR+=	ubsan_standalone_cxx
 .endif
 
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64" || \
     (${MACHINE_CPUARCH} == "arm" && ${MACHINE_ARCH} != "armeb")
-SUBDIR+= profile
+SUBDIR+=	profile
 .endif
 
 .include <bsd.subdir.mk>

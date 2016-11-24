@@ -118,6 +118,10 @@ public:
 
   void evalStrsep(CheckerContext &C, const CallExpr *CE) const;
 
+  void evalStdCopy(CheckerContext &C, const CallExpr *CE) const;
+  void evalStdCopyBackward(CheckerContext &C, const CallExpr *CE) const;
+  void evalStdCopyCommon(CheckerContext &C, const CallExpr *CE) const;
+
   // Utility methods
   std::pair<ProgramStateRef , ProgramStateRef >
   static assumeZero(CheckerContext &C,
@@ -916,7 +920,7 @@ ProgramStateRef CStringChecker::InvalidateBuffer(CheckerContext &C,
     // Invalidate and escape only indirect regions accessible through the source
     // buffer.
     if (IsSourceBuffer) {
-      ITraits.setTrait(R,
+      ITraits.setTrait(R->getBaseRegion(),
                        RegionAndSymbolInvalidationTraits::TK_PreserveContents);
       ITraits.setTrait(R, RegionAndSymbolInvalidationTraits::TK_SuppressEscape);
       CausesPointerEscape = true;
@@ -1833,6 +1837,8 @@ void CStringChecker::evalStrcmpCommon(CheckerContext &C, const CallExpr *CE,
   const StringLiteral *s1StrLiteral = getCStringLiteral(C, state, s1, s1Val);
   const StringLiteral *s2StrLiteral = getCStringLiteral(C, state, s2, s2Val);
   bool canComputeResult = false;
+  SVal resultVal = svalBuilder.conjureSymbolVal(nullptr, CE, LCtx,
+                                                C.blockCount());
 
   if (s1StrLiteral && s2StrLiteral) {
     StringRef s1StrRef = s1StrLiteral->getString();
@@ -1866,28 +1872,29 @@ void CStringChecker::evalStrcmpCommon(CheckerContext &C, const CallExpr *CE,
         s2StrRef = s2StrRef.substr(0, s2Term);
 
       // Use StringRef's comparison methods to compute the actual result.
-      int result;
+      int compareRes = ignoreCase ? s1StrRef.compare_lower(s2StrRef)
+                                  : s1StrRef.compare(s2StrRef);
 
-      if (ignoreCase) {
-        // Compare string 1 to string 2 the same way strcasecmp() does.
-        result = s1StrRef.compare_lower(s2StrRef);
-      } else {
-        // Compare string 1 to string 2 the same way strcmp() does.
-        result = s1StrRef.compare(s2StrRef);
+      // The strcmp function returns an integer greater than, equal to, or less
+      // than zero, [c11, p7.24.4.2].
+      if (compareRes == 0) {
+        resultVal = svalBuilder.makeIntVal(compareRes, CE->getType());
       }
-
-      // Build the SVal of the comparison and bind the return value.
-      SVal resultVal = svalBuilder.makeIntVal(result, CE->getType());
-      state = state->BindExpr(CE, LCtx, resultVal);
+      else {
+        DefinedSVal zeroVal = svalBuilder.makeIntVal(0, CE->getType());
+        // Constrain strcmp's result range based on the result of StringRef's
+        // comparison methods.
+        BinaryOperatorKind op = (compareRes == 1) ? BO_GT : BO_LT;
+        SVal compareWithZero =
+          svalBuilder.evalBinOp(state, op, resultVal, zeroVal,
+                                svalBuilder.getConditionType());
+        DefinedSVal compareWithZeroVal = compareWithZero.castAs<DefinedSVal>();
+        state = state->assume(compareWithZeroVal, true);
+      }
     }
   }
 
-  if (!canComputeResult) {
-    // Conjure a symbolic value. It's the best we can do.
-    SVal resultVal = svalBuilder.conjureSymbolVal(nullptr, CE, LCtx,
-                                                  C.blockCount());
-    state = state->BindExpr(CE, LCtx, resultVal);
-  }
+  state = state->BindExpr(CE, LCtx, resultVal);
 
   // Record this as a possible path.
   C.addTransition(state);
@@ -1950,7 +1957,57 @@ void CStringChecker::evalStrsep(CheckerContext &C, const CallExpr *CE) const {
   C.addTransition(State);
 }
 
+// These should probably be moved into a C++ standard library checker.
+void CStringChecker::evalStdCopy(CheckerContext &C, const CallExpr *CE) const {
+  evalStdCopyCommon(C, CE);
+}
 
+void CStringChecker::evalStdCopyBackward(CheckerContext &C,
+                                         const CallExpr *CE) const {
+  evalStdCopyCommon(C, CE);
+}
+
+void CStringChecker::evalStdCopyCommon(CheckerContext &C,
+                                       const CallExpr *CE) const {
+  if (CE->getNumArgs() < 3)
+    return;
+
+  ProgramStateRef State = C.getState();
+
+  const LocationContext *LCtx = C.getLocationContext();
+
+  // template <class _InputIterator, class _OutputIterator>
+  // _OutputIterator
+  // copy(_InputIterator __first, _InputIterator __last,
+  //        _OutputIterator __result)
+
+  // Invalidate the destination buffer
+  const Expr *Dst = CE->getArg(2);
+  SVal DstVal = State->getSVal(Dst, LCtx);
+  State = InvalidateBuffer(C, State, Dst, DstVal, /*IsSource=*/false,
+                           /*Size=*/nullptr);
+
+  SValBuilder &SVB = C.getSValBuilder();
+
+  SVal ResultVal = SVB.conjureSymbolVal(nullptr, CE, LCtx, C.blockCount());
+  State = State->BindExpr(CE, LCtx, ResultVal);
+
+  C.addTransition(State);
+}
+
+static bool isCPPStdLibraryFunction(const FunctionDecl *FD, StringRef Name) {
+  IdentifierInfo *II = FD->getIdentifier();
+  if (!II)
+    return false;
+
+  if (!AnalysisDeclContext::isInStdNamespace(FD))
+    return false;
+
+  if (II->getName().equals(Name))
+    return true;
+
+  return false;
+}
 //===----------------------------------------------------------------------===//
 // The driver method, and other Checker callbacks.
 //===----------------------------------------------------------------------===//
@@ -1999,6 +2056,10 @@ bool CStringChecker::evalCall(const CallExpr *CE, CheckerContext &C) const {
     evalFunction =  &CStringChecker::evalBcopy;
   else if (C.isCLibraryFunction(FDecl, "bcmp"))
     evalFunction =  &CStringChecker::evalMemcmp;
+  else if (isCPPStdLibraryFunction(FDecl, "copy"))
+    evalFunction =  &CStringChecker::evalStdCopy;
+  else if (isCPPStdLibraryFunction(FDecl, "copy_backward"))
+    evalFunction =  &CStringChecker::evalStdCopyBackward;
 
   // If the callee isn't a string function, let another checker handle it.
   if (!evalFunction)

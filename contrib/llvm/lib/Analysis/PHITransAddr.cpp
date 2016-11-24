@@ -42,7 +42,7 @@ static bool CanPHITrans(Instruction *Inst) {
 }
 
 #if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
-void PHITransAddr::dump() const {
+LLVM_DUMP_METHOD void PHITransAddr::dump() const {
   if (!Addr) {
     dbgs() << "PHITransAddr: null\n";
     return;
@@ -229,7 +229,8 @@ Value *PHITransAddr::PHITranslateSubExpr(Value *V, BasicBlock *CurBB,
       return GEP;
 
     // Simplify the GEP to handle 'gep x, 0' -> x etc.
-    if (Value *V = SimplifyGEPInst(GEPOps, DL, TLI, DT, AC)) {
+    if (Value *V = SimplifyGEPInst(GEP->getSourceElementType(),
+                                   GEPOps, DL, TLI, DT, AC)) {
       for (unsigned i = 0, e = GEPOps.size(); i != e; ++i)
         RemoveInstInputs(GEPOps[i], InstInputs);
 

@@ -82,6 +82,9 @@ public:
     bool
     GetStopReasonExtendedInfoAsJSON (lldb::SBStream &stream);
     
+    SBThreadCollection
+    GetStopReasonExtendedBacktraces (InstrumentationRuntimeType type);
+    
     size_t
     GetStopDescription (char *dst, size_t dst_len);
     
@@ -116,6 +119,12 @@ public:
     StepInto (const char *target_name, lldb::RunMode stop_other_threads = lldb::eOnlyDuringStepping);
     
     void
+    StepInto (const char *target_name,
+              uint32_t end_line,
+              SBError &error,
+              lldb::RunMode stop_other_threads = lldb::eOnlyDuringStepping);
+    
+    void
     StepOut ();
 
     void
@@ -140,6 +149,9 @@ public:
     
     SBError
     ReturnFromFrame (SBFrame &frame, SBValue &return_value);
+
+    SBError
+    UnwindInnermostExpression();
 
     //--------------------------------------------------------------------------
     /// LLDB currently supports process centric debugging which means when any

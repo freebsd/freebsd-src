@@ -7,18 +7,20 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "lldb/Target/Platform.h"
-
 // C Includes
-
 // C++ Includes
 #include <algorithm>
 #include <fstream>
 #include <vector>
 
 // Other libraries and framework includes
+#include "llvm/Support/FileSystem.h"
+#include "llvm/Support/Path.h"
+
 // Project includes
+#include "lldb/Target/Platform.h"
 #include "lldb/Breakpoint/BreakpointIDList.h"
+#include "lldb/Breakpoint/BreakpointLocation.h"
 #include "lldb/Core/DataBufferHeap.h"
 #include "lldb/Core/Debugger.h"
 #include "lldb/Core/Error.h"
@@ -39,11 +41,7 @@
 #include "lldb/Target/Target.h"
 #include "lldb/Target/UnixSignals.h"
 #include "lldb/Utility/Utils.h"
-#include "llvm/Support/FileSystem.h"
-#include "llvm/Support/Path.h"
-
 #include "Utility/ModuleCache.h"
-
 
 // Define these constants from POSIX mman.h rather than include the file
 // so that they will be correct even when compiled on Linux.
@@ -164,10 +162,10 @@ GetPlatformList()
     return g_platform_list;
 }
 
-static Mutex &
-GetPlatformListMutex ()
+static std::recursive_mutex &
+GetPlatformListMutex()
 {
-    static Mutex g_mutex(Mutex::eMutexTypeRecursive);
+    static std::recursive_mutex g_mutex;
     return g_mutex;
 }
 
@@ -184,7 +182,7 @@ Platform::Terminate ()
     {
         if (--g_initialize_count == 0)
         {
-            Mutex::Locker locker(GetPlatformListMutex ());
+            std::lock_guard<std::recursive_mutex> guard(GetPlatformListMutex());
             GetPlatformList().clear();
         }
     }
@@ -206,7 +204,7 @@ Platform::SetHostPlatform (const lldb::PlatformSP &platform_sp)
 
     if (platform_sp)
     {
-        Mutex::Locker locker(GetPlatformListMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetPlatformListMutex());
         GetPlatformList().push_back(platform_sp);
     }
 }
@@ -230,7 +228,7 @@ Platform::LocateExecutableScriptingResources (Target *target, Module &module, St
 //PlatformSP
 //Platform::FindPlugin (Process *process, const ConstString &plugin_name)
 //{
-//    PlatformCreateInstance create_callback = NULL;
+//    PlatformCreateInstance create_callback = nullptr;
 //    if (plugin_name)
 //    {
 //        create_callback  = PluginManager::GetPlatformCreateCallbackForPluginName (plugin_name);
@@ -248,7 +246,7 @@ Platform::LocateExecutableScriptingResources (Target *target, Module &module, St
 //    }
 //    else
 //    {
-//        for (uint32_t idx = 0; (create_callback = PluginManager::GetPlatformCreateCallbackAtIndex(idx)) != NULL; ++idx)
+//        for (uint32_t idx = 0; (create_callback = PluginManager::GetPlatformCreateCallbackAtIndex(idx)) != nullptr; ++idx)
 //        {
 //            PlatformSP platform_sp(create_callback(process, nullptr));
 //            if (platform_sp)
@@ -311,7 +309,7 @@ Platform::Find (const ConstString &name)
         if (name == g_host_platform_name)
             return GetHostPlatform();
 
-        Mutex::Locker locker(GetPlatformListMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetPlatformListMutex());
         for (const auto &platform_sp : GetPlatformList())
         {
             if (platform_sp->GetName() == name)
@@ -324,7 +322,7 @@ Platform::Find (const ConstString &name)
 PlatformSP
 Platform::Create (const ConstString &name, Error &error)
 {
-    PlatformCreateInstance create_callback = NULL;
+    PlatformCreateInstance create_callback = nullptr;
     lldb::PlatformSP platform_sp;
     if (name)
     {
@@ -334,7 +332,7 @@ Platform::Create (const ConstString &name, Error &error)
 
         create_callback = PluginManager::GetPlatformCreateCallbackForPluginName (name);
         if (create_callback)
-            platform_sp = create_callback(true, NULL);
+            platform_sp = create_callback(true, nullptr);
         else
             error.SetErrorStringWithFormat ("unable to find a plug-in for the platform named \"%s\"", name.GetCString());
     }
@@ -343,13 +341,12 @@ Platform::Create (const ConstString &name, Error &error)
 
     if (platform_sp)
     {
-        Mutex::Locker locker(GetPlatformListMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetPlatformListMutex());
         GetPlatformList().push_back(platform_sp);
     }
 
     return platform_sp;
 }
-
 
 PlatformSP
 Platform::Create (const ArchSpec &arch, ArchSpec *platform_arch_ptr, Error &error)
@@ -360,7 +357,7 @@ Platform::Create (const ArchSpec &arch, ArchSpec *platform_arch_ptr, Error &erro
         // Scope for locker
         {
             // First try exact arch matches across all platforms already created
-            Mutex::Locker locker(GetPlatformListMutex ());
+            std::lock_guard<std::recursive_mutex> guard(GetPlatformListMutex());
             for (const auto &platform_sp : GetPlatformList())
             {
                 if (platform_sp->IsCompatibleArchitecture(arch, true, platform_arch_ptr))
@@ -385,7 +382,7 @@ Platform::Create (const ArchSpec &arch, ArchSpec *platform_arch_ptr, Error &erro
                 platform_sp = create_callback(false, &arch);
                 if (platform_sp && platform_sp->IsCompatibleArchitecture(arch, true, platform_arch_ptr))
                 {
-                    Mutex::Locker locker(GetPlatformListMutex ());
+                    std::lock_guard<std::recursive_mutex> guard(GetPlatformListMutex());
                     GetPlatformList().push_back(platform_sp);
                     return platform_sp;
                 }
@@ -399,7 +396,7 @@ Platform::Create (const ArchSpec &arch, ArchSpec *platform_arch_ptr, Error &erro
                 platform_sp = create_callback(false, &arch);
                 if (platform_sp && platform_sp->IsCompatibleArchitecture(arch, false, platform_arch_ptr))
                 {
-                    Mutex::Locker locker(GetPlatformListMutex ());
+                    std::lock_guard<std::recursive_mutex> guard(GetPlatformListMutex());
                     GetPlatformList().push_back(platform_sp);
                     return platform_sp;
                 }
@@ -417,37 +414,37 @@ Platform::Create (const ArchSpec &arch, ArchSpec *platform_arch_ptr, Error &erro
 //------------------------------------------------------------------
 /// Default Constructor
 //------------------------------------------------------------------
-Platform::Platform (bool is_host) :
-    m_is_host (is_host),
-    m_os_version_set_while_connected (false),
-    m_system_arch_set_while_connected (false),
-    m_sdk_sysroot (),
-    m_sdk_build (),
-    m_working_dir (),
-    m_remote_url (),
-    m_name (),
-    m_major_os_version (UINT32_MAX),
-    m_minor_os_version (UINT32_MAX),
-    m_update_os_version (UINT32_MAX),
-    m_system_arch(),
-    m_mutex (Mutex::eMutexTypeRecursive),
-    m_uid_map(),
-    m_gid_map(),
-    m_max_uid_name_len (0),
-    m_max_gid_name_len (0),
-    m_supports_rsync (false),
-    m_rsync_opts (),
-    m_rsync_prefix (),
-    m_supports_ssh (false),
-    m_ssh_opts (),
-    m_ignores_remote_hostname (false),
-    m_trap_handlers(),
-    m_calculated_trap_handlers (false),
-    m_module_cache (llvm::make_unique<ModuleCache> ())
+Platform::Platform(bool is_host)
+    : m_is_host(is_host),
+      m_os_version_set_while_connected(false),
+      m_system_arch_set_while_connected(false),
+      m_sdk_sysroot(),
+      m_sdk_build(),
+      m_working_dir(),
+      m_remote_url(),
+      m_name(),
+      m_major_os_version(UINT32_MAX),
+      m_minor_os_version(UINT32_MAX),
+      m_update_os_version(UINT32_MAX),
+      m_system_arch(),
+      m_mutex(),
+      m_uid_map(),
+      m_gid_map(),
+      m_max_uid_name_len(0),
+      m_max_gid_name_len(0),
+      m_supports_rsync(false),
+      m_rsync_opts(),
+      m_rsync_prefix(),
+      m_supports_ssh(false),
+      m_ssh_opts(),
+      m_ignores_remote_hostname(false),
+      m_trap_handlers(),
+      m_calculated_trap_handlers(false),
+      m_module_cache(llvm::make_unique<ModuleCache>())
 {
-    Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_OBJECT));
+    Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_OBJECT));
     if (log)
-        log->Printf ("%p Platform::Platform()", static_cast<void*>(this));
+        log->Printf("%p Platform::Platform()", static_cast<void *>(this));
 }
 
 //------------------------------------------------------------------
@@ -521,10 +518,9 @@ Platform::GetStatus (Stream &strm)
 
     std::string specific_info(GetPlatformSpecificConnectionInformation());
     
-    if (specific_info.empty() == false)
+    if (!specific_info.empty())
         strm.Printf("Platform-specific connection: %s\n", specific_info.c_str());
 }
-
 
 bool
 Platform::GetOSVersion (uint32_t &major, 
@@ -532,7 +528,7 @@ Platform::GetOSVersion (uint32_t &major,
                         uint32_t &update,
                         Process *process)
 {
-    Mutex::Locker locker (m_mutex);
+    std::lock_guard<std::mutex> guard(m_mutex);
 
     bool success = m_major_os_version != UINT32_MAX;
     if (IsHost())
@@ -631,7 +627,6 @@ Platform::AddClangModuleCompilationOptions (Target *target, std::vector<std::str
                    default_compilation_options.end());
 }
 
-
 FileSpec
 Platform::GetWorkingDirectory ()
 {
@@ -651,14 +646,12 @@ Platform::GetWorkingDirectory ()
     }
 }
 
-
 struct RecurseCopyBaton
 {
     const FileSpec& dst;
     Platform *platform_ptr;
     Error error;
 };
-
 
 static FileSpec::EnumerateDirectoryResult
 RecurseCopy_Callback (void *baton,
@@ -728,6 +721,7 @@ RecurseCopy_Callback (void *baton,
                 return FileSpec::eEnumerateDirectoryResultNext;
             }
             break;
+
         case FileSpec::eFileTypeRegular:
             {
                 // copy the file and keep going
@@ -964,7 +958,7 @@ Platform::GetHostname ()
         return "127.0.0.1";
 
     if (m_name.empty())        
-        return NULL;
+        return nullptr;
     return m_name.c_str();
 }
 
@@ -999,7 +993,7 @@ Platform::GetUserName (uint32_t uid)
             return SetCachedUserName (uid, name.c_str(), name.size());
     }
 #endif
-    return NULL;
+    return nullptr;
 }
 
 const char *
@@ -1016,7 +1010,7 @@ Platform::GetGroupName (uint32_t gid)
             return SetCachedGroupName (gid, name.c_str(), name.size());
     }
 #endif
-    return NULL;
+    return nullptr;
 }
 
 bool
@@ -1052,7 +1046,6 @@ Platform::SetOSVersion (uint32_t major,
     return false;
 }
 
-
 Error
 Platform::ResolveExecutable (const ModuleSpec &module_spec,
                              lldb::ModuleSP &exe_module_sp,
@@ -1063,11 +1056,11 @@ Platform::ResolveExecutable (const ModuleSpec &module_spec,
     {
         if (module_spec.GetArchitecture().IsValid())
         {
-            error = ModuleList::GetSharedModule (module_spec, 
-                                                 exe_module_sp, 
-                                                 module_search_paths_ptr,
-                                                 NULL, 
-                                                 NULL);
+            error = ModuleList::GetSharedModule(module_spec, 
+                                                exe_module_sp, 
+                                                module_search_paths_ptr,
+                                                nullptr, 
+                                                nullptr);
         }
         else
         {
@@ -1077,11 +1070,11 @@ Platform::ResolveExecutable (const ModuleSpec &module_spec,
             ModuleSpec arch_module_spec(module_spec);
             for (uint32_t idx = 0; GetSupportedArchitectureAtIndex (idx, arch_module_spec.GetArchitecture()); ++idx)
             {
-                error = ModuleList::GetSharedModule (arch_module_spec,
-                                                     exe_module_sp, 
-                                                     module_search_paths_ptr,
-                                                     NULL, 
-                                                     NULL);
+                error = ModuleList::GetSharedModule(arch_module_spec,
+                                                    exe_module_sp, 
+                                                    module_search_paths_ptr,
+                                                    nullptr, 
+                                                    nullptr);
                 // Did we find an executable using one of the 
                 if (error.Success() && exe_module_sp)
                     break;
@@ -1107,10 +1100,7 @@ Platform::ResolveSymbolFile (Target &target,
     else
         error.SetErrorString("unable to resolve symbol file");
     return error;
-    
-}
-
-
+}   
 
 bool
 Platform::ResolveRemotePath (const FileSpec &platform_path,
@@ -1119,7 +1109,6 @@ Platform::ResolveRemotePath (const FileSpec &platform_path,
     resolved_platform_path = platform_path;
     return resolved_platform_path.ResolvePath();
 }
-
 
 const ArchSpec &
 Platform::GetSystemArchitecture()
@@ -1166,7 +1155,6 @@ Platform::GetSystemArchitecture()
     return m_system_arch;
 }
 
-
 Error
 Platform::ConnectRemote (Args& args)
 {
@@ -1211,7 +1199,6 @@ Platform::FindProcesses (const ProcessInstanceInfoMatch &match_info,
     return match_count;    
 }
 
-
 Error
 Platform::LaunchProcess (ProcessLaunchInfo &launch_info)
 {
@@ -1254,7 +1241,11 @@ Platform::LaunchProcess (ProcessLaunchInfo &launch_info)
         {
             error = ShellExpandArguments(launch_info);
             if (error.Fail())
+            {
+                error.SetErrorStringWithFormat("shell expansion failed (reason: %s). consider launching with 'process launch'.",
+                                               error.AsCString("unknown"));
                 return error;
+            }
         }
 
         if (log)
@@ -1309,7 +1300,7 @@ Platform::KillProcess (const lldb::pid_t pid)
 lldb::ProcessSP
 Platform::DebugProcess (ProcessLaunchInfo &launch_info, 
                         Debugger &debugger,
-                        Target *target,       // Can be NULL, if NULL create a new target, else use existing one
+                        Target *target,       // Can be nullptr, if nullptr create a new target, else use existing one
                         Error &error)
 {
     Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_PLATFORM));
@@ -1376,7 +1367,6 @@ Platform::DebugProcess (ProcessLaunchInfo &launch_info,
     return process_sp;
 }
 
-
 lldb::PlatformSP
 Platform::GetPlatformForArchitecture (const ArchSpec &arch, ArchSpec *platform_arch_ptr)
 {
@@ -1386,7 +1376,6 @@ Platform::GetPlatformForArchitecture (const ArchSpec &arch, ArchSpec *platform_a
         platform_sp = Platform::Create (arch, platform_arch_ptr, error);
     return platform_sp;
 }
-
 
 //------------------------------------------------------------------
 /// Lets a platform answer if it is compatible with a given
@@ -1442,7 +1431,7 @@ Platform::PutFile (const FileSpec& source,
 
     uint32_t source_open_options = File::eOpenOptionRead | File::eOpenOptionCloseOnExec;
     if (source.GetFileType() == FileSpec::eFileTypeSymbolicLink)
-        source_open_options |= File::eOpenoptionDontFollowSymlinks;
+        source_open_options |= File::eOpenOptionDontFollowSymlinks;
 
     File source_file(source, source_open_options, lldb::eFilePermissionsUserRW);
     Error error;
@@ -1539,11 +1528,11 @@ Platform::ConvertMmapFlagsToPlatform(const ArchSpec &arch, unsigned flags)
 }
 
 lldb_private::Error
-Platform::RunShellCommand(const char *command,           // Shouldn't be NULL
+Platform::RunShellCommand(const char *command,           // Shouldn't be nullptr
                           const FileSpec &working_dir,   // Pass empty FileSpec to use the current working directory
-                          int *status_ptr,               // Pass NULL if you don't want the process exit status
-                          int *signo_ptr,                // Pass NULL if you don't want the signal that caused the process to exit
-                          std::string *command_output,   // Pass NULL if you don't want the command output
+                          int *status_ptr,               // Pass nullptr if you don't want the process exit status
+                          int *signo_ptr,                // Pass nullptr if you don't want the signal that caused the process to exit
+                          std::string *command_output,   // Pass nullptr if you don't want the command output
                           uint32_t timeout_sec)          // Timeout in seconds to wait for shell program to finish
 {
     if (IsHost())
@@ -1551,7 +1540,6 @@ Platform::RunShellCommand(const char *command,           // Shouldn't be NULL
     else
         return Error("unimplemented");
 }
-
 
 bool
 Platform::CalculateMD5 (const FileSpec& file_spec,
@@ -1579,32 +1567,24 @@ Platform::GetLocalCacheDirectory ()
 static OptionDefinition
 g_rsync_option_table[] =
 {
-    {   LLDB_OPT_SET_ALL, false, "rsync"                  , 'r', OptionParser::eNoArgument,       NULL, NULL, 0, eArgTypeNone         , "Enable rsync." },
-    {   LLDB_OPT_SET_ALL, false, "rsync-opts"             , 'R', OptionParser::eRequiredArgument, NULL, NULL, 0, eArgTypeCommandName  , "Platform-specific options required for rsync to work." },
-    {   LLDB_OPT_SET_ALL, false, "rsync-prefix"           , 'P', OptionParser::eRequiredArgument, NULL, NULL, 0, eArgTypeCommandName  , "Platform-specific rsync prefix put before the remote path." },
-    {   LLDB_OPT_SET_ALL, false, "ignore-remote-hostname" , 'i', OptionParser::eNoArgument,       NULL, NULL, 0, eArgTypeNone         , "Do not automatically fill in the remote hostname when composing the rsync command." },
+    {   LLDB_OPT_SET_ALL, false, "rsync"                  , 'r', OptionParser::eNoArgument,       nullptr, nullptr, 0, eArgTypeNone         , "Enable rsync." },
+    {   LLDB_OPT_SET_ALL, false, "rsync-opts"             , 'R', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeCommandName  , "Platform-specific options required for rsync to work." },
+    {   LLDB_OPT_SET_ALL, false, "rsync-prefix"           , 'P', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeCommandName  , "Platform-specific rsync prefix put before the remote path." },
+    {   LLDB_OPT_SET_ALL, false, "ignore-remote-hostname" , 'i', OptionParser::eNoArgument,       nullptr, nullptr, 0, eArgTypeNone         , "Do not automatically fill in the remote hostname when composing the rsync command." },
 };
 
 static OptionDefinition
 g_ssh_option_table[] =
 {
-    {   LLDB_OPT_SET_ALL, false, "ssh"                    , 's', OptionParser::eNoArgument,       NULL, NULL, 0, eArgTypeNone         , "Enable SSH." },
-    {   LLDB_OPT_SET_ALL, false, "ssh-opts"               , 'S', OptionParser::eRequiredArgument, NULL, NULL, 0, eArgTypeCommandName  , "Platform-specific options required for SSH to work." },
+    {   LLDB_OPT_SET_ALL, false, "ssh"                    , 's', OptionParser::eNoArgument,       nullptr, nullptr, 0, eArgTypeNone         , "Enable SSH." },
+    {   LLDB_OPT_SET_ALL, false, "ssh-opts"               , 'S', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeCommandName  , "Platform-specific options required for SSH to work." },
 };
 
 static OptionDefinition
 g_caching_option_table[] =
 {
-    {   LLDB_OPT_SET_ALL, false, "local-cache-dir"        , 'c', OptionParser::eRequiredArgument, NULL, NULL, 0, eArgTypePath         , "Path in which to store local copies of files." },
+    {   LLDB_OPT_SET_ALL, false, "local-cache-dir"        , 'c', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypePath         , "Path in which to store local copies of files." },
 };
-
-OptionGroupPlatformRSync::OptionGroupPlatformRSync ()
-{
-}
-
-OptionGroupPlatformRSync::~OptionGroupPlatformRSync ()
-{
-}
 
 const lldb_private::OptionDefinition*
 OptionGroupPlatformRSync::GetDefinitions ()
@@ -1666,14 +1646,6 @@ Platform::SetThreadCreationBreakpoint (lldb_private::Target &target)
     return lldb::BreakpointSP();
 }
 
-OptionGroupPlatformSSH::OptionGroupPlatformSSH ()
-{
-}
-
-OptionGroupPlatformSSH::~OptionGroupPlatformSSH ()
-{
-}
-
 const lldb_private::OptionDefinition*
 OptionGroupPlatformSSH::GetDefinitions ()
 {
@@ -1716,14 +1688,6 @@ uint32_t
 OptionGroupPlatformSSH::GetNumDefinitions ()
 {
     return llvm::array_lengthof(g_ssh_option_table);
-}
-
-OptionGroupPlatformCaching::OptionGroupPlatformCaching ()
-{
-}
-
-OptionGroupPlatformCaching::~OptionGroupPlatformCaching ()
-{
 }
 
 const lldb_private::OptionDefinition*
@@ -1777,7 +1741,7 @@ Platform::GetTrapHandlerSymbolNames ()
 {
     if (!m_calculated_trap_handlers)
     {
-        Mutex::Locker locker (m_mutex);
+        std::lock_guard<std::mutex> guard(m_mutex);
         if (!m_calculated_trap_handlers)
         {
             CalculateTrapHandlerSymbolNames();
@@ -1838,14 +1802,30 @@ Platform::GetRemoteSharedModule (const ModuleSpec &module_spec,
     {
         // Try to get module information from the process
         if (process->GetModuleSpec (module_spec.GetFileSpec (), module_spec.GetArchitecture (), resolved_module_spec))
-            got_module_spec = true;
+        {
+            if (module_spec.GetUUID().IsValid() == false || module_spec.GetUUID() == resolved_module_spec.GetUUID())
+            {
+                got_module_spec = true;
+            }
+        }
     }
 
     if (!got_module_spec)
     {
         // Get module information from a target.
         if (!GetModuleSpec (module_spec.GetFileSpec (), module_spec.GetArchitecture (), resolved_module_spec))
-            return module_resolver (module_spec);
+        {
+            if (module_spec.GetUUID().IsValid() == false || module_spec.GetUUID() == resolved_module_spec.GetUUID())
+            {
+                return module_resolver (module_spec);
+            }
+        }
+    }
+
+    // If we are looking for a specific UUID, make sure resolved_module_spec has the same one before we search.
+    if (module_spec.GetUUID().IsValid())
+    {
+        resolved_module_spec.GetUUID() = module_spec.GetUUID();
     }
 
     // Trying to find a module by UUID on local file system.
@@ -2085,5 +2065,117 @@ size_t
 Platform::ConnectToWaitingProcesses(lldb_private::Debugger& debugger, lldb_private::Error& error)
 {
     error.Clear();
+    return 0;
+}
+
+size_t
+Platform::GetSoftwareBreakpointTrapOpcode(Target &target, BreakpointSite *bp_site)
+{
+    ArchSpec arch = target.GetArchitecture();
+    const uint8_t *trap_opcode = nullptr;
+    size_t trap_opcode_size = 0;
+
+    switch (arch.GetMachine())
+    {
+    case llvm::Triple::aarch64:
+        {
+            static const uint8_t g_aarch64_opcode[] = {0x00, 0x00, 0x20, 0xd4};
+            trap_opcode = g_aarch64_opcode;
+            trap_opcode_size = sizeof(g_aarch64_opcode);
+        }
+        break;
+
+    // TODO: support big-endian arm and thumb trap codes.
+    case llvm::Triple::arm:
+        {
+            // The ARM reference recommends the use of 0xe7fddefe and 0xdefe
+            // but the linux kernel does otherwise.
+            static const uint8_t g_arm_breakpoint_opcode[] = {0xf0, 0x01, 0xf0, 0xe7};
+            static const uint8_t g_thumb_breakpoint_opcode[] = {0x01, 0xde};
+
+            lldb::BreakpointLocationSP bp_loc_sp(bp_site->GetOwnerAtIndex(0));
+            AddressClass addr_class = eAddressClassUnknown;
+
+            if (bp_loc_sp)
+            {
+                addr_class = bp_loc_sp->GetAddress().GetAddressClass();
+                if (addr_class == eAddressClassUnknown && (bp_loc_sp->GetAddress().GetFileAddress() & 1))
+                    addr_class = eAddressClassCodeAlternateISA;
+            }
+
+            if (addr_class == eAddressClassCodeAlternateISA)
+            {
+                trap_opcode = g_thumb_breakpoint_opcode;
+                trap_opcode_size = sizeof(g_thumb_breakpoint_opcode);
+            }
+            else
+            {
+                trap_opcode = g_arm_breakpoint_opcode;
+                trap_opcode_size = sizeof(g_arm_breakpoint_opcode);
+            }
+        }
+        break;
+
+    case llvm::Triple::mips:
+    case llvm::Triple::mips64:
+        {
+            static const uint8_t g_hex_opcode[] = {0x00, 0x00, 0x00, 0x0d};
+            trap_opcode = g_hex_opcode;
+            trap_opcode_size = sizeof(g_hex_opcode);
+        }
+        break;
+
+    case llvm::Triple::mipsel:
+    case llvm::Triple::mips64el:
+        {
+            static const uint8_t g_hex_opcode[] = {0x0d, 0x00, 0x00, 0x00};
+            trap_opcode = g_hex_opcode;
+            trap_opcode_size = sizeof(g_hex_opcode);
+        }
+        break;
+
+    case llvm::Triple::systemz:
+        {
+            static const uint8_t g_hex_opcode[] = {0x00, 0x01};
+            trap_opcode = g_hex_opcode;
+            trap_opcode_size = sizeof(g_hex_opcode);
+        }
+        break;
+
+    case llvm::Triple::hexagon:
+        {
+            static const uint8_t g_hex_opcode[] = {0x0c, 0xdb, 0x00, 0x54};
+            trap_opcode = g_hex_opcode;
+            trap_opcode_size = sizeof(g_hex_opcode);
+        }
+        break;
+
+    case llvm::Triple::ppc:
+    case llvm::Triple::ppc64:
+        {
+            static const uint8_t g_ppc_opcode[] = {0x7f, 0xe0, 0x00, 0x08};
+            trap_opcode = g_ppc_opcode;
+            trap_opcode_size = sizeof(g_ppc_opcode);
+        }
+        break;
+
+    case llvm::Triple::x86:
+    case llvm::Triple::x86_64:
+        {
+            static const uint8_t g_i386_opcode[] = {0xCC};
+            trap_opcode = g_i386_opcode;
+            trap_opcode_size = sizeof(g_i386_opcode);
+        }
+        break;
+
+    default:
+        assert(!"Unhandled architecture in Platform::GetSoftwareBreakpointTrapOpcode");
+        break;
+    }
+
+    assert(bp_site);
+    if (bp_site->SetTrapOpcode(trap_opcode, trap_opcode_size))
+        return trap_opcode_size;
+
     return 0;
 }

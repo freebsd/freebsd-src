@@ -123,8 +123,9 @@ SymbolFileDWARFDebugMap::CompileUnitInfo::GetFileRangeMap(SymbolFileDWARFDebugMa
                                 // Add the inverse OSO file address to debug map entry mapping
                                 exe_symfile->AddOSOFileRange (this,
                                                               exe_symbol->GetAddressRef().GetFileAddress(),
+                                                              exe_symbol->GetByteSize(),
                                                               oso_fun_symbol->GetAddressRef().GetFileAddress(),
-                                                              std::min<addr_t>(exe_symbol->GetByteSize(), oso_fun_symbol->GetByteSize()));
+                                                              oso_fun_symbol->GetByteSize());
 
                             }
                         }
@@ -157,8 +158,9 @@ SymbolFileDWARFDebugMap::CompileUnitInfo::GetFileRangeMap(SymbolFileDWARFDebugMa
                                 // Add the inverse OSO file address to debug map entry mapping
                                 exe_symfile->AddOSOFileRange (this,
                                                               exe_symbol->GetAddressRef().GetFileAddress(),
+                                                              exe_symbol->GetByteSize(),
                                                               oso_gsym_symbol->GetAddressRef().GetFileAddress(),
-                                                              std::min<addr_t>(exe_symbol->GetByteSize(), oso_gsym_symbol->GetByteSize()));
+                                                              oso_gsym_symbol->GetByteSize());
                             }
                         }
                         break;
@@ -206,7 +208,7 @@ public:
             ObjectFile *oso_objfile = GetObjectFile ();
             if (oso_objfile)
             {
-                Mutex::Locker locker (m_mutex);
+                std::lock_guard<std::recursive_mutex> guard(m_mutex);
                 SymbolVendor* symbol_vendor = Module::GetSymbolVendor(can_create, feedback_strm);
                 if (symbol_vendor)
                 {
@@ -635,13 +637,9 @@ SymbolFileDWARFDebugMap::ParseCompileUnitAtIndex(uint32_t cu_idx)
                 // zero in each .o file since each .o file can only have
                 // one compile unit for now.
                 lldb::user_id_t cu_id = 0;
-                m_compile_unit_infos[cu_idx].compile_unit_sp.reset(new CompileUnit (m_obj_file->GetModule(),
-                                                                                    NULL,
-                                                                                    so_file_spec,
-                                                                                    cu_id,
-                                                                                    eLanguageTypeUnknown,
-                                                                                    false));
-            
+                m_compile_unit_infos[cu_idx].compile_unit_sp.reset(new CompileUnit(
+                    m_obj_file->GetModule(), NULL, so_file_spec, cu_id, eLanguageTypeUnknown, eLazyBoolCalculate));
+
                 if (m_compile_unit_infos[cu_idx].compile_unit_sp)
                 {
                     // Let our symbol vendor know about this compile unit
@@ -725,7 +723,16 @@ SymbolFileDWARFDebugMap::ParseCompileUnitSupportFiles (const SymbolContext& sc, 
 }
 
 bool
-SymbolFileDWARFDebugMap::ParseImportedModules (const SymbolContext &sc, std::vector<ConstString> &imported_modules)
+SymbolFileDWARFDebugMap::ParseCompileUnitIsOptimized(const lldb_private::SymbolContext &sc)
+{
+    SymbolFileDWARF *oso_dwarf = GetSymbolFile(sc);
+    if (oso_dwarf)
+        return oso_dwarf->ParseCompileUnitIsOptimized(sc);
+    return false;
+}
+
+bool
+SymbolFileDWARFDebugMap::ParseImportedModules(const SymbolContext &sc, std::vector<ConstString> &imported_modules)
 {
     SymbolFileDWARF *oso_dwarf = GetSymbolFile (sc);
     if (oso_dwarf)
@@ -1276,7 +1283,8 @@ SymbolFileDWARFDebugMap::FindTypes
     const ConstString &name,
     const CompilerDeclContext *parent_decl_ctx,
     bool append,
-    uint32_t max_matches, 
+    uint32_t max_matches,
+    llvm::DenseSet<lldb_private::SymbolFile *> &searched_symbol_files,
     TypeMap& types
 )
 {
@@ -1290,13 +1298,16 @@ SymbolFileDWARFDebugMap::FindTypes
     {
         oso_dwarf = GetSymbolFile (sc);
         if (oso_dwarf)
-            return oso_dwarf->FindTypes (sc, name, parent_decl_ctx, append, max_matches, types);
+            return oso_dwarf->FindTypes (sc, name, parent_decl_ctx, append, max_matches, searched_symbol_files, types);
     }
     else
     {
         ForEachSymbolFile([&](SymbolFileDWARF *oso_dwarf) -> bool {
-            oso_dwarf->FindTypes (sc, name, parent_decl_ctx, append, max_matches, types);
-            return false;
+            oso_dwarf->FindTypes (sc, name, parent_decl_ctx, append, max_matches, searched_symbol_files, types);
+            if (types.GetSize() >= max_matches)
+                return true;
+            else
+                return false;
         });
     }
 
@@ -1452,6 +1463,7 @@ SymbolFileDWARFDebugMap::ParseDeclsForContext (lldb_private::CompilerDeclContext
 bool
 SymbolFileDWARFDebugMap::AddOSOFileRange (CompileUnitInfo *cu_info,
                                           lldb::addr_t exe_file_addr,
+                                          lldb::addr_t exe_byte_size,
                                           lldb::addr_t oso_file_addr,
                                           lldb::addr_t oso_byte_size)
 {
@@ -1460,7 +1472,14 @@ SymbolFileDWARFDebugMap::AddOSOFileRange (CompileUnitInfo *cu_info,
     {
         DebugMap::Entry *debug_map_entry = m_debug_map.FindEntryThatContains(exe_file_addr);
         debug_map_entry->data.SetOSOFileAddress(oso_file_addr);
-        cu_info->file_range_map.Append(FileRangeMap::Entry(oso_file_addr, oso_byte_size, exe_file_addr));
+        addr_t range_size = std::min<addr_t>(exe_byte_size, oso_byte_size);
+        if (range_size == 0)
+        {
+            range_size = std::max<addr_t>(exe_byte_size, oso_byte_size);
+            if (range_size == 0)
+                range_size = 1;
+        }
+        cu_info->file_range_map.Append(FileRangeMap::Entry(oso_file_addr, range_size, exe_file_addr));
         return true;
     }
     return false;

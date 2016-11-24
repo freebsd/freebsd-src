@@ -435,7 +435,7 @@ void Lint::visitMemoryReference(Instruction &I,
       // If the global may be defined differently in another compilation unit
       // then don't warn about funky memory accesses.
       if (GV->hasDefinitiveInitializer()) {
-        Type *GTy = GV->getType()->getElementType();
+        Type *GTy = GV->getValueType();
         if (GTy->isSized())
           BaseSize = DL->getTypeAllocSize(GTy);
         BaseAlign = GV->getAlignment();
@@ -642,8 +642,7 @@ Value *Lint::findValueImpl(Value *V, bool OffsetOk,
       if (!VisitedBlocks.insert(BB).second)
         break;
       if (Value *U =
-          FindAvailableLoadedValue(L->getPointerOperand(),
-                                   BB, BBI, DefMaxInstsToScan, AA))
+          FindAvailableLoadedValue(L, BB, BBI, DefMaxInstsToScan, AA))
         return findValueImpl(U, OffsetOk, Visited);
       if (BBI != BB->begin()) break;
       BB = BB->getUniquePredecessor();

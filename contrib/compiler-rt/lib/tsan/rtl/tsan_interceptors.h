@@ -34,7 +34,7 @@ class ScopedInterceptor {
       Report("FATAL: ThreadSanitizer: failed to intercept %s\n", #func); \
       Die(); \
     }                                                    \
-    if (thr->ignore_interceptors || thr->in_ignored_lib) \
+    if (!thr->is_inited || thr->ignore_interceptors || thr->in_ignored_lib) \
       return REAL(func)(__VA_ARGS__); \
 /**/
 
@@ -45,13 +45,5 @@ class ScopedInterceptor {
     si.UserCallbackEnd();
 
 #define TSAN_INTERCEPTOR(ret, func, ...) INTERCEPTOR(ret, func, __VA_ARGS__)
-
-#if SANITIZER_FREEBSD
-#define __libc_free __free
-#define __libc_malloc __malloc
-#endif
-
-extern "C" void __libc_free(void *ptr);
-extern "C" void *__libc_malloc(uptr size);
 
 #endif  // TSAN_INTERCEPTORS_H

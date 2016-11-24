@@ -127,7 +127,7 @@ public:
     }
 
     lldb::ValueObjectSP
-    GetSP (Process::StopLocker &stop_locker, Mutex::Locker &api_locker, Error &error)
+    GetSP(Process::StopLocker &stop_locker, std::unique_lock<std::recursive_mutex> &lock, Error &error)
     {
         Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_API));
         if (!m_valobj_sp)
@@ -139,10 +139,10 @@ public:
         lldb::ValueObjectSP value_sp = m_valobj_sp;
 
         Target *target = value_sp->GetTargetSP().get();
-        if (target)
-            api_locker.Lock(target->GetAPIMutex());
-        else
+        if (!target)
             return ValueObjectSP();
+
+        lock = std::unique_lock<std::recursive_mutex>(target->GetAPIMutex());
 
         ProcessSP process_sp(value_sp->GetProcessSP());
         if (process_sp && !stop_locker.TryLock (&process_sp->GetRunLock()))
@@ -255,13 +255,13 @@ public:
     ValueLocker ()
     {
     }
-    
+
     ValueObjectSP
     GetLockedSP(ValueImpl &in_value)
     {
-        return in_value.GetSP(m_stop_locker, m_api_locker, m_lock_error);
+        return in_value.GetSP(m_stop_locker, m_lock, m_lock_error);
     }
-    
+
     Error &
     GetError()
     {
@@ -270,9 +270,8 @@ public:
     
 private:
     Process::StopLocker m_stop_locker;
-    Mutex::Locker m_api_locker;
+    std::unique_lock<std::recursive_mutex> m_lock;
     Error m_lock_error;
-    
 };
 
 SBValue::SBValue () :
@@ -528,6 +527,10 @@ SBValue::GetValueType ()
             case eValueTypeConstResult:
                 log->Printf ("SBValue(%p)::GetValueType () => eValueTypeConstResult",
                              static_cast<void*>(value_sp.get()));
+                break;
+            case eValueTypeVariableThreadLocal:
+                log->Printf("SBValue(%p)::GetValueType () => eValueTypeVariableThreadLocal",
+                            static_cast<void *>(value_sp.get()));
                 break;
         }
     }
@@ -923,16 +926,17 @@ SBValue::CreateValueFromAddress(const char* name, lldb::addr_t address, SBType s
 }
 
 lldb::SBValue
-SBValue::CreateValueFromData (const char* name, SBData data, SBType type)
+SBValue::CreateValueFromData (const char* name, SBData data, SBType sb_type)
 {
     lldb::SBValue sb_value;
     lldb::ValueObjectSP new_value_sp;
     ValueLocker locker;
     lldb::ValueObjectSP value_sp(GetSP(locker));
-    if (value_sp)
+    lldb::TypeImplSP type_impl_sp (sb_type.GetSP());
+    if (value_sp && type_impl_sp)
     {
         ExecutionContext exe_ctx (value_sp->GetExecutionContextRef());
-        new_value_sp = ValueObject::CreateValueObjectFromData(name, **data, exe_ctx, type.GetSP()->GetCompilerType(true));
+        new_value_sp = ValueObject::CreateValueObjectFromData(name, **data, exe_ctx, type_impl_sp->GetCompilerType(true));
         new_value_sp->SetAddressTypeOfChildren(eAddressTypeLoad);
     }
     sb_value.SetSP(new_value_sp);
@@ -1139,6 +1143,25 @@ SBValue::IsSynthetic ()
     if (value_sp)
         return value_sp->IsSynthetic();
     return false;
+}
+
+bool
+SBValue::IsSyntheticChildrenGenerated ()
+{
+    ValueLocker locker;
+    lldb::ValueObjectSP value_sp(GetSP(locker));
+    if (value_sp)
+        return value_sp->IsSyntheticChildrenGenerated();
+    return false;
+}
+
+void
+SBValue::SetSyntheticChildrenGenerated (bool is)
+{
+    ValueLocker locker;
+    lldb::ValueObjectSP value_sp(GetSP(locker));
+    if (value_sp)
+        return value_sp->SetSyntheticChildrenGenerated(is);
 }
 
 lldb::SBValue

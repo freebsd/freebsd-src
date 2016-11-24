@@ -23,10 +23,53 @@
 #include "lldb/Interpreter/CommandCompletions.h"
 #include "lldb/Core/StringList.h"
 #include "lldb/Core/Flags.h"
-#include "lldb/Host/Mutex.h"
 #include "lldb/Target/ExecutionContext.h"
 
 namespace lldb_private {
+
+// This function really deals with CommandObjectLists, but we didn't make a
+// CommandObjectList class, so I'm sticking it here.  But we really should have
+// such a class.  Anyway, it looks up the commands in the map that match the partial
+// string cmd_str, inserts the matches into matches, and returns the number added.
+
+template <typename ValueType>
+int
+AddNamesMatchingPartialString (std::map<std::string,ValueType> &in_map, const char *cmd_str, StringList &matches)
+{
+    int number_added = 0;
+    
+    const bool add_all = ((cmd_str == nullptr) || (cmd_str[0] == 0));
+    
+    for (auto iter = in_map.begin(), end = in_map.end();
+         iter != end;
+         iter++)
+    {
+        if (add_all ||
+            (iter->first.find(cmd_str,0) == 0))
+        {
+            ++number_added;
+            matches.AppendString(iter->first.c_str());
+        }
+    }
+    
+    return number_added;
+}
+
+template <typename ValueType>
+size_t
+FindLongestCommandWord (std::map<std::string,ValueType> &dict)
+{
+    auto end = dict.end();
+    size_t max_len = 0;
+    
+    for (auto pos = dict.begin(); pos != end; ++pos)
+    {
+        size_t len = pos->first.size();
+        if (max_len < len)
+            max_len = len;
+    }
+    return max_len;
+}
 
 class CommandObject
 {
@@ -104,23 +147,17 @@ public:
     virtual const char *
     GetHelpLong ();
 
-    const char *
+    virtual const char *
     GetSyntax ();
 
     const char *
     GetCommandName ();
 
-    void
+    virtual void
     SetHelp (const char * str);
 
-    void
-    SetHelp (std::string str);
-    
-    void
+    virtual void
     SetHelpLong (const char * str);
-
-    void
-    SetHelpLong (std::string str);
 
     void
     SetSyntax (const char *str);
@@ -131,14 +168,20 @@ public:
     virtual bool
     IsRemovable () const { return false; }
     
-    bool
-    IsAlias () { return m_is_alias; }
-    
-    void
-    SetIsAlias (bool value) { m_is_alias = value; }
-
     virtual bool
     IsMultiwordObject () { return false; }
+    
+    virtual CommandObjectMultiword*
+    GetAsMultiwordCommand () { return nullptr; }
+
+    virtual bool
+    IsAlias () { return false; }
+    
+    // override this to return true if your command is somehow a "dash-dash"
+    // form of some other command (e.g. po is expr -O --); this is a powerful
+    // hint to the help system that one cannot pass options to this command
+    virtual bool
+    IsDashDashCommand () { return false; }
 
     virtual lldb::CommandObjectSP
     GetSubcommandSP(const char *sub_cmd, StringList *matches = nullptr)
@@ -229,14 +272,6 @@ public:
 
     void
     SetCommandName (const char *name);
-
-    // This function really deals with CommandObjectLists, but we didn't make a
-    // CommandObjectList class, so I'm sticking it here.  But we really should have
-    // such a class.  Anyway, it looks up the commands in the map that match the partial
-    // string cmd_str, inserts the matches into matches, and returns the number added.
-
-    static int
-    AddNamesMatchingPartialString (CommandMap &in_map, const char *cmd_str, StringList &matches);
 
     //------------------------------------------------------------------
     /// The input array contains a parsed version of the line.  The insertion
@@ -340,7 +375,11 @@ public:
     }
     
     bool
-    HelpTextContainsWord (const char *search_word);
+    HelpTextContainsWord (const char *search_word,
+                          bool search_short_help = true,
+                          bool search_long_help = true,
+                          bool search_syntax = true,
+                          bool search_options = true);
 
     //------------------------------------------------------------------
     /// The flags accessor.
@@ -451,6 +490,12 @@ protected:
     // is present you want to prime the dummy target with entities that will be copied over to new targets.
     Target *GetSelectedOrDummyTarget(bool prefer_dummy = false);
     Target *GetDummyTarget();
+    
+    // If a command needs to use the "current" thread, use this call.
+    // Command objects will have an ExecutionContext to use, and that may or may not have a thread in it.  If it
+    // does, you should use that by default, if not, then use the ExecutionContext's target's selected thread, etc...
+    // This call insulates you from the details of this calculation.
+    Thread *GetDefaultThread();
 
     //------------------------------------------------------------------
     /// Check the command to make sure anything required by this
@@ -471,12 +516,11 @@ protected:
 
     CommandInterpreter &m_interpreter;
     ExecutionContext m_exe_ctx;
-    Mutex::Locker m_api_locker;
+    std::unique_lock<std::recursive_mutex> m_api_locker;
     std::string m_cmd_name;
     std::string m_cmd_help_short;
     std::string m_cmd_help_long;
     std::string m_cmd_syntax;
-    bool m_is_alias;
     Flags m_flags;
     std::vector<CommandArgumentEntry> m_arguments;
     lldb::CommandOverrideCallback m_deprecated_command_override_callback;

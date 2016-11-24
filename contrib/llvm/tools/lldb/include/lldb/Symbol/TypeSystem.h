@@ -14,6 +14,7 @@
 // C++ Includes
 #include <functional>
 #include <map>
+#include <mutex>
 #include <string>
 
 // Other libraries and framework includes
@@ -24,7 +25,6 @@
 #include "lldb/lldb-private.h"
 #include "lldb/Core/PluginInterface.h"
 #include "lldb/Expression/Expression.h"
-#include "lldb/Host/Mutex.h"
 #include "lldb/Symbol/CompilerDecl.h"
 #include "lldb/Symbol/CompilerDeclContext.h"
 
@@ -74,6 +74,7 @@ public:
         eKindClang,
         eKindSwift,
         eKindGo,
+        eKindJava,
         kNumKinds
     };
 
@@ -92,8 +93,14 @@ public:
     static lldb::TypeSystemSP
     CreateInstance (lldb::LanguageType language, Target *target);
 
+     
+    // Free up any resources associated with this TypeSystem.  Done before removing
+    // all the TypeSystems from the TypeSystemMap.
+    virtual void
+    Finalize() {}
+
     virtual DWARFASTParser *
-    GetDWARFParser ()
+    GetDWARFParser()
     {
         return nullptr;
     }
@@ -120,12 +127,6 @@ public:
     virtual ConstString
     DeclGetMangledName (void *opaque_decl);
 
-    virtual lldb::VariableSP
-    DeclGetVariable (void *opaque_decl) = 0;
-
-    virtual void
-    DeclLinkToObject (void *opaque_decl, std::shared_ptr<void> object) = 0;
-
     virtual CompilerDeclContext
     DeclGetDeclContext (void *opaque_decl);
 
@@ -143,7 +144,9 @@ public:
     //----------------------------------------------------------------------
     
     virtual std::vector<CompilerDecl>
-    DeclContextFindDeclByName (void *opaque_decl_ctx, ConstString name);
+    DeclContextFindDeclByName (void *opaque_decl_ctx,
+                               ConstString name,
+                               const bool ignore_imported_decls);
 
     virtual bool
     DeclContextIsStructUnionOrClass (void *opaque_decl_ctx) = 0;
@@ -201,8 +204,18 @@ public:
     IsFunctionPointerType (lldb::opaque_compiler_type_t type) = 0;
     
     virtual bool
-    IsIntegerType (lldb::opaque_compiler_type_t type, bool &is_signed) = 0;
+    IsBlockPointerType (lldb::opaque_compiler_type_t type, CompilerType *function_pointer_type_ptr) = 0;
     
+    virtual bool
+    IsIntegerType (lldb::opaque_compiler_type_t type, bool &is_signed) = 0;
+
+    virtual bool
+    IsEnumerationType (lldb::opaque_compiler_type_t type, bool &is_signed)
+    {
+        is_signed = false;
+        return false;
+    }
+
     virtual bool
     IsPossibleDynamicType (lldb::opaque_compiler_type_t type,
                            CompilerType *target_type, // Can pass NULL
@@ -582,6 +595,8 @@ protected:
         TypeSystemMap ();
         ~TypeSystemMap();
 
+        // Clear calls Finalize on all the TypeSystems managed by this map, and then
+        // empties the map.
         void
         Clear ();
 
@@ -597,9 +612,15 @@ protected:
         GetTypeSystemForLanguage (lldb::LanguageType language, Target *target, bool can_create);
 
     protected:
+        // This function does not take the map mutex, and should only be called from
+        // functions that do take the mutex.
+        void
+        AddToMap (lldb::LanguageType language, lldb::TypeSystemSP const &type_system_sp);
+
         typedef std::map<lldb::LanguageType, lldb::TypeSystemSP> collection;
-        mutable Mutex m_mutex; ///< A mutex to keep this object happy in multi-threaded environments.
+        mutable std::mutex m_mutex; ///< A mutex to keep this object happy in multi-threaded environments.
         collection m_map;
+        bool m_clear_in_progress;
     };
 
 } // namespace lldb_private

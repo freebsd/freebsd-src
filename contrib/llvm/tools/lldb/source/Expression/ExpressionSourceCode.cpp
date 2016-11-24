@@ -16,7 +16,9 @@
 #include "lldb/Symbol/DebugMacros.h"
 #include "lldb/Symbol/Block.h"
 #include "lldb/Symbol/TypeSystem.h"
+#include "lldb/Symbol/VariableList.h"
 #include "lldb/Target/ExecutionContext.h"
+#include "lldb/Target/Language.h"
 #include "lldb/Target/Platform.h"
 #include "lldb/Target/StackFrame.h"
 #include "lldb/Target/Target.h"
@@ -58,6 +60,9 @@ extern "C"
     int printf(const char * __restrict, ...);
 }
 )";
+
+static const char *c_start_marker = "    /*LLDB_BODY_START*/\n    ";
+static const char *c_end_marker   = ";\n    /*LLDB_BODY_END*/\n";
 
 namespace {
 
@@ -106,8 +111,6 @@ public:
         {
             case CURRENT_FILE_NOT_YET_PUSHED:
                 return true;
-            case CURRENT_FILE_POPPED:
-                return false;
             case CURRENT_FILE_PUSHED:
                 // If we are in file included in the current file,
                 // the entry should be added.
@@ -118,6 +121,8 @@ public:
                     return false;
                 else
                     return true;
+            default:
+                return false;
         }
     }
 
@@ -175,12 +180,28 @@ AddMacros(const DebugMacros *dm, CompileUnit *comp_unit, AddMacroState &state, S
     }
 }
 
-bool ExpressionSourceCode::GetText (std::string &text, lldb::LanguageType wrapping_language, bool const_object, bool static_method, ExecutionContext &exe_ctx) const
+static void
+AddLocalVariableDecls(const lldb::VariableListSP &var_list_sp, StreamString &stream)
+{
+    for (size_t i = 0; i < var_list_sp->GetSize(); i++)
+    {
+        lldb::VariableSP var_sp = var_list_sp->GetVariableAtIndex(i);
+
+        ConstString var_name = var_sp->GetName();
+        if (!var_name || var_name == ConstString("this") || var_name == ConstString(".block_descriptor"))
+            continue;
+
+        stream.Printf("using $__lldb_local_vars::%s;\n", var_name.AsCString());
+    }
+}
+
+bool ExpressionSourceCode::GetText (std::string &text, lldb::LanguageType wrapping_language, bool static_method, ExecutionContext &exe_ctx) const
 {
     const char *target_specific_defines = "typedef signed char BOOL;\n";
     std::string module_macros;
     
-    if (Target *target = exe_ctx.GetTargetPtr())
+    Target *target = exe_ctx.GetTargetPtr();
+    if (target)
     {
         if (target->GetArchitecture().GetMachine() == llvm::Triple::aarch64)
         {
@@ -239,6 +260,7 @@ bool ExpressionSourceCode::GetText (std::string &text, lldb::LanguageType wrappi
     }
 
     StreamString debug_macros_stream;
+    StreamString lldb_local_var_decls;
     if (StackFrame *frame = exe_ctx.GetFramePtr())
     {
         const SymbolContext &sc = frame->GetSymbolContext(
@@ -253,8 +275,18 @@ bool ExpressionSourceCode::GetText (std::string &text, lldb::LanguageType wrappi
                 AddMacros(dm, sc.comp_unit, state, debug_macros_stream);
             }
         }
+
+        ConstString object_name;
+        if (Language::LanguageIsCPlusPlus(frame->GetLanguage()))
+        {
+            if (target->GetInjectLocalVariables(&exe_ctx))
+            {
+                lldb::VariableListSP var_list_sp = frame->GetInScopeVariableList(false, true);
+                AddLocalVariableDecls(var_list_sp, lldb_local_var_decls);
+            }
+        }
     }
-    
+
     if (m_wrap)
     {
         switch (wrapping_language) 
@@ -276,6 +308,22 @@ bool ExpressionSourceCode::GetText (std::string &text, lldb::LanguageType wrappi
                            target_specific_defines,
                            m_prefix.c_str());
         
+        // First construct a tagged form of the user expression so we can find it later:
+        std::string tagged_body;
+        switch (wrapping_language)
+        {
+            default:
+                tagged_body = m_body;
+                break;
+            case lldb::eLanguageTypeC:
+            case lldb::eLanguageTypeC_plus_plus:
+            case lldb::eLanguageTypeObjC:
+                tagged_body.append(c_start_marker);
+                tagged_body.append(m_body);
+                tagged_body.append(c_end_marker);
+                break;
+            
+        }
         switch (wrapping_language) 
         {
         default:
@@ -284,20 +332,23 @@ bool ExpressionSourceCode::GetText (std::string &text, lldb::LanguageType wrappi
             wrap_stream.Printf("void                           \n"
                                "%s(void *$__lldb_arg)          \n"
                                "{                              \n"
-                               "    %s;                        \n" 
+                               "    %s;                        \n"
+                               "%s"
                                "}                              \n",
                                m_name.c_str(),
-                               m_body.c_str());
+                               lldb_local_var_decls.GetData(),
+                               tagged_body.c_str());
             break;
         case lldb::eLanguageTypeC_plus_plus:
             wrap_stream.Printf("void                                   \n"
-                               "$__lldb_class::%s(void *$__lldb_arg) %s\n"
+                               "$__lldb_class::%s(void *$__lldb_arg)   \n"
                                "{                                      \n"
-                               "    %s;                                \n" 
+                               "    %s;                                \n"
+                               "%s"
                                "}                                      \n",
                                m_name.c_str(),
-                               (const_object ? "const" : ""),
-                               m_body.c_str());
+                               lldb_local_var_decls.GetData(),
+                               tagged_body.c_str());
             break;
         case lldb::eLanguageTypeObjC:
             if (static_method)
@@ -308,12 +359,12 @@ bool ExpressionSourceCode::GetText (std::string &text, lldb::LanguageType wrappi
                                    "@implementation $__lldb_objc_class ($__lldb_category)   \n"
                                    "+(void)%s:(void *)$__lldb_arg                           \n"
                                    "{                                                       \n"
-                                   "    %s;                                                 \n"
+                                   "%s"
                                    "}                                                       \n"
                                    "@end                                                    \n",
                                    m_name.c_str(),
                                    m_name.c_str(),
-                                   m_body.c_str());
+                                   tagged_body.c_str());
             }
             else
             {
@@ -323,12 +374,12 @@ bool ExpressionSourceCode::GetText (std::string &text, lldb::LanguageType wrappi
                                    "@implementation $__lldb_objc_class ($__lldb_category)  \n"
                                    "-(void)%s:(void *)$__lldb_arg                          \n"
                                    "{                                                      \n"
-                                   "    %s;                                                \n"
+                                   "%s"
                                    "}                                                      \n"
                                    "@end                                                   \n",
                                    m_name.c_str(),
                                    m_name.c_str(),
-                                   m_body.c_str());
+                                   tagged_body.c_str());
             }
             break;
         }
@@ -339,6 +390,38 @@ bool ExpressionSourceCode::GetText (std::string &text, lldb::LanguageType wrappi
     {
         text.append(m_body);
     }
-    
+
     return true;
 }
+
+bool
+ExpressionSourceCode::GetOriginalBodyBounds(std::string transformed_text,
+                                            lldb::LanguageType wrapping_language,
+                                            size_t &start_loc,
+                                            size_t &end_loc)
+{
+    const char *start_marker;
+    const char *end_marker;
+    
+    switch (wrapping_language)
+    {
+    default:
+        return false;
+    case lldb::eLanguageTypeC:
+    case lldb::eLanguageTypeC_plus_plus:
+    case lldb::eLanguageTypeObjC:
+        start_marker = c_start_marker;
+        end_marker = c_end_marker;
+        break;
+    }
+    
+    start_loc = transformed_text.find(start_marker);
+    if (start_loc == std::string::npos)
+        return false;
+    start_loc += strlen(start_marker);
+    end_loc  = transformed_text.find(end_marker);
+    if (end_loc == std::string::npos)
+        return false;
+    return true;
+}
+

@@ -85,7 +85,7 @@ public:
   /// create the PCHGenerator instance returned by CreateASTConsumer.
   ///
   /// \returns true if an error occurred, false otherwise.
-  static raw_pwrite_stream *
+  static std::unique_ptr<raw_pwrite_stream>
   ComputeASTConsumerArguments(CompilerInstance &CI, StringRef InFile,
                               std::string &Sysroot, std::string &OutputFile);
 };
@@ -117,10 +117,9 @@ public:
   /// create the PCHGenerator instance returned by CreateASTConsumer.
   ///
   /// \returns true if an error occurred, false otherwise.
-  raw_pwrite_stream *ComputeASTConsumerArguments(CompilerInstance &CI,
-                                                 StringRef InFile,
-                                                 std::string &Sysroot,
-                                                 std::string &OutputFile);
+  std::unique_ptr<raw_pwrite_stream>
+  ComputeASTConsumerArguments(CompilerInstance &CI, StringRef InFile,
+                              std::string &Sysroot, std::string &OutputFile);
 };
 
 class SyntaxOnlyAction : public ASTFrontendAction {
@@ -129,6 +128,7 @@ protected:
                                                  StringRef InFile) override;
 
 public:
+  ~SyntaxOnlyAction() override;
   bool hasCodeCompletionSupport() const override { return true; }
 };
 
@@ -168,7 +168,7 @@ public:
  */
 class ASTMergeAction : public FrontendAction {
   /// \brief The action that the merge action adapts.
-  FrontendAction *AdaptedAction;
+  std::unique_ptr<FrontendAction> AdaptedAction;
   
   /// \brief The set of AST files to merge.
   std::vector<std::string> ASTFiles;
@@ -184,7 +184,8 @@ protected:
   void EndSourceFileAction() override;
 
 public:
-  ASTMergeAction(FrontendAction *AdaptedAction, ArrayRef<std::string> ASTFiles);
+  ASTMergeAction(std::unique_ptr<FrontendAction> AdaptedAction,
+                 ArrayRef<std::string> ASTFiles);
   ~ASTMergeAction() override;
 
   bool usesPreprocessorOnly() const override;

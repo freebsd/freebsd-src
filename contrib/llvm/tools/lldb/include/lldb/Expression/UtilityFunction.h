@@ -54,8 +54,8 @@ public:
     //------------------------------------------------------------------
     /// Install the utility function into a process
     ///
-    /// @param[in] error_stream
-    ///     A stream to print parse errors and warnings to.
+    /// @param[in] diagnostic_manager
+    ///     A diagnostic manager to print parse errors and warnings to.
     ///
     /// @param[in] exe_ctx
     ///     The execution context to install the utility function to.
@@ -64,8 +64,8 @@ public:
     ///     True on success (no errors); false otherwise.
     //------------------------------------------------------------------
     virtual bool
-    Install (Stream &error_stream, ExecutionContext &exe_ctx) = 0;
-    
+    Install(DiagnosticManager &diagnostic_manager, ExecutionContext &exe_ctx) = 0;
+
     //------------------------------------------------------------------
     /// Check whether the given PC is inside the function
     ///
@@ -139,8 +139,10 @@ public:
     }
     
     // This makes the function caller function.
+    // Pass in the ThreadSP if you have one available, compilation can end up calling code (e.g. to look up indirect
+    // functions) and we don't want this to wander onto another thread.
     FunctionCaller *
-    MakeFunctionCaller(const CompilerType &return_type, const ValueList &arg_value_list, Error &error);
+    MakeFunctionCaller(const CompilerType &return_type, const ValueList &arg_value_list, lldb::ThreadSP compilation_thread, Error &error);
     
     // This one retrieves the function caller that is already made.  If you haven't made it yet, this returns nullptr
     FunctionCaller *

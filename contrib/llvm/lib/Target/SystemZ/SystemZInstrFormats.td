@@ -158,6 +158,17 @@ def getThreeOperandOpcode : InstrMapping {
 //
 //===----------------------------------------------------------------------===//
 
+class InstI<bits<8> op, dag outs, dag ins, string asmstr, list<dag> pattern>
+  : InstSystemZ<2, outs, ins, asmstr, pattern> {
+  field bits<16> Inst;
+  field bits<16> SoftFail = 0;
+
+  bits<8> I1;
+
+  let Inst{15-8} = op;
+  let Inst{7-0}  = I1;
+}
+
 class InstRI<bits<12> op, dag outs, dag ins, string asmstr, list<dag> pattern>
   : InstSystemZ<4, outs, ins, asmstr, pattern> {
   field bits<32> Inst;
@@ -170,6 +181,24 @@ class InstRI<bits<12> op, dag outs, dag ins, string asmstr, list<dag> pattern>
   let Inst{23-20} = R1;
   let Inst{19-16} = op{3-0};
   let Inst{15-0}  = I2;
+}
+
+class InstRIEa<bits<16> op, dag outs, dag ins, string asmstr, list<dag> pattern>
+  : InstSystemZ<6, outs, ins, asmstr, pattern> {
+  field bits<48> Inst;
+  field bits<48> SoftFail = 0;
+
+  bits<4> R1;
+  bits<16> I2;
+  bits<4> M3;
+
+  let Inst{47-40} = op{15-8};
+  let Inst{39-36} = R1;
+  let Inst{35-32} = 0;
+  let Inst{31-16} = I2;
+  let Inst{15-12} = M3;
+  let Inst{11-8}  = 0;
+  let Inst{7-0}   = op{7-0};
 }
 
 class InstRIEb<bits<16> op, dag outs, dag ins, string asmstr, list<dag> pattern>
@@ -260,6 +289,24 @@ class InstRIL<bits<12> op, dag outs, dag ins, string asmstr, list<dag> pattern>
   let Inst{31-0}  = I2;
 }
 
+class InstRIS<bits<16> op, dag outs, dag ins, string asmstr, list<dag> pattern>
+  : InstSystemZ<6, outs, ins, asmstr, pattern> {
+  field bits<48> Inst;
+  field bits<48> SoftFail = 0;
+
+  bits<4> R1;
+  bits<8> I2;
+  bits<4> M3;
+  bits<16> BD4;
+
+  let Inst{47-40} = op{15-8};
+  let Inst{39-36} = R1;
+  let Inst{35-32} = M3;
+  let Inst{31-16} = BD4;
+  let Inst{15-8}  = I2;
+  let Inst{7-0}   = op{7-0};
+}
+
 class InstRR<bits<8> op, dag outs, dag ins, string asmstr, list<dag> pattern>
   : InstSystemZ<2, outs, ins, asmstr, pattern> {
   field bits<16> Inst;
@@ -318,6 +365,41 @@ class InstRRF<bits<16> op, dag outs, dag ins, string asmstr, list<dag> pattern>
   let Inst{11-8}  = R4;
   let Inst{7-4}   = R1;
   let Inst{3-0}   = R2;
+}
+
+class InstRRFc<bits<16> op, dag outs, dag ins, string asmstr, list<dag> pattern>
+  : InstSystemZ<4, outs, ins, asmstr, pattern> {
+  field bits<32> Inst;
+  field bits<32> SoftFail = 0;
+
+  bits<4> R1;
+  bits<4> R2;
+  bits<4> M3;
+
+  let Inst{31-16} = op;
+  let Inst{15-12} = M3;
+  let Inst{11-8}  = 0;
+  let Inst{7-4}   = R1;
+  let Inst{3-0}   = R2;
+}
+
+class InstRRS<bits<16> op, dag outs, dag ins, string asmstr, list<dag> pattern>
+  : InstSystemZ<6, outs, ins, asmstr, pattern> {
+  field bits<48> Inst;
+  field bits<48> SoftFail = 0;
+
+  bits<4> R1;
+  bits<4> R2;
+  bits<4> M3;
+  bits<16> BD4;
+
+  let Inst{47-40} = op{15-8};
+  let Inst{39-36} = R1;
+  let Inst{35-32} = R2;
+  let Inst{31-16} = BD4;
+  let Inst{15-12} = M3;
+  let Inst{11-8}  = 0;
+  let Inst{7-0}   = op{7-0};
 }
 
 class InstRX<bits<8> op, dag outs, dag ins, string asmstr, list<dag> pattern>
@@ -919,6 +1001,10 @@ class InstVRX<bits<16> op, dag outs, dag ins, string asmstr, list<dag> pattern>
 //   Compare:
 //     Two input operands and an implicit CC output operand.
 //
+//   Test:
+//     Two input operands and an implicit CC output operand.  The second
+//     input operand is an "address" operand used as a test class mask.
+//
 //   Ternary:
 //     One register output operand and three input operands.
 //
@@ -974,10 +1060,28 @@ class BranchUnaryRI<string mnemonic, bits<12> opcode, RegisterOperand cls>
   let DisableEncoding = "$R1src";
 }
 
-class LoadMultipleRSY<string mnemonic, bits<16> opcode, RegisterOperand cls>
-  : InstRSY<opcode, (outs cls:$R1, cls:$R3), (ins bdaddr20only:$BD2),
+class LoadMultipleRS<string mnemonic, bits<8> opcode, RegisterOperand cls,
+                     AddressingMode mode = bdaddr12only>
+  : InstRS<opcode, (outs cls:$R1, cls:$R3), (ins mode:$BD2),
+           mnemonic#"\t$R1, $R3, $BD2", []> {
+  let mayLoad = 1;
+}
+
+class LoadMultipleRSY<string mnemonic, bits<16> opcode, RegisterOperand cls,
+                      AddressingMode mode = bdaddr20only>
+  : InstRSY<opcode, (outs cls:$R1, cls:$R3), (ins mode:$BD2),
             mnemonic#"\t$R1, $R3, $BD2", []> {
   let mayLoad = 1;
+}
+
+multiclass LoadMultipleRSPair<string mnemonic, bits<8> rsOpcode,
+                              bits<16> rsyOpcode, RegisterOperand cls> {
+  let DispKey = mnemonic ## #cls in {
+    let DispSize = "12" in
+      def "" : LoadMultipleRS<mnemonic, rsOpcode, cls, bdaddr12pair>;
+    let DispSize = "20" in
+      def Y  : LoadMultipleRSY<mnemonic#"y", rsyOpcode, cls, bdaddr20pair>;
+  }
 }
 
 class LoadMultipleVRSa<string mnemonic, bits<16> opcode>
@@ -1055,10 +1159,28 @@ class StoreLengthVRSb<string mnemonic, bits<16> opcode,
   let AccessBytes = bytes;
 }
 
-class StoreMultipleRSY<string mnemonic, bits<16> opcode, RegisterOperand cls>
-  : InstRSY<opcode, (outs), (ins cls:$R1, cls:$R3, bdaddr20only:$BD2),
+class StoreMultipleRS<string mnemonic, bits<8> opcode, RegisterOperand cls,
+                      AddressingMode mode = bdaddr12only>
+  : InstRS<opcode, (outs), (ins cls:$R1, cls:$R3, mode:$BD2),
+           mnemonic#"\t$R1, $R3, $BD2", []> {
+  let mayStore = 1;
+}
+
+class StoreMultipleRSY<string mnemonic, bits<16> opcode, RegisterOperand cls,
+                       AddressingMode mode = bdaddr20only>
+  : InstRSY<opcode, (outs), (ins cls:$R1, cls:$R3, mode:$BD2),
             mnemonic#"\t$R1, $R3, $BD2", []> {
   let mayStore = 1;
+}
+
+multiclass StoreMultipleRSPair<string mnemonic, bits<8> rsOpcode,
+                               bits<16> rsyOpcode, RegisterOperand cls> {
+  let DispKey = mnemonic ## #cls in {
+    let DispSize = "12" in
+      def "" : StoreMultipleRS<mnemonic, rsOpcode, cls, bdaddr12pair>;
+    let DispSize = "20" in
+      def Y  : StoreMultipleRSY<mnemonic#"y", rsyOpcode, cls, bdaddr20pair>;
+  }
 }
 
 class StoreMultipleVRSa<string mnemonic, bits<16> opcode>
@@ -1186,6 +1308,15 @@ class CondUnaryRRF<string mnemonic, bits<16> opcode, RegisterOperand cls1,
   let R4 = 0;
 }
 
+class CondUnaryRIE<string mnemonic, bits<16> opcode, RegisterOperand cls,
+                   Immediate imm>
+  : InstRIEd<opcode, (outs cls:$R1),
+                     (ins imm:$I2, cond4:$valid, cond4:$R3),
+             mnemonic#"$R3\t$R1, $I2", []>,
+    Requires<[FeatureLoadStoreOnCond2]> {
+  let CCMaskLast = 1;
+}
+
 // Like CondUnaryRRF, but used for the raw assembly form.  The condition-code
 // mask is the third operand rather than being part of the mnemonic.
 class AsmCondUnaryRRF<string mnemonic, bits<16> opcode, RegisterOperand cls1,
@@ -1198,6 +1329,16 @@ class AsmCondUnaryRRF<string mnemonic, bits<16> opcode, RegisterOperand cls1,
   let R4 = 0;
 }
 
+class AsmCondUnaryRIE<string mnemonic, bits<16> opcode, RegisterOperand cls,
+                   Immediate imm>
+  : InstRIEd<opcode, (outs cls:$R1),
+                     (ins cls:$R1src, imm:$I2, imm32zx4:$R3),
+             mnemonic#"\t$R1, $I2, $R3", []>,
+    Requires<[FeatureLoadStoreOnCond2]> {
+  let Constraints = "$R1 = $R1src";
+  let DisableEncoding = "$R1src";
+}
+
 // Like CondUnaryRRF, but with a fixed CC mask.
 class FixedCondUnaryRRF<string mnemonic, bits<16> opcode, RegisterOperand cls1,
                         RegisterOperand cls2, bits<4> ccmask>
@@ -1208,6 +1349,17 @@ class FixedCondUnaryRRF<string mnemonic, bits<16> opcode, RegisterOperand cls1,
   let DisableEncoding = "$R1src";
   let R3 = ccmask;
   let R4 = 0;
+}
+
+class FixedCondUnaryRIE<string mnemonic, bits<16> opcode, RegisterOperand cls,
+                   Immediate imm, bits<4> ccmask>
+  : InstRIEd<opcode, (outs cls:$R1),
+                     (ins cls:$R1src, imm:$I2),
+             mnemonic#"\t$R1, $I2", []>,
+    Requires<[FeatureLoadStoreOnCond2]> {
+  let Constraints = "$R1 = $R1src";
+  let DisableEncoding = "$R1src";
+  let R3 = ccmask;
 }
 
 class UnaryRI<string mnemonic, bits<12> opcode, SDPatternOperator operator,
@@ -1391,9 +1543,9 @@ class BinaryRRE<string mnemonic, bits<16> opcode, SDPatternOperator operator,
 
 class BinaryRRF<string mnemonic, bits<16> opcode, SDPatternOperator operator,
                 RegisterOperand cls1, RegisterOperand cls2>
-  : InstRRF<opcode, (outs cls1:$R1), (ins cls1:$R3, cls2:$R2),
+  : InstRRF<opcode, (outs cls1:$R1), (ins cls1:$R2, cls2:$R3),
             mnemonic#"r\t$R1, $R3, $R2",
-            [(set cls1:$R1, (operator cls1:$R3, cls2:$R2))]> {
+            [(set cls1:$R1, (operator cls1:$R2, cls2:$R3))]> {
   let OpKey = mnemonic ## cls1;
   let OpType = "reg";
   let R4 = 0;
@@ -1874,6 +2026,14 @@ class CompareVRRa<string mnemonic, bits<16> opcode, SDPatternOperator operator,
   let M5 = 0;
 }
 
+class TestRXE<string mnemonic, bits<16> opcode, SDPatternOperator operator,
+              RegisterOperand cls>
+  : InstRXE<opcode, (outs), (ins cls:$R1, bdxaddr12only:$XBD2),
+            mnemonic#"\t$R1, $XBD2",
+            [(operator cls:$R1, bdxaddr12only:$XBD2)]> {
+  let M3 = 0;
+}
+
 class TernaryRRD<string mnemonic, bits<16> opcode,
                  SDPatternOperator operator, RegisterOperand cls>
   : InstRRD<opcode, (outs cls:$R1), (ins cls:$R1src, cls:$R3, cls:$R2),
@@ -1883,6 +2043,40 @@ class TernaryRRD<string mnemonic, bits<16> opcode,
   let OpType = "reg";
   let Constraints = "$R1 = $R1src";
   let DisableEncoding = "$R1src";
+}
+
+class TernaryRS<string mnemonic, bits<8> opcode, RegisterOperand cls,
+                bits<5> bytes, AddressingMode mode = bdaddr12only>
+  : InstRS<opcode, (outs cls:$R1),
+          (ins cls:$R1src, imm32zx4:$R3, mode:$BD2),
+           mnemonic#"\t$R1, $R3, $BD2", []> {
+
+  let Constraints = "$R1 = $R1src";
+  let DisableEncoding = "$R1src";
+  let mayLoad = 1;
+  let AccessBytes = bytes;
+}
+
+class TernaryRSY<string mnemonic, bits<16> opcode, RegisterOperand cls,
+                bits<5> bytes, AddressingMode mode = bdaddr20only>
+  : InstRSY<opcode, (outs cls:$R1),
+           (ins cls:$R1src, imm32zx4:$R3, mode:$BD2),
+            mnemonic#"\t$R1, $R3, $BD2", []> {
+
+  let Constraints = "$R1 = $R1src";
+  let DisableEncoding = "$R1src";
+  let mayLoad = 1;
+  let AccessBytes = bytes;
+}
+
+multiclass TernaryRSPair<string mnemonic, bits<8> rsOpcode, bits<16> rsyOpcode,
+                         RegisterOperand cls, bits<5> bytes> {
+  let DispKey = mnemonic ## #cls in {
+    let DispSize = "12" in
+      def "" : TernaryRS<mnemonic, rsOpcode, cls, bytes, bdaddr12pair>;
+    let DispSize = "20" in
+      def Y  : TernaryRSY<mnemonic#"y", rsyOpcode, cls, bytes, bdaddr20pair>;
+  }
 }
 
 class TernaryRXF<string mnemonic, bits<16> opcode, SDPatternOperator operator,

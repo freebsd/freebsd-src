@@ -17,6 +17,7 @@
 #include "llvm/Analysis/AssumptionCache.h"
 #include "llvm/Analysis/CallGraph.h"
 #include "llvm/Analysis/InlineCost.h"
+#include "llvm/Analysis/ProfileSummaryInfo.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/IR/CallSite.h"
 #include "llvm/IR/CallingConv.h"
@@ -37,15 +38,16 @@ namespace {
 class AlwaysInliner : public Inliner {
 
 public:
-  // Use extremely low threshold.
-  AlwaysInliner() : Inliner(ID, -2000000000, /*InsertLifetime*/ true) {
+  AlwaysInliner() : Inliner(ID, /*InsertLifetime*/ true) {
     initializeAlwaysInlinerPass(*PassRegistry::getPassRegistry());
   }
 
-  AlwaysInliner(bool InsertLifetime)
-      : Inliner(ID, -2000000000, InsertLifetime) {
+  AlwaysInliner(bool InsertLifetime) : Inliner(ID, InsertLifetime) {
     initializeAlwaysInlinerPass(*PassRegistry::getPassRegistry());
   }
+
+  /// Main run interface method.  We override here to avoid calling skipSCC().
+  bool runOnSCC(CallGraphSCC &SCC) override { return inlineCalls(SCC); }
 
   static char ID; // Pass identification, replacement for typeid
 
@@ -64,6 +66,7 @@ INITIALIZE_PASS_BEGIN(AlwaysInliner, "always-inline",
                 "Inliner for always_inline functions", false, false)
 INITIALIZE_PASS_DEPENDENCY(AssumptionCacheTracker)
 INITIALIZE_PASS_DEPENDENCY(CallGraphWrapperPass)
+INITIALIZE_PASS_DEPENDENCY(ProfileSummaryInfoWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(TargetLibraryInfoWrapperPass)
 INITIALIZE_PASS_END(AlwaysInliner, "always-inline",
                 "Inliner for always_inline functions", false, false)

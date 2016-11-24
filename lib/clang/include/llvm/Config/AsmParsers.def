@@ -1,5 +1,9 @@
 /* $FreeBSD$ */
 
+#ifndef LLVM_ASM_PARSER
+#  error Please define the macro LLVM_ASM_PARSER(TargetName)
+#endif
+
 LLVM_ASM_PARSER(AArch64)
 LLVM_ASM_PARSER(ARM)
 LLVM_ASM_PARSER(Mips)

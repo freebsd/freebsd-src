@@ -131,8 +131,9 @@ bool
 operator<=(const reverse_iterator<Iterator1>& x, const reverse_iterator<Iterator2>& y);
 
 template <class Iterator1, class Iterator2>
-typename reverse_iterator<Iterator1>::difference_type
-operator-(const reverse_iterator<Iterator1>& x, const reverse_iterator<Iterator2>& y);
+auto
+operator-(const reverse_iterator<Iterator1>& x, const reverse_iterator<Iterator2>& y)
+-> decltype(__y.base() - __x.base());
 
 template <class Iterator>
 reverse_iterator<Iterator>
@@ -149,7 +150,7 @@ public:
     typedef Container                   container_type;
     typedef void                        value_type;
     typedef void                        difference_type;
-    typedef back_insert_iterator<Cont>& reference;
+    typedef void                        reference;
     typedef void                        pointer;
 
     explicit back_insert_iterator(Container& x);
@@ -170,7 +171,7 @@ public:
     typedef Container                    container_type;
     typedef void                         value_type;
     typedef void                         difference_type;
-    typedef front_insert_iterator<Cont>& reference;
+    typedef void                         reference;
     typedef void                         pointer;
 
     explicit front_insert_iterator(Container& x);
@@ -192,7 +193,7 @@ public:
     typedef Container              container_type;
     typedef void                   value_type;
     typedef void                   difference_type;
-    typedef insert_iterator<Cont>& reference;
+    typedef void                   reference;
     typedef void                   pointer;
 
     insert_iterator(Container& x, typename Container::iterator i);
@@ -204,6 +205,73 @@ public:
 
 template <class Container, class Iterator>
 insert_iterator<Container> inserter(Container& x, Iterator i);
+
+template <class Iterator>
+class move_iterator {
+public:
+    typedef Iterator                                              iterator_type;
+    typedef typename iterator_traits<Iterator>::difference_type   difference_type;
+    typedef Iterator                                              pointer;
+    typedef typename iterator_traits<Iterator>::value_type        value_type;
+    typedef typename iterator_traits<Iterator>::iterator_category iterator_category;
+    typedef value_type&&                                          reference;
+ 
+    move_iterator();
+    explicit move_iterator(Iterator i);
+    template <class U> move_iterator(const move_iterator<U>& u);
+    template <class U> move_iterator& operator=(const move_iterator<U>& u);
+    iterator_type base() const;
+    reference operator*() const;
+    pointer operator->() const;
+    move_iterator& operator++();
+    move_iterator operator++(int);
+    move_iterator& operator--();
+    move_iterator operator--(int);
+    move_iterator operator+(difference_type n) const; 
+    move_iterator& operator+=(difference_type n); 
+    move_iterator operator-(difference_type n) const; 
+    move_iterator& operator-=(difference_type n); 
+    unspecified operator[](difference_type n) const;
+private:
+    Iterator current; // exposition only
+};
+
+template <class Iterator1, class Iterator2>
+bool
+operator==(const move_iterator<Iterator1>& x, const move_iterator<Iterator2>& y);
+
+template <class Iterator1, class Iterator2>
+bool
+operator!=(const move_iterator<Iterator1>& x, const move_iterator<Iterator2>& y);
+
+template <class Iterator1, class Iterator2>
+bool
+operator<(const move_iterator<Iterator1>& x, const move_iterator<Iterator2>& y);
+
+template <class Iterator1, class Iterator2>
+bool
+operator<=(const move_iterator<Iterator1>& x, const move_iterator<Iterator2>& y);
+
+template <class Iterator1, class Iterator2>
+bool
+operator>(const move_iterator<Iterator1>& x, const move_iterator<Iterator2>& y);
+
+template <class Iterator1, class Iterator2>
+bool
+operator>=(const move_iterator<Iterator1>& x, const move_iterator<Iterator2>& y);
+
+template <class Iterator1, class Iterator2>
+auto
+operator-(const move_iterator<Iterator1>& x,
+          const move_iterator<Iterator2>& y) -> decltype(x.base() - y.base());
+
+template <class Iterator>
+move_iterator<Iterator> operator+(typename move_iterator<Iterator>::difference_type n, 
+                                     const move_iterator<Iterator>& x);
+
+template <class Iterator>
+move_iterator<Iterator> make_move_iterator(const Iterator& i);
+
 
 template <class T, class charT = char, class traits = char_traits<charT>, class Distance = ptrdiff_t>
 class istream_iterator
@@ -340,10 +408,10 @@ template <class E> constexpr const E* data(initializer_list<E> il) noexcept;    
 */
 
 #include <__config>
+#include <iosfwd> // for forward declarations of vector and string.
 #include <__functional_base>
 #include <type_traits>
 #include <cstddef>
-#include <iosfwd>
 #include <initializer_list>
 #ifdef __APPLE__
 #include <Availability.h>
@@ -632,6 +700,16 @@ operator<=(const reverse_iterator<_Iter1>& __x, const reverse_iterator<_Iter2>& 
     return __x.base() >= __y.base();
 }
 
+#ifndef _LIBCPP_CXX03_LANG
+template <class _Iter1, class _Iter2>
+inline _LIBCPP_INLINE_VISIBILITY
+auto
+operator-(const reverse_iterator<_Iter1>& __x, const reverse_iterator<_Iter2>& __y)
+-> decltype(__y.base() - __x.base())
+{
+    return __y.base() - __x.base();
+}
+#else
 template <class _Iter1, class _Iter2>
 inline _LIBCPP_INLINE_VISIBILITY
 typename reverse_iterator<_Iter1>::difference_type
@@ -639,6 +717,7 @@ operator-(const reverse_iterator<_Iter1>& __x, const reverse_iterator<_Iter2>& _
 {
     return __y.base() - __x.base();
 }
+#endif
 
 template <class _Iter>
 inline _LIBCPP_INLINE_VISIBILITY
@@ -663,7 +742,7 @@ class _LIBCPP_TYPE_VIS_ONLY back_insert_iterator
                       void,
                       void,
                       void,
-                      back_insert_iterator<_Container>&>
+                      void>
 {
 protected:
     _Container* container;
@@ -696,7 +775,7 @@ class _LIBCPP_TYPE_VIS_ONLY front_insert_iterator
                       void,
                       void,
                       void,
-                      front_insert_iterator<_Container>&>
+                      void>
 {
 protected:
     _Container* container;
@@ -729,7 +808,7 @@ class _LIBCPP_TYPE_VIS_ONLY insert_iterator
                       void,
                       void,
                       void,
-                      insert_iterator<_Container>&>
+                      void>
 {
 protected:
     _Container* container;
@@ -772,14 +851,14 @@ private:
     _Tp __value_;
 public:
     _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR istream_iterator() : __in_stream_(0), __value_() {}
-    _LIBCPP_INLINE_VISIBILITY istream_iterator(istream_type& __s) : __in_stream_(&__s)
+    _LIBCPP_INLINE_VISIBILITY istream_iterator(istream_type& __s) : __in_stream_(_VSTD::addressof(__s))
         {
             if (!(*__in_stream_ >> __value_))
                 __in_stream_ = 0;
         }
 
     _LIBCPP_INLINE_VISIBILITY const _Tp& operator*() const {return __value_;}
-    _LIBCPP_INLINE_VISIBILITY const _Tp* operator->() const {return &(operator*());}
+    _LIBCPP_INLINE_VISIBILITY const _Tp* operator->() const {return _VSTD::addressof((operator*()));}
     _LIBCPP_INLINE_VISIBILITY istream_iterator& operator++()
         {
             if (!(*__in_stream_ >> __value_))
@@ -811,9 +890,9 @@ private:
     const char_type* __delim_;
 public:
     _LIBCPP_INLINE_VISIBILITY ostream_iterator(ostream_type& __s)
-        : __out_stream_(&__s), __delim_(0) {}
+        : __out_stream_(_VSTD::addressof(__s)), __delim_(0) {}
     _LIBCPP_INLINE_VISIBILITY ostream_iterator(ostream_type& __s, const _CharT* __delimiter)
-        : __out_stream_(&__s), __delim_(__delimiter) {}
+        : __out_stream_(_VSTD::addressof(__s)), __delim_(__delimiter) {}
     _LIBCPP_INLINE_VISIBILITY ostream_iterator& operator=(const _Tp& __value_)
         {
             *__out_stream_ << __value_;
@@ -949,9 +1028,14 @@ public:
     typedef typename iterator_traits<iterator_type>::iterator_category iterator_category;
     typedef typename iterator_traits<iterator_type>::value_type value_type;
     typedef typename iterator_traits<iterator_type>::difference_type difference_type;
-    typedef typename iterator_traits<iterator_type>::pointer pointer;
+    typedef iterator_type pointer;
 #ifndef _LIBCPP_HAS_NO_RVALUE_REFERENCES
-    typedef value_type&& reference;
+    typedef typename iterator_traits<iterator_type>::reference __reference;
+    typedef typename conditional<
+            is_reference<__reference>::value,
+            typename remove_reference<__reference>::type&&,
+            __reference
+        >::type reference;
 #else
     typedef typename iterator_traits<iterator_type>::reference reference;
 #endif
@@ -964,10 +1048,7 @@ public:
     _LIBCPP_INLINE_VISIBILITY reference operator*() const {
       return static_cast<reference>(*__i);
     }
-    _LIBCPP_INLINE_VISIBILITY pointer  operator->() const {
-      typename iterator_traits<iterator_type>::reference __ref = *__i;
-      return &__ref;
-    }
+    _LIBCPP_INLINE_VISIBILITY pointer  operator->() const { return __i;}
     _LIBCPP_INLINE_VISIBILITY move_iterator& operator++() {++__i; return *this;}
     _LIBCPP_INLINE_VISIBILITY move_iterator  operator++(int)
         {move_iterator __tmp(*this); ++__i; return __tmp;}
@@ -1036,6 +1117,16 @@ operator<=(const move_iterator<_Iter1>& __x, const move_iterator<_Iter2>& __y)
     return __x.base() <= __y.base();
 }
 
+#ifndef _LIBCPP_CXX03_LANG
+template <class _Iter1, class _Iter2>
+inline _LIBCPP_INLINE_VISIBILITY
+auto
+operator-(const move_iterator<_Iter1>& __x, const move_iterator<_Iter2>& __y)
+-> decltype(__x.base() - __y.base())
+{
+    return __x.base() - __y.base();
+}
+#else
 template <class _Iter1, class _Iter2>
 inline _LIBCPP_INLINE_VISIBILITY
 typename move_iterator<_Iter1>::difference_type
@@ -1043,6 +1134,7 @@ operator-(const move_iterator<_Iter1>& __x, const move_iterator<_Iter2>& __y)
 {
     return __x.base() - __y.base();
 }
+#endif
 
 template <class _Iter>
 inline _LIBCPP_INLINE_VISIBILITY
@@ -1094,10 +1186,18 @@ _LIBCPP_INLINE_VISIBILITY
 bool
 operator<=(const __wrap_iter<_Iter1>&, const __wrap_iter<_Iter2>&) _NOEXCEPT;
 
+#ifndef _LIBCPP_CXX03_LANG
+template <class _Iter1, class _Iter2>
+_LIBCPP_INLINE_VISIBILITY
+auto
+operator-(const __wrap_iter<_Iter1>& __x, const __wrap_iter<_Iter2>& __y) _NOEXCEPT
+-> decltype(__x.base() - __y.base());
+#else
 template <class _Iter1, class _Iter2>
 _LIBCPP_INLINE_VISIBILITY
 typename __wrap_iter<_Iter1>::difference_type
 operator-(const __wrap_iter<_Iter1>&, const __wrap_iter<_Iter2>&) _NOEXCEPT;
+#endif
 
 template <class _Iter>
 _LIBCPP_INLINE_VISIBILITY
@@ -1185,7 +1285,7 @@ public:
         _LIBCPP_ASSERT(__get_const_db()->__dereferenceable(this),
                        "Attempted to dereference a non-dereferenceable iterator");
 #endif
-        return (pointer)&reinterpret_cast<const volatile char&>(*__i);
+        return (pointer)_VSTD::addressof(*__i);
     }
     _LIBCPP_INLINE_VISIBILITY __wrap_iter& operator++() _NOEXCEPT
     {
@@ -1279,10 +1379,18 @@ private:
     bool
     operator<=(const __wrap_iter<_Iter1>&, const __wrap_iter<_Iter2>&) _NOEXCEPT;
 
+#ifndef _LIBCPP_CXX03_LANG
+    template <class _Iter1, class _Iter2>
+    friend
+    auto
+    operator-(const __wrap_iter<_Iter1>& __x, const __wrap_iter<_Iter2>& __y) _NOEXCEPT
+    -> decltype(__x.base() - __y.base());
+#else
     template <class _Iter1, class _Iter2>
     friend
     typename __wrap_iter<_Iter1>::difference_type
     operator-(const __wrap_iter<_Iter1>&, const __wrap_iter<_Iter2>&) _NOEXCEPT;
+#endif
 
     template <class _Iter1>
     friend
@@ -1388,6 +1496,20 @@ operator<=(const __wrap_iter<_Iter1>& __x, const __wrap_iter<_Iter1>& __y) _NOEX
     return !(__y < __x);
 }
 
+#ifndef _LIBCPP_CXX03_LANG
+template <class _Iter1, class _Iter2>
+inline _LIBCPP_INLINE_VISIBILITY
+auto
+operator-(const __wrap_iter<_Iter1>& __x, const __wrap_iter<_Iter2>& __y) _NOEXCEPT
+-> decltype(__x.base() - __y.base())
+{
+#if _LIBCPP_DEBUG_LEVEL >= 2
+    _LIBCPP_ASSERT(__get_const_db()->__less_than_comparable(&__x, &__y),
+                   "Attempted to subtract incompatible iterators");
+#endif
+    return __x.base() - __y.base();
+}
+#else
 template <class _Iter1, class _Iter2>
 inline _LIBCPP_INLINE_VISIBILITY
 typename __wrap_iter<_Iter1>::difference_type
@@ -1399,6 +1521,7 @@ operator-(const __wrap_iter<_Iter1>& __x, const __wrap_iter<_Iter2>& __y) _NOEXC
 #endif
     return __x.base() - __y.base();
 }
+#endif
 
 template <class _Iter>
 inline _LIBCPP_INLINE_VISIBILITY
@@ -1509,16 +1632,16 @@ reverse_iterator<const _Ep*> rend(initializer_list<_Ep> __il)
 
 template <class _Cp>
 inline _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR_AFTER_CXX11
-auto cbegin(const _Cp& __c) -> decltype(begin(__c))
+auto cbegin(const _Cp& __c) -> decltype(_VSTD::begin(__c))
 {
-    return begin(__c);
+    return _VSTD::begin(__c);
 }
 
 template <class _Cp>
 inline _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR_AFTER_CXX11
-auto cend(const _Cp& __c) -> decltype(end(__c))
+auto cend(const _Cp& __c) -> decltype(_VSTD::end(__c))
 {
-    return end(__c);
+    return _VSTD::end(__c);
 }
 
 template <class _Cp>
@@ -1551,16 +1674,16 @@ auto rend(const _Cp& __c) -> decltype(__c.rend())
 
 template <class _Cp>
 inline _LIBCPP_INLINE_VISIBILITY
-auto crbegin(const _Cp& __c) -> decltype(rbegin(__c))
+auto crbegin(const _Cp& __c) -> decltype(_VSTD::rbegin(__c))
 {
-    return rbegin(__c);
+    return _VSTD::rbegin(__c);
 }
 
 template <class _Cp>
 inline _LIBCPP_INLINE_VISIBILITY
-auto crend(const _Cp& __c) -> decltype(rend(__c))
+auto crend(const _Cp& __c) -> decltype(_VSTD::rend(__c))
 {
-    return rend(__c);
+    return _VSTD::rend(__c);
 }
 
 #endif

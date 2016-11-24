@@ -88,10 +88,9 @@ ARMFrameLowering *ARMSubtarget::initializeFrameLowering(StringRef CPU,
 ARMSubtarget::ARMSubtarget(const Triple &TT, const std::string &CPU,
                            const std::string &FS,
                            const ARMBaseTargetMachine &TM, bool IsLittle)
-    : ARMGenSubtargetInfo(TT, CPU, FS), ARMProcFamily(Others),
-      ARMProcClass(None), ARMArch(ARMv4t), stackAlignment(4), CPUString(CPU),
-      IsLittle(IsLittle), TargetTriple(TT), Options(TM.Options), TM(TM),
-      FrameLowering(initializeFrameLowering(CPU, FS)),
+    : ARMGenSubtargetInfo(TT, CPU, FS), UseMulOps(UseFusedMulOps),
+      CPUString(CPU), IsLittle(IsLittle), TargetTriple(TT), Options(TM.Options),
+      TM(TM), FrameLowering(initializeFrameLowering(CPU, FS)),
       // At this point initializeSubtargetDependencies has been called so
       // we can query directly.
       InstrInfo(isThumb1Only()
@@ -102,63 +101,10 @@ ARMSubtarget::ARMSubtarget(const Triple &TT, const std::string &CPU,
       TLInfo(TM, *this) {}
 
 void ARMSubtarget::initializeEnvironment() {
-  HasV4TOps = false;
-  HasV5TOps = false;
-  HasV5TEOps = false;
-  HasV6Ops = false;
-  HasV6MOps = false;
-  HasV6KOps = false;
-  HasV6T2Ops = false;
-  HasV7Ops = false;
-  HasV8Ops = false;
-  HasV8_1aOps = false;
-  HasV8_2aOps = false;
-  HasVFPv2 = false;
-  HasVFPv3 = false;
-  HasVFPv4 = false;
-  HasFPARMv8 = false;
-  HasNEON = false;
-  UseNEONForSinglePrecisionFP = false;
-  UseMulOps = UseFusedMulOps;
-  SlowFPVMLx = false;
-  HasVMLxForwarding = false;
-  SlowFPBrcc = false;
-  InThumbMode = false;
-  UseSoftFloat = false;
-  HasThumb2 = false;
-  NoARM = false;
-  ReserveR9 = false;
-  NoMovt = false;
-  SupportsTailCall = false;
-  HasFP16 = false;
-  HasFullFP16 = false;
-  HasD16 = false;
-  HasHardwareDivide = false;
-  HasHardwareDivideInARM = false;
-  HasT2ExtractPack = false;
-  HasDataBarrier = false;
-  Pref32BitThumb = false;
-  AvoidCPSRPartialUpdate = false;
-  AvoidMOVsShifterOperand = false;
-  HasRAS = false;
-  HasMPExtension = false;
-  HasVirtualization = false;
-  FPOnlySP = false;
-  HasPerfMon = false;
-  HasTrustZone = false;
-  HasCrypto = false;
-  HasCRC = false;
-  HasZeroCycleZeroing = false;
-  StrictAlign = false;
-  HasDSP = false;
-  UseNaClTrap = false;
-  GenLongCalls = false;
-  UnsafeFPMath = false;
-
   // MCAsmInfo isn't always present (e.g. in opt) so we can't initialize this
   // directly from it, but we can try to make sure they're consistent when both
   // available.
-  UseSjLjEH = isTargetDarwin() && !isTargetWatchOS();
+  UseSjLjEH = isTargetDarwin() && !isTargetWatchABI();
   assert((!TM.getMCAsmInfo() ||
           (TM.getMCAsmInfo()->getExceptionHandlingType() ==
            ExceptionHandling::SjLj) == UseSjLjEH) &&
@@ -230,7 +176,7 @@ void ARMSubtarget::initSubtargetFeatures(StringRef CPU, StringRef FS) {
   // registers are the 4 used for parameters.  We don't currently do this
   // case.
 
-  SupportsTailCall = !isThumb1Only();
+  SupportsTailCall = !isThumb() || hasV8MBaselineOps();
 
   if (isTargetMachO() && isTargetIOS() && getTargetTriple().isOSVersionLT(5, 0))
     SupportsTailCall = false;
@@ -252,6 +198,53 @@ void ARMSubtarget::initSubtargetFeatures(StringRef CPU, StringRef FS) {
   if ((Bits[ARM::ProcA5] || Bits[ARM::ProcA8]) && // Where this matters
       (Options.UnsafeFPMath || isTargetDarwin()))
     UseNEONForSinglePrecisionFP = true;
+
+  // FIXME: Teach TableGen to deal with these instead of doing it manually here.
+  switch (ARMProcFamily) {
+  case Others:
+  case CortexA5:
+    break;
+  case CortexA7:
+    LdStMultipleTiming = DoubleIssue;
+    break;
+  case CortexA8:
+    LdStMultipleTiming = DoubleIssue;
+    break;
+  case CortexA9:
+    LdStMultipleTiming = DoubleIssueCheckUnalignedAccess;
+    PreISelOperandLatencyAdjustment = 1;
+    break;
+  case CortexA12:
+    break;
+  case CortexA15:
+    MaxInterleaveFactor = 2;
+    PreISelOperandLatencyAdjustment = 1;
+    PartialUpdateClearance = 12;
+    break;
+  case CortexA17:
+  case CortexA32:
+  case CortexA35:
+  case CortexA53:
+  case CortexA57:
+  case CortexA72:
+  case CortexA73:
+  case CortexR4:
+  case CortexR4F:
+  case CortexR5:
+  case CortexR7:
+  case CortexM3:
+  case ExynosM1:
+    break;
+  case Krait:
+    PreISelOperandLatencyAdjustment = 1;
+    break;
+  case Swift:
+    MaxInterleaveFactor = 2;
+    LdStMultipleTiming = SingleIssuePlusExtras;
+    PreISelOperandLatencyAdjustment = 1;
+    PartialUpdateClearance = 12;
+    break;
+  }
 }
 
 bool ARMSubtarget::isAPCS_ABI() const {
@@ -268,40 +261,16 @@ bool ARMSubtarget::isAAPCS16_ABI() const {
   return TM.TargetABI == ARMBaseTargetMachine::ARM_ABI_AAPCS16;
 }
 
-
-/// GVIsIndirectSymbol - true if the GV will be accessed via an indirect symbol.
-bool
-ARMSubtarget::GVIsIndirectSymbol(const GlobalValue *GV,
-                                 Reloc::Model RelocM) const {
-  if (RelocM == Reloc::Static)
-    return false;
-
-  bool isDef = GV->isStrongDefinitionForLinker();
-
-  if (!isTargetMachO()) {
-    // Extra load is needed for all externally visible.
-    if (GV->hasLocalLinkage() || GV->hasHiddenVisibility())
-      return false;
+bool ARMSubtarget::isGVIndirectSymbol(const GlobalValue *GV) const {
+  if (!TM.shouldAssumeDSOLocal(*GV->getParent(), GV))
     return true;
-  } else {
-    // If this is a strong reference to a definition, it is definitely not
-    // through a stub.
-    if (isDef)
-      return false;
 
-    // Unless we have a symbol with hidden visibility, we have to go through a
-    // normal $non_lazy_ptr stub because this symbol might be resolved late.
-    if (!GV->hasHiddenVisibility())  // Non-hidden $non_lazy_ptr reference.
-      return true;
-
-    if (RelocM == Reloc::PIC_) {
-      // If symbol visibility is hidden, we have a stub for common symbol
-      // references and external declarations.
-      if (GV->isDeclarationForLinker() || GV->hasCommonLinkage())
-        // Hidden $non_lazy_ptr reference.
-        return true;
-    }
-  }
+  // 32 bit macho has no relocation for a-b if a is undefined, even if b is in
+  // the section that is being relocated. This means we have to use o load even
+  // for GVs that are known to be local to the dso.
+  if (isTargetDarwin() && TM.isPositionIndependent() &&
+      (GV->isDeclarationForLinker() || GV->hasCommonLinkage()))
+    return true;
 
   return false;
 }
@@ -332,21 +301,21 @@ bool ARMSubtarget::enablePostRAScheduler() const {
 }
 
 bool ARMSubtarget::enableAtomicExpand() const {
-  return hasAnyDataBarrier() && !isThumb1Only();
+  return hasAnyDataBarrier() && (!isThumb() || hasV8MBaselineOps());
 }
 
 bool ARMSubtarget::useStride4VFPs(const MachineFunction &MF) const {
   // For general targets, the prologue can grow when VFPs are allocated with
   // stride 4 (more vpush instructions). But WatchOS uses a compact unwind
   // format which it's more important to get right.
-  return isTargetWatchOS() || (isSwift() && !MF.getFunction()->optForMinSize());
+  return isTargetWatchABI() || (isSwift() && !MF.getFunction()->optForMinSize());
 }
 
 bool ARMSubtarget::useMovt(const MachineFunction &MF) const {
   // NOTE Windows on ARM needs to use mov.w/mov.t pairs to materialise 32-bit
   // immediates as it is inherently position independent, and may be out of
   // range otherwise.
-  return !NoMovt && hasV6T2Ops() &&
+  return !NoMovt && hasV8MBaselineOps() &&
          (isTargetWindows() || !MF.getFunction()->optForMinSize());
 }
 

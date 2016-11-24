@@ -23,6 +23,7 @@ class AssumptionCacheTracker;
 class CallSite;
 class DataLayout;
 class Function;
+class ProfileSummaryInfo;
 class TargetTransformInfo;
 
 namespace InlineConstants {
@@ -101,25 +102,31 @@ public:
 /// \brief Get an InlineCost object representing the cost of inlining this
 /// callsite.
 ///
-/// Note that threshold is passed into this function. Only costs below the
-/// threshold are computed with any accuracy. The threshold can be used to
-/// bound the computation necessary to determine whether the cost is
+/// Note that a default threshold is passed into this function. This threshold
+/// could be modified based on callsite's properties and only costs below this
+/// new threshold are computed with any accuracy. The new threshold can be
+/// used to bound the computation necessary to determine whether the cost is
 /// sufficiently low to warrant inlining.
 ///
 /// Also note that calling this function *dynamically* computes the cost of
 /// inlining the callsite. It is an expensive, heavyweight call.
-InlineCost getInlineCost(CallSite CS, int Threshold,
+InlineCost getInlineCost(CallSite CS, int DefaultThreshold,
                          TargetTransformInfo &CalleeTTI,
-                         AssumptionCacheTracker *ACT);
+                         AssumptionCacheTracker *ACT, ProfileSummaryInfo *PSI);
 
 /// \brief Get an InlineCost with the callee explicitly specified.
 /// This allows you to calculate the cost of inlining a function via a
 /// pointer. This behaves exactly as the version with no explicit callee
 /// parameter in all other respects.
 //
-InlineCost getInlineCost(CallSite CS, Function *Callee, int Threshold,
+InlineCost getInlineCost(CallSite CS, Function *Callee, int DefaultThreshold,
                          TargetTransformInfo &CalleeTTI,
-                         AssumptionCacheTracker *ACT);
+                         AssumptionCacheTracker *ACT, ProfileSummaryInfo *PSI);
+
+int computeThresholdFromOptLevels(unsigned OptLevel, unsigned SizeOptLevel);
+
+/// \brief Return the default value of -inline-threshold.
+int getDefaultInlineThreshold();
 
 /// \brief Minimal filter to detect invalid constructs for inlining.
 bool isInlineViable(Function &Callee);

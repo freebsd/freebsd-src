@@ -89,6 +89,7 @@ typedef unsigned error_t;
 typedef int fd_t;
 typedef int error_t;
 #endif
+typedef int pid_t;
 
 // WARNING: OFF_T may be different from OS type off_t, depending on the value of
 // _FILE_OFFSET_BITS. This definition of OFF_T matches the ABI of system calls
@@ -105,12 +106,15 @@ typedef u64  OFF64_T;
 #if (SANITIZER_WORDSIZE == 64) || SANITIZER_MAC
 typedef uptr operator_new_size_type;
 #else
+# if defined(__s390__) && !defined(__s390x__)
+// Special case: 31-bit s390 has unsigned long as size_t.
+typedef unsigned long operator_new_size_type;
+# else
 typedef u32 operator_new_size_type;
+# endif
 #endif
-}  // namespace __sanitizer
 
 
-using namespace __sanitizer;  // NOLINT
 // ----------- ATTENTION -------------
 // This header should NOT include any other headers to avoid portability issues.
 
@@ -134,7 +138,7 @@ using namespace __sanitizer;  // NOLINT
 # define THREADLOCAL   __declspec(thread)
 # define LIKELY(x) (x)
 # define UNLIKELY(x) (x)
-# define PREFETCH(x) /* _mm_prefetch(x, _MM_HINT_NTA) */
+# define PREFETCH(x) /* _mm_prefetch(x, _MM_HINT_NTA) */ (void)0
 #else  // _MSC_VER
 # define ALWAYS_INLINE inline __attribute__((always_inline))
 # define ALIAS(x) __attribute__((alias(x)))
@@ -178,7 +182,9 @@ typedef ALIGNED(1) s32 us32;
 typedef ALIGNED(1) s64 us64;
 
 #if SANITIZER_WINDOWS
+}  // namespace __sanitizer
 typedef unsigned long DWORD;  // NOLINT
+namespace __sanitizer {
 typedef DWORD thread_return_t;
 # define THREAD_CALLING_CONV __stdcall
 #else  // _WIN32
@@ -188,14 +194,12 @@ typedef void* thread_return_t;
 typedef thread_return_t (THREAD_CALLING_CONV *thread_callback_t)(void* arg);
 
 // NOTE: Functions below must be defined in each run-time.
-namespace __sanitizer {
 void NORETURN Die();
 
 // FIXME: No, this shouldn't be in the sanitizer interface.
 SANITIZER_INTERFACE_ATTRIBUTE
 void NORETURN CheckFailed(const char *file, int line, const char *cond,
                           u64 v1, u64 v2);
-}  // namespace __sanitizer
 
 // Check macro
 #define RAW_CHECK_MSG(expr, msg) do { \
@@ -287,6 +291,9 @@ enum LinkerInitialized { LINKER_INITIALIZED = 0 };
 #if !defined(_MSC_VER) || defined(__clang__)
 # define GET_CALLER_PC() (uptr)__builtin_return_address(0)
 # define GET_CURRENT_FRAME() (uptr)__builtin_frame_address(0)
+inline void Trap() {
+  __builtin_trap();
+}
 #else
 extern "C" void* _ReturnAddress(void);
 # pragma intrinsic(_ReturnAddress)
@@ -295,6 +302,12 @@ extern "C" void* _ReturnAddress(void);
 // FIXME: This macro is still used when printing error reports though it's not
 // clear if the BP value is needed in the ASan reports on Windows.
 # define GET_CURRENT_FRAME() (uptr)0xDEADBEEF
+
+extern "C" void __ud2(void);
+# pragma intrinsic(__ud2)
+inline void Trap() {
+  __ud2();
+}
 #endif
 
 #define HANDLE_EINTR(res, f)                                       \
@@ -312,5 +325,9 @@ extern "C" void* _ReturnAddress(void);
     enable_fp = GET_CURRENT_FRAME();                               \
     (void)enable_fp;                                               \
   } while (0)
+
+}  // namespace __sanitizer
+
+using namespace __sanitizer;  // NOLINT
 
 #endif  // SANITIZER_DEFS_H

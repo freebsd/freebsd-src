@@ -11,7 +11,7 @@
 #include "lldb/Core/RegisterValue.h"
 #include "lldb/Target/Thread.h"
 
-#include "Plugins/Process/Utility/RegisterContextPOSIX_powerpc.h"
+#include "RegisterContextPOSIX_powerpc.h"
 #include "ProcessFreeBSD.h"
 #include "RegisterContextPOSIXProcessMonitor_powerpc.h"
 #include "ProcessMonitor.h"

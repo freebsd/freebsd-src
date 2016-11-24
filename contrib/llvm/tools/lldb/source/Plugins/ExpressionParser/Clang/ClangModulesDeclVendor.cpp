@@ -585,6 +585,7 @@ ClangModulesDeclVendorImpl::ForEachMacro(const ClangModulesDeclVendor::ModuleVec
                                 break;
                             case clang::tok::TokenKind::raw_identifier:
                                 macro_expansion.append(ti->getRawIdentifier().str());
+                                break;
                             default:
                                 macro_expansion.append(ti->getName());
                                 break;
@@ -627,7 +628,9 @@ ClangModulesDeclVendor::Create(Target &target)
     
     std::vector<std::string> compiler_invocation_arguments =
     {
+        "clang",
         "-fmodules",
+        "-fimplicit-module-maps",
         "-fcxx-modules",
         "-fsyntax-only",
         "-femit-all-decls",
