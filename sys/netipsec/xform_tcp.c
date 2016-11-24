@@ -146,8 +146,8 @@ tcpsignature_input(struct mbuf *m, struct secasvar *sav, int skip,
  * We do this from within tcp itself, so this routine is just a stub.
  */
 static int
-tcpsignature_output(struct mbuf *m, struct ipsecrequest *isr,
-    struct mbuf **mp, int skip, int protoff)
+tcpsignature_output(struct mbuf *m, struct secpolicy *sp,
+    struct secasvar *sav, u_int idx, int skip, int protoff)
 {
 
 	return (EINVAL);
