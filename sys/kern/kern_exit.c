@@ -1061,7 +1061,6 @@ proc_to_reap(struct thread *td, struct proc *p, idtype_t idtype, id_t id,
 		proc_reap(td, p, status, options);
 		return (-1);
 	}
-	PROC_UNLOCK(p);
 	return (1);
 }
 
@@ -1162,7 +1161,7 @@ loop:
 			return (0);
 		}
 
-		PROC_LOCK(p);
+		PROC_LOCK_ASSERT(p, MA_OWNED);
 		PROC_SLOCK(p);
 
 		if ((options & WTRAPPED) != 0 &&
@@ -1263,6 +1262,7 @@ loop:
 			if (ret != 0) {
 				KASSERT(ret != -1, ("reaped an orphan (pid %d)",
 				    (int)td->td_retval[0]));
+				PROC_UNLOCK(p);
 				nfound++;
 				break;
 			}
