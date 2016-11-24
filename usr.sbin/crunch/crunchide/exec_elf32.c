@@ -280,6 +280,10 @@ ELFNAMEEND(hide)(int fd, const char *fn)
 		weird = 1;
 		weirdreason = "section header string table does not exist";
 	}
+	if (strtabshdr == shstrtabshdr) {
+		weird = 1;
+		weirdreason = "combined strtab and shstrtab not supported";
+	}
 	if (weirdreason == NULL)
 		weirdreason = "unsupported";
 	if (weird) {
