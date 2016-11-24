@@ -362,7 +362,11 @@ bcm_lintc_ipi_dispatch(struct bcm_lintc_softc *sc, u_int cpu,
 		 * and make sure that it's observed by everybody.
 		 */
 		bcm_lintc_write_4(sc, BCM_LINTC_MBOX0_CLR_REG(cpu), 1 << ipi);
+#if defined(__aarch64__)
+		dsb(sy);
+#else
 		dsb();
+#endif
 		intr_ipi_dispatch(ipi, tf);
 	}
 }
