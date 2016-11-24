@@ -888,9 +888,9 @@ vtcon_ctrl_task_cb(void *xsc, int pending)
 		if (control == NULL)
 			break;
 
-		if (len > sizeof(control)) {
+		if (len > sizeof(*control)) {
 			payload = (void *)(control + 1);
-			plen = len - sizeof(control);
+			plen = len - sizeof(*control);
 		}
 
 		VTCON_UNLOCK(sc);
