@@ -9,21 +9,24 @@
 
 #include "lldb/Core/PluginManager.h"
 
-#include <limits.h>
-
+// C Includes
+// C++ Includes
+#include <climits>
+#include <mutex>
 #include <string>
 #include <vector>
 
+// Other libraries and framework includes
+#include "llvm/ADT/StringRef.h"
+#include "llvm/Support/DynamicLibrary.h"
+
+// Project includes
 #include "lldb/Core/Debugger.h"
 #include "lldb/Core/Error.h"
 #include "lldb/Host/FileSpec.h"
 #include "lldb/Host/Host.h"
 #include "lldb/Host/HostInfo.h"
-#include "lldb/Host/Mutex.h"
 #include "lldb/Interpreter/OptionValueProperties.h"
-
-#include "llvm/ADT/StringRef.h"
-#include "llvm/Support/DynamicLibrary.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -35,9 +38,8 @@ enum PluginAction
     ePluginGetInstanceAtIndex
 };
 
-
-typedef bool (*PluginInitCallback) (void);
-typedef void (*PluginTermCallback) (void);
+typedef bool (*PluginInitCallback)();
+typedef void (*PluginTermCallback)();
 
 struct PluginInfo
 {
@@ -53,10 +55,10 @@ struct PluginInfo
 
 typedef std::map<FileSpec, PluginInfo> PluginTerminateMap;
 
-static Mutex &
-GetPluginMapMutex ()
+static std::recursive_mutex &
+GetPluginMapMutex()
 {
-    static Mutex g_plugin_map_mutex (Mutex::eMutexTypeRecursive);
+    static std::recursive_mutex g_plugin_map_mutex;
     return g_plugin_map_mutex;
 }
 
@@ -70,7 +72,7 @@ GetPluginMap ()
 static bool
 PluginIsLoaded (const FileSpec &plugin_file_spec)
 {
-    Mutex::Locker locker (GetPluginMapMutex ());
+    std::lock_guard<std::recursive_mutex> guard(GetPluginMapMutex());
     PluginTerminateMap &plugin_map = GetPluginMap ();
     return plugin_map.find (plugin_file_spec) != plugin_map.end();
 }
@@ -78,7 +80,7 @@ PluginIsLoaded (const FileSpec &plugin_file_spec)
 static void
 SetPluginInfo (const FileSpec &plugin_file_spec, const PluginInfo &plugin_info)
 {
-    Mutex::Locker locker (GetPluginMapMutex ());
+    std::lock_guard<std::recursive_mutex> guard(GetPluginMapMutex());
     PluginTerminateMap &plugin_map = GetPluginMap ();
     assert (plugin_map.find (plugin_file_spec) == plugin_map.end());
     plugin_map[plugin_file_spec] = plugin_info;
@@ -92,12 +94,9 @@ CastToFPtr (void *VPtr)
 }
 
 static FileSpec::EnumerateDirectoryResult 
-LoadPluginCallback 
-(
-    void *baton,
-    FileSpec::FileType file_type,
-    const FileSpec &file_spec
-)
+LoadPluginCallback(void *baton,
+                   FileSpec::FileType file_type,
+                   const FileSpec &file_spec)
 {
 //    PluginManager *plugin_manager = (PluginManager *)baton;
     Error error;
@@ -134,7 +133,7 @@ LoadPluginCallback
 
                 if (success)
                 {
-                    // It is ok for the "LLDBPluginTerminate" symbol to be NULL
+                    // It is ok for the "LLDBPluginTerminate" symbol to be nullptr
                     plugin_info.plugin_term_callback =
                         CastToFPtr<PluginTermCallback>(plugin_info.library.getAddressOfSymbol("LLDBPluginTerminate"));
                 }
@@ -170,7 +169,6 @@ LoadPluginCallback
     return FileSpec::eEnumerateDirectoryResultNext;
 }
 
-
 void
 PluginManager::Initialize ()
 {
@@ -184,12 +182,12 @@ PluginManager::Initialize ()
     {
         if (dir_spec.Exists() && dir_spec.GetPath(dir_path, sizeof(dir_path)))
         {
-            FileSpec::EnumerateDirectory (dir_path, 
-                                          find_directories,
-                                          find_files,
-                                          find_other,
-                                          LoadPluginCallback,
-                                          NULL);
+            FileSpec::EnumerateDirectory(dir_path,
+                                         find_directories,
+                                         find_files,
+                                         find_other,
+                                         LoadPluginCallback,
+                                         nullptr);
         }
     }
 
@@ -197,12 +195,12 @@ PluginManager::Initialize ()
     {
         if (dir_spec.Exists() && dir_spec.GetPath(dir_path, sizeof(dir_path)))
         {
-            FileSpec::EnumerateDirectory (dir_path, 
-                                          find_directories,
-                                          find_files,
-                                          find_other,
-                                          LoadPluginCallback,
-                                          NULL);
+            FileSpec::EnumerateDirectory(dir_path,
+                                         find_directories,
+                                         find_files,
+                                         find_other,
+                                         LoadPluginCallback,
+                                         nullptr);
         }
     }
 #endif
@@ -211,14 +209,14 @@ PluginManager::Initialize ()
 void
 PluginManager::Terminate ()
 {
-    Mutex::Locker locker (GetPluginMapMutex ());
+    std::lock_guard<std::recursive_mutex> guard(GetPluginMapMutex());
     PluginTerminateMap &plugin_map = GetPluginMap ();
     
     PluginTerminateMap::const_iterator pos, end = plugin_map.end();
     for (pos = plugin_map.begin(); pos != end; ++pos)
     {
         // Call the plug-in "void LLDBPluginTerminate (void)" function if there
-        // is one (if the symbol was not NULL).
+        // is one (if the symbol was not nullptr).
         if (pos->second.library.isValid())
         {
             if (pos->second.plugin_term_callback)
@@ -228,16 +226,14 @@ PluginManager::Terminate ()
     plugin_map.clear();
 }
 
-
 #pragma mark ABI
-
 
 struct ABIInstance
 {
     ABIInstance() :
         name(),
         description(),
-        create_callback(NULL)
+        create_callback(nullptr)
     {
     }
 
@@ -248,10 +244,10 @@ struct ABIInstance
 
 typedef std::vector<ABIInstance> ABIInstances;
 
-static Mutex &
-GetABIInstancesMutex ()
+static std::recursive_mutex &
+GetABIInstancesMutex()
 {
-    static Mutex g_instances_mutex (Mutex::eMutexTypeRecursive);
+    static std::recursive_mutex g_instances_mutex;
     return g_instances_mutex;
 }
 
@@ -263,12 +259,9 @@ GetABIInstances ()
 }
 
 bool
-PluginManager::RegisterPlugin
-(
-    const ConstString &name,
-    const char *description,
-    ABICreateInstance create_callback
-)
+PluginManager::RegisterPlugin(const ConstString &name,
+                              const char *description,
+                              ABICreateInstance create_callback)
 {
     if (create_callback)
     {
@@ -278,7 +271,7 @@ PluginManager::RegisterPlugin
         if (description && description[0])
             instance.description = description;
         instance.create_callback = create_callback;
-        Mutex::Locker locker (GetABIInstancesMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetABIInstancesMutex());
         GetABIInstances ().push_back (instance);
         return true;
     }
@@ -290,7 +283,7 @@ PluginManager::UnregisterPlugin (ABICreateInstance create_callback)
 {
     if (create_callback)
     {
-        Mutex::Locker locker (GetABIInstancesMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetABIInstancesMutex());
         ABIInstances &instances = GetABIInstances ();
 
         ABIInstances::iterator pos, end = instances.end();
@@ -309,11 +302,11 @@ PluginManager::UnregisterPlugin (ABICreateInstance create_callback)
 ABICreateInstance
 PluginManager::GetABICreateCallbackAtIndex (uint32_t idx)
 {
-    Mutex::Locker locker (GetABIInstancesMutex ());
+    std::lock_guard<std::recursive_mutex> guard(GetABIInstancesMutex());
     ABIInstances &instances = GetABIInstances ();
     if (idx < instances.size())
         return instances[idx].create_callback;
-    return NULL;
+    return nullptr;
 }
 
 ABICreateInstance
@@ -321,7 +314,7 @@ PluginManager::GetABICreateCallbackForPluginName (const ConstString &name)
 {
     if (name)
     {
-        Mutex::Locker locker (GetABIInstancesMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetABIInstancesMutex());
         ABIInstances &instances = GetABIInstances ();
 
         ABIInstances::iterator pos, end = instances.end();
@@ -331,19 +324,17 @@ PluginManager::GetABICreateCallbackForPluginName (const ConstString &name)
                 return pos->create_callback;
         }
     }
-    return NULL;
+    return nullptr;
 }
 
-
 #pragma mark Disassembler
-
 
 struct DisassemblerInstance
 {
     DisassemblerInstance() :
         name(),
         description(),
-        create_callback(NULL)
+        create_callback(nullptr)
     {
     }
 
@@ -354,10 +345,10 @@ struct DisassemblerInstance
 
 typedef std::vector<DisassemblerInstance> DisassemblerInstances;
 
-static Mutex &
-GetDisassemblerMutex ()
+static std::recursive_mutex &
+GetDisassemblerMutex()
 {
-    static Mutex g_instances_mutex (Mutex::eMutexTypeRecursive);
+    static std::recursive_mutex g_instances_mutex;
     return g_instances_mutex;
 }
 
@@ -369,12 +360,9 @@ GetDisassemblerInstances ()
 }
 
 bool
-PluginManager::RegisterPlugin
-(
-    const ConstString &name,
-    const char *description,
-    DisassemblerCreateInstance create_callback
-)
+PluginManager::RegisterPlugin(const ConstString &name,
+                              const char *description,
+                              DisassemblerCreateInstance create_callback)
 {
     if (create_callback)
     {
@@ -384,7 +372,7 @@ PluginManager::RegisterPlugin
         if (description && description[0])
             instance.description = description;
         instance.create_callback = create_callback;
-        Mutex::Locker locker (GetDisassemblerMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetDisassemblerMutex());
         GetDisassemblerInstances ().push_back (instance);
         return true;
     }
@@ -396,7 +384,7 @@ PluginManager::UnregisterPlugin (DisassemblerCreateInstance create_callback)
 {
     if (create_callback)
     {
-        Mutex::Locker locker (GetDisassemblerMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetDisassemblerMutex());
         DisassemblerInstances &instances = GetDisassemblerInstances ();
         
         DisassemblerInstances::iterator pos, end = instances.end();
@@ -415,11 +403,11 @@ PluginManager::UnregisterPlugin (DisassemblerCreateInstance create_callback)
 DisassemblerCreateInstance
 PluginManager::GetDisassemblerCreateCallbackAtIndex (uint32_t idx)
 {
-    Mutex::Locker locker (GetDisassemblerMutex ());
+    std::lock_guard<std::recursive_mutex> guard(GetDisassemblerMutex());
     DisassemblerInstances &instances = GetDisassemblerInstances ();
     if (idx < instances.size())
         return instances[idx].create_callback;
-    return NULL;
+    return nullptr;
 }
 
 DisassemblerCreateInstance
@@ -427,7 +415,7 @@ PluginManager::GetDisassemblerCreateCallbackForPluginName (const ConstString &na
 {
     if (name)
     {
-        Mutex::Locker locker (GetDisassemblerMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetDisassemblerMutex());
         DisassemblerInstances &instances = GetDisassemblerInstances ();
         
         DisassemblerInstances::iterator pos, end = instances.end();
@@ -437,21 +425,18 @@ PluginManager::GetDisassemblerCreateCallbackForPluginName (const ConstString &na
                 return pos->create_callback;
         }
     }
-    return NULL;
+    return nullptr;
 }
 
-
-
 #pragma mark DynamicLoader
-
 
 struct DynamicLoaderInstance
 {
     DynamicLoaderInstance() :
         name(),
         description(),
-        create_callback(NULL),
-        debugger_init_callback (NULL)
+        create_callback(nullptr),
+        debugger_init_callback(nullptr)
     {
     }
 
@@ -463,11 +448,10 @@ struct DynamicLoaderInstance
 
 typedef std::vector<DynamicLoaderInstance> DynamicLoaderInstances;
 
-
-static Mutex &
-GetDynamicLoaderMutex ()
+static std::recursive_mutex &
+GetDynamicLoaderMutex()
 {
-    static Mutex g_instances_mutex (Mutex::eMutexTypeRecursive);
+    static std::recursive_mutex g_instances_mutex;
     return g_instances_mutex;
 }
 
@@ -478,15 +462,11 @@ GetDynamicLoaderInstances ()
     return g_instances;
 }
 
-
 bool
-PluginManager::RegisterPlugin
-(
-    const ConstString &name,
-    const char *description,
-    DynamicLoaderCreateInstance create_callback,
-    DebuggerInitializeCallback debugger_init_callback
-)
+PluginManager::RegisterPlugin(const ConstString &name,
+                              const char *description,
+                              DynamicLoaderCreateInstance create_callback,
+                              DebuggerInitializeCallback debugger_init_callback)
 {
     if (create_callback)
     {
@@ -497,7 +477,7 @@ PluginManager::RegisterPlugin
             instance.description = description;
         instance.create_callback = create_callback;
         instance.debugger_init_callback = debugger_init_callback;
-        Mutex::Locker locker (GetDynamicLoaderMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetDynamicLoaderMutex());
         GetDynamicLoaderInstances ().push_back (instance);
     }
     return false;
@@ -508,7 +488,7 @@ PluginManager::UnregisterPlugin (DynamicLoaderCreateInstance create_callback)
 {
     if (create_callback)
     {
-        Mutex::Locker locker (GetDynamicLoaderMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetDynamicLoaderMutex());
         DynamicLoaderInstances &instances = GetDynamicLoaderInstances ();
         
         DynamicLoaderInstances::iterator pos, end = instances.end();
@@ -527,11 +507,11 @@ PluginManager::UnregisterPlugin (DynamicLoaderCreateInstance create_callback)
 DynamicLoaderCreateInstance
 PluginManager::GetDynamicLoaderCreateCallbackAtIndex (uint32_t idx)
 {
-    Mutex::Locker locker (GetDynamicLoaderMutex ());
+    std::lock_guard<std::recursive_mutex> guard(GetDynamicLoaderMutex());
     DynamicLoaderInstances &instances = GetDynamicLoaderInstances ();
     if (idx < instances.size())
         return instances[idx].create_callback;
-    return NULL;
+    return nullptr;
 }
 
 DynamicLoaderCreateInstance
@@ -539,7 +519,7 @@ PluginManager::GetDynamicLoaderCreateCallbackForPluginName (const ConstString &n
 {
     if (name)
     {
-        Mutex::Locker locker (GetDynamicLoaderMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetDynamicLoaderMutex());
         DynamicLoaderInstances &instances = GetDynamicLoaderInstances ();
         
         DynamicLoaderInstances::iterator pos, end = instances.end();
@@ -549,19 +529,18 @@ PluginManager::GetDynamicLoaderCreateCallbackForPluginName (const ConstString &n
                 return pos->create_callback;
         }
     }
-    return NULL;
+    return nullptr;
 }
 
 #pragma mark JITLoader
-
 
 struct JITLoaderInstance
 {
     JITLoaderInstance() :
         name(),
         description(),
-        create_callback(NULL),
-        debugger_init_callback (NULL)
+        create_callback(nullptr),
+        debugger_init_callback(nullptr)
     {
     }
 
@@ -573,11 +552,10 @@ struct JITLoaderInstance
 
 typedef std::vector<JITLoaderInstance> JITLoaderInstances;
 
-
-static Mutex &
-GetJITLoaderMutex ()
+static std::recursive_mutex &
+GetJITLoaderMutex()
 {
-    static Mutex g_instances_mutex (Mutex::eMutexTypeRecursive);
+    static std::recursive_mutex g_instances_mutex;
     return g_instances_mutex;
 }
 
@@ -588,15 +566,11 @@ GetJITLoaderInstances ()
     return g_instances;
 }
 
-
 bool
-PluginManager::RegisterPlugin
-(
-    const ConstString &name,
-    const char *description,
-    JITLoaderCreateInstance create_callback,
-    DebuggerInitializeCallback debugger_init_callback
-)
+PluginManager::RegisterPlugin(const ConstString &name,
+                              const char *description,
+                              JITLoaderCreateInstance create_callback,
+                              DebuggerInitializeCallback debugger_init_callback)
 {
     if (create_callback)
     {
@@ -607,7 +581,7 @@ PluginManager::RegisterPlugin
             instance.description = description;
         instance.create_callback = create_callback;
         instance.debugger_init_callback = debugger_init_callback;
-        Mutex::Locker locker (GetJITLoaderMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetJITLoaderMutex());
         GetJITLoaderInstances ().push_back (instance);
     }
     return false;
@@ -618,7 +592,7 @@ PluginManager::UnregisterPlugin (JITLoaderCreateInstance create_callback)
 {
     if (create_callback)
     {
-        Mutex::Locker locker (GetJITLoaderMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetJITLoaderMutex());
         JITLoaderInstances &instances = GetJITLoaderInstances ();
         
         JITLoaderInstances::iterator pos, end = instances.end();
@@ -637,11 +611,11 @@ PluginManager::UnregisterPlugin (JITLoaderCreateInstance create_callback)
 JITLoaderCreateInstance
 PluginManager::GetJITLoaderCreateCallbackAtIndex (uint32_t idx)
 {
-    Mutex::Locker locker (GetJITLoaderMutex ());
+    std::lock_guard<std::recursive_mutex> guard(GetJITLoaderMutex());
     JITLoaderInstances &instances = GetJITLoaderInstances ();
     if (idx < instances.size())
         return instances[idx].create_callback;
-    return NULL;
+    return nullptr;
 }
 
 JITLoaderCreateInstance
@@ -649,7 +623,7 @@ PluginManager::GetJITLoaderCreateCallbackForPluginName (const ConstString &name)
 {
     if (name)
     {
-        Mutex::Locker locker (GetJITLoaderMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetJITLoaderMutex());
         JITLoaderInstances &instances = GetJITLoaderInstances ();
         
         JITLoaderInstances::iterator pos, end = instances.end();
@@ -659,18 +633,17 @@ PluginManager::GetJITLoaderCreateCallbackForPluginName (const ConstString &name)
                 return pos->create_callback;
         }
     }
-    return NULL;
+    return nullptr;
 }
 
 #pragma mark EmulateInstruction
 
-
 struct EmulateInstructionInstance
 {
     EmulateInstructionInstance() :
-    name(),
-    description(),
-    create_callback(NULL)
+        name(),
+        description(),
+        create_callback(nullptr)
     {
     }
     
@@ -681,10 +654,10 @@ struct EmulateInstructionInstance
 
 typedef std::vector<EmulateInstructionInstance> EmulateInstructionInstances;
 
-static Mutex &
-GetEmulateInstructionMutex ()
+static std::recursive_mutex &
+GetEmulateInstructionMutex()
 {
-    static Mutex g_instances_mutex (Mutex::eMutexTypeRecursive);
+    static std::recursive_mutex g_instances_mutex;
     return g_instances_mutex;
 }
 
@@ -695,14 +668,10 @@ GetEmulateInstructionInstances ()
     return g_instances;
 }
 
-
 bool
-PluginManager::RegisterPlugin
-(
-    const ConstString &name,
-    const char *description,
-    EmulateInstructionCreateInstance create_callback
-)
+PluginManager::RegisterPlugin(const ConstString &name,
+                              const char *description,
+                              EmulateInstructionCreateInstance create_callback)
 {
     if (create_callback)
     {
@@ -712,7 +681,7 @@ PluginManager::RegisterPlugin
         if (description && description[0])
             instance.description = description;
         instance.create_callback = create_callback;
-        Mutex::Locker locker (GetEmulateInstructionMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetEmulateInstructionMutex());
         GetEmulateInstructionInstances ().push_back (instance);
     }
     return false;
@@ -723,7 +692,7 @@ PluginManager::UnregisterPlugin (EmulateInstructionCreateInstance create_callbac
 {
     if (create_callback)
     {
-        Mutex::Locker locker (GetEmulateInstructionMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetEmulateInstructionMutex());
         EmulateInstructionInstances &instances = GetEmulateInstructionInstances ();
         
         EmulateInstructionInstances::iterator pos, end = instances.end();
@@ -742,11 +711,11 @@ PluginManager::UnregisterPlugin (EmulateInstructionCreateInstance create_callbac
 EmulateInstructionCreateInstance
 PluginManager::GetEmulateInstructionCreateCallbackAtIndex (uint32_t idx)
 {
-    Mutex::Locker locker (GetEmulateInstructionMutex ());
+    std::lock_guard<std::recursive_mutex> guard(GetEmulateInstructionMutex());
     EmulateInstructionInstances &instances = GetEmulateInstructionInstances ();
     if (idx < instances.size())
         return instances[idx].create_callback;
-    return NULL;
+    return nullptr;
 }
 
 EmulateInstructionCreateInstance
@@ -754,7 +723,7 @@ PluginManager::GetEmulateInstructionCreateCallbackForPluginName (const ConstStri
 {
     if (name)
     {
-        Mutex::Locker locker (GetEmulateInstructionMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetEmulateInstructionMutex());
         EmulateInstructionInstances &instances = GetEmulateInstructionInstances ();
         
         EmulateInstructionInstances::iterator pos, end = instances.end();
@@ -764,10 +733,10 @@ PluginManager::GetEmulateInstructionCreateCallbackForPluginName (const ConstStri
                 return pos->create_callback;
         }
     }
-    return NULL;
+    return nullptr;
 }
-#pragma mark OperatingSystem
 
+#pragma mark OperatingSystem
 
 struct OperatingSystemInstance
 {
@@ -787,10 +756,10 @@ struct OperatingSystemInstance
 
 typedef std::vector<OperatingSystemInstance> OperatingSystemInstances;
 
-static Mutex &
-GetOperatingSystemMutex ()
+static std::recursive_mutex &
+GetOperatingSystemMutex()
 {
-    static Mutex g_instances_mutex (Mutex::eMutexTypeRecursive);
+    static std::recursive_mutex g_instances_mutex;
     return g_instances_mutex;
 }
 
@@ -815,7 +784,7 @@ PluginManager::RegisterPlugin(const ConstString &name, const char *description,
             instance.description = description;
         instance.create_callback = create_callback;
         instance.debugger_init_callback = debugger_init_callback;
-        Mutex::Locker locker (GetOperatingSystemMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetOperatingSystemMutex());
         GetOperatingSystemInstances ().push_back (instance);
     }
     return false;
@@ -826,7 +795,7 @@ PluginManager::UnregisterPlugin (OperatingSystemCreateInstance create_callback)
 {
     if (create_callback)
     {
-        Mutex::Locker locker (GetOperatingSystemMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetOperatingSystemMutex());
         OperatingSystemInstances &instances = GetOperatingSystemInstances ();
         
         OperatingSystemInstances::iterator pos, end = instances.end();
@@ -845,11 +814,11 @@ PluginManager::UnregisterPlugin (OperatingSystemCreateInstance create_callback)
 OperatingSystemCreateInstance
 PluginManager::GetOperatingSystemCreateCallbackAtIndex (uint32_t idx)
 {
-    Mutex::Locker locker (GetOperatingSystemMutex ());
+    std::lock_guard<std::recursive_mutex> guard(GetOperatingSystemMutex());
     OperatingSystemInstances &instances = GetOperatingSystemInstances ();
     if (idx < instances.size())
         return instances[idx].create_callback;
-    return NULL;
+    return nullptr;
 }
 
 OperatingSystemCreateInstance
@@ -857,7 +826,7 @@ PluginManager::GetOperatingSystemCreateCallbackForPluginName (const ConstString 
 {
     if (name)
     {
-        Mutex::Locker locker (GetOperatingSystemMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetOperatingSystemMutex());
         OperatingSystemInstances &instances = GetOperatingSystemInstances ();
         
         OperatingSystemInstances::iterator pos, end = instances.end();
@@ -867,19 +836,17 @@ PluginManager::GetOperatingSystemCreateCallbackForPluginName (const ConstString 
                 return pos->create_callback;
         }
     }
-    return NULL;
+    return nullptr;
 }
 
-
 #pragma mark Language
-
 
 struct LanguageInstance
 {
     LanguageInstance() :
         name(),
         description(),
-        create_callback(NULL)
+        create_callback(nullptr)
     {
     }
     
@@ -890,10 +857,10 @@ struct LanguageInstance
 
 typedef std::vector<LanguageInstance> LanguageInstances;
 
-static Mutex &
-GetLanguageMutex ()
+static std::recursive_mutex &
+GetLanguageMutex()
 {
-    static Mutex g_instances_mutex (Mutex::eMutexTypeRecursive);
+    static std::recursive_mutex g_instances_mutex;
     return g_instances_mutex;
 }
 
@@ -905,12 +872,9 @@ GetLanguageInstances ()
 }
 
 bool
-PluginManager::RegisterPlugin
-(
- const ConstString &name,
- const char *description,
- LanguageCreateInstance create_callback
- )
+PluginManager::RegisterPlugin(const ConstString &name,
+                              const char *description,
+                              LanguageCreateInstance create_callback)
 {
     if (create_callback)
     {
@@ -920,7 +884,7 @@ PluginManager::RegisterPlugin
         if (description && description[0])
             instance.description = description;
         instance.create_callback = create_callback;
-        Mutex::Locker locker (GetLanguageMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetLanguageMutex());
         GetLanguageInstances ().push_back (instance);
     }
     return false;
@@ -931,7 +895,7 @@ PluginManager::UnregisterPlugin (LanguageCreateInstance create_callback)
 {
     if (create_callback)
     {
-        Mutex::Locker locker (GetLanguageMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetLanguageMutex());
         LanguageInstances &instances = GetLanguageInstances ();
         
         LanguageInstances::iterator pos, end = instances.end();
@@ -950,11 +914,11 @@ PluginManager::UnregisterPlugin (LanguageCreateInstance create_callback)
 LanguageCreateInstance
 PluginManager::GetLanguageCreateCallbackAtIndex (uint32_t idx)
 {
-    Mutex::Locker locker (GetLanguageMutex ());
+    std::lock_guard<std::recursive_mutex> guard(GetLanguageMutex());
     LanguageInstances &instances = GetLanguageInstances ();
     if (idx < instances.size())
         return instances[idx].create_callback;
-    return NULL;
+    return nullptr;
 }
 
 LanguageCreateInstance
@@ -962,7 +926,7 @@ PluginManager::GetLanguageCreateCallbackForPluginName (const ConstString &name)
 {
     if (name)
     {
-        Mutex::Locker locker (GetLanguageMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetLanguageMutex());
         LanguageInstances &instances = GetLanguageInstances ();
         
         LanguageInstances::iterator pos, end = instances.end();
@@ -972,19 +936,17 @@ PluginManager::GetLanguageCreateCallbackForPluginName (const ConstString &name)
                 return pos->create_callback;
         }
     }
-    return NULL;
+    return nullptr;
 }
 
-
 #pragma mark LanguageRuntime
-
 
 struct LanguageRuntimeInstance
 {
     LanguageRuntimeInstance() :
         name(),
         description(),
-        create_callback(NULL)
+        create_callback(nullptr)
     {
     }
 
@@ -996,10 +958,10 @@ struct LanguageRuntimeInstance
 
 typedef std::vector<LanguageRuntimeInstance> LanguageRuntimeInstances;
 
-static Mutex &
-GetLanguageRuntimeMutex ()
+static std::recursive_mutex &
+GetLanguageRuntimeMutex()
 {
-    static Mutex g_instances_mutex (Mutex::eMutexTypeRecursive);
+    static std::recursive_mutex g_instances_mutex;
     return g_instances_mutex;
 }
 
@@ -1011,13 +973,10 @@ GetLanguageRuntimeInstances ()
 }
 
 bool
-PluginManager::RegisterPlugin
-(
-    const ConstString &name,
-    const char *description,
-    LanguageRuntimeCreateInstance create_callback,
-    LanguageRuntimeGetCommandObject command_callback
-)
+PluginManager::RegisterPlugin(const ConstString &name,
+                              const char *description,
+                              LanguageRuntimeCreateInstance create_callback,
+                              LanguageRuntimeGetCommandObject command_callback)
 {
     if (create_callback)
     {
@@ -1028,7 +987,7 @@ PluginManager::RegisterPlugin
             instance.description = description;
         instance.create_callback = create_callback;
         instance.command_callback = command_callback;
-        Mutex::Locker locker (GetLanguageRuntimeMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetLanguageRuntimeMutex());
         GetLanguageRuntimeInstances ().push_back (instance);
     }
     return false;
@@ -1039,7 +998,7 @@ PluginManager::UnregisterPlugin (LanguageRuntimeCreateInstance create_callback)
 {
     if (create_callback)
     {
-        Mutex::Locker locker (GetLanguageRuntimeMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetLanguageRuntimeMutex());
         LanguageRuntimeInstances &instances = GetLanguageRuntimeInstances ();
         
         LanguageRuntimeInstances::iterator pos, end = instances.end();
@@ -1058,21 +1017,21 @@ PluginManager::UnregisterPlugin (LanguageRuntimeCreateInstance create_callback)
 LanguageRuntimeCreateInstance
 PluginManager::GetLanguageRuntimeCreateCallbackAtIndex (uint32_t idx)
 {
-    Mutex::Locker locker (GetLanguageRuntimeMutex ());
+    std::lock_guard<std::recursive_mutex> guard(GetLanguageRuntimeMutex());
     LanguageRuntimeInstances &instances = GetLanguageRuntimeInstances ();
     if (idx < instances.size())
         return instances[idx].create_callback;
-    return NULL;
+    return nullptr;
 }
 
 LanguageRuntimeGetCommandObject
 PluginManager::GetLanguageRuntimeGetCommandObjectAtIndex (uint32_t idx)
 {
-    Mutex::Locker locker (GetLanguageRuntimeMutex ());
+    std::lock_guard<std::recursive_mutex> guard(GetLanguageRuntimeMutex());
     LanguageRuntimeInstances &instances = GetLanguageRuntimeInstances ();
     if (idx < instances.size())
         return instances[idx].command_callback;
-    return NULL;
+    return nullptr;
 }
 
 LanguageRuntimeCreateInstance
@@ -1080,7 +1039,7 @@ PluginManager::GetLanguageRuntimeCreateCallbackForPluginName (const ConstString 
 {
     if (name)
     {
-        Mutex::Locker locker (GetLanguageRuntimeMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetLanguageRuntimeMutex());
         LanguageRuntimeInstances &instances = GetLanguageRuntimeInstances ();
         
         LanguageRuntimeInstances::iterator pos, end = instances.end();
@@ -1090,18 +1049,17 @@ PluginManager::GetLanguageRuntimeCreateCallbackForPluginName (const ConstString 
                 return pos->create_callback;
         }
     }
-    return NULL;
+    return nullptr;
 }
 
 #pragma mark SystemRuntime
-
 
 struct SystemRuntimeInstance
 {
     SystemRuntimeInstance() :
         name(),
         description(),
-        create_callback(NULL)
+        create_callback(nullptr)
     {
     }
 
@@ -1112,10 +1070,10 @@ struct SystemRuntimeInstance
 
 typedef std::vector<SystemRuntimeInstance> SystemRuntimeInstances;
 
-static Mutex &
-GetSystemRuntimeMutex ()
+static std::recursive_mutex &
+GetSystemRuntimeMutex()
 {
-    static Mutex g_instances_mutex (Mutex::eMutexTypeRecursive);
+    static std::recursive_mutex g_instances_mutex;
     return g_instances_mutex;
 }
 
@@ -1127,12 +1085,9 @@ GetSystemRuntimeInstances ()
 }
 
 bool
-PluginManager::RegisterPlugin
-(
-    const ConstString &name,
-    const char *description,
-    SystemRuntimeCreateInstance create_callback
-)
+PluginManager::RegisterPlugin(const ConstString &name,
+                              const char *description,
+                              SystemRuntimeCreateInstance create_callback)
 {
     if (create_callback)
     {
@@ -1142,7 +1097,7 @@ PluginManager::RegisterPlugin
         if (description && description[0])
             instance.description = description;
         instance.create_callback = create_callback;
-        Mutex::Locker locker (GetSystemRuntimeMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetSystemRuntimeMutex());
         GetSystemRuntimeInstances ().push_back (instance);
     }
     return false;
@@ -1153,7 +1108,7 @@ PluginManager::UnregisterPlugin (SystemRuntimeCreateInstance create_callback)
 {
     if (create_callback)
     {
-        Mutex::Locker locker (GetSystemRuntimeMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetSystemRuntimeMutex());
         SystemRuntimeInstances &instances = GetSystemRuntimeInstances ();
         
         SystemRuntimeInstances::iterator pos, end = instances.end();
@@ -1172,11 +1127,11 @@ PluginManager::UnregisterPlugin (SystemRuntimeCreateInstance create_callback)
 SystemRuntimeCreateInstance
 PluginManager::GetSystemRuntimeCreateCallbackAtIndex (uint32_t idx)
 {
-    Mutex::Locker locker (GetSystemRuntimeMutex ());
+    std::lock_guard<std::recursive_mutex> guard(GetSystemRuntimeMutex());
     SystemRuntimeInstances &instances = GetSystemRuntimeInstances ();
     if (idx < instances.size())
         return instances[idx].create_callback;
-    return NULL;
+    return nullptr;
 }
 
 SystemRuntimeCreateInstance
@@ -1184,7 +1139,7 @@ PluginManager::GetSystemRuntimeCreateCallbackForPluginName (const ConstString &n
 {
     if (name)
     {
-        Mutex::Locker locker (GetSystemRuntimeMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetSystemRuntimeMutex());
         SystemRuntimeInstances &instances = GetSystemRuntimeInstances ();
         
         SystemRuntimeInstances::iterator pos, end = instances.end();
@@ -1194,9 +1149,8 @@ PluginManager::GetSystemRuntimeCreateCallbackForPluginName (const ConstString &n
                 return pos->create_callback;
         }
     }
-    return NULL;
+    return nullptr;
 }
-
 
 #pragma mark ObjectFile
 
@@ -1205,10 +1159,10 @@ struct ObjectFileInstance
     ObjectFileInstance() :
         name(),
         description(),
-        create_callback(NULL),
-        create_memory_callback (NULL),
-        get_module_specifications (NULL),
-        save_core (NULL)
+        create_callback(nullptr),
+        create_memory_callback(nullptr),
+        get_module_specifications(nullptr),
+        save_core(nullptr)
     {
     }
 
@@ -1222,10 +1176,10 @@ struct ObjectFileInstance
 
 typedef std::vector<ObjectFileInstance> ObjectFileInstances;
 
-static Mutex &
-GetObjectFileMutex ()
+static std::recursive_mutex &
+GetObjectFileMutex()
 {
-    static Mutex g_instances_mutex (Mutex::eMutexTypeRecursive);
+    static std::recursive_mutex g_instances_mutex;
     return g_instances_mutex;
 }
 
@@ -1235,7 +1189,6 @@ GetObjectFileInstances ()
     static ObjectFileInstances g_instances;
     return g_instances;
 }
-
 
 bool
 PluginManager::RegisterPlugin (const ConstString &name,
@@ -1256,7 +1209,7 @@ PluginManager::RegisterPlugin (const ConstString &name,
         instance.create_memory_callback = create_memory_callback;
         instance.save_core = save_core;
         instance.get_module_specifications = get_module_specifications;
-        Mutex::Locker locker (GetObjectFileMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetObjectFileMutex());
         GetObjectFileInstances ().push_back (instance);
     }
     return false;
@@ -1267,7 +1220,7 @@ PluginManager::UnregisterPlugin (ObjectFileCreateInstance create_callback)
 {
     if (create_callback)
     {
-        Mutex::Locker locker (GetObjectFileMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetObjectFileMutex());
         ObjectFileInstances &instances = GetObjectFileInstances ();
         
         ObjectFileInstances::iterator pos, end = instances.end();
@@ -1286,32 +1239,31 @@ PluginManager::UnregisterPlugin (ObjectFileCreateInstance create_callback)
 ObjectFileCreateInstance
 PluginManager::GetObjectFileCreateCallbackAtIndex (uint32_t idx)
 {
-    Mutex::Locker locker (GetObjectFileMutex ());
+    std::lock_guard<std::recursive_mutex> guard(GetObjectFileMutex());
     ObjectFileInstances &instances = GetObjectFileInstances ();
     if (idx < instances.size())
         return instances[idx].create_callback;
-    return NULL;
+    return nullptr;
 }
-
 
 ObjectFileCreateMemoryInstance
 PluginManager::GetObjectFileCreateMemoryCallbackAtIndex (uint32_t idx)
 {
-    Mutex::Locker locker (GetObjectFileMutex ());
+    std::lock_guard<std::recursive_mutex> guard(GetObjectFileMutex());
     ObjectFileInstances &instances = GetObjectFileInstances ();
     if (idx < instances.size())
         return instances[idx].create_memory_callback;
-    return NULL;
+    return nullptr;
 }
 
 ObjectFileGetModuleSpecifications
 PluginManager::GetObjectFileGetModuleSpecificationsCallbackAtIndex (uint32_t idx)
 {
-    Mutex::Locker locker (GetObjectFileMutex ());
+    std::lock_guard<std::recursive_mutex> guard(GetObjectFileMutex());
     ObjectFileInstances &instances = GetObjectFileInstances ();
     if (idx < instances.size())
         return instances[idx].get_module_specifications;
-    return NULL;
+    return nullptr;
 }
 
 ObjectFileCreateInstance
@@ -1319,7 +1271,7 @@ PluginManager::GetObjectFileCreateCallbackForPluginName (const ConstString &name
 {
     if (name)
     {
-        Mutex::Locker locker (GetObjectFileMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetObjectFileMutex());
         ObjectFileInstances &instances = GetObjectFileInstances ();
         
         ObjectFileInstances::iterator pos, end = instances.end();
@@ -1329,16 +1281,15 @@ PluginManager::GetObjectFileCreateCallbackForPluginName (const ConstString &name
                 return pos->create_callback;
         }
     }
-    return NULL;
+    return nullptr;
 }
-
 
 ObjectFileCreateMemoryInstance
 PluginManager::GetObjectFileCreateMemoryCallbackForPluginName (const ConstString &name)
 {
     if (name)
     {
-        Mutex::Locker locker (GetObjectFileMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetObjectFileMutex());
         ObjectFileInstances &instances = GetObjectFileInstances ();
         
         ObjectFileInstances::iterator pos, end = instances.end();
@@ -1348,14 +1299,14 @@ PluginManager::GetObjectFileCreateMemoryCallbackForPluginName (const ConstString
                 return pos->create_memory_callback;
         }
     }
-    return NULL;
+    return nullptr;
 }
 
 Error
 PluginManager::SaveCore (const lldb::ProcessSP &process_sp, const FileSpec &outfile)
 {
     Error error;
-    Mutex::Locker locker (GetObjectFileMutex ());
+    std::lock_guard<std::recursive_mutex> guard(GetObjectFileMutex());
     ObjectFileInstances &instances = GetObjectFileInstances ();
     
     ObjectFileInstances::iterator pos, end = instances.end();
@@ -1375,8 +1326,8 @@ struct ObjectContainerInstance
     ObjectContainerInstance() :
         name(),
         description(),
-        create_callback (NULL),
-        get_module_specifications (NULL)
+        create_callback(nullptr),
+        get_module_specifications(nullptr)
     {
     }
 
@@ -1384,15 +1335,14 @@ struct ObjectContainerInstance
     std::string description;
     ObjectContainerCreateInstance create_callback;
     ObjectFileGetModuleSpecifications get_module_specifications;
-
 };
 
 typedef std::vector<ObjectContainerInstance> ObjectContainerInstances;
 
-static Mutex &
-GetObjectContainerMutex ()
+static std::recursive_mutex &
+GetObjectContainerMutex()
 {
-    static Mutex g_instances_mutex (Mutex::eMutexTypeRecursive);
+    static std::recursive_mutex g_instances_mutex;
     return g_instances_mutex;
 }
 
@@ -1418,7 +1368,7 @@ PluginManager::RegisterPlugin (const ConstString &name,
             instance.description = description;
         instance.create_callback = create_callback;
         instance.get_module_specifications = get_module_specifications;
-        Mutex::Locker locker (GetObjectContainerMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetObjectContainerMutex());
         GetObjectContainerInstances ().push_back (instance);
     }
     return false;
@@ -1429,7 +1379,7 @@ PluginManager::UnregisterPlugin (ObjectContainerCreateInstance create_callback)
 {
     if (create_callback)
     {
-        Mutex::Locker locker (GetObjectContainerMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetObjectContainerMutex());
         ObjectContainerInstances &instances = GetObjectContainerInstances ();
         
         ObjectContainerInstances::iterator pos, end = instances.end();
@@ -1448,11 +1398,11 @@ PluginManager::UnregisterPlugin (ObjectContainerCreateInstance create_callback)
 ObjectContainerCreateInstance
 PluginManager::GetObjectContainerCreateCallbackAtIndex (uint32_t idx)
 {
-    Mutex::Locker locker (GetObjectContainerMutex ());
+    std::lock_guard<std::recursive_mutex> guard(GetObjectContainerMutex());
     ObjectContainerInstances &instances = GetObjectContainerInstances ();
     if (idx < instances.size())
         return instances[idx].create_callback;
-    return NULL;
+    return nullptr;
 }
 
 ObjectContainerCreateInstance
@@ -1460,7 +1410,7 @@ PluginManager::GetObjectContainerCreateCallbackForPluginName (const ConstString 
 {
     if (name)
     {
-        Mutex::Locker locker (GetObjectContainerMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetObjectContainerMutex());
         ObjectContainerInstances &instances = GetObjectContainerInstances ();
         
         ObjectContainerInstances::iterator pos, end = instances.end();
@@ -1470,17 +1420,17 @@ PluginManager::GetObjectContainerCreateCallbackForPluginName (const ConstString 
                 return pos->create_callback;
         }
     }
-    return NULL;
+    return nullptr;
 }
 
 ObjectFileGetModuleSpecifications
 PluginManager::GetObjectContainerGetModuleSpecificationsCallbackAtIndex (uint32_t idx)
 {
-    Mutex::Locker locker (GetObjectContainerMutex ());
+    std::lock_guard<std::recursive_mutex> guard(GetObjectContainerMutex());
     ObjectContainerInstances &instances = GetObjectContainerInstances ();
     if (idx < instances.size())
         return instances[idx].get_module_specifications;
-    return NULL;
+    return nullptr;
 }
 
 #pragma mark LogChannel
@@ -1490,7 +1440,7 @@ struct LogInstance
     LogInstance() :
         name(),
         description(),
-        create_callback(NULL)
+        create_callback(nullptr)
     {
     }
 
@@ -1501,10 +1451,10 @@ struct LogInstance
 
 typedef std::vector<LogInstance> LogInstances;
 
-static Mutex &
-GetLogMutex ()
+static std::recursive_mutex &
+GetLogMutex()
 {
-    static Mutex g_instances_mutex (Mutex::eMutexTypeRecursive);
+    static std::recursive_mutex g_instances_mutex;
     return g_instances_mutex;
 }
 
@@ -1515,15 +1465,10 @@ GetLogInstances ()
     return g_instances;
 }
 
-
-
 bool
-PluginManager::RegisterPlugin
-(
-    const ConstString &name,
-    const char *description,
-    LogChannelCreateInstance create_callback
-)
+PluginManager::RegisterPlugin(const ConstString &name,
+                              const char *description,
+                              LogChannelCreateInstance create_callback)
 {
     if (create_callback)
     {
@@ -1533,7 +1478,7 @@ PluginManager::RegisterPlugin
         if (description && description[0])
             instance.description = description;
         instance.create_callback = create_callback;
-        Mutex::Locker locker (GetLogMutex ());
+        std::lock_guard<std::recursive_mutex> gard(GetLogMutex());
         GetLogInstances ().push_back (instance);
     }
     return false;
@@ -1544,7 +1489,7 @@ PluginManager::UnregisterPlugin (LogChannelCreateInstance create_callback)
 {
     if (create_callback)
     {
-        Mutex::Locker locker (GetLogMutex ());
+        std::lock_guard<std::recursive_mutex> gard(GetLogMutex());
         LogInstances &instances = GetLogInstances ();
         
         LogInstances::iterator pos, end = instances.end();
@@ -1563,22 +1508,21 @@ PluginManager::UnregisterPlugin (LogChannelCreateInstance create_callback)
 const char *
 PluginManager::GetLogChannelCreateNameAtIndex (uint32_t idx)
 {
-    Mutex::Locker locker (GetLogMutex ());
+    std::lock_guard<std::recursive_mutex> gard(GetLogMutex());
     LogInstances &instances = GetLogInstances ();
     if (idx < instances.size())
         return instances[idx].name.GetCString();
-    return NULL;
+    return nullptr;
 }
-
 
 LogChannelCreateInstance
 PluginManager::GetLogChannelCreateCallbackAtIndex (uint32_t idx)
 {
-    Mutex::Locker locker (GetLogMutex ());
+    std::lock_guard<std::recursive_mutex> gard(GetLogMutex());
     LogInstances &instances = GetLogInstances ();
     if (idx < instances.size())
         return instances[idx].create_callback;
-    return NULL;
+    return nullptr;
 }
 
 LogChannelCreateInstance
@@ -1586,7 +1530,7 @@ PluginManager::GetLogChannelCreateCallbackForPluginName (const ConstString &name
 {
     if (name)
     {
-        Mutex::Locker locker (GetLogMutex ());
+        std::lock_guard<std::recursive_mutex> gard(GetLogMutex());
         LogInstances &instances = GetLogInstances ();
         
         LogInstances::iterator pos, end = instances.end();
@@ -1596,7 +1540,7 @@ PluginManager::GetLogChannelCreateCallbackForPluginName (const ConstString &name
                 return pos->create_callback;
         }
     }
-    return NULL;
+    return nullptr;
 }
 
 #pragma mark Platform
@@ -1606,8 +1550,8 @@ struct PlatformInstance
     PlatformInstance() :
         name(),
         description(),
-        create_callback(NULL),
-        debugger_init_callback (NULL)
+        create_callback(nullptr),
+        debugger_init_callback(nullptr)
     {
     }
     
@@ -1619,10 +1563,10 @@ struct PlatformInstance
 
 typedef std::vector<PlatformInstance> PlatformInstances;
 
-static Mutex &
-GetPlatformInstancesMutex ()
+static std::recursive_mutex &
+GetPlatformInstancesMutex()
 {
-    static Mutex g_platform_instances_mutex (Mutex::eMutexTypeRecursive);
+    static std::recursive_mutex g_platform_instances_mutex;
     return g_platform_instances_mutex;
 }
 
@@ -1633,7 +1577,6 @@ GetPlatformInstances ()
     return g_platform_instances;
 }
 
-
 bool
 PluginManager::RegisterPlugin (const ConstString &name,
                                const char *description,
@@ -1642,8 +1585,8 @@ PluginManager::RegisterPlugin (const ConstString &name,
 {
     if (create_callback)
     {
-        Mutex::Locker locker (GetPlatformInstancesMutex ());
-        
+        std::lock_guard<std::recursive_mutex> guard(GetPlatformInstancesMutex());
+
         PlatformInstance instance;
         assert ((bool)name);
         instance.name = name;
@@ -1657,25 +1600,24 @@ PluginManager::RegisterPlugin (const ConstString &name,
     return false;
 }
 
-
 const char *
 PluginManager::GetPlatformPluginNameAtIndex (uint32_t idx)
 {
-    Mutex::Locker locker (GetPlatformInstancesMutex ());
+    std::lock_guard<std::recursive_mutex> guard(GetPlatformInstancesMutex());
     PlatformInstances &instances = GetPlatformInstances ();
     if (idx < instances.size())
         return instances[idx].name.GetCString();
-    return NULL;
+    return nullptr;
 }
 
 const char *
 PluginManager::GetPlatformPluginDescriptionAtIndex (uint32_t idx)
 {
-    Mutex::Locker locker (GetPlatformInstancesMutex ());
+    std::lock_guard<std::recursive_mutex> guard(GetPlatformInstancesMutex());
     PlatformInstances &instances = GetPlatformInstances ();
     if (idx < instances.size())
         return instances[idx].description.c_str();
-    return NULL;
+    return nullptr;
 }
 
 bool
@@ -1683,7 +1625,7 @@ PluginManager::UnregisterPlugin (PlatformCreateInstance create_callback)
 {
     if (create_callback)
     {
-        Mutex::Locker locker (GetPlatformInstancesMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetPlatformInstancesMutex());
         PlatformInstances &instances = GetPlatformInstances ();
 
         PlatformInstances::iterator pos, end = instances.end();
@@ -1702,11 +1644,11 @@ PluginManager::UnregisterPlugin (PlatformCreateInstance create_callback)
 PlatformCreateInstance
 PluginManager::GetPlatformCreateCallbackAtIndex (uint32_t idx)
 {
-    Mutex::Locker locker (GetPlatformInstancesMutex ());
+    std::lock_guard<std::recursive_mutex> guard(GetPlatformInstancesMutex());
     PlatformInstances &instances = GetPlatformInstances ();
     if (idx < instances.size())
         return instances[idx].create_callback;
-    return NULL;
+    return nullptr;
 }
 
 PlatformCreateInstance
@@ -1714,7 +1656,7 @@ PluginManager::GetPlatformCreateCallbackForPluginName (const ConstString &name)
 {
     if (name)
     {
-        Mutex::Locker locker (GetPlatformInstancesMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetPlatformInstancesMutex());
         PlatformInstances &instances = GetPlatformInstances ();
 
         PlatformInstances::iterator pos, end = instances.end();
@@ -1724,7 +1666,7 @@ PluginManager::GetPlatformCreateCallbackForPluginName (const ConstString &name)
                 return pos->create_callback;
         }
     }
-    return NULL;
+    return nullptr;
 }
 
 size_t
@@ -1732,7 +1674,7 @@ PluginManager::AutoCompletePlatformName (const char *name, StringList &matches)
 {
     if (name)
     {
-        Mutex::Locker locker (GetPlatformInstancesMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetPlatformInstancesMutex());
         PlatformInstances &instances = GetPlatformInstances ();
         llvm::StringRef name_sref(name);
 
@@ -1746,6 +1688,7 @@ PluginManager::AutoCompletePlatformName (const char *name, StringList &matches)
     }
     return matches.GetSize();
 }
+
 #pragma mark Process
 
 struct ProcessInstance
@@ -1753,8 +1696,8 @@ struct ProcessInstance
     ProcessInstance() :
         name(),
         description(),
-        create_callback(NULL),
-        debugger_init_callback(NULL)
+        create_callback(nullptr),
+        debugger_init_callback(nullptr)
     {
     }
     
@@ -1766,10 +1709,10 @@ struct ProcessInstance
 
 typedef std::vector<ProcessInstance> ProcessInstances;
 
-static Mutex &
-GetProcessMutex ()
+static std::recursive_mutex &
+GetProcessMutex()
 {
-    static Mutex g_instances_mutex (Mutex::eMutexTypeRecursive);
+    static std::recursive_mutex g_instances_mutex;
     return g_instances_mutex;
 }
 
@@ -1779,7 +1722,6 @@ GetProcessInstances ()
     static ProcessInstances g_instances;
     return g_instances;
 }
-
 
 bool
 PluginManager::RegisterPlugin (const ConstString &name,
@@ -1796,7 +1738,7 @@ PluginManager::RegisterPlugin (const ConstString &name,
             instance.description = description;
         instance.create_callback = create_callback;
         instance.debugger_init_callback = debugger_init_callback;
-        Mutex::Locker locker (GetProcessMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetProcessMutex());
         GetProcessInstances ().push_back (instance);
     }
     return false;
@@ -1805,21 +1747,21 @@ PluginManager::RegisterPlugin (const ConstString &name,
 const char *
 PluginManager::GetProcessPluginNameAtIndex (uint32_t idx)
 {
-    Mutex::Locker locker (GetProcessMutex ());
+    std::lock_guard<std::recursive_mutex> guard(GetProcessMutex());
     ProcessInstances &instances = GetProcessInstances ();
     if (idx < instances.size())
         return instances[idx].name.GetCString();
-    return NULL;
+    return nullptr;
 }
 
 const char *
 PluginManager::GetProcessPluginDescriptionAtIndex (uint32_t idx)
 {
-    Mutex::Locker locker (GetProcessMutex ());
+    std::lock_guard<std::recursive_mutex> guard(GetProcessMutex());
     ProcessInstances &instances = GetProcessInstances ();
     if (idx < instances.size())
         return instances[idx].description.c_str();
-    return NULL;
+    return nullptr;
 }
 
 bool
@@ -1827,7 +1769,7 @@ PluginManager::UnregisterPlugin (ProcessCreateInstance create_callback)
 {
     if (create_callback)
     {
-        Mutex::Locker locker (GetProcessMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetProcessMutex());
         ProcessInstances &instances = GetProcessInstances ();
         
         ProcessInstances::iterator pos, end = instances.end();
@@ -1846,20 +1788,19 @@ PluginManager::UnregisterPlugin (ProcessCreateInstance create_callback)
 ProcessCreateInstance
 PluginManager::GetProcessCreateCallbackAtIndex (uint32_t idx)
 {
-    Mutex::Locker locker (GetProcessMutex ());
+    std::lock_guard<std::recursive_mutex> guard(GetProcessMutex());
     ProcessInstances &instances = GetProcessInstances ();
     if (idx < instances.size())
         return instances[idx].create_callback;
-    return NULL;
+    return nullptr;
 }
-
 
 ProcessCreateInstance
 PluginManager::GetProcessCreateCallbackForPluginName (const ConstString &name)
 {
     if (name)
     {
-        Mutex::Locker locker (GetProcessMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetProcessMutex());
         ProcessInstances &instances = GetProcessInstances ();
         
         ProcessInstances::iterator pos, end = instances.end();
@@ -1869,7 +1810,7 @@ PluginManager::GetProcessCreateCallbackForPluginName (const ConstString &name)
                 return pos->create_callback;
         }
     }
-    return NULL;
+    return nullptr;
 }
 
 #pragma mark ScriptInterpreter
@@ -1880,7 +1821,7 @@ struct ScriptInterpreterInstance
         : name()
         , language(lldb::eScriptLanguageNone)
         , description()
-        , create_callback(NULL)
+        , create_callback(nullptr)
     {
     }
 
@@ -1892,10 +1833,10 @@ struct ScriptInterpreterInstance
 
 typedef std::vector<ScriptInterpreterInstance> ScriptInterpreterInstances;
 
-static Mutex &
+static std::recursive_mutex &
 GetScriptInterpreterMutex()
 {
-    static Mutex g_instances_mutex(Mutex::eMutexTypeRecursive);
+    static std::recursive_mutex g_instances_mutex;
     return g_instances_mutex;
 }
 
@@ -1919,7 +1860,7 @@ PluginManager::RegisterPlugin(const ConstString &name, const char *description, 
         instance.description = description;
     instance.create_callback = create_callback;
     instance.language = script_language;
-    Mutex::Locker locker(GetScriptInterpreterMutex());
+    std::lock_guard<std::recursive_mutex> guard(GetScriptInterpreterMutex());
     GetScriptInterpreterInstances().push_back(instance);
     return false;
 }
@@ -1929,7 +1870,7 @@ PluginManager::UnregisterPlugin(ScriptInterpreterCreateInstance create_callback)
 {
     if (!create_callback)
         return false;
-    Mutex::Locker locker(GetScriptInterpreterMutex());
+    std::lock_guard<std::recursive_mutex> guard(GetScriptInterpreterMutex());
     ScriptInterpreterInstances &instances = GetScriptInterpreterInstances();
 
     ScriptInterpreterInstances::iterator pos, end = instances.end();
@@ -1947,7 +1888,7 @@ PluginManager::UnregisterPlugin(ScriptInterpreterCreateInstance create_callback)
 ScriptInterpreterCreateInstance
 PluginManager::GetScriptInterpreterCreateCallbackAtIndex(uint32_t idx)
 {
-    Mutex::Locker locker(GetScriptInterpreterMutex());
+    std::lock_guard<std::recursive_mutex> guard(GetScriptInterpreterMutex());
     ScriptInterpreterInstances &instances = GetScriptInterpreterInstances();
     if (idx < instances.size())
         return instances[idx].create_callback;
@@ -1957,7 +1898,7 @@ PluginManager::GetScriptInterpreterCreateCallbackAtIndex(uint32_t idx)
 lldb::ScriptInterpreterSP
 PluginManager::GetScriptInterpreterForLanguage(lldb::ScriptLanguage script_lang, CommandInterpreter &interpreter)
 {
-    Mutex::Locker locker(GetScriptInterpreterMutex());
+    std::lock_guard<std::recursive_mutex> guard(GetScriptInterpreterMutex());
     ScriptInterpreterInstances &instances = GetScriptInterpreterInstances();
 
     ScriptInterpreterInstances::iterator pos, end = instances.end();
@@ -1996,10 +1937,10 @@ struct SymbolFileInstance
 
 typedef std::vector<SymbolFileInstance> SymbolFileInstances;
 
-static Mutex &
-GetSymbolFileMutex ()
+static std::recursive_mutex &
+GetSymbolFileMutex()
 {
-    static Mutex g_instances_mutex (Mutex::eMutexTypeRecursive);
+    static std::recursive_mutex g_instances_mutex;
     return g_instances_mutex;
 }
 
@@ -2010,15 +1951,11 @@ GetSymbolFileInstances ()
     return g_instances;
 }
 
-
 bool
-PluginManager::RegisterPlugin
-(
-    const ConstString &name,
-    const char *description,
-    SymbolFileCreateInstance create_callback,
-    DebuggerInitializeCallback debugger_init_callback
-)
+PluginManager::RegisterPlugin(const ConstString &name,
+                              const char *description,
+                              SymbolFileCreateInstance create_callback,
+                              DebuggerInitializeCallback debugger_init_callback)
 {
     if (create_callback)
     {
@@ -2029,7 +1966,7 @@ PluginManager::RegisterPlugin
             instance.description = description;
         instance.create_callback = create_callback;
         instance.debugger_init_callback = debugger_init_callback;
-        Mutex::Locker locker (GetSymbolFileMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetSymbolFileMutex());
         GetSymbolFileInstances ().push_back (instance);
     }
     return false;
@@ -2040,7 +1977,7 @@ PluginManager::UnregisterPlugin (SymbolFileCreateInstance create_callback)
 {
     if (create_callback)
     {
-        Mutex::Locker locker (GetSymbolFileMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetSymbolFileMutex());
         SymbolFileInstances &instances = GetSymbolFileInstances ();
         
         SymbolFileInstances::iterator pos, end = instances.end();
@@ -2059,11 +1996,11 @@ PluginManager::UnregisterPlugin (SymbolFileCreateInstance create_callback)
 SymbolFileCreateInstance
 PluginManager::GetSymbolFileCreateCallbackAtIndex (uint32_t idx)
 {
-    Mutex::Locker locker (GetSymbolFileMutex ());
+    std::lock_guard<std::recursive_mutex> guard(GetSymbolFileMutex());
     SymbolFileInstances &instances = GetSymbolFileInstances ();
     if (idx < instances.size())
         return instances[idx].create_callback;
-    return NULL;
+    return nullptr;
 }
 
 SymbolFileCreateInstance
@@ -2071,7 +2008,7 @@ PluginManager::GetSymbolFileCreateCallbackForPluginName (const ConstString &name
 {
     if (name)
     {
-        Mutex::Locker locker (GetSymbolFileMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetSymbolFileMutex());
         SymbolFileInstances &instances = GetSymbolFileInstances ();
         
         SymbolFileInstances::iterator pos, end = instances.end();
@@ -2081,10 +2018,8 @@ PluginManager::GetSymbolFileCreateCallbackForPluginName (const ConstString &name
                 return pos->create_callback;
         }
     }
-    return NULL;
+    return nullptr;
 }
-
-
 
 #pragma mark SymbolVendor
 
@@ -2093,7 +2028,7 @@ struct SymbolVendorInstance
     SymbolVendorInstance() :
         name(),
         description(),
-        create_callback(NULL)
+        create_callback(nullptr)
     {
     }
 
@@ -2104,10 +2039,10 @@ struct SymbolVendorInstance
 
 typedef std::vector<SymbolVendorInstance> SymbolVendorInstances;
 
-static Mutex &
-GetSymbolVendorMutex ()
+static std::recursive_mutex &
+GetSymbolVendorMutex()
 {
-    static Mutex g_instances_mutex (Mutex::eMutexTypeRecursive);
+    static std::recursive_mutex g_instances_mutex;
     return g_instances_mutex;
 }
 
@@ -2119,12 +2054,9 @@ GetSymbolVendorInstances ()
 }
 
 bool
-PluginManager::RegisterPlugin
-(
-    const ConstString &name,
-    const char *description,
-    SymbolVendorCreateInstance create_callback
-)
+PluginManager::RegisterPlugin(const ConstString &name,
+                              const char *description,
+                              SymbolVendorCreateInstance create_callback)
 {
     if (create_callback)
     {
@@ -2134,7 +2066,7 @@ PluginManager::RegisterPlugin
         if (description && description[0])
             instance.description = description;
         instance.create_callback = create_callback;
-        Mutex::Locker locker (GetSymbolVendorMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetSymbolVendorMutex());
         GetSymbolVendorInstances ().push_back (instance);
     }
     return false;
@@ -2145,7 +2077,7 @@ PluginManager::UnregisterPlugin (SymbolVendorCreateInstance create_callback)
 {
     if (create_callback)
     {
-        Mutex::Locker locker (GetSymbolVendorMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetSymbolVendorMutex());
         SymbolVendorInstances &instances = GetSymbolVendorInstances ();
         
         SymbolVendorInstances::iterator pos, end = instances.end();
@@ -2164,20 +2096,19 @@ PluginManager::UnregisterPlugin (SymbolVendorCreateInstance create_callback)
 SymbolVendorCreateInstance
 PluginManager::GetSymbolVendorCreateCallbackAtIndex (uint32_t idx)
 {
-    Mutex::Locker locker (GetSymbolVendorMutex ());
+    std::lock_guard<std::recursive_mutex> guard(GetSymbolVendorMutex());
     SymbolVendorInstances &instances = GetSymbolVendorInstances ();
     if (idx < instances.size())
         return instances[idx].create_callback;
-    return NULL;
+    return nullptr;
 }
-
 
 SymbolVendorCreateInstance
 PluginManager::GetSymbolVendorCreateCallbackForPluginName (const ConstString &name)
 {
     if (name)
     {
-        Mutex::Locker locker (GetSymbolVendorMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetSymbolVendorMutex());
         SymbolVendorInstances &instances = GetSymbolVendorInstances ();
         
         SymbolVendorInstances::iterator pos, end = instances.end();
@@ -2187,9 +2118,8 @@ PluginManager::GetSymbolVendorCreateCallbackForPluginName (const ConstString &na
                 return pos->create_callback;
         }
     }
-    return NULL;
+    return nullptr;
 }
-
 
 #pragma mark UnwindAssembly
 
@@ -2198,7 +2128,7 @@ struct UnwindAssemblyInstance
     UnwindAssemblyInstance() :
         name(),
         description(),
-        create_callback(NULL)
+        create_callback(nullptr)
     {
     }
 
@@ -2209,10 +2139,10 @@ struct UnwindAssemblyInstance
 
 typedef std::vector<UnwindAssemblyInstance> UnwindAssemblyInstances;
 
-static Mutex &
-GetUnwindAssemblyMutex ()
+static std::recursive_mutex &
+GetUnwindAssemblyMutex()
 {
-    static Mutex g_instances_mutex (Mutex::eMutexTypeRecursive);
+    static std::recursive_mutex g_instances_mutex;
     return g_instances_mutex;
 }
 
@@ -2224,12 +2154,9 @@ GetUnwindAssemblyInstances ()
 }
 
 bool
-PluginManager::RegisterPlugin
-(
-    const ConstString &name,
-    const char *description,
-    UnwindAssemblyCreateInstance create_callback
-)
+PluginManager::RegisterPlugin(const ConstString &name,
+                              const char *description,
+                              UnwindAssemblyCreateInstance create_callback)
 {
     if (create_callback)
     {
@@ -2239,7 +2166,7 @@ PluginManager::RegisterPlugin
         if (description && description[0])
             instance.description = description;
         instance.create_callback = create_callback;
-        Mutex::Locker locker (GetUnwindAssemblyMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetUnwindAssemblyMutex());
         GetUnwindAssemblyInstances ().push_back (instance);
     }
     return false;
@@ -2250,7 +2177,7 @@ PluginManager::UnregisterPlugin (UnwindAssemblyCreateInstance create_callback)
 {
     if (create_callback)
     {
-        Mutex::Locker locker (GetUnwindAssemblyMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetUnwindAssemblyMutex());
         UnwindAssemblyInstances &instances = GetUnwindAssemblyInstances ();
         
         UnwindAssemblyInstances::iterator pos, end = instances.end();
@@ -2269,20 +2196,19 @@ PluginManager::UnregisterPlugin (UnwindAssemblyCreateInstance create_callback)
 UnwindAssemblyCreateInstance
 PluginManager::GetUnwindAssemblyCreateCallbackAtIndex (uint32_t idx)
 {
-    Mutex::Locker locker (GetUnwindAssemblyMutex ());
+    std::lock_guard<std::recursive_mutex> guard(GetUnwindAssemblyMutex());
     UnwindAssemblyInstances &instances = GetUnwindAssemblyInstances ();
     if (idx < instances.size())
         return instances[idx].create_callback;
-    return NULL;
+    return nullptr;
 }
-
 
 UnwindAssemblyCreateInstance
 PluginManager::GetUnwindAssemblyCreateCallbackForPluginName (const ConstString &name)
 {
     if (name)
     {
-        Mutex::Locker locker (GetUnwindAssemblyMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetUnwindAssemblyMutex());
         UnwindAssemblyInstances &instances = GetUnwindAssemblyInstances ();
         
         UnwindAssemblyInstances::iterator pos, end = instances.end();
@@ -2292,7 +2218,7 @@ PluginManager::GetUnwindAssemblyCreateCallbackForPluginName (const ConstString &
                 return pos->create_callback;
         }
     }
-    return NULL;
+    return nullptr;
 }
 
 #pragma mark MemoryHistory
@@ -2300,9 +2226,9 @@ PluginManager::GetUnwindAssemblyCreateCallbackForPluginName (const ConstString &
 struct MemoryHistoryInstance
 {
     MemoryHistoryInstance() :
-    name(),
-    description(),
-    create_callback(NULL)
+        name(),
+        description(),
+        create_callback(nullptr)
     {
     }
     
@@ -2313,10 +2239,10 @@ struct MemoryHistoryInstance
 
 typedef std::vector<MemoryHistoryInstance> MemoryHistoryInstances;
 
-static Mutex &
-GetMemoryHistoryMutex ()
+static std::recursive_mutex &
+GetMemoryHistoryMutex()
 {
-    static Mutex g_instances_mutex (Mutex::eMutexTypeRecursive);
+    static std::recursive_mutex g_instances_mutex;
     return g_instances_mutex;
 }
 
@@ -2328,12 +2254,9 @@ GetMemoryHistoryInstances ()
 }
 
 bool
-PluginManager::RegisterPlugin
-(
- const ConstString &name,
- const char *description,
- MemoryHistoryCreateInstance create_callback
- )
+PluginManager::RegisterPlugin(const ConstString &name,
+                              const char *description,
+                              MemoryHistoryCreateInstance create_callback)
 {
     if (create_callback)
     {
@@ -2343,7 +2266,7 @@ PluginManager::RegisterPlugin
         if (description && description[0])
             instance.description = description;
         instance.create_callback = create_callback;
-        Mutex::Locker locker (GetMemoryHistoryMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetMemoryHistoryMutex());
         GetMemoryHistoryInstances ().push_back (instance);
     }
     return false;
@@ -2354,7 +2277,7 @@ PluginManager::UnregisterPlugin (MemoryHistoryCreateInstance create_callback)
 {
     if (create_callback)
     {
-        Mutex::Locker locker (GetMemoryHistoryMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetMemoryHistoryMutex());
         MemoryHistoryInstances &instances = GetMemoryHistoryInstances ();
         
         MemoryHistoryInstances::iterator pos, end = instances.end();
@@ -2373,20 +2296,19 @@ PluginManager::UnregisterPlugin (MemoryHistoryCreateInstance create_callback)
 MemoryHistoryCreateInstance
 PluginManager::GetMemoryHistoryCreateCallbackAtIndex (uint32_t idx)
 {
-    Mutex::Locker locker (GetMemoryHistoryMutex ());
+    std::lock_guard<std::recursive_mutex> guard(GetMemoryHistoryMutex());
     MemoryHistoryInstances &instances = GetMemoryHistoryInstances ();
     if (idx < instances.size())
         return instances[idx].create_callback;
-    return NULL;
+    return nullptr;
 }
-
 
 MemoryHistoryCreateInstance
 PluginManager::GetMemoryHistoryCreateCallbackForPluginName (const ConstString &name)
 {
     if (name)
     {
-        Mutex::Locker locker (GetMemoryHistoryMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetMemoryHistoryMutex());
         MemoryHistoryInstances &instances = GetMemoryHistoryInstances ();
         
         MemoryHistoryInstances::iterator pos, end = instances.end();
@@ -2396,7 +2318,7 @@ PluginManager::GetMemoryHistoryCreateCallbackForPluginName (const ConstString &n
                 return pos->create_callback;
         }
     }
-    return NULL;
+    return nullptr;
 }
 
 #pragma mark InstrumentationRuntime
@@ -2404,9 +2326,9 @@ PluginManager::GetMemoryHistoryCreateCallbackForPluginName (const ConstString &n
 struct InstrumentationRuntimeInstance
 {
     InstrumentationRuntimeInstance() :
-    name(),
-    description(),
-    create_callback(NULL)
+        name(),
+        description(),
+        create_callback(nullptr)
     {
     }
     
@@ -2418,10 +2340,10 @@ struct InstrumentationRuntimeInstance
 
 typedef std::vector<InstrumentationRuntimeInstance> InstrumentationRuntimeInstances;
 
-static Mutex &
-GetInstrumentationRuntimeMutex ()
+static std::recursive_mutex &
+GetInstrumentationRuntimeMutex()
 {
-    static Mutex g_instances_mutex (Mutex::eMutexTypeRecursive);
+    static std::recursive_mutex g_instances_mutex;
     return g_instances_mutex;
 }
 
@@ -2433,13 +2355,10 @@ GetInstrumentationRuntimeInstances ()
 }
 
 bool
-PluginManager::RegisterPlugin
-(
- const ConstString &name,
- const char *description,
- InstrumentationRuntimeCreateInstance create_callback,
- InstrumentationRuntimeGetType get_type_callback
- )
+PluginManager::RegisterPlugin(const ConstString &name,
+                              const char *description,
+                              InstrumentationRuntimeCreateInstance create_callback,
+                              InstrumentationRuntimeGetType get_type_callback)
 {
     if (create_callback)
     {
@@ -2450,7 +2369,7 @@ PluginManager::RegisterPlugin
             instance.description = description;
         instance.create_callback = create_callback;
         instance.get_type_callback = get_type_callback;
-        Mutex::Locker locker (GetInstrumentationRuntimeMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetInstrumentationRuntimeMutex());
         GetInstrumentationRuntimeInstances ().push_back (instance);
     }
     return false;
@@ -2461,7 +2380,7 @@ PluginManager::UnregisterPlugin (InstrumentationRuntimeCreateInstance create_cal
 {
     if (create_callback)
     {
-        Mutex::Locker locker (GetInstrumentationRuntimeMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetInstrumentationRuntimeMutex());
         InstrumentationRuntimeInstances &instances = GetInstrumentationRuntimeInstances ();
         
         InstrumentationRuntimeInstances::iterator pos, end = instances.end();
@@ -2480,30 +2399,29 @@ PluginManager::UnregisterPlugin (InstrumentationRuntimeCreateInstance create_cal
 InstrumentationRuntimeGetType
 PluginManager::GetInstrumentationRuntimeGetTypeCallbackAtIndex (uint32_t idx)
 {
-    Mutex::Locker locker (GetInstrumentationRuntimeMutex ());
+    std::lock_guard<std::recursive_mutex> guard(GetInstrumentationRuntimeMutex());
     InstrumentationRuntimeInstances &instances = GetInstrumentationRuntimeInstances ();
     if (idx < instances.size())
         return instances[idx].get_type_callback;
-    return NULL;
+    return nullptr;
 }
 
 InstrumentationRuntimeCreateInstance
 PluginManager::GetInstrumentationRuntimeCreateCallbackAtIndex (uint32_t idx)
 {
-    Mutex::Locker locker (GetInstrumentationRuntimeMutex ());
+    std::lock_guard<std::recursive_mutex> guard(GetInstrumentationRuntimeMutex());
     InstrumentationRuntimeInstances &instances = GetInstrumentationRuntimeInstances ();
     if (idx < instances.size())
         return instances[idx].create_callback;
-    return NULL;
+    return nullptr;
 }
-
 
 InstrumentationRuntimeCreateInstance
 PluginManager::GetInstrumentationRuntimeCreateCallbackForPluginName (const ConstString &name)
 {
     if (name)
     {
-        Mutex::Locker locker (GetInstrumentationRuntimeMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetInstrumentationRuntimeMutex());
         InstrumentationRuntimeInstances &instances = GetInstrumentationRuntimeInstances ();
         
         InstrumentationRuntimeInstances::iterator pos, end = instances.end();
@@ -2513,18 +2431,17 @@ PluginManager::GetInstrumentationRuntimeCreateCallbackForPluginName (const Const
                 return pos->create_callback;
         }
     }
-    return NULL;
+    return nullptr;
 }
 
 #pragma mark TypeSystem
 
-
 struct TypeSystemInstance
 {
     TypeSystemInstance() :
-    name(),
-    description(),
-    create_callback(NULL)
+        name(),
+        description(),
+        create_callback(nullptr)
     {
     }
 
@@ -2536,10 +2453,10 @@ struct TypeSystemInstance
 
 typedef std::vector<TypeSystemInstance> TypeSystemInstances;
 
-static Mutex &
-GetTypeSystemMutex ()
+static std::recursive_mutex &
+GetTypeSystemMutex()
 {
-    static Mutex g_instances_mutex (Mutex::eMutexTypeRecursive);
+    static std::recursive_mutex g_instances_mutex;
     return g_instances_mutex;
 }
 
@@ -2565,7 +2482,7 @@ PluginManager::RegisterPlugin (const ConstString &name,
             instance.description = description;
         instance.create_callback = create_callback;
         instance.enumerate_callback = enumerate_supported_languages_callback;
-        Mutex::Locker locker (GetTypeSystemMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetTypeSystemMutex());
         GetTypeSystemInstances ().push_back (instance);
     }
     return false;
@@ -2576,7 +2493,7 @@ PluginManager::UnregisterPlugin (TypeSystemCreateInstance create_callback)
 {
     if (create_callback)
     {
-        Mutex::Locker locker (GetTypeSystemMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetTypeSystemMutex());
         TypeSystemInstances &instances = GetTypeSystemInstances ();
 
         TypeSystemInstances::iterator pos, end = instances.end();
@@ -2595,11 +2512,11 @@ PluginManager::UnregisterPlugin (TypeSystemCreateInstance create_callback)
 TypeSystemCreateInstance
 PluginManager::GetTypeSystemCreateCallbackAtIndex (uint32_t idx)
 {
-    Mutex::Locker locker (GetTypeSystemMutex ());
+    std::lock_guard<std::recursive_mutex> guard(GetTypeSystemMutex());
     TypeSystemInstances &instances = GetTypeSystemInstances ();
     if (idx < instances.size())
         return instances[idx].create_callback;
-    return NULL;
+    return nullptr;
 }
 
 TypeSystemCreateInstance
@@ -2607,7 +2524,7 @@ PluginManager::GetTypeSystemCreateCallbackForPluginName (const ConstString &name
 {
     if (name)
     {
-        Mutex::Locker locker (GetTypeSystemMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetTypeSystemMutex());
         TypeSystemInstances &instances = GetTypeSystemInstances ();
 
         TypeSystemInstances::iterator pos, end = instances.end();
@@ -2617,17 +2534,17 @@ PluginManager::GetTypeSystemCreateCallbackForPluginName (const ConstString &name
                 return pos->create_callback;
         }
     }
-    return NULL;
+    return nullptr;
 }
 
 TypeSystemEnumerateSupportedLanguages
 PluginManager::GetTypeSystemEnumerateSupportedLanguagesCallbackAtIndex (uint32_t idx)
 {
-    Mutex::Locker locker (GetTypeSystemMutex ());
+    std::lock_guard<std::recursive_mutex> guard(GetTypeSystemMutex());
     TypeSystemInstances &instances = GetTypeSystemInstances ();
     if (idx < instances.size())
         return instances[idx].enumerate_callback;
-    return NULL;
+    return nullptr;
 }
 
 TypeSystemEnumerateSupportedLanguages
@@ -2635,7 +2552,7 @@ PluginManager::GetTypeSystemEnumerateSupportedLanguagesCallbackForPluginName (co
 {
     if (name)
     {
-        Mutex::Locker locker (GetTypeSystemMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetTypeSystemMutex());
         TypeSystemInstances &instances = GetTypeSystemInstances ();
         
         TypeSystemInstances::iterator pos, end = instances.end();
@@ -2645,7 +2562,7 @@ PluginManager::GetTypeSystemEnumerateSupportedLanguagesCallbackForPluginName (co
                 return pos->enumerate_callback;
         }
     }
-    return NULL;
+    return nullptr;
 }
 
 #pragma mark REPL
@@ -2653,9 +2570,9 @@ PluginManager::GetTypeSystemEnumerateSupportedLanguagesCallbackForPluginName (co
 struct REPLInstance
 {
     REPLInstance() :
-    name(),
-    description(),
-    create_callback(NULL)
+        name(),
+        description(),
+        create_callback(nullptr)
     {
     }
     
@@ -2667,10 +2584,10 @@ struct REPLInstance
 
 typedef std::vector<REPLInstance> REPLInstances;
 
-static Mutex &
-GetREPLMutex ()
+static std::recursive_mutex &
+GetREPLMutex()
 {
-    static Mutex g_instances_mutex (Mutex::eMutexTypeRecursive);
+    static std::recursive_mutex g_instances_mutex;
     return g_instances_mutex;
 }
 
@@ -2696,7 +2613,7 @@ PluginManager::RegisterPlugin (const ConstString &name,
             instance.description = description;
         instance.create_callback = create_callback;
         instance.enumerate_languages_callback = enumerate_languages_callback;
-        Mutex::Locker locker (GetREPLMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetREPLMutex());
         GetREPLInstances ().push_back (instance);
     }
     return false;
@@ -2707,7 +2624,7 @@ PluginManager::UnregisterPlugin (REPLCreateInstance create_callback)
 {
     if (create_callback)
     {
-        Mutex::Locker locker (GetREPLMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetREPLMutex());
         REPLInstances &instances = GetREPLInstances ();
         
         REPLInstances::iterator pos, end = instances.end();
@@ -2726,11 +2643,11 @@ PluginManager::UnregisterPlugin (REPLCreateInstance create_callback)
 REPLCreateInstance
 PluginManager::GetREPLCreateCallbackAtIndex (uint32_t idx)
 {
-    Mutex::Locker locker (GetREPLMutex ());
+    std::lock_guard<std::recursive_mutex> guard(GetREPLMutex());
     REPLInstances &instances = GetREPLInstances ();
     if (idx < instances.size())
         return instances[idx].create_callback;
-    return NULL;
+    return nullptr;
 }
 
 REPLCreateInstance
@@ -2738,7 +2655,7 @@ PluginManager::GetREPLCreateCallbackForPluginName (const ConstString &name)
 {
     if (name)
     {
-        Mutex::Locker locker (GetREPLMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetREPLMutex());
         REPLInstances &instances = GetREPLInstances ();
         
         REPLInstances::iterator pos, end = instances.end();
@@ -2748,26 +2665,25 @@ PluginManager::GetREPLCreateCallbackForPluginName (const ConstString &name)
                 return pos->create_callback;
         }
     }
-    return NULL;
+    return nullptr;
 }
 
 REPLEnumerateSupportedLanguages
 PluginManager::GetREPLEnumerateSupportedLanguagesCallbackAtIndex (uint32_t idx)
 {
-    Mutex::Locker locker (GetREPLMutex ());
+    std::lock_guard<std::recursive_mutex> guard(GetREPLMutex());
     REPLInstances &instances = GetREPLInstances ();
     if (idx < instances.size())
         return instances[idx].enumerate_languages_callback;
-    return NULL;
+    return nullptr;
 }
-
 
 REPLEnumerateSupportedLanguages
 PluginManager::GetREPLSystemEnumerateSupportedLanguagesCallbackForPluginName (const ConstString &name)
 {
     if (name)
     {
-        Mutex::Locker locker (GetREPLMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetREPLMutex());
         REPLInstances &instances = GetREPLInstances ();
         
         REPLInstances::iterator pos, end = instances.end();
@@ -2777,7 +2693,7 @@ PluginManager::GetREPLSystemEnumerateSupportedLanguagesCallbackForPluginName (co
                 return pos->enumerate_languages_callback;
         }
     }
-    return NULL;
+    return nullptr;
 }
 
 #pragma mark PluginManager
@@ -2787,7 +2703,7 @@ PluginManager::DebuggerInitialize (Debugger &debugger)
 {
     // Initialize the DynamicLoader plugins
     {
-        Mutex::Locker locker (GetDynamicLoaderMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetDynamicLoaderMutex());
         DynamicLoaderInstances &instances = GetDynamicLoaderInstances ();
     
         DynamicLoaderInstances::iterator pos, end = instances.end();
@@ -2800,7 +2716,7 @@ PluginManager::DebuggerInitialize (Debugger &debugger)
 
     // Initialize the JITLoader plugins
     {
-        Mutex::Locker locker (GetJITLoaderMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetJITLoaderMutex());
         JITLoaderInstances &instances = GetJITLoaderInstances ();
     
         JITLoaderInstances::iterator pos, end = instances.end();
@@ -2813,7 +2729,7 @@ PluginManager::DebuggerInitialize (Debugger &debugger)
 
     // Initialize the Platform plugins
     {
-        Mutex::Locker locker (GetPlatformInstancesMutex ());
+        std::lock_guard<std::recursive_mutex> guard(GetPlatformInstancesMutex());
         PlatformInstances &instances = GetPlatformInstances ();
     
         PlatformInstances::iterator pos, end = instances.end();
@@ -2826,7 +2742,7 @@ PluginManager::DebuggerInitialize (Debugger &debugger)
 
     // Initialize the Process plugins
     {
-        Mutex::Locker locker (GetProcessMutex());
+        std::lock_guard<std::recursive_mutex> guard(GetProcessMutex());
         ProcessInstances &instances = GetProcessInstances();
         
         ProcessInstances::iterator pos, end = instances.end();
@@ -2839,7 +2755,7 @@ PluginManager::DebuggerInitialize (Debugger &debugger)
 
     // Initialize the SymbolFile plugins
     {
-        Mutex::Locker locker (GetSymbolFileMutex());
+        std::lock_guard<std::recursive_mutex> guard(GetSymbolFileMutex());
         for (auto& sym_file: GetSymbolFileInstances())
         {
             if (sym_file.debugger_init_callback)
@@ -2849,7 +2765,7 @@ PluginManager::DebuggerInitialize (Debugger &debugger)
 
     // Initialize the OperatingSystem plugins
     {
-        Mutex::Locker locker(GetOperatingSystemMutex());
+        std::lock_guard<std::recursive_mutex> guard(GetOperatingSystemMutex());
         for (auto &os : GetOperatingSystemInstances())
         {
             if (os.debugger_init_callback)
@@ -2871,7 +2787,7 @@ GetDebuggerPropertyForPlugins (Debugger &debugger,
     {
         static ConstString g_property_name("plugin");
         
-        OptionValuePropertiesSP plugin_properties_sp = parent_properties_sp->GetSubProperty (NULL, g_property_name);
+        OptionValuePropertiesSP plugin_properties_sp = parent_properties_sp->GetSubProperty(nullptr, g_property_name);
         if (!plugin_properties_sp && can_create)
         {
             plugin_properties_sp.reset (new OptionValueProperties (g_property_name));
@@ -2883,7 +2799,7 @@ GetDebuggerPropertyForPlugins (Debugger &debugger,
         
         if (plugin_properties_sp)
         {
-            lldb::OptionValuePropertiesSP plugin_type_properties_sp = plugin_properties_sp->GetSubProperty (NULL, plugin_type_name);
+            lldb::OptionValuePropertiesSP plugin_type_properties_sp = plugin_properties_sp->GetSubProperty(nullptr, plugin_type_name);
             if (!plugin_type_properties_sp && can_create)
             {
                 plugin_type_properties_sp.reset (new OptionValueProperties (plugin_type_name));
@@ -2911,7 +2827,7 @@ GetDebuggerPropertyForPluginsOldStyle (Debugger &debugger,
     lldb::OptionValuePropertiesSP parent_properties_sp (debugger.GetValueProperties());
     if (parent_properties_sp)
     {
-        OptionValuePropertiesSP plugin_properties_sp = parent_properties_sp->GetSubProperty (NULL, plugin_type_name);
+        OptionValuePropertiesSP plugin_properties_sp = parent_properties_sp->GetSubProperty(nullptr, plugin_type_name);
         if (!plugin_properties_sp && can_create)
         {
             plugin_properties_sp.reset (new OptionValueProperties (plugin_type_name));
@@ -2923,7 +2839,7 @@ GetDebuggerPropertyForPluginsOldStyle (Debugger &debugger,
         
         if (plugin_properties_sp)
         {
-            lldb::OptionValuePropertiesSP plugin_type_properties_sp = plugin_properties_sp->GetSubProperty (NULL, g_property_name);
+            lldb::OptionValuePropertiesSP plugin_type_properties_sp = plugin_properties_sp->GetSubProperty(nullptr, g_property_name);
             if (!plugin_type_properties_sp && can_create)
             {
                 plugin_type_properties_sp.reset (new OptionValueProperties (g_property_name));
@@ -2990,7 +2906,7 @@ const char* kProcessPluginName("process");
 const char* kSymbolFilePluginName("symbol-file");
 const char* kJITLoaderPluginName("jit-loader");
 
-}
+} // anonymous namespace
 
 lldb::OptionValuePropertiesSP
 PluginManager::GetSettingForDynamicLoaderPlugin (Debugger &debugger,
@@ -3012,7 +2928,6 @@ PluginManager::CreateSettingForDynamicLoaderPlugin (Debugger &debugger,
                                   description,
                                   is_global_property);
 }
-
 
 lldb::OptionValuePropertiesSP
 PluginManager::GetSettingForPlatformPlugin (Debugger &debugger, const ConstString &setting_name)
@@ -3037,7 +2952,6 @@ PluginManager::CreateSettingForPlatformPlugin (Debugger &debugger,
                                   is_global_property,
                                   GetDebuggerPropertyForPluginsOldStyle);
 }
-
 
 lldb::OptionValuePropertiesSP
 PluginManager::GetSettingForProcessPlugin (Debugger &debugger, const ConstString &setting_name)

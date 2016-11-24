@@ -9,16 +9,19 @@
 
 #include "lldb/Core/ArchSpec.h"
 
-#include <stdio.h>
-#include <errno.h>
-
+// C Includes
+// C++ Includes
+#include <cstdio>
+#include <cerrno>
 #include <string>
 
+// Other libraries and framework includes
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/COFF.h"
 #include "llvm/Support/ELF.h"
 #include "llvm/Support/Host.h"
 
+// Project includes
 #include "lldb/Core/RegularExpression.h"
 #include "lldb/Core/StringList.h"
 #include "lldb/Host/Endian.h"
@@ -35,9 +38,6 @@
 using namespace lldb;
 using namespace lldb_private;
 
-#define ARCH_SPEC_SEPARATOR_CHAR '-'
-
-
 static bool cores_match (const ArchSpec::Core core1, const ArchSpec::Core core2, bool try_inverse, bool enforce_exact_match);
 
 namespace lldb_private {
@@ -53,7 +53,7 @@ namespace lldb_private {
         const char * const name;
     };
 
-}
+} // namespace lldb_private
 
 // This core information can be looked using the ArchSpec::Core as the index
 static const CoreDefinition g_core_definitions[] =
@@ -130,6 +130,8 @@ static const CoreDefinition g_core_definitions[] =
     { eByteOrderBig   , 8, 4, 4, llvm::Triple::ppc64  , ArchSpec::eCore_ppc64_generic   , "powerpc64" },
     { eByteOrderBig   , 8, 4, 4, llvm::Triple::ppc64  , ArchSpec::eCore_ppc64_ppc970_64 , "ppc970-64" },
     
+    { eByteOrderBig   , 8, 2, 6, llvm::Triple::systemz, ArchSpec::eCore_s390x_generic   , "s390x"     },
+
     { eByteOrderLittle, 4, 4, 4, llvm::Triple::sparc  , ArchSpec::eCore_sparc_generic   , "sparc"     },
     { eByteOrderLittle, 8, 4, 4, llvm::Triple::sparcv9, ArchSpec::eCore_sparc9_generic  , "sparcv9"   },
 
@@ -156,7 +158,6 @@ static const CoreDefinition g_core_definitions[] =
 // you will need to comment out the corresponding ArchSpec::Core enumeration.
 static_assert(sizeof(g_core_definitions) / sizeof(CoreDefinition) == ArchSpec::kNumCores, "make sure we have one core definition for each core");
 
-
 struct ArchDefinitionEntry
 {
     ArchSpec::Core core;
@@ -174,14 +175,12 @@ struct ArchDefinition
     const char *name;
 };
 
-
 size_t
 ArchSpec::AutoComplete (const char *name, StringList &matches)
 {
-    uint32_t i;
     if (name && name[0])
     {
-        for (i = 0; i < llvm::array_lengthof(g_core_definitions); ++i)
+        for (uint32_t i = 0; i < llvm::array_lengthof(g_core_definitions); ++i)
         {
             if (NameMatches(g_core_definitions[i].name, eNameMatchStartsWith, name))
                 matches.AppendString (g_core_definitions[i].name);
@@ -189,13 +188,11 @@ ArchSpec::AutoComplete (const char *name, StringList &matches)
     }
     else
     {
-        for (i = 0; i < llvm::array_lengthof(g_core_definitions); ++i)
+        for (uint32_t i = 0; i < llvm::array_lengthof(g_core_definitions); ++i)
             matches.AppendString (g_core_definitions[i].name);
     }
     return matches.GetSize();
 }
-
-
 
 #define CPU_ANY (UINT32_MAX)
 
@@ -205,6 +202,7 @@ ArchSpec::AutoComplete (const char *name, StringList &matches)
 // architecture names to cpu types and subtypes. The ordering is important and
 // allows the precedence to be set when the table is built.
 #define SUBTYPE_MASK 0x00FFFFFFu
+
 static const ArchDefinitionEntry g_macho_arch_entries[] =
 {
     { ArchSpec::eCore_arm_generic     , llvm::MachO::CPU_TYPE_ARM       , CPU_ANY, UINT32_MAX , UINT32_MAX  },
@@ -267,6 +265,7 @@ static const ArchDefinitionEntry g_macho_arch_entries[] =
     { ArchSpec::eCore_uknownMach32    , 0                               , 0      , 0xFF000000u, 0x00000000u },
     { ArchSpec::eCore_uknownMach64    , llvm::MachO::CPU_ARCH_ABI64     , 0      , 0xFF000000u, 0x00000000u }
 };
+
 static const ArchDefinition g_macho_arch_def = {
     eArchTypeMachO,
     llvm::array_lengthof(g_macho_arch_entries),
@@ -288,6 +287,7 @@ static const ArchDefinitionEntry g_elf_arch_entries[] =
     { ArchSpec::eCore_ppc64_generic   , llvm::ELF::EM_PPC64  , LLDB_INVALID_CPUTYPE, 0xFFFFFFFFu, 0xFFFFFFFFu }, // PowerPC64
     { ArchSpec::eCore_arm_generic     , llvm::ELF::EM_ARM    , LLDB_INVALID_CPUTYPE, 0xFFFFFFFFu, 0xFFFFFFFFu }, // ARM
     { ArchSpec::eCore_arm_aarch64     , llvm::ELF::EM_AARCH64, LLDB_INVALID_CPUTYPE, 0xFFFFFFFFu, 0xFFFFFFFFu }, // ARM64
+    { ArchSpec::eCore_s390x_generic   , llvm::ELF::EM_S390   , LLDB_INVALID_CPUTYPE, 0xFFFFFFFFu, 0xFFFFFFFFu }, // SystemZ
     { ArchSpec::eCore_sparc9_generic  , llvm::ELF::EM_SPARCV9, LLDB_INVALID_CPUTYPE, 0xFFFFFFFFu, 0xFFFFFFFFu }, // SPARC V9
     { ArchSpec::eCore_x86_64_x86_64   , llvm::ELF::EM_X86_64 , LLDB_INVALID_CPUTYPE, 0xFFFFFFFFu, 0xFFFFFFFFu }, // AMD64
     { ArchSpec::eCore_mips32          , llvm::ELF::EM_MIPS   , ArchSpec::eMIPSSubType_mips32,     0xFFFFFFFFu, 0xFFFFFFFFu }, // mips32
@@ -346,7 +346,6 @@ static const size_t k_num_arch_definitions = llvm::array_lengthof(g_arch_definit
 //===----------------------------------------------------------------------===//
 // Static helper functions.
 
-
 // Get the architecture definition for a given object type.
 static const ArchDefinition *
 FindArchDefinition (ArchitectureType arch_type)
@@ -357,7 +356,7 @@ FindArchDefinition (ArchitectureType arch_type)
         if (def->type == arch_type)
             return def;
     }
-    return NULL;
+    return nullptr;
 }
 
 // Get an architecture definition by name.
@@ -369,7 +368,7 @@ FindCoreDefinition (llvm::StringRef name)
         if (name.equals_lower(g_core_definitions[i].name))
             return &g_core_definitions[i];
     }
-    return NULL;
+    return nullptr;
 }
 
 static inline const CoreDefinition *
@@ -377,15 +376,15 @@ FindCoreDefinition (ArchSpec::Core core)
 {
     if (core >= 0 && core < llvm::array_lengthof(g_core_definitions))
         return &g_core_definitions[core];
-    return NULL;
+    return nullptr;
 }
 
 // Get a definition entry by cpu type and subtype.
 static const ArchDefinitionEntry *
 FindArchDefinitionEntry (const ArchDefinition *def, uint32_t cpu, uint32_t sub)
 {
-    if (def == NULL)
-        return NULL;
+    if (def == nullptr)
+        return nullptr;
 
     const ArchDefinitionEntry *entries = def->entries;
     for (size_t i = 0; i < def->num_entries; ++i)
@@ -394,14 +393,14 @@ FindArchDefinitionEntry (const ArchDefinition *def, uint32_t cpu, uint32_t sub)
             if (entries[i].sub == (sub & entries[i].sub_mask))
                 return &entries[i];
     }
-    return NULL;
+    return nullptr;
 }
 
 static const ArchDefinitionEntry *
 FindArchDefinitionEntry (const ArchDefinition *def, ArchSpec::Core core)
 {
-    if (def == NULL)
-        return NULL;
+    if (def == nullptr)
+        return nullptr;
     
     const ArchDefinitionEntry *entries = def->entries;
     for (size_t i = 0; i < def->num_entries; ++i)
@@ -409,7 +408,7 @@ FindArchDefinitionEntry (const ArchDefinition *def, ArchSpec::Core core)
         if (entries[i].core == core)
             return &entries[i];
     }
-    return NULL;
+    return nullptr;
 }
 
 //===----------------------------------------------------------------------===//
@@ -467,9 +466,7 @@ ArchSpec::ArchSpec (ArchitectureType arch_type, uint32_t cpu, uint32_t subtype) 
     SetArchitecture (arch_type, cpu, subtype);
 }
 
-ArchSpec::~ArchSpec()
-{
-}
+ArchSpec::~ArchSpec() = default;
 
 //===----------------------------------------------------------------------===//
 // Assignment and initialization.
@@ -501,7 +498,6 @@ ArchSpec::Clear()
 //===----------------------------------------------------------------------===//
 // Predicates.
 
-
 const char *
 ArchSpec::GetArchitectureName () const
 {
@@ -509,6 +505,68 @@ ArchSpec::GetArchitectureName () const
     if (core_def)
         return core_def->name;
     return "unknown";
+}
+
+bool 
+ArchSpec::IsMIPS() const
+{
+    const llvm::Triple::ArchType machine = GetMachine();
+    if(machine == llvm::Triple::mips ||
+       machine == llvm::Triple::mipsel ||
+       machine == llvm::Triple::mips64 ||
+       machine == llvm::Triple::mips64el)
+       return true;
+    return false;
+}
+
+std::string
+ArchSpec::GetClangTargetCPU ()
+{
+    std::string cpu;
+    const llvm::Triple::ArchType machine = GetMachine();
+
+    if (machine == llvm::Triple::mips ||
+        machine == llvm::Triple::mipsel ||
+        machine == llvm::Triple::mips64 ||
+        machine == llvm::Triple::mips64el)
+    {
+        switch (m_core)
+        {
+        case ArchSpec::eCore_mips32:
+        case ArchSpec::eCore_mips32el:
+            cpu = "mips32"; break;
+        case ArchSpec::eCore_mips32r2:
+        case ArchSpec::eCore_mips32r2el:
+            cpu = "mips32r2"; break;
+        case ArchSpec::eCore_mips32r3:
+        case ArchSpec::eCore_mips32r3el:
+            cpu = "mips32r3"; break;
+        case ArchSpec::eCore_mips32r5:
+        case ArchSpec::eCore_mips32r5el:
+            cpu = "mips32r5"; break;
+        case ArchSpec::eCore_mips32r6:
+        case ArchSpec::eCore_mips32r6el:
+            cpu = "mips32r6"; break;
+        case ArchSpec::eCore_mips64:
+        case ArchSpec::eCore_mips64el:
+            cpu = "mips64"; break;
+        case ArchSpec::eCore_mips64r2:
+        case ArchSpec::eCore_mips64r2el:
+            cpu = "mips64r2"; break;
+        case ArchSpec::eCore_mips64r3:
+        case ArchSpec::eCore_mips64r3el:
+            cpu = "mips64r3"; break;
+        case ArchSpec::eCore_mips64r5:
+        case ArchSpec::eCore_mips64r5el:
+            cpu = "mips64r5"; break;
+        case ArchSpec::eCore_mips64r6:
+        case ArchSpec::eCore_mips64r6el:
+            cpu = "mips64r6"; break;
+        default:
+            break;
+        }
+    }
+    return cpu;
 }
 
 uint32_t
@@ -680,7 +738,6 @@ ArchSpec::SetTriple (const llvm::Triple &triple)
         Clear();
     }
 
-    
     return IsValid();
 }
 
@@ -690,7 +747,7 @@ ParseMachCPUDashSubtypeTriple (const char *triple_cstr, ArchSpec &arch)
     // Accept "12-10" or "12.10" as cpu type/subtype
     if (isdigit(triple_cstr[0]))
     {
-        char *end = NULL;
+        char *end = nullptr;
         errno = 0;
         uint32_t cpu = (uint32_t)::strtoul (triple_cstr, &end, 0);
         if (errno == 0 && cpu != 0 && end && ((*end == '-') || (*end == '.')))
@@ -729,6 +786,7 @@ ParseMachCPUDashSubtypeTriple (const char *triple_cstr, ArchSpec &arch)
     }
     return false;
 }
+
 bool
 ArchSpec::SetTriple (const char *triple_cstr)
 {
@@ -855,6 +913,17 @@ ArchSpec::MergeFrom(const ArchSpec &other)
         if (other.TripleVendorWasSpecified())
             GetTriple().setEnvironment(other.GetTriple().getEnvironment());
     }
+    // If this and other are both arm ArchSpecs and this ArchSpec is a generic "some kind of arm"
+    // spec but the other ArchSpec is a specific arm core, adopt the specific arm core.
+    if (GetTriple().getArch() == llvm::Triple::arm
+        && other.GetTriple().getArch() == llvm::Triple::arm
+        && IsCompatibleMatch (other)
+        && GetCore() == ArchSpec::eCore_arm_generic
+        && other.GetCore() != ArchSpec::eCore_arm_generic)
+    {
+        m_core = other.GetCore();
+        CoreUpdated (true);
+    }
 }
 
 bool
@@ -945,6 +1014,30 @@ ArchSpec::IsCompatibleMatch (const ArchSpec& rhs) const
     return IsEqualTo (rhs, false);
 }
 
+static bool
+isCompatibleEnvironment(llvm::Triple::EnvironmentType lhs, llvm::Triple::EnvironmentType rhs)
+{
+    if (lhs == rhs)
+        return true;
+
+    // If any of the environment is unknown then they are compatible
+    if (lhs == llvm::Triple::UnknownEnvironment || rhs == llvm::Triple::UnknownEnvironment)
+        return true;
+
+    // If one of the environment is Android and the other one is EABI then they are considered to
+    // be compatible. This is required as a workaround for shared libraries compiled for Android
+    // without the NOTE section indicating that they are using the Android ABI.
+    if ((lhs == llvm::Triple::Android && rhs == llvm::Triple::EABI) ||
+        (rhs == llvm::Triple::Android && lhs == llvm::Triple::EABI) ||
+        (lhs == llvm::Triple::GNUEABI && rhs == llvm::Triple::EABI) ||
+        (rhs == llvm::Triple::GNUEABI && lhs == llvm::Triple::EABI) ||
+        (lhs == llvm::Triple::GNUEABIHF && rhs == llvm::Triple::EABIHF) ||
+        (rhs == llvm::Triple::GNUEABIHF && lhs == llvm::Triple::EABIHF))
+        return true;
+
+    return false;
+}
+
 bool
 ArchSpec::IsEqualTo (const ArchSpec& rhs, bool exact_match) const
 {
@@ -999,14 +1092,9 @@ ArchSpec::IsEqualTo (const ArchSpec& rhs, bool exact_match) const
 
         const llvm::Triple::EnvironmentType lhs_triple_env = lhs_triple.getEnvironment();
         const llvm::Triple::EnvironmentType rhs_triple_env = rhs_triple.getEnvironment();
-            
-        if (lhs_triple_env != rhs_triple_env)
-        {
-            // Only fail if both environment types are not unknown
-            if (lhs_triple_env != llvm::Triple::UnknownEnvironment &&
-                rhs_triple_env != llvm::Triple::UnknownEnvironment)
-                return false;
-        }
+        
+        if (!isCompatibleEnvironment(lhs_triple_env, rhs_triple_env))
+            return false;
         return true;
     }
     return false;
@@ -1050,7 +1138,7 @@ cores_match (const ArchSpec::Core core1, const ArchSpec::Core core2, bool try_in
     case ArchSpec::eCore_arm_generic:
         if (enforce_exact_match)
             break;
-        // Fall through to case below
+        LLVM_FALLTHROUGH;
     case ArchSpec::kCore_arm_any:
         if (core2 >= ArchSpec::kCore_arm_first && core2 <= ArchSpec::kCore_arm_last)
             return true;
@@ -1207,6 +1295,7 @@ cores_match (const ArchSpec::Core core1, const ArchSpec::Core core2, bool try_in
                 return true;
             try_inverse = false;
         }
+        break;
 
     case ArchSpec::eCore_mips64:
         if (!enforce_exact_match)
@@ -1217,6 +1306,7 @@ cores_match (const ArchSpec::Core core1, const ArchSpec::Core core2, bool try_in
                 return true;
             try_inverse = false;
         }
+        break;
 
     case ArchSpec::eCore_mips64el:
         if (!enforce_exact_match)
@@ -1227,6 +1317,7 @@ cores_match (const ArchSpec::Core core1, const ArchSpec::Core core2, bool try_in
                 return true;
             try_inverse = false;
         }
+        break;
 
     case ArchSpec::eCore_mips64r2:
     case ArchSpec::eCore_mips64r3:
@@ -1286,7 +1377,6 @@ cores_match (const ArchSpec::Core core1, const ArchSpec::Core core2, bool try_in
         if (!enforce_exact_match)
         {
             if (core2 == ArchSpec::eCore_mips32el || core2 == ArchSpec::eCore_mips32r6el)
-                return true;
                 return true;
         }
         break;
@@ -1393,7 +1483,7 @@ StopInfoOverrideCallbackTypeARM(lldb_private::Thread &thread)
                 if (opcode <= UINT32_MAX)
                 {
                     const uint32_t condition = Bits32((uint32_t)opcode, 31, 28);
-                    if (ARMConditionPassed(condition, cpsr) == false)
+                    if (!ARMConditionPassed(condition, cpsr))
                     {
                         // We ARE stopped on an ARM instruction whose condition doesn't
                         // pass so this instruction won't get executed.
@@ -1410,7 +1500,7 @@ StopInfoOverrideCallbackTypeARM(lldb_private::Thread &thread)
                 if (ITSTATE != 0)
                 {
                     const uint32_t condition = Bits32(ITSTATE, 7, 4);
-                    if (ARMConditionPassed(condition, cpsr) == false)
+                    if (!ARMConditionPassed(condition, cpsr))
                     {
                         // We ARE stopped in a Thumb IT instruction on an instruction whose
                         // condition doesn't pass so this instruction won't get executed.
@@ -1429,7 +1519,7 @@ ArchSpec::GetStopInfoOverrideCallback () const
     const llvm::Triple::ArchType machine = GetMachine();
     if (machine == llvm::Triple::arm)
         return StopInfoOverrideCallbackTypeARM;
-    return NULL;
+    return nullptr;
 }
 
 bool
@@ -1476,6 +1566,31 @@ ArchSpec::PiecewiseTripleCompare (const ArchSpec &other,
     env_different = (me.getEnvironment() != them.getEnvironment());
 }
 
+bool
+ArchSpec::IsAlwaysThumbInstructions () const
+{
+    std::string Error;
+    if (GetTriple().getArch() == llvm::Triple::arm || GetTriple().getArch() == llvm::Triple::thumb)
+    {
+        // v. https://en.wikipedia.org/wiki/ARM_Cortex-M
+        //
+        // Cortex-M0 through Cortex-M7 are ARM processor cores which can only
+        // execute thumb instructions.  We map the cores to arch names like this:
+        //
+        // Cortex-M0, Cortex-M0+, Cortex-M1:  armv6m
+        // Cortex-M3: armv7m
+        // Cortex-M4, Cortex-M7: armv7em
+
+        if (GetCore() == ArchSpec::Core::eCore_arm_armv7m
+            || GetCore() == ArchSpec::Core::eCore_arm_armv7em
+            || GetCore() == ArchSpec::Core::eCore_arm_armv6m)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 void
 ArchSpec::DumpTriple(Stream &s) const
 {
@@ -1483,10 +1598,14 @@ ArchSpec::DumpTriple(Stream &s) const
     llvm::StringRef arch_str = triple.getArchName();
     llvm::StringRef vendor_str = triple.getVendorName();
     llvm::StringRef os_str = triple.getOSName();
+    llvm::StringRef environ_str = triple.getEnvironmentName();
 
     s.Printf("%s-%s-%s",
              arch_str.empty() ? "*" : arch_str.str().c_str(),
              vendor_str.empty() ? "*" : vendor_str.str().c_str(),
              os_str.empty() ? "*" : os_str.str().c_str()
              );
+
+    if (!environ_str.empty())
+        s.Printf("-%s", environ_str.str().c_str());
 }

@@ -111,7 +111,7 @@ AppendBytes(CharUnits FieldOffsetInChars, llvm::Constant *InitCst) {
 
   // Round up the field offset to the alignment of the field type.
   CharUnits AlignedNextFieldOffsetInChars =
-      NextFieldOffsetInChars.RoundUpToAlignment(FieldAlignment);
+      NextFieldOffsetInChars.alignTo(FieldAlignment);
 
   if (AlignedNextFieldOffsetInChars < FieldOffsetInChars) {
     // We need to append padding.
@@ -121,7 +121,7 @@ AppendBytes(CharUnits FieldOffsetInChars, llvm::Constant *InitCst) {
            "Did not add enough padding!");
 
     AlignedNextFieldOffsetInChars =
-        NextFieldOffsetInChars.RoundUpToAlignment(FieldAlignment);
+        NextFieldOffsetInChars.alignTo(FieldAlignment);
   }
 
   if (AlignedNextFieldOffsetInChars > FieldOffsetInChars) {
@@ -162,8 +162,8 @@ void ConstStructBuilder::AppendBitField(const FieldDecl *Field,
   if (FieldOffset > NextFieldOffsetInBits) {
     // We need to add padding.
     CharUnits PadSize = Context.toCharUnitsFromBits(
-      llvm::RoundUpToAlignment(FieldOffset - NextFieldOffsetInBits, 
-                               Context.getTargetInfo().getCharAlign()));
+        llvm::alignTo(FieldOffset - NextFieldOffsetInBits,
+                      Context.getTargetInfo().getCharAlign()));
 
     AppendPadding(PadSize);
   }
@@ -334,7 +334,7 @@ void ConstStructBuilder::ConvertStructToPacked() {
     CharUnits ElementAlign = CharUnits::fromQuantity(
       CGM.getDataLayout().getABITypeAlignment(C->getType()));
     CharUnits AlignedElementOffsetInChars =
-      ElementOffsetInChars.RoundUpToAlignment(ElementAlign);
+        ElementOffsetInChars.alignTo(ElementAlign);
 
     if (AlignedElementOffsetInChars > ElementOffsetInChars) {
       // We need some padding.
@@ -368,7 +368,14 @@ bool ConstStructBuilder::Build(InitListExpr *ILE) {
 
   unsigned FieldNo = 0;
   unsigned ElementNo = 0;
-  
+
+  // Bail out if we have base classes. We could support these, but they only
+  // arise in C++1z where we will have already constant folded most interesting
+  // cases. FIXME: There are still a few more cases we can handle this way.
+  if (auto *CXXRD = dyn_cast<CXXRecordDecl>(RD))
+    if (CXXRD->getNumBases())
+      return false;
+
   for (RecordDecl::field_iterator Field = RD->field_begin(),
        FieldEnd = RD->field_end(); Field != FieldEnd; ++Field, ++FieldNo) {
     // If this is a union, skip all the fields that aren't being initialized.
@@ -508,13 +515,12 @@ llvm::Constant *ConstStructBuilder::Finalize(QualType Ty) {
   } else {
     // Append tail padding if necessary.
     CharUnits LLVMSizeInChars =
-        NextFieldOffsetInChars.RoundUpToAlignment(LLVMStructAlignment);
+        NextFieldOffsetInChars.alignTo(LLVMStructAlignment);
 
     if (LLVMSizeInChars != LayoutSizeInChars)
       AppendTailPadding(LayoutSizeInChars);
 
-    LLVMSizeInChars =
-        NextFieldOffsetInChars.RoundUpToAlignment(LLVMStructAlignment);
+    LLVMSizeInChars = NextFieldOffsetInChars.alignTo(LLVMStructAlignment);
 
     // Check if we need to convert the struct to a packed struct.
     if (NextFieldOffsetInChars <= LayoutSizeInChars &&
@@ -526,8 +532,7 @@ llvm::Constant *ConstStructBuilder::Finalize(QualType Ty) {
              "Converting to packed did not help!");
     }
 
-    LLVMSizeInChars =
-        NextFieldOffsetInChars.RoundUpToAlignment(LLVMStructAlignment);
+    LLVMSizeInChars = NextFieldOffsetInChars.alignTo(LLVMStructAlignment);
 
     assert(LayoutSizeInChars == LLVMSizeInChars &&
            "Tail padding mismatch!");
@@ -546,8 +551,9 @@ llvm::Constant *ConstStructBuilder::Finalize(QualType Ty) {
 
   llvm::Constant *Result = llvm::ConstantStruct::get(STy, Elements);
 
-  assert(NextFieldOffsetInChars.RoundUpToAlignment(getAlignment(Result)) ==
-         getSizeInChars(Result) && "Size mismatch!");
+  assert(NextFieldOffsetInChars.alignTo(getAlignment(Result)) ==
+             getSizeInChars(Result) &&
+         "Size mismatch!");
 
   return Result;
 }
@@ -756,6 +762,12 @@ public:
     // No need for a DefaultInitExprScope: we don't handle 'this' in a
     // constant expression.
     return Visit(DIE->getExpr());
+  }
+
+  llvm::Constant *VisitExprWithCleanups(ExprWithCleanups *E) {
+    if (!E->cleanupsHaveSideEffects())
+      return Visit(E->getSubExpr());
+    return nullptr;
   }
 
   llvm::Constant *VisitMaterializeTemporaryExpr(MaterializeTemporaryExpr *E) {
@@ -1125,6 +1137,13 @@ bool ConstStructBuilder::Build(ConstExprEmitter *Emitter,
   unsigned FieldNo = -1;
   unsigned ElementNo = 0;
 
+  // Bail out if we have base classes. We could support these, but they only
+  // arise in C++1z where we will have already constant folded most interesting
+  // cases. FIXME: There are still a few more cases we can handle this way.
+  if (auto *CXXRD = dyn_cast<CXXRecordDecl>(RD))
+    if (CXXRD->getNumBases())
+      return false;
+
   for (FieldDecl *Field : RD->fields()) {
     ++FieldNo;
 
@@ -1301,8 +1320,14 @@ llvm::Constant *CodeGenModule::EmitConstantValue(const APValue &Value,
 
       // Convert to the appropriate type; this could be an lvalue for
       // an integer.
-      if (isa<llvm::PointerType>(DestTy))
+      if (isa<llvm::PointerType>(DestTy)) {
+        // Convert the integer to a pointer-sized integer before converting it
+        // to a pointer.
+        C = llvm::ConstantExpr::getIntegerCast(
+            C, getDataLayout().getIntPtrType(DestTy),
+            /*isSigned=*/false);
         return llvm::ConstantExpr::getIntToPtr(C, DestTy);
+      }
 
       // If the types don't match this should only be a truncate.
       if (C->getType() != DestTy)

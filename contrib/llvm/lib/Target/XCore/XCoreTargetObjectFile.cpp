@@ -122,7 +122,7 @@ XCoreTargetObjectFile::SelectSectionForGlobal(const GlobalValue *GV,
     if (Kind.isMergeableConst8())       return MergeableConst8Section;
     if (Kind.isMergeableConst16())      return MergeableConst16Section;
   }
-  Type *ObjType = GV->getType()->getPointerElementType();
+  Type *ObjType = GV->getValueType();
   auto &DL = GV->getParent()->getDataLayout();
   if (TM.getCodeModel() == CodeModel::Small || !ObjType->isSized() ||
       DL.getTypeAllocSize(ObjType) < CodeModelLargeSize) {
@@ -145,8 +145,10 @@ XCoreTargetObjectFile::SelectSectionForGlobal(const GlobalValue *GV,
   report_fatal_error("Target does not support TLS or Common sections");
 }
 
-MCSection *XCoreTargetObjectFile::getSectionForConstant(
-    const DataLayout &DL, SectionKind Kind, const Constant *C) const {
+MCSection *XCoreTargetObjectFile::getSectionForConstant(const DataLayout &DL,
+                                                        SectionKind Kind,
+                                                        const Constant *C,
+                                                        unsigned &Align) const {
   if (Kind.isMergeableConst4())           return MergeableConst4Section;
   if (Kind.isMergeableConst8())           return MergeableConst8Section;
   if (Kind.isMergeableConst16())          return MergeableConst16Section;

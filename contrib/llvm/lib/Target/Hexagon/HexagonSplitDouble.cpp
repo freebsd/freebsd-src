@@ -12,13 +12,12 @@
 #include "HexagonRegisterInfo.h"
 #include "HexagonTargetMachine.h"
 
-#include "llvm/Pass.h"
-#include "llvm/ADT/DenseMap.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineLoopInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
@@ -107,18 +106,6 @@ namespace {
 
 INITIALIZE_PASS(HexagonSplitDoubleRegs, "hexagon-split-double",
   "Hexagon Split Double Registers", false, false)
-
-
-static inline uint32_t getRegState(const MachineOperand &R) {
-  assert(R.isReg());
-  return getDefRegState(R.isDef()) |
-         getImplRegState(R.isImplicit()) |
-         getKillRegState(R.isKill()) |
-         getDeadRegState(R.isDead()) |
-         getUndefRegState(R.isUndef()) |
-         getInternalReadRegState(R.isInternalRead()) |
-         (R.isDebug() ? RegState::Debug : 0);
-}
 
 
 void HexagonSplitDoubleRegs::dump_partition(raw_ostream &os,
@@ -452,7 +439,7 @@ void HexagonSplitDoubleRegs::collectIndRegsForLoop(const MachineLoop *L,
   MachineBasicBlock *TB = 0, *FB = 0;
   MachineBasicBlock *TmpLB = const_cast<MachineBasicBlock*>(LB);
   SmallVector<MachineOperand,2> Cond;
-  bool BadLB = TII->AnalyzeBranch(*TmpLB, TB, FB, Cond, false);
+  bool BadLB = TII->analyzeBranch(*TmpLB, TB, FB, Cond, false);
   // Only analyzable conditional branches. HII::AnalyzeBranch will put
   // the branch opcode as the first element of Cond, and the predicate
   // operand as the second.
@@ -477,7 +464,7 @@ void HexagonSplitDoubleRegs::collectIndRegsForLoop(const MachineLoop *L,
     CmpI = MRI->getVRegDef(CmpI->getOperand(1).getReg());
 
   int Mask = 0, Val = 0;
-  bool OkCI = TII->analyzeCompare(CmpI, CmpR1, CmpR2, Mask, Val);
+  bool OkCI = TII->analyzeCompare(*CmpI, CmpR1, CmpR2, Mask, Val);
   if (!OkCI)
     return;
   // Eliminate non-double input registers.
@@ -655,7 +642,7 @@ void HexagonSplitDoubleRegs::splitMemRef(MachineInstr *MI,
   MachineFunction &MF = *B.getParent();
   for (auto &MO : MI->memoperands()) {
     const MachinePointerInfo &Ptr = MO->getPointerInfo();
-    unsigned F = MO->getFlags();
+    MachineMemOperand::Flags F = MO->getFlags();
     int A = MO->getAlignment();
 
     auto *Tmp1 = MF.getMachineMemOperand(Ptr, F, 4/*size*/, A);
@@ -1163,6 +1150,9 @@ bool HexagonSplitDoubleRegs::splitPartition(const USet &Part) {
 bool HexagonSplitDoubleRegs::runOnMachineFunction(MachineFunction &MF) {
   DEBUG(dbgs() << "Splitting double registers in function: "
         << MF.getName() << '\n');
+
+  if (skipFunction(*MF.getFunction()))
+    return false;
 
   auto &ST = MF.getSubtarget<HexagonSubtarget>();
   TRI = ST.getRegisterInfo();
