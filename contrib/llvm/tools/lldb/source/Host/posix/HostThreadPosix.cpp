@@ -53,13 +53,18 @@ Error
 HostThreadPosix::Cancel()
 {
     Error error;
+    if (IsJoinable())
+    {
 #ifndef __ANDROID__
-    int err = ::pthread_cancel(m_thread);
-    error.SetError(err, eErrorTypePOSIX);
-#else
-    error.SetErrorString("HostThreadPosix::Cancel() not supported on Android");
+#ifndef __FreeBSD__
+        assert(false && "someone is calling HostThread::Cancel()");
 #endif
-
+        int err = ::pthread_cancel(m_thread);
+        error.SetError(err, eErrorTypePOSIX);
+#else
+        error.SetErrorString("HostThreadPosix::Cancel() not supported on Android");
+#endif
+    }
     return error;
 }
 
@@ -67,8 +72,11 @@ Error
 HostThreadPosix::Detach()
 {
     Error error;
-    int err = ::pthread_detach(m_thread);
-    error.SetError(err, eErrorTypePOSIX);
+    if (IsJoinable())
+    {
+        int err = ::pthread_detach(m_thread);
+        error.SetError(err, eErrorTypePOSIX);
+    }
     Reset();
     return error;
 }

@@ -50,7 +50,7 @@ lldb_private::formatters::NSBundleSummaryProvider (ValueObject& valobj, Stream& 
     
     ObjCLanguageRuntime::ClassDescriptorSP descriptor(runtime->GetClassDescriptor(valobj));
     
-    if (!descriptor.get() || !descriptor->IsValid())
+    if (!descriptor || !descriptor->IsValid())
         return false;
     
     uint32_t ptr_size = process_sp->GetAddressByteSize();
@@ -71,16 +71,15 @@ lldb_private::formatters::NSBundleSummaryProvider (ValueObject& valobj, Stream& 
         ValueObjectSP text(valobj.GetSyntheticChildAtOffset(offset, valobj.GetCompilerType().GetBasicTypeFromAST(lldb::eBasicTypeObjCID), true));
         
         StreamString summary_stream;
-        bool was_nsstring_ok = NSStringSummaryProvider(*text.get(), summary_stream, options);
+        bool was_nsstring_ok = NSStringSummaryProvider(*text, summary_stream, options);
         if (was_nsstring_ok && summary_stream.GetSize() > 0)
         {
             stream.Printf("%s",summary_stream.GetData());
             return true;
         }
     }
-    // this is either an unknown subclass or an NSBundle that comes from [NSBundle mainBundle]
-    // which is encoded differently and needs to be handled by running code
-    return ExtractSummaryFromObjCExpression(valobj, "NSString*", "bundlePath", stream, options.GetLanguage());
+    
+    return false;
 }
 
 bool
@@ -97,7 +96,7 @@ lldb_private::formatters::NSTimeZoneSummaryProvider (ValueObject& valobj, Stream
     
     ObjCLanguageRuntime::ClassDescriptorSP descriptor(runtime->GetClassDescriptor(valobj));
     
-    if (!descriptor.get() || !descriptor->IsValid())
+    if (!descriptor || !descriptor->IsValid())
         return false;
     
     uint32_t ptr_size = process_sp->GetAddressByteSize();
@@ -117,14 +116,15 @@ lldb_private::formatters::NSTimeZoneSummaryProvider (ValueObject& valobj, Stream
         uint64_t offset = ptr_size;
         ValueObjectSP text(valobj.GetSyntheticChildAtOffset(offset, valobj.GetCompilerType(), true));
         StreamString summary_stream;
-        bool was_nsstring_ok = NSStringSummaryProvider(*text.get(), summary_stream, options);
+        bool was_nsstring_ok = NSStringSummaryProvider(*text, summary_stream, options);
         if (was_nsstring_ok && summary_stream.GetSize() > 0)
         {
             stream.Printf("%s",summary_stream.GetData());
             return true;
         }
     }
-    return ExtractSummaryFromObjCExpression(valobj, "NSString*", "name", stream, options.GetLanguage());
+    
+    return false;
 }
 
 bool
@@ -141,7 +141,7 @@ lldb_private::formatters::NSNotificationSummaryProvider (ValueObject& valobj, St
     
     ObjCLanguageRuntime::ClassDescriptorSP descriptor(runtime->GetClassDescriptor(valobj));
     
-    if (!descriptor.get() || !descriptor->IsValid())
+    if (!descriptor || !descriptor->IsValid())
         return false;
     
     uint32_t ptr_size = process_sp->GetAddressByteSize();
@@ -161,16 +161,15 @@ lldb_private::formatters::NSNotificationSummaryProvider (ValueObject& valobj, St
         uint64_t offset = ptr_size;
         ValueObjectSP text(valobj.GetSyntheticChildAtOffset(offset, valobj.GetCompilerType(), true));
         StreamString summary_stream;
-        bool was_nsstring_ok = NSStringSummaryProvider(*text.get(), summary_stream, options);
+        bool was_nsstring_ok = NSStringSummaryProvider(*text, summary_stream, options);
         if (was_nsstring_ok && summary_stream.GetSize() > 0)
         {
             stream.Printf("%s",summary_stream.GetData());
             return true;
         }
     }
-    // this is either an unknown subclass or an NSBundle that comes from [NSBundle mainBundle]
-    // which is encoded differently and needs to be handled by running code
-    return ExtractSummaryFromObjCExpression(valobj, "NSString*", "name", stream, options.GetLanguage());
+    
+    return false;
 }
 
 bool
@@ -187,7 +186,7 @@ lldb_private::formatters::NSMachPortSummaryProvider (ValueObject& valobj, Stream
     
     ObjCLanguageRuntime::ClassDescriptorSP descriptor(runtime->GetClassDescriptor(valobj));
     
-    if (!descriptor.get() || !descriptor->IsValid())
+    if (!descriptor || !descriptor->IsValid())
         return false;
     
     uint32_t ptr_size = process_sp->GetAddressByteSize();
@@ -204,22 +203,19 @@ lldb_private::formatters::NSMachPortSummaryProvider (ValueObject& valobj, Stream
     
     uint64_t port_number = 0;
     
-    do
+    if (!strcmp(class_name,"NSMachPort"))
     {
-        if (!strcmp(class_name,"NSMachPort"))
+        uint64_t offset = (ptr_size == 4 ? 12 : 20);
+        Error error;
+        port_number = process_sp->ReadUnsignedIntegerFromMemory(offset+valobj_addr, 4, 0, error);
+        if (error.Success())
         {
-            uint64_t offset = (ptr_size == 4 ? 12 : 20);
-            Error error;
-            port_number = process_sp->ReadUnsignedIntegerFromMemory(offset+valobj_addr, 4, 0, error);
-            if (error.Success())
-                break;
+            stream.Printf("mach port: %u",(uint32_t)(port_number & 0x00000000FFFFFFFF));
+            return true;
         }
-        if (!ExtractValueFromObjCExpression(valobj, "int", "machPort", port_number))
-            return false;
-    } while (false);
+    }
     
-    stream.Printf("mach port: %u",(uint32_t)(port_number & 0x00000000FFFFFFFF));
-    return true;
+    return false;
 }
 
 bool
@@ -236,7 +232,7 @@ lldb_private::formatters::NSIndexSetSummaryProvider (ValueObject& valobj, Stream
     
     ObjCLanguageRuntime::ClassDescriptorSP descriptor(runtime->GetClassDescriptor(valobj));
     
-    if (!descriptor.get() || !descriptor->IsValid())
+    if (!descriptor || !descriptor->IsValid())
         return false;
     
     uint32_t ptr_size = process_sp->GetAddressByteSize();
@@ -289,10 +285,7 @@ lldb_private::formatters::NSIndexSetSummaryProvider (ValueObject& valobj, Stream
             }
         }
         else
-        {
-            if (!ExtractValueFromObjCExpression(valobj, "unsigned long long int", "count", count))
-                return false;
-        }
+            return false;
     }  while (false);
     stream.Printf("%" PRIu64 " index%s",
                   count,
@@ -458,7 +451,7 @@ lldb_private::formatters::NSNumberSummaryProvider (ValueObject& valobj, Stream& 
     
     ObjCLanguageRuntime::ClassDescriptorSP descriptor(runtime->GetClassDescriptor(valobj));
     
-    if (!descriptor.get() || !descriptor->IsValid())
+    if (!descriptor || !descriptor->IsValid())
         return false;
     
     uint32_t ptr_size = process_sp->GetAddressByteSize();
@@ -531,6 +524,7 @@ lldb_private::formatters::NSNumberSummaryProvider (ValueObject& valobj, Stream& 
                     break;
                 case 17: // 0B10001
                     data_location += 8;
+                    LLVM_FALLTHROUGH;
                 case 4: // 0B0100
                     value = process_sp->ReadUnsignedIntegerFromMemory(data_location, 8, 0, error);
                     if (error.Fail())
@@ -542,7 +536,8 @@ lldb_private::formatters::NSNumberSummaryProvider (ValueObject& valobj, Stream& 
                     uint32_t flt_as_int = process_sp->ReadUnsignedIntegerFromMemory(data_location, 4, 0, error);
                     if (error.Fail())
                         return false;
-                    float flt_value = *((float*)&flt_as_int);
+                    float flt_value = 0.0f;
+                    memcpy(&flt_value, &flt_as_int, sizeof(flt_as_int));
                     NSNumber_FormatFloat(valobj, stream, flt_value, options.GetLanguage());
                     break;
                 }
@@ -551,7 +546,8 @@ lldb_private::formatters::NSNumberSummaryProvider (ValueObject& valobj, Stream& 
                     uint64_t dbl_as_lng = process_sp->ReadUnsignedIntegerFromMemory(data_location, 8, 0, error);
                     if (error.Fail())
                         return false;
-                    double dbl_value = *((double*)&dbl_as_lng);
+                    double dbl_value = 0.0;
+                    memcpy(&dbl_value, &dbl_as_lng, sizeof(dbl_as_lng));
                     NSNumber_FormatDouble(valobj, stream, dbl_value, options.GetLanguage());
                     break;
                 }
@@ -561,10 +557,8 @@ lldb_private::formatters::NSNumberSummaryProvider (ValueObject& valobj, Stream& 
             return true;
         }
     }
-    else
-    {
-        return ExtractSummaryFromObjCExpression(valobj, "NSString*", "stringValue", stream, options.GetLanguage());
-    }
+
+    return false;
 }
 
 bool
@@ -581,7 +575,7 @@ lldb_private::formatters::NSURLSummaryProvider (ValueObject& valobj, Stream& str
     
     ObjCLanguageRuntime::ClassDescriptorSP descriptor(runtime->GetClassDescriptor(valobj));
     
-    if (!descriptor.get() || !descriptor->IsValid())
+    if (!descriptor || !descriptor->IsValid())
         return false;
     
     uint32_t ptr_size = process_sp->GetAddressByteSize();
@@ -625,10 +619,7 @@ lldb_private::formatters::NSURLSummaryProvider (ValueObject& valobj, Stream& str
             return true;
         }
     }
-    else
-    {
-        return ExtractSummaryFromObjCExpression(valobj, "NSString*", "description", stream, options.GetLanguage());
-    }
+
     return false;
 }
 
@@ -646,7 +637,7 @@ lldb_private::formatters::NSDateSummaryProvider (ValueObject& valobj, Stream& st
     
     ObjCLanguageRuntime::ClassDescriptorSP descriptor(runtime->GetClassDescriptor(valobj));
     
-    if (!descriptor.get() || !descriptor->IsValid())
+    if (!descriptor || !descriptor->IsValid())
         return false;
     
     uint32_t ptr_size = process_sp->GetAddressByteSize();
@@ -659,44 +650,48 @@ lldb_private::formatters::NSDateSummaryProvider (ValueObject& valobj, Stream& st
     uint64_t date_value_bits = 0;
     double date_value = 0.0;
     
-    const char* class_name = descriptor->GetClassName().GetCString();
+    ConstString class_name = descriptor->GetClassName();
     
-    if (!class_name || !*class_name)
+    static const ConstString g_NSDate("NSDate");
+    static const ConstString g___NSDate("__NSDate");
+    static const ConstString g___NSTaggedDate("__NSTaggedDate");
+    static const ConstString g_NSCalendarDate("NSCalendarDate");
+
+    if (class_name.IsEmpty())
         return false;
     
-    if (strcmp(class_name,"NSDate") == 0 ||
-        strcmp(class_name,"__NSDate") == 0 ||
-        strcmp(class_name,"__NSTaggedDate") == 0)
+    if ((class_name == g_NSDate) ||
+        (class_name == g___NSDate) ||
+        (class_name == g___NSTaggedDate))
     {
         uint64_t info_bits=0,value_bits = 0;
         if (descriptor->GetTaggedPointerInfo(&info_bits,&value_bits))
         {
             date_value_bits = ((value_bits << 8) | (info_bits << 4));
-            date_value = *((double*)&date_value_bits);
+            memcpy(&date_value, &date_value_bits, sizeof(date_value_bits));
         }
         else
         {
+            llvm::Triple triple(process_sp->GetTarget().GetArchitecture().GetTriple());
+            uint32_t delta = (triple.isWatchOS() && triple.isWatchABI()) ? 8 : ptr_size;
             Error error;
-            date_value_bits = process_sp->ReadUnsignedIntegerFromMemory(valobj_addr+ptr_size, 8, 0, error);
-            date_value = *((double*)&date_value_bits);
+            date_value_bits = process_sp->ReadUnsignedIntegerFromMemory(valobj_addr+delta, 8, 0, error);
+            memcpy(&date_value, &date_value_bits, sizeof(date_value_bits));
             if (error.Fail())
                 return false;
         }
     }
-    else if (!strcmp(class_name,"NSCalendarDate"))
+    else if (class_name == g_NSCalendarDate)
     {
         Error error;
         date_value_bits = process_sp->ReadUnsignedIntegerFromMemory(valobj_addr+2*ptr_size, 8, 0, error);
-        date_value = *((double*)&date_value_bits);
+        memcpy(&date_value, &date_value_bits, sizeof(date_value_bits));
         if (error.Fail())
             return false;
     }
     else
-    {
-        if (ExtractValueFromObjCExpression(valobj, "NSTimeInterval", "ExtractValueFromObjCExpression", date_value_bits) == false)
-            return false;
-        date_value = *((double*)&date_value_bits);
-    }
+        return false;
+
     if (date_value == -63114076800)
     {
         stream.Printf("0001-12-30 00:00:00 +0000");
@@ -731,7 +726,7 @@ lldb_private::formatters::ObjCClassSummaryProvider (ValueObject& valobj, Stream&
     
     ObjCLanguageRuntime::ClassDescriptorSP descriptor(runtime->GetClassDescriptorFromISA(valobj.GetValueAsUnsigned(0)));
     
-    if (!descriptor.get() || !descriptor->IsValid())
+    if (!descriptor || !descriptor->IsValid())
         return false;
     
     ConstString class_name = descriptor->GetClassName();
@@ -750,7 +745,7 @@ class ObjCClassSyntheticChildrenFrontEnd : public SyntheticChildrenFrontEnd
 {
 public:
     ObjCClassSyntheticChildrenFrontEnd (lldb::ValueObjectSP valobj_sp) :
-    SyntheticChildrenFrontEnd(*valobj_sp.get())
+        SyntheticChildrenFrontEnd(*valobj_sp)
     {
     }
     
@@ -808,7 +803,7 @@ lldb_private::formatters::NSDataSummaryProvider (ValueObject& valobj, Stream& st
     
     ObjCLanguageRuntime::ClassDescriptorSP descriptor(runtime->GetClassDescriptor(valobj));
     
-    if (!descriptor.get() || !descriptor->IsValid())
+    if (!descriptor || !descriptor->IsValid())
         return false;
     
     bool is_64bit = (process_sp->GetAddressByteSize() == 8);
@@ -834,11 +829,20 @@ lldb_private::formatters::NSDataSummaryProvider (ValueObject& valobj, Stream& st
         if (error.Fail())
             return false;
     }
-    else
+    else if (!strcmp(class_name, "_NSInlineData"))
     {
-        if (!ExtractValueFromObjCExpression(valobj, "int", "length", value))
+        uint32_t offset = (is_64bit ? 8 : 4);
+        Error error;
+        value = process_sp->ReadUnsignedIntegerFromMemory(valobj_addr + offset, 2, 0, error);
+        if (error.Fail())
             return false;
     }
+    else if (!strcmp(class_name, "_NSZeroData"))
+    {
+        value = 0;
+    }
+    else
+        return false;
     
     stream.Printf("%s%" PRIu64 " byte%s%s",
                   (needs_at ? "@\"" : ""),
@@ -869,13 +873,19 @@ lldb_private::formatters::ObjCBOOLSummaryProvider (ValueObject& valobj, Stream& 
         if (!real_guy_sp)
             return false;
     }
-    uint64_t value = real_guy_sp->GetValueAsUnsigned(0);
-    if (value == 0)
+    uint8_t value = (real_guy_sp->GetValueAsUnsigned(0) & 0xFF);
+    switch (value)
     {
-        stream.Printf("NO");
-        return true;
+        case 0:
+            stream.Printf("NO");
+            break;
+        case 1:
+            stream.Printf("YES");
+            break;
+        default:
+            stream.Printf("%u",value);
+            break;
     }
-    stream.Printf("YES");
     return true;
 }
 
@@ -932,26 +942,14 @@ lldb_private::formatters::GetOSXEpoch ()
         tm_epoch.tm_min = 0;
         tm_epoch.tm_mon = 0;
         tm_epoch.tm_mday = 1;
-        tm_epoch.tm_year = 2001-1900; // for some reason, we need to subtract 1900 from this field. not sure why.
+        tm_epoch.tm_year = 2001-1900;
         tm_epoch.tm_isdst = -1;
         tm_epoch.tm_gmtoff = 0;
-        tm_epoch.tm_zone = NULL;
+        tm_epoch.tm_zone = nullptr;
         epoch = timegm(&tm_epoch);
 #endif
     }
     return epoch;
-}
-
-bool
-lldb_private::formatters::RuntimeSpecificDescriptionSummaryProvider (ValueObject& valobj, Stream& stream, const TypeSummaryOptions& options)
-{
-    if (const char* description = valobj.GetObjectDescription())
-    {
-        stream.Printf("%s", description);
-        return true;
-    }
-    else
-        return false;
 }
 
 template bool

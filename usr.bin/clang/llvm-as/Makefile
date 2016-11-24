@@ -1,17 +1,10 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+PROG_CXX=	llvm-as
 
-PROG_CXX=llvm-as
+SRCDIR=		tools/llvm-as
+SRCS+=		llvm-as.cpp
 
-SRCDIR=	tools/llvm-as
-SRCS=	llvm-as.cpp
+LIBADD+=	z
 
-TGHDRS=	Attributes
-
-LIBDEPS=llvmbitwriter \
-	llvmasmparser \
-	llvmcore \
-	llvmsupport
-
-.include "../clang.prog.mk"
+.include "../llvm.prog.mk"

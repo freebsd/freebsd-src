@@ -177,7 +177,14 @@ CompilerType::IsFunctionPointerType () const
     if (IsValid())
         return m_type_system->IsFunctionPointerType(m_type);
     return false;
+}
 
+bool
+CompilerType::IsBlockPointerType (CompilerType *function_pointer_type_ptr) const
+{
+    if (IsValid())
+        return m_type_system->IsBlockPointerType(m_type, function_pointer_type_ptr);
+    return 0;
 }
 
 bool
@@ -186,6 +193,20 @@ CompilerType::IsIntegerType (bool &is_signed) const
     if (IsValid())
         return m_type_system->IsIntegerType(m_type, is_signed);
     return false;
+}
+
+bool
+CompilerType::IsEnumerationType (bool &is_signed) const
+{
+    if (IsValid())
+        return m_type_system->IsEnumerationType(m_type, is_signed);
+    return false;
+}
+
+bool
+CompilerType::IsIntegerOrEnumerationType (bool &is_signed) const
+{
+    return IsIntegerType(is_signed) || IsEnumerationType(is_signed);
 }
 
 bool

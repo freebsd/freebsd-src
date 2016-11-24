@@ -66,7 +66,7 @@ namespace {
 
     /// The inline asm string to insert between calls and RetainRV calls to make
     /// the optimization work on targets which need it.
-    const MDString *RetainRVMarker;
+    const MDString *RVInstMarker;
 
     /// The set of inserted objc_storeStrong calls. If at the end of walking the
     /// function we have found no alloca instructions, these calls can be marked
@@ -201,6 +201,7 @@ static StoreInst *findSafeStoreForStoreStrongContraction(LoadInst *Load,
 
   // Get the location associated with Load.
   MemoryLocation Loc = MemoryLocation::get(Load);
+  auto *LocPtr = Loc.Ptr->stripPointerCasts();
 
   // Walk down to find the store and the release, which may be in either order.
   for (auto I = std::next(BasicBlock::iterator(Load)),
@@ -261,7 +262,7 @@ static StoreInst *findSafeStoreForStoreStrongContraction(LoadInst *Load,
 
     // Then make sure that the pointer we are storing to is Ptr. If so, we
     // found our Store!
-    if (Store->getPointerOperand() == Loc.Ptr)
+    if (Store->getPointerOperand()->stripPointerCasts() == LocPtr)
       continue;
 
     // Otherwise, we have an unknown store to some other ptr that clobbers
@@ -423,20 +424,20 @@ bool ObjCARCContract::tryToPeepholeInstruction(
         return false;
       // If we succeed in our optimization, fall through.
       // FALLTHROUGH
-    case ARCInstKind::RetainRV: {
+    case ARCInstKind::RetainRV:
+    case ARCInstKind::ClaimRV: {
       // If we're compiling for a target which needs a special inline-asm
-      // marker to do the retainAutoreleasedReturnValue optimization,
-      // insert it now.
-      if (!RetainRVMarker)
+      // marker to do the return value optimization, insert it now.
+      if (!RVInstMarker)
         return false;
       BasicBlock::iterator BBI = Inst->getIterator();
       BasicBlock *InstParent = Inst->getParent();
 
-      // Step up to see if the call immediately precedes the RetainRV call.
+      // Step up to see if the call immediately precedes the RV call.
       // If it's an invoke, we have to cross a block boundary. And we have
       // to carefully dodge no-op instructions.
       do {
-        if (&*BBI == InstParent->begin()) {
+        if (BBI == InstParent->begin()) {
           BasicBlock *Pred = InstParent->getSinglePredecessor();
           if (!Pred)
             goto decline_rv_optimization;
@@ -447,14 +448,14 @@ bool ObjCARCContract::tryToPeepholeInstruction(
       } while (IsNoopInstruction(&*BBI));
 
       if (&*BBI == GetArgRCIdentityRoot(Inst)) {
-        DEBUG(dbgs() << "Adding inline asm marker for "
-                        "retainAutoreleasedReturnValue optimization.\n");
+        DEBUG(dbgs() << "Adding inline asm marker for the return value "
+                        "optimization.\n");
         Changed = true;
-        InlineAsm *IA =
-          InlineAsm::get(FunctionType::get(Type::getVoidTy(Inst->getContext()),
-                                           /*isVarArg=*/false),
-                         RetainRVMarker->getString(),
-                         /*Constraints=*/"", /*hasSideEffects=*/true);
+        InlineAsm *IA = InlineAsm::get(
+            FunctionType::get(Type::getVoidTy(Inst->getContext()),
+                              /*isVarArg=*/false),
+            RVInstMarker->getString(),
+            /*Constraints=*/"", /*hasSideEffects=*/true);
         CallInst::Create(IA, "", Inst);
       }
     decline_rv_optimization:
@@ -605,7 +606,7 @@ bool ObjCARCContract::runOnFunction(Function &F) {
                cast<GEPOperator>(Arg)->hasAllZeroIndices())
         Arg = cast<GEPOperator>(Arg)->getPointerOperand();
       else if (isa<GlobalAlias>(Arg) &&
-               !cast<GlobalAlias>(Arg)->mayBeOverridden())
+               !cast<GlobalAlias>(Arg)->isInterposable())
         Arg = cast<GlobalAlias>(Arg)->getAliasee();
       else
         break;
@@ -650,15 +651,15 @@ bool ObjCARCContract::doInitialization(Module &M) {
 
   EP.init(&M);
 
-  // Initialize RetainRVMarker.
-  RetainRVMarker = nullptr;
+  // Initialize RVInstMarker.
+  RVInstMarker = nullptr;
   if (NamedMDNode *NMD =
           M.getNamedMetadata("clang.arc.retainAutoreleasedReturnValueMarker"))
     if (NMD->getNumOperands() == 1) {
       const MDNode *N = NMD->getOperand(0);
       if (N->getNumOperands() == 1)
         if (const MDString *S = dyn_cast<MDString>(N->getOperand(0)))
-          RetainRVMarker = S;
+          RVInstMarker = S;
     }
 
   return false;

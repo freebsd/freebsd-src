@@ -7,7 +7,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This tablegen backend is emits an assembly printer for the current target.
+// This tablegen backend emits an assembly printer for the current target.
 // Note that this is currently fairly skeletal, but will grow over time.
 //
 //===----------------------------------------------------------------------===//
@@ -27,6 +27,7 @@
 #include <algorithm>
 #include <cassert>
 #include <map>
+#include <utility>
 #include <vector>
 using namespace llvm;
 
@@ -36,10 +37,8 @@ namespace {
 class AsmWriterEmitter {
   RecordKeeper &Records;
   CodeGenTarget Target;
-  std::map<const CodeGenInstruction*, AsmWriterInst*> CGIAWIMap;
-  const std::vector<const CodeGenInstruction*> *NumberedInstructions;
+  ArrayRef<const CodeGenInstruction *> NumberedInstructions;
   std::vector<AsmWriterInst> Instructions;
-  std::vector<std::string> PrintMethods;
 public:
   AsmWriterEmitter(RecordKeeper &R);
 
@@ -50,21 +49,16 @@ private:
   void EmitGetRegisterName(raw_ostream &o);
   void EmitPrintAliasInstruction(raw_ostream &O);
 
-  AsmWriterInst *getAsmWriterInstByID(unsigned ID) const {
-    assert(ID < NumberedInstructions->size());
-    std::map<const CodeGenInstruction*, AsmWriterInst*>::const_iterator I =
-      CGIAWIMap.find(NumberedInstructions->at(ID));
-    assert(I != CGIAWIMap.end() && "Didn't find inst!");
-    return I->second;
-  }
   void FindUniqueOperandCommands(std::vector<std::string> &UOC,
-                                 std::vector<unsigned> &InstIdxs,
-                                 std::vector<unsigned> &InstOpsUsed) const;
+                                 std::vector<std::vector<unsigned>> &InstIdxs,
+                                 std::vector<unsigned> &InstOpsUsed,
+                                 bool PassSubtarget) const;
 };
 } // end anonymous namespace
 
 static void PrintCases(std::vector<std::pair<std::string,
-                       AsmWriterOperand> > &OpsToPrint, raw_ostream &O) {
+                       AsmWriterOperand> > &OpsToPrint, raw_ostream &O,
+                       bool PassSubtarget) {
   O << "    case " << OpsToPrint.back().first << ":";
   AsmWriterOperand TheOp = OpsToPrint.back().second;
   OpsToPrint.pop_back();
@@ -78,7 +72,7 @@ static void PrintCases(std::vector<std::pair<std::string,
     }
 
   // Finally, emit the code.
-  O << "\n      " << TheOp.getCode();
+  O << "\n      " << TheOp.getCode(PassSubtarget);
   O << "\n      break;\n";
 }
 
@@ -86,7 +80,7 @@ static void PrintCases(std::vector<std::pair<std::string,
 /// EmitInstructions - Emit the last instruction in the vector and any other
 /// instructions that are suitably similar to it.
 static void EmitInstructions(std::vector<AsmWriterInst> &Insts,
-                             raw_ostream &O) {
+                             raw_ostream &O, bool PassSubtarget) {
   AsmWriterInst FirstInst = Insts.back();
   Insts.pop_back();
 
@@ -115,7 +109,7 @@ static void EmitInstructions(std::vector<AsmWriterInst> &Insts,
   for (unsigned i = 0, e = FirstInst.Operands.size(); i != e; ++i) {
     if (i != DifferingOperand) {
       // If the operand is the same for all instructions, just print it.
-      O << "    " << FirstInst.Operands[i].getCode();
+      O << "    " << FirstInst.Operands[i].getCode(PassSubtarget);
     } else {
       // If this is the operand that varies between all of the instructions,
       // emit a switch for just this operand now.
@@ -133,7 +127,7 @@ static void EmitInstructions(std::vector<AsmWriterInst> &Insts,
       }
       std::reverse(OpsToPrint.begin(), OpsToPrint.end());
       while (!OpsToPrint.empty())
-        PrintCases(OpsToPrint, O);
+        PrintCases(OpsToPrint, O, PassSubtarget);
       O << "    }";
     }
     O << "\n";
@@ -143,9 +137,9 @@ static void EmitInstructions(std::vector<AsmWriterInst> &Insts,
 
 void AsmWriterEmitter::
 FindUniqueOperandCommands(std::vector<std::string> &UniqueOperandCommands,
-                          std::vector<unsigned> &InstIdxs,
-                          std::vector<unsigned> &InstOpsUsed) const {
-  InstIdxs.assign(NumberedInstructions->size(), ~0U);
+                          std::vector<std::vector<unsigned>> &InstIdxs,
+                          std::vector<unsigned> &InstOpsUsed,
+                          bool PassSubtarget) const {
 
   // This vector parallels UniqueOperandCommands, keeping track of which
   // instructions each case are used for.  It is a comma separated string of
@@ -154,31 +148,27 @@ FindUniqueOperandCommands(std::vector<std::string> &UniqueOperandCommands,
   InstrsForCase.resize(UniqueOperandCommands.size());
   InstOpsUsed.assign(UniqueOperandCommands.size(), 0);
 
-  for (unsigned i = 0, e = NumberedInstructions->size(); i != e; ++i) {
-    const AsmWriterInst *Inst = getAsmWriterInstByID(i);
-    if (!Inst)
-      continue; // PHI, INLINEASM, CFI_INSTRUCTION, etc.
-
-    if (Inst->Operands.empty())
+  for (size_t i = 0, e = Instructions.size(); i != e; ++i) {
+    const AsmWriterInst &Inst = Instructions[i];
+    if (Inst.Operands.empty())
       continue;   // Instruction already done.
 
-    std::string Command = "    " + Inst->Operands[0].getCode() + "\n";
+    std::string Command = "    "+Inst.Operands[0].getCode(PassSubtarget)+"\n";
 
     // Check to see if we already have 'Command' in UniqueOperandCommands.
     // If not, add it.
-    bool FoundIt = false;
-    for (unsigned idx = 0, e = UniqueOperandCommands.size(); idx != e; ++idx)
-      if (UniqueOperandCommands[idx] == Command) {
-        InstIdxs[i] = idx;
-        InstrsForCase[idx] += ", ";
-        InstrsForCase[idx] += Inst->CGI->TheDef->getName();
-        FoundIt = true;
-        break;
-      }
-    if (!FoundIt) {
-      InstIdxs[i] = UniqueOperandCommands.size();
+    auto I = std::find(UniqueOperandCommands.begin(),
+                       UniqueOperandCommands.end(), Command);
+    if (I != UniqueOperandCommands.end()) {
+      size_t idx = I - UniqueOperandCommands.begin();
+      InstrsForCase[idx] += ", ";
+      InstrsForCase[idx] += Inst.CGI->TheDef->getName();
+      InstIdxs[idx].push_back(i);
+    } else {
       UniqueOperandCommands.push_back(std::move(Command));
-      InstrsForCase.push_back(Inst->CGI->TheDef->getName());
+      InstrsForCase.push_back(Inst.CGI->TheDef->getName());
+      InstIdxs.emplace_back();
+      InstIdxs.back().push_back(i);
 
       // This command matches one operand so far.
       InstOpsUsed.push_back(1);
@@ -188,45 +178,33 @@ FindUniqueOperandCommands(std::vector<std::string> &UniqueOperandCommands,
   // For each entry of UniqueOperandCommands, there is a set of instructions
   // that uses it.  If the next command of all instructions in the set are
   // identical, fold it into the command.
-  for (unsigned CommandIdx = 0, e = UniqueOperandCommands.size();
+  for (size_t CommandIdx = 0, e = UniqueOperandCommands.size();
        CommandIdx != e; ++CommandIdx) {
 
-    for (unsigned Op = 1; ; ++Op) {
-      // Scan for the first instruction in the set.
-      std::vector<unsigned>::iterator NIT =
-        std::find(InstIdxs.begin(), InstIdxs.end(), CommandIdx);
-      if (NIT == InstIdxs.end()) break;  // No commonality.
+    const auto &Idxs = InstIdxs[CommandIdx];
 
+    for (unsigned Op = 1; ; ++Op) {
+      // Find the first instruction in the set.
+      const AsmWriterInst &FirstInst = Instructions[Idxs.front()];
       // If this instruction has no more operands, we isn't anything to merge
       // into this command.
-      const AsmWriterInst *FirstInst =
-        getAsmWriterInstByID(NIT-InstIdxs.begin());
-      if (!FirstInst || FirstInst->Operands.size() == Op)
+      if (FirstInst.Operands.size() == Op)
         break;
 
       // Otherwise, scan to see if all of the other instructions in this command
       // set share the operand.
-      bool AllSame = true;
-
-      for (NIT = std::find(NIT+1, InstIdxs.end(), CommandIdx);
-           NIT != InstIdxs.end();
-           NIT = std::find(NIT+1, InstIdxs.end(), CommandIdx)) {
-        // Okay, found another instruction in this command set.  If the operand
-        // matches, we're ok, otherwise bail out.
-        const AsmWriterInst *OtherInst =
-          getAsmWriterInstByID(NIT-InstIdxs.begin());
-
-        if (!OtherInst || OtherInst->Operands.size() == Op ||
-            OtherInst->Operands[Op] != FirstInst->Operands[Op]) {
-          AllSame = false;
-          break;
-        }
-      }
-      if (!AllSame) break;
+      if (std::any_of(Idxs.begin()+1, Idxs.end(),
+                      [&](unsigned Idx) {
+                        const AsmWriterInst &OtherInst = Instructions[Idx];
+                        return OtherInst.Operands.size() == Op ||
+                          OtherInst.Operands[Op] != FirstInst.Operands[Op];
+                      }))
+        break;
 
       // Okay, everything in this command set has the same next operand.  Add it
       // to UniqueOperandCommands and remember that it was consumed.
-      std::string Command = "    " + FirstInst->Operands[Op].getCode() + "\n";
+      std::string Command = "    " +
+        FirstInst.Operands[Op].getCode(PassSubtarget) + "\n";
 
       UniqueOperandCommands[CommandIdx] += Command;
       InstOpsUsed[CommandIdx]++;
@@ -277,7 +255,7 @@ static void UnescapeString(std::string &Str) {
 void AsmWriterEmitter::EmitPrintInstruction(raw_ostream &O) {
   Record *AsmWriter = Target.getAsmWriter();
   std::string ClassName = AsmWriter->getValueAsString("AsmWriterClassName");
-  unsigned PassSubtarget = AsmWriter->getValueAsInt("PassSubtarget");
+  bool PassSubtarget = AsmWriter->getValueAsInt("PassSubtarget");
 
   O <<
   "/// printInstruction - This method is automatically generated by tablegen\n"
@@ -292,18 +270,16 @@ void AsmWriterEmitter::EmitPrintInstruction(raw_ostream &O) {
 
   /// OpcodeInfo - This encodes the index of the string to use for the first
   /// chunk of the output as well as indices used for operand printing.
-  std::vector<uint64_t> OpcodeInfo;
+  std::vector<uint64_t> OpcodeInfo(NumberedInstructions.size());
   const unsigned OpcodeInfoBits = 64;
 
   // Add all strings to the string table upfront so it can generate an optimized
   // representation.
-  for (const CodeGenInstruction *Inst : *NumberedInstructions) {
-    AsmWriterInst *AWI = CGIAWIMap[Inst];
-    if (AWI &&
-        AWI->Operands[0].OperandType ==
+  for (AsmWriterInst &AWI : Instructions) {
+    if (AWI.Operands[0].OperandType ==
                  AsmWriterOperand::isLiteralTextOperand &&
-        !AWI->Operands[0].Str.empty()) {
-      std::string Str = AWI->Operands[0].Str;
+        !AWI.Operands[0].Str.empty()) {
+      std::string Str = AWI.Operands[0].Str;
       UnescapeString(Str);
       StringTable.add(Str);
     }
@@ -312,29 +288,24 @@ void AsmWriterEmitter::EmitPrintInstruction(raw_ostream &O) {
   StringTable.layout();
 
   unsigned MaxStringIdx = 0;
-  for (const CodeGenInstruction *Inst : *NumberedInstructions) {
-    AsmWriterInst *AWI = CGIAWIMap[Inst];
+  for (AsmWriterInst &AWI : Instructions) {
     unsigned Idx;
-    if (!AWI) {
-      // Something not handled by the asmwriter printer.
-      Idx = ~0U;
-    } else if (AWI->Operands[0].OperandType !=
-                        AsmWriterOperand::isLiteralTextOperand ||
-               AWI->Operands[0].Str.empty()) {
+    if (AWI.Operands[0].OperandType != AsmWriterOperand::isLiteralTextOperand ||
+        AWI.Operands[0].Str.empty()) {
       // Something handled by the asmwriter printer, but with no leading string.
       Idx = StringTable.get("");
     } else {
-      std::string Str = AWI->Operands[0].Str;
+      std::string Str = AWI.Operands[0].Str;
       UnescapeString(Str);
       Idx = StringTable.get(Str);
       MaxStringIdx = std::max(MaxStringIdx, Idx);
 
       // Nuke the string from the operand list.  It is now handled!
-      AWI->Operands.erase(AWI->Operands.begin());
+      AWI.Operands.erase(AWI.Operands.begin());
     }
 
     // Bias offset by one since we want 0 as a sentinel.
-    OpcodeInfo.push_back(Idx+1);
+    OpcodeInfo[AWI.CGIIndex] = Idx+1;
   }
 
   // Figure out how many bits we used for the string index.
@@ -348,10 +319,10 @@ void AsmWriterEmitter::EmitPrintInstruction(raw_ostream &O) {
 
   while (1) {
     std::vector<std::string> UniqueOperandCommands;
-    std::vector<unsigned> InstIdxs;
+    std::vector<std::vector<unsigned>> InstIdxs;
     std::vector<unsigned> NumInstOpsHandled;
     FindUniqueOperandCommands(UniqueOperandCommands, InstIdxs,
-                              NumInstOpsHandled);
+                              NumInstOpsHandled, PassSubtarget);
 
     // If we ran out of operands to print, we're done.
     if (UniqueOperandCommands.empty()) break;
@@ -368,23 +339,22 @@ void AsmWriterEmitter::EmitPrintInstruction(raw_ostream &O) {
     }
 
     // Otherwise, we can include this in the initial lookup table.  Add it in.
-    for (unsigned i = 0, e = InstIdxs.size(); i != e; ++i)
-      if (InstIdxs[i] != ~0U) {
-        OpcodeInfo[i] |= (uint64_t)InstIdxs[i] << (OpcodeInfoBits-BitsLeft);
-      }
-    BitsLeft -= NumBits;
-
-    // Remove the info about this operand.
-    for (unsigned i = 0, e = NumberedInstructions->size(); i != e; ++i) {
-      if (AsmWriterInst *Inst = getAsmWriterInstByID(i))
-        if (!Inst->Operands.empty()) {
-          unsigned NumOps = NumInstOpsHandled[InstIdxs[i]];
-          assert(NumOps <= Inst->Operands.size() &&
+    for (size_t i = 0, e = InstIdxs.size(); i != e; ++i) {
+      unsigned NumOps = NumInstOpsHandled[i];
+      for (unsigned Idx : InstIdxs[i]) {
+        OpcodeInfo[Instructions[Idx].CGIIndex] |=
+          (uint64_t)i << (OpcodeInfoBits-BitsLeft);
+        // Remove the info about this operand from the instruction.
+        AsmWriterInst &Inst = Instructions[Idx];
+        if (!Inst.Operands.empty()) {
+          assert(NumOps <= Inst.Operands.size() &&
                  "Can't remove this many ops!");
-          Inst->Operands.erase(Inst->Operands.begin(),
-                               Inst->Operands.begin()+NumOps);
+          Inst.Operands.erase(Inst.Operands.begin(),
+                              Inst.Operands.begin()+NumOps);
         }
+      }
     }
+    BitsLeft -= NumBits;
 
     // Remember the handlers for this set of operands.
     TableDrivenOperandPrinters.push_back(std::move(UniqueOperandCommands));
@@ -411,9 +381,9 @@ void AsmWriterEmitter::EmitPrintInstruction(raw_ostream &O) {
     uint64_t Mask = (1ULL << TableSize) - 1;
     O << "  static const uint" << TableSize << "_t OpInfo" << Table
       << "[] = {\n";
-    for (unsigned i = 0, e = NumberedInstructions->size(); i != e; ++i) {
+    for (unsigned i = 0, e = NumberedInstructions.size(); i != e; ++i) {
       O << "    " << ((OpcodeInfo[i] >> Shift) & Mask) << "U,\t// "
-        << NumberedInstructions->at(i)->TheDef->getName() << "\n";
+        << NumberedInstructions[i]->TheDef->getName() << "\n";
     }
     O << "  };\n\n";
     // Emit string to combine the individual table lookups.
@@ -502,7 +472,7 @@ void AsmWriterEmitter::EmitPrintInstruction(raw_ostream &O) {
     O << "  switch (MI->getOpcode()) {\n";
     O << "  default: llvm_unreachable(\"Unexpected opcode.\");\n";
     while (!Instructions.empty())
-      EmitInstructions(Instructions, O);
+      EmitInstructions(Instructions, O, PassSubtarget);
 
     O << "  }\n";
   }
@@ -578,7 +548,7 @@ void AsmWriterEmitter::EmitGetRegisterName(raw_ostream &O) {
   Record *AsmWriter = Target.getAsmWriter();
   std::string ClassName = AsmWriter->getValueAsString("AsmWriterClassName");
   const auto &Registers = Target.getRegBank().getRegisters();
-  std::vector<Record*> AltNameIndices = Target.getRegAltNameIndices();
+  const std::vector<Record*> &AltNameIndices = Target.getRegAltNameIndices();
   bool hasAltNames = AltNameIndices.size() > 1;
   std::string Namespace =
       Registers.front().TheDef->getValueAsString("Namespace");
@@ -606,7 +576,7 @@ void AsmWriterEmitter::EmitGetRegisterName(raw_ostream &O) {
     O << "  switch(AltIdx) {\n"
       << "  default: llvm_unreachable(\"Invalid register alt name index!\");\n";
     for (const Record *R : AltNameIndices) {
-      std::string AltName(R->getName());
+      const std::string &AltName = R->getName();
       std::string Prefix = !Namespace.empty() ? Namespace + "::" : "";
       O << "  case " << Prefix << AltName << ":\n"
         << "    assert(*(AsmStrs" << AltName << "+RegAsmOffset"
@@ -631,12 +601,12 @@ namespace {
 class IAPrinter {
   std::vector<std::string> Conds;
   std::map<StringRef, std::pair<int, int>> OpMap;
-  SmallVector<Record*, 4> ReqFeatures;
 
   std::string Result;
   std::string AsmString;
 public:
-  IAPrinter(std::string R, std::string AS) : Result(R), AsmString(AS) {}
+  IAPrinter(std::string R, std::string AS)
+      : Result(std::move(R)), AsmString(std::move(AS)) {}
 
   void addCond(const std::string &C) { Conds.push_back(C); }
 
@@ -677,7 +647,7 @@ public:
   }
 
   void print(raw_ostream &O) {
-    if (Conds.empty() && ReqFeatures.empty()) {
+    if (Conds.empty()) {
       O.indent(6) << "return true;\n";
       return;
     }
@@ -784,7 +754,7 @@ void AsmWriterEmitter::EmitPrintAliasInstruction(raw_ostream &O) {
   // Emit the method that prints the alias instruction.
   std::string ClassName = AsmWriter->getValueAsString("AsmWriterClassName");
   unsigned Variant = AsmWriter->getValueAsInt("Variant");
-  unsigned PassSubtarget = AsmWriter->getValueAsInt("PassSubtarget");
+  bool PassSubtarget = AsmWriter->getValueAsInt("PassSubtarget");
 
   std::vector<Record*> AllInstAliases =
     Records.getAllDerivedDefinitions("InstAlias");
@@ -808,6 +778,8 @@ void AsmWriterEmitter::EmitPrintAliasInstruction(raw_ostream &O) {
   // before it can be matched to the mnemonic.
   std::map<std::string, std::vector<IAPrinter>> IAPrinterMap;
 
+  std::vector<std::string> PrintMethods;
+
   // A list of MCOperandPredicates for all operands in use, and the reverse map
   std::vector<const Record*> MCOpPredicates;
   DenseMap<const Record*, unsigned> MCOpPredicateMap;
@@ -824,6 +796,18 @@ void AsmWriterEmitter::EmitPrintAliasInstruction(raw_ostream &O) {
         continue;
 
       IAPrinter IAP(CGA.Result->getAsString(), CGA.AsmString);
+
+      std::string Namespace = Target.getName();
+      std::vector<Record *> ReqFeatures;
+      if (PassSubtarget) {
+        // We only consider ReqFeatures predicates if PassSubtarget
+        std::vector<Record *> RF =
+            CGA.TheDef->getValueAsListOfDefs("Predicates");
+        std::copy_if(RF.begin(), RF.end(), std::back_inserter(ReqFeatures),
+                     [](Record *R) {
+                       return R->getValueAsBit("AssemblerMatcherPredicate");
+                     });
+      }
 
       unsigned NumMIOps = 0;
       for (auto &Operand : CGA.ResultOperands)
@@ -929,6 +913,27 @@ void AsmWriterEmitter::EmitPrintAliasInstruction(raw_ostream &O) {
       }
 
       if (CantHandle) continue;
+
+      for (auto I = ReqFeatures.cbegin(); I != ReqFeatures.cend(); I++) {
+        Record *R = *I;
+        std::string AsmCondString = R->getValueAsString("AssemblerCondString");
+
+        // AsmCondString has syntax [!]F(,[!]F)*
+        SmallVector<StringRef, 4> Ops;
+        SplitString(AsmCondString, Ops, ",");
+        assert(!Ops.empty() && "AssemblerCondString cannot be empty");
+
+        for (auto &Op : Ops) {
+          assert(!Op.empty() && "Empty operator");
+          if (Op[0] == '!')
+            Cond = "!STI.getFeatureBits()[" + Namespace + "::" +
+                   Op.substr(1).str() + "]";
+          else
+            Cond = "STI.getFeatureBits()[" + Namespace + "::" + Op.str() + "]";
+          IAP.addCond(Cond);
+        }
+      }
+
       IAPrinterMap[Aliases.first].push_back(std::move(IAP));
     }
   }
@@ -1002,13 +1007,14 @@ void AsmWriterEmitter::EmitPrintAliasInstruction(raw_ostream &O) {
   // Code that prints the alias, replacing the operands with the ones from the
   // MCInst.
   O << "  unsigned I = 0;\n";
-  O << "  while (AsmString[I] != ' ' && AsmString[I] != '\t' &&\n";
-  O << "         AsmString[I] != '\\0')\n";
+  O << "  while (AsmString[I] != ' ' && AsmString[I] != '\\t' &&\n";
+  O << "         AsmString[I] != '$' && AsmString[I] != '\\0')\n";
   O << "    ++I;\n";
   O << "  OS << '\\t' << StringRef(AsmString, I);\n";
 
   O << "  if (AsmString[I] != '\\0') {\n";
-  O << "    OS << '\\t';\n";
+  O << "    if (AsmString[I] == ' ' || AsmString[I] == '\\t')";
+  O << "      OS << '\\t';\n";
   O << "    do {\n";
   O << "      if (AsmString[I] == '$') {\n";
   O << "        ++I;\n";
@@ -1072,7 +1078,7 @@ void AsmWriterEmitter::EmitPrintAliasInstruction(raw_ostream &O) {
 
     for (unsigned i = 0; i < MCOpPredicates.size(); ++i) {
       Init *MCOpPred = MCOpPredicates[i]->getValueInit("MCOperandPredicate");
-      if (StringInit *SI = dyn_cast<StringInit>(MCOpPred)) {
+      if (CodeInit *SI = dyn_cast<CodeInit>(MCOpPred)) {
         O << "  case " << i + 1 << ": {\n"
           << SI->getValue() << "\n"
           << "    }\n";
@@ -1089,19 +1095,15 @@ void AsmWriterEmitter::EmitPrintAliasInstruction(raw_ostream &O) {
 AsmWriterEmitter::AsmWriterEmitter(RecordKeeper &R) : Records(R), Target(R) {
   Record *AsmWriter = Target.getAsmWriter();
   unsigned Variant = AsmWriter->getValueAsInt("Variant");
-  unsigned PassSubtarget = AsmWriter->getValueAsInt("PassSubtarget");
-  for (const CodeGenInstruction *I : Target.instructions())
-    if (!I->AsmString.empty() && I->TheDef->getName() != "PHI")
-      Instructions.emplace_back(*I, Variant, PassSubtarget);
 
   // Get the instruction numbering.
-  NumberedInstructions = &Target.getInstructionsByEnumValue();
+  NumberedInstructions = Target.getInstructionsByEnumValue();
 
-  // Compute the CodeGenInstruction -> AsmWriterInst mapping.  Note that not
-  // all machine instructions are necessarily being printed, so there may be
-  // target instructions not in this map.
-  for (AsmWriterInst &AWI : Instructions)
-    CGIAWIMap.insert(std::make_pair(AWI.CGI, &AWI));
+  for (unsigned i = 0, e = NumberedInstructions.size(); i != e; ++i) {
+    const CodeGenInstruction *I = NumberedInstructions[i];
+    if (!I->AsmString.empty() && I->TheDef->getName() != "PHI")
+      Instructions.emplace_back(*I, i, Variant);
+  }
 }
 
 void AsmWriterEmitter::run(raw_ostream &O) {

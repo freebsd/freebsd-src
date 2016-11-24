@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "PPC.h"
-#include "llvm/MC/MCDisassembler.h"
+#include "llvm/MC/MCDisassembler/MCDisassembler.h"
 #include "llvm/MC/MCFixedLenDisassembler.h"
 #include "llvm/MC/MCInst.h"
 #include "llvm/MC/MCSubtargetInfo.h"
@@ -364,6 +364,21 @@ static DecodeStatus decodeMemRIXOperands(MCInst &Inst, uint64_t Imm,
     Inst.insert(Inst.begin(), MCOperand::createReg(GP0Regs[Base]));
 
   Inst.addOperand(MCOperand::createImm(SignExtend64<16>(Disp << 2)));
+  Inst.addOperand(MCOperand::createReg(GP0Regs[Base]));
+  return MCDisassembler::Success;
+}
+
+static DecodeStatus decodeMemRIX16Operands(MCInst &Inst, uint64_t Imm,
+                                         int64_t Address, const void *Decoder) {
+  // Decode the memrix16 field (imm, reg), which has the low 12-bits as the
+  // displacement with 16-byte aligned, and the next 5 bits as the register #.
+
+  uint64_t Base = Imm >> 12;
+  uint64_t Disp = Imm & 0xFFF;
+
+  assert(Base < 32 && "Invalid base register");
+
+  Inst.addOperand(MCOperand::createImm(SignExtend64<16>(Disp << 4)));
   Inst.addOperand(MCOperand::createReg(GP0Regs[Base]));
   return MCDisassembler::Success;
 }

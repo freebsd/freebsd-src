@@ -177,7 +177,7 @@ enum
 #define EXC_OFFSET(idx) ((idx) * 4 + sizeof (RegisterContextDarwin_arm::GPR) + sizeof (RegisterContextDarwin_arm::FPU))
 #define DBG_OFFSET(reg) ((LLVM_EXTENSION offsetof (RegisterContextDarwin_arm::DBG, reg) + sizeof (RegisterContextDarwin_arm::GPR) + sizeof (RegisterContextDarwin_arm::FPU) + sizeof (RegisterContextDarwin_arm::EXC)))
 
-#define DEFINE_DBG(reg, i)  #reg, NULL, sizeof(((RegisterContextDarwin_arm::DBG *)NULL)->reg[i]), DBG_OFFSET(reg[i]), eEncodingUint, eFormatHex, { LLDB_INVALID_REGNUM, LLDB_INVALID_REGNUM, LLDB_INVALID_REGNUM, LLDB_INVALID_REGNUM, LLDB_INVALID_REGNUM }, NULL, NULL
+#define DEFINE_DBG(reg, i)  #reg, NULL, sizeof(((RegisterContextDarwin_arm::DBG *)NULL)->reg[i]), DBG_OFFSET(reg[i]), eEncodingUint, eFormatHex, { LLDB_INVALID_REGNUM, LLDB_INVALID_REGNUM, LLDB_INVALID_REGNUM, LLDB_INVALID_REGNUM, LLDB_INVALID_REGNUM }, NULL, NULL, NULL, 0
 #define REG_CONTEXT_SIZE (sizeof (RegisterContextDarwin_arm::GPR) + sizeof (RegisterContextDarwin_arm::FPU) + sizeof (RegisterContextDarwin_arm::EXC))
 
 static RegisterInfo g_register_infos[] = {
@@ -596,6 +596,7 @@ RegisterContextDarwin_arm::ReadRegisterSet (uint32_t set, bool force)
     switch (set)
     {
     case GPRRegSet:    return ReadGPR(force);
+    case GPRAltRegSet: return ReadGPR(force);
     case FPURegSet:    return ReadFPU(force);
     case EXCRegSet:    return ReadEXC(force);
     case DBGRegSet:    return ReadDBG(force);
@@ -613,6 +614,7 @@ RegisterContextDarwin_arm::WriteRegisterSet (uint32_t set)
         switch (set)
         {
         case GPRRegSet:    return WriteGPR();
+        case GPRAltRegSet: return WriteGPR();
         case FPURegSet:    return WriteFPU();
         case EXCRegSet:    return WriteEXC();
         case DBGRegSet:    return WriteDBG();

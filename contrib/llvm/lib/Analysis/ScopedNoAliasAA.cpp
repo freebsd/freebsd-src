@@ -34,7 +34,6 @@
 
 #include "llvm/Analysis/ScopedNoAliasAA.h"
 #include "llvm/ADT/SmallPtrSet.h"
-#include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Metadata.h"
@@ -51,9 +50,9 @@ static cl::opt<bool> EnableScopedNoAlias("enable-scoped-noalias",
                                          cl::init(true));
 
 namespace {
-/// AliasScopeNode - This is a simple wrapper around an MDNode which provides
-/// a higher-level interface by hiding the details of how alias analysis
-/// information is encoded in its operands.
+/// This is a simple wrapper around an MDNode which provides a higher-level
+/// interface by hiding the details of how alias analysis information is encoded
+/// in its operands.
 class AliasScopeNode {
   const MDNode *Node;
 
@@ -61,10 +60,10 @@ public:
   AliasScopeNode() : Node(nullptr) {}
   explicit AliasScopeNode(const MDNode *N) : Node(N) {}
 
-  /// getNode - Get the MDNode for this AliasScopeNode.
+  /// Get the MDNode for this AliasScopeNode.
   const MDNode *getNode() const { return Node; }
 
-  /// getDomain - Get the MDNode for this AliasScopeNode's domain.
+  /// Get the MDNode for this AliasScopeNode's domain.
   const MDNode *getDomain() const {
     if (Node->getNumOperands() < 2)
       return nullptr;
@@ -131,8 +130,8 @@ ModRefInfo ScopedNoAliasAAResult::getModRefInfo(ImmutableCallSite CS1,
 void ScopedNoAliasAAResult::collectMDInDomain(
     const MDNode *List, const MDNode *Domain,
     SmallPtrSetImpl<const MDNode *> &Nodes) const {
-  for (unsigned i = 0, ie = List->getNumOperands(); i != ie; ++i)
-    if (const MDNode *MD = dyn_cast<MDNode>(List->getOperand(i)))
+  for (const MDOperand &MDOp : List->operands())
+    if (const MDNode *MD = dyn_cast<MDNode>(MDOp))
       if (AliasScopeNode(MD).getDomain() == Domain)
         Nodes.insert(MD);
 }
@@ -144,8 +143,8 @@ bool ScopedNoAliasAAResult::mayAliasInScopes(const MDNode *Scopes,
 
   // Collect the set of scope domains relevant to the noalias scopes.
   SmallPtrSet<const MDNode *, 16> Domains;
-  for (unsigned i = 0, ie = NoAlias->getNumOperands(); i != ie; ++i)
-    if (const MDNode *NAMD = dyn_cast<MDNode>(NoAlias->getOperand(i)))
+  for (const MDOperand &MDOp : NoAlias->operands())
+    if (const MDNode *NAMD = dyn_cast<MDNode>(MDOp))
       if (const MDNode *Domain = AliasScopeNode(NAMD).getDomain())
         Domains.insert(Domain);
 
@@ -173,19 +172,16 @@ bool ScopedNoAliasAAResult::mayAliasInScopes(const MDNode *Scopes,
   return true;
 }
 
-ScopedNoAliasAAResult ScopedNoAliasAA::run(Function &F,
-                                           AnalysisManager<Function> *AM) {
-  return ScopedNoAliasAAResult(AM->getResult<TargetLibraryAnalysis>(F));
-}
-
 char ScopedNoAliasAA::PassID;
 
+ScopedNoAliasAAResult ScopedNoAliasAA::run(Function &F,
+                                           AnalysisManager<Function> &AM) {
+  return ScopedNoAliasAAResult();
+}
+
 char ScopedNoAliasAAWrapperPass::ID = 0;
-INITIALIZE_PASS_BEGIN(ScopedNoAliasAAWrapperPass, "scoped-noalias",
-                      "Scoped NoAlias Alias Analysis", false, true)
-INITIALIZE_PASS_DEPENDENCY(TargetLibraryInfoWrapperPass)
-INITIALIZE_PASS_END(ScopedNoAliasAAWrapperPass, "scoped-noalias",
-                    "Scoped NoAlias Alias Analysis", false, true)
+INITIALIZE_PASS(ScopedNoAliasAAWrapperPass, "scoped-noalias",
+                "Scoped NoAlias Alias Analysis", false, true)
 
 ImmutablePass *llvm::createScopedNoAliasAAWrapperPass() {
   return new ScopedNoAliasAAWrapperPass();
@@ -196,8 +192,7 @@ ScopedNoAliasAAWrapperPass::ScopedNoAliasAAWrapperPass() : ImmutablePass(ID) {
 }
 
 bool ScopedNoAliasAAWrapperPass::doInitialization(Module &M) {
-  Result.reset(new ScopedNoAliasAAResult(
-      getAnalysis<TargetLibraryInfoWrapperPass>().getTLI()));
+  Result.reset(new ScopedNoAliasAAResult());
   return false;
 }
 
@@ -208,5 +203,4 @@ bool ScopedNoAliasAAWrapperPass::doFinalization(Module &M) {
 
 void ScopedNoAliasAAWrapperPass::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.setPreservesAll();
-  AU.addRequired<TargetLibraryInfoWrapperPass>();
 }
