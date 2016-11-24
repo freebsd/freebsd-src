@@ -299,6 +299,8 @@ struct secasvar;
 struct sockopt;
 union sockaddr_union;
 
+int ipsec_if_input(struct mbuf *, struct secasvar *, uint32_t);
+
 struct ipsecrequest *ipsec_newisr(void);
 void ipsec_delisr(struct ipsecrequest *);
 struct secpolicy *ipsec4_checkpolicy(const struct mbuf *, struct inpcb *,

@@ -506,13 +506,18 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
 	if ((error = ipsec_run_hhooks(&ctx, HHOOK_TYPE_IPSEC_IN)) != 0)
 		goto bad;
 
-	error = netisr_queue_src(isr_prot, (uintptr_t)sav->spi, m);
-	key_freesav(&sav);
-	if (error) {
-		IPSEC_ISTAT(sproto, qfull);
-		DPRINTF(("%s: queue full; proto %u packet dropped\n",
-			__func__, sproto));
+	/* Handle virtual tunneling interfaces */
+	if (saidx->mode == IPSEC_MODE_TUNNEL)
+		error = ipsec_if_input(m, sav, af);
+	if (error == 0) {
+		error = netisr_queue_src(isr_prot, (uintptr_t)sav->spi, m);
+		if (error) {
+			IPSEC_ISTAT(sproto, qfull);
+			DPRINTF(("%s: queue full; proto %u packet dropped\n",
+			    __func__, sproto));
+		}
 	}
+	key_freesav(&sav);
 	return (error);
 bad:
 	key_freesav(&sav);
@@ -762,13 +767,19 @@ ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
 			error = EPFNOSUPPORT;
 			goto bad;
 		}
-		error = netisr_queue_src(isr_prot, (uintptr_t)sav->spi, m);
-		key_freesav(&sav);
-		if (error) {
-			IPSEC_ISTAT(sproto, qfull);
-			DPRINTF(("%s: queue full; proto %u packet dropped\n",
-			    __func__, sproto));
+		/* Handle virtual tunneling interfaces */
+		if (saidx->mode == IPSEC_MODE_TUNNEL)
+			error = ipsec_if_input(m, sav, af);
+		if (error == 0) {
+			error = netisr_queue_src(isr_prot,
+			    (uintptr_t)sav->spi, m);
+			if (error) {
+				IPSEC_ISTAT(sproto, qfull);
+				DPRINTF(("%s: queue full; proto %u packet"
+				    " dropped\n", __func__, sproto));
+			}
 		}
+		key_freesav(&sav);
 		return (error);
 	}
 	/*

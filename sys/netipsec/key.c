@@ -77,13 +77,6 @@
 #include <netinet6/ip6_var.h>
 #endif /* INET6 */
 
-#if defined(INET) || defined(INET6)
-#include <netinet/in_pcb.h>
-#endif
-#ifdef INET6
-#include <netinet6/in6_pcb.h>
-#endif /* INET6 */
-
 #include <net/pfkeyv2.h>
 #include <netipsec/keydb.h>
 #include <netipsec/key.h>
@@ -150,8 +143,10 @@ static VNET_DEFINE(uint32_t, sp_genid) = 0;
 TAILQ_HEAD(secpolicy_queue, secpolicy);
 LIST_HEAD(secpolicy_list, secpolicy);
 static VNET_DEFINE(struct secpolicy_queue, sptree[IPSEC_DIR_MAX]);
+static VNET_DEFINE(struct secpolicy_queue, sptree_ifnet[IPSEC_DIR_MAX]);
 static struct rmlock sptree_lock;
 #define	V_sptree		VNET(sptree)
+#define	V_sptree_ifnet		VNET(sptree_ifnet)
 #define	SPTREE_LOCK_INIT()      rm_init(&sptree_lock, "sptree")
 #define	SPTREE_LOCK_DESTROY()   rm_destroy(&sptree_lock)
 #define	SPTREE_RLOCK_TRACKER    struct rm_priotracker sptree_tracker
@@ -1011,6 +1006,93 @@ done:
 	LIST_INSERT_HEAD(SPHASH_HASH(newsp->id), newsp, idhash);
 	newsp->state = IPSEC_SPSTATE_ALIVE;
 	V_sp_genid++;
+}
+
+/*
+ * Insert a bunch of VTI secpolicies into the SPDB.
+ * We keep VTI policies in the separate list due to following reasons:
+ * 1) they should be immutable to user's or some deamon's attempts to
+ *    delete. The only way delete such policies - destroy or unconfigure
+ *    corresponding virtual inteface.
+ * 2) such policies have traffic selector that matches all traffic per
+ *    address family.
+ * Since all VTI policies have the same priority, we don't care about
+ * policies order.
+ */
+int
+key_register_ifnet(struct secpolicy **spp, u_int count)
+{
+	struct mbuf *m;
+	u_int i;
+
+	SPTREE_WLOCK();
+	/*
+	 * First of try to acquire id for each SP.
+	 */
+	for (i = 0; i < count; i++) {
+		IPSEC_ASSERT(spp[i]->spidx.dir == IPSEC_DIR_INBOUND ||
+		    spp[i]->spidx.dir == IPSEC_DIR_OUTBOUND,
+		    ("invalid direction %u", spp[i]->spidx.dir));
+
+		if ((spp[i]->id = key_getnewspid()) == 0) {
+			SPTREE_WUNLOCK();
+			return (EAGAIN);
+		}
+	}
+	for (i = 0; i < count; i++) {
+		TAILQ_INSERT_TAIL(&V_sptree_ifnet[spp[i]->spidx.dir],
+		    spp[i], chain);
+		/*
+		 * NOTE: despite the fact that we keep VTI SP in the
+		 * separate list, SPHASH contains policies from both
+		 * sources. Thus SADB_X_SPDGET will correctly return
+		 * SP by id, because it uses SPHASH for lookups.
+		 */
+		LIST_INSERT_HEAD(SPHASH_HASH(spp[i]->id), spp[i], idhash);
+		spp[i]->state = IPSEC_SPSTATE_IFNET;
+		/* Acquire extra reference to send SPDADD message */
+		SP_ADDREF(spp[i]);
+	}
+	SPTREE_WUNLOCK();
+	/*
+	 * Notify user processes about new SP.
+	 */
+	for (i = 0; i < count; i++) {
+		m = key_setdumpsp(spp[i], SADB_X_SPDADD, 0, 0);
+		key_freesp(&spp[i]);
+		if (m != NULL)
+			key_sendup_mbuf(NULL, m, KEY_SENDUP_ALL);
+	}
+	return (0);
+}
+
+void
+key_unregister_ifnet(struct secpolicy **spp, u_int count)
+{
+	struct mbuf *m;
+	u_int i;
+
+	SPTREE_WLOCK();
+	for (i = 0; i < count; i++) {
+		IPSEC_ASSERT(spp[i]->spidx.dir == IPSEC_DIR_INBOUND ||
+		    spp[i]->spidx.dir == IPSEC_DIR_OUTBOUND,
+		    ("invalid direction %u", spp[i]->spidx.dir));
+
+		if (spp[i]->state != IPSEC_SPSTATE_IFNET)
+			continue;
+		spp[i]->state = IPSEC_SPSTATE_DEAD;
+		TAILQ_REMOVE(&V_sptree_ifnet[spp[i]->spidx.dir],
+		    spp[i], chain);
+		LIST_REMOVE(spp[i], idhash);
+	}
+	SPTREE_WUNLOCK();
+
+	for (i = 0; i < count; i++) {
+		m = key_setdumpsp(spp[i], SADB_X_SPDDELETE, 0, 0);
+		key_freesp(&spp[i]);
+		if (m != NULL)
+			key_sendup_mbuf(NULL, m, KEY_SENDUP_ALL);
+	}
 }
 
 /*
@@ -2191,9 +2273,9 @@ key_spddump(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 {
 	SPTREE_RLOCK_TRACKER;
 	struct secpolicy *sp;
+	struct mbuf *n;
 	int cnt;
 	u_int dir;
-	struct mbuf *n;
 
 	IPSEC_ASSERT(so != NULL, ("null socket"));
 	IPSEC_ASSERT(m != NULL, ("null mbuf"));
@@ -2205,6 +2287,9 @@ key_spddump(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 	SPTREE_RLOCK();
 	for (dir = 0; dir < IPSEC_DIR_MAX; dir++) {
 		TAILQ_FOREACH(sp, &V_sptree[dir], chain) {
+			cnt++;
+		}
+		TAILQ_FOREACH(sp, &V_sptree_ifnet[dir], chain) {
 			cnt++;
 		}
 	}
@@ -2223,11 +2308,19 @@ key_spddump(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 			if (n)
 				key_sendup_mbuf(so, n, KEY_SENDUP_ONE);
 		}
+		TAILQ_FOREACH(sp, &V_sptree_ifnet[dir], chain) {
+			--cnt;
+			n = key_setdumpsp(sp, SADB_X_SPDDUMP, cnt,
+			    mhp->msg->sadb_msg_pid);
+
+			if (n)
+				key_sendup_mbuf(so, n, KEY_SENDUP_ONE);
+		}
 	}
 
 	SPTREE_RUNLOCK();
 	m_freem(m);
-	return 0;
+	return (0);
 }
 
 static struct mbuf *
@@ -7295,8 +7388,10 @@ key_init(void)
 {
 	int i;
 
-	for (i = 0; i < IPSEC_DIR_MAX; i++)
+	for (i = 0; i < IPSEC_DIR_MAX; i++) {
 		TAILQ_INIT(&V_sptree[i]);
+		TAILQ_INIT(&V_sptree_ifnet[i]);
+	}
 
 	V_key_lft_zone = uma_zcreate("IPsec SA lft_c",
 	    sizeof(uint64_t) * 2, NULL, NULL, NULL, NULL,
@@ -7360,6 +7455,7 @@ key_destroy(void)
 	SPTREE_WLOCK();
 	for (i = 0; i < IPSEC_DIR_MAX; i++) {
 		TAILQ_CONCAT(&drainq, &V_sptree[i], chain);
+		TAILQ_CONCAT(&drainq, &V_sptree_ifnet[i], chain);
 	}
 	SPTREE_WUNLOCK();
 	sp = TAILQ_FIRST(&drainq);

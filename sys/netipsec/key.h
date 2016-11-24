@@ -67,6 +67,9 @@ int key_sockaddrcmp(const struct sockaddr *, const struct sockaddr *, int);
 int key_sockaddrcmp_withmask(const struct sockaddr *, const struct sockaddr *,
     size_t);
 
+int key_register_ifnet(struct secpolicy **, u_int);
+void key_unregister_ifnet(struct secpolicy **, u_int);
+
 extern u_long key_random(void);
 extern void key_randomfill(void *, size_t);
 extern void key_freereg(struct socket *);
