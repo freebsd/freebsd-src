@@ -1000,8 +1000,9 @@
 
       &hwlist.rsu;
 
-      <para>Realtek RTL8188CE based PCIe IEEE 802.11b/g/n wireless network
-	adapters (&man.rtwn.4; driver)</para>
+      <para>Realtek RTL8192C, RTL8188E, RTL8812A and RTL8821A based
+	PCIe IEEE 802.11b/g/n wireless network adapters (&man.rtwn.4;
+	driver)</para>
 
       &hwlist.rum;
 
