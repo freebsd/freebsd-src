@@ -116,6 +116,7 @@ struct vmbus_chan_br {
 };
 
 struct vmbus_channel;
+struct vmbus_xact_ctx;
 struct hyperv_guid;
 struct task;
 struct taskqueue;
@@ -138,6 +139,9 @@ void		vmbus_chan_close(struct vmbus_channel *chan);
 void		vmbus_chan_intr_drain(struct vmbus_channel *chan);
 void		vmbus_chan_run_task(struct vmbus_channel *chan,
 		    struct task *task);
+void		vmbus_chan_set_orphan(struct vmbus_channel *chan,
+		    struct vmbus_xact_ctx *);
+void		vmbus_chan_unset_orphan(struct vmbus_channel *chan);
 
 int		vmbus_chan_gpadl_connect(struct vmbus_channel *chan,
 		    bus_addr_t paddr, int size, uint32_t *gpadl);
