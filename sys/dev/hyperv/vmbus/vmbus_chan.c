@@ -65,6 +65,7 @@ static void			vmbus_chan_cpu_default(struct vmbus_channel *);
 static int			vmbus_chan_release(struct vmbus_channel *);
 static void			vmbus_chan_set_chmap(struct vmbus_channel *);
 static void			vmbus_chan_clear_chmap(struct vmbus_channel *);
+static void			vmbus_chan_detach(struct vmbus_channel *);
 
 static void			vmbus_chan_ins_prilist(struct vmbus_softc *,
 				    struct vmbus_channel *);
@@ -628,6 +629,32 @@ vmbus_chan_gpadl_disconnect(struct vmbus_channel *chan, uint32_t gpadl)
 }
 
 static void
+vmbus_chan_detach(struct vmbus_channel *chan)
+{
+	int refs;
+
+	KASSERT(chan->ch_refs > 0, ("chan%u: invalid refcnt %d",
+	    chan->ch_id, chan->ch_refs));
+	refs = atomic_fetchadd_int(&chan->ch_refs, -1);
+#ifdef INVARIANTS
+	if (VMBUS_CHAN_ISPRIMARY(chan)) {
+		KASSERT(refs == 1, ("chan%u: invalid refcnt %d for prichan",
+		    chan->ch_id, refs + 1));
+	}
+#endif
+	if (refs == 1) {
+		/*
+		 * Detach the target channel.
+		 */
+		if (bootverbose) {
+			vmbus_chan_printf(chan, "chan%u detached\n",
+			    chan->ch_id);
+		}
+		taskqueue_enqueue(chan->ch_mgmt_tq, &chan->ch_detach_task);
+	}
+}
+
+static void
 vmbus_chan_clrchmap_task(void *xchan, int pending __unused)
 {
 	struct vmbus_channel *chan = xchan;
@@ -752,8 +779,15 @@ vmbus_chan_close(struct vmbus_channel *chan)
 		int i;
 
 		subchan = vmbus_subchan_get(chan, subchan_cnt);
-		for (i = 0; i < subchan_cnt; ++i)
+		for (i = 0; i < subchan_cnt; ++i) {
 			vmbus_chan_close_internal(subchan[i]);
+			/*
+			 * This sub-channel is referenced, when it is
+			 * linked to the primary channel; drop that
+			 * reference now.
+			 */
+			vmbus_chan_detach(subchan[i]);
+		}
 		vmbus_subchan_rel(subchan, subchan_cnt);
 	}
 
@@ -1114,6 +1148,7 @@ vmbus_chan_alloc(struct vmbus_softc *sc)
 		return NULL;
 	}
 
+	chan->ch_refs = 1;
 	chan->ch_vmbus = sc;
 	mtx_init(&chan->ch_subchan_lock, "vmbus subchan", NULL, MTX_DEF);
 	sx_init(&chan->ch_orphan_lock, "vmbus chorphan");
@@ -1137,6 +1172,8 @@ vmbus_chan_free(struct vmbus_channel *chan)
 	     VMBUS_CHAN_ST_ONLIST)) == 0, ("free busy channel"));
 	KASSERT(chan->ch_orphan_xact == NULL,
 	    ("still has orphan xact installed"));
+	KASSERT(chan->ch_refs == 0, ("chan%u: invalid refcnt %d",
+	    chan->ch_id, chan->ch_refs));
 
 	hyperv_dmamem_free(&chan->ch_monprm_dma, chan->ch_monprm);
 	mtx_destroy(&chan->ch_subchan_lock);
@@ -1212,6 +1249,14 @@ vmbus_chan_add(struct vmbus_channel *newchan)
 	KASSERT(!VMBUS_CHAN_ISPRIMARY(newchan),
 	    ("new channel is not sub-channel"));
 	KASSERT(prichan != NULL, ("no primary channel"));
+
+	/*
+	 * Reference count this sub-channel; it will be dereferenced
+	 * when this sub-channel is closed.
+	 */
+	KASSERT(newchan->ch_refs == 1, ("chan%u: invalid refcnt %d",
+	    newchan->ch_id, newchan->ch_refs));
+	atomic_add_int(&newchan->ch_refs, 1);
 
 	newchan->ch_prichan = prichan;
 	newchan->ch_dev = prichan->ch_dev;
@@ -1359,6 +1404,7 @@ vmbus_chan_msgproc_choffer(struct vmbus_softc *sc,
 	if (error) {
 		device_printf(sc->vmbus_dev, "add chan%u failed: %d\n",
 		    chan->ch_id, error);
+		atomic_subtract_int(&chan->ch_refs, 1);
 		vmbus_chan_free(chan);
 		return;
 	}
@@ -1426,9 +1472,7 @@ vmbus_chan_msgproc_chrescind(struct vmbus_softc *sc,
 
 	if (bootverbose)
 		vmbus_chan_printf(chan, "chan%u revoked\n", note->chm_chanid);
-
-	/* Detach the target channel. */
-	taskqueue_enqueue(chan->ch_mgmt_tq, &chan->ch_detach_task);
+	vmbus_chan_detach(chan);
 }
 
 static int
