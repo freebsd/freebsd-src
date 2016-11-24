@@ -48,6 +48,12 @@ main() {
 			pkgdeps="runtime"
 			_descr="$(make -C ${srctree}/release/packages -f Makefile.package -V ${outname}_DESCR)"
 			;;
+		jail_*)
+			outname="${origname}"
+			uclfile="${outname##*}${uclfile}"
+			pkgdeps="runtime"
+			_descr="$(make -C ${srctree}/release/packages -f Makefile.package -V ${outname}_DESCR)"
+			;;
 		*_lib32_development)
 			outname="${outname%%_lib32_development}"
 			_descr="32-bit Libraries, Development Files"

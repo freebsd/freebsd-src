@@ -75,26 +75,72 @@ static pci_vendor_info_t bnxt_vendor_info_array[] =
 	"Broadcom BCM57302 NetXtreme-C 10Gb/25Gb Ethernet Controller"),
     PVID(BROADCOM_VENDOR_ID, BCM57304,
 	"Broadcom BCM57304 NetXtreme-C 10Gb/25Gb/40Gb/50Gb Ethernet Controller"),
+    PVID(BROADCOM_VENDOR_ID, BCM57311,
+	"Broadcom BCM57311 NetXtreme-C 10Gb Ethernet"),
+    PVID(BROADCOM_VENDOR_ID, BCM57312,
+	"Broadcom BCM57312 NetXtreme-C 10Gb/25Gb Ethernet"),
+    PVID(BROADCOM_VENDOR_ID, BCM57314,
+	"Broadcom BCM57314 NetXtreme-C 10Gb/25Gb/40Gb/50Gb Ethernet"),
     PVID(BROADCOM_VENDOR_ID, BCM57402,
 	"Broadcom BCM57402 NetXtreme-E 10Gb Ethernet Controller"),
-    PVID(BROADCOM_VENDOR_ID, BCM57404,
-	"Broadcom BCM57404 NetXtreme-E 10Gb/25Gb Ethernet Controller"),
-    PVID(BROADCOM_VENDOR_ID, BCM57406,
-	"Broadcom BCM57406 NetXtreme-E 10GBase-T Ethernet Controller"),
     PVID(BROADCOM_VENDOR_ID, BCM57402_NPAR,
 	"Broadcom BCM57402 NetXtreme-E Partition"),
-    PVID(BROADCOM_VENDOR_ID, BCM57407,
-	"Broadcom BCM57407 NetXtreme-E 10GBase-T Ethernet Controller"),
+    PVID(BROADCOM_VENDOR_ID, BCM57404,
+	"Broadcom BCM57404 NetXtreme-E 10Gb/25Gb Ethernet Controller"),
     PVID(BROADCOM_VENDOR_ID, BCM57404_NPAR,
 	"Broadcom BCM57404 NetXtreme-E Partition"),
+    PVID(BROADCOM_VENDOR_ID, BCM57406,
+	"Broadcom BCM57406 NetXtreme-E 10GBase-T Ethernet Controller"),
     PVID(BROADCOM_VENDOR_ID, BCM57406_NPAR,
 	"Broadcom BCM57406 NetXtreme-E Partition"),
+    PVID(BROADCOM_VENDOR_ID, BCM57407,
+	"Broadcom BCM57407 NetXtreme-E 10GBase-T Ethernet Controller"),
+    PVID(BROADCOM_VENDOR_ID, BCM57407_NPAR,
+	"Broadcom BCM57407 NetXtreme-E Ethernet Partition"),
     PVID(BROADCOM_VENDOR_ID, BCM57407_SFP,
 	"Broadcom BCM57407 NetXtreme-E 25Gb Ethernet Controller"),
-    PVID(BROADCOM_VENDOR_ID, BCM57304_VF,
-	"Broadcom BCM57304 NetXtreme-C Virtual Function"),
-    PVID(BROADCOM_VENDOR_ID, BCM57404_VF,
-	"Broadcom BCM57404 NetXtreme-E Virtual Function"),
+    PVID(BROADCOM_VENDOR_ID, BCM57412,
+	"Broadcom BCM57412 NetXtreme-E 10Gb Ethernet"),
+    PVID(BROADCOM_VENDOR_ID, BCM57412_NPAR1,
+	"Broadcom BCM57412 NetXtreme-E Ethernet Partition"),
+    PVID(BROADCOM_VENDOR_ID, BCM57412_NPAR2,
+	"Broadcom BCM57412 NetXtreme-E Ethernet Partition"),
+    PVID(BROADCOM_VENDOR_ID, BCM57414,
+	"Broadcom BCM57414 NetXtreme-E 10Gb/25Gb Ethernet"),
+    PVID(BROADCOM_VENDOR_ID, BCM57414_NPAR1,
+	"Broadcom BCM57414 NetXtreme-E Ethernet Partition"),
+    PVID(BROADCOM_VENDOR_ID, BCM57414_NPAR2,
+	"Broadcom BCM57414 NetXtreme-E Ethernet Partition"),
+    PVID(BROADCOM_VENDOR_ID, BCM57416,
+	"Broadcom BCM57416 NetXtreme-E 10GBase-T Ethernet"),
+    PVID(BROADCOM_VENDOR_ID, BCM57416_NPAR1,
+	"Broadcom BCM57416 NetXtreme-E Ethernet Partition"),
+    PVID(BROADCOM_VENDOR_ID, BCM57416_NPAR2,
+	"Broadcom BCM57416 NetXtreme-E Ethernet Partition"),
+    PVID(BROADCOM_VENDOR_ID, BCM57416_SFP,
+	"Broadcom BCM57416 NetXtreme-E 10Gb Ethernet"),
+    PVID(BROADCOM_VENDOR_ID, BCM57417,
+	"Broadcom BCM57417 NetXtreme-E 10GBase-T Ethernet"),
+    PVID(BROADCOM_VENDOR_ID, BCM57417_NPAR1,
+	"Broadcom BCM57417 NetXtreme-E Ethernet Partition"),
+    PVID(BROADCOM_VENDOR_ID, BCM57417_NPAR2,
+	"Broadcom BCM57417 NetXtreme-E Ethernet Partition"),
+    PVID(BROADCOM_VENDOR_ID, BCM57417_SFP,
+	"Broadcom BCM57417 NetXtreme-E 10Gb/25Gb Ethernet"),
+    PVID(BROADCOM_VENDOR_ID, BCM58700,
+	"Broadcom BCM58700 Nitro 1Gb/2.5Gb/10Gb Ethernet"),
+    PVID(BROADCOM_VENDOR_ID, NETXTREME_C_VF1,
+	"Broadcom NetXtreme-C Ethernet Virtual Function"),
+    PVID(BROADCOM_VENDOR_ID, NETXTREME_C_VF2,
+	"Broadcom NetXtreme-C Ethernet Virtual Function"),
+    PVID(BROADCOM_VENDOR_ID, NETXTREME_C_VF3,
+	"Broadcom NetXtreme-C Ethernet Virtual Function"),
+    PVID(BROADCOM_VENDOR_ID, NETXTREME_E_VF1,
+	"Broadcom NetXtreme-E Ethernet Virtual Function"),
+    PVID(BROADCOM_VENDOR_ID, NETXTREME_E_VF2,
+	"Broadcom NetXtreme-E Ethernet Virtual Function"),
+    PVID(BROADCOM_VENDOR_ID, NETXTREME_E_VF3,
+	"Broadcom NetXtreme-E Ethernet Virtual Function"),
     /* required last entry */
 
     PVID_END
@@ -227,7 +273,7 @@ static driver_t bnxt_iflib_driver = {
  * iflib shared context
  */
 
-char bnxt_driver_version[] = "https://github.com/Broadcom/freebsd-nxt/commits/bnxt-dev";
+char bnxt_driver_version[] = "FreeBSD base";
 extern struct if_txrx bnxt_txrx;
 static struct if_shared_ctx bnxt_sctx_init = {
 	.isc_magic = IFLIB_MAGIC,
@@ -540,14 +586,26 @@ bnxt_attach_pre(if_ctx_t ctx)
 	softc->sctx = iflib_get_sctx(ctx);
 	scctx = softc->scctx;
 
+	/* TODO: Better way of detecting NPAR/VF is needed */
 	switch (softc->sctx->isc_vendor_info->pvi_device_id) {
 	case BCM57402_NPAR:
 	case BCM57404_NPAR:
 	case BCM57406_NPAR:
+	case BCM57407_NPAR:
+	case BCM57412_NPAR1:
+	case BCM57412_NPAR2:
+	case BCM57414_NPAR1:
+	case BCM57414_NPAR2:
+	case BCM57416_NPAR1:
+	case BCM57416_NPAR2:
 		softc->flags |= BNXT_FLAG_NPAR;
 		break;
-	case BCM57304_VF:
-	case BCM57404_VF:
+	case NETXTREME_C_VF1:
+	case NETXTREME_C_VF2:
+	case NETXTREME_C_VF3:
+	case NETXTREME_E_VF1:
+	case NETXTREME_E_VF2:
+	case NETXTREME_E_VF3:
 		softc->flags |= BNXT_FLAG_VF;
 		break;
 	}
@@ -1912,6 +1970,7 @@ bnxt_add_media_types(struct bnxt_softc *softc)
 		if (supported & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_SPEEDS_10GB)
 			ifmedia_add(softc->media, IFM_ETHER | IFM_10G_KR, 0,
 			    NULL);
+		break;
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASELR:
 		if (supported & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_SPEEDS_100GB)
 			ifmedia_add(softc->media, IFM_ETHER | IFM_100G_LR4, 0,

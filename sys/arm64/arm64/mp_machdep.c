@@ -87,8 +87,6 @@ static struct intr_ipi *intr_ipi_lookup(u_int);
 static void intr_pic_ipi_setup(u_int, const char *, intr_ipi_handler_t *,
     void *);
 
-boolean_t ofw_cpu_reg(phandle_t node, u_int, cell_t *);
-
 extern struct pcpu __pcpu[];
 
 static device_identify_t arm64_cpu_identify;
@@ -513,6 +511,7 @@ cpu_mp_announce(void)
 {
 }
 
+#ifdef FDT
 static boolean_t
 cpu_find_cpu0_fdt(u_int id, phandle_t node, u_int addr_size, pcell_t *reg)
 {
@@ -533,6 +532,7 @@ cpu_find_cpu0_fdt(u_int id, phandle_t node, u_int addr_size, pcell_t *reg)
 
 	return (TRUE);
 }
+#endif
 
 void
 cpu_mp_setmaxid(void)

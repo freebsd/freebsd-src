@@ -130,6 +130,17 @@ OLD_FILES+=usr/lib/clang/3.8.0/lib/freebsd/libclang_rt.ubsan_standalone_cxx-x86_
 OLD_DIRS+=usr/lib/clang/3.8.0/lib/freebsd
 OLD_DIRS+=usr/lib/clang/3.8.0/lib
 OLD_DIRS+=usr/lib/clang/3.8.0
+# 20161121: Hyper-V manuals only apply to amd64 and i386.
+.if ${TARGET_ARCH} != "amd64" && ${TARGET_ARCH} != "i386"
+OLD_FILES+=usr/share/man/man4/hv_kvp.4.gz
+OLD_FILES+=usr/share/man/man4/hv_netvsc.4.gz
+OLD_FILES+=usr/share/man/man4/hv_storvsc.4.gz
+OLD_FILES+=usr/share/man/man4/hv_utils.4.gz
+OLD_FILES+=usr/share/man/man4/hv_vmbus.4.gz
+OLD_FILES+=usr/share/man/man4/hv_vss.4.gz
+.endif
+# 20161118: Remove hv_ata_pci_disengage(4)
+OLD_FILES+=usr/share/man/man4/hv_ata_pci_disengage.4.gz
 # 20161017: urtwn(4) was merged into rtwn(4)
 OLD_FILES+=usr/share/man/man4/urtwn.4.gz
 OLD_FILES+=usr/share/man/man4/urtwnfw.4.gz

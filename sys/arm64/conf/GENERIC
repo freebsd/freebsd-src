@@ -90,6 +90,7 @@ options 	MALLOC_DEBUG_MAXZONES=8	# Separate malloc(9) zones
 options 	SOC_ALLWINNER_A64
 options 	SOC_CAVM_THUNDERX
 options 	SOC_HISI_HI6220
+options 	SOC_BRCM_BCM2837
 
 # Annapurna Alpine drivers
 device		al_ccu			# Alpine Cache Coherency Unit

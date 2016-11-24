@@ -80,7 +80,7 @@
 .Fn cnvlist_take_nvlist_array "void *cookiep" "size_t *nitemsp"
 .Ft int
 .Fn cnvlist_take_descriptor "void *cookiep"
-.Ft "const int *'
+.Ft "const int *"
 .Fn cnvlist_take_descriptor_array "void *cookiep" "size_t *nitemsp"
 .\"
 .Ft void
@@ -189,11 +189,11 @@ nvlist_destroy(nvl);
 return (0);
 .Ed
 .Sh SEE ALSO
-.Xr nv 9 ,
 .Xr close 2 ,
-.Xr free 3
+.Xr free 3 ,
+.Xr nv 9
 .Sh AUTHORS
-.An -nosplit
 The
 .Nm cnv
 API was created during the Google Summer Of Code 2016 by
+.An Adam Starak .

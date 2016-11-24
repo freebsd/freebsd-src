@@ -114,17 +114,18 @@ struct r12a_rom {
 	uint16_t		pid_12a;
 	uint8_t			reserved5[3];
 	uint8_t			macaddr_12a[IEEE80211_ADDR_LEN];
-	uint8_t			reserved6[35];
+	uint8_t			reserved6[2];
+	uint8_t			string_12a[8];	/* "Realtek " */
+	uint8_t			reserved7[25];
 	uint16_t		vid_21a;
 	uint16_t		pid_21a;
-	uint8_t			reserved7[3];
+	uint8_t			reserved8[3];
 	uint8_t			macaddr_21a[IEEE80211_ADDR_LEN];
-	uint8_t			reserved8[2];
-	/* XXX check on RTL8812AU. */
-	uint8_t			string[8];	/* "Realtek " */
 	uint8_t			reserved9[2];
+	uint8_t			string_21a[8];	/* "Realtek " */
+	uint8_t			reserved10[2];
 	uint8_t			string_ven[23];	/* XXX variable length? */
-	uint8_t			reserved10[208];
+	uint8_t			reserved11[208];
 } __packed;
 
 _Static_assert(sizeof(struct r12a_rom) == R12A_EFUSE_MAP_LEN,

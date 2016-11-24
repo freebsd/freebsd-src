@@ -42,6 +42,7 @@ SUBDIR=	\
 	${_apm} \
 	${_arcmsr} \
 	${_arcnet} \
+	${_armv8crypto} \
 	${_asmc} \
 	ata \
 	ath \
@@ -62,6 +63,7 @@ SUBDIR=	\
 	bwi \
 	bwn \
 	bwn_pci \
+	${_bytgpio} \
 	cam \
 	${_canbepm} \
 	${_canbus} \
@@ -539,6 +541,7 @@ _cxgb=		cxgb
 .endif
 
 .if ${MACHINE_CPUARCH} == "aarch64"
+_armv8crypto=	armv8crypto
 _em=		em
 _igb=		igb
 .endif
@@ -549,6 +552,7 @@ _an=		an
 _aout=		aout
 _bktr=		bktr
 _bxe=		bxe
+_bytgpio=	bytgpio
 _cardbus=	cardbus
 _cbb=		cbb
 _cpuctl=	cpuctl

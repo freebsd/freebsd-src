@@ -2,10 +2,11 @@
 #
 # $FreeBSD$
 
+#NO_UNIVERSE
+
 include		"X1000"
 ident		CANNA
 
-options 	FDT
 options 	FDT_DTB_STATIC
 makeoptions	FDT_DTS_FILE=ingenic/canna.dts
 
