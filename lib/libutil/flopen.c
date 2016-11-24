@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007 Dag-Erling Coïdan Smørgrav
+ * Copyright (c) 2007-2009 Dag-Erling Coïdan Smørgrav
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,6 +37,14 @@ __FBSDID("$FreeBSD$");
 
 #include <libutil.h>
 
+/*
+ * Reliably open and lock a file.
+ *
+ * DO NOT, UNDER PAIN OF DEATH, modify this code without first reading the
+ * revision history and discussing your changes with <des@freebsd.org>.
+ * Don't be fooled by the code's apparent simplicity; there would be no
+ * need for this function if it was as easy to get right as you think.
+ */
 int
 flopen(const char *path, int flags, ...)
 {
@@ -100,6 +108,14 @@ flopen(const char *path, int flags, ...)
 			errno = serrno;
 			return (-1);
 		}
+#ifdef DONT_EVEN_THINK_ABOUT_IT
+		if (fcntl(fd, F_SETFD, FD_CLOEXEC) != 0) {
+			serrno = errno;
+			(void)close(fd);
+			errno = serrno;
+			return (-1);
+		}
+#endif
 		return (fd);
 	}
 }
