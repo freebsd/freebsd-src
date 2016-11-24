@@ -115,23 +115,6 @@ ip_ipsec_input(struct mbuf *m, int nxt)
 }
 
 /*
- * Compute the MTU for a forwarded packet that gets IPSEC encapsulated.
- * Called from ip_forward().
- * Returns MTU suggestion for ICMP needfrag reply.
- */
-int
-ip_ipsec_mtu(struct mbuf *m, int mtu)
-{
-	/*
-	 * If the packet is routed over IPsec tunnel, tell the
-	 * originator the tunnel MTU.
-	 *	tunnel MTU = if MTU - sizeof(IP) - ESP/AH hdrsiz
-	 * XXX quickhack!!!
-	 */
-	return (mtu - ipsec_hdrsiz(m, IPSEC_DIR_OUTBOUND, NULL));
-}
-
-/*
  * Called from ip_output().
  * 0 = continue processing packet
  * 1 = packet was consumed, stop processing

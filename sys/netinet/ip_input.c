@@ -78,6 +78,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/in_cksum.h>
 #include <netinet/ip_carp.h>
 #ifdef IPSEC
+#include <netipsec/ipsec.h>
+#include <netipsec/key.h>
 #include <netinet/ip_ipsec.h>
 #endif /* IPSEC */
 #include <netinet/in_rss.h>

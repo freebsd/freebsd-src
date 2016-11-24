@@ -124,6 +124,8 @@ VNET_DEFINE(int, ip4_ah_net_deflev) = IPSEC_LEVEL_USE;
 VNET_DEFINE(int, ip4_ipsec_ecn) = 0;
 VNET_DEFINE(int, ip4_esp_randpad) = -1;
 
+static VNET_DEFINE(int, check_policy_history) = 0;
+#define	V_check_policy_history	VNET(check_policy_history)
 static VNET_DEFINE(struct secpolicy, def_policy);
 #define	V_def_policy	VNET(def_policy)
 /*
@@ -1417,43 +1419,6 @@ ipsec_hdrsiz_inpcb(struct inpcb *inp)
 	return (sz);
 }
 
-/* 
- * This function is called from ipsec_hdrsiz_tcp(), ip_ipsec_mtu(),
- * disabled ip6_ipsec_mtu() and ip6_forward().
- */
-size_t
-ipsec_hdrsiz(const struct mbuf *m, u_int dir, struct inpcb *inp)
-{
-	struct secpolicy *sp;
-	int error;
-	size_t size;
-
-	if (!key_havesp(dir))
-		return 0;
-
-	IPSEC_ASSERT(m != NULL, ("null mbuf"));
-
-	/* Get SP for this packet. */
-	if (inp == NULL)
-		sp = ipsec_getpolicybyaddr(m, dir, &error);
-	else
-		sp = ipsec_getpolicybysock(m, dir, inp, &error);
-
-	if (sp != NULL) {
-		size = ipsec_hdrsiz_internal(sp);
-		KEYDEBUG(KEYDEBUG_IPSEC_DATA,
-			printf("%s: size:%lu.\n", __func__,
-				(unsigned long)size));
-
-		KEY_FREESP(&sp);
-	} else {
-		size = 0;	/* XXX Should be panic?
-				 * -> No, we are called w/o knowing if
-				 *    IPsec processing is needed. */
-	}
-	return (size);
-}
-
 /*
  * Check the variable replay window.
  * ipsec_chkreplay() performs replay check before ICV verification.
@@ -1683,7 +1648,7 @@ vshiftl(unsigned char *bitmap, int nbit, int wsize)
 
 /* Return a printable string for the address. */
 char*
-ipsec_address(union sockaddr_union* sa, char *buf, socklen_t size)
+ipsec_address(const union sockaddr_union* sa, char *buf, socklen_t size)
 {
 
 	switch (sa->sa.sa_family) {

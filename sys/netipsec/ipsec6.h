@@ -60,13 +60,16 @@ VNET_DECLARE(int, ip6_ipsec_ecn);
 
 struct inpcb;
 extern int ipsec6_in_reject(const struct mbuf *, struct inpcb *);
+struct secpolicy *ipsec6_checkpolicy(const struct mbuf *,
+    struct inpcb *, int *);
 
 struct m_tag;
 extern int ipsec6_common_input(struct mbuf **mp, int *offp, int proto);
 extern int ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav,
 			int skip, int protoff);
 extern void esp6_ctlinput(int, struct sockaddr *, void *);
-extern int ipsec6_process_packet(struct mbuf *, struct ipsecrequest *);
+int ipsec6_process_packet(struct mbuf *, struct secpolicy *,
+    struct inpcb *);
 #endif /*_KERNEL*/
 
 #endif /*_NETIPSEC_IPSEC6_H_*/

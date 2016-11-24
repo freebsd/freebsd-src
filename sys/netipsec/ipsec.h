@@ -53,11 +53,6 @@
 
 #define	IPSEC_ASSERT(_c,_m) KASSERT(_c, _m)
 
-#define	IPSEC_IS_PRIVILEGED_SO(_so) \
-	((_so)->so_cred != NULL && \
-	 priv_check_cred((_so)->so_cred, PRIV_NETINET_IPSEC, 0) \
-	 == 0)
-
 /*
  * Security Policy Index
  * Ensure that both address families in the "src" and "dst" are same.
@@ -299,8 +294,10 @@ VNET_DECLARE(int, crypto_support);
 #define	DPRINTF(x)	do { if (V_ipsec_debug) printf x; } while (0)
 
 struct inpcb;
+struct m_tag;
 struct secasvar;
 struct sockopt;
+union sockaddr_union;
 
 struct ipsecrequest *ipsec_newisr(void);
 void ipsec_delisr(struct ipsecrequest *);
@@ -316,18 +313,15 @@ int ipsec_delete_pcbpolicy(struct inpcb *);
 int ipsec_copy_pcbpolicy(struct inpcb *, struct inpcb *);
 int ipsec_control_pcbpolicy(struct inpcb *, struct sockopt *);
 
-extern int ipsec_chkreplay(u_int32_t, struct secasvar *);
-extern int ipsec_updatereplay(u_int32_t, struct secasvar *);
+int ipsec_chkreplay(uint32_t, struct secasvar *);
+int ipsec_updatereplay(uint32_t, struct secasvar *);
+int ipsec_updateid(struct secasvar *, uint64_t *, uint64_t *);
 
-extern size_t ipsec_hdrsiz(const struct mbuf *, u_int, struct inpcb *);
-
-union sockaddr_union;
-extern char *ipsec_address(union sockaddr_union *, char *, socklen_t);
-extern char *ipsec_logsastr(struct secasvar *, char *, size_t);
+char *ipsec_address(const union sockaddr_union *, char *, socklen_t);
+char *ipsec_logsastr(struct secasvar *, char *, size_t);
 
 extern void ipsec_dumpmbuf(const struct mbuf *);
 
-struct m_tag;
 extern int ah4_input(struct mbuf **mp, int *offp, int proto);
 extern void ah4_ctlinput(int cmd, struct sockaddr *sa, void *);
 extern int esp4_input(struct mbuf **mp, int *offp, int proto);
@@ -336,8 +330,10 @@ extern int ipcomp4_input(struct mbuf **mp, int *offp, int proto);
 extern int ipsec_common_input(struct mbuf *m, int, int, int, int); 
 extern int ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav,
 			int skip, int protoff);
-extern int ipsec4_process_packet(struct mbuf *, struct ipsecrequest *);
-extern int ipsec_process_done(struct mbuf *, struct ipsecrequest *);
+extern int ipsec4_process_packet(struct mbuf *, struct secpolicy *,
+    struct inpcb *);
+extern int ipsec_process_done(struct mbuf *, struct secpolicy *,
+    struct secasvar *, u_int);
 
 extern	void m_checkalignment(const char* where, struct mbuf *m0,
 		int off, int len);

@@ -2587,7 +2587,7 @@ tcp_get_sav(struct mbuf *m, u_int direction)
 	}
 
 	/* Look up an SADB entry which matches the address of the peer. */
-	sav = KEY_ALLOCSA(&dst, IPPROTO_TCP, htonl(TCP_SIG_SPI));
+	sav = key_allocsa(&dst, IPPROTO_TCP, htonl(TCP_SIG_SPI));
 	if (sav == NULL) {
 		ipseclog((LOG_ERR, "%s: SADB lookup failed for %s\n", __func__,
 		    (ip->ip_v == IPVERSION) ? inet_ntoa(dst.sin.sin_addr) :
@@ -2708,7 +2708,7 @@ tcp_signature_do_compute(struct mbuf *m, int len, int optlen,
 		break;
 #endif
 	default:
-		KEY_FREESAV(&sav);
+		key_freesav(&sav);
 		return (-1);
 		/* NOTREACHED */
 		break;
@@ -2738,7 +2738,7 @@ tcp_signature_do_compute(struct mbuf *m, int len, int optlen,
 	MD5Final(buf, &ctx);
 
 	key_sa_recordxfer(sav, m);
-	KEY_FREESAV(&sav);
+	key_freesav(&sav);
 	return (0);
 }
 

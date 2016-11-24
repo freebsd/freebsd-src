@@ -548,9 +548,6 @@ static struct seckey *key_dup_keymsg(const struct sadb_key *, size_t,
     struct malloc_type *);
 static struct seclifetime *key_dup_lifemsg(const struct sadb_lifetime *src,
     struct malloc_type *);
-#ifdef INET6
-static int key_ismyaddr6(struct sockaddr_in6 *);
-#endif
 
 /* flags for key_cmpsaidx() */
 #define CMP_HEAD	1	/* protocol, addresses. */
@@ -1014,16 +1011,6 @@ done:
 	LIST_INSERT_HEAD(SPHASH_HASH(newsp->id), newsp, idhash);
 	newsp->state = IPSEC_SPSTATE_ALIVE;
 	V_sp_genid++;
-}
-
-void
-key_addrefsa(struct secasvar *sav, const char* where, int tag)
-{
-
-	IPSEC_ASSERT(sav != NULL, ("null sav"));
-	IPSEC_ASSERT(sav->refcnt > 0, ("refcount must exist"));
-
-	SAV_ADDREF(sav);
 }
 
 /*
@@ -2168,7 +2155,7 @@ key_spdflush(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 	sp = TAILQ_FIRST(&drainq);
 	while (sp != NULL) {
 		nextsp = TAILQ_NEXT(sp, chain);
-		KEY_FREESP(&sp);
+		key_freesp(&sp);
 		sp = nextsp;
 	}
 
@@ -2273,7 +2260,7 @@ key_setdumpsp(struct secpolicy *sp, u_int8_t type, u_int32_t seq,
 		goto fail;
 	m_cat(result, m);
 
-	m = key_sp2msg(sp);
+	m = key_sp2mbuf(sp);
 	if (!m)
 		goto fail;
 	m_cat(result, m);
@@ -2316,7 +2303,6 @@ fail:
 	m_freem(result);
 	return NULL;
 }
-
 /*
  * get PFKEY message length for security policy and request.
  */
@@ -3554,29 +3540,29 @@ key_setsadbxpolicy(u_int16_t type, u_int8_t dir, u_int32_t id, u_int32_t priorit
  * OUT: NULL no more memory
  */
 struct seckey *
-key_dup_keymsg(const struct sadb_key *src, u_int len,
+key_dup_keymsg(const struct sadb_key *src, size_t len,
     struct malloc_type *type)
 {
 	struct seckey *dst;
-	dst = (struct seckey *)malloc(sizeof(struct seckey), type, M_NOWAIT);
+
+	dst = malloc(sizeof(*dst), type, M_NOWAIT);
 	if (dst != NULL) {
 		dst->bits = src->sadb_key_bits;
-		dst->key_data = (char *)malloc(len, type, M_NOWAIT);
+		dst->key_data = malloc(len, type, M_NOWAIT);
 		if (dst->key_data != NULL) {
-			bcopy((const char *)src + sizeof(struct sadb_key), 
-			      dst->key_data, len);
+			bcopy((const char *)(src + 1), dst->key_data, len);
 		} else {
-			ipseclog((LOG_DEBUG, "%s: No more memory.\n", 
-				  __func__));
+			ipseclog((LOG_DEBUG, "%s: No more memory.\n",
+			    __func__));
 			free(dst, type);
 			dst = NULL;
 		}
 	} else {
-		ipseclog((LOG_DEBUG, "%s: No more memory.\n", 
-			  __func__));
+		ipseclog((LOG_DEBUG, "%s: No more memory.\n",
+		    __func__));
 
 	}
-	return dst;
+	return (dst);
 }
 
 /* Take a lifetime message (sadb_lifetime) passed in on a socket and
@@ -3602,50 +3588,6 @@ key_dup_lifemsg(const struct sadb_lifetime *src, struct malloc_type *type)
 	dst->usetime = src->sadb_lifetime_usetime;
 	return (dst);
 }
-
-/* compare my own address
- * OUT:	1: true, i.e. my address.
- *	0: false
- */
-int
-key_ismyaddr(struct sockaddr *sa)
-{
-
-	IPSEC_ASSERT(sa != NULL, ("null sockaddr"));
-	switch (sa->sa_family) {
-#ifdef INET
-	case AF_INET:
-		return (in_localip(satosin(sa)->sin_addr));
-#endif
-#ifdef INET6
-	case AF_INET6:
-		return key_ismyaddr6((struct sockaddr_in6 *)sa);
-#endif
-	}
-
-	return 0;
-}
-
-#ifdef INET6
-/*
- * compare my own address for IPv6.
- * 1: ours
- * 0: other
- */
-static int
-key_ismyaddr6(struct sockaddr_in6 *sin6)
-{
-	struct in6_addr in6;
-
-	if (!IN6_IS_SCOPE_LINKLOCAL(&sin6->sin6_addr))
-		return (in6_localip(&sin6->sin6_addr));
-
-	/* Convert address into kernel-internal form */
-	in6 = sin6->sin6_addr;
-	in6.s6_addr16[1] = htons(sin6->sin6_scope_id & 0xffff);
-	return (in6_localip(&in6));
-}
-#endif /*INET6*/
 
 /*
  * compare two secasindex structure.
@@ -3868,7 +3810,7 @@ key_cmpspidx_withmask(struct secpolicyindex *spidx0,
 #endif
 #define satosin6(s) ((const struct sockaddr_in6 *)s)
 /* returns 0 on match */
-static int
+int
 key_sockaddrcmp(const struct sockaddr *sa1, const struct sockaddr *sa2,
     int port)
 {
@@ -5962,32 +5904,6 @@ key_acquire(const struct secasindex *saidx, struct secpolicy *sp)
 	return error;
 }
 
-static struct secacq *
-key_newacq(const struct secasindex *saidx)
-{
-	struct secacq *newacq;
-
-	/* get new entry */
-	newacq = malloc(sizeof(struct secacq), M_IPSEC_SAQ, M_NOWAIT|M_ZERO);
-	if (newacq == NULL) {
-		ipseclog((LOG_DEBUG, "%s: No more memory.\n", __func__));
-		return NULL;
-	}
-
-	/* copy secindex */
-	bcopy(saidx, &newacq->saidx, sizeof(newacq->saidx));
-	newacq->seq = (V_acq_seq == ~0 ? 1 : ++V_acq_seq);
-	newacq->created = time_second;
-	newacq->count = 0;
-
-	/* add to acqtree */
-	ACQ_LOCK();
-	LIST_INSERT_HEAD(&V_acqtree, newacq, chain);
-	ACQ_UNLOCK();
-
-	return newacq;
-}
-
 static uint32_t
 key_newacq(const struct secasindex *saidx, int *perror)
 {
@@ -7449,7 +7365,7 @@ key_destroy(void)
 	sp = TAILQ_FIRST(&drainq);
 	while (sp != NULL) {
 		nextsp = TAILQ_NEXT(sp, chain);
-		KEY_FREESP(&sp);
+		key_freesp(&sp);
 		sp = nextsp;
 	}
 

@@ -46,7 +46,7 @@
 #include <sys/syslog.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
-#include <sys/rwlock.h>
+#include <sys/mutex.h>
 #include <sys/sysctl.h>
 
 #include <net/if.h>

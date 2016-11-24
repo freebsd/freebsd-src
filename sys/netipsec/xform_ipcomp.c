@@ -37,7 +37,6 @@
 #include <sys/mbuf.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#include <sys/rwlock.h>
 #include <sys/socket.h>
 #include <sys/kernel.h>
 #include <sys/protosw.h>
