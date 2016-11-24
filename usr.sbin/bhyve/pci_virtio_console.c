@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include "pci_emul.h"
 #include "virtio.h"
 #include "mevent.h"
+#include "sockstream.h"
 
 #define	VTCON_RINGSZ	64
 #define	VTCON_MAXPORTS	16
@@ -425,16 +426,21 @@ pci_vtcon_sock_tx(struct pci_vtcon_port *port, void *arg, struct iovec *iov,
     int niov)
 {
 	struct pci_vtcon_sock *sock;
-	int ret;
+	int i, ret;
 
 	sock = (struct pci_vtcon_sock *)arg;
 
 	if (sock->vss_conn_fd == -1)
 		return;
 
-	ret = writev(sock->vss_conn_fd, iov, niov);
+	for (i = 0; i < niov; i++) {
+		ret = stream_write(sock->vss_conn_fd, iov[i].iov_base,
+		    iov[i].iov_len);
+		if (ret <= 0)
+			break;
+	}
 
-	if (ret < 0 && errno != EWOULDBLOCK) {
+	if (ret <= 0) {
 		mevent_delete_close(sock->vss_conn_evp);
 		sock->vss_conn_fd = -1;
 		sock->vss_open = false;
