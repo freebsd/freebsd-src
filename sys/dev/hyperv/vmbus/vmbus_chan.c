@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/stdarg.h>
 
 #include <dev/hyperv/include/hyperv_busdma.h>
+#include <dev/hyperv/include/vmbus_xact.h>
 #include <dev/hyperv/vmbus/hyperv_var.h>
 #include <dev/hyperv/vmbus/vmbus_reg.h>
 #include <dev/hyperv/vmbus/vmbus_var.h>
@@ -1115,6 +1116,7 @@ vmbus_chan_alloc(struct vmbus_softc *sc)
 
 	chan->ch_vmbus = sc;
 	mtx_init(&chan->ch_subchan_lock, "vmbus subchan", NULL, MTX_DEF);
+	sx_init(&chan->ch_orphan_lock, "vmbus chorphan");
 	TAILQ_INIT(&chan->ch_subchans);
 	vmbus_rxbr_init(&chan->ch_rxbr);
 	vmbus_txbr_init(&chan->ch_txbr);
@@ -1133,8 +1135,12 @@ vmbus_chan_free(struct vmbus_channel *chan)
 	     VMBUS_CHAN_ST_ONPRIL |
 	     VMBUS_CHAN_ST_ONSUBL |
 	     VMBUS_CHAN_ST_ONLIST)) == 0, ("free busy channel"));
+	KASSERT(chan->ch_orphan_xact == NULL,
+	    ("still has orphan xact installed"));
+
 	hyperv_dmamem_free(&chan->ch_monprm_dma, chan->ch_monprm);
 	mtx_destroy(&chan->ch_subchan_lock);
+	sx_destroy(&chan->ch_orphan_lock);
 	vmbus_rxbr_deinit(&chan->ch_rxbr);
 	vmbus_txbr_deinit(&chan->ch_txbr);
 	free(chan, M_DEVBUF);
@@ -1403,9 +1409,20 @@ vmbus_chan_msgproc_chrescind(struct vmbus_softc *sc,
 		mtx_unlock(&sc->vmbus_prichan_lock);
 	}
 
+	/*
+	 * NOTE:
+	 * The following processing order is critical:
+	 * Set the REVOKED state flag before orphaning the installed xact.
+	 */
+
 	if (atomic_testandset_int(&chan->ch_stflags,
 	    VMBUS_CHAN_ST_REVOKED_SHIFT))
 		panic("channel has already been revoked");
+
+	sx_xlock(&chan->ch_orphan_lock);
+	if (chan->ch_orphan_xact != NULL)
+		vmbus_xact_ctx_orphan(chan->ch_orphan_xact);
+	sx_xunlock(&chan->ch_orphan_lock);
 
 	if (bootverbose)
 		vmbus_chan_printf(chan, "chan%u revoked\n", note->chm_chanid);
@@ -1707,4 +1724,22 @@ vmbus_chan_is_revoked(const struct vmbus_channel *chan)
 	if (chan->ch_stflags & VMBUS_CHAN_ST_REVOKED)
 		return (true);
 	return (false);
+}
+
+void
+vmbus_chan_set_orphan(struct vmbus_channel *chan, struct vmbus_xact_ctx *xact)
+{
+
+	sx_xlock(&chan->ch_orphan_lock);
+	chan->ch_orphan_xact = xact;
+	sx_xunlock(&chan->ch_orphan_lock);
+}
+
+void
+vmbus_chan_unset_orphan(struct vmbus_channel *chan)
+{
+
+	sx_xlock(&chan->ch_orphan_lock);
+	chan->ch_orphan_xact = NULL;
+	sx_xunlock(&chan->ch_orphan_lock);
 }

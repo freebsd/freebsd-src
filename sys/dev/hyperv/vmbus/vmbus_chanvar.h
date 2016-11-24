@@ -33,8 +33,9 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/queue.h>
-#include <sys/taskqueue.h>
 #include <sys/sysctl.h>
+#include <sys/sx.h>
+#include <sys/taskqueue.h>
 
 #include <dev/hyperv/include/hyperv.h>
 #include <dev/hyperv/include/hyperv_busdma.h>
@@ -137,6 +138,9 @@ struct vmbus_channel {
 							/* VMBUS_CHAN_ST_ */
 	struct hyperv_guid		ch_guid_type;
 	struct hyperv_guid		ch_guid_inst;
+
+	struct sx			ch_orphan_lock;
+	struct vmbus_xact_ctx		*ch_orphan_xact;
 
 	struct sysctl_ctx_list		ch_sysctl_ctx;
 } __aligned(CACHE_LINE_SIZE);
