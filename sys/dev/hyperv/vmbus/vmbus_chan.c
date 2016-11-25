@@ -851,6 +851,41 @@ disconnect:
 	return (error);
 }
 
+int
+vmbus_chan_close_direct(struct vmbus_channel *chan)
+{
+	int error;
+
+#ifdef INVARIANTS
+	if (VMBUS_CHAN_ISPRIMARY(chan)) {
+		struct vmbus_channel *subchan;
+
+		/*
+		 * All sub-channels _must_ have been closed, or are _not_
+		 * opened at all.
+		 */
+		mtx_lock(&chan->ch_subchan_lock);
+		TAILQ_FOREACH(subchan, &chan->ch_subchans, ch_sublink) {
+			KASSERT(
+			   (subchan->ch_stflags & VMBUS_CHAN_ST_OPENED) == 0,
+			   ("chan%u: subchan%u is still opened",
+			    chan->ch_id, subchan->ch_subidx));
+		}
+		mtx_unlock(&chan->ch_subchan_lock);
+	}
+#endif
+
+	error = vmbus_chan_close_internal(chan);
+	if (!VMBUS_CHAN_ISPRIMARY(chan)) {
+		/*
+		 * This sub-channel is referenced, when it is linked to
+		 * the primary channel; drop that reference now.
+		 */
+		vmbus_chan_detach(chan);
+	}
+	return (error);
+}
+
 /*
  * Caller should make sure that all sub-channels have
  * been added to 'chan' and all to-be-closed channels

@@ -131,6 +131,7 @@ vmbus_get_channel(device_t dev)
 
 /*
  * vmbus_chan_open_br()
+ *
  * Return values:
  * 0			Succeeded.
  * EISCONN		Failed, and the memory passed through 'br' is still
@@ -139,6 +140,24 @@ vmbus_get_channel(device_t dev)
  * other values		Failed.  The memory passed through 'br' is no longer
  *			connected.  Callers are free to do anything with the
  *			memory passed through 'br'.
+ *
+ *
+ *
+ * vmbus_chan_close_direct()
+ *
+ * NOTE:
+ * Callers of this function _must_ make sure to close all sub-channels before
+ * closing the primary channel.
+ *
+ * Return values:
+ * 0			Succeeded.
+ * EISCONN		Failed, and the memory associated with the bufring
+ *			is still connected.  Callers must _not_ free the the
+ *			memory associated with the bufring, if this error
+ *			happens.
+ * other values		Failed.  The memory associated with the bufring is
+ *			no longer connected.  Callers are free to do anything
+ *			with the memory associated with the bufring.
  */
 int		vmbus_chan_open(struct vmbus_channel *chan,
 		    int txbr_size, int rxbr_size, const void *udata, int udlen,
@@ -147,6 +166,7 @@ int		vmbus_chan_open_br(struct vmbus_channel *chan,
 		    const struct vmbus_chan_br *cbr, const void *udata,
 		    int udlen, vmbus_chan_callback_t cb, void *cbarg);
 void		vmbus_chan_close(struct vmbus_channel *chan);
+int		vmbus_chan_close_direct(struct vmbus_channel *chan);
 void		vmbus_chan_intr_drain(struct vmbus_channel *chan);
 void		vmbus_chan_run_task(struct vmbus_channel *chan,
 		    struct task *task);
