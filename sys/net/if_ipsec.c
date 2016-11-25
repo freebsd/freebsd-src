@@ -155,7 +155,6 @@ static void	ipsec_delete_tunnel(struct ifnet *, int);
 static int	ipsec_set_addresses(struct ifnet *, struct sockaddr *,
     struct sockaddr *);
 static int	ipsec_set_reqid(struct ifnet *, uint32_t);
-static int	ipsec_input(struct mbuf *, struct secasvar *, uint32_t);
 
 static int	ipsec_ioctl(struct ifnet *, u_long, caddr_t);
 static int	ipsec_transmit(struct ifnet *, struct mbuf *);
@@ -164,7 +163,6 @@ static int	ipsec_output(struct ifnet *, struct mbuf *,
 static void	ipsec_qflush(struct ifnet *);
 static int	ipsec_clone_create(struct if_clone *, int, caddr_t);
 static void	ipsec_clone_destroy(struct ifnet *);
-static int	ipsec_modevent(module_t, int, void *);
 
 static VNET_DEFINE(struct if_clone *, ipsec_cloner);
 #define	V_ipsec_cloner		VNET(ipsec_cloner)
