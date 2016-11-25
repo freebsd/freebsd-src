@@ -27,6 +27,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#ifdef NEW_PCIB
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/types.h>
@@ -1789,3 +1791,5 @@ DEFINE_CLASS_0(pcib, vmbus_pcib_driver, vmbus_pcib_methods,
 DRIVER_MODULE(vmbus_pcib, vmbus, vmbus_pcib_driver, pcib_devclass, 0, 0);
 MODULE_DEPEND(vmbus_pcib, vmbus, 1, 1, 1);
 MODULE_DEPEND(vmbus_pcib, pci, 1, 1, 1);
+
+#endif /* NEW_PCIB */
