@@ -608,21 +608,6 @@ nfssvc_call(struct thread *p, struct nfssvc_args *uap, struct ucred *cred)
 				nfsstatsv1.srvcache_nonidemdonehits = 0;
 				nfsstatsv1.srvcache_misses = 0;
 				nfsstatsv1.srvcache_tcppeak = 0;
-				nfsstatsv1.srvclients = 0;
-				nfsstatsv1.srvopenowners = 0;
-				nfsstatsv1.srvopens = 0;
-				nfsstatsv1.srvlockowners = 0;
-				nfsstatsv1.srvlocks = 0;
-				nfsstatsv1.srvdelegates = 0;
-				nfsstatsv1.clopenowners = 0;
-				nfsstatsv1.clopens = 0;
-				nfsstatsv1.cllockowners = 0;
-				nfsstatsv1.cllocks = 0;
-				nfsstatsv1.cldelegates = 0;
-				nfsstatsv1.cllocalopenowners = 0;
-				nfsstatsv1.cllocalopens = 0;
-				nfsstatsv1.cllocallockowners = 0;
-				nfsstatsv1.cllocallocks = 0;
 				bzero(nfsstatsv1.srvrpccnt,
 				    sizeof(nfsstatsv1.srvrpccnt));
 				bzero(nfsstatsv1.cbrpccnt,
