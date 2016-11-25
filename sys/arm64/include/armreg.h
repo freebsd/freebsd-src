@@ -115,7 +115,7 @@
 #define	 ISS_DATA_DFSC_ECC_L2	(0x1e << 0)
 #define	 ISS_DATA_DFSC_ECC_L3	(0x1f << 0)
 #define	 ISS_DATA_DFSC_ALIGN	(0x21 << 0)
-#define	 ISS_DATA_DFSC_TLB_CONFLICT (0x28 << 0)
+#define	 ISS_DATA_DFSC_TLB_CONFLICT (0x30 << 0)
 #define	ESR_ELx_IL		(0x01 << 25)
 #define	ESR_ELx_EC_SHIFT	26
 #define	ESR_ELx_EC_MASK		(0x3f << 26)
