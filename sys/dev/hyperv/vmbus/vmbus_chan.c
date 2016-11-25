@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 static void			vmbus_chan_update_evtflagcnt(
 				    struct vmbus_softc *,
 				    const struct vmbus_channel *);
-static void			vmbus_chan_close_internal(
+static int			vmbus_chan_close_internal(
 				    struct vmbus_channel *);
 static int			vmbus_chan_sysctl_mnf(SYSCTL_HANDLER_ARGS);
 static void			vmbus_chan_sysctl_create(
@@ -739,7 +739,7 @@ vmbus_chan_set_chmap(struct vmbus_channel *chan)
 	chan->ch_vmbus->vmbus_chmap[chan->ch_id] = chan;
 }
 
-static void
+static int
 vmbus_chan_close_internal(struct vmbus_channel *chan)
 {
 	struct vmbus_softc *sc = chan->ch_vmbus;
@@ -765,7 +765,7 @@ vmbus_chan_close_internal(struct vmbus_channel *chan)
 			vmbus_chan_printf(chan, "chan%u not opened\n",
 			    chan->ch_id);
 		}
-		return;
+		return (0);
 	}
 
 	/*
@@ -792,6 +792,7 @@ vmbus_chan_close_internal(struct vmbus_channel *chan)
 		vmbus_chan_printf(chan,
 		    "can not get msg hypercall for chclose(chan%u)\n",
 		    chan->ch_id);
+		error = ENXIO;
 		goto disconnect;
 	}
 
@@ -831,6 +832,11 @@ disconnect:
 			vmbus_chan_printf(chan, "chan%u bufring GPADL "
 			    "is still connected after close\n", chan->ch_id);
 			chan->ch_bufring = NULL;
+			/*
+			 * Give caller a hint that the bufring GPADL is
+			 * still connected.
+			 */
+			error = EISCONN;
 		}
 		chan->ch_bufring_gpadl = 0;
 	}
@@ -842,6 +848,7 @@ disconnect:
 		hyperv_dmamem_free(&chan->ch_bufring_dma, chan->ch_bufring);
 		chan->ch_bufring = NULL;
 	}
+	return (error);
 }
 
 /*
