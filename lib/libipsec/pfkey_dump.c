@@ -219,6 +219,7 @@ pfkey_sadump(m)
 	struct sadb_key *m_auth, *m_enc;
 	struct sadb_ident *m_sid, *m_did;
 	struct sadb_sens *m_sens;
+	struct sadb_x_sa_replay *m_sa_replay;
 
 	/* check pfkey message. */
 	if (pfkey_align(m, mhp)) {
@@ -243,6 +244,7 @@ pfkey_sadump(m)
 	m_sid = (struct sadb_ident *)mhp[SADB_EXT_IDENTITY_SRC];
 	m_did = (struct sadb_ident *)mhp[SADB_EXT_IDENTITY_DST];
 	m_sens = (struct sadb_sens *)mhp[SADB_EXT_SENSITIVITY];
+	m_sa_replay = (struct sadb_x_sa_replay *)mhp[SADB_X_EXT_SA_REPLAY];
 
 	/* source address */
 	if (m_saddr == NULL) {
@@ -306,7 +308,8 @@ pfkey_sadump(m)
 	/* replay windoe size & flags */
 	printf("\tseq=0x%08x replay=%u flags=0x%08x ",
 		m_sa2->sadb_x_sa2_sequence,
-		m_sa->sadb_sa_replay,
+		m_sa_replay ? (m_sa_replay->sadb_x_sa_replay_replay >> 3) :
+			m_sa->sadb_sa_replay,
 		m_sa->sadb_sa_flags);
 
 	/* state */

@@ -762,12 +762,14 @@ esp_output(struct mbuf *m, struct ipsecrequest *isr, struct mbuf **mp,
 	if (sav->replay) {
 		u_int32_t replay;
 
+		SECASVAR_LOCK(sav);
 #ifdef REGRESSION
 		/* Emulate replay attack when ipsec_replay is TRUE. */
 		if (!V_ipsec_replay)
 #endif
 			sav->replay->count++;
 		replay = htonl(sav->replay->count);
+		SECASVAR_UNLOCK(sav);
 		bcopy((caddr_t) &replay,
 		    mtod(mo, caddr_t) + roff + sizeof(u_int32_t),
 		    sizeof(u_int32_t));
