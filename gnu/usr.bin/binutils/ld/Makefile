@@ -55,7 +55,9 @@ CLEANFILES+=	ldemul-list.h stringify.sed
 
 FILES=		${LDSCRIPTS:S|^|ldscripts/|}
 FILESDIR=	${SCRIPTDIR}
+.if ${MK_LLD_AS_LD} == "no"
 LINKS=		${BINDIR}/ld.bfd ${BINDIR}/ld
+.endif
 
 HOST=		${TARGET_TUPLE}
 LIBSEARCHPATH=	\"=/lib\":\"=/usr/lib\"
