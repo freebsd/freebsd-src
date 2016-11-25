@@ -609,7 +609,6 @@ sandbox_object_invoke(struct sandbox_object *sbop, register_t methodnum,
 {
 	struct sandbox_class *sbcp;
 	__capability void *c3, *c4, *c5, *c6, *c7, *c8, *c9, *c10;
-	__capability void *cclear;
 	register_t v0;
 
 	sbcp = sbop->sbo_sandbox_classp;
