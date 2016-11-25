@@ -453,7 +453,7 @@ vmbus_chan_open_br(struct vmbus_channel *chan, const struct vmbus_chan_br *cbr,
 
 failed:
 	vmbus_chan_clear_chmap(chan);
-	if (chan->ch_bufring_gpadl) {
+	if (chan->ch_bufring_gpadl != 0) {
 		vmbus_chan_gpadl_disconnect(chan, chan->ch_bufring_gpadl);
 		chan->ch_bufring_gpadl = 0;
 	}
@@ -500,7 +500,6 @@ vmbus_chan_gpadl_connect(struct vmbus_channel *chan, bus_addr_t paddr,
 	 * Allocate GPADL id.
 	 */
 	gpadl = vmbus_gpadl_alloc(sc);
-	*gpadl0 = gpadl;
 
 	/*
 	 * Connect this GPADL to the target channel.
@@ -579,11 +578,13 @@ vmbus_chan_gpadl_connect(struct vmbus_channel *chan, bus_addr_t paddr,
 		vmbus_chan_printf(chan, "gpadl_conn(chan%u) failed: %u\n",
 		    chan->ch_id, status);
 		return EIO;
-	} else {
-		if (bootverbose) {
-			vmbus_chan_printf(chan,
-			    "gpadl_conn(chan%u) succeeded\n", chan->ch_id);
-		}
+	}
+
+	/* Done; commit the GPADL id. */
+	*gpadl0 = gpadl;
+	if (bootverbose) {
+		vmbus_chan_printf(chan, "gpadl_conn(chan%u) succeeded\n",
+		    chan->ch_id);
 	}
 	return 0;
 }
