@@ -250,6 +250,11 @@ __DEFAULT_YES_OPTIONS+=LLVM_LIBUNWIND
 .else
 __DEFAULT_NO_OPTIONS+=LLVM_LIBUNWIND
 .endif
+.if ${__T} == "aarch64"
+__DEFAULT_YES_OPTIONS+=LLD_AS_LD
+.else
+__DEFAULT_NO_OPTIONS+=LLD_AS_LD
+.endif
 .if ${__T} == "aarch64" || ${__T} == "amd64"
 __DEFAULT_YES_OPTIONS+=LLD LLDB
 .else
