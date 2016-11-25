@@ -86,20 +86,21 @@ static inline __capability void *
 alloc_type_capability(_Atomic(uint64_t) *source, uint64_t max)
 {
 	__capability void *new_type_cap;
+	uint64_t next;
 
 	/*
-	 * We require that this counter be strictly monotonic, but we don't need to
-	 * establish a happens-before relationship with any other thread.
+	 * We require that this counter be strictly monotonic, but we don't
+	 * need to establish a happens-before relationship with any other
+	 * thread.
 	 */
-	uint64_t next = atomic_fetch_add_explicit(source, 1,
-		memory_order_relaxed);
+	next = atomic_fetch_add_explicit(source, 1, memory_order_relaxed);
 
 	/*
 	 * If we've run out of types, return NULL so that we get an obvious
 	 * failure.
 	 */
 	if (next > max) {
-		return NULL;
+		return (NULL);
 	}
 
 	/*
@@ -111,6 +112,7 @@ alloc_type_capability(_Atomic(uint64_t) *source, uint64_t max)
 	new_type_cap = cheri_maketype(cheri_type_root, next);
 	return (new_type_cap);
 }
+
 /*
  * A [very] simple CHERI type allocator.
  */
@@ -118,14 +120,13 @@ __capability void *
 cheri_type_alloc(void)
 {
 
-	return alloc_type_capability(&cheri_type_next, cheri_type_max);
+	return (alloc_type_capability(&cheri_type_next, cheri_type_max));
 }
 
 __capability void *
 cheri_system_type_alloc(void)
 {
 
-	return alloc_type_capability(&cheri_system_type_next,
-			cheri_system_type_max);
+	return (alloc_type_capability(&cheri_system_type_next,
+	    cheri_system_type_max));
 }
-
