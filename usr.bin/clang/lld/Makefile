@@ -1,10 +1,15 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
+
 LLVM_SRCS=	${SRCTOP}/contrib/llvm
 LLD_SRCS=	${LLVM_SRCS}/tools/lld
 
 PROG_CXX=	ld.lld
 MAN=
+.if ${MK_LLD_AS_LD} != "no"
+SYMLINKS=	${PROG_CXX} ${BINDIR}/ld
+.endif
 
 CFLAGS+=	-I${LLD_SRCS}/include
 CFLAGS+=	-I${.OBJDIR}
