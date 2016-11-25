@@ -4291,7 +4291,7 @@ def err_definition_of_implicitly_declared_member : Error<
 def err_definition_of_explicitly_defaulted_member : Error<
   "definition of explicitly defaulted %select{default constructor|copy "
   "constructor|move constructor|copy assignment operator|move assignment "
-  "operator|destructor}0">;
+  "operator|destructor|function}0">;
 def err_redefinition_extern_inline : Error<
   "redefinition of a 'extern inline' function %0 is not supported in "
   "%select{C99 mode|C++}1">;
@@ -6917,6 +6917,10 @@ def err_in_class_initializer_not_yet_parsed
 def err_in_class_initializer_not_yet_parsed_outer_class
     : Error<"cannot use defaulted default constructor of %0 within "
             "%1 outside of member functions because %2 has an initializer">;
+def err_in_class_initializer_cycle
+    : Error<"default member initializer for %0 uses itself">;
+def err_exception_spec_cycle
+    : Error<"exception specification of %0 uses itself">;
 
 def ext_in_class_initializer_non_constant : Extension<
   "in-class initializer for static data member is not a constant expression; "
