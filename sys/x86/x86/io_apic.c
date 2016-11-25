@@ -804,11 +804,18 @@ ioapic_register(void *cookie)
 	    io->io_id, flags >> 4, flags & 0xf, io->io_intbase,
 	    io->io_intbase + io->io_numintr - 1);
 
-	/* Register valid pins as interrupt sources. */
+	/*
+	 * Reprogram pins to handle special case pins (such as NMI and
+	 * SMI) and register valid pins as interrupt sources.
+	 */
 	intr_register_pic(&io->io_pic);
-	for (i = 0, pin = io->io_pins; i < io->io_numintr; i++, pin++)
+	for (i = 0, pin = io->io_pins; i < io->io_numintr; i++, pin++) {
+		mtx_lock_spin(&icu_lock);
+		ioapic_program_intpin(pin);
+		mtx_unlock_spin(&icu_lock);
 		if (pin->io_irq < NUM_IO_INTS)
 			intr_register_source(&pin->io_intsrc);
+	}
 }
 
 /* A simple new-bus driver to consume PCI I/O APIC devices. */
