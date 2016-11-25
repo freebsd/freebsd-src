@@ -66,6 +66,8 @@ static int			vmbus_chan_release(struct vmbus_channel *);
 static void			vmbus_chan_set_chmap(struct vmbus_channel *);
 static void			vmbus_chan_clear_chmap(struct vmbus_channel *);
 static void			vmbus_chan_detach(struct vmbus_channel *);
+static bool			vmbus_chan_wait_revoke(
+				    const struct vmbus_channel *);
 
 static void			vmbus_chan_ins_prilist(struct vmbus_softc *,
 				    struct vmbus_channel *);
@@ -589,6 +591,24 @@ vmbus_chan_gpadl_connect(struct vmbus_channel *chan, bus_addr_t paddr,
 	return 0;
 }
 
+static bool
+vmbus_chan_wait_revoke(const struct vmbus_channel *chan)
+{
+#define WAIT_COUNT	200	/* 200ms */
+
+	int i;
+
+	for (i = 0; i < WAIT_COUNT; ++i) {
+		if (vmbus_chan_is_revoked(chan))
+			return (true);
+		/* Not sure about the context; use busy-wait. */
+		DELAY(1000);
+	}
+	return (false);
+
+#undef WAIT_COUNT
+}
+
 /*
  * Disconnect the GPA from the target channel
  */
@@ -605,7 +625,7 @@ vmbus_chan_gpadl_disconnect(struct vmbus_channel *chan, uint32_t gpadl)
 		vmbus_chan_printf(chan,
 		    "can not get msg hypercall for gpadl_disconn(chan%u)\n",
 		    chan->ch_id);
-		return EBUSY;
+		return (EBUSY);
 	}
 
 	req = vmbus_msghc_dataptr(mh);
@@ -615,18 +635,29 @@ vmbus_chan_gpadl_disconnect(struct vmbus_channel *chan, uint32_t gpadl)
 
 	error = vmbus_msghc_exec(sc, mh);
 	if (error) {
+		vmbus_msghc_put(sc, mh);
+
+		if (vmbus_chan_wait_revoke(chan)) {
+			/*
+			 * Error is benign; this channel is revoked,
+			 * so this GPADL will not be touched anymore.
+			 */
+			vmbus_chan_printf(chan,
+			    "gpadl_disconn(revoked chan%u) msg hypercall "
+			    "exec failed: %d\n", chan->ch_id, error);
+			return (0);
+		}
 		vmbus_chan_printf(chan,
 		    "gpadl_disconn(chan%u) msg hypercall exec failed: %d\n",
 		    chan->ch_id, error);
-		vmbus_msghc_put(sc, mh);
-		return error;
+		return (error);
 	}
 
 	vmbus_msghc_wait_result(sc, mh);
 	/* Discard result; no useful information */
 	vmbus_msghc_put(sc, mh);
 
-	return 0;
+	return (0);
 }
 
 static void
