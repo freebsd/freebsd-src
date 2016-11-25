@@ -961,8 +961,11 @@ ah_output(struct mbuf *m, struct ipsecrequest *isr, struct mbuf **mp,
 
 	/* Insert packet replay counter, as requested.  */
 	if (sav->replay) {
+		SECASVAR_LOCK(sav);
+
 		if (sav->replay->count == ~0 &&
 		    (sav->flags & SADB_X_EXT_CYCSEQ) == 0) {
+			SECASVAR_UNLOCK(sav);
 			DPRINTF(("%s: replay counter wrapped for SA %s/%08lx\n",
 			    __func__, ipsec_address(&sav->sah->saidx.dst, buf,
 			    sizeof(buf)), (u_long) ntohl(sav->spi)));
@@ -976,6 +979,8 @@ ah_output(struct mbuf *m, struct ipsecrequest *isr, struct mbuf **mp,
 #endif
 			sav->replay->count++;
 		ah->ah_seq = htonl(sav->replay->count);
+
+		SECASVAR_UNLOCK(sav);
 	}
 
 	/* Get crypto descriptors. */
