@@ -451,6 +451,7 @@ vmbus_chan_open_br(struct vmbus_channel *chan, const struct vmbus_chan_br *cbr,
 	error = ENXIO;
 
 failed:
+	sysctl_ctx_free(&chan->ch_sysctl_ctx);
 	vmbus_chan_clear_chmap(chan);
 	if (chan->ch_bufring_gpadl != 0) {
 		vmbus_chan_gpadl_disconnect(chan, chan->ch_bufring_gpadl);
