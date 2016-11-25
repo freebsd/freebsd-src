@@ -31,13 +31,13 @@ int arc4rand_iniseed_state = ARC4_ENTR_NONE;
 MALLOC_DEFINE(M_ARC4RANDOM, "arc4random", "arc4random structures");
 
 struct arc4_s {
+	struct mtx mtx;
 	u_int8_t i, j;
 	int numruns;
 	u_int8_t sbox[256];
 	time_t t_reseed;
 
-	struct mtx mtx;
-};
+} __aligned(CACHE_LINE_SIZE);
 
 static struct arc4_s *arc4inst = NULL;
 
