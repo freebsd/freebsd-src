@@ -3144,7 +3144,7 @@ SDValue PPCTargetLowering::LowerFormalArguments_64SVR4(
   };
 
   const unsigned Num_GPR_Regs = array_lengthof(GPR);
-  const unsigned Num_FPR_Regs = 13;
+  const unsigned Num_FPR_Regs = useSoftFloat() ? 0 : 13;
   const unsigned Num_VR_Regs  = array_lengthof(VR);
   const unsigned Num_QFPR_Regs = Num_FPR_Regs;
 
@@ -3557,7 +3557,7 @@ SDValue PPCTargetLowering::LowerFormalArguments_Darwin(
   };
 
   const unsigned Num_GPR_Regs = array_lengthof(GPR_32);
-  const unsigned Num_FPR_Regs = 13;
+  const unsigned Num_FPR_Regs = useSoftFloat() ? 0 : 13;
   const unsigned Num_VR_Regs  = array_lengthof( VR);
 
   unsigned GPR_idx = 0, FPR_idx = 0, VR_idx = 0;
@@ -10340,7 +10340,7 @@ SDValue PPCTargetLowering::combineFPToIntToFP(SDNode *N,
           N->getOpcode() == ISD::UINT_TO_FP) &&
          "Need an int -> FP conversion node here");
 
-  if (!Subtarget.has64BitSupport())
+  if (useSoftFloat() || !Subtarget.has64BitSupport())
     return SDValue();
 
   SelectionDAG &DAG = DCI.DAG;
