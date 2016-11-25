@@ -981,6 +981,8 @@ callout_when(sbintime_t sbt, sbintime_t precision, int flags,
 		spinlock_exit();
 #endif
 #endif
+		if (cold && to_sbt == 0)
+			to_sbt = sbinuptime();
 		if ((flags & C_HARDCLOCK) == 0)
 			to_sbt += tick_sbt;
 	} else
