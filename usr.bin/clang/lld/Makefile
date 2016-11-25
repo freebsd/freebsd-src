@@ -55,7 +55,7 @@ LLVM_TBLGEN?=	llvm-tblgen
 ELF/Options.inc: ${LLD_SRCS}/ELF/Options.td
 	${LLVM_TBLGEN} -gen-opt-parser-defs \
 	    -I ${LLVM_SRCS}/include \
-	    -d ${.TARGET:C/\.h$/.d/} -o ${.TARGET} \
+	    -d ${.TARGET:C/$/.d/} -o ${.TARGET} \
 	    ${LLVM_SRCS}/tools/lld/ELF/Options.td
 TGHDRS+=	ELF/Options.inc
 
