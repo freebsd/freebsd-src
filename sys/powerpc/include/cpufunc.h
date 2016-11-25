@@ -82,7 +82,7 @@ static __inline void
 mtsrin(vm_offset_t va, register_t value)
 {
 
-	__asm __volatile ("mtsrin %0,%1" :: "r"(value), "r"(va));
+	__asm __volatile ("mtsrin %0,%1; isync" :: "r"(value), "r"(va));
 }
 
 static __inline register_t
