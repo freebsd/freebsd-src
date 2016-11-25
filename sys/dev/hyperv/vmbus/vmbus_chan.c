@@ -324,7 +324,21 @@ vmbus_chan_open(struct vmbus_channel *chan, int txbr_size, int rxbr_size,
 
 	error = vmbus_chan_open_br(chan, &cbr, udata, udlen, cb, cbarg);
 	if (error) {
-		hyperv_dmamem_free(&chan->ch_bufring_dma, chan->ch_bufring);
+		if (error == EISCONN) {
+			/*
+			 * XXX
+			 * The bufring GPADL is still connected; abandon
+			 * this bufring, instead of having mysterious
+			 * crash or trashed data later on.
+			 */
+			vmbus_chan_printf(chan, "chan%u bufring GPADL "
+			    "is still connected upon channel open error; "
+			    "leak %d bytes memory\n", chan->ch_id,
+			    txbr_size + rxbr_size);
+		} else {
+			hyperv_dmamem_free(&chan->ch_bufring_dma,
+			    chan->ch_bufring);
+		}
 		chan->ch_bufring = NULL;
 	}
 	return (error);
@@ -458,7 +472,17 @@ failed:
 	sysctl_ctx_free(&chan->ch_sysctl_ctx);
 	vmbus_chan_clear_chmap(chan);
 	if (chan->ch_bufring_gpadl != 0) {
-		vmbus_chan_gpadl_disconnect(chan, chan->ch_bufring_gpadl);
+		int error1;
+
+		error1 = vmbus_chan_gpadl_disconnect(chan,
+		    chan->ch_bufring_gpadl);
+		if (error1) {
+			/*
+			 * Give caller a hint that the bufring GPADL is still
+			 * connected.
+			 */
+			error = EISCONN;
+		}
 		chan->ch_bufring_gpadl = 0;
 	}
 	atomic_clear_int(&chan->ch_stflags, VMBUS_CHAN_ST_OPENED);
