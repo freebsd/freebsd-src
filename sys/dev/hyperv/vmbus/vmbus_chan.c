@@ -814,8 +814,22 @@ vmbus_chan_close_internal(struct vmbus_channel *chan)
 	/*
 	 * Disconnect the TX+RX bufrings from this channel.
 	 */
-	if (chan->ch_bufring_gpadl) {
-		vmbus_chan_gpadl_disconnect(chan, chan->ch_bufring_gpadl);
+	if (chan->ch_bufring_gpadl != 0) {
+		int error1;
+
+		error1 = vmbus_chan_gpadl_disconnect(chan,
+		    chan->ch_bufring_gpadl);
+		if (error1) {
+			/*
+			 * XXX
+			 * The bufring GPADL is still connected; abandon
+			 * this bufring, instead of having mysterious
+			 * crash or trashed data later on.
+			 */
+			vmbus_chan_printf(chan, "chan%u bufring GPADL "
+			    "is still connected after close\n", chan->ch_id);
+			chan->ch_bufring = NULL;
+		}
 		chan->ch_bufring_gpadl = 0;
 	}
 
