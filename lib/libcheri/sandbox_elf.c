@@ -148,7 +148,7 @@ sandbox_map_protect(void *base, struct sandbox_map *sm)
 	STAILQ_FOREACH(sme, &sm->sm_head, sme_entries) {
 		if (sme->sme_prot & PROT_WRITE)
 			continue;
-		if (sandbox_map_entry_mprotect(base, sme) == MAP_FAILED)
+		if (sandbox_map_entry_mprotect(base, sme) == -1)
 			return (-1);
 	}
 	return (0);
