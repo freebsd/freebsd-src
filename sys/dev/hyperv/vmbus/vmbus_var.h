@@ -128,8 +128,10 @@ struct vmbus_softc {
 	struct mtx		vmbus_chan_lock;
 	TAILQ_HEAD(, vmbus_channel) vmbus_chans;
 
+#ifdef NEW_PCIB
 	/* The list of usable MMIO ranges for PCIe pass-through */
 	struct pcib_host_resources vmbus_mmio_res;
+#endif
 };
 
 #define VMBUS_FLAG_ATTACHED	0x0001	/* vmbus was attached */
