@@ -688,10 +688,28 @@ vmbus_chan_close_internal(struct vmbus_channel *chan)
 	struct vmbus_softc *sc = chan->ch_vmbus;
 	struct vmbus_msghc *mh;
 	struct vmbus_chanmsg_chclose *req;
+	uint32_t old_stflags;
 	int error;
 
-	/* TODO: stringent check */
-	atomic_clear_int(&chan->ch_stflags, VMBUS_CHAN_ST_OPENED);
+	/*
+	 * NOTE:
+	 * Sub-channels are closed upon their primary channel closing,
+	 * so they can be closed even before they are opened.
+	 */
+	for (;;) {
+		old_stflags = chan->ch_stflags;
+		if (atomic_cmpset_int(&chan->ch_stflags, old_stflags,
+		    old_stflags & ~VMBUS_CHAN_ST_OPENED))
+			break;
+	}
+	if ((old_stflags & VMBUS_CHAN_ST_OPENED) == 0) {
+		/* Not opened yet; done */
+		if (bootverbose) {
+			vmbus_chan_printf(chan, "chan%u not opened\n",
+			    chan->ch_id);
+		}
+		return;
+	}
 
 	/*
 	 * Free this channel's sysctl tree attached to its device's
