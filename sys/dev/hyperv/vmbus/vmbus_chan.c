@@ -345,7 +345,7 @@ vmbus_chan_open_br(struct vmbus_channel *chan, const struct vmbus_chan_br *cbr,
 	if (udlen > VMBUS_CHANMSG_CHOPEN_UDATA_SIZE) {
 		vmbus_chan_printf(chan,
 		    "invalid udata len %d for chan%u\n", udlen, chan->ch_id);
-		return EINVAL;
+		return (EINVAL);
 	}
 
 	br = cbr->cbr;
@@ -442,10 +442,9 @@ vmbus_chan_open_br(struct vmbus_channel *chan, const struct vmbus_chan_br *cbr,
 	vmbus_msghc_put(sc, mh);
 
 	if (status == 0) {
-		if (bootverbose) {
+		if (bootverbose)
 			vmbus_chan_printf(chan, "chan%u opened\n", chan->ch_id);
-		}
-		return 0;
+		return (0);
 	}
 
 	vmbus_chan_printf(chan, "failed to open chan%u\n", chan->ch_id);
@@ -458,7 +457,7 @@ failed:
 		chan->ch_bufring_gpadl = 0;
 	}
 	atomic_clear_int(&chan->ch_stflags, VMBUS_CHAN_ST_OPENED);
-	return error;
+	return (error);
 }
 
 int
