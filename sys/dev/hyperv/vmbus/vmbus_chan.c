@@ -792,7 +792,7 @@ vmbus_chan_close_internal(struct vmbus_channel *chan)
 		vmbus_chan_printf(chan,
 		    "can not get msg hypercall for chclose(chan%u)\n",
 		    chan->ch_id);
-		return;
+		goto disconnect;
 	}
 
 	req = vmbus_msghc_dataptr(mh);
@@ -806,11 +806,13 @@ vmbus_chan_close_internal(struct vmbus_channel *chan)
 		vmbus_chan_printf(chan,
 		    "chclose(chan%u) msg hypercall exec failed: %d\n",
 		    chan->ch_id, error);
-		return;
-	} else if (bootverbose) {
-		vmbus_chan_printf(chan, "close chan%u\n", chan->ch_id);
+		goto disconnect;
 	}
 
+	if (bootverbose)
+		vmbus_chan_printf(chan, "chan%u closed\n", chan->ch_id);
+
+disconnect:
 	/*
 	 * Disconnect the TX+RX bufrings from this channel.
 	 */
