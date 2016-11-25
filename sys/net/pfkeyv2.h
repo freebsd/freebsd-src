@@ -283,6 +283,14 @@ struct sadb_x_nat_t_frag {
 };
 _Static_assert(sizeof(struct sadb_x_nat_t_frag) == 8, "struct size mismatch");
 
+/* Additional large replay window support
+ */
+struct sadb_x_sa_replay {
+  u_int16_t sadb_x_sa_replay_len;
+  u_int16_t sadb_x_sa_replay_exttype;
+  u_int32_t sadb_x_sa_replay_replay;	/* in packets */
+};
+_Static_assert(sizeof(struct sadb_x_sa_replay) == 8, "struct size mismatch");
 
 #define SADB_EXT_RESERVED             0
 #define SADB_EXT_SA                   1
@@ -311,7 +319,8 @@ _Static_assert(sizeof(struct sadb_x_nat_t_frag) == 8, "struct size mismatch");
 #define SADB_X_EXT_NAT_T_OAI          23	/* Peer's NAT_OA for src of SA. */
 #define SADB_X_EXT_NAT_T_OAR          24	/* Peer's NAT_OA for dst of SA. */
 #define SADB_X_EXT_NAT_T_FRAG         25	/* Manual MTU override. */
-#define SADB_EXT_MAX                  25
+#define SADB_X_EXT_SA_REPLAY          26	/* Replay window override. */
+#define SADB_EXT_MAX                  26
 
 #define SADB_SATYPE_UNSPEC	0
 #define SADB_SATYPE_AH		2
