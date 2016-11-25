@@ -29,7 +29,7 @@
 .\"	@(#)hostname.1	8.2 (Berkeley) 4/28/95
 .\" $FreeBSD$
 .\"
-.Dd December 7, 2006
+.Dd November 10, 2016
 .Dt HOSTNAME 1
 .Os
 .Sh NAME
@@ -37,7 +37,8 @@
 .Nd set or print name of current host system
 .Sh SYNOPSIS
 .Nm
-.Op Fl fs
+.Op Fl f
+.Op Fl s | d
 .Op Ar name-of-host
 .Sh DESCRIPTION
 The
@@ -62,6 +63,8 @@ This is the default behavior.
 .It Fl s
 Trim off any domain information from the printed
 name.
+.It Fl d
+Only print domain information.
 .El
 .Sh SEE ALSO
 .Xr gethostname 3 ,
