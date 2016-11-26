@@ -694,6 +694,14 @@ void IRLinker::computeTypeMapping() {
     if (!ST->hasName())
       continue;
 
+    if (TypeMap.DstStructTypesSet.hasType(ST)) {
+      // This is actually a type from the destination module.
+      // getIdentifiedStructTypes() can have found it by walking debug info
+      // metadata nodes, some of which get linked by name when ODR Type Uniquing
+      // is enabled on the Context, from the source to the destination module.
+      continue;
+    }
+
     // Check to see if there is a dot in the name followed by a digit.
     size_t DotPos = ST->getName().rfind('.');
     if (DotPos == 0 || DotPos == StringRef::npos ||
@@ -1336,12 +1344,18 @@ bool IRMover::IdentifiedStructTypeSet::hasType(StructType *Ty) {
 
 IRMover::IRMover(Module &M) : Composite(M) {
   TypeFinder StructTypes;
-  StructTypes.run(M, true);
+  StructTypes.run(M, /* OnlyNamed */ false);
   for (StructType *Ty : StructTypes) {
     if (Ty->isOpaque())
       IdentifiedStructTypes.addOpaque(Ty);
     else
       IdentifiedStructTypes.addNonOpaque(Ty);
+  }
+  // Self-map metadatas in the destination module. This is needed when
+  // DebugTypeODRUniquing is enabled on the LLVMContext, since metadata in the
+  // destination module may be reached from the source module.
+  for (auto *MD : StructTypes.getVisitedMetadata()) {
+    SharedMDs[MD].reset(const_cast<MDNode *>(MD));
   }
 }
 
