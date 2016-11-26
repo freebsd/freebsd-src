@@ -39,8 +39,10 @@
 #include <sys/param.h>
 #ifdef _KERNEL
 #include <sys/systm.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/mutex.h>
 #include <sys/queue.h>
 #endif
 #include <sys/socket.h>
