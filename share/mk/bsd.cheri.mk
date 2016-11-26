@@ -78,6 +78,14 @@ LDFLAGS+=	-Wl,-init=crt_init_globals
 .else
 STATIC_CFLAGS+= -ftls-model=local-exec # MIPS/hybrid case
 .endif
+.ifdef CHERI_USE_LLD
+.ifdef CHERI_LLD_BROKEN
+LDFLAGS+=	-fuse-ld=bfd
+.else
+LDFLAGS+=	-fuse-ld=lld
+.endif
+.endif
+.endif
 
 .if ${MK_CHERI128} == "yes"
 _CHERI_CC+=	-mllvm -cheri128
