@@ -32,11 +32,17 @@
 #ifndef _BHND_NVRAM_BHND_NVRAM_H_
 #define _BHND_NVRAM_BHND_NVRAM_H_
 
+#ifdef _KERNEL
+#include <sys/types.h>
+#else /* !_KERNEL */
+#include <stdbool.h>
+#include <stdint.h>
+#endif /* _KERNEL */
+
 /**
  * NVRAM data sources supported by bhnd(4) devices.
  */
 typedef enum {
-	
 	BHND_NVRAM_SRC_OTP,	/**< On-chip one-time-programmable
 				  *  memory. */
 
@@ -67,50 +73,52 @@ typedef enum {
 				  */
 } bhnd_nvram_src;
 
-/** Supported NVRAM formats. */
+/**
+ * NVRAM data types.
+ * 
+ * @internal
+ * 
+ * All primitive (non-array) constants should be representable as a 4-bit
+ * integer (e.g. 0-15) to support SPROM_OPCODE_TYPE_IMM encoding as used by
+ * nvram_map_gen.awk.
+ */
 typedef enum {
-	BHND_NVRAM_FMT_BCM	= 0,	/**< Broadcom NUL-delimited key=value pairs */
-	BHND_NVRAM_FMT_TLV	= 1,	/**< CFE TLV encoding, as used on WGT634U */
-	BHND_NVRAM_FMT_BTXT	= 2,	/**< Broadcom board text file. This is used
-					     to provide external NVRAM data for some
-					     fullmac WiFi devices. */
-	BHND_NVRAM_FMT_SPROM	= 3,	/**< SPROM/OTP-specific encoding used by
-					     Broadcom network adapters */
-	BHND_NVRAM_FMT_CIS	= 4,	/**< A mostly CIS-compatible encoding used
-					     on some Broadcom network adapters */ 
-	BHND_NVRAM_FMT_UNKNOWN	= 5	/**< Unknown or unrecognized format */
-} bhnd_nvram_format;
+	BHND_NVRAM_TYPE_UINT8		= 0,	/**< unsigned 8-bit integer */
+	BHND_NVRAM_TYPE_UINT16		= 1,	/**< unsigned 16-bit integer */
+	BHND_NVRAM_TYPE_UINT32		= 2,	/**< unsigned 32-bit integer */
+	BHND_NVRAM_TYPE_UINT64		= 3,	/**< signed 64-bit integer */
+	BHND_NVRAM_TYPE_INT8		= 4,	/**< signed 8-bit integer */
+	BHND_NVRAM_TYPE_INT16		= 5,	/**< signed 16-bit integer */
+	BHND_NVRAM_TYPE_INT32		= 6,	/**< signed 32-bit integer */
+	BHND_NVRAM_TYPE_INT64		= 7,	/**< signed 64-bit integer */
+	BHND_NVRAM_TYPE_CHAR		= 8,	/**< ASCII/UTF-8 character */
+	BHND_NVRAM_TYPE_STRING		= 9,	/**< ASCII/UTF-8 NUL-terminated
+						     string */
 
+	/* 10-15 reserved for primitive (non-array) types */
 
-/** bhnd_nvram_type bit flags */
-enum {
-	BHND_NVRAM_TF_SIGNED	= (1<<7),
-};
-
-#define	BHND_NVRAM_TYPE_ID_MASK		0xF
-#define	BHND_NVRAM_TYPE_FLAGS_MASK	0x70
-
-#define	BHND_NVRAM_TYPE_ID(_id, _flags)		\
-	(((_id) & BHND_NVRAM_TYPE_ID_MASK) |	\
-	    ((_flags) & BHND_NVRAM_TYPE_FLAGS_MASK))
-
-/** Supported NVRAM data types */
-typedef enum {
-	BHND_NVRAM_TYPE_UINT8	= BHND_NVRAM_TYPE_ID(0, 0),			/**< unsigned 8-bit integer */
-	BHND_NVRAM_TYPE_UINT16	= BHND_NVRAM_TYPE_ID(1, 0),			/**< unsigned 16-bit integer */
-	BHND_NVRAM_TYPE_UINT32	= BHND_NVRAM_TYPE_ID(2, 0),			/**< unsigned 32-bit integer */
-	BHND_NVRAM_TYPE_INT8	= BHND_NVRAM_TYPE_ID(4, BHND_NVRAM_TF_SIGNED),	/**< signed 8-bit integer */
-	BHND_NVRAM_TYPE_INT16	= BHND_NVRAM_TYPE_ID(5, BHND_NVRAM_TF_SIGNED),	/**< signed 16-bit integer */
-	BHND_NVRAM_TYPE_INT32	= BHND_NVRAM_TYPE_ID(6, BHND_NVRAM_TF_SIGNED),	/**< signed 32-bit integer */
-	BHND_NVRAM_TYPE_CHAR	= BHND_NVRAM_TYPE_ID(7, BHND_NVRAM_TF_SIGNED),	/**< ASCII character */
-	BHND_NVRAM_TYPE_CSTR	= BHND_NVRAM_TYPE_ID(8,	0),			/**< NUL-terminated C string */
+	BHND_NVRAM_TYPE_UINT8_ARRAY	= 16,	/**< array of uint8 integers */
+	BHND_NVRAM_TYPE_UINT16_ARRAY	= 17,	/**< array of uint16 integers */
+	BHND_NVRAM_TYPE_UINT32_ARRAY	= 18,	/**< array of uint32 integers */
+	BHND_NVRAM_TYPE_UINT64_ARRAY	= 19,	/**< array of uint64 integers */
+	BHND_NVRAM_TYPE_INT8_ARRAY	= 20,	/**< array of int8 integers */
+	BHND_NVRAM_TYPE_INT16_ARRAY	= 21,	/**< array of int16 integers */
+	BHND_NVRAM_TYPE_INT32_ARRAY	= 22,	/**< array of int32 integers */
+	BHND_NVRAM_TYPE_INT64_ARRAY	= 23,	/**< array of int64 integers */
+	BHND_NVRAM_TYPE_CHAR_ARRAY	= 24,	/**< array of ASCII/UTF-8
+						     characters */
+	BHND_NVRAM_TYPE_STRING_ARRAY	= 25,	/**< array of ASCII/UTF-8
+						     NUL-terminated strings */
 } bhnd_nvram_type;
 
-#undef	BHND_NVRAM_TYPE_ID_MASK
-#undef	BHND_NVRAM_TYPE_FLAGS_MASK
-#undef	BHND_NVRAM_TYPE_ID
+const char	*bhnd_nvram_string_array_next(const char *inp, size_t ilen,
+		     const char *prev); 
 
-#define	BHND_NVRAM_SIGNED_TYPE(_type)	\
-	(((_type) & BHND_NVRAM_TF_SIGNED) == BHND_NVRAM_TF_SIGNED)
+bool		 bhnd_nvram_is_signed_type(bhnd_nvram_type type);
+bool		 bhnd_nvram_is_unsigned_type(bhnd_nvram_type type);
+bool		 bhnd_nvram_is_int_type(bhnd_nvram_type type);
+bool		 bhnd_nvram_is_array_type(bhnd_nvram_type type);
+bhnd_nvram_type	 bhnd_nvram_base_type(bhnd_nvram_type type);
+const char	*bhnd_nvram_type_name(bhnd_nvram_type type);
 
 #endif /* _BHND_NVRAM_BHND_NVRAM_H_ */

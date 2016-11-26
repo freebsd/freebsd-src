@@ -1057,7 +1057,8 @@ bhnd_nvram_getvar_str(device_t dev, const char *name, char *buf, size_t len,
 	int	error;
 
 	larg = len;
-	error = bhnd_nvram_getvar(dev, name, buf, &larg, BHND_NVRAM_TYPE_CSTR);
+	error = bhnd_nvram_getvar(dev, name, buf, &larg,
+	    BHND_NVRAM_TYPE_STRING);
 	if (rlen != NULL)
 		*rlen = larg;
 
