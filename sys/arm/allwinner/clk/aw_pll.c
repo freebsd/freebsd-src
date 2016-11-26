@@ -482,11 +482,20 @@ a10_pll3_set_freq(struct aw_pll_sc *sc, uint64_t fin, uint64_t *fout,
 {
 	uint32_t val, m, mode, func;
 
-	m = *fout / A10_PLL3_REF_FREQ;
-
-	mode = A10_PLL3_MODE_SEL_INT;
-	func = 0;
-	*fout = m * A10_PLL3_REF_FREQ;
+	if (*fout == 297000000) {
+		func = A10_PLL3_FUNC_SET_297MHZ;
+		mode = A10_PLL3_MODE_SEL_FRACT;
+		m = 0;
+	} else if (*fout == 270000000) {
+		func = A10_PLL3_FUNC_SET_270MHZ;
+		mode = A10_PLL3_MODE_SEL_FRACT;
+		m = 0;
+	} else {
+		mode = A10_PLL3_MODE_SEL_INT;
+		func = 0;
+		m = *fout / A10_PLL3_REF_FREQ;
+		*fout = m * A10_PLL3_REF_FREQ;
+	}
 
 	DEVICE_LOCK(sc);
 	PLL_READ(sc, &val);

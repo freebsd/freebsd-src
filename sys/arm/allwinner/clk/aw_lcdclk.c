@@ -78,6 +78,8 @@ __FBSDID("$FreeBSD$");
 #define	CH1_CLK_DIV_RATIO_M_SHIFT	0
 
 #define	TCON_PLLREF			3000000ULL
+#define	TCON_PLLREF_FRAC1		297000000ULL
+#define	TCON_PLLREF_FRAC2		270000000ULL
 #define	TCON_PLL_M_MIN			1
 #define	TCON_PLL_M_MAX			15
 #define	TCON_PLL_N_MIN			9
@@ -290,7 +292,7 @@ aw_lcdclk_recalc_freq(struct clknode *clk, uint64_t *freq)
 }
 
 static void
-calc_tcon_pll(uint64_t fin, uint64_t fout, uint32_t *pm, uint32_t *pn)
+calc_tcon_pll_integer(uint64_t fin, uint64_t fout, uint32_t *pm, uint32_t *pn)
 {
 	int64_t diff, fcur, best;
 	int m, n;
@@ -310,14 +312,86 @@ calc_tcon_pll(uint64_t fin, uint64_t fout, uint32_t *pm, uint32_t *pn)
 }
 
 static int
+calc_tcon_pll_fractional(uint64_t fin, uint64_t fout, int *clk_div)
+{
+	int m;
+
+	/* Test for 1X match */
+	for (m = TCON_PLL_M_MIN; m <= TCON_PLL_M_MAX; m++) {
+		if (fout == (fin / m)) {
+			*clk_div = m;
+			return (CH0_CLK_SRC_SEL_PLL3_1X);
+		}
+	}
+
+	/* Test for 2X match */
+	for (m = TCON_PLL_M_MIN; m <= TCON_PLL_M_MAX; m++) {
+		if (fout == ((fin * 2) / m)) {
+			*clk_div = m;
+			return (CH0_CLK_SRC_SEL_PLL3_2X);
+		}
+	}
+
+	return (-1);
+}
+
+static int
+calc_tcon_pll(uint64_t fin, uint64_t fout, uint64_t *pll_freq, int *tcon_pll_div)
+{
+	uint32_t m, m2, n, n2;
+	uint64_t fsingle, fdouble;
+	int src_sel;
+	bool dbl;
+
+	/* Test fractional freq first */
+	src_sel = calc_tcon_pll_fractional(TCON_PLLREF_FRAC1, fout,
+	    tcon_pll_div);
+	if (src_sel != -1) {
+		*pll_freq = TCON_PLLREF_FRAC1;
+		return src_sel;
+	}
+	src_sel = calc_tcon_pll_fractional(TCON_PLLREF_FRAC2, fout,
+	    tcon_pll_div);
+	if (src_sel != -1) {
+		*pll_freq = TCON_PLLREF_FRAC2;
+		return src_sel;
+	}
+
+	m = n = m2 = n2 = 0;
+	dbl = false;
+
+	/* Find the frequency closes to the target dot clock, using
+	 * both 1X and 2X PLL inputs as possible candidates.
+	 */
+	calc_tcon_pll_integer(TCON_PLLREF, fout, &m, &n);
+	calc_tcon_pll_integer(TCON_PLLREF * 2, fout, &m2, &n2);
+
+	fsingle = m ? (n * TCON_PLLREF) / m : 0;
+	fdouble = m2 ? (n2 * TCON_PLLREF * 2) / m2 : 0;
+
+	if (fdouble > fsingle) {
+		dbl = true;
+		m = m2;
+		n = n2;
+	}
+
+	/* Set desired parent frequency */
+	*pll_freq = n * TCON_PLLREF;
+	*tcon_pll_div = m;
+
+	/* Return the desired source clock */
+	return (dbl ? CH0_CLK_SRC_SEL_PLL3_2X :
+	    CH0_CLK_SRC_SEL_PLL3_1X);
+}
+
+static int
 aw_lcdclk_set_freq(struct clknode *clk, uint64_t fin, uint64_t *fout,
     int flags, int *stop)
 {
 	struct aw_lcdclk_softc *sc;
-	uint32_t val, m, m2, n, n2, src_sel;
-	uint64_t fsingle, fdouble;
-	int error;
-	bool dbl;
+	uint64_t pll_freq;
+	uint32_t val, src_sel;
+	int error, tcon_pll_div;
 
 	sc = clknode_get_softc(clk);
 
@@ -329,26 +403,7 @@ aw_lcdclk_set_freq(struct clknode *clk, uint64_t fin, uint64_t *fout,
 		if (sc->id != CLK_IDX_CH1_SCLK2)
 			return (ENXIO);
 
-		m = n = m2 = n2 = 0;
-		dbl = false;
-
-		/* Find the frequency closes to the target dot clock, using
-		 * both 1X and 2X PLL inputs as possible candidates.
-		 */
-		calc_tcon_pll(TCON_PLLREF, *fout, &m, &n);
-		calc_tcon_pll(TCON_PLLREF * 2, *fout, &m2, &n2);
-
-		fsingle = m ? (n * TCON_PLLREF) / m : 0;
-		fdouble = m2 ? (n2 * TCON_PLLREF * 2) / m2 : 0;
-
-		if (fdouble > fsingle) {
-			dbl = true;
-			m = m2;
-			n = n2;
-		}
-
-		src_sel = dbl ? CH0_CLK_SRC_SEL_PLL3_2X :
-		    CH0_CLK_SRC_SEL_PLL3_1X;
+		src_sel = calc_tcon_pll(fin, *fout, &pll_freq, &tcon_pll_div);
 
 		/* Switch parent clock if necessary */
 		if (src_sel != clknode_get_parent_idx(clk)) {
@@ -357,10 +412,8 @@ aw_lcdclk_set_freq(struct clknode *clk, uint64_t fin, uint64_t *fout,
 				return (error);
 		}
 
-		/* Set desired parent frequency */
-		fin = n * TCON_PLLREF;
-
-		error = clknode_set_freq(clknode_get_parent(clk), fin, 0, 0);
+		error = clknode_set_freq(clknode_get_parent(clk), pll_freq,
+		    0, 0);
 		if (error != 0)
 			return (error);
 
@@ -369,7 +422,7 @@ aw_lcdclk_set_freq(struct clknode *clk, uint64_t fin, uint64_t *fout,
 			return (error);
 
 		/* Fetch new input frequency */
-		error = clknode_get_freq(clknode_get_parent(clk), &fin);
+		error = clknode_get_freq(clknode_get_parent(clk), &pll_freq);
 		if (error != 0)
 			return (error);
 
@@ -377,11 +430,11 @@ aw_lcdclk_set_freq(struct clknode *clk, uint64_t fin, uint64_t *fout,
 		DEVICE_LOCK(sc);
 		LCDCLK_READ(sc, &val);
 		val &= ~CH1_CLK_DIV_RATIO_M;
-		val |= ((m - 1) << CH1_CLK_DIV_RATIO_M_SHIFT);
+		val |= ((tcon_pll_div - 1) << CH1_CLK_DIV_RATIO_M_SHIFT);
 		LCDCLK_WRITE(sc, val);
 		DEVICE_UNLOCK(sc);
 
-		*fout = fin / m;
+		*fout = pll_freq / tcon_pll_div;
 		*stop = 1;
 
 		break;
