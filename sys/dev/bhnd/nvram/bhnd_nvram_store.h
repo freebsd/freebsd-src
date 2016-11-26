@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2016 Landon Fuller <landon@landonf.org>
+ * Copyright (c) 2015-2016 Landon Fuller <landonf@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,36 +29,40 @@
  * $FreeBSD$
  */
 
-#ifndef	_BHND_NVRAM_SPROM_PARSERVAR_H_
-#define	_BHND_NVRAM_SPROM_PARSERVAR_H_
+#ifndef _BHND_NVRAM_BHND_NVRAM_STORE_H_
+#define _BHND_NVRAM_BHND_NVRAM_STORE_H_
 
-#include "bhnd_sprom_parser.h"
+#ifdef _KERNEL
+#include <sys/param.h>
+#include <sys/bus.h>
+#include <sys/nv.h>
+#else /* !_KERNEL */
+#include <errno.h>
 
-#define	SPROM_SZ_R1_3		128	/**< SPROM image size (rev 1-3) */
-#define	SPROM_SZ_R4_8_9		440	/**< SPROM image size (rev 4, 8-9) */
-#define	SPROM_SZ_R10		460	/**< SPROM image size (rev 10) */ 
-#define	SPROM_SZ_R11		468	/**< SPROM image size (rev 11) */
+#include <nv.h>
 
-/** Maximum supported SPROM image size */
-#define	SPROM_SZ_MAX		SPROM_SZ_R11
+#include <stdint.h>
+#include <stdlib.h>
+#endif
 
-#define	SPROM_SIG_NONE		0x0
-#define	SPROM_SIG_NONE_OFF	0x0
+#include <sys/queue.h>
 
-/** SPROM signature (rev 4) */
-#define	SPROM_SIG_R4		0x5372			
-#define	SPROM_SIG_R4_OFF	64	/**< SPROM signature offset (rev 4) */
+#include "bhnd_nvram_data.h"
+#include "bhnd_nvram_io.h"
 
-/** SPROM signature (rev 8, 9) */
-#define	SPROM_SIG_R8_9		SPROM_SIG_R4
-#define	SPROM_SIG_R8_9_OFF	128	/**< SPROM signature offset (rev 8-9) */
+struct bhnd_nvram_store;
 
-/** SPROM signature (rev 10) */
-#define	SPROM_SIG_R10		SPROM_SIG_R4
-#define	SPROM_SIG_R10_OFF	438	/**< SPROM signature offset (rev 10) */
+int	bhnd_nvram_store_new(struct bhnd_nvram_store **store,
+	    struct bhnd_nvram_data *data);
 
-/** SPROM signature (rev 11) */
-#define	SPROM_SIG_R11		0x0634
-#define	SPROM_SIG_R11_OFF	128	/**< SPROM signature offset (rev 11) */
+int	bhnd_nvram_store_parse_new(struct bhnd_nvram_store **store,
+	    struct bhnd_nvram_io *io, bhnd_nvram_data_class_t *cls);
 
-#endif /* _BHND_NVRAM_SPROM_PARSERVAR_H_ */
+void	bhnd_nvram_store_free(struct bhnd_nvram_store *store);
+
+int	bhnd_nvram_store_getvar(struct bhnd_nvram_store *sc, const char *name,
+	    void *buf, size_t *len, bhnd_nvram_type type);
+int	bhnd_nvram_store_setvar(struct bhnd_nvram_store *sc, const char *name,
+	    const void *buf, size_t len, bhnd_nvram_type type);
+
+#endif /* _BHND_NVRAM_BHND_NVRAM_STORE_H_ */
