@@ -35,6 +35,7 @@
 
 #ifdef _KERNEL
 
+#include <sys/lock.h>
 #include <sys/mutex.h>
 
 #include <netipsec/key_var.h>
