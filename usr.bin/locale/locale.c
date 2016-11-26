@@ -281,8 +281,9 @@ main(int argc, char *argv[])
 
 	/* process '-c', '-k', or command line arguments. */
 	if (prt_categories || prt_keywords || argc > 0) {
-		if (argc > 0) {
+		if (prt_keywords || argc > 0)
 			setlocale(LC_ALL, "");
+		if (argc > 0) {
 			while (argc > 0) {
 				showdetails(*argv);
 				argv++;
