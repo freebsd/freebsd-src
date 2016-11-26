@@ -965,6 +965,35 @@ private:
   };
   SmallVector<BreakContinue, 8> BreakContinueStack;
 
+  /// Data for exit block for proper support of OpenMP cancellation constructs.
+  struct OMPCancel {
+    JumpDest ExitBlock;
+    llvm::function_ref<void(CodeGenFunction &CGF)> CodeGen;
+    OMPCancel() : CodeGen([](CodeGenFunction &CGF) {}) {}
+  };
+  SmallVector<OMPCancel, 8> OMPCancelStack;
+
+  /// Controls insertion of cancellation exit blocks in worksharing constructs.
+  class OMPCancelStackRAII {
+    CodeGenFunction &CGF;
+
+  public:
+    OMPCancelStackRAII(CodeGenFunction &CGF) : CGF(CGF) {
+      CGF.OMPCancelStack.push_back({});
+    }
+    ~OMPCancelStackRAII() {
+      if (CGF.HaveInsertPoint() &&
+          CGF.OMPCancelStack.back().ExitBlock.isValid()) {
+        auto CJD = CGF.getJumpDestInCurrentScope("cancel.cont");
+        CGF.EmitBranchThroughCleanup(CJD);
+        CGF.EmitBlock(CGF.OMPCancelStack.back().ExitBlock.getBlock());
+        CGF.OMPCancelStack.back().CodeGen(CGF);
+        CGF.EmitBranchThroughCleanup(CJD);
+        CGF.EmitBlock(CJD.getBlock());
+      }
+    }
+  };
+
   CodeGenPGO PGO;
 
   /// Calculate branch weights appropriate for PGO data
@@ -3163,6 +3192,10 @@ public:
   /// If the statement (recursively) contains a switch or loop with a break
   /// inside of it, this is fine.
   static bool containsBreak(const Stmt *S);
+
+  /// Determine if the given statement might introduce a declaration into the
+  /// current scope, by being a (possibly-labelled) DeclStmt.
+  static bool mightAddDeclToScope(const Stmt *S);
   
   /// ConstantFoldsToSimpleInteger - If the specified expression does not fold
   /// to a constant, or if it does but contains a label, return false.  If it

@@ -18,6 +18,7 @@
 #include "clang/AST/Attr.h"
 #include "clang/AST/Availability.h"
 #include "clang/AST/DeclarationName.h"
+#include "clang/AST/DeclTemplate.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/ExprObjC.h"
 #include "clang/AST/ExternalASTSource.h"
@@ -1217,8 +1218,10 @@ public:
   /// \brief Retrieve the current block, if any.
   sema::BlockScopeInfo *getCurBlock();
 
-  /// \brief Retrieve the current lambda scope info, if any.
-  sema::LambdaScopeInfo *getCurLambda();
+  /// Retrieve the current lambda scope info, if any.
+  /// \param IgnoreCapturedRegions true if should find the top-most lambda scope
+  /// info ignoring all inner captured regions scope infos.
+  sema::LambdaScopeInfo *getCurLambda(bool IgnoreCapturedRegions = false);
 
   /// \brief Retrieve the current generic lambda info, if any.
   sema::LambdaScopeInfo *getCurGenericLambda();
@@ -6613,10 +6616,10 @@ public:
       TemplateInstantiation,
 
       /// We are instantiating a default argument for a template
-      /// parameter. The Entity is the template, and
-      /// TemplateArgs/NumTemplateArguments provides the template
-      /// arguments as specified.
-      /// FIXME: Use a TemplateArgumentList
+      /// parameter. The Entity is the template parameter whose argument is
+      /// being instantiated, the Template is the template, and the
+      /// TemplateArgs/NumTemplateArguments provide the template arguments as
+      /// specified.
       DefaultTemplateArgumentInstantiation,
 
       /// We are instantiating a default argument for a function.
@@ -6731,6 +6734,9 @@ public:
   SmallVector<ActiveTemplateInstantiation, 16>
     ActiveTemplateInstantiations;
 
+  /// Specializations whose definitions are currently being instantiated.
+  llvm::DenseSet<std::pair<Decl *, unsigned>> InstantiatingSpecializations;
+
   /// \brief Extra modules inspected when performing a lookup during a template
   /// instantiation. Computed lazily.
   SmallVector<Module*, 16> ActiveTemplateInstantiationLookupModules;
@@ -6837,12 +6843,12 @@ public:
     /// \brief Note that we are instantiating a default argument in a
     /// template-id.
     InstantiatingTemplate(Sema &SemaRef, SourceLocation PointOfInstantiation,
-                          TemplateDecl *Template,
+                          TemplateParameter Param, TemplateDecl *Template,
                           ArrayRef<TemplateArgument> TemplateArgs,
                           SourceRange InstantiationRange = SourceRange());
 
-    /// \brief Note that we are instantiating a default argument in a
-    /// template-id.
+    /// \brief Note that we are substituting either explicitly-specified or
+    /// deduced template arguments during function template argument deduction.
     InstantiatingTemplate(Sema &SemaRef, SourceLocation PointOfInstantiation,
                           FunctionTemplateDecl *FunctionTemplate,
                           ArrayRef<TemplateArgument> TemplateArgs,
@@ -6909,9 +6915,14 @@ public:
     /// recursive template instantiations.
     bool isInvalid() const { return Invalid; }
 
+    /// \brief Determine whether we are already instantiating this
+    /// specialization in some surrounding active instantiation.
+    bool isAlreadyInstantiating() const { return AlreadyInstantiating; }
+
   private:
     Sema &SemaRef;
     bool Invalid;
+    bool AlreadyInstantiating;
     bool SavedInNonInstantiationSFINAEContext;
     bool CheckInstantiationDepth(SourceLocation PointOfInstantiation,
                                  SourceRange InstantiationRange);
