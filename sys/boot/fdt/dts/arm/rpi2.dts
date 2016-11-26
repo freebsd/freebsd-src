@@ -315,7 +315,7 @@
 				reg = <0x00000001>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				ethernet {
+				ethernet: ethernet {
 					compatible = "net,ethernet",
 						     "usb,device";
 					reg = <0x00000001>;
@@ -397,6 +397,7 @@
 
 	aliases {
 		uart0 = &uart0;
+		ethernet0 = &ethernet;
 	};
 
 	chosen {
