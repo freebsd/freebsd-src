@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015-2016 Landon Fuller <landon@landonf.org>
+ * Copyright (c) 2015-2016 Landon Fuller <landonf@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,36 +29,12 @@
  * $FreeBSD$
  */
 
-#ifndef _BHND_NVRAM_BHND_SPROM_PARSER_H_
-#define _BHND_NVRAM_BHND_SPROM_PARSER_H_
+#ifndef _BHND_NVRAM_BHND_NVRAM_TLVREG_H_
+#define _BHND_NVRAM_BHND_NVRAM_TLVREG_H_
 
-#include <dev/bhnd/bhnd.h>
+/* WGT634U-specific TLV encoding */
+#define	NVRAM_TLV_TF_U8_LEN		0x01	/**< type has 8-bit length */
+#define	NVRAM_TLV_TYPE_END		0x00	/**< end of table */
+#define	NVRAM_TLV_TYPE_ENV		0x01	/**< variable record */
 
-struct bhnd_sprom;
-
-int	bhnd_sprom_init(struct bhnd_sprom *sprom, struct bhnd_resource *r,
-	    bus_size_t offset);
-void	bhnd_sprom_fini(struct bhnd_sprom *sprom);
-int	bhnd_sprom_getvar(struct bhnd_sprom *sc, const char *name, void *buf,
-	    size_t *len, bhnd_nvram_type type);
-int	bhnd_sprom_setvar(struct bhnd_sprom *sc, const char *name,
-	    const void *buf, size_t len, bhnd_nvram_type type);
-
-/**
- * bhnd sprom parser instance state.
- */
-struct bhnd_sprom {
-	device_t		 dev;		/**< sprom parent device */
-
-	uint8_t			 sp_rev;	/**< sprom revision */
-	
-	struct bhnd_resource	*sp_res;	/**< sprom resource. */
-	bus_size_t		 sp_res_off;	/**< offset to sprom image */
-
-	uint8_t			*sp_shadow;	/**< sprom shadow */
-	bus_size_t		 sp_size_max;	/**< maximum possible sprom length */
-	size_t			 sp_size;	/**< shadow size */
-	size_t			 sp_capacity;	/**< shadow buffer capacity */
-};
-
-#endif /* _BHND_NVRAM_BHND_SPROM_PARSER_H_ */
+#endif /* _BHND_NVRAM_BHND_NVRAM_TLVREG_H_ */
