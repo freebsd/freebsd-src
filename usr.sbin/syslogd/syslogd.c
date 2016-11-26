@@ -1835,6 +1835,7 @@ init(int signo)
 		free((char *)f);
 	}
 	Files = NULL;
+	*nextp = NULL;
 
 	/* open the configuration file */
 	if ((cf = fopen(ConfFile, "r")) == NULL) {
