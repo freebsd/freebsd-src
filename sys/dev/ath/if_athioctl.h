@@ -447,4 +447,9 @@ struct ath_tx_radiotap_header {
 #define	SPECTRAL_CONTROL_ENABLE_AT_RESET	8
 #define	SPECTRAL_CONTROL_DISABLE_AT_RESET	9
 
+/*
+ * Bluetooth coexistence control parameters
+ */
+#define	SIOCGATHBTCOEX		_IOWR('i', 152, struct ath_diag)
+
 #endif /* _DEV_ATH_ATHIOCTL_H */
