@@ -202,7 +202,7 @@ parse(int tk) /* tk: the code for the construct scanned */
 
     }				/* end of switch */
 
-    if (ps.tos >= STACKSIZE)
+    if (ps.tos >= STACKSIZE - 1)
 	errx(1, "Parser stack overflow");
 
     reduce();			/* see if any reduction can be done */
