@@ -444,7 +444,8 @@ cc_cong_signal(struct tcpcb *tp, struct tcphdr *th, uint32_t type)
 			 * ssthresh = max (FlightSize / 2, 2*SMSS) eq (4)
 			 */
 			tp->snd_ssthresh =
-			    max((tp->snd_max - tp->snd_una) / 2, 2 * maxseg);
+			    max((tp->snd_max - tp->snd_una) / 2 / maxseg, 2)
+				* maxseg;
 			tp->snd_cwnd = maxseg;
 		}
 		break;
@@ -2201,9 +2202,10 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				case TCPS_FIN_WAIT_1:
 				case TCPS_FIN_WAIT_2:
 				case TCPS_CLOSE_WAIT:
+				case TCPS_CLOSING:
+				case TCPS_LAST_ACK:
 					so->so_error = ECONNRESET;
 				close:
-					tcp_state_change(tp, TCPS_CLOSED);
 					/* FALLTHROUGH */
 				default:
 					tp = tcp_close(tp);

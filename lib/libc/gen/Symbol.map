@@ -68,7 +68,6 @@ FBSD_1.0 {
 	arc4random_addrandom;
 	arc4random_stir;
 	__assert;
-	basename;
 	check_utility_compat;
 	clock;
 	closedir;
@@ -414,6 +413,7 @@ FBSD_1.4 {
 };
 
 FBSD_1.5 {
+	basename;
 	dirname;
 };
 

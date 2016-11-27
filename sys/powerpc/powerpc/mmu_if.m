@@ -725,7 +725,7 @@ METHOD void align_superpage {
 
 /**
  * @brief Bootstrap the VM system. At the completion of this routine, the
- * kernel will be running in it's own address space with full control over
+ * kernel will be running in its own address space with full control over
  * paging.
  *
  * @param _start	start of reserved memory (obsolete ???)

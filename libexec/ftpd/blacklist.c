@@ -37,16 +37,20 @@
 #include <blacklist.h>
 
 static struct blacklist *blstate;
+extern int use_blacklist;
 
 void
 blacklist_init(void)
 {
-	blstate = blacklist_open();
+
+	if (use_blacklist)
+		blstate = blacklist_open();
 }
 
 void
 blacklist_notify(int action, int fd, char *msg)
 {
+
 	if (blstate == NULL)
 		return;
 	(void)blacklist_r(blstate, action, fd, msg);

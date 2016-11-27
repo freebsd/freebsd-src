@@ -44,6 +44,7 @@ struct ieee80211_tx_ampdu {
 #define	IEEE80211_AGGR_SETUP		0x0008	/* deferred state setup */
 #define	IEEE80211_AGGR_NAK		0x0010	/* peer NAK'd ADDBA request */
 #define	IEEE80211_AGGR_BARPEND		0x0020	/* BAR response pending */
+#define	IEEE80211_AGGR_WAITRX		0x0040	/* Wait for first RX frame to define BAW */
 	uint8_t		txa_tid;
 	uint8_t		txa_token;	/* dialog token */
 	int		txa_lastsample;	/* ticks @ last traffic sample */
@@ -220,6 +221,7 @@ void	ieee80211_ht_update_beacon(struct ieee80211vap *,
 		struct ieee80211_beacon_offsets *);
 int	ieee80211_ampdu_rx_start_ext(struct ieee80211_node *ni, int tid,
 	    int seq, int baw);
+void	ieee80211_ampdu_rx_stop_ext(struct ieee80211_node *ni, int tid);
 int	ieee80211_ampdu_tx_request_ext(struct ieee80211_node *ni, int tid);
 int	ieee80211_ampdu_tx_request_active_ext(struct ieee80211_node *ni,
 	    int tid, int status);

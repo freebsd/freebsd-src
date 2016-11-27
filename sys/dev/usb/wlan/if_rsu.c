@@ -173,6 +173,10 @@ static void	rsu_scan_end(struct ieee80211com *);
 static void	rsu_getradiocaps(struct ieee80211com *, int, int *,
 		    struct ieee80211_channel[]);
 static void	rsu_set_channel(struct ieee80211com *);
+static void	rsu_scan_curchan(struct ieee80211_scan_state *, unsigned long);
+static void	rsu_scan_mindwell(struct ieee80211_scan_state *);
+static uint8_t	rsu_get_multi_pos(const uint8_t[]);
+static void	rsu_set_multi(struct rsu_softc *);
 static void	rsu_update_mcast(struct ieee80211com *);
 static int	rsu_alloc_rx_list(struct rsu_softc *);
 static void	rsu_free_rx_list(struct rsu_softc *);
@@ -203,7 +207,8 @@ static int	rsu_newstate(struct ieee80211vap *, enum ieee80211_state, int);
 static void	rsu_set_key(struct rsu_softc *, const struct ieee80211_key *);
 static void	rsu_delete_key(struct rsu_softc *, const struct ieee80211_key *);
 #endif
-static int	rsu_site_survey(struct rsu_softc *, struct ieee80211vap *);
+static int	rsu_site_survey(struct rsu_softc *,
+		    struct ieee80211_scan_ssid *);
 static int	rsu_join_bss(struct rsu_softc *, struct ieee80211_node *);
 static int	rsu_disconnect(struct rsu_softc *);
 static int	rsu_hwrssi_to_rssi(struct rsu_softc *, int hw_rssi);
@@ -537,6 +542,7 @@ rsu_attach(device_t self)
 		ic->ic_txstream = sc->sc_ntxstream;
 		ic->ic_rxstream = sc->sc_nrxstream;
 	}
+	ic->ic_flags_ext |= IEEE80211_FEXT_SCAN_OFFLOAD;
 
 	rsu_getradiocaps(ic, IEEE80211_CHAN_MAX, &ic->ic_nchans,
 	    ic->ic_channels);
@@ -547,6 +553,8 @@ rsu_attach(device_t self)
 	ic->ic_scan_end = rsu_scan_end;
 	ic->ic_getradiocaps = rsu_getradiocaps;
 	ic->ic_set_channel = rsu_set_channel;
+	ic->ic_scan_curchan = rsu_scan_curchan;
+	ic->ic_scan_mindwell = rsu_scan_mindwell;
 	ic->ic_vap_create = rsu_vap_create;
 	ic->ic_vap_delete = rsu_vap_delete;
 	ic->ic_update_mcast = rsu_update_mcast;
@@ -680,16 +688,21 @@ static void
 rsu_scan_start(struct ieee80211com *ic)
 {
 	struct rsu_softc *sc = ic->ic_softc;
+	struct ieee80211_scan_state *ss = ic->ic_scan;
+	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 	int error;
 
 	/* Scanning is done by the firmware. */
 	RSU_LOCK(sc);
-	/* XXX TODO: force awake if in in network-sleep? */
-	error = rsu_site_survey(sc, TAILQ_FIRST(&ic->ic_vaps));
+	sc->sc_active_scan = !!(ss->ss_flags & IEEE80211_SCAN_ACTIVE);
+	/* XXX TODO: force awake if in network-sleep? */
+	error = rsu_site_survey(sc, ss->ss_nssid > 0 ? &ss->ss_ssid[0] : NULL);
 	RSU_UNLOCK(sc);
-	if (error != 0)
+	if (error != 0) {
 		device_printf(sc->sc_dev,
 		    "could not send site survey command\n");
+		ieee80211_cancel_scan(vap);
+	}
 }
 
 static void
@@ -722,9 +735,95 @@ rsu_set_channel(struct ieee80211com *ic __unused)
 }
 
 static void
+rsu_scan_curchan(struct ieee80211_scan_state *ss, unsigned long maxdwell)
+{
+	/* Scan is done in rsu_scan_start(). */
+}
+
+/**
+ * Called by the net80211 framework to indicate
+ * the minimum dwell time has been met, terminate the scan.
+ * We don't actually terminate the scan as the firmware will notify
+ * us when it's finished and we have no way to interrupt it.
+ */
+static void
+rsu_scan_mindwell(struct ieee80211_scan_state *ss)
+{
+	/* NB: don't try to abort scan; wait for firmware to finish */
+}
+
+/*
+ * The same as rtwn_get_multi_pos() / rtwn_set_multi().
+ */
+static uint8_t
+rsu_get_multi_pos(const uint8_t maddr[])
+{
+	uint64_t mask = 0x00004d101df481b4;
+	uint8_t pos = 0x27;	/* initial value */
+	int i, j;
+
+	for (i = 0; i < IEEE80211_ADDR_LEN; i++)
+		for (j = (i == 0) ? 1 : 0; j < 8; j++)
+			if ((maddr[i] >> j) & 1)
+				pos ^= (mask >> (i * 8 + j - 1));
+
+	pos &= 0x3f;
+
+	return (pos);
+}
+
+static void
+rsu_set_multi(struct rsu_softc *sc)
+{
+	struct ieee80211com *ic = &sc->sc_ic;
+	uint32_t mfilt[2];
+
+	RSU_ASSERT_LOCKED(sc);
+
+	/* general structure was copied from ath(4). */
+	if (ic->ic_allmulti == 0) {
+		struct ieee80211vap *vap;
+		struct ifnet *ifp;
+		struct ifmultiaddr *ifma;
+
+		/*
+		 * Merge multicast addresses to form the hardware filter.
+		 */
+		mfilt[0] = mfilt[1] = 0;
+		TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next) {
+			ifp = vap->iv_ifp;
+			if_maddr_rlock(ifp);
+			TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+				caddr_t dl;
+				uint8_t pos;
+
+				dl = LLADDR((struct sockaddr_dl *)
+				    ifma->ifma_addr);
+				pos = rsu_get_multi_pos(dl);
+
+				mfilt[pos / 32] |= (1 << (pos % 32));
+			}
+			if_maddr_runlock(ifp);
+		}
+	} else
+		mfilt[0] = mfilt[1] = ~0;
+
+	rsu_write_4(sc, R92S_MAR + 0, mfilt[0]);
+	rsu_write_4(sc, R92S_MAR + 4, mfilt[1]);
+
+	RSU_DPRINTF(sc, RSU_DEBUG_STATE, "%s: MC filter %08x:%08x\n",
+	    __func__, mfilt[0], mfilt[1]);
+}
+
+static void
 rsu_update_mcast(struct ieee80211com *ic)
 {
-        /* XXX do nothing?  */
+	struct rsu_softc *sc = ic->ic_softc;
+
+	RSU_LOCK(sc);
+	if (sc->sc_running)
+		rsu_set_multi(sc);
+	RSU_UNLOCK(sc);
 }
 
 static int
@@ -1323,31 +1422,36 @@ rsu_delete_key(struct rsu_softc *sc, const struct ieee80211_key *k)
 #endif
 
 static int
-rsu_site_survey(struct rsu_softc *sc, struct ieee80211vap *vap)
+rsu_site_survey(struct rsu_softc *sc, struct ieee80211_scan_ssid *ssid)
 {
 	struct r92s_fw_cmd_sitesurvey cmd;
-	struct ieee80211com *ic = &sc->sc_ic;
-	int r;
 
 	RSU_ASSERT_LOCKED(sc);
 
 	memset(&cmd, 0, sizeof(cmd));
-	if ((ic->ic_flags & IEEE80211_F_ASCAN) || sc->sc_scan_pass == 1)
+	/* TODO: passive channels? */
+	if (sc->sc_active_scan)
 		cmd.active = htole32(1);
 	cmd.limit = htole32(48);
-	if (sc->sc_scan_pass == 1 && vap->iv_des_nssid > 0) {
-		/* Do a directed scan for second pass. */
-		cmd.ssidlen = htole32(vap->iv_des_ssid[0].len);
-		memcpy(cmd.ssid, vap->iv_des_ssid[0].ssid,
-		    vap->iv_des_ssid[0].len);
-
+	
+	if (ssid != NULL) {
+		sc->sc_extra_scan = 1;
+		cmd.ssidlen = htole32(ssid->len);
+		memcpy(cmd.ssid, ssid->ssid, ssid->len);
 	}
-	DPRINTF("sending site survey command, pass=%d\n", sc->sc_scan_pass);
-	r = rsu_fw_cmd(sc, R92S_CMD_SITE_SURVEY, &cmd, sizeof(cmd));
-	if (r == 0) {
-		sc->sc_scanning = 1;
+#ifdef USB_DEBUG
+	if (rsu_debug & (RSU_DEBUG_SCAN | RSU_DEBUG_FWCMD)) {
+		device_printf(sc->sc_dev,
+		    "sending site survey command, active %d",
+		    le32toh(cmd.active));
+		if (ssid != NULL) {
+			printf(", ssid: ");
+			ieee80211_print_essid(cmd.ssid, le32toh(cmd.ssidlen));
+		}
+		printf("\n");
 	}
-	return (r);
+#endif
+	return (rsu_fw_cmd(sc, R92S_CMD_SITE_SURVEY, &cmd, sizeof(cmd)));
 }
 
 static int
@@ -1362,27 +1466,8 @@ rsu_join_bss(struct rsu_softc *sc, struct ieee80211_node *ni)
 	uint8_t *frm;
 	uint8_t opmode;
 	int error;
-	int cnt;
-	char *msg = "rsujoin";
 
 	RSU_ASSERT_LOCKED(sc);
-
-	/*
-	 * Until net80211 scanning doesn't automatically finish
-	 * before we tell it to, let's just wait until any pending
-	 * scan is done.
-	 *
-	 * XXX TODO: yes, this releases and re-acquires the lock.
-	 * We should re-verify the state whenever we re-attempt this!
-	 */
-	cnt = 0;
-	while (sc->sc_scanning && cnt < 10) {
-		device_printf(sc->sc_dev,
-		    "%s: still scanning! (attempt %d)\n",
-		    __func__, cnt);
-		msleep(msg, &sc->sc_mtx, 0, msg, hz / 2);
-		cnt++;
-	}
 
 	/* Let the FW decide the opmode based on the capinfo field. */
 	opmode = NDIS802_11AUTOUNKNOWN;
@@ -1634,26 +1719,24 @@ rsu_rx_event(struct rsu_softc *sc, uint8_t code, uint8_t *buf, int len)
 		break;
 	case R92S_EVT_SURVEY_DONE:
 		RSU_DPRINTF(sc, RSU_DEBUG_SCAN,
-		    "%s: site survey pass %d done, found %d BSS\n",
-		    __func__, sc->sc_scan_pass, le32toh(*(uint32_t *)buf));
-		sc->sc_scanning = 0;
-		if (vap->iv_state != IEEE80211_S_SCAN)
-			break;	/* Ignore if not scanning. */
-
-		/*
-		 * XXX TODO: This needs to be done without a transition to
-		 * the SCAN state again.  Grr.
-		 */
-		if (sc->sc_scan_pass == 0 && vap->iv_des_nssid != 0) {
-			/* Schedule a directed scan for hidden APs. */
-			/* XXX bad! */
-			sc->sc_scan_pass = 1;
-			RSU_UNLOCK(sc);
-			ieee80211_new_state(vap, IEEE80211_S_SCAN, -1);
-			RSU_LOCK(sc);
+		    "%s: %s scan done, found %d BSS\n",
+		    __func__, sc->sc_extra_scan ? "direct" : "broadcast",
+		    le32toh(*(uint32_t *)buf));
+		if (sc->sc_extra_scan == 1) {
+			/* Send broadcast probe request. */
+			sc->sc_extra_scan = 0;
+			if (vap != NULL && rsu_site_survey(sc, NULL) != 0) {
+				RSU_UNLOCK(sc);
+				ieee80211_cancel_scan(vap);
+				RSU_LOCK(sc);
+			}
 			break;
 		}
-		sc->sc_scan_pass = 0;
+		if (vap != NULL) {
+			RSU_UNLOCK(sc);
+			ieee80211_scan_done(vap);
+			RSU_LOCK(sc);
+		}
 		break;
 	case R92S_EVT_JOIN_BSS:
 		if (vap->iv_state == IEEE80211_S_AUTH)
@@ -2912,6 +2995,9 @@ rsu_init(struct rsu_softc *sc)
 		goto fail;
 	}
 
+	/* Setup multicast filter (must be done after firmware loading). */
+	rsu_set_multi(sc);
+
 	/* Set PS mode fully active */
 	error = rsu_set_fw_power_state(sc, RSU_PWR_ACTIVE);
 
@@ -2920,12 +3006,11 @@ rsu_init(struct rsu_softc *sc)
 		goto fail;
 	}
 
-	sc->sc_scan_pass = 0;
+	sc->sc_extra_scan = 0;
 	usbd_transfer_start(sc->sc_xfer[RSU_BULK_RX]);
 
 	/* We're ready to go. */
 	sc->sc_running = 1;
-	sc->sc_scanning = 0;
 	return;
 fail:
 	/* Need to stop all failed transfers, if any */

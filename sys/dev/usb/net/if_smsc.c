@@ -152,7 +152,7 @@ static const struct usb_device_id smsc_devs[] = {
 			device_printf((sc)->sc_ue.ue_dev, "debug: " fmt, ##args); \
 	} while(0)
 #else
-#define smsc_dbg_printf(sc, fmt, args...)
+#define smsc_dbg_printf(sc, fmt, args...) do { } while (0)
 #endif
 
 #define smsc_warn_printf(sc, fmt, args...) \
@@ -822,7 +822,6 @@ static int smsc_sethwcsum(struct smsc_softc *sc)
 	return (0);
 }
 
-
 /**
  *	smsc_setmacaddress - Sets the mac address in the device
  *	@sc: driver soft context
@@ -904,6 +903,9 @@ smsc_init(struct usb_ether *ue)
 	struct ifnet *ifp = uether_getifp(ue);
 
 	SMSC_LOCK_ASSERT(sc, MA_OWNED);
+
+	if (smsc_setmacaddress(sc, IF_LLADDR(ifp)))
+		smsc_dbg_printf(sc, "setting MAC address failed\n");
 
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
 		return;
@@ -1566,8 +1568,8 @@ smsc_fdt_find_eth_node(phandle_t start)
 
 	/* Traverse through entire tree to find usb ethernet nodes. */
 	for (node = OF_child(start); node != 0; node = OF_peer(node)) {
-		if (fdt_is_compatible(node, "net,ethernet") &&
-		    fdt_is_compatible(node, "usb,device"))
+		if (ofw_bus_node_is_compatible(node, "net,ethernet") &&
+		    ofw_bus_node_is_compatible(node, "usb,device"))
 			return (node);
 		child = smsc_fdt_find_eth_node(node);
 		if (child != -1)

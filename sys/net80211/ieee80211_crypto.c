@@ -580,8 +580,9 @@ ieee80211_crypto_encap(struct ieee80211_node *ni, struct mbuf *m)
  * Validate and strip privacy headers (and trailer) for a
  * received frame that has the WEP/Privacy bit set.
  */
-struct ieee80211_key *
-ieee80211_crypto_decap(struct ieee80211_node *ni, struct mbuf *m, int hdrlen)
+int
+ieee80211_crypto_decap(struct ieee80211_node *ni, struct mbuf *m, int hdrlen,
+    struct ieee80211_key **key)
 {
 #define	IEEE80211_WEP_HDRLEN	(IEEE80211_WEP_IVLEN + IEEE80211_WEP_KIDLEN)
 #define	IEEE80211_WEP_MINLEN \
@@ -590,8 +591,29 @@ ieee80211_crypto_decap(struct ieee80211_node *ni, struct mbuf *m, int hdrlen)
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211_key *k;
 	struct ieee80211_frame *wh;
+	const struct ieee80211_rx_stats *rxs;
 	const struct ieee80211_cipher *cip;
 	uint8_t keyid;
+
+	/*
+	 * Check for hardware decryption and IV stripping.
+	 * If the IV is stripped then we definitely can't find a key.
+	 * Set the key to NULL but return true; upper layers
+	 * will need to handle a NULL key for a successful
+	 * decrypt.
+	 */
+	rxs = ieee80211_get_rx_params_ptr(m);
+	if ((rxs != NULL) && (rxs->c_pktflags & IEEE80211_RX_F_DECRYPTED)) {
+		if (rxs->c_pktflags & IEEE80211_RX_F_IV_STRIP) {
+			/*
+			 * Hardware decrypted, IV stripped.
+			 * We can't find a key with a stripped IV.
+			 * Return successful.
+			 */
+			*key = NULL;
+			return (1);
+		}
+	}
 
 	/* NB: this minimum size data frame could be bigger */
 	if (m->m_pkthdr.len < IEEE80211_WEP_MINLEN) {
@@ -599,7 +621,8 @@ ieee80211_crypto_decap(struct ieee80211_node *ni, struct mbuf *m, int hdrlen)
 			"%s: WEP data frame too short, len %u\n",
 			__func__, m->m_pkthdr.len);
 		vap->iv_stats.is_rx_tooshort++;	/* XXX need unique stat? */
-		return NULL;
+		*key = NULL;
+		return (0);
 	}
 
 	/*
@@ -625,13 +648,82 @@ ieee80211_crypto_decap(struct ieee80211_node *ni, struct mbuf *m, int hdrlen)
 		IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_CRYPTO, wh->i_addr2,
 		    "unable to pullup %s header", cip->ic_name);
 		vap->iv_stats.is_rx_wepfail++;	/* XXX */
-		return NULL;
+		*key = NULL;
+		return (0);
 	}
 
-	return (cip->ic_decap(k, m, hdrlen) ? k : NULL);
+	/*
+	 * Attempt decryption.
+	 *
+	 * If we fail then don't return the key - return NULL
+	 * and an error.
+	 */
+	if (cip->ic_decap(k, m, hdrlen)) {
+		/* success */
+		*key = k;
+		return (1);
+	}
+
+	/* Failure */
+	*key = NULL;
+	return (0);
 #undef IEEE80211_WEP_MINLEN
 #undef IEEE80211_WEP_HDRLEN
 }
+
+/*
+ * Check and remove any MIC.
+ */
+int
+ieee80211_crypto_demic(struct ieee80211vap *vap, struct ieee80211_key *k,
+    struct mbuf *m, int force)
+{
+	const struct ieee80211_cipher *cip;
+	const struct ieee80211_rx_stats *rxs;
+	struct ieee80211_frame *wh;
+
+	rxs = ieee80211_get_rx_params_ptr(m);
+	wh = mtod(m, struct ieee80211_frame *);
+
+	/*
+	 * Handle demic / mic errors from hardware-decrypted offload devices.
+	 */
+	if ((rxs != NULL) && (rxs->c_pktflags & IEEE80211_RX_F_DECRYPTED)) {
+		if (rxs->c_pktflags & IEEE80211_RX_F_FAIL_MIC) {
+			/*
+			 * Hardware has said MIC failed.  We don't care about
+			 * whether it was stripped or not.
+			 *
+			 * Eventually - teach the demic methods in crypto
+			 * modules to handle a NULL key and not to dereference
+			 * it.
+			 */
+			ieee80211_notify_michael_failure(vap, wh, -1);
+			return (0);
+		}
+
+		if (rxs->c_pktflags & IEEE80211_RX_F_MMIC_STRIP) {
+			/*
+			 * Hardware has decrypted and not indicated a
+			 * MIC failure and has stripped the MIC.
+			 * We may not have a key, so for now just
+			 * return OK.
+			 */
+			return (1);
+		}
+	}
+
+	/*
+	 * If we don't have a key at this point then we don't
+	 * have to demic anything.
+	 */
+	if (k == NULL)
+		return (1);
+
+	cip = k->wk_cipher;
+	return (cip->ic_miclen > 0 ? cip->ic_demic(k, m, force) : 1);
+}
+
 
 static void
 load_ucastkey(void *arg, struct ieee80211_node *ni)

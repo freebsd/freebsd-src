@@ -105,8 +105,7 @@ tmpfs_mem_avail(void)
 {
 	vm_ooffset_t avail;
 
-	avail = swap_pager_avail + vm_cnt.v_free_count + vm_cnt.v_cache_count -
-	    tmpfs_pages_reserved;
+	avail = swap_pager_avail + vm_cnt.v_free_count - tmpfs_pages_reserved;
 	if (__predict_false(avail < 0))
 		avail = 0;
 	return (avail);
@@ -1372,12 +1371,9 @@ retry:
 					VM_WAIT;
 					VM_OBJECT_WLOCK(uobj);
 					goto retry;
-				} else if (m->valid != VM_PAGE_BITS_ALL)
-					rv = vm_pager_get_pages(uobj, &m, 1,
-					    NULL, NULL);
-				else
-					/* A cached page was reactivated. */
-					rv = VM_PAGER_OK;
+				}
+				rv = vm_pager_get_pages(uobj, &m, 1, NULL,
+				    NULL);
 				vm_page_lock(m);
 				if (rv == VM_PAGER_OK) {
 					vm_page_deactivate(m);

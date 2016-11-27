@@ -149,21 +149,30 @@ Expression
 
     /* Parentheses */
 
-    | '(' TermArg ')'                   { $$ = $2;}
+    | PARSEOP_OPEN_PAREN
+        Expression
+        PARSEOP_CLOSE_PAREN             {$$ = $2;}
 
     /* Index term -- "= BUF1[5]" on right-hand side of an equals (source) */
 
-    | SuperName PARSEOP_EXP_INDEX_LEFT
-        TermArg PARSEOP_EXP_INDEX_RIGHT {$$ = TrCreateLeafNode (PARSEOP_INDEX);
-                                        TrLinkChildren ($$,3,$1,$3,TrCreateNullTarget ());}
+    | IndexExpTerm
     ;
 
-    /* Index term -- "BUF1[5] = " on left-hand side of an equals (target) */
-
+    /*
+     * Index term -- "BUF1[5] = " or " = BUF1[5] on either the left side
+     * of an equals (target) or the right side (source)
+     * Currently used in these terms:
+     *      Expression
+     *      ObjectTypeSource
+     *      DerefOfSource
+     *      Type6Opcode
+     */
 IndexExpTerm
 
-    : SuperName PARSEOP_EXP_INDEX_LEFT
-        TermArg PARSEOP_EXP_INDEX_RIGHT {$$ = TrCreateLeafNode (PARSEOP_INDEX);
+    : SuperName
+        PARSEOP_EXP_INDEX_LEFT
+        TermArg
+        PARSEOP_EXP_INDEX_RIGHT         {$$ = TrCreateLeafNode (PARSEOP_INDEX);
                                         TrLinkChildren ($$,3,$1,$3,TrCreateNullTarget ());}
     ;
 
@@ -177,10 +186,25 @@ IndexExpTerm
 
 EqualsTerm
 
+    /* Allow parens anywhere */
+
+    : PARSEOP_OPEN_PAREN
+        EqualsTerm
+        PARSEOP_CLOSE_PAREN             {$$ = $2;}
+
     /* Simple Store() operation */
 
-    : SuperName PARSEOP_EXP_EQUALS
+    | SuperName
+        PARSEOP_EXP_EQUALS
         TermArg                         {$$ = TrCreateAssignmentNode ($1, $3);}
+
+    /* Chained equals: (a=RefOf)=b, a=b=c=d etc. */
+
+    | PARSEOP_OPEN_PAREN
+        EqualsTerm
+        PARSEOP_CLOSE_PAREN
+        PARSEOP_EXP_EQUALS
+        TermArg                         {$$ = TrCreateAssignmentNode ($2, $5);}
 
     /* Compound assignments -- Add (operand, operand, target) */
 

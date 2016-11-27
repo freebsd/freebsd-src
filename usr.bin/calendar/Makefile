@@ -15,20 +15,22 @@ FR_LINKS=       fr_FR.ISO8859-15
 TEXTMODE?=	444
 
 beforeinstall:
-	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${TEXTMODE} \
+	${INSTALL} ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m ${TEXTMODE} \
 	    ${.CURDIR}/calendars/calendar.* ${DESTDIR}${SHAREDIR}/calendar
 .for lang in ${INTER}
-	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${TEXTMODE} \
+	${INSTALL} ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m ${TEXTMODE} \
 		${.CURDIR}/calendars/${lang}/calendar.* \
 		${DESTDIR}${SHAREDIR}/calendar/${lang} 
 .endfor
 .for link in ${DE_LINKS}
 	rm -rf ${DESTDIR}${SHAREDIR}/calendar/${link}
-	ln -s de_DE.ISO8859-1 ${DESTDIR}${SHAREDIR}/calendar/${link}
+	${INSTALL} ${TAG_ARGS} -l s de_DE.ISO8859-1 \
+	    ${DESTDIR}${SHAREDIR}/calendar/${link}
 .endfor
 .for link in ${FR_LINKS}
 	rm -rf ${DESTDIR}${SHAREDIR}/calendar/${link}
-	ln -s fr_FR.ISO8859-1 ${DESTDIR}${SHAREDIR}/calendar/${link}
+	${INSTALL} ${TAG_ARGS} -l s fr_FR.ISO8859-1 \
+	    ${DESTDIR}${SHAREDIR}/calendar/${link}
 .endfor
 
 .if ${MK_TESTS} != "no"

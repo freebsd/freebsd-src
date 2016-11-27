@@ -28,7 +28,7 @@
 .\"	@(#)mmap.2	8.4 (Berkeley) 5/11/95
 .\" $FreeBSD$
 .\"
-.Dd February 18, 2015
+.Dd November 25, 2016
 .Dt MMAP 2
 .Os
 .Sh NAME
@@ -189,6 +189,8 @@ this option any VM pages you dirty may be flushed to disk every so often
 (every 30-60 seconds usually) which can create performance problems if you
 do not need that to occur (such as when you are using shared file-backed
 mmap regions for IPC purposes).
+Dirty data will be flushed automatically when all mappings of an object are
+removed and all descriptors referencing the object are closed.
 Note that VM/file system coherency is
 maintained whether you use
 .Dv MAP_NOSYNC

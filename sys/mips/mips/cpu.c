@@ -337,6 +337,9 @@ static void
 cpu_identify(void)
 {
 	uint32_t cfg0, cfg1, cfg2, cfg3;
+#if defined(CPU_MIPS1004K) || defined (CPU_MIPS74K) || defined (CPU_MIPS24K)
+	uint32_t cfg7;
+#endif
 	printf("cpu%d: ", 0);   /* XXX per-cpu */
 	switch (cpuinfo.cpu_vendor) {
 	case MIPS_PRID_CID_MTI:
@@ -369,6 +372,10 @@ cpu_identify(void)
 		break;
 	case MIPS_PRID_CID_CAVIUM:
 		printf("Cavium");
+		break;
+	case MIPS_PRID_CID_INGENIC:
+	case MIPS_PRID_CID_INGENIC2:
+		printf("Ingenic XBurst");
 		break;
 	case MIPS_PRID_CID_PREHISTORIC:
 	default:
@@ -478,7 +485,12 @@ cpu_identify(void)
 
 	/* Print Config3 if it contains any useful info */
 	if (cfg3 & ~(0x80000000))
-		printf("  Config3=0x%b\n", cfg3, "\20\14ULRI\2SmartMIPS\1TraceLogic");
+		printf("  Config3=0x%b\n", cfg3, "\20\16ULRI\2SmartMIPS\1TraceLogic");
+
+#if defined(CPU_MIPS1004K) || defined (CPU_MIPS74K) || defined (CPU_MIPS24K)
+	cfg7 = mips_rd_config7();
+	printf("  Config7=0x%b\n", cfg7, "\20\40WII\21AR");
+#endif
 }
 
 static struct rman cpu_hardirq_rman;

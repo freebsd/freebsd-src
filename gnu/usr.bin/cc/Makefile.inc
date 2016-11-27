@@ -39,7 +39,7 @@ CFLAGS += -DFREEBSD_ARCH_armv6
 .endif
 
 .if ${TARGET_CPUARCH} == "mips"
-.if ${TARGET_ARCH:Mmips*el} != ""
+.if ${TARGET_ARCH:Mmips*el*} != ""
 CFLAGS += -DTARGET_ENDIAN_DEFAULT=0
 .endif
 

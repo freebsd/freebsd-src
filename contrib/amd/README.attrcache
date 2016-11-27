@@ -122,8 +122,8 @@ OS.  You can run this script as root as follows:
 # sh test-attrcache
 
 If you run this script on an OS whose status is known (and not listed
-above), please report it to am-utils@am-utils.org, so we can record it in
-this file.
+above), please report it to us via Bugzilla or the am-utils mailing list
+(see www.am-utils.org), so we can record it in this file.
 
 Sincerely,
 Erez.

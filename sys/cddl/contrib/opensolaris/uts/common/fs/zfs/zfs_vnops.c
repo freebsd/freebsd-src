@@ -426,12 +426,8 @@ page_busy(vnode_t *vp, int64_t start, int64_t off, int64_t nbytes)
 				continue;
 			}
 			vm_page_sbusy(pp);
-		} else if (pp == NULL) {
-			pp = vm_page_alloc(obj, OFF_TO_IDX(start),
-			    VM_ALLOC_SYSTEM | VM_ALLOC_IFCACHED |
-			    VM_ALLOC_SBUSY);
-		} else {
-			ASSERT(pp != NULL && !pp->valid);
+		} else if (pp != NULL) {
+			ASSERT(!pp->valid);
 			pp = NULL;
 		}
 
@@ -5976,26 +5972,17 @@ zfs_lock(ap)
 		int line;
 	} */ *ap;
 {
-	zfsvfs_t *zfsvfs;
-	znode_t *zp;
 	vnode_t *vp;
-	int flags;
+	znode_t *zp;
 	int err;
 
-	vp = ap->a_vp;
-	flags = ap->a_flags;
-	if ((flags & LK_INTERLOCK) == 0 && (flags & LK_NOWAIT) == 0 &&
-	    (vp->v_iflag & VI_DOOMED) == 0 && (zp = vp->v_data) != NULL &&
-	    (zp->z_pflags & ZFS_XATTR) == 0) {
-		zfsvfs = zp->z_zfsvfs;
-		VERIFY(!RRM_LOCK_HELD(&zfsvfs->z_teardown_lock));
-	}
 	err = vop_stdlock(ap);
-	if ((flags & LK_INTERLOCK) != 0 && (flags & LK_NOWAIT) == 0 &&
-	    (vp->v_iflag & VI_DOOMED) == 0 && (zp = vp->v_data) != NULL &&
-	    (zp->z_pflags & ZFS_XATTR) == 0) {
-		zfsvfs = zp->z_zfsvfs;
-		VERIFY(!RRM_LOCK_HELD(&zfsvfs->z_teardown_lock));
+	if (err == 0 && (ap->a_flags & LK_NOWAIT) == 0) {
+		vp = ap->a_vp;
+		zp = vp->v_data;
+		if (vp->v_mount != NULL && (vp->v_iflag & VI_DOOMED) == 0 &&
+		    zp != NULL && (zp->z_pflags & ZFS_XATTR) == 0)
+			VERIFY(!RRM_LOCK_HELD(&zp->z_zfsvfs->z_teardown_lock));
 	}
 	return (err);
 }

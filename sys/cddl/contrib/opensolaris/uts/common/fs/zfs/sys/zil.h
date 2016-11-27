@@ -369,7 +369,6 @@ typedef struct itx {
 	void		*itx_private;	/* type-specific opaque data */
 	itx_wr_state_t	itx_wr_state;	/* write state */
 	uint8_t		itx_sync;	/* synchronous transaction */
-	uint64_t	itx_sod;	/* record size on disk */
 	uint64_t	itx_oid;	/* object id */
 	lr_t		itx_lr;		/* common part of log record */
 	/* followed by type-specific part of lr_xx_t and its immediate data */
@@ -405,6 +404,7 @@ extern itx_t	*zil_itx_create(uint64_t txtype, size_t lrsize);
 extern void	zil_itx_destroy(itx_t *itx);
 extern void	zil_itx_assign(zilog_t *zilog, itx_t *itx, dmu_tx_t *tx);
 
+extern void	zil_async_to_sync(zilog_t *zilog, uint64_t oid);
 extern void	zil_commit(zilog_t *zilog, uint64_t oid);
 
 extern int	zil_vdev_offline(const char *osname, void *txarg);

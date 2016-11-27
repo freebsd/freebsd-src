@@ -2496,8 +2496,9 @@ mprsas_scsiio_complete(struct mpr_softc *sc, struct mpr_command *cm)
 		 */
 		mprsas_set_ccbstatus(ccb, CAM_REQ_CMP_ERR);
 		mprsas_log_command(cm, MPR_INFO,
-		    "terminated ioc %x scsi %x state %x xfer %u\n",
-		    le16toh(rep->IOCStatus), rep->SCSIStatus, rep->SCSIState,
+		    "terminated ioc %x loginfo %x scsi %x state %x xfer %u\n",
+		    le16toh(rep->IOCStatus), le32toh(rep->IOCLogInfo),
+		    rep->SCSIStatus, rep->SCSIState,
 		    le32toh(rep->TransferCount));
 		break;
 	case MPI2_IOCSTATUS_INVALID_FUNCTION:
@@ -2512,8 +2513,9 @@ mprsas_scsiio_complete(struct mpr_softc *sc, struct mpr_command *cm)
 	case MPI2_IOCSTATUS_SCSI_TASK_MGMT_FAILED:
 	default:
 		mprsas_log_command(cm, MPR_XINFO,
-		    "completed ioc %x scsi %x state %x xfer %u\n",
-		    le16toh(rep->IOCStatus), rep->SCSIStatus, rep->SCSIState,
+		    "completed ioc %x loginfo %x scsi %x state %x xfer %u\n",
+		    le16toh(rep->IOCStatus), le32toh(rep->IOCLogInfo),
+		    rep->SCSIStatus, rep->SCSIState,
 		    le32toh(rep->TransferCount));
 		csio->resid = cm->cm_length;
 		mprsas_set_ccbstatus(ccb, CAM_REQ_CMP_ERR);

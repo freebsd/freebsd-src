@@ -53,9 +53,7 @@ __FBSDID("$FreeBSD$");
 
 #include "gpio_if.h"
 
-#ifdef INTRNG
 #include "pic_if.h"
-#endif
 
 #ifdef DEBUG
 #define dprintf(fmt, args...) do { printf("%s(): ", __func__);   \
@@ -68,15 +66,10 @@ __FBSDID("$FreeBSD$");
 #define	BCM_GPIO_PINS		54
 #define	BCM_GPIO_PINS_PER_BANK	32
 
-#ifdef INTRNG
 #define	BCM_GPIO_DEFAULT_CAPS	(GPIO_PIN_INPUT | GPIO_PIN_OUTPUT |	\
     GPIO_PIN_PULLUP | GPIO_PIN_PULLDOWN | GPIO_INTR_LEVEL_LOW |		\
     GPIO_INTR_LEVEL_HIGH | GPIO_INTR_EDGE_RISING |			\
     GPIO_INTR_EDGE_FALLING | GPIO_INTR_EDGE_BOTH)
-#else
-#define	BCM_GPIO_DEFAULT_CAPS	(GPIO_PIN_INPUT | GPIO_PIN_OUTPUT |	\
-    GPIO_PIN_PULLUP | GPIO_PIN_PULLDOWN)
-#endif
 
 static struct resource_spec bcm_gpio_res_spec[] = {
 	{ SYS_RES_MEMORY, 0, RF_ACTIVE },
@@ -90,14 +83,12 @@ struct bcm_gpio_sysctl {
 	uint32_t		pin;
 };
 
-#ifdef INTRNG
 struct bcm_gpio_irqsrc {
 	struct intr_irqsrc	bgi_isrc;
 	uint32_t		bgi_irq;
 	uint32_t		bgi_mode;
 	uint32_t		bgi_mask;
 };
-#endif
 
 struct bcm_gpio_softc {
 	device_t		sc_dev;
@@ -111,16 +102,8 @@ struct bcm_gpio_softc {
 	int			sc_ro_npins;
 	int			sc_ro_pins[BCM_GPIO_PINS];
 	struct gpio_pin		sc_gpio_pins[BCM_GPIO_PINS];
-#ifndef INTRNG
-	struct intr_event *	sc_events[BCM_GPIO_PINS];
-#endif
 	struct bcm_gpio_sysctl	sc_sysctl[BCM_GPIO_PINS];
-#ifdef INTRNG
 	struct bcm_gpio_irqsrc	sc_isrcs[BCM_GPIO_PINS];
-#else
-	enum intr_trigger	sc_irq_trigger[BCM_GPIO_PINS];
-	enum intr_polarity	sc_irq_polarity[BCM_GPIO_PINS];
-#endif
 };
 
 enum bcm_gpio_pud {
@@ -165,12 +148,10 @@ static struct ofw_compat_data compat_data[] = {
 
 static struct bcm_gpio_softc *bcm_gpio_sc = NULL;
 
-#ifdef INTRNG
 static int bcm_gpio_intr_bank0(void *arg);
 static int bcm_gpio_intr_bank1(void *arg);
 static int bcm_gpio_pic_attach(struct bcm_gpio_softc *sc);
 static int bcm_gpio_pic_detach(struct bcm_gpio_softc *sc);
-#endif
 
 static int
 bcm_gpio_pin_is_ro(struct bcm_gpio_softc *sc, int pin)
@@ -703,42 +684,6 @@ bcm_gpio_get_reserved_pins(struct bcm_gpio_softc *sc)
 	return (0);
 }
 
-#ifndef INTRNG
-static int
-bcm_gpio_intr(void *arg)
-{
-	int bank_last, irq;
-	struct bcm_gpio_softc *sc;
-	struct intr_event *event;
-	uint32_t bank, mask, reg;
-
-	sc = (struct bcm_gpio_softc *)arg;
-	reg = 0;
-	bank_last = -1;
-	for (irq = 0; irq < BCM_GPIO_PINS; irq++) {
-		bank = BCM_GPIO_BANK(irq);
-		mask = BCM_GPIO_MASK(irq);
-		if (bank != bank_last) {
-			reg = BCM_GPIO_READ(sc, BCM_GPIO_GPEDS(bank));
-			bank_last = bank;
-		}
-		if (reg & mask) {
-			event = sc->sc_events[irq];
-			if (event != NULL && !TAILQ_EMPTY(&event->ie_handlers))
-				intr_event_handle(event, NULL);
-			else {
-				device_printf(sc->sc_dev, "Stray IRQ %d\n",
-				    irq);
-			}
-			/* Clear the Status bit by writing '1' to it. */
-			BCM_GPIO_WRITE(sc, BCM_GPIO_GPEDS(bank), mask);
-		}
-	}
-
-	return (FILTER_HANDLED);
-}
-#endif
-
 static int
 bcm_gpio_probe(device_t dev)
 {
@@ -753,7 +698,6 @@ bcm_gpio_probe(device_t dev)
 	return (BUS_PROBE_DEFAULT);
 }
 
-#ifdef INTRNG
 static int
 bcm_gpio_intr_attach(device_t dev)
 {
@@ -794,41 +738,6 @@ bcm_gpio_intr_detach(device_t dev)
 
 	bcm_gpio_pic_detach(sc);
 }
-
-#else
-static int
-bcm_gpio_intr_attach(device_t dev)
-{
-	struct bcm_gpio_softc *sc;
-	int i;
-
-	sc = device_get_softc(dev);
-	for (i = 0; i < BCM_GPIO_IRQS; i++) {
-		if (bus_setup_intr(dev, sc->sc_res[i + 1],
-		    INTR_TYPE_MISC | INTR_MPSAFE, bcm_gpio_intr,
-		    NULL, sc, &sc->sc_intrhand[i]) != 0) {
-			return (-1);
-		}
-	}
-
-	return (0);
-}
-
-static void
-bcm_gpio_intr_detach(device_t dev)
-{
-	struct bcm_gpio_softc *sc;
-	int i;
-
-	sc = device_get_softc(dev);
-	for (i = 0; i < BCM_GPIO_IRQS; i++) {
-		if (sc->sc_intrhand[i]) {
-			bus_teardown_intr(dev, sc->sc_res[i + 1],
-			    sc->sc_intrhand[i]);
-		}
-	}
-}
-#endif
 
 static int
 bcm_gpio_attach(device_t dev)
@@ -874,11 +783,6 @@ bcm_gpio_attach(device_t dev)
 		sc->sc_gpio_pins[i].gp_pin = j;
 		sc->sc_gpio_pins[i].gp_caps = BCM_GPIO_DEFAULT_CAPS;
 		sc->sc_gpio_pins[i].gp_flags = bcm_gpio_func_flag(func);
-#ifndef INTRNG
-		/* The default is active-low interrupts. */
-		sc->sc_irq_trigger[i] = INTR_TRIGGER_LEVEL;
-		sc->sc_irq_polarity[i] = INTR_POLARITY_LOW;
-#endif
 		i++;
 	}
 	sc->sc_gpio_npins = i;
@@ -904,7 +808,6 @@ bcm_gpio_detach(device_t dev)
 	return (EBUSY);
 }
 
-#ifdef INTRNG
 static inline void
 bcm_gpio_modify(struct bcm_gpio_softc *sc, uint32_t reg, uint32_t mask,
     bool set_bits)
@@ -1275,179 +1178,6 @@ bcm_gpio_pic_teardown_intr(device_t dev, struct intr_irqsrc *isrc,
 	return (0);
 }
 
-#else
-static uint32_t
-bcm_gpio_intr_reg(struct bcm_gpio_softc *sc, unsigned int irq, uint32_t bank)
-{
-
-	if (irq > BCM_GPIO_PINS)
-		return (0);
-	if (sc->sc_irq_trigger[irq] == INTR_TRIGGER_LEVEL) {
-		if (sc->sc_irq_polarity[irq] == INTR_POLARITY_LOW)
-			return (BCM_GPIO_GPLEN(bank));
-		else if (sc->sc_irq_polarity[irq] == INTR_POLARITY_HIGH)
-			return (BCM_GPIO_GPHEN(bank));
-	} else if (sc->sc_irq_trigger[irq] == INTR_TRIGGER_EDGE) {
-		if (sc->sc_irq_polarity[irq] == INTR_POLARITY_LOW)
-			return (BCM_GPIO_GPFEN(bank));
-		else if (sc->sc_irq_polarity[irq] == INTR_POLARITY_HIGH)
-			return (BCM_GPIO_GPREN(bank));
-	}
-
-	return (0);
-}
-
-static void
-bcm_gpio_mask_irq(void *source)
-{
-	uint32_t bank, mask, reg;
-	unsigned int irq;
-
-	irq = (unsigned int)source;
-	if (irq > BCM_GPIO_PINS)
-		return;
-	if (bcm_gpio_pin_is_ro(bcm_gpio_sc, irq))
-		return;
-	bank = BCM_GPIO_BANK(irq);
-	mask = BCM_GPIO_MASK(irq);
-	BCM_GPIO_LOCK(bcm_gpio_sc);
-	reg = bcm_gpio_intr_reg(bcm_gpio_sc, irq, bank);
-	if (reg != 0)
-		BCM_GPIO_CLEAR_BITS(bcm_gpio_sc, reg, mask);
-	BCM_GPIO_UNLOCK(bcm_gpio_sc);
-}
-
-static void
-bcm_gpio_unmask_irq(void *source)
-{
-	uint32_t bank, mask, reg;
-	unsigned int irq;
-
-	irq = (unsigned int)source;
-	if (irq > BCM_GPIO_PINS)
-		return;
-	if (bcm_gpio_pin_is_ro(bcm_gpio_sc, irq))
-		return;
-	bank = BCM_GPIO_BANK(irq);
-	mask = BCM_GPIO_MASK(irq);
-	BCM_GPIO_LOCK(bcm_gpio_sc);
-	reg = bcm_gpio_intr_reg(bcm_gpio_sc, irq, bank);
-	if (reg != 0)
-		BCM_GPIO_SET_BITS(bcm_gpio_sc, reg, mask);
-	BCM_GPIO_UNLOCK(bcm_gpio_sc);
-}
-
-static int
-bcm_gpio_activate_resource(device_t bus, device_t child, int type, int rid,
-	struct resource *res)
-{
-	int pin;
-
-	if (type != SYS_RES_IRQ)
-		return (ENXIO);
-	/* Unmask the interrupt. */
-	pin = rman_get_start(res);
-	bcm_gpio_unmask_irq((void *)pin);
-
-	return (0);
-}
-
-static int
-bcm_gpio_deactivate_resource(device_t bus, device_t child, int type, int rid,
-	struct resource *res)
-{
-	int pin;
-
-	if (type != SYS_RES_IRQ)
-		return (ENXIO);
-	/* Mask the interrupt. */
-	pin = rman_get_start(res);
-	bcm_gpio_mask_irq((void *)pin);
-
-	return (0);
-}
-
-static int
-bcm_gpio_config_intr(device_t dev, int irq, enum intr_trigger trig,
-	enum intr_polarity pol)
-{
-	int bank;
-	struct bcm_gpio_softc *sc;
-	uint32_t mask, oldreg, reg;
-
-	if (irq > BCM_GPIO_PINS)
-		return (EINVAL);
-	/* There is no standard trigger or polarity. */
-	if (trig == INTR_TRIGGER_CONFORM || pol == INTR_POLARITY_CONFORM)
-		return (EINVAL);
-	sc = device_get_softc(dev);
-	if (bcm_gpio_pin_is_ro(sc, irq))
-		return (EINVAL);
-	bank = BCM_GPIO_BANK(irq);
-	mask = BCM_GPIO_MASK(irq);
-	BCM_GPIO_LOCK(sc);
-	oldreg = bcm_gpio_intr_reg(sc, irq, bank);
-	sc->sc_irq_trigger[irq] = trig;
-	sc->sc_irq_polarity[irq] = pol;
-	reg = bcm_gpio_intr_reg(sc, irq, bank);
-	if (reg != 0)
-		BCM_GPIO_SET_BITS(sc, reg, mask);
-	if (reg != oldreg && oldreg != 0)
-		BCM_GPIO_CLEAR_BITS(sc, oldreg, mask);
-	BCM_GPIO_UNLOCK(sc);
-
-	return (0);
-}
-
-static int
-bcm_gpio_setup_intr(device_t bus, device_t child, struct resource *ires,
-	int flags, driver_filter_t *filt, driver_intr_t *handler,
-	void *arg, void **cookiep)
-{
-	struct bcm_gpio_softc *sc;
-	struct intr_event *event;
-	int pin, error;
-
-	sc = device_get_softc(bus);
-	pin = rman_get_start(ires);
-	if (pin > BCM_GPIO_PINS)
-		panic("%s: bad pin %d", __func__, pin);
-	event = sc->sc_events[pin];
-	if (event == NULL) {
-		error = intr_event_create(&event, (void *)pin, 0, pin, 
-		    bcm_gpio_mask_irq, bcm_gpio_unmask_irq, NULL, NULL,
-		    "gpio%d pin%d:", device_get_unit(bus), pin);
-		if (error != 0)
-			return (error);
-		sc->sc_events[pin] = event;
-	}
-	intr_event_add_handler(event, device_get_nameunit(child), filt,
-	    handler, arg, intr_priority(flags), flags, cookiep);
-
-	return (0);
-}
-
-static int
-bcm_gpio_teardown_intr(device_t dev, device_t child, struct resource *ires,
-	void *cookie)
-{
-	struct bcm_gpio_softc *sc;
-	int pin, err;
-
-	sc = device_get_softc(dev);
-	pin = rman_get_start(ires);
-	if (pin > BCM_GPIO_PINS)
-		panic("%s: bad pin %d", __func__, pin);
-	if (sc->sc_events[pin] == NULL)
-		panic("Trying to teardown unoccupied IRQ");
-	err = intr_event_remove_handler(cookie);
-	if (!err)
-		sc->sc_events[pin] = NULL;
-
-	return (err);
-}
-#endif
-
 static phandle_t
 bcm_gpio_get_node(device_t bus, device_t dev)
 {
@@ -1473,7 +1203,6 @@ static device_method_t bcm_gpio_methods[] = {
 	DEVMETHOD(gpio_pin_set,		bcm_gpio_pin_set),
 	DEVMETHOD(gpio_pin_toggle,	bcm_gpio_pin_toggle),
 
-#ifdef INTRNG
 	/* Interrupt controller interface */
 	DEVMETHOD(pic_disable_intr,	bcm_gpio_pic_disable_intr),
 	DEVMETHOD(pic_enable_intr,	bcm_gpio_pic_enable_intr),
@@ -1483,14 +1212,7 @@ static device_method_t bcm_gpio_methods[] = {
 	DEVMETHOD(pic_pre_ithread,	bcm_gpio_pic_pre_ithread),
 	DEVMETHOD(pic_setup_intr,	bcm_gpio_pic_setup_intr),
 	DEVMETHOD(pic_teardown_intr,	bcm_gpio_pic_teardown_intr),
-#else
-	/* Bus interface */
-	DEVMETHOD(bus_activate_resource,	bcm_gpio_activate_resource),
-	DEVMETHOD(bus_deactivate_resource,	bcm_gpio_deactivate_resource),
-	DEVMETHOD(bus_config_intr,	bcm_gpio_config_intr),
-	DEVMETHOD(bus_setup_intr,	bcm_gpio_setup_intr),
-	DEVMETHOD(bus_teardown_intr,	bcm_gpio_teardown_intr),
-#endif
+
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_node,	bcm_gpio_get_node),
 

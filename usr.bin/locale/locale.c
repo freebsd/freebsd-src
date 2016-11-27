@@ -50,6 +50,7 @@
 #include "setlocale.h"
 
 /* Local prototypes */
+char	*format_grouping(const char *);
 void	init_locales_list(void);
 void	list_charmaps(void);
 void	list_locales(void);
@@ -283,8 +284,9 @@ main(int argc, char *argv[])
 
 	/* process '-c', '-k', or command line arguments. */
 	if (prt_categories || prt_keywords || argc > 0) {
-		if (argc > 0) {
+		if (prt_keywords || argc > 0)
 			setlocale(LC_ALL, "");
+		if (argc > 0) {
 			while (argc > 0) {
 				showdetails(*argv);
 				argv++;
@@ -487,6 +489,34 @@ showlocale(void)
 	printf("LC_ALL=%s\n", vval);
 }
 
+char *
+format_grouping(const char *binary)
+{
+	static char rval[64];
+	const char *cp;
+	size_t len;
+
+	rval[0] = '\0';
+	for (cp = binary; *cp != '\0'; ++cp) {
+		char group[sizeof("127;")];
+		snprintf(group, sizeof(group), "%hhd;", *cp);
+		len = strlcat(rval, group, sizeof(rval));
+		if (len >= sizeof(rval)) {
+			len = sizeof(rval) - 1;
+			break;
+		}
+		if (*cp == CHAR_MAX) {
+			break;
+		}
+	}
+
+	/* Remove the trailing ';'. */
+	rval[len - 1] = '\0';
+
+	return (rval);
+}
+
+
 /*
  * keyword value lookup helper (via localeconv())
  */
@@ -500,7 +530,7 @@ kwval_lconv(int id)
 	lc = localeconv();
 	switch (id) {
 		case KW_GROUPING:
-			rval = lc->grouping;
+			rval = format_grouping(lc->grouping);
 			break;
 		case KW_INT_CURR_SYMBOL:
 			rval = lc->int_curr_symbol;
@@ -515,7 +545,7 @@ kwval_lconv(int id)
 			rval = lc->mon_thousands_sep;
 			break;
 		case KW_MON_GROUPING:
-			rval = lc->mon_grouping;
+			rval = format_grouping(lc->mon_grouping);
 			break;
 		case KW_POSITIVE_SIGN:
 			rval = lc->positive_sign;

@@ -2949,6 +2949,8 @@ more:
 			void *data_ptr;
 			int rw_op;
 
+			biotrack(bp, __func__);
+
 			if (bp->bio_cmd == BIO_WRITE) {
 				softc->flags |= DA_FLAG_DIRTY;
 				rw_op = SCSI_RW_WRITE;
@@ -2976,6 +2978,9 @@ more:
 					/*dxfer_len*/ bp->bio_bcount,
 					/*sense_len*/SSD_FULL_SIZE,
 					da_default_timeout * 1000);
+#if defined(BUF_TRACKING) || defined(FULL_BUF_TRACKING)
+			start_ccb->csio.bio = bp;
+#endif
 			break;
 		}
 		case BIO_FLUSH:
@@ -4008,6 +4013,10 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("dadone\n"));
 
 	csio = &done_ccb->csio;
+#if defined(BUF_TRACKING) || defined(FULL_BUF_TRACKING)
+	if (csio->bio != NULL)
+		biotrack(csio->bio, __func__);
+#endif
 	state = csio->ccb_h.ccb_state & DA_CCB_TYPE_MASK;
 	switch (state) {
 	case DA_CCB_BUFFER_IO:
@@ -4106,6 +4115,7 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 			}
 		}
 
+		biotrack(bp, __func__);
 		LIST_REMOVE(&done_ccb->ccb_h, periph_links.le);
 		if (LIST_EMPTY(&softc->pending_ccbs))
 			softc->flags |= DA_FLAG_WAS_OTAG;
@@ -4300,8 +4310,14 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 				 * direct access or optical disk device,
 				 * as long as it doesn't return a "Logical
 				 * unit not supported" (0x25) error.
+				 * "Internal Target Failure" (0x44) is also
+				 * special and typically means that the
+				 * device is a SATA drive behind a SATL
+				 * translation that's fallen into a
+				 * terminally fatal state.
 				 */
-				if ((have_sense) && (asc != 0x25)
+				if ((have_sense)
+				 && (asc != 0x25) && (asc != 0x44)
 				 && (error_code == SSD_CURRENT_ERROR)) {
 					const char *sense_key_desc;
 					const char *asc_desc;
@@ -5218,6 +5234,11 @@ daerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 	struct da_softc	  *softc;
 	struct cam_periph *periph;
 	int error, error_code, sense_key, asc, ascq;
+
+#if defined(BUF_TRACKING) || defined(FULL_BUF_TRACKING)
+	if (ccb->csio.bio != NULL)
+		biotrack(ccb->csio.bio, __func__);
+#endif
 
 	periph = xpt_path_periph(ccb->ccb_h.path);
 	softc = (struct da_softc *)periph->softc;

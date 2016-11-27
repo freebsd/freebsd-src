@@ -642,6 +642,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     r_debug_state(NULL, &obj_main->linkmap); /* say hello to gdb! */
 
     map_stacks_exec(NULL);
+    ifunc_init(aux);
 
     dbg("resolving ifuncs");
     if (resolve_objects_ifunc(obj_main,
@@ -690,10 +691,14 @@ rtld_resolve_ifunc(const Obj_Entry *obj, const Elf_Sym *def)
 	Elf_Addr target;
 
 	ptr = (void *)make_function_pointer(def, obj);
-	target = ((Elf_Addr (*)(void))ptr)();
+	target = call_ifunc_resolver(ptr);
 	return ((void *)target);
 }
 
+/*
+ * NB: MIPS uses a private version of this function (_mips_rtld_bind).
+ * Changes to this function should be applied there as well.
+ */
 Elf_Addr
 _rtld_bind(Obj_Entry *obj, Elf_Size reloff)
 {
@@ -713,8 +718,8 @@ _rtld_bind(Obj_Entry *obj, Elf_Size reloff)
 	rel = (const Elf_Rel *) ((caddr_t) obj->pltrela + reloff);
 
     where = (Elf_Addr *) (obj->relocbase + rel->r_offset);
-    def = find_symdef(ELF_R_SYM(rel->r_info), obj, &defobj, true, NULL,
-	&lockstate);
+    def = find_symdef(ELF_R_SYM(rel->r_info), obj, &defobj, SYMLOOK_IN_PLT,
+	NULL, &lockstate);
     if (def == NULL)
 	rtld_die();
     if (ELF_ST_TYPE(def->st_info) == STT_GNU_IFUNC)

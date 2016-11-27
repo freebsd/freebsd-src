@@ -37,7 +37,7 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * Intel fourth generation mobile cpus integrated I2C device, smbus driver.
+ * Intel fourth generation mobile cpus integrated I2C device.
  *
  * See ig4_reg.h for datasheet reference and notes.
  */
@@ -59,9 +59,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
-#include <dev/smbus/smbconf.h>
-
-#include "smbus_if.h"
+#include <dev/iicbus/iiconf.h>
 
 #include <dev/ichiic/ig4_reg.h>
 #include <dev/ichiic/ig4_var.h>
@@ -166,19 +164,9 @@ static device_method_t ig4iic_pci_methods[] = {
 	DEVMETHOD(device_attach, ig4iic_pci_attach),
 	DEVMETHOD(device_detach, ig4iic_pci_detach),
 
-	/* SMBus methods from ig4_smb.c */
-	DEVMETHOD(smbus_callback, ig4iic_smb_callback),
-	DEVMETHOD(smbus_quick, ig4iic_smb_quick),
-	DEVMETHOD(smbus_sendb, ig4iic_smb_sendb),
-	DEVMETHOD(smbus_recvb, ig4iic_smb_recvb),
-	DEVMETHOD(smbus_writeb, ig4iic_smb_writeb),
-	DEVMETHOD(smbus_writew, ig4iic_smb_writew),
-	DEVMETHOD(smbus_readb, ig4iic_smb_readb),
-	DEVMETHOD(smbus_readw, ig4iic_smb_readw),
-	DEVMETHOD(smbus_pcall, ig4iic_smb_pcall),
-	DEVMETHOD(smbus_bwrite, ig4iic_smb_bwrite),
-	DEVMETHOD(smbus_bread, ig4iic_smb_bread),
-	DEVMETHOD(smbus_trans, ig4iic_smb_trans),
+	DEVMETHOD(iicbus_transfer, ig4iic_transfer),
+	DEVMETHOD(iicbus_reset, ig4iic_reset),
+	DEVMETHOD(iicbus_callback, iicbus_null_callback),
 
 	DEVMETHOD_END
 };
@@ -191,7 +179,8 @@ static driver_t ig4iic_pci_driver = {
 
 static devclass_t ig4iic_pci_devclass;
 
-DRIVER_MODULE(ig4iic, pci, ig4iic_pci_driver, ig4iic_pci_devclass, 0, 0);
+DRIVER_MODULE_ORDERED(ig4iic, pci, ig4iic_pci_driver, ig4iic_pci_devclass, 0, 0,
+    SI_ORDER_ANY);
 MODULE_DEPEND(ig4iic, pci, 1, 1, 1);
-MODULE_DEPEND(ig4iic, smbus, SMBUS_MINVER, SMBUS_PREFVER, SMBUS_MAXVER);
+MODULE_DEPEND(ig4iic, iicbus, IICBUS_MINVER, IICBUS_PREFVER, IICBUS_MAXVER);
 MODULE_VERSION(ig4iic, 1);

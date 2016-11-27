@@ -49,8 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if_types.h>
 #include <net/if_arp.h>
 
-#include <dev/fdt/fdt_common.h>
-#include <dev/fdt/simplebus.h>
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
 #include <dev/ofw/ofw_bus.h>
@@ -583,8 +581,6 @@ dtsec_attach(device_t dev)
 	/* Check if MallocSmart allocator is ready */
 	if (XX_MallocSmartInit() != E_OK)
 		return (ENXIO);
-
-	XX_TrackInit();
 
 	/* Init locks */
 	mtx_init(&sc->sc_lock, device_get_nameunit(dev),

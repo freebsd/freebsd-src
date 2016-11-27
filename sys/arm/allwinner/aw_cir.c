@@ -40,7 +40,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <machine/bus.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -390,6 +389,7 @@ aw_ir_attach(device_t dev)
 	uint32_t val = 0;
 
 	clk_ir = clk_gate = NULL;
+	rst_apb = NULL;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;

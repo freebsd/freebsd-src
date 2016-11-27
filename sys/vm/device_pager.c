@@ -169,7 +169,10 @@ cdev_pager_allocate(void *handle, enum obj_type tp, struct cdev_pager_ops *ops,
 			if (pindex > object->size)
 				object->size = pindex;
 			KASSERT(object->type == tp,
-		    ("Inconsistent device pager type %p %d", object, tp));
+			    ("Inconsistent device pager type %p %d",
+			    object, tp));
+			KASSERT(object->un_pager.devp.ops == ops,
+			    ("Inconsistent devops %p %p", object, ops));
 		} else {
 			object = object1;
 			object1 = NULL;

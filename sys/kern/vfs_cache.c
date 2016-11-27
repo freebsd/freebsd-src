@@ -783,7 +783,7 @@ cache_negative_shrink_select(int start, struct namecache **ncpp,
 static void
 cache_negative_zap_one(void)
 {
-	struct namecache *ncp, *ncp2, *ncpc;
+	struct namecache *ncp, *ncp2;
 	struct neglist *neglist;
 	struct mtx *dvlp;
 	struct rwlock *blp;
@@ -791,7 +791,6 @@ cache_negative_zap_one(void)
 	if (!mtx_trylock(&ncneg_shrink_lock))
 		return;
 
-	ncpc = NULL;
 	mtx_lock(&ncneg_hot.nl_lock);
 	ncp = TAILQ_FIRST(&ncneg_hot.nl_list);
 	if (ncp != NULL) {
@@ -868,6 +867,13 @@ cache_zap_locked(struct namecache *ncp, bool neg_locked)
 		    nc_get_name(ncp), ncp->nc_neghits);
 	}
 	LIST_REMOVE(ncp, nc_hash);
+	if (!(ncp->nc_flag & NCF_NEGATIVE)) {
+		TAILQ_REMOVE(&ncp->nc_vp->v_cache_dst, ncp, nc_dst);
+		if (ncp == ncp->nc_vp->v_cache_dd)
+			ncp->nc_vp->v_cache_dd = NULL;
+	} else {
+		cache_negative_remove(ncp, neg_locked);
+	}
 	if (ncp->nc_flag & NCF_ISDOTDOT) {
 		if (ncp == ncp->nc_dvp->v_cache_dd)
 			ncp->nc_dvp->v_cache_dd = NULL;
@@ -877,13 +883,6 @@ cache_zap_locked(struct namecache *ncp, bool neg_locked)
 			ncp->nc_flag |= NCF_DVDROP;
 			atomic_subtract_rel_long(&numcachehv, 1);
 		}
-	}
-	if (!(ncp->nc_flag & NCF_NEGATIVE)) {
-		TAILQ_REMOVE(&ncp->nc_vp->v_cache_dst, ncp, nc_dst);
-		if (ncp == ncp->nc_vp->v_cache_dd)
-			ncp->nc_vp->v_cache_dd = NULL;
-	} else {
-		cache_negative_remove(ncp, neg_locked);
 	}
 	atomic_subtract_rel_long(&numcache, 1);
 }
@@ -1781,6 +1780,8 @@ nchinit(void *dummy __unused)
 
 	nchashtbl = hashinit(desiredvnodes * 2, M_VFSCACHE, &nchash);
 	numbucketlocks = cache_roundup_2(mp_ncpus * 64);
+	if (numbucketlocks > nchash + 1)
+		numbucketlocks = nchash + 1;
 	bucketlocks = malloc(sizeof(*bucketlocks) * numbucketlocks, M_VFSCACHE,
 	    M_WAITOK | M_ZERO);
 	for (i = 0; i < numbucketlocks; i++)
@@ -1829,7 +1830,11 @@ cache_changesize(int newmaxvnodes)
 	uint32_t hash;
 	int i;
 
-	new_nchashtbl = hashinit(newmaxvnodes * 2, M_VFSCACHE, &new_nchash);
+	newmaxvnodes = cache_roundup_2(newmaxvnodes * 2);
+	if (newmaxvnodes < numbucketlocks)
+		newmaxvnodes = numbucketlocks;
+
+	new_nchashtbl = hashinit(newmaxvnodes, M_VFSCACHE, &new_nchash);
 	/* If same hash table size, nothing to do */
 	if (nchash == new_nchash) {
 		free(new_nchashtbl, M_VFSCACHE);
@@ -2245,17 +2250,35 @@ vn_fullpath1(struct thread *td, struct vnode *vp, struct vnode *rdir,
 		slash_prefixed = 1;
 	}
 	while (vp != rdir && vp != rootvnode) {
-		if (vp->v_vflag & VV_ROOT) {
-			if (vp->v_iflag & VI_DOOMED) {	/* forced unmount */
-				vrele(vp);
+		/*
+		 * The vp vnode must be already fully constructed,
+		 * since it is either found in namecache or obtained
+		 * from VOP_VPTOCNP().  We may test for VV_ROOT safely
+		 * without obtaining the vnode lock.
+		 */
+		if ((vp->v_vflag & VV_ROOT) != 0) {
+			vn_lock(vp, LK_RETRY | LK_SHARED);
+
+			/*
+			 * With the vnode locked, check for races with
+			 * unmount, forced or not.  Note that we
+			 * already verified that vp is not equal to
+			 * the root vnode, which means that
+			 * mnt_vnodecovered can be NULL only for the
+			 * case of unmount.
+			 */
+			if ((vp->v_iflag & VI_DOOMED) != 0 ||
+			    (vp1 = vp->v_mount->mnt_vnodecovered) == NULL ||
+			    vp1->v_mountedhere != vp->v_mount) {
+				vput(vp);
 				error = ENOENT;
 				SDT_PROBE3(vfs, namecache, fullpath, return,
 				    error, vp, NULL);
 				break;
 			}
-			vp1 = vp->v_mount->mnt_vnodecovered;
+
 			vref(vp1);
-			vrele(vp);
+			vput(vp);
 			vp = vp1;
 			continue;
 		}

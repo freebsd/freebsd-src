@@ -223,6 +223,9 @@ g_clone_bio(struct bio *bp)
 		/* Inherit classification info from the parent */
 		bp2->bio_classifier1 = bp->bio_classifier1;
 		bp2->bio_classifier2 = bp->bio_classifier2;
+#if defined(BUF_TRACKING) || defined(FULL_BUF_TRACKING)
+		bp2->bio_track_bp = bp->bio_track_bp;
+#endif
 		bp->bio_children++;
 	}
 #ifdef KTR
@@ -361,6 +364,8 @@ g_io_check(struct bio *bp)
 	struct g_provider *pp;
 	off_t excess;
 	int error;
+
+	biotrack(bp, __func__);
 
 	cp = bp->bio_from;
 	pp = bp->bio_to;
@@ -503,6 +508,8 @@ g_run_classifiers(struct bio *bp)
 	struct g_classifier_hook *hook;
 	int classified = 0;
 
+	biotrack(bp, __func__);
+
 	TAILQ_FOREACH(hook, &g_classifier_tailq, link)
 		classified |= hook->func(hook->arg, bp);
 
@@ -517,6 +524,8 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 	struct mtx *mtxp;
 	int direct, error, first;
 	uint8_t cmd;
+
+	biotrack(bp, __func__);
 
 	KASSERT(cp != NULL, ("NULL cp in g_io_request"));
 	KASSERT(bp != NULL, ("NULL bp in g_io_request"));
@@ -643,6 +652,8 @@ g_io_deliver(struct bio *bp, int error)
 	struct g_provider *pp;
 	struct mtx *mtxp;
 	int direct, first;
+
+	biotrack(bp, __func__);
 
 	KASSERT(bp != NULL, ("NULL bp in g_io_deliver"));
 	pp = bp->bio_to;
@@ -835,6 +846,7 @@ g_io_schedule_down(struct thread *tp __unused)
 		}
 		CTR0(KTR_GEOM, "g_down has work to do");
 		g_bioq_unlock(&g_bio_run_down);
+		biotrack(bp, __func__);
 		if (pace != 0) {
 			/*
 			 * There has been at least one memory allocation

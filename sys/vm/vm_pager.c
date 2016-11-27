@@ -376,6 +376,7 @@ initpbuf(struct buf *bp)
 	bp->b_iodone = NULL;
 	bp->b_error = 0;
 	BUF_LOCK(bp, LK_EXCLUSIVE, NULL);
+	buf_track(bp, __func__);
 }
 
 /*
@@ -473,6 +474,7 @@ relpbuf(struct buf *bp, int *pfreecnt)
 	KASSERT(bp->b_vp == NULL, ("relpbuf with vp"));
 	KASSERT(bp->b_bufobj == NULL, ("relpbuf with bufobj"));
 
+	buf_track(bp, __func__);
 	BUF_UNLOCK(bp);
 
 	mtx_lock(&pbuf_mtx);

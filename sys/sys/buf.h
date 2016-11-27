@@ -140,6 +140,15 @@ struct buf {
 	void	*b_fsprivate1;
 	void	*b_fsprivate2;
 	void	*b_fsprivate3;
+
+#if defined(FULL_BUF_TRACKING)
+#define BUF_TRACKING_SIZE	32
+#define BUF_TRACKING_ENTRY(x)	((x) & (BUF_TRACKING_SIZE - 1))
+	const char	*b_io_tracking[BUF_TRACKING_SIZE];
+	uint32_t	b_io_tcnt;
+#elif defined(BUF_TRACKING)
+	const char	*b_io_tracking;
+#endif
 };
 
 #define b_object	b_bufobj->bo_object
@@ -429,6 +438,17 @@ buf_countdeps(struct buf *bp, int i)
 		return (0);
 }
 
+static __inline void
+buf_track(struct buf *bp, const char *location)
+{
+
+#if defined(FULL_BUF_TRACKING)
+	bp->b_io_tracking[BUF_TRACKING_ENTRY(bp->b_io_tcnt++)] = location;
+#elif defined(BUF_TRACKING)
+	bp->b_io_tracking = location;
+#endif
+}
+
 #endif /* _KERNEL */
 
 /*
@@ -518,9 +538,11 @@ int	cluster_read(struct vnode *, u_quad_t, daddr_t, long,
 	    struct ucred *, long, int, int, struct buf **);
 int	cluster_wbuild(struct vnode *, long, daddr_t, int, int);
 void	cluster_write(struct vnode *, struct buf *, u_quad_t, int, int);
+void	vfs_bio_brelse(struct buf *bp, int ioflags);
 void	vfs_bio_bzero_buf(struct buf *bp, int base, int size);
-void	vfs_bio_set_valid(struct buf *, int base, int size);
 void	vfs_bio_clrbuf(struct buf *);
+void	vfs_bio_set_flags(struct buf *bp, int ioflags);
+void	vfs_bio_set_valid(struct buf *, int base, int size);
 void	vfs_busy_pages(struct buf *, int clear_modify);
 void	vfs_unbusy_pages(struct buf *);
 int	vmapbuf(struct buf *, int);

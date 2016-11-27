@@ -48,7 +48,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/sound/chip.h>
 #include <mixer_if.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -447,12 +446,12 @@ find_sdma_controller(struct sc_info *sc)
 	if ((len = OF_getproplen(node, "dmas")) <= 0)
 		return (ENXIO);
 
-	OF_getprop(node, "dmas", &dts_value, len);
+	OF_getencprop(node, "dmas", &dts_value, len);
 
-	sc->sdma_ev_rx = fdt32_to_cpu(dts_value[1]);
-	sc->sdma_ev_tx = fdt32_to_cpu(dts_value[5]);
+	sc->sdma_ev_rx = dts_value[1];
+	sc->sdma_ev_tx = dts_value[5];
 
-	sdma_node = OF_node_from_xref(fdt32_to_cpu(dts_value[0]));
+	sdma_node = OF_node_from_xref(dts_value[0]);
 
 	sdma_sc = NULL;
 

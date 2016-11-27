@@ -1952,6 +1952,7 @@ bufwrite(struct buf *bp)
 	if (oldflags & B_ASYNC)
 		BUF_KERNPROC(bp);
 	bp->b_iooffset = dbtob(bp->b_blkno);
+	buf_track(bp, __func__);
 	bstrategy(bp);
 
 	if ((oldflags & B_ASYNC) == 0) {
@@ -2077,6 +2078,8 @@ bdwrite(struct buf *bp)
 	if (vp->v_type != VCHR && bp->b_lblkno == bp->b_blkno) {
 		VOP_BMAP(vp, bp->b_lblkno, NULL, &bp->b_blkno, NULL, NULL);
 	}
+
+	buf_track(bp, __func__);
 
 	/*
 	 * Set the *dirty* buffer range based upon the VM system dirty
@@ -2386,6 +2389,8 @@ brelse(struct buf *bp)
 			brelvp(bp);
 	}
 
+	buf_track(bp, __func__);
+
 	/* buffers with no memory */
 	if (bp->b_bufsize == 0) {
 		buf_free(bp);
@@ -2470,6 +2475,7 @@ bqrelse(struct buf *bp)
 	binsfree(bp, qindex);
 
 out:
+	buf_track(bp, __func__);
 	/* unlock */
 	BUF_UNLOCK(bp);
 	if (qindex == QUEUE_CLEAN)
@@ -3716,6 +3722,7 @@ loop:
 	CTR4(KTR_BUF, "getblk(%p, %ld, %d) = %p", vp, (long)blkno, size, bp);
 	BUF_ASSERT_HELD(bp);
 end:
+	buf_track(bp, __func__);
 	KASSERT(bp->b_bufobj == bo,
 	    ("bp %p wrong b_bufobj %p should be %p", bp, bp->b_bufobj, bo));
 	return (bp);
@@ -3892,6 +3899,7 @@ biodone(struct bio *bp)
 	void (*done)(struct bio *);
 	vm_offset_t start, end;
 
+	biotrack(bp, __func__);
 	if ((bp->bio_flags & BIO_TRANSIENT_MAPPING) != 0) {
 		bp->bio_flags &= ~BIO_TRANSIENT_MAPPING;
 		bp->bio_flags |= BIO_UNMAPPED;
@@ -3948,6 +3956,15 @@ biofinish(struct bio *bp, struct devstat *stat, int error)
 	biodone(bp);
 }
 
+#if defined(BUF_TRACKING) || defined(FULL_BUF_TRACKING)
+void
+biotrack_buf(struct bio *bp, const char *location)
+{
+
+	buf_track(bp->bio_track_bp, location);
+}
+#endif
+
 /*
  *	bufwait:
  *
@@ -3998,6 +4015,7 @@ bufdone(struct buf *bp)
 	struct bufobj *dropobj;
 	void    (*biodone)(struct buf *);
 
+	buf_track(bp, __func__);
 	CTR3(KTR_BUF, "bufdone(%p) vp %p flags %X", bp, bp->b_vp, bp->b_flags);
 	dropobj = NULL;
 
@@ -4396,6 +4414,45 @@ vfs_bio_bzero_buf(struct buf *bp, int base, int size)
 }
 
 /*
+ * Update buffer flags based on I/O request parameters, optionally releasing the
+ * buffer.  If it's VMIO or direct I/O, the buffer pages are released to the VM,
+ * where they may be placed on a page queue (VMIO) or freed immediately (direct
+ * I/O).  Otherwise the buffer is released to the cache.
+ */
+static void
+b_io_dismiss(struct buf *bp, int ioflag, bool release)
+{
+
+	KASSERT((ioflag & IO_NOREUSE) == 0 || (ioflag & IO_VMIO) != 0,
+	    ("buf %p non-VMIO noreuse", bp));
+
+	if ((ioflag & IO_DIRECT) != 0)
+		bp->b_flags |= B_DIRECT;
+	if ((ioflag & (IO_VMIO | IO_DIRECT)) != 0 && LIST_EMPTY(&bp->b_dep)) {
+		bp->b_flags |= B_RELBUF;
+		if ((ioflag & IO_NOREUSE) != 0)
+			bp->b_flags |= B_NOREUSE;
+		if (release)
+			brelse(bp);
+	} else if (release)
+		bqrelse(bp);
+}
+
+void
+vfs_bio_brelse(struct buf *bp, int ioflag)
+{
+
+	b_io_dismiss(bp, ioflag, true);
+}
+
+void
+vfs_bio_set_flags(struct buf *bp, int ioflag)
+{
+
+	b_io_dismiss(bp, ioflag, false);
+}
+
+/*
  * vm_hold_load_pages and vm_hold_free_pages get pages into
  * a buffers address space.  The pages are anonymous and are
  * not associated with a file object.
@@ -4637,7 +4694,24 @@ bdata2bio(struct buf *bp, struct bio *bip)
 	}
 }
 
-static int buf_pager_relbuf;
+/*
+ * The MIPS pmap code currently doesn't handle aliased pages.
+ * The VIPT caches may not handle page aliasing themselves, leading
+ * to data corruption.
+ *
+ * As such, this code makes a system extremely unhappy if said
+ * system doesn't support unaliasing the above situation in hardware.
+ * Some "recent" systems (eg some mips24k/mips74k cores) don't enable
+ * this feature at build time, so it has to be handled in software.
+ *
+ * Once the MIPS pmap/cache code grows to support this function on
+ * earlier chips, it should be flipped back off.
+ */
+#ifdef	__mips__
+static int buf_pager_relbuf = 1;
+#else
+static int buf_pager_relbuf = 0;
+#endif
 SYSCTL_INT(_vfs, OID_AUTO, buf_pager_relbuf, CTLFLAG_RWTUN,
     &buf_pager_relbuf, 0,
     "Make buffer pager release buffers after reading");
@@ -4668,29 +4742,42 @@ vfs_bio_getpages(struct vnode *vp, vm_page_t *ma, int count,
 	vm_page_t m;
 	vm_object_t object;
 	struct buf *bp;
+	struct mount *mp;
 	daddr_t lbn, lbnp;
 	vm_ooffset_t la, lb, poff, poffe;
 	long bsize;
-	int bo_bs, error, i;
+	int bo_bs, br_flags, error, i, pgsin, pgsin_a, pgsin_b;
 	bool redo, lpart;
 
 	object = vp->v_object;
+	mp = vp->v_mount;
 	la = IDX_TO_OFF(ma[count - 1]->pindex);
 	if (la >= object->un_pager.vnp.vnp_size)
 		return (VM_PAGER_BAD);
 	lpart = la + PAGE_SIZE > object->un_pager.vnp.vnp_size;
 	bo_bs = get_blksize(vp, get_lblkno(vp, IDX_TO_OFF(ma[0]->pindex)));
-	if (rbehind != NULL) {
-		lb = IDX_TO_OFF(ma[0]->pindex);
-		*rbehind = OFF_TO_IDX(lb - rounddown2(lb, bo_bs));
-	}
-	if (rahead != NULL) {
-		*rahead = OFF_TO_IDX(roundup2(la, bo_bs) - la);
-		if (la + IDX_TO_OFF(*rahead) >= object->un_pager.vnp.vnp_size) {
-			*rahead = OFF_TO_IDX(roundup2(object->un_pager.
-			    vnp.vnp_size, PAGE_SIZE) - la);
-		}
-	}
+
+	/*
+	 * Calculate read-ahead, behind and total pages.
+	 */
+	pgsin = count;
+	lb = IDX_TO_OFF(ma[0]->pindex);
+	pgsin_b = OFF_TO_IDX(lb - rounddown2(lb, bo_bs));
+	pgsin += pgsin_b;
+	if (rbehind != NULL)
+		*rbehind = pgsin_b;
+	pgsin_a = OFF_TO_IDX(roundup2(la, bo_bs) - la);
+	if (la + IDX_TO_OFF(pgsin_a) >= object->un_pager.vnp.vnp_size)
+		pgsin_a = OFF_TO_IDX(roundup2(object->un_pager.vnp.vnp_size,
+		    PAGE_SIZE) - la);
+	pgsin += pgsin_a;
+	if (rahead != NULL)
+		*rahead = pgsin_a;
+	PCPU_INC(cnt.v_vnodein);
+	PCPU_ADD(cnt.v_vnodepgsin, pgsin);
+
+	br_flags = (mp != NULL && (mp->mnt_kern_flag & MNTK_UNMAPPED_BUFS)
+	    != 0) ? GB_UNMAPPED : 0;
 	VM_OBJECT_WLOCK(object);
 again:
 	for (i = 0; i < count; i++)
@@ -4723,8 +4810,8 @@ again:
 			lbnp = lbn;
 
 			bsize = get_blksize(vp, lbn);
-			error = bread_gb(vp, lbn, bsize, NOCRED, GB_UNMAPPED,
-			    &bp);
+			error = bread_gb(vp, lbn, bsize, curthread->td_ucred,
+			    br_flags, &bp);
 			if (error != 0)
 				goto end_pages;
 			if (LIST_EMPTY(&bp->b_dep)) {
@@ -4801,6 +4888,9 @@ DB_SHOW_COMMAND(buffer, db_show_buffer)
 {
 	/* get args */
 	struct buf *bp = (struct buf *)addr;
+#ifdef FULL_BUF_TRACKING
+	uint32_t i, j;
+#endif
 
 	if (!have_addr) {
 		db_printf("usage: show buffer <addr>\n");
@@ -4837,6 +4927,16 @@ DB_SHOW_COMMAND(buffer, db_show_buffer)
 		}
 		db_printf("\n");
 	}
+#if defined(FULL_BUF_TRACKING)
+	db_printf("b_io_tracking: b_io_tcnt = %u\n", bp->b_io_tcnt);
+
+	i = bp->b_io_tcnt % BUF_TRACKING_SIZE;
+	for (j = 1; j <= BUF_TRACKING_SIZE; j++)
+		db_printf(" %2u: %s\n", j,
+		    bp->b_io_tracking[BUF_TRACKING_ENTRY(i - j)]);
+#elif defined(BUF_TRACKING)
+	db_printf("b_io_tracking: %s\n", bp->b_io_tracking);
+#endif
 	db_printf(" ");
 	BUF_LOCKPRINTINFO(bp);
 }

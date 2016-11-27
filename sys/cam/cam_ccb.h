@@ -744,6 +744,9 @@ struct ccb_scsiio {
 #define		CAM_TAG_ACTION_NONE	0x00
 	u_int	   tag_id;		/* tag id from initator (target mode) */
 	u_int	   init_id;		/* initiator id of who selected */
+#if defined(BUF_TRACKING) || defined(FULL_BUF_TRACKING)
+	struct bio *bio;		/* Associated bio */
+#endif
 };
 
 static __inline uint8_t *
@@ -1335,6 +1338,9 @@ cam_fill_csio(struct ccb_scsiio *csio, u_int32_t retries,
 	csio->sense_len = sense_len;
 	csio->cdb_len = cdb_len;
 	csio->tag_action = tag_action;
+#if defined(BUF_TRACKING) || defined(FULL_BUF_TRACKING)
+	csio->bio = NULL;
+#endif
 }
 
 static __inline void

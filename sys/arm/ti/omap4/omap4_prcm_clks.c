@@ -49,7 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <arm/ti/ti_prcm.h>
 #include <arm/ti/omap4/omap4_reg.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -1033,7 +1032,7 @@ omap4_clk_get_arm_fclk_freq(struct ti_clock_dev *clkdev,
  *	The USB clocking setup seems to be a bit more tricky than the other modules,
  *	to start with the clocking diagram for the HS host module shows 13 different
  *	clocks.  So to try and make it easier to follow the clocking activation
- *	and deactivation is handled in it's own set of callbacks.
+ *	and deactivation is handled in its own set of callbacks.
  *
  *	LOCKING:
  *	Inherits the locks from the omap_prcm driver, no internal locking.

@@ -39,6 +39,8 @@
 
 #ifdef _KERNEL
 
+#include <machine/_bus.h>
+
 /* Only use the reduced hardware model */
 #define	ACPI_REDUCED_HARDWARE	1
 
@@ -49,6 +51,11 @@ int	acpi_release_global_lock(volatile uint32_t *);
 void	*acpi_map_table(vm_paddr_t pa, const char *sig);
 void	acpi_unmap_table(void *table);
 vm_paddr_t acpi_find_table(const char *sig);
+
+struct acpi_generic_address;
+
+int	acpi_map_addr(struct acpi_generic_address  *, bus_space_tag_t *,
+    bus_space_handle_t *, bus_size_t);
 
 #endif /* _KERNEL */
 

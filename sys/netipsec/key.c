@@ -243,7 +243,10 @@ static const int minsize[] = {
 	sizeof(struct sadb_address),	/* SADB_X_EXT_NAT_T_OAI */
 	sizeof(struct sadb_address),	/* SADB_X_EXT_NAT_T_OAR */
 	sizeof(struct sadb_x_nat_t_frag),/* SADB_X_EXT_NAT_T_FRAG */
+	sizeof(struct sadb_x_sa_replay), /* SADB_X_EXT_SA_REPLAY */
 };
+_Static_assert(sizeof(minsize)/sizeof(int) == SADB_EXT_MAX + 1, "minsize size mismatch");
+
 static const int maxsize[] = {
 	sizeof(struct sadb_msg),	/* SADB_EXT_RESERVED */
 	sizeof(struct sadb_sa),		/* SADB_EXT_SA */
@@ -271,7 +274,9 @@ static const int maxsize[] = {
 	0,				/* SADB_X_EXT_NAT_T_OAI */
 	0,				/* SADB_X_EXT_NAT_T_OAR */
 	sizeof(struct sadb_x_nat_t_frag),/* SADB_X_EXT_NAT_T_FRAG */
+	sizeof(struct sadb_x_sa_replay), /* SADB_X_EXT_SA_REPLAY */
 };
+_Static_assert(sizeof(maxsize)/sizeof(int) == SADB_EXT_MAX + 1, "minsize size mismatch");
 
 static VNET_DEFINE(int, ipsec_esp_keymin) = 256;
 static VNET_DEFINE(int, ipsec_esp_auth) = 0;
@@ -472,6 +477,7 @@ static void key_porttosaddr(struct sockaddr *, u_int16_t);
 #define	KEY_PORTTOSADDR(saddr, port)				\
 	key_porttosaddr((struct sockaddr *)(saddr), (port))
 static struct mbuf *key_setsadbxsa2(u_int8_t, u_int32_t, u_int32_t);
+static struct mbuf *key_setsadbxsareplay(u_int32_t);
 static struct mbuf *key_setsadbxpolicy(u_int16_t, u_int8_t,
 	u_int32_t, u_int32_t);
 static struct seckey *key_dup_keymsg(const struct sadb_key *, u_int, 
@@ -2940,6 +2946,8 @@ key_cleansav(struct secasvar *sav)
 		sav->sched = NULL;
 	}
 	if (sav->replay != NULL) {
+		if (sav->replay->bitmap != NULL)
+			free(sav->replay->bitmap, M_IPSEC_MISC);
 		free(sav->replay, M_IPSEC_MISC);
 		sav->replay = NULL;
 	}
@@ -3108,6 +3116,7 @@ key_setsaval(struct secasvar *sav, struct mbuf *m,
 	/* SA */
 	if (mhp->ext[SADB_EXT_SA] != NULL) {
 		const struct sadb_sa *sa0;
+		u_int32_t replay;
 
 		sa0 = (const struct sadb_sa *)mhp->ext[SADB_EXT_SA];
 		if (mhp->extlen[SADB_EXT_SA] < sizeof(*sa0)) {
@@ -3119,19 +3128,57 @@ key_setsaval(struct secasvar *sav, struct mbuf *m,
 		sav->alg_enc = sa0->sadb_sa_encrypt;
 		sav->flags = sa0->sadb_sa_flags;
 
-		/* replay window */
-		if ((sa0->sadb_sa_flags & SADB_X_EXT_OLD) == 0) {
-			sav->replay = (struct secreplay *)
-				malloc(sizeof(struct secreplay)+sa0->sadb_sa_replay, M_IPSEC_MISC, M_NOWAIT|M_ZERO);
-			if (sav->replay == NULL) {
+		/* Optional replay window */
+		replay = 0;
+		if ((sa0->sadb_sa_flags & SADB_X_EXT_OLD) == 0)
+			replay = sa0->sadb_sa_replay;
+		if ((mhp->ext[SADB_X_EXT_SA_REPLAY]) != NULL) {
+			replay = ((const struct sadb_x_sa_replay *)
+				mhp->ext[SADB_X_EXT_SA_REPLAY])->sadb_x_sa_replay_replay;
+
+			if (replay > UINT32_MAX - 32) {
+				ipseclog((LOG_DEBUG, "%s: replay window too big.\n",
+					__func__));
+				error = EINVAL;
+				goto fail;
+			}
+
+			replay = (replay + 7) >> 3;
+		}
+
+		sav->replay = (struct secreplay *)
+			malloc(sizeof(struct secreplay),
+					M_IPSEC_MISC, M_NOWAIT|M_ZERO);
+		if (sav->replay == NULL) {
+			ipseclog((LOG_DEBUG, "%s: No more memory.\n",
+						__func__));
+			error = ENOBUFS;
+			goto fail;
+		}
+
+		if (replay != 0) {
+			/* number of 32b blocks to be allocated */
+			u_int32_t bitmap_size;
+
+			/* RFC 6479:
+			 * - the allocated replay window size must be a power of two
+			 * - use an extra 32b block as a redundant window
+			 */
+			bitmap_size = 1;
+			while (replay + 4 > bitmap_size)
+				bitmap_size <<= 1;
+			bitmap_size = bitmap_size / 4;
+
+			sav->replay->bitmap = malloc(bitmap_size*sizeof(u_int32_t),
+					M_IPSEC_MISC, M_NOWAIT|M_ZERO);
+			if (sav->replay->bitmap == NULL) {
 				ipseclog((LOG_DEBUG, "%s: No more memory.\n",
 					__func__));
 				error = ENOBUFS;
 				goto fail;
 			}
-			if (sa0->sadb_sa_replay != 0)
-				sav->replay->bitmap = (caddr_t)(sav->replay+1);
-			sav->replay->wsize = sa0->sadb_sa_replay;
+			sav->replay->bitmap_size = bitmap_size;
+			sav->replay->wsize = replay;
 		}
 	}
 
@@ -3406,7 +3453,7 @@ key_setdumpsa(struct secasvar *sav, u_int8_t type, u_int8_t satype,
 	struct mbuf *result = NULL, *tres = NULL, *m;
 	int i;
 	int dumporder[] = {
-		SADB_EXT_SA, SADB_X_EXT_SA2,
+		SADB_EXT_SA, SADB_X_EXT_SA2, SADB_X_EXT_SA_REPLAY,
 		SADB_EXT_LIFETIME_HARD, SADB_EXT_LIFETIME_SOFT,
 		SADB_EXT_LIFETIME_CURRENT, SADB_EXT_ADDRESS_SRC,
 		SADB_EXT_ADDRESS_DST, SADB_EXT_ADDRESS_PROXY, SADB_EXT_KEY_AUTH,
@@ -3419,6 +3466,7 @@ key_setdumpsa(struct secasvar *sav, u_int8_t type, u_int8_t satype,
 		SADB_X_EXT_NAT_T_FRAG,
 #endif
 	};
+	u_int32_t replay_count;
 
 	m = key_setsadbmsg(type, 0, satype, seq, pid, sav->refcnt);
 	if (m == NULL)
@@ -3435,9 +3483,21 @@ key_setdumpsa(struct secasvar *sav, u_int8_t type, u_int8_t satype,
 			break;
 
 		case SADB_X_EXT_SA2:
-			m = key_setsadbxsa2(sav->sah->saidx.mode,
-					sav->replay ? sav->replay->count : 0,
+			SECASVAR_LOCK(sav);
+			replay_count = sav->replay ? sav->replay->count : 0;
+			SECASVAR_UNLOCK(sav);
+			m = key_setsadbxsa2(sav->sah->saidx.mode, replay_count,
 					sav->sah->saidx.reqid);
+			if (!m)
+				goto fail;
+			break;
+
+		case SADB_X_EXT_SA_REPLAY:
+			if (sav->replay == NULL ||
+				sav->replay->wsize <= UINT8_MAX)
+				continue;
+
+			m = key_setsadbxsareplay(sav->replay->wsize);
 			if (!m)
 				goto fail;
 			break;
@@ -3634,7 +3694,9 @@ key_setsadbsa(struct secasvar *sav)
 	p->sadb_sa_len = PFKEY_UNIT64(len);
 	p->sadb_sa_exttype = SADB_EXT_SA;
 	p->sadb_sa_spi = sav->spi;
-	p->sadb_sa_replay = (sav->replay != NULL ? sav->replay->wsize : 0);
+	p->sadb_sa_replay = sav->replay ?
+		(sav->replay->wsize > UINT8_MAX ?
+		 	UINT8_MAX : sav->replay->wsize) : 0;
 	p->sadb_sa_state = sav->state;
 	p->sadb_sa_auth = sav->alg_auth;
 	p->sadb_sa_encrypt = sav->alg_enc;
@@ -3715,6 +3777,32 @@ key_setsadbxsa2(u_int8_t mode, u_int32_t seq, u_int32_t reqid)
 	p->sadb_x_sa2_reserved2 = 0;
 	p->sadb_x_sa2_sequence = seq;
 	p->sadb_x_sa2_reqid = reqid;
+
+	return m;
+}
+
+/*
+ * Set data into sadb_x_sa_replay.
+ */
+static struct mbuf *
+key_setsadbxsareplay(u_int32_t replay)
+{
+	struct mbuf *m;
+	struct sadb_x_sa_replay *p;
+	size_t len;
+
+	len = PFKEY_ALIGN8(sizeof(struct sadb_x_sa_replay));
+	m = m_get2(len, M_NOWAIT, MT_DATA, 0);
+	if (m == NULL)
+		return (NULL);
+	m_align(m, len);
+	m->m_len = len;
+	p = mtod(m, struct sadb_x_sa_replay *);
+
+	bzero(p, len);
+	p->sadb_x_sa_replay_len = PFKEY_UNIT64(len);
+	p->sadb_x_sa_replay_exttype = SADB_X_EXT_SA_REPLAY;
+	p->sadb_x_sa_replay_replay = (replay << 3);
 
 	return m;
 }
@@ -6853,6 +6941,7 @@ key_expire(struct secasvar *sav, int hard)
 	int len;
 	int error = -1;
 	struct sadb_lifetime *lt;
+	u_int32_t replay_count;
 
 	IPSEC_ASSERT (sav != NULL, ("null sav"));
 	IPSEC_ASSERT (sav->sah != NULL, ("null sa header"));
@@ -6876,14 +6965,26 @@ key_expire(struct secasvar *sav, int hard)
 	m_cat(result, m);
 
 	/* create SA extension */
-	m = key_setsadbxsa2(sav->sah->saidx.mode,
-			sav->replay ? sav->replay->count : 0,
+	SECASVAR_LOCK(sav);
+	replay_count = sav->replay ? sav->replay->count : 0;
+	SECASVAR_UNLOCK(sav);
+
+	m = key_setsadbxsa2(sav->sah->saidx.mode, replay_count,
 			sav->sah->saidx.reqid);
 	if (!m) {
 		error = ENOBUFS;
 		goto fail;
 	}
 	m_cat(result, m);
+
+	if (sav->replay && sav->replay->wsize > UINT8_MAX) {
+		m = key_setsadbxsareplay(sav->replay->wsize);
+		if (!m) {
+			error = ENOBUFS;
+			goto fail;
+		}
+		m_cat(result, m);
+	}
 
 	/* create lifetime extension (current and soft) */
 	len = PFKEY_ALIGN8(sizeof(*lt)) * 2;
@@ -7560,6 +7661,7 @@ key_align(struct mbuf *m, struct sadb_msghdr *mhp)
 		case SADB_X_EXT_NAT_T_OAR:
 		case SADB_X_EXT_NAT_T_FRAG:
 #endif
+		case SADB_X_EXT_SA_REPLAY:
 			/* duplicate check */
 			/*
 			 * XXX Are there duplication payloads of either

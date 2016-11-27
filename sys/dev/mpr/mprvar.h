@@ -271,6 +271,7 @@ struct mpr_softc {
 	uint16_t			chain_seg_size;
 	u_int				enable_ssu;
 	int				spinup_wait_time;
+	int				use_phynum;
 	uint64_t			chain_alloc_fail;
 	struct sysctl_ctx_list		sysctl_ctx;
 	struct sysctl_oid		*sysctl_tree;

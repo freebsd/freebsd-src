@@ -312,8 +312,13 @@ static PrintfSpecifierResult ParsePrintfSpecifier(FormatStringHandler &H,
     argIndex++;
 
   if (k == ConversionSpecifier::InvalidSpecifier) {
+    unsigned Len = I - Start;
+    if (ParseUTF8InvalidSpecifier(Start, E, Len)) {
+      CS.setEndScanList(Start + Len);
+      FS.setConversionSpecifier(CS);
+    }
     // Assume the conversion takes one argument.
-    return !H.HandleInvalidPrintfConversionSpecifier(FS, Start, I - Start);
+    return !H.HandleInvalidPrintfConversionSpecifier(FS, Start, Len);
   }
   return PrintfSpecifierResult(Start, FS);
 }
@@ -611,9 +616,13 @@ bool PrintfSpecifier::fixType(QualType QT, const LangOptions &LangOpt,
   case BuiltinType::UInt128:
   case BuiltinType::Int128:
   case BuiltinType::Half:
+  case BuiltinType::Float128:
     // Various types which are non-trivial to correct.
     return false;
 
+#define IMAGE_TYPE(ImgType, Id, SingletonId, Access, Suffix) \
+  case BuiltinType::Id:
+#include "clang/Basic/OpenCLImageTypes.def"
 #define SIGNED_TYPE(Id, SingletonId)
 #define UNSIGNED_TYPE(Id, SingletonId)
 #define FLOATING_TYPE(Id, SingletonId)

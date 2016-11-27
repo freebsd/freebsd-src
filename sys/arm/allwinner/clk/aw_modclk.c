@@ -53,7 +53,6 @@ __FBSDID("$FreeBSD$");
 #define	SCLK_GATING		(1 << 31)
 #define	CLK_SRC_SEL		(0x3 << 24)
 #define	CLK_SRC_SEL_SHIFT	24
-#define	CLK_SRC_SEL_MAX		0x3
 #define	CLK_RATIO_N		(0x3 << 16)
 #define	CLK_RATIO_N_SHIFT	16
 #define	CLK_RATIO_N_MAX		0x3
@@ -69,6 +68,7 @@ static struct ofw_compat_data compat_data[] = {
 struct aw_modclk_sc {
 	device_t	clkdev;
 	bus_addr_t	reg;
+	u_int		parent_cnt;
 };
 
 #define	MODCLK_READ(sc, val)	CLKDEV_READ_4((sc)->clkdev, (sc)->reg, (val))
@@ -102,7 +102,7 @@ aw_modclk_set_mux(struct clknode *clk, int index)
 
 	sc = clknode_get_softc(clk);
 
-	if (index < 0 || index > CLK_SRC_SEL_MAX)
+	if (index < 0 || index >= sc->parent_cnt)
 		return (ERANGE);
 
 	DEVICE_LOCK(sc);
@@ -170,7 +170,7 @@ aw_modclk_set_freq(struct clknode *clk, uint64_t fin, uint64_t *fout,
 	best_diff = (int64_t)*fout; 
 	best_src = 0;
 
-	for (src = 0; src < CLK_SRC_SEL_MAX; src++) {
+	for (src = 0; src < sc->parent_cnt; src++) {
 		error = clknode_set_parent_by_idx(clk, src);
 		if (error != 0)
 			continue;
@@ -299,6 +299,7 @@ aw_modclk_attach(device_t dev)
 	sc = clknode_get_softc(clk);
 	sc->reg = paddr;
 	sc->clkdev = device_get_parent(dev);
+	sc->parent_cnt = def.parent_cnt;
 
 	clknode_register(clkdom, clk);
 

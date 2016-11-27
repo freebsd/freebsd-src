@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 7, 2016
+.Dd November 17, 2016
 .Dt SENDFILE 2
 .Os
 .Sh NAME
@@ -155,8 +155,33 @@ sleeps until the network stack no longer references the VM pages
 of the file, making subsequent modifications to it safe.
 Please note that this is not a guarantee that the data has actually
 been sent.
+.It Dv SF_USER_READAHEAD
+.Nm
+has some internal heuristics to do readahead when sending data.
+This flag forces
+.Nm
+to override any heuristically calculated readahead and use exactly the
+application specified readahead.
+See
+.Sx SETTING READAHEAD
+for more details on readahead.
 .El
 .Pp
+When using a socket marked for non-blocking I/O,
+.Fn sendfile
+may send fewer bytes than requested.
+In this case, the number of bytes successfully
+written is returned in
+.Fa *sbytes
+(if specified),
+and the error
+.Er EAGAIN
+is returned.
+.Sh SETTING READAHEAD
+.Nm
+uses internal heuristics based on request size and file system layout
+to do readahead.
+Additionally application may request extra readahead.
 The most significant 16 bits of
 .Fa flags
 specify amount of pages that
@@ -173,16 +198,13 @@ flag:
 	SF_FLAGS(16, SF_NOCACHE)
 .Ed
 .Pp
-When using a socket marked for non-blocking I/O,
-.Fn sendfile
-may send fewer bytes than requested.
-In this case, the number of bytes successfully
-written is returned in
-.Fa *sbytes
-(if specified),
-and the error
-.Er EAGAIN
-is returned.
+.Nm
+will use either application specified readahead or internally calculated,
+whichever is bigger.
+Setting flag
+.Dv SF_USER_READAHEAD
+would turn off any heuristics and set maximum possible readahead length to
+the number of pages specified via flags.
 .Sh IMPLEMENTATION NOTES
 The
 .Fx

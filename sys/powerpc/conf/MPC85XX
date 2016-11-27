@@ -75,12 +75,15 @@ device		alc
 device		ether
 device		fxp
 device  	gpio
+device  	gpiopower
 device		iic
 device		iicbus
 #device		isa
 device		loop
 device		md
 device		miibus
+device  	mmc
+device  	mmcsd
 device		pass
 device		pci
 device		quicc

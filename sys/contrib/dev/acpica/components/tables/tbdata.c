@@ -937,9 +937,9 @@ AcpiTbLoadTable (
  *
  * FUNCTION:    AcpiTbInstallAndLoadTable
  *
- * PARAMETERS:  Table                   - Pointer to the table
- *              Address                 - Physical address of the table
+ * PARAMETERS:  Address                 - Physical address of the table
  *              Flags                   - Allocation flags of the table
+ *              Override                - Whether override should be performed
  *              TableIndex              - Where table index is returned
  *
  * RETURN:      Status
@@ -950,7 +950,6 @@ AcpiTbLoadTable (
 
 ACPI_STATUS
 AcpiTbInstallAndLoadTable (
-    ACPI_TABLE_HEADER       *Table,
     ACPI_PHYSICAL_ADDRESS   Address,
     UINT8                   Flags,
     BOOLEAN                 Override,
@@ -958,10 +957,9 @@ AcpiTbInstallAndLoadTable (
 {
     ACPI_STATUS             Status;
     UINT32                  i;
-    ACPI_OWNER_ID           OwnerId;
 
 
-    ACPI_FUNCTION_TRACE (AcpiLoadTable);
+    ACPI_FUNCTION_TRACE (TbInstallAndLoadTable);
 
 
     (void) AcpiUtAcquireMutex (ACPI_MTX_TABLES);
@@ -975,48 +973,68 @@ AcpiTbInstallAndLoadTable (
         goto UnlockAndExit;
     }
 
-    /*
-     * Note: Now table is "INSTALLED", it must be validated before
-     * using.
-     */
-    Status = AcpiTbValidateTable (&AcpiGbl_RootTableList.Tables[i]);
-    if (ACPI_FAILURE (Status))
-    {
-        goto UnlockAndExit;
-    }
-
     (void) AcpiUtReleaseMutex (ACPI_MTX_TABLES);
-    Status = AcpiNsLoadTable (i, AcpiGbl_RootNode);
+    Status = AcpiTbLoadTable (i, AcpiGbl_RootNode);
+    (void) AcpiUtAcquireMutex (ACPI_MTX_TABLES);
 
-    /* Execute any module-level code that was found in the table */
+UnlockAndExit:
+    *TableIndex = i;
+    (void) AcpiUtReleaseMutex (ACPI_MTX_TABLES);
+    return_ACPI_STATUS (Status);
+}
 
-    if (!AcpiGbl_ParseTableAsTermList && AcpiGbl_GroupModuleLevelCode)
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiTbUnloadTable
+ *
+ * PARAMETERS:  TableIndex              - Table index
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Unload an ACPI table
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiTbUnloadTable (
+    UINT32                  TableIndex)
+{
+    ACPI_STATUS             Status = AE_OK;
+    ACPI_TABLE_HEADER       *Table;
+
+
+    ACPI_FUNCTION_TRACE (TbUnloadTable);
+
+
+    /* Ensure the table is still loaded */
+
+    if (!AcpiTbIsTableLoaded (TableIndex))
     {
-        AcpiNsExecModuleCodeList ();
-    }
-
-    /*
-     * Update GPEs for any new _Lxx/_Exx methods. Ignore errors. The host is
-     * responsible for discovering any new wake GPEs by running _PRW methods
-     * that may have been loaded by this table.
-     */
-    Status = AcpiTbGetOwnerId (i, &OwnerId);
-    if (ACPI_SUCCESS (Status))
-    {
-        AcpiEvUpdateGpes (OwnerId);
+        return_ACPI_STATUS (AE_NOT_EXIST);
     }
 
     /* Invoke table handler if present */
 
     if (AcpiGbl_TableHandler)
     {
-        (void) AcpiGbl_TableHandler (ACPI_TABLE_EVENT_LOAD, Table,
-            AcpiGbl_TableHandlerContext);
+        Status = AcpiGetTableByIndex (TableIndex, &Table);
+        if (ACPI_SUCCESS (Status))
+        {
+            (void) AcpiGbl_TableHandler (ACPI_TABLE_EVENT_UNLOAD, Table,
+                AcpiGbl_TableHandlerContext);
+        }
     }
-    (void) AcpiUtAcquireMutex (ACPI_MTX_TABLES);
 
-UnlockAndExit:
-    *TableIndex = i;
-    (void) AcpiUtReleaseMutex (ACPI_MTX_TABLES);
+    /* Delete the portion of the namespace owned by this table */
+
+    Status = AcpiTbDeleteNamespaceByOwner (TableIndex);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
+
+    (void) AcpiTbReleaseOwnerId (TableIndex);
+    AcpiTbSetTableLoadedFlag (TableIndex, FALSE);
     return_ACPI_STATUS (Status);
 }

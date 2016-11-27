@@ -188,6 +188,8 @@ main(int argc, char **argv)
 				if (c == EOF)
 					break;
 				putchar(c);
+				if (c == '\n')
+					fflush(stdout);
 			} else {
 				if ((size_t) p >= sizeof(buf) - 1)
 					warnx("buffer overflowed");

@@ -1062,27 +1062,15 @@ doopen(struct psm_softc *sc, int command_byte)
 	 */
 	if (sc->hw.model == MOUSE_MODEL_GENERIC) {
 		if (tap_enabled > 0) {
-			/*
-			 * Enable tap & drag gestures. We use a Mode Byte
-			 * and clear the DisGest bit (see §2.5 of Synaptics
-			 * TouchPad Interfacing Guide).
-			 */
 			VLOG(2, (LOG_DEBUG,
 			    "psm%d: enable tap and drag gestures\n",
 			    sc->unit));
-			mouse_ext_command(sc->kbdc, 0x00);
-			set_mouse_sampling_rate(sc->kbdc, 20);
+			synaptics_set_mode(sc, synaptics_preferred_mode(sc));
 		} else if (tap_enabled == 0) {
-			/*
-			 * Disable tap & drag gestures. We use a Mode Byte
-			 * and set the DisGest bit (see §2.5 of Synaptics
-			 * TouchPad Interfacing Guide).
-			 */
 			VLOG(2, (LOG_DEBUG,
 			    "psm%d: disable tap and drag gestures\n",
 			    sc->unit));
-			mouse_ext_command(sc->kbdc, 0x04);
-			set_mouse_sampling_rate(sc->kbdc, 20);
+			synaptics_set_mode(sc, synaptics_preferred_mode(sc));
 		}
 	}
 
@@ -5364,6 +5352,24 @@ static int
 synaptics_preferred_mode(struct psm_softc *sc) {
 	int mode_byte;
 
+	/* Check if we are in relative mode */
+	if (sc->hw.model != MOUSE_MODEL_SYNAPTICS) {
+		if (tap_enabled == 0)
+			/*
+			 * Disable tap & drag gestures. We use a Mode Byte
+			 * and set the DisGest bit (see §2.5 of Synaptics
+			 * TouchPad Interfacing Guide).
+			 */
+			return (0x04);
+		else
+			/*
+			 * Enable tap & drag gestures. We use a Mode Byte
+			 * and clear the DisGest bit (see §2.5 of Synaptics
+			 * TouchPad Interfacing Guide).
+			 */
+			return (0x00);
+	}
+
 	mode_byte = 0xc4;
 
 	/* request wmode where available */
@@ -5382,10 +5388,10 @@ synaptics_set_mode(struct psm_softc *sc, int mode_byte) {
 
 	/*
 	 * Enable advanced gestures mode if supported and we are not entering
-	 * passthrough mode.
+	 * passthrough or relative mode.
 	 */
 	if ((sc->synhw.capAdvancedGestures || sc->synhw.capReportsV) &&
-	    !(mode_byte & (1 << 5))) {
+	    sc->hw.model == MOUSE_MODEL_SYNAPTICS && !(mode_byte & (1 << 5))) {
 		mouse_ext_command(sc->kbdc, 3);
 		set_mouse_sampling_rate(sc->kbdc, 0xc8);
 	}
@@ -5697,6 +5703,9 @@ enable_synaptics(struct psm_softc *sc, enum probearg arg)
 		sc->synhw = synhw;
 	if (!synaptics_support)
 		return (FALSE);
+
+	/* Set mouse type just now for synaptics_set_mode() */
+	sc->hw.model = MOUSE_MODEL_SYNAPTICS;
 
 	synaptics_set_mode(sc, synaptics_preferred_mode(sc));
 

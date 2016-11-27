@@ -39,8 +39,10 @@
 #include <sys/param.h>
 #ifdef _KERNEL
 #include <sys/systm.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/mutex.h>
 #include <sys/queue.h>
 #endif
 #include <sys/socket.h>
@@ -570,8 +572,11 @@ kdebug_secasv(struct secasvar *sav)
 	if (sav->key_enc != NULL)
 		kdebug_sadb_key((struct sadb_ext *)sav->key_enc);
 
-	if (sav->replay != NULL)
+	if (sav->replay != NULL) {
+		SECASVAR_LOCK(sav);
 		kdebug_secreplay(sav->replay);
+		SECASVAR_UNLOCK(sav);
+	}
 	if (sav->lft_c != NULL)
 		kdebug_sec_lifetime(sav->lft_c);
 	if (sav->lft_h != NULL)
@@ -595,8 +600,8 @@ kdebug_secreplay(struct secreplay *rpl)
 	if (rpl == NULL)
 		panic("%s: NULL pointer was passed.\n", __func__);
 
-	printf(" secreplay{ count=%u wsize=%u seq=%u lastseq=%u",
-	    rpl->count, rpl->wsize, rpl->seq, rpl->lastseq);
+	printf(" secreplay{ count=%u bitmap_size=%u wsize=%u seq=%u lastseq=%u",
+	    rpl->count, rpl->bitmap_size, rpl->wsize, rpl->seq, rpl->lastseq);
 
 	if (rpl->bitmap == NULL) {
 		printf(" }\n");
@@ -605,7 +610,7 @@ kdebug_secreplay(struct secreplay *rpl)
 
 	printf("\n   bitmap { ");
 
-	for (len = 0; len < rpl->wsize; len++) {
+	for (len = 0; len < rpl->bitmap_size*4; len++) {
 		for (l = 7; l >= 0; l--)
 			printf("%u", (((rpl->bitmap)[len] >> l) & 1) ? 1 : 0);
 	}

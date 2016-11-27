@@ -18,6 +18,8 @@
 # in NOTES.
 #
 # $FreeBSD$
+#
+#NO_UNIVERSE
 
 ident		ALLWINNER
 

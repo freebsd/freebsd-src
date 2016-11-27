@@ -66,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <arm/mv/mvwin.h>
 
 #include <dev/fdt/fdt_common.h>
+#include <dev/ofw/ofw_bus_subr.h>
 
 static int platform_mpp_init(void);
 #if defined(SOC_MV_ARMADAXP)
@@ -103,7 +104,7 @@ platform_mpp_init(void)
 	 * Try to access the MPP node directly i.e. through /aliases/mpp.
 	 */
 	if ((node = OF_finddevice("mpp")) != -1)
-		if (fdt_is_compatible(node, "mrvl,mpp"))
+		if (ofw_bus_node_is_compatible(node, "mrvl,mpp"))
 			goto moveon;
 	/*
 	 * Find the node the long way.
@@ -146,21 +147,19 @@ moveon:
 	/*
 	 * Process 'pin-count' and 'pin-map' props.
 	 */
-	if (OF_getprop(node, "pin-count", &pin_count, sizeof(pin_count)) <= 0)
+	if (OF_getencprop(node, "pin-count", &pin_count, sizeof(pin_count)) <= 0)
 		return (ENXIO);
-	pin_count = fdt32_to_cpu(pin_count);
 	if (pin_count > MPP_PIN_MAX)
 		return (ERANGE);
 
-	if (OF_getprop(node, "#pin-cells", &pin_cells, sizeof(pin_cells)) <= 0)
+	if (OF_getencprop(node, "#pin-cells", &pin_cells, sizeof(pin_cells)) <= 0)
 		pin_cells = MPP_PIN_CELLS;
-	pin_cells = fdt32_to_cpu(pin_cells);
 	if (pin_cells > MPP_PIN_CELLS)
 		return (ERANGE);
 	tuple_size = sizeof(pcell_t) * pin_cells;
 
 	bzero(pinmap, sizeof(pinmap));
-	len = OF_getprop(node, "pin-map", pinmap, sizeof(pinmap));
+	len = OF_getencprop(node, "pin-map", pinmap, sizeof(pinmap));
 	if (len <= 0)
 		return (ERANGE);
 	if (len % tuple_size)
@@ -175,8 +174,8 @@ moveon:
 	bzero(mpp, sizeof(mpp));
 	pinmap_ptr = pinmap;
 	for (i = 0; i < pins; i++) {
-		mpp_pin = fdt32_to_cpu(*pinmap_ptr);
-		mpp_function = fdt32_to_cpu(*(pinmap_ptr + 1));
+		mpp_pin = *pinmap_ptr;
+		mpp_function = *(pinmap_ptr + 1);
 		mpp[mpp_pin] = mpp_function;
 		pinmap_ptr += pin_cells;
 	}
@@ -290,8 +289,8 @@ platform_sram_devmap(struct devmap_entry *map)
 	 * SRAM range.
 	 */
 	if ((child = OF_finddevice("/sram")) != 0)
-		if (fdt_is_compatible(child, "mrvl,cesa-sram") ||
-		    fdt_is_compatible(child, "mrvl,scratchpad"))
+		if (ofw_bus_node_is_compatible(child, "mrvl,cesa-sram") ||
+		    ofw_bus_node_is_compatible(child, "mrvl,scratchpad"))
 			goto moveon;
 
 	if ((root = OF_finddevice("/")) == 0)
@@ -406,14 +405,12 @@ platform_devmap_init(void)
 			i += 2;
 		}
 
-		if (fdt_is_compatible(child, "mrvl,lbc")) {
+		if (ofw_bus_node_is_compatible(child, "mrvl,lbc")) {
 			/* Check available space */
-			if (OF_getprop(child, "bank-count", (void *)&bank_count,
+			if (OF_getencprop(child, "bank-count", &bank_count,
 			    sizeof(bank_count)) <= 0)
 				/* If no property, use default value */
 				bank_count = 1;
-			else
-				bank_count = fdt32_to_cpu(bank_count);
 
 			if ((i + bank_count) >= FDT_DEVMAP_MAX)
 				return (ENOMEM);

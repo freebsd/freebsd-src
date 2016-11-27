@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net80211/ieee80211_var.h>
 
+#include <dev/rtwn/if_rtwnreg.h>
 #include <dev/rtwn/if_rtwnvar.h>
 #include <dev/rtwn/if_rtwn_nop.h>
 #include <dev/rtwn/if_rtwn_debug.h>
@@ -75,6 +76,8 @@ static int	rtwn_pci_alloc_rx_list(struct rtwn_softc *);
 static void	rtwn_pci_reset_rx_list(struct rtwn_softc *);
 static void	rtwn_pci_free_rx_list(struct rtwn_softc *);
 static int	rtwn_pci_alloc_tx_list(struct rtwn_softc *, int);
+static void	rtwn_pci_reset_tx_ring_stopped(struct rtwn_softc *, int);
+static void	rtwn_pci_reset_beacon_ring(struct rtwn_softc *, int);
 static void	rtwn_pci_reset_tx_list(struct rtwn_softc *,
 		    struct ieee80211vap *, int);
 static void	rtwn_pci_free_tx_list(struct rtwn_softc *, int);
@@ -84,6 +87,10 @@ static int	rtwn_pci_fw_write_block(struct rtwn_softc *,
 		    const uint8_t *, uint16_t, int);
 static uint16_t	rtwn_pci_get_qmap(struct rtwn_softc *);
 static void	rtwn_pci_set_desc_addr(struct rtwn_softc *);
+static void	rtwn_pci_beacon_update_begin(struct rtwn_softc *,
+		    struct ieee80211vap *);
+static void	rtwn_pci_beacon_update_end(struct rtwn_softc *,
+		    struct ieee80211vap *);
 static void	rtwn_pci_attach_methods(struct rtwn_softc *);
 
 
@@ -142,8 +149,8 @@ rtwn_pci_alloc_rx_list(struct rtwn_softc *sc)
 
 	/* Create RX buffer DMA tag. */
 	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), 1, 0,
-	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES,
-	    1, MCLBYTES, 0, NULL, NULL, &rx_ring->data_dmat);
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
+	    MJUMPAGESIZE, 1, MJUMPAGESIZE, 0, NULL, NULL, &rx_ring->data_dmat);
 	if (error != 0) {
 		device_printf(sc->sc_dev, "could not create rx buf DMA tag\n");
 		goto fail;
@@ -159,7 +166,8 @@ rtwn_pci_alloc_rx_list(struct rtwn_softc *sc)
 			goto fail;
 		}
 
-		rx_data->m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
+		rx_data->m = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR,
+		    MJUMPAGESIZE);
 		if (rx_data->m == NULL) {
 			device_printf(sc->sc_dev,
 			    "could not allocate rx mbuf\n");
@@ -168,8 +176,8 @@ rtwn_pci_alloc_rx_list(struct rtwn_softc *sc)
 		}
 
 		error = bus_dmamap_load(rx_ring->data_dmat, rx_data->map,
-		    mtod(rx_data->m, void *), MCLBYTES, rtwn_pci_dma_map_addr,
-		    &rx_data->paddr, BUS_DMA_NOWAIT);
+		    mtod(rx_data->m, void *), MJUMPAGESIZE,
+		    rtwn_pci_dma_map_addr, &rx_data->paddr, BUS_DMA_NOWAIT);
 		if (error != 0) {
 			device_printf(sc->sc_dev,
 			    "could not load rx buf DMA map");
@@ -177,7 +185,7 @@ rtwn_pci_alloc_rx_list(struct rtwn_softc *sc)
 		}
 
 		rtwn_pci_setup_rx_desc(pc, &rx_ring->desc[i], rx_data->paddr,
-		    MCLBYTES, i);
+		    MJUMPAGESIZE, i);
 	}
 	rx_ring->cur = 0;
 
@@ -199,7 +207,7 @@ rtwn_pci_reset_rx_list(struct rtwn_softc *sc)
 	for (i = 0; i < RTWN_PCI_RX_LIST_COUNT; i++) {
 		rx_data = &rx_ring->rx_data[i];
 		rtwn_pci_setup_rx_desc(pc, &rx_ring->desc[i],
-		    rx_data->paddr, MCLBYTES, i);
+		    rx_data->paddr, MJUMPAGESIZE, i);
 	}
 	rx_ring->cur = 0;
 }
@@ -280,8 +288,8 @@ rtwn_pci_alloc_tx_list(struct rtwn_softc *sc, int qid)
 	    BUS_DMASYNC_PREWRITE);
 
 	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), 1, 0,
-	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES,
-	    1, MCLBYTES, 0, NULL, NULL, &tx_ring->data_dmat);
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
+	    MJUMPAGESIZE, 1, MJUMPAGESIZE, 0, NULL, NULL, &tx_ring->data_dmat);
 	if (error != 0) {
 		device_printf(sc->sc_dev, "could not create tx buf DMA tag\n");
 		goto fail;
@@ -312,48 +320,109 @@ fail:
 }
 
 static void
-rtwn_pci_reset_tx_list(struct rtwn_softc *sc, struct ieee80211vap *vap,
-    int qid)
+rtwn_pci_reset_tx_ring_stopped(struct rtwn_softc *sc, int qid)
 {
-	struct rtwn_vap *uvp = RTWN_VAP(vap);
 	struct rtwn_pci_softc *pc = RTWN_PCI_SOFTC(sc);
-	struct rtwn_tx_ring *tx_ring = &pc->tx_ring[qid];
-	int i, id;
-
-	id = (uvp != NULL ? uvp->id : RTWN_VAP_ID_INVALID);
+	struct rtwn_tx_ring *ring = &pc->tx_ring[qid];
+	int i;
 
 	for (i = 0; i < RTWN_PCI_TX_LIST_COUNT; i++) {
-		struct rtwn_tx_data *tx_data = &tx_ring->tx_data[i];
+		struct rtwn_tx_data *data = &ring->tx_data[i];
+		void *desc = (uint8_t *)ring->desc + sc->txdesc_len * i;
 
-		if (vap == NULL || (tx_data->ni == NULL &&
-		    (tx_data->id == id || id == RTWN_VAP_ID_INVALID)) ||
-		    (tx_data->ni != NULL && tx_data->ni->ni_vap == vap)) {
-			void *tx_desc =
-			    (uint8_t *)tx_ring->desc + sc->txdesc_len * i;
+		rtwn_pci_copy_tx_desc(pc, desc, NULL);
 
-			rtwn_pci_copy_tx_desc(pc, tx_desc, NULL);
-
-			if (tx_data->m != NULL) {
-				bus_dmamap_sync(tx_ring->data_dmat,
-				    tx_data->map, BUS_DMASYNC_POSTWRITE);
-				bus_dmamap_unload(tx_ring->data_dmat,
-				    tx_data->map);
-				m_freem(tx_data->m);
-				tx_data->m = NULL;
-			}
-			if (tx_data->ni != NULL) {
-				ieee80211_free_node(tx_data->ni);
-				tx_data->ni = NULL;
-			}
+		if (data->m != NULL) {
+			bus_dmamap_sync(ring->data_dmat, data->map,
+			    BUS_DMASYNC_POSTWRITE);
+			bus_dmamap_unload(ring->data_dmat, data->map);
+			m_freem(data->m);
+			data->m = NULL;
+		}
+		if (data->ni != NULL) {
+			ieee80211_free_node(data->ni);
+			data->ni = NULL;
 		}
 	}
 
-	bus_dmamap_sync(tx_ring->desc_dmat, tx_ring->desc_map,
+	bus_dmamap_sync(ring->desc_dmat, ring->desc_map,
 	    BUS_DMASYNC_POSTWRITE);
 
 	sc->qfullmsk &= ~(1 << qid);
-	tx_ring->queued = 0;
-	tx_ring->last = tx_ring->cur = 0;
+	ring->queued = 0;
+	ring->last = ring->cur = 0;
+}
+
+/*
+ * Clear entry 0 (or 1) in the beacon queue (other are not used).
+ */
+static void
+rtwn_pci_reset_beacon_ring(struct rtwn_softc *sc, int id)
+{
+	struct rtwn_pci_softc *pc = RTWN_PCI_SOFTC(sc);
+	struct rtwn_tx_ring *ring = &pc->tx_ring[RTWN_PCI_BEACON_QUEUE];
+	struct rtwn_tx_data *data = &ring->tx_data[id];
+	struct rtwn_tx_desc_common *txd = (struct rtwn_tx_desc_common *)
+	    ((uint8_t *)ring->desc + id * sc->txdesc_len);
+
+	bus_dmamap_sync(ring->desc_dmat, ring->desc_map, BUS_DMASYNC_POSTREAD);
+	if (txd->flags0 & RTWN_FLAGS0_OWN) {
+		/* Clear OWN bit. */
+		txd->flags0 &= ~RTWN_FLAGS0_OWN;
+		bus_dmamap_sync(ring->desc_dmat, ring->desc_map,
+		    BUS_DMASYNC_PREWRITE);
+
+		/* Unload mbuf. */
+		bus_dmamap_sync(ring->data_dmat, data->map,
+		    BUS_DMASYNC_POSTWRITE);
+		bus_dmamap_unload(ring->data_dmat, data->map);
+	}
+}
+
+/*
+ * Drop stale entries from Tx ring before the vap will be deleted.
+ * In case if vap is NULL just free everything and reset cur / last pointers.
+ */
+static void
+rtwn_pci_reset_tx_list(struct rtwn_softc *sc, struct ieee80211vap *vap,
+    int qid)
+{
+	int i;
+
+	if (vap == NULL) {
+		if (qid != RTWN_PCI_BEACON_QUEUE) {
+			/*
+			 * Device was stopped; just clear all entries.
+			 */
+			rtwn_pci_reset_tx_ring_stopped(sc, qid);
+		} else {
+			for (i = 0; i < RTWN_PORT_COUNT; i++)
+				rtwn_pci_reset_beacon_ring(sc, i);
+		}
+	} else if (qid == RTWN_PCI_BEACON_QUEUE &&
+		   (vap->iv_opmode == IEEE80211_M_HOSTAP ||
+		    vap->iv_opmode == IEEE80211_M_IBSS)) {
+		struct rtwn_vap *uvp = RTWN_VAP(vap);
+
+		rtwn_pci_reset_beacon_ring(sc, uvp->id);
+	} else {
+		struct rtwn_pci_softc *pc = RTWN_PCI_SOFTC(sc);
+		struct rtwn_tx_ring *ring = &pc->tx_ring[qid];
+
+		for (i = 0; i < RTWN_PCI_TX_LIST_COUNT; i++) {
+			struct rtwn_tx_data *data = &ring->tx_data[i];
+			if (data->ni != NULL && data->ni->ni_vap == vap) {
+				/*
+				 * NB: if some vap is still running
+				 * rtwn_pci_tx_done() will free the mbuf;
+				 * otherwise, rtwn_stop() will reset all rings
+				 * after device shutdown.
+				 */
+				ieee80211_free_node(data->ni);
+				data->ni = NULL;
+			}
+		}
+	}
 }
 
 static void
@@ -475,6 +544,27 @@ rtwn_pci_set_desc_addr(struct rtwn_softc *sc)
 }
 
 static void
+rtwn_pci_beacon_update_begin(struct rtwn_softc *sc, struct ieee80211vap *vap)
+{
+	struct rtwn_vap *rvp = RTWN_VAP(vap);
+
+	RTWN_ASSERT_LOCKED(sc);
+
+	rtwn_beacon_enable(sc, rvp->id, 0);
+}
+
+static void
+rtwn_pci_beacon_update_end(struct rtwn_softc *sc, struct ieee80211vap *vap)
+{
+	struct rtwn_vap *rvp = RTWN_VAP(vap);
+
+	RTWN_ASSERT_LOCKED(sc);
+
+	if (rvp->curr_mode != R92C_MSR_NOLINK)
+		rtwn_beacon_enable(sc, rvp->id, 1);
+}
+
+static void
 rtwn_pci_attach_methods(struct rtwn_softc *sc)
 {
 	sc->sc_write_1		= rtwn_pci_write_1;
@@ -491,6 +581,11 @@ rtwn_pci_attach_methods(struct rtwn_softc *sc)
 	sc->sc_get_qmap		= rtwn_pci_get_qmap;
 	sc->sc_set_desc_addr	= rtwn_pci_set_desc_addr;
 	sc->sc_drop_incorrect_tx = rtwn_nop_softc;
+	sc->sc_beacon_update_begin = rtwn_pci_beacon_update_begin;
+	sc->sc_beacon_update_end = rtwn_pci_beacon_update_end;
+	sc->sc_beacon_unload	= rtwn_pci_reset_beacon_ring;
+
+	sc->bcn_check_interval	= 25000;
 }
 
 static int

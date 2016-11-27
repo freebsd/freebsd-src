@@ -446,16 +446,19 @@ kern_getfsstat(struct thread *td, struct statfs **buf, size_t bufsize,
     size_t *countp, enum uio_seg bufseg, int flags)
 {
 	struct mount *mp, *nmp;
-	struct statfs *sfsp, *sp, sb;
+	struct statfs *sfsp, *sp, sb, *tofree;
 	size_t count, maxcount;
 	int error;
 
+restart:
 	maxcount = bufsize / sizeof(struct statfs);
-	if (bufsize == 0)
+	if (bufsize == 0) {
 		sfsp = NULL;
-	else if (bufseg == UIO_USERSPACE)
+		tofree = NULL;
+	} else if (bufseg == UIO_USERSPACE) {
 		sfsp = *buf;
-	else /* if (bufseg == UIO_SYSSPACE) */ {
+		tofree = NULL;
+	} else /* if (bufseg == UIO_SYSSPACE) */ {
 		count = 0;
 		mtx_lock(&mountlist_mtx);
 		TAILQ_FOREACH(mp, &mountlist, mnt_list) {
@@ -464,8 +467,8 @@ kern_getfsstat(struct thread *td, struct statfs **buf, size_t bufsize,
 		mtx_unlock(&mountlist_mtx);
 		if (maxcount > count)
 			maxcount = count;
-		sfsp = *buf = malloc(maxcount * sizeof(struct statfs), M_TEMP,
-		    M_WAITOK);
+		tofree = sfsp = *buf = malloc(maxcount * sizeof(struct statfs),
+		    M_TEMP, M_WAITOK);
 	}
 	count = 0;
 	mtx_lock(&mountlist_mtx);
@@ -480,9 +483,24 @@ kern_getfsstat(struct thread *td, struct statfs **buf, size_t bufsize,
 			continue;
 		}
 #endif
-		if (vfs_busy(mp, MBF_NOWAIT | MBF_MNTLSTLOCK)) {
-			nmp = TAILQ_NEXT(mp, mnt_list);
-			continue;
+		if (flags == MNT_WAIT) {
+			if (vfs_busy(mp, MBF_MNTLSTLOCK) != 0) {
+				/*
+				 * If vfs_busy() failed, and MBF_NOWAIT
+				 * wasn't passed, then the mp is gone.
+				 * Furthermore, because of MBF_MNTLSTLOCK,
+				 * the mountlist_mtx was dropped.  We have
+				 * no other choice than to start over.
+				 */
+				mtx_unlock(&mountlist_mtx);
+				free(tofree, M_TEMP);
+				goto restart;
+			}
+		} else {
+			if (vfs_busy(mp, MBF_NOWAIT | MBF_MNTLSTLOCK) != 0) {
+				nmp = TAILQ_NEXT(mp, mnt_list);
+				continue;
+			}
 		}
 		if (sfsp && count < maxcount) {
 			sp = &mp->mnt_stat;
@@ -1012,7 +1030,7 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 		 * understand exactly what would happen, and we don't think
 		 * that it ever should.
 		 */
-		if (nd.ni_strictrelative == 0 &&
+		if ((nd.ni_lcf & NI_LCF_STRICTRELATIVE) == 0 &&
 		    (error == ENODEV || error == ENXIO) &&
 		    td->td_dupfd >= 0) {
 			error = dupfdopen(td, fdp, td->td_dupfd, flags, error,
@@ -1058,7 +1076,7 @@ success:
 		struct filecaps *fcaps;
 
 #ifdef CAPABILITIES
-		if (nd.ni_strictrelative == 1)
+		if ((nd.ni_lcf & NI_LCF_STRICTRELATIVE) != 0)
 			fcaps = &nd.ni_filecaps;
 		else
 #endif

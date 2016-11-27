@@ -21,6 +21,7 @@
 ident		GENERIC
 
 cpu		CPU_CORTEXA_MP
+cpu		CPU_CORTEXA8
 machine 	arm armv6
 makeoptions	CONF_CFLAGS="-march=armv7a"
 
@@ -29,6 +30,9 @@ options 	KERNVIRTADDR=0xc0000000
 
 include 	"std.armv6"
 files		"../allwinner/files.allwinner"
+files		"../allwinner/files.allwinner_up"
+files		"../allwinner/a10/files.a10"
+files		"../allwinner/a13/files.a13"
 files		"../allwinner/a20/files.a20"
 files		"../allwinner/a31/files.a31"
 files		"../allwinner/a83t/files.a83t"
@@ -37,13 +41,20 @@ files		"../broadcom/bcm2835/files.bcm2836"
 files		"../broadcom/bcm2835/files.bcm283x"
 files		"../nvidia/tegra124/files.tegra124"
 files		"../qemu/files.qemu"
+files		"../ti/files.ti"
+files		"../ti/am335x/files.am335x"
+files		"../ti/omap4/files.omap4"
 
+options 	SOC_ALLWINNER_A10
+options 	SOC_ALLWINNER_A13
 options 	SOC_ALLWINNER_A20
 options 	SOC_ALLWINNER_A31
 options 	SOC_ALLWINNER_A31S
 options 	SOC_ALLWINNER_A83T
 options 	SOC_ALLWINNER_H3
 options 	SOC_BCM2836
+options		SOC_TI_AM335X
+options		SOC_OMAP4
 
 options 	SCHED_ULE		# ULE scheduler
 options 	SMP			# Enable multiple cores
@@ -66,8 +77,12 @@ device		cpufreq
 options 	INTRNG
 device		gic
 
+# PMU support (for CCNT).
+device		pmu
+
 # ARM Generic Timer
 device		generic_timer
+device		mpcore_timer
 
 # MMC/SD/SDIO Card slot support
 device		sdhci			# SD controller
@@ -113,9 +128,17 @@ device		axp81x			# AXP813/818 Power Management Unit
 device		bcm2835_bsc
 device		icee
 device		sy8106a			# SY8106A Buck Regulator
+device		ti_i2c
+device		am335x_pmic		# AM335x Power Management IC (TPC65217)
+device		am335x_rtc		# RTC support (power management only)
+#define 	am335x_dmtpps		# Pulse Per Second capture driver
+device		twl			# TI TWLX0X0/TPS659x0 Power Management
+device		twl_vreg		# twl voltage regulation
+device		twl_clks		# twl external clocks
 
 # GPIO
 device		gpio
+device		gpiobacklight
 device		gpioled
 device		gpioregulator
 
@@ -127,7 +150,18 @@ device		aw_cir
 
 # SPI
 device		spibus
+device		spigen
 device		bcm2835_spi
+device		ti_spi
+
+# ADC support
+device		ti_adc
+
+# Watchdog support
+# If we don't enable the watchdog driver, the BealeBone could potentially
+# reboot automatically because the boot loader might have enabled the
+# watchdog.
+device		ti_wdt
 
 device		scbus			# SCSI bus (required for ATA/SCSI)
 device		da			# Direct Access (disks)
@@ -141,26 +175,31 @@ device		usb
 device		ohci
 device		ehci
 device		dwcotg			# DWC OTG controller
+device		musb
 
 device		umass			# Disks/Mass storage - Requires scbus and da
 device		uhid			# "Human Interface Devices"
 device		ukbd			# Allow keyboard like HIDs to control console
 
+# Device mode support and USFS template
+device		usb_template    	# Control of the gadget
+device		usfs
+
 # Ethernet
 device		loop
 device		ether
 device		vlan			# 802.1Q VLAN support
-device		mii
 device		bpf
 
-#device		emac			# 10/100 integrated EMAC controller
-device		dwc			# 10/100/1000 integrated GMAC controller
-device		awg			# 10/100/1000 integrated EMAC controller
-
-# USB ethernet support, requires miibus
-device		smcphy
-device		smsc
+# Ethernet NICs that use the common MII bus controller code.
+# NOTE: Be sure to keep the 'device miibus' line in order to use these NICs!
 device		miibus
+
+device		awg			# 10/100/1000 integrated EMAC controller
+device		cpsw			# TI Common Platform Ethernet Switch (CPSW)
+device		dwc			# 10/100/1000 integrated GMAC controller
+device		emac			# 10/100 integrated EMAC controller
+device		smsc			# SMSC LAN91C111
 
 # Sound support
 device		sound
@@ -176,9 +215,18 @@ device		vchiq
 # Pinmux
 device		fdt_pinctrl
 
+# TI Programmable Realtime Unit support
+device		ti_pruss
+
+# Mailbox support
+device		ti_mbox
+
+# DMA controller
+device		ti_sdma
+
 # Extensible Firmware Interface
 options 	EFI
 
 # Flattened Device Tree
 options 	FDT			# Configure using FDT/DTB data
-makeoptions	MODULES_EXTRA="dtb/allwinner dtb/nvidia dtb/rpi"
+makeoptions	MODULES_EXTRA="dtb/allwinner dtb/am335x dtb/nvidia dtb/rpi dtb/omap4"

@@ -187,6 +187,7 @@ crypto/via/padlock_cipher.c	optional	padlock
 crypto/via/padlock_hash.c	optional	padlock
 dev/acpica/acpi_if.m		standard
 dev/acpica/acpi_hpet.c		optional acpi
+dev/acpica/acpi_timer.c		optional	acpi
 dev/acpi_support/acpi_wmi_if.m	standard
 dev/agp/agp_amd64.c		optional	agp
 dev/agp/agp_i810.c		optional	agp
@@ -270,6 +271,7 @@ dev/fdc/fdc.c			optional	fdc
 dev/fdc/fdc_acpi.c		optional	fdc
 dev/fdc/fdc_isa.c		optional	fdc isa
 dev/fdc/fdc_pccard.c		optional	fdc pccard
+dev/gpio/bytgpio.c		optional	bytgpio
 dev/hpt27xx/hpt27xx_os_bsd.c	optional	hpt27xx
 dev/hpt27xx/hpt27xx_osm_bsd.c	optional	hpt27xx
 dev/hpt27xx/hpt27xx_config.c	optional	hpt27xx
@@ -291,18 +293,20 @@ dev/hwpmc/hwpmc_uncore.c	optional	hwpmc
 dev/hwpmc/hwpmc_piv.c		optional	hwpmc
 dev/hwpmc/hwpmc_tsc.c		optional	hwpmc
 dev/hwpmc/hwpmc_x86.c		optional	hwpmc
+dev/hyperv/pcib/vmbus_pcib.c				optional	hyperv pci
 dev/hyperv/netvsc/hn_nvs.c				optional	hyperv
-dev/hyperv/netvsc/hv_netvsc_drv_freebsd.c		optional	hyperv
-dev/hyperv/netvsc/hv_rndis_filter.c			optional	hyperv
+dev/hyperv/netvsc/hn_rndis.c				optional	hyperv
+dev/hyperv/netvsc/if_hn.c				optional	hyperv
 dev/hyperv/storvsc/hv_storvsc_drv_freebsd.c		optional	hyperv
 dev/hyperv/utilities/hv_heartbeat.c			optional	hyperv
 dev/hyperv/utilities/hv_kvp.c				optional	hyperv
+dev/hyperv/utilities/hv_snapshot.c			optional	hyperv
 dev/hyperv/utilities/hv_shutdown.c			optional	hyperv
 dev/hyperv/utilities/hv_timesync.c			optional	hyperv
 dev/hyperv/utilities/hv_util.c				optional	hyperv
 dev/hyperv/vmbus/hyperv.c				optional	hyperv
 dev/hyperv/vmbus/hyperv_busdma.c			optional	hyperv
-dev/hyperv/vmbus/vmbus.c				optional	hyperv
+dev/hyperv/vmbus/vmbus.c				optional	hyperv pci
 dev/hyperv/vmbus/vmbus_br.c				optional	hyperv
 dev/hyperv/vmbus/vmbus_chan.c				optional	hyperv
 dev/hyperv/vmbus/vmbus_et.c				optional	hyperv

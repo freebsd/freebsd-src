@@ -299,6 +299,11 @@ reloc_jmpslot(Elf_Addr *where, Elf_Addr target, const Obj_Entry *defobj,
 	return target;
 }
 
+void
+ifunc_init(Elf_Auxinfo aux_info[__min_size(AT_COUNT)] __unused)
+{
+}
+
 /*
  * Process non-PLT relocations
  */

@@ -503,7 +503,7 @@ reloc_plt(Obj_Entry *obj)
 		assert(ELF64_R_TYPE_ID(rela->r_info) == R_SPARC_JMP_SLOT);
 		where = (Elf_Addr *)(obj->relocbase + rela->r_offset);
 		def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj,
-		    true, NULL, lockstate);
+		    SYMLOOK_IN_PLT, NULL, lockstate);
 		value = (Elf_Addr)(defobj->relocbase + def->st_value);
 		*where = value;
 	}
@@ -784,6 +784,11 @@ reloc_jmpslot(Elf_Addr *wherep, Elf_Addr target, const Obj_Entry *obj,
 	}
 
 	return (target);
+}
+
+void
+ifunc_init(Elf_Auxinfo aux_info[__min_size(AT_COUNT)] __unused)
+{
 }
 
 /*

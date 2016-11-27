@@ -184,6 +184,9 @@ CFLAGS.gcc+=	-mcall-aixdesc
 .if ${MACHINE_CPUARCH} == "mips"
 CFLAGS+=	-msoft-float
 INLINE_LIMIT?=	8000
+.if ${TARGET_ARCH:Mmips*hf} != ""
+CFLAGS+= -DCPU_HAVEFPU
+.endif
 .endif
 
 #

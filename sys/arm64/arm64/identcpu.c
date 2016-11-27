@@ -205,7 +205,7 @@ print_cpu_features(u_int cpu)
 	 * https://lkml.org/lkml/2016/8/4/722
 	 */
 	/*
-	 * XXX: CPU_MATCH_ERRATA_CAVIUM_THUNDER_1_1 on it's own also
+	 * XXX: CPU_MATCH_ERRATA_CAVIUM_THUNDER_1_1 on its own also
 	 * triggers on pass 2.0+.
 	 */
 	if (cpu == 0 && CPU_VAR(PCPU_GET(midr)) == 0 &&

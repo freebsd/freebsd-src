@@ -44,6 +44,8 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 
+#include <capsicum_helpers.h>
+#include <err.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -64,6 +66,9 @@ main(int argc, char *argv[])
 	char *cp, **ep;
 	size_t len;
 	int ch;
+
+	if (caph_limit_stdio() < 0 || (cap_enter() < 0 && errno != ENOSYS))
+		err(1, "capsicum");
 
 	while ((ch = getopt(argc, argv, "")) != -1)
 		switch(ch) {

@@ -232,6 +232,7 @@ static void
 Relative(struct dataset *ds, struct dataset *rs, int confidx)
 {
 	double spool, s, d, e, t;
+	double re;
 	int i;
 
 	i = ds->n + rs->n - 2;
@@ -246,11 +247,16 @@ Relative(struct dataset *ds, struct dataset *rs, int confidx)
 	d = Avg(ds) - Avg(rs);
 	e = t * s;
 
+	re = (ds->n - 1) * Var(ds) + (rs->n - 1) * Var(rs) *
+	    (Avg(ds) * Avg(ds)) / (Avg(rs) * Avg(rs));
+	re *= (ds->n + rs->n) / (ds->n * rs->n * (ds->n + rs->n - 2.0));
+	re = t * sqrt(re);
+
 	if (fabs(d) > e) {
 	
 		printf("Difference at %.1f%% confidence\n", studentpct[confidx]);
 		printf("	%g +/- %g\n", d, e);
-		printf("	%g%% +/- %g%%\n", d * 100 / Avg(rs), e * 100 / Avg(rs));
+		printf("	%g%% +/- %g%%\n", d * 100 / Avg(rs), re * 100 / Avg(rs));
 		printf("	(Student's t, pooled s = %g)\n", spool);
 	} else {
 		printf("No difference proven at %.1f%% confidence\n",

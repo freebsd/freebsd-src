@@ -28,7 +28,7 @@
 .\"	@(#)getfsstat.2	8.3 (Berkeley) 5/25/95
 .\" $FreeBSD$
 .\"
-.Dd November 20, 2003
+.Dd November 6, 2016
 .Dt GETFSSTAT 2
 .Os
 .Sh NAME
@@ -88,6 +88,8 @@ Thus, some of the information will be out of date, but
 .Fn getfsstat
 will not block waiting for information from a file system that is
 unable to respond.
+It will also skip any file system that is in the process of being
+unmounted, even if the unmount would eventually fail.
 .Sh RETURN VALUES
 Upon successful completion, the number of
 .Fa statfs

@@ -7,17 +7,14 @@ DIRDEPS = \
 	include \
 	include/xlocale \
 	lib/${CSU_DIR} \
-	lib/clang/libllvmanalysis \
-	lib/clang/libllvmbitreader \
-	lib/clang/libllvmcore \
-	lib/clang/libllvmsupport \
+	lib/clang/libllvm \
 	lib/libc \
 	lib/libc++ \
 	lib/libcompiler_rt \
+	lib/libcxxrt \
 	lib/libthr \
 	lib/msun \
 	lib/ncurses/ncursesw \
-	usr.bin/clang/llvm-tblgen.host \
 
 
 .include <dirdeps.mk>

@@ -263,4 +263,16 @@ int xen_intr_add_handler(device_t dev, driver_filter_t filter,
 	driver_intr_t handler, void *arg, enum intr_type flags,
 	xen_intr_handle_t handle);
 
+/**
+ * Get a reference to an event channel port
+ *
+ * \param port	    Event channel port to which we get a reference.
+ * \param handlep   Pointer to an opaque handle used to manage this
+ *                  registration.
+ *
+ * \returns  0 on success, otherwise an errno.
+ */
+int xen_intr_get_evtchn_from_port(evtchn_port_t port,
+	xen_intr_handle_t *handlep);
+
 #endif /* _XEN_INTR_H_ */

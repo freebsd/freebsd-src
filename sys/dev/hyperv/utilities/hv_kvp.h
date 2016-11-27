@@ -144,19 +144,6 @@ enum hv_kvp_exchg_pool {
 	HV_KVP_POOL_COUNT /* Number of pools, must be last. */
 };
 
-
-/*
- * Some Hyper-V status codes.
- */
-#define HV_KVP_S_OK                      0x00000000
-#define HV_KVP_E_FAIL                    0x80004005
-#define HV_KVP_S_CONT                    0x80070103
-#define HV_ERROR_NOT_SUPPORTED           0x80070032
-#define HV_ERROR_MACHINE_LOCKED          0x800704F7
-#define HV_ERROR_DEVICE_NOT_CONNECTED    0x8007048F
-#define HV_INVALIDARG                    0x80070057
-#define HV_KVP_GUID_NOTFOUND             0x80041002
-
 #define ADDR_FAMILY_NONE                 0x00
 #define ADDR_FAMILY_IPV4                 0x01
 #define ADDR_FAMILY_IPV6                 0x02

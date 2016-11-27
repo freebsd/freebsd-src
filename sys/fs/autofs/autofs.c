@@ -61,7 +61,7 @@
  */
 
 #include <sys/cdefs.h>
- __FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -442,12 +442,8 @@ autofs_trigger_one(struct autofs_node *anp,
 
 		TIMEOUT_TASK_INIT(taskqueue_thread, &ar->ar_task, 0,
 		    autofs_task, ar);
-		error = taskqueue_enqueue_timeout(taskqueue_thread,
-		    &ar->ar_task, autofs_timeout * hz);
-		if (error != 0) {
-			AUTOFS_WARN("taskqueue_enqueue_timeout() failed "
-			    "with error %d", error);
-		}
+		taskqueue_enqueue_timeout(taskqueue_thread, &ar->ar_task,
+		    autofs_timeout * hz);
 		refcount_init(&ar->ar_refcount, 1);
 		TAILQ_INSERT_TAIL(&autofs_softc->sc_requests, ar, ar_next);
 	}
