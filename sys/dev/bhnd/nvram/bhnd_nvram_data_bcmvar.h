@@ -25,62 +25,46 @@
  * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGES.
- * 
+ *
  * $FreeBSD$
  */
 
-#ifndef _BHND_NVRAM_BHND_NVRAM_PARSERVAR_H_
-#define _BHND_NVRAM_BHND_NVRAM_PARSERVAR_H_
-
-#include <sys/types.h>
-
-#include "bhnd_nvram_common.h"
-
-#include "bhnd_nvram_parser.h"
-
-#define	NVRAM_IDX_VAR_THRESH	15		/**< index is generated if minimum variable count is met */
-#define	NVRAM_IDX_OFFSET_MAX	UINT16_MAX	/**< maximum indexable offset */
-#define	NVRAM_IDX_LEN_MAX	UINT8_MAX	/**< maximum indexable key/value length */
-
-#define	NVRAM_KEY_MAX		64		/**< maximum key length (not incl. NUL) */
-#define	NVRAM_VAL_MAX		255		/**< maximum value length (not incl. NUL) */
-
-#define	NVRAM_DEVPATH_STR	"devpath"	/**< name prefix of device path aliases */
-#define	NVRAM_DEVPATH_LEN	(sizeof(NVRAM_DEVPATH_STR) - 1)
-
-#define	NVRAM_SMALL_HASH_SIZE	16		/**< hash table size for pending/default tuples */
+#ifndef _BHND_NVRAM_BHND_NVRAM_BCMVAR_H_
+#define _BHND_NVRAM_BHND_NVRAM_BCMVAR_H_
 
 /**
- * NVRAM devpath record.
- * 
- * Aliases index values to full device paths.
+ * BCM NVRAM header value data.
  */
-struct bhnd_nvram_devpath {
-	u_long	 index;	/** alias index */
-	char	*path;	/** aliased path */
-
-	LIST_ENTRY(bhnd_nvram_devpath) dp_link;
+union bhnd_nvram_bcm_hvar_value {
+	uint16_t	u16;
+	uint32_t	u32;
 };
 
 /**
- * NVRAM index record.
- * 
- * Provides entry offsets into a backing NVRAM buffer.
+ * Internal representation of BCM NVRAM values that mirror (and must be
+ * vended as) NVRAM variables.
  */
-struct bhnd_nvram_idx_entry {
-	uint16_t	env_offset;	/**< offset to env string */
-	uint8_t		key_len;	/**< key length */
-	uint8_t		val_len;	/**< value length */
-};
+struct bhnd_nvram_bcm_hvar {
+	const char	*name;	/**< variable name */
+	bhnd_nvram_type	 type;	/**< value type */
+	size_t		 nelem;	/**< value element count */
+	size_t		 len;	/**< value length */
+	const char	*envp;	/**< Pointer to the NVRAM variable mirroring
+				     this header value, or NULL. */
+	bool		 stale;	/**< header value does not match
+				     mirrored NVRAM value */
 
-/**
- * NVRAM index.
- * 
- * Provides a compact binary search index into the backing NVRAM buffer.
- */
-struct bhnd_nvram_idx {
-	size_t				num_entries;	/**< entry count */
-	struct bhnd_nvram_idx_entry	entries[];	/**< index entries */
+	/** variable data */
+	union bhnd_nvram_bcm_hvar_value value;
 };
+	
+/** BCM NVRAM header */
+struct bhnd_nvram_bcmhdr {
+	uint32_t magic;
+	uint32_t size;
+	uint32_t cfg0;		/**< crc:8, version:8, sdram_init:16 */
+	uint32_t cfg1;		/**< sdram_config:16, sdram_refresh:16 */
+	uint32_t sdram_ncdl;	/**< sdram_ncdl */
+} __packed;
 
-#endif /* _BHND_NVRAM_BHND_NVRAM_PARSERVAR_H_ */
+#endif /* _BHND_NVRAM_BHND_NVRAM_BCMVAR_H_ */
