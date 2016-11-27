@@ -162,15 +162,19 @@ pr_comment(void)
     if (*buf_ptr != ' ' && !ps.box_com)
 	*e_com++ = ' ';
 
-    /* Don't put a break delimiter if this comment is a one-liner */
-    for (t_ptr = buf_ptr; *t_ptr != '\0' && *t_ptr != '\n'; t_ptr++) {
-	if (t_ptr >= buf_end)
-	    fill_buffer();
-	if (t_ptr[0] == '*' && t_ptr[1] == '/') {
-	    break_delim = false;
-	    break;
+    /*
+     * Don't put a break delimiter if this is a one-liner that won't wrap.
+     */
+    if (break_delim)
+	for (t_ptr = buf_ptr; *t_ptr != '\0' && *t_ptr != '\n'; t_ptr++) {
+	    if (t_ptr >= buf_end)
+		fill_buffer();
+	    if (t_ptr[0] == '*' && t_ptr[1] == '/') {
+		if (adj_max_col >= count_spaces_until(ps.com_col, buf_ptr, t_ptr + 2))
+		    break_delim = false;
+		break;
+	    }
 	}
-    }
 
     if (break_delim) {
 	char       *t = e_com;
