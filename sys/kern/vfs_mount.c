@@ -934,6 +934,11 @@ vfs_domount_update(
 	VOP_UNLOCK(vp, 0);
 
 	MNT_ILOCK(mp);
+	if ((mp->mnt_kern_flag & MNTK_UNMOUNT) != 0) {
+		MNT_IUNLOCK(mp);
+		error = EBUSY;
+		goto end;
+	}
 	mp->mnt_flag &= ~MNT_UPDATEMASK;
 	mp->mnt_flag |= fsflags & (MNT_RELOAD | MNT_FORCE | MNT_UPDATE |
 	    MNT_SNAPSHOT | MNT_ROOTFS | MNT_UPDATEMASK | MNT_RDONLY);
@@ -1252,6 +1257,7 @@ dounmount(struct mount *mp, int flags, struct thread *td)
 	vn_start_write(NULL, &mp, V_WAIT | V_MNTREF);
 	MNT_ILOCK(mp);
 	if ((mp->mnt_kern_flag & MNTK_UNMOUNT) != 0 ||
+	    (mp->mnt_flag & MNT_UPDATE) != 0 ||
 	    !TAILQ_EMPTY(&mp->mnt_uppers)) {
 		MNT_IUNLOCK(mp);
 		if (coveredvp != NULL) {
