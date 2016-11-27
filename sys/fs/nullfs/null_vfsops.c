@@ -188,7 +188,8 @@ nullfs_mount(struct mount *mp)
 	}
 
 	xmp->nullm_flags |= NULLM_CACHE;
-	if (vfs_getopt(mp->mnt_optnew, "nocache", NULL, NULL) == 0)
+	if (vfs_getopt(mp->mnt_optnew, "nocache", NULL, NULL) == 0 ||
+	    (xmp->nullm_vfs->mnt_kern_flag & MNTK_NULL_NOCACHE) != 0)
 		xmp->nullm_flags &= ~NULLM_CACHE;
 
 	MNT_ILOCK(mp);
