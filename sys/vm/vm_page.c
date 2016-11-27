@@ -1512,19 +1512,17 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 	}
 
 	/*
-	 * The page allocation request can came from consumers which already
-	 * hold the free page queue mutex, like vm_page_insert() in
-	 * vm_page_cache().
+	 * Allocate a page if the number of free pages exceeds the minimum
+	 * for the request class.
 	 */
-	mtx_lock_flags(&vm_page_queue_free_mtx, MTX_RECURSE);
+	mtx_lock(&vm_page_queue_free_mtx);
 	if (vm_cnt.v_free_count > vm_cnt.v_free_reserved ||
 	    (req_class == VM_ALLOC_SYSTEM &&
 	    vm_cnt.v_free_count > vm_cnt.v_interrupt_free_min) ||
 	    (req_class == VM_ALLOC_INTERRUPT &&
 	    vm_cnt.v_free_count > 0)) {
 		/*
-		 * Allocate from the free queue if the number of free pages
-		 * exceeds the minimum for the request class.
+		 * Can we allocate the page from a reservation?
 		 */
 #if VM_NRESERVLEVEL > 0
 		if (object == NULL || (object->flags & (OBJ_COLORED |
@@ -1532,6 +1530,9 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 		    vm_reserv_alloc_page(object, pindex, mpred)) == NULL)
 #endif
 		{
+			/*
+			 * If not, allocate it from the free page queues.
+			 */
 			m = vm_phys_alloc_pages(object != NULL ?
 			    VM_FREEPOOL_DEFAULT : VM_FREEPOOL_DIRECT, 0);
 #if VM_NRESERVLEVEL > 0
@@ -1841,7 +1842,7 @@ vm_page_alloc_freelist(int flind, int req)
 	/*
 	 * Do not allocate reserved pages unless the req has asked for it.
 	 */
-	mtx_lock_flags(&vm_page_queue_free_mtx, MTX_RECURSE);
+	mtx_lock(&vm_page_queue_free_mtx);
 	if (vm_cnt.v_free_count > vm_cnt.v_free_reserved ||
 	    (req_class == VM_ALLOC_SYSTEM &&
 	    vm_cnt.v_free_count > vm_cnt.v_interrupt_free_min) ||
