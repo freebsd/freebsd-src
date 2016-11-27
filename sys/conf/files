@@ -1220,14 +1220,22 @@ dev/bhnd/cores/pmu/bhnd_pmu.c		optional bhnd
 dev/bhnd/cores/pmu/bhnd_pmu_core.c	optional bhnd
 dev/bhnd/cores/pmu/bhnd_pmu_if.m	optional bhnd
 dev/bhnd/cores/pmu/bhnd_pmu_subr.c	optional bhnd
-dev/bhnd/nvram/bhnd_nvram.c		optional bhnd
-dev/bhnd/nvram/bhnd_nvram_common.c	optional bhnd
-dev/bhnd/nvram/bhnd_nvram_cfe.c		optional bhnd siba_nexus cfe | \
-						 bhnd bcma_nexus cfe
+dev/bhnd/nvram/bhnd_nvram_data.c	optional bhnd
+dev/bhnd/nvram/bhnd_nvram_data_bcm.c	optional bhnd
+dev/bhnd/nvram/bhnd_nvram_data_bcmraw.c	optional bhnd
+dev/bhnd/nvram/bhnd_nvram_data_btxt.c	optional bhnd
+dev/bhnd/nvram/bhnd_nvram_data_sprom.c	optional bhnd
+dev/bhnd/nvram/bhnd_nvram_data_tlv.c	optional bhnd
 dev/bhnd/nvram/bhnd_nvram_if.m		optional bhnd
-dev/bhnd/nvram/bhnd_nvram_parser.c	optional bhnd
+dev/bhnd/nvram/bhnd_nvram_io.c		optional bhnd
+dev/bhnd/nvram/bhnd_nvram_iobuf.c	optional bhnd
+dev/bhnd/nvram/bhnd_nvram_iores.c	optional bhnd
+dev/bhnd/nvram/bhnd_nvram_store.c	optional bhnd
+dev/bhnd/nvram/bhnd_nvram_subr.c	optional bhnd
+dev/bhnd/nvram/bhnd_nvram_value.c	optional bhnd
+dev/bhnd/nvram/bhnd_nvram_value_fmts.c	optional bhnd
+dev/bhnd/nvram/bhnd_nvram_value_prf.c	optional bhnd
 dev/bhnd/nvram/bhnd_sprom.c		optional bhnd
-dev/bhnd/nvram/bhnd_sprom_parser.c	optional bhnd
 dev/bhnd/siba/siba.c			optional siba bhnd
 dev/bhnd/siba/siba_bhndb.c		optional siba bhnd bhndb
 dev/bhnd/siba/siba_erom.c		optional siba bhnd

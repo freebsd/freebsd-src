@@ -2,6 +2,8 @@
 #
 # $FreeBSD$
 
+#NO_UNIVERSE
+
 ident		JZ4780
 machine		mips mipsel
 cpu		CPU_XBURST

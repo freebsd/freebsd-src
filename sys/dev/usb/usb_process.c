@@ -184,7 +184,7 @@ usb_process(void *arg)
 
 			continue;
 		}
-		/* end if messages - check if anyone is waiting for sync */
+		/* end of messages - check if anyone is waiting for sync */
 		if (up->up_dsleep) {
 			up->up_dsleep = 0;
 			cv_broadcast(&up->up_drain);

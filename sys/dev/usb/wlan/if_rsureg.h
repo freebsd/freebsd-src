@@ -573,7 +573,7 @@ struct r92s_tx_desc {
 #define R92S_TXDW1_QSEL_M	0x00001f00
 #define R92S_TXDW1_QSEL_S	8
 #define R92S_TXDW1_QSEL_BE	0x03
-#define R92S_TXDW1_QSEL_H2C	0x1f
+#define R92S_TXDW1_QSEL_H2C	0x13
 #define R92S_TXDW1_NONQOS	0x00010000
 #define R92S_TXDW1_KEYIDX_M	0x00060000
 #define R92S_TXDW1_KEYIDX_S	17
@@ -768,8 +768,8 @@ struct rsu_softc {
 
 	u_int				sc_running:1,
 					sc_calibrating:1,
-					sc_scanning:1,
-					sc_scan_pass:1;
+					sc_active_scan:1,
+					sc_extra_scan:1;
 	u_int				cut;
 	uint8_t				sc_rftype;
 	int8_t				sc_nrxstream;
