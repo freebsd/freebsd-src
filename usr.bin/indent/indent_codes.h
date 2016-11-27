@@ -68,3 +68,4 @@
 #define ifhead		30
 #define elsehead	31
 #define period		32
+#define strpfx		33

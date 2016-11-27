@@ -1004,6 +1004,16 @@ check_type:
 	    ps.want_blank = true;
 	    break;
 
+	case strpfx:
+	    if (ps.want_blank)
+		*e_code++ = ' ';
+	    for (t_ptr = token; *t_ptr; ++t_ptr) {
+		CHECK_SIZE_CODE;
+		*e_code++ = *t_ptr;
+	    }
+	    ps.want_blank = false;
+	    break;
+
 	case period:		/* treat a period kind of like a binary
 				 * operation */
 	    *e_code++ = '.';	/* move the period into line */

@@ -237,6 +237,11 @@ lexi(void)
 		    fill_buffer();
 	    }
 	*e_token++ = '\0';
+
+	if (s_token[0] == 'L' && s_token[1] == '\0' &&
+	      (*buf_ptr == '"' || *buf_ptr == '\''))
+	    return (strpfx);
+
 	while (*buf_ptr == ' ' || *buf_ptr == '\t') {	/* get rid of blanks */
 	    if (++buf_ptr >= buf_end)
 		fill_buffer();
