@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20161127: Remove vm_page_cache(9)
+OLD_FILES+=usr/share/man/man9/vm_page_cache.9.gz
 # 20161124: new clang import which bumps version from 3.8.0 to 3.9.0.
 OLD_FILES+=usr/lib/clang/3.8.0/include/sanitizer/allocator_interface.h
 OLD_FILES+=usr/lib/clang/3.8.0/include/sanitizer/asan_interface.h
