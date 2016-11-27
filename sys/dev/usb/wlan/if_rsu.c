@@ -175,6 +175,8 @@ static void	rsu_getradiocaps(struct ieee80211com *, int, int *,
 static void	rsu_set_channel(struct ieee80211com *);
 static void	rsu_scan_curchan(struct ieee80211_scan_state *, unsigned long);
 static void	rsu_scan_mindwell(struct ieee80211_scan_state *);
+static uint8_t	rsu_get_multi_pos(const uint8_t[]);
+static void	rsu_set_multi(struct rsu_softc *);
 static void	rsu_update_mcast(struct ieee80211com *);
 static int	rsu_alloc_rx_list(struct rsu_softc *);
 static void	rsu_free_rx_list(struct rsu_softc *);
@@ -750,10 +752,78 @@ rsu_scan_mindwell(struct ieee80211_scan_state *ss)
 	/* NB: don't try to abort scan; wait for firmware to finish */
 }
 
+/*
+ * The same as rtwn_get_multi_pos() / rtwn_set_multi().
+ */
+static uint8_t
+rsu_get_multi_pos(const uint8_t maddr[])
+{
+	uint64_t mask = 0x00004d101df481b4;
+	uint8_t pos = 0x27;	/* initial value */
+	int i, j;
+
+	for (i = 0; i < IEEE80211_ADDR_LEN; i++)
+		for (j = (i == 0) ? 1 : 0; j < 8; j++)
+			if ((maddr[i] >> j) & 1)
+				pos ^= (mask >> (i * 8 + j - 1));
+
+	pos &= 0x3f;
+
+	return (pos);
+}
+
+static void
+rsu_set_multi(struct rsu_softc *sc)
+{
+	struct ieee80211com *ic = &sc->sc_ic;
+	uint32_t mfilt[2];
+
+	RSU_ASSERT_LOCKED(sc);
+
+	/* general structure was copied from ath(4). */
+	if (ic->ic_allmulti == 0) {
+		struct ieee80211vap *vap;
+		struct ifnet *ifp;
+		struct ifmultiaddr *ifma;
+
+		/*
+		 * Merge multicast addresses to form the hardware filter.
+		 */
+		mfilt[0] = mfilt[1] = 0;
+		TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next) {
+			ifp = vap->iv_ifp;
+			if_maddr_rlock(ifp);
+			TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+				caddr_t dl;
+				uint8_t pos;
+
+				dl = LLADDR((struct sockaddr_dl *)
+				    ifma->ifma_addr);
+				pos = rsu_get_multi_pos(dl);
+
+				mfilt[pos / 32] |= (1 << (pos % 32));
+			}
+			if_maddr_runlock(ifp);
+		}
+	} else
+		mfilt[0] = mfilt[1] = ~0;
+
+	rsu_write_4(sc, R92S_MAR + 0, mfilt[0]);
+	rsu_write_4(sc, R92S_MAR + 4, mfilt[1]);
+
+	RSU_DPRINTF(sc, RSU_DEBUG_STATE, "%s: MC filter %08x:%08x\n",
+	    __func__, mfilt[0], mfilt[1]);
+}
+
 static void
 rsu_update_mcast(struct ieee80211com *ic)
 {
-        /* XXX do nothing?  */
+	struct rsu_softc *sc = ic->ic_softc;
+
+	RSU_LOCK(sc);
+	if (sc->sc_running)
+		rsu_set_multi(sc);
+	RSU_UNLOCK(sc);
 }
 
 static int
@@ -2924,6 +2994,9 @@ rsu_init(struct rsu_softc *sc)
 		device_printf(sc->sc_dev, "could not set MAC address\n");
 		goto fail;
 	}
+
+	/* Setup multicast filter (must be done after firmware loading). */
+	rsu_set_multi(sc);
 
 	/* Set PS mode fully active */
 	error = rsu_set_fw_power_state(sc, RSU_PWR_ACTIVE);
