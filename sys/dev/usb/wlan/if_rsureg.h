@@ -768,8 +768,8 @@ struct rsu_softc {
 
 	u_int				sc_running:1,
 					sc_calibrating:1,
-					sc_scanning:1,
-					sc_scan_pass:1;
+					sc_active_scan:1,
+					sc_extra_scan:1;
 	u_int				cut;
 	uint8_t				sc_rftype;
 	int8_t				sc_nrxstream;
