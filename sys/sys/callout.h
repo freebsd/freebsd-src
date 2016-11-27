@@ -52,11 +52,27 @@
 #define	CALLOUT_SET_LC(x)	(((x) & 7) << 16) /* set lock class */
 #define	CALLOUT_GET_LC(x)	(((x) >> 16) & 7) /* get lock class */
 
-/* return values for all callout_xxx() functions */
-#define	CALLOUT_RET_CANCELLED_AND_DRAINING (CALLOUT_RET_CANCELLED | CALLOUT_RET_DRAINING)
-#define	CALLOUT_RET_DRAINING	2 /* callout is being serviced */
-#define	CALLOUT_RET_CANCELLED	1 /* callout was successfully stopped */
-#define	CALLOUT_RET_STOPPED	0 /* callout was already stopped */
+/* return value for all callout_xxx() functions */
+typedef union callout_ret {
+	struct {
+		unsigned cancelled : 1;
+		unsigned draining : 1;
+		unsigned reserved : 30;
+	} bit;
+	unsigned value;
+} callout_ret_t;
+
+#define	CALLOUT_RET_CANCELLED_AND_DRAINING \
+    ((const callout_ret_t){.bit.cancelled = 1,.bit.draining = 1}).value
+/* callout is being serviced */
+#define	CALLOUT_RET_DRAINING \
+    ((const callout_ret_t){.bit.draining = 1}).value
+/* callout was successfully stopped */
+#define	CALLOUT_RET_CANCELLED \
+    ((const callout_ret_t){.bit.cancelled = 1}).value
+/* callout was already stopped */
+#define	CALLOUT_RET_STOPPED \
+    ((const callout_ret_t){.value = 0}).value
 
 #define	C_DIRECT_EXEC		0x0001 /* direct execution of callout */
 #define	C_PRELBITS		7
@@ -74,8 +90,8 @@ struct callout_handle {
 #ifdef _KERNEL
 #define	callout_active(c)	((c)->c_flags & CALLOUT_ACTIVE)
 #define	callout_deactivate(c)	((c)->c_flags &= ~CALLOUT_ACTIVE)
-int	callout_drain(struct callout *);
-int	callout_async_drain(struct callout *, callout_func_t *);
+callout_ret_t	callout_drain(struct callout *);
+callout_ret_t	callout_async_drain(struct callout *, callout_func_t *);
 void	callout_init(struct callout *, int);
 void	callout_init_lock_function(struct callout *, callout_lock_func_t *, int);
 void	callout_init_lock_object(struct callout *, struct lock_object *, int);
@@ -89,7 +105,7 @@ void	callout_init_lock_object(struct callout *, struct lock_object *, int);
 	callout_init_lock_object((c), ((rw) != NULL) ? &(rw)->lock_object : \
 	   NULL, (flags))
 #define	callout_pending(c)	((c)->c_flags & CALLOUT_PENDING)
-int	callout_reset_sbt_on(struct callout *, sbintime_t, sbintime_t,
+callout_ret_t	callout_reset_sbt_on(struct callout *, sbintime_t, sbintime_t,
 	    callout_func_t *, void *, int, int);
 #define	callout_reset_sbt(c, sbt, pr, fn, arg, flags)			\
     callout_reset_sbt_on((c), (sbt), (pr), (fn), (arg), -1, (flags))
@@ -110,11 +126,11 @@ int	callout_reset_sbt_on(struct callout *, sbintime_t, sbintime_t,
     callout_schedule_sbt_on((c), (sbt), (pr), -1, (flags))
 #define	callout_schedule_sbt_curcpu(c, sbt, pr, flags)			\
     callout_schedule_sbt_on((c), (sbt), (pr), PCPU_GET(cpuid), (flags))
-int	callout_schedule(struct callout *, int);
-int	callout_schedule_on(struct callout *, int, int);
+callout_ret_t	callout_schedule(struct callout *, int);
+callout_ret_t	callout_schedule_on(struct callout *, int, int);
 #define	callout_schedule_curcpu(c, on_tick)				\
     callout_schedule_on((c), (on_tick), PCPU_GET(cpuid))
-int	callout_stop(struct callout *);
+callout_ret_t	callout_stop(struct callout *);
 void	callout_when(sbintime_t, sbintime_t, int, sbintime_t *, sbintime_t *);
 void	callout_process(sbintime_t now);
 

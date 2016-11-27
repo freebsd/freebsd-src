@@ -476,14 +476,14 @@ twa_watchdog(TW_VOID *arg)
 		device_printf((sc)->bus_dev, "Watchdog rescheduled in 70 seconds\n");
 #endif /* TW_OSL_DEBUG */
 		my_watchdog_was_pending =
-			callout_reset(&(sc->watchdog_callout[i]), 70*hz, twa_watchdog, &sc->ctlr_handle);
+			callout_reset(&(sc->watchdog_callout[i]), 70*hz, twa_watchdog, &sc->ctlr_handle).bit.cancelled;
 		tw_cl_reset_ctlr(ctlr_handle);
 #ifdef    TW_OSL_DEBUG
 		device_printf((sc)->bus_dev, "Watchdog reset completed!\n");
 #endif /* TW_OSL_DEBUG */
 	} else if (driver_is_active) {
 		my_watchdog_was_pending =
-			callout_reset(&(sc->watchdog_callout[i]),  5*hz, twa_watchdog, &sc->ctlr_handle);
+			callout_reset(&(sc->watchdog_callout[i]),  5*hz, twa_watchdog, &sc->ctlr_handle).bit.cancelled;
 	}
 #ifdef    TW_OSL_DEBUG
 	if (i_need_a_reset || my_watchdog_was_pending)

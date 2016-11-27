@@ -638,9 +638,8 @@ in_difaddr_ioctl(caddr_t data, struct ifnet *ifp, struct thread *td)
 	}
 
 	IF_ADDR_WLOCK(ifp);
-	if (callout_stop(&ia->ia_garp_timer) & CALLOUT_RET_CANCELLED) {
+	if (callout_stop(&ia->ia_garp_timer).bit.cancelled)
 		ifa_free(&ia->ia_ifa);
-	}
 	IF_ADDR_WUNLOCK(ifp);
 
 	EVENTHANDLER_INVOKE(ifaddr_event, ifp);
@@ -1154,7 +1153,7 @@ in_lltable_free_entry(struct lltable *llt, struct llentry *lle)
 	}
 
 	/* cancel timer */
-	if (callout_stop(&lle->lle_timer) & CALLOUT_RET_CANCELLED)
+	if (callout_stop(&lle->lle_timer).bit.cancelled)
 		LLE_REMREF(lle);
 
 	/* Drop hold queue */

@@ -1001,7 +1001,7 @@ tcp_timer_stop(struct tcpcb *tp, uint32_t timer_type)
 			panic("tp %p bad timer_type %#x", tp, timer_type);
 		}
 
-	if (callout_async_drain(t_callout, tcp_timer_discard) & CALLOUT_RET_DRAINING) {
+	if (callout_async_drain(t_callout, tcp_timer_discard).bit.draining) {
 		/*
 		 * Can't stop the callout, defer tcpcb actual deletion
 		 * to the last one. We do this using the async drain

@@ -1013,9 +1013,9 @@ callout_handle_init(struct callout_handle *handle)
 
 #ifdef KTR
 static const char *
-callout_retvalstring(int retval)
+callout_retvalstring(callout_ret_t retval)
 {
-	switch (retval) {
+	switch (retval.value) {
 	case CALLOUT_RET_DRAINING:
 		return ("callout cannot be stopped and needs drain");
 	case CALLOUT_RET_CANCELLED:
@@ -1028,12 +1028,12 @@ callout_retvalstring(int retval)
 }
 #endif
 
-static int
+static callout_ret_t
 callout_restart_async(struct callout *c, struct callout_args *coa,
     callout_func_t *drain_fn)
 {
 	struct callout_cpu *cc;
-	int retval;
+	callout_ret_t retval;
 	int direct;
 
 	cc = callout_lock(c);
@@ -1047,7 +1047,7 @@ callout_restart_async(struct callout *c, struct callout_args *coa,
 	 */
 	if (cc_exec_curr(cc, direct) == c) {
 
-		retval = CALLOUT_RET_DRAINING;
+		retval.value = CALLOUT_RET_DRAINING;
 
 		/* set drain function, if any */
 		if (drain_fn != NULL)
@@ -1060,7 +1060,7 @@ callout_restart_async(struct callout *c, struct callout_args *coa,
 		if (cc_exec_cancel(cc, direct) == false ||
 		    cc_exec_restart(cc, direct) == true) {
 			cc_exec_cancel(cc, direct) = true;
-			retval |= CALLOUT_RET_CANCELLED;
+			retval.value |= CALLOUT_RET_CANCELLED;
 		}
 
 		/*
@@ -1107,9 +1107,9 @@ callout_restart_async(struct callout *c, struct callout_args *coa,
 			} else {
 				TAILQ_REMOVE(&cc->cc_expireq, c, c_links.tqe);
 			}
-			retval = CALLOUT_RET_CANCELLED;
+			retval.value = CALLOUT_RET_CANCELLED;
 		} else {
-			retval = CALLOUT_RET_STOPPED;
+			retval.value = CALLOUT_RET_STOPPED;
 		}
 
 		CTR4(KTR_CALLOUT, "%s: %p func %p arg %p",
@@ -1126,7 +1126,7 @@ callout_restart_async(struct callout *c, struct callout_args *coa,
 
 			/* return callback to pre-allocated list, if any */
 			if ((c->c_flags & CALLOUT_LOCAL_ALLOC) &&
-			    retval != CALLOUT_RET_STOPPED) {
+			    retval.value != CALLOUT_RET_STOPPED) {
 				callout_cc_del(c, cc);
 			}
 		}
@@ -1201,7 +1201,7 @@ callout_when(sbintime_t sbt, sbintime_t precision, int flags,
  * callout_pending() - returns truth if callout is still waiting for timeout
  * callout_deactivate() - marks the callout as having been serviced
  */
-int
+callout_ret_t
 callout_reset_sbt_on(struct callout *c, sbintime_t sbt, sbintime_t prec,
     callout_func_t *ftn, void *arg, int cpu, int flags)
 {
@@ -1223,19 +1223,19 @@ callout_reset_sbt_on(struct callout *c, sbintime_t sbt, sbintime_t prec,
 /*
  * Common idioms that can be optimized in the future.
  */
-int
+callout_ret_t
 callout_schedule_on(struct callout *c, int to_ticks, int cpu)
 {
 	return (callout_reset_on(c, to_ticks, c->c_func, c->c_arg, cpu));
 }
 
-int
+callout_ret_t
 callout_schedule(struct callout *c, int to_ticks)
 {
 	return (callout_reset_on(c, to_ticks, c->c_func, c->c_arg, c->c_cpu));
 }
 
-int
+callout_ret_t
 callout_stop(struct callout *c)
 {
 	/* get callback stopped, if any */
@@ -1248,17 +1248,17 @@ callout_drain_function(void *arg)
 	wakeup(&callout_drain_function);
 }
 
-int
+callout_ret_t
 callout_async_drain(struct callout *c, callout_func_t *fn)
 {
 	/* get callback stopped, if any */
 	return (callout_restart_async(c, NULL, fn));
 }
 
-int
+callout_ret_t
 callout_drain(struct callout *c)
 {
-	int retval;
+	callout_ret_t retval;
 
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
 	    "Draining callout");
@@ -1267,7 +1267,7 @@ callout_drain(struct callout *c)
 
 	retval = callout_async_drain(c, &callout_drain_function);
 
-	if (retval & CALLOUT_RET_DRAINING) {
+	if (retval.bit.draining) {
 		void *ident = &callout_drain_function;
 		struct callout_cpu *cc;
 		int direct;

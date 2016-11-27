@@ -347,13 +347,13 @@ exit1(struct thread *td, int rval, int signo)
 	 */
 	if (timevalisset(&p->p_realtimer.it_value)) {
 		timevalclear(&p->p_realtimer.it_interval);
-		drain = callout_stop(&p->p_itcallout);
+		drain = callout_stop(&p->p_itcallout).bit.draining;
 	} else {
 		drain = 0;
 	}
 	PROC_UNLOCK(p);
 
-	if (drain & CALLOUT_RET_DRAINING)
+	if (drain)
 		callout_drain(&p->p_itcallout);
 
 	umtx_thread_exit(td);
