@@ -209,14 +209,10 @@ sort_modifier_empty(struct sort_mods *sm)
 static void
 usage(bool opt_err)
 {
-	struct option *o;
 	FILE *out;
 
-	out = stdout;
-	o = &(long_options[0]);
+	out = opt_err ? stderr : stdout;
 
-	if (opt_err)
-		out = stderr;
 	fprintf(out, getstr(12), getprogname());
 	if (opt_err)
 		exit(2);
