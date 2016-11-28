@@ -2,6 +2,7 @@
 
 .include "${SRCTOP}/lib/clang/lldb.pre.mk"
 
+PACKAGE=	lldb
 PROG_CXX=	lldb
 # Man page directory
 .PATH:		${LLDB_SRCS}/docs
