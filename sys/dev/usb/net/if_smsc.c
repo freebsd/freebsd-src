@@ -131,7 +131,7 @@ static const struct usb_device_id smsc_devs[] = {
 			device_printf((sc)->sc_ue.ue_dev, "debug: " fmt, ##args); \
 	} while(0)
 #else
-#define smsc_dbg_printf(sc, fmt, args...)
+#define smsc_dbg_printf(sc, fmt, args...) do { } while (0)
 #endif
 
 #define smsc_warn_printf(sc, fmt, args...) \
@@ -801,7 +801,6 @@ static int smsc_sethwcsum(struct smsc_softc *sc)
 	return (0);
 }
 
-
 /**
  *	smsc_setmacaddress - Sets the mac address in the device
  *	@sc: driver soft context
@@ -883,6 +882,9 @@ smsc_init(struct usb_ether *ue)
 	struct ifnet *ifp = uether_getifp(ue);
 
 	SMSC_LOCK_ASSERT(sc, MA_OWNED);
+
+	if (smsc_setmacaddress(sc, IF_LLADDR(ifp)))
+		smsc_dbg_printf(sc, "setting MAC address failed\n");
 
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
 		return;
