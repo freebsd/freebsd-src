@@ -706,6 +706,10 @@ hn_set_txagg(struct hn_softc *sc)
 	if (sc->hn_rndis_agg_size < size)
 		size = sc->hn_rndis_agg_size;
 
+	/* NOTE: We only aggregate packets using chimney sending buffers. */
+	if (size > (uint32_t)sc->hn_chim_szmax)
+		size = sc->hn_chim_szmax;
+
 	if (size <= 2 * HN_PKTSIZE_MIN(sc->hn_rndis_agg_align)) {
 		/* Disable */
 		size = 0;
@@ -716,10 +720,6 @@ hn_set_txagg(struct hn_softc *sc)
 	/* NOTE: Type of the per TX ring setting is 'int'. */
 	if (size > INT_MAX)
 		size = INT_MAX;
-
-	/* NOTE: We only aggregate packets using chimney sending buffers. */
-	if (size > (uint32_t)sc->hn_chim_szmax)
-		size = sc->hn_chim_szmax;
 
 	/*
 	 * Setup aggregation packet count.
