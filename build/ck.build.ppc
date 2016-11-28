@@ -1,1 +1,0 @@
-CFLAGS+=-m32 -D__ppc__
