@@ -46,7 +46,11 @@
 #elif defined(__ppc__)
 #include "gcc/ppc/ck_pr.h"
 #elif defined(__arm__)
+#if __ARM_ARCH >= 6
 #include "gcc/arm/ck_pr.h"
+#else
+#include "gcc/arm/ck_pr_armv4.h"
+#endif
 #elif defined(__aarch64__)
 #include "gcc/aarch64/ck_pr.h"
 #elif !defined(__GNUC__)
