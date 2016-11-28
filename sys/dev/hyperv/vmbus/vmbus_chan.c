@@ -502,11 +502,7 @@ vmbus_chan_gpadl_connect(struct vmbus_channel *chan, bus_addr_t paddr,
 	int page_count, range_len, i, cnt, error;
 	uint64_t page_id;
 
-	/*
-	 * Reset GPADL, so that the result would consistent, if error
-	 * happened later on.
-	 */
-	*gpadl0 = 0;
+	KASSERT(*gpadl0 == 0, ("GPADL is not zero"));
 
 	/*
 	 * Preliminary checks.
@@ -651,6 +647,8 @@ vmbus_chan_gpadl_disconnect(struct vmbus_channel *chan, uint32_t gpadl)
 	struct vmbus_msghc *mh;
 	struct vmbus_chanmsg_gpadl_disconn *req;
 	int error;
+
+	KASSERT(gpadl != 0, ("GPADL is zero"));
 
 	mh = vmbus_msghc_get(sc, sizeof(*req));
 	if (mh == NULL) {
