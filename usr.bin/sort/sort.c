@@ -267,8 +267,6 @@ set_hw_params(void)
 {
 	long pages, psize;
 
-	pages = psize = 0;
-
 #if defined(SORT_THREADS)
 	ncpu = 1;
 #endif
