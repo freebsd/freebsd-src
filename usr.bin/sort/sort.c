@@ -280,7 +280,7 @@ set_hw_params(void)
 	pages = sysconf(_SC_PHYS_PAGES);
 	if (pages < 1) {
 		perror("sysconf pages");
-		psize = 1;
+		pages = 1;
 	}
 	psize = sysconf(_SC_PAGESIZE);
 	if (psize < 1) {
