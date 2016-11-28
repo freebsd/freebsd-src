@@ -1600,8 +1600,8 @@ probe_device_check:
 				  sizeof(struct scsi_inquiry_data));
 
 			if (have_serialnum)
-				MD5Update(&context, serial_buf->serial_num,
-					  serial_buf->length);
+				MD5Update(&context, path->device->serial_num,
+					  path->device->serial_num_len);
 
 			MD5Final(digest, &context);
 			if (bcmp(softc->digest, digest, 16) == 0)
