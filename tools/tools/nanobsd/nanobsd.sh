@@ -44,9 +44,9 @@ do_installworld=true
 do_image=true
 do_copyout_partition=true
 do_native_xtools=false
-# Don't do the legacy build unless we detect 'old' variables being
-# set.
-do_legacy=false
+
+# Pull in legacy stuff for now automatically
+. "${topdir}/legacy.sh"
 
 set +e
 args=`getopt BKXWbc:fhiknqvw $*`
@@ -132,15 +132,6 @@ done
 if [ $# -gt 0 ] ; then
 	echo "$0: Extraneous arguments supplied"
 	usage
-fi
-
-if [ -n "$NANO_HEADS" -o -n "$NANO_SECTS" ]; then
-	do_legacy=true
-fi
-
-# If this uses the old, legacy image system, pull that in as well
-if $do_legacy ; then
-	. "${topdir}/legacy.sh"
 fi
 
 #######################################################################
