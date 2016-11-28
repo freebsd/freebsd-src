@@ -1,0 +1,136 @@
+.\"
+.\" Copyright 2012-2013 Samy Al Bahra.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"
+.Dd September 2, 2012
+.Dt CK_EPOCH_CALL 3
+.Sh NAME
+.Nm ck_epoch_call
+.Nd defer function execution until a grace period
+.Sh LIBRARY
+Concurrency Kit (libck, \-lck)
+.Sh SYNOPSIS
+.In ck_epoch.h
+typedef struct ck_epoch_entry ck_epoch_entry_t;
+.br
+typedef void ck_epoch_cb_t(ck_epoch_entry_t *);
+.Ft void
+.Fn ck_epoch_call "ck_epoch_record_t *record" "ck_epoch_entry_t *entry" "ck_epoch_cb_t *function"
+.Sh DESCRIPTION
+The
+.Fn ck_epoch_call 3
+function will defer the execution of the function pointed to by
+.Fa function
+until a grace-period has been detected in
+.Fa epoch .
+The function will be provided
+the pointer specified by
+.Fa entry .
+The function will execute at some time in the future via calls to
+.Fn ck_epoch_reclaim 3 ,
+.Fn ck_epoch_barrier 3
+or
+.Fn ck_epoch_poll 3 .
+.Sh EXAMPLE
+.Bd -literal -offset indent
+
+#include <ck_epoch.h>
+#include <ck_stack.h>
+#include <stdlib.h>
+
+/*
+ * epoch was previously initialized with ck_epoch_init.
+ */
+ck_epoch_t *epoch;
+
+struct object {
+	int value;
+	ck_epoch_entry_t epoch_entry;
+};
+static struct object *global;
+
+CK_EPOCH_CONTAINER(struct object, epoch_entry, object_container)
+
+void
+destroy_object(ck_epoch_entry_t *e)
+{
+	struct object *o = object_container(e);
+
+	free(o);
+	return;
+}
+
+void
+function(void)
+{
+	ck_epoch_record_t *record;
+	struct object *n;
+
+	record = malloc(sizeof *record);
+	ck_epoch_register(&epoch, record);
+
+	n = malloc(sizeof *n);
+	if (n == NULL)
+		return;
+
+	n->value = 1;
+
+	/*
+	 * We are using an epoch section here because there are multiple
+	 * writers. It is also an option to use other forms of blocking
+	 * write-side synchronization such as mutexes.
+	 */
+	ck_epoch_begin(record);
+	n = ck_pr_fas_ptr(&global, n);
+	ck_epoch_end(record);
+
+	/* Defer destruction of previous object. */
+	ck_epoch_call(record, &n->epoch_entry, destroy_object);
+
+	/* Poll epoch sub-system in non-blocking manner. */
+	ck_epoch_poll(record);
+	return;
+}
+.Ed
+.Sh RETURN VALUES
+This function has no return value.
+.Sh ERRORS
+The object pointed to by
+.Fa record
+must have been previously registered via
+.Fn ck_epoch_register 3 .
+.Sh SEE ALSO
+.Xr ck_epoch_init 3 ,
+.Xr ck_epoch_register 3 ,
+.Xr ck_epoch_unregister 3 ,
+.Xr ck_epoch_recycle 3 ,
+.Xr ck_epoch_poll 3 ,
+.Xr ck_epoch_synchronize 3 ,
+.Xr ck_epoch_reclaim 3 ,
+.Xr ck_epoch_barrier 3 ,
+.Xr ck_epoch_begin 3 ,
+.Xr ck_epoch_end 3
+.Pp
+Additional information available at http://concurrencykit.org/

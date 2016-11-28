@@ -1,0 +1,102 @@
+.\"
+.\" Copyright 2012-2013 Samy Al Bahra.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"
+.Dd September 17, 2012
+.Dt CK_HS_SET 3
+.Sh NAME
+.Nm ck_hs_set
+.Nd store key into a hash set
+.Sh LIBRARY
+Concurrency Kit (libck, \-lck)
+.Sh SYNOPSIS
+.In ck_hs.h
+.Ft bool
+.Fn ck_hs_set "ck_hs_t *hs" "unsigned long hash" "const void *key" "void **previous"
+.Sh DESCRIPTION
+The
+.Fn ck_hs_set 3
+function will store the key specified by the
+.Fa key
+argument in the hash set pointed to by the
+.Fa hs
+argument. The key specified by
+.Fa key
+is expected to have the hash value specified by the
+.Fa hash
+argument (which was previously generated using the
+.Xr CK_HS_HASH 3
+macro).
+.Pp
+If the call to
+.Fn ck_hs_set 3
+was successful then the key specified by
+.Fa key
+was successfully stored in the hash set pointed to by
+.Fa hs .
+If the key already exists in the hash set, then it is
+replaced by
+.Fa key
+and the previous value is stored into the void pointer
+pointed to by the
+.Fa previous
+argument. If previous is set to
+.Dv NULL
+then
+.Fa key
+was not a replacement for an existing entry in the hash set.
+.Sh RETURN VALUES
+Upon successful completion,
+.Fn ck_hs_set 3
+returns true and otherwise returns false on failure.
+.Sh ERRORS
+Behavior is undefined if
+.Fa key
+or
+.Fa hs
+are uninitialized. The function will also
+return false if the hash set could not be enlarged
+to accomodate key insertion.
+.Sh SEE ALSO
+.Xr ck_hs_init 3 ,
+.Xr ck_hs_move 3 ,
+.Xr ck_hs_destroy 3 ,
+.Xr CK_HS_HASH 3 ,
+.Xr ck_hs_iterator_init 3 ,
+.Xr ck_hs_next 3 ,
+.Xr ck_hs_get 3 ,
+.Xr ck_hs_put 3 ,
+.Xr ck_hs_put_unique 3 ,
+.Xr ck_hs_fas 3 ,
+.Xr ck_hs_remove 3 ,
+.Xr ck_hs_grow 3 ,
+.Xr ck_hs_gc 3 ,
+.Xr ck_hs_rebuild 3 ,
+.Xr ck_hs_count 3 ,
+.Xr ck_hs_reset 3 ,
+.Xr ck_hs_reset_size 3 ,
+.Xr ck_hs_stat 3
+.Pp
+Additional information available at http://concurrencykit.org/
