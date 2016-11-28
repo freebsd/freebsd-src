@@ -160,6 +160,9 @@ int		vmbus_msghc_exec(struct vmbus_softc *, struct vmbus_msghc *);
 const struct vmbus_message *
 		vmbus_msghc_wait_result(struct vmbus_softc *,
 		    struct vmbus_msghc *);
+const struct vmbus_message *
+		vmbus_msghc_poll_result(struct vmbus_softc *,
+		    struct vmbus_msghc *);
 void		vmbus_msghc_wakeup(struct vmbus_softc *,
 		    const struct vmbus_message *);
 void		vmbus_msghc_reset(struct vmbus_msghc *, size_t);

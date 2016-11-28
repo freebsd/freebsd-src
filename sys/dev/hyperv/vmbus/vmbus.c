@@ -315,6 +315,14 @@ vmbus_msghc_wait_result(struct vmbus_softc *sc __unused, struct vmbus_msghc *mh)
 	return (vmbus_xact_wait(mh->mh_xact, &resp_len));
 }
 
+const struct vmbus_message *
+vmbus_msghc_poll_result(struct vmbus_softc *sc __unused, struct vmbus_msghc *mh)
+{
+	size_t resp_len;
+
+	return (vmbus_xact_poll(mh->mh_xact, &resp_len));
+}
+
 void
 vmbus_msghc_wakeup(struct vmbus_softc *sc, const struct vmbus_message *msg)
 {
