@@ -89,7 +89,7 @@
 #define	 ISS_DATa_CM		(0x01 << 8)
 #define	 ISS_INSN_S1PTW		(0x01 << 7)
 #define	 ISS_DATa_WnR		(0x01 << 6)
-#define	 ISS_DATA_DFSC_MASK	(0x1f << 0)
+#define	 ISS_DATA_DFSC_MASK	(0x3f << 0)
 #define	 ISS_DATA_DFSC_ASF_L0	(0x00 << 0)
 #define	 ISS_DATA_DFSC_ASF_L1	(0x01 << 0)
 #define	 ISS_DATA_DFSC_ASF_L2	(0x02 << 0)
