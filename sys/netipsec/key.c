@@ -2026,6 +2026,12 @@ key_spddelete2(struct socket *so, struct mbuf *m,
 	    printf("%s: SP(%p)\n", __func__, sp));
 	KEYDBG(KEY_DATA, kdebug_secpolicy(sp));
 	key_unlink(sp);
+	if (sp->state != IPSEC_SPSTATE_DEAD) {
+		ipseclog((LOG_DEBUG, "%s: failed to delete SP with id %u.\n",
+		    __func__, id));
+		key_freesp(&sp);
+		return (key_senderror(so, m, EACCES));
+	}
 	key_freesp(&sp);
 
     {
