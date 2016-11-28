@@ -1,0 +1,122 @@
+.\"
+.\" Copyright 2013 Samy Al Bahra.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"
+.Dd April 7, 2013
+.Dt ck_pr_neg 3
+.Sh NAME
+.Nm ck_pr_neg_ptr ,
+.Nm ck_pr_neg_ptr_zero ,
+.Nm ck_pr_neg_double ,
+.Nm ck_pr_neg_double_zero ,
+.Nm ck_pr_neg_char ,
+.Nm ck_pr_neg_char_zero ,
+.Nm ck_pr_neg_uint ,
+.Nm ck_pr_neg_uint_zero ,
+.Nm ck_pr_neg_int ,
+.Nm ck_pr_neg_int_zero ,
+.Nm ck_pr_neg_64 ,
+.Nm ck_pr_neg_64_zero ,
+.Nm ck_pr_neg_32 ,
+.Nm ck_pr_neg_32_zero ,
+.Nm ck_pr_neg_16 ,
+.Nm ck_pr_neg_16_zero ,
+.Nm ck_pr_neg_8 ,
+.Nm ck_pr_neg_8_zero
+.Nd atomic negation operations
+.Sh LIBRARY
+Concurrency Kit (libck, \-lck)
+.Sh SYNOPSIS
+.In ck_pr.h
+.Ft void
+.Fn ck_pr_neg_ptr "void *target"
+.Ft void
+.Fn ck_pr_neg_ptr_zero "void *target" "bool *z"
+.Ft void
+.Fn ck_pr_neg_double "double *target"
+.Ft void
+.Fn ck_pr_neg_double_zero "double *target" "bool *z"
+.Ft void
+.Fn ck_pr_neg_char "char *target"
+.Ft void
+.Fn ck_pr_neg_char_zero "char *target" "bool *z"
+.Ft void
+.Fn ck_pr_neg_uint "unsigned int *target"
+.Ft void
+.Fn ck_pr_neg_uint_zero "unsigned int *target" "bool *z"
+.Ft void
+.Fn ck_pr_neg_int "int *target"
+.Ft void
+.Fn ck_pr_neg_int_zero "int *target" "bool *z"
+.Ft void
+.Fn ck_pr_neg_64 "uint64_t *target"
+.Ft void
+.Fn ck_pr_neg_64_zero "uint64_t *target" "bool *z"
+.Ft void
+.Fn ck_pr_neg_32 "uint32_t *target"
+.Ft void
+.Fn ck_pr_neg_32_zero "uint32_t *target" "bool *z"
+.Ft void
+.Fn ck_pr_neg_16 "uint16_t *target"
+.Ft void
+.Fn ck_pr_neg_16_zero "uint16_t *target" "bool *z"
+.Ft void
+.Fn ck_pr_neg_8 "uint8_t *target"
+.Ft void
+.Fn ck_pr_neg_8_zero "uint8_t *target" "bool *z"
+.Sh DESCRIPTION
+The
+.Fn ck_pr_neg 3
+family of functions atomically negate the value pointed to
+by
+.Fa target .
+.Sh RETURN VALUES
+The ck_pr_neg_zero functions set the value pointed to by
+.Fa z
+if the result of the negation operation was 0. They set the
+pointed to value to false otherwise.
+.Sh SEE ALSO
+.Xr ck_pr_fence_load 3 ,
+.Xr ck_pr_fence_load_depends 3 ,
+.Xr ck_pr_fence_store 3 ,
+.Xr ck_pr_fence_memory 3 ,
+.Xr ck_pr_load 3 ,
+.Xr ck_pr_store 3 ,
+.Xr ck_pr_fas 3 ,
+.Xr ck_pr_faa 3 ,
+.Xr ck_pr_inc 3 ,
+.Xr ck_pr_dec 3 ,
+.Xr ck_pr_not 3 ,
+.Xr ck_pr_add 3 ,
+.Xr ck_pr_sub 3 ,
+.Xr ck_pr_and 3 ,
+.Xr ck_pr_or 3 ,
+.Xr ck_pr_xor 3 ,
+.Xr ck_pr_cas 3 ,
+.Xr ck_pr_btc 3 ,
+.Xr ck_pr_bts 3 ,
+.Xr ck_pr_btr 3
+.Pp
+Additional information available at http://concurrencykit.org/

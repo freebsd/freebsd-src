@@ -1,0 +1,96 @@
+.\"
+.\" Copyright 2013 Samy Al Bahra.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"
+.Dd April 15, 2013
+.Dt ck_pr_load 3
+.Sh NAME
+.Nm ck_pr_load_ptr ,
+.Nm ck_pr_load_double ,
+.Nm ck_pr_load_uint ,
+.Nm ck_pr_load_int ,
+.Nm ck_pr_load_char ,
+.Nm ck_pr_load_64 ,
+.Nm ck_pr_load_32 ,
+.Nm ck_pr_load_16 ,
+.Nm ck_pr_load_8
+.Nd atomic volatile load operations
+.Sh LIBRARY
+Concurrency Kit (libck, \-lck)
+.Sh SYNOPSIS
+.In ck_pr.h
+.Ft void *
+.Fn ck_pr_load_ptr "const void *target"
+.Ft double
+.Fn ck_pr_load_double "const double *target"
+.Ft unsigned int
+.Fn ck_pr_load_uint "const unsigned int *target"
+.Ft int
+.Fn ck_pr_load_int "const int *target"
+.Ft char
+.Fn ck_pr_load_char "const char *target"
+.Ft uint64_t
+.Fn ck_pr_load_64 "const uint64_t *target"
+.Ft uint32_t
+.Fn ck_pr_load_32 "const uint32_t *target"
+.Ft uint16_t
+.Fn ck_pr_load_16 "const uint16_t *target"
+.Ft uint8_t
+.Fn ck_pr_load_8 "const uint8_t *target"
+.Sh DESCRIPTION
+The
+.Fn ck_pr_load 3
+family of functions atomically loads the value
+pointed to by
+.Fa target
+and returns it. This family of functions always
+serves as an implicit compiler barrier and is not
+susceptible to re-ordering by the compiler.
+.Sh RETURN VALUES
+This family of functions returns the value contained
+in the location pointed to by the first argument.
+.Sh SEE ALSO
+.Xr ck_pr_fence_load 3 ,
+.Xr ck_pr_fence_load_depends 3 ,
+.Xr ck_pr_fence_store 3 ,
+.Xr ck_pr_fence_memory 3 ,
+.Xr ck_pr_add 3 ,
+.Xr ck_pr_store 3 ,
+.Xr ck_pr_fas 3 ,
+.Xr ck_pr_faa 3 ,
+.Xr ck_pr_inc 3 ,
+.Xr ck_pr_dec 3 ,
+.Xr ck_pr_neg 3 ,
+.Xr ck_pr_not 3 ,
+.Xr ck_pr_sub 3 ,
+.Xr ck_pr_and 3 ,
+.Xr ck_pr_or 3 ,
+.Xr ck_pr_xor 3 ,
+.Xr ck_pr_cas 3 ,
+.Xr ck_pr_btc 3 ,
+.Xr ck_pr_bts 3 ,
+.Xr ck_pr_btr 3
+.Pp
+Additional information available at http://concurrencykit.org/

@@ -1,0 +1,169 @@
+.\"
+.\" Copyright 2012-2013 Samy Al Bahra.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"
+.Dd September 17, 2012
+.Dt CK_HS_INIT 3
+.Sh NAME
+.Nm ck_hs_init
+.Nd initialize a hash set
+.Sh LIBRARY
+Concurrency Kit (libck, \-lck)
+.Sh SYNOPSIS
+.In ck_hs.h
+.Ft typedef unsigned long
+.Fn ck_hs_hash_cb_t "const void *key" "unsigned long seed"
+.Ft typedef bool
+.Fn ck_hs_compare_cb_t "const void *c1" "const void *c2"
+.Ft bool
+.Fn ck_hs_init "ck_hs_t *hs" "unsigned int mode" "ck_hs_hash_cb_t *hash_function" "ck_hs_compare_cb_t *compare" "struct ck_malloc *allocator" "unsigned long capacity" "unsigned long seed"
+.Sh DESCRIPTION
+The
+.Fn ck_hs_init
+function initializes the hash set pointed to by the
+.Fa hs
+pointer.
+.Pp
+The argument
+.Fa mode
+specifies the type of key-value pairs to be stored in the
+hash set as well as the expected concurrent access model.
+The value of
+.Fa mode
+consists of a bitfield of one of the following:
+.Bl -tag -width indent
+.It CK_HS_MODE_OBJECT
+The hash set is meant to store pointers to objects. This provides
+a hint that only CK_MD_VMA_BITS are necessary to encode the key
+argument. Any unused pointer bits are leveraged for internal
+optimizations.
+.It CK_HS_MODE_DIRECT
+The hash set is meant to directly store key values and that all
+bits of the key are used to encode values.
+.El
+.Pp
+The concurrent access model is specified by:
+.Bl -tag -width indent
+.It CK_HS_MODE_SPMC
+The hash set should allow for concurrent readers in the
+presence of a single writer.
+.It CK_HS_MODE_MPMC
+The hash set should allow for concurrent readers in the
+presence of concurrent writers. This is currently unsupported.
+.El
+.Pp
+The developer is free to specify additional workload hints.
+These hints are one of:
+.Bl -tag -width indent
+.It CK_HS_MODE_DELETE
+The hash set is expected to have a delete-heavy workload.
+At the cost of approximately 13% increased memory usage,
+allow for stronger per-slot probe bounds to combat the
+effects of tombstone accumulation.
+.El
+.Pp
+The argument
+.Fa hash_function
+is a mandatory pointer to a user-specified hash function.
+A user-specified hash function takes two arguments. The
+.Fa key
+argument is a pointer to a key. The
+.Fa seed
+argument is the initial seed associated with the hash set.
+This initial seed is specified by the user in
+.Xr ck_hs_init 3 .
+.Pp
+The
+.Fa compare
+argument is an optional pointer to a user-specified
+key comparison function. If NULL is specified in this
+argument, then pointer equality will be used to determine
+key equality. A user-specified comparison function takes
+two arguments representing pointers to the objects being
+compared for equality. It is expected to return true
+if the keys are of equal value and false otherwise.
+.Pp
+The
+.Fa allocator
+argument is a pointer to a structure containing
+.Fa malloc
+and
+.Fa free
+function pointers which respectively define the memory allocation and
+destruction functions to be used by the hash set being initialized.
+.Pp
+The argument
+.Fa capacity
+represents the initial number of keys the hash
+set is expected to contain. This argument is simply a hint
+and the underlying implementation is free to allocate more
+or less memory than necessary to contain the number of entries
+.Fa capacity
+specifies.
+.Pp
+The argument
+.Fa seed
+specifies the initial seed used by the underlying hash function.
+The user is free to choose a value of their choice.
+.Sh RETURN VALUES
+Upon successful completion
+.Fn ck_hs_init
+returns a value of
+.Dv true
+and otherwise returns a value of
+.Dv false
+to indicate an error.
+.Sh ERRORS
+.Bl -tag -width Er
+.Pp
+The behavior of
+.Fn ck_hs_init
+is undefined if
+.Fa hs
+is not a pointer to a
+.Tn ck_hs_t
+object.
+.El
+.Sh SEE ALSO
+.Xr ck_hs_move 3 ,
+.Xr ck_hs_destroy 3 ,
+.Xr CK_HS_HASH 3 ,
+.Xr ck_hs_iterator_init 3 ,
+.Xr ck_hs_next 3 ,
+.Xr ck_hs_get 3 ,
+.Xr ck_hs_put 3 ,
+.Xr ck_hs_put_unique 3 ,
+.Xr ck_hs_set 3 ,
+.Xr ck_hs_fas 3 ,
+.Xr ck_hs_remove 3 ,
+.Xr ck_hs_grow 3 ,
+.Xr ck_hs_rebuild 3 ,
+.Xr ck_hs_gc 3 ,
+.Xr ck_hs_count 3 ,
+.Xr ck_hs_reset 3 ,
+.Xr ck_hs_reset_size 3 ,
+.Xr ck_hs_stat 3
+.Pp
+Additional information available at http://concurrencykit.org/
