@@ -420,19 +420,24 @@ ath_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m,
 				tsf_remainder = (tsf_beacon - tsf_beacon_old) % tsf_intval;
 			}
 
-			DPRINTF(sc, ATH_DEBUG_BEACON, "%s: old_tsf=%llu, new_tsf=%llu, target_tsf=%llu, delta=%lld, bmiss=%d, remainder=%d\n",
+			DPRINTF(sc, ATH_DEBUG_BEACON, "%s: old_tsf=%llu (%u), new_tsf=%llu (%u), target_tsf=%llu (%u), delta=%lld, bmiss=%d, remainder=%d\n",
 			    __func__,
 			    (unsigned long long) tsf_beacon_old,
+			    (unsigned int) (tsf_beacon_old >> 10),
 			    (unsigned long long) tsf_beacon,
+			    (unsigned int ) (tsf_beacon >> 10),
 			    (unsigned long long) tsf_beacon_target,
+			    (unsigned int) (tsf_beacon_target >> 10),
 			    (long long) tsf_delta,
 			    tsf_delta_bmiss,
 			    tsf_remainder);
 
-			DPRINTF(sc, ATH_DEBUG_BEACON, "%s: tsf=%llu, nexttbtt=%llu, delta=%d\n",
+			DPRINTF(sc, ATH_DEBUG_BEACON, "%s: tsf=%llu (%u), nexttbtt=%llu (%u), delta=%d\n",
 			    __func__,
 			    (unsigned long long) tsf_beacon,
+			    (unsigned int) (tsf_beacon >> 10),
 			    (unsigned long long) nexttbtt,
+			    (unsigned int) (nexttbtt >> 10),
 			    (int32_t) tsf_beacon - (int32_t) nexttbtt + tsf_intval);
 
 			/* We only do syncbeacon on STA VAPs; not on IBSS */
