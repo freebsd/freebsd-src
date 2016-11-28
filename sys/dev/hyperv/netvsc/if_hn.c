@@ -319,7 +319,7 @@ static void			hn_destroy_rx_data(struct hn_softc *);
 static int			hn_check_iplen(const struct mbuf *, int);
 static int			hn_set_rxfilter(struct hn_softc *);
 static int			hn_rss_reconfig(struct hn_softc *);
-static void			hn_rss_ind_fixup(struct hn_softc *, int);
+static void			hn_rss_ind_fixup(struct hn_softc *);
 static int			hn_rxpkt(struct hn_rx_ring *, const void *,
 				    int, const struct hn_rxinfo *);
 
@@ -817,11 +817,12 @@ hn_rss_reconfig(struct hn_softc *sc)
 }
 
 static void
-hn_rss_ind_fixup(struct hn_softc *sc, int nchan)
+hn_rss_ind_fixup(struct hn_softc *sc)
 {
 	struct ndis_rssprm_toeplitz *rss = &sc->hn_rss;
-	int i;
+	int i, nchan;
 
+	nchan = sc->hn_rx_ring_inuse;
 	KASSERT(nchan > 1, ("invalid # of channels %d", nchan));
 
 	/*
@@ -2943,7 +2944,7 @@ hn_rss_ind_sysctl(SYSCTL_HANDLER_ARGS)
 		goto back;
 	sc->hn_flags |= HN_FLAG_HAS_RSSIND;
 
-	hn_rss_ind_fixup(sc, sc->hn_rx_ring_inuse);
+	hn_rss_ind_fixup(sc);
 	error = hn_rss_reconfig(sc);
 back:
 	HN_UNLOCK(sc);
@@ -4502,6 +4503,8 @@ hn_synth_attach(struct hn_softc *sc, int mtu)
 
 	/*
 	 * Attach the sub-channels.
+	 *
+	 * NOTE: hn_set_ring_inuse() _must_ have been called.
 	 */
 	error = hn_attach_subchans(sc);
 	if (error)
@@ -4538,8 +4541,10 @@ hn_synth_attach(struct hn_softc *sc, int mtu)
 		 * # of usable channels may be changed, so we have to
 		 * make sure that all entries in RSS indirect table
 		 * are valid.
+		 *
+		 * NOTE: hn_set_ring_inuse() _must_ have been called.
 		 */
-		hn_rss_ind_fixup(sc, nchan);
+		hn_rss_ind_fixup(sc);
 	}
 
 	error = hn_rndis_conf_rss(sc, NDIS_RSS_FLAG_NONE);
