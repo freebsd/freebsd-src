@@ -675,8 +675,10 @@ parse_addr_port(char *arg, const char *def_port, struct addrinfo **ai)
 		 */
 		arg++;
 		addr = strsep(&arg, "]");
-		if (arg == NULL)
+		if (arg == NULL) {
+			free(str);
 			return (1);
+		}
 		if (arg[0] == '\0') {
 			port = def_port;
 		} else if (arg[0] == ':') {
