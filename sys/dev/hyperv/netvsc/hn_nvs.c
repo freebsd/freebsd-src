@@ -109,10 +109,8 @@ hn_nvs_xact_execute(struct hn_softc *sc, struct vmbus_xact *xact,
 		vmbus_xact_deactivate(xact);
 		return (NULL);
 	}
-	if (HN_CAN_SLEEP(sc))
-		hdr = vmbus_xact_wait(xact, &resplen);
-	else
-		hdr = vmbus_xact_busywait(xact, &resplen);
+	hdr = vmbus_chan_xact_wait(sc->hn_prichan, xact, &resplen,
+	    HN_CAN_SLEEP(sc));
 
 	/*
 	 * Check this NVS response message.
