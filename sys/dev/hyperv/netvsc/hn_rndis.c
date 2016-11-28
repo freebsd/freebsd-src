@@ -979,7 +979,6 @@ hn_rndis_attach(struct hn_softc *sc, int mtu)
 
 	/*
 	 * Configure NDIS offload settings.
-	 * XXX no offloading, if error happened?
 	 */
 	hn_rndis_conf_offload(sc, mtu);
 	return (0);

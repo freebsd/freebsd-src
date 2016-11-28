@@ -273,8 +273,14 @@ hn_nvs_conn_chim(struct hn_softc *sc)
 		goto cleanup;
 	}
 	if (sectsz == 0) {
+		/*
+		 * Can't use chimney sending buffer; done!
+		 */
 		if_printf(sc->hn_ifp, "zero chimney sending buffer "
 		    "section size\n");
+		sc->hn_chim_szmax = 0;
+		sc->hn_chim_cnt = 0;
+		sc->hn_flags |= HN_FLAG_CHIM_CONNECTED;
 		return (0);
 	}
 
@@ -431,6 +437,7 @@ hn_nvs_disconn_chim(struct hn_softc *sc)
 	if (sc->hn_chim_bmap != NULL) {
 		free(sc->hn_chim_bmap, M_DEVBUF);
 		sc->hn_chim_bmap = NULL;
+		sc->hn_chim_bmap_cnt = 0;
 	}
 }
 
@@ -620,8 +627,10 @@ hn_nvs_attach(struct hn_softc *sc, int mtu)
 	 * Connect chimney sending buffer.
 	 */
 	error = hn_nvs_conn_chim(sc);
-	if (error)
+	if (error) {
+		hn_nvs_disconn_rxbuf(sc);
 		return (error);
+	}
 	return (0);
 }
 
