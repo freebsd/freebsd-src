@@ -401,6 +401,7 @@ auth_portal_new(struct auth_group *ag, const char *portal)
 	return (ap);
 
 error:
+	free(str);
 	free(ap);
 	log_warnx("incorrect initiator portal \"%s\"", portal);
 	return (NULL);
@@ -675,8 +676,10 @@ parse_addr_port(char *arg, const char *def_port, struct addrinfo **ai)
 		 */
 		arg++;
 		addr = strsep(&arg, "]");
-		if (arg == NULL)
+		if (arg == NULL) {
+			free(str);
 			return (1);
+		}
 		if (arg[0] == '\0') {
 			port = def_port;
 		} else if (arg[0] == ':') {

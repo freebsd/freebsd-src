@@ -307,12 +307,27 @@ vmbus_msghc_exec(struct vmbus_softc *sc __unused, struct vmbus_msghc *mh)
 	return error;
 }
 
+void
+vmbus_msghc_exec_cancel(struct vmbus_softc *sc __unused, struct vmbus_msghc *mh)
+{
+
+	vmbus_xact_deactivate(mh->mh_xact);
+}
+
 const struct vmbus_message *
 vmbus_msghc_wait_result(struct vmbus_softc *sc __unused, struct vmbus_msghc *mh)
 {
 	size_t resp_len;
 
 	return (vmbus_xact_wait(mh->mh_xact, &resp_len));
+}
+
+const struct vmbus_message *
+vmbus_msghc_poll_result(struct vmbus_softc *sc __unused, struct vmbus_msghc *mh)
+{
+	size_t resp_len;
+
+	return (vmbus_xact_poll(mh->mh_xact, &resp_len));
 }
 
 void
@@ -325,7 +340,13 @@ vmbus_msghc_wakeup(struct vmbus_softc *sc, const struct vmbus_message *msg)
 uint32_t
 vmbus_gpadl_alloc(struct vmbus_softc *sc)
 {
-	return atomic_fetchadd_int(&sc->vmbus_gpadl, 1);
+	uint32_t gpadl;
+
+again:
+	gpadl = atomic_fetchadd_int(&sc->vmbus_gpadl, 1); 
+	if (gpadl == 0)
+		goto again;
+	return (gpadl);
 }
 
 static int
