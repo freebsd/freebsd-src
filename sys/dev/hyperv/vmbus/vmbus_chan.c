@@ -349,7 +349,6 @@ vmbus_chan_open_br(struct vmbus_channel *chan, const struct vmbus_chan_br *cbr,
     const void *udata, int udlen, vmbus_chan_callback_t cb, void *cbarg)
 {
 	struct vmbus_softc *sc = chan->ch_vmbus;
-	const struct vmbus_chanmsg_chopen_resp *resp;
 	const struct vmbus_message *msg;
 	struct vmbus_chanmsg_chopen *req;
 	struct vmbus_msghc *mh;
@@ -453,9 +452,50 @@ vmbus_chan_open_br(struct vmbus_channel *chan, const struct vmbus_chan_br *cbr,
 		goto failed;
 	}
 
-	msg = vmbus_msghc_wait_result(sc, mh);
-	resp = (const struct vmbus_chanmsg_chopen_resp *)msg->msg_data;
-	status = resp->chm_status;
+	for (;;) {
+		msg = vmbus_msghc_poll_result(sc, mh);
+		if (msg != NULL)
+			break;
+		if (vmbus_chan_is_revoked(chan)) {
+			int i;
+
+			/*
+			 * NOTE:
+			 * Hypervisor does _not_ send response CHOPEN to
+			 * a revoked channel.
+			 */
+			vmbus_chan_printf(chan,
+			    "chan%u is revoked, when it is being opened\n",
+			    chan->ch_id);
+
+			/*
+			 * XXX
+			 * Add extra delay before cancel the hypercall
+			 * execution; mainly to close any possible
+			 * CHRESCIND and CHOPEN_RESP races on the
+			 * hypervisor side.
+			 */
+#define REVOKE_LINGER	100
+			for (i = 0; i < REVOKE_LINGER; ++i) {
+				msg = vmbus_msghc_poll_result(sc, mh);
+				if (msg != NULL)
+					break;
+				DELAY(1000);
+			}
+#undef REVOKE_LINGER
+			if (msg == NULL)
+				vmbus_msghc_exec_cancel(sc, mh);
+			break;
+		}
+		DELAY(1000);
+	}
+	if (msg != NULL) {
+		status = ((const struct vmbus_chanmsg_chopen_resp *)
+		    msg->msg_data)->chm_status;
+	} else {
+		/* XXX any non-0 value is ok here. */
+		status = 0xff;
+	}
 
 	vmbus_msghc_put(sc, mh);
 
@@ -501,6 +541,8 @@ vmbus_chan_gpadl_connect(struct vmbus_channel *chan, bus_addr_t paddr,
 	uint32_t gpadl, status;
 	int page_count, range_len, i, cnt, error;
 	uint64_t page_id;
+
+	KASSERT(*gpadl0 == 0, ("GPADL is not zero"));
 
 	/*
 	 * Preliminary checks.
@@ -645,6 +687,8 @@ vmbus_chan_gpadl_disconnect(struct vmbus_channel *chan, uint32_t gpadl)
 	struct vmbus_msghc *mh;
 	struct vmbus_chanmsg_gpadl_disconn *req;
 	int error;
+
+	KASSERT(gpadl != 0, ("GPADL is zero"));
 
 	mh = vmbus_msghc_get(sc, sizeof(*req));
 	if (mh == NULL) {
@@ -1920,4 +1964,38 @@ vmbus_chan_unset_orphan(struct vmbus_channel *chan)
 	sx_xlock(&chan->ch_orphan_lock);
 	chan->ch_orphan_xact = NULL;
 	sx_xunlock(&chan->ch_orphan_lock);
+}
+
+const void *
+vmbus_chan_xact_wait(const struct vmbus_channel *chan,
+    struct vmbus_xact *xact, size_t *resp_len, bool can_sleep)
+{
+	const void *ret;
+
+	if (can_sleep)
+		ret = vmbus_xact_wait(xact, resp_len);
+	else
+		ret = vmbus_xact_busywait(xact, resp_len);
+	if (vmbus_chan_is_revoked(chan)) {
+		/*
+		 * This xact probably is interrupted, and the
+		 * interruption can race the reply reception,
+		 * so we have to make sure that there are nothing
+		 * left on the RX bufring, i.e. this xact will
+		 * not be touched, once this function returns.
+		 *
+		 * Since the hypervisor will not put more data
+		 * onto the RX bufring once the channel is revoked,
+		 * the following loop will be terminated, once all
+		 * data are drained by the driver's channel
+		 * callback.
+		 */
+		while (!vmbus_chan_rx_empty(chan)) {
+			if (can_sleep)
+				pause("chxact", 1);
+			else
+				DELAY(1000);
+		}
+	}
+	return (ret);
 }

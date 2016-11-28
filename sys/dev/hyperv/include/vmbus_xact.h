@@ -55,6 +55,8 @@ const void		*vmbus_xact_wait(struct vmbus_xact *xact,
 			    size_t *resp_len);
 const void		*vmbus_xact_busywait(struct vmbus_xact *xact,
 			    size_t *resp_len);
+const void		*vmbus_xact_poll(struct vmbus_xact *xact,
+			    size_t *resp_len);
 void			vmbus_xact_wakeup(struct vmbus_xact *xact,
 			    const void *data, size_t dlen);
 void			vmbus_xact_ctx_wakeup(struct vmbus_xact_ctx *ctx,
