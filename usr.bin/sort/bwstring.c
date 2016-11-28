@@ -910,15 +910,12 @@ bws_month_score(const struct bwstring *s0)
 
 	if (MB_CUR_MAX == 1) {
 		const unsigned char *end, *s;
-		size_t len;
 
 		s = s0->data.cstr;
 		end = s + s0->len;
 
 		while (isblank(*s) && s < end)
 			++s;
-
-		len = strlen((const char*)s);
 
 		for (int i = 11; i >= 0; --i) {
 			if (cmonths[i] &&
@@ -928,15 +925,12 @@ bws_month_score(const struct bwstring *s0)
 
 	} else {
 		const wchar_t *end, *s;
-		size_t len;
 
 		s = s0->data.wstr;
 		end = s + s0->len;
 
 		while (iswblank(*s) && s < end)
 			++s;
-
-		len = wcslen(s);
 
 		for (int i = 11; i >= 0; --i) {
 			if (wmonths[i] && (s == wcsstr(s, wmonths[i])))
