@@ -1524,7 +1524,7 @@ hn_txpkt_done(struct hn_nvs_sendctx *sndc, struct hn_softc *sc,
 	txr = txd->txr;
 	KASSERT(txr->hn_chan == chan,
 	    ("channel mismatch, on chan%u, should be chan%u",
-	     vmbus_chan_subidx(chan), vmbus_chan_subidx(txr->hn_chan)));
+	     vmbus_chan_id(chan), vmbus_chan_id(txr->hn_chan)));
 
 	txr->hn_has_txeof = 1;
 	hn_txdesc_put(txr, txd);
@@ -4262,13 +4262,12 @@ hn_chan_detach(struct hn_softc *sc, struct vmbus_channel *chan)
 	 */
 	error = vmbus_chan_close_direct(chan);
 	if (error == EISCONN) {
-		if_printf(sc->hn_ifp, "chan%u subidx%u "
-		    "bufring is connected after being closed\n",
-		    vmbus_chan_id(chan), vmbus_chan_subidx(chan));
+		if_printf(sc->hn_ifp, "chan%u bufring is connected "
+		    "after being closed\n", vmbus_chan_id(chan));
 		rxr->hn_rx_flags |= HN_RX_FLAG_BR_REF;
 	} else if (error) {
-		if_printf(sc->hn_ifp, "chan%u subidx%u close failed: %d\n",
-		    vmbus_chan_id(chan), vmbus_chan_subidx(chan), error);
+		if_printf(sc->hn_ifp, "chan%u close failed: %d\n",
+		    vmbus_chan_id(chan), error);
 	}
 }
 
