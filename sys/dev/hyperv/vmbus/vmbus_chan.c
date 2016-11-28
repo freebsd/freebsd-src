@@ -503,6 +503,12 @@ vmbus_chan_gpadl_connect(struct vmbus_channel *chan, bus_addr_t paddr,
 	uint64_t page_id;
 
 	/*
+	 * Reset GPADL, so that the result would consistent, if error
+	 * happened later on.
+	 */
+	*gpadl0 = 0;
+
+	/*
 	 * Preliminary checks.
 	 */
 
