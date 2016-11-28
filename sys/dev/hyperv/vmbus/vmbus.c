@@ -307,6 +307,13 @@ vmbus_msghc_exec(struct vmbus_softc *sc __unused, struct vmbus_msghc *mh)
 	return error;
 }
 
+void
+vmbus_msghc_exec_cancel(struct vmbus_softc *sc __unused, struct vmbus_msghc *mh)
+{
+
+	vmbus_xact_deactivate(mh->mh_xact);
+}
+
 const struct vmbus_message *
 vmbus_msghc_wait_result(struct vmbus_softc *sc __unused, struct vmbus_msghc *mh)
 {
