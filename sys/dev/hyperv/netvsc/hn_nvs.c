@@ -62,8 +62,8 @@ __FBSDID("$FreeBSD$");
 
 static int			hn_nvs_conn_chim(struct hn_softc *);
 static int			hn_nvs_conn_rxbuf(struct hn_softc *);
-static int			hn_nvs_disconn_chim(struct hn_softc *);
-static int			hn_nvs_disconn_rxbuf(struct hn_softc *);
+static void			hn_nvs_disconn_chim(struct hn_softc *);
+static void			hn_nvs_disconn_rxbuf(struct hn_softc *);
 static int			hn_nvs_conf_ndis(struct hn_softc *, int);
 static int			hn_nvs_init_ndis(struct hn_softc *);
 static int			hn_nvs_doinit(struct hn_softc *, uint32_t);
@@ -308,7 +308,7 @@ cleanup:
 	return (error);
 }
 
-static int
+static void
 hn_nvs_disconn_rxbuf(struct hn_softc *sc)
 {
 	int error;
@@ -328,7 +328,12 @@ hn_nvs_disconn_rxbuf(struct hn_softc *sc)
 		if (error) {
 			if_printf(sc->hn_ifp,
 			    "send nvs rxbuf disconn failed: %d\n", error);
-			return (error);
+			/*
+			 * Fine for a revoked channel, since the hypervisor
+			 * does not drain TX bufring for a revoked channel.
+			 */
+			if (!vmbus_chan_is_revoked(sc->hn_prichan))
+				sc->hn_flags |= HN_FLAG_RXBUF_REF;
 		}
 		sc->hn_flags &= ~HN_FLAG_RXBUF_CONNECTED;
 
@@ -357,14 +362,13 @@ hn_nvs_disconn_rxbuf(struct hn_softc *sc)
 		if (error) {
 			if_printf(sc->hn_ifp,
 			    "rxbuf gpadl disconn failed: %d\n", error);
-			return (error);
+			sc->hn_flags |= HN_FLAG_RXBUF_REF;
 		}
 		sc->hn_rxbuf_gpadl = 0;
 	}
-	return (0);
 }
 
-static int
+static void
 hn_nvs_disconn_chim(struct hn_softc *sc)
 {
 	int error;
@@ -384,7 +388,12 @@ hn_nvs_disconn_chim(struct hn_softc *sc)
 		if (error) {
 			if_printf(sc->hn_ifp,
 			    "send nvs chim disconn failed: %d\n", error);
-			return (error);
+			/*
+			 * Fine for a revoked channel, since the hypervisor
+			 * does not drain TX bufring for a revoked channel.
+			 */
+			if (!vmbus_chan_is_revoked(sc->hn_prichan))
+				sc->hn_flags |= HN_FLAG_CHIM_REF;
 		}
 		sc->hn_flags &= ~HN_FLAG_CHIM_CONNECTED;
 
@@ -414,7 +423,7 @@ hn_nvs_disconn_chim(struct hn_softc *sc)
 		if (error) {
 			if_printf(sc->hn_ifp,
 			    "chim gpadl disconn failed: %d\n", error);
-			return (error);
+			sc->hn_flags |= HN_FLAG_CHIM_REF;
 		}
 		sc->hn_chim_gpadl = 0;
 	}
@@ -423,7 +432,6 @@ hn_nvs_disconn_chim(struct hn_softc *sc)
 		free(sc->hn_chim_bmap, M_DEVBUF);
 		sc->hn_chim_bmap = NULL;
 	}
-	return (0);
 }
 
 static int
