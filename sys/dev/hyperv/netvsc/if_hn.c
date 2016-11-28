@@ -465,7 +465,7 @@ SYSCTL_INT(_hw_hn, OID_AUTO, tx_agg_size, CTLFLAG_RDTUN,
     &hn_tx_agg_size, 0, "Packet transmission aggregation size limit");
 
 /* Packet transmission aggregation count limit */
-static int			hn_tx_agg_pkts = 0;
+static int			hn_tx_agg_pkts = -1;
 SYSCTL_INT(_hw_hn, OID_AUTO, tx_agg_pkts, CTLFLAG_RDTUN,
     &hn_tx_agg_pkts, 0, "Packet transmission aggregation packet limit");
 
