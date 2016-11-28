@@ -99,6 +99,11 @@ typedef	__uint_least32_t __char32_t;
 #define	_CHAR32_T_DECLARED
 #endif
 
+typedef struct {
+	long long __max_align1 __aligned(_Alignof(long long));
+	long double __max_align2 __aligned(_Alignof(long double));
+} __max_align_t;
+
 typedef	__uint32_t	__dev_t;	/* device number */
 
 typedef	__uint32_t	__fixpt_t;	/* fixed point number */

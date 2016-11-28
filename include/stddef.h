@@ -59,6 +59,14 @@ typedef	___wchar_t	wchar_t;
 #endif
 #endif
 
+#if __STDC_VERSION__ >= 201112L || __cplusplus >= 201103L
+#ifndef __CLANG_MAX_ALIGN_T_DEFINED
+typedef	__max_align_t	max_align_t;
+#define __CLANG_MAX_ALIGN_T_DEFINED
+#define __GCC_MAX_ALIGN_T
+#endif
+#endif
+
 #define	offsetof(type, member)	__offsetof(type, member)
 
 #endif /* _STDDEF_H_ */
