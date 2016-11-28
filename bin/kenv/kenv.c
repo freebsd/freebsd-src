@@ -190,7 +190,7 @@ ksetenv(const char *env, char *val)
 {
 	int ret;
 
-	ret = kenv(KENV_SET, env, val, strlen(val)+1);
+	ret = kenv(KENV_SET, env, val, strlen(val) + 1);
 	if (ret == 0)
 		printf("%s=\"%s\"\n", env, val);
 	return (ret);
@@ -200,7 +200,7 @@ static int
 kunsetenv(const char *env)
 {
 	int ret;
-	
+
 	ret = kenv(KENV_UNSET, env, NULL, 0);
 	return (ret);
 }
