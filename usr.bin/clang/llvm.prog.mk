@@ -19,6 +19,8 @@ DPADD+=		${OBJTOP}/lib/clang/lib${lib}/lib${lib}.a
 LDADD+=		${OBJTOP}/lib/clang/lib${lib}/lib${lib}.a
 .endfor
 
+PACKAGE=	clang
+
 LIBADD+=	ncursesw
 LIBADD+=	pthread
 
