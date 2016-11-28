@@ -349,7 +349,6 @@ vmbus_chan_open_br(struct vmbus_channel *chan, const struct vmbus_chan_br *cbr,
     const void *udata, int udlen, vmbus_chan_callback_t cb, void *cbarg)
 {
 	struct vmbus_softc *sc = chan->ch_vmbus;
-	const struct vmbus_chanmsg_chopen_resp *resp;
 	const struct vmbus_message *msg;
 	struct vmbus_chanmsg_chopen *req;
 	struct vmbus_msghc *mh;
@@ -453,9 +452,50 @@ vmbus_chan_open_br(struct vmbus_channel *chan, const struct vmbus_chan_br *cbr,
 		goto failed;
 	}
 
-	msg = vmbus_msghc_wait_result(sc, mh);
-	resp = (const struct vmbus_chanmsg_chopen_resp *)msg->msg_data;
-	status = resp->chm_status;
+	for (;;) {
+		msg = vmbus_msghc_poll_result(sc, mh);
+		if (msg != NULL)
+			break;
+		if (vmbus_chan_is_revoked(chan)) {
+			int i;
+
+			/*
+			 * NOTE:
+			 * Hypervisor does _not_ send response CHOPEN to
+			 * a revoked channel.
+			 */
+			vmbus_chan_printf(chan,
+			    "chan%u is revoked, when it is being opened\n",
+			    chan->ch_id);
+
+			/*
+			 * XXX
+			 * Add extra delay before cancel the hypercall
+			 * execution; mainly to close any possible
+			 * CHRESCIND and CHOPEN_RESP races on the
+			 * hypervisor side.
+			 */
+#define REVOKE_LINGER	100
+			for (i = 0; i < REVOKE_LINGER; ++i) {
+				msg = vmbus_msghc_poll_result(sc, mh);
+				if (msg != NULL)
+					break;
+				DELAY(1000);
+			}
+#undef REVOKE_LINGER
+			if (msg == NULL)
+				vmbus_msghc_exec_cancel(sc, mh);
+			break;
+		}
+		DELAY(1000);
+	}
+	if (msg != NULL) {
+		status = ((const struct vmbus_chanmsg_chopen_resp *)
+		    msg->msg_data)->chm_status;
+	} else {
+		/* XXX any non-0 value is ok here. */
+		status = 0xff;
+	}
 
 	vmbus_msghc_put(sc, mh);
 
