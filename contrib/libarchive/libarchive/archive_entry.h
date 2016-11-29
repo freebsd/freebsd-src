@@ -508,6 +508,9 @@ __LA_DECL const wchar_t	*archive_entry_acl_text_w(struct archive_entry *,
 __LA_DECL const char *archive_entry_acl_text(struct archive_entry *,
 		    int /* flags */);
 
+/* Return bitmask of ACL types in an archive entry */
+__LA_DECL int	 archive_entry_acl_types(struct archive_entry *);
+
 /* Return a count of entries matching 'want_type' */
 __LA_DECL int	 archive_entry_acl_count(struct archive_entry *, int /* want_type */);
 
