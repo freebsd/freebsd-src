@@ -747,15 +747,6 @@ mr_spanset_get_phy_params(struct mrsas_softc *sc, u_int32_t ld, u_int64_t stripR
 	u_int64_t *pdBlock = &io_info->pdBlock;
 	u_int16_t *pDevHandle = &io_info->devHandle;
 	u_int32_t logArm, rowMod, armQ, arm;
-	u_int8_t do_invader = 0;
-
-	if ((sc->device_id == MRSAS_INVADER) ||
-	    (sc->device_id == MRSAS_FURY) ||
-	    (sc->device_id == MRSAS_INTRUDER) ||
-	    (sc->device_id == MRSAS_INTRUDER_24) ||
-	    (sc->device_id == MRSAS_CUTLASS_52) ||
-	    (sc->device_id == MRSAS_CUTLASS_53))
-		do_invader = 1;
 
 	/* Get row and span from io_info for Uneven Span IO. */
 	row = io_info->start_row;
@@ -782,7 +773,7 @@ mr_spanset_get_phy_params(struct mrsas_softc *sc, u_int32_t ld, u_int64_t stripR
 		*pDevHandle = MR_PdDevHandleGet(pd, map);
 	else {
 		*pDevHandle = MR_PD_INVALID;
-		if ((raid->level >= 5) && ((!do_invader) || (do_invader &&
+		if ((raid->level >= 5) && ((!sc->mrsas_gen3_ctrl) || (sc->mrsas_gen3_ctrl &&
 		    raid->regTypeReqOnRead != REGION_TYPE_UNUSED)))
 			pRAID_Context->regLockFlags = REGION_TYPE_EXCLUSIVE;
 		else if (raid->level == 1) {
@@ -965,12 +956,7 @@ MR_BuildRaidContext(struct mrsas_softc *sc, struct IO_REQUEST_INFO *io_info,
 			regSize += stripSize;
 	}
 	pRAID_Context->timeoutValue = map->raidMap.fpPdIoTimeoutSec;
-	if ((sc->device_id == MRSAS_INVADER) ||
-	    (sc->device_id == MRSAS_FURY) ||
-	    (sc->device_id == MRSAS_INTRUDER) ||
-	    (sc->device_id == MRSAS_INTRUDER_24) ||
-	    (sc->device_id == MRSAS_CUTLASS_52) ||
-	    (sc->device_id == MRSAS_CUTLASS_53))
+	if (sc->mrsas_gen3_ctrl)
 		pRAID_Context->regLockFlags = (isRead) ? raid->regTypeReqOnRead : raid->regTypeReqOnWrite;
 	else
 		pRAID_Context->regLockFlags = (isRead) ? REGION_TYPE_SHARED_READ : raid->regTypeReqOnWrite;
@@ -1453,15 +1439,6 @@ MR_GetPhyParams(struct mrsas_softc *sc, u_int32_t ld,
 	u_int64_t *pdBlock = &io_info->pdBlock;
 	u_int16_t *pDevHandle = &io_info->devHandle;
 	u_int32_t rowMod, armQ, arm, logArm;
-	u_int8_t do_invader = 0;
-
-	if ((sc->device_id == MRSAS_INVADER) ||
-	    (sc->device_id == MRSAS_FURY) ||
-	    (sc->device_id == MRSAS_INTRUDER) ||
-	    (sc->device_id == MRSAS_INTRUDER_24) ||
-	    (sc->device_id == MRSAS_CUTLASS_52) ||
-	    (sc->device_id == MRSAS_CUTLASS_53))
-		do_invader = 1;
 
 	row = mega_div64_32(stripRow, raid->rowDataSize);
 
@@ -1501,7 +1478,7 @@ MR_GetPhyParams(struct mrsas_softc *sc, u_int32_t ld,
 		*pDevHandle = MR_PdDevHandleGet(pd, map);
 	else {
 		*pDevHandle = MR_PD_INVALID;	/* set dev handle as invalid. */
-		if ((raid->level >= 5) && ((!do_invader) || (do_invader &&
+		if ((raid->level >= 5) && ((!sc->mrsas_gen3_ctrl) || (sc->mrsas_gen3_ctrl &&
 		    raid->regTypeReqOnRead != REGION_TYPE_UNUSED)))
 			pRAID_Context->regLockFlags = REGION_TYPE_EXCLUSIVE;
 		else if (raid->level == 1) {
