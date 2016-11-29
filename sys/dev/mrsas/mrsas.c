@@ -110,6 +110,7 @@ int	mrsas_issue_polled(struct mrsas_softc *sc, struct mrsas_mfi_cmd *cmd);
 int	mrsas_reset_ctrl(struct mrsas_softc *sc, u_int8_t reset_reason);
 int	mrsas_wait_for_outstanding(struct mrsas_softc *sc, u_int8_t check_reason);
 int mrsas_complete_cmd(struct mrsas_softc *sc, u_int32_t MSIxIndex);
+int mrsas_reset_targets(struct mrsas_softc *sc);
 int
 mrsas_issue_blocked_cmd(struct mrsas_softc *sc,
     struct mrsas_mfi_cmd *cmd);
@@ -306,28 +307,11 @@ mrsas_enable_intr(struct mrsas_softc *sc)
 static int
 mrsas_clear_intr(struct mrsas_softc *sc)
 {
-	u_int32_t status, fw_status, fw_state;
+	u_int32_t status;
 
 	/* Read received interrupt */
 	status = mrsas_read_reg(sc, offsetof(mrsas_reg_set, outbound_intr_status));
 
-	/*
-	 * If FW state change interrupt is received, write to it again to
-	 * clear
-	 */
-	if (status & MRSAS_FW_STATE_CHNG_INTERRUPT) {
-		fw_status = mrsas_read_reg(sc, offsetof(mrsas_reg_set,
-		    outbound_scratch_pad));
-		fw_state = fw_status & MFI_STATE_MASK;
-		if (fw_state == MFI_STATE_FAULT) {
-			device_printf(sc->mrsas_dev, "FW is in FAULT state!\n");
-			if (sc->ocr_thread_active)
-				wakeup(&sc->ocr_chan);
-		}
-		mrsas_write_reg(sc, offsetof(mrsas_reg_set, outbound_intr_status), status);
-		mrsas_read_reg(sc, offsetof(mrsas_reg_set, outbound_intr_status));
-		return (1);
-	}
 	/* Not our interrupt, so just return */
 	if (!(status & MFI_FUSION_ENABLE_INTERRUPT_MASK))
 		return (0);
@@ -882,6 +866,7 @@ mrsas_attach(device_t dev)
 	TAILQ_INIT(&sc->mrsas_mfi_cmd_list_head);
 
 	mrsas_atomic_set(&sc->fw_outstanding, 0);
+	mrsas_atomic_set(&sc->target_reset_outstanding, 0);
 
 	sc->io_cmds_highwater = 0;
 
@@ -1556,7 +1541,10 @@ mrsas_complete_cmd(struct mrsas_softc *sc, u_int32_t MSIxIndex)
 	PLD_LOAD_BALANCE_INFO lbinfo;
 	u_int32_t device_id;
 	int threshold_reply_count = 0;
-
+#if TM_DEBUG
+	MR_TASK_MANAGE_REQUEST *mr_tm_req;
+	MPI2_SCSI_TASK_MANAGE_REQUEST *mpi_tm_req;
+#endif
 
 	/* If we have a hardware error, not need to continue */
 	if (sc->adprecovery == MRSAS_HW_CRITICAL_ERROR)
@@ -1583,6 +1571,16 @@ mrsas_complete_cmd(struct mrsas_softc *sc, u_int32_t MSIxIndex)
 		extStatus = scsi_io_req->RaidContext.exStatus;
 
 		switch (scsi_io_req->Function) {
+		case MPI2_FUNCTION_SCSI_TASK_MGMT:
+#if TM_DEBUG
+			mr_tm_req = (MR_TASK_MANAGE_REQUEST *) cmd_mpt->io_request;
+			mpi_tm_req = (MPI2_SCSI_TASK_MANAGE_REQUEST *)
+			    &mr_tm_req->TmRequest;
+			device_printf(sc->mrsas_dev, "TM completion type 0x%X, "
+			    "TaskMID: 0x%X", mpi_tm_req->TaskType, mpi_tm_req->TaskMID);
+#endif
+            wakeup_one((void *)&sc->ocr_chan);
+            break;
 		case MPI2_FUNCTION_SCSI_IO_REQUEST:	/* Fast Path IO. */
 			device_id = cmd_mpt->ccb_ptr->ccb_h.target_id;
 			lbinfo = &sc->load_balance_info[device_id];
@@ -2585,7 +2583,7 @@ mrsas_alloc_mpt_cmds(struct mrsas_softc *sc)
 		memset(cmd, 0, sizeof(struct mrsas_mpt_cmd));
 		cmd->index = i + 1;
 		cmd->ccb_ptr = NULL;
-		callout_init(&cmd->cm_callout, 0);
+		callout_init_mtx(&cmd->cm_callout, &sc->sim_lock, 0);
 		cmd->sync_cmd_idx = (u_int32_t)MRSAS_ULONG_MAX;
 		cmd->sc = sc;
 		cmd->io_request = (MRSAS_RAID_SCSI_IO_REQUEST *) (io_req_base + offset);
@@ -2780,6 +2778,7 @@ mrsas_ocr_thread(void *arg)
 {
 	struct mrsas_softc *sc;
 	u_int32_t fw_status, fw_state;
+	u_int8_t tm_target_reset_failed = 0;
 
 	sc = (struct mrsas_softc *)arg;
 
@@ -2802,20 +2801,57 @@ mrsas_ocr_thread(void *arg)
 		fw_status = mrsas_read_reg(sc,
 		    offsetof(mrsas_reg_set, outbound_scratch_pad));
 		fw_state = fw_status & MFI_STATE_MASK;
-		if (fw_state == MFI_STATE_FAULT || sc->do_timedout_reset) {
-			device_printf(sc->mrsas_dev, "%s started due to %s!\n",
-			    sc->disableOnlineCtrlReset ? "Kill Adapter" : "OCR",
-			    sc->do_timedout_reset ? "IO Timeout" :
-			    "FW fault detected");
-			mtx_lock_spin(&sc->ioctl_lock);
-			sc->reset_in_progress = 1;
-			sc->reset_count++;
-			mtx_unlock_spin(&sc->ioctl_lock);
+		if (fw_state == MFI_STATE_FAULT || sc->do_timedout_reset ||
+			mrsas_atomic_read(&sc->target_reset_outstanding)) {
+
+			/* First, freeze further IOs to come to the SIM */
 			mrsas_xpt_freeze(sc);
-			mrsas_reset_ctrl(sc, sc->do_timedout_reset);
-			mrsas_xpt_release(sc);
-			sc->reset_in_progress = 0;
-			sc->do_timedout_reset = 0;
+
+			/* If this is an IO timeout then go for target reset */
+			if (mrsas_atomic_read(&sc->target_reset_outstanding)) {
+				device_printf(sc->mrsas_dev, "Initiating Target RESET "
+				    "because of SCSI IO timeout!\n");
+
+				/* Let the remaining IOs to complete */
+				msleep(&sc->ocr_chan, &sc->sim_lock, PRIBIO,
+				      "mrsas_reset_targets", 5 * hz);
+
+				/* Try to reset the target device */
+				if (mrsas_reset_targets(sc) == FAIL)
+					tm_target_reset_failed = 1;
+			}
+
+			/* If this is a DCMD timeout or FW fault,
+			 * then go for controller reset
+			 */
+			if (fw_state == MFI_STATE_FAULT || tm_target_reset_failed ||
+			    (sc->do_timedout_reset == MFI_DCMD_TIMEOUT_OCR)) {
+				if (tm_target_reset_failed)
+					device_printf(sc->mrsas_dev, "Initiaiting OCR because of "
+					    "TM FAILURE!\n");
+				else
+					device_printf(sc->mrsas_dev, "Initiaiting OCR "
+						"because of %s!\n", sc->do_timedout_reset ?
+						"DCMD IO Timeout" : "FW fault");
+
+				mtx_lock_spin(&sc->ioctl_lock);
+				sc->reset_in_progress = 1;
+				mtx_unlock_spin(&sc->ioctl_lock);
+				sc->reset_count++;
+				
+				/* Try to reset the controller */
+				mrsas_reset_ctrl(sc, sc->do_timedout_reset);
+
+				sc->do_timedout_reset = 0;
+				sc->reset_in_progress = 0;
+				tm_target_reset_failed = 0;
+				mrsas_atomic_set(&sc->target_reset_outstanding, 0);
+				memset(sc->target_reset_pool, 0,
+				    sizeof(sc->target_reset_pool));
+			}
+
+			/* Now allow IOs to come to the SIM */
+			 mrsas_xpt_release(sc);
 		}
 	}
 	mtx_unlock(&sc->sim_lock);
