@@ -459,7 +459,8 @@ mrsas_startio(struct mrsas_softc *sc, struct cam_sim *sim,
 	MRSAS_REQUEST_DESCRIPTOR_UNION *req_desc;
 	u_int8_t cmd_type;
 
-	if ((csio->cdb_io.cdb_bytes[0]) == SYNCHRONIZE_CACHE) {
+	if ((csio->cdb_io.cdb_bytes[0]) == SYNCHRONIZE_CACHE &&
+		(!sc->fw_sync_cache_support)) {
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(ccb);
 		return (0);
