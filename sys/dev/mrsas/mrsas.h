@@ -1334,7 +1334,6 @@ enum MR_EVT_ARGS {
 	MR_EVT_ARGS_GENERIC,
 };
 
-
 /*
  * Thunderbolt (and later) Defines
  */
@@ -2083,6 +2082,11 @@ struct mrsas_ctrl_info {
 #define	MR_MAX_REPLY_QUEUES_EXT_OFFSET			(0x003FC000)
 #define	MR_MAX_REPLY_QUEUES_EXT_OFFSET_SHIFT	14
 #define	MR_MAX_MSIX_REG_ARRAY					16
+
+/*
+ * SYNC CACHE offset define
+ */
+#define MR_CAN_HANDLE_SYNC_CACHE_OFFSET     0X01000000
 
 /*
  * FW reports the maximum of number of commands that it can accept (maximum
@@ -2840,6 +2844,8 @@ struct mrsas_softc {
 	u_int8_t do_timedout_reset;
 	u_int32_t reset_in_progress;
 	u_int32_t reset_count;
+	u_int32_t block_sync_cache;
+	u_int8_t fw_sync_cache_support;
 	mrsas_atomic_t target_reset_outstanding;
 #define MRSAS_MAX_TM_TARGETS (MRSAS_MAX_PD + MRSAS_MAX_LD_IDS)
     struct mrsas_mpt_cmd *target_reset_pool[MRSAS_MAX_TM_TARGETS];
