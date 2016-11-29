@@ -62,7 +62,7 @@ OBJCOPY:=	objcopy
 _CHERI_CC+=	-mabi=sandbox -mxgot
 LIBDIR:=	/usr/libcheri
 ROOTOBJDIR=	${.OBJDIR:S,${.CURDIR},,}${SRCTOP}/worldcheri${SRCTOP}
-CFLAGS+=	-O2 -ftls-model=local-exec
+CFLAGS+=	${CHERI_OPTIMIZATION_FLAGS:U-O2} -ftls-model=local-exec
 .if ${MK_CHERI_LINKER} == "yes"
 _CHERI_CC+=	-cheri-linker
 CFLAGS+=	-Wno-error
