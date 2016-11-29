@@ -3139,6 +3139,11 @@ mrsas_wait_for_outstanding(struct mrsas_softc *sc, u_int8_t check_reason)
 		if (fw_state == MFI_STATE_FAULT) {
 			mrsas_dprint(sc, MRSAS_OCR,
 			    "Found FW in FAULT state, will reset adapter.\n");
+			count = sc->msix_vectors > 0 ? sc->msix_vectors : 1;
+			mtx_unlock(&sc->sim_lock);
+			for (MSIxIndex = 0; MSIxIndex < count; MSIxIndex++)
+				mrsas_complete_cmd(sc, MSIxIndex);
+			mtx_lock(&sc->sim_lock);
 			retval = 1;
 			goto out;
 		}
