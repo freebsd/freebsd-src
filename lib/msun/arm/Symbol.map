@@ -5,13 +5,8 @@ FBSD_1.0 {
 };
 
 FBSD_1.3 {
-	feclearexcept;
-	fegetexceptflag;
 	fesetexceptflag;
 	feraiseexcept;
-	fetestexcept;
-	fegetround;
-	fesetround;
 	fegetenv;
 	feholdexcept;
 	feupdateenv;
