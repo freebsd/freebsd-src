@@ -2839,6 +2839,14 @@ mrsas_ocr_thread(void *arg)
 				mtx_unlock_spin(&sc->ioctl_lock);
 				sc->reset_count++;
 				
+				/*
+				 * Wait for the AEN task to be completed if it is running.
+				 */
+				mtx_unlock(&sc->sim_lock);
+				taskqueue_drain(sc->ev_tq, &sc->ev_task);
+				mtx_lock(&sc->sim_lock);
+
+				taskqueue_block(sc->ev_tq);
 				/* Try to reset the controller */
 				mrsas_reset_ctrl(sc, sc->do_timedout_reset);
 
@@ -2848,6 +2856,7 @@ mrsas_ocr_thread(void *arg)
 				mrsas_atomic_set(&sc->target_reset_outstanding, 0);
 				memset(sc->target_reset_pool, 0,
 				    sizeof(sc->target_reset_pool));
+				taskqueue_unblock(sc->ev_tq);
 			}
 
 			/* Now allow IOs to come to the SIM */
@@ -3034,8 +3043,6 @@ mrsas_reset_ctrl(struct mrsas_softc *sc, u_int8_t reset_reason)
 				}
 			}
 
-			sc->aen_cmd = NULL;
-
 			/* Reset load balance info */
 			memset(sc->load_balance_info, 0,
 			    sizeof(LD_LOAD_BALANCE_INFO) * MAX_LOGICAL_DRIVES_EXT);
@@ -3050,17 +3057,6 @@ mrsas_reset_ctrl(struct mrsas_softc *sc, u_int8_t reset_reason)
 
 			megasas_setup_jbod_map(sc);
 
-			memset(sc->pd_list, 0,
-			    MRSAS_MAX_PD * sizeof(struct mrsas_pd_list));
-			if (mrsas_get_pd_list(sc) != SUCCESS) {
-				device_printf(sc->mrsas_dev, "Get PD list failed from OCR.\n"
-				    "Will get the latest PD LIST after OCR on event.\n");
-			}
-			memset(sc->ld_ids, 0xff, MRSAS_MAX_LD_IDS);
-			if (mrsas_get_ld_list(sc) != SUCCESS) {
-				device_printf(sc->mrsas_dev, "Get LD lsit failed from OCR.\n"
-				    "Will get the latest LD LIST after OCR on event.\n");
-			}
 			mrsas_clear_bit(MRSAS_FUSION_IN_RESET, &sc->reset_flags);
 			mrsas_enable_intr(sc);
 			sc->adprecovery = MRSAS_HBA_OPERATIONAL;
@@ -4422,6 +4418,11 @@ mrsas_aen_handler(struct mrsas_softc *sc)
 		printf("invalid instance!\n");
 		return;
 	}
+	if (sc->remove_in_progress || sc->reset_in_progress) {
+		device_printf(sc->mrsas_dev, "Returning from %s, line no %d\n",
+			__func__, __LINE__);
+		return;
+	}
 	if (sc->evt_detail_mem) {
 		switch (sc->evt_detail_mem->code) {
 		case MR_EVT_PD_INSERTED:
@@ -4536,8 +4537,7 @@ mrsas_complete_aen(struct mrsas_softc *sc, struct mrsas_mfi_cmd *cmd)
 	sc->aen_cmd = NULL;
 	mrsas_release_mfi_cmd(cmd);
 
-	if (!sc->remove_in_progress)
-		taskqueue_enqueue(sc->ev_tq, &sc->ev_task);
+	taskqueue_enqueue(sc->ev_tq, &sc->ev_task);
 
 	return;
 }
