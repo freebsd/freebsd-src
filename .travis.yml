@@ -8,6 +8,6 @@ env:
   - BUILD_SYSTEM=cmake
   - BUILD_SYSTEM=autotools
 install:
-  - sudo apt-get install -y libbz2-dev libzip-dev liblzma-dev
+  - sudo apt-get install -y libbz2-dev libzip-dev liblzma-dev liblzo2-dev
 script:
   - build/ci_build.sh

@@ -23,7 +23,7 @@ TESTS_ENVIRONMENT= $(libarchive_TESTS_ENVIRONMENT) $(bsdtar_TESTS_ENVIRONMENT) $
 DISTCHECK_CONFIGURE_FLAGS = --enable-bsdtar --enable-bsdcpio
 # The next line is commented out by default in shipping libarchive releases.
 # It is uncommented by default in trunk.
-# DEV_CFLAGS=-Werror -Wextra -Wunused -Wshadow -Wmissing-prototypes -Wcast-qual -g
+DEV_CFLAGS=-Werror -Wextra -Wunused -Wshadow -Wmissing-prototypes -Wcast-qual -g
 AM_CFLAGS=$(DEV_CFLAGS)
 PLATFORMCPPFLAGS = @PLATFORMCPPFLAGS@
 AM_CPPFLAGS=$(PLATFORMCPPFLAGS)
@@ -33,6 +33,7 @@ AM_CPPFLAGS=$(PLATFORMCPPFLAGS)
 #
 EXTRA_DIST= \
 	CMakeLists.txt \
+	README.md \
 	build/autogen.sh \
 	build/bump-version.sh \
 	build/clean.sh \
@@ -371,6 +372,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_compat_pax_libarchive_2x.c \
 	libarchive/test/test_compat_solaris_tar_acl.c \
 	libarchive/test/test_compat_solaris_pax_sparse.c \
+	libarchive/test/test_compat_star_acl_posix1e.c \
 	libarchive/test/test_compat_tar_hardlink.c \
 	libarchive/test/test_compat_uudecode.c \
 	libarchive/test/test_compat_uudecode_large.c \
@@ -625,6 +627,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_compat_solaris_pax_sparse_1.pax.Z.uu \
 	libarchive/test/test_compat_solaris_pax_sparse_2.pax.Z.uu \
 	libarchive/test/test_compat_solaris_tar_acl.tar.uu \
+	libarchive/test/test_compat_star_acl_posix1e.tar.uu \
 	libarchive/test/test_compat_tar_hardlink_1.tar.uu \
 	libarchive/test/test_compat_uudecode_large.tar.Z.uu \
 	libarchive/test/test_compat_xz_1.txz.uu \

@@ -427,9 +427,6 @@
 /* Define to 1 if you have the `lzma' library (-llzma). */
 /* #undef HAVE_LIBLZMA */
 
-/* Define to 1 if you have the `lzmadec' library (-llzmadec). */
-/* #undef HAVE_LIBLZMADEC */
-
 /* Define to 1 if you have the `lzo2' library (-llzo2). */
 /* #undef HAVE_LIBLZO2 */
 
