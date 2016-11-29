@@ -1066,6 +1066,7 @@ ses_set_physpath(enc_softc_t *enc, enc_element_t *elm,
 	 */
 	xpt_setup_ccb(&cdai.ccb_h, enc->periph->path, CAM_PRIORITY_NORMAL);
 	cdai.ccb_h.func_code = XPT_DEV_ADVINFO;
+	cdai.flags = CDAI_FLAG_NONE;
 	cdai.buftype = CDAI_TYPE_SCSI_DEVID;
 	cdai.bufsiz = CAM_SCSI_DEVID_MAXLEN;
 	cdai.buf = devid = malloc(cdai.bufsiz, M_SCSIENC, M_WAITOK|M_ZERO);
