@@ -2927,6 +2927,7 @@ mrsas_reset_ctrl(struct mrsas_softc *sc, u_int8_t reset_reason)
 	struct mrsas_mfi_cmd *mfi_cmd;
 	struct mrsas_mpt_cmd *mpt_cmd;
 	union mrsas_evt_class_locale class_locale;
+	MRSAS_REQUEST_DESCRIPTOR_UNION *req_desc;
 
 	if (sc->adprecovery == MRSAS_HW_CRITICAL_ERROR) {
 		device_printf(sc->mrsas_dev,
@@ -3054,7 +3055,22 @@ mrsas_reset_ctrl(struct mrsas_softc *sc, u_int8_t reset_reason)
 				mpt_cmd = sc->mpt_cmd_list[j];
 				if (mpt_cmd->sync_cmd_idx != (u_int32_t)MRSAS_ULONG_MAX) {
 					mfi_cmd = sc->mfi_cmd_list[mpt_cmd->sync_cmd_idx];
-					mrsas_release_mfi_cmd(mfi_cmd);
+					/* If not an IOCTL then release the command else re-fire */
+					if (!mfi_cmd->sync_cmd) {
+						mrsas_release_mfi_cmd(mfi_cmd);
+					} else {
+						req_desc = mrsas_get_request_desc(sc,
+						    mfi_cmd->cmd_id.context.smid - 1);
+						mrsas_dprint(sc, MRSAS_OCR,
+						    "Re-fire command DCMD opcode 0x%x index %d\n ",
+						    mfi_cmd->frame->dcmd.opcode, j);
+						if (!req_desc)
+							device_printf(sc->mrsas_dev, 
+							    "Cannot build MPT cmd.\n");
+						else
+							mrsas_fire_cmd(sc, req_desc->addr.u.low,
+							    req_desc->addr.u.high);
+					}
 				}
 			}
 
@@ -3081,6 +3097,7 @@ mrsas_reset_ctrl(struct mrsas_softc *sc, u_int8_t reset_reason)
 			class_locale.members.locale = MR_EVT_LOCALE_ALL;
 			class_locale.members.class = MR_EVT_CLASS_DEBUG;
 
+			mtx_unlock(&sc->sim_lock);
 			if (mrsas_register_aen(sc, sc->last_seq_num,
 			    class_locale.word)) {
 				device_printf(sc->mrsas_dev,
@@ -3090,6 +3107,8 @@ mrsas_reset_ctrl(struct mrsas_softc *sc, u_int8_t reset_reason)
 				    "or the controller does not support AEN.\n"
 				    "Please contact to the SUPPORT TEAM if the problem persists\n");
 			}
+			mtx_lock(&sc->sim_lock);
+
 			/* Adapter reset completed successfully */
 			device_printf(sc->mrsas_dev, "Reset successful\n");
 			retval = SUCCESS;
@@ -3208,8 +3227,10 @@ mrsas_wait_for_outstanding(struct mrsas_softc *sc, u_int8_t check_reason)
 			mrsas_dprint(sc, MRSAS_OCR, "[%2d]waiting for %d "
 			    "commands to complete\n", i, outstanding);
 			count = sc->msix_vectors > 0 ? sc->msix_vectors : 1;
+			mtx_unlock(&sc->sim_lock);
 			for (MSIxIndex = 0; MSIxIndex < count; MSIxIndex++)
 				mrsas_complete_cmd(sc, MSIxIndex);
+			mtx_lock(&sc->sim_lock);
 		}
 		DELAY(1000 * 1000);
 	}
