@@ -1256,7 +1256,8 @@ enum MR_EVT_ARGS {
 #define	HOST_DIAG_WRITE_ENABLE						0x80
 #define	HOST_DIAG_RESET_ADAPTER						0x4
 #define	MRSAS_TBOLT_MAX_RESET_TRIES					3
-#define	MRSAS_MAX_MFI_CMDS							32
+#define MRSAS_MAX_MFI_CMDS                          16
+#define MRSAS_MAX_IOCTL_CMDS                        3
 
 /*
  * Invader Defines

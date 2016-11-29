@@ -153,7 +153,6 @@ extern void mrsas_cam_detach(struct mrsas_softc *sc);
 extern void mrsas_cmd_done(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd);
 extern void mrsas_free_frame(struct mrsas_softc *sc, struct mrsas_mfi_cmd *cmd);
 extern int mrsas_alloc_mfi_cmds(struct mrsas_softc *sc);
-extern void mrsas_release_mpt_cmd(struct mrsas_mpt_cmd *cmd);
 extern struct mrsas_mpt_cmd *mrsas_get_mpt_cmd(struct mrsas_softc *sc);
 extern int mrsas_passthru(struct mrsas_softc *sc, void *arg, u_long ioctlCmd);
 extern uint8_t MR_ValidateMapInfo(struct mrsas_softc *sc);
@@ -674,16 +673,14 @@ mrsas_register_aen(struct mrsas_softc *sc, u_int32_t seq_num,
 			    sc->aen_cmd);
 
 			if (ret_val) {
-				printf("mrsas: Failed to abort "
-				    "previous AEN command\n");
+				printf("mrsas: Failed to abort previous AEN command\n");
 				return ret_val;
 			}
 		}
 	}
 	cmd = mrsas_get_mfi_cmd(sc);
-
 	if (!cmd)
-		return -ENOMEM;
+		return ENOMEM;
 
 	dcmd = &cmd->frame->dcmd;
 
@@ -953,8 +950,7 @@ mrsas_ich_startup(void *arg)
 	/*
 	 * Intialize a counting Semaphore to take care no. of concurrent IOCTLs
 	 */
-	sema_init(&sc->ioctl_count_sema,
-	    MRSAS_MAX_MFI_CMDS - 5,
+	sema_init(&sc->ioctl_count_sema, MRSAS_MAX_IOCTL_CMDS,
 	    IOCTL_SEMA_DESCRIPTION);
 
 	/* Create a /dev entry for mrsas controller. */
@@ -1070,7 +1066,7 @@ mrsas_detach(device_t dev)
 	mtx_destroy(&sc->raidmap_lock);
 
 	/* Wait for all the semaphores to be released */
-	while (sema_value(&sc->ioctl_count_sema) != (MRSAS_MAX_MFI_CMDS - 5))
+	while (sema_value(&sc->ioctl_count_sema) != MRSAS_MAX_IOCTL_CMDS)
 		pause("mr_shutdown", hz);
 
 	/* Destroy the counting semaphore created for Ioctl */
@@ -1592,9 +1588,16 @@ mrsas_complete_cmd(struct mrsas_softc *sc, u_int32_t MSIxIndex)
 			break;
 		case MRSAS_MPI2_FUNCTION_PASSTHRU_IO_REQUEST:	/* MFI command */
 			cmd_mfi = sc->mfi_cmd_list[cmd_mpt->sync_cmd_idx];
-			mrsas_complete_mptmfi_passthru(sc, cmd_mfi, status);
-			cmd_mpt->flags = 0;
-			mrsas_release_mpt_cmd(cmd_mpt);
+			/*
+			 * Make sure NOT TO release the mfi command from the called
+			 * function's context if it is fired with issue_polled call.
+			 * And also make sure that the issue_polled call should only be
+			 * used if INTERRUPT IS DISABLED.
+			 */
+			if (cmd_mfi->frame->hdr.flags & MFI_FRAME_DONT_POST_IN_REPLY_QUEUE)
+				mrsas_release_mfi_cmd(cmd_mfi);
+			else
+				mrsas_complete_mptmfi_passthru(sc, cmd_mfi, status);
 			break;
 		}
 
@@ -2995,7 +2998,6 @@ mrsas_reset_ctrl(struct mrsas_softc *sc, u_int8_t reset_reason)
 				if (mpt_cmd->sync_cmd_idx != (u_int32_t)MRSAS_ULONG_MAX) {
 					mfi_cmd = sc->mfi_cmd_list[mpt_cmd->sync_cmd_idx];
 					mrsas_release_mfi_cmd(mfi_cmd);
-					mrsas_release_mpt_cmd(mpt_cmd);
 				}
 			}
 
@@ -3177,17 +3179,33 @@ out:
  * mrsas_release_mfi_cmd:	Return a cmd to free command pool
  * input:					Command packet for return to free cmd pool
  *
- * This function returns the MFI command to the command list.
+ * This function returns the MFI & MPT command to the command list.
  */
 void
-mrsas_release_mfi_cmd(struct mrsas_mfi_cmd *cmd)
+mrsas_release_mfi_cmd(struct mrsas_mfi_cmd *cmd_mfi)
 {
-	struct mrsas_softc *sc = cmd->sc;
+	struct mrsas_softc *sc = cmd_mfi->sc;
+	struct mrsas_mpt_cmd *cmd_mpt;
+
 
 	mtx_lock(&sc->mfi_cmd_pool_lock);
-	cmd->ccb_ptr = NULL;
-	cmd->cmd_id.frame_count = 0;
-	TAILQ_INSERT_TAIL(&(sc->mrsas_mfi_cmd_list_head), cmd, next);
+	/*
+	 * Release the mpt command (if at all it is allocated
+	 * associated with the mfi command
+	 */
+	if (cmd_mfi->cmd_id.context.smid) {
+		mtx_lock(&sc->mpt_cmd_pool_lock);
+		/* Get the mpt cmd from mfi cmd frame's smid value */
+		cmd_mpt = sc->mpt_cmd_list[cmd_mfi->cmd_id.context.smid-1];
+		cmd_mpt->flags = 0;
+		cmd_mpt->sync_cmd_idx = (u_int32_t)MRSAS_ULONG_MAX;
+		TAILQ_INSERT_HEAD(&(sc->mrsas_mpt_cmd_list_head), cmd_mpt, next);
+		mtx_unlock(&sc->mpt_cmd_pool_lock);
+	}
+	/* Release the mfi command */
+	cmd_mfi->ccb_ptr = NULL;
+	cmd_mfi->cmd_id.frame_count = 0;
+	TAILQ_INSERT_HEAD(&(sc->mrsas_mfi_cmd_list_head), cmd_mfi, next);
 	mtx_unlock(&sc->mfi_cmd_pool_lock);
 
 	return;
@@ -3253,8 +3271,6 @@ dcmd_timeout:
 
 	if (do_ocr)
 		sc->do_timedout_reset = MFI_DCMD_TIMEOUT_OCR;
-	else
-		mrsas_release_mfi_cmd(cmd);
 
 	return (retcode);
 }
@@ -3869,8 +3885,6 @@ megasas_sync_pd_seq_num(struct mrsas_softc *sc, boolean_t pend)
 dcmd_timeout:
 	if (do_ocr)
 		sc->do_timedout_reset = MFI_DCMD_TIMEOUT_OCR;
-	else
-		mrsas_release_mfi_cmd(cmd);
 
 	return (retcode);
 }
@@ -3947,8 +3961,6 @@ mrsas_get_ld_map_info(struct mrsas_softc *sc)
 	retcode = mrsas_issue_polled(sc, cmd);
 	if (retcode == ETIMEDOUT)
 		sc->do_timedout_reset = MFI_DCMD_TIMEOUT_OCR;
-	else
-		mrsas_release_mfi_cmd(cmd);
 
 	return (retcode);
 }
@@ -3975,9 +3987,8 @@ mrsas_sync_map_info(struct mrsas_softc *sc)
 
 	cmd = mrsas_get_mfi_cmd(sc);
 	if (!cmd) {
-		device_printf(sc->mrsas_dev,
-		    "Cannot alloc for sync map info cmd\n");
-		return 1;
+		device_printf(sc->mrsas_dev, "Cannot alloc for sync map info cmd\n");
+		return ENOMEM;
 	}
 	map = sc->ld_drv_map[sc->map_id & 1];
 	num_lds = map->raidMap.ldCount;
@@ -4077,7 +4088,11 @@ mrsas_get_pd_list(struct mrsas_softc *sc)
 	dcmd->sgl.sge32[0].phys_addr = pd_list_phys_addr;
 	dcmd->sgl.sge32[0].length = MRSAS_MAX_PD * sizeof(struct MR_PD_LIST);
 
-	retcode = mrsas_issue_polled(sc, cmd);
+	if (!sc->mask_interrupts)
+		retcode = mrsas_issue_blocked_cmd(sc, cmd);
+	else
+		retcode = mrsas_issue_polled(sc, cmd);
+
 	if (retcode == ETIMEDOUT)
 		goto dcmd_timeout;
 
@@ -4108,7 +4123,8 @@ dcmd_timeout:
 
 	if (do_ocr)
 		sc->do_timedout_reset = MFI_DCMD_TIMEOUT_OCR;
-	else
+
+	if (!sc->mask_interrupts)
 		mrsas_release_mfi_cmd(cmd);
 
 	return (retcode);
@@ -4170,7 +4186,11 @@ mrsas_get_ld_list(struct mrsas_softc *sc)
 	dcmd->sgl.sge32[0].length = sizeof(struct MR_LD_LIST);
 	dcmd->pad_0 = 0;
 
-	retcode = mrsas_issue_polled(sc, cmd);
+	if (!sc->mask_interrupts)
+		retcode = mrsas_issue_blocked_cmd(sc, cmd);
+	else
+		retcode = mrsas_issue_polled(sc, cmd);
+
 	if (retcode == ETIMEDOUT)
 		goto dcmd_timeout;
 
@@ -4196,7 +4216,7 @@ dcmd_timeout:
 
 	if (do_ocr)
 		sc->do_timedout_reset = MFI_DCMD_TIMEOUT_OCR;
-	else
+	if (!sc->mask_interrupts)
 		mrsas_release_mfi_cmd(cmd);
 
 	return (retcode);

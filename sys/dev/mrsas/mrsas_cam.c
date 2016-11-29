@@ -679,7 +679,7 @@ mrsas_release_mpt_cmd(struct mrsas_mpt_cmd *cmd)
 
 	mtx_lock(&sc->mpt_cmd_pool_lock);
 	cmd->sync_cmd_idx = (u_int32_t)MRSAS_ULONG_MAX;
-	TAILQ_INSERT_TAIL(&(sc->mrsas_mpt_cmd_list_head), cmd, next);
+	TAILQ_INSERT_HEAD(&(sc->mrsas_mpt_cmd_list_head), cmd, next);
 	mtx_unlock(&sc->mpt_cmd_pool_lock);
 
 	return;
