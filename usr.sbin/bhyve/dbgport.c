@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <sys/uio.h>
 
 #include <stdio.h>
@@ -55,8 +56,9 @@ static int
 dbg_handler(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 	    uint32_t *eax, void *arg)
 {
-	char ch;
 	int nwritten, nread, printonce;
+	int on = 1;
+	char ch;
 
 	if (bytes == 2 && in) {
 		*eax = BVM_DBG_SIG;
@@ -74,8 +76,16 @@ again:
 			printonce = 1;
 		}
 		conn_fd = accept4(listen_fd, NULL, NULL, SOCK_NONBLOCK);
-		if (conn_fd < 0 && errno != EINTR)
+		if (conn_fd >= 0) {
+			/* Avoid EPIPE after the client drops off. */
+			(void)setsockopt(conn_fd, SOL_SOCKET, SO_NOSIGPIPE,
+			    &on, sizeof(on));
+			/* Improve latency for one byte at a time tranfers. */
+			(void)setsockopt(conn_fd, IPPROTO_TCP, TCP_NODELAY,
+			    &on, sizeof(on));
+		} else if (errno != EINTR) {
 			perror("accept");
+		}
 	}
 
 	if (in) {
