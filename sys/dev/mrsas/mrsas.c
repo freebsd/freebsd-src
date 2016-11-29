@@ -432,6 +432,11 @@ mrsas_setup_sysctl(struct mrsas_softc *sc)
 	    OID_AUTO, "reset_in_progress", CTLFLAG_RD,
 	    &sc->reset_in_progress, 0, "ocr in progress status");
 
+	SYSCTL_ADD_UINT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
+	    OID_AUTO, "block_sync_cache", CTLFLAG_RW,
+	    &sc->block_sync_cache, 0,
+	    "Block SYNC CACHE at driver. <default: 0, send it to FW>");
+
 }
 
 /*
@@ -451,6 +456,7 @@ mrsas_get_tunables(struct mrsas_softc *sc)
 	sc->mrsas_fw_fault_check_delay = 1;
 	sc->reset_count = 0;
 	sc->reset_in_progress = 0;
+	sc->block_sync_cache = 0;
 
 	/*
 	 * Grab the global variables.
@@ -2438,12 +2444,21 @@ mrsas_ioc_init(struct mrsas_softc *sc)
 	u_int8_t max_wait = MRSAS_IOC_INIT_WAIT_TIME;
 	bus_addr_t phys_addr;
 	int i, retcode = 0;
+	u_int32_t scratch_pad_2;
 
 	/* Allocate memory for the IOC INIT command */
 	if (mrsas_alloc_ioc_cmd(sc)) {
 		device_printf(sc->mrsas_dev, "Cannot allocate IOC command.\n");
 		return (1);
 	}
+
+	if (!sc->block_sync_cache) {
+		scratch_pad_2 = mrsas_read_reg(sc, offsetof(mrsas_reg_set,
+		    outbound_scratch_pad_2));
+		sc->fw_sync_cache_support = (scratch_pad_2 &
+		    MR_CAN_HANDLE_SYNC_CACHE_OFFSET) ? 1 : 0;
+	}
+
 	IOCInitMsg = (pMpi2IOCInitRequest_t)(((char *)sc->ioc_init_mem) + 1024);
 	IOCInitMsg->Function = MPI2_FUNCTION_IOC_INIT;
 	IOCInitMsg->WhoInit = MPI2_WHOINIT_HOST_DRIVER;
