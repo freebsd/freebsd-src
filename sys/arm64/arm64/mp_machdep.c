@@ -106,12 +106,14 @@ struct pcb stoppcbs[MAXCPU];
 
 static device_t cpu_list[MAXCPU];
 
+#ifdef FDT
 /*
  * Not all systems boot from the first CPU in the device tree. To work around
  * this we need to find which CPU we have booted from so when we later
  * enable the secondary CPUs we skip this one.
  */
 static int cpu0 = -1;
+#endif
 
 void mpentry(unsigned long cpuid);
 void init_secondary(uint64_t);
