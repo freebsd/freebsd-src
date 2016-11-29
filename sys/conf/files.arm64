@@ -49,22 +49,22 @@ arm/arm/generic_timer.c		standard
 arm/arm/gic.c			standard
 arm/arm/gic_fdt.c		optional	fdt
 arm/arm/pmu.c			standard
-arm/broadcom/bcm2835/bcm2835_audio.c		optional sound vchiq \
+arm/broadcom/bcm2835/bcm2835_audio.c		optional sound vchiq fdt \
 	compile-with "${NORMAL_C} -DUSE_VCHIQ_ARM -D__VCCOREVER__=0x04000000 -I$S/contrib/vchiq"
-arm/broadcom/bcm2835/bcm2835_bsc.c		optional bcm2835_bsc soc_brcm_bcm2837
-arm/broadcom/bcm2835/bcm2835_cpufreq.c		optional soc_brcm_bcm2837
-arm/broadcom/bcm2835/bcm2835_dma.c		optional soc_brcm_bcm2837
-arm/broadcom/bcm2835/bcm2835_fbd.c		optional vt soc_brcm_bcm2837
-arm/broadcom/bcm2835/bcm2835_ft5406.c		optional evdev bcm2835_ft5406 soc_brcm_bcm2837
-arm/broadcom/bcm2835/bcm2835_gpio.c		optional gpio soc_brcm_bcm2837
-arm/broadcom/bcm2835/bcm2835_intr.c		optional soc_brcm_bcm2837
-arm/broadcom/bcm2835/bcm2835_mbox.c		optional soc_brcm_bcm2837
-arm/broadcom/bcm2835/bcm2835_rng.c		optional random soc_brcm_bcm2837
-arm/broadcom/bcm2835/bcm2835_sdhci.c		optional sdhci soc_brcm_bcm2837
-arm/broadcom/bcm2835/bcm2835_spi.c		optional bcm2835_spi soc_brcm_bcm2837
-arm/broadcom/bcm2835/bcm2835_vcio.c		optional soc_brcm_bcm2837
-arm/broadcom/bcm2835/bcm2835_wdog.c		optional soc_brcm_bcm2837
-arm/broadcom/bcm2835/bcm2836.c			optional soc_brcm_bcm2837
+arm/broadcom/bcm2835/bcm2835_bsc.c		optional bcm2835_bsc soc_brcm_bcm2837 fdt
+arm/broadcom/bcm2835/bcm2835_cpufreq.c		optional soc_brcm_bcm2837 fdt
+arm/broadcom/bcm2835/bcm2835_dma.c		optional soc_brcm_bcm2837 fdt
+arm/broadcom/bcm2835/bcm2835_fbd.c		optional vt soc_brcm_bcm2837 fdt
+arm/broadcom/bcm2835/bcm2835_ft5406.c		optional evdev bcm2835_ft5406 soc_brcm_bcm2837 fdt
+arm/broadcom/bcm2835/bcm2835_gpio.c		optional gpio soc_brcm_bcm2837 fdt
+arm/broadcom/bcm2835/bcm2835_intr.c		optional soc_brcm_bcm2837 fdt
+arm/broadcom/bcm2835/bcm2835_mbox.c		optional soc_brcm_bcm2837 fdt
+arm/broadcom/bcm2835/bcm2835_rng.c		optional random soc_brcm_bcm2837 fdt
+arm/broadcom/bcm2835/bcm2835_sdhci.c		optional sdhci soc_brcm_bcm2837 fdt
+arm/broadcom/bcm2835/bcm2835_spi.c		optional bcm2835_spi soc_brcm_bcm2837 fdt
+arm/broadcom/bcm2835/bcm2835_vcio.c		optional soc_brcm_bcm2837 fdt
+arm/broadcom/bcm2835/bcm2835_wdog.c		optional soc_brcm_bcm2837 fdt
+arm/broadcom/bcm2835/bcm2836.c			optional soc_brcm_bcm2837 fdt
 arm/broadcom/bcm2835/bcm283x_dwc_fdt.c		optional dwcotg fdt soc_brcm_bcm2837
 arm64/acpica/acpi_machdep.c	optional	acpi
 arm64/acpica/OsdEnvironment.c	optional	acpi
