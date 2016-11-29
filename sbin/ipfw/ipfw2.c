@@ -3221,7 +3221,7 @@ ipfw_delete(char *av[])
 				exitval = EX_UNAVAILABLE;
 				warn("rule %u: setsockopt(IP_FW_XDEL)",
 				    rt.start_rule);
-			} else if (rt.new_set == 0) {
+			} else if (rt.new_set == 0 && do_set == 0) {
 				exitval = EX_UNAVAILABLE;
 				if (rt.start_rule != rt.end_rule)
 					warnx("no rules rules in %u-%u range",
