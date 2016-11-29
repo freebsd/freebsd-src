@@ -89,8 +89,15 @@ for action in ${ACTIONS}; do
 		;;
 		test)
 			case "${BUILD_SYSTEM}" in
-				autotools) make ${MAKE_ARGS} check ;;
-				cmake) make ${MAKE_ARGS} test ;;
+				autotools)
+					if ! make ${MAKE_ARGS} check; then
+						cat test-suite.log
+						exit 1
+					fi
+					;;
+				cmake)
+					make ${MAKE_ARGS} test
+					;;
 			esac
 			RET="$?"
 		;;

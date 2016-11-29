@@ -326,14 +326,6 @@ if test "x$with_bz2lib" != "xno"; then
   esac
 fi
 
-AC_ARG_WITH([lzmadec],
-  AS_HELP_STRING([--without-lzmadec], [Don't build support for lzma through lzmadec]))
-
-if test "x$with_lzmadec" != "xno"; then
-  AC_CHECK_HEADERS([lzmadec.h])
-  AC_CHECK_LIB(lzmadec,lzmadec_decode)
-fi
-
 AC_ARG_WITH([iconv],
   AS_HELP_STRING([--without-iconv], [Don't try to link against iconv]))
 
@@ -711,8 +703,19 @@ if test "x$enable_acl" != "xno"; then
     # (It's a pretty obvious oversight; otherwise, there's no way to
     # test for specific permissions in a permset.)  Linux uses the obvious
     # name, FreeBSD adds _np to mark it as "non-Posix extension."
-    # Test for both as a double-check that we really have POSIX-style ACL support.
+    # Test for both as a double-check that we really have POSIX-style ACL
+    # support.
     AC_CHECK_FUNCS(acl_get_perm_np acl_get_perm acl_get_link acl_get_link_np,,,
+	[#if HAVE_SYS_TYPES_H
+	#include <sys/types.h>
+	#endif
+	#if HAVE_SYS_ACL_H
+	#include <sys/acl.h>
+	#endif
+	])
+
+    # Check for acl_is_trivial_np on FreeBSD
+    AC_CHECK_FUNCS(acl_is_trivial_np,,,
 	[#if HAVE_SYS_TYPES_H
 	#include <sys/types.h>
 	#endif

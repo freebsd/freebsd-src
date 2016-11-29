@@ -294,6 +294,46 @@ archive_read_format_tar_cleanup(struct archive_read *a)
 	return (ARCHIVE_OK);
 }
 
+static int
+validate_number_field(const char* p_field, size_t i_size)
+{
+	unsigned char marker = (unsigned char)p_field[0];
+	/* octal? */
+	if ((marker >= '0' && marker <= '7') || marker == ' ') {
+		size_t i = 0;
+		int octal_found = 0;
+		for (i = 0; i < i_size; ++i) {
+			switch (p_field[i])
+			{
+			case ' ': /* skip any leading spaces and trailing space*/
+				if (octal_found == 0 || i == i_size - 1) {
+					continue;
+				}
+				break;
+			case '\0': /* null is allowed only at the end */
+				if (i != i_size - 1) {
+					return 0;
+				}
+				break;
+			/* rest must be octal digits */
+			case '0': case '1': case '2': case '3':
+			case '4': case '5': case '6': case '7':
+				++octal_found;
+				break;
+			}
+		}
+		return octal_found > 0;
+	}
+	/* base 256 (i.e. binary number) */
+	else if (marker == 128 || marker == 255 || marker == 0) {
+		/* nothing to check */
+		return 1;
+	}
+	/* not a number field */
+	else {
+		return 0;
+	}
+}
 
 static int
 archive_read_format_tar_bid(struct archive_read *a, int best_bid)
@@ -346,23 +386,23 @@ archive_read_format_tar_bid(struct archive_read *a, int best_bid)
 		return (0);
 	bid += 2;  /* 6 bits of variation in an 8-bit field leaves 2 bits. */
 
-	/* Sanity check: Look at first byte of mode field. */
-	switch (255 & (unsigned)header->mode[0]) {
-	case 0: case 255:
-		/* Base-256 value: No further verification possible! */
-		break;
-	case ' ': /* Not recommended, but not illegal, either. */
-		break;
-	case '0': case '1': case '2': case '3':
-	case '4': case '5': case '6': case '7':
-		/* Octal Value. */
-		/* TODO: Check format of remainder of this field. */
-		break;
-	default:
-		/* Not a valid mode; bail out here. */
-		return (0);
+	/*
+	 * Check format of mode/uid/gid/mtime/size/rdevmajor/rdevminor fields.
+	 * These are usually octal numbers but GNU tar encodes "big" values as
+	 * base256 and leading zeroes are sometimes replaced by spaces.
+	 * Even the null terminator is sometimes omitted. Anyway, must be checked
+	 * to avoid false positives.
+	 */
+	if (bid > 0 &&
+		(validate_number_field(header->mode, sizeof(header->mode)) == 0 ||
+		 validate_number_field(header->uid, sizeof(header->uid)) == 0 ||
+		 validate_number_field(header->gid, sizeof(header->gid)) == 0 ||
+		 validate_number_field(header->mtime, sizeof(header->mtime)) == 0 ||
+		 validate_number_field(header->size, sizeof(header->size)) == 0 ||
+		 validate_number_field(header->rdevmajor, sizeof(header->rdevmajor)) == 0 ||
+		 validate_number_field(header->rdevminor, sizeof(header->rdevminor)) == 0)) {
+			bid = 0;
 	}
-	/* TODO: Sanity test uid/gid/size/mtime/rdevmajor/rdevminor fields. */
 
 	return (bid);
 }
