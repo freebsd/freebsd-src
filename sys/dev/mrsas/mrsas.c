@@ -1359,9 +1359,11 @@ mrsas_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag,
 	if (!sc)
 		return ENOENT;
 
-	if (sc->remove_in_progress) {
+	if (sc->remove_in_progress ||
+		(sc->adprecovery == MRSAS_HW_CRITICAL_ERROR)) {
 		mrsas_dprint(sc, MRSAS_INFO,
-		    "Driver remove or shutdown called.\n");
+		    "Either driver remove or shutdown called or "
+			"HW is in unrecoverable critical error state.\n");
 		return ENOENT;
 	}
 	mtx_lock_spin(&sc->ioctl_lock);

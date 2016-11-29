@@ -260,6 +260,17 @@ mrsas_action(struct cam_sim *sim, union ccb *ccb)
 	struct ccb_hdr *ccb_h = &(ccb->ccb_h);
 	u_int32_t device_id;
 
+	/*
+     * Check if the system going down
+     * or the adapter is in unrecoverable critical error
+     */
+    if (sc->remove_in_progress ||
+        (sc->adprecovery == MRSAS_HW_CRITICAL_ERROR)) {
+        ccb->ccb_h.status |= CAM_DEV_NOT_THERE;
+        xpt_done(ccb);
+        return;
+    }
+
 	switch (ccb->ccb_h.func_code) {
 	case XPT_SCSI_IO:
 		{
