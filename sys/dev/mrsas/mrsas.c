@@ -3250,7 +3250,11 @@ mrsas_get_ctrl_info(struct mrsas_softc *sc)
 	dcmd->sgl.sge32[0].phys_addr = sc->ctlr_info_phys_addr;
 	dcmd->sgl.sge32[0].length = sizeof(struct mrsas_ctrl_info);
 
-	retcode = mrsas_issue_polled(sc, cmd);
+	if (!sc->mask_interrupts)
+		retcode = mrsas_issue_blocked_cmd(sc, cmd);
+	else
+		retcode = mrsas_issue_polled(sc, cmd);
+
 	if (retcode == ETIMEDOUT)
 		goto dcmd_timeout;
 	else
@@ -3261,12 +3265,17 @@ mrsas_get_ctrl_info(struct mrsas_softc *sc)
 
 	sc->use_seqnum_jbod_fp =
 	    sc->ctrl_info->adapterOperations3.useSeqNumJbodFP;
+	sc->disableOnlineCtrlReset =
+	    sc->ctrl_info->properties.OnOffProperties.disableOnlineCtrlReset;
 
 dcmd_timeout:
 	mrsas_free_ctlr_info_cmd(sc);
 
 	if (do_ocr)
 		sc->do_timedout_reset = MFI_DCMD_TIMEOUT_OCR;
+
+	if (!sc->mask_interrupts)
+		mrsas_release_mfi_cmd(cmd);
 
 	return (retcode);
 }
@@ -4379,7 +4388,6 @@ mrsas_aen_handler(struct mrsas_softc *sc)
 				mrsas_bus_scan_sim(sc, sc->sim_1);
 			else
 				goto skip_register_aen;
-			doscan = 0;
 			break;
 		case MR_EVT_PD_REMOVED:
 			fail_aen = mrsas_get_pd_list(sc);
@@ -4387,13 +4395,11 @@ mrsas_aen_handler(struct mrsas_softc *sc)
 				mrsas_bus_scan_sim(sc, sc->sim_1);
 			else
 				goto skip_register_aen;
-			doscan = 0;
 			break;
 		case MR_EVT_LD_OFFLINE:
 		case MR_EVT_CFG_CLEARED:
 		case MR_EVT_LD_DELETED:
 			mrsas_bus_scan_sim(sc, sc->sim_0);
-			doscan = 0;
 			break;
 		case MR_EVT_LD_CREATED:
 			fail_aen = mrsas_get_ld_list(sc);
@@ -4401,15 +4407,18 @@ mrsas_aen_handler(struct mrsas_softc *sc)
 				mrsas_bus_scan_sim(sc, sc->sim_0);
 			else
 				goto skip_register_aen;
-			doscan = 0;
 			break;
 		case MR_EVT_CTRL_HOST_BUS_SCAN_REQUESTED:
 		case MR_EVT_FOREIGN_CFG_IMPORTED:
 		case MR_EVT_LD_STATE_CHANGE:
 			doscan = 1;
 			break;
+		case MR_EVT_CTRL_PROP_CHANGED:
+			fail_aen = mrsas_get_ctrl_info(sc);
+			if (fail_aen)
+				goto skip_register_aen;
+			break;
 		default:
-			doscan = 0;
 			break;
 		}
 	} else {
