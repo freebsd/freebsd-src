@@ -2795,6 +2795,7 @@ struct mrsas_softc {
 	LD_LOAD_BALANCE_INFO load_balance_info[MAX_LOGICAL_DRIVES_EXT];
 	LD_SPAN_INFO log_to_span[MAX_LOGICAL_DRIVES_EXT];
 
+	u_int8_t mrsas_gen3_ctrl;
 	u_int8_t secure_jbod_support;
 	u_int8_t use_seqnum_jbod_fp;
 	u_int8_t max256vdSupport;
