@@ -205,7 +205,9 @@ typedef struct _RAID_CONTEXT {
 #define	MPI2_SCSIIO_EEDPFLAGS_CHECK_GUARD		(0x0100)
 #define	MPI2_SCSIIO_EEDPFLAGS_INSERT_OP			(0x0004)
 #define	MPI2_FUNCTION_SCSI_IO_REQUEST			(0x00)	/* SCSI IO */
-#define	MPI2_REQ_DESCRIPT_FLAGS_HIGH_PRIORITY	(0x06)
+#define	MPI2_FUNCTION_SCSI_TASK_MGMT			(0x01)
+#define	MPI2_REQ_DESCRIPT_FLAGS_HIGH_PRIORITY	(0x03)
+#define	MPI2_REQ_DESCRIPT_FLAGS_FP_IO			(0x06)
 #define	MPI2_REQ_DESCRIPT_FLAGS_SCSI_IO			(0x00)
 #define	MPI2_SGE_FLAGS_64_BIT_ADDRESSING		(0x02)
 #define	MPI2_SCSIIO_CONTROL_WRITE				(0x01000000)
@@ -313,6 +315,91 @@ typedef union {
 	MPI2_SGE_SIMPLE_UNION SGE;
 }	MPI2_SCSI_IO_CDB_UNION, MPI2_POINTER PTR_MPI2_SCSI_IO_CDB_UNION,
 Mpi2ScsiIoCdb_t, MPI2_POINTER pMpi2ScsiIoCdb_t;
+
+/****************************************************************************
+ *  *  SCSI Task Management messages
+ *   ****************************************************************************/
+
+/*SCSI Task Management Request Message */
+typedef struct _MPI2_SCSI_TASK_MANAGE_REQUEST {
+	u_int16_t DevHandle;        /*0x00 */
+	u_int8_t ChainOffset;       /*0x02 */
+	u_int8_t Function;      /*0x03 */
+	u_int8_t Reserved1;     /*0x04 */
+	u_int8_t TaskType;      /*0x05 */
+	u_int8_t Reserved2;     /*0x06 */
+	u_int8_t MsgFlags;      /*0x07 */
+	u_int8_t VP_ID;     /*0x08 */
+	u_int8_t VF_ID;     /*0x09 */
+	u_int16_t Reserved3;        /*0x0A */
+	u_int8_t LUN[8];        /*0x0C */
+	u_int32_t Reserved4[7]; /*0x14 */
+	u_int16_t TaskMID;      /*0x30 */
+	u_int16_t Reserved5;        /*0x32 */
+} MPI2_SCSI_TASK_MANAGE_REQUEST;
+
+/*SCSI Task Management Reply Message */
+typedef struct _MPI2_SCSI_TASK_MANAGE_REPLY {
+	u_int16_t DevHandle;        /*0x00 */
+	u_int8_t MsgLength;     /*0x02 */
+	u_int8_t Function;      /*0x03 */
+	u_int8_t ResponseCode;  /*0x04 */
+	u_int8_t TaskType;      /*0x05 */
+	u_int8_t Reserved1;     /*0x06 */
+	u_int8_t MsgFlags;      /*0x07 */
+	u_int8_t VP_ID;     /*0x08 */
+	u_int8_t VF_ID;     /*0x09 */
+	u_int16_t Reserved2;        /*0x0A */
+	u_int16_t Reserved3;        /*0x0C */
+	u_int16_t IOCStatus;        /*0x0E */
+	u_int32_t IOCLogInfo;       /*0x10 */
+	u_int32_t TerminationCount; /*0x14 */
+	u_int32_t ResponseInfo; /*0x18 */
+} MPI2_SCSI_TASK_MANAGE_REPLY;
+
+typedef struct _MR_TM_REQUEST {
+	char request[128];
+} MR_TM_REQUEST;
+
+typedef struct _MR_TM_REPLY {
+	char reply[128];
+} MR_TM_REPLY;
+
+/* SCSI Task Management Request Message */
+typedef struct _MR_TASK_MANAGE_REQUEST {
+	/*To be type casted to struct MPI2_SCSI_TASK_MANAGE_REQUEST */
+	MR_TM_REQUEST        TmRequest;
+	union {
+		struct {
+			u_int32_t isTMForLD:1;
+			u_int32_t isTMForPD:1;
+			u_int32_t reserved1:30;
+			u_int32_t reserved2;
+		} tmReqFlags;
+		MR_TM_REPLY   TMReply;
+	} uTmReqReply;
+} MR_TASK_MANAGE_REQUEST;
+
+/* TaskType values */
+#define MPI2_SCSITASKMGMT_TASKTYPE_ABORT_TASK           (0x01)
+#define MPI2_SCSITASKMGMT_TASKTYPE_ABRT_TASK_SET        (0x02)
+#define MPI2_SCSITASKMGMT_TASKTYPE_TARGET_RESET         (0x03)
+#define MPI2_SCSITASKMGMT_TASKTYPE_LOGICAL_UNIT_RESET   (0x05)
+#define MPI2_SCSITASKMGMT_TASKTYPE_CLEAR_TASK_SET       (0x06)
+#define MPI2_SCSITASKMGMT_TASKTYPE_QUERY_TASK           (0x07)
+#define MPI2_SCSITASKMGMT_TASKTYPE_CLR_ACA              (0x08)
+#define MPI2_SCSITASKMGMT_TASKTYPE_QRY_TASK_SET         (0x09)
+#define MPI2_SCSITASKMGMT_TASKTYPE_QRY_ASYNC_EVENT      (0x0A)
+
+/* ResponseCode values */
+#define MPI2_SCSITASKMGMT_RSP_TM_COMPLETE               (0x00)
+#define MPI2_SCSITASKMGMT_RSP_INVALID_FRAME             (0x02)
+#define MPI2_SCSITASKMGMT_RSP_TM_NOT_SUPPORTED          (0x04)
+#define MPI2_SCSITASKMGMT_RSP_TM_FAILED                 (0x05)
+#define MPI2_SCSITASKMGMT_RSP_TM_SUCCEEDED              (0x08)
+#define MPI2_SCSITASKMGMT_RSP_TM_INVALID_LUN            (0x09)
+#define MPI2_SCSITASKMGMT_RSP_TM_OVERLAPPED_TAG         (0x0A)
+#define MPI2_SCSITASKMGMT_RSP_IO_QUEUED_ON_IOC          (0x80)
 
 /*
  * RAID SCSI IO Request Message Total SGE count will be one less than
@@ -584,7 +671,7 @@ Mpi2IOCInitRequest_t, MPI2_POINTER pMpi2IOCInitRequest_t;
 #define	MAX_RAIDMAP_PHYSICAL_DEVICES	(MAX_PHYSICAL_DEVICES)
 #define	MR_DCMD_LD_MAP_GET_INFO	0x0300e101
 #define	MR_DCMD_SYSTEM_PD_MAP_GET_INFO	0x0200e102
-
+#define MR_DCMD_PD_MFI_TASK_MGMT	0x0200e100
 
 #define	MRSAS_MAX_PD_CHANNELS		1
 #define	MRSAS_MAX_LD_CHANNELS		1
@@ -599,7 +686,7 @@ Mpi2IOCInitRequest_t, MPI2_POINTER pMpi2IOCInitRequest_t;
 
 
 #define	VD_EXT_DEBUG	0
-
+#define TM_DEBUG		1
 
 /*******************************************************************
  * RAID map related structures
@@ -659,7 +746,8 @@ typedef struct _MR_LD_RAID {
 		u_int32_t fpWriteAcrossStripe:1;
 		u_int32_t fpReadAcrossStripe:1;
 		u_int32_t fpNonRWCapable:1;
-		u_int32_t reserved4:7;
+		u_int32_t tmCapable:1;
+		u_int32_t reserved4:6;
 	}	capability;
 	u_int32_t reserved6;
 	u_int64_t size;
@@ -876,7 +964,11 @@ struct IO_REQUEST_INFO {
 struct MR_PD_CFG_SEQ {
 	u_int16_t seqNum;
 	u_int16_t devHandle;
-	u_int8_t reserved[4];
+	struct {
+		u_int8_t tmCapable:1;
+		u_int8_t reserved:7;
+	} capability;
+	u_int8_t reserved[3];
 } __packed;
 
 struct MR_PD_CFG_SEQ_NUM_SYNC {
@@ -1396,6 +1488,7 @@ struct mrsas_mpt_cmd {
 	union ccb *ccb_ptr;
 	struct callout cm_callout;
 	struct mrsas_softc *sc;
+	boolean_t tmCapable;
 	TAILQ_ENTRY(mrsas_mpt_cmd) next;
 };
 
@@ -2472,8 +2565,7 @@ struct mrsas_irq_context {
 
 enum MEGASAS_OCR_REASON {
 	FW_FAULT_OCR = 0,
-	SCSIIO_TIMEOUT_OCR = 1,
-	MFI_DCMD_TIMEOUT_OCR = 2,
+	MFI_DCMD_TIMEOUT_OCR = 1,
 };
 
 /* Controller management info added to support Linux Emulator */
@@ -2748,6 +2840,9 @@ struct mrsas_softc {
 	u_int8_t do_timedout_reset;
 	u_int32_t reset_in_progress;
 	u_int32_t reset_count;
+	mrsas_atomic_t target_reset_outstanding;
+#define MRSAS_MAX_TM_TARGETS (MRSAS_MAX_PD + MRSAS_MAX_LD_IDS)
+    struct mrsas_mpt_cmd *target_reset_pool[MRSAS_MAX_TM_TARGETS];
 
 	bus_dma_tag_t jbodmap_tag[2];
 	bus_dmamap_t jbodmap_dmamap[2];
