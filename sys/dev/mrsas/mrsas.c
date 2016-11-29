@@ -675,7 +675,8 @@ mrsas_register_aen(struct mrsas_softc *sc, u_int32_t seq_num,
 			if (ret_val) {
 				printf("mrsas: Failed to abort previous AEN command\n");
 				return ret_val;
-			}
+			} else
+				sc->aen_cmd = NULL;
 		}
 	}
 	cmd = mrsas_get_mfi_cmd(sc);
