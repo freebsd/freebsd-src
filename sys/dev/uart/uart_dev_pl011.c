@@ -443,6 +443,8 @@ uart_pl011_bus_receive(struct uart_softc *sc)
 			sc->sc_rxbuf[sc->sc_rxput] = UART_STAT_OVERRUN;
 			break;
 		}
+
+		__uart_setreg(bas, UART_ICR, (UART_RXREADY | RIS_RTIM));
 		xc = __uart_getreg(bas, UART_DR);
 		rx = xc & 0xff;
 
@@ -450,8 +452,6 @@ uart_pl011_bus_receive(struct uart_softc *sc)
 			rx |= UART_STAT_FRAMERR;
 		if (xc & DR_PE)
 			rx |= UART_STAT_PARERR;
-
-		__uart_setreg(bas, UART_ICR, (UART_RXREADY | RIS_RTIM));
 
 		uart_rx_put(sc, rx);
 		ints = __uart_getreg(bas, UART_MIS);
