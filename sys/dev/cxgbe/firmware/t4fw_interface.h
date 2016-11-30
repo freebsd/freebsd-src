@@ -114,6 +114,7 @@ enum fw_wr_opcodes {
 	FW_RI_RECV_WR		= 0x17,
 	FW_RI_BIND_MW_WR	= 0x18,
 	FW_RI_FR_NSMR_WR	= 0x19,
+	FW_RI_FR_NSMR_TPTE_WR	= 0x20,
 	FW_RI_INV_LSTAG_WR	= 0x1a,
 	FW_RI_SEND_IMMEDIATE_WR	= 0x15,
 	FW_RI_ATOMIC_WR		= 0x16,
@@ -915,7 +916,8 @@ enum fw_flowc_mnem {
 	FW_FLOWC_MNEM_DCBPRIO		= 12,
 	FW_FLOWC_MNEM_SND_SCALE		= 13,
 	FW_FLOWC_MNEM_RCV_SCALE		= 14,
-	FW_FLOWC_MNEM_MAX		= 15,
+	FW_FLOWC_MNEM_ULP_MODE		= 15,
+	FW_FLOWC_MNEM_MAX		= 16,
 };
 
 struct fw_flowc_mnemval {
@@ -1338,7 +1340,7 @@ struct fw_ri_cqe {
 		struct fw_ri_scqe {
 		__be32	qpid_n_stat_rxtx_type;
 		__be32	plen;
-		__be32	reserved;
+		__be32	stag;
 		__be32	wrid;
 		} scqe;
 		struct fw_ri_rcqe {
@@ -1805,6 +1807,18 @@ struct fw_ri_fr_nsmr_wr {
 #define V_FW_RI_FR_NSMR_WR_DCACPU(x)	((x) << S_FW_RI_FR_NSMR_WR_DCACPU)
 #define G_FW_RI_FR_NSMR_WR_DCACPU(x)	\
     (((x) >> S_FW_RI_FR_NSMR_WR_DCACPU) & M_FW_RI_FR_NSMR_WR_DCACPU)
+
+struct fw_ri_fr_nsmr_tpte_wr {
+	__u8   opcode;
+	__u8   flags;
+	__u16  wrid;
+	__u8   r1[3];
+	__u8   len16;
+	__be32 r2;
+	__be32 stag;
+	struct fw_ri_tpte tpte;
+	__be64 pbl[2];
+};
 
 struct fw_ri_inv_lstag_wr {
 	__u8   opcode;
@@ -3394,7 +3408,10 @@ struct fw_tlstx_data_wr {
         __be32 ddraddr;
         __be32 ctxloc_to_exp;
         __be16 mfs;
-        __u8   r6[6];
+        __be16 adjustedplen_pkd;
+        __be16 expinplenmax_pkd;
+        __u8   pdusinplenmax_pkd;
+        __u8   r9;
 };
 
 #define S_FW_TLSTX_DATA_WR_COMPL        21
@@ -3482,6 +3499,30 @@ struct fw_tlstx_data_wr {
 #define V_FW_TLSTX_DATA_WR_EXP(x)       ((x) << S_FW_TLSTX_DATA_WR_EXP)
 #define G_FW_TLSTX_DATA_WR_EXP(x)       \
     (((x) >> S_FW_TLSTX_DATA_WR_EXP) & M_FW_TLSTX_DATA_WR_EXP)
+
+#define S_FW_TLSTX_DATA_WR_ADJUSTEDPLEN 1
+#define M_FW_TLSTX_DATA_WR_ADJUSTEDPLEN 0x7fff
+#define V_FW_TLSTX_DATA_WR_ADJUSTEDPLEN(x) \
+            ((x) << S_FW_TLSTX_DATA_WR_ADJUSTEDPLEN)
+#define G_FW_TLSTX_DATA_WR_ADJUSTEDPLEN(x) \
+            (((x) >> S_FW_TLSTX_DATA_WR_ADJUSTEDPLEN) & \
+                  M_FW_TLSTX_DATA_WR_ADJUSTEDPLEN)
+
+#define S_FW_TLSTX_DATA_WR_EXPINPLENMAX 4
+#define M_FW_TLSTX_DATA_WR_EXPINPLENMAX 0xfff
+#define V_FW_TLSTX_DATA_WR_EXPINPLENMAX(x) \
+            ((x) << S_FW_TLSTX_DATA_WR_EXPINPLENMAX)
+#define G_FW_TLSTX_DATA_WR_EXPINPLENMAX(x) \
+            (((x) >> S_FW_TLSTX_DATA_WR_EXPINPLENMAX) & \
+                  M_FW_TLSTX_DATA_WR_EXPINPLENMAX)
+
+#define S_FW_TLSTX_DATA_WR_PDUSINPLENMAX 2
+#define M_FW_TLSTX_DATA_WR_PDUSINPLENMAX 0x3f
+#define V_FW_TLSTX_DATA_WR_PDUSINPLENMAX(x) \
+            ((x) << S_FW_TLSTX_DATA_WR_PDUSINPLENMAX)
+#define G_FW_TLSTX_DATA_WR_PDUSINPLENMAX(x) \
+            (((x) >> S_FW_TLSTX_DATA_WR_PDUSINPLENMAX) & \
+                  M_FW_TLSTX_DATA_WR_PDUSINPLENMAX)
 
 struct fw_tls_keyctx_tx_wr {
         __be32 op_to_compl;
@@ -3897,6 +3938,14 @@ struct fw_crypto_lookaside_wr {
 #define G_FW_CRYPTO_LOOKASIDE_WR_IV(x) \
     (((x) >> S_FW_CRYPTO_LOOKASIDE_WR_IV) & M_FW_CRYPTO_LOOKASIDE_WR_IV)
 
+#define S_FW_CRYPTO_LOOKASIDE_WR_FQIDX  15
+#define M_FW_CRYPTO_LOOKASIDE_WR_FQIDX  0xff
+#define V_FW_CRYPTO_LOOKASIDE_WR_FQIDX(x) \
+	((x) << S_FW_CRYPTO_LOOKASIDE_WR_FQIDX)
+#define G_FW_CRYPTO_LOOKASIDE_WR_FQIDX(x) \
+	(((x) >> S_FW_CRYPTO_LOOKASIDE_WR_FQIDX) &\
+	  M_FW_CRYPTO_LOOKASIDE_WR_FQIDX)
+
 #define S_FW_CRYPTO_LOOKASIDE_WR_TX_CH 10
 #define M_FW_CRYPTO_LOOKASIDE_WR_TX_CH 0x3
 #define V_FW_CRYPTO_LOOKASIDE_WR_TX_CH(x) \
@@ -3994,6 +4043,7 @@ enum fw_cmd_opcodes {
 	FW_FCOE_STATS_CMD              = 0x37,
 	FW_FCOE_FCF_CMD                = 0x38,
 	FW_DCB_IEEE_CMD		       = 0x3a,
+	FW_DIAG_CMD		       = 0x3d,
 	FW_PTP_CMD                     = 0x3e,
 	FW_LASTC2E_CMD                 = 0x40,
 	FW_ERROR_CMD                   = 0x80,
@@ -4632,6 +4682,7 @@ enum fw_params_param_dev {
 	FW_PARAMS_PARAM_DEV_RSSINFO	= 0x19,
 	FW_PARAMS_PARAM_DEV_SCFGREV	= 0x1A,
 	FW_PARAMS_PARAM_DEV_VPDREV	= 0x1B,
+	FW_PARAMS_PARAM_DEV_RI_FR_NSMR_TPTE_WR	= 0x1C,
 };
 
 /*
@@ -4718,6 +4769,7 @@ enum fw_params_param_pfvf {
         FW_PARAMS_PARAM_PFVF_TLS_END = 0x35,
 	FW_PARAMS_PARAM_PFVF_RAWF_START	= 0x36,
 	FW_PARAMS_PARAM_PFVF_RAWF_END	= 0x37,
+	FW_PARAMS_PARAM_PFVF_RSSKEYINFO	= 0x38,
 };
 
 /*
@@ -7200,12 +7252,13 @@ enum fw_port_type {
 	FW_PORT_TYPE_QSA	= 13,	/* No, 1, Yes, No, No, No, 10G */
 	FW_PORT_TYPE_QSFP	= 14,	/* No, 4, Yes, No, No, No, 40G */
 	FW_PORT_TYPE_BP40_BA	= 15,	/* No, 4, No, No, Yes, Yes, 40G/10G/1G, BP ANGE */
-	FW_PORT_TYPE_KR4_100G	= 16,	/* No, 4, 100G */
+	FW_PORT_TYPE_KR4_100G	= 16,	/* No, 4, 100G, Backplane */
 	FW_PORT_TYPE_CR4_QSFP	= 17,	/* No, 4, 100G */
-	FW_PORT_TYPE_CR_QSFP	= 18,	/* No, 1, 25G */
-	FW_PORT_TYPE_CR2_QSFP	= 19,	/* No, 2, 50G */
-	FW_PORT_TYPE_SFP28	= 20,	/* No, 1, 25G */
-
+	FW_PORT_TYPE_CR_QSFP	= 18,	/* No, 1, 25G Spider cable */
+	FW_PORT_TYPE_CR_SFP28	= 19,	/* No, 1, 25G - Old vpd */
+	FW_PORT_TYPE_SFP28	= 20,	/* No, 1, 25G - New vpd */
+	FW_PORT_TYPE_KR_SFP28	= 21,	/* No, 1, 25G using Backplane */
+	FW_PORT_TYPE_CR2_QSFP	= 22,	/* No, 2, 50G */
 	FW_PORT_TYPE_NONE = M_FW_PORT_CMD_PTYPE
 };
 
@@ -7906,7 +7959,7 @@ struct fw_rss_glb_config_cmd {
 			__be64 r5;
 		} manual;
 		struct fw_rss_glb_config_basicvirtual {
-			__be32 mode_pkd;
+			__be32 mode_keymode;
 			__be32 synmapen_to_hashtoeplitz;
 			__be64 r8;
 			__be64 r9;
@@ -7923,6 +7976,19 @@ struct fw_rss_glb_config_cmd {
 #define FW_RSS_GLB_CONFIG_CMD_MODE_MANUAL	0
 #define FW_RSS_GLB_CONFIG_CMD_MODE_BASICVIRTUAL	1
 #define FW_RSS_GLB_CONFIG_CMD_MODE_MAX		1
+
+#define S_FW_RSS_GLB_CONFIG_CMD_KEYMODE	26
+#define M_FW_RSS_GLB_CONFIG_CMD_KEYMODE	0x3
+#define V_FW_RSS_GLB_CONFIG_CMD_KEYMODE(x) \
+    ((x) << S_FW_RSS_GLB_CONFIG_CMD_KEYMODE)
+#define G_FW_RSS_GLB_CONFIG_CMD_KEYMODE(x) \
+    (((x) >> S_FW_RSS_GLB_CONFIG_CMD_KEYMODE) & \
+     M_FW_RSS_GLB_CONFIG_CMD_KEYMODE)
+
+#define FW_RSS_GLB_CONFIG_CMD_KEYMODE_GLBKEY	0
+#define FW_RSS_GLB_CONFIG_CMD_KEYMODE_GLBVF_KEY	1
+#define FW_RSS_GLB_CONFIG_CMD_KEYMODE_PFVF_KEY	2
+#define FW_RSS_GLB_CONFIG_CMD_KEYMODE_IDXVF_KEY	3
 
 #define S_FW_RSS_GLB_CONFIG_CMD_SYNMAPEN 8
 #define M_FW_RSS_GLB_CONFIG_CMD_SYNMAPEN 0x1
@@ -8023,7 +8089,8 @@ struct fw_rss_vi_config_cmd {
 		struct fw_rss_vi_config_basicvirtual {
 			__be32 r6;
 			__be32 defaultq_to_udpen;
-			__be64 r9;
+			__be32 secretkeyidx_pkd;
+			__be32 secretkeyxor;
 			__be64 r10;
 		} basicvirtual;
 	} u;
@@ -8089,6 +8156,14 @@ struct fw_rss_vi_config_cmd {
 #define G_FW_RSS_VI_CONFIG_CMD_UDPEN(x)	\
     (((x) >> S_FW_RSS_VI_CONFIG_CMD_UDPEN) & M_FW_RSS_VI_CONFIG_CMD_UDPEN)
 #define F_FW_RSS_VI_CONFIG_CMD_UDPEN	V_FW_RSS_VI_CONFIG_CMD_UDPEN(1U)
+
+#define S_FW_RSS_VI_CONFIG_CMD_SECRETKEYIDX 0
+#define M_FW_RSS_VI_CONFIG_CMD_SECRETKEYIDX 0xf
+#define V_FW_RSS_VI_CONFIG_CMD_SECRETKEYIDX(x) \
+    ((x) << S_FW_RSS_VI_CONFIG_CMD_SECRETKEYIDX)
+#define G_FW_RSS_VI_CONFIG_CMD_SECRETKEYIDX(x) \
+    (((x) >> S_FW_RSS_VI_CONFIG_CMD_SECRETKEYIDX) & \
+     M_FW_RSS_VI_CONFIG_CMD_SECRETKEYIDX)
 
 enum fw_sched_sc {
 	FW_SCHED_SC_CONFIG		= 0,
@@ -8994,6 +9069,43 @@ struct fw_debug_cmd {
 #define G_FW_DEBUG_CMD_TYPE(x)		\
     (((x) >> S_FW_DEBUG_CMD_TYPE) & M_FW_DEBUG_CMD_TYPE)
 
+enum fw_diag_cmd_type {
+	FW_DIAG_CMD_TYPE_OFLDIAG = 0,
+};
+
+enum fw_diag_cmd_ofldiag_op {
+	FW_DIAG_CMD_OFLDIAG_TEST_NONE = 0,
+	FW_DIAG_CMD_OFLDIAG_TEST_START,
+	FW_DIAG_CMD_OFLDIAG_TEST_STOP,
+	FW_DIAG_CMD_OFLDIAG_TEST_STATUS,
+};
+
+enum fw_diag_cmd_ofldiag_status {
+	FW_DIAG_CMD_OFLDIAG_STATUS_IDLE = 0,
+	FW_DIAG_CMD_OFLDIAG_STATUS_RUNNING,
+	FW_DIAG_CMD_OFLDIAG_STATUS_FAILED,
+	FW_DIAG_CMD_OFLDIAG_STATUS_PASSED,
+};
+
+struct fw_diag_cmd {
+	__be32 op_type;
+	__be32 len16_pkd;
+	union fw_diag_test {
+		struct fw_diag_test_ofldiag {
+			__u8   test_op;
+			__u8   r3;
+			__be16 test_status;
+			__be32 duration;
+		} ofldiag;
+	} u;
+};
+
+#define S_FW_DIAG_CMD_TYPE		0
+#define M_FW_DIAG_CMD_TYPE		0xff
+#define V_FW_DIAG_CMD_TYPE(x)		((x) << S_FW_DIAG_CMD_TYPE)
+#define G_FW_DIAG_CMD_TYPE(x)		\
+    (((x) >> S_FW_DIAG_CMD_TYPE) & M_FW_DIAG_CMD_TYPE)
+
 /******************************************************************************
  *   P C I E   F W   R E G I S T E R
  **************************************/
@@ -9207,18 +9319,18 @@ enum fw_hdr_chip {
 
 enum {
 	T4FW_VERSION_MAJOR	= 0x01,
-	T4FW_VERSION_MINOR	= 0x05,
-	T4FW_VERSION_MICRO	= 0x25,
+	T4FW_VERSION_MINOR	= 0x10,
+	T4FW_VERSION_MICRO	= 0x0c,
 	T4FW_VERSION_BUILD	= 0x00,
 
 	T5FW_VERSION_MAJOR	= 0x01,
-	T5FW_VERSION_MINOR	= 0x05,
-	T5FW_VERSION_MICRO	= 0x25,
+	T5FW_VERSION_MINOR	= 0x10,
+	T5FW_VERSION_MICRO	= 0x0c,
 	T5FW_VERSION_BUILD	= 0x00,
 
-	T6FW_VERSION_MAJOR	= 0x00,
-	T6FW_VERSION_MINOR	= 0x00,
-	T6FW_VERSION_MICRO	= 0x00,
+	T6FW_VERSION_MAJOR	= 0x01,
+	T6FW_VERSION_MINOR	= 0x10,
+	T6FW_VERSION_MICRO	= 0x0c,
 	T6FW_VERSION_BUILD	= 0x00,
 };
 
