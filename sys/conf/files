@@ -1381,7 +1381,7 @@ t4fw.fwo		optional cxgbe					\
 	no-implicit-rule						\
 	clean		"t4fw.fwo"
 t4fw.fw			optional cxgbe					\
-	dependency	"$S/dev/cxgbe/firmware/t4fw-1.15.37.0.bin.uu"	\
+	dependency	"$S/dev/cxgbe/firmware/t4fw-1.16.12.0.bin.uu"	\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"t4fw.fw"
@@ -1405,10 +1405,34 @@ t5fw.fwo		optional cxgbe					\
 	no-implicit-rule						\
 	clean		"t5fw.fwo"
 t5fw.fw			optional cxgbe					\
-	dependency	"$S/dev/cxgbe/firmware/t5fw-1.15.37.0.bin.uu"	\
+	dependency	"$S/dev/cxgbe/firmware/t5fw-1.16.12.0.bin.uu"	\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"t5fw.fw"
+t6fw_cfg.c		optional cxgbe					\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk t6fw_cfg.fw:t6fw_cfg t6fw.fw:t6fw -mt6fw_cfg -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"t6fw_cfg.c"
+t6fw_cfg.fwo		optional cxgbe					\
+	dependency	"t6fw_cfg.fw"					\
+	compile-with	"${NORMAL_FWO}"					\
+	no-implicit-rule						\
+	clean		"t6fw_cfg.fwo"
+t6fw_cfg.fw		optional cxgbe					\
+	dependency	"$S/dev/cxgbe/firmware/t6fw_cfg.txt"		\
+	compile-with	"${CP} ${.ALLSRC} ${.TARGET}"			\
+	no-obj no-implicit-rule						\
+	clean		"t6fw_cfg.fw"
+t6fw.fwo		optional cxgbe					\
+	dependency	"t6fw.fw"					\
+	compile-with	"${NORMAL_FWO}"					\
+	no-implicit-rule						\
+	clean		"t6fw.fwo"
+t6fw.fw			optional cxgbe					\
+	dependency	"$S/dev/cxgbe/firmware/t6fw-1.16.12.0.bin.uu"	\
+	compile-with	"${NORMAL_FW}"					\
+	no-obj no-implicit-rule						\
+	clean		"t6fw.fw"
 dev/cy/cy.c			optional cy
 dev/cy/cy_isa.c			optional cy isa
 dev/cy/cy_pci.c			optional cy pci
