@@ -80,7 +80,7 @@ au_login_success(void)
 
 	/* Compute and set the user's preselection mask. */
 	if (au_user_mask(pwd->pw_name, &aumask) == -1)
-		errx(1, "could not set audit mask");
+		errx(1, "could not calculate audit mask");
 
 	/* Set the audit info for the user. */
 	auinfo.ai_auid = uid;
