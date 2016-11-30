@@ -105,8 +105,8 @@ discover_interfaces(struct interface_info *iface)
 			if (foo.sin_addr.s_addr == htonl(INADDR_LOOPBACK))
 				continue;
 			if (!iface->ifp) {
-				int len = IFNAMSIZ + ifa->ifa_addr->sa_len;
-				if ((tif = malloc(len)) == NULL)
+				if ((tif = calloc(1, sizeof(struct ifreq)))
+				    == NULL)
 					error("no space to remember ifp");
 				strlcpy(tif->ifr_name, ifa->ifa_name, IFNAMSIZ);
 				memcpy(&tif->ifr_addr, ifa->ifa_addr,
