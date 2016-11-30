@@ -45,11 +45,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/taskqueue.h>
 
+#include <machine/bus.h>
 #include <machine/intr_machdep.h>
+#include <machine/resource.h>
 #include <machine/apicvar.h>
 #include <machine/md_var.h>
 
 #include <contrib/dev/acpica/include/acpi.h>
+#include <dev/acpica/acpivar.h>
 
 #include <dev/hyperv/include/hyperv.h>
 #include <dev/hyperv/include/vmbus_xact.h>
@@ -60,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/hyperv/vmbus/vmbus_chanvar.h>
 
 #include "acpi_if.h"
+#include "pcib_if.h"
 #include "vmbus_if.h"
 
 #define VMBUS_GPADL_START		0xe1e10
@@ -76,9 +80,25 @@ static int			vmbus_read_ivar(device_t, device_t, int,
 				    uintptr_t *);
 static int			vmbus_child_pnpinfo_str(device_t, device_t,
 				    char *, size_t);
+static struct resource		*vmbus_alloc_resource(device_t dev,
+				    device_t child, int type, int *rid,
+				    rman_res_t start, rman_res_t end,
+				    rman_res_t count, u_int flags);
+static int			vmbus_alloc_msi(device_t bus, device_t dev,
+				    int count, int maxcount, int *irqs);
+static int			vmbus_release_msi(device_t bus, device_t dev,
+				    int count, int *irqs);
+static int			vmbus_alloc_msix(device_t bus, device_t dev,
+				    int *irq);
+static int			vmbus_release_msix(device_t bus, device_t dev,
+				    int irq);
+static int			vmbus_map_msi(device_t bus, device_t dev,
+				    int irq, uint64_t *addr, uint32_t *data);
 static uint32_t			vmbus_get_version_method(device_t, device_t);
 static int			vmbus_probe_guid_method(device_t, device_t,
 				    const struct hyperv_guid *);
+static uint32_t			vmbus_get_vcpu_id_method(device_t bus,
+				    device_t dev, int cpu);
 
 static int			vmbus_init(struct vmbus_softc *);
 static int			vmbus_connect(struct vmbus_softc *, uint32_t);
@@ -133,10 +153,27 @@ static device_method_t vmbus_methods[] = {
 	DEVMETHOD(bus_print_child,		bus_generic_print_child),
 	DEVMETHOD(bus_read_ivar,		vmbus_read_ivar),
 	DEVMETHOD(bus_child_pnpinfo_str,	vmbus_child_pnpinfo_str),
+	DEVMETHOD(bus_alloc_resource,		vmbus_alloc_resource),
+	DEVMETHOD(bus_release_resource,		bus_generic_release_resource),
+	DEVMETHOD(bus_activate_resource,	bus_generic_activate_resource),
+	DEVMETHOD(bus_deactivate_resource,	bus_generic_deactivate_resource),
+	DEVMETHOD(bus_setup_intr,		bus_generic_setup_intr),
+	DEVMETHOD(bus_teardown_intr,		bus_generic_teardown_intr),
+#if __FreeBSD_version >= 1100000
+	DEVMETHOD(bus_get_cpus,			bus_generic_get_cpus),
+#endif
+
+	/* pcib interface */
+	DEVMETHOD(pcib_alloc_msi,		vmbus_alloc_msi),
+	DEVMETHOD(pcib_release_msi,		vmbus_release_msi),
+	DEVMETHOD(pcib_alloc_msix,		vmbus_alloc_msix),
+	DEVMETHOD(pcib_release_msix,		vmbus_release_msix),
+	DEVMETHOD(pcib_map_msi,			vmbus_map_msi),
 
 	/* Vmbus interface */
 	DEVMETHOD(vmbus_get_version,		vmbus_get_version_method),
 	DEVMETHOD(vmbus_probe_guid,		vmbus_probe_guid_method),
+	DEVMETHOD(vmbus_get_vcpu_id,		vmbus_get_vcpu_id_method),
 
 	DEVMETHOD_END
 };
@@ -151,6 +188,7 @@ static devclass_t vmbus_devclass;
 
 DRIVER_MODULE(vmbus, acpi, vmbus_driver, vmbus_devclass, NULL, NULL);
 MODULE_DEPEND(vmbus, acpi, 1, 1, 1);
+MODULE_DEPEND(vmbus, pci, 1, 1, 1);
 MODULE_VERSION(vmbus, 1);
 
 static __inline struct vmbus_softc *
@@ -1054,6 +1092,74 @@ vmbus_sysctl_version(SYSCTL_HANDLER_ARGS)
 	return sysctl_handle_string(oidp, verstr, sizeof(verstr), req);
 }
 
+/*
+ * We need the function to make sure the MMIO resource is allocated from the
+ * ranges found in _CRS.
+ *
+ * For the release function, we can use bus_generic_release_resource().
+ */
+static struct resource *
+vmbus_alloc_resource(device_t dev, device_t child, int type, int *rid,
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
+{
+	device_t parent = device_get_parent(dev);
+	struct resource *res;
+
+#ifdef NEW_PCIB
+	if (type == SYS_RES_MEMORY) {
+		struct vmbus_softc *sc = device_get_softc(dev);
+
+		res = pcib_host_res_alloc(&sc->vmbus_mmio_res, child, type,
+		    rid, start, end, count, flags);
+	} else
+#endif
+	{
+		res = BUS_ALLOC_RESOURCE(parent, child, type, rid, start,
+		    end, count, flags);
+	}
+
+	return (res);
+}
+
+static device_t
+get_nexus(device_t vmbus)
+{
+	device_t acpi = device_get_parent(vmbus);
+	device_t nexus = device_get_parent(acpi);
+	return (nexus);
+}
+
+static int
+vmbus_alloc_msi(device_t bus, device_t dev, int count, int maxcount, int *irqs)
+{
+	return (PCIB_ALLOC_MSI(get_nexus(bus), dev, count, maxcount, irqs));
+}
+
+static int
+vmbus_release_msi(device_t bus, device_t dev, int count, int *irqs)
+{
+	return (PCIB_RELEASE_MSI(get_nexus(bus), dev, count, irqs));
+}
+
+static int
+vmbus_alloc_msix(device_t bus, device_t dev, int *irq)
+{
+	return (PCIB_ALLOC_MSIX(get_nexus(bus), dev, irq));
+}
+
+static int
+vmbus_release_msix(device_t bus, device_t dev, int irq)
+{
+	return (PCIB_RELEASE_MSIX(get_nexus(bus), dev, irq));
+}
+
+static int
+vmbus_map_msi(device_t bus, device_t dev, int irq, uint64_t *addr,
+	uint32_t *data)
+{
+	return (PCIB_MAP_MSI(get_nexus(bus), dev, irq, addr, data));
+}
+
 static uint32_t
 vmbus_get_version_method(device_t bus, device_t dev)
 {
@@ -1072,6 +1178,148 @@ vmbus_probe_guid_method(device_t bus, device_t dev,
 		return 0;
 	return ENXIO;
 }
+
+static uint32_t
+vmbus_get_vcpu_id_method(device_t bus, device_t dev, int cpu)
+{
+	const struct vmbus_softc *sc = device_get_softc(bus);
+
+	return (VMBUS_PCPU_GET(sc, vcpuid, cpu));
+}
+
+#ifdef NEW_PCIB
+#define VTPM_BASE_ADDR 0xfed40000
+#define FOUR_GB (1ULL << 32)
+
+enum parse_pass { parse_64, parse_32 };
+
+struct parse_context {
+	device_t vmbus_dev;
+	enum parse_pass pass;
+};
+
+static ACPI_STATUS
+parse_crs(ACPI_RESOURCE *res, void *ctx)
+{
+	const struct parse_context *pc = ctx;
+	device_t vmbus_dev = pc->vmbus_dev;
+
+	struct vmbus_softc *sc = device_get_softc(vmbus_dev);
+	UINT64 start, end;
+
+	switch (res->Type) {
+	case ACPI_RESOURCE_TYPE_ADDRESS32:
+		start = res->Data.Address32.Address.Minimum;
+		end = res->Data.Address32.Address.Maximum;
+		break;
+
+	case ACPI_RESOURCE_TYPE_ADDRESS64:
+		start = res->Data.Address64.Address.Minimum;
+		end = res->Data.Address64.Address.Maximum;
+		break;
+
+	default:
+		/* Unused types. */
+		return (AE_OK);
+	}
+
+	/*
+	 * We don't use <1MB addresses.
+	 */
+	if (end < 0x100000)
+		return (AE_OK);
+
+	/* Don't conflict with vTPM. */
+	if (end >= VTPM_BASE_ADDR && start < VTPM_BASE_ADDR)
+		end = VTPM_BASE_ADDR - 1;
+
+	if ((pc->pass == parse_32 && start < FOUR_GB) ||
+	    (pc->pass == parse_64 && start >= FOUR_GB))
+		pcib_host_res_decodes(&sc->vmbus_mmio_res, SYS_RES_MEMORY,
+		    start, end, 0);
+
+	return (AE_OK);
+}
+
+static void
+vmbus_get_crs(device_t dev, device_t vmbus_dev, enum parse_pass pass)
+{
+	struct parse_context pc;
+	ACPI_STATUS status;
+
+	if (bootverbose)
+		device_printf(dev, "walking _CRS, pass=%d\n", pass);
+
+	pc.vmbus_dev = vmbus_dev;
+	pc.pass = pass;
+	status = AcpiWalkResources(acpi_get_handle(dev), "_CRS",
+			parse_crs, &pc);
+
+	if (bootverbose && ACPI_FAILURE(status))
+		device_printf(dev, "_CRS: not found, pass=%d\n", pass);
+}
+
+static void
+vmbus_get_mmio_res_pass(device_t dev, enum parse_pass pass)
+{
+	device_t acpi0, pcib0 = NULL;
+	device_t *children;
+	int i, count;
+
+	/* Try to find _CRS on VMBus device */
+	vmbus_get_crs(dev, dev, pass);
+
+	/* Try to find _CRS on VMBus device's parent */
+	acpi0 = device_get_parent(dev);
+	vmbus_get_crs(acpi0, dev, pass);
+
+	/* Try to locate pcib0 and find _CRS on it */
+	if (device_get_children(acpi0, &children, &count) != 0)
+		return;
+
+	for (i = 0; i < count; i++) {
+		if (!device_is_attached(children[i]))
+			continue;
+
+		if (strcmp("pcib0", device_get_nameunit(children[i])))
+			continue;
+
+		pcib0 = children[i];
+		break;
+	}
+
+	if (pcib0)
+		vmbus_get_crs(pcib0, dev, pass);
+
+	free(children, M_TEMP);
+}
+
+static void
+vmbus_get_mmio_res(device_t dev)
+{
+	struct vmbus_softc *sc = device_get_softc(dev);
+	/*
+	 * We walk the resources twice to make sure that: in the resource
+	 * list, the 32-bit resources appear behind the 64-bit resources.
+	 * NB: resource_list_add() uses INSERT_TAIL. This way, when we
+	 * iterate through the list to find a range for a 64-bit BAR in
+	 * vmbus_alloc_resource(), we can make sure we try to use >4GB
+	 * ranges first.
+	 */
+	pcib_host_res_init(dev, &sc->vmbus_mmio_res);
+
+	vmbus_get_mmio_res_pass(dev, parse_64);
+	vmbus_get_mmio_res_pass(dev, parse_32);
+}
+
+static void
+vmbus_free_mmio_res(device_t dev)
+{
+	struct vmbus_softc *sc = device_get_softc(dev);
+
+	pcib_host_res_free(dev, &sc->vmbus_mmio_res);
+}
+#endif	/* NEW_PCIB */
 
 static int
 vmbus_probe(device_t dev)
@@ -1109,6 +1357,11 @@ vmbus_doattach(struct vmbus_softc *sc)
 
 	if (sc->vmbus_flags & VMBUS_FLAG_ATTACHED)
 		return (0);
+
+#ifdef NEW_PCIB
+	vmbus_get_mmio_res(sc->vmbus_dev);
+#endif
+
 	sc->vmbus_flags |= VMBUS_FLAG_ATTACHED;
 
 	sc->vmbus_gpadl = VMBUS_GPADL_START;
@@ -1251,6 +1504,10 @@ vmbus_detach(device_t dev)
 	free(sc->vmbus_chmap, M_DEVBUF);
 	mtx_destroy(&sc->vmbus_prichan_lock);
 	mtx_destroy(&sc->vmbus_chan_lock);
+
+#ifdef NEW_PCIB
+	vmbus_free_mmio_res(dev);
+#endif
 
 	return (0);
 }
