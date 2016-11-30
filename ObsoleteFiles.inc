@@ -38,6 +38,17 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20161121: Hyper-V manuals only apply to amd64 and i386.
+.if ${TARGET_ARCH} != "amd64" && ${TARGET_ARCH} != "i386"
+OLD_FILES+=usr/share/man/man4/hv_kvp.4.gz
+OLD_FILES+=usr/share/man/man4/hv_netvsc.4.gz
+OLD_FILES+=usr/share/man/man4/hv_storvsc.4.gz
+OLD_FILES+=usr/share/man/man4/hv_utils.4.gz
+OLD_FILES+=usr/share/man/man4/hv_vmbus.4.gz
+OLD_FILES+=usr/share/man/man4/hv_vss.4.gz
+.endif
+# 20161118: Remove hv_ata_pci_disengage(4)
+OLD_FILES+=usr/share/man/man4/hv_ata_pci_disengage.4.gz
 # 20160723: stale MLINK removed
 OLD_FILES+=usr/share/man/man9/rman_await_resource.9.gz
 # 20160216: Remove obsolete unbound-control-setup
