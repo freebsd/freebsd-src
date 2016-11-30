@@ -69,6 +69,9 @@ CFLAGS+=	-Wno-error
 .endif
 ALLOW_SHARED_TEXTREL=	yes
 LDFLAGS+=	-Wl,-melf64btsmip_cheri_fbsd
+.if defined(__BSD_PROG_MK)
+_LIB_OBJTOP=	${ROOTOBJDIR}
+.endif
 .ifdef LIBCHERI
 LDFLAGS+=	-Wl,-init=crt_init_globals
 .endif
