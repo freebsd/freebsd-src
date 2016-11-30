@@ -417,6 +417,8 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 			ifa->ifa_addr = (struct sockaddr *)&ia->ia_addr;
 			ifa->ifa_dstaddr = (struct sockaddr *)&ia->ia_dstaddr;
 			ifa->ifa_netmask = (struct sockaddr *)&ia->ia_sockmask;
+			callout_init_mtx(&ia->ia_garp_timer, &ifa->ifa_mtx,
+			    CALLOUT_RETURNUNLOCKED);
 
 			ia->ia_sockmask.sin_len = 8;
 			ia->ia_sockmask.sin_family = AF_INET;
@@ -594,6 +596,10 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 	} else
 		ifa_free(&iap->ia_ifa);
 
+	IFA_LOCK(&ia->ia_ifa);
+	if (callout_stop(&ia->ia_garp_timer))
+		ifa_free(&ia->ia_ifa);
+	IFA_UNLOCK(&ia->ia_ifa);
 	ifa_free(&ia->ia_ifa);				/* in_ifaddrhead */
 out:
 	if (ia != NULL)
