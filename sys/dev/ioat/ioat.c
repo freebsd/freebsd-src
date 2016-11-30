@@ -947,6 +947,7 @@ ioat_acquire(bus_dmaengine_t dmaengine)
 	ioat = to_ioat_softc(dmaengine);
 	mtx_lock(&ioat->submit_lock);
 	CTR2(KTR_IOAT, "%s channel=%u", __func__, ioat->chan_idx);
+	ioat->acq_head = ioat->head;
 }
 
 int
@@ -976,12 +977,15 @@ ioat_release(bus_dmaengine_t dmaengine)
 	CTR4(KTR_IOAT, "%s channel=%u dispatch2 hw_head=%u head=%u", __func__,
 	    ioat->chan_idx, ioat->hw_head & UINT16_MAX, ioat->head);
 
-	ioat_write_2(ioat, IOAT_DMACOUNT_OFFSET, (uint16_t)ioat->hw_head);
+	if (ioat->acq_head != ioat->head) {
+		ioat_write_2(ioat, IOAT_DMACOUNT_OFFSET,
+		    (uint16_t)ioat->hw_head);
 
-	if (!ioat->is_completion_pending) {
-		ioat->is_completion_pending = TRUE;
-		callout_reset(&ioat->poll_timer, 1, ioat_poll_timer_callback,
-		    ioat);
+		if (!ioat->is_completion_pending) {
+			ioat->is_completion_pending = TRUE;
+			callout_reset(&ioat->poll_timer, 1,
+			    ioat_poll_timer_callback, ioat);
+		}
 	}
 	mtx_unlock(&ioat->submit_lock);
 }
