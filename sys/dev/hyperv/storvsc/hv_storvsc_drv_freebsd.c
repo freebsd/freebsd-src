@@ -413,13 +413,7 @@ storvsc_send_multichannel_request(struct storvsc_softc *sc, int max_chans)
 	    VMBUS_CHANPKT_TYPE_INBAND, VMBUS_CHANPKT_FLAG_RC,
 	    vstor_packet, VSTOR_PKT_SIZE, (uint64_t)(uintptr_t)request);
 
-	/* wait for 5 seconds */
-	ret = sema_timedwait(&request->synch_sema, 5 * hz);
-	if (ret != 0) {		
-		printf("Storvsc_error: create multi-channel timeout, %d\n",
-		    ret);
-		return;
-	}
+	sema_wait(&request->synch_sema);
 
 	if (vstor_packet->operation != VSTOR_OPERATION_COMPLETEIO ||
 	    vstor_packet->status != 0) {		
@@ -486,10 +480,7 @@ hv_storvsc_channel_init(struct storvsc_softc *sc)
 	if (ret != 0)
 		goto cleanup;
 
-	/* wait 5 seconds */
-	ret = sema_timedwait(&request->synch_sema, 5 * hz);
-	if (ret != 0)
-		goto cleanup;
+	sema_wait(&request->synch_sema);
 
 	if (vstor_packet->operation != VSTOR_OPERATION_COMPLETEIO ||
 		vstor_packet->status != 0) {
@@ -516,11 +507,7 @@ hv_storvsc_channel_init(struct storvsc_softc *sc)
 		if (ret != 0)
 			goto cleanup;
 
-		/* wait 5 seconds */
-		ret = sema_timedwait(&request->synch_sema, 5 * hz);
-
-		if (ret)
-			goto cleanup;
+		sema_wait(&request->synch_sema);
 
 		if (vstor_packet->operation != VSTOR_OPERATION_COMPLETEIO) {
 			ret = EINVAL;
@@ -555,11 +542,7 @@ hv_storvsc_channel_init(struct storvsc_softc *sc)
 	if ( ret != 0)
 		goto cleanup;
 
-	/* wait 5 seconds */
-	ret = sema_timedwait(&request->synch_sema, 5 * hz);
-
-	if (ret != 0)
-		goto cleanup;
+	sema_wait(&request->synch_sema);
 
 	/* TODO: Check returned version */
 	if (vstor_packet->operation != VSTOR_OPERATION_COMPLETEIO ||
@@ -588,11 +571,7 @@ hv_storvsc_channel_init(struct storvsc_softc *sc)
 		goto cleanup;
 	}
 
-	/* wait 5 seconds */
-	ret = sema_timedwait(&request->synch_sema, 5 * hz);
-
-	if (ret != 0)
-		goto cleanup;
+	sema_wait(&request->synch_sema);
 
 	if (vstor_packet->operation != VSTOR_OPERATION_COMPLETEIO ||
 	    vstor_packet->status != 0)
@@ -672,12 +651,7 @@ hv_storvsc_host_reset(struct storvsc_softc *sc)
 		goto cleanup;
 	}
 
-	ret = sema_timedwait(&request->synch_sema, 5 * hz); /* KYS 5 seconds */
-
-	if (ret) {
-		goto cleanup;
-	}
-
+	sema_wait(&request->synch_sema);
 
 	/*
 	 * At this point, all outstanding requests in the adapter
