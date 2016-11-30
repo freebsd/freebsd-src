@@ -28,4 +28,11 @@ CFLAGS+=	-I${LIBUCL}/include \
 		-I${LIBUCL}/uthash \
 		-I${LIBUCL}/klib
 
+# FIXME: for some reason clang crashes at -O0
+# We can't change CHERI_OPTIMIZATION_FLAGS as the value set on the command line
+# overrides any value set here. We need to use _CHERI_CFLAGS instead as it gets
+# added right at the end of the compilation command and therefore overrides
+# whatever CHERI_OPTIMIZATION_FLAGS sets
+_CHERI_CFLAGS+=-O2
+
 .include <bsd.lib.mk>
