@@ -40,6 +40,7 @@
 
 #include <dirent.h>
 #include <err.h>
+#include <limits.h>
 #include <locale.h>
 #include <langinfo.h>
 #include <stdio.h>
