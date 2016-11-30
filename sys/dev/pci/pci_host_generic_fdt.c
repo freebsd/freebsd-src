@@ -152,7 +152,7 @@ pci_host_generic_attach(device_t dev)
 		device_printf(dev, "Bus is%s cache-coherent\n",
 		    sc->base.coherent ? "" : " not");
 
-	error = pci_host_generic_attach(dev);
+	error = pci_host_generic_core_attach(dev);
 	if (error != 0)
 		return (error);
 
@@ -327,15 +327,15 @@ pci_host_generic_alloc_resource(device_t dev, device_t child, int type,
 
 #if defined(NEW_PCIB) && defined(PCI_RES_BUS)
 	if (type == PCI_RES_BUS) {
-		return (pci_host_generic_alloc_resource(dev, child, type, rid,
+		return (pci_host_generic_core_alloc_resource(dev, child, type, rid,
 		    start, end, count, flags));
 	}
 #endif
 
 	/* For PCIe devices that do not have FDT nodes, use PCIB method */
 	if ((int)ofw_bus_get_node(child) <= 0)
-		return (pci_host_generic_alloc_resource(dev, child, type, rid,
-		    start, end, count, flags));
+		return (pci_host_generic_core_alloc_resource(dev, child, type,
+		    rid, start, end, count, flags));
 
 	/* For other devices use OFW method */
 	sc = device_get_softc(dev);
@@ -377,8 +377,8 @@ pci_host_generic_alloc_resource(device_t dev, device_t child, int type,
 		}
 	}
 
-	return (bus_generic_alloc_resource(dev, child, type, rid, start, end,
-	    count, flags));
+	return (bus_generic_alloc_resource(dev, child, type, rid, start,
+	    end, count, flags));
 }
 
 static int
