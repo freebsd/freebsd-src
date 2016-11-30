@@ -116,9 +116,6 @@
 # NLSMODE	National Language Support files mode. [${NOBINMODE}]
 #
 # INCLUDEDIR	Base path for standard C include files [/usr/include]
-#
-# PKG_CMD	Program for creating and manipulating packages.
-#               [pkg] 
 
 .if !target(__<bsd.own.mk>__)
 __<bsd.own.mk>__:
@@ -251,8 +248,6 @@ XZ_CMD?=	xz -T ${XZ_THREADS}
 .else
 XZ_CMD?=	xz
 .endif
-
-PKG_CMD?=	pkg
 
 # Pointer to the top directory into which tests are installed.  Should not be
 # overriden by Makefiles, but the user may choose to set this in src.conf(5).
