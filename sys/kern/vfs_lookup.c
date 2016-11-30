@@ -807,10 +807,9 @@ unionlookup:
 	 * If we have a shared lock we may need to upgrade the lock for the
 	 * last operation.
 	 */
-	if (dp != vp_crossmp &&
-	    VOP_ISLOCKED(dp) == LK_SHARED &&
-	    (cnp->cn_flags & ISLASTCN) && (cnp->cn_flags & LOCKPARENT))
-		vn_lock(dp, LK_UPGRADE|LK_RETRY);
+	if ((cnp->cn_flags & LOCKPARENT) && (cnp->cn_flags & ISLASTCN) &&
+	    dp != vp_crossmp && VOP_ISLOCKED(dp) == LK_SHARED)
+			vn_lock(dp, LK_UPGRADE|LK_RETRY);
 	if ((dp->v_iflag & VI_DOOMED) != 0) {
 		error = ENOENT;
 		goto bad;
