@@ -809,7 +809,7 @@ unionlookup:
 	 */
 	if ((cnp->cn_flags & LOCKPARENT) && (cnp->cn_flags & ISLASTCN) &&
 	    dp != vp_crossmp && VOP_ISLOCKED(dp) == LK_SHARED)
-			vn_lock(dp, LK_UPGRADE|LK_RETRY);
+		vn_lock(dp, LK_UPGRADE|LK_RETRY);
 	if ((dp->v_iflag & VI_DOOMED) != 0) {
 		error = ENOENT;
 		goto bad;
