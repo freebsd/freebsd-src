@@ -35,6 +35,7 @@ To compile this driver into the kernel, place the following lines in
 the system kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "device hyperv"
+.Cd "device pci"
 .Ed
 .Sh DESCRIPTION
 The
@@ -76,7 +77,6 @@ All VSCs utilize the VMBus driver.
 .Xr hv_utils 4 ,
 .Xr hv_netvsc 4 ,
 .Xr hv_storvsc 4 ,
-.Xr hv_ata_pci_disengage 4
 .Sh HISTORY
 Support for
 .Nm
