@@ -79,6 +79,16 @@ struct g_command class_commands[] = {
 	    "[-adfFhnv] [-b balance] [-s slice] name\n"
 	    "[-v] -p priority name prov"
 	},
+	{ "create", G_FLAG_VERBOSE, NULL,
+	    {
+		{ 'b', "balance", GMIRROR_BALANCE, G_TYPE_STRING },
+		{ 'F', "nofailsync", NULL, G_TYPE_BOOL },
+		{ 'n', "noautosync", NULL, G_TYPE_BOOL },
+		{ 's', "slice", GMIRROR_SLICE, G_TYPE_NUMBER },
+		G_OPT_SENTINEL
+	    },
+	    "[-Fnv] [-b balance] [-s slice] name prov ..."
+	},
 	{ "deactivate", G_FLAG_VERBOSE, NULL, G_NULL_OPTS,
 	    "[-v] name prov ..."
 	},
