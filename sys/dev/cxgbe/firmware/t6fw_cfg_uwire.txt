@@ -1,13 +1,13 @@
-# Chelsio T5 Factory Default configuration file.
+# Chelsio T6 Factory Default configuration file.
 #
-# Copyright (C) 2010-2015 Chelsio Communications.  All rights reserved.
+# Copyright (C) 2014-2016 Chelsio Communications.  All rights reserved.
 #
 #   DO NOT MODIFY THIS FILE UNDER ANY CIRCUMSTANCES.  MODIFICATION OF THIS FILE
 #   WILL RESULT IN A NON-FUNCTIONAL ADAPTER AND MAY RESULT IN PHYSICAL DAMAGE
 #   TO ADAPTERS.
 
 
-# This file provides the default, power-on configuration for 4-port T5-based
+# This file provides the default, power-on configuration for 2-port T6-based
 # adapters shipped from the factory.  These defaults are designed to address
 # the needs of the vast majority of Terminator customers.  The basic idea is to
 # have a default configuration which allows a customer to plug a Terminator
@@ -31,7 +31,7 @@
 #     Function (currently PF4 but it could be any Physical Function).
 #  7. Some OS Drivers will manage different ports and functions (NIC,
 #     storage, etc.) on different Physical Functions.  For example, NIC
-#     functions for ports 0-3 on PF0-3, FCoE on PF4, iSCSI on PF5, etc.
+#     functions for ports 0-1 on PF0-1, FCoE on PF4, iSCSI on PF5, etc.
 #
 # Some of the customer application needs which need to be accommodated:
 #  8. Some customers will want to support large CPU count systems with
@@ -42,9 +42,9 @@
 #     managed via a single Unified PF and we want to accommodate scaling up
 #     to 8 CPUs, we would want:
 #
-#         4 ports *
+#         2 ports *
 #         3 application functions (NIC, FCoE, iSCSI) per port *
-#         8 Ingress Queue/MSI-X Vectors per application function
+#         16 Ingress Queue/MSI-X Vectors per application function
 #
 #     for a total of 96 Ingress Queues and MSI-X Vectors on the Unified PF.
 #     (Plus a few for Firmware Event Queues, etc.)
@@ -63,7 +63,7 @@
 	rss_glb_config_options = tnlmapen,hashtoeplitz,tnlalllkp
 
 	# PL_TIMEOUT register
-	pl_timeout_value = 10000	# the timeout value in units of us
+	pl_timeout_value = 200		# the timeout value in units of us
 
 	# The following Scatter Gather Engine (SGE) settings assume a 4KB Host
 	# Page Size and a 64B L1 Cache Line Size. It programs the
@@ -93,41 +93,16 @@
 	reg[0x1064] = 16384		# SGE_FL_BUFFER_SIZE8
 	reg[0x10a4] = 0xa000a000/0xf000f000 # SGE_DBFIFO_STATUS
 	reg[0x10a8] = 0x402000/0x402000	# SGE_DOORBELL_CONTROL
-
-	# SGE_THROTTLE_CONTROL
-	bar2throttlecount = 500		# bar2throttlecount in us
-
 	sge_timer_value = 5, 10, 20, 50, 100, 200 # SGE_TIMER_VALUE* in usecs
-
-	
-	reg[0x1124] = 0x00000400/0x00000400 # SGE_CONTROL2, enable VFIFO; if
-					# SGE_VFIFO_SIZE is not set, then
-					# firmware will set it up in function
-					# of number of egress queues used
-
-	reg[0x1130] = 0x00d5ffeb	# SGE_DBP_FETCH_THRESHOLD, fetch
-					# threshold set to queue depth
-					# minus 128-entries for FL and HP
-					# queues, and 0xfff for LP which
-					# prompts the firmware to set it up
-					# in function of egress queues
-					# used
-
-	reg[0x113c] = 0x0002ffc0	# SGE_VFIFO_SIZE, set to 0x2ffc0 which
-					# prompts the firmware to set it up in
-					# function of number of egress queues
-					# used 
+	reg[0x10c4] = 0x20000000/0x20000000 # GK_CONTROL, enable 5th thread
 
 	# enable TP_OUT_CONFIG.IPIDSPLITMODE
 	reg[0x7d04] = 0x00010000/0x00010000
 
-	# disable TP_PARA_REG3.RxFragEn
-	reg[0x7d6c] = 0x00000000/0x00007000
-
-	# enable TP_PARA_REG6.EnableCSnd
-	reg[0x7d78] = 0x00000400/0x00000000
-
 	reg[0x7dc0] = 0x0e2f8849	# TP_SHIFT_CNT
+
+	#Tick granularities in kbps
+	tsch_ticks = 100000, 10000, 1000, 10
 
 	# TP_VLAN_PRI_MAP to select filter tuples and enable ServerSram
 	# filter control: compact, fcoemask
@@ -163,6 +138,9 @@
 	# TP OFLD MTUs
 	tp_mtus = 88, 256, 512, 576, 808, 1024, 1280, 1488, 1500, 2002, 2048, 4096, 4352, 8192, 9000, 9600
 
+	# enable TP_OUT_CONFIG.IPIDSPLITMODE and CRXPKTENC
+	reg[0x7d04] = 0x00010008/0x00010008
+
 	# TP_GLOBAL_CONFIG
 	reg[0x7d08] = 0x00000800/0x00000800 # set IssFromCplEnable
 
@@ -172,30 +150,45 @@
 	# TP_PARA_REG0
 	reg[0x7d60] = 0x06000000/0x07000000 # set InitCWND to 6
 
-	# ULPRX iSCSI Page Sizes
-	reg[0x19168] = 0x04020100 # 64K, 16K, 8K and 4K
-
 	# LE_DB_CONFIG
-	reg[0x19c04] = 0x00400000/0x00400000 # LE Server SRAM Enable
-
-	# MC configuration
-	mc_mode_brc[0] = 1		# mc0 - 1: enable BRC, 0: enable RBC
-	mc_mode_brc[1] = 1		# mc1 - 1: enable BRC, 0: enable RBC
+	reg[0x19c04] = 0x00000000/0x00440000 # LE Server SRAM disabled
+					     # LE IPv4 compression disabled 
+	# LE_DB_HASH_CONFIG
+	reg[0x19c28] = 0x00800000/0x01f00000 # LE Hash bucket size 8, 
 
 	# ULP_TX_CONFIG
-	reg[0x8dc0] = 0x00000004/0x00000004 # Enable more error msg for ...
+	reg[0x8dc0] = 0x00000104/0x00000104 # Enable ITT on PI err
+					    # Enable more error msg for ...
 					    # TPT error.
+
+	# ULP_RX_MISC_FEATURE_ENABLE
+	#reg[0x1925c] = 0x01003400/0x01003400 # iscsi tag pi bit
+					     # Enable offset decrement after ...
+					     # PI extraction and before DDP
+					     # ulp insert pi source info in DIF
+					     # iscsi_eff_offset_en
+
+	#Enable iscsi completion moderation feature
+	reg[0x1925c] = 0x000041c0/0x000031c0	# Enable offset decrement after
+						# PI extraction and before DDP.
+						# ulp insert pi source info in
+						# DIF.
+						# Enable iscsi hdr cmd mode.
+						# iscsi force cmd mode.
+						# Enable iscsi cmp mode.
+	# MC configuration
+	#mc_mode_brc[0] = 1		# mc0 - 1: enable BRC, 0: enable RBC
 
 # Some "definitions" to make the rest of this a bit more readable.  We support
 # 4 ports, 3 functions (NIC, FCoE and iSCSI), scaling up to 8 "CPU Queue Sets"
 # per function per port ...
 #
 # NMSIX = 1088			# available MSI-X Vectors
-# NVI = 128			# available Virtual Interfaces
+# NVI = 256			# available Virtual Interfaces
 # NMPSTCAM = 336		# MPS TCAM entries
 #
-# NPORTS = 4			# ports
-# NCPUS = 8			# CPUs we want to support scalably
+# NPORTS = 2			# ports
+# NCPUS = 16			# CPUs we want to support scalably
 # NFUNCS = 3			# functions per port (NIC, FCoE, iSCSI)
 
 # Breakdown of Virtual Interface/Queue/Interrupt resources for the "Unified
@@ -315,8 +308,6 @@
 #
 # PF0_INT = 8			# NCPUS
 # PF1_INT = 8			# NCPUS
-# PF2_INT = 8			# NCPUS
-# PF3_INT = 8			# NCPUS
 # PF0_3_INT = 32		# PF0_INT + PF1_INT + PF2_INT + PF3_INT
 #
 # PF4_INT = 128			# NMSIX_UNIFIED
@@ -364,7 +355,6 @@
 	cmask = all		# access to all channels
 	pmask = 0x2		# access to only one port
 
-
 [function "2"]
 	nvf = 16		# NVF on this function
 	wx_caps = all		# write/execute permissions for all commands
@@ -376,7 +366,6 @@
 	nexactf = 8		# number of exact MPSTCAM MAC filters
 	cmask = all		# access to all channels
 	pmask = 0x4		# access to only one port
-
 
 [function "3"]
 	nvf = 16		# NVF on this function
@@ -401,27 +390,29 @@
 	wx_caps = all		# write/execute permissions for all commands
 	r_caps = all		# read permissions for all commands
 	nvi = 28		# NVI_UNIFIED
-	niqflint = 170		# NFLIQ_UNIFIED + NLFIQ_WD
+	niqflint = 202		# NFLIQ_UNIFIED + NLFIQ_WD + NFLIQ_CRYPTO (32)
 	nethctrl = 100		# NETHCTRL_UNIFIED + NETHCTRL_WD
 	neq = 256		# NEQ_UNIFIED + NEQ_WD
-	nqpcq = 12288 
+	nqpcq = 12288
 	nexactf = 40		# NMPSTCAM_UNIFIED
 	cmask = all		# access to all channels
 	pmask = all		# access to all four ports ...
 	nethofld = 1024		# number of user mode ethernet flow contexts
-	nroute = 32		# number of routing region entries
-	nclip = 32		# number of clip region entries
+	ncrypto_lookaside = 16  # Number of lookaside flow contexts 
+	nclip = 320		# number of clip region entries
 	nfilter = 496		# number of filter region entries
 	nserver = 496		# number of server region entries
 	nhash = 12288		# number of hash region entries
-	protocol = nic_vm, ofld, rddp, rdmac, iscsi_initiator_pdu, iscsi_target_pdu, iscsi_t10dif
+	nhpfilter = 0		# number of high priority filter region entries
+	protocol = nic_vm, ofld, rddp, rdmac, iscsi_initiator_pdu, iscsi_target_pdu, iscsi_t10dif, tlskeys, crypto_lookaside
 	tp_l2t = 3072
 	tp_ddp = 2
 	tp_ddp_iscsi = 2
+	tp_tls_key = 3
 	tp_stag = 2
 	tp_pbl = 5
 	tp_rq = 7
-
+	tp_srq = 128
 
 # We have FCoE and iSCSI storage functions on PF5 and PF6 each of which may
 # need to have Virtual Interfaces on each of the four ports with up to NCPUS
@@ -440,6 +431,7 @@
 	nserver = 16
 	nhash = 2048
 	tp_l2t = 1020
+	nclip = 64
 	protocol = iscsi_initiator_fofld
 	tp_ddp_iscsi = 2
 	iscsi_ntask = 2048
@@ -512,7 +504,6 @@
 	cmask = all		# access to all channels
 	pmask = 0x2		# access to only one port ...
 
-
 [function "2/*"]		# NVF
 	wx_caps = 0x82		# DMAQ | VF
 	r_caps = 0x86		# DMAQ | VF | PORT
@@ -522,7 +513,7 @@
 	neq = 4			# 2 "Queue Sets" * 2
 	nexactf = 4
 	cmask = all		# access to all channels
-	pmask = 0x4		# access to only one port ...
+	pmask = 0x1		# access to only one port ...
 
 
 [function "3/*"]		# NVF
@@ -534,8 +525,7 @@
 	neq = 4			# 2 "Queue Sets" * 2
 	nexactf = 4
 	cmask = all		# access to all channels
-	pmask = 0x8		# access to only one port ...
-
+	pmask = 0x2		# access to only one port ...
 
 # MPS features a 196608 bytes ingress buffer that is used for ingress buffering
 # for packets from the wire as well as the loopback path of the L2 switch. The
@@ -553,55 +543,33 @@
 #
 [port "0"]
 	dcb = ppp, dcbx		# configure for DCB PPP and enable DCBX offload
-	bg_mem = 25
-	lpbk_mem = 25
-	hwm = 30
+	#bg_mem = 25
+	#lpbk_mem = 25
+	hwm = 60
 	lwm = 15
 	dwm = 30
 	dcb_app_tlv[0] = 0x8906, ethertype, 3
 	dcb_app_tlv[1] = 0x8914, ethertype, 3
 	dcb_app_tlv[2] = 3260, socketnum, 5
+	aec_retry_cnt = 4
 
 
 [port "1"]
 	dcb = ppp, dcbx
-	bg_mem = 25
-	lpbk_mem = 25
-	hwm = 30
+	#bg_mem = 25
+	#lpbk_mem = 25
+	hwm = 60
 	lwm = 15
 	dwm = 30
 	dcb_app_tlv[0] = 0x8906, ethertype, 3
 	dcb_app_tlv[1] = 0x8914, ethertype, 3
 	dcb_app_tlv[2] = 3260, socketnum, 5
-
-
-[port "2"]
-	dcb = ppp, dcbx
-	bg_mem = 25
-	lpbk_mem = 25
-	hwm = 30
-	lwm = 15
-	dwm = 30
-	dcb_app_tlv[0] = 0x8906, ethertype, 3
-	dcb_app_tlv[1] = 0x8914, ethertype, 3
-	dcb_app_tlv[2] = 3260, socketnum, 5
-
-
-[port "3"]
-	dcb = ppp, dcbx
-	bg_mem = 25
-	lpbk_mem = 25
-	hwm = 30
-	lwm = 15
-	dwm = 30
-	dcb_app_tlv[0] = 0x8906, ethertype, 3
-	dcb_app_tlv[1] = 0x8914, ethertype, 3
-	dcb_app_tlv[2] = 3260, socketnum, 5
+	aec_retry_cnt = 4
 
 
 [fini]
-	version = 0x1425001c
-	checksum = 0xf9115d76
+	version = 0x01000023
+	checksum = 0x683208a2
 
 # Total resources used by above allocations:
 #   Virtual Interfaces: 104

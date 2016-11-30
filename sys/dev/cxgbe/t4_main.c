@@ -3590,11 +3590,12 @@ build_medialist(struct port_info *pi, struct ifmedia *media)
 		break;
 
 	case FW_PORT_TYPE_CR_QSFP:
+	case FW_PORT_TYPE_CR_SFP28:
 	case FW_PORT_TYPE_SFP28:
+	case FW_PORT_TYPE_KR_SFP28:
 		switch (pi->mod_type) {
 
 		case FW_PORT_MOD_TYPE_SR:
-			MPASS(pi->port_type == FW_PORT_TYPE_SFP28);
 			ifmedia_add(media, m | IFM_25G_SR, 0, NULL);
 			ifmedia_set(media, m | IFM_25G_SR);
 			break;
@@ -3638,31 +3639,6 @@ build_medialist(struct port_info *pi, struct ifmedia *media)
 		case FW_PORT_MOD_TYPE_TWINAX_ACTIVE:
 			ifmedia_add(media, m | IFM_40G_CR4, 0, NULL);
 			ifmedia_set(media, m | IFM_40G_CR4);
-			break;
-
-		case FW_PORT_MOD_TYPE_NONE:
-			m &= ~IFM_FDX;
-			ifmedia_add(media, m | IFM_NONE, 0, NULL);
-			ifmedia_set(media, m | IFM_NONE);
-			break;
-
-		default:
-			device_printf(pi->dev,
-			    "unknown port_type (%d), mod_type (%d)\n",
-			    pi->port_type, pi->mod_type);
-			ifmedia_add(media, m | IFM_UNKNOWN, 0, NULL);
-			ifmedia_set(media, m | IFM_UNKNOWN);
-			break;
-		}
-		break;
-
-	case FW_PORT_TYPE_CR2_QSFP:
-		switch (pi->mod_type) {
-
-		case FW_PORT_MOD_TYPE_TWINAX_PASSIVE:
-		case FW_PORT_MOD_TYPE_TWINAX_ACTIVE:
-			ifmedia_add(media, m | IFM_50G_CR2, 0, NULL);
-			ifmedia_set(media, m | IFM_50G_CR2);
 			break;
 
 		case FW_PORT_MOD_TYPE_NONE:
@@ -4457,7 +4433,7 @@ vi_full_init(struct vi_info *vi)
 	    F_FW_RSS_VI_CONFIG_CMD_IP4FOURTUPEN |
 	    F_FW_RSS_VI_CONFIG_CMD_IP4TWOTUPEN | F_FW_RSS_VI_CONFIG_CMD_UDPEN;
 #endif
-	rc = -t4_config_vi_rss(sc, sc->mbox, vi->viid, hashen, rss[0]);
+	rc = -t4_config_vi_rss(sc, sc->mbox, vi->viid, hashen, rss[0], 0, 0);
 	if (rc != 0) {
 		if_printf(ifp, "rss hash/defaultq config failed: %d\n", rc);
 		goto done;
