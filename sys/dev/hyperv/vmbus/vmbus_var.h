@@ -31,8 +31,11 @@
 
 #include <sys/param.h>
 #include <sys/taskqueue.h>
+#include <sys/rman.h>
 
 #include <dev/hyperv/include/hyperv_busdma.h>
+#include <dev/pci/pcivar.h>
+#include <dev/pci/pcib_private.h>
 
 /*
  * NOTE: DO NOT CHANGE THIS.
@@ -77,6 +80,10 @@ struct vmbus_pcpu_data {
 	struct task		message_task;	/* message task */
 } __aligned(CACHE_LINE_SIZE);
 
+#if __FreeBSD_version < 1100000
+typedef u_long rman_res_t;
+#endif
+
 struct vmbus_softc {
 	void			(*vmbus_event_proc)(struct vmbus_softc *, int);
 	u_long			*vmbus_tx_evtflags;
@@ -120,6 +127,11 @@ struct vmbus_softc {
 	/* Complete channel list */
 	struct mtx		vmbus_chan_lock;
 	TAILQ_HEAD(, vmbus_channel) vmbus_chans;
+
+#ifdef NEW_PCIB
+	/* The list of usable MMIO ranges for PCIe pass-through */
+	struct pcib_host_resources vmbus_mmio_res;
+#endif
 };
 
 #define VMBUS_FLAG_ATTACHED	0x0001	/* vmbus was attached */
