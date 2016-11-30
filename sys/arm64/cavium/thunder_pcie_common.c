@@ -204,7 +204,7 @@ thunder_pcie_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		end = start + count - 1;
 	}
 
-	return (pci_host_generic_alloc_resource(dev, child, type, rid, start,
-	    end, count, flags));
+	return (pci_host_generic_core_alloc_resource(dev, child, type, rid,
+	    start, end, count, flags));
 }
 #endif
