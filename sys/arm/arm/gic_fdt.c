@@ -60,6 +60,12 @@ struct arm_gic_devinfo {
 };
 #endif
 
+struct arm_gic_fdt_softc {
+	struct arm_gic_softc	base;
+	pcell_t			addr_cells;
+	pcell_t			size_cells;
+};
+
 static device_probe_t gic_fdt_probe;
 static device_attach_t gic_fdt_attach;
 static ofw_bus_get_devinfo_t gic_ofw_get_devinfo;
@@ -102,7 +108,7 @@ static device_method_t gic_fdt_methods[] = {
 };
 
 DEFINE_CLASS_1(gic, gic_fdt_driver, gic_fdt_methods,
-    sizeof(struct arm_gic_softc), arm_gic_driver);
+    sizeof(struct arm_gic_fdt_softc), arm_gic_driver);
 
 static devclass_t gic_fdt_devclass;
 
@@ -128,7 +134,7 @@ static int
 gic_fdt_attach(device_t dev)
 {
 #ifdef INTRNG
-	struct arm_gic_softc *sc = device_get_softc(dev);
+	struct arm_gic_fdt_softc *sc = device_get_softc(dev);
 	phandle_t pxref;
 	intptr_t xref;
 #endif
@@ -164,14 +170,14 @@ gic_fdt_attach(device_t dev)
 			goto cleanup;
 		}
 	} else {
-		if (sc->gic_res[2] == NULL) {
+		if (sc->base.gic_res[2] == NULL) {
 			device_printf(dev,
 			    "not root PIC must have defined interrupt\n");
 			intr_pic_deregister(dev, xref);
 			goto cleanup;
 		}
-		if (bus_setup_intr(dev, sc->gic_res[2], INTR_TYPE_CLK,
-		    arm_gic_intr, NULL, sc, &sc->gic_intrhand)) {
+		if (bus_setup_intr(dev, sc->base.gic_res[2], INTR_TYPE_CLK,
+		    arm_gic_intr, NULL, sc, &sc->base.gic_intrhand)) {
 			device_printf(dev, "could not setup irq handler\n");
 			intr_pic_deregister(dev, xref);
 			goto cleanup;
@@ -209,7 +215,7 @@ gic_fdt_get_resource_list(device_t bus, device_t child)
 }
 
 static int
-arm_gic_fill_ranges(phandle_t node, struct arm_gic_softc *sc)
+arm_gic_fill_ranges(phandle_t node, struct arm_gic_fdt_softc *sc)
 {
 	pcell_t host_cells;
 	cell_t *base_ranges;
@@ -229,42 +235,42 @@ arm_gic_fill_ranges(phandle_t node, struct arm_gic_softc *sc)
 	nbase_ranges = OF_getproplen(node, "ranges");
 	if (nbase_ranges < 0)
 		return (-1);
-	sc->nranges = nbase_ranges / sizeof(cell_t) /
+	sc->base.nranges = nbase_ranges / sizeof(cell_t) /
 	    (sc->addr_cells + host_cells + sc->size_cells);
-	if (sc->nranges == 0)
+	if (sc->base.nranges == 0)
 		return (0);
 
-	sc->ranges = malloc(sc->nranges * sizeof(sc->ranges[0]),
+	sc->base.ranges = malloc(sc->base.nranges * sizeof(sc->base.ranges[0]),
 	    M_DEVBUF, M_WAITOK);
 	base_ranges = malloc(nbase_ranges, M_DEVBUF, M_WAITOK);
 	OF_getencprop(node, "ranges", base_ranges, nbase_ranges);
 
-	for (i = 0, j = 0; i < sc->nranges; i++) {
-		sc->ranges[i].bus = 0;
+	for (i = 0, j = 0; i < sc->base.nranges; i++) {
+		sc->base.ranges[i].bus = 0;
 		for (k = 0; k < sc->addr_cells; k++) {
-			sc->ranges[i].bus <<= 32;
-			sc->ranges[i].bus |= base_ranges[j++];
+			sc->base.ranges[i].bus <<= 32;
+			sc->base.ranges[i].bus |= base_ranges[j++];
 		}
-		sc->ranges[i].host = 0;
+		sc->base.ranges[i].host = 0;
 		for (k = 0; k < host_cells; k++) {
-			sc->ranges[i].host <<= 32;
-			sc->ranges[i].host |= base_ranges[j++];
+			sc->base.ranges[i].host <<= 32;
+			sc->base.ranges[i].host |= base_ranges[j++];
 		}
-		sc->ranges[i].size = 0;
+		sc->base.ranges[i].size = 0;
 		for (k = 0; k < sc->size_cells; k++) {
-			sc->ranges[i].size <<= 32;
-			sc->ranges[i].size |= base_ranges[j++];
+			sc->base.ranges[i].size <<= 32;
+			sc->base.ranges[i].size |= base_ranges[j++];
 		}
 	}
 
 	free(base_ranges, M_DEVBUF);
-	return (sc->nranges);
+	return (sc->base.nranges);
 }
 
 static bool
 arm_gic_add_children(device_t dev)
 {
-	struct arm_gic_softc *sc;
+	struct arm_gic_fdt_softc *sc;
 	struct arm_gic_devinfo *dinfo;
 	phandle_t child, node;
 	device_t cdev;
