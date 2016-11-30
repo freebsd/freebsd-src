@@ -425,156 +425,158 @@ DPADD+=		${DPADD_${_l}}
 LDADD+=		${LDADD_${_l}}
 .endfor
 
+_LIB_OBJTOP?=	${OBJTOP}
+
 # INTERNALLIB definitions.
-LIBELFTCDIR=	${OBJTOP}/lib/libelftc
+LIBELFTCDIR=	${_LIB_OBJTOP}/lib/libelftc
 LIBELFTC?=	${LIBELFTCDIR}/libelftc.a
 
-LIBPEDIR=	${OBJTOP}/lib/libpe
+LIBPEDIR=	${_LIB_OBJTOP}/lib/libpe
 LIBPE?=		${LIBPEDIR}/libpe.a
 
-LIBREADLINEDIR=	${OBJTOP}/gnu/lib/libreadline/readline
+LIBREADLINEDIR=	${_LIB_OBJTOP}/gnu/lib/libreadline/readline
 LIBREADLINE?=	${LIBREADLINEDIR}/libreadline.a
 
-LIBOPENBSDDIR=	${OBJTOP}/lib/libopenbsd
+LIBOPENBSDDIR=	${_LIB_OBJTOP}/lib/libopenbsd
 LIBOPENBSD?=	${LIBOPENBSDDIR}/libopenbsd.a
 
-LIBSMDIR=	${OBJTOP}/lib/libsm
+LIBSMDIR=	${_LIB_OBJTOP}/lib/libsm
 LIBSM?=		${LIBSMDIR}/libsm.a
 
-LIBSMDBDIR=	${OBJTOP}/lib/libsmdb
+LIBSMDBDIR=	${_LIB_OBJTOP}/lib/libsmdb
 LIBSMDB?=	${LIBSMDBDIR}/libsmdb.a
 
-LIBSMUTILDIR=	${OBJTOP}/lib/libsmutil
+LIBSMUTILDIR=	${_LIB_OBJTOP}/lib/libsmutil
 LIBSMUTIL?=	${LIBSMDBDIR}/libsmutil.a
 
-LIBNETBSDDIR?=	${OBJTOP}/lib/libnetbsd
+LIBNETBSDDIR?=	${_LIB_OBJTOP}/lib/libnetbsd
 LIBNETBSD?=	${LIBNETBSDDIR}/libnetbsd.a
 
-LIBVERSDIR?=	${OBJTOP}/kerberos5/lib/libvers
+LIBVERSDIR?=	${_LIB_OBJTOP}/kerberos5/lib/libvers
 LIBVERS?=	${LIBVERSDIR}/libvers.a
 
-LIBSLDIR=	${OBJTOP}/kerberos5/lib/libsl
+LIBSLDIR=	${_LIB_OBJTOP}/kerberos5/lib/libsl
 LIBSL?=		${LIBSLDIR}/libsl.a
 
-LIBIPFDIR=	${OBJTOP}/sbin/ipf/libipf
+LIBIPFDIR=	${_LIB_OBJTOP}/sbin/ipf/libipf
 LIBIPF?=	${LIBIPFDIR}/libipf.a
 
-LIBTELNETDIR=	${OBJTOP}/lib/libtelnet
+LIBTELNETDIR=	${_LIB_OBJTOP}/lib/libtelnet
 LIBTELNET?=	${LIBTELNETDIR}/libtelnet.a
 
-LIBCRONDIR=	${OBJTOP}/usr.sbin/cron/lib
+LIBCRONDIR=	${_LIB_OBJTOP}/usr.sbin/cron/lib
 LIBCRON?=	${LIBCRONDIR}/libcron.a
 
-LIBNTPDIR=	${OBJTOP}/usr.sbin/ntp/libntp
+LIBNTPDIR=	${_LIB_OBJTOP}/usr.sbin/ntp/libntp
 LIBNTP?=	${LIBNTPDIR}/libntp.a
 
-LIBNTPEVENTDIR=	${OBJTOP}/usr.sbin/ntp/libntpevent
+LIBNTPEVENTDIR=	${_LIB_OBJTOP}/usr.sbin/ntp/libntpevent
 LIBNTPEVENT?=	${LIBNTPEVENTDIR}/libntpevent.a
 
-LIBOPTSDIR=	${OBJTOP}/usr.sbin/ntp/libopts
+LIBOPTSDIR=	${_LIB_OBJTOP}/usr.sbin/ntp/libopts
 LIBOPTS?=	${LIBOPTSDIR}/libopts.a
 
-LIBPARSEDIR=	${OBJTOP}/usr.sbin/ntp/libparse
+LIBPARSEDIR=	${_LIB_OBJTOP}/usr.sbin/ntp/libparse
 LIBPARSE?=	${LIBPARSEDIR}/libparse.a
 
-LIBLPRDIR=	${OBJTOP}/usr.sbin/lpr/common_source
+LIBLPRDIR=	${_LIB_OBJTOP}/usr.sbin/lpr/common_source
 LIBLPR?=	${LIBOPTSDIR}/liblpr.a
 
-LIBFIFOLOGDIR=	${OBJTOP}/usr.sbin/fifolog/lib
+LIBFIFOLOGDIR=	${_LIB_OBJTOP}/usr.sbin/fifolog/lib
 LIBFIFOLOG?=	${LIBOPTSDIR}/libfifolog.a
 
-LIBBSNMPTOOLSDIR=	${OBJTOP}/usr.sbin/bsnmpd/tools/libbsnmptools
+LIBBSNMPTOOLSDIR=	${_LIB_OBJTOP}/usr.sbin/bsnmpd/tools/libbsnmptools
 LIBBSNMPTOOLS?=	${LIBBSNMPTOOLSDIR}/libbsnmptools.a
 
-LIBAMUDIR=	${OBJTOP}/usr.sbin/amd/libamu
+LIBAMUDIR=	${_LIB_OBJTOP}/usr.sbin/amd/libamu
 LIBAMU?=	${LIBAMUDIR}/libamu/libamu.a
 
 # Define a directory for each library.  This is useful for adding -L in when
 # not using a --sysroot or for meta mode bootstrapping when there is no
 # Makefile.depend.  These are sorted by directory.
-LIBAVLDIR=	${OBJTOP}/cddl/lib/libavl
-LIBCTFDIR=	${OBJTOP}/cddl/lib/libctf
-LIBDTRACEDIR=	${OBJTOP}/cddl/lib/libdtrace
-LIBNVPAIRDIR=	${OBJTOP}/cddl/lib/libnvpair
-LIBUMEMDIR=	${OBJTOP}/cddl/lib/libumem
-LIBUUTILDIR=	${OBJTOP}/cddl/lib/libuutil
-LIBZFSDIR=	${OBJTOP}/cddl/lib/libzfs
-LIBZFS_COREDIR=	${OBJTOP}/cddl/lib/libzfs_core
-LIBZPOOLDIR=	${OBJTOP}/cddl/lib/libzpool
-LIBCXGB4DIR=	${OBJTOP}/contrib/ofed/usr.lib/libcxgb4
-LIBIBCMDIR=	${OBJTOP}/contrib/ofed/usr.lib/libibcm
-LIBIBCOMMONDIR=	${OBJTOP}/contrib/ofed/usr.lib/libibcommon
-LIBIBMADDIR=	${OBJTOP}/contrib/ofed/usr.lib/libibmad
-LIBIBUMADDIR=	${OBJTOP}/contrib/ofed/usr.lib/libibumad
-LIBIBVERBSDIR=	${OBJTOP}/contrib/ofed/usr.lib/libibverbs
-LIBMLX4DIR=	${OBJTOP}/contrib/ofed/usr.lib/libmlx4
-LIBMTHCADIR=	${OBJTOP}/contrib/ofed/usr.lib/libmthca
-LIBOPENSMDIR=	${OBJTOP}/contrib/ofed/usr.lib/libopensm
-LIBOSMCOMPDIR=	${OBJTOP}/contrib/ofed/usr.lib/libosmcomp
-LIBOSMVENDORDIR=	${OBJTOP}/contrib/ofed/usr.lib/libosmvendor
-LIBRDMACMDIR=	${OBJTOP}/contrib/ofed/usr.lib/librdmacm
-LIBIBSDPDIR=	${OBJTOP}/contrib/ofed/usr.lib/libsdp
-LIBDIALOGDIR=	${OBJTOP}/gnu/lib/libdialog
-LIBGCOVDIR=	${OBJTOP}/gnu/lib/libgcov
-LIBGOMPDIR=	${OBJTOP}/gnu/lib/libgomp
-LIBGNUREGEXDIR=	${OBJTOP}/gnu/lib/libregex
-LIBSSPDIR=	${OBJTOP}/gnu/lib/libssp
-LIBSSP_NONSHAREDDIR=	${OBJTOP}/gnu/lib/libssp/libssp_nonshared
-LIBSUPCPLUSPLUSDIR=	${OBJTOP}/gnu/lib/libsupc++
-LIBASN1DIR=	${OBJTOP}/kerberos5/lib/libasn1
-LIBGSSAPI_KRB5DIR=	${OBJTOP}/kerberos5/lib/libgssapi_krb5
-LIBGSSAPI_NTLMDIR=	${OBJTOP}/kerberos5/lib/libgssapi_ntlm
-LIBGSSAPI_SPNEGODIR=	${OBJTOP}/kerberos5/lib/libgssapi_spnego
-LIBHDBDIR=	${OBJTOP}/kerberos5/lib/libhdb
-LIBHEIMBASEDIR=	${OBJTOP}/kerberos5/lib/libheimbase
-LIBHEIMIPCCDIR=	${OBJTOP}/kerberos5/lib/libheimipcc
-LIBHEIMIPCSDIR=	${OBJTOP}/kerberos5/lib/libheimipcs
-LIBHEIMNTLMDIR=	${OBJTOP}/kerberos5/lib/libheimntlm
-LIBHX509DIR=	${OBJTOP}/kerberos5/lib/libhx509
-LIBKADM5CLNTDIR=	${OBJTOP}/kerberos5/lib/libkadm5clnt
-LIBKADM5SRVDIR=	${OBJTOP}/kerberos5/lib/libkadm5srv
-LIBKAFS5DIR=	${OBJTOP}/kerberos5/lib/libkafs5
-LIBKDCDIR=	${OBJTOP}/kerberos5/lib/libkdc
-LIBKRB5DIR=	${OBJTOP}/kerberos5/lib/libkrb5
-LIBROKENDIR=	${OBJTOP}/kerberos5/lib/libroken
-LIBWINDDIR=	${OBJTOP}/kerberos5/lib/libwind
-LIBATF_CDIR=	${OBJTOP}/lib/atf/libatf-c
-LIBATF_CXXDIR=	${OBJTOP}/lib/atf/libatf-c++
-LIBALIASDIR=	${OBJTOP}/lib/libalias/libalias
-LIBBLACKLISTDIR=	${OBJTOP}/lib/libblacklist
-LIBBLOCKSRUNTIMEDIR=	${OBJTOP}/lib/libblocksruntime
-LIBBSNMPDIR=	${OBJTOP}/lib/libbsnmp/libbsnmp
-LIBCASPERDIR=	${OBJTOP}/lib/libcasper/libcasper
-LIBCAP_DNSDIR=	${OBJTOP}/lib/libcasper/services/cap_dns
-LIBCAP_GRPDIR=	${OBJTOP}/lib/libcasper/services/cap_grp
-LIBCAP_PWDDIR=	${OBJTOP}/lib/libcasper/services/cap_pwd
-LIBCAP_RANDOMDIR=	${OBJTOP}/lib/libcasper/services/cap_random
-LIBCAP_SYSCTLDIR=	${OBJTOP}/lib/libcasper/services/cap_sysctl
-LIBBSDXMLDIR=	${OBJTOP}/lib/libexpat
-LIBKVMDIR=	${OBJTOP}/lib/libkvm
-LIBPTHREADDIR=	${OBJTOP}/lib/libthr
-LIBMDIR=	${OBJTOP}/lib/msun
-LIBFORMDIR=	${OBJTOP}/lib/ncurses/form
-LIBFORMLIBWDIR=	${OBJTOP}/lib/ncurses/formw
-LIBMENUDIR=	${OBJTOP}/lib/ncurses/menu
-LIBMENULIBWDIR=	${OBJTOP}/lib/ncurses/menuw
-LIBNCURSESDIR=	${OBJTOP}/lib/ncurses/ncurses
-LIBNCURSESWDIR=	${OBJTOP}/lib/ncurses/ncursesw
-LIBPANELDIR=	${OBJTOP}/lib/ncurses/panel
-LIBPANELWDIR=	${OBJTOP}/lib/ncurses/panelw
-LIBCRYPTODIR=	${OBJTOP}/secure/lib/libcrypto
-LIBSSHDIR=	${OBJTOP}/secure/lib/libssh
-LIBSSLDIR=	${OBJTOP}/secure/lib/libssl
-LIBTEKENDIR=	${OBJTOP}/sys/teken/libteken
-LIBEGACYDIR=	${OBJTOP}/tools/build
-LIBLNDIR=	${OBJTOP}/usr.bin/lex/lib
+LIBAVLDIR=	${_LIB_OBJTOP}/cddl/lib/libavl
+LIBCTFDIR=	${_LIB_OBJTOP}/cddl/lib/libctf
+LIBDTRACEDIR=	${_LIB_OBJTOP}/cddl/lib/libdtrace
+LIBNVPAIRDIR=	${_LIB_OBJTOP}/cddl/lib/libnvpair
+LIBUMEMDIR=	${_LIB_OBJTOP}/cddl/lib/libumem
+LIBUUTILDIR=	${_LIB_OBJTOP}/cddl/lib/libuutil
+LIBZFSDIR=	${_LIB_OBJTOP}/cddl/lib/libzfs
+LIBZFS_COREDIR=	${_LIB_OBJTOP}/cddl/lib/libzfs_core
+LIBZPOOLDIR=	${_LIB_OBJTOP}/cddl/lib/libzpool
+LIBCXGB4DIR=	${_LIB_OBJTOP}/contrib/ofed/usr.lib/libcxgb4
+LIBIBCMDIR=	${_LIB_OBJTOP}/contrib/ofed/usr.lib/libibcm
+LIBIBCOMMONDIR=	${_LIB_OBJTOP}/contrib/ofed/usr.lib/libibcommon
+LIBIBMADDIR=	${_LIB_OBJTOP}/contrib/ofed/usr.lib/libibmad
+LIBIBUMADDIR=	${_LIB_OBJTOP}/contrib/ofed/usr.lib/libibumad
+LIBIBVERBSDIR=	${_LIB_OBJTOP}/contrib/ofed/usr.lib/libibverbs
+LIBMLX4DIR=	${_LIB_OBJTOP}/contrib/ofed/usr.lib/libmlx4
+LIBMTHCADIR=	${_LIB_OBJTOP}/contrib/ofed/usr.lib/libmthca
+LIBOPENSMDIR=	${_LIB_OBJTOP}/contrib/ofed/usr.lib/libopensm
+LIBOSMCOMPDIR=	${_LIB_OBJTOP}/contrib/ofed/usr.lib/libosmcomp
+LIBOSMVENDORDIR=	${_LIB_OBJTOP}/contrib/ofed/usr.lib/libosmvendor
+LIBRDMACMDIR=	${_LIB_OBJTOP}/contrib/ofed/usr.lib/librdmacm
+LIBIBSDPDIR=	${_LIB_OBJTOP}/contrib/ofed/usr.lib/libsdp
+LIBDIALOGDIR=	${_LIB_OBJTOP}/gnu/lib/libdialog
+LIBGCOVDIR=	${_LIB_OBJTOP}/gnu/lib/libgcov
+LIBGOMPDIR=	${_LIB_OBJTOP}/gnu/lib/libgomp
+LIBGNUREGEXDIR=	${_LIB_OBJTOP}/gnu/lib/libregex
+LIBSSPDIR=	${_LIB_OBJTOP}/gnu/lib/libssp
+LIBSSP_NONSHAREDDIR=	${_LIB_OBJTOP}/gnu/lib/libssp/libssp_nonshared
+LIBSUPCPLUSPLUSDIR=	${_LIB_OBJTOP}/gnu/lib/libsupc++
+LIBASN1DIR=	${_LIB_OBJTOP}/kerberos5/lib/libasn1
+LIBGSSAPI_KRB5DIR=	${_LIB_OBJTOP}/kerberos5/lib/libgssapi_krb5
+LIBGSSAPI_NTLMDIR=	${_LIB_OBJTOP}/kerberos5/lib/libgssapi_ntlm
+LIBGSSAPI_SPNEGODIR=	${_LIB_OBJTOP}/kerberos5/lib/libgssapi_spnego
+LIBHDBDIR=	${_LIB_OBJTOP}/kerberos5/lib/libhdb
+LIBHEIMBASEDIR=	${_LIB_OBJTOP}/kerberos5/lib/libheimbase
+LIBHEIMIPCCDIR=	${_LIB_OBJTOP}/kerberos5/lib/libheimipcc
+LIBHEIMIPCSDIR=	${_LIB_OBJTOP}/kerberos5/lib/libheimipcs
+LIBHEIMNTLMDIR=	${_LIB_OBJTOP}/kerberos5/lib/libheimntlm
+LIBHX509DIR=	${_LIB_OBJTOP}/kerberos5/lib/libhx509
+LIBKADM5CLNTDIR=	${_LIB_OBJTOP}/kerberos5/lib/libkadm5clnt
+LIBKADM5SRVDIR=	${_LIB_OBJTOP}/kerberos5/lib/libkadm5srv
+LIBKAFS5DIR=	${_LIB_OBJTOP}/kerberos5/lib/libkafs5
+LIBKDCDIR=	${_LIB_OBJTOP}/kerberos5/lib/libkdc
+LIBKRB5DIR=	${_LIB_OBJTOP}/kerberos5/lib/libkrb5
+LIBROKENDIR=	${_LIB_OBJTOP}/kerberos5/lib/libroken
+LIBWINDDIR=	${_LIB_OBJTOP}/kerberos5/lib/libwind
+LIBATF_CDIR=	${_LIB_OBJTOP}/lib/atf/libatf-c
+LIBATF_CXXDIR=	${_LIB_OBJTOP}/lib/atf/libatf-c++
+LIBALIASDIR=	${_LIB_OBJTOP}/lib/libalias/libalias
+LIBBLACKLISTDIR=	${_LIB_OBJTOP}/lib/libblacklist
+LIBBLOCKSRUNTIMEDIR=	${_LIB_OBJTOP}/lib/libblocksruntime
+LIBBSNMPDIR=	${_LIB_OBJTOP}/lib/libbsnmp/libbsnmp
+LIBCASPERDIR=	${_LIB_OBJTOP}/lib/libcasper/libcasper
+LIBCAP_DNSDIR=	${_LIB_OBJTOP}/lib/libcasper/services/cap_dns
+LIBCAP_GRPDIR=	${_LIB_OBJTOP}/lib/libcasper/services/cap_grp
+LIBCAP_PWDDIR=	${_LIB_OBJTOP}/lib/libcasper/services/cap_pwd
+LIBCAP_RANDOMDIR=	${_LIB_OBJTOP}/lib/libcasper/services/cap_random
+LIBCAP_SYSCTLDIR=	${_LIB_OBJTOP}/lib/libcasper/services/cap_sysctl
+LIBBSDXMLDIR=	${_LIB_OBJTOP}/lib/libexpat
+LIBKVMDIR=	${_LIB_OBJTOP}/lib/libkvm
+LIBPTHREADDIR=	${_LIB_OBJTOP}/lib/libthr
+LIBMDIR=	${_LIB_OBJTOP}/lib/msun
+LIBFORMDIR=	${_LIB_OBJTOP}/lib/ncurses/form
+LIBFORMLIBWDIR=	${_LIB_OBJTOP}/lib/ncurses/formw
+LIBMENUDIR=	${_LIB_OBJTOP}/lib/ncurses/menu
+LIBMENULIBWDIR=	${_LIB_OBJTOP}/lib/ncurses/menuw
+LIBNCURSESDIR=	${_LIB_OBJTOP}/lib/ncurses/ncurses
+LIBNCURSESWDIR=	${_LIB_OBJTOP}/lib/ncurses/ncursesw
+LIBPANELDIR=	${_LIB_OBJTOP}/lib/ncurses/panel
+LIBPANELWDIR=	${_LIB_OBJTOP}/lib/ncurses/panelw
+LIBCRYPTODIR=	${_LIB_OBJTOP}/secure/lib/libcrypto
+LIBSSHDIR=	${_LIB_OBJTOP}/secure/lib/libssh
+LIBSSLDIR=	${_LIB_OBJTOP}/secure/lib/libssl
+LIBTEKENDIR=	${_LIB_OBJTOP}/sys/teken/libteken
+LIBEGACYDIR=	${_LIB_OBJTOP}/tools/build
+LIBLNDIR=	${_LIB_OBJTOP}/usr.bin/lex/lib
 
 LIBTERMCAPDIR=	${LIBNCURSESDIR}
 LIBTERMCAPWDIR=	${LIBNCURSESWDIR}
 
 # Default other library directories to lib/libNAME.
 .for lib in ${_LIBRARIES}
-LIB${lib:tu}DIR?=	${OBJTOP}/lib/lib${lib}
+LIB${lib:tu}DIR?=	${_LIB_OBJTOP}/lib/lib${lib}
 .endfor
 
 # Validate that listed LIBADD are valid.
@@ -595,8 +597,8 @@ _BADLIBADD+= ${_l}
 .endif
 # Note that OBJTOP is not yet defined here but for the purpose of the check
 # it is fine as it resolves to the SRC directory.
-.if !defined(LIB${LIB:tu}DIR) || !exists(${SRCTOP}/${LIB${LIB:tu}DIR:S,^${OBJTOP}/,,})
-.error ${.CURDIR}: Missing or incorrect value for LIB${LIB:tu}DIR in ${_this:T}: ${LIB${LIB:tu}DIR:S,^${OBJTOP}/,,}
+.if !defined(LIB${LIB:tu}DIR) || !exists(${SRCTOP}/${LIB${LIB:tu}DIR:S,^${_LIB_OBJTOP}/,,})
+.error ${.CURDIR}: Missing or incorrect value for LIB${LIB:tu}DIR in ${_this:T}: ${LIB${LIB:tu}DIR:S,^${_LIB_OBJTOP}/,,}
 .endif
 .if ${_INTERNALLIBS:M${LIB}} != "" && !defined(LIB${LIB:tu})
 .error ${.CURDIR}: Missing value for LIB${LIB:tu} in ${_this:T}.  Likely should be: LIB${LIB:tu}?= $${LIB${LIB:tu}DIR}/lib${LIB}.a
