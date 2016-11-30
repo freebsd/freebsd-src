@@ -483,6 +483,7 @@ struct ioat_softc {
 	boolean_t		resetting_cleanup;	/* cleanup_lock */
 
 	uint32_t		head;
+	uint32_t		acq_head;
 	uint32_t		tail;
 	uint32_t		hw_head;
 	uint32_t		ring_size_order;
