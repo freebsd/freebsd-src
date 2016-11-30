@@ -578,7 +578,8 @@ int t4_config_rss_range(struct adapter *adapter, int mbox, unsigned int viid,
 int t4_config_glbl_rss(struct adapter *adapter, int mbox, unsigned int mode,
 		       unsigned int flags);
 int t4_config_vi_rss(struct adapter *adapter, int mbox, unsigned int viid,
-		     unsigned int flags, unsigned int defq);
+		     unsigned int flags, unsigned int defq, unsigned int skeyidx,
+		     unsigned int skey);
 int t4_read_rss(struct adapter *adapter, u16 *entries);
 void t4_fw_tp_pio_rw(struct adapter *adap, u32 *vals, unsigned int nregs,
 		  unsigned int start_index, unsigned int rw);
