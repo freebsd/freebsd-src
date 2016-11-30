@@ -33,6 +33,7 @@
 #ifndef _NETINET_IN_VAR_H_
 #define _NETINET_IN_VAR_H_
 
+#include <sys/callout.h>
 #include <sys/queue.h>
 #include <sys/fnv_hash.h>
 #include <sys/tree.h>
@@ -69,6 +70,8 @@ struct in_ifaddr {
 	struct	sockaddr_in ia_dstaddr; /* reserve space for broadcast addr */
 #define	ia_broadaddr	ia_dstaddr
 	struct	sockaddr_in ia_sockmask; /* reserve space for general netmask */
+	struct	callout ia_garp_timer;	/* timer for retransmitting GARPs */
+	int	ia_garp_count;		/* count of retransmitted GARPs */
 };
 
 struct	in_aliasreq {

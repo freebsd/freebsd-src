@@ -28,7 +28,7 @@
 .\"	@(#)arp4.4	6.5 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd May 11, 2013
+.Dd October 7, 2016
 .Dt ARP 4
 .Os
 .Sh NAME
@@ -121,49 +121,65 @@ of the
 MIB.
 .Bl -tag -width "log_arp_permanent_modify"
 .It Va allow_multicast
-Should the kernel install ARP entries with multicast bit set in
-the hardware address.
-Installing such entries is RFC 1812 violation, but some prorietary
-load balancing techniques require routers on network to do so.
+Install ARP entries with the multicast bit set in the hardware address.
+Installing such entries is an RFC 1812 violation, but some proprietary load
+balancing techniques require routers to do so.
 Turned off by default.
+.It Va garp_rexmit_count
+Retransmit gratuitous ARP (GARP) packets when an IPv4 address is added to an
+interface.
+A GARP is always transmitted when an IPv4 address is added to an interface.
+A non-zero value causes the GARP packet to be retransmitted the stated number
+of times.
+The interval between retransmissions is doubled each time, so the
+retransmission intervals are: {1, 2, 4, 8, 16, ...} (seconds).
+The default value of zero means only the initial GARP is sent; no
+additional GARP packets are retransmitted.
+The maximum value is sixteen.
+.Pp
+The default behavior of a single GARP packet is usually sufficient.
+However, a single GARP might be dropped or lost in some circumstances.
+This is particularly harmful when a shared address is passed between cluster
+nodes.
+Neighbors on the network link might then work with a stale ARP cache and send
+packets destined for that address to the node that previously owned the
+address, which might not respond.
 .It Va log_arp_movements
-Should the kernel log movements of IP addresses from one hardware
-address to an other.
+Log movements of IP addresses from one hardware address to another.
 See
 .Sx DIAGNOSTICS
 below.
 Turned on by default.
 .It Va log_arp_permanent_modify
-Should the kernel log attempts of remote host on network to modify a
-permanent ARP entry.
+Log attempts by a remote host to modify a permanent ARP entry.
 See
 .Sx DIAGNOSTICS
 below.
 Turned on by default.
 .It Va log_arp_wrong_iface
-Should the kernel log attempts to insert an ARP entry on an interface
-when the IP network the address belongs to is connected to an other
-interface.
+Log attempts to insert an ARP entry on an interface when the IP network to
+which the address belongs is connected to another interface.
 See
 .Sx DIAGNOSTICS
 below.
 Turned on by default.
 .It Va max_log_per_second
-Limit number of remotely triggered logging events to a configured value
-per second.
+Limit the number of remotely triggered logging events to a configured value per
+second.
 Default is 1 log message per second.
 .It Va max_age
 How long an ARP entry is held in the cache until it needs to be refreshed.
 Default is 1200 seconds.
 .It Va maxhold
-How many packets hold in the per-entry output queue while the entry
+How many packets to hold in the per-entry output queue while the entry
 is being resolved.
 Default is one packet.
 .It Va maxtries
-Number of retransmits before host is considered down and error is returned.
+Number of retransmits before a host is considered down and an error is
+returned.
 Default is 5 tries.
 .It Va proxyall
-Enables ARP proxying for all hosts on net.
+Enables ARP proxying.
 Turned off by default.
 .It Va useloopback
 If an ARP entry is added for local address, force the traffic to go through
