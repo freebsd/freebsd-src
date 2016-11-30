@@ -858,6 +858,25 @@ everything: .PHONY
 	${_+_}cd ${.CURDIR}; _PARALLEL_SUBDIR_OK=1 ${WMAKE} all
 
 .if ${MK_CHERI} != "no"
+.if ${MK_CHERI_PURE} != "no"
+INTERNAL_INC_DIRS=				\
+	include/rpcsvc				\
+	usr.sbin/amd/include
+INTERNAL_LIB_DIRS=				\
+	sbin/ipf/libipf				\
+	usr.sbin/amd/libamu			\
+	usr.sbin/bsnmpd/tools/libbsnmptools	\
+	usr.sbin/cron/lib			\
+	usr.sbin/fifolog/lib			\
+	usr.sbin/lpr/common_source		\
+	usr.sbin/ntp/libntp			\
+	usr.sbin/ntp/libntpevent		\
+	usr.sbin/ntp/libopts			\
+	usr.sbin/ntp/libopts			\
+	usr.sbin/ntp/libopts			\
+	usr.sbin/ntp/libparse
+.endif
+
 buildcheri:
 	@echo
 	@echo "--------------------------------------------------------------"
@@ -873,7 +892,7 @@ buildcheri:
 	    ${_t}
 .endfor
 .endfor
-.for _lib in lib/csu lib/libgcc_s lib/libgcc_eh lib/libcompiler_rt lib/libc lib/libc_nonshared lib/libthr lib/libz lib/libbz2 lib/liblzma lib/libexpat secure/lib/libcrypto lib/libsbuf lib/libelf lib/libkvm lib/ncurses/ncurses lib/ncurses/ncursesw secure/lib/libssl lib/libmd lib/libutil lib/libprocstat lib/librtld_db cddl/lib/libctf lib/libkiconv lib/libpam/libpam lib/libcom_err lib/libcrypt kerberos5/lib/libroken kerberos5/lib/libasn1 kerberos5/lib/libwind kerberos5/lib/libhx509 kerberos5/lib/libheimbase kerberos5/lib/libheimipcc kerberos5/lib/libkrb5 lib/libopie lib/libradius lib/libtacplus lib/libypclnt lib/libldns secure/lib/libssh lib/msun lib/libnv lib/libcheri gnu/lib/libdialog lib/libfigpar lib/libgssapi cddl/lib/libnvpair cddl/lib/libumem cddl/lib/libuutil cddl/lib/libzfs_core cddl/lib/libavl kerberos5/lib/libheimntlm lib/libsqlite3 kerberos5/lib/libhdb usr.bin/lex/lib lib ${LOCAL_LIB_DIRS} cddl/lib gnu/lib secure/lib kerberos5/lib
+.for _lib in lib/csu lib/libgcc_s lib/libgcc_eh lib/libcompiler_rt lib/libc lib/libc_nonshared lib/libthr lib/libz lib/libbz2 lib/liblzma lib/libexpat secure/lib/libcrypto lib/libsbuf lib/libelf lib/libkvm lib/ncurses/ncurses lib/ncurses/ncursesw secure/lib/libssl lib/libmd lib/libutil lib/libprocstat lib/librtld_db cddl/lib/libctf lib/libkiconv lib/libpam/libpam lib/libcom_err lib/libcrypt kerberos5/lib/libroken kerberos5/lib/libasn1 kerberos5/lib/libwind kerberos5/lib/libhx509 kerberos5/lib/libheimbase kerberos5/lib/libheimipcc kerberos5/lib/libkrb5 lib/libopie lib/libradius lib/libtacplus lib/libypclnt lib/libldns secure/lib/libssh lib/msun lib/libnv lib/libcheri gnu/lib/libdialog lib/libfigpar lib/libgssapi cddl/lib/libnvpair cddl/lib/libumem cddl/lib/libuutil cddl/lib/libzfs_core cddl/lib/libavl kerberos5/lib/libheimntlm lib/libsqlite3 kerberos5/lib/libhdb usr.bin/lex/lib  lib ${LOCAL_LIB_DIRS} cddl/lib gnu/lib secure/lib kerberos5/lib ${INTERNAL_INC_DIRS} ${INTERNAL_LIB_DIRS}
 	${_+_}@${ECHODIR} "===> ${_lib} (obj,all,install)"; \
 		cd ${.CURDIR}/${_lib} && \
 		    ${LIBCHERIWMAKE} DIRPRFX=${_lib}/ obj && \
