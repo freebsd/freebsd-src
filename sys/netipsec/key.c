@@ -753,6 +753,68 @@ key_allocsp(struct secpolicyindex *spidx, u_int dir)
 }
 
 /*
+ * Allocating an SA entry for an *INBOUND* or *OUTBOUND* TCP packet, signed
+ * or should be signed by MD5 signature.
+ * We don't use key_allocsa() for such lookups, because we don't know SPI.
+ * Unlike ESP and AH protocols, SPI isn't transmitted in the TCP header with
+ * signed packet. We use SADB only as storage for password.
+ * OUT:	positive:	corresponding SA for given saidx found.
+ *	NULL:		SA not found
+ */
+struct secasvar *
+key_allocsa_tcpmd5(struct secasindex *saidx)
+{
+	SAHTREE_RLOCK_TRACKER;
+	struct secashead *sah;
+	struct secasvar *sav;
+
+	IPSEC_ASSERT(saidx->proto == IPPROTO_TCP,
+	    ("unexpected security protocol %u", saidx->proto));
+	IPSEC_ASSERT(saidx->mode == IPSEC_MODE_TCPMD5,
+	    ("unexpected mode %u", saidx->mode));
+
+	SAHTREE_RLOCK();
+	LIST_FOREACH(sah, SAHADDRHASH_HASH(saidx), addrhash) {
+		KEYDBG(IPSEC_DUMP,
+		    printf("%s: checking SAH\n", __func__);
+		    kdebug_secash(sah, "  "));
+		if (sah->saidx.proto != IPPROTO_TCP)
+			continue;
+		if (sah->saidx.mode != saidx->mode)
+			continue;
+		/*
+		 * addrhash uses only IP addresses without ports, but if
+		 * SA contains TCP port, use ports in comparison for exact
+		 * match.
+		 */
+		if (!key_sockaddrcmp(&saidx->dst.sa, &sah->saidx.dst.sa,
+		    key_portfromsaddr(&sah->saidx.dst.sa)))
+			break;
+	}
+	if (sah != NULL) {
+		if (V_key_preferred_oldsa)
+			sav = TAILQ_LAST(&sah->savtree_alive, secasvar_queue);
+		else
+			sav = TAILQ_FIRST(&sah->savtree_alive);
+		if (sav != NULL)
+			SAV_ADDREF(sav);
+	} else
+		sav = NULL;
+	SAHTREE_RUNLOCK();
+
+	if (sav != NULL) {
+		KEYDBG(IPSEC_STAMP,
+		    printf("%s: return SA(%p)\n", __func__, sav));
+		KEYDBG(IPSEC_DATA, kdebug_secasv(sav));
+	} else {
+		KEYDBG(IPSEC_STAMP,
+		    printf("%s: SA not found\n", __func__));
+		KEYDBG(IPSEC_DATA, kdebug_secasindex(saidx, NULL));
+	}
+	return (sav);
+}
+
+/*
  * Allocating an SA entry for an *OUTBOUND* packet.
  * OUT:	positive:	corresponding SA for given saidx found.
  *	NULL:		SA not found, but will be acquired, check *error
@@ -830,11 +892,10 @@ key_allocsa_policy(struct secpolicy *sp, const struct secasindex *saidx,
  * OUT: positive:	pointer to a usable sav (i.e. MATURE or DYING state).
  *	NULL:		not found, or error occurred.
  *
- * In the comparison, no source address is used--for RFC2401 conformance.
- * To quote, from section 4.1:
- *	A security association is uniquely identified by a triple consisting
- *	of a Security Parameter Index (SPI), an IP Destination Address, and a
- *	security protocol (AH or ESP) identifier.
+ * According to RFC 2401 SA is uniquely identified by a triple SPI,
+ * destination address, and security protocol. But according to RFC 4301,
+ * SPI by itself suffices to specify an SA.
+ *
  * Note that, however, we do need to keep source address in IPsec SA.
  * IKE specification and PF_KEY specification do assume that we
  * keep source address in IPsec SA.  We see a tricky situation here.
@@ -846,7 +907,9 @@ key_allocsa(union sockaddr_union *dst, uint8_t proto, uint32_t spi)
 	struct secasvar *sav;
 	int chkport;
 
-	IPSEC_ASSERT(dst != NULL, ("null dst address"));
+	IPSEC_ASSERT(proto == IPPROTO_ESP || proto == IPPROTO_AH ||
+	    proto == IPPROTO_IPCOMP, ("unexpected security protocol %u",
+	    proto));
 
 	chkport = 0;
 	SAHTREE_RLOCK();
@@ -857,7 +920,6 @@ key_allocsa(union sockaddr_union *dst, uint8_t proto, uint32_t spi)
 	/*
 	 * We use single SPI namespace for all protocols, so it is
 	 * impossible to have SPI duplicates in the SAVHASH.
-	 * XXXAE: this breaks TCP_SIGNATURE.
 	 */
 	if (sav != NULL) {
 #ifdef IPSEC_NAT_T
