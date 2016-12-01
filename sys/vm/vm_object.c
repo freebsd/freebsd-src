@@ -205,7 +205,6 @@ vm_object_zinit(void *mem, int size, int flags)
 	object->type = OBJT_DEAD;
 	object->ref_count = 0;
 	object->rtree.rt_root = 0;
-	object->rtree.rt_flags = 0;
 	object->paging_in_progress = 0;
 	object->resident_page_count = 0;
 	object->shadow_count = 0;
