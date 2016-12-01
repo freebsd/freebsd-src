@@ -40,10 +40,10 @@ __FBSDID("$FreeBSD$");
 /*
  * Reliably open and lock a file.
  *
- * DO NOT, UNDER PAIN OF DEATH, modify this code without first reading the
- * revision history and discussing your changes with <des@freebsd.org>.
- * Don't be fooled by the code's apparent simplicity; there would be no
- * need for this function if it was as easy to get right as you think.
+ * Please do not modify this code without first reading the revision history
+ * and discussing your changes with <des@freebsd.org>.  Don't be fooled by the
+ * code's apparent simplicity; there would be no need for this function if it
+ * was easy to get right.
  */
 int
 flopen(const char *path, int flags, ...)
@@ -108,7 +108,11 @@ flopen(const char *path, int flags, ...)
 			errno = serrno;
 			return (-1);
 		}
-#ifdef DONT_EVEN_THINK_ABOUT_IT
+		/*
+		 * The following change is provided as a specific example to
+		 * avoid.
+		 */
+#if 0
 		if (fcntl(fd, F_SETFD, FD_CLOEXEC) != 0) {
 			serrno = errno;
 			(void)close(fd);
