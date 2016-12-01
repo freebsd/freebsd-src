@@ -1760,7 +1760,7 @@ cpsw_rx_enqueue(struct cpsw_softc *sc)
 	sc->rx.queue_adds += added;
 	sc->rx.avail_queue_len -= added;
 	sc->rx.active_queue_len += added;
-	cpsw_write_4(sc, CPSW_CPDMA_RX_FREEBUFFER(0), sc->rx.active_queue_len);
+	cpsw_write_4(sc, CPSW_CPDMA_RX_FREEBUFFER(0), added);
 	if (sc->rx.active_queue_len > sc->rx.max_active_queue_len) {
 		sc->rx.max_active_queue_len = sc->rx.active_queue_len;
 	}
