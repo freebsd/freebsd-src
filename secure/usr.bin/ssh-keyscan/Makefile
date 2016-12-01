@@ -2,6 +2,9 @@
 
 .include <src.opts.mk>
 
+# linker error
+WANT_CHERI=none
+
 PROG=	ssh-keyscan
 SRCS=	ssh-keyscan.c
 PACKAGE=	ssh
