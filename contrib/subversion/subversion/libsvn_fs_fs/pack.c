@@ -335,20 +335,39 @@ static svn_error_t *
 reset_pack_context(pack_context_t *context,
                    apr_pool_t *pool)
 {
+  const char *temp_dir;
+
   apr_array_clear(context->changes);
-  SVN_ERR(svn_io_file_trunc(context->changes_file, 0, pool));
+  SVN_ERR(svn_io_file_close(context->changes_file, pool));
   apr_array_clear(context->file_props);
-  SVN_ERR(svn_io_file_trunc(context->file_props_file, 0, pool));
+  SVN_ERR(svn_io_file_close(context->file_props_file, pool));
   apr_array_clear(context->dir_props);
-  SVN_ERR(svn_io_file_trunc(context->dir_props_file, 0, pool));
+  SVN_ERR(svn_io_file_close(context->dir_props_file, pool));
 
   apr_array_clear(context->rev_offsets);
   apr_array_clear(context->path_order);
   apr_array_clear(context->references);
   apr_array_clear(context->reps);
-  SVN_ERR(svn_io_file_trunc(context->reps_file, 0, pool));
+  SVN_ERR(svn_io_file_close(context->reps_file, pool));
 
   svn_pool_clear(context->info_pool);
+
+  /* The new temporary files must live at least as long as any other info
+   * object in CONTEXT. */
+  SVN_ERR(svn_io_temp_dir(&temp_dir, pool));
+  SVN_ERR(svn_io_open_unique_file3(&context->changes_file, NULL, temp_dir,
+                                   svn_io_file_del_on_close,
+                                   context->info_pool, pool));
+  SVN_ERR(svn_io_open_unique_file3(&context->file_props_file, NULL, temp_dir,
+                                   svn_io_file_del_on_close,
+                                   context->info_pool, pool));
+  SVN_ERR(svn_io_open_unique_file3(&context->dir_props_file, NULL, temp_dir,
+                                   svn_io_file_del_on_close,
+                                   context->info_pool, pool));
+  SVN_ERR(svn_io_open_unique_file3(&context->reps_file, NULL, temp_dir,
+                                   svn_io_file_del_on_close,
+                                   context->info_pool, pool));
+  context->paths = svn_prefix_tree__create(context->info_pool);
 
   return SVN_NO_ERROR;
 }
@@ -1410,21 +1429,20 @@ append_revision(pack_context_t *context,
   apr_off_t offset = 0;
   apr_pool_t *iterpool = svn_pool_create(pool);
   svn_fs_fs__revision_file_t *rev_file;
-  apr_finfo_t finfo;
+  svn_filesize_t revdata_size;
 
-  /* Get the size of the file. */
-  const char *path = svn_dirent_join(context->shard_dir,
-                                     apr_psprintf(iterpool, "%ld",
-                                                  context->start_rev),
-                                     pool);
-  SVN_ERR(svn_io_stat(&finfo, path, APR_FINFO_SIZE, pool));
-
-  /* Copy all the bits from the rev file to the end of the pack file. */
+  /* Copy all non-index contents the rev file to the end of the pack file. */
   SVN_ERR(svn_fs_fs__open_pack_or_rev_file(&rev_file, context->fs,
                                            context->start_rev, pool,
                                            iterpool));
+
+  SVN_ERR(svn_fs_fs__auto_read_footer(rev_file));
+  revdata_size = rev_file->l2p_offset;
+
+  SVN_ERR(svn_io_file_aligned_seek(rev_file->file, ffd->block_size, NULL, 0,
+                                   iterpool));
   SVN_ERR(copy_file_data(context, context->pack_file, rev_file->file,
-                         finfo.size, iterpool));
+                         revdata_size, iterpool));
 
   /* mark the start of a new revision */
   SVN_ERR(svn_fs_fs__l2p_proto_index_add_revision(context->proto_l2p_index,
@@ -1432,7 +1450,7 @@ append_revision(pack_context_t *context,
 
   /* read the phys-to-log index file until we covered the whole rev file.
    * That index contains enough info to build both target indexes from it. */
-  while (offset < finfo.size)
+  while (offset < revdata_size)
     {
       /* read one cluster */
       int i;
@@ -1456,7 +1474,7 @@ append_revision(pack_context_t *context,
 
           /* process entry while inside the rev file */
           offset = entry->offset;
-          if (offset < finfo.size)
+          if (offset < revdata_size)
             {
               entry->offset += context->pack_offset;
               offset += entry->size;
@@ -1470,7 +1488,7 @@ append_revision(pack_context_t *context,
     }
 
   svn_pool_destroy(iterpool);
-  context->pack_offset += finfo.size;
+  context->pack_offset += revdata_size;
 
   SVN_ERR(svn_fs_fs__close_revision_file(rev_file));
 
@@ -1534,6 +1552,7 @@ pack_log_addressed(svn_fs_t *fs,
   for (i = 0; i < max_ids->nelts; ++i)
     if (APR_ARRAY_IDX(max_ids, i, apr_uint64_t) + item_count <= max_items)
       {
+        item_count += APR_ARRAY_IDX(max_ids, i, apr_uint64_t);
         context.end_rev++;
       }
     else
@@ -1792,6 +1811,7 @@ struct pack_baton
   void *notify_baton;
   svn_cancel_func_t cancel_func;
   void *cancel_baton;
+  size_t max_mem;
 
   /* Additional entries valid when entering pack_shard(). */
   const char *revs_dir;
@@ -1913,7 +1933,7 @@ pack_shard(struct pack_baton *baton,
   /* pack the revision content */
   SVN_ERR(pack_rev_shard(baton->fs, rev_pack_file_dir, baton->rev_shard_path,
                          baton->shard, ffd->max_files_per_dir,
-                         DEFAULT_MAX_MEM, baton->cancel_func,
+                         baton->max_mem, baton->cancel_func,
                          baton->cancel_baton, pool));
 
   /* For newer repo formats, we only acquired the pack lock so far.
@@ -2002,6 +2022,7 @@ pack_body(void *baton,
 
 svn_error_t *
 svn_fs_fs__pack(svn_fs_t *fs,
+                apr_size_t max_mem,
                 svn_fs_pack_notify_t notify_func,
                 void *notify_baton,
                 svn_cancel_func_t cancel_func,
@@ -2017,6 +2038,7 @@ svn_fs_fs__pack(svn_fs_t *fs,
   pb.notify_baton = notify_baton;
   pb.cancel_func = cancel_func;
   pb.cancel_baton = cancel_baton;
+  pb.max_mem = max_mem ? max_mem : DEFAULT_MAX_MEM;
 
   if (ffd->format >= SVN_FS_FS__MIN_PACK_LOCK_FORMAT)
     {

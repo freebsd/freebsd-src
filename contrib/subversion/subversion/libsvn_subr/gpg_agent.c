@@ -233,6 +233,7 @@ find_running_gpg_agent(int *new_sd, apr_pool_t *pool)
 {
   char *buffer;
   char *gpg_agent_info = NULL;
+  char *gnupghome = NULL;
   const char *socket_name = NULL;
   const char *request = NULL;
   const char *p = NULL;
@@ -243,10 +244,9 @@ find_running_gpg_agent(int *new_sd, apr_pool_t *pool)
 
   /* This implements the method of finding the socket as described in
    * the gpg-agent man page under the --use-standard-socket option.
-   * The manage page misleadingly says the standard socket is
-   * "named 'S.gpg-agent' located in the home directory."  The standard
-   * socket path is actually in the .gnupg directory in the home directory,
-   * i.e. ~/.gnupg/S.gpg-agent */
+   * The manage page says the standard socket is "named 'S.gpg-agent' located
+   * in the home directory."  GPG's home directory is either the directory
+   * specified by $GNUPGHOME or ~/.gnupg. */
   gpg_agent_info = getenv("GPG_AGENT_INFO");
   if (gpg_agent_info != NULL)
     {
@@ -258,6 +258,11 @@ find_running_gpg_agent(int *new_sd, apr_pool_t *pool)
       socket_details = svn_cstring_split(gpg_agent_info, ":", TRUE,
                                          pool);
       socket_name = APR_ARRAY_IDX(socket_details, 0, const char *);
+    }
+  else if ((gnupghome = getenv("GNUPGHOME")) != NULL)
+    {
+      const char *homedir = svn_dirent_canonicalize(gnupghome, pool);
+      socket_name = svn_dirent_join(homedir, "S.gpg-agent", pool);
     }
   else
     {
@@ -611,11 +616,10 @@ simple_gpg_agent_next_creds(void **credentials,
       return SVN_NO_ERROR;
     }
 
+  bye_gpg_agent(sd);
+
   if (strncmp(buffer, "OK\n", 3) != 0)
-    {
-      bye_gpg_agent(sd);
-      return SVN_NO_ERROR;
-    }
+    return SVN_NO_ERROR;
 
   /* TODO: This attempt limit hard codes it at 3 attempts (or 2 retries)
    * which matches svn command line client's retry_limit as set in

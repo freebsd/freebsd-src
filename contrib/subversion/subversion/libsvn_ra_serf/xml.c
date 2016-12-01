@@ -988,6 +988,30 @@ expat_cdata(void *userData, const char *data, int len)
 #endif
 }
 
+#if XML_VERSION_AT_LEAST(1, 95, 8)
+static void
+expat_entity_declaration(void *userData,
+                         const XML_Char *entityName,
+                         int is_parameter_entity,
+                         const XML_Char *value,
+                         int value_length,
+                         const XML_Char *base,
+                         const XML_Char *systemId,
+                         const XML_Char *publicId,
+                         const XML_Char *notationName)
+{
+  struct expat_ctx_t *ectx = userData;
+
+  /* Stop the parser if an entity declaration is hit. */
+  XML_StopParser(ectx->parser, 0 /* resumable */);
+}
+#else
+/* A noop default_handler. */
+static void
+expat_default_handler(void *userData, const XML_Char *s, int len)
+{
+}
+#endif
 
 /* Implements svn_ra_serf__response_handler_t */
 static svn_error_t *
@@ -1042,6 +1066,12 @@ expat_response_handler(serf_request_t *request,
       XML_SetUserData(ectx->parser, ectx);
       XML_SetElementHandler(ectx->parser, expat_start, expat_end);
       XML_SetCharacterDataHandler(ectx->parser, expat_cdata);
+
+#if XML_VERSION_AT_LEAST(1, 95, 8)
+      XML_SetEntityDeclHandler(ectx->parser, expat_entity_declaration);
+#else
+      XML_SetDefaultHandler(ectx->parser, expat_default_handler);
+#endif
     }
 
   while (1)

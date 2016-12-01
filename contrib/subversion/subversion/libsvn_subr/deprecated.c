@@ -1484,7 +1484,11 @@ void
 svn_auth_get_keychain_simple_provider(svn_auth_provider_object_t **provider,
                                       apr_pool_t *pool)
 {
+#ifdef SVN_HAVE_KEYCHAIN_SERVICES
   svn_auth__get_keychain_simple_provider(provider, pool);
+#else
+  svn_auth__get_dummmy_simple_provider(provider, pool);
+#endif
 }
 
 void
@@ -1492,7 +1496,13 @@ svn_auth_get_keychain_ssl_client_cert_pw_provider
   (svn_auth_provider_object_t **provider,
    apr_pool_t *pool)
 {
+#ifdef SVN_HAVE_KEYCHAIN_SERVICES
   svn_auth__get_keychain_ssl_client_cert_pw_provider(provider, pool);
+#else
+  /* Not really the right type of dummy provider, but doesn't throw NULL
+     errors as just returning NULL would */
+  svn_auth__get_dummmy_simple_provider(provider, pool);
+#endif
 }
 #endif /* DARWIN */
 

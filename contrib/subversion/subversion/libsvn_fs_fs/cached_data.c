@@ -1571,6 +1571,17 @@ read_plain_window(svn_stringbuf_t **nwin, rep_state_t *rs,
   return SVN_NO_ERROR;
 }
 
+/* Skip SIZE bytes from the PLAIN representation RS. */
+static svn_error_t *
+skip_plain_window(rep_state_t *rs,
+                  apr_size_t size)
+{
+  /* Update RS. */
+  rs->current += (apr_off_t)size;
+
+  return SVN_NO_ERROR;
+}
+
 /* Get the undeltified window that is a result of combining all deltas
    from the current desired representation identified in *RB with its
    base representation.  Store the window in *RESULT. */
@@ -1628,9 +1639,18 @@ get_combined_window(svn_stringbuf_t **result,
          Also note that we may have short-cut reading the delta chain --
          in which case SRC_OPS is 0 and it might not be a PLAIN rep. */
       source = buf;
-      if (source == NULL && rb->src_state != NULL && window->src_ops)
-        SVN_ERR(read_plain_window(&source, rb->src_state, window->sview_len,
-                                  pool, iterpool));
+      if (source == NULL && rb->src_state != NULL)
+        {
+          /* Even if we don't need the source rep now, we still must keep
+           * its read offset in sync with what we might need for the next
+           * window. */
+          if (window->src_ops)
+            SVN_ERR(read_plain_window(&source, rb->src_state,
+                                      window->sview_len,
+                                      pool, iterpool));
+          else
+            SVN_ERR(skip_plain_window(rb->src_state, window->sview_len));
+        }
 
       /* Combine this window with the current one. */
       new_pool = svn_pool_create(rb->pool);

@@ -916,7 +916,7 @@ update_entry(report_baton_t *b, svn_revnum_t s_rev, const char *s_path,
              const char *e_path, path_info_t *info, svn_depth_t wc_depth,
              svn_depth_t requested_depth, apr_pool_t *pool)
 {
-  svn_fs_root_t *s_root;
+  svn_fs_root_t *s_root = NULL;
   svn_boolean_t allowed, related;
   void *new_baton;
   svn_checksum_t *checksum;
@@ -959,7 +959,26 @@ update_entry(report_baton_t *b, svn_revnum_t s_rev, const char *s_path,
   if (s_entry && t_entry && s_entry->kind == t_entry->kind)
     {
       int distance = svn_fs_compare_ids(s_entry->id, t_entry->id);
-      if (distance == 0 && !any_path_info(b, e_path)
+      svn_boolean_t changed = TRUE;
+
+      /* Check related files for content changes to avoid reporting
+       * unchanged copies of files to the client as an open_file() call
+       * and change_file_prop()/apply_textdelta() calls with no-op changes.
+       * The client will otherwise raise unnecessary tree conflicts. */
+      if (!b->ignore_ancestry && t_entry->kind == svn_node_file &&
+          distance == 1)
+        {
+          if (s_root == NULL)
+            SVN_ERR(get_source_root(b, &s_root, s_rev));
+
+          SVN_ERR(svn_fs_props_different(&changed, s_root, s_path,
+                                         b->t_root, t_path, pool));
+          if (!changed)
+            SVN_ERR(svn_fs_contents_different(&changed, s_root, s_path,
+                                              b->t_root, t_path, pool));
+        }
+
+      if ((distance == 0 || !changed) && !any_path_info(b, e_path)
           && (requested_depth <= wc_depth || t_entry->kind == svn_node_file))
         {
           if (!info)
