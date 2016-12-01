@@ -335,8 +335,10 @@ main(int argc, char **argv)
 	    switch (type_code) {
 	    case newline:
 		++line_no;
-		if (sc_end != NULL)
-		    goto sw_buffer;	/* dump comment, if any */
+		if (sc_end != NULL) {	/* dump comment, if any */
+		    *sc_end++ = '\n';	/* newlines are needed in this case */
+		    goto sw_buffer;
+		}
 		flushed_nl = true;
 	    case form_feed:
 		break;		/* form feeds and newlines found here will be
