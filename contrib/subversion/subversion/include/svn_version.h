@@ -70,7 +70,7 @@ extern "C" {
  *
  * @since New in 1.1.
  */
-#define SVN_VER_PATCH      4
+#define SVN_VER_PATCH      5
 
 
 /** @deprecated Provided for backward compatibility with the 1.0 API. */
@@ -93,7 +93,7 @@ extern "C" {
  *
  * Always change this at the same time as SVN_VER_NUMTAG.
  */
-#define SVN_VER_TAG        " (r1740329)"
+#define SVN_VER_TAG        " (r1770682)"
 
 
 /** Number tag: a string describing the version.
@@ -117,7 +117,7 @@ extern "C" {
  * file version. Its value remains 0 in the repository except in release
  * tags where it is the revision from which the tag was created.
  */
-#define SVN_VER_REVISION   1740329
+#define SVN_VER_REVISION   1770682
 
 
 /* Version strings composed from the above definitions. */
