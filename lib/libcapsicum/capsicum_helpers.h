@@ -94,12 +94,12 @@ caph_limit_stdout(void)
 static __inline int
 caph_limit_stdio(void)
 {
+	const int iebadf = CAPH_IGNORE_EBADF;
 
-	if (caph_limit_stdin() == -1 || caph_limit_stdout() == -1 ||
-	    caph_limit_stderr() == -1) {
+	if (caph_limit_stream(STDIN_FILENO, CAPH_READ | iebadf) == -1 ||
+	    caph_limit_stream(STDOUT_FILENO, CAPH_WRITE | iebadf) == -1 ||
+	    caph_limit_stream(STDERR_FILENO, CAPH_WRITE | iebadf) == -1)
 		return (-1);
-	}
-
 	return (0);
 }
 
