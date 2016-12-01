@@ -2119,6 +2119,12 @@ _echoonce()
 	esac
 }
 
+# If the loader env variable rc.debug is set, turn on debugging. rc.conf will
+# still override this, but /etc/defaults/rc.conf.a
+if kenv -q rc.debug > /dev/null ; then
+	rc_debug=YES
+fi
+
 fi # [ -z "${_rc_subr_loaded}" ]
 
 _rc_subr_loaded=:
