@@ -817,6 +817,8 @@
 
       &hwlist.bge;
 
+      &hwlist.bnxt;
+
       &hwlist.bxe;
 
       &hwlist.cas;
