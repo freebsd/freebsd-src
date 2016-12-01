@@ -293,7 +293,7 @@ pr_comment(void)
 			s_com = e_com;
 		    *e_com++ = ' ';
 		}
-		if (e_com[-1] != ' ' && !ps.box_com)
+		if (e_com[-1] != ' ' && e_com[-1] != '\t' && !ps.box_com)
 		    *e_com++ = ' ';	/* ensure blank before end */
 		*e_com++ = '*', *e_com++ = '/', *e_com = '\0';
 		ps.just_saw_decl = l_just_saw_decl;
