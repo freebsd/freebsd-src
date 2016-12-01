@@ -61,6 +61,7 @@ SUBDIR=	\
 	bwi \
 	bwn \
 	bwn_pci \
+	${_bytgpio} \
 	cam \
 	${_canbepm} \
 	${_canbus} \
@@ -601,6 +602,7 @@ _amdsbwd=	amdsbwd
 _amdtemp=	amdtemp
 _arcmsr=	arcmsr
 _asmc=		asmc
+_bytgpio=	bytgpio
 _ciss=		ciss
 _cmx=		cmx
 _coretemp=	coretemp
