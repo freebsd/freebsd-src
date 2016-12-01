@@ -1924,17 +1924,20 @@ done:
 static int
 hn_txpkt(struct ifnet *ifp, struct hn_tx_ring *txr, struct hn_txdesc *txd)
 {
-	int error, send_failed = 0;
+	int error, send_failed = 0, has_bpf;
 
 again:
-	/*
-	 * Make sure that this txd and any aggregated txds are not freed
-	 * before ETHER_BPF_MTAP.
-	 */
-	hn_txdesc_hold(txd);
+	has_bpf = bpf_peers_present(ifp->if_bpf);
+	if (has_bpf) {
+		/*
+		 * Make sure that this txd and any aggregated txds are not
+		 * freed before ETHER_BPF_MTAP.
+		 */
+		hn_txdesc_hold(txd);
+	}
 	error = txr->hn_sendpkt(txr, txd);
 	if (!error) {
-		if (bpf_peers_present(ifp->if_bpf)) {
+		if (has_bpf) {
 			const struct hn_txdesc *tmp_txd;
 
 			ETHER_BPF_MTAP(ifp, txd->m);
@@ -1957,7 +1960,8 @@ again:
 		txr->hn_pkts += txr->hn_stat_pkts;
 		txr->hn_sends++;
 	}
-	hn_txdesc_put(txr, txd);
+	if (has_bpf)
+		hn_txdesc_put(txr, txd);
 
 	if (__predict_false(error)) {
 		int freed;
