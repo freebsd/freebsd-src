@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2005 Voltaire Inc.  All rights reserved.
  * Copyright (c) 2005 Intel Corporation.  All rights reserved.
+ * Copyright (c) 2016 Chelsio Communications.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -330,4 +331,7 @@ void rdma_leave_multicast(struct rdma_cm_id *id, struct sockaddr *addr);
  */
 void rdma_set_service_type(struct rdma_cm_id *id, int tos);
 
+int rdma_cma_any_addr(struct sockaddr *addr);
+int rdma_find_cmid_laddr(struct sockaddr_in *local_addr,
+		unsigned short dev_type, void **cm_id);
 #endif /* RDMA_CM_H */

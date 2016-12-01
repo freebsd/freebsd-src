@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2005 Network Appliance, Inc. All rights reserved.
  * Copyright (c) 2005 Open Grid Computing, Inc. All rights reserved.
+ * Copyright (c) 2016 Chelsio Communications.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -64,6 +65,8 @@ struct iw_cm_event {
 	u8 private_data_len;
 	void *provider_data;
 	struct socket *so;
+	u8 ord;
+	u8 ird;
 };
 
 /**
@@ -127,10 +130,13 @@ struct iw_cm_verbs {
 	int		(*reject)(struct iw_cm_id *cm_id,
 				  const void *pdata, u8 pdata_len);
 
-	int		(*create_listen)(struct iw_cm_id *cm_id,
+	int		(*create_listen_ep)(struct iw_cm_id *cm_id,
 					 int backlog);
 
-	int		(*destroy_listen)(struct iw_cm_id *cm_id);
+	void		(*destroy_listen_ep)(struct iw_cm_id *cm_id);
+
+	void		(*newconn)(struct iw_cm_id *parent_cm_id,
+						struct socket *so);
 };
 
 /**

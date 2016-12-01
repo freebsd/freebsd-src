@@ -3,6 +3,7 @@
  * Copyright (c) 2002-2005, Network Appliance, Inc. All rights reserved.
  * Copyright (c) 1999-2005, Mellanox Technologies, Inc. All rights reserved.
  * Copyright (c) 2005-2006 Intel Corporation.  All rights reserved.
+ * Copyright (c) 2016 Chelsio Communications.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -361,6 +362,97 @@ static int cma_set_qkey(struct rdma_id_private *id_priv)
 	return ret;
 }
 
+static int find_gid_port(struct ib_device *device, union ib_gid *gid, u8 port_num)
+{
+	int i;
+	int err;
+	struct ib_port_attr props;
+	union ib_gid tmp;
+
+	err = ib_query_port(device, port_num, &props);
+	if (err)
+		return 1;
+
+	for (i = 0; i < props.gid_tbl_len; ++i) {
+		err = ib_query_gid(device, port_num, i, &tmp);
+		if (err)
+			return 1;
+		if (!memcmp(&tmp, gid, sizeof tmp))
+			return 0;
+	}
+
+	return -EAGAIN;
+}
+
+int
+rdma_find_cmid_laddr(struct sockaddr_in *local_addr, unsigned short dev_type,
+							void **cm_id)
+{
+	int ret;
+	u8 port;
+	int found_dev = 0, found_cmid = 0;
+	struct rdma_id_private  *id_priv;
+	struct rdma_id_private  *dev_id_priv;
+	struct cma_device	*cma_dev;
+	struct rdma_dev_addr	dev_addr;
+	union ib_gid		gid;
+	enum rdma_link_layer dev_ll = dev_type == ARPHRD_INFINIBAND ?
+		IB_LINK_LAYER_INFINIBAND : IB_LINK_LAYER_ETHERNET;
+
+	memset(&dev_addr, 0, sizeof(dev_addr));
+
+	ret = rdma_translate_ip((struct sockaddr *)local_addr,
+							&dev_addr);
+	if (ret)
+		goto err;
+
+	/* find rdma device based on MAC address/gid */
+	mutex_lock(&lock);
+
+	memcpy(&gid, dev_addr.src_dev_addr +
+	       rdma_addr_gid_offset(&dev_addr), sizeof(gid));
+
+	list_for_each_entry(cma_dev, &dev_list, list)
+		for (port = 1; port <= cma_dev->device->phys_port_cnt; ++port)
+			if ((rdma_port_get_link_layer(cma_dev->device, port) ==
+								 dev_ll) &&
+			 (rdma_node_get_transport(cma_dev->device->node_type) ==
+							RDMA_TRANSPORT_IWARP)) {
+					ret = find_gid_port(cma_dev->device,
+								&gid, port);
+					if (!ret) {
+						found_dev = 1;
+						goto out;
+					} else if (ret == 1) {
+						mutex_unlock(&lock);
+						goto err;
+					}
+			}
+out:
+	mutex_unlock(&lock);
+
+	if (!found_dev)
+		goto err;
+
+	/* Traverse through the list of listening cm_id's to find the
+	 * desired cm_id based on rdma device & port number.
+	 */
+	list_for_each_entry(id_priv, &listen_any_list, list)
+		list_for_each_entry(dev_id_priv, &id_priv->listen_list,
+						 listen_list)
+			if (dev_id_priv->cma_dev == cma_dev)
+				if (dev_id_priv->cm_id.iw->local_addr.sin_port
+						== local_addr->sin_port) {
+					*cm_id = (void *)dev_id_priv->cm_id.iw;
+					found_cmid = 1;
+				}
+	return found_cmid ? 0 : -ENODEV;
+
+err:
+	return -ENODEV;
+}
+EXPORT_SYMBOL(rdma_find_cmid_laddr);
+
 static int cma_acquire_dev(struct rdma_id_private *id_priv)
 {
 	struct rdma_dev_addr *dev_addr = &id_priv->id.route.addr.dev_addr;
@@ -700,6 +792,12 @@ static inline int cma_any_addr(struct sockaddr *addr)
 {
 	return cma_zero_addr(addr) || cma_loopback_addr(addr);
 }
+int
+rdma_cma_any_addr(struct sockaddr *addr)
+{
+	return cma_any_addr(addr);
+}
+EXPORT_SYMBOL(rdma_cma_any_addr);
 
 static inline __be16 cma_port(struct sockaddr *addr)
 {
@@ -1521,6 +1619,7 @@ static void cma_listen_on_dev(struct rdma_id_private *id_priv,
 	dev_id_priv = container_of(id, struct rdma_id_private, id);
 
 	dev_id_priv->state = CMA_ADDR_BOUND;
+	dev_id_priv->sock = id_priv->sock;
 	memcpy(&id->route.addr.src_addr, &id_priv->id.route.addr.src_addr,
 	       ip_addr_size((struct sockaddr *) &id_priv->id.route.addr.src_addr));
 
