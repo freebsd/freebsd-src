@@ -294,8 +294,14 @@ archive_read_format_tar_cleanup(struct archive_read *a)
 	return (ARCHIVE_OK);
 }
 
+/*
+ * Validate number field
+ *
+ * Flags:
+ * 1 - allow double \0 at field end
+ */
 static int
-validate_number_field(const char* p_field, size_t i_size)
+validate_number_field(const char* p_field, size_t i_size, int flags)
 {
 	unsigned char marker = (unsigned char)p_field[0];
 	/* octal? */
@@ -305,14 +311,24 @@ validate_number_field(const char* p_field, size_t i_size)
 		for (i = 0; i < i_size; ++i) {
 			switch (p_field[i])
 			{
-			case ' ': /* skip any leading spaces and trailing space*/
+			case ' ':
+				/* skip any leading spaces and trailing space */
 				if (octal_found == 0 || i == i_size - 1) {
 					continue;
 				}
 				break;
-			case '\0': /* null is allowed only at the end */
+			case '\0':
+				/*
+				 * null should be allowed only at the end
+				 *
+				 * Perl Archive::Tar terminates some fields
+				 * with two nulls. We must allow this to stay
+				 * compatible.
+				 */
 				if (i != i_size - 1) {
-					return 0;
+					if (((flags & 1) == 0)
+					    || i != i_size - 2)
+						return 0;
 				}
 				break;
 			/* rest must be octal digits */
@@ -390,18 +406,25 @@ archive_read_format_tar_bid(struct archive_read *a, int best_bid)
 	 * Check format of mode/uid/gid/mtime/size/rdevmajor/rdevminor fields.
 	 * These are usually octal numbers but GNU tar encodes "big" values as
 	 * base256 and leading zeroes are sometimes replaced by spaces.
-	 * Even the null terminator is sometimes omitted. Anyway, must be checked
-	 * to avoid false positives.
+	 * Even the null terminator is sometimes omitted. Anyway, must be
+	 * checked to avoid false positives.
+	 *
+	 * Perl Archive::Tar does not follow the spec and terminates mode, uid,
+	 * gid, rdevmajor and rdevminor with a double \0. For compatibility
+	 * reasons we allow this deviation.
 	 */
-	if (bid > 0 &&
-		(validate_number_field(header->mode, sizeof(header->mode)) == 0 ||
-		 validate_number_field(header->uid, sizeof(header->uid)) == 0 ||
-		 validate_number_field(header->gid, sizeof(header->gid)) == 0 ||
-		 validate_number_field(header->mtime, sizeof(header->mtime)) == 0 ||
-		 validate_number_field(header->size, sizeof(header->size)) == 0 ||
-		 validate_number_field(header->rdevmajor, sizeof(header->rdevmajor)) == 0 ||
-		 validate_number_field(header->rdevminor, sizeof(header->rdevminor)) == 0)) {
-			bid = 0;
+	if (bid > 0 && (
+	    validate_number_field(header->mode, sizeof(header->mode), 1) == 0
+	    || validate_number_field(header->uid, sizeof(header->uid), 1) == 0
+	    || validate_number_field(header->gid, sizeof(header->gid), 1) == 0 
+	    || validate_number_field(header->mtime, sizeof(header->mtime),
+	    0) == 0
+	    || validate_number_field(header->size, sizeof(header->size), 0) == 0
+	    || validate_number_field(header->rdevmajor,
+	    sizeof(header->rdevmajor), 1) == 0
+	    || validate_number_field(header->rdevminor,
+	    sizeof(header->rdevminor), 1) == 0)) {
+		bid = 0;
 	}
 
 	return (bid);
