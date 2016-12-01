@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 16, 2016
+.Dd November 30, 2016
 .Dt CAMCONTROL 8
 .Os
 .Sh NAME
@@ -342,6 +342,11 @@
 .Op Fl s
 .Op Fl S Ar power_src
 .Op Fl T Ar timer
+.Nm
+.Ic timestamp
+.Op device id
+.Op generic args
+.Ao Fl r Oo Ns Fl f Ar format | Fl m | Fl U Oc | Fl s Ao Fl f Ar format Fl T Ar time | Fl U Ac Ac
 .Nm
 .Ic help
 .Sh DESCRIPTION
@@ -2417,6 +2422,54 @@ supports, and a number of parameters about each condition, including
 whether it is enabled and what the timer value is.
 .El
 .El
+.It Ic timestamp
+Issue REPORT TIMESTAMP or SET TIMESTAMP
+.Tn SCSI
+commands. Either the
+.Fl r
+option or the
+.Fl s
+option must be specified.
+.Bl -tag -width 6n
+.It Fl r
+Report the device's timestamp.
+If no more arguments are specified, the timestamp will be reported using
+the national representation of the date and time, followed by the time
+zone.
+.Bl -tag -width 9n
+.It Fl f Ar format
+Specify the strftime format string, as documented in strftime(3), to be used
+to format the reported timestamp.
+.It Fl m
+Report the timestamp as milliseconds since the epoch.
+.It Fl U
+Report the timestamp using the national representation of the date and
+time, but override the system time zone and use UTC instead.
+.El
+.El
+.Bl -tag -width 6n
+.It Fl s
+Set the device's timestamp. Either the
+.Fl f
+and 
+.Fl T
+options or the
+.Fl U
+option must be specified.
+.Bl -tag -width 9n
+.It Fl f Ar format
+Specify the strptime format string, as documented in strptime(3).
+The time must also be specified with the
+.Fl T 
+option.
+.It Fl T
+Provide the time in the format specified with the
+.Fl f
+option.
+.It Fl U
+Set the timestamp to the host system's time in UTC.
+.El
+.El
 .It Ic help
 Print out verbose usage information.
 .El
@@ -2730,6 +2783,18 @@ camcontrol epc ada0 -c list
 Display the ATA Power Conditions log (Log Address 0x08) for
 drive
 .Pa ada0 .
+.Pp
+.Bd -literal -offset indent
+camcontrol timestamp sa0 -s -f "%A %c" \e
+	-T "Wednesday Wed Oct 26 21:43:57 2016"
+.Ed
+.Pp
+Set the timestamp of drive
+.Pa sa0
+using a
+.Xr strptime 3 
+format string followed by a time string
+that was created using this format string.
 .Sh SEE ALSO
 .Xr cam 3 ,
 .Xr cam_cdbparse 3 ,

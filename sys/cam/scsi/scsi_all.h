@@ -702,7 +702,9 @@ struct scsi_control_page {
 
 struct scsi_control_ext_page {
 	uint8_t page_code;
+#define SCEP_PAGE_CODE			0x0a
 	uint8_t subpage_code;
+#define SCEP_SUBPAGE_CODE		0x01
 	uint8_t page_length[2];
 	uint8_t flags;
 #define	SCEP_TCMOS			0x04	/* Timestamp Changeable by */
@@ -2971,6 +2973,31 @@ struct scsi_target_group
 	uint8_t control;
 };
 
+struct scsi_timestamp
+{
+	uint8_t opcode;
+	uint8_t service_action;
+	uint8_t reserved1[4];
+	uint8_t length[4];
+	uint8_t reserved2;
+	uint8_t control;
+};
+
+struct scsi_set_timestamp_parameters
+{
+	uint8_t reserved1[4];
+	uint8_t timestamp[6];
+	uint8_t reserved2[4];
+};
+
+struct scsi_report_timestamp_parameter_data
+{
+	uint8_t length[2];
+	uint8_t reserved1[2];
+	uint8_t timestamp[6];
+	uint8_t reserved2[2];
+};
+
 struct scsi_target_port_descriptor {
 	uint8_t	reserved[2];
 	uint8_t	relative_target_port_identifier[2];
@@ -3966,11 +3993,28 @@ void		scsi_report_target_group(struct ccb_scsiio *csio, u_int32_t retries,
 				 u_int32_t alloc_len, u_int8_t sense_len,
 				 u_int32_t timeout);
 
+void		scsi_report_timestamp(struct ccb_scsiio *csio, u_int32_t retries,
+				 void (*cbfcnp)(struct cam_periph *, 
+				 union ccb *), u_int8_t tag_action, 
+				 u_int8_t pdf,
+				 void *buf,
+				 u_int32_t alloc_len, u_int8_t sense_len,
+				 u_int32_t timeout);
+
 void		scsi_set_target_group(struct ccb_scsiio *csio, u_int32_t retries,
 				 void (*cbfcnp)(struct cam_periph *, 
 				 union ccb *), u_int8_t tag_action, void *buf,
 				 u_int32_t alloc_len, u_int8_t sense_len,
 				 u_int32_t timeout);
+
+void		scsi_create_timestamp(uint8_t *timestamp_6b_buf,
+				      uint64_t timestamp);
+
+void		scsi_set_timestamp(struct ccb_scsiio *csio, u_int32_t retries,
+				   void (*cbfcnp)(struct cam_periph *, 
+				   union ccb *), u_int8_t tag_action,
+				   void *buf, u_int32_t alloc_len,
+				   u_int8_t sense_len, u_int32_t timeout);
 
 void		scsi_synchronize_cache(struct ccb_scsiio *csio, 
 				       u_int32_t retries,

@@ -7947,6 +7947,32 @@ scsi_report_target_group(struct ccb_scsiio *csio, u_int32_t retries,
 }
 
 void
+scsi_report_timestamp(struct ccb_scsiio *csio, u_int32_t retries,
+		 void (*cbfcnp)(struct cam_periph *, union ccb *),
+		 u_int8_t tag_action, u_int8_t pdf,
+		 void *buf, u_int32_t alloc_len,
+		 u_int8_t sense_len, u_int32_t timeout)
+{
+	struct scsi_timestamp *scsi_cmd;
+
+	cam_fill_csio(csio,
+		      retries,
+		      cbfcnp,
+		      /*flags*/CAM_DIR_IN,
+		      tag_action,
+		      /*data_ptr*/(u_int8_t *)buf,
+		      /*dxfer_len*/alloc_len,
+		      sense_len,
+		      sizeof(*scsi_cmd),
+		      timeout);
+	scsi_cmd = (struct scsi_timestamp *)&csio->cdb_io.cdb_bytes;
+	bzero(scsi_cmd, sizeof(*scsi_cmd));
+	scsi_cmd->opcode = MAINTENANCE_IN;
+	scsi_cmd->service_action = REPORT_TIMESTAMP | pdf;
+	scsi_ulto4b(alloc_len, scsi_cmd->length);
+}
+
+void
 scsi_set_target_group(struct ccb_scsiio *csio, u_int32_t retries,
 		 void (*cbfcnp)(struct cam_periph *, union ccb *),
 		 u_int8_t tag_action, void *buf, u_int32_t alloc_len,
@@ -7968,6 +7994,45 @@ scsi_set_target_group(struct ccb_scsiio *csio, u_int32_t retries,
 	bzero(scsi_cmd, sizeof(*scsi_cmd));
 	scsi_cmd->opcode = MAINTENANCE_OUT;
 	scsi_cmd->service_action = SET_TARGET_PORT_GROUPS;
+	scsi_ulto4b(alloc_len, scsi_cmd->length);
+}
+
+void
+scsi_create_timestamp(uint8_t *timestamp_6b_buf,
+		      uint64_t timestamp)
+{
+	uint8_t buf[8];
+	scsi_u64to8b(timestamp, buf);
+	/*
+	 * Using memcopy starting at buf[2] because the set timestamp parameters
+	 * only has six bytes for the timestamp to fit into, and we don't have a
+	 * scsi_u64to6b function.
+	 */
+	memcpy(timestamp_6b_buf, &buf[2], 6);
+}
+
+void
+scsi_set_timestamp(struct ccb_scsiio *csio, u_int32_t retries,
+		   void (*cbfcnp)(struct cam_periph *, union ccb *),
+		   u_int8_t tag_action, void *buf, u_int32_t alloc_len,
+		   u_int8_t sense_len, u_int32_t timeout)
+{
+	struct scsi_timestamp *scsi_cmd;
+
+	cam_fill_csio(csio,
+		      retries,
+		      cbfcnp,
+		      /*flags*/CAM_DIR_OUT,
+		      tag_action,
+		      /*data_ptr*/(u_int8_t *) buf,
+		      /*dxfer_len*/alloc_len,
+		      sense_len,
+		      sizeof(*scsi_cmd),
+		      timeout);
+	scsi_cmd = (struct scsi_timestamp *)&csio->cdb_io.cdb_bytes;
+	bzero(scsi_cmd, sizeof(*scsi_cmd));
+	scsi_cmd->opcode = MAINTENANCE_OUT;
+	scsi_cmd->service_action = SET_TIMESTAMP;
 	scsi_ulto4b(alloc_len, scsi_cmd->length);
 }
 
