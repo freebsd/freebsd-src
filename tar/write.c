@@ -527,7 +527,7 @@ write_archive(struct archive *a, struct bsdtar *bsdtar)
 		struct archive *disk = bsdtar->diskreader;
 
 		/*
-		 * This tricky code here is to correctly read the cotents
+		 * This tricky code here is to correctly read the contents
 		 * of the entry because the disk reader bsdtar->diskreader
 		 * is pointing at does not have any information about the
 		 * entry by this time and using archive_read_data_block()

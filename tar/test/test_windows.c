@@ -133,7 +133,7 @@ DEFINE_TEST(test_windows)
 	char *fp1, *fp2;
 
 	/*
-	 * Preparre tests.
+	 * Prepare tests.
 	 * Create directories and files.
 	 */
 	assertMakeDir("tmp", 0775);
