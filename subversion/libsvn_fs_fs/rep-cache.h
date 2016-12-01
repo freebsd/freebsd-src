@@ -40,6 +40,10 @@ svn_error_t *
 svn_fs_fs__open_rep_cache(svn_fs_t *fs,
                           apr_pool_t *pool);
 
+/* Close the rep cache database associated with FS. */
+svn_error_t *
+svn_fs_fs__close_rep_cache(svn_fs_t *fs);
+
 /* Set *EXISTS to TRUE iff the rep-cache DB file exists. */
 svn_error_t *
 svn_fs_fs__exists_rep_cache(svn_boolean_t *exists,
