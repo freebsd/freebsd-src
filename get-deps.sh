@@ -89,7 +89,7 @@ get_serf() {
     test -d $BASEDIR/serf && return
 
     cd $TEMPDIR
-    $HTTP_FETCH http://serf.googlecode.com/svn/src_releases/$SERF.tar.bz2
+    $HTTP_FETCH https://archive.apache.org/dist/serf/$SERF.tar.bz2
     cd $BASEDIR
 
     bzip2 -dc $TEMPDIR/$SERF.tar.bz2 | tar -xf -
