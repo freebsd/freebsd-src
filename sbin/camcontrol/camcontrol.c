@@ -103,7 +103,8 @@ typedef enum {
 	CAM_CMD_OPCODES		= 0x00000024,
 	CAM_CMD_REPROBE		= 0x00000025,
 	CAM_CMD_ZONE		= 0x00000026,
-	CAM_CMD_EPC		= 0x00000027
+	CAM_CMD_EPC		= 0x00000027,
+	CAM_CMD_TIMESTAMP	= 0x00000028
 } cam_cmdmask;
 
 typedef enum {
@@ -234,6 +235,7 @@ static struct camcontrol_opts option_table[] = {
 	{"opcodes", CAM_CMD_OPCODES, CAM_ARG_NONE, "No:s:T"},
 	{"zone", CAM_CMD_ZONE, CAM_ARG_NONE, "ac:l:No:P:"},
 	{"epc", CAM_CMD_EPC, CAM_ARG_NONE, "c:dDeHp:Pr:sS:T:"},
+	{"timestamp", CAM_CMD_TIMESTAMP, CAM_ARG_NONE, "f:mrsUT:"},
 #endif /* MINIMALISTIC */
 	{"help", CAM_CMD_USAGE, CAM_ARG_NONE, NULL},
 	{"-?", CAM_CMD_USAGE, CAM_ARG_NONE, NULL},
@@ -8922,6 +8924,9 @@ usage(int printlong)
 "        camcontrol epc        [dev_id][generic_args]<-c cmd> [-d] [-D] [-e]\n"
 "                              [-H] [-p power_cond] [-P] [-r rst_src] [-s]\n"
 "                              [-S power_src] [-T timer]\n"
+"        camcontrol timestamp  [dev_id][generic_args] <-r [-f format|-m|-U]>|\n"
+"                              <-s <-f format -T time | -U >>\n"
+"                              \n"
 #endif /* MINIMALISTIC */
 "        camcontrol help\n");
 	if (!printlong)
@@ -8966,6 +8971,7 @@ usage(int printlong)
 "opcodes     send the SCSI REPORT SUPPORTED OPCODES command\n"
 "zone        manage Zoned Block (Shingled) devices\n"
 "epc         send ATA Extended Power Conditions commands\n"
+"timestamp   report or set the device's timestamp\n"
 "help        this message\n"
 "Device Identifiers:\n"
 "bus:target        specify the bus and target, lun defaults to 0\n"
@@ -9157,6 +9163,17 @@ usage(int printlong)
 "-s                save mode (timer, state, restore)\n"
 "-S power_src      set power source: battery, nonbattery (source)\n"
 "-T timer          set timer, seconds, .1 sec resolution (timer)\n"
+"timestamp arguments:\n"
+"-r                report the timestamp of the device\n"
+"-f format         report the timestamp of the device with the given\n"
+"                  strftime(3) format string\n"
+"-m                report the timestamp of the device as milliseconds since\n"
+"                  January 1st, 1970\n"
+"-U                report the time with UTC instead of the local time zone\n"
+"-s                set the timestamp of the device\n"
+"-f format         the format of the time string passed into strptime(3)\n"
+"-T time           the time value passed into strptime(3)\n"
+"-U                set the timestamp of the device to UTC time\n"
 );
 #endif /* MINIMALISTIC */
 }
@@ -9518,6 +9535,10 @@ main(int argc, char **argv)
 			break;
 		case CAM_CMD_EPC:
 			error = epc(cam_dev, argc, argv, combinedopt,
+			    retry_count, timeout, arglist & CAM_ARG_VERBOSE);
+			break;
+		case CAM_CMD_TIMESTAMP:
+			error = timestamp(cam_dev, argc, argv, combinedopt,
 			    retry_count, timeout, arglist & CAM_ARG_VERBOSE);
 			break;
 #endif /* MINIMALISTIC */
