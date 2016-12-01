@@ -452,7 +452,7 @@ fs_pack(svn_fs_t *fs,
         apr_pool_t *common_pool)
 {
   SVN_ERR(fs_open(fs, path, common_pool_lock, pool, common_pool));
-  return svn_fs_fs__pack(fs, notify_func, notify_baton,
+  return svn_fs_fs__pack(fs, 0, notify_func, notify_baton,
                          cancel_func, cancel_baton, pool);
 }
 
