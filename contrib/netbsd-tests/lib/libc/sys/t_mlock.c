@@ -50,85 +50,12 @@ __RCSID("$NetBSD: t_mlock.c,v 1.6 2016/08/09 12:02:44 kre Exp $");
 #include <limits.h>
 #define _KMEMUSER
 #include <machine/vmparam.h>
+
+void set_vm_max_wired(int);
+void restore_vm_max_wired(void);
 #endif
 
 static long page = 0;
-
-#ifdef __FreeBSD__
-#define	VM_MAX_WIRED "vm.max_wired"
-
-static void
-vm_max_wired_sysctl(int *old_value, int *new_value)
-{
-	size_t old_len;
-	size_t new_len = (new_value == NULL ? 0 : sizeof(int));
-
-	if (old_value == NULL)
-		printf("Setting the new value to %d\n", *new_value);
-	else {
-		ATF_REQUIRE_MSG(sysctlbyname(VM_MAX_WIRED, NULL, &old_len,
-		    new_value, new_len) == 0,
-		    "sysctlbyname(%s) failed: %s", VM_MAX_WIRED, strerror(errno));
-	}
-
-	ATF_REQUIRE_MSG(sysctlbyname(VM_MAX_WIRED, old_value, &old_len,
-	    new_value, new_len) == 0,
-	    "sysctlbyname(%s) failed: %s", VM_MAX_WIRED, strerror(errno));
-
-	if (old_value != NULL)
-		printf("Saved the old value (%d)\n", *old_value);
-}
-
-static void
-set_vm_max_wired(int new_value)
-{
-	FILE *fp;
-	int old_value;
-
-	fp = fopen(VM_MAX_WIRED, "w");
-	if (fp == NULL) {
-		atf_tc_skip("could not open %s for writing: %s",
-		    VM_MAX_WIRED, strerror(errno));
-		return;
-	}
-
-	vm_max_wired_sysctl(&old_value, NULL);
-
-	ATF_REQUIRE_MSG(fprintf(fp, "%d", old_value) > 0,
-	    "saving %s failed", VM_MAX_WIRED);
-
-	fclose(fp);
-
-	vm_max_wired_sysctl(NULL, &new_value);
-}
-
-static void
-restore_vm_max_wired(void)
-{
-	FILE *fp;
-	int saved_max_wired;
-
-	fp = fopen(VM_MAX_WIRED, "r");
-	if (fp == NULL) {
-		perror("fopen failed\n");
-		return;
-	}
-
-	if (fscanf(fp, "%d", &saved_max_wired) != 1) {
-		perror("fscanf failed\n");
-		fclose(fp);
-		return;
-	}
-
-	fclose(fp);
-	printf("old value in %s: %d\n", VM_MAX_WIRED, saved_max_wired);
-
-	if (saved_max_wired == 0) /* This will cripple the test host */
-		return;
-
-	vm_max_wired_sysctl(NULL, &saved_max_wired);
-}
-#endif
 
 ATF_TC(mlock_clip);
 ATF_TC_HEAD(mlock_clip, tc)
