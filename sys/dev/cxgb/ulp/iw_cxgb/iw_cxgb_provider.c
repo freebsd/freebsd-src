@@ -1131,8 +1131,9 @@ int iwch_register_device(struct iwch_dev *dev)
 	dev->ibdev.iwcm->connect = iwch_connect;
 	dev->ibdev.iwcm->accept = iwch_accept_cr;
 	dev->ibdev.iwcm->reject = iwch_reject_cr;
-	dev->ibdev.iwcm->create_listen = iwch_create_listen;
-	dev->ibdev.iwcm->destroy_listen = iwch_destroy_listen;
+	dev->ibdev.iwcm->create_listen_ep = iwch_create_listen_ep;
+	dev->ibdev.iwcm->destroy_listen_ep = iwch_destroy_listen_ep;
+	dev->ibdev.iwcm->newconn = process_newconn;
 	dev->ibdev.iwcm->add_ref = iwch_qp_add_ref;
 	dev->ibdev.iwcm->rem_ref = iwch_qp_rem_ref;
 	dev->ibdev.iwcm->get_qp = iwch_get_qp;

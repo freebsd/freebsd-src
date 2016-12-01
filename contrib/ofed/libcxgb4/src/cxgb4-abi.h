@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2013 Chelsio, Inc. All rights reserved.
+ * Copyright (c) 2006-2014 Chelsio, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -28,32 +28,56 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- *
- * $FreeBSD$
  */
-#ifndef __C4IW_USER_H__
-#define __C4IW_USER_H__
+#ifndef IWCH_ABI_H
+#define IWCH_ABI_H
 
-#define C4IW_UVERBS_ABI_VERSION	2
+#include <infiniband/kern-abi.h>
 
-/*
- * Make sure that all structs defined in this file remain laid out so
- * that they pack the same way on 32-bit and 64-bit architectures (to
- * avoid incompatibility between 32-bit userspace and 64-bit kernels).
- * In particular do not use pointer types -- pass pointers in __u64
- * instead.
- */
+struct c4iw_alloc_ucontext_resp {
+	struct ibv_get_context_resp ibv_resp;
+	__u64 status_page_key;
+	__u32 status_page_size;
+	__u32 reserved;
+};
+
+struct c4iw_alloc_pd_resp {
+	struct ibv_alloc_pd_resp ibv_resp;
+	uint32_t pdid;
+};
+
 struct c4iw_create_cq_resp {
+	struct ibv_create_cq_resp ibv_resp;
 	__u64 key;
 	__u64 gts_key;
 	__u64 memsize;
 	__u32 cqid;
 	__u32 size;
 	__u32 qid_mask;
-	__u32 reserved; /* explicit padding (optional for i386) */
+	__u32 reserved;
+};
+
+enum {
+	C4IW_QPF_ONCHIP = (1<<0),
+};
+
+struct c4iw_create_qp_resp_v0 {
+	struct ibv_create_qp_resp ibv_resp;
+	__u64 sq_key;
+	__u64 rq_key;
+	__u64 sq_db_gts_key;
+	__u64 rq_db_gts_key;
+	__u64 sq_memsize;
+	__u64 rq_memsize;
+	__u32 sqid;
+	__u32 rqid;
+	__u32 sq_size;
+	__u32 rq_size;
+	__u32 qid_mask;
 };
 
 struct c4iw_create_qp_resp {
+	struct ibv_create_qp_resp ibv_resp;
 	__u64 ma_sync_key;
 	__u64 sq_key;
 	__u64 rq_key;
@@ -68,4 +92,4 @@ struct c4iw_create_qp_resp {
 	__u32 qid_mask;
 	__u32 flags;
 };
-#endif
+#endif				/* IWCH_ABI_H */
