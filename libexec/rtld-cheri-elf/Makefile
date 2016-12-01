@@ -40,6 +40,7 @@ CFLAGS+=	-DPIC $(DEBUG)
 LDFLAGS+=	-shared -Wl,-Bsymbolic
 LIBADD=		c_pic
 
+.if defined(NOT_YET)
 .if ${MK_SYMVER} == "yes"
 VERSION_DEF=	${LIBCSRCDIR}/Versions.def
 SYMBOL_MAPS=	${.CURDIR}/../rtld-elf/Symbol.map
@@ -50,6 +51,7 @@ ${PROG}:	${VERSION_MAP}
 
 .if exists(${.CURDIR}/${RTLD_ARCH}/Symbol.map)
 SYMBOL_MAPS+=	${.CURDIR}/${RTLD_ARCH}/Symbol.map
+.endif
 .endif
 .endif
 
