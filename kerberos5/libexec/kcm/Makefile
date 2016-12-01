@@ -1,5 +1,8 @@
 # $FreeBSD$
 
+# linker crash
+WANT_CHERI=none
+
 PROG=	kcm
 MAN=	kcm.8
 
