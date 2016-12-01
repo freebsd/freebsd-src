@@ -495,28 +495,28 @@ format_grouping(const char *binary)
 {
 	static char rval[64];
 	const char *cp;
-	size_t len;
+	size_t roff;
+	int len;
 
 	rval[0] = '\0';
+	roff = 0;
 	for (cp = binary; *cp != '\0'; ++cp) {
-		char group[sizeof("127;")];
-		snprintf(group, sizeof(group), "%hhd;", *cp);
-		len = strlcat(rval, group, sizeof(rval));
-		if (len >= sizeof(rval)) {
-			len = sizeof(rval) - 1;
-			break;
-		}
-		if (*cp == CHAR_MAX) {
-			break;
-		}
+		if (*cp < 0)
+			break;		/* garbage input */
+		len = snprintf(&rval[roff], sizeof(rval) - roff, "%u;", *cp);
+		if (len < 0 || (unsigned)len >= sizeof(rval) - roff)
+			break;		/* insufficient space for output */
+		roff += len;
+		if (*cp == CHAR_MAX)
+			break;		/* special termination */
 	}
 
-	/* Remove the trailing ';'. */
-	rval[len - 1] = '\0';
+	/* Truncate at the last successfully snprintf()ed semicolon. */
+	if (roff != 0)
+		rval[roff - 1] = '\0';
 
-	return (rval);
+	return (&rval[0]);
 }
-
 
 /*
  * keyword value lookup helper (via localeconv())
