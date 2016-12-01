@@ -438,6 +438,7 @@ dequeue_socket(struct socket *head)
 	so->so_state |= SS_NBIO;
 	SOCK_UNLOCK(so);
 	ACCEPT_UNLOCK();
+	remote = NULL;
 	soaccept(so, (struct sockaddr **)&remote);
 
 	free(remote, M_SONAME);
