@@ -67,11 +67,13 @@ buf_ring_enqueue(struct buf_ring *br, void *buf)
 	uint32_t prod_head, prod_next, cons_tail;
 #ifdef DEBUG_BUFRING
 	int i;
-	for (i = br->br_cons_head; i != br->br_prod_head;
-	     i = ((i + 1) & br->br_cons_mask))
-		if(br->br_ring[i] == buf)
-			panic("buf=%p already enqueue at %d prod=%d cons=%d",
-			    buf, i, br->br_prod_tail, br->br_cons_tail);
+	if (br->br_cons_head != br->br_prod_head) {
+		for (i = (br->br_cons_head + 1) & br->br_cons_mask; i != br->br_prod_head;
+		    i = ((i + 1) & br->br_cons_mask))
+			if(br->br_ring[i] == buf)
+				panic("buf=%p already enqueue at %d prod=%d cons=%d",
+				    buf, i, br->br_prod_tail, br->br_cons_tail);
+	}
 #endif	
 	critical_enter();
 	do {
