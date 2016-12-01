@@ -1512,9 +1512,6 @@ cpswp_miibus_writereg(device_t dev, int phy, int reg, int value)
 		return (0);
 	}
 
-	if ((cpsw_read_4(sc->swsc, sc->phyaccess) & MDIO_PHYACCESS_ACK) == 0)
-		device_printf(dev, "Failed to write to PHY.\n");
-
 	return (0);
 }
 
