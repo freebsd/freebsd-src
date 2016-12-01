@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet6.h"
 #include "opt_inet.h"
+#include "opt_hn.h"
 
 #include <sys/param.h>
 #include <sys/bus.h>
@@ -1428,10 +1429,12 @@ hn_txdesc_put(struct hn_tx_ring *txr, struct hn_txdesc *txd)
 	txr->hn_txdesc_avail++;
 	SLIST_INSERT_HEAD(&txr->hn_txlist, txd, link);
 	mtx_unlock_spin(&txr->hn_txlist_spin);
-#else
+#else	/* HN_USE_TXDESC_BUFRING */
+#ifdef HN_DEBUG
 	atomic_add_int(&txr->hn_txdesc_avail, 1);
-	buf_ring_enqueue(txr->hn_txdesc_br, txd);
 #endif
+	buf_ring_enqueue(txr->hn_txdesc_br, txd);
+#endif	/* !HN_USE_TXDESC_BUFRING */
 
 	return 1;
 }
@@ -1457,8 +1460,10 @@ hn_txdesc_get(struct hn_tx_ring *txr)
 
 	if (txd != NULL) {
 #ifdef HN_USE_TXDESC_BUFRING
+#ifdef HN_DEBUG
 		atomic_subtract_int(&txr->hn_txdesc_avail, 1);
 #endif
+#endif	/* HN_USE_TXDESC_BUFRING */
 		KASSERT(txd->m == NULL && txd->refs == 0 &&
 		    STAILQ_EMPTY(&txd->agg_list) &&
 		    txd->chim_index == HN_NVS_CHIM_IDX_INVALID &&
@@ -3467,9 +3472,11 @@ hn_tx_ring_create(struct hn_softc *sc, int id)
 		if (txr->hn_tx_sysctl_tree != NULL) {
 			child = SYSCTL_CHILDREN(txr->hn_tx_sysctl_tree);
 
+#ifdef HN_DEBUG
 			SYSCTL_ADD_INT(ctx, child, OID_AUTO, "txdesc_avail",
 			    CTLFLAG_RD, &txr->hn_txdesc_avail, 0,
 			    "# of available TX descs");
+#endif
 #ifdef HN_IFSTART_SUPPORT
 			if (!hn_use_if_start)
 #endif
