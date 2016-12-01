@@ -2120,7 +2120,8 @@ _echoonce()
 }
 
 # If the loader env variable rc.debug is set, turn on debugging. rc.conf will
-# still override this, but /etc/defaults/rc.conf.a
+# still override this, but /etc/defaults/rc.conf can't unconditionally set this
+# since it would undo what we've done here.
 if kenv -q rc.debug > /dev/null ; then
 	rc_debug=YES
 fi
