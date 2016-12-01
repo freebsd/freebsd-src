@@ -225,8 +225,9 @@ dump_line(void)
 		char *com_st = s_com;
 
 		target += ps.comment_delta;
-		while (*com_st == '\t')
-		    com_st++, target += 8;	/* ? */
+		while (*com_st == '\t')	/* consider original indentation in
+					 * case this is a box comment */
+		    com_st++, target += 8;
 		while (target <= 0)
 		    if (*com_st == ' ')
 			target++, com_st++;
