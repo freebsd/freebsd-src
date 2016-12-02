@@ -342,7 +342,7 @@ ypproc_match_2_svc(ypreq_key *arg, struct svc_req *req)
 		log_debug("argument too long");
 		return (NULL);
 	}
-	bzero(key, sizeof(key));
+	memset(key, 0, sizeof(key));
 	(void)strncpy(key, arg->key.keydat_val, arg->key.keydat_len);
 
 	if (strcmp(arg->map, "passwd.byname") == 0 ||
@@ -486,7 +486,7 @@ ypproc_next_2_svc(ypreq_key *arg, struct svc_req *req)
 
 	if (strcmp(arg->map, "passwd.byname") == 0 ||
 	    strcmp(arg->map, "master.passwd.byname") == 0) {
-		bzero(key, sizeof(key));
+		memset(key, 0, sizeof(key));
 		(void)strncpy(key, arg->key.keydat_val,
 		    arg->key.keydat_len);
 		ukey.ue_line = key;
@@ -517,7 +517,7 @@ ypproc_next_2_svc(ypreq_key *arg, struct svc_req *req)
 
 
 	} else if (strcmp(arg->map, "group.byname") == 0) {
-		bzero(key, sizeof(key));
+		memset(key, 0, sizeof(key));
 		(void)strncpy(key, arg->key.keydat_val,
 		    arg->key.keydat_len);
 		
@@ -567,7 +567,7 @@ ypproc_master_2_svc(ypreq_nokey *arg, struct svc_req *req)
 	static struct ypresp_master	 res;
 	static char master[YPMAXPEER + 1];
 
-	bzero(&res, sizeof(res));
+	memset(&res, 0, sizeof(res));
 	if (yp_valid_domain(arg->domain, (struct ypresp_val *)&res) == -1)
 		return (&res);
 	
@@ -620,7 +620,7 @@ yp_make_val(struct ypresp_val *res, char *line, int replacecolon)
 {
 	static char		 buf[LINE_WIDTH];
 
-	bzero(buf, sizeof(buf));
+	memset(buf, 0, sizeof(buf));
 
 	if (replacecolon)
 		line[strlen(line)] = ':';
@@ -640,8 +640,8 @@ yp_make_keyval(struct ypresp_key_val *res, char *key, char *line)
 	static char	keybuf[YPMAXRECORD+1];
 	static char	buf[LINE_WIDTH];
 
-	bzero(keybuf, sizeof(keybuf));
-	bzero(buf, sizeof(buf));
+	memset(keybuf, 0, sizeof(keybuf));
+	memset(buf, 0, sizeof(buf));
 	
 	(void)strlcpy(keybuf, key, sizeof(keybuf));
 	res->key.keydat_len = strlen(keybuf);
