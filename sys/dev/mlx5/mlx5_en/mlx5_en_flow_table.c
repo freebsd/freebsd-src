@@ -854,8 +854,6 @@ mlx5e_create_main_flow_table(struct mlx5e_priv *priv)
 	u8 *dmac;
 
 	g = malloc(9 * sizeof(*g), M_MLX5EN, M_WAITOK | M_ZERO);
-	if (g == NULL)
-		return (-ENOMEM);
 
 	g[0].log_sz = 2;
 	g[0].match_criteria_enable = MLX5_MATCH_OUTER_HEADERS;
@@ -939,8 +937,6 @@ mlx5e_create_vlan_flow_table(struct mlx5e_priv *priv)
 	struct mlx5_flow_table_group *g;
 
 	g = malloc(2 * sizeof(*g), M_MLX5EN, M_WAITOK | M_ZERO);
-	if (g == NULL)
-		return (-ENOMEM);
 
 	g[0].log_sz = 12;
 	g[0].match_criteria_enable = MLX5_MATCH_OUTER_HEADERS;
