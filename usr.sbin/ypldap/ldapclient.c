@@ -363,7 +363,7 @@ ldapclient(int pipe_main2client[2])
 		return (pid);
 	}
 
-	bzero(&env, sizeof(env));
+	memset(&env, 0, sizeof(env));
 	TAILQ_INIT(&env.sc_idms);
 
 	if ((pw = getpwnam(YPLDAP_USER)) == NULL)
@@ -437,7 +437,7 @@ client_build_req(struct idm *idm, struct idm_req *ir, struct aldap_message *m,
 	char	**ldap_attrs;
 	int	 i, k;
 
-	bzero(ir, sizeof(*ir));
+	memset(ir, 0, sizeof(*ir));
 	for (i = min_attr; i < max_attr; i++) {
 		if (idm->idm_flags & F_FIXED_ATTR(i)) {
 			if (strlcat(ir->ir_line, idm->idm_attrs[i],
@@ -594,7 +594,7 @@ client_try_idm(struct env *env, struct idm *idm)
 		aldap_freemsg(m);
 	}
 
-	bzero(attrs, sizeof(attrs));
+	memset(attrs, 0, sizeof(attrs));
 	for (i = 0, j = 0; i < ATTR_MAX; i++) {
 		if (idm->idm_flags & F_FIXED_ATTR(i))
 			continue;
@@ -611,7 +611,7 @@ client_try_idm(struct env *env, struct idm *idm)
 	    idm->idm_filters[FILTER_USER], 0, ATTR_MAX, IMSG_PW_ENTRY) == -1)
 		goto bad;
 
-	bzero(attrs, sizeof(attrs));
+	memset(attrs, 0, sizeof(attrs));
 	for (i = ATTR_GR_MIN, j = 0; i < ATTR_GR_MAX; i++) {
 		if (idm->idm_flags & F_FIXED_ATTR(i))
 			continue;

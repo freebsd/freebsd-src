@@ -609,7 +609,7 @@ main(int argc, char *argv[])
 #warning disabling privilege revocation in debug mode
 #endif
 
-	bzero(&tv, sizeof(tv));
+	memset(&tv, 0, sizeof(tv));
 	evtimer_set(&ev_timer, main_init_timer, &env);
 	evtimer_add(&ev_timer, &tv);
 
