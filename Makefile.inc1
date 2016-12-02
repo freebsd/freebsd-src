@@ -1772,11 +1772,6 @@ ${_bt}-usr.sbin/nmtree: ${_bt}-lib/libnetbsd
 _cat=		bin/cat
 .endif
 
-# r264059 support for status=
-.if ${BOOTSTRAPPING} < 1100017
-_dd=		bin/dd
-.endif
-
 # r277259 crunchide: Correct 64-bit section header offset
 # r281674 crunchide: always include both 32- and 64-bit ELF support
 .if ${BOOTSTRAPPING} < 1100078
@@ -1860,7 +1855,6 @@ bootstrap-tools: .PHONY
     ${_dtc} \
     usr.bin/brandelf \
     ${_cat} \
-    ${_dd} \
     ${_kbdcontrol} \
     usr.bin/lorder \
     ${_libopenbsd} \

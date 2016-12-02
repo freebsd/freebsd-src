@@ -18,7 +18,7 @@ LDFLAGS=-e start -Ttext ${BOOT_BOOT0_ORG} -Wl,-N,-T,${.CURDIR}/ldscript
 
 # The size of boot0.5 must be 7168 bytes
 ${BOOT}: ${BOOT}.bin
-	cat ${BOOT}.bin /dev/zero | dd of=${BOOT} bs=1 count=7168
+	cat ${BOOT}.bin /dev/zero | ${DD} of=${BOOT} bs=1 count=7168
 
 ${BOOT}.bin: ${BOOT}.out
 	${OBJCOPY} -S -O binary ${BOOT}.out ${.TARGET}

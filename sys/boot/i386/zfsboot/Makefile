@@ -70,7 +70,7 @@ BOOT2SIZE=	131072
 zfsboot2: zfsboot.ld
 	@set -- `ls -l zfsboot.ld`; x=$$((${BOOT2SIZE}-$$5)); \
 	    echo "$$x bytes available"; test $$x -ge 0
-	dd if=zfsboot.ld of=${.TARGET} obs=${BOOT2SIZE} conv=osync status=none
+	${DD} if=zfsboot.ld of=${.TARGET} obs=${BOOT2SIZE} conv=osync
 
 zfsboot.ld: zfsboot.ldr zfsboot.bin ${BTXKERN}
 	btxld -v -E ${ORG2} -f bin -b ${BTXKERN} -l zfsboot.ldr \

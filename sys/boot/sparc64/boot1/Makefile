@@ -19,8 +19,8 @@ LDFLAGS=-Ttext ${BOOTBLOCKBASE} -Wl,-N
 ${FILES}: boot1.aout
 	@set -- `ls -l boot1.aout`; x=$$((7680-$$5)); \
 	    echo "$$x bytes available"; test $$x -ge 0
-	dd if=/dev/zero of=${.TARGET} bs=512 count=16
-	dd if=boot1.aout of=${.TARGET} bs=512 oseek=1 conv=notrunc
+	${DD} if=/dev/zero of=${.TARGET} bs=512 count=16
+	${DD} if=boot1.aout of=${.TARGET} bs=512 oseek=1 conv=notrunc
 
 boot1.aout: boot1.elf
 	elf2aout -o ${.TARGET} ${.ALLSRC}
