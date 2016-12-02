@@ -54,6 +54,7 @@ INCS+=		mm3dnow.h
 INCS+=		mm_malloc.h
 INCS+=		mmintrin.h
 INCS+=		module.modulemap
+INCS+=		msa.h
 INCS+=		mwaitxintrin.h
 INCS+=		nmmintrin.h
 INCS+=		opencl-c.h

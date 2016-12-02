@@ -1195,6 +1195,7 @@ OLD_FILES+=usr/lib/clang/3.9.1/include/mm3dnow.h
 OLD_FILES+=usr/lib/clang/3.9.1/include/mm_malloc.h
 OLD_FILES+=usr/lib/clang/3.9.1/include/mmintrin.h
 OLD_FILES+=usr/lib/clang/3.9.1/include/module.modulemap
+OLD_FILES+=usr/lib/clang/3.9.1/include/msa.h
 OLD_FILES+=usr/lib/clang/3.9.1/include/mwaitxintrin.h
 OLD_FILES+=usr/lib/clang/3.9.1/include/nmmintrin.h
 OLD_FILES+=usr/lib/clang/3.9.1/include/opencl-c.h
