@@ -24,4 +24,6 @@ CLEANFILES= less.1
 # bugs in __qualifier checking.
 CFLAGS+=	-Wno-incompatible-pointer-types \
 		-Wno-incompatible-pointer-types-discards-qualifiers
+.else
+CFLAGS+=	-Wno-error
 .endif
