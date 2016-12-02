@@ -1758,8 +1758,8 @@ falloc_noinstall(struct thread *td, struct file **resultfp)
 	    priv_check(td, PRIV_MAXFILES) != 0) ||
 	    openfiles >= maxfiles) {
 		if (ppsratecheck(&lastfail, &curfail, 1)) {
-			printf("kern.maxfiles limit exceeded by uid %i, "
-			    "please see tuning(7).\n", td->td_ucred->cr_ruid);
+			printf("kern.maxfiles limit exceeded by uid %i, (%s) "
+			    "please see tuning(7).\n", td->td_ucred->cr_ruid, td->td_proc->p_comm);
 		}
 		return (ENFILE);
 	}
