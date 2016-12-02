@@ -100,7 +100,6 @@ parse(int tk) /* tk: the code for the construct scanned */
 		 * in case of a long "if-else-if ... else-if" sequence.
 		 */
 		ps.i_l_follow = ps.il[ps.tos--];
-
 	/* the rest is the same as for dolit and forstmt */
     case dolit:		/* 'do' */
     case forstmt:		/* for (...) */
