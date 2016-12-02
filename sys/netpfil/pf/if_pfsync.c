@@ -1509,7 +1509,7 @@ pfsync_sendout(int schedswi)
 	struct ip *ip;
 	struct pfsync_header *ph;
 	struct pfsync_subheader *subh;
-	struct pf_state *st;
+	struct pf_state *st, *st_next;
 	struct pfsync_upd_req_item *ur;
 	int offset;
 	int q, count = 0;
@@ -1559,7 +1559,7 @@ pfsync_sendout(int schedswi)
 		offset += sizeof(*subh);
 
 		count = 0;
-		TAILQ_FOREACH(st, &sc->sc_qs[q], sync_list) {
+		TAILQ_FOREACH_SAFE(st, &sc->sc_qs[q], sync_list, st_next) {
 			KASSERT(st->sync_state == q,
 				("%s: st->sync_state == q",
 					__func__));
@@ -1931,6 +1931,8 @@ pfsync_delete_state(struct pf_state *st)
 	if (sc->sc_len == PFSYNC_MINPKT)
 		callout_reset(&sc->sc_tmo, 1 * hz, pfsync_timeout, V_pfsyncif);
 
+	pf_ref_state(st);
+
 	switch (st->sync_state) {
 	case PFSYNC_S_INS:
 		/* We never got to tell the world so just forget about it. */
@@ -1950,6 +1952,9 @@ pfsync_delete_state(struct pf_state *st)
 	default:
 		panic("%s: unexpected sync state %d", __func__, st->sync_state);
 	}
+
+	pf_release_state(st);
+
 	PFSYNC_UNLOCK(sc);
 }
 
