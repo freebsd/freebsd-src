@@ -409,25 +409,27 @@ hwpstate_get_info_from_msr(device_t dev)
 	hwpstate_set = sc->hwpstate_settings;
 	for (i = 0; i < sc->cfnum; i++) {
 		msr = rdmsr(MSR_AMD_10H_11H_CONFIG + i);
-		if ((msr & ((uint64_t)1 << 63)) != ((uint64_t)1 << 63)) {
+		if ((msr & ((uint64_t)1 << 63)) == 0) {
 			HWPSTATE_DEBUG(dev, "msr is not valid.\n");
 			return (ENXIO);
 		}
 		did = AMD_10H_11H_CUR_DID(msr);
 		fid = AMD_10H_11H_CUR_FID(msr);
+
+		/* Convert fid/did to frequency. */
 		switch(family) {
 		case 0x11:
-			/* fid/did to frequency */
-			hwpstate_set[i].freq = 100 * (fid + 0x08) / (1 << did);
+			hwpstate_set[i].freq = (100 * (fid + 0x08)) >> did;
 			break;
 		case 0x10:
-			/* fid/did to frequency */
-			hwpstate_set[i].freq = 100 * (fid + 0x10) / (1 << did);
+		case 0x12:
+		case 0x15:
+		case 0x16:
+			hwpstate_set[i].freq = (100 * (fid + 0x10)) >> did;
 			break;
 		default:
-			HWPSTATE_DEBUG(dev, "get_info_from_msr: AMD family %d CPU's are not implemented yet. sorry.\n", family);
+			HWPSTATE_DEBUG(dev, "get_info_from_msr: AMD family 0x%02x CPU's are not implemented yet. sorry.\n", family);
 			return (ENXIO);
-			break;
 		}
 		hwpstate_set[i].pstate_id = i;
 		/* There was volts calculation, but deleted it. */
