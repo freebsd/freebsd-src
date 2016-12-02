@@ -24,11 +24,7 @@
  * "close bracket" are given.
  */
 	public void
-match_brac(obrac, cbrac, forwdir, n)
-	register int obrac;
-	register int cbrac;
-	int forwdir;
-	int n;
+match_brac(int obrac, int cbrac, int forwdir, int n)
 {
 	register int c;
 	register int nest;

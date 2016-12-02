@@ -27,7 +27,7 @@ static struct mark marks[NMARKS];
  * Initialize the mark table to show no marks are set.
  */
 	public void
-init_mark()
+init_mark(void)
 {
 	int i;
 
@@ -39,8 +39,7 @@ init_mark()
  * See if a mark letter is valid (between a and z).
  */
 	static struct mark *
-getumark(c)
-	int c;
+getumark(int c)
 {
 	if (c >= 'a' && c <= 'z')
 		return (&marks[c-'a']);
@@ -58,8 +57,7 @@ getumark(c)
  * or may be constructed on the fly for certain characters like ^, $.
  */
 	static struct mark *
-getmark(c)
-	int c;
+getmark(int c)
 {
 	register struct mark *m;
 	static struct mark sm;
@@ -124,8 +122,7 @@ getmark(c)
  * Is a mark letter is invalid?
  */
 	public int
-badmark(c)
-	int c;
+badmark(int c)
 {
 	return (getmark(c) == NULL);
 }
@@ -134,8 +131,7 @@ badmark(c)
  * Set a user-defined mark.
  */
 	public void
-setmark(c)
-	int c;
+setmark(int c)
 {
 	register struct mark *m;
 	struct scrpos scrpos;
@@ -152,7 +148,7 @@ setmark(c)
  * Set lmark (the mark named by the apostrophe).
  */
 	public void
-lastmark()
+lastmark(void)
 {
 	struct scrpos scrpos;
 
@@ -169,8 +165,7 @@ lastmark()
  * Go to a mark.
  */
 	public void
-gomark(c)
-	int c;
+gomark(int c)
 {
 	register struct mark *m;
 	struct scrpos scrpos;
@@ -217,8 +212,7 @@ gomark(c)
  * because it's always the first non-blank line on the screen.
  */
 	public POSITION
-markpos(c)
-	int c;
+markpos(int c)
 {
 	register struct mark *m;
 
@@ -238,8 +232,7 @@ markpos(c)
  * Clear the marks associated with a specified ifile.
  */
 	public void
-unmark(ifile)
-	IFILE ifile;
+unmark(IFILE ifile)
 {
 	int i;
 

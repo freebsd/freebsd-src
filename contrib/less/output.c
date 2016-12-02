@@ -43,7 +43,7 @@ extern int bl_fg_color, bl_bg_color;
  * Display the line which is in the line buffer.
  */
 	public void
-put_line()
+put_line(void)
 {
 	register int c;
 	register int i;
@@ -93,7 +93,7 @@ static char *ob = obuf;
  * overwritten or scrolled away.
  */
 	public void
-flush()
+flush(void)
 {
 	register int n;
 	register int fd;
@@ -326,8 +326,7 @@ flush()
  * Output a character.
  */
 	public int
-putchr(c)
-	int c;
+putchr(int c)
 {
 #if 0 /* fake UTF-8 output for testing */
 	extern int utf_mode;
@@ -380,8 +379,7 @@ putchr(c)
  * Output a string.
  */
 	public void
-putstr(s)
-	register char *s;
+putstr(char *s)
 {
 	while (*s != '\0')
 		putchr(*s++);
@@ -416,8 +414,7 @@ TYPE_TO_A_FUNC(inttoa, int)
  * Output an integer in a given radix.
  */
 	static int
-iprint_int(num)
-	int num;
+iprint_int(int num)
 {
 	char buf[INT_STRLEN_BOUND(num)];
 
@@ -430,8 +427,7 @@ iprint_int(num)
  * Output a line number in a given radix.
  */
 	static int
-iprint_linenum(num)
-	LINENUM num;
+iprint_linenum(LINENUM num)
 {
 	char buf[INT_STRLEN_BOUND(num)];
 
@@ -445,9 +441,7 @@ iprint_linenum(num)
  * using a more portable argument list mechanism than printf's.
  */
 	static int
-less_printf(fmt, parg)
-	register char *fmt;
-	PARG *parg;
+less_printf(register char *fmt, PARG *parg)
 {
 	register char *s;
 	register int col;
@@ -493,7 +487,7 @@ less_printf(fmt, parg)
  * become the next command.
  */
 	public void
-get_return()
+get_return(void)
 {
 	int c;
 
@@ -512,9 +506,7 @@ get_return()
  * and wait for carriage return.
  */
 	public void
-error(fmt, parg)
-	char *fmt;
-	PARG *parg;
+error(char *fmt, PARG *parg)
 {
 	int col = 0;
 	static char return_to_continue[] = "  (press RETURN)";
@@ -567,9 +559,7 @@ static char intr_to_abort[] = "... (interrupt to abort)";
  * time-consuming operation.
  */
 	public void
-ierror(fmt, parg)
-	char *fmt;
-	PARG *parg;
+ierror(char *fmt, PARG *parg)
 {
 	at_exit();
 	clear_bot();
@@ -586,9 +576,7 @@ ierror(fmt, parg)
  * and return a single-character response.
  */
 	public int
-query(fmt, parg)
-	char *fmt;
-	PARG *parg;
+query(char *fmt, PARG *parg)
 {
 	register int c;
 	int col = 0;

@@ -38,9 +38,7 @@ extern IFILE curr_ifile;
  * Like plain "system()", but handles resetting terminal modes, etc.
  */
 	public void
-lsystem(cmd, donemsg)
-	char *cmd;
-	char *donemsg;
+lsystem(char *cmd, char *donemsg)
 {
 	register int inp;
 #if HAVE_SHELL
@@ -250,9 +248,7 @@ lsystem(cmd, donemsg)
  * the whole current screen is piped.
  */
 	public int
-pipe_mark(c, cmd)
-	int c;
-	char *cmd;
+pipe_mark(int c, char *cmd)
 {
 	POSITION mpos, tpos, bpos;
 
@@ -284,10 +280,7 @@ pipe_mark(c, cmd)
  * Feed it the file contents between the positions spos and epos.
  */
 	public int
-pipe_data(cmd, spos, epos)
-	char *cmd;
-	POSITION spos;
-	POSITION epos;
+pipe_data(char *cmd, POSITION spos, POSITION epos)
 {
 	register FILE *f;
 	register int c;

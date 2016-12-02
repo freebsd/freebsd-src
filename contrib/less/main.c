@@ -301,8 +301,7 @@ main(argc, argv)
  * (that is, to a buffer allocated by calloc).
  */
 	public char *
-save(s)
-	char *s;
+save(char *s)
 {
 	register char *p;
 
@@ -316,9 +315,7 @@ save(s)
  * Like calloc(), but never returns an error (NULL).
  */
 	public VOID_POINTER
-ecalloc(count, size)
-	int count;
-	unsigned int size;
+ecalloc(int count, unsigned int size)
 {
 	register VOID_POINTER p;
 
@@ -335,8 +332,7 @@ ecalloc(count, size)
  * Skip leading spaces in a string.
  */
 	public char *
-skipsp(s)
-	register char *s;
+skipsp(register char *s)
 {
 	while (*s == ' ' || *s == '\t')	
 		s++;
@@ -349,10 +345,7 @@ skipsp(s)
  * character; the remainder of the first string may be either case.
  */
 	public int
-sprefix(ps, s, uppercase)
-	char *ps;
-	char *s;
-	int uppercase;
+sprefix(char *ps, char *s, int uppercase)
 {
 	register int c;
 	register int sc;
@@ -382,8 +375,7 @@ sprefix(ps, s, uppercase)
  * Exit the program.
  */
 	public void
-quit(status)
-	int status;
+quit(int status)
 {
 	static int save_status;
 

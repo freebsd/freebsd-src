@@ -216,16 +216,14 @@ int errors;
 extern char version[];
 
 	void
-usage()
+usage(void)
 {
 	fprintf(stderr, "usage: lesskey [-o output] [input]\n");
 	exit(1);
 }
 
 	char *
-mkpathname(dirname, filename)
-	char *dirname;
-	char *filename;
+mkpathname(char *dirname, char *filename)
 {
 	char *pathname;
 
@@ -240,8 +238,7 @@ mkpathname(dirname, filename)
  * Figure out the name of a default file (in the user's HOME directory).
  */
 	char *
-homefile(filename)
-	char *filename;
+homefile(char *filename)
 {
 	char *p;
 	char *pathname;
@@ -264,9 +261,7 @@ homefile(filename)
  * Parse command line arguments.
  */
 	void
-parse_args(argc, argv)
-	int argc;
-	char **argv;
+parse_args(int argc, char **argv)
 {
 	char *arg;
 
@@ -339,7 +334,7 @@ parse_args(argc, argv)
  * Initialize data structures.
  */
 	void
-init_tables()
+init_tables(void)
 {
 	cmdtable.names = cmdnames;
 	cmdtable.pbuffer = cmdtable.buffer;
@@ -355,9 +350,7 @@ init_tables()
  * Parse one character of a string.
  */
 	char *
-tstr(pp, xlate)
-	char **pp;
-	int xlate;
+tstr(char **pp, int xlate)
 {
 	register char *p;
 	register char ch;
@@ -471,8 +464,7 @@ tstr(pp, xlate)
  * Skip leading spaces in a string.
  */
 	public char *
-skipsp(s)
-	register char *s;
+skipsp(char *s)
 {
 	while (*s == ' ' || *s == '\t')	
 		s++;
@@ -483,8 +475,7 @@ skipsp(s)
  * Skip non-space characters in a string.
  */
 	public char *
-skipnsp(s)
-	register char *s;
+skipnsp(char *s)
 {
 	while (*s != '\0' && *s != ' ' && *s != '\t')
 		s++;
@@ -496,8 +487,7 @@ skipnsp(s)
  * strip off the trailing newline & any trailing # comment.
  */
 	char *
-clean_line(s)
-	char *s;
+clean_line(char *s)
 {
 	register int i;
 
@@ -513,8 +503,7 @@ clean_line(s)
  * Add a byte to the output command table.
  */
 	void
-add_cmd_char(c)
-	int c;
+add_cmd_char(int c)
 {
 	if (currtable->pbuffer >= currtable->buffer + MAX_USERCMD)
 	{
@@ -528,8 +517,7 @@ add_cmd_char(c)
  * Add a string to the output command table.
  */
 	void
-add_cmd_str(s)
-	char *s;
+add_cmd_str(char *s)
 {
 	for ( ;  *s != '\0';  s++)
 		add_cmd_char(*s);
@@ -539,8 +527,7 @@ add_cmd_str(s)
  * See if we have a special "control" line.
  */
 	int
-control_line(s)
-	char *s;
+control_line(char *s)
 {
 #define	PREFIX(str,pat)	(strncmp(str,pat,strlen(pat)) == 0)
 
@@ -572,10 +559,7 @@ control_line(s)
  * Output some bytes.
  */
 	void
-fputbytes(fd, buf, len)
-	FILE *fd;
-	char *buf;
-	int len;
+fputbytes(FILE *fd, char *buf, int len)
 {
 	while (len-- > 0)
 	{
@@ -588,9 +572,7 @@ fputbytes(fd, buf, len)
  * Output an integer, in special KRADIX form.
  */
 	void
-fputint(fd, val)
-	FILE *fd;
-	unsigned int val;
+fputint(FILE *fd, unsigned int val)
 {
 	char c;
 
@@ -610,8 +592,7 @@ fputint(fd, val)
  * Find an action, given the name of the action.
  */
 	int
-findaction(actname)
-	char *actname;
+findaction(char *actname)
 {
 	int i;
 
@@ -623,8 +604,7 @@ findaction(actname)
 }
 
 	void
-error(s)
-	char *s;
+error(char *s)
 {
 	fprintf(stderr, "line %d: %s\n", linenum, s);
 	errors++;
@@ -632,8 +612,7 @@ error(s)
 
 
 	void
-parse_cmdline(p)
-	char *p;
+parse_cmdline(char *p)
 {
 	int cmdlen;
 	char *actname;
@@ -702,8 +681,7 @@ parse_cmdline(p)
 }
 
 	void
-parse_varline(p)
-	char *p;
+parse_varline(char *p)
 {
 	char *s;
 
@@ -739,8 +717,7 @@ parse_varline(p)
  * Parse a line from the lesskey file.
  */
 	void
-parse_line(line)
-	char *line;
+parse_line(char *line)
 {
 	char *p;
 
@@ -765,9 +742,7 @@ parse_line(line)
 }
 
 	int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	FILE *desc;
 	FILE *out;
