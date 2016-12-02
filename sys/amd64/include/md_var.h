@@ -89,6 +89,16 @@ struct	fpreg;
 struct  dbreg;
 struct	dumperinfo;
 
+/*
+ * Returns the maximum physical address that can be used with the
+ * current system.
+ */
+static __inline vm_paddr_t
+cpu_getmaxphyaddr(void)
+{
+	return ((1ULL << cpu_maxphyaddr) - 1);
+}
+
 void	*alloc_fpusave(int flags);
 void	amd64_syscall(struct thread *td, int traced);
 void	busdma_swi(void);
