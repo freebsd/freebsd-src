@@ -123,6 +123,7 @@ mbufq_drain(struct mbufq *q)
 	q->tail = NULL;
 }
 
+#ifdef INVARIANTS
 static inline int
 mbufq_len(const struct mbufq *q)
 {
@@ -134,6 +135,7 @@ mbufq_len(const struct mbufq *q)
 		len++;
 	return (len);
 }
+#endif
 	
 struct toepcb *
 alloc_toepcb(struct vi_info *vi, int txqid, int rxqid, int flags)

@@ -1713,7 +1713,9 @@ do_fw4_ack(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 int
 do_set_tcb_rpl(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 {
+#ifdef INVARIANTS
 	struct adapter *sc = iq->adapter;
+#endif
 	const struct cpl_set_tcb_rpl *cpl = (const void *)(rss + 1);
 	unsigned int tid = GET_TID(cpl);
 #ifdef INVARIANTS
