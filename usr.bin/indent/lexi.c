@@ -57,7 +57,9 @@ __FBSDID("$FreeBSD$");
 #include "indent.h"
 
 #define alphanum 1
+#ifdef undef
 #define opchar 3
+#endif
 
 struct templ {
     const char *rwd;
