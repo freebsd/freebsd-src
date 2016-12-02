@@ -100,7 +100,7 @@ static driver_t t4_driver = {
 static int cxgbe_probe(device_t);
 static int cxgbe_attach(device_t);
 static int cxgbe_detach(device_t);
-static device_method_t cxgbe_methods[] = {
+device_method_t cxgbe_methods[] = {
 	DEVMETHOD(device_probe,		cxgbe_probe),
 	DEVMETHOD(device_attach,	cxgbe_attach),
 	DEVMETHOD(device_detach,	cxgbe_detach),
@@ -129,14 +129,9 @@ static driver_t vcxgbe_driver = {
 };
 
 static d_ioctl_t t4_ioctl;
-static d_open_t t4_open;
-static d_close_t t4_close;
 
 static struct cdevsw t4_cdevsw = {
        .d_version = D_VERSION,
-       .d_flags = 0,
-       .d_open = t4_open,
-       .d_close = t4_close,
        .d_ioctl = t4_ioctl,
        .d_name = "t4nex",
 };
@@ -169,15 +164,6 @@ static driver_t vcxl_driver = {
 	"vcxl",
 	vcxgbe_methods,
 	sizeof(struct vi_info)
-};
-
-static struct cdevsw t5_cdevsw = {
-       .d_version = D_VERSION,
-       .d_flags = 0,
-       .d_open = t4_open,
-       .d_close = t4_close,
-       .d_ioctl = t4_ioctl,
-       .d_name = "t5nex",
 };
 
 /* ifnet + media interface */
@@ -216,19 +202,19 @@ SLIST_HEAD(, uld_info) t4_uld_list;
  * Number of queues for tx and rx, 10G and 1G, NIC and offload.
  */
 #define NTXQ_10G 16
-static int t4_ntxq10g = -1;
+int t4_ntxq10g = -1;
 TUNABLE_INT("hw.cxgbe.ntxq10g", &t4_ntxq10g);
 
 #define NRXQ_10G 8
-static int t4_nrxq10g = -1;
+int t4_nrxq10g = -1;
 TUNABLE_INT("hw.cxgbe.nrxq10g", &t4_nrxq10g);
 
 #define NTXQ_1G 4
-static int t4_ntxq1g = -1;
+int t4_ntxq1g = -1;
 TUNABLE_INT("hw.cxgbe.ntxq1g", &t4_ntxq1g);
 
 #define NRXQ_1G 2
-static int t4_nrxq1g = -1;
+int t4_nrxq1g = -1;
 TUNABLE_INT("hw.cxgbe.nrxq1g", &t4_nrxq1g);
 
 #define NTXQ_VI 1
@@ -282,34 +268,34 @@ TUNABLE_INT("hw.cxgbe.nnmrxq_vi", &t4_nnmrxq_vi);
  * Holdoff parameters for 10G and 1G ports.
  */
 #define TMR_IDX_10G 1
-static int t4_tmr_idx_10g = TMR_IDX_10G;
+int t4_tmr_idx_10g = TMR_IDX_10G;
 TUNABLE_INT("hw.cxgbe.holdoff_timer_idx_10G", &t4_tmr_idx_10g);
 
 #define PKTC_IDX_10G (-1)
-static int t4_pktc_idx_10g = PKTC_IDX_10G;
+int t4_pktc_idx_10g = PKTC_IDX_10G;
 TUNABLE_INT("hw.cxgbe.holdoff_pktc_idx_10G", &t4_pktc_idx_10g);
 
 #define TMR_IDX_1G 1
-static int t4_tmr_idx_1g = TMR_IDX_1G;
+int t4_tmr_idx_1g = TMR_IDX_1G;
 TUNABLE_INT("hw.cxgbe.holdoff_timer_idx_1G", &t4_tmr_idx_1g);
 
 #define PKTC_IDX_1G (-1)
-static int t4_pktc_idx_1g = PKTC_IDX_1G;
+int t4_pktc_idx_1g = PKTC_IDX_1G;
 TUNABLE_INT("hw.cxgbe.holdoff_pktc_idx_1G", &t4_pktc_idx_1g);
 
 /*
  * Size (# of entries) of each tx and rx queue.
  */
-static unsigned int t4_qsize_txq = TX_EQ_QSIZE;
+unsigned int t4_qsize_txq = TX_EQ_QSIZE;
 TUNABLE_INT("hw.cxgbe.qsize_txq", &t4_qsize_txq);
 
-static unsigned int t4_qsize_rxq = RX_IQ_QSIZE;
+unsigned int t4_qsize_rxq = RX_IQ_QSIZE;
 TUNABLE_INT("hw.cxgbe.qsize_rxq", &t4_qsize_rxq);
 
 /*
  * Interrupt types allowed (bits 0, 1, 2 = INTx, MSI, MSI-X respectively).
  */
-static int t4_intr_types = INTR_MSIX | INTR_MSI | INTR_INTX;
+int t4_intr_types = INTR_MSIX | INTR_MSI | INTR_INTX;
 TUNABLE_INT("hw.cxgbe.interrupt_types", &t4_intr_types);
 
 /*
@@ -420,8 +406,6 @@ struct filter_entry {
         struct t4_filter_specification fs;
 };
 
-static int map_bars_0_and_4(struct adapter *);
-static int map_bar_2(struct adapter *);
 static void setup_memwin(struct adapter *);
 static void position_memwin(struct adapter *, int, uint32_t);
 static int rw_via_memwin(struct adapter *, int, uint32_t, uint32_t *, int, int);
@@ -446,7 +430,6 @@ static void t4_set_desc(struct adapter *);
 static void build_medialist(struct port_info *, struct ifmedia *);
 static int cxgbe_init_synchronized(struct vi_info *);
 static int cxgbe_uninit_synchronized(struct vi_info *);
-static int setup_intr_handlers(struct adapter *);
 static void quiesce_txq(struct adapter *, struct sge_txq *);
 static void quiesce_wrq(struct adapter *, struct sge_wrq *);
 static void quiesce_iq(struct adapter *, struct sge_iq *);
@@ -459,7 +442,6 @@ static void vi_refresh_stats(struct adapter *, struct vi_info *);
 static void cxgbe_refresh_stats(struct adapter *, struct port_info *);
 static void cxgbe_tick(void *);
 static void cxgbe_vlan_config(void *, struct ifnet *, uint16_t);
-static void t4_sysctls(struct adapter *);
 static void cxgbe_sysctls(struct port_info *);
 static int sysctl_int_array(SYSCTL_HANDLER_ARGS);
 static int sysctl_bitfield(SYSCTL_HANDLER_ARGS);
@@ -528,8 +510,6 @@ static int get_sge_context(struct adapter *, struct t4_sge_context *);
 static int load_fw(struct adapter *, struct t4_data *);
 static int read_card_mem(struct adapter *, int, struct t4_mem_range *);
 static int read_i2c(struct adapter *, struct t4_i2c_data *);
-static int set_sched_class(struct adapter *, struct t4_sched_params *);
-static int set_sched_queue(struct adapter *, struct t4_sched_queue *);
 #ifdef TCP_OFFLOAD
 static int toe_capability(struct vi_info *, int);
 #endif
@@ -672,6 +652,7 @@ t4_attach(device_t dev)
 {
 	struct adapter *sc;
 	int rc = 0, i, j, n10g, n1g, rqidx, tqidx;
+	struct make_dev_args mda;
 	struct intrs_and_queues iaq;
 	struct sge *s;
 	uint8_t *buf;
@@ -701,6 +682,8 @@ t4_attach(device_t dev)
 		sc->params.pci.mps = 128 << ((v & PCIEM_CTL_MAX_PAYLOAD) >> 5);
 	}
 
+	sc->sge_gts_reg = MYPF_REG(A_SGE_PF_GTS);
+	sc->sge_kdoorbell_reg = MYPF_REG(A_SGE_PF_KDOORBELL);
 	sc->traceq = -1;
 	mtx_init(&sc->ifp_lock, sc->ifp_lockname, 0, MTX_DEF);
 	snprintf(sc->ifp_lockname, sizeof(sc->ifp_lockname), "%s tracer",
@@ -709,9 +692,7 @@ t4_attach(device_t dev)
 	snprintf(sc->lockname, sizeof(sc->lockname), "%s",
 	    device_get_nameunit(dev));
 	mtx_init(&sc->sc_lock, sc->lockname, 0, MTX_DEF);
-	sx_xlock(&t4_list_lock);
-	SLIST_INSERT_HEAD(&t4_list, sc, link);
-	sx_xunlock(&t4_list_lock);
+	t4_add_adapter(sc);
 
 	mtx_init(&sc->sfl_lock, "starving freelists", 0, MTX_DEF);
 	TAILQ_INIT(&sc->sfl);
@@ -719,7 +700,7 @@ t4_attach(device_t dev)
 
 	mtx_init(&sc->reg_lock, "indirect register access", 0, MTX_DEF);
 
-	rc = map_bars_0_and_4(sc);
+	rc = t4_map_bars_0_and_4(sc);
 	if (rc != 0)
 		goto done; /* error message displayed already */
 
@@ -751,13 +732,16 @@ t4_attach(device_t dev)
 	setup_memwin(sc);
 	if (t4_init_devlog_params(sc, 0) == 0)
 		fixup_devlog_params(sc);
-	sc->cdev = make_dev(is_t4(sc) ? &t4_cdevsw : &t5_cdevsw,
-	    device_get_unit(dev), UID_ROOT, GID_WHEEL, 0600, "%s",
-	    device_get_nameunit(dev));
-	if (sc->cdev == NULL)
-		device_printf(dev, "failed to create nexus char device.\n");
-	else
-		sc->cdev->si_drv1 = sc;
+	make_dev_args_init(&mda);
+	mda.mda_devsw = &t4_cdevsw;
+	mda.mda_uid = UID_ROOT;
+	mda.mda_gid = GID_WHEEL;
+	mda.mda_mode = 0600;
+	mda.mda_si_drv1 = sc;
+	rc = make_dev_s(&mda, &sc->cdev, "%s", device_get_nameunit(dev));
+	if (rc != 0)
+		device_printf(dev, "failed to create nexus char device: %d.\n",
+		    rc);
 
 	/* Go no further if recovery mode has been requested. */
 	if (TUNABLE_INT_FETCH("hw.cxgbe.sos", &i) && i != 0) {
@@ -786,7 +770,7 @@ t4_attach(device_t dev)
 	if (rc != 0)
 		goto done; /* error message displayed already */
 
-	rc = map_bar_2(sc);
+	rc = t4_map_bar_2(sc);
 	if (rc != 0)
 		goto done; /* error message displayed already */
 
@@ -1040,7 +1024,7 @@ t4_attach(device_t dev)
 		}
 	}
 
-	rc = setup_intr_handlers(sc);
+	rc = t4_setup_intr_handlers(sc);
 	if (rc != 0) {
 		device_printf(dev,
 		    "failed to setup interrupt handlers: %d\n", rc);
@@ -1072,7 +1056,7 @@ done:
 	}
 
 	if (rc != 0)
-		t4_detach(dev);
+		t4_detach_common(dev);
 	else
 		t4_sysctls(sc);
 
@@ -1086,24 +1070,38 @@ static int
 t4_detach(device_t dev)
 {
 	struct adapter *sc;
+
+	sc = device_get_softc(dev);
+
+	return (t4_detach_common(dev));
+}
+
+int
+t4_detach_common(device_t dev)
+{
+	struct adapter *sc;
 	struct port_info *pi;
 	int i, rc;
 
 	sc = device_get_softc(dev);
 
-	if (sc->flags & FULL_INIT_DONE)
-		t4_intr_disable(sc);
+	if (sc->flags & FULL_INIT_DONE) {
+		if (!(sc->flags & IS_VF))
+			t4_intr_disable(sc);
+	}
 
 	if (sc->cdev) {
 		destroy_dev(sc->cdev);
 		sc->cdev = NULL;
 	}
 
-	rc = bus_generic_detach(dev);
-	if (rc) {
-		device_printf(dev,
-		    "failed to detach child devices: %d\n", rc);
-		return (rc);
+	if (device_is_attached(dev)) {
+		rc = bus_generic_detach(dev);
+		if (rc) {
+			device_printf(dev,
+			    "failed to detach child devices: %d\n", rc);
+			return (rc);
+		}
 	}
 
 	for (i = 0; i < sc->intr_count; i++)
@@ -1126,7 +1124,7 @@ t4_detach(device_t dev)
 	if (sc->flags & FULL_INIT_DONE)
 		adapter_full_uninit(sc);
 
-	if (sc->flags & FW_OK)
+	if ((sc->flags & (IS_VF | FW_OK)) == FW_OK)
 		t4_fw_bye(sc, sc->mbox);
 
 	if (sc->intr_type == INTR_MSI || sc->intr_type == INTR_MSIX)
@@ -1615,7 +1613,7 @@ cxgbe_transmit(struct ifnet *ifp, struct mbuf *m)
 		return (ENETDOWN);
 	}
 
-	rc = parse_pkt(&m);
+	rc = parse_pkt(sc, &m);
 	if (__predict_false(rc != 0)) {
 		MPASS(m == NULL);			/* was freed already */
 		atomic_add_int(&pi->tx_parse_error, 1);	/* rare, atomic is ok */
@@ -1789,8 +1787,16 @@ t4_fatal_err(struct adapter *sc)
 	    device_get_nameunit(sc->dev));
 }
 
-static int
-map_bars_0_and_4(struct adapter *sc)
+void
+t4_add_adapter(struct adapter *sc)
+{
+	sx_xlock(&t4_list_lock);
+	SLIST_INSERT_HEAD(&t4_list, sc, link);
+	sx_xunlock(&t4_list_lock);
+}
+
+int
+t4_map_bars_0_and_4(struct adapter *sc)
 {
 	sc->regs_rid = PCIR_BAR(0);
 	sc->regs_res = bus_alloc_resource_any(sc->dev, SYS_RES_MEMORY,
@@ -1815,8 +1821,8 @@ map_bars_0_and_4(struct adapter *sc)
 	return (0);
 }
 
-static int
-map_bar_2(struct adapter *sc)
+int
+t4_map_bar_2(struct adapter *sc)
 {
 
 	/*
@@ -3155,6 +3161,8 @@ get_params__post_init(struct adapter *sc)
 		sc->vres.iscsi.size = val[1] - val[0] + 1;
 	}
 
+	t4_init_sge_params(sc);
+
 	/*
 	 * We've got the params we wanted to query via the firmware.  Now grab
 	 * some others directly from the chip.
@@ -3596,7 +3604,7 @@ cxgbe_init_synchronized(struct vi_info *vi)
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	pi->up_vis++;
 
-	if (pi->nvi > 1)
+	if (pi->nvi > 1 || sc->flags & IS_VF)
 		callout_reset(&vi->tick, hz, vi_tick, vi);
 	else
 		callout_reset(&pi->tick, hz, cxgbe_tick, pi);
@@ -3648,10 +3656,10 @@ cxgbe_uninit_synchronized(struct vi_info *vi)
 	}
 
 	PORT_LOCK(pi);
-	if (pi->nvi == 1)
-		callout_stop(&pi->tick);
-	else
+	if (pi->nvi > 1 || sc->flags & IS_VF)
 		callout_stop(&vi->tick);
+	else
+		callout_stop(&pi->tick);
 	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 		PORT_UNLOCK(pi);
 		return (0);
@@ -3676,8 +3684,8 @@ cxgbe_uninit_synchronized(struct vi_info *vi)
  * It is ok for this function to fail midway and return right away.  t4_detach
  * will walk the entire sc->irq list and clean up whatever is valid.
  */
-static int
-setup_intr_handlers(struct adapter *sc)
+int
+t4_setup_intr_handlers(struct adapter *sc)
 {
 	int rc, rid, p, q, v;
 	char s[8];
@@ -3702,17 +3710,23 @@ setup_intr_handlers(struct adapter *sc)
 		return (t4_alloc_irq(sc, irq, rid, t4_intr_all, sc, "all"));
 
 	/* Multiple interrupts. */
-	KASSERT(sc->intr_count >= T4_EXTRA_INTR + sc->params.nports,
-	    ("%s: too few intr.", __func__));
+	if (sc->flags & IS_VF)
+		KASSERT(sc->intr_count >= T4VF_EXTRA_INTR + sc->params.nports,
+		    ("%s: too few intr.", __func__));
+	else
+		KASSERT(sc->intr_count >= T4_EXTRA_INTR + sc->params.nports,
+		    ("%s: too few intr.", __func__));
 
-	/* The first one is always error intr */
-	rc = t4_alloc_irq(sc, irq, rid, t4_intr_err, sc, "err");
-	if (rc != 0)
-		return (rc);
-	irq++;
-	rid++;
+	/* The first one is always error intr on PFs */
+	if (!(sc->flags & IS_VF)) {
+		rc = t4_alloc_irq(sc, irq, rid, t4_intr_err, sc, "err");
+		if (rc != 0)
+			return (rc);
+		irq++;
+		rid++;
+	}
 
-	/* The second one is always the firmware event queue */
+	/* The second one is always the firmware event queue (first on VFs) */
 	rc = t4_alloc_irq(sc, irq, rid, t4_intr_evt, &sge->fwq, "evt");
 	if (rc != 0)
 		return (rc);
@@ -3815,7 +3829,8 @@ adapter_full_init(struct adapter *sc)
 		    device_get_nameunit(sc->dev), i);
 	}
 
-	t4_intr_enable(sc);
+	if (!(sc->flags & IS_VF))
+		t4_intr_enable(sc);
 	sc->flags |= FULL_INIT_DONE;
 done:
 	if (rc != 0)
@@ -4064,7 +4079,7 @@ vi_full_uninit(struct vi_info *vi)
 		/* Need to quiesce queues.  */
 
 		/* XXX: Only for the first VI? */
-		if (IS_MAIN_VI(vi))
+		if (IS_MAIN_VI(vi) && !(sc->flags & IS_VF))
 			quiesce_wrq(sc, &sc->sge.ctrlq[pi->port_id]);
 
 		for_each_txq(vi, i, txq) {
@@ -4231,10 +4246,16 @@ read_vf_stat(struct adapter *sc, unsigned int viid, int reg)
 	u32 stats[2];
 
 	mtx_assert(&sc->reg_lock, MA_OWNED);
-	t4_write_reg(sc, A_PL_INDIR_CMD, V_PL_AUTOINC(1) |
-	    V_PL_VFID(G_FW_VIID_VIN(viid)) | V_PL_ADDR(VF_MPS_REG(reg)));
-	stats[0] = t4_read_reg(sc, A_PL_INDIR_DATA);
-	stats[1] = t4_read_reg(sc, A_PL_INDIR_DATA);
+	if (sc->flags & IS_VF) {
+		stats[0] = t4_read_reg(sc, VF_MPS_REG(reg));
+		stats[1] = t4_read_reg(sc, VF_MPS_REG(reg + 4));
+	} else {
+		t4_write_reg(sc, A_PL_INDIR_CMD, V_PL_AUTOINC(1) |
+		    V_PL_VFID(G_FW_VIID_VIN(viid)) |
+		    V_PL_ADDR(VF_MPS_REG(reg)));
+		stats[0] = t4_read_reg(sc, A_PL_INDIR_DATA);
+		stats[1] = t4_read_reg(sc, A_PL_INDIR_DATA);
+	}
 	return (((uint64_t)stats[1]) << 32 | stats[0]);
 }
 
@@ -4429,7 +4450,7 @@ static char *caps_decoder[] = {
 		    "\004PO_INITIATOR\005PO_TARGET",
 };
 
-static void
+void
 t4_sysctls(struct adapter *sc)
 {
 	struct sysctl_ctx_list *ctx;
@@ -4452,29 +4473,54 @@ t4_sysctls(struct adapter *sc)
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "nports", CTLFLAG_RD, NULL,
 	    sc->params.nports, "# of ports");
 
-	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "hw_revision", CTLFLAG_RD,
-	    NULL, chip_rev(sc), "chip hardware revision");
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "doorbells",
+	    CTLTYPE_STRING | CTLFLAG_RD, doorbells, sc->doorbells,
+	    sysctl_bitfield, "A", "available doorbells");
+
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "core_clock", CTLFLAG_RD, NULL,
+	    sc->params.vpd.cclk, "core clock frequency (in KHz)");
+
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "holdoff_timers",
+	    CTLTYPE_STRING | CTLFLAG_RD, sc->params.sge.timer_val,
+	    sizeof(sc->params.sge.timer_val), sysctl_int_array, "A",
+	    "interrupt holdoff timer values (us)");
+
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "holdoff_pkt_counts",
+	    CTLTYPE_STRING | CTLFLAG_RD, sc->params.sge.counter_val,
+	    sizeof(sc->params.sge.counter_val), sysctl_int_array, "A",
+	    "interrupt holdoff packet counter values");
+
+	t4_sge_sysctls(sc, ctx, children);
+
+	sc->lro_timeout = 100;
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "lro_timeout", CTLFLAG_RW,
+	    &sc->lro_timeout, 0, "lro inactive-flush timeout (in us)");
+
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "debug_flags", CTLFLAG_RW,
+	    &sc->debug_flags, 0, "flags to enable runtime debugging");
 
 	SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "tp_version",
 	    CTLFLAG_RD, sc->tp_version, 0, "TP microcode version");
+
+	SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "firmware_version",
+	    CTLFLAG_RD, sc->fw_version, 0, "firmware version");
+
+	if (sc->flags & IS_VF)
+		return;
+
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "hw_revision", CTLFLAG_RD,
+	    NULL, chip_rev(sc), "chip hardware revision");
 
 	if (sc->params.exprom_vers != 0) {
 		SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "exprom_version",
 		    CTLFLAG_RD, sc->exprom_version, 0, "expansion ROM version");
 	}
 
-	SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "firmware_version",
-	    CTLFLAG_RD, sc->fw_version, 0, "firmware version");
-
 	SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "cf",
 	    CTLFLAG_RD, sc->cfg_file, 0, "configuration file");
 
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "cfcsum", CTLFLAG_RD, NULL,
 	    sc->cfcsum, "config file checksum");
-
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "doorbells",
-	    CTLTYPE_STRING | CTLFLAG_RD, doorbells, sc->doorbells,
-	    sysctl_bitfield, "A", "available doorbells");
 
 #define SYSCTL_CAP(name, n, text) \
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, #name, \
@@ -4492,34 +4538,12 @@ t4_sysctls(struct adapter *sc)
 	SYSCTL_CAP(fcoecaps, 8, "FCoE");
 #undef SYSCTL_CAP
 
-	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "core_clock", CTLFLAG_RD, NULL,
-	    sc->params.vpd.cclk, "core clock frequency (in KHz)");
-
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "holdoff_timers",
-	    CTLTYPE_STRING | CTLFLAG_RD, sc->params.sge.timer_val,
-	    sizeof(sc->params.sge.timer_val), sysctl_int_array, "A",
-	    "interrupt holdoff timer values (us)");
-
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "holdoff_pkt_counts",
-	    CTLTYPE_STRING | CTLFLAG_RD, sc->params.sge.counter_val,
-	    sizeof(sc->params.sge.counter_val), sysctl_int_array, "A",
-	    "interrupt holdoff packet counter values");
-
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "nfilters", CTLFLAG_RD,
 	    NULL, sc->tids.nftids, "number of filters");
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "temperature", CTLTYPE_INT |
 	    CTLFLAG_RD, sc, 0, sysctl_temperature, "I",
 	    "chip temperature (in Celsius)");
-
-	t4_sge_sysctls(sc, ctx, children);
-
-	sc->lro_timeout = 100;
-	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "lro_timeout", CTLFLAG_RW,
-	    &sc->lro_timeout, 0, "lro inactive-flush timeout (in us)");
-
-	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "debug_flags", CTLFLAG_RW,
-	    &sc->debug_flags, 0, "flags to enable runtime debugging");
 
 #ifdef SBUF_DRAIN
 	/*
@@ -4891,6 +4915,9 @@ cxgbe_sysctls(struct port_info *pi)
 
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "max_speed", CTLFLAG_RD, NULL,
 	    port_top_speed(pi), "max speed (in Gbps)");
+
+	if (sc->flags & IS_VF)
+		return;
 
 	/*
 	 * dev.(cxgbe|cxl).X.tc.
@@ -8388,8 +8415,8 @@ set_sched_class_params(struct adapter *sc, struct t4_sched_class_params *p,
 	return (rc);
 }
 
-static int
-set_sched_class(struct adapter *sc, struct t4_sched_params *p)
+int
+t4_set_sched_class(struct adapter *sc, struct t4_sched_params *p)
 {
 
 	if (p->type != SCHED_CLASS_TYPE_PACKET)
@@ -8404,8 +8431,8 @@ set_sched_class(struct adapter *sc, struct t4_sched_params *p)
 	return (EINVAL);
 }
 
-static int
-set_sched_queue(struct adapter *sc, struct t4_sched_queue *p)
+int
+t4_set_sched_queue(struct adapter *sc, struct t4_sched_queue *p)
 {
 	struct port_info *pi = NULL;
 	struct vi_info *vi;
@@ -8585,18 +8612,6 @@ t4_iterate(void (*func)(struct adapter *, void *), void *arg)
 }
 
 static int
-t4_open(struct cdev *dev, int flags, int type, struct thread *td)
-{
-       return (0);
-}
-
-static int
-t4_close(struct cdev *dev, int flags, int type, struct thread *td)
-{
-       return (0);
-}
-
-static int
 t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
     struct thread *td)
 {
@@ -8641,7 +8656,7 @@ t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 	}
 	case CHELSIO_T4_REGDUMP: {
 		struct t4_regdump *regs = (struct t4_regdump *)data;
-		int reglen = is_t4(sc) ? T4_REGDUMP_SIZE : T5_REGDUMP_SIZE;
+		int reglen = t4_get_regs_len(sc);
 		uint8_t *buf;
 
 		if (regs->len < reglen) {
@@ -8755,10 +8770,10 @@ t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 		break;
 	}
 	case CHELSIO_T4_SCHED_CLASS:
-		rc = set_sched_class(sc, (struct t4_sched_params *)data);
+		rc = t4_set_sched_class(sc, (struct t4_sched_params *)data);
 		break;
 	case CHELSIO_T4_SCHED_QUEUE:
-		rc = set_sched_queue(sc, (struct t4_sched_queue *)data);
+		rc = t4_set_sched_queue(sc, (struct t4_sched_queue *)data);
 		break;
 	case CHELSIO_T4_GET_TRACER:
 		rc = t4_get_tracer(sc, (struct t4_tracer *)data);
@@ -8767,7 +8782,7 @@ t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 		rc = t4_set_tracer(sc, (struct t4_tracer *)data);
 		break;
 	default:
-		rc = EINVAL;
+		rc = ENOTTY;
 	}
 
 	return (rc);
