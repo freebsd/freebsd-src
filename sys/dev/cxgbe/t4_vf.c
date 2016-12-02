@@ -125,7 +125,7 @@ static struct cdevsw t4vf_cdevsw = {
 static int
 t4vf_probe(device_t dev)
 {
-	uint16_t d; 
+	uint16_t d;
 	size_t i;
 
 	d = pci_get_device(dev);
@@ -141,7 +141,7 @@ t4vf_probe(device_t dev)
 static int
 t5vf_probe(device_t dev)
 {
-	uint16_t d; 
+	uint16_t d;
 	size_t i;
 
 	d = pci_get_device(dev);
@@ -654,7 +654,7 @@ t4vf_attach(device_t dev)
 		pi->vi[0].dev = pi->dev;
 		device_set_softc(pi->dev, pi);
 	}
-		
+
 	/*
 	 * Interrupt type, # of interrupts, # of rx/tx queues, etc.
 	 */
