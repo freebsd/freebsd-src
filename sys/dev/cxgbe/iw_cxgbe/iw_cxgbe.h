@@ -974,9 +974,6 @@ int idr_for_each(struct idr *idp,
         return error;
 }
 
-void c4iw_cm_init_cpl(struct adapter *);
-void c4iw_cm_term_cpl(struct adapter *);
-
 void your_reg_device(struct c4iw_dev *dev);
 
 #define SGE_CTRLQ_NUM	0
