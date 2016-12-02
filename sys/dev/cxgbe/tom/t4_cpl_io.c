@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012 Chelsio Communications, Inc.
+ * Copyright (c) 2012, 2015 Chelsio Communications, Inc.
  * All rights reserved.
  * Written by: Navdeep Parhar <np@FreeBSD.org>
  *
@@ -71,31 +71,38 @@ VNET_DECLARE(int, tcp_autorcvbuf_inc);
 VNET_DECLARE(int, tcp_autorcvbuf_max);
 #define V_tcp_autorcvbuf_max VNET(tcp_autorcvbuf_max)
 
-/*
- * For ULP connections HW may add headers, e.g., for digests, that aren't part
- * of the messages sent by the host but that are part of the TCP payload and
- * therefore consume TCP sequence space.  Tx connection parameters that
- * operate in TCP sequence space are affected by the HW additions and need to
- * compensate for them to accurately track TCP sequence numbers. This array
- * contains the compensating extra lengths for ULP packets.  It is indexed by
- * a packet's ULP submode.
- */
-const unsigned int t4_ulp_extra_len[] = {0, 4, 4, 8};
-
-/*
- * Return the length of any HW additions that will be made to a Tx packet.
- * Such additions can happen for some types of ULP packets.
- */
-static inline unsigned int
-ulp_extra_len(struct mbuf *m, int *ulp_mode)
+static inline struct mbuf *
+mbufq_dequeue(struct mbufq *q)
 {
-	struct m_tag    *mtag;
+	struct mbuf *m;
 
-	if ((mtag = m_tag_find(m, CXGBE_ISCSI_MBUF_TAG, NULL)) == NULL)
-		return (0);
-	*ulp_mode = *((int *)(mtag + 1));
+	m = q->head;
+	if (m) {
+		if (q->tail == m)
+			q->tail = NULL;
+		q->head = m->m_nextpkt;
+		m->m_nextpkt = NULL;
+	}
+	return (m);
+}
 
-	return (t4_ulp_extra_len[*ulp_mode & 3]);
+static inline void
+mbufq_enqueue(struct mbufq *q, struct mbuf *m)
+{
+
+	m->m_nextpkt = NULL;
+	if (q->tail)
+		q->tail->m_nextpkt = m;
+	else
+		q->head = m;
+	q->tail = m;
+}
+
+static inline struct mbuf *
+mbufq_first(const struct mbufq *q)
+{
+
+	return (q->head);
 }
 
 void
@@ -386,13 +393,9 @@ t4_rcvd(struct toedev *tod, struct tcpcb *tp)
 	KASSERT(toep->sb_cc >= sb->sb_cc,
 	    ("%s: sb %p has more data (%d) than last time (%d).",
 	    __func__, sb, sb->sb_cc, toep->sb_cc));
-	if (toep->ulp_mode == ULP_MODE_ISCSI) {
-		toep->rx_credits += toep->sb_cc;
-		toep->sb_cc = 0;
-	} else {
-		toep->rx_credits += toep->sb_cc - sb->sb_cc;
-		toep->sb_cc = sb->sb_cc;
-	}
+	toep->rx_credits += toep->sb_cc - sb->sb_cc;
+	toep->sb_cc = sb->sb_cc;
+
 	if (toep->rx_credits > 0 &&
 	    (tp->rcv_wnd <= 32 * 1024 || toep->rx_credits >= 64 * 1024 ||
 	    (toep->rx_credits >= 16 * 1024 && tp->rcv_wnd <= 128 * 1024) ||
@@ -492,25 +495,16 @@ max_dsgl_nsegs(int tx_credits)
 
 static inline void
 write_tx_wr(void *dst, struct toepcb *toep, unsigned int immdlen,
-    unsigned int plen, uint8_t credits, int shove, int ulp_mode, int txalign)
+    unsigned int plen, uint8_t credits, int shove, int ulp_submode, int txalign)
 {
 	struct fw_ofld_tx_data_wr *txwr = dst;
-	unsigned int wr_ulp_mode;
 
 	txwr->op_to_immdlen = htobe32(V_WR_OP(FW_OFLD_TX_DATA_WR) |
 	    V_FW_WR_IMMDLEN(immdlen));
 	txwr->flowid_len16 = htobe32(V_FW_WR_FLOWID(toep->tid) |
 	    V_FW_WR_LEN16(credits));
-
-	/* for iscsi, the mode & submode setting is per-packet */
-	if (toep->ulp_mode == ULP_MODE_ISCSI)
-		wr_ulp_mode = V_TX_ULP_MODE(ulp_mode >> 4) |
-		    V_TX_ULP_SUBMODE(ulp_mode & 3);
-	else
-		wr_ulp_mode = V_TX_ULP_MODE(toep->ulp_mode);
-
-	txwr->lsodisable_to_flags = htobe32(wr_ulp_mode | V_TX_URG(0) | /*XXX*/
-	    V_TX_SHOVE(shove));
+	txwr->lsodisable_to_flags = htobe32(V_TX_ULP_MODE(toep->ulp_mode) |
+	    V_TX_ULP_SUBMODE(ulp_submode) | V_TX_URG(0) | V_TX_SHOVE(shove));
 	txwr->plen = htobe32(plen);
 
 	if (txalign > 0) {
@@ -617,6 +611,9 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 	    toep->ulp_mode == ULP_MODE_TCPDDP ||
 	    toep->ulp_mode == ULP_MODE_RDMA,
 	    ("%s: ulp_mode %u for toep %p", __func__, toep->ulp_mode, toep));
+
+	if (__predict_false(toep->flags & TPF_ABORT_SHUTDOWN))
+		return;
 
 	/*
 	 * This function doesn't resume by itself.  Someone else must clear the
@@ -802,55 +799,69 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 		close_conn(sc, toep);
 }
 
-/* Send ULP data over TOE using TX_DATA_WR. We send whole mbuf at once */
-void
-t4_ulp_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
+static inline void
+rqdrop_locked(struct mbufq *q, int plen)
 {
-	struct mbuf *sndptr, *m = NULL;
+	struct mbuf *m;
+
+	while (plen > 0) {
+		m = mbufq_dequeue(q);
+
+		/* Too many credits. */
+		MPASS(m != NULL);
+		M_ASSERTPKTHDR(m);
+
+		/* Partial credits. */
+		MPASS(plen >= m->m_pkthdr.len);
+
+		plen -= m->m_pkthdr.len;
+		m_freem(m);
+	}
+}
+
+void
+t4_push_pdus(struct adapter *sc, struct toepcb *toep, int drop)
+{
+	struct mbuf *sndptr, *m;
 	struct fw_ofld_tx_data_wr *txwr;
 	struct wrqe *wr;
-	unsigned int plen, nsegs, credits, max_imm, max_nsegs, max_nsegs_1mbuf;
+	u_int plen, nsegs, credits, max_imm, max_nsegs, max_nsegs_1mbuf;
+	u_int adjusted_plen, ulp_submode;
 	struct inpcb *inp = toep->inp;
-	struct tcpcb *tp;
-	struct socket *so;
-	struct sockbuf *sb;
-	int tx_credits, ulp_len = 0, ulp_mode = 0, qlen = 0;
-	int shove, compl;
-	struct ofld_tx_sdesc *txsd;
+	struct tcpcb *tp = intotcpcb(inp);
+	int tx_credits, shove;
+	struct ofld_tx_sdesc *txsd = &toep->txsd[toep->txsd_pidx];
+	struct mbufq *pduq = &toep->ulp_pduq;
+	static const u_int ulp_extra_len[] = {0, 4, 4, 8};
 
 	INP_WLOCK_ASSERT(inp);
-	if (toep->flags & TPF_ABORT_SHUTDOWN)
-		return;
-
-	tp = intotcpcb(inp);
-	so = inp->inp_socket;
-	sb = &so->so_snd;
-	txsd = &toep->txsd[toep->txsd_pidx];
-
 	KASSERT(toep->flags & TPF_FLOWC_WR_SENT,
 	    ("%s: flowc_wr not sent for tid %u.", __func__, toep->tid));
+	KASSERT(toep->ulp_mode == ULP_MODE_ISCSI,
+	    ("%s: ulp_mode %u for toep %p", __func__, toep->ulp_mode, toep));
+
+	if (__predict_false(toep->flags & TPF_ABORT_SHUTDOWN))
+		return;
 
 	/*
 	 * This function doesn't resume by itself.  Someone else must clear the
 	 * flag and call this function.
 	 */
-	if (__predict_false(toep->flags & TPF_TX_SUSPENDED))
+	if (__predict_false(toep->flags & TPF_TX_SUSPENDED)) {
+		KASSERT(drop == 0,
+		    ("%s: drop (%d) != 0 but tx is suspended", __func__, drop));
 		return;
+	}
 
-	sndptr = t4_queue_iscsi_callback(so, toep, 1, &qlen);
-	if (!qlen)
-		return;
+	if (drop)
+		rqdrop_locked(&toep->ulp_pdu_reclaimq, drop);
 
-	do {
+	while ((sndptr = mbufq_first(pduq)) != NULL) {
+		M_ASSERTPKTHDR(sndptr);
+
 		tx_credits = min(toep->tx_credits, MAX_OFLD_TX_CREDITS);
 		max_imm = max_imm_payload(tx_credits);
 		max_nsegs = max_dsgl_nsegs(tx_credits);
-
-		if (drop) {
-			t4_cpl_iscsi_callback(toep->td, toep, &drop,
-			    CPL_FW4_ACK);
-			drop = 0;
-		}
 
 		plen = 0;
 		nsegs = 0;
@@ -861,7 +872,10 @@ t4_ulp_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 			nsegs += n;
 			plen += m->m_len;
 
-			/* This mbuf sent us _over_ the nsegs limit, return */
+			/*
+			 * This mbuf would send us _over_ the nsegs limit.
+			 * Suspend tx because the PDU can't be sent out.
+			 */
 			if (plen > max_imm && nsegs > max_nsegs) {
 				toep->flags |= TPF_TX_SUSPENDED;
 				return;
@@ -869,30 +883,35 @@ t4_ulp_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 
 			if (max_nsegs_1mbuf < n)
 				max_nsegs_1mbuf = n;
-
-			/* This mbuf put us right at the max_nsegs limit */
-			if (plen > max_imm && nsegs == max_nsegs) {
-				toep->flags |= TPF_TX_SUSPENDED;
-				return;
-			}
-		}
-
-		shove = m == NULL && !(tp->t_flags & TF_MORETOCOME);
-		/* nothing to send */
-		if (plen == 0) {
-			KASSERT(m == NULL,
-			    ("%s: nothing to send, but m != NULL", __func__));
-			break;
 		}
 
 		if (__predict_false(toep->flags & TPF_FIN_SENT))
 			panic("%s: excess tx.", __func__);
 
-		ulp_len = plen + ulp_extra_len(sndptr, &ulp_mode);
+		/*
+		 * We have a PDU to send.  All of it goes out in one WR so 'm'
+		 * is NULL.  A PDU's length is always a multiple of 4.
+		 */
+		MPASS(m == NULL);
+		MPASS((plen & 3) == 0);
+		MPASS(sndptr->m_pkthdr.len == plen);
+
+		shove = !(tp->t_flags & TF_MORETOCOME);
+		ulp_submode = mbuf_ulp_submode(sndptr);
+		MPASS(ulp_submode < nitems(ulp_extra_len));
+
+		/*
+		 * plen doesn't include header and data digests, which are
+		 * generated and inserted in the right places by the TOE, but
+		 * they do occupy TCP sequence space and need to be accounted
+		 * for.
+		 */
+		adjusted_plen = plen + ulp_extra_len[ulp_submode];
 		if (plen <= max_imm) {
 
 			/* Immediate data tx */
-			wr = alloc_wrqe(roundup(sizeof(*txwr) + plen, 16),
+
+			wr = alloc_wrqe(roundup2(sizeof(*txwr) + plen, 16),
 					toep->ofld_txq);
 			if (wr == NULL) {
 				/* XXX: how will we recover from this? */
@@ -901,16 +920,17 @@ t4_ulp_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 			}
 			txwr = wrtod(wr);
 			credits = howmany(wr->wr_len, 16);
-			write_tx_wr(txwr, toep, plen, ulp_len, credits, shove,
-								ulp_mode, 0);
+			write_tx_wr(txwr, toep, plen, adjusted_plen, credits,
+			    shove, ulp_submode, sc->tt.tx_align);
 			m_copydata(sndptr, 0, plen, (void *)(txwr + 1));
+			nsegs = 0;
 		} else {
 			int wr_len;
 
 			/* DSGL tx */
 			wr_len = sizeof(*txwr) + sizeof(struct ulptx_sgl) +
 			    ((3 * (nsegs - 1)) / 2 + ((nsegs - 1) & 1)) * 8;
-			wr = alloc_wrqe(roundup(wr_len, 16), toep->ofld_txq);
+			wr = alloc_wrqe(roundup2(wr_len, 16), toep->ofld_txq);
 			if (wr == NULL) {
 				/* XXX: how will we recover from this? */
 				toep->flags |= TPF_TX_SUSPENDED;
@@ -918,8 +938,8 @@ t4_ulp_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 			}
 			txwr = wrtod(wr);
 			credits = howmany(wr_len, 16);
-			write_tx_wr(txwr, toep, 0, ulp_len, credits, shove,
-								ulp_mode, 0);
+			write_tx_wr(txwr, toep, 0, adjusted_plen, credits,
+			    shove, ulp_submode, sc->tt.tx_align);
 			write_tx_sgl(txwr + 1, sndptr, m, nsegs,
 			    max_nsegs_1mbuf);
 			if (wr_len & 0xf) {
@@ -932,28 +952,26 @@ t4_ulp_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 		KASSERT(toep->tx_credits >= credits,
 			("%s: not enough credits", __func__));
 
+		m = mbufq_dequeue(pduq);
+		MPASS(m == sndptr);
+		mbufq_enqueue(&toep->ulp_pdu_reclaimq, m);
+
 		toep->tx_credits -= credits;
 		toep->tx_nocompl += credits;
 		toep->plen_nocompl += plen;
 		if (toep->tx_credits <= toep->tx_total * 3 / 8 &&
-			toep->tx_nocompl >= toep->tx_total / 4)
-			compl = 1;
-
-		if (compl) {
+		    toep->tx_nocompl >= toep->tx_total / 4) {
 			txwr->op_to_immdlen |= htobe32(F_FW_WR_COMPL);
 			toep->tx_nocompl = 0;
 			toep->plen_nocompl = 0;
 		}
-		tp->snd_nxt += ulp_len;
-		tp->snd_max += ulp_len;
 
-                /* goto next mbuf */
-		sndptr = m = t4_queue_iscsi_callback(so, toep, 2, &qlen);
+		tp->snd_nxt += adjusted_plen;
+		tp->snd_max += adjusted_plen;
 
 		toep->flags |= TPF_TX_DATA_SENT;
-		if (toep->tx_credits < MIN_OFLD_TX_CREDITS) {
+		if (toep->tx_credits < MIN_OFLD_TX_CREDITS)
 			toep->flags |= TPF_TX_SUSPENDED;
-		}
 
 		KASSERT(toep->txsd_avail > 0, ("%s: no txsd", __func__));
 		txsd->plen = plen;
@@ -966,10 +984,10 @@ t4_ulp_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 		toep->txsd_avail--;
 
 		t4_l2t_send(sc, wr, toep->l2te);
-	} while (m != NULL);
+	}
 
-	/* Send a FIN if requested, but only if there's no more data to send */
-	if (m == NULL && toep->flags & TPF_SEND_FIN)
+	/* Send a FIN if requested, but only if there are no more PDUs to send */
+	if (mbufq_first(pduq) == NULL && toep->flags & TPF_SEND_FIN)
 		close_conn(sc, toep);
 }
 
@@ -987,7 +1005,10 @@ t4_tod_output(struct toedev *tod, struct tcpcb *tp)
 	    ("%s: inp %p dropped.", __func__, inp));
 	KASSERT(toep != NULL, ("%s: toep is NULL", __func__));
 
-	t4_push_frames(sc, toep, 0);
+	if (toep->ulp_mode == ULP_MODE_ISCSI)
+		t4_push_pdus(sc, toep, 0);
+	else
+		t4_push_frames(sc, toep, 0);
 
 	return (0);
 }
@@ -1009,7 +1030,7 @@ t4_send_fin(struct toedev *tod, struct tcpcb *tp)
 	toep->flags |= TPF_SEND_FIN;
 	if (tp->t_state >= TCPS_ESTABLISHED) {
 		if (toep->ulp_mode == ULP_MODE_ISCSI)
-			t4_ulp_push_frames(sc, toep, 0);
+			t4_push_pdus(sc, toep, 0);
 		else
 			t4_push_frames(sc, toep, 0);
 	}
@@ -1248,91 +1269,6 @@ abort_status_to_errno(struct tcpcb *tp, unsigned int abort_reason)
 	default:
 		return (EIO);
 	}
-}
-
-int
-cpl_not_handled(struct sge_iq *, const struct rss_header *, struct mbuf *);
-/*
- * tom_cpl_iscsi_callback -
- * iscsi and tom would share the following cpl messages, so when any of these
- * message is received, after tom is done with processing it, the messages
- * needs to be forwarded to iscsi for further processing:
- * - CPL_SET_TCB_RPL
- * - CPL_RX_DATA_DDP
- */
-void (*tom_cpl_iscsi_callback)(struct tom_data *, struct socket *, void *,
-    unsigned int);
-
-struct mbuf *(*tom_queue_iscsi_callback)(struct socket *, unsigned int, int *);
-/*
- * Check if the handler function is set for a given CPL
- * return 0 if the function is NULL or cpl_not_handled, 1 otherwise.
- */
-int
-t4tom_cpl_handler_registered(struct adapter *sc, unsigned int opcode)
-{
-
-	MPASS(opcode < nitems(sc->cpl_handler));
-
-	return (sc->cpl_handler[opcode] &&
-	    sc->cpl_handler[opcode] != cpl_not_handled);
-}
-
-/*
- * set the tom_cpl_iscsi_callback function, this function should be used
- * whenever both toe and iscsi need to process the same cpl msg.
- */
-void
-t4tom_register_cpl_iscsi_callback(void (*fp)(struct tom_data *, struct socket *,
-    void *, unsigned int))
-{
-
-	tom_cpl_iscsi_callback = fp;
-}
-
-void
-t4tom_register_queue_iscsi_callback(struct mbuf *(*fp)(struct socket *,
-    unsigned int, int *qlen))
-{
-
-	tom_queue_iscsi_callback = fp;
-}
-
-int
-t4_cpl_iscsi_callback(struct tom_data *td, struct toepcb *toep, void *m,
-    unsigned int opcode)
-{
-	struct socket *so;
-
-	if (opcode == CPL_FW4_ACK)
-		so = toep->inp->inp_socket;
-	else {
-		INP_WLOCK(toep->inp);
-		so = toep->inp->inp_socket;
-		INP_WUNLOCK(toep->inp);
-	}
-
-	if (tom_cpl_iscsi_callback && so) {
-		if (toep->ulp_mode == ULP_MODE_ISCSI) {
-			tom_cpl_iscsi_callback(td, so, m, opcode);
-			return (0);
-		}
-	}
-
-	return (1);
-}
-
-struct mbuf *
-t4_queue_iscsi_callback(struct socket *so, struct toepcb *toep,
-    unsigned int cmd, int *qlen)
-{
-
-	if (tom_queue_iscsi_callback && so) {
-		if (toep->ulp_mode == ULP_MODE_ISCSI)
-			return (tom_queue_iscsi_callback(so, cmd, qlen));
-	}
-
-	return (NULL);
 }
 
 /*
@@ -1739,21 +1675,34 @@ do_fw4_ack(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	    toep->tx_credits >= toep->tx_total / 4) {
 		toep->flags &= ~TPF_TX_SUSPENDED;
 		if (toep->ulp_mode == ULP_MODE_ISCSI)
-			t4_ulp_push_frames(sc, toep, plen);
+			t4_push_pdus(sc, toep, plen);
 		else
 			t4_push_frames(sc, toep, plen);
 	} else if (plen > 0) {
 		struct sockbuf *sb = &so->so_snd;
+		int sbu;
 
-		if (toep->ulp_mode == ULP_MODE_ISCSI)
-			t4_cpl_iscsi_callback(toep->td, toep, &plen,
-			    CPL_FW4_ACK);
-		else {
-			SOCKBUF_LOCK(sb);
+		SOCKBUF_LOCK(sb);
+		sbu = sb->sb_cc;
+		if (toep->ulp_mode == ULP_MODE_ISCSI) {
+
+			if (__predict_false(sbu > 0)) {
+				/*
+				 * The data trasmitted before the tid's ULP mode
+				 * changed to ISCSI is still in so_snd.
+				 * Incoming credits should account for so_snd
+				 * first.
+				 */
+				sbdrop_locked(sb, min(sbu, plen));
+				plen -= min(sbu, plen);
+			}
+			sowwakeup_locked(so);	/* unlocks so_snd */
+			rqdrop_locked(&toep->ulp_pdu_reclaimq, plen);
+		} else {
 			sbdrop_locked(sb, plen);
-			sowwakeup_locked(so);
-			SOCKBUF_UNLOCK_ASSERT(sb);
+			sowwakeup_locked(so);	/* unlocks so_snd */
 		}
+		SOCKBUF_UNLOCK_ASSERT(sb);
 	}
 
 	INP_WUNLOCK(inp);
@@ -1777,14 +1726,21 @@ do_set_tcb_rpl(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 
 	if (is_ftid(sc, tid))
 		return (t4_filter_rpl(iq, rss, m)); /* TCB is a filter */
-	else {
-		struct toepcb *toep = lookup_tid(sc, tid);
 
-		t4_cpl_iscsi_callback(toep->td, toep, m, CPL_SET_TCB_RPL);
-		return (0);
-	}
+	/*
+	 * TOM and/or other ULPs don't request replies for CPL_SET_TCB or
+	 * CPL_SET_TCB_FIELD requests.  This can easily change and when it does
+	 * the dispatch code will go here.
+	 */
+#ifdef INVARIANTS
+	panic("%s: Unexpected CPL_SET_TCB_RPL for tid %u on iq %p", __func__,
+	    tid, iq);
+#else
+	log(LOG_ERR, "%s: Unexpected CPL_SET_TCB_RPL for tid %u on iq %p\n",
+	    __func__, tid, iq);
+#endif
 
-	CXGBE_UNIMPLEMENTED(__func__);
+	return (0);
 }
 
 void
