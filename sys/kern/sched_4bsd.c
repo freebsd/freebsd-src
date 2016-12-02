@@ -304,9 +304,8 @@ maybe_resched(struct thread *td)
 /*
  * This function is called when a thread is about to be put on run queue
  * because it has been made runnable or its priority has been adjusted.  It
- * determines if the new thread should be immediately preempted to.  If so,
- * it switches to it and eventually returns true.  If not, it returns false
- * so that the caller may place the thread on an appropriate run queue.
+ * determines if the new thread should preempt the current thread.  If so,
+ * it sets td_owepreempt to request a preemption.
  */
 int
 maybe_preempt(struct thread *td)
@@ -352,29 +351,8 @@ maybe_preempt(struct thread *td)
 		return (0);
 #endif
 
-	if (ctd->td_critnest > 1) {
-		CTR1(KTR_PROC, "maybe_preempt: in critical section %d",
-		    ctd->td_critnest);
-		ctd->td_owepreempt = 1;
-		return (0);
-	}
-	/*
-	 * Thread is runnable but not yet put on system run queue.
-	 */
-	MPASS(ctd->td_lock == td->td_lock);
-	MPASS(TD_ON_RUNQ(td));
-	TD_SET_RUNNING(td);
-	CTR3(KTR_PROC, "preempting to thread %p (pid %d, %s)\n", td,
-	    td->td_proc->p_pid, td->td_name);
-	mi_switch(SW_INVOL | SW_PREEMPT | SWT_PREEMPT, td);
-	/*
-	 * td's lock pointer may have changed.  We have to return with it
-	 * locked.
-	 */
-	spinlock_enter();
-	thread_unlock(ctd);
-	thread_lock(td);
-	spinlock_exit();
+	CTR0(KTR_PROC, "maybe_preempt: scheduling preemption");
+	ctd->td_owepreempt = 1;
 	return (1);
 #else
 	return (0);
@@ -1326,6 +1304,12 @@ sched_add(struct thread *td, int flags)
 		ts->ts_runq = &runq;
 	}
 
+	if ((td->td_flags & TDF_NOLOAD) == 0)
+		sched_load_add();
+	runq_add(ts->ts_runq, td, flags);
+	if (cpu != NOCPU)
+		runq_length[cpu]++;
+
 	cpuid = PCPU_GET(cpuid);
 	if (single_cpu && cpu != cpuid) {
 	        kick_other_cpu(td->td_priority, cpu);
@@ -1342,18 +1326,10 @@ sched_add(struct thread *td, int flags)
 		}
 
 		if (!forwarded) {
-			if ((flags & SRQ_YIELDING) == 0 && maybe_preempt(td))
-				return;
-			else
+			if (!maybe_preempt(td))
 				maybe_resched(td);
 		}
 	}
-
-	if ((td->td_flags & TDF_NOLOAD) == 0)
-		sched_load_add();
-	runq_add(ts->ts_runq, td, flags);
-	if (cpu != NOCPU)
-		runq_length[cpu]++;
 }
 #else /* SMP */
 {
@@ -1387,23 +1363,11 @@ sched_add(struct thread *td, int flags)
 	CTR2(KTR_RUNQ, "sched_add: adding td_sched:%p (td:%p) to runq", ts, td);
 	ts->ts_runq = &runq;
 
-	/*
-	 * If we are yielding (on the way out anyhow) or the thread
-	 * being saved is US, then don't try be smart about preemption
-	 * or kicking off another CPU as it won't help and may hinder.
-	 * In the YIEDLING case, we are about to run whoever is being
-	 * put in the queue anyhow, and in the OURSELF case, we are
-	 * putting ourself on the run queue which also only happens
-	 * when we are about to yield.
-	 */
-	if ((flags & SRQ_YIELDING) == 0) {
-		if (maybe_preempt(td))
-			return;
-	}
 	if ((td->td_flags & TDF_NOLOAD) == 0)
 		sched_load_add();
 	runq_add(ts->ts_runq, td, flags);
-	maybe_resched(td);
+	if (!maybe_preempt(td))
+		maybe_resched(td);
 }
 #endif /* SMP */
 
