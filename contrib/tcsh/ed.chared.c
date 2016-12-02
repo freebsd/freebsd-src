@@ -750,7 +750,7 @@ c_substitute(void)
     /*
      * If we found a history character, go expand it.
      */
-    if (HIST != '\0' && *p == HIST)
+    if (p >= InputBuf && HIST != '\0' && *p == HIST)
 	nr_exp = c_excl(p);
     else
         nr_exp = 0;
