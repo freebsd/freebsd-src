@@ -204,7 +204,7 @@ alloc_nm_rxq_hwq(struct vi_info *vi, struct sge_nm_rxq *nm_rxq, int cong)
 		}
 	}
 
-	t4_write_reg(sc, MYPF_REG(A_SGE_PF_GTS),
+	t4_write_reg(sc, sc->sge_gts_reg,
 	    V_INGRESSQID(nm_rxq->iq_cntxt_id) |
 	    V_SEINTARM(V_QINTR_TIMER_IDX(holdoff_tmr_idx)));
 
@@ -364,7 +364,7 @@ cxgbe_netmap_on(struct adapter *sc, struct vi_info *vi, struct ifnet *ifp,
 		MPASS((j & 7) == 0);
 		j /= 8;	/* driver pidx to hardware pidx */
 		wmb();
-		t4_write_reg(sc, MYPF_REG(A_SGE_PF_KDOORBELL),
+		t4_write_reg(sc, sc->sge_kdoorbell_reg,
 		    nm_rxq->fl_db_val | V_PIDX(j));
 
 		atomic_cmpset_int(&irq->nm_state, NM_OFF, NM_ON);
@@ -537,7 +537,7 @@ ring_nm_txq_db(struct adapter *sc, struct sge_nm_txq *nm_txq)
 		break;
 
 	case DOORBELL_KDB:
-		t4_write_reg(sc, MYPF_REG(A_SGE_PF_KDOORBELL),
+		t4_write_reg(sc, sc->sge_kdoorbell_reg,
 		    V_QID(nm_txq->cntxt_id) | V_PIDX(n));
 		break;
 	}
@@ -820,7 +820,7 @@ cxgbe_netmap_rxsync(struct netmap_kring *kring, int flags)
 			}
 			if (++dbinc == 8 && n >= 32) {
 				wmb();
-				t4_write_reg(sc, MYPF_REG(A_SGE_PF_KDOORBELL),
+				t4_write_reg(sc, sc->sge_kdoorbell_reg,
 				    nm_rxq->fl_db_val | V_PIDX(dbinc));
 				dbinc = 0;
 			}
@@ -829,7 +829,7 @@ cxgbe_netmap_rxsync(struct netmap_kring *kring, int flags)
 
 		if (dbinc > 0) {
 			wmb();
-			t4_write_reg(sc, MYPF_REG(A_SGE_PF_KDOORBELL),
+			t4_write_reg(sc, sc->sge_kdoorbell_reg,
 			    nm_rxq->fl_db_val | V_PIDX(dbinc));
 		}
 	}
@@ -985,14 +985,14 @@ t4_nm_intr(void *arg)
 				fl_credits /= 8;
 				IDXINCR(nm_rxq->fl_pidx, fl_credits * 8,
 				    nm_rxq->fl_sidx);
-				t4_write_reg(sc, MYPF_REG(A_SGE_PF_KDOORBELL),
+				t4_write_reg(sc, sc->sge_kdoorbell_reg,
 				    nm_rxq->fl_db_val | V_PIDX(fl_credits));
 				fl_credits = fl_cidx & 7;
 			} else if (!black_hole) {
 				netmap_rx_irq(ifp, nm_rxq->nid, &work);
 				MPASS(work != 0);
 			}
-			t4_write_reg(sc, MYPF_REG(A_SGE_PF_GTS),
+			t4_write_reg(sc, sc->sge_gts_reg,
 			    V_CIDXINC(n) | V_INGRESSQID(nm_rxq->iq_cntxt_id) |
 			    V_SEINTARM(V_QINTR_TIMER_IDX(X_TIMERREG_UPDATE_CIDX)));
 			n = 0;
@@ -1003,12 +1003,12 @@ t4_nm_intr(void *arg)
 	if (black_hole) {
 		fl_credits /= 8;
 		IDXINCR(nm_rxq->fl_pidx, fl_credits * 8, nm_rxq->fl_sidx);
-		t4_write_reg(sc, MYPF_REG(A_SGE_PF_KDOORBELL),
+		t4_write_reg(sc, sc->sge_kdoorbell_reg,
 		    nm_rxq->fl_db_val | V_PIDX(fl_credits));
 	} else
 		netmap_rx_irq(ifp, nm_rxq->nid, &work);
 
-	t4_write_reg(sc, MYPF_REG(A_SGE_PF_GTS), V_CIDXINC(n) |
+	t4_write_reg(sc, sc->sge_gts_reg, V_CIDXINC(n) |
 	    V_INGRESSQID((u32)nm_rxq->iq_cntxt_id) |
 	    V_SEINTARM(V_QINTR_TIMER_IDX(holdoff_tmr_idx)));
 }
