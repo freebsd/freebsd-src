@@ -131,6 +131,7 @@
 	niqflint = 512
 	nethctrl = 1024
 	neq = 2048
+	nqpcq = 8192
 	nexactf = 328
 	cmask = all
 	pmask = all
@@ -215,7 +216,7 @@
 
 [fini]
 	version = 0x1
-	checksum = 0xebb87494
+	checksum = 0x168d5243
 #
 # $FreeBSD$
 #
