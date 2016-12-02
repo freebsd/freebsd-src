@@ -12,6 +12,10 @@ CFLAGS+=	-fvisibility=hidden
 CFLAGS+=	-DVISIBILITY_HIDDEN
 CFLAGS+=	-I${SRCTOP}/contrib/libcxxrt
 
+.if ${COMPILER_TYPE} == "clang"
+CWARNFLAGS.gcc_personality_v0.c+= -Wno-typedef-redefinition
+.endif
+
 .include "Makefile.inc"
 
 .if ${MK_INSTALLLIB} != "no"
