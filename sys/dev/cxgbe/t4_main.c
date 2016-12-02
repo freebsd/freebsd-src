@@ -8882,11 +8882,8 @@ t4_db_dropped(struct adapter *sc)
 
 #ifdef TCP_OFFLOAD
 void
-t4_iscsi_init(struct ifnet *ifp, unsigned int tag_mask,
-    const unsigned int *pgsz_order)
+t4_iscsi_init(struct adapter *sc, u_int tag_mask, const u_int *pgsz_order)
 {
-	struct vi_info *vi = ifp->if_softc;
-	struct adapter *sc = vi->pi->adapter;
 
 	t4_write_reg(sc, A_ULP_RX_ISCSI_TAGMASK, tag_mask);
 	t4_write_reg(sc, A_ULP_RX_ISCSI_PSZ, V_HPZ0(pgsz_order[0]) |
