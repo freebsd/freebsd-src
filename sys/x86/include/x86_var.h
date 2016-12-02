@@ -94,6 +94,20 @@ struct	trapframe;
  */
 typedef void alias_for_inthand_t(void);
 
+/*
+ * Returns the maximum physical address that can be used with the
+ * current system.
+ */
+static __inline vm_paddr_t
+cpu_getmaxphyaddr(void)
+{
+#if defined(__i386__) && !defined(PAE)
+	return (0xffffffff);
+#else
+	return ((1ULL << cpu_maxphyaddr) - 1);
+#endif
+}
+
 void	*alloc_fpusave(int flags);
 void	busdma_swi(void);
 bool	cpu_mwait_usable(void);
