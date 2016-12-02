@@ -645,12 +645,13 @@ cab_read_header(struct archive_read *a)
 	cab = (struct cab *)(a->format->data);
 	if (cab->found_header == 0 &&
 	    p[0] == 'M' && p[1] == 'Z') {
-		/* This is an executable?  Must be self-extracting... 	*/
+		/* This is an executable?  Must be self-extracting... */
 		err = cab_skip_sfx(a);
 		if (err < ARCHIVE_WARN)
 			return (err);
 
-		if ((p = __archive_read_ahead(a, sizeof(*p), NULL)) == NULL)
+		/* Re-read header after processing the SFX. */
+		if ((p = __archive_read_ahead(a, 42, NULL)) == NULL)
 			return (truncated_error(a));
 	}
 
