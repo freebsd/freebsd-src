@@ -1,8 +1,5 @@
 # $FreeBSD$
 
-# broken
-WANT_CHERI=none
-
 PROG=	less
 SRCS=	main.c screen.c brac.c ch.c charset.c cmdbuf.c command.c cvt.c \
 	decode.c edit.c filename.c forwback.c help.c ifile.c input.c \
@@ -21,3 +18,8 @@ CLEANFILES= less.1
 
 .include "Makefile.common"
 .include <bsd.prog.mk>
+
+# Work around a combination of poorly implement const decls and apparent
+# bugs in __qualifier checking.
+CFLAGS+=	-Wno-incompatible-pointer-types \
+		-Wno-incompatible-pointer-types-discards-qualifiers
