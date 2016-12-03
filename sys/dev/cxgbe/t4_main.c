@@ -7960,11 +7960,6 @@ set_filter(struct adapter *sc, struct t4_filter *t)
 		goto done;
 	}
 
-	if (!(sc->flags & FULL_INIT_DONE)) {
-		rc = EAGAIN;
-		goto done;
-	}
-
 	if (t->idx >= nfilters) {
 		rc = EINVAL;
 		goto done;
@@ -7997,6 +7992,10 @@ set_filter(struct adapter *sc, struct t4_filter *t)
 		rc = EINVAL;
 		goto done;
 	}
+
+	if (!(sc->flags & FULL_INIT_DONE) &&
+	    ((rc = adapter_full_init(sc)) != 0))
+		goto done;
 
 	if (sc->tids.ftid_tab == NULL) {
 		KASSERT(sc->tids.ftids_in_use == 0,
