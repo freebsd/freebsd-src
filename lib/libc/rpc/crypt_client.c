@@ -61,6 +61,7 @@ _des_crypt_call(char *buf, int len, struct desparams *dparms)
 	}
 	if (nconf == NULL) {
 		warnx("getnetconfig: %s", nc_sperror());
+		endnetconfig(localhandle);
 		return(DESERR_HWERROR);
 	}
 	clnt = clnt_tp_create(NULL, CRYPT_PROG, CRYPT_VERS, nconf);
