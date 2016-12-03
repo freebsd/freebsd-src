@@ -625,8 +625,6 @@ struct r92s_add_ba_req {
 #define RSU_RX_LIST_COUNT	100
 #define RSU_TX_LIST_COUNT	32
 
-#define RSU_HOST_CMD_RING_COUNT	32
-
 #define RSU_RXBUFSZ	(8 * 1024)
 #define RSU_TXBUFSZ	\
 	((sizeof(struct r92s_tx_desc) + IEEE80211_MAX_LEN + 3) & ~3)
@@ -700,27 +698,6 @@ struct rsu_tx_radiotap_header {
 
 struct rsu_softc;
 
-struct rsu_host_cmd {
-	void	(*cb)(struct rsu_softc *, void *);
-	uint8_t	data[256];
-};
-
-struct rsu_cmd_newstate {
-	enum ieee80211_state	state;
-	int			arg;
-};
-
-struct rsu_cmd_key {
-	struct ieee80211_key	key;
-};
-
-struct rsu_host_cmd_ring {
-	struct rsu_host_cmd	cmd[RSU_HOST_CMD_RING_COUNT];
-	int			cur;
-	int			next;
-	int			queued;
-};
-
 enum {
 	RSU_BULK_RX,
 	RSU_BULK_TX_BE_BK,	/* = WME_AC_BE/BK */
@@ -755,12 +732,9 @@ struct rsu_softc {
 	struct mbufq			sc_snd;
 	device_t			sc_dev;
 	struct usb_device		*sc_udev;
-	int				(*sc_newstate)(struct ieee80211com *,
-					    enum ieee80211_state, int);
-	struct usbd_interface		*sc_iface;
+
 	struct timeout_task		calib_task;
 	struct task			tx_task;
-	const uint8_t			*qid2idx;
 	struct mtx			sc_mtx;
 	int				sc_ht;
 	int				sc_nendpoints;
@@ -775,10 +749,8 @@ struct rsu_softc {
 	uint8_t				sc_rftype;
 	int8_t				sc_nrxstream;
 	int8_t				sc_ntxstream;
-	struct rsu_host_cmd_ring	cmdq;
 	struct rsu_data			sc_rx[RSU_RX_LIST_COUNT];
 	struct rsu_data			sc_tx[RSU_TX_LIST_COUNT];
-	struct rsu_data			*fwcmd_data;
 	uint8_t				cmd_seq;
 	uint8_t				rom[128];
 	struct usb_xfer			*sc_xfer[RSU_N_TRANSFER];
