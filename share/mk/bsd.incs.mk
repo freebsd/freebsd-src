@@ -8,8 +8,6 @@
 
 INCSGROUPS?=	INCS
 
-_INCSGROUPS=	${INCSGROUPS:C,[/*],_,g}
-
 .if defined(NO_ROOT)
 .if !defined(TAGS) || ! ${TAGS:Mpackage=*}
 TAGS+=		package=${PACKAGE:Uruntime}
@@ -18,7 +16,7 @@ TAG_ARGS=	-T ${TAGS:[*]:S/ /,/g}
 .endif
 
 .if !target(buildincludes)
-.for group in ${_INCSGROUPS}
+.for group in ${INCSGROUPS}
 buildincludes: ${${group}}
 .endfor
 .endif
@@ -28,7 +26,7 @@ all: buildincludes
 .endif
 
 .if !target(installincludes)
-.for group in ${_INCSGROUPS}
+.for group in ${INCSGROUPS}
 .if defined(${group}) && !empty(${group})
 
 ${group}OWN?=	${BINOWN}
