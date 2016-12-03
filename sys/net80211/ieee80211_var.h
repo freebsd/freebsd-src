@@ -668,6 +668,9 @@ int	ieee80211_add_channel(struct ieee80211_channel[], int, int *,
 	    uint8_t, uint16_t, int8_t, uint32_t, const uint8_t[]);
 int	ieee80211_add_channel_ht40(struct ieee80211_channel[], int, int *,
 	    uint8_t, int8_t, uint32_t);
+uint32_t ieee80211_get_channel_center_freq(const struct ieee80211_channel *);
+uint32_t ieee80211_get_channel_center_freq1(const struct ieee80211_channel *);
+uint32_t ieee80211_get_channel_center_freq2(const struct ieee80211_channel *);
 int	ieee80211_add_channel_list_2ghz(struct ieee80211_channel[], int, int *,
 	    const uint8_t[], int, const uint8_t[], int);
 int	ieee80211_add_channel_list_5ghz(struct ieee80211_channel[], int, int *,
@@ -683,6 +686,10 @@ enum ieee80211_phymode ieee80211_chan2mode(const struct ieee80211_channel *);
 uint32_t ieee80211_mac_hash(const struct ieee80211com *,
 		const uint8_t addr[IEEE80211_ADDR_LEN]);
 char	ieee80211_channel_type_char(const struct ieee80211_channel *c);
+
+#define	ieee80211_get_current_channel(_ic)	((_ic)->ic_curchan)
+#define	ieee80211_get_home_channel(_ic)		((_ic)->ic_bsschan)
+#define	ieee80211_get_vap_desired_channel(_iv)	((_iv)->iv_des_chan)
 
 void	ieee80211_radiotap_attach(struct ieee80211com *,
 	    struct ieee80211_radiotap_header *th, int tlen,

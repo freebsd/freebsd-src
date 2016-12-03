@@ -1170,6 +1170,53 @@ ieee80211_add_channel_ht40(struct ieee80211_channel chans[], int maxchans,
 }
 
 /*
+ * Fetch the center frequency for the primary channel.
+ */
+uint32_t
+ieee80211_get_channel_center_freq(const struct ieee80211_channel *c)
+{
+
+	return (c->ic_freq);
+}
+
+/*
+ * Fetch the center frequency for the primary BAND channel.
+ *
+ * For 5, 10, 20MHz channels it'll be the normally configured channel
+ * frequency.
+ *
+ * For 40MHz, 80MHz, 160Mhz channels it'll the the centre of the
+ * wide channel, not the centre of the primary channel (that's ic_freq).
+ *
+ * For 80+80MHz channels this will be the centre of the primary
+ * 80MHz channel; the secondary 80MHz channel will be center_freq2().
+ */
+
+uint32_t
+ieee80211_get_channel_center_freq1(const struct ieee80211_channel *c)
+{
+
+	if (IEEE80211_IS_CHAN_HT40U(c)) {
+		return (c->ic_freq + 10);
+	}
+	if (IEEE80211_IS_CHAN_HT40D(c)) {
+		return (c->ic_freq - 10);
+	}
+
+	return (c->ic_freq);
+}
+
+/*
+ * For now, no 80+80 support; this is zero.
+ */
+uint32_t
+ieee80211_get_channel_center_freq2(const struct ieee80211_channel *c)
+{
+
+	return (0);
+}
+
+/*
  * Adds channels into specified channel list (ieee[] array must be sorted).
  * Channels are already sorted.
  */
