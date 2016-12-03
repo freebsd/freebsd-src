@@ -61,8 +61,8 @@ __FBSDID("$FreeBSD$");
 
 extern int _rpc_dtablesize( void );
 
-#define NYEARS	(unsigned long)(1970 - 1900)
-#define TOFFSET (unsigned long)(60*60*24*(365*NYEARS + (NYEARS/4)))
+#define	NYEARS	(unsigned long)(1970 - 1900)
+#define	TOFFSET (unsigned long)(60*60*24*(365*NYEARS + (NYEARS/4)))
 
 static void do_close( int );
 
@@ -98,11 +98,11 @@ rtime(struct sockaddr_in *addrp, struct timeval *timep,
 	addrp->sin_port = serv->s_port;
 
 	if (type == SOCK_DGRAM) {
-		res = _sendto(s, (char *)&thetime, sizeof(thetime), 0, 
+		res = _sendto(s, (char *)&thetime, sizeof(thetime), 0,
 			     (struct sockaddr *)addrp, sizeof(*addrp));
 		if (res < 0) {
 			do_close(s);
-			return(-1);	
+			return(-1);
 		}
 		do {
 			FD_ZERO(&readfds);
@@ -115,14 +115,14 @@ rtime(struct sockaddr_in *addrp, struct timeval *timep,
 				errno = ETIMEDOUT;
 			}
 			do_close(s);
-			return(-1);	
+			return(-1);
 		}
 		fromlen = sizeof(from);
-		res = _recvfrom(s, (char *)&thetime, sizeof(thetime), 0, 
+		res = _recvfrom(s, (char *)&thetime, sizeof(thetime), 0,
 			       (struct sockaddr *)&from, &fromlen);
 		do_close(s);
 		if (res < 0) {
-			return(-1);	
+			return(-1);
 		}
 	} else {
 		if (_connect(s, (struct sockaddr *)addrp, sizeof(*addrp)) < 0) {
@@ -137,7 +137,7 @@ rtime(struct sockaddr_in *addrp, struct timeval *timep,
 	}
 	if (res != sizeof(thetime)) {
 		errno = EIO;
-		return(-1);	
+		return(-1);
 	}
 	thetime = ntohl(thetime);
 	timep->tv_sec = thetime - TOFFSET;
