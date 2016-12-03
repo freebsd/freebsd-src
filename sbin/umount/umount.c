@@ -49,6 +49,7 @@ static const char rcsid[] =
 #include <netdb.h>
 #include <rpc/rpc.h>
 #include <rpcsvc/mount.h>
+#include <nfs/nfssvc.h>
 
 #include <ctype.h>
 #include <err.h>
@@ -317,6 +318,9 @@ umountfs(struct statfs *sfs)
 	CLIENT *clp;
 	char *nfsdirname, *orignfsdirname;
 	char *hostp, *delimp;
+	char buf[1024];
+	struct nfscl_dumpmntopts dumpmntopts;
+	const char *proto_ptr = NULL;
 
 	ai = NULL;
 	do_rpc = 0;
@@ -355,8 +359,24 @@ umountfs(struct statfs *sfs)
 		 * mount from mntfromname that is still mounted.
 		 */
 		if (getmntentry(sfs->f_mntfromname, NULL, NULL,
-		    CHECKUNIQUE) != NULL)
+		    CHECKUNIQUE) != NULL) {
 			do_rpc = 1;
+			proto_ptr = "udp";
+			/*
+			 * Try and find out whether this NFS mount is NFSv4 and
+			 * what protocol is being used. If this fails, the
+			 * default is NFSv2,3 and use UDP for the Unmount RPC.
+			 */
+			dumpmntopts.ndmnt_fname = sfs->f_mntonname;
+			dumpmntopts.ndmnt_buf = buf;
+			dumpmntopts.ndmnt_blen = sizeof(buf);
+			if (nfssvc(NFSSVC_DUMPMNTOPTS, &dumpmntopts) >= 0) {
+				if (strstr(buf, "nfsv4,") != NULL)
+					do_rpc = 0;
+				else if (strstr(buf, ",tcp,") != NULL)
+					proto_ptr = "tcp";
+			}
+		}
 	}
 
 	if (!namematch(ai)) {
@@ -394,7 +414,7 @@ umountfs(struct statfs *sfs)
 	 * has been unmounted.
 	 */
 	if (ai != NULL && !(fflag & MNT_FORCE) && do_rpc) {
-		clp = clnt_create(hostp, MOUNTPROG, MOUNTVERS3, "udp");
+		clp = clnt_create(hostp, MOUNTPROG, MOUNTVERS3, proto_ptr);
 		if (clp  == NULL) {
 			warnx("%s: %s", hostp,
 			    clnt_spcreateerror("MOUNTPROG"));
