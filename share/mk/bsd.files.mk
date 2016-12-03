@@ -28,8 +28,8 @@ ${group}OWN?=	${SHAREOWN}
 ${group}GRP?=	${SHAREGRP}
 ${group}MODE?=	${SHAREMODE}
 ${group}DIR?=	${BINDIR}
-STAGE_SETS+=	${group}
-STAGE_DIR.${group}= ${STAGE_OBJTOP}${${group}DIR}
+STAGE_SETS+=	${group:C,[/*],_,g}
+STAGE_DIR.${group:C,[/*],_,g}= ${STAGE_OBJTOP}${${group}DIR}
 
 .if defined(NO_ROOT)
 .if !defined(${group}TAGS) || ! ${${group}TAGS:Mpackage=*}
