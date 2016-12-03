@@ -72,13 +72,14 @@ extern int __svc_vc_setflag(SVCXPRT *, int);
  * It creates a link list of all the handles it could create.
  * If svc_create() is called multiple times, it uses the handle
  * created earlier instead of creating a new handle every time.
+ *
+ * prognum - Program number
+ * versnum - Version number
+ * nettype - Networktype token
  */
 int
-svc_create(dispatch, prognum, versnum, nettype)
-	void (*dispatch)(struct svc_req *, SVCXPRT *);
-	rpcprog_t prognum;		/* Program number */
-	rpcvers_t versnum;		/* Version number */
-	const char *nettype;		/* Networktype token */
+svc_create(void (*dispatch)(struct svc_req *, SVCXPRT *),
+    rpcprog_t prognum, rpcvers_t versnum, const char *nettype)
 {
 	struct xlist {
 		SVCXPRT *xprt;		/* Server handle */
@@ -145,13 +146,14 @@ done:
  * The high level interface to svc_tli_create().
  * It tries to create a server for "nconf" and registers the service
  * with the rpcbind. It calls svc_tli_create();
+ *
+ * prognum - Program number
+ * versnum - Version number
+ * ncofn   - Netconfig structure for the network
  */
 SVCXPRT *
-svc_tp_create(dispatch, prognum, versnum, nconf)
-	void (*dispatch)(struct svc_req *, SVCXPRT *);
-	rpcprog_t prognum;		/* Program number */
-	rpcvers_t versnum;		/* Version number */
-	const struct netconfig *nconf; /* Netconfig structure for the network */
+svc_tp_create(void (*dispatch)(struct svc_req *, SVCXPRT *),
+    rpcprog_t prognum, rpcvers_t versnum, const struct netconfig *nconf)
 {
 	SVCXPRT *xprt;
 
@@ -186,14 +188,16 @@ svc_tp_create(dispatch, prognum, versnum, nconf)
  * is set to 8.
  *
  * If sendsz or recvsz are zero, their default values are chosen.
+ *
+ * fd       - Connection end point
+ * nconf    - Netconfig struct for nettoken
+ * bindaddr - Local bind address
+ * sendsz   - Max sendsize
+ * recvxz   - Max recvsize
  */
 SVCXPRT *
-svc_tli_create(fd, nconf, bindaddr, sendsz, recvsz)
-	int fd;				/* Connection end point */
-	const struct netconfig *nconf;	/* Netconfig struct for nettoken */
-	const struct t_bind *bindaddr;	/* Local bind address */
-	u_int sendsz;			/* Max sendsize */
-	u_int recvsz;			/* Max recvsize */
+svc_tli_create(int fd, const struct netconfig *nconf,
+    const struct t_bind *bindaddr, u_int sendsz, u_int recvsz)
 {
 	SVCXPRT *xprt = NULL;		/* service handle */
 	bool_t madefd = FALSE;		/* whether fd opened here  */
