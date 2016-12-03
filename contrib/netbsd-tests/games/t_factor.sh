@@ -37,7 +37,7 @@ expect() {
 atf_test_case overflow1
 overflow1_head() {
 	atf_set "descr" "Tests for overflow conditions"
-	atf_set "require.progs" "/usr/bin/factor"
+	atf_set "require.progs" "/usr/games/factor"
 }
 overflow1_body() {
 	expect '8675309' '8675309: 8675309'
@@ -56,7 +56,7 @@ atf_test_case loop1
 loop1_head() {
 	atf_set "descr" "Tests some cases that once locked the program" \
 	                "in an infinite loop"
-	atf_set "require.progs" "/usr/bin/factor"
+	atf_set "require.progs" "/usr/games/factor"
 }
 loop1_body() {
 	expect '2147483647111311' '2147483647111311: 3 3 3 131 607148331103'
