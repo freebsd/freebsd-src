@@ -90,11 +90,11 @@ struct cache_entry {
 static struct cache_entry *authdes_cache/* [AUTHDES_CACHESZ] */;
 static short *authdes_lru/* [AUTHDES_CACHESZ] */;
 
-static void cache_init();	/* initialize the cache */
-static short cache_spot();	/* find an entry in the cache */
+static void cache_init(void);	/* initialize the cache */
+static short cache_spot(des_block *, char *, struct timeval *); /* find an entry in the cache */
 static void cache_ref(/*short sid*/);	/* note that sid was ref'd */
 
-static void invalidate();	/* invalidate entry in cache */
+static void invalidate(char *);	/* invalidate entry in cache */
 
 /*
  * cache statistics 
@@ -355,7 +355,7 @@ _svcauth_des(rqst, msg)
  * Initialize the cache
  */
 static void
-cache_init()
+cache_init(void)
 {
 	int i;
 
@@ -378,7 +378,7 @@ cache_init()
  * Find the lru victim
  */
 static short
-cache_victim()
+cache_victim(void)
 {
 	return (authdes_lru[AUTHDES_CACHESZ-1]);
 }

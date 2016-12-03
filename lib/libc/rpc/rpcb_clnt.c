@@ -661,7 +661,7 @@ got_entry(relp, nconf)
  * local transport.
  */
 static bool_t
-__rpcbind_is_up()
+__rpcbind_is_up(void)
 {
 	struct netconfig *nconf;
 	struct sockaddr_un sun;
