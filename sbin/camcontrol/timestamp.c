@@ -328,7 +328,7 @@ timestamp(struct cam_device *device, int argc, char **argv, char *combinedopt,
 	  int retry_count, int timeout, int verbosemode __unused)
 {
 	int c;
-	uint64_t ts;
+	uint64_t ts = 0;
 	char *format_string = NULL;
 	char *timestamp_string = NULL;
 	int action = -1;
