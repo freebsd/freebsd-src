@@ -24,8 +24,8 @@ ${group}OWN?=	${SHAREOWN}
 ${group}GRP?=	${SHAREGRP}
 ${group}MODE?=	${CONFMODE}
 ${group}DIR?=	${CONFDIR}
-STAGE_SETS+=	${group}
-STAGE_DIR.${group}= ${STAGE_OBJTOP}${${group}DIR}
+STAGE_SETS+=	${group:C,[/*],_,g}
+STAGE_DIR.${group:C,[/*],_,g}= ${STAGE_OBJTOP}${${group}DIR}
 
 _${group}CONFS=
 .for cnf in ${${group}}
