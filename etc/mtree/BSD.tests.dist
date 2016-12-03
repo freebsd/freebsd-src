@@ -99,6 +99,8 @@
                 data
                 ..
             ..
+            iconv
+            ..
             inet
             ..
             locale
