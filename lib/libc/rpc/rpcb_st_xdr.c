@@ -51,10 +51,10 @@ xdr_rpcbs_addrlist(XDR *xdrs, rpcbs_addrlist *objp)
 {
 	struct rpcbs_addrlist **pnext;
 
-	    if (!xdr_u_int32_t(xdrs, &objp->prog)) {
+	    if (!xdr_rpcprog(xdrs, &objp->prog)) {
 		return (FALSE);
 	    }
-	    if (!xdr_u_int32_t(xdrs, &objp->vers)) {
+	    if (!xdr_rpcvers(xdrs, &objp->vers)) {
 		return (FALSE);
 	    }
 	    if (!xdr_int(xdrs, &objp->success)) {
@@ -89,13 +89,13 @@ xdr_rpcbs_rmtcalllist(XDR *xdrs, rpcbs_rmtcalllist *objp)
 	if (xdrs->x_op == XDR_ENCODE) {
 	buf = XDR_INLINE(xdrs, 6 * BYTES_PER_XDR_UNIT);
 	if (buf == NULL) {
-		if (!xdr_u_int32_t(xdrs, &objp->prog)) {
+		if (!xdr_rpcprog(xdrs, &objp->prog)) {
 			return (FALSE);
 		}
-		if (!xdr_u_int32_t(xdrs, &objp->vers)) {
+		if (!xdr_rpcvers(xdrs, &objp->vers)) {
 			return (FALSE);
 		}
-		if (!xdr_u_int32_t(xdrs, &objp->proc)) {
+		if (!xdr_rpcproc(xdrs, &objp->proc)) {
 			return (FALSE);
 		}
 		if (!xdr_int(xdrs, &objp->success)) {
@@ -128,13 +128,13 @@ xdr_rpcbs_rmtcalllist(XDR *xdrs, rpcbs_rmtcalllist *objp)
 	} else if (xdrs->x_op == XDR_DECODE) {
 	buf = XDR_INLINE(xdrs, 6 * BYTES_PER_XDR_UNIT);
 	if (buf == NULL) {
-		if (!xdr_u_int32_t(xdrs, &objp->prog)) {
+		if (!xdr_rpcprog(xdrs, &objp->prog)) {
 			return (FALSE);
 		}
-		if (!xdr_u_int32_t(xdrs, &objp->vers)) {
+		if (!xdr_rpcvers(xdrs, &objp->vers)) {
 			return (FALSE);
 		}
-		if (!xdr_u_int32_t(xdrs, &objp->proc)) {
+		if (!xdr_rpcproc(xdrs, &objp->proc)) {
 			return (FALSE);
 		}
 		if (!xdr_int(xdrs, &objp->success)) {
@@ -164,13 +164,13 @@ xdr_rpcbs_rmtcalllist(XDR *xdrs, rpcbs_rmtcalllist *objp)
 	}
 	return (TRUE);
 	}
-	if (!xdr_u_int32_t(xdrs, &objp->prog)) {
+	if (!xdr_rpcprog(xdrs, &objp->prog)) {
 		return (FALSE);
 	}
-	if (!xdr_u_int32_t(xdrs, &objp->vers)) {
+	if (!xdr_rpcvers(xdrs, &objp->vers)) {
 		return (FALSE);
 	}
-	if (!xdr_u_int32_t(xdrs, &objp->proc)) {
+	if (!xdr_rpcproc(xdrs, &objp->proc)) {
 		return (FALSE);
 	}
 	if (!xdr_int(xdrs, &objp->success)) {
