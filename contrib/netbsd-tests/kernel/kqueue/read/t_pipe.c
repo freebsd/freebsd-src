@@ -67,7 +67,11 @@ ATF_TC_BODY(pipe, tc)
 
 	RL(n = kevent(kq, NULL, 0, event, 1, NULL));
 	(void)printf("kevent num %d flags: %#x, fflags: %#x, data: "
+#ifdef __FreeBSD__
+	    "%" PRIdPTR "\n", n, event[0].flags, event[0].fflags, event[0].data);
+#else
 	    "%" PRId64 "\n", n, event[0].flags, event[0].fflags, event[0].data);
+#endif
 
 	RL(n = read(fds[0], buffer, event[0].data));
 	buffer[n] = '\0';

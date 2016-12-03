@@ -139,7 +139,11 @@ ATF_TC_BODY(proc1, tc)
 			printf(" NOTE_FORK");
 		}
 		if (event[0].fflags & NOTE_CHILD)
+#ifdef __FreeBSD__
+			printf(" NOTE_CHILD, parent = %" PRIdPTR, event[0].data);
+#else
 			printf(" NOTE_CHILD, parent = %" PRId64, event[0].data);
+#endif
 
 		printf("\n");
 	}

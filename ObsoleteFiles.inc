@@ -51,6 +51,9 @@ OLD_FILES+=usr/share/man/man4/hv_vss.4.gz
 OLD_FILES+=usr/share/man/man4/hv_ata_pci_disengage.4.gz
 # 20161015: remove link to removed m_getclr(9) macro
 OLD_FILES+=usr/share/man/man9/m_getclr.9.gz
+# 20160906: libkqueue tests moved to /usr/tests/sys/kqueue/libkqueue
+OLD_FILES+=usr/tests/sys/kqueue/kqtest
+OLD_FILES+=usr/tests/sys/kqueue/kqueue_test
 # 20160703: POSIXify locales with variants
 OLD_FILES+=usr/share/locale/zh_Hant_TW.UTF-8/LC_COLLATE
 OLD_FILES+=usr/share/locale/zh_Hant_TW.UTF-8/LC_CTYPE
