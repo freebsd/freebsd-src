@@ -125,7 +125,7 @@ struct cf_conn {  /* kept in xprt->xp_p1 for actual connection */
 SVCXPRT *
 svc_vc_create(int fd, u_int sendsize, u_int recvsize)
 {
-	SVCXPRT *xprt;
+	SVCXPRT *xprt = NULL;
 	struct cf_rendezvous *r = NULL;
 	struct __rpc_sockinfo si;
 	struct sockaddr_storage sslocal;
