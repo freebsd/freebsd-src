@@ -675,7 +675,7 @@ t4_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
-	TUNABLE_INT_FETCH("hw.cxgbe.debug_flags", &sc->debug_flags);
+	TUNABLE_INT_FETCH("hw.cxgbe.dflags", &sc->debug_flags);
 
 	if ((pci_get_device(dev) & 0xff00) == 0x5400)
 		t5_attribute_workaround(dev);
@@ -2897,32 +2897,6 @@ prep_firmware(struct adapter *sc)
 		goto done;
 	}
 
-	/* We're using whatever's on the card and it's known to be good. */
-	sc->params.fw_vers = ntohl(card_fw->fw_ver);
-	snprintf(sc->fw_version, sizeof(sc->fw_version), "%u.%u.%u.%u",
-	    G_FW_HDR_FW_VER_MAJOR(sc->params.fw_vers),
-	    G_FW_HDR_FW_VER_MINOR(sc->params.fw_vers),
-	    G_FW_HDR_FW_VER_MICRO(sc->params.fw_vers),
-	    G_FW_HDR_FW_VER_BUILD(sc->params.fw_vers));
-
-	t4_get_tp_version(sc, &sc->params.tp_vers);
-	snprintf(sc->tp_version, sizeof(sc->tp_version), "%u.%u.%u.%u",
-	    G_FW_HDR_FW_VER_MAJOR(sc->params.tp_vers),
-	    G_FW_HDR_FW_VER_MINOR(sc->params.tp_vers),
-	    G_FW_HDR_FW_VER_MICRO(sc->params.tp_vers),
-	    G_FW_HDR_FW_VER_BUILD(sc->params.tp_vers));
-
-	if (t4_get_exprom_version(sc, &sc->params.exprom_vers) != 0)
-		sc->params.exprom_vers = 0;
-	else {
-		snprintf(sc->exprom_version, sizeof(sc->exprom_version),
-		    "%u.%u.%u.%u",
-		    G_FW_HDR_FW_VER_MAJOR(sc->params.exprom_vers),
-		    G_FW_HDR_FW_VER_MINOR(sc->params.exprom_vers),
-		    G_FW_HDR_FW_VER_MICRO(sc->params.exprom_vers),
-		    G_FW_HDR_FW_VER_BUILD(sc->params.exprom_vers));
-	}
-
 	/* Reset device */
 	if (need_fw_reset &&
 	    (rc = -t4_fw_reset(sc, sc->mbox, F_PIORSTMODE | F_PIORST)) != 0) {
@@ -3167,6 +3141,32 @@ get_params__pre_init(struct adapter *sc)
 	int rc;
 	uint32_t param[2], val[2];
 
+	t4_get_version_info(sc);
+
+	snprintf(sc->fw_version, sizeof(sc->fw_version), "%u.%u.%u.%u",
+	    G_FW_HDR_FW_VER_MAJOR(sc->params.fw_vers),
+	    G_FW_HDR_FW_VER_MINOR(sc->params.fw_vers),
+	    G_FW_HDR_FW_VER_MICRO(sc->params.fw_vers),
+	    G_FW_HDR_FW_VER_BUILD(sc->params.fw_vers));
+
+	snprintf(sc->bs_version, sizeof(sc->bs_version), "%u.%u.%u.%u",
+	    G_FW_HDR_FW_VER_MAJOR(sc->params.bs_vers),
+	    G_FW_HDR_FW_VER_MINOR(sc->params.bs_vers),
+	    G_FW_HDR_FW_VER_MICRO(sc->params.bs_vers),
+	    G_FW_HDR_FW_VER_BUILD(sc->params.bs_vers));
+
+	snprintf(sc->tp_version, sizeof(sc->tp_version), "%u.%u.%u.%u",
+	    G_FW_HDR_FW_VER_MAJOR(sc->params.tp_vers),
+	    G_FW_HDR_FW_VER_MINOR(sc->params.tp_vers),
+	    G_FW_HDR_FW_VER_MICRO(sc->params.tp_vers),
+	    G_FW_HDR_FW_VER_BUILD(sc->params.tp_vers));
+
+	snprintf(sc->er_version, sizeof(sc->er_version), "%u.%u.%u.%u",
+	    G_FW_HDR_FW_VER_MAJOR(sc->params.er_vers),
+	    G_FW_HDR_FW_VER_MINOR(sc->params.er_vers),
+	    G_FW_HDR_FW_VER_MICRO(sc->params.er_vers),
+	    G_FW_HDR_FW_VER_BUILD(sc->params.er_vers));
+
 	param[0] = FW_PARAM_DEV(PORTVEC);
 	param[1] = FW_PARAM_DEV(CCLK);
 	rc = -t4_query_params(sc, sc->mbox, sc->pf, 0, 2, param, val);
@@ -3380,9 +3380,7 @@ t4_set_desc(struct adapter *sc)
 	char buf[128];
 	struct adapter_params *p = &sc->params;
 
-	snprintf(buf, sizeof(buf), "Chelsio %s %sNIC (rev %d), S/N:%s, "
-	    "P/N:%s, E/C:%s", p->vpd.id, is_offload(sc) ? "R" : "",
-	    chip_rev(sc), p->vpd.sn, p->vpd.pn, p->vpd.ec);
+	snprintf(buf, sizeof(buf), "Chelsio %s", p->vpd.id);
 
 	device_set_desc_copy(sc->dev, buf);
 }
@@ -4643,7 +4641,7 @@ t4_sysctls(struct adapter *sc)
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "lro_timeout", CTLFLAG_RW,
 	    &sc->lro_timeout, 0, "lro inactive-flush timeout (in us)");
 
-	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "debug_flags", CTLFLAG_RW,
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "dflags", CTLFLAG_RW,
 	    &sc->debug_flags, 0, "flags to enable runtime debugging");
 
 	SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "tp_version",
@@ -4658,10 +4656,29 @@ t4_sysctls(struct adapter *sc)
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "hw_revision", CTLFLAG_RD,
 	    NULL, chip_rev(sc), "chip hardware revision");
 
-	if (sc->params.exprom_vers != 0) {
-		SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "exprom_version",
-		    CTLFLAG_RD, sc->exprom_version, 0, "expansion ROM version");
-	}
+	SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "sn",
+	    CTLFLAG_RD, sc->params.vpd.sn, 0, "serial number");
+
+	SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "pn",
+	    CTLFLAG_RD, sc->params.vpd.pn, 0, "part number");
+
+	SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "ec",
+	    CTLFLAG_RD, sc->params.vpd.ec, 0, "engineering change");
+
+	SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "na",
+	    CTLFLAG_RD, sc->params.vpd.na, 0, "network address");
+
+	SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "er_version", CTLFLAG_RD,
+	    sc->er_version, 0, "expansion ROM version");
+
+	SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "bs_version", CTLFLAG_RD,
+	    sc->bs_version, 0, "bootstrap firmware version");
+
+	SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "scfg_version", CTLFLAG_RD,
+	    NULL, sc->params.scfg_vers, "serial config version");
+
+	SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "vpd_version", CTLFLAG_RD,
+	    NULL, sc->params.vpd_vers, "VPD version");
 
 	SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "cf",
 	    CTLFLAG_RD, sc->cfg_file, 0, "configuration file");
@@ -4672,7 +4689,7 @@ t4_sysctls(struct adapter *sc)
 #define SYSCTL_CAP(name, n, text) \
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, #name, \
 	    CTLTYPE_STRING | CTLFLAG_RD, caps_decoder[n], sc->name, \
-	    sysctl_bitfield, "A", "available " text "capabilities")
+	    sysctl_bitfield, "A", "available " text " capabilities")
 
 	SYSCTL_CAP(nbmcaps, 0, "NBM");
 	SYSCTL_CAP(linkcaps, 1, "link");
@@ -4970,6 +4987,8 @@ vi_sysctls(struct vi_info *vi)
 	    &vi->first_rxq, 0, "index of first rx queue");
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "first_txq", CTLFLAG_RD,
 	    &vi->first_txq, 0, "index of first tx queue");
+	SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "rss_size", CTLFLAG_RD, NULL,
+	    vi->rss_size, "size of RSS indirection table");
 
 	if (IS_MAIN_VI(vi)) {
 		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "rsrv_noflowq",
@@ -5914,7 +5933,8 @@ sysctl_cim_qcfg(SYSCTL_HANDLER_ARGS)
 	if (sb == NULL)
 		return (ENOMEM);
 
-	sbuf_printf(sb, "Queue  Base  Size Thres RdPtr WrPtr  SOP  EOP Avail");
+	sbuf_printf(sb,
+	    "  Queue  Base  Size Thres  RdPtr WrPtr  SOP  EOP Avail");
 
 	for (i = 0; i < CIM_NUM_IBQ; i++, p += 4)
 		sbuf_printf(sb, "\n%7s %5x %5u %5u %6x  %4x %4u %4u %5u",
@@ -6858,7 +6878,7 @@ sysctl_pm_stats(SYSCTL_HANDLER_ARGS)
 	};
 	static const char *rx_stats[MAX_PM_NSTATS] = {
 		"Read:", "Write bypass:", "Write mem:", "Flush:",
-		" Rx FIFO wait", NULL, "Rx latency"
+		"Rx FIFO wait", NULL, "Rx latency"
 	};
 
 	rc = sysctl_wire_old_buffer(req, 0);

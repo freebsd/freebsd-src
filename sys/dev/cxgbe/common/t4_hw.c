@@ -3234,6 +3234,20 @@ int t4_get_fw_version(struct adapter *adapter, u32 *vers)
 }
 
 /**
+ *	t4_get_bs_version - read the firmware bootstrap version
+ *	@adapter: the adapter
+ *	@vers: where to place the version
+ *
+ *	Reads the FW Bootstrap version from flash.
+ */
+int t4_get_bs_version(struct adapter *adapter, u32 *vers)
+{
+	return t4_read_flash(adapter, FLASH_FWBOOTSTRAP_START +
+			     offsetof(struct fw_hdr, fw_ver), 1,
+			     vers, 0);
+}
+
+/**
  *	t4_get_tp_version - read the TP microcode version
  *	@adapter: the adapter
  *	@vers: where to place the version
@@ -3282,6 +3296,110 @@ int t4_get_exprom_version(struct adapter *adap, u32 *vers)
 		 V_FW_HDR_FW_VER_MICRO(hdr->hdr_ver[2]) |
 		 V_FW_HDR_FW_VER_BUILD(hdr->hdr_ver[3]));
 	return 0;
+}
+
+/**
+ *	t4_get_scfg_version - return the Serial Configuration version
+ *	@adapter: the adapter
+ *	@vers: where to place the version
+ *
+ *	Reads the Serial Configuration Version via the Firmware interface
+ *	(thus this can only be called once we're ready to issue Firmware
+ *	commands).  The format of the Serial Configuration version is
+ *	adapter specific.  Returns 0 on success, an error on failure.
+ *
+ *	Note that early versions of the Firmware didn't include the ability
+ *	to retrieve the Serial Configuration version, so we zero-out the
+ *	return-value parameter in that case to avoid leaving it with
+ *	garbage in it.
+ *
+ *	Also note that the Firmware will return its cached copy of the Serial
+ *	Initialization Revision ID, not the actual Revision ID as written in
+ *	the Serial EEPROM.  This is only an issue if a new VPD has been written
+ *	and the Firmware/Chip haven't yet gone through a RESET sequence.  So
+ *	it's best to defer calling this routine till after a FW_RESET_CMD has
+ *	been issued if the Host Driver will be performing a full adapter
+ *	initialization.
+ */
+int t4_get_scfg_version(struct adapter *adapter, u32 *vers)
+{
+	u32 scfgrev_param;
+	int ret;
+
+	scfgrev_param = (V_FW_PARAMS_MNEM(FW_PARAMS_MNEM_DEV) |
+			 V_FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DEV_SCFGREV));
+	ret = t4_query_params(adapter, adapter->mbox, adapter->pf, 0,
+			      1, &scfgrev_param, vers);
+	if (ret)
+		*vers = 0;
+	return ret;
+}
+
+/**
+ *	t4_get_vpd_version - return the VPD version
+ *	@adapter: the adapter
+ *	@vers: where to place the version
+ *
+ *	Reads the VPD via the Firmware interface (thus this can only be called
+ *	once we're ready to issue Firmware commands).  The format of the
+ *	VPD version is adapter specific.  Returns 0 on success, an error on
+ *	failure.
+ *
+ *	Note that early versions of the Firmware didn't include the ability
+ *	to retrieve the VPD version, so we zero-out the return-value parameter
+ *	in that case to avoid leaving it with garbage in it.
+ *
+ *	Also note that the Firmware will return its cached copy of the VPD
+ *	Revision ID, not the actual Revision ID as written in the Serial
+ *	EEPROM.  This is only an issue if a new VPD has been written and the
+ *	Firmware/Chip haven't yet gone through a RESET sequence.  So it's best
+ *	to defer calling this routine till after a FW_RESET_CMD has been issued
+ *	if the Host Driver will be performing a full adapter initialization.
+ */
+int t4_get_vpd_version(struct adapter *adapter, u32 *vers)
+{
+	u32 vpdrev_param;
+	int ret;
+
+	vpdrev_param = (V_FW_PARAMS_MNEM(FW_PARAMS_MNEM_DEV) |
+			V_FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DEV_VPDREV));
+	ret = t4_query_params(adapter, adapter->mbox, adapter->pf, 0,
+			      1, &vpdrev_param, vers);
+	if (ret)
+		*vers = 0;
+	return ret;
+}
+
+/**
+ *	t4_get_version_info - extract various chip/firmware version information
+ *	@adapter: the adapter
+ *
+ *	Reads various chip/firmware version numbers and stores them into the
+ *	adapter Adapter Parameters structure.  If any of the efforts fails
+ *	the first failure will be returned, but all of the version numbers
+ *	will be read.
+ */
+int t4_get_version_info(struct adapter *adapter)
+{
+	int ret = 0;
+
+	#define FIRST_RET(__getvinfo) \
+	do { \
+		int __ret = __getvinfo; \
+		if (__ret && !ret) \
+			ret = __ret; \
+	} while (0)
+
+	FIRST_RET(t4_get_fw_version(adapter, &adapter->params.fw_vers));
+	FIRST_RET(t4_get_bs_version(adapter, &adapter->params.bs_vers));
+	FIRST_RET(t4_get_tp_version(adapter, &adapter->params.tp_vers));
+	FIRST_RET(t4_get_exprom_version(adapter, &adapter->params.er_vers));
+	FIRST_RET(t4_get_scfg_version(adapter, &adapter->params.scfg_vers));
+	FIRST_RET(t4_get_vpd_version(adapter, &adapter->params.vpd_vers));
+
+	#undef FIRST_RET
+
+	return ret;
 }
 
 /**
