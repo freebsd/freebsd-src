@@ -24,6 +24,13 @@ __RCSID("$NetBSD: t_rpc.c,v 1.9 2015/11/27 13:59:40 christos Exp $");
 	return;						\
 } while(/*CONSTCOND*/0)
 
+#ifdef __FreeBSD__
+#define SKIPXI(ev, msg, ...)	do {			\
+	atf_tc_skip(msg, __VA_ARGS__);			\
+	return ev;					\
+} while(/*CONSTCOND*/0)
+#endif
+
 #else
 #define ERRX(ev, msg, ...)	errx(ev, msg, __VA_ARGS__)
 #define SKIPX(ev, msg, ...)	errx(ev, msg, __VA_ARGS__)
@@ -188,7 +195,13 @@ regtest(const char *hostname, const char *transp, const char *arg, int p)
 	svc_fdset_init(p ? SVC_FDSET_POLL : 0);
 #endif
 	if (!svc_create(server, PROGNUM, VERSNUM, transp))
+#ifdef __NetBSD__
 		ERRX(EXIT_FAILURE, "Cannot create server %d", num);
+#else
+	{
+		SKIPXI(EXIT_FAILURE, "Cannot create server %d", num);
+	}
+#endif
 
 	switch ((pid = fork())) {
 	case 0:
@@ -335,6 +348,9 @@ ATF_TC(tcp);
 ATF_TC_HEAD(tcp, tc)
 {
 	atf_tc_set_md_var(tc, "descr", "Checks svc tcp (select)");
+#ifdef __FreeBSD__
+	atf_tc_set_md_var(tc, "require.user", "root");
+#endif
 }
 
 ATF_TC_BODY(tcp, tc)
@@ -347,6 +363,9 @@ ATF_TC(udp);
 ATF_TC_HEAD(udp, tc)
 {
 	atf_tc_set_md_var(tc, "descr", "Checks svc udp (select)");
+#ifdef __FreeBSD__
+	atf_tc_set_md_var(tc, "require.user", "root");
+#endif
 }
 
 ATF_TC_BODY(udp, tc)
@@ -359,6 +378,9 @@ ATF_TC(tcp_poll);
 ATF_TC_HEAD(tcp_poll, tc)
 {
 	atf_tc_set_md_var(tc, "descr", "Checks svc tcp (poll)");
+#ifdef __FreeBSD__
+	atf_tc_set_md_var(tc, "require.user", "root");
+#endif
 }
 
 ATF_TC_BODY(tcp_poll, tc)
@@ -371,6 +393,9 @@ ATF_TC(udp_poll);
 ATF_TC_HEAD(udp_poll, tc)
 {
 	atf_tc_set_md_var(tc, "descr", "Checks svc udp (poll)");
+#ifdef __FreeBSD__
+	atf_tc_set_md_var(tc, "require.user", "root");
+#endif
 }
 
 ATF_TC_BODY(udp_poll, tc)
