@@ -24,6 +24,10 @@ TESTS_SUBDIRS+=	termios
 TESTS_SUBDIRS+=	tls
 TESTS_SUBDIRS+=	ttyio
 
+.if ${MK_ICONV} != "no"
+TESTS_SUBDIRS+=	iconv
+.endif
+
 .if ${MK_LOCALES} != "no"
 TESTS_SUBDIRS+=	locale
 .endif
