@@ -712,7 +712,7 @@ create_hooks(svn_repos_t *repos, apr_pool_t *pool)
 "# Because the locks have already been created and cannot be undone,"        NL
 "# the exit code of the hook program is ignored.  The hook program"          NL
 "# can use the 'svnlook' utility to examine the paths in the repository"     NL
-"# but since the hook is invoked asyncronously the newly-created locks"      NL
+"# but since the hook is invoked asynchronously the newly-created locks"     NL
 "# may no longer be present."                                                NL;
   script =
 "REPOS=\"$1\""                                                               NL

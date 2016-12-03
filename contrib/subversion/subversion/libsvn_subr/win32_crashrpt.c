@@ -53,9 +53,9 @@ HANDLE dbghelp_dll = INVALID_HANDLE_VALUE;
 #define LOGFILE_PREFIX "svn-crash-log"
 
 #if defined(_M_IX86)
-#define FORMAT_PTR "0x%08x"
+#define FORMAT_PTR "0x%08Ix"
 #elif defined(_M_X64)
-#define FORMAT_PTR "0x%016I64x"
+#define FORMAT_PTR "0x%016Ix"
 #endif
 
 /*** Code. ***/
@@ -171,7 +171,7 @@ write_module_info_callback(void *data,
       MINIDUMP_MODULE_CALLBACK module = callback_input->Module;
 
       char *buf = convert_wbcs_to_ansi(module.FullPath);
-      fprintf(log_file, FORMAT_PTR, module.BaseOfImage);
+      fprintf(log_file, FORMAT_PTR, (UINT_PTR)module.BaseOfImage);
       fprintf(log_file, "  %s", buf);
       free(buf);
 
@@ -260,18 +260,19 @@ write_process_info(EXCEPTION_RECORD *exception, CONTEXT *context,
 #endif
 }
 
-/* Formats the value at address based on the specified basic type
- * (char, int, long ...). */
+/* Writes the value at address based on the specified basic type
+ * (char, int, long ...) to LOG_FILE. */
 static void
-format_basic_type(char *buf, DWORD basic_type, DWORD64 length, void *address)
+write_basic_type(FILE *log_file, DWORD basic_type, DWORD64 length,
+                 void *address)
 {
   switch(length)
     {
       case 1:
-        sprintf(buf, "0x%02x", (int)*(unsigned char *)address);
+        fprintf(log_file, "0x%02x", (int)*(unsigned char *)address);
         break;
       case 2:
-        sprintf(buf, "0x%04x", (int)*(unsigned short *)address);
+        fprintf(log_file, "0x%04x", (int)*(unsigned short *)address);
         break;
       case 4:
         switch(basic_type)
@@ -279,38 +280,38 @@ format_basic_type(char *buf, DWORD basic_type, DWORD64 length, void *address)
             case 2:  /* btChar */
               {
                 if (!IsBadStringPtr(*(PSTR*)address, 32))
-                  sprintf(buf, "\"%.31s\"", *(const char **)address);
+                  fprintf(log_file, "\"%.31s\"", *(const char **)address);
                 else
-                  sprintf(buf, FORMAT_PTR, *(DWORD_PTR *)address);
+                  fprintf(log_file, FORMAT_PTR, *(DWORD_PTR *)address);
               }
             case 6:  /* btInt */
-              sprintf(buf, "%d", *(int *)address);
+              fprintf(log_file, "%d", *(int *)address);
               break;
             case 8:  /* btFloat */
-              sprintf(buf, "%f", *(float *)address);
+              fprintf(log_file, "%f", *(float *)address);
               break;
             default:
-              sprintf(buf, FORMAT_PTR, *(DWORD_PTR *)address);
+              fprintf(log_file, FORMAT_PTR, *(DWORD_PTR *)address);
               break;
           }
         break;
       case 8:
         if (basic_type == 8) /* btFloat */
-          sprintf(buf, "%lf", *(double *)address);
+          fprintf(log_file, "%lf", *(double *)address);
         else
-          sprintf(buf, "0x%016I64X", *(unsigned __int64 *)address);
+          fprintf(log_file, "0x%016I64X", *(unsigned __int64 *)address);
         break;
       default:
-        sprintf(buf, "[unhandled type 0x%08x of length " FORMAT_PTR "]",
-                     basic_type, length);
+        fprintf(log_file, "[unhandled type 0x%08x of length " FORMAT_PTR "]",
+                basic_type, (UINT_PTR)length);
         break;
     }
 }
 
-/* Formats the value at address based on the type (pointer, user defined,
- * basic type). */
+/* Writes the value at address based on the type (pointer, user defined,
+ * basic type) to LOG_FILE. */
 static void
-format_value(char *value_str, DWORD64 mod_base, DWORD type, void *value_addr)
+write_value(FILE *log_file, DWORD64 mod_base, DWORD type, void *value_addr)
 {
   DWORD tag = 0;
   int ptr = 0;
@@ -340,19 +341,19 @@ format_value(char *value_str, DWORD64 mod_base, DWORD type, void *value_addr)
               LocalFree(type_name_wbcs);
 
               if (ptr == 0)
-                sprintf(value_str, "(%s) " FORMAT_PTR,
-                        type_name, (DWORD_PTR *)value_addr);
+                fprintf(log_file, "(%s) " FORMAT_PTR,
+                        type_name, (UINT_PTR)(DWORD_PTR *)value_addr);
               else if (ptr == 1)
-                sprintf(value_str, "(%s *) " FORMAT_PTR,
+                fprintf(log_file, "(%s *) " FORMAT_PTR,
                         type_name, *(DWORD_PTR *)value_addr);
               else
-                sprintf(value_str, "(%s **) " FORMAT_PTR,
+                fprintf(log_file, "(%s **) " FORMAT_PTR,
                         type_name, *(DWORD_PTR *)value_addr);
 
               free(type_name);
             }
           else
-            sprintf(value_str, "[no symbol tag]");
+            fprintf(log_file, "[no symbol tag]");
         }
         break;
       case 16: /* SymTagBaseType */
@@ -364,27 +365,27 @@ format_value(char *value_str, DWORD64 mod_base, DWORD type, void *value_addr)
           /* print a char * as a string */
           if (ptr == 1 && length == 1)
             {
-              sprintf(value_str, FORMAT_PTR " \"%s\"",
+              fprintf(log_file, FORMAT_PTR " \"%s\"",
                       *(DWORD_PTR *)value_addr, *(const char **)value_addr);
             }
           else if (ptr >= 1)
             {
-              sprintf(value_str, FORMAT_PTR, *(DWORD_PTR *)value_addr);
+              fprintf(log_file, FORMAT_PTR, *(DWORD_PTR *)value_addr);
             }
           else if (SymGetTypeInfo_(proc, mod_base, type, TI_GET_BASETYPE, &bt))
             {
-              format_basic_type(value_str, bt, length, value_addr);
+              write_basic_type(log_file, bt, length, value_addr);
             }
         }
         break;
       case 12: /* SymTagEnum */
-          sprintf(value_str, "%d", *(DWORD_PTR *)value_addr);
+          fprintf(log_file, "%d", *(DWORD_PTR *)value_addr);
           break;
       case 13: /* SymTagFunctionType */
-          sprintf(value_str, FORMAT_PTR, *(DWORD_PTR *)value_addr);
+          fprintf(log_file, FORMAT_PTR, *(DWORD_PTR *)value_addr);
           break;
       default:
-          sprintf(value_str, "[unhandled tag: %d]", tag);
+          fprintf(log_file, "[unhandled tag: %d]", tag);
           break;
     }
 }
@@ -408,7 +409,6 @@ write_var_values(PSYMBOL_INFO sym_info, ULONG sym_size, void *baton)
   FILE *log_file   = ((symbols_baton_t*)baton)->log_file;
   int nr_of_frame = ((symbols_baton_t*)baton)->nr_of_frame;
   BOOL log_params = ((symbols_baton_t*)baton)->log_params;
-  char value_str[256] = "";
 
   /* get the variable's data */
   if (sym_info->Flags & SYMFLAG_REGREL)
@@ -422,21 +422,21 @@ write_var_values(PSYMBOL_INFO sym_info, ULONG sym_size, void *baton)
   if (log_params && sym_info->Flags & SYMFLAG_PARAMETER)
     {
       if (last_nr_of_frame == nr_of_frame)
-        fprintf(log_file, ", ", 2);
+        fprintf(log_file, ", ");
       else
         last_nr_of_frame = nr_of_frame;
 
-      format_value(value_str, sym_info->ModBase, sym_info->TypeIndex,
-                   (void *)var_data);
-      fprintf(log_file, "%.*s=%s", (int)sym_info->NameLen, sym_info->Name,
-              value_str);
+      fprintf(log_file, "%.*s=", (int)sym_info->NameLen, sym_info->Name);
+      write_value(log_file, sym_info->ModBase, sym_info->TypeIndex,
+                  (void *)var_data);
     }
   if (!log_params && sym_info->Flags & SYMFLAG_LOCAL)
     {
-      format_value(value_str, sym_info->ModBase, sym_info->TypeIndex,
-                   (void *)var_data);
-      fprintf(log_file, "        %.*s = %s\n", (int)sym_info->NameLen,
-              sym_info->Name, value_str);
+      fprintf(log_file, "        %.*s = ", (int)sym_info->NameLen,
+              sym_info->Name);
+      write_value(log_file, sym_info->ModBase, sym_info->TypeIndex,
+                  (void *)var_data);
+      fprintf(log_file, "\n");
     }
 
   return TRUE;
