@@ -108,7 +108,7 @@ NEWVERS_SH=		${SYSDIR}/conf/newvers.sh
 PARAM_H=		${SYSDIR}/sys/param.h
 MK_OSRELDATE_SH=	${.CURDIR}/mk-osreldate.sh
 
-SYMLINKS+= ${INCLUDEDIR} ${LIBDIR}/include
+SYMLINKS+= ${LIBDIR:C,[^/]+,..,g:C,^/,,}${INCLUDEDIR} ${LIBDIR}/include
 
 osreldate.h: ${NEWVERS_SH} ${PARAM_H} ${MK_OSRELDATE_SH}
 	env NEWVERS_SH=${NEWVERS_SH} PARAMFILE=${PARAM_H} SYSDIR=${SYSDIR} \
