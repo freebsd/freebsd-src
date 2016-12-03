@@ -1,4 +1,4 @@
-# $NetBSD: t_exit.sh,v 1.3 2012/04/13 06:12:32 jruoho Exp $
+# $NetBSD: t_exit.sh,v 1.6 2016/05/07 23:51:30 kre Exp $
 #
 # Copyright (c) 2007 The NetBSD Foundation, Inc.
 # All rights reserved.
@@ -24,74 +24,124 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 #
+# the implementation of "sh" to test
+: ${TEST_SH:="/bin/sh"}
 
-crud() {
-	test yes = no
-
-	cat <<EOF
-$?
-EOF
-}
 
 atf_test_case background
 background_head() {
 	atf_set "descr" "Tests that sh(1) sets '$?' properly when running " \
-	                "a command in the background (PR bin/46327)"
+			"a command in the background (PR bin/46327)"
 }
 background_body() {
-	atf_check -s exit:0 -o ignore -e ignore -x "true; true & echo $?"
-	atf_check -s exit:0 -o ignore -e ignore -x "false; true & echo $?"
+	atf_check -o match:0 -e empty ${TEST_SH} -c 'true; true & echo $?'
+	# atf_expect_fail "PR bin/46327" (now fixed?)
+	atf_check -o match:0 -e empty ${TEST_SH} -c 'false; true & echo $?'
 }
 
 atf_test_case function
 function_head() {
-	atf_set "descr" "Tests that \$? is correctly updated inside" \
-	                "a function"
+	atf_set "descr" "Tests that \$? is correctly updated inside " \
+			"a function"
 }
 function_body() {
-	foo=`crud`
-	atf_check_equal 'x$foo' 'x1'
+	atf_check -s exit:0 -o match:STATUS=1-0 -e empty \
+		${TEST_SH} -c '
+			crud() {
+				test yes = no
+
+				cat <<-EOF
+				STATUS=$?
+				EOF
+			}
+			foo=$(crud)
+			echo "${foo}-$?"
+		'
 }
 
 atf_test_case readout
 readout_head() {
-	atf_set "descr" "Tests that \$? is correctly updated in a" \
-	                "compound expression"
+	atf_set "descr" "Tests that \$? is correctly updated in a " \
+			"compound expression"
 }
 readout_body() {
-	atf_check_equal '$( true && ! true | false; echo $? )' '0'
+	atf_check -s exit:0 -o match:0 -e empty \
+		${TEST_SH} -c 'true && ! true | false; echo $?'
 }
 
 atf_test_case trap_subshell
 trap_subshell_head() {
-	atf_set "descr" "Tests that the trap statement in a subshell" \
-	    "works when the subshell exits"
+	atf_set "descr" "Tests that the trap statement in a subshell " \
+			"works when the subshell exits"
 }
 trap_subshell_body() {
-	atf_check -s eq:0 -o inline:'exiting\n' -x \
-	    '( trap "echo exiting" EXIT; /usr/bin/true )'
+	atf_check -s exit:0 -o inline:'exiting\n' -e empty \
+	    ${TEST_SH} -c '( trap "echo exiting" EXIT; /usr/bin/true )'
 }
 
 atf_test_case trap_zero__implicit_exit
+trap_zero__implicit_exit_head() {
+	atf_set "descr" "Tests that the trap statement in a subshell in a " \
+		"script works when the subshell simply runs out of commands"
+}
 trap_zero__implicit_exit_body() {
-	# PR bin/6764: sh works but ksh does not"
+	# PR bin/6764: sh works but ksh does not
 	echo '( trap "echo exiting" 0 )' >helper.sh
-	atf_check -s eq:0 -o match:exiting -e empty /bin/sh helper.sh
-	atf_check -s eq:0 -o match:exiting -e empty /bin/ksh helper.sh
+	atf_check -s exit:0 -o match:exiting -e empty ${TEST_SH} helper.sh
+	# test ksh by setting TEST_SH to /bin/ksh and run the entire set...
+	# atf_check -s exit:0 -o match:exiting -e empty /bin/ksh helper.sh
 }
 
 atf_test_case trap_zero__explicit_exit
+trap_zero__explicit_exit_head() {
+	atf_set "descr" "Tests that the trap statement in a subshell in a " \
+		"script works when the subshell executes an explicit exit"
+}
 trap_zero__explicit_exit_body() {
-	echo '( trap "echo exiting" 0; exit )' >helper.sh
-	atf_check -s eq:0 -o match:exiting -e empty /bin/sh helper.sh
-	atf_check -s eq:0 -o match:exiting -e empty /bin/ksh helper.sh
+	echo '( trap "echo exiting" 0; exit; echo NO_NO_NO )' >helper.sh
+	atf_check -s exit:0 -o match:exiting -o not-match:NO_NO -e empty \
+		${TEST_SH} helper.sh
+	# test ksh by setting TEST_SH to /bin/ksh and run the entire set...
+	# atf_check -s exit:0 -o match:exiting -e empty /bin/ksh helper.sh
 }
 
-atf_test_case trap_zero__explicit_return
-trap_zero__explicit_return_body() {
-	echo '( trap "echo exiting" 0; return )' >helper.sh
-	atf_check -s eq:0 -o match:exiting -e empty /bin/sh helper.sh
-	atf_check -s eq:0 -o match:exiting -e empty /bin/ksh helper.sh
+atf_test_case simple_exit
+simple_exit_head() {
+	atf_set "descr" "Tests that various values for exit status work"
+}
+# Note: ATF will not allow tests of exit values > 255, even if they would work
+simple_exit_body() {
+	for N in 0 1 2 3 4 5 6 42 99 101 125 126 127 128 129 200 254 255
+	do
+		atf_check -s exit:$N -o empty -e empty \
+			${TEST_SH} -c "exit $N; echo FOO; echo BAR >&2"
+	done
+}
+
+atf_test_case subshell_exit
+subshell_exit_head() {
+	atf_set "descr" "Tests that subshell exit status works and \$? gets it"
+}
+# Note: ATF will not allow tests of exit values > 255, even if they would work
+subshell_exit_body() {
+	for N in 0 1 2 3 4 5 6 42 99 101 125 126 127 128 129 200 254 255
+	do
+		atf_check -s exit:0 -o empty -e empty \
+			${TEST_SH} -c "(exit $N); test \$? -eq $N"
+	done
+}
+
+atf_test_case subshell_background
+subshell_background_head() {
+	atf_set "descr" "Tests that sh(1) sets '$?' properly when running " \
+			"a subshell in the background"
+}
+subshell_background_body() {
+	atf_check -o match:0 -e empty \
+		${TEST_SH} -c 'true; (false || true) & echo $?'
+	# atf_expect_fail "PR bin/46327" (now fixed?)
+	atf_check -o match:0 -e empty \
+		${TEST_SH} -c 'false; (false || true) & echo $?'
 }
 
 atf_init_test_cases() {
@@ -101,5 +151,7 @@ atf_init_test_cases() {
 	atf_add_test_case trap_subshell
 	atf_add_test_case trap_zero__implicit_exit
 	atf_add_test_case trap_zero__explicit_exit
-	atf_add_test_case trap_zero__explicit_return
+	atf_add_test_case simple_exit
+	atf_add_test_case subshell_exit
+	atf_add_test_case subshell_background
 }

@@ -1,4 +1,4 @@
-/* $NetBSD: t_memset.c,v 1.3 2013/03/17 02:23:31 christos Exp $ */
+/* $NetBSD: t_memset.c,v 1.4 2015/09/11 09:25:52 martin Exp $ */
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -29,7 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_memset.c,v 1.3 2013/03/17 02:23:31 christos Exp $");
+__RCSID("$NetBSD: t_memset.c,v 1.4 2015/09/11 09:25:52 martin Exp $");
 
 #include <sys/stat.h>
 
@@ -41,6 +41,8 @@ __RCSID("$NetBSD: t_memset.c,v 1.3 2013/03/17 02:23:31 christos Exp $");
 static long	page = 0;
 static void	fill(char *, size_t, char);
 static bool	check(char *, size_t, char);
+
+int zero;	/* always zero, but the compiler does not know */
 
 ATF_TC(memset_array);
 ATF_TC_HEAD(memset_array, tc)
@@ -133,6 +135,50 @@ ATF_TC_BODY(memset_nonzero, tc)
 	free(buf);
 }
 
+ATF_TC(memset_zero_size);
+
+ATF_TC_HEAD(memset_zero_size, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Test memset(3) with zero size");
+}
+
+ATF_TC_BODY(memset_zero_size, tc)
+{
+	char buf[1024];
+
+	(void)memset(buf, 'x', sizeof(buf));
+
+	if (check(buf, sizeof(buf), 'x') != true)
+		atf_tc_fail("memset(3) did not fill a static buffer");
+
+	(void)memset(buf+sizeof(buf)/2, 0, zero);
+
+	if (check(buf, sizeof(buf), 'x') != true)
+		atf_tc_fail("memset(3) with 0 size did change the buffer");
+}
+
+ATF_TC(bzero_zero_size);
+
+ATF_TC_HEAD(bzero_zero_size, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Test bzero(3) with zero size");
+}
+
+ATF_TC_BODY(bzero_zero_size, tc)
+{
+	char buf[1024];
+
+	(void)memset(buf, 'x', sizeof(buf));
+
+	if (check(buf, sizeof(buf), 'x') != true)
+		atf_tc_fail("memset(3) did not fill a static buffer");
+
+	(void)bzero(buf+sizeof(buf)/2, zero);
+
+	if (check(buf, sizeof(buf), 'x') != true)
+		atf_tc_fail("bzero(3) with 0 size did change the buffer");
+}
+
 ATF_TC(memset_struct);
 ATF_TC_HEAD(memset_struct, tc)
 {
@@ -202,6 +248,8 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, memset_nonzero);
 	ATF_TP_ADD_TC(tp, memset_struct);
 	ATF_TP_ADD_TC(tp, memset_return);
+	ATF_TP_ADD_TC(tp, memset_zero_size);
+	ATF_TP_ADD_TC(tp, bzero_zero_size);
 
 	return atf_no_error();
 }

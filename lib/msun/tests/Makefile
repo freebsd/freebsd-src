@@ -7,6 +7,9 @@ TESTSRC=	${SRCTOP}/contrib/netbsd-tests/lib/libm
 # All architectures on FreeBSD have fenv.h
 CFLAGS+=	-DHAVE_FENV_H
 
+# For isqemu.h
+CFLAGS+=	-I${TESTSRC:H}/libc/gen
+
 # Not sure why this isn't defined for all architectures, since most
 # have long double.
 .if ${MACHINE_CPUARCH} == "aarch64" || \

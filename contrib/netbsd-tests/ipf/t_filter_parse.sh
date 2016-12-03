@@ -1,4 +1,4 @@
-# $NetBSD: t_filter_parse.sh,v 1.11 2014/06/29 09:27:58 darrenr Exp $
+# $NetBSD: t_filter_parse.sh,v 1.12 2014/12/06 19:31:25 dholland Exp $
 #
 # Copyright (c) 2008, 2010 The NetBSD Foundation, Inc.
 # All rights reserved.
@@ -133,3 +133,4 @@ atf_init_test_cases()
 	atf_add_test_case i22
 	atf_add_test_case i23
 }
+

@@ -1,4 +1,4 @@
-/*	$NetBSD: fstest_lfs.c,v 1.4 2010/07/30 16:15:05 pooka Exp $	*/
+/*	$NetBSD: fstest_lfs.c,v 1.5 2015/08/30 18:27:26 dholland Exp $	*/
 
 /*-
  * Copyright (c) 2010 The NetBSD Foundation, Inc.
@@ -47,8 +47,6 @@
 
 #include "h_fsmacros.h"
 #include "mount_lfs.h"
-
-sem_t lfs_clearnerloop;
 
 struct lfstestargs {
 	struct ufs_args ta_uargs;

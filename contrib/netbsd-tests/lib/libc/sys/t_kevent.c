@@ -1,4 +1,4 @@
-/*	$NetBSD: t_kevent.c,v 1.6 2012/11/29 09:13:44 martin Exp $ */
+/*	$NetBSD: t_kevent.c,v 1.7 2015/02/05 13:55:37 isaki Exp $ */
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -29,7 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_kevent.c,v 1.6 2012/11/29 09:13:44 martin Exp $");
+__RCSID("$NetBSD: t_kevent.c,v 1.7 2015/02/05 13:55:37 isaki Exp $");
 
 #include <sys/types.h>
 #include <sys/event.h>
@@ -179,8 +179,14 @@ ATF_TC_BODY(kqueue_unsupported_fd, tc)
 	struct kevent ev;
 
 	fd = open(DRVCTLDEV, O_RDONLY);
-	if (fd == -1 && errno == ENOENT)
-		atf_tc_skip("no " DRVCTLDEV " available for testing");
+	if (fd == -1) {
+		switch (errno) {
+		case ENOENT:
+		case ENXIO:
+			atf_tc_skip("no " DRVCTLDEV " available for testing");
+			break;
+		}
+	}
 	ATF_REQUIRE(fd != -1);
 	ATF_REQUIRE((kq = kqueue()) != -1);
 
