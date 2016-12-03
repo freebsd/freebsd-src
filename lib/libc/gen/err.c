@@ -99,7 +99,7 @@ errc(int eval, int code, const char *fmt, ...)
 void
 verrc(int eval, int code, const char *fmt, va_list ap)
 {
-	if (err_file == 0)
+	if (err_file == NULL)
 		err_set_file((FILE *)0);
 	fprintf(err_file, "%s: ", _getprogname());
 	if (fmt != NULL) {
@@ -124,7 +124,7 @@ errx(int eval, const char *fmt, ...)
 void
 verrx(int eval, const char *fmt, va_list ap)
 {
-	if (err_file == 0)
+	if (err_file == NULL)
 		err_set_file((FILE *)0);
 	fprintf(err_file, "%s: ", _getprogname());
 	if (fmt != NULL)
@@ -164,7 +164,7 @@ warnc(int code, const char *fmt, ...)
 void
 vwarnc(int code, const char *fmt, va_list ap)
 {
-	if (err_file == 0)
+	if (err_file == NULL)
 		err_set_file((FILE *)0);
 	fprintf(err_file, "%s: ", _getprogname());
 	if (fmt != NULL) {
@@ -186,7 +186,7 @@ warnx(const char *fmt, ...)
 void
 vwarnx(const char *fmt, va_list ap)
 {
-	if (err_file == 0)
+	if (err_file == NULL)
 		err_set_file((FILE *)0);
 	fprintf(err_file, "%s: ", _getprogname());
 	if (fmt != NULL)
