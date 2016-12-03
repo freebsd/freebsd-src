@@ -153,15 +153,17 @@ struct cu_data {
  * If they are 0, use the transport default.
  *
  * If svcaddr is NULL, returns NULL.
+ *
+ * fd      - open file descriptor
+ * svcaddr - servers address
+ * program - program number
+ * version - version number
+ * sendsz  - buffer recv size
+ * recvsz  - buffer send size
  */
 CLIENT *
-clnt_dg_create(fd, svcaddr, program, version, sendsz, recvsz)
-	int fd;				/* open file descriptor */
-	const struct netbuf *svcaddr;	/* servers address */
-	rpcprog_t program;		/* program number */
-	rpcvers_t version;		/* version number */
-	u_int sendsz;			/* buffer recv size */
-	u_int recvsz;			/* buffer send size */
+clnt_dg_create(int fd, const struct netbuf *svcaddr, rpcprog_t program,
+    rpcvers_t version, u_int sendsz, u_int recvsz)
 {
 	CLIENT *cl = NULL;		/* client handle */
 	struct cu_data *cu = NULL;	/* private data */
@@ -301,15 +303,18 @@ err2:
 	return (NULL);
 }
 
+/*
+ * cl       - client handle
+ * proc     - procedure number
+ * xargs    - xdr routine for args
+ * argsp    - pointer to args
+ * xresults - xdr routine for results
+ * resultsp - pointer to results
+ * utimeout - seconds to wait before giving up
+ */
 static enum clnt_stat
-clnt_dg_call(cl, proc, xargs, argsp, xresults, resultsp, utimeout)
-	CLIENT	*cl;			/* client handle */
-	rpcproc_t	proc;		/* procedure number */
-	xdrproc_t	xargs;		/* xdr routine for args */
-	void		*argsp;		/* pointer to args */
-	xdrproc_t	xresults;	/* xdr routine for results */
-	void		*resultsp;	/* pointer to results */
-	struct timeval	utimeout;	/* seconds to wait before giving up */
+clnt_dg_call(CLIENT *cl, rpcproc_t proc, xdrproc_t xargs, void *argsp,
+    xdrproc_t xresults, void *resultsp, struct timeval utimeout)
 {
 	struct cu_data *cu = (struct cu_data *)cl->cl_private;
 	XDR *xdrs;
@@ -602,9 +607,7 @@ out:
 }
 
 static void
-clnt_dg_geterr(cl, errp)
-	CLIENT *cl;
-	struct rpc_err *errp;
+clnt_dg_geterr(CLIENT *cl, struct rpc_err *errp)
 {
 	struct cu_data *cu = (struct cu_data *)cl->cl_private;
 
@@ -612,10 +615,7 @@ clnt_dg_geterr(cl, errp)
 }
 
 static bool_t
-clnt_dg_freeres(cl, xdr_res, res_ptr)
-	CLIENT *cl;
-	xdrproc_t xdr_res;
-	void *res_ptr;
+clnt_dg_freeres(CLIENT *cl, xdrproc_t xdr_res, void *res_ptr)
 {
 	struct cu_data *cu = (struct cu_data *)cl->cl_private;
 	XDR *xdrs = &(cu->cu_outxdrs);
@@ -638,16 +638,12 @@ clnt_dg_freeres(cl, xdr_res, res_ptr)
 
 /*ARGSUSED*/
 static void
-clnt_dg_abort(h)
-	CLIENT *h;
+clnt_dg_abort(CLIENT *h)
 {
 }
 
 static bool_t
-clnt_dg_control(cl, request, info)
-	CLIENT *cl;
-	u_int request;
-	void *info;
+clnt_dg_control(CLIENT *cl, u_int request, void *info)
 {
 	struct cu_data *cu = (struct cu_data *)cl->cl_private;
 	struct netbuf *addr;
@@ -790,8 +786,7 @@ clnt_dg_control(cl, request, info)
 }
 
 static void
-clnt_dg_destroy(cl)
-	CLIENT *cl;
+clnt_dg_destroy(CLIENT *cl)
 {
 	struct cu_data *cu = (struct cu_data *)cl->cl_private;
 	int cu_fd = cu->cu_fd;
@@ -820,7 +815,7 @@ clnt_dg_destroy(cl)
 }
 
 static struct clnt_ops *
-clnt_dg_ops()
+clnt_dg_ops(void)
 {
 	static struct clnt_ops ops;
 	sigset_t mask;
@@ -848,8 +843,7 @@ clnt_dg_ops()
  * Make sure that the time is not garbage.  -1 value is allowed.
  */
 static bool_t
-time_not_ok(t)
-	struct timeval *t;
+time_not_ok(struct timeval *t)
 {
 	return (t->tv_sec < -1 || t->tv_sec > 100000000 ||
 		t->tv_usec < -1 || t->tv_usec > 1000000);
