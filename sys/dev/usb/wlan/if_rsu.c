@@ -2937,9 +2937,6 @@ rsu_init(struct rsu_softc *sc)
 	/* Ensure the mbuf queue is drained */
 	rsu_drain_mbufq(sc);
 
-	/* Init host async commands ring. */
-	sc->cmdq.cur = sc->cmdq.next = sc->cmdq.queued = 0;
-
 	/* Reset power management state. */
 	rsu_write_1(sc, R92S_USB_HRPWM, 0);
 
