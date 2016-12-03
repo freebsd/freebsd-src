@@ -1,8 +1,8 @@
 #!/bin/sh
+# $FreeBSD$
 
-cd $(dirname $0)
 i=1
-./kqtest | while read line; do
+"$(dirname $0)/kqtest" | while read line; do
 	echo $line | grep -q passed
 	if [ $? -eq 0 ]; then
 		echo "ok - $i $line"
