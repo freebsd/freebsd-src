@@ -495,16 +495,16 @@ kern_getfsstat(struct thread *td, struct statfs **buf, size_t bufsize,
 			sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
 			/*
 			 * If MNT_NOWAIT or MNT_LAZY is specified, do not
-			 * refresh the fsstat cache. MNT_NOWAIT or MNT_LAZY
-			 * overrides MNT_WAIT.
+			 * refresh the fsstat cache.
 			 */
-			if (((flags & (MNT_LAZY|MNT_NOWAIT)) == 0 ||
-			    (flags & MNT_WAIT)) &&
-			    (error = VFS_STATFS(mp, sp))) {
-				mtx_lock(&mountlist_mtx);
-				nmp = TAILQ_NEXT(mp, mnt_list);
-				vfs_unbusy(mp);
-				continue;
+			if (flags != MNT_LAZY && flags != MNT_NOWAIT) {
+				error = VFS_STATFS(mp, sp);
+				if (error != 0) {
+					mtx_lock(&mountlist_mtx);
+					nmp = TAILQ_NEXT(mp, mnt_list);
+					vfs_unbusy(mp);
+					continue;
+				}
 			}
 			if (priv_check(td, PRIV_VFS_GENERATION)) {
 				bcopy(sp, &sb, sizeof(sb));
