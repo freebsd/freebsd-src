@@ -259,8 +259,9 @@ __bsd_iconvctl(iconv_t cd, int request, void *argument)
 	struct _citrus_iconv *cv;
 	struct iconv_hooks *hooks;
 	const char *convname;
-	char src[PATH_MAX], *dst;
+	char *dst;
 	int *i;
+	size_t srclen;
 
 	cv = (struct _citrus_iconv *)(void *)cd;
 	hooks = (struct iconv_hooks *)argument;
@@ -275,12 +276,9 @@ __bsd_iconvctl(iconv_t cd, int request, void *argument)
 	case ICONV_TRIVIALP:
 		convname = cv->cv_shared->ci_convname;
 		dst = strchr(convname, '/');
-
-		strlcpy(src, convname, dst - convname + 1);
+		srclen = dst - convname;
 		dst++;
-		if ((convname == NULL) || (src == NULL) || (dst == NULL))
-			return (-1);
-		*i = strcmp(src, dst) == 0 ? 1 : 0;
+		*i = (srclen == strlen(dst)) && !memcmp(convname, dst, srclen);
 		return (0);
 	case ICONV_GET_TRANSLITERATE:
 		*i = 1;
