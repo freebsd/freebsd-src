@@ -256,7 +256,7 @@ rpc_broadcast_exp(rpcprog_t prog, rpcvers_t vers, rpcproc_t proc,
 	int		inlen;
 	u_int 		maxbufsize = 0;
 	AUTH 		*sys_auth = authunix_create_default();
-	int		i;
+	u_int		i;
 	void		*handle;
 	char		uaddress[1024];	/* A self imposed limit */
 	char		*uaddrp = uaddress;
