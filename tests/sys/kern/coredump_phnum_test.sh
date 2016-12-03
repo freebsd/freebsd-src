@@ -39,6 +39,8 @@ coredump_phnum_head()
 }
 coredump_phnum_body()
 {
+	atf_expect_fail "the value parsed doesn't always match the value obtained on the running system; bug # 215019"
+
 	# Set up core dumping
 	cat > coredump_phnum_restore_state.sh <<-EOF
 	#!/bin/sh
