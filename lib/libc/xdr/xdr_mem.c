@@ -239,7 +239,7 @@ xdrmem_inline_aligned(xdrs, len)
 	XDR *xdrs;
 	u_int len;
 {
-	int32_t *buf = 0;
+	int32_t *buf = NULL;
 
 	if (xdrs->x_handy >= len) {
 		xdrs->x_handy -= len;

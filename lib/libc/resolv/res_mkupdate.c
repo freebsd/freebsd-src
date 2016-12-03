@@ -1175,7 +1175,7 @@ res_protocolname(int num) {
 	if (protolist == (struct valuelist *)0)
 		res_buildprotolist();
 	pp = cgetprotobynumber(num);
-	if (pp == 0)  {
+	if (pp == NULL)  {
 		(void) sprintf(number, "%d", num);
 		return (number);
 	}
@@ -1190,7 +1190,7 @@ res_servicename(u_int16_t port, const char *proto) {	/*%< Host byte order. */
 	if (servicelist == (struct valuelist *)0)
 		res_buildservicelist();
 	ss = cgetservbyport(htons(port), proto);
-	if (ss == 0)  {
+	if (ss == NULL)  {
 		(void) sprintf(number, "%d", port);
 		return (number);
 	}
