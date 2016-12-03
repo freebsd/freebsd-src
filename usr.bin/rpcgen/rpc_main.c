@@ -82,11 +82,11 @@ static char pathbuf[MAXPATHLEN + 1];
 static const char *allv[] = {
 	"rpcgen", "-s", "udp", "-s", "tcp",
 };
-static int allc = sizeof (allv)/sizeof (allv[0]);
+static int allc = nitems(allv);
 static const char *allnv[] = {
 	"rpcgen", "-s", "netpath",
 };
-static int allnc = sizeof (allnv)/sizeof (allnv[0]);
+static int allnc = nitems(allnv);
 
 /*
  * machinations for handling expanding argument list
@@ -451,7 +451,7 @@ generate_guard(const char *pathname)
 	char *guard, *tmp, *stopat;
 
 	filename = strrchr(pathname, '/');  /* find last component */
-	filename = ((filename == 0) ? pathname : filename+1);
+	filename = ((filename == NULL) ? pathname : filename+1);
 	guard = xstrdup(filename);
 	stopat = strrchr(guard, '.');
 
