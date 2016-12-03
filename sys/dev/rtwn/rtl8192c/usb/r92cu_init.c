@@ -333,9 +333,11 @@ void
 r92cu_init_tx_agg(struct rtwn_softc *sc)
 {
 	struct rtwn_usb_softc *uc = RTWN_USB_SOFTC(sc);
+	uint32_t reg;
 
-	rtwn_setbits_4(sc, R92C_TDECTRL,
-	    R92C_TDECTRL_BLK_DESC_NUM_M, uc->tx_agg_desc_num);
+	reg = rtwn_read_4(sc, R92C_TDECTRL);
+	reg = RW(reg, R92C_TDECTRL_BLK_DESC_NUM, uc->tx_agg_desc_num);
+	rtwn_write_4(sc, R92C_TDECTRL, reg);
 }
 
 void
