@@ -541,7 +541,8 @@ ext2_mountfs(struct vnode *devvp, struct mount *mp)
 	struct csum *sump;
 	int error;
 	int ronly;
-	int i, size;
+	int i;
+	u_long size;
 	int32_t *lp;
 	int32_t e2fs_maxcontig;
 
