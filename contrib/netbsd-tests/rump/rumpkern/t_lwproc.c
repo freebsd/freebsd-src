@@ -1,4 +1,4 @@
-/*	$NetBSD: t_lwproc.c,v 1.5 2011/01/02 12:58:17 pooka Exp $	*/
+/*	$NetBSD: t_lwproc.c,v 1.7 2015/01/21 15:19:01 pooka Exp $	*/
 
 /*
  * Copyright (c) 2010 The NetBSD Foundation, Inc.
@@ -88,6 +88,7 @@ ATF_TC_BODY(proccreds, tc)
 	rump_init();
 	RZ(rump_pub_lwproc_rfork(RUMP_RFCFDG));
 	l1 = rump_pub_lwproc_curlwp();
+	RZ(rump_pub_lwproc_newlwp(rump_sys_getpid()));
 
 	RZ(rump_pub_lwproc_rfork(RUMP_RFCFDG));
 	l2 = rump_pub_lwproc_curlwp();

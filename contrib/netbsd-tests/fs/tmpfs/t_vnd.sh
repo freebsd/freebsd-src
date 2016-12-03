@@ -1,4 +1,4 @@
-# $NetBSD: t_vnd.sh,v 1.8 2011/04/21 22:26:46 haad Exp $
+# $NetBSD: t_vnd.sh,v 1.9 2016/07/29 05:23:24 pgoyette Exp $
 #
 # Copyright (c) 2006, 2007, 2008 The NetBSD Foundation, Inc.
 # All rights reserved.
@@ -38,7 +38,7 @@ basic_body() {
 
 	atf_check -s eq:0 -o ignore -e ignore \
 	    dd if=/dev/zero of=disk.img bs=1m count=10
-	atf_check -s eq:0 -o empty -e empty vnconfig /dev/vnd3 disk.img
+	atf_check -s eq:0 -o empty -e empty vndconfig /dev/vnd3 disk.img
 
 	atf_check -s eq:0 -o ignore -e ignore newfs /dev/rvnd3a
 
@@ -58,7 +58,7 @@ basic_body() {
 	done
 
 	atf_check -s eq:0 -o empty -e empty umount mnt
-	atf_check -s eq:0 -o empty -e empty vnconfig -u /dev/vnd3
+	atf_check -s eq:0 -o empty -e empty vndconfig -u /dev/vnd3
 
 	test_unmount
 	touch done
@@ -66,7 +66,7 @@ basic_body() {
 basic_cleanup() {
 	if [ ! -f done ]; then
 		umount mnt 2>/dev/null 1>&2
-		vnconfig -u /dev/vnd3 2>/dev/null 1>&2
+		vndconfig -u /dev/vnd3 2>/dev/null 1>&2
 	fi
 }
 

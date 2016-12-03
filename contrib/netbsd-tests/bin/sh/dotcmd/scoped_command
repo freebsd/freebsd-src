@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $NetBSD: scoped_command,v 1.1 2014/05/31 14:29:06 christos Exp $
+# $NetBSD: scoped_command,v 1.2 2016/03/27 14:57:50 christos Exp $
 #
 # Copyright (c) 2014 The NetBSD Foundation, Inc.
 # All rights reserved.
@@ -30,6 +30,27 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
+: ${TEST_SH:=/bin/sh}
+
+sane_sh()
+{
+	set -- ${TEST_SH}
+	case "$#" in
+	(0)   set /bin/sh;;
+	(1|2) ;;
+	(*)   set "$1";;   # Just ignore options if we cannot make them work
+	esac
+
+	case "$1" in
+	/*)	TEST_SH="$1${2+ }$2";;
+	./*)	TEST_SH="${PWD}${1#.}${2+ }$2";;
+	*/*)	TEST_SH="${PWD}/$1${2+ }$2";;
+	*)	TEST_SH="$( command -v "$1" )${2+ }$2";;
+	esac
+}
+
+sane_sh
+
 set -e
 
 # USAGE:
@@ -52,7 +73,7 @@ cmd="echo 'before ${3}'
 ${2}
 echo 'after ${3}, return value:' ${?}"
 
-echo "#!/bin/sh"
+echo "#!${TEST_SH}"
 
 [ 'func' = "${1}" ] && cat <<EOF
 func()
