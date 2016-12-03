@@ -61,9 +61,7 @@ __FBSDID("$FreeBSD$");
  * Bind a socket to a privileged IP port
  */
 int
-bindresvport(sd, sin)
-	int sd;
-	struct sockaddr_in *sin;
+bindresvport(int sd, struct sockaddr_in *sin)
 {
 	return bindresvport_sa(sd, (struct sockaddr *)sin);
 }
@@ -72,9 +70,7 @@ bindresvport(sd, sin)
  * Bind a socket to a privileged IP port
  */
 int
-bindresvport_sa(sd, sa)
-	int sd;
-	struct sockaddr *sa;
+bindresvport_sa(int sd, struct sockaddr *sa)
 {
 	int old, error, af;
 	struct sockaddr_storage myaddr;
