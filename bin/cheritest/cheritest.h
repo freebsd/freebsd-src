@@ -102,6 +102,8 @@ extern struct cheritest_child_state *ccsp;
 #define	CT_FLAG_SIGNAL_UNWIND	0x00000080  /* Should fault and unwind
 					       trusted stack; checks signum
 					       and result. */
+#define	CT_FLAG_SANDBOX		0x00000100  /* Test requires that a libcheri
+					     * sandbox be created. */
 
 #define	CHERITEST_SANDBOX_UNWOUND	0x123456789ULL
 
