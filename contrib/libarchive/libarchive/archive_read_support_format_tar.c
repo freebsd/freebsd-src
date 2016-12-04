@@ -324,11 +324,7 @@ validate_number_field(const char* p_field, size_t i_size)
 		while (i < i_size && p_field[i] == ' ') {
 			++i;
 		}
-		/* Must be at least one octal digit. */
-		if (i >= i_size || p_field[i] < '0' || p_field[i] > '7') {
-			return 0;
-		}
-		/* Skip remaining octal digits. */
+		/* Skip octal digits. */
 		while (i < i_size && p_field[i] >= '0' && p_field[i] <= '7') {
 			++i;
 		}
