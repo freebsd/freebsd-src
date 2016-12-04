@@ -2967,7 +2967,7 @@ mmu_booke_change_attr(mmu_t mmu, vm_offset_t addr, vm_size_t sz,
 	for (va = addr; va < addr + sz; va += PAGE_SIZE) {
 		pte = pte_find(mmu, kernel_pmap, va);
 		*pte &= ~(PTE_MAS2_MASK << PTE_MAS2_SHIFT);
-		*pte |= tlb_calc_wimg(PTE_PA(pte), mode << PTE_MAS2_SHIFT);
+		*pte |= tlb_calc_wimg(PTE_PA(pte), mode) << PTE_MAS2_SHIFT;
 		tlb0_flush_entry(va);
 	}
 	tlb_miss_unlock();
