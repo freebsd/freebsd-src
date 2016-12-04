@@ -39,7 +39,7 @@ coredump_phnum_head()
 }
 coredump_phnum_body()
 {
-	atf_expect_fail "the value parsed doesn't always match the value obtained on the running system; bug # 215019"
+	atf_expect_fail "elftoolchain (base) readelf doesn't handle extended program header numbers; bug # 215019"
 
 	# Set up core dumping
 	cat > coredump_phnum_restore_state.sh <<-EOF
@@ -65,17 +65,17 @@ EOF
 	# the result of running the helper program and dumping core.  The only
 	# important bit is that they're larger than 65535 (UINT16_MAX).
 	readelf -h coredump_phnum_helper.core | \
-	    atf_check -o "match:65535 \(66169\)" \
+	    atf_check -o "match:65535 \(66[0-9]{3}\)" \
 	    grep "Number of program headers:"
 	readelf -l coredump_phnum_helper.core | \
-	    atf_check -o "match:There are 66169 program headers" \
+	    atf_check -o "match:There are 66[0-9]{3} program headers" \
 	    grep -1 "program headers"
 	readelf -S coredump_phnum_helper.core | \
-	    atf_check -o "match: 0000000000000001 .* 66169 " \
+	    atf_check -o "match: 0000000000000001 .* 66[0-9]{3} " \
 	    grep -A1 "^  \[ 0\] "
 
 	procstat -v coredump_phnum_helper.core | \
-	    atf_check -o "match:66545" wc -l
+	    atf_check -o "match:66[0-9]{3}" wc -l
 }
 coredump_phnum_cleanup()
 {
