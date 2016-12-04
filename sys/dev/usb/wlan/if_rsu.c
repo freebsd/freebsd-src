@@ -24,7 +24,6 @@ __FBSDID("$FreeBSD$");
  * TODO:
  *   o h/w crypto
  *   o hostap / ibss / mesh
- *   o sensible RSSI levels
  *   o power-save operation
  */
 
@@ -216,9 +215,7 @@ static void	rsu_event_survey(struct rsu_softc *, uint8_t *, int);
 static void	rsu_event_join_bss(struct rsu_softc *, uint8_t *, int);
 static void	rsu_rx_event(struct rsu_softc *, uint8_t, uint8_t *, int);
 static void	rsu_rx_multi_event(struct rsu_softc *, uint8_t *, int);
-#if 0
 static int8_t	rsu_get_rssi(struct rsu_softc *, int, void *);
-#endif
 static struct mbuf * rsu_rx_copy_to_mbuf(struct rsu_softc *,
 		    struct r92s_rx_stat *, int);
 static struct ieee80211_node * rsu_rx_frame(struct rsu_softc *, struct mbuf *,
@@ -1806,7 +1803,6 @@ rsu_rx_multi_event(struct rsu_softc *sc, uint8_t *buf, int len)
 	}
 }
 
-#if 0
 static int8_t
 rsu_get_rssi(struct rsu_softc *sc, int rate, void *physt)
 {
@@ -1827,7 +1823,6 @@ rsu_get_rssi(struct rsu_softc *sc, int rate, void *physt)
 	}
 	return (rssi);
 }
-#endif
 
 static struct mbuf *
 rsu_rx_copy_to_mbuf(struct rsu_softc *sc, struct r92s_rx_stat *stat,
@@ -1886,13 +1881,13 @@ rsu_rx_frame(struct rsu_softc *sc, struct mbuf *m, int8_t *rssi_p)
 	rate = MS(rxdw3, R92S_RXDW3_RATE);
 	infosz = MS(rxdw0, R92S_RXDW0_INFOSZ) * 8;
 
-#if 0
 	/* Get RSSI from PHY status descriptor if present. */
-	if (infosz != 0)
+	if (infosz != 0 && (rxdw0 & R92S_RXDW0_PHYST))
 		*rssi_p = rsu_get_rssi(sc, rate, &stat[1]);
-	else
-#endif
-		*rssi_p = 0;
+	else {
+		/* Cheat and get the last calibrated RSSI */
+		*rssi_p = rsu_hwrssi_to_rssi(sc, sc->sc_currssi);
+	}
 
 	if (ieee80211_radiotap_active(ic)) {
 		struct rsu_rx_radiotap_header *tap = &sc->sc_rxtap;
@@ -1920,11 +1915,8 @@ rsu_rx_frame(struct rsu_softc *sc, struct mbuf *m, int8_t *rssi_p)
 			/* Bit 7 set means HT MCS instead of rate. */
 			tap->wr_rate = 0x80 | (rate - 12);
 		}
-#if 0
-		tap->wr_dbm_antsignal = *rssi;
-#endif
-		/* XXX not nice */
-		tap->wr_dbm_antsignal = rsu_hwrssi_to_rssi(sc, sc->sc_currssi);
+
+		tap->wr_dbm_antsignal = *rssi_p;
 		tap->wr_chan_freq = htole16(ic->ic_curchan->ic_freq);
 		tap->wr_chan_flags = htole16(ic->ic_curchan->ic_flags);
 	};
@@ -2075,9 +2067,6 @@ tr_setup:
 			m->m_next = NULL;
 
 			ni = rsu_rx_frame(sc, m, &rssi);
-
-			/* Cheat and get the last calibrated RSSI */
-			rssi = rsu_hwrssi_to_rssi(sc, sc->sc_currssi);
 			RSU_UNLOCK(sc);
 
 			if (ni != NULL) {
@@ -2988,9 +2977,6 @@ rsu_init(struct rsu_softc *sc)
 	/* Enable Rx TCP checksum offload. */
 	rsu_write_4(sc, R92S_RCR,
 	    rsu_read_4(sc, R92S_RCR) | 0x04000000);
-	/* Append PHY status. */
-	rsu_write_4(sc, R92S_RCR,
-	    rsu_read_4(sc, R92S_RCR) | 0x02000000);
 
 	rsu_write_4(sc, R92S_CR,
 	    rsu_read_4(sc, R92S_CR) & ~0xff000000);
@@ -3025,6 +3011,10 @@ rsu_init(struct rsu_softc *sc)
 		device_printf(sc->sc_dev, "could not set MAC address\n");
 		goto fail;
 	}
+
+	/* Append PHY status. */
+	rsu_write_4(sc, R92S_RCR,
+	    rsu_read_4(sc, R92S_RCR) | 0x02000000);
 
 	/* Setup multicast filter (must be done after firmware loading). */
 	rsu_set_multi(sc);
