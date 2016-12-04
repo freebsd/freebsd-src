@@ -830,9 +830,10 @@ clknode_set_freq(struct clknode *clknode, uint64_t freq, int flags,
 	 * OR
 	 *   clock is glitch free and is enabled by calling consumer only
 	 */
-	if ((clknode->enable_cnt > 1) &&
-	    ((clknode->enable_cnt > enablecnt) ||
-	    !(clknode->flags & CLK_NODE_GLITCH_FREE))) {
+	if ((flags & CLK_SET_DRYRUN) == 0 &&
+	    clknode->enable_cnt > 1 &&
+	    clknode->enable_cnt > enablecnt &&
+	    (clknode->flags & CLK_NODE_GLITCH_FREE) == 0) {
 		return (EBUSY);
 	}
 
@@ -856,9 +857,10 @@ clknode_set_freq(struct clknode *clknode, uint64_t freq, int flags,
 
 	if (done) {
 		/* Success - invalidate frequency cache for all children. */
-		clknode->freq = freq;
-		if ((flags & CLK_SET_DRYRUN) == 0)
+		if ((flags & CLK_SET_DRYRUN) == 0) {
+			clknode->freq = freq;
 			clknode_refresh_cache(clknode, parent_freq);
+		}
 	} else if (clknode->parent != NULL) {
 		/* Nothing changed, pass request to parent. */
 		rv = clknode_set_freq(clknode->parent, freq, flags, enablecnt);
