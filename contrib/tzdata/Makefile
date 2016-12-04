@@ -542,7 +542,8 @@ force_tzs:	$(TZS_NEW)
 		cp $(TZS_NEW) $(TZS)
 
 libtz.a:	$(LIBOBJS)
-		$(AR) ru $@ $(LIBOBJS)
+		rm -f $@
+		$(AR) -rc $@ $(LIBOBJS)
 		$(RANLIB) $@
 
 date:		$(DATEOBJS)

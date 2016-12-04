@@ -8,6 +8,7 @@ Theory and pragmatics of the tz code and data
 	Time zone abbreviations
 	Accuracy of the tz database
 	Time and date functions
+	Interface stability
 	Calendrical issues
 	Time and time zones on Mars
 
@@ -342,12 +343,24 @@ Errors in the tz database arise from many sources:
    non-hour-based system at night.
 
  * Early clocks were less reliable, and data entries do not represent
-   this unreliability.
+   clock error.
 
- * As for leap seconds, civil time was not based on atomic time before
-   1972, and we don't know the history of earth's rotation accurately
-   enough to map SI seconds to historical solar time to more than
-   about one-hour accuracy.  See: Morrison LV, Stephenson FR.
+ * The tz database assumes Universal Time (UT) as an origin, even
+   though UT is not standardized for older time stamps.  In the tz
+   database commentary, UT denotes a family of time standards that
+   includes Coordinated Universal Time (UTC) along with other variants
+   such as UT1 and GMT, with days starting at midnight.  Although UT
+   equals UTC for modern time stamps, UTC was not defined until 1960,
+   so commentary uses the more-general abbreviation UT for time stamps
+   that might predate 1960.  Since UT, UT1, etc. disagree slightly,
+   and since pre-1972 UTC seconds varied in length, interpretation of
+   older time stamps can be problematic when subsecond accuracy is
+   needed.
+
+ * Civil time was not based on atomic time before 1972, and we don't
+   know the history of earth's rotation accurately enough to map SI
+   seconds to historical solar time to more than about one-hour
+   accuracy.  See: Morrison LV, Stephenson FR.
    Historical values of the Earth's clock error Delta T and the
    calculation of eclipses. J Hist Astron. 2004;35:327-36
    <http://adsabs.harvard.edu/full/2004JHA....35..327M>;
@@ -601,10 +614,14 @@ The tz code and data supply the following interfaces:
 
  * The format of the country code file, documented in iso3166.tab.
 
-When these interfaces are changed, an effort is made to preserve
-backward compatibility.  For example, tz data files typically do not
-rely on recently-added zic features, so that users can run older zic
-versions to process newer data files.
+ * The version number of the code and data, as the first line of
+   the text file 'version' in each release.
+
+Interface changes in a release attempt to preserve compatibility with
+recent releases.  For example, tz data files typically do not rely on
+recently-added zic features, so that users can run older zic versions
+to process newer data files.  The tz-link.htm file describes how
+releases are tagged and distributed.
 
 Interfaces not listed above are less stable.  For example, users
 should not rely on particular UT offsets or abbreviations for time
