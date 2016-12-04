@@ -111,6 +111,7 @@ static const struct {
 	{ HDA_CODEC_ALC889, 0,		"Realtek ALC889" },
 	{ HDA_CODEC_ALC892, 0,		"Realtek ALC892" },
 	{ HDA_CODEC_ALC899, 0,		"Realtek ALC899" },
+	{ HDA_CODEC_ALC1150, 0,		"Realtek ALC1150" },
 	{ HDA_CODEC_AD1882, 0,		"Analog Devices AD1882" },
 	{ HDA_CODEC_AD1882A, 0,		"Analog Devices AD1882A" },
 	{ HDA_CODEC_AD1883, 0,		"Analog Devices AD1883" },
