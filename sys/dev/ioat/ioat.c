@@ -486,8 +486,9 @@ ioat3_attach(device_t device)
 	ringsz = sizeof(struct ioat_dma_hw_descriptor) * num_descriptors;
 
 	error = bus_dma_tag_create(bus_get_dma_tag(ioat->device),
-	    2 * 1024 * 1024, 0x0, BUS_SPACE_MAXADDR_40BIT, BUS_SPACE_MAXADDR,
-	    NULL, NULL, ringsz, 1, ringsz, 0, NULL, NULL, &ioat->hw_desc_tag);
+	    2 * 1024 * 1024, 0x0, (bus_addr_t)BUS_SPACE_MAXADDR_40BIT,
+	    BUS_SPACE_MAXADDR, NULL, NULL, ringsz, 1, ringsz, 0, NULL, NULL,
+	    &ioat->hw_desc_tag);
 	if (error != 0)
 		return (error);
 
