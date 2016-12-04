@@ -28,7 +28,7 @@
 .\"     @(#)open.2	8.2 (Berkeley) 11/16/93
 .\" $FreeBSD$
 .\"
-.Dd April 2, 2015
+.Dd November 22, 2016
 .Dt OPEN 2
 .Os
 .Sh NAME
@@ -471,6 +471,22 @@ The
 .Fn openat
 function was introduced in
 .Fx 8.0 .
+.Sh STANDARDS
+These functions are specified by
+.St -p1003.1-2008 .
+.Fx
+sets
+.Va errno
+to
+.Er EMLINK instead of
+.Er ELOOP
+as specified by
+.Tn POSIX
+when
+.Dv O_NOFOLLOW
+is set in flags and the final component of pathname is a symbolic link
+to distinguish it from the case of too many symbolic link traversals
+in one of its non-final components.
 .Sh BUGS
 The Open Group Extended API Set 2 specification requires that the test
 for whether
