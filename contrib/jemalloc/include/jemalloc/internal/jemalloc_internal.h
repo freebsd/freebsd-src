@@ -357,12 +357,12 @@ typedef unsigned szind_t;
 /* Return the nearest aligned address at or below a. */
 #ifndef __CHERI_PURE_CAPABILITY__
 #define	ALIGNMENT_ADDR2BASE(a, alignment)				\
-	((void *)((uintptr_t)(a) & (-(alignment))))
+	((void *)((uintptr_t)(a) & ((~(alignment)) + 1)))
 #else
 /* XXX-CHERI: Rederive from $ddc. */
 #define	ALIGNMENT_ADDR2BASE(a, alignment)				\
 	cheri_setoffset(cheri_getdefault(),				\
-	((vaddr_t)(a) - (vaddr_t)cheri_getdefault()) & (-(alignment)))
+	((vaddr_t)(a) - (vaddr_t)cheri_getdefault()) & ((~(alignment)) + 1))
 #endif
 
 /* Return the offset between a and the nearest aligned address at or below a. */
@@ -371,7 +371,7 @@ typedef unsigned szind_t;
 
 /* Return the smallest alignment multiple that is >= s. */
 #define	ALIGNMENT_CEILING(s, alignment)					\
-	(((s) + (alignment - 1)) & (-(alignment)))
+	(((s) + (alignment - 1)) & ((~(alignment)) + 1))
 
 /* Declare a variable-length array. */
 #if __STDC_VERSION__ < 199901L

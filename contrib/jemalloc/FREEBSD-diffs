@@ -1,5 +1,5 @@
 diff --git a/doc/jemalloc.xml.in b/doc/jemalloc.xml.in
-index 3d2e721..b361db2 100644
+index d9c8345..9898c3c 100644
 --- a/doc/jemalloc.xml.in
 +++ b/doc/jemalloc.xml.in
 @@ -53,11 +53,23 @@
@@ -47,10 +47,10 @@ index 3d2e721..b361db2 100644
 +  </refsect1>
  </refentry>
 diff --git a/include/jemalloc/internal/arena.h b/include/jemalloc/internal/arena.h
-index f39ce54..a3ba55d 100644
+index ce4e602..35360b6 100644
 --- a/include/jemalloc/internal/arena.h
 +++ b/include/jemalloc/internal/arena.h
-@@ -719,8 +719,13 @@ arena_miscelm_get_mutable(arena_chunk_t *chunk, size_t pageind)
+@@ -730,8 +730,13 @@ arena_miscelm_get_mutable(arena_chunk_t *chunk, size_t pageind)
  JEMALLOC_ALWAYS_INLINE const arena_chunk_map_misc_t *
  arena_miscelm_get_const(const arena_chunk_t *chunk, size_t pageind)
  {
@@ -64,7 +64,7 @@ index f39ce54..a3ba55d 100644
  }
  
  JEMALLOC_ALWAYS_INLINE size_t
-@@ -779,8 +784,13 @@ arena_mapbitsp_get_mutable(arena_chunk_t *chunk, size_t pageind)
+@@ -790,8 +795,13 @@ arena_mapbitsp_get_mutable(arena_chunk_t *chunk, size_t pageind)
  JEMALLOC_ALWAYS_INLINE const size_t *
  arena_mapbitsp_get_const(const arena_chunk_t *chunk, size_t pageind)
  {
@@ -79,7 +79,7 @@ index f39ce54..a3ba55d 100644
  
  JEMALLOC_ALWAYS_INLINE size_t
 diff --git a/include/jemalloc/internal/jemalloc_internal.h.in b/include/jemalloc/internal/jemalloc_internal.h.in
-index fdc8fef..56a35a4 100644
+index e7ace7d..d86c61d 100644
 --- a/include/jemalloc/internal/jemalloc_internal.h.in
 +++ b/include/jemalloc/internal/jemalloc_internal.h.in
 @@ -8,6 +8,9 @@
@@ -144,10 +144,10 @@ index b442d2d..76518db 100644
  
  #endif /* JEMALLOC_H_EXTERNS */
 diff --git a/include/jemalloc/internal/private_symbols.txt b/include/jemalloc/internal/private_symbols.txt
-index 87c8c9b..df576f6 100644
+index c1c6c40..c6395fd 100644
 --- a/include/jemalloc/internal/private_symbols.txt
 +++ b/include/jemalloc/internal/private_symbols.txt
-@@ -307,7 +307,6 @@ iralloct_realign
+@@ -310,7 +310,6 @@ iralloct_realign
  isalloc
  isdalloct
  isqalloc
@@ -335,7 +335,7 @@ index f943891..47d032c 100755
 +#include "jemalloc_FreeBSD.h"
  EOF
 diff --git a/src/jemalloc.c b/src/jemalloc.c
-index 38650ff..f659b55 100644
+index baead66..8a49f26 100644
 --- a/src/jemalloc.c
 +++ b/src/jemalloc.c
 @@ -4,6 +4,10 @@
@@ -349,7 +349,7 @@ index 38650ff..f659b55 100644
  /* Runtime configuration options. */
  const char	*je_malloc_conf
  #ifndef _WIN32
-@@ -2756,6 +2760,107 @@ je_malloc_usable_size(JEMALLOC_USABLE_SIZE_CONST void *ptr)
+@@ -2775,6 +2779,107 @@ je_malloc_usable_size(JEMALLOC_USABLE_SIZE_CONST void *ptr)
   */
  /******************************************************************************/
  /*
@@ -457,7 +457,7 @@ index 38650ff..f659b55 100644
   * The following functions are used by threading libraries for protection of
   * malloc during fork().
   */
-@@ -2894,4 +2999,11 @@ jemalloc_postfork_child(void)
+@@ -2913,4 +3018,11 @@ jemalloc_postfork_child(void)
  	ctl_postfork_child(tsd_tsdn(tsd));
  }
  
@@ -516,7 +516,7 @@ index 6333e73..13f8d79 100644
 +#endif
 +}
 diff --git a/src/util.c b/src/util.c
-index 7905267..bee1c77 100644
+index dd8c236..a4ff287 100755
 --- a/src/util.c
 +++ b/src/util.c
 @@ -67,6 +67,22 @@ wrtmessage(void *cbopaque, const char *s)
