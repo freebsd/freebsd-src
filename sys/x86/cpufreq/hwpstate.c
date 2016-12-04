@@ -198,7 +198,7 @@ hwpstate_goto_pstate(device_t dev, int pstate)
 			}
 			DELAY(100);
 		}
-		HWPSTATE_DEBUG(dev, "result  P%d-state on cpu%d\n",
+		HWPSTATE_DEBUG(dev, "result: P%d-state on cpu%d\n",
 		    (int)msr, PCPU_GET(cpuid));
 		if (msr != id) {
 			HWPSTATE_DEBUG(dev, "error: loop is not enough.\n");
@@ -367,7 +367,8 @@ hwpstate_probe(device_t dev)
 		 */
 		msr = rdmsr(MSR_AMD_10H_11H_LIMIT);
 		if (sc->cfnum != 1 + AMD_10H_11H_GET_PSTATE_MAX_VAL(msr)) {
-			HWPSTATE_DEBUG(dev, "msr and acpi _PSS count mismatch.\n");
+			HWPSTATE_DEBUG(dev, "MSR (%jd) and ACPI _PSS (%d)"
+			    " count mismatch\n", (intmax_t)msr, sc->cfnum);
 			error = TRUE;
 		}
 	}
@@ -427,7 +428,8 @@ hwpstate_get_info_from_msr(device_t dev)
 			hwpstate_set[i].freq = (100 * (fid + 0x10)) >> did;
 			break;
 		default:
-			HWPSTATE_DEBUG(dev, "get_info_from_msr: AMD family 0x%02x CPU's are not implemented yet. sorry.\n", family);
+			HWPSTATE_DEBUG(dev, "get_info_from_msr: AMD family"
+			    " 0x%02x CPUs are not supported yet\n", family);
 			return (ENXIO);
 		}
 		hwpstate_set[i].pstate_id = i;

@@ -104,7 +104,8 @@ element is the number of bytes to write.
 The
 .Va last
 element is a boolean flag.
-It is non-zero when additional write commands will follow.
+It must be zero when additional read commands will follow, or non-zero if this
+is the last command.
 The
 .Va buf
 element is a pointer to the data to write to the bus.
@@ -120,11 +121,12 @@ The
 element is ignored.
 The
 .Va count
-element is the number of bytes to write.
+element is the number of bytes to read.
 The
 .Va last
 element is a boolean flag.
-It is non-zero when additional write commands will follow.
+It must be zero when additional read commands will follow, or non-zero if this
+is the last command.
 The
 .Va buf
 element is a pointer to where to store the data read from the bus.

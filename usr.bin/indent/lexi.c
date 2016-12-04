@@ -57,7 +57,9 @@ __FBSDID("$FreeBSD$");
 #include "indent.h"
 
 #define alphanum 1
+#ifdef undef
 #define opchar 3
+#endif
 
 struct templ {
     const char *rwd;
@@ -70,6 +72,7 @@ struct templ {
  */
 struct templ specials[] =
 {
+    {"auto", 10},
     {"break", 9},
     {"case", 8},
     {"char", 4},
@@ -79,7 +82,7 @@ struct templ specials[] =
     {"double", 4},
     {"else", 6},
     {"enum", 3},
-    {"extern", 4},
+    {"extern", 10},
     {"float", 4},
     {"for", 5},
     {"global", 4},
@@ -88,14 +91,14 @@ struct templ specials[] =
     {"int", 4},
     {"long", 4},
     {"offsetof", 1},
-    {"register", 4},
+    {"register", 10},
     {"return", 9},
     {"short", 4},
     {"sizeof", 2},
-    {"static", 4},
+    {"static", 10},
     {"struct", 3},
     {"switch", 7},
-    {"typedef", 4},
+    {"typedef", 10},
     {"union", 3},
     {"unsigned", 4},
     {"void", 4},
@@ -312,6 +315,9 @@ lexi(void)
 	    case 6:		/* do, else */
 		return (sp_nparen);
 
+	    case 10:		/* storage class specifier */
+		return (storage);
+
 	    default:		/* all others are treated like any other
 				 * identifier */
 		return (ident);
@@ -323,7 +329,8 @@ lexi(void)
 		if (*tp++ == ')' && (*tp == ';' || *tp == ','))
 		    goto not_proc;
 	    strncpy(ps.procname, token, sizeof ps.procname - 1);
-	    ps.in_parameter_declaration = 1;
+	    if (ps.in_decl)
+		ps.in_parameter_declaration = 1;
 	    rparen_count = 1;
     not_proc:;
 	}

@@ -207,8 +207,8 @@ struct rtwn_softc {
 	int			vaps_running;
 	int			monvaps_running;
 
-	uint16_t	next_rom_addr;
-	uint8_t		keys_bmap[roundup2(RTWN_CAM_ENTRY_LIMIT, NBBY)];
+	uint16_t		next_rom_addr;
+	uint8_t			keys_bmap[howmany(RTWN_CAM_ENTRY_LIMIT, NBBY)];
 
 	struct rtwn_vap		*vaps[RTWN_PORT_COUNT];
 	struct ieee80211_node	*node_list[RTWN_MACID_LIMIT];

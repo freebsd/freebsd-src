@@ -529,6 +529,29 @@ ath_compute_num_delims(struct ath_softc *sc, struct ath_buf *first_bf,
 }
 
 /*
+ * XXX TODO: put into net80211
+ */
+static int
+ath_rx_ampdu_to_byte(char a)
+{
+	switch (a) {
+	case IEEE80211_HTCAP_MAXRXAMPDU_16K:
+		return 16384;
+		break;
+	case IEEE80211_HTCAP_MAXRXAMPDU_32K:
+		return 32768;
+		break;
+	case IEEE80211_HTCAP_MAXRXAMPDU_64K:
+		return 65536;
+		break;
+	case IEEE80211_HTCAP_MAXRXAMPDU_8K:
+	default:
+		return 8192;
+		break;
+	}
+}
+
+/*
  * Fetch the aggregation limit.
  *
  * It's the lowest of the four rate series 4ms frame length.
@@ -540,6 +563,8 @@ static int
 ath_get_aggr_limit(struct ath_softc *sc, struct ieee80211_node *ni,
     struct ath_buf *bf)
 {
+	struct ieee80211vap *vap = ni->ni_vap;
+
 #define	MS(_v, _f)	(((_v) & _f) >> _f##_S)
 	int amin = ATH_AGGR_MAXSIZE;
 	int i;
@@ -548,25 +573,15 @@ ath_get_aggr_limit(struct ath_softc *sc, struct ieee80211_node *ni,
 	if (sc->sc_aggr_limit > 0 && sc->sc_aggr_limit < ATH_AGGR_MAXSIZE)
 		amin = sc->sc_aggr_limit;
 
+	/* Check the vap configured transmit limit */
+	amin = MIN(amin, ath_rx_ampdu_to_byte(vap->iv_ampdu_limit));
+
 	/*
 	 * Check the HTCAP field for the maximum size the node has
 	 * negotiated.  If it's smaller than what we have, cap it there.
 	 */
-	switch (MS(ni->ni_htparam, IEEE80211_HTCAP_MAXRXAMPDU)) {
-	case IEEE80211_HTCAP_MAXRXAMPDU_16K:
-		amin = MIN(amin, 16384);
-		break;
-	case IEEE80211_HTCAP_MAXRXAMPDU_32K:
-		amin = MIN(amin, 32768);
-		break;
-	case IEEE80211_HTCAP_MAXRXAMPDU_64K:
-		amin = MIN(amin, 65536);
-		break;
-	case IEEE80211_HTCAP_MAXRXAMPDU_8K:
-	default:
-		amin = MIN(amin, 8192);
-		break;
-	}
+	amin = MIN(amin, ath_rx_ampdu_to_byte(MS(ni->ni_htparam,
+	    IEEE80211_HTCAP_MAXRXAMPDU)));
 
 	for (i = 0; i < ATH_RC_NUM; i++) {
 		if (bf->bf_state.bfs_rc[i].tries == 0)

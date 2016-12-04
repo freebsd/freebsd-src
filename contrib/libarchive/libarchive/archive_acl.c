@@ -94,6 +94,7 @@ archive_acl_clear(struct archive_acl *acl)
 		acl->acl_text = NULL;
 	}
 	acl->acl_p = NULL;
+	acl->acl_types = 0;
 	acl->acl_state = 0; /* Not counting. */
 }
 
@@ -284,8 +285,11 @@ acl_new_entry(struct archive_acl *acl,
 	aq = NULL;
 	while (ap != NULL) {
 		if (ap->type == type && ap->tag == tag && ap->id == id) {
-			ap->permset = permset;
-			return (ap);
+			if (id != -1 || (tag != ARCHIVE_ENTRY_ACL_USER &&
+			    tag != ARCHIVE_ENTRY_ACL_GROUP)) {
+				ap->permset = permset;
+				return (ap);
+			}
 		}
 		aq = ap;
 		ap = ap->next;
