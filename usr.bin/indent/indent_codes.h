@@ -69,3 +69,4 @@
 #define elsehead	31
 #define period		32
 #define strpfx		33
+#define storage		34

@@ -219,7 +219,10 @@ static void	rsu_rx_multi_event(struct rsu_softc *, uint8_t *, int);
 #if 0
 static int8_t	rsu_get_rssi(struct rsu_softc *, int, void *);
 #endif
-static struct mbuf * rsu_rx_frame(struct rsu_softc *, uint8_t *, int);
+static struct mbuf * rsu_rx_copy_to_mbuf(struct rsu_softc *,
+		    struct r92s_rx_stat *, int);
+static struct ieee80211_node * rsu_rx_frame(struct rsu_softc *, struct mbuf *,
+		    int8_t *);
 static struct mbuf * rsu_rx_multi_frame(struct rsu_softc *, uint8_t *, int);
 static struct mbuf *
 		rsu_rxeof(struct usb_xfer *, struct rsu_data *);
@@ -1827,28 +1830,58 @@ rsu_get_rssi(struct rsu_softc *sc, int rate, void *physt)
 #endif
 
 static struct mbuf *
-rsu_rx_frame(struct rsu_softc *sc, uint8_t *buf, int pktlen)
+rsu_rx_copy_to_mbuf(struct rsu_softc *sc, struct r92s_rx_stat *stat,
+    int totlen)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
-	struct ieee80211_frame *wh;
+	struct mbuf *m;
+	uint32_t rxdw0;
+	int pktlen;
+
+	rxdw0 = le32toh(stat->rxdw0);
+	if (__predict_false(rxdw0 & R92S_RXDW0_CRCERR)) {
+		RSU_DPRINTF(sc, RSU_DEBUG_RX,
+		    "%s: RX flags error (CRC)\n", __func__);
+		goto fail;
+	}
+
+	pktlen = MS(rxdw0, R92S_RXDW0_PKTLEN);
+	if (__predict_false(pktlen < sizeof (struct ieee80211_frame_ack))) {
+		RSU_DPRINTF(sc, RSU_DEBUG_RX,
+		    "%s: frame is too short: %d\n", __func__, pktlen);
+		goto fail;
+	}
+
+	m = m_get2(totlen, M_NOWAIT, MT_DATA, M_PKTHDR);
+	if (__predict_false(m == NULL)) {
+		device_printf(sc->sc_dev, "%s: could not allocate RX mbuf\n",
+		    __func__);
+		goto fail;
+	}
+
+	/* Finalize mbuf. */
+	memcpy(mtod(m, uint8_t *), (uint8_t *)stat, totlen);
+	m->m_pkthdr.len = m->m_len = totlen;
+ 
+	return (m);
+fail:
+	counter_u64_add(ic->ic_ierrors, 1);
+	return (NULL);
+}
+
+static struct ieee80211_node *
+rsu_rx_frame(struct rsu_softc *sc, struct mbuf *m, int8_t *rssi_p)
+{
+	struct ieee80211com *ic = &sc->sc_ic;
+	struct ieee80211_frame_min *wh;
 	struct r92s_rx_stat *stat;
 	uint32_t rxdw0, rxdw3;
-	struct mbuf *m;
 	uint8_t rate;
 	int infosz;
 
-	stat = (struct r92s_rx_stat *)buf;
+	stat = mtod(m, struct r92s_rx_stat *);
 	rxdw0 = le32toh(stat->rxdw0);
 	rxdw3 = le32toh(stat->rxdw3);
-
-	if (__predict_false(rxdw0 & R92S_RXDW0_CRCERR)) {
-		counter_u64_add(ic->ic_ierrors, 1);
-		return NULL;
-	}
-	if (__predict_false(pktlen < sizeof(*wh) || pktlen > MCLBYTES)) {
-		counter_u64_add(ic->ic_ierrors, 1);
-		return NULL;
-	}
 
 	rate = MS(rxdw3, R92S_RXDW3_RATE);
 	infosz = MS(rxdw0, R92S_RXDW0_INFOSZ) * 8;
@@ -1856,35 +1889,17 @@ rsu_rx_frame(struct rsu_softc *sc, uint8_t *buf, int pktlen)
 #if 0
 	/* Get RSSI from PHY status descriptor if present. */
 	if (infosz != 0)
-		*rssi = rsu_get_rssi(sc, rate, &stat[1]);
+		*rssi_p = rsu_get_rssi(sc, rate, &stat[1]);
 	else
-		*rssi = 0;
 #endif
-
-	RSU_DPRINTF(sc, RSU_DEBUG_RX,
-	    "%s: Rx frame len=%d rate=%d infosz=%d\n",
-	    __func__, pktlen, rate, infosz);
-
-	m = m_get2(pktlen, M_NOWAIT, MT_DATA, M_PKTHDR);
-	if (__predict_false(m == NULL)) {
-		counter_u64_add(ic->ic_ierrors, 1);
-		return NULL;
-	}
-	/* Hardware does Rx TCP checksum offload. */
-	if (rxdw3 & R92S_RXDW3_TCPCHKVALID) {
-		if (__predict_true(rxdw3 & R92S_RXDW3_TCPCHKRPT))
-			m->m_pkthdr.csum_flags |= CSUM_DATA_VALID;
-	}
-	wh = (struct ieee80211_frame *)((uint8_t *)&stat[1] + infosz);
-	memcpy(mtod(m, uint8_t *), wh, pktlen);
-	m->m_pkthdr.len = m->m_len = pktlen;
+		*rssi_p = 0;
 
 	if (ieee80211_radiotap_active(ic)) {
 		struct rsu_rx_radiotap_header *tap = &sc->sc_rxtap;
 
 		/* Map HW rate index to 802.11 rate. */
-		tap->wr_flags = 2;
-		if (!(rxdw3 & R92S_RXDW3_HTC)) {
+		tap->wr_flags = 0;		/* TODO */
+		if (rate < 12) {
 			switch (rate) {
 			/* CCK. */
 			case  0: tap->wr_rate =   2; break;
@@ -1901,7 +1916,7 @@ rsu_rx_frame(struct rsu_softc *sc, uint8_t *buf, int pktlen)
 			case 10: tap->wr_rate =  96; break;
 			case 11: tap->wr_rate = 108; break;
 			}
-		} else if (rate >= 12) {	/* MCS0~15. */
+		} else {			/* MCS0~15. */
 			/* Bit 7 set means HT MCS instead of rate. */
 			tap->wr_rate = 0x80 | (rate - 12);
 		}
@@ -1912,9 +1927,26 @@ rsu_rx_frame(struct rsu_softc *sc, uint8_t *buf, int pktlen)
 		tap->wr_dbm_antsignal = rsu_hwrssi_to_rssi(sc, sc->sc_currssi);
 		tap->wr_chan_freq = htole16(ic->ic_curchan->ic_freq);
 		tap->wr_chan_flags = htole16(ic->ic_curchan->ic_flags);
+	};
+
+	/* Hardware does Rx TCP checksum offload. */
+	if (rxdw3 & R92S_RXDW3_TCPCHKVALID) {
+		if (__predict_true(rxdw3 & R92S_RXDW3_TCPCHKRPT))
+			m->m_pkthdr.csum_flags |= CSUM_DATA_VALID;
 	}
 
-	return (m);
+	/* Drop descriptor. */
+	m_adj(m, sizeof(*stat) + infosz);
+	wh = mtod(m, struct ieee80211_frame_min *);
+
+	RSU_DPRINTF(sc, RSU_DEBUG_RX,
+	    "%s: Rx frame len %d, rate %d, infosz %d\n",
+	    __func__, m->m_len, rate, infosz);
+
+	if (m->m_len >= sizeof(*wh))
+		return (ieee80211_find_rxnode(ic, wh));
+
+	return (NULL);
 }
 
 static struct mbuf *
@@ -1924,6 +1956,13 @@ rsu_rx_multi_frame(struct rsu_softc *sc, uint8_t *buf, int len)
 	uint32_t rxdw0;
 	int totlen, pktlen, infosz, npkts;
 	struct mbuf *m, *m0 = NULL, *prevm = NULL;
+
+	/*
+	 * don't pass packets to the ieee80211 framework if the driver isn't
+	 * RUNNING.
+	 */
+	if (!sc->sc_running)
+		return (NULL);
 
 	/* Get the number of encapsulated frames. */
 	stat = (struct r92s_rx_stat *)buf;
@@ -1950,7 +1989,7 @@ rsu_rx_multi_frame(struct rsu_softc *sc, uint8_t *buf, int len)
 			break;
 
 		/* Process 802.11 frame. */
-		m = rsu_rx_frame(sc, buf, pktlen);
+		m = rsu_rx_copy_to_mbuf(sc, stat, totlen);
 		if (m0 == NULL)
 			m0 = m;
 		if (prevm == NULL)
@@ -1998,10 +2037,10 @@ rsu_bulk_rx_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct rsu_softc *sc = usbd_xfer_softc(xfer);
 	struct ieee80211com *ic = &sc->sc_ic;
-	struct ieee80211_frame *wh;
 	struct ieee80211_node *ni;
 	struct mbuf *m = NULL, *next;
 	struct rsu_data *data;
+	int8_t rssi;
 
 	RSU_ASSERT_LOCKED(sc);
 
@@ -2016,10 +2055,6 @@ rsu_bulk_rx_callback(struct usb_xfer *xfer, usb_error_t error)
 		/* FALLTHROUGH */
 	case USB_ST_SETUP:
 tr_setup:
-		/*
-		 * XXX TODO: if we have an mbuf list, but then
-		 * we hit data == NULL, what now?
-		 */
 		data = STAILQ_FIRST(&sc->sc_rx_inactive);
 		if (data == NULL) {
 			KASSERT(m == NULL, ("mbuf isn't NULL"));
@@ -2035,18 +2070,16 @@ tr_setup:
 		 * ieee80211_input() because here is at the end of a USB
 		 * callback and safe to unlock.
 		 */
-		RSU_UNLOCK(sc);
 		while (m != NULL) {
-			int rssi;
+			next = m->m_next;
+			m->m_next = NULL;
+
+			ni = rsu_rx_frame(sc, m, &rssi);
 
 			/* Cheat and get the last calibrated RSSI */
 			rssi = rsu_hwrssi_to_rssi(sc, sc->sc_currssi);
+			RSU_UNLOCK(sc);
 
-			next = m->m_next;
-			m->m_next = NULL;
-			wh = mtod(m, struct ieee80211_frame *);
-			ni = ieee80211_find_rxnode(ic,
-			    (struct ieee80211_frame_min *)wh);
 			if (ni != NULL) {
 				if (ni->ni_flags & IEEE80211_NODE_HT)
 					m->m_flags |= M_AMPDU;
@@ -2054,9 +2087,10 @@ tr_setup:
 				ieee80211_free_node(ni);
 			} else
 				(void)ieee80211_input_all(ic, m, rssi, -96);
+
+			RSU_LOCK(sc);
 			m = next;
 		}
-		RSU_LOCK(sc);
 		break;
 	default:
 		/* needs it to the inactive queue due to a error. */
@@ -2936,9 +2970,6 @@ rsu_init(struct rsu_softc *sc)
 
 	/* Ensure the mbuf queue is drained */
 	rsu_drain_mbufq(sc);
-
-	/* Init host async commands ring. */
-	sc->cmdq.cur = sc->cmdq.next = sc->cmdq.queued = 0;
 
 	/* Reset power management state. */
 	rsu_write_1(sc, R92S_USB_HRPWM, 0);

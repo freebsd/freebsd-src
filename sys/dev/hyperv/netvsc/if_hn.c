@@ -55,8 +55,10 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_hn.h"
 #include "opt_inet6.h"
 #include "opt_inet.h"
+#include "opt_rss.h"
 
 #include <sys/param.h>
 #include <sys/bus.h>
@@ -86,6 +88,9 @@ __FBSDID("$FreeBSD$");
 #include <net/if_types.h>
 #include <net/if_var.h>
 #include <net/rndis.h>
+#ifdef RSS
+#include <net/rss_config.h>
+#endif
 
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
@@ -168,6 +173,12 @@ do {							\
 	    HN_RNDIS_PKT_LEN, (align))
 #define HN_PKTSIZE(m, align)		\
 	roundup2((m)->m_pkthdr.len + HN_RNDIS_PKT_LEN, (align))
+
+#ifdef RSS
+#define HN_RING_IDX2CPU(sc, idx)	rss_getcpu((idx) % rss_getnumbuckets())
+#else
+#define HN_RING_IDX2CPU(sc, idx)	(((sc)->hn_cpu + (idx)) % mp_ncpus)
+#endif
 
 struct hn_txdesc {
 #ifndef HN_USE_TXDESC_BUFRING
@@ -273,8 +284,10 @@ static int			hn_ndis_version_sysctl(SYSCTL_HANDLER_ARGS);
 static int			hn_caps_sysctl(SYSCTL_HANDLER_ARGS);
 static int			hn_hwassist_sysctl(SYSCTL_HANDLER_ARGS);
 static int			hn_rxfilter_sysctl(SYSCTL_HANDLER_ARGS);
+#ifndef RSS
 static int			hn_rss_key_sysctl(SYSCTL_HANDLER_ARGS);
 static int			hn_rss_ind_sysctl(SYSCTL_HANDLER_ARGS);
+#endif
 static int			hn_rss_hash_sysctl(SYSCTL_HANDLER_ARGS);
 static int			hn_txagg_size_sysctl(SYSCTL_HANDLER_ARGS);
 static int			hn_txagg_pkts_sysctl(SYSCTL_HANDLER_ARGS);
@@ -318,7 +331,9 @@ static int			hn_create_rx_data(struct hn_softc *, int);
 static void			hn_destroy_rx_data(struct hn_softc *);
 static int			hn_check_iplen(const struct mbuf *, int);
 static int			hn_set_rxfilter(struct hn_softc *);
+#ifndef RSS
 static int			hn_rss_reconfig(struct hn_softc *);
+#endif
 static void			hn_rss_ind_fixup(struct hn_softc *);
 static int			hn_rxpkt(struct hn_rx_ring *, const void *,
 				    int, const struct hn_rxinfo *);
@@ -411,10 +426,18 @@ SYSCTL_INT(_hw_hn, OID_AUTO, lro_entry_count, CTLFLAG_RDTUN,
 #endif
 #endif
 
-/* Use shared TX taskqueue */
-static int			hn_share_tx_taskq = 0;
-SYSCTL_INT(_hw_hn, OID_AUTO, share_tx_taskq, CTLFLAG_RDTUN,
-    &hn_share_tx_taskq, 0, "Enable shared TX taskqueue");
+static int			hn_tx_taskq_cnt = 1;
+SYSCTL_INT(_hw_hn, OID_AUTO, tx_taskq_cnt, CTLFLAG_RDTUN,
+    &hn_tx_taskq_cnt, 0, "# of TX taskqueues");
+
+#define HN_TX_TASKQ_M_INDEP	0
+#define HN_TX_TASKQ_M_GLOBAL	1
+#define HN_TX_TASKQ_M_EVTTQ	2
+
+static int			hn_tx_taskq_mode = HN_TX_TASKQ_M_INDEP;
+SYSCTL_INT(_hw_hn, OID_AUTO, tx_taskq_mode, CTLFLAG_RDTUN,
+    &hn_tx_taskq_mode, 0, "TX taskqueue modes: "
+    "0 - independent, 1 - share global tx taskqs, 2 - share event taskqs");
 
 #ifndef HN_USE_TXDESC_BUFRING
 static int			hn_use_txdesc_bufring = 0;
@@ -423,11 +446,6 @@ static int			hn_use_txdesc_bufring = 1;
 #endif
 SYSCTL_INT(_hw_hn, OID_AUTO, use_txdesc_bufring, CTLFLAG_RD,
     &hn_use_txdesc_bufring, 0, "Use buf_ring for TX descriptors");
-
-/* Bind TX taskqueue to the target CPU */
-static int			hn_bind_tx_taskq = -1;
-SYSCTL_INT(_hw_hn, OID_AUTO, bind_tx_taskq, CTLFLAG_RDTUN,
-    &hn_bind_tx_taskq, 0, "Bind TX taskqueue to the specified cpu");
 
 #ifdef HN_IFSTART_SUPPORT
 /* Use ifnet.if_start instead of ifnet.if_transmit */
@@ -470,8 +488,9 @@ SYSCTL_INT(_hw_hn, OID_AUTO, tx_agg_pkts, CTLFLAG_RDTUN,
     &hn_tx_agg_pkts, 0, "Packet transmission aggregation packet limit");
 
 static u_int			hn_cpu_index;	/* next CPU for channel */
-static struct taskqueue		*hn_tx_taskq;	/* shared TX taskqueue */
+static struct taskqueue		**hn_tx_taskque;/* shared TX taskqueues */
 
+#ifndef RSS
 static const uint8_t
 hn_rss_key_default[NDIS_HASH_KEYSIZE_TOEPLITZ] = {
 	0x6d, 0x5a, 0x56, 0xda, 0x25, 0x5b, 0x0e, 0xc2,
@@ -480,6 +499,7 @@ hn_rss_key_default[NDIS_HASH_KEYSIZE_TOEPLITZ] = {
 	0x77, 0xcb, 0x2d, 0xa3, 0x80, 0x30, 0xf2, 0x0c,
 	0x6a, 0x42, 0xb7, 0x3b, 0xbe, 0xac, 0x01, 0xfa
 };
+#endif	/* !RSS */
 
 static device_method_t hn_methods[] = {
 	/* Device interface */
@@ -777,6 +797,7 @@ hn_get_txswq_depth(const struct hn_tx_ring *txr)
 	return hn_tx_swq_depth;
 }
 
+#ifndef RSS
 static int
 hn_rss_reconfig(struct hn_softc *sc)
 {
@@ -815,6 +836,7 @@ hn_rss_reconfig(struct hn_softc *sc)
 	}
 	return (0);
 }
+#endif	/* !RSS */
 
 static void
 hn_rss_ind_fixup(struct hn_softc *sc)
@@ -903,25 +925,21 @@ hn_attach(device_t dev)
 	/*
 	 * Setup taskqueue for transmission.
 	 */
-	if (hn_tx_taskq == NULL) {
-		sc->hn_tx_taskq = taskqueue_create("hn_tx", M_WAITOK,
-		    taskqueue_thread_enqueue, &sc->hn_tx_taskq);
-		if (hn_bind_tx_taskq >= 0) {
-			int cpu = hn_bind_tx_taskq;
-			cpuset_t cpu_set;
+	if (hn_tx_taskq_mode == HN_TX_TASKQ_M_INDEP) {
+		int i;
 
-			if (cpu > mp_ncpus - 1)
-				cpu = mp_ncpus - 1;
-			CPU_SETOF(cpu, &cpu_set);
-			taskqueue_start_threads_cpuset(&sc->hn_tx_taskq, 1,
-			    PI_NET, &cpu_set, "%s tx",
-			    device_get_nameunit(dev));
-		} else {
-			taskqueue_start_threads(&sc->hn_tx_taskq, 1, PI_NET,
-			    "%s tx", device_get_nameunit(dev));
+		sc->hn_tx_taskqs =
+		    malloc(hn_tx_taskq_cnt * sizeof(struct taskqueue *),
+		    M_DEVBUF, M_WAITOK);
+		for (i = 0; i < hn_tx_taskq_cnt; ++i) {
+			sc->hn_tx_taskqs[i] = taskqueue_create("hn_tx",
+			    M_WAITOK, taskqueue_thread_enqueue,
+			    &sc->hn_tx_taskqs[i]);
+			taskqueue_start_threads(&sc->hn_tx_taskqs[i], 1, PI_NET,
+			    "%s tx%d", device_get_nameunit(dev), i);
 		}
-	} else {
-		sc->hn_tx_taskq = hn_tx_taskq;
+	} else if (hn_tx_taskq_mode == HN_TX_TASKQ_M_GLOBAL) {
+		sc->hn_tx_taskqs = hn_tx_taskque;
 	}
 
 	/*
@@ -967,6 +985,10 @@ hn_attach(device_t dev)
 	} else if (ring_cnt > mp_ncpus) {
 		ring_cnt = mp_ncpus;
 	}
+#ifdef RSS
+	if (ring_cnt > rss_getnumbuckets())
+		ring_cnt = rss_getnumbuckets();
+#endif
 
 	tx_ring_cnt = hn_tx_ring_cnt;
 	if (tx_ring_cnt <= 0 || tx_ring_cnt > ring_cnt)
@@ -1066,12 +1088,17 @@ hn_attach(device_t dev)
 	    hn_rss_hash_sysctl, "A", "RSS hash");
 	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "rss_ind_size",
 	    CTLFLAG_RD, &sc->hn_rss_ind_size, 0, "RSS indirect entry count");
+#ifndef RSS
+	/*
+	 * Don't allow RSS key/indirect table changes, if RSS is defined.
+	 */
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "rss_key",
 	    CTLTYPE_OPAQUE | CTLFLAG_RW | CTLFLAG_MPSAFE, sc, 0,
 	    hn_rss_key_sysctl, "IU", "RSS key");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "rss_ind",
 	    CTLTYPE_OPAQUE | CTLFLAG_RW | CTLFLAG_MPSAFE, sc, 0,
 	    hn_rss_ind_sysctl, "IU", "RSS indirect table");
+#endif
 	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "rndis_agg_size",
 	    CTLFLAG_RD, &sc->hn_rndis_agg_size, 0,
 	    "RNDIS offered packet transmission aggregation size limit");
@@ -1221,8 +1248,13 @@ hn_detach(device_t dev)
 	hn_destroy_rx_data(sc);
 	hn_destroy_tx_data(sc);
 
-	if (sc->hn_tx_taskq != hn_tx_taskq)
-		taskqueue_free(sc->hn_tx_taskq);
+	if (sc->hn_tx_taskqs != NULL && sc->hn_tx_taskqs != hn_tx_taskque) {
+		int i;
+
+		for (i = 0; i < hn_tx_taskq_cnt; ++i)
+			taskqueue_free(sc->hn_tx_taskqs[i]);
+		free(sc->hn_tx_taskqs, M_DEVBUF);
+	}
 	taskqueue_free(sc->hn_mgmt_taskq0);
 
 	if (sc->hn_xact != NULL) {
@@ -1422,10 +1454,12 @@ hn_txdesc_put(struct hn_tx_ring *txr, struct hn_txdesc *txd)
 	txr->hn_txdesc_avail++;
 	SLIST_INSERT_HEAD(&txr->hn_txlist, txd, link);
 	mtx_unlock_spin(&txr->hn_txlist_spin);
-#else
+#else	/* HN_USE_TXDESC_BUFRING */
+#ifdef HN_DEBUG
 	atomic_add_int(&txr->hn_txdesc_avail, 1);
-	buf_ring_enqueue(txr->hn_txdesc_br, txd);
 #endif
+	buf_ring_enqueue(txr->hn_txdesc_br, txd);
+#endif	/* !HN_USE_TXDESC_BUFRING */
 
 	return 1;
 }
@@ -1451,8 +1485,10 @@ hn_txdesc_get(struct hn_tx_ring *txr)
 
 	if (txd != NULL) {
 #ifdef HN_USE_TXDESC_BUFRING
+#ifdef HN_DEBUG
 		atomic_subtract_int(&txr->hn_txdesc_avail, 1);
 #endif
+#endif	/* HN_USE_TXDESC_BUFRING */
 		KASSERT(txd->m == NULL && txd->refs == 0 &&
 		    STAILQ_EMPTY(&txd->agg_list) &&
 		    txd->chim_index == HN_NVS_CHIM_IDX_INVALID &&
@@ -1913,17 +1949,20 @@ done:
 static int
 hn_txpkt(struct ifnet *ifp, struct hn_tx_ring *txr, struct hn_txdesc *txd)
 {
-	int error, send_failed = 0;
+	int error, send_failed = 0, has_bpf;
 
 again:
-	/*
-	 * Make sure that this txd and any aggregated txds are not freed
-	 * before ETHER_BPF_MTAP.
-	 */
-	hn_txdesc_hold(txd);
+	has_bpf = bpf_peers_present(ifp->if_bpf);
+	if (has_bpf) {
+		/*
+		 * Make sure that this txd and any aggregated txds are not
+		 * freed before ETHER_BPF_MTAP.
+		 */
+		hn_txdesc_hold(txd);
+	}
 	error = txr->hn_sendpkt(txr, txd);
 	if (!error) {
-		if (bpf_peers_present(ifp->if_bpf)) {
+		if (has_bpf) {
 			const struct hn_txdesc *tmp_txd;
 
 			ETHER_BPF_MTAP(ifp, txd->m);
@@ -1946,7 +1985,8 @@ again:
 		txr->hn_pkts += txr->hn_stat_pkts;
 		txr->hn_sends++;
 	}
-	hn_txdesc_put(txr, txd);
+	if (has_bpf)
+		hn_txdesc_put(txr, txd);
 
 	if (__predict_false(error)) {
 		int freed;
@@ -2890,6 +2930,8 @@ hn_rxfilter_sysctl(SYSCTL_HANDLER_ARGS)
 	return sysctl_handle_string(oidp, filter_str, sizeof(filter_str), req);
 }
 
+#ifndef RSS
+
 static int
 hn_rss_key_sysctl(SYSCTL_HANDLER_ARGS)
 {
@@ -2950,6 +2992,8 @@ back:
 	HN_UNLOCK(sc);
 	return (error);
 }
+
+#endif	/* !RSS */
 
 static int
 hn_rss_hash_sysctl(SYSCTL_HANDLER_ARGS)
@@ -3312,7 +3356,12 @@ hn_tx_ring_create(struct hn_softc *sc, int id)
 	    M_WAITOK, &txr->hn_tx_lock);
 #endif
 
-	txr->hn_tx_taskq = sc->hn_tx_taskq;
+	if (hn_tx_taskq_mode == HN_TX_TASKQ_M_EVTTQ) {
+		txr->hn_tx_taskq = VMBUS_GET_EVENT_TASKQ(
+		    device_get_parent(dev), dev, HN_RING_IDX2CPU(sc, id));
+	} else {
+		txr->hn_tx_taskq = sc->hn_tx_taskqs[id % hn_tx_taskq_cnt];
+	}
 
 #ifdef HN_IFSTART_SUPPORT
 	if (hn_use_if_start) {
@@ -3456,9 +3505,11 @@ hn_tx_ring_create(struct hn_softc *sc, int id)
 		if (txr->hn_tx_sysctl_tree != NULL) {
 			child = SYSCTL_CHILDREN(txr->hn_tx_sysctl_tree);
 
+#ifdef HN_DEBUG
 			SYSCTL_ADD_INT(ctx, child, OID_AUTO, "txdesc_avail",
 			    CTLFLAG_RD, &txr->hn_txdesc_avail, 0,
 			    "# of available TX descs");
+#endif
 #ifdef HN_IFSTART_SUPPORT
 			if (!hn_use_if_start)
 #endif
@@ -4063,8 +4114,17 @@ hn_transmit(struct ifnet *ifp, struct mbuf *m)
 	/*
 	 * Select the TX ring based on flowid
 	 */
-	if (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE)
-		idx = m->m_pkthdr.flowid % sc->hn_tx_ring_inuse;
+	if (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE) {
+#ifdef RSS
+		uint32_t bid;
+
+		if (rss_hash2bucket(m->m_pkthdr.flowid, M_HASHTYPE_GET(m),
+		    &bid) == 0)
+			idx = bid % sc->hn_tx_ring_inuse;
+		else
+#endif
+			idx = m->m_pkthdr.flowid % sc->hn_tx_ring_inuse;
+	}
 	txr = &sc->hn_tx_ring[idx];
 
 	error = drbr_enqueue(ifp, txr->hn_mbuf_br, m);
@@ -4205,7 +4265,7 @@ hn_chan_attach(struct hn_softc *sc, struct vmbus_channel *chan)
 	}
 
 	/* Bind this channel to a proper CPU. */
-	vmbus_chan_cpu_set(chan, (sc->hn_cpu + idx) % mp_ncpus);
+	vmbus_chan_cpu_set(chan, HN_RING_IDX2CPU(sc, idx));
 
 	/*
 	 * Open this channel
@@ -4520,7 +4580,11 @@ hn_synth_attach(struct hn_softc *sc, int mtu)
 		 */
 		if (bootverbose)
 			if_printf(sc->hn_ifp, "setup default RSS key\n");
+#ifdef RSS
+		rss_getkey(rss->rss_key);
+#else
 		memcpy(rss->rss_key, hn_rss_key_default, sizeof(rss->rss_key));
+#endif
 		sc->hn_flags |= HN_FLAG_HAS_RSSKEY;
 	}
 
@@ -4533,8 +4597,16 @@ hn_synth_attach(struct hn_softc *sc, int mtu)
 			if_printf(sc->hn_ifp, "setup default RSS indirect "
 			    "table\n");
 		}
-		for (i = 0; i < NDIS_HASH_INDCNT; ++i)
-			rss->rss_ind[i] = i % nchan;
+		for (i = 0; i < NDIS_HASH_INDCNT; ++i) {
+			uint32_t subidx;
+
+#ifdef RSS
+			subidx = rss_get_indirection_to_bucket(i);
+#else
+			subidx = i;
+#endif
+			rss->rss_ind[i] = subidx % nchan;
+		}
 		sc->hn_flags |= HN_FLAG_HAS_RSSIND;
 	} else {
 		/*
@@ -4610,6 +4682,14 @@ hn_set_ring_inuse(struct hn_softc *sc, int ring_cnt)
 	else
 		sc->hn_tx_ring_inuse = sc->hn_tx_ring_cnt;
 	sc->hn_rx_ring_inuse = ring_cnt;
+
+#ifdef RSS
+	if (sc->hn_rx_ring_inuse != rss_getnumbuckets()) {
+		if_printf(sc->hn_ifp, "# of RX rings (%d) does not match "
+		    "# of RSS buckets (%d)\n", sc->hn_rx_ring_inuse,
+		    rss_getnumbuckets());
+	}
+#endif
 
 	if (bootverbose) {
 		if_printf(sc->hn_ifp, "%d TX ring, %d RX ring\n",
@@ -5351,26 +5431,42 @@ hn_chan_callback(struct vmbus_channel *chan, void *xrxr)
 static void
 hn_tx_taskq_create(void *arg __unused)
 {
+	int i;
+
+	/*
+	 * Fix the # of TX taskqueues.
+	 */
+	if (hn_tx_taskq_cnt <= 0)
+		hn_tx_taskq_cnt = 1;
+	else if (hn_tx_taskq_cnt > mp_ncpus)
+		hn_tx_taskq_cnt = mp_ncpus;
+
+	/*
+	 * Fix the TX taskqueue mode.
+	 */
+	switch (hn_tx_taskq_mode) {
+	case HN_TX_TASKQ_M_INDEP:
+	case HN_TX_TASKQ_M_GLOBAL:
+	case HN_TX_TASKQ_M_EVTTQ:
+		break;
+	default:
+		hn_tx_taskq_mode = HN_TX_TASKQ_M_INDEP;
+		break;
+	}
 
 	if (vm_guest != VM_GUEST_HV)
 		return;
 
-	if (!hn_share_tx_taskq)
+	if (hn_tx_taskq_mode != HN_TX_TASKQ_M_GLOBAL)
 		return;
 
-	hn_tx_taskq = taskqueue_create("hn_tx", M_WAITOK,
-	    taskqueue_thread_enqueue, &hn_tx_taskq);
-	if (hn_bind_tx_taskq >= 0) {
-		int cpu = hn_bind_tx_taskq;
-		cpuset_t cpu_set;
-
-		if (cpu > mp_ncpus - 1)
-			cpu = mp_ncpus - 1;
-		CPU_SETOF(cpu, &cpu_set);
-		taskqueue_start_threads_cpuset(&hn_tx_taskq, 1, PI_NET,
-		    &cpu_set, "hn tx");
-	} else {
-		taskqueue_start_threads(&hn_tx_taskq, 1, PI_NET, "hn tx");
+	hn_tx_taskque = malloc(hn_tx_taskq_cnt * sizeof(struct taskqueue *),
+	    M_DEVBUF, M_WAITOK);
+	for (i = 0; i < hn_tx_taskq_cnt; ++i) {
+		hn_tx_taskque[i] = taskqueue_create("hn_tx", M_WAITOK,
+		    taskqueue_thread_enqueue, &hn_tx_taskque[i]);
+		taskqueue_start_threads(&hn_tx_taskque[i], 1, PI_NET,
+		    "hn tx%d", i);
 	}
 }
 SYSINIT(hn_txtq_create, SI_SUB_DRIVERS, SI_ORDER_SECOND,
@@ -5380,8 +5476,13 @@ static void
 hn_tx_taskq_destroy(void *arg __unused)
 {
 
-	if (hn_tx_taskq != NULL)
-		taskqueue_free(hn_tx_taskq);
+	if (hn_tx_taskque != NULL) {
+		int i;
+
+		for (i = 0; i < hn_tx_taskq_cnt; ++i)
+			taskqueue_free(hn_tx_taskque[i]);
+		free(hn_tx_taskque, M_DEVBUF);
+	}
 }
 SYSUNINIT(hn_txtq_destroy, SI_SUB_DRIVERS, SI_ORDER_SECOND,
     hn_tx_taskq_destroy, NULL);

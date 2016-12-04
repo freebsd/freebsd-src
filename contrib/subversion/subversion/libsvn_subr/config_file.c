@@ -74,6 +74,9 @@ typedef struct parse_context_t
   char parser_buffer[SVN__STREAM_CHUNK_SIZE]; /* Larger than most config files */
   size_t buffer_pos; /* Current position within parser_buffer */
   size_t buffer_size; /* parser_buffer contains this many bytes */
+
+  /* Non-zero if we hit EOF on the stream. */
+  svn_boolean_t hit_stream_eof;
 } parse_context_t;
 
 
@@ -101,11 +104,15 @@ parser_getc(parse_context_t *ctx, int *c)
         }
       else
         {
-          ctx->buffer_pos = 0;
-          ctx->buffer_size = sizeof(ctx->parser_buffer);
+          if (!ctx->hit_stream_eof)
+            {
+              ctx->buffer_pos = 0;
+              ctx->buffer_size = sizeof(ctx->parser_buffer);
 
-          SVN_ERR(svn_stream_read_full(ctx->stream, ctx->parser_buffer,
-                                       &(ctx->buffer_size)));
+              SVN_ERR(svn_stream_read_full(ctx->stream, ctx->parser_buffer,
+                                           &(ctx->buffer_size)));
+              ctx->hit_stream_eof = (ctx->buffer_size != sizeof(ctx->parser_buffer));
+            }
 
           if (ctx->buffer_pos < ctx->buffer_size)
             {
@@ -224,8 +231,10 @@ skip_bom(parse_context_t *ctx)
        * of the BOM characters into the parse_context_t buffer.  This can
        * safely be assumed as long as we only try to use skip_bom() at the
        * start of the stream and the buffer is longer than 3 characters. */
-      SVN_ERR_ASSERT(ctx->buffer_size > ctx->buffer_pos + 1);
-      if (buf[ctx->buffer_pos] == 0xBB && buf[ctx->buffer_pos + 1] == 0xBF)
+      SVN_ERR_ASSERT(ctx->buffer_size > ctx->buffer_pos + 1 ||
+                     ctx->hit_stream_eof);
+      if (ctx->buffer_size > ctx->buffer_pos + 1 &&
+          buf[ctx->buffer_pos] == 0xBB && buf[ctx->buffer_pos + 1] == 0xBF)
         ctx->buffer_pos += 2;
       else
         SVN_ERR(parser_ungetc(ctx, ch));
@@ -579,6 +588,7 @@ svn_config__parse_stream(svn_config_t *cfg, svn_stream_t *stream,
   ctx->value = svn_stringbuf_create_empty(scratch_pool);
   ctx->buffer_pos = 0;
   ctx->buffer_size = 0;
+  ctx->hit_stream_eof = FALSE;
 
   SVN_ERR(skip_bom(ctx));
 

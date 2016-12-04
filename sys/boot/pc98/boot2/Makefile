@@ -78,14 +78,14 @@ CLEANFILES+=	boot2 boot2.ld boot2.ldr boot2.bin boot2.out boot2.o \
 boot2: boot2.ld
 	@set -- `ls -l boot2.ld`; x=$$((7680-$$5)); \
 	    echo "$$x bytes available"; test $$x -ge 0
-	dd if=boot2.ld of=${.TARGET} obs=7680 conv=osync
+	${DD} if=boot2.ld of=${.TARGET} obs=7680 conv=osync
 
 boot2.ld: boot2.ldr boot2.bin ${BTXKERN}
 	btxld -v -E ${ORG2} -f bin -b ${BTXKERN} -l boot2.ldr \
 	    -o ${.TARGET} -P 1 boot2.bin
 
 boot2.ldr:
-	dd if=/dev/zero of=${.TARGET} bs=276 count=1
+	${DD} if=/dev/zero of=${.TARGET} bs=276 count=1
 
 boot2.bin: boot2.out
 	${OBJCOPY} -S -O binary boot2.out ${.TARGET}

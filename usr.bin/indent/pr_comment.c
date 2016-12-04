@@ -147,9 +147,16 @@ pr_comment(void)
 	}
     }
     if (ps.box_com) {
-	buf_ptr[-2] = 0;
-	ps.n_comment_delta = 1 - count_spaces(1, in_buffer);
-	buf_ptr[-2] = '/';
+	/*
+	 * Find out how much indentation there was originally, because that
+	 * much will have to be ignored by pad_output() in dump_line(). This
+	 * is a box comment, so nothing changes -- not even indentation.
+	 *
+	 * The comment we're about to read usually comes from in_buffer,
+	 * unless it has been copied into save_com.
+	 */
+	char *start = buf_ptr >= save_com && buf_ptr < save_com + sc_size ? bp_save : buf_ptr;
+	ps.n_comment_delta = 1 - count_spaces_until(1, in_buffer, start - 2);
     }
     else {
 	ps.n_comment_delta = 0;
@@ -286,7 +293,7 @@ pr_comment(void)
 			s_com = e_com;
 		    *e_com++ = ' ';
 		}
-		if (e_com[-1] != ' ' && !ps.box_com)
+		if (e_com[-1] != ' ' && e_com[-1] != '\t' && !ps.box_com)
 		    *e_com++ = ' ';	/* ensure blank before end */
 		*e_com++ = '*', *e_com++ = '/', *e_com = '\0';
 		ps.just_saw_decl = l_just_saw_decl;

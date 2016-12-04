@@ -32,13 +32,15 @@
 atf_test_case coredump_phnum cleanup
 coredump_phnum_head()
 {
-	atf_set "allow_sysctl_side_effects" "1"
 	atf_set "descr" "More than 65534 segments"
+	atf_set "require.config" "allow_sysctl_side_effects"
 	atf_set "require.progs" "readelf procstat"
 	atf_set "require.user" "root"
 }
 coredump_phnum_body()
 {
+	atf_expect_fail "the value parsed doesn't always match the value obtained on the running system; bug # 215019"
+
 	# Set up core dumping
 	cat > coredump_phnum_restore_state.sh <<-EOF
 	#!/bin/sh

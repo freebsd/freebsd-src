@@ -1442,6 +1442,15 @@ archive_entry_acl_add_entry_w(struct archive_entry *entry,
 }
 
 /*
+ * Return a bitmask of ACL types in an archive entry ACL list
+ */
+int
+archive_entry_acl_types(struct archive_entry *entry)
+{
+	return ((&entry->acl)->acl_types);
+}
+
+/*
  * Return a count of entries matching "want_type".
  */
 int

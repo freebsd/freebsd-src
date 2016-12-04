@@ -1001,3 +1001,5 @@ EVDEV_SUPPORT	opt_evdev.h
 EVDEV_DEBUG	opt_evdev.h
 UINPUT_DEBUG	opt_evdev.h
 
+# Hyper-V network driver
+HN_DEBUG	opt_hn.h

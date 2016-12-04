@@ -405,8 +405,6 @@ vmbus_chan_open_br(struct vmbus_channel *chan, const struct vmbus_chan_br *cbr,
 	/*
 	 * Connect the bufrings, both RX and TX, to this channel.
 	 */
-	KASSERT(chan->ch_bufring_gpadl == 0,
-	    ("bufring GPADL is still connected"));
 	error = vmbus_chan_gpadl_connect(chan, cbr->cbr_paddr,
 	    txbr_size + rxbr_size, &chan->ch_bufring_gpadl);
 	if (error) {

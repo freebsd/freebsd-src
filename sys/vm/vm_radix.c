@@ -308,8 +308,6 @@ SYSINIT(vm_radix_reserve_kva, SI_SUB_KMEM, SI_ORDER_THIRD,
 
 /*
  * Initialize the UMA slab zone.
- * Until vm_radix_prealloc() is called, the zone will be served by the
- * UMA boot-time pre-allocated pool of pages.
  */
 void
 vm_radix_init(void)
@@ -341,8 +339,6 @@ vm_radix_insert(struct vm_radix *rtree, vm_page_t page)
 
 	index = page->pindex;
 
-restart:
-
 	/*
 	 * The owner of record for root is not really important because it
 	 * will never be used.
@@ -360,32 +356,10 @@ restart:
 				panic("%s: key %jx is already present",
 				    __func__, (uintmax_t)index);
 			clev = vm_radix_keydiff(m->pindex, index);
-
-			/*
-			 * During node allocation the trie that is being
-			 * walked can be modified because of recursing radix
-			 * trie operations.
-			 * If this is the case, the recursing functions signal
-			 * such situation and the insert operation must
-			 * start from scratch again.
-			 * The freed radix node will then be in the UMA
-			 * caches very likely to avoid the same situation
-			 * to happen.
-			 */
-			rtree->rt_flags |= RT_INSERT_INPROG;
 			tmp = vm_radix_node_get(vm_radix_trimkey(index,
 			    clev + 1), 2, clev);
-			rtree->rt_flags &= ~RT_INSERT_INPROG;
-			if (tmp == NULL) {
-				rtree->rt_flags &= ~RT_TRIE_MODIFIED;
+			if (tmp == NULL)
 				return (ENOMEM);
-			}
-			if ((rtree->rt_flags & RT_TRIE_MODIFIED) != 0) {
-				rtree->rt_flags &= ~RT_TRIE_MODIFIED;
-				tmp->rn_count = 0;
-				vm_radix_node_put(tmp);
-				goto restart;
-			}
 			*parentp = tmp;
 			vm_radix_addpage(tmp, index, clev, page);
 			vm_radix_addpage(tmp, m->pindex, clev, m);
@@ -409,21 +383,9 @@ restart:
 	 */
 	newind = rnode->rn_owner;
 	clev = vm_radix_keydiff(newind, index);
-
-	/* See the comments above. */
-	rtree->rt_flags |= RT_INSERT_INPROG;
 	tmp = vm_radix_node_get(vm_radix_trimkey(index, clev + 1), 2, clev);
-	rtree->rt_flags &= ~RT_INSERT_INPROG;
-	if (tmp == NULL) {
-		rtree->rt_flags &= ~RT_TRIE_MODIFIED;
+	if (tmp == NULL)
 		return (ENOMEM);
-	}
-	if ((rtree->rt_flags & RT_TRIE_MODIFIED) != 0) {
-		rtree->rt_flags &= ~RT_TRIE_MODIFIED;
-		tmp->rn_count = 0;
-		vm_radix_node_put(tmp);
-		goto restart;
-	}
 	*parentp = tmp;
 	vm_radix_addpage(tmp, index, clev, page);
 	slot = vm_radix_slot(newind, clev);
@@ -708,20 +670,6 @@ vm_radix_remove(struct vm_radix *rtree, vm_pindex_t index)
 	vm_page_t m;
 	int i, slot;
 
-	/*
-	 * Detect if a page is going to be removed from a trie which is
-	 * already undergoing another trie operation.
-	 * Right now this is only possible for vm_radix_remove() recursing
-	 * into vm_radix_insert().
-	 * If this is the case, the caller must be notified about this
-	 * situation.  It will also takecare to update the RT_TRIE_MODIFIED
-	 * accordingly.
-	 * The RT_TRIE_MODIFIED bit is set here because the remove operation
-	 * will always succeed.
-	 */
-	if ((rtree->rt_flags & RT_INSERT_INPROG) != 0)
-		rtree->rt_flags |= RT_TRIE_MODIFIED;
-
 	rnode = vm_radix_getroot(rtree);
 	if (vm_radix_isleaf(rnode)) {
 		m = vm_radix_topage(rnode);
@@ -775,9 +723,6 @@ void
 vm_radix_reclaim_allnodes(struct vm_radix *rtree)
 {
 	struct vm_radix_node *root;
-
-	KASSERT((rtree->rt_flags & RT_INSERT_INPROG) == 0,
-	    ("vm_radix_reclaim_allnodes: unexpected trie recursion"));
 
 	root = vm_radix_getroot(rtree);
 	if (root == NULL)
