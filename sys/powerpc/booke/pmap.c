@@ -3483,7 +3483,7 @@ pmap_track_page(pmap_t pmap, vm_offset_t va)
 	vm_page_t page;
 	struct pv_entry *pve;
 
-	va &= ~PAGE_MASK;
+	va = trunc_page(va);
 	pa = pmap_kextract(va);
 
 	rw_wlock(&pvh_global_lock);
