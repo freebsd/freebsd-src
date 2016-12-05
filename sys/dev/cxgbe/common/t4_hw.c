@@ -429,6 +429,21 @@ int t4_wr_mbox_meat_timeout(struct adapter *adap, int mbox, const void *cmd,
 	CH_ERR(adap, "command %#x in mailbox %d timed out\n",
 	       *(const u8 *)cmd, mbox);
 
+	/* If DUMP_MBOX is set the mbox has already been dumped */
+	if ((adap->debug_flags & DF_DUMP_MBOX) == 0) {
+		p = cmd;
+		CH_ERR(adap, "mbox: %016llx %016llx %016llx %016llx "
+		    "%016llx %016llx %016llx %016llx\n",
+		    (unsigned long long)be64_to_cpu(p[0]),
+		    (unsigned long long)be64_to_cpu(p[1]),
+		    (unsigned long long)be64_to_cpu(p[2]),
+		    (unsigned long long)be64_to_cpu(p[3]),
+		    (unsigned long long)be64_to_cpu(p[4]),
+		    (unsigned long long)be64_to_cpu(p[5]),
+		    (unsigned long long)be64_to_cpu(p[6]),
+		    (unsigned long long)be64_to_cpu(p[7]));
+	}
+
 	t4_report_fw_error(adap);
 	t4_fatal_err(adap);
 	return ret;
