@@ -60,6 +60,9 @@ struct mbufq {
 
 #define USE_DDP_RX_FLOW_CONTROL
 
+#define PPOD_SZ(n)	((n) * sizeof(struct pagepod))
+#define PPOD_SIZE	(PPOD_SZ(1))
+
 /* TOE PCB flags */
 enum {
 	TPF_ATTACHED	   = (1 << 0),	/* a tcpcb refers to this toepcb */
@@ -90,14 +93,29 @@ struct ofld_tx_sdesc {
 	uint8_t tx_credits;	/* firmware tx credits (unit is 16B) */
 };
 
+struct ppod_region {
+	u_int pr_start;
+	u_int pr_len;
+	u_int pr_page_shift[4];
+	uint32_t pr_tag_mask;		/* hardware tagmask for this region. */
+	uint32_t pr_invalid_bit;	/* OR with this to invalidate tag. */
+	uint32_t pr_alias_mask;		/* AND with tag to get alias bits. */
+	u_int pr_alias_shift;		/* shift this much for first alias bit. */
+	vmem_t *pr_arena;
+};
+
+struct ppod_reservation {
+	struct ppod_region *prsv_pr;
+	uint32_t prsv_tag;		/* Full tag: pgsz, alias, tag, color */
+	u_int prsv_nppods;
+};
+
 struct ddp_buffer {
-	uint32_t tag;	/* includes color, page pod addr, and DDP page size */
-	u_int ppod_addr;
-	int nppods;
 	int offset;
 	int len;
 	int npages;
 	vm_page_t *pages;
+	struct ppod_reservation prsv;
 };
 
 struct toepcb {
@@ -206,8 +224,7 @@ struct tom_data {
 	u_long listen_mask;
 	int lctx_count;		/* # of lctx in the hash table */
 
-	u_int ppod_start;
-	vmem_t *ppod_arena;
+	struct ppod_region pr;
 
 	struct mtx clip_table_lock;
 	struct clip_head clip_table;
@@ -314,8 +331,17 @@ void t4_push_pdus(struct adapter *sc, struct toepcb *toep, int drop);
 int do_set_tcb_rpl(struct sge_iq *, const struct rss_header *, struct mbuf *);
 
 /* t4_ddp.c */
-void t4_init_ddp(struct adapter *, struct tom_data *);
-void t4_uninit_ddp(struct adapter *, struct tom_data *);
+int t4_init_ppod_region(struct ppod_region *, struct t4_range *, u_int,
+    const char *);
+void t4_free_ppod_region(struct ppod_region *);
+int t4_alloc_page_pods_for_db(struct ppod_region *, struct ddp_buffer *);
+int t4_alloc_page_pods_for_buf(struct ppod_region *, vm_offset_t, int,
+    struct ppod_reservation *);
+int t4_write_page_pods_for_db(struct adapter *, struct sge_wrq *, int,
+    struct ddp_buffer *);
+int t4_write_page_pods_for_buf(struct adapter *, struct sge_wrq *, int tid,
+    struct ppod_reservation *, vm_offset_t, int);
+void t4_free_page_pods(struct ppod_reservation *);
 int t4_soreceive_ddp(struct socket *, struct sockaddr **, struct uio *,
     struct mbuf **, struct mbuf **, int *);
 int t4_ddp_mod_load(void);
