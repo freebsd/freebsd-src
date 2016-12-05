@@ -332,7 +332,7 @@ t4_connect(struct toedev *tod, struct socket *so, struct rtentry *rt,
 	else
 		DONT_OFFLOAD_ACTIVE_OPEN(ENOTSUP);
 
-	toep = alloc_toepcb(vi, -1, -1, M_NOWAIT);
+	toep = alloc_toepcb(vi, -1, -1, M_NOWAIT | M_ZERO);
 	if (toep == NULL)
 		DONT_OFFLOAD_ACTIVE_OPEN(ENOMEM);
 
