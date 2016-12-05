@@ -1,32 +1,36 @@
 # This file is in the public domain, so clarified as of
 # 2009-05-17 by Arthur David Olson.
 
-# This data is by no means authoritative; if you think you know better,
+# This file is by no means authoritative; if you think you know better,
 # go ahead and edit the file (and please send any changes to
-# tz@iana.org for general use in the future).
+# tz@iana.org for general use in the future).  For more, please see
+# the file CONTRIBUTING in the tz distribution.
 
-# From Paul Eggert (2013-08-11):
+# From Paul Eggert (2015-08-08):
 #
-# A good source for time zone historical data outside the U.S. is
+# Unless otherwise specified, the source for data through 1990 is:
 # Thomas G. Shanks and Rique Pottenger, The International Atlas (6th edition),
 # San Diego: ACS Publications, Inc. (2003).
+# Unfortunately this book contains many errors and cites no sources.
 #
 # Gwillim Law writes that a good source
 # for recent time zone data is the International Air Transport
 # Association's Standard Schedules Information Manual (IATA SSIM),
 # published semiannually.  Law sent in several helpful summaries
-# of the IATA's data after 1990.
-#
-# Except where otherwise noted, Shanks & Pottenger is the source for
-# entries through 1990, and IATA SSIM is the source for entries afterwards.
+# of the IATA's data after 1990.  Except where otherwise noted,
+# IATA SSIM is the source for entries after 1990.
 #
 # Another source occasionally used is Edward W. Whitman, World Time Differences,
 # Whitman Publishing Co, 2 Niagara Av, Ealing, London (undated), which
 # I found in the UCLA library.
 #
 # For data circa 1899, a common source is:
-# Milne J. Civil time. Geogr J. 1899 Feb;13(2):173-94
-# <http://www.jstor.org/stable/1774359>.
+# Milne J. Civil time. Geogr J. 1899 Feb;13(2):173-94.
+# http://www.jstor.org/stable/1774359
+#
+# For Russian data circa 1919, a source is:
+# Byalokoz EL. New Counting of Time in Russia since July 1, 1919.
+# (See the 'europe' file for a fuller citation.)
 #
 # A reliable and entertaining source about time zones is
 # Derek Howse, Greenwich time and longitude, Philip Wilson Publishers (1997).
@@ -39,18 +43,20 @@
 #	2:00 EET  EEST	Eastern European Time
 #	2:00 IST  IDT	Israel
 #	3:00 AST  ADT	Arabia*
-#	3:30 IRST IRDT	Iran
+#	3:30 IRST IRDT	Iran*
 #	4:00 GST	Gulf*
 #	5:30 IST	India
-#	7:00 ICT	Indochina*
+#	7:00 ICT	Indochina, most times and locations*
 #	7:00 WIB	west Indonesia (Waktu Indonesia Barat)
 #	8:00 WITA	central Indonesia (Waktu Indonesia Tengah)
 #	8:00 CST	China
+#	8:00 IDT	Indochina, 1943-45, 1947-55, 1960-75 (some locations)*
 #	8:00 JWST	Western Standard Time (Japan, 1896/1937)*
+#	8:30 KST  KDT	Korea when at +0830*
 #	9:00 JCST	Central Standard Time (Japan, 1896/1937)
 #	9:00 WIT	east Indonesia (Waktu Indonesia Timur)
 #	9:00 JST  JDT	Japan
-#	9:00 KST  KDT	Korea
+#	9:00 KST  KDT	Korea when at +09
 #	9:30 ACST	Australian Central Standard Time
 #
 # See the 'europe' file for Russia and Turkey in Asia.
@@ -73,13 +79,9 @@ Rule E-EurAsia	1979	1995	-	Sep	lastSun	 0:00	0	-
 Rule E-EurAsia	1996	max	-	Oct	lastSun	 0:00	0	-
 Rule RussiaAsia	1981	1984	-	Apr	1	 0:00	1:00	S
 Rule RussiaAsia	1981	1983	-	Oct	1	 0:00	0	-
-Rule RussiaAsia	1984	1991	-	Sep	lastSun	 2:00s	0	-
-Rule RussiaAsia	1985	1991	-	Mar	lastSun	 2:00s	1:00	S
-Rule RussiaAsia	1992	only	-	Mar	lastSat	23:00	1:00	S
-Rule RussiaAsia	1992	only	-	Sep	lastSat	23:00	0	-
-Rule RussiaAsia	1993	max	-	Mar	lastSun	 2:00s	1:00	S
-Rule RussiaAsia	1993	1995	-	Sep	lastSun	 2:00s	0	-
-Rule RussiaAsia	1996	max	-	Oct	lastSun	 2:00s	0	-
+Rule RussiaAsia	1984	1995	-	Sep	lastSun	 2:00s	0	-
+Rule RussiaAsia	1985	2011	-	Mar	lastSun	 2:00s	1:00	S
+Rule RussiaAsia	1996	2011	-	Oct	lastSun	 2:00s	0	-
 
 # Afghanistan
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -114,36 +116,40 @@ Zone	Asia/Kabul	4:36:48 -	LMT	1890
 # http://www.worldtimezone.com/dst_news/dst_news_armenia03.html
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Yerevan	2:58:00 -	LMT	1924 May  2
-			3:00	-	YERT	1957 Mar    # Yerevan Time
-			4:00 RussiaAsia YER%sT	1991 Mar 31 2:00s
-			3:00	1:00	YERST	1991 Sep 23 # independence
-			3:00 RussiaAsia	AM%sT	1995 Sep 24 2:00s
-			4:00	-	AMT	1997
-			4:00 RussiaAsia	AM%sT	2012 Mar 25 2:00s
-			4:00	-	AMT
+			3:00	-	+03	1957 Mar
+			4:00 RussiaAsia +04/+05	1991 Mar 31  2:00s
+			3:00 RussiaAsia	+03/+04	1995 Sep 24  2:00s
+			4:00	-	+04	1997
+			4:00 RussiaAsia	+04/+05
 
 # Azerbaijan
+
 # From Rustam Aliyev of the Azerbaijan Internet Forum (2005-10-23):
 # According to the resolution of Cabinet of Ministers, 1997
-# Resolution available at: http://aif.az/docs/daylight_res.pdf
+# From Paul Eggert (2015-09-17): It was Resolution No. 21 (1997-03-17).
+# http://code.az/files/daylight_res.pdf
+
+# From Steffen Thorsen (2016-03-17):
+# ... the Azerbaijani Cabinet of Ministers has cancelled switching to
+# daylight saving time....
+# http://www.azernews.az/azerbaijan/94137.html
+# http://vestnikkavkaza.net/news/Azerbaijani-Cabinet-of-Ministers-cancels-daylight-saving-time.html
+# http://en.apa.az/xeber_azerbaijan_abolishes_daylight_savings_ti_240862.html
+
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Azer	1997	max	-	Mar	lastSun	 4:00	1:00	S
-Rule	Azer	1997	max	-	Oct	lastSun	 5:00	0	-
+Rule	Azer	1997	2015	-	Mar	lastSun	 4:00	1:00	S
+Rule	Azer	1997	2015	-	Oct	lastSun	 5:00	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Baku	3:19:24 -	LMT	1924 May  2
-			3:00	-	BAKT	1957 Mar    # Baku Time
-			4:00 RussiaAsia BAK%sT	1991 Mar 31 2:00s
-			3:00	1:00	BAKST	1991 Aug 30 # independence
-			3:00 RussiaAsia	AZ%sT	1992 Sep lastSat 23:00
-			4:00	-	AZT	1996 # Azerbaijan time
-			4:00	EUAsia	AZ%sT	1997
-			4:00	Azer	AZ%sT
+			3:00	-	+03	1957 Mar
+			4:00 RussiaAsia +04/+05	1991 Mar 31  2:00s
+			3:00 RussiaAsia	+03/+04	1992 Sep lastSun  2:00s
+			4:00	-	+04	1996
+			4:00	EUAsia	+04/+05	1997
+			4:00	Azer	+04/+05
 
 # Bahrain
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Asia/Bahrain	3:22:20 -	LMT	1920		# Manamah
-			4:00	-	GST	1972 Jun
-			3:00	-	AST
+# See Asia/Qatar.
 
 # Bangladesh
 # From Alexander Krivenyshev (2009-05-13):
@@ -219,7 +225,7 @@ Zone	Asia/Bahrain	3:22:20 -	LMT	1920		# Manamah
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Dhaka	2009	only	-	Jun	19	23:00	1:00	S
-Rule	Dhaka	2009	only	-	Dec	31	23:59	0	-
+Rule	Dhaka	2009	only	-	Dec	31	24:00	0	-
 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Dhaka	6:01:40 -	LMT	1890
@@ -250,7 +256,7 @@ Zone	Indian/Chagos	4:49:40	-	LMT	1907
 
 # Brunei
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Asia/Brunei	7:39:40 -	LMT	1926 Mar   # Bandar Seri Begawan
+Zone	Asia/Brunei	7:39:40 -	LMT	1926 Mar # Bandar Seri Begawan
 			7:30	-	BNT	1933
 			8:00	-	BNT
 
@@ -259,19 +265,15 @@ Zone	Asia/Brunei	7:39:40 -	LMT	1926 Mar   # Bandar Seri Begawan
 # Milne says 6:24:40 was the meridian of the time ball observatory at Rangoon.
 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Asia/Rangoon	6:24:40 -	LMT	1880		# or Yangon
-			6:24:40	-	RMT	1920	   # Rangoon Mean Time?
-			6:30	-	BURT	1942 May   # Burma Time
-			9:00	-	JST	1945 May 3
-			6:30	-	MMT		   # Myanmar Time
+Zone	Asia/Yangon	6:24:40 -	LMT	1880        # or Rangoon
+			6:24:40	-	RMT	1920        # Rangoon Mean Time?
+			6:30	-	BURT	1942 May    # Burma Time
+			9:00	-	JST	1945 May  3
+			6:30	-	MMT	# Myanmar Time
 
 # Cambodia
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Asia/Phnom_Penh	6:59:40 -	LMT	1906 Jun  9
-			7:06:20	-	SMT	1911 Mar 11 0:01 # Saigon MT?
-			7:00	-	ICT	1912 May
-			8:00	-	ICT	1931 May
-			7:00	-	ICT
+# See Asia/Bangkok.
+
 
 # China
 
@@ -356,8 +358,8 @@ Rule	PRC	1987	1991	-	Apr	Sun>=10	0:00	1:00	D
 #   * The Republic of China instituted Beijing mean solar time effective
 #     the official calendar book of 1914.
 #   * The French Concession in Shanghai set up signal stations in
-#     French docks in the 1890s, controled by Xujiahui (Zikawei)
-#     Obervatory and set to local mean time.
+#     French docks in the 1890s, controlled by Xujiahui (Zikawei)
+#     Observatory and set to local mean time.
 #   * "From the end of the 19th century" it changed to UT+8.
 #   * Chinese Customs (by then reduced to a tool of foreign powers)
 #     eventually standardized on this time for all ports, and it
@@ -378,35 +380,35 @@ Rule	PRC	1987	1991	-	Apr	Sun>=10	0:00	1:00	D
 # Lewiston (ME) Daily Sun (1939-05-29), p 17, said "Even the time is
 # different - the occupied districts going by Tokyo time, an hour
 # ahead of that prevailing in the rest of Shanghai."  Guess that the
-# Xujiahui Observatory was under French control and stuck with UT+8.
+# Xujiahui Observatory was under French control and stuck with UT +08.
 #
 # In earlier versions of this file, China had many separate Zone entries, but
-# this was based on what was apparently incorrect data in Shanks & Pottenger.
+# this was based on what were apparently incorrect data in Shanks & Pottenger.
 # This has now been simplified to the two entries Asia/Shanghai and
 # Asia/Urumqi, with the others being links for backward compatibility.
 # Proposed in 1918 and theoretically in effect until 1949 (although in practice
 # mainly observed in coastal areas), the five zones were:
 #
-# Changbai Time ("Long-white Time", Long-white = Heilongjiang area) UT+8.5
+# Changbai Time ("Long-white Time", Long-white = Heilongjiang area) UT +08:30
 # Asia/Harbin (currently a link to Asia/Shanghai)
 # Heilongjiang (except Mohe county), Jilin
 #
-# Zhongyuan Time ("Central plain Time") UT+8
+# Zhongyuan Time ("Central plain Time") UT +08
 # Asia/Shanghai
 # most of China
 # This currently represents most other zones as well,
 # as apparently these regions have been the same since 1970.
 # Milne gives 8:05:43.2 for Xujiahui Observatory time; round to nearest.
-# Guo says Shanghai switched to UT+8 "from the end of the 19th century".
+# Guo says Shanghai switched to UT +08 "from the end of the 19th century".
 #
-# Long-shu Time (probably due to Long and Shu being two names of that area) UT+7
+# Long-shu Time (probably due to Long and Shu being two names of the area) UT +07
 # Asia/Chongqing (currently a link to Asia/Shanghai)
 # Guangxi, Guizhou, Hainan, Ningxia, Sichuan, Shaanxi, and Yunnan;
 # most of Gansu; west Inner Mongolia; west Qinghai; and the Guangdong
 # counties Deqing, Enping, Kaiping, Luoding, Taishan, Xinxing,
 # Yangchun, Yangjiang, Yu'nan, and Yunfu.
 #
-# Xin-zang Time ("Xinjiang-Tibet Time") UT+6
+# Xin-zang Time ("Xinjiang-Tibet Time") UT +06
 # Asia/Urumqi
 # This currently represents Kunlun Time as well,
 # as apparently the two regions have been the same since 1970.
@@ -419,7 +421,7 @@ Rule	PRC	1987	1991	-	Apr	Sun>=10	0:00	1:00	D
 # Shihezi, Changji, Yanqi, Heshuo, Tuokexun, Tulufan, Shanshan, Hami,
 # Fukang, Kuitun, Kumukuli, Miquan, Qitai, and Turfan.
 #
-# Kunlun Time UT+5.5
+# Kunlun Time UT +05:30
 # Asia/Kashgar (currently a link to Asia/Urumqi)
 # West Tibet, including Pulan, Aheqi, Shufu, Shule;
 # West Xinjiang, including Aksu, Atushi, Yining, Hetian, Cele, Luopu, Nileke,
@@ -435,7 +437,7 @@ Rule	PRC	1987	1991	-	Apr	Sun>=10	0:00	1:00	D
 #
 # On the other hand, ethnic Uyghurs, who make up about half the
 # population of Xinjiang, typically use "Xinjiang time" which is two
-# hours behind Beijing time, or UTC +0600. The government of the Xinjiang
+# hours behind Beijing time, or UT +06. The government of the Xinjiang
 # Uyghur Autonomous Region, (XAUR, or just Xinjiang for short) as well as
 # local governments such as the Ürümqi city government use both times in
 # publications, referring to what is popularly called Xinjiang time as
@@ -491,8 +493,8 @@ Rule	PRC	1987	1991	-	Apr	Sun>=10	0:00	1:00	D
 # having the same time as Beijing.
 
 # From Paul Eggert (2014-06-30):
-# In the early days of the PRC, Tibet was given its own time zone (UT+6) but
-# this was withdrawn in 1959 and never reinstated; see Tubten Khétsun,
+# In the early days of the PRC, Tibet was given its own time zone (UT +06)
+# but this was withdrawn in 1959 and never reinstated; see Tubten Khétsun,
 # Memories of life in Lhasa under Chinese Rule, Columbia U Press, ISBN
 # 978-0231142861 (2008), translator's introduction by Matthew Akester, p x.
 # As this is before our 1970 cutoff, Tibet doesn't need a separate zone.
@@ -501,17 +503,17 @@ Rule	PRC	1987	1991	-	Apr	Sun>=10	0:00	1:00	D
 # "The Working-Calendar for The Xinjiang Uygur Autonomous Region Government"
 # <http://www.sinkiang.gov.cn/service/ourworking/> (2014-04-22).
 # Unfortunately, we have no good records of time in Xinjiang before 1986.
-# During the 20th century parts of Xinjiang were ruled by the Qing dyansty,
+# During the 20th century parts of Xinjiang were ruled by the Qing dynasty,
 # the Republic of China, various warlords, the First and Second East Turkestan
 # Republics, the Soviet Union, the Kuomintang, and the People's Republic of
 # China, and tracking down all these organizations' timekeeping rules would be
 # quite a trick.  Approximate this lost history by a transition from LMT to
-# XJT at the start of 1928, the year of accession of the warlord Jin Shuren,
+# UT +06 at the start of 1928, the year of accession of the warlord Jin Shuren,
 # which happens to be the date given by Shanks & Pottenger (no doubt as a
-# guess) as the transition from LMT.  Ignore the usage of UT+8 before
-# 1986-02-01 under the theory that the transition date to UT+8 is unknown and
+# guess) as the transition from LMT.  Ignore the usage of +08 before
+# 1986-02-01 under the theory that the transition date to +08 is unknown and
 # that the sort of users who prefer Asia/Urumqi now typically ignored the
-# UT+8 mandate back then.
+# +08 mandate back then.
 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 # Beijing time, used throughout China; represented by Shanghai.
@@ -698,25 +700,25 @@ Zone	Asia/Hong_Kong	7:36:42 -	LMT	1904 Oct 30
 # Central Weather Bureau website was not correct.
 #
 # Original Bulletin:
-# <http://subtpg.tpg.gov.tw/og/image2.asp?f=03502F0AKM1AF>
-# <http://subtpg.tpg.gov.tw/og/image2.asp?f=0350300AKM1B0> (cont.)
+# http://subtpg.tpg.gov.tw/og/image2.asp?f=03502F0AKM1AF
+# http://subtpg.tpg.gov.tw/og/image2.asp?f=0350300AKM1B0 (cont.)
 #
 # In 1947, DST in Taiwan was expanded to Oct 31. There is a backup of that
 # telegram announcement from Taiwan Province Government:
 #
-# <http://subtpg.tpg.gov.tw/og/image2.asp?f=0360310AKZ431>
+# http://subtpg.tpg.gov.tw/og/image2.asp?f=0360310AKZ431
 #
 # Here is a brief translation:
 #
 #   The Summer Time this year is adopted from midnight Apr 15 until Sep 20
 #   midnight. To save (energy?) consumption, we're expanding Summer Time
-#   adption till Oct 31 midnight.
+#   adoption till Oct 31 midnight.
 #
 # The Central Weather Bureau website didn't mention that, however it can
 # be found from historical government announcement database.
 
 # From Paul Eggert (2014-07-03):
-# As per Yu-Cheng Chuang, say that Taiwan was at UT+9 from 1937-10-01
+# As per Yu-Cheng Chuang, say that Taiwan was at UT +09 from 1937-10-01
 # until 1945-09-21 at 01:00, overriding Shanks & Pottenger.
 # Likewise, use Yu-Cheng Chuang's data for DST in Taiwan.
 
@@ -741,7 +743,7 @@ Rule	Taiwan	1979	only	-	Oct	1	0:00	0	S
 # Taipei or Taibei or T'ai-pei
 Zone	Asia/Taipei	8:06:00 -	LMT	1896 Jan  1
 			8:00	-	JWST	1937 Oct  1
-			9:00	-	JST	1945 Sep 21 01:00
+			9:00	-	JST	1945 Sep 21  1:00
 			8:00	Taiwan	C%sT
 
 # Macau (Macao, Aomen)
@@ -761,7 +763,7 @@ Rule	Macau	1975	1977	-	Apr	Sun>=15	3:30	1:00	S
 Rule	Macau	1978	1980	-	Apr	Sun>=15	0:00	1:00	S
 Rule	Macau	1978	1980	-	Oct	Sun>=15	0:00	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Asia/Macau	7:34:20 -	LMT	1912
+Zone	Asia/Macau	7:34:20 -	LMT	1912 Jan  1
 			8:00	Macau	MO%sT	1999 Dec 20 # return to China
 			8:00	PRC	C%sT
 
@@ -769,9 +771,19 @@ Zone	Asia/Macau	7:34:20 -	LMT	1912
 ###############################################################################
 
 # Cyprus
-#
+
 # Milne says the Eastern Telegraph Company used 2:14:00.  Stick with LMT.
+# IATA SSIM (1998-09) has Cyprus using EU rules for the first time.
+
+# From Paul Eggert (2016-09-09):
+# Yesterday's Cyprus Mail reports that Northern Cyprus followed Turkey's
+# lead and switched from +02/+03 to +03 year-round.
+# http://cyprus-mail.com/2016/09/08/two-time-zones-cyprus-turkey-will-not-turn-clocks-back-next-month/
 #
+# From Even Scharning (2016-10-31):
+# Looks like the time zone split in Cyprus went through last night.
+# http://cyprus-mail.com/2016/10/30/cyprus-new-division-two-time-zones-now-reality/
+
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Cyprus	1975	only	-	Apr	13	0:00	1:00	S
 Rule	Cyprus	1975	only	-	Oct	12	0:00	0	-
@@ -786,7 +798,10 @@ Rule	Cyprus	1981	1998	-	Mar	lastSun	0:00	1:00	S
 Zone	Asia/Nicosia	2:13:28 -	LMT	1921 Nov 14
 			2:00	Cyprus	EE%sT	1998 Sep
 			2:00	EUAsia	EE%sT
-# IATA SSIM (1998-09) has Cyprus using EU rules for the first time.
+Zone	Asia/Famagusta	2:15:48	-	LMT	1921 Nov 14
+			2:00	Cyprus	EE%sT	1998 Sep
+			2:00	EUAsia	EE%sT	2016 Sep  8
+			3:00	-	+03
 
 # Classically, Cyprus belongs to Asia; e.g. see Herodotus, Histories, I.72.
 # However, for various reasons many users expect to find it under Europe.
@@ -823,21 +838,22 @@ Link	Asia/Nicosia	Europe/Nicosia
 # I don't know what can be done, especially knowing that some years ago our
 # DST rules where changed THREE TIMES during one month.
 
-# Milne says Tbilisi (Tiflis) time was 2:59:05.7; round to nearest.)
+# Milne 1899 says Tbilisi (Tiflis) time was 2:59:05.7.
+# Byalokoz 1919 says Georgia was 2:59:11.
+# Go with Byalokoz.
 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Asia/Tbilisi	2:59:06 -	LMT	1880
-			2:59:06	-	TBMT	1924 May  2 # Tbilisi Mean Time
-			3:00	-	TBIT	1957 Mar    # Tbilisi Time
-			4:00 RussiaAsia TBI%sT	1991 Mar 31 2:00s
-			3:00	1:00	TBIST	1991 Apr  9 # independence
-			3:00 RussiaAsia GE%sT	1992 # Georgia Time
-			3:00 E-EurAsia	GE%sT	1994 Sep lastSun
-			4:00 E-EurAsia	GE%sT	1996 Oct lastSun
-			4:00	1:00	GEST	1997 Mar lastSun
-			4:00 E-EurAsia	GE%sT	2004 Jun 27
-			3:00 RussiaAsia	GE%sT	2005 Mar lastSun 2:00
-			4:00	-	GET
+Zone	Asia/Tbilisi	2:59:11 -	LMT	1880
+			2:59:11	-	TBMT	1924 May  2 # Tbilisi Mean Time
+			3:00	-	+03	1957 Mar
+			4:00 RussiaAsia +04/+05	1991 Mar 31  2:00s
+			3:00 RussiaAsia +03/+04	1992
+			3:00 E-EurAsia	+03/+04	1994 Sep lastSun
+			4:00 E-EurAsia	+04/+05	1996 Oct lastSun
+			4:00	1:00	+05	1997 Mar lastSun
+			4:00 E-EurAsia	+04/+05	2004 Jun 27
+			3:00 RussiaAsia	+03/+04	2005 Mar lastSun  2:00
+			4:00	-	+04
 
 # East Timor
 
@@ -864,16 +880,25 @@ Zone	Asia/Tbilisi	2:59:06 -	LMT	1880
 # midnight on Saturday, September 16.
 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Asia/Dili	8:22:20 -	LMT	1912
+Zone	Asia/Dili	8:22:20 -	LMT	1912 Jan  1
 			8:00	-	TLT	1942 Feb 21 23:00 # E Timor Time
 			9:00	-	JST	1945 Sep 23
 			9:00	-	TLT	1976 May  3
-			8:00	-	WITA	2000 Sep 17 00:00
+			8:00	-	WITA	2000 Sep 17  0:00
 			9:00	-	TLT
 
 # India
+
+# From Ian P. Beacock, in "A brief history of (modern) time", The Atlantic
+# http://www.theatlantic.com/technology/archive/2015/12/the-creation-of-modern-time/421419/
+# (2015-12-22):
+# In January 1906, several thousand cotton-mill workers rioted on the
+# outskirts of Bombay....  They were protesting the proposed abolition of
+# local time in favor of Indian Standard Time....  Journalists called this
+# dispute the "Battle of the Clocks."  It lasted nearly half a century.
+
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Asia/Kolkata	5:53:28 -	LMT	1880	# Kolkata
+Zone	Asia/Kolkata	5:53:28 -	LMT	1880        # Kolkata
 			5:53:20	-	HMT	1941 Oct    # Howrah Mean Time?
 			6:30	-	BURT	1942 May 15 # Burma Time
 			5:30	-	IST	1942 Sep
@@ -886,8 +911,12 @@ Zone	Asia/Kolkata	5:53:28 -	LMT	1880	# Kolkata
 
 # Indonesia
 #
+# From Paul Eggert (2014-09-06):
+# The 1876 Report of the Secretary of the [US] Navy, p 306 says that Batavia
+# civil time was 7:07:12.5; round to even for Jakarta.
+#
 # From Gwillim Law (2001-05-28), overriding Shanks & Pottenger:
-# <http://www.sumatera-inc.com/go_to_invest/about_indonesia.asp#standtime>
+# http://www.sumatera-inc.com/go_to_invest/about_indonesia.asp#standtime
 # says that Indonesia's time zones changed on 1988-01-01.  Looking at some
 # time zone maps, I think that must refer to Western Borneo (Kalimantan Barat
 # and Kalimantan Tengah) switching from UTC+8 to UTC+7.
@@ -901,7 +930,7 @@ Zone	Asia/Kolkata	5:53:28 -	LMT	1880	# Kolkata
 # These would be the earliest possible times for a change.
 # Régimes horaires pour le monde entier, by Henri Le Corre, (Éditions
 # Traditionnelles, 1987, Paris) says that Java and Madura switched
-# from JST to UTC+07:30 on 1945-09-23, and gives 1944-09-01 for Jayapura
+# from UT +09 to +07:30 on 1945-09-23, and gives 1944-09-01 for Jayapura
 # (Hollandia).  For now, assume all Indonesian locations other than Jayapura
 # switched on 1945-09-23.
 #
@@ -912,11 +941,11 @@ Zone	Asia/Kolkata	5:53:28 -	LMT	1880	# Kolkata
 # summary published by the Time and Frequency Laboratory of the
 # Research Center for Calibration, Instrumentation and Metrology,
 # Indonesia, <http://time.kim.lipi.go.id/time-eng.php> (2006-09-29).
-# The abbreviations are:
+# The time zone abbreviations and UT offsets are:
 #
-# WIB  - UTC+7 - Waktu Indonesia Barat (Indonesia western time)
-# WITA - UTC+8 - Waktu Indonesia Tengah (Indonesia central time)
-# WIT  - UTC+9 - Waktu Indonesia Timur (Indonesia eastern time)
+# WIB  - +07 - Waktu Indonesia Barat (Indonesia western time)
+# WITA - +08 - Waktu Indonesia Tengah (Indonesia central time)
+# WIT  - +09 - Waktu Indonesia Timur (Indonesia eastern time)
 #
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 # Java, Sumatra
@@ -924,7 +953,7 @@ Zone Asia/Jakarta	7:07:12 -	LMT	1867 Aug 10
 # Shanks & Pottenger say the next transition was at 1924 Jan 1 0:13,
 # but this must be a typo.
 			7:07:12	-	BMT	1923 Dec 31 23:47:12 # Batavia
-			7:20	-	JAVT	1932 Nov	 # Java Time
+			7:20	-	JAVT	1932 Nov    # Java Time
 			7:30	-	WIB	1942 Mar 23
 			9:00	-	JST	1945 Sep 23
 			7:30	-	WIB	1948 May
@@ -1023,7 +1052,7 @@ Zone Asia/Jayapura	9:22:48 -	LMT	1932 Nov
 #
 # From Roozbeh Pournader (2007-11-05):
 # This is quoted from Official Gazette of the Islamic Republic of
-# Iran, Volume 63, Number 18242, dated Tuesday 1386/6/24
+# Iran, Volume 63, No. 18242, dated Tuesday 1386/6/24
 # [2007-10-16]. I am doing the best translation I can:...
 # The official time of the country will be moved forward for one hour
 # on the 24 hours of the first day of the month of Farvardin and will
@@ -1078,11 +1107,18 @@ Rule	Iran	2032	2033	-	Mar	21	0:00	1:00	D
 Rule	Iran	2032	2033	-	Sep	21	0:00	0	S
 Rule	Iran	2034	2035	-	Mar	22	0:00	1:00	D
 Rule	Iran	2034	2035	-	Sep	22	0:00	0	S
-Rule	Iran	2036	2037	-	Mar	21	0:00	1:00	D
-Rule	Iran	2036	2037	-	Sep	21	0:00	0	S
+#
+# The following rules are approximations starting in the year 2038.
+# These are the best post-2037 approximations available, given the
+# restrictions of a single rule using a Gregorian-based data format.
+# At some point this table will need to be extended, though quite
+# possibly Iran will change the rules first.
+Rule	Iran	2036	max	-	Mar	21	0:00	1:00	D
+Rule	Iran	2036	max	-	Sep	21	0:00	0	S
+
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Tehran	3:25:44	-	LMT	1916
-			3:25:44	-	TMT	1946	# Tehran Mean Time
+			3:25:44	-	TMT	1946     # Tehran Mean Time
 			3:30	-	IRST	1977 Nov
 			4:00	Iran	IR%sT	1979
 			3:30	Iran	IR%sT
@@ -1127,7 +1163,7 @@ Rule	Iraq	1991	2007	-	Apr	 1	3:00s	1:00	D
 Rule	Iraq	1991	2007	-	Oct	 1	3:00s	0	S
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Baghdad	2:57:40	-	LMT	1890
-			2:57:36	-	BMT	1918	    # Baghdad Mean Time?
+			2:57:36	-	BMT	1918     # Baghdad Mean Time?
 			3:00	-	AST	1982 May
 			3:00	Iraq	A%sT
 
@@ -1355,7 +1391,7 @@ Rule	Zion	2013	max	-	Oct	lastSun	2:00	0	S
 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Jerusalem	2:20:54 -	LMT	1880
-			2:20:40	-	JMT	1918	# Jerusalem Mean Time?
+			2:20:40	-	JMT	1918 # Jerusalem Mean Time?
 			2:00	Zion	I%sT
 
 
@@ -1371,8 +1407,8 @@ Zone	Asia/Jerusalem	2:20:54 -	LMT	1880
 # daylight saving between 1948 and 1951, but "the system was discontinued
 # because the public believed it would lead to longer working hours."
 
-# From Mayumi Negishi in the 2005-08-10 Japan Times
-# <http://www.japantimes.co.jp/cgi-bin/getarticle.pl5?nn20050810f2.htm>:
+# From Mayumi Negishi in the 2005-08-10 Japan Times:
+# http://www.japantimes.co.jp/cgi-bin/getarticle.pl5?nn20050810f2.htm
 # Occupation authorities imposed daylight-saving time on Japan on
 # [1948-05-01]....  But lack of prior debate and the execution of
 # daylight-saving time just three days after the bill was passed generated
@@ -1396,7 +1432,8 @@ Rule	Japan	1950	1951	-	May	Sun>=1	2:00	1:00	D
 
 # From Hideyuki Suzuki (1998-11-09):
 # 'Tokyo' usually stands for the former location of Tokyo Astronomical
-# Observatory: 139 degrees 44' 40.90" E (9h 18m 58.727s), 35 degrees 39' 16.0" N.
+# Observatory: 139 degrees 44' 40.90" E (9h 18m 58.727s),
+# 35 degrees 39' 16.0" N.
 # This data is from 'Rika Nenpyou (Chronological Scientific Tables) 1996'
 # edited by National Astronomical Observatory of Japan....
 # JST (Japan Standard Time) has been used since 1888-01-01 00:00 (JST).
@@ -1535,24 +1572,7 @@ Zone	Asia/Amman	2:23:44 -	LMT	1931
 
 # Kazakhstan
 
-# From Paul Eggert (1996-11-22):
-# Andrew Evtichov (1996-04-13) writes that Kazakhstan
-# stayed in sync with Moscow after 1990, and that Aqtobe (formerly Aktyubinsk)
-# and Aqtau (formerly Shevchenko) are the largest cities in their zones.
-# Guess that Aqtau and Aqtobe diverged in 1995, since that's the first time
-# IATA SSIM mentions a third time zone in Kazakhstan.
-
-# From Paul Eggert (2006-03-22):
-# German Iofis, ELSI, Almaty (2001-10-09) reports that Kazakhstan uses
-# RussiaAsia rules, instead of switching at 00:00 as the IATA has it.
-# Go with Shanks & Pottenger, who have them always using RussiaAsia rules.
-# Also go with the following claims of Shanks & Pottenger:
-#
-# - Kazakhstan did not observe DST in 1991.
-# - Qyzylorda switched from +5:00 to +6:00 on 1992-01-19 02:00.
-# - Oral switched from +5:00 to +4:00 in spring 1989.
-
-# From Kazakhstan Embassy's News Bulletin #11
+# From Kazakhstan Embassy's News Bulletin No. 11
 # <http://www.kazsociety.org.uk/news/2005/03/30.htm> (2005-03-21):
 # The Government of Kazakhstan passed a resolution March 15 abolishing
 # daylight saving time citing lack of economic benefits and health
@@ -1568,68 +1588,239 @@ Zone	Asia/Amman	2:23:44 -	LMT	1931
 # everything else....  I guess that would make Kazakhstan time zones
 # de jure UTC+5 and UTC+6 respectively.
 
+# From Stepan Golosunov (2016-03-27) ([*] means see later comments below):
+# Review of the linked documents from http://adilet.zan.kz/
+# produced the following data for post-1991 Kazakhstan:
+#
+# 0. Act of the Cabinet of Ministers of the USSR
+# from 1991-02-04 No. 20
+# http://pravo.gov.ru/proxy/ips/?docbody=&nd=102010545
+# removed the extra hour ("decree time") on the territory of the USSR
+# starting with the last Sunday of March 1991.
+# It also allowed (but not mandated) Kazakh SSR, Kirghiz SSR, Tajik SSR,
+# Turkmen SSR and Uzbek SSR to not have "summer" time.
+#
+# The 1992-01-13 act also refers to the act of the Cabinet of Ministers
+# of the Kazakh SSR from 1991-03-20 No. 170 "About the act of the Cabinet
+# of Ministers of the USSR from 1991-02-04 No. 20" but I didn't found its
+# text.
+#
+# According to Izvestia newspaper No. 68 (23334) from 1991-03-20
+# (page 6; available at http://libinfo.org/newsr/newsr2574.djvu via
+# http://libinfo.org/index.php?id=58564) on 1991-03-31 at 2:00 during
+# transition to "summer" time:
+# Republic of Georgia, Latvian SSR, Lithuanian SSR, SSR Moldova,
+# Estonian SSR; Komi ASSR; Kaliningrad oblast; Nenets autonomous okrug
+# were to move clocks 1 hour forward.
+# Kazakh SSR (excluding Uralsk oblast); Republic of Kyrgyzstan, Tajik
+# SSR; Andijan, Jizzakh, Namangan, Sirdarya, Tashkent, Fergana oblasts
+# of the Uzbek SSR were to move clocks 1 hour backwards.
+# Other territories were to not move clocks.
+# When the "summer" time would end on 1991-09-29, clocks were to be
+# moved 1 hour backwards on the territory of the USSR excluding
+# Kazakhstan, Kirghizia, Uzbekistan, Turkmenia, Tajikistan.
+#
+# Apparently there were last minute changes. Apparently Kazakh act No. 170
+# was one of such changes.
+#
+# https://ru.wikipedia.org/wiki/Декретное время
+# claims that Sovetskaya Rossiya newspaper on 1991-03-29 published that
+# Nenets autonomous okrug, Komi and Kazakhstan (excluding Uralsk oblast)
+# were to not move clocks and Uralsk oblast was to move clocks
+# forward; on 1991-09-29 Kazakhstan was to move clocks backwards.
+# (Probably there were changes even after that publication. There is an
+# article claiming that Kaliningrad oblast decided on 1991-03-29 to not
+# move clocks.)
+#
+# This implies that on 1991-03-31 Asia/Oral remained on +04/+05 while
+# the rest of Kazakhstan switched from +06/+07 to +05/06 or from +05/06
+# to +04/+05. It's unclear how Kzyl-Orda oblast moved into the fifth
+# time belt. (By switching from +04/+05 to +05/+06 on 1991-09-29?) ...
+#
+# 1. Act of the Cabinet of Ministers of the Republic of Kazakhstan
+# from 1992-01-13 No. 28
+# http://adilet.zan.kz/rus/docs/P920000028_
+# (text includes modification from the 1996 act)
+# introduced new rules for calculation of time, mirroring Russian
+# 1992-01-08 act.  It specified that time would be calculated
+# according to time belts plus extra hour ("decree time"), moved clocks
+# on the whole territory of Kazakhstan 1 hour forward on 1992-01-19 at
+# 2:00, specified DST rules.  It acknowledged that Kazakhstan was
+# located in the fourth and the fifth time belts and specified the
+# border between them to be located east of Kustanay and Aktyubinsk
+# oblasts (notably including Turgai and Kzyl-Orda oblasts into the fifth
+# time belt).
+#
+# This means switch on 1992-01-19 at 2:00 from +04/+05 to +05/+06 for
+# Asia/Aqtau, Asia/Aqtobe, Asia/Oral, Atyrau and Kustanay oblasts; from
+# +05/+06 to +06/+07 for Asia/Almaty and Asia/Qyzylorda (and Arkalyk) [*]....
+#
+# 2. Act of the Cabinet of Ministers of the Republic of Kazakhstan
+# from 1992-03-27 No. 284
+# http://adilet.zan.kz/rus/docs/P920000284_
+# cancels extra hour ("decree time") for Uralsk and Kzyl-Orda oblasts
+# since the last Sunday of March 1992, while keeping them in the fourth
+# and the fifth time belts respectively.
+#
+# 3. Order of the Prime Minister of the Republic of Kazakhstan
+# from 1994-09-23 No. 384
+# http://adilet.zan.kz/rus/docs/R940000384_
+# cancels the extra hour ("decree time") on the territory of Mangystau
+# oblast since the last Sunday of September 1994 (saying that time on
+# the territory would correspond to the third time belt as a
+# result)....
+#
+# 4. Act of the Government of the Republic of Kazakhstan
+# from 1996-05-08 No. 575
+# http://adilet.zan.kz/rus/docs/P960000575_
+# amends the 1992-01-13 act to end summer time in October instead
+# of September, mirroring identical Russian change from 1996-04-23 act.
+#
+# 5. Act of the Government of the Republic of Kazakhstan
+# from 1999-03-26 No. 305
+# http://adilet.zan.kz/rus/docs/P990000305_
+# cancels the extra hour ("decree time") for Atyrau oblast since the
+# last Sunday of March 1999 while retaining the oblast in the fourth
+# time belt.
+#
+# This means change from +05/+06 to +04/+05.
+#
+# There is no zone for Atyrau currently (listed under Asia/Aqtau in
+# zone1970.tab).[*]
+#
+# 6. Act of the Government of the Republic of Kazakhstan
+# from 2000-11-23 No. 1749
+# http://adilet.zan.kz/rus/archive/docs/P000001749_/23.11.2000
+# replaces the previous five documents.
+#
+# The only changes I noticed are in definition of the border between the
+# fourth and the fifth time belts.  They account for changes in spelling
+# and administrative division (splitting of Turgai oblast in 1997
+# probably changed time in territories incorporated into Kostanay oblast
+# (including Arkalyk) from +06/+07 to +05/+06) and move Kyzylorda oblast
+# from being in the fifth time belt and not using decree time into the
+# fourth time belt (no change in practice).[*]
+#
+# 7. Act of the Government of the Republic of Kazakhstan
+# from 2003-12-29 No. 1342
+# http://adilet.zan.kz/rus/docs/P030001342_
+# modified the 2000-11-23 act.  No relevant changes, apparently.
+#
+# 8. Act of the Government of the Republic of Kazakhstan
+# from 2004-07-20 No. 775
+# http://adilet.zan.kz/rus/archive/docs/P040000775_/20.07.2004
+# modified the 2000-11-23 act to move Kostanay and Kyzylorda oblasts into
+# the fifth time belt and add Aktobe oblast to the list of regions not
+# using extra hour ("decree time"), leaving Kazakhstan with only 2 time
+# zones (+04/+05 and +06/+07).  The changes were to be implemented
+# during DST transitions in 2004 and 2005 but the acts got radically
+# amended before implementation happened.
+#
+# 9. Act of the Government of the Republic of Kazakhstan
+# from 2004-09-15 No. 1059
+# http://adilet.zan.kz/rus/docs/P040001059_
+# modified the 2000-11-23 act to remove exceptions from the "decree time"
+# (leaving Kazakhstan in +05/+06 and +06/+07 zones), amended the
+# 2004-07-20 act to implement changes for Atyrau, West Kazakhstan,
+# Kostanay, Kyzylorda and Mangystau oblasts by not moving clocks
+# during the 2014 transition to "winter" time.
+#
+# This means transition from +04/+05 to +05/+06 for Atyrau oblast (no
+# zone currently), Asia/Oral, Asia/Aqtau and transition from +05/+06 to
+# +06/+07 for Kostanay oblast (Kostanay and Arkalyk, no zones currently)
+# and Asia/Qyzylorda on 2004-10-31 at 3:00....[*]
+#
+# 10. Act of the Government of the Republic of Kazakhstan
+# from 2005-03-15 No. 231
+# http://adilet.zan.kz/rus/docs/P050000231_
+# removes DST provisions from the 2000-11-23 act, removes most of the
+# (already implemented) provisions from the 2004-07-20 and 2004-09-15
+# acts, comes into effect 10 days after official publication.
+# The only practical effect seems to be the abolition of the summer
+# time.
+#
+# Unamended version of the act of the Government of the Russian Federation
+# No. 23 from 1992-01-08 [See 'europe' file for details].
+# Kazakh 1992-01-13 act appears to provide the same rules and 1992-03-27
+# act was to be enacted on the last Sunday of March 1992.
+
+# From Paul Eggert (2016-04-15):
+# The tables below should reflect Stepan Golosunov's remarks above,
+# except for the items marked "[*]" which I haven't gotten to yet.
+# It looks like we will need new zones Asia/Atyrau and Asia/Qostanay
+# to handle changes from 1992 through 2004 that we did not previously
+# know about.
+
 #
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 #
 # Almaty (formerly Alma-Ata), representing most locations in Kazakhstan
+# This includes KZ-AKM, KZ-ALA, KZ-ALM, KZ-AST, KZ-BAY, KZ-VOS, KZ-ZHA,
+# KZ-KAR, KZ-SEV, KZ-PAV, and KZ-YUZ.
 Zone	Asia/Almaty	5:07:48 -	LMT	1924 May  2 # or Alma-Ata
-			5:00	-	ALMT	1930 Jun 21 # Alma-Ata Time
-			6:00 RussiaAsia ALM%sT	1991
-			6:00	-	ALMT	1992
-			6:00 RussiaAsia	ALM%sT	2005 Mar 15
-			6:00	-	ALMT
-# Qyzylorda (aka Kyzylorda, Kizilorda, Kzyl-Orda, etc.)
+			5:00	-	+05	1930 Jun 21
+			6:00 RussiaAsia +06/+07	1991 Mar 31  2:00s
+			5:00 RussiaAsia	+05/+06	1992 Jan 19  2:00s
+			6:00 RussiaAsia	+06/+07	2004 Oct 31  2:00s
+			6:00	-	+06
+# Qyzylorda (aka Kyzylorda, Kizilorda, Kzyl-Orda, etc.) (KZ-KZY)
 Zone	Asia/Qyzylorda	4:21:52 -	LMT	1924 May  2
-			4:00	-	KIZT	1930 Jun 21 # Kizilorda Time
-			5:00	-	KIZT	1981 Apr  1
-			5:00	1:00	KIZST	1981 Oct  1
-			6:00	-	KIZT	1982 Apr  1
-			5:00 RussiaAsia	KIZ%sT	1991
-			5:00	-	KIZT	1991 Dec 16 # independence
-			5:00	-	QYZT	1992 Jan 19 2:00
-			6:00 RussiaAsia	QYZ%sT	2005 Mar 15
-			6:00	-	QYZT
-# Aqtobe (aka Aktobe, formerly Akt'ubinsk)
+			4:00	-	+04	1930 Jun 21
+			5:00	-	+05	1981 Apr  1
+			5:00	1:00	+06	1981 Oct  1
+			6:00	-	+06	1982 Apr  1
+			5:00 RussiaAsia	+05/+06	1991 Mar 31  2:00s
+			4:00 RussiaAsia	+04/+05	1991 Sep 29  2:00s
+			5:00 RussiaAsia	+05/+06	1992 Jan 19  2:00s
+			6:00 RussiaAsia	+06/+07	1992 Mar 29  2:00s
+			5:00 RussiaAsia	+05/+06	2004 Oct 31  2:00s
+			6:00	-	+06
+# Aqtobe (aka Aktobe, formerly Aktyubinsk) (KZ-AKT)
 Zone	Asia/Aqtobe	3:48:40	-	LMT	1924 May  2
-			4:00	-	AKTT	1930 Jun 21 # Aktyubinsk Time
-			5:00	-	AKTT	1981 Apr  1
-			5:00	1:00	AKTST	1981 Oct  1
-			6:00	-	AKTT	1982 Apr  1
-			5:00 RussiaAsia	AKT%sT	1991
-			5:00	-	AKTT	1991 Dec 16 # independence
-			5:00 RussiaAsia	AQT%sT	2005 Mar 15 # Aqtobe Time
-			5:00	-	AQTT
-# Mangghystau
+			4:00	-	+04	1930 Jun 21
+			5:00	-	+05	1981 Apr  1
+			5:00	1:00	+06	1981 Oct  1
+			6:00	-	+06	1982 Apr  1
+			5:00 RussiaAsia	+05/+06	1991 Mar 31  2:00s
+			4:00 RussiaAsia	+04/+05	1992 Jan 19  2:00s
+			5:00 RussiaAsia	+05/+06	2004 Oct 31  2:00s
+			5:00	-	+05
+# Qostanay (KZ-KUS)
+
+# Mangghystau (KZ-MAN)
 # Aqtau was not founded until 1963, but it represents an inhabited region,
 # so include time stamps before 1963.
 Zone	Asia/Aqtau	3:21:04	-	LMT	1924 May  2
-			4:00	-	FORT	1930 Jun 21 # Fort Shevchenko T
-			5:00	-	FORT	1963
-			5:00	-	SHET	1981 Oct  1 # Shevchenko Time
-			6:00	-	SHET	1982 Apr  1
-			5:00 RussiaAsia	SHE%sT	1991
-			5:00	-	SHET	1991 Dec 16 # independence
-			5:00 RussiaAsia	AQT%sT	1995 Mar lastSun 2:00 # Aqtau Time
-			4:00 RussiaAsia	AQT%sT	2005 Mar 15
-			5:00	-	AQTT
-# West Kazakhstan
+			4:00	-	+04	1930 Jun 21
+			5:00	-	+05	1963
+			5:00	-	+05	1981 Oct  1
+			6:00	-	+06	1982 Apr  1
+			5:00 RussiaAsia	+05/+06	1991 Mar 31  2:00s
+			4:00 RussiaAsia	+04/+05	1992 Jan 19  2:00s
+			5:00 RussiaAsia	+05/+06	1994 Sep 25  2:00s
+			4:00 RussiaAsia	+04/+05	2004 Oct 31  2:00s
+			5:00	-	+05
+
+# West Kazakhstan (KZ-ZAP)
+# From Paul Eggert (2016-03-18):
+# The 1989 transition is from USSR act No. 227 (1989-03-14).
 Zone	Asia/Oral	3:25:24	-	LMT	1924 May  2 # or Ural'sk
-			4:00	-	URAT	1930 Jun 21 # Ural'sk time
-			5:00	-	URAT	1981 Apr  1
-			5:00	1:00	URAST	1981 Oct  1
-			6:00	-	URAT	1982 Apr  1
-			5:00 RussiaAsia	URA%sT	1989 Mar 26 2:00
-			4:00 RussiaAsia	URA%sT	1991
-			4:00	-	URAT	1991 Dec 16 # independence
-			4:00 RussiaAsia	ORA%sT	2005 Mar 15 # Oral Time
-			5:00	-	ORAT
+			4:00	-	+04	1930 Jun 21
+			5:00	-	+05	1981 Apr  1
+			5:00	1:00	+06	1981 Oct  1
+			6:00	-	+06	1982 Apr  1
+			5:00 RussiaAsia	+05/+06	1989 Mar 26  2:00s
+			4:00 RussiaAsia	+04/+05	1992 Jan 19  2:00s
+			5:00 RussiaAsia	+05/+06	1992 Mar 29  2:00s
+			4:00 RussiaAsia	+04/+05	2004 Oct 31  2:00s
+			5:00	-	+05
 
 # Kyrgyzstan (Kirgizstan)
 # Transitions through 1991 are from Shanks & Pottenger.
 
 # From Paul Eggert (2005-08-15):
 # According to an article dated today in the Kyrgyzstan Development Gateway
-# <http://eng.gateway.kg/cgi-bin/page.pl?id=1&story_name=doc9979.shtml>
+# http://eng.gateway.kg/cgi-bin/page.pl?id=1&story_name=doc9979.shtml
 # Kyrgyzstan is canceling the daylight saving time system.  I take the article
 # to mean that they will leave their clocks at 6 hours ahead of UTC.
 # From Malik Abdugaliev (2005-09-21):
@@ -1643,71 +1834,103 @@ Rule	Kyrgyz	1997	2005	-	Mar	lastSun	2:30	1:00	S
 Rule	Kyrgyz	1997	2004	-	Oct	lastSun	2:30	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Bishkek	4:58:24 -	LMT	1924 May  2
-			5:00	-	FRUT	1930 Jun 21 # Frunze Time
-			6:00 RussiaAsia FRU%sT	1991 Mar 31 2:00s
-			5:00	1:00	FRUST	1991 Aug 31 2:00 # independence
-			5:00	Kyrgyz	KG%sT	2005 Aug 12    # Kyrgyzstan Time
-			6:00	-	KGT
+			5:00	-	+05	1930 Jun 21
+			6:00 RussiaAsia +06/+07	1991 Mar 31  2:00s
+			5:00 RussiaAsia	+05/+06	1991 Aug 31  2:00
+			5:00	Kyrgyz	+05/+06	2005 Aug 12
+			6:00	-	+06
 
 ###############################################################################
 
 # Korea (North and South)
 
-# From Annie I. Bang (2006-07-10) in
-# <http://www.koreaherald.co.kr/SITE/data/html_dir/2006/07/10/200607100012.asp>:
-# The Ministry of Commerce, Industry and Energy has already
-# commissioned a research project [to reintroduce DST] and has said
-# the system may begin as early as 2008....  Korea ran a daylight
-# saving program from 1949-61 but stopped it during the 1950-53 Korean War.
+# From Annie I. Bang (2006-07-10):
+# http://www.koreaherald.com/view.php?ud=200607100012
+# Korea ran a daylight saving program from 1949-61 but stopped it
+# during the 1950-53 Korean War.  The system was temporarily enforced
+# between 1987 and 1988 ...
 
-# From Shanks & Pottenger:
+# From Sanghyuk Jung (2014-10-29):
+# http://mm.icann.org/pipermail/tz/2014-October/021830.html
+# According to the Korean Wikipedia
+# http://ko.wikipedia.org/wiki/한국_표준시
+# [oldid=12896437 2014-09-04 08:03 UTC]
+# DST in Republic of Korea was as follows....  And I checked old
+# newspapers in Korean, all articles correspond with data in Wikipedia.
+# For example, the article in 1948 (Korean Language) proved that DST
+# started at June 1 in that year.  For another example, the article in
+# 1988 said that DST started at 2:00 AM in that year.
+
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	ROK	1960	only	-	May	15	0:00	1:00	D
-Rule	ROK	1960	only	-	Sep	13	0:00	0	S
-Rule	ROK	1987	1988	-	May	Sun>=8	0:00	1:00	D
-Rule	ROK	1987	1988	-	Oct	Sun>=8	0:00	0	S
+Rule	ROK	1948	only	-	Jun	 1	0:00	1:00	D
+Rule	ROK	1948	only	-	Sep	13	0:00	0	S
+Rule	ROK	1949	only	-	Apr	 3	0:00	1:00	D
+Rule	ROK	1949	1951	-	Sep	Sun>=8	0:00	0	S
+Rule	ROK	1950	only	-	Apr	 1	0:00	1:00	D
+Rule	ROK	1951	only	-	May	 6	0:00	1:00	D
+Rule	ROK	1955	only	-	May	 5	0:00	1:00	D
+Rule	ROK	1955	only	-	Sep	 9	0:00	0	S
+Rule	ROK	1956	only	-	May	20	0:00	1:00	D
+Rule	ROK	1956	only	-	Sep	30	0:00	0	S
+Rule	ROK	1957	1960	-	May	Sun>=1	0:00	1:00	D
+Rule	ROK	1957	1960	-	Sep	Sun>=18	0:00	0	S
+Rule	ROK	1987	1988	-	May	Sun>=8	2:00	1:00	D
+Rule	ROK	1987	1988	-	Oct	Sun>=8	3:00	0	S
 
-# From Paul Eggert (2014-07-01):
-# The following entries are from Shanks & Pottenger, except that I
-# guessed that time zone abbreviations through 1945 followed the same
+# From Paul Eggert (2016-08-23):
+# The Korean Wikipedia entry gives the following sources for UT offsets:
+#
+# 1908: Official Journal Article No. 3994 (decree No. 5)
+# 1912: Governor-General of Korea Official Gazette Issue No. 367
+#       (Announcement No. 338)
+# 1954: Presidential Decree No. 876 (1954-03-17)
+# 1961: Law No. 676 (1961-08-07)
+#
+# (Another source "1987: Law No. 3919 (1986-12-31)" was in the 2014-10-30
+# edition of the Korean Wikipedia entry.)
+#
+# I guessed that time zone abbreviations through 1945 followed the same
 # rules as discussed under Taiwan, with nominal switches from JST to KST
 # when the respective cities were taken over by the Allies after WWII.
+#
+# For Pyongyang, guess no changes from World War II until 2015, as we
+# have no information otherwise.
+
+# From Steffen Thorsen (2015-08-07):
+# According to many news sources, North Korea is going to change to
+# the 8:30 time zone on August 15, one example:
+# http://www.bbc.com/news/world-asia-33815049
+#
+# From Paul Eggert (2015-08-15):
+# Bells rang out midnight (00:00) Friday as part of the celebrations.  See:
+# Talmadge E. North Korea celebrates new time zone, 'Pyongyang Time'
+# http://news.yahoo.com/north-korea-celebrates-time-zone-pyongyang-time-164038128.html
+# There is no common English-language abbreviation for this time zone.
+# Use KST, as that's what we already use for 1954-1961 in ROK.
 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Asia/Seoul	8:27:52	-	LMT	1890
-			8:30	-	KST	1904 Dec
-			9:00	-	JCST	1928
-			8:30	-	KST	1932
+Zone	Asia/Seoul	8:27:52	-	LMT	1908 Apr  1
+			8:30	-	KST	1912 Jan  1
 			9:00	-	JCST	1937 Oct  1
 			9:00	-	JST	1945 Sep  8
 			9:00	-	KST	1954 Mar 21
-			8:00	ROK	K%sT	1961 Aug 10
-			8:30	-	KST	1968 Oct
+			8:30	ROK	K%sT	1961 Aug 10
 			9:00	ROK	K%sT
-Zone	Asia/Pyongyang	8:23:00 -	LMT	1890
-			8:30	-	KST	1904 Dec
-			9:00	-	JCST	1928
-			8:30	-	KST	1932
+Zone	Asia/Pyongyang	8:23:00 -	LMT	1908 Apr  1
+			8:30	-	KST	1912 Jan  1
 			9:00	-	JCST	1937 Oct  1
 			9:00	-	JST	1945 Aug 24
-			9:00	-	KST	1954 Mar 21
-			8:00	-	KST	1961 Aug 10
-			9:00	-	KST
+			9:00	-	KST	2015 Aug 15 00:00
+			8:30	-	KST
 
 ###############################################################################
 
 # Kuwait
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Asia/Kuwait	3:11:56 -	LMT	1950
-			3:00	-	AST
+# See Asia/Riyadh.
 
 # Laos
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Asia/Vientiane	6:50:24 -	LMT	1906 Jun  9 # or Viangchan
-			7:06:20	-	SMT	1911 Mar 11 0:01 # Saigon MT?
-			7:00	-	ICT	1912 May
-			8:00	-	ICT	1931 May
-			7:00	-	ICT
+# See Asia/Bangkok.
+
 
 # Lebanon
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
@@ -1745,8 +1968,8 @@ Rule	NBorneo	1935	1941	-	Sep	14	0:00	0:20	TS # one-Third Summer
 Rule	NBorneo	1935	1941	-	Dec	14	0:00	0	-
 #
 # peninsular Malaysia
-# The data here are taken from Mok Ly Yng (2003-10-30)
-# <http://www.math.nus.edu.sg/aslaksen/teaching/timezone.html>.
+# taken from Mok Ly Yng (2003-10-30)
+# http://www.math.nus.edu.sg/aslaksen/teaching/timezone.html
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Asia/Kuala_Lumpur	6:46:46 -	LMT	1901 Jan  1
 			6:55:25	-	SMT	1905 Jun  1 # Singapore M.T.
@@ -1758,12 +1981,12 @@ Zone Asia/Kuala_Lumpur	6:46:46 -	LMT	1901 Jan  1
 			7:30	-	MALT	1982 Jan  1
 			8:00	-	MYT	# Malaysia Time
 # Sabah & Sarawak
-# From Paul Eggert (2006-03-22):
-# The data here are mostly from Shanks & Pottenger, but the 1942, 1945 and 1982
-# transition dates are from Mok Ly Yng.
+# From Paul Eggert (2014-08-12):
+# The data entries here are mostly from Shanks & Pottenger, but the 1942, 1945
+# and 1982 transition dates are from Mok Ly Yng.
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Asia/Kuching	7:21:20	-	LMT	1926 Mar
-			7:30	-	BORT	1933	# Borneo Time
+			7:30	-	BORT	1933        # Borneo Time
 			8:00	NBorneo	BOR%sT	1942 Feb 16
 			9:00	-	JST	1945 Sep 12
 			8:00	-	BORT	1982 Jan  1
@@ -1771,9 +1994,9 @@ Zone Asia/Kuching	7:21:20	-	LMT	1926 Mar
 
 # Maldives
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Indian/Maldives	4:54:00 -	LMT	1880	# Male
-			4:54:00	-	MMT	1960	# Male Mean Time
-			5:00	-	MVT		# Maldives Time
+Zone	Indian/Maldives	4:54:00 -	LMT	1880 # Male
+			4:54:00	-	MMT	1960 # Male Mean Time
+			5:00	-	MVT	# Maldives Time
 
 # Mongolia
 
@@ -1831,11 +2054,11 @@ Zone	Indian/Maldives	4:54:00 -	LMT	1880	# Male
 # Bill Bonnet (2005-05-19) reports that the US Embassy in Ulaanbaatar says
 # there is only one time zone and that DST is observed, citing Microsoft
 # Windows XP as the source.  Risto Nykänen (2005-05-16) reports that
-# travelmongolia.org says there are two time zones (UTC+7, UTC+8) with no DST.
+# travelmongolia.org says there are two time zones (UT +07, +08) with no DST.
 # Oscar van Vlijmen (2005-05-20) reports that the Mongolian Embassy in
 # Washington, DC says there are two time zones, with DST observed.
 # He also found
-# <http://ubpost.mongolnews.mn/index.php?subaction=showcomments&id=1111634894&archive=&start_from=&ucat=1&>
+# http://ubpost.mongolnews.mn/index.php?subaction=showcomments&id=1111634894&archive=&start_from=&ucat=1&
 # which also says that there is DST, and which has a comment by "Toddius"
 # (2005-03-31 06:05 +0700) saying "Mongolia actually has 3.5 time zones.
 # The West (OLGII) is +7 GMT, most of the country is ULAT is +8 GMT
@@ -1879,6 +2102,13 @@ Zone	Indian/Maldives	4:54:00 -	LMT	1880	# Male
 # was at the start of 2008-03-31 (the day of Steffen Thorsen's report);
 # this is almost surely wrong.
 
+# From Ganbold Tsagaankhuu (2015-03-10):
+# It seems like yesterday Mongolian Government meeting has concluded to use
+# daylight saving time in Mongolia....  Starting at 2:00AM of last Saturday of
+# March 2015, daylight saving time starts.  And 00:00AM of last Saturday of
+# September daylight saving time ends.  Source:
+# http://zasag.mn/news/view/8969
+
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Mongol	1983	1984	-	Apr	1	0:00	1:00	S
 Rule	Mongol	1983	only	-	Oct	1	0:00	0	-
@@ -1899,17 +2129,19 @@ Rule	Mongol	1984	1998	-	Sep	lastSun	0:00	0	-
 Rule	Mongol	2001	only	-	Apr	lastSat	2:00	1:00	S
 Rule	Mongol	2001	2006	-	Sep	lastSat	2:00	0	-
 Rule	Mongol	2002	2006	-	Mar	lastSat	2:00	1:00	S
+Rule	Mongol	2015	max	-	Mar	lastSat	2:00	1:00	S
+Rule	Mongol	2015	max	-	Sep	lastSat	0:00	0	-
 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 # Hovd, a.k.a. Chovd, Dund-Us, Dzhargalant, Khovd, Jirgalanta
 Zone	Asia/Hovd	6:06:36 -	LMT	1905 Aug
-			6:00	-	HOVT	1978	# Hovd Time
+			6:00	-	HOVT	1978     # Hovd Time
 			7:00	Mongol	HOV%sT
 # Ulaanbaatar, a.k.a. Ulan Bataar, Ulan Bator, Urga
 Zone	Asia/Ulaanbaatar 7:07:32 -	LMT	1905 Aug
-			7:00	-	ULAT	1978	# Ulaanbaatar Time
+			7:00	-	ULAT	1978     # Ulaanbaatar Time
 			8:00	Mongol	ULA%sT
-# Choibalsan, a.k.a. Bajan Tuemen, Bajan Tumen, Chojbalsan,
+# Choibalsan, a.k.a. Bajan Tümen, Bajan Tumen, Chojbalsan,
 # Choybalsan, Sanbejse, Tchoibalsan
 Zone	Asia/Choibalsan	7:38:00 -	LMT	1905 Aug
 			7:00	-	ULAT	1978
@@ -1924,12 +2156,7 @@ Zone	Asia/Kathmandu	5:41:16 -	LMT	1920
 			5:45	-	NPT	# Nepal Time
 
 # Oman
-
-# Milne says 3:54:24 was the meridian of the Muscat Tidal Observatory.
-
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Asia/Muscat	3:54:24 -	LMT	1920
-			4:00	-	GST
+# See Asia/Dubai.
 
 # Pakistan
 
@@ -1973,10 +2200,9 @@ Zone	Asia/Muscat	3:54:24 -	LMT	1920
 # Here is an article that Pakistan plan to introduce Daylight Saving Time
 # on June 1, 2008 for 3 months.
 #
-# "... The federal cabinet on Wednesday announced a new conservation plan to help
-# reduce load shedding by approving the closure of commercial centres at 9pm and
-# moving clocks forward by one hour for the next three months.
-# ...."
+# "... The federal cabinet on Wednesday announced a new conservation plan to
+# help reduce load shedding by approving the closure of commercial centres at
+# 9pm and moving clocks forward by one hour for the next three months. ...."
 #
 # http://www.worldtimezone.net/dst_news/dst_news_pakistan01.html
 # http://www.dailytimes.com.pk/default.asp?page=2008%5C05%5C15%5Cstory_15-5-2008_pg1_4
@@ -2023,19 +2249,14 @@ Zone	Asia/Muscat	3:54:24 -	LMT	1920
 
 # From Alexander Krivenyshev (2009-09-28):
 # According to Associated Press Of Pakistan, it is confirmed that
-# Pakistan clocks across the country would be turned back by an hour from October
-# 1, 2009.
+# Pakistan clocks across the country would be turned back by an hour from
+# October 1, 2009.
 #
 # "Clocks to go back one hour from 1 Oct"
 # http://www.app.com.pk/en_/index.php?option=com_content&task=view&id=86715&Itemid=2
 # http://www.worldtimezone.com/dst_news/dst_news_pakistan07.htm
-
-# From Steffen Thorsen (2009-09-29):
-# Alexander Krivenyshev wrote:
-# > According to Associated Press Of Pakistan, it is confirmed that
-# > Pakistan clocks across the country would be turned back by an hour from October
-# > 1, 2009.
 #
+# From Steffen Thorsen (2009-09-29):
 # Now they seem to have changed their mind, November 1 is the new date:
 # http://www.thenews.com.pk/top_story_detail.asp?Id=24742
 # "The country's clocks will be reversed by one hour on November 1.
@@ -2073,12 +2294,11 @@ Zone	Asia/Muscat	3:54:24 -	LMT	1920
 # http://www.app.com.pk/en_/index.php?option=com_content&task=view&id=99374&Itemid=2
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule Pakistan	2002	only	-	Apr	Sun>=2	0:01	1:00	S
-Rule Pakistan	2002	only	-	Oct	Sun>=2	0:01	0	-
+Rule Pakistan	2002	only	-	Apr	Sun>=2	0:00	1:00	S
+Rule Pakistan	2002	only	-	Oct	Sun>=2	0:00	0	-
 Rule Pakistan	2008	only	-	Jun	1	0:00	1:00	S
-Rule Pakistan	2008	only	-	Nov	1	0:00	0	-
+Rule Pakistan	2008	2009	-	Nov	1	0:00	0	-
 Rule Pakistan	2009	only	-	Apr	15	0:00	1:00	S
-Rule Pakistan	2009	only	-	Nov	1	0:00	0	-
 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Karachi	4:28:12 -	LMT	1907
@@ -2153,7 +2373,7 @@ Zone	Asia/Karachi	4:28:12 -	LMT	1907
 
 # From Paul Eggert (1999-09-20):
 # Daoud Kuttab writes in Holiday havoc
-# <http://www.jpost.com/com/Archive/22.Apr.1999/Opinion/Article-2.html>
+# http://www.jpost.com/com/Archive/22.Apr.1999/Opinion/Article-2.html
 # (Jerusalem Post, 1999-04-22) that
 # the Palestinian National Authority changed to DST on 1999-04-15.
 # I vaguely recall that they switch back in October (sorry, forgot the source).
@@ -2329,13 +2549,38 @@ Zone	Asia/Karachi	4:28:12 -	LMT	1907
 # official source...:
 # http://www.palestinecabinet.gov.ps/ar/Views/ViewDetails.aspx?pid=1252
 
-# From Paul Eggert (2013-09-24):
-# For future dates, guess the last Thursday in March at 24:00 through
-# the first Friday on or after September 21 at 00:00.  This is consistent with
-# the predictions in today's editions of the following URLs,
-# which are for Gaza and Hebron respectively:
-# http://www.timeanddate.com/worldclock/timezone.html?n=702
-# http://www.timeanddate.com/worldclock/timezone.html?n=2364
+# From Steffen Thorsen (2015-03-03):
+# Sources such as http://www.alquds.com/news/article/view/id/548257
+# and http://www.raya.ps/ar/news/890705.html say Palestine areas will
+# start DST on 2015-03-28 00:00 which is one day later than expected.
+#
+# From Paul Eggert (2015-03-03):
+# http://www.timeanddate.com/time/change/west-bank/ramallah?year=2014
+# says that the fall 2014 transition was Oct 23 at 24:00.
+
+# From Hannah Kreitem (2016-03-09):
+# http://www.palestinecabinet.gov.ps/WebSite/ar/ViewDetails?ID=31728
+# [Google translation]: "The Council also decided to start daylight
+# saving in Palestine as of one o'clock on Saturday morning,
+# 2016-03-26, to provide the clock 60 minutes ahead."
+#
+# From Paul Eggert (2016-03-12):
+# Predict spring transitions on March's last Saturday at 01:00 from now on.
+
+# From Sharef Mustafa (2016-10-19):
+# [T]he Palestinian cabinet decision (Mar 8th 2016) published on
+# http://www.palestinecabinet.gov.ps/WebSite/Upload/Decree/GOV_17/16032016134830.pdf
+# states that summer time will end on Oct 29th at 01:00.
+#
+# From Tim Parenti (2016-10-19):
+# Predict fall transitions on October's last Saturday at 01:00 from now on.
+# This is consistent with the 2016 transition as well as our spring
+# predictions.
+#
+# From Paul Eggert (2016-10-19):
+# It's also consistent with predictions in the following URLs today:
+# http://www.timeanddate.com/time/change/gaza-strip/gaza
+# http://www.timeanddate.com/time/change/west-bank/hebron
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule EgyptAsia	1957	only	-	May	10	0:00	1:00	S
@@ -2361,9 +2606,13 @@ Rule Palestine	2011	only	-	Apr	 1	0:01	1:00	S
 Rule Palestine	2011	only	-	Aug	 1	0:00	0	-
 Rule Palestine	2011	only	-	Aug	30	0:00	1:00	S
 Rule Palestine	2011	only	-	Sep	30	0:00	0	-
-Rule Palestine	2012	max	-	Mar	lastThu	24:00	1:00	S
+Rule Palestine	2012	2014	-	Mar	lastThu	24:00	1:00	S
 Rule Palestine	2012	only	-	Sep	21	1:00	0	-
-Rule Palestine	2013	max	-	Sep	Fri>=21	0:00	0	-
+Rule Palestine	2013	only	-	Sep	Fri>=21	0:00	0	-
+Rule Palestine	2014	2015	-	Oct	Fri>=21	0:00	0	-
+Rule Palestine	2015	only	-	Mar	lastFri	24:00	1:00	S
+Rule Palestine	2016	max	-	Mar	lastSat	1:00	1:00	S
+Rule Palestine	2016	max	-	Oct	lastSat	1:00	0	-
 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Gaza	2:17:52	-	LMT	1900 Oct
@@ -2371,10 +2620,10 @@ Zone	Asia/Gaza	2:17:52	-	LMT	1900 Oct
 			2:00 EgyptAsia	EE%sT	1967 Jun  5
 			2:00	Zion	I%sT	1996
 			2:00	Jordan	EE%sT	1999
-			2:00 Palestine	EE%sT	2008 Aug 29 0:00
+			2:00 Palestine	EE%sT	2008 Aug 29  0:00
 			2:00	-	EET	2008 Sep
 			2:00 Palestine	EE%sT	2010
-			2:00	-	EET	2010 Mar 27 0:01
+			2:00	-	EET	2010 Mar 27  0:01
 			2:00 Palestine	EE%sT	2011 Aug  1
 			2:00	-	EET	2012
 			2:00 Palestine	EE%sT
@@ -2394,21 +2643,22 @@ Zone	Asia/Hebron	2:20:23	-	LMT	1900 Oct
 # Philippines, issued a proclamation announcing that 1844-12-30 was to
 # be immediately followed by 1845-01-01; see R.H. van Gent's
 # History of the International Date Line
-# <http://www.staff.science.uu.nl/~gent0113/idl/idl_philippines.htm>.
-# The rest of the data are from Shanks & Pottenger.
+# http://www.staff.science.uu.nl/~gent0113/idl/idl_philippines.htm
+# The rest of the data entries are from Shanks & Pottenger.
 
-# From Paul Eggert (2006-04-25):
-# Tomorrow's Manila Standard reports that the Philippines Department of
-# Trade and Industry is considering adopting DST this June when the
-# rainy season begins.  See
-# <http://www.manilastandardtoday.com/?page=politics02_april26_2006>.
-# For now, we'll ignore this, since it's not definite and we lack details.
-#
 # From Jesper Nørgaard Welen (2006-04-26):
 # ... claims that Philippines had DST last time in 1990:
 # http://story.philippinetimes.com/p.x/ct/9/id/145be20cc6b121c0/cid/3e5bbccc730d258c/
 # [a story dated 2006-04-25 by Cris Larano of Dow Jones Newswires,
 # but no details]
+
+# From Paul Eggert (2014-08-14):
+# The following source says DST may be instituted November-January and again
+# March-June, but this is not definite.  It also says DST was last proclaimed
+# during the Ramos administration (1992-1998); but again, no details.
+# Carcamo D. PNoy urged to declare use of daylight saving time.
+# Philippine Star 2014-08-05
+# http://www.philstar.com/headlines/2014/08/05/1354152/pnoy-urged-declare-use-daylight-saving-time
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Phil	1936	only	-	Nov	1	0:00	1:00	S
@@ -2426,9 +2676,10 @@ Zone	Asia/Manila	-15:56:00 -	LMT	1844 Dec 31
 
 # Qatar
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Asia/Qatar	3:26:08 -	LMT	1920	# Al Dawhah / Doha
+Zone	Asia/Qatar	3:26:08 -	LMT	1920     # Al Dawhah / Doha
 			4:00	-	GST	1972 Jun
 			3:00	-	AST
+Link Asia/Qatar Asia/Bahrain
 
 # Saudi Arabia
 #
@@ -2449,16 +2700,18 @@ Zone	Asia/Qatar	3:26:08 -	LMT	1920	# Al Dawhah / Doha
 # earlier date.
 #
 # Shanks & Pottenger also state that until 1968-05-01 Saudi Arabia had two
-# time zones; the other zone, at UTC+4, was in the far eastern part of
+# time zones; the other zone, at UT +04, was in the far eastern part of
 # the country.  Ignore this, as it's before our 1970 cutoff.
 #
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Riyadh	3:06:52 -	LMT	1947 Mar 14
 			3:00	-	AST
+Link Asia/Riyadh Asia/Aden	# Yemen
+Link Asia/Riyadh Asia/Kuwait
 
 # Singapore
-# The data here are taken from Mok Ly Yng (2003-10-30)
-# <http://www.math.nus.edu.sg/aslaksen/teaching/timezone.html>.
+# taken from Mok Ly Yng (2003-10-30)
+# http://www.math.nus.edu.sg/aslaksen/teaching/timezone.html
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Singapore	6:55:25 -	LMT	1901 Jan  1
 			6:55:25	-	SMT	1905 Jun  1 # Singapore M.T.
@@ -2501,7 +2754,7 @@ Zone	Asia/Singapore	6:55:25 -	LMT	1901 Jan  1
 # at present, become 2400 hours of April 14, 2006 (midnight of April 14, 2006).
 
 # From Peter Apps and Ranga Sirila of Reuters (2006-04-12) in:
-# <http://today.reuters.co.uk/news/newsArticle.aspx?type=scienceNews&storyID=2006-04-12T172228Z_01_COL295762_RTRIDST_0_SCIENCE-SRILANKA-TIME-DC.XML>
+# http://today.reuters.co.uk/news/newsArticle.aspx?type=scienceNews&storyID=2006-04-12T172228Z_01_COL295762_RTRIDST_0_SCIENCE-SRILANKA-TIME-DC.XML
 # [The Tamil Tigers] never accepted the original 1996 time change and simply
 # kept their clocks set five and a half hours ahead of Greenwich Mean
 # Time (GMT), in line with neighbor India.
@@ -2509,45 +2762,31 @@ Zone	Asia/Singapore	6:55:25 -	LMT	1901 Jan  1
 # People who live in regions under Tamil control can use [TZ='Asia/Kolkata'],
 # as that zone has agreed with the Tamil areas since our cutoff date of 1970.
 
-# From K Sethu (2006-04-25):
-# I think the abbreviation LKT originated from the world of computers at
-# the time of or subsequent to the time zone changes by SL Government
-# twice in 1996 and probably SL Government or its standardization
-# agencies never declared an abbreviation as a national standard.
+# From Sadika Sumanapala (2016-10-19):
+# According to http://www.sltime.org (maintained by Measurement Units,
+# Standards & Services Department, Sri Lanka) abbreviation for Sri Lanka
+# standard time is SLST.
 #
-# I recollect before the recent change the government announcements
-# mentioning it as simply changing Sri Lanka Standard Time or Sri Lanka
-# Time and no mention was made about the abbreviation.
-#
-# If we look at Sri Lanka Department of Government's "Official News
-# Website of Sri Lanka" ... http://www.news.lk/ we can see that they
-# use SLT as abbreviation in time stamp at the beginning of each news
-# item....
-#
-# Within Sri Lanka I think LKT is well known among computer users and
-# administrators.  In my opinion SLT may not be a good choice because the
-# nation's largest telcom / internet operator Sri Lanka Telcom is well
-# known by that abbreviation - simply as SLT (there IP domains are
-# slt.lk and sltnet.lk).
-#
-# But if indeed our government has adopted SLT as standard abbreviation
-# (that we have not known so far) then  it is better that it be used for
-# all computers.
-
-# From Paul Eggert (2006-04-25):
-# One possibility is that we wait for a bit for the dust to settle down
-# and then see what people actually say in practice.
+# From Paul Eggert (2016-10-18):
+# "SLST" seems to be reasonably recent and rarely-used outside time
+# zone nerd sources.  I searched Google News and found three uses of
+# it in the International Business Times of India in February and
+# March of this year when discussing cricket match times, but nothing
+# since then (though there has been a lot of cricket) and nothing in
+# other English-language news sources.  Our old abbreviation "LKT" is
+# even worse.  For now, let's use a numeric abbreviation; we can
+# switch to "SLST" if it catches on.
 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Colombo	5:19:24 -	LMT	1880
-			5:19:32	-	MMT	1906	# Moratuwa Mean Time
-			5:30	-	IST	1942 Jan  5
-			5:30	0:30	IHST	1942 Sep
-			5:30	1:00	IST	1945 Oct 16 2:00
-			5:30	-	IST	1996 May 25 0:00
-			6:30	-	LKT	1996 Oct 26 0:30
-			6:00	-	LKT	2006 Apr 15 0:30
-			5:30	-	IST
+			5:19:32	-	MMT	1906        # Moratuwa Mean Time
+			5:30	-	+0530	1942 Jan  5
+			5:30	0:30	+0530/+06 1942 Sep
+			5:30	1:00	+0530/+0630 1945 Oct 16  2:00
+			5:30	-	+0530	1996 May 25  0:00
+			6:30	-	+0630	1996 Oct 26  0:30
+			6:00	-	+06	2006 Apr 15  0:30
+			5:30	-	+0530
 
 # Syria
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
@@ -2622,8 +2861,7 @@ Rule	Syria	2007	only	-	Nov	 Fri>=1	0:00	0	-
 
 # From Stephen Colebourne (2008-03-17):
 # For everyone's info, I saw an IATA time zone change for [Syria] for
-# this month (March 2008) in the last day or so...This is the data IATA
-# are now using:
+# this month (March 2008) in the last day or so....
 # Country     Time Standard   --- DST Start ---   --- DST End ---  DST
 # Name        Zone Variation   Time    Date        Time    Date
 # Variation
@@ -2710,82 +2948,120 @@ Rule	Syria	2012	max	-	Mar	lastFri	0:00	1:00	S
 Rule	Syria	2009	max	-	Oct	lastFri	0:00	0	-
 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Asia/Damascus	2:25:12 -	LMT	1920	# Dimashq
+Zone	Asia/Damascus	2:25:12 -	LMT	1920 # Dimashq
 			2:00	Syria	EE%sT
 
 # Tajikistan
 # From Shanks & Pottenger.
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Dushanbe	4:35:12 -	LMT	1924 May  2
-			5:00	-	DUST	1930 Jun 21 # Dushanbe Time
-			6:00 RussiaAsia DUS%sT	1991 Mar 31 2:00s
-			5:00	1:00	DUSST	1991 Sep  9 2:00s
-			5:00	-	TJT		    # Tajikistan Time
+			5:00	-	+05	1930 Jun 21
+			6:00 RussiaAsia +06/+07	1991 Mar 31  2:00s
+			5:00	1:00	+05/+06	1991 Sep  9  2:00s
+			5:00	-	+05
 
 # Thailand
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Bangkok	6:42:04	-	LMT	1880
 			6:42:04	-	BMT	1920 Apr # Bangkok Mean Time
 			7:00	-	ICT
+Link Asia/Bangkok Asia/Phnom_Penh	# Cambodia
+Link Asia/Bangkok Asia/Vientiane	# Laos
 
 # Turkmenistan
 # From Shanks & Pottenger.
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Ashgabat	3:53:32 -	LMT	1924 May  2 # or Ashkhabad
-			4:00	-	ASHT	1930 Jun 21 # Ashkhabad Time
-			5:00 RussiaAsia	ASH%sT	1991 Mar 31 2:00
-			4:00 RussiaAsia	ASH%sT	1991 Oct 27 # independence
-			4:00 RussiaAsia	TM%sT	1992 Jan 19 2:00
-			5:00	-	TMT
+			4:00	-	+04	1930 Jun 21
+			5:00 RussiaAsia	+05/+06	1991 Mar 31  2:00
+			4:00 RussiaAsia	+04/+05	1992 Jan 19  2:00
+			5:00	-	+05
 
 # United Arab Emirates
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Dubai	3:41:12 -	LMT	1920
 			4:00	-	GST
+Link Asia/Dubai Asia/Muscat	# Oman
 
 # Uzbekistan
+# Byalokoz 1919 says Uzbekistan was 4:27:53.
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Asia/Samarkand	4:27:12 -	LMT	1924 May  2
-			4:00	-	SAMT	1930 Jun 21 # Samarkand Time
-			5:00	-	SAMT	1981 Apr  1
-			5:00	1:00	SAMST	1981 Oct  1
-			6:00	-	TAST	1982 Apr  1 # Tashkent Time
-			5:00 RussiaAsia	SAM%sT	1991 Sep  1 # independence
-			5:00 RussiaAsia	UZ%sT	1992
-			5:00	-	UZT
+Zone	Asia/Samarkand	4:27:53 -	LMT	1924 May  2
+			4:00	-	+04	1930 Jun 21
+			5:00	-	+05	1981 Apr  1
+			5:00	1:00	+06	1981 Oct  1
+			6:00	-	+06	1982 Apr  1
+			5:00 RussiaAsia	+05/+06	1992
+			5:00	-	+05
 # Milne says Tashkent was 4:37:10.8; round to nearest.
 Zone	Asia/Tashkent	4:37:11 -	LMT	1924 May  2
-			5:00	-	TAST	1930 Jun 21 # Tashkent Time
-			6:00 RussiaAsia	TAS%sT	1991 Mar 31 2:00
-			5:00 RussiaAsia	TAS%sT	1991 Sep  1 # independence
-			5:00 RussiaAsia	UZ%sT	1992
-			5:00	-	UZT
+			5:00	-	+05	1930 Jun 21
+			6:00 RussiaAsia	+06/+07	1991 Mar 31  2:00
+			5:00 RussiaAsia	+05/+06	1992
+			5:00	-	+05
 
 # Vietnam
 
-# From Paul Eggert (2013-02-21):
+# From Paul Eggert (2014-10-04):
 # Milne gives 7:16:56 for the meridian of Saigon in 1899, as being
 # used in Lower Laos, Cambodia, and Annam.  But this is quite a ways
 # from Saigon's location.  For now, ignore this and stick with Shanks
-# and Pottenger.
+# and Pottenger for LMT before 1906.
 
 # From Arthur David Olson (2008-03-18):
 # The English-language name of Vietnam's most populous city is "Ho Chi Minh
 # City"; use Ho_Chi_Minh below to avoid a name of more than 14 characters.
 
-# From Shanks & Pottenger:
+# From Paul Eggert (2014-10-21) after a heads-up from Trần Ngọc Quân:
+# Trần Tiến Bình's authoritative book "Lịch Việt Nam: thế kỷ XX-XXI (1901-2100)"
+# (Nhà xuất bản Văn Hoá - Thông Tin, Hanoi, 2005), pp 49-50,
+# is quoted verbatim in:
+# http://www.thoigian.com.vn/?mPage=P80D01
+# is translated by Brian Inglis in:
+# http://mm.icann.org/pipermail/tz/2014-October/021654.html
+# and is the basis for the information below.
+#
+# The 1906 transition was effective July 1 and standardized Indochina to
+# Phù Liễn Observatory, legally 104 deg. 17'17" east of Paris.
+# It's unclear whether this meant legal Paris Mean Time (00:09:21) or
+# the Paris Meridian (2 deg. 20'14.03" E); the former yields 07:06:30.1333...
+# and the latter 07:06:29.333... so either way it rounds to 07:06:30,
+# which is used below even though the modern-day Phù Liễn Observatory
+# is closer to 07:06:31.  Abbreviate Phù Liễn Mean Time as PLMT.
+#
+# The following transitions occurred in Indochina in general (before 1954)
+# and in South Vietnam in particular (after 1954):
+# To 07:00 on 1911-05-01.
+# To 08:00 on 1942-12-31 at 23:00.
+# To 09:00 in 1945-03-14 at 23:00.
+# To 07:00 on 1945-09-02 in Vietnam.
+# To 08:00 on 1947-04-01 in French-controlled Indochina.
+# To 07:00 on 1955-07-01 in South Vietnam.
+# To 08:00 on 1959-12-31 at 23:00 in South Vietnam.
+# To 07:00 on 1975-06-13 in South Vietnam.
+#
+# Trần cites the following sources; it's unclear which supplied the info above.
+#
+# Hoàng Xuân Hãn: "Lịch và lịch Việt Nam". Tập san Khoa học Xã hội,
+# No. 9, Paris, February 1982.
+#
+# Lê Thành Lân: "Lịch và niên biểu lịch sử hai mươi thế kỷ (0001-2010)",
+# NXB Thống kê, Hanoi, 2000.
+#
+# Lê Thành Lân: "Lịch hai thế kỷ (1802-2010) và các lịch vĩnh cửu",
+# NXB Thuận Hoá, Huế, 1995.
+
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Asia/Ho_Chi_Minh	7:06:40 -	LMT	1906 Jun  9
-			7:06:20	-	SMT	1911 Mar 11 0:01 # Saigon MT?
-			7:00	-	ICT	1912 May
-			8:00	-	ICT	1931 May
+Zone Asia/Ho_Chi_Minh	7:06:40 -	LMT	1906 Jul  1
+			7:06:30	-	PLMT	1911 May  1
+			7:00	-	ICT	1942 Dec 31 23:00
+			8:00	-	IDT	1945 Mar 14 23:00
+			9:00	-	JST	1945 Sep  2
+			7:00	-	ICT	1947 Apr  1
+			8:00	-	IDT	1955 Jul  1
+			7:00	-	ICT	1959 Dec 31 23:00
+			8:00	-	IDT	1975 Jun 13
 			7:00	-	ICT
 
 # Yemen
-
-# Milne says 2:59:54 was the meridian of the saluting battery at Aden,
-# and that Yemen was at 1:55:56, the meridian of the Hagia Sophia.
-
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Asia/Aden	2:59:54	-	LMT	1950
-			3:00	-	AST
+# See Asia/Riyadh.
