@@ -139,8 +139,10 @@ alloc_nm_rxq_hwq(struct vi_info *vi, struct sge_nm_rxq *nm_rxq, int cong)
 		(fl_pad ? F_FW_IQ_CMD_FL0PADEN : 0) |
 		(black_hole == 2 ? F_FW_IQ_CMD_FL0PACKEN : 0));
 	c.fl0dcaen_to_fl0cidxfthresh =
-	    htobe16(V_FW_IQ_CMD_FL0FBMIN(X_FETCHBURSTMIN_128B) |
-		V_FW_IQ_CMD_FL0FBMAX(X_FETCHBURSTMAX_512B));
+	    htobe16(V_FW_IQ_CMD_FL0FBMIN(chip_id(sc) <= CHELSIO_T5 ?
+		X_FETCHBURSTMIN_128B : X_FETCHBURSTMIN_64B) |
+		V_FW_IQ_CMD_FL0FBMAX(chip_id(sc) <= CHELSIO_T5 ?
+		X_FETCHBURSTMAX_512B : X_FETCHBURSTMAX_256B));
 	c.fl0size = htobe16(na->num_rx_desc / 8 + sp->spg_len / EQ_ESIZE);
 	c.fl0addr = htobe64(nm_rxq->fl_ba);
 
@@ -176,7 +178,7 @@ alloc_nm_rxq_hwq(struct vi_info *vi, struct sge_nm_rxq *nm_rxq, int cong)
 	nm_rxq->fl_db_val = V_QID(nm_rxq->fl_cntxt_id) |
 	    sc->chip_params->sge_fl_db;
 
-	if (is_t5(sc) && cong >= 0) {
+	if (chip_id(sc) >= CHELSIO_T5 && cong >= 0) {
 		uint32_t param, val;
 
 		param = V_FW_PARAMS_MNEM(FW_PARAMS_MNEM_DMAQ) |
@@ -885,19 +887,23 @@ cxgbe_nm_detach(struct vi_info *vi)
 	netmap_detach(vi->ifp);
 }
 
-static void
-handle_nm_fw6_msg(struct adapter *sc, struct ifnet *ifp,
-    const struct cpl_fw6_msg *cpl)
+static inline const void *
+unwrap_nm_fw6_msg(const struct cpl_fw6_msg *cpl)
 {
-	const struct cpl_sge_egr_update *egr;
+
+	MPASS(cpl->type == FW_TYPE_RSSCPL || cpl->type == FW6_TYPE_RSSCPL);
+
+	/* data[0] is RSS header */
+	return (&cpl->data[1]);
+}
+
+static void
+handle_nm_sge_egr_update(struct adapter *sc, struct ifnet *ifp,
+    const struct cpl_sge_egr_update *egr)
+{
 	uint32_t oq;
 	struct sge_nm_txq *nm_txq;
 
-	if (cpl->type != FW_TYPE_RSSCPL && cpl->type != FW6_TYPE_RSSCPL)
-		panic("%s: FW_TYPE 0x%x on nm_rxq.", __func__, cpl->type);
-
-	/* data[0] is RSS header */
-	egr = (const void *)&cpl->data[1];
 	oq = be32toh(egr->opcode_qid);
 	MPASS(G_CPL_OPCODE(oq) == CPL_SGE_EGR_UPDATE);
 	nm_txq = (void *)sc->sge.eqmap[G_EGR_QID(oq) - sc->sge.eq_start];
@@ -916,6 +922,7 @@ t4_nm_intr(void *arg)
 	struct netmap_kring *kring = &na->rx_rings[nm_rxq->nid];
 	struct netmap_ring *ring = kring->ring;
 	struct iq_desc *d = &nm_rxq->iq_desc[nm_rxq->iq_cidx];
+	const void *cpl;
 	uint32_t lq;
 	u_int n = 0, work = 0;
 	uint8_t opcode;
@@ -928,6 +935,7 @@ t4_nm_intr(void *arg)
 
 		lq = be32toh(d->rsp.pldbuflen_qid);
 		opcode = d->rss.opcode;
+		cpl = &d->cpl[0];
 
 		switch (G_RSPD_TYPE(d->rsp.u.type_gen)) {
 		case X_RSPD_TYPE_FLBUF:
@@ -944,8 +952,10 @@ t4_nm_intr(void *arg)
 			switch (opcode) {
 			case CPL_FW4_MSG:
 			case CPL_FW6_MSG:
-				handle_nm_fw6_msg(sc, ifp,
-				    (const void *)&d->cpl[0]);
+				cpl = unwrap_nm_fw6_msg(cpl);
+				/* fall through */
+			case CPL_SGE_EGR_UPDATE:
+				handle_nm_sge_egr_update(sc, ifp, cpl);
 				break;
 			case CPL_RX_PKT:
 				ring->slot[fl_cidx].len = G_RSPD_LEN(lq) -
