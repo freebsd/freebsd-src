@@ -2101,24 +2101,6 @@ m_advance(struct mbuf **pm, int *poffset, int len)
 	return ((void *)p);
 }
 
-static inline int
-same_paddr(char *a, char *b)
-{
-
-	if (a == b)
-		return (1);
-	else if (a != NULL && b != NULL) {
-		vm_offset_t x = (vm_offset_t)a;
-		vm_offset_t y = (vm_offset_t)b;
-
-		if ((x & PAGE_MASK) == (y & PAGE_MASK) &&
-		    pmap_kextract(x) == pmap_kextract(y))
-			return (1);
-	}
-
-	return (0);
-}
-
 /*
  * Can deal with empty mbufs in the chain that have m_len = 0, but the chain
  * must have at least one mbuf that's not empty.
@@ -2126,24 +2108,25 @@ same_paddr(char *a, char *b)
 static inline int
 count_mbuf_nsegs(struct mbuf *m)
 {
-	char *prev_end, *start;
+	vm_paddr_t lastb, next;
+	vm_offset_t va;
 	int len, nsegs;
 
 	MPASS(m != NULL);
 
 	nsegs = 0;
-	prev_end = NULL;
+	lastb = 0;
 	for (; m; m = m->m_next) {
 
 		len = m->m_len;
 		if (__predict_false(len == 0))
 			continue;
-		start = mtod(m, char *);
-
-		nsegs += sglist_count(start, len);
-		if (same_paddr(prev_end, start))
+		va = mtod(m, vm_offset_t);
+		next = pmap_kextract(va);
+		nsegs += sglist_count(m->m_data, len);
+		if (lastb + 1 == next)
 			nsegs--;
-		prev_end = start + len;
+		lastb = pmap_kextract(va + len - 1);
 	}
 
 	MPASS(nsegs > 0);
