@@ -3669,8 +3669,9 @@ void t4_ulprx_read_la(struct adapter *adap, u32 *la_buf)
 }
 
 #define ADVERT_MASK (FW_PORT_CAP_SPEED_100M | FW_PORT_CAP_SPEED_1G |\
-		     FW_PORT_CAP_SPEED_10G | FW_PORT_CAP_SPEED_40G | \
-		     FW_PORT_CAP_SPEED_100G | FW_PORT_CAP_ANEG)
+		     FW_PORT_CAP_SPEED_10G | FW_PORT_CAP_SPEED_25G | \
+		     FW_PORT_CAP_SPEED_40G | FW_PORT_CAP_SPEED_100G | \
+		     FW_PORT_CAP_ANEG)
 
 /**
  *	t4_link_l1cfg - apply link configuration to MAC/PHY
@@ -4738,7 +4739,7 @@ int t4_config_glbl_rss(struct adapter *adapter, int mbox, unsigned int mode,
 		c.u.manual.mode_pkd =
 			cpu_to_be32(V_FW_RSS_GLB_CONFIG_CMD_MODE(mode));
 	} else if (mode == FW_RSS_GLB_CONFIG_CMD_MODE_BASICVIRTUAL) {
-		c.u.basicvirtual.mode_pkd =
+		c.u.basicvirtual.mode_keymode =
 			cpu_to_be32(V_FW_RSS_GLB_CONFIG_CMD_MODE(mode));
 		c.u.basicvirtual.synmapen_to_hashtoeplitz = cpu_to_be32(flags);
 	} else
@@ -4753,11 +4754,14 @@ int t4_config_glbl_rss(struct adapter *adapter, int mbox, unsigned int mode,
  *	@viid: the VI id
  *	@flags: RSS flags
  *	@defq: id of the default RSS queue for the VI.
+ *	@skeyidx: RSS secret key table index for non-global mode
+ *	@skey: RSS vf_scramble key for VI.
  *
  *	Configures VI-specific RSS properties.
  */
 int t4_config_vi_rss(struct adapter *adapter, int mbox, unsigned int viid,
-		     unsigned int flags, unsigned int defq)
+		     unsigned int flags, unsigned int defq, unsigned int skeyidx,
+		     unsigned int skey)
 {
 	struct fw_rss_vi_config_cmd c;
 
@@ -4768,6 +4772,10 @@ int t4_config_vi_rss(struct adapter *adapter, int mbox, unsigned int viid,
 	c.retval_len16 = cpu_to_be32(FW_LEN16(c));
 	c.u.basicvirtual.defaultq_to_udpen = cpu_to_be32(flags |
 					V_FW_RSS_VI_CONFIG_CMD_DEFAULTQ(defq));
+	c.u.basicvirtual.secretkeyidx_pkd = cpu_to_be32(
+					V_FW_RSS_VI_CONFIG_CMD_SECRETKEYIDX(skeyidx));
+	c.u.basicvirtual.secretkeyxor = cpu_to_be32(skey);
+
 	return t4_wr_mbox(adapter, mbox, &c, sizeof(c), NULL);
 }
 
@@ -4886,11 +4894,11 @@ void t4_write_rss_key(struct adapter *adap, u32 *key, int idx)
 	if (idx >= 0 && idx < rss_key_addr_cnt) {
 		if (rss_key_addr_cnt > 16)
 			t4_write_reg(adap, A_TP_RSS_CONFIG_VRT,
-				     V_KEYWRADDRX(idx >> 4) |
+				     vrt | V_KEYWRADDRX(idx >> 4) |
 				     V_T6_VFWRADDR(idx) | F_KEYWREN);
 		else
 			t4_write_reg(adap, A_TP_RSS_CONFIG_VRT,
-				     V_KEYWRADDR(idx) | F_KEYWREN);
+				     vrt| V_KEYWRADDR(idx) | F_KEYWREN);
 	}
 }
 
@@ -5775,6 +5783,13 @@ const char *t4_get_port_type_description(enum fw_port_type port_type)
 		"QSA",
 		"QSFP",
 		"BP40_BA",
+		"KR4_100G",
+		"CR4_QSFP",
+		"CR_QSFP",
+		"CR_SFP28",
+		"SFP28",
+		"KR_SFP28",
+		"CR2_QSFP",
 	};
 
 	if (port_type < ARRAY_SIZE(port_type_description))
@@ -7462,8 +7477,12 @@ int t4_handle_fw_rpl(struct adapter *adap, const __be64 *rpl)
 			speed = 1000;
 		else if (stat & V_FW_PORT_CMD_LSPEED(FW_PORT_CAP_SPEED_10G))
 			speed = 10000;
+		else if (stat & V_FW_PORT_CMD_LSPEED(FW_PORT_CAP_SPEED_25G))
+			speed = 25000;
 		else if (stat & V_FW_PORT_CMD_LSPEED(FW_PORT_CAP_SPEED_40G))
 			speed = 40000;
+		else if (stat & V_FW_PORT_CMD_LSPEED(FW_PORT_CAP_SPEED_100G))
+			speed = 100000;
 
 		for_each_port(adap, i) {
 			pi = adap2pinfo(adap, i);
@@ -7866,8 +7885,10 @@ int t4_init_sge_params(struct adapter *adapter)
 	sp->fl_starve_threshold = G_EGRTHRESHOLD(r) * 2 + 1;
 	if (is_t4(adapter))
 		sp->fl_starve_threshold2 = sp->fl_starve_threshold;
-	else
+	else if (is_t5(adapter))
 		sp->fl_starve_threshold2 = G_EGRTHRESHOLDPACKING(r) * 2 + 1;
+	else
+		sp->fl_starve_threshold2 = G_T6_EGRTHRESHOLDPACKING(r) * 2 + 1;
 
 	/* egress queues: log2 of # of doorbells per BAR2 page */
 	r = t4_read_reg(adapter, A_SGE_EGRESS_QUEUES_PER_PAGE_PF);
@@ -7890,7 +7911,13 @@ int t4_init_sge_params(struct adapter *adapter)
 	sp->sge_control = r;
 	sp->spg_len = r & F_EGRSTATUSPAGESIZE ? 128 : 64;
 	sp->fl_pktshift = G_PKTSHIFT(r);
-	sp->pad_boundary = 1 << (G_INGPADBOUNDARY(r) + 5);
+	if (chip_id(adapter) <= CHELSIO_T5) {
+		sp->pad_boundary = 1 << (G_INGPADBOUNDARY(r) +
+		    X_INGPADBOUNDARY_SHIFT);
+	} else {
+		sp->pad_boundary = 1 << (G_INGPADBOUNDARY(r) +
+		    X_T6_INGPADBOUNDARY_SHIFT);
+	}
 	if (is_t4(adapter))
 		sp->pack_boundary = sp->pad_boundary;
 	else {
@@ -8082,6 +8109,10 @@ int t4_port_init(struct adapter *adap, int mbox, int pf, int vf, int port_id)
 		return ret;
 
 	p->vi[0].viid = ret;
+	if (chip_id(adap) <= CHELSIO_T5)
+		p->vi[0].smt_idx = (ret & 0x7f) << 1;
+	else
+		p->vi[0].smt_idx = (ret & 0x7f);
 	p->tx_chan = j;
 	p->rx_chan_map = t4_get_mps_bg_map(adap, j);
 	p->lport = j;
