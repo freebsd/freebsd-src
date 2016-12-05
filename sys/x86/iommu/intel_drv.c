@@ -109,6 +109,7 @@ dmar_iterate_tbl(dmar_iter_t iter, void *arg)
 		if (!iter(dmarh, arg))
 			break;
 	}
+	AcpiPutTable((ACPI_TABLE_HEADER *)dmartbl);
 }
 
 struct find_iter_args {
@@ -184,6 +185,7 @@ dmar_identify(driver_t *driver, device_t parent)
 		    (unsigned)dmartbl->Flags,
 		    "\020\001INTR_REMAP\002X2APIC_OPT_OUT");
 	}
+	AcpiPutTable((ACPI_TABLE_HEADER *)dmartbl);
 
 	dmar_iterate_tbl(dmar_count_iter, NULL);
 	if (dmar_devcnt == 0)
