@@ -56,6 +56,10 @@
 .It
 .Nm Ar nexus Cm i2c Ar port_id devaddr addr Op Ar len
 .It
+.Nm Ar nexus Cm loadcfg Ar fw-config.txt
+.It
+.Nm Ar nexus Cm loadcfg clear
+.It
 .Nm Ar nexus Cm loadfw Ar fw-image.bin
 .It
 .Nm Ar nexus Cm memdump Ar addr len
@@ -353,6 +357,15 @@ Delete filter that is at the given index.
 .It Cm filter Cm list
 List all filters programmed into the hardware.
 .It Cm i2c Ar port_id devaddr addr Op Ar len
+.It Cm loadcfg Ar fw-config.txt
+Install the firmware configuration file contained in
+.Ar fw-config.txt
+to the card.
+Set hw.cxgbe.config_file="flash" in loader.conf to get
+.Xr cxgbe 4
+to use the on-flash configuration.
+.It Cm loadcfg Cm clear
+Erase configuration file from the card.
 .It Cm loadfw Ar fw-image.bin
 Install the firmware contained in
 .Ar fw-image.bin

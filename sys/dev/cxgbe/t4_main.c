@@ -538,6 +538,7 @@ static int set_tcb_rpl(struct sge_iq *, const struct rss_header *,
     struct mbuf *);
 static int get_sge_context(struct adapter *, struct t4_sge_context *);
 static int load_fw(struct adapter *, struct t4_data *);
+static int load_cfg(struct adapter *, struct t4_data *);
 static int read_card_mem(struct adapter *, int, struct t4_mem_range *);
 static int read_i2c(struct adapter *, struct t4_i2c_data *);
 #ifdef TCP_OFFLOAD
@@ -8452,6 +8453,38 @@ done:
 	return (rc);
 }
 
+static int
+load_cfg(struct adapter *sc, struct t4_data *cfg)
+{
+	int rc;
+	uint8_t *cfg_data = NULL;
+
+	rc = begin_synchronized_op(sc, NULL, SLEEP_OK | INTR_OK, "t4ldcf");
+	if (rc)
+		return (rc);
+
+	if (cfg->len == 0) {
+		/* clear */
+		rc = -t4_load_cfg(sc, NULL, 0);
+		goto done;
+	}
+
+	cfg_data = malloc(cfg->len, M_CXGBE, M_WAITOK);
+	if (cfg_data == NULL) {
+		rc = ENOMEM;
+		goto done;
+	}
+
+	rc = copyin(cfg->data, cfg_data, cfg->len);
+	if (rc == 0)
+		rc = -t4_load_cfg(sc, cfg_data, cfg->len);
+
+	free(cfg_data, M_CXGBE);
+done:
+	end_synchronized_op(sc, 0);
+	return (rc);
+}
+
 #define MAX_READ_BUF_SIZE (128 * 1024)
 static int
 read_card_mem(struct adapter *sc, int win, struct t4_mem_range *mr)
@@ -9008,6 +9041,9 @@ t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 		break;
 	case CHELSIO_T4_SET_TRACER:
 		rc = t4_set_tracer(sc, (struct t4_tracer *)data);
+		break;
+	case CHELSIO_T4_LOAD_CFG:
+		rc = load_cfg(sc, (struct t4_data *)data);
 		break;
 	default:
 		rc = ENOTTY;
