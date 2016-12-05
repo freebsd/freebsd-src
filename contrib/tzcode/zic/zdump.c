@@ -212,24 +212,16 @@ const char * const	zone;
 		return;
 	cp = abbrp;
 	wp = NULL;
-	while (isascii((unsigned char) *cp) && isalpha((unsigned char) *cp))
+	while (isascii((unsigned char) *cp) &&
+		(isalnum((unsigned char)*cp) || *cp == '-' || *cp == '+'))
 		++cp;
-	if (cp - abbrp == 0)
-		wp = _("lacks alphabetic at start");
-	else if (cp - abbrp < 3)
-		wp = _("has fewer than 3 alphabetics");
+	if (cp - abbrp < 3)
+		wp = _("has fewer than 3 characters");
 	else if (cp - abbrp > 6)
-		wp = _("has more than 6 alphabetics");
-	if (wp == NULL && (*cp == '+' || *cp == '-')) {
-		++cp;
-		if (isascii((unsigned char) *cp) &&
-			isdigit((unsigned char) *cp))
-				if (*cp++ == '1' && *cp >= '0' && *cp <= '4')
-					++cp;
-		if (*cp != '\0')
-			wp = _("differs from POSIX standard");
-	}
-	if (wp == NULL)
+		wp = _("has more than 6 characters");
+	else if (*cp)
+		wp = "has characters other than ASCII alphanumerics, '-' or '+'";
+	else
 		return;
 	(void) fflush(stdout);
 	(void) fprintf(stderr,
