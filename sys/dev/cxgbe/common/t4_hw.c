@@ -5876,10 +5876,13 @@ void t4_get_port_stats(struct adapter *adap, int idx, struct port_stats *p)
 	p->tx_ppp6		= GET_STAT(TX_PORT_PPP6);
 	p->tx_ppp7		= GET_STAT(TX_PORT_PPP7);
 
-	if (stat_ctl & F_COUNTPAUSESTATTX) {
-		p->tx_frames -= p->tx_pause;
-		p->tx_octets -= p->tx_pause * 64;
-		p->tx_mcast_frames -= p->tx_pause;
+	if (chip_id(adap) >= CHELSIO_T5) {
+		if (stat_ctl & F_COUNTPAUSESTATTX) {
+			p->tx_frames -= p->tx_pause;
+			p->tx_octets -= p->tx_pause * 64;
+		}
+		if (stat_ctl & F_COUNTPAUSEMCTX)
+			p->tx_mcast_frames -= p->tx_pause;
 	}
 
 	p->rx_pause		= GET_STAT(RX_PORT_PAUSE);
@@ -5910,10 +5913,13 @@ void t4_get_port_stats(struct adapter *adap, int idx, struct port_stats *p)
 	p->rx_ppp6		= GET_STAT(RX_PORT_PPP6);
 	p->rx_ppp7		= GET_STAT(RX_PORT_PPP7);
 
-	if (stat_ctl & F_COUNTPAUSESTATRX) {
-		p->rx_frames -= p->rx_pause;
-		p->rx_octets -= p->rx_pause * 64;
-		p->rx_mcast_frames -= p->rx_pause;
+	if (chip_id(adap) >= CHELSIO_T5) {
+		if (stat_ctl & F_COUNTPAUSESTATRX) {
+			p->rx_frames -= p->rx_pause;
+			p->rx_octets -= p->rx_pause * 64;
+		}
+		if (stat_ctl & F_COUNTPAUSEMCRX)
+			p->rx_mcast_frames -= p->rx_pause;
 	}
 
 	p->rx_ovflow0 = (bgmap & 1) ? GET_STAT_COM(RX_BG_0_MAC_DROP_FRAME) : 0;
