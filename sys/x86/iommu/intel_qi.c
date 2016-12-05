@@ -378,7 +378,7 @@ dmar_init_qi(struct dmar_unit *unit)
 
 	TAILQ_INIT(&unit->tlb_flush_entries);
 	TASK_INIT(&unit->qi_task, 0, dmar_qi_task, unit);
-	unit->qi_taskqueue = taskqueue_create_fast("dmar", M_WAITOK,
+	unit->qi_taskqueue = taskqueue_create_fast("dmarqf", M_WAITOK,
 	    taskqueue_thread_enqueue, &unit->qi_taskqueue);
 	taskqueue_start_threads(&unit->qi_taskqueue, 1, PI_AV,
 	    "dmar%d qi taskq", unit->unit);
