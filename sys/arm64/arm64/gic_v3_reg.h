@@ -94,11 +94,20 @@
  * Registers (v3)
  */
 #define	GICD_IROUTER(n)		(0x6000 + ((n) * 8))
-#define	GICD_PIDR2		(0xFFE8)
 
-#define	GICR_PIDR2_ARCH_MASK	(0xF0)
-#define	GICR_PIDR2_ARCH_GICv3	(0x30)
-#define	GICR_PIDR2_ARCH_GICv4	(0x40)
+#define	GICD_PIDR4		0xFFD0
+#define	GICD_PIDR5		0xFFD4
+#define	GICD_PIDR6		0xFFD8
+#define	GICD_PIDR7		0xFFDC
+#define	GICD_PIDR0		0xFFE0
+#define	GICD_PIDR1		0xFFE4
+#define	GICD_PIDR2		0xFFE8
+
+#define	GICR_PIDR2_ARCH_MASK	0xF0
+#define	GICR_PIDR2_ARCH_GICv3	0x30
+#define	GICR_PIDR2_ARCH_GICv4	0x40
+
+#define	GICD_PIDR3		0xFFEC
 
 /* Redistributor registers */
 #define	GICR_CTLR		GICD_CTLR
