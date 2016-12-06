@@ -1079,7 +1079,6 @@ done:
 int
 key_register_ifnet(struct secpolicy **spp, u_int count)
 {
-	struct mbuf *m;
 	u_int i;
 
 	SPTREE_WLOCK();
@@ -1107,26 +1106,14 @@ key_register_ifnet(struct secpolicy **spp, u_int count)
 		 */
 		LIST_INSERT_HEAD(SPHASH_HASH(spp[i]->id), spp[i], idhash);
 		spp[i]->state = IPSEC_SPSTATE_IFNET;
-		/* Acquire extra reference to send SPDADD message */
-		SP_ADDREF(spp[i]);
 	}
 	SPTREE_WUNLOCK();
-	/*
-	 * Notify user processes about new SP.
-	 */
-	for (i = 0; i < count; i++) {
-		m = key_setdumpsp(spp[i], SADB_X_SPDADD, 0, 0);
-		key_freesp(&spp[i]);
-		if (m != NULL)
-			key_sendup_mbuf(NULL, m, KEY_SENDUP_ALL);
-	}
 	return (0);
 }
 
 void
 key_unregister_ifnet(struct secpolicy **spp, u_int count)
 {
-	struct mbuf *m;
 	u_int i;
 
 	SPTREE_WLOCK();
@@ -1143,13 +1130,6 @@ key_unregister_ifnet(struct secpolicy **spp, u_int count)
 		LIST_REMOVE(spp[i], idhash);
 	}
 	SPTREE_WUNLOCK();
-
-	for (i = 0; i < count; i++) {
-		m = key_setdumpsp(spp[i], SADB_X_SPDDELETE, 0, 0);
-		key_freesp(&spp[i]);
-		if (m != NULL)
-			key_sendup_mbuf(NULL, m, KEY_SENDUP_ALL);
-	}
 }
 
 /*
