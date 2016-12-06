@@ -274,31 +274,6 @@ proc_objname(struct proc_handle *p, uintptr_t addr, char *objname,
 	return (NULL);
 }
 
-/*
- * Currently just returns the first mapping of the named object, effectively
- * what Plmid_to_map(p, PR_LMID_EVERY, objname) does in illumos libproc.
- */
-prmap_t *
-proc_obj2map(struct proc_handle *p, const char *objname)
-{
-	char path[PATH_MAX], *base;
-	prmap_t *map;
-	size_t i;
-
-	map = NULL;
-	for (i = 0; i < p->nmappings; i++) {
-		strlcpy(path, p->mappings[i].map.pr_mapname, sizeof(path));
-		base = basename(path);
-		if (strcmp(base, objname) == 0) {
-			map = &p->mappings[i].map;
-			break;
-		}
-	}
-	if (map == NULL && strcmp(objname, "a.out") == 0 && p->exec_map != NULL)
-		map = p->exec_map;
-	return (map);
-}
-
 int
 proc_iter_objs(struct proc_handle *p, proc_map_f *func, void *cd)
 {
@@ -468,9 +443,10 @@ _proc_name2map(struct proc_handle *p, const char *name)
 {
 	char path[MAXPATHLEN], *base;
 	struct map_info *mapping;
-	size_t i;
+	size_t i, len;
 
-	mapping = NULL;
+	if ((len = strlen(name)) == 0)
+		return (NULL);
 	if (p->nmappings == 0)
 		if (proc_rdagent(p) == NULL)
 			return (NULL);
@@ -479,13 +455,18 @@ _proc_name2map(struct proc_handle *p, const char *name)
 		(void)strlcpy(path, mapping->map.pr_mapname, sizeof(path));
 		base = basename(path);
 		if (strcmp(base, name) == 0)
-			break;
+			return (mapping);
 	}
-	if (i == p->nmappings)
-		mapping = NULL;
-	if (mapping == NULL && strcmp(name, "a.out") == 0)
-		mapping = _proc_addr2map(p, p->exec_map->pr_vaddr);
-	return (mapping);
+	/* If we didn't find a match, try matching prefixes of the basename. */
+	for (i = 0; i < p->nmappings; i++) {
+		strlcpy(path, p->mappings[i].map.pr_mapname, sizeof(path));
+		base = basename(path);
+		if (strncmp(base, name, len) == 0)
+			return (&p->mappings[i]);
+	}
+	if (strcmp(name, "a.out") == 0)
+		return (_proc_addr2map(p, p->exec_map->pr_vaddr));
+	return (NULL);
 }
 
 prmap_t *

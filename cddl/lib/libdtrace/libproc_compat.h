@@ -44,7 +44,7 @@
 #define	Pdelbkpt proc_bkptdel
 #define	Pgrab_error strerror
 #define	Plmid(p, a, l) (-1)
-#define	Plmid_to_map(p, l, o) proc_obj2map((p), (o))
+#define	Plmid_to_map(p, l, o) proc_name2map(p, o)
 #define	Plookup_by_addr proc_addr2sym
 #define	Pname_to_ctf(p, obj) (ctf_file_t *)proc_name2ctf(p, obj)
 #define	Pname_to_map proc_name2map
