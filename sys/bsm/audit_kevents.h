@@ -609,6 +609,37 @@
 #define	AUE_BINDAT		43207	/* TrustedBSD. */
 #define	AUE_CONNECTAT		43208	/* TrustedBSD. */
 #define	AUE_CHFLAGSAT		43209	/* FreeBSD-specific. */
+#define	AUE_PREADV		43210	/* FreeBSD-specific. */
+#define	AUE_PWRITEV		43211	/* FreeBSD-specific. */
+#define	AUE_POSIX_FALLOCATE	43212	/* FreeBSD-specific. */
+#define	AUE_AIO_MLOCK		43213	/* FreeBSD-specific. */
+#define	AUE_PROCCTL		43214	/* FreeBSD-specific. */
+#define	AUE_AIO_READ		43215	/* FreeBSD-specific. */
+#define	AUE_AIO_WRITE		43216	/* FreeBSD-specific. */
+#define	AUE_AIO_RETURN		43217	/* FreeBSD-specific. */
+#define	AUE_AIO_SUSPEND		43218	/* FreeBSD-specific. */
+#define	AUE_AIO_CANCEL		43219	/* FreeBSD-specific. */
+#define	AUE_AIO_ERROR		43220	/* FreeBSD-specific. */
+#define	AUE_AIO_WAITCOMPLETE	43221	/* FreeBSD-specific. */
+#define	AUE_AIO_FSYNC		43222	/* FreeBSD-specific. */
+#define	AUE_THR_CREATE		43223	/* FreeBSD-specific. */
+#define	AUE_THR_NEW		43224	/* FreeBSD-specific. */
+#define	AUE_THR_EXIT		43225	/* FreeBSD-specific. */
+#define	AUE_THR_KILL		43226	/* FreeBSD-specific. */
+#define	AUE_THR_KILL2		43227	/* FreeBSD-specific. */
+#define	AUE_SETFIB		43228	/* FreeBSD-specific. */
+#define	AUE_LIO_LISTIO		43229	/* FreeBSD-specific. */
+#define	AUE_SETUGID		43230	/* FreeBSD-specific. */
+#define	AUE_SCTP_PEELOFF	43231	/* FreeBSD-specific. */
+#define	AUE_SCTP_GENERIC_SENDMSG	43232	/* FreeBSD-specific. */
+#define	AUE_SCTP_GENERIC_RECVMSG	43233	/* FreeBSD-specific. */
+#define	AUE_JAIL_GET		43234	/* FreeBSD-specific. */
+#define	AUE_JAIL_SET		43235	/* FreeBSD-specific. */
+#define	AUE_JAIL_REMOVE		43236	/* FreeBSD-specific. */
+#define	AUE_GETLOGINCLASS	43237	/* FreeBSD-specific. */
+#define	AUE_SETLOGINCLASS	43238	/* FreeBSD-specific. */
+#define	AUE_POSIX_FADVISE	43239	/* FreeBSD-specific. */
+#define	AUE_SCTP_GENERIC_SENDMSG_IOV	43240	/* FreeBSD-specific. */
 
 /*
  * Darwin BSM uses a number of AUE_O_* definitions, which are aliased to the
@@ -746,7 +777,6 @@
 #define	AUE_MODWATCH		AUE_NULL
 #define	AUE_MSGCL		AUE_NULL
 #define	AUE_MSYNC		AUE_NULL
-#define	AUE_PREADV		AUE_NULL
 #define	AUE_PROCINFO		AUE_NULL
 #define	AUE_PTHREADCANCELED	AUE_NULL
 #define	AUE_PTHREADCHDIR	AUE_NULL
@@ -761,7 +791,6 @@
 #define	AUE_PTHREADMUTEXINIT	AUE_NULL
 #define	AUE_PTHREADMUTEXTRYLOCK	AUE_NULL
 #define	AUE_PTHREADMUTEXUNLOCK	AUE_NULL
-#define	AUE_PWRITEV		AUE_NULL
 #define	AUE_REMOVEXATTR		AUE_NULL
 #define	AUE_SBRK		AUE_NULL
 #define	AUE_SELECT		AUE_NULL

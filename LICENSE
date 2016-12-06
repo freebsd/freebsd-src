@@ -1,13 +1,13 @@
 OpenBSM Copyrights and Licensing
 
-OpenBSM is covered by a number of copyrights, with licenses being either two
-or three clause BSD licenses.  Individual file headers should be consulted
+OpenBSM is covered by a number of copyrights, with licenses being either two-
+or three-clause BSD licenses.  Individual file headers should be consulted
 for copyrights on specific elements of the distribution.
 
 The following copyright and license are asserted over the OpenBSM distribution
 as a whole:
 
-  Copyright (c) 2005-2012 Robert N.M. Watson
+  Copyright (c) 2005-2016 Robert N.M. Watson
   All rights reserved.
 
   Redistribution and use in source and binary forms, with or without
