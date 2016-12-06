@@ -72,9 +72,10 @@ struct syscall {
 	struct timespec time; /* Time spent for this call */
 	int ncalls;	/* Number of calls */
 	int nerror;	/* Number of calls that returned with error */
+	bool unknown;	/* Unknown system call */
 };
 
-struct syscall *get_syscall(const char *, int nargs);
+struct syscall *get_syscall(struct threadinfo *, u_int, u_int);
 char *print_arg(struct syscall_args *, unsigned long*, long *, struct trussinfo *);
 
 /*

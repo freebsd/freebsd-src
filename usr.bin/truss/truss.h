@@ -38,13 +38,29 @@
 #define	DISPLAYTIDS		0x00000080
 
 struct procinfo;
+struct syscall;
 struct trussinfo;
+
+/*
+ * The lookup of normal system calls are optimized by using a fixed
+ * array for the first 1024 system calls that can be indexed directly.
+ * Unknown system calls with other IDs are stored in a linked list.
+ */
+#define	SYSCALL_NORMAL_COUNT	1024
+
+struct extra_syscall {
+	STAILQ_ENTRY(extra_syscall) entries;
+	struct syscall *sc;
+	u_int number;
+};
 
 struct procabi {
 	const char *type;
 	enum sysdecode_abi abi;
 	int (*fetch_args)(struct trussinfo *, u_int);
 	int (*fetch_retval)(struct trussinfo *, long *, int *);
+	STAILQ_HEAD(, extra_syscall) extra_syscalls;
+	struct syscall *syscalls[SYSCALL_NORMAL_COUNT];
 };
 
 #define	PROCABI(abi)	DATA_SET(procabi, abi)
@@ -64,10 +80,9 @@ struct procabi {
  */
 struct current_syscall {
 	struct syscall *sc;
-	const char *name;
-	int number;
-	unsigned long args[10];
+	unsigned int number;
 	unsigned int nargs;
+	unsigned long args[10];
 	char *s_args[10];	/* the printable arguments */
 };
 
