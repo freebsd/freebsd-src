@@ -4732,6 +4732,58 @@ key_do_getnewspi(struct sadb_spirange *spirange, struct secasindex *saidx)
 }
 
 /*
+ * Find TCP-MD5 SA with corresponding secasindex.
+ * If not found, return NULL and fill SPI with usable value if needed.
+ */
+static struct secasvar *
+key_getsav_tcpmd5(struct secasindex *saidx, uint32_t *spi)
+{
+	SAHTREE_RLOCK_TRACKER;
+	struct secashead *sah;
+	struct secasvar *sav;
+
+	IPSEC_ASSERT(saidx->proto == IPPROTO_TCP, ("wrong proto"));
+	SAHTREE_RLOCK();
+	LIST_FOREACH(sah, SAHADDRHASH_HASH(saidx), addrhash) {
+		if (sah->saidx.proto != IPPROTO_TCP)
+			continue;
+		if (!key_sockaddrcmp(&saidx->dst.sa, &sah->saidx.dst.sa,
+		    key_portfromsaddr(&sah->saidx.dst.sa)))
+			break;
+	}
+	if (sah != NULL) {
+		if (V_key_preferred_oldsa)
+			sav = TAILQ_LAST(&sah->savtree_alive, secasvar_queue);
+		else
+			sav = TAILQ_FIRST(&sah->savtree_alive);
+		if (sav != NULL) {
+			SAV_ADDREF(sav);
+			SAHTREE_RUNLOCK();
+			return (sav);
+		}
+	}
+	if (spi == NULL) {
+		/* No SPI required */
+		SAHTREE_RUNLOCK();
+		return (NULL);
+	}
+	/* Check that SPI is unique */
+	LIST_FOREACH(sav, SAVHASH_HASH(*spi), spihash) {
+		if (sav->spi == *spi)
+			break;
+	}
+	if (sav == NULL) {
+		SAHTREE_RUNLOCK();
+		/* SPI is already unique */
+		return (NULL);
+	}
+	SAHTREE_RUNLOCK();
+	/* XXX: not optimal */
+	*spi = key_do_getnewspi(NULL, saidx);
+	return (NULL);
+}
+
+/*
  * SADB_UPDATE processing
  * receive
  *   <base, SA, (SA2), (lifetime(HSC),) address(SD), (address(P),)
@@ -4965,7 +5017,7 @@ key_add(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 	struct sadb_address *src0, *dst0;
 	struct sadb_sa *sa0;
 	struct secasvar *sav;
-	uint32_t reqid;
+	uint32_t reqid, spi;
 	uint8_t mode, proto;
 	int error;
 
@@ -5046,19 +5098,36 @@ key_add(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 	/*
 	 * Make sure the port numbers are zero.
 	 * In case of NAT-T we will update them later if needed.
+	 * XXXAE: TCP-MD5 may set dst port.
 	 */
 	key_porttosaddr(&saidx.src.sa, 0);
 	key_porttosaddr(&saidx.dst.sa, 0);
 
-	/* We can create new SA only if SPI is different. */
-	sav = key_getsavbyspi(sa0->sadb_sa_spi);
+	spi = sa0->sadb_sa_spi;
+	/*
+	 * XXX: For TCP-MD5 SAs we don't use SPI.
+	 * Check the uniqueness using secasindex.
+	 */
+	if (proto == IPPROTO_TCP) {
+		sav = key_getsav_tcpmd5(&saidx, &spi);
+		if (sav == NULL && spi == 0) {
+			/* Failed to allocate SPI */
+			ipseclog((LOG_DEBUG, "%s: SA already exists.\n",
+			    __func__));
+			return key_senderror(so, m, EEXIST);
+		}
+		/* XXX: SPI that we report back can have another value */
+	} else {
+		/* We can create new SA only if SPI is different. */
+		sav = key_getsavbyspi(spi);
+	}
 	if (sav != NULL) {
 		key_freesav(&sav);
 		ipseclog((LOG_DEBUG, "%s: SA already exists.\n", __func__));
 		return key_senderror(so, m, EEXIST);
 	}
 
-	sav = key_newsav(mhp, &saidx, sa0->sadb_sa_spi, &error);
+	sav = key_newsav(mhp, &saidx, spi, &error);
 	if (sav == NULL)
 		return key_senderror(so, m, error);
 	KEYDBG(KEY_STAMP,
@@ -5333,7 +5402,10 @@ key_delete(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 		return (key_senderror(so, m, EINVAL));
 	}
 	sa0 = (struct sadb_sa *)mhp->ext[SADB_EXT_SA];
-	sav = key_getsavbyspi(sa0->sadb_sa_spi);
+	if (proto == IPPROTO_TCP)
+		sav = key_getsav_tcpmd5(&saidx, NULL);
+	else
+		sav = key_getsavbyspi(sa0->sadb_sa_spi);
 	if (sav == NULL) {
 		ipseclog((LOG_DEBUG, "%s: no SA found for SPI %u.\n",
 		    __func__, ntohl(sa0->sadb_sa_spi)));
@@ -5504,14 +5576,17 @@ key_get(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 	key_porttosaddr(&saidx.src.sa, 0);
 	key_porttosaddr(&saidx.dst.sa, 0);
 
-	sav = key_getsavbyspi(sa0->sadb_sa_spi);
+	if (proto == IPPROTO_TCP)
+		sav = key_getsav_tcpmd5(&saidx, NULL);
+	else
+		sav = key_getsavbyspi(sa0->sadb_sa_spi);
 	if (sav == NULL) {
 		ipseclog((LOG_DEBUG, "%s: no SA found.\n", __func__));
 		return key_senderror(so, m, ESRCH);
 	}
 	if (key_cmpsaidx(&sav->sah->saidx, &saidx, CMP_HEAD) == 0) {
 		ipseclog((LOG_DEBUG, "%s: saidx mismatched for SPI %u.\n",
-		    __func__, ntohl(sav->spi)));
+		    __func__, ntohl(sa0->sadb_sa_spi)));
 		key_freesav(&sav);
 		return (key_senderror(so, m, ESRCH));
 	}
