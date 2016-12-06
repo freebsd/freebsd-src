@@ -32,11 +32,23 @@
 #include <sys/types.h>
 #include <sys/ptrace.h>
 
+#include <libelf.h>
 #include <rtld_db.h>
 
 #include "libproc.h"
 
 struct procstat;
+
+struct file_info {
+	Elf	*elf;
+	int	fd;
+	u_int	refs;
+};
+
+struct map_info {
+	prmap_t	map;
+	struct file_info *file;
+};
 
 struct proc_handle {
 	struct proc_handle_public public; /* Public fields. */
@@ -45,13 +57,13 @@ struct proc_handle {
 	int	wstat;			/* Process wait status. */
 	int	model;			/* Process data model. */
 	rd_agent_t *rdap;		/* librtld_db agent */
-	rd_loadobj_t *rdobjs;		/* Array of loaded objects. */
-	size_t	rdobjsz;		/* Array size. */
-	size_t	nobjs;			/* Num. objects currently loaded. */
-	rd_loadobj_t *rdexec;		/* rdobj for program executable. */
-	struct lwpstatus lwps;		/* Process status. */
+	struct map_info *mappings;	/* File mappings for proc. */
+	size_t	maparrsz;		/* Map array size. */
+	size_t	nmappings;		/* Number of mappings. */
+	prmap_t	*exec_map;		/* Executable text mapping. */
+	lwpstatus_t lwps;		/* Process status. */
 	struct procstat *procstat;	/* libprocstat handle. */
-	char	execpath[MAXPATHLEN];	/* Path to program executable. */
+	char	execpath[PATH_MAX];	/* Path to program executable. */
 };
 
 #ifdef DEBUG
