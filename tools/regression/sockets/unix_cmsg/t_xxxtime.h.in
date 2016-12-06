@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2005 Andrey Simonenko
+ * Copyright (c) 2016 Maksym Sobolyev <sobomax@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,4 +27,6 @@
  * $FreeBSD$
  */
 
-int t_timeval(void);
+#if defined(%%SCM_TTYPE%%)
+int t_%%TTYPE%%(void);
+#endif
