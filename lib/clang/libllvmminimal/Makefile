@@ -7,6 +7,9 @@ INTERNALLIB=
 
 SRCDIR=		lib
 SRCS+=		Support/APInt.cpp
+.if ${MACHINE_ARCH:Mpowerpc*} != ""
+SRCS+=		Support/Atomic.cpp
+.endif
 SRCS+=		Support/CommandLine.cpp
 SRCS+=		Support/ConvertUTF.c
 SRCS+=		Support/ConvertUTFWrapper.cpp
