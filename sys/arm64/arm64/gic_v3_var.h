@@ -68,6 +68,9 @@ struct gic_v3_softc {
 	/* Re-Distributors */
 	struct gic_redists	gic_redists;
 
+	uint32_t		gic_pidr2;
+	u_int			gic_bus;
+
 	u_int			gic_nirqs;
 	u_int			gic_idbits;
 

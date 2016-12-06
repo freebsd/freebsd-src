@@ -75,6 +75,9 @@ struct arm_gic_softc {
 #endif
 
 #ifdef INTRNG
+	uint32_t		gic_iidr;
+	u_int			gic_bus;
+
 	int			nranges;
 	struct arm_gic_range *	ranges;
 #endif

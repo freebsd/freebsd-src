@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <arm/arm/gic.h>
+#include <arm/arm/gic_common.h>
 
 #ifdef INTRNG
 struct arm_gic_devinfo {
@@ -139,6 +140,10 @@ gic_fdt_attach(device_t dev)
 	intptr_t xref;
 #endif
 	int err;
+
+#ifdef INTRNG
+	sc->base.gic_bus = GIC_BUS_FDT;
+#endif
 
 	err = arm_gic_attach(dev);
 	if (err != 0)
