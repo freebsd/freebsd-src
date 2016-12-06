@@ -39,7 +39,7 @@
 struct procstat;
 
 struct proc_handle {
-	pid_t	pid;			/* Process ID. */
+	struct proc_handle_public public; /* Public fields. */
 	int	flags;			/* Process flags. */
 	int	status;			/* Process status (PS_*). */
 	int	wstat;			/* Process wait status. */
