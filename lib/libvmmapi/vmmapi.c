@@ -263,12 +263,14 @@ vm_map_gpa(struct vmctx *ctx, vm_paddr_t gaddr, size_t len)
 	/* XXX VM_MMAP_SPARSE not implemented yet */
 	assert(ctx->vms == VM_MMAP_ALL);
 
-	if (gaddr < ctx->lowmem && gaddr + len <= ctx->lowmem)
+	if (gaddr < ctx->lowmem && len <= ctx->lowmem &&
+	    gaddr + len <= ctx->lowmem)
 		return ((void *)(ctx->lowmem_addr + gaddr));
 
 	if (gaddr >= 4*GB) {
 		gaddr -= 4*GB;
-		if (gaddr < ctx->highmem && gaddr + len <= ctx->highmem)
+		if (gaddr < ctx->highmem && len <= ctx->highmem &&
+		    gaddr + len <= ctx->highmem)
 			return ((void *)(ctx->highmem_addr + gaddr));
 	}
 
