@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <net/if.h>
 #include <net/if_dl.h>
 #include <string.h>
 
@@ -125,31 +126,47 @@ link_ntoa(sdl)
 	const struct sockaddr_dl *sdl;
 {
 	static char obuf[64];
-	char *out = obuf;
-	int i;
-	u_char *in = (u_char *)LLADDR(sdl);
-	u_char *inlim = in + sdl->sdl_alen;
-	int firsttime = 1;
+	_Static_assert(sizeof(obuf) >= IFNAMSIZ + 20, "obuf is too small");
+	char *out;
+	const char *in, *inlim;
+	int namelen, i, rem;
 
-	if (sdl->sdl_nlen) {
-		bcopy(sdl->sdl_data, obuf, sdl->sdl_nlen);
-		out += sdl->sdl_nlen;
-		if (sdl->sdl_alen)
+	namelen = (sdl->sdl_nlen <= IFNAMSIZ) ? sdl->sdl_nlen : IFNAMSIZ;
+
+	out = obuf;
+	rem = sizeof(obuf);
+	if (namelen > 0) {
+		bcopy(sdl->sdl_data, out, namelen);
+		out += namelen;
+		rem -= namelen;
+		if (sdl->sdl_alen > 0) {
 			*out++ = ':';
+			rem--;
+		}
 	}
-	while (in < inlim) {
-		if (firsttime)
-			firsttime = 0;
-		else
+
+	in = (const char *)sdl->sdl_data + sdl->sdl_nlen;
+	inlim = in + sdl->sdl_alen;
+
+	while (in < inlim && rem > 1) {
+		if (in != (const char *)sdl->sdl_data + sdl->sdl_nlen) {
 			*out++ = '.';
+			rem--;
+		}
 		i = *in++;
 		if (i > 0xf) {
-			out[1] = hexlist[i & 0xf];
+			if (rem < 3)
+				break;
+			*out++ = hexlist[i & 0xf];
 			i >>= 4;
-			out[0] = hexlist[i];
-			out += 2;
-		} else
 			*out++ = hexlist[i];
+			rem -= 2;
+		} else {
+			if (rem < 2)
+				break;
+			*out++ = hexlist[i];
+			rem++;
+		}
 	}
 	*out = 0;
 	return (obuf);
