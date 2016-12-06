@@ -38,6 +38,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20161205: libproc version bump
+OLD_LIBS+=usr/lib/libproc.so.3
+OLD_LIBS+=usr/lib32/libproc.so.3
 # 20161127: Remove vm_page_cache(9)
 OLD_FILES+=usr/share/man/man9/vm_page_cache.9.gz
 # 20161124: new clang import which bumps version from 3.8.0 to 3.9.0.
