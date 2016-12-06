@@ -109,7 +109,9 @@ static struct procabi amd64_linux32 = {
 	"Linux ELF32",
 	SYSDECODE_ABI_LINUX32,
 	amd64_linux32_fetch_args,
-	amd64_linux32_fetch_retval
+	amd64_linux32_fetch_retval,
+	STAILQ_HEAD_INITIALIZER(amd64_linux32.extra_syscalls),
+	{ NULL }
 };
 
 PROCABI(amd64_linux32);
