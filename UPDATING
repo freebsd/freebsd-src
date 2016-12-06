@@ -11,6 +11,16 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20161206	p51	FreeBSD-SA-16:36.telnetd
+			FreeBSD-SA-16:37.libc
+			FreeBSD-EN-16:19.tzcode
+			FreeBSD-EN-16:20.tzdata
+
+	Fix possible login(1) argument injection in telnetd(8). [SA-16:36]
+	Fix link_ntoa(3) buffer overflow in libc. [SA-16:37]
+	Fix warnings about valid time zone abbreviations. [EN-16:19]
+	Update timezone database information. [EN-16:20]
+
 20161102	p50	FreeBSD-SA-16:34.bind
 			FreeBSD-SA-16:35.openssl
 
