@@ -61,6 +61,7 @@ struct secasvar *key_allocsa_tunnel(union sockaddr_union *,
     union sockaddr_union *, uint8_t);
 struct secasvar *key_allocsa_policy(struct secpolicy *,
     const struct secasindex *, int *);
+struct secasvar *key_allocsa_tcpmd5(struct secasindex *);
 void key_freesav(struct secasvar **);
 
 int key_sockaddrcmp(const struct sockaddr *, const struct sockaddr *, int);
@@ -79,9 +80,8 @@ extern void key_init(void);
 extern void key_destroy(void);
 #endif
 extern void key_sa_recordxfer(struct secasvar *, struct mbuf *);
-#ifdef IPSEC_NAT_T
 uint16_t key_portfromsaddr(struct sockaddr *);
-#endif
+void key_porttosaddr(struct sockaddr *, uint16_t port);
 
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_IPSEC_SA);

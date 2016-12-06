@@ -533,9 +533,6 @@ static struct mbuf *key_setsadbaddr(u_int16_t,
 static struct mbuf *key_setsadbxport(u_int16_t, u_int16_t);
 static struct mbuf *key_setsadbxtype(u_int16_t);
 #endif
-static void key_porttosaddr(struct sockaddr *, u_int16_t);
-#define	KEY_PORTTOSADDR(saddr, port)				\
-	key_porttosaddr((struct sockaddr *)(saddr), (port))
 static struct mbuf *key_setsadbxsa2(u_int8_t, u_int32_t, u_int32_t);
 static struct mbuf *key_setsadbxpolicy(u_int16_t, u_int8_t,
 	u_int32_t, u_int32_t);
@@ -779,8 +776,6 @@ key_allocsa_tcpmd5(struct secasindex *saidx)
 		    printf("%s: checking SAH\n", __func__);
 		    kdebug_secash(sah, "  "));
 		if (sah->saidx.proto != IPPROTO_TCP)
-			continue;
-		if (sah->saidx.mode != saidx->mode)
 			continue;
 		/*
 		 * addrhash uses only IP addresses without ports, but if
@@ -3617,6 +3612,7 @@ key_setsadbxport(u_int16_t port, u_int16_t type)
 
 	return (m);
 }
+#endif /* IPSEC_NAT_T */
 
 /*
  * Get port from sockaddr. Port is in network byte order.
@@ -3637,12 +3633,11 @@ key_portfromsaddr(struct sockaddr *sa)
 	}
 	return (0);
 }
-#endif /* IPSEC_NAT_T */
 
 /*
  * Set port in struct sockaddr. Port is in network byte order.
  */
-static void
+void
 key_porttosaddr(struct sockaddr *sa, uint16_t port)
 {
 
@@ -4578,8 +4573,8 @@ key_getspi(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 	 * Make sure the port numbers are zero.
 	 * In case of NAT-T we will update them later if needed.
 	 */
-	KEY_PORTTOSADDR(&saidx.src, 0);
-	KEY_PORTTOSADDR(&saidx.dst, 0);
+	key_porttosaddr(&saidx.src.sa, 0);
+	key_porttosaddr(&saidx.dst.sa, 0);
 
 	/* SPI allocation */
 	spi = key_do_getnewspi(
@@ -4858,8 +4853,8 @@ key_update(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 	 * Make sure the port numbers are zero.
 	 * In case of NAT-T we will update them later if needed.
 	 */
-	KEY_PORTTOSADDR(&saidx.src, 0);
-	KEY_PORTTOSADDR(&saidx.dst, 0);
+	key_porttosaddr(&saidx.src.sa, 0);
+	key_porttosaddr(&saidx.dst.sa, 0);
 
 	sav = key_getsavbyspi(sa0->sadb_sa_spi);
 	if (sav == NULL) {
@@ -5072,8 +5067,8 @@ key_add(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 	 * Make sure the port numbers are zero.
 	 * In case of NAT-T we will update them later if needed.
 	 */
-	KEY_PORTTOSADDR(&saidx.src, 0);
-	KEY_PORTTOSADDR(&saidx.dst, 0);
+	key_porttosaddr(&saidx.src.sa, 0);
+	key_porttosaddr(&saidx.dst.sa, 0);
 
 	/* We can create new SA only if SPI is different. */
 	sav = key_getsavbyspi(sa0->sadb_sa_spi);
@@ -5142,9 +5137,9 @@ key_setnatt(struct secasvar *sav, const struct sadb_msghdr *mhp)
 		    mhp->ext[SADB_X_EXT_NAT_T_DPORT];
 
 		sav->natt_type = type->sadb_x_nat_t_type_type;
-		KEY_PORTTOSADDR(&sav->sah->saidx.src,
+		key_porttosaddr(&sav->sah->saidx.src.sa,
 		    sport->sadb_x_nat_t_port_port);
-		KEY_PORTTOSADDR(&sav->sah->saidx.dst,
+		key_porttosaddr(&sav->sah->saidx.dst.sa,
 		    dport->sadb_x_nat_t_port_port);
 	} else
 		return (0);
@@ -5339,8 +5334,8 @@ key_delete(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 	 * Make sure the port numbers are zero.
 	 * In case of NAT-T we will update them later if needed.
 	 */
-	KEY_PORTTOSADDR(&saidx.src, 0);
-	KEY_PORTTOSADDR(&saidx.dst, 0);
+	key_porttosaddr(&saidx.src.sa, 0);
+	key_porttosaddr(&saidx.dst.sa, 0);
 
 	if (SADB_CHECKHDR(mhp, SADB_EXT_SA)) {
 		/*
@@ -5526,8 +5521,8 @@ key_get(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 	 * Make sure the port numbers are zero.
 	 * In case of NAT-T we will update them later if needed.
 	 */
-	KEY_PORTTOSADDR(&saidx.src, 0);
-	KEY_PORTTOSADDR(&saidx.dst, 0);
+	key_porttosaddr(&saidx.src.sa, 0);
+	key_porttosaddr(&saidx.dst.sa, 0);
 
 	sav = key_getsavbyspi(sa0->sadb_sa_spi);
 	if (sav == NULL) {
@@ -6338,8 +6333,8 @@ key_acquire2(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 	 * Make sure the port numbers are zero.
 	 * In case of NAT-T we will update them later if needed.
 	 */
-	KEY_PORTTOSADDR(&saidx.src, 0);
-	KEY_PORTTOSADDR(&saidx.dst, 0);
+	key_porttosaddr(&saidx.src.sa, 0);
+	key_porttosaddr(&saidx.dst.sa, 0);
 
 	/* get a SA index */
 	SAHTREE_RLOCK();
