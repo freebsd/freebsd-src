@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
+#include <arm/arm/gic_common.h>
 #include "gic_v3_reg.h"
 #include "gic_v3_var.h"
 
