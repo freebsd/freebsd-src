@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 
 #include "pic_if.h"
 
+#include <arm/arm/gic_common.h>
 #include "gic_v3_reg.h"
 #include "gic_v3_var.h"
 
