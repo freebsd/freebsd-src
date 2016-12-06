@@ -30,7 +30,6 @@
 #ifndef _MACHINE_PMAP_H_
 #define _MACHINE_PMAP_H_
 
-#include <sys/systm.h>
 #if __ARM_ARCH >= 6
 #include <machine/pmap-v6.h>
 #else
@@ -38,6 +37,7 @@
 #endif
 
 #ifdef _KERNEL
+#include <sys/systm.h>
 
 extern vm_paddr_t dump_avail[];
 extern vm_paddr_t phys_avail[];
