@@ -161,10 +161,8 @@ sctp_handle_init(struct mbuf *m, int iphlen, int offset,
 			*abort_no_unlock = 1;
 		goto outnow;
 	}
-	/*
-	 * We are only accepting if we have a socket with positive
-	 * so_qlimit.
-	 */
+	/* We are only accepting if we have a socket with positive
+	 * so_qlimit. */
 	if ((stcb == NULL) &&
 	    ((inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) ||
 	    (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_ALLGONE) ||
@@ -709,10 +707,8 @@ sctp_handle_nat_colliding_state(struct sctp_tcb *stcb)
 		LIST_REMOVE(stcb, sctp_asocs);
 		stcb->asoc.my_vtag = sctp_select_a_tag(stcb->sctp_ep, stcb->sctp_ep->sctp_lport, stcb->rport, 1);
 		head = &SCTP_BASE_INFO(sctp_asochash)[SCTP_PCBHASH_ASOC(stcb->asoc.my_vtag, SCTP_BASE_INFO(hashasocmark))];
-		/*
-		 * put it in the bucket in the vtag hash of assoc's for the
-		 * system
-		 */
+		/* put it in the bucket in the vtag hash of assoc's for the
+		 * system */
 		LIST_INSERT_HEAD(head, stcb, sctp_asocs);
 		sctp_send_initiate(stcb->sctp_ep, stcb, SCTP_SO_NOT_LOCKED);
 		return (1);
@@ -730,10 +726,8 @@ sctp_handle_nat_colliding_state(struct sctp_tcb *stcb)
 		sctp_toss_old_cookies(stcb, &stcb->asoc);
 		stcb->asoc.my_vtag = sctp_select_a_tag(stcb->sctp_ep, stcb->sctp_ep->sctp_lport, stcb->rport, 1);
 		head = &SCTP_BASE_INFO(sctp_asochash)[SCTP_PCBHASH_ASOC(stcb->asoc.my_vtag, SCTP_BASE_INFO(hashasocmark))];
-		/*
-		 * put it in the bucket in the vtag hash of assoc's for the
-		 * system
-		 */
+		/* put it in the bucket in the vtag hash of assoc's for the
+		 * system */
 		LIST_INSERT_HEAD(head, stcb, sctp_asocs);
 		sctp_send_initiate(stcb->sctp_ep, stcb, SCTP_SO_NOT_LOCKED);
 		return (1);
@@ -764,7 +758,6 @@ sctp_handle_abort(struct sctp_abort_chunk *abort,
 {
 #if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 	struct socket *so;
-
 #endif
 	uint16_t len;
 	uint16_t error;
@@ -866,10 +859,8 @@ sctp_handle_shutdown(struct sctp_shutdown_chunk *cp,
 	struct sctp_association *asoc;
 	int some_on_streamwheel;
 	int old_state;
-
 #if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 	struct socket *so;
-
 #endif
 
 	SCTPDBG(SCTP_DEBUG_INPUT2,
@@ -946,10 +937,8 @@ sctp_handle_shutdown(struct sctp_shutdown_chunk *cp,
 		    (SCTP_GET_STATE(asoc) != SCTP_STATE_SHUTDOWN_SENT)) {
 			SCTP_SET_STATE(asoc, SCTP_STATE_SHUTDOWN_RECEIVED);
 			SCTP_CLEAR_SUBSTATE(asoc, SCTP_STATE_SHUTDOWN_PENDING);
-			/*
-			 * notify upper layer that peer has initiated a
-			 * shutdown
-			 */
+			/* notify upper layer that peer has initiated a
+			 * shutdown */
 			sctp_ulp_notify(SCTP_NOTIFY_PEER_SHUTDOWN, stcb, 0, NULL, SCTP_SO_NOT_LOCKED);
 
 			/* reset time */
@@ -999,7 +988,6 @@ sctp_handle_shutdown_ack(struct sctp_shutdown_ack_chunk *cp SCTP_UNUSED,
     struct sctp_nets *net)
 {
 	struct sctp_association *asoc;
-
 #if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 	struct socket *so;
 
@@ -1169,10 +1157,8 @@ sctp_handle_error(struct sctp_chunkhdr *ch,
 	uint16_t error_len;
 	struct sctp_association *asoc;
 	int adjust;
-
 #if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 	struct socket *so;
-
 #endif
 
 	/* parse through all of the errors and process */
@@ -1492,10 +1478,8 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 	int retval;
 	int spec_flag = 0;
 	uint32_t how_indx;
-
 #if defined(SCTP_DETAILED_STR_STATS)
 	int j;
-
 #endif
 
 	net = *netp;
@@ -1619,7 +1603,6 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 			    ) {
 #if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 				struct socket *so;
-
 #endif
 				/*
 				 * Here is where collision would go if we
@@ -1820,7 +1803,6 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 			    (inp->sctp_socket->so_qlimit == 0)) {
 #if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 				struct socket *so;
-
 #endif
 				stcb->sctp_ep->sctp_flags |=
 				    SCTP_PCB_FLAGS_CONNECTED;
@@ -1880,10 +1862,8 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 	    cookie->tie_tag_peer_vtag == asoc->peer_vtag_nonce &&
 	    cookie->tie_tag_peer_vtag != 0) {
 		struct sctpasochead *head;
-
 #if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 		struct socket *so;
-
 #endif
 
 		if (asoc->peer_supports_nat) {
@@ -2067,7 +2047,6 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 	int retval;
 	int error = 0;
 	uint8_t auth_chunk_buf[SCTP_PARAM_BUFFER_SIZE];
-
 #if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 	struct socket *so;
 
@@ -2442,14 +2421,11 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 	struct sctp_nets *netl;
 	int had_a_existing_tcb = 0;
 	int send_int_conf = 0;
-
 #ifdef INET
 	struct sockaddr_in sin;
-
 #endif
 #ifdef INET6
 	struct sockaddr_in6 sin6;
-
 #endif
 
 	SCTPDBG(SCTP_DEBUG_INPUT2,
@@ -2771,10 +2747,8 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 
 			if (so == NULL) {
 				struct mbuf *op_err;
-
 #if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 				struct socket *pcb_so;
-
 #endif
 				/* Too many sockets */
 				SCTPDBG(SCTP_DEBUG_INPUT1, "process_cookie_new: no room for another socket!\n");
@@ -2887,10 +2861,8 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 				sctp_ulp_notify(SCTP_NOTIFY_INTERFACE_CONFIRMED,
 				    (*stcb), 0, (void *)netl, SCTP_SO_NOT_LOCKED);
 			}
-			/*
-			 * Pull it from the incomplete queue and wake the
-			 * guy
-			 */
+			/* Pull it from the incomplete queue and wake the
+			 * guy */
 #if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 			atomic_add_int(&(*stcb)->asoc.refcnt, 1);
 			SCTP_TCB_UNLOCK((*stcb));
@@ -3102,10 +3074,8 @@ sctp_handle_ecn_echo(struct sctp_ecne_chunk *cp,
 	}
 	if (SCTP_TSN_GT(tsn, net->cwr_window_tsn) &&
 	    ((override_bit & SCTP_CWR_REDUCE_OVERRIDE) == 0)) {
-		/*
-		 * JRS - Use the congestion control given in the pluggable
-		 * CC module
-		 */
+		/* JRS - Use the congestion control given in the pluggable
+		 * CC module */
 		stcb->asoc.cc_functions.sctp_cwnd_update_after_ecn_echo(stcb, net, 0, pkt_cnt);
 		/*
 		 * We reduce once every RTT. So we will only lower cwnd at
@@ -3193,10 +3163,8 @@ sctp_handle_shutdown_complete(struct sctp_shutdown_complete_chunk *cp SCTP_UNUSE
     struct sctp_tcb *stcb, struct sctp_nets *net)
 {
 	struct sctp_association *asoc;
-
 #if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 	struct socket *so;
-
 #endif
 
 	SCTPDBG(SCTP_DEBUG_INPUT2,
@@ -3430,10 +3398,8 @@ process_chunk_drop(struct sctp_tcb *stcb, struct sctp_chunk_desc *desc,
 	case SCTP_HEARTBEAT_REQUEST:
 		/* resend a demand HB */
 		if ((stcb->asoc.overall_error_count + 3) < stcb->asoc.max_send_times) {
-			/*
-			 * Only retransmit if we KNOW we wont destroy the
-			 * tcb
-			 */
+			/* Only retransmit if we KNOW we wont destroy the
+			 * tcb */
 			sctp_send_hb(stcb, net, SCTP_SO_NOT_LOCKED);
 		}
 		break;
@@ -3674,10 +3640,8 @@ sctp_handle_stream_reset_response(struct sctp_tcb *stcb,
 				} else if (action == SCTP_STREAM_RESET_RESULT_DENIED) {
 					sctp_ulp_notify(SCTP_NOTIFY_STR_RESET_DENIED_OUT, stcb, number_entries, req_out_param->list_of_streams, SCTP_SO_NOT_LOCKED);
 				} else if (action == SCTP_STREAM_RESET_RESULT_IN_PROGRESS) {
-					/*
-					 * Set it up so we don't stop
-					 * retransmitting
-					 */
+					/* Set it up so we don't stop
+					 * retransmitting */
 					asoc->stream_reset_outstanding++;
 					stcb->asoc.str_reset_seq_out--;
 					asoc->stream_reset_out_is_outstanding = 1;
@@ -4530,10 +4494,8 @@ __attribute__((noinline))
 	uint32_t auth_offset = 0, auth_len = 0;
 	int auth_skipped = 0;
 	int asconf_cnt = 0;
-
 #if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 	struct socket *so;
-
 #endif
 
 	SCTPDBG(SCTP_DEBUG_INPUT1, "sctp_process_control: iphlen=%u, offset=%u, length=%u stcb:%p\n",
@@ -4733,10 +4695,8 @@ __attribute__((noinline))
 				return (NULL);
 			}
 		}
-	}			/* end if !SCTP_COOKIE_ECHO */
-	/*
-	 * process all control chunks...
-	 */
+	}			/* end if !SCTP_COOKIE_ECHO *//* process all
+				 * control chunks... */
 	if (((ch->chunk_type == SCTP_SELECTIVE_ACK) ||
 	    (ch->chunk_type == SCTP_NR_SELECTIVE_ACK) ||
 	    (ch->chunk_type == SCTP_HEARTBEAT_REQUEST)) &&
@@ -5030,10 +4990,8 @@ process_control_chunks:
 				}
 			}
 			break;
-			/*
-			 * EY - nr_sack:  If the received chunk is an
-			 * nr_sack chunk
-			 */
+			/* EY - nr_sack:  If the received chunk is an
+			 * nr_sack chunk */
 		case SCTP_NR_SELECTIVE_ACK:
 			{
 				struct sctp_nr_sack_chunk *nr_sack;
@@ -5651,8 +5609,7 @@ process_control_chunks:
 				/* discard this packet */
 				*offset = length;
 				return (stcb);
-			}	/* else skip this bad chunk and continue... */
-			break;
+			} /* else skip this bad chunk and continue... */ break;
 		}		/* switch (ch->chunk_type) */
 
 
@@ -6109,10 +6066,8 @@ sctp_input_with_port(struct mbuf *i_pak, int off, uint16_t port)
 	struct sctphdr *sh;
 	struct sctp_chunkhdr *ch;
 	int length, offset;
-
 #if !defined(SCTP_WITH_NO_CSUM)
 	uint8_t compute_crc;
-
 #endif
 	uint32_t mflowid;
 	uint8_t mflowtype;
@@ -6213,7 +6168,6 @@ out:
 
 #if defined(__FreeBSD__) && defined(SCTP_MCORE_INPUT) && defined(SMP)
 extern int *sctp_cpuarry;
-
 #endif
 
 int
@@ -6261,5 +6215,4 @@ sctp_input(struct mbuf **mp, int *offp, int proto SCTP_UNUSED)
 	sctp_input_with_port(m, off, 0);
 	return (IPPROTO_DONE);
 }
-
 #endif
