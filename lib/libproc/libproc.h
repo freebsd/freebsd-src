@@ -50,6 +50,11 @@ typedef void (*proc_child_func)(void *);
 #define PS_DEAD		5
 #define PS_LOST		6
 
+/* Flags for proc_attach(). */
+#define	PATTACH_FORCE	0x01
+#define	PATTACH_RDONLY	0x02
+#define	PATTACH_NOSTOP	0x04
+
 /* Reason values for proc_detach(). */
 #define PRELEASE_HANG	1
 #define PRELEASE_KILL	2

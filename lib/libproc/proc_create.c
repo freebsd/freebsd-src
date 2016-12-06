@@ -127,7 +127,7 @@ proc_attach(pid_t pid, int flags, struct proc_handle **pphdl)
 	struct proc_handle *phdl;
 	int error, status;
 
-	if (pid == 0 || pid == getpid())
+	if (pid == 0 || (pid == getpid() && (flags & PATTACH_RDONLY) == 0))
 		return (EINVAL);
 	if (elf_version(EV_CURRENT) == EV_NONE)
 		return (ENOENT);
@@ -140,27 +140,32 @@ proc_attach(pid_t pid, int flags, struct proc_handle **pphdl)
 	if (error != 0)
 		goto out;
 
-	if (ptrace(PT_ATTACH, proc_getpid(phdl), 0, 0) != 0) {
-		error = errno;
-		DPRINTF("ERROR: cannot ptrace child process %d", pid);
-		goto out;
-	}
+	if ((flags & PATTACH_RDONLY) == 0) {
+		if (ptrace(PT_ATTACH, proc_getpid(phdl), 0, 0) != 0) {
+			error = errno;
+			DPRINTF("ERROR: cannot ptrace child process %d", pid);
+			goto out;
+		}
 
-	/* Wait for the child process to stop. */
-	if (waitpid(pid, &status, WUNTRACED) == -1) {
-		error = errno;
-		DPRINTF("ERROR: child process %d didn't stop as expected", pid);
-		goto out;
-	}
+		/* Wait for the child process to stop. */
+		if (waitpid(pid, &status, WUNTRACED) == -1) {
+			error = errno;
+			DPRINTF("ERROR: child process %d didn't stop as expected", pid);
+			goto out;
+		}
 
-	/* Check for an unexpected status. */
-	if (!WIFSTOPPED(status))
-		DPRINTFX("ERROR: child process %d status 0x%x", pid, status);
-	else
-		phdl->status = PS_STOP;
+		/* Check for an unexpected status. */
+		if (!WIFSTOPPED(status))
+			DPRINTFX("ERROR: child process %d status 0x%x", pid, status);
+		else
+			phdl->status = PS_STOP;
+
+		if ((flags & PATTACH_NOSTOP) != 0)
+			proc_continue(phdl);
+	}
 
 out:
-	if (error && phdl != NULL) {
+	if (error != 0 && phdl != NULL) {
 		proc_free(phdl);
 		phdl = NULL;
 	}

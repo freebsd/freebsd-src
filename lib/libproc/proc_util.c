@@ -87,21 +87,25 @@ proc_detach(struct proc_handle *phdl, int reason)
 
 	if (phdl == NULL)
 		return (EINVAL);
+	if (reason == PRELEASE_HANG)
+		return (EINVAL);
 	if (reason == PRELEASE_KILL) {
 		kill(proc_getpid(phdl), SIGKILL);
-		return (0);
+		goto free;
 	}
+	if ((phdl->flags & PATTACH_RDONLY) != 0)
+		goto free;
 	pid = proc_getpid(phdl);
 	if (ptrace(PT_DETACH, pid, 0, 0) != 0 && errno == ESRCH)
-		return (0);
+		goto free;
 	if (errno == EBUSY) {
 		kill(pid, SIGSTOP);
 		waitpid(pid, &status, WUNTRACED);
 		ptrace(PT_DETACH, pid, 0, 0);
 		kill(pid, SIGCONT);
-		return (0);
 	}
-
+free:
+	proc_free(phdl);
 	return (0);
 }
 
