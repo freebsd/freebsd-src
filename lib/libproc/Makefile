@@ -37,7 +37,7 @@ CFLAGS+=	-I${.CURDIR}/../../cddl/contrib/opensolaris/lib/libctf/common \
 CFLAGS+=	-DNO_CTF
 .endif
 
-SHLIB_MAJOR=	3
+SHLIB_MAJOR=	4
 
 MAN=
 
