@@ -128,7 +128,6 @@ __BEGIN_DECLS
 prmap_t *proc_addr2map(struct proc_handle *, uintptr_t);
 prmap_t *proc_name2map(struct proc_handle *, const char *);
 char	*proc_objname(struct proc_handle *, uintptr_t, char *, size_t);
-prmap_t *proc_obj2map(struct proc_handle *, const char *);
 int	proc_iter_objs(struct proc_handle *, proc_map_f *, void *);
 int	proc_iter_symbyaddr(struct proc_handle *, const char *, int,
 	    int, proc_sym_f *, void *);
