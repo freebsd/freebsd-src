@@ -1105,6 +1105,7 @@ xpt_getattr(char *buf, size_t len, const char *attr, struct cam_path *path)
 	memset(&cdai, 0, sizeof(cdai));
 	xpt_setup_ccb(&cdai.ccb_h, path, CAM_PRIORITY_NORMAL);
 	cdai.ccb_h.func_code = XPT_DEV_ADVINFO;
+	cdai.flags = CDAI_FLAG_NONE;
 	cdai.bufsiz = len;
 
 	if (!strcmp(attr, "GEOM::ident"))
