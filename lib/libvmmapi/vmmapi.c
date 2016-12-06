@@ -427,13 +427,18 @@ vm_map_gpa(struct vmctx *ctx, vm_paddr_t gaddr, size_t len)
 {
 
 	if (ctx->lowmem > 0) {
-		if (gaddr < ctx->lowmem && gaddr + len <= ctx->lowmem)
+		if (gaddr < ctx->lowmem && len <= ctx->lowmem &&
+		    gaddr + len <= ctx->lowmem)
 			return (ctx->baseaddr + gaddr);
 	}
 
 	if (ctx->highmem > 0) {
-		if (gaddr >= 4*GB && gaddr + len <= 4*GB + ctx->highmem)
-			return (ctx->baseaddr + gaddr);
+                if (gaddr >= 4*GB) {
+			if (gaddr < 4*GB + ctx->highmem &&
+			    len <= ctx->highmem &&
+			    gaddr + len <= 4*GB + ctx->highmem)
+				return (ctx->baseaddr + gaddr);
+		}
 	}
 
 	return (NULL);
