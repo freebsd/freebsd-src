@@ -16,6 +16,20 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20161206	p4	FreeBSD-SA-16:36.telnetd
+			FreeBSD-SA-16:37.libc
+			FreeBSD-SA-16:38.bhyve
+			FreeBSD-EN-16:19.tzcode
+			FreeBSD-EN-16:20.tzdata
+			FreeBSD-EN-16:21.localedef
+
+	Fix possible login(1) argument injection in telnetd(8). [SA-16:36]
+	Fix link_ntoa(3) buffer overflow in libc. [SA-16:37]
+	Fix possible escape from bhyve(8) virtual machine. [SA-16:38]
+	Fix warnings about valid time zone abbreviations. [EN-16:19]
+	Update timezone database information. [EN-16:20]
+	Fix incorrectly defined unicode character(s). [EN-16:21]
+
 20161102	p3	FreeBSD-SA-16:33.openssh
 
 	Fix Fix OpenSSH remote Denial of Service vulnerability.
