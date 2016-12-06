@@ -297,6 +297,7 @@ struct inpcb;
 struct m_tag;
 struct secasvar;
 struct sockopt;
+struct tcphdr;
 union sockaddr_union;
 
 int ipsec_if_input(struct mbuf *, struct secasvar *, uint32_t);
@@ -315,10 +316,16 @@ int ipsec_delete_pcbpolicy(struct inpcb *);
 int ipsec_copy_pcbpolicy(struct inpcb *, struct inpcb *);
 int ipsec_control_pcbpolicy(struct inpcb *, struct sockopt *);
 
+int tcp_ipsec_pcbctl(struct inpcb *, struct sockopt *);
+int tcp_ipsec_input(struct mbuf *, struct tcphdr *, u_char *);
+int tcp_ipsec_output(struct mbuf *, struct tcphdr *, u_char *);
+
 int ipsec_chkreplay(uint32_t, struct secasvar *);
 int ipsec_updatereplay(uint32_t, struct secasvar *);
 int ipsec_updateid(struct secasvar *, uint64_t *, uint64_t *);
 
+void ipsec_setsockaddrs(const struct mbuf *, union sockaddr_union *,
+    union sockaddr_union *);
 char *ipsec_address(const union sockaddr_union *, char *, socklen_t);
 char *ipsec_logsastr(struct secasvar *, char *, size_t);
 

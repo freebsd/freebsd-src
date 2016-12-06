@@ -101,6 +101,9 @@ __FBSDID("$FreeBSD$");
 #ifdef TCP_OFFLOAD
 #include <netinet/tcp_offload.h>
 #endif
+#ifdef TCP_SIGNATURE
+#include <netipsec/ipsec.h>
+#endif
 
 /*
  * TCP protocol interface to socket abstraction.
@@ -1554,17 +1557,9 @@ tcp_default_ctloutput(struct socket *so, struct sockopt *sopt, struct inpcb *inp
 		switch (sopt->sopt_name) {
 #ifdef TCP_SIGNATURE
 		case TCP_MD5SIG:
-			INP_WUNLOCK(inp);
-			error = sooptcopyin(sopt, &optval, sizeof optval,
-			    sizeof optval);
+			error = tcp_ipsec_pcbctl(inp, sopt);
 			if (error)
 				return (error);
-
-			INP_WLOCK_RECHECK(inp);
-			if (optval > 0)
-				tp->t_flags |= TF_SIGNATURE;
-			else
-				tp->t_flags &= ~TF_SIGNATURE;
 			goto unlock_and_done;
 #endif /* TCP_SIGNATURE */
 
@@ -1794,9 +1789,7 @@ unlock_and_done:
 		switch (sopt->sopt_name) {
 #ifdef TCP_SIGNATURE
 		case TCP_MD5SIG:
-			optval = (tp->t_flags & TF_SIGNATURE) ? 1 : 0;
-			INP_WUNLOCK(inp);
-			error = sooptcopyout(sopt, &optval, sizeof optval);
+			error = tcp_ipsec_pcbctl(inp, sopt);
 			break;
 #endif
 
