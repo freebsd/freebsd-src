@@ -1473,7 +1473,7 @@ rsu_process_key(struct ieee80211vap *vap, const struct ieee80211_key *k,
 	if (&vap->iv_nw_keys[0] <= k &&
 	    k < &vap->iv_nw_keys[IEEE80211_WEP_NKID]) {
 		KASSERT(k->wk_keyix < nitems(sc->group_keys),
-		    ("keyix %d > %d\n", k->wk_keyix, nitems(sc->group_keys)));
+		    ("keyix %u > %zu\n", k->wk_keyix, nitems(sc->group_keys)));
 
 		RSU_LOCK(sc);
 		sc->group_keys[k->wk_keyix] = (set ? k : NULL);
