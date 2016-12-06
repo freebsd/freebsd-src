@@ -31,46 +31,99 @@
 __FBSDID("$FreeBSD$");
 
 #include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
+
 #include <rtld_db.h>
 
 #include "_libproc.h"
 
+static void	rdl2prmap(const rd_loadobj_t *, prmap_t *);
+
 static int
 map_iter(const rd_loadobj_t *lop, void *arg)
 {
-	struct proc_handle *phdl = arg;
+	struct file_info *file;
+	struct map_info *mapping, *tmp;
+	struct proc_handle *phdl;
+	size_t i;
 
-	if (phdl->nobjs >= phdl->rdobjsz) {
-		phdl->rdobjsz *= 2;
-		phdl->rdobjs = reallocf(phdl->rdobjs, sizeof(*phdl->rdobjs) *
-		    phdl->rdobjsz);
-		if (phdl->rdobjs == NULL)
+	phdl = arg;
+	if (phdl->nmappings >= phdl->maparrsz) {
+		phdl->maparrsz *= 2;
+		tmp = reallocarray(phdl->mappings, phdl->maparrsz,
+		    sizeof(*phdl->mappings));
+		if (tmp == NULL)
 			return (-1);
+		phdl->mappings = tmp;
 	}
+
+	mapping = &phdl->mappings[phdl->nmappings];
+	rdl2prmap(lop, &mapping->map);
 	if (strcmp(lop->rdl_path, phdl->execpath) == 0 &&
 	    (lop->rdl_prot & RD_RDL_X) != 0)
-		phdl->rdexec = &phdl->rdobjs[phdl->nobjs];
-	memcpy(&phdl->rdobjs[phdl->nobjs++], lop, sizeof(*lop));
+		phdl->exec_map = &mapping->map;
 
+	file = NULL;
+	if (lop->rdl_path[0] != '\0') {
+		/* Look for an existing mapping of the same file. */
+		for (i = 0; i < phdl->nmappings; i++)
+			if (strcmp(mapping->map.pr_mapname,
+			    phdl->mappings[i].map.pr_mapname) == 0) {
+				file = phdl->mappings[i].file;
+				break;
+			}
+
+		if (file == NULL) {
+			file = malloc(sizeof(*file));
+			if (file == NULL)
+				return (-1);
+			file->elf = NULL;
+			file->fd = -1;
+			file->refs = 1;
+		} else
+			file->refs++;
+	}
+	mapping->file = file;
+	phdl->nmappings++;
 	return (0);
+}
+
+static void
+rdl2prmap(const rd_loadobj_t *rdl, prmap_t *map)
+{
+
+	map->pr_vaddr = rdl->rdl_saddr;
+	map->pr_size = rdl->rdl_eaddr - rdl->rdl_saddr;
+	map->pr_offset = rdl->rdl_offset;
+	map->pr_mflags = 0;
+	if (rdl->rdl_prot & RD_RDL_R)
+		map->pr_mflags |= MA_READ;
+	if (rdl->rdl_prot & RD_RDL_W)
+		map->pr_mflags |= MA_WRITE;
+	if (rdl->rdl_prot & RD_RDL_X)
+		map->pr_mflags |= MA_EXEC;
+	(void)strlcpy(map->pr_mapname, rdl->rdl_path,
+	    sizeof(map->pr_mapname));
 }
 
 rd_agent_t *
 proc_rdagent(struct proc_handle *phdl)
 {
+
 	if (phdl->rdap == NULL && phdl->status != PS_UNDEAD &&
 	    phdl->status != PS_IDLE) {
-		if ((phdl->rdap = rd_new(phdl)) != NULL) {
-			phdl->rdobjs = malloc(sizeof(*phdl->rdobjs) * 64);
-			phdl->rdobjsz = 64;
-			if (phdl->rdobjs == NULL)
-				return (phdl->rdap);
-			rd_loadobj_iter(phdl->rdap, map_iter, phdl);
-		}
-	}
+		if ((phdl->rdap = rd_new(phdl)) == NULL)
+			return (NULL);
 
+		phdl->maparrsz = 64;
+		phdl->mappings = calloc(phdl->maparrsz,
+		    sizeof(*phdl->mappings));
+		if (phdl->mappings == NULL)
+			return (phdl->rdap);
+		if (rd_loadobj_iter(phdl->rdap, map_iter, phdl) != RD_OK)
+			return (NULL);
+	}
 	return (phdl->rdap);
 }
 
@@ -78,7 +131,6 @@ void
 proc_updatesyms(struct proc_handle *phdl)
 {
 
-	memset(phdl->rdobjs, 0, sizeof(*phdl->rdobjs) * phdl->rdobjsz);
-	phdl->nobjs = 0;
+	memset(phdl->mappings, 0, sizeof(*phdl->mappings) * phdl->maparrsz);
 	rd_loadobj_iter(phdl->rdap, map_iter, phdl);
 }

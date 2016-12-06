@@ -131,7 +131,7 @@ char	*proc_objname(struct proc_handle *, uintptr_t, char *, size_t);
 prmap_t *proc_obj2map(struct proc_handle *, const char *);
 int	proc_iter_objs(struct proc_handle *, proc_map_f *, void *);
 int	proc_iter_symbyaddr(struct proc_handle *, const char *, int,
-	     int, proc_sym_f *, void *);
+	    int, proc_sym_f *, void *);
 int	proc_addr2sym(struct proc_handle *, uintptr_t, char *, size_t, GElf_Sym *);
 int	proc_attach(pid_t pid, int flags, struct proc_handle **pphdl);
 int	proc_continue(struct proc_handle *);
