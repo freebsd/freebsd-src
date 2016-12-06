@@ -171,14 +171,14 @@ static inline void
 gic_irq_unmask(struct arm_gic_softc *sc, u_int irq)
 {
 
-	gic_d_write_4(sc, GICD_ISENABLER(irq), (1UL << (irq & 0x1F)));
+	gic_d_write_4(sc, GICD_ISENABLER(irq), GICD_I_MASK(irq));
 }
 
 static inline void
 gic_irq_mask(struct arm_gic_softc *sc, u_int irq)
 {
 
-	gic_d_write_4(sc, GICD_ICENABLER(irq), (1UL << (irq & 0x1F)));
+	gic_d_write_4(sc, GICD_ICENABLER(irq), GICD_I_MASK(irq));
 }
 #endif
 
@@ -274,9 +274,9 @@ arm_gic_init_secondary(device_t dev)
 	/*
 	 * Activate the timer interrupts: virtual, secure, and non-secure.
 	 */
-	gic_d_write_4(sc, GICD_ISENABLER(27), (1UL << (27 & 0x1F)));
-	gic_d_write_4(sc, GICD_ISENABLER(29), (1UL << (29 & 0x1F)));
-	gic_d_write_4(sc, GICD_ISENABLER(30), (1UL << (30 & 0x1F)));
+	gic_d_write_4(sc, GICD_ISENABLER(27), GICD_I_MASK(27));
+	gic_d_write_4(sc, GICD_ISENABLER(29), GICD_I_MASK(29));
+	gic_d_write_4(sc, GICD_ISENABLER(30), GICD_I_MASK(30));
 }
 #endif /* INTRNG */
 #endif /* SMP */
@@ -447,7 +447,7 @@ arm_gic_attach(device_t dev)
 
 	/* Get the number of interrupts */
 	sc->typer = gic_d_read_4(sc, GICD_TYPER);
-	nirqs = 32 * ((sc->typer & 0x1f) + 1);
+	nirqs = GICD_TYPER_I_NUM(sc->typer);
 
 #ifdef INTRNG
 	if (arm_gic_register_isrcs(sc, nirqs)) {
