@@ -1638,7 +1638,7 @@ main(int argc, char **argv)
 		error("%s", pcap_geterr(pd));
 #ifdef HAVE_CASPER
 	if (RFileName == NULL && VFileName == NULL) {
-		static const unsigned long cmds[] = { BIOCGSTATS };
+		static const unsigned long cmds[] = { BIOCGSTATS, BIOCROTZBUF };
 
 		/*
 		 * The various libpcap devices use a combination of
