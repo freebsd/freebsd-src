@@ -500,8 +500,10 @@ format_grouping(const char *binary)
 	rval[0] = '\0';
 	roff = 0;
 	for (cp = binary; *cp != '\0'; ++cp) {
+#if CHAR_MIN != 0
 		if (*cp < 0)
 			break;		/* garbage input */
+#endif
 		len = snprintf(&rval[roff], sizeof(rval) - roff, "%u;", *cp);
 		if (len < 0 || (unsigned)len >= sizeof(rval) - roff)
 			break;		/* insufficient space for output */
