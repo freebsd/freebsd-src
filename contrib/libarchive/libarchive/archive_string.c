@@ -2298,7 +2298,7 @@ _utf8_to_unicode(uint32_t *pwc, const char *s, size_t n)
 		return (0); /* Standard:  return 0 for end-of-string. */
 	cnt = utf8_count[ch];
 
-	/* Invalide sequence or there are not plenty bytes. */
+	/* Invalid sequence or there are not plenty bytes. */
 	if ((int)n < cnt) {
 		cnt = (int)n;
 		for (i = 1; i < cnt; i++) {
@@ -2379,7 +2379,7 @@ _utf8_to_unicode(uint32_t *pwc, const char *s, size_t n)
 		goto invalid_sequence;
 	}
 
-	/* The code point larger than 0x10FFFF is not leagal
+	/* The code point larger than 0x10FFFF is not legal
 	 * Unicode values. */
 	if (wc > UNICODE_MAX)
 		goto invalid_sequence;
@@ -2397,7 +2397,7 @@ utf8_to_unicode(uint32_t *pwc, const char *s, size_t n)
 	int cnt;
 
 	cnt = _utf8_to_unicode(pwc, s, n);
-	/* Any of Surrogate pair is not leagal Unicode values. */
+	/* Any of Surrogate pair is not legal Unicode values. */
 	if (cnt == 3 && IS_SURROGATE_PAIR_LA(*pwc))
 		return (-3);
 	return (cnt);
@@ -2458,7 +2458,7 @@ invalid_sequence:
 /*
  * Convert a Unicode code point to a single UTF-8 sequence.
  *
- * NOTE:This function does not check if the Unicode is leagal or not.
+ * NOTE:This function does not check if the Unicode is legal or not.
  * Please you definitely check it before calling this.
  */
 static size_t
@@ -2554,7 +2554,7 @@ utf16_to_unicode(uint32_t *pwc, const char *s, size_t n, int be)
 	 * Surrogate pair values(0xd800 through 0xdfff) are only
 	 * used by UTF-16, so, after above culculation, the code
 	 * must not be surrogate values, and Unicode has no codes
-	 * larger than 0x10ffff. Thus, those are not leagal Unicode
+	 * larger than 0x10ffff. Thus, those are not legal Unicode
 	 * values.
 	 */
 	if (IS_SURROGATE_PAIR_LA(uc) || uc > UNICODE_MAX) {

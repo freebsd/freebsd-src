@@ -511,6 +511,13 @@ read_more:
 		}
 		llen = len;
 		if ((nl == 0) && (uudecode->state != ST_UUEND)) {
+			if (total == 0 && ravail <= 0) {
+				/* There is nothing more to read, fail */
+				archive_set_error(&self->archive->archive,
+				    ARCHIVE_ERRNO_FILE_FORMAT,
+				    "Missing format data");
+				return (ARCHIVE_FATAL);
+			}
 			/*
 			 * Save remaining data which does not contain
 			 * NL('\n','\r').
@@ -567,7 +574,7 @@ read_more:
 				    "Insufficient compressed data");
 				return (ARCHIVE_FATAL);
 			}
-			/* Get length of undecoded bytes of curent line. */
+			/* Get length of undecoded bytes of current line. */
 			l = UUDECODE(*b++);
 			body--;
 			if (l > body) {

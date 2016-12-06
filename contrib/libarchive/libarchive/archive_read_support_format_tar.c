@@ -299,13 +299,20 @@ archive_read_format_tar_cleanup(struct archive_read *a)
  *
  * This has to be pretty lenient in order to accomodate the enormous
  * variety of tar writers in the world:
- *  = POSIX ustar requires octal values with leading zeros and
- *    specific termination on fields
+ *  = POSIX (IEEE Std 1003.1-1988) ustar requires octal values with leading
+ *    zeros and allows fields to be terminated with space or null characters
  *  = Many writers use different termination (in particular, libarchive
  *    omits terminator bytes to squeeze one or two more digits)
  *  = Many writers pad with space and omit leading zeros
  *  = GNU tar and star write base-256 values if numbers are too
  *    big to be represented in octal
+ *
+ *  Examples of specific tar headers that we should support:
+ *  = Perl Archive::Tar terminates uid, gid, devminor and devmajor with two
+ *    null bytes, pads size with spaces and other numeric fields with zeroes
+ *  = plexus-archiver prior to 2.6.3 (before switching to commons-compress)
+ *    may have uid and gid fields filled with spaces without any octal digits
+ *    at all and pads all numeric fields with spaces
  *
  * This should tolerate all variants in use.  It will reject a field
  * where the writer just left garbage after a trailing NUL.

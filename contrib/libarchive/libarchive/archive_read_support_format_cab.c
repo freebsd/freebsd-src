@@ -67,7 +67,7 @@ struct lzx_dec {
 	/* The length how many bytes we can copy decoded code from
 	 * the window. */
 	int     		 copy_len;
-	/* Translation reversal for x86 proccessor CALL byte sequence(E8).
+	/* Translation reversal for x86 processor CALL byte sequence(E8).
 	 * This is used for LZX only. */
 	uint32_t		 translation_size;
 	char			 translation;
@@ -1555,7 +1555,7 @@ cab_read_ahead_cfdata_deflate(struct archive_read *a, ssize_t *avail)
 	/*
 	 * Note: I suspect there is a bug in makecab.exe because, in rare
 	 * case, compressed bytes are still remaining regardless we have
-	 * gotten all uncompressed bytes, which size is recoded in CFDATA,
+	 * gotten all uncompressed bytes, which size is recorded in CFDATA,
 	 * as much as we need, and we have to use the garbage so as to
 	 * correctly compute the sum of CFDATA accordingly.
 	 */
@@ -1742,7 +1742,7 @@ cab_read_ahead_cfdata_lzx(struct archive_read *a, ssize_t *avail)
 	}
 
 	/*
-	 * Translation reversal of x86 proccessor CALL byte sequence(E8).
+	 * Translation reversal of x86 processor CALL byte sequence(E8).
 	 */
 	lzx_translation(&cab->xstrm, cab->uncompressed_buffer,
 	    cfdata->uncompressed_size,
@@ -2271,7 +2271,7 @@ static int
 lzx_br_fillup(struct lzx_stream *strm, struct lzx_br *br)
 {
 /*
- * x86 proccessor family can read misaligned data without an access error.
+ * x86 processor family can read misaligned data without an access error.
  */
 	int n = CACHE_BITS - br->cache_avail;
 
