@@ -32,6 +32,18 @@
 #ifndef _GIC_COMMON_H_
 #define _GIC_COMMON_H_
 
+#define	GIC_IVAR_HW_REV		500
+#define	GIC_IVAR_BUS		501
+
+/* GIC_IVAR_BUS values */
+#define	GIC_BUS_UNKNOWN		0
+#define	GIC_BUS_FDT		1
+#define	GIC_BUS_ACPI		2
+#define	GIC_BUS_MAX		2
+
+__BUS_ACCESSOR(gic, hw_rev, GIC, HW_REV, u_int);
+__BUS_ACCESSOR(gic, bus, GIC, BUS, u_int);
+
 /* Common register values */
 #define	GICD_CTLR		0x0000				/* v1 ICDDCR */
 #define	GICD_TYPER		0x0004				/* v1 ICDICTR */

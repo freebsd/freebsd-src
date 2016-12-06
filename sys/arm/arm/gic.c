@@ -467,6 +467,9 @@ arm_gic_attach(device_t dev)
 	    "pn 0x%x, arch 0x%x, rev 0x%x, implementer 0x%x irqs %u\n",
 	    GICD_IIDR_PROD(icciidr), GICD_IIDR_VAR(icciidr),
 	    GICD_IIDR_REV(icciidr), GICD_IIDR_IMPL(icciidr), sc->nirqs);
+#ifdef INTRNG
+	sc->gic_iidr = icciidr;
+#endif
 
 	/* Set all global interrupts to be level triggered, active low. */
 	for (i = 32; i < sc->nirqs; i += 16) {
@@ -609,6 +612,33 @@ arm_gic_alloc_resource(device_t bus, device_t child, int type, int *rid,
 
 	return (bus_generic_alloc_resource(bus, child, type, rid, start, end,
 	    count, flags));
+}
+
+static int
+arm_gic_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
+{
+	struct arm_gic_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	switch(which) {
+	case GIC_IVAR_HW_REV:
+		KASSERT(GICD_IIDR_VAR(sc->gic_iidr) < 3 &&
+		    GICD_IIDR_VAR(sc->gic_iidr) != 0,
+		    ("arm_gic_read_ivar: Unknown IIDR revision %u (%.08x)",
+		     GICD_IIDR_VAR(sc->gic_iidr), sc->gic_iidr));
+		*result = GICD_IIDR_VAR(sc->gic_iidr);
+		return (0);
+	case GIC_IVAR_BUS:
+		KASSERT(sc->gic_bus != GIC_BUS_UNKNOWN,
+		    ("arm_gic_read_ivar: Unknown bus type"));
+		KASSERT(sc->gic_bus <= GIC_BUS_MAX,
+		    ("arm_gic_read_ivar: Invalid bus type %u", sc->gic_bus));
+		*result = sc->gic_bus;
+		return (0);
+	}
+
+	return (ENOENT);
 }
 
 int
@@ -1307,6 +1337,7 @@ static device_method_t arm_gic_methods[] = {
 	DEVMETHOD(bus_alloc_resource,	arm_gic_alloc_resource),
 	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
 	DEVMETHOD(bus_activate_resource,bus_generic_activate_resource),
+	DEVMETHOD(bus_read_ivar,	arm_gic_read_ivar),
 
 	/* Interrupt controller interface */
 	DEVMETHOD(pic_disable_intr,	arm_gic_disable_intr),
