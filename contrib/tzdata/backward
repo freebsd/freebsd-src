@@ -23,6 +23,7 @@ Link	America/Argentina/Mendoza	America/Mendoza
 Link	America/Toronto		America/Montreal
 Link	America/Rio_Branco	America/Porto_Acre
 Link	America/Argentina/Cordoba	America/Rosario
+Link	America/Tijuana		America/Santa_Isabel
 Link	America/Denver		America/Shiprock
 Link	America/Port_of_Spain	America/Virgin
 Link	Pacific/Auckland	Antarctica/South_Pole
@@ -35,6 +36,7 @@ Link	Asia/Shanghai		Asia/Harbin
 Link	Asia/Urumqi		Asia/Kashgar
 Link	Asia/Kathmandu		Asia/Katmandu
 Link	Asia/Macau		Asia/Macao
+Link	Asia/Yangon		Asia/Rangoon
 Link	Asia/Ho_Chi_Minh	Asia/Saigon
 Link	Asia/Jerusalem		Asia/Tel_Aviv
 Link	Asia/Thimphu		Asia/Thimbu
