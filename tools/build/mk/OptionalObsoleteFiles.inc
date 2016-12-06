@@ -8826,7 +8826,9 @@ OLD_FILES+=usr/share/man/man8/wpa_supplicant.8.gz
 .if ${MK_SVNLITE} == no || ${MK_SVN} == yes
 OLD_FILES+=usr/bin/svnlite
 OLD_FILES+=usr/bin/svnliteadmin
+OLD_FILES+=usr/bin/svnlitebench
 OLD_FILES+=usr/bin/svnlitedumpfilter
+OLD_FILES+=usr/bin/svnlitefsfs
 OLD_FILES+=usr/bin/svnlitelook
 OLD_FILES+=usr/bin/svnlitemucc
 OLD_FILES+=usr/bin/svnliterdump
@@ -8839,7 +8841,9 @@ OLD_FILES+=usr/share/man/man1/svnlite.1.gz
 .if ${MK_SVN} == no
 OLD_FILES+=usr/bin/svn
 OLD_FILES+=usr/bin/svnadmin
+OLD_FILES+=usr/bin/svnbench
 OLD_FILES+=usr/bin/svndumpfilter
+OLD_FILES+=usr/bin/svnfsfs
 OLD_FILES+=usr/bin/svnlook
 OLD_FILES+=usr/bin/svnmucc
 OLD_FILES+=usr/bin/svnrdump
