@@ -643,12 +643,10 @@ static int
 sctp_sysctl_handle_stats(SYSCTL_HANDLER_ARGS)
 {
 	int error;
-
 #if defined(SMP) && defined(SCTP_USE_PERCPU_STAT)
 	struct sctpstat *sarry;
 	struct sctpstat sb;
 	int cpu;
-
 #endif
 	struct sctpstat sb_temp;
 
@@ -828,7 +826,6 @@ sctp_sysctl_handle_trace_log_clear(SYSCTL_HANDLER_ARGS)
 	memset(&SCTP_BASE_SYSCTL(sctp_log), 0, sizeof(struct sctp_log));
 	return (error);
 }
-
 #endif
 
 #define SCTP_UINT_SYSCTL(mib_name, var_name, prefix)			\

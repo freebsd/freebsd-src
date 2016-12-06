@@ -255,7 +255,6 @@ sctp_log_mbc(struct mbuf *m, int from)
 		sctp_log_mb(mat, from);
 	}
 }
-
 #endif
 
 void
@@ -447,7 +446,6 @@ sctp_log_mbcnt(uint8_t from, uint32_t total_oq, uint32_t book, uint32_t total_mb
 	    sctp_clog.x.misc.log3,
 	    sctp_clog.x.misc.log4);
 }
-
 #endif
 
 void
@@ -957,10 +955,8 @@ sctp_init_asoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	 * caller in the sctp_aloc_assoc() function.
 	 */
 	int i;
-
 #if defined(SCTP_DETAILED_STR_STATS)
 	int j;
-
 #endif
 
 	asoc = &stcb->asoc;
@@ -1486,10 +1482,8 @@ sctp_handle_addr_wq(void)
 		    sctp_asconf_iterator_end, NULL, 0);
 		if (ret) {
 			SCTP_PRINTF("Failed to initiate iterator for handle_addr_wq\n");
-			/*
-			 * Freeing if we are stopping or put back on the
-			 * addr_wq.
-			 */
+			/* Freeing if we are stopping or put back on the
+			 * addr_wq. */
 			if (SCTP_BASE_VAR(sctp_pcb_initialized) == 0) {
 				sctp_asconf_iterator_end(asc, 0);
 			} else {
@@ -1512,10 +1506,8 @@ sctp_timeout_handler(void *t)
 	struct sctp_nets *net;
 	struct sctp_timer *tmr;
 	struct mbuf *op_err;
-
 #if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 	struct socket *so;
-
 #endif
 	int did_output;
 	int type;
@@ -2491,10 +2483,8 @@ sctp_calculate_rto(struct sctp_tcb *stcb,
 	/* compute rtt in ms */
 	rtt = (int32_t) (net->rtt / 1000);
 	if ((asoc->cc_functions.sctp_rtt_calculated) && (rtt_from_sack == SCTP_RTT_FROM_DATA)) {
-		/*
-		 * Tell the CC module that a new update has just occurred
-		 * from a sack
-		 */
+		/* Tell the CC module that a new update has just occurred
+		 * from a sack */
 		(*asoc->cc_functions.sctp_rtt_calculated) (stcb, net, &now);
 	}
 	/*
@@ -2686,10 +2676,8 @@ sctp_notify_assoc_change(uint16_t state, struct sctp_tcb *stcb,
 	unsigned int notif_len;
 	uint16_t abort_len;
 	unsigned int i;
-
 #if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 	struct socket *so;
-
 #endif
 
 	if (stcb == NULL) {
@@ -3975,10 +3963,8 @@ sctp_abort_association(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
     uint32_t vrf_id, uint16_t port)
 {
 	uint32_t vtag;
-
 #if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 	struct socket *so;
-
 #endif
 
 	vtag = 0;
@@ -4014,7 +4000,6 @@ sctp_abort_association(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 #endif
 	}
 }
-
 #ifdef SCTP_ASOCLOG_OF_TSNS
 void
 sctp_print_out_track_log(struct sctp_tcb *stcb)
@@ -4076,7 +4061,6 @@ none_in:
 	}
 #endif
 }
-
 #endif
 
 void
@@ -4090,7 +4074,6 @@ sctp_abort_an_association(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 {
 #if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 	struct socket *so;
-
 #endif
 
 #if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
@@ -4302,7 +4285,6 @@ sctp_recover_scope(struct sockaddr_in6 *addr, struct sockaddr_in6 *store)
 	}
 	return (addr);
 }
-
 #endif
 
 /*
@@ -4356,7 +4338,6 @@ sctp_print_address(struct sockaddr *sa)
 {
 #ifdef INET6
 	char ip6buf[INET6_ADDRSTRLEN];
-
 #endif
 
 	switch (sa->sa_family) {
@@ -4810,10 +4791,8 @@ sctp_release_pr_sctp_chunk(struct sctp_tcb *stcb, struct sctp_tmit_chunk *tp1,
 			do_wakeup_routine = 1;
 			tp1->sent = SCTP_FORWARD_TSN_SKIP;
 			TAILQ_REMOVE(&stcb->asoc.send_queue, tp1, sctp_next);
-			/*
-			 * on to the sent queue so we can wait for it to be
-			 * passed by.
-			 */
+			/* on to the sent queue so we can wait for it to be
+			 * passed by. */
 			TAILQ_INSERT_TAIL(&stcb->asoc.sent_queue, tp1,
 			    sctp_next);
 			stcb->asoc.send_queue_cnt--;
@@ -5187,7 +5166,7 @@ sctp_sorecvmsg(struct socket *so,
 	 * mp=NULL thus uio is the copy method to userland) MSG_WAITALL - ??
 	 * On the way out we may send out any combination of:
 	 * MSG_NOTIFICATION MSG_EOR
-	 * 
+	 *
 	 */
 	struct sctp_inpcb *inp = NULL;
 	int my_len = 0;
@@ -5306,10 +5285,8 @@ restart_nosblocks:
 				 * connect.
 				 */
 				if (inp->sctp_flags & SCTP_PCB_FLAGS_WAS_ABORTED) {
-					/*
-					 * You were aborted, passive side
-					 * always hits here
-					 */
+					/* You were aborted, passive side
+					 * always hits here */
 					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTPUTIL, ECONNRESET);
 					error = ECONNRESET;
 				}
@@ -5408,10 +5385,8 @@ restart_nosblocks:
 	}
 	if ((control->length == 0) &&
 	    (control->end_added == 1)) {
-		/*
-		 * Do we also need to check for (control->pdapi_aborted ==
-		 * 1)?
-		 */
+		/* Do we also need to check for (control->pdapi_aborted ==
+		 * 1)? */
 		if (hold_rlock == 0) {
 			hold_rlock = 1;
 			SCTP_INP_READ_LOCK(inp);
@@ -5754,10 +5729,8 @@ get_more_data:
 					atomic_subtract_int(&control->length, cp_len);
 					control->data = sctp_m_free(m);
 					m = control->data;
-					/*
-					 * been through it all, must hold sb
-					 * lock ok to null tail
-					 */
+					/* been through it all, must hold sb
+					 * lock ok to null tail */
 					if (control->data == NULL) {
 #ifdef INVARIANTS
 						if ((control->end_added == 0) ||
@@ -5976,10 +5949,8 @@ wait_some_more:
 			 */
 			SCTP_INP_READ_LOCK(inp);
 			if ((control->length > 0) && (control->data == NULL)) {
-				/*
-				 * big trouble.. we have the lock and its
-				 * corrupt?
-				 */
+				/* big trouble.. we have the lock and its
+				 * corrupt? */
 #ifdef INVARIANTS
 				panic("Impossible data==NULL length !=0");
 #endif
@@ -6270,14 +6241,11 @@ sctp_connectx_helper_add(struct sctp_tcb *stcb, struct sockaddr *addr,
 	struct sctp_inpcb *inp;
 	struct sockaddr *sa;
 	size_t incr = 0;
-
 #ifdef INET
 	struct sockaddr_in *sin;
-
 #endif
 #ifdef INET6
 	struct sockaddr_in6 *sin6;
-
 #endif
 
 	sa = addr;
@@ -6433,10 +6401,8 @@ sctp_bindx_add_address(struct socket *so, struct sctp_inpcb *inp,
     uint32_t vrf_id, int *error, void *p)
 {
 	struct sockaddr *addr_touse;
-
 #if defined(INET) && defined(INET6)
 	struct sockaddr_in sin;
-
 #endif
 
 	/* see if we're bound all already! */
@@ -6565,10 +6531,8 @@ sctp_bindx_delete_address(struct sctp_inpcb *inp,
     uint32_t vrf_id, int *error)
 {
 	struct sockaddr *addr_touse;
-
 #if defined(INET) && defined(INET6)
 	struct sockaddr_in sin;
-
 #endif
 
 	/* see if we're bound all already! */
@@ -6582,7 +6546,6 @@ sctp_bindx_delete_address(struct sctp_inpcb *inp,
 	if (sa->sa_family == AF_INET6) {
 #ifdef INET
 		struct sockaddr_in6 *sin6;
-
 #endif
 
 		if (sa->sa_len != sizeof(struct sockaddr_in6)) {
@@ -6653,14 +6616,11 @@ int
 sctp_local_addr_count(struct sctp_tcb *stcb)
 {
 	int loopback_scope;
-
 #if defined(INET)
 	int ipv4_local_scope, ipv4_addr_legal;
-
 #endif
 #if defined (INET6)
 	int local_scope, site_scope, ipv6_addr_legal;
-
 #endif
 	struct sctp_vrf *vrf;
 	struct sctp_ifn *sctp_ifn;
@@ -6705,10 +6665,8 @@ sctp_local_addr_count(struct sctp_tcb *stcb)
 
 						sin = &sctp_ifa->address.sin;
 						if (sin->sin_addr.s_addr == 0) {
-							/*
-							 * skip unspecified
-							 * addrs
-							 */
+							/* skip unspecified
+							 * addrs */
 							continue;
 						}
 						if (prison_check_ip4(stcb->sctp_ep->ip_inp.inp.inp_cred,
@@ -6745,19 +6703,14 @@ sctp_local_addr_count(struct sctp_tcb *stcb)
 							if (sin6->sin6_scope_id == 0) {
 								if (sa6_recoverscope(sin6) != 0)
 									/*
-									 * 
+									 *
 									 * bad
-									 * 
-									 * li
-									 * nk
-									 * 
-									 * loc
-									 * al
-									 * 
-									 * add
-									 * re
-									 * ss
-									 * */
+									 * link
+									 *
+									 * local
+									 *
+									 * address
+									 */
 									continue;
 							}
 						}
@@ -6829,10 +6782,8 @@ sctp_recv_udp_tunneled_packet(struct mbuf *m, int off, struct inpcb *inp,
     const struct sockaddr *sa SCTP_UNUSED, void *ctx SCTP_UNUSED)
 {
 	struct ip *iph;
-
 #ifdef INET6
 	struct ip6_hdr *ip6;
-
 #endif
 	struct mbuf *sp, *last;
 	struct udphdr *uhdr;
@@ -7017,7 +6968,6 @@ sctp_recv_icmp_tunneled_packet(int cmd, struct sockaddr *sa, void *vip, void *ct
 	}
 	return;
 }
-
 #endif
 
 #ifdef INET6
@@ -7159,7 +7109,6 @@ sctp_recv_icmp6_tunneled_packet(int cmd, struct sockaddr *sa, void *d, void *ctx
 		}
 	}
 }
-
 #endif
 
 void
@@ -7188,14 +7137,11 @@ sctp_over_udp_start(void)
 {
 	uint16_t port;
 	int ret;
-
 #ifdef INET
 	struct sockaddr_in sin;
-
 #endif
 #ifdef INET6
 	struct sockaddr_in6 sin6;
-
 #endif
 	/*
 	 * This function assumes sysctl caller holds sctp_sysctl_info_lock()

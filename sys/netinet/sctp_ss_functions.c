@@ -144,10 +144,8 @@ sctp_ss_default_remove(struct sctp_tcb *stcb, struct sctp_association *asoc,
 	if (holds_lock == 0) {
 		SCTP_TCB_SEND_LOCK(stcb);
 	}
-	/*
-	 * Remove from wheel if stream queue is empty and actually is on the
-	 * wheel
-	 */
+	/* Remove from wheel if stream queue is empty and actually is on the
+	 * wheel */
 	if (TAILQ_EMPTY(&strq->outqueue) &&
 	    (strq->ss_params.rr.next_spoke.tqe_next != NULL ||
 	    strq->ss_params.rr.next_spoke.tqe_prev != NULL)) {
@@ -459,10 +457,8 @@ sctp_ss_prio_remove(struct sctp_tcb *stcb, struct sctp_association *asoc,
 	if (holds_lock == 0) {
 		SCTP_TCB_SEND_LOCK(stcb);
 	}
-	/*
-	 * Remove from wheel if stream queue is empty and actually is on the
-	 * wheel
-	 */
+	/* Remove from wheel if stream queue is empty and actually is on the
+	 * wheel */
 	if (TAILQ_EMPTY(&strq->outqueue) &&
 	    (strq->ss_params.prio.next_spoke.tqe_next != NULL ||
 	    strq->ss_params.prio.next_spoke.tqe_prev != NULL)) {
@@ -635,10 +631,8 @@ sctp_ss_fb_remove(struct sctp_tcb *stcb, struct sctp_association *asoc,
 	if (holds_lock == 0) {
 		SCTP_TCB_SEND_LOCK(stcb);
 	}
-	/*
-	 * Remove from wheel if stream queue is empty and actually is on the
-	 * wheel
-	 */
+	/* Remove from wheel if stream queue is empty and actually is on the
+	 * wheel */
 	if (TAILQ_EMPTY(&strq->outqueue) &&
 	    (strq->ss_params.fb.next_spoke.tqe_next != NULL ||
 	    strq->ss_params.fb.next_spoke.tqe_prev != NULL)) {

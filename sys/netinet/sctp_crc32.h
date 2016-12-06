@@ -39,9 +39,7 @@ __FBSDID("$FreeBSD$");
 #if defined(_KERNEL)
 #if !defined(SCTP_WITH_NO_CSUM)
 uint32_t sctp_calculate_cksum(struct mbuf *, uint32_t);
-
 #endif
 void sctp_delayed_cksum(struct mbuf *, uint32_t offset);
-
 #endif				/* _KERNEL */
 #endif				/* __crc32c_h__ */

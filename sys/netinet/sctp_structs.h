@@ -183,7 +183,6 @@ struct iterator_control {
 	uint32_t iterator_running;
 	uint32_t iterator_flags;
 };
-
 #define SCTP_ITERATOR_STOP_CUR_IT	0x00000004
 #define SCTP_ITERATOR_STOP_CUR_INP	0x00000008
 
@@ -883,10 +882,8 @@ struct sctp_association {
 
 	/* JRS - the congestion control functions are in this struct */
 	struct sctp_cc_functions cc_functions;
-	/*
-	 * JRS - value to store the currently loaded congestion control
-	 * module
-	 */
+	/* JRS - value to store the currently loaded congestion control
+	 * module */
 	uint32_t congestion_control_module;
 	/* RS - the stream scheduling functions are in this struct */
 	struct sctp_ss_functions ss_functions;

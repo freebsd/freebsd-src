@@ -182,7 +182,6 @@ struct sctp_init {
 	uint32_t initial_tsn;	/* I-TSN */
 	/* optional param's follow */
 }         SCTP_PACKED;
-
 #define SCTP_IDENTIFICATION_SIZE 16
 #define SCTP_ADDRESS_SIZE 4
 #define SCTP_RESERVE_SPACE 6

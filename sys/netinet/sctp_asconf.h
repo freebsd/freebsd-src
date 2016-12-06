@@ -90,7 +90,6 @@ sctp_asconf_send_nat_state_update(struct sctp_tcb *stcb,
 
 extern int
     sctp_is_addr_pending(struct sctp_tcb *, struct sctp_ifa *);
-
 #endif				/* _KERNEL */
 
 #endif				/* !_NETINET_SCTP_ASCONF_H_ */

@@ -341,10 +341,8 @@ sctp_place_control_in_stream(struct sctp_stream_in *strm,
 		q = &strm->uno_inqueue;
 		if (asoc->idata_supported == 0) {
 			if (!TAILQ_EMPTY(q)) {
-				/*
-				 * Only one stream can be here in old style
-				 * -- abort
-				 */
+				/* Only one stream can be here in old style
+				 * -- abort */
 				return (-1);
 			}
 			TAILQ_INSERT_TAIL(q, control, next_instrm);
@@ -487,13 +485,13 @@ sctp_queue_data_to_stream(struct sctp_tcb *stcb,
 	 * has wrapped but not in the stream. Is this worth worrying about
 	 * or should we just change our queue sort at the bottom to be by
 	 * TSN.
-	 * 
-	 * Could it also be legal for a peer to send ssn 1 with TSN 2 and ssn 2
-	 * with TSN 1? If the peer is doing some sort of funky TSN/SSN
+	 *
+	 * Could it also be legal for a peer to send ssn 1 with TSN 2 and
+	 * ssn 2 with TSN 1? If the peer is doing some sort of funky TSN/SSN
 	 * assignment this could happen... and I don't see how this would be
 	 * a violation. So for now I am undecided an will leave the sort by
 	 * SSN alone. Maybe a hybred approach is the answer
-	 * 
+	 *
 	 */
 	struct sctp_queued_to_read *at;
 	int queue_needed;
@@ -828,10 +826,8 @@ restart:
 						TAILQ_INSERT_TAIL(&nc->reasm, tchk, sctp_next);
 						tchk = TAILQ_FIRST(&control->reasm);
 					}
-					/*
-					 * Now lets add it to the queue
-					 * after removing control
-					 */
+					/* Now lets add it to the queue
+					 * after removing control */
 					TAILQ_INSERT_TAIL(&strm->uno_inqueue, nc, next_instrm);
 					nc->on_strm_q = SCTP_ON_UNORDERED;
 					if (control->on_strm_q) {
@@ -855,10 +851,8 @@ restart:
 				}
 				sctp_wakeup_the_read_socket(stcb->sctp_ep, stcb, SCTP_SO_NOT_LOCKED);
 				if ((nc->first_frag_seen) && !TAILQ_EMPTY(&nc->reasm)) {
-					/*
-					 * Switch to the new guy and
-					 * continue
-					 */
+					/* Switch to the new guy and
+					 * continue */
 					control = nc;
 					goto restart;
 				} else {
@@ -918,10 +912,8 @@ sctp_inject_old_unordered_data(struct sctp_tcb *stcb,
 			uint32_t tmp;
 
 			if (SCTP_TSN_GT(chk->rec.data.fsn_num, control->fsn_included)) {
-				/*
-				 * Easy way the start of a new guy beyond
-				 * the lowest
-				 */
+				/* Easy way the start of a new guy beyond
+				 * the lowest */
 				goto place_chunk;
 			}
 			if ((chk->rec.data.fsn_num == control->fsn_included) ||
@@ -931,10 +923,10 @@ sctp_inject_old_unordered_data(struct sctp_tcb *stcb,
 				 * started the pd-api on the higher TSN
 				 * (since the equals part is a TSN failure
 				 * it must be that).
-				 * 
-				 * We are completly hosed in that case since I
-				 * have no way to recover. This really will
-				 * only happen if we can get more TSN's
+				 *
+				 * We are completly hosed in that case since
+				 * I have no way to recover. This really
+				 * will only happen if we can get more TSN's
 				 * higher before the pd-api-point.
 				 */
 				sctp_abort_in_reasm(stcb, control, chk,
@@ -1136,10 +1128,8 @@ done_un:
 		}
 	}
 	if (strm->pd_api_started) {
-		/*
-		 * Can't add more must have gotten an un-ordered above being
-		 * partially delivered.
-		 */
+		/* Can't add more must have gotten an un-ordered above being
+		 * partially delivered. */
 		return (0);
 	}
 deliver_more:
@@ -1171,21 +1161,15 @@ deliver_more:
 				ret++;
 			}
 			if (((control->sinfo_flags >> 8) & SCTP_DATA_NOT_FRAG) == SCTP_DATA_NOT_FRAG) {
-				/*
-				 * A singleton now slipping through - mark
-				 * it non-revokable too
-				 */
+				/* A singleton now slipping through - mark
+				 * it non-revokable too */
 				sctp_mark_non_revokable(asoc, control->sinfo_tsn);
 			} else if (control->end_added == 0) {
-				/*
-				 * Check if we can defer adding until its
-				 * all there
-				 */
+				/* Check if we can defer adding until its
+				 * all there */
 				if ((control->length < pd_point) || (strm->pd_api_started)) {
-					/*
-					 * Don't need it or cannot add more
-					 * (one being delivered that way)
-					 */
+					/* Don't need it or cannot add more
+					 * (one being delivered that way) */
 					goto out;
 				}
 			}
@@ -1387,10 +1371,8 @@ sctp_queue_data_for_reasm(struct sctp_tcb *stcb, struct sctp_association *asoc,
 				 * we know the first FSN (which is the TSN).
 				 */
 				if (SCTP_TSN_GE(control->fsn_included, chk->rec.data.fsn_num)) {
-					/*
-					 * We have already delivered up to
-					 * this so its a dup
-					 */
+					/* We have already delivered up to
+					 * this so its a dup */
 					sctp_abort_in_reasm(stcb, control, chk,
 					    abort_flag,
 					    SCTP_FROM_SCTP_INDATA + SCTP_LOC_9);
@@ -1417,10 +1399,8 @@ sctp_queue_data_for_reasm(struct sctp_tcb *stcb, struct sctp_association *asoc,
 				 */
 
 				if (SCTP_TSN_GE(control->fsn_included, chk->rec.data.fsn_num)) {
-					/*
-					 * We have already delivered up to
-					 * this so its a dup
-					 */
+					/* We have already delivered up to
+					 * this so its a dup */
 					SCTPDBG(SCTP_DEBUG_XXX,
 					    "New fsn: %u is already seen in included_fsn: %u -- abort\n",
 					    chk->rec.data.fsn_num, control->fsn_included);
@@ -1430,10 +1410,8 @@ sctp_queue_data_for_reasm(struct sctp_tcb *stcb, struct sctp_association *asoc,
 					return;
 				}
 			}
-			/*
-			 * validate not beyond top FSN if we have seen last
-			 * one
-			 */
+			/* validate not beyond top FSN if we have seen last
+			 * one */
 			if (SCTP_TSN_GT(chk->rec.data.fsn_num, control->top_fsn)) {
 				SCTPDBG(SCTP_DEBUG_XXX,
 				    "New fsn: %u is beyond or at top_fsn: %u -- abort\n",
@@ -1467,10 +1445,8 @@ sctp_queue_data_for_reasm(struct sctp_tcb *stcb, struct sctp_association *asoc,
 				inserted = 1;
 				break;
 			} else if (at->rec.data.fsn_num == chk->rec.data.fsn_num) {
-				/*
-				 * Gak, He sent me a duplicate str seq
-				 * number
-				 */
+				/* Gak, He sent me a duplicate str seq
+				 * number */
 				/*
 				 * foo bar, I guess I will just free this
 				 * new guy, should we abort too? FIX ME
@@ -1778,19 +1754,15 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 				return (0);
 			}
 			if (ordered && ((control->sinfo_flags >> 8) & SCTP_DATA_UNORDERED)) {
-				/*
-				 * We can't have a switched order with an
-				 * unordered chunk
-				 */
+				/* We can't have a switched order with an
+				 * unordered chunk */
 				snprintf(msg, sizeof(msg), "All fragments of a user message must be ordered or unordered (TSN=%8.8x)",
 				    tsn);
 				goto err_out;
 			}
 			if (!ordered && (((control->sinfo_flags >> 8) & SCTP_DATA_UNORDERED) == 0)) {
-				/*
-				 * We can't have a switched unordered with a
-				 * ordered chunk
-				 */
+				/* We can't have a switched unordered with a
+				 * ordered chunk */
 				snprintf(msg, sizeof(msg), "All fragments of a user message must be ordered or unordered (TSN=%8.8x)",
 				    tsn);
 				goto err_out;
@@ -2086,7 +2058,7 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 		 * if it is not being reset.. that way we would not create a
 		 * HOLB when amongst streams being reset and those not being
 		 * reset.
-		 * 
+		 *
 		 */
 		if (((liste = TAILQ_FIRST(&asoc->resetHead)) != NULL) &&
 		    SCTP_TSN_GT(tsn, liste->tsn)) {
@@ -2284,10 +2256,10 @@ sctp_slide_mapping_arrays(struct sctp_tcb *stcb)
 	/*
 	 * Now we also need to check the mapping array in a couple of ways.
 	 * 1) Did we move the cum-ack point?
-	 * 
-	 * When you first glance at this you might think that all entries that
-	 * make up the position of the cum-ack would be in the nr-mapping
-	 * array only.. i.e. things up to the cum-ack are always
+	 *
+	 * When you first glance at this you might think that all entries
+	 * that make up the position of the cum-ack would be in the
+	 * nr-mapping array only.. i.e. things up to the cum-ack are always
 	 * deliverable. Thats true with one exception, when its a fragmented
 	 * message we may not deliver the data until some threshold (or all
 	 * of it) is in place. So we must OR the nr_mapping_array and
@@ -2346,10 +2318,8 @@ sctp_slide_mapping_arrays(struct sctp_tcb *stcb)
 		/* The complete array was completed by a single FR */
 		/* highest becomes the cum-ack */
 		int clr;
-
 #ifdef INVARIANTS
 		unsigned int i;
-
 #endif
 
 		/* clear the array */
@@ -2497,8 +2467,7 @@ sctp_sack_check(struct sctp_tcb *stcb, int was_a_gap)
 		    (stcb->asoc.numduptsns) ||	/* we have dup's */
 		    (is_a_gap) ||	/* is still a gap */
 		    (stcb->asoc.delayed_ack == 0) ||	/* Delayed sack disabled */
-		    (stcb->asoc.data_pkts_seen >= stcb->asoc.sack_freq)	/* hit limit of pkts */
-		    ) {
+		    (stcb->asoc.data_pkts_seen >= stcb->asoc.sack_freq) /* hit limit of pkts */ ) {
 
 			if ((stcb->asoc.sctp_cmt_on_off > 0) &&
 			    (SCTP_BASE_SYSCTL(sctp_cmt_use_dac)) &&
@@ -2510,9 +2479,9 @@ sctp_sack_check(struct sctp_tcb *stcb, int was_a_gap)
 				/*
 				 * CMT DAC algorithm: With CMT, delay acks
 				 * even in the face of
-				 * 
-				 * reordering. Therefore, if acks that do not
-				 * have to be sent because of the above
+				 *
+				 * reordering. Therefore, if acks that do
+				 * not have to be sent because of the above
 				 * reasons, will be delayed. That is, acks
 				 * that would have been sent due to gap
 				 * reports will be delayed with DAC. Start
@@ -2719,7 +2688,7 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 					 * Now, what do we do with KNOWN
 					 * chunks that are NOT in the right
 					 * place?
-					 * 
+					 *
 					 * For now, I do nothing but ignore
 					 * them. We may later want to add
 					 * sysctl stuff to switch out and do
@@ -2761,8 +2730,7 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 					/* discard the rest of this packet */
 					stop_proc = 1;
 				}	/* else skip this bad chunk and
-					 * continue... */
-				break;
+				  * continue... */ break;
 			}	/* switch of chunk type */
 		}
 		*offset += SCTP_SIZE32(chk_length);
@@ -3019,10 +2987,8 @@ sctp_process_segment_range(struct sctp_tcb *stcb, struct sctp_tmit_chunk **p_tp1
 						}
 						tp1->sent = SCTP_DATAGRAM_NR_ACKED;
 						if (tp1->data) {
-							/*
-							 * sa_ignore
-							 * NO_NULL_CHK
-							 */
+							/* sa_ignore
+							 * NO_NULL_CHK */
 							sctp_free_bufspace(stcb, &stcb->asoc, tp1, 1);
 							sctp_m_freem(tp1->data);
 							tp1->data = NULL;
@@ -3031,8 +2997,7 @@ sctp_process_segment_range(struct sctp_tcb *stcb, struct sctp_tmit_chunk **p_tp1
 					}
 				}
 				break;
-			}	/* if (tp1->TSN_seq == theTSN) */
-			if (SCTP_TSN_GT(tp1->rec.data.TSN_seq, theTSN)) {
+			} /* if (tp1->TSN_seq == theTSN) */ if (SCTP_TSN_GT(tp1->rec.data.TSN_seq, theTSN)) {
 				break;
 			}
 			tp1 = TAILQ_NEXT(tp1, sctp_next);
@@ -3483,10 +3448,8 @@ sctp_strike_gap_ack_chunks(struct sctp_tcb *stcb, struct sctp_association *asoc,
 
 			if ((stcb->asoc.prsctp_supported) &&
 			    (PR_SCTP_RTX_ENABLED(tp1->flags))) {
-				/*
-				 * Has it been retransmitted tv_sec times? -
-				 * we store the retran count there.
-				 */
+				/* Has it been retransmitted tv_sec times? -
+				 * we store the retran count there. */
 				if (tp1->snd_count > tp1->rec.data.timetodrop.tv_sec) {
 					/* Yes, so drop it */
 					if (tp1->data != NULL) {
@@ -3498,10 +3461,8 @@ sctp_strike_gap_ack_chunks(struct sctp_tcb *stcb, struct sctp_association *asoc,
 					continue;
 				}
 			}
-			/*
-			 * SCTP_PRINTF("OK, we are now ready to FR this
-			 * guy\n");
-			 */
+			/* SCTP_PRINTF("OK, we are now ready to FR this
+			 * guy\n"); */
 			if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_FR_LOGGING_ENABLE) {
 				sctp_log_fr(tp1->rec.data.TSN_seq, tp1->snd_count,
 				    0, SCTP_FR_MARKED);
@@ -3521,18 +3482,14 @@ sctp_strike_gap_ack_chunks(struct sctp_tcb *stcb, struct sctp_association *asoc,
 				alt = tp1->whoTo;
 				/* sa_ignore NO_NULL_CHK */
 				if (asoc->sctp_cmt_pf > 0) {
-					/*
-					 * JRS 5/18/07 - If CMT PF is on,
+					/* JRS 5/18/07 - If CMT PF is on,
 					 * use the PF version of
-					 * find_alt_net()
-					 */
+					 * find_alt_net() */
 					alt = sctp_find_alternate_net(stcb, alt, 2);
 				} else {
-					/*
-					 * JRS 5/18/07 - If only CMT is on,
+					/* JRS 5/18/07 - If only CMT is on,
 					 * use the CMT version of
-					 * find_alt_net()
-					 */
+					 * find_alt_net() */
 					/* sa_ignore NO_NULL_CHK */
 					alt = sctp_find_alternate_net(stcb, alt, 1);
 				}
@@ -3713,10 +3670,8 @@ sctp_fs_audit(struct sctp_association *asoc)
 	struct sctp_tmit_chunk *chk;
 	int inflight = 0, resend = 0, inbetween = 0, acked = 0, above = 0;
 	int ret;
-
 #ifndef INVARIANTS
 	int entry_flight, entry_cnt;
-
 #endif
 
 	ret = 0;
@@ -3933,8 +3888,7 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 								tp1->whoTo->RTO =
 								/*
 								 * sa_ignore
-								 * NO_NULL_CH
-								 * K
+								 * NO_NULL_CHK
 								 */
 								    sctp_calculate_rto(stcb,
 								    asoc, tp1->whoTo,
@@ -4066,10 +4020,8 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 				}
 				if (net == stcb->asoc.primary_destination) {
 					if (stcb->asoc.alternate) {
-						/*
-						 * release the alternate,
-						 * primary is good
-						 */
+						/* release the alternate,
+						 * primary is good */
 						sctp_free_remote_addr(stcb->asoc.alternate);
 						stcb->asoc.alternate = NULL;
 					}
@@ -4152,10 +4104,8 @@ again:
 			}
 		} else {
 			if (net->window_probe) {
-				/*
-				 * In window probes we must assure a timer
-				 * is still running there
-				 */
+				/* In window probes we must assure a timer
+				 * is still running there */
 				net->window_probe = 0;
 				if (!SCTP_OS_TIMER_PENDING(&net->rxt_timer.timer)) {
 					SCTP_OS_TIMER_START(&net->rxt_timer.timer, to_ticks,
@@ -4775,7 +4725,7 @@ hopeless_peer:
 	}
 	/*
 	 * Check for revoked fragments:
-	 * 
+	 *
 	 * if Previous sack - Had no frags then we can't have any revoked if
 	 * Previous sack - Had frag's then - If we now have frags aka
 	 * num_seg > 0 call sctp_check_for_revoked() to tell if peer revoked
@@ -4840,10 +4790,8 @@ hopeless_peer:
 				}
 				if (net == stcb->asoc.primary_destination) {
 					if (stcb->asoc.alternate) {
-						/*
-						 * release the alternate,
-						 * primary is good
-						 */
+						/* release the alternate,
+						 * primary is good */
 						sctp_free_remote_addr(stcb->asoc.alternate);
 						stcb->asoc.alternate = NULL;
 					}
@@ -5054,10 +5002,8 @@ again:
 			}
 		} else {
 			if (net->window_probe) {
-				/*
-				 * In window probes we must assure a timer
-				 * is still running there
-				 */
+				/* In window probes we must assure a timer
+				 * is still running there */
 				if (!SCTP_OS_TIMER_PENDING(&net->rxt_timer.timer)) {
 					sctp_timer_start(SCTP_TIMER_TYPE_SEND,
 					    stcb->sctp_ep, stcb, net);
@@ -5213,10 +5159,8 @@ sctp_kick_prsctp_reorder_queue(struct sctp_tcb *stcb,
 			} else {
 				/* Its a fragmented message */
 				if (ctl->first_frag_seen) {
-					/*
-					 * Make it so this is next to
-					 * deliver, we restore later
-					 */
+					/* Make it so this is next to
+					 * deliver, we restore later */
 					strmin->last_sequence_delivered = ctl->sinfo_ssn - 1;
 					need_reasm_check = 1;
 					break;
@@ -5280,10 +5224,8 @@ sctp_kick_prsctp_reorder_queue(struct sctp_tcb *stcb,
 			} else {
 				/* Its a fragmented message */
 				if (ctl->first_frag_seen) {
-					/*
-					 * Make it so this is next to
-					 * deliver
-					 */
+					/* Make it so this is next to
+					 * deliver */
 					strmin->last_sequence_delivered = ctl->sinfo_ssn - 1;
 					need_reasm_check = 1;
 					break;
@@ -5392,11 +5334,11 @@ sctp_handle_forward_tsn(struct sctp_tcb *stcb,
 	/*
 	 * here we will perform all the data receiver side steps for
 	 * processing FwdTSN, as required in by pr-sctp draft:
-	 * 
+	 *
 	 * Assume we get FwdTSN(x):
-	 * 
-	 * 1) update local cumTSN to x 2) try to further advance cumTSN to x +
-	 * others we have 3) examine and update re-ordering queue on
+	 *
+	 * 1) update local cumTSN to x 2) try to further advance cumTSN to x
+	 * + others we have 3) examine and update re-ordering queue on
 	 * pr-in-streams 4) clean up re-assembly queue 5) Send a sack to
 	 * report where we are.
 	 */
