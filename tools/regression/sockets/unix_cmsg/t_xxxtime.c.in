@@ -27,6 +27,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/time.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -35,28 +36,29 @@ __FBSDID("$FreeBSD$");
 #include <stdbool.h>
 #include <stdlib.h>
 
-#include "uc_common.h"
+#include "t_%%TTYPE%%.h"
 #include "t_generic.h"
-#include "t_timeval.h"
+#include "uc_common.h"
 
+#if defined(%%SCM_TTYPE%%)
 static int
-check_scm_timestamp(struct cmsghdr *cmsghdr)
+check_scm_%%TTYPE%%(struct cmsghdr *cmsghdr)
 {
-	const struct timeval *tv;
+	const struct %%DTYPE%% *bt;
 
-	if (uc_check_cmsghdr(cmsghdr, SCM_TIMESTAMP, sizeof(struct timeval)) < 0)
+	if (uc_check_cmsghdr(cmsghdr, %%SCM_TTYPE%%, sizeof(struct %%DTYPE%%)) < 0)
 		return (-1);
 
-	tv = (struct timeval *)CMSG_DATA(cmsghdr);
+	bt = (struct %%DTYPE%% *)CMSG_DATA(cmsghdr);
 
-	uc_dbgmsg("timeval.tv_sec %"PRIdMAX", timeval.tv_usec %"PRIdMAX,
-	    (intmax_t)tv->tv_sec, (intmax_t)tv->tv_usec);
+	uc_dbgmsg("%%DTYPE%%.%%MAJ_MEMB%% %"PRIdMAX", %%DTYPE%%.%%MIN_MEMB%% %"PRIuMAX,
+	    (intmax_t)bt->%%MAJ_MEMB%%, (uintmax_t)bt->%%MIN_MEMB%%);
 
 	return (0);
 }
 
 static int
-t_timeval_client(int fd)
+t_%%TTYPE%%_client(int fd)
 {
 	struct msghdr msghdr;
 	struct iovec iov[1];
@@ -69,14 +71,14 @@ t_timeval_client(int fd)
 
 	rv = -2;
 
-	cmsg_size = CMSG_SPACE(sizeof(struct timeval));
+	cmsg_size = CMSG_SPACE(sizeof(struct %%DTYPE%%));
 	cmsg_data = malloc(cmsg_size);
 	if (cmsg_data == NULL) {
 		uc_logmsg("malloc");
 		goto done;
 	}
 	uc_msghdr_init_client(&msghdr, iov, cmsg_data, cmsg_size,
-	    SCM_TIMESTAMP, sizeof(struct timeval));
+	    %%SCM_TTYPE%%, sizeof(struct %%DTYPE%%));
 
 	if (uc_socket_connect(fd) < 0)
 		goto done;
@@ -91,7 +93,7 @@ done:
 }
 
 static int
-t_timeval_server(int fd1)
+t_%%TTYPE%%_server(int fd1)
 {
 	struct msghdr msghdr;
 	struct iovec iov[1];
@@ -107,7 +109,7 @@ t_timeval_server(int fd1)
 	fd2 = -1;
 	rv = -2;
 
-	cmsg_size = CMSG_SPACE(sizeof(struct timeval));
+	cmsg_size = CMSG_SPACE(sizeof(struct %%DTYPE%%));
 	cmsg_data = malloc(cmsg_size);
 	if (cmsg_data == NULL) {
 		uc_logmsg("malloc");
@@ -135,7 +137,7 @@ t_timeval_server(int fd1)
 			break;
 
 		cmsghdr = CMSG_FIRSTHDR(&msghdr);
-		if (check_scm_timestamp(cmsghdr) < 0)
+		if (check_scm_%%TTYPE%%(cmsghdr) < 0)
 			break;
 	}
 	if (i > uc_cfg.ipc_msg.msg_num)
@@ -149,7 +151,8 @@ done:
 }
 
 int
-t_timeval(void)
+t_%%TTYPE%%(void)
 {
-	return (t_generic(t_timeval_client, t_timeval_server));
+	return (t_generic(t_%%TTYPE%%_client, t_%%TTYPE%%_server));
 }
+#endif /* %%SCM_TTYPE%% */
