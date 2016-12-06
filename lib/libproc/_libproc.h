@@ -26,6 +26,9 @@
  * $FreeBSD$
  */
 
+#ifndef __LIBPROC_H_
+#define	__LIBPROC_H_
+
 #include <sys/types.h>
 #include <sys/ptrace.h>
 
@@ -58,3 +61,5 @@ struct proc_handle {
 #define	DPRINTF(...)    do { } while (0)
 #define	DPRINTFX(...)   do { } while (0)
 #endif
+
+#endif /* __LIBPROC_H_ */

@@ -158,4 +158,4 @@ int	proc_regset(struct proc_handle *, proc_reg_t, unsigned long);
 
 __END_DECLS
 
-#endif /* !_LIBPROC_H_ */
+#endif /* _LIBPROC_H_ */
