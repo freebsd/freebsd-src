@@ -39,10 +39,22 @@
 
 struct procstat;
 
+struct symtab {
+	Elf_Data *data;
+	u_int	nsyms;
+	u_int	*index;
+	u_long	stridx;
+};
+
 struct file_info {
 	Elf	*elf;
 	int	fd;
 	u_int	refs;
+	GElf_Ehdr ehdr;
+
+	/* Symbol tables, sorted by value. */
+	struct symtab dynsymtab;
+	struct symtab symtab;
 };
 
 struct map_info {

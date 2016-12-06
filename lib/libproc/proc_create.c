@@ -239,6 +239,10 @@ proc_free(struct proc_handle *phdl)
 			if (file->elf != NULL) {
 				(void)elf_end(file->elf);
 				(void)close(file->fd);
+				if (file->symtab.nsyms > 0)
+					free(file->symtab.index);
+				if (file->dynsymtab.nsyms > 0)
+					free(file->dynsymtab.index);
 			}
 			free(file);
 		}

@@ -101,6 +101,74 @@ fail:
 }
 
 static int
+symvalcomp(void *thunk, const void *a1, const void *a2)
+{
+	struct symtab *symtab;
+	GElf_Sym sym1, sym2;
+	u_int i1, i2;
+	int ret;
+
+	i1 = *(const u_int *)a1;
+	i2 = *(const u_int *)a2;
+	symtab = thunk;
+
+	(void)gelf_getsym(symtab->data, i1, &sym1);
+	(void)gelf_getsym(symtab->data, i2, &sym2);
+	if (sym1.st_value < sym2.st_value)
+		ret = -1;
+	else if (sym1.st_value == sym2.st_value)
+		ret = 0;
+	else
+		ret = 1;
+	return (ret);
+}
+
+static int
+load_symtab(Elf *e, struct symtab *symtab, u_long sh_type)
+{
+	GElf_Ehdr ehdr;
+	GElf_Shdr shdr;
+	Elf_Scn *scn;
+	u_int nsyms;
+
+	if (gelf_getehdr(e, &ehdr) == NULL)
+		return (-1);
+
+	scn = NULL;
+	while ((scn = elf_nextscn(e, scn)) != NULL) {
+		(void)gelf_getshdr(scn, &shdr);
+		if (shdr.sh_type == sh_type)
+			break;
+	}
+	if (scn == NULL)
+		return (-1);
+
+	if ((symtab->data = elf_getdata(scn, NULL)) == NULL)
+		return (-1);
+
+	nsyms = shdr.sh_size / shdr.sh_entsize;
+
+	symtab->index = calloc(nsyms, sizeof(u_int));
+	if (symtab->index == NULL)
+		return (-1);
+	for (u_int i = 0; i < nsyms; i++)
+		symtab->index[i] = i;
+	qsort_r(symtab->index, nsyms, sizeof(u_int), symtab, symvalcomp);
+	symtab->nsyms = nsyms;
+	symtab->stridx = shdr.sh_link;
+	return (0);
+}
+
+static void
+load_symtabs(struct file_info *file)
+{
+
+	file->symtab.nsyms = file->dynsymtab.nsyms = 0;
+	(void)load_symtab(file->elf, &file->symtab, SHT_SYMTAB);
+	(void)load_symtab(file->elf, &file->dynsymtab, SHT_DYNSYM);
+}
+
+static int
 open_debug_file(char *path, const char *debugfile, uint32_t crc)
 {
 	size_t n;
@@ -157,6 +225,10 @@ open_object(struct map_info *mapping)
 	}
 	if ((e = elf_begin(fd, ELF_C_READ, NULL)) == NULL) {
 		DPRINTFX("ERROR: elf_begin() failed: %s", elf_errmsg(-1));
+		goto err;
+	}
+	if (gelf_getehdr(e, &file->ehdr) != &file->ehdr) {
+		DPRINTFX("ERROR: elf_getehdr() failed: %s", elf_errmsg(-1));
 		goto err;
 	}
 
@@ -235,6 +307,7 @@ internal:
 	/* We didn't find a debug file, just return the object's descriptor. */
 	file->elf = e;
 	file->fd = fd;
+	load_symtabs(file);
 	return (0);
 
 external:
@@ -247,6 +320,7 @@ external:
 	(void)close(fd);
 	file->elf = e2;
 	file->fd = fd2;
+	load_symtabs(file);
 	return (0);
 
 err:
@@ -333,55 +407,49 @@ proc_addr2map(struct proc_handle *p, uintptr_t addr)
 }
 
 /*
- * Look up the symbol at addr, returning a copy of the symbol and its name.
+ * Look up the symbol at addr using a binary search, returning a copy of the
+ * symbol and its name.
  */
 static int
-lookup_addr(Elf *e, Elf_Scn *scn, u_long stridx, uintptr_t off, uintptr_t addr,
-    const char **name, GElf_Sym *symcopy)
+lookup_symbol_by_addr(Elf *elf, struct symtab *symtab, uintptr_t addr,
+    const char **namep, GElf_Sym *sym)
 {
-	GElf_Sym sym;
 	Elf_Data *data;
 	const char *s;
-	uint64_t rsym;
-	int i;
+	int min, max, mid;
 
-	if ((data = elf_getdata(scn, NULL)) == NULL) {
-		DPRINTFX("ERROR: elf_getdata() failed: %s", elf_errmsg(-1));
-		return (1);
-	}
-	for (i = 0; gelf_getsym(data, i, &sym) != NULL; i++) {
-		rsym = off + sym.st_value;
-		if (addr >= rsym && addr < rsym + sym.st_size) {
-			s = elf_strptr(e, stridx, sym.st_name);
-			if (s != NULL) {
-				*name = s;
-				memcpy(symcopy, &sym, sizeof(*symcopy));
-				/*
-				 * DTrace expects the st_value to contain
-				 * only the address relative to the start of
-				 * the function.
-				 */
-				symcopy->st_value = rsym;
-				return (0);
-			}
+	data = symtab->data;
+	min = 0;
+	max = symtab->nsyms - 1;
+
+	while (min <= max) {
+		mid = (max + min) / 2;
+		(void)gelf_getsym(data, symtab->index[mid], sym);
+		if (addr >= sym->st_value &&
+		    addr < sym->st_value + sym->st_size) {
+			s = elf_strptr(elf, symtab->stridx, sym->st_name);
+			if (s != NULL && namep != NULL)
+				*namep = s;
+			return (0);
 		}
+
+		if (addr < sym->st_value)
+			max = mid - 1;
+		else
+			min = mid + 1;
 	}
-	return (1);
+	return (ENOENT);
 }
 
 int
 proc_addr2sym(struct proc_handle *p, uintptr_t addr, char *name,
     size_t namesz, GElf_Sym *symcopy)
 {
-	GElf_Ehdr ehdr;
-	GElf_Shdr shdr;
-	Elf *e;
-	Elf_Scn *scn, *dynsymscn, *symtabscn;
+	struct file_info *file;
 	struct map_info *mapping;
 	const char *s;
 	uintptr_t off;
-	u_long symtabstridx, dynsymstridx;
-	int error = -1;
+	int error;
 
 	if ((mapping = _proc_addr2map(p, addr)) == NULL) {
 		DPRINTFX("ERROR: proc_addr2map failed to resolve 0x%jx", addr);
@@ -392,49 +460,22 @@ proc_addr2sym(struct proc_handle *p, uintptr_t addr, char *name,
 		    mapping->map.pr_mapname);
 		return (-1);
 	}
-	e = mapping->file->elf;
-	if (gelf_getehdr(e, &ehdr) == NULL) {
-		DPRINTFX("ERROR: gelf_getehdr() failed: %s", elf_errmsg(-1));
-		goto err;
+
+	file = mapping->file;
+	off = file->ehdr.e_type == ET_DYN ? mapping->map.pr_vaddr : 0;
+	if (addr < off)
+		return (ENOENT);
+	addr -= off;
+
+	error = lookup_symbol_by_addr(file->elf, &file->dynsymtab, addr, &s,
+	    symcopy);
+	if (error == ENOENT)
+		error = lookup_symbol_by_addr(file->elf, &file->symtab, addr,
+		    &s, symcopy);
+	if (error == 0) {
+		symcopy->st_value += off;
+		demangle(s, name, namesz);
 	}
-
-	/*
-	 * Find the index of the STRTAB and SYMTAB sections to locate
-	 * symbol names.
-	 */
-	symtabstridx = dynsymstridx = 0;
-	scn = dynsymscn = symtabscn = NULL;
-	while ((scn = elf_nextscn(e, scn)) != NULL) {
-		gelf_getshdr(scn, &shdr);
-		switch (shdr.sh_type) {
-		case SHT_SYMTAB:
-			symtabscn = scn;
-			symtabstridx = shdr.sh_link;
-			break;
-		case SHT_DYNSYM:
-			dynsymscn = scn;
-			dynsymstridx = shdr.sh_link;
-			break;
-		}
-	}
-
-	off = ehdr.e_type == ET_EXEC ? 0 : mapping->map.pr_vaddr;
-
-	/*
-	 * First look up the symbol in the dynsymtab, and fall back to the
-	 * symtab if the lookup fails.
-	 */
-	error = lookup_addr(e, dynsymscn, dynsymstridx, off, addr, &s, symcopy);
-	if (error == 0)
-		goto out;
-
-	error = lookup_addr(e, symtabscn, symtabstridx, off, addr, &s, symcopy);
-	if (error != 0)
-		goto err;
-
-out:
-	demangle(s, name, namesz);
-err:
 	return (error);
 }
 
@@ -480,7 +521,7 @@ proc_name2map(struct proc_handle *p, const char *name)
  * Look up the symbol with the given name and return a copy of it.
  */
 static int
-lookup_name(Elf *e, Elf_Scn *scn, u_long stridx, const char *symbol,
+lookup_symbol_by_name(Elf *elf, struct symtab *symtab, const char *symbol,
     GElf_Sym *symcopy, prsyminfo_t *si)
 {
 	GElf_Sym sym;
@@ -488,12 +529,11 @@ lookup_name(Elf *e, Elf_Scn *scn, u_long stridx, const char *symbol,
 	char *s;
 	int i;
 
-	if ((data = elf_getdata(scn, NULL)) == NULL) {
-		DPRINTFX("ERROR: elf_getdata() failed: %s", elf_errmsg(-1));
-		return (1);
-	}
+	if (symtab->nsyms == 0)
+		return (ENOENT);
+	data = symtab->data;
 	for (i = 0; gelf_getsym(data, i, &sym) != NULL; i++) {
-		s = elf_strptr(e, stridx, sym.st_name);
+		s = elf_strptr(elf, symtab->stridx, sym.st_name);
 		if (s != NULL && strcmp(s, symbol) == 0) {
 			memcpy(symcopy, &sym, sizeof(*symcopy));
 			if (si != NULL)
@@ -501,21 +541,17 @@ lookup_name(Elf *e, Elf_Scn *scn, u_long stridx, const char *symbol,
 			return (0);
 		}
 	}
-	return (1);
+	return (ENOENT);
 }
 
 int
 proc_name2sym(struct proc_handle *p, const char *object, const char *symbol,
     GElf_Sym *symcopy, prsyminfo_t *si)
 {
-	GElf_Ehdr ehdr;
-	GElf_Shdr shdr;
-	Elf *e;
-	Elf_Scn *scn, *dynsymscn, *symtabscn;
+	struct file_info *file;
 	struct map_info *mapping;
 	uintptr_t off;
-	u_long symtabstridx, dynsymstridx;
-	int error = -1;
+	int error;
 
 	if ((mapping = _proc_name2map(p, object)) == NULL) {
 		DPRINTFX("ERROR: proc_name2map failed to resolve %s", object);
@@ -526,49 +562,17 @@ proc_name2sym(struct proc_handle *p, const char *object, const char *symbol,
 		    mapping->map.pr_mapname);
 		return (-1);
 	}
-	e = mapping->file->elf;
-	if (gelf_getehdr(e, &ehdr) == NULL) {
-		DPRINTFX("ERROR: gelf_getehdr() failed: %s", elf_errmsg(-1));
-		goto err;
-	}
 
-	/*
-	 * Find the index of the STRTAB and SYMTAB sections to locate
-	 * symbol names.
-	 */
-	symtabstridx = dynsymstridx = 0;
-	scn = dynsymscn = symtabscn = NULL;
-	while ((scn = elf_nextscn(e, scn)) != NULL) {
-		gelf_getshdr(scn, &shdr);
-		switch (shdr.sh_type) {
-		case SHT_SYMTAB:
-			symtabscn = scn;
-			symtabstridx = shdr.sh_link;
-			break;
-		case SHT_DYNSYM:
-			dynsymscn = scn;
-			dynsymstridx = shdr.sh_link;
-			break;
-		}
-	}
+	file = mapping->file;
+	off = file->ehdr.e_type == ET_DYN ? mapping->map.pr_vaddr : 0;
 
-	/*
-	 * First look up the symbol in the dynsymtab, and fall back to the
-	 * symtab if the lookup fails.
-	 */
-	error = lookup_name(e, dynsymscn, dynsymstridx, symbol, symcopy, si);
+	error = lookup_symbol_by_name(file->elf, &file->dynsymtab, symbol,
+	    symcopy, si);
+	if (error == ENOENT)
+		error = lookup_symbol_by_name(file->elf, &file->symtab, symbol,
+		    symcopy, si);
 	if (error == 0)
-		goto out;
-
-	error = lookup_name(e, symtabscn, symtabstridx, symbol, symcopy, si);
-	if (error == 0)
-		goto out;
-
-out:
-	off = ehdr.e_type == ET_EXEC ? 0 : mapping->map.pr_vaddr;
-	symcopy->st_value += off;
-
-err:
+		symcopy->st_value += off;
 	return (error);
 }
 
@@ -596,16 +600,12 @@ int
 proc_iter_symbyaddr(struct proc_handle *p, const char *object, int which,
     int mask, proc_sym_f *func, void *cd)
 {
-	GElf_Ehdr ehdr;
-	GElf_Shdr shdr;
 	GElf_Sym sym;
-	Elf *e;
-	Elf_Scn *scn, *foundscn;
-	Elf_Data *data;
+	struct file_info *file;
 	struct map_info *mapping;
-	char *s;
-	unsigned long stridx = -1;
-	int error = -1, i;
+	struct symtab *symtab;
+	const char *s;
+	int error, i;
 
 	if ((mapping = _proc_name2map(p, object)) == NULL) {
 		DPRINTFX("ERROR: proc_name2map failed to resolve %s", object);
@@ -616,35 +616,14 @@ proc_iter_symbyaddr(struct proc_handle *p, const char *object, int which,
 		    mapping->map.pr_mapname);
 		return (-1);
 	}
-	e = mapping->file->elf;
-	if (gelf_getehdr(e, &ehdr) == NULL) {
-		DPRINTFX("ERROR: gelf_getehdr() failed: %s", elf_errmsg(-1));
-		goto err;
-	}
-	/*
-	 * Find the section we are looking for.
-	 */
-	foundscn = scn = NULL;
-	while ((scn = elf_nextscn(e, scn)) != NULL) {
-		gelf_getshdr(scn, &shdr);
-		if (which == PR_SYMTAB &&
-		    shdr.sh_type == SHT_SYMTAB) {
-			foundscn = scn;
-			break;
-		} else if (which == PR_DYNSYM &&
-		    shdr.sh_type == SHT_DYNSYM) {
-			foundscn = scn;
-			break;
-		}
-	}
-	if (!foundscn)
+
+	file = mapping->file;
+	symtab = which == PR_SYMTAB ? &file->symtab : &file->dynsymtab;
+	if (symtab->nsyms == 0)
 		return (-1);
-	stridx = shdr.sh_link;
-	if ((data = elf_getdata(foundscn, NULL)) == NULL) {
-		DPRINTFX("ERROR: elf_getdata() failed: %s", elf_errmsg(-1));
-		goto err;
-	}
-	for (i = 0; gelf_getsym(data, i, &sym) != NULL; i++) {
+
+	error = 0;
+	for (i = 0; gelf_getsym(symtab->data, i, &sym) != NULL; i++) {
 		if (GELF_ST_BIND(sym.st_info) == STB_LOCAL &&
 		    (mask & BIND_LOCAL) == 0)
 			continue;
@@ -669,13 +648,11 @@ proc_iter_symbyaddr(struct proc_handle *p, const char *object, int which,
 		if (GELF_ST_TYPE(sym.st_info) == STT_FILE &&
 		    (mask & TYPE_FILE) == 0)
 			continue;
-		s = elf_strptr(e, stridx, sym.st_name);
-		if (ehdr.e_type != ET_EXEC)
+		s = elf_strptr(file->elf, symtab->stridx, sym.st_name);
+		if (file->ehdr.e_type == ET_DYN)
 			sym.st_value += mapping->map.pr_vaddr;
 		if ((error = (*func)(cd, &sym, s)) != 0)
-			goto err;
+			break;
 	}
-	error = 0;
-err:
 	return (error);
 }
