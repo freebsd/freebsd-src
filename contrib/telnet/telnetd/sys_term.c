@@ -1159,7 +1159,7 @@ addarg(char **argv, const char *val)
 		 */
 		argv = (char **)malloc(sizeof(*argv) * 12);
 		if (argv == NULL)
-			return(NULL);
+			fatal(net, "failure allocating argument space");
 		*argv++ = (char *)10;
 		*argv = NULL;
 	}
@@ -1171,11 +1171,12 @@ addarg(char **argv, const char *val)
 		argv = (char **)realloc(argv,
 		    sizeof(*argv)*((intptr_t)(*argv) + 2));
 		if (argv == NULL)
-			return(NULL);
+			fatal(net, "failure allocating argument space");
 		argv++;
 		cpp = &argv[(intptr_t)argv[-1] - 10];
 	}
-	*cpp++ = strdup(val);
+	if ((*cpp++ = strdup(val)) == NULL)
+		fatal(net, "failure allocating argument space");
 	*cpp = NULL;
 	return(argv);
 }
