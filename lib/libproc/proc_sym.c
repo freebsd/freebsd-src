@@ -208,7 +208,7 @@ proc_addr2map(struct proc_handle *p, uintptr_t addr)
 	 * it ourselves.
 	 */
 	if (p->nobjs == 0) {
-		if ((kves = kinfo_getvmmap(p->pid, &cnt)) == NULL)
+		if ((kves = kinfo_getvmmap(proc_getpid(p), &cnt)) == NULL)
 			return (NULL);
 		for (i = 0; i < (size_t)cnt; i++) {
 			kve = kves + i;
