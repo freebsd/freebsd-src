@@ -36,7 +36,7 @@
 .Os
 .Sh NAME
 .Nm cxgbev
-.Nd "Chelsio T4 and T5 based 40Gb, 10Gb, and 1Gb Ethernet VF driver"
+.Nd "Chelsio T4-, T5-, and T6-based 100Gb, 40Gb, 25Gb, 10Gb, and 1Gb Ethernet VF driver"
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
@@ -56,7 +56,8 @@ if_cxgbev_load="YES"
 The
 .Nm
 driver provides support for Virtual Functions on PCI Express Ethernet adapters
-based on the Chelsio Terminator 4 and Terminator 5 ASICs (T4 and T5).
+based on the Chelsio Terminator 4, Terminator 5, and Terminator 6 ASICs
+(T4, T5, and T6).
 The driver supports Jumbo Frames, Transmit/Receive checksum offload,
 TCP segmentation offload (TSO), Large Receive Offload (LRO), VLAN
 tag insertion/extraction, VLAN checksum offload, VLAN TSO, and
@@ -65,16 +66,47 @@ For further hardware information and questions related to hardware
 requirements, see
 .Pa http://www.chelsio.com/ .
 .Pp
-Note that ports of T5 VFs are named cxlv and attach to a t5vf parent device
-(in contrast to ports named cxgbev that attach to a t4vf parent for a T4 VF).
-Loader tunables with the hw.cxgbe prefix apply to both T4 and T5 VFs.
-The Physical Function driver for T4 and T5 adapters shares these tunables.
-The sysctl MIBs are at dev.t5vf and dev.cxlv for T5 cards and at dev.t4vf and
-dev.cxgbev for T4 cards.
+The
+.Nm
+driver uses different names for devices based on the associated ASIC:
+.Bl -column -offset indent "ASIC" "Port Name"
+.It Sy ASIC Ta Sy Port Name Ta Sy Parent Device
+.It T4 Ta cxgbev Ta t4vf
+.It T5 Ta cxlv Ta t5vf
+.It T6 Ta ccv Ta t6vf
+.El
+.Pp
+Loader tunables with the hw.cxgbe prefix apply to VFs from all cards.
+The Physical Function driver for Chelsio Terminator adapters shares these
+tunables.
+The driver provides sysctl MIBs for both ports and parent devices using
+the names above.
+For example, a T5 VF will provide port MIBs under dev.cxlv and
+parent device MIBs under dev.t5vf.
+References to sysctl MIBs in the remainder of this page will use
+dev.<port> for port MIBs and dev.<nexus> for parent device MIBs.
 .Pp
 For more information on configuring this device, see
 .Xr ifconfig 8 .
 .Sh HARDWARE
+The
+.Nm
+driver supports Virtual Functions on 100Gb and 25Gb Ethernet adapters
+based on the T6 ASIC:
+.Pp
+.Bl -bullet -compact
+.It
+Chelsio T6225-CR
+.It
+Chelsio T6225-SO-CR
+.It
+Chelsio T62100-LP-CR
+.It
+Chelsio T62100-SO-CR
+.It
+Chelsio T62100-CR
+.El
+.Pp
 The
 .Nm
 driver supports Virtual Functions on 40Gb, 10Gb and 1Gb Ethernet adapters
@@ -141,11 +173,11 @@ prompt before booting the kernel or stored in
 .Xr loader.conf 5 .
 .Bl -tag -width indent
 .It Va hw.cxgbe.ntxq10g
-The number of tx queues to use for a 10Gb or 40Gb port.
+The number of tx queues to use for a 10Gb or higher-speed port.
 The default is 16 or the number
 of CPU cores in the system, whichever is less.
 .It Va hw.cxgbe.nrxq10g
-The number of rx queues to use for a 10Gb or 40Gb port.
+The number of rx queues to use for a 10Gb or higher-speed port.
 The default is 8 or the number
 of CPU cores in the system, whichever is less.
 .It Va hw.cxgbe.ntxq1g
@@ -164,7 +196,7 @@ by default (all values are in microseconds) and the index selects a
 value from this list.
 The default value is 1 which means the timer value is 5us.
 Different interfaces can be assigned different values at any time via the
-dev.cxgbev.X.holdoff_tmr_idx or dev.cxlv.X.holdoff_tmr_idx sysctl.
+dev.<port>.X.holdoff_tmr_idx sysctl.
 .It Va hw.cxgbe.holdoff_pktc_idx_10G
 .It Va hw.cxgbe.holdoff_pktc_idx_1G
 The packet-count index value to use to delay interrupts.
@@ -173,7 +205,7 @@ and the index selects a value from this list.
 The default value is -1 which means packet counting is disabled and interrupts
 are generated based solely on the holdoff timer value.
 Different interfaces can be assigned different values via the
-dev.cxgbev.X.holdoff_pktc_idx or dev.cxlv.X.holdoff_pktc_idx sysctl.
+dev.<port>.X.holdoff_pktc_idx sysctl.
 This sysctl works only when the interface has never been marked up (as done by
 ifconfig up).
 .It Va hw.cxgbe.qsize_txq
@@ -185,7 +217,7 @@ See
 .Xr ifnet 9 .
 The default value is 1024.
 Different interfaces can be assigned different values via the
-dev.cxgbev.X.qsize_txq sysctl or dev.cxlv.X.qsize_txq sysctl.
+dev.<port>.X.qsize_txq sysctl.
 This sysctl works only when the interface has never been marked up (as done by
 ifconfig up).
 .It Va hw.cxgbe.qsize_rxq
@@ -193,7 +225,7 @@ The size, in number of entries, of the descriptor ring used for an
 rx queue.
 The default value is 1024.
 Different interfaces can be assigned different values via the
-dev.cxgbev.X.qsize_rxq or dev.cxlv.X.qsize_rxq sysctl.
+dev.<port>.X.qsize_rxq sysctl.
 This sysctl works only when the interface has never been marked up (as done by
 ifconfig up).
 .It Va hw.cxgbe.interrupt_types
@@ -279,6 +311,8 @@ email all the specific information related to the issue to
 The
 .Nm
 device driver first appeared in
+.Fx 11.1
+and
 .Fx 12.0 .
 .Sh AUTHORS
 .An -nosplit
