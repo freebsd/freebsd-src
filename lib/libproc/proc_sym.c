@@ -51,7 +51,10 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <libutil.h>
 
+#include "crc32.h"
 #include "_libproc.h"
+
+#define	PATH_DEBUG_DIR	"/usr/lib/debug"
 
 #ifdef NO_CTF
 typedef struct ctf_file ctf_file_t;
@@ -62,6 +65,22 @@ extern char *__cxa_demangle(const char *, char *, size_t *, int *);
 #endif /* NO_CXA_DEMANGLE */
 
 static void	proc_rdl2prmap(rd_loadobj_t *, prmap_t *);
+
+static int
+crc32_file(int fd, uint32_t *crc)
+{
+	uint8_t buf[PAGE_SIZE], *p;
+	size_t n;
+
+	*crc = ~0;
+	while ((n = read(fd, buf, sizeof(buf))) > 0) {
+		p = &buf[0];
+		while (n-- > 0)
+			*crc = crc32_tab[(*crc ^ *p++) & 0xff] ^ (*crc >> 8);
+	}
+	*crc = ~*crc;
+	return (n);
+}
 
 static void
 demangle(const char *symbol, char *buf, size_t len)
@@ -83,18 +102,150 @@ fail:
 }
 
 static int
-find_dbg_obj(const char *path)
+open_debug_file(char *path, const char *debugfile, uint32_t crc)
 {
+	size_t n;
+	uint32_t compcrc;
 	int fd;
-	char dbg_path[PATH_MAX];
 
-	snprintf(dbg_path, sizeof(dbg_path),
-	    "/usr/lib/debug/%s.debug", path);
-	fd = open(dbg_path, O_RDONLY);
-	if (fd >= 0)
+	fd = -1;
+	if ((n = strlcat(path, "/", PATH_MAX)) >= PATH_MAX)
 		return (fd);
-	else
-		return (open(path, O_RDONLY));
+	if (strlcat(path, debugfile, PATH_MAX) >= PATH_MAX)
+		goto out;
+	if ((fd = open(path, O_RDONLY | O_CLOEXEC)) < 0)
+		goto out;
+	if (crc32_file(fd, &compcrc) != 0 || crc != compcrc) {
+		DPRINTFX("ERROR: CRC32 mismatch for %s", path);
+		(void)close(fd);
+		fd = -1;
+	}
+out:
+	path[n] = '\0';
+	return (fd);
+}
+
+/*
+ * Obtain an ELF descriptor for the specified mapped object. If a GNU debuglink
+ * section is present, a descriptor for the corresponding debug file is
+ * returned.
+ */
+static int
+open_object(prmap_t *map, Elf **elfp, int *fdp)
+{
+	char path[PATH_MAX];
+	GElf_Shdr shdr;
+	Elf *e, *e2;
+	Elf_Data *data;
+	Elf_Scn *scn;
+	const char *debugfile, *scnname;
+	size_t ndx;
+	uint32_t crc;
+	int fd, fd2;
+
+	if ((fd = open(map->pr_mapname, O_RDONLY | O_CLOEXEC)) < 0) {
+		DPRINTF("ERROR: open %s failed", map->pr_mapname);
+		return (-1);
+	}
+	if ((e = elf_begin(fd, ELF_C_READ, NULL)) == NULL) {
+		DPRINTFX("ERROR: elf_begin() failed: %s", elf_errmsg(-1));
+		goto err;
+	}
+
+	scn = NULL;
+	while ((scn = elf_nextscn(e, scn)) != NULL) {
+		if (gelf_getshdr(scn, &shdr) != &shdr) {
+			DPRINTFX("ERROR: gelf_getshdr failed: %s",
+			    elf_errmsg(-1));
+			goto err;
+		}
+		if (shdr.sh_type != SHT_PROGBITS)
+			continue;
+		if (elf_getshdrstrndx(e, &ndx) != 0) {
+			DPRINTFX("ERROR: elf_getshdrstrndx failed: %s",
+			    elf_errmsg(-1));
+			goto err;
+		}
+		if ((scnname = elf_strptr(e, ndx, shdr.sh_name)) == NULL)
+			continue;
+
+		if (strcmp(scnname, ".gnu_debuglink") == 0)
+			break;
+	}
+	if (scn == NULL)
+		goto internal;
+
+	if ((data = elf_getdata(scn, NULL)) == NULL) {
+		DPRINTFX("ERROR: elf_getdata failed: %s", elf_errmsg(-1));
+		goto err;
+	}
+
+	/*
+	 * The data contains a null-terminated file name followed by a 4-byte
+	 * CRC.
+	 */
+	if (data->d_size < sizeof(crc) + 1) {
+		DPRINTFX("ERROR: debuglink section is too small (%zd bytes)",
+		    data->d_size);
+		goto internal;
+	}
+	if (strnlen(data->d_buf, data->d_size) >= data->d_size - sizeof(crc)) {
+		DPRINTFX("ERROR: no null-terminator in gnu_debuglink section");
+		goto internal;
+	}
+
+	debugfile = data->d_buf;
+	memcpy(&crc, (char *)data->d_buf + data->d_size - sizeof(crc),
+	    sizeof(crc));
+
+	/*
+	 * Search for the debug file using the algorithm described in the gdb
+	 * documentation:
+	 * - look in the directory containing the object,
+	 * - look in the subdirectory ".debug" of the directory containing the
+	 *   object,
+	 * - look in the global debug directories (currently /usr/lib/debug).
+	 */
+	(void)strlcpy(path, map->pr_mapname, sizeof(path));
+	(void)dirname(path);
+
+	if ((fd2 = open_debug_file(path, debugfile, crc)) >= 0)
+		goto external;
+
+	if (strlcat(path, "/.debug", sizeof(path)) < sizeof(path) &&
+	    (fd2 = open_debug_file(path, debugfile, crc)) >= 0)
+		goto external;
+
+	(void)snprintf(path, sizeof(path), PATH_DEBUG_DIR);
+	if (strlcat(path, map->pr_mapname, sizeof(path)) < sizeof(path)) {
+		(void)dirname(path);
+		if ((fd2 = open_debug_file(path, debugfile, crc)) >= 0)
+			goto external;
+	}
+
+internal:
+	/* We didn't find a debug file, just return the object's descriptor. */
+	*elfp = e;
+	*fdp = fd;
+	return (0);
+
+external:
+	if ((e2 = elf_begin(fd2, ELF_C_READ, NULL)) == NULL) {
+		DPRINTFX("ERROR: elf_begin failed: %s", elf_errmsg(-1));
+		(void)close(fd2);
+		goto err;
+	}
+	(void)elf_end(e);
+	(void)close(fd);
+	*elfp = e2;
+	*fdp = fd2;
+	return (0);
+
+err:
+	if (e != NULL)
+		(void)elf_end(e);
+	(void)close(fd);
+	return (-1);
 }
 
 static void
@@ -308,19 +459,17 @@ proc_addr2sym(struct proc_handle *p, uintptr_t addr, char *name,
 	u_long symtabstridx = 0, dynsymstridx = 0;
 	int fd, error = -1;
 
-	if ((map = proc_addr2map(p, addr)) == NULL)
+	if ((map = proc_addr2map(p, addr)) == NULL) {
+		DPRINTFX("ERROR: proc_addr2map failed to resolve 0x%jx", addr);
 		return (-1);
-	if ((fd = find_dbg_obj(map->pr_mapname)) < 0) {
-		DPRINTF("ERROR: open %s failed", map->pr_mapname);
-		goto err0;
 	}
-	if ((e = elf_begin(fd, ELF_C_READ, NULL)) == NULL) {
-		DPRINTFX("ERROR: elf_begin() failed: %s", elf_errmsg(-1));
-		goto err1;
+	if (open_object(map, &e, &fd) != 0) {
+		DPRINTFX("ERROR: failed to open object %s", map->pr_mapname);
+		return (-1);
 	}
 	if (gelf_getehdr(e, &ehdr) == NULL) {
 		DPRINTFX("ERROR: gelf_getehdr() failed: %s", elf_errmsg(-1));
-		goto err2;
+		goto err;
 	}
 
 	/*
@@ -354,15 +503,13 @@ proc_addr2sym(struct proc_handle *p, uintptr_t addr, char *name,
 
 	error = lookup_addr(e, symtabscn, symtabstridx, off, addr, &s, symcopy);
 	if (error != 0)
-		goto err2;
+		goto err;
 
 out:
 	demangle(s, name, namesz);
-err2:
-	elf_end(e);
-err1:
-	close(fd);
-err0:
+err:
+	(void)elf_end(e);
+	(void)close(fd);
 	free(map);
 	return (error);
 }
@@ -455,21 +602,18 @@ proc_name2sym(struct proc_handle *p, const char *object, const char *symbol,
 	int fd, error = -1;
 
 	if ((map = proc_name2map(p, object)) == NULL) {
-		DPRINTFX("ERROR: couldn't find object %s", object);
-		goto err0;
+		DPRINTFX("ERROR: proc_name2map failed to resolve %s", object);
+		return (-1);
 	}
-	if ((fd = find_dbg_obj(map->pr_mapname)) < 0) {
-		DPRINTF("ERROR: open %s failed", map->pr_mapname);
-		goto err0;
-	}
-	if ((e = elf_begin(fd, ELF_C_READ, NULL)) == NULL) {
-		DPRINTFX("ERROR: elf_begin() failed: %s", elf_errmsg(-1));
-		goto err1;
+	if (open_object(map, &e, &fd) != 0) {
+		DPRINTFX("ERROR: failed to open object %s", map->pr_mapname);
+		return (-1);
 	}
 	if (gelf_getehdr(e, &ehdr) == NULL) {
 		DPRINTFX("ERROR: gelf_getehdr() failed: %s", elf_errmsg(-1));
-		goto err2;
+		goto err;
 	}
+
 	/*
 	 * Find the index of the STRTAB and SYMTAB sections to locate
 	 * symbol names.
@@ -505,13 +649,10 @@ out:
 	off = ehdr.e_type == ET_EXEC ? 0 : map->pr_vaddr;
 	symcopy->st_value += off;
 
-err2:
-	elf_end(e);
-err1:
-	close(fd);
-err0:
+err:
+	(void)elf_end(e);
+	(void)close(fd);
 	free(map);
-
 	return (error);
 }
 
@@ -543,7 +684,7 @@ proc_iter_symbyaddr(struct proc_handle *p, const char *object, int which,
 	Elf *e;
 	int i, fd;
 	prmap_t *map;
-	Elf_Scn *scn, *foundscn = NULL;
+	Elf_Scn *scn, *foundscn;
 	Elf_Data *data;
 	GElf_Ehdr ehdr;
 	GElf_Shdr shdr;
@@ -552,24 +693,22 @@ proc_iter_symbyaddr(struct proc_handle *p, const char *object, int which,
 	char *s;
 	int error = -1;
 
-	if ((map = proc_name2map(p, object)) == NULL)
+	if ((map = proc_name2map(p, object)) == NULL) {
+		DPRINTFX("ERROR: proc_name2map failed to resolve %s", object);
 		return (-1);
-	if ((fd = find_dbg_obj(map->pr_mapname)) < 0) {
-		DPRINTF("ERROR: open %s failed", map->pr_mapname);
-		goto err0;
 	}
-	if ((e = elf_begin(fd, ELF_C_READ, NULL)) == NULL) {
-		DPRINTFX("ERROR: elf_begin() failed: %s", elf_errmsg(-1));
-		goto err1;
+	if (open_object(map, &e, &fd) != 0) {
+		DPRINTFX("ERROR: failed to open object %s", map->pr_mapname);
+		return (-1);
 	}
 	if (gelf_getehdr(e, &ehdr) == NULL) {
 		DPRINTFX("ERROR: gelf_getehdr() failed: %s", elf_errmsg(-1));
-		goto err2;
+		goto err;
 	}
 	/*
 	 * Find the section we are looking for.
 	 */
-	scn = NULL;
+	foundscn = scn = NULL;
 	while ((scn = elf_nextscn(e, scn)) != NULL) {
 		gelf_getshdr(scn, &shdr);
 		if (which == PR_SYMTAB &&
@@ -587,7 +726,7 @@ proc_iter_symbyaddr(struct proc_handle *p, const char *object, int which,
 	stridx = shdr.sh_link;
 	if ((data = elf_getdata(foundscn, NULL)) == NULL) {
 		DPRINTFX("ERROR: elf_getdata() failed: %s", elf_errmsg(-1));
-		goto err2;
+		goto err;
 	}
 	for (i = 0; gelf_getsym(data, i, &sym) != NULL; i++) {
 		if (GELF_ST_BIND(sym.st_info) == STB_LOCAL &&
@@ -618,14 +757,12 @@ proc_iter_symbyaddr(struct proc_handle *p, const char *object, int which,
 		if (ehdr.e_type != ET_EXEC)
 			sym.st_value += map->pr_vaddr;
 		if ((error = (*func)(cd, &sym, s)) != 0)
-			goto err2;
+			goto err;
 	}
 	error = 0;
-err2:
+err:
 	elf_end(e);
-err1:
 	close(fd);
-err0:
 	free(map);
 	return (error);
 }
