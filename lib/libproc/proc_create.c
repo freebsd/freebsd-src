@@ -79,7 +79,7 @@ proc_init(pid_t pid, int flags, int status, struct proc_handle **pphdl)
 		goto out;
 
 	memset(phdl, 0, sizeof(*phdl));
-	phdl->pid = pid;
+	phdl->public.pid = pid;
 	phdl->flags = flags;
 	phdl->status = status;
 	phdl->procstat = procstat_open_sysctl();
@@ -140,7 +140,7 @@ proc_attach(pid_t pid, int flags, struct proc_handle **pphdl)
 	if (error != 0)
 		goto out;
 
-	if (ptrace(PT_ATTACH, phdl->pid, 0, 0) != 0) {
+	if (ptrace(PT_ATTACH, proc_getpid(phdl), 0, 0) != 0) {
 		error = errno;
 		DPRINTF("ERROR: cannot ptrace child process %d", pid);
 		goto out;
