@@ -245,7 +245,6 @@ tcp_ipsec_input(struct mbuf *m, struct tcphdr *th, u_char *buf)
 	 */
 	tcp_fields_to_net(th);
 	ipsec_setsockaddrs(m, &saidx.src, &saidx.dst);
-	key_porttosaddr(&saidx.dst.sa, th->th_dport);
 	saidx.proto = IPPROTO_TCP;
 	saidx.mode = IPSEC_MODE_TCPMD5;
 	saidx.reqid = 0;
@@ -282,7 +281,6 @@ tcp_ipsec_output(struct mbuf *m, struct tcphdr *th, u_char *buf)
 	struct secasvar *sav;
 
 	ipsec_setsockaddrs(m, &saidx.src, &saidx.dst);
-	key_porttosaddr(&saidx.dst.sa, th->th_dport);
 	saidx.proto = IPPROTO_TCP;
 	saidx.mode = IPSEC_MODE_TCPMD5;
 	saidx.reqid = 0;

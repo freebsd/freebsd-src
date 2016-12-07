@@ -777,13 +777,7 @@ key_allocsa_tcpmd5(struct secasindex *saidx)
 		    kdebug_secash(sah, "  "));
 		if (sah->saidx.proto != IPPROTO_TCP)
 			continue;
-		/*
-		 * addrhash uses only IP addresses without ports, but if
-		 * SA contains TCP port, use ports in comparison for exact
-		 * match.
-		 */
-		if (!key_sockaddrcmp(&saidx->dst.sa, &sah->saidx.dst.sa,
-		    key_portfromsaddr(&sah->saidx.dst.sa)))
+		if (!key_sockaddrcmp(&saidx->dst.sa, &sah->saidx.dst.sa, 0))
 			break;
 	}
 	if (sah != NULL) {
@@ -4747,8 +4741,7 @@ key_getsav_tcpmd5(struct secasindex *saidx, uint32_t *spi)
 	LIST_FOREACH(sah, SAHADDRHASH_HASH(saidx), addrhash) {
 		if (sah->saidx.proto != IPPROTO_TCP)
 			continue;
-		if (!key_sockaddrcmp(&saidx->dst.sa, &sah->saidx.dst.sa,
-		    key_portfromsaddr(&sah->saidx.dst.sa)))
+		if (!key_sockaddrcmp(&saidx->dst.sa, &sah->saidx.dst.sa, 0))
 			break;
 	}
 	if (sah != NULL) {
@@ -5098,7 +5091,6 @@ key_add(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 	/*
 	 * Make sure the port numbers are zero.
 	 * In case of NAT-T we will update them later if needed.
-	 * XXXAE: TCP-MD5 may set dst port.
 	 */
 	key_porttosaddr(&saidx.src.sa, 0);
 	key_porttosaddr(&saidx.dst.sa, 0);
