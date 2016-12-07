@@ -156,7 +156,7 @@ dev/ofw/ofw_cpu.c		optional	fdt
 dev/ofw/ofwpci.c		optional 	fdt pci
 dev/pci/pci_host_generic.c	optional	pci
 dev/pci/pci_host_generic_fdt.c	optional	pci fdt
-dev/psci/psci.c			optional	psci fdt
+dev/psci/psci.c			optional	psci
 dev/psci/psci_arm64.S		optional	psci
 dev/uart/uart_cpu_arm64.c	optional	uart
 dev/uart/uart_dev_pl011.c	optional	uart pl011
