@@ -318,14 +318,14 @@ sctp_process_init(struct sctp_init_chunk *cp, struct sctp_tcb *stcb)
 		/* abandon the upper streams */
 		newcnt = ntohs(init->num_inbound_streams);
 		TAILQ_FOREACH_SAFE(chk, &asoc->send_queue, sctp_next, nchk) {
-			if (chk->rec.data.stream_number >= newcnt) {
+			if (chk->rec.data.sid >= newcnt) {
 				TAILQ_REMOVE(&asoc->send_queue, chk, sctp_next);
 				asoc->send_queue_cnt--;
-				if (asoc->strmout[chk->rec.data.stream_number].chunks_on_queues > 0) {
-					asoc->strmout[chk->rec.data.stream_number].chunks_on_queues--;
+				if (asoc->strmout[chk->rec.data.sid].chunks_on_queues > 0) {
+					asoc->strmout[chk->rec.data.sid].chunks_on_queues--;
 #ifdef INVARIANTS
 				} else {
-					panic("No chunks on the queues for sid %u.", chk->rec.data.stream_number);
+					panic("No chunks on the queues for sid %u.", chk->rec.data.sid);
 #endif
 				}
 				if (chk->data != NULL) {
@@ -410,8 +410,8 @@ sctp_process_init(struct sctp_init_chunk *cp, struct sctp_tcb *stcb)
 		return (-1);
 	}
 	for (i = 0; i < asoc->streamincnt; i++) {
-		asoc->strmin[i].stream_no = i;
-		asoc->strmin[i].last_sequence_delivered = 0xffffffff;
+		asoc->strmin[i].sid = i;
+		asoc->strmin[i].last_mid_delivered = 0xffffffff;
 		TAILQ_INIT(&asoc->strmin[i].inqueue);
 		TAILQ_INIT(&asoc->strmin[i].uno_inqueue);
 		asoc->strmin[i].pd_api_started = 0;
@@ -1955,7 +1955,7 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 			asoc->strmout[i].abandoned_sent[0] = 0;
 			asoc->strmout[i].abandoned_unsent[0] = 0;
 #endif
-			stcb->asoc.strmout[i].stream_no = i;
+			stcb->asoc.strmout[i].sid = i;
 			stcb->asoc.strmout[i].next_mid_ordered = 0;
 			stcb->asoc.strmout[i].next_mid_unordered = 0;
 			stcb->asoc.strmout[i].last_msg_incomplete = 0;
@@ -3027,18 +3027,18 @@ sctp_handle_ecn_echo(struct sctp_ecne_chunk *cp,
 	if (lchk == NULL) {
 		window_data_tsn = stcb->asoc.sending_seq - 1;
 	} else {
-		window_data_tsn = lchk->rec.data.TSN_seq;
+		window_data_tsn = lchk->rec.data.tsn;
 	}
 
 	/* Find where it was sent to if possible. */
 	net = NULL;
 	TAILQ_FOREACH(lchk, &stcb->asoc.sent_queue, sctp_next) {
-		if (lchk->rec.data.TSN_seq == tsn) {
+		if (lchk->rec.data.tsn == tsn) {
 			net = lchk->whoTo;
 			net->ecn_prev_cwnd = lchk->rec.data.cwnd_at_send;
 			break;
 		}
-		if (SCTP_TSN_GT(lchk->rec.data.TSN_seq, tsn)) {
+		if (SCTP_TSN_GT(lchk->rec.data.tsn, tsn)) {
 			break;
 		}
 	}
@@ -3228,11 +3228,11 @@ process_chunk_drop(struct sctp_tcb *stcb, struct sctp_chunk_desc *desc,
 
 			tsn = ntohl(desc->tsn_ifany);
 			TAILQ_FOREACH(tp1, &stcb->asoc.sent_queue, sctp_next) {
-				if (tp1->rec.data.TSN_seq == tsn) {
+				if (tp1->rec.data.tsn == tsn) {
 					/* found it */
 					break;
 				}
-				if (SCTP_TSN_GT(tp1->rec.data.TSN_seq, tsn)) {
+				if (SCTP_TSN_GT(tp1->rec.data.tsn, tsn)) {
 					/* not found */
 					tp1 = NULL;
 					break;
@@ -3245,7 +3245,7 @@ process_chunk_drop(struct sctp_tcb *stcb, struct sctp_chunk_desc *desc,
 				 */
 				SCTP_STAT_INCR(sctps_pdrpdnfnd);
 				TAILQ_FOREACH(tp1, &stcb->asoc.sent_queue, sctp_next) {
-					if (tp1->rec.data.TSN_seq == tsn) {
+					if (tp1->rec.data.tsn == tsn) {
 						/* found it */
 						break;
 					}
@@ -3311,7 +3311,7 @@ process_chunk_drop(struct sctp_tcb *stcb, struct sctp_chunk_desc *desc,
 				if (TAILQ_EMPTY(&stcb->asoc.send_queue)) {
 					tp1->rec.data.fast_retran_tsn = stcb->asoc.sending_seq;
 				} else {
-					tp1->rec.data.fast_retran_tsn = (TAILQ_FIRST(&stcb->asoc.send_queue))->rec.data.TSN_seq;
+					tp1->rec.data.fast_retran_tsn = (TAILQ_FIRST(&stcb->asoc.send_queue))->rec.data.tsn;
 				}
 
 				/* restart the timer */
@@ -3327,7 +3327,7 @@ process_chunk_drop(struct sctp_tcb *stcb, struct sctp_chunk_desc *desc,
 					    tp1->whoTo->flight_size,
 					    tp1->book_size,
 					    (uint32_t) (uintptr_t) stcb,
-					    tp1->rec.data.TSN_seq);
+					    tp1->rec.data.tsn);
 				}
 				if (tp1->sent < SCTP_DATAGRAM_RESEND) {
 					sctp_flight_size_decrease(tp1);
@@ -3471,12 +3471,12 @@ sctp_reset_in_stream(struct sctp_tcb *stcb, uint32_t number_entries, uint16_t * 
 			if (temp >= stcb->asoc.streamincnt) {
 				continue;
 			}
-			stcb->asoc.strmin[temp].last_sequence_delivered = 0xffffffff;
+			stcb->asoc.strmin[temp].last_mid_delivered = 0xffffffff;
 		}
 	} else {
 		list = NULL;
 		for (i = 0; i < stcb->asoc.streamincnt; i++) {
-			stcb->asoc.strmin[i].last_sequence_delivered = 0xffffffff;
+			stcb->asoc.strmin[i].last_mid_delivered = 0xffffffff;
 		}
 	}
 	sctp_ulp_notify(SCTP_NOTIFY_STR_RESET_RECV, stcb, number_entries, (void *)list, SCTP_SO_NOT_LOCKED);
@@ -4018,8 +4018,8 @@ sctp_handle_str_reset_add_strm(struct sctp_tcb *stcb, struct sctp_tmit_chunk *ch
 			for (i = 0; i < stcb->asoc.streamincnt; i++) {
 				TAILQ_INIT(&stcb->asoc.strmin[i].inqueue);
 				TAILQ_INIT(&stcb->asoc.strmin[i].uno_inqueue);
-				stcb->asoc.strmin[i].stream_no = i;
-				stcb->asoc.strmin[i].last_sequence_delivered = oldstrm[i].last_sequence_delivered;
+				stcb->asoc.strmin[i].sid = i;
+				stcb->asoc.strmin[i].last_mid_delivered = oldstrm[i].last_mid_delivered;
 				stcb->asoc.strmin[i].delivery_started = oldstrm[i].delivery_started;
 				stcb->asoc.strmin[i].pd_api_started = oldstrm[i].pd_api_started;
 				/* now anything on those queues? */
@@ -4036,8 +4036,8 @@ sctp_handle_str_reset_add_strm(struct sctp_tcb *stcb, struct sctp_tmit_chunk *ch
 			for (i = stcb->asoc.streamincnt; i < num_stream; i++) {
 				TAILQ_INIT(&stcb->asoc.strmin[i].inqueue);
 				TAILQ_INIT(&stcb->asoc.strmin[i].uno_inqueue);
-				stcb->asoc.strmin[i].stream_no = i;
-				stcb->asoc.strmin[i].last_sequence_delivered = 0xffffffff;
+				stcb->asoc.strmin[i].sid = i;
+				stcb->asoc.strmin[i].last_mid_delivered = 0xffffffff;
 				stcb->asoc.strmin[i].pd_api_started = 0;
 				stcb->asoc.strmin[i].delivery_started = 0;
 			}

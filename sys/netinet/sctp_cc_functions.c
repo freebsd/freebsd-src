@@ -205,7 +205,7 @@ sctp_cwnd_update_after_fr(struct sctp_tcb *stcb,
 					/* Mark end of the window */
 					asoc->fast_recovery_tsn = asoc->sending_seq - 1;
 				} else {
-					asoc->fast_recovery_tsn = lchk->rec.data.TSN_seq - 1;
+					asoc->fast_recovery_tsn = lchk->rec.data.tsn - 1;
 				}
 
 				/*
@@ -218,7 +218,7 @@ sctp_cwnd_update_after_fr(struct sctp_tcb *stcb,
 					/* Mark end of the window */
 					net->fast_recovery_tsn = asoc->sending_seq - 1;
 				} else {
-					net->fast_recovery_tsn = lchk->rec.data.TSN_seq - 1;
+					net->fast_recovery_tsn = lchk->rec.data.tsn - 1;
 				}
 
 				sctp_timer_stop(SCTP_TIMER_TYPE_SEND,
@@ -1698,7 +1698,7 @@ sctp_hs_cwnd_update_after_fr(struct sctp_tcb *stcb,
 					/* Mark end of the window */
 					asoc->fast_recovery_tsn = asoc->sending_seq - 1;
 				} else {
-					asoc->fast_recovery_tsn = lchk->rec.data.TSN_seq - 1;
+					asoc->fast_recovery_tsn = lchk->rec.data.tsn - 1;
 				}
 
 				/*
@@ -1711,7 +1711,7 @@ sctp_hs_cwnd_update_after_fr(struct sctp_tcb *stcb,
 					/* Mark end of the window */
 					net->fast_recovery_tsn = asoc->sending_seq - 1;
 				} else {
-					net->fast_recovery_tsn = lchk->rec.data.TSN_seq - 1;
+					net->fast_recovery_tsn = lchk->rec.data.tsn - 1;
 				}
 
 				sctp_timer_stop(SCTP_TIMER_TYPE_SEND,
@@ -2228,7 +2228,7 @@ sctp_htcp_cwnd_update_after_fr(struct sctp_tcb *stcb,
 					/* Mark end of the window */
 					asoc->fast_recovery_tsn = asoc->sending_seq - 1;
 				} else {
-					asoc->fast_recovery_tsn = lchk->rec.data.TSN_seq - 1;
+					asoc->fast_recovery_tsn = lchk->rec.data.tsn - 1;
 				}
 
 				/*
@@ -2241,7 +2241,7 @@ sctp_htcp_cwnd_update_after_fr(struct sctp_tcb *stcb,
 					/* Mark end of the window */
 					net->fast_recovery_tsn = asoc->sending_seq - 1;
 				} else {
-					net->fast_recovery_tsn = lchk->rec.data.TSN_seq - 1;
+					net->fast_recovery_tsn = lchk->rec.data.tsn - 1;
 				}
 
 				sctp_timer_stop(SCTP_TIMER_TYPE_SEND,
