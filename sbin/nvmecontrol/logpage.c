@@ -113,7 +113,7 @@ uint128_to_str(uint128_t u, char *buf, size_t buflen)
 	return end;
 }
 
-/* "fMissing" from endian.h */
+/* "Missing" from endian.h */
 static __inline uint64_t
 le48dec(const void *pp)
 {
