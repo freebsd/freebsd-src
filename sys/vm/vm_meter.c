@@ -321,7 +321,7 @@ VM_STATS_VM(v_kthreadpages, "VM pages affected by fork() by kernel");
  * with an error if they cannot be found.
  */
 SYSCTL_UINT(_vm_stats_vm, OID_AUTO, v_cache_count, CTLFLAG_RD,
-    (u_int *)NULL, 0, "Dummy for compatibility");
+    SYSCTL_NULL_UINT_PTR, 0, "Dummy for compatibility");
 SYSCTL_UINT(_vm_stats_vm, OID_AUTO, v_tcached, CTLFLAG_RD,
-    (u_int *)NULL, 0, "Dummy for compatibility");
+    SYSCTL_NULL_UINT_PTR, 0, "Dummy for compatibility");
 #endif
