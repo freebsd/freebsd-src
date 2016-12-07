@@ -239,24 +239,23 @@ tcp_ipsec_input(struct mbuf *m, struct tcphdr *th, u_char *buf)
 	struct secasindex saidx;
 	struct secasvar *sav;
 
-	/*
-	 * tcp_input() operates with TCP header fields in host
-	 * byte order. We expect them in network byte order.
-	 */
-	tcp_fields_to_net(th);
 	ipsec_setsockaddrs(m, &saidx.src, &saidx.dst);
 	saidx.proto = IPPROTO_TCP;
 	saidx.mode = IPSEC_MODE_TCPMD5;
 	saidx.reqid = 0;
 	sav = key_allocsa_tcpmd5(&saidx);
 	if (sav == NULL) {
-		tcp_fields_to_host(th);
 		KMOD_TCPSTAT_INC(tcps_sig_err_buildsig);
 		return (EACCES);
 	}
+	/*
+	 * tcp_input() operates with TCP header fields in host
+	 * byte order. We expect them in network byte order.
+	 */
+	tcp_fields_to_net(th);
 	tcp_signature_compute(m, th, sav, tmpdigest);
-	key_freesav(&sav);
 	tcp_fields_to_host(th);
+	key_freesav(&sav);
 	if (bcmp(buf, tmpdigest, TCP_SIGLEN) != 0) {
 		KMOD_TCPSTAT_INC(tcps_sig_rcvbadsig);
 		return (EACCES);
