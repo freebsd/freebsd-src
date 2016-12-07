@@ -1,0 +1,11 @@
+Maintainer: Patrick Perry
+  - initial port from Java
+
+
+Other authors:
+
+Ashok P. Nadkarni
+  - fixes for Windows
+  - reentrant version
+  - bugfix on Linux (issue #2)
+
