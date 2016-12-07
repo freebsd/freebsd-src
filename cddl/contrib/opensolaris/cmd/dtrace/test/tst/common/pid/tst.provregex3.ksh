@@ -56,7 +56,7 @@ prov.h: prov.d
 	$dtrace -h -s prov.d
 
 prov.o: prov.d main.o
-	$dtrace -G -32 -s prov.d main.o
+	$dtrace -G -s prov.d main.o
 EOF
 
 cat > prov.d <<EOF
