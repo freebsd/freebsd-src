@@ -16,6 +16,10 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20161208	p5	FreeBSD-SA-16:37.libc [revised]
+
+	Fix regressions introduced by SA-16:37.libc.
+
 20161206	p4	FreeBSD-SA-16:36.telnetd
 			FreeBSD-SA-16:37.libc
 			FreeBSD-SA-16:38.bhyve
