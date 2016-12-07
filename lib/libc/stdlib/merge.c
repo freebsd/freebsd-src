@@ -58,7 +58,6 @@ __FBSDID("$FreeBSD$");
 
 #ifdef I_AM_MERGESORT_B
 #include "block_abi.h"
-#define	DECLARE_CMP	DECLARE_BLOCK(int, cmp, const void *, const void *)
 typedef DECLARE_BLOCK(int, cmp_t, const void *, const void *);
 #define	CMP(x, y)	CALL_BLOCK(cmp, x, y)
 #else
