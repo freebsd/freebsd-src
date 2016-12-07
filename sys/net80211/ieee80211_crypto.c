@@ -520,6 +520,26 @@ ieee80211_crypto_setkey(struct ieee80211vap *vap, struct ieee80211_key *key)
 	return dev_key_set(vap, key);
 }
 
+/*
+ * Return index if the key is a WEP key (0..3); -1 otherwise.
+ *
+ * This is different to "get_keyid" which defaults to returning
+ * 0 for unicast keys; it assumes that it won't be used for WEP.
+ */
+int
+ieee80211_crypto_get_key_wepidx(const struct ieee80211vap *vap,
+    const struct ieee80211_key *k)
+{
+
+	if (k >= &vap->iv_nw_keys[0] &&
+	    k <  &vap->iv_nw_keys[IEEE80211_WEP_NKID])
+		return (k - vap->iv_nw_keys);
+	return (-1):
+}
+
+/*
+ * Note: only supports a single unicast key (0).
+ */
 uint8_t
 ieee80211_crypto_get_keyid(struct ieee80211vap *vap, struct ieee80211_key *k)
 {
