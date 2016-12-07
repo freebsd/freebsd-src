@@ -658,6 +658,10 @@ int	ieee80211_get_xmit_params(struct mbuf *m,
 #define	IEEE80211_RX_F_IV_STRIP		0x00000200 /* Decrypted; IV stripped */
 #define	IEEE80211_RX_F_MMIC_STRIP	0x00000400 /* Decrypted; MMIC stripped */
 #define	IEEE80211_RX_F_SHORTGI		0x00000800 /* This is a short-GI frame */
+#define	IEEE80211_RX_F_CCK		0x00001000
+#define	IEEE80211_RX_F_OFDM		0x00002000
+#define	IEEE80211_RX_F_HT		0x00004000
+#define	IEEE80211_RX_F_VHT		0x00008000
 
 /* Channel width */
 #define	IEEE80211_RX_FW_20MHZ		1
@@ -687,7 +691,7 @@ struct ieee80211_rx_stats {
 	uint8_t c_nf;			/* global NF */
 	uint8_t c_rssi;			/* global RSSI */
 	uint8_t c_chain;		/* number of RX chains involved */
-	uint8_t c_rate;			/* legacy + 11n rate code */
+	uint8_t c_rate;			/* legacy; 11n rate code; VHT MCS */
 
 	/* 32 bits */
 	uint16_t c_freq;		/* Frequency, MHz */
@@ -703,7 +707,8 @@ struct ieee80211_rx_stats {
 
 	/* 32 bits */
 	uint8_t c_phytype;		/* PHY type, FW flags above */
-	uint8_t c_pad2[3];
+	uint8_t c_vhtnss;		/* VHT - number of spatial streams */
+	uint8_t c_pad2[2];
 };
 
 struct ieee80211_rx_params {
