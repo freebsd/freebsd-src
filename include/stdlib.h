@@ -325,6 +325,9 @@ long double
 	    __capability char ** __restrict);
 #endif
 
+int timsort(void *base, size_t nel, size_t width,
+	    int (*compar) (const void *, const void *));
+
 extern char *suboptarg;			/* getsubopt(3) external variable */
 #endif /* __BSD_VISIBLE */
 __END_DECLS

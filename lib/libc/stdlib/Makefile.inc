@@ -23,6 +23,9 @@ CLEANFILES+=C99_Exit.c
 C99_Exit.c: ${LIBC_SRCTOP}/stdlib/_Exit.c .NOMETA
 	ln -sf ${.ALLSRC} ${.TARGET}
 
+.PATH:	${LIBC_SRCTOP}/../../contrib/timsort
+MISRCS+=	timsort.c
+
 SYM_MAPS+= ${LIBC_SRCTOP}/stdlib/Symbol.map
 
 # machine-dependent stdlib sources
