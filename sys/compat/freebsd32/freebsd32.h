@@ -315,7 +315,8 @@ struct kinfo_proc32 {
 	char	ki_comm[COMMLEN+1];
 	char	ki_emul[KI_EMULNAMELEN+1];
 	char	ki_loginclass[LOGINCLASSLEN+1];
-	char	ki_sparestrings[50];
+	char	ki_moretdname[MAXCOMLEN-TDNAMLEN+1];
+	char	ki_sparestrings[46];
 	int	ki_spareints[KI_NSPARE_INT];
 	int	ki_oncpu;
 	int	ki_lastcpu;

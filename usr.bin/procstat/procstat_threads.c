@@ -49,7 +49,7 @@ procstat_threads(struct procstat *procstat, struct kinfo_proc *kipp)
 	char *threadid;
 
 	if (!hflag)
-		xo_emit("{T:/%5s %6s %-16s %-16s %2s %4s %-7s %-9s}\n", "PID",
+		xo_emit("{T:/%5s %6s %-19s %-19s %2s %4s %-7s %-9s}\n", "PID",
 		    "TID", "COMM", "TDNAME", "CPU", "PRI", "STATE", "WCHAN");
 
 	xo_emit("{ek:process_id/%d}", kipp->ki_pid);
@@ -71,11 +71,10 @@ procstat_threads(struct procstat *procstat, struct kinfo_proc *kipp)
 		xo_open_container(threadid);
 		xo_emit("{dk:process_id/%5d/%d} ", kipp->ki_pid);
 		xo_emit("{:thread_id/%6d/%d} ", kipp->ki_tid);
-		xo_emit("{d:command/%-16s/%s} ", strlen(kipp->ki_comm) ?
+		xo_emit("{d:command/%-19s/%s} ", strlen(kipp->ki_comm) ?
 		    kipp->ki_comm : "-");
-		xo_emit("{:thread_name/%-16s/%s} ", (strlen(kipp->ki_tdname) &&
-		    (strcmp(kipp->ki_comm, kipp->ki_tdname) != 0)) ?
-		    kipp->ki_tdname : "-");
+		xo_emit("{:thread_name/%-19s/%s} ",
+		    kinfo_proc_thread_name(kipp));
 		if (kipp->ki_oncpu != 255)
 			xo_emit("{:cpu/%3d/%d} ", kipp->ki_oncpu);
 		else if (kipp->ki_lastcpu != 255)

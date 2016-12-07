@@ -171,7 +171,7 @@ procstat_kstack(struct procstat *procstat, struct kinfo_proc *kipp, int kflag)
 	unsigned int kip_count, kstk_count;
 
 	if (!hflag)
-		xo_emit("{T:/%5s %6s %-16s %-16s %-29s}\n", "PID", "TID", "COMM",
+		xo_emit("{T:/%5s %6s %-19s %-19s %-29s}\n", "PID", "TID", "COMM",
 		    "TDNAME", "KSTACK");
 
 	kkstp = kkstp_free = procstat_getkstack(procstat, kipp, &kstk_count);
@@ -208,10 +208,9 @@ procstat_kstack(struct procstat *procstat, struct kinfo_proc *kipp, int kflag)
 
 		xo_emit("{k:process_id/%5d/%d} ", kipp->ki_pid);
 		xo_emit("{:thread_id/%6d/%d} ", kkstp->kkst_tid);
-		xo_emit("{:command/%-16s/%s} ", kipp->ki_comm);
-		xo_emit("{:thread_name/%-16s/%s} ", (strlen(kipp->ki_tdname) &&
-		    (strcmp(kipp->ki_comm, kipp->ki_tdname) != 0)) ?
-		    kipp->ki_tdname : "-");
+		xo_emit("{:command/%-19s/%s} ", kipp->ki_comm);
+		xo_emit("{:thread_name/%-19s/%s} ",
+                    kinfo_proc_thread_name(kipp));
 
 		switch (kkstp->kkst_state) {
 		case KKST_STATE_RUNNING:
