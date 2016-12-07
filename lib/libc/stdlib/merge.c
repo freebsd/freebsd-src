@@ -115,6 +115,7 @@ mergesort_b(void *base, size_t nmemb, size_t size, cmp_t cmp)
 mergesort(void *base, size_t nmemb, size_t size, cmp_t cmp)
 #endif
 {
+#ifndef __CHERI_PURE_CAPABILITY__
 	size_t i;
 	int sense;
 	int big, iflag;
@@ -245,6 +246,13 @@ COPY:	    			b = t;
 	}
 	free(list2);
 	return (0);
+#else /* __CHERI_PURE_CAPABILITY__ */
+#ifdef I_AM_MERGESORT_B
+	return (EINVAL);
+#else
+	return (timsort(base, nmemb, size, cmp));
+#endif
+#endif /* __CHERI_PURE_CAPABILITY__ */
 }
 
 #define	swap(a, b) {					\
