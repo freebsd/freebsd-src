@@ -11,6 +11,10 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20161208	p52	FreeBSD-SA-16:37.libc [revised]
+
+	Fix regressions introduced by SA-16:37.libc.
+
 20161206	p51	FreeBSD-SA-16:36.telnetd
 			FreeBSD-SA-16:37.libc
 			FreeBSD-EN-16:19.tzcode
