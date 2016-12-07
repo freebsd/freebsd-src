@@ -147,6 +147,29 @@
 	<entry><para>Remote Denial of Service
 	    vulnerability</para></entry>
       </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-16:36.telnetd.asc">FreeBSD-SA-16:36.telnetd</link></entry>
+	<entry>6&nbsp;December&nbsp;2016</entry>
+	<entry><para>Possible &man.login.1; argument
+	    injection</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-16:37.libc.asc">FreeBSD-SA-16:37.libc</link></entry>
+	<entry>6&nbsp;December&nbsp;2016</entry>
+	<entry><para>&man.link.ntoa.3; buffer overflow</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-16:38.bhyve.asc">FreeBSD-SA-16:38.bhyve</link></entry>
+	<entry>6&nbsp;December&nbsp;2016</entry>
+	<entry><para>Possible escape from &man.bhyve.8; virtual
+	  machine</para></entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>

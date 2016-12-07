@@ -111,6 +111,22 @@
 	<entry>25&nbsp;October&nbsp;2016</entry>
 	<entry><para>Several virtual memory issues</para></entry>
       </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-16:19.tzcode.asc">FreeBSD-EN-16:19.tzcode</link></entry>
+	<entry>6&nbsp;December&nbsp;2016</entry>
+	<entry><para>Fix warnings about invalid timezone
+	    abbreviations</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-16:20.tzdata.asc">FreeBSD-EN-16:20.tzdata</link></entry>
+	<entry>6&nbsp;December&nbsp;2016</entry>
+	<entry><para>Update timezone database
+	    information</para></entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>
