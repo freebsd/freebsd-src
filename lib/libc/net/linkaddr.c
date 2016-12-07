@@ -128,7 +128,7 @@ link_ntoa(sdl)
 	static char obuf[64];
 	_Static_assert(sizeof(obuf) >= IFNAMSIZ + 20, "obuf is too small");
 	char *out;
-	const char *in, *inlim;
+	const u_char *in, *inlim;
 	int namelen, i, rem;
 
 	namelen = (sdl->sdl_nlen <= IFNAMSIZ) ? sdl->sdl_nlen : IFNAMSIZ;
@@ -145,11 +145,11 @@ link_ntoa(sdl)
 		}
 	}
 
-	in = (const char *)sdl->sdl_data + sdl->sdl_nlen;
+	in = (const u_char *)sdl->sdl_data + sdl->sdl_nlen;
 	inlim = in + sdl->sdl_alen;
 
 	while (in < inlim && rem > 1) {
-		if (in != (const char *)sdl->sdl_data + sdl->sdl_nlen) {
+		if (in != (const u_char *)sdl->sdl_data + sdl->sdl_nlen) {
 			*out++ = '.';
 			rem--;
 		}
@@ -157,15 +157,14 @@ link_ntoa(sdl)
 		if (i > 0xf) {
 			if (rem < 3)
 				break;
+			*out++ = hexlist[i >> 4];
 			*out++ = hexlist[i & 0xf];
-			i >>= 4;
-			*out++ = hexlist[i];
 			rem -= 2;
 		} else {
 			if (rem < 2)
 				break;
 			*out++ = hexlist[i];
-			rem++;
+			rem--;
 		}
 	}
 	*out = 0;
