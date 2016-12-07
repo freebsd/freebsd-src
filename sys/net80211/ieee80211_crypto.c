@@ -534,7 +534,7 @@ ieee80211_crypto_get_key_wepidx(const struct ieee80211vap *vap,
 	if (k >= &vap->iv_nw_keys[0] &&
 	    k <  &vap->iv_nw_keys[IEEE80211_WEP_NKID])
 		return (k - vap->iv_nw_keys);
-	return (-1):
+	return (-1);
 }
 
 /*
