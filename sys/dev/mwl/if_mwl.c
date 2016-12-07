@@ -1529,7 +1529,7 @@ mwl_key_alloc(struct ieee80211vap *vap, struct ieee80211_key *k,
 			return 0;
 		}
 		/* give the caller what they requested */
-		*keyix = *rxkeyix = k - vap->iv_nw_keys;
+		*keyix = *rxkeyix = ieee80211_crypto_get_key_wepidx(vap, k);
 	} else {
 		/*
 		 * Firmware handles key allocation.
