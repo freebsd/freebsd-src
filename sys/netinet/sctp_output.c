@@ -10350,8 +10350,10 @@ sctp_fill_in_rest:
 	 */
 	if (asoc->idata_supported) {
 		strseq_m = (struct sctp_strseq_mid *)fwdtsn;
+		strseq = NULL;
 	} else {
 		strseq = (struct sctp_strseq *)fwdtsn;
+		strseq_m = NULL;
 	}
 	/*-
 	 * Now populate the strseq list. This is done blindly
