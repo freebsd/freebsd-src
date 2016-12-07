@@ -32,6 +32,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <assert.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -50,7 +51,9 @@ ATF_TC_BODY(mergesort_test, tc)
 			testvector[i] = sresvector[i] = initvector[i];
 
 		/* Sort using mergesort(3) */
-		mergesort(testvector, j, sizeof(testvector[0]), sorthelp);
+		ATF_REQUIRE_EQ_MSG(0,
+		    mergesort(testvector, j, sizeof(testvector[0]), sorthelp),
+		    "mergesort() return an error (%d)", errno);
 		/* Sort using reference slow sorting routine */
 		ssort(sresvector, j);
 

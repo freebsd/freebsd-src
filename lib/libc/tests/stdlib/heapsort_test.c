@@ -32,6 +32,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <assert.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -50,7 +51,9 @@ ATF_TC_BODY(heapsort_test, tc)
 			testvector[i] = sresvector[i] = initvector[i];
 
 		/* Sort using heapsort(3) */
-		heapsort(testvector, j, sizeof(testvector[0]), sorthelp);
+		ATF_REQUIRE_EQ_MSG(0,
+		    heapsort(testvector, j, sizeof(testvector[0]), sorthelp),
+		    "heapsort() return an error (%d)", errno);
 		/* Sort using reference slow sorting routine */
 		ssort(sresvector, j);
 
