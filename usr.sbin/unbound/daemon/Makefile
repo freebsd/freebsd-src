@@ -1,5 +1,12 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
+
+.if ${MK_CHERI128} == "yes"
+# linker error
+WANT_CHERI=none
+.endif
+
 # Vendor sources and generated files
 LDNSDIR= ${.CURDIR}/../../../contrib/ldns
 UNBOUNDDIR= ${.CURDIR}/../../../contrib/unbound

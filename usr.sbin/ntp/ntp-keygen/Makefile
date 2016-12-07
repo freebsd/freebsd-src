@@ -4,6 +4,11 @@ MAN=
 
 .include <src.opts.mk>
 
+.if ${MK_CHERI128}
+# linker error
+WANT_CHERI=none
+.endif
+
 .PATH:	${.CURDIR}/../../../contrib/ntp/util \
 	${.CURDIR}/../../../contrib/ntp/ntpd
 
