@@ -118,7 +118,11 @@ rtwn_key_alloc(struct ieee80211vap *vap, struct ieee80211_key *k,
 
 	if (&vap->iv_nw_keys[0] <= k &&
 	    k < &vap->iv_nw_keys[IEEE80211_WEP_NKID]) {
+#if __FreeBSD_version > 1200018
+		*keyix = ieee80211_crypto_get_key_wepidx(vap, k);
+#else
 		*keyix = k - vap->iv_nw_keys;
+#endif
 		if (sc->sc_hwcrypto != RTWN_CRYPTO_FULL)
 			k->wk_flags |= IEEE80211_KEY_SWCRYPT;
 		else {

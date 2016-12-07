@@ -3046,7 +3046,7 @@ rum_key_alloc(struct ieee80211vap *vap, struct ieee80211_key *k,
 		} else
 			*keyix = 0;
 	} else {
-		*keyix = k - vap->iv_nw_keys;
+		*keyix = ieee80211_crypto_get_key_wepidx(vap, k);
 	}
 	*rxkeyix = *keyix;
 	return 1;

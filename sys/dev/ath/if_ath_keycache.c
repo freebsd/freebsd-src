@@ -449,7 +449,8 @@ ath_key_alloc(struct ieee80211vap *vap, struct ieee80211_key *k,
 			 * have no way to check if they've already
 			 * been allocated.
 			 */
-			*keyix = *rxkeyix = k - vap->iv_nw_keys;
+			*keyix = *rxkeyix =
+			    ieee80211_crypto_get_key_wepidx(vap, k);
 			return 1;
 		}
 		/*

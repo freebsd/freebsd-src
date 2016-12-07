@@ -1428,7 +1428,7 @@ rsu_key_alloc(struct ieee80211vap *vap, struct ieee80211_key *k,
 
 	if (&vap->iv_nw_keys[0] <= k &&
 	    k < &vap->iv_nw_keys[IEEE80211_WEP_NKID]) {
-		*keyix = k - vap->iv_nw_keys;
+		*keyix = ieee80211_crypto_get_key_wepidx(vap, k);
 	} else {
 		if (vap->iv_opmode != IEEE80211_M_STA) {
 			*keyix = 0;
