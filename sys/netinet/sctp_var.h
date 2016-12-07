@@ -267,7 +267,7 @@ extern struct pr_usrreqs sctp_usrreqs;
 	if (stcb->asoc.fs_index > SCTP_FS_SPEC_LOG_SIZE) \
 		stcb->asoc.fs_index = 0;\
 	stcb->asoc.fslog[stcb->asoc.fs_index].total_flight = stcb->asoc.total_flight; \
-	stcb->asoc.fslog[stcb->asoc.fs_index].tsn = tp1->rec.data.TSN_seq; \
+	stcb->asoc.fslog[stcb->asoc.fs_index].tsn = tp1->rec.data.tsn; \
 	stcb->asoc.fslog[stcb->asoc.fs_index].book = tp1->book_size; \
 	stcb->asoc.fslog[stcb->asoc.fs_index].sent = tp1->sent; \
 	stcb->asoc.fslog[stcb->asoc.fs_index].incr = 0; \
@@ -288,7 +288,7 @@ extern struct pr_usrreqs sctp_usrreqs;
 	if (stcb->asoc.fs_index > SCTP_FS_SPEC_LOG_SIZE) \
 		stcb->asoc.fs_index = 0;\
 	stcb->asoc.fslog[stcb->asoc.fs_index].total_flight = stcb->asoc.total_flight; \
-	stcb->asoc.fslog[stcb->asoc.fs_index].tsn = tp1->rec.data.TSN_seq; \
+	stcb->asoc.fslog[stcb->asoc.fs_index].tsn = tp1->rec.data.tsn; \
 	stcb->asoc.fslog[stcb->asoc.fs_index].book = tp1->book_size; \
 	stcb->asoc.fslog[stcb->asoc.fs_index].sent = tp1->sent; \
 	stcb->asoc.fslog[stcb->asoc.fs_index].incr = 1; \
