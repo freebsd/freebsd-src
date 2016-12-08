@@ -219,15 +219,14 @@ SUBDIR_PARALLEL=
 .endif
 
 .if defined(LIBCHERI)
-# No C++ support in cheri clang
-SUBDIR:=	${SUBDIR:Nlibc++:Nlibcxxrt:Nlibdevdctl}
-# header issue in ioctl.c, probably needs more porting for CheriABI
-SUBDIR:=	${SUBDIR:Nlibsysdecode}
-
 SUBDIR+=	libmalloc_simple
 SUBDIR+=	libcheri_syscalls
 SUBDIR+=	libcheri_support
 SUBDIR_BOOTSTRAP:=	libgcc_s libgcc_eh ${SUBDIR_BOOTSTRAP}
+# No C++ support in cheri clang
+SUBDIR:=	${SUBDIR:Nlibc++:Nlibcxxrt:Nlibdevdctl}
+# header issue in ioctl.c, probably needs more porting for CheriABI
+SUBDIR:=	${SUBDIR:Nlibsysdecode}
 .endif
 
 .include <bsd.subdir.mk>
