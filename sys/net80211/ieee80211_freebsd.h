@@ -731,11 +731,13 @@ int	ieee80211_get_toa_params(struct mbuf *m,
 #define	IEEE80211_F_SURVEY_TIME		0x00000001
 #define	IEEE80211_F_SURVEY_TIME_BUSY	0x00000002
 #define	IEEE80211_F_SURVEY_NOISE_DBM	0x00000004
+#define	IEEE80211_F_SURVEY_TSC		0x00000008
 struct ieee80211_channel_survey {
 	uint32_t s_flags;
 	uint32_t s_time;
 	uint32_t s_time_busy;
-	int s_noise;
+	int32_t s_noise;
+	uint64_t s_tsc;
 };
 
 #endif /* _KERNEL */
