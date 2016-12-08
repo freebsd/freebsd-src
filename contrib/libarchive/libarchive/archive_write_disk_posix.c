@@ -336,14 +336,19 @@ struct archive_write_disk {
 
 #define HFS_BLOCKS(s)	((s) >> 12)
 
-static int	check_symlinks_fsobj(char *path, int *error_number, struct archive_string *error_string, int flags);
+static void	fsobj_error(int *, struct archive_string *, int, const char *,
+		    const char *);
+static int	check_symlinks_fsobj(char *, int *, struct archive_string *,
+		    int);
 static int	check_symlinks(struct archive_write_disk *);
 static int	create_filesystem_object(struct archive_write_disk *);
-static struct fixup_entry *current_fixup(struct archive_write_disk *, const char *pathname);
+static struct fixup_entry *current_fixup(struct archive_write_disk *,
+		    const char *pathname);
 #if defined(HAVE_FCHDIR) && defined(PATH_MAX)
 static void	edit_deep_directories(struct archive_write_disk *ad);
 #endif
-static int	cleanup_pathname_fsobj(char *path, int *error_number, struct archive_string *error_string, int flags);
+static int	cleanup_pathname_fsobj(char *, int *, struct archive_string *,
+		    int);
 static int	cleanup_pathname(struct archive_write_disk *);
 static int	create_dir(struct archive_write_disk *, char *);
 static int	create_parent_dir(struct archive_write_disk *, char *);
@@ -374,11 +379,14 @@ static struct archive_vtable *archive_write_disk_vtable(void);
 
 static int	_archive_write_disk_close(struct archive *);
 static int	_archive_write_disk_free(struct archive *);
-static int	_archive_write_disk_header(struct archive *, struct archive_entry *);
+static int	_archive_write_disk_header(struct archive *,
+		    struct archive_entry *);
 static int64_t	_archive_write_disk_filter_bytes(struct archive *, int);
 static int	_archive_write_disk_finish_entry(struct archive *);
-static ssize_t	_archive_write_disk_data(struct archive *, const void *, size_t);
-static ssize_t	_archive_write_disk_data_block(struct archive *, const void *, size_t, int64_t);
+static ssize_t	_archive_write_disk_data(struct archive *, const void *,
+		    size_t);
+static ssize_t	_archive_write_disk_data_block(struct archive *, const void *,
+		    size_t, int64_t);
 
 static int
 lazy_stat(struct archive_write_disk *a)
@@ -649,7 +657,8 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 	if (a->restore_pwd >= 0) {
 		r = fchdir(a->restore_pwd);
 		if (r != 0) {
-			archive_set_error(&a->archive, errno, "chdir() failure");
+			archive_set_error(&a->archive, errno,
+			    "chdir() failure");
 			ret = ARCHIVE_FATAL;
 		}
 		close(a->restore_pwd);
@@ -697,7 +706,8 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 		}
 		if (archive_entry_birthtime_is_set(entry)) {
 			fe->birthtime = archive_entry_birthtime(entry);
-			fe->birthtime_nanos = archive_entry_birthtime_nsec(entry);
+			fe->birthtime_nanos = archive_entry_birthtime_nsec(
+			    entry);
 		} else {
 			/* If birthtime is unset, use mtime. */
 			fe->birthtime = fe->mtime;
@@ -723,7 +733,8 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 				return (ARCHIVE_FATAL);
 			fe->mac_metadata = malloc(metadata_size);
 			if (fe->mac_metadata != NULL) {
-				memcpy(fe->mac_metadata, metadata, metadata_size);
+				memcpy(fe->mac_metadata, metadata,
+				    metadata_size);
 				fe->mac_metadata_size = metadata_size;
 				fe->fixup |= TODO_MAC_METADATA;
 			}
@@ -1480,7 +1491,8 @@ _archive_write_disk_data_block(struct archive *_a,
 		return (r);
 	if ((size_t)r < size) {
 		archive_set_error(&a->archive, 0,
-		    "Too much data: Truncating file at %ju bytes", (uintmax_t)a->filesize);
+		    "Too much data: Truncating file at %ju bytes",
+		    (uintmax_t)a->filesize);
 		return (ARCHIVE_WARN);
 	}
 #if ARCHIVE_VERSION_NUMBER < 3999000
@@ -2005,8 +2017,9 @@ restore_entry(struct archive_write_disk *a)
 
 	if (en) {
 		/* Everything failed; give up here. */
-		archive_set_error(&a->archive, en, "Can't create '%s'",
-		    a->name);
+		if ((&a->archive)->error == NULL)
+			archive_set_error(&a->archive, en, "Can't create '%s'",
+			    a->name);
 		return (ARCHIVE_FAILED);
 	}
 
@@ -2043,19 +2056,32 @@ create_filesystem_object(struct archive_write_disk *a)
 		if (linkname_copy == NULL) {
 		    return (EPERM);
 		}
-		/* TODO: consider using the cleaned-up path as the link target? */
-		r = cleanup_pathname_fsobj(linkname_copy, &error_number, &error_string, a->flags);
+		/*
+		 * TODO: consider using the cleaned-up path as the link
+		 * target?
+		 */
+		r = cleanup_pathname_fsobj(linkname_copy, &error_number,
+		    &error_string, a->flags);
 		if (r != ARCHIVE_OK) {
-			archive_set_error(&a->archive, error_number, "%s", error_string.s);
+			archive_set_error(&a->archive, error_number, "%s",
+			    error_string.s);
 			free(linkname_copy);
-			/* EPERM is more appropriate than error_number for our callers */
+			/*
+			 * EPERM is more appropriate than error_number for our
+			 * callers
+			 */
 			return (EPERM);
 		}
-		r = check_symlinks_fsobj(linkname_copy, &error_number, &error_string, a->flags);
+		r = check_symlinks_fsobj(linkname_copy, &error_number,
+		    &error_string, a->flags);
 		if (r != ARCHIVE_OK) {
-			archive_set_error(&a->archive, error_number, "%s", error_string.s);
+			archive_set_error(&a->archive, error_number, "%s",
+			    error_string.s);
 			free(linkname_copy);
-			/* EPERM is more appropriate than error_number for our callers */
+			/*
+			 * EPERM is more appropriate than error_number for our
+			 * callers
+			 */
 			return (EPERM);
 		}
 		free(linkname_copy);
@@ -2076,8 +2102,8 @@ create_filesystem_object(struct archive_write_disk *a)
 			a->todo = 0;
 			a->deferred = 0;
 		} else if (r == 0 && a->filesize > 0) {
-			a->fd = open(a->name,
-				     O_WRONLY | O_TRUNC | O_BINARY | O_CLOEXEC | O_NOFOLLOW);
+			a->fd = open(a->name, O_WRONLY | O_TRUNC | O_BINARY
+			    | O_CLOEXEC | O_NOFOLLOW);
 			__archive_ensure_cloexec_flag(a->fd);
 			if (a->fd < 0)
 				r = errno;
@@ -2388,6 +2414,17 @@ current_fixup(struct archive_write_disk *a, const char *pathname)
 	return (a->current_fixup);
 }
 
+/* Error helper for new *_fsobj functions */
+static void
+fsobj_error(int *a_eno, struct archive_string *a_estr,
+    int err, const char *errstr, const char *path)
+{
+	if (a_eno)
+		*a_eno = err;
+	if (a_estr)
+		archive_string_sprintf(a_estr, errstr, path);
+}
+
 /*
  * TODO: Someday, integrate this with the deep dir support; they both
  * scan the path and both can be optimized by comparing against other
@@ -2400,7 +2437,8 @@ current_fixup(struct archive_write_disk *a, const char *pathname)
  * ARCHIVE_OK if there are none, otherwise puts an error in errmsg.
  */
 static int
-check_symlinks_fsobj(char *path, int *error_number, struct archive_string *error_string, int flags)
+check_symlinks_fsobj(char *path, int *a_eno, struct archive_string *a_estr,
+    int flags)
 {
 #if !defined(HAVE_LSTAT)
 	/* Platform doesn't have lstat, so we can't look for symlinks. */
@@ -2433,7 +2471,8 @@ check_symlinks_fsobj(char *path, int *error_number, struct archive_string *error
 	 *  - if it's a directory and it's not the last chunk, cd into it
 	 * As we go:
 	 *  head points to the current (relative) path
-	 *  tail points to the temporary \0 terminating the segment we're currently examining
+	 *  tail points to the temporary \0 terminating the segment we're
+	 *      currently examining
 	 *  c holds what used to be in *tail
 	 *  last is 1 if this is the last tail
 	 */
@@ -2455,7 +2494,9 @@ check_symlinks_fsobj(char *path, int *error_number, struct archive_string *error
 	 * Exiting the loop with break is okay; continue is not.
 	 */
 	while (!last) {
-		/* Skip the separator we just consumed, plus any adjacent ones */
+		/*
+		 * Skip the separator we just consumed, plus any adjacent ones
+		 */
 		while (*tail == '/')
 		    ++tail;
 		/* Skip the next path element. */
@@ -2474,19 +2515,20 @@ check_symlinks_fsobj(char *path, int *error_number, struct archive_string *error
 			if (errno == ENOENT) {
 				break;
 			} else {
-				/* Treat any other error as fatal - best to be paranoid here
-				 * Note: This effectively disables deep directory
-				 * support when security checks are enabled.
-				 * Otherwise, very long pathnames that trigger
-				 * an error here could evade the sandbox.
-				 * TODO: We could do better, but it would probably
-				 * require merging the symlink checks with the
-				 * deep-directory editing. */
-				if (error_number) *error_number = errno;
-				if (error_string)
-					archive_string_sprintf(error_string,
-							"Could not stat %s",
-							path);
+				/*
+				 * Treat any other error as fatal - best to be
+				 * paranoid here.
+				 * Note: This effectively disables deep
+				 * directory support when security checks are
+				 * enabled. Otherwise, very long pathnames that
+				 * trigger an error here could evade the
+				 * sandbox.
+				 * TODO: We could do better, but it would
+				 * probably require merging the symlink checks
+				 * with the deep-directory editing.
+				 */
+				fsobj_error(a_eno, a_estr, errno,
+				    "Could not stat %s", path);
 				res = ARCHIVE_FAILED;
 				break;
 			}
@@ -2494,11 +2536,8 @@ check_symlinks_fsobj(char *path, int *error_number, struct archive_string *error
 			if (!last) {
 				if (chdir(head) != 0) {
 					tail[0] = c;
-					if (error_number) *error_number = errno;
-					if (error_string)
-						archive_string_sprintf(error_string,
-								"Could not chdir %s",
-								path);
+					fsobj_error(a_eno, a_estr, errno,
+					    "Could not chdir %s", path);
 					res = (ARCHIVE_FATAL);
 					break;
 				}
@@ -2514,11 +2553,9 @@ check_symlinks_fsobj(char *path, int *error_number, struct archive_string *error
 				 */
 				if (unlink(head)) {
 					tail[0] = c;
-					if (error_number) *error_number = errno;
-					if (error_string)
-						archive_string_sprintf(error_string,
-								"Could not remove symlink %s",
-								path);
+					fsobj_error(a_eno, a_estr, errno,
+					    "Could not remove symlink %s",
+					    path);
 					res = ARCHIVE_FAILED;
 					break;
 				}
@@ -2529,13 +2566,14 @@ check_symlinks_fsobj(char *path, int *error_number, struct archive_string *error
 				 * symlink with another symlink.
 				 */
 				tail[0] = c;
-				/* FIXME:  not sure how important this is to restore
+				/*
+				 * FIXME:  not sure how important this is to
+				 * restore
+				 */
+				/*
 				if (!S_ISLNK(path)) {
-					if (error_number) *error_number = 0;
-					if (error_string)
-						archive_string_sprintf(error_string,
-								"Removing symlink %s",
-								path);
+					fsobj_error(a_eno, a_estr, 0,
+					    "Removing symlink %s", path);
 				}
 				*/
 				/* Symlink gone.  No more problem! */
@@ -2545,22 +2583,60 @@ check_symlinks_fsobj(char *path, int *error_number, struct archive_string *error
 				/* User asked us to remove problems. */
 				if (unlink(head) != 0) {
 					tail[0] = c;
-					if (error_number) *error_number = 0;
-					if (error_string)
-						archive_string_sprintf(error_string,
-								"Cannot remove intervening symlink %s",
-								path);
+					fsobj_error(a_eno, a_estr, 0,
+					    "Cannot remove intervening "
+					    "symlink %s", path);
 					res = ARCHIVE_FAILED;
 					break;
 				}
 				tail[0] = c;
+			} else if ((flags &
+			    ARCHIVE_EXTRACT_SECURE_SYMLINKS) == 0) {
+				/*
+				 * We are not the last element and we want to
+				 * follow symlinks if they are a directory.
+				 * 
+				 * This is needed to extract hardlinks over
+				 * symlinks.
+				 */
+				r = stat(head, &st);
+				if (r != 0) {
+					tail[0] = c;
+					if (errno == ENOENT) {
+						break;
+					} else {
+						fsobj_error(a_eno, a_estr,
+						    errno,
+						    "Could not stat %s", path);
+						res = (ARCHIVE_FAILED);
+						break;
+					}
+				} else if (S_ISDIR(st.st_mode)) {
+					if (chdir(head) != 0) {
+						tail[0] = c;
+						fsobj_error(a_eno, a_estr,
+						    errno,
+						    "Could not chdir %s", path);
+						res = (ARCHIVE_FATAL);
+						break;
+					}
+					/*
+					 * Our view is now from inside
+					 * this dir:
+					 */
+					head = tail + 1;
+				} else {
+					tail[0] = c;
+					fsobj_error(a_eno, a_estr, 0,
+					    "Cannot extract through "
+					    "symlink %s", path);
+					res = ARCHIVE_FAILED;
+					break;
+				}
 			} else {
 				tail[0] = c;
-				if (error_number) *error_number = 0;
-				if (error_string)
-					archive_string_sprintf(error_string,
-							"Cannot extract through symlink %s",
-							path);
+				fsobj_error(a_eno, a_estr, 0,
+				    "Cannot extract through symlink %s", path);
 				res = ARCHIVE_FAILED;
 				break;
 			}
@@ -2577,10 +2653,8 @@ check_symlinks_fsobj(char *path, int *error_number, struct archive_string *error
 	if (restore_pwd >= 0) {
 		r = fchdir(restore_pwd);
 		if (r != 0) {
-			if(error_number) *error_number = errno;
-			if(error_string)
-				archive_string_sprintf(error_string,
-						"chdir() failure");
+			fsobj_error(a_eno, a_estr, errno,
+			    "chdir() failure", "");
 		}
 		close(restore_pwd);
 		restore_pwd = -1;
@@ -2605,9 +2679,11 @@ check_symlinks(struct archive_write_disk *a)
 	int error_number;
 	int rc;
 	archive_string_init(&error_string);
-	rc = check_symlinks_fsobj(a->name, &error_number, &error_string, a->flags);
+	rc = check_symlinks_fsobj(a->name, &error_number, &error_string,
+	    a->flags);
 	if (rc != ARCHIVE_OK) {
-		archive_set_error(&a->archive, error_number, "%s", error_string.s);
+		archive_set_error(&a->archive, error_number, "%s",
+		    error_string.s);
 	}
 	archive_string_free(&error_string);
 	a->pst = NULL;	/* to be safe */
@@ -2688,17 +2764,16 @@ cleanup_pathname_win(struct archive_write_disk *a)
  * is set) if the path is absolute.
  */
 static int
-cleanup_pathname_fsobj(char *path, int *error_number, struct archive_string *error_string, int flags)
+cleanup_pathname_fsobj(char *path, int *a_eno, struct archive_string *a_estr,
+    int flags)
 {
 	char *dest, *src;
 	char separator = '\0';
 
 	dest = src = path;
 	if (*src == '\0') {
-		if (error_number) *error_number = ARCHIVE_ERRNO_MISC;
-		if (error_string)
-		    archive_string_sprintf(error_string,
-			    "Invalid empty pathname");
+		fsobj_error(a_eno, a_estr, ARCHIVE_ERRNO_MISC,
+		    "Invalid empty ", "pathname");
 		return (ARCHIVE_FAILED);
 	}
 
@@ -2708,10 +2783,8 @@ cleanup_pathname_fsobj(char *path, int *error_number, struct archive_string *err
 	/* Skip leading '/'. */
 	if (*src == '/') {
 		if (flags & ARCHIVE_EXTRACT_SECURE_NOABSOLUTEPATHS) {
-			if (error_number) *error_number = ARCHIVE_ERRNO_MISC;
-			if (error_string)
-			    archive_string_sprintf(error_string,
-				    "Path is absolute");
+			fsobj_error(a_eno, a_estr, ARCHIVE_ERRNO_MISC,
+			    "Path is ", "absolute");
 			return (ARCHIVE_FAILED);
 		}
 
@@ -2738,11 +2811,11 @@ cleanup_pathname_fsobj(char *path, int *error_number, struct archive_string *err
 			} else if (src[1] == '.') {
 				if (src[2] == '/' || src[2] == '\0') {
 					/* Conditionally warn about '..' */
-					if (flags & ARCHIVE_EXTRACT_SECURE_NODOTDOT) {
-						if (error_number) *error_number = ARCHIVE_ERRNO_MISC;
-						if (error_string)
-						    archive_string_sprintf(error_string,
-							    "Path contains '..'");
+					if (flags
+					    & ARCHIVE_EXTRACT_SECURE_NODOTDOT) {
+						fsobj_error(a_eno, a_estr,
+						    ARCHIVE_ERRNO_MISC,
+						    "Path contains ", "'..'");
 						return (ARCHIVE_FAILED);
 					}
 				}
@@ -2795,9 +2868,11 @@ cleanup_pathname(struct archive_write_disk *a)
 	int error_number;
 	int rc;
 	archive_string_init(&error_string);
-	rc = cleanup_pathname_fsobj(a->name, &error_number, &error_string, a->flags);
+	rc = cleanup_pathname_fsobj(a->name, &error_number, &error_string,
+	    a->flags);
 	if (rc != ARCHIVE_OK) {
-		archive_set_error(&a->archive, error_number, "%s", error_string.s);
+		archive_set_error(&a->archive, error_number, "%s",
+		    error_string.s);
 	}
 	archive_string_free(&error_string);
 	return rc;
@@ -2881,7 +2956,8 @@ create_dir(struct archive_write_disk *a, char *path)
 		}
 	} else if (errno != ENOENT && errno != ENOTDIR) {
 		/* Stat failed? */
-		archive_set_error(&a->archive, errno, "Can't test directory '%s'", path);
+		archive_set_error(&a->archive, errno,
+		    "Can't test directory '%s'", path);
 		return (ARCHIVE_FAILED);
 	} else if (slash != NULL) {
 		*slash = '\0';
@@ -3406,7 +3482,8 @@ clear_nochange_fflags(struct archive_write_disk *a)
 	nochange_flags |= EXT2_IMMUTABLE_FL;
 #endif
 
-	return (set_fflags_platform(a, a->fd, a->name, mode, 0, nochange_flags));
+	return (set_fflags_platform(a, a->fd, a->name, mode, 0,
+	    nochange_flags));
 }
 
 
@@ -3931,7 +4008,8 @@ set_xattrs(struct archive_write_disk *a)
 				if (errno == ENOTSUP || errno == ENOSYS) {
 					if (!warning_done) {
 						warning_done = 1;
-						archive_set_error(&a->archive, errno,
+						archive_set_error(&a->archive,
+						    errno,
 						    "Cannot restore extended "
 						    "attributes on this file "
 						    "system");
@@ -3942,7 +4020,8 @@ set_xattrs(struct archive_write_disk *a)
 				ret = ARCHIVE_WARN;
 			}
 		} else {
-			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Invalid extended attribute encountered");
 			ret = ARCHIVE_WARN;
 		}
@@ -3986,19 +4065,22 @@ set_xattrs(struct archive_write_disk *a)
 			errno = 0;
 #if HAVE_EXTATTR_SET_FD
 			if (a->fd >= 0)
-				e = extattr_set_fd(a->fd, namespace, name, value, size);
+				e = extattr_set_fd(a->fd, namespace, name,
+				    value, size);
 			else
 #endif
 			/* TODO: should we use extattr_set_link() instead? */
 			{
-				e = extattr_set_file(archive_entry_pathname(entry),
-				    namespace, name, value, size);
+				e = extattr_set_file(
+				    archive_entry_pathname(entry), namespace,
+				    name, value, size);
 			}
 			if (e != (ssize_t)size) {
 				if (errno == ENOTSUP || errno == ENOSYS) {
 					if (!warning_done) {
 						warning_done = 1;
-						archive_set_error(&a->archive, errno,
+						archive_set_error(&a->archive,
+						    errno,
 						    "Cannot restore extended "
 						    "attributes on this file "
 						    "system");
