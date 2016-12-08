@@ -289,6 +289,119 @@ vm_fault_soft_fast(struct faultstate *fs, vm_offset_t vaddr, vm_prot_t prot,
 	return (KERN_SUCCESS);
 }
 
+static void
+vm_fault_restore_map_lock(struct faultstate *fs)
+{
+
+	VM_OBJECT_ASSERT_WLOCKED(fs->first_object);
+	MPASS(fs->first_object->paging_in_progress > 0);
+
+	if (!vm_map_trylock_read(fs->map)) {
+		VM_OBJECT_WUNLOCK(fs->first_object);
+		vm_map_lock_read(fs->map);
+		VM_OBJECT_WLOCK(fs->first_object);
+	}
+	fs->lookup_still_valid = true;
+}
+
+
+static int
+vm_fault_populate(struct faultstate *fs, vm_offset_t vaddr, vm_prot_t prot,
+    int fault_type, int fault_flags, boolean_t wired, vm_page_t *m_hold)
+{
+	vm_page_t m;
+	vm_pindex_t f_first, f_last, pidx;
+	int rv;
+
+	MPASS(fs->object == fs->first_object);
+	VM_OBJECT_ASSERT_WLOCKED(fs->first_object);
+	MPASS(fs->first_object->paging_in_progress > 0);
+	MPASS(fs->first_object->backing_object == NULL);
+	MPASS(fs->lookup_still_valid);
+
+	f_first = OFF_TO_IDX(fs->entry->offset);
+	f_last = OFF_TO_IDX(fs->entry->offset + fs->entry->end -
+	    fs->entry->start) - 1;
+	unlock_map(fs);
+	unlock_vp(fs);
+
+	/*
+	 * Call the pager (driver) populate() method.
+	 *
+	 * There is no guarantee that the method will be called again
+	 * if the current fault is for read, and a future fault is
+	 * for write.  Report the entry's maximum allowed protection
+	 * to the driver.
+	 */
+	rv = vm_pager_populate(fs->first_object, fs->first_pindex,
+	    fault_type, fs->entry->max_protection, &f_first, &f_last);
+
+	VM_OBJECT_ASSERT_WLOCKED(fs->first_object);
+	if (rv == VM_PAGER_BAD) {
+		/*
+		 * VM_PAGER_BAD is the backdoor for a pager to request
+		 * normal fault handling.
+		 */
+		vm_fault_restore_map_lock(fs);
+		if (fs->map->timestamp != fs->map_generation)
+			return (KERN_RESOURCE_SHORTAGE); /* RetryFault */
+		return (KERN_NOT_RECEIVER);
+	}
+	if (rv != VM_PAGER_OK)
+		return (KERN_FAILURE); /* AKA SIGSEGV */
+
+	/* Ensure that the driver is obeying the interface. */
+	MPASS(f_first <= f_last);
+	MPASS(fs->first_pindex <= f_last);
+	MPASS(fs->first_pindex >= f_first);
+	MPASS(f_last < fs->first_object->size);
+
+	vm_fault_restore_map_lock(fs);
+	if (fs->map->timestamp != fs->map_generation)
+		return (KERN_RESOURCE_SHORTAGE); /* RetryFault */
+
+	/* Clip pager response to fit into the vm_map_entry. */
+	f_first = MAX(OFF_TO_IDX(fs->entry->offset), f_first);
+	f_last = MIN(OFF_TO_IDX(fs->entry->end - fs->entry->start +
+	    fs->entry->offset), f_last);
+
+	pidx = f_first;
+	for (m = vm_page_lookup(fs->first_object, pidx); pidx <= f_last;
+	    pidx++, m = vm_page_next(m)) {
+		/*
+		 * Check each page to ensure that the driver is
+		 * obeying the interface: the page must be installed
+		 * in the object, fully valid, and exclusively busied.
+		 */
+		MPASS(m != NULL);
+		MPASS(vm_page_xbusied(m));
+		MPASS(m->valid == VM_PAGE_BITS_ALL);
+		MPASS(m->object == fs->first_object);
+		MPASS(m->pindex == pidx);
+
+		vm_fault_dirty(fs->entry, m, prot, fault_type, fault_flags,
+		    true);
+		VM_OBJECT_WUNLOCK(fs->first_object);
+		pmap_enter(fs->map->pmap, fs->entry->start + IDX_TO_OFF(pidx) -
+		    fs->entry->offset, m, prot, fault_type | (wired ?
+		    PMAP_ENTER_WIRED : 0), 0);
+		VM_OBJECT_WLOCK(fs->first_object);
+		if (pidx == fs->first_pindex)
+			vm_fault_fill_hold(m_hold, m);
+		vm_page_lock(m);
+		if ((fault_flags & VM_FAULT_WIRE) != 0) {
+			KASSERT(wired, ("VM_FAULT_WIRE && !wired"));
+			vm_page_wire(m);
+		} else {
+			vm_page_activate(m);
+		}
+		vm_page_unlock(m);
+		vm_page_xunbusy(m);
+	}
+	curthread->td_ru.ru_majflt++;
+	return (KERN_SUCCESS);
+}
+
 /*
  *	vm_fault:
  *
@@ -553,6 +666,30 @@ RetryFault:;
 			if (fs.pindex >= fs.object->size) {
 				unlock_and_deallocate(&fs);
 				return (KERN_PROTECTION_FAILURE);
+			}
+
+			if (fs.object == fs.first_object &&
+			    (fs.first_object->flags & OBJ_POPULATE) != 0 &&
+			    fs.first_object->shadow_count == 0) {
+				rv = vm_fault_populate(&fs, vaddr, prot,
+				    fault_type, fault_flags, wired, m_hold);
+				switch (rv) {
+				case KERN_SUCCESS:
+				case KERN_FAILURE:
+					unlock_and_deallocate(&fs);
+					return (rv);
+				case KERN_RESOURCE_SHORTAGE:
+					unlock_and_deallocate(&fs);
+					goto RetryFault;
+				case KERN_NOT_RECEIVER:
+					/*
+					 * Pager's populate() method
+					 * returned VM_PAGER_BAD.
+					 */
+					break;
+				default:
+					panic("inconsistent return codes");
+				}
 			}
 
 			/*
