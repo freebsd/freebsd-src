@@ -46,8 +46,8 @@ echo >> $BSDINSTALL_TMPETC/wpa_supplicant.conf
 
 # Try to reach wpa_supplicant. If it isn't running and we can modify the
 # existing system, start it. Otherwise, fail.
-(wpa_cli ping >/dev/null 2>/dev/null || ([ ! -z $BSDINSTALL_CONFIGCURRENT ] && \
-	wpa_supplicant -B -i $1 -c $BSDINSTALL_TMPETC/wpa_supplicant.conf)) || \
+(wpa_cli ping >/dev/null 2>/dev/null || ([ ! -z $BSDINSTALL_CONFIGCURRENT ] &&
+	wpa_supplicant -B -i $1 -c $BSDINSTALL_TMPETC/wpa_supplicant.conf)) ||
 	(dialog --backtitle "FreeBSD Installer" --title "Error" --msgbox \
 	"Could not start wpa_supplicant!" 0 0; exit 1) || exit 1
 
@@ -86,7 +86,7 @@ country_set()
 	if [ ! -z "$iface_up" ]; then
 		ifconfig $WLAN_IFACE down
 	fi
-	error_str=`ifconfig $WLAN_IFACE $ifconfig_args 2>&1 | \
+	error_str=`ifconfig $WLAN_IFACE $ifconfig_args 2>&1 |
 		sed 's/ifconfig: //'`
 	if [ ! -z "$iface_up" ]; then
 		# Restart wpa_supplicant(8) (should not fail).
@@ -123,9 +123,9 @@ dialog_country_select()
 
 	# Parse available countries/regdomains
 	input=`ifconfig $WLAN_IFACE list countries | sed 's/DEBUG//gi'`
-	regdomains=`echo $input | sed 's/.*domains://' | tr ' ' '\n' | \
+	regdomains=`echo $input | sed 's/.*domains://' | tr ' ' '\n' |
 		sort | tr '\n' ' '`
-	countries=`echo $input | sed 's/Country codes://' | \
+	countries=`echo $input | sed 's/Country codes://' |
 	    sed 's/Regulatory.*//' | awk '{
 		for (i = 1; i <= NF; i++) {
 			printf "%s", $i
@@ -222,7 +222,7 @@ do
 
 	if [ -z "$NETWORKS" ]; then
 		dialog --backtitle "FreeBSD Installer" --title "Error" \
-		    --yesno "No wireless networks were found. Rescan?" 0 0 && \
+		    --yesno "No wireless networks were found. Rescan?" 0 0 &&
 		    continue
 		exit 1
 	fi
