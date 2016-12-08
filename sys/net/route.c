@@ -467,9 +467,8 @@ rtalloc1_fib(struct sockaddr *dst, int report, u_long ignflags,
 		RIB_RUNLOCK(rh);
 	
 	/*
-	 * Either we hit the root or couldn't find any match,
-	 * Which basically means
-	 * "caint get there frm here"
+	 * Either we hit the root or could not find any match,
+	 * which basically means: "cannot get there from here".
 	 */
 miss:
 	V_rtstat.rts_unreach++;
