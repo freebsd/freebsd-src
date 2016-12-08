@@ -3,6 +3,11 @@
 
 .include <src.opts.mk>
 
+.if ${MK_CHERI128} == "yes"
+# broken
+WANT_CHERI=none
+.endif
+
 PACKAGE=runtime
 PROG=	sh
 INSTALLFLAGS= -S
