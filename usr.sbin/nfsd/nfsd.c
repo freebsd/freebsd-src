@@ -82,6 +82,9 @@ static int	debug = 0;
 #define	NFSD_STABLEBACKUP	"/var/db/nfs-stablerestart.bak"
 #define	MAXNFSDCNT	256
 #define	DEFNFSDCNT	 4
+#define	NFS_VER2	 2
+#define NFS_VER3	 3
+#define NFS_VER4	 4
 static pid_t children[MAXNFSDCNT]; /* PIDs of children */
 static int nfsdcnt;		/* number of children */
 static int nfsdcnt_set;
@@ -158,6 +161,8 @@ main(int argc, char **argv)
 	int bindhostc, bindanyflag, rpcbreg, rpcbregcnt;
 	int nfssvc_addsock;
 	int longindex = 0;
+	int nfs_minvers = NFS_VER2;
+	size_t nfs_minvers_size;
 	const char *lopt;
 	char **bindhost = NULL;
 	pid_t pid;
@@ -266,6 +271,15 @@ main(int argc, char **argv)
 			errx(1, "Out of memory");
 	}
 
+	nfs_minvers_size = sizeof(nfs_minvers);
+	error = sysctlbyname("vfs.nfsd.server_min_nfsvers", &nfs_minvers,
+	    &nfs_minvers_size, NULL, 0);
+	if (error != 0 || nfs_minvers < NFS_VER2 || nfs_minvers > NFS_VER4) {
+		warnx("sysctlbyname(vfs.nfsd.server_min_nfsvers) failed,"
+		    " defaulting to NFSv2");
+		nfs_minvers = NFS_VER2;
+	}
+
 	if (unregister) {
 		unregistration();
 		exit (0);
@@ -285,9 +299,14 @@ main(int argc, char **argv)
 				err(1, "getnetconfigent udp failed");
 			nb_udp.buf = ai_udp->ai_addr;
 			nb_udp.len = nb_udp.maxlen = ai_udp->ai_addrlen;
-			if ((!rpcb_set(NFS_PROGRAM, 2, nconf_udp, &nb_udp)) ||
-			    (!rpcb_set(NFS_PROGRAM, 3, nconf_udp, &nb_udp)))
-				err(1, "rpcb_set udp failed");
+			if (nfs_minvers == NFS_VER2)
+				if (!rpcb_set(NFS_PROGRAM, 2, nconf_udp,
+				    &nb_udp))
+					err(1, "rpcb_set udp failed");
+			if (nfs_minvers <= NFS_VER3)
+				if (!rpcb_set(NFS_PROGRAM, 3, nconf_udp,
+				    &nb_udp))
+					err(1, "rpcb_set udp failed");
 			freeaddrinfo(ai_udp);
 		}
 		if (udpflag && ip6flag) {
@@ -304,9 +323,14 @@ main(int argc, char **argv)
 				err(1, "getnetconfigent udp6 failed");
 			nb_udp6.buf = ai_udp6->ai_addr;
 			nb_udp6.len = nb_udp6.maxlen = ai_udp6->ai_addrlen;
-			if ((!rpcb_set(NFS_PROGRAM, 2, nconf_udp6, &nb_udp6)) ||
-			    (!rpcb_set(NFS_PROGRAM, 3, nconf_udp6, &nb_udp6)))
-				err(1, "rpcb_set udp6 failed");
+			if (nfs_minvers == NFS_VER2)
+				if (!rpcb_set(NFS_PROGRAM, 2, nconf_udp6,
+				    &nb_udp6))
+					err(1, "rpcb_set udp6 failed");
+			if (nfs_minvers <= NFS_VER3)
+				if (!rpcb_set(NFS_PROGRAM, 3, nconf_udp6,
+				    &nb_udp6))
+					err(1, "rpcb_set udp6 failed");
 			freeaddrinfo(ai_udp6);
 		}
 		if (tcpflag) {
@@ -323,9 +347,14 @@ main(int argc, char **argv)
 				err(1, "getnetconfigent tcp failed");
 			nb_tcp.buf = ai_tcp->ai_addr;
 			nb_tcp.len = nb_tcp.maxlen = ai_tcp->ai_addrlen;
-			if ((!rpcb_set(NFS_PROGRAM, 2, nconf_tcp, &nb_tcp)) ||
-			    (!rpcb_set(NFS_PROGRAM, 3, nconf_tcp, &nb_tcp)))
-				err(1, "rpcb_set tcp failed");
+			if (nfs_minvers == NFS_VER2)
+				if (!rpcb_set(NFS_PROGRAM, 2, nconf_tcp,
+				    &nb_tcp))
+					err(1, "rpcb_set tcp failed");
+			if (nfs_minvers <= NFS_VER3)
+				if (!rpcb_set(NFS_PROGRAM, 3, nconf_tcp,
+				    &nb_tcp))
+					err(1, "rpcb_set tcp failed");
 			freeaddrinfo(ai_tcp);
 		}
 		if (tcpflag && ip6flag) {
@@ -342,9 +371,14 @@ main(int argc, char **argv)
 				err(1, "getnetconfigent tcp6 failed");
 			nb_tcp6.buf = ai_tcp6->ai_addr;
 			nb_tcp6.len = nb_tcp6.maxlen = ai_tcp6->ai_addrlen;
-			if ((!rpcb_set(NFS_PROGRAM, 2, nconf_tcp6, &nb_tcp6)) ||
-			    (!rpcb_set(NFS_PROGRAM, 3, nconf_tcp6, &nb_tcp6)))
-				err(1, "rpcb_set tcp6 failed");
+			if (nfs_minvers == NFS_VER2)
+				if (!rpcb_set(NFS_PROGRAM, 2, nconf_tcp6,
+				    &nb_tcp6))
+					err(1, "rpcb_set tcp6 failed");
+			if (nfs_minvers <= NFS_VER3)
+				if (!rpcb_set(NFS_PROGRAM, 3, nconf_tcp6, 
+				   &nb_tcp6))
+					err(1, "rpcb_set tcp6 failed");
 			freeaddrinfo(ai_tcp6);
 		}
 		exit (0);
@@ -475,9 +509,14 @@ main(int argc, char **argv)
 				err(1, "getnetconfigent udp failed");
 			nb_udp.buf = ai_udp->ai_addr;
 			nb_udp.len = nb_udp.maxlen = ai_udp->ai_addrlen;
-			if ((!rpcb_set(NFS_PROGRAM, 2, nconf_udp, &nb_udp)) ||
-			    (!rpcb_set(NFS_PROGRAM, 3, nconf_udp, &nb_udp)))
-				err(1, "rpcb_set udp failed");
+			if (nfs_minvers == NFS_VER2)
+				if (!rpcb_set(NFS_PROGRAM, 2, nconf_udp,
+				    &nb_udp))
+					err(1, "rpcb_set udp failed");
+			if (nfs_minvers <= NFS_VER3)
+				if (!rpcb_set(NFS_PROGRAM, 3, nconf_udp,
+				    &nb_udp))
+					err(1, "rpcb_set udp failed");
 			freeaddrinfo(ai_udp);
 		}
 	}
@@ -544,9 +583,16 @@ main(int argc, char **argv)
 				err(1, "getnetconfigent udp6 failed");
 			nb_udp6.buf = ai_udp6->ai_addr;
 			nb_udp6.len = nb_udp6.maxlen = ai_udp6->ai_addrlen;
-			if ((!rpcb_set(NFS_PROGRAM, 2, nconf_udp6, &nb_udp6)) ||
-			    (!rpcb_set(NFS_PROGRAM, 3, nconf_udp6, &nb_udp6)))
-				err(1, "rpcb_set udp6 failed");
+			if (nfs_minvers == NFS_VER2)
+				if (!rpcb_set(NFS_PROGRAM, 2, nconf_udp6,
+				    &nb_udp6))
+					err(1,
+					    "rpcb_set udp6 failed");
+			if (nfs_minvers <= NFS_VER3)
+				if (!rpcb_set(NFS_PROGRAM, 3, nconf_udp6,
+				    &nb_udp6))
+					err(1,
+					    "rpcb_set udp6 failed");
 			freeaddrinfo(ai_udp6);
 		}
 	}
@@ -610,10 +656,14 @@ main(int argc, char **argv)
 				err(1, "getnetconfigent tcp failed");
 			nb_tcp.buf = ai_tcp->ai_addr;
 			nb_tcp.len = nb_tcp.maxlen = ai_tcp->ai_addrlen;
-			if ((!rpcb_set(NFS_PROGRAM, 2, nconf_tcp,
-			    &nb_tcp)) || (!rpcb_set(NFS_PROGRAM, 3,
-			    nconf_tcp, &nb_tcp)))
-				err(1, "rpcb_set tcp failed");
+			if (nfs_minvers == NFS_VER2)
+				if (!rpcb_set(NFS_PROGRAM, 2, nconf_tcp,
+				    &nb_tcp))
+					err(1, "rpcb_set tcp failed");
+			if (nfs_minvers <= NFS_VER3)
+				if (!rpcb_set(NFS_PROGRAM, 3, nconf_tcp,
+				    &nb_tcp))
+					err(1, "rpcb_set tcp failed");
 			freeaddrinfo(ai_tcp);
 		}
 	}
@@ -685,9 +735,14 @@ main(int argc, char **argv)
 				err(1, "getnetconfigent tcp6 failed");
 			nb_tcp6.buf = ai_tcp6->ai_addr;
 			nb_tcp6.len = nb_tcp6.maxlen = ai_tcp6->ai_addrlen;
-			if ((!rpcb_set(NFS_PROGRAM, 2, nconf_tcp6, &nb_tcp6)) ||
-			    (!rpcb_set(NFS_PROGRAM, 3, nconf_tcp6, &nb_tcp6)))
-				err(1, "rpcb_set tcp6 failed");
+			if (nfs_minvers == NFS_VER2)
+				if (!rpcb_set(NFS_PROGRAM, 2, nconf_tcp6,
+				    &nb_tcp6))
+					err(1, "rpcb_set tcp6 failed");
+			if (nfs_minvers <= NFS_VER3)
+				if (!rpcb_set(NFS_PROGRAM, 3, nconf_tcp6,
+				    &nb_tcp6))
+					err(1, "rpcb_set tcp6 failed");
 			freeaddrinfo(ai_tcp6);
 		}
 	}
