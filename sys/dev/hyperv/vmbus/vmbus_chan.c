@@ -772,8 +772,7 @@ vmbus_chan_clear_chmap(struct vmbus_channel *chan)
 	struct task chmap_task;
 
 	TASK_INIT(&chmap_task, 0, vmbus_chan_clrchmap_task, chan);
-	taskqueue_enqueue(chan->ch_tq, &chmap_task);
-	taskqueue_drain(chan->ch_tq, &chmap_task);
+	vmbus_chan_run_task(chan, &chmap_task);
 }
 
 static void
