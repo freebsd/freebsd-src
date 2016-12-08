@@ -114,18 +114,13 @@ struct vmbus_icmsg_timesync {
 	struct vmbus_icmsg_hdr	ic_hdr;
 	uint64_t		ic_hvtime;
 	uint64_t		ic_vmtime;
-	uint64_t		ic_rtt;
+	uint64_t		ic_sent_tc;
 	uint8_t			ic_tsflags;	/* VMBUS_ICMSG_TS_FLAG_ */
 } __packed;
 
 #define VMBUS_ICMSG_TS_FLAG_SYNC	0x01
 #define VMBUS_ICMSG_TS_FLAG_SAMPLE	0x02
 
-/* XXX consolidate w/ hyperv */
 #define VMBUS_ICMSG_TS_BASE		116444736000000000ULL
-#define VMBUS_ICMSG_TS_FACTOR		100ULL
-#ifndef NANOSEC
-#define NANOSEC				1000000000ULL
-#endif
 
 #endif	/* !_VMBUS_ICREG_H_ */
