@@ -128,9 +128,6 @@ exclude EXFAIL common/ip/tst.ipv4remoteicmp.ksh
 exclude EXFAIL common/ip/tst.localtcpstate.ksh
 exclude EXFAIL common/ip/tst.remotetcpstate.ksh
 
-# Depends on the number of probes in /bin/sh and the current DOF limit.
-exclude EXFAIL common/pid/err.D_PROC_CREATEFAIL.many.d
-
 # Tries to enable pid$target:libc::entry, though there's no "libc" module.
 # Currently unsure as to whether this might be a libproc bug.
 exclude EXFAIL common/pid/tst.probemod.ksh
