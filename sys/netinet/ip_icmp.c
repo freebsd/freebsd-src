@@ -1025,7 +1025,7 @@ badport_bandlim(int which)
 	if (pps == -1)
 		return (-1);
 	if (pps > 0 && V_icmplim_output)
-		log(LOG_NOTICE, "Limiting %s from %ld to %d packets/sec\n",
-			V_icmp_rates[which].descr, pps, V_icmplim);
+		log(LOG_NOTICE, "Limiting %s from %jd to %d packets/sec\n",
+			V_icmp_rates[which].descr, (intmax_t )pps, V_icmplim);
 	return (0);
 }
