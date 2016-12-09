@@ -140,8 +140,8 @@ linux_pci_attach(device_t dev)
 	kobject_set_name(&pdev->dev.kobj, device_get_nameunit(dev));
 	kobject_add(&pdev->dev.kobj, &linux_root_device.kobj,
 	    kobject_name(&pdev->dev.kobj));
-	rle = _pci_get_rle(pdev, SYS_RES_IRQ, 0);
-	if (rle)
+	rle = linux_pci_get_rle(pdev, SYS_RES_IRQ, 0);
+	if (rle != NULL)
 		pdev->dev.irq = rle->start;
 	else
 		pdev->dev.irq = 255;
