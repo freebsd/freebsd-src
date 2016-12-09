@@ -55,7 +55,18 @@ MALLOC_DECLARE(M_KMALLOC);
 #define	vmalloc(size)                   kmalloc(size, GFP_KERNEL)
 #define	vmalloc_node(size, node)        kmalloc(size, GFP_KERNEL)
 
-struct kmem_cache {
+
+/*
+ * Prefix some functions with linux_ to avoid namespace conflict
+ * with the OpenSolaris code in the kernel.
+ */
+#define	kmem_cache		linux_kmem_cache
+#define	kmem_cache_create(...)	linux_kmem_cache_create(__VA_ARGS__)
+#define	kmem_cache_alloc(...)	linux_kmem_cache_alloc(__VA_ARGS__)
+#define	kmem_cache_free(...) 	linux_kmem_cache_free(__VA_ARGS__)
+#define	kmem_cache_destroy(...) linux_kmem_cache_destroy(__VA_ARGS__)
+
+struct linux_kmem_cache {
 	uma_zone_t	cache_zone;
 	void		(*cache_ctor)(void *);
 };
@@ -63,7 +74,7 @@ struct kmem_cache {
 #define	SLAB_HWCACHE_ALIGN	0x0001
 
 static inline int
-kmem_ctor(void *mem, int size, void *arg, int flags)
+linux_kmem_ctor(void *mem, int size, void *arg, int flags)
 {
 	void (*ctor)(void *);
 
@@ -74,7 +85,7 @@ kmem_ctor(void *mem, int size, void *arg, int flags)
 }
 
 static inline struct kmem_cache *
-kmem_cache_create(char *name, size_t size, size_t align, u_long flags,
+linux_kmem_cache_create(char *name, size_t size, size_t align, u_long flags,
     void (*ctor)(void *))
 {
 	struct kmem_cache *c;
@@ -84,7 +95,7 @@ kmem_cache_create(char *name, size_t size, size_t align, u_long flags,
 		align--;
 	if (flags & SLAB_HWCACHE_ALIGN)
 		align = UMA_ALIGN_CACHE;
-	c->cache_zone = uma_zcreate(name, size, ctor ? kmem_ctor : NULL,
+	c->cache_zone = uma_zcreate(name, size, ctor ? linux_kmem_ctor : NULL,
 	    NULL, NULL, NULL, align, 0);
 	c->cache_ctor = ctor;
 
@@ -92,19 +103,19 @@ kmem_cache_create(char *name, size_t size, size_t align, u_long flags,
 }
 
 static inline void *
-kmem_cache_alloc(struct kmem_cache *c, int flags)
+linux_kmem_cache_alloc(struct kmem_cache *c, int flags)
 {
 	return uma_zalloc_arg(c->cache_zone, c->cache_ctor, flags);
 }
 
 static inline void
-kmem_cache_free(struct kmem_cache *c, void *m)
+linux_kmem_cache_free(struct kmem_cache *c, void *m)
 {
 	uma_zfree(c->cache_zone, m);
 }
 
 static inline void
-kmem_cache_destroy(struct kmem_cache *c)
+linux_kmem_cache_destroy(struct kmem_cache *c)
 {
 	uma_zdestroy(c->cache_zone);
 	free(c, M_KMALLOC);
