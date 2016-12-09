@@ -85,7 +85,7 @@ basic_cleanup() {
 		umount mnt 2>/dev/null 1>&2
 		# Begin FreeBSD
 		if true; then
-			atf_check -s eq:0 -o empty -e empty mdconfig -d -u 3
+			[ ! -c /dev/md3 ] || mdconfig -d -u 3
 		else
 		# End FreeBSD
 		vndconfig -u /dev/vnd3 2>/dev/null 1>&2
