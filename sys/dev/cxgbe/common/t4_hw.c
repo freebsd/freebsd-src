@@ -5798,10 +5798,9 @@ const char *t4_get_port_type_description(enum fw_port_type port_type)
 		"KR4_100G",
 		"CR4_QSFP",
 		"CR_QSFP",
-		"CR_SFP28",
+		"CR2_QSFP",
 		"SFP28",
 		"KR_SFP28",
-		"CR2_QSFP",
 	};
 
 	if (port_type < ARRAY_SIZE(port_type_description))

@@ -17,7 +17,7 @@ FIRMWS+=	${F}:${F:C/.txt//}:1.0.0.0
 .endif
 .endfor
 
-T6FW_VER=	1.16.12.0
+T6FW_VER=	1.16.22.0
 FIRMWS+=	t6fw.fw:t6fw:${T6FW_VER}
 CLEANFILES+=	t6fw.fw
 
