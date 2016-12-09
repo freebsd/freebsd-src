@@ -97,7 +97,7 @@ subdirs_body() {
 if true; then
 atf_test_case kqueue cleanup
 kqueue_cleanup() {
-	Mount_Point=$(pwd)/mntpt test_unmount || :
+	Mount_Point=$(pwd)/mntpt _test_unmount || :
 }
 else
 # End FreeBSD
