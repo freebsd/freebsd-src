@@ -2057,6 +2057,7 @@ static uint32_t
 is_scsi_valid(const struct scsi_inquiry_data *inq_data)
 {
 	u_int8_t type;
+
 	type = SID_TYPE(inq_data);
 	if (type == T_NODEVICE)
 		return (0);
@@ -2064,6 +2065,7 @@ is_scsi_valid(const struct scsi_inquiry_data *inq_data)
 		return (0);
 	return (1);
 }
+
 /**
  * @brief completion function before returning to CAM
  *
@@ -2082,6 +2084,7 @@ storvsc_io_done(struct hv_storvsc_request *reqp)
 	struct vmscsi_req *vm_srb = &reqp->vstor_packet.u.vm_srb;
 	bus_dma_segment_t *ori_sglist = NULL;
 	int ori_sg_count = 0;
+
 	/* destroy bounce buffer if it is used */
 	if (reqp->bounce_sgl_count) {
 		ori_sglist = (bus_dma_segment_t *)ccb->csio.data_ptr;
@@ -2136,6 +2139,7 @@ storvsc_io_done(struct hv_storvsc_request *reqp)
 	ccb->ccb_h.status &= ~CAM_STATUS_MASK;
 	if (vm_srb->scsi_status == SCSI_STATUS_OK) {
 		const struct scsi_generic *cmd;
+
 		cmd = (const struct scsi_generic *)
 		    ((ccb->ccb_h.flags & CAM_CDB_POINTER) ?
 		     csio->cdb_io.cdb_ptr : csio->cdb_io.cdb_bytes);
@@ -2178,11 +2182,12 @@ storvsc_io_done(struct hv_storvsc_request *reqp)
 		if (cmd->opcode == INQUIRY &&
 		    vm_srb->srb_status == SRB_STATUS_SUCCESS) {
 			int resp_xfer_len, resp_buf_len, data_len;
+			uint8_t *resp_buf = (uint8_t *)csio->data_ptr;
 			struct scsi_inquiry_data *inq_data =
 			    (struct scsi_inquiry_data *)csio->data_ptr;
+
 			/* Get the buffer length reported by host */
 			resp_xfer_len = vm_srb->transfer_len;
-			uint8_t *resp_buf = (uint8_t *)csio->data_ptr;
 
 			/* Get the available buffer length */
 			resp_buf_len = resp_xfer_len >= 5 ? resp_buf[4] + 5 : 0;
