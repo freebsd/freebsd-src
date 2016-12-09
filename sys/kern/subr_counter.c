@@ -119,3 +119,57 @@ sysctl_handle_counter_u64_array(SYSCTL_HANDLER_ARGS)
  
 	return (0);
 }
+
+/*
+ * MP-friendly version of ppsratecheck().
+ *
+ * Returns non-negative if we are in the rate, negative otherwise.
+ *  0 - rate limit not reached.
+ * -1 - rate limit reached.
+ * >0 - rate limit was reached before, and was just reset. The return value
+ *      is number of events since last reset.
+ */
+int64_t
+counter_ratecheck(struct counter_rate *cr, int64_t limit)
+{
+	int64_t val;
+	int now;
+
+	val = cr->cr_over;
+	now = ticks;
+
+	if (now - cr->cr_ticks >= hz) {
+		/*
+		 * Time to clear the structure, we are in the next second.
+		 * First try unlocked read, and then proceed with atomic.
+		 */
+		if ((cr->cr_lock == 0) &&
+		    atomic_cmpset_int(&cr->cr_lock, 0, 1)) {
+			/*
+			 * Check if other thread has just went through the
+			 * reset sequence before us.
+			 */
+			if (now - cr->cr_ticks >= hz) {
+				val = counter_u64_fetch(cr->cr_rate);
+				counter_u64_zero(cr->cr_rate);
+				cr->cr_over = 0;
+				cr->cr_ticks = now;
+			}
+			atomic_store_rel_int(&cr->cr_lock, 0);
+		} else
+			/*
+			 * We failed to lock, in this case other thread may
+			 * be running counter_u64_zero(), so it is not safe
+			 * to do an update, we skip it.
+			 */
+			return (val);
+	}
+
+	counter_u64_add(cr->cr_rate, 1);
+	if (cr->cr_over != 0)
+		return (-1);
+	if (counter_u64_fetch(cr->cr_rate) > limit)
+		val = cr->cr_over = -1;
+
+	return (val);
+}
