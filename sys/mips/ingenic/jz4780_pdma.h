@@ -35,13 +35,52 @@
 #define	PDMA_DTA(n)	(0x04 + 0x20 * n)	/* Channel n Target Address */
 #define	PDMA_DTC(n)	(0x08 + 0x20 * n)	/* Channel n Transfer Count */
 #define	PDMA_DRT(n)	(0x0C + 0x20 * n)	/* Channel n Request Source */
+#define	 DRT_AUTO	(1 << 3)		/* Auto-request. */
 #define	PDMA_DCS(n)	(0x10 + 0x20 * n)	/* Channel n Control/Status */
+#define	 DCS_DES8	(1 << 30)		/* Descriptor 8 Word. */
+#define	 DCS_AR		(1 << 4)		/* Address Error. */
+#define	 DCS_TT		(1 << 3)		/* Transfer Terminate. */
+#define	 DCS_HLT	(1 << 2)		/* DMA halt. */
+#define	 DCS_CTE	(1 << 0)		/* Channel transfer enable. */
 #define	PDMA_DCM(n)	(0x14 + 0x20 * n)	/* Channel n Command */
+#define	 DCM_SAI	(1 << 23) /* Source Address Increment. */
+#define	 DCM_DAI	(1 << 22) /* Destination Address Increment. */
+
+#define	 DCM_SP_S	14 /* Source port width. */
+#define	 DCM_SP_M	(0x3 << DCM_SP_S)
+#define	 DCM_SP_1	(0x1 << DCM_SP_S) /* 1 byte */
+#define	 DCM_SP_2	(0x2 << DCM_SP_S) /* 2 bytes */
+#define	 DCM_SP_4	(0x0 << DCM_SP_S) /* 4 bytes */
+
+#define	 DCM_DP_S	12 /* Destination port width. */
+#define	 DCM_DP_M	(0x3 << DCM_DP_S)
+#define	 DCM_DP_1	(0x1 << DCM_DP_S) /* 1 byte */
+#define	 DCM_DP_2	(0x2 << DCM_DP_S) /* 2 bytes */
+#define	 DCM_DP_4	(0x0 << DCM_DP_S) /* 4 bytes */
+
+#define	 DCM_TSZ_S	8 /* Transfer Data Size of a data unit. */
+#define	 DCM_TSZ_M	(0x7 << DCM_TSZ_S)
+#define	 DCM_TSZ_1	(0x1 << DCM_TSZ_S)
+#define	 DCM_TSZ_2	(0x2 << DCM_TSZ_S)
+#define	 DCM_TSZ_4	(0x0 << DCM_TSZ_S)
+#define	 DCM_TSZ_16	(0x3 << DCM_TSZ_S)
+#define	 DCM_TSZ_32	(0x4 << DCM_TSZ_S)
+#define	 DCM_TSZ_64	(0x5 << DCM_TSZ_S)
+#define	 DCM_TSZ_128	(0x6 << DCM_TSZ_S)
+#define	 DCM_TIE	(1 << 1) /* Transfer Interrupt Enable (TIE). */
+#define	 DCM_LINK	(1 << 0) /* Descriptor Link Enable. */
 #define	PDMA_DDA(n)	(0x18 + 0x20 * n)	/* Channel n Descriptor Address */
 #define	PDMA_DSD(n)	(0x1C + 0x20 * n)	/* Channel n Stride Difference */
 
 /* Global Control Registers */
 #define	PDMA_DMAC	0x1000	/* DMA Control */
+#define	 DMAC_FMSC	(1 << 31)
+#define	 DMAC_INTCC_S	17
+#define	 DMAC_INTCC_M 	(0x1f << DMAC_INTCC_S)
+#define	 DMAC_INTCE	(1 << 16) /* Permit INTC_IRQ to be bound to one of programmable channel. */
+#define	 DMAC_HLT	(1 << 3) /* Global halt status */
+#define	 DMAC_AR	(1 << 2) /* Global address error status */
+#define	 DMAC_DMAE	(1 << 0) /* Enable DMA. */
 #define	PDMA_DIRQP	0x1004	/* DMA Interrupt Pending */
 #define	PDMA_DDB	0x1008	/* DMA Doorbell */
 #define	PDMA_DDS	0x100C	/* DMA Doorbell Set */
