@@ -218,7 +218,9 @@ OLD_DIRS+=usr/share/examples/bhyve
 
 .if ${MK_BINUTILS} == no
 OLD_FILES+=usr/bin/as
+.if ${MK_LLD_AS_LD} == no
 OLD_FILES+=usr/bin/ld
+.endif
 OLD_FILES+=usr/bin/ld.bfd
 OLD_FILES+=usr/bin/objdump
 OLD_FILES+=usr/libdata/ldscripts/armelf_fbsd.x
