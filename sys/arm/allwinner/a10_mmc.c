@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #define	A10_MMC_DMA_SEGS		((MAXPHYS / PAGE_SIZE) + 1)
 #define	A10_MMC_DMA_MAX_SIZE	0x2000
 #define	A10_MMC_DMA_FTRGLEVEL	0x20070008
+#define	A10_MMC_RESET_RETRY	1000
 
 #define	CARD_ID_FREQUENCY	400000
 
@@ -229,7 +230,7 @@ a10_mmc_attach(device_t dev)
 		bus_width = 4;
 
 	sc->a10_host.f_min = 400000;
-	sc->a10_host.f_max = 50000000;
+	sc->a10_host.f_max = 52000000;
 	sc->a10_host.host_ocr = MMC_OCR_320_330 | MMC_OCR_330_340;
 	sc->a10_host.mode = mode_sd;
 	sc->a10_host.caps = MMC_CAP_HSPEED;
@@ -449,11 +450,27 @@ a10_mmc_req_done(struct a10_mmc_softc *sc)
 {
 	struct mmc_command *cmd;
 	struct mmc_request *req;
+	uint32_t val, mask;
+	int retry;
 
 	cmd = sc->a10_req->cmd;
 	if (cmd->error != MMC_ERR_NONE) {
-		/* Reset the controller. */
-		a10_mmc_reset(sc);
+		/* Reset the FIFO and DMA engines. */
+		mask = A10_MMC_CTRL_FIFO_RST | A10_MMC_CTRL_DMA_RST;
+		val = A10_MMC_READ_4(sc, A10_MMC_GCTL);
+		A10_MMC_WRITE_4(sc, A10_MMC_GCTL, val | mask);
+
+		retry = A10_MMC_RESET_RETRY;
+		while (--retry > 0) {
+			val = A10_MMC_READ_4(sc, A10_MMC_GCTL);
+			if ((val & mask) == 0)
+				break;
+			DELAY(10);
+		}
+		if (retry == 0)
+			device_printf(sc->a10_dev,
+			    "timeout resetting DMA/FIFO\n");
+		a10_mmc_update_clock(sc, 1);
 	}
 
 	req = sc->a10_req;
