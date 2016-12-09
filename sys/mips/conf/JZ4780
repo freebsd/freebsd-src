@@ -28,6 +28,7 @@ options 	KDB
 options 	BREAK_TO_DEBUGGER
 
 options 	COMPAT_FREEBSD10
+options 	COMPAT_FREEBSD11
 
 options 	SCHED_4BSD		#4BSD scheduler
 options 	INET			#InterNETworking
