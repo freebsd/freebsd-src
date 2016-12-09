@@ -3401,7 +3401,6 @@ build_medialist(struct port_info *pi, struct ifmedia *media)
 		break;
 
 	case FW_PORT_TYPE_CR_QSFP:
-	case FW_PORT_TYPE_CR_SFP28:
 	case FW_PORT_TYPE_SFP28:
 	case FW_PORT_TYPE_KR_SFP28:
 		switch (pi->mod_type) {
