@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include "t_%%TTYPE%%.h"
 #include "t_generic.h"
 #include "uc_common.h"
+#include "uc_check_time.h"
 
 #if defined(%%SCM_TTYPE%%)
 static int
@@ -50,6 +51,9 @@ check_scm_%%TTYPE%%(struct cmsghdr *cmsghdr)
 		return (-1);
 
 	bt = (struct %%DTYPE%% *)CMSG_DATA(cmsghdr);
+
+	if (uc_check_%%TTYPE%%(bt) < 0)
+		return (-1);
 
 	uc_dbgmsg("%%DTYPE%%.%%MAJ_MEMB%% %"PRIdMAX", %%DTYPE%%.%%MIN_MEMB%% %"PRIuMAX,
 	    (intmax_t)bt->%%MAJ_MEMB%%, (uintmax_t)bt->%%MIN_MEMB%%);

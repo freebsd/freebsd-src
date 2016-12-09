@@ -4,7 +4,8 @@ PROG=	unix_cmsg
 SRCS=	${AUTOSRCS} unix_cmsg.c uc_common.h uc_common.c \
 	t_generic.h t_generic.c t_peercred.h t_peercred.c \
 	t_cmsgcred.h t_cmsgcred.c t_sockcred.h t_sockcred.c \
-	t_cmsgcred_sockcred.h t_cmsgcred_sockcred.c t_cmsg_len.h t_cmsg_len.c
+	t_cmsgcred_sockcred.h t_cmsgcred_sockcred.c t_cmsg_len.h t_cmsg_len.c \
+	uc_check_time.h uc_check_time.c
 CLEANFILES+=	${AUTOSRCS}
 MAN=
 WARNS?=	3
