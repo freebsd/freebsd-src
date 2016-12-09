@@ -335,7 +335,6 @@ fetch_connect(const char *host, int port, int af, int verbose)
 		fetch_info("resolving server address: %s:%d", host, port);
 	if ((sais = fetch_resolve(host, port, af)) == NULL)
 		goto fail;
-	fetch_info("resolved");
 
 	/* resolve client address */
 	bindaddr = getenv("FETCH_BIND_ADDRESS");
