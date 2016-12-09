@@ -1,0 +1,27 @@
+#
+# CHERI128_MALTH64_MDROOT -- Kernel for the SRI/Cambridge CHERI port to
+# MALTA64 (qemu) with MDROOT support.
+#
+# $FreeBSD$
+#
+
+#NO_UNIVERSE
+
+include "CHERI128_MALTA64"
+
+ident		CHERI128_MALTA64_MDROOT
+
+#
+# This kernel configuration uses an embedded 8MB memory root file system.
+# Adjust the following path based on local requirements.
+#
+options 	MD_ROOT			# MD is a potential root device
+options 	MD_ROOT_SIZE=26112	# 25.5MB
+nooptions	ROOTDEVNAME
+options 	ROOTDEVNAME=\"ufs:md0\"
+
+# XXX: MD_ROOT_SIZE and MFS_IMAGE are mutually exclusive.  When adding an
+# MFS_IMAGE entry comment out "options MD_ROOT_SIZE" or uncomment the
+# following line.
+nooptions	MD_ROOT_SIZE
+makeoptions	MFS_IMAGE=/home/bed22/ctsrd/cheribsd/trunk/bsdtools/cheribsd-singleuser.img
