@@ -64,7 +64,7 @@
 #define	GFP_IOFS	M_NOWAIT
 #define	GFP_NOIO	M_NOWAIT
 #define	GFP_DMA32	0
-#define	GFP_TEMPORARY	0
+#define	GFP_TEMPORARY	M_NOWAIT
 
 static inline void *
 page_address(struct page *page)
