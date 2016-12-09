@@ -171,7 +171,7 @@ struct pci_dev {
 };
 
 static inline struct resource_list_entry *
-_pci_get_rle(struct pci_dev *pdev, int type, int rid)
+linux_pci_get_rle(struct pci_dev *pdev, int type, int rid)
 {
 	struct pci_devinfo *dinfo;
 	struct resource_list *rl;
@@ -182,18 +182,18 @@ _pci_get_rle(struct pci_dev *pdev, int type, int rid)
 }
 
 static inline struct resource_list_entry *
-_pci_get_bar(struct pci_dev *pdev, int bar)
+linux_pci_get_bar(struct pci_dev *pdev, int bar)
 {
 	struct resource_list_entry *rle;
 
 	bar = PCIR_BAR(bar);
-	if ((rle = _pci_get_rle(pdev, SYS_RES_MEMORY, bar)) == NULL)
-		rle = _pci_get_rle(pdev, SYS_RES_IOPORT, bar);
+	if ((rle = linux_pci_get_rle(pdev, SYS_RES_MEMORY, bar)) == NULL)
+		rle = linux_pci_get_rle(pdev, SYS_RES_IOPORT, bar);
 	return (rle);
 }
 
 static inline struct device *
-_pci_find_irq_dev(unsigned int irq)
+linux_pci_find_irq_dev(unsigned int irq)
 {
 	struct pci_dev *pdev;
 
@@ -215,7 +215,7 @@ pci_resource_start(struct pci_dev *pdev, int bar)
 {
 	struct resource_list_entry *rle;
 
-	if ((rle = _pci_get_bar(pdev, bar)) == NULL)
+	if ((rle = linux_pci_get_bar(pdev, bar)) == NULL)
 		return (0);
 	return rle->start;
 }
@@ -225,7 +225,7 @@ pci_resource_len(struct pci_dev *pdev, int bar)
 {
 	struct resource_list_entry *rle;
 
-	if ((rle = _pci_get_bar(pdev, bar)) == NULL)
+	if ((rle = linux_pci_get_bar(pdev, bar)) == NULL)
 		return (0);
 	return rle->count;
 }
@@ -331,7 +331,7 @@ pci_release_region(struct pci_dev *pdev, int bar)
 {
 	struct resource_list_entry *rle;
 
-	if ((rle = _pci_get_bar(pdev, bar)) == NULL)
+	if ((rle = linux_pci_get_bar(pdev, bar)) == NULL)
 		return;
 	bus_release_resource(pdev->dev.bsddev, rle->type, rle->rid, rle->res);
 }
@@ -477,7 +477,7 @@ pci_enable_msix(struct pci_dev *pdev, struct msix_entry *entries, int nreq)
 		pci_release_msi(pdev->dev.bsddev);
 		return avail;
 	}
-	rle = _pci_get_rle(pdev, SYS_RES_IRQ, 1);
+	rle = linux_pci_get_rle(pdev, SYS_RES_IRQ, 1);
 	pdev->dev.msix = rle->start;
 	pdev->dev.msix_max = rle->start + avail;
 	for (i = 0; i < nreq; i++)
