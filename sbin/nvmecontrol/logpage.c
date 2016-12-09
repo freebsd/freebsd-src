@@ -324,6 +324,47 @@ print_intel_temp_stats(void *buf, uint32_t size __unused)
 	printf("Estimated Temperature Offset:   %ju C/K\n", (uintmax_t)temp->est_offset);
 }
 
+/*
+ * Format from Table 22, section 5.7 IO Command Latency Statistics.
+ * Read and write stats pages have identical encoding.
+ */
+static void
+print_intel_read_write_lat_log(void *buf, uint32_t size __unused)
+{
+	const char *walker = buf;
+	int i;
+
+	printf("Major:                         %d\n", le16dec(walker + 0));
+	printf("Minor:                         %d\n", le16dec(walker + 2));
+	for (i = 0; i < 32; i++)
+		printf("%4dus-%4dus:                 %ju\n", i * 32, (i + 1) * 32, (uintmax_t)le32dec(walker + 4 + i * 4));
+	for (i = 1; i < 32; i++)
+		printf("%4dms-%4dms:                 %ju\n", i, i + 1, (uintmax_t)le32dec(walker + 132 + i * 4));
+	for (i = 1; i < 32; i++)
+		printf("%4dms-%4dms:                 %ju\n", i * 32, (i + 1) * 32, (uintmax_t)le32dec(walker + 256 + i * 4));
+}
+
+static void
+print_intel_read_lat_log(void *buf, uint32_t size)
+{
+
+	printf("Intel Read Latency Log\n");
+	printf("======================\n");
+	print_intel_read_write_lat_log(buf, size);
+}
+
+static void
+print_intel_write_lat_log(void *buf, uint32_t size)
+{
+
+	printf("Intel Write Latency Log\n");
+	printf("=======================\n");
+	print_intel_read_write_lat_log(buf, size);
+}
+
+/*
+ * Table 19. 5.4 SMART Attributes
+ */
 static void
 print_intel_add_smart(void *buf, uint32_t size __unused)
 {
@@ -803,11 +844,15 @@ static struct logpage_function {
 	 sizeof(struct nvme_health_information_page)},
 	{NVME_LOG_FIRMWARE_SLOT,	NULL,	print_log_firmware,
 	 sizeof(struct nvme_firmware_page)},
+	{HGST_INFO_LOG,			"hgst",	print_hgst_info_log,
+	 DEFAULT_SIZE},
 	{INTEL_LOG_TEMP_STATS,		"intel", print_intel_temp_stats,
 	 sizeof(struct intel_log_temp_stats)},
-	{INTEL_LOG_ADD_SMART,		"intel", print_intel_add_smart,
+	{INTEL_LOG_READ_LAT_LOG,	"intel", print_intel_read_lat_log,
 	 DEFAULT_SIZE},
-	{HGST_INFO_LOG,			"hgst",	print_hgst_info_log,
+	{INTEL_LOG_WRITE_LAT_LOG,	"intel", print_intel_write_lat_log,
+	 DEFAULT_SIZE},
+	{INTEL_LOG_ADD_SMART,		"intel", print_intel_add_smart,
 	 DEFAULT_SIZE},
 	{0,				NULL,	NULL,	 0},
 };
