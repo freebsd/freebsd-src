@@ -205,7 +205,7 @@ struct _7zip {
 	/*
 	 * The list of the file entries which has its contents is used to
 	 * manage struct file objects.
-	 * We use 'next' a menber of struct file to chain.
+	 * We use 'next' (a member of struct file) to chain.
 	 */
 	struct {
 		struct file	*first;

@@ -50,11 +50,11 @@ struct irq_ent {
 	void		*arg;
 	irqreturn_t	(*handler)(int, void *);
 	void		*tag;
-	int		 irq;
+	unsigned int	irq;
 };
 
 static inline int
-linux_irq_rid(struct device *dev, int irq)
+linux_irq_rid(struct device *dev, unsigned int irq)
 {
 	if (irq == dev->irq)
 		return (0);
@@ -64,7 +64,7 @@ linux_irq_rid(struct device *dev, int irq)
 extern void linux_irq_handler(void *);
 
 static inline struct irq_ent *
-linux_irq_ent(struct device *dev, int irq)
+linux_irq_ent(struct device *dev, unsigned int irq)
 {
 	struct irq_ent *irqe;
 
@@ -85,7 +85,7 @@ request_irq(unsigned int irq, irq_handler_t handler, unsigned long flags,
 	int error;
 	int rid;
 
-	dev = _pci_find_irq_dev(irq);
+	dev = linux_pci_find_irq_dev(irq);
 	if (dev == NULL)
 		return -ENXIO;
 	rid = linux_irq_rid(dev, irq);
@@ -117,7 +117,7 @@ bind_irq_to_cpu(unsigned int irq, int cpu_id)
 	struct irq_ent *irqe;
 	struct device *dev;
 
-	dev = _pci_find_irq_dev(irq);
+	dev = linux_pci_find_irq_dev(irq);
 	if (dev == NULL)
 		return (-ENOENT);
 
@@ -135,7 +135,7 @@ free_irq(unsigned int irq, void *device)
 	struct device *dev;
 	int rid;
 
-	dev = _pci_find_irq_dev(irq);
+	dev = linux_pci_find_irq_dev(irq);
 	if (dev == NULL)
 		return;
 	rid = linux_irq_rid(dev, irq);

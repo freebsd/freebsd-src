@@ -690,7 +690,7 @@ translate_acl(struct archive_read_disk *a,
 #ifdef ACL_TYPE_NFS4
 		if (default_entry_acl_type & ARCHIVE_ENTRY_ACL_TYPE_NFS4) {
 			/*
-			 * acl_get_entry_type_np() falis with non-NFSv4 ACLs
+			 * acl_get_entry_type_np() fails with non-NFSv4 ACLs
 			 */
 			if (acl_get_entry_type_np(acl_entry, &acl_type) != 0) {
 				archive_set_error(&a->archive, errno, "Failed "
@@ -1194,7 +1194,7 @@ setup_sparse_fiemap(struct archive_read_disk *a,
 		if (r < 0) {
 			/* When something error happens, it is better we
 			 * should return ARCHIVE_OK because an earlier
-			 * version(<2.6.28) cannot perfom FS_IOC_FIEMAP. */
+			 * version(<2.6.28) cannot perform FS_IOC_FIEMAP. */
 			goto exit_setup_sparse_fiemap;
 		}
 		if (fm->fm_mapped_extents == 0) {
@@ -1354,7 +1354,7 @@ setup_sparse(struct archive_read_disk *a,
 			goto exit_setup_sparse;
 		}
 		if (off_s == 0 && off_e == size)
-			break;/* This is not spase. */
+			break;/* This is not sparse. */
 		archive_entry_sparse_add_entry(entry, off_s,
 			off_e - off_s);
 		off_s = off_e;

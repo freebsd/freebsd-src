@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <arm/arm/gic.h>
+#include <arm/arm/gic_common.h>
 
 #ifdef INTRNG
 #include "pic_if.h"
@@ -76,20 +77,6 @@ __FBSDID("$FreeBSD$");
 /* We are using GICv2 register naming */
 
 /* Distributor Registers */
-#define GICD_CTLR		0x000			/* v1 ICDDCR */
-#define GICD_TYPER		0x004			/* v1 ICDICTR */
-#define GICD_IIDR		0x008			/* v1 ICDIIDR */
-#define GICD_IGROUPR(n)		(0x0080 + ((n) * 4))	/* v1 ICDISER */
-#define GICD_ISENABLER(n)	(0x0100 + ((n) * 4))	/* v1 ICDISER */
-#define GICD_ICENABLER(n)	(0x0180 + ((n) * 4))	/* v1 ICDICER */
-#define GICD_ISPENDR(n)		(0x0200 + ((n) * 4))	/* v1 ICDISPR */
-#define GICD_ICPENDR(n)		(0x0280 + ((n) * 4))	/* v1 ICDICPR */
-#define GICD_ICACTIVER(n)	(0x0380 + ((n) * 4))	/* v1 ICDABR */
-#define GICD_IPRIORITYR(n)	(0x0400 + ((n) * 4))	/* v1 ICDIPR */
-#define GICD_ITARGETSR(n)	(0x0800 + ((n) * 4))	/* v1 ICDIPTR */
-#define GICD_ICFGR(n)		(0x0C00 + ((n) * 4))	/* v1 ICDICFR */
-#define GICD_SGIR(n)		(0x0F00 + ((n) * 4))	/* v1 ICDSGIR */
-#define  GICD_SGI_TARGET_SHIFT	16
 
 /* CPU Registers */
 #define GICC_CTLR		0x0000			/* v1 ICCICR */
@@ -107,14 +94,6 @@ __FBSDID("$FreeBSD$");
 #define	GIC_SUPPORT_SECEXT(_sc)	\
     ((_sc->typer & GICD_TYPER_SECURITYEXT) == GICD_TYPER_SECURITYEXT)
 
-/* First bit is a polarity bit (0 - low, 1 - high) */
-#define GICD_ICFGR_POL_LOW	(0 << 0)
-#define GICD_ICFGR_POL_HIGH	(1 << 0)
-#define GICD_ICFGR_POL_MASK	0x1
-/* Second bit is a trigger bit (0 - level, 1 - edge) */
-#define GICD_ICFGR_TRIG_LVL	(0 << 1)
-#define GICD_ICFGR_TRIG_EDGE	(1 << 1)
-#define GICD_ICFGR_TRIG_MASK	0x2
 
 #ifndef	GIC_DEFAULT_ICFGR_INIT
 #define	GIC_DEFAULT_ICFGR_INIT	0x00000000
@@ -192,14 +171,14 @@ static inline void
 gic_irq_unmask(struct arm_gic_softc *sc, u_int irq)
 {
 
-	gic_d_write_4(sc, GICD_ISENABLER(irq >> 5), (1UL << (irq & 0x1F)));
+	gic_d_write_4(sc, GICD_ISENABLER(irq), GICD_I_MASK(irq));
 }
 
 static inline void
 gic_irq_mask(struct arm_gic_softc *sc, u_int irq)
 {
 
-	gic_d_write_4(sc, GICD_ICENABLER(irq >> 5), (1UL << (irq & 0x1F)));
+	gic_d_write_4(sc, GICD_ICENABLER(irq), GICD_I_MASK(irq));
 }
 #endif
 
@@ -239,11 +218,11 @@ arm_gic_init_secondary(device_t dev)
 	arm_gic_map[cpu] = gic_cpu_mask(sc);
 
 	for (irq = 0; irq < sc->nirqs; irq += 4)
-		gic_d_write_4(sc, GICD_IPRIORITYR(irq >> 2), 0);
+		gic_d_write_4(sc, GICD_IPRIORITYR(irq), 0);
 
 	/* Set all the interrupts to be in Group 0 (secure) */
 	for (irq = 0; GIC_SUPPORT_SECEXT(sc) && irq < sc->nirqs; irq += 32) {
-		gic_d_write_4(sc, GICD_IGROUPR(irq >> 5), 0);
+		gic_d_write_4(sc, GICD_IGROUPR(irq), 0);
 	}
 
 	/* Enable CPU interface */
@@ -276,11 +255,11 @@ arm_gic_init_secondary(device_t dev)
 	arm_gic_map[PCPU_GET(cpuid)] = gic_cpu_mask(sc);
 
 	for (i = 0; i < sc->nirqs; i += 4)
-		gic_d_write_4(sc, GICD_IPRIORITYR(i >> 2), 0);
+		gic_d_write_4(sc, GICD_IPRIORITYR(i), 0);
 
 	/* Set all the interrupts to be in Group 0 (secure) */
 	for (i = 0; GIC_SUPPORT_SECEXT(sc) && i < sc->nirqs; i += 32) {
-		gic_d_write_4(sc, GICD_IGROUPR(i >> 5), 0);
+		gic_d_write_4(sc, GICD_IGROUPR(i), 0);
 	}
 
 	/* Enable CPU interface */
@@ -295,9 +274,9 @@ arm_gic_init_secondary(device_t dev)
 	/*
 	 * Activate the timer interrupts: virtual, secure, and non-secure.
 	 */
-	gic_d_write_4(sc, GICD_ISENABLER(27 >> 5), (1UL << (27 & 0x1F)));
-	gic_d_write_4(sc, GICD_ISENABLER(29 >> 5), (1UL << (29 & 0x1F)));
-	gic_d_write_4(sc, GICD_ISENABLER(30 >> 5), (1UL << (30 & 0x1F)));
+	gic_d_write_4(sc, GICD_ISENABLER(27), GICD_I_MASK(27));
+	gic_d_write_4(sc, GICD_ISENABLER(29), GICD_I_MASK(29));
+	gic_d_write_4(sc, GICD_ISENABLER(30), GICD_I_MASK(30));
 }
 #endif /* INTRNG */
 #endif /* SMP */
@@ -468,7 +447,7 @@ arm_gic_attach(device_t dev)
 
 	/* Get the number of interrupts */
 	sc->typer = gic_d_read_4(sc, GICD_TYPER);
-	nirqs = 32 * ((sc->typer & 0x1f) + 1);
+	nirqs = GICD_TYPER_I_NUM(sc->typer);
 
 #ifdef INTRNG
 	if (arm_gic_register_isrcs(sc, nirqs)) {
@@ -484,18 +463,22 @@ arm_gic_attach(device_t dev)
 #endif
 
 	icciidr = gic_c_read_4(sc, GICC_IIDR);
-	device_printf(dev,"pn 0x%x, arch 0x%x, rev 0x%x, implementer 0x%x irqs %u\n",
-			icciidr>>20, (icciidr>>16) & 0xF, (icciidr>>12) & 0xf,
-			(icciidr & 0xfff), sc->nirqs);
+	device_printf(dev,
+	    "pn 0x%x, arch 0x%x, rev 0x%x, implementer 0x%x irqs %u\n",
+	    GICD_IIDR_PROD(icciidr), GICD_IIDR_VAR(icciidr),
+	    GICD_IIDR_REV(icciidr), GICD_IIDR_IMPL(icciidr), sc->nirqs);
+#ifdef INTRNG
+	sc->gic_iidr = icciidr;
+#endif
 
 	/* Set all global interrupts to be level triggered, active low. */
 	for (i = 32; i < sc->nirqs; i += 16) {
-		gic_d_write_4(sc, GICD_ICFGR(i >> 4), GIC_DEFAULT_ICFGR_INIT);
+		gic_d_write_4(sc, GICD_ICFGR(i), GIC_DEFAULT_ICFGR_INIT);
 	}
 
 	/* Disable all interrupts. */
 	for (i = 32; i < sc->nirqs; i += 32) {
-		gic_d_write_4(sc, GICD_ICENABLER(i >> 5), 0xFFFFFFFF);
+		gic_d_write_4(sc, GICD_ICENABLER(i), 0xFFFFFFFF);
 	}
 
 	/* Find the current cpu mask */
@@ -507,15 +490,15 @@ arm_gic_attach(device_t dev)
 	mask |= mask << 16;
 
 	for (i = 0; i < sc->nirqs; i += 4) {
-		gic_d_write_4(sc, GICD_IPRIORITYR(i >> 2), 0);
+		gic_d_write_4(sc, GICD_IPRIORITYR(i), 0);
 		if (i > 32) {
-			gic_d_write_4(sc, GICD_ITARGETSR(i >> 2), mask);
+			gic_d_write_4(sc, GICD_ITARGETSR(i), mask);
 		}
 	}
 
 	/* Set all the interrupts to be in Group 0 (secure) */
 	for (i = 0; GIC_SUPPORT_SECEXT(sc) && i < sc->nirqs; i += 32) {
-		gic_d_write_4(sc, GICD_IGROUPR(i >> 5), 0);
+		gic_d_write_4(sc, GICD_IGROUPR(i), 0);
 	}
 
 	/* Enable CPU interface */
@@ -631,6 +614,33 @@ arm_gic_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	    count, flags));
 }
 
+static int
+arm_gic_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
+{
+	struct arm_gic_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	switch(which) {
+	case GIC_IVAR_HW_REV:
+		KASSERT(GICD_IIDR_VAR(sc->gic_iidr) < 3 &&
+		    GICD_IIDR_VAR(sc->gic_iidr) != 0,
+		    ("arm_gic_read_ivar: Unknown IIDR revision %u (%.08x)",
+		     GICD_IIDR_VAR(sc->gic_iidr), sc->gic_iidr));
+		*result = GICD_IIDR_VAR(sc->gic_iidr);
+		return (0);
+	case GIC_IVAR_BUS:
+		KASSERT(sc->gic_bus != GIC_BUS_UNKNOWN,
+		    ("arm_gic_read_ivar: Unknown bus type"));
+		KASSERT(sc->gic_bus <= GIC_BUS_MAX,
+		    ("arm_gic_read_ivar: Invalid bus type %u", sc->gic_bus));
+		*result = sc->gic_bus;
+		return (0);
+	}
+
+	return (ENOENT);
+}
+
 int
 arm_gic_intr(void *arg)
 {
@@ -725,7 +735,7 @@ gic_config(struct arm_gic_softc *sc, u_int irq, enum intr_trigger trig,
 
 	mtx_lock_spin(&sc->mutex);
 
-	reg = gic_d_read_4(sc, GICD_ICFGR(irq >> 4));
+	reg = gic_d_read_4(sc, GICD_ICFGR(irq));
 	mask = (reg >> 2*(irq % 16)) & 0x3;
 
 	if (pol == INTR_POLARITY_LOW) {
@@ -747,7 +757,7 @@ gic_config(struct arm_gic_softc *sc, u_int irq, enum intr_trigger trig,
 	/* Set mask */
 	reg = reg & ~(0x3 << 2*(irq % 16));
 	reg = reg | (mask << 2*(irq % 16));
-	gic_d_write_4(sc, GICD_ICFGR(irq >> 4), reg);
+	gic_d_write_4(sc, GICD_ICFGR(irq), reg);
 
 	mtx_unlock_spin(&sc->mutex);
 }
@@ -1089,7 +1099,7 @@ arm_gic_ipi_send(device_t dev, struct intr_irqsrc *isrc, cpuset_t cpus,
 		if (CPU_ISSET(i, &cpus))
 			val |= arm_gic_map[i] << GICD_SGI_TARGET_SHIFT;
 
-	gic_d_write_4(sc, GICD_SGIR(0), val | gi->gi_irq);
+	gic_d_write_4(sc, GICD_SGIR, val | gi->gi_irq);
 }
 
 static int
@@ -1157,7 +1167,7 @@ arm_gic_config(device_t dev, int irq, enum intr_trigger trig,
 
 	mtx_lock_spin(&sc->mutex);
 
-	reg = gic_d_read_4(sc, GICD_ICFGR(irq >> 4));
+	reg = gic_d_read_4(sc, GICD_ICFGR(irq));
 	mask = (reg >> 2*(irq % 16)) & 0x3;
 
 	if (pol == INTR_POLARITY_LOW) {
@@ -1179,7 +1189,7 @@ arm_gic_config(device_t dev, int irq, enum intr_trigger trig,
 	/* Set mask */
 	reg = reg & ~(0x3 << 2*(irq % 16));
 	reg = reg | (mask << 2*(irq % 16));
-	gic_d_write_4(sc, GICD_ICFGR(irq >> 4), reg);
+	gic_d_write_4(sc, GICD_ICFGR(irq), reg);
 
 	mtx_unlock_spin(&sc->mutex);
 
@@ -1196,7 +1206,7 @@ arm_gic_mask(device_t dev, int irq)
 {
 	struct arm_gic_softc *sc = device_get_softc(dev);
 
-	gic_d_write_4(sc, GICD_ICENABLER(irq >> 5), (1UL << (irq & 0x1F)));
+	gic_d_write_4(sc, GICD_ICENABLER(irq), (1UL << (irq & 0x1F)));
 	gic_c_write_4(sc, GICC_EOIR, irq); /* XXX - not allowed */
 }
 
@@ -1208,7 +1218,7 @@ arm_gic_unmask(device_t dev, int irq)
 	if (irq > GIC_LAST_SGI)
 		arm_irq_memory_barrier(irq);
 
-	gic_d_write_4(sc, GICD_ISENABLER(irq >> 5), (1UL << (irq & 0x1F)));
+	gic_d_write_4(sc, GICD_ISENABLER(irq), (1UL << (irq & 0x1F)));
 }
 
 #ifdef SMP
@@ -1222,7 +1232,7 @@ arm_gic_ipi_send(device_t dev, cpuset_t cpus, u_int ipi)
 		if (CPU_ISSET(i, &cpus))
 			val |= arm_gic_map[i] << GICD_SGI_TARGET_SHIFT;
 
-	gic_d_write_4(sc, GICD_SGIR(0), val | ipi);
+	gic_d_write_4(sc, GICD_SGIR, val | ipi);
 }
 
 static int
@@ -1327,6 +1337,7 @@ static device_method_t arm_gic_methods[] = {
 	DEVMETHOD(bus_alloc_resource,	arm_gic_alloc_resource),
 	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
 	DEVMETHOD(bus_activate_resource,bus_generic_activate_resource),
+	DEVMETHOD(bus_read_ivar,	arm_gic_read_ivar),
 
 	/* Interrupt controller interface */
 	DEVMETHOD(pic_disable_intr,	arm_gic_disable_intr),

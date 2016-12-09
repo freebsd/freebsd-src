@@ -36,6 +36,23 @@
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
+#define MSR_HV_TIME_REF_COUNT		0x40000020
+
+#define CPUID_HV_MSR_TIME_REFCNT	0x0002	/* MSR_HV_TIME_REF_COUNT */
+#define CPUID_HV_MSR_SYNIC		0x0004	/* MSRs for SynIC */
+#define CPUID_HV_MSR_SYNTIMER		0x0008	/* MSRs for SynTimer */
+#define CPUID_HV_MSR_APIC		0x0010	/* MSR_HV_{EOI,ICR,TPR} */
+#define CPUID_HV_MSR_HYPERCALL		0x0020	/* MSR_HV_GUEST_OS_ID
+						 * MSR_HV_HYPERCALL */
+#define CPUID_HV_MSR_VP_INDEX		0x0040	/* MSR_HV_VP_INDEX */
+#define CPUID_HV_MSR_GUEST_IDLE		0x0400	/* MSR_HV_GUEST_IDLE */
+
+#ifndef NANOSEC
+#define NANOSEC				1000000000ULL
+#endif
+#define HYPERV_TIMER_NS_FACTOR		100ULL
+#define HYPERV_TIMER_FREQ		(NANOSEC / HYPERV_TIMER_NS_FACTOR)
+
 struct hyperv_guid {
 	uint8_t		hv_guid[16];
 } __packed;
@@ -43,5 +60,7 @@ struct hyperv_guid {
 #define HYPERV_GUID_STRLEN	40
 
 int		hyperv_guid2str(const struct hyperv_guid *, char *, size_t);
+
+extern u_int	hyperv_features;	/* CPUID_HV_MSR_ */
 
 #endif  /* _HYPERV_H_ */
