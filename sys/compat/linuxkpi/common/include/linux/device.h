@@ -70,6 +70,7 @@ struct device {
 	uint64_t	*dma_mask;
 	void		*driver_data;
 	unsigned int	irq;
+#define	LINUX_IRQ_INVALID	65535
 	unsigned int	msix;
 	unsigned int	msix_max;
 	const struct attribute_group **groups;
