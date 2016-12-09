@@ -144,7 +144,7 @@ counter_ratecheck(struct counter_rate *cr, int64_t limit)
 		 * First try unlocked read, and then proceed with atomic.
 		 */
 		if ((cr->cr_lock == 0) &&
-		    atomic_cmpset_int(&cr->cr_lock, 0, 1)) {
+		    atomic_cmpset_acq_int(&cr->cr_lock, 0, 1)) {
 			/*
 			 * Check if other thread has just went through the
 			 * reset sequence before us.
