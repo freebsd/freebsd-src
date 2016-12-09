@@ -32,6 +32,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_compat.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -315,7 +317,7 @@ VM_STATS_VM(v_vforkpages, "VM pages affected by vfork()");
 VM_STATS_VM(v_rforkpages, "VM pages affected by rfork()");
 VM_STATS_VM(v_kthreadpages, "VM pages affected by fork() by kernel");
 
-#ifndef BURN_BRIDGES
+#ifdef COMPAT_FREEBSD11
 /*
  * Provide compatibility sysctls for the benefit of old utilities which exit
  * with an error if they cannot be found.
