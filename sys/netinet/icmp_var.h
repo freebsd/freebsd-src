@@ -96,7 +96,7 @@ extern int badport_bandlim(int);
 #define BANDLIM_RST_OPENPORT 4   /* No connection, listener */
 #define BANDLIM_ICMP6_UNREACH 5
 #define BANDLIM_SCTP_OOTB 6
-#define BANDLIM_MAX 6
+#define BANDLIM_MAX 7
 #endif
 
 #endif
