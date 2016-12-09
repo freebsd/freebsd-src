@@ -1196,7 +1196,49 @@ clk_get_by_id(device_t dev, struct clkdom *clkdom, intptr_t id, clk_t *clk)
 #ifdef FDT
 
 int
-clk_get_by_ofw_index(device_t dev, phandle_t cnode, int idx, clk_t *clk)
+clk_set_assigned(device_t dev, phandle_t node)
+{
+	clk_t clk, clk_parent;
+	int error, nclocks, i;
+
+	error = ofw_bus_parse_xref_list_get_length(node,
+	    "assigned-clock-parents", "#clock-cells", &nclocks);
+
+	if (error != 0) {
+		if (error != ENOENT)
+			device_printf(dev,
+			    "cannot parse assigned-clock-parents property\n");
+		return (error);
+	}
+
+	for (i = 0; i < nclocks; i++) {
+		error = clk_get_by_ofw_index_prop(dev, 0,
+		    "assigned-clock-parents", i, &clk_parent);
+		if (error != 0) {
+			device_printf(dev, "cannot get parent %d\n", i);
+			return (error);
+		}
+
+		error = clk_get_by_ofw_index_prop(dev, 0, "assigned-clocks",
+		    i, &clk);
+		if (error != 0) {
+			device_printf(dev, "cannot get assigned clock %d\n", i);
+			clk_release(clk_parent);
+			return (error);
+		}
+
+		error = clk_set_parent_by_clk(clk, clk_parent);
+		clk_release(clk_parent);
+		clk_release(clk);
+		if (error != 0)
+			return (error);
+	}
+
+	return (0);
+}
+
+int
+clk_get_by_ofw_index_prop(device_t dev, phandle_t cnode, const char *prop, int idx, clk_t *clk)
 {
 	phandle_t parent, *cells;
 	device_t clockdev;
@@ -1214,7 +1256,7 @@ clk_get_by_ofw_index(device_t dev, phandle_t cnode, int idx, clk_t *clk)
 	}
 
 
-	rv = ofw_bus_parse_xref_list_alloc(cnode, "clocks", "#clock-cells", idx,
+	rv = ofw_bus_parse_xref_list_alloc(cnode, prop, "#clock-cells", idx,
 	    &parent, &ncells, &cells);
 	if (rv != 0) {
 		return (rv);
@@ -1244,6 +1286,12 @@ done:
 	if (cells != NULL)
 		OF_prop_free(cells);
 	return (rv);
+}
+
+int
+clk_get_by_ofw_index(device_t dev, phandle_t cnode, int idx, clk_t *clk)
+{
+	return (clk_get_by_ofw_index_prop(dev, cnode, "clocks", idx, clk));
 }
 
 int
