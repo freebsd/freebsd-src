@@ -1,5 +1,46 @@
 News for the tz database
 
+Release 2016j - 2016-11-22 23:17:13 -0800
+
+  Briefly: Saratov, Russia moves from +03 to +04 on 2016-12-04.
+
+  Changes to future time stamps
+
+    Saratov, Russia switches from +03 to +04 on 2016-12-04 at 02:00.
+    This hives off a new zone Europe/Saratov from Europe/Volgograd.
+    (Thanks to Yuri Konotopov and Stepan Golosunov.)
+
+  Changes to past time stamps
+
+    The new zone Asia/Atyrau for Atyraū Region, Kazakhstan, is like
+    Asia/Aqtau except it switched from +04/+05 to +05/+06 in spring
+    1999, not fall 1994.  (Thanks to Stepan Golosunov.)
+
+  Changes to past time zone abbreviations
+
+    Asia/Gaza and Asia/Hebron now use "EEST", not "EET", to denote
+    summer time before 1948.  The old use of "EET" was a typo.
+
+  Changes to code
+
+    zic no longer mishandles file systems that lack hard links, fixing
+    bugs introduced in 2016g.  (Problems reported by Tom Lane.)
+    Also, when the destination already contains symbolic links, zic
+    should now work better on systems where the 'link' system call
+    does not follow symbolic links.
+
+  Changes to documentation and commentary
+
+    tz-link.htm now documents the relationship between release version
+    numbers and development-repository commit tags.  (Suggested by
+    Paul Koning.)
+
+    The 'Theory' file now documents UT.
+
+    iso3166.tab now accents "Curaçao", and commentary now mentions
+    the names "Cabo Verde" and "Czechia".  (Thanks to Jiří Boháč.)
+
+
 Release 2016i - 2016-11-01 23:19:52 -0700
 
   Briefly: Cyprus split into two time zones on 2016-10-30, and Tonga
@@ -212,7 +253,7 @@ Release 2016g - 2016-09-13 08:56:38 -0700
     23 commits and some working-file changes have been made since
     release 2016g, the version number is now something like
     '2016g-23-g50556e3-dirty' instead of the misleading '2016g'.
-    Official releases uses the same version number format as before,
+    Tagged releases use the same version number format as before,
     e.g., '2016g'.  To support the more-accurate version number, its
     specification has moved from a line in the Makefile to a new
     source file 'version'.

@@ -660,10 +660,10 @@ descend:
 }
 
 /*
- * Remove the specified index from the tree.
- * Panics if the key is not present.
+ * Remove the specified index from the trie, and return the value stored at
+ * that index.  If the index is not present, return NULL.
  */
-void
+vm_page_t
 vm_radix_remove(struct vm_radix *rtree, vm_pindex_t index)
 {
 	struct vm_radix_node *rnode, *parent;
@@ -674,23 +674,23 @@ vm_radix_remove(struct vm_radix *rtree, vm_pindex_t index)
 	if (vm_radix_isleaf(rnode)) {
 		m = vm_radix_topage(rnode);
 		if (m->pindex != index)
-			panic("%s: invalid key found", __func__);
+			return (NULL);
 		vm_radix_setroot(rtree, NULL);
-		return;
+		return (m);
 	}
 	parent = NULL;
 	for (;;) {
 		if (rnode == NULL)
-			panic("vm_radix_remove: impossible to locate the key");
+			return (NULL);
 		slot = vm_radix_slot(index, rnode->rn_clev);
 		if (vm_radix_isleaf(rnode->rn_child[slot])) {
 			m = vm_radix_topage(rnode->rn_child[slot]);
 			if (m->pindex != index)
-				panic("%s: invalid key found", __func__);
+				return (NULL);
 			rnode->rn_child[slot] = NULL;
 			rnode->rn_count--;
 			if (rnode->rn_count > 1)
-				break;
+				return (m);
 			for (i = 0; i < VM_RADIX_COUNT; i++)
 				if (rnode->rn_child[i] != NULL)
 					break;
@@ -707,7 +707,7 @@ vm_radix_remove(struct vm_radix *rtree, vm_pindex_t index)
 			rnode->rn_count--;
 			rnode->rn_child[i] = NULL;
 			vm_radix_node_put(rnode);
-			break;
+			return (m);
 		}
 		parent = rnode;
 		rnode = rnode->rn_child[slot];

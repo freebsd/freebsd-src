@@ -74,10 +74,8 @@ sctp6_input_with_port(struct mbuf **i_pak, int *offp, uint16_t port)
 	struct sctphdr *sh;
 	struct sctp_chunkhdr *ch;
 	int length, offset;
-
 #if !defined(SCTP_WITH_NO_CSUM)
 	uint8_t compute_crc;
-
 #endif
 	uint32_t mflowid;
 	uint8_t mflowtype;
@@ -194,7 +192,6 @@ sctp6_notify(struct sctp_inpcb *inp,
 {
 #if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 	struct socket *so;
-
 #endif
 	int timer_stopped;
 
@@ -696,7 +693,6 @@ sctp6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 
 #ifdef INET
 	struct sockaddr_in6 *sin6;
-
 #endif				/* INET */
 	/* No SPL needed since sctp_output does this */
 
@@ -798,12 +794,10 @@ sctp6_connect(struct socket *so, struct sockaddr *addr, struct thread *p)
 	int error = 0;
 	struct sctp_inpcb *inp;
 	struct sctp_tcb *stcb;
-
 #ifdef INET
 	struct in6pcb *inp6;
 	struct sockaddr_in6 *sin6;
 	union sctp_sockstore store;
-
 #endif
 
 #ifdef INET

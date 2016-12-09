@@ -1241,9 +1241,8 @@ vm_page_insert_radixdone(vm_page_t m, vm_object_t object, vm_page_t mpred)
 /*
  *	vm_page_remove:
  *
- *	Removes the given mem entry from the object/offset-page
- *	table and the object page list, but do not invalidate/terminate
- *	the backing store.
+ *	Removes the specified page from its containing object, but does not
+ *	invalidate any backing storage.
  *
  *	The object must be locked.  The page must be locked if it is managed.
  */
@@ -1251,6 +1250,7 @@ void
 vm_page_remove(vm_page_t m)
 {
 	vm_object_t object;
+	vm_page_t mrem;
 
 	if ((m->oflags & VPO_UNMANAGED) == 0)
 		vm_page_assert_locked(m);
@@ -1259,11 +1259,12 @@ vm_page_remove(vm_page_t m)
 	VM_OBJECT_ASSERT_WLOCKED(object);
 	if (vm_page_xbusied(m))
 		vm_page_xunbusy_maybelocked(m);
+	mrem = vm_radix_remove(&object->rtree, m->pindex);
+	KASSERT(mrem == m, ("removed page %p, expected page %p", mrem, m));
 
 	/*
 	 * Now remove from the object's list of backed pages.
 	 */
-	vm_radix_remove(&object->rtree, m->pindex);
 	TAILQ_REMOVE(&object->memq, m, listq);
 
 	/*

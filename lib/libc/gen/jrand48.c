@@ -14,11 +14,14 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <stdint.h>
+
 #include "rand48.h"
 
 long
 jrand48(unsigned short xseed[3])
 {
+
 	_dorand48(xseed);
-	return ((long) xseed[2] << 16) + (long) xseed[1];
+	return ((int32_t)(((uint32_t)xseed[2] << 16) | (uint32_t)xseed[1]));
 }

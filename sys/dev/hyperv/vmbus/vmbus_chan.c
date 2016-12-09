@@ -67,7 +67,7 @@ static void			vmbus_chan_set_chmap(struct vmbus_channel *);
 static void			vmbus_chan_clear_chmap(struct vmbus_channel *);
 static void			vmbus_chan_detach(struct vmbus_channel *);
 static bool			vmbus_chan_wait_revoke(
-				    const struct vmbus_channel *);
+				    const struct vmbus_channel *, bool);
 
 static void			vmbus_chan_ins_prilist(struct vmbus_softc *,
 				    struct vmbus_channel *);
@@ -478,14 +478,14 @@ vmbus_chan_open_br(struct vmbus_channel *chan, const struct vmbus_chan_br *cbr,
 				msg = vmbus_msghc_poll_result(sc, mh);
 				if (msg != NULL)
 					break;
-				DELAY(1000);
+				pause("rchopen", 1);
 			}
 #undef REVOKE_LINGER
 			if (msg == NULL)
 				vmbus_msghc_exec_cancel(sc, mh);
 			break;
 		}
-		DELAY(1000);
+		pause("chopen", 1);
 	}
 	if (msg != NULL) {
 		status = ((const struct vmbus_chanmsg_chopen_resp *)
@@ -658,7 +658,7 @@ vmbus_chan_gpadl_connect(struct vmbus_channel *chan, bus_addr_t paddr,
 }
 
 static bool
-vmbus_chan_wait_revoke(const struct vmbus_channel *chan)
+vmbus_chan_wait_revoke(const struct vmbus_channel *chan, bool can_sleep)
 {
 #define WAIT_COUNT	200	/* 200ms */
 
@@ -667,8 +667,10 @@ vmbus_chan_wait_revoke(const struct vmbus_channel *chan)
 	for (i = 0; i < WAIT_COUNT; ++i) {
 		if (vmbus_chan_is_revoked(chan))
 			return (true);
-		/* Not sure about the context; use busy-wait. */
-		DELAY(1000);
+		if (can_sleep)
+			pause("wchrev", 1);
+		else
+			DELAY(1000);
 	}
 	return (false);
 
@@ -705,7 +707,7 @@ vmbus_chan_gpadl_disconnect(struct vmbus_channel *chan, uint32_t gpadl)
 	if (error) {
 		vmbus_msghc_put(sc, mh);
 
-		if (vmbus_chan_wait_revoke(chan)) {
+		if (vmbus_chan_wait_revoke(chan, true)) {
 			/*
 			 * Error is benign; this channel is revoked,
 			 * so this GPADL will not be touched anymore.
@@ -770,8 +772,7 @@ vmbus_chan_clear_chmap(struct vmbus_channel *chan)
 	struct task chmap_task;
 
 	TASK_INIT(&chmap_task, 0, vmbus_chan_clrchmap_task, chan);
-	taskqueue_enqueue(chan->ch_tq, &chmap_task);
-	taskqueue_drain(chan->ch_tq, &chmap_task);
+	vmbus_chan_run_task(chan, &chmap_task);
 }
 
 static void

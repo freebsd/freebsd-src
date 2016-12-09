@@ -144,10 +144,8 @@ sctp_ss_default_remove(struct sctp_tcb *stcb, struct sctp_association *asoc,
 	if (holds_lock == 0) {
 		SCTP_TCB_SEND_LOCK(stcb);
 	}
-	/*
-	 * Remove from wheel if stream queue is empty and actually is on the
-	 * wheel
-	 */
+	/* Remove from wheel if stream queue is empty and actually is on the
+	 * wheel */
 	if (TAILQ_EMPTY(&strq->outqueue) &&
 	    (strq->ss_params.rr.next_spoke.tqe_next != NULL ||
 	    strq->ss_params.rr.next_spoke.tqe_prev != NULL)) {
@@ -294,7 +292,7 @@ sctp_ss_rr_add(struct sctp_tcb *stcb, struct sctp_association *asoc,
 			TAILQ_INSERT_HEAD(&asoc->ss_data.out.wheel, strq, ss_params.rr.next_spoke);
 		} else {
 			strqt = TAILQ_FIRST(&asoc->ss_data.out.wheel);
-			while (strqt != NULL && (strqt->stream_no < strq->stream_no)) {
+			while (strqt != NULL && (strqt->sid < strq->sid)) {
 				strqt = TAILQ_NEXT(strqt, ss_params.rr.next_spoke);
 			}
 			if (strqt != NULL) {
@@ -459,10 +457,8 @@ sctp_ss_prio_remove(struct sctp_tcb *stcb, struct sctp_association *asoc,
 	if (holds_lock == 0) {
 		SCTP_TCB_SEND_LOCK(stcb);
 	}
-	/*
-	 * Remove from wheel if stream queue is empty and actually is on the
-	 * wheel
-	 */
+	/* Remove from wheel if stream queue is empty and actually is on the
+	 * wheel */
 	if (TAILQ_EMPTY(&strq->outqueue) &&
 	    (strq->ss_params.prio.next_spoke.tqe_next != NULL ||
 	    strq->ss_params.prio.next_spoke.tqe_prev != NULL)) {
@@ -635,10 +631,8 @@ sctp_ss_fb_remove(struct sctp_tcb *stcb, struct sctp_association *asoc,
 	if (holds_lock == 0) {
 		SCTP_TCB_SEND_LOCK(stcb);
 	}
-	/*
-	 * Remove from wheel if stream queue is empty and actually is on the
-	 * wheel
-	 */
+	/* Remove from wheel if stream queue is empty and actually is on the
+	 * wheel */
 	if (TAILQ_EMPTY(&strq->outqueue) &&
 	    (strq->ss_params.fb.next_spoke.tqe_next != NULL ||
 	    strq->ss_params.fb.next_spoke.tqe_prev != NULL)) {
@@ -863,7 +857,7 @@ sctp_ss_fcfs_select(struct sctp_tcb *stcb SCTP_UNUSED, struct sctp_nets *net,
 	sp = TAILQ_FIRST(&asoc->ss_data.out.list);
 default_again:
 	if (sp != NULL) {
-		strq = &asoc->strmout[sp->stream];
+		strq = &asoc->strmout[sp->sid];
 	} else {
 		strq = NULL;
 	}

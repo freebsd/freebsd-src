@@ -26,29 +26,56 @@
  * $FreeBSD$
  */
 
+#ifndef __LIBPROC_H_
+#define	__LIBPROC_H_
+
 #include <sys/types.h>
 #include <sys/ptrace.h>
 
+#include <libelf.h>
 #include <rtld_db.h>
 
 #include "libproc.h"
 
 struct procstat;
 
+struct symtab {
+	Elf_Data *data;
+	u_int	nsyms;
+	u_int	*index;
+	u_long	stridx;
+};
+
+struct file_info {
+	Elf	*elf;
+	int	fd;
+	u_int	refs;
+	GElf_Ehdr ehdr;
+
+	/* Symbol tables, sorted by value. */
+	struct symtab dynsymtab;
+	struct symtab symtab;
+};
+
+struct map_info {
+	prmap_t	map;
+	struct file_info *file;
+};
+
 struct proc_handle {
-	pid_t	pid;			/* Process ID. */
+	struct proc_handle_public public; /* Public fields. */
 	int	flags;			/* Process flags. */
 	int	status;			/* Process status (PS_*). */
 	int	wstat;			/* Process wait status. */
 	int	model;			/* Process data model. */
 	rd_agent_t *rdap;		/* librtld_db agent */
-	rd_loadobj_t *rdobjs;		/* Array of loaded objects. */
-	size_t	rdobjsz;		/* Array size. */
-	size_t	nobjs;			/* Num. objects currently loaded. */
-	rd_loadobj_t *rdexec;		/* rdobj for program executable. */
-	struct lwpstatus lwps;		/* Process status. */
+	struct map_info *mappings;	/* File mappings for proc. */
+	size_t	maparrsz;		/* Map array size. */
+	size_t	nmappings;		/* Number of mappings. */
+	prmap_t	*exec_map;		/* Executable text mapping. */
+	lwpstatus_t lwps;		/* Process status. */
 	struct procstat *procstat;	/* libprocstat handle. */
-	char	execpath[MAXPATHLEN];	/* Path to program executable. */
+	char	execpath[PATH_MAX];	/* Path to program executable. */
 };
 
 #ifdef DEBUG
@@ -58,3 +85,5 @@ struct proc_handle {
 #define	DPRINTF(...)    do { } while (0)
 #define	DPRINTFX(...)   do { } while (0)
 #endif
+
+#endif /* __LIBPROC_H_ */
