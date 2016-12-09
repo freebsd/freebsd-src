@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <termios.h>
 #include <unistd.h>
 
 #define	ED_DYN		(1<<0)
@@ -504,6 +505,7 @@ main(int ac, char **av)
 	u_int64_t name;
 	u_int64_t type;
 	struct stat sb;
+	unsigned long cmd;
 	u_int flags;
 	Elf32_Ehdr *e;
 	void *p;
@@ -572,11 +574,13 @@ main(int ac, char **av)
 	if (cap_rights_limit(fd, &rights) < 0 && errno != ENOSYS)
 		err(1, "unable to limit rights for %s", *av);
 	close(STDIN_FILENO);
-	cap_rights_init(&rights, CAP_WRITE);
-	if (cap_rights_limit(STDOUT_FILENO, &rights) < 0 && errno != ENOSYS)
-		err(1, "unable to limit rights for stdout");
-	if (cap_rights_limit(STDERR_FILENO, &rights) < 0 && errno != ENOSYS)
-		err(1, "unable to limit rights for stderr");
+	cap_rights_init(&rights, CAP_FSTAT, CAP_IOCTL, CAP_WRITE);
+	cmd = TIOCGETA; /* required by isatty(3) in printf(3) */
+	if ((cap_rights_limit(STDOUT_FILENO, &rights) < 0 && errno != ENOSYS) ||
+	    (cap_ioctls_limit(STDOUT_FILENO, &cmd, 1) < 0 && errno != ENOSYS) ||
+	    (cap_rights_limit(STDERR_FILENO, &rights) < 0 && errno != ENOSYS) ||
+	    (cap_ioctls_limit(STDERR_FILENO, &cmd, 1) < 0 && errno != ENOSYS))
+		err(1, "unable to limit rights for stdout/stderr");
 	if (cap_enter() < 0 && errno != ENOSYS)
 		err(1, "unable to enter capability mode");
 	e = mmap(NULL, sb.st_size, PROT_READ, MAP_SHARED, fd, 0);
