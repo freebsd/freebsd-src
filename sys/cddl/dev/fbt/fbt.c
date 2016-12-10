@@ -127,6 +127,15 @@ fbt_excluded(const char *name)
 	}
 
 	/*
+	 * Lock owner methods may be called from probe context.
+	 */
+	if (strcmp(name, "owner_mtx") == 0 ||
+	    strcmp(name, "owner_rm") == 0 ||
+	    strcmp(name, "owner_rw") == 0 ||
+	    strcmp(name, "owner_sx") == 0)
+		return (1);
+
+	/*
 	 * When DTrace is built into the kernel we need to exclude
 	 * the FBT functions from instrumentation.
 	 */
