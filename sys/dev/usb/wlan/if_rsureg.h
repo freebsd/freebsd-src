@@ -51,6 +51,9 @@
 #define R92S_MACID		(R92S_MACIDSETTING + 0x000)
 #define R92S_MAR		(R92S_MACIDSETTING + 0x010)
 
+#define R92S_TIMECTRL		0x0080
+#define R92S_TSFTR		(R92S_TIMECTRL + 0x000)
+
 #define R92S_SECURITY		0x0240
 #define R92S_CAMCMD		(R92S_SECURITY + 0x000)
 #define R92S_CAMWRITE		(R92S_SECURITY + 0x004)
@@ -592,7 +595,7 @@ struct r92s_rx_stat {
 #define R92S_RXDW3_HTC		0x00004000
 
 	uint32_t	rxdw4;
-	uint32_t	rxdw5;
+	uint32_t	tsf_low;
 } __packed __aligned(4);
 
 /* Rx PHY descriptor. */
@@ -735,6 +738,7 @@ static const uint8_t rsu_qid2idx_11ep[] =
 
 struct rsu_rx_radiotap_header {
 	struct ieee80211_radiotap_header wr_ihdr;
+	uint64_t	wr_tsft;
 	uint8_t		wr_flags;
 	uint8_t		wr_rate;
 	uint16_t	wr_chan_freq;
@@ -743,7 +747,8 @@ struct rsu_rx_radiotap_header {
 } __packed __aligned(8);
 
 #define RSU_RX_RADIOTAP_PRESENT			\
-	(1 << IEEE80211_RADIOTAP_FLAGS |	\
+	(1 << IEEE80211_RADIOTAP_TSFT |		\
+	 1 << IEEE80211_RADIOTAP_FLAGS |	\
 	 1 << IEEE80211_RADIOTAP_RATE |		\
 	 1 << IEEE80211_RADIOTAP_CHANNEL |	\
 	 1 << IEEE80211_RADIOTAP_DBM_ANTSIGNAL)

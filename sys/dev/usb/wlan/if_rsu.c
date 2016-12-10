@@ -234,6 +234,8 @@ static void	rsu_rx_multi_event(struct rsu_softc *, uint8_t *, int);
 static int8_t	rsu_get_rssi(struct rsu_softc *, int, void *);
 static struct mbuf * rsu_rx_copy_to_mbuf(struct rsu_softc *,
 		    struct r92s_rx_stat *, int);
+static uint32_t	rsu_get_tsf_low(struct rsu_softc *);
+static uint32_t	rsu_get_tsf_high(struct rsu_softc *);
 static struct ieee80211_node * rsu_rx_frame(struct rsu_softc *, struct mbuf *,
 		    int8_t *);
 static struct mbuf * rsu_rx_multi_frame(struct rsu_softc *, uint8_t *, int);
@@ -2223,6 +2225,18 @@ fail:
 	return (NULL);
 }
 
+static uint32_t
+rsu_get_tsf_low(struct rsu_softc *sc)
+{
+	return (rsu_read_4(sc, R92S_TSFTR));
+}
+
+static uint32_t
+rsu_get_tsf_high(struct rsu_softc *sc)
+{
+	return (rsu_read_4(sc, R92S_TSFTR + 4));
+}
+
 static struct ieee80211_node *
 rsu_rx_frame(struct rsu_softc *sc, struct mbuf *m, int8_t *rssi_p)
 {
@@ -2254,6 +2268,12 @@ rsu_rx_frame(struct rsu_softc *sc, struct mbuf *m, int8_t *rssi_p)
 
 		/* Map HW rate index to 802.11 rate. */
 		tap->wr_flags = 0;		/* TODO */
+		tap->wr_tsft = rsu_get_tsf_high(sc);
+		if (le32toh(stat->tsf_low) > rsu_get_tsf_low(sc))
+			tap->wr_tsft--;
+		tap->wr_tsft = (uint64_t)htole32(tap->wr_tsft) << 32;
+		tap->wr_tsft += stat->tsf_low;
+
 		if (rate < 12) {
 			switch (rate) {
 			/* CCK. */
