@@ -68,22 +68,22 @@
  * leaf nodes count.
  */
 typedef struct {
-	int		symbol_size;	/* Size of the symbol table */
-	int		treelevels;	/* Levels for the huffman tree */
+	int	symbol_size;		/* Size of the symbol table */
+	int	treelevels;		/* Levels for the huffman tree */
 
-	int		*symbolsin;	/* Table of leaf symbols count in
-					   each level */
-	int		*inodesin;	/* Table of internal nodes count in
-					   each level */
+	int    *symbolsin;		/* Table of leaf symbols count in each
+					 * level */
+	int    *inodesin;		/* Table of internal nodes count in
+					 * each level */
 
-	char		*symbol;	/* The symbol table */
-	char		*symbol_eob;	/* Pointer to the EOB symbol */
-	char		**tree;		/* Decoding huffman tree (pointers to
-					   first symbol of each tree level */
+	char   *symbol;			/* The symbol table */
+	char   *symbol_eob;		/* Pointer to the EOB symbol */
+	char  **tree;			/* Decoding huffman tree (pointers to
+					 * first symbol of each tree level */
 
-	off_t		uncompressed_size; /* Uncompressed size */
-	FILE		*fpIn;		/* Input stream */
-	FILE		*fpOut;		/* Output stream */
+	off_t	uncompressed_size;	/* Uncompressed size */
+	FILE   *fpIn;			/* Input stream */
+	FILE   *fpOut;			/* Output stream */
 } unpack_descriptor_t;
 
 /*
@@ -122,7 +122,7 @@ unpackd_fill_inodesin(const unpack_descriptor_t *unpackd, int level)
 	if (level < unpackd->treelevels) {
 		unpackd_fill_inodesin(unpackd, level + 1);
 		unpackd->inodesin[level] = (unpackd->inodesin[level + 1] +
-					  unpackd->symbolsin[level + 1]) / 2;
+		    unpackd->symbolsin[level + 1]) / 2;
 	} else
 		unpackd->inodesin[level] = 0;
 }
@@ -163,7 +163,7 @@ unpack_parse_header(int in, int out, char *pre, size_t prelen, off_t *bytes_in,
 
 	accepted_bytes(bytes_in, PACK_HEADER_LENGTH);
 
-	/* Obtain uncompressed length (bytes 2,3,4,5)*/
+	/* Obtain uncompressed length (bytes 2,3,4,5) */
 	unpackd->uncompressed_size = 0;
 	for (i = 2; i <= 5; i++) {
 		unpackd->uncompressed_size <<= 8;
@@ -187,7 +187,7 @@ unpack_parse_header(int in, int out, char *pre, size_t prelen, off_t *bytes_in,
 	unpackd->symbolsin =
 	    calloc(unpackd->treelevels, sizeof(*(unpackd->symbolsin)));
 	unpackd->tree =
-	    calloc(unpackd->treelevels, (sizeof (*(unpackd->tree))));
+	    calloc(unpackd->treelevels, (sizeof(*(unpackd->tree))));
 	if (unpackd->inodesin == NULL || unpackd->symbolsin == NULL ||
 	    unpackd->tree == NULL)
 		maybe_err("calloc");
@@ -196,7 +196,7 @@ unpack_parse_header(int in, int out, char *pre, size_t prelen, off_t *bytes_in,
 	unpackd->treelevels--;
 
 	/* Read the levels symbol count table and calculate total */
-	unpackd->symbol_size = 1;		/* EOB */
+	unpackd->symbol_size = 1;	/* EOB */
 	for (i = 0; i <= unpackd->treelevels; i++) {
 		if ((thisbyte = fgetc(unpackd->fpIn)) == EOF)
 			maybe_err("File appears to be truncated");
@@ -310,7 +310,7 @@ finished:
 static off_t
 unpack(int in, int out, char *pre, size_t prelen, off_t *bytes_in)
 {
-	unpack_descriptor_t	unpackd;
+	unpack_descriptor_t unpackd;
 
 	in = dup(in);
 	if (in == -1)
@@ -326,4 +326,3 @@ unpack(int in, int out, char *pre, size_t prelen, off_t *bytes_in)
 	/* If we reached here, the unpack was successful */
 	return (unpackd.uncompressed_size);
 }
-
