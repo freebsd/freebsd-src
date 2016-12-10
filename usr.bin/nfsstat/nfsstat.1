@@ -28,7 +28,7 @@
 .\"     From: @(#)nfsstat.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd August 13, 2016
+.Dd November 23, 2016
 .Dt NFSSTAT 1
 .Os
 .Sh NAME
@@ -38,7 +38,7 @@
 statistics
 .Sh SYNOPSIS
 .Nm
-.Op Fl cdemszW
+.Op Fl cdEemszW
 .Op Fl M Ar core
 .Op Fl N Ar system
 .Op Fl w Ar wait
@@ -82,6 +82,16 @@ will increase by more than the measurement interval.
 .It Fl e
 Report the extra statistics collected by the NFS client and
 server for NFSv4.
+.It Fl E
+Similar to
+.Fl e
+except that the statistics include NFSv4.1 and the numbers aren't clipped
+at one billion.
+Only one of
+.Fl e
+or
+.Fl E
+can be specified.
 .It Fl M
 Extract values associated with the name list from the specified core
 instead of the default
