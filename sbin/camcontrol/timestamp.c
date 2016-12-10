@@ -336,11 +336,6 @@ timestamp(struct cam_device *device, int argc, char **argv, char *combinedopt,
 	int single_arg = 0;
 	int do_utc = 0;
 
-#define	FREE(x)	do {	\
-	free(x);	\
-	x = NULL;	\
-} while(0)
-
 	while ((c = getopt(argc, argv, combinedopt)) != -1) {
 		switch (c) {
 		case 'r': {
@@ -363,7 +358,7 @@ timestamp(struct cam_device *device, int argc, char **argv, char *combinedopt,
 		}
 		case 'f': {
 			single_arg++;
-			FREE(format_string);
+			free(format_string);
 			format_string = strdup(optarg);
 			if (format_string == NULL) {
 				warn("Error allocating memory for format "
@@ -375,7 +370,7 @@ timestamp(struct cam_device *device, int argc, char **argv, char *combinedopt,
 		}
 		case 'm': {
 			single_arg++;
-			FREE(format_string);
+			free(format_string);
 			format_string = strdup(MIL);
 			if (format_string == NULL) {
 				warn("Error allocating memory");
@@ -389,7 +384,7 @@ timestamp(struct cam_device *device, int argc, char **argv, char *combinedopt,
 			break;
 		}
 		case 'T':
-			FREE(timestamp_string);
+			free(timestamp_string);
 			timestamp_string = strdup(optarg);
 			if (timestamp_string == NULL) {
 				warn("Error allocating memory for format "
@@ -402,8 +397,6 @@ timestamp(struct cam_device *device, int argc, char **argv, char *combinedopt,
 			break;
 		}
 	}
-
-#undef FREE
 
 	if (action == -1) {
 		warnx("Must specify an action, either -r or -s");
