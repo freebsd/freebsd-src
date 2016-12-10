@@ -649,6 +649,13 @@ OLD_FILES+=usr/share/man/man8/zfsboot.8.gz
 OLD_FILES+=usr/share/man/man8/zfsloader.8.gz
 .endif
 
+.if ${MK_BOOTPARAMD} == no
+OLD_FILES+=usr/sbin/bootparamd
+OLD_FILES+=usr/share/man/man5/bootparams.5.gz
+OLD_FILES+=usr/share/man/man8/bootparamd.8.gz
+OLD_FILES+=usr/sbin/callbootd
+.endif
+
 .if ${MK_BSD_CPIO} == no
 OLD_FILES+=usr/bin/bsdcpio
 OLD_FILES+=usr/bin/cpio
