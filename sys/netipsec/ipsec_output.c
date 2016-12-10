@@ -171,17 +171,7 @@ next:
 		}
 		return (NULL);
 	}
-	/*
-	 * Sanity check the SA content for the caller
-	 * before they invoke the xform output method.
-	 */
-	if (sav->tdb_xform == NULL) {
-		DPRINTF(("%s: no transform for SA\n", __func__));
-		IPSEC_OSTAT_INC(isr->saidx.proto, noxform);
-		key_freesav(&sav);
-		*error = EHOSTUNREACH;
-		return (NULL);
-	}
+	IPSEC_ASSERT(sav->tdb_xform != NULL, ("SA with NULL tdb_xform"));
 	return (sav);
 }
 
@@ -403,17 +393,7 @@ next:
 		}
 		return (NULL);
 	}
-	/*
-	 * Sanity check the SA content for the caller
-	 * before they invoke the xform output method.
-	 */
-	if (sav->tdb_xform == NULL) {
-		DPRINTF(("%s: no transform for SA\n", __func__));
-		IPSEC_OSTAT_INC(isr->saidx.proto, noxform);
-		key_freesav(&sav);
-		*error = EHOSTUNREACH;
-		return (NULL);
-	}
+	IPSEC_ASSERT(sav->tdb_xform != NULL, ("SA with NULL tdb_xform"));
 	return (sav);
 }
 
