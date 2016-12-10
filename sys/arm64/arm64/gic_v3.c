@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 
 #include "pic_if.h"
 
+#include <arm/arm/gic_common.h>
 #include "gic_v3_reg.h"
 #include "gic_v3_var.h"
 
@@ -296,6 +297,13 @@ gic_v3_attach(device_t dev)
 		}
 	}
 
+	/*
+	 * Read the Peripheral ID2 register. This is an implementation
+	 * defined register, but seems to be implemented in all GICv3
+	 * parts and Linux expects it to be there.
+	 */
+	sc->gic_pidr2 = gic_d_read(sc, 4, GICD_PIDR2);
+
 	/* Get the number of supported interrupt identifier bits */
 	sc->gic_idbits = GICD_TYPER_IDBITS(typer);
 
@@ -356,6 +364,21 @@ gic_v3_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 	case GICV3_IVAR_REDIST_VADDR:
 		*result = (uintptr_t)rman_get_virtual(
 		    sc->gic_redists.pcpu[PCPU_GET(cpuid)]);
+		return (0);
+	case GIC_IVAR_HW_REV:
+		KASSERT(
+		    GICR_PIDR2_ARCH(sc->gic_pidr2) == GICR_PIDR2_ARCH_GICv3 ||
+		    GICR_PIDR2_ARCH(sc->gic_pidr2) == GICR_PIDR2_ARCH_GICv4,
+		    ("gic_v3_read_ivar: Invalid GIC architecture: %d (%.08X)",
+		     GICR_PIDR2_ARCH(sc->gic_pidr2), sc->gic_pidr2));
+		*result = GICR_PIDR2_ARCH(sc->gic_pidr2);
+		return (0);
+	case GIC_IVAR_BUS:
+		KASSERT(sc->gic_bus != GIC_BUS_UNKNOWN,
+		    ("gic_v3_read_ivar: Unknown bus type"));
+		KASSERT(sc->gic_bus <= GIC_BUS_MAX,
+		    ("gic_v3_read_ivar: Invalid bus type %u", sc->gic_bus));
+		*result = sc->gic_bus;
 		return (0);
 	}
 
@@ -1100,7 +1123,7 @@ gic_v3_redist_find(struct gic_v3_softc *sc)
 		r_bsh = rman_get_bushandle(&r_res);
 
 		pidr2 = bus_read_4(&r_res, GICR_PIDR2);
-		switch (pidr2 & GICR_PIDR2_ARCH_MASK) {
+		switch (GICR_PIDR2_ARCH(pidr2)) {
 		case GICR_PIDR2_ARCH_GICv3: /* fall through */
 		case GICR_PIDR2_ARCH_GICv4:
 			break;

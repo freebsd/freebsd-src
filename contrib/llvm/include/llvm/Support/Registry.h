@@ -14,9 +14,10 @@
 #ifndef LLVM_SUPPORT_REGISTRY_H
 #define LLVM_SUPPORT_REGISTRY_H
 
-#include "llvm/ADT/iterator_range.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/iterator_range.h"
 #include "llvm/Support/Compiler.h"
+#include "llvm/Support/DynamicLibrary.h"
 #include <memory>
 
 namespace llvm {
@@ -37,68 +38,44 @@ namespace llvm {
     std::unique_ptr<T> instantiate() const { return Ctor(); }
   };
 
-  /// Traits for registry entries. If using other than SimpleRegistryEntry, it
-  /// is necessary to define an alternate traits class.
-  template <typename T>
-  class RegistryTraits {
-    RegistryTraits() = delete;
-
-  public:
-    typedef SimpleRegistryEntry<T> entry;
-
-    /// nameof/descof - Accessors for name and description of entries. These are
-    //                  used to generate help for command-line options.
-    static const char *nameof(const entry &Entry) { return Entry.getName(); }
-    static const char *descof(const entry &Entry) { return Entry.getDesc(); }
-  };
-
   /// A global registry used in conjunction with static constructors to make
   /// pluggable components (like targets or garbage collectors) "just work" when
   /// linked with an executable.
-  template <typename T, typename U = RegistryTraits<T> >
+  template <typename T>
   class Registry {
   public:
-    typedef U traits;
-    typedef typename U::entry entry;
+    typedef SimpleRegistryEntry<T> entry;
 
     class node;
-    class listener;
     class iterator;
 
   private:
     Registry() = delete;
 
-    static void Announce(const entry &E) {
-      for (listener *Cur = ListenerHead; Cur; Cur = Cur->Next)
-        Cur->registered(E);
-    }
-
     friend class node;
     static node *Head, *Tail;
-
-    friend class listener;
-    static listener *ListenerHead, *ListenerTail;
 
   public:
     /// Node in linked list of entries.
     ///
     class node {
       friend class iterator;
+      friend Registry<T>;
 
       node *Next;
       const entry& Val;
 
     public:
-      node(const entry& V) : Next(nullptr), Val(V) {
-        if (Tail)
-          Tail->Next = this;
-        else
-          Head = this;
-        Tail = this;
-
-        Announce(V);
-      }
+      node(const entry &V) : Next(nullptr), Val(V) {}
     };
+
+    static void add_node(node *N) {
+      if (Tail)
+        Tail->Next = N;
+      else
+        Head = N;
+      Tail = N;
+    }
 
     /// Iterators for registry entries.
     ///
@@ -122,60 +99,6 @@ namespace llvm {
       return make_range(begin(), end());
     }
 
-    /// Abstract base class for registry listeners, which are informed when new
-    /// entries are added to the registry. Simply subclass and instantiate:
-    ///
-    /// \code
-    ///   class CollectorPrinter : public Registry<Collector>::listener {
-    ///   protected:
-    ///     void registered(const Registry<Collector>::entry &e) {
-    ///       cerr << "collector now available: " << e->getName() << "\n";
-    ///     }
-    ///
-    ///   public:
-    ///     CollectorPrinter() { init(); }  // Print those already registered.
-    ///   };
-    ///
-    ///   CollectorPrinter Printer;
-    /// \endcode
-    class listener {
-      listener *Prev, *Next;
-
-      friend void Registry::Announce(const entry &E);
-
-    protected:
-      /// Called when an entry is added to the registry.
-      ///
-      virtual void registered(const entry &) = 0;
-
-      /// Calls 'registered' for each pre-existing entry.
-      ///
-      void init() {
-        for (iterator I = begin(), E = end(); I != E; ++I)
-          registered(*I);
-      }
-
-    public:
-      listener() : Prev(ListenerTail), Next(nullptr) {
-        if (Prev)
-          Prev->Next = this;
-        else
-          ListenerHead = this;
-        ListenerTail = this;
-      }
-
-      virtual ~listener() {
-        if (Next)
-          Next->Prev = Prev;
-        else
-          ListenerTail = Prev;
-        if (Prev)
-          Prev->Next = Next;
-        else
-          ListenerHead = Next;
-      }
-    };
-
     /// A static registration template. Use like such:
     ///
     ///   Registry<Collector>::Add<FancyGC>
@@ -184,14 +107,6 @@ namespace llvm {
     /// Use of this template requires that:
     ///
     ///  1. The registered subclass has a default constructor.
-    //
-    ///  2. The registry entry type has a constructor compatible with this
-    ///     signature:
-    ///
-    ///       entry(const char *Name, const char *ShortDesc, T *(*Ctor)());
-    ///
-    /// If you have more elaborate requirements, then copy and modify.
-    ///
     template <typename V>
     class Add {
       entry Entry;
@@ -201,27 +116,65 @@ namespace llvm {
 
     public:
       Add(const char *Name, const char *Desc)
-        : Entry(Name, Desc, CtorFn), Node(Entry) {}
+          : Entry(Name, Desc, CtorFn), Node(Entry) {
+        add_node(&Node);
+      }
     };
 
-    /// Registry::Parser now lives in llvm/Support/RegistryParser.h.
+    /// A dynamic import facility.  This is used on Windows to
+    /// import the entries added in the plugin.
+    static void import(sys::DynamicLibrary &DL, const char *RegistryName) {
+      typedef void *(*GetRegistry)();
+      std::string Name("LLVMGetRegistry_");
+      Name.append(RegistryName);
+      GetRegistry Getter =
+          (GetRegistry)(intptr_t)DL.getAddressOfSymbol(Name.c_str());
+      if (Getter) {
+        // Call the getter function in order to get the full copy of the
+        // registry defined in the plugin DLL, and copy them over to the
+        // current Registry.
+        typedef std::pair<const node *, const node *> Info;
+        Info *I = static_cast<Info *>(Getter());
+        iterator begin(I->first);
+        iterator end(I->second);
+        for (++end; begin != end; ++begin) {
+          // This Node object needs to remain alive for the
+          // duration of the program.
+          add_node(new node(*begin));
+        }
+      }
+    }
+
+    /// Retrieve the data to be passed across DLL boundaries when
+    /// importing registries from another DLL on Windows.
+    static void *exportRegistry() {
+      static std::pair<const node *, const node *> Info(Head, Tail);
+      return &Info;
+    }
   };
 
+  
   // Since these are defined in a header file, plugins must be sure to export
   // these symbols.
+  template <typename T>
+  typename Registry<T>::node *Registry<T>::Head;
 
-  template <typename T, typename U>
-  typename Registry<T,U>::node *Registry<T,U>::Head;
-
-  template <typename T, typename U>
-  typename Registry<T,U>::node *Registry<T,U>::Tail;
-
-  template <typename T, typename U>
-  typename Registry<T,U>::listener *Registry<T,U>::ListenerHead;
-
-  template <typename T, typename U>
-  typename Registry<T,U>::listener *Registry<T,U>::ListenerTail;
-
+  template <typename T>
+  typename Registry<T>::node *Registry<T>::Tail;
 } // end namespace llvm
+
+#ifdef LLVM_ON_WIN32
+#define LLVM_EXPORT_REGISTRY(REGISTRY_CLASS)                                   \
+  extern "C" {                                                                 \
+  __declspec(dllexport) void *__cdecl LLVMGetRegistry_##REGISTRY_CLASS() {     \
+    return REGISTRY_CLASS::exportRegistry();                                   \
+  }                                                                            \
+  }
+#define LLVM_IMPORT_REGISTRY(REGISTRY_CLASS, DL)                               \
+  REGISTRY_CLASS::import(DL, #REGISTRY_CLASS)
+#else
+#define LLVM_EXPORT_REGISTRY(REGISTRY_CLASS)
+#define LLVM_IMPORT_REGISTRY(REGISTRY_CLASS, DL)
+#endif
 
 #endif // LLVM_SUPPORT_REGISTRY_H

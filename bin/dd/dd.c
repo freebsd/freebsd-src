@@ -47,8 +47,8 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/stat.h>
-#include <sys/conf.h>
 #include <sys/capsicum.h>
+#include <sys/conf.h>
 #include <sys/disklabel.h>
 #include <sys/filio.h>
 #include <sys/mtio.h>
@@ -155,7 +155,7 @@ setup(void)
 	if (files_cnt > 1 && !(in.flags & ISTAPE))
 		errx(1, "files is not supported for non-tape devices");
 
-	cap_rights_set(&rights, CAP_WRITE, CAP_FTRUNCATE, CAP_IOCTL);
+	cap_rights_set(&rights, CAP_FTRUNCATE, CAP_IOCTL, CAP_WRITE);
 	if (out.name == NULL) {
 		/* No way to check for read access here. */
 		out.fd = STDOUT_FILENO;

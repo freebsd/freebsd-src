@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 #include <dev/pci/pci_host_generic.h>
+#include <dev/pci/pci_host_generic_fdt.h>
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 
@@ -79,7 +80,7 @@ static device_method_t al_pcib_methods[] = {
 };
 
 DEFINE_CLASS_1(pcib, al_pcib_driver, al_pcib_methods,
-    sizeof(struct generic_pcie_softc), generic_pcie_driver);
+    sizeof(struct generic_pcie_fdt_softc), generic_pcie_fdt_driver);
 
 static devclass_t anpa_pcib_devclass;
 

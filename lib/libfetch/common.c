@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998-2014 Dag-Erling Smørgrav
+ * Copyright (c) 1998-2016 Dag-Erling Smørgrav
  * Copyright (c) 2013 Michael Gmelin <freebsd@grem.de>
  * All rights reserved.
  *
@@ -241,27 +241,79 @@ fetch_ref(conn_t *conn)
 
 
 /*
+ * Resolve an address
+ */
+struct addrinfo *
+fetch_resolve(const char *addr, int port, int af)
+{
+	char hbuf[256], sbuf[8];
+	struct addrinfo hints, *res;
+	const char *sep, *host, *service;
+	int err, len;
+
+	/* split address if necessary */
+	err = EAI_SYSTEM;
+	if ((sep = strchr(addr, ':')) != NULL) {
+		len = snprintf(hbuf, sizeof(hbuf),
+		    "%.*s", (int)(sep - addr), addr);
+		if (len < 0)
+			return (NULL);
+		if (len >= (int)sizeof(hbuf)) {
+			errno = ENAMETOOLONG;
+			fetch_syserr();
+			return (NULL);
+		}
+		host = hbuf;
+		service = sep + 1;
+	} else if (port != 0) {
+		if (port < 1 || port > 65535) {
+			errno = EINVAL;
+			fetch_syserr();
+			return (NULL);
+		}
+		if (snprintf(sbuf, sizeof(sbuf), "%d", port) < 0) {
+			fetch_syserr();
+			return (NULL);
+		}
+		host = addr;
+		service = sbuf;
+	} else {
+		host = addr;
+		service = NULL;
+	}
+
+	/* resolve */
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = af;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_flags = AI_ADDRCONFIG;
+	if ((err = getaddrinfo(host, service, &hints, &res)) != 0) {
+		netdb_seterr(err);
+		return (NULL);
+	}
+	return (res);
+}
+
+
+
+/*
  * Bind a socket to a specific local address
  */
 int
 fetch_bind(int sd, int af, const char *addr)
 {
-	struct addrinfo hints, *res, *res0;
+	struct addrinfo *cliai, *ai;
 	int err;
 
-	memset(&hints, 0, sizeof(hints));
-	hints.ai_family = af;
-	hints.ai_socktype = SOCK_STREAM;
-	hints.ai_protocol = 0;
-	if ((err = getaddrinfo(addr, NULL, &hints, &res0)) != 0)
+	if ((cliai = fetch_resolve(addr, 0, af)) == NULL)
 		return (-1);
-	for (res = res0; res; res = res->ai_next)
-		if (bind(sd, res->ai_addr, res->ai_addrlen) == 0) {
-			freeaddrinfo(res0);
-			return (0);
-		}
-	freeaddrinfo(res0);
-	return (-1);
+	for (ai = cliai; ai != NULL; ai = ai->ai_next)
+		if ((err = bind(sd, ai->ai_addr, ai->ai_addrlen)) == 0)
+			break;
+	if (err != 0)
+		fetch_syserr();
+	freeaddrinfo(cliai);
+	return (err == 0 ? 0 : -1);
 }
 
 
@@ -271,59 +323,76 @@ fetch_bind(int sd, int af, const char *addr)
 conn_t *
 fetch_connect(const char *host, int port, int af, int verbose)
 {
-	conn_t *conn;
-	char pbuf[10];
+	struct addrinfo *cais = NULL, *sais = NULL, *cai, *sai;
 	const char *bindaddr;
-	struct addrinfo hints, *res, *res0;
-	int sd, err;
+	conn_t *conn = NULL;
+	int err = 0, sd = -1;
 
 	DEBUG(fprintf(stderr, "---> %s:%d\n", host, port));
 
+	/* resolve server address */
 	if (verbose)
-		fetch_info("looking up %s", host);
+		fetch_info("resolving server address: %s:%d", host, port);
+	if ((sais = fetch_resolve(host, port, af)) == NULL)
+		goto fail;
 
-	/* look up host name and set up socket address structure */
-	snprintf(pbuf, sizeof(pbuf), "%d", port);
-	memset(&hints, 0, sizeof(hints));
-	hints.ai_family = af;
-	hints.ai_socktype = SOCK_STREAM;
-	hints.ai_protocol = 0;
-	if ((err = getaddrinfo(host, pbuf, &hints, &res0)) != 0) {
-		netdb_seterr(err);
-		return (NULL);
-	}
+	/* resolve client address */
 	bindaddr = getenv("FETCH_BIND_ADDRESS");
+	if (bindaddr != NULL && *bindaddr != '\0') {
+		if (verbose)
+			fetch_info("resolving client address: %s", bindaddr);
+		if ((cais = fetch_resolve(bindaddr, 0, af)) == NULL)
+			goto fail;
+	}
 
-	if (verbose)
-		fetch_info("connecting to %s:%d", host, port);
-
-	/* try to connect */
-	for (sd = -1, res = res0; res; sd = -1, res = res->ai_next) {
-		if ((sd = socket(res->ai_family, res->ai_socktype,
-			 res->ai_protocol)) == -1)
-			continue;
-		if (bindaddr != NULL && *bindaddr != '\0' &&
-		    fetch_bind(sd, res->ai_family, bindaddr) != 0) {
-			fetch_info("failed to bind to '%s'", bindaddr);
-			close(sd);
-			continue;
+	/* try each server address in turn */
+	for (err = 0, sai = sais; sai != NULL; sai = sai->ai_next) {
+		/* open socket */
+		if ((sd = socket(sai->ai_family, SOCK_STREAM, 0)) < 0)
+			goto syserr;
+		/* attempt to bind to client address */
+		for (err = 0, cai = cais; cai != NULL; cai = cai->ai_next) {
+			if (cai->ai_family != sai->ai_family)
+				continue;
+			if ((err = bind(sd, cai->ai_addr, cai->ai_addrlen)) == 0)
+				break;
 		}
-		if (connect(sd, res->ai_addr, res->ai_addrlen) == 0 &&
-		    fcntl(sd, F_SETFL, O_NONBLOCK) == 0)
+		if (err != 0) {
+			if (verbose)
+				fetch_info("failed to bind to %s", bindaddr);
+			goto syserr;
+		}
+		/* attempt to connect to server address */
+		if ((err = connect(sd, sai->ai_addr, sai->ai_addrlen)) == 0)
 			break;
+		/* clean up before next attempt */
 		close(sd);
+		sd = -1;
 	}
-	freeaddrinfo(res0);
-	if (sd == -1) {
-		fetch_syserr();
-		return (NULL);
+	if (err != 0) {
+		if (verbose)
+			fetch_info("failed to connect to %s:%s", host, port);
+		goto syserr;
 	}
 
-	if ((conn = fetch_reopen(sd)) == NULL) {
-		fetch_syserr();
-		close(sd);
-	}
+	if ((conn = fetch_reopen(sd)) == NULL)
+		goto syserr;
+	if (cais != NULL)
+		freeaddrinfo(cais);
+	if (sais != NULL)
+		freeaddrinfo(sais);
 	return (conn);
+syserr:
+	fetch_syserr();
+	goto fail;
+fail:
+	if (sd >= 0)
+		close(sd);
+	if (cais != NULL)
+		freeaddrinfo(cais);
+	if (sais != NULL)
+		freeaddrinfo(sais);
+	return (NULL);
 }
 
 #ifdef WITH_SSL

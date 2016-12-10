@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include "pci_emul.h"
 #include "virtio.h"
 #include "mevent.h"
+#include "sockstream.h"
 
 #define	VTCON_RINGSZ	64
 #define	VTCON_MAXPORTS	16
@@ -90,6 +91,7 @@ struct pci_vtcon_port {
 	bool                     vsp_enabled;
 	bool                     vsp_console;
 	bool                     vsp_rx_ready;
+	bool                     vsp_open;
 	int                      vsp_rxq;
 	int                      vsp_txq;
 	void *                   vsp_arg;
@@ -116,6 +118,7 @@ struct pci_vtcon_softc {
 	char *                   vsc_rootdir;
 	int                      vsc_kq;
 	int                      vsc_nports;
+	bool                     vsc_ready;
 	struct pci_vtcon_port    vsc_control_port;
  	struct pci_vtcon_port    vsc_ports[VTCON_MAXPORTS];
 	struct pci_vtcon_config *vsc_config;
@@ -359,6 +362,7 @@ pci_vtcon_sock_accept(int fd __unused, enum ev_type t __unused, void *arg)
 	sock->vss_open = true;
 	sock->vss_conn_fd = s;
 	sock->vss_conn_evp = mevent_add(s, EVF_READ, pci_vtcon_sock_rx, sock);
+
 	pci_vtcon_open_port(sock->vss_port, true);
 }
 
@@ -422,16 +426,21 @@ pci_vtcon_sock_tx(struct pci_vtcon_port *port, void *arg, struct iovec *iov,
     int niov)
 {
 	struct pci_vtcon_sock *sock;
-	int ret;
+	int i, ret;
 
 	sock = (struct pci_vtcon_sock *)arg;
 
 	if (sock->vss_conn_fd == -1)
 		return;
 
-	ret = writev(sock->vss_conn_fd, iov, niov);
+	for (i = 0; i < niov; i++) {
+		ret = stream_write(sock->vss_conn_fd, iov[i].iov_base,
+		    iov[i].iov_len);
+		if (ret <= 0)
+			break;
+	}
 
-	if (ret < 0 && errno != EWOULDBLOCK) {
+	if (ret <= 0) {
 		mevent_delete_close(sock->vss_conn_evp);
 		sock->vss_conn_fd = -1;
 		sock->vss_open = false;
@@ -454,11 +463,15 @@ pci_vtcon_control_tx(struct pci_vtcon_port *port, void *arg, struct iovec *iov,
 
 	switch (ctrl->event) {
 	case VTCON_DEVICE_READY:
+		sc->vsc_ready = true;
 		/* set port ready events for registered ports */
 		for (i = 0; i < VTCON_MAXPORTS; i++) {
 			tmp = &sc->vsc_ports[i];
 			if (tmp->vsp_enabled)
 				pci_vtcon_announce_port(tmp);
+
+			if (tmp->vsp_open)
+				pci_vtcon_open_port(tmp, true);
 		}
 		break;
 
@@ -499,6 +512,11 @@ static void
 pci_vtcon_open_port(struct pci_vtcon_port *port, bool open)
 {
 	struct pci_vtcon_control event;
+
+	if (!port->vsp_sc->vsc_ready) {
+		port->vsp_open = true;
+		return;
+	}
 
 	event.id = port->vsp_id;
 	event.event = VTCON_PORT_OPEN;

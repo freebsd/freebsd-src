@@ -111,7 +111,7 @@ bwn_attach(device_t dev)
 	// TODO
 	uint8_t	macaddr[6];
 	error = bhnd_nvram_getvar_array(dev, BHND_NVAR_MACADDR, macaddr,
-	    sizeof(macaddr), BHND_NVRAM_TYPE_UINT8);
+	    sizeof(macaddr), BHND_NVRAM_TYPE_UINT8_ARRAY);
 	if (error)
 		device_printf(dev, "error fetching macaddr: %d\n", error);
 	else

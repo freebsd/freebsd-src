@@ -5,7 +5,8 @@
 PACKAGE=lib${LIB}
 LIB=	proc
 
-SRCS=	proc_bkpt.c		\
+SRCS=	crc32.c			\
+	proc_bkpt.c		\
 	proc_create.c		\
 	proc_regs.c		\
 	proc_sym.c		\
@@ -36,7 +37,7 @@ CFLAGS+=	-I${.CURDIR}/../../cddl/contrib/opensolaris/lib/libctf/common \
 CFLAGS+=	-DNO_CTF
 .endif
 
-SHLIB_MAJOR=	3
+SHLIB_MAJOR=	4
 
 MAN=
 

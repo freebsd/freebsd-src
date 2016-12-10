@@ -128,8 +128,10 @@ struct vmbus_softc {
 	struct mtx		vmbus_chan_lock;
 	TAILQ_HEAD(, vmbus_channel) vmbus_chans;
 
+#ifdef NEW_PCIB
 	/* The list of usable MMIO ranges for PCIe pass-through */
 	struct pcib_host_resources vmbus_mmio_res;
+#endif
 };
 
 #define VMBUS_FLAG_ATTACHED	0x0001	/* vmbus was attached */
@@ -155,8 +157,13 @@ void		vmbus_msghc_put(struct vmbus_softc *, struct vmbus_msghc *);
 void		*vmbus_msghc_dataptr(struct vmbus_msghc *);
 int		vmbus_msghc_exec_noresult(struct vmbus_msghc *);
 int		vmbus_msghc_exec(struct vmbus_softc *, struct vmbus_msghc *);
+void		vmbus_msghc_exec_cancel(struct vmbus_softc *,
+		    struct vmbus_msghc *);
 const struct vmbus_message *
 		vmbus_msghc_wait_result(struct vmbus_softc *,
+		    struct vmbus_msghc *);
+const struct vmbus_message *
+		vmbus_msghc_poll_result(struct vmbus_softc *,
 		    struct vmbus_msghc *);
 void		vmbus_msghc_wakeup(struct vmbus_softc *,
 		    const struct vmbus_message *);

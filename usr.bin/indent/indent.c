@@ -335,8 +335,10 @@ main(int argc, char **argv)
 	    switch (type_code) {
 	    case newline:
 		++line_no;
-		if (sc_end != NULL)
-		    goto sw_buffer;	/* dump comment, if any */
+		if (sc_end != NULL) {	/* dump comment, if any */
+		    *sc_end++ = '\n';	/* newlines are needed in this case */
+		    goto sw_buffer;
+		}
 		flushed_nl = true;
 	    case form_feed:
 		break;		/* form feeds and newlines found here will be
@@ -918,8 +920,11 @@ check_type:
 	    }
 	    goto copy_id;	/* move the token into line */
 
-	case decl:		/* we have a declaration type (int, register,
-				 * etc.) */
+	case storage:
+	    prefix_blankline_requested = 0;
+	    goto copy_id;
+
+	case decl:		/* we have a declaration type (int, etc.) */
 	    parse(decl);	/* let parser worry about indentation */
 	    if (ps.last_token == rparen && ps.tos <= 1) {
 		ps.in_parameter_declaration = 1;
@@ -1002,6 +1007,16 @@ check_type:
 		    *e_code++ = *t_ptr;
 		}
 	    ps.want_blank = true;
+	    break;
+
+	case strpfx:
+	    if (ps.want_blank)
+		*e_code++ = ' ';
+	    for (t_ptr = token; *t_ptr; ++t_ptr) {
+		CHECK_SIZE_CODE;
+		*e_code++ = *t_ptr;
+	    }
+	    ps.want_blank = false;
 	    break;
 
 	case period:		/* treat a period kind of like a binary

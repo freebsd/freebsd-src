@@ -13004,7 +13004,7 @@ EmulateInstructionARM::SetInstruction (const Opcode &insn_opcode, const Address 
 {
     if (EmulateInstruction::SetInstruction (insn_opcode, inst_addr, target))
     {
-        if (m_arch.GetTriple().getArch() == llvm::Triple::thumb)
+        if (m_arch.GetTriple().getArch() == llvm::Triple::thumb || m_arch.IsAlwaysThumbInstructions ())
             m_opcode_mode = eModeThumb;
         else
         {
@@ -13017,7 +13017,7 @@ EmulateInstructionARM::SetInstruction (const Opcode &insn_opcode, const Address 
             else
                 return false;
         }
-        if (m_opcode_mode == eModeThumb)
+        if (m_opcode_mode == eModeThumb || m_arch.IsAlwaysThumbInstructions ())
             m_opcode_cpsr = CPSR_MODE_USR | MASK_CPSR_T;
         else
             m_opcode_cpsr = CPSR_MODE_USR;
@@ -13040,7 +13040,7 @@ EmulateInstructionARM::ReadInstruction ()
             read_inst_context.type = eContextReadOpcode;
             read_inst_context.SetNoArgs ();
                   
-            if (m_opcode_cpsr & MASK_CPSR_T)
+            if ((m_opcode_cpsr & MASK_CPSR_T) || m_arch.IsAlwaysThumbInstructions ())
             {
                 m_opcode_mode = eModeThumb;
                 uint32_t thumb_opcode = MemARead(read_inst_context, pc, 2, 0, &success);
@@ -13061,6 +13061,15 @@ EmulateInstructionARM::ReadInstruction ()
             {
                 m_opcode_mode = eModeARM;
                 m_opcode.SetOpcode32 (MemARead(read_inst_context, pc, 4, 0, &success), GetByteOrder());
+            }
+
+            if (!m_ignore_conditions)
+            {
+                // If we are not ignoreing the conditions then init the it session from the current
+                // value of cpsr.
+                uint32_t it = (Bits32(m_opcode_cpsr, 15, 10) << 2) | Bits32(m_opcode_cpsr, 26, 25);
+                if (it != 0)
+                    m_it_session.InitIT(it);
             }
         }
     }
@@ -13572,20 +13581,13 @@ EmulateInstructionARM::WriteFlags (Context &context,
 bool
 EmulateInstructionARM::EvaluateInstruction (uint32_t evaluate_options)
 {
-    // Advance the ITSTATE bits to their values for the next instruction.
-    if (m_opcode_mode == eModeThumb && m_it_session.InITBlock())
-        m_it_session.ITAdvance();
-
     ARMOpcode *opcode_data = NULL;
    
     if (m_opcode_mode == eModeThumb)
         opcode_data = GetThumbOpcodeForInstruction (m_opcode.GetOpcode32(), m_arm_isa);
     else if (m_opcode_mode == eModeARM)
         opcode_data = GetARMOpcodeForInstruction (m_opcode.GetOpcode32(), m_arm_isa);
-        
-    if (opcode_data == NULL)
-        return false;
-    
+
     const bool auto_advance_pc = evaluate_options & eEmulateInstructionOptionAutoAdvancePC;
     m_ignore_conditions = evaluate_options & eEmulateInstructionOptionIgnoreConditions;
                  
@@ -13609,41 +13611,48 @@ EmulateInstructionARM::EvaluateInstruction (uint32_t evaluate_options)
         if (!success)
             return false;
     }
-    
-    // Call the Emulate... function.
-    success = (this->*opcode_data->callback) (m_opcode.GetOpcode32(), opcode_data->encoding);  
-    if (!success)
-        return false;
-        
+
+    // Call the Emulate... function if we managed to decode the opcode.
+    if (opcode_data)
+    {
+        success = (this->*opcode_data->callback) (m_opcode.GetOpcode32(), opcode_data->encoding);  
+        if (!success)
+            return false;
+    }
+
+    // Advance the ITSTATE bits to their values for the next instruction if we haven't just executed
+    // an IT instruction what initialized it.
+    if (m_opcode_mode == eModeThumb && m_it_session.InITBlock() &&
+        (opcode_data == nullptr || opcode_data->callback != &EmulateInstructionARM::EmulateIT))
+        m_it_session.ITAdvance();
+
     if (auto_advance_pc)
     {
         uint32_t after_pc_value = ReadRegisterUnsigned (eRegisterKindDWARF, dwarf_pc, 0, &success);
         if (!success)
             return false;
-            
+
         if (auto_advance_pc && (after_pc_value == orig_pc_value))
         {
-            if (opcode_data->size == eSize32)
-                after_pc_value += 4;
-            else if (opcode_data->size == eSize16)
-                after_pc_value += 2;
-                
+            after_pc_value += m_opcode.GetByteSize();
+
             EmulateInstruction::Context context;
             context.type = eContextAdvancePC;
             context.SetNoArgs();
             if (!WriteRegisterUnsigned (context, eRegisterKindDWARF, dwarf_pc, after_pc_value))
                 return false;
-                
         }
     }
     return true;
 }
 
-bool
-EmulateInstructionARM::IsInstructionConditional()
+EmulateInstruction::InstructionCondition
+EmulateInstructionARM::GetInstructionCondition()
 {
     const uint32_t cond = CurrentCond (m_opcode.GetOpcode32());
-    return cond != 0xe && cond != 0xf && cond != UINT32_MAX;
+    if (cond == 0xe || cond == 0xf || cond == UINT32_MAX)
+        return EmulateInstruction::UnconditionalCondition;
+    return cond;
 }
 
 bool
@@ -13669,19 +13678,19 @@ EmulateInstructionARM::TestEmulation (Stream *out_stream, ArchSpec &arch, Option
     }
     test_opcode = value_sp->GetUInt64Value ();
 
-    if (arch.GetTriple().getArch() == llvm::Triple::arm)
-    {
-        m_opcode_mode = eModeARM;
-        m_opcode.SetOpcode32 (test_opcode, GetByteOrder());
-    }
-    else if (arch.GetTriple().getArch() == llvm::Triple::thumb)
+
+    if (arch.GetTriple().getArch() == llvm::Triple::thumb || arch.IsAlwaysThumbInstructions ())
     {
         m_opcode_mode = eModeThumb;
         if (test_opcode < 0x10000)
-            m_opcode.SetOpcode16 (test_opcode, GetByteOrder());
+            m_opcode.SetOpcode16 (test_opcode, endian::InlHostByteOrder());
         else
-            m_opcode.SetOpcode32 (test_opcode, GetByteOrder());
-
+            m_opcode.SetOpcode32 (test_opcode, endian::InlHostByteOrder());
+    }
+    else if (arch.GetTriple().getArch() == llvm::Triple::arm)
+    {
+        m_opcode_mode = eModeARM;
+        m_opcode.SetOpcode32 (test_opcode, endian::InlHostByteOrder());
     }
     else
     {

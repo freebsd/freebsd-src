@@ -18,14 +18,5 @@ mips/mips/tick.c				standard
 
 dev/etherswitch/e6000sw/e6060sw.c		optional etherswitch
 
-# Hack to reuse ARM intrng code
-kern/subr_intr.c				optional intrng
-kern/msi_if.m					optional intrng
-kern/pic_if.m					optional intrng
-
-# Intrng compatible MIPS32 interrupt controller
-mips/mips/mips_pic.c				optional intrng
-
 # Non Intrng
 mips/mips/intr_machdep.c			optional !intrng
-

@@ -10,11 +10,11 @@
 #ifndef liblldb_CompactUnwindInfo_h_
 #define liblldb_CompactUnwindInfo_h_
 
+#include <mutex>
 #include <vector>
 
 #include "lldb/Core/DataExtractor.h"
 #include "lldb/Core/RangeMap.h"
-#include "lldb/Host/Mutex.h"
 #include "lldb/Symbol/ObjectFile.h"
 #include "lldb/Symbol/UnwindPlan.h"
 #include "lldb/lldb-private.h"
@@ -133,11 +133,17 @@ private:
     bool
     CreateUnwindPlan_i386 (Target &target, FunctionInfo &function_info, UnwindPlan &unwind_plan, Address pc_or_function_start);
 
+    bool
+    CreateUnwindPlan_arm64 (Target &target, FunctionInfo &function_info, UnwindPlan &unwind_plan, Address pc_or_function_start);
+
+    bool
+    CreateUnwindPlan_armv7 (Target &target, FunctionInfo &function_info, UnwindPlan &unwind_plan, Address pc_or_function_start);
+
     ObjectFile                  &m_objfile;
     lldb::SectionSP             m_section_sp;
     lldb::DataBufferSP          m_section_contents_if_encrypted; // if the binary is encrypted, read the sect contents
                                                                  // out of live memory and cache them here
-    Mutex                       m_mutex;
+    std::mutex m_mutex;
     std::vector<UnwindIndex>    m_indexes;
 
     LazyBool                    m_indexes_computed;         // eLazyBoolYes once we've tried to parse the unwind info

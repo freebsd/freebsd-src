@@ -97,6 +97,8 @@ static int			vmbus_probe_guid_method(device_t, device_t,
 				    const struct hyperv_guid *);
 static uint32_t			vmbus_get_vcpu_id_method(device_t bus,
 				    device_t dev, int cpu);
+static struct taskqueue		*vmbus_get_eventtq_method(device_t, device_t,
+				    int);
 
 static int			vmbus_init(struct vmbus_softc *);
 static int			vmbus_connect(struct vmbus_softc *, uint32_t);
@@ -172,6 +174,7 @@ static device_method_t vmbus_methods[] = {
 	DEVMETHOD(vmbus_get_version,		vmbus_get_version_method),
 	DEVMETHOD(vmbus_probe_guid,		vmbus_probe_guid_method),
 	DEVMETHOD(vmbus_get_vcpu_id,		vmbus_get_vcpu_id_method),
+	DEVMETHOD(vmbus_get_event_taskq,	vmbus_get_eventtq_method),
 
 	DEVMETHOD_END
 };
@@ -307,12 +310,27 @@ vmbus_msghc_exec(struct vmbus_softc *sc __unused, struct vmbus_msghc *mh)
 	return error;
 }
 
+void
+vmbus_msghc_exec_cancel(struct vmbus_softc *sc __unused, struct vmbus_msghc *mh)
+{
+
+	vmbus_xact_deactivate(mh->mh_xact);
+}
+
 const struct vmbus_message *
 vmbus_msghc_wait_result(struct vmbus_softc *sc __unused, struct vmbus_msghc *mh)
 {
 	size_t resp_len;
 
 	return (vmbus_xact_wait(mh->mh_xact, &resp_len));
+}
+
+const struct vmbus_message *
+vmbus_msghc_poll_result(struct vmbus_softc *sc __unused, struct vmbus_msghc *mh)
+{
+	size_t resp_len;
+
+	return (vmbus_xact_poll(mh->mh_xact, &resp_len));
 }
 
 void
@@ -325,7 +343,13 @@ vmbus_msghc_wakeup(struct vmbus_softc *sc, const struct vmbus_message *msg)
 uint32_t
 vmbus_gpadl_alloc(struct vmbus_softc *sc)
 {
-	return atomic_fetchadd_int(&sc->vmbus_gpadl, 1);
+	uint32_t gpadl;
+
+again:
+	gpadl = atomic_fetchadd_int(&sc->vmbus_gpadl, 1); 
+	if (gpadl == 0)
+		goto again;
+	return (gpadl);
 }
 
 static int
@@ -1020,16 +1044,21 @@ static struct resource *
 vmbus_alloc_resource(device_t dev, device_t child, int type, int *rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
-	struct vmbus_softc *sc = device_get_softc(dev);
 	device_t parent = device_get_parent(dev);
 	struct resource *res;
 
-	if (type != SYS_RES_MEMORY)
-		res = BUS_ALLOC_RESOURCE(parent, child, type, rid, start,
-		    end, count, flags);
-	else
+#ifdef NEW_PCIB
+	if (type == SYS_RES_MEMORY) {
+		struct vmbus_softc *sc = device_get_softc(dev);
+
 		res = pcib_host_res_alloc(&sc->vmbus_mmio_res, child, type,
 		    rid, start, end, count, flags);
+	} else
+#endif
+	{
+		res = BUS_ALLOC_RESOURCE(parent, child, type, rid, start,
+		    end, count, flags);
+	}
 
 	return (res);
 }
@@ -1100,6 +1129,16 @@ vmbus_get_vcpu_id_method(device_t bus, device_t dev, int cpu)
 	return (VMBUS_PCPU_GET(sc, vcpuid, cpu));
 }
 
+static struct taskqueue *
+vmbus_get_eventtq_method(device_t bus, device_t dev __unused, int cpu)
+{
+	const struct vmbus_softc *sc = device_get_softc(bus);
+
+	KASSERT(cpu >= 0 && cpu < mp_ncpus, ("invalid cpu%d", cpu));
+	return (VMBUS_PCPU_GET(sc, event_tq, cpu));
+}
+
+#ifdef NEW_PCIB
 #define VTPM_BASE_ADDR 0xfed40000
 #define FOUR_GB (1ULL << 32)
 
@@ -1231,6 +1270,7 @@ vmbus_free_mmio_res(device_t dev)
 
 	pcib_host_res_free(dev, &sc->vmbus_mmio_res);
 }
+#endif	/* NEW_PCIB */
 
 static int
 vmbus_probe(device_t dev)
@@ -1269,7 +1309,9 @@ vmbus_doattach(struct vmbus_softc *sc)
 	if (sc->vmbus_flags & VMBUS_FLAG_ATTACHED)
 		return (0);
 
+#ifdef NEW_PCIB
 	vmbus_get_mmio_res(sc->vmbus_dev);
+#endif
 
 	sc->vmbus_flags |= VMBUS_FLAG_ATTACHED;
 
@@ -1417,7 +1459,9 @@ vmbus_detach(device_t dev)
 	mtx_destroy(&sc->vmbus_prichan_lock);
 	mtx_destroy(&sc->vmbus_chan_lock);
 
+#ifdef NEW_PCIB
 	vmbus_free_mmio_res(dev);
+#endif
 
 	return (0);
 }

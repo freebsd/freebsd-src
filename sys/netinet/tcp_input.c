@@ -2176,7 +2176,6 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				case TCPS_LAST_ACK:
 					so->so_error = ECONNRESET;
 				close:
-					tcp_state_change(tp, TCPS_CLOSED);
 					/* FALLTHROUGH */
 				default:
 					tp = tcp_close(tp);
@@ -3327,6 +3326,8 @@ tcp_dropwithreset(struct mbuf *m, struct tcphdr *th, struct tcpcb *tp,
 		    th->th_ack, TH_RST);
 	} else {
 		if (th->th_flags & TH_SYN)
+			tlen++;
+		if (th->th_flags & TH_FIN)
 			tlen++;
 		tcp_respond(tp, mtod(m, void *), th, m, th->th_seq+tlen,
 		    (tcp_seq)0, TH_RST|TH_ACK);

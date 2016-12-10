@@ -146,7 +146,7 @@ private:
         size_t size = 0;
         static wchar_t *g_python_home = Py_DecodeLocale(LLDB_PYTHON_HOME, &size);
 #else
-        static char *g_python_home = LLDB_PYTHON_HOME;
+        static char g_python_home[] = LLDB_PYTHON_HOME;
 #endif
         Py_SetPythonHome(g_python_home);
 #endif
@@ -274,7 +274,7 @@ ScriptInterpreterPython::ScriptInterpreterPython(CommandInterpreter &interpreter
     m_lock_count(0),
     m_command_thread_state(nullptr)
 {
-    assert(g_initialized && "ScriptInterpreterPython created but InitializePrivate has not been called!");
+    InitializePrivate();
 
     m_dictionary_name.append("_dict");
     StreamString run_string;
@@ -330,8 +330,6 @@ ScriptInterpreterPython::Initialize()
 
     std::call_once(g_once_flag, []()
     {
-        InitializePrivate();
-
         PluginManager::RegisterPlugin(GetPluginNameStatic(),
                                       GetPluginDescriptionStatic(),
                                       lldb::eScriptLanguagePython,
@@ -547,6 +545,27 @@ ScriptInterpreterPython::LeaveSession ()
 }
 
 bool
+ScriptInterpreterPython::SetStdHandle(File &file, const char *py_name, PythonFile &save_file, const char *mode)
+{
+    if (file.IsValid())
+    {
+        // Flush the file before giving it to python to avoid interleaved output.
+        file.Flush();
+
+        PythonDictionary &sys_module_dict = GetSysModuleDictionary();
+
+        save_file = sys_module_dict.GetItemForKey(PythonString(py_name)).AsType<PythonFile>();
+
+        PythonFile new_file(file, mode);
+        sys_module_dict.SetItemForKey(PythonString(py_name), new_file);
+        return true;
+    }
+    else
+        save_file.Reset();
+    return false;
+}
+
+bool
 ScriptInterpreterPython::EnterSession (uint16_t on_entry_flags,
                                        FILE *in,
                                        FILE *out,
@@ -604,54 +623,31 @@ ScriptInterpreterPython::EnterSession (uint16_t on_entry_flags,
         if (!in_file.IsValid() || !out_file.IsValid() || !err_file.IsValid())
             m_interpreter.GetDebugger().AdoptTopIOHandlerFilesIfInvalid (in_sp, out_sp, err_sp);
 
-        m_saved_stdin.Reset();
 
-        if ((on_entry_flags & Locker::NoSTDIN) == 0)
+        if (on_entry_flags & Locker::NoSTDIN)
         {
-            // STDIN is enabled
-            if (!in_file.IsValid() && in_sp)
-                in_file = in_sp->GetFile();
-            if (in_file.IsValid())
+            m_saved_stdin.Reset();
+        }
+        else
+        {
+            if (!SetStdHandle(in_file, "stdin", m_saved_stdin, "r"))
             {
-                // Flush the file before giving it to python to avoid interleaved output.
-                in_file.Flush();
-
-                m_saved_stdin = sys_module_dict.GetItemForKey(PythonString("stdin")).AsType<PythonFile>();
-                // This call can deadlock your process if the file is locked
-                PythonFile new_file(in_file, "r");
-                sys_module_dict.SetItemForKey (PythonString("stdin"), new_file);
+                if (in_sp)
+                    SetStdHandle(in_sp->GetFile(), "stdin", m_saved_stdin, "r");
             }
         }
 
-        if (!out_file.IsValid() && out_sp)
-            out_file = out_sp->GetFile();
-        if (out_file.IsValid())
+        if (!SetStdHandle(out_file, "stdout", m_saved_stdout, "w"))
         {
-            // Flush the file before giving it to python to avoid interleaved output.
-            out_file.Flush();
-
-            m_saved_stdout = sys_module_dict.GetItemForKey(PythonString("stdout")).AsType<PythonFile>();
-
-            PythonFile new_file(out_file, "w");
-            sys_module_dict.SetItemForKey (PythonString("stdout"), new_file);
+            if (out_sp)
+                SetStdHandle(out_sp->GetFile(), "stdout", m_saved_stdout, "w");
         }
-        else
-            m_saved_stdout.Reset();
 
-        if (!err_file.IsValid() && err_sp)
-            err_file = err_sp->GetFile();
-        if (err_file.IsValid())
+        if (!SetStdHandle(err_file, "stderr", m_saved_stderr, "w"))
         {
-            // Flush the file before giving it to python to avoid interleaved output.
-            err_file.Flush();
-
-            m_saved_stderr = sys_module_dict.GetItemForKey(PythonString("stderr")).AsType<PythonFile>();
-
-            PythonFile new_file(err_file, "w");
-            sys_module_dict.SetItemForKey (PythonString("stderr"), new_file);
+            if (err_sp)
+                SetStdHandle(err_sp->GetFile(), "stderr", m_saved_stderr, "w");
         }
-        else
-            m_saved_stderr.Reset();
     }
 
     if (PyErr_Occurred())
@@ -1019,7 +1015,7 @@ ScriptInterpreterPython::Interrupt()
 
     if (IsExecutingPython())
     {
-        PyThreadState *state = PyThreadState_Get();
+        PyThreadState *state = PyThreadState_GET();
         if (!state)
             state = GetThreadState();
         if (state)
@@ -1555,10 +1551,12 @@ ScriptInterpreterPython::OSPlugin_RegisterInfo(StructuredData::ObjectSP os_plugi
         PyErr_Print();
         PyErr_Clear();
     }
-    assert(PythonDictionary::Check(py_return.get()) && "get_register_info returned unknown object type!");
-
-    PythonDictionary result_dict(PyRefType::Borrowed, py_return.get());
-    return result_dict.CreateStructuredDictionary();
+    if (py_return.get())
+    {
+        PythonDictionary result_dict(PyRefType::Borrowed, py_return.get());
+        return result_dict.CreateStructuredDictionary();
+    }
+    return StructuredData::DictionarySP();
 }
 
 StructuredData::ArraySP
@@ -1611,10 +1609,12 @@ ScriptInterpreterPython::OSPlugin_ThreadsInfo(StructuredData::ObjectSP os_plugin
         PyErr_Clear();
     }
 
-    assert(PythonList::Check(py_return.get()) && "get_thread_info returned unknown object type!");
-
-    PythonList result_list(PyRefType::Borrowed, py_return.get());
-    return result_list.CreateStructuredArray();
+    if (py_return.get())
+    {
+        PythonList result_list(PyRefType::Borrowed, py_return.get());
+        return result_list.CreateStructuredArray();
+    }
+    return StructuredData::ArraySP();
 }
 
 // GetPythonValueFormatString provides a system independent type safe way to
@@ -1692,10 +1692,12 @@ ScriptInterpreterPython::OSPlugin_RegisterContextData(StructuredData::ObjectSP o
         PyErr_Clear();
     }
 
-    assert(PythonBytes::Check(py_return.get()) && "get_register_data returned unknown object type!");
-
-    PythonBytes result(PyRefType::Borrowed, py_return.get());
-    return result.CreateStructuredString();
+    if (py_return.get())
+    {
+        PythonBytes result(PyRefType::Borrowed, py_return.get());
+        return result.CreateStructuredString();
+    }
+    return StructuredData::StringSP();
 }
 
 StructuredData::DictionarySP
@@ -1750,10 +1752,12 @@ ScriptInterpreterPython::OSPlugin_CreateThread(StructuredData::ObjectSP os_plugi
         PyErr_Clear();
     }
 
-    assert(PythonDictionary::Check(py_return.get()) && "create_thread returned unknown object type!");
-
-    PythonDictionary result_dict(PyRefType::Borrowed, py_return.get());
-    return result_dict.CreateStructuredDictionary();
+    if (py_return.get())
+    {
+        PythonDictionary result_dict(PyRefType::Borrowed, py_return.get());
+        return result_dict.CreateStructuredDictionary();
+    }
+    return StructuredData::DictionarySP();
 }
 
 StructuredData::ObjectSP
@@ -2353,6 +2357,72 @@ ScriptInterpreterPython::GetSyntheticValue(const StructuredData::ObjectSP &imple
     return ret_val;
 }
 
+ConstString
+ScriptInterpreterPython::GetSyntheticTypeName (const StructuredData::ObjectSP &implementor_sp)
+{
+    Locker py_lock(this, Locker::AcquireLock | Locker::InitSession | Locker::NoSTDIN);
+
+    static char callee_name[] = "get_type_name";
+
+    ConstString ret_val;
+    bool got_string = false;
+    std::string buffer;
+
+    if (!implementor_sp)
+        return ret_val;
+    
+    StructuredData::Generic *generic = implementor_sp->GetAsGeneric();
+    if (!generic)
+        return ret_val;
+    PythonObject implementor(PyRefType::Borrowed, (PyObject *)generic->GetValue());
+    if (!implementor.IsAllocated())
+        return ret_val;
+    
+    PythonObject pmeth(PyRefType::Owned, PyObject_GetAttrString(implementor.get(), callee_name));
+    
+    if (PyErr_Occurred())
+        PyErr_Clear();
+    
+    if (!pmeth.IsAllocated())
+        return ret_val;
+    
+    if (PyCallable_Check(pmeth.get()) == 0)
+    {
+        if (PyErr_Occurred())
+            PyErr_Clear();
+        return ret_val;
+    }
+    
+    if (PyErr_Occurred())
+        PyErr_Clear();
+    
+    // right now we know this function exists and is callable..
+    PythonObject py_return(PyRefType::Owned, PyObject_CallMethod(implementor.get(), callee_name, nullptr));
+    
+    // if it fails, print the error but otherwise go on
+    if (PyErr_Occurred())
+    {
+        PyErr_Print();
+        PyErr_Clear();
+    }
+    
+    if (py_return.IsAllocated() && PythonString::Check(py_return.get()))
+    {
+        PythonString py_string(PyRefType::Borrowed, py_return.get());
+        llvm::StringRef return_data(py_string.GetString());
+        if (!return_data.empty())
+        {
+            buffer.assign(return_data.data(), return_data.size());
+            got_string = true;
+        }
+    }
+    
+    if (got_string)
+        ret_val.SetCStringWithLength(buffer.c_str(), buffer.size());
+    
+    return ret_val;
+}
+
 bool
 ScriptInterpreterPython::RunScriptFormatKeyword (const char* impl_function,
                                                  Process* process,
@@ -2550,7 +2620,7 @@ ScriptInterpreterPython::LoadScriptingModule(const char *pathname, bool can_relo
         
         StreamString command_stream;
 
-        // Before executing Pyton code, lock the GIL.
+        // Before executing Python code, lock the GIL.
         Locker py_lock (this,
                         Locker::AcquireLock      | (init_session ? Locker::InitSession     : 0) | Locker::NoSTDIN,
                         Locker::FreeAcquiredLock | (init_session ? Locker::TearDownSession : 0));
@@ -2571,9 +2641,10 @@ ScriptInterpreterPython::LoadScriptingModule(const char *pathname, bool can_relo
                  target_file.GetFileType() == FileSpec::eFileTypeRegular ||
                  target_file.GetFileType() == FileSpec::eFileTypeSymbolicLink)
         {
-            std::string directory(target_file.GetDirectory().GetCString());
-            replace_all(directory,"'","\\'");
-            
+            std::string directory = target_file.GetDirectory().GetCString();
+            replace_all(directory, "\\", "\\\\");
+            replace_all(directory, "'", "\\'");
+
             // now make sure that Python has "directory" in the search path
             StreamString command_stream;
             command_stream.Printf("if not (sys.path.__contains__('%s')):\n    sys.path.insert(1,'%s');\n\n",
@@ -2585,7 +2656,7 @@ ScriptInterpreterPython::LoadScriptingModule(const char *pathname, bool can_relo
                 error.SetErrorString("Python sys.path handling failed");
                 return false;
             }
-            
+
             // strip .py or .pyc extension
             ConstString extension = target_file.GetFileNameExtension();
             if (extension)
@@ -2636,8 +2707,8 @@ ScriptInterpreterPython::LoadScriptingModule(const char *pathname, bool can_relo
                 command_stream.Printf("reload_module(%s)",basename.c_str());
         }
         else
-            command_stream.Printf("import %s",basename.c_str());
-        
+            command_stream.Printf("import %s", basename.c_str());
+
         error = ExecuteMultipleLines(command_stream.GetData(), ScriptInterpreter::ExecuteScriptOptions().SetEnableIO(false).SetSetLLDBGlobals(false));
         if (error.Fail())
             return false;
@@ -3098,7 +3169,9 @@ ScriptInterpreterPython::InitializeInterpreter (SWIGInitCallback swig_init_callb
 void
 ScriptInterpreterPython::InitializePrivate ()
 {
-    assert(!g_initialized && "ScriptInterpreterPython::InitializePrivate() called more than once!");
+    if (g_initialized)
+        return;
+
     g_initialized = true;
 
     Timer scoped_timer (__PRETTY_FUNCTION__, __PRETTY_FUNCTION__);

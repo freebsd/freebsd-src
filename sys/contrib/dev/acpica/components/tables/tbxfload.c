@@ -372,7 +372,7 @@ AcpiLoadTable (
     /* Install the table and load it into the namespace */
 
     ACPI_INFO (("Host-directed Dynamic ACPI Table Load:"));
-    Status = AcpiTbInstallAndLoadTable (Table, ACPI_PTR_TO_PHYSADDR (Table),
+    Status = AcpiTbInstallAndLoadTable (ACPI_PTR_TO_PHYSADDR (Table),
         ACPI_TABLE_ORIGIN_EXTERNAL_VIRTUAL, FALSE, &TableIndex);
     return_ACPI_STATUS (Status);
 }
@@ -459,39 +459,8 @@ AcpiUnloadParentTable (
             break;
         }
 
-        /* Ensure the table is actually loaded */
-
         (void) AcpiUtReleaseMutex (ACPI_MTX_TABLES);
-        if (!AcpiTbIsTableLoaded (i))
-        {
-            Status = AE_NOT_EXIST;
-            (void) AcpiUtAcquireMutex (ACPI_MTX_TABLES);
-            break;
-        }
-
-        /* Invoke table handler if present */
-
-        if (AcpiGbl_TableHandler)
-        {
-            (void) AcpiGbl_TableHandler (ACPI_TABLE_EVENT_UNLOAD,
-                AcpiGbl_RootTableList.Tables[i].Pointer,
-                AcpiGbl_TableHandlerContext);
-        }
-
-        /*
-         * Delete all namespace objects owned by this table. Note that
-         * these objects can appear anywhere in the namespace by virtue
-         * of the AML "Scope" operator. Thus, we need to track ownership
-         * by an ID, not simply a position within the hierarchy.
-         */
-        Status = AcpiTbDeleteNamespaceByOwner (i);
-        if (ACPI_FAILURE (Status))
-        {
-            break;
-        }
-
-        Status = AcpiTbReleaseOwnerId (i);
-        AcpiTbSetTableLoadedFlag (i, FALSE);
+        Status = AcpiTbUnloadTable (i);
         (void) AcpiUtAcquireMutex (ACPI_MTX_TABLES);
         break;
     }

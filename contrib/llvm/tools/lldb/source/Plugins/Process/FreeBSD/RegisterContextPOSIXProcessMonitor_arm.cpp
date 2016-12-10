@@ -11,7 +11,7 @@
 #include "lldb/Core/RegisterValue.h"
 #include "lldb/Target/Thread.h"
 
-#include "Plugins/Process/Utility/RegisterContextPOSIX_arm.h"
+#include "RegisterContextPOSIX_arm.h"
 #include "ProcessFreeBSD.h"
 #include "RegisterContextPOSIXProcessMonitor_arm.h"
 #include "ProcessMonitor.h"

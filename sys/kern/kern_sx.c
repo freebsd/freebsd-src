@@ -215,12 +215,14 @@ unlock_sx(struct lock_object *lock)
 int
 owner_sx(const struct lock_object *lock, struct thread **owner)
 {
-        const struct sx *sx = (const struct sx *)lock;
-	uintptr_t x = sx->sx_lock;
+	const struct sx *sx;
+	uintptr_t x;
 
-        *owner = (struct thread *)SX_OWNER(x);
-        return ((x & SX_LOCK_SHARED) != 0 ? (SX_SHARERS(x) != 0) :
-	    (*owner != NULL));
+	sx = (const struct sx *)lock;
+	x = sx->sx_lock;
+	*owner = NULL;
+	return ((x & SX_LOCK_SHARED) != 0 ? (SX_SHARERS(x) != 0) :
+	    ((*owner = (struct thread *)SX_OWNER(x)) != NULL));
 }
 #endif
 

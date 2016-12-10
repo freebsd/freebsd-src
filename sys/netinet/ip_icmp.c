@@ -973,44 +973,59 @@ ip_next_mtu(int mtu, int dir)
  *	the 'final' error, but it doesn't make sense to solve the printing
  *	delay with more complex code.
  */
+struct icmp_rate {
+	const char *descr;
+	struct counter_rate cr;
+};
+static VNET_DEFINE(struct icmp_rate, icmp_rates[BANDLIM_MAX]) = {
+	{ "icmp unreach response" },
+	{ "icmp ping response" },
+	{ "icmp tstamp response" },
+	{ "closed port RST response" },
+	{ "open port RST response" },
+	{ "icmp6 unreach response" },
+	{ "sctp ootb response" }
+};
+#define	V_icmp_rates	VNET(icmp_rates)
+
+static void
+icmp_bandlimit_init(void)
+{
+
+	for (int i = 0; i < BANDLIM_MAX; i++) {
+		V_icmp_rates[i].cr.cr_rate = counter_u64_alloc(M_WAITOK);
+		V_icmp_rates[i].cr.cr_ticks = ticks;
+	}
+}
+VNET_SYSINIT(icmp_bandlimit, SI_SUB_PROTO_DOMAIN, SI_ORDER_ANY,
+    icmp_bandlimit_init, NULL);
+
+static void
+icmp_bandlimit_uninit(void)
+{
+
+	for (int i = 0; i < BANDLIM_MAX; i++)
+		counter_u64_free(V_icmp_rates[i].cr.cr_rate);
+}
+VNET_SYSUNINIT(icmp_bandlimit, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD,
+    icmp_bandlimit_uninit, NULL);
 
 int
 badport_bandlim(int which)
 {
+	int64_t pps;
 
-#define	N(a)	(sizeof (a) / sizeof (a[0]))
-	static struct rate {
-		const char	*type;
-		struct timeval	lasttime;
-		int		curpps;
-	} rates[BANDLIM_MAX+1] = {
-		{ "icmp unreach response" },
-		{ "icmp ping response" },
-		{ "icmp tstamp response" },
-		{ "closed port RST response" },
-		{ "open port RST response" },
-		{ "icmp6 unreach response" },
-		{ "sctp ootb response" }
-	};
+	if (V_icmplim == 0 || which == BANDLIM_UNLIMITED)
+		return (0);
 
-	/*
-	 * Return ok status if feature disabled or argument out of range.
-	 */
-	if (V_icmplim > 0 && (u_int) which < N(rates)) {
-		struct rate *r = &rates[which];
-		int opps = r->curpps;
+	KASSERT(which >= 0 && which < BANDLIM_MAX,
+	    ("%s: which %d", __func__, which));
 
-		if (!ppsratecheck(&r->lasttime, &r->curpps, V_icmplim))
-			return -1;	/* discard packet */
-		/*
-		 * If we've dropped below the threshold after having
-		 * rate-limited traffic print the message.  This preserves
-		 * the previous behaviour at the expense of added complexity.
-		 */
-		if (V_icmplim_output && opps > V_icmplim)
-			log(LOG_NOTICE, "Limiting %s from %d to %d packets/sec\n",
-				r->type, opps, V_icmplim);
-	}
-	return 0;			/* okay to send packet */
-#undef N
+	pps = counter_ratecheck(&V_icmp_rates[which].cr, V_icmplim);
+	if (pps == -1)
+		return (-1);
+	if (pps > 0 && V_icmplim_output)
+		log(LOG_NOTICE, "Limiting %s from %jd to %d packets/sec\n",
+			V_icmp_rates[which].descr, (intmax_t )pps, V_icmplim);
+	return (0);
 }

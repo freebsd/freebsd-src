@@ -193,10 +193,8 @@ sctp_find_alternate_net(struct sctp_tcb *stcb,
 	 */
 	if (mode == 2) {
 		TAILQ_FOREACH(mnet, &stcb->asoc.nets, sctp_next) {
-			/*
-			 * JRS 5/14/07 - If the destination is unreachable
-			 * or unconfirmed, skip it.
-			 */
+			/* JRS 5/14/07 - If the destination is unreachable
+			 * or unconfirmed, skip it. */
 			if (((mnet->dest_state & SCTP_ADDR_REACHABLE) != SCTP_ADDR_REACHABLE) ||
 			    (mnet->dest_state & SCTP_ADDR_UNCONFIRMED)) {
 				continue;
@@ -286,11 +284,8 @@ sctp_find_alternate_net(struct sctp_tcb *stcb,
 		} else {
 			return (max_cwnd_net);
 		}
-	}
-	/*
-	 * JRS 5/14/07 - If mode is set to 1, use the CMT policy for
-	 * choosing an alternate net.
-	 */ 
+	}			/* JRS 5/14/07 - If mode is set to 1, use the
+	  * CMT policy for choosing an alternate net. */ 
 	else if (mode == 1) {
 		TAILQ_FOREACH(mnet, &stcb->asoc.nets, sctp_next) {
 			if (((mnet->dest_state & SCTP_ADDR_REACHABLE) != SCTP_ADDR_REACHABLE) ||
@@ -434,17 +429,17 @@ sctp_recover_sent_list(struct sctp_tcb *stcb)
 
 	asoc = &stcb->asoc;
 	TAILQ_FOREACH_SAFE(chk, &asoc->sent_queue, sctp_next, nchk) {
-		if (SCTP_TSN_GE(asoc->last_acked_seq, chk->rec.data.TSN_seq)) {
+		if (SCTP_TSN_GE(asoc->last_acked_seq, chk->rec.data.tsn)) {
 			SCTP_PRINTF("Found chk:%p tsn:%x <= last_acked_seq:%x\n",
-			    (void *)chk, chk->rec.data.TSN_seq, asoc->last_acked_seq);
+			    (void *)chk, chk->rec.data.tsn, asoc->last_acked_seq);
 			if (chk->sent != SCTP_DATAGRAM_NR_ACKED) {
-				if (asoc->strmout[chk->rec.data.stream_number].chunks_on_queues > 0) {
-					asoc->strmout[chk->rec.data.stream_number].chunks_on_queues--;
+				if (asoc->strmout[chk->rec.data.sid].chunks_on_queues > 0) {
+					asoc->strmout[chk->rec.data.sid].chunks_on_queues--;
 				}
 			}
-			if ((asoc->strmout[chk->rec.data.stream_number].chunks_on_queues == 0) &&
-			    (asoc->strmout[chk->rec.data.stream_number].state == SCTP_STREAM_RESET_PENDING) &&
-			    TAILQ_EMPTY(&asoc->strmout[chk->rec.data.stream_number].outqueue)) {
+			if ((asoc->strmout[chk->rec.data.sid].chunks_on_queues == 0) &&
+			    (asoc->strmout[chk->rec.data.sid].state == SCTP_STREAM_RESET_PENDING) &&
+			    TAILQ_EMPTY(&asoc->strmout[chk->rec.data.sid].outqueue)) {
 				asoc->trigger_reset = 1;
 			}
 			TAILQ_REMOVE(&asoc->sent_queue, chk, sctp_next);
@@ -467,10 +462,9 @@ sctp_recover_sent_list(struct sctp_tcb *stcb)
 	}
 	SCTP_PRINTF("after recover order is as follows\n");
 	TAILQ_FOREACH(chk, &asoc->sent_queue, sctp_next) {
-		SCTP_PRINTF("chk:%p TSN:%x\n", (void *)chk, chk->rec.data.TSN_seq);
+		SCTP_PRINTF("chk:%p TSN:%x\n", (void *)chk, chk->rec.data.tsn);
 	}
 }
-
 #endif
 
 static int
@@ -552,10 +546,10 @@ sctp_mark_all_for_resend(struct sctp_tcb *stcb,
 start_again:
 #endif
 	TAILQ_FOREACH_SAFE(chk, &stcb->asoc.sent_queue, sctp_next, nchk) {
-		if (SCTP_TSN_GE(stcb->asoc.last_acked_seq, chk->rec.data.TSN_seq)) {
+		if (SCTP_TSN_GE(stcb->asoc.last_acked_seq, chk->rec.data.tsn)) {
 			/* Strange case our list got out of order? */
 			SCTP_PRINTF("Our list is out of order? last_acked:%x chk:%x\n",
-			    (unsigned int)stcb->asoc.last_acked_seq, (unsigned int)chk->rec.data.TSN_seq);
+			    (unsigned int)stcb->asoc.last_acked_seq, (unsigned int)chk->rec.data.tsn);
 			recovery_cnt++;
 #ifdef INVARIANTS
 			panic("last acked >= chk on sent-Q");
@@ -580,7 +574,7 @@ start_again:
 
 			/* validate its been outstanding long enough */
 			if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_FR_LOGGING_ENABLE) {
-				sctp_log_fr(chk->rec.data.TSN_seq,
+				sctp_log_fr(chk->rec.data.tsn,
 				    chk->sent_rcv_time.tv_sec,
 				    chk->sent_rcv_time.tv_usec,
 				    SCTP_FR_T3_MARK_TIME);
@@ -644,11 +638,11 @@ start_again:
 				num_mk++;
 				if (fir == 0) {
 					fir = 1;
-					tsnfirst = chk->rec.data.TSN_seq;
+					tsnfirst = chk->rec.data.tsn;
 				}
-				tsnlast = chk->rec.data.TSN_seq;
+				tsnlast = chk->rec.data.tsn;
 				if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_FR_LOGGING_ENABLE) {
-					sctp_log_fr(chk->rec.data.TSN_seq, chk->snd_count,
+					sctp_log_fr(chk->rec.data.tsn, chk->snd_count,
 					    0, SCTP_FR_T3_MARKED);
 				}
 				if (chk->rec.data.chunk_was_revoked) {
@@ -663,7 +657,7 @@ start_again:
 					    chk->whoTo->flight_size,
 					    chk->book_size,
 					    (uint32_t) (uintptr_t) chk->whoTo,
-					    chk->rec.data.TSN_seq);
+					    chk->rec.data.tsn);
 				}
 				sctp_flight_size_decrease(chk);
 				sctp_total_flight_decrease(stcb, chk);
@@ -693,7 +687,7 @@ start_again:
 				if (TAILQ_EMPTY(&stcb->asoc.send_queue)) {
 					chk->rec.data.fast_retran_tsn = stcb->asoc.sending_seq;
 				} else {
-					chk->rec.data.fast_retran_tsn = (TAILQ_FIRST(&stcb->asoc.send_queue))->rec.data.TSN_seq;
+					chk->rec.data.fast_retran_tsn = (TAILQ_FIRST(&stcb->asoc.send_queue))->rec.data.tsn;
 				}
 			}
 			/*
@@ -791,7 +785,7 @@ start_again:
 					    chk->whoTo->flight_size,
 					    chk->book_size,
 					    (uint32_t) (uintptr_t) chk->whoTo,
-					    chk->rec.data.TSN_seq);
+					    chk->rec.data.tsn);
 				}
 				sctp_flight_size_increase(chk);
 				sctp_total_flight_increase(stcb, chk);

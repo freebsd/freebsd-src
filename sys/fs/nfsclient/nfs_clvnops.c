@@ -105,15 +105,6 @@ extern int nfsrv_useacl;
 extern int nfscl_debuglevel;
 MALLOC_DECLARE(M_NEWNFSREQ);
 
-/*
- * Ifdef for FreeBSD-current merged buffer cache. It is unfortunate that these
- * calls are not in getblk() and brelse() so that they would not be necessary
- * here.
- */
-#ifndef B_VMIO
-#define	vfs_busy_pages(bp, f)
-#endif
-
 static vop_read_t	nfsfifo_read;
 static vop_write_t	nfsfifo_write;
 static vop_close_t	nfsfifo_close;
@@ -2578,13 +2569,20 @@ ncl_commit(struct vnode *vp, u_quad_t offset, int cnt, struct ucred *cred,
 static int
 nfs_strategy(struct vop_strategy_args *ap)
 {
-	struct buf *bp = ap->a_bp;
+	struct buf *bp;
+	struct vnode *vp;
 	struct ucred *cr;
 
+	bp = ap->a_bp;
+	vp = ap->a_vp;
+	KASSERT(bp->b_vp == vp, ("missing b_getvp"));
 	KASSERT(!(bp->b_flags & B_DONE),
 	    ("nfs_strategy: buffer %p unexpectedly marked B_DONE", bp));
 	BUF_ASSERT_HELD(bp);
 
+	if (vp->v_type == VREG && bp->b_blkno == bp->b_lblkno)
+		bp->b_blkno = bp->b_lblkno * (vp->v_bufobj.bo_bsize /
+		    DEV_BSIZE);
 	if (bp->b_iocmd == BIO_READ)
 		cr = bp->b_rcred;
 	else
@@ -2596,8 +2594,8 @@ nfs_strategy(struct vop_strategy_args *ap)
 	 * otherwise just do it ourselves.
 	 */
 	if ((bp->b_flags & B_ASYNC) == 0 ||
-	    ncl_asyncio(VFSTONFS(ap->a_vp->v_mount), bp, NOCRED, curthread))
-		(void) ncl_doio(ap->a_vp, bp, cr, curthread, 1);
+	    ncl_asyncio(VFSTONFS(vp->v_mount), bp, NOCRED, curthread))
+		(void) ncl_doio(vp, bp, cr, curthread, 1);
 	return (0);
 }
 

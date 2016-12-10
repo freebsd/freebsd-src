@@ -19,8 +19,8 @@
 #include "clang/CodeGen/BackendUtil.h"
 #include "clang/Frontend/CodeGenOptions.h"
 #include "clang/Frontend/CompilerInstance.h"
-#include "clang/Lex/Preprocessor.h"
 #include "clang/Lex/HeaderSearch.h"
+#include "clang/Lex/Preprocessor.h"
 #include "clang/Serialization/ASTWriter.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Bitcode/BitstreamReader.h"
@@ -31,8 +31,10 @@
 #include "llvm/IR/Module.h"
 #include "llvm/Object/COFF.h"
 #include "llvm/Object/ObjectFile.h"
+#include "llvm/Support/Path.h"
 #include "llvm/Support/TargetRegistry.h"
 #include <memory>
+#include <utility>
 
 using namespace clang;
 
@@ -42,6 +44,7 @@ namespace {
 class PCHContainerGenerator : public ASTConsumer {
   DiagnosticsEngine &Diags;
   const std::string MainFileName;
+  const std::string OutputFileName;
   ASTContext *Ctx;
   ModuleMap &MMap;
   const HeaderSearchOptions &HeaderSearchOpts;
@@ -52,17 +55,15 @@ class PCHContainerGenerator : public ASTConsumer {
   std::unique_ptr<llvm::LLVMContext> VMContext;
   std::unique_ptr<llvm::Module> M;
   std::unique_ptr<CodeGen::CodeGenModule> Builder;
-  raw_pwrite_stream *OS;
+  std::unique_ptr<raw_pwrite_stream> OS;
   std::shared_ptr<PCHBuffer> Buffer;
 
   /// Visit every type and emit debug info for it.
   struct DebugTypeVisitor : public RecursiveASTVisitor<DebugTypeVisitor> {
     clang::CodeGen::CGDebugInfo &DI;
     ASTContext &Ctx;
-    bool SkipTagDecls;
-    DebugTypeVisitor(clang::CodeGen::CGDebugInfo &DI, ASTContext &Ctx,
-                     bool SkipTagDecls)
-        : DI(DI), Ctx(Ctx), SkipTagDecls(SkipTagDecls) {}
+    DebugTypeVisitor(clang::CodeGen::CGDebugInfo &DI, ASTContext &Ctx)
+        : DI(DI), Ctx(Ctx) {}
 
     /// Determine whether this type can be represented in DWARF.
     static bool CanRepresent(const Type *Ty) {
@@ -80,7 +81,8 @@ class PCHContainerGenerator : public ASTConsumer {
       // TagDecls may be deferred until after all decls have been merged and we
       // know the complete type. Pure forward declarations will be skipped, but
       // they don't need to be emitted into the module anyway.
-      if (SkipTagDecls && isa<TagDecl>(D))
+      if (auto *TD = dyn_cast<TagDecl>(D))
+        if (!TD->isCompleteDefinition())
           return true;
 
       QualType QualTy = Ctx.getTypeDeclType(D);
@@ -103,7 +105,7 @@ class PCHContainerGenerator : public ASTConsumer {
         return true;
 
       SmallVector<QualType, 16> ArgTypes;
-      for (auto i : D->params())
+      for (auto i : D->parameters())
         ArgTypes.push_back(i->getType());
       QualType RetTy = D->getReturnType();
       QualType FnTy = Ctx.getFunctionType(RetTy, ArgTypes,
@@ -122,7 +124,7 @@ class PCHContainerGenerator : public ASTConsumer {
       ArgTypes.push_back(D->getSelfType(Ctx, D->getClassInterface(),
                                         selfIsPseudoStrong, selfIsConsumed));
       ArgTypes.push_back(Ctx.getObjCSelType());
-      for (auto i : D->params())
+      for (auto i : D->parameters())
         ArgTypes.push_back(i->getType());
       QualType RetTy = D->getReturnType();
       QualType FnTy = Ctx.getFunctionType(RetTy, ArgTypes,
@@ -136,20 +138,22 @@ class PCHContainerGenerator : public ASTConsumer {
 public:
   PCHContainerGenerator(CompilerInstance &CI, const std::string &MainFileName,
                         const std::string &OutputFileName,
-                        raw_pwrite_stream *OS,
+                        std::unique_ptr<raw_pwrite_stream> OS,
                         std::shared_ptr<PCHBuffer> Buffer)
-      : Diags(CI.getDiagnostics()), Ctx(nullptr),
+      : Diags(CI.getDiagnostics()), MainFileName(MainFileName),
+        OutputFileName(OutputFileName), Ctx(nullptr),
         MMap(CI.getPreprocessor().getHeaderSearchInfo().getModuleMap()),
         HeaderSearchOpts(CI.getHeaderSearchOpts()),
         PreprocessorOpts(CI.getPreprocessorOpts()),
-        TargetOpts(CI.getTargetOpts()), LangOpts(CI.getLangOpts()), OS(OS),
-        Buffer(Buffer) {
+        TargetOpts(CI.getTargetOpts()), LangOpts(CI.getLangOpts()),
+        OS(std::move(OS)), Buffer(std::move(Buffer)) {
     // The debug info output isn't affected by CodeModel and
     // ThreadModel, but the backend expects them to be nonempty.
     CodeGenOpts.CodeModel = "default";
     CodeGenOpts.ThreadModel = "single";
     CodeGenOpts.DebugTypeExtRefs = true;
-    CodeGenOpts.setDebugInfo(CodeGenOptions::FullDebugInfo);
+    CodeGenOpts.setDebugInfo(codegenoptions::FullDebugInfo);
+    CodeGenOpts.setDebuggerTuning(CI.getCodeGenOpts().getDebuggerTuning());
   }
 
   ~PCHContainerGenerator() override = default;
@@ -160,10 +164,15 @@ public:
     Ctx = &Context;
     VMContext.reset(new llvm::LLVMContext());
     M.reset(new llvm::Module(MainFileName, *VMContext));
-    M->setDataLayout(Ctx->getTargetInfo().getDataLayoutString());
+    M->setDataLayout(Ctx->getTargetInfo().getDataLayout());
     Builder.reset(new CodeGen::CodeGenModule(
         *Ctx, HeaderSearchOpts, PreprocessorOpts, CodeGenOpts, *M, Diags));
-    Builder->getModuleDebugInfo()->setModuleMap(MMap);
+
+    // Prepare CGDebugInfo to emit debug info for a clang module.
+    auto *DI = Builder->getModuleDebugInfo();
+    StringRef ModuleName = llvm::sys::path::filename(MainFileName);
+    DI->setPCHDescriptor({ModuleName, "", OutputFileName, ~1ULL});
+    DI->setModuleMap(MMap);
   }
 
   bool HandleTopLevelDecl(DeclGroupRef D) override {
@@ -173,7 +182,7 @@ public:
     // Collect debug info for all decls in this group.
     for (auto *I : D)
       if (!I->isFromASTFile()) {
-        DebugTypeVisitor DTV(*Builder->getModuleDebugInfo(), *Ctx, true);
+        DebugTypeVisitor DTV(*Builder->getModuleDebugInfo(), *Ctx);
         DTV.TraverseDecl(I);
       }
     return true;
@@ -190,7 +199,20 @@ public:
     if (D->isFromASTFile())
       return;
 
-    DebugTypeVisitor DTV(*Builder->getModuleDebugInfo(), *Ctx, false);
+    // Anonymous tag decls are deferred until we are building their declcontext.
+    if (D->getName().empty())
+      return;
+
+    // Defer tag decls until their declcontext is complete.
+    auto *DeclCtx = D->getDeclContext();
+    while (DeclCtx) {
+      if (auto *D = dyn_cast<TagDecl>(DeclCtx))
+        if (!D->isCompleteDefinition())
+          return;
+      DeclCtx = DeclCtx->getParent();
+    }
+
+    DebugTypeVisitor DTV(*Builder->getModuleDebugInfo(), *Ctx);
     DTV.TraverseDecl(D);
     Builder->UpdateCompletedType(D);
   }
@@ -215,8 +237,12 @@ public:
       return;
 
     M->setTargetTriple(Ctx.getTargetInfo().getTriple().getTriple());
-    M->setDataLayout(Ctx.getTargetInfo().getDataLayoutString());
-    Builder->getModuleDebugInfo()->setDwoId(Buffer->Signature);
+    M->setDataLayout(Ctx.getTargetInfo().getDataLayout());
+
+    // PCH files don't have a signature field in the control block,
+    // but LLVM detects DWO CUs by looking for a non-zero DWO id.
+    uint64_t Signature = Buffer->Signature ? Buffer->Signature : ~1ULL;
+    Builder->getModuleDebugInfo()->setDwoId(Signature);
 
     // Finalize the Builder.
     if (Builder)
@@ -255,20 +281,18 @@ public:
     DEBUG({
       // Print the IR for the PCH container to the debug output.
       llvm::SmallString<0> Buffer;
-      llvm::raw_svector_ostream OS(Buffer);
-      clang::EmitBackendOutput(Diags, CodeGenOpts, TargetOpts, LangOpts,
-                               Ctx.getTargetInfo().getDataLayoutString(),
-                               M.get(), BackendAction::Backend_EmitLL, &OS);
+      clang::EmitBackendOutput(
+          Diags, CodeGenOpts, TargetOpts, LangOpts,
+          Ctx.getTargetInfo().getDataLayout(), M.get(),
+          BackendAction::Backend_EmitLL,
+          llvm::make_unique<llvm::raw_svector_ostream>(Buffer));
       llvm::dbgs() << Buffer;
     });
 
     // Use the LLVM backend to emit the pch container.
     clang::EmitBackendOutput(Diags, CodeGenOpts, TargetOpts, LangOpts,
-                             Ctx.getTargetInfo().getDataLayoutString(),
-                             M.get(), BackendAction::Backend_EmitObj, OS);
-
-    // Make sure the pch container hits disk.
-    OS->flush();
+                             Ctx.getTargetInfo().getDataLayout(), M.get(),
+                             BackendAction::Backend_EmitObj, std::move(OS));
 
     // Free the memory for the temporary buffer.
     llvm::SmallVector<char, 0> Empty;
@@ -281,10 +305,11 @@ public:
 std::unique_ptr<ASTConsumer>
 ObjectFilePCHContainerWriter::CreatePCHContainerGenerator(
     CompilerInstance &CI, const std::string &MainFileName,
-    const std::string &OutputFileName, llvm::raw_pwrite_stream *OS,
+    const std::string &OutputFileName,
+    std::unique_ptr<llvm::raw_pwrite_stream> OS,
     std::shared_ptr<PCHBuffer> Buffer) const {
-  return llvm::make_unique<PCHContainerGenerator>(CI, MainFileName,
-                                                  OutputFileName, OS, Buffer);
+  return llvm::make_unique<PCHContainerGenerator>(
+      CI, MainFileName, OutputFileName, std::move(OS), Buffer);
 }
 
 void ObjectFilePCHContainerReader::ExtractPCH(

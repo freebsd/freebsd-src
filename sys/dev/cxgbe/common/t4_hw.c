@@ -4754,7 +4754,7 @@ int t4_config_glbl_rss(struct adapter *adapter, int mbox, unsigned int mode,
 		c.u.manual.mode_pkd =
 			cpu_to_be32(V_FW_RSS_GLB_CONFIG_CMD_MODE(mode));
 	} else if (mode == FW_RSS_GLB_CONFIG_CMD_MODE_BASICVIRTUAL) {
-		c.u.basicvirtual.mode_pkd =
+		c.u.basicvirtual.mode_keymode =
 			cpu_to_be32(V_FW_RSS_GLB_CONFIG_CMD_MODE(mode));
 		c.u.basicvirtual.synmapen_to_hashtoeplitz = cpu_to_be32(flags);
 	} else
@@ -4769,11 +4769,14 @@ int t4_config_glbl_rss(struct adapter *adapter, int mbox, unsigned int mode,
  *	@viid: the VI id
  *	@flags: RSS flags
  *	@defq: id of the default RSS queue for the VI.
+ *	@skeyidx: RSS secret key table index for non-global mode
+ *	@skey: RSS vf_scramble key for VI.
  *
  *	Configures VI-specific RSS properties.
  */
 int t4_config_vi_rss(struct adapter *adapter, int mbox, unsigned int viid,
-		     unsigned int flags, unsigned int defq)
+		     unsigned int flags, unsigned int defq, unsigned int skeyidx,
+		     unsigned int skey)
 {
 	struct fw_rss_vi_config_cmd c;
 
@@ -4784,6 +4787,10 @@ int t4_config_vi_rss(struct adapter *adapter, int mbox, unsigned int viid,
 	c.retval_len16 = cpu_to_be32(FW_LEN16(c));
 	c.u.basicvirtual.defaultq_to_udpen = cpu_to_be32(flags |
 					V_FW_RSS_VI_CONFIG_CMD_DEFAULTQ(defq));
+	c.u.basicvirtual.secretkeyidx_pkd = cpu_to_be32(
+					V_FW_RSS_VI_CONFIG_CMD_SECRETKEYIDX(skeyidx));
+	c.u.basicvirtual.secretkeyxor = cpu_to_be32(skey);
+
 	return t4_wr_mbox(adapter, mbox, &c, sizeof(c), NULL);
 }
 
@@ -4902,11 +4909,11 @@ void t4_write_rss_key(struct adapter *adap, u32 *key, int idx)
 	if (idx >= 0 && idx < rss_key_addr_cnt) {
 		if (rss_key_addr_cnt > 16)
 			t4_write_reg(adap, A_TP_RSS_CONFIG_VRT,
-				     V_KEYWRADDRX(idx >> 4) |
+				     vrt | V_KEYWRADDRX(idx >> 4) |
 				     V_T6_VFWRADDR(idx) | F_KEYWREN);
 		else
 			t4_write_reg(adap, A_TP_RSS_CONFIG_VRT,
-				     V_KEYWRADDR(idx) | F_KEYWREN);
+				     vrt| V_KEYWRADDR(idx) | F_KEYWREN);
 	}
 }
 
@@ -5796,6 +5803,7 @@ const char *t4_get_port_type_description(enum fw_port_type port_type)
 		"CR_QSFP",
 		"CR2_QSFP",
 		"SFP28",
+		"KR_SFP28",
 	};
 
 	if (port_type < ARRAY_SIZE(port_type_description))

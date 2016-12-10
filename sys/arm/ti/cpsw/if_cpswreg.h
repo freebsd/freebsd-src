@@ -106,6 +106,14 @@
 #define	 ALE_VLAN_UNTAG(_a)		((_a[0] >> 24) & 7)
 #define	 ALE_VLAN_MEMBERS(_a)		(_a[0] & 7)
 #define	CPSW_ALE_PORTCTL(p)		(CPSW_ALE_OFFSET + 0x40 + ((p) * 0x04))
+#define	 ALE_PORTCTL_NO_SA_UPDATE	(1 << 5)
+#define	 ALE_PORTCTL_NO_LEARN		(1 << 4)
+#define	 ALE_PORTCTL_INGRESS		(1 << 3)
+#define	 ALE_PORTCTL_DROP_UNTAGGED	(1 << 2)
+#define	 ALE_PORTCTL_FORWARD		3
+#define	 ALE_PORTCTL_LEARN		2
+#define	 ALE_PORTCTL_BLOCKED		1
+#define	 ALE_PORTCTL_DISABLED		0
 
 /* SL1 is at 0x0D80, SL2 is at 0x0DC0 */
 #define	CPSW_SL_OFFSET			0x0D80

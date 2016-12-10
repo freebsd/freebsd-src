@@ -17,7 +17,9 @@ NTP_SRCS= systime.c	a_md5encrypt.c	adjtime.c	atoint.c \
 	emalloc.c	findconfig.c	getopt.c	hextoint.c \
 	hextolfp.c	humandate.c	icom.c		iosignal.c \
 	is_ip_address.c \
-	lib_strbuf.c	machines.c	mktime.c	modetoa.c \
+	lib_strbuf.c	\
+	libssl_compat.c \
+	machines.c	mktime.c	modetoa.c \
 	mstolfp.c	msyslog.c	netof.c		ntp_calendar.c \
 	ntp_crypto_rnd.c		ntp_intres.c	ntp_libopts.c \
 	ntp_lineedit.c	ntp_random.c	ntp_rfc2553.c	ntp_worker.c \

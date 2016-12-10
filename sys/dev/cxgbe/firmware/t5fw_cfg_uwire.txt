@@ -467,7 +467,6 @@
 	fcoe_nfcf = 16
 	fcoe_nvnp = 32
 	fcoe_nssn = 1024
-	fcoe_nfcb = 256
 
 
 # The following function, 1023, is not an actual PCIE function but is used to
@@ -602,7 +601,7 @@
 
 [fini]
 	version = 0x1425001c
-	checksum = 0xa4a80156
+	checksum = 0xf9115d76
 
 # Total resources used by above allocations:
 #   Virtual Interfaces: 104

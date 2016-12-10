@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
+#include <arm/arm/gic_common.h>
 #include "gic_v3_reg.h"
 #include "gic_v3_var.h"
 
@@ -123,6 +124,7 @@ gic_v3_fdt_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
+	sc->gic_bus = GIC_BUS_FDT;
 
 	/*
 	 * Recover number of the Re-Distributor regions.

@@ -280,6 +280,7 @@ public:
   static const TST TST_half = clang::TST_half;
   static const TST TST_float = clang::TST_float;
   static const TST TST_double = clang::TST_double;
+  static const TST TST_float128 = clang::TST_float128;
   static const TST TST_bool = clang::TST_bool;
   static const TST TST_decimal32 = clang::TST_decimal32;
   static const TST TST_decimal64 = clang::TST_decimal64;
@@ -299,6 +300,9 @@ public:
   static const TST TST_auto_type = clang::TST_auto_type;
   static const TST TST_unknown_anytype = clang::TST_unknown_anytype;
   static const TST TST_atomic = clang::TST_atomic;
+#define GENERIC_IMAGE_TYPE(ImgType, Id) \
+  static const TST TST_##ImgType##_t = clang::TST_##ImgType##_t;
+#include "clang/Basic/OpenCLImageTypes.def"
   static const TST TST_error = clang::TST_error;
 
   // type-qualifiers
@@ -307,9 +311,10 @@ public:
     TQ_const       = 1,
     TQ_restrict    = 2,
     TQ_volatile    = 4,
+    TQ_unaligned   = 8,
     // This has no corresponding Qualifiers::TQ value, because it's not treated
     // as a qualifier in our type system.
-    TQ_atomic      = 8
+    TQ_atomic      = 16
   };
 
   /// ParsedSpecifiers - Flags to query which specifiers were applied.  This is
@@ -340,7 +345,7 @@ private:
   unsigned TypeSpecPipe : 1;
 
   // type-qualifiers
-  unsigned TypeQualifiers : 4;  // Bitwise OR of TQ.
+  unsigned TypeQualifiers : 5;  // Bitwise OR of TQ.
 
   // function-specifier
   unsigned FS_inline_specified : 1;
@@ -382,7 +387,8 @@ private:
   /// TSTNameLoc provides source range info for tag types.
   SourceLocation TSTNameLoc;
   SourceRange TypeofParensRange;
-  SourceLocation TQ_constLoc, TQ_restrictLoc, TQ_volatileLoc, TQ_atomicLoc;
+  SourceLocation TQ_constLoc, TQ_restrictLoc, TQ_volatileLoc, TQ_atomicLoc,
+      TQ_unalignedLoc;
   SourceLocation FS_inlineLoc, FS_virtualLoc, FS_explicitLoc, FS_noreturnLoc;
   SourceLocation FS_forceinlineLoc;
   SourceLocation FriendLoc, ModulePrivateLoc, ConstexprLoc, ConceptLoc;
@@ -536,6 +542,7 @@ public:
   SourceLocation getRestrictSpecLoc() const { return TQ_restrictLoc; }
   SourceLocation getVolatileSpecLoc() const { return TQ_volatileLoc; }
   SourceLocation getAtomicSpecLoc() const { return TQ_atomicLoc; }
+  SourceLocation getUnalignedSpecLoc() const { return TQ_unalignedLoc; }
   SourceLocation getPipeLoc() const { return TQ_pipeLoc; }
 
   /// \brief Clear out all of the type qualifiers.
@@ -545,6 +552,7 @@ public:
     TQ_restrictLoc = SourceLocation();
     TQ_volatileLoc = SourceLocation();
     TQ_atomicLoc = SourceLocation();
+    TQ_unalignedLoc = SourceLocation();
     TQ_pipeLoc = SourceLocation();
   }
 
@@ -785,6 +793,7 @@ public:
   };
 
   /// PropertyAttributeKind - list of property attributes.
+  /// Keep this list in sync with LLVM's Dwarf.h ApplePropertyAttributes.
   enum ObjCPropertyAttributeKind {
     DQ_PR_noattr = 0x0,
     DQ_PR_readonly = 0x01,
@@ -800,7 +809,8 @@ public:
     DQ_PR_strong = 0x400,
     DQ_PR_unsafe_unretained = 0x800,
     DQ_PR_nullability = 0x1000,
-    DQ_PR_null_resettable = 0x2000
+    DQ_PR_null_resettable = 0x2000,
+    DQ_PR_class = 0x4000
   };
 
   ObjCDeclSpec()
@@ -860,7 +870,7 @@ private:
   ObjCDeclQualifier objcDeclQualifier : 7;
 
   // NOTE: VC++ treats enums as signed, avoid using ObjCPropertyAttributeKind
-  unsigned PropertyAttributes : 14;
+  unsigned PropertyAttributes : 15;
 
   unsigned Nullability : 2;
 
@@ -1109,8 +1119,8 @@ struct DeclaratorChunk {
   };
 
   struct PointerTypeInfo : TypeInfoCommon {
-    /// The type qualifiers: const/volatile/restrict/atomic.
-    unsigned TypeQuals : 4;
+    /// The type qualifiers: const/volatile/restrict/unaligned/atomic.
+    unsigned TypeQuals : 5;
 
     /// The location of the const-qualifier, if any.
     unsigned ConstQualLoc;
@@ -1123,6 +1133,9 @@ struct DeclaratorChunk {
 
     /// The location of the _Atomic-qualifier, if any.
     unsigned AtomicQualLoc;
+
+    /// The location of the __unaligned-qualifier, if any.
+    unsigned UnalignedQualLoc;
 
     void destroy() {
     }
@@ -1138,14 +1151,15 @@ struct DeclaratorChunk {
   };
 
   struct ArrayTypeInfo : TypeInfoCommon {
-    /// The type qualifiers for the array: const/volatile/restrict/_Atomic.
-    unsigned TypeQuals : 4;
+    /// The type qualifiers for the array:
+    /// const/volatile/restrict/__unaligned/_Atomic.
+    unsigned TypeQuals : 5;
 
     /// True if this dimension included the 'static' keyword.
-    bool hasStatic : 1;
+    unsigned hasStatic : 1;
 
     /// True if this dimension was [*].  In this case, NumElts is null.
-    bool isStar : 1;
+    unsigned isStar : 1;
 
     /// This is the size of the array, or null if [] or [*] was specified.
     /// Since the parser is multi-purpose, and we don't want to impose a root
@@ -1205,9 +1219,9 @@ struct DeclaratorChunk {
     /// Otherwise, it's an rvalue reference.
     unsigned RefQualifierIsLValueRef : 1;
 
-    /// The type qualifiers: const/volatile/restrict.
+    /// The type qualifiers: const/volatile/restrict/__unaligned
     /// The qualifier bitmask values are the same as in QualType.
-    unsigned TypeQuals : 3;
+    unsigned TypeQuals : 4;
 
     /// ExceptionSpecType - An ExceptionSpecificationType value.
     unsigned ExceptionSpecType : 4;
@@ -1391,16 +1405,16 @@ struct DeclaratorChunk {
 
   struct BlockPointerTypeInfo : TypeInfoCommon {
     /// For now, sema will catch these as invalid.
-    /// The type qualifiers: const/volatile/restrict/_Atomic.
-    unsigned TypeQuals : 4;
+    /// The type qualifiers: const/volatile/restrict/__unaligned/_Atomic.
+    unsigned TypeQuals : 5;
 
     void destroy() {
     }
   };
 
   struct MemberPointerTypeInfo : TypeInfoCommon {
-    /// The type qualifiers: const/volatile/restrict/_Atomic.
-    unsigned TypeQuals : 4;
+    /// The type qualifiers: const/volatile/restrict/__unaligned/_Atomic.
+    unsigned TypeQuals : 5;
     // CXXScopeSpec has a constructor, so it can't be a direct member.
     // So we need some pointer-aligned storage and a bit of trickery.
     union {
@@ -1464,7 +1478,8 @@ struct DeclaratorChunk {
                                     SourceLocation ConstQualLoc,
                                     SourceLocation VolatileQualLoc,
                                     SourceLocation RestrictQualLoc,
-                                    SourceLocation AtomicQualLoc) {
+                                    SourceLocation AtomicQualLoc,
+                                    SourceLocation UnalignedQualLoc) {
     DeclaratorChunk I;
     I.Kind                = Pointer;
     I.Loc                 = Loc;
@@ -1473,6 +1488,7 @@ struct DeclaratorChunk {
     I.Ptr.VolatileQualLoc = VolatileQualLoc.getRawEncoding();
     I.Ptr.RestrictQualLoc = RestrictQualLoc.getRawEncoding();
     I.Ptr.AtomicQualLoc   = AtomicQualLoc.getRawEncoding();
+    I.Ptr.UnalignedQualLoc = UnalignedQualLoc.getRawEncoding();
     I.Ptr.AttrList        = nullptr;
     return I;
   }
@@ -1551,7 +1567,7 @@ struct DeclaratorChunk {
     I.Kind          = Pipe;
     I.Loc           = Loc;
     I.Cls.TypeQuals = TypeQuals;
-    I.Cls.AttrList  = 0;
+    I.Cls.AttrList  = nullptr;
     return I;
   }
 
@@ -1617,6 +1633,7 @@ public:
     MemberContext,       // Struct/Union field.
     BlockContext,        // Declaration within a block in a function.
     ForContext,          // Declaration within first part of a for loop.
+    InitStmtContext,     // Declaration within optional init stmt of if/switch.
     ConditionContext,    // Condition declaration in a C++ if/switch/while/for.
     TemplateParamContext,// Within a template parameter list.
     CXXNewContext,       // C++ new-expression.
@@ -1648,10 +1665,10 @@ private:
   SmallVector<DeclaratorChunk, 8> DeclTypeInfo;
 
   /// InvalidType - Set by Sema::GetTypeForDeclarator().
-  bool InvalidType : 1;
+  unsigned InvalidType : 1;
 
   /// GroupingParens - Set by Parser::ParseParenDeclarator().
-  bool GroupingParens : 1;
+  unsigned GroupingParens : 1;
 
   /// FunctionDefinition - Is this Declarator for a function or member 
   /// definition and, if so, what kind?
@@ -1660,7 +1677,7 @@ private:
   unsigned FunctionDefinition : 2;
 
   /// \brief Is this Declarator a redeclaration?
-  bool Redeclaration : 1;
+  unsigned Redeclaration : 1;
 
   /// Attrs - Attributes.
   ParsedAttributes Attrs;
@@ -1795,6 +1812,7 @@ public:
     case MemberContext:
     case BlockContext:
     case ForContext:
+    case InitStmtContext:
     case ConditionContext:
       return false;
 
@@ -1829,6 +1847,7 @@ public:
     case MemberContext:
     case BlockContext:
     case ForContext:
+    case InitStmtContext:
     case ConditionContext:
     case PrototypeContext:
     case LambdaExprParameterContext:
@@ -1862,6 +1881,7 @@ public:
     case MemberContext:
     case BlockContext:
     case ForContext:
+    case InitStmtContext:
     case ConditionContext:
     case PrototypeContext:
     case LambdaExprParameterContext:
@@ -1906,6 +1926,7 @@ public:
     case FileContext:
     case BlockContext:
     case ForContext:
+    case InitStmtContext:
       return true;
 
     case ConditionContext:
@@ -2104,9 +2125,10 @@ public:
     case FileContext:
     case MemberContext:
     case BlockContext:
+    case ForContext:
+    case InitStmtContext:
       return true;
 
-    case ForContext:
     case ConditionContext:
     case KNRTypeListContext:
     case TypeNameContext:
@@ -2340,4 +2362,4 @@ struct LambdaIntroducer {
 
 } // end namespace clang
 
-#endif
+#endif // LLVM_CLANG_SEMA_DECLSPEC_H

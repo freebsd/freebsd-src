@@ -224,16 +224,26 @@ cond_wait_kernel(struct pthread_cond *cvp, struct pthread_mutex *mp,
 		 * state and unlock the mutex without making the state
 		 * consistent and the state will be unrecoverable.
 		 */
-		if (error2 == 0 && cancel)
+		if (error2 == 0 && cancel) {
+			if (robust) {
+				_mutex_leave_robust(curthread, mp);
+				robust = false;
+			}
 			_thr_testcancel(curthread);
+		}
 
 		if (error == EINTR)
 			error = 0;
 	} else {
 		/* We know that it didn't unlock the mutex. */
 		_mutex_cv_attach(mp, recurse);
-		if (cancel)
+		if (cancel) {
+			if (robust) {
+				_mutex_leave_robust(curthread, mp);
+				robust = false;
+			}
 			_thr_testcancel(curthread);
+		}
 		error2 = 0;
 	}
 	if (robust)

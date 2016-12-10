@@ -413,13 +413,7 @@ storvsc_send_multichannel_request(struct storvsc_softc *sc, int max_chans)
 	    VMBUS_CHANPKT_TYPE_INBAND, VMBUS_CHANPKT_FLAG_RC,
 	    vstor_packet, VSTOR_PKT_SIZE, (uint64_t)(uintptr_t)request);
 
-	/* wait for 5 seconds */
-	ret = sema_timedwait(&request->synch_sema, 5 * hz);
-	if (ret != 0) {		
-		printf("Storvsc_error: create multi-channel timeout, %d\n",
-		    ret);
-		return;
-	}
+	sema_wait(&request->synch_sema);
 
 	if (vstor_packet->operation != VSTOR_OPERATION_COMPLETEIO ||
 	    vstor_packet->status != 0) {		
@@ -486,10 +480,7 @@ hv_storvsc_channel_init(struct storvsc_softc *sc)
 	if (ret != 0)
 		goto cleanup;
 
-	/* wait 5 seconds */
-	ret = sema_timedwait(&request->synch_sema, 5 * hz);
-	if (ret != 0)
-		goto cleanup;
+	sema_wait(&request->synch_sema);
 
 	if (vstor_packet->operation != VSTOR_OPERATION_COMPLETEIO ||
 		vstor_packet->status != 0) {
@@ -516,11 +507,7 @@ hv_storvsc_channel_init(struct storvsc_softc *sc)
 		if (ret != 0)
 			goto cleanup;
 
-		/* wait 5 seconds */
-		ret = sema_timedwait(&request->synch_sema, 5 * hz);
-
-		if (ret)
-			goto cleanup;
+		sema_wait(&request->synch_sema);
 
 		if (vstor_packet->operation != VSTOR_OPERATION_COMPLETEIO) {
 			ret = EINVAL;
@@ -555,11 +542,7 @@ hv_storvsc_channel_init(struct storvsc_softc *sc)
 	if ( ret != 0)
 		goto cleanup;
 
-	/* wait 5 seconds */
-	ret = sema_timedwait(&request->synch_sema, 5 * hz);
-
-	if (ret != 0)
-		goto cleanup;
+	sema_wait(&request->synch_sema);
 
 	/* TODO: Check returned version */
 	if (vstor_packet->operation != VSTOR_OPERATION_COMPLETEIO ||
@@ -588,11 +571,7 @@ hv_storvsc_channel_init(struct storvsc_softc *sc)
 		goto cleanup;
 	}
 
-	/* wait 5 seconds */
-	ret = sema_timedwait(&request->synch_sema, 5 * hz);
-
-	if (ret != 0)
-		goto cleanup;
+	sema_wait(&request->synch_sema);
 
 	if (vstor_packet->operation != VSTOR_OPERATION_COMPLETEIO ||
 	    vstor_packet->status != 0)
@@ -672,12 +651,7 @@ hv_storvsc_host_reset(struct storvsc_softc *sc)
 		goto cleanup;
 	}
 
-	ret = sema_timedwait(&request->synch_sema, 5 * hz); /* KYS 5 seconds */
-
-	if (ret) {
-		goto cleanup;
-	}
-
+	sema_wait(&request->synch_sema);
 
 	/*
 	 * At this point, all outstanding requests in the adapter
@@ -2079,6 +2053,19 @@ create_storvsc_request(union ccb *ccb, struct hv_storvsc_request *reqp)
 	return(0);
 }
 
+static uint32_t
+is_scsi_valid(const struct scsi_inquiry_data *inq_data)
+{
+	u_int8_t type;
+
+	type = SID_TYPE(inq_data);
+	if (type == T_NODEVICE)
+		return (0);
+	if (SID_QUAL(inq_data) == SID_QUAL_BAD_LU)
+		return (0);
+	return (1);
+}
+
 /**
  * @brief completion function before returning to CAM
  *
@@ -2097,6 +2084,7 @@ storvsc_io_done(struct hv_storvsc_request *reqp)
 	struct vmscsi_req *vm_srb = &reqp->vstor_packet.u.vm_srb;
 	bus_dma_segment_t *ori_sglist = NULL;
 	int ori_sg_count = 0;
+
 	/* destroy bounce buffer if it is used */
 	if (reqp->bounce_sgl_count) {
 		ori_sglist = (bus_dma_segment_t *)ccb->csio.data_ptr;
@@ -2151,6 +2139,7 @@ storvsc_io_done(struct hv_storvsc_request *reqp)
 	ccb->ccb_h.status &= ~CAM_STATUS_MASK;
 	if (vm_srb->scsi_status == SCSI_STATUS_OK) {
 		const struct scsi_generic *cmd;
+
 		cmd = (const struct scsi_generic *)
 		    ((ccb->ccb_h.flags & CAM_CDB_POINTER) ?
 		     csio->cdb_io.cdb_ptr : csio->cdb_io.cdb_bytes);
@@ -2190,32 +2179,47 @@ storvsc_io_done(struct hv_storvsc_request *reqp)
 			ccb->ccb_h.status |= CAM_REQ_CMP;
 		}
 
-		if (cmd->opcode == INQUIRY) {
+		if (cmd->opcode == INQUIRY &&
+		    vm_srb->srb_status == SRB_STATUS_SUCCESS) {
+			int resp_xfer_len, resp_buf_len, data_len;
+			uint8_t *resp_buf = (uint8_t *)csio->data_ptr;
 			struct scsi_inquiry_data *inq_data =
 			    (struct scsi_inquiry_data *)csio->data_ptr;
-			uint8_t *resp_buf = (uint8_t *)csio->data_ptr;
-			int resp_xfer_len, resp_buf_len, data_len;
 
 			/* Get the buffer length reported by host */
 			resp_xfer_len = vm_srb->transfer_len;
+
 			/* Get the available buffer length */
 			resp_buf_len = resp_xfer_len >= 5 ? resp_buf[4] + 5 : 0;
 			data_len = (resp_buf_len < resp_xfer_len) ?
 			    resp_buf_len : resp_xfer_len;
-
 			if (bootverbose && data_len >= 5) {
 				xpt_print(ccb->ccb_h.path, "storvsc inquiry "
 				    "(%d) [%x %x %x %x %x ... ]\n", data_len,
 				    resp_buf[0], resp_buf[1], resp_buf[2],
 				    resp_buf[3], resp_buf[4]);
 			}
-			if (vm_srb->srb_status == SRB_STATUS_SUCCESS &&
-			    data_len >= SHORT_INQUIRY_LENGTH) {
+			/*
+			 * XXX: Manually fix the wrong response returned from WS2012
+			 */
+			if (!is_scsi_valid(inq_data) &&
+			    (vmstor_proto_version == VMSTOR_PROTOCOL_VERSION_WIN8_1 ||
+			    vmstor_proto_version == VMSTOR_PROTOCOL_VERSION_WIN8 ||
+			    vmstor_proto_version == VMSTOR_PROTOCOL_VERSION_WIN7)) {
+				if (data_len >= 4 &&
+				    (resp_buf[2] == 0 || resp_buf[3] == 0)) {
+					resp_buf[2] = 5; // verion=5 means SPC-3
+					resp_buf[3] = 2; // resp fmt must be 2
+					if (bootverbose)
+						xpt_print(ccb->ccb_h.path,
+						    "fix version and resp fmt for 0x%x\n",
+						    vmstor_proto_version);
+				}
+			} else if (data_len >= SHORT_INQUIRY_LENGTH) {
 				char vendor[16];
 
 				cam_strvis(vendor, inq_data->vendor,
 				    sizeof(inq_data->vendor), sizeof(vendor));
-
 				/*
 				 * XXX: Upgrade SPC2 to SPC3 if host is WIN8 or
 				 * WIN2012 R2 in order to support UNMAP feature.

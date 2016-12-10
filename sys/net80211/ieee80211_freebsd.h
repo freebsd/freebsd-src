@@ -658,6 +658,10 @@ int	ieee80211_get_xmit_params(struct mbuf *m,
 #define	IEEE80211_RX_F_IV_STRIP		0x00000200 /* Decrypted; IV stripped */
 #define	IEEE80211_RX_F_MMIC_STRIP	0x00000400 /* Decrypted; MMIC stripped */
 #define	IEEE80211_RX_F_SHORTGI		0x00000800 /* This is a short-GI frame */
+#define	IEEE80211_RX_F_CCK		0x00001000
+#define	IEEE80211_RX_F_OFDM		0x00002000
+#define	IEEE80211_RX_F_HT		0x00004000
+#define	IEEE80211_RX_F_VHT		0x00008000
 
 /* Channel width */
 #define	IEEE80211_RX_FW_20MHZ		1
@@ -687,7 +691,7 @@ struct ieee80211_rx_stats {
 	uint8_t c_nf;			/* global NF */
 	uint8_t c_rssi;			/* global RSSI */
 	uint8_t c_chain;		/* number of RX chains involved */
-	uint8_t c_rate;			/* legacy + 11n rate code */
+	uint8_t c_rate;			/* legacy; 11n rate code; VHT MCS */
 
 	/* 32 bits */
 	uint16_t c_freq;		/* Frequency, MHz */
@@ -703,7 +707,8 @@ struct ieee80211_rx_stats {
 
 	/* 32 bits */
 	uint8_t c_phytype;		/* PHY type, FW flags above */
-	uint8_t c_pad2[3];
+	uint8_t c_vhtnss;		/* VHT - number of spatial streams */
+	uint8_t c_pad2[2];
 };
 
 struct ieee80211_rx_params {
@@ -722,6 +727,19 @@ int	ieee80211_add_toa_params(struct mbuf *m,
 	    const struct ieee80211_toa_params *p);
 int	ieee80211_get_toa_params(struct mbuf *m,
 	    struct ieee80211_toa_params *p);
+
+#define	IEEE80211_F_SURVEY_TIME		0x00000001
+#define	IEEE80211_F_SURVEY_TIME_BUSY	0x00000002
+#define	IEEE80211_F_SURVEY_NOISE_DBM	0x00000004
+#define	IEEE80211_F_SURVEY_TSC		0x00000008
+struct ieee80211_channel_survey {
+	uint32_t s_flags;
+	uint32_t s_time;
+	uint32_t s_time_busy;
+	int32_t s_noise;
+	uint64_t s_tsc;
+};
+
 #endif /* _KERNEL */
 
 /*

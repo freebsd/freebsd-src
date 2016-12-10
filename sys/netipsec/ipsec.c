@@ -271,7 +271,6 @@ static void ipsec6_setsockaddrs(const struct mbuf *, union sockaddr_union *,
 static void ipsec6_setspidx_ipaddr(const struct mbuf *,
     struct secpolicyindex *);
 #endif
-static void vshiftl(unsigned char *, int, int);
 
 MALLOC_DEFINE(M_IPSEC_INPCB, "inpcbpolicy", "inpcb-resident ipsec policy");
 
@@ -1515,27 +1514,31 @@ ipsec_hdrsiz_inpcb(struct inpcb *inp)
  * beforehand).
  * 0 (zero) is returned if packet disallowed, 1 if packet permitted.
  *
- * Based on RFC 2401.
+ * Based on RFC 6479. Blocks are 32 bits unsigned integers
  */
+
+#define IPSEC_BITMAP_INDEX_MASK(w)	(w - 1)
+#define IPSEC_REDUNDANT_BIT_SHIFTS	5
+#define IPSEC_REDUNDANT_BITS		(1 << IPSEC_REDUNDANT_BIT_SHIFTS)
+#define IPSEC_BITMAP_LOC_MASK		(IPSEC_REDUNDANT_BITS - 1)
+
 int
-ipsec_chkreplay(u_int32_t seq, struct secasvar *sav)
+ipsec_chkreplay(uint32_t seq, struct secasvar *sav)
 {
 	const struct secreplay *replay;
-	u_int32_t diff;
-	int fr;
-	u_int32_t wsizeb;	/* Constant: bits of window size. */
-	int frlast;		/* Constant: last frame. */
+	uint32_t wsizeb;		/* Constant: window size. */
+	int index, bit_location;
 
 	IPSEC_ASSERT(sav != NULL, ("Null SA"));
 	IPSEC_ASSERT(sav->replay != NULL, ("Null replay state"));
 
 	replay = sav->replay;
 
+	/* No need to check replay if disabled. */
 	if (replay->wsize == 0)
-		return (1);	/* No need to check replay. */
+		return (1);
 
 	/* Constant. */
-	frlast = replay->wsize - 1;
 	wsizeb = replay->wsize << 3;
 
 	/* Sequence number of 0 is invalid. */
@@ -1546,26 +1549,26 @@ ipsec_chkreplay(u_int32_t seq, struct secasvar *sav)
 	if (replay->count == 0)
 		return (1);
 
-	if (seq > replay->lastseq) {
-		/* Larger sequences are okay. */
+	/* Larger sequences are okay. */
+	if (seq > replay->lastseq)
 		return (1);
-	} else {
-		/* seq is equal or less than lastseq. */
-		diff = replay->lastseq - seq;
 
-		/* Over range to check, i.e. too old or wrapped. */
-		if (diff >= wsizeb)
-			return (0);
+	/* Over range to check, i.e. too old or wrapped. */
+	if (replay->lastseq - seq >= wsizeb)
+		return (0);
 
-		fr = frlast - diff / 8;
+	/* The sequence is inside the sliding window
+	 * now check the bit in the bitmap
+	 * bit location only depends on the sequence number
+	 */
+	bit_location = seq & IPSEC_BITMAP_LOC_MASK;
+	index = (seq >> IPSEC_REDUNDANT_BIT_SHIFTS)
+		& IPSEC_BITMAP_INDEX_MASK(replay->bitmap_size);
 
-		/* This packet already seen? */
-		if ((replay->bitmap)[fr] & (1 << (diff % 8)))
-			return (0);
-
-		/* Out of order but good. */
-		return (1);
-	}
+	/* This packet already seen? */
+	if ((replay->bitmap)[index] & (1 << bit_location))
+		return (0);
+	return (1);
 }
 
 /*
@@ -1574,14 +1577,12 @@ ipsec_chkreplay(u_int32_t seq, struct secasvar *sav)
  *	1:	NG
  */
 int
-ipsec_updatereplay(u_int32_t seq, struct secasvar *sav)
+ipsec_updatereplay(uint32_t seq, struct secasvar *sav)
 {
 	char buf[128];
 	struct secreplay *replay;
-	u_int32_t diff;
-	int fr;
-	u_int32_t wsizeb;	/* Constant: bits of window size. */
-	int frlast;		/* Constant: last frame. */
+	uint32_t wsizeb;		/* Constant: window size. */
+	int diff, index, bit_location;
 
 	IPSEC_ASSERT(sav != NULL, ("Null SA"));
 	IPSEC_ASSERT(sav->replay != NULL, ("Null replay state"));
@@ -1592,58 +1593,46 @@ ipsec_updatereplay(u_int32_t seq, struct secasvar *sav)
 		goto ok;	/* No need to check replay. */
 
 	/* Constant. */
-	frlast = replay->wsize - 1;
 	wsizeb = replay->wsize << 3;
 
 	/* Sequence number of 0 is invalid. */
 	if (seq == 0)
 		return (1);
 
-	/* First time. */
-	if (replay->count == 0) {
-		replay->lastseq = seq;
-		bzero(replay->bitmap, replay->wsize);
-		(replay->bitmap)[frlast] = 1;
+	/* The packet is too old, no need to update */
+	if (wsizeb + seq < replay->lastseq)
 		goto ok;
-	}
 
+	/* Now update the bit */
+	index = (seq >> IPSEC_REDUNDANT_BIT_SHIFTS);
+
+	/* First check if the sequence number is in the range */
 	if (seq > replay->lastseq) {
-		/* seq is larger than lastseq. */
-		diff = seq - replay->lastseq;
+		int id;
+		int index_cur = replay->lastseq >> IPSEC_REDUNDANT_BIT_SHIFTS;
 
-		/* New larger sequence number. */
-		if (diff < wsizeb) {
-			/* In window. */
-			/* Set bit for this packet. */
-			vshiftl(replay->bitmap, diff, replay->wsize);
-			(replay->bitmap)[frlast] |= 1;
-		} else {
-			/* This packet has a "way larger". */
-			bzero(replay->bitmap, replay->wsize);
-			(replay->bitmap)[frlast] = 1;
+		diff = index - index_cur;
+		if (diff > replay->bitmap_size) {
+			/* something unusual in this case */
+			diff = replay->bitmap_size;
 		}
+
+		for (id = 0; id < diff; ++id) {
+			replay->bitmap[(id + index_cur + 1)
+			& IPSEC_BITMAP_INDEX_MASK(replay->bitmap_size)] = 0;
+		}
+
 		replay->lastseq = seq;
-
-		/* Larger is good. */
-	} else {
-		/* seq is equal or less than lastseq. */
-		diff = replay->lastseq - seq;
-
-		/* Over range to check, i.e. too old or wrapped. */
-		if (diff >= wsizeb)
-			return (1);
-
-		fr = frlast - diff / 8;
-
-		/* This packet already seen? */
-		if ((replay->bitmap)[fr] & (1 << (diff % 8)))
-			return (1);
-
-		/* Mark as seen. */
-		(replay->bitmap)[fr] |= (1 << (diff % 8));
-
-		/* Out of order but good. */
 	}
+
+	index &= IPSEC_BITMAP_INDEX_MASK(replay->bitmap_size);
+	bit_location = seq & IPSEC_BITMAP_LOC_MASK;
+
+	/* this packet has already been received */
+	if (replay->bitmap[index] & (1 << bit_location))
+		return (1);
+
+	replay->bitmap[index] |= (1 << bit_location);
 
 ok:
 	if (replay->count == ~0) {
@@ -1659,9 +1648,6 @@ ok:
 		    __func__, replay->overflow,
 		    ipsec_logsastr(sav, buf, sizeof(buf))));
 	}
-
-	replay->count++;
-
 	return (0);
 }
 
@@ -1709,29 +1695,6 @@ ipsec_updateid(struct secasvar *sav, uint64_t *new, uint64_t *old)
 	sav->tdb_cryptoid = *new;
 	SECASVAR_UNLOCK(sav);
 	return (0);
-}
-
-/*
- * Shift variable length buffer to left.
- * IN:	bitmap: pointer to the buffer
- * 	nbit:	the number of to shift.
- *	wsize:	buffer size (bytes).
- */
-static void
-vshiftl(unsigned char *bitmap, int nbit, int wsize)
-{
-	int s, j, i;
-	unsigned char over;
-
-	for (j = 0; j < nbit; j += 8) {
-		s = (nbit - j < 8) ? (nbit - j): 8;
-		bitmap[0] <<= s;
-		for (i = 1; i < wsize; i++) {
-			over = (bitmap[i] >> (8 - s));
-			bitmap[i] <<= s;
-			bitmap[i-1] |= over;
-		}
-	}
 }
 
 /* Return a printable string for the address. */

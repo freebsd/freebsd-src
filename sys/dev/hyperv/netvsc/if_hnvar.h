@@ -91,7 +91,8 @@ struct hn_rx_ring {
 #define HN_TRUST_HCSUM_TCP	0x0002
 #define HN_TRUST_HCSUM_UDP	0x0004
 
-#define HN_RX_FLAG_ATTACHED	0x1
+#define HN_RX_FLAG_ATTACHED	0x0001
+#define HN_RX_FLAG_BR_REF	0x0002
 
 struct hn_tx_ring {
 #ifndef HN_USE_TXDESC_BUFRING
@@ -125,6 +126,22 @@ struct hn_tx_ring {
 	bus_dma_tag_t	hn_tx_data_dtag;
 	uint64_t	hn_csum_assist;
 
+	/* Applied packet transmission aggregation limits. */
+	int		hn_agg_szmax;
+	short		hn_agg_pktmax;
+	short		hn_agg_align;
+
+	/* Packet transmission aggregation states. */
+	struct hn_txdesc *hn_agg_txd;
+	int		hn_agg_szleft;
+	short		hn_agg_pktleft;
+	struct rndis_packet_msg *hn_agg_prevpkt;
+
+	/* Temporary stats for each sends. */
+	int		hn_stat_size;
+	short		hn_stat_pkts;
+	short		hn_stat_mcasts;
+
 	int		(*hn_sendpkt)(struct hn_tx_ring *, struct hn_txdesc *);
 	int		hn_suspended;
 	int		hn_gpa_cnt;
@@ -137,6 +154,8 @@ struct hn_tx_ring {
 	u_long		hn_tx_chimney_tried;
 	u_long		hn_tx_chimney;
 	u_long		hn_pkts;
+	u_long		hn_sends;
+	u_long		hn_flush_failed;
 
 	/* Rarely used stuffs */
 	struct hn_txdesc *hn_txdesc;
@@ -144,8 +163,8 @@ struct hn_tx_ring {
 	struct sysctl_oid *hn_tx_sysctl_tree;
 } __aligned(CACHE_LINE_SIZE);
 
-#define HN_TX_FLAG_ATTACHED	0x1
-#define HN_TX_FLAG_HASHVAL	0x2	/* support HASHVAL pktinfo */
+#define HN_TX_FLAG_ATTACHED	0x0001
+#define HN_TX_FLAG_HASHVAL	0x0002	/* support HASHVAL pktinfo */
 
 /*
  * Device-specific softc structure
@@ -173,12 +192,16 @@ struct hn_softc {
 	int		hn_chim_szmax;
 
 	int		hn_cpu;
-	struct taskqueue *hn_tx_taskq;
+	struct taskqueue **hn_tx_taskqs;
 	struct sysctl_oid *hn_tx_sysctl_tree;
 	struct sysctl_oid *hn_rx_sysctl_tree;
 	struct vmbus_xact_ctx *hn_xact;
 	uint32_t	hn_nvs_ver;
 	uint32_t	hn_rx_filter;
+
+	/* Packet transmission aggregation user settings. */
+	int			hn_agg_size;
+	int			hn_agg_pkts;
 
 	struct taskqueue	*hn_mgmt_taskq;
 	struct taskqueue	*hn_mgmt_taskq0;
@@ -200,6 +223,9 @@ struct hn_softc {
 	uint32_t		hn_ndis_ver;
 	int			hn_ndis_tso_szmax;
 	int			hn_ndis_tso_sgmin;
+	uint32_t		hn_rndis_agg_size;
+	uint32_t		hn_rndis_agg_pkts;
+	uint32_t		hn_rndis_agg_align;
 
 	int			hn_rss_ind_size;
 	uint32_t		hn_rss_hash;	/* NDIS_HASH_ */
@@ -211,6 +237,24 @@ struct hn_softc {
 #define HN_FLAG_HAS_RSSKEY		0x0004
 #define HN_FLAG_HAS_RSSIND		0x0008
 #define HN_FLAG_SYNTH_ATTACHED		0x0010
+#define HN_FLAG_NO_SLEEPING		0x0020
+#define HN_FLAG_RXBUF_REF		0x0040
+#define HN_FLAG_CHIM_REF		0x0080
+
+#define HN_FLAG_ERRORS			(HN_FLAG_RXBUF_REF | HN_FLAG_CHIM_REF)
+
+#define HN_NO_SLEEPING(sc)			\
+do {						\
+	(sc)->hn_flags |= HN_FLAG_NO_SLEEPING;	\
+} while (0)
+
+#define HN_SLEEPING_OK(sc)			\
+do {						\
+	(sc)->hn_flags &= ~HN_FLAG_NO_SLEEPING;	\
+} while (0)
+
+#define HN_CAN_SLEEP(sc)		\
+	(((sc)->hn_flags & HN_FLAG_NO_SLEEPING) == 0)
 
 #define HN_CAP_VLAN			0x0001
 #define HN_CAP_MTU			0x0002

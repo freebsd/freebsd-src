@@ -41,6 +41,7 @@
 #include "llvm/ADT/PointerIntPair.h"
 #include "llvm/IR/CFG.h"
 #include "llvm/IR/Dominators.h"
+#include "llvm/IR/PassManager.h"
 #include <map>
 #include <memory>
 #include <set>
@@ -676,6 +677,22 @@ class RegionInfoBase {
   RegionInfoBase(const RegionInfoBase &) = delete;
   const RegionInfoBase &operator=(const RegionInfoBase &) = delete;
 
+  RegionInfoBase(RegionInfoBase &&Arg)
+    : DT(std::move(Arg.DT)), PDT(std::move(Arg.PDT)), DF(std::move(Arg.DF)),
+      TopLevelRegion(std::move(Arg.TopLevelRegion)),
+      BBtoRegion(std::move(Arg.BBtoRegion)) {
+    Arg.wipe();
+  }
+  RegionInfoBase &operator=(RegionInfoBase &&RHS) {
+    DT = std::move(RHS.DT);
+    PDT = std::move(RHS.PDT);
+    DF = std::move(RHS.DF);
+    TopLevelRegion = std::move(RHS.TopLevelRegion);
+    BBtoRegion = std::move(RHS.BBtoRegion);
+    RHS.wipe();
+    return *this;
+  }
+
   DomTreeT *DT;
   PostDomTreeT *PDT;
   DomFrontierT *DF;
@@ -686,6 +703,18 @@ class RegionInfoBase {
 private:
   /// Map every BB to the smallest region, that contains BB.
   BBtoRegionMap BBtoRegion;
+
+  /// \brief Wipe this region tree's state without releasing any resources.
+  ///
+  /// This is essentially a post-move helper only. It leaves the object in an
+  /// assignable and destroyable state, but otherwise invalid.
+  void wipe() {
+    DT = nullptr;
+    PDT = nullptr;
+    DF = nullptr;
+    TopLevelRegion = nullptr;
+    BBtoRegion.clear();
+  }
 
   // Check whether the entries of BBtoRegion for the BBs of region
   // SR are correct. Triggers an assertion if not. Calls itself recursively for
@@ -836,9 +865,18 @@ public:
 
 class RegionInfo : public RegionInfoBase<RegionTraits<Function>> {
 public:
+  typedef RegionInfoBase<RegionTraits<Function>> Base;
+
   explicit RegionInfo();
 
   ~RegionInfo() override;
+
+  RegionInfo(RegionInfo &&Arg)
+    : Base(std::move(static_cast<Base &>(Arg))) {}
+  RegionInfo &operator=(RegionInfo &&RHS) {
+    Base::operator=(std::move(static_cast<Base &>(RHS)));
+    return *this;
+  }
 
   // updateStatistics - Update statistic about created regions.
   void updateStatistics(Region *R) final;
@@ -882,6 +920,31 @@ public:
   void print(raw_ostream &OS, const Module *) const override;
   void dump() const;
   //@}
+};
+
+/// \brief Analysis pass that exposes the \c RegionInfo for a function.
+class RegionInfoAnalysis : public AnalysisInfoMixin<RegionInfoAnalysis> {
+  friend AnalysisInfoMixin<RegionInfoAnalysis>;
+  static char PassID;
+
+public:
+  typedef RegionInfo Result;
+
+  RegionInfo run(Function &F, AnalysisManager<Function> &AM);
+};
+
+/// \brief Printer pass for the \c RegionInfo.
+class RegionInfoPrinterPass : public PassInfoMixin<RegionInfoPrinterPass> {
+  raw_ostream &OS;
+
+public:
+  explicit RegionInfoPrinterPass(raw_ostream &OS);
+  PreservedAnalyses run(Function &F, AnalysisManager<Function> &AM);
+};
+
+/// \brief Verifier pass for the \c RegionInfo.
+struct RegionInfoVerifierPass : PassInfoMixin<RegionInfoVerifierPass> {
+  PreservedAnalyses run(Function &F, AnalysisManager<Function> &AM);
 };
 
 template <>

@@ -115,7 +115,9 @@ static struct procabi powerpc_freebsd = {
 	"FreeBSD ELF32",
 	SYSDECODE_ABI_FREEBSD,
 	powerpc_fetch_args,
-	powerpc_fetch_retval
+	powerpc_fetch_retval,
+	STAILQ_HEAD_INITIALIZER(powerpc_freebsd.extra_syscalls),
+	{ NULL }
 };
 
 PROCABI(powerpc_freebsd);

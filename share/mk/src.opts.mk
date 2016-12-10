@@ -250,10 +250,15 @@ __DEFAULT_YES_OPTIONS+=LLVM_LIBUNWIND
 .else
 __DEFAULT_NO_OPTIONS+=LLVM_LIBUNWIND
 .endif
-.if ${__T} == "aarch64" || ${__T} == "amd64"
-__DEFAULT_YES_OPTIONS+=LLDB
+.if ${__T} == "aarch64"
+__DEFAULT_YES_OPTIONS+=LLD_AS_LD
 .else
-__DEFAULT_NO_OPTIONS+=LLDB
+__DEFAULT_NO_OPTIONS+=LLD_AS_LD
+.endif
+.if ${__T} == "aarch64" || ${__T} == "amd64"
+__DEFAULT_YES_OPTIONS+=LLD LLDB
+.else
+__DEFAULT_NO_OPTIONS+=LLD LLDB
 .endif
 # LLVM lacks support for FreeBSD 64-bit atomic operations for ARMv4/ARMv5
 .if ${__T} == "arm" || ${__T} == "armeb"
@@ -304,6 +309,10 @@ MK_LLVM_LIBUNWIND:=	no
 
 .if ${MK_BINUTILS} == "no"
 MK_GDB:=	no
+.endif
+
+.if ${MK_CAPSICUM} == "no"
+MK_CASPER:=	no
 .endif
 
 .if ${MK_LIBPTHREAD} == "no"

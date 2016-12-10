@@ -50,8 +50,7 @@ DynamicCheckerFunctions::DynamicCheckerFunctions() = default;
 DynamicCheckerFunctions::~DynamicCheckerFunctions() = default;
 
 bool
-DynamicCheckerFunctions::Install(Stream &error_stream,
-                                 ExecutionContext &exe_ctx)
+DynamicCheckerFunctions::Install(DiagnosticManager &diagnostic_manager, ExecutionContext &exe_ctx)
 {
     Error error;
     m_valid_pointer_check.reset(exe_ctx.GetTargetRef().GetUtilityFunctionForLanguage(g_valid_pointer_check_text,
@@ -60,8 +59,8 @@ DynamicCheckerFunctions::Install(Stream &error_stream,
                                                                                      error));
     if (error.Fail())
         return false;
-        
-    if (!m_valid_pointer_check->Install(error_stream, exe_ctx))
+
+    if (!m_valid_pointer_check->Install(diagnostic_manager, exe_ctx))
         return false;
 
     Process *process = exe_ctx.GetProcessPtr();
@@ -74,7 +73,7 @@ DynamicCheckerFunctions::Install(Stream &error_stream,
         {
             m_objc_object_check.reset(objc_language_runtime->CreateObjectChecker(VALID_OBJC_OBJECT_CHECK_NAME));
 
-            if (!m_objc_object_check->Install(error_stream, exe_ctx))
+            if (!m_objc_object_check->Install(diagnostic_manager, exe_ctx))
                 return false;
         }
     }
@@ -506,6 +505,32 @@ protected:
 
         return true;
     }
+    
+    static llvm::Function *GetFunction(llvm::Value *value)
+    {
+        if (llvm::Function *function = llvm::dyn_cast<llvm::Function>(value))
+        {
+            return function;
+        }
+        
+        if (llvm::ConstantExpr *const_expr = llvm::dyn_cast<llvm::ConstantExpr>(value))
+        {
+            switch (const_expr->getOpcode())
+            {
+            default:
+                return nullptr;
+            case llvm::Instruction::BitCast:
+                return GetFunction(const_expr->getOperand(0));
+            }
+        }
+        
+        return nullptr;
+    }
+    
+    static llvm::Function *GetCalledFunction(llvm::CallInst *inst)
+    {
+        return GetFunction(inst->getCalledValue());
+    }
 
     bool InspectInstruction(llvm::Instruction &i) override
     {
@@ -515,35 +540,12 @@ protected:
 
         if (call_inst)
         {
-            // This metadata is set by IRForTarget::MaybeHandleCall().
-
-            MDNode *metadata = call_inst->getMetadata("lldb.call.realName");
-
-            if (!metadata)
+            const llvm::Function *called_function = GetCalledFunction(call_inst);
+            
+            if (!called_function)
                 return true;
-
-            if (metadata->getNumOperands() != 1)
-            {
-                if (log)
-                    log->Printf("Function call metadata has %d operands for [%p] %s",
-                                metadata->getNumOperands(),
-                                static_cast<void*>(call_inst),
-                                PrintValue(call_inst).c_str());
-                return false;
-            }
-
-            MDString *real_name = dyn_cast<MDString>(metadata->getOperand(0));
-
-            if (!real_name)
-            {
-                if (log)
-                    log->Printf("Function call metadata is not an MDString for [%p] %s",
-                                static_cast<void*>(call_inst),
-                                PrintValue(call_inst).c_str());
-                return false;
-            }
-
-            std::string name_str = real_name->getString();
+            
+            std::string name_str = called_function->getName().str();
             const char* name_cstr = name_str.c_str();
 
             if (log)

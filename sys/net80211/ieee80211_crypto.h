@@ -202,6 +202,8 @@ void	ieee80211_crypto_register(const struct ieee80211_cipher *);
 void	ieee80211_crypto_unregister(const struct ieee80211_cipher *);
 int	ieee80211_crypto_available(u_int cipher);
 
+int	ieee80211_crypto_get_key_wepidx(const struct ieee80211vap *,
+	    const struct ieee80211_key *k);
 uint8_t	ieee80211_crypto_get_keyid(struct ieee80211vap *vap,
 		struct ieee80211_key *k);
 struct ieee80211_key *ieee80211_crypto_get_txkey(struct ieee80211_node *,

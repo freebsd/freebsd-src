@@ -60,6 +60,16 @@ __FBSDID("$FreeBSD$");
 #define	BYTGPIO_ASSERT_LOCKED(_sc)	mtx_assert(&(_sc)->sc_mtx, MA_OWNED)
 #define	BYTGPIO_ASSERT_UNLOCKED(_sc)	mtx_assert(&(_sc)->sc_mtx, MA_NOTOWNED)
 
+struct pinmap_info {
+    int reg;
+    int pad_func;
+};
+
+/* Ignore function check, no info is available at the moment */
+#define	PADCONF_FUNC_ANY	-1
+
+#define	GPIO_PIN_MAP(r, f) { .reg = (r), .pad_func = (f) }
+
 struct bytgpio_softc {
 	ACPI_HANDLE		sc_handle;
 	device_t		sc_dev;
@@ -69,44 +79,212 @@ struct bytgpio_softc {
 	struct resource		*sc_mem_res;
 	int			sc_npins;
 	const char*		sc_bank_prefix;
-	const int		*sc_pinpad_map;
+	const struct pinmap_info	*sc_pinpad_map;
+	/* List of current functions for pads shared by GPIO */
+	int			*sc_pad_funcs;
 };
 
 static int	bytgpio_probe(device_t dev);
 static int	bytgpio_attach(device_t dev);
+static int	bytgpio_detach(device_t dev);
 
-#define SCORE_UID		1
-#define SCORE_BANK_PREFIX	"GPIO_S0_SC"
-const int bytgpio_score_pins[] = {
-	85, 89, 93, 96, 99, 102, 98, 101, 34, 37, 36, 38, 39, 35, 40,
-	84, 62, 61, 64, 59, 54, 56, 60, 55, 63, 57, 51, 50, 53, 47,
-	52, 49, 48, 43, 46, 41, 45, 42, 58, 44, 95, 105, 70, 68, 67,
-	66, 69, 71, 65, 72, 86, 90, 88, 92, 103, 77, 79, 83, 78, 81,
-	80, 82, 13, 12, 15, 14, 17, 18, 19, 16, 2, 1, 0, 4, 6, 7, 9,
-	8, 33, 32, 31, 30, 29, 27, 25, 28, 26, 23, 21, 20, 24, 22, 5,
-	3, 10, 11, 106, 87, 91, 104, 97, 100
+#define	SCORE_UID		1
+#define	SCORE_BANK_PREFIX	"GPIO_S0_SC"
+const struct pinmap_info bytgpio_score_pins[] = {
+	GPIO_PIN_MAP(85, 0),
+	GPIO_PIN_MAP(89, 0),
+	GPIO_PIN_MAP(93, 0),
+	GPIO_PIN_MAP(96, 0),
+	GPIO_PIN_MAP(99, 0),
+	GPIO_PIN_MAP(102, 0),
+	GPIO_PIN_MAP(98, 0),
+	GPIO_PIN_MAP(101, 0),
+	GPIO_PIN_MAP(34, 0),
+	GPIO_PIN_MAP(37, 0),
+	GPIO_PIN_MAP(36, 0),
+	GPIO_PIN_MAP(38, 0),
+	GPIO_PIN_MAP(39, 0),
+	GPIO_PIN_MAP(35, 0),
+	GPIO_PIN_MAP(40, 0),
+	GPIO_PIN_MAP(84, 0),
+	GPIO_PIN_MAP(62, 0),
+	GPIO_PIN_MAP(61, 0),
+	GPIO_PIN_MAP(64, 0),
+	GPIO_PIN_MAP(59, 0),
+	GPIO_PIN_MAP(54, 0),
+	GPIO_PIN_MAP(56, 0),
+	GPIO_PIN_MAP(60, 0),
+	GPIO_PIN_MAP(55, 0),
+	GPIO_PIN_MAP(63, 0),
+	GPIO_PIN_MAP(57, 0),
+	GPIO_PIN_MAP(51, 0),
+	GPIO_PIN_MAP(50, 0),
+	GPIO_PIN_MAP(53, 0),
+	GPIO_PIN_MAP(47, 0),
+	GPIO_PIN_MAP(52, 0),
+	GPIO_PIN_MAP(49, 0),
+	GPIO_PIN_MAP(48, 0),
+	GPIO_PIN_MAP(43, 0),
+	GPIO_PIN_MAP(46, 0),
+	GPIO_PIN_MAP(41, 0),
+	GPIO_PIN_MAP(45, 0),
+	GPIO_PIN_MAP(42, 0),
+	GPIO_PIN_MAP(58, 0),
+	GPIO_PIN_MAP(44, 0),
+	GPIO_PIN_MAP(95, 0),
+	GPIO_PIN_MAP(105, 0),
+	GPIO_PIN_MAP(70, 0),
+	GPIO_PIN_MAP(68, 0),
+	GPIO_PIN_MAP(67, 0),
+	GPIO_PIN_MAP(66, 0),
+	GPIO_PIN_MAP(69, 0),
+	GPIO_PIN_MAP(71, 0),
+	GPIO_PIN_MAP(65, 0),
+	GPIO_PIN_MAP(72, 0),
+	GPIO_PIN_MAP(86, 0),
+	GPIO_PIN_MAP(90, 0),
+	GPIO_PIN_MAP(88, 0),
+	GPIO_PIN_MAP(92, 0),
+	GPIO_PIN_MAP(103, 0),
+	GPIO_PIN_MAP(77, 0),
+	GPIO_PIN_MAP(79, 0),
+	GPIO_PIN_MAP(83, 0),
+	GPIO_PIN_MAP(78, 0),
+	GPIO_PIN_MAP(81, 0),
+	GPIO_PIN_MAP(80, 0),
+	GPIO_PIN_MAP(82, 0),
+	GPIO_PIN_MAP(13, 0),
+	GPIO_PIN_MAP(12, 0),
+	GPIO_PIN_MAP(15, 0),
+	GPIO_PIN_MAP(14, 0),
+	GPIO_PIN_MAP(17, 0),
+	GPIO_PIN_MAP(18, 0),
+	GPIO_PIN_MAP(19, 0),
+	GPIO_PIN_MAP(16, 0),
+	GPIO_PIN_MAP(2, 0),
+	GPIO_PIN_MAP(1, 0),
+	GPIO_PIN_MAP(0, 0),
+	GPIO_PIN_MAP(4, 0),
+	GPIO_PIN_MAP(6, 0),
+	GPIO_PIN_MAP(7, 0),
+	GPIO_PIN_MAP(9, 0),
+	GPIO_PIN_MAP(8, 0),
+	GPIO_PIN_MAP(33, 0),
+	GPIO_PIN_MAP(32, 0),
+	GPIO_PIN_MAP(31, 0),
+	GPIO_PIN_MAP(30, 0),
+	GPIO_PIN_MAP(29, 0),
+	GPIO_PIN_MAP(27, 0),
+	GPIO_PIN_MAP(25, 0),
+	GPIO_PIN_MAP(28, 0),
+	GPIO_PIN_MAP(26, 0),
+	GPIO_PIN_MAP(23, 0),
+	GPIO_PIN_MAP(21, 0),
+	GPIO_PIN_MAP(20, 0),
+	GPIO_PIN_MAP(24, 0),
+	GPIO_PIN_MAP(22, 0),
+	GPIO_PIN_MAP(5, 1),
+	GPIO_PIN_MAP(3, 1),
+	GPIO_PIN_MAP(10, 0),
+	GPIO_PIN_MAP(11, 0),
+	GPIO_PIN_MAP(106, 0),
+	GPIO_PIN_MAP(87, 0),
+	GPIO_PIN_MAP(91, 0),
+	GPIO_PIN_MAP(104, 0),
+	GPIO_PIN_MAP(97, 0),
+	GPIO_PIN_MAP(100, 0)
 };
-#define SCORE_PINS	nitems(bytgpio_score_pins)
 
-#define NCORE_UID		2
-#define NCORE_BANK_PREFIX	"GPIO_S0_NC"
-const int bytgpio_ncore_pins[] = {
-	19, 18, 17, 20, 21, 22, 24, 25, 23, 16, 14, 15, 12, 26, 27,
-	1, 4, 8, 11, 0, 3, 6, 10, 13, 2, 5, 9, 7
+#define	SCORE_PINS	nitems(bytgpio_score_pins)
+
+#define	NCORE_UID		2
+#define	NCORE_BANK_PREFIX	"GPIO_S0_NC"
+const struct pinmap_info bytgpio_ncore_pins[] = {
+	GPIO_PIN_MAP(19, PADCONF_FUNC_ANY),
+	GPIO_PIN_MAP(18, PADCONF_FUNC_ANY),
+	GPIO_PIN_MAP(17, PADCONF_FUNC_ANY),
+	GPIO_PIN_MAP(20, PADCONF_FUNC_ANY),
+	GPIO_PIN_MAP(21, PADCONF_FUNC_ANY),
+	GPIO_PIN_MAP(22, PADCONF_FUNC_ANY),
+	GPIO_PIN_MAP(24, PADCONF_FUNC_ANY),
+	GPIO_PIN_MAP(25, PADCONF_FUNC_ANY),
+	GPIO_PIN_MAP(23, PADCONF_FUNC_ANY),
+	GPIO_PIN_MAP(16, PADCONF_FUNC_ANY),
+	GPIO_PIN_MAP(14, PADCONF_FUNC_ANY),
+	GPIO_PIN_MAP(15, PADCONF_FUNC_ANY),
+	GPIO_PIN_MAP(12, PADCONF_FUNC_ANY),
+	GPIO_PIN_MAP(26, PADCONF_FUNC_ANY),
+	GPIO_PIN_MAP(27, PADCONF_FUNC_ANY),
+	GPIO_PIN_MAP(1, PADCONF_FUNC_ANY),
+	GPIO_PIN_MAP(4, PADCONF_FUNC_ANY),
+	GPIO_PIN_MAP(8, PADCONF_FUNC_ANY),
+	GPIO_PIN_MAP(11, PADCONF_FUNC_ANY),
+	GPIO_PIN_MAP(0, PADCONF_FUNC_ANY),
+	GPIO_PIN_MAP(3, PADCONF_FUNC_ANY),
+	GPIO_PIN_MAP(6, PADCONF_FUNC_ANY),
+	GPIO_PIN_MAP(10, PADCONF_FUNC_ANY),
+	GPIO_PIN_MAP(13, PADCONF_FUNC_ANY),
+	GPIO_PIN_MAP(2, PADCONF_FUNC_ANY),
+	GPIO_PIN_MAP(5, PADCONF_FUNC_ANY),
+	GPIO_PIN_MAP(9, PADCONF_FUNC_ANY),
+	GPIO_PIN_MAP(7, PADCONF_FUNC_ANY)
 };
 #define	NCORE_PINS	nitems(bytgpio_ncore_pins)
 
-#define SUS_UID		3
-#define SUS_BANK_PREFIX	"GPIO_S5_"
-const int bytgpio_sus_pins[] = {
-        29, 33, 30, 31, 32, 34, 36, 35, 38, 37, 18, 7, 11, 20, 17, 1,
-	8, 10, 19, 12, 0, 2, 23, 39, 28, 27, 22, 21, 24, 25, 26, 51,
-	56, 54, 49, 55, 48, 57, 50, 58, 52, 53, 59, 40
+#define	SUS_UID		3
+#define	SUS_BANK_PREFIX	"GPIO_S5_"
+const struct pinmap_info bytgpio_sus_pins[] = {
+	GPIO_PIN_MAP(29, 0),
+	GPIO_PIN_MAP(33, 0),
+	GPIO_PIN_MAP(30, 0),
+	GPIO_PIN_MAP(31, 0),
+	GPIO_PIN_MAP(32, 0),
+	GPIO_PIN_MAP(34, 0),
+	GPIO_PIN_MAP(36, 0),
+	GPIO_PIN_MAP(35, 0),
+	GPIO_PIN_MAP(38, 0),
+	GPIO_PIN_MAP(37, 0),
+	GPIO_PIN_MAP(18, 0),
+	GPIO_PIN_MAP(7, 1),
+	GPIO_PIN_MAP(11, 1),
+	GPIO_PIN_MAP(20, 1),
+	GPIO_PIN_MAP(17, 1),
+	GPIO_PIN_MAP(1, 1),
+	GPIO_PIN_MAP(8, 1),
+	GPIO_PIN_MAP(10, 1),
+	GPIO_PIN_MAP(19, 1),
+	GPIO_PIN_MAP(12, 1),
+	GPIO_PIN_MAP(0, 1),
+	GPIO_PIN_MAP(2, 1),
+	GPIO_PIN_MAP(23, 0),
+	GPIO_PIN_MAP(39, 0),
+	GPIO_PIN_MAP(28, 0),
+	GPIO_PIN_MAP(27, 0),
+	GPIO_PIN_MAP(22, 0),
+	GPIO_PIN_MAP(21, 0),
+	GPIO_PIN_MAP(24, 0),
+	GPIO_PIN_MAP(25, 0),
+	GPIO_PIN_MAP(26, 0),
+	GPIO_PIN_MAP(51, 0),
+	GPIO_PIN_MAP(56, 0),
+	GPIO_PIN_MAP(54, 0),
+	GPIO_PIN_MAP(49, 0),
+	GPIO_PIN_MAP(55, 0),
+	GPIO_PIN_MAP(48, 0),
+	GPIO_PIN_MAP(57, 0),
+	GPIO_PIN_MAP(50, 0),
+	GPIO_PIN_MAP(58, 0),
+	GPIO_PIN_MAP(52, 0),
+	GPIO_PIN_MAP(53, 0),
+	GPIO_PIN_MAP(59, 0),
+	GPIO_PIN_MAP(40, 0)
 };
+
 #define	SUS_PINS	nitems(bytgpio_sus_pins)
 
-#define	BYGPIO_PIN_REGISTER(sc, pin, reg)	((sc)->sc_pinpad_map[(pin)] * 16 + (reg))
+#define	BYGPIO_PIN_REGISTER(sc, pin, r)	((sc)->sc_pinpad_map[(pin)].reg * 16 + (r))
 #define	BYTGPIO_PCONF0		0x0000
+#define		BYTGPIO_PCONF0_FUNC_MASK	7
 #define	BYTGPIO_PAD_VAL		0x0008
 #define		BYTGPIO_PAD_VAL_LEVEL		(1 << 0)	
 #define		BYTGPIO_PAD_VAL_I_OUTPUT_ENABLED	(1 << 1)
@@ -158,6 +336,19 @@ bytgpio_valid_pin(struct bytgpio_softc *sc, int pin)
 	return (0);
 }
 
+/*
+ * Returns true if pad configured to be used as GPIO
+ */
+static bool
+bytgpio_pad_is_gpio(struct bytgpio_softc *sc, int pin)
+{
+	if ((sc->sc_pinpad_map[pin].pad_func == PADCONF_FUNC_ANY) ||
+	    (sc->sc_pad_funcs[pin] == sc->sc_pinpad_map[pin].pad_func))
+		return (true);
+	else
+		return (false);
+}
+
 static int
 bytgpio_pin_getcaps(device_t dev, uint32_t pin, uint32_t *caps)
 {
@@ -167,7 +358,9 @@ bytgpio_pin_getcaps(device_t dev, uint32_t pin, uint32_t *caps)
 	if (bytgpio_valid_pin(sc, pin) != 0)
 		return (EINVAL);
 
-	*caps = GPIO_PIN_INPUT | GPIO_PIN_OUTPUT;
+	*caps = 0;
+	if (bytgpio_pad_is_gpio(sc, pin))
+		*caps = GPIO_PIN_INPUT | GPIO_PIN_OUTPUT;
 
 	return (0);
 }
@@ -182,11 +375,14 @@ bytgpio_pin_getflags(device_t dev, uint32_t pin, uint32_t *flags)
 	if (bytgpio_valid_pin(sc, pin) != 0)
 		return (EINVAL);
 
+	*flags = 0;
+	if (!bytgpio_pad_is_gpio(sc, pin))
+		return (0);
+
 	/* Get the current pin state */
 	BYTGPIO_LOCK(sc);
 	reg = BYGPIO_PIN_REGISTER(sc, pin, BYTGPIO_PAD_VAL);
 	val = bytgpio_read_4(sc, reg);
-	*flags = 0;
 	if ((val & BYTGPIO_PAD_VAL_I_OUTPUT_ENABLED) == 0)
 		*flags |= GPIO_PIN_OUTPUT;
 	/*
@@ -211,7 +407,10 @@ bytgpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 	if (bytgpio_valid_pin(sc, pin) != 0)
 		return (EINVAL);
 
-	allowed = GPIO_PIN_INPUT | GPIO_PIN_OUTPUT;
+	if (bytgpio_pad_is_gpio(sc, pin))
+		allowed = GPIO_PIN_INPUT | GPIO_PIN_OUTPUT;
+	else
+		allowed = 0;
 
 	/* 
 	 * Only directtion flag allowed
@@ -266,6 +465,9 @@ bytgpio_pin_set(device_t dev, uint32_t pin, unsigned int value)
 	if (bytgpio_valid_pin(sc, pin) != 0)
 		return (EINVAL);
 
+	if (!bytgpio_pad_is_gpio(sc, pin))
+		return (EINVAL);
+
 	BYTGPIO_LOCK(sc);
 	reg = BYGPIO_PIN_REGISTER(sc, pin, BYTGPIO_PAD_VAL);
 	val = bytgpio_read_4(sc, reg);
@@ -288,15 +490,16 @@ bytgpio_pin_get(device_t dev, uint32_t pin, unsigned int *value)
 	sc = device_get_softc(dev);
 	if (bytgpio_valid_pin(sc, pin) != 0)
 		return (EINVAL);
+	/*
+	 * Report non-GPIO pads as pin LOW
+	 */
+	if (!bytgpio_pad_is_gpio(sc, pin)) {
+		*value = GPIO_PIN_LOW;
+		return (0);
+	}
 
 	BYTGPIO_LOCK(sc);
 	reg = BYGPIO_PIN_REGISTER(sc, pin, BYTGPIO_PAD_VAL);
-	/*
-	 * Enable input to read current value
-	 */
-	val = bytgpio_read_4(sc, reg);
-	val = val & ~BYTGPIO_PAD_VAL_I_INPUT_ENABLED;
-	bytgpio_write_4(sc, reg, val);
 	/*
 	 * And read actual value
 	 */
@@ -318,6 +521,9 @@ bytgpio_pin_toggle(device_t dev, uint32_t pin)
 
 	sc = device_get_softc(dev);
 	if (bytgpio_valid_pin(sc, pin) != 0)
+		return (EINVAL);
+
+	if (!bytgpio_pad_is_gpio(sc, pin))
 		return (EINVAL);
 
 	/* Toggle the pin */
@@ -350,6 +556,8 @@ bytgpio_attach(device_t dev)
 	struct bytgpio_softc	*sc;
 	ACPI_STATUS status;
 	int uid;
+	int pin;
+	uint32_t reg, val;
 
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
@@ -359,6 +567,8 @@ bytgpio_attach(device_t dev)
 		device_printf(dev, "failed to read _UID\n");
 		return (ENXIO);
 	}
+
+	BYTGPIO_LOCK_INIT(sc);
 
 	switch (uid) {
 	case SCORE_UID:
@@ -378,7 +588,11 @@ bytgpio_attach(device_t dev)
 		break;
 	default:
 		device_printf(dev, "invalid _UID value: %d\n", uid);
+		goto error;
 	}
+
+	sc->sc_pad_funcs = malloc(sizeof(int)*sc->sc_npins, M_DEVBUF,
+	    M_WAITOK | M_ZERO);
 
 	sc->sc_mem_rid = 0;
 	sc->sc_mem_res = bus_alloc_resource_any(sc->sc_dev,
@@ -388,7 +602,11 @@ bytgpio_attach(device_t dev)
 		goto error;
 	}
 
-	BYTGPIO_LOCK_INIT(sc);
+	for (pin = 0; pin < sc->sc_npins; pin++) {
+	    reg = BYGPIO_PIN_REGISTER(sc, pin, BYTGPIO_PCONF0);
+	    val = bytgpio_read_4(sc, reg);
+	    sc->sc_pad_funcs[pin] = val & BYTGPIO_PCONF0_FUNC_MASK;
+	}
 
 	sc->sc_busdev = gpiobus_attach_bus(dev);
 	if (sc->sc_busdev == NULL) {
@@ -401,13 +619,39 @@ bytgpio_attach(device_t dev)
 	return (0);
 
 error:
+	BYTGPIO_LOCK_DESTROY(sc);
+
 	return (ENXIO);
+}
+
+
+static int
+bytgpio_detach(device_t dev)
+{
+	struct bytgpio_softc	*sc;
+
+	sc = device_get_softc(dev);
+
+	if (sc->sc_busdev)
+		gpiobus_detach_bus(dev);
+
+	BYTGPIO_LOCK_DESTROY(sc);
+
+	if (sc->sc_pad_funcs)
+		free(sc->sc_pad_funcs, M_DEVBUF);
+
+	if (sc->sc_mem_res != NULL)
+		bus_release_resource(dev, SYS_RES_MEMORY,
+		    sc->sc_mem_rid, sc->sc_mem_res);
+
+	return (0);
 }
 
 static device_method_t bytgpio_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe, bytgpio_probe),
 	DEVMETHOD(device_attach, bytgpio_attach),
+	DEVMETHOD(device_detach, bytgpio_detach),
 
 	/* GPIO protocol */
 	DEVMETHOD(gpio_get_bus, bytgpio_get_bus),
@@ -432,4 +676,4 @@ static driver_t bytgpio_driver = {
 static devclass_t bytgpio_devclass;
 DRIVER_MODULE(bytgpio, acpi, bytgpio_driver, bytgpio_devclass, 0, 0);
 MODULE_DEPEND(bytgpio, acpi, 1, 1, 1);
-MODULE_DEPEND(bytgpio, gpio, 1, 1, 1);
+MODULE_DEPEND(bytgpio, gpiobus, 1, 1, 1);

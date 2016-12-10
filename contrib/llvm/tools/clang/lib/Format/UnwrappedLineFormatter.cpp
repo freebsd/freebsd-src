@@ -847,7 +847,9 @@ UnwrappedLineFormatter::format(const SmallVectorImpl<AnnotatedLine *> &Lines,
       unsigned ColumnLimit = getColumnLimit(TheLine.InPPDirective, NextLine);
       bool FitsIntoOneLine =
           TheLine.Last->TotalLength + Indent <= ColumnLimit ||
-          TheLine.Type == LT_ImportStatement;
+          (TheLine.Type == LT_ImportStatement &&
+           (Style.Language != FormatStyle::LK_JavaScript ||
+            !Style.JavaScriptWrapImports));
 
       if (Style.ColumnLimit == 0)
         NoColumnLimitLineFormatter(Indenter, Whitespaces, Style, this)
@@ -863,7 +865,9 @@ UnwrappedLineFormatter::format(const SmallVectorImpl<AnnotatedLine *> &Lines,
       // If no token in the current line is affected, we still need to format
       // affected children.
       if (TheLine.ChildrenAffected)
-        format(TheLine.Children, DryRun);
+        for (const FormatToken *Tok = TheLine.First; Tok; Tok = Tok->Next)
+          if (!Tok->Children.empty())
+            format(Tok->Children, DryRun);
 
       // Adapt following lines on the current indent level to the same level
       // unless the current \c AnnotatedLine is not at the beginning of a line.

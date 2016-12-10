@@ -409,6 +409,8 @@ static device_method_t nexus_fdt_methods[] = {
 
 	/* OFW interface */
 	DEVMETHOD(ofw_bus_map_intr,	nexus_ofw_map_intr),
+
+	DEVMETHOD_END,
 };
 
 #define nexus_baseclasses nexus_fdt_baseclasses
@@ -462,6 +464,8 @@ static device_method_t nexus_acpi_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		nexus_acpi_probe),
 	DEVMETHOD(device_attach,	nexus_acpi_attach),
+
+	DEVMETHOD_END,
 };
 
 #define nexus_baseclasses nexus_acpi_baseclasses

@@ -232,7 +232,8 @@ hn_rndis_xact_exec1(struct hn_softc *sc, struct vmbus_xact *xact, size_t reqlen,
 		if_printf(sc->hn_ifp, "RNDIS ctrl send failed: %d\n", error);
 		return (NULL);
 	}
-	return (vmbus_xact_wait(xact, comp_len));
+	return (vmbus_chan_xact_wait(sc->hn_prichan, xact, comp_len,
+	    HN_CAN_SLEEP(sc)));
 }
 
 static const void *
@@ -599,7 +600,6 @@ hn_rndis_conf_offload(struct hn_softc *sc, int mtu)
 	if ((hwcaps.ndis_lsov2.ndis_ip6_encap & NDIS_OFFLOAD_ENCAP_8023) &&
 	    (hwcaps.ndis_lsov2.ndis_ip6_opts & HN_NDIS_LSOV2_CAP_IP6) ==
 	    HN_NDIS_LSOV2_CAP_IP6) {
-#ifdef notyet
 		caps |= HN_CAP_TSO6;
 		params.ndis_lsov2_ip6 = NDIS_OFFLOAD_LSOV2_ON;
 
@@ -607,7 +607,6 @@ hn_rndis_conf_offload(struct hn_softc *sc, int mtu)
 			tso_maxsz = hwcaps.ndis_lsov2.ndis_ip6_maxsz;
 		if (hwcaps.ndis_lsov2.ndis_ip6_minsg > tso_minsg)
 			tso_minsg = hwcaps.ndis_lsov2.ndis_ip6_minsg;
-#endif
 	}
 	sc->hn_ndis_tso_szmax = 0;
 	sc->hn_ndis_tso_sgmin = 0;
@@ -838,11 +837,15 @@ hn_rndis_init(struct hn_softc *sc)
 		error = EIO;
 		goto done;
 	}
+	sc->hn_rndis_agg_size = comp->rm_pktmaxsz;
+	sc->hn_rndis_agg_pkts = comp->rm_pktmaxcnt;
+	sc->hn_rndis_agg_align = 1U << comp->rm_align;
+
 	if (bootverbose) {
 		if_printf(sc->hn_ifp, "RNDIS ver %u.%u, pktsz %u, pktcnt %u, "
 		    "align %u\n", comp->rm_ver_major, comp->rm_ver_minor,
-		    comp->rm_pktmaxsz, comp->rm_pktmaxcnt,
-		    1U << comp->rm_align);
+		    sc->hn_rndis_agg_size, sc->hn_rndis_agg_pkts,
+		    sc->hn_rndis_agg_align);
 	}
 	error = 0;
 done:
@@ -976,7 +979,6 @@ hn_rndis_attach(struct hn_softc *sc, int mtu)
 
 	/*
 	 * Configure NDIS offload settings.
-	 * XXX no offloading, if error happened?
 	 */
 	hn_rndis_conf_offload(sc, mtu);
 	return (0);

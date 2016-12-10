@@ -38,14 +38,18 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_cpu.h>
-#ifdef DEV_ACPI
-#include <dev/uart/uart_cpu_acpi.h>
-#endif
 #ifdef FDT
 #include <dev/uart/uart_cpu_fdt.h>
 #endif
 #include <dev/uart/uart_bus.h>
 #include "uart_if.h"
+
+#ifdef DEV_ACPI
+#include <dev/uart/uart_cpu_acpi.h>
+#include <contrib/dev/acpica/include/acpi.h>
+#include <contrib/dev/acpica/include/accommon.h>
+#include <contrib/dev/acpica/include/actables.h>
+#endif
 
 #include <sys/kdb.h>
 
@@ -296,8 +300,8 @@ UART_FDT_CLASS_AND_DEVICE(compat_data);
 
 #ifdef DEV_ACPI
 static struct acpi_uart_compat_data acpi_compat_data[] = {
-	{"ARMH0011", &uart_pl011_class},
-	{NULL, NULL},
+	{"ARMH0011", &uart_pl011_class, ACPI_DBG2_ARM_PL011},
+	{NULL, NULL, 0},
 };
 UART_ACPI_CLASS_AND_DEVICE(acpi_compat_data);
 #endif
@@ -439,6 +443,8 @@ uart_pl011_bus_receive(struct uart_softc *sc)
 			sc->sc_rxbuf[sc->sc_rxput] = UART_STAT_OVERRUN;
 			break;
 		}
+
+		__uart_setreg(bas, UART_ICR, (UART_RXREADY | RIS_RTIM));
 		xc = __uart_getreg(bas, UART_DR);
 		rx = xc & 0xff;
 
@@ -446,8 +452,6 @@ uart_pl011_bus_receive(struct uart_softc *sc)
 			rx |= UART_STAT_FRAMERR;
 		if (xc & DR_PE)
 			rx |= UART_STAT_PARERR;
-
-		__uart_setreg(bas, UART_ICR, (UART_RXREADY | RIS_RTIM));
 
 		uart_rx_put(sc, rx);
 		ints = __uart_getreg(bas, UART_MIS);
