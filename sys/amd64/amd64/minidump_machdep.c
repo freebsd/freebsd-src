@@ -223,7 +223,6 @@ minidumpsys(struct dumperinfo *di)
 	int error;
 	uint64_t bits;
 	uint64_t *pml4, *pdp, *pd, *pt, pa;
-	size_t size;
 	int i, ii, j, k, n, bit;
 	int retry_count;
 	struct minidumphdr mdhdr;
@@ -321,13 +320,20 @@ minidumpsys(struct dumperinfo *di)
 	dumpsize += PAGE_SIZE;
 
 	/* Determine dump offset on device. */
-	if (di->mediasize < SIZEOF_METADATA + dumpsize + di->blocksize * 2) {
+	if (di->mediasize < SIZEOF_METADATA + dumpsize + di->blocksize * 2 +
+	    kerneldumpcrypto_dumpkeysize(di->kdc)) {
 		error = E2BIG;
 		goto fail;
 	}
 	dumplo = di->mediaoffset + di->mediasize - dumpsize;
 	dumplo -= di->blocksize * 2;
+	dumplo -= kerneldumpcrypto_dumpkeysize(di->kdc);
 	progress = dumpsize;
+
+	/* Initialize kernel dump crypto. */
+	error = kerneldumpcrypto_init(di->kdc);
+	if (error)
+		goto fail;
 
 	/* Initialize mdhdr */
 	bzero(&mdhdr, sizeof(mdhdr));
@@ -340,16 +346,23 @@ minidumpsys(struct dumperinfo *di)
 	mdhdr.dmapbase = DMAP_MIN_ADDRESS;
 	mdhdr.dmapend = DMAP_MAX_ADDRESS;
 
-	mkdumpheader(&kdh, KERNELDUMPMAGIC, KERNELDUMP_AMD64_VERSION, dumpsize, di->blocksize);
+	mkdumpheader(&kdh, KERNELDUMPMAGIC, KERNELDUMP_AMD64_VERSION, dumpsize,
+	    kerneldumpcrypto_dumpkeysize(di->kdc), di->blocksize);
 
 	printf("Dumping %llu out of %ju MB:", (long long)dumpsize >> 20,
 	    ptoa((uintmax_t)physmem) / 1048576);
 
 	/* Dump leader */
-	error = dump_write_pad(di, &kdh, 0, dumplo, sizeof(kdh), &size);
+	error = dump_write_header(di, &kdh, 0, dumplo);
 	if (error)
 		goto fail;
-	dumplo += size;
+	dumplo += di->blocksize;
+
+	/* Dump key */
+	error = dump_write_key(di, 0, dumplo);
+	if (error)
+		goto fail;
+	dumplo += kerneldumpcrypto_dumpkeysize(di->kdc);
 
 	/* Dump my header */
 	bzero(&fakepd, sizeof(fakepd));
@@ -434,10 +447,10 @@ minidumpsys(struct dumperinfo *di)
 		goto fail;
 
 	/* Dump trailer */
-	error = dump_write_pad(di, &kdh, 0, dumplo, sizeof(kdh), &size);
+	error = dump_write_header(di, &kdh, 0, dumplo);
 	if (error)
 		goto fail;
-	dumplo += size;
+	dumplo += di->blocksize;
 
 	/* Signal completion, signoff and exit stage left. */
 	dump_write(di, NULL, 0, 0, 0);

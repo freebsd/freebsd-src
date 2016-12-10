@@ -42,13 +42,16 @@ static char sccsid[] = "From: @(#)swapon.c	8.1 (Berkeley) 6/5/93";
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/capsicum.h>
 #include <sys/disk.h>
 #include <sys/sysctl.h>
 
+#include <assert.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <paths.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -56,13 +59,19 @@ __FBSDID("$FreeBSD$");
 #include <sysexits.h>
 #include <unistd.h>
 
+#ifdef HAVE_CRYPTO
+#include <openssl/err.h>
+#include <openssl/pem.h>
+#include <openssl/rsa.h>
+#endif
+
 static int	verbose;
 
 static void
 usage(void)
 {
 	fprintf(stderr, "%s\n%s\n%s\n",
-	    "usage: dumpon [-v] special_file",
+	    "usage: dumpon [-v] [-k public_key_file] special_file",
 	    "       dumpon [-v] off",
 	    "       dumpon [-v] -l");
 	exit(EX_USAGE);
@@ -94,6 +103,59 @@ check_size(int fd, const char *fn)
 	}
 }
 
+#ifdef HAVE_CRYPTO
+static void
+genkey(const char *pubkeyfile, struct diocskerneldump_arg *kda)
+{
+	FILE *fp;
+	RSA *pubkey;
+
+	assert(pubkeyfile != NULL);
+	assert(kda != NULL);
+
+	fp = NULL;
+	pubkey = NULL;
+
+	fp = fopen(pubkeyfile, "r");
+	if (fp == NULL)
+		err(1, "Unable to open %s", pubkeyfile);
+
+	if (cap_enter() < 0 && errno != ENOSYS)
+		err(1, "Unable to enter capability mode");
+
+	pubkey = RSA_new();
+	if (pubkey == NULL) {
+		errx(1, "Unable to allocate an RSA structure: %s",
+		    ERR_error_string(ERR_get_error(), NULL));
+	}
+
+	pubkey = PEM_read_RSA_PUBKEY(fp, &pubkey, NULL, NULL);
+	fclose(fp);
+	fp = NULL;
+	if (pubkey == NULL)
+		errx(1, "Unable to read data from %s.", pubkeyfile);
+
+	kda->kda_encryptedkeysize = RSA_size(pubkey);
+	if (kda->kda_encryptedkeysize > KERNELDUMP_ENCKEY_MAX_SIZE) {
+		errx(1, "Public key has to be at most %db long.",
+		    8 * KERNELDUMP_ENCKEY_MAX_SIZE);
+	}
+
+	kda->kda_encryptedkey = calloc(1, kda->kda_encryptedkeysize);
+	if (kda->kda_encryptedkey == NULL)
+		err(1, "Unable to allocate encrypted key");
+
+	kda->kda_encryption = KERNELDUMP_ENC_AES_256_CBC;
+	arc4random_buf(kda->kda_key, sizeof(kda->kda_key));
+	if (RSA_public_encrypt(sizeof(kda->kda_key), kda->kda_key,
+	    kda->kda_encryptedkey, pubkey,
+	    RSA_PKCS1_PADDING) != (int)kda->kda_encryptedkeysize) {
+		errx(1, "Unable to encrypt the one-time key.");
+	}
+	RSA_free(pubkey);
+}
+#endif
+
 static void
 listdumpdev(void)
 {
@@ -123,13 +185,20 @@ listdumpdev(void)
 int
 main(int argc, char *argv[])
 {
+	struct diocskerneldump_arg kda;
+	const char *pubkeyfile;
 	int ch;
 	int i, fd;
-	u_int u;
 	int do_listdumpdev = 0;
+	bool enable;
 
-	while ((ch = getopt(argc, argv, "lv")) != -1)
+	pubkeyfile = NULL;
+
+	while ((ch = getopt(argc, argv, "k:lv")) != -1)
 		switch((char)ch) {
+		case 'k':
+			pubkeyfile = optarg;
+			break;
 		case 'l':
 			do_listdumpdev = 1;
 			break;
@@ -151,7 +220,15 @@ main(int argc, char *argv[])
 	if (argc != 1)
 		usage();
 
-	if (strcmp(argv[0], "off") != 0) {
+	enable = (strcmp(argv[0], "off") != 0);
+#ifndef HAVE_CRYPTO
+	if (pubkeyfile != NULL) {
+		enable = false;
+		warnx("Unable to use the public key. Recompile dumpon with OpenSSL support.");
+	}
+#endif
+
+	if (enable) {
 		char tmp[PATH_MAX];
 		char *dumpdev;
 
@@ -171,18 +248,32 @@ main(int argc, char *argv[])
 		if (fd < 0)
 			err(EX_OSFILE, "%s", dumpdev);
 		check_size(fd, dumpdev);
-		u = 0;
-		i = ioctl(fd, DIOCSKERNELDUMP, &u);
-		u = 1;
-		i = ioctl(fd, DIOCSKERNELDUMP, &u);
+		bzero(&kda, sizeof(kda));
+
+		kda.kda_enable = 0;
+		i = ioctl(fd, DIOCSKERNELDUMP, &kda);
+		explicit_bzero(&kda, sizeof(kda));
+
+#ifdef HAVE_CRYPTO
+		if (pubkeyfile != NULL)
+			genkey(pubkeyfile, &kda);
+#endif
+
+		kda.kda_enable = 1;
+		i = ioctl(fd, DIOCSKERNELDUMP, &kda);
+		explicit_bzero(kda.kda_encryptedkey, kda.kda_encryptedkeysize);
+		free(kda.kda_encryptedkey);
+		explicit_bzero(&kda, sizeof(kda));
 		if (i == 0 && verbose)
 			printf("kernel dumps on %s\n", dumpdev);
 	} else {
 		fd = open(_PATH_DEVNULL, O_RDONLY);
 		if (fd < 0)
 			err(EX_OSFILE, "%s", _PATH_DEVNULL);
-		u = 0;
-		i = ioctl(fd, DIOCSKERNELDUMP, &u);
+
+		kda.kda_enable = 0;
+		i = ioctl(fd, DIOCSKERNELDUMP, &kda);
+		explicit_bzero(&kda, sizeof(kda));
 		if (i == 0 && verbose)
 			printf("kernel dumps disabled\n");
 	}

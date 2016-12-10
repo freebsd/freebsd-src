@@ -74,6 +74,7 @@ __FBSDID("$FreeBSD$");
 #include <paths.h>
 #include <signal.h>
 #include <stdarg.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -183,6 +184,28 @@ writebounds(int bounds) {
 	fclose(fp);
 }
 
+static bool
+writekey(const char *keyname, uint8_t *dumpkey, uint32_t dumpkeysize)
+{
+	int fd;
+
+	fd = open(keyname, O_WRONLY | O_CREAT | O_TRUNC, 0600);
+	if (fd == -1) {
+		syslog(LOG_ERR, "Unable to open %s to write the key: %m.",
+		    keyname);
+		return (false);
+	}
+
+	if (write(fd, dumpkey, dumpkeysize) != (ssize_t)dumpkeysize) {
+		syslog(LOG_ERR, "Unable to write the key to %s: %m.", keyname);
+		close(fd);
+		return (false);
+	}
+
+	close(fd);
+	return (true);
+}
+
 static off_t
 file_size(const char *path)
 {
@@ -238,8 +261,11 @@ symlinks_remove(void)
 {
 
 	(void)unlink("info.last");
+	(void)unlink("key.last");
 	(void)unlink("vmcore.last");
 	(void)unlink("vmcore.last.gz");
+	(void)unlink("vmcore_encrypted.last");
+	(void)unlink("vmcore_encrypted.last.gz");
 	(void)unlink("textdump.tar.last");
 	(void)unlink("textdump.tar.last.gz");
 }
@@ -292,8 +318,8 @@ check_space(const char *savedir, off_t dumpsize, int bounds)
 #define BLOCKMASK (~(BLOCKSIZE-1))
 
 static int
-DoRegularFile(int fd, off_t dumpsize, char *buf, const char *device,
-    const char *filename, FILE *fp)
+DoRegularFile(int fd, bool isencrypted, off_t dumpsize, char *buf,
+    const char *device, const char *filename, FILE *fp)
 {
 	int he, hs, nr, nw, wl;
 	off_t dmpcnt, origsize;
@@ -315,7 +341,7 @@ DoRegularFile(int fd, off_t dumpsize, char *buf, const char *device,
 			nerr++;
 			return (-1);
 		}
-		if (compress) {
+		if (compress || isencrypted) {
 			nw = fwrite(buf, 1, wl, fp);
 		} else {
 			for (nw = 0; nw < nr; nw = he) {
@@ -436,9 +462,11 @@ DoFile(const char *savedir, const char *device)
 {
 	xo_handle_t *xostdout, *xoinfo;
 	static char infoname[PATH_MAX], corename[PATH_MAX], linkname[PATH_MAX];
+	static char keyname[PATH_MAX];
 	static char *buf = NULL;
 	char *temp = NULL;
 	struct kerneldumpheader kdhf, kdhl;
+	uint8_t *dumpkey;
 	off_t mediasize, dumpsize, firsthd, lasthd;
 	FILE *info, *fp;
 	mode_t oumask;
@@ -446,6 +474,8 @@ DoFile(const char *savedir, const char *device)
 	int bounds, status;
 	u_int sectorsize, xostyle;
 	int istextdump;
+	uint32_t dumpkeysize;
+	bool isencrypted, ret;
 
 	bounds = getbounds();
 	mediasize = 0;
@@ -581,7 +611,8 @@ DoFile(const char *savedir, const char *device)
 			goto closefd;
 	}
 	dumpsize = dtoh64(kdhl.dumplength);
-	firsthd = lasthd - dumpsize - sectorsize;
+	dumpkeysize = dtoh32(kdhl.dumpkeysize);
+	firsthd = lasthd - dumpsize - sectorsize - dumpkeysize;
 	if (lseek(fd, firsthd, SEEK_SET) != firsthd ||
 	    read(fd, temp, sectorsize) != (ssize_t)sectorsize) {
 		syslog(LOG_ERR,
@@ -649,13 +680,16 @@ DoFile(const char *savedir, const char *device)
 	}
 
 	oumask = umask(S_IRWXG|S_IRWXO); /* Restrict access to the core file.*/
+	isencrypted = (dumpkeysize > 0);
 	if (compress) {
 		snprintf(corename, sizeof(corename), "%s.%d.gz",
-		    istextdump ? "textdump.tar" : "vmcore", bounds);
+		    istextdump ? "textdump.tar" :
+		    (isencrypted ? "vmcore_encrypted" : "vmcore"), bounds);
 		fp = zopen(corename, "w");
 	} else {
 		snprintf(corename, sizeof(corename), "%s.%d",
-		    istextdump ? "textdump.tar" : "vmcore", bounds);
+		    istextdump ? "textdump.tar" :
+		    (isencrypted ? "vmcore_encrypted" : "vmcore"), bounds);
 		fp = fopen(corename, "w");
 	}
 	if (fp == NULL) {
@@ -692,17 +726,42 @@ DoFile(const char *savedir, const char *device)
 	xo_finish_h(xoinfo);
 	fclose(info);
 
-	syslog(LOG_NOTICE, "writing %score to %s/%s",
-	    compress ? "compressed " : "", savedir, corename);
+	if (isencrypted) {
+		dumpkey = calloc(1, dumpkeysize);
+		if (dumpkey == NULL) {
+			syslog(LOG_ERR, "Unable to allocate kernel dump key.");
+			nerr++;
+			goto closeall;
+		}
+
+		if (read(fd, dumpkey, dumpkeysize) != (ssize_t)dumpkeysize) {
+			syslog(LOG_ERR, "Unable to read kernel dump key: %m.");
+			nerr++;
+			goto closeall;
+		}
+
+		snprintf(keyname, sizeof(keyname), "key.%d", bounds);
+		ret = writekey(keyname, dumpkey, dumpkeysize);
+		explicit_bzero(dumpkey, dumpkeysize);
+		if (!ret) {
+			nerr++;
+			goto closeall;
+		}
+	}
+
+	syslog(LOG_NOTICE, "writing %s%score to %s/%s",
+	    isencrypted ? "encrypted " : "", compress ? "compressed " : "",
+	    savedir, corename);
 
 	if (istextdump) {
 		if (DoTextdumpFile(fd, dumpsize, lasthd, buf, device,
 		    corename, fp) < 0)
 			goto closeall;
 	} else {
-		if (DoRegularFile(fd, dumpsize, buf, device, corename, fp)
-		    < 0)
+		if (DoRegularFile(fd, isencrypted, dumpsize, buf, device,
+		    corename, fp) < 0) {
 			goto closeall;
+		}
 	}
 	if (verbose)
 		printf("\n");
@@ -718,12 +777,21 @@ DoFile(const char *savedir, const char *device)
 		syslog(LOG_WARNING, "unable to create symlink %s/%s: %m",
 		    savedir, "info.last");
 	}
+	if (isencrypted) {
+		if (symlink(keyname, "key.last") == -1) {
+			syslog(LOG_WARNING,
+			    "unable to create symlink %s/%s: %m", savedir,
+			    "key.last");
+		}
+	}
 	if (compress) {
 		snprintf(linkname, sizeof(linkname), "%s.last.gz",
-		    istextdump ? "textdump.tar" : "vmcore");
+		    istextdump ? "textdump.tar" :
+		    (isencrypted ? "vmcore_encrypted" : "vmcore"));
 	} else {
 		snprintf(linkname, sizeof(linkname), "%s.last",
-		    istextdump ? "textdump.tar" : "vmcore");
+		    istextdump ? "textdump.tar" :
+		    (isencrypted ? "vmcore_encrypted" : "vmcore"));
 	}
 	if (symlink(corename, linkname) == -1) {
 		syslog(LOG_WARNING, "unable to create symlink %s/%s: %m",

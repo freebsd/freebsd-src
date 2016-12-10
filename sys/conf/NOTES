@@ -3072,3 +3072,6 @@ options 	EVDEV_SUPPORT	# evdev support in legacy drivers
 options 	EVDEV_DEBUG	# enable event debug msgs
 device		uinput		# install /dev/uinput cdev
 options 	UINPUT_DEBUG	# enable uinput debug msgs
+
+# Encrypted kernel crash dumps.
+options 	EKCD
