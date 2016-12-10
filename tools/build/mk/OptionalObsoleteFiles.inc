@@ -166,12 +166,15 @@ OLD_FILES+=usr/share/snmp/mibs/BEGEMOT-ATM.txt
 .if ${MK_AUDIT} == no
 OLD_FILES+=usr/sbin/audit
 OLD_FILES+=usr/sbin/auditd
+OLD_FILES+=usr/sbin/auditdistd
 OLD_FILES+=usr/sbin/auditreduce
 OLD_FILES+=usr/sbin/praudit
 OLD_FILES+=usr/share/man/man1/auditreduce.1.gz
 OLD_FILES+=usr/share/man/man1/praudit.1.gz
+OLD_FILES+=usr/share/man/man5/auditdistd.conf.5.gz
 OLD_FILES+=usr/share/man/man8/audit.8.gz
 OLD_FILES+=usr/share/man/man8/auditd.8.gz
+OLD_FILES+=usr/share/man/man8/auditdistd.8.gz
 .endif
 
 .if ${MK_AUTHPF} == no
