@@ -95,16 +95,8 @@ fbt_provide_module_function(linker_file_t lf, int symindx,
 	uint32_t *instr, *limit;
 	int popm;
 
-	if (strncmp(name, "dtrace_", 7) == 0 &&
-	    strncmp(name, "dtrace_safe_", 12) != 0) {
-		/*
-		 * Anything beginning with "dtrace_" may be called
-		 * from probe context unless it explicitly indicates
-		 * that it won't be called from probe context by
-		 * using the prefix "dtrace_safe_".
-		 */
+	if (fbt_excluded(name))
 		return (0);
-	}
 
 	instr = (uint32_t *)symval->value;
 	limit = (uint32_t *)(symval->value + symval->size);
