@@ -249,10 +249,13 @@ unlock_spin(struct lock_object *lock)
 int
 owner_mtx(const struct lock_object *lock, struct thread **owner)
 {
-	const struct mtx *m = (const struct mtx *)lock;
+	const struct mtx *m;
+	uintptr_t x;
 
-	*owner = mtx_owner(m);
-	return (mtx_unowned(m) == 0);
+	m = (const struct mtx *)lock;
+	x = m->mtx_lock;
+	*owner = (struct thread *)(x & ~MTX_FLAGMASK);
+	return (x != MTX_UNOWNED);
 }
 #endif
 
