@@ -242,14 +242,4 @@ EXT+=		${HDRDIR}/ext/${hdr}
 .endfor
 EXTDIR=		${CXXINCLUDEDIR}/ext
 
-.if ${MK_GNUCXX} == "no" && ${COMPILER_TYPE} == "gcc"
-CLEANFILES+=	libstdc++.so libstdc++.a
-
-afterinstall:
-	${INSTALL_SYMLINK} ${DESTDIR}${LIBDIR}/lib${LIB}.so \
-		${.OBJDIR}/libstdc++.so
-	${INSTALL_SYMLINK} ${DESTDIR}${LIBDIR}/lib${LIB}.a \
-		${.OBJDIR}/libstdc++.a
-.endif
-
 .include <bsd.lib.mk>
