@@ -656,6 +656,17 @@ OLD_FILES+=usr/share/man/man8/bootparamd.8.gz
 OLD_FILES+=usr/sbin/callbootd
 .endif
 
+.if ${MK_BOOTPD} == no
+OLD_FILES+=usr/libexec/bootpd
+OLD_FILES+=usr/share/man/man5/bootptab.5.gz
+OLD_FILES+=usr/share/man/man8/bootpd.8.gz
+OLD_FILES+=usr/libexec/bootpgw
+OLD_FILES+=usr/sbin/bootpef
+OLD_FILES+=usr/share/man/man8/bootpef.8.gz
+OLD_FILES+=usr/sbin/bootptest
+OLD_FILES+=usr/share/man/man8/bootptest.8.gz
+.endif
+
 .if ${MK_BSD_CPIO} == no
 OLD_FILES+=usr/bin/bsdcpio
 OLD_FILES+=usr/bin/cpio
