@@ -36,6 +36,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_compat.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -128,35 +130,43 @@ g_dev_fini(struct g_class *mp)
 }
 
 static int
-g_dev_setdumpdev(struct cdev *dev, struct thread *td)
+g_dev_setdumpdev(struct cdev *dev, struct diocskerneldump_arg *kda,
+    struct thread *td)
 {
 	struct g_kerneldump kd;
 	struct g_consumer *cp;
 	int error, len;
 
-	if (dev == NULL)
-		return (set_dumper(NULL, NULL, td));
+	if (dev == NULL || kda == NULL)
+		return (set_dumper(NULL, NULL, td, 0, NULL, 0, NULL));
 
 	cp = dev->si_drv2;
 	len = sizeof(kd);
 	kd.offset = 0;
 	kd.length = OFF_MAX;
 	error = g_io_getattr("GEOM::kerneldump", cp, &len, &kd);
-	if (error == 0) {
-		error = set_dumper(&kd.di, devtoname(dev), td);
-		if (error == 0)
-			dev->si_flags |= SI_DUMPDEV;
-	}
+	if (error != 0)
+		return (error);
+
+	error = set_dumper(&kd.di, devtoname(dev), td, kda->kda_encryption,
+	    kda->kda_key, kda->kda_encryptedkeysize, kda->kda_encryptedkey);
+	if (error == 0)
+		dev->si_flags |= SI_DUMPDEV;
+
 	return (error);
 }
 
 static int
 init_dumpdev(struct cdev *dev)
 {
+	struct diocskerneldump_arg kda;
 	struct g_consumer *cp;
 	const char *devprefix = "/dev/", *devname;
 	int error;
 	size_t len;
+
+	bzero(&kda, sizeof(kda));
+	kda.kda_enable = 1;
 
 	if (dumpdev == NULL)
 		return (0);
@@ -173,7 +183,7 @@ init_dumpdev(struct cdev *dev)
 	if (error != 0)
 		return (error);
 
-	error = g_dev_setdumpdev(dev, curthread);
+	error = g_dev_setdumpdev(dev, &kda, curthread);
 	if (error == 0) {
 		freeenv(dumpdev);
 		dumpdev = NULL;
@@ -493,12 +503,56 @@ g_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread
 	case DIOCGFRONTSTUFF:
 		error = g_io_getattr("GEOM::frontstuff", cp, &i, data);
 		break;
-	case DIOCSKERNELDUMP:
-		if (*(u_int *)data == 0)
-			error = g_dev_setdumpdev(NULL, td);
+#ifdef COMPAT_FREEBSD11
+	case DIOCSKERNELDUMP_FREEBSD11:
+	    {
+		struct diocskerneldump_arg kda;
+
+		bzero(&kda, sizeof(kda));
+		kda.kda_encryption = KERNELDUMP_ENC_NONE;
+		kda.kda_enable = (uint8_t)*(u_int *)data;
+		if (kda.kda_enable == 0)
+			error = g_dev_setdumpdev(NULL, NULL, td);
 		else
-			error = g_dev_setdumpdev(dev, td);
+			error = g_dev_setdumpdev(dev, &kda, td);
 		break;
+	    }
+#endif
+	case DIOCSKERNELDUMP:
+	    {
+		struct diocskerneldump_arg *kda;
+		uint8_t *encryptedkey;
+
+		kda = (struct diocskerneldump_arg *)data;
+		if (kda->kda_enable == 0) {
+			error = g_dev_setdumpdev(NULL, NULL, td);
+			break;
+		}
+
+		if (kda->kda_encryption != KERNELDUMP_ENC_NONE) {
+			if (kda->kda_encryptedkeysize <= 0 ||
+			    kda->kda_encryptedkeysize >
+			    KERNELDUMP_ENCKEY_MAX_SIZE) {
+				return (EINVAL);
+			}
+			encryptedkey = malloc(kda->kda_encryptedkeysize, M_TEMP,
+			    M_WAITOK);
+			error = copyin(kda->kda_encryptedkey, encryptedkey,
+			    kda->kda_encryptedkeysize);
+		} else {
+			encryptedkey = NULL;
+		}
+		if (error == 0) {
+			kda->kda_encryptedkey = encryptedkey;
+			error = g_dev_setdumpdev(dev, kda, td);
+		}
+		if (encryptedkey != NULL) {
+			explicit_bzero(encryptedkey, kda->kda_encryptedkeysize);
+			free(encryptedkey, M_TEMP);
+		}
+		explicit_bzero(kda, sizeof(*kda));
+		break;
+	    }
 	case DIOCGFLUSH:
 		error = g_io_flush(cp);
 		break;
@@ -756,7 +810,7 @@ g_dev_orphan(struct g_consumer *cp)
 
 	/* Reset any dump-area set on this device */
 	if (dev->si_flags & SI_DUMPDEV)
-		(void)set_dumper(NULL, NULL, curthread);
+		(void)set_dumper(NULL, NULL, curthread, 0, NULL, 0, NULL);
 
 	/* Destroy the struct cdev *so we get no more requests */
 	destroy_dev_sched_cb(dev, g_dev_callback, cp);

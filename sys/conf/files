@@ -594,13 +594,13 @@ crypto/camellia/camellia-api.c	optional crypto | ipsec
 crypto/des/des_ecb.c		optional crypto | ipsec | netsmb
 crypto/des/des_setkey.c		optional crypto | ipsec | netsmb
 crypto/rc4/rc4.c		optional netgraph_mppc_encryption | kgssapi
-crypto/rijndael/rijndael-alg-fst.c optional crypto | geom_bde | \
+crypto/rijndael/rijndael-alg-fst.c optional crypto | ekcd | geom_bde | \
 					 ipsec | random !random_loadable | wlan_ccmp
-crypto/rijndael/rijndael-api-fst.c optional geom_bde | random !random_loadable
+crypto/rijndael/rijndael-api-fst.c optional ekcd | geom_bde | random !random_loadable
 crypto/rijndael/rijndael-api.c	optional crypto | ipsec | wlan_ccmp
 crypto/sha1.c			optional carp | crypto | ipsec | \
 					 netgraph_mppc_encryption | sctp
-crypto/sha2/sha256c.c		optional crypto | geom_bde | ipsec | random !random_loadable | \
+crypto/sha2/sha256c.c		optional crypto | ekcd | geom_bde | ipsec | random !random_loadable | \
 					 sctp | zfs
 crypto/sha2/sha512c.c		optional crypto | geom_bde | ipsec | zfs
 crypto/skein/skein.c		optional crypto | zfs
