@@ -249,7 +249,7 @@ static int	rsu_raw_xmit(struct ieee80211_node *, struct mbuf *,
 static void	rsu_rxfilter_init(struct rsu_softc *);
 static void	rsu_rxfilter_set(struct rsu_softc *, uint32_t, uint32_t);
 static void	rsu_rxfilter_refresh(struct rsu_softc *);
-static void	rsu_init(struct rsu_softc *);
+static int	rsu_init(struct rsu_softc *);
 static int	rsu_tx_start(struct rsu_softc *, struct ieee80211_node *, 
 		    struct mbuf *, struct rsu_data *);
 static int	rsu_transmit(struct ieee80211com *, struct mbuf *);
@@ -620,9 +620,7 @@ rsu_detach(device_t self)
 	struct rsu_softc *sc = device_get_softc(self);
 	struct ieee80211com *ic = &sc->sc_ic;
 
-	RSU_LOCK(sc);
 	rsu_stop(sc);
-	RSU_UNLOCK(sc);
 
 	usbd_transfer_unsetup(sc->sc_xfer, RSU_N_TRANSFER);
 
@@ -2921,20 +2919,17 @@ static void
 rsu_parent(struct ieee80211com *ic)
 {
 	struct rsu_softc *sc = ic->ic_softc;
-	int startall = 0;
 
-	RSU_LOCK(sc);
 	if (ic->ic_nrunning > 0) {
-		if (!sc->sc_running) {
-			rsu_init(sc);
-			startall = 1;
+		if (rsu_init(sc) == 0)
+			ieee80211_start_all(ic);
+		else {
+			struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
+			if (vap != NULL)
+				ieee80211_stop(vap);
 		}
-	} else if (sc->sc_running)
+	} else
 		rsu_stop(sc);
-	RSU_UNLOCK(sc);
-
-	if (startall)
-		ieee80211_start_all(ic);
 }
 
 /*
@@ -3484,7 +3479,7 @@ rsu_rxfilter_refresh(struct rsu_softc *sc)
 		rsu_rxfilter_set(sc, mask_min, mask_all);
 }
 
-static void
+static int
 rsu_init(struct rsu_softc *sc)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
@@ -3493,7 +3488,12 @@ rsu_init(struct rsu_softc *sc)
 	int error;
 	int i;
 
-	RSU_ASSERT_LOCKED(sc);
+	RSU_LOCK(sc);
+
+	if (sc->sc_running) {
+		RSU_UNLOCK(sc);
+		return (0);
+	}
 
 	/* Ensure the mbuf queue is drained */
 	rsu_drain_mbufq(sc);
@@ -3538,7 +3538,7 @@ rsu_init(struct rsu_softc *sc)
 	rsu_write_region_1(sc, R92S_MACID, macaddr, IEEE80211_ADDR_LEN);
 
 	/* It really takes 1.5 seconds for the firmware to boot: */
-	rsu_ms_delay(sc, 2000);
+	usb_pause_mtx(&sc->sc_mtx, USB_MS_TO_TICKS(2000));
 
 	RSU_DPRINTF(sc, RSU_DEBUG_RESET, "%s: setting MAC address to %s\n",
 	    __func__,
@@ -3570,11 +3570,16 @@ rsu_init(struct rsu_softc *sc)
 
 	/* We're ready to go. */
 	sc->sc_running = 1;
-	return;
+	RSU_UNLOCK(sc);
+
+	return (0);
 fail:
 	/* Need to stop all failed transfers, if any */
 	for (i = 0; i != RSU_N_TRANSFER; i++)
 		usbd_transfer_stop(sc->sc_xfer[i]);
+	RSU_UNLOCK(sc);
+
+	return (error);
 }
 
 static void
@@ -3582,7 +3587,11 @@ rsu_stop(struct rsu_softc *sc)
 {
 	int i;
 
-	RSU_ASSERT_LOCKED(sc);
+	RSU_LOCK(sc);
+	if (!sc->sc_running) {
+		RSU_UNLOCK(sc);
+		return;
+	}
 
 	sc->sc_running = 0;
 	sc->sc_vap_is_running = 0;
@@ -3605,6 +3614,7 @@ rsu_stop(struct rsu_softc *sc)
 
 	/* Ensure the mbuf queue is drained */
 	rsu_drain_mbufq(sc);
+	RSU_UNLOCK(sc);
 }
 
 /*
