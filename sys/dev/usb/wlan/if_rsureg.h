@@ -688,10 +688,10 @@ struct r92s_add_ba_req {
 /*
  * Driver definitions.
  */
-#define RSU_RX_LIST_COUNT	100
+#define RSU_RX_LIST_COUNT	1
 #define RSU_TX_LIST_COUNT	32
 
-#define RSU_RXBUFSZ	(8 * 1024)
+#define RSU_RXBUFSZ	(30 * 1024)
 #define RSU_TXBUFSZ	\
 	((sizeof(struct r92s_tx_desc) + IEEE80211_MAX_LEN + 3) & ~3)
 
