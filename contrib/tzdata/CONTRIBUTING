@@ -18,10 +18,10 @@ data should contain commentary citing reliable sources as
 justification.
 
 Please submit changes against either the latest release in
-<ftp://ftp.iana.org/tz/> or the master branch of the experimental
-Git repository.  If you use Git the following workflow may be helpful:
+<ftp://ftp.iana.org/tz/> or the master branch of the development
+repository.  If you use Git the following workflow may be helpful:
 
-  * Copy the experimental repository.
+  * Copy the development repository.
 
       git clone https://github.com/eggert/tz.git
       cd tz
