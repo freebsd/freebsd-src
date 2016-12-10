@@ -560,13 +560,9 @@ static uint8_t key_proto2satype(uint8_t);
 
 static int key_getspi(struct socket *, struct mbuf *,
 	const struct sadb_msghdr *);
-static u_int32_t key_do_getnewspi(struct sadb_spirange *,
-					struct secasindex *);
+static uint32_t key_do_getnewspi(struct sadb_spirange *, struct secasindex *);
 static int key_update(struct socket *, struct mbuf *,
 	const struct sadb_msghdr *);
-#ifdef IPSEC_DOSEQCHECK
-static struct secasvar *key_getsavbyseq(struct secashead *, u_int32_t);
-#endif
 static int key_add(struct socket *, struct mbuf *,
 	const struct sadb_msghdr *);
 static int key_setident(struct secashead *, const struct sadb_msghdr *);
@@ -609,11 +605,6 @@ static int key_align(struct mbuf *, struct sadb_msghdr *);
 static struct mbuf *key_setlifetime(struct seclifetime *src, 
 				     u_int16_t exttype);
 static struct mbuf *key_setkey(struct seckey *src, u_int16_t exttype);
-
-#if 0
-static const char *key_getfqdn(void);
-static const char *key_getuserfqdn(void);
-#endif
 
 #define	DBG_IPSEC_INITREF(t, p)	do {				\
 	refcount_init(&(p)->refcnt, 1);				\
