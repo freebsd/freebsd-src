@@ -64,6 +64,8 @@ SYSCTL_UINT(_vfs_zfs_zfetch, OID_AUTO, min_sec_reap, CTLFLAG_RWTUN,
     &zfetch_min_sec_reap, 0, "Min time before stream reclaim");
 SYSCTL_UINT(_vfs_zfs_zfetch, OID_AUTO, max_distance, CTLFLAG_RWTUN,
     &zfetch_max_distance, 0, "Max bytes to prefetch per stream");
+SYSCTL_UINT(_vfs_zfs_zfetch, OID_AUTO, max_idistance, CTLFLAG_RWTUN,
+    &zfetch_max_idistance, 0, "Max bytes to prefetch indirects for per stream");
 SYSCTL_UQUAD(_vfs_zfs_zfetch, OID_AUTO, array_rd_sz, CTLFLAG_RWTUN,
     &zfetch_array_rd_sz, 0,
     "Number of bytes in a array_read at which we stop prefetching");
