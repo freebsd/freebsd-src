@@ -276,6 +276,7 @@ VNET_DECLARE(int, ip4_ipsec_dfbit);
 VNET_DECLARE(int, ip4_ipsec_ecn);
 VNET_DECLARE(int, ip4_esp_randpad);
 VNET_DECLARE(int, crypto_support);
+VNET_DECLARE(int, natt_cksum_policy);
 
 #define	IPSECSTAT_INC(name)	\
     VNET_PCPUSTAT_ADD(struct ipsecstat, ipsec4stat, name, 1)
@@ -288,6 +289,7 @@ VNET_DECLARE(int, crypto_support);
 #define	V_ip4_ipsec_ecn		VNET(ip4_ipsec_ecn)
 #define	V_ip4_esp_randpad	VNET(ip4_esp_randpad)
 #define	V_crypto_support	VNET(crypto_support)
+#define	V_natt_cksum_policy	VNET(natt_cksum_policy)
 
 #define ipseclog(x)	do { if (V_ipsec_debug) log x; } while (0)
 /* for openbsd compatibility */
@@ -319,6 +321,11 @@ int ipsec_control_pcbpolicy(struct inpcb *, struct sockopt *);
 int tcp_ipsec_pcbctl(struct inpcb *, struct sockopt *);
 int tcp_ipsec_input(struct mbuf *, struct tcphdr *, u_char *);
 int tcp_ipsec_output(struct mbuf *, struct tcphdr *, u_char *);
+
+int udp_ipsec_pcbctl(struct inpcb *, struct sockopt *);
+int udp_ipsec_input(struct mbuf *, int, int);
+void udp_ipsec_adjust_cksum(struct mbuf *, struct secasvar *, int, int);
+int udp_ipsec_output(struct mbuf **, struct secasvar *);
 
 int ipsec_chkreplay(uint32_t, struct secasvar *);
 int ipsec_updatereplay(uint32_t, struct secasvar *);

@@ -122,11 +122,6 @@ ipsec_common_input(struct mbuf *m, int skip, int protoff, int af, int sproto)
 	struct secasvar *sav;
 	uint32_t spi;
 	int error;
-#ifdef INET
-#ifdef IPSEC_NAT_T
-	struct m_tag *tag;
-#endif
-#endif
 
 	IPSEC_ISTAT(sproto, input);
 
@@ -178,12 +173,6 @@ ipsec_common_input(struct mbuf *m, int skip, int protoff, int af, int sproto)
 		m_copydata(m, offsetof(struct ip, ip_dst),
 		    sizeof(struct in_addr),
 		    (caddr_t) &dst_address.sin.sin_addr);
-#ifdef IPSEC_NAT_T
-		/* Find the source port for NAT-T; see udp*_espdecap. */
-		tag = m_tag_find(m, PACKET_TAG_IPSEC_NAT_T_PORTS, NULL);
-		if (tag != NULL)
-			dst_address.sin.sin_port = ((u_int16_t *)(tag + 1))[1];
-#endif /* IPSEC_NAT_T */
 		break;
 #endif /* INET */
 #ifdef INET6
@@ -336,7 +325,6 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
 	if (skip != 0) {
 		/*
 		 * Fix IPv4 header
-		 * XXXGL: do we need this entire block?
 		 */
 		if (m->m_len < skip && (m = m_pullup(m, skip)) == NULL) {
 			DPRINTF(("%s: processing failed for SA %s/%08lx\n",
@@ -355,6 +343,14 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
 		ip = mtod(m, struct ip *);
 	}
 	prot = ip->ip_p;
+	/*
+	 * Check that we have NAT-T enabled and apply transport mode
+	 * decapsulation NAT procedure (RFC3948).
+	 * Do this before invoking into the PFIL.
+	 */
+	if (sav->natt != NULL &&
+	    (prot == IPPROTO_UDP || prot == IPPROTO_TCP))
+		udp_ipsec_adjust_cksum(m, sav, prot, skip);
 
 	IPSEC_INIT_CTX(&ctx, &m, sav, AF_INET, IPSEC_ENC_BEFORE);
 	if ((error = ipsec_run_hhooks(&ctx, HHOOK_TYPE_IPSEC_IN)) != 0)

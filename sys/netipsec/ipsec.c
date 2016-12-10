@@ -136,11 +136,17 @@ static VNET_DEFINE(struct secpolicy, def_policy);
  *  0	take anything
  */
 VNET_DEFINE(int, crypto_support) = CRYPTOCAP_F_HARDWARE | CRYPTOCAP_F_SOFTWARE;
+/*
+ * TCP/UDP checksum handling policy for transport mode NAT-T (RFC3948)
+ *
+ * 0 - incrementally recompute.
+ * 1 - fully recompute TCP/UDP checksum.
+ * 2 - for UDP reset checksum to zero; for TCP mark csum_flags as valid.
+ */
+VNET_DEFINE(int, natt_cksum_policy) = 0;
 
 FEATURE(ipsec, "Internet Protocol Security (IPsec)");
-#ifdef IPSEC_NAT_T
 FEATURE(ipsec_natt, "UDP Encapsulation of IPsec ESP Packets ('NAT-T')");
-#endif
 
 SYSCTL_DECL(_net_inet_ipsec);
 
@@ -180,7 +186,10 @@ SYSCTL_INT(_net_inet_ipsec, OID_AUTO, crypto_support,
 	"Crypto driver selection.");
 SYSCTL_INT(_net_inet_ipsec, OID_AUTO, check_policy_history,
 	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(check_policy_history), 0,
-	"Use strict check of inbound packets to security policy compliance");
+	"Use strict check of inbound packets to security policy compliance.");
+SYSCTL_INT(_net_inet_ipsec, OID_AUTO, natt_cksum_policy,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(natt_cksum_policy), 0,
+	"Method to fix TCP/UDP checksum for transport mode IPsec after NAT.");
 SYSCTL_VNET_PCPUSTAT(_net_inet_ipsec, OID_AUTO, ipsecstats, struct ipsecstat,
     ipsec4stat, "IPsec IPv4 statistics.");
 

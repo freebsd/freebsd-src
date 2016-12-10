@@ -4111,6 +4111,7 @@ netipsec/ipsec_output.c		optional ipsec inet | ipsec inet6
 netipsec/key.c			optional ipsec inet | ipsec inet6
 netipsec/key_debug.c		optional ipsec inet | ipsec inet6
 netipsec/keysock.c		optional ipsec inet | ipsec inet6
+netipsec/udpencap.c		optional ipsec inet
 netipsec/xform_ah.c		optional ipsec inet | ipsec inet6
 netipsec/xform_esp.c		optional ipsec inet | ipsec inet6
 netipsec/xform_ipcomp.c		optional ipsec inet | ipsec inet6

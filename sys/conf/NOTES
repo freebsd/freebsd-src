@@ -625,11 +625,6 @@ options 	TCP_OFFLOAD		# TCP offload support.
 # your kernel configuration
 options 	IPSEC			#IP security (requires device crypto)
 #options 	IPSEC_DEBUG		#debug for IP security
-#
-# Set IPSEC_NAT_T to enable NAT-Traversal support.  This enables
-# optional UDP encapsulation of ESP packets.
-#
-options		IPSEC_NAT_T		#NAT-T support, UDP encap of ESP
 
 #
 # SMB/CIFS requester

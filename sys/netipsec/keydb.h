@@ -85,6 +85,17 @@ struct seclifetime {
 	u_int64_t usetime;
 };
 
+struct secnatt {
+	union sockaddr_union oai;	/* original addresses of initiator */
+	union sockaddr_union oar;	/* original address of responder */
+	uint16_t sport;			/* source port */
+	uint16_t dport;			/* destination port */
+	uint16_t cksum;			/* checksum delta */
+	uint16_t flags;
+#define	IPSEC_NATT_F_OAI	0x0001
+#define	IPSEC_NATT_F_OAR	0x0002
+};
+
 /* Security Association Data Base */
 TAILQ_HEAD(secasvar_queue, secasvar);
 struct secashead {
@@ -136,13 +147,11 @@ struct secasvar {
 	uint8_t alg_enc;		/* Cipher Algorithm Identifier */
 	uint8_t alg_comp;		/* Compression Algorithm Identifier */
 
-	uint16_t natt_type;		/* IKE/ESP-marker in output. */
-	uint16_t natt_esp_frag_len;	/* MTU for payload fragmentation. */
-
 	struct secashead *sah;		/* back pointer to the secashead */
 	struct seckey *key_auth;	/* Key for Authentication */
 	struct seckey *key_enc;	        /* Key for Encryption */
 	struct secreplay *replay;	/* replay prevention */
+	struct secnatt *natt;		/* NAT-T config */
 	uint64_t cntr;			/* counter for GCM and CTR */
 	u_int ivlen;			/* length of IV */
 

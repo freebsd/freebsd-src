@@ -217,7 +217,9 @@ ipsec4_perform_request(struct mbuf *m, struct secpolicy *sp, u_int idx)
 		}
 		goto bad;
 	}
-
+	/*
+	 * XXXAE: most likely ip_sum at this point is wrong.
+	 */
 	IPSEC_INIT_CTX(&ctx, &m, sav, AF_INET, IPSEC_ENC_BEFORE);
 	if ((error = ipsec_run_hhooks(&ctx, HHOOK_TYPE_IPSEC_OUT)) != 0)
 		goto bad;
@@ -614,69 +616,25 @@ ipsec_process_done(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 
 	key_freesp(&sp), sp = NULL;	/* Release reference to SP */
 	/*
+	 * Do UDP encapsulation if SA requires it.
+	 */
+	if (sav->natt != NULL) {
+		error = udp_ipsec_output(&m, sav);
+		if (error != 0)
+			goto bad;
+	}
+	/*
 	 * We're done with IPsec processing, transmit the packet using the
 	 * appropriate network protocol (IP or IPv6).
 	 */
 	switch (saidx->dst.sa.sa_family) {
 #ifdef INET
 	case AF_INET:
-#ifdef IPSEC_NAT_T
-		/*
-		 * If NAT-T is enabled, now that all IPsec processing is done
-		 * insert UDP encapsulation header after IP header.
-		 */
-		if (sav->natt_type) {
-			struct ip *ip = mtod(m, struct ip *);
-			const int hlen = (ip->ip_hl << 2);
-			int size, off;
-			struct mbuf *mi;
-			struct udphdr *udp;
-
-			size = sizeof(struct udphdr);
-			if (sav->natt_type == UDP_ENCAP_ESPINUDP_NON_IKE) {
-				/*
-				 * draft-ietf-ipsec-nat-t-ike-0[01].txt and
-				 * draft-ietf-ipsec-udp-encaps-(00/)01.txt,
-				 * ignoring possible AH mode
-				 * non-IKE marker + non-ESP marker
-				 * from draft-ietf-ipsec-udp-encaps-00.txt.
-				 */
-				size += sizeof(u_int64_t);
-			}
-			mi = m_makespace(m, hlen, size, &off);
-			if (mi == NULL) {
-				DPRINTF(("%s: m_makespace for udphdr failed\n",
-				    __func__));
-				error = ENOBUFS;
-				goto bad;
-			}
-
-			udp = (struct udphdr *)(mtod(mi, caddr_t) + off);
-			if (sav->natt_type == UDP_ENCAP_ESPINUDP_NON_IKE)
-				udp->uh_sport = htons(UDP_ENCAP_ESPINUDP_PORT);
-			else
-				udp->uh_sport = key_portfromsaddr(
-				    &sav->sah->saidx.src.sa);
-			udp->uh_dport = key_portfromsaddr(
-			    &sav->sah->saidx.dst.sa);
-			udp->uh_sum = 0;
-			udp->uh_ulen = htons(m->m_pkthdr.len - hlen);
-			ip->ip_len = htons(m->m_pkthdr.len);
-			ip->ip_p = IPPROTO_UDP;
-
-			if (sav->natt_type == UDP_ENCAP_ESPINUDP_NON_IKE)
-				*(u_int64_t *)(udp + 1) = 0;
-		}
-#endif /* IPSEC_NAT_T */
 		key_freesav(&sav);
 		return ip_output(m, NULL, NULL, IP_RAWOUTPUT, NULL, NULL);
 #endif /* INET */
 #ifdef INET6
 	case AF_INET6:
-		/*
-		 * We don't need massage, IPv6 header fields are always in
-		 * net endian.
-		 */
 		key_freesav(&sav);
 		return ip6_output(m, NULL, NULL, 0, NULL, NULL, NULL);
 #endif /* INET6 */
