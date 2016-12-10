@@ -2039,6 +2039,14 @@ OLD_FILES+=usr/share/nls/uk_UA.KOI8-U/ee.cat
 # to be filled in
 #.endif
 
+.if ${MK_FINGER} == no
+OLD_FILES+=usr/bin/finger
+OLD_FILES+=usr/share/man/man1/finger.1.gz
+OLD_FILES+=usr/share/man/man5/finger.conf.5.gz
+OLD_FILES+=usr/libexec/fingerd
+OLD_FILES+=usr/share/man/man8/fingerd.8.gz
+.endif
+
 .if ${MK_FLOPPY} == no
 OLD_FILES+=usr/sbin/fdcontrol
 OLD_FILES+=usr/sbin/fdformat
