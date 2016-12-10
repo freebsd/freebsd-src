@@ -68,9 +68,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usbdi.h>
 #include "usbdevs.h"
 
-#define USB_DEBUG_VAR rsu_debug
-#include <dev/usb/usb_debug.h>
-
 #include <dev/usb/wlan/if_rsureg.h>
 
 #ifdef USB_DEBUG
@@ -103,6 +100,7 @@ TUNABLE_INT("hw.usb.rsu.enable_11n", &rsu_enable_11n);
 #define	RSU_DEBUG_FWDBG		0x00000200
 #define	RSU_DEBUG_AMPDU		0x00000400
 #define	RSU_DEBUG_KEY		0x00000800
+#define	RSU_DEBUG_USB		0x00001000
 
 static const STRUCT_USB_HOST_ID rsu_devs[] = {
 #define	RSU_HT_NOT_SUPPORTED 0
@@ -665,8 +663,9 @@ rsu_do_request(struct rsu_softc *sc, struct usb_device_request *req,
 		    req, data, 0, NULL, 250 /* ms */);
 		if (err == 0 || err == USB_ERR_NOT_CONFIGURED)
 			break;
-		DPRINTFN(1, "Control request failed, %s (retrying)\n",
-		    usbd_errstr(err));
+		RSU_DPRINTF(sc, RSU_DEBUG_USB,
+		    "Control request failed, %s (retries left: %d)\n",
+		    usbd_errstr(err), ntries);
 		rsu_ms_delay(sc, 10);
         }
 
@@ -1207,7 +1206,7 @@ rsu_read_rom(struct rsu_softc *sc)
 		}
 	}
 #ifdef USB_DEBUG
-	if (rsu_debug >= 5) {
+	if (rsu_debug & RSU_DEBUG_RESET) {
 		/* Dump ROM content. */
 		printf("\n");
 		for (i = 0; i < sizeof(sc->rom); i++)
@@ -1294,7 +1293,7 @@ rsu_calib_task(void *arg, int pending __unused)
 	    rsu_read_1(sc, R92S_GPIO_IO_SEL) & ~R92S_GPIO_WPS);
 	reg = rsu_read_1(sc, R92S_GPIO_CTRL);
 	if (reg != 0xff && (reg & R92S_GPIO_WPS))
-		DPRINTF(("WPS PBC is pushed\n"));
+		RSU_DPRINTF(sc, RSU_DEBUG_CALIB, "WPS PBC is pushed\n");
 #endif
 	/* Read current signal level. */
 	if (rsu_fw_iocmd(sc, 0xf4000001) == 0) {
@@ -2113,7 +2112,7 @@ rsu_event_join_bss(struct rsu_softc *sc, uint8_t *buf, int len)
 
 	tmp = le32toh(rsp->associd);
 	if (tmp >= vap->iv_max_aid) {
-		DPRINTF("Assoc ID overflow\n");
+		RSU_DPRINTF(sc, RSU_DEBUG_ANY, "Assoc ID overflow\n");
 		tmp = 1;
 	}
 	RSU_DPRINTF(sc, RSU_DEBUG_STATE | RSU_DEBUG_FWCMD,
@@ -2306,8 +2305,9 @@ rsu_rx_copy_to_mbuf(struct rsu_softc *sc, struct r92s_rx_stat *stat,
 
 	m = m_get2(totlen, M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (__predict_false(m == NULL)) {
-		device_printf(sc->sc_dev, "%s: could not allocate RX mbuf\n",
-		    __func__);
+		device_printf(sc->sc_dev,
+		    "%s: could not allocate RX mbuf, totlen %d\n",
+		    __func__, totlen);
 		goto fail;
 	}
 
@@ -2490,7 +2490,7 @@ rsu_rxeof(struct usb_xfer *xfer, struct rsu_data *data)
 	usbd_xfer_status(xfer, &len, NULL, NULL, NULL);
 
 	if (__predict_false(len < sizeof(*stat))) {
-		DPRINTF("xfer too short %d\n", len);
+		RSU_DPRINTF(sc, RSU_DEBUG_RX, "xfer too short %d\n", len);
 		counter_u64_add(ic->ic_ierrors, 1);
 		return (NULL);
 	}
@@ -3251,8 +3251,9 @@ rsu_load_firmware(struct rsu_softc *sc)
 		error = EINVAL;
 		goto fail;
 	}
-	DPRINTF("FW V%d %02x-%02x %02x:%02x\n", le16toh(hdr->version),
-	    hdr->month, hdr->day, hdr->hour, hdr->minute);
+	RSU_DPRINTF(sc, RSU_DEBUG_FW, "FW V%d %02x-%02x %02x:%02x\n",
+	    le16toh(hdr->version), hdr->month, hdr->day, hdr->hour,
+	    hdr->minute);
 
 	/* Make sure that driver and firmware are in sync. */
 	if (hdr->privsz != htole32(sizeof(*dmem))) {
