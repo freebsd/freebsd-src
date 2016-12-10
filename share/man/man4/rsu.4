@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd December 5, 2016
+.Dd December 10, 2016
 .Dt RSU 4
 .Os
 .Sh NAME
@@ -78,6 +78,12 @@ Also known as
 mode, this is used when associating with an access point, through
 which all traffic passes.
 This mode is the default.
+.It monitor mode
+In this mode the driver is able to receive packets without
+associating with an access point.
+This disables the internal receive filter and enables the card to
+capture packets from networks which it wouldn't normally have access to,
+or to scan for access points.
 .El
 .Pp
 The
@@ -183,3 +189,9 @@ The
 .Nm
 driver currently does not support 802.11n transmit aggregation,
 either A-MSDU or A-MPDU.
+.Pp
+The
+.Nm
+driver does not capture management frames in non-monitor modes;
+without this limitation some firmware functions (e.g., 'join bss')
+will not work properly.
