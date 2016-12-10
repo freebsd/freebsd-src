@@ -311,6 +311,10 @@ MK_LLVM_LIBUNWIND:=	no
 MK_GDB:=	no
 .endif
 
+.if ${MK_CAPSICUM} == "no"
+MK_CASPER:=	no
+.endif
+
 .if ${MK_LIBPTHREAD} == "no"
 MK_LIBTHR:=	no
 .endif
