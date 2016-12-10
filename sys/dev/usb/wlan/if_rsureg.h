@@ -54,6 +54,12 @@
 #define R92S_TIMECTRL		0x0080
 #define R92S_TSFTR		(R92S_TIMECTRL + 0x000)
 
+#define R92S_FIFOCTRL		0x00a0
+#define R92S_RXFLTMAP_MGT	(R92S_FIFOCTRL + 0x076)
+#define R92S_RXFLTMAP_CTL	(R92S_FIFOCTRL + 0x078)
+#define R92S_RXFLTMAP_DATA	(R92S_FIFOCTRL + 0x07a)
+#define R92S_RXFLTMAP_MESH	(R92S_FIFOCTRL + 0x07c)
+
 #define R92S_SECURITY		0x0240
 #define R92S_CAMCMD		(R92S_SECURITY + 0x000)
 #define R92S_CAMWRITE		(R92S_SECURITY + 0x004)
@@ -63,6 +69,7 @@
 #define R92S_GPIO_CTRL		(R92S_GP + 0x00c)
 #define R92S_GPIO_IO_SEL	(R92S_GP + 0x00e)
 #define R92S_MAC_PINMUX_CTRL	(R92S_GP + 0x011)
+#define R92S_LEDCFG		(R92S_GP + 0x012)
 
 #define R92S_IOCMD_CTRL		0x0370
 #define R92S_IOCMD_DATA		0x0374
@@ -140,6 +147,29 @@
 #define R92S_TCR_DMEM_CODE_DONE	0x10
 #define R92S_TCR_IMEM_RDY	0x20
 #define R92S_TCR_FWRDY		0x80
+
+/* Bits for R92S_RCR. */
+#define R92S_RCR_AAP		0x00000001
+#define R92S_RCR_APM		0x00000002
+#define R92S_RCR_AM		0x00000004
+#define R92S_RCR_AB		0x00000008
+#define R92S_RCR_ACRC32		0x00000020
+#define R92S_RCR_AICV		0x00001000
+#define R92S_RCR_APP_ICV	0x00010000
+#define R92S_RCR_APP_MIC	0x00020000
+#define R92S_RCR_ADF		0x00040000
+#define R92S_RCR_ACF		0x00080000
+#define R92S_RCR_AMF		0x00100000
+#define R92S_RCR_ADD3		0x00200000
+#define R92S_RCR_APWRMGT	0x00400000
+#define R92S_RCR_CBSSID		0x00800000
+#define R92S_RCR_APP_PHYSTS	0x02000000
+#define R92S_RCR_ENMBID		0x08000000
+
+/* Bits for R92S_RXFLTMAP*. */
+#define R92S_RXFLTMAP_MGT_DEF	0x3f3f
+#define R92S_RXFLTMAP_FW(subtype)	\
+	(1 << ((subtype) >> IEEE80211_FC0_SUBTYPE_SHIFT))
 
 /* Bits for R92S_GPIO_IO_SEL. */
 #define R92S_GPIO_WPS	0x10
@@ -546,6 +576,11 @@ struct r92s_set_pwr_mode {
 	uint8_t		bcn_pass_time;
 } __packed;
 
+/* Structure for R92S_CMD_SET_CHANNEL. */
+struct r92s_set_channel {
+	uint32_t	channel;
+} __packed;
+
 /* Structure for event R92S_EVENT_JOIN_BSS. */
 struct r92s_event_join_bss {
 	uint32_t	next;
@@ -817,6 +852,7 @@ struct rsu_softc {
 	int				sc_currssi;
 
 	u_int				sc_running:1,
+					sc_vap_is_running:1,
 					sc_calibrating:1,
 					sc_active_scan:1,
 					sc_extra_scan:1;

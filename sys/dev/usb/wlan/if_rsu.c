@@ -23,7 +23,7 @@ __FBSDID("$FreeBSD$");
  *
  * TODO:
  *   o tx a-mpdu
- *   o monitor / hostap / ibss / mesh
+ *   o hostap / ibss / mesh
  *   o power-save operation
  */
 
@@ -175,6 +175,7 @@ static void	rsu_getradiocaps(struct ieee80211com *, int, int *,
 static void	rsu_set_channel(struct ieee80211com *);
 static void	rsu_scan_curchan(struct ieee80211_scan_state *, unsigned long);
 static void	rsu_scan_mindwell(struct ieee80211_scan_state *);
+static void	rsu_update_promisc(struct ieee80211com *);
 static uint8_t	rsu_get_multi_pos(const uint8_t[]);
 static void	rsu_set_multi(struct rsu_softc *);
 static void	rsu_update_mcast(struct ieee80211com *);
@@ -202,6 +203,9 @@ static int	rsu_read_rom(struct rsu_softc *);
 static int	rsu_fw_cmd(struct rsu_softc *, uint8_t, void *, int);
 static void	rsu_calib_task(void *, int);
 static void	rsu_tx_task(void *, int);
+static void	rsu_set_led(struct rsu_softc *, int);
+static int	rsu_monitor_newstate(struct ieee80211vap *,
+		    enum ieee80211_state, int);
 static int	rsu_newstate(struct ieee80211vap *, enum ieee80211_state, int);
 static int	rsu_key_alloc(struct ieee80211vap *, struct ieee80211_key *,
 		    ieee80211_keyix *, ieee80211_keyix *);
@@ -244,6 +248,9 @@ static struct mbuf *
 static void	rsu_txeof(struct usb_xfer *, struct rsu_data *);
 static int	rsu_raw_xmit(struct ieee80211_node *, struct mbuf *, 
 		    const struct ieee80211_bpf_params *);
+static void	rsu_rxfilter_init(struct rsu_softc *);
+static void	rsu_rxfilter_set(struct rsu_softc *, uint32_t, uint32_t);
+static void	rsu_rxfilter_refresh(struct rsu_softc *);
 static void	rsu_init(struct rsu_softc *);
 static int	rsu_tx_start(struct rsu_softc *, struct ieee80211_node *, 
 		    struct mbuf *, struct rsu_data *);
@@ -536,6 +543,7 @@ rsu_attach(device_t self)
 	/* Set device capabilities. */
 	ic->ic_caps =
 	    IEEE80211_C_STA |		/* station mode */
+	    IEEE80211_C_MONITOR |	/* monitor mode supported */
 #if 0
 	    IEEE80211_C_BGSCAN |	/* Background scan. */
 #endif
@@ -582,6 +590,7 @@ rsu_attach(device_t self)
 	ic->ic_scan_mindwell = rsu_scan_mindwell;
 	ic->ic_vap_create = rsu_vap_create;
 	ic->ic_vap_delete = rsu_vap_delete;
+	ic->ic_update_promisc = rsu_update_promisc;
 	ic->ic_update_mcast = rsu_update_mcast;
 	ic->ic_parent = rsu_parent;
 	ic->ic_transmit = rsu_transmit;
@@ -688,7 +697,10 @@ rsu_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 
 	/* override state transition machine */
 	uvp->newstate = vap->iv_newstate;
-	vap->iv_newstate = rsu_newstate;
+	if (opmode == IEEE80211_M_MONITOR)
+		vap->iv_newstate = rsu_monitor_newstate;
+	else
+		vap->iv_newstate = rsu_newstate;
 	vap->iv_key_alloc = rsu_key_alloc;
 	vap->iv_key_set = rsu_key_set;
 	vap->iv_key_delete = rsu_key_delete;
@@ -759,9 +771,30 @@ rsu_getradiocaps(struct ieee80211com *ic,
 }
 
 static void
-rsu_set_channel(struct ieee80211com *ic __unused)
+rsu_set_channel(struct ieee80211com *ic)
 {
-	/* We are unable to switch channels, yet. */
+	struct rsu_softc *sc = ic->ic_softc;
+
+	/*
+	 * Only need to set the channel in Monitor mode. AP scanning and auth
+	 * are already taken care of by their respective firmware commands.
+	 */	
+	if (ic->ic_opmode == IEEE80211_M_MONITOR) {
+		struct r92s_set_channel cmd;
+		int error;
+
+		cmd.channel = IEEE80211_CHAN2IEEE(ic->ic_curchan);
+
+		RSU_LOCK(sc);
+		error = rsu_fw_cmd(sc, R92S_CMD_SET_CHANNEL, &cmd,
+		    sizeof(cmd));
+		if (error != 0) {
+			device_printf(sc->sc_dev,
+			    "%s: error %d setting channel\n", __func__,
+			    error);
+		}
+		RSU_UNLOCK(sc);
+	}
 }
 
 static void
@@ -780,6 +813,17 @@ static void
 rsu_scan_mindwell(struct ieee80211_scan_state *ss)
 {
 	/* NB: don't try to abort scan; wait for firmware to finish */
+}
+
+static void
+rsu_update_promisc(struct ieee80211com *ic)
+{
+	struct rsu_softc *sc = ic->ic_softc;
+
+	RSU_LOCK(sc);
+	if (sc->sc_running)
+		rsu_rxfilter_refresh(sc);
+	RSU_UNLOCK(sc);
 }
 
 /*
@@ -1343,6 +1387,47 @@ rsu_set_fw_power_state(struct rsu_softc *sc, int state)
 	return (error);
 }
 
+static void
+rsu_set_led(struct rsu_softc *sc, int on)
+{
+	rsu_write_1(sc, R92S_LEDCFG,
+	    (rsu_read_1(sc, R92S_LEDCFG) & 0xf0) | (!on << 3));
+}
+
+static int
+rsu_monitor_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate,
+    int arg)
+{
+	struct ieee80211com *ic = vap->iv_ic;
+	struct rsu_softc *sc = ic->ic_softc;
+	struct rsu_vap *uvp = RSU_VAP(vap);
+
+	if (vap->iv_state != nstate) {
+		IEEE80211_UNLOCK(ic);
+		RSU_LOCK(sc);
+
+		switch (nstate) {
+		case IEEE80211_S_INIT:
+			sc->sc_vap_is_running = 0;
+			rsu_set_led(sc, 0);
+			break;
+		case IEEE80211_S_RUN:
+			sc->sc_vap_is_running = 1;
+			rsu_set_led(sc, 1);
+			break;
+		default:
+			/* NOTREACHED */
+			break;
+		}
+		rsu_rxfilter_refresh(sc);
+
+		RSU_UNLOCK(sc);
+		IEEE80211_LOCK(ic);
+	}
+
+	return (uvp->newstate(vap, nstate, arg));
+}
+
 static int
 rsu_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 {
@@ -1376,6 +1461,12 @@ rsu_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		RSU_LOCK(sc);
 		/* Disassociate from our current BSS. */
 		rsu_disconnect(sc);
+		usb_pause_mtx(&sc->sc_mtx, USB_MS_TO_TICKS(10));
+
+		/* Refresh Rx filter (may be modified by firmware). */
+		sc->sc_vap_is_running = 0;
+		rsu_rxfilter_refresh(sc);
+
 		/* Reinstall static keys. */
 		if (sc->sc_running)
 			rsu_reinit_static_keys(sc);
@@ -2030,6 +2121,11 @@ rsu_event_join_bss(struct rsu_softc *sc, uint8_t *buf, int len)
 	    __func__, ether_sprintf(rsp->bss.macaddr), tmp);
 	/* XXX is this required? What's the top two bits for again? */
 	ni->ni_associd = tmp | 0xc000;
+
+	/* Refresh Rx filter (was changed by firmware). */
+	sc->sc_vap_is_running = 1;
+	rsu_rxfilter_refresh(sc);
+
 	RSU_UNLOCK(sc);
 	ieee80211_new_state(vap, IEEE80211_S_RUN,
 	    IEEE80211_FC0_SUBTYPE_ASSOC_RESP);
@@ -3329,6 +3425,65 @@ rsu_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 }
 
 static void
+rsu_rxfilter_init(struct rsu_softc *sc)
+{
+	uint32_t reg;
+
+	RSU_ASSERT_LOCKED(sc);
+
+	/* Setup multicast filter. */
+	rsu_set_multi(sc);
+
+	/* Adjust Rx filter. */
+	reg = rsu_read_4(sc, R92S_RCR);
+	reg &= ~R92S_RCR_AICV;
+	reg |= R92S_RCR_APP_PHYSTS;
+	rsu_write_4(sc, R92S_RCR, reg);
+
+	/* Update dynamic Rx filter parts. */
+	rsu_rxfilter_refresh(sc);
+}
+
+static void
+rsu_rxfilter_set(struct rsu_softc *sc, uint32_t clear, uint32_t set)
+{
+	/* NB: firmware can touch this register too. */
+	rsu_write_4(sc, R92S_RCR,
+	   (rsu_read_4(sc, R92S_RCR) & ~clear) | set);
+}
+
+static void
+rsu_rxfilter_refresh(struct rsu_softc *sc)
+{
+	struct ieee80211com *ic = &sc->sc_ic;
+	uint32_t mask_all, mask_min;
+
+	RSU_ASSERT_LOCKED(sc);
+
+	/* NB: RCR_AMF / RXFLTMAP_MGT are used by firmware. */
+	mask_all = R92S_RCR_ACF | R92S_RCR_AAP;
+	mask_min = R92S_RCR_APM;
+	if (sc->sc_vap_is_running)
+		mask_min |= R92S_RCR_CBSSID;
+	else
+		mask_all |= R92S_RCR_ADF;
+
+	if (ic->ic_opmode == IEEE80211_M_MONITOR) {
+		uint16_t rxfltmap;
+		if (sc->sc_vap_is_running)
+			rxfltmap = 0;
+		else
+			rxfltmap = R92S_RXFLTMAP_MGT_DEF;
+		rsu_write_2(sc, R92S_RXFLTMAP_MGT, rxfltmap);
+	}
+
+	if (ic->ic_promisc == 0 && ic->ic_opmode != IEEE80211_M_MONITOR)
+		rsu_rxfilter_set(sc, mask_all, mask_min);
+	else
+		rsu_rxfilter_set(sc, mask_min, mask_all);
+}
+
+static void
 rsu_init(struct rsu_softc *sc)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
@@ -3394,12 +3549,8 @@ rsu_init(struct rsu_softc *sc)
 		goto fail;
 	}
 
-	/* Append PHY status. */
-	rsu_write_4(sc, R92S_RCR,
-	    rsu_read_4(sc, R92S_RCR) | 0x02000000);
-
-	/* Setup multicast filter (must be done after firmware loading). */
-	rsu_set_multi(sc);
+	/* Initialize Rx filter. */
+	rsu_rxfilter_init(sc);
 
 	/* Set PS mode fully active */
 	error = rsu_set_fw_power_state(sc, RSU_PWR_ACTIVE);
@@ -3433,6 +3584,7 @@ rsu_stop(struct rsu_softc *sc)
 	RSU_ASSERT_LOCKED(sc);
 
 	sc->sc_running = 0;
+	sc->sc_vap_is_running = 0;
 	sc->sc_calibrating = 0;
 	taskqueue_cancel_timeout(taskqueue_thread, &sc->calib_task, NULL);
 	taskqueue_cancel(taskqueue_thread, &sc->tx_task, NULL);
