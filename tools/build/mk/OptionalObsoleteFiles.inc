@@ -6861,6 +6861,11 @@ OLD_FILES+=usr/share/man/man8/quotaon.8.gz
 OLD_FILES+=usr/share/man/man8/repquota.8.gz
 .endif
 
+.if ${MK_RBOOTD} == no
+OLD_FILES+=usr/libexec/rbootd
+OLD_FILES+=usr/share/man/man8/rbootd.8.gz
+.endif
+
 .if ${MK_RCMDS} == no
 OLD_FILES+=bin/rcp
 OLD_FILES+=etc/rc.d/rwho
