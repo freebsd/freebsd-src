@@ -219,14 +219,21 @@ minidumpsys(struct dumperinfo *di)
 	dumpsize += PAGE_SIZE;
 
 	/* Determine dump offset on device. */
-	if (di->mediasize < SIZEOF_METADATA + dumpsize + sizeof(kdh) * 2) {
+	if (di->mediasize < SIZEOF_METADATA + dumpsize + di->blocksize * 2 +
+	    kerneldumpcrypto_dumpkeysize(di->kdc)) {
 		error = ENOSPC;
 		goto fail;
 	}
 
 	origdumplo = dumplo = di->mediaoffset + di->mediasize - dumpsize;
-	dumplo -= sizeof(kdh) * 2;
+	dumplo -= di->blocksize * 2;
+	dumplo -= kerneldumpcrypto_dumpkeysize(di->kdc);
 	progress = dumpsize;
+
+	/* Initialize kernel dump crypto. */
+	error = kerneldumpcrypto_init(di->kdc);
+	if (error)
+		goto fail;
 
 	/* Initialize mdhdr */
 	bzero(&mdhdr, sizeof(mdhdr));
@@ -238,17 +245,23 @@ minidumpsys(struct dumperinfo *di)
 	mdhdr.kernbase = VM_MIN_KERNEL_ADDRESS;
 
 	mkdumpheader(&kdh, KERNELDUMPMAGIC, KERNELDUMP_MIPS_VERSION, dumpsize,
-	    di->blocksize);
+	    kerneldumpcrypto_dumpkeysize(di->kdc), di->blocksize);
 
 	printf("Physical memory: %ju MB\n", 
 	    (uintmax_t)ptoa((uintmax_t)physmem) / 1048576);
 	printf("Dumping %llu MB:", (long long)dumpsize >> 20);
 
 	/* Dump leader */
-	error = dump_write(di, &kdh, 0, dumplo, sizeof(kdh));
+	error = dump_write_header(di, &kdh, 0, dumplo);
 	if (error)
 		goto fail;
-	dumplo += sizeof(kdh);
+	dumplo += di->blocksize;
+
+	/* Dump key */
+	error = dump_write_key(di, 0, dumplo);
+	if (error)
+		goto fail;
+	dumplo += kerneldumpcrypto_dumpkeysize(di->kdc);
 
 	/* Dump my header */
 	bzero(tmpbuffer, sizeof(tmpbuffer));
@@ -316,10 +329,10 @@ minidumpsys(struct dumperinfo *di)
 	}
 
 	/* Dump trailer */
-	error = dump_write(di, &kdh, 0, dumplo, sizeof(kdh));
+	error = dump_write_header(di, &kdh, 0, dumplo);
 	if (error)
 		goto fail;
-	dumplo += sizeof(kdh);
+	dumplo += di->blocksize;
 
 	/* Signal completion, signoff and exit stage left. */
 	dump_write(di, NULL, 0, 0, 0);
