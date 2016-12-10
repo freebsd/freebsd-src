@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 13, 2016
+.Dd December 10, 2016
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -3502,6 +3502,18 @@ to not run
 at boot time when
 .Va dumpdir
 is set.
+.It Va dumppubkey
+.Pq Vt str
+Path to a public key.
+It is used by
+.Xr dumpon 8
+to encrypt a one-time key for a crash dump.
+The public key has to match a private key used by
+.Xr decryptcore 8
+to decrypt a crash dump after reboot.
+See
+.Xr dumpon 8
+for more details.
 .It Va savecore_enable
 .Pq Vt bool
 If set to

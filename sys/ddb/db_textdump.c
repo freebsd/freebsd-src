@@ -427,6 +427,7 @@ textdump_dump_version(struct dumperinfo *di)
 void
 textdump_dumpsys(struct dumperinfo *di)
 {
+	struct kerneldumpcrypto *kdc;
 	off_t dumplen, trailer_offset;
 
 	if (di->blocksize != TEXTDUMP_BLOCKSIZE) {
@@ -449,6 +450,12 @@ textdump_dumpsys(struct dumperinfo *di)
 	textdump_error = 0;
 
 	/*
+	 * Disable EKCD because we don't provide encrypted textdumps.
+	 */
+	kdc = di->kdc;
+	di->kdc = NULL;
+
+	/*
 	 * Position the start of the dump so that we'll write the kernel dump
 	 * trailer immediately before the end of the partition, and then work
 	 * our way back.  We will rewrite this header later to reflect the
@@ -456,7 +463,8 @@ textdump_dumpsys(struct dumperinfo *di)
 	 */
 	textdump_offset = di->mediasize - sizeof(kdh);
 	textdump_saveoff(&trailer_offset);
-	mkdumpheader(&kdh, TEXTDUMPMAGIC, KERNELDUMP_TEXT_VERSION, 0, TEXTDUMP_BLOCKSIZE);
+	mkdumpheader(&kdh, TEXTDUMPMAGIC, KERNELDUMP_TEXT_VERSION, 0, 0,
+	    TEXTDUMP_BLOCKSIZE);
 	(void)textdump_writenextblock(di, (char *)&kdh);
 
 	/*
@@ -481,7 +489,7 @@ textdump_dumpsys(struct dumperinfo *di)
 	 * size.
 	 */
 	dumplen = trailer_offset - (textdump_offset + TEXTDUMP_BLOCKSIZE);
-	mkdumpheader(&kdh, TEXTDUMPMAGIC, KERNELDUMP_TEXT_VERSION, dumplen,
+	mkdumpheader(&kdh, TEXTDUMPMAGIC, KERNELDUMP_TEXT_VERSION, dumplen, 0,
 	    TEXTDUMP_BLOCKSIZE);
 	(void)textdump_writenextblock(di, (char *)&kdh);
 	textdump_restoreoff(trailer_offset);
@@ -499,6 +507,11 @@ textdump_dumpsys(struct dumperinfo *di)
 	else
 		printf("Textdump complete.\n");
 	textdump_pending = 0;
+
+	/*
+	 * Restore EKCD status.
+	 */
+	di->kdc = kdc;
 }
 
 /*-

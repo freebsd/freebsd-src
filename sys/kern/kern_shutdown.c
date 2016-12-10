@@ -38,6 +38,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
+#include "opt_ekcd.h"
 #include "opt_kdb.h"
 #include "opt_panic.h"
 #include "opt_sched.h"
@@ -70,6 +71,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysproto.h>
 #include <sys/vnode.h>
 #include <sys/watchdog.h>
+
+#include <crypto/rijndael/rijndael-api-fst.h>
+#include <crypto/sha2/sha256.h>
 
 #include <ddb/ddb.h>
 
@@ -142,6 +146,22 @@ SYSCTL_INT(_kern_shutdown, OID_AUTO, show_busybufs, CTLFLAG_RW,
 int suspend_blocked = 0;
 SYSCTL_INT(_kern, OID_AUTO, suspend_blocked, CTLFLAG_RW,
 	&suspend_blocked, 0, "Block suspend due to a pending shutdown");
+
+#ifdef EKCD
+FEATURE(ekcd, "Encrypted kernel crash dumps support");
+
+MALLOC_DEFINE(M_EKCD, "ekcd", "Encrypted kernel crash dumps data");
+
+struct kerneldumpcrypto {
+	uint8_t			kdc_encryption;
+	uint8_t			kdc_iv[KERNELDUMP_IV_MAX_SIZE];
+	keyInstance		kdc_ki;
+	cipherInstance		kdc_ci;
+	off_t			kdc_nextoffset;
+	uint32_t		kdc_dumpkeysize;
+	struct kerneldumpkey	kdc_dumpkey[];
+};
+#endif
 
 /*
  * Variable panicstr contains argument to first call to panic; used as flag
@@ -838,9 +858,111 @@ static char dumpdevname[sizeof(((struct cdev*)NULL)->si_name)];
 SYSCTL_STRING(_kern_shutdown, OID_AUTO, dumpdevname, CTLFLAG_RD,
     dumpdevname, 0, "Device for kernel dumps");
 
+#ifdef EKCD
+static struct kerneldumpcrypto *
+kerneldumpcrypto_create(size_t blocksize, uint8_t encryption,
+    const uint8_t *key, uint32_t encryptedkeysize, const uint8_t *encryptedkey)
+{
+	struct kerneldumpcrypto *kdc;
+	struct kerneldumpkey *kdk;
+	uint32_t dumpkeysize;
+
+	dumpkeysize = roundup2(sizeof(*kdk) + encryptedkeysize, blocksize);
+	kdc = malloc(sizeof(*kdc) + dumpkeysize, M_EKCD, M_WAITOK | M_ZERO);
+
+	arc4rand(kdc->kdc_iv, sizeof(kdc->kdc_iv), 0);
+
+	kdc->kdc_encryption = encryption;
+	switch (kdc->kdc_encryption) {
+	case KERNELDUMP_ENC_AES_256_CBC:
+		if (rijndael_makeKey(&kdc->kdc_ki, DIR_ENCRYPT, 256, key) <= 0)
+			goto failed;
+		break;
+	default:
+		goto failed;
+	}
+
+	kdc->kdc_dumpkeysize = dumpkeysize;
+	kdk = kdc->kdc_dumpkey;
+	kdk->kdk_encryption = kdc->kdc_encryption;
+	memcpy(kdk->kdk_iv, kdc->kdc_iv, sizeof(kdk->kdk_iv));
+	kdk->kdk_encryptedkeysize = htod32(encryptedkeysize);
+	memcpy(kdk->kdk_encryptedkey, encryptedkey, encryptedkeysize);
+
+	return (kdc);
+failed:
+	explicit_bzero(kdc, sizeof(*kdc) + dumpkeysize);
+	free(kdc, M_EKCD);
+	return (NULL);
+}
+#endif /* EKCD */
+
+int
+kerneldumpcrypto_init(struct kerneldumpcrypto *kdc)
+{
+#ifndef EKCD
+	return (0);
+#else
+	uint8_t hash[SHA256_DIGEST_LENGTH];
+	SHA256_CTX ctx;
+	struct kerneldumpkey *kdk;
+	int error;
+
+	error = 0;
+
+	if (kdc == NULL)
+		return (0);
+
+	/*
+	 * When a user enters ddb it can write a crash dump multiple times.
+	 * Each time it should be encrypted using a different IV.
+	 */
+	SHA256_Init(&ctx);
+	SHA256_Update(&ctx, kdc->kdc_iv, sizeof(kdc->kdc_iv));
+	SHA256_Final(hash, &ctx);
+	bcopy(hash, kdc->kdc_iv, sizeof(kdc->kdc_iv));
+
+	switch (kdc->kdc_encryption) {
+	case KERNELDUMP_ENC_AES_256_CBC:
+		if (rijndael_cipherInit(&kdc->kdc_ci, MODE_CBC,
+		    kdc->kdc_iv) <= 0) {
+			error = EINVAL;
+			goto out;
+		}
+		break;
+	default:
+		error = EINVAL;
+		goto out;
+	}
+
+	kdc->kdc_nextoffset = 0;
+
+	kdk = kdc->kdc_dumpkey;
+	memcpy(kdk->kdk_iv, kdc->kdc_iv, sizeof(kdk->kdk_iv));
+out:
+	explicit_bzero(hash, sizeof(hash));
+	return (error);
+#endif
+}
+
+uint32_t
+kerneldumpcrypto_dumpkeysize(const struct kerneldumpcrypto *kdc)
+{
+
+#ifdef EKCD
+	if (kdc == NULL)
+		return (0);
+	return (kdc->kdc_dumpkeysize);
+#else
+	return (0);
+#endif
+}
+
 /* Registration of dumpers */
 int
-set_dumper(struct dumperinfo *di, const char *devname, struct thread *td)
+set_dumper(struct dumperinfo *di, const char *devname, struct thread *td,
+    uint8_t encryption, const uint8_t *key, uint32_t encryptedkeysize,
+    const uint8_t *encryptedkey)
 {
 	size_t wantcopy;
 	int error;
@@ -850,28 +972,56 @@ set_dumper(struct dumperinfo *di, const char *devname, struct thread *td)
 		return (error);
 
 	if (di == NULL) {
-		if (dumper.blockbuf != NULL)
-			free(dumper.blockbuf, M_DUMPER);
-		bzero(&dumper, sizeof(dumper));
-		dumpdevname[0] = '\0';
-		return (0);
+		error = 0;
+		goto cleanup;
 	}
 	if (dumper.dumper != NULL)
 		return (EBUSY);
 	dumper = *di;
+	dumper.blockbuf = NULL;
+	dumper.kdc = NULL;
+
+	if (encryption != KERNELDUMP_ENC_NONE) {
+#ifdef EKCD
+		dumper.kdc = kerneldumpcrypto_create(di->blocksize, encryption,
+		    key, encryptedkeysize, encryptedkey);
+		if (dumper.kdc == NULL) {
+			error = EINVAL;
+			goto cleanup;
+		}
+#else
+		error = EOPNOTSUPP;
+		goto cleanup;
+#endif
+	}
+
 	wantcopy = strlcpy(dumpdevname, devname, sizeof(dumpdevname));
 	if (wantcopy >= sizeof(dumpdevname)) {
 		printf("set_dumper: device name truncated from '%s' -> '%s'\n",
 			devname, dumpdevname);
 	}
+
 	dumper.blockbuf = malloc(di->blocksize, M_DUMPER, M_WAITOK | M_ZERO);
 	return (0);
+cleanup:
+#ifdef EKCD
+	if (dumper.kdc != NULL) {
+		explicit_bzero(dumper.kdc, sizeof(*dumper.kdc) +
+		    dumper.kdc->kdc_dumpkeysize);
+		free(dumper.kdc, M_EKCD);
+	}
+#endif
+	if (dumper.blockbuf != NULL) {
+		explicit_bzero(dumper.blockbuf, dumper.blocksize);
+		free(dumper.blockbuf, M_DUMPER);
+	}
+	explicit_bzero(&dumper, sizeof(dumper));
+	dumpdevname[0] = '\0';
+	return (error);
 }
 
-/* Call dumper with bounds checking. */
-int
-dump_write(struct dumperinfo *di, void *virtual, vm_offset_t physical,
-    off_t offset, size_t length)
+static int
+dump_check_bounds(struct dumperinfo *di, off_t offset, size_t length)
 {
 
 	if (length != 0 && (offset < di->mediaoffset ||
@@ -882,37 +1032,202 @@ dump_write(struct dumperinfo *di, void *virtual, vm_offset_t physical,
 		    (uintmax_t)length, (intmax_t)di->mediasize);
 		return (ENOSPC);
 	}
+
+	return (0);
+}
+
+#ifdef EKCD
+static int
+dump_encrypt(struct kerneldumpcrypto *kdc, uint8_t *buf, size_t size)
+{
+
+	switch (kdc->kdc_encryption) {
+	case KERNELDUMP_ENC_AES_256_CBC:
+		if (rijndael_blockEncrypt(&kdc->kdc_ci, &kdc->kdc_ki, buf,
+		    8 * size, buf) <= 0) {
+			return (EIO);
+		}
+		if (rijndael_cipherInit(&kdc->kdc_ci, MODE_CBC,
+		    buf + size - 16 /* IV size for AES-256-CBC */) <= 0) {
+			return (EIO);
+		}
+		break;
+	default:
+		return (EINVAL);
+	}
+
+	return (0);
+}
+
+/* Encrypt data and call dumper. */
+static int
+dump_encrypted_write(struct dumperinfo *di, void *virtual, vm_offset_t physical,
+    off_t offset, size_t length)
+{
+	static uint8_t buf[KERNELDUMP_BUFFER_SIZE];
+	struct kerneldumpcrypto *kdc;
+	int error;
+	size_t nbytes;
+	off_t nextoffset;
+
+	kdc = di->kdc;
+
+	error = dump_check_bounds(di, offset, length);
+	if (error != 0)
+		return (error);
+
+	/* Signal completion. */
+	if (virtual == NULL && physical == 0 && offset == 0 && length == 0) {
+		return (di->dumper(di->priv, virtual, physical, offset,
+		    length));
+	}
+
+	/* Data have to be aligned to block size. */
+	if ((length % di->blocksize) != 0)
+		return (EINVAL);
+
+	/*
+	 * Data have to be written continuously becase we're encrypting using
+	 * CBC mode which has this assumption.
+	 */
+	if (kdc->kdc_nextoffset != 0 && kdc->kdc_nextoffset != offset)
+		return (EINVAL);
+
+	nextoffset = offset + (off_t)length;
+
+	while (length > 0) {
+		nbytes = MIN(length, sizeof(buf));
+		bcopy(virtual, buf, nbytes);
+
+		if (dump_encrypt(kdc, buf, nbytes) != 0)
+			return (EIO);
+
+		error = di->dumper(di->priv, buf, physical, offset, nbytes);
+		if (error != 0)
+			return (error);
+
+		offset += nbytes;
+		virtual = (void *)((uint8_t *)virtual + nbytes);
+		length -= nbytes;
+	}
+
+	kdc->kdc_nextoffset = nextoffset;
+
+	return (0);
+}
+#endif /* EKCD */
+
+/* Call dumper with bounds checking. */
+static int
+dump_raw_write(struct dumperinfo *di, void *virtual, vm_offset_t physical,
+    off_t offset, size_t length)
+{
+	int error;
+
+	error = dump_check_bounds(di, offset, length);
+	if (error != 0)
+		return (error);
+
 	return (di->dumper(di->priv, virtual, physical, offset, length));
 }
 
-/* Call dumper with bounds checking. */
 int
-dump_write_pad(struct dumperinfo *di, void *virtual, vm_offset_t physical,
-    off_t offset, size_t length, size_t *size)
+dump_write(struct dumperinfo *di, void *virtual, vm_offset_t physical,
+    off_t offset, size_t length)
 {
-	char *temp;
-	int ret;
+
+#ifdef EKCD
+	if (di->kdc != NULL) {
+		return (dump_encrypted_write(di, virtual, physical, offset,
+		    length));
+	}
+#endif
+
+	return (dump_raw_write(di, virtual, physical, offset, length));
+}
+
+static int
+dump_pad(struct dumperinfo *di, void *virtual, size_t length, void **buf,
+    size_t *size)
+{
 
 	if (length > di->blocksize)
 		return (ENOMEM);
 
 	*size = di->blocksize;
-	if (length == di->blocksize)
-		temp = virtual;
-	else {
-		temp = di->blockbuf;
-		memset(temp + length, 0, di->blocksize - length);
-		memcpy(temp, virtual, length);
+	if (length == di->blocksize) {
+		*buf = virtual;
+	} else {
+		*buf = di->blockbuf;
+		memcpy(*buf, virtual, length);
+		memset((uint8_t *)*buf + length, 0, di->blocksize - length);
 	}
-	ret = dump_write(di, temp, physical, offset, *size);
 
+	return (0);
+}
+
+static int
+dump_raw_write_pad(struct dumperinfo *di, void *virtual, vm_offset_t physical,
+    off_t offset, size_t length, size_t *size)
+{
+	void *buf;
+	int error;
+
+	error = dump_pad(di, virtual, length, &buf, size);
+	if (error != 0)
+		return (error);
+
+	return (dump_raw_write(di, buf, physical, offset, *size));
+}
+
+int
+dump_write_pad(struct dumperinfo *di, void *virtual, vm_offset_t physical,
+    off_t offset, size_t length, size_t *size)
+{
+	void *buf;
+	int error;
+
+	error = dump_pad(di, virtual, length, &buf, size);
+	if (error != 0)
+		return (error);
+
+	return (dump_write(di, buf, physical, offset, *size));
+}
+
+int
+dump_write_header(struct dumperinfo *di, struct kerneldumpheader *kdh,
+    vm_offset_t physical, off_t offset)
+{
+	size_t size;
+	int ret;
+
+	ret = dump_raw_write_pad(di, kdh, physical, offset, sizeof(*kdh),
+	    &size);
+	if (ret == 0 && size != di->blocksize)
+		ret = EINVAL;
 	return (ret);
 }
 
+int
+dump_write_key(struct dumperinfo *di, vm_offset_t physical, off_t offset)
+{
+#ifndef EKCD
+	return (0);
+#else /* EKCD */
+	struct kerneldumpcrypto *kdc;
+
+	kdc = di->kdc;
+	if (kdc == NULL)
+		return (0);
+
+	return (dump_raw_write(di, kdc->kdc_dumpkey, physical, offset,
+	    kdc->kdc_dumpkeysize));
+#endif /* !EKCD */
+}
 
 void
 mkdumpheader(struct kerneldumpheader *kdh, char *magic, uint32_t archver,
-    uint64_t dumplen, uint32_t blksz)
+    uint64_t dumplen, uint32_t dumpkeysize, uint32_t blksz)
 {
 
 	bzero(kdh, sizeof(*kdh));
@@ -922,6 +1237,7 @@ mkdumpheader(struct kerneldumpheader *kdh, char *magic, uint32_t archver,
 	kdh->architectureversion = htod32(archver);
 	kdh->dumplength = htod64(dumplen);
 	kdh->dumptime = htod64(time_second);
+	kdh->dumpkeysize = htod32(dumpkeysize);
 	kdh->blocksize = htod32(blksz);
 	strlcpy(kdh->hostname, prison0.pr_hostname, sizeof(kdh->hostname));
 	strlcpy(kdh->versionstring, version, sizeof(kdh->versionstring));
