@@ -683,6 +683,7 @@ _amdsbwd=	amdsbwd
 _amdtemp=	amdtemp
 _arcmsr=	arcmsr
 _asmc=		asmc
+_bios=		bios
 _bktr=		bktr
 _bxe=		bxe
 _cardbus=	cardbus
