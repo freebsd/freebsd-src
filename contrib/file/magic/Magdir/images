@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: images,v 1.116 2016/03/23 15:29:20 christos Exp $
+# $File: images,v 1.117 2016/07/05 19:12:21 christos Exp $
 # images:  file(1) magic for image formats (see also "iff", and "c-lang" for
 # XPM bitmaps)
 #
@@ -171,38 +171,44 @@
 >>>&0	regex		=[0-9]{1,50}			\b %s
 
 0	search/1	P1		
->0	use		netpbm
->>0	string		x	\b, bitmap
+>0	regex/4		P1\\s
+>>0	use		netpbm
+>>>0	string		x	\b, bitmap
 !:strength + 45
 !:mime	image/x-portable-bitmap
 
 0	search/1	P2		
->0	use		netpbm
->>0	string		x	\b, greymap
+>0	regex/4		P2\\s
+>>0	use		netpbm
+>>>0	string		x	\b, greymap
 !:strength + 45
 !:mime	image/x-portable-greymap
 
 0	search/1	P3
->0	use		netpbm
->>0	string		x	\b, pixmap
+>0	regex/4		P3\\s
+>>0	use		netpbm
+>>>0	string		x	\b, pixmap
 !:strength + 45
 !:mime	image/x-portable-pixmap
 
 0	string		P4		
->0	use		netpbm
->>0	string		x	\b, rawbits, bitmap
+>0	regex/4		P4\\s
+>>0	use		netpbm
+>>>0	string		x	\b, rawbits, bitmap
 !:strength + 45
 !:mime	image/x-portable-bitmap
 
 0	string		P5		
->0	use		netpbm
->>0	string		x	\b, rawbits, greymap
+>0	regex/4		P5\\s
+>>0	use		netpbm
+>>>0	string		x	\b, rawbits, greymap
 !:strength + 45
 !:mime	image/x-portable-greymap
 
 0	string		P6		
->0	use		netpbm
->>0	string		x	\b, rawbits, pixmap
+>0	regex/4		P6\\s
+>>0	use		netpbm
+>>>0	string		x	\b, rawbits, pixmap
 !:strength + 45
 !:mime	image/x-portable-pixmap
 
