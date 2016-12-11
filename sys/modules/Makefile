@@ -544,6 +544,7 @@ _igb=		igb
 _agp=		agp
 _an=		an
 _aout=		aout
+_bios=		bios
 _bktr=		bktr
 _bxe=		bxe
 _cardbus=	cardbus
@@ -726,7 +727,6 @@ _wds=		wds
 .if ${MK_EISA} != "no"
 _ahb=		ahb
 .endif
-_bios=		bios
 _cm=		cm
 .if ${MK_SOURCELESS_UCODE} != "no"
 _ctau=		ctau
