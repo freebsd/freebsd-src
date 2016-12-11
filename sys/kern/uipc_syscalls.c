@@ -806,8 +806,10 @@ kern_sendit(td, s, mp, flags, control, segflg)
 		cap_rights_set(&rights, CAP_CONNECT);
 	}
 	error = getsock_cap(td, s, &rights, &fp, NULL);
-	if (error != 0)
+	if (error != 0) {
+		m_freem(control);
 		return (error);
+	}
 	so = (struct socket *)fp->f_data;
 
 #ifdef KTRACE
@@ -818,12 +820,16 @@ kern_sendit(td, s, mp, flags, control, segflg)
 	if (mp->msg_name != NULL) {
 		error = mac_socket_check_connect(td->td_ucred, so,
 		    mp->msg_name);
-		if (error != 0)
+		if (error != 0) {
+			m_freem(control);
 			goto bad;
+		}
 	}
 	error = mac_socket_check_send(td->td_ucred, so);
-	if (error != 0)
+	if (error != 0) {
+		m_freem(control);
 		goto bad;
+	}
 #endif
 
 	auio.uio_iov = mp->msg_iov;
@@ -837,6 +843,7 @@ kern_sendit(td, s, mp, flags, control, segflg)
 	for (i = 0; i < mp->msg_iovlen; i++, iov++) {
 		if ((auio.uio_resid += iov->iov_len) < 0) {
 			error = EINVAL;
+			m_freem(control);
 			goto bad;
 		}
 	}
