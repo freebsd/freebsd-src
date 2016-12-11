@@ -1106,6 +1106,38 @@ kern_wait(struct thread *td, pid_t pid, int *status, int options,
 	return (ret);
 }
 
+static void
+report_alive_proc(struct thread *td, struct proc *p, siginfo_t *siginfo,
+    int *status, int options, int si_code)
+{
+	bool cont;
+
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	sx_assert(&proctree_lock, SA_XLOCKED);
+	MPASS(si_code == CLD_TRAPPED || si_code == CLD_STOPPED ||
+	    si_code == CLD_CONTINUED);
+
+	cont = si_code == CLD_CONTINUED;
+	if ((options & WNOWAIT) == 0) {
+		if (cont)
+			p->p_flag &= ~P_CONTINUED;
+		else
+			p->p_flag |= P_WAITED;
+		PROC_LOCK(td->td_proc);
+		sigqueue_take(p->p_ksi);
+		PROC_UNLOCK(td->td_proc);
+	}
+	sx_xunlock(&proctree_lock);
+	if (siginfo != NULL) {
+		siginfo->si_code = si_code;
+		siginfo->si_status = cont ? SIGCONT : p->p_xsig;
+	}
+	if (status != NULL)
+		*status = cont ? SIGCONT : W_STOPCODE(p->p_xsig);
+	PROC_UNLOCK(p);
+	td->td_retval[0] = p->p_pid;
+}
+
 int
 kern_wait6(struct thread *td, idtype_t idtype, id_t id, int *status,
     int options, struct __wrusage *wrusage, siginfo_t *siginfo)
@@ -1163,82 +1195,41 @@ loop:
 		}
 
 		PROC_LOCK(p);
-		PROC_SLOCK(p);
+
+		if ((options & (WTRAPPED | WUNTRACED)) != 0)
+			PROC_SLOCK(p);
 
 		if ((options & WTRAPPED) != 0 &&
 		    (p->p_flag & P_TRACED) != 0 &&
 		    (p->p_flag & (P_STOPPED_TRACE | P_STOPPED_SIG)) != 0 &&
-		    (p->p_suspcount == p->p_numthreads) &&
-		    ((p->p_flag & P_WAITED) == 0)) {
+		    p->p_suspcount == p->p_numthreads &&
+		    (p->p_flag & P_WAITED) == 0) {
 			PROC_SUNLOCK(p);
-			if ((options & WNOWAIT) == 0)
-				p->p_flag |= P_WAITED;
-			sx_xunlock(&proctree_lock);
-
-			if (status != NULL)
-				*status = W_STOPCODE(p->p_xsig);
-			if (siginfo != NULL) {
-				siginfo->si_status = p->p_xsig;
-				siginfo->si_code = CLD_TRAPPED;
-			}
-			if ((options & WNOWAIT) == 0) {
-				PROC_LOCK(q);
-				sigqueue_take(p->p_ksi);
-				PROC_UNLOCK(q);
-			}
-
 			CTR4(KTR_PTRACE,
-	    "wait: returning trapped pid %d status %#x (xstat %d) xthread %d",
+			    "wait: returning trapped pid %d status %#x "
+			    "(xstat %d) xthread %d",
 			    p->p_pid, W_STOPCODE(p->p_xsig), p->p_xsig,
-			    p->p_xthread != NULL ? p->p_xthread->td_tid : -1);
-			PROC_UNLOCK(p);
-			td->td_retval[0] = pid;
+			    p->p_xthread != NULL ?
+			    p->p_xthread->td_tid : -1);
+			report_alive_proc(td, p, siginfo, status, options,
+			    CLD_TRAPPED);
 			return (0);
-		}
+			}
 		if ((options & WUNTRACED) != 0 &&
 		    (p->p_flag & P_STOPPED_SIG) != 0 &&
-		    (p->p_suspcount == p->p_numthreads) &&
-		    ((p->p_flag & P_WAITED) == 0)) {
+		    p->p_suspcount == p->p_numthreads &&
+		    (p->p_flag & P_WAITED) == 0) {
 			PROC_SUNLOCK(p);
-			if ((options & WNOWAIT) == 0)
-				p->p_flag |= P_WAITED;
-			sx_xunlock(&proctree_lock);
-
-			if (status != NULL)
-				*status = W_STOPCODE(p->p_xsig);
-			if (siginfo != NULL) {
-				siginfo->si_status = p->p_xsig;
-				siginfo->si_code = CLD_STOPPED;
-			}
-			if ((options & WNOWAIT) == 0) {
-				PROC_LOCK(q);
-				sigqueue_take(p->p_ksi);
-				PROC_UNLOCK(q);
-			}
-
-			PROC_UNLOCK(p);
-			td->td_retval[0] = pid;
+			report_alive_proc(td, p, siginfo, status, options,
+			    CLD_STOPPED);
 			return (0);
 		}
-		PROC_SUNLOCK(p);
+		if ((options & (WTRAPPED | WUNTRACED)) != 0)
+			PROC_SUNLOCK(p);
 		if ((options & WCONTINUED) != 0 &&
 		    (p->p_flag & P_CONTINUED) != 0) {
-			sx_xunlock(&proctree_lock);
-			if ((options & WNOWAIT) == 0) {
-				p->p_flag &= ~P_CONTINUED;
-				PROC_LOCK(q);
-				sigqueue_take(p->p_ksi);
-				PROC_UNLOCK(q);
-			}
-			PROC_UNLOCK(p);
-
-			if (status != NULL)
-				*status = SIGCONT;
-			if (siginfo != NULL) {
-				siginfo->si_status = SIGCONT;
-				siginfo->si_code = CLD_CONTINUED;
-			}
-			td->td_retval[0] = pid;
+			report_alive_proc(td, p, siginfo, status, options,
+			    CLD_CONTINUED);
 			return (0);
 		}
 		PROC_UNLOCK(p);
