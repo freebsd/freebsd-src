@@ -1203,8 +1203,27 @@ void LazyValueInfo::releaseMemory() {
   }
 }
 
+ 
+/// Returns true if we can statically tell that this value will never be a
+/// "useful" constant.  In practice, this means we've got something like an
+/// alloca or a malloc call for which a comparison against a constant can
+/// only be guarding dead code.  Note that we are potentially giving up some
+/// precision in dead code (a constant result) in favour of avoiding a
+/// expensive search for a easily answered common query.
+static bool isKnownNonConstant(Value *V) {
+  V = V->stripPointerCasts();
+  // The return val of alloc cannot be a Constant.
+  if (isa<AllocaInst>(V))
+    return true;
+  return false;
+}
+
 Constant *LazyValueInfo::getConstant(Value *V, BasicBlock *BB,
                                      Instruction *CxtI) {
+  // Bail out early if V is known not to be a Constant.
+  if (isKnownNonConstant(V))
+    return nullptr;
+
   const DataLayout &DL = BB->getModule()->getDataLayout();
   LVILatticeVal Result =
       getCache(PImpl, AC, &DL, DT).getValueInBlock(V, BB, CxtI);
@@ -1322,6 +1341,17 @@ LazyValueInfo::getPredicateOnEdge(unsigned Pred, Value *V, Constant *C,
 LazyValueInfo::Tristate
 LazyValueInfo::getPredicateAt(unsigned Pred, Value *V, Constant *C,
                               Instruction *CxtI) {
+  // Is or is not NonNull are common predicates being queried. If
+  // isKnownNonNull can tell us the result of the predicate, we can
+  // return it quickly. But this is only a fastpath, and falling
+  // through would still be correct.
+  if (V->getType()->isPointerTy() && C->isNullValue() &&
+      isKnownNonNull(V->stripPointerCasts())) {
+    if (Pred == ICmpInst::ICMP_EQ)
+      return LazyValueInfo::False;
+    else if (Pred == ICmpInst::ICMP_NE)
+      return LazyValueInfo::True;
+  }
   const DataLayout &DL = CxtI->getModule()->getDataLayout();
   LVILatticeVal Result = getCache(PImpl, AC, &DL, DT).getValueAt(V, CxtI);
   Tristate Ret = getPredicateResult(Pred, C, Result, DL, TLI);
