@@ -1033,7 +1033,26 @@ void LazyValueInfo::releaseMemory() {
   }
 }
 
+ 
+/// Returns true if we can statically tell that this value will never be a
+/// "useful" constant.  In practice, this means we've got something like an
+/// alloca or a malloc call for which a comparison against a constant can
+/// only be guarding dead code.  Note that we are potentially giving up some
+/// precision in dead code (a constant result) in favour of avoiding a
+/// expensive search for a easily answered common query.
+static bool isKnownNonConstant(Value *V) {
+  V = V->stripPointerCasts();
+  // The return val of alloc cannot be a Constant.
+  if (isa<AllocaInst>(V))
+    return true;
+  return false;
+}
+
 Constant *LazyValueInfo::getConstant(Value *V, BasicBlock *BB) {
+  // Bail out early if V is known not to be a Constant.
+  if (isKnownNonConstant(V))
+    return nullptr;
+
   LVILatticeVal Result = getCache(PImpl).getValueInBlock(V, BB);
   
   if (Result.isConstant())
