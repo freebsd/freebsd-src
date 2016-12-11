@@ -585,14 +585,14 @@ zvol_create_minor(const char *name)
 	zfs_soft_state_t *zs;
 	zvol_state_t *zv;
 	objset_t *os;
-	dmu_object_info_t doi;
 #ifdef illumos
+	dmu_object_info_t doi;
 	minor_t minor = 0;
 	char chrbuf[30], blkbuf[30];
 #else
 	struct g_provider *pp;
 	struct g_geom *gp;
-	uint64_t volsize, mode;
+	uint64_t mode;
 #endif
 	int error;
 
@@ -658,20 +658,12 @@ zvol_create_minor(const char *name)
 
 	zv = kmem_zalloc(sizeof(*zv), KM_SLEEP);
 	zv->zv_state = 0;
-	error = zap_lookup(os, ZVOL_ZAP_OBJ, "size", 8, 1, &volsize);
-	if (error) {
-		kmem_free(zv, sizeof(*zv));
-		dmu_objset_disown(os, zvol_tag);
-		mutex_exit(&zfsdev_state_lock);
-		return (error);
-	}
 	error = dsl_prop_get_integer(name,
 	    zfs_prop_to_name(ZFS_PROP_VOLMODE), &mode, NULL);
 	if (error != 0 || mode == ZFS_VOLMODE_DEFAULT)
 		mode = volmode;
 
 	DROP_GIANT();
-	zv->zv_volsize = volsize;
 	zv->zv_volmode = mode;
 	if (zv->zv_volmode == ZFS_VOLMODE_GEOM) {
 		g_topology_lock();
@@ -681,7 +673,7 @@ zvol_create_minor(const char *name)
 		pp = g_new_providerf(gp, "%s/%s", ZVOL_DRIVER, name);
 		pp->flags |= G_PF_DIRECT_RECEIVE | G_PF_DIRECT_SEND;
 		pp->sectorsize = DEV_BSIZE;
-		pp->mediasize = zv->zv_volsize;
+		pp->mediasize = 0;
 		pp->private = zv;
 
 		zv->zv_provider = pp;
@@ -724,10 +716,12 @@ zvol_create_minor(const char *name)
 	    sizeof (rl_t), offsetof(rl_t, r_node));
 	list_create(&zv->zv_extents, sizeof (zvol_extent_t),
 	    offsetof(zvol_extent_t, ze_node));
+#ifdef illumos
 	/* get and cache the blocksize */
 	error = dmu_object_info(os, ZVOL_OBJ, &doi);
 	ASSERT(error == 0);
 	zv->zv_volblocksize = doi.doi_data_block_size;
+#endif
 
 	if (spa_writeable(dmu_objset_spa(os))) {
 		if (zil_replay_disable)
@@ -819,6 +813,7 @@ zvol_remove_minor(const char *name)
 int
 zvol_first_open(zvol_state_t *zv)
 {
+	dmu_object_info_t doi;
 	objset_t *os;
 	uint64_t volsize;
 	int error;
@@ -837,6 +832,15 @@ zvol_first_open(zvol_state_t *zv)
 		dmu_objset_disown(os, zvol_tag);
 		return (error);
 	}
+
+	/* get and cache the blocksize */
+	error = dmu_object_info(os, ZVOL_OBJ, &doi);
+	if (error) {
+		ASSERT(error == 0);
+		dmu_objset_disown(os, zvol_tag);
+		return (error);
+	}
+	zv->zv_volblocksize = doi.doi_data_block_size;
 
 	error = dmu_bonus_hold(os, ZVOL_OBJ, zvol_tag, &zv->zv_dbuf);
 	if (error) {
