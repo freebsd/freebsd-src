@@ -255,6 +255,7 @@ static int	rsu_tx_start(struct rsu_softc *, struct ieee80211_node *,
 static int	rsu_transmit(struct ieee80211com *, struct mbuf *);
 static void	rsu_start(struct rsu_softc *);
 static void	_rsu_start(struct rsu_softc *);
+static int	rsu_ioctl_net(struct ieee80211com *, u_long, void *);
 static void	rsu_parent(struct ieee80211com *);
 static void	rsu_stop(struct rsu_softc *);
 static void	rsu_ms_delay(struct rsu_softc *, int);
@@ -444,6 +445,7 @@ rsu_attach(device_t self)
 	device_set_usb_desc(self);
 	sc->sc_udev = uaa->device;
 	sc->sc_dev = self;
+	sc->sc_rx_checksum_enable = 1;
 	if (rsu_enable_11n)
 		sc->sc_ht = !! (USB_GET_DRIVER_INFO(uaa) & RSU_HT_SUPPORTED);
 
@@ -590,6 +592,7 @@ rsu_attach(device_t self)
 	ic->ic_vap_delete = rsu_vap_delete;
 	ic->ic_update_promisc = rsu_update_promisc;
 	ic->ic_update_mcast = rsu_update_mcast;
+	ic->ic_ioctl = rsu_ioctl_net;
 	ic->ic_parent = rsu_parent;
 	ic->ic_transmit = rsu_transmit;
 	ic->ic_send_mgmt = rsu_send_mgmt;
@@ -676,8 +679,10 @@ rsu_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
     const uint8_t bssid[IEEE80211_ADDR_LEN],
     const uint8_t mac[IEEE80211_ADDR_LEN])
 {
+	struct rsu_softc *sc = ic->ic_softc;
 	struct rsu_vap *uvp;
 	struct ieee80211vap *vap;
+	struct ifnet *ifp;
 
 	if (!TAILQ_EMPTY(&ic->ic_vaps))         /* only one at a time */
 		return (NULL);
@@ -691,6 +696,13 @@ rsu_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 		free(uvp, M_80211_VAP);
 		return (NULL);
 	}
+
+	ifp = vap->iv_ifp;
+	ifp->if_capabilities = IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6;
+	RSU_LOCK(sc);
+	if (sc->sc_rx_checksum_enable)
+		ifp->if_capenable |= IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6;
+	RSU_UNLOCK(sc);
 
 	/* override state transition machine */
 	uvp->newstate = vap->iv_newstate;
@@ -2396,9 +2408,37 @@ rsu_rx_frame(struct rsu_softc *sc, struct mbuf *m, int8_t *rssi_p)
 	};
 
 	/* Hardware does Rx TCP checksum offload. */
+	/*
+	 * This flag can be set for some other
+	 * (e.g., EAPOL) frame types, so don't rely on it.
+	 */
 	if (rxdw3 & R92S_RXDW3_TCPCHKVALID) {
-		if (__predict_true(rxdw3 & R92S_RXDW3_TCPCHKRPT))
+		RSU_DPRINTF(sc, RSU_DEBUG_RX,
+		    "%s: TCP/IP checksums: %schecked / %schecked\n",
+		    __func__,
+		    (rxdw3 & R92S_RXDW3_TCPCHKRPT) ? "" : "not ",
+		    (rxdw3 & R92S_RXDW3_IPCHKRPT) ? "" : "not ");
+
+		/*
+		 * 'IP header checksum valid' bit will not be set if
+		 * the frame was not checked / has incorrect checksum /
+		 * does not have checksum (IPv6).
+		 *
+		 * NB: if DF bit is not set then frame will not be checked.
+		 */
+		if (rxdw3 & R92S_RXDW3_IPCHKRPT) {
+			m->m_pkthdr.csum_flags = CSUM_IP_CHECKED;
+			m->m_pkthdr.csum_flags |= CSUM_IP_VALID;
+		}
+
+		/*
+		 * This is independent of the above check.
+		 */
+		if (rxdw3 & R92S_RXDW3_TCPCHKRPT) {
 			m->m_pkthdr.csum_flags |= CSUM_DATA_VALID;
+			m->m_pkthdr.csum_flags |= CSUM_PSEUDO_HDR;
+			m->m_pkthdr.csum_data = 0xffff;
+		}
 	}
 
 	/* Drop descriptor. */
@@ -2913,6 +2953,59 @@ rsu_start(struct rsu_softc *sc)
 {
 
 	taskqueue_enqueue(taskqueue_thread, &sc->tx_task);
+}
+
+static int
+rsu_ioctl_net(struct ieee80211com *ic, u_long cmd, void *data)
+{
+	struct rsu_softc *sc = ic->ic_softc;
+	struct ifreq *ifr = (struct ifreq *)data;
+	int error;
+
+	error = 0;
+	switch (cmd) {
+	case SIOCSIFCAP:
+	{
+		struct ieee80211vap *vap;
+		int rxmask;
+
+		rxmask = ifr->ifr_reqcap & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6);
+
+		RSU_LOCK(sc);
+		/* Both RXCSUM bits must be set (or unset). */
+		if (sc->sc_rx_checksum_enable &&
+		    rxmask != (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6)) {
+			rxmask = 0;
+			sc->sc_rx_checksum_enable = 0;
+			rsu_rxfilter_set(sc, R92S_RCR_TCP_OFFLD_EN, 0);
+		} else if (!sc->sc_rx_checksum_enable && rxmask != 0) {
+			rxmask = IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6;
+			sc->sc_rx_checksum_enable = 1;
+			rsu_rxfilter_set(sc, 0, R92S_RCR_TCP_OFFLD_EN);
+		} else {
+			/* Nothing to do. */
+			RSU_UNLOCK(sc);
+			break;
+		}
+		RSU_UNLOCK(sc);
+
+		IEEE80211_LOCK(ic);	/* XXX */
+		TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next) {
+			struct ifnet *ifp = vap->iv_ifp;
+
+			ifp->if_capenable &=
+			    ~(IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6);
+			ifp->if_capenable |= rxmask;
+		}
+		IEEE80211_UNLOCK(ic);
+		break;
+	}
+	default:
+		error = ENOTTY;		/* for net80211 */
+		break;
+	}
+
+	return (error);
 }
 
 static void
@@ -3434,6 +3527,8 @@ rsu_rxfilter_init(struct rsu_softc *sc)
 	reg = rsu_read_4(sc, R92S_RCR);
 	reg &= ~R92S_RCR_AICV;
 	reg |= R92S_RCR_APP_PHYSTS;
+	if (sc->sc_rx_checksum_enable)
+		reg |= R92S_RCR_TCP_OFFLD_EN;
 	rsu_write_4(sc, R92S_RCR, reg);
 
 	/* Update dynamic Rx filter parts. */
@@ -3511,10 +3606,6 @@ rsu_init(struct rsu_softc *sc)
 	error = rsu_load_firmware(sc);
 	if (error != 0)
 		goto fail;
-
-	/* Enable Rx TCP checksum offload. */
-	rsu_write_4(sc, R92S_RCR,
-	    rsu_read_4(sc, R92S_RCR) | 0x04000000);
 
 	rsu_write_4(sc, R92S_CR,
 	    rsu_read_4(sc, R92S_CR) & ~0xff000000);

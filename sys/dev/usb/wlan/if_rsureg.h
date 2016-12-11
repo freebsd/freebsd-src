@@ -164,6 +164,7 @@
 #define R92S_RCR_APWRMGT	0x00400000
 #define R92S_RCR_CBSSID		0x00800000
 #define R92S_RCR_APP_PHYSTS	0x02000000
+#define R92S_RCR_TCP_OFFLD_EN	0x04000000
 #define R92S_RCR_ENMBID		0x08000000
 
 /* Bits for R92S_RXFLTMAP*. */
@@ -853,6 +854,7 @@ struct rsu_softc {
 
 	u_int				sc_running:1,
 					sc_vap_is_running:1,
+					sc_rx_checksum_enable:1,
 					sc_calibrating:1,
 					sc_active_scan:1,
 					sc_extra_scan:1;
