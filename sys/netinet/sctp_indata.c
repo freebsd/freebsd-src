@@ -333,10 +333,10 @@ sctp_place_control_in_stream(struct sctp_stream_in *strm,
 {
 	struct sctp_queued_to_read *at;
 	struct sctp_readhead *q;
-	uint8_t bits, unordered;
+	uint8_t flags, unordered;
 
-	bits = (control->sinfo_flags >> 8);
-	unordered = bits & SCTP_DATA_UNORDERED;
+	flags = (control->sinfo_flags >> 8);
+	unordered = flags & SCTP_DATA_UNORDERED;
 	if (unordered) {
 		q = &strm->uno_inqueue;
 		if (asoc->idata_supported == 0) {
@@ -352,8 +352,10 @@ sctp_place_control_in_stream(struct sctp_stream_in *strm,
 	} else {
 		q = &strm->inqueue;
 	}
-	if ((bits & SCTP_DATA_NOT_FRAG) == SCTP_DATA_NOT_FRAG) {
-		control->end_added = control->last_frag_seen = control->first_frag_seen = 1;
+	if ((flags & SCTP_DATA_NOT_FRAG) == SCTP_DATA_NOT_FRAG) {
+		control->end_added = 1;
+		control->first_frag_seen = 1;
+		control->last_frag_seen = 1;
 	}
 	if (TAILQ_EMPTY(q)) {
 		/* Empty queue */
@@ -394,8 +396,7 @@ sctp_place_control_in_stream(struct sctp_stream_in *strm,
 						sctp_log_strm_del(control, at,
 						    SCTP_STR_LOG_FROM_INSERT_TL);
 					}
-					TAILQ_INSERT_AFTER(q,
-					    at, control, next_instrm);
+					TAILQ_INSERT_AFTER(q, at, control, next_instrm);
 					if (unordered) {
 						control->on_strm_q = SCTP_ON_UNORDERED;
 					} else {
@@ -972,7 +973,8 @@ sctp_inject_old_unordered_data(struct sctp_tcb *stcb,
 			goto place_chunk;
 		}
 		control->first_frag_seen = 1;
-		control->top_fsn = control->fsn_included = chk->rec.data.fsn;
+		control->fsn_included = chk->rec.data.fsn;
+		control->top_fsn = chk->rec.data.fsn;
 		control->sinfo_tsn = chk->rec.data.tsn;
 		control->sinfo_ppid = chk->rec.data.ppid;
 		control->data = chk->data;
@@ -1236,6 +1238,8 @@ sctp_add_chk_to_control(struct sctp_queued_to_read *control,
 	chk->data = NULL;
 	if (chk->rec.data.rcv_flags & SCTP_DATA_FIRST_FRAG) {
 		control->first_frag_seen = 1;
+		control->sinfo_tsn = chk->rec.data.tsn;
+		control->sinfo_ppid = chk->rec.data.ppid;
 	}
 	if (chk->rec.data.rcv_flags & SCTP_DATA_LAST_FRAG) {
 		/* Its complete */
@@ -1347,6 +1351,8 @@ sctp_queue_data_for_reasm(struct sctp_tcb *stcb, struct sctp_association *asoc,
 			return;
 		}
 		control->first_frag_seen = 1;
+		control->sinfo_ppid = chk->rec.data.ppid;
+		control->sinfo_tsn = chk->rec.data.tsn;
 		control->fsn_included = chk->rec.data.fsn;
 		control->data = chk->data;
 		sctp_mark_non_revokable(asoc, chk->rec.data.tsn);
@@ -1560,12 +1566,10 @@ static int
 sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
     struct mbuf **m, int offset, int chk_length,
     struct sctp_nets *net, uint32_t * high_tsn, int *abort_flag,
-    int *break_flag, int last_chunk, uint8_t chtype)
+    int *break_flag, int last_chunk, uint8_t chk_type)
 {
 	/* Process a data chunk */
 	/* struct sctp_tmit_chunk *chk; */
-	struct sctp_data_chunk *ch;
-	struct sctp_idata_chunk *nch, chunk_buf;
 	struct sctp_tmit_chunk *chk;
 	uint32_t tsn, fsn, gap, mid;
 	struct mbuf *dmbuf;
@@ -1576,58 +1580,64 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 	char msg[SCTP_DIAG_INFO_LEN];
 	struct sctp_queued_to_read *control = NULL;
 	uint32_t ppid;
-	uint8_t chunk_flags;
+	uint8_t chk_flags;
 	struct sctp_stream_reset_list *liste;
 	struct sctp_stream_in *strm;
 	int ordered;
 	size_t clen;
 	int created_control = 0;
 
-	chk = NULL;
-	if (chtype == SCTP_IDATA) {
-		nch = (struct sctp_idata_chunk *)sctp_m_getptr(*m, offset,
+	if (chk_type == SCTP_IDATA) {
+		struct sctp_idata_chunk *chunk, chunk_buf;
+
+		chunk = (struct sctp_idata_chunk *)sctp_m_getptr(*m, offset,
 		    sizeof(struct sctp_idata_chunk), (uint8_t *) & chunk_buf);
-		ch = (struct sctp_data_chunk *)nch;
+		chk_flags = chunk->ch.chunk_flags;
 		clen = sizeof(struct sctp_idata_chunk);
-		tsn = ntohl(ch->dp.tsn);
-		mid = ntohl(nch->dp.mid);
-		ppid = nch->dp.ppid_fsn.ppid;
-		if (ch->ch.chunk_flags & SCTP_DATA_FIRST_FRAG)
+		tsn = ntohl(chunk->dp.tsn);
+		sid = ntohs(chunk->dp.sid);
+		mid = ntohl(chunk->dp.mid);
+		if (chk_flags & SCTP_DATA_FIRST_FRAG) {
 			fsn = 0;
-		else
-			fsn = ntohl(nch->dp.ppid_fsn.fsn);
+			ppid = chunk->dp.ppid_fsn.ppid;
+		} else {
+			fsn = ntohl(chunk->dp.ppid_fsn.fsn);
+			ppid = 0xffffffff;	/* Use as an invalid value. */
+		}
 	} else {
-		ch = (struct sctp_data_chunk *)sctp_m_getptr(*m, offset,
+		struct sctp_data_chunk *chunk, chunk_buf;
+
+		chunk = (struct sctp_data_chunk *)sctp_m_getptr(*m, offset,
 		    sizeof(struct sctp_data_chunk), (uint8_t *) & chunk_buf);
-		tsn = ntohl(ch->dp.tsn);
-		ppid = ch->dp.ppid;
+		chk_flags = chunk->ch.chunk_flags;
 		clen = sizeof(struct sctp_data_chunk);
+		tsn = ntohl(chunk->dp.tsn);
+		sid = ntohs(chunk->dp.sid);
+		mid = (uint32_t) (ntohs(chunk->dp.ssn));
 		fsn = tsn;
-		mid = (uint32_t) (ntohs(ch->dp.ssn));
-		nch = NULL;
+		ppid = chunk->dp.ppid;
 	}
-	chunk_flags = ch->ch.chunk_flags;
 	if ((size_t)chk_length == clen) {
 		/*
 		 * Need to send an abort since we had a empty data chunk.
 		 */
-		op_err = sctp_generate_no_user_data_cause(ch->dp.tsn);
+		op_err = sctp_generate_no_user_data_cause(tsn);
 		stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_14;
 		sctp_abort_an_association(stcb->sctp_ep, stcb, op_err, SCTP_SO_NOT_LOCKED);
 		*abort_flag = 1;
 		return (0);
 	}
-	if ((chunk_flags & SCTP_DATA_SACK_IMMEDIATELY) == SCTP_DATA_SACK_IMMEDIATELY) {
+	if ((chk_flags & SCTP_DATA_SACK_IMMEDIATELY) == SCTP_DATA_SACK_IMMEDIATELY) {
 		asoc->send_sack = 1;
 	}
-	ordered = ((chunk_flags & SCTP_DATA_UNORDERED) == 0);
+	ordered = ((chk_flags & SCTP_DATA_UNORDERED) == 0);
 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MAP_LOGGING_ENABLE) {
 		sctp_log_map(tsn, asoc->cumulative_tsn, asoc->highest_tsn_inside_map, SCTP_MAP_TSN_ENTERS);
 	}
 	if (stcb == NULL) {
 		return (0);
 	}
-	SCTP_LTRACE_CHK(stcb->sctp_ep, stcb, ch->ch.chunk_type, tsn);
+	SCTP_LTRACE_CHK(stcb->sctp_ep, stcb, chk_type, tsn);
 	if (SCTP_TSN_GE(asoc->cumulative_tsn, tsn)) {
 		/* It is a duplicate */
 		SCTP_STAT_INCR(sctps_recvdupdata);
@@ -1690,8 +1700,6 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 	 */
 
 	/* Is the stream valid? */
-	sid = ntohs(ch->dp.sid);
-
 	if (sid >= asoc->streamincnt) {
 		struct sctp_error_invalid_stream *cause;
 
@@ -1709,7 +1717,7 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 			SCTP_BUF_LEN(op_err) = sizeof(struct sctp_error_invalid_stream);
 			cause->cause.code = htons(SCTP_CAUSE_INVALID_STREAM);
 			cause->cause.length = htons(sizeof(struct sctp_error_invalid_stream));
-			cause->stream_id = ch->dp.sid;
+			cause->stream_id = htons(sid);
 			cause->reserved = htons(0);
 			sctp_queue_op_err(stcb, op_err);
 		}
@@ -1730,8 +1738,8 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 	 * If its a fragmented message, lets see if we can find the control
 	 * on the reassembly queues.
 	 */
-	if ((chtype == SCTP_IDATA) &&
-	    ((chunk_flags & SCTP_DATA_FIRST_FRAG) == 0) &&
+	if ((chk_type == SCTP_IDATA) &&
+	    ((chk_flags & SCTP_DATA_FIRST_FRAG) == 0) &&
 	    (fsn == 0)) {
 		/*
 		 * The first *must* be fsn 0, and other (middle/end) pieces
@@ -1739,13 +1747,13 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 		 * wrap around. Ignore is for now.
 		 */
 		snprintf(msg, sizeof(msg), "FSN zero for MID=%8.8x, but flags=%2.2x",
-		    mid, chunk_flags);
+		    mid, chk_flags);
 		goto err_out;
 	}
 	control = sctp_find_reasm_entry(strm, mid, ordered, asoc->idata_supported);
 	SCTPDBG(SCTP_DEBUG_XXX, "chunk_flags:0x%x look for control on queues %p\n",
-	    chunk_flags, control);
-	if ((chunk_flags & SCTP_DATA_NOT_FRAG) != SCTP_DATA_NOT_FRAG) {
+	    chk_flags, control);
+	if ((chk_flags & SCTP_DATA_NOT_FRAG) != SCTP_DATA_NOT_FRAG) {
 		/* See if we can find the re-assembly entity */
 		if (control != NULL) {
 			/* We found something, does it belong? */
@@ -1782,7 +1790,7 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 		if (control != NULL) {
 			if (ordered || asoc->idata_supported) {
 				SCTPDBG(SCTP_DEBUG_XXX, "chunk_flags: 0x%x dup detected on MID: %u\n",
-				    chunk_flags, mid);
+				    chk_flags, mid);
 				snprintf(msg, sizeof(msg), "Duplicate MID=%8.8x detected.", mid);
 				goto err_out;
 			} else {
@@ -1828,7 +1836,7 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 #endif
 		}
 		/* now is it in the mapping array of what we have accepted? */
-		if (nch == NULL) {
+		if (chk_type == SCTP_DATA) {
 			if (SCTP_TSN_GT(tsn, asoc->highest_tsn_inside_map) &&
 			    SCTP_TSN_GT(tsn, asoc->highest_tsn_inside_nr_map)) {
 				/* Nope not in the valid range dump it */
@@ -1876,9 +1884,9 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 	 * way our stream sequence numbers could have wrapped. We of course
 	 * only validate the FIRST fragment so the bit must be set.
 	 */
-	if ((chunk_flags & SCTP_DATA_FIRST_FRAG) &&
+	if ((chk_flags & SCTP_DATA_FIRST_FRAG) &&
 	    (TAILQ_EMPTY(&asoc->resetHead)) &&
-	    (chunk_flags & SCTP_DATA_UNORDERED) == 0 &&
+	    (chk_flags & SCTP_DATA_UNORDERED) == 0 &&
 	    SCTP_MID_GE(asoc->idata_supported, asoc->strmin[sid].last_mid_delivered, mid)) {
 		/* The incoming sseq is behind where we last delivered? */
 		SCTPDBG(SCTP_DEBUG_INDATA1, "EVIL/Broken-Dup S-SEQ: %u delivered: %u from peer, Abort!\n",
@@ -1903,17 +1911,13 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 		*abort_flag = 1;
 		return (0);
 	}
-	/************************************
-	 * From here down we may find ch-> invalid
-	 * so its a good idea NOT to use it.
-	 *************************************/
-	if (nch) {
+	if (chk_type == SCTP_IDATA) {
 		the_len = (chk_length - sizeof(struct sctp_idata_chunk));
 	} else {
 		the_len = (chk_length - sizeof(struct sctp_data_chunk));
 	}
 	if (last_chunk == 0) {
-		if (nch) {
+		if (chk_type == SCTP_IDATA) {
 			dmbuf = SCTP_M_COPYM(*m,
 			    (offset + sizeof(struct sctp_idata_chunk)),
 			    the_len, M_NOWAIT);
@@ -1933,7 +1937,7 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 
 		dmbuf = *m;
 		/* lop off the top part */
-		if (nch) {
+		if (chk_type == SCTP_IDATA) {
 			m_adj(dmbuf, (offset + sizeof(struct sctp_idata_chunk)));
 		} else {
 			m_adj(dmbuf, (offset + sizeof(struct sctp_data_chunk)));
@@ -1962,7 +1966,7 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 		return (0);
 	}
 	/*
-	 * Now no matter what we need a control, get one if we don't have
+	 * Now no matter what, we need a control, get one if we don't have
 	 * one (we may have gotten it above when we found the message was
 	 * fragmented
 	 */
@@ -1971,23 +1975,26 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 		sctp_build_readq_entry_mac(control, stcb, asoc->context, net, tsn,
 		    ppid,
 		    sid,
-		    chunk_flags,
+		    chk_flags,
 		    NULL, fsn, mid);
 		if (control == NULL) {
 			SCTP_STAT_INCR(sctps_nomem);
 			return (0);
 		}
-		if ((chunk_flags & SCTP_DATA_NOT_FRAG) == SCTP_DATA_NOT_FRAG) {
+		if ((chk_flags & SCTP_DATA_NOT_FRAG) == SCTP_DATA_NOT_FRAG) {
 			control->data = dmbuf;
 			control->tail_mbuf = NULL;
-			control->end_added = control->last_frag_seen = control->first_frag_seen = 1;
-			control->top_fsn = control->fsn_included = fsn;
+			control->end_added = 1;
+			control->last_frag_seen = 1;
+			control->first_frag_seen = 1;
+			control->fsn_included = fsn;
+			control->top_fsn = fsn;
 		}
 		created_control = 1;
 	}
 	SCTPDBG(SCTP_DEBUG_XXX, "chunk_flags: 0x%x ordered: %d MID: %u control: %p\n",
-	    chunk_flags, ordered, mid, control);
-	if ((chunk_flags & SCTP_DATA_NOT_FRAG) == SCTP_DATA_NOT_FRAG &&
+	    chk_flags, ordered, mid, control);
+	if ((chk_flags & SCTP_DATA_NOT_FRAG) == SCTP_DATA_NOT_FRAG &&
 	    TAILQ_EMPTY(&asoc->resetHead) &&
 	    ((ordered == 0) ||
 	    (SCTP_MID_EQ(asoc->idata_supported, asoc->strmin[sid].last_mid_delivered + 1, mid) &&
@@ -2011,7 +2018,7 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 		    control, &stcb->sctp_socket->so_rcv,
 		    1, SCTP_READ_LOCK_NOT_HELD, SCTP_SO_NOT_LOCKED);
 
-		if ((chunk_flags & SCTP_DATA_UNORDERED) == 0) {
+		if ((chk_flags & SCTP_DATA_UNORDERED) == 0) {
 			/* for ordered, bump what we delivered */
 			strm->last_mid_delivered++;
 		}
@@ -2024,7 +2031,7 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 		goto finish_express_del;
 	}
 	/* Now will we need a chunk too? */
-	if ((chunk_flags & SCTP_DATA_NOT_FRAG) != SCTP_DATA_NOT_FRAG) {
+	if ((chk_flags & SCTP_DATA_NOT_FRAG) != SCTP_DATA_NOT_FRAG) {
 		sctp_alloc_a_chunk(stcb, chk);
 		if (chk == NULL) {
 			/* No memory so we drop the chunk */
@@ -2043,7 +2050,7 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 		chk->rec.data.ppid = ppid;
 		chk->rec.data.context = stcb->asoc.context;
 		chk->rec.data.doing_fast_retransmit = 0;
-		chk->rec.data.rcv_flags = chunk_flags;
+		chk->rec.data.rcv_flags = chk_flags;
 		chk->asoc = asoc;
 		chk->send_size = the_len;
 		chk->whoTo = net;
@@ -2066,7 +2073,7 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 		}
 	}
 	/* Now is it complete (i.e. not fragmented)? */
-	if ((chunk_flags & SCTP_DATA_NOT_FRAG) == SCTP_DATA_NOT_FRAG) {
+	if ((chk_flags & SCTP_DATA_NOT_FRAG) == SCTP_DATA_NOT_FRAG) {
 		/*
 		 * Special check for when streams are resetting. We could be
 		 * more smart about this and check the actual stream to see
@@ -2110,7 +2117,7 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 			}
 			goto finish_express_del;
 		}
-		if (chunk_flags & SCTP_DATA_UNORDERED) {
+		if (chk_flags & SCTP_DATA_UNORDERED) {
 			/* queue directly into socket buffer */
 			SCTPDBG(SCTP_DEBUG_XXX, "Unordered data to be read control: %p MID: %u\n",
 			    control, mid);
