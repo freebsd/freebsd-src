@@ -16,6 +16,12 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20161210:
+	Relocatable object files with the extension of .So have been renamed
+	to use an extension of .pico instead.  The purpose of this change is
+	to avoid a name clash with shared libraries on case-insensitive file
+	systems.  On those file systems, foo.So is the same file as foo.so.
+
 20160622:
 	The libc stub for the pipe(2) system call has been replaced with
 	a wrapper that calls the pipe2(2) system call and the pipe(2)
