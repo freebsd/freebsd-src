@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: msdos,v 1.106 2016/06/11 00:52:14 christos Exp $
+# $File: msdos,v 1.111 2016/09/14 01:26:26 christos Exp $
 # msdos:  file(1) magic for MS-DOS files
 #
 
@@ -328,15 +328,6 @@
 0	string	\xffKEYB\ \ \ \0\0\0\0	
 >12	string	\0\0\0\0`\004\360	MS-DOS KEYBoard Layout file
 
-# .COM formats (Daniel Quinlan, quinlan@yggdrasil.com)
-# Uncommenting only the first two lines will cover about 2/3 of COM files,
-# but it isn't feasible to match all COM files since there must be at least
-# two dozen different one-byte "magics".
-# test too generic ?
-0	byte		0xe9		DOS executable (COM)
->0x1FE leshort		0xAA55		\b, boot code
->6	string		SFX\ of\ LHarc	(%s)
-
 # DOS device driver updated by Joerg Jenderek at May 2011
 # http://maben.homeip.net/static/S100/IBM/software/DOS/DOS%20techref/CHAPTER.009
 0	ulequad&0x07a0ffffffff		0xffffffff		DOS executable (
@@ -439,12 +430,37 @@
 # byte 0xeb conflicts with "sequent" magic leshort 0xn2eb
 0	ubeshort&0xeb8d	>0xeb00		
 # DR-DOS STACKER.COM SCREATE.SYS missed
->0	byte		0xeb
->>0x1FE leshort		0xAA55		DOS executable (COM), boot code
->>85	string		UPX		DOS executable (COM), UPX compressed
->>4	string		\ $ARX		DOS executable (COM), ARX self-extracting archive
->>4	string		\ $LHarc	DOS executable (COM), LHarc self-extracting archive
->>0x20e string		SFX\ by\ LARC	DOS executable (COM), LARC self-extracting archive
+
+0       name    msdos-com
+>0  byte        x               DOS executable (COM)
+>6	string		SFX\ of\ LHarc	\b, %s
+>0x1FE leshort	0xAA55		    \b, boot code
+>85	string		UPX		        \b, UPX compressed
+>4	string		\ $ARX		    \b, ARX self-extracting archive
+>4	string		\ $LHarc	    \b, LHarc self-extracting archive
+>0x20e string	SFX\ by\ LARC	\b, LARC self-extracting archive
+
+# JMP 8bit
+0	        byte	0xeb
+# allow forward jumps only
+>1          byte    >-1
+# that offset must be accessible
+>>(1.b+2)   byte    x
+>>>0        use msdos-com
+
+# JMP 16bit
+0           byte    0xe9
+# forward jumps
+>1          short   >-1
+# that offset must be accessible
+>>(1.s+3)   byte    x
+>>>0        use msdos-com
+# negative offset, must not lead into PSP
+>1          short   <-259
+# that offset must be accessible
+>>(1,s+65539)   byte    x
+>>>0        use msdos-com
+
 # updated by Joerg Jenderek at Oct 2008,2015
 # following line is too general
 0	ubyte		0xb8		
@@ -578,17 +594,158 @@
 0	string/b	\x09\x04\x06\x00\x00\x00\x10\x00	Microsoft Excel Worksheet
 !:mime	application/vnd.ms-excel
 #
-0	belong	0x00001a00	Lotus 1-2-3
-!:mime	application/x-123
->4	belong	0x00100400	wk3 document data
->4	belong	0x02100400	wk4 document data
->4	belong	0x07800100	fm3 or fmb document data
->4	belong	0x07800000	fm3 or fmb document data
+# Update: Joerg Jenderek
+# URL: https://en.wikipedia.org/wiki/Lotus_1-2-3
+# Reference: http://www.aboutvb.de/bas/formate/pdf/wk3.pdf
+# Note: newer Lotus versions >2 use longer BOF record
+# record type (BeginningOfFile=0000h) + length (001Ah)
+0	belong	0x00001a00	
+# reserved should be 0h but 8c0dh for TUTMAC.WK3, 5h for SAMPADNS.WK3, 1h for a_readme.wk3, 1eh for K&G86.WK3
+#>18	uleshort&0x73E0	0	
+# Lotus Multi Byte Character Set (LMBCS=1-31)
+>20	ubyte		>0	
+>>20	ubyte		<32	Lotus 1-2-3
+#!:mime	application/x-123
+!:mime	application/vnd.lotus-1-2-3
+!:apple	????L123
+# (version 5.26) labeled the entry as "Lotus 1-2-3 wk3 document data"
+>>>4	uleshort	0x1000	WorKsheet, version 3
+!:ext	wk3
+# (version 5.26) labeled the entry as "Lotus 1-2-3 wk4 document data"
+>>>4	uleshort	0x1002	WorKsheet, version 4
+# also worksheet template 4 (.wt4)
+!:ext	wk4/wt4
+# no example or documentation for wk5
+#>>4	uleshort	0x????	WorKsheet, version 4
+#!:ext	wk5
+# only MacrotoScript.123 example
+>>>4	uleshort	0x1003	WorKsheet, version 97
+# also worksheet template Smartmaster (.12M)?
+!:ext	123
+# only Set_Y2K.123 example
+>>>4	uleshort	0x1005	WorKsheet, version 9.8 Millennium
+!:ext	123
+# no example for this version
+>>>4	uleshort	0x8001	FoRMatting data
+!:ext	frm
+# (version 5.26) labeled the entry as "Lotus 1-2-3 fm3 or fmb document data"
+# TrID labeles the entry as "Formatting Data for Lotus 1-2-3 worksheet"
+>>>4	uleshort	0x8007	ForMatting data, version 3
+!:ext	fm3
+>>>4	default		x	unknown
+# file revision sub code 0004h for worksheets
+>>>>6	uleshort	=0x0004	worksheet
+!:ext	wXX
+>>>>6	uleshort	!0x0004	formatting data
+!:ext	fXX
+# main revision number
+>>>>4	uleshort	x	\b, revision 0x%x
+>>>6	uleshort	=0x0004	\b, cell range 
+# active cellcoord range (start row, page,column ; end row, page, column)
+# start values normally 0~1st sheet A1
+>>>>8	ulelong		!0	
+>>>>>10	ubyte		>0	\b%d*
+>>>>>8	uleshort	x	\b%d,
+>>>>>11	ubyte		x	\b%d-
+# end page mostly 0
+>>>>14	ubyte		>0	\b%d*
+# end raw, column normally not 0
+>>>>12	uleshort	x	\b%d,
+>>>>15	ubyte		x	\b%d
+# Lotus Multi Byte Character Set (1~cp850,2~cp851,...,16~japan,...,31~??)
+>>>>20	ubyte		>1	\b, character set 0x%x
+# flags
+>>>>21	ubyte		x	\b, flags 0x%x
+>>>6	uleshort	!0x0004	
+# record type (FONTNAME=00AEh)
+>>>>30	search/29	\0\xAE	
+# variable length m (2) + entries (1) + ?? (1) + LCMBS string (n)
+>>>>>&4	string		>\0	\b, 1st font "%s"
 #
-0	belong	0x00000200	Lotus 1-2-3
-!:mime	application/x-123
->4	belong	0x06040600	wk1 document data
->4	belong	0x06800200	fmt document data
+# Update: Joerg Jenderek
+# URL: http://fileformats.archiveteam.org/wiki/Lotus_1-2-3
+# Reference: http://www.schnarff.com/file-formats/lotus-1-2-3/WSFF2.TXT
+# Note: Used by both old Lotus 1-2-3 and Lotus Symphony (DOS) til version 2.x
+# record type (BeginningOfFile=0000h) + length (0002h)
+0	belong	0x00000200	
+# GRR: line above is too general as it catches also MS Windows CURsor
+# to display MS Windows cursor (strength=70) before Lotus 1-2-3 (strength=70-1)
+!:strength -1
+# skip Windows cursors with image height <256 and keep Lotus with low opcode 0001-0083h
+>7	ubyte		0	
+# skip Windows cursors with image width 256 and keep Lotus with positiv opcode
+>>6	ubyte		>0	Lotus
+# !:mime	application/x-123
+!:mime	application/vnd.lotus-1-2-3
+!:apple	????L123
+# revision number (0404h = 123 1A, 0405h = Lotus Symphony , 0406h = 123 2.x wk1 , 8006h = fmt , ...)
+# undocumented; (version 5.26) labeled the configurations as "Lotus 1-2-3"
+>>>4	uleshort	0x0007	1-2-3 CoNFiguration, version 2.x (PGRAPH.CNF)
+!:ext	cnf
+>>>4	uleshort	0x0C05	1-2-3 CoNFiguration, version 2.4J
+!:ext	cnf
+>>>4	uleshort	0x0801	1-2-3 CoNFiguration, version 1-2.1
+!:ext	cnf
+>>>4	uleshort	0x0802	Symphony CoNFiguration
+!:ext	cnf
+>>>4	uleshort	0x0804	1-2-3 CoNFiguration, version 2.2
+!:ext	cnf
+>>>4	uleshort	0x080A	1-2-3 CoNFiguration, version 2.3-2.4
+!:ext	cnf
+>>>4	uleshort	0x1402	1-2-3 CoNFiguration, version 3.x
+!:ext	cnf
+>>>4	uleshort	0x1450	1-2-3 CoNFiguration, version 4.x
+!:ext	cnf
+# (version 5.26) labeled the entry as "Lotus 123"
+# TrID labeles the entry as "Lotus 123 Worksheet (generic)"
+>>>4	uleshort	0x0404	1-2-3 WorKSheet, version 1
+# extension "wks" also for Microsoft Works document
+!:ext	wks
+# (version 5.26) labeled the entry as "Lotus 123"
+# TrID labeles the entry as "Lotus 123 Worksheet (generic)"
+>>>4	uleshort	0x0405	Symphony WoRksheet, version 1.0
+!:ext	wrk/wr1
+# (version 5.26) labeled the entry as "Lotus 1-2-3 wk1 document data"
+# TrID labeles the entry as "Lotus 123 Worksheet (V2)"
+>>>4	uleshort	0x0406	1-2-3/Symphony worksheet, version 2
+# Symphony (.wr1)
+!:ext	wk1/wr1
+# no example for this japan version
+>>>4	uleshort	0x0600	1-2-3 WorKsheet, version 1.xJ
+!:ext	wj1
+# no example or documentation for wk2
+#>>>4	uleshort	0x????	1-2-3 WorKsheet, version 2
+#!:ext	wk2
+# undocumented japan version
+>>>4	uleshort	0x0602	1-2-3 worksheet, version 2.4J
+!:ext	wj3
+# (version 5.26) labeled the entry as "Lotus 1-2-3 fmt document data"
+>>>4	uleshort	0x8006	1-2-3 ForMaTting data, version 2.x
+# japan version 2.4J (fj3)
+!:ext	fmt/fj3
+# no example for this version
+>>>4	uleshort	0x8007	1-2-3 FoRMatting data, version 2.0
+!:ext	frm
+# (version 5.26) labeled the entry as "Lotus 1-2-3"
+>>>4	default		x	unknown worksheet or configuration
+!:ext	cnf
+>>>>4	uleshort	x	\b, revision 0x%x
+# 2nd record for most worksheets describes cells range
+>>>6		use	lotus-cells
+# 3nd record for most japan worksheets describes cells range
+>>>(8.s+10)	use	lotus-cells
+#	check and then display Lotus worksheet cells range
+0	name		lotus-cells
+# look for type (RANGE=0006h) + length (0008h) at record begin
+>0	ubelong	0x06000800	\b, cell range 
+# cell range (start column, row, end column, row) start values normally 0,0~A1 cell
+>>4	ulong		!0	
+>>>4	uleshort	x	\b%d,
+>>>6	uleshort	x	\b%d-
+# end of cell range
+>>8	uleshort	x	\b%d,
+>>10	uleshort	x	\b%d
+# EndOfLotus123
 0	string/b		WordPro\0	Lotus WordPro
 !:mime	application/vnd.lotus-wordpro
 0	string/b		WordPro\r\373	Lotus WordPro
@@ -737,24 +894,6 @@
 
 0	lelong		0x00000005
 >12	lelong		0x00000320	Windows Recycle Bin INFO2 file (Win2k - WinXP)
-
-
-##### put in Either Magic/font or Magic/news
-# Acroread or something	 files wrongly identified as G3	 .pfm
-# these have the form \000 \001 any? \002 \000 \000
-# or \000 \001 any? \022 \000 \000
-0	belong&0xffff00ff	0x00010012	PFM data
->4	string			\000\000
->6	string			>\060		- %s
-
-0	belong&0xffff00ff	0x00010002	PFM data
->4	string			\000\000
->6	string			>\060		- %s
-#0	string	\000\001 pfm?
-#>3	string	\022\000\000Copyright\	yes
-#>3	string	\002\000\000Copyright\	yes
-#>3	string	>\0	oops, not a font file. Cancel that.
-#it clashes with ttf files so put it lower down.
 
 # From Doug Lee via a FreeBSD pr
 9	string		GERBILDOC	First Choice document
@@ -940,7 +1079,8 @@
 # Type: Microsoft Document Imaging Format (.mdi)
 # URL:	http://en.wikipedia.org/wiki/Microsoft_Document_Imaging_Format
 # From: Daniele Sempione <scrows@oziosi.org>
-0	short	0x5045			Microsoft Document Imaging Format
+# Too weak (EP)
+#0	short	0x5045			Microsoft Document Imaging Format
 
 # MS eBook format (.lit)
 0	string/b	ITOLITLS		Microsoft Reader eBook Data
