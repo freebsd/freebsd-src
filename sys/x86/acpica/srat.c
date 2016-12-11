@@ -229,7 +229,7 @@ srat_parse_entry(ACPI_SUBTABLE_HEADER *entry, void *arg)
 		mem = (ACPI_SRAT_MEM_AFFINITY *)entry;
 		if (bootverbose)
 			printf(
-		    "SRAT: Found memory domain %d addr %jx len %jx: %s\n",
+		    "SRAT: Found memory domain %d addr 0x%jx len 0x%jx: %s\n",
 			    mem->ProximityDomain, (uintmax_t)mem->BaseAddress,
 			    (uintmax_t)mem->Length,
 			    (mem->Flags & ACPI_SRAT_MEM_ENABLED) ?
@@ -238,7 +238,7 @@ srat_parse_entry(ACPI_SUBTABLE_HEADER *entry, void *arg)
 			break;
 		if (!overlaps_phys_avail(mem->BaseAddress,
 		    mem->BaseAddress + mem->Length)) {
-			printf("SRAT: Ignoring memory at addr %jx\n",
+			printf("SRAT: Ignoring memory at addr 0x%jx\n",
 			    (uintmax_t)mem->BaseAddress);
 			break;
 		}
@@ -335,7 +335,7 @@ check_phys_avail(void)
 				address = mem_info[i].end + 1;
 		}
 	}
-	printf("SRAT: No memory region found for %jx - %jx\n",
+	printf("SRAT: No memory region found for 0x%jx - 0x%jx\n",
 	    (uintmax_t)phys_avail[j], (uintmax_t)phys_avail[j + 1]);
 	return (ENXIO);
 }
