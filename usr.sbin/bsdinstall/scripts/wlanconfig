@@ -60,9 +60,14 @@ country_set()
 			"$BSDINSTALL_TMPETC/wpa_supplicant.conf"
 	fi
 	if [ "$error_str" ]; then
-		dialog --backtitle "$DIALOG_BACKTITLE" --title "Error" \
-			--yes-label Change --no-label Ignore --yesno \
-			"Error while applying chosen settings ($error_str)" 0 0
+		dialog \
+			--backtitle "$DIALOG_BACKTITLE" \
+			--title "Error" \
+			--yes-label Change \
+			--no-label Ignore \
+			--yesno \
+			"Error while applying chosen settings ($error_str)" \
+			0 0
 		if [ $? -eq $DIALOG_OK ]; then
 			return $FAILURE # Restart
 		else
@@ -158,8 +163,11 @@ EOF
 # See if we succeeded
 wpa_cli ping >/dev/null 2>/dev/null
 if [ $? -ne 0 -a ! "$BSDINSTALL_CONFIGCURRENT" ]; then
-	dialog --backtitle "$DIALOG_BACKTITLE" --title "Error" --msgbox \
-	"Wireless cannot be configured without making changes to the local system!" \ 0 0
+	dialog \
+		--backtitle "$DIALOG_BACKTITLE" \
+		--title "Error" \
+		--msgbox "Wireless cannot be configured without making changes to the local system!" \
+		0 0
 	exit 1
 fi
 
@@ -175,9 +183,11 @@ if [ "$BSDINSTALL_CONFIGCURRENT" ]; then
 	DEF_COUNTRY=$( echo $INPUT | cut -w -f 4 )
 	[ "$DEF_REGDOMAIN" = 0 ] && DEF_REGDOMAIN="<not selected>"
 	[ "$DEF_COUNTRY" = 0 ] && DEF_COUNTRY="<not selected>"
-	dialog --backtitle "$DIALOG_BACKTITLE" --title "Regdomain/country" \
-	    --yesno "Change regdomain/country (now \
-	    $DEF_REGDOMAIN/$DEF_COUNTRY)?" 0 0
+	dialog \
+		--backtitle "$DIALOG_BACKTITLE" \
+		--title "Regdomain/country" \
+		--yesno "Change regdomain/country (now $DEF_REGDOMAIN/$DEF_COUNTRY)?" \
+		0 0
 	if [ $? -eq 0 ]; then
 		while :
 		do
@@ -193,28 +203,41 @@ while :; do
 	SCANSSID=0
 	output=$( wpa_cli scan 2>&1 )
 	f_dprintf "%s" "$output"
-	dialog --backtitle "$DIALOG_BACKTITLE" --title "Scanning" \
-	    --ok-label "Skip" \
-	    --pause "Waiting 5 seconds to scan for wireless networks..." \
-	    9 40 5 || exit 1
+	dialog \
+		--backtitle "$DIALOG_BACKTITLE" \
+		--title "Scanning" \
+		--ok-label "Skip" \
+		--pause "Waiting 5 seconds to scan for wireless networks..." \
+		9 40 5 || exit 1
 
 	SCAN_RESULTS=$( wpa_cli scan_results )
-	NETWORKS=$( echo "$SCAN_RESULTS" | awk -F '\t' \
-	   '/..:..:..:..:..:../ {if (length($5) > 0) \
-	   printf("\"%s\"\t%s\n", $5, $4);}' | sort | uniq )
+	NETWORKS=$( echo "$SCAN_RESULTS" | awk -F '\t' '
+		/..:..:..:..:..:../ {
+			if (length($5) > 0)
+				printf("\"%s\"\t%s\n", $5, $4);
+		}
+	' | sort | uniq )
 
 	if [ ! "$NETWORKS" ]; then
-		dialog --backtitle "$DIALOG_BACKTITLE" --title "Error" \
-		    --yesno "No wireless networks were found. Rescan?" 0 0 &&
-		    continue
+		dialog \
+			--backtitle "$DIALOG_BACKTITLE" \
+			--title "Error" \
+			--yesno "No wireless networks were found. Rescan?" \
+			0 0 && continue
 		exit 1
 	fi
 
 	exec 3>&1
-	NETWORK=$( sh -c "dialog --extra-button --extra-label \"Rescan\" \
-	    --backtitle \"$DIALOG_BACKTITLE\" --title \"Network Selection\" \
-	    --menu \"Select a wireless network to connect to.\" 0 0 0 \
-	    $(echo $NETWORKS | tr '\n' ' ')" 2>&1 1>&3 )
+	NETWORK=$( sh -c "dialog \
+		--extra-button \
+		--extra-label \"Rescan\" \
+		--backtitle \"$DIALOG_BACKTITLE\" \
+		--title \"Network Selection\" \
+		--menu \"Select a wireless network to connect to.\" \
+		0 0 0 \
+		$( echo $NETWORKS | tr '\n' ' ' )" \
+		2>&1 1>&3
+	)
 	case $? in
 	$DIALOG_OK)
 		break
@@ -224,9 +247,17 @@ while :; do
 		f_dialog_title "Network Selection"
 		f_dialog_yesno "Do you want to select the network manually?" || exit 1
 		f_dialog_input NETWORK "Enter SSID" || exit 1
-		ENCRYPTION=$( dialog --backtitle "$DIALOG_BACKTITLE" --title \
-			"$DIALOG_TITLE" --menu "Select encryption type" 0 0 0 \
-			"1 WPA/WPA2 PSK" "" "2 WPA/WPA2 EAP" "" "3 WEP" "" "0 None" "" 2>&1 1>&3 ) || exit 1
+		ENCRYPTION=$( dialog \
+			--backtitle "$DIALOG_BACKTITLE" \
+			--title "$DIALOG_TITLE" \
+			--menu "Select encryption type" \
+			0 0 0 \
+			"1 WPA/WPA2 PSK" "" \
+			"2 WPA/WPA2 EAP" "" \
+			"3 WEP" "" \
+			"0 None" "" \
+			2>&1 1>&3
+		) || exit 1
 		SCANSSID=1
 		f_dialog_title_restore
 		break
@@ -237,17 +268,21 @@ while :; do
 	exec 3>&-
 done
 
-[ "$ENCRYPTION" ] || ENCRYPTION=$( echo "$NETWORKS" | awk -F '\t' \
-    "/^\"$NETWORK\"\t/ {printf(\"%s\n\", \\\$2 );}" )
+[ "$ENCRYPTION" ] || ENCRYPTION=$( echo "$NETWORKS" |
+	awk -F '\t' "/^\"$NETWORK\"\t/ { printf(\"%s\n\", \\\$2 ); }" )
 
 if echo $ENCRYPTION | grep -q 'PSK'; then
 	exec 3>&1
-	PASS=$( dialog --insecure --backtitle "$DIALOG_BACKTITLE" \
-	    --title "WPA Setup" --mixedform "" 0 0 0 \
+	PASS=$( dialog \
+		--insecure \
+		--backtitle "$DIALOG_BACKTITLE" \
+		--title "WPA Setup" \
+		--mixedform "" \
+		0 0 0 \
 		"SSID" 1 0 "$NETWORK" 1 12 0 0 2 \
 		"Password" 2 0 "" 2 12 15 63 1 \
-		2>&1 1>&3 ) \
-	|| exec $0 $@
+		2>&1 1>&3
+	) || exec $0 $@
 	exec 3>&-
 	awk 'sub(/^\t/,"")||1' \
 		>> "$BSDINSTALL_TMPETC/wpa_supplicant.conf" <<-EOF
@@ -260,13 +295,16 @@ if echo $ENCRYPTION | grep -q 'PSK'; then
 	EOF
 elif echo $ENCRYPTION | grep -q EAP; then
 	exec 3>&1
-	USERPASS=$( dialog --insecure --backtitle "$DIALOG_BACKTITLE" \
-	    --title "WPA-Enterprise Setup" --mixedform "" 0 0 0 \
+	USERPASS=$( dialog \
+		--insecure \
+		--backtitle "$DIALOG_BACKTITLE" \
+		--title "WPA-Enterprise Setup" \
+		--mixedform "" 0 0 0 \
 		"SSID" 1 0 "$NETWORK" 1 12 0 0 2 \
 		"Username" 2 0 "" 2 12 25 63 0 \
 		"Password" 3 0 "" 3 12 25 63 1 \
-		2>&1 1>&3 ) \
-	|| exec $0 $@
+		2>&1 1>&3
+	) || exec $0 $@
 	exec 3>&-
 	awk 'sub(/^\t/,"")||1' \
 		>> "$BSDINSTALL_TMPETC/wpa_supplicant.conf" <<-EOF
@@ -287,12 +325,15 @@ elif echo $ENCRYPTION | grep -q EAP; then
 	EOF
 elif echo $ENCRYPTION | grep -q WEP; then
 	exec 3>&1
-	WEPKEY=$( dialog --insecure --backtitle "$DIALOG_BACKTITLE" \
-	    --title "WEP Setup" --mixedform "" 0 0 0 \
+	WEPKEY=$( dialog \
+		--insecure \
+		--backtitle "$DIALOG_BACKTITLE" \
+		--title "WEP Setup" \
+		--mixedform "" 0 0 0 \
 		"SSID" 1 0 "$NETWORK" 1 12 0 0 2 \
 		"WEP Key 0" 2 0 "" 2 12 15 0 1 \
-		2>&1 1>&3 ) \
-	|| exec $0 $@
+		2>&1 1>&3
+	) || exec $0 $@
 	awk 'sub(/^\t/,"")||1' \
 		>> "$BSDINSTALL_TMPETC/wpa_supplicant.conf" <<-EOF
 	network={
@@ -304,7 +345,7 @@ elif echo $ENCRYPTION | grep -q WEP; then
 		priority=5
 	}
 	EOF
-else	# Open
+else # Open
 	awk 'sub(/^\t/,"")||1' \
 		>> "$BSDINSTALL_TMPETC/wpa_supplicant.conf" <<-EOF
 	network={
