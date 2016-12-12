@@ -240,7 +240,7 @@ while :; do
 		--menu \"Select a wireless network to connect to.\" \
 		0 0 0 \
 		$( echo $NETWORKS | tr '\n' ' ' )" \
-		2>&1 1>&3
+		2>&1 >&3
 	)
 	case $? in
 	$DIALOG_OK)
@@ -260,7 +260,7 @@ while :; do
 			"2 WPA/WPA2 EAP" "" \
 			"3 WEP" "" \
 			"0 None" "" \
-			2>&1 1>&3
+			2>&1 >&3
 		) || exit 1
 		SCANSSID=1
 		f_dialog_title_restore
@@ -285,7 +285,7 @@ if echo $ENCRYPTION | grep -q 'PSK'; then
 		0 0 0 \
 		"SSID" 1 0 "$NETWORK" 1 12 0 0 2 \
 		"Password" 2 0 "" 2 12 15 63 1 \
-		2>&1 1>&3
+		2>&1 >&3
 	) || exec "$0" "$@"
 	exec 3>&-
 	awk 'sub(/^\t/,"")||1' \
@@ -307,7 +307,7 @@ elif echo $ENCRYPTION | grep -q EAP; then
 		"SSID" 1 0 "$NETWORK" 1 12 0 0 2 \
 		"Username" 2 0 "" 2 12 25 63 0 \
 		"Password" 3 0 "" 3 12 25 63 1 \
-		2>&1 1>&3
+		2>&1 >&3
 	) || exec "$0" "$@"
 	exec 3>&-
 	awk 'sub(/^\t/,"")||1' \
@@ -336,7 +336,7 @@ elif echo $ENCRYPTION | grep -q WEP; then
 		--mixedform "" 0 0 0 \
 		"SSID" 1 0 "$NETWORK" 1 12 0 0 2 \
 		"WEP Key 0" 2 0 "" 2 12 15 0 1 \
-		2>&1 1>&3
+		2>&1 >&3
 	) || exec "$0" "$@"
 	awk 'sub(/^\t/,"")||1' \
 		>> "$BSDINSTALL_TMPETC/wpa_supplicant.conf" <<-EOF
