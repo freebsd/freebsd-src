@@ -269,7 +269,7 @@ generic_pcie_fdt_route_interrupt(device_t bus, device_t dev, int pin)
 {
 	struct generic_pcie_fdt_softc *sc;
 	struct ofw_pci_register reg;
-	uint32_t pintr, mintr[2];
+	uint32_t pintr, mintr[4];
 	phandle_t iparent;
 	int intrcells;
 
