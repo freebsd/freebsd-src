@@ -52,7 +52,7 @@ country_set()
 	iface_up=$( ifconfig -lu | grep -w $WLAN_IFACE )
 	[ "$iface_up" ] && ifconfig $WLAN_IFACE down
 	error_str=$( ifconfig $WLAN_IFACE $ifconfig_args 2>&1 |
-		sed 's/ifconfig: //' )
+		sed -e 's/ifconfig: //' )
 	if [ "$iface_up" ]; then
 		# Restart wpa_supplicant(8) (should not fail).
 		wpa_supplicant -B -i $WLAN_IFACE -c \
@@ -85,11 +85,11 @@ dialog_country_select()
 	#
 	# Parse available countries/regdomains
 	#
-	input=$( ifconfig $WLAN_IFACE list countries | sed 's/DEBUG//gi' )
-	regdomains=$( echo $input | sed 's/.*domains://' | tr ' ' '\n' |
+	input=$( ifconfig $WLAN_IFACE list countries | sed -e 's/DEBUG//gi' )
+	regdomains=$( echo $input | sed -e 's/.*domains://' | tr ' ' '\n' |
 		sort | tr '\n' ' ' )
-	countries=$( echo $input | sed 's/Country codes://' |
-	    sed 's/Regulatory.*//' | awk '{
+	countries=$( echo $input | sed -e 's/Country codes://' |
+	    sed -e 's/Regulatory.*//' | awk '{
 		for (i = 1; i <= NF; i++) {
 			printf "%s", $i
 			if (match($i, "[[:lower:]]"))
