@@ -81,8 +81,8 @@ dialog_country_select()
 {
 	local input regdomains countries regdomain country
 	local no_default="<not selected>"
-	local def_item_regdomain="${1:-$no_default}"
-	local def_item_country="${2:-$no_default}"
+	local default_regdomain="${1:-$no_default}"
+	local default_country="${2:-$no_default}"
 
 	#
 	# Parse available countries/regdomains
@@ -112,7 +112,7 @@ dialog_country_select()
 		--backtitle \"$DIALOG_BACKTITLE\" \
 		--title \"Regdomain selection\" \
 		--cancel-label \"Skip\" \
-		--default-item \"$def_item_regdomain\" \
+		--default-item \"$default_regdomain\" \
 		--no-items \
 		--stdout \
 		--menu \"Select your regdomain.\" \
@@ -126,7 +126,7 @@ dialog_country_select()
 		--backtitle \"$DIALOG_BACKTITLE\" \
 		--title \"Country selection\" \
 		--cancel-label \"Skip\" \
-		--default-item \"$def_item_country\" \
+		--default-item \"$default_country\" \
 		--stdout \
 		--menu \"Select your country.\" \
 		$height $width $rows $countries"
