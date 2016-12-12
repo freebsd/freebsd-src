@@ -130,8 +130,6 @@ dialog_country_select()
 	)
 
 	country_set "$regdomain" "$country"
-
-	return $?
 }
 
 ############################################################ MAIN
