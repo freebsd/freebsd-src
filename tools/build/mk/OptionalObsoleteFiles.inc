@@ -166,12 +166,15 @@ OLD_FILES+=usr/share/snmp/mibs/BEGEMOT-ATM.txt
 .if ${MK_AUDIT} == no
 OLD_FILES+=usr/sbin/audit
 OLD_FILES+=usr/sbin/auditd
+OLD_FILES+=usr/sbin/auditdistd
 OLD_FILES+=usr/sbin/auditreduce
 OLD_FILES+=usr/sbin/praudit
 OLD_FILES+=usr/share/man/man1/auditreduce.1.gz
 OLD_FILES+=usr/share/man/man1/praudit.1.gz
+OLD_FILES+=usr/share/man/man5/auditdistd.conf.5.gz
 OLD_FILES+=usr/share/man/man8/audit.8.gz
 OLD_FILES+=usr/share/man/man8/auditd.8.gz
+OLD_FILES+=usr/share/man/man8/auditdistd.8.gz
 .endif
 
 .if ${MK_AUTHPF} == no
@@ -648,6 +651,24 @@ OLD_FILES+=usr/share/man/man8/pxeboot.8.gz
 OLD_FILES+=usr/share/man/man8/version.4th.8.gz
 OLD_FILES+=usr/share/man/man8/zfsboot.8.gz
 OLD_FILES+=usr/share/man/man8/zfsloader.8.gz
+.endif
+
+.if ${MK_BOOTPARAMD} == no
+OLD_FILES+=usr/sbin/bootparamd
+OLD_FILES+=usr/share/man/man5/bootparams.5.gz
+OLD_FILES+=usr/share/man/man8/bootparamd.8.gz
+OLD_FILES+=usr/sbin/callbootd
+.endif
+
+.if ${MK_BOOTPD} == no
+OLD_FILES+=usr/libexec/bootpd
+OLD_FILES+=usr/share/man/man5/bootptab.5.gz
+OLD_FILES+=usr/share/man/man8/bootpd.8.gz
+OLD_FILES+=usr/libexec/bootpgw
+OLD_FILES+=usr/sbin/bootpef
+OLD_FILES+=usr/share/man/man8/bootpef.8.gz
+OLD_FILES+=usr/sbin/bootptest
+OLD_FILES+=usr/share/man/man8/bootptest.8.gz
 .endif
 
 .if ${MK_BSD_CPIO} == no
@@ -1977,6 +1998,14 @@ OLD_FILES+=usr/share/nls/uk_UA.KOI8-U/ee.cat
 #.if ${MK_EXAMPLES} == no
 # to be filled in
 #.endif
+
+.if ${MK_FINGER} == no
+OLD_FILES+=usr/bin/finger
+OLD_FILES+=usr/share/man/man1/finger.1.gz
+OLD_FILES+=usr/share/man/man5/finger.conf.5.gz
+OLD_FILES+=usr/libexec/fingerd
+OLD_FILES+=usr/share/man/man8/fingerd.8.gz
+.endif
 
 .if ${MK_FLOPPY} == no
 OLD_FILES+=usr/sbin/fdcontrol
@@ -6777,6 +6806,11 @@ OLD_FILES+=usr/share/man/man8/quotaon.8.gz
 OLD_FILES+=usr/share/man/man8/repquota.8.gz
 .endif
 
+.if ${MK_RBOOTD} == no
+OLD_FILES+=usr/libexec/rbootd
+OLD_FILES+=usr/share/man/man8/rbootd.8.gz
+.endif
+
 .if ${MK_RCMDS} == no
 OLD_FILES+=bin/rcp
 OLD_FILES+=etc/rc.d/rwho
@@ -7996,6 +8030,13 @@ OLD_FILES+=usr/bin/ul
 OLD_FILES+=usr/share/man/man1/checknr.1.gz
 OLD_FILES+=usr/share/man/man1/colcrt.1.gz
 OLD_FILES+=usr/share/man/man1/ul.1.gz
+.endif
+
+.if ${MK_TIMED} == no
+OLD_FILES+=usr/sbin/timed
+OLD_FILES+=usr/sbin/timedc
+OLD_FILES+=usr/share/man/man8/timed.8.gz
+OLD_FILES+=usr/share/man/man8/timedc.8.gz
 .endif
 
 .if ${MK_TOOLCHAIN} == no
