@@ -259,7 +259,6 @@ while :; do
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 		) || exit 1
 		SCANSSID=1
-		f_dialog_title_restore
 		break
 		;;
 	$DIALOG_EXTRA) # Rescan
