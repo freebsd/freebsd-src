@@ -68,6 +68,8 @@ struct clknode_div_sc {
 	uint32_t	f_width;
 	int		div_flags;
 	uint32_t	divider;	/* in natural form */
+
+	struct clk_div_table	*div_table;
 };
 
 static clknode_method_t clknode_div_methods[] = {
@@ -79,6 +81,36 @@ static clknode_method_t clknode_div_methods[] = {
 };
 DEFINE_CLASS_1(clknode_div, clknode_div_class, clknode_div_methods,
    sizeof(struct clknode_div_sc), clknode_class);
+
+static uint32_t
+clknode_div_table_get_divider(struct clknode_div_sc *sc, uint32_t divider)
+{
+	struct clk_div_table *table;
+
+	if (!(sc->div_flags & CLK_DIV_WITH_TABLE))
+		return (divider);
+
+	for (table = sc->div_table; table->divider != 0; table++)
+		if (table->value == sc->divider)
+			return (table->divider);
+
+	return (0);
+}
+
+static uint32_t
+clknode_div_table_get_value(struct clknode_div_sc *sc, uint32_t divider)
+{
+	struct clk_div_table *table;
+
+	if (!(sc->div_flags & CLK_DIV_WITH_TABLE))
+		return (divider);
+
+	for (table = sc->div_table; table->divider != 0; table++)
+		if (table->divider == sc->divider)
+			return (table->value);
+
+	return (0);
+}
 
 static int
 clknode_div_init(struct clknode *clk, device_t dev)
@@ -101,6 +133,11 @@ clknode_div_init(struct clknode *clk, device_t dev)
 		i_div++;
 	f_div = (reg >> sc->f_shift) & sc->f_mask;
 	sc->divider = i_div << sc->f_width | f_div;
+
+	sc->divider = clknode_div_table_get_divider(sc, sc->divider);
+	if (sc->divider == 0)
+		panic("%s: divider is zero!\n", clknode_get_name(clk));
+
 	clknode_init_parent_idx(clk, 0);
 	return(0);
 }
@@ -177,6 +214,10 @@ clknode_div_set_freq(struct clknode *clk, uint64_t fin, uint64_t *fout,
 		    (*fout != (_fin / divider)))
 			return (ERANGE);
 
+		divider = clknode_div_table_get_value(sc, divider);
+		if (divider == 0)
+			return (ERANGE);
+
 		DEVICE_LOCK(clk);
 		rv = MD4(clk, sc->offset,
 		    (sc->i_mask << sc->i_shift) | (sc->f_mask << sc->f_shift),
@@ -214,6 +255,7 @@ clknode_div_register(struct clkdom *clkdom, struct clk_div_def *clkdef)
 	sc->f_width = clkdef->f_width;
 	sc->f_mask = (1 << clkdef->f_width) - 1;
 	sc->div_flags = clkdef->div_flags;
+	sc->div_table = clkdef->div_table;
 
 	clknode_register(clkdom, clk);
 	return (0);
