@@ -37,8 +37,8 @@ f_include $BSDCFG_SHARE/dialog.subr
 
 country_set()
 {
-	local error_str=
-	local iface_up=
+	local error_str
+	local iface_up
 	local ifconfig_args=
 
 	#
@@ -91,13 +91,13 @@ country_set()
 
 dialog_country_select()
 {
-	local input=
+	local input
 	local def_item_regdomain=
 	local def_item_country=
-	local regdomains=
-	local countries=
-	local regdomain=
-	local country=
+	local regdomains
+	local countries
+	local regdomain
+	local country
 
 	#
 	# Parse available countries/regdomains
