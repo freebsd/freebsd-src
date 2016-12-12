@@ -108,10 +108,11 @@ dialog_country_select()
 		}
 	}' | sort -k 2 | tr '\n' ' ' )
 
-	f_dialog_menu_size height width rows "Regdomain selection" \
+	f_dialog_title "Regdomain selection"
+	f_dialog_menu_size height width rows "$DIALOG_TITLE" \
 		"$DIALOG_BACKTITLE" "Select your regdomain." "" $regdomains
 	regdomain=$( sh -c "$DIALOG \
-		--title \"Regdomain selection\" \
+		--title \"$DIALOG_TITLE\" \
 		--backtitle \"$DIALOG_BACKTITLE\" \
 		--cancel-label \"Skip\" \
 		--default-item \"$default_regdomain\" \
@@ -121,10 +122,11 @@ dialog_country_select()
 		$height $width $rows $regdomains"
 	)
 
-	f_dialog_menu_size height width rows "Country selection" \
+	f_dialog_title "Country selection"
+	f_dialog_menu_size height width rows "$DIALOG_TITLE" \
 		"$DIALOG_BACKTITLE" "Select your country." "" $countries
 	country=$( sh -c "$DIALOG \
-		--title \"Country selection\" \
+		--title \"$DIALOG_TITLE\" \
 		--backtitle \"$DIALOG_BACKTITLE\" \
 		--cancel-label \"Skip\" \
 		--default-item \"$default_country\" \
@@ -181,8 +183,9 @@ if [ "$BSDINSTALL_CONFIGCURRENT" ]; then
 	DEF_COUNTRY=$( echo $INPUT | cut -w -f 4 )
 	[ "$DEF_REGDOMAIN" = 0 ] && DEF_REGDOMAIN="<not selected>"
 	[ "$DEF_COUNTRY" = 0 ] && DEF_COUNTRY="<not selected>"
+	f_dialog_title "Regdomain/country"
 	$DIALOG \
-		--title "Regdomain/country" \
+		--title "$DIALOG_TITLE" \
 		--backtitle "$DIALOG_BACKTITLE" \
 		--yesno "Change regdomain/country (now $DEF_REGDOMAIN/$DEF_COUNTRY)?" \
 		0 0
@@ -201,8 +204,9 @@ while :; do
 	SCANSSID=0
 	output=$( wpa_cli scan 2>&1 )
 	f_dprintf "%s" "$output"
+	f_dialog_title "Scanning"
 	$DIALOG \
-		--title "Scanning" \
+		--title "$DIALOG_TITLE" \
 		--backtitle "$DIALOG_BACKTITLE" \
 		--ok-label "Skip" \
 		--pause "Waiting 5 seconds to scan for wireless networks..." \
@@ -217,17 +221,19 @@ while :; do
 	' | sort | uniq )
 
 	if [ ! "$NETWORKS" ]; then
+		f_dialog_title "Error"
 		$DIALOG \
-			--title "Error" \
+			--title "$DIALOG_TITLE" \
 			--backtitle "$DIALOG_BACKTITLE" \
 			--yesno "No wireless networks were found. Rescan?" \
 			0 0 && continue
 		exit 1
 	fi
 
+	f_dialog_title "Network Selection"
 	exec 3>&1
 	NETWORK=$( sh -c "$DIALOG \
-		--title \"Network Selection\" \
+		--title \"$DIALOG_TITLE\" \
 		--backtitle \"$DIALOG_BACKTITLE\" \
 		--extra-button \
 		--extra-label \"Rescan\" \
