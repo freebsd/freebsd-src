@@ -24,6 +24,7 @@ NEED_CHERI=	pure
 CFLAGS+=	-I${.CURDIR}/../common		\
 		-I${.CURDIR}/../../libc/include
 FILES+=	crt1.o					\
+	Scrt1.o					\
 	crtbegin.o				\
 	crtbeginS.o				\
 	crtbeginT.o				\
@@ -44,6 +45,10 @@ crtendS.o:	crtendC.c
 
 crtend.o:	crtendC.c
 	${CC} ${CFLAGS} -g0 -c -o ${.TARGET} ${.ALLSRC}
+
+Scrt1.o:	crt1.c
+	${CC} ${CFLAGS} ${PICFLAG} -g0 -c -o ${.TARGET} ${.ALLSRC}
+
 .endif
 
 .include <bsd.lib.mk>
