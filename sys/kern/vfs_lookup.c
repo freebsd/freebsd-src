@@ -161,16 +161,11 @@ static int lookup_shared = 1;
 SYSCTL_INT(_vfs, OID_AUTO, lookup_shared, CTLFLAG_RWTUN, &lookup_shared, 0,
     "enables shared locks for path name translation");
 
-/*
- * Intent is that lookup_cap_dotdot becomes unconditionally enabled,
- * but it defaults to the disabled state until verification efforts
- * are complete.
- */
-static int lookup_cap_dotdot = 0;
+static int lookup_cap_dotdot = 1;
 SYSCTL_INT(_vfs, OID_AUTO, lookup_cap_dotdot, CTLFLAG_RWTUN,
     &lookup_cap_dotdot, 0,
     "enables \"..\" components in path lookup in capability mode");
-static int lookup_cap_dotdot_nonlocal = 0;
+static int lookup_cap_dotdot_nonlocal = 1;
 SYSCTL_INT(_vfs, OID_AUTO, lookup_cap_dotdot_nonlocal, CTLFLAG_RWTUN,
     &lookup_cap_dotdot_nonlocal, 0,
     "enables \"..\" components in path lookup in capability mode "
