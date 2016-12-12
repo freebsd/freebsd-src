@@ -190,8 +190,7 @@ if [ "$BSDINSTALL_CONFIGCURRENT" ]; then
 		--yesno "Change regdomain/country (now $DEF_REGDOMAIN/$DEF_COUNTRY)?" \
 		0 0
 	if [ $? -eq 0 ]; then
-		while :
-		do
+		while :; do
 			dialog_country_select "$DEF_REGDOMAIN" "$DEF_COUNTRY"
 			if [ $? -eq $SUCCESS ]; then
 				break
@@ -242,9 +241,7 @@ while :; do
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
 	case $? in
-	$DIALOG_OK)
-		break
-		;;
+	$DIALOG_OK) break ;;
 	$DIALOG_CANCEL)
 		# here we ask if the user wants to select the network manually
 		f_dialog_title "Network Selection"
@@ -298,7 +295,8 @@ elif echo $ENCRYPTION | grep -q EAP; then
 		--title "WPA-Enterprise Setup" \
 		--backtitle "$DIALOG_BACKTITLE" \
 		--insecure \
-		--mixedform "" 0 0 0 \
+		--mixedform "" \
+		0 0 0 \
 		"SSID" 1 0 "$NETWORK" 1 12 0 0 2 \
 		"Username" 2 0 "" 2 12 25 63 0 \
 		"Password" 3 0 "" 3 12 25 63 1 \
@@ -322,7 +320,8 @@ elif echo $ENCRYPTION | grep -q WEP; then
 		--title "WEP Setup" \
 		--backtitle "$DIALOG_BACKTITLE" \
 		--insecure \
-		--mixedform "" 0 0 0 \
+		--mixedform "" \
+		0 0 0 \
 		"SSID" 1 0 "$NETWORK" 1 12 0 0 2 \
 		"WEP Key 0" 2 0 "" 2 12 15 0 1 \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
