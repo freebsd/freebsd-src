@@ -1276,7 +1276,9 @@ acpi_set_resource(device_t dev, device_t child, int type, int rid,
     struct acpi_softc *sc = device_get_softc(dev);
     struct acpi_device *ad = device_get_ivars(child);
     struct resource_list *rl = &ad->ad_rl;
+#if defined(__i386__) || defined(__amd64__)
     ACPI_DEVICE_INFO *devinfo;
+#endif
     rman_res_t end;
     
     /* Ignore IRQ resources for PCI link devices. */
@@ -1292,13 +1294,11 @@ acpi_set_resource(device_t dev, device_t child, int type, int rid,
      * x86 of a PCI bridge claiming the I/O ports used for PCI config
      * access.
      */
+#if defined(__i386__) || defined(__amd64__)
     if (type == SYS_RES_MEMORY || type == SYS_RES_IOPORT) {
 	if (ACPI_SUCCESS(AcpiGetObjectInfo(ad->ad_handle, &devinfo))) {
 	    if ((devinfo->Flags & ACPI_PCI_ROOT_BRIDGE) != 0) {
-#if defined(__i386__) || defined(__amd64__)
-		if (!(type == SYS_RES_IOPORT && start == CONF1_ADDR_PORT))
-#endif
-		{
+		if (!(type == SYS_RES_IOPORT && start == CONF1_ADDR_PORT)) {
 		    AcpiOsFree(devinfo);
 		    return (0);
 		}
@@ -1306,6 +1306,7 @@ acpi_set_resource(device_t dev, device_t child, int type, int rid,
 	    AcpiOsFree(devinfo);
 	}
     }
+#endif
 
     /* If the resource is already allocated, fail. */
     if (resource_list_busy(rl, type, rid))
