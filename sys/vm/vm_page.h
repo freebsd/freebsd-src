@@ -352,19 +352,16 @@ extern struct mtx_padalign pa_lock[];
  *	free
  *		Available for allocation now.
  *
- *	cache
- *		Almost available for allocation. Still associated with
- *		an object, but clean and immediately freeable.
- *
- * The following lists are LRU sorted:
- *
  *	inactive
  *		Low activity, candidates for reclamation.
+ *		This list is approximately LRU ordered.
+ *
+ *	laundry
  *		This is the list of pages that should be
  *		paged out next.
  *
  *	active
- *		Pages that are "active" i.e. they have been
+ *		Pages that are "active", i.e., they have been
  *		recently referenced.
  *
  */
