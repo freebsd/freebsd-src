@@ -146,7 +146,7 @@ int
 set_active_node(line_t *lp)
 {
 	if (active_last + 1 > active_size) {
-		int ti = active_size;
+		size_t ti = active_size;
 		line_t **ts;
 		SPL1();
 #if defined(sun) || defined(NO_REALLOC_NULL)
