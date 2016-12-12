@@ -43,19 +43,10 @@ country_set()
 	# Setup what was selected
 	# NB: Do not change order of arguments (or regdomain will be ignored)
 	#
-	if [ "$2" ]; then
-		ifconfig_args="${ifconfig_args}country $2"
-	fi
-	if [ "$1" ]; then
-		if [ "$2" ]; then
-			ifconfig_args="${ifconfig_args} "
-		fi
-		ifconfig_args="${ifconfig_args}regdomain $1"
-	fi
-	if [ ! "$ifconfig_args" ]; then
-		# Nothing to do (everything was skipped)
-		return $SUCCESS
-	fi
+	[ "$2" ] && ifconfig_args="$ifconfig_args country $2"
+	[ "$1" ] && ifconfig_args="$ifconfig_args regdomain $1"
+	[ "$ifconfig_args" ] || return $SUCCESS # Nothing to do
+	ifconfig_args="${ifconfig_args# }"
 
 	# Regdomain/country cannot be applied while interface is running
 	iface_up=$( ifconfig -lu | grep -w $WLAN_IFACE )
