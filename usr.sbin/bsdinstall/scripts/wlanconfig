@@ -143,7 +143,7 @@ dialog_country_select()
 
 ############################################################ MAIN
 
-echo -n > "$BSDINSTALL_TMPETC/wpa_supplicant.conf"
+: > "$BSDINSTALL_TMPETC/wpa_supplicant.conf"
 chmod 0600 "$BSDINSTALL_TMPETC/wpa_supplicant.conf"
 
 echo "ctrl_interface=/var/run/wpa_supplicant" >> "$BSDINSTALL_TMPETC/wpa_supplicant.conf"
