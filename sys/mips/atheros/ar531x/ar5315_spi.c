@@ -155,9 +155,8 @@ ar5315_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 {
 	struct ar5315_spi_softc *sc;
 	uint8_t *buf_in, *buf_out;
-	struct spibus_ivar *devi = SPIBUS_IVAR(child);
 	int lin, lout;
-	uint32_t ctl, cnt, op, rdat;
+	uint32_t ctl, cnt, op, rdat, cs;
 	int i, j;
 
 	sc = device_get_softc(dev);
@@ -165,8 +164,10 @@ ar5315_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 	if (sc->sc_debug & 0x8000)
 		printf("ar5315_spi_transfer: CMD ");
 
+	spibus_get_cs(child, &cs);
+
 	/* Open SPI controller interface */
-	ar5315_spi_chip_activate(sc, devi->cs);
+	ar5315_spi_chip_activate(sc, cs);
 
 	do {
 		ctl = SPI_READ(sc, ARSPI_REG_CTL);
@@ -243,7 +244,7 @@ ar5315_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 		}
 	}
 
-	ar5315_spi_chip_deactivate(sc, devi->cs);
+	ar5315_spi_chip_deactivate(sc, cs);
 	/*
 	 * Close SPI controller interface, restore flash memory mapped access.
 	 */
