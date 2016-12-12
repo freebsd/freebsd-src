@@ -589,7 +589,7 @@ jz4780_clock_modify_4(device_t dev, bus_addr_t addr, uint32_t clear_mask,
 
 	sc = device_get_softc(dev);
 	val = CSR_READ_4(sc, addr);
-	val &= clear_mask;
+	val &= ~clear_mask;
 	val |= set_mask;
 	CSR_WRITE_4(sc, addr, val);
 	return (0);
