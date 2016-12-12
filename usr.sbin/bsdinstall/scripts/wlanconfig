@@ -50,9 +50,7 @@ country_set()
 
 	# Regdomain/country cannot be applied while interface is running
 	iface_up=$( ifconfig -lu | grep -w $WLAN_IFACE )
-	if [ "$iface_up" ]; then
-		ifconfig $WLAN_IFACE down
-	fi
+	[ "$iface_up" ] && ifconfig $WLAN_IFACE down
 	error_str=$( ifconfig $WLAN_IFACE $ifconfig_args 2>&1 |
 		sed 's/ifconfig: //' )
 	if [ "$iface_up" ]; then
@@ -179,13 +177,9 @@ if [ "$BSDINSTALL_CONFIGCURRENT" ]; then
 	WLAN_IFACE=$( wpa_cli ifname | tail -n 1 )
 	INPUT=$( ifconfig $WLAN_IFACE list regdomain | head -n 1 )
 	DEF_REGDOMAIN=$( echo $INPUT | cut -w -f 2 )
-	if [ "$DEF_REGDOMAIN" = "0" ]; then
-		DEF_REGDOMAIN="<not selected>"
-	fi
+	[ "$DEF_REGDOMAIN" = "0" ] && DEF_REGDOMAIN="<not selected>"
 	DEF_COUNTRY=$( echo $INPUT | cut -w -f 4 )
-	if [ "$DEF_COUNTRY" = "0" ]; then
-		DEF_COUNTRY="<not selected>"
-	fi
+	[ "$DEF_COUNTRY" = "0" ] && DEF_COUNTRY="<not selected>"
 	dialog --backtitle "FreeBSD Installer" --title "Regdomain/country" \
 	    --yesno "Change regdomain/country (now \
 	    $DEF_REGDOMAIN/$DEF_COUNTRY)?" 0 0
