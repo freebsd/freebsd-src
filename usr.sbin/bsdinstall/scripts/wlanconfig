@@ -317,13 +317,9 @@ elif echo $ENCRYPTION | grep -q EAP; then
 		scan_ssid=$SCANSSID
 		key_mgmt=WPA-EAP$(
 		echo "$USERPASS" | awk '
-		{
-			if (NR == 1) {
-				printf "	identity=\"%s\"\n", $1;
-			} else if (NR == 2) {
-				printf "	password=\"%s\"\n", $1;
-			}
-		}' )
+			NR == 1 { printf "\n\t\tidentity=\"%s\"", $1; }
+			NR == 2 { printf "\n\t\tpassword=\"%s\"", $1; }
+		' )
 		priority=5
 	}
 	EOF
