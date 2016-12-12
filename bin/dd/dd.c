@@ -142,8 +142,6 @@ setup(void)
 		in.fd = open(in.name, O_RDONLY, 0);
 		if (in.fd == -1)
 			err(1, "%s", in.name);
-		if (caph_limit_stdin() == -1)
-			err(1, "unable to limit capability rights");
 	}
 
 	getfdtype(&in);
@@ -176,8 +174,6 @@ setup(void)
 		}
 		if (out.fd == -1)
 			err(1, "%s", out.name);
-		if (caph_limit_stdout() == -1)
-			err(1, "unable to limit capability rights");
 	}
 
 	getfdtype(&out);
@@ -187,6 +183,16 @@ setup(void)
 	if (cap_ioctls_limit(out.fd, cmds, nitems(cmds)) == -1 &&
 	    errno != ENOSYS)
 		err(1, "unable to limit capability rights");
+
+	if (in.fd != STDIN_FILENO && out.fd != STDIN_FILENO) {
+		if (caph_limit_stdin() == -1)
+			err(1, "unable to limit capability rights");
+	}
+
+	if (in.fd != STDOUT_FILENO && out.fd != STDOUT_FILENO) {
+		if (caph_limit_stdout() == -1)
+			err(1, "unable to limit capability rights");
+	}
 
 	if (in.fd != STDERR_FILENO && out.fd != STDERR_FILENO) {
 		if (caph_limit_stderr() == -1)
