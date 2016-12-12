@@ -86,21 +86,7 @@ static int
 read_open_memory_internal(struct archive *a, const void *buff,
     size_t size, size_t read_size, int level)
 {
-	struct read_memory_data *mine;
-
-	mine = (struct read_memory_data *)malloc(sizeof(*mine));
-	if (mine == NULL) {
-		archive_set_error(a, ENOMEM, "No memory");
-		return (ARCHIVE_FATAL);
-	}
-	memset(mine, 0, sizeof(*mine));
-	mine->start = mine->p = (const unsigned char *)buff;
-	mine->end = mine->start + size;
-	mine->read_size = read_size;
-	mine->copy_buff_offset = 32;
-	mine->copy_buff_size = read_size + mine->copy_buff_offset * 2;
-	mine->copy_buff = malloc(mine->copy_buff_size);
-	memset(mine->copy_buff, 0xA5, mine->copy_buff_size);
+	struct read_memory_data *mine = NULL;
 
 	switch (level) {
 	case 3:
@@ -109,6 +95,20 @@ read_open_memory_internal(struct archive *a, const void *buff,
 		archive_read_set_open_callback(a, memory_read_open);
 		archive_read_set_skip_callback(a, memory_read_skip);
 	case 1:
+		mine = malloc(sizeof(*mine));
+		if (mine == NULL) {
+			archive_set_error(a, ENOMEM, "No memory");
+			return (ARCHIVE_FATAL);
+		}
+		memset(mine, 0, sizeof(*mine));
+		mine->start = mine->p = (const unsigned char *)buff;
+		mine->end = mine->start + size;
+		mine->read_size = read_size;
+		mine->copy_buff_offset = 32;
+		mine->copy_buff_size = read_size + mine->copy_buff_offset * 2;
+		mine->copy_buff = malloc(mine->copy_buff_size);
+		memset(mine->copy_buff, 0xA5, mine->copy_buff_size);
+
 		archive_read_set_read_callback(a, memory_read);
 		archive_read_set_close_callback(a, memory_read_close);
 		archive_read_set_callback_data(a, mine);
@@ -213,7 +213,8 @@ memory_read_close(struct archive *a, void *client_data)
 {
 	struct read_memory_data *mine = (struct read_memory_data *)client_data;
 	(void)a; /* UNUSED */
-	free(mine->copy_buff);
+	if (mine != NULL)
+		free(mine->copy_buff);
 	free(mine);
 	return (ARCHIVE_OK);
 }
