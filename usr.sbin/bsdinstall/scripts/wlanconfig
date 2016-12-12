@@ -96,10 +96,7 @@ dialog_country_select()
 		for (i = 1; i <= NF; i++) {
 			printf "%s", $i
 			if ($i ~ /[[:lower:]]/)
-				if ($(i+1) ~ /[[:lower:]]/)
-					printf "\\\\\\ "
-				else
-					printf "\n"
+				printf $(i+1) ~ /[[:lower:]]/ ? "\\\\\\ " : "\n"
 			else
 				printf " "
 		}
