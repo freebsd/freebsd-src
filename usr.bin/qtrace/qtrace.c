@@ -38,6 +38,7 @@
 #include <machine/sysarch.h>
 
 #include <err.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sysexits.h>
@@ -46,25 +47,28 @@
 #include <stdio.h>
 
 extern char **environ;
+bool user_mode_only = false;
 
 static void
 usage(void)
 {
-	warnx("usage: qtrace (start|stop|exec)");
+	warnx("usage: qtrace [-u/--user-mode] (start|stop|exec)");
 	exit (1);
 }
 
 static inline void
 start_trace(void)
 {
-
 	CHERI_START_TRACE;
+	if (user_mode_only)
+		__asm__ __volatile__("li $0, 0xdeaf");
 }
 
 static inline void
 stop_trace(void)
 {
-
+	if (user_mode_only)
+		__asm__ __volatile__("li $0, 0xfaed");
 	CHERI_STOP_TRACE;
 }
 
@@ -77,6 +81,8 @@ set_thread_tracing(void)
 	error = sysarch(QEMU_SET_QTRACE, &intval);
 	if (error)
 		err(EX_OSERR, "QEMU_SET_QTRACE");
+	if (user_mode_only)
+		__asm__ __volatile__("li $0, 0xdeaf");
 }
 
 int
@@ -93,6 +99,14 @@ main(int argc, char **argv)
 
 	if (argc == 0)
 		usage();
+
+	if (strcmp("-u", argv[0]) == 0 || strcmp("--user-mode", argv[0]) == 0) {
+		argv++;
+		argc--;
+		user_mode_only = true;
+		if (argc == 0)
+			usage();
+	}
 
 	len = sizeof(qemu_trace_perthread);
 	if (sysctlbyname("hw.qemu_trace_perthread", &qemu_trace_perthread,
@@ -121,6 +135,8 @@ main(int argc, char **argv)
 		waitpid(pid, &status, 0);
 		if (!qemu_trace_perthread)
 			stop_trace();
+		if (user_mode_only)
+			__asm__ __volatile__("li $0, 0xfaed");
 		if (!WIFEXITED(status)) {
 			warnx("child exited abnormally");
 			exit(-1);
