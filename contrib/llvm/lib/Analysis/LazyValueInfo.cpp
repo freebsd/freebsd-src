@@ -1051,7 +1051,7 @@ static bool isKnownNonConstant(Value *V) {
 Constant *LazyValueInfo::getConstant(Value *V, BasicBlock *BB) {
   // Bail out early if V is known not to be a Constant.
   if (isKnownNonConstant(V))
-    return nullptr;
+    return 0;
 
   LVILatticeVal Result = getCache(PImpl).getValueInBlock(V, BB);
   
