@@ -50,13 +50,13 @@ country_set()
 	ifconfig_args="${ifconfig_args# }"
 
 	# Regdomain/country cannot be applied while interface is running
-	iface_up=$( ifconfig -lu | grep -w $WLAN_IFACE )
-	[ "$iface_up" ] && ifconfig $WLAN_IFACE down
-	error_str=$( ifconfig $WLAN_IFACE $ifconfig_args 2>&1 |
+	iface_up=$( ifconfig -lu | grep -w "$WLAN_IFACE" )
+	[ "$iface_up" ] && ifconfig "$WLAN_IFACE" down
+	error_str=$( ifconfig "$WLAN_IFACE" $ifconfig_args 2>&1 |
 		sed -e 's/ifconfig: //' )
 	if [ "$iface_up" ]; then
 		# Restart wpa_supplicant(8) (should not fail).
-		wpa_supplicant -B -i $WLAN_IFACE -c \
+		wpa_supplicant -B -i "$WLAN_IFACE" -c \
 			"$BSDINSTALL_TMPETC/wpa_supplicant.conf"
 	fi
 	if [ "$error_str" ]; then
@@ -93,7 +93,7 @@ dialog_country_select()
 	#
 	# Parse available countries/regdomains
 	#
-	input=$( ifconfig $WLAN_IFACE list countries | sed -e 's/DEBUG//gi' )
+	input=$( ifconfig "$WLAN_IFACE" list countries | sed -e 's/DEBUG//gi' )
 	regdomains=$( echo $input | sed -e 's/.*domains://' | tr ' ' '\n' |
 		sort | tr '\n' ' ' )
 	countries=$( echo $input | awk '{
@@ -178,7 +178,7 @@ fi
 if [ "$BSDINSTALL_CONFIGCURRENT" ]; then
 	# Get current country/regdomain for selected interface
 	WLAN_IFACE=$( wpa_cli ifname | tail -1 )
-	INPUT=$( ifconfig $WLAN_IFACE list regdomain | head -1 )
+	INPUT=$( ifconfig "$WLAN_IFACE" list regdomain | head -1 )
 	DEF_REGDOMAIN=$( echo $INPUT | cut -w -f 2 )
 	DEF_COUNTRY=$( echo $INPUT | cut -w -f 4 )
 	[ "$DEF_REGDOMAIN" = 0 ] && DEF_REGDOMAIN="<not selected>"
