@@ -46,11 +46,14 @@ DEFINE_TEST(test_option_y)
 		}
 		failure("-y option is broken");
 		assertEqualInt(r, 0);
-		return;
+		goto done;
 	}
 	assertTextFileContents("1 block\n", "archive.err");
 	/* Check that the archive file has a bzip2 signature. */
+	free(p);
 	p = slurpfile(&s, "archive.out");
 	assert(s > 2);
 	assertEqualMem(p, "BZh9", 4);
+done:
+	free(p);
 }
