@@ -56,12 +56,12 @@ country_set()
 	if [ "$iface_up" ]; then
 		# Restart wpa_supplicant(8) (should not fail).
 		wpa_supplicant -B -i $WLAN_IFACE -c \
-		    "$BSDINSTALL_TMPETC/wpa_supplicant.conf"
+			"$BSDINSTALL_TMPETC/wpa_supplicant.conf"
 	fi
 	if [ "$error_str" ]; then
 		dialog --backtitle "FreeBSD Installer" --title "Error" \
-		    --yes-label Change --no-label Ignore --yesno \
-		    "Error while applying chosen settings ($error_str)" 0 0
+			--yes-label Change --no-label Ignore --yesno \
+			"Error while applying chosen settings ($error_str)" 0 0
 		if [ $? -eq $DIALOG_OK ]; then
 			return $FAILURE # Restart
 		else
@@ -101,7 +101,7 @@ dialog_country_select()
 			else
 				printf " "
 		}
-	    }' | sort -k 2 | tr '\n' ' ' )
+	}' | sort -k 2 | tr '\n' ' ' )
 
 	# Change default cursor position (if required).
 	if [ "$1" != "<not selected>" ]; then
@@ -112,29 +112,31 @@ dialog_country_select()
 	fi
 
 	f_dialog_menu_size height width rows \"Regdomain selection\" \
-	    \"FreeBSD Installer\" \"Select your regdomain.\" \
-	    \"\" $regdomains
+		\"FreeBSD Installer\" \"Select your regdomain.\" \
+		\"\" $regdomains
 	regdomain=$( sh -c "dialog \
-	    --backtitle \"FreeBSD Installer\" \
-	    --title \"Regdomain selection\" \
-	    --cancel-label \"Skip\" \
-	    $def_item_regdomain \
-	    --no-items \
-	    --stdout \
-	    --menu \"Select your regdomain.\" \
-	    $height $width $rows $regdomains" )
+		--backtitle \"FreeBSD Installer\" \
+		--title \"Regdomain selection\" \
+		--cancel-label \"Skip\" \
+		$def_item_regdomain \
+		--no-items \
+		--stdout \
+		--menu \"Select your regdomain.\" \
+		$height $width $rows $regdomains"
+	)
 
 	f_dialog_menu_size height width rows \"Country selection\" \
 	    \"FreeBSD Installer\" \"Select your country.\" \
 	    \"\" $countries
 	country=$( sh -c "dialog \
-	    --backtitle \"FreeBSD Installer\" \
-	    --title \"Country selection\" \
-	    --cancel-label \"Skip\" \
-	    $def_item_country \
-	    --stdout \
-	    --menu \"Select your country.\" \
-	    $height $width $rows $countries" )
+		--backtitle \"FreeBSD Installer\" \
+		--title \"Country selection\" \
+		--cancel-label \"Skip\" \
+		$def_item_country \
+		--stdout \
+		--menu \"Select your country.\" \
+		$height $width $rows $countries"
+	)
 
 	country_set "$regdomain" "$country"
 
@@ -195,8 +197,7 @@ if [ "$BSDINSTALL_CONFIGCURRENT" ]; then
 	fi
 fi
 
-while :
-do
+while :; do
 	SCANSSID=0
 	output=$( wpa_cli scan 2>&1 )
 	f_dprintf "%s" "$output"
