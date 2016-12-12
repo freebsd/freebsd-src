@@ -1230,6 +1230,9 @@ const char *
 devtoname(struct cdev *dev)
 {
 
+	if (dev == NULL)
+		return (NULL);
+
 	return (dev->si_name);
 }
 
