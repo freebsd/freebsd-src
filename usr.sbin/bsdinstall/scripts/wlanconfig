@@ -93,8 +93,8 @@ dialog_country_select()
 		sub(/Regulatory.*/, "")
 		for (i = 1; i <= NF; i++) {
 			printf "%s", $i
-			if (match($i, "[[:lower:]]"))
-				if (match($(i+1), "[[:lower:]]"))
+			if (match($i, /[[:lower:]]/))
+				if (match($(i+1), /[[:lower:]]/))
 					printf "\\\\\\ "
 				else
 					printf "\n"
