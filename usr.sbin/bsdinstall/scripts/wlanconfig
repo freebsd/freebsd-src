@@ -231,7 +231,6 @@ while :; do
 	fi
 
 	f_dialog_title "Network Selection"
-	exec 3>&1
 	NETWORK=$( sh -c "$DIALOG \
 		--title \"$DIALOG_TITLE\" \
 		--backtitle \"$DIALOG_BACKTITLE\" \
@@ -240,7 +239,7 @@ while :; do
 		--menu \"Select a wireless network to connect to.\" \
 		0 0 0 \
 		$( echo $NETWORKS | tr '\n' ' ' )" \
-		2>&1 >&3
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
 	case $? in
 	$DIALOG_OK)
@@ -260,7 +259,7 @@ while :; do
 			"2 WPA/WPA2 EAP" "" \
 			"3 WEP" "" \
 			"0 None" "" \
-			2>&1 >&3
+			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 		) || exit 1
 		SCANSSID=1
 		f_dialog_title_restore
@@ -269,14 +268,12 @@ while :; do
 	$DIALOG_EXTRA) # Rescan
 		;;
 	esac
-	exec 3>&-
 done
 
 [ "$ENCRYPTION" ] || ENCRYPTION=$( echo "$NETWORKS" |
 	awk -F '\t' "/^\"$NETWORK\"\t/ { printf(\"%s\n\", \\\$2 ) }" )
 
 if echo $ENCRYPTION | grep -q 'PSK'; then
-	exec 3>&1
 	PASS=$( $DIALOG \
 		--title "WPA Setup" \
 		--backtitle "$DIALOG_BACKTITLE" \
@@ -285,9 +282,8 @@ if echo $ENCRYPTION | grep -q 'PSK'; then
 		0 0 0 \
 		"SSID" 1 0 "$NETWORK" 1 12 0 0 2 \
 		"Password" 2 0 "" 2 12 15 63 1 \
-		2>&1 >&3
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	) || exec "$0" "$@"
-	exec 3>&-
 	awk 'sub(/^\t/,"")||1' \
 		>> "$BSDINSTALL_TMPETC/wpa_supplicant.conf" <<-EOF
 	network={
@@ -298,7 +294,6 @@ if echo $ENCRYPTION | grep -q 'PSK'; then
 	}
 	EOF
 elif echo $ENCRYPTION | grep -q EAP; then
-	exec 3>&1
 	USERPASS=$( $DIALOG \
 		--title "WPA-Enterprise Setup" \
 		--backtitle "$DIALOG_BACKTITLE" \
@@ -307,9 +302,8 @@ elif echo $ENCRYPTION | grep -q EAP; then
 		"SSID" 1 0 "$NETWORK" 1 12 0 0 2 \
 		"Username" 2 0 "" 2 12 25 63 0 \
 		"Password" 3 0 "" 3 12 25 63 1 \
-		2>&1 >&3
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	) || exec "$0" "$@"
-	exec 3>&-
 	awk 'sub(/^\t/,"")||1' \
 		>> "$BSDINSTALL_TMPETC/wpa_supplicant.conf" <<-EOF
 	network={
@@ -324,7 +318,6 @@ elif echo $ENCRYPTION | grep -q EAP; then
 	}
 	EOF
 elif echo $ENCRYPTION | grep -q WEP; then
-	exec 3>&1
 	WEPKEY=$( $DIALOG \
 		--title "WEP Setup" \
 		--backtitle "$DIALOG_BACKTITLE" \
@@ -332,7 +325,7 @@ elif echo $ENCRYPTION | grep -q WEP; then
 		--mixedform "" 0 0 0 \
 		"SSID" 1 0 "$NETWORK" 1 12 0 0 2 \
 		"WEP Key 0" 2 0 "" 2 12 15 0 1 \
-		2>&1 >&3
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	) || exec "$0" "$@"
 	awk 'sub(/^\t/,"")||1' \
 		>> "$BSDINSTALL_TMPETC/wpa_supplicant.conf" <<-EOF
