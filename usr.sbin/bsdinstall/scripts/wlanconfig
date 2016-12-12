@@ -45,33 +45,33 @@ country_set()
 	# Setup what was selected
 	# NB: Do not change order of arguments (or regdomain will be ignored)
 	#
-	if [ ! -z "$2" ]; then
+	if [ "$2" ]; then
 		ifconfig_args="${ifconfig_args}country $2"
 	fi
-	if [ ! -z "$1" ]; then
-		if [ ! -z "$2" ]; then
+	if [ "$1" ]; then
+		if [ "$2" ]; then
 			ifconfig_args="${ifconfig_args} "
 		fi
 		ifconfig_args="${ifconfig_args}regdomain $1"
 	fi
-	if [ -z "$ifconfig_args" ]; then
+	if [ ! "$ifconfig_args" ]; then
 		# Nothing to do (everything was skipped)
 		return $SUCCESS
 	fi
 
 	# Regdomain/country cannot be applied while interface is running
 	iface_up=$( ifconfig -lu | grep -w $WLAN_IFACE )
-	if [ ! -z "$iface_up" ]; then
+	if [ "$iface_up" ]; then
 		ifconfig $WLAN_IFACE down
 	fi
 	error_str=$( ifconfig $WLAN_IFACE $ifconfig_args 2>&1 |
 		sed 's/ifconfig: //' )
-	if [ ! -z "$iface_up" ]; then
+	if [ "$iface_up" ]; then
 		# Restart wpa_supplicant(8) (should not fail).
 		wpa_supplicant -B -i $WLAN_IFACE -c \
 		    $BSDINSTALL_TMPETC/wpa_supplicant.conf
 	fi
-	if [ ! -z "$error_str" ]; then
+	if [ "$error_str" ]; then
 		dialog --backtitle "FreeBSD Installer" --title "Error" \
 		    --yes-label Change --no-label Ignore --yesno \
 		    "Error while applying chosen settings ($error_str)" 0 0
@@ -172,14 +172,14 @@ echo >> $BSDINSTALL_TMPETC/wpa_supplicant.conf
 # Try to reach wpa_supplicant. If it isn't running and we can modify the
 # existing system, start it. Otherwise, fail.
 #
-(wpa_cli ping >/dev/null 2>/dev/null || ([ ! -z $BSDINSTALL_CONFIGCURRENT ] &&
+(wpa_cli ping >/dev/null 2>/dev/null || ([ "$BSDINSTALL_CONFIGCURRENT" ] &&
 	wpa_supplicant -B -i $1 -c $BSDINSTALL_TMPETC/wpa_supplicant.conf)) ||
 	(dialog --backtitle "FreeBSD Installer" --title "Error" --msgbox \
 	"Could not start wpa_supplicant!" 0 0; exit 1) || exit 1
 
 # See if we succeeded
 wpa_cli ping >/dev/null 2>/dev/null
-if [ $? -ne 0 -a -z $BSDINSTALL_CONFIGCURRENT ]; then
+if [ $? -ne 0 -a ! "$BSDINSTALL_CONFIGCURRENT" ]; then
 	dialog --backtitle "FreeBSD Installer" --title "Error" --msgbox \
 	"Wireless cannot be configured without making changes to the local system!" \ 0 0
 	exit 1
@@ -189,7 +189,7 @@ fi
 # There is no way to check country/regdomain without (possible)
 # interface state modification
 #
-if [ ! -z $BSDINSTALL_CONFIGCURRENT ]; then
+if [ "$BSDINSTALL_CONFIGCURRENT" ]; then
 	# Get current country/regdomain for selected interface
 	WLAN_IFACE=$( wpa_cli ifname | tail -n 1 )
 	INPUT=$( ifconfig $WLAN_IFACE list regdomain | head -n 1 )
@@ -230,7 +230,7 @@ do
 	   '/..:..:..:..:..:../ {if (length($5) > 0) \
 	   printf("\"%s\"\t%s\n", $5, $4);}' | sort | uniq )
 
-	if [ -z "$NETWORKS" ]; then
+	if [ ! "$NETWORKS" ]; then
 		dialog --backtitle "FreeBSD Installer" --title "Error" \
 		    --yesno "No wireless networks were found. Rescan?" 0 0 &&
 		    continue
@@ -264,7 +264,7 @@ do
 	exec 3>&-
 done
 
-[ -z "$ENCRYPTION" ] && ENCRYPTION=$( echo "$NETWORKS" | awk -F '\t' \
+[ ! "$ENCRYPTION" ] && ENCRYPTION=$( echo "$NETWORKS" | awk -F '\t' \
     "/^\"$NETWORK\"\t/ {printf(\"%s\n\", \\\$2 );}" )
 
 if echo $ENCRYPTION | grep -q 'PSK'; then
