@@ -255,7 +255,7 @@ namei_handle_root(struct nameidata *ndp, struct vnode **dpp)
 		ndp->ni_pathlen--;
 	}
 	*dpp = ndp->ni_rootdir;
-	VREF(*dpp);
+	vrefact(*dpp);
 	return (0);
 }
 
@@ -376,7 +376,7 @@ namei(struct nameidata *ndp)
 	 */
 	FILEDESC_SLOCK(fdp);
 	ndp->ni_rootdir = fdp->fd_rdir;
-	VREF(ndp->ni_rootdir);
+	vrefact(ndp->ni_rootdir);
 	ndp->ni_topdir = fdp->fd_jdir;
 
 	/*
@@ -398,7 +398,7 @@ namei(struct nameidata *ndp)
 			startdir_used = 1;
 		} else if (ndp->ni_dirfd == AT_FDCWD) {
 			dp = fdp->fd_cdir;
-			VREF(dp);
+			vrefact(dp);
 		} else {
 			rights = ndp->ni_rightsneeded;
 			cap_rights_set(&rights, CAP_LOOKUP);
@@ -956,7 +956,7 @@ good:
 			vput(ndp->ni_dvp);
 		else
 			vrele(ndp->ni_dvp);
-		vref(vp_crossmp);
+		vrefact(vp_crossmp);
 		ndp->ni_dvp = vp_crossmp;
 		error = VFS_ROOT(mp, compute_cn_lkflags(mp, cnp->cn_lkflags,
 		    cnp->cn_flags), &tdp);
