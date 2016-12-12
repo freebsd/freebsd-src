@@ -126,7 +126,7 @@ dialog_country_select()
 		--backtitle \"$DIALOG_BACKTITLE\" \
 		--title \"Country selection\" \
 		--cancel-label \"Skip\" \
-		$def_item_country \
+		--default-item \"$def_item_country\" \
 		--stdout \
 		--menu \"Select your country.\" \
 		$height $width $rows $countries"
