@@ -56,7 +56,7 @@ country_set()
 	if [ "$iface_up" ]; then
 		# Restart wpa_supplicant(8) (should not fail).
 		wpa_supplicant -B -i $WLAN_IFACE -c \
-		    $BSDINSTALL_TMPETC/wpa_supplicant.conf
+		    "$BSDINSTALL_TMPETC/wpa_supplicant.conf"
 	fi
 	if [ "$error_str" ]; then
 		dialog --backtitle "FreeBSD Installer" --title "Error" \
@@ -68,9 +68,9 @@ country_set()
 			return $SUCCESS # Skip
 		fi
 	else
-		: > $BSDINSTALL_TMPETC/rc.conf.net.wlan
+		: > "$BSDINSTALL_TMPETC/rc.conf.net.wlan"
 		echo create_args_$WLAN_IFACE=\"$ifconfig_args\" >> \
-		    $BSDINSTALL_TMPETC/rc.conf.net.wlan
+		    "$BSDINSTALL_TMPETC/rc.conf.net.wlan"
 	fi
 
 	return $SUCCESS
@@ -142,21 +142,21 @@ dialog_country_select()
 
 ############################################################ MAIN
 
-echo -n > $BSDINSTALL_TMPETC/wpa_supplicant.conf
-chmod 0600 $BSDINSTALL_TMPETC/wpa_supplicant.conf
+echo -n > "$BSDINSTALL_TMPETC/wpa_supplicant.conf"
+chmod 0600 "$BSDINSTALL_TMPETC/wpa_supplicant.conf"
 
-echo "ctrl_interface=/var/run/wpa_supplicant" >> $BSDINSTALL_TMPETC/wpa_supplicant.conf
-echo "eapol_version=2" >> $BSDINSTALL_TMPETC/wpa_supplicant.conf
-echo "ap_scan=1" >> $BSDINSTALL_TMPETC/wpa_supplicant.conf
-echo "fast_reauth=1" >> $BSDINSTALL_TMPETC/wpa_supplicant.conf
-echo >> $BSDINSTALL_TMPETC/wpa_supplicant.conf
+echo "ctrl_interface=/var/run/wpa_supplicant" >> "$BSDINSTALL_TMPETC/wpa_supplicant.conf"
+echo "eapol_version=2" >> "$BSDINSTALL_TMPETC/wpa_supplicant.conf"
+echo "ap_scan=1" >> "$BSDINSTALL_TMPETC/wpa_supplicant.conf"
+echo "fast_reauth=1" >> "$BSDINSTALL_TMPETC/wpa_supplicant.conf"
+echo >> "$BSDINSTALL_TMPETC/wpa_supplicant.conf"
 
 #
 # Try to reach wpa_supplicant. If it isn't running and we can modify the
 # existing system, start it. Otherwise, fail.
 #
 (wpa_cli ping >/dev/null 2>/dev/null || ([ "$BSDINSTALL_CONFIGCURRENT" ] &&
-	wpa_supplicant -B -i $1 -c $BSDINSTALL_TMPETC/wpa_supplicant.conf)) ||
+	wpa_supplicant -B -i $1 -c "$BSDINSTALL_TMPETC/wpa_supplicant.conf")) ||
 	(dialog --backtitle "FreeBSD Installer" --title "Error" --msgbox \
 	"Could not start wpa_supplicant!" 0 0; exit 1) || exit 1
 
@@ -260,7 +260,7 @@ echo "network={
 	scan_ssid=$SCANSSID
 	psk=\"$PASS\"
 	priority=5
-}" >> $BSDINSTALL_TMPETC/wpa_supplicant.conf
+}" >> "$BSDINSTALL_TMPETC/wpa_supplicant.conf"
 elif echo $ENCRYPTION | grep -q EAP; then
 	exec 3>&1
 	USERPASS=$( dialog --insecure --backtitle "FreeBSD Installer" \
@@ -274,7 +274,7 @@ elif echo $ENCRYPTION | grep -q EAP; then
 echo "network={
 	ssid=\"$NETWORK\"
 	scan_ssid=$SCANSSID
-	key_mgmt=WPA-EAP" >> $BSDINSTALL_TMPETC/wpa_supplicant.conf
+	key_mgmt=WPA-EAP" >> "$BSDINSTALL_TMPETC/wpa_supplicant.conf"
 echo "$USERPASS" | awk '
 {
 	if (NR == 1) {
@@ -282,9 +282,9 @@ echo "$USERPASS" | awk '
 	} else if (NR == 2) {
 		printf "	password=\"%s\"\n", $1;
 	}
-}' >> $BSDINSTALL_TMPETC/wpa_supplicant.conf
+}' >> "$BSDINSTALL_TMPETC/wpa_supplicant.conf"
 echo "	priority=5
-}" >> $BSDINSTALL_TMPETC/wpa_supplicant.conf
+}" >> "$BSDINSTALL_TMPETC/wpa_supplicant.conf"
 elif echo $ENCRYPTION | grep -q WEP; then
 	exec 3>&1
 	WEPKEY=$( dialog --insecure --backtitle "FreeBSD Installer" \
@@ -300,21 +300,21 @@ echo "network={
 	wep_key0=\"$WEPKEY\"
 	wep_tx_keyidx=0
 	priority=5
-}" >> $BSDINSTALL_TMPETC/wpa_supplicant.conf
+}" >> "$BSDINSTALL_TMPETC/wpa_supplicant.conf"
 else	# Open
 echo "network={
 	ssid=\"$NETWORK\"
 	scan_ssid=$SCANSSID
 	key_mgmt=NONE
 	priority=5
-}" >> $BSDINSTALL_TMPETC/wpa_supplicant.conf
+}" >> "$BSDINSTALL_TMPETC/wpa_supplicant.conf"
 fi
 
 # Connect to any open networks policy
 echo "network={
 	priority=0
 	key_mgmt=NONE
-}" >> $BSDINSTALL_TMPETC/wpa_supplicant.conf
+}" >> "$BSDINSTALL_TMPETC/wpa_supplicant.conf"
 
 # Bring up new network
 if [ "$BSDINSTALL_CONFIGCURRENT" ]; then
