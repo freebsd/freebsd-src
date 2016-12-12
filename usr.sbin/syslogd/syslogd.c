@@ -88,7 +88,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/syslimits.h>
-#include <sys/types.h>
 
 #include <netinet/in.h>
 #include <netdb.h>
@@ -116,43 +115,60 @@ __FBSDID("$FreeBSD$");
 #define SYSLOG_NAMES
 #include <sys/syslog.h>
 
-const char	*ConfFile = _PATH_LOGCONF;
-const char	*PidFile = _PATH_LOGPID;
-const char	ctty[] = _PATH_CONSOLE;
-static const char	include_str[] = "include";
-static const char	include_ext[] = ".conf";
+static const char *ConfFile = _PATH_LOGCONF;
+static const char *PidFile = _PATH_LOGPID;
+static const char ctty[] = _PATH_CONSOLE;
+static const char include_str[] = "include";
+static const char include_ext[] = ".conf";
 
 #define	dprintf		if (Debug) printf
 
 #define	MAXUNAMES	20	/* maximum number of user names */
 
+#define	sstosa(ss)	((struct sockaddr *)(ss))
+#ifdef INET
+#define	satosin(sa)	((struct sockaddr_in *)(void *)(sa))
+#endif
+#ifdef INET6
+#define	satosin6(sa)	((struct sockaddr_in6 *)(void *)(sa))
+#define	s6_addr32	__u6_addr.__u6_addr32
+#define	IN6_ARE_MASKED_ADDR_EQUAL(d, a, m)	(	\
+	(((d)->s6_addr32[0] ^ (a)->s6_addr32[0]) & (m)->s6_addr32[0]) == 0 && \
+	(((d)->s6_addr32[1] ^ (a)->s6_addr32[1]) & (m)->s6_addr32[1]) == 0 && \
+	(((d)->s6_addr32[2] ^ (a)->s6_addr32[2]) & (m)->s6_addr32[2]) == 0 && \
+	(((d)->s6_addr32[3] ^ (a)->s6_addr32[3]) & (m)->s6_addr32[3]) == 0 )
+#endif
 /*
- * List of hosts for binding.
+ * List of peers and sockets for binding.
  */
-static STAILQ_HEAD(, host) hqueue;
-struct host {
-	char			*name;
-	STAILQ_ENTRY(host)	next;
+struct peer {
+	const char	*pe_name;
+	const char	*pe_serv;
+	mode_t		pe_mode;
+	STAILQ_ENTRY(peer)	next;
 };
-
-/*
- * Unix sockets.
- * We have two default sockets, one with 666 permissions,
- * and one for privileged programs.
- */
-struct funix {
-	int			s;
-	const char		*name;
-	mode_t			mode;
-	STAILQ_ENTRY(funix)	next;
+struct socklist {
+	struct sockaddr_storage	sl_ss;
+	int			sl_socket;
+	struct peer		*sl_peer;
+	STAILQ_ENTRY(socklist)	next;
 };
-struct funix funix_secure =	{ -1, _PATH_LOG_PRIV, S_IRUSR | S_IWUSR,
-				{ NULL } };
-struct funix funix_default =	{ -1, _PATH_LOG, DEFFILEMODE,
-				{ &funix_secure } };
+static STAILQ_HEAD(, socklist) shead = STAILQ_HEAD_INITIALIZER(shead);
 
-STAILQ_HEAD(, funix) funixes =	{ &funix_default,
-				&(funix_secure.next.stqe_next) };
+static struct peer funix_secure = {
+	.pe_name = _PATH_LOG_PRIV,
+	.pe_mode = S_IRUSR | S_IWUSR,
+	.next = {NULL},
+};
+static struct peer funix_default = {
+	.pe_name = _PATH_LOG,
+	.pe_mode = DEFFILEMODE,
+	.next = {&funix_secure},
+};
+static STAILQ_HEAD(, peer) pqueue = {
+	&funix_default,
+	&funix_secure.next.stqe_next,
+};
 
 /*
  * Flags to logmsg().
@@ -172,7 +188,7 @@ STAILQ_HEAD(, funix) funixes =	{ &funix_default,
  */
 
 struct filed {
-	struct	filed *f_next;		/* next in linked list */
+	STAILQ_ENTRY(filed)	next;	/* next in linked list */
 	short	f_type;			/* entry type, see below */
 	short	f_file;			/* file descriptor */
 	time_t	f_time;			/* time this was last written */
@@ -196,6 +212,12 @@ struct filed {
 			pid_t	f_pid;
 		} f_pipe;
 	} f_un;
+#define	fu_uname	f_un.f_uname
+#define	fu_forw_hname	f_un.f_forw.f_hname
+#define	fu_forw_addr	f_un.f_forw.f_addr
+#define	fu_fname	f_un.f_fname
+#define	fu_pipe_pname	f_un.f_pipe.f_pname
+#define	fu_pipe_pid	f_un.f_pipe.f_pid
 	char	f_prevline[MAXSVLINE];		/* last message logged */
 	char	f_lasttime[16];			/* time of last occurrence */
 	char	f_prevhost[MAXHOSTNAMELEN];	/* host from which recd. */
@@ -211,15 +233,12 @@ struct filed {
 /*
  * Queue of about-to-be dead processes we should watch out for.
  */
-
-TAILQ_HEAD(stailhead, deadq_entry) deadq_head;
-struct stailhead *deadq_headp;
-
 struct deadq_entry {
 	pid_t				dq_pid;
 	int				dq_timeout;
 	TAILQ_ENTRY(deadq_entry)	dq_entries;
 };
+static TAILQ_HEAD(, deadq_entry) deadq_head;
 
 /*
  * The timeout to apply to processes waiting on the dead queue.  Unit
@@ -249,7 +268,9 @@ struct allowedpeer {
 #define a_addr u.numeric.addr
 #define a_mask u.numeric.mask
 #define a_name u.name
+	STAILQ_ENTRY(allowedpeer)	next;
 };
+static STAILQ_HEAD(, allowedpeer) aphead = STAILQ_HEAD_INITIALIZER(aphead);
 
 
 /*
@@ -257,7 +278,7 @@ struct allowedpeer {
  * in seconds after previous message is logged.  After each flush,
  * we move to the next interval until we reach the largest.
  */
-int	repeatinterval[] = { 30, 120, 600 };	/* # of secs before flush */
+static int repeatinterval[] = { 30, 120, 600 };	/* # of secs before flush */
 #define	MAXREPEAT ((sizeof(repeatinterval) / sizeof(repeatinterval[0])) - 1)
 #define	REPEATTIME(f)	((f)->f_time + repeatinterval[(f)->f_repeatcount])
 #define	BACKOFF(f)	{ if (++(f)->f_repeatcount > MAXREPEAT) \
@@ -274,12 +295,13 @@ int	repeatinterval[] = { 30, 120, 600 };	/* # of secs before flush */
 #define F_WALL		6		/* everyone logged on */
 #define F_PIPE		7		/* pipe to program */
 
-const char *TypeNames[8] = {
+static const char *TypeNames[8] = {
 	"UNUSED",	"FILE",		"TTY",		"CONSOLE",
 	"FORW",		"USERS",	"WALL",		"PIPE"
 };
 
-static struct filed *Files;	/* Log files that we write to */
+static STAILQ_HEAD(, filed) fhead =
+    STAILQ_HEAD_INITIALIZER(fhead);	/* Log files that we write to */
 static struct filed consfile;	/* Console */
 
 static int	Debug;		/* debug flag */
@@ -287,7 +309,6 @@ static int	Foreground = 0;	/* Run in foreground, instead of daemonizing */
 static int	resolve = 1;	/* resolve hostname */
 static char	LocalHostName[MAXHOSTNAMELEN];	/* our hostname */
 static const char *LocalDomain;	/* our local domain name */
-static int	*finet;		/* Internet datagram sockets */
 static int	fklog = -1;	/* /dev/klog */
 static int	Initialized;	/* set when we have initialized ourselves */
 static int	MarkInterval = 20 * 60;	/* interval between marks in seconds */
@@ -307,8 +328,6 @@ static int	logflags = O_WRONLY|O_APPEND; /* flags used to open log files */
 
 static char	bootfile[MAXLINE+1]; /* booted kernel file */
 
-struct allowedpeer *AllowedPeers; /* List of allowed peers */
-static int	NumAllowed;	/* Number of entries in AllowedPeers */
 static int	RemoteAddDate;	/* Always set the date on remote messages */
 
 static int	UniquePriority;	/* Only log specified priority? */
@@ -318,7 +337,7 @@ static int	KeepKernFac;	/* Keep remotely logged kernel facility */
 static int	needdofsync = 0; /* Are any file(s) waiting to be fsynced? */
 static struct pidfh *pfh;
 
-volatile sig_atomic_t MarkSet, WantDie;
+static volatile sig_atomic_t MarkSet, WantDie;
 
 static int	allowaddr(char *);
 static void	cfline(const char *, struct filed *,
@@ -332,7 +351,7 @@ static void	dodie(int);
 static void	dofsync(void);
 static void	domark(int);
 static void	fprintlog(struct filed *, int, const char *);
-static int	*socksetup(int, char *);
+static int	socksetup(struct peer *);
 static void	init(int);
 static void	logerror(const char *);
 static void	logmsg(int, const char *, const char *, int);
@@ -368,31 +387,30 @@ close_filed(struct filed *f)
 int
 main(int argc, char *argv[])
 {
-	int ch, i, fdsrmax = 0, l;
-	struct sockaddr_un sunx, fromunix;
-	struct sockaddr_storage frominet;
+	int ch, i, fdsrmax = 0;
+	struct sockaddr_storage ss;
 	fd_set *fdsr = NULL;
 	char line[MAXLINE + 1];
 	const char *hname;
 	struct timeval tv, *tvp;
 	struct sigaction sact;
-	struct host *host;
-	struct funix *fx, *fx1;
+	struct peer *pe;
+	struct socklist *sl;
 	sigset_t mask;
 	pid_t ppid = 1, spid;
-	socklen_t len;
+	socklen_t sslen;
 
 	if (madvise(NULL, 0, MADV_PROTECT) != 0)
 		dprintf("madvise() failed: %s\n", strerror(errno));
 
-	STAILQ_INIT(&hqueue);
-
 	while ((ch = getopt(argc, argv, "468Aa:b:cCdf:Fkl:m:nNop:P:sS:Tuv"))
 	    != -1)
 		switch (ch) {
+#ifdef INET
 		case '4':
 			family = PF_INET;
 			break;
+#endif
 #ifdef INET6
 		case '6':
 			family = PF_INET6;
@@ -409,13 +427,12 @@ main(int argc, char *argv[])
 				usage();
 			break;
 		case 'b':
-		   {
-			if ((host = malloc(sizeof(struct host))) == NULL)
+			if ((pe = calloc(1, sizeof(*pe))) == NULL)
 				err(1, "malloc failed");
-			host->name = optarg;
-			STAILQ_INSERT_TAIL(&hqueue, host, next);
+			pe->pe_name = optarg;
+			pe->pe_serv = NULL;
+			STAILQ_INSERT_TAIL(&pqueue, pe, next);
 			break;
-		   }
 		case 'c':
 			no_compress++;
 			break;
@@ -458,17 +475,12 @@ main(int argc, char *argv[])
 				} else
 					errx(1, "invalid mode %s, exiting",
 					    optarg);
-			} else	/* doesn't begin with '/', and no ':' */
-				errx(1, "can't parse path %s", optarg);
-
-			if (strlen(name) >= sizeof(sunx.sun_path))
-				errx(1, "%s path too long, exiting", name);
-			if ((fx = malloc(sizeof(struct funix))) == NULL)
+			}
+			if ((pe = calloc(1, sizeof(*pe))) == NULL)
 				err(1, "malloc failed");
-			fx->s = -1;
-			fx->name = name;
-			fx->mode = mode;
-			STAILQ_INSERT_TAIL(&funixes, fx, next);
+			pe->pe_name = name;
+			pe->pe_mode = mode;
+			STAILQ_INSERT_TAIL(&pqueue, pe, next);
 			break;
 		   }
 		case 'm':		/* mark interval */
@@ -485,9 +497,7 @@ main(int argc, char *argv[])
 			use_bootfile = 1;
 			break;
 		case 'p':		/* path */
-			if (strlen(optarg) >= sizeof(sunx.sun_path))
-				errx(1, "%s path too long, exiting", optarg);
-			funix_default.name = optarg;
+			funix_default.pe_name = optarg;
 			break;
 		case 'P':		/* path for alt. PID */
 			PidFile = optarg;
@@ -496,9 +506,7 @@ main(int argc, char *argv[])
 			SecureMode++;
 			break;
 		case 'S':		/* path for privileged originator */
-			if (strlen(optarg) >= sizeof(sunx.sun_path))
-				errx(1, "%s path too long, exiting", optarg);
-			funix_secure.name = optarg;
+			funix_secure.pe_name = optarg;
 			break;
 		case 'T':
 			RemoteAddDate = 1;
@@ -514,6 +522,8 @@ main(int argc, char *argv[])
 		}
 	if ((argc -= optind) != 0)
 		usage();
+	STAILQ_FOREACH(pe, &pqueue, next)
+		socksetup(pe);
 
 	pfh = pidfile_open(PidFile, 0600, &spid);
 	if (pfh == NULL) {
@@ -529,16 +539,12 @@ main(int argc, char *argv[])
 			pidfile_remove(pfh);
 			exit(1);
 		}
-	} else if (Debug) {
+	} else if (Debug)
 		setlinebuf(stdout);
-	}
-
-	if (NumAllowed)
-		endservent();
 
 	consfile.f_type = F_CONSOLE;
-	(void)strlcpy(consfile.f_un.f_fname, ctty + sizeof _PATH_DEV - 1,
-	    sizeof(consfile.f_un.f_fname));
+	(void)strlcpy(consfile.fu_fname, ctty + sizeof _PATH_DEV - 1,
+	    sizeof(consfile.fu_fname));
 	(void)strlcpy(bootfile, getbootfile(), sizeof(bootfile));
 	(void)signal(SIGTERM, dodie);
 	(void)signal(SIGINT, Debug ? dodie : SIG_IGN);
@@ -560,69 +566,6 @@ main(int argc, char *argv[])
 	(void)alarm(TIMERINTVL);
 
 	TAILQ_INIT(&deadq_head);
-
-#ifndef SUN_LEN
-#define SUN_LEN(unp) (strlen((unp)->sun_path) + 2)
-#endif
-	STAILQ_FOREACH_SAFE(fx, &funixes, next, fx1) {
-		(void)unlink(fx->name);
-		memset(&sunx, 0, sizeof(sunx));
-		sunx.sun_family = AF_LOCAL;
-		(void)strlcpy(sunx.sun_path, fx->name, sizeof(sunx.sun_path));
-		fx->s = socket(PF_LOCAL, SOCK_DGRAM, 0);
-		if (fx->s < 0 ||
-		    bind(fx->s, (struct sockaddr *)&sunx, SUN_LEN(&sunx)) < 0 ||
-		    chmod(fx->name, fx->mode) < 0) {
-			(void)snprintf(line, sizeof line,
-					"cannot create %s", fx->name);
-			logerror(line);
-			dprintf("cannot create %s (%d)\n", fx->name, errno);
-			if (fx == &funix_default || fx == &funix_secure)
-				die(0);
-			else {
-				STAILQ_REMOVE(&funixes, fx, funix, next);
-				continue;
-			}
-		}
-		increase_rcvbuf(fx->s);
-	}
-	if (SecureMode <= 1) {
-		if (STAILQ_EMPTY(&hqueue))
-			finet = socksetup(family, NULL);
-		STAILQ_FOREACH(host, &hqueue, next) {
-			int *finet0, total;
-			finet0 = socksetup(family, host->name);
-			if (finet0 && !finet) {
-				finet = finet0;
-			} else if (finet0 && finet) {
-				total = *finet0 + *finet + 1;
-				finet = realloc(finet, total * sizeof(int));
-				if (finet == NULL)
-					err(1, "realloc failed");
-				for (i = 1; i <= *finet0; i++) {
-					finet[(*finet)+i] = finet0[i];
-				}
-				*finet = total - 1;
-				free(finet0);
-			}
-		}
-	}
-
-	if (finet) {
-		if (SecureMode) {
-			for (i = 0; i < *finet; i++) {
-				if (shutdown(finet[i+1], SHUT_RD) < 0 &&
-				    errno != ENOTCONN) {
-					logerror("shutdown");
-					if (!Debug)
-						die(0);
-				}
-			}
-		} else {
-			dprintf("listening on inet and/or inet6 socket\n");
-		}
-		dprintf("sending on inet and/or inet6 socket\n");
-	}
 
 	if ((fklog = open(_PATH_KLOG, O_RDONLY|O_NONBLOCK, 0)) < 0)
 		dprintf("can't open %s (%d)\n", _PATH_KLOG, errno);
@@ -646,15 +589,10 @@ main(int argc, char *argv[])
 
 	if (fklog != -1 && fklog > fdsrmax)
 		fdsrmax = fklog;
-	if (finet && !SecureMode) {
-		for (i = 0; i < *finet; i++) {
-		    if (finet[i+1] != -1 && finet[i+1] > fdsrmax)
-			fdsrmax = finet[i+1];
-		}
+	STAILQ_FOREACH(sl, &shead, next) {
+		if (sl->sl_socket > fdsrmax)
+			fdsrmax = sl->sl_socket;
 	}
-	STAILQ_FOREACH(fx, &funixes, next)
-		if (fx->s > fdsrmax)
-			fdsrmax = fx->s;
 
 	fdsr = (fd_set *)calloc(howmany(fdsrmax+1, NFDBITS),
 	    sizeof(fd_mask));
@@ -672,16 +610,11 @@ main(int argc, char *argv[])
 
 		if (fklog != -1)
 			FD_SET(fklog, fdsr);
-		if (finet && !SecureMode) {
-			for (i = 0; i < *finet; i++) {
-				if (finet[i+1] != -1)
-					FD_SET(finet[i+1], fdsr);
-			}
+		STAILQ_FOREACH(sl, &shead, next) {
+			if (sl->sl_socket != -1)
+				FD_SET(sl->sl_socket, fdsr);
 		}
-		STAILQ_FOREACH(fx, &funixes, next)
-			FD_SET(fx->s, fdsr);
-
-		i = select(fdsrmax+1, fdsr, NULL, NULL,
+		i = select(fdsrmax + 1, fdsr, NULL, NULL,
 		    needdofsync ? &tv : tvp);
 		switch (i) {
 		case 0:
@@ -700,34 +633,40 @@ main(int argc, char *argv[])
 		}
 		if (fklog != -1 && FD_ISSET(fklog, fdsr))
 			readklog();
-		if (finet && !SecureMode) {
-			for (i = 0; i < *finet; i++) {
-				if (FD_ISSET(finet[i+1], fdsr)) {
-					len = sizeof(frominet);
-					l = recvfrom(finet[i+1], line, MAXLINE,
-					     0, (struct sockaddr *)&frominet,
-					     &len);
-					if (l > 0) {
-						line[l] = '\0';
-						hname = cvthname((struct sockaddr *)&frominet);
-						unmapped((struct sockaddr *)&frominet);
-						if (validate((struct sockaddr *)&frominet, hname))
-							printline(hname, line, RemoteAddDate ? ADDDATE : 0);
-					} else if (l < 0 && errno != EINTR)
-						logerror("recvfrom inet");
+		STAILQ_FOREACH(sl, &shead, next) {
+			int date, len;
+
+			if (FD_ISSET(sl->sl_socket, fdsr)) {
+				sslen = sizeof(ss);
+				dprintf("sslen(1) = %d\n", sslen);
+				len = recvfrom(sl->sl_socket, line,
+				    sizeof(line) - 1, 0,
+				    sstosa(&ss), &sslen);
+				dprintf("sslen(2) = %d\n", sslen);
+				if (len == 0)
+					continue;
+				if (len < 0) {
+					if (errno != EINTR)
+						logerror("recvfrom");
+					continue;
 				}
-			}
-		}
-		STAILQ_FOREACH(fx, &funixes, next) {
-			if (FD_ISSET(fx->s, fdsr)) {
-				len = sizeof(fromunix);
-				l = recvfrom(fx->s, line, MAXLINE, 0,
-				    (struct sockaddr *)&fromunix, &len);
-				if (l > 0) {
-					line[l] = '\0';
-					printline(LocalHostName, line, 0);
-				} else if (l < 0 && errno != EINTR)
-					logerror("recvfrom unix");
+				/* Received valid data. */
+				line[len] = '\0';
+				if (sl->sl_ss.ss_family == AF_LOCAL) {
+					hname = LocalHostName;
+					date = 0;
+				} else {
+					hname = cvthname(sstosa(&ss));
+					unmapped(sstosa(&ss));
+					if (validate(sstosa(&ss), hname) == 0)
+						hname = NULL;
+					date = RemoteAddDate ? ADDDATE : 0;
+				}
+				if (hname != NULL)
+					printline(hname, line, date);
+				else
+					dprintf("Invalid msg from "
+					    "%s was ignored.", hname);
 			}
 		}
 	}
@@ -735,30 +674,36 @@ main(int argc, char *argv[])
 		free(fdsr);
 }
 
+#ifdef INET6
 static void
 unmapped(struct sockaddr *sa)
 {
 	struct sockaddr_in6 *sin6;
 	struct sockaddr_in sin4;
 
-	if (sa->sa_family != AF_INET6)
+	if (sa == NULL ||
+	    sa->sa_family != AF_INET6 ||
+	    sa->sa_len != sizeof(*sin6))
 		return;
-	if (sa->sa_len != sizeof(struct sockaddr_in6) ||
-	    sizeof(sin4) > sa->sa_len)
-		return;
-	sin6 = (struct sockaddr_in6 *)sa;
+	sin6 = satosin6(sa);
 	if (!IN6_IS_ADDR_V4MAPPED(&sin6->sin6_addr))
 		return;
 
 	memset(&sin4, 0, sizeof(sin4));
 	sin4.sin_family = AF_INET;
-	sin4.sin_len = sizeof(struct sockaddr_in);
+	sin4.sin_len = sizeof(sin4);
 	memcpy(&sin4.sin_addr, &sin6->sin6_addr.s6_addr[12],
 	       sizeof(sin4.sin_addr));
 	sin4.sin_port = sin6->sin6_port;
 
 	memcpy(sa, &sin4, sin4.sin_len);
 }
+#else
+static void
+unmapped(struct sockaddr *sa __unused)
+{
+}
+#endif
 
 static void
 usage(void)
@@ -1043,7 +988,7 @@ logmsg(int pri, const char *msg, const char *from, int flags)
 		(void)sigsetmask(omask);
 		return;
 	}
-	for (f = Files; f; f = f->f_next) {
+	STAILQ_FOREACH(f, &fhead, next) {
 		/* skip messages that are incorrect priority */
 		if (!(((f->f_pcmp[fac] & PRI_EQ) && (f->f_pmask[fac] == prilev))
 		     ||((f->f_pcmp[fac] & PRI_LT) && (f->f_pmask[fac] < prilev))
@@ -1120,7 +1065,7 @@ dofsync(void)
 {
 	struct filed *f;
 
-	for (f = Files; f; f = f->f_next) {
+	STAILQ_FOREACH(f, &fhead, next) {
 		if ((f->f_type == F_FILE) &&
 		    (f->f_flags & FFLAG_NEEDSYNC)) {
 			f->f_flags &= ~FFLAG_NEEDSYNC;
@@ -1136,7 +1081,7 @@ fprintlog(struct filed *f, int flags, const char *msg)
 	struct iovec iov[IOV_SIZE];
 	struct iovec *v;
 	struct addrinfo *r;
-	int i, l, lsent = 0;
+	int l, lsent = 0;
 	char line[MAXLINE + 1], repbuf[80], greetings[200], *wmsg = NULL;
 	char nul[] = "", space[] = " ", lf[] = "\n", crlf[] = "\r\n";
 	const char *msgret;
@@ -1244,12 +1189,11 @@ fprintlog(struct filed *f, int flags, const char *msg)
 		break;
 
 	case F_FORW:
-		port = (int)ntohs(((struct sockaddr_in *)
-			    (f->f_un.f_forw.f_addr->ai_addr))->sin_port);
+		port = ntohs(satosin(f->fu_forw_addr->ai_addr)->sin_port);
 		if (port != 514) {
-			dprintf(" %s:%d\n", f->f_un.f_forw.f_hname, port);
+			dprintf(" %s:%d\n", f->fu_forw_hname, port);
 		} else {
-			dprintf(" %s\n", f->f_un.f_forw.f_hname);
+			dprintf(" %s\n", f->fu_forw_hname);
 		}
 		/* check for local vs remote messages */
 		if (strcasecmp(f->f_prevhost, LocalHostName))
@@ -1266,57 +1210,51 @@ fprintlog(struct filed *f, int flags, const char *msg)
 		else if (l > MAXLINE)
 			l = MAXLINE;
 
-		if (finet) {
-			for (r = f->f_un.f_forw.f_addr; r; r = r->ai_next) {
-				for (i = 0; i < *finet; i++) {
-#if 0
-					/*
-					 * should we check AF first, or just
-					 * trial and error? FWD
-					 */
-					if (r->ai_family ==
-					    address_family_of(finet[i+1]))
-#endif
-					lsent = sendto(finet[i+1], line, l, 0,
-					    r->ai_addr, r->ai_addrlen);
-					if (lsent == l)
-						break;
-				}
-				if (lsent == l && !send_to_all)
+		for (r = f->fu_forw_addr; r; r = r->ai_next) {
+			struct socklist *sl;
+
+			STAILQ_FOREACH(sl, &shead, next) {
+				if (sl->sl_ss.ss_family == AF_LOCAL)
+					continue;
+				lsent = sendto(sl->sl_socket, line, l, 0,
+				    r->ai_addr, r->ai_addrlen);
+				if (lsent == l)
 					break;
 			}
-			dprintf("lsent/l: %d/%d\n", lsent, l);
-			if (lsent != l) {
-				int e = errno;
-				logerror("sendto");
-				errno = e;
-				switch (errno) {
-				case ENOBUFS:
-				case ENETDOWN:
-				case ENETUNREACH:
-				case EHOSTUNREACH:
-				case EHOSTDOWN:
-				case EADDRNOTAVAIL:
-					break;
-				/* case EBADF: */
-				/* case EACCES: */
-				/* case ENOTSOCK: */
-				/* case EFAULT: */
-				/* case EMSGSIZE: */
-				/* case EAGAIN: */
-				/* case ENOBUFS: */
-				/* case ECONNREFUSED: */
-				default:
-					dprintf("removing entry: errno=%d\n", e);
-					f->f_type = F_UNUSED;
-					break;
-				}
+			if (lsent == l && !send_to_all)
+				break;
+		}
+		dprintf("lsent/l: %d/%d\n", lsent, l);
+		if (lsent != l) {
+			int e = errno;
+			logerror("sendto");
+			errno = e;
+			switch (errno) {
+			case ENOBUFS:
+			case ENETDOWN:
+			case ENETUNREACH:
+			case EHOSTUNREACH:
+			case EHOSTDOWN:
+			case EADDRNOTAVAIL:
+				break;
+			/* case EBADF: */
+			/* case EACCES: */
+			/* case ENOTSOCK: */
+			/* case EFAULT: */
+			/* case EMSGSIZE: */
+			/* case EAGAIN: */
+			/* case ENOBUFS: */
+			/* case ECONNREFUSED: */
+			default:
+				dprintf("removing entry: errno=%d\n", e);
+				f->f_type = F_UNUSED;
+				break;
 			}
 		}
 		break;
 
 	case F_FILE:
-		dprintf(" %s\n", f->f_un.f_fname);
+		dprintf(" %s\n", f->fu_fname);
 		v->iov_base = lf;
 		v->iov_len = 1;
 		if (writev(f->f_file, iov, IOV_SIZE) < 0) {
@@ -1329,7 +1267,7 @@ fprintlog(struct filed *f, int flags, const char *msg)
 				int e = errno;
 				close_filed(f);
 				errno = e;
-				logerror(f->f_un.f_fname);
+				logerror(f->fu_fname);
 			}
 		} else if ((flags & SYNC_FILE) && (f->f_flags & FFLAG_SYNC)) {
 			f->f_flags |= FFLAG_NEEDSYNC;
@@ -1338,26 +1276,26 @@ fprintlog(struct filed *f, int flags, const char *msg)
 		break;
 
 	case F_PIPE:
-		dprintf(" %s\n", f->f_un.f_pipe.f_pname);
+		dprintf(" %s\n", f->fu_pipe_pname);
 		v->iov_base = lf;
 		v->iov_len = 1;
-		if (f->f_un.f_pipe.f_pid == 0) {
-			if ((f->f_file = p_open(f->f_un.f_pipe.f_pname,
-						&f->f_un.f_pipe.f_pid)) < 0) {
+		if (f->fu_pipe_pid == 0) {
+			if ((f->f_file = p_open(f->fu_pipe_pname,
+						&f->fu_pipe_pid)) < 0) {
 				f->f_type = F_UNUSED;
-				logerror(f->f_un.f_pipe.f_pname);
+				logerror(f->fu_pipe_pname);
 				break;
 			}
 		}
 		if (writev(f->f_file, iov, IOV_SIZE) < 0) {
 			int e = errno;
 			close_filed(f);
-			if (f->f_un.f_pipe.f_pid > 0)
-				deadq_enter(f->f_un.f_pipe.f_pid,
-					    f->f_un.f_pipe.f_pname);
-			f->f_un.f_pipe.f_pid = 0;
+			if (f->fu_pipe_pid > 0)
+				deadq_enter(f->fu_pipe_pid,
+					    f->fu_pipe_pname);
+			f->fu_pipe_pid = 0;
 			errno = e;
-			logerror(f->f_un.f_pipe.f_pname);
+			logerror(f->fu_pipe_pname);
 		}
 		break;
 
@@ -1369,12 +1307,12 @@ fprintlog(struct filed *f, int flags, const char *msg)
 		/* FALLTHROUGH */
 
 	case F_TTY:
-		dprintf(" %s%s\n", _PATH_DEV, f->f_un.f_fname);
+		dprintf(" %s%s\n", _PATH_DEV, f->fu_fname);
 		v->iov_base = crlf;
 		v->iov_len = 2;
 
 		errno = 0;	/* ttymsg() only sometimes returns an errno */
-		if ((msgret = ttymsg(iov, IOV_SIZE, f->f_un.f_fname, 10))) {
+		if ((msgret = ttymsg(iov, IOV_SIZE, f->fu_fname, 10))) {
 			f->f_type = F_UNUSED;
 			logerror(msgret);
 		}
@@ -1423,9 +1361,9 @@ wallmsg(struct filed *f, struct iovec *iov, const int iovlen)
 		}
 		/* should we send the message to this user? */
 		for (i = 0; i < MAXUNAMES; i++) {
-			if (!f->f_un.f_uname[i][0])
+			if (!f->fu_uname[i][0])
 				break;
-			if (!strcmp(f->f_un.f_uname[i], ut->ut_user)) {
+			if (!strcmp(f->fu_uname[i], ut->ut_user)) {
 				if ((p = ttymsg_check(iov, iovlen, ut->ut_line,
 				    TTYMSGTIME)) != NULL) {
 					errno = 0;	/* already in msg */
@@ -1476,20 +1414,18 @@ reapchild(int signo __unused)
 
 		/* First, look if it's a process from the dead queue. */
 		if (deadq_remove(pid))
-			goto oncemore;
+			continue;
 
 		/* Now, look in list of active processes. */
-		for (f = Files; f; f = f->f_next)
+		STAILQ_FOREACH(f, &fhead, next) {
 			if (f->f_type == F_PIPE &&
-			    f->f_un.f_pipe.f_pid == pid) {
+			    f->fu_pipe_pid == pid) {
 				close_filed(f);
-				f->f_un.f_pipe.f_pid = 0;
-				log_deadchild(pid, status,
-					      f->f_un.f_pipe.f_pname);
+				f->fu_pipe_pid = 0;
+				log_deadchild(pid, status, f->fu_pipe_pname);
 				break;
 			}
-	  oncemore:
-		continue;
+		}
 	}
 }
 
@@ -1503,9 +1439,9 @@ cvthname(struct sockaddr *f)
 	sigset_t omask, nmask;
 	static char hname[NI_MAXHOST], ip[NI_MAXHOST];
 
-	error = getnameinfo((struct sockaddr *)f,
-			    ((struct sockaddr *)f)->sa_len,
-			    ip, sizeof ip, NULL, 0, NI_NUMERICHOST);
+	dprintf("cvthname(%d) len = %d, %zu\n", f->sa_family, f->sa_len, sizeof(struct sockaddr_in6));
+	error = getnameinfo(f, f->sa_len, ip, sizeof(ip), NULL, 0,
+		    NI_NUMERICHOST);
 	dprintf("cvthname(%s)\n", ip);
 
 	if (error) {
@@ -1575,19 +1511,19 @@ static void
 die(int signo)
 {
 	struct filed *f;
-	struct funix *fx;
+	struct socklist *sl;
 	int was_initialized;
 	char buf[100];
 
 	was_initialized = Initialized;
 	Initialized = 0;	/* Don't log SIGCHLDs. */
-	for (f = Files; f != NULL; f = f->f_next) {
+	STAILQ_FOREACH(f, &fhead, next) {
 		/* flush any pending output */
 		if (f->f_prevcount)
 			fprintlog(f, 0, (char *)NULL);
-		if (f->f_type == F_PIPE && f->f_un.f_pipe.f_pid > 0) {
+		if (f->f_type == F_PIPE && f->fu_pipe_pid > 0) {
 			close_filed(f);
-			f->f_un.f_pipe.f_pid = 0;
+			f->fu_pipe_pid = 0;
 		}
 	}
 	Initialized = was_initialized;
@@ -1597,8 +1533,10 @@ die(int signo)
 		errno = 0;
 		logerror(buf);
 	}
-	STAILQ_FOREACH(fx, &funixes, next)
-		(void)unlink(fx->name);
+	STAILQ_FOREACH(sl, &shead, next) {
+		if (sl->sl_ss.ss_family == AF_LOCAL)
+			unlink(sl->sl_peer->pe_name);
+	}
 	pidfile_remove(pfh);
 
 	exit(1);
@@ -1626,7 +1564,7 @@ configfiles(const struct dirent *dp)
 }
 
 static void
-readconfigfile(FILE *cf, struct filed **nextp, int allow_includes)
+readconfigfile(FILE *cf, int allow_includes)
 {
 	FILE *cf2;
 	struct filed *f;
@@ -1686,7 +1624,7 @@ readconfigfile(FILE *cf, struct filed **nextp, int allow_includes)
 				if (cf2 == NULL)
 					continue;
 				dprintf("reading %s\n", file);
-				readconfigfile(cf2, nextp, 0);
+				readconfigfile(cf2, 0);
 				fclose(cf2);
 			}
 			free(ent);
@@ -1749,8 +1687,7 @@ readconfigfile(FILE *cf, struct filed **nextp, int allow_includes)
 			logerror("calloc");
 			exit(1);
 		}
-		*nextp = f;
-		nextp = &f->f_next;
+		STAILQ_INSERT_TAIL(&fhead, f, next);
 		cfline(cline, f, prog, host);
 	}
 }
@@ -1763,7 +1700,7 @@ init(int signo)
 {
 	int i;
 	FILE *cf;
-	struct filed *f, *next, **nextp;
+	struct filed *f;
 	char *p;
 	char oldLocalHostName[MAXHOSTNAMELEN];
 	char hostMsg[2*MAXHOSTNAMELEN+40];
@@ -1808,7 +1745,7 @@ init(int signo)
 	 *  Close all open log files.
 	 */
 	Initialized = 0;
-	for (f = Files; f != NULL; f = next) {
+	STAILQ_FOREACH(f, &fhead, next) {
 		/* flush any pending output */
 		if (f->f_prevcount)
 			fprintlog(f, 0, (char *)NULL);
@@ -1821,42 +1758,48 @@ init(int signo)
 			close_filed(f);
 			break;
 		case F_PIPE:
-			if (f->f_un.f_pipe.f_pid > 0) {
+			if (f->fu_pipe_pid > 0) {
 				close_filed(f);
-				deadq_enter(f->f_un.f_pipe.f_pid,
-					    f->f_un.f_pipe.f_pname);
+				deadq_enter(f->fu_pipe_pid,
+					    f->fu_pipe_pname);
 			}
-			f->f_un.f_pipe.f_pid = 0;
+			f->fu_pipe_pid = 0;
 			break;
 		}
-		next = f->f_next;
-		if (f->f_program) free(f->f_program);
-		if (f->f_host) free(f->f_host);
-		free((char *)f);
 	}
-	Files = NULL;
+	while(!STAILQ_EMPTY(&fhead)) {
+		f = STAILQ_FIRST(&fhead);
+		STAILQ_REMOVE_HEAD(&fhead, next);
+		free(f->f_program);
+		free(f->f_host);
+		free(f);
+	}
 	nextp = &Files;
 
 	/* open the configuration file */
 	if ((cf = fopen(ConfFile, "r")) == NULL) {
 		dprintf("cannot open %s\n", ConfFile);
-		*nextp = (struct filed *)calloc(1, sizeof(*f));
-		if (*nextp == NULL) {
+		f = calloc(1, sizeof(*f));
+		if (f == NULL) {
 			logerror("calloc");
 			exit(1);
 		}
-		cfline("*.ERR\t/dev/console", *nextp, "*", "*");
-		(*nextp)->f_next = (struct filed *)calloc(1, sizeof(*f));
-		if ((*nextp)->f_next == NULL) {
+		cfline("*.ERR\t/dev/console", f, "*", "*");
+		STAILQ_INSERT_TAIL(&fhead, f, next);
+
+		f = calloc(1, sizeof(*f));
+		if (f == NULL) {
 			logerror("calloc");
 			exit(1);
 		}
-		cfline("*.PANIC\t*", (*nextp)->f_next, "*", "*");
+		cfline("*.PANIC\t*", f, "*", "*");
+		STAILQ_INSERT_TAIL(&fhead, f, next);
+
 		Initialized = 1;
 		return;
 	}
 
-	readconfigfile(cf, &Files, 1);
+	readconfigfile(cf, 1);
 
 	/* close the configuration file */
 	(void)fclose(cf);
@@ -1865,7 +1808,7 @@ init(int signo)
 
 	if (Debug) {
 		int port;
-		for (f = Files; f; f = f->f_next) {
+		STAILQ_FOREACH(f, &fhead, next) {
 			for (i = 0; i <= LOG_NFACILITIES; i++)
 				if (f->f_pmask[i] == INTERNAL_NOPRI)
 					printf("X ");
@@ -1874,32 +1817,31 @@ init(int signo)
 			printf("%s: ", TypeNames[f->f_type]);
 			switch (f->f_type) {
 			case F_FILE:
-				printf("%s", f->f_un.f_fname);
+				printf("%s", f->fu_fname);
 				break;
 
 			case F_CONSOLE:
 			case F_TTY:
-				printf("%s%s", _PATH_DEV, f->f_un.f_fname);
+				printf("%s%s", _PATH_DEV, f->fu_fname);
 				break;
 
 			case F_FORW:
-				port = (int)ntohs(((struct sockaddr_in *)
-				    (f->f_un.f_forw.f_addr->ai_addr))->sin_port);
+				port = ntohs(satosin(f->fu_forw_addr->ai_addr)->sin_port);
 				if (port != 514) {
 					printf("%s:%d",
-						f->f_un.f_forw.f_hname, port);
+						f->fu_forw_hname, port);
 				} else {
-					printf("%s", f->f_un.f_forw.f_hname);
+					printf("%s", f->fu_forw_hname);
 				}
 				break;
 
 			case F_PIPE:
-				printf("%s", f->f_un.f_pipe.f_pname);
+				printf("%s", f->fu_pipe_pname);
 				break;
 
 			case F_USERS:
-				for (i = 0; i < MAXUNAMES && *f->f_un.f_uname[i]; i++)
-					printf("%s, ", f->f_un.f_uname[i]);
+				for (i = 0; i < MAXUNAMES && *f->fu_uname[i]; i++)
+					printf("%s, ", f->fu_uname[i]);
 				break;
 			}
 			if (f->f_program)
@@ -2104,8 +2046,8 @@ cfline(const char *line, struct filed *f, const char *prog, const char *host)
 			 * scan forward to see if there is a port defined.
 			 * so we can't use strlcpy..
 			 */
-			i = sizeof(f->f_un.f_forw.f_hname);
-			tp = f->f_un.f_forw.f_hname;
+			i = sizeof(f->fu_forw_hname);
+			tp = f->fu_forw_hname;
 			p++;
 
 			/*
@@ -2132,13 +2074,13 @@ cfline(const char *line, struct filed *f, const char *prog, const char *host)
 		memset(&hints, 0, sizeof(hints));
 		hints.ai_family = family;
 		hints.ai_socktype = SOCK_DGRAM;
-		error = getaddrinfo(f->f_un.f_forw.f_hname,
+		error = getaddrinfo(f->fu_forw_hname,
 				p ? p : "syslog", &hints, &res);
 		if (error) {
 			logerror(gai_strerror(error));
 			break;
 		}
-		f->f_un.f_forw.f_addr = res;
+		f->fu_forw_addr = res;
 		f->f_type = F_FORW;
 		break;
 
@@ -2155,18 +2097,18 @@ cfline(const char *line, struct filed *f, const char *prog, const char *host)
 				f->f_type = F_CONSOLE;
 			else
 				f->f_type = F_TTY;
-			(void)strlcpy(f->f_un.f_fname, p + sizeof(_PATH_DEV) - 1,
-			    sizeof(f->f_un.f_fname));
+			(void)strlcpy(f->fu_fname, p + sizeof(_PATH_DEV) - 1,
+			    sizeof(f->fu_fname));
 		} else {
-			(void)strlcpy(f->f_un.f_fname, p, sizeof(f->f_un.f_fname));
+			(void)strlcpy(f->fu_fname, p, sizeof(f->fu_fname));
 			f->f_type = F_FILE;
 		}
 		break;
 
 	case '|':
-		f->f_un.f_pipe.f_pid = 0;
-		(void)strlcpy(f->f_un.f_pipe.f_pname, p + 1,
-		    sizeof(f->f_un.f_pipe.f_pname));
+		f->fu_pipe_pid = 0;
+		(void)strlcpy(f->fu_pipe_pname, p + 1,
+		    sizeof(f->fu_pipe_pname));
 		f->f_type = F_PIPE;
 		break;
 
@@ -2178,11 +2120,11 @@ cfline(const char *line, struct filed *f, const char *prog, const char *host)
 		for (i = 0; i < MAXUNAMES && *p; i++) {
 			for (q = p; *q && *q != ','; )
 				q++;
-			(void)strncpy(f->f_un.f_uname[i], p, MAXLOGNAME - 1);
+			(void)strncpy(f->fu_uname[i], p, MAXLOGNAME - 1);
 			if ((q - p) >= MAXLOGNAME)
-				f->f_un.f_uname[i][MAXLOGNAME - 1] = '\0';
+				f->fu_uname[i][MAXLOGNAME - 1] = '\0';
 			else
-				f->f_un.f_uname[i][q - p] = '\0';
+				f->fu_uname[i][q - p] = '\0';
 			while (*q == ',' || *q == ' ')
 				q++;
 			p = q;
@@ -2233,7 +2175,7 @@ markit(void)
 		MarkSeq = 0;
 	}
 
-	for (f = Files; f; f = f->f_next) {
+	STAILQ_FOREACH(f, &fhead, next) {
 		if (f->f_prevcount && now >= REPEATTIME(f)) {
 			dprintf("flush %s: repeated %d times, %d sec.\n",
 			    TypeNames[f->f_type], f->f_prevcount,
@@ -2494,7 +2436,7 @@ allowaddr(char *s)
 	}
 
 	if (Debug) {
-		printf("allowaddr: rule %d: ", NumAllowed);
+		printf("allowaddr: rule ");
 		if (ap.isnumeric) {
 			printf("numeric, ");
 			getnameinfo((struct sockaddr *)&ap.a_addr,
@@ -2510,14 +2452,6 @@ allowaddr(char *s)
 		}
 		printf("port = %d\n", ap.port);
 	}
-
-	if ((AllowedPeers = realloc(AllowedPeers,
-				    ++NumAllowed * sizeof(struct allowedpeer)))
-	    == NULL) {
-		logerror("realloc");
-		exit(1);
-	}
-	memcpy(&AllowedPeers[NumAllowed - 1], &ap, sizeof(struct allowedpeer));
 	return (0);
 }
 
@@ -2533,13 +2467,17 @@ validate(struct sockaddr *sa, const char *hname)
 	struct allowedpeer *ap;
 	struct sockaddr_in *sin4, *a4p = NULL, *m4p = NULL;
 #ifdef INET6
-	int j, reject;
+	int reject;
 	struct sockaddr_in6 *sin6, *a6p = NULL, *m6p = NULL;
 #endif
 	struct addrinfo hints, *res;
 	u_short sport;
+	int num = 0;
 
-	if (NumAllowed == 0)
+	STAILQ_FOREACH(ap, &aphead, next)
+		num++;
+	dprintf("# of validation rule: %d\n", num);
+	if (num == 0)
 		/* traditional behaviour, allow everything */
 		return (1);
 
@@ -2554,7 +2492,7 @@ validate(struct sockaddr *sa, const char *hname)
 		strlcat(name, ".", sizeof name);
 		strlcat(name, LocalDomain, sizeof name);
 	}
-	if (getnameinfo(sa, sa->sa_len, ip, sizeof ip, port, sizeof port,
+	if (getnameinfo(sa, sa->sa_len, ip, sizeof(ip), port, sizeof(port),
 			NI_NUMERICHOST | NI_NUMERICSERV) != 0)
 		return (0);	/* for safety, should not occur */
 	dprintf("validate: dgram from IP %s, port %s, name %s;\n",
@@ -2562,9 +2500,12 @@ validate(struct sockaddr *sa, const char *hname)
 	sport = atoi(port);
 
 	/* now, walk down the list */
-	for (i = 0, ap = AllowedPeers; i < NumAllowed; i++, ap++) {
+	i = 0;
+	STAILQ_FOREACH(ap, &aphead, next) {
+		i++;
 		if (ap->port != 0 && ap->port != sport) {
-			dprintf("rejected in rule %d due to port mismatch.\n", i);
+			dprintf("rejected in rule %d due to port mismatch.\n",
+			    i);
 			continue;
 		}
 
@@ -2574,9 +2515,9 @@ validate(struct sockaddr *sa, const char *hname)
 				continue;
 			}
 			if (ap->a_addr.ss_family == AF_INET) {
-				sin4 = (struct sockaddr_in *)sa;
-				a4p = (struct sockaddr_in *)&ap->a_addr;
-				m4p = (struct sockaddr_in *)&ap->a_mask;
+				sin4 = satosin(sa);
+				a4p = satosin(&ap->a_addr);
+				m4p = satosin(&ap->a_mask);
 				if ((sin4->sin_addr.s_addr & m4p->sin_addr.s_addr)
 				    != a4p->sin_addr.s_addr) {
 					dprintf("rejected in rule %d due to IP mismatch.\n", i);
@@ -2585,21 +2526,19 @@ validate(struct sockaddr *sa, const char *hname)
 			}
 #ifdef INET6
 			else if (ap->a_addr.ss_family == AF_INET6) {
-				sin6 = (struct sockaddr_in6 *)sa;
-				a6p = (struct sockaddr_in6 *)&ap->a_addr;
-				m6p = (struct sockaddr_in6 *)&ap->a_mask;
+				sin6 = satosin6(sa);
+				a6p = satosin6(&ap->a_addr);
+				m6p = satosin6(&ap->a_mask);
 				if (a6p->sin6_scope_id != 0 &&
 				    sin6->sin6_scope_id != a6p->sin6_scope_id) {
 					dprintf("rejected in rule %d due to scope mismatch.\n", i);
 					continue;
 				}
 				reject = 0;
-				for (j = 0; j < 16; j += 4) {
-					if ((*(u_int32_t *)&sin6->sin6_addr.s6_addr[j] & *(u_int32_t *)&m6p->sin6_addr.s6_addr[j])
-					    != *(u_int32_t *)&a6p->sin6_addr.s6_addr[j]) {
-						++reject;
-						break;
-					}
+				if (IN6_ARE_MASKED_ADDR_EQUAL(&sin6->sin6_addr,
+				    &a6p->sin6_addr, &m6p->sin6_addr) != 0) {
+					++reject;
+					break;
 				}
 				if (reject) {
 					dprintf("rejected in rule %d due to IP mismatch.\n", i);
@@ -2756,11 +2695,13 @@ deadq_remove(pid_t pid)
 	dq_t q;
 
 	TAILQ_FOREACH(q, &deadq_head, dq_entries) {
-		if (q->dq_pid == pid) {
-			TAILQ_REMOVE(&deadq_head, q, dq_entries);
-				free(q);
-				return (1);
-		}
+		if (q->dq_pid == pid)
+			break;
+	}
+	if (q != NULL) {
+		TAILQ_REMOVE(&deadq_head, q, dq_entries);
+		free(q);
+		return (1);
 	}
 
 	return (0);
@@ -2789,85 +2730,90 @@ log_deadchild(pid_t pid, int status, const char *name)
 	logerror(buf);
 }
 
-static int *
-socksetup(int af, char *bindhostname)
+static int
+socksetup(struct peer *pe)
 {
-	struct addrinfo hints, *res, *r;
-	const char *bindservice;
+	struct addrinfo hints, *res, *res0;
+	struct socklist *sl;
+	int error;
 	char *cp;
-	int error, maxs, *s, *socks;
-
 	/*
 	 * We have to handle this case for backwards compatibility:
 	 * If there are two (or more) colons but no '[' and ']',
 	 * assume this is an inet6 address without a service.
 	 */
-	bindservice = "syslog";
-	if (bindhostname != NULL) {
+	if (pe->pe_name != NULL) {
 #ifdef INET6
-		if (*bindhostname == '[' &&
-		    (cp = strchr(bindhostname + 1, ']')) != NULL) {
-			++bindhostname;
+		if (pe->pe_name[0] == '[' &&
+		    (cp = strchr(pe->pe_name + 1, ']')) != NULL) {
+			pe->pe_name = &pe->pe_name[1];
 			*cp = '\0';
 			if (cp[1] == ':' && cp[2] != '\0')
-				bindservice = cp + 2;
+				pe->pe_serv = cp + 2;
 		} else {
 #endif
-			cp = strchr(bindhostname, ':');
+			cp = strchr(pe->pe_name, ':');
 			if (cp != NULL && strchr(cp + 1, ':') == NULL) {
 				*cp = '\0';
 				if (cp[1] != '\0')
-					bindservice = cp + 1;
-				if (cp == bindhostname)
-					bindhostname = NULL;
+					pe->pe_serv = cp + 1;
+				if (cp == pe->pe_name)
+					pe->pe_name = NULL;
 			}
 #ifdef INET6
 		}
 #endif
 	}
-
 	memset(&hints, 0, sizeof(hints));
-	hints.ai_flags = AI_PASSIVE;
-	hints.ai_family = af;
+	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_DGRAM;
-	error = getaddrinfo(bindhostname, bindservice, &hints, &res);
+	hints.ai_flags = AI_PASSIVE;
+
+	dprintf("Try %s\n", pe->pe_name);
+	if (pe->pe_serv == NULL)
+		pe->pe_serv = "syslog";
+	error = getaddrinfo(pe->pe_name, pe->pe_serv, &hints, &res0);
 	if (error) {
 		logerror(gai_strerror(error));
 		errno = 0;
 		die(0);
 	}
-
-	/* Count max number of sockets we may open */
-	for (maxs = 0, r = res; r; r = r->ai_next, maxs++);
-	socks = malloc((maxs+1) * sizeof(int));
-	if (socks == NULL) {
-		logerror("couldn't allocate memory for sockets");
-		die(0);
-	}
-
-	*socks = 0;   /* num of sockets counter at start of array */
-	s = socks + 1;
-	for (r = res; r; r = r->ai_next) {
+	for (res = res0; res != NULL; res = res->ai_next) {
+		int s;
 		int on = 1;
-		*s = socket(r->ai_family, r->ai_socktype, r->ai_protocol);
-		if (*s < 0) {
+
+		if (res->ai_family == AF_LOCAL)
+			unlink(pe->pe_name);
+		else if (SecureMode > 1) {
+			/* Only AF_LOCAL in secure mode. */
+			continue;
+		}
+		if (family != AF_UNSPEC && res->ai_family != family)
+			continue;
+
+		s = socket(res->ai_family, res->ai_socktype,
+		    res->ai_protocol);
+		if (s < 0) {
 			logerror("socket");
+			error++;
 			continue;
 		}
 #ifdef INET6
-		if (r->ai_family == AF_INET6) {
-			if (setsockopt(*s, IPPROTO_IPV6, IPV6_V6ONLY,
-				       (char *)&on, sizeof (on)) < 0) {
-				logerror("setsockopt");
-				close(*s);
+		if (res->ai_family == AF_INET6) {
+			if (setsockopt(s, IPPROTO_IPV6, IPV6_V6ONLY,
+			       (char *)&on, sizeof(on)) < 0) {
+				logerror("setsockopt(IPV6_V6ONLY)");
+				close(s);
+				error++;
 				continue;
 			}
 		}
 #endif
-		if (setsockopt(*s, SOL_SOCKET, SO_REUSEADDR,
-			       (char *)&on, sizeof (on)) < 0) {
-			logerror("setsockopt");
-			close(*s);
+		if (setsockopt(s, SOL_SOCKET, SO_REUSEADDR,
+		       (char *)&on, sizeof(on)) < 0) {
+			logerror("setsockopt(SO_REUSEADDR)");
+			close(s);
+			error++;
 			continue;
 		}
 		/*
@@ -2878,33 +2824,49 @@ socksetup(int af, char *bindhostname)
 		 * this, we can skip the bind() step so that the
 		 * system will choose a port for us.
 		 */
-		if (!NoBind) {
-			if (bind(*s, r->ai_addr, r->ai_addrlen) < 0) {
+		if (NoBind == 0) {
+			if (bind(s, res->ai_addr, res->ai_addrlen) < 0) {
 				logerror("bind");
-				close(*s);
+				close(s);
+				error++;
 				continue;
 			}
-
-			if (!SecureMode)
-				increase_rcvbuf(*s);
+			if (SecureMode == 0)
+				increase_rcvbuf(s);
 		}
-
-		(*socks)++;
-		dprintf("socksetup: new socket fd is %d\n", *s);
-		s++;
+		if (res->ai_family == AF_LOCAL &&
+	    	    chmod(pe->pe_name, pe->pe_mode) < 0) {
+			dprintf("chmod %s: %s\n", pe->pe_name,
+			    strerror(errno));
+			close(s);
+			error++;
+			continue;
+		}
+		dprintf("new socket fd is %d\n", s);
+		listen(s, 5);
+		dprintf("shutdown\n");
+		if (SecureMode) {
+			/* Forbid communication in secure mode. */
+			if (shutdown(s, SHUT_RD) < 0 &&
+			    errno != ENOTCONN) {
+				logerror("shutdown");
+				if (!Debug)
+					die(0);
+			}
+			dprintf("listening on inet socket\n");
+		} else
+			dprintf("sending on inet socket\n");
+		sl = calloc(1, sizeof(*sl));
+		if (sl == NULL)
+			err(1, "malloc failed");
+		sl->sl_socket = s;
+		memcpy(&sl->sl_ss, res->ai_addr, res->ai_addrlen);
+		sl->sl_peer = pe;
+		STAILQ_INSERT_TAIL(&shead, sl, next);
 	}
+	freeaddrinfo(res0);
 
-	if (*socks == 0) {
-		free(socks);
-		if (Debug)
-			return (NULL);
-		else
-			die(0);
-	}
-	if (res)
-		freeaddrinfo(res);
-
-	return (socks);
+	return (error);
 }
 
 static void
