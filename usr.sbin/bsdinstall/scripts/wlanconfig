@@ -88,8 +88,9 @@ dialog_country_select()
 	input=$( ifconfig $WLAN_IFACE list countries | sed -e 's/DEBUG//gi' )
 	regdomains=$( echo $input | sed -e 's/.*domains://' | tr ' ' '\n' |
 		sort | tr '\n' ' ' )
-	countries=$( echo $input | sed -e 's/Country codes://' |
-	    sed -e 's/Regulatory.*//' | awk '{
+	countries=$( echo $input | awk '{
+		sub(/Country codes:/, "")
+		sub(/Regulatory.*/, "")
 		for (i = 1; i <= NF; i++) {
 			printf "%s", $i
 			if (match($i, "[[:lower:]]"))
