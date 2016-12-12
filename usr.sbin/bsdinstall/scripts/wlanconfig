@@ -60,12 +60,12 @@ country_set()
 	fi
 
 	# Regdomain/country cannot be applied while interface is running
-	iface_up=`ifconfig -lu | grep -w $WLAN_IFACE`
+	iface_up=$( ifconfig -lu | grep -w $WLAN_IFACE )
 	if [ ! -z "$iface_up" ]; then
 		ifconfig $WLAN_IFACE down
 	fi
-	error_str=`ifconfig $WLAN_IFACE $ifconfig_args 2>&1 |
-		sed 's/ifconfig: //'`
+	error_str=$( ifconfig $WLAN_IFACE $ifconfig_args 2>&1 |
+		sed 's/ifconfig: //' )
 	if [ ! -z "$iface_up" ]; then
 		# Restart wpa_supplicant(8) (should not fail).
 		wpa_supplicant -B -i $WLAN_IFACE -c \
@@ -102,10 +102,10 @@ dialog_country_select()
 	#
 	# Parse available countries/regdomains
 	#
-	input=`ifconfig $WLAN_IFACE list countries | sed 's/DEBUG//gi'`
-	regdomains=`echo $input | sed 's/.*domains://' | tr ' ' '\n' |
-		sort | tr '\n' ' '`
-	countries=`echo $input | sed 's/Country codes://' |
+	input=$( ifconfig $WLAN_IFACE list countries | sed 's/DEBUG//gi' )
+	regdomains=$( echo $input | sed 's/.*domains://' | tr ' ' '\n' |
+		sort | tr '\n' ' ' )
+	countries=$( echo $input | sed 's/Country codes://' |
 	    sed 's/Regulatory.*//' | awk '{
 		for (i = 1; i <= NF; i++) {
 			printf "%s", $i
@@ -117,7 +117,7 @@ dialog_country_select()
 			else
 				printf " "
 		}
-	    }' | sort -k 2 | tr '\n' ' '`
+	    }' | sort -k 2 | tr '\n' ' ' )
 
 	# Change default cursor position (if required).
 	if [ "$1" != "<not selected>" ]; then
@@ -130,7 +130,7 @@ dialog_country_select()
 	f_dialog_menu_size height width rows \"Regdomain selection\" \
 	    \"FreeBSD Installer\" \"Select your regdomain.\" \
 	    \"\" $regdomains
-	regdomain=`sh -c "dialog \
+	regdomain=$( sh -c "dialog \
 	    --backtitle \"FreeBSD Installer\" \
 	    --title \"Regdomain selection\" \
 	    --cancel-label \"Skip\" \
@@ -138,19 +138,19 @@ dialog_country_select()
 	    --no-items \
 	    --stdout \
 	    --menu \"Select your regdomain.\" \
-	    $height $width $rows $regdomains"`
+	    $height $width $rows $regdomains" )
 
 	f_dialog_menu_size height width rows \"Country selection\" \
 	    \"FreeBSD Installer\" \"Select your country.\" \
 	    \"\" $countries
-	country=`sh -c "dialog \
+	country=$( sh -c "dialog \
 	    --backtitle \"FreeBSD Installer\" \
 	    --title \"Country selection\" \
 	    --cancel-label \"Skip\" \
 	    $def_item_country \
 	    --stdout \
 	    --menu \"Select your country.\" \
-	    $height $width $rows $countries"`
+	    $height $width $rows $countries" )
 
 	country_set "$regdomain" "$country"
 
@@ -191,13 +191,13 @@ fi
 #
 if [ ! -z $BSDINSTALL_CONFIGCURRENT ]; then
 	# Get current country/regdomain for selected interface
-	WLAN_IFACE=`wpa_cli ifname | tail -n 1`
-	INPUT=`ifconfig $WLAN_IFACE list regdomain | head -n 1`
-	DEF_REGDOMAIN=`echo $INPUT | cut -w -f 2`
+	WLAN_IFACE=$( wpa_cli ifname | tail -n 1 )
+	INPUT=$( ifconfig $WLAN_IFACE list regdomain | head -n 1 )
+	DEF_REGDOMAIN=$( echo $INPUT | cut -w -f 2 )
 	if [ "$DEF_REGDOMAIN" = "0" ]; then
 		DEF_REGDOMAIN="<not selected>"
 	fi
-	DEF_COUNTRY=`echo $INPUT | cut -w -f 4`
+	DEF_COUNTRY=$( echo $INPUT | cut -w -f 4 )
 	if [ "$DEF_COUNTRY" = "0" ]; then
 		DEF_COUNTRY="<not selected>"
 	fi
@@ -225,10 +225,10 @@ do
 	    --pause "Waiting 5 seconds to scan for wireless networks..." \
 	    9 40 5 || exit 1
 
-	SCAN_RESULTS=`wpa_cli scan_results`
-	NETWORKS=`echo "$SCAN_RESULTS" | awk -F '\t' \
+	SCAN_RESULTS=$( wpa_cli scan_results )
+	NETWORKS=$( echo "$SCAN_RESULTS" | awk -F '\t' \
 	   '/..:..:..:..:..:../ {if (length($5) > 0) \
-	   printf("\"%s\"\t%s\n", $5, $4);}' | sort | uniq`
+	   printf("\"%s\"\t%s\n", $5, $4);}' | sort | uniq )
 
 	if [ -z "$NETWORKS" ]; then
 		dialog --backtitle "FreeBSD Installer" --title "Error" \
@@ -238,10 +238,10 @@ do
 	fi
 
 	exec 3>&1
-	NETWORK=`sh -c "dialog --extra-button --extra-label \"Rescan\" \
+	NETWORK=$( sh -c "dialog --extra-button --extra-label \"Rescan\" \
 	    --backtitle \"FreeBSD Installer\" --title \"Network Selection\" \
 	    --menu \"Select a wireless network to connect to.\" 0 0 0 \
-	    $(echo $NETWORKS | tr '\n' ' ')" 2>&1 1>&3`
+	    $(echo $NETWORKS | tr '\n' ' ')" 2>&1 1>&3 )
 	case $? in
 	0)	# OK
 		break
@@ -264,16 +264,16 @@ do
 	exec 3>&-
 done
 
-[ -z "$ENCRYPTION" ] && ENCRYPTION=`echo "$NETWORKS" | awk -F '\t' \
-    "/^\"$NETWORK\"\t/ {printf(\"%s\n\", \\\$2 );}"`
+[ -z "$ENCRYPTION" ] && ENCRYPTION=$( echo "$NETWORKS" | awk -F '\t' \
+    "/^\"$NETWORK\"\t/ {printf(\"%s\n\", \\\$2 );}" )
 
 if echo $ENCRYPTION | grep -q 'PSK'; then
 	exec 3>&1
-	PASS=`dialog --insecure --backtitle "FreeBSD Installer" \
+	PASS=$( dialog --insecure --backtitle "FreeBSD Installer" \
 	    --title "WPA Setup" --mixedform "" 0 0 0 \
 		"SSID" 1 0 "$NETWORK" 1 12 0 0 2 \
 		"Password" 2 0 "" 2 12 15 63 1 \
-		2>&1 1>&3` \
+		2>&1 1>&3 ) \
 	|| exec $0 $@
 	exec 3>&-
 echo "network={
@@ -284,12 +284,12 @@ echo "network={
 }" >> $BSDINSTALL_TMPETC/wpa_supplicant.conf
 elif echo $ENCRYPTION | grep -q EAP; then
 	exec 3>&1
-	USERPASS=`dialog --insecure --backtitle "FreeBSD Installer" \
+	USERPASS=$( dialog --insecure --backtitle "FreeBSD Installer" \
 	    --title "WPA-Enterprise Setup" --mixedform "" 0 0 0 \
 		"SSID" 1 0 "$NETWORK" 1 12 0 0 2 \
 		"Username" 2 0 "" 2 12 25 63 0 \
 		"Password" 3 0 "" 3 12 25 63 1 \
-		2>&1 1>&3` \
+		2>&1 1>&3 ) \
 	|| exec $0 $@
 	exec 3>&-
 echo "network={
@@ -308,11 +308,11 @@ echo "	priority=5
 }" >> $BSDINSTALL_TMPETC/wpa_supplicant.conf
 elif echo $ENCRYPTION | grep -q WEP; then
 	exec 3>&1
-	WEPKEY=`dialog --insecure --backtitle "FreeBSD Installer" \
+	WEPKEY=$( dialog --insecure --backtitle "FreeBSD Installer" \
 	    --title "WEP Setup" --mixedform "" 0 0 0 \
 		"SSID" 1 0 "$NETWORK" 1 12 0 0 2 \
 		"WEP Key 0" 2 0 "" 2 12 15 0 1 \
-		2>&1 1>&3` \
+		2>&1 1>&3 ) \
 	|| exec $0 $@
 echo "network={
 	ssid=\"$NETWORK\"
