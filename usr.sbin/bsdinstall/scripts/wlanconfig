@@ -177,9 +177,9 @@ if [ "$BSDINSTALL_CONFIGCURRENT" ]; then
 	WLAN_IFACE=$( wpa_cli ifname | tail -n 1 )
 	INPUT=$( ifconfig $WLAN_IFACE list regdomain | head -n 1 )
 	DEF_REGDOMAIN=$( echo $INPUT | cut -w -f 2 )
-	[ "$DEF_REGDOMAIN" = "0" ] && DEF_REGDOMAIN="<not selected>"
+	[ "$DEF_REGDOMAIN" = 0 ] && DEF_REGDOMAIN="<not selected>"
 	DEF_COUNTRY=$( echo $INPUT | cut -w -f 4 )
-	[ "$DEF_COUNTRY" = "0" ] && DEF_COUNTRY="<not selected>"
+	[ "$DEF_COUNTRY" = 0 ] && DEF_COUNTRY="<not selected>"
 	dialog --backtitle "FreeBSD Installer" --title "Regdomain/country" \
 	    --yesno "Change regdomain/country (now \
 	    $DEF_REGDOMAIN/$DEF_COUNTRY)?" 0 0
