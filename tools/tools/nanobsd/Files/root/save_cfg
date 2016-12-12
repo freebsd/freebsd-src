@@ -66,7 +66,7 @@ do
 			#	i) -> add file to ignore list (/cfg/.ignore hiereachy) and never save
 			#	      try to add this file to /cfg.
 			#
-			# touch is ised to add files to /cfg to keep the script flow straight and easy
+			# touch is used to add files to /cfg to keep the script flow straight and easy
 			#
 			read -p "New file /etc/$filename found. Add to /cfg (y/n/i)? " key
 			case "$key" in
