@@ -61,8 +61,8 @@ country_set()
 	fi
 	if [ "$error_str" ]; then
 		$DIALOG \
-			--backtitle "$DIALOG_BACKTITLE" \
 			--title "Error" \
+			--backtitle "$DIALOG_BACKTITLE" \
 			--yes-label Change \
 			--no-label Ignore \
 			--yesno \
@@ -111,8 +111,8 @@ dialog_country_select()
 	f_dialog_menu_size height width rows "Regdomain selection" \
 		"$DIALOG_BACKTITLE" "Select your regdomain." "" $regdomains
 	regdomain=$( sh -c "$DIALOG \
-		--backtitle \"$DIALOG_BACKTITLE\" \
 		--title \"Regdomain selection\" \
+		--backtitle \"$DIALOG_BACKTITLE\" \
 		--cancel-label \"Skip\" \
 		--default-item \"$default_regdomain\" \
 		--no-items \
@@ -124,8 +124,8 @@ dialog_country_select()
 	f_dialog_menu_size height width rows "Country selection" \
 		"$DIALOG_BACKTITLE" "Select your country." "" $countries
 	country=$( sh -c "$DIALOG \
-		--backtitle \"$DIALOG_BACKTITLE\" \
 		--title \"Country selection\" \
+		--backtitle \"$DIALOG_BACKTITLE\" \
 		--cancel-label \"Skip\" \
 		--default-item \"$default_country\" \
 		--stdout \
@@ -162,8 +162,8 @@ EOF
 wpa_cli ping >/dev/null 2>/dev/null
 if [ $? -ne 0 -a ! "$BSDINSTALL_CONFIGCURRENT" ]; then
 	$DIALOG \
-		--backtitle "$DIALOG_BACKTITLE" \
 		--title "Error" \
+		--backtitle "$DIALOG_BACKTITLE" \
 		--msgbox "Wireless cannot be configured without making changes to the local system!" \
 		0 0
 	exit 1
@@ -182,8 +182,8 @@ if [ "$BSDINSTALL_CONFIGCURRENT" ]; then
 	[ "$DEF_REGDOMAIN" = 0 ] && DEF_REGDOMAIN="<not selected>"
 	[ "$DEF_COUNTRY" = 0 ] && DEF_COUNTRY="<not selected>"
 	$DIALOG \
-		--backtitle "$DIALOG_BACKTITLE" \
 		--title "Regdomain/country" \
+		--backtitle "$DIALOG_BACKTITLE" \
 		--yesno "Change regdomain/country (now $DEF_REGDOMAIN/$DEF_COUNTRY)?" \
 		0 0
 	if [ $? -eq 0 ]; then
@@ -202,8 +202,8 @@ while :; do
 	output=$( wpa_cli scan 2>&1 )
 	f_dprintf "%s" "$output"
 	$DIALOG \
-		--backtitle "$DIALOG_BACKTITLE" \
 		--title "Scanning" \
+		--backtitle "$DIALOG_BACKTITLE" \
 		--ok-label "Skip" \
 		--pause "Waiting 5 seconds to scan for wireless networks..." \
 		9 40 5 || exit 1
@@ -218,8 +218,8 @@ while :; do
 
 	if [ ! "$NETWORKS" ]; then
 		$DIALOG \
-			--backtitle "$DIALOG_BACKTITLE" \
 			--title "Error" \
+			--backtitle "$DIALOG_BACKTITLE" \
 			--yesno "No wireless networks were found. Rescan?" \
 			0 0 && continue
 		exit 1
@@ -227,10 +227,10 @@ while :; do
 
 	exec 3>&1
 	NETWORK=$( sh -c "$DIALOG \
+		--title \"Network Selection\" \
+		--backtitle \"$DIALOG_BACKTITLE\" \
 		--extra-button \
 		--extra-label \"Rescan\" \
-		--backtitle \"$DIALOG_BACKTITLE\" \
-		--title \"Network Selection\" \
 		--menu \"Select a wireless network to connect to.\" \
 		0 0 0 \
 		$( echo $NETWORKS | tr '\n' ' ' )" \
@@ -246,8 +246,8 @@ while :; do
 		f_dialog_yesno "Do you want to select the network manually?" || exit 1
 		f_dialog_input NETWORK "Enter SSID" || exit 1
 		ENCRYPTION=$( $DIALOG \
-			--backtitle "$DIALOG_BACKTITLE" \
 			--title "$DIALOG_TITLE" \
+			--backtitle "$DIALOG_BACKTITLE" \
 			--menu "Select encryption type" \
 			0 0 0 \
 			"1 WPA/WPA2 PSK" "" \
@@ -272,9 +272,9 @@ done
 if echo $ENCRYPTION | grep -q 'PSK'; then
 	exec 3>&1
 	PASS=$( $DIALOG \
-		--insecure \
-		--backtitle "$DIALOG_BACKTITLE" \
 		--title "WPA Setup" \
+		--backtitle "$DIALOG_BACKTITLE" \
+		--insecure \
 		--mixedform "" \
 		0 0 0 \
 		"SSID" 1 0 "$NETWORK" 1 12 0 0 2 \
@@ -294,9 +294,9 @@ if echo $ENCRYPTION | grep -q 'PSK'; then
 elif echo $ENCRYPTION | grep -q EAP; then
 	exec 3>&1
 	USERPASS=$( $DIALOG \
-		--insecure \
-		--backtitle "$DIALOG_BACKTITLE" \
 		--title "WPA-Enterprise Setup" \
+		--backtitle "$DIALOG_BACKTITLE" \
+		--insecure \
 		--mixedform "" 0 0 0 \
 		"SSID" 1 0 "$NETWORK" 1 12 0 0 2 \
 		"Username" 2 0 "" 2 12 25 63 0 \
@@ -324,9 +324,9 @@ elif echo $ENCRYPTION | grep -q EAP; then
 elif echo $ENCRYPTION | grep -q WEP; then
 	exec 3>&1
 	WEPKEY=$( $DIALOG \
-		--insecure \
-		--backtitle "$DIALOG_BACKTITLE" \
 		--title "WEP Setup" \
+		--backtitle "$DIALOG_BACKTITLE" \
+		--insecure \
 		--mixedform "" 0 0 0 \
 		"SSID" 1 0 "$NETWORK" 1 12 0 0 2 \
 		"WEP Key 0" 2 0 "" 2 12 15 0 1 \
