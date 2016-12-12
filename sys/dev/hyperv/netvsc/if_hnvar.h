@@ -212,6 +212,8 @@ struct hn_softc {
 
 	uint32_t		hn_caps;	/* HN_CAP_ */
 	uint32_t		hn_flags;	/* HN_FLAG_ */
+	u_int			hn_pollhz;
+
 	void			*hn_rxbuf;
 	uint32_t		hn_rxbuf_gpadl;
 	struct hyperv_dma	hn_rxbuf_dma;
