@@ -216,7 +216,7 @@ while :; do
 	NETWORKS=$( echo "$SCAN_RESULTS" | awk -F '\t' '
 		/..:..:..:..:..:../ {
 			if (length($5) > 0)
-				printf("\"%s\"\t%s\n", $5, $4);
+				printf("\"%s\"\t%s\n", $5, $4)
 		}
 	' | sort | uniq )
 
@@ -273,7 +273,7 @@ while :; do
 done
 
 [ "$ENCRYPTION" ] || ENCRYPTION=$( echo "$NETWORKS" |
-	awk -F '\t' "/^\"$NETWORK\"\t/ { printf(\"%s\n\", \\\$2 ); }" )
+	awk -F '\t' "/^\"$NETWORK\"\t/ { printf(\"%s\n\", \\\$2 ) }" )
 
 if echo $ENCRYPTION | grep -q 'PSK'; then
 	exec 3>&1
@@ -317,8 +317,8 @@ elif echo $ENCRYPTION | grep -q EAP; then
 		scan_ssid=$SCANSSID
 		key_mgmt=WPA-EAP$(
 		echo "$USERPASS" | awk '
-			NR == 1 { printf "\n\t\tidentity=\"%s\"", $1; }
-			NR == 2 { printf "\n\t\tpassword=\"%s\"", $1; }
+			NR == 1 { printf "\n\t\tidentity=\"%s\"", $1 }
+			NR == 2 { printf "\n\t\tpassword=\"%s\"", $1 }
 		' )
 		priority=5
 	}
