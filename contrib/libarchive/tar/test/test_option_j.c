@@ -42,15 +42,18 @@ DEFINE_TEST(test_option_j)
 	if (r != 0) {
 		if (!canBzip2()) {
 			skipping("bzip2 is not supported on this platform");
-			return;
+			goto done;
 		}
 		failure("-j option is broken");
 		assertEqualInt(r, 0);
-		return;
+		goto done;
 	}
+	free(p);
 	assertEmptyFile("archive.err");
 	/* Check that the archive file has a bzip2 signature. */
 	p = slurpfile(&s, "archive.out");
 	assert(s > 2);
 	assertEqualMem(p, "BZh9", 4);
+done:
+	free(p);
 }

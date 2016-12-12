@@ -43,7 +43,7 @@ DEFINE_TEST(test_option_lz4)
 		if (strstr(p, "Unsupported compression") != NULL) {
 			skipping("This version of bsdtar was compiled "
 			    "without lz4 support");
-			return;
+			goto done;
 		}
 		/* POSIX permits different handling of the spawnp
 		 * system call used to launch the subsidiary
@@ -52,7 +52,7 @@ DEFINE_TEST(test_option_lz4)
 		if (strstr(p, "Can't launch") != NULL && !canLz4()) {
 			skipping("This version of bsdtar uses an external lz4 program "
 			    "but no such program is available on this system.");
-			return;
+			goto done;
 		}
 		/* Some systems successfully spawn the new process,
 		 * but fail to exec a program within that process.
@@ -61,14 +61,18 @@ DEFINE_TEST(test_option_lz4)
 		if (strstr(p, "Can't write") != NULL && !canLz4()) {
 			skipping("This version of bsdtar uses an external lz4 program "
 			    "but no such program is available on this system.");
-			return;
+			goto done;
 		}
 		failure("--lz4 option is broken: %s", p);
 		assertEqualInt(r, 0);
-		return;
+		goto done;
 	}
+	free(p);
 	/* Check that the archive file has an lz4 signature. */
 	p = slurpfile(&s, "archive.out");
 	assert(s > 2);
 	assertEqualMem(p, "\x04\x22\x4d\x18", 4);
+
+done:
+	free(p);
 }

@@ -219,8 +219,8 @@ DEFINE_TEST(test_read_append_filter_wrong_program)
   /* bunzip2 will write to stderr, redirect it to a file */
   fflush(stderr);
   fgetpos(stderr, &pos);
-  fd = dup(fileno(stderr));
-  fp = freopen("stderr1", "w", stderr); 
+  assert((fd = dup(fileno(stderr))) != -1);
+  fp = freopen("stderr1", "w", stderr);
 #endif
 
   assert((a = archive_read_new()) != NULL);
@@ -238,10 +238,10 @@ DEFINE_TEST(test_read_append_filter_wrong_program)
   if (fp != NULL) {
     fflush(stderr);
     dup2(fd, fileno(stderr));
-    close(fd);
     clearerr(stderr);
-    fsetpos(stderr, &pos);
+    (void)fsetpos(stderr, &pos);
   }
+  close(fd);
   assertTextFileContents("bunzip2: (stdin) is not a bzip2 file.\n", "stderr1");
 #endif
 }

@@ -47,10 +47,13 @@ DEFINE_TEST(test_option_Z_upper)
 		}
 		failure("-Z option is broken");
 		assertEqualInt(r, 0);
-		return;
+		goto done;
 	}
+	free(p);
 	/* Check that the archive file has a compress signature. */
 	p = slurpfile(&s, "archive.out");
 	assert(s > 2);
 	assertEqualMem(p, "\x1f\x9d", 2);
+done:
+	free(p);
 }

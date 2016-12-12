@@ -116,6 +116,7 @@ DEFINE_TEST(test_stdio)
 	assertEqualInt((int)s, 3);
 	assertEqualMem(p, "abc", 3);
 	/* TODO: Verify xvf.err */
+	free(p);
 
 	/* 'xvf -' should generate list on stderr, empty stdout. */
 	r = systemf("%s xvf - < archive >xvf-.out 2>xvf-.err", testprog);

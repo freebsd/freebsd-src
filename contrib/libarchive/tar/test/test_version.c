@@ -53,7 +53,7 @@ DEFINE_TEST(test_version)
 	assert(s > 6);
 	failure("Version must start with 'bsdtar': ``%s''", p);
 	if (!assertEqualMem(q, "bsdtar ", 7))
-		return;
+		goto done;
 	q += 7; s -= 7;
 	/* Version number is a series of digits and periods. */
 	while (s > 0 && (*q == '.' || (*q >= '0' && *q <= '9'))) {
@@ -98,5 +98,6 @@ DEFINE_TEST(test_version)
 	failure("Version output must end with \\n or \\r\\n");
 	if (*q == '\r') { ++q; --s; }
 	assertEqualMem(q, "\n", 1);
+done:
 	free(p);
 }
