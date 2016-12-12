@@ -41,8 +41,10 @@ country_set()
 	local iface_up=
 	local ifconfig_args=
 
+	#
 	# Setup what was selected
-	# NB: do not change order of arguments (or regdomain will be ignored)
+	# NB: Do not change order of arguments (or regdomain will be ignored)
+	#
 	if [ ! -z "$2" ]; then
 		ifconfig_args="${ifconfig_args}country $2"
 	fi
@@ -74,9 +76,9 @@ country_set()
 		    --yes-label Change --no-label Ignore --yesno \
 		    "Error while applying chosen settings ($error_str)" 0 0
 		if [ $? -eq $DIALOG_OK ]; then
-			return $FAILURE		# Restart
+			return $FAILURE # Restart
 		else
-			return $SUCCESS		# Skip
+			return $SUCCESS # Skip
 		fi
 	else
 		: > $BSDINSTALL_TMPETC/rc.conf.net.wlan
@@ -97,7 +99,9 @@ dialog_country_select()
 	local regdomain=
 	local country=
 
+	#
 	# Parse available countries/regdomains
+	#
 	input=`ifconfig $WLAN_IFACE list countries | sed 's/DEBUG//gi'`
 	regdomains=`echo $input | sed 's/.*domains://' | tr ' ' '\n' |
 		sort | tr '\n' ' '`
@@ -164,8 +168,10 @@ echo "ap_scan=1" >> $BSDINSTALL_TMPETC/wpa_supplicant.conf
 echo "fast_reauth=1" >> $BSDINSTALL_TMPETC/wpa_supplicant.conf
 echo >> $BSDINSTALL_TMPETC/wpa_supplicant.conf
 
+#
 # Try to reach wpa_supplicant. If it isn't running and we can modify the
 # existing system, start it. Otherwise, fail.
+#
 (wpa_cli ping >/dev/null 2>/dev/null || ([ ! -z $BSDINSTALL_CONFIGCURRENT ] &&
 	wpa_supplicant -B -i $1 -c $BSDINSTALL_TMPETC/wpa_supplicant.conf)) ||
 	(dialog --backtitle "FreeBSD Installer" --title "Error" --msgbox \
@@ -179,8 +185,10 @@ if [ $? -ne 0 -a -z $BSDINSTALL_CONFIGCURRENT ]; then
 	exit 1
 fi
 
+#
 # There is no way to check country/regdomain without (possible)
 # interface state modification
+#
 if [ ! -z $BSDINSTALL_CONFIGCURRENT ]; then
 	# Get current country/regdomain for selected interface
 	WLAN_IFACE=`wpa_cli ifname | tail -n 1`
@@ -242,10 +250,7 @@ do
 		# here we ask if the user wants to select the network manually
 		f_dialog_title "Network Selection"
 		f_dialog_yesno "Do you want to select the network manually?" || exit 1
-		# and take the manual input
-		# first, take the ssid
 		f_dialog_input NETWORK "Enter SSID" || exit 1
-		# then, the encryption
 		ENCRYPTION=$( dialog --backtitle "$DIALOG_BACKTITLE" --title \
 			"$DIALOG_TITLE" --menu "Select encryption type" 0 0 0 \
 			"1 WPA/WPA2 PSK" "" "2 WPA/WPA2 EAP" "" "3 WEP" "" "0 None" "" 2>&1 1>&3 ) || exit 1
