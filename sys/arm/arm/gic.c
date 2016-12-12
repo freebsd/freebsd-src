@@ -190,7 +190,7 @@ gic_cpu_mask(struct arm_gic_softc *sc)
 
 	/* Read the current cpuid mask by reading ITARGETSR{0..7} */
 	for (i = 0; i < 8; i++) {
-		mask = gic_d_read_4(sc, GICD_ITARGETSR(i));
+		mask = gic_d_read_4(sc, GICD_ITARGETSR(4 * i));
 		if (mask != 0)
 			break;
 	}
