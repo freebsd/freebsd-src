@@ -108,9 +108,8 @@ dialog_country_select()
 		}
 	}' | sort -k 2 | tr '\n' ' ' )
 
-	f_dialog_menu_size height width rows \"Regdomain selection\" \
-		\"$DIALOG_BACKTITLE\" \"Select your regdomain.\" \
-		\"\" $regdomains
+	f_dialog_menu_size height width rows "Regdomain selection" \
+		"$DIALOG_BACKTITLE" "Select your regdomain." "" $regdomains
 	regdomain=$( sh -c "$DIALOG \
 		--backtitle \"$DIALOG_BACKTITLE\" \
 		--title \"Regdomain selection\" \
@@ -122,9 +121,8 @@ dialog_country_select()
 		$height $width $rows $regdomains"
 	)
 
-	f_dialog_menu_size height width rows \"Country selection\" \
-	    \"$DIALOG_BACKTITLE\" \"Select your country.\" \
-	    \"\" $countries
+	f_dialog_menu_size height width rows "Country selection" \
+		"$DIALOG_BACKTITLE" "Select your country." "" $countries
 	country=$( sh -c "$DIALOG \
 		--backtitle \"$DIALOG_BACKTITLE\" \
 		--title \"Country selection\" \
