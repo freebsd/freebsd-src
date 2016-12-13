@@ -280,7 +280,7 @@ done
 [ "$ENCRYPTION" ] || ENCRYPTION=$( echo "$NETWORKS" |
 	awk -F '\t' "/^\"$NETWORK\"\t/ { print \$2 }" )
 
-if echo "$ENCRYPTION" | grep -q 'PSK'; then
+if echo "$ENCRYPTION" | grep -q PSK; then
 	PASS=$( $DIALOG \
 		--title "WPA Setup"              \
 		--backtitle "$DIALOG_BACKTITLE"  \
