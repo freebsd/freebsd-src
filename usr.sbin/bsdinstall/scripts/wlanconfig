@@ -189,8 +189,8 @@ if [ "$BSDINSTALL_CONFIGCURRENT" ]; then
 	# Get current country/regdomain for selected interface
 	WLAN_IFACE=$( wpa_cli ifname | tail -1 )
 	INPUT=$( ifconfig "$WLAN_IFACE" list regdomain | head -1 )
-	DEF_REGDOMAIN=$( echo $INPUT | cut -w -f 2 )
-	DEF_COUNTRY=$( echo $INPUT | cut -w -f 4 )
+	DEF_REGDOMAIN=$( echo "$INPUT" | cut -w -f 2 )
+	DEF_COUNTRY=$( echo "$INPUT" | cut -w -f 4 )
 	[ "$DEF_REGDOMAIN" = 0 ] && DEF_REGDOMAIN="<not selected>"
 	[ "$DEF_COUNTRY" = 0 ] && DEF_COUNTRY="<not selected>"
 	f_dialog_title "Regdomain/country"
