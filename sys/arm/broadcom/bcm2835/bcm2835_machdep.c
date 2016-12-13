@@ -62,6 +62,16 @@ __FBSDID("$FreeBSD$");
 
 #include "platform_if.h"
 
+#ifdef SOC_BCM2835
+static platform_devmap_init_t bcm2835_devmap_init;
+#endif
+#ifdef SOC_BCM2836
+static platform_devmap_init_t bcm2836_devmap_init;
+#endif
+static platform_lastaddr_t bcm2835_lastaddr;
+static platform_late_init_t bcm2835_late_init;
+static platform_cpu_reset_t bcm2835_cpu_reset;
+
 static vm_offset_t
 bcm2835_lastaddr(platform_t plat)
 {
