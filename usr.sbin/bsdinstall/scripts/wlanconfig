@@ -55,11 +55,10 @@ country_set()
 	f_eval_catch -dk error_str wlanconfig ifconfig "ifconfig %s %s" \
 		"$WLAN_IFACE" "$ifconfig_args"
 	error_str="${error_str#ifconfig: }"
-	if [ "$iface_up" ]; then
-		# Restart wpa_supplicant(8) (should not fail).
-		wpa_supplicant -B -i "$WLAN_IFACE" -c \
-			"$BSDINSTALL_TMPETC/wpa_supplicant.conf"
-	fi
+	# Restart wpa_supplicant(8) (should not fail).
+	[ "$iface_up" ] && f_eval_catch -d wlanconfig wpa_supplicant \
+		'wpa_supplicant -B -i "%s" -c "%s/wpa_supplicant.conf"' \
+		"$WLAN_IFACE" "$BSDINSTALL_TMPETC"
 	if [ "$error_str" ]; then
 		$DIALOG \
 			--title "$msg_error" \
