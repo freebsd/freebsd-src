@@ -192,8 +192,8 @@ if [ "$BSDINSTALL_CONFIGCURRENT" ]; then
 	[ "$DEF_REGDOMAIN" = 0 ] && DEF_REGDOMAIN="<not selected>"
 	[ "$DEF_COUNTRY" = 0 ] && DEF_COUNTRY="<not selected>"
 	f_dialog_title "Regdomain/country"
-	f_yesno "Change regdomain/country (now $DEF_REGDOMAIN/$DEF_COUNTRY)?"
-	if [ $? -eq 0 ]; then
+	if f_yesno "Change regdomain/country (now $DEF_REGDOMAIN/$DEF_COUNTRY)?"
+	then
 		while :; do
 			dialog_country_select "$DEF_REGDOMAIN" "$DEF_COUNTRY"
 			if [ $? -eq $SUCCESS ]; then
