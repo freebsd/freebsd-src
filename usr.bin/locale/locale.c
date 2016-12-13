@@ -55,8 +55,8 @@ void	list_charmaps(void);
 void	list_locales(void);
 const char *lookup_localecat(int);
 char	*kwval_lconv(int);
-int	kwval_lookup(char *, char **, int *, int *);
-void	showdetails(char *);
+int	kwval_lookup(const char *, char **, int *, int *);
+void	showdetails(const char *);
 void	showkeywordslist(char *substring);
 void	showlocale(void);
 void	usage(void);
@@ -64,13 +64,12 @@ void	usage(void);
 /* Global variables */
 static StringList *locales = NULL;
 
-int	all_locales = 0;
-int	all_charmaps = 0;
-int	prt_categories = 0;
-int	prt_keywords = 0;
-int	more_params = 0;
+static int	all_locales = 0;
+static int	all_charmaps = 0;
+static int	prt_categories = 0;
+static int	prt_keywords = 0;
 
-struct _lcinfo {
+static const struct _lcinfo {
 	const char	*name;
 	int		id;
 } lcinfo [] = {
@@ -108,7 +107,7 @@ struct _lcinfo {
 #define	KW_INT_P_SIGN_POSN	(KW_ZERO+21)
 #define	KW_INT_N_SIGN_POSN	(KW_ZERO+22)
 
-struct _kwinfo {
+static const struct _kwinfo {
 	const char	*name;
 	int		isstr;		/* true - string, false - number */
 	int		catid;		/* LC_* */
@@ -222,7 +221,7 @@ struct _kwinfo {
 };
 #define	NKWINFO (sizeof(kwinfo)/sizeof(kwinfo[0]))
 
-const char *boguslocales[] = { "UTF-8" };
+static const char *boguslocales[] = { "UTF-8" };
 #define	NBOGUS	(sizeof(boguslocales)/sizeof(boguslocales[0]))
 
 int
@@ -294,7 +293,7 @@ main(int argc, char *argv[])
 		} else {
 			uint i;
 			for (i = 0; i < sizeof (kwinfo) / sizeof (struct _kwinfo); i++)
-				showdetails ((char *)kwinfo [i].name);
+				showdetails(kwinfo[i].name);
 		}
 		exit(0);
 	}
@@ -339,7 +338,7 @@ list_locales(void)
 static int
 scmp(const void *s1, const void *s2)
 {
-	return strcmp(*(const char **)s1, *(const char **)s2);
+	return strcmp(*(const char * const *)s1, *(const char * const *)s2);
 }
 
 /*
@@ -376,7 +375,7 @@ list_charmaps(void)
 
 	/* add US-ASCII, if not yet added */
 	if (sl_find(charmaps, "US-ASCII") == NULL)
-		sl_add(charmaps, "US-ASCII");
+		sl_add(charmaps, strdup("US-ASCII"));
 
 	/* sort the list */
 	qsort(charmaps->sl_str, charmaps->sl_cur, sizeof(char *), scmp);
@@ -435,10 +434,10 @@ init_locales_list(void)
 	 * we also list 'C' for constistency
 	 */
 	if (sl_find(locales, "POSIX") == NULL)
-		sl_add(locales, "POSIX");
+		sl_add(locales, strdup("POSIX"));
 
 	if (sl_find(locales, "C") == NULL)
-		sl_add(locales, "C");
+		sl_add(locales, strdup("C"));
 
 	/* make output nicer, sort the list */
 	qsort(locales->sl_str, locales->sl_cur, sizeof(char *), scmp);
@@ -493,28 +492,30 @@ format_grouping(const char *binary)
 {
 	static char rval[64];
 	const char *cp;
-	size_t len;
+	size_t roff;
+	int len;
 
 	rval[0] = '\0';
+	roff = 0;
 	for (cp = binary; *cp != '\0'; ++cp) {
-		char group[sizeof("127;")];
-		snprintf(group, sizeof(group), "%hhd;", *cp);
-		len = strlcat(rval, group, sizeof(rval));
-		if (len >= sizeof(rval)) {
-			len = sizeof(rval) - 1;
-			break;
-		}
-		if (*cp == CHAR_MAX) {
-			break;
-		}
+#if CHAR_MIN != 0
+		if (*cp < 0)
+			break;		/* garbage input */
+#endif
+		len = snprintf(&rval[roff], sizeof(rval) - roff, "%u;", *cp);
+		if (len < 0 || (unsigned)len >= sizeof(rval) - roff)
+			break;		/* insufficient space for output */
+		roff += len;
+		if (*cp == CHAR_MAX)
+			break;		/* special termination */
 	}
 
-	/* Remove the trailing ';'. */
-	rval[len - 1] = '\0';
+	/* Truncate at the last successfully snprintf()ed semicolon. */
+	if (roff != 0)
+		rval[roff - 1] = '\0';
 
-	return (rval);
+	return (&rval[0]);
 }
-
 
 /*
  * keyword value lookup helper (via localeconv())
@@ -604,7 +605,7 @@ kwval_lconv(int id)
  * keyword value and properties lookup
  */
 int
-kwval_lookup(char *kwname, char **kwval, int *cat, int *isstr)
+kwval_lookup(const char *kwname, char **kwval, int *cat, int *isstr)
 {
 	int	rval;
 	size_t	i;
@@ -632,7 +633,7 @@ kwval_lookup(char *kwname, char **kwval, int *cat, int *isstr)
  * command line options specified.
  */
 void
-showdetails(char *kw)
+showdetails(const char *kw)
 {
 	int	isstr, cat, tmpval;
 	char	*kwval;
@@ -647,9 +648,9 @@ showdetails(char *kw)
 	}
 
 	if (prt_categories) {
-		  if (prt_keywords)
+		if (prt_keywords)
 			printf("%-20s ", lookup_localecat(cat));
-		  else
+		else
 			printf("%-20s\t%s\n", kw, lookup_localecat(cat));
 	}
 
