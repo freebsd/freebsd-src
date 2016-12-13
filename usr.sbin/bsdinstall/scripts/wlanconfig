@@ -242,13 +242,13 @@ while :; do
 	prompt="Select a wireless network to connect to."
 	menu_list=$( echo $NETWORKS | tr '\n' ' ' )
 	NETWORK=$( eval $DIALOG \
-		--title \"\$DIALOG_TITLE\" \
+		--title \"\$DIALOG_TITLE\"         \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
-		--extra-button \
-		--extra-label \"Rescan\" \
-		--menu \"\$prompt\" \
-		$height $width $rows \
-		$menu_list \
+		--extra-button                     \
+		--extra-label \"Rescan\"           \
+		--menu \"\$prompt\"                \
+		$height $width $rows               \
+		$menu_list                         \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
 	retval=$?
@@ -270,11 +270,11 @@ while :; do
 		eval f_dialog_menu_size height width rows \"\$DIALOG_TITLE\" \
 			\"\$DIALOG_BACKTITLE\" \"\$prompt\" \"\" $menu_list
 		ENCRYPTION=$( eval $DIALOG \
-			--title \"\$DIALOG_TITLE\" \
+			--title \"\$DIALOG_TITLE\"         \
 			--backtitle \"\$DIALOG_BACKTITLE\" \
-			--menu \"\$prompt\" \
-			$height $width $rows \
-			$menu_list \
+			--menu \"\$prompt\"                \
+			$height $width $rows               \
+			$menu_list                         \
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 		) || exit 1
 		SCANSSID=1
