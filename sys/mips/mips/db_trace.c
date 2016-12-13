@@ -139,8 +139,8 @@ stacktrace_subr(register_t pc, register_t sp, register_t ra,
 	 * of these registers is valid, e.g. obtained from the stack
 	 */
 	int valid_args[4];
-	uintptr_t args[4];
-	uintptr_t va, subr;
+	register_t args[4];
+	register_t va, subr;
 	unsigned instr, mask;
 	unsigned int frames = 0;
 	int more, stksize, j;
@@ -379,7 +379,7 @@ done:
 		if (j > 0)
 			(*printfn)(",");
 		if (valid_args[j])
-			(*printfn)("%x", args[j]);
+			(*printfn)("%jx", (uintmax_t)(u_register_t)args[j]);
 		else
 			(*printfn)("?");
 	}
