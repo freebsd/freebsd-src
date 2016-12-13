@@ -56,7 +56,7 @@ vm_offset_t aml8726_aobus_kva_base;
 #endif
 
 static void
-aml8726_fixup_busfreq()
+aml8726_fixup_busfreq(void)
 {
 	phandle_t node;
 	pcell_t freq, prop;

@@ -190,7 +190,7 @@ bcmwd_watchdog_fn(void *private, u_int cmd, int *error)
 }
 
 void
-bcmwd_watchdog_reset()
+bcmwd_watchdog_reset(void)
 {
 
 	if (bcmwd_lsc == NULL)

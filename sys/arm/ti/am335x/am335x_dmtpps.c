@@ -163,7 +163,7 @@ dmtpps_translate_nickname(const char *nick)
  * fails that IS an error, return -1.
  */
 static int
-dmtpps_find_tmr_num_by_tunable()
+dmtpps_find_tmr_num_by_tunable(void)
 {
 	struct padinfo *pi;
 	char iname[20];
@@ -201,7 +201,7 @@ dmtpps_find_tmr_num_by_tunable()
  * input pin.  If so, return the timer number, if not return 0.
  */
 static int
-dmtpps_find_tmr_num_by_padconf()
+dmtpps_find_tmr_num_by_padconf(void)
 {
 	int err;
 	unsigned int padstate;
@@ -225,7 +225,7 @@ dmtpps_find_tmr_num_by_padconf()
  * configuration.  This is done just once, the first time probe() runs.
  */
 static int
-dmtpps_find_tmr_num()
+dmtpps_find_tmr_num(void)
 {
 	int tmr_num;
 

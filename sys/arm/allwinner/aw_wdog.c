@@ -237,7 +237,7 @@ aw_wdog_shutdown_fn(void *private, int howto)
 }
 
 void
-aw_wdog_watchdog_reset()
+aw_wdog_watchdog_reset(void)
 {
 
 	if (aw_wdog_sc == NULL) {
