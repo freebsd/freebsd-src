@@ -67,12 +67,8 @@ country_set()
 			--no-label Ignore \
 			--yesno \
 			"Error while applying chosen settings ($error_str)" \
-			0 0
-		if [ $? -eq $DIALOG_OK ]; then
-			return $FAILURE # Restart
-		else
-			return $SUCCESS # Skip
-		fi
+			0 0 || return $SUCCESS # Skip
+		return $FAILURE # Restart
 	else
 		awk 'sub(/^\t\t/,"")||1' \
 			> "$BSDINSTALL_TMPETC/rc.conf.net.wlan" <<-EOF
