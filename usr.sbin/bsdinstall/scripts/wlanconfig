@@ -239,14 +239,16 @@ while :; do
 	fi
 
 	f_dialog_title "Network Selection"
-	NETWORK=$( sh -c "$DIALOG \
-		--title \"$DIALOG_TITLE\" \
-		--backtitle \"$DIALOG_BACKTITLE\" \
+	prompt="Select a wireless network to connect to."
+	menu_list=$( echo $NETWORKS | tr '\n' ' ' )
+	NETWORK=$( eval $DIALOG \
+		--title \"\$DIALOG_TITLE\" \
+		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--extra-button \
 		--extra-label \"Rescan\" \
-		--menu \"Select a wireless network to connect to.\" \
-		0 0 0 \
-		$( echo $NETWORKS | tr '\n' ' ' )" \
+		--menu \"\$prompt\" \
+		$height $width $rows \
+		$menu_list \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
 	retval=$?
@@ -258,15 +260,21 @@ while :; do
 		f_dialog_title "Network Selection"
 		f_yesno "Do you want to select the network manually?" || exit 1
 		f_dialog_input NETWORK "Enter SSID" || exit 1
-		ENCRYPTION=$( $DIALOG \
-			--title "$DIALOG_TITLE" \
-			--backtitle "$DIALOG_BACKTITLE" \
-			--menu "Select encryption type" \
-			0 0 0 \
-			"1 WPA/WPA2 PSK" "" \
-			"2 WPA/WPA2 EAP" "" \
-			"3 WEP" "" \
-			"0 None" "" \
+		prompt="Select encryption type"
+		menu_list="
+			'1 WPA/WPA2 PSK' ''
+			'2 WPA/WPA2 EAP' ''
+			'3 WEP' ''
+			'0 None' ''
+		" # END-QUOTE
+		eval f_dialog_menu_size height width rows \"\$DIALOG_TITLE\" \
+			\"\$DIALOG_BACKTITLE\" \"\$prompt\" \"\" $menu_list
+		ENCRYPTION=$( eval $DIALOG \
+			--title \"\$DIALOG_TITLE\" \
+			--backtitle \"\$DIALOG_BACKTITLE\" \
+			--menu \"\$prompt\" \
+			$height $width $rows \
+			$menu_list \
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 		) || exit 1
 		SCANSSID=1
