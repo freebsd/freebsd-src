@@ -54,6 +54,12 @@ __FBSDID("$FreeBSD$");
 
 static uint32_t gpio1_node;
 
+static platform_attach_t imx6_attach;
+static platform_devmap_init_t imx6_devmap_init;
+static platform_lastaddr_t imx6_lastaddr;
+static platform_late_init_t imx6_late_init;
+static platform_cpu_reset_t imx6_cpu_reset;
+
 #ifndef INTRNG
 /*
  * Work around the linux workaround for imx6 erratum 006687, in which some
@@ -259,7 +265,8 @@ imx6_cpu_reset(platform_t plat)
  *      hwsoc      = 0x00000063
  *      scu config = 0x00005503
  */
-u_int imx_soc_type()
+u_int
+imx_soc_type(void)
 {
 	uint32_t digprog, hwsoc;
 	uint32_t *pcr;

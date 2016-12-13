@@ -58,6 +58,17 @@ __FBSDID("$FreeBSD$");
 
 #include "platform_if.h"
 
+#if defined(SOC_OMAP4)
+static platform_attach_t omap4_attach;
+static platform_devmap_init_t ti_omap4_devmap_init;
+#endif
+#if defined(SOC_TI_AM335X)
+static platform_attach_t ti_am335x_attach;
+static platform_devmap_init_t ti_am335x_devmap_init;
+#endif
+static platform_lastaddr_t ti_lastaddr;
+static platform_cpu_reset_t ti_plat_cpu_reset;
+
 void (*ti_cpu_reset)(void) = NULL;
 
 int _ti_chip = -1;

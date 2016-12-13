@@ -54,6 +54,17 @@ __FBSDID("$FreeBSD$");
 
 #include "platform_if.h"
 
+static platform_attach_t a10_attach;
+static platform_attach_t a13_attach;
+static platform_attach_t a20_attach;
+static platform_attach_t a31_attach;
+static platform_attach_t a31s_attach;
+static platform_attach_t a83t_attach;
+static platform_attach_t h3_attach;
+static platform_lastaddr_t allwinner_lastaddr;
+static platform_devmap_init_t allwinner_devmap_init;
+static platform_cpu_reset_t allwinner_cpu_reset;
+
 static u_int soc_type;
 static u_int soc_family;
 

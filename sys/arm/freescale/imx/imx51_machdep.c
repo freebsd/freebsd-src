@@ -45,6 +45,11 @@ __FBSDID("$FreeBSD$");
 
 #include "platform_if.h"
 
+static platform_attach_t imx51_attach;
+static platform_devmap_init_t imx51_devmap_init;
+static platform_lastaddr_t imx51_lastaddr;
+static platform_cpu_reset_t imx51_cpu_reset;
+
 static vm_offset_t
 imx51_lastaddr(platform_t plat)
 {
@@ -88,7 +93,8 @@ imx51_cpu_reset(platform_t plat)
 	imx_wdog_cpu_reset(0x73F98000);
 }
 
-u_int imx_soc_type()
+u_int
+imx_soc_type(void)
 {
 	return (IMXSOC_51);
 }
