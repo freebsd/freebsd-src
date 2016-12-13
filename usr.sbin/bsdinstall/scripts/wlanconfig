@@ -126,6 +126,7 @@ dialog_country_select()
 		$regdomains                            \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
+	f_dialog_data_sanitize regdomain
 
 	f_dialog_title "Country selection"
 	prompt="Select your country."
@@ -142,6 +143,7 @@ dialog_country_select()
 		$countries                           \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
+	f_dialog_data_sanitize country
 
 	country_set "$regdomain" "$country"
 }
@@ -245,7 +247,9 @@ while :; do
 		$( echo $NETWORKS | tr '\n' ' ' )" \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
-	case $? in
+	retval=$?
+	f_dialog_data_sanitize NETWORK
+	case $retval in
 	$DIALOG_OK) break ;;
 	$DIALOG_CANCEL)
 		# here we ask if the user wants to select the network manually
