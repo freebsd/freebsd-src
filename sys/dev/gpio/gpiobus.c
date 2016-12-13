@@ -120,9 +120,9 @@ int
 gpio_check_flags(uint32_t caps, uint32_t flags)
 {
 
-	/* Check for unwanted flags. */
-	if ((flags & caps) == 0 || (flags & caps) != flags)
-		return (EINVAL);
+	/* Filter unwanted flags. */
+	flags &= caps;
+
 	/* Cannot mix input/output together. */
 	if (flags & GPIO_PIN_INPUT && flags & GPIO_PIN_OUTPUT)
 		return (EINVAL);
