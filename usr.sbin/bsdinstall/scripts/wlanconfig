@@ -226,7 +226,7 @@ while :; do
 
 	SCAN_RESULTS=$( wpa_cli scan_results )
 	NETWORKS=$( echo "$SCAN_RESULTS" | awk -F '\t' '
-		/..:..:..:..:..:../ && $5 { printf("\"%s\"\t%s\n", $5, $4) }
+		/..:..:..:..:..:../ && $5 { printf "\"%s\"\t%s\n", $5, $4 }
 	' | sort | uniq )
 
 	if [ ! "$NETWORKS" ]; then
