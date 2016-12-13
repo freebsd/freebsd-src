@@ -220,18 +220,19 @@ static inline struct device *
 linux_pci_find_irq_dev(unsigned int irq)
 {
 	struct pci_dev *pdev;
+	struct device *found;
 
+	found = NULL;
 	spin_lock(&pci_lock);
 	list_for_each_entry(pdev, &pci_devices, links) {
-		if (irq == pdev->dev.irq)
+		if (irq == pdev->dev.irq ||
+		    (irq >= pdev->dev.msix && irq < pdev->dev.msix_max)) {
+			found = &pdev->dev;
 			break;
-		if (irq >= pdev->dev.msix && irq < pdev->dev.msix_max)
-			break;
+		}
 	}
 	spin_unlock(&pci_lock);
-	if (pdev)
-		return &pdev->dev;
-	return (NULL);
+	return (found);
 }
 
 static inline unsigned long
