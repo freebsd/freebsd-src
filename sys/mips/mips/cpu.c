@@ -78,9 +78,6 @@ struct mips_cpuinfo cpuinfo;
 #   define	_ADDU_V0_T0_T1 \
     _ENCODE_INSN(0, T0, T1, V0, OP_DADDU)
 
-#   define _MTC0_V0_USERLOCAL \
-    _ENCODE_INSN(OP_COP0, OP_DMT, V0, 4, 2)
-
 #else /* mips 32 */
 
 #   define	_LOAD_T0_MDTLS_A1 \
@@ -93,10 +90,19 @@ struct mips_cpuinfo cpuinfo;
 #   define	_ADDU_V0_T0_T1 \
     _ENCODE_INSN(0, T0, T1, V0, OP_ADDU)
 
+#endif /* ! __mips_n64 */
+
+#if defined(__mips_n64) || defined(__mips_n32)
+
+#   define _MTC0_V0_USERLOCAL \
+    _ENCODE_INSN(OP_COP0, OP_DMT, V0, 4, 2)
+
+#else /* mips o32 */
+
 #   define _MTC0_V0_USERLOCAL \
     _ENCODE_INSN(OP_COP0, OP_MT, V0, 4, 2)
 
-#endif /* ! __mips_n64 */
+#endif /* ! (__mips_n64 || __mipsn32) */
 
 #define	_JR_RA	_ENCODE_INSN(OP_SPECIAL, RA, 0, 0, OP_JR)
 #define	_NOP	0
