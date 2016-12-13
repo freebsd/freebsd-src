@@ -154,6 +154,8 @@ counter_ratecheck(struct counter_rate *cr, int64_t limit)
 				counter_u64_zero(cr->cr_rate);
 				cr->cr_over = 0;
 				cr->cr_ticks = now;
+				if (val <= limit)
+					val = 0;
 			}
 			atomic_store_rel_int(&cr->cr_lock, 0);
 		} else
