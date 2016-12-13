@@ -175,6 +175,7 @@ if ! f_eval_catch -d wlanconfig wpa_cli "wpa_cli ping"; then
 		'wpa_supplicant -B -i "%s" -c "%s/wpa_supplicant.conf"' \
 		"$1" "$BSDINSTALL_TMPETC" || exit 1
 
+	# See if we succeeded
 	f_eval_catch wlanconfig wpa_cli "wpa_cli ping" || exit 1
 fi
 
