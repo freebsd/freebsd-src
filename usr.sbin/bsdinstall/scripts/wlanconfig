@@ -132,7 +132,7 @@ dialog_country_select()
 		--title \"\$DIALOG_TITLE\" \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--cancel-label \"\$msg_skip\" \
-		--default-item \"$default_country\" \
+		--default-item \"\$default_country\" \
 		--menu \"Select your country.\" \
 		$height $width $rows \
 		$countries \
