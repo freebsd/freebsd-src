@@ -122,7 +122,7 @@ ar5315_spi_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	device_add_child(dev, "spibus", 0);
+	device_add_child(dev, "spibus", -1);
 	ar5315_spi_attach_sysctl(dev);
 
 	return (bus_generic_attach(dev));
