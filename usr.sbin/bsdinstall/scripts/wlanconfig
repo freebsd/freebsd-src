@@ -357,9 +357,8 @@ network={
 EOF
 
 # Bring up new network
-if [ "$BSDINSTALL_CONFIGCURRENT" ]; then
+[ "$BSDINSTALL_CONFIGCURRENT" ] &&
 	f_eval_catch -d wlanconfig wpa_cli "wpa_cli reconfigure"
-fi
 
 exit $SUCCESS
 
