@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 13, 2003
+.Dd December 2, 2016
 .Dt PTHREAD_SET_NAME_NP 3
 .Os
 .Sh NAME
@@ -35,18 +35,19 @@
 .Sh SYNOPSIS
 .In pthread_np.h
 .Ft void
-.Fn pthread_set_name_np "pthread_t tid" "const char *name"
+.Fn pthread_set_name_np "pthread_t thread" "const char *name"
 .Sh DESCRIPTION
 The
 .Fn pthread_set_name_np
-function sets internal name for thread specified by
-.Fa tid
-argument to string value specified by
+function applies a copy of the given
 .Fa name
-argument.
+to the given
+.Fa thread .
 .Sh ERRORS
 Because of the debugging nature of this function, all errors that may
 appear inside are silently ignored.
+.Sh SEE ALSO
+.Xr thr_set_name 2
 .Sh AUTHORS
 This manual page was written by
 .An Alexey Zelkin Aq Mt phantom@FreeBSD.org .
