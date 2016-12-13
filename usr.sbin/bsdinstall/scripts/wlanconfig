@@ -171,8 +171,7 @@ if ! wpa_cli ping > /dev/null 2>&1; then
 		$DIALOG --backtitle "$DIALOG_BACKTITLE" --title "$msg_error" --msgbox \
 		"Could not start wpa_supplicant!" 0 0; exit 1 || exit 1
 
-	wpa_cli ping > /dev/null 2>&1
-	if [ $? -ne 0 -a ! "$BSDINSTALL_CONFIGCURRENT" ]; then
+	if ! wpa_cli ping > /dev/null 2>&1 && [ ! "$BSDINSTALL_CONFIGCURRENT" ]; then
 		$DIALOG \
 			--title "$msg_error" \
 			--backtitle "$DIALOG_BACKTITLE" \
