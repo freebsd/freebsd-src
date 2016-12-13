@@ -331,7 +331,7 @@ pxa_gpio_unmask_irq(int irq)
 }
 
 int
-pxa_gpio_get_next_irq()
+pxa_gpio_get_next_irq(void)
 {
 	struct  pxa_gpio_softc *sc;
 	int     gpio;

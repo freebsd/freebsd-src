@@ -170,7 +170,7 @@ rk30_wd_watchdog_fn(void *private, u_int cmd, int *error)
 }
 
 void
-rk30_wd_watchdog_reset()
+rk30_wd_watchdog_reset(void)
 {
 	bus_space_handle_t bsh;
 
