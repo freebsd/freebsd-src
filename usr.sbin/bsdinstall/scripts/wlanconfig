@@ -90,8 +90,13 @@ dialog_country_select()
 	# Parse available countries/regdomains
 	#
 	input=$( ifconfig "$WLAN_IFACE" list countries | sed -e 's/DEBUG//gi' )
-	regdomains=$( echo $input | sed -e 's/.*domains://' | tr ' ' '\n' |
-		sort | tr '\n' ' ' )
+	regdomains=$( echo "$input" | awk '
+		sub(/.*domains:/, ""), /[^[:alnum:][[:space:]]/ {
+			n = split($0, domains)
+			for (i = 1; i <= n; i++)
+				printf "'\''%s'\'' '\'\''", domains[i]
+		}
+	' )
 	countries=$( echo "$input" | awk '
 		sub(/Country codes:/, ""), sub(/Regulatory.*/, "") {
 			while (match($0, /[[:upper:]][[:upper:][:digit:]] /)) {
@@ -108,17 +113,18 @@ dialog_country_select()
 
 	f_dialog_title "Regdomain selection"
 	prompt="Select your regdomain."
-	f_dialog_menu_size height width rows "$DIALOG_TITLE" \
-		"$DIALOG_BACKTITLE" "$prompt" "" $regdomains
-	regdomain=$( sh -c "$DIALOG \
-		--title \"$DIALOG_TITLE\" \
-		--backtitle \"$DIALOG_BACKTITLE\" \
-		--cancel-label \"$msg_skip\" \
-		--default-item \"$default_regdomain\" \
-		--no-items \
-		--stdout \
-		--menu \"$prompt\" \
-		$height $width $rows $regdomains"
+	eval f_dialog_menu_size height width rows \
+		\"\$DIALOG_TITLE\" \"\$DIALOG_BACKTITLE\" \
+		\"\$prompt\" \"\" $regdomains
+	regdomain=$( eval $DIALOG \
+		--title \"\$DIALOG_TITLE\" \
+		--backtitle \"\$DIALOG_BACKTITLE\" \
+		--cancel-label \"\$msg_skip\" \
+		--default-item \"\$default_regdomain\" \
+		--menu \"\$prompt\" \
+		$height $width $rows \
+		$regdomains \
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
 
 	f_dialog_title "Country selection"
