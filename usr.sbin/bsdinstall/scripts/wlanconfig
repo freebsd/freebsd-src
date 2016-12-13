@@ -254,7 +254,7 @@ while :; do
 	$DIALOG_CANCEL)
 		# here we ask if the user wants to select the network manually
 		f_dialog_title "Network Selection"
-		f_dialog_yesno "Do you want to select the network manually?" || exit 1
+		f_yesno "Do you want to select the network manually?" || exit 1
 		f_dialog_input NETWORK "Enter SSID" || exit 1
 		ENCRYPTION=$( $DIALOG \
 			--title "$DIALOG_TITLE" \
