@@ -256,9 +256,8 @@ hash_packet6(struct ipfw_flow_id *id)
 	i = (id->dst_ip6.__u6_addr.__u6_addr32[2]) ^
 	    (id->dst_ip6.__u6_addr.__u6_addr32[3]) ^
 	    (id->src_ip6.__u6_addr.__u6_addr32[2]) ^
-	    (id->src_ip6.__u6_addr.__u6_addr32[3]) ^
-	    (id->dst_port) ^ (id->src_port);
-	return i;
+	    (id->src_ip6.__u6_addr.__u6_addr32[3]);
+	return ntohl(i);
 }
 #endif
 
@@ -277,9 +276,9 @@ hash_packet(struct ipfw_flow_id *id, int buckets)
 		i = hash_packet6(id);
 	else
 #endif /* INET6 */
-	i = (id->dst_ip) ^ (id->src_ip) ^ (id->dst_port) ^ (id->src_port);
-	i &= (buckets - 1);
-	return i;
+	i = (id->dst_ip) ^ (id->src_ip);
+	i ^= (id->dst_port) ^ (id->src_port);
+	return (i & (buckets - 1));
 }
 
 /**
