@@ -42,6 +42,25 @@ extern void _init(void) __hidden;
 extern int _DYNAMIC;
 #pragma weak _DYNAMIC
 
+/*
+ * When linking with LLD the *_array_[start/end] symbols are undefined if the
+ * linker discards the matching array section. When using BFD they will contain
+ * the address of the next section after the discarded .array instead.
+ * Marking these symbols as weak and checking for NULL is the simplest workaround
+ * works around this issue. An alternative solution would be to use a custom
+ * linker script for every executable or hardcode the retaining behavior in LLD.
+ *
+ * XXXAR: TODO: fix in upstream LLD
+ */
+#pragma weak __preinit_array_start
+#pragma weak __preinit_array_end
+#pragma weak __init_array_start
+#pragma weak __init_array_end
+#pragma weak __fini_array_start
+#pragma weak __fini_array_end
+#define weak_array_size(name)	\
+	((name##_start == NULL) ? 0 : ((name##_end) - (name##_start)))
+
 char **environ;
 const char *__progname = "";
 
@@ -51,7 +70,7 @@ finalizer(void)
 	void (*fn)(void);
 	size_t array_size, n;
 
-	array_size = __fini_array_end - __fini_array_start;
+	array_size = weak_array_size(__fini_array);
 	for (n = array_size; n > 0; n--) {
 		fn = __fini_array_start[n - 1];
 		if ((uintptr_t)fn != 0 && (uintptr_t)fn != 1)
@@ -73,7 +92,7 @@ handle_static_init(int argc, char **argv, char **env)
 
 	atexit(finalizer);
 
-	array_size = __preinit_array_end - __preinit_array_start;
+	array_size = weak_array_size(__preinit_array);
 	for (n = 0; n < array_size; n++) {
 		fn = __preinit_array_start[n];
 		if ((uintptr_t)fn != 0 && (uintptr_t)fn != 1)
@@ -82,7 +101,7 @@ handle_static_init(int argc, char **argv, char **env)
 #ifndef __CHERI_PURE_CAPABILITY__
 	_init();
 #endif
-	array_size = __init_array_end - __init_array_start;
+	array_size = weak_array_size(__init_array);
 	for (n = 0; n < array_size; n++) {
 		fn = __init_array_start[n];
 		if ((uintptr_t)fn != 0 && (uintptr_t)fn != 1)
