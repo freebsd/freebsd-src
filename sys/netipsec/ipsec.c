@@ -1349,9 +1349,15 @@ ipsec_in_reject(struct secpolicy *sp, struct inpcb *inp, const struct mbuf *m)
 
 	if (inp != NULL &&
 	    (inp->inp_sp->flags & INP_INBOUND_POLICY) == 0 &&
-	    inp->inp_sp->sp_in == NULL) {
+	    inp->inp_sp->sp_in == NULL &&
+	    inp->inp_laddr.s_addr != INADDR_ANY) {
 		/*
 		 * Save found INBOUND policy into PCB SP cache.
+		 * NOTE: We do this only if local address isn't INADDR_ANY,
+		 * because a cached policy for listen socket, that bound to
+		 * ANY address, may prevent to establish another connection.
+		 * We don't check address family, since both INADDR_ANY and
+		 * UNSPECIFIED IPv6 address contains all zeroes.
 		 */
 		genid = key_getspgen();
 		inp->inp_sp->sp_in = sp;
