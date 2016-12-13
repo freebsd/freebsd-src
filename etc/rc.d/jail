@@ -147,7 +147,8 @@ parse_options()
 	#
 	# To relieve confusion, show a warning message.
 	#
-	_confwarn=1
+	: ${jail_confwarn:=YES}
+	checkyesno jail_confwarn && _confwarn=1
 	if [ -r "$jail_conf" -o -r "$_jconf" ]; then
 		if ! checkyesno jail_parallel_start; then
 			warn "$_conf is created and used for jail $_j."
