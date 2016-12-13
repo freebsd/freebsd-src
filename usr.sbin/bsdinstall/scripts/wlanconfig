@@ -85,7 +85,7 @@ country_set()
 
 dialog_country_select()
 {
-	local input regdomains countries regdomain country
+	local input regdomains countries regdomain country prompt
 	local no_default="<not selected>"
 	local default_regdomain="${1:-$no_default}"
 	local default_country="${2:-$no_default}"
@@ -111,8 +111,9 @@ dialog_country_select()
 	' | sort )
 
 	f_dialog_title "Regdomain selection"
+	prompt="Select your regdomain."
 	f_dialog_menu_size height width rows "$DIALOG_TITLE" \
-		"$DIALOG_BACKTITLE" "Select your regdomain." "" $regdomains
+		"$DIALOG_BACKTITLE" "$prompt" "" $regdomains
 	regdomain=$( sh -c "$DIALOG \
 		--title \"$DIALOG_TITLE\" \
 		--backtitle \"$DIALOG_BACKTITLE\" \
@@ -120,20 +121,21 @@ dialog_country_select()
 		--default-item \"$default_regdomain\" \
 		--no-items \
 		--stdout \
-		--menu \"Select your regdomain.\" \
+		--menu \"$prompt\" \
 		$height $width $rows $regdomains"
 	)
 
 	f_dialog_title "Country selection"
+	prompt="Select your country."
 	eval f_dialog_menu_size height width rows \
 		\"\$DIALOG_TITLE\" \"\$DIALOG_BACKTITLE\" \
-		\"Select your country.\" \"\" $countries
+		\"\$prompt\" \"\" $countries
 	country=$( eval $DIALOG \
 		--title \"\$DIALOG_TITLE\" \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--cancel-label \"\$msg_skip\" \
 		--default-item \"\$default_country\" \
-		--menu \"Select your country.\" \
+		--menu \"\$prompt\" \
 		$height $width $rows \
 		$countries \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
