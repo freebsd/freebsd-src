@@ -2465,7 +2465,6 @@ validate(struct sockaddr *sa, const char *hname)
 	struct allowedpeer *ap;
 	struct sockaddr_in *sin4, *a4p = NULL, *m4p = NULL;
 #ifdef INET6
-	int reject;
 	struct sockaddr_in6 *sin6, *a6p = NULL, *m6p = NULL;
 #endif
 	struct addrinfo hints, *res;
@@ -2533,13 +2532,8 @@ validate(struct sockaddr *sa, const char *hname)
 					dprintf("rejected in rule %d due to scope mismatch.\n", i);
 					continue;
 				}
-				reject = 0;
 				if (IN6_ARE_MASKED_ADDR_EQUAL(&sin6->sin6_addr,
 				    &a6p->sin6_addr, &m6p->sin6_addr) != 0) {
-					++reject;
-					break;
-				}
-				if (reject) {
 					dprintf("rejected in rule %d due to IP mismatch.\n", i);
 					continue;
 				}
