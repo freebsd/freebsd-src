@@ -219,7 +219,6 @@ while :; do
 
 	f_dialog_title "Network Selection"
 	prompt="Select a wireless network to connect to."
-	menu_list=$( echo $NETWORKS | tr '\n' ' ' )
 	f_dialog_menu_size height width rows "$DIALOG_TITLE" \
 		"$DIALOG_BACKTITLE" "$prompt" "" $menu_list
 	NETWORK=$( eval $DIALOG \
@@ -229,7 +228,7 @@ while :; do
 		--extra-label \"Rescan\"           \
 		--menu \"\$prompt\"                \
 		$height $width $rows               \
-		$menu_list                         \
+		$NETWORKS                          \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
 	retval=$?
