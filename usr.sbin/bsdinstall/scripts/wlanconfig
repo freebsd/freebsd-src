@@ -96,7 +96,7 @@ dialog_country_select()
 			for (i = 1; i <= n; i++)
 				printf "'\''%s'\'' '\'\''", domains[i]
 		}
-	' )
+	' | sort )
 	countries=$( echo "$input" | awk '
 		sub(/Country codes:/, ""), sub(/Regulatory.*/, "") {
 			while (match($0, /[[:upper:]][[:upper:][:digit:]] /)) {
