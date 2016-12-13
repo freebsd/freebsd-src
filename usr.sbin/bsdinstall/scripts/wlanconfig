@@ -196,11 +196,7 @@ if [ "$BSDINSTALL_CONFIGCURRENT" ]; then
 	[ "$DEF_REGDOMAIN" = 0 ] && DEF_REGDOMAIN="<not selected>"
 	[ "$DEF_COUNTRY" = 0 ] && DEF_COUNTRY="<not selected>"
 	f_dialog_title "Regdomain/country"
-	$DIALOG \
-		--title "$DIALOG_TITLE" \
-		--backtitle "$DIALOG_BACKTITLE" \
-		--yesno "Change regdomain/country (now $DEF_REGDOMAIN/$DEF_COUNTRY)?" \
-		0 0
+	f_yesno "Change regdomain/country (now $DEF_REGDOMAIN/$DEF_COUNTRY)?"
 	if [ $? -eq 0 ]; then
 		while :; do
 			dialog_country_select "$DEF_REGDOMAIN" "$DEF_COUNTRY"
@@ -230,11 +226,7 @@ while :; do
 
 	if [ ! "$NETWORKS" ]; then
 		f_dialog_title "$msg_error"
-		$DIALOG \
-			--title "$DIALOG_TITLE" \
-			--backtitle "$DIALOG_BACKTITLE" \
-			--yesno "No wireless networks were found. Rescan?" \
-			0 0 && continue
+		f_yesno "No wireless networks were found. Rescan?" && continue
 		exit 1
 	fi
 
