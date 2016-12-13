@@ -432,7 +432,20 @@ db_md_list_watchpoints()
 void
 db_trace_self(void)
 {
-	db_trace_thread (curthread, -1);
+	register_t pc, ra, sp;
+
+	sp = (register_t)(intptr_t)__builtin_frame_address(0);
+	ra = (register_t)(intptr_t)__builtin_return_address(0);
+
+	__asm __volatile(
+		"jal 99f\n"
+		"nop\n"
+		"99:\n"
+		 "move %0, $31\n" /* get ra */
+		 "move $31, %1\n" /* restore ra */
+		 : "=r" (pc)
+		 : "r" (ra));
+	stacktrace_subr(pc, sp, ra, db_printf);
 	return;
 }
 
@@ -442,28 +455,11 @@ db_trace_thread(struct thread *thr, int count)
 	register_t pc, ra, sp;
 	struct pcb *ctx;
 
-	if (thr == curthread) {
-		sp = (register_t)(intptr_t)__builtin_frame_address(0);
-		ra = (register_t)(intptr_t)__builtin_return_address(0);
-
-        	__asm __volatile(
-			"jal 99f\n"
-			"nop\n"
-			"99:\n"
-                         "move %0, $31\n" /* get ra */
-                         "move $31, %1\n" /* restore ra */
-                         : "=r" (pc)
-			 : "r" (ra));
-
-	} else {
-		ctx = kdb_thr_ctx(thr);
-		sp = (register_t)ctx->pcb_context[PCB_REG_SP];
-		pc = (register_t)ctx->pcb_context[PCB_REG_PC];
-		ra = (register_t)ctx->pcb_context[PCB_REG_RA];
-	}
-
-	stacktrace_subr(pc, sp, ra,
-	    (int (*) (const char *, ...))db_printf);
+	ctx = kdb_thr_ctx(thr);
+	sp = (register_t)ctx->pcb_context[PCB_REG_SP];
+	pc = (register_t)ctx->pcb_context[PCB_REG_PC];
+	ra = (register_t)ctx->pcb_context[PCB_REG_RA];
+	stacktrace_subr(pc, sp, ra, db_printf);
 
 	return (0);
 }
