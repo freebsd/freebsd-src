@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 10, 2016
+.Dd December 13, 2016
 .Dt DECRYPTCORE 8
 .Os
 .Sh NAME
@@ -45,7 +45,7 @@
 .Sh DESCRIPTION
 The
 .Nm
-first decrypts
+utility first decrypts
 .Ar keyfile
 using
 .Ar privatekeyfile
@@ -53,7 +53,7 @@ and then uses the resulting key to decrypt
 .Ar encryptedcore
 saved by
 .Xr savecore 8 .
-Result is saved in
+The result is saved in
 .Ar core .
 .Pp
 Alternatively a user can decrypt a core dump numbered
@@ -91,24 +91,22 @@ Specify location of an encrypted core.
 .It Fl c Ar core
 Specify location of a resulting decrypted core dump.
 .It Fl d Ar crashdir
-Specify an alternative crash dump directory. The default crash dump directory is
+Specify an alternative crash dump directory.
+The default crash dump directory is
 .Pa /var/crash .
 .It Fl n Ar dumpnr
 Specify a number of a crash dump to be decrypted.
 .El
 .Sh EXIT STATUS
-The
-.Nm
-utility exits 0 on success, and >0 if an error occurs.
+.Ex -std
 .Sh SEE ALSO
+.Xr kgdb 1 ,
 .Xr capsicum 4 ,
 .Xr dumpon 8 ,
-.Xr kgdb 1 ,
 .Xr savecore 8 ,
 .Xr syslogd 8
 .Sh AUTHORS
 The
 .Nm
-was implemented by
-.An -nosplit
+utility was implemented by
 .An Konrad Witaszczyk Aq Mt def@FreeBSD.org .
