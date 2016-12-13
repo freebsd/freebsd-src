@@ -208,7 +208,7 @@ while :; do
 
 	f_eval_catch -dk SCAN_RESULTS wlanconfig wpa_cli "wpa_cli scan_results"
 	NETWORKS=$( echo "$SCAN_RESULTS" | awk -F '\t' '
-		/..:..:..:..:..:../ && $5 { printf "\"%s\"\t%s\n", $5, $4 }
+		/..:..:..:..:..:../ && $5 { printf "\"%s\"\t\"%s\"\n", $5, $4 }
 	' | sort | uniq )
 
 	if [ ! "$NETWORKS" ]; then
