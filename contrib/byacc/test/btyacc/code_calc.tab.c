@@ -16,12 +16,14 @@ const YYINT calc_defred[] = {                      1,
     0,    0,   18,    0,    6,    0,    0,    0,    0,    9,
    10,   11,
 };
+#if defined(YYDESTRUCT_CALL) || defined(YYSTYPE_TOSTRING)
 const YYINT calc_stos[] = {                        0,
   261,  256,  257,  258,   45,   40,  262,  263,  264,   10,
    61,  258,  263,  263,   10,  124,   38,   43,   45,   42,
    47,   37,  257,  263,   41,  263,  263,  263,  263,  263,
   263,  263,
 };
+#endif /* YYDESTRUCT_CALL || YYSTYPE_TOSTRING */
 const YYINT calc_dgoto[] = {                       1,
     7,    8,    9,
 };

@@ -1,4 +1,4 @@
-/* $Id: yaccpar.skel,v 1.7 2016/06/06 23:35:55 Tom.Shields Exp $ */
+/* $Id: yaccpar.skel,v 1.8 2016/12/02 21:44:42 tom Exp $ */
 
 #include "defs.h"
 
@@ -166,6 +166,7 @@ YYPARSE_DECL()
     }
 #endif
 
+%% body_3
     yym = 0;
     yyn = 0;
     yynerrs = 0;

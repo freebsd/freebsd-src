@@ -169,9 +169,11 @@ typedef struct YYLTYPE
     int first_column;
     int last_line;
     int last_column;
+    unsigned source;
 } YYLTYPE;
 #define YYLTYPE_IS_DECLARED 1
 #endif
+#define YYRHSLOC(rhs, k) ((rhs)[k])
 
 /* compatibility with bison */
 #ifdef YYPARSE_PARAM
@@ -196,10 +198,10 @@ typedef struct YYLTYPE
 
 /* Parameters sent to yyerror. */
 #ifndef YYERROR_DECL
-#define YYERROR_DECL() yyerror(YYLTYPE loc, const char *s)
+#define YYERROR_DECL() yyerror(YYLTYPE *loc, const char *s)
 #endif
 #ifndef YYERROR_CALL
-#define YYERROR_CALL(msg) yyerror(yylloc, msg)
+#define YYERROR_CALL(msg) yyerror(&yylloc, msg)
 #endif
 
 #ifndef YYDESTRUCT_DECL
@@ -230,10 +232,12 @@ static const YYINT err_inherit4_defred[] = {              0,
     5,    6,    7,    8,    0,    0,    0,    1,   10,    0,
     4,    2,    9,    0,    0,
 };
+#if defined(YYDESTRUCT_CALL) || defined(YYSTYPE_TOSTRING)
 static const YYINT err_inherit4_stos[] = {                0,
   257,  258,  259,  260,  263,  266,  267,  267,  261,  264,
   265,  268,  261,  269,  264,
 };
+#endif /* YYDESTRUCT_CALL || YYSTYPE_TOSTRING */
 static const YYINT err_inherit4_dgoto[] = {               5,
    10,   11,    6,    7,   12,   14,
 };
@@ -425,15 +429,15 @@ static YYLTYPE *yylplim = 0;
 #endif
 
 /* Current position at lexical token queue */
-static short  *yylexp = 0;
+static YYINT  *yylexp = 0;
 
-static short  *yylexemes = 0;
+static YYINT  *yylexemes = 0;
 #endif /* YYBTYACC */
 #line 80 "err_inherit4.y"
 
 extern int YYLEX_DECL();
 extern void YYERROR_DECL();
-#line 437 "err_inherit4.tab.c"
+#line 441 "err_inherit4.tab.c"
 
 /* Release memory associated with symbol. */
 #if ! defined YYDESTRUCT_IS_DECLARED
@@ -446,17 +450,17 @@ YYDESTRUCT_DECL()
 #line 28 "err_inherit4.y"
 	{ }
 	break;
-#line 450 "err_inherit4.tab.c"
+#line 454 "err_inherit4.tab.c"
 	case 264:
 #line 28 "err_inherit4.y"
 	{ }
 	break;
-#line 455 "err_inherit4.tab.c"
+#line 459 "err_inherit4.tab.c"
 	case 265:
 #line 28 "err_inherit4.y"
 	{ }
 	break;
-#line 460 "err_inherit4.tab.c"
+#line 464 "err_inherit4.tab.c"
     }
 }
 #define YYDESTRUCT_IS_DECLARED 1
@@ -663,10 +667,10 @@ yyloop:
                 size_t s = (size_t) (yylvlim - yylvals);
 
                 s += YYLVQUEUEGROWTH;
-                if ((yylexemes = (short *)   realloc(yylexemes, s * sizeof(short))) == NULL) goto yyenomem;
-                if ((yylvals   = (YYSTYPE *) realloc(yylvals, s * sizeof(YYSTYPE))) == NULL) goto yyenomem;
+                if ((yylexemes = realloc(yylexemes, s * sizeof(YYINT))) == NULL) goto yyenomem;
+                if ((yylvals   = realloc(yylvals, s * sizeof(YYSTYPE))) == NULL) goto yyenomem;
 #if defined(YYLTYPE) || defined(YYLTYPE_IS_DECLARED)
-                if ((yylpsns   = (YYLTYPE *) realloc(yylpsns, s * sizeof(YYLTYPE))) == NULL) goto yyenomem;
+                if ((yylpsns   = realloc(yylpsns, s * sizeof(YYLTYPE))) == NULL) goto yyenomem;
 #endif
                 yylvp   = yylve = yylvals + p;
                 yylvlim = yylvals + s;
@@ -676,7 +680,7 @@ yyloop:
 #endif
                 yylexp  = yylexemes + p;
             }
-            *yylexp = (short) YYLEX;
+            *yylexp = (YYINT) YYLEX;
             *yylvp++ = yylval;
             yylve++;
 #if defined(YYLTYPE) || defined(YYLTYPE_IS_DECLARED)
@@ -777,7 +781,7 @@ yyloop:
                 /* If this is a first conflict in the stack, start saving lexemes */
                 if (!yylexemes)
                 {
-                    yylexemes = (short *) malloc((YYLVQUEUEGROWTH) * sizeof(short));
+                    yylexemes = malloc((YYLVQUEUEGROWTH) * sizeof(YYINT));
                     if (yylexemes == NULL) goto yyenomem;
                     yylvals   = (YYSTYPE *) malloc((YYLVQUEUEGROWTH) * sizeof(YYSTYPE));
                     if (yylvals == NULL) goto yyenomem;
@@ -801,7 +805,7 @@ yyloop:
 #if defined(YYLTYPE) || defined(YYLTYPE_IS_DECLARED)
                         *yylpe++ = yylloc;
 #endif
-                        *yylexp  = (short) yychar;
+                        *yylexp  = (YYINT) yychar;
                         yychar   = YYEMPTY;
                     }
                 }
@@ -1175,7 +1179,7 @@ case 11:
 #line 77 "err_inherit4.y"
 	{ yyval.nlist = yystack.l_mark[0].nlist; yyloc = yystack.p_mark[1]; }
 break;
-#line 1179 "err_inherit4.tab.c"
+#line 1183 "err_inherit4.tab.c"
     default:
         break;
     }
@@ -1230,12 +1234,12 @@ break;
                     size_t s = (size_t) (yylvlim - yylvals);
 
                     s += YYLVQUEUEGROWTH;
-                    if ((yylexemes = (short *)   realloc(yylexemes, s * sizeof(short))) == NULL)
+                    if ((yylexemes = realloc(yylexemes, s * sizeof(YYINT))) == NULL)
                         goto yyenomem;
-                    if ((yylvals   = (YYSTYPE *) realloc(yylvals, s * sizeof(YYSTYPE))) == NULL)
+                    if ((yylvals   = realloc(yylvals, s * sizeof(YYSTYPE))) == NULL)
                         goto yyenomem;
 #if defined(YYLTYPE) || defined(YYLTYPE_IS_DECLARED)
-                    if ((yylpsns   = (YYLTYPE *) realloc(yylpsns, s * sizeof(YYLTYPE))) == NULL)
+                    if ((yylpsns   = realloc(yylpsns, s * sizeof(YYLTYPE))) == NULL)
                         goto yyenomem;
 #endif
                     yylvp   = yylve = yylvals + p;
@@ -1246,7 +1250,7 @@ break;
 #endif
                     yylexp  = yylexemes + p;
                 }
-                *yylexp = (short) YYLEX;
+                *yylexp = (YYINT) YYLEX;
                 *yylvp++ = yylval;
                 yylve++;
 #if defined(YYLTYPE) || defined(YYLTYPE_IS_DECLARED)

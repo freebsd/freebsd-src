@@ -1,8 +1,8 @@
 /* This file generated automatically using
- * @Id: skel2c,v 1.3 2014/04/06 19:48:04 tom Exp @
+ * @Id: skel2c,v 1.4 2016/06/07 00:26:09 tom Exp @
  */
 
-/* @Id: btyaccpar.skel,v 1.3 2016/06/06 23:35:55 Tom.Shields Exp @ */
+/* @Id: btyaccpar.skel,v 1.5 2016/12/02 22:02:28 tom Exp @ */
 
 #include "defs.h"
 
@@ -218,9 +218,9 @@ const char *const hdr_vars[] =
     "#endif",
     "",
     "/* Current position at lexical token queue */",
-    "static short  *yylexp = 0;",
+    "static YYINT  *yylexp = 0;",
     "",
-    "static short  *yylexemes = 0;",
+    "static YYINT  *yylexemes = 0;",
     "#endif /* YYBTYACC */",
 #endif			/* defined(YYBTYACC) */
     0
@@ -275,9 +275,9 @@ const char *const body_vars[] =
     "#endif",
     "",
     "    /* Current position at lexical token queue */",
-    "    static short  *yylexp = 0;",
+    "    static YYINT  *yylexp = 0;",
     "",
-    "    static short  *yylexemes = 0;",
+    "    static YYINT  *yylexemes = 0;",
     "#endif /* YYBTYACC */",
 #endif			/* defined(YYBTYACC) */
     0
@@ -451,6 +451,11 @@ const char *const body_2[] =
     "        fprintf(stderr, \"%sdebug[<# of symbols on state stack>]\\n\", YYPREFIX);",
     "#endif",
     "",
+    0
+};
+
+const char *const body_3[] =
+{
 #if defined(YYBTYACC)
     "#if YYBTYACC",
     "    yyps = yyNewState(0); if (yyps == 0) goto yyenomem;",
@@ -503,10 +508,10 @@ const char *const body_2[] =
     "                size_t s = (size_t) (yylvlim - yylvals);",
     "",
     "                s += YYLVQUEUEGROWTH;",
-    "                if ((yylexemes = (short *)   realloc(yylexemes, s * sizeof(short))) == NULL) goto yyenomem;",
-    "                if ((yylvals   = (YYSTYPE *) realloc(yylvals, s * sizeof(YYSTYPE))) == NULL) goto yyenomem;",
+    "                if ((yylexemes = realloc(yylexemes, s * sizeof(YYINT))) == NULL) goto yyenomem;",
+    "                if ((yylvals   = realloc(yylvals, s * sizeof(YYSTYPE))) == NULL) goto yyenomem;",
     "#if defined(YYLTYPE) || defined(YYLTYPE_IS_DECLARED)",
-    "                if ((yylpsns   = (YYLTYPE *) realloc(yylpsns, s * sizeof(YYLTYPE))) == NULL) goto yyenomem;",
+    "                if ((yylpsns   = realloc(yylpsns, s * sizeof(YYLTYPE))) == NULL) goto yyenomem;",
     "#endif",
     "                yylvp   = yylve = yylvals + p;",
     "                yylvlim = yylvals + s;",
@@ -516,7 +521,7 @@ const char *const body_2[] =
     "#endif",
     "                yylexp  = yylexemes + p;",
     "            }",
-    "            *yylexp = (short) YYLEX;",
+    "            *yylexp = (YYINT) YYLEX;",
     "            *yylvp++ = yylval;",
     "            yylve++;",
     "#if defined(YYLTYPE) || defined(YYLTYPE_IS_DECLARED)",
@@ -623,7 +628,7 @@ const char *const body_2[] =
     "                /* If this is a first conflict in the stack, start saving lexemes */",
     "                if (!yylexemes)",
     "                {",
-    "                    yylexemes = (short *) malloc((YYLVQUEUEGROWTH) * sizeof(short));",
+    "                    yylexemes = malloc((YYLVQUEUEGROWTH) * sizeof(YYINT));",
     "                    if (yylexemes == NULL) goto yyenomem;",
     "                    yylvals   = (YYSTYPE *) malloc((YYLVQUEUEGROWTH) * sizeof(YYSTYPE));",
     "                    if (yylvals == NULL) goto yyenomem;",
@@ -647,7 +652,7 @@ const char *const body_2[] =
     "#if defined(YYLTYPE) || defined(YYLTYPE_IS_DECLARED)",
     "                        *yylpe++ = yylloc;",
     "#endif",
-    "                        *yylexp  = (short) yychar;",
+    "                        *yylexp  = (YYINT) yychar;",
     "                        yychar   = YYEMPTY;",
     "                    }",
     "                }",
@@ -1046,12 +1051,12 @@ const char *const trailer[] =
     "                    size_t s = (size_t) (yylvlim - yylvals);",
     "",
     "                    s += YYLVQUEUEGROWTH;",
-    "                    if ((yylexemes = (short *)   realloc(yylexemes, s * sizeof(short))) == NULL)",
+    "                    if ((yylexemes = realloc(yylexemes, s * sizeof(YYINT))) == NULL)",
     "                        goto yyenomem;",
-    "                    if ((yylvals   = (YYSTYPE *) realloc(yylvals, s * sizeof(YYSTYPE))) == NULL)",
+    "                    if ((yylvals   = realloc(yylvals, s * sizeof(YYSTYPE))) == NULL)",
     "                        goto yyenomem;",
     "#if defined(YYLTYPE) || defined(YYLTYPE_IS_DECLARED)",
-    "                    if ((yylpsns   = (YYLTYPE *) realloc(yylpsns, s * sizeof(YYLTYPE))) == NULL)",
+    "                    if ((yylpsns   = realloc(yylpsns, s * sizeof(YYLTYPE))) == NULL)",
     "                        goto yyenomem;",
     "#endif",
     "                    yylvp   = yylve = yylvals + p;",
@@ -1062,7 +1067,7 @@ const char *const trailer[] =
     "#endif",
     "                    yylexp  = yylexemes + p;",
     "                }",
-    "                *yylexp = (short) YYLEX;",
+    "                *yylexp = (YYINT) YYLEX;",
     "                *yylvp++ = yylval;",
     "                yylve++;",
     "#if defined(YYLTYPE) || defined(YYLTYPE_IS_DECLARED)",

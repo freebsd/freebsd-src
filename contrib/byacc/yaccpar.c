@@ -1,5 +1,5 @@
 /* This file generated automatically using
- * @Id: skel2c,v 1.3 2014/04/06 19:48:04 tom Exp @
+ * @Id: skel2c,v 1.4 2016/06/07 00:26:09 tom Exp @
  */
 
 /* @Id: yaccpar.skel,v 1.7 2016/06/06 23:35:55 Tom.Shields Exp @ */
@@ -211,6 +211,11 @@ const char *const body_2[] =
     "    }",
     "#endif",
     "",
+    0
+};
+
+const char *const body_3[] =
+{
     "    yym = 0;",
     "    yyn = 0;",
     "    yynerrs = 0;",
