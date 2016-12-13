@@ -599,7 +599,7 @@ ipsec_process_done(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 	 * Do UDP encapsulation if SA requires it.
 	 */
 	if (sav->natt != NULL) {
-		error = udp_ipsec_output(&m, sav);
+		error = udp_ipsec_output(m, sav);
 		if (error != 0)
 			goto bad;
 	}

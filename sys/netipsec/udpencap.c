@@ -211,10 +211,10 @@ udp_ipsec_input(struct mbuf *m, int off, int af)
 }
 
 int
-udp_ipsec_output(struct mbuf **mp, struct secasvar *sav)
+udp_ipsec_output(struct mbuf *m, struct secasvar *sav)
 {
 	struct udphdr *udp;
-	struct mbuf *m;
+	struct mbuf *n;
 	struct ip *ip;
 	int hlen, off;
 
@@ -223,16 +223,19 @@ udp_ipsec_output(struct mbuf **mp, struct secasvar *sav)
 	if (sav->sah->saidx.dst.sa.sa_family == AF_INET6)
 		return (EAFNOSUPPORT);
 
-	ip = mtod(*mp, struct ip *);
+	ip = mtod(m, struct ip *);
 	hlen = ip->ip_hl << 2;
-	m = m_makespace(*mp, hlen, sizeof(*udp), &off);
-	if (m == NULL) {
+	n = m_makespace(m, hlen, sizeof(*udp), &off);
+	if (n == NULL) {
 		DPRINTF(("%s: m_makespace for udphdr failed\n", __func__));
 		return (ENOBUFS);
 	}
-	*mp = m;
-	ip = mtod(m, struct ip *);
-	udp = mtodo(m, off);
+	/*
+	 * IP header should stay in the same place of mbuf m.
+	 * m_makespace() can add new mbuf or move the remaining data into
+	 * the end of mbuf space. Thus mtod() isn't required for ip pointer.
+	 */
+	udp = mtodo(n, off);
 	udp->uh_dport = sav->natt->dport;
 	udp->uh_sport = sav->natt->sport;
 	udp->uh_sum = 0;
