@@ -165,10 +165,12 @@ EOF
 # Try to reach wpa_supplicant. If it isn't running and we can modify the
 # existing system, start it. Otherwise, fail.
 #
-wpa_cli ping > /dev/null 2>&1 || ([ "$BSDINSTALL_CONFIGCURRENT" ] &&
-	wpa_supplicant -B -i $1 -c "$BSDINSTALL_TMPETC/wpa_supplicant.conf") ||
-	$DIALOG --backtitle "$DIALOG_BACKTITLE" --title "$msg_error" --msgbox \
-	"Could not start wpa_supplicant!" 0 0; exit 1 || exit 1
+if ! wpa_cli ping > /dev/null 2>&1; then
+	([ "$BSDINSTALL_CONFIGCURRENT" ] &&
+		wpa_supplicant -B -i $1 -c "$BSDINSTALL_TMPETC/wpa_supplicant.conf") ||
+		$DIALOG --backtitle "$DIALOG_BACKTITLE" --title "$msg_error" --msgbox \
+		"Could not start wpa_supplicant!" 0 0; exit 1 || exit 1
+fi
 
 # See if we succeeded
 wpa_cli ping > /dev/null 2>&1
