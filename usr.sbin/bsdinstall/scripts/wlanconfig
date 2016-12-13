@@ -183,7 +183,6 @@ if ! wpa_cli ping > /dev/null 2>&1; then
 	fi
 fi
 
-
 #
 # There is no way to check country/regdomain without (possible)
 # interface state modification
@@ -283,13 +282,13 @@ done
 
 if echo $ENCRYPTION | grep -q 'PSK'; then
 	PASS=$( $DIALOG \
-		--title "WPA Setup" \
-		--backtitle "$DIALOG_BACKTITLE" \
-		--insecure \
-		--mixedform "" \
-		0 0 0 \
+		--title "WPA Setup"              \
+		--backtitle "$DIALOG_BACKTITLE"  \
+		--insecure                       \
+		--mixedform ""                   \
+		0 0 0                            \
 		"SSID" 1 0 "$NETWORK" 1 12 0 0 2 \
-		"Password" 2 0 "" 2 12 15 63 1 \
+		"Password" 2 0 "" 2 12 15 63 1   \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	) || exec "$0" "$@"
 	awk 'sub(/^\t/,"")||1' \
@@ -303,14 +302,14 @@ if echo $ENCRYPTION | grep -q 'PSK'; then
 	EOF
 elif echo $ENCRYPTION | grep -q EAP; then
 	USERPASS=$( $DIALOG \
-		--title "WPA-Enterprise Setup" \
-		--backtitle "$DIALOG_BACKTITLE" \
-		--insecure \
-		--mixedform "" \
-		0 0 0 \
+		--title "WPA-Enterprise Setup"   \
+		--backtitle "$DIALOG_BACKTITLE"  \
+		--insecure                       \
+		--mixedform ""                   \
+		0 0 0                            \
 		"SSID" 1 0 "$NETWORK" 1 12 0 0 2 \
-		"Username" 2 0 "" 2 12 25 63 0 \
-		"Password" 3 0 "" 3 12 25 63 1 \
+		"Username" 2 0 "" 2 12 25 63 0   \
+		"Password" 3 0 "" 3 12 25 63 1   \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	) || exec "$0" "$@"
 	awk 'sub(/^\t/,"")||1' \
@@ -328,13 +327,13 @@ elif echo $ENCRYPTION | grep -q EAP; then
 	EOF
 elif echo $ENCRYPTION | grep -q WEP; then
 	WEPKEY=$( $DIALOG \
-		--title "WEP Setup" \
-		--backtitle "$DIALOG_BACKTITLE" \
-		--insecure \
-		--mixedform "" \
-		0 0 0 \
+		--title "WEP Setup"              \
+		--backtitle "$DIALOG_BACKTITLE"  \
+		--insecure                       \
+		--mixedform ""                   \
+		0 0 0                            \
 		"SSID" 1 0 "$NETWORK" 1 12 0 0 2 \
-		"WEP Key 0" 2 0 "" 2 12 15 0 1 \
+		"WEP Key 0" 2 0 "" 2 12 15 0 1   \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	) || exec "$0" "$@"
 	awk 'sub(/^\t/,"")||1' \
