@@ -117,13 +117,13 @@ dialog_country_select()
 		\"\$DIALOG_TITLE\" \"\$DIALOG_BACKTITLE\" \
 		\"\$prompt\" \"\" $regdomains
 	regdomain=$( eval $DIALOG \
-		--title \"\$DIALOG_TITLE\" \
-		--backtitle \"\$DIALOG_BACKTITLE\" \
-		--cancel-label \"\$msg_skip\" \
+		--title \"\$DIALOG_TITLE\"             \
+		--backtitle \"\$DIALOG_BACKTITLE\"     \
+		--cancel-label \"\$msg_skip\"          \
 		--default-item \"\$default_regdomain\" \
-		--menu \"\$prompt\" \
-		$height $width $rows \
-		$regdomains \
+		--menu \"\$prompt\"                    \
+		$height $width $rows                   \
+		$regdomains                            \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
 
@@ -133,13 +133,13 @@ dialog_country_select()
 		\"\$DIALOG_TITLE\" \"\$DIALOG_BACKTITLE\" \
 		\"\$prompt\" \"\" $countries
 	country=$( eval $DIALOG \
-		--title \"\$DIALOG_TITLE\" \
-		--backtitle \"\$DIALOG_BACKTITLE\" \
-		--cancel-label \"\$msg_skip\" \
+		--title \"\$DIALOG_TITLE\"           \
+		--backtitle \"\$DIALOG_BACKTITLE\"   \
+		--cancel-label \"\$msg_skip\"        \
 		--default-item \"\$default_country\" \
-		--menu \"\$prompt\" \
-		$height $width $rows \
-		$countries \
+		--menu \"\$prompt\"                  \
+		$height $width $rows                 \
+		$countries                           \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
 
