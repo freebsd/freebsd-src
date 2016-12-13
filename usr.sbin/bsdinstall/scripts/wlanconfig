@@ -212,12 +212,8 @@ while :; do
 	output=$( wpa_cli scan 2>&1 )
 	f_dprintf "%s" "$output"
 	f_dialog_title "Scanning"
-	$DIALOG \
-		--title "$DIALOG_TITLE" \
-		--backtitle "$DIALOG_BACKTITLE" \
-		--ok-label "$msg_skip" \
-		--pause "Waiting 5 seconds to scan for wireless networks..." \
-		9 40 5 || exit 1
+	f_dialog_pause "Waiting 5 seconds to scan for wireless networks..." 5 ||
+		exit 1
 
 	SCAN_RESULTS=$( wpa_cli scan_results )
 	NETWORKS=$( echo "$SCAN_RESULTS" | awk -F '\t' '
