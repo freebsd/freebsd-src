@@ -167,8 +167,8 @@ EOF
 #
 if ! wpa_cli ping > /dev/null 2>&1; then
 	if [ ! "$BSDINSTALL_CONFIGCURRENT" ]; then
-		$DIALOG --backtitle "$DIALOG_BACKTITLE" --title "$msg_error" --msgbox \
-			"Wireless cannot be configured without making changes to the local system!" 0 0
+		f_show_err "Wireless cannot be configured without %s" \
+		           "making changes to the local system!"
 		exit 1
 	fi
 	wpa_supplicant -B -i $1 -c "$BSDINSTALL_TMPETC/wpa_supplicant.conf") || exit 1
