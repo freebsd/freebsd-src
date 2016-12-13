@@ -280,7 +280,7 @@ done
 [ "$ENCRYPTION" ] || ENCRYPTION=$( echo "$NETWORKS" |
 	awk -F '\t' "/^\"$NETWORK\"\t/ { print \$2 }" )
 
-if echo $ENCRYPTION | grep -q 'PSK'; then
+if echo "$ENCRYPTION" | grep -q 'PSK'; then
 	PASS=$( $DIALOG \
 		--title "WPA Setup"              \
 		--backtitle "$DIALOG_BACKTITLE"  \
@@ -300,7 +300,7 @@ if echo $ENCRYPTION | grep -q 'PSK'; then
 		priority=5
 	}
 	EOF
-elif echo $ENCRYPTION | grep -q EAP; then
+elif echo "$ENCRYPTION" | grep -q EAP; then
 	USERPASS=$( $DIALOG \
 		--title "WPA-Enterprise Setup"   \
 		--backtitle "$DIALOG_BACKTITLE"  \
@@ -325,7 +325,7 @@ elif echo $ENCRYPTION | grep -q EAP; then
 		priority=5
 	}
 	EOF
-elif echo $ENCRYPTION | grep -q WEP; then
+elif echo "$ENCRYPTION" | grep -q WEP; then
 	WEPKEY=$( $DIALOG \
 		--title "WEP Setup"              \
 		--backtitle "$DIALOG_BACKTITLE"  \
