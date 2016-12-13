@@ -37,6 +37,7 @@
 #include <vm/uma.h>
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
+#include <vm/vm_pageout.h>
 
 MALLOC_DECLARE(M_SOLARIS);
 
@@ -77,8 +78,10 @@ void kmem_reap(void);
 int kmem_debugging(void);
 void *calloc(size_t n, size_t s);
 
-#define	freemem				vm_cnt.v_free_count
-#define	minfree				vm_cnt.v_free_min
+#define	freemem				(long)vm_cnt.v_free_count
+#define	desfree				(long)vm_cnt.v_free_target
+#define	minfree				(long)vm_cnt.v_free_min
+#define	needfree			(long)vm_pageout_deficit
 #define	heap_arena			kmem_arena
 #define	kmem_alloc(size, kmflags)	zfs_kmem_alloc((size), (kmflags))
 #define	kmem_zalloc(size, kmflags)	zfs_kmem_alloc((size), (kmflags) | M_ZERO)

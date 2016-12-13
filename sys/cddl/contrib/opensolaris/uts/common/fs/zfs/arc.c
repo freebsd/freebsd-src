@@ -357,6 +357,7 @@ int zfs_arc_shrink_shift = 0;
 int zfs_arc_p_min_shift = 0;
 uint64_t zfs_arc_average_blocksize = 8 * 1024; /* 8KB */
 u_int zfs_arc_free_target = 0;
+#define	lotsfree	zfs_arc_free_target
 
 /* Absolute min for arc min / max is 16MB. */
 static uint64_t arc_abs_min = 16 << 20;
@@ -3827,8 +3828,6 @@ arc_shrink(int64_t to_free)
 	}
 }
 
-static long needfree = 0;
-
 typedef enum free_memory_reason_t {
 	FMR_UNKNOWN,
 	FMR_NEEDFREE,
@@ -3875,17 +3874,6 @@ arc_available_memory(void)
 	}
 
 	/*
-	 * Cooperate with pagedaemon when it's time for it to scan
-	 * and reclaim some pages.
-	 */
-	n = PAGESIZE * ((int64_t)freemem - zfs_arc_free_target);
-	if (n < lowest) {
-		lowest = n;
-		r = FMR_LOTSFREE;
-	}
-
-#ifdef illumos
-	/*
 	 * check that we're out of range of the pageout scanner.  It starts to
 	 * schedule paging if freemem is less than lotsfree and needfree.
 	 * lotsfree is the high-water mark for pageout, and needfree is the
@@ -3898,6 +3886,7 @@ arc_available_memory(void)
 		r = FMR_LOTSFREE;
 	}
 
+#ifdef illumos
 	/*
 	 * check to make sure that swapfs has enough space so that anon
 	 * reservations can still succeed. anon_resvmem() checks that the
@@ -4154,9 +4143,6 @@ arc_reclaim_thread(void *dummy __unused)
 		 * infinite loop.
 		 */
 		if (arc_size <= arc_c || evicted == 0) {
-#ifdef _KERNEL
-			needfree = 0;
-#endif
 			/*
 			 * We're either no longer overflowing, or we
 			 * can't evict anything more, so we should wake
@@ -5883,8 +5869,6 @@ arc_lowmem(void *arg __unused, int howto __unused)
 {
 
 	mutex_enter(&arc_reclaim_lock);
-	/* XXX: Memory deficit should be passed as argument. */
-	needfree = btoc(arc_c >> arc_shrink_shift);
 	DTRACE_PROBE(arc__needfree);
 	cv_signal(&arc_reclaim_thread_cv);
 
