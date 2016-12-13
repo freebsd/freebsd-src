@@ -52,6 +52,11 @@ __FBSDID("$FreeBSD$");
 
 #include "platform_if.h"
 
+static platform_lastaddr_t rk30xx_lastaddr;
+static platform_devmap_init_t rk30xx_devmap_init;
+static platform_late_init_t rk30xx_late_init;
+static platform_cpu_reset_t rk30xx_cpu_reset;
+
 static vm_offset_t
 rk30xx_lastaddr(platform_t plat)
 {
@@ -82,7 +87,7 @@ rk30xx_devmap_init(platform_t plat)
 }
 
 static void
-rk30xx_cpu_reset()
+rk30xx_cpu_reset(platform_t plat)
 {
 
 	rk30_wd_watchdog_reset();
