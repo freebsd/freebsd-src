@@ -52,8 +52,9 @@ country_set()
 	# Regdomain/country cannot be applied while interface is running
 	iface_up=$( ifconfig -lu | grep -w "$WLAN_IFACE" )
 	[ "$iface_up" ] && ifconfig "$WLAN_IFACE" down
-	error_str=$( ifconfig "$WLAN_IFACE" $ifconfig_args 2>&1 |
-		sed -e 's/ifconfig: //' )
+	f_eval_catch -dk error_str wlanconfig ifconfig "ifconfig %s %s" \
+		"$WLAN_IFACE" "$ifconfig_args"
+	error_str="${error_str#ifconfig: }"
 	if [ "$iface_up" ]; then
 		# Restart wpa_supplicant(8) (should not fail).
 		wpa_supplicant -B -i "$WLAN_IFACE" -c \
@@ -165,22 +166,17 @@ EOF
 # Try to reach wpa_supplicant. If it isn't running and we can modify the
 # existing system, start it. Otherwise, fail.
 #
-if ! wpa_cli ping > /dev/null 2>&1; then
+if ! f_eval_catch -d wlanconfig wpa_cli "wpa_cli ping"; then
 	if [ ! "$BSDINSTALL_CONFIGCURRENT" ]; then
 		f_show_err "Wireless cannot be configured without %s" \
 		           "making changes to the local system!"
 		exit 1
 	fi
-	wpa_supplicant -B -i $1 -c "$BSDINSTALL_TMPETC/wpa_supplicant.conf") || exit 1
+	f_eval_catch wlanconfig wpa_supplicant \
+		'wpa_supplicant -B -i "%s" -c "%s/wpa_supplicant.conf"' \
+		"$1" "$BSDINSTALL_TMPETC" || exit 1
 
-	if ! wpa_cli ping > /dev/null 2>&1 && [ ! "$BSDINSTALL_CONFIGCURRENT" ]; then
-		$DIALOG \
-			--title "$msg_error" \
-			--backtitle "$DIALOG_BACKTITLE" \
-			--msgbox "Could not start wpa_supplicant!" \
-			0 0
-		exit 1
-	fi
+	f_eval_catch wlanconfig wpa_cli "wpa_cli ping" || exit 1
 fi
 
 #
@@ -209,13 +205,12 @@ fi
 
 while :; do
 	SCANSSID=0
-	output=$( wpa_cli scan 2>&1 )
-	f_dprintf "%s" "$output"
+	f_eval_catch -d wlanconfig wpa_cli "wpa_cli scan"
 	f_dialog_title "Scanning"
 	f_dialog_pause "Waiting 5 seconds to scan for wireless networks..." 5 ||
 		exit 1
 
-	SCAN_RESULTS=$( wpa_cli scan_results )
+	f_eval_catch -dk SCAN_RESULTS wlanconfig wpa_cli "wpa_cli scan_results"
 	NETWORKS=$( echo "$SCAN_RESULTS" | awk -F '\t' '
 		/..:..:..:..:..:../ && $5 { printf "\"%s\"\t%s\n", $5, $4 }
 	' | sort | uniq )
@@ -365,8 +360,7 @@ EOF
 
 # Bring up new network
 if [ "$BSDINSTALL_CONFIGCURRENT" ]; then
-	output=$( wpa_cli reconfigure 2>&1 )
-	f_dprintf "%s" "$output"
+	f_eval_catch -d wlanconfig wpa_cli "wpa_cli reconfigure"
 fi
 
 exit $SUCCESS
