@@ -1245,6 +1245,14 @@ xbd_connect(struct xbd_softc *sc)
 		    xenbus_get_otherend_path(dev));
 		return;
 	}
+	if ((sectors == 0) || (sector_size == 0)) {
+		xenbus_dev_fatal(dev, 0,
+		    "invalid parameters from %s:"
+		    " sectors = %lu, sector_size = %lu",
+		    xenbus_get_otherend_path(dev),
+		    sectors, sector_size);
+		return;
+	}
 	err = xs_gather(XST_NIL, xenbus_get_otherend_path(dev),
 	     "physical-sector-size", "%lu", &phys_sector_size,
 	     NULL);
