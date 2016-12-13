@@ -256,7 +256,7 @@ while :; do
 	case $retval in
 	$DIALOG_OK) break ;;
 	$DIALOG_CANCEL)
-		# here we ask if the user wants to select the network manually
+		# Ask if the user wants to select network manually
 		f_dialog_title "Network Selection"
 		f_yesno "Do you want to select the network manually?" || exit 1
 		f_dialog_input NETWORK "Enter SSID" || exit 1
