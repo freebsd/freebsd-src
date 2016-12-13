@@ -1,5 +1,8 @@
 # $FreeBSD$
 
+# linker error
+WANT_CHERI=none
+
 MAN=
 
 .include "${.CURDIR}/../Makefile.inc"
