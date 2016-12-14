@@ -16,6 +16,12 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20161030:
+	isl(4) and cyapa(4) drivers now require a new driver,
+	chromebook_platform(4), to work properly on Chromebook-class hardware.
+	On other types of hardware the drivers may need to be configured using
+	device hints.  Please see the corresponding manual pages for details.
+
 20161210:
 	Relocatable object files with the extension of .So have been renamed
 	to use an extension of .pico instead.  The purpose of this change is

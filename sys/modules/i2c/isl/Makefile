@@ -2,6 +2,6 @@
 
 .PATH:		${.CURDIR}/../../../dev/isl
 KMOD		= isl
-SRCS		= isl.c device_if.h bus_if.h smbus_if.h vnode_if.h
+SRCS		= isl.c device_if.h bus_if.h iicbus_if.h
 
 .include <bsd.kmod.mk>
