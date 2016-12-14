@@ -1432,8 +1432,8 @@ pmc_process_csw_out(struct thread *td)
 		 * save the reading.
 		 */
 
-		if (pp != NULL && pp->pp_pmcs[ri].pp_pmc != NULL) {
-
+		if (pm->pm_state != PMC_STATE_DELETED && pp != NULL &&
+		    pp->pp_pmcs[ri].pp_pmc != NULL) {
 			KASSERT(pm == pp->pp_pmcs[ri].pp_pmc,
 			    ("[pmc,%d] pm %p != pp_pmcs[%d] %p", __LINE__,
 				pm, ri, pp->pp_pmcs[ri].pp_pmc));
