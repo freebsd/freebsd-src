@@ -1126,6 +1126,7 @@ fw_xfer_alloc(struct malloc_type *type)
 		return xfer;
 
 	xfer->malloc = type;
+	xfer->tl = -1;
 
 	return xfer;
 }
