@@ -56,6 +56,9 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <libutil.h>
 #include <locale.h>
+#ifdef MOUNT_CHAR_DEVS
+#include <mntopts.h>
+#endif
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -111,14 +114,21 @@ main(int argc, char *argv[])
 	struct statfs statfsbuf, totalbuf;
 	struct maxwidths maxwidths;
 	struct statfs *mntbuf;
+#ifdef MOUNT_CHAR_DEVS
+	struct iovec *iov = NULL;
+#endif
 	const char *fstype;
 #ifdef MOUNT_CHAR_DEVS
 	char *mntpath;
+	char errmsg[255] = {0};
 #endif
 	char *mntpt;
 	const char **vfslist;
 	int i, mntsize;
 	int ch, rv;
+#ifdef MOUNT_CHAR_DEVS
+	int iovlen = 0;
+#endif
 
 	fstype = "ufs";
 	(void)setlocale(LC_ALL, "");
@@ -251,9 +261,23 @@ main(int argc, char *argv[])
 					free(mntpath);
 					continue;
 				}
-				if (mount(fstype, mntpt, MNT_RDONLY|MNT_NOEXEC,
-				    &mdev) != 0) {
-					xo_warn("%s", *argv);
+				if (iov != NULL)
+					free_iovec(&iov, &iovlen);
+				build_iovec_argf(&iov, &iovlen, "fstype", "%s",
+				    fstype);
+				build_iovec_argf(&iov, &iovlen, "fspath", "%s",
+				    mntpath);
+				build_iovec_argf(&iov, &iovlen, "from", "%s",
+				    *argv);
+				build_iovec(&iov, &iovlen, "errmsg", errmsg,
+				    sizeof(errmsg));
+				if (nmount(iov, iovlen,
+				    MNT_RDONLY|MNT_NOEXEC) < 0) {
+					if (errmsg[0])
+						xo_warn("%s: %s", *argv,
+						    errmsg);
+					else
+						xo_warn("%s", *argv);
 					rv = 1;
 					(void)rmdir(mntpt);
 					free(mntpath);
