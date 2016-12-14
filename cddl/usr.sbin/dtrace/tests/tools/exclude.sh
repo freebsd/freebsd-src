@@ -188,3 +188,6 @@ exclude EXFAIL common/usdt/tst.static2.ksh
 
 # Uses the Solaris-specific ppriv(1).
 exclude EXFAIL common/usdt/tst.user.ksh
+
+# Triggers a lock assertion by using the raise() action from a profile probe.
+exclude SKIP common/ustack/tst.spin.ksh
