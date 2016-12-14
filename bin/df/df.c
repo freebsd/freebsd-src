@@ -251,7 +251,7 @@ main(int argc, char *argv[])
 					free(mntpath);
 					continue;
 				}
-				if (mount(fstype, mntpt, MNT_RDONLY,
+				if (mount(fstype, mntpt, MNT_RDONLY|MNT_NOEXEC,
 				    &mdev) != 0) {
 					xo_warn("%s", *argv);
 					rv = 1;
