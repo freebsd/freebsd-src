@@ -217,7 +217,7 @@ pflog_packet(struct pfi_kif *kif, struct mbuf *m, sa_family_t af, u_int8_t dir,
 
 	if (am == NULL) {
 		hdr.rulenr = htonl(rm->nr);
-		hdr.subrulenr =  1;
+		hdr.subrulenr = -1;
 	} else {
 		hdr.rulenr = htonl(am->nr);
 		hdr.subrulenr = htonl(rm->nr);
