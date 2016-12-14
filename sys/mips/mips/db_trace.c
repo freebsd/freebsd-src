@@ -118,7 +118,7 @@ fn_name(uintptr_t addr)
 	diff = 0;
 	symname = NULL;
 	sym = db_search_symbol((db_addr_t)addr, DB_STGY_ANY, &diff);
-	db_symbol_values(sym, (const char **)&symname, (db_expr_t *)0);
+	db_symbol_values(sym, &symname, NULL);
 	if (symname && diff == 0)
 		return (symname);
 
