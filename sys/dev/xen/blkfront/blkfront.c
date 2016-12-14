@@ -1259,13 +1259,13 @@ xbd_connect(struct xbd_softc *sc)
 	if (err || phys_sector_size <= sector_size)
 		phys_sector_size = 0;
 	err = xs_gather(XST_NIL, xenbus_get_otherend_path(dev),
-	     "feature-barrier", "%lu", &feature_barrier,
+	     "feature-barrier", "%d", &feature_barrier,
 	     NULL);
 	if (err == 0 && feature_barrier != 0)
 		sc->xbd_flags |= XBDF_BARRIER;
 
 	err = xs_gather(XST_NIL, xenbus_get_otherend_path(dev),
-	     "feature-flush-cache", "%lu", &feature_flush,
+	     "feature-flush-cache", "%d", &feature_flush,
 	     NULL);
 	if (err == 0 && feature_flush != 0)
 		sc->xbd_flags |= XBDF_FLUSH;
