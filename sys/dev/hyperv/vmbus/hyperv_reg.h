@@ -57,6 +57,11 @@
 
 #define MSR_HV_VP_INDEX			0x40000002
 
+#define MSR_HV_REFERENCE_TSC		0x40000021
+#define MSR_HV_REFTSC_ENABLE		0x0001ULL
+#define MSR_HV_REFTSC_RSVD_MASK		0x0ffeULL
+#define MSR_HV_REFTSC_PGSHIFT		12
+
 #define MSR_HV_SCONTROL			0x40000080
 #define MSR_HV_SCTRL_ENABLE		0x0001ULL
 #define MSR_HV_SCTRL_RSVD_MASK		0xfffffffffffffffeULL
@@ -122,6 +127,17 @@
 #define CPUID_LEAF_HV_RECOMMENDS	0x40000004
 #define CPUID_LEAF_HV_LIMITS		0x40000005
 #define CPUID_LEAF_HV_HWFEATURES	0x40000006
+
+/*
+ * Hyper-V Reference TSC
+ */
+struct hyperv_reftsc {
+	volatile uint32_t	tsc_seq;
+	volatile uint32_t	tsc_rsvd1;
+	volatile uint64_t	tsc_scale;
+	volatile int64_t	tsc_ofs;
+} __packed __aligned(PAGE_SIZE);
+CTASSERT(sizeof(struct hyperv_reftsc) == PAGE_SIZE);
 
 /*
  * Hyper-V Monitor Notification Facility
