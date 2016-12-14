@@ -105,7 +105,7 @@ static struct {
 /*
  * Map a function address to a string name, if known; or a hex string.
  */
-static char *
+static const char *
 fn_name(uintptr_t addr)
 {
 	static char buf[17];
@@ -113,12 +113,12 @@ fn_name(uintptr_t addr)
 
 	db_expr_t diff;
 	c_db_sym_t sym;
-	char *symname;
+	const char *symname;
 
 	diff = 0;
 	symname = NULL;
 	sym = db_search_symbol((db_addr_t)addr, DB_STGY_ANY, &diff);
-	db_symbol_values(sym, (const char **)&symname, (db_expr_t *)0);
+	db_symbol_values(sym, &symname, NULL);
 	if (symname && diff == 0)
 		return (symname);
 
