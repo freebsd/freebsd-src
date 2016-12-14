@@ -192,6 +192,26 @@ iicbus_read_ivar(device_t bus, device_t child, int which, uintptr_t *result)
 	case IICBUS_IVAR_ADDR:
 		*result = devi->addr;
 		break;
+	case IICBUS_IVAR_NOSTOP:
+		*result = devi->nostop;
+		break;
+	}
+	return (0);
+}
+
+static int
+iicbus_write_ivar(device_t bus, device_t child, int which, uintptr_t value)
+{
+	struct iicbus_ivar *devi = IICBUS_IVAR(child);
+
+	switch (which) {
+	default:
+		return (EINVAL);
+	case IICBUS_IVAR_ADDR:
+		return (EINVAL);
+	case IICBUS_IVAR_NOSTOP:
+		devi->nostop = value;
+		break;
 	}
 	return (0);
 }
@@ -302,6 +322,7 @@ static device_method_t iicbus_methods[] = {
         DEVMETHOD(bus_print_child,      iicbus_print_child),
 	DEVMETHOD(bus_probe_nomatch,	iicbus_probe_nomatch),
 	DEVMETHOD(bus_read_ivar,	iicbus_read_ivar),
+	DEVMETHOD(bus_write_ivar,	iicbus_write_ivar),
 	DEVMETHOD(bus_child_pnpinfo_str, iicbus_child_pnpinfo_str),
 	DEVMETHOD(bus_child_location_str, iicbus_child_location_str),
 	DEVMETHOD(bus_hinted_child,	iicbus_hinted_child),
