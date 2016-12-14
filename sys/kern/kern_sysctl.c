@@ -678,6 +678,9 @@ sysctl_remove_oid_locked(struct sysctl_oid *oidp, int del, int recurse)
 			if (oidp->oid_descr)
 				free(__DECONST(char *, oidp->oid_descr),
 				    M_SYSCTLOID);
+			if (oidp->oid_label)
+				free(__DECONST(char *, oidp->oid_label),
+				    M_SYSCTLOID);
 			free(__DECONST(char *, oidp->oid_name), M_SYSCTLOID);
 			free(oidp, M_SYSCTLOID);
 		}
@@ -691,7 +694,8 @@ sysctl_remove_oid_locked(struct sysctl_oid *oidp, int del, int recurse)
 struct sysctl_oid *
 sysctl_add_oid(struct sysctl_ctx_list *clist, struct sysctl_oid_list *parent,
 	int number, const char *name, int kind, void *arg1, intmax_t arg2,
-	int (*handler)(SYSCTL_HANDLER_ARGS), const char *fmt, const char *descr)
+	int (*handler)(SYSCTL_HANDLER_ARGS), const char *fmt, const char *descr,
+	const char *label)
 {
 	struct sysctl_oid *oidp;
 
@@ -728,6 +732,8 @@ sysctl_add_oid(struct sysctl_ctx_list *clist, struct sysctl_oid_list *parent,
 	oidp->oid_fmt = fmt;
 	if (descr != NULL)
 		oidp->oid_descr = strdup(descr, M_SYSCTLOID);
+	if (label != NULL)
+		oidp->oid_label = strdup(label, M_SYSCTLOID);
 	/* Update the context, if used */
 	if (clist != NULL)
 		sysctl_ctx_entry_add(clist, oidp);
@@ -1175,6 +1181,31 @@ sysctl_sysctl_oiddescr(SYSCTL_HANDLER_ARGS)
 
 static SYSCTL_NODE(_sysctl, 5, oiddescr, CTLFLAG_RD|CTLFLAG_MPSAFE|CTLFLAG_CAPRD,
     sysctl_sysctl_oiddescr, "");
+
+static int
+sysctl_sysctl_oidlabel(SYSCTL_HANDLER_ARGS)
+{
+	struct sysctl_oid *oid;
+	struct rm_priotracker tracker;
+	int error;
+
+	SYSCTL_RLOCK(&tracker);
+	error = sysctl_find_oid(arg1, arg2, &oid, NULL, req);
+	if (error)
+		goto out;
+
+	if (oid->oid_label == NULL) {
+		error = ENOENT;
+		goto out;
+	}
+	error = SYSCTL_OUT(req, oid->oid_label, strlen(oid->oid_label) + 1);
+ out:
+	SYSCTL_RUNLOCK(&tracker);
+	return (error);
+}
+
+static SYSCTL_NODE(_sysctl, 6, oidlabel,
+    CTLFLAG_RD | CTLFLAG_MPSAFE | CTLFLAG_CAPRD, sysctl_sysctl_oidlabel, "");
 
 /*
  * Default "handler" functions.
