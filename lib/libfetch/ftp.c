@@ -768,8 +768,8 @@ ftp_transfer(conn_t *conn, const char *oper, const char *file,
 			fetch_info("opening data connection");
 		bindaddr = getenv("FETCH_BIND_ADDRESS");
 		if (bindaddr != NULL && *bindaddr != '\0' &&
-		    fetch_bind(sd, sa.ss_family, bindaddr) != 0)
-			goto sysouch;
+		    (e = fetch_bind(sd, sa.ss_family, bindaddr)) != 0)
+			goto ouch;
 		if (connect(sd, (struct sockaddr *)&sa, sa.ss_len) == -1)
 			goto sysouch;
 
