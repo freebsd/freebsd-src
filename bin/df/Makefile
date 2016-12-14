@@ -9,6 +9,7 @@ PROG=	df
 SRCS=	df.c vfslist.c
 
 CFLAGS+= -I${MOUNT}
+CFLAGS+= -DMOUNT_CHAR_DEVS
 
 LIBADD=	xo util
 
