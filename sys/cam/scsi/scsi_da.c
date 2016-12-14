@@ -1924,9 +1924,9 @@ dasysctlinit(void *context, int pending)
 
 	sysctl_ctx_init(&softc->sysctl_ctx);
 	softc->flags |= DA_FLAG_SCTX_INIT;
-	softc->sysctl_tree = SYSCTL_ADD_NODE(&softc->sysctl_ctx,
+	softc->sysctl_tree = SYSCTL_ADD_NODE_WITH_LABEL(&softc->sysctl_ctx,
 		SYSCTL_STATIC_CHILDREN(_kern_cam_da), OID_AUTO, tmpstr2,
-		CTLFLAG_RD, 0, tmpstr);
+		CTLFLAG_RD, 0, tmpstr, "device_index");
 	if (softc->sysctl_tree == NULL) {
 		printf("dasysctlinit: unable to allocate sysctl tree\n");
 		cam_periph_release(periph);

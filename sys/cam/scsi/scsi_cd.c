@@ -481,9 +481,9 @@ cdsysctlinit(void *context, int pending)
 
 	sysctl_ctx_init(&softc->sysctl_ctx);
 	softc->flags |= CD_FLAG_SCTX_INIT;
-	softc->sysctl_tree = SYSCTL_ADD_NODE(&softc->sysctl_ctx,
+	softc->sysctl_tree = SYSCTL_ADD_NODE_WITH_LABEL(&softc->sysctl_ctx,
 		SYSCTL_STATIC_CHILDREN(_kern_cam_cd), OID_AUTO,
-		tmpstr2, CTLFLAG_RD, 0, tmpstr);
+		tmpstr2, CTLFLAG_RD, 0, tmpstr, "device_index");
 
 	if (softc->sysctl_tree == NULL) {
 		printf("cdsysctlinit: unable to allocate sysctl tree\n");
