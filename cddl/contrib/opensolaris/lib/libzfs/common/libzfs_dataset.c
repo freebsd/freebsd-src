@@ -1609,17 +1609,12 @@ zfs_prop_set_list(zfs_handle_t *zhp, nvlist_t *props)
 		assert(cl_idx < nvl_len);
 		/*
 		 * We don't want to unmount & remount the dataset when changing
-		 * its canmount property.  We only use the changelist logic to
-		 * unmount when setting canmount=off for a mounted filesystem
-		 * or when setting canmount=on for an unmounted filesystem.
-		 * For all other changes to canmount property the filesystem
-		 * remains the same.
+		 * its canmount property to 'on' or 'noauto'.  We only use
+		 * the changelist logic to unmount when setting canmount=off.
 		 */
 		if (prop != ZFS_PROP_CANMOUNT ||
 		    (fnvpair_value_uint64(elem) == ZFS_CANMOUNT_OFF &&
-		     zfs_is_mounted(zhp, NULL)) ||
-		    (fnvpair_value_uint64(elem) == ZFS_CANMOUNT_ON &&
-		     !zfs_is_mounted(zhp, NULL))) {
+		     zfs_is_mounted(zhp, NULL))) {
 			cls[cl_idx] = changelist_gather(zhp, prop, 0, 0);
 			if (cls[cl_idx] == NULL)
 				goto error;
