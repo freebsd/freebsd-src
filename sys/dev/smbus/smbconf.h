@@ -74,7 +74,9 @@
 /*
  * ivars codes
  */
-#define SMBUS_IVAR_ADDR	0x1	/* slave address of the device */
+enum smbus_ivars {
+    SMBUS_IVAR_ADDR,	/* slave address of the device */
+};
 
 int	smbus_request_bus(device_t, device_t, int);
 int	smbus_release_bus(device_t, device_t);
@@ -83,7 +85,12 @@ int	smbus_error(int error);
 
 void	smbus_intr(device_t, u_char, char low, char high, int error);
 
-u_char	smbus_get_addr(device_t);
+#define SMBUS_ACCESSOR(var, ivar, type)					\
+	__BUS_ACCESSOR(smbus, var, SMBUS, ivar, type)
+
+SMBUS_ACCESSOR(addr,		ADDR,		int)
+
+#undef SMBUS_ACCESSOR
 
 extern driver_t smbus_driver;
 extern devclass_t smbus_devclass;
