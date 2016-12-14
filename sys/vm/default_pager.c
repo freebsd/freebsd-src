@@ -85,10 +85,8 @@ default_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 	object = vm_object_allocate(OBJT_DEFAULT,
 	    OFF_TO_IDX(round_page(offset + size)));
 	if (cred != NULL) {
-		VM_OBJECT_WLOCK(object);
 		object->cred = cred;
 		object->charge = size;
-		VM_OBJECT_WUNLOCK(object);
 	}
 	return (object);
 }
