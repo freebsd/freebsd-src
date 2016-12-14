@@ -50,7 +50,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <sys/mount.h>
 #include <sys/sysctl.h>
+#ifdef MOUNT_CHAR_DEVS
 #include <ufs/ufs/ufsmount.h>
+#endif
 #include <err.h>
 #include <libutil.h>
 #include <locale.h>
@@ -98,7 +100,9 @@ imax(int a, int b)
 
 static int	aflag = 0, cflag, hflag, iflag, kflag, lflag = 0, nflag, Tflag;
 static int	thousands;
+#ifdef MOUNT_CHAR_DEVS
 static struct	ufs_args mdev;
+#endif
 
 int
 main(int argc, char *argv[])
@@ -108,7 +112,10 @@ main(int argc, char *argv[])
 	struct maxwidths maxwidths;
 	struct statfs *mntbuf;
 	const char *fstype;
-	char *mntpath, *mntpt;
+#ifdef MOUNT_CHAR_DEVS
+	char *mntpath;
+#endif
+	char *mntpt;
 	const char **vfslist;
 	int i, mntsize;
 	int ch, rv;
@@ -227,6 +234,7 @@ main(int argc, char *argv[])
 				rv = 1;
 				continue;
 			}
+#ifdef MOUNT_CHAR_DEVS
 		} else if (S_ISCHR(stbuf.st_mode)) {
 			if ((mntpt = getmntpt(*argv)) == NULL) {
 				mdev.fspec = *argv;
@@ -264,6 +272,7 @@ main(int argc, char *argv[])
 				free(mntpath);
 				continue;
 			}
+#endif
 		} else
 			mntpt = *argv;
 
