@@ -181,3 +181,17 @@ build_iovec_argf(struct iovec **iov, int *iovlen, const char *name,
 	va_end(ap);
 	build_iovec(iov, iovlen, name, strdup(val), (size_t)-1);
 }
+
+/*
+ * Free the iovec and reset to NULL with zero length.  Useful for calling
+ * nmount in a loop.
+ */
+void
+free_iovec(struct iovec **iov, int *iovlen)
+{
+	int i;
+
+	for (i = 0; i < *iovlen; i++)
+		free((*iov)[i].iov_base);
+	free(*iov);
+}
