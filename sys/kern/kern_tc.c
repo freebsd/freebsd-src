@@ -1218,9 +1218,9 @@ tc_init(struct timecounter *tc)
 	/*
 	 * Set up sysctl tree for this counter.
 	 */
-	tc_root = SYSCTL_ADD_NODE(NULL,
+	tc_root = SYSCTL_ADD_NODE_WITH_LABEL(NULL,
 	    SYSCTL_STATIC_CHILDREN(_kern_timecounter_tc), OID_AUTO, tc->tc_name,
-	    CTLFLAG_RW, 0, "timecounter description");
+	    CTLFLAG_RW, 0, "timecounter description", "timecounter");
 	SYSCTL_ADD_UINT(NULL, SYSCTL_CHILDREN(tc_root), OID_AUTO,
 	    "mask", CTLFLAG_RD, &(tc->tc_counter_mask), 0,
 	    "mask for implemented bits");
