@@ -64,7 +64,7 @@ get_sbuf_line(line_t *lp)
 	}
 	len = lp->len;
 	REALLOC(sfbuf, sfbufsz, len + 1, NULL);
-	if ((fread(sfbuf, sizeof(char), len, sfp)) != len) {
+	if (fread(sfbuf, sizeof(char), len, sfp) != len) {
 		fprintf(stderr, "%s\n", strerror(errno));
 		errmsg = "cannot read temp file";
 		return NULL;
@@ -110,7 +110,7 @@ put_sbuf_line(const char *cs)
 		seek_write = 0;
 	}
 	/* assert: SPL1() */
-	if ((fwrite(cs, sizeof(char), len, sfp)) != len) {
+	if (fwrite(cs, sizeof(char), len, sfp) != len) {
 		sfseek = -1;
 		fprintf(stderr, "%s\n", strerror(errno));
 		errmsg = "cannot write temp file";
