@@ -796,7 +796,7 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
  * A macro to generate a read-only sysctl to indicate the presence of optional
  * kernel features.
  */
-#define	FEATURE(name, desc, label)					\
+#define	FEATURE(name, desc)						\
 	SYSCTL_INT_WITH_LABEL(_kern_features, OID_AUTO, name,		\
 	    CTLFLAG_RD | CTLFLAG_CAPRD, SYSCTL_NULL_INT_PTR, 1, desc, "feature")
 
