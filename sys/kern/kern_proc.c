@@ -959,7 +959,14 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp, int preferthread)
 		strlcpy(kp->ki_wmesg, td->td_wmesg, sizeof(kp->ki_wmesg));
 	else
 		bzero(kp->ki_wmesg, sizeof(kp->ki_wmesg));
-	strlcpy(kp->ki_tdname, td->td_name, sizeof(kp->ki_tdname));
+	if (strlcpy(kp->ki_tdname, td->td_name, sizeof(kp->ki_tdname)) >=
+	    sizeof(kp->ki_tdname)) {
+		strlcpy(kp->ki_moretdname,
+		    td->td_name + sizeof(kp->ki_tdname) - 1,
+		    sizeof(kp->ki_moretdname));
+	} else {
+		bzero(kp->ki_moretdname, sizeof(kp->ki_moretdname));
+	}
 	if (TD_ON_LOCK(td)) {
 		kp->ki_kiflag |= KI_LOCKBLOCK;
 		strlcpy(kp->ki_lockname, td->td_lockname,
@@ -1180,6 +1187,7 @@ freebsd32_kinfo_proc_out(const struct kinfo_proc *ki, struct kinfo_proc32 *ki32)
 	bcopy(ki->ki_comm, ki32->ki_comm, COMMLEN + 1);
 	bcopy(ki->ki_emul, ki32->ki_emul, KI_EMULNAMELEN + 1);
 	bcopy(ki->ki_loginclass, ki32->ki_loginclass, LOGINCLASSLEN + 1);
+	bcopy(ki->ki_moretdname, ki32->ki_moretdname, MAXCOMLEN - TDNAMLEN + 1);
 	CP(*ki, *ki32, ki_flag2);
 	CP(*ki, *ki32, ki_fibnum);
 	CP(*ki, *ki32, ki_cr_flags);

@@ -33,6 +33,7 @@ extern int	hflag, nflag, Cflag, Hflag;
 
 struct kinfo_proc;
 void	kinfo_proc_sort(struct kinfo_proc *kipp, int count);
+const char *	kinfo_proc_thread_name(const struct kinfo_proc *kipp);
 
 void	procstat_args(struct procstat *prstat, struct kinfo_proc *kipp);
 void	procstat_auxv(struct procstat *prstat, struct kinfo_proc *kipp);

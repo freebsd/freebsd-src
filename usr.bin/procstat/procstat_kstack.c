@@ -134,7 +134,7 @@ procstat_kstack(struct procstat *procstat, struct kinfo_proc *kipp, int kflag)
 	unsigned int kip_count, kstk_count;
 
 	if (!hflag)
-		printf("%5s %6s %-16s %-16s %-29s\n", "PID", "TID", "COMM",
+		printf("%5s %6s %-19s %-19s %-29s\n", "PID", "TID", "COMM",
 		    "TDNAME", "KSTACK");
 
 	kkstp = kkstp_free = procstat_getkstack(procstat, kipp, &kstk_count);
@@ -171,10 +171,8 @@ procstat_kstack(struct procstat *procstat, struct kinfo_proc *kipp, int kflag)
 
 		printf("%5d ", kipp->ki_pid);
 		printf("%6d ", kkstp->kkst_tid);
-		printf("%-16s ", kipp->ki_comm);
-		printf("%-16s ", (strlen(kipp->ki_tdname) &&
-		    (strcmp(kipp->ki_comm, kipp->ki_tdname) != 0)) ?
-		    kipp->ki_tdname : "-");
+		printf("%-19s ", kipp->ki_comm);
+		printf("%-19s ", kinfo_proc_thread_name(kipp));
 
 		switch (kkstp->kkst_state) {
 		case KKST_STATE_RUNNING:
