@@ -8020,12 +8020,17 @@ int t4_init_tp_params(struct adapter *adap)
 	read_filter_mode_and_ingress_config(adap);
 
 	/*
-	 * For T6, cache the adapter's compressed error vector
-	 * and passing outer header info for encapsulated packets.
+	 * Cache a mask of the bits that represent the error vector portion of
+	 * rx_pkt.err_vec.  T6+ can use a compressed error vector to make room
+	 * for information about outer encapsulation (GENEVE/VXLAN/NVGRE).
 	 */
+	tpp->err_vec_mask = htobe16(0xffff);
 	if (chip_id(adap) > CHELSIO_T5) {
 		v = t4_read_reg(adap, A_TP_OUT_CONFIG);
-		tpp->rx_pkt_encap = (v & F_CRXPKTENC) ? 1 : 0;
+		if (v & F_CRXPKTENC) {
+			tpp->err_vec_mask =
+			    htobe16(V_T6_COMPR_RXERR_VEC(M_T6_COMPR_RXERR_VEC));
+		}
 	}
 
 	return 0;
