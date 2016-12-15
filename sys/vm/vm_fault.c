@@ -122,6 +122,7 @@ struct faultstate {
 	vm_pindex_t first_pindex;
 	vm_map_t map;
 	vm_map_entry_t entry;
+	int map_generation;
 	bool lookup_still_valid;
 	struct vnode *vp;
 };
@@ -338,7 +339,7 @@ vm_fault_hold(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 	struct vnode *vp;
 	vm_offset_t e_end, e_start;
 	int ahead, alloc_req, behind, cluster_offset, error, era, faultcount;
-	int locked, map_generation, nera, result, rv;
+	int locked, nera, result, rv;
 	u_char behavior;
 	boolean_t wired;	/* Passed by reference. */
 	bool dead, growstack, hardfault, is_first_object_locked;
@@ -372,7 +373,7 @@ RetryFault:;
 		return (result);
 	}
 
-	map_generation = fs.map->timestamp;
+	fs.map_generation = fs.map->timestamp;
 
 	if (fs.entry->eflags & MAP_ENTRY_NOFAULT) {
 		panic("vm_fault: fault on nofault entry, addr: %lx",
@@ -976,7 +977,7 @@ readrest:
 			goto RetryFault;
 		}
 		fs.lookup_still_valid = true;
-		if (fs.map->timestamp != map_generation) {
+		if (fs.map->timestamp != fs.map_generation) {
 			result = vm_map_lookup_locked(&fs.map, vaddr, fault_type,
 			    &fs.entry, &retry_object, &retry_pindex, &retry_prot, &wired);
 
