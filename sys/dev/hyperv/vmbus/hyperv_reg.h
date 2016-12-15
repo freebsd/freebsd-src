@@ -129,17 +129,6 @@
 #define CPUID_LEAF_HV_HWFEATURES	0x40000006
 
 /*
- * Hyper-V Reference TSC
- */
-struct hyperv_reftsc {
-	volatile uint32_t	tsc_seq;
-	volatile uint32_t	tsc_rsvd1;
-	volatile uint64_t	tsc_scale;
-	volatile int64_t	tsc_ofs;
-} __packed __aligned(PAGE_SIZE);
-CTASSERT(sizeof(struct hyperv_reftsc) == PAGE_SIZE);
-
-/*
  * Hyper-V Monitor Notification Facility
  */
 struct hyperv_mon_param {

@@ -31,10 +31,10 @@
 #ifndef _HYPERV_H_
 #define _HYPERV_H_
 
-#include <sys/param.h>
+#ifdef _KERNEL
 
-#include <vm/vm.h>
-#include <vm/pmap.h>
+#include <sys/param.h>
+#include <sys/systm.h>
 
 #define MSR_HV_TIME_REF_COUNT		0x40000020
 
@@ -54,14 +54,35 @@
 #define HYPERV_TIMER_NS_FACTOR		100ULL
 #define HYPERV_TIMER_FREQ		(NANOSEC / HYPERV_TIMER_NS_FACTOR)
 
+#endif	/* _KERNEL */
+
+#define HYPERV_REFTSC_DEVNAME		"hv_tsc"
+
+/*
+ * Hyper-V Reference TSC
+ */
+struct hyperv_reftsc {
+	volatile uint32_t		tsc_seq;
+	volatile uint32_t		tsc_rsvd1;
+	volatile uint64_t		tsc_scale;
+	volatile int64_t		tsc_ofs;
+} __packed __aligned(PAGE_SIZE);
+#ifdef CTASSERT
+CTASSERT(sizeof(struct hyperv_reftsc) == PAGE_SIZE);
+#endif
+
+#ifdef _KERNEL
+
 struct hyperv_guid {
-	uint8_t		hv_guid[16];
+	uint8_t				hv_guid[16];
 } __packed;
 
-#define HYPERV_GUID_STRLEN	40
+#define HYPERV_GUID_STRLEN		40
 
 int		hyperv_guid2str(const struct hyperv_guid *, char *, size_t);
 
 extern u_int	hyperv_features;	/* CPUID_HV_MSR_ */
+
+#endif	/* _KERNEL */
 
 #endif  /* _HYPERV_H_ */
