@@ -568,9 +568,24 @@ zio_timestamp_compare(const void *x1, const void *x2)
 	if (z1->io_queued_timestamp > z2->io_queued_timestamp)
 		return (1);
 
-	if (z1->io_offset < z2->io_offset)
+	if (z1->io_bookmark.zb_objset < z2->io_bookmark.zb_objset)
 		return (-1);
-	if (z1->io_offset > z2->io_offset)
+	if (z1->io_bookmark.zb_objset > z2->io_bookmark.zb_objset)
+		return (1);
+
+	if (z1->io_bookmark.zb_object < z2->io_bookmark.zb_object)
+		return (-1);
+	if (z1->io_bookmark.zb_object > z2->io_bookmark.zb_object)
+		return (1);
+
+	if (z1->io_bookmark.zb_level < z2->io_bookmark.zb_level)
+		return (-1);
+	if (z1->io_bookmark.zb_level > z2->io_bookmark.zb_level)
+		return (1);
+
+	if (z1->io_bookmark.zb_blkid < z2->io_bookmark.zb_blkid)
+		return (-1);
+	if (z1->io_bookmark.zb_blkid > z2->io_bookmark.zb_blkid)
 		return (1);
 
 	if (z1 < z2)
