@@ -991,8 +991,8 @@ format_next_process(caddr_t handle, char *(*get_userid)(int), int flags)
 	if (!(flags & FMT_SHOWARGS)) {
 		if (ps.thread && pp->ki_flag & P_HADTHREADS &&
 		    pp->ki_tdname[0]) {
-			snprintf(cmdbuf, cmdlen, "%s{%s}", pp->ki_comm,
-			    pp->ki_tdname);
+			snprintf(cmdbuf, cmdlen, "%s{%s%s}", pp->ki_comm,
+			    pp->ki_tdname, pp->ki_moretdname);
 		} else {
 			snprintf(cmdbuf, cmdlen, "%s", pp->ki_comm);
 		}
@@ -1004,7 +1004,8 @@ format_next_process(caddr_t handle, char *(*get_userid)(int), int flags)
 			if (ps.thread && pp->ki_flag & P_HADTHREADS &&
 		    	    pp->ki_tdname[0]) {
 				snprintf(cmdbuf, cmdlen,
-				    "[%s{%s}]", pp->ki_comm, pp->ki_tdname);
+				    "[%s{%s%s}]", pp->ki_comm, pp->ki_tdname,
+				    pp->ki_moretdname);
 			} else {
 				snprintf(cmdbuf, cmdlen,
 				    "[%s]", pp->ki_comm);
@@ -1052,8 +1053,9 @@ format_next_process(caddr_t handle, char *(*get_userid)(int), int flags)
 				if (ps.thread && pp->ki_flag & P_HADTHREADS &&
 				    pp->ki_tdname[0])
 					snprintf(cmdbuf, cmdlen,
-					    "%s (%s){%s}", argbuf, pp->ki_comm,
-					    pp->ki_tdname);
+					    "%s (%s){%s%s}", argbuf,
+					    pp->ki_comm, pp->ki_tdname,
+					    pp->ki_moretdname);
 				else
 					snprintf(cmdbuf, cmdlen,
 					    "%s (%s)", argbuf, pp->ki_comm);
@@ -1061,7 +1063,8 @@ format_next_process(caddr_t handle, char *(*get_userid)(int), int flags)
 				if (ps.thread && pp->ki_flag & P_HADTHREADS &&
 				    pp->ki_tdname[0])
 					snprintf(cmdbuf, cmdlen,
-					    "%s{%s}", argbuf, pp->ki_tdname);
+					    "%s{%s%s}", argbuf, pp->ki_tdname,
+					    pp->ki_moretdname);
 				else
 					strlcpy(cmdbuf, argbuf, cmdlen);
 			}
