@@ -124,6 +124,7 @@ struct faultstate {
 	vm_map_t map;
 	vm_map_entry_t entry;
 	int lookup_still_valid;
+	int map_generation;
 	struct vnode *vp;
 };
 
@@ -336,7 +337,6 @@ vm_fault_hold(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 	long ahead, behind;
 	int alloc_req, era, faultcount, nera, reqpage, result;
 	boolean_t dead, growstack, is_first_object_locked, wired;
-	int map_generation;
 	vm_object_t next_object;
 	vm_page_t marray[VM_FAULT_READ_MAX];
 	int hardfault;
@@ -372,7 +372,7 @@ RetryFault:;
 		return (result);
 	}
 
-	map_generation = fs.map->timestamp;
+	fs.map_generation = fs.map->timestamp;
 
 	if (fs.entry->eflags & MAP_ENTRY_NOFAULT) {
 		panic("vm_fault: fault on nofault entry, addr: %lx",
@@ -950,7 +950,7 @@ readrest:
 			goto RetryFault;
 		}
 		fs.lookup_still_valid = TRUE;
-		if (fs.map->timestamp != map_generation) {
+		if (fs.map->timestamp != fs.map_generation) {
 			result = vm_map_lookup_locked(&fs.map, vaddr, fault_type,
 			    &fs.entry, &retry_object, &retry_pindex, &retry_prot, &wired);
 
