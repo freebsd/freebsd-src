@@ -55,7 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/platform.h>
 #include <machine/platformvar.h>
 
-#include <dev/fdt/fdt_common.h>
+#include <dev/ofw/openfirm.h>
 
 #include <arm/broadcom/bcm2835/bcm2835_wdog.h>
 #include <arm/broadcom/bcm2835/bcm2836_mp.h>
