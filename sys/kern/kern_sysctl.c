@@ -821,7 +821,8 @@ SYSINIT(sysctl, SI_SUB_KMEM, SI_ORDER_FIRST, sysctl_register_all, 0);
  * {0,2,...}	return the next OID.
  * {0,3}	return the OID of the name in "new"
  * {0,4,...}	return the kind & format info for the "..." OID.
- * {0,5,...}	return the description the "..." OID.
+ * {0,5,...}	return the description of the "..." OID.
+ * {0,6,...}	return the aggregation label of the "..." OID.
  */
 
 #ifdef SYSCTL_DEBUG
