@@ -126,12 +126,11 @@ archive_write_set_format_ar(struct archive_write *a)
 	if (a->format_free != NULL)
 		(a->format_free)(a);
 
-	ar = (struct ar_w *)malloc(sizeof(*ar));
+	ar = (struct ar_w *)calloc(1, sizeof(*ar));
 	if (ar == NULL) {
 		archive_set_error(&a->archive, ENOMEM, "Can't allocate ar data");
 		return (ARCHIVE_FATAL);
 	}
-	memset(ar, 0, sizeof(*ar));
 	a->format_data = ar;
 
 	a->format_name = "ar";

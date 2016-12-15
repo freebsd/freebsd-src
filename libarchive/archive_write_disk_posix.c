@@ -1779,10 +1779,9 @@ archive_write_disk_new(void)
 {
 	struct archive_write_disk *a;
 
-	a = (struct archive_write_disk *)malloc(sizeof(*a));
+	a = (struct archive_write_disk *)calloc(1, sizeof(*a));
 	if (a == NULL)
 		return (NULL);
-	memset(a, 0, sizeof(*a));
 	a->archive.magic = ARCHIVE_WRITE_DISK_MAGIC;
 	/* We're ready to write a header immediately. */
 	a->archive.state = ARCHIVE_STATE_HEADER;
@@ -2701,7 +2700,7 @@ check_symlinks(struct archive_write_disk *a)
  * See also : http://msdn.microsoft.com/en-us/library/aa365247.aspx
  */
 static void
-cleanup_pathname_win(struct archive_write_disk *a)
+cleanup_pathname_win(char *path)
 {
 	wchar_t wc;
 	char *p;
@@ -2712,7 +2711,7 @@ cleanup_pathname_win(struct archive_write_disk *a)
 	mb = 0;
 	complete = 1;
 	utf8 = (strcmp(nl_langinfo(CODESET), "UTF-8") == 0)? 1: 0;
-	for (p = a->name; *p != '\0'; p++) {
+	for (p = path; *p != '\0'; p++) {
 		++alen;
 		if (*p == '\\') {
 			/* If previous byte is smaller than 128,
@@ -2737,7 +2736,7 @@ cleanup_pathname_win(struct archive_write_disk *a)
 	/*
 	 * Convert path separator in wide-character.
 	 */
-	p = a->name;
+	p = path;
 	while (*p != '\0' && alen) {
 		l = mbtowc(&wc, p, alen);
 		if (l == (size_t)-1) {
@@ -2778,7 +2777,7 @@ cleanup_pathname_fsobj(char *path, int *a_eno, struct archive_string *a_estr,
 	}
 
 #if defined(__CYGWIN__)
-	cleanup_pathname_win(a);
+	cleanup_pathname_win(path);
 #endif
 	/* Skip leading '/'. */
 	if (*src == '/') {

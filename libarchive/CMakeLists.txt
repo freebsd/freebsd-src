@@ -38,6 +38,8 @@ SET(libarchive_SOURCES
   archive_hmac.c
   archive_hmac_private.h
   archive_match.c
+  archive_openssl_evp_private.h
+  archive_openssl_hmac_private.h
   archive_options.c
   archive_options_private.h
   archive_pack_dev.h

@@ -26,6 +26,10 @@
 #include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
+#ifdef HAVE_ERRNO_H
+#include <errno.h>
+#endif
+
 #include "archive_options_private.h"
 
 static const char *
@@ -105,8 +109,11 @@ _archive_set_options(struct archive *a, const char *options,
 	if (options == NULL || options[0] == '\0')
 		return ARCHIVE_OK;
 
-	data = (char *)malloc(strlen(options) + 1);
-	strcpy(data, options);
+	if ((data = strdup(options)) == NULL) {
+		archive_set_error(a,
+		    ENOMEM, "Out of memory adding file to list");
+		return (ARCHIVE_FATAL);
+	}
 	s = (const char *)data;
 
 	do {

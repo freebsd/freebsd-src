@@ -168,7 +168,7 @@ struct tree {
 	int			 initial_filesystem_id;
 	int			 current_filesystem_id;
 	int			 max_filesystem_id;
-	int			 allocated_filesytem;
+	int			 allocated_filesystem;
 
 	HANDLE			 entry_fh;
 	int			 entry_eof;
@@ -389,10 +389,9 @@ archive_read_disk_new(void)
 {
 	struct archive_read_disk *a;
 
-	a = (struct archive_read_disk *)malloc(sizeof(*a));
+	a = (struct archive_read_disk *)calloc(1, sizeof(*a));
 	if (a == NULL)
 		return (NULL);
-	memset(a, 0, sizeof(*a));
 	a->archive.magic = ARCHIVE_READ_DISK_MAGIC;
 	a->archive.state = ARCHIVE_STATE_NEW;
 	a->archive.vtable = archive_read_disk_vtable();
@@ -1261,7 +1260,7 @@ update_current_filesystem(struct archive_read_disk *a, int64_t dev)
 
 	for (i = 0; i < t->max_filesystem_id; i++) {
 		if (t->filesystem_table[i].dev == dev) {
-			/* There is the filesytem ID we've already generated. */
+			/* There is the filesystem ID we've already generated. */
 			t->current_filesystem_id = i;
 			t->current_filesystem = &(t->filesystem_table[i]);
 			return (ARCHIVE_OK);
@@ -1269,10 +1268,10 @@ update_current_filesystem(struct archive_read_disk *a, int64_t dev)
 	}
 
 	/*
-	 * There is a new filesytem, we generate a new ID for.
+	 * There is a new filesystem, we generate a new ID for.
 	 */
 	fid = t->max_filesystem_id++;
-	if (t->max_filesystem_id > t->allocated_filesytem) {
+	if (t->max_filesystem_id > t->allocated_filesystem) {
 		size_t s;
 		void *p;
 
@@ -1285,7 +1284,7 @@ update_current_filesystem(struct archive_read_disk *a, int64_t dev)
 			return (ARCHIVE_FATAL);
 		}
 		t->filesystem_table = (struct filesystem *)p;
-		t->allocated_filesytem = (int)s;
+		t->allocated_filesystem = (int)s;
 	}
 	t->current_filesystem_id = fid;
 	t->current_filesystem = &(t->filesystem_table[fid]);
@@ -1437,8 +1436,7 @@ tree_push(struct tree *t, const wchar_t *path, const wchar_t *full_path,
 {
 	struct tree_entry *te;
 
-	te = malloc(sizeof(*te));
-	memset(te, 0, sizeof(*te));
+	te = calloc(1, sizeof(*te));
 	te->next = t->stack;
 	te->parent = t->current;
 	if (te->parent)
@@ -1507,8 +1505,7 @@ tree_open(const wchar_t *path, int symlink_mode, int restore_time)
 {
 	struct tree *t;
 
-	t = malloc(sizeof(*t));
-	memset(t, 0, sizeof(*t));
+	t = calloc(1, sizeof(*t));
 	archive_string_init(&(t->full_path));
 	archive_string_init(&t->path);
 	archive_wstring_ensure(&t->path, 15);

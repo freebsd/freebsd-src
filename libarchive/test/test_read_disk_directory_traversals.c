@@ -33,7 +33,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 /*
- * Test if the current filesytem is mounted with noatime option.
+ * Test if the current filesystem is mounted with noatime option.
  */
 static int
 atimeIsUpdated(void)
