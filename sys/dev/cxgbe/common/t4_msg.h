@@ -2014,7 +2014,7 @@ struct cpl_rx_pkt {
 
 #define S_T6_COMPR_RXERR_VEC    0
 #define M_T6_COMPR_RXERR_VEC    0x3F
-#define V_T6_COMPR_RXERR_VEC(x) ((x) << S_T6_COMPR_RXERR_LEN)
+#define V_T6_COMPR_RXERR_VEC(x) ((x) << S_T6_COMPR_RXERR_VEC)
 #define G_T6_COMPR_RXERR_VEC(x) \
 		(((x) >> S_T6_COMPR_RXERR_VEC) & M_T6_COMPR_RXERR_VEC)
 
