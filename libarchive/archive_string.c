@@ -1992,7 +1992,7 @@ archive_strncat_l(struct archive_string *as, const void *_p, size_t n,
 #if HAVE_ICONV
 
 /*
- * Return -1 if conversion failes.
+ * Return -1 if conversion fails.
  */
 static int
 iconv_strncat_in_locale(struct archive_string *as, const void *_p,
@@ -2094,7 +2094,7 @@ iconv_strncat_in_locale(struct archive_string *as, const void *_p,
 
 /*
  * Translate a string from a some CodePage to an another CodePage by
- * Windows APIs, and copy the result. Return -1 if conversion failes.
+ * Windows APIs, and copy the result. Return -1 if conversion fails.
  */
 static int
 strncat_in_codepage(struct archive_string *as,
@@ -3474,7 +3474,7 @@ strncat_from_utf8_libarchive2(struct archive_string *as,
 
 /*
  * Convert a UTF-16BE/LE string to current locale and copy the result.
- * Return -1 if conversion failes.
+ * Return -1 if conversion fails.
  */
 static int
 win_strncat_from_utf16(struct archive_string *as, const void *_p, size_t bytes,
@@ -3598,7 +3598,7 @@ is_big_endian(void)
 
 /*
  * Convert a current locale string to UTF-16BE/LE and copy the result.
- * Return -1 if conversion failes.
+ * Return -1 if conversion fails.
  */
 static int
 win_strncat_to_utf16(struct archive_string *as16, const void *_p,
@@ -3703,7 +3703,7 @@ win_strncat_to_utf16le(struct archive_string *as16, const void *_p,
 
 /*
  * Convert a UTF-16BE string to current locale and copy the result.
- * Return -1 if conversion failes.
+ * Return -1 if conversion fails.
  */
 static int
 best_effort_strncat_from_utf16(struct archive_string *as, const void *_p,
@@ -3761,7 +3761,7 @@ best_effort_strncat_from_utf16le(struct archive_string *as, const void *_p,
 
 /*
  * Convert a current locale string to UTF-16BE/LE and copy the result.
- * Return -1 if conversion failes.
+ * Return -1 if conversion fails.
  */
 static int
 best_effort_strncat_to_utf16(struct archive_string *as16, const void *_p,

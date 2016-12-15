@@ -320,30 +320,14 @@ uudecode_bidder_bid(struct archive_read_filter_bidder *self,
 		if (l > 45)
 			/* Normally, maximum length is 45(character 'M'). */
 			return (0);
-		while (l && len-nl > 0) {
-			if (l > 0) {
-				if (!uuchar[*b++])
-					return (0);
-				if (!uuchar[*b++])
-					return (0);
-				len -= 2;
-				--l;
-			}
-			if (l > 0) {
-				if (!uuchar[*b++])
-					return (0);
-				--len;
-				--l;
-			}
-			if (l > 0) {
-				if (!uuchar[*b++])
-					return (0);
-				--len;
-				--l;
-			}
+		if (l > len - nl)
+			return (0); /* Line too short. */
+		while (l) {
+			if (!uuchar[*b++])
+				return (0);
+			--len;
+			--l;
 		}
-		if (len-nl < 0)
-			return (0);
 		if (len-nl == 1 &&
 		    (uuchar[*b] ||		 /* Check sum. */
 		     (*b >= 'a' && *b <= 'z'))) {/* Padding data(MINIX). */

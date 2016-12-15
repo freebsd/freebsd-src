@@ -213,7 +213,7 @@ struct _7zip {
 	int			 header_is_encoded;
 	uint64_t		 header_bytes_remaining;
 	unsigned long		 header_crc32;
-	/* Header offset to check that reading pointes of the file contens
+	/* Header offset to check that reading points of the file contents
 	 * will not exceed the header. */
 	uint64_t		 header_offset;
 	/* Base offset of the archive file for a seek in case reading SFX. */

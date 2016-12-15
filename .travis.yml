@@ -1,13 +1,23 @@
 language: C
 sudo: required
 dist: trusty
+os:
+  - linux
+  - osx
 compiler:
   - gcc
   - clang
 env:
   - BUILD_SYSTEM=cmake
   - BUILD_SYSTEM=autotools
+matrix:
+  exclude:
+    - os: osx
+      compiler: gcc
+before_install:
+  - if [ `uname` = "Darwin" ]; then brew update; fi
+  - if [ `uname` = "Linux" ]; then sudo apt-get install -y libbz2-dev libzip-dev liblzma-dev liblzo2-dev; fi
 install:
-  - sudo apt-get install -y libbz2-dev libzip-dev liblzma-dev liblzo2-dev
+  - if [ `uname` = "Darwin" ]; then brew install xz lzo lz4; fi
 script:
   - build/ci_build.sh

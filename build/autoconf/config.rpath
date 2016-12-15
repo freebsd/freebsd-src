@@ -63,7 +63,7 @@ else
     aix*)
       wl='-Wl,'
       ;;
-    mingw* | cygwin* | pw32* | os2* | cegcc*)
+    mingw* | cygwin* | msys* | pw32* | os2* | cegcc*)
       ;;
     hpux9* | hpux10* | hpux11*)
       wl='-Wl,'
@@ -155,7 +155,7 @@ hardcode_direct=no
 hardcode_minus_L=no
 
 case "$host_os" in
-  cygwin* | mingw* | pw32* | cegcc*)
+  cygwin* | msys* | mingw* | pw32* | cegcc*)
     # FIXME: the MSVC++ port hasn't been tested in a loooong time
     # When not using gcc, we currently assume that we are using
     # Microsoft Visual C++.
@@ -204,7 +204,7 @@ if test "$with_gnu_ld" = yes; then
         ld_shlibs=no
       fi
       ;;
-    cygwin* | mingw* | pw32* | cegcc*)
+    cygwin* | msys* | mingw* | pw32* | cegcc*)
       # hardcode_libdir_flag_spec is actually meaningless, as there is
       # no search path for DLLs.
       hardcode_libdir_flag_spec='-L$libdir'
@@ -354,7 +354,7 @@ else
       ;;
     bsdi[45]*)
       ;;
-    cygwin* | mingw* | pw32* | cegcc*)
+    cygwin* | msys* | mingw* | pw32* | cegcc*)
       # When not using gcc, we currently assume that we are using
       # Microsoft Visual C++.
       # hardcode_libdir_flag_spec is actually meaningless, as there is
@@ -543,7 +543,7 @@ case "$host_os" in
   bsdi[45]*)
     library_names_spec='$libname$shrext'
     ;;
-  cygwin* | mingw* | pw32* | cegcc*)
+  cygwin* | msys* | mingw* | pw32* | cegcc*)
     shrext=.dll
     library_names_spec='$libname.dll.a $libname.lib'
     ;;

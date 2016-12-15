@@ -118,6 +118,8 @@ libarchive_la_SOURCES= \
 	libarchive/archive_hmac.c \
 	libarchive/archive_hmac_private.h \
 	libarchive/archive_match.c \
+	libarchive/archive_openssl_evp_private.h \
+	libarchive/archive_openssl_hmac_private.h \
 	libarchive/archive_options.c \
 	libarchive/archive_options_private.h \
 	libarchive/archive_pack_dev.h \

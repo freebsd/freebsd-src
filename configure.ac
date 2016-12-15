@@ -89,7 +89,7 @@ inc_windows_files=no
 inc_cygwin_files=no
 case "$host_os" in
   *mingw* ) inc_windows_files=yes ;;
-  *cygwin*) inc_cygwin_files=yes ;;
+  *cygwin* | *msys*) inc_cygwin_files=yes ;;
 esac
 AM_CONDITIONAL([INC_WINDOWS_FILES], [test $inc_windows_files = yes])
 AM_CONDITIONAL([INC_CYGWIN_FILES], [test $inc_cygwin_files = yes])
@@ -243,7 +243,7 @@ AM_CONDITIONAL([STATIC_BSDCPIO], [ test "$static_bsdcpio" = yes ])
 
 # Set up defines needed before including any headers
 case $host in
-  *mingw* | *cygwin* )
+  *mingw* | *cygwin* | *msys*  )
   AC_DEFINE([_WIN32_WINNT], 0x0502, [Define to '0x0502' for Windows Server 2003 APIs.])
   AC_DEFINE([WINVER], 0x0502, [Define to '0x0502' for Windows Server 2003 APIs.])
   AC_DEFINE([NTDDI_VERSION], 0x05020000, [Define to '0x05020000' for Windows Server 2003 APIs.])
@@ -302,7 +302,7 @@ AC_ARG_WITH([bz2lib],
 if test "x$with_bz2lib" != "xno"; then
   AC_CHECK_HEADERS([bzlib.h])
   case "$host_os" in
-    *mingw* | *cygwin*)
+    *mingw* | *cygwin* | *msys*)
       dnl AC_CHECK_LIB cannot be used on the Windows port of libbz2, therefore
 	  dnl use AC_LINK_IFELSE.
 	  AC_MSG_CHECKING([for BZ2_bzDecompressInit in -lbz2])
@@ -797,7 +797,7 @@ main(int argc, char **argv)
 ])
 
 case "$host_os" in
-  *mingw* | *cygwin*)
+  *mingw* | *cygwin* | *msys*)
 	;;
   *)
 	CRYPTO_CHECK(MD5, LIBC, md5)
@@ -840,7 +840,7 @@ if test "x$with_openssl" != "xno"; then
     AC_CHECK_HEADERS([openssl/evp.h])
     saved_LIBS=$LIBS
     case "$host_os" in
-      *mingw* | *cygwin*)
+      *mingw* | *cygwin* | *msys*)
         case "$host_cpu" in
           x86_64)
             AC_CHECK_LIB(eay64,OPENSSL_config)
@@ -886,7 +886,7 @@ if test "x$found_LIBMD" != "xyes"; then
 fi
 
 case "$host_os" in
-  *mingw* | *cygwin*)
+  *mingw* | *cygwin* | *msys*)
 	CRYPTO_CHECK_WIN(MD5, CALG_MD5)
 	CRYPTO_CHECK_WIN(SHA1, CALG_SHA1)
 	CRYPTO_CHECK_WIN(SHA256, CALG_SHA_256)

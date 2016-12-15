@@ -814,8 +814,8 @@ header_odc(struct archive_read *a, struct cpio *cpio,
  * NOTE: if a filename suffix is ".z", it is the file gziped by afio.
  * it would be nice that we can show uncompressed file size and we can
  * uncompressed file contents automatically, unfortunately we have nothing
- * to get a uncompressed file size while reading each header. it means
- * we also cannot uncompressed file contens under the our framework.
+ * to get a uncompressed file size while reading each header. It means
+ * we also cannot uncompress file contents under our framework.
  */
 static int
 header_afiol(struct archive_read *a, struct cpio *cpio,

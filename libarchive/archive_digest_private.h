@@ -134,7 +134,7 @@
   defined(ARCHIVE_CRYPTO_SHA384_OPENSSL) ||\
   defined(ARCHIVE_CRYPTO_SHA512_OPENSSL)
 #define	ARCHIVE_CRYPTO_OPENSSL 1
-#include <openssl/evp.h>
+#include "archive_openssl_evp_private.h"
 #endif
 
 /* Windows crypto headers */
@@ -161,7 +161,7 @@ typedef CC_MD5_CTX archive_md5_ctx;
 #elif defined(ARCHIVE_CRYPTO_MD5_NETTLE)
 typedef struct md5_ctx archive_md5_ctx;
 #elif defined(ARCHIVE_CRYPTO_MD5_OPENSSL)
-typedef EVP_MD_CTX archive_md5_ctx;
+typedef EVP_MD_CTX *archive_md5_ctx;
 #elif defined(ARCHIVE_CRYPTO_MD5_WIN)
 typedef Digest_CTX archive_md5_ctx;
 #else
@@ -175,7 +175,7 @@ typedef RIPEMD160_CTX archive_rmd160_ctx;
 #elif defined(ARCHIVE_CRYPTO_RMD160_NETTLE)
 typedef struct ripemd160_ctx archive_rmd160_ctx;
 #elif defined(ARCHIVE_CRYPTO_RMD160_OPENSSL)
-typedef EVP_MD_CTX archive_rmd160_ctx;
+typedef EVP_MD_CTX *archive_rmd160_ctx;
 #else
 typedef unsigned char archive_rmd160_ctx;
 #endif
@@ -189,7 +189,7 @@ typedef CC_SHA1_CTX archive_sha1_ctx;
 #elif defined(ARCHIVE_CRYPTO_SHA1_NETTLE)
 typedef struct sha1_ctx archive_sha1_ctx;
 #elif defined(ARCHIVE_CRYPTO_SHA1_OPENSSL)
-typedef EVP_MD_CTX archive_sha1_ctx;
+typedef EVP_MD_CTX *archive_sha1_ctx;
 #elif defined(ARCHIVE_CRYPTO_SHA1_WIN)
 typedef Digest_CTX archive_sha1_ctx;
 #else
@@ -209,7 +209,7 @@ typedef CC_SHA256_CTX archive_sha256_ctx;
 #elif defined(ARCHIVE_CRYPTO_SHA256_NETTLE)
 typedef struct sha256_ctx archive_sha256_ctx;
 #elif defined(ARCHIVE_CRYPTO_SHA256_OPENSSL)
-typedef EVP_MD_CTX archive_sha256_ctx;
+typedef EVP_MD_CTX *archive_sha256_ctx;
 #elif defined(ARCHIVE_CRYPTO_SHA256_WIN)
 typedef Digest_CTX archive_sha256_ctx;
 #else
@@ -227,7 +227,7 @@ typedef CC_SHA512_CTX archive_sha384_ctx;
 #elif defined(ARCHIVE_CRYPTO_SHA384_NETTLE)
 typedef struct sha384_ctx archive_sha384_ctx;
 #elif defined(ARCHIVE_CRYPTO_SHA384_OPENSSL)
-typedef EVP_MD_CTX archive_sha384_ctx;
+typedef EVP_MD_CTX *archive_sha384_ctx;
 #elif defined(ARCHIVE_CRYPTO_SHA384_WIN)
 typedef Digest_CTX archive_sha384_ctx;
 #else
@@ -247,7 +247,7 @@ typedef CC_SHA512_CTX archive_sha512_ctx;
 #elif defined(ARCHIVE_CRYPTO_SHA512_NETTLE)
 typedef struct sha512_ctx archive_sha512_ctx;
 #elif defined(ARCHIVE_CRYPTO_SHA512_OPENSSL)
-typedef EVP_MD_CTX archive_sha512_ctx;
+typedef EVP_MD_CTX *archive_sha512_ctx;
 #elif defined(ARCHIVE_CRYPTO_SHA512_WIN)
 typedef Digest_CTX archive_sha512_ctx;
 #else
