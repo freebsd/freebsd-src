@@ -227,7 +227,7 @@ struct tp_params {
 
 	uint32_t vlan_pri_map;
 	uint32_t ingress_config;
-	uint32_t rx_pkt_encap;
+	__be16 err_vec_mask;
 
 	int8_t fcoe_shift;
 	int8_t port_shift;
