@@ -34,7 +34,7 @@
 #
 #     -r               Reproducible build.  Do not embed directory names, user
 #                      names, time stamps or other dynamic information into
-#                      the outuput file.  This is intended to allow two builds
+#                      the output file.  This is intended to allow two builds
 #                      done at different times and even by different people on
 #                      different hosts to produce identical output.
 
