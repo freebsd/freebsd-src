@@ -1504,35 +1504,3 @@ def_policy_init(const void *unused __unused)
 }
 VNET_SYSINIT(def_policy_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_FIRST,
     def_policy_init, NULL);
-
-
-/* XXX This stuff doesn't belong here... */
-
-static	struct xformsw* xforms = NULL;
-
-/*
- * Register a transform; typically at system startup.
- */
-void
-xform_register(struct xformsw* xsp)
-{
-
-	xsp->xf_next = xforms;
-	xforms = xsp;
-}
-
-/*
- * Initialize transform support in an sav.
- */
-int
-xform_init(struct secasvar *sav, int xftype)
-{
-	struct xformsw *xsp;
-
-	if (sav->tdb_xform != NULL)	/* Previously initialized. */
-		return (0);
-	for (xsp = xforms; xsp; xsp = xsp->xf_next)
-		if (xsp->xf_type == xftype)
-			return ((*xsp->xf_init)(sav, xsp));
-	return (EINVAL);
-}

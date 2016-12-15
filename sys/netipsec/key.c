@@ -448,6 +448,8 @@ MALLOC_DEFINE(M_IPSEC_SAR, "ipsec-reg", "ipsec sa acquire");
 static VNET_DEFINE(uma_zone_t, key_lft_zone);
 #define	V_key_lft_zone		VNET(key_lft_zone)
 
+static struct xformsw* xforms = NULL;
+
 /*
  * set parameters into secpolicyindex buffer.
  * Must allocate secpolicyindex buffer passed to this function.
@@ -608,9 +610,9 @@ static int key_promisc(struct socket *, struct mbuf *,
 static int key_senderror(struct socket *, struct mbuf *, int);
 static int key_validate_ext(const struct sadb_ext *, int);
 static int key_align(struct mbuf *, struct sadb_msghdr *);
-static struct mbuf *key_setlifetime(struct seclifetime *src, 
-				     u_int16_t exttype);
-static struct mbuf *key_setkey(struct seckey *src, u_int16_t exttype);
+static struct mbuf *key_setlifetime(struct seclifetime *, uint16_t);
+static struct mbuf *key_setkey(struct seckey *, uint16_t);
+static int xform_init(struct secasvar *, int);
 
 #define	DBG_IPSEC_INITREF(t, p)	do {				\
 	refcount_init(&(p)->refcnt, 1);				\
@@ -7805,7 +7807,7 @@ key_sa_recordxfer(struct secasvar *sav, struct mbuf *m)
  */
 
 static struct mbuf *
-key_setkey(struct seckey *src, u_int16_t exttype) 
+key_setkey(struct seckey *src, uint16_t exttype) 
 {
 	struct mbuf *m;
 	struct sadb_key *p;
@@ -7845,7 +7847,7 @@ key_setkey(struct seckey *src, u_int16_t exttype)
  */
 
 static struct mbuf *
-key_setlifetime(struct seclifetime *src, u_int16_t exttype)
+key_setlifetime(struct seclifetime *src, uint16_t exttype)
 {
 	struct mbuf *m = NULL;
 	struct sadb_lifetime *p;
@@ -7871,4 +7873,31 @@ key_setlifetime(struct seclifetime *src, u_int16_t exttype)
 	
 	return m;
 
+}
+
+/*
+ * Register a transform; typically at system startup.
+ */
+void
+xform_register(struct xformsw* xsp)
+{
+
+	xsp->xf_next = xforms;
+	xforms = xsp;
+}
+
+/*
+ * Initialize transform support in an sav.
+ */
+static int
+xform_init(struct secasvar *sav, int xftype)
+{
+	struct xformsw *xsp;
+
+	if (sav->tdb_xform != NULL)	/* Previously initialized. */
+		return (0);
+	for (xsp = xforms; xsp; xsp = xsp->xf_next)
+		if (xsp->xf_type == xftype)
+			return ((*xsp->xf_init)(sav, xsp));
+	return (EINVAL);
 }
