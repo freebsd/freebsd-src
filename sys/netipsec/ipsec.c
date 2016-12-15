@@ -1647,8 +1647,13 @@ ok:
 		replay->overflow++;
 
 		/* Don't increment, no more packets accepted. */
-		if ((sav->flags & SADB_X_EXT_CYCSEQ) == 0)
+		if ((sav->flags & SADB_X_EXT_CYCSEQ) == 0) {
+			if (sav->sah->saidx.proto == IPPROTO_AH)
+				AHSTAT_INC(ahs_wrap);
+			else if (sav->sah->saidx.proto == IPPROTO_ESP)
+				ESPSTAT_INC(esps_wrap);
 			return (1);
+		}
 
 		ipseclog((LOG_WARNING, "%s: replay counter made %d cycle. %s\n",
 		    __func__, replay->overflow,
