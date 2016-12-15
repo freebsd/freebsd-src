@@ -34,6 +34,7 @@
 #include <libprocstat.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sysexits.h>
 #include <unistd.h>
 
@@ -113,6 +114,21 @@ kinfo_proc_sort(struct kinfo_proc *kipp, int count)
 {
 
 	qsort(kipp, count, sizeof(*kipp), kinfo_proc_compare);
+}
+
+const char *
+kinfo_proc_thread_name(const struct kinfo_proc *kipp)
+{
+	static char name[MAXCOMLEN+1];
+
+	strlcpy(name, kipp->ki_tdname, sizeof(name));
+	strlcat(name, kipp->ki_moretdname, sizeof(name));
+	if (name[0] == '\0' || strcmp(kipp->ki_comm, name) == 0) {
+		name[0] = '-';
+		name[1] = '\0';
+	}
+
+	return (name);
 }
 
 int

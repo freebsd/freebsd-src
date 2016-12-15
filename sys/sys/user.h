@@ -180,12 +180,13 @@ struct kinfo_proc {
 	char	ki_comm[COMMLEN+1];	/* command name */
 	char	ki_emul[KI_EMULNAMELEN+1];  /* emulation name */
 	char	ki_loginclass[LOGINCLASSLEN+1]; /* login class */
+	char	ki_moretdname[MAXCOMLEN-TDNAMLEN+1];	/* more thread name */
 	/*
 	 * When adding new variables, take space for char-strings from the
 	 * front of ki_sparestrings, and ints from the end of ki_spareints.
 	 * That way the spare room from both arrays will remain contiguous.
 	 */
-	char	ki_sparestrings[50];	/* spare string space */
+	char	ki_sparestrings[46];	/* spare string space */
 	int	ki_spareints[KI_NSPARE_INT];	/* spare room for growth */
 	int	ki_flag2;		/* P2_* flags */
 	int	ki_fibnum;		/* Default FIB number */

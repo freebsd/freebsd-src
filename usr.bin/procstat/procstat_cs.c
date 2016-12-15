@@ -50,7 +50,7 @@ procstat_cs(struct procstat *procstat, struct kinfo_proc *kipp)
 	int once, twice, lastcpu, cpu;
 
 	if (!hflag)
-		printf("%5s %6s %-16s %-16s %2s %4s %-7s\n", "PID",
+		printf("%5s %6s %-19s %-19s %2s %4s %-7s\n", "PID",
 		    "TID", "COMM", "TDNAME", "CPU", "CSID", "CPU MASK");
 
 	kip = procstat_getprocs(procstat, KERN_PROC_PID | KERN_PROC_INC_THREAD,
@@ -62,11 +62,9 @@ procstat_cs(struct procstat *procstat, struct kinfo_proc *kipp)
 		kipp = &kip[i];
 		printf("%5d ", kipp->ki_pid);
 		printf("%6d ", kipp->ki_tid);
-		printf("%-16s ", strlen(kipp->ki_comm) ?
+		printf("%-19s ", strlen(kipp->ki_comm) ?
 		    kipp->ki_comm : "-");
-		printf("%-16s ", (strlen(kipp->ki_tdname) &&
-		    (strcmp(kipp->ki_comm, kipp->ki_tdname) != 0)) ?
-		    kipp->ki_tdname : "-");
+		printf("%-19s ", kinfo_proc_thread_name(kipp));
 		if (kipp->ki_oncpu != 255)
 			printf("%3d ", kipp->ki_oncpu);
 		else if (kipp->ki_lastcpu != 255)
