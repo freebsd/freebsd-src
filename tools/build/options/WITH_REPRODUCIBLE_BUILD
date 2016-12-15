@@ -1,0 +1,3 @@
+$FreeBSD$
+Set to exclude build metadata (build time, user, host and path) from the
+kernel and uname output.
