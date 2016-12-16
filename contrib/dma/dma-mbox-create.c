@@ -38,9 +38,18 @@
  * user-supplied information.  Keep the root window as small as possible.
  */
 
+#ifdef __FreeBSD__
+#define	USE_CAPSICUM	1
+#endif
+
 #include <sys/param.h>
+#if USE_CAPSICUM
+#include <sys/capsicum.h>
+#endif
 #include <sys/stat.h>
 
+#include <capsicum_helpers.h>
+#include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <grp.h>
@@ -84,6 +93,9 @@ logfail(int exitcode, const char *fmt, ...)
 int
 main(int argc, char **argv)
 {
+#if USE_CAPSICUM
+	cap_rights_t rights;
+#endif
 	const char *user;
 	struct passwd *pw;
 	struct group *gr;
@@ -91,7 +103,10 @@ main(int argc, char **argv)
 	gid_t mail_gid;
 	int f, maildirfd;
 
-	openlog("dma-mbox-create", 0, LOG_MAIL);
+	/*
+	 * Open log fd now for capability sandbox.
+	 */
+	openlog("dma-mbox-create", LOG_NDELAY, LOG_MAIL);
 
 	errno = 0;
 	gr = getgrnam(DMA_GROUP);
@@ -132,6 +147,28 @@ main(int argc, char **argv)
 	maildirfd = open(_PATH_MAILDIR, O_RDONLY);
 	if (maildirfd < 0)
 		logfail(EX_NOINPUT, "cannot open maildir %s", _PATH_MAILDIR);
+
+	/*
+	 * Cache NLS data, for strerror, for err(3), before entering capability
+	 * mode.
+	 */
+	caph_cache_catpages();
+
+	/*
+	 * Cache local time before entering Capsicum capability sandbox.
+	 */
+	caph_cache_tzdata();
+
+#if USE_CAPSICUM
+	cap_rights_init(&rights, CAP_CREATE, CAP_FCHMOD, CAP_FCHOWN,
+	    CAP_LOOKUP, CAP_READ);
+	if (cap_rights_limit(maildirfd, &rights) < 0 && errno != ENOSYS)
+		err(EX_OSERR, "can't limit maildirfd rights");
+
+	/* Enter Capsicum capability sandbox */
+	if (cap_enter() < 0 && errno != ENOSYS)
+		err(EX_OSERR, "cap_enter");
+#endif
 
 	user_uid = pw->pw_uid;
 
