@@ -2939,7 +2939,6 @@ OLD_FILES+=usr/lib32/libftpio_p.a
 OLD_FILES+=usr/include/ftpio.h
 OLD_FILES+=usr/share/man/man3/ftpio.3.gz
 # 20110915: rename congestion control manpages
-OLD_FILES+=usr/share/man/man4/cc.4.gz
 OLD_FILES+=usr/share/man/man9/cc.9.gz
 # 20110831: atomic page flags operations
 OLD_FILES+=usr/share/man/man9/vm_page_flag.9.gz
