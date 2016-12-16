@@ -2026,7 +2026,7 @@ struct cpl_rx_pkt {
  * RX_ERROR_IP_HDR_LEN, RX_ERROR_ETH_HDR_LEN
  */
 #define S_T6_COMPR_RXERR_LEN    1
-#define V_T6_COMPR_RXERR_LEN(x) ((x) << S_COMPR_T6_RXERR_LEN)
+#define V_T6_COMPR_RXERR_LEN(x) ((x) << S_T6_COMPR_RXERR_LEN)
 #define F_T6_COMPR_RXERR_LEN    V_COMPR_T6_RXERR_LEN(1U)
 
 #define S_T6_COMPR_RXERR_TCP_OPT    2
