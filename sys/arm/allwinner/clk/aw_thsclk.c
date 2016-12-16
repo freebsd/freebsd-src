@@ -186,6 +186,9 @@ aw_thsclk_set_freq(struct clknode *clk, uint64_t fin, uint64_t *fout,
 	if (best_diff == (int64_t)*fout || best_n == 0)
 		return (ERANGE);
 
+	if ((flags & CLK_SET_DRYRUN) != 0)
+		return (0);
+
 	DEVICE_LOCK(sc);
 	THSCLK_READ(sc, &val);
 	val &= ~CLK_DIV_RATIO;
