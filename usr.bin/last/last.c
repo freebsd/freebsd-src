@@ -40,8 +40,11 @@ static const char sccsid[] = "@(#)last.c	8.2 (Berkeley) 4/2/94";
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/capsicum.h>
+#include <sys/queue.h>
 #include <sys/stat.h>
 
+#include <capsicum_helpers.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -56,7 +59,6 @@ __FBSDID("$FreeBSD$");
 #include <timeconv.h>
 #include <unistd.h>
 #include <utmpx.h>
-#include <sys/queue.h>
 
 #define	NO	0				/* false/no */
 #define	YES	1				/* true/yes */
@@ -176,6 +178,19 @@ main(int argc, char *argv[])
 			usage();
 		}
 
+	if (caph_limit_stdio() < 0)
+		err(1, "can't limit stdio rights");
+
+	caph_cache_catpages();
+	caph_cache_tzdata();
+
+	/* Cache UTX database. */
+	if (setutxdb(UTXDB_LOG, file) != 0)
+		err(1, "%s", file != NULL ? file : "(default utx db)");
+
+	if (cap_enter() < 0 && errno != ENOSYS)
+		err(1, "cap_enter");
+
 	if (sflag && width == 8) usage();
 
 	if (argc) {
@@ -213,8 +228,6 @@ wtmp(void)
 	(void)time(&t);
 
 	/* Load the last entries from the file. */
-	if (setutxdb(UTXDB_LOG, file) != 0)
-		err(1, "%s", file);
 	while ((ut = getutxent()) != NULL) {
 		if (amount % 128 == 0) {
 			buf = realloc(buf, (amount + 128) * sizeof *ut);
