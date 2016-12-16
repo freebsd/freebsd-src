@@ -36,10 +36,13 @@ static char sccsid[] = "@(#)display.c	8.1 (Berkeley) 6/6/93";
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/capsicum.h>
 #include <sys/stat.h>
 
+#include <capsicum_helpers.h>
 #include <ctype.h>
 #include <err.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -355,6 +358,19 @@ next(char **argv)
 				return(0);
 			statok = 0;
 		}
+
+		if (caph_limit_stream(fileno(stdin), CAPH_READ) < 0)
+			err(1, "unable to restrict %s",
+			    statok ? _argv[-1] : "stdin");
+
+		/*
+		 * We've opened our last input file; enter capsicum sandbox.
+		 */
+		if (*_argv == NULL) {
+			if (cap_enter() < 0 && errno != ENOSYS)
+				err(1, "unable to enter capability mode");
+		}
+
 		if (skip)
 			doskip(statok ? *_argv : "stdin", statok);
 		if (*_argv)
