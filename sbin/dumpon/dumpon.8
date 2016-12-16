@@ -28,7 +28,7 @@
 .\"     From: @(#)swapon.8	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd October 3, 2016
+.Dd December 10, 2016
 .Dt DUMPON 8
 .Os
 .Sh NAME
@@ -37,6 +37,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl v
+.Op Fl k Ar public_key_file
 .Ar special_file
 .Nm
 .Op Fl v
@@ -56,7 +57,9 @@ normally occur from the system multi-user initialization file
 .Pa /etc/rc ,
 controlled by the
 .Dq dumpdev
-variable in the boot time configuration file
+and
+.Dq dumppubkey
+variables in the boot time configuration file
 .Pa /etc/rc.conf .
 .Pp
 The default type of kernel crash dump is the mini crash dump.
@@ -80,6 +83,35 @@ total amount of physical memory as reported by the
 .Va hw.physmem
 .Xr sysctl 8
 variable.
+.Pp
+The
+.Op Fl k Ar public_key_file
+flag causes
+.Nm
+to generate a one-time key for kernel crash dump encryption.
+The key will be replaced by a new one when the
+.Nm
+utility is run again.
+The key is encrypted using
+.Ar public_key_file .
+This process is sandboxed using
+.Xr capsicum 4 .
+Both plain and encrypted keys are sent to the kernel using
+.Dv DIOCSKERNELDUMP
+.Xr ioctl 2 .
+A user can specify the
+.Ar public_key_file
+in the
+.Dq dumppubkey
+variable defined in
+.Pa /etc/rc.conf
+for use with the
+.Pa /etc/rc.d/dumpon
+.Xr rc 8
+script.
+This flag requires a kernel compiled with the
+.Dv EKCD
+kernel option.
 .Pp
 The
 .Fl l
@@ -140,13 +172,95 @@ standard swap areas
 .It Pa /etc/rc.conf
 boot-time system configuration
 .El
+.Sh EXAMPLES
+In order to generate an RSA private key a user can use the
+.Xr genrsa 1
+tool:
+.Pp
+.Dl # openssl genrsa -out private.pem 4096
+.Pp
+A public key can be extracted from the private key using the
+.Xr rsa 1
+tool:
+.Pp
+.Dl # openssl rsa -in private.pem -out public.pem -pubout
+.Pp
+Once the RSA keys are created the private key should be moved to a safe place.
+Now
+.Pa public.pem
+can be used by
+.Nm
+to configure encrypted kernel crash dumps:
+.Pp
+.Dl # dumpon -k public.pem /dev/ada0s1b
+.Pp
+It is recommended to test if the kernel saves encrypted crash dumps using the
+current configuration.
+The easiest way to do that is to cause a kernel panic using the
+.Xr ddb 4
+debugger:
+.Pp
+.Dl # sysctl debug.kdb.panic=1
+.Pp
+In the debugger the following commands should be typed to write a core dump and
+reboot:
+.Pp
+.Dl db> call doadump(0)
+.Dl db> reset
+.Pp
+After reboot
+.Xr savecore 8
+should be able to save the core dump in the core directory which is
+.Pa /var/crash
+by default:
+.Pp
+.Dl # savecore /var/crash /dev/ada0s1b
+.Pp
+Three files should be created in the core directory:
+.Pa info.# ,
+.Pa key.#
+and
+.Pa vmcore_encrypted.#
+where
+.Dq #
+is the number of the last core dump saved by
+.Xr savecore 8 .
+The
+.Pa vmcore_encrypted.#
+can be decrypted using the
+.Xr decryptcore 8
+utility:
+.Pp
+.Dl # decryptcore -p private.pem -k key.# -e vmcore_encrypted.# -c vmcore.#
+.Pp
+or shorter:
+.Pp
+.Dl # decryptcore -p private.pem -n #
+.Pp
+The
+.Pa vmcore.#
+can be now examined using
+.Xr kgdb 1 :
+.Pp
+.Dl # kgdb /usr/obj/sys/GENERIC/kernel.debug vmcore.#
+.Pp
+or shorter:
+.Pp
+.Dl # kgdb -n # /usr/obj/sys/GENERIC/kernel.debug
+.Pp
+The core was decrypted properly if
+.Xr kgdb 1
+does not print any errors.
 .Sh SEE ALSO
+.Xr kgdb 1 ,
+.Xr ddb 4 ,
 .Xr fstab 5 ,
 .Xr rc.conf 5 ,
 .Xr config 8 ,
 .Xr init 8 ,
 .Xr loader 8 ,
 .Xr rc 8 ,
+.Xr decryptcore 8 ,
 .Xr savecore 8 ,
 .Xr swapon 8 ,
 .Xr panic 9

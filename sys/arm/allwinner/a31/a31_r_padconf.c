@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2016 Emmanuel Vadot <manu@bidouilliste.com>
+ * Copyright (c) 2016 Emmanuel Vadot <manu@freebsd.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,19 +43,19 @@ const static struct allwinner_pins a31_r_pins[] = {
 	{"PL2",  0, 2,  {"gpio_in", "gpio_out", "s_uart", NULL, NULL, NULL, NULL, NULL}},
 	{"PL3",  0, 3,  {"gpio_in", "gpio_out", "s_uart", NULL, NULL, NULL, NULL, NULL}},
 	{"PL4",  0, 4,  {"gpio_in", "gpio_out", "s_ir", NULL, NULL, NULL, NULL, NULL}},
-	{"PL5",  0, 5,  {"gpio_in", "gpio_out", "pl_eint0", "s_jtag", NULL, NULL, NULL, NULL}},
-	{"PL6",  0, 6,  {"gpio_in", "gpio_out", "pl_eint1", "s_jtag", NULL, NULL, NULL, NULL}},
-	{"PL7",  0, 7,  {"gpio_in", "gpio_out", "pl_eint2", "s_jtag", NULL, NULL, NULL, NULL}},
-	{"PL8",  0, 8,  {"gpio_in", "gpio_out", "pl_eint3", "s_jtag", NULL, NULL, NULL, NULL}},
+	{"PL5",  0, 5,  {"gpio_in", "gpio_out", "pl_eint0", "s_jtag", NULL, NULL, NULL, NULL}, 2, 0},
+	{"PL6",  0, 6,  {"gpio_in", "gpio_out", "pl_eint1", "s_jtag", NULL, NULL, NULL, NULL}, 2, 1},
+	{"PL7",  0, 7,  {"gpio_in", "gpio_out", "pl_eint2", "s_jtag", NULL, NULL, NULL, NULL}, 2, 2},
+	{"PL8",  0, 8,  {"gpio_in", "gpio_out", "pl_eint3", "s_jtag", NULL, NULL, NULL, NULL}, 2, 3},
 
-	{"PM0",  1, 0,  {"gpio_in", "gpio_out", "pm_eint0", NULL, NULL, NULL, NULL, NULL}},
-	{"PM1",  1, 1,  {"gpio_in", "gpio_out", "pm_eint1", NULL, NULL, NULL, NULL, NULL}},
-	{"PM2",  1, 2,  {"gpio_in", "gpio_out", "pm_eint2", "1wire", NULL, NULL, NULL, NULL}},
-	{"PM3",  1, 3,  {"gpio_in", "gpio_out", "pm_eint3", NULL, NULL, NULL, NULL, NULL}},
-	{"PM4",  1, 4,  {"gpio_in", "gpio_out", "pm_eint4", NULL, NULL, NULL, NULL, NULL}},
-	{"PM5",  1, 5,  {"gpio_in", "gpio_out", "pm_eint5", NULL, NULL, NULL, NULL, NULL}},
-	{"PM6",  1, 6,  {"gpio_in", "gpio_out", "pm_eint6", NULL, NULL, NULL, NULL, NULL}},
-	{"PM7",  1, 7,  {"gpio_in", "gpio_out", "pm_eint7", "rtc", NULL, NULL, NULL, NULL}},
+	{"PM0",  1, 0,  {"gpio_in", "gpio_out", "pm_eint0", NULL, NULL, NULL, NULL, NULL}, 2, 0},
+	{"PM1",  1, 1,  {"gpio_in", "gpio_out", "pm_eint1", NULL, NULL, NULL, NULL, NULL}, 2, 1},
+	{"PM2",  1, 2,  {"gpio_in", "gpio_out", "pm_eint2", "1wire", NULL, NULL, NULL, NULL}, 2, 2},
+	{"PM3",  1, 3,  {"gpio_in", "gpio_out", "pm_eint3", NULL, NULL, NULL, NULL, NULL}, 2, 3},
+	{"PM4",  1, 4,  {"gpio_in", "gpio_out", "pm_eint4", NULL, NULL, NULL, NULL, NULL}, 2, 4},
+	{"PM5",  1, 5,  {"gpio_in", "gpio_out", "pm_eint5", NULL, NULL, NULL, NULL, NULL}, 2, 5},
+	{"PM6",  1, 6,  {"gpio_in", "gpio_out", "pm_eint6", NULL, NULL, NULL, NULL, NULL}, 2, 6},
+	{"PM7",  1, 7,  {"gpio_in", "gpio_out", "pm_eint7", "rtc", NULL, NULL, NULL, NULL}, 2, 7},
 };
 
 const struct allwinner_padconf a31_r_padconf = {

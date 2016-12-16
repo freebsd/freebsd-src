@@ -117,8 +117,8 @@ spibus_probe_nomatch(device_t bus, device_t child)
 	struct spibus_ivar *devi = SPIBUS_IVAR(child);
 
 	device_printf(bus, "<unknown card>");
-	printf(" at cs %d\n", devi->cs);
-	printf(" mode %d", devi->mode);
+	printf(" at cs %d", devi->cs);
+	printf(" mode %d\n", devi->mode);
 	return;
 }
 

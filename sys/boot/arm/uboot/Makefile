@@ -109,6 +109,8 @@ CFLAGS+=	-I${.OBJDIR}/../../uboot/lib
 # where to get libstand from
 CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand/
 
+CFLAGS+=	-fPIC
+
 # clang doesn't understand %D as a specifier to printf
 NO_WERROR.clang=
 

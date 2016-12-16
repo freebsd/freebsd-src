@@ -1910,6 +1910,9 @@ iwn_alloc_rx_ring(struct iwn_softc *sc, struct iwn_rx_ring *ring)
 			goto fail;
 		}
 
+		bus_dmamap_sync(ring->data_dmat, data->map,
+		    BUS_DMASYNC_PREREAD);
+
 		/* Set physical address of RX buffer (256-byte aligned). */
 		ring->desc[i] = htole32(paddr >> 8);
 	}
@@ -3040,13 +3043,18 @@ iwn_rx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 		if (error != 0 && error != EFBIG) {
 			panic("%s: could not load old RX mbuf", __func__);
 		}
+		bus_dmamap_sync(ring->data_dmat, data->map,
+		    BUS_DMASYNC_PREREAD);
 		/* Physical address may have changed. */
 		ring->desc[ring->cur] = htole32(paddr >> 8);
-		bus_dmamap_sync(ring->data_dmat, ring->desc_dma.map,
+		bus_dmamap_sync(ring->desc_dma.tag, ring->desc_dma.map,
 		    BUS_DMASYNC_PREWRITE);
 		counter_u64_add(ic->ic_ierrors, 1);
 		return;
 	}
+
+	bus_dmamap_sync(ring->data_dmat, data->map,
+	    BUS_DMASYNC_PREREAD);
 
 	m = data->m;
 	data->m = m1;

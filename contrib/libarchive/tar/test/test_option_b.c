@@ -78,4 +78,6 @@ DEFINE_TEST(test_option_b)
 	 * Note: It's not possible to verify at this level that blocks
 	 * are getting written with the
 	 */
+
+	free(testprog_ustar);
 }
