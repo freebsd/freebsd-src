@@ -68,7 +68,6 @@ static struct ofw_compat_data compat_data[] = {
 struct aw_modclk_sc {
 	device_t	clkdev;
 	bus_addr_t	reg;
-	u_int		parent_cnt;
 };
 
 #define	MODCLK_READ(sc, val)	CLKDEV_READ_4((sc)->clkdev, (sc)->reg, (val))
@@ -102,7 +101,7 @@ aw_modclk_set_mux(struct clknode *clk, int index)
 
 	sc = clknode_get_softc(clk);
 
-	if (index < 0 || index >= sc->parent_cnt)
+	if (index < 0 || index >= clknode_get_parents_num(clk))
 		return (ERANGE);
 
 	DEVICE_LOCK(sc);
@@ -160,6 +159,8 @@ aw_modclk_set_freq(struct clknode *clk, uint64_t fin, uint64_t *fout,
     int flags, int *stop)
 {
 	struct aw_modclk_sc *sc;
+	struct clknode *parent_clk, *best_parent;
+	const char **parent_names;
 	uint32_t val, m, n, src, best_m, best_n, best_src;
 	uint64_t cur_freq;
 	int64_t best_diff, cur_diff;
@@ -170,11 +171,12 @@ aw_modclk_set_freq(struct clknode *clk, uint64_t fin, uint64_t *fout,
 	best_diff = (int64_t)*fout; 
 	best_src = 0;
 
-	for (src = 0; src < sc->parent_cnt; src++) {
-		error = clknode_set_parent_by_idx(clk, src);
-		if (error != 0)
+	parent_names = clknode_get_parent_names(clk);
+	for (src = 0; src < clknode_get_parents_num(clk); src++) {
+		parent_clk = clknode_find_by_name(parent_names[src]);
+		if (parent_clk == NULL)
 			continue;
-		error = clknode_get_freq(clknode_get_parent(clk), &fin);
+		error = clknode_get_freq(parent_clk, &fin);
 		if (error != 0)
 			continue;
 
@@ -184,6 +186,7 @@ aw_modclk_set_freq(struct clknode *clk, uint64_t fin, uint64_t *fout,
 				cur_diff = (int64_t)*fout - cur_freq;
 				if (cur_diff >= 0 && cur_diff < best_diff) {
 					best_src = src;
+					best_parent = parent_clk;
 					best_diff = cur_diff;
 					best_m = m;
 					best_n = n;
@@ -194,10 +197,17 @@ aw_modclk_set_freq(struct clknode *clk, uint64_t fin, uint64_t *fout,
 	if (best_diff == (int64_t)*fout)
 		return (ERANGE);
 
-	error = clknode_set_parent_by_idx(clk, best_src);
+	error = clknode_get_freq(best_parent, &fin);
 	if (error != 0)
 		return (error);
-	error = clknode_get_freq(clknode_get_parent(clk), &fin);
+
+	*fout = fin / (1 << best_n) / (best_m + 1);
+	*stop = 1;
+
+	if ((flags & CLK_SET_DRYRUN) != 0)
+		return (0);
+
+	error = clknode_set_parent_by_idx(clk, best_src);
 	if (error != 0)
 		return (error);
 
@@ -208,9 +218,6 @@ aw_modclk_set_freq(struct clknode *clk, uint64_t fin, uint64_t *fout,
 	val |= (best_m << CLK_RATIO_M_SHIFT);
 	MODCLK_WRITE(sc, val);
 	DEVICE_UNLOCK(sc);
-
-	*fout = fin / (1 << best_n) / (best_m + 1);
-	*stop = 1;
 
 	return (0);
 }
@@ -299,7 +306,6 @@ aw_modclk_attach(device_t dev)
 	sc = clknode_get_softc(clk);
 	sc->reg = paddr;
 	sc->clkdev = device_get_parent(dev);
-	sc->parent_cnt = def.parent_cnt;
 
 	clknode_register(clkdom, clk);
 
