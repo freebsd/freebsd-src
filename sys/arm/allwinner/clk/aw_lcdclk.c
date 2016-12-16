@@ -389,56 +389,69 @@ aw_lcdclk_set_freq(struct clknode *clk, uint64_t fin, uint64_t *fout,
     int flags, int *stop)
 {
 	struct aw_lcdclk_softc *sc;
+	struct clknode *parent_clk;
+	const char **parent_names;
 	uint64_t pll_freq;
 	uint32_t val, src_sel;
 	int error, tcon_pll_div;
 
 	sc = clknode_get_softc(clk);
 
-	switch (sc->type) {
-	case AW_LCD_CH0:
+	if (sc->type == AW_LCD_CH0) {
 		*stop = 0;
-		break;
-	case AW_LCD_CH1:
-		if (sc->id != CLK_IDX_CH1_SCLK2)
-			return (ENXIO);
-
-		src_sel = calc_tcon_pll(fin, *fout, &pll_freq, &tcon_pll_div);
-
-		/* Switch parent clock if necessary */
-		if (src_sel != clknode_get_parent_idx(clk)) {
-			error = clknode_set_parent_by_idx(clk, src_sel);
-			if (error != 0)
-				return (error);
-		}
-
-		error = clknode_set_freq(clknode_get_parent(clk), pll_freq,
-		    0, 0);
-		if (error != 0)
-			return (error);
-
-		error = clknode_enable(clknode_get_parent(clk));
-		if (error != 0)
-			return (error);
-
-		/* Fetch new input frequency */
-		error = clknode_get_freq(clknode_get_parent(clk), &pll_freq);
-		if (error != 0)
-			return (error);
-
-		/* Set LCD divisor */
-		DEVICE_LOCK(sc);
-		LCDCLK_READ(sc, &val);
-		val &= ~CH1_CLK_DIV_RATIO_M;
-		val |= ((tcon_pll_div - 1) << CH1_CLK_DIV_RATIO_M_SHIFT);
-		LCDCLK_WRITE(sc, val);
-		DEVICE_UNLOCK(sc);
-
-		*fout = pll_freq / tcon_pll_div;
-		*stop = 1;
-
-		break;
+		return (0);
 	}
+
+	if (sc->id != CLK_IDX_CH1_SCLK2)
+		return (ENXIO);
+
+	src_sel = calc_tcon_pll(fin, *fout, &pll_freq, &tcon_pll_div);
+
+	parent_names = clknode_get_parent_names(clk);
+	parent_clk = clknode_find_by_name(parent_names[src_sel]);
+
+	if (parent_clk == NULL)
+		return (ERANGE);
+
+	/* Fetch input frequency */
+	error = clknode_get_freq(parent_clk, &pll_freq);
+	if (error != 0)
+		return (error);
+
+	*fout = pll_freq / tcon_pll_div;
+	*stop = 1;
+
+	if ((flags & CLK_SET_DRYRUN) != 0)
+		return (0);
+
+	/* Switch parent clock if necessary */
+	error = clknode_set_parent_by_idx(clk, src_sel);
+	if (error != 0)
+		return (error);
+
+	error = clknode_set_freq(parent_clk, pll_freq,
+	    0, 0);
+	if (error != 0)
+		return (error);
+
+	/* Fetch new input frequency */
+	error = clknode_get_freq(parent_clk, &pll_freq);
+	if (error != 0)
+		return (error);
+
+	*fout = pll_freq / tcon_pll_div;
+
+	error = clknode_enable(parent_clk);
+	if (error != 0)
+		return (error);
+
+	/* Set LCD divisor */
+	DEVICE_LOCK(sc);
+	LCDCLK_READ(sc, &val);
+	val &= ~CH1_CLK_DIV_RATIO_M;
+	val |= ((tcon_pll_div - 1) << CH1_CLK_DIV_RATIO_M_SHIFT);
+	LCDCLK_WRITE(sc, val);
+	DEVICE_UNLOCK(sc);
 
 	return (0);
 }
