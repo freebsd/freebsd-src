@@ -74,11 +74,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/rwlock.h>
 #include <sys/sched.h>
-#ifdef SMP
 #include <sys/smp.h>
-#else
-#include <sys/cpuset.h>
-#endif
 #include <sys/sysctl.h>
 #include <sys/vmmeter.h>
 
@@ -3203,9 +3199,19 @@ pmap_activate(struct thread *td)
 	critical_exit();
 }
 
+static void
+pmap_sync_icache_one(void *arg __unused)
+{
+
+	mips_icache_sync_all();
+	mips_dcache_wbinv_all();
+}
+
 void
 pmap_sync_icache(pmap_t pm, vm_offset_t va, vm_size_t sz)
 {
+
+	smp_rendezvous(NULL, pmap_sync_icache_one, NULL, NULL);
 }
 
 /*
