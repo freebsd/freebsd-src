@@ -114,6 +114,7 @@ pw_update(struct passwd * pwd, char const * user)
 		close(tfd);
 		err(1, "pw_copy()");
 	}
+	fsync(tfd);
 	close(tfd);
 	/*
 	 * in case of deletion of a user, the whole database
