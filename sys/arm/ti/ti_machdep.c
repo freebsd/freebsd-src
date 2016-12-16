@@ -66,7 +66,6 @@ static platform_devmap_init_t ti_omap4_devmap_init;
 static platform_attach_t ti_am335x_attach;
 static platform_devmap_init_t ti_am335x_devmap_init;
 #endif
-static platform_lastaddr_t ti_lastaddr;
 static platform_cpu_reset_t ti_plat_cpu_reset;
 
 void (*ti_cpu_reset)(void) = NULL;
@@ -90,13 +89,6 @@ ti_am335x_attach(platform_t plat)
 	return (0);
 }
 #endif
-
-static vm_offset_t
-ti_lastaddr(platform_t plat)
-{
-
-	return (devmap_lastaddr());
-}
 
 /*
  * Construct static devmap entries to map out the most frequently used
@@ -141,7 +133,6 @@ ti_plat_cpu_reset(platform_t plat)
 static platform_method_t omap4_methods[] = {
 	PLATFORMMETHOD(platform_attach, 	omap4_attach),
 	PLATFORMMETHOD(platform_devmap_init,	ti_omap4_devmap_init),
-	PLATFORMMETHOD(platform_lastaddr,	ti_lastaddr),
 	PLATFORMMETHOD(platform_cpu_reset,	ti_plat_cpu_reset),
 
 #ifdef SMP
@@ -157,7 +148,6 @@ FDT_PLATFORM_DEF(omap4, "omap4", 0, "ti,omap4430", 200);
 static platform_method_t am335x_methods[] = {
 	PLATFORMMETHOD(platform_attach, 	ti_am335x_attach),
 	PLATFORMMETHOD(platform_devmap_init,	ti_am335x_devmap_init),
-	PLATFORMMETHOD(platform_lastaddr,	ti_lastaddr),
 	PLATFORMMETHOD(platform_cpu_reset,	ti_plat_cpu_reset),
 
 	PLATFORMMETHOD_END,
