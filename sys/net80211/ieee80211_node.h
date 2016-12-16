@@ -224,6 +224,15 @@ struct ieee80211_node {
 	struct ieee80211_tx_ampdu ni_tx_ampdu[WME_NUM_TID];
 	struct ieee80211_rx_ampdu ni_rx_ampdu[WME_NUM_TID];
 
+	/* VHT state */
+	uint32_t		ni_vhtcap;
+	uint32_t		ni_vhtinfo;
+	struct ieee80211_vht_mcs_info	ni_vht_mcsinfo;
+	uint8_t			ni_vht_chan1;	/* 20/40/80/160 - VHT chan1 */
+	uint8_t			ni_vht_chan2;	/* 80+80 - VHT chan2 */
+	uint16_t		ni_vht_pad1;
+	uint32_t		ni_vht_spare[8];
+
 	/* fast-frames state */
 	struct mbuf *		ni_tx_superg[WME_NUM_TID];
 
