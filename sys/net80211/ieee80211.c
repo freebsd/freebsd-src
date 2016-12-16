@@ -2020,6 +2020,10 @@ ieee80211_rate2media(struct ieee80211com *ic, int rate, enum ieee80211_phymode m
 	case IEEE80211_MODE_11NG:
 	case IEEE80211_MODE_TURBO_G:
 		return findmedia(rates, nitems(rates), rate | IFM_IEEE80211_11G);
+	case IEEE80211_MODE_VHT_2GHZ:
+	case IEEE80211_MODE_VHT_5GHZ:
+		/* XXX TODO: need to figure out mapping for VHT rates */
+		return IFM_AUTO;
 	}
 	return IFM_AUTO;
 }
@@ -2053,6 +2057,7 @@ ieee80211_media2rate(int mword)
 		9,		/* IFM_IEEE80211_OFDM4 */
 		54,		/* IFM_IEEE80211_OFDM27 */
 		-1,		/* IFM_IEEE80211_MCS */
+		-1,		/* IFM_IEEE80211_VHT */
 	};
 	return IFM_SUBTYPE(mword) < nitems(ieeerates) ?
 		ieeerates[IFM_SUBTYPE(mword)] : 0;
@@ -2103,6 +2108,8 @@ ieee80211_channel_type_char(const struct ieee80211_channel *c)
 		return 'T';
 	if (IEEE80211_IS_CHAN_108G(c))
 		return 'G';
+	if (IEEE80211_IS_CHAN_VHT(c))
+		return 'v';
 	if (IEEE80211_IS_CHAN_HT(c))
 		return 'n';
 	if (IEEE80211_IS_CHAN_A(c))
