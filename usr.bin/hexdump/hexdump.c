@@ -42,6 +42,9 @@ static char sccsid[] = "@(#)hexdump.c	8.1 (Berkeley) 6/6/93";
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+#include <sys/capsicum.h>
+#include <capsicum_helpers.h>
+#include <err.h>
 #include <locale.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -75,6 +78,14 @@ main(int argc, char *argv[])
 	/* rewrite the rules, do syntax checking */
 	for (tfs = fshead; tfs; tfs = tfs->nextfs)
 		rewrite(tfs);
+
+	/*
+	 * Cache NLS data, for strerror, for err(3), before entering capability
+	 * mode.
+	 */
+	caph_cache_catpages();
+	if (caph_limit_stdio() < 0)
+		err(1, "capsicum");
 
 	(void)next(argv);
 	display();
