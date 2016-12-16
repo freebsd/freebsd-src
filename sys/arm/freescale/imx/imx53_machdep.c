@@ -47,15 +47,7 @@ __FBSDID("$FreeBSD$");
 
 static platform_attach_t imx53_attach;
 static platform_devmap_init_t imx53_devmap_init;
-static platform_lastaddr_t imx53_lastaddr;
 static platform_cpu_reset_t imx53_cpu_reset;
-
-static vm_offset_t
-imx53_lastaddr(platform_t plat)
-{
-
-	return (devmap_lastaddr());
-}
 
 static int
 imx53_attach(platform_t plat)
@@ -102,7 +94,6 @@ imx_soc_type(void)
 static platform_method_t imx53_methods[] = {
 	PLATFORMMETHOD(platform_attach,		imx53_attach),
 	PLATFORMMETHOD(platform_devmap_init,	imx53_devmap_init),
-	PLATFORMMETHOD(platform_lastaddr,	imx53_lastaddr),
 	PLATFORMMETHOD(platform_cpu_reset,	imx53_cpu_reset),
 
 	PLATFORMMETHOD_END,

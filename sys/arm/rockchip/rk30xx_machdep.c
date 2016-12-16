@@ -52,17 +52,9 @@ __FBSDID("$FreeBSD$");
 
 #include "platform_if.h"
 
-static platform_lastaddr_t rk30xx_lastaddr;
 static platform_devmap_init_t rk30xx_devmap_init;
 static platform_late_init_t rk30xx_late_init;
 static platform_cpu_reset_t rk30xx_cpu_reset;
-
-static vm_offset_t
-rk30xx_lastaddr(platform_t plat)
-{
-
-	return (devmap_lastaddr());
-}
 
 static void
 rk30xx_late_init(platform_t plat)
@@ -97,7 +89,6 @@ rk30xx_cpu_reset(platform_t plat)
 
 #if defined(SOC_ROCKCHIP_RK3188)
 static platform_method_t rk30xx_methods[] = {
-	PLATFORMMETHOD(platform_lastaddr,	rk30xx_lastaddr),
 	PLATFORMMETHOD(platform_devmap_init,	rk30xx_devmap_init),
 	PLATFORMMETHOD(platform_late_init,	rk30xx_late_init),
 	PLATFORMMETHOD(platform_cpu_reset,	rk30xx_cpu_reset),

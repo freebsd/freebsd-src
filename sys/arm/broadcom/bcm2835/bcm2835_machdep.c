@@ -68,16 +68,8 @@ static platform_devmap_init_t bcm2835_devmap_init;
 #ifdef SOC_BCM2836
 static platform_devmap_init_t bcm2836_devmap_init;
 #endif
-static platform_lastaddr_t bcm2835_lastaddr;
 static platform_late_init_t bcm2835_late_init;
 static platform_cpu_reset_t bcm2835_cpu_reset;
-
-static vm_offset_t
-bcm2835_lastaddr(platform_t plat)
-{
-
-	return (devmap_lastaddr());
-}
 
 static void
 bcm2835_late_init(platform_t plat)
@@ -136,7 +128,6 @@ bcm2835_cpu_reset(platform_t plat)
 #ifdef SOC_BCM2835
 static platform_method_t bcm2835_methods[] = {
 	PLATFORMMETHOD(platform_devmap_init,	bcm2835_devmap_init),
-	PLATFORMMETHOD(platform_lastaddr,	bcm2835_lastaddr),
 	PLATFORMMETHOD(platform_late_init,	bcm2835_late_init),
 	PLATFORMMETHOD(platform_cpu_reset,	bcm2835_cpu_reset),
 
@@ -148,7 +139,6 @@ FDT_PLATFORM_DEF(bcm2835, "bcm2835", 0, "raspberrypi,model-b", 100);
 #ifdef SOC_BCM2836
 static platform_method_t bcm2836_methods[] = {
 	PLATFORMMETHOD(platform_devmap_init,	bcm2836_devmap_init),
-	PLATFORMMETHOD(platform_lastaddr,	bcm2835_lastaddr),
 	PLATFORMMETHOD(platform_late_init,	bcm2835_late_init),
 	PLATFORMMETHOD(platform_cpu_reset,	bcm2835_cpu_reset),
 
