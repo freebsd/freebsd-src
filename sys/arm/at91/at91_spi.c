@@ -291,7 +291,8 @@ at91_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 {
 	struct at91_spi_softc *sc;
 	bus_addr_t addr;
-	int err, i, j, mode[4], cs;
+	int err, i, j, mode[4];
+	uint32_t cs;
 
 	KASSERT(cmd->tx_cmd_sz == cmd->rx_cmd_sz,
 	    ("%s: TX/RX command sizes should be equal", __func__));
@@ -315,7 +316,7 @@ at91_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 	 * PSCDEC = 0 has a range of 0..3 for chip select.  We
 	 * don't support PSCDEC = 1 which has a range of 0..15.
 	 */
-	if (cs < 0 || cs > 3) {
+	if (cs > 3) {
 		device_printf(dev,
 		    "Invalid chip select %d requested by %s\n", cs,
 		    device_get_nameunit(child));
