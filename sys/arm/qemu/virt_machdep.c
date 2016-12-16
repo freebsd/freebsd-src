@@ -44,13 +44,6 @@ __FBSDID("$FreeBSD$");
 
 #include "platform_if.h"
 
-static vm_offset_t
-virt_lastaddr(platform_t plat)
-{
-
-	return (devmap_lastaddr());
-}
-
 /*
  * Set up static device mappings.
  */
@@ -64,7 +57,6 @@ virt_devmap_init(platform_t plat)
 
 static platform_method_t virt_methods[] = {
 	PLATFORMMETHOD(platform_devmap_init,	virt_devmap_init),
-	PLATFORMMETHOD(platform_lastaddr,	virt_lastaddr),
 
 #ifdef SMP
 	PLATFORMMETHOD(platform_mp_start_ap,	virt_mp_start_ap),
@@ -86,7 +78,6 @@ gem5_devmap_init(platform_t plat)
 
 static platform_method_t gem5_methods[] = {
 	PLATFORMMETHOD(platform_devmap_init,	gem5_devmap_init),
-	PLATFORMMETHOD(platform_lastaddr,	virt_lastaddr),
 
 	PLATFORMMETHOD_END,
 };

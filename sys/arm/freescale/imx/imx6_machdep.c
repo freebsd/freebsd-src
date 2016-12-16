@@ -56,7 +56,6 @@ static uint32_t gpio1_node;
 
 static platform_attach_t imx6_attach;
 static platform_devmap_init_t imx6_devmap_init;
-static platform_lastaddr_t imx6_lastaddr;
 static platform_late_init_t imx6_late_init;
 static platform_cpu_reset_t imx6_cpu_reset;
 
@@ -162,13 +161,6 @@ fix_fdt_interrupt_data(void)
 
 	gicxref = cpu_to_fdt32(gicxref);
 	OF_setprop(socnode, "interrupt-parent", &gicxref, sizeof(gicxref));
-}
-
-static vm_offset_t
-imx6_lastaddr(platform_t plat)
-{
-
-	return (devmap_lastaddr());
 }
 
 static int
@@ -350,7 +342,6 @@ early_putc_t *early_putc = imx6_early_putc;
 
 static platform_method_t imx6_methods[] = {
 	PLATFORMMETHOD(platform_attach,		imx6_attach),
-	PLATFORMMETHOD(platform_lastaddr,	imx6_lastaddr),
 	PLATFORMMETHOD(platform_devmap_init,	imx6_devmap_init),
 	PLATFORMMETHOD(platform_late_init,	imx6_late_init),
 	PLATFORMMETHOD(platform_cpu_reset,	imx6_cpu_reset),
