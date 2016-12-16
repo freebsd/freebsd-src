@@ -1356,7 +1356,7 @@ retry:
 			goto retry;
 		}
 
-		/* vm_page_rename() will handle dirty and cache. */
+		/* vm_page_rename() will dirty the page. */
 		if (vm_page_rename(m, new_object, idx)) {
 			VM_OBJECT_WUNLOCK(new_object);
 			VM_OBJECT_WUNLOCK(orig_object);
@@ -1446,7 +1446,7 @@ vm_object_scan_all_shadowed(vm_object_t object)
 	/*
 	 * Initial conditions:
 	 *
-	 * We do not want to have to test for the existence of cache or swap
+	 * We do not want to have to test for the existence of swap
 	 * pages in the backing object.  XXX but with the new swapper this
 	 * would be pretty easy to do.
 	 */
@@ -1590,8 +1590,7 @@ vm_object_collapse_scan(vm_object_t object, int op)
 		 * backing object to the main object.
 		 *
 		 * If the page was mapped to a process, it can remain mapped
-		 * through the rename.  vm_page_rename() will handle dirty and
-		 * cache.
+		 * through the rename.  vm_page_rename() will dirty the page.
 		 */
 		if (vm_page_rename(p, object, new_pindex)) {
 			next = vm_object_collapse_scan_wait(object, NULL, next,

@@ -54,6 +54,16 @@ __FBSDID("$FreeBSD$");
 
 #include "platform_if.h"
 
+static platform_attach_t a10_attach;
+static platform_attach_t a13_attach;
+static platform_attach_t a20_attach;
+static platform_attach_t a31_attach;
+static platform_attach_t a31s_attach;
+static platform_attach_t a83t_attach;
+static platform_attach_t h3_attach;
+static platform_devmap_init_t allwinner_devmap_init;
+static platform_cpu_reset_t allwinner_cpu_reset;
+
 static u_int soc_type;
 static u_int soc_family;
 
@@ -118,13 +128,6 @@ h3_attach(platform_t plat)
 	return (0);
 }
 
-static vm_offset_t
-allwinner_lastaddr(platform_t plat)
-{
-
-	return (devmap_lastaddr());
-}
-
 /*
  * Set up static device mappings.
  *
@@ -155,7 +158,6 @@ allwinner_cpu_reset(platform_t plat)
 #if defined(SOC_ALLWINNER_A10)
 static platform_method_t a10_methods[] = {
 	PLATFORMMETHOD(platform_attach,         a10_attach),
-	PLATFORMMETHOD(platform_lastaddr,       allwinner_lastaddr),
 	PLATFORMMETHOD(platform_devmap_init,    allwinner_devmap_init),
 	PLATFORMMETHOD(platform_cpu_reset,	allwinner_cpu_reset),
 
@@ -167,7 +169,6 @@ FDT_PLATFORM_DEF(a10, "a10", 0, "allwinner,sun4i-a10", 200);
 #if defined(SOC_ALLWINNER_A13)
 static platform_method_t a13_methods[] = {
 	PLATFORMMETHOD(platform_attach,         a13_attach),
-	PLATFORMMETHOD(platform_lastaddr,       allwinner_lastaddr),
 	PLATFORMMETHOD(platform_devmap_init,    allwinner_devmap_init),
 	PLATFORMMETHOD(platform_cpu_reset,	allwinner_cpu_reset),
 
@@ -179,7 +180,6 @@ FDT_PLATFORM_DEF(a13, "a13", 0, "allwinner,sun5i-a13", 200);
 #if defined(SOC_ALLWINNER_A20)
 static platform_method_t a20_methods[] = {
 	PLATFORMMETHOD(platform_attach,         a20_attach),
-	PLATFORMMETHOD(platform_lastaddr,       allwinner_lastaddr),
 	PLATFORMMETHOD(platform_devmap_init,    allwinner_devmap_init),
 	PLATFORMMETHOD(platform_cpu_reset,	allwinner_cpu_reset),
 
@@ -195,7 +195,6 @@ FDT_PLATFORM_DEF(a20, "a20", 0, "allwinner,sun7i-a20", 200);
 #if defined(SOC_ALLWINNER_A31)
 static platform_method_t a31_methods[] = {
 	PLATFORMMETHOD(platform_attach,         a31_attach),
-	PLATFORMMETHOD(platform_lastaddr,       allwinner_lastaddr),
 	PLATFORMMETHOD(platform_devmap_init,    allwinner_devmap_init),
 	PLATFORMMETHOD(platform_cpu_reset,	allwinner_cpu_reset),
 
@@ -211,7 +210,6 @@ FDT_PLATFORM_DEF(a31, "a31", 0, "allwinner,sun6i-a31", 200);
 #if defined(SOC_ALLWINNER_A31S)
 static platform_method_t a31s_methods[] = {
 	PLATFORMMETHOD(platform_attach,         a31s_attach),
-	PLATFORMMETHOD(platform_lastaddr,       allwinner_lastaddr),
 	PLATFORMMETHOD(platform_devmap_init,    allwinner_devmap_init),
 	PLATFORMMETHOD(platform_cpu_reset,	allwinner_cpu_reset),
 
@@ -227,7 +225,6 @@ FDT_PLATFORM_DEF(a31s, "a31s", 0, "allwinner,sun6i-a31s", 200);
 #if defined(SOC_ALLWINNER_A83T)
 static platform_method_t a83t_methods[] = {
 	PLATFORMMETHOD(platform_attach,         a83t_attach),
-	PLATFORMMETHOD(platform_lastaddr,       allwinner_lastaddr),
 	PLATFORMMETHOD(platform_devmap_init,    allwinner_devmap_init),
 	PLATFORMMETHOD(platform_cpu_reset,	allwinner_cpu_reset),
 
@@ -243,7 +240,6 @@ FDT_PLATFORM_DEF(a83t, "a83t", 0, "allwinner,sun8i-a83t", 200);
 #if defined(SOC_ALLWINNER_H3)
 static platform_method_t h3_methods[] = {
 	PLATFORMMETHOD(platform_attach,         h3_attach),
-	PLATFORMMETHOD(platform_lastaddr,       allwinner_lastaddr),
 	PLATFORMMETHOD(platform_devmap_init,    allwinner_devmap_init),
 	PLATFORMMETHOD(platform_cpu_reset,	allwinner_cpu_reset),
 

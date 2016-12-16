@@ -1521,7 +1521,7 @@ retry:
 	/* Now bind it into the GTT if needed */
 	ret = i915_gem_object_pin(obj, 0, true, false);
 	if (ret)
-		goto unpin;
+		goto unlock;
 	pinned = 1;
 
 	ret = i915_gem_object_set_to_gtt_domain(obj, write);
@@ -1580,6 +1580,8 @@ have_page:
 	return (VM_PAGER_OK);
 
 unpin:
+	i915_gem_object_unpin(obj);
+unlock:
 	DRM_UNLOCK(dev);
 out:
 	KASSERT(ret != 0, ("i915_gem_pager_fault: wrong return"));

@@ -1327,6 +1327,7 @@ test_callbacks(void)
 	if (assert((m = archive_match_new()) != NULL)) {
 		archive_entry_free(ae);
 		archive_read_free(a);
+		archive_match_free(m);
 		return;
 	}
 

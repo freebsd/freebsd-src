@@ -358,6 +358,7 @@ timestamp(struct cam_device *device, int argc, char **argv, char *combinedopt,
 		}
 		case 'f': {
 			single_arg++;
+			free(format_string);
 			format_string = strdup(optarg);
 			if (format_string == NULL) {
 				warn("Error allocating memory for format "
@@ -369,6 +370,7 @@ timestamp(struct cam_device *device, int argc, char **argv, char *combinedopt,
 		}
 		case 'm': {
 			single_arg++;
+			free(format_string);
 			format_string = strdup(MIL);
 			if (format_string == NULL) {
 				warn("Error allocating memory");
@@ -382,6 +384,7 @@ timestamp(struct cam_device *device, int argc, char **argv, char *combinedopt,
 			break;
 		}
 		case 'T':
+			free(timestamp_string);
 			timestamp_string = strdup(optarg);
 			if (timestamp_string == NULL) {
 				warn("Error allocating memory for format "

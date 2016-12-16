@@ -106,6 +106,7 @@ static struct resource_spec imx_gpt_spec[] = {
 };
 
 static struct ofw_compat_data compat_data[] = {
+	{"fsl,imx6dl-gpt",  1},
 	{"fsl,imx6q-gpt",  1},
 	{"fsl,imx53-gpt",  1},
 	{"fsl,imx51-gpt",  1},

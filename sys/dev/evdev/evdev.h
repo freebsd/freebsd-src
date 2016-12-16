@@ -56,6 +56,22 @@ typedef void (evdev_keycode_t)(struct evdev_dev *, void *,
 #define	EVDEV_RCPT_HW_MOUSE	(1<<2)
 #define	EVDEV_RCPT_HW_KBD	(1<<3)
 extern int evdev_rcpt_mask;
+/*
+ * Sysmouse protocol does not support horizontal wheel movement reporting.
+ * To overcome this limitation different drivers use different sysmouse proto
+ * extensions. Set kern.evdev.sysmouse_t_axis to tell sysmouse evdev driver
+ * which protocol extension is used.
+ * 0 - do not extract horizontal wheel movement (default).
+ * 1 - ums(4) horizontal wheel encoding. T-axis is mapped to buttons 6 and 7
+ * 2 - psm(4) wheels encoding: z = 1,-1 - vert. wheel, z = 2,-2 - horiz. wheel
+ */
+enum
+{
+	EVDEV_SYSMOUSE_T_AXIS_NONE = 0,
+	EVDEV_SYSMOUSE_T_AXIS_UMS = 1,
+	EVDEV_SYSMOUSE_T_AXIS_PSM = 2,
+};
+extern int evdev_sysmouse_t_axis;
 
 #define	ABS_MT_FIRST	ABS_MT_TOUCH_MAJOR
 #define	ABS_MT_LAST	ABS_MT_TOOL_Y
