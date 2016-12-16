@@ -871,8 +871,11 @@ disasm_fields(const struct opcode *popcode, instr_t instr, vm_offset_t loc,
 		func &= ~Op_crbB;
 	}
 	if (func & Op_LI) {
-		u_int LI;
+		int LI;
 		LI = extract_field(instr, 31 - 29, 24);
+		LI = LI << 8;
+		LI = LI >> 6;
+		LI += loc;
 		APP_PSTR("0x%x", LI);
 		func &= ~Op_LI;
 	}
@@ -897,8 +900,11 @@ disasm_fields(const struct opcode *popcode, instr_t instr, vm_offset_t loc,
 		;
 	}
 	if (func & Op_BD) {
-		u_int BD;
+		int BD;
 		BD = extract_field(instr, 31 - 29, 14);
+		BD = BD << 18;
+		BD = BD >> 16;
+		BD += loc;
 		/* Need to sign extend and shift up 2, then add addr */
 		APP_PSTR("0x%x", BD);
 		func &= ~Op_BD;
@@ -968,9 +974,9 @@ disasm_fields(const struct opcode *popcode, instr_t instr, vm_offset_t loc,
 			reg = "tbu";
 			break;
 		default:
-			reg = 0;
+			reg = NULL;
 		}
-		if (reg == 0)
+		if (reg == NULL)
 			APP_PSTR(", [unknown tbr %d ]", tbr);
 		else
 			APP_PSTR(", %s", reg);
