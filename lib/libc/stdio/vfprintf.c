@@ -611,6 +611,37 @@ reswitch:	switch (ch) {
 		case 'z':
 			flags |= SIZET;
 			goto rflag;
+		case 'b':
+			{
+			const char *q;
+			int anybitset, bit;
+
+			ulval = (u_int)GETARG(int);
+			cp = GETARG(char *);
+
+			q = __ultoa(ulval, buf + BUF, *cp++, 0, xdigs_lower);
+			PRINT(q, buf + BUF - q);
+
+			if (ulval == 0)
+				break;
+
+			for (anybitset = 0; *cp;) {
+				bit = *cp++;
+				if (ulval & (1 << (bit - 1))) {
+					PRINT(anybitset ? "," : "<", 1);
+					q = cp;
+					for (; (bit = *cp) > ' '; ++cp)
+						continue;
+					PRINT(q, cp - q);
+					anybitset = 1;
+				} else
+					for (; *cp > ' '; ++cp)
+						continue;
+			}
+			if (anybitset)
+				PRINT(">", 1);
+			}
+			continue;
 		case 'C':
 			flags |= LONGINT;
 			/*FALLTHROUGH*/
