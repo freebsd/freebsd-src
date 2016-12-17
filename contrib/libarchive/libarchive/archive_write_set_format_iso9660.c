@@ -3024,8 +3024,8 @@ set_directory_record_rr(unsigned char *bp, int dr_len,
 		 *    +----+----+----+----+----+
 		 *   10   11   12   13   14   15
 		 *
-	 	 *    - cflg : flag of componet
-		 *    - clen : length of componet
+		 *    - cflg : flag of component
+		 *    - clen : length of component
 		 */
 		const char *sl;
 		char sl_last;

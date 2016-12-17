@@ -373,7 +373,7 @@ typedef const char *archive_passphrase_callback(struct archive *,
  *   4) Repeatedly call archive_read_next_header to get information about
  *      successive archive entries.  Call archive_read_data to extract
  *      data for entries of interest.
- *   5) Call archive_read_finish to end processing.
+ *   5) Call archive_read_free to end processing.
  */
 __LA_DECL struct archive	*archive_read_new(void);
 
