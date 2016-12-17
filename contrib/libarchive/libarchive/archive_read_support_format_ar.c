@@ -104,13 +104,12 @@ archive_read_support_format_ar(struct archive *_a)
 	archive_check_magic(_a, ARCHIVE_READ_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_read_support_format_ar");
 
-	ar = (struct ar *)malloc(sizeof(*ar));
+	ar = (struct ar *)calloc(1, sizeof(*ar));
 	if (ar == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate ar data");
 		return (ARCHIVE_FATAL);
 	}
-	memset(ar, 0, sizeof(*ar));
 	ar->strtab = NULL;
 
 	r = __archive_read_register_format(a,
@@ -316,7 +315,7 @@ _ar_read_header(struct archive_read *a, struct archive_entry *entry,
 		 * If we can't look up the real name, warn and return
 		 * the entry with the wrong name.
 		 */
-		if (ar->strtab == NULL || number > ar->strtab_size) {
+		if (ar->strtab == NULL || number >= ar->strtab_size) {
 			archive_set_error(&a->archive, EINVAL,
 			    "Can't find long filename for GNU/SVR4 archive entry");
 			archive_entry_copy_pathname(entry, filename);

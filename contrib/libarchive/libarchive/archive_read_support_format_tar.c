@@ -297,7 +297,7 @@ archive_read_format_tar_cleanup(struct archive_read *a)
 /*
  * Validate number field
  *
- * This has to be pretty lenient in order to accomodate the enormous
+ * This has to be pretty lenient in order to accommodate the enormous
  * variety of tar writers in the world:
  *  = POSIX (IEEE Std 1003.1-1988) ustar requires octal values with leading
  *    zeros and allows fields to be terminated with space or null characters
@@ -423,7 +423,7 @@ archive_read_format_tar_options(struct archive_read *a,
 
 	tar = (struct tar *)(a->format->data);
 	if (strcmp(key, "compat-2x")  == 0) {
-		/* Handle UTF-8 filnames as libarchive 2.x */
+		/* Handle UTF-8 filenames as libarchive 2.x */
 		tar->compat_2x = (val != NULL && val[0] != 0);
 		tar->init_default_conversion = tar->compat_2x;
 		return (ARCHIVE_OK);
@@ -2189,12 +2189,11 @@ gnu_add_sparse_entry(struct archive_read *a, struct tar *tar,
 {
 	struct sparse_block *p;
 
-	p = (struct sparse_block *)malloc(sizeof(*p));
+	p = (struct sparse_block *)calloc(1, sizeof(*p));
 	if (p == NULL) {
 		archive_set_error(&a->archive, ENOMEM, "Out of memory");
 		return (ARCHIVE_FATAL);
 	}
-	memset(p, 0, sizeof(*p));
 	if (tar->sparse_last != NULL)
 		tar->sparse_last->next = p;
 	else
@@ -2545,7 +2544,7 @@ tar_atol_base_n(const char *p, size_t char_cnt, int base)
 	last_digit_limit = INT64_MAX % base;
 
 	/* the pointer will not be dereferenced if char_cnt is zero
-	 * due to the way the && operator is evaulated.
+	 * due to the way the && operator is evaluated.
 	 */
 	while (char_cnt != 0 && (*p == ' ' || *p == '\t')) {
 		p++;
