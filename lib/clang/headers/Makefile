@@ -4,7 +4,7 @@
 
 .PATH:		${CLANG_SRCS}/lib/Headers
 
-INCSDIR=	${LIBDIR}/clang/3.9.0/include
+INCSDIR=	${LIBDIR}/clang/3.9.1/include
 
 GENINCS+=	arm_neon.h
 
@@ -54,6 +54,7 @@ INCS+=		mm3dnow.h
 INCS+=		mm_malloc.h
 INCS+=		mmintrin.h
 INCS+=		module.modulemap
+INCS+=		msa.h
 INCS+=		mwaitxintrin.h
 INCS+=		nmmintrin.h
 INCS+=		opencl-c.h

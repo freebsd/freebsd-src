@@ -2185,24 +2185,29 @@ void DAGTypeLegalizer::ExpandIntRes_MUL(SDNode *N,
     // options. This is a trivially-generalized version of the code from
     // Hacker's Delight (itself derived from Knuth's Algorithm M from section
     // 4.3.1).
-    SDValue Mask =
-      DAG.getConstant(APInt::getLowBitsSet(NVT.getSizeInBits(),
-                                           NVT.getSizeInBits() >> 1), dl, NVT);
+    unsigned Bits = NVT.getSizeInBits();
+    unsigned HalfBits = Bits >> 1;
+    SDValue Mask = DAG.getConstant(APInt::getLowBitsSet(Bits, HalfBits), dl,
+                                   NVT);
     SDValue LLL = DAG.getNode(ISD::AND, dl, NVT, LL, Mask);
     SDValue RLL = DAG.getNode(ISD::AND, dl, NVT, RL, Mask);
 
     SDValue T = DAG.getNode(ISD::MUL, dl, NVT, LLL, RLL);
     SDValue TL = DAG.getNode(ISD::AND, dl, NVT, T, Mask);
 
-    SDValue Shift =
-      DAG.getConstant(NVT.getSizeInBits() >> 1, dl,
-                      TLI.getShiftAmountTy(NVT, DAG.getDataLayout()));
+    EVT ShiftAmtTy = TLI.getShiftAmountTy(NVT, DAG.getDataLayout());
+    if (APInt::getMaxValue(ShiftAmtTy.getSizeInBits()).ult(HalfBits)) {
+      // The type from TLI is too small to fit the shift amount we want.
+      // Override it with i32. The shift will have to be legalized.
+      ShiftAmtTy = MVT::i32;
+    }
+    SDValue Shift = DAG.getConstant(HalfBits, dl, ShiftAmtTy);
     SDValue TH = DAG.getNode(ISD::SRL, dl, NVT, T, Shift);
     SDValue LLH = DAG.getNode(ISD::SRL, dl, NVT, LL, Shift);
     SDValue RLH = DAG.getNode(ISD::SRL, dl, NVT, RL, Shift);
 
     SDValue U = DAG.getNode(ISD::ADD, dl, NVT,
-                            DAG.getNode(ISD::MUL, dl, NVT, LLH, RLL), TL);
+                            DAG.getNode(ISD::MUL, dl, NVT, LLH, RLL), TH);
     SDValue UL = DAG.getNode(ISD::AND, dl, NVT, U, Mask);
     SDValue UH = DAG.getNode(ISD::SRL, dl, NVT, U, Shift);
 
@@ -2211,14 +2216,14 @@ void DAGTypeLegalizer::ExpandIntRes_MUL(SDNode *N,
     SDValue VH = DAG.getNode(ISD::SRL, dl, NVT, V, Shift);
 
     SDValue W = DAG.getNode(ISD::ADD, dl, NVT,
-                            DAG.getNode(ISD::MUL, dl, NVT, LL, RL),
+                            DAG.getNode(ISD::MUL, dl, NVT, LLH, RLH),
                             DAG.getNode(ISD::ADD, dl, NVT, UH, VH));
-    Lo = DAG.getNode(ISD::ADD, dl, NVT, TH,
+    Lo = DAG.getNode(ISD::ADD, dl, NVT, TL,
                      DAG.getNode(ISD::SHL, dl, NVT, V, Shift));
 
     Hi = DAG.getNode(ISD::ADD, dl, NVT, W,
                      DAG.getNode(ISD::ADD, dl, NVT,
-                                 DAG.getNode(ISD::MUL, dl, NVT, RH, LL), 
+                                 DAG.getNode(ISD::MUL, dl, NVT, RH, LL),
                                  DAG.getNode(ISD::MUL, dl, NVT, RL, LH)));
     return;
   }
