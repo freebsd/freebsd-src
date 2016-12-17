@@ -238,13 +238,8 @@ uart_pl011_getc(struct uart_bas *bas, struct mtx *hwmtx)
  * High-level UART interface.
  */
 struct uart_pl011_softc {
-	struct uart_softc base;
-	uint8_t		fcr;
-	uint8_t		ier;
-	uint8_t		mcr;
-
-	uint8_t		ier_mask;
-	uint8_t		ier_rxbits;
+	struct uart_softc	base;
+	uint16_t		imsc; /* Interrupt mask */
 };
 
 static int uart_pl011_bus_attach(struct uart_softc *);
@@ -309,14 +304,15 @@ UART_ACPI_CLASS_AND_DEVICE(acpi_compat_data);
 static int
 uart_pl011_bus_attach(struct uart_softc *sc)
 {
+	struct uart_pl011_softc *psc;
 	struct uart_bas *bas;
-	int reg;
 
+	psc = (struct uart_pl011_softc *)sc; 
 	bas = &sc->sc_bas;
 
 	/* Enable interrupts */
-	reg = (UART_RXREADY | RIS_RTIM | UART_TXEMPTY);
-	__uart_setreg(bas, UART_IMSC, reg);
+	psc->imsc = (UART_RXREADY | RIS_RTIM | UART_TXEMPTY);
+	__uart_setreg(bas, UART_IMSC, psc->imsc);
 
 	/* Clear interrupts */
 	__uart_setreg(bas, UART_ICR, IMSC_MASK_ALL);
@@ -372,12 +368,14 @@ uart_pl011_bus_ioctl(struct uart_softc *sc, int request, intptr_t data)
 static int
 uart_pl011_bus_ipend(struct uart_softc *sc)
 {
+	struct uart_pl011_softc *psc;
 	struct uart_bas *bas;
 	uint32_t ints;
 	int ipend;
-	int reg;
 
+	psc = (struct uart_pl011_softc *)sc; 
 	bas = &sc->sc_bas;
+
 	uart_lock(sc->sc_hwmtx);
 	ints = __uart_getreg(bas, UART_MIS);
 	ipend = 0;
@@ -393,9 +391,7 @@ uart_pl011_bus_ipend(struct uart_softc *sc)
 			ipend |= SER_INT_TXIDLE;
 
 		/* Disable TX interrupt */
-		reg = __uart_getreg(bas, UART_IMSC);
-		reg &= ~(UART_TXEMPTY);
-		__uart_setreg(bas, UART_IMSC, reg);
+		__uart_setreg(bas, UART_IMSC, psc->imsc & ~UART_TXEMPTY);
 	}
 
 	uart_unlock(sc->sc_hwmtx);
@@ -472,10 +468,11 @@ uart_pl011_bus_setsig(struct uart_softc *sc, int sig)
 static int
 uart_pl011_bus_transmit(struct uart_softc *sc)
 {
+	struct uart_pl011_softc *psc;
 	struct uart_bas *bas;
-	int reg;
 	int i;
 
+	psc = (struct uart_pl011_softc *)sc; 
 	bas = &sc->sc_bas;
 	uart_lock(sc->sc_hwmtx);
 
@@ -489,9 +486,7 @@ uart_pl011_bus_transmit(struct uart_softc *sc)
 		sc->sc_txbusy = 1;
 
 		/* Enable TX interrupt */
-		reg = __uart_getreg(bas, UART_IMSC);
-		reg |= (UART_TXEMPTY);
-		__uart_setreg(bas, UART_IMSC, reg);
+		__uart_setreg(bas, UART_IMSC, psc->imsc);
 	}
 
 	uart_unlock(sc->sc_hwmtx);
@@ -506,23 +501,29 @@ uart_pl011_bus_transmit(struct uart_softc *sc)
 static void
 uart_pl011_bus_grab(struct uart_softc *sc)
 {
+	struct uart_pl011_softc *psc;
 	struct uart_bas *bas;
 
+	psc = (struct uart_pl011_softc *)sc; 
 	bas = &sc->sc_bas;
+
+	/* Disable interrupts on switch to polling */
 	uart_lock(sc->sc_hwmtx);
-	__uart_setreg(bas, UART_IMSC, 	/* Switch to RX polling while grabbed */
-	    ~UART_RXREADY & __uart_getreg(bas, UART_IMSC));
+	__uart_setreg(bas, UART_IMSC, psc->imsc & ~IMSC_MASK_ALL);
 	uart_unlock(sc->sc_hwmtx);
 }
 
 static void
 uart_pl011_bus_ungrab(struct uart_softc *sc)
 {
+	struct uart_pl011_softc *psc;
 	struct uart_bas *bas;
 
+	psc = (struct uart_pl011_softc *) sc; 
 	bas = &sc->sc_bas;
+
+	/* Switch to using interrupts while not grabbed */
 	uart_lock(sc->sc_hwmtx);
-	__uart_setreg(bas, UART_IMSC,	/* Switch to RX interrupts while not grabbed */
-	    UART_RXREADY | __uart_getreg(bas, UART_IMSC));
+	__uart_setreg(bas, UART_IMSC, psc->imsc);
 	uart_unlock(sc->sc_hwmtx);
 }
