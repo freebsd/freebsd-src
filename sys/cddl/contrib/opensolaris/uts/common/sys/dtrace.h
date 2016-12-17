@@ -738,8 +738,8 @@ typedef struct dof_sec {
 	((x) == DOF_SECT_PRARGS) || ((x) == DOF_SECT_PROFFS) ||		\
 	((x) == DOF_SECT_INTTAB) || ((x) == DOF_SECT_XLTAB) ||		\
 	((x) == DOF_SECT_XLMEMBERS) || ((x) == DOF_SECT_XLIMPORT) ||	\
-	((x) == DOF_SECT_XLIMPORT) || ((x) == DOF_SECT_XLEXPORT) ||	\
-	((x) == DOF_SECT_PREXPORT) || ((x) == DOF_SECT_PRENOFFS))
+	((x) == DOF_SECT_XLEXPORT) ||  ((x) == DOF_SECT_PREXPORT) || 	\
+	((x) == DOF_SECT_PRENOFFS))
 
 typedef struct dof_ecbdesc {
 	dof_secidx_t dofe_probes;	/* link to DOF_SECT_PROBEDESC */
