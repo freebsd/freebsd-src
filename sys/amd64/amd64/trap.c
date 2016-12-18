@@ -914,7 +914,7 @@ amd64_syscall(struct thread *td, int traced)
 	}
 
 	KASSERT(PCB_USER_FPU(td->td_pcb),
-	    ("System call %s returing with kernel FPU ctx leaked",
+	    ("System call %s returning with kernel FPU ctx leaked",
 	     syscallname(td->td_proc, sa.code)));
 	KASSERT(td->td_pcb->pcb_save == get_pcb_user_save_td(td),
 	    ("System call %s returning with mangled pcb_save",
@@ -922,7 +922,6 @@ amd64_syscall(struct thread *td, int traced)
 	KASSERT(td->td_md.md_invl_gen.gen == 0,
 	    ("System call %s returning with leaked invl_gen %lu",
 	    syscallname(td->td_proc, sa.code), td->td_md.md_invl_gen.gen));
-
 
 	syscallret(td, error, &sa);
 
