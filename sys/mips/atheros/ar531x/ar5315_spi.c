@@ -166,6 +166,8 @@ ar5315_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 
 	spibus_get_cs(child, &cs);
 
+	cs &= ~SPIBUS_CS_HIGH;
+
 	/* Open SPI controller interface */
 	ar5315_spi_chip_activate(sc, cs);
 

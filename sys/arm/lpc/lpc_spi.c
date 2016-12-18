@@ -147,6 +147,8 @@ lpc_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 
 	spibus_get_cs(child, &cs);
 
+	cs &= ~SPIBUS_CS_HIGH;
+
 	/* Set CS active */
 	lpc_gpio_set_state(child, cs, 0);
 

@@ -231,6 +231,8 @@ mtk_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 
 	spibus_get_cs(child, &cs);
 
+	cs &= ~SPIBUS_CS_HIGH;
+
 	if (cs != 0)
 		/* Only 1 CS */
 		return (ENXIO);

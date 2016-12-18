@@ -193,6 +193,8 @@ spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 	/* get the proper chip select */
 	spibus_get_cs(child, &cs);
 
+	cs &= ~SPIBUS_CS_HIGH;
+
 	/* Assert CS */
 	reg = READ4(sc, SPI_SSR);
 	reg &= ~(1 << cs);
