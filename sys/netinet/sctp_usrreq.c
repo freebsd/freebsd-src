@@ -135,7 +135,7 @@ sctp_pathmtu_adjustment(struct sctp_tcb *stcb, uint16_t nxtsz)
 					    chk->whoTo->flight_size,
 					    chk->book_size,
 					    (uint32_t) (uintptr_t) chk->whoTo,
-					    chk->rec.data.TSN_seq);
+					    chk->rec.data.tsn);
 				}
 				/* Clear any time so NO RTT is being done */
 				chk->do_rtt = 0;
