@@ -18,7 +18,7 @@ PASSON=		CLDRDIR="${CLDRDIR}" UNIDATADIR="${UNIDATADIR}"
 
 ETCDIR=		${.CURDIR}/etc
 
-KNOWN=		monetdef numericdef msgdef timedef colldef ctypedef
+KNOWN=		monetdef numericdef msgdef colldef ctypedef # timedef
 TYPES?=		${KNOWN}
 LOCALE_DESTDIR?=	/tmp/generated-locales/
 
