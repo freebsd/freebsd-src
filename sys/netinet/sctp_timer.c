@@ -193,10 +193,8 @@ sctp_find_alternate_net(struct sctp_tcb *stcb,
 	 */
 	if (mode == 2) {
 		TAILQ_FOREACH(mnet, &stcb->asoc.nets, sctp_next) {
-			/*
-			 * JRS 5/14/07 - If the destination is unreachable
-			 * or unconfirmed, skip it.
-			 */
+			/* JRS 5/14/07 - If the destination is unreachable
+			 * or unconfirmed, skip it. */
 			if (((mnet->dest_state & SCTP_ADDR_REACHABLE) != SCTP_ADDR_REACHABLE) ||
 			    (mnet->dest_state & SCTP_ADDR_UNCONFIRMED)) {
 				continue;
@@ -286,11 +284,8 @@ sctp_find_alternate_net(struct sctp_tcb *stcb,
 		} else {
 			return (max_cwnd_net);
 		}
-	}
-	/*
-	 * JRS 5/14/07 - If mode is set to 1, use the CMT policy for
-	 * choosing an alternate net.
-	 */ 
+	}			/* JRS 5/14/07 - If mode is set to 1, use the
+	  * CMT policy for choosing an alternate net. */ 
 	else if (mode == 1) {
 		TAILQ_FOREACH(mnet, &stcb->asoc.nets, sctp_next) {
 			if (((mnet->dest_state & SCTP_ADDR_REACHABLE) != SCTP_ADDR_REACHABLE) ||
@@ -470,7 +465,6 @@ sctp_recover_sent_list(struct sctp_tcb *stcb)
 		SCTP_PRINTF("chk:%p TSN:%x\n", (void *)chk, chk->rec.data.TSN_seq);
 	}
 }
-
 #endif
 
 static int
