@@ -1233,58 +1233,58 @@ static struct asc_table_entry asc_table[] = {
 	{ SST(0x0A, 0x00, SS_FATAL | ENOSPC,
 	    "Error log overflow") },
 	/* DTLPWROMAEBKVF */
-	{ SST(0x0B, 0x00, SS_RDEF,
+	{ SST(0x0B, 0x00, SS_NOP | SSQ_PRINT_SENSE,
 	    "Warning") },
 	/* DTLPWROMAEBKVF */
-	{ SST(0x0B, 0x01, SS_RDEF,
+	{ SST(0x0B, 0x01, SS_NOP | SSQ_PRINT_SENSE,
 	    "Warning - specified temperature exceeded") },
 	/* DTLPWROMAEBKVF */
-	{ SST(0x0B, 0x02, SS_RDEF,
+	{ SST(0x0B, 0x02, SS_NOP | SSQ_PRINT_SENSE,
 	    "Warning - enclosure degraded") },
 	/* DTLPWROMAEBKVF */
-	{ SST(0x0B, 0x03, SS_RDEF,	/* XXX TBD */
+	{ SST(0x0B, 0x03, SS_NOP | SSQ_PRINT_SENSE,
 	    "Warning - background self-test failed") },
 	/* DTLPWRO AEBKVF */
-	{ SST(0x0B, 0x04, SS_RDEF,	/* XXX TBD */
+	{ SST(0x0B, 0x04, SS_NOP | SSQ_PRINT_SENSE,
 	    "Warning - background pre-scan detected medium error") },
 	/* DTLPWRO AEBKVF */
-	{ SST(0x0B, 0x05, SS_RDEF,	/* XXX TBD */
+	{ SST(0x0B, 0x05, SS_NOP | SSQ_PRINT_SENSE,
 	    "Warning - background medium scan detected medium error") },
 	/* DTLPWROMAEBKVF */
-	{ SST(0x0B, 0x06, SS_RDEF,	/* XXX TBD */
+	{ SST(0x0B, 0x06, SS_NOP | SSQ_PRINT_SENSE,
 	    "Warning - non-volatile cache now volatile") },
 	/* DTLPWROMAEBKVF */
-	{ SST(0x0B, 0x07, SS_RDEF,	/* XXX TBD */
+	{ SST(0x0B, 0x07, SS_NOP | SSQ_PRINT_SENSE,
 	    "Warning - degraded power to non-volatile cache") },
 	/* DTLPWROMAEBKVF */
-	{ SST(0x0B, 0x08, SS_RDEF,	/* XXX TBD */
+	{ SST(0x0B, 0x08, SS_NOP | SSQ_PRINT_SENSE,
 	    "Warning - power loss expected") },
 	/* D              */
-	{ SST(0x0B, 0x09, SS_RDEF,	/* XXX TBD */
+	{ SST(0x0B, 0x09, SS_NOP | SSQ_PRINT_SENSE,
 	    "Warning - device statistics notification available") },
 	/* DTLPWROMAEBKVF */
-	{ SST(0x0B, 0x0A, SS_RDEF,	/* XXX TBD */
+	{ SST(0x0B, 0x0A, SS_NOP | SSQ_PRINT_SENSE,
 	    "Warning - High critical temperature limit exceeded") },
 	/* DTLPWROMAEBKVF */
-	{ SST(0x0B, 0x0B, SS_RDEF,	/* XXX TBD */
+	{ SST(0x0B, 0x0B, SS_NOP | SSQ_PRINT_SENSE,
 	    "Warning - Low critical temperature limit exceeded") },
 	/* DTLPWROMAEBKVF */
-	{ SST(0x0B, 0x0C, SS_RDEF,	/* XXX TBD */
+	{ SST(0x0B, 0x0C, SS_NOP | SSQ_PRINT_SENSE,
 	    "Warning - High operating temperature limit exceeded") },
 	/* DTLPWROMAEBKVF */
-	{ SST(0x0B, 0x0D, SS_RDEF,	/* XXX TBD */
+	{ SST(0x0B, 0x0D, SS_NOP | SSQ_PRINT_SENSE,
 	    "Warning - Low operating temperature limit exceeded") },
 	/* DTLPWROMAEBKVF */
-	{ SST(0x0B, 0x0E, SS_RDEF,	/* XXX TBD */
+	{ SST(0x0B, 0x0E, SS_NOP | SSQ_PRINT_SENSE,
 	    "Warning - High citical humidity limit exceeded") },
 	/* DTLPWROMAEBKVF */
-	{ SST(0x0B, 0x0F, SS_RDEF,	/* XXX TBD */
+	{ SST(0x0B, 0x0F, SS_NOP | SSQ_PRINT_SENSE,
 	    "Warning - Low citical humidity limit exceeded") },
 	/* DTLPWROMAEBKVF */
-	{ SST(0x0B, 0x10, SS_RDEF,	/* XXX TBD */
+	{ SST(0x0B, 0x10, SS_NOP | SSQ_PRINT_SENSE,
 	    "Warning - High operating humidity limit exceeded") },
 	/* DTLPWROMAEBKVF */
-	{ SST(0x0B, 0x11, SS_RDEF,	/* XXX TBD */
+	{ SST(0x0B, 0x11, SS_NOP | SSQ_PRINT_SENSE,
 	    "Warning - Low operating humidity limit exceeded") },
 	/*  T   R         */
 	{ SST(0x0C, 0x00, SS_RDEF,
@@ -2613,253 +2613,259 @@ static struct asc_table_entry asc_table[] = {
 	{ SST(0x5C, 0x02, SS_RDEF,
 	    "Spindles not synchronized") },
 	/* DTLPWROMAEBKVF */
-	{ SST(0x5D, 0x00, SS_RDEF,
+	{ SST(0x5D, 0x00, SS_NOP | SSQ_PRINT_SENSE,
 	    "Failure prediction threshold exceeded") },
 	/*      R    B    */
-	{ SST(0x5D, 0x01, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x01, SS_NOP | SSQ_PRINT_SENSE,
 	    "Media failure prediction threshold exceeded") },
 	/*      R         */
-	{ SST(0x5D, 0x02, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x02, SS_NOP | SSQ_PRINT_SENSE,
 	    "Logical unit failure prediction threshold exceeded") },
 	/*      R         */
-	{ SST(0x5D, 0x03, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x03, SS_NOP | SSQ_PRINT_SENSE,
 	    "Spare area exhaustion prediction threshold exceeded") },
 	/* D         B    */
-	{ SST(0x5D, 0x10, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x10, SS_NOP | SSQ_PRINT_SENSE,
 	    "Hardware impending failure general hard drive failure") },
 	/* D         B    */
-	{ SST(0x5D, 0x11, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x11, SS_NOP | SSQ_PRINT_SENSE,
 	    "Hardware impending failure drive error rate too high") },
 	/* D         B    */
-	{ SST(0x5D, 0x12, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x12, SS_NOP | SSQ_PRINT_SENSE,
 	    "Hardware impending failure data error rate too high") },
 	/* D         B    */
-	{ SST(0x5D, 0x13, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x13, SS_NOP | SSQ_PRINT_SENSE,
 	    "Hardware impending failure seek error rate too high") },
 	/* D         B    */
-	{ SST(0x5D, 0x14, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x14, SS_NOP | SSQ_PRINT_SENSE,
 	    "Hardware impending failure too many block reassigns") },
 	/* D         B    */
-	{ SST(0x5D, 0x15, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x15, SS_NOP | SSQ_PRINT_SENSE,
 	    "Hardware impending failure access times too high") },
 	/* D         B    */
-	{ SST(0x5D, 0x16, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x16, SS_NOP | SSQ_PRINT_SENSE,
 	    "Hardware impending failure start unit times too high") },
 	/* D         B    */
-	{ SST(0x5D, 0x17, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x17, SS_NOP | SSQ_PRINT_SENSE,
 	    "Hardware impending failure channel parametrics") },
 	/* D         B    */
-	{ SST(0x5D, 0x18, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x18, SS_NOP | SSQ_PRINT_SENSE,
 	    "Hardware impending failure controller detected") },
 	/* D         B    */
-	{ SST(0x5D, 0x19, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x19, SS_NOP | SSQ_PRINT_SENSE,
 	    "Hardware impending failure throughput performance") },
 	/* D         B    */
-	{ SST(0x5D, 0x1A, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x1A, SS_NOP | SSQ_PRINT_SENSE,
 	    "Hardware impending failure seek time performance") },
 	/* D         B    */
-	{ SST(0x5D, 0x1B, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x1B, SS_NOP | SSQ_PRINT_SENSE,
 	    "Hardware impending failure spin-up retry count") },
 	/* D         B    */
-	{ SST(0x5D, 0x1C, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x1C, SS_NOP | SSQ_PRINT_SENSE,
 	    "Hardware impending failure drive calibration retry count") },
 	/* D         B    */
-	{ SST(0x5D, 0x20, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x1D, SS_NOP | SSQ_PRINT_SENSE,
+	    "Hardware impending failure power loss protection circuit") },
+	/* D         B    */
+	{ SST(0x5D, 0x20, SS_NOP | SSQ_PRINT_SENSE,
 	    "Controller impending failure general hard drive failure") },
 	/* D         B    */
-	{ SST(0x5D, 0x21, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x21, SS_NOP | SSQ_PRINT_SENSE,
 	    "Controller impending failure drive error rate too high") },
 	/* D         B    */
-	{ SST(0x5D, 0x22, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x22, SS_NOP | SSQ_PRINT_SENSE,
 	    "Controller impending failure data error rate too high") },
 	/* D         B    */
-	{ SST(0x5D, 0x23, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x23, SS_NOP | SSQ_PRINT_SENSE,
 	    "Controller impending failure seek error rate too high") },
 	/* D         B    */
-	{ SST(0x5D, 0x24, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x24, SS_NOP | SSQ_PRINT_SENSE,
 	    "Controller impending failure too many block reassigns") },
 	/* D         B    */
-	{ SST(0x5D, 0x25, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x25, SS_NOP | SSQ_PRINT_SENSE,
 	    "Controller impending failure access times too high") },
 	/* D         B    */
-	{ SST(0x5D, 0x26, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x26, SS_NOP | SSQ_PRINT_SENSE,
 	    "Controller impending failure start unit times too high") },
 	/* D         B    */
-	{ SST(0x5D, 0x27, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x27, SS_NOP | SSQ_PRINT_SENSE,
 	    "Controller impending failure channel parametrics") },
 	/* D         B    */
-	{ SST(0x5D, 0x28, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x28, SS_NOP | SSQ_PRINT_SENSE,
 	    "Controller impending failure controller detected") },
 	/* D         B    */
-	{ SST(0x5D, 0x29, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x29, SS_NOP | SSQ_PRINT_SENSE,
 	    "Controller impending failure throughput performance") },
 	/* D         B    */
-	{ SST(0x5D, 0x2A, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x2A, SS_NOP | SSQ_PRINT_SENSE,
 	    "Controller impending failure seek time performance") },
 	/* D         B    */
-	{ SST(0x5D, 0x2B, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x2B, SS_NOP | SSQ_PRINT_SENSE,
 	    "Controller impending failure spin-up retry count") },
 	/* D         B    */
-	{ SST(0x5D, 0x2C, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x2C, SS_NOP | SSQ_PRINT_SENSE,
 	    "Controller impending failure drive calibration retry count") },
 	/* D         B    */
-	{ SST(0x5D, 0x30, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x30, SS_NOP | SSQ_PRINT_SENSE,
 	    "Data channel impending failure general hard drive failure") },
 	/* D         B    */
-	{ SST(0x5D, 0x31, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x31, SS_NOP | SSQ_PRINT_SENSE,
 	    "Data channel impending failure drive error rate too high") },
 	/* D         B    */
-	{ SST(0x5D, 0x32, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x32, SS_NOP | SSQ_PRINT_SENSE,
 	    "Data channel impending failure data error rate too high") },
 	/* D         B    */
-	{ SST(0x5D, 0x33, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x33, SS_NOP | SSQ_PRINT_SENSE,
 	    "Data channel impending failure seek error rate too high") },
 	/* D         B    */
-	{ SST(0x5D, 0x34, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x34, SS_NOP | SSQ_PRINT_SENSE,
 	    "Data channel impending failure too many block reassigns") },
 	/* D         B    */
-	{ SST(0x5D, 0x35, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x35, SS_NOP | SSQ_PRINT_SENSE,
 	    "Data channel impending failure access times too high") },
 	/* D         B    */
-	{ SST(0x5D, 0x36, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x36, SS_NOP | SSQ_PRINT_SENSE,
 	    "Data channel impending failure start unit times too high") },
 	/* D         B    */
-	{ SST(0x5D, 0x37, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x37, SS_NOP | SSQ_PRINT_SENSE,
 	    "Data channel impending failure channel parametrics") },
 	/* D         B    */
-	{ SST(0x5D, 0x38, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x38, SS_NOP | SSQ_PRINT_SENSE,
 	    "Data channel impending failure controller detected") },
 	/* D         B    */
-	{ SST(0x5D, 0x39, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x39, SS_NOP | SSQ_PRINT_SENSE,
 	    "Data channel impending failure throughput performance") },
 	/* D         B    */
-	{ SST(0x5D, 0x3A, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x3A, SS_NOP | SSQ_PRINT_SENSE,
 	    "Data channel impending failure seek time performance") },
 	/* D         B    */
-	{ SST(0x5D, 0x3B, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x3B, SS_NOP | SSQ_PRINT_SENSE,
 	    "Data channel impending failure spin-up retry count") },
 	/* D         B    */
-	{ SST(0x5D, 0x3C, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x3C, SS_NOP | SSQ_PRINT_SENSE,
 	    "Data channel impending failure drive calibration retry count") },
 	/* D         B    */
-	{ SST(0x5D, 0x40, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x40, SS_NOP | SSQ_PRINT_SENSE,
 	    "Servo impending failure general hard drive failure") },
 	/* D         B    */
-	{ SST(0x5D, 0x41, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x41, SS_NOP | SSQ_PRINT_SENSE,
 	    "Servo impending failure drive error rate too high") },
 	/* D         B    */
-	{ SST(0x5D, 0x42, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x42, SS_NOP | SSQ_PRINT_SENSE,
 	    "Servo impending failure data error rate too high") },
 	/* D         B    */
-	{ SST(0x5D, 0x43, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x43, SS_NOP | SSQ_PRINT_SENSE,
 	    "Servo impending failure seek error rate too high") },
 	/* D         B    */
-	{ SST(0x5D, 0x44, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x44, SS_NOP | SSQ_PRINT_SENSE,
 	    "Servo impending failure too many block reassigns") },
 	/* D         B    */
-	{ SST(0x5D, 0x45, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x45, SS_NOP | SSQ_PRINT_SENSE,
 	    "Servo impending failure access times too high") },
 	/* D         B    */
-	{ SST(0x5D, 0x46, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x46, SS_NOP | SSQ_PRINT_SENSE,
 	    "Servo impending failure start unit times too high") },
 	/* D         B    */
-	{ SST(0x5D, 0x47, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x47, SS_NOP | SSQ_PRINT_SENSE,
 	    "Servo impending failure channel parametrics") },
 	/* D         B    */
-	{ SST(0x5D, 0x48, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x48, SS_NOP | SSQ_PRINT_SENSE,
 	    "Servo impending failure controller detected") },
 	/* D         B    */
-	{ SST(0x5D, 0x49, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x49, SS_NOP | SSQ_PRINT_SENSE,
 	    "Servo impending failure throughput performance") },
 	/* D         B    */
-	{ SST(0x5D, 0x4A, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x4A, SS_NOP | SSQ_PRINT_SENSE,
 	    "Servo impending failure seek time performance") },
 	/* D         B    */
-	{ SST(0x5D, 0x4B, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x4B, SS_NOP | SSQ_PRINT_SENSE,
 	    "Servo impending failure spin-up retry count") },
 	/* D         B    */
-	{ SST(0x5D, 0x4C, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x4C, SS_NOP | SSQ_PRINT_SENSE,
 	    "Servo impending failure drive calibration retry count") },
 	/* D         B    */
-	{ SST(0x5D, 0x50, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x50, SS_NOP | SSQ_PRINT_SENSE,
 	    "Spindle impending failure general hard drive failure") },
 	/* D         B    */
-	{ SST(0x5D, 0x51, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x51, SS_NOP | SSQ_PRINT_SENSE,
 	    "Spindle impending failure drive error rate too high") },
 	/* D         B    */
-	{ SST(0x5D, 0x52, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x52, SS_NOP | SSQ_PRINT_SENSE,
 	    "Spindle impending failure data error rate too high") },
 	/* D         B    */
-	{ SST(0x5D, 0x53, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x53, SS_NOP | SSQ_PRINT_SENSE,
 	    "Spindle impending failure seek error rate too high") },
 	/* D         B    */
-	{ SST(0x5D, 0x54, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x54, SS_NOP | SSQ_PRINT_SENSE,
 	    "Spindle impending failure too many block reassigns") },
 	/* D         B    */
-	{ SST(0x5D, 0x55, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x55, SS_NOP | SSQ_PRINT_SENSE,
 	    "Spindle impending failure access times too high") },
 	/* D         B    */
-	{ SST(0x5D, 0x56, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x56, SS_NOP | SSQ_PRINT_SENSE,
 	    "Spindle impending failure start unit times too high") },
 	/* D         B    */
-	{ SST(0x5D, 0x57, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x57, SS_NOP | SSQ_PRINT_SENSE,
 	    "Spindle impending failure channel parametrics") },
 	/* D         B    */
-	{ SST(0x5D, 0x58, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x58, SS_NOP | SSQ_PRINT_SENSE,
 	    "Spindle impending failure controller detected") },
 	/* D         B    */
-	{ SST(0x5D, 0x59, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x59, SS_NOP | SSQ_PRINT_SENSE,
 	    "Spindle impending failure throughput performance") },
 	/* D         B    */
-	{ SST(0x5D, 0x5A, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x5A, SS_NOP | SSQ_PRINT_SENSE,
 	    "Spindle impending failure seek time performance") },
 	/* D         B    */
-	{ SST(0x5D, 0x5B, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x5B, SS_NOP | SSQ_PRINT_SENSE,
 	    "Spindle impending failure spin-up retry count") },
 	/* D         B    */
-	{ SST(0x5D, 0x5C, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x5C, SS_NOP | SSQ_PRINT_SENSE,
 	    "Spindle impending failure drive calibration retry count") },
 	/* D         B    */
-	{ SST(0x5D, 0x60, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x60, SS_NOP | SSQ_PRINT_SENSE,
 	    "Firmware impending failure general hard drive failure") },
 	/* D         B    */
-	{ SST(0x5D, 0x61, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x61, SS_NOP | SSQ_PRINT_SENSE,
 	    "Firmware impending failure drive error rate too high") },
 	/* D         B    */
-	{ SST(0x5D, 0x62, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x62, SS_NOP | SSQ_PRINT_SENSE,
 	    "Firmware impending failure data error rate too high") },
 	/* D         B    */
-	{ SST(0x5D, 0x63, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x63, SS_NOP | SSQ_PRINT_SENSE,
 	    "Firmware impending failure seek error rate too high") },
 	/* D         B    */
-	{ SST(0x5D, 0x64, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x64, SS_NOP | SSQ_PRINT_SENSE,
 	    "Firmware impending failure too many block reassigns") },
 	/* D         B    */
-	{ SST(0x5D, 0x65, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x65, SS_NOP | SSQ_PRINT_SENSE,
 	    "Firmware impending failure access times too high") },
 	/* D         B    */
-	{ SST(0x5D, 0x66, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x66, SS_NOP | SSQ_PRINT_SENSE,
 	    "Firmware impending failure start unit times too high") },
 	/* D         B    */
-	{ SST(0x5D, 0x67, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x67, SS_NOP | SSQ_PRINT_SENSE,
 	    "Firmware impending failure channel parametrics") },
 	/* D         B    */
-	{ SST(0x5D, 0x68, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x68, SS_NOP | SSQ_PRINT_SENSE,
 	    "Firmware impending failure controller detected") },
 	/* D         B    */
-	{ SST(0x5D, 0x69, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x69, SS_NOP | SSQ_PRINT_SENSE,
 	    "Firmware impending failure throughput performance") },
 	/* D         B    */
-	{ SST(0x5D, 0x6A, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x6A, SS_NOP | SSQ_PRINT_SENSE,
 	    "Firmware impending failure seek time performance") },
 	/* D         B    */
-	{ SST(0x5D, 0x6B, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x6B, SS_NOP | SSQ_PRINT_SENSE,
 	    "Firmware impending failure spin-up retry count") },
 	/* D         B    */
-	{ SST(0x5D, 0x6C, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x6C, SS_NOP | SSQ_PRINT_SENSE,
 	    "Firmware impending failure drive calibration retry count") },
+	/* D         B    */
+	{ SST(0x5D, 0x73, SS_NOP | SSQ_PRINT_SENSE,
+	    "Media impending failure endurance limit met") },
 	/* DTLPWROMAEBKVF */
-	{ SST(0x5D, 0xFF, SS_RDEF,
+	{ SST(0x5D, 0xFF, SS_NOP | SSQ_PRINT_SENSE,
 	    "Failure prediction threshold exceeded (false)") },
 	/* DTLPWRO A  K   */
 	{ SST(0x5E, 0x00, SS_RDEF,
