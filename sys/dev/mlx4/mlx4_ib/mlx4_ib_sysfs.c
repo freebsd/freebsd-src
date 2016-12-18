@@ -79,7 +79,7 @@ static ssize_t store_admin_alias_guid(struct device *dev,
 		container_of(attr, struct mlx4_ib_iov_sysfs_attr, dentry);
 	struct mlx4_ib_iov_port *port = mlx4_ib_iov_dentry->ctx;
 	struct mlx4_ib_dev *mdev = port->dev;
-	u64 sysadmin_ag_val;
+	unsigned long long sysadmin_ag_val;
 
 	record_num = mlx4_ib_iov_dentry->entry_num / 8;
 	guid_index_in_rec = mlx4_ib_iov_dentry->entry_num % 8;
