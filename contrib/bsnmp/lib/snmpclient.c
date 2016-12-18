@@ -8,7 +8,7 @@
  *
  * Author: Harti Brandt <harti@freebsd.org>
  *         Kendy Kutzner
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -17,7 +17,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -1236,23 +1236,23 @@ snmp_send_packet(struct snmp_pdu * pdu)
 		return (-1);
 	}
 
-        pdu->request_id = snmp_next_reqid(&snmp_client);
+	pdu->request_id = snmp_next_reqid(&snmp_client);
 
-        b.asn_ptr = buf; 
-        b.asn_len = snmp_client.txbuflen;
-        if (snmp_pdu_encode(pdu, &b)) {
+	b.asn_ptr = buf;
+	b.asn_len = snmp_client.txbuflen;
+	if (snmp_pdu_encode(pdu, &b)) {
 		seterr(&snmp_client, "%s", strerror(errno));
 		free(buf);
 		return (-1);
 	}
 
-        if (snmp_client.dump_pdus)
-                snmp_pdu_dump(pdu);
+	if (snmp_client.dump_pdus)
+		snmp_pdu_dump(pdu);
 
-        if ((ret = send(snmp_client.fd, buf, b.asn_ptr - buf, 0)) == -1) {
+	if ((ret = send(snmp_client.fd, buf, b.asn_ptr - buf, 0)) == -1) {
 		seterr(&snmp_client, "%s", strerror(errno));
 		free(buf);
-                return (-1);
+		return (-1);
 	}
 	free(buf);
 
@@ -1269,7 +1269,7 @@ snmp_timeout(void * listentry_ptr)
 
 #if 0
 	warnx("snmp request %i timed out, attempt (%i/%i)",
-	    listentry->reqid, listentry->retrycount, snmp_client.retries); 
+	    listentry->reqid, listentry->retrycount, snmp_client.retries);
 #endif
 
 	listentry->retrycount++;
@@ -1314,7 +1314,7 @@ snmp_pdu_send(struct snmp_pdu *pdu, snmp_send_cb_f func, void *arg)
 	listentry->callback = func;
 	listentry->arg = arg;
 	listentry->retrycount=1;
-	listentry->timeout_id = 
+	listentry->timeout_id =
 	    snmp_client.timeout_start(&snmp_client.timeout, snmp_timeout,
 	    listentry);
 
@@ -1463,7 +1463,7 @@ snmp_receive_packet(struct snmp_pdu *pdu, struct timeval *tv)
 	return (+1);
 }
 
-static int 
+static int
 snmp_deliver_packet(struct snmp_pdu * resp)
 {
 	struct sent_pdu *listentry;
@@ -1548,7 +1548,7 @@ ok_getnext(const struct snmp_pdu * req, const struct snmp_pdu * resp)
 		    &resp->bindings[i].var)) {
 			if (i != 0)
 				warnx("SNMP GETNEXT: inconsistent table "
-				      "response");
+				    "response");
 			return (0);
 		}
 		if (resp->version != SNMP_V1 &&
@@ -1654,7 +1654,7 @@ ok_set(const struct snmp_pdu * req, const struct snmp_pdu * resp)
 
 /*
  * Simple checks for response PDUs against request PDUs. Return values: 1=ok,
- * 0=nosuchname or similar, -1=failure, -2=no response at all 
+ * 0=nosuchname or similar, -1=failure, -2=no response at all
  */
 int
 snmp_pdu_check(const struct snmp_pdu *req,
@@ -1681,12 +1681,12 @@ snmp_pdu_check(const struct snmp_pdu *req,
 int
 snmp_dialog(struct snmp_v1_pdu *req, struct snmp_v1_pdu *resp)
 {
-        u_int i;
-        int32_t reqid;
-	int ret;
-        struct timeval tv = snmp_client.timeout;
+	struct timeval tv = snmp_client.timeout;
 	struct timeval end;
 	struct snmp_pdu pdu;
+	u_int i;
+	int32_t reqid;
+	int ret;
 
 	/*
 	 * Make a copy of the request and replace the syntaxes by NULL
@@ -1698,11 +1698,11 @@ snmp_dialog(struct snmp_v1_pdu *req, struct snmp_v1_pdu *resp)
 		for (i = 0; i < pdu.nbindings; i++)
 			pdu.bindings[i].syntax = SNMP_SYNTAX_NULL;
 	}
-	
-        for (i = 0; i <= snmp_client.retries; i++) {
+
+	for (i = 0; i <= snmp_client.retries; i++) {
 		(void)gettimeofday(&end, NULL);
 		timeradd(&end, &snmp_client.timeout, &end);
-                if ((reqid = snmp_send_packet(&pdu)) == -1)
+		if ((reqid = snmp_send_packet(&pdu)) == -1)
 			return (-1);
 		for (;;) {
 			(void)gettimeofday(&tv, NULL);
@@ -1717,16 +1717,16 @@ snmp_dialog(struct snmp_v1_pdu *req, struct snmp_v1_pdu *resp)
 				if (reqid == resp->request_id)
 					return (0);
 				/* not for us */
-				(void)snmp_deliver_packet(resp);  
+				(void)snmp_deliver_packet(resp);
 			}
 			if (ret < 0 && errno == EPIPE)
 				/* stream closed */
 				return (-1);
 		}
-        }
+	}
 	errno = ETIMEDOUT;
 	seterr(&snmp_client, "retry count exceeded");
-        return (-1);
+	return (-1);
 }
 
 int
