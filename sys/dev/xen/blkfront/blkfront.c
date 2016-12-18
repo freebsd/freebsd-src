@@ -933,8 +933,16 @@ blkfront_connect(struct xb_softc *sc)
 		    xenbus_get_otherend_path(dev));
 		return;
 	}
+	if ((sectors == 0) || (sector_size == 0)) {
+		xenbus_dev_fatal(dev, 0,
+		    "invalid parameters from %s:"
+		    " sectors = %lu, sector_size = %lu",
+		    xenbus_get_otherend_path(dev),
+		    sectors, sector_size);
+		return;
+	}
 	err = xs_gather(XST_NIL, xenbus_get_otherend_path(dev),
-			"feature-barrier", "%lu", &feature_barrier,
+			"feature-barrier", "%d", &feature_barrier,
 			NULL);
 	if (!err || feature_barrier)
 		sc->xb_flags |= XB_BARRIER;
