@@ -31,8 +31,16 @@ COLLATION_SPECIAL?= \
 	nb_NO ISO8859-1 \
 	nb_NO ISO8859-15 \
 	sk_SK ISO8859-2 \
+	sr_Latn_RS ISO8859-2 \
+	sr_Cyrl_RS ISO8859-5 \
 	zh_Hans_CN GB2312 \
 	zh_Hans_CN eucCN \
+	zh_Hant_TW Big5 \
+	zh_Hans_CN GB18030 \
+	zh_Hans_CN GBK \
+	ja_JP eucJP \
+	nn_NO ISO8859-15 \
+	nn_NO ISO8859-1
 
 .for area enc in ${COLLATION_SPECIAL}
 COLLATIONS_SPECIAL_ENV+=	${area}.${enc}
@@ -91,7 +99,7 @@ build-colldef:	static-colldef
 
 static-colldef:
 .for area enc in ${COLLATION_SPECIAL}
-	awk -f tools/extract-colldef.awk ${CLDRDIR}/posix/${area}.${enc}.src > colldef/${area}.${enc}.src
+	awk -f tools/extract-colldef.awk ${CLDRDIR}/posix/${area}.${enc}.src > colldef.draft/${area}.${enc}.src
 .endfor
 
 transfer-rollup:
