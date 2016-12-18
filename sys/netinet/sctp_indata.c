@@ -809,6 +809,8 @@ restart:
 					tchk = TAILQ_FIRST(&control->reasm);
 					if (tchk->rec.data.rcv_flags & SCTP_DATA_FIRST_FRAG) {
 						TAILQ_REMOVE(&control->reasm, tchk, sctp_next);
+						asoc->size_on_reasm_queue -= tchk->send_size;
+						sctp_ucount_decr(asoc->cnt_on_reasm_queue);
 						nc->first_frag_seen = 1;
 						nc->fsn_included = tchk->rec.data.fsn_num;
 						nc->data = tchk->data;
@@ -5320,6 +5322,9 @@ sctp_flush_reassm_for_str_seq(struct sctp_tcb *stcb,
 	control = sctp_find_reasm_entry(strm, (uint32_t) seq, ordered, old);
 	if (control == NULL) {
 		/* Not found */
+		return;
+	}
+	if (old && !ordered && SCTP_TSN_GT(control->fsn_included, cumtsn)) {
 		return;
 	}
 	TAILQ_FOREACH_SAFE(chk, &control->reasm, sctp_next, nchk) {
