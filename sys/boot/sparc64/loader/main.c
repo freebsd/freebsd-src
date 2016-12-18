@@ -75,7 +75,7 @@ __FBSDID("$FreeBSD$");
 #include "libofw.h"
 #include "dev_net.h"
 
-extern char bootprog_name[], bootprog_rev[], bootprog_date[], bootprog_maker[];
+extern char bootprog_info[];
 
 enum {
 	HEAPVA		= 0x800000,
@@ -891,9 +891,7 @@ main(int (*openfirm)(void *))
 	env_setenv("loaddev", EV_VOLATILE, bootpath,
 	    env_noset, env_nounset);
 
-	printf("\n");
-	printf("%s, Revision %s\n", bootprog_name, bootprog_rev);
-	printf("(%s, %s)\n", bootprog_maker, bootprog_date);
+	printf("\n%s", bootprog_info);
 	printf("bootpath=\"%s\"\n", bootpath);
 
 	/* Give control to the machine independent loader code. */
