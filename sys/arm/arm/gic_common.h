@@ -66,6 +66,7 @@ __BUS_ACCESSOR(gic, bus, GIC, BUS, u_int);
 #define	 GICD_IIDR_IMPL(x)					\
     (((x) & GICD_IIDR_IMPL_MASK) >> GICD_IIDR_IMPL_SHIFT)
 #define	GICD_IGROUPR(n)		(0x0080 + (((n) >> 5) * 4))	/* v1 ICDISER */
+#define	 GICD_I_PER_IGROUPRn	32
 #define	GICD_ISENABLER(n)	(0x0100 + (((n) >> 5) * 4))	/* v1 ICDISER */
 #define	 GICD_I_MASK(n)		(1ul << ((n) & 0x1f))
 #define	 GICD_I_PER_ISENABLERn	32
