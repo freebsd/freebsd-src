@@ -1949,7 +1949,8 @@ tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 	if (cmd == PRC_MSGSIZE)
 		notify = tcp_mtudisc_notify;
 	else if (V_icmp_may_rst && (cmd == PRC_UNREACH_ADMIN_PROHIB ||
-		cmd == PRC_UNREACH_PORT || cmd == PRC_TIMXCEED_INTRANS) && ip)
+		cmd == PRC_UNREACH_PORT || cmd == PRC_UNREACH_PROTOCOL || 
+		cmd == PRC_TIMXCEED_INTRANS) && ip)
 		notify = tcp_drop_syn_sent;
 
 	/*
@@ -2081,8 +2082,8 @@ tcp6_ctlinput(int cmd, struct sockaddr *sa, void *d)
 	if (cmd == PRC_MSGSIZE)
 		notify = tcp_mtudisc_notify;
 	else if (V_icmp_may_rst && (cmd == PRC_UNREACH_ADMIN_PROHIB ||
-		cmd == PRC_UNREACH_PORT || cmd == PRC_TIMXCEED_INTRANS) &&
-		ip6 != NULL)
+		cmd == PRC_UNREACH_PORT || cmd == PRC_UNREACH_PROTOCOL || 
+		cmd == PRC_TIMXCEED_INTRANS) && ip6 != NULL)
 		notify = tcp_drop_syn_sent;
 
 	/*
