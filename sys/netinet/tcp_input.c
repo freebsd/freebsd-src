@@ -3316,6 +3316,8 @@ tcp_dropwithreset(struct mbuf *m, struct tcphdr *th, struct tcpcb *tp,
 	} else {
 		if (th->th_flags & TH_SYN)
 			tlen++;
+		if (th->th_flags & TH_FIN)
+			tlen++;
 		tcp_respond(tp, mtod(m, void *), th, m, th->th_seq+tlen,
 		    (tcp_seq)0, TH_RST|TH_ACK);
 	}
