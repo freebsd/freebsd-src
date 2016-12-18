@@ -101,6 +101,7 @@ device		al_udma			# Universal DMA
 
 # VirtIO support
 device		virtio
+device		virtio_pci
 device		virtio_mmio
 device		virtio_blk
 device		vtnet
