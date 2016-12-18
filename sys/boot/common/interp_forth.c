@@ -33,7 +33,7 @@ __FBSDID("$FreeBSD$");
 #include "bootstrap.h"
 #include "ficl.h"
 
-extern char bootprog_rev[];
+extern unsigned bootprog_rev;
 
 /* #define BFORTH_DEBUG */
 
@@ -277,8 +277,7 @@ bf_init(const char *rc)
 
     /* Export some version numbers so that code can detect the loader/host version */
     ficlSetEnv(bf_sys, "FreeBSD_version", __FreeBSD_version);
-    ficlSetEnv(bf_sys, "loader_version", 
-	       (bootprog_rev[0] - '0') * 10 + (bootprog_rev[2] - '0'));
+    ficlSetEnv(bf_sys, "loader_version", bootprog_rev);
 
     /* try to load and run init file if present */
     if (rc == NULL)

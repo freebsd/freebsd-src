@@ -51,10 +51,7 @@ static int userboot_zfs_found;
 struct loader_callbacks *callbacks;
 void *callbacks_arg;
 
-extern char bootprog_name[];
-extern char bootprog_rev[];
-extern char bootprog_date[];
-extern char bootprog_maker[];
+extern char bootprog_info[];
 static jmp_buf jb;
 
 struct arch_switch archsw;	/* MI/MD interface boundary */
@@ -101,9 +98,7 @@ loader_main(struct loader_callbacks *cb, void *arg, int version, int ndisks)
 	 */
 	cons_probe();
 
-	printf("\n");
-	printf("%s, Revision %s\n", bootprog_name, bootprog_rev);
-	printf("(%s, %s)\n", bootprog_maker, bootprog_date);
+	printf("\n%s", bootprog_info);
 #if 0
 	printf("Memory: %ld k\n", memsize() / 1024);
 #endif

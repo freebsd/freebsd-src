@@ -40,8 +40,6 @@ u=${USER-root} h=${HOSTNAME-`hostname`} t=`date`
 #r=`head -n 6 $1 | tail -n 1 | awk -F: ' { print $1 } '`
 r=`awk -F: ' /^[0-9]\.[0-9]+:/ { print $1; exit }' $1`
 
-echo "char bootprog_name[] = \"FreeBSD/${3} ${2}\";" > $tempfile
-echo "char bootprog_rev[] = \"${r}\";" >> $tempfile
-echo "char bootprog_date[] = \"${t}\";" >> $tempfile
-echo "char bootprog_maker[] = \"${u}@${h}\";" >> $tempfile
+echo "char bootprog_info[] = \"FreeBSD/${3} ${2}, Revision ${r}\\n(${t} ${u}@${h})\\n\";" > $tempfile
+echo "unsigned bootprog_rev = ${r%%.*}${r##*.};" >> $tempfile
 mv $tempfile vers.c
