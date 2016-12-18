@@ -603,9 +603,9 @@ parse_oid_string(struct snmp_toolinfo *snmptoolctx,
 static int32_t
 parse_ip(struct snmp_value * value, char * val)
 {
-	uint32_t v;
-	int32_t i;
 	char *endptr, *str;
+	int32_t i;
+	uint32_t v;
 
 	str = val;
 	for (i = 0; i < 4; i++) {
@@ -617,8 +617,8 @@ parse_ip(struct snmp_value * value, char * val)
 		str = endptr + 1;
 		value->v.ipaddress[i] = (uint8_t) v;
 	}
-
 	value->syntax = SNMP_SYNTAX_IPADDRESS;
+
 	return (0);
 }
 
