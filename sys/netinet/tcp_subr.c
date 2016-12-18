@@ -1483,6 +1483,7 @@ tcp_discardcb(struct tcpcb *tp)
 	inp->inp_ppcb = NULL;
 	if (tp->t_timers->tt_draincnt == 0) {
 		/* We own the last reference on tcpcb, let's free it. */
+		TCPSTATES_DEC(tp->t_state);
 		if (tp->t_fb->tfb_tcp_fb_fini)
 			(*tp->t_fb->tfb_tcp_fb_fini)(tp);
 		refcount_release(&tp->t_fb->tfb_refcnt);
@@ -1512,6 +1513,7 @@ tcp_timer_discard(void *ptp)
 	tp->t_timers->tt_draincnt--;
 	if (tp->t_timers->tt_draincnt == 0) {
 		/* We own the last reference on this tcpcb, let's free it. */
+		TCPSTATES_DEC(tp->t_state);
 		if (tp->t_fb->tfb_tcp_fb_fini)
 			(*tp->t_fb->tfb_tcp_fb_fini)(tp);
 		refcount_release(&tp->t_fb->tfb_refcnt);
@@ -1558,7 +1560,8 @@ tcp_close(struct tcpcb *tp)
 #endif
 	in_pcbdrop(inp);
 	TCPSTAT_INC(tcps_closed);
-	TCPSTATES_DEC(tp->t_state);
+	if (tp->t_state != TCPS_CLOSED)
+		tcp_state_change(tp, TCPS_CLOSED);
 	KASSERT(inp->inp_socket != NULL, ("tcp_close: inp_socket NULL"));
 	so = inp->inp_socket;
 	soisdisconnected(so);
