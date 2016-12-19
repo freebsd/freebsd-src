@@ -2303,7 +2303,7 @@ static int
 allowaddr(char *s)
 {
 	char *cp1, *cp2;
-	struct allowedpeer ap;
+	struct allowedpeer *ap;
 	struct servent *se;
 	int masklen = -1;
 	struct addrinfo hints, *res;
@@ -2314,6 +2314,10 @@ allowaddr(char *s)
 #endif
 	char ip[NI_MAXHOST];
 
+	ap = calloc(1, sizeof(*ap));
+	if (ap == NULL)
+		err(1, "malloc failed");
+
 #ifdef INET6
 	if (*s != '[' || (cp1 = strchr(s + 1, ']')) == NULL)
 #endif
@@ -2323,20 +2327,20 @@ allowaddr(char *s)
 		*cp1++ = '\0';
 		if (strlen(cp1) == 1 && *cp1 == '*')
 			/* any port allowed */
-			ap.port = 0;
+			ap->port = 0;
 		else if ((se = getservbyname(cp1, "udp"))) {
-			ap.port = ntohs(se->s_port);
+			ap->port = ntohs(se->s_port);
 		} else {
-			ap.port = strtol(cp1, &cp2, 0);
+			ap->port = strtol(cp1, &cp2, 0);
 			if (*cp2 != '\0')
 				return (-1); /* port not numeric */
 		}
 	} else {
 		if ((se = getservbyname("syslog", "udp")))
-			ap.port = ntohs(se->s_port);
+			ap->port = ntohs(se->s_port);
 		else
 			/* sanity, should not happen */
-			ap.port = 514;
+			ap->port = 514;
 	}
 
 	if ((cp1 = strchr(s, '/')) != NULL &&
@@ -2363,14 +2367,14 @@ allowaddr(char *s)
 	hints.ai_socktype = SOCK_DGRAM;
 	hints.ai_flags = AI_PASSIVE | AI_NUMERICHOST;
 	if (getaddrinfo(s, NULL, &hints, &res) == 0) {
-		ap.isnumeric = 1;
-		memcpy(&ap.a_addr, res->ai_addr, res->ai_addrlen);
-		memset(&ap.a_mask, 0, sizeof(ap.a_mask));
-		ap.a_mask.ss_family = res->ai_family;
+		ap->isnumeric = 1;
+		memcpy(&ap->a_addr, res->ai_addr, res->ai_addrlen);
+		memset(&ap->a_mask, 0, sizeof(ap->a_mask));
+		ap->a_mask.ss_family = res->ai_family;
 		if (res->ai_family == AF_INET) {
-			ap.a_mask.ss_len = sizeof(struct sockaddr_in);
-			maskp = &((struct sockaddr_in *)&ap.a_mask)->sin_addr;
-			addrp = &((struct sockaddr_in *)&ap.a_addr)->sin_addr;
+			ap->a_mask.ss_len = sizeof(struct sockaddr_in);
+			maskp = &((struct sockaddr_in *)&ap->a_mask)->sin_addr;
+			addrp = &((struct sockaddr_in *)&ap->a_addr)->sin_addr;
 			if (masklen < 0) {
 				/* use default netmask */
 				if (IN_CLASSA(ntohl(addrp->s_addr)))
@@ -2394,10 +2398,10 @@ allowaddr(char *s)
 		}
 #ifdef INET6
 		else if (res->ai_family == AF_INET6 && masklen <= 128) {
-			ap.a_mask.ss_len = sizeof(struct sockaddr_in6);
+			ap->a_mask.ss_len = sizeof(struct sockaddr_in6);
 			if (masklen < 0)
 				masklen = 128;
-			mask6p = (u_int32_t *)&((struct sockaddr_in6 *)&ap.a_mask)->sin6_addr;
+			mask6p = (u_int32_t *)&((struct sockaddr_in6 *)&ap->a_mask)->sin6_addr;
 			/* convert masklen to netmask */
 			while (masklen > 0) {
 				if (masklen < 32) {
@@ -2408,8 +2412,8 @@ allowaddr(char *s)
 				masklen -= 32;
 			}
 			/* Lose any host bits in the network number. */
-			mask6p = (u_int32_t *)&((struct sockaddr_in6 *)&ap.a_mask)->sin6_addr;
-			addr6p = (u_int32_t *)&((struct sockaddr_in6 *)&ap.a_addr)->sin6_addr;
+			mask6p = (u_int32_t *)&((struct sockaddr_in6 *)&ap->a_mask)->sin6_addr;
+			addr6p = (u_int32_t *)&((struct sockaddr_in6 *)&ap->a_addr)->sin6_addr;
 			for (i = 0; i < 4; i++)
 				addr6p[i] &= mask6p[i];
 		}
@@ -2421,8 +2425,8 @@ allowaddr(char *s)
 		freeaddrinfo(res);
 	} else {
 		/* arg `s' is domain name */
-		ap.isnumeric = 0;
-		ap.a_name = s;
+		ap->isnumeric = 0;
+		ap->a_name = s;
 		if (cp1)
 			*cp1 = '/';
 #ifdef INET6
@@ -2432,23 +2436,24 @@ allowaddr(char *s)
 		}
 #endif
 	}
+	STAILQ_INSERT_TAIL(&aphead, ap, next);
 
 	if (Debug) {
 		printf("allowaddr: rule ");
-		if (ap.isnumeric) {
+		if (ap->isnumeric) {
 			printf("numeric, ");
-			getnameinfo((struct sockaddr *)&ap.a_addr,
-				    ((struct sockaddr *)&ap.a_addr)->sa_len,
+			getnameinfo((struct sockaddr *)&ap->a_addr,
+				    ((struct sockaddr *)&ap->a_addr)->sa_len,
 				    ip, sizeof ip, NULL, 0, NI_NUMERICHOST);
 			printf("addr = %s, ", ip);
-			getnameinfo((struct sockaddr *)&ap.a_mask,
-				    ((struct sockaddr *)&ap.a_mask)->sa_len,
+			getnameinfo((struct sockaddr *)&ap->a_mask,
+				    ((struct sockaddr *)&ap->a_mask)->sa_len,
 				    ip, sizeof ip, NULL, 0, NI_NUMERICHOST);
 			printf("mask = %s; ", ip);
 		} else {
-			printf("domainname = %s; ", ap.a_name);
+			printf("domainname = %s; ", ap->a_name);
 		}
-		printf("port = %d\n", ap.port);
+		printf("port = %d\n", ap->port);
 	}
 	return (0);
 }
