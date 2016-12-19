@@ -40,6 +40,14 @@
 #endif /* _KERNEL */
 
 /**
+ * BHND NVRAM boolean type; guaranteed to be exactly 8-bits, representing
+ * true as integer constant 1, and false as integer constant 0.
+ * 
+ * Compatible with stdbool constants (true, false).
+ */
+typedef uint8_t	bhnd_nvram_bool_t;
+
+/**
  * NVRAM data sources supported by bhnd(4) devices.
  */
 typedef enum {
@@ -94,6 +102,10 @@ typedef enum {
 	BHND_NVRAM_TYPE_CHAR		= 8,	/**< ASCII/UTF-8 character */
 	BHND_NVRAM_TYPE_STRING		= 9,	/**< ASCII/UTF-8 NUL-terminated
 						     string */
+	BHND_NVRAM_TYPE_BOOL		= 10,	/**< uint8 boolean value. see
+						     bhnd_nvram_bool_t. */
+	BHND_NVRAM_TYPE_NULL		= 11,	/**< NULL (empty) value */
+	BHND_NVRAM_TYPE_DATA		= 12,	/**< opaque octet string */
 
 	/* 10-15 reserved for primitive (non-array) types */
 
@@ -109,13 +121,17 @@ typedef enum {
 						     characters */
 	BHND_NVRAM_TYPE_STRING_ARRAY	= 25,	/**< array of ASCII/UTF-8
 						     NUL-terminated strings */
+	BHND_NVRAM_TYPE_BOOL_ARRAY	= 26,	/**< array of uint8 boolean
+						     values */
 } bhnd_nvram_type;
+
 
 bool		 bhnd_nvram_is_signed_type(bhnd_nvram_type type);
 bool		 bhnd_nvram_is_unsigned_type(bhnd_nvram_type type);
 bool		 bhnd_nvram_is_int_type(bhnd_nvram_type type);
 bool		 bhnd_nvram_is_array_type(bhnd_nvram_type type);
 bhnd_nvram_type	 bhnd_nvram_base_type(bhnd_nvram_type type);
+bhnd_nvram_type	 bhnd_nvram_raw_type(bhnd_nvram_type type);
 const char	*bhnd_nvram_type_name(bhnd_nvram_type type);
 size_t		 bhnd_nvram_type_width(bhnd_nvram_type type);
 size_t		 bhnd_nvram_type_host_align(bhnd_nvram_type type);

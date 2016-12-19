@@ -104,6 +104,8 @@ int			 bhnd_nvram_plist_get_uint64(bhnd_nvram_plist *plist,
 			     const char *name, uint64_t *val);
 int			 bhnd_nvram_plist_get_string(bhnd_nvram_plist *plist,
 			     const char *name, const char **val);
+int			 bhnd_nvram_plist_get_bool(bhnd_nvram_plist *plist,
+			     const char *name, bool *val);
 
 bhnd_nvram_prop		*bhnd_nvram_prop_new(const char *name,
 			     bhnd_nvram_val *val);
@@ -117,6 +119,8 @@ void			 bhnd_nvram_prop_release(bhnd_nvram_prop *prop);
 const char		*bhnd_nvram_prop_name(bhnd_nvram_prop *prop);
 bhnd_nvram_val		*bhnd_nvram_prop_val(bhnd_nvram_prop *prop);
 bhnd_nvram_type		 bhnd_nvram_prop_type(bhnd_nvram_prop *prop);
+
+bool			 bhnd_nvram_prop_is_null(bhnd_nvram_prop *prop);
 
 const void		*bhnd_nvram_prop_bytes(bhnd_nvram_prop *prop,
 			     size_t *olen, bhnd_nvram_type *otype);

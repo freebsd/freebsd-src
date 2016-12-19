@@ -235,6 +235,7 @@ struct bhnd_nvram_val {
 		int32_t			 i32[2];	/**< 32-bit signed data */
 		int64_t			 i64[1];	/**< 64-bit signed data */
 		unsigned char		 ch[8];		/**< 8-bit character data */
+		bhnd_nvram_bool_t	 b[8];		/**< 8-bit boolean data */
 		const void		*ptr;		/**< external data */
 	} data;
 };
@@ -258,7 +259,10 @@ BHND_NVRAM_VAL_FMT_DECL(int16);
 BHND_NVRAM_VAL_FMT_DECL(int32);
 BHND_NVRAM_VAL_FMT_DECL(int64);
 BHND_NVRAM_VAL_FMT_DECL(char);
+BHND_NVRAM_VAL_FMT_DECL(bool);
 BHND_NVRAM_VAL_FMT_DECL(string);
+BHND_NVRAM_VAL_FMT_DECL(data);
+BHND_NVRAM_VAL_FMT_DECL(null);
 
 BHND_NVRAM_VAL_FMT_DECL(uint8_array);
 BHND_NVRAM_VAL_FMT_DECL(uint16_array);
@@ -269,6 +273,11 @@ BHND_NVRAM_VAL_FMT_DECL(int16_array);
 BHND_NVRAM_VAL_FMT_DECL(int32_array);
 BHND_NVRAM_VAL_FMT_DECL(int64_array);
 BHND_NVRAM_VAL_FMT_DECL(char_array);
+BHND_NVRAM_VAL_FMT_DECL(bool_array);
 BHND_NVRAM_VAL_FMT_DECL(string_array);
+
+/** Shared NULL value instance */
+#define	BHND_NVRAM_VAL_NULL	(&bhnd_nvram_val_null)
+extern bhnd_nvram_val bhnd_nvram_val_null;
 
 #endif /* _BHND_NVRAM_BHND_NVRAM_VALUE_H_ */
