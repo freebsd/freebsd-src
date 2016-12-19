@@ -74,5 +74,9 @@ CFLAGS+=-I${.CURDIR}/../../../../lib/libstand
 
 CLEANFILES+=	vers.c
 VERSION_FILE?=	${.CURDIR}/version
+.if ${MK_REPRODUCIBLE_BUILD} != no
+REPRO_FLAG=	-r
+.endif
 vers.c: ${SRCTOP}/sys/boot/common/newvers.sh ${VERSION_FILE}
-	sh ${SRCTOP}/sys/boot/common/newvers.sh ${VERSION_FILE} ${NEWVERSWHAT}
+	sh ${SRCTOP}/sys/boot/common/newvers.sh ${REPRO_FLAG} ${VERSION_FILE} \
+	    ${NEWVERSWHAT}
