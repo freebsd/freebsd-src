@@ -647,10 +647,8 @@ bhnd_nvram_bcm_getvar_ptr(struct bhnd_nvram_data *nv, void *cookiep,
 
 	/* Handle header variables */
 	if ((hvar = bhnd_nvram_bcm_to_hdrvar(bcm, cookiep)) != NULL) {
-		BHND_NV_ASSERT(
-		    hvar->len % bhnd_nvram_value_size(hvar->type, NULL, 0,
-			hvar->nelem) == 0,
-		    ("length is not aligned to type width"));
+		BHND_NV_ASSERT(bhnd_nvram_value_check_aligned(&hvar->value,
+		    hvar->len, hvar->type) == 0, ("value misaligned"));
 
 		*type = hvar->type;
 		*len = hvar->len;
