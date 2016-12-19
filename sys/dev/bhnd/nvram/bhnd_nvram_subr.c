@@ -136,6 +136,12 @@ bhnd_nvram_type_name(bhnd_nvram_type type)
 		return ("int64");
 	case BHND_NVRAM_TYPE_STRING:
 		return ("string");
+	case BHND_NVRAM_TYPE_BOOL:
+		return ("bool");
+	case BHND_NVRAM_TYPE_NULL:
+		return ("null");
+	case BHND_NVRAM_TYPE_DATA:
+		return ("data");
 	case BHND_NVRAM_TYPE_UINT8_ARRAY:
 		return ("uint8[]");
 	case BHND_NVRAM_TYPE_UINT16_ARRAY:
@@ -156,6 +162,8 @@ bhnd_nvram_type_name(bhnd_nvram_type type)
 		return ("char[]");
 	case BHND_NVRAM_TYPE_STRING_ARRAY:
 		return ("string[]");
+	case BHND_NVRAM_TYPE_BOOL_ARRAY:
+		return ("bool[]");
 	}
 
 	/* Quiesce gcc4.2 */
@@ -186,6 +194,9 @@ bhnd_nvram_is_signed_type(bhnd_nvram_type type)
 	case BHND_NVRAM_TYPE_UINT32:
 	case BHND_NVRAM_TYPE_UINT64:
 	case BHND_NVRAM_TYPE_STRING:
+	case BHND_NVRAM_TYPE_BOOL:
+	case BHND_NVRAM_TYPE_NULL:
+	case BHND_NVRAM_TYPE_DATA:
 	case BHND_NVRAM_TYPE_UINT8_ARRAY:
 	case BHND_NVRAM_TYPE_UINT16_ARRAY:
 	case BHND_NVRAM_TYPE_UINT32_ARRAY:
@@ -196,6 +207,7 @@ bhnd_nvram_is_signed_type(bhnd_nvram_type type)
 	case BHND_NVRAM_TYPE_INT64_ARRAY:
 	case BHND_NVRAM_TYPE_CHAR_ARRAY:
 	case BHND_NVRAM_TYPE_STRING_ARRAY:
+	case BHND_NVRAM_TYPE_BOOL_ARRAY:
 		return (false);
 	}
 
@@ -243,6 +255,9 @@ bhnd_nvram_is_int_type(bhnd_nvram_type type)
 
 	case BHND_NVRAM_TYPE_CHAR:
 	case BHND_NVRAM_TYPE_STRING:
+	case BHND_NVRAM_TYPE_BOOL:
+	case BHND_NVRAM_TYPE_NULL:
+	case BHND_NVRAM_TYPE_DATA:
 	case BHND_NVRAM_TYPE_UINT8_ARRAY:
 	case BHND_NVRAM_TYPE_UINT16_ARRAY:
 	case BHND_NVRAM_TYPE_UINT32_ARRAY:
@@ -253,6 +268,7 @@ bhnd_nvram_is_int_type(bhnd_nvram_type type)
 	case BHND_NVRAM_TYPE_INT64_ARRAY:
 	case BHND_NVRAM_TYPE_CHAR_ARRAY:
 	case BHND_NVRAM_TYPE_STRING_ARRAY:
+	case BHND_NVRAM_TYPE_BOOL_ARRAY:
 		return (false);
 	}
 
@@ -279,6 +295,9 @@ bhnd_nvram_is_array_type(bhnd_nvram_type type)
 	case BHND_NVRAM_TYPE_INT64:
 	case BHND_NVRAM_TYPE_CHAR:
 	case BHND_NVRAM_TYPE_STRING:
+	case BHND_NVRAM_TYPE_BOOL:
+	case BHND_NVRAM_TYPE_NULL:
+	case BHND_NVRAM_TYPE_DATA:
 		return (false);
 
 	case BHND_NVRAM_TYPE_UINT8_ARRAY:
@@ -291,6 +310,7 @@ bhnd_nvram_is_array_type(bhnd_nvram_type type)
 	case BHND_NVRAM_TYPE_INT64_ARRAY:
 	case BHND_NVRAM_TYPE_CHAR_ARRAY:
 	case BHND_NVRAM_TYPE_STRING_ARRAY:
+	case BHND_NVRAM_TYPE_BOOL_ARRAY:
 		return (true);
 	}
 
@@ -318,6 +338,9 @@ bhnd_nvram_base_type(bhnd_nvram_type type)
 	case BHND_NVRAM_TYPE_INT64:
 	case BHND_NVRAM_TYPE_CHAR:
 	case BHND_NVRAM_TYPE_STRING:
+	case BHND_NVRAM_TYPE_BOOL:
+	case BHND_NVRAM_TYPE_NULL:
+	case BHND_NVRAM_TYPE_DATA:
 		return (type);
 
 	case BHND_NVRAM_TYPE_UINT8_ARRAY:	return (BHND_NVRAM_TYPE_UINT8);
@@ -330,6 +353,63 @@ bhnd_nvram_base_type(bhnd_nvram_type type)
 	case BHND_NVRAM_TYPE_INT64_ARRAY:	return (BHND_NVRAM_TYPE_INT64);
 	case BHND_NVRAM_TYPE_CHAR_ARRAY:	return (BHND_NVRAM_TYPE_CHAR);
 	case BHND_NVRAM_TYPE_STRING_ARRAY:	return (BHND_NVRAM_TYPE_STRING);
+	case BHND_NVRAM_TYPE_BOOL_ARRAY:	return (BHND_NVRAM_TYPE_BOOL);
+	}
+
+	/* Quiesce gcc4.2 */
+	BHND_NV_PANIC("bhnd nvram type %u unknown", type);
+}
+
+/**
+ * Return the raw data type used to represent values of @p type, or return
+ * @p type is @p type is not a complex type.
+ *
+ * @param type The type to query.
+ */
+bhnd_nvram_type
+bhnd_nvram_raw_type(bhnd_nvram_type type)
+{
+	switch (type) {
+	case BHND_NVRAM_TYPE_CHAR:
+		return (BHND_NVRAM_TYPE_UINT8);
+
+	case BHND_NVRAM_TYPE_CHAR_ARRAY:
+		return (BHND_NVRAM_TYPE_UINT8_ARRAY);
+
+	case BHND_NVRAM_TYPE_BOOL: {
+		_Static_assert(sizeof(bhnd_nvram_bool_t) == sizeof(uint8_t),
+		    "bhnd_nvram_bool_t must be uint8-representable");
+		return (BHND_NVRAM_TYPE_UINT8);
+	}
+
+	case BHND_NVRAM_TYPE_BOOL_ARRAY:
+		return (BHND_NVRAM_TYPE_UINT8_ARRAY);
+
+	case BHND_NVRAM_TYPE_DATA:
+		return (BHND_NVRAM_TYPE_UINT8_ARRAY);
+
+	case BHND_NVRAM_TYPE_STRING:
+	case BHND_NVRAM_TYPE_STRING_ARRAY:
+		return (BHND_NVRAM_TYPE_UINT8_ARRAY);
+
+	case BHND_NVRAM_TYPE_UINT8:
+	case BHND_NVRAM_TYPE_UINT16:
+	case BHND_NVRAM_TYPE_UINT32:
+	case BHND_NVRAM_TYPE_UINT64:
+	case BHND_NVRAM_TYPE_INT8:
+	case BHND_NVRAM_TYPE_INT16:
+	case BHND_NVRAM_TYPE_INT32:
+	case BHND_NVRAM_TYPE_INT64:
+	case BHND_NVRAM_TYPE_NULL:
+	case BHND_NVRAM_TYPE_UINT8_ARRAY:
+	case BHND_NVRAM_TYPE_UINT16_ARRAY:
+	case BHND_NVRAM_TYPE_UINT32_ARRAY:
+	case BHND_NVRAM_TYPE_UINT64_ARRAY:
+	case BHND_NVRAM_TYPE_INT8_ARRAY:
+	case BHND_NVRAM_TYPE_INT16_ARRAY:
+	case BHND_NVRAM_TYPE_INT32_ARRAY:
+	case BHND_NVRAM_TYPE_INT64_ARRAY:
+		return (type);
 	}
 
 	/* Quiesce gcc4.2 */
@@ -348,7 +428,15 @@ bhnd_nvram_type_width(bhnd_nvram_type type)
 	switch (type) {
 	case BHND_NVRAM_TYPE_STRING:
 	case BHND_NVRAM_TYPE_STRING_ARRAY:
+	case BHND_NVRAM_TYPE_DATA:
 		return (0);
+
+	case BHND_NVRAM_TYPE_NULL:
+		return (0);
+
+	case BHND_NVRAM_TYPE_BOOL:
+	case BHND_NVRAM_TYPE_BOOL_ARRAY:
+		return (sizeof(bhnd_nvram_bool_t));
 
 	case BHND_NVRAM_TYPE_CHAR:
 	case BHND_NVRAM_TYPE_CHAR_ARRAY:
@@ -392,9 +480,18 @@ bhnd_nvram_type_host_align(bhnd_nvram_type type)
 	switch (type) {
 	case BHND_NVRAM_TYPE_CHAR:
 	case BHND_NVRAM_TYPE_CHAR_ARRAY:
+	case BHND_NVRAM_TYPE_DATA:
 	case BHND_NVRAM_TYPE_STRING:
 	case BHND_NVRAM_TYPE_STRING_ARRAY:
 		return (_Alignof(uint8_t));
+	case BHND_NVRAM_TYPE_BOOL:
+	case BHND_NVRAM_TYPE_BOOL_ARRAY: {
+		_Static_assert(sizeof(bhnd_nvram_bool_t) == sizeof(uint8_t),
+		    "bhnd_nvram_bool_t must be uint8-representable");
+		return (_Alignof(uint8_t));
+	}
+	case BHND_NVRAM_TYPE_NULL:
+		return (1);
 	case BHND_NVRAM_TYPE_UINT8:
 	case BHND_NVRAM_TYPE_UINT8_ARRAY:
 		return (_Alignof(uint8_t));
