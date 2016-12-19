@@ -1,4 +1,4 @@
-.\"	$NetBSD: make.1,v 1.262 2016/08/18 19:23:20 wiz Exp $
+.\"	$NetBSD: make.1,v 1.263 2016/08/26 23:37:54 dholland Exp $
 .\"
 .\" Copyright (c) 1990, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -29,8 +29,8 @@
 .\"
 .\"	from: @(#)make.1	8.4 (Berkeley) 3/19/94
 .\"
-.Dd August 15, 2016
-.Dt MAKE 1
+.Dd August 26, 2016
+.Dt BMAKE 1
 .Os
 .Sh NAME
 .Nm bmake
@@ -2011,6 +2011,14 @@ variable of a target that inherits
 .Ic .DEFAULT Ns 's
 commands is set
 to the target's own name.
+.It Ic .DELETE_ON_ERROR
+If this target is present in the makefile, it globally causes make to
+delete targets whose commands fail.
+(By default, only targets whose commands are interrupted during
+execution are deleted.
+This is the historical behavior.)
+This setting can be used to help prevent half-finished or malformed
+targets from being left around and corrupting future rebuilds.
 .It Ic .END
 Any command lines attached to this target are executed after everything
 else is done.

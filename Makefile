@@ -1,7 +1,7 @@
-#	$Id: Makefile,v 1.72 2016/08/18 23:02:26 sjg Exp $
+#	$Id: Makefile,v 1.77 2016/12/12 07:34:19 sjg Exp $
 
 # Base version on src date
-_MAKE_VERSION= 20160818
+_MAKE_VERSION= 20161212
 
 PROG=	bmake
 
@@ -156,7 +156,10 @@ my.history: ${MAKEFILE}
 .NOPATH: ${MAN}
 ${MAN}:	make.1 my.history
 	@echo making $@
-	@sed -e 's/^.Nx/NetBSD/' -e '/^.Nm/s/make/${PROG}/' \
+	@sed \
+	-e '/^.Dt/s/MAKE/${PROG:tu}/' \
+	-e 's/^.Nx/NetBSD/' \
+	-e '/^.Nm/s/make/${PROG}/' \
 	-e '/^.Sh HISTORY/rmy.history' \
 	-e '/^.Sh HISTORY/,$$s,^.Nm,make,' ${srcdir}/make.1 > $@
 
