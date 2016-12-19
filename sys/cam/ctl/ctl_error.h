@@ -76,7 +76,7 @@ void ctl_set_internal_failure(struct ctl_scsiio *ctsio, int sks_valid,
 			      uint16_t retry_count);
 void ctl_set_medium_error(struct ctl_scsiio *ctsio, int read);
 void ctl_set_aborted(struct ctl_scsiio *ctsio);
-void ctl_set_lba_out_of_range(struct ctl_scsiio *ctsio);
+void ctl_set_lba_out_of_range(struct ctl_scsiio *ctsio, uint64_t lba);
 void ctl_set_lun_stopped(struct ctl_scsiio *ctsio);
 void ctl_set_lun_int_reqd(struct ctl_scsiio *ctsio);
 void ctl_set_lun_ejected(struct ctl_scsiio *ctsio);
