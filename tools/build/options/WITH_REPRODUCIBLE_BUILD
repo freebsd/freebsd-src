@@ -1,3 +1,4 @@
 $FreeBSD$
-Set to exclude build metadata (build time, user, host and path) from the
-kernel and uname output.
+Set to exclude build metadata (such as the build time, user, or host)
+from the kernel, boot loaders, and uname output, so that builds produce
+bit-for-bit identical output.
