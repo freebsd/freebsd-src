@@ -214,8 +214,8 @@ ugen20_enumerate(struct libusb20_device *pdev, const char *id)
 
 	snprintf(pdev->usb_desc, sizeof(pdev->usb_desc),
 	    USB_GENERIC_NAME "%u.%u: <%s %s> at usbus%u", pdev->bus_number,
-	    pdev->device_address, devinfo.udi_product,
-	    devinfo.udi_vendor, pdev->bus_number);
+	    pdev->device_address, devinfo.udi_vendor,
+	    devinfo.udi_product, pdev->bus_number);
 
 	error = 0;
 done:
