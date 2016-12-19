@@ -92,7 +92,7 @@ CFLAGS+=	-I${.CURDIR}/../common
 # Loader-specific MD headers
 CFLAGS+=	-I${.CURDIR}
 
-CLEANFILES+=	vers.c loader.help
+CLEANFILES+=	loader.help
 
 # Generate code appropriate for the loader environment
 CFLAGS+=	-G0					\
@@ -113,10 +113,6 @@ LIBSTAND=	${.OBJDIR}/../../../../../lib/libstand/libstand.a
 
 DPADD=		${LIBFICL} ${LIBSTAND}
 LDADD=		${LIBFICL} ${LIBSTAND}
-
-vers.c: ${.CURDIR}/../../../common/newvers.sh ${.CURDIR}/version
-	sh ${.CURDIR}/../../../common/newvers.sh ${.CURDIR}/version	\
-	    ${NEWVERSWHAT}
 
 loader.help: help.common help.mips
 	cat ${.ALLSRC} | \
