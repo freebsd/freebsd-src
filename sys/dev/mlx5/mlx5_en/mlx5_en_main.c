@@ -651,10 +651,6 @@ mlx5e_create_rq(struct mlx5e_channel *c,
 
 	wq_sz = mlx5_wq_ll_get_size(&rq->wq);
 	rq->mbuf = malloc(wq_sz * sizeof(rq->mbuf[0]), M_MLX5EN, M_WAITOK | M_ZERO);
-	if (rq->mbuf == NULL) {
-		err = -ENOMEM;
-		goto err_rq_wq_destroy;
-	}
 	for (i = 0; i != wq_sz; i++) {
 		struct mlx5e_rx_wqe *wqe = mlx5_wq_ll_get_wqe(&rq->wq, i);
 		uint32_t byte_count = rq->wqe_sz - MLX5E_NET_IP_ALIGN;
@@ -903,8 +899,6 @@ mlx5e_alloc_sq_db(struct mlx5e_sq *sq)
 	int x;
 
 	sq->mbuf = malloc(wq_sz * sizeof(sq->mbuf[0]), M_MLX5EN, M_WAITOK | M_ZERO);
-	if (sq->mbuf == NULL)
-		return (-ENOMEM);
 
 	/* Create DMA descriptor MAPs */
 	for (x = 0; x != wq_sz; x++) {
@@ -1492,9 +1486,6 @@ mlx5e_open_channel(struct mlx5e_priv *priv, int ix,
 	int err;
 
 	c = malloc(sizeof(*c), M_MLX5EN, M_WAITOK | M_ZERO);
-	if (c == NULL)
-		return (-ENOMEM);
-
 	c->priv = priv;
 	c->ix = ix;
 	c->cpu = 0;
@@ -1705,8 +1696,6 @@ mlx5e_open_channels(struct mlx5e_priv *priv)
 
 	priv->channel = malloc(priv->params.num_channels *
 	    sizeof(struct mlx5e_channel *), M_MLX5EN, M_WAITOK | M_ZERO);
-	if (priv->channel == NULL)
-		return (-ENOMEM);
 
 	mlx5e_build_channel_param(priv, &cparam);
 	for (i = 0; i < priv->params.num_channels; i++) {
@@ -2885,10 +2874,6 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 		return (NULL);
 	}
 	priv = malloc(sizeof(*priv), M_MLX5EN, M_WAITOK | M_ZERO);
-	if (priv == NULL) {
-		mlx5_core_err(mdev, "malloc() failed\n");
-		return (NULL);
-	}
 	mlx5e_priv_mtx_init(priv);
 
 	ifp = priv->ifp = if_alloc(IFT_ETHER);
