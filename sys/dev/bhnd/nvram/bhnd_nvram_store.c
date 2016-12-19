@@ -140,7 +140,7 @@ cleanup:
  */
 int
 bhnd_nvram_store_parse_new(struct bhnd_nvram_store **store,
-    struct bhnd_nvram_io *io, bhnd_nvram_data_class_t *cls)
+    struct bhnd_nvram_io *io, bhnd_nvram_data_class *cls)
 {
 	struct bhnd_nvram_data	*data;
 	int			 error;
