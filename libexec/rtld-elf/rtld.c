@@ -2469,7 +2469,7 @@ objlist_call_init(Objlist *list, RtldLockState *lockstate)
 	    continue;
 	/*
 	 * Race: other thread might try to use this object before current
-	 * one completes the initilization. Not much can be done here
+	 * one completes the initialization. Not much can be done here
 	 * without better locking.
 	 */
 	elm->obj->init_done = true;
