@@ -42,51 +42,51 @@
 
 #include "bhnd_nvram.h"
 
-typedef struct bhnd_nvram_val_fmt	bhnd_nvram_val_fmt_t;
-typedef struct bhnd_nvram_val		bhnd_nvram_val_t;
+typedef struct bhnd_nvram_val_fmt	bhnd_nvram_val_fmt;
+typedef struct bhnd_nvram_val		bhnd_nvram_val;
 
-int				 bhnd_nvram_val_init(bhnd_nvram_val_t *value,
-				     const bhnd_nvram_val_fmt_t *fmt,
+int				 bhnd_nvram_val_init(bhnd_nvram_val *value,
+				     const bhnd_nvram_val_fmt *fmt,
 				     const void *inp, size_t ilen,
 				     bhnd_nvram_type itype, uint32_t flags);
 
-int				 bhnd_nvram_val_new(bhnd_nvram_val_t **value,
-				     const bhnd_nvram_val_fmt_t *fmt,
+int				 bhnd_nvram_val_new(bhnd_nvram_val **value,
+				     const bhnd_nvram_val_fmt *fmt,
 				     const void *inp, size_t ilen,
 				     bhnd_nvram_type itype, uint32_t flags);
 
-bhnd_nvram_val_t		*bhnd_nvram_val_copy(bhnd_nvram_val_t *value);
+bhnd_nvram_val			*bhnd_nvram_val_copy(bhnd_nvram_val *value);
 
 void				 bhnd_nvram_val_release(
-				     bhnd_nvram_val_t *value);
+				     bhnd_nvram_val *value);
 
-int				 bhnd_nvram_val_encode(bhnd_nvram_val_t *value,
+int				 bhnd_nvram_val_encode(bhnd_nvram_val *value,
 				     void *outp, size_t *olen,
 				     bhnd_nvram_type otype);
 
 int				 bhnd_nvram_val_encode_elem(
-				     bhnd_nvram_val_t *value, const void *inp,
+				     bhnd_nvram_val *value, const void *inp,
 				     size_t ilen, void *outp, size_t *olen,
 				     bhnd_nvram_type otype);
 
-int				 bhnd_nvram_val_printf(bhnd_nvram_val_t *value,
+int				 bhnd_nvram_val_printf(bhnd_nvram_val *value,
 				     const char *fmt, char *outp, size_t *olen,
 				     ...);
-int				 bhnd_nvram_val_vprintf(bhnd_nvram_val_t *value,
+int				 bhnd_nvram_val_vprintf(bhnd_nvram_val *value,
 				     const char *fmt, char *outp, size_t *olen,
 				     va_list ap);
 
 
-const void			*bhnd_nvram_val_bytes(bhnd_nvram_val_t *value,
+const void			*bhnd_nvram_val_bytes(bhnd_nvram_val *value,
 				     size_t *len, bhnd_nvram_type *itype);
 
 bhnd_nvram_type			 bhnd_nvram_val_elem_type(
-				     bhnd_nvram_val_t *value);
+				     bhnd_nvram_val *value);
 
-const void			*bhnd_nvram_val_next(bhnd_nvram_val_t *value,
+const void			*bhnd_nvram_val_next(bhnd_nvram_val *value,
 				     const void *prev, size_t *len);
 
-size_t				 bhnd_nvram_val_nelem(bhnd_nvram_val_t *value);
+size_t				 bhnd_nvram_val_nelem(bhnd_nvram_val *value);
 
 /**
  * NVRAM value flags
@@ -152,7 +152,7 @@ typedef enum {
 	 * as-is.
 	 */
 	BHND_NVRAM_VAL_STORAGE_DYNAMIC	= 2,
-} bhnd_nvram_val_storage_t;
+} bhnd_nvram_val_storage;
 
 /**
  * @internal
@@ -183,16 +183,16 @@ typedef enum {
 	* when deallocating the value
 	*/
 	BHND_NVRAM_VAL_DATA_EXT_ALLOC	= 4,
-} bhnd_nvram_val_data_storage_t;
+} bhnd_nvram_val_data_storage;
 
 /**
  * NVRAM value
  */
 struct bhnd_nvram_val {
 	volatile u_int			 refs;		/**< reference count */
-	bhnd_nvram_val_storage_t	 val_storage;	/**< value structure storage */
-	const bhnd_nvram_val_fmt_t	*fmt;		/**< value format, or NULL for default behavior */
-	bhnd_nvram_val_data_storage_t	 data_storage;	/**< data storage */
+	bhnd_nvram_val_storage		 val_storage;	/**< value structure storage */
+	const bhnd_nvram_val_fmt	*fmt;		/**< value format, or NULL for default behavior */
+	bhnd_nvram_val_data_storage	 data_storage;	/**< data storage */
 	bhnd_nvram_type			 data_type;	/**< data type */
 	size_t				 data_len;	/**< data size */
 
@@ -213,7 +213,7 @@ struct bhnd_nvram_val {
 
 /** Declare a bhnd_nvram_val_fmt with name @p _n */
 #define	BHND_NVRAM_VAL_TYPE_DECL(_n)	\
-	extern const bhnd_nvram_val_fmt_t bhnd_nvram_val_ ## _n ## _fmt;
+	extern const bhnd_nvram_val_fmt bhnd_nvram_val_ ## _n ## _fmt;
 
 BHND_NVRAM_VAL_TYPE_DECL(bcm_decimal);
 BHND_NVRAM_VAL_TYPE_DECL(bcm_hex);
