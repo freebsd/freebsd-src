@@ -44,6 +44,7 @@
 
 #include "bhnd_nvram.h"
 #include "bhnd_nvram_io.h"
+#include "bhnd_nvram_plist.h"
 #include "bhnd_nvram_value.h"
 
 /* NVRAM data class */
@@ -115,6 +116,7 @@ int			 bhnd_nvram_data_size(struct bhnd_nvram_data *nv,
 int			 bhnd_nvram_data_serialize(struct bhnd_nvram_data *nv,
 			     void *buf, size_t *len);
 
+bhnd_nvram_plist	*bhnd_nvram_data_options(struct bhnd_nvram_data *nv);
 uint32_t		 bhnd_nvram_data_caps(struct bhnd_nvram_data *nv);
 
 const char		*bhnd_nvram_data_next(struct bhnd_nvram_data *nv,

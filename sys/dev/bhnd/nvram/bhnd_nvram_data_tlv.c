@@ -256,6 +256,12 @@ bhnd_nvram_tlv_count(struct bhnd_nvram_data *nv)
 	return (tlv->count);
 }
 
+static bhnd_nvram_plist *
+bhnd_nvram_tlv_options(struct bhnd_nvram_data *nv)
+{
+	return (NULL);
+}
+
 static int
 bhnd_nvram_tlv_size(struct bhnd_nvram_data *nv, size_t *size)
 {
@@ -350,16 +356,25 @@ bhnd_nvram_tlv_next(struct bhnd_nvram_data *nv, void **cookiep)
 
 	tlv = (struct bhnd_nvram_tlv *)nv;
 
-	/* Seek past the TLV_ENV record referenced by cookiep */
-	io_offset = bhnd_nvram_tlv_to_offset(tlv, *cookiep);
-	if (bhnd_nvram_tlv_next_env(tlv, &io_offset, NULL) == NULL)
-		BHND_NV_PANIC("invalid cookiep: %p\n", cookiep);
+	/* Find next readable TLV record */
+	if (*cookiep == NULL) {
+		/* Start search at offset 0x0 */
+		io_offset = 0x0;
+		env = bhnd_nvram_tlv_next_env(tlv, &io_offset, cookiep);
+	} else {
+		/* Seek past the previous env record */
+		io_offset = bhnd_nvram_tlv_to_offset(tlv, *cookiep);
+		env = bhnd_nvram_tlv_next_env(tlv, &io_offset, NULL);
+		if (env == NULL)
+			BHND_NV_PANIC("invalid cookiep; record missing");
 
-	/* Fetch the next TLV_ENV record */
-	if ((env = bhnd_nvram_tlv_next_env(tlv, &io_offset, cookiep)) == NULL) {
-		/* No remaining ENV records */
-		return (NULL);
+		/* Advance to next env record, update the caller's cookiep */
+		env = bhnd_nvram_tlv_next_env(tlv, &io_offset, cookiep);
 	}
+
+	/* Check for EOF */
+	if (env == NULL)
+		return (NULL);
 
 	/* Return the NUL terminated name */
 	return (env->envp);

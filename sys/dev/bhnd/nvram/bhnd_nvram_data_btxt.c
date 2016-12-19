@@ -255,6 +255,12 @@ bhnd_nvram_btxt_count(struct bhnd_nvram_data *nv)
 	return (btxt->count);
 }
 
+static bhnd_nvram_plist *
+bhnd_nvram_btxt_options(struct bhnd_nvram_data *nv)
+{
+	return (NULL);
+}
+
 static int
 bhnd_nvram_btxt_size(struct bhnd_nvram_data *nv, size_t *size)
 {

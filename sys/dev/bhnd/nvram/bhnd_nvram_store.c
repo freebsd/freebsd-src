@@ -71,6 +71,26 @@ static int			 bhnd_nvstore_parse_data(
 static int			 bhnd_nvstore_parse_path_entries(
 				     struct bhnd_nvram_store *sc);
 
+static int			 bhnd_nvram_store_export_child(
+				     struct bhnd_nvram_store *sc,
+				     bhnd_nvstore_path *top,
+				     bhnd_nvstore_path *child,
+				     bhnd_nvram_plist *plist,
+				     uint32_t flags);
+
+static int			 bhnd_nvstore_export_merge(
+				     struct bhnd_nvram_store *sc,
+				     bhnd_nvstore_path *path,
+				     bhnd_nvram_plist *merged,
+				     uint32_t flags);
+
+static int			 bhnd_nvstore_export_devpath_alias(
+				     struct bhnd_nvram_store *sc,
+				     bhnd_nvstore_path *path,
+				     const char *devpath,
+				     bhnd_nvram_plist *plist,
+				     u_long *alias_val);
+
 /**
  * Allocate and initialize a new NVRAM data store instance.
  *
@@ -114,6 +134,16 @@ bhnd_nvram_store_new(struct bhnd_nvram_store **store,
 	/* Retain the NVRAM data */
 	sc->data = bhnd_nvram_data_retain(data);
 	sc->data_caps = bhnd_nvram_data_caps(data);
+	sc->data_opts = bhnd_nvram_data_options(data);
+	if (sc->data_opts != NULL) {
+		bhnd_nvram_plist_retain(sc->data_opts);
+	} else {
+		sc->data_opts = bhnd_nvram_plist_new();
+		if (sc->data_opts == NULL) {
+			error = ENOMEM;
+			goto cleanup;
+		}
+	}
 
 	/* Register required root path */
 	error = bhnd_nvstore_register_path(sc, BHND_NVSTORE_ROOT_PATH,
@@ -207,6 +237,8 @@ bhnd_nvram_store_free(struct bhnd_nvram_store *sc)
 	if (sc->data != NULL)
 		bhnd_nvram_data_release(sc->data);
 
+	if (sc->data_opts != NULL)
+		bhnd_nvram_plist_release(sc->data_opts);
 
 	BHND_NVSTORE_LOCK_DESTROY(sc);
 	bhnd_nv_free(sc);
@@ -400,6 +432,571 @@ bhnd_nvstore_parse_path_entries(struct bhnd_nvram_store *sc)
 
 	return (0);
 }
+
+
+/**
+ * Merge exported per-path variables (uncommitted, committed, or both) into 
+ * the empty @p merged property list.
+ * 
+ * @param	sc	The NVRAM store instance.
+ * @param	path	The NVRAM path to be exported.
+ * @param	merged	The property list to populate with the merged results.
+ * @param	flags	Export flags. See BHND_NVSTORE_EXPORT_*.
+ * 
+ * @retval 0		success
+ * @retval ENOMEM	If allocation fails.
+ * @retval non-zero	If merging the variables defined in @p path otherwise
+ *			fails, a regular unix error code will be returned.
+ */
+static int
+bhnd_nvstore_export_merge(struct bhnd_nvram_store *sc,
+    bhnd_nvstore_path *path, bhnd_nvram_plist *merged, uint32_t flags)
+{
+	void	*cookiep, *idxp;
+	int	 error;
+
+	/* Populate merged list with all pending variables */
+	if (BHND_NVSTORE_GET_FLAG(flags, EXPORT_UNCOMMITTED)) {
+		bhnd_nvram_prop *prop;
+
+		prop = NULL;
+		while ((prop = bhnd_nvram_plist_next(path->pending, prop))) {
+			/* Skip variables marked for deletion */
+			if (!BHND_NVSTORE_GET_FLAG(flags, EXPORT_DELETED)) {
+				if (bhnd_nvram_prop_is_null(prop))
+					continue;
+			}
+
+			/* Append to merged list */
+			error = bhnd_nvram_plist_append(merged, prop);
+			if (error)
+				return (error);
+		}
+	}
+
+	/* Skip merging committed variables? */
+	if (!BHND_NVSTORE_GET_FLAG(flags, EXPORT_COMMITTED))
+		return (0);
+
+	/* Merge in the committed NVRAM variables */
+	idxp = NULL;
+	while ((cookiep = bhnd_nvstore_path_data_next(sc, path, &idxp))) {
+		const char	*name;
+		bhnd_nvram_val	*val;
+
+		/* Fetch the variable name */
+		name = bhnd_nvram_data_getvar_name(sc->data, cookiep);
+
+		/* Trim device path prefix */
+		if (sc->data_caps & BHND_NVRAM_DATA_CAP_DEVPATHS)
+			name = bhnd_nvram_trim_path_name(name);
+
+		/* Skip if already defined in pending updates */
+		if (BHND_NVSTORE_GET_FLAG(flags, EXPORT_UNCOMMITTED)) {
+			if (bhnd_nvram_plist_contains(path->pending, name))
+				continue;
+		}
+
+		/* Skip if higher precedence value was already defined. This
+		 * may occur if the underlying data store contains duplicate
+		 * keys; iteration will always return the definition with
+		 * the highest precedence first */
+		if (bhnd_nvram_plist_contains(merged, name))
+			continue;
+
+		/* Fetch the variable's value representation */
+		if ((error = bhnd_nvram_data_copy_val(sc->data, cookiep, &val)))
+			return (error);
+
+		/* Add to path variable list */
+		error = bhnd_nvram_plist_append_val(merged, name, val);
+		bhnd_nvram_val_release(val);
+		if (error)
+			return (error);
+	}
+
+	return (0);
+}
+
+/**
+ * Find a free alias value for @p path, and append the devpathXX alias
+ * declaration to @p plist.
+ * 
+ * @param	sc		The NVRAM store instance.
+ * @param	path		The NVRAM path for which a devpath alias
+ *				variable should be produced.
+ * @param	devpath		The devpathXX path value for @p path.
+ * @param	plist		The property list to which @p path's devpath
+ *				variable will be appended.
+ * @param[out]	alias_val	On success, will be set to the alias value
+ *				allocated for @p path.
+ * 
+ * @retval 0		success
+ * @retval ENOMEM	If allocation fails.
+ * @retval non-zero	If merging the variables defined in @p path otherwise
+ *			fails, a regular unix error code will be returned.
+ */
+static int
+bhnd_nvstore_export_devpath_alias(struct bhnd_nvram_store *sc,
+    bhnd_nvstore_path *path, const char *devpath, bhnd_nvram_plist *plist,
+    u_long *alias_val)
+{
+	bhnd_nvstore_alias	*alias;
+	char			*pathvar;
+	int			 error;
+
+	*alias_val = 0;
+
+	/* Prefer alias value already reserved for this path. */
+	alias = bhnd_nvstore_find_alias(sc, path->path_str);
+	if (alias != NULL) {
+		*alias_val = alias->alias;
+
+		/* Allocate devpathXX variable name */
+		bhnd_nv_asprintf(&pathvar, "devpath%lu", *alias_val);
+		if (pathvar == NULL)
+			return (ENOMEM);
+
+		/* Append alias variable to property list */
+		error = bhnd_nvram_plist_append_string(plist, pathvar, devpath);
+
+		BHND_NV_ASSERT(error != EEXIST, ("reserved alias %lu:%s in use",
+		   * alias_val, path->path_str));
+
+		bhnd_nv_free(pathvar);
+		return (error);
+	}
+
+	/* Find the next free devpathXX alias entry */
+	while (1) {
+		/* Skip existing reserved alias values */
+		while (bhnd_nvstore_get_alias(sc, *alias_val) != NULL) {
+			if (*alias_val == ULONG_MAX)
+				return (ENOMEM);
+
+			(*alias_val)++;
+		}
+
+		/* Allocate devpathXX variable name */
+		bhnd_nv_asprintf(&pathvar, "devpath%lu", *alias_val);
+		if (pathvar == NULL)
+			return (ENOMEM);
+
+		/* If not in-use, we can terminate the search */
+		if (!bhnd_nvram_plist_contains(plist, pathvar))
+			break;
+
+		/* Keep searching */
+		bhnd_nv_free(pathvar);
+
+		if (*alias_val == ULONG_MAX)
+			return (ENOMEM);
+
+		(*alias_val)++;
+	}
+
+	/* Append alias variable to property list */
+	error = bhnd_nvram_plist_append_string(plist, pathvar, devpath);
+
+	bhnd_nv_free(pathvar);
+	return (error);
+}
+
+/**
+ * Export a single @p child path's properties, appending the result to @p plist.
+ * 
+ * @param	sc		The NVRAM store instance.
+ * @param	top		The root NVRAM path being exported.
+ * @param	child		The NVRAM path to be exported.
+ * @param	plist		The property list to which @p child's exported
+ *				properties should be appended.
+ * @param	flags		Export flags. See BHND_NVSTORE_EXPORT_*.
+ * 
+ * @retval 0		success
+ * @retval ENOMEM	If allocation fails.
+ * @retval non-zero	If merging the variables defined in @p path otherwise
+ *			fails, a regular unix error code will be returned.
+ */
+static int
+bhnd_nvram_store_export_child(struct bhnd_nvram_store *sc,
+    bhnd_nvstore_path *top, bhnd_nvstore_path *child, bhnd_nvram_plist *plist,
+    uint32_t flags)
+{
+	bhnd_nvram_plist	*path_vars;
+	bhnd_nvram_prop		*prop;
+	const char		*relpath;
+	char			*prefix, *namebuf;
+	size_t			 prefix_len, relpath_len;
+	size_t			 namebuf_size, num_props;
+	bool			 emit_compact_devpath;
+	int			 error;
+
+	BHND_NVSTORE_LOCK_ASSERT(sc, MA_OWNED);
+
+	prefix = NULL;
+	num_props = 0;
+	path_vars = NULL;
+	namebuf = NULL;
+
+	/* Determine the path relative to the top-level path */
+	relpath = bhnd_nvstore_parse_relpath(top->path_str, child->path_str);
+	if (relpath == NULL) {
+		/* Skip -- not a child of the root path */
+		return (0);
+	}
+	relpath_len = strlen(relpath);
+
+	/* Skip sub-path if export of children was not requested,  */
+	if (!BHND_NVSTORE_GET_FLAG(flags, EXPORT_CHILDREN) && relpath_len > 0)
+		return (0);
+
+	/* Collect all variables to be included in the export */
+	if ((path_vars = bhnd_nvram_plist_new()) == NULL)
+		return (ENOMEM);
+
+	if ((error = bhnd_nvstore_export_merge(sc, child, path_vars, flags))) {
+		bhnd_nvram_plist_release(path_vars);
+		return (error);
+	}
+
+	/* Skip if no children are to be exported */
+	if (bhnd_nvram_plist_count(path_vars) == 0) {
+		bhnd_nvram_plist_release(path_vars);
+		return (0);
+	}
+
+	/* Determine appropriate device path encoding */
+	emit_compact_devpath = false;
+	if (BHND_NVSTORE_GET_FLAG(flags, EXPORT_COMPACT_DEVPATHS)) {
+		/* Re-encode as compact (if non-empty path) */
+		if (relpath_len > 0)
+			emit_compact_devpath = true;
+	} else if (BHND_NVSTORE_GET_FLAG(flags, EXPORT_EXPAND_DEVPATHS)) {
+		/* Re-encode with fully expanded device path */
+		emit_compact_devpath = false;
+	} else if (BHND_NVSTORE_GET_FLAG(flags, EXPORT_PRESERVE_DEVPATHS)) {
+		/* Preserve existing encoding of this path */
+		if (bhnd_nvstore_find_alias(sc, child->path_str) != NULL)
+			emit_compact_devpath = true;
+	} else {
+		BHND_NV_LOG("invalid device path flag: %#" PRIx32, flags);
+		error = EINVAL;
+		goto finished;
+	}
+
+	/* Allocate variable device path prefix to use for all property names,
+	 * and if using compact encoding, emit the devpathXX= variable */
+	prefix = NULL;
+	prefix_len = 0;
+	if (emit_compact_devpath) {
+		u_long	alias_val;
+		int	len;
+
+		/* Reserve an alias value and append the devpathXX= variable to
+		 * the property list */
+		error = bhnd_nvstore_export_devpath_alias(sc, child, relpath,
+		    plist, &alias_val);
+		if (error)
+			goto finished;
+
+		/* Allocate variable name prefix */
+		len = bhnd_nv_asprintf(&prefix, "%lu:", alias_val);
+		if (prefix == NULL) {
+			error = ENOMEM;
+			goto finished;
+		}
+	
+		prefix_len = len;
+	} else if (relpath_len > 0) {
+		int len;
+
+		/* Allocate the variable name prefix, appending '/' to the
+		 * relative path */
+		len = bhnd_nv_asprintf(&prefix, "%s/", relpath);
+		if (prefix == NULL) {
+			error = ENOMEM;
+			goto finished;
+		}
+
+		prefix_len = len;
+	}
+
+	/* If prefixing of variable names is required, allocate a name
+	 * formatting buffer */
+	namebuf_size = 0;
+	if (prefix != NULL) {
+		size_t	maxlen;
+
+		/* Find the maximum name length */
+		maxlen = 0;
+		prop = NULL;
+		while ((prop = bhnd_nvram_plist_next(path_vars, prop))) {
+			const char *name;
+
+			name = bhnd_nvram_prop_name(prop);
+			maxlen = bhnd_nv_ummax(strlen(name), maxlen);
+		}
+
+		/* Allocate name buffer (path-prefix + name + '\0') */
+		namebuf_size = prefix_len + maxlen + 1;
+		namebuf = bhnd_nv_malloc(namebuf_size);
+		if (namebuf == NULL) {
+			error = ENOMEM;
+			goto finished;
+		}
+	}
+
+	/* Append all path variables to the export plist, prepending the
+	 * device-path prefix to the variable names, if required */
+	prop = NULL;
+	while ((prop = bhnd_nvram_plist_next(path_vars, prop)) != NULL) {
+		const char *name;
+
+		/* Prepend device prefix to the variable name */
+		name = bhnd_nvram_prop_name(prop);
+		if (prefix != NULL) {
+			int len;
+
+			/*
+			 * Write prefixed variable name to our name buffer.
+			 * 
+			 * We precalcuate the size when scanning all names 
+			 * above, so this should always succeed.
+			 */
+			len = snprintf(namebuf, namebuf_size, "%s%s", prefix,
+			    name);
+			if (len < 0 || (size_t)len >= namebuf_size)
+				BHND_NV_PANIC("invalid max_name_len");
+
+			name = namebuf;
+		}
+
+		/* Add property to export plist */
+		error = bhnd_nvram_plist_append_val(plist, name,
+		    bhnd_nvram_prop_val(prop));
+		if (error)
+			goto finished;
+	}
+
+	/* Success */
+	error = 0;
+
+finished:
+	if (prefix != NULL)
+		bhnd_nv_free(prefix);
+
+	if (namebuf != NULL)
+		bhnd_nv_free(namebuf);
+
+	if (path_vars != NULL)
+		bhnd_nvram_plist_release(path_vars);
+
+	return (error);
+}
+
+/**
+ * Export a flat, ordered NVRAM property list representation of all NVRAM
+ * properties at @p path.
+ * 
+ * @param	sc	The NVRAM store instance.
+ * @param	path	The NVRAM path to export, or NULL to select the root
+ *			path.
+ * @param[out]	cls	On success, will be set to the backing data class
+ *			of @p sc. If the data class is are not desired,
+ *			a NULL pointer may be provided.
+ * @param[out]	props	On success, will be set to a caller-owned property
+ *			list containing the exported properties. The caller is
+ *			responsible for releasing this value via
+ *			bhnd_nvram_plist_release().
+ * @param[out]	options	On success, will be set to a caller-owned property
+ *			list containing the current NVRAM serialization options
+ *			for @p sc. The caller is responsible for releasing this
+ *			value via bhnd_nvram_plist_release().
+ * @param	flags	Export flags. See BHND_NVSTORE_EXPORT_*.
+ * 
+ * @retval 0		success
+ * @retval EINVAL	If @p flags is invalid.
+ * @retval ENOENT	The requested path was not found.
+ * @retval ENOMEM	If allocation fails.
+ * @retval non-zero	If export of  @p path otherwise fails, a regular unix
+ *			error code will be returned.
+ */
+int
+bhnd_nvram_store_export(struct bhnd_nvram_store *sc, const char *path,
+    bhnd_nvram_data_class **cls, bhnd_nvram_plist **props,
+    bhnd_nvram_plist **options, uint32_t flags)
+{
+	bhnd_nvram_plist	*unordered;
+	bhnd_nvstore_path	*top;
+	bhnd_nvram_prop		*prop;
+	const char		*name;
+	void			*cookiep;
+	size_t			 num_dpath_flags;
+	int			 error;
+	
+	*props = NULL;
+	unordered = NULL;
+	num_dpath_flags = 0;
+	if (options != NULL)
+		*options = NULL;
+
+	/* Default to exporting root path */
+	if (path == NULL)
+		path = BHND_NVSTORE_ROOT_PATH;
+
+	/* Default to exporting all properties */
+	if (!BHND_NVSTORE_GET_FLAG(flags, EXPORT_COMMITTED) &&
+	    !BHND_NVSTORE_GET_FLAG(flags, EXPORT_UNCOMMITTED))
+	{
+		flags |= BHND_NVSTORE_EXPORT_ALL_VARS;
+	}
+
+	/* Default to preserving the current device path encoding */
+	if (!BHND_NVSTORE_GET_FLAG(flags, EXPORT_COMPACT_DEVPATHS) &&
+	    !BHND_NVSTORE_GET_FLAG(flags, EXPORT_EXPAND_DEVPATHS))
+	{
+		flags |= BHND_NVSTORE_EXPORT_PRESERVE_DEVPATHS;
+	}
+
+	/* Exactly one device path encoding flag must be set */
+	if (BHND_NVSTORE_GET_FLAG(flags, EXPORT_COMPACT_DEVPATHS))
+		num_dpath_flags++;
+
+	if (BHND_NVSTORE_GET_FLAG(flags, EXPORT_EXPAND_DEVPATHS))
+		num_dpath_flags++;
+
+	if (BHND_NVSTORE_GET_FLAG(flags, EXPORT_PRESERVE_DEVPATHS))
+		num_dpath_flags++;
+
+	if (num_dpath_flags != 1)
+		return (EINVAL);
+
+	/* If EXPORT_DELETED is set, EXPORT_UNCOMMITTED must be set too */
+	if (BHND_NVSTORE_GET_FLAG(flags, EXPORT_DELETED) &&
+	    !BHND_NVSTORE_GET_FLAG(flags, EXPORT_DELETED))
+	{
+		return (EINVAL);
+	}
+
+	/* Lock internal state before querying paths/properties */
+	BHND_NVSTORE_LOCK(sc);
+
+	/* Fetch referenced path */
+	top = bhnd_nvstore_get_path(sc, path, strlen(path));
+	if (top == NULL) {
+		error = ENOENT;
+		goto failed;
+	}
+
+	/* Allocate new, empty property list */
+	if ((unordered = bhnd_nvram_plist_new()) == NULL) {
+		error = ENOMEM;
+		goto failed;
+	}
+
+	/* Export the top-level path first */
+	error = bhnd_nvram_store_export_child(sc, top, top, unordered, flags);
+	if (error)
+		goto failed;
+
+	/* Attempt to export any children of the root path */
+	for (size_t i = 0; i < nitems(sc->paths); i++) {
+		bhnd_nvstore_path *child;
+
+		LIST_FOREACH(child, &sc->paths[i], np_link) {
+			/* Top-level path was already exported */
+			if (child == top)
+				continue;
+
+			error = bhnd_nvram_store_export_child(sc, top,
+			    child, unordered, flags);
+			if (error)
+				goto failed;
+		}
+	}
+
+	/* If requested, provide the current class and serialization options */
+	if (cls != NULL)
+		*cls = bhnd_nvram_data_get_class(sc->data);
+
+	if (options != NULL)
+		*options = bhnd_nvram_plist_retain(sc->data_opts);
+
+	/*
+	 * If we're re-encoding device paths, don't bother preserving the
+	 * existing NVRAM variable order; our variable names will not match
+	 * the existing backing NVRAM data.
+	 */
+	if (!BHND_NVSTORE_GET_FLAG(flags, EXPORT_PRESERVE_DEVPATHS)) {
+		*props = unordered;
+		unordered = NULL;
+
+		goto finished;
+	}
+
+	/* 
+	 * Re-order the flattened output to match the existing NVRAM variable
+	 * ordering.
+	 * 
+	 * We append all new variables at the end of the input; this should
+	 * reduce the delta that needs to be written (e.g. to flash) when
+	 * committing NVRAM updates, and should result in a serialization
+	 * identical to the input serialization if uncommitted updates are
+	 * excluded from the export.
+	 */
+	if ((*props = bhnd_nvram_plist_new()) == NULL) {
+		error = ENOMEM;
+		goto failed;
+	}
+
+	/* Using the backing NVRAM data ordering to order all variables
+	 * currently defined in the backing store */ 
+	cookiep = NULL;
+	while ((name = bhnd_nvram_data_next(sc->data, &cookiep))) {
+		prop = bhnd_nvram_plist_get_prop(unordered, name);
+		if (prop == NULL)
+			continue;
+
+		/* Append to ordered result */
+		if ((error = bhnd_nvram_plist_append(*props, prop)))
+			goto failed;
+	
+		/* Remove from unordered list */
+		bhnd_nvram_plist_remove(unordered, name);
+	}
+
+	/* Any remaining variables are new, and should be appended to the
+	 * end of the export list */
+	prop = NULL;
+	while ((prop = bhnd_nvram_plist_next(unordered, prop)) != NULL) {
+		if ((error = bhnd_nvram_plist_append(*props, prop)))
+			goto failed;
+	}
+
+	/* Export complete */
+finished:
+	BHND_NVSTORE_UNLOCK(sc);
+
+	if (unordered != NULL)
+		bhnd_nvram_plist_release(unordered);
+
+	return (0);
+
+failed:
+	BHND_NVSTORE_UNLOCK(sc);
+
+	if (unordered != NULL)
+		bhnd_nvram_plist_release(unordered);
+
+	if (options != NULL && *options != NULL)
+		bhnd_nvram_plist_release(*options);
+
+	if (*props != NULL)
+		bhnd_nvram_plist_release(*props);
+
+	return (error);
+}
+
 /**
  * Read an NVRAM variable.
  *

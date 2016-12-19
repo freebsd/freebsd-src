@@ -75,6 +75,10 @@ typedef int		 (bhnd_nvram_data_op_serialize)(
 			     struct bhnd_nvram_data *nv, void *buf,
 			     size_t *len);
 
+/** @see bhnd_nvram_data_options() */
+typedef bhnd_nvram_plist*(bhnd_nvram_data_op_options)(
+			      struct bhnd_nvram_data *nv);
+
 /** @see bhnd_nvram_data_caps() */
 typedef uint32_t	 (bhnd_nvram_data_op_caps)(struct bhnd_nvram_data *nv);
 
@@ -133,6 +137,7 @@ struct bhnd_nvram_data_class {
 	bhnd_nvram_data_op_count		*op_count;
 	bhnd_nvram_data_op_size			*op_size;
 	bhnd_nvram_data_op_serialize		*op_serialize;
+	bhnd_nvram_data_op_options		*op_options;
 	bhnd_nvram_data_op_caps			*op_caps;
 	bhnd_nvram_data_op_next			*op_next;
 	bhnd_nvram_data_op_find			*op_find;
@@ -186,6 +191,7 @@ struct bhnd_nvram_data {
 	_macro(_cname, count)					\
 	_macro(_cname, size)					\
 	_macro(_cname, serialize)				\
+	_macro(_cname, options)					\
 	_macro(_cname, caps)					\
 	_macro(_cname, next)					\
 	_macro(_cname, find)					\

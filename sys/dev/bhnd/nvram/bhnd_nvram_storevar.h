@@ -271,6 +271,7 @@ struct bhnd_nvram_store {
 #endif
 	struct bhnd_nvram_data	*data;		/**< backing data */
 	uint32_t		 data_caps;	/**< data capability flags */
+	bhnd_nvram_plist	*data_opts;	/**< data serialization options */
 
 	bhnd_nvstore_alias_list	 aliases[4];	/**< path alias hash table */
 	size_t			 num_aliases;	/**< alias count */
