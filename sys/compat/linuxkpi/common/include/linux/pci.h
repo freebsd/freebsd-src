@@ -537,9 +537,9 @@ static inline void pci_disable_sriov(struct pci_dev *dev)
 #define	PCI_DMA_NONE		3
 
 #define	pci_pool		dma_pool
-#define pci_pool_destroy	dma_pool_destroy
-#define pci_pool_alloc		dma_pool_alloc
-#define pci_pool_free		dma_pool_free
+#define	pci_pool_destroy(...)	dma_pool_destroy(__VA_ARGS__)
+#define	pci_pool_alloc(...)	dma_pool_alloc(__VA_ARGS__)
+#define	pci_pool_free(...)	dma_pool_free(__VA_ARGS__)
 #define	pci_pool_create(_name, _pdev, _size, _align, _alloc)		\
 	    dma_pool_create(_name, &(_pdev)->dev, _size, _align, _alloc)
 #define	pci_free_consistent(_hwdev, _size, _vaddr, _dma_handle)		\
