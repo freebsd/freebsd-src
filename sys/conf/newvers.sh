@@ -37,6 +37,10 @@
 #                      the output file.  This is intended to allow two builds
 #                      done at different times and even by different people on
 #                      different hosts to produce identical output.
+#
+#     -R               Reproducible build if the tree represents an unmodified
+#                      checkout from a version control system.  Metadata is
+#                      included if the tree is modified.
 
 TYPE="FreeBSD"
 REVISION="12.0"
@@ -193,6 +197,9 @@ fi
 
 if [ -n "$svnversion" ] ; then
 	svn=`cd ${SYSDIR} && $svnversion 2>/dev/null`
+	if expr "$svn" : ".*M" >/dev/null; then
+		modified=true
+	fi
 	case "$svn" in
 	[0-9]*)	svn=" r${svn}" ;;
 	*)	unset svn ;;
@@ -227,6 +234,7 @@ if [ -n "$git_cmd" ] ; then
 	if $git_cmd --work-tree=${VCSDIR}/.. diff-index \
 	    --name-only HEAD | read dummy; then
 		git="${git}-dirty"
+		modified=true
 	fi
 fi
 
@@ -239,7 +247,10 @@ if [ -n "$p4_cmd" ] ; then
 		p4opened=`cd ${SYSDIR} && $p4_cmd opened ./... 2>&1`
 		case "$p4opened" in
 		File*) ;;
-		//*)	p4version="${p4version}+edit" ;;
+		//*)
+			p4version="${p4version}+edit"
+			modified=true
+			;;
 		esac
 		;;
 	*)	unset p4version ;;
@@ -264,6 +275,10 @@ while getopts r opt; do
 	r)
 		include_metadata=
 		;;
+	R)
+		if [ -z "${modified}" ]; then
+			include_metadata=
+		fi
 	esac
 done
 shift $((OPTIND - 1))
