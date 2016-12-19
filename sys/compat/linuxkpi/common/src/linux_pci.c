@@ -144,7 +144,7 @@ linux_pci_attach(device_t dev)
 	if (rle)
 		pdev->dev.irq = rle->start;
 	else
-		pdev->dev.irq = 255;
+		pdev->dev.irq = LINUX_IRQ_INVALID;
 	pdev->irq = pdev->dev.irq;
 	DROP_GIANT();
 	spin_lock(&pci_lock);
