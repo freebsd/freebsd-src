@@ -2006,6 +2006,7 @@ knote(struct knlist *list, long hint, int lockflags)
 	struct kqueue *kq;
 	struct knote *kn, *tkn;
 	int error;
+	bool own_influx;
 
 	if (list == NULL)
 		return;
@@ -2036,11 +2037,14 @@ knote(struct knlist *list, long hint, int lockflags)
 			 */
 			KQ_UNLOCK(kq);
 		} else if ((lockflags & KNF_NOKQLOCK) != 0) {
-			kn->kn_status |= KN_INFLUX;
+			own_influx = (kn->kn_status & KN_INFLUX) == 0;
+			if (own_influx)
+				kn->kn_status |= KN_INFLUX;
 			KQ_UNLOCK(kq);
 			error = kn->kn_fop->f_event(kn, hint);
 			KQ_LOCK(kq);
-			kn->kn_status &= ~KN_INFLUX;
+			if (own_influx)
+				kn->kn_status &= ~KN_INFLUX;
 			if (error)
 				KNOTE_ACTIVATE(kn, 1);
 			KQ_UNLOCK_FLUX(kq);
