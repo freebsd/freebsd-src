@@ -181,8 +181,8 @@ ctl_sense_to_desc(struct scsi_sense_data_fixed *sense_src,
 			   /*asc*/ sense_src->add_sense_code,
 			   /*ascq*/ sense_src->add_sense_code_qual,
 
-			   /* Information Bytes */ 
-			   (scsi_4btoul(sense_src->info) != 0) ?
+			   /* Information Bytes */
+			   (sense_src->error_code & SSD_ERRCODE_VALID) ?
 			   SSD_ELEM_INFO : SSD_ELEM_SKIP,
 			   sizeof(sense_src->info),
 			   sense_src->info,
@@ -727,14 +727,20 @@ ctl_set_aborted(struct ctl_scsiio *ctsio)
 }
 
 void
-ctl_set_lba_out_of_range(struct ctl_scsiio *ctsio)
+ctl_set_lba_out_of_range(struct ctl_scsiio *ctsio, uint64_t lba)
 {
+	uint8_t	info[8];
+
+	scsi_u64to8b(lba, info);
+
 	/* "Logical block address out of range" */
 	ctl_set_sense(ctsio,
 		      /*current_error*/ 1,
 		      /*sense_key*/ SSD_KEY_ILLEGAL_REQUEST,
 		      /*asc*/ 0x21,
 		      /*ascq*/ 0x00,
+		      /*type*/ (lba != 0) ? SSD_ELEM_INFO : SSD_ELEM_SKIP,
+		      /*size*/ sizeof(info), /*data*/ &info,
 		      SSD_ELEM_NONE);
 }
 
