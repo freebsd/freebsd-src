@@ -79,6 +79,7 @@ MALLOC_DECLARE(M_BHND_NVRAM);
 #define	bhnd_nv_reallocf(buf, size)	reallocf((buf), (size), M_BHND_NVRAM, \
 					    M_WAITOK)
 #define	bhnd_nv_free(buf)		free((buf), M_BHND_NVRAM)
+#define	bhnd_nv_strdup(str)		strdup(str, M_BHND_NVRAM)
 #define	bhnd_nv_strndup(str, len)	strndup(str, len, M_BHND_NVRAM)
 
 #ifdef INVARIANTS
@@ -118,6 +119,7 @@ MALLOC_DECLARE(M_BHND_NVRAM);
 #define	bhnd_nv_calloc(n, size)		calloc((n), (size))
 #define	bhnd_nv_reallocf(buf, size)	reallocf((buf), (size))
 #define	bhnd_nv_free(buf)		free((buf))
+#define	bhnd_nv_strdup(str)		strdup(str)
 #define	bhnd_nv_strndup(str, len)	strndup(str, len)
 
 #ifndef NDEBUG
