@@ -197,12 +197,17 @@ fi
 
 if [ -n "$svnversion" ] ; then
 	svn=`cd ${SYSDIR} && $svnversion 2>/dev/null`
-	if expr "$svn" : ".*M" >/dev/null; then
-		modified=true
-	fi
 	case "$svn" in
-	[0-9]*)	svn=" r${svn}" ;;
-	*)	unset svn ;;
+	[0-9]*[MSP]|*:*)
+		svn=" r${svn}"
+		modified=true
+		;;
+	[0-9]*)
+		svn=" r${svn}"
+		;;
+	*)
+		unset svn
+		;;
 	esac
 fi
 
@@ -270,7 +275,7 @@ if [ -n "$hg_cmd" ] ; then
 fi
 
 include_metadata=true
-while getopts r opt; do
+while getopts rR opt; do
 	case "$opt" in
 	r)
 		include_metadata=
