@@ -35,12 +35,8 @@
 #ifdef _KERNEL
 #include <sys/param.h>
 #include <sys/bus.h>
-#include <sys/nv.h>
 #else /* !_KERNEL */
 #include <errno.h>
-
-#include <nv.h>
-
 #include <stdint.h>
 #include <stdlib.h>
 #endif
@@ -49,6 +45,7 @@
 
 #include "bhnd_nvram_data.h"
 #include "bhnd_nvram_io.h"
+#include "bhnd_nvram_value.h"
 
 struct bhnd_nvram_store;
 
@@ -60,9 +57,15 @@ int	bhnd_nvram_store_parse_new(struct bhnd_nvram_store **store,
 
 void	bhnd_nvram_store_free(struct bhnd_nvram_store *store);
 
+
 int	bhnd_nvram_store_getvar(struct bhnd_nvram_store *sc, const char *name,
-	    void *buf, size_t *len, bhnd_nvram_type type);
+	    void *outp, size_t *olen, bhnd_nvram_type otype);
 int	bhnd_nvram_store_setvar(struct bhnd_nvram_store *sc, const char *name,
-	    const void *buf, size_t len, bhnd_nvram_type type);
+	    const void *inp, size_t ilen, bhnd_nvram_type itype);
+int	bhnd_nvram_store_unsetvar(struct bhnd_nvram_store *sc,
+	    const char *name);
+
+int	bhnd_nvram_store_setval(struct bhnd_nvram_store *sc, const char *name,
+	    bhnd_nvram_val *value);
 
 #endif /* _BHND_NVRAM_BHND_NVRAM_STORE_H_ */
