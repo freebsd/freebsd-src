@@ -830,8 +830,7 @@ bhnd_nvram_val_vprintf(bhnd_nvram_val *value, const char *fmt, char *outp,
 				char c;
 
 				arg_type = BHND_NVRAM_TYPE_CHAR;
-				arg_size = bhnd_nvram_value_size(arg_type, NULL,
-				    0, 1);
+				arg_size = bhnd_nvram_type_width(arg_type);
 
 				/* Encode as single character */
 				error = bhnd_nvram_val_encode_elem(value, elem,
