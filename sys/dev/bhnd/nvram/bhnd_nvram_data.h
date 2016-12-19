@@ -46,7 +46,7 @@
 #include "bhnd_nvram_io.h"
 
 /* NVRAM data class */
-typedef struct bhnd_nvram_data_class bhnd_nvram_data_class_t;
+typedef struct bhnd_nvram_data_class bhnd_nvram_data_class;
 
 /* NVRAM data instance */
 struct bhnd_nvram_data;
@@ -88,25 +88,24 @@ enum {
 						     parsing */
 };
 
-const char		*bhnd_nvram_data_class_desc(
-			     bhnd_nvram_data_class_t *cls);
+const char		*bhnd_nvram_data_class_desc(bhnd_nvram_data_class *cls);
 
-int			 bhnd_nvram_data_probe(bhnd_nvram_data_class_t *cls,
+int			 bhnd_nvram_data_probe(bhnd_nvram_data_class *cls,
 			     struct bhnd_nvram_io *io);
 int			 bhnd_nvram_data_probe_classes(
 			     struct bhnd_nvram_data **data,
 			     struct bhnd_nvram_io *io,
-			     bhnd_nvram_data_class_t *classes[],
+			     bhnd_nvram_data_class *classes[],
 			     size_t num_classes);
 
-int			 bhnd_nvram_data_new(bhnd_nvram_data_class_t *cls,
+int			 bhnd_nvram_data_new(bhnd_nvram_data_class *cls,
 			     struct bhnd_nvram_data **nv,
 			   struct bhnd_nvram_io *io);
 
 struct bhnd_nvram_data	*bhnd_nvram_data_retain(struct bhnd_nvram_data *nv);
 void			 bhnd_nvram_data_release(struct bhnd_nvram_data *nv);
 
-bhnd_nvram_data_class_t	*bhnd_nvram_data_class(struct bhnd_nvram_data *nv);
+bhnd_nvram_data_class	*bhnd_nvram_data_get_class(struct bhnd_nvram_data *nv);
 
 size_t			 bhnd_nvram_data_count(struct bhnd_nvram_data *nv);
 
