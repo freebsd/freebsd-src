@@ -1,4 +1,4 @@
-/*	$NetBSD: make.c,v 1.95 2016/02/18 18:29:14 christos Exp $	*/
+/*	$NetBSD: make.c,v 1.96 2016/11/10 23:41:58 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -69,14 +69,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: make.c,v 1.95 2016/02/18 18:29:14 christos Exp $";
+static char rcsid[] = "$NetBSD: make.c,v 1.96 2016/11/10 23:41:58 sjg Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)make.c	8.1 (Berkeley) 6/6/93";
 #else
-__RCSID("$NetBSD: make.c,v 1.95 2016/02/18 18:29:14 christos Exp $");
+__RCSID("$NetBSD: make.c,v 1.96 2016/11/10 23:41:58 sjg Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -308,7 +308,7 @@ Make_OODate(GNode *gn)
 	if (DEBUG(MAKE)) {
 	    if (gn->cmgn != NULL && gn->mtime < gn->cmgn->mtime) {
 		fprintf(debug_file, "modified before source %s...",
-		    gn->cmgn->path);
+		    gn->cmgn->path ? gn->cmgn->path : gn->cmgn->name);
 	    } else if (gn->mtime == 0) {
 		fprintf(debug_file, "non-existent and no sources...");
 	    } else {

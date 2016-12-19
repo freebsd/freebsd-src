@@ -1,3 +1,32 @@
+2016-12-12  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20161212
+	  Merge with NetBSD make, pick up
+          o main.c: look for obj.${MACHINE}-${MACHINE_ARCH} too.
+
+2016-12-09  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20161209
+	  Merge with NetBSD make, pick up
+	  o main.c: cleanup setting of .OBJDIR
+	  o parse.c: avoid coredump from (var)=val
+
+2016-11-26  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20161126
+	  Merge with NetBSD make, pick up
+	  o make.c: Make_OODate: report src node name if path not set
+
+2016-09-26  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20160926
+	  Merge with NetBSD make, pick up
+	  o support for .DELETE_ON_ERROR: (remove targets that fail)
+	
+2016-09-26  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile MAN: tweak .Dt to match ${PROG}
+
 2016-08-18  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* Makefile (_MAKE_VERSION): 20160818
