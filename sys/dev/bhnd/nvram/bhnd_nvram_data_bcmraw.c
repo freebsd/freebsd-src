@@ -79,19 +79,19 @@ bhnd_nvram_bcmraw_probe(struct bhnd_nvram_io *io)
 {
 	char	 envp[16];
 	size_t	 envp_len;
+	size_t	 io_size;
 	int	 error;
 
+	io_size = bhnd_nvram_io_getsize(io);
+
 	/*
-	 * Fetch the initial bytes to try to identify BCM data.
-	 * 
-	 * We always assert a low probe priority, as we only scan the initial
-	 * bytes of the file.
+	 * Fetch initial bytes
 	 */
-	envp_len = bhnd_nv_ummin(sizeof(envp), bhnd_nvram_io_getsize(io));
+	envp_len = bhnd_nv_ummin(sizeof(envp), io_size);
 	if ((error = bhnd_nvram_io_read(io, 0x0, envp, envp_len)))
 		return (error);
 
-	/* A zero-length BCM-RAW buffer should contain a single terminating
+	/* An empty BCM-RAW buffer should still contain a single terminating
 	 * NUL */
 	if (envp_len == 0)
 		return (ENXIO);
@@ -103,21 +103,33 @@ bhnd_nvram_bcmraw_probe(struct bhnd_nvram_io *io)
 		return (BHND_NVRAM_DATA_PROBE_MAYBE);
 	}
 
-	/* Don't match on non-ASCII, non-printable data */
+	/* Must contain only printable ASCII characters delimited
+	 * by NUL record delimiters */
 	for (size_t i = 0; i < envp_len; i++) {
 		char c = envp[i];
-		if (envp[i] == '\0')
-			break;
 
-		if (!bhnd_nv_isprint(c))
+		/* If we hit a newline, this is probably BCM-TXT */
+		if (c == '\n')
 			return (ENXIO);
+
+		if (c == '\0' && !bhnd_nv_isprint(c))
+			continue;
 	}
 
-	/* The first character should be a valid key char */
-	if (!bhnd_nv_isalpha(envp[0]))
+	/* A valid BCM-RAW buffer should contain a terminating NUL for
+	 * the last record, followed by a final empty record terminated by
+	 * NUL */
+	envp_len = 2;
+	if (io_size < envp_len)
 		return (ENXIO);
 
-	return (BHND_NVRAM_DATA_PROBE_MAYBE);
+	if ((error = bhnd_nvram_io_read(io, io_size-envp_len, envp, envp_len)))
+		return (error);
+
+	if (envp[0] != '\0' || envp[1] != '\0')
+		return (ENXIO);
+
+	return (BHND_NVRAM_DATA_PROBE_MAYBE + 1);
 }
 
 /**
@@ -243,6 +255,12 @@ bhnd_nvram_bcmraw_count(struct bhnd_nvram_data *nv)
 	struct bhnd_nvram_bcmraw *bcm = (struct bhnd_nvram_bcmraw *)nv;
 
 	return (bcm->count);
+}
+
+static bhnd_nvram_plist *
+bhnd_nvram_bcmraw_options(struct bhnd_nvram_data *nv)
+{
+	return (NULL);
 }
 
 static int

@@ -416,6 +416,12 @@ bhnd_nvram_sprom_free(struct bhnd_nvram_data *nv)
 	bhnd_nv_free(sp->idx);
 }
 
+static bhnd_nvram_plist *
+bhnd_nvram_sprom_options(struct bhnd_nvram_data *nv)
+{
+	return (NULL);
+}
+
 size_t
 bhnd_nvram_sprom_count(struct bhnd_nvram_data *nv)
 {

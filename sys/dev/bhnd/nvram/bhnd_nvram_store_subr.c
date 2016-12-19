@@ -342,7 +342,7 @@ bhnd_nvstore_path_register_update(struct bhnd_nvram_store *sc,
 	/* Determine whether the variable is currently defined in the
 	 * backing NVRAM data, and derive its full path-prefixed name */
 	nvram_committed = false;
-	cookiep = bhnd_nvstore_index_lookup(sc, path->index, name);
+	cookiep = bhnd_nvstore_path_data_lookup(sc, path, name);
 	if (cookiep != NULL) {
 		/* Variable is defined in the backing data */
 		nvram_committed = true;

@@ -121,6 +121,7 @@ static const struct bhnd_nvram_bcm_hvar bhnd_nvram_bcm_hvars[] = {
 struct bhnd_nvram_bcm {
 	struct bhnd_nvram_data		 nv;	/**< common instance state */
 	struct bhnd_nvram_io		*data;	/**< backing buffer */
+	bhnd_nvram_plist		*opts;	/**< serialization options */
 
 	/** BCM header values */
 	struct bhnd_nvram_bcm_hvar	 hvars[nitems(bhnd_nvram_bcm_hvars)];
@@ -157,7 +158,7 @@ bhnd_nvram_bcm_init(struct bhnd_nvram_bcm *bcm, struct bhnd_nvram_io *src)
 	uint8_t				*p;
 	void				*ptr;
 	size_t				 io_offset, io_size;
-	uint8_t				 crc, valid;
+	uint8_t				 crc, valid, bcm_ver;
 	int				 error;
 
 	if ((error = bhnd_nvram_io_read(src, 0x0, &hdr, sizeof(hdr))))
@@ -344,6 +345,14 @@ bhnd_nvram_bcm_init(struct bhnd_nvram_bcm *bcm, struct bhnd_nvram_io *src)
 			bcm->count++;
 	}
 
+	/* Populate serialization options from our header */
+	bcm_ver = BCM_NVRAM_GET_BITS(hdr.cfg0, BCM_NVRAM_CFG0_VER);
+	error = bhnd_nvram_plist_append_bytes(bcm->opts,
+	    BCM_NVRAM_ENCODE_OPT_VERSION, &bcm_ver, sizeof(bcm_ver),
+	    BHND_NVRAM_TYPE_UINT8);
+	if (error)
+		return (error);
+
 	return (0);
 }
 
@@ -359,6 +368,12 @@ bhnd_nvram_bcm_new(struct bhnd_nvram_data *nv, struct bhnd_nvram_io *io)
 	_Static_assert(sizeof(bcm->hvars) == sizeof(bhnd_nvram_bcm_hvars),
 	    "hvar declarations must match bhnd_nvram_bcm_hvars template");
 	memcpy(bcm->hvars, bhnd_nvram_bcm_hvars, sizeof(bcm->hvars));
+
+	/* Allocate (empty) option list, to be populated by
+	 * bhnd_nvram_bcm_init() */
+	bcm->opts = bhnd_nvram_plist_new();
+	if (bcm->opts == NULL)
+		return (ENOMEM);
 
 	/* Parse the BCM input data and initialize our backing
 	 * data representation */
@@ -377,6 +392,9 @@ bhnd_nvram_bcm_free(struct bhnd_nvram_data *nv)
 
 	if (bcm->data != NULL)
 		bhnd_nvram_io_free(bcm->data);
+
+	if (bcm->opts != NULL)
+		bhnd_nvram_plist_release(bcm->opts);
 }
 
 size_t
@@ -384,6 +402,13 @@ bhnd_nvram_bcm_count(struct bhnd_nvram_data *nv)
 {
 	struct bhnd_nvram_bcm *bcm = (struct bhnd_nvram_bcm *)nv;
 	return (bcm->count);
+}
+
+static bhnd_nvram_plist *
+bhnd_nvram_bcm_options(struct bhnd_nvram_data *nv)
+{
+	struct bhnd_nvram_bcm *bcm = (struct bhnd_nvram_bcm *)nv;
+	return (bcm->opts);
 }
 
 static int
