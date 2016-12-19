@@ -313,6 +313,17 @@ struct ctl_mode_pages {
 	struct ctl_page_index		index[CTL_NUM_MODE_PAGES];
 };
 
+#define	MODE_RWER	mode_pages.rw_er_page[CTL_PAGE_CURRENT]
+#define	MODE_FMT	mode_pages.format_page[CTL_PAGE_CURRENT]
+#define	MODE_RDISK	mode_pages.rigid_disk_page[CTL_PAGE_CURRENT]
+#define	MODE_VER	mode_pages.verify_er_page[CTL_PAGE_CURRENT]
+#define	MODE_CACHING	mode_pages.caching_page[CTL_PAGE_CURRENT]
+#define	MODE_CTRL	mode_pages.control_page[CTL_PAGE_CURRENT]
+#define	MODE_CTRLE	mode_pages.control_ext_page[CTL_PAGE_CURRENT]
+#define	MODE_IE		mode_pages.ie_page[CTL_PAGE_CURRENT]
+#define	MODE_LBP	mode_pages.lbp_page[CTL_PAGE_CURRENT]
+#define	MODE_CDDVD	mode_pages.cddvd_page[CTL_PAGE_CURRENT]
+
 static const struct ctl_page_index log_page_index_template[] = {
 	{SLS_SUPPORTED_PAGES_PAGE, 0, 0, NULL,
 	 CTL_PAGE_FLAG_ALL, NULL, NULL},
