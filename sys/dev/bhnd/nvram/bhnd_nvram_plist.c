@@ -743,6 +743,27 @@ bhnd_nvram_plist_get_uint64(bhnd_nvram_plist *plist, const char *name,
 }
 
 /**
+ * Return the boolean representation of a named property's value.
+ * 
+ * @param	plist	The property list to be queried.
+ * @param	name	The name of the property value to be returned.
+ * @param[out]	val	On success, the boolean value of @p name.
+ *
+ * @retval 0		success
+ * @retval ENOENT	If @p name is not found in @p plist.
+ * @retval EFTYPE	If coercion of the property's value to @p val.
+ * @retval ERANGE	If coercion of the property's value would overflow
+ *			(or underflow) @p val.
+ */
+int
+bhnd_nvram_plist_get_bool(bhnd_nvram_plist *plist, const char *name,
+    bool *val)
+{
+	return (bhnd_nvram_plist_get_encoded(plist, name, val, sizeof(*val),
+	    BHND_NVRAM_TYPE_BOOL));
+}
+
+/**
  * Allocate and initialize a new property value.
  * 
  * The caller is responsible for releasing the returned property value
@@ -898,6 +919,18 @@ bhnd_nvram_type
 bhnd_nvram_prop_type(bhnd_nvram_prop *prop)
 {
 	return (bhnd_nvram_val_type(prop->val));
+}
+
+/**
+ * Return true if @p prop has a NULL value type (BHND_NVRAM_TYPE_NULL), false
+ * otherwise.
+ * 
+ * @param      prop    The property to query.
+ */
+bool
+bhnd_nvram_prop_is_null(bhnd_nvram_prop *prop)
+{
+	return (bhnd_nvram_prop_type(prop) == BHND_NVRAM_TYPE_NULL);
 }
 
 /**
