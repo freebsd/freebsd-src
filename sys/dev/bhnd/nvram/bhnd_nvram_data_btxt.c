@@ -69,7 +69,7 @@ struct bhnd_nvram_btxt {
 };
 
 BHND_NVRAM_DATA_CLASS_DEFN(btxt, "Broadcom Board Text",
-    sizeof(struct bhnd_nvram_btxt))
+    BHND_NVRAM_DATA_CAP_DEVPATHS, sizeof(struct bhnd_nvram_btxt))
 
 /** Minimal identification header */
 union bhnd_nvram_btxt_ident {
@@ -122,6 +122,100 @@ bhnd_nvram_btxt_probe(struct bhnd_nvram_io *io)
 	/* We assert a low priority, given that we've only scanned an
 	 * initial few bytes of the file. */
 	return (BHND_NVRAM_DATA_PROBE_MAYBE);
+}
+
+static int
+bhnd_nvram_btxt_serialize(bhnd_nvram_data_class *cls, bhnd_nvram_plist *props,
+    bhnd_nvram_plist *options, void *outp, size_t *olen)
+{
+	bhnd_nvram_prop	*prop;
+	size_t		 limit, nbytes;
+	int		 error;
+
+	/* Determine output byte limit */
+	if (outp != NULL)
+		limit = *olen;
+	else
+		limit = 0;
+
+	nbytes = 0;
+
+	/* Write all properties */
+	prop = NULL;
+	while ((prop = bhnd_nvram_plist_next(props, prop)) != NULL) {
+		const char	*name;
+		char		*p;
+		size_t		 prop_limit;
+		size_t		 name_len, value_len;
+
+		if (outp == NULL || limit < nbytes) {
+			p = NULL;
+			prop_limit = 0;
+		} else {
+			p = ((char *)outp) + nbytes;
+			prop_limit = limit - nbytes;
+		}
+
+		/* Fetch and write 'name=' to output */
+		name = bhnd_nvram_prop_name(prop);
+		name_len = strlen(name) + 1;
+
+		if (prop_limit > name_len) {
+			memcpy(p, name, name_len - 1);
+			p[name_len - 1] = '=';
+
+			prop_limit -= name_len;
+			p += name_len;
+		} else {
+			prop_limit = 0;
+			p = NULL;
+		}
+
+		/* Advance byte count */
+		if (SIZE_MAX - nbytes < name_len)
+			return (EFTYPE); /* would overflow size_t */
+
+		nbytes += name_len;
+
+		/* Write NUL-terminated value to output, rewrite NUL as
+		 * '\n' record delimiter */
+		value_len = prop_limit;
+		error = bhnd_nvram_prop_encode(prop, p, &value_len,
+		    BHND_NVRAM_TYPE_STRING);
+		if (p != NULL && error == 0) {
+			/* Replace trailing '\0' with newline */
+			BHND_NV_ASSERT(value_len > 0, ("string length missing "
+			    "minimum required trailing NUL"));
+
+			*(p + (value_len - 1)) = '\n';
+		} else if (error && error != ENOMEM) {
+			/* If encoding failed for any reason other than ENOMEM
+			 * (which we'll detect and report after encoding all
+			 * properties), return immediately */
+			BHND_NV_LOG("error serializing %s to required type "
+			    "%s: %d\n", name,
+			    bhnd_nvram_type_name(BHND_NVRAM_TYPE_STRING),
+			    error);
+			return (error);
+		}
+
+		/* Advance byte count */
+		if (SIZE_MAX - nbytes < value_len)
+			return (EFTYPE); /* would overflow size_t */
+
+		nbytes += value_len;
+	}
+
+	/* Provide required length */
+	*olen = nbytes;
+	if (limit < *olen) {
+		if (outp == NULL)
+			return (0);
+
+		return (ENOMEM);
+	}
+
+	return (0);
 }
 
 /**
@@ -259,52 +353,6 @@ static bhnd_nvram_plist *
 bhnd_nvram_btxt_options(struct bhnd_nvram_data *nv)
 {
 	return (NULL);
-}
-
-static int
-bhnd_nvram_btxt_size(struct bhnd_nvram_data *nv, size_t *size)
-{
-	struct bhnd_nvram_btxt *btxt = (struct bhnd_nvram_btxt *)nv;
-
-	/* The serialized form will be identical in length
-	 * to our backing buffer representation */
-	*size = bhnd_nvram_io_getsize(btxt->data);
-	return (0);
-}
-
-static int
-bhnd_nvram_btxt_serialize(struct bhnd_nvram_data *nv, void *buf, size_t *len)
-{
-	struct bhnd_nvram_btxt	*btxt;
-	size_t			 limit;
-	int			 error;
-
-	btxt = (struct bhnd_nvram_btxt *)nv;
-
-	limit = *len;
-
-	/* Provide actual output size */
-	if ((error = bhnd_nvram_data_size(nv, len)))
-		return (error);
-
-	if (buf == NULL) {
-		return (0);
-	} else if (limit < *len) {
-		return (ENOMEM);
-	}	
-
-	/* Copy our internal representation to the output buffer */
-	if ((error = bhnd_nvram_io_read(btxt->data, 0x0, buf, *len)))
-		return (error);
-
-	/* Restore the original key=value format, rewriting all '\0'
-	 * key\0value delimiters back to '=' */
-	for (char *p = buf; (size_t)(p - (char *)buf) < *len; p++) {
-		if (*p == '\0')
-			*p = '=';
-	}
-
-	return (0);
 }
 
 static uint32_t

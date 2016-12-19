@@ -32,8 +32,12 @@
 #ifndef _BHND_NVRAM_BHND_NVRAM_BCMREG_H_
 #define _BHND_NVRAM_BHND_NVRAM_BCMREG_H_
 
-#define BCM_NVRAM_GET_BITS(_value, _field)  \
+#define BCM_NVRAM_GET_BITS(_value, _field)			\
 	((_value & _field ## _MASK) >> _field ## _SHIFT)
+
+#define BCM_NVRAM_SET_BITS(_value, _field, _bits)		\
+	((_value & ~(_field ## _MASK)) |			\
+	    (((_bits) << _field ## _SHIFT) & _field ## _MASK))
 
 /* BCM NVRAM header fields */
 #define	BCM_NVRAM_MAGIC				0x48534C46	/* 'FLSH' */
@@ -45,6 +49,7 @@
 #define	BCM_NVRAM_CFG0_CRC_SHIFT		0
 #define	BCM_NVRAM_CFG0_VER_MASK			0x0000FF00
 #define	BCM_NVRAM_CFG0_VER_SHIFT		8
+#define	BCM_NVRAM_CFG0_VER_DEFAULT		1		/* default version */
 
 #define	BCM_NVRAM_CFG0_SDRAM_INIT_FIELD		cfg0
 #define	BCM_NVRAM_CFG0_SDRAM_INIT_MASK		0xFFFF0000
