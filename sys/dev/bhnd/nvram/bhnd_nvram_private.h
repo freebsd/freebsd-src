@@ -258,7 +258,7 @@ struct bhnd_nvram_vardefn {
 	bhnd_nvram_type			 type;	/**< variable type */
 	uint8_t				 nelem;	/**< element count, or 1 if not
 						     an array-typed variable */
-	const bhnd_nvram_val_fmt_t	*fmt;	/**< value format, or NULL */
+	const bhnd_nvram_val_fmt	*fmt;	/**< value format, or NULL */
 	uint32_t			 flags;	/**< flags (BHND_NVRAM_VF_*) */
 };
 

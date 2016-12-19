@@ -670,7 +670,7 @@ static int
 bhnd_nvram_sprom_getvar(struct bhnd_nvram_data *nv, void *cookiep, void *buf,
     size_t *len, bhnd_nvram_type otype)
 {
-	bhnd_nvram_val_t		 val;
+	bhnd_nvram_val			 val;
 	struct bhnd_nvram_sprom		*sp;
 	struct sprom_opcode_idx		*idx;
 	const struct bhnd_nvram_vardefn	*var;

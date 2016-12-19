@@ -41,7 +41,7 @@
 #include "bhnd_nvram_data.h"
 
 /** Registered NVRAM parser class instances. */
-SET_DECLARE(bhnd_nvram_data_class_set, bhnd_nvram_data_class_t);
+SET_DECLARE(bhnd_nvram_data_class_set, bhnd_nvram_data_class);
 
 void	*bhnd_nvram_data_generic_find(struct bhnd_nvram_data *nv,
 	     const char *name);

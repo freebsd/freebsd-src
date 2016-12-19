@@ -83,8 +83,7 @@ static int			 bhnd_nvram_iocfe_new(struct bhnd_nvram_io **io,
 				     char *dname);
 
 static struct bhnd_nvram_io	*bhnd_nvram_find_cfedev(device_t dev,
-				     char **dname,
-				     bhnd_nvram_data_class_t **cls);
+				     char **dname, bhnd_nvram_data_class **cls);
 
 /** Known CFE NVRAM device names, in probe order. */
 static char *nvram_cfe_devs[] = {
@@ -95,7 +94,7 @@ static char *nvram_cfe_devs[] = {
 };
 
 /** Supported CFE NVRAM formats, in probe order. */
-static bhnd_nvram_data_class_t * const nvram_cfe_fmts[] = {
+static bhnd_nvram_data_class * const nvram_cfe_fmts[] = {
 	&bhnd_nvram_bcm_class,
 	&bhnd_nvram_tlv_class
 };
@@ -105,7 +104,7 @@ static int
 bhnd_nvram_cfe_probe(device_t dev)
 {
 	struct bhnd_nvram_io	*io;
-	bhnd_nvram_data_class_t	*cls;
+	bhnd_nvram_data_class	*cls;
 	const char		*cls_desc;
 	char			*dname;
 	char			*desc;
@@ -135,7 +134,7 @@ static int
 bhnd_nvram_cfe_attach(device_t dev)
 {
 	struct bhnd_nvram_cfe_softc	*sc;
-	bhnd_nvram_data_class_t		*cls;
+	bhnd_nvram_data_class		*cls;
 	struct bhnd_nvram_io		*io;
 	char				*dname;
 	int				 error;
@@ -215,8 +214,7 @@ bhnd_nvram_cfe_setvar(device_t dev, const char *name, const void *buf,
  * @retval	NULL if no usable CFE NVRAM device could be found.
  */
 static struct bhnd_nvram_io *
-bhnd_nvram_find_cfedev(device_t dev, char **dname,
-    bhnd_nvram_data_class_t **cls)
+bhnd_nvram_find_cfedev(device_t dev, char **dname, bhnd_nvram_data_class **cls)
 {
 	struct bhnd_nvram_io	*io;
 	int			 devinfo;

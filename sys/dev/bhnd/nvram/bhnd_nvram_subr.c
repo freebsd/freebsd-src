@@ -698,8 +698,8 @@ int
 bhnd_nvram_value_vprintf(const char *fmt, const void *inp, size_t ilen,
     bhnd_nvram_type itype, char *outp, size_t *olen, va_list ap)
 {
-	bhnd_nvram_val_t	val;
-	int			error;
+	bhnd_nvram_val	val;
+	int		error;
 
 	/* Map input buffer as a value instance */
 	error = bhnd_nvram_val_init(&val, NULL, inp, ilen, itype,
@@ -848,8 +848,8 @@ int
 bhnd_nvram_value_coerce(const void *inp, size_t ilen, bhnd_nvram_type itype,
     void *outp, size_t *olen, bhnd_nvram_type otype)
 {
-	bhnd_nvram_val_t	val;
-	int			error;
+	bhnd_nvram_val	val;
+	int		error;
 
 	/* Wrap input buffer in a value instance */
 	error = bhnd_nvram_val_init(&val, NULL, inp, ilen,
