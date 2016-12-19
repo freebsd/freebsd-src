@@ -281,6 +281,18 @@ bhnd_nvram_data_count(struct bhnd_nvram_data *nv)
 }
 
 /**
+ * Return a borrowed reference to the serialization options for @p nv,
+ * suitable for use with bhnd_nvram_data_serialize(), or NULL if none.
+ * 
+ * @param nv The NVRAM data to be queried.
+ */
+bhnd_nvram_plist *
+bhnd_nvram_data_options(struct bhnd_nvram_data *nv)
+{
+	return (nv->cls->op_options(nv));
+}
+
+/**
  * Compute the size of the serialized form of @p nv.
  *
  * Serialization may be performed via bhnd_nvram_data_serialize().
