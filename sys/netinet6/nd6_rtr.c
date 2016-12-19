@@ -1122,8 +1122,6 @@ void
 nd6_prefix_unlink(struct nd_prefix *pr, struct nd_prhead *list)
 {
 
-	KASSERT(pr->ndpr_addrcnt == 0,
-	    ("prefix %p has referencing addresses", pr));
 	ND6_WLOCK_ASSERT();
 
 	LIST_REMOVE(pr, ndpr_entry);
