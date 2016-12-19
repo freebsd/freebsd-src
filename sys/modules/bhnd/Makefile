@@ -42,6 +42,7 @@ SRCS+=	bhnd_nvram_data.c \
 	bhnd_nvram_value.c \
 	bhnd_nvram_value_fmts.c \
 	bhnd_nvram_value_prf.c \
+	bhnd_nvram_value_subr.c \
 	bhnd_sprom.c
 SRCS+=	bhnd_nvram_map.h bhnd_nvram_map_data.h
 SRCS+=	bhnd_nvram_if.c bhnd_nvram_if.h

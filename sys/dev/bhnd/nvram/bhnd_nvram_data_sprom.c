@@ -597,7 +597,7 @@ bhnd_nvram_sprom_read_offset(struct bhnd_nvram_sprom *sp,
 	} sp_value;
 
 	/* Determine type width */
-	sp_width = bhnd_nvram_value_size(type, NULL, 0, 1);
+	sp_width = bhnd_nvram_type_width(type);
 	if (sp_width == 0) {
 		/* Variable-width types are unsupported */
 		BHND_NV_LOG("invalid %s SPROM offset type %d\n", var->name,
@@ -716,7 +716,7 @@ bhnd_nvram_sprom_getvar(struct bhnd_nvram_data *nv, void *cookiep, void *buf,
 	var_btype = bhnd_nvram_base_type(var->type);
 
 	/* Calculate total byte length of the native encoding */
-	if ((iwidth = bhnd_nvram_value_size(var_btype, NULL, 0, 1)) == 0) {
+	if ((iwidth = bhnd_nvram_value_size(NULL, 0, var_btype, 1)) == 0) {
 		/* SPROM does not use (and we do not support) decoding of
 		 * variable-width data types */
 		BHND_NV_LOG("invalid SPROM data type: %d", var->type);
@@ -1219,7 +1219,7 @@ sprom_opcode_set_type(struct sprom_opcode_state *state, bhnd_nvram_type type)
 	}
 
 	/* Fetch type width for use as our scale value */
-	width = bhnd_nvram_value_size(type, NULL, 0, 1);
+	width = bhnd_nvram_type_width(type);
 	if (width == 0) {
 		SPROM_OP_BAD(state, "unsupported variable-width type: %d\n",
 		    type);
