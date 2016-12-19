@@ -1941,8 +1941,8 @@ config_done:
 	udev->ugen_symlink = usb_alloc_symlink(udev->ugen_name);
 
 	/* Announce device */
-	printf("%s: <%s> at %s\n", udev->ugen_name,
-	    usb_get_manufacturer(udev),
+	printf("%s: <%s %s> at %s\n", udev->ugen_name,
+	    usb_get_manufacturer(udev), usb_get_product(udev),
 	    device_get_nameunit(udev->bus->bdev));
 #endif
 
@@ -2148,8 +2148,9 @@ usb_free_device(struct usb_device *udev, uint8_t flag)
 
 #if USB_HAVE_UGEN
 	if (!rebooting) {
-		printf("%s: <%s> at %s (disconnected)\n", udev->ugen_name,
-		    usb_get_manufacturer(udev), device_get_nameunit(bus->bdev));
+		printf("%s: <%s %s> at %s (disconnected)\n", udev->ugen_name,
+		    usb_get_manufacturer(udev), usb_get_product(udev),
+		    device_get_nameunit(bus->bdev));
 	}
 
 	/* Destroy UGEN symlink, if any */
