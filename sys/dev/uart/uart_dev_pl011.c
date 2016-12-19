@@ -173,7 +173,7 @@ uart_pl011_param(struct uart_bas *bas, int baudrate, int databits, int stopbits,
 		line &= ~LCR_H_PEN;
 
 	/* Configure the rest */
-	line &=  ~LCR_H_FEN;
+	line &= ~LCR_H_FEN;
 	ctrl |= (CR_RXE | CR_TXE | CR_UARTEN);
 
 	if (bas->rclk != 0 && baudrate != 0) {
@@ -196,7 +196,7 @@ uart_pl011_init(struct uart_bas *bas, int baudrate, int databits, int stopbits,
 	/* Mask all interrupts */
 	__uart_setreg(bas, UART_IMSC, __uart_getreg(bas, UART_IMSC) &
 	    ~IMSC_MASK_ALL);
-	
+
 	uart_pl011_param(bas, baudrate, databits, stopbits, parity);
 }
 
@@ -307,7 +307,7 @@ uart_pl011_bus_attach(struct uart_softc *sc)
 	struct uart_pl011_softc *psc;
 	struct uart_bas *bas;
 
-	psc = (struct uart_pl011_softc *)sc; 
+	psc = (struct uart_pl011_softc *)sc;
 	bas = &sc->sc_bas;
 
 	/* Enable interrupts */
@@ -373,7 +373,7 @@ uart_pl011_bus_ipend(struct uart_softc *sc)
 	uint32_t ints;
 	int ipend;
 
-	psc = (struct uart_pl011_softc *)sc; 
+	psc = (struct uart_pl011_softc *)sc;
 	bas = &sc->sc_bas;
 
 	uart_lock(sc->sc_hwmtx);
@@ -472,7 +472,7 @@ uart_pl011_bus_transmit(struct uart_softc *sc)
 	struct uart_bas *bas;
 	int i;
 
-	psc = (struct uart_pl011_softc *)sc; 
+	psc = (struct uart_pl011_softc *)sc;
 	bas = &sc->sc_bas;
 	uart_lock(sc->sc_hwmtx);
 
@@ -504,7 +504,7 @@ uart_pl011_bus_grab(struct uart_softc *sc)
 	struct uart_pl011_softc *psc;
 	struct uart_bas *bas;
 
-	psc = (struct uart_pl011_softc *)sc; 
+	psc = (struct uart_pl011_softc *)sc;
 	bas = &sc->sc_bas;
 
 	/* Disable interrupts on switch to polling */
@@ -519,7 +519,7 @@ uart_pl011_bus_ungrab(struct uart_softc *sc)
 	struct uart_pl011_softc *psc;
 	struct uart_bas *bas;
 
-	psc = (struct uart_pl011_softc *) sc; 
+	psc = (struct uart_pl011_softc *)sc;
 	bas = &sc->sc_bas;
 
 	/* Switch to using interrupts while not grabbed */
