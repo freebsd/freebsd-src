@@ -1104,7 +1104,8 @@ tpc_ranges_length(struct scsi_range_desc *range, int nrange)
 }
 
 static int
-tpc_check_ranges_l(struct scsi_range_desc *range, int nrange, uint64_t maxlba)
+tpc_check_ranges_l(struct scsi_range_desc *range, int nrange, uint64_t maxlba,
+    uint64_t *lba)
 {
 	uint64_t b1;
 	uint32_t l1;
@@ -1113,8 +1114,10 @@ tpc_check_ranges_l(struct scsi_range_desc *range, int nrange, uint64_t maxlba)
 	for (i = 0; i < nrange; i++) {
 		b1 = scsi_8btou64(range[i].lba);
 		l1 = scsi_4btoul(range[i].length);
-		if (b1 + l1 < b1 || b1 + l1 > maxlba + 1)
+		if (b1 + l1 < b1 || b1 + l1 > maxlba + 1) {
+			*lba = MAX(b1, maxlba + 1);
 			return (-1);
+		}
 	}
 	return (0);
 }
@@ -1952,6 +1955,7 @@ ctl_populate_token(struct ctl_scsiio *ctsio)
 	struct ctl_port *port;
 	struct tpc_list *list, *tlist;
 	struct tpc_token *token;
+	uint64_t lba;
 	int len, lendata, lendesc;
 
 	CTL_DEBUG_PRINT(("ctl_populate_token\n"));
@@ -2032,8 +2036,8 @@ ctl_populate_token(struct ctl_scsiio *ctsio)
 	if (tpc_check_ranges_l(&data->desc[0],
 	    scsi_2btoul(data->range_descriptor_length) /
 	    sizeof(struct scsi_range_desc),
-	    lun->be_lun->maxlba) != 0) {
-		ctl_set_lba_out_of_range(ctsio);
+	    lun->be_lun->maxlba, &lba) != 0) {
+		ctl_set_lba_out_of_range(ctsio, lba);
 		goto done;
 	}
 	if (tpc_check_ranges_x(&data->desc[0],
@@ -2118,6 +2122,7 @@ ctl_write_using_token(struct ctl_scsiio *ctsio)
 	struct ctl_lun *lun;
 	struct tpc_list *list, *tlist;
 	struct tpc_token *token;
+	uint64_t lba;
 	int len, lendata, lendesc;
 
 	CTL_DEBUG_PRINT(("ctl_write_using_token\n"));
@@ -2180,8 +2185,8 @@ ctl_write_using_token(struct ctl_scsiio *ctsio)
 	if (tpc_check_ranges_l(&data->desc[0],
 	    scsi_2btoul(data->range_descriptor_length) /
 	    sizeof(struct scsi_range_desc),
-	    lun->be_lun->maxlba) != 0) {
-		ctl_set_lba_out_of_range(ctsio);
+	    lun->be_lun->maxlba, &lba) != 0) {
+		ctl_set_lba_out_of_range(ctsio, lba);
 		goto done;
 	}
 	if (tpc_check_ranges_x(&data->desc[0],
