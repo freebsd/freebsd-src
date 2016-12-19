@@ -314,7 +314,7 @@ struct bhnd_nvram_vardefn {
 	bhnd_nvram_type			 type;	/**< variable type */
 	uint8_t				 nelem;	/**< element count, or 1 if not
 						     an array-typed variable */
-	const bhnd_nvram_val_fmt	*fmt;	/**< value format, or NULL */
+	const bhnd_nvram_val_fmt	*fmt;	/**< value format */
 	uint32_t			 flags;	/**< flags (BHND_NVRAM_VF_*) */
 };
 
@@ -327,19 +327,20 @@ extern const size_t bhnd_nvram_num_vardefns;
 /**
  * SPROM layout descriptor.
  */
-struct bhnd_sprom_layout {
+typedef struct bhnd_sprom_layout {
 	size_t		 size;		/**< SPROM image size, in bytes */
 	uint8_t		 rev;		/**< SPROM revision */
 	uint8_t		 flags;		/**< layout flags (SPROM_LAYOUT_*) */
 	size_t		 srev_offset;	/**< offset to SROM revision */
 	size_t		 magic_offset;	/**< offset to magic value */
 	uint16_t	 magic_value;	/**< expected magic value */
+	size_t		 crc_offset;	/**< offset to crc8 value */
 	const uint8_t	*bindings;	/**< SPROM binding opcode table */
 	size_t		 bindings_size;	/**< SPROM binding opcode table size */
 	uint16_t	 num_vars;	/**< total number of variables defined
 					     for this layout by the binding
 					     table */
-};
+} bhnd_sprom_layout;
 
 /*
  * SPROM layout descriptions generated from nvram_map.

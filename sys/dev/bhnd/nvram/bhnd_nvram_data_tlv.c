@@ -62,7 +62,8 @@ struct bhnd_nvram_tlv {
 	size_t			 count;	/**< variable count */
 };
 
-BHND_NVRAM_DATA_CLASS_DEFN(tlv, "WGT634U", sizeof(struct bhnd_nvram_tlv))
+BHND_NVRAM_DATA_CLASS_DEFN(tlv, "WGT634U", BHND_NVRAM_DATA_CAP_DEVPATHS,
+    sizeof(struct bhnd_nvram_tlv))
 
 /** Minimal TLV_ENV record header */
 struct bhnd_nvram_tlv_env_hdr {
@@ -163,6 +164,123 @@ bhnd_nvram_tlv_probe(struct bhnd_nvram_io *io)
 	return (BHND_NVRAM_DATA_PROBE_DEFAULT);
 }
 
+static int
+bhnd_nvram_tlv_serialize(bhnd_nvram_data_class *cls, bhnd_nvram_plist *props,
+    bhnd_nvram_plist *options, void *outp, size_t *olen)
+{
+	bhnd_nvram_prop	*prop;
+	size_t		 limit, nbytes;
+	int		 error;
+
+	/* Determine output byte limit */
+	if (outp != NULL)
+		limit = *olen;
+	else
+		limit = 0;
+
+	nbytes = 0;
+
+	/* Write all properties */
+	prop = NULL;
+	while ((prop = bhnd_nvram_plist_next(props, prop)) != NULL) {
+		struct bhnd_nvram_tlv_env	 env;
+		const char			*name;
+		uint8_t				*p;
+		size_t				 name_len, value_len;
+		size_t				 rec_size;
+
+		env.hdr.tag = NVRAM_TLV_TYPE_ENV;
+		env.hdr.size = sizeof(env.flags);
+		env.flags = 0x0;
+
+		/* Fetch name value and add to record length */
+		name = bhnd_nvram_prop_name(prop);
+		name_len = strlen(name) + 1 /* '=' */;
+
+		if (UINT8_MAX - env.hdr.size < name_len) {
+			BHND_NV_LOG("%s name exceeds maximum TLV record "
+			    "length\n", name);
+			return (EFTYPE); /* would overflow TLV size */
+		}
+
+		env.hdr.size += name_len;
+
+		/* Add string value to record length */
+		error = bhnd_nvram_prop_encode(prop, NULL, &value_len,
+		    BHND_NVRAM_TYPE_STRING);
+		if (error) {
+			BHND_NV_LOG("error serializing %s to required type "
+			    "%s: %d\n", name,
+			    bhnd_nvram_type_name(BHND_NVRAM_TYPE_STRING),
+			    error);
+			return (error);
+		}
+
+		if (UINT8_MAX - env.hdr.size < value_len) {
+			BHND_NV_LOG("%s value exceeds maximum TLV record "
+			    "length\n", name);
+			return (EFTYPE); /* would overflow TLV size */
+		}
+
+		env.hdr.size += value_len;
+
+		/* Calculate total record size */
+		rec_size = sizeof(env.hdr) + env.hdr.size;
+		if (SIZE_MAX - nbytes < rec_size)
+			return (EFTYPE); /* would overflow size_t */
+
+		/* Calculate our output pointer */
+		if (nbytes > limit || limit - nbytes < rec_size) {
+			/* buffer is full; cannot write */
+			p = NULL;
+		} else {
+			p = (uint8_t *)outp + nbytes;
+		}
+
+		/* Write to output */
+		if (p != NULL) {
+			memcpy(p, &env, sizeof(env));
+			p += sizeof(env);
+	
+			memcpy(p, name, name_len - 1);
+			p[name_len - 1] = '=';
+			p += name_len;
+
+			error = bhnd_nvram_prop_encode(prop, p, &value_len,
+			    BHND_NVRAM_TYPE_STRING);
+			if (error) {
+				BHND_NV_LOG("error serializing %s to required "
+				    "type %s: %d\n", name,
+				    bhnd_nvram_type_name(
+					BHND_NVRAM_TYPE_STRING),
+				    error);
+				return (error);
+			}
+		}
+
+		nbytes += rec_size;
+	}
+
+	/* Write terminating END record */
+	if (limit > nbytes)
+		*((uint8_t *)outp + nbytes) = NVRAM_TLV_TYPE_END;
+
+	if (nbytes == SIZE_MAX)
+		return (EFTYPE); /* would overflow size_t */
+	nbytes++;
+
+	/* Provide required length */
+	*olen = nbytes;
+	if (limit < *olen) {
+		if (outp == NULL)
+			return (0);
+
+		return (ENOMEM);
+	}
+
+	return (0);
+}
+
 /**
  * Initialize @p tlv with the provided NVRAM TLV data mapped by @p src.
  * 
@@ -256,89 +374,11 @@ bhnd_nvram_tlv_count(struct bhnd_nvram_data *nv)
 	return (tlv->count);
 }
 
+
 static bhnd_nvram_plist *
 bhnd_nvram_tlv_options(struct bhnd_nvram_data *nv)
 {
 	return (NULL);
-}
-
-static int
-bhnd_nvram_tlv_size(struct bhnd_nvram_data *nv, size_t *size)
-{
-	/* Let the serialization implementation calculate the length */
-	return (bhnd_nvram_data_serialize(nv, NULL, size));
-}
-
-static int
-bhnd_nvram_tlv_serialize(struct bhnd_nvram_data *nv, void *buf, size_t *len)
-{
-	struct bhnd_nvram_tlv	*tlv;
-	size_t			 limit;
-	size_t			 next;
-	uint8_t			 tag;
-	int			 error;
-
-	tlv = (struct bhnd_nvram_tlv *)nv;
-
-	/* Save the buffer capacity */
-	if (buf == NULL)
-		limit = 0;
-	else
-		limit = *len;
-
-	/* Write all of our TLV records to the output buffer (or just
-	 * calculate the buffer size that would be required) */
-	next = 0;
-	do {
-		struct bhnd_nvram_tlv_env	*env;
-		uint8_t				*p;
-		size_t				 name_len;
-		size_t				 rec_offset, rec_size;
-
-		/* Parse the TLV record */
-		error = bhnd_nvram_tlv_next_record(tlv->data, &next,
-		    &rec_offset, &tag);
-		if (error)
-			return (error);
-
-		rec_size = next - rec_offset;
-
-		/* Calculate our output pointer */
-		if (rec_offset > limit || limit - rec_offset < rec_size) {
-			/* buffer is full; cannot write */
-			p = NULL;
-		} else {
-			p = (uint8_t *)buf + rec_offset;
-		}
-
-		/* If not writing, nothing further to do for this record */
-		if (p == NULL)
-			continue;
-
-		/* Copy to the output buffer */
-		error = bhnd_nvram_io_read(tlv->data, rec_offset, p, rec_size);
-		if (error)
-			return (error);
-
-		/* All further processing is TLV_ENV-specific */
-		if (tag != NVRAM_TLV_TYPE_ENV)
-			continue;
-
-		/* Restore the original key=value format, rewriting '\0'
-		 * delimiter back to '=' */
-		env = (struct bhnd_nvram_tlv_env *)p;
-		name_len = strlen(env->envp);	/* skip variable name */
-		*(env->envp + name_len) = '=';	/* set '=' */
-	} while (tag != NVRAM_TLV_TYPE_END);
-
-	/* The 'next' offset should now point at EOF, and represents
-	 * the total length of the serialized output. */
-	*len = next;
-
-	if (buf != NULL && limit < *len)
-		return (ENOMEM);
-
-	return (0);
 }
 
 static uint32_t

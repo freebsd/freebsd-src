@@ -998,6 +998,90 @@ failed:
 }
 
 /**
+ * Encode all NVRAM properties at @p path, using the @p store's current NVRAM
+ * data format.
+ * 
+ * @param	sc	The NVRAM store instance.
+ * @param	path	The NVRAM path to export, or NULL to select the root
+ *			path.
+ * @param[out]	data	On success, will be set to the newly serialized value.
+ *			The caller is responsible for freeing this value
+ *			via bhnd_nvram_io_free().
+ * @param	flags	Export flags. See BHND_NVSTORE_EXPORT_*.
+ *
+ * @retval 0		success
+ * @retval EINVAL	If @p flags is invalid.
+ * @retval ENOENT	The requested path was not found.
+ * @retval ENOMEM	If allocation fails.
+ * @retval non-zero	If serialization of  @p path otherwise fails, a regular
+ *			unix error code will be returned.
+ */
+int
+bhnd_nvram_store_serialize(struct bhnd_nvram_store *sc, const char *path,
+   struct bhnd_nvram_io **data,  uint32_t flags)
+{
+	bhnd_nvram_plist	*props;
+	bhnd_nvram_plist	*options;
+	bhnd_nvram_data_class	*cls;
+	struct bhnd_nvram_io	*io;
+	void			*outp;
+	size_t			 olen;
+	int			 error;
+
+	props = NULL;
+	options = NULL;
+	io = NULL;
+
+	/* Perform requested export */
+	error = bhnd_nvram_store_export(sc, path, &cls, &props, &options,
+	    flags);
+	if (error)
+		return (error);
+
+	/* Determine serialized size */
+	error = bhnd_nvram_data_serialize(cls, props, options, NULL, &olen);
+	if (error)
+		goto failed;
+
+	/* Allocate output buffer */
+	if ((io = bhnd_nvram_iobuf_empty(olen, olen)) == NULL) {
+		error = ENOMEM;
+		goto failed;
+	}
+
+	/* Fetch write pointer */
+	if ((error = bhnd_nvram_io_write_ptr(io, 0, &outp, olen, NULL)))
+		goto failed;
+
+	/* Perform serialization */
+	error = bhnd_nvram_data_serialize(cls, props, options, outp, &olen);
+	if (error)
+		goto failed;
+
+	if ((error = bhnd_nvram_io_setsize(io, olen)))
+		goto failed;
+
+	/* Success */
+	bhnd_nvram_plist_release(props);
+	bhnd_nvram_plist_release(options);
+
+	*data = io;
+	return (0);
+
+failed:
+	if (props != NULL)
+		bhnd_nvram_plist_release(props);
+
+	if (options != NULL)
+		bhnd_nvram_plist_release(options);
+
+	if (io != NULL)
+		bhnd_nvram_io_free(io);
+
+	return (error);
+}
+
+/**
  * Read an NVRAM variable.
  *
  * @param		sc	The NVRAM parser state.
