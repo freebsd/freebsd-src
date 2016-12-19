@@ -71,3 +71,8 @@ CFLAGS+=	-DBOOT_PROMPT_123
 SRCS+=	install.c
 CFLAGS+=-I${.CURDIR}/../../../../lib/libstand
 .endif
+
+CLEANFILES+=	vers.c
+VERSION_FILE?=	${.CURDIR}/version
+vers.c: ${SRCTOP}/sys/boot/common/newvers.sh ${VERSION_FILE}
+	sh ${SRCTOP}/sys/boot/common/newvers.sh ${VERSION_FILE} ${NEWVERSWHAT}
