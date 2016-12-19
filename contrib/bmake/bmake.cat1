@@ -1,4 +1,4 @@
-MAKE(1)                 NetBSD General Commands Manual                 MAKE(1)
+BMAKE(1)                NetBSD General Commands Manual                BMAKE(1)
 
 NNAAMMEE
      bbmmaakkee -- maintain program dependencies
@@ -1285,6 +1285,14 @@ SSPPEECCIIAALL TTAARRGGEETTSS
               target that inherits ..DDEEFFAAUULLTT's commands is set to the target's
               own name.
 
+     ..DDEELLEETTEE__OONN__EERRRROORR
+              If this target is present in the makefile, it globally causes
+              make to delete targets whose commands fail.  (By default, only
+              targets whose commands are interrupted during execution are
+              deleted.  This is the historical behavior.)  This setting can be
+              used to help prevent half-finished or malformed targets from
+              being left around and corrupting future rebuilds.
+
      ..EENNDD     Any command lines attached to this target are executed after
               everything else is done.
 
@@ -1498,4 +1506,4 @@ BBUUGGSS
 
      There is no way of escaping a space character in a filename.
 
-NetBSD 5.1                      August 15, 2016                     NetBSD 5.1
+NetBSD 5.1                      August 26, 2016                     NetBSD 5.1

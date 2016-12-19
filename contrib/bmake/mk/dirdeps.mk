@@ -1,4 +1,4 @@
-# $Id: dirdeps.mk,v 1.73 2016/08/15 19:28:13 sjg Exp $
+# $Id: dirdeps.mk,v 1.84 2016/11/27 02:44:34 sjg Exp $
 
 # Copyright (c) 2010-2013, Juniper Networks, Inc.
 # All rights reserved.
@@ -56,9 +56,12 @@
 #	.MAKE.DEPENDFILE_PREFIX) to refer to these makefiles to
 #	distinguish them from others.
 #	
-#	Each Makefile.depend file sets DEP_RELDIR to be the
-#	the RELDIR (path relative to SRCTOP) for its directory, and
-#	since each Makefile.depend file includes dirdeps.mk, this
+#	Before each Makefile.depend file is read, we set 
+#	DEP_RELDIR to be the the RELDIR (path relative to SRCTOP) for
+#	its directory, and DEP_MACHINE etc according to the .<target_spec>
+#	represented by the suffix of the corresponding target.
+#	
+#	Since each Makefile.depend file includes dirdeps.mk, this
 #	processing is recursive and results in .MAKE.LEVEL 0 learning the
 #	dependencies of the tree wrt the initial directory (_DEP_RELDIR).
 #
@@ -110,6 +113,29 @@
 #		# as we may need it to find Makefile.depend*
 #		TARGET_SPEC = ${TARGET_SPEC_VARS:@v@${$v:U}@:ts,}
 #	
+#	The following variables can influence the initial DIRDEPS
+#	computation with regard to the TARGET_SPECs that will be
+#	built.
+#	Most should also be considered by init.mk
+#	
+#	ONLY_TARGET_SPEC_LIST
+#		Defines a list of TARGET_SPECs for which the current
+#		directory can be built.
+#		If ALL_MACHINES is defined, we build for all the
+#		TARGET_SPECs listed.
+#
+#	ONLY_MACHINE_LIST
+#		As for ONLY_TARGET_SPEC_LIST but only specifies
+#		MACHINEs.
+#
+#	NOT_TARGET_SPEC_LIST
+#		A list of TARGET_SPECs for which the current
+#		directory should not be built.
+#
+#	NOT_MACHINE_LIST
+#		A list of MACHINEs the current directory should not be
+#		built for.
+#
 
 # touch this at your peril
 _DIRDEP_USE_LEVEL?= 0
@@ -171,9 +197,13 @@ DEP_$v ?= ${$v}
 # we compute below are fully qualified wrt DEP_TARGET_SPEC.
 # The makefiles may only partially specify (eg. MACHINE only),
 # so we need to construct a set of modifiers to fill in the gaps.
-# jot 10 should output 1 2 3 .. 10
-JOT ?= jot
-_tspec_x := ${${JOT} ${TARGET_SPEC_VARS:[#]}:L:sh}
+.if ${TARGET_SPEC_VARS:[#]} > 10
+# seriously? better have jot(1) or equivalent to produce suitable sequence
+_tspec_x := ${${JOT:Ujot} ${TARGET_SPEC_VARS:[#]}:L:sh}
+.else
+# we can provide the sequence ourselves
+_tspec_x := ${1 2 3 4 5 6 7 8 9 10:L:[1..${TARGET_SPEC_VARS:[#]}]}
+.endif
 # this handles unqualified entries
 M_dep_qual_fixes = C;(/[^/.,]+)$$;\1.$${DEP_TARGET_SPEC};
 # there needs to be at least one item missing for these to make sense
@@ -287,6 +317,18 @@ _DEP_RELDIR := ${DEP_RELDIR}
 
 .endif
 
+# DIRDEPS_CACHE can be very handy for debugging.
+# Also if repeatedly building the same target, 
+# we can avoid the overhead of re-computing the tree dependencies.
+MK_DIRDEPS_CACHE ?= no
+BUILD_DIRDEPS_CACHE ?= no
+BUILD_DIRDEPS ?= yes
+
+.if ${MK_DIRDEPS_CACHE} == "yes"
+# this is where we will cache all our work
+DIRDEPS_CACHE ?= ${_OBJDIR:tA}/dirdeps.cache${.TARGETS:Nall:O:u:ts-:S,/,_,g:S,^,.,:N.}
+.endif
+
 # pickup customizations
 # as below you can use !target(_DIRDEP_USE) to protect things
 # which should only be done once.
@@ -305,8 +347,10 @@ SKIP_DIR.host += ${SKIP_HOSTDIR}
 
 DEP_SKIP_DIR = ${SKIP_DIR} \
 	${SKIP_DIR.${DEP_TARGET_SPEC}:U} \
-	${SKIP_DIR.${DEP_MACHINE}:U} \
-	${SKIP_DIRDEPS.${DEP_MACHINE}:U}
+	${TARGET_SPEC_VARS:@v@${SKIP_DIR.${DEP_$v}:U}@} \
+	${SKIP_DIRDEPS.${DEP_TARGET_SPEC}:U} \
+	${TARGET_SPEC_VARS:@v@${SKIP_DIRDEPS.${DEP_$v}:U}@}
+
 
 NSkipDir = ${DEP_SKIP_DIR:${M_ListToSkip}}
 
@@ -344,7 +388,7 @@ _DIRDEP_USE:	.USE .MAKE
 .ifdef ALL_MACHINES
 # this is how you limit it to only the machines we have been built for
 # previously.
-.if empty(ONLY_MACHINE_LIST)
+.if empty(ONLY_TARGET_SPEC_LIST) && empty(ONLY_MACHINE_LIST)
 .if !empty(ALL_MACHINE_LIST)
 # ALL_MACHINE_LIST is the list of all legal machines - ignore anything else
 _machine_list != cd ${_CURDIR} && 'ls' -1 ${ALL_MACHINE_LIST:O:u:@m@${.MAKE.DEPENDFILE:T:R}.$m@} 2> /dev/null; echo
@@ -353,7 +397,7 @@ _machine_list != 'ls' -1 ${_CURDIR}/${.MAKE.DEPENDFILE_PREFIX}.* 2> /dev/null; e
 .endif
 _only_machines := ${_machine_list:${NIgnoreFiles:UN*.bak}:E:O:u}
 .else
-_only_machines := ${ONLY_MACHINE_LIST}
+_only_machines := ${ONLY_TARGET_SPEC_LIST:U} ${ONLY_MACHINE_LIST:U}
 .endif
 
 .if empty(_only_machines)
@@ -362,30 +406,35 @@ _only_machines := ${TARGET_MACHINE:U${ALL_MACHINE_LIST:U${DEP_MACHINE}}}
 .endif
 
 .else				# ! ALL_MACHINES
-# if ONLY_MACHINE_LIST is set, we are limited to that
+# if ONLY_TARGET_SPEC_LIST or ONLY_MACHINE_LIST is set, we are limited to that.
+# Note that ONLY_TARGET_SPEC_LIST should be fully qualified.
 # if TARGET_MACHINE is set - it is really the same as ONLY_MACHINE_LIST
 # otherwise DEP_MACHINE is it - so DEP_MACHINE will match.
+_only_machines := ${ONLY_TARGET_SPEC_LIST:U:M${DEP_MACHINE},*}
+.if empty(_only_machines)
 _only_machines := ${ONLY_MACHINE_LIST:U${TARGET_MACHINE:U${DEP_MACHINE}}:M${DEP_MACHINE}}
+.endif
 .endif
 
 .if !empty(NOT_MACHINE_LIST)
 _only_machines := ${_only_machines:${NOT_MACHINE_LIST:${M_ListToSkip}}}
 .endif
+.if !empty(NOT_TARGET_SPEC_LIST)
+# we must first qualify
+_dm := ${DEP_MACHINE}
+_only_machines := ${_only_machines:M*,*} ${_only_machines:N*,*:@DEP_MACHINE@${DEP_TARGET_SPEC}@:S,^,.,:${M_dep_qual_fixes:ts:}:O:u:S,^.,,}
+DEP_MACHINE := ${_dm}
+_only_machines := ${_only_machines:${NOT_TARGET_SPEC_LIST:${M_ListToSkip}}}
+.endif
+# clean up
+_only_machines := ${_only_machines:O:u}
 
 # make sure we have a starting place?
 DIRDEPS ?= ${RELDIR}
 .endif				# target 
 
-# if repeatedly building the same target, 
-# we can avoid the overhead of re-computing the tree dependencies.
-MK_DIRDEPS_CACHE ?= no
-BUILD_DIRDEPS_CACHE ?= no
-BUILD_DIRDEPS ?= yes
-
 .if !defined(NO_DIRDEPS) && !defined(NO_DIRDEPS_BELOW)
 .if ${MK_DIRDEPS_CACHE} == "yes"
-# this is where we will cache all our work
-DIRDEPS_CACHE?= ${_OBJDIR:tA}/dirdeps.cache${.TARGETS:Nall:O:u:ts-:S,/,_,g:S,^,.,:N.}
 
 # just ensure this exists
 build-dirdeps:
@@ -420,6 +469,7 @@ ${DIRDEPS_CACHE}:	.META .NOMETA_CMP
 	} > ${.TARGET}.new
 	+@MAKELEVEL=${.MAKE.LEVEL} DIRDEPS_CACHE=${DIRDEPS_CACHE} \
 	DIRDEPS="${DIRDEPS}" \
+	TARGET_SPEC=${TARGET_SPEC} \
 	MAKEFLAGS= ${.MAKE} -C ${_CURDIR} -f ${BUILD_DIRDEPS_MAKEFILE} \
 	${BUILD_DIRDEPS_TARGETS} BUILD_DIRDEPS_CACHE=yes \
 	.MAKE.DEPENDFILE=.none \
@@ -489,8 +539,10 @@ _machines := ${_machines:O:u}
 _dm := ${DEP_MACHINE}
 # apply the same filtering that we do when qualifying DIRDEPS.
 # M_dep_qual_fixes expects .${MACHINE}* so add (and remove) '.'
-_machines := ${_machines:@DEP_MACHINE@${DEP_TARGET_SPEC}@:S,^,.,:${M_dep_qual_fixes:ts:}:O:u:S,^.,,}
+# Again we expect that any already qualified machines are fully qualified.
+_machines := ${_machines:M*,*} ${_machines:N*,*:@DEP_MACHINE@${DEP_TARGET_SPEC}@:S,^,.,:${M_dep_qual_fixes:ts:}:O:u:S,^.,,}
 DEP_MACHINE := ${_dm}
+_machines := ${_machines:O:u}
 .endif
 
 # reset each time through
@@ -522,7 +574,7 @@ _build_dirs += ${_machines:N${DEP_TARGET_SPEC}:@m@${_CURDIR}.$m@}
 # these we reset each time through as they can depend on DEP_MACHINE
 DEP_DIRDEPS_FILTER = \
 	${DIRDEPS_FILTER.${DEP_TARGET_SPEC}:U} \
-	${DIRDEPS_FILTER.${DEP_MACHINE}:U} \
+	${TARGET_SPEC_VARS:@v@${DIRDEPS_FILTER.${DEP_$v}:U}@} \
 	${DIRDEPS_FILTER:U} 
 .if empty(DEP_DIRDEPS_FILTER)
 # something harmless
@@ -621,6 +673,19 @@ _dirdeps_checked.$d:
 .endif
 # Note: _build_all_dirs is fully qualifed so d:R is always the directory
 .if exists(${d:R})
+# we pass _DEP_TARGET_SPEC to tell the next step what we want
+_DEP_TARGET_SPEC := ${d:E}
+# some makefiles may still look at this
+_DEP_MACHINE := ${d:E:C/,.*//}
+# set these too in case Makefile.depend* uses them
+.if ${TARGET_SPEC_VARS:[#]} > 1
+_dtspec := ${_DEP_TARGET_SPEC:S/,/ /g}
+.for i in ${_tspec_x}
+DEP_${TARGET_SPEC_VARS:[$i]} := ${_dtspec:[$i]}
+.endfor
+.else
+DEP_MACHINE := ${_DEP_MACHINE}
+.endif
 # Warning: there is an assumption here that MACHINE is always 
 # the first entry in TARGET_SPEC_VARS.
 # If TARGET_SPEC and MACHINE are insufficient, you have a problem.
@@ -631,10 +696,6 @@ _qm := ${_m:C;(\.depend)$;\1.${d:E};:${M_dep_qual_fixes:ts:}}
 .if ${_debug_search}
 .info Looking for ${_qm}
 .endif
-# we pass _DEP_TARGET_SPEC to tell the next step what we want
-_DEP_TARGET_SPEC := ${d:E}
-# some makefiles may still look at this
-_DEP_MACHINE := ${d:E:C/,.*//}
 # set this "just in case" 
 # we can skip :tA since we computed the path above
 DEP_RELDIR := ${_m:H:S,${SRCTOP}/,,}
@@ -687,7 +748,7 @@ _src != cd ${.CURDIR} && for m in ${.MAKE.DEPENDFILE_PREFERENCE:T:S,${MACHINE},*
 
 _src?= ${.MAKE.DEPENDFILE}
 
-.MAKE.DEPENDFILE_BOOTSTRAP_SED+= -e 's,${_src:E},${MACHINE},g'
+.MAKE.DEPENDFILE_BOOTSTRAP_SED+= -e 's/${_src:E:C/,.*//}/${MACHINE}/g'
 
 # just create Makefile.depend* for this dir
 bootstrap-this:	.NOTMAIN
@@ -696,7 +757,7 @@ bootstrap-this:	.NOTMAIN
 .if ${_src:T} != ${.MAKE.DEPENDFILE_PREFIX:T}
 	(cd ${.CURDIR} && sed ${.MAKE.DEPENDFILE_BOOTSTRAP_SED} ${_src} > ${_want})
 .else
-	cp ${.CURDIR}/${_src} ${_want}
+	cp ${.CURDIR}/${_src:T} ${_want}
 .endif
 
 # create Makefile.depend* for this dir and its dependencies

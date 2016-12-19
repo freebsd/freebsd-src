@@ -1,4 +1,4 @@
-# $Id: lib.mk,v 1.54 2016/08/02 20:52:17 sjg Exp $
+# $Id: lib.mk,v 1.55 2016/09/23 23:04:51 sjg Exp $
 
 .if !target(__${.PARSEFILE}__)
 __${.PARSEFILE}__:
@@ -9,39 +9,30 @@ __${.PARSEFILE}__:
 NEED_SOLINKS?= yes
 .endif
 
-.if exists(${.CURDIR}/shlib_version)
-SHLIB_MAJOR != . ${.CURDIR}/shlib_version ; echo $$major
-SHLIB_MINOR != . ${.CURDIR}/shlib_version ; echo $$minor
+SHLIB_VERSION_FILE?= ${.CURDIR}/shlib_version
+.if !defined(SHLIB_MAJOR) && exists(${SHLIB_VERSION_FILE})
+SHLIB_MAJOR != . ${SHLIB_VERSION_FILE} ; echo $$major
+SHLIB_MINOR != . ${SHLIB_VERSION_FILE} ; echo $$minor
+SHLIB_TEENY != . ${SHLIB_VERSION_FILE} ; echo $$teeny
 .endif
 
-print-shlib-major:
-.if defined(SHLIB_MAJOR) && ${MK_PIC} != "no"
-	@echo ${SHLIB_MAJOR}
+.for x in major minor teeny
+print-shlib-$x:
+.if defined(SHLIB_${x:tu}) && ${MK_PIC} != "no"
+	@echo ${SHLIB_${x:tu}}
 .else
 	@false
 .endif
-
-print-shlib-minor:
-.if defined(SHLIB_MINOR) && ${MK_PIC} != "no"
-	@echo ${SHLIB_MINOR}
-.else
-	@false
-.endif
-
-print-shlib-teeny:
-.if defined(SHLIB_TEENY) && ${MK_PIC} != "no"
-	@echo ${SHLIB_TEENY}
-.else
-	@false
-.endif
+.endfor
 
 SHLIB_FULLVERSION ?= ${${SHLIB_MAJOR} ${SHLIB_MINOR} ${SHLIB_TEENY}:L:ts.}
 SHLIB_FULLVERSION := ${SHLIB_FULLVERSION}
 
 # add additional suffixes not exported.
 # .po is used for profiling object files.
-# .So is used for PIC object files.
-.SUFFIXES: .out .a .ln .So .po .o .s .S .c .cc .C .m .F .f .r .y .l .cl .p .h
+# ${PICO} is used for PIC object files.
+PICO?= .pico
+.SUFFIXES: .out .a .ln ${PICO} .po .o .s .S .c .cc .C .m .F .f .r .y .l .cl .p .h
 .SUFFIXES: .sh .m4 .m
 
 CFLAGS+=	${COPTS}
@@ -62,12 +53,12 @@ CFLAGS+=	${COPTS}
 #			with ELF, also set shared-lib version for ld.so.
 # SHLIB_LDSTARTFILE:	support .o file, call C++ file-level constructors
 # SHLIB_LDENDFILE:	support .o file, call C++ file-level destructors
-# FPICFLAGS:		flags for ${FC} to compile .[fF] files to .So objects.
+# FPICFLAGS:		flags for ${FC} to compile .[fF] files to ${PICO} objects.
 # CPPICFLAGS:		flags for ${CPP} to preprocess .[sS] files for ${AS}
-# CPICFLAGS:		flags for ${CC} to compile .[cC] files to .So objects.
+# CPICFLAGS:		flags for ${CC} to compile .[cC] files to ${PICO} objects.
 # CAPICFLAGS		flags for {$CC} to compiling .[Ss] files
 #		 	(usually just ${CPPPICFLAGS} ${CPICFLAGS})
-# APICFLAGS:		flags for ${AS} to assemble .[sS] to .So objects.
+# APICFLAGS:		flags for ${AS} to assemble .[sS] to ${PICO} objects.
 
 .if ${TARGET_OSNAME} == "NetBSD"
 .if ${MACHINE_ARCH} == "alpha"
@@ -162,14 +153,14 @@ LD_shared=-b
 LD_so=sl
 DLLIB=
 # HPsUX lorder does not grok anything but .o
-LD_sobjs=`${LORDER} ${OBJS} | ${TSORT} | sed 's,\.o,.So,'`
+LD_sobjs=`${LORDER} ${OBJS} | ${TSORT} | sed 's,\.o,${PICO},'`
 LD_pobjs=`${LORDER} ${OBJS} | ${TSORT} | sed 's,\.o,.po,'`
 .elif ${TARGET_OSNAME} == "OSF1"
 LD_shared= -msym -shared -expect_unresolved '*'
 LD_solib= -all lib${LIB}_pic.a
 DLLIB=
 # lorder does not grok anything but .o
-LD_sobjs=`${LORDER} ${OBJS} | ${TSORT} | sed 's,\.o,.So,'`
+LD_sobjs=`${LORDER} ${OBJS} | ${TSORT} | sed 's,\.o,${PICO},'`
 LD_pobjs=`${LORDER} ${OBJS} | ${TSORT} | sed 's,\.o,.po,'`
 AR_cq= -cqs
 .elif ${TARGET_OSNAME} == "FreeBSD"
@@ -250,9 +241,9 @@ AR_cq ?= cq
 DLLIB ?= -ldl
 .endif
 
-# some libs have lots of objects, and scanning all .o, .po and .So meta files
+# some libs have lots of objects, and scanning all .o, .po and ${PICO} meta files
 # is a waste of time, this tells meta.autodep.mk to just pick one 
-# (typically .So)
+# (typically ${PICO})
 # yes, 42 is a random number.
 .if ${MK_DIRDEPS_BUILD} == "yes" && ${SRCS:Uno:[\#]} > 42
 OPTIMIZE_OBJECT_META_FILES ?= yes
@@ -287,7 +278,7 @@ ${CXX_SUFFIXES:%=%.o}:
 ${CXX_SUFFIXES:%=%.po}:
 	${COMPILE.cc} -pg ${.IMPSRC} -o ${.TARGET}
 
-.S.So .s.So:
+.S${PICO} .s${PICO}:
 	${COMPILE.S} ${PICFLAG} ${CC_PIC} ${CFLAGS:M-[ID]*} ${AINC} ${.IMPSRC} -o ${.TARGET}
 .else
 .c.po:
@@ -302,7 +293,7 @@ ${CXX_SUFFIXES:%=%.po}:
 	@${LD} ${LD_X} ${LD_r} ${.TARGET}.o -o ${.TARGET}
 	@rm -f ${.TARGET}.o
 
-.S.So .s.So:
+.S${PICO} .s${PICO}:
 	@echo ${COMPILE.S} ${PICFLAG} ${CC_PIC} ${CFLAGS:M-[ID]*} ${AINC} ${.IMPSRC} -o ${.TARGET}
 	@${COMPILE.S} ${PICFLAG} ${CC_PIC} ${CFLAGS:M-[ID]*} ${AINC} ${.IMPSRC} -o ${.TARGET}.o
 	@${LD} ${LD_x} ${LD_r} ${.TARGET}.o -o ${.TARGET}
@@ -310,23 +301,23 @@ ${CXX_SUFFIXES:%=%.po}:
 .endif
 
 .if (${LD_x} == "")
-.c.So:
+.c${PICO}:
 	${COMPILE.c} ${PICFLAG} ${CC_PIC} ${.IMPSRC} -o ${.TARGET}
 
-${CXX_SUFFIXES:%=%.So}:
+${CXX_SUFFIXES:%=%${PICO}}:
 	${COMPILE.cc} ${PICFLAG} ${CC_PIC} ${.IMPSRC} -o ${.TARGET}
 
 .S.po .s.po:
 	${COMPILE.S} ${PROFFLAGS} ${CFLAGS:M-[ID]*} ${AINC} ${.IMPSRC} -o ${.TARGET}
 .else
 
-.c.So:
+.c${PICO}:
 	@echo ${COMPILE.c} ${PICFLAG} ${CC_PIC} ${.IMPSRC} -o ${.TARGET}
 	@${COMPILE.c} ${PICFLAG} ${CC_PIC} ${.IMPSRC} -o ${.TARGET}.o
 	@${LD} ${LD_x} ${LD_r} ${.TARGET}.o -o ${.TARGET}
 	@rm -f ${.TARGET}.o
 
-${CXX_SUFFIXES:%=%.So}:
+${CXX_SUFFIXES:%=%${PICO}}:
 	@echo ${COMPILE.cc} ${PICFLAG} ${CC_PIC} ${.IMPSRC} -o ${.TARGET}
 	@${COMPILE.cc} ${PICFLAG} ${CC_PIC} ${.IMPSRC} -o ${.TARGET}.o
 	@${LD} ${LD_x} ${LD_r} ${.TARGET}.o -o ${.TARGET}
@@ -396,7 +387,7 @@ prebuild:
 all: _SUBDIRUSE
 
 .for s in ${SRCS:N*.h:M*/*}
-${.o .So .po .lo:L:@o@${s:T:R}$o@}: $s
+${.o ${PICO} .po .lo:L:@o@${s:T:R}$o@}: $s
 .endfor
 
 OBJS+=	${SRCS:T:N*.h:R:S/$/.o/g}
@@ -441,7 +432,7 @@ lib${LIB}_p.a:: ${POBJS}
 	@${AR} ${AR_cq} ${.TARGET} ${LD_pobjs}
 	${RANLIB} ${.TARGET}
 
-SOBJS+=	${OBJS:.o=.So}
+SOBJS+=	${OBJS:.o=${PICO}}
 .NOPATH:	${SOBJS}
 lib${LIB}_pic.a:: ${SOBJS}
 	@echo building shared object ${LIB} library
@@ -502,7 +493,7 @@ cleandir: _SUBDIRUSE clean
 .if defined(SRCS) && (!defined(MKDEP) || ${MKDEP} != autodep)
 afterdepend: .depend
 	@(TMP=/tmp/_depend$$$$; \
-	    sed -e 's/^\([^\.]*\).o[ ]*:/\1.o \1.po \1.So \1.ln:/' \
+	    sed -e 's/^\([^\.]*\).o[ ]*:/\1.o \1.po \1${PICO} \1.ln:/' \
 	      < .depend > $$TMP; \
 	    mv $$TMP .depend)
 .endif

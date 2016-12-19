@@ -38,7 +38,9 @@ stage-install.sh
 subdir.mk
 sys.mk
 sys.clean-env.mk
+sys.debug.mk
 sys.dependfile.mk
+sys.vars.mk
 sys/AIX.mk
 sys/Darwin.mk
 sys/Generic.mk

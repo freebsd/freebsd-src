@@ -1,4 +1,4 @@
-# $Id: meta.stage.mk,v 1.45 2016/05/26 03:59:09 sjg Exp $
+# $Id: meta.stage.mk,v 1.47 2016/12/07 23:07:49 sjg Exp $
 #
 #	@(#) Copyright (c) 2011, Simon J. Gerraty
 #
@@ -58,7 +58,7 @@ GENDIRDEPS_FILTER += Nnot-empty-is-important \
 
 LN_CP_SCRIPT = LnCp() { \
   rm -f $$2 2> /dev/null; \
-  { [ -z "$$mode" ] && ln $$1 $$2 2> /dev/null; } || \
+  { [ -z "$$mode" ] && ${LN:Uln} $$1 $$2 2> /dev/null; } || \
   cp -p $$1 $$2; }
 
 # a staging conflict should cause an error
@@ -219,17 +219,27 @@ stage_symlinks:	.dirdep
 .if !empty(STAGE_AS_SETS)
 CLEANFILES += ${STAGE_AS_SETS:@s@stage*$s@}
 
-STAGE_TARGETS += stage_as
+STAGE_TARGETS += stage_as stage_as_and_symlink
 
 # sometimes things need to be renamed as they are staged
 # each ${file} will be staged as ${STAGE_AS_${file:T}}
 # one could achieve the same with SYMLINKS
+# stage_as_and_symlink makes the original name a symlink to the new name
+# it is the same as using stage_as and stage_symlinks but ensures
+# both operations happen together
 .for s in ${STAGE_AS_SETS:O:u}
 STAGE_AS.$s ?= ${.ALLSRC:N.dirdep:Nstage_*}
+STAGE_AS_AND_SYMLINK.$s ?= ${.ALLSRC:N.dirdep:Nstage_*}
 
 stage_as:	stage_as.$s
 stage_as.$s:	.dirdep
 	@${STAGE_AS_SCRIPT}; StageAs ${FLAGS.$@} ${STAGE_FILES_DIR.$s:U${STAGE_DIR.$s}:${STAGE_DIR_FILTER}} ${STAGE_AS.$s:@f@$f ${STAGE_AS_${f:tA}:U${STAGE_AS_${f:T}:U${f:T}}}@}
+	@touch $@
+
+stage_as_and_symlink:	stage_as_and_symlink.$s
+stage_as_and_symlink.$s:	.dirdep
+	@${STAGE_AS_SCRIPT}; StageAs ${FLAGS.$@} ${STAGE_FILES_DIR.$s:U${STAGE_DIR.$s}:${STAGE_DIR_FILTER}} ${STAGE_AS_AND_SYMLINK.$s:@f@$f ${STAGE_AS_${f:tA}:U${STAGE_AS_${f:T}:U${f:T}}}@}
+	@${STAGE_LINKS_SCRIPT}; StageLinks -s ${STAGE_FILES_DIR.$s:U${STAGE_DIR.$s}:${STAGE_DIR_FILTER}} ${STAGE_AS_AND_SYMLINK.$s:@f@${STAGE_AS_${f:tA}:U${STAGE_AS_${f:T}:U${f:T}}} $f@}
 	@touch $@
 
 .endfor
