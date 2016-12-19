@@ -618,16 +618,14 @@ EcCheckStatus(struct acpi_ec_softc *sc, const char *msg, EC_EVENT event)
 }
 
 static void
-EcGpeQueryHandler(void *Context)
+EcGpeQueryHandlerSub(struct acpi_ec_softc *sc)
 {
-    struct acpi_ec_softc	*sc = (struct acpi_ec_softc *)Context;
     UINT8			Data;
     ACPI_STATUS			Status;
     int				retry;
     char			qxx[5];
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
-    KASSERT(Context != NULL, ("EcGpeQueryHandler called with NULL"));
 
     /* Serialize user access with EcSpaceHandler(). */
     Status = EcLock(sc);
@@ -652,7 +650,6 @@ EcGpeQueryHandler(void *Context)
 	    EC_EVENT_INPUT_BUFFER_EMPTY)))
 	    break;
     }
-    sc->ec_sci_pend = FALSE;
     if (ACPI_FAILURE(Status)) {
 	EcUnlock(sc);
 	device_printf(sc->ec_dev, "GPE query failed: %s\n",
@@ -683,6 +680,29 @@ EcGpeQueryHandler(void *Context)
     }
 }
 
+static void
+EcGpeQueryHandler(void *Context)
+{
+    struct acpi_ec_softc *sc = (struct acpi_ec_softc *)Context;
+    int pending;
+
+    KASSERT(Context != NULL, ("EcGpeQueryHandler called with NULL"));
+
+    do {
+	/* Read the current pending count */
+	pending = atomic_load_acq_int(&sc->ec_sci_pend);
+
+	/* Call GPE handler function */
+	EcGpeQueryHandlerSub(sc);
+
+	/*
+	 * Try to reset the pending count to zero. If this fails we
+	 * know another GPE event has occurred while handling the
+	 * current GPE event and need to loop.
+	 */
+    } while (!atomic_cmpset_int(&sc->ec_sci_pend, pending, 0));
+}
+
 /*
  * The GPE handler is called when IBE/OBF or SCI events occur.  We are
  * called from an unknown lock context.
@@ -711,13 +731,14 @@ EcGpeHandler(ACPI_HANDLE GpeDevice, UINT32 GpeNumber, void *Context)
      * It will run the query and _Qxx method later, under the lock.
      */
     EcStatus = EC_GET_CSR(sc);
-    if ((EcStatus & EC_EVENT_SCI) && !sc->ec_sci_pend) {
+    if ((EcStatus & EC_EVENT_SCI) &&
+	atomic_fetchadd_int(&sc->ec_sci_pend, 1) == 0) {
 	CTR0(KTR_ACPI, "ec gpe queueing query handler");
 	Status = AcpiOsExecute(OSL_GPE_HANDLER, EcGpeQueryHandler, Context);
-	if (ACPI_SUCCESS(Status))
-	    sc->ec_sci_pend = TRUE;
-	else
+	if (ACPI_FAILURE(Status)) {
 	    printf("EcGpeHandler: queuing GPE query handler failed\n");
+	    atomic_store_rel_int(&sc->ec_sci_pend, 0);
+	}
     }
     return (ACPI_REENABLE_GPE);
 }
@@ -764,7 +785,8 @@ EcSpaceHandler(UINT32 Function, ACPI_PHYSICAL_ADDRESS Address, UINT32 Width,
      * we call it directly here since our thread taskq is not active yet.
      */
     if (cold || rebooting || sc->ec_suspending) {
-	if ((EC_GET_CSR(sc) & EC_EVENT_SCI)) {
+	if ((EC_GET_CSR(sc) & EC_EVENT_SCI) &&
+	    atomic_fetchadd_int(&sc->ec_sci_pend, 1) == 0) {
 	    CTR0(KTR_ACPI, "ec running gpe handler directly");
 	    EcGpeQueryHandler(sc);
 	}
