@@ -35,11 +35,26 @@
 tempfile=$(mktemp tmp.XXXXXX) || exit
 trap "rm -f $tempfile" EXIT INT TERM
 
+include_metadata=true
+while getopts r opt; do
+	case "$opt" in
+	r)
+		include_metadata=
+		;;
+	esac
+done
+shift $((OPTIND - 1))
+
 LC_ALL=C; export LC_ALL
 u=${USER-root} h=${HOSTNAME-`hostname`} t=`date`
 #r=`head -n 6 $1 | tail -n 1 | awk -F: ' { print $1 } '`
 r=`awk -F: ' /^[0-9]\.[0-9]+:/ { print $1; exit }' $1`
 
-echo "char bootprog_info[] = \"FreeBSD/${3} ${2}, Revision ${r}\\n(${t} ${u}@${h})\\n\";" > $tempfile
+bootprog_info="FreeBSD/${3} ${2}, Revision ${r}\\n"
+if [ -n "${include_metadata}" ]; then
+	bootprog_info="$bootprog_info(${t} ${u}@${h})\\n"
+fi
+
+echo "char bootprog_info[] = \"$bootprog_info\";" > $tempfile
 echo "unsigned bootprog_rev = ${r%%.*}${r##*.};" >> $tempfile
 mv $tempfile vers.c
