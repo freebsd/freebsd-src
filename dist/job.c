@@ -1,4 +1,4 @@
-/*	$NetBSD: job.c,v 1.187 2016/05/12 20:28:34 sjg Exp $	*/
+/*	$NetBSD: job.c,v 1.188 2016/08/26 23:28:39 dholland Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -70,14 +70,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: job.c,v 1.187 2016/05/12 20:28:34 sjg Exp $";
+static char rcsid[] = "$NetBSD: job.c,v 1.188 2016/08/26 23:28:39 dholland Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)job.c	8.2 (Berkeley) 3/19/94";
 #else
-__RCSID("$NetBSD: job.c,v 1.187 2016/05/12 20:28:34 sjg Exp $");
+__RCSID("$NetBSD: job.c,v 1.188 2016/08/26 23:28:39 dholland Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -385,6 +385,21 @@ job_table_dump(const char *where)
 	fprintf(debug_file, "job %d, status %d, flags %d, pid %d\n",
 	    (int)(job - job_table), job->job_state, job->flags, job->pid);
     }
+}
+
+/*
+ * Delete the target of a failed, interrupted, or otherwise
+ * unsuccessful job unless inhibited by .PRECIOUS.
+ */
+static void
+JobDeleteTarget(GNode *gn)
+{
+	if ((gn->type & (OP_JOIN|OP_PHONY)) == 0 && !Targ_Precious(gn)) {
+	    char *file = (gn->path == NULL ? gn->name : gn->path);
+	    if (!noExecute && eunlink(file) != -1) {
+		Error("*** %s removed", file);
+	    }
+	}
 }
 
 /*
@@ -1033,6 +1048,9 @@ JobFinish (Job *job, WAIT_T status)
 		if (job->flags & JOB_IGNERR) {
 		    WAIT_STATUS(status) = 0;
 		} else {
+		    if (deleteOnError) {
+			JobDeleteTarget(job->node);
+		    }
 		    PrintOnError(job->node, NULL);
 		}
 	    } else if (DEBUG(JOB)) {
@@ -1050,6 +1068,9 @@ JobFinish (Job *job, WAIT_T status)
 	    }
 	    (void)printf("*** [%s] Signal %d\n",
 			job->node->name, WTERMSIG(status));
+	    if (deleteOnError) {
+		JobDeleteTarget(job->node);
+	    }
 	}
 	(void)fflush(stdout);
     }
@@ -2578,12 +2599,7 @@ JobInterrupt(int runINTERRUPT, int signo)
 
 	gn = job->node;
 
-	if ((gn->type & (OP_JOIN|OP_PHONY)) == 0 && !Targ_Precious(gn)) {
-	    char *file = (gn->path == NULL ? gn->name : gn->path);
-	    if (!noExecute && eunlink(file) != -1) {
-		Error("*** %s removed", file);
-	    }
-	}
+	JobDeleteTarget(gn);
 	if (job->pid) {
 	    if (DEBUG(JOB)) {
 		(void)fprintf(debug_file,

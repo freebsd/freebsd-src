@@ -37,7 +37,7 @@ We only pay attention to a subset of the information in the
 
 """
 RCSid:
-	$Id: meta2deps.py,v 1.19 2016/04/02 20:45:40 sjg Exp $
+	$Id: meta2deps.py,v 1.22 2016/12/12 19:07:42 sjg Exp $
 
 	Copyright (c) 2011-2013, Juniper Networks, Inc.
 	All rights reserved.
@@ -113,7 +113,7 @@ def abspath(path, cwd, last_dir=None, debug=0, debug_out=sys.stderr):
     if rpath:
         path = rpath
     if (path.find('/') < 0 or
-	path.find('./') > 0 or
+        path.find('./') > 0 or
         path.endswith('/..') or
         os.path.islink(path)):
         return os.path.realpath(path)
@@ -153,38 +153,38 @@ class MetaFile:
         """if name is set we will parse it now.
         conf can have the follwing keys:
 
-        SRCTOPS	list of tops of the src tree(s).
+        SRCTOPS list of tops of the src tree(s).
 
-        CURDIR	the src directory 'bmake' was run from.
+        CURDIR  the src directory 'bmake' was run from.
 
-        RELDIR	the relative path from SRCTOP to CURDIR
+        RELDIR  the relative path from SRCTOP to CURDIR
 
-        MACHINE	the machine we built for.
-        	set to 'none' if we are not cross-building.
-		More specifically if machine cannot be deduced from objdirs.
+        MACHINE the machine we built for.
+                set to 'none' if we are not cross-building.
+                More specifically if machine cannot be deduced from objdirs.
 
         TARGET_SPEC
-        	Sometimes MACHINE isn't enough.
+                Sometimes MACHINE isn't enough.
                 
         HOST_TARGET
-		when we build for the pseudo machine 'host'
-		the object tree uses HOST_TARGET rather than MACHINE.
+                when we build for the pseudo machine 'host'
+                the object tree uses HOST_TARGET rather than MACHINE.
 
         OBJROOTS a list of the common prefix for all obj dirs it might
-		end in '/' or '-'.
+                end in '/' or '-'.
 
-        DPDEPS	names an optional file to which per file dependencies
-		will be appended.
-		For example if 'some/path/foo.h' is read from SRCTOP
-		then 'DPDEPS_some/path/foo.h +=' "RELDIR" is output.
-		This can allow 'bmake' to learn all the dirs within
- 		the tree that depend on 'foo.h'
+        DPDEPS  names an optional file to which per file dependencies
+                will be appended.
+                For example if 'some/path/foo.h' is read from SRCTOP
+                then 'DPDEPS_some/path/foo.h +=' "RELDIR" is output.
+                This can allow 'bmake' to learn all the dirs within
+                the tree that depend on 'foo.h'
 
-	EXCLUDES
-		A list of paths to ignore.
-		ccache(1) can otherwise be trouble.
+        EXCLUDES
+                A list of paths to ignore.
+                ccache(1) can otherwise be trouble.
 
-        debug	desired debug level
+        debug   desired debug level
 
         debug_out open file to send debug output to (sys.stderr)
 
@@ -228,8 +228,9 @@ class MetaFile:
                     if objroot.endswith(e):
                         # this is not what we want - fix it
                         objroot = objroot[0:-len(e)]
-                        if e.endswith('/'):
-                            objroot += '/'
+
+                if objroot[-1] != '/':
+                    objroot += '/'
                 if not objroot in self.objroots:
                     self.objroots.append(objroot)
                     _objroot = os.path.realpath(objroot)
@@ -292,6 +293,9 @@ class MetaFile:
             return None
         for f in sort_unique(self.file_deps):
             print('DPDEPS_%s += %s' % (f, self.reldir), file=out)
+        # these entries provide for reverse DIRDEPS lookup
+        for f in self.obj_deps:
+            print('DEPDIRS_%s += %s' % (f, self.reldir), file=out)
 
     def seenit(self, dir):
         """rememer that we have seen dir."""
@@ -359,28 +363,28 @@ class MetaFile:
     def parse(self, name=None, file=None):
         """A meta file looks like:
         
-	# Meta data file "path"
-	CMD "command-line"
-	CWD "cwd"
-	TARGET "target"
-	-- command output --
-	-- filemon acquired metadata --
-	# buildmon version 3
-	V 3
-	C "pid" "cwd"
-	E "pid" "path"
-	F "pid" "child"
-	R "pid" "path"
-	W "pid" "path"
-	X "pid" "status"
-	D "pid" "path"
-	L "pid" "src" "target"
-	M "pid" "old" "new"
-	S "pid" "path"
-	# Bye bye
+        # Meta data file "path"
+        CMD "command-line"
+        CWD "cwd"
+        TARGET "target"
+        -- command output --
+        -- filemon acquired metadata --
+        # buildmon version 3
+        V 3
+        C "pid" "cwd"
+        E "pid" "path"
+        F "pid" "child"
+        R "pid" "path"
+        W "pid" "path"
+        X "pid" "status"
+        D "pid" "path"
+        L "pid" "src" "target"
+        M "pid" "old" "new"
+        S "pid" "path"
+        # Bye bye
 
-	We go to some effort to avoid processing a dependency more than once.
-	Of the above record types only C,E,F,L,R,V and W are of interest.
+        We go to some effort to avoid processing a dependency more than once.
+        Of the above record types only C,E,F,L,R,V and W are of interest.
         """
 
         version = 0                     # unknown
@@ -430,7 +434,6 @@ class MetaFile:
             pid = int(w[1])
             if pid != last_pid:
                 if last_pid:
-                    pid_cwd[last_pid] = cwd
                     pid_last_dir[last_pid] = self.last_dir
                 cwd = getv(pid_cwd, pid, self.cwd)
                 self.last_dir = getv(pid_last_dir, pid, self.cwd)
@@ -447,7 +450,8 @@ class MetaFile:
                 cwd = abspath(w[2], cwd, None, self.debug, self.debug_out)
                 if cwd.endswith('/.'):
                     cwd = cwd[0:-2]
-                self.last_dir = cwd
+                self.last_dir = pid_last_dir[pid] = cwd
+                pid_cwd[pid] = cwd
                 if self.debug > 1:
                     print("cwd=", cwd, file=self.debug_out)
                 continue
@@ -544,6 +548,9 @@ class MetaFile:
                 ddep = self.find_obj(objroot, dir, path, w[2])
                 if ddep:
                     self.add(self.obj_deps, ddep, 'obj')
+                    if self.dpdeps and objroot.endswith('/stage/'):
+                        sp = '/'.join(path.replace(objroot,'').split('/')[1:])
+                        self.add(self.file_deps, sp, 'file')
             else:
                 # don't waste time looking again
                 self.seenit(w[2])
