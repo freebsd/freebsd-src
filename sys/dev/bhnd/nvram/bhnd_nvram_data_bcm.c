@@ -618,7 +618,7 @@ bhnd_nvram_bcm_next(struct bhnd_nvram_data *nv, void **cookiep)
 		return (NULL);
 	}
 
-	*cookiep = (void *)(uintptr_t)envp;
+	*cookiep = __DECONST(void *, envp);
 	return (envp);
 }
 
@@ -629,10 +629,50 @@ bhnd_nvram_bcm_find(struct bhnd_nvram_data *nv, const char *name)
 }
 
 static int
+bhnd_nvram_bcm_getvar_order(struct bhnd_nvram_data *nv, void *cookiep1,
+    void *cookiep2)
+{
+	struct bhnd_nvram_bcm		*bcm;
+	struct bhnd_nvram_bcm_hvar	*hvar1, *hvar2;
+
+	bcm = (struct bhnd_nvram_bcm *)nv;
+
+	hvar1 = bhnd_nvram_bcm_to_hdrvar(bcm, cookiep1);
+	hvar2 = bhnd_nvram_bcm_to_hdrvar(bcm, cookiep2);
+
+	/* Header variables are always ordered below any variables defined
+	 * in the BCM data */
+	if (hvar1 != NULL && hvar2 == NULL) {
+		return (1);	/* hvar follows non-hvar */
+	} else if (hvar1 == NULL && hvar2 != NULL) {
+		return (-1);	/* non-hvar precedes hvar */
+	}
+
+	/* Otherwise, both cookies are either hvars or non-hvars. We can
+	 * safely fall back on pointer order, which will provide a correct
+	 * ordering matching the behavior of bhnd_nvram_data_next() for
+	 * both cases */
+	if (cookiep1 < cookiep2)
+		return (-1);
+
+	if (cookiep1 > cookiep2)
+		return (1);
+
+	return (0);
+}
+
+static int
 bhnd_nvram_bcm_getvar(struct bhnd_nvram_data *nv, void *cookiep, void *buf,
     size_t *len, bhnd_nvram_type type)
 {
 	return (bhnd_nvram_data_generic_rp_getvar(nv, cookiep, buf, len, type));
+}
+
+static int
+bhnd_nvram_bcm_copy_val(struct bhnd_nvram_data *nv, void *cookiep,
+    bhnd_nvram_val **value)
+{
+	return (bhnd_nvram_data_generic_rp_copy_val(nv, cookiep, value));
 }
 
 static const void *
@@ -681,6 +721,35 @@ bhnd_nvram_bcm_getvar_name(struct bhnd_nvram_data *nv, void *cookiep)
 
 	/* Cookie points to key\0value\0 */
 	return (cookiep);
+}
+
+static int
+bhnd_nvram_bcm_filter_setvar(struct bhnd_nvram_data *nv, const char *name,
+    bhnd_nvram_val *value, bhnd_nvram_val **result)
+{
+	bhnd_nvram_val	*str;
+	int		 error;
+
+	/* Name (trimmed of any path prefix) must be valid */
+	if (!bhnd_nvram_validate_name(bhnd_nvram_trim_path_name(name)))
+		return (EINVAL);
+
+	/* Value must be bcm-formatted string */
+	error = bhnd_nvram_val_convert_new(&str, &bhnd_nvram_val_bcm_string_fmt,
+	    value, BHND_NVRAM_VAL_DYNAMIC);
+	if (error)
+		return (error);
+
+	/* Success. Transfer result ownership to the caller. */
+	*result = str;
+	return (0);
+}
+
+static int
+bhnd_nvram_bcm_filter_unsetvar(struct bhnd_nvram_data *nv, const char *name)
+{
+	/* We permit deletion of any variable */
+	return (0);
 }
 
 /**

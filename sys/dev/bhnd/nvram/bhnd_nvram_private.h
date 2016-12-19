@@ -73,14 +73,43 @@ MALLOC_DECLARE(M_BHND_NVRAM);
 #define	bhnd_nv_isxdigit(c)	isxdigit(c)
 #define	bhnd_nv_toupper(c)	toupper(c)
 
-#define	bhnd_nv_malloc(size)		malloc((size), M_BHND_NVRAM, M_WAITOK)
+#define	bhnd_nv_malloc(size)		malloc((size), M_BHND_NVRAM, M_NOWAIT)
 #define	bhnd_nv_calloc(n, size)		malloc((n) * (size), M_BHND_NVRAM, \
-					    M_WAITOK | M_ZERO)
+					    M_NOWAIT | M_ZERO)
 #define	bhnd_nv_reallocf(buf, size)	reallocf((buf), (size), M_BHND_NVRAM, \
-					    M_WAITOK)
+					    M_NOWAIT)
 #define	bhnd_nv_free(buf)		free((buf), M_BHND_NVRAM)
-#define	bhnd_nv_strdup(str)		strdup(str, M_BHND_NVRAM)
-#define	bhnd_nv_strndup(str, len)	strndup(str, len, M_BHND_NVRAM)
+#define	bhnd_nv_asprintf(buf, fmt, ...)	asprintf((buf), M_BHND_NVRAM,	\
+					    fmt, ## __VA_ARGS__)
+
+/* We need our own strdup() implementation to pass required M_NOWAIT */
+static inline char *
+bhnd_nv_strdup(const char *str)
+{
+	char	*dest;
+	size_t	 len;
+
+	len = strlen(str);
+	dest = malloc(len + 1, M_BHND_NVRAM, M_NOWAIT);
+	memcpy(dest, str, len);
+	dest[len] = '\0';
+
+	return (dest);
+}
+
+/* We need our own strndup() implementation to pass required M_NOWAIT */
+static inline char *
+bhnd_nv_strndup(const char *str, size_t len)
+{
+	char	*dest;
+
+	len = strnlen(str, len);
+	dest = malloc(len + 1, M_BHND_NVRAM, M_NOWAIT);
+	memcpy(dest, str, len);
+	dest[len] = '\0';
+
+	return (dest);
+}
 
 #ifdef INVARIANTS
 #define	BHND_NV_INVARIANTS
@@ -121,12 +150,28 @@ MALLOC_DECLARE(M_BHND_NVRAM);
 #define	bhnd_nv_free(buf)		free((buf))
 #define	bhnd_nv_strdup(str)		strdup(str)
 #define	bhnd_nv_strndup(str, len)	strndup(str, len)
+#define	bhnd_nv_asprintf(buf, fmt, ...)	asprintf((buf), fmt, ## __VA_ARGS__)
 
 #ifndef NDEBUG
 #define	BHND_NV_INVARIANTS
 #endif
 
-#define	BHND_NV_ASSERT(expr, ...)	assert(expr)
+#ifdef BHND_NV_INVARIANTS
+
+#define	BHND_NV_ASSERT(expr, msg)	do {				\
+	if (!(expr)) {							\
+		fprintf(stderr, "Assertion failed: %s, function %s, "	\
+		    "file %s, line %u\n", __STRING(expr), __FUNCTION__,	\
+		    __FILE__, __LINE__);				\
+		BHND_NV_PANIC msg;					\
+	}								\
+} while(0)
+
+#else /* !BHND_NV_INVARIANTS */
+
+#define	BHND_NV_ASSERT(expr, msg)
+
+#endif /* BHND_NV_INVARIANTS */
 
 #define	BHND_NV_VERBOSE			(0)
 #define	BHND_NV_PANIC(fmt, ...)		do {			\
@@ -211,8 +256,9 @@ size_t				 bhnd_nvram_parse_field(const char **inp,
 size_t				 bhnd_nvram_trim_field(const char **inp,
 				     size_t ilen, char delim);
 
-bool				 bhnd_nvram_validate_name(const char *name,
-				     size_t name_len);
+const char			*bhnd_nvram_trim_path_name(const char *name);
+
+bool				 bhnd_nvram_validate_name(const char *name);
 
 /**
  * Calculate CRC-8 over @p buf using the Broadcom SPROM/NVRAM CRC-8

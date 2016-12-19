@@ -44,6 +44,7 @@
 
 #include "bhnd_nvram.h"
 #include "bhnd_nvram_io.h"
+#include "bhnd_nvram_value.h"
 
 /* NVRAM data class */
 typedef struct bhnd_nvram_data_class bhnd_nvram_data_class;
@@ -108,7 +109,6 @@ void			 bhnd_nvram_data_release(struct bhnd_nvram_data *nv);
 bhnd_nvram_data_class	*bhnd_nvram_data_get_class(struct bhnd_nvram_data *nv);
 
 size_t			 bhnd_nvram_data_count(struct bhnd_nvram_data *nv);
-
 int			 bhnd_nvram_data_size(struct bhnd_nvram_data *nv,
 			     size_t *size);
 
@@ -119,9 +119,12 @@ uint32_t		 bhnd_nvram_data_caps(struct bhnd_nvram_data *nv);
 
 const char		*bhnd_nvram_data_next(struct bhnd_nvram_data *nv,
 			     void **cookiep);
-
 void			*bhnd_nvram_data_find(struct bhnd_nvram_data *nv,
 			     const char *name);
+
+int			 bhnd_nvram_data_getvar_order(
+			     struct bhnd_nvram_data *nv, void *cookiep1,
+			     void *cookiep2);
 
 int			 bhnd_nvram_data_getvar(struct bhnd_nvram_data *nv,
 			     void *cookiep, void *buf, size_t *len,
@@ -132,5 +135,14 @@ const void		*bhnd_nvram_data_getvar_ptr(struct bhnd_nvram_data *nv,
 
 const char		*bhnd_nvram_data_getvar_name(struct bhnd_nvram_data *nv,
 			     void *cookiep);
+
+int			 bhnd_nvram_data_copy_val(struct bhnd_nvram_data *nv,
+			     void *cookiep, bhnd_nvram_val **val);
+
+int			 bhnd_nvram_data_filter_setvar(
+			     struct bhnd_nvram_data *nv, const char *name,
+			     bhnd_nvram_val *value, bhnd_nvram_val **result);
+int			 bhnd_nvram_data_filter_unsetvar(
+			     struct bhnd_nvram_data *nv, const char *name);
 
 #endif /* _BHND_NVRAM_BHND_NVRAM_DATA_H_ */
