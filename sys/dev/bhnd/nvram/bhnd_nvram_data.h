@@ -91,6 +91,11 @@ enum {
 };
 
 const char		*bhnd_nvram_data_class_desc(bhnd_nvram_data_class *cls);
+uint32_t		 bhnd_nvram_data_class_caps(bhnd_nvram_data_class *cls);
+
+int			 bhnd_nvram_data_serialize(bhnd_nvram_data_class *cls,
+			     bhnd_nvram_plist *props, bhnd_nvram_plist *options,
+			     void *outp, size_t *olen);
 
 int			 bhnd_nvram_data_probe(bhnd_nvram_data_class *cls,
 			     struct bhnd_nvram_io *io);
@@ -110,12 +115,6 @@ void			 bhnd_nvram_data_release(struct bhnd_nvram_data *nv);
 bhnd_nvram_data_class	*bhnd_nvram_data_get_class(struct bhnd_nvram_data *nv);
 
 size_t			 bhnd_nvram_data_count(struct bhnd_nvram_data *nv);
-int			 bhnd_nvram_data_size(struct bhnd_nvram_data *nv,
-			     size_t *size);
-
-int			 bhnd_nvram_data_serialize(struct bhnd_nvram_data *nv,
-			     void *buf, size_t *len);
-
 bhnd_nvram_plist	*bhnd_nvram_data_options(struct bhnd_nvram_data *nv);
 uint32_t		 bhnd_nvram_data_caps(struct bhnd_nvram_data *nv);
 

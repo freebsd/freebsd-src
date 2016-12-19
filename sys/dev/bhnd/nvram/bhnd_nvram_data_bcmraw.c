@@ -72,7 +72,7 @@ struct bhnd_nvram_bcmraw {
 };
 
 BHND_NVRAM_DATA_CLASS_DEFN(bcmraw, "Broadcom (RAW)",
-   sizeof(struct bhnd_nvram_bcmraw))
+    BHND_NVRAM_DATA_CAP_DEVPATHS, sizeof(struct bhnd_nvram_bcmraw))
 
 static int
 bhnd_nvram_bcmraw_probe(struct bhnd_nvram_io *io)
@@ -130,6 +130,103 @@ bhnd_nvram_bcmraw_probe(struct bhnd_nvram_io *io)
 		return (ENXIO);
 
 	return (BHND_NVRAM_DATA_PROBE_MAYBE + 1);
+}
+
+static int
+bhnd_nvram_bcmraw_serialize(bhnd_nvram_data_class *cls, bhnd_nvram_plist *props,
+    bhnd_nvram_plist *options, void *outp, size_t *olen)
+{
+	bhnd_nvram_prop	*prop;
+	size_t		 limit, nbytes;
+	int		 error;
+
+	/* Determine output byte limit */
+	if (outp != NULL)
+		limit = *olen;
+	else
+		limit = 0;
+
+	nbytes = 0;
+
+	/* Write all properties */
+	prop = NULL;
+	while ((prop = bhnd_nvram_plist_next(props, prop)) != NULL) {
+		const char	*name;
+		char		*p;
+		size_t		 prop_limit;
+		size_t		 name_len, value_len;
+
+		if (outp == NULL || limit < nbytes) {
+			p = NULL;
+			prop_limit = 0;
+		} else {
+			p = ((char *)outp) + nbytes;
+			prop_limit = limit - nbytes;
+		}
+
+		/* Fetch and write name + '=' to output */
+		name = bhnd_nvram_prop_name(prop);
+		name_len = strlen(name) + 1;
+
+		if (prop_limit > name_len) {
+			memcpy(p, name, name_len - 1);
+			p[name_len - 1] = '=';
+
+			prop_limit -= name_len;
+			p += name_len;
+		} else {
+			prop_limit = 0;
+			p = NULL;
+		}
+
+		/* Advance byte count */
+		if (SIZE_MAX - nbytes < name_len)
+			return (EFTYPE); /* would overflow size_t */
+
+		nbytes += name_len;
+
+		/* Attempt to write NUL-terminated value to output */
+		value_len = prop_limit;
+		error = bhnd_nvram_prop_encode(prop, p, &value_len,
+		    BHND_NVRAM_TYPE_STRING);
+
+		/* If encoding failed for any reason other than ENOMEM (which
+		 * we'll detect and report after encoding all properties),
+		 * return immediately */
+		if (error && error != ENOMEM) {
+			BHND_NV_LOG("error serializing %s to required type "
+			    "%s: %d\n", name,
+			    bhnd_nvram_type_name(BHND_NVRAM_TYPE_STRING),
+			    error);
+			return (error);
+		}
+
+		/* Advance byte count */
+		if (SIZE_MAX - nbytes < value_len)
+			return (EFTYPE); /* would overflow size_t */
+
+		nbytes += value_len;
+	}
+
+	/* Write terminating '\0' */
+	if (limit > nbytes)
+		*((char *)outp + nbytes) = '\0';
+
+	if (nbytes == SIZE_MAX)
+		return (EFTYPE); /* would overflow size_t */
+	else
+		nbytes++;
+
+	/* Provide required length */
+	*olen = nbytes;
+	if (limit < *olen) {
+		if (outp == NULL)
+			return (0);
+
+		return (ENOMEM);
+	}
+
+	return (0);
 }
 
 /**
@@ -249,85 +346,18 @@ bhnd_nvram_bcmraw_free(struct bhnd_nvram_data *nv)
 		bhnd_nv_free(bcm->data);
 }
 
-static size_t
-bhnd_nvram_bcmraw_count(struct bhnd_nvram_data *nv)
-{
-	struct bhnd_nvram_bcmraw *bcm = (struct bhnd_nvram_bcmraw *)nv;
-
-	return (bcm->count);
-}
-
 static bhnd_nvram_plist *
 bhnd_nvram_bcmraw_options(struct bhnd_nvram_data *nv)
 {
 	return (NULL);
 }
 
-static int
-bhnd_nvram_bcmraw_size(struct bhnd_nvram_data *nv, size_t *size)
+static size_t
+bhnd_nvram_bcmraw_count(struct bhnd_nvram_data *nv)
 {
-	return (bhnd_nvram_bcmraw_serialize(nv, NULL, size));
-}
+	struct bhnd_nvram_bcmraw *bcm = (struct bhnd_nvram_bcmraw *)nv;
 
-static int
-bhnd_nvram_bcmraw_serialize(struct bhnd_nvram_data *nv, void *buf, size_t *len)
-{
-	struct bhnd_nvram_bcmraw	*bcm;
-	char * const			 p = (char *)buf;
-	size_t				 limit;
-	size_t				 offset;
-
-	bcm = (struct bhnd_nvram_bcmraw *)nv;
-
-	/* Save the output buffer limit */
-	if (buf == NULL)
-		limit = 0;
-	else
-		limit = *len;
-
-	/* The serialized form will be exactly the length
-	 * of our backing buffer representation */
-	*len = bcm->size;
-
-	/* Skip serialization if not requested, or report ENOMEM if
-	 * buffer is too small */
-	if (buf == NULL) {
-		return (0);
-	} else if (*len > limit) {
-		return (ENOMEM);
-	}
-
-	/* Write all variables to the output buffer */
-	memcpy(buf, bcm->data, *len);
-
-	/* Rewrite all '\0' delimiters back to '=' */
-	offset = 0;
-	while (offset < bcm->size) {
-		size_t name_len, value_len;
-
-		name_len = strlen(p + offset);
-
-		/* EOF? */
-		if (name_len == 0) {
-			BHND_NV_ASSERT(*(p + offset) == '\0',
-			    ("no NUL terminator"));
-
-			offset++;
-			break;
-		}
-
-		/* Rewrite 'name\0' to 'name=' */
-		offset += name_len;
-		BHND_NV_ASSERT(*(p + offset) == '\0', ("incorrect offset"));
-
-		*(p + offset) = '=';
-		offset++;
-
-		value_len = strlen(p + offset);
-		offset += value_len + 1;
-	}
-
-	return (0);
+	return (bcm->count);
 }
 
 static uint32_t
