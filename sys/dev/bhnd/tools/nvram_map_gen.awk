@@ -253,14 +253,19 @@ function main(_i) {
 	# Value Formats
 	Fmt = class_new("Fmt")
 		class_add_prop(Fmt, p_name, "name")
-		class_add_prop(Fmt, p_symbol, "const")
+		class_add_prop(Fmt, p_symbol, "symbol")
+		class_add_prop(Fmt, p_array_fmt, "array_fmt")
 
 	FmtHex		= fmt_new("hex", "bhnd_nvram_val_bcm_hex_fmt")
 	FmtDec 		= fmt_new("decimal", "bhnd_nvram_val_bcm_decimal_fmt")
 	FmtMAC		= fmt_new("macaddr", "bhnd_nvram_val_bcm_macaddr_fmt")
 	FmtLEDDC	= fmt_new("leddc", "bhnd_nvram_val_bcm_leddc_fmt")
+	FmtCharArray	= fmt_new("char_array", "bhnd_nvram_val_char_array_fmt")
+	FmtChar		= fmt_new("char", "bhnd_nvram_val_char_array_fmt",
+			      FmtCharArray)
 	FmtStr		= fmt_new("string", "bhnd_nvram_val_bcm_string_fmt")
 
+	# User-specifiable value formats
 	ValueFormats = map_new()
 		map_set(ValueFormats, get(FmtHex,	p_name), FmtHex)
 		map_set(ValueFormats, get(FmtDec,	p_name), FmtDec)
@@ -315,7 +320,7 @@ function main(_i) {
 	   "BHND_NVRAM_TYPE_INT32_ARRAY", FmtDec, UInt32Max, 6, 22)
 
 	Char	= type_new("char", 1, 1, "BHND_NVRAM_TYPE_CHAR",
-	   "BHND_NVRAM_TYPE_CHAR_ARRAY", FmtStr, UInt8Max, 8, 24)
+	   "BHND_NVRAM_TYPE_CHAR_ARRAY", FmtChar, UInt8Max, 8, 24)
 
 	BaseTypes = map_new()
 		map_set(BaseTypes, get(UInt8,	p_name), UInt8)
@@ -634,7 +639,7 @@ function write_data_nvram_vardefn(v, _desc, _help, _type, _fmt) {
 # Write a top-level bhnd_sprom_layout entry for the given revision
 # and layout definition
 function write_data_srom_layout(layout, revision, _flags, _size,
-    _sromcrc, _crc_seg,
+    _sromcrc, _crc_seg, _crc_off,
     _sromsig, _sig_seg, _sig_offset, _sig_value,
     _sromrev, _rev_seg, _rev_off,
     _num_vars)
@@ -648,7 +653,8 @@ function write_data_srom_layout(layout, revision, _flags, _size,
 		    "cannot compute total size")
 	} else {
 		_crc_seg = srom_entry_get_single_segment(_sromcrc)
-		_size = get(_crc_seg, p_offset)
+		_crc_off = get(_crc_seg, p_offset)
+		_size = _crc_off
 		_size += get(get(_crc_seg, p_type), p_width)
 	}
 
@@ -702,6 +708,8 @@ function write_data_srom_layout(layout, revision, _flags, _size,
 		emit(".magic_offset = 0,\n")
 		emit(".magic_value = 0,\n")
 	}
+
+	emit(".crc_offset = " _crc_off ",\n")
 
 	emit(".bindings = " srom_layout_get_variable_name(layout) ",\n")
 	emit(".bindings_size = nitems(" \
@@ -1741,6 +1749,9 @@ function class_has_prop_id(class, prop_id, _super) {
 	if (class == null)
 		return (0)
 
+	if (prop_id == null)
+		return (0)
+
 	# Check class<->prop cache
 	if ((class, prop_id) in _g_class_prop_cache)
 		return (1)
@@ -2538,9 +2549,17 @@ function type_get_base(type) {
 }
 
 # Return the default fmt for a given type instance
-function type_get_default_fmt(type, _base) {
+function type_get_default_fmt(type, _base, _fmt, _array_fmt) {
 	_base = type_get_base(type)
-	return (get(_base, p_default_fmt))
+	_fmt = get(_base, p_default_fmt)
+
+	if (obj_is_instanceof(type, ArrayType)) {
+		_array_fmt = get(_fmt, p_array_fmt)
+		if (_array_fmt != null)
+			_fmt = _array_fmt
+	}
+
+	return (_fmt)
 }
 
 # Return a string representation of the given type
@@ -2641,10 +2660,13 @@ function type_named(name, _n, _type) {
 }
 
 # Create a new Fmt instance
-function fmt_new(name, symbol, _obj) {
+function fmt_new(name, symbol, array_fmt, _obj) {
 	_obj = obj_new(Fmt)
 	set(_obj, p_name, name)
 	set(_obj, p_symbol, symbol)
+
+	if (array_fmt != null)
+		set(_obj, p_array_fmt, array_fmt)
 
 	return (_obj)
 }
