@@ -66,6 +66,15 @@ bhnd_nvram_value_check_aligned(const void *inp, size_t ilen,
 {
 	size_t align, width;
 
+	/* As a special case, NULL values have no alignment, but must
+	 * always have a length of zero */
+	if (itype == BHND_NVRAM_TYPE_NULL) {
+		if (ilen != 0)
+			return (EFAULT);
+
+		return (0);
+	}
+
 	/* Check pointer alignment against the required host alignment */
 	align = bhnd_nvram_type_host_align(itype);
 	BHND_NV_ASSERT(align != 0, ("invalid zero alignment"));
@@ -119,6 +128,20 @@ bhnd_nvram_value_nelem(const void *inp, size_t ilen, bhnd_nvram_type itype,
 		return (error);
 
 	switch (itype) {
+	case BHND_NVRAM_TYPE_DATA:
+		/* Always exactly one element */
+		*nelem = 1;
+		return (0);
+
+	case BHND_NVRAM_TYPE_NULL:
+		/* Must be zero length */
+		if (ilen != 0)
+			return (EFAULT);
+
+		/* Always exactly one element */
+		*nelem = 1;
+		return (0);
+
 	case BHND_NVRAM_TYPE_STRING:
 		/* Always exactly one element */
 		*nelem = 1;
@@ -165,7 +188,8 @@ bhnd_nvram_value_nelem(const void *inp, size_t ilen, bhnd_nvram_type itype,
 	case BHND_NVRAM_TYPE_INT16_ARRAY:
 	case BHND_NVRAM_TYPE_INT32_ARRAY:
 	case BHND_NVRAM_TYPE_INT64_ARRAY:
-	case BHND_NVRAM_TYPE_CHAR_ARRAY: {
+	case BHND_NVRAM_TYPE_CHAR_ARRAY:
+	case BHND_NVRAM_TYPE_BOOL_ARRAY: {
 		size_t width = bhnd_nvram_type_width(itype);
 		BHND_NV_ASSERT(width != 0, ("invalid width"));
 
@@ -182,6 +206,7 @@ bhnd_nvram_value_nelem(const void *inp, size_t ilen, bhnd_nvram_type itype,
 	case BHND_NVRAM_TYPE_UINT32:
 	case BHND_NVRAM_TYPE_INT64:
 	case BHND_NVRAM_TYPE_UINT64:
+	case BHND_NVRAM_TYPE_BOOL:
 		/* Length must be equal to the size of exactly one
 		 * element (arrays can represent zero elements -- non-array
 		 * types cannot) */
@@ -236,7 +261,8 @@ bhnd_nvram_value_size(const void *inp, size_t ilen, bhnd_nvram_type itype,
 	case BHND_NVRAM_TYPE_INT16_ARRAY:
 	case BHND_NVRAM_TYPE_INT32_ARRAY:
 	case BHND_NVRAM_TYPE_INT64_ARRAY:
-	case BHND_NVRAM_TYPE_CHAR_ARRAY: {
+	case BHND_NVRAM_TYPE_CHAR_ARRAY:
+	case BHND_NVRAM_TYPE_BOOL_ARRAY:{
 		size_t width;
 
 		width = bhnd_nvram_type_width(itype);
@@ -304,6 +330,18 @@ bhnd_nvram_value_size(const void *inp, size_t ilen, bhnd_nvram_type itype,
 
 		return (size);
 	}
+
+	case BHND_NVRAM_TYPE_NULL:
+		return (0);
+
+	case BHND_NVRAM_TYPE_DATA:
+		if (inp == NULL)
+			return (0);
+
+		return (ilen);
+
+	case BHND_NVRAM_TYPE_BOOL:
+		return (sizeof(bhnd_nvram_bool_t));
 
 	case BHND_NVRAM_TYPE_INT8:
 	case BHND_NVRAM_TYPE_UINT8:
