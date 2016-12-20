@@ -200,9 +200,6 @@ r88eu_init_rx_agg(struct rtwn_softc *sc)
 void
 r88eu_post_init(struct rtwn_softc *sc)
 {
-	/* Turn CCK and OFDM blocks on. */
-	rtwn_bb_setbits(sc, R92C_FPGA0_RFMOD, 0, R92C_RFMOD_CCK_EN);
-	rtwn_bb_setbits(sc, R92C_FPGA0_RFMOD, 0, R92C_RFMOD_OFDM_EN);
 
 	/* Enable per-packet TX report. */
 	rtwn_setbits_1(sc, R88E_TX_RPT_CTRL, 0, R88E_TX_RPT1_ENA);
