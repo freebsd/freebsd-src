@@ -25,6 +25,9 @@ makeoptions	FDT_DTS_FILE=ingenic/ci20.dts
 
 options 	ROOTDEVNAME=\"ufs:mmcsd0\"
 
+device		sound
+device		xdma
+
 makeoptions	TRAMPLOADADDR=0x88000000
 
 #options 	VERBOSE_SYSINIT
