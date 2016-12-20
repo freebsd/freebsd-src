@@ -46,6 +46,9 @@ __FBSDID("$FreeBSD$");
 #define VMBUS_HEARTBEAT_MSGVER		\
 	VMBUS_IC_VERSION(VMBUS_HEARTBEAT_MSGVER_MAJOR, 0)
 
+static int			vmbus_heartbeat_probe(device_t);
+static int			vmbus_heartbeat_attach(device_t);
+
 static const struct vmbus_ic_desc vmbus_heartbeat_descs[] = {
 	{
 		.ic_guid = { .hv_guid = {
@@ -55,6 +58,27 @@ static const struct vmbus_ic_desc vmbus_heartbeat_descs[] = {
 	},
 	VMBUS_IC_DESC_END
 };
+
+static device_method_t vmbus_heartbeat_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		vmbus_heartbeat_probe),
+	DEVMETHOD(device_attach,	vmbus_heartbeat_attach),
+	DEVMETHOD(device_detach,	vmbus_ic_detach),
+	DEVMETHOD_END
+};
+
+static driver_t vmbus_heartbeat_driver = {
+	"hvheartbeat",
+	vmbus_heartbeat_methods,
+	sizeof(struct vmbus_ic_softc)
+};
+
+static devclass_t vmbus_heartbeat_devclass;
+
+DRIVER_MODULE(hv_heartbeat, vmbus, vmbus_heartbeat_driver,
+    vmbus_heartbeat_devclass, NULL, NULL);
+MODULE_VERSION(hv_heartbeat, 1);
+MODULE_DEPEND(hv_heartbeat, vmbus, 1, 1, 1);
 
 static void
 vmbus_heartbeat_cb(struct vmbus_channel *chan, void *xsc)
@@ -114,35 +138,15 @@ vmbus_heartbeat_cb(struct vmbus_channel *chan, void *xsc)
 }
 
 static int
-hv_heartbeat_probe(device_t dev)
+vmbus_heartbeat_probe(device_t dev)
 {
 
 	return (vmbus_ic_probe(dev, vmbus_heartbeat_descs));
 }
 
 static int
-hv_heartbeat_attach(device_t dev)
+vmbus_heartbeat_attach(device_t dev)
 {
 
 	return (vmbus_ic_attach(dev, vmbus_heartbeat_cb));
 }
-
-static device_method_t heartbeat_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_probe, hv_heartbeat_probe),
-	DEVMETHOD(device_attach, hv_heartbeat_attach),
-	DEVMETHOD(device_detach, vmbus_ic_detach),
-	{ 0, 0 }
-};
-
-static driver_t heartbeat_driver = {
-	"hvheartbeat",
-	heartbeat_methods,
-	sizeof(struct vmbus_ic_softc)
-};
-
-static devclass_t heartbeat_devclass;
-
-DRIVER_MODULE(hv_heartbeat, vmbus, heartbeat_driver, heartbeat_devclass, NULL, NULL);
-MODULE_VERSION(hv_heartbeat, 1);
-MODULE_DEPEND(hv_heartbeat, vmbus, 1, 1, 1);
