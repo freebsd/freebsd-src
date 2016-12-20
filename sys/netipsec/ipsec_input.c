@@ -104,10 +104,6 @@
 		IPCOMPSTAT_INC(ipcomps_##name);	\
 } while (0)
 
-#ifdef INET
-static void ipsec4_common_ctlinput(int, struct sockaddr *, void *, int);
-#endif
-
 /*
  * ipsec_common_input gets called when an IPsec-protected packet
  * is received by IPv4 or IPv6.  Its job is to find the right SA
@@ -230,7 +226,7 @@ ipsec_common_input(struct mbuf *m, int skip, int protoff, int af, int sproto)
 
 #ifdef INET
 int
-ah4_input(struct mbuf **mp, int *offp, int proto)
+ipsec4_common_input(struct mbuf **mp, int *offp, int proto)
 {
 	struct mbuf *m;
 	int off;
@@ -239,53 +235,7 @@ ah4_input(struct mbuf **mp, int *offp, int proto)
 	off = *offp;
 	*mp = NULL;
 
-	ipsec_common_input(m, off, offsetof(struct ip, ip_p),
-				AF_INET, IPPROTO_AH);
-	return (IPPROTO_DONE);
-}
-void
-ah4_ctlinput(int cmd, struct sockaddr *sa, void *v)
-{
-	if (sa->sa_family == AF_INET &&
-	    sa->sa_len == sizeof(struct sockaddr_in))
-		ipsec4_common_ctlinput(cmd, sa, v, IPPROTO_AH);
-}
-
-int
-esp4_input(struct mbuf **mp, int *offp, int proto)
-{
-	struct mbuf *m;
-	int off;
-
-	m = *mp;
-	off = *offp;
-	mp = NULL;
-
-	ipsec_common_input(m, off, offsetof(struct ip, ip_p),
-				AF_INET, IPPROTO_ESP);
-	return (IPPROTO_DONE);
-}
-
-void
-esp4_ctlinput(int cmd, struct sockaddr *sa, void *v)
-{
-	if (sa->sa_family == AF_INET &&
-	    sa->sa_len == sizeof(struct sockaddr_in))
-		ipsec4_common_ctlinput(cmd, sa, v, IPPROTO_ESP);
-}
-
-int
-ipcomp4_input(struct mbuf **mp, int *offp, int proto)
-{
-	struct mbuf *m;
-	int off;
-
-	m = *mp;
-	off = *offp;
-	mp = NULL;
-
-	ipsec_common_input(m, off, offsetof(struct ip, ip_p),
-				AF_INET, IPPROTO_IPCOMP);
+	ipsec_common_input(m, off, offsetof(struct ip, ip_p), AF_INET, proto);
 	return (IPPROTO_DONE);
 }
 
@@ -460,12 +410,6 @@ bad:
 	if (m != NULL)
 		m_freem(m);
 	return (error);
-}
-
-void
-ipsec4_common_ctlinput(int cmd, struct sockaddr *sa, void *v, int proto)
-{
-	/* XXX nothing just yet */
 }
 #endif /* INET */
 

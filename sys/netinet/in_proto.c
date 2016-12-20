@@ -228,8 +228,7 @@ struct protosw inetsw[] = {
 	.pr_domain =		&inetdomain,
 	.pr_protocol =		IPPROTO_AH,
 	.pr_flags =		PR_ATOMIC|PR_ADDR,
-	.pr_input =		ah4_input,
-	.pr_ctlinput =		ah4_ctlinput,
+	.pr_input =		ipsec4_common_input,
 	.pr_usrreqs =		&nousrreqs
 },
 {
@@ -237,8 +236,7 @@ struct protosw inetsw[] = {
 	.pr_domain =		&inetdomain,
 	.pr_protocol =		IPPROTO_ESP,
 	.pr_flags =		PR_ATOMIC|PR_ADDR,
-	.pr_input =		esp4_input,
-	.pr_ctlinput =		esp4_ctlinput,
+	.pr_input =		ipsec4_common_input,
 	.pr_usrreqs =		&nousrreqs
 },
 {
@@ -246,7 +244,7 @@ struct protosw inetsw[] = {
 	.pr_domain =		&inetdomain,
 	.pr_protocol =		IPPROTO_IPCOMP,
 	.pr_flags =		PR_ATOMIC|PR_ADDR,
-	.pr_input =		ipcomp4_input,
+	.pr_input =		ipsec4_common_input,
 	.pr_usrreqs =		&nousrreqs
 },
 #endif /* IPSEC */

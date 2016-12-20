@@ -310,7 +310,6 @@ struct secpolicy *ipsec4_checkpolicy(const struct mbuf *, struct inpcb *,
     int *);
 
 u_int ipsec_get_reqlevel(struct secpolicy *, u_int);
-int ipsec4_in_reject(const struct mbuf *, struct inpcb *);
 size_t ipsec_hdrsiz_inpcb(struct inpcb *);
 
 int ipsec_init_pcbpolicy(struct inpcb *);
@@ -338,18 +337,12 @@ char *ipsec_logsastr(struct secasvar *, char *, size_t);
 
 extern void ipsec_dumpmbuf(const struct mbuf *);
 
-extern int ah4_input(struct mbuf **mp, int *offp, int proto);
-extern void ah4_ctlinput(int cmd, struct sockaddr *sa, void *);
-extern int esp4_input(struct mbuf **mp, int *offp, int proto);
-extern void esp4_ctlinput(int cmd, struct sockaddr *sa, void *);
-extern int ipcomp4_input(struct mbuf **mp, int *offp, int proto);
-extern int ipsec_common_input(struct mbuf *m, int, int, int, int); 
-extern int ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav,
-			int skip, int protoff);
-extern int ipsec4_process_packet(struct mbuf *, struct secpolicy *,
-    struct inpcb *);
-extern int ipsec_process_done(struct mbuf *, struct secpolicy *,
-    struct secasvar *, u_int);
+int ipsec4_in_reject(const struct mbuf *, struct inpcb *);
+int ipsec4_common_input(struct mbuf **, int *, int);
+int ipsec4_common_input_cb(struct mbuf *, struct secasvar *, int, int);
+int ipsec4_process_packet(struct mbuf *, struct secpolicy *, struct inpcb *);
+int ipsec_process_done(struct mbuf *, struct secpolicy *, struct secasvar *,
+    u_int);
 
 extern	void m_checkalignment(const char* where, struct mbuf *m0,
 		int off, int len);
