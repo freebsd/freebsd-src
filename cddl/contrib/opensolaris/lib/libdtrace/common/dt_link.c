@@ -1223,6 +1223,7 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 	static const char dt_enabled[] = "enabled";
 	static const char dt_symprefix[] = "$dtrace";
 	static const char dt_symfmt[] = "%s%ld.%s";
+	char probename[DTRACE_NAMELEN];
 	int fd, i, ndx, eprobe, mod = 0;
 	Elf *elf = NULL;
 	GElf_Ehdr ehdr;
@@ -1576,8 +1577,6 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 			bcopy(s, pname, p - s);
 			pname[p - s] = '\0';
 
-			p = strhyphenate(p + 3); /* strlen("___") */
-
 			if (dt_symtab_lookup(data_sym, isym, rela.r_offset,
 			    shdr_rel.sh_info, &fsym,
 			    (emachine1 == EM_PPC64), elf) != 0)
@@ -1628,10 +1627,14 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 				    "no such provider %s", pname));
 			}
 
-			if ((prp = dt_probe_lookup(pvp, p)) == NULL) {
+			if (strlcpy(probename, p + 3, sizeof (probename)) >=
+			    sizeof (probename))
 				return (dt_link_error(dtp, elf, fd, bufs,
-				    "no such probe %s", p));
-			}
+				    "invalid probe name %s", probename));
+			(void) strhyphenate(probename);
+			if ((prp = dt_probe_lookup(pvp, probename)) == NULL)
+				return (dt_link_error(dtp, elf, fd, bufs,
+				    "no such probe %s", probename));
 
 			assert(fsym.st_value <= rela.r_offset);
 
