@@ -532,6 +532,8 @@ main(int argc, char *argv[])
 
 	if (bflag == 0) {
 		pe = calloc(1, sizeof(*pe));
+		if (pe == NULL)
+			err(1, "malloc failed");
 		*pe = (struct peer) {
 			.pe_serv = "syslog"
 		};
