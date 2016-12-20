@@ -204,7 +204,7 @@ r92c_init_rf_chain(struct rtwn_softc *sc,
 }
 
 void
-r92c_init_rf_common(struct rtwn_softc *sc)
+r92c_init_rf(struct rtwn_softc *sc)
 {
 	struct r92c_softc *rs = sc->sc_priv;
 	uint32_t reg, type;
@@ -244,14 +244,6 @@ r92c_init_rf_common(struct rtwn_softc *sc)
 		rs->rf_chnlbw[chain] = rtwn_rf_read(sc, chain,
 		    R92C_RF_CHNLBW);
 	}
-}
-
-void
-r92c_init_rf(struct rtwn_softc *sc)
-{
-	struct r92c_softc *rs = sc->sc_priv;
-
-	r92c_init_rf_common(sc);
 
 	if ((rs->chip & (R92C_CHIP_UMC_A_CUT | R92C_CHIP_92C)) ==
 	    R92C_CHIP_UMC_A_CUT) {

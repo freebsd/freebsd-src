@@ -657,7 +657,7 @@ static const struct rtwn_rf_prog rtl8812au_rf[] = {
 		NULL
 	},
 	{ 0, NULL, NULL, { 0 },	NULL },
-	/* RF path 2. */
+	/* RF chain 1. */
 	{
 		nitems(rtl8812au_rf1_regs0),
 		rtl8812au_rf1_regs0,
