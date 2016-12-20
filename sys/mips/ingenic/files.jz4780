@@ -6,6 +6,9 @@ mips/ingenic/jz4780_mmc.c	optional mmc
 mips/ingenic/jz4780_ohci.c	optional ohci
 mips/ingenic/jz4780_smb.c	optional iicbus
 mips/ingenic/jz4780_uart.c	optional uart
+mips/ingenic/jz4780_lcd.c	optional vt
+dev/hdmi/dwc_hdmi.c		optional hdmi iicbus
+dev/hdmi/dwc_hdmi_fdt.c		optional hdmi iicbus
 
 mips/ingenic/jz4780_clock.c	standard
 mips/ingenic/jz4780_clk_gen.c	standard
@@ -25,3 +28,6 @@ mips/ingenic/jz4780_mpboot.S	optional smp
 
 # Custom interface between pinctrl and gpio
 mips/ingenic/jz4780_gpio_if.m	standard
+
+# HDMI interface
+dev/hdmi/hdmi_if.m		standard
