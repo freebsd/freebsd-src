@@ -107,6 +107,8 @@ static const struct sdhci_device {
 	    SDHCI_QUIRK_RESET_AFTER_REQUEST },
 	{ 0x16bc14e4,	0xffff,	"Broadcom BCM577xx SDXC/MMC Card Reader",
 	    SDHCI_QUIRK_BCM577XX_400KHZ_CLKSRC },
+	{ 0x22948086,	0xffff,	"Braswell Storage Cluster Control MMC Port",
+	    0 },
 	{ 0,		0xffff,	NULL,
 	    0 }
 };
