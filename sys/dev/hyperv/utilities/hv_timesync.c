@@ -52,6 +52,9 @@ __FBSDID("$FreeBSD$");
 	((sc)->ic_msgver >= VMBUS_IC_VERSION(4, 0) && \
 	 (hyperv_features & CPUID_HV_MSR_TIME_REFCNT))
 
+static int			vmbus_timesync_probe(device_t);
+static int			vmbus_timesync_attach(device_t);
+
 static const struct vmbus_ic_desc vmbus_timesync_descs[] = {
 	{
 		.ic_guid = { .hv_guid = {
@@ -61,6 +64,27 @@ static const struct vmbus_ic_desc vmbus_timesync_descs[] = {
 	},
 	VMBUS_IC_DESC_END
 };
+
+static device_method_t vmbus_timesync_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		vmbus_timesync_probe),
+	DEVMETHOD(device_attach,	vmbus_timesync_attach),
+	DEVMETHOD(device_detach,	vmbus_ic_detach),
+	DEVMETHOD_END
+};
+
+static driver_t vmbus_timesync_driver = {
+	"hvtimesync",
+	vmbus_timesync_methods,
+	sizeof(struct vmbus_ic_softc)
+};
+
+static devclass_t vmbus_timesync_devclass;
+
+DRIVER_MODULE(hv_timesync, vmbus, vmbus_timesync_driver,
+    vmbus_timesync_devclass, NULL, NULL);
+MODULE_VERSION(hv_timesync, 1);
+MODULE_DEPEND(hv_timesync, vmbus, 1, 1, 1);
 
 SYSCTL_NODE(_hw, OID_AUTO, hvtimesync, CTLFLAG_RW | CTLFLAG_MPSAFE, NULL,
     "Hyper-V timesync interface");
@@ -207,35 +231,15 @@ vmbus_timesync_cb(struct vmbus_channel *chan, void *xsc)
 }
 
 static int
-hv_timesync_probe(device_t dev)
+vmbus_timesync_probe(device_t dev)
 {
 
 	return (vmbus_ic_probe(dev, vmbus_timesync_descs));
 }
 
 static int
-hv_timesync_attach(device_t dev)
+vmbus_timesync_attach(device_t dev)
 {
 
 	return (vmbus_ic_attach(dev, vmbus_timesync_cb));
 }
-
-static device_method_t timesync_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_probe, hv_timesync_probe),
-	DEVMETHOD(device_attach, hv_timesync_attach),
-	DEVMETHOD(device_detach, vmbus_ic_detach),
-	{ 0, 0 }
-};
-
-static driver_t timesync_driver = {
-	"hvtimesync",
-	timesync_methods,
-	sizeof(struct vmbus_ic_softc)
-};
-
-static devclass_t timesync_devclass;
-
-DRIVER_MODULE(hv_timesync, vmbus, timesync_driver, timesync_devclass, NULL, NULL);
-MODULE_VERSION(hv_timesync, 1);
-MODULE_DEPEND(hv_timesync, vmbus, 1, 1, 1);
