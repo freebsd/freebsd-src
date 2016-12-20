@@ -598,11 +598,18 @@ isp_get_specific_options(device_t dev, int chan, ispsoftc_t *isp)
 		}
 	}
 
+#ifdef ISP_FCTAPE_OFF
+	isp->isp_confopts |= ISP_CFG_NOFCTAPE;
+#else
+	isp->isp_confopts |= ISP_CFG_FCTAPE;
+#endif
+
 	tval = 0;
 	snprintf(name, sizeof(name), "%snofctape", prefix);
 	(void) resource_int_value(device_get_name(dev), device_get_unit(dev),
 	    name, &tval);
 	if (tval) {
+		isp->isp_confopts &= ~ISP_CFG_FCTAPE;
 		isp->isp_confopts |= ISP_CFG_NOFCTAPE;
 	}
 
