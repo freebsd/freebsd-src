@@ -62,7 +62,7 @@ static const struct vmbus_ic_desc vmbus_shutdown_descs[] = {
 static void
 vmbus_shutdown_cb(struct vmbus_channel *chan, void *xsc)
 {
-	struct hv_util_sc *sc = xsc;
+	struct vmbus_ic_softc *sc = xsc;
 	struct vmbus_icmsg_hdr *hdr;
 	struct vmbus_icmsg_shutdown *msg;
 	int dlen, error, do_shutdown = 0;
@@ -72,7 +72,7 @@ vmbus_shutdown_cb(struct vmbus_channel *chan, void *xsc)
 	/*
 	 * Receive request.
 	 */
-	data = sc->receive_buffer;
+	data = sc->ic_buf;
 	dlen = sc->ic_buflen;
 	error = vmbus_chan_recv(chan, data, &dlen, &xactid);
 	KASSERT(error != ENOBUFS, ("icbuf is not large enough"));
@@ -141,18 +141,22 @@ static int
 hv_shutdown_attach(device_t dev)
 {
 
-	return (hv_util_attach(dev, vmbus_shutdown_cb));
+	return (vmbus_ic_attach(dev, vmbus_shutdown_cb));
 }
 
 static device_method_t shutdown_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe, hv_shutdown_probe),
 	DEVMETHOD(device_attach, hv_shutdown_attach),
-	DEVMETHOD(device_detach, hv_util_detach),
+	DEVMETHOD(device_detach, vmbus_ic_detach),
 	{ 0, 0 }
 };
 
-static driver_t shutdown_driver = { "hvshutdown", shutdown_methods, sizeof(hv_util_sc)};
+static driver_t shutdown_driver = {
+	"hvshutdown",
+	shutdown_methods,
+	sizeof(struct vmbus_ic_softc)
+};
 
 static devclass_t shutdown_devclass;
 
