@@ -58,5 +58,8 @@ int		hv_util_detach(device_t dev);
 int		vmbus_ic_probe(device_t dev, const struct vmbus_ic_desc descs[]);
 int		vmbus_ic_negomsg(struct hv_util_sc *sc, void *data, int *dlen,
 		    uint32_t fw_ver, uint32_t msg_ver);
+int		vmbus_ic_sendresp(struct hv_util_sc *sc,
+		    struct vmbus_channel *chan, void *data, int dlen,
+		    uint64_t xactid);
 
 #endif
