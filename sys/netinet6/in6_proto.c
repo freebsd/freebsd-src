@@ -291,7 +291,6 @@ struct protosw inet6sw[] = {
 	.pr_protocol =		IPPROTO_ESP,
 	.pr_flags =		PR_ATOMIC|PR_ADDR,
         .pr_input =		ipsec6_common_input,
-	.pr_ctlinput =		esp6_ctlinput,
 	.pr_usrreqs =		&nousrreqs,
 },
 {
