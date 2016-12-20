@@ -60,7 +60,6 @@ arm/arm/gdb_machdep.c		optional	gdb
 arm/arm/generic_timer.c		optional	generic_timer
 arm/arm/gic.c			optional	gic
 arm/arm/gic_fdt.c		optional	gic fdt
-arm/arm/hdmi_if.m		optional	hdmi
 arm/arm/identcpu-v4.c		optional	!armv6
 arm/arm/identcpu-v6.c		optional	armv6
 arm/arm/in_cksum.c		optional	inet | inet6
@@ -120,6 +119,7 @@ dev/dwc/if_dwc.c		optional	dwc
 dev/dwc/if_dwc_if.m		optional	dwc
 dev/fb/fb.c			optional	sc
 dev/fdt/fdt_arm_platform.c	optional	platform fdt
+dev/hdmi/hdmi_if.m		optional	hdmi
 dev/hwpmc/hwpmc_arm.c		optional	hwpmc
 dev/hwpmc/hwpmc_armv7.c		optional	hwpmc armv6
 dev/iicbus/twsi/twsi.c		optional	twsi

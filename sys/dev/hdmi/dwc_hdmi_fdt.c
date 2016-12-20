@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2015 Oleksandr Tymoshenko <gonzo@freebsd.org>
+ * Copyright (c) 2016 Jared McNeill <jmcneill@invisible.ca>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,31 +44,30 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
-#include <dev/videomode/videomode.h>
+#include <dev/extres/clk/clk.h>
 
-#include <arm/freescale/imx/imx_ccmvar.h>
-#include <arm/freescale/imx/imx_iomuxvar.h>
-#include <arm/freescale/imx/imx_iomuxreg.h>
+#include <dev/videomode/videomode.h>
 
 #include <dev/hdmi/dwc_hdmi.h>
 
 #include "hdmi_if.h"
 
-struct imx_hdmi_softc {
+struct dwc_hdmi_fdt_softc {
 	struct dwc_hdmi_softc	base;
+	clk_t			clk_hdmi;
+	clk_t			clk_ahb;
 	phandle_t		i2c_xref;
 };
 
 static struct ofw_compat_data compat_data[] = {
-	{"fsl,imx6dl-hdmi", 1},
-	{"fsl,imx6q-hdmi",  1},
-	{NULL,	            0}
+	{ "synopsys,dwc-hdmi",	1 },
+	{ NULL,	            	0 }
 };
 
 static device_t
-imx_hdmi_get_i2c_dev(device_t dev)
+dwc_hdmi_fdt_get_i2c_dev(device_t dev)
 {
-	struct imx_hdmi_softc *sc;
+	struct dwc_hdmi_fdt_softc *sc;
 
 	sc = device_get_softc(dev);
 
@@ -78,11 +78,16 @@ imx_hdmi_get_i2c_dev(device_t dev)
 }
 
 static int
-imx_hdmi_detach(device_t dev)
+dwc_hdmi_fdt_detach(device_t dev)
 {
-	struct imx_hdmi_softc *sc;
+	struct dwc_hdmi_fdt_softc *sc;
 
 	sc = device_get_softc(dev);
+
+	if (sc->clk_ahb != NULL)
+		clk_release(sc->clk_ahb);
+	if (sc->clk_hdmi != NULL)
+		clk_release(sc->clk_hdmi);
 
 	if (sc->base.sc_mem_res != NULL)
 		bus_release_resource(dev, SYS_RES_MEMORY,
@@ -92,16 +97,16 @@ imx_hdmi_detach(device_t dev)
 }
 
 static int
-imx_hdmi_attach(device_t dev)
+dwc_hdmi_fdt_attach(device_t dev)
 {
-	struct imx_hdmi_softc *sc;
-	int err;
-	uint32_t gpr3;
+	struct dwc_hdmi_fdt_softc *sc;
 	phandle_t node, i2c_xref;
+	uint32_t freq;
+	int err;
 
 	sc = device_get_softc(dev);
 	sc->base.sc_dev = dev;
-	sc->base.sc_get_i2c_dev = imx_hdmi_get_i2c_dev;
+	sc->base.sc_get_i2c_dev = dwc_hdmi_fdt_get_i2c_dev;
 	err = 0;
 
 	/* Allocate memory resources. */
@@ -115,43 +120,67 @@ imx_hdmi_attach(device_t dev)
 	}
 
 	node = ofw_bus_get_node(dev);
-	if (OF_getencprop(node, "ddc-i2c-bus", &i2c_xref, sizeof(i2c_xref)) == -1)
+	if (OF_getencprop(node, "ddc", &i2c_xref, sizeof(i2c_xref)) == -1)
 		sc->i2c_xref = 0;
 	else
 		sc->i2c_xref = i2c_xref;
 
-	imx_ccm_hdmi_enable();
+	if (OF_getencprop(node, "reg-shift", &sc->base.sc_reg_shift,
+	    sizeof(sc->base.sc_reg_shift)) <= 0)
+		sc->base.sc_reg_shift = 0;
 
-	gpr3 = imx_iomux_gpr_get(IOMUXC_GPR3);
-	gpr3 &= ~(IOMUXC_GPR3_HDMI_MASK);
-	gpr3 |= IOMUXC_GPR3_HDMI_IPU1_DI0;
-	imx_iomux_gpr_set(IOMUXC_GPR3, gpr3);
+	if (clk_get_by_ofw_name(dev, 0, "hdmi", &sc->clk_hdmi) != 0 ||
+	    clk_get_by_ofw_name(dev, 0, "ahb", &sc->clk_ahb) != 0) {
+		device_printf(dev, "Cannot get clocks\n");
+		err = ENXIO;
+		goto out;
+	}
+	if (OF_getencprop(node, "clock-frequency", &freq, sizeof(freq)) > 0) {
+		err = clk_set_freq(sc->clk_hdmi, freq, CLK_SET_ROUND_DOWN);
+		if (err != 0) {
+			device_printf(dev,
+			    "Cannot set HDMI clock frequency to %u Hz\n", freq);
+			goto out;
+		}
+	} else
+		device_printf(dev, "HDMI clock frequency not specified\n");
+	if (clk_enable(sc->clk_hdmi) != 0) {
+		device_printf(dev, "Cannot enable HDMI clock\n");
+		err = ENXIO;
+		goto out;
+	}
+	if (clk_enable(sc->clk_ahb) != 0) {
+		device_printf(dev, "Cannot enable AHB clock\n");
+		err = ENXIO;
+		goto out;
+	}
 
 	return (dwc_hdmi_init(dev));
 
 out:
-	imx_hdmi_detach(dev);
+
+	dwc_hdmi_fdt_detach(dev);
 
 	return (err);
 }
 
 static int
-imx_hdmi_probe(device_t dev)
+dwc_hdmi_fdt_probe(device_t dev)
 {
 
 	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
 		return (ENXIO);
 
-	device_set_desc(dev, "Freescale i.MX6 HDMI core");
+	device_set_desc(dev, "Synopsys DesignWare HDMI Controller");
 
 	return (BUS_PROBE_DEFAULT);
 }
 
-static device_method_t imx_hdmi_methods[] = {
+static device_method_t dwc_hdmi_fdt_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,  imx_hdmi_probe),
-	DEVMETHOD(device_attach, imx_hdmi_attach),
-	DEVMETHOD(device_detach, imx_hdmi_detach),
+	DEVMETHOD(device_probe,  dwc_hdmi_fdt_probe),
+	DEVMETHOD(device_attach, dwc_hdmi_fdt_attach),
+	DEVMETHOD(device_detach, dwc_hdmi_fdt_detach),
 
 	/* HDMI methods */
 	DEVMETHOD(hdmi_get_edid,	dwc_hdmi_get_edid),
@@ -160,12 +189,13 @@ static device_method_t imx_hdmi_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t imx_hdmi_driver = {
-	"hdmi",
-	imx_hdmi_methods,
-	sizeof(struct imx_hdmi_softc)
+static driver_t dwc_hdmi_fdt_driver = {
+	"dwc_hdmi",
+	dwc_hdmi_fdt_methods,
+	sizeof(struct dwc_hdmi_fdt_softc)
 };
 
-static devclass_t imx_hdmi_devclass;
+static devclass_t dwc_hdmi_fdt_devclass;
 
-DRIVER_MODULE(hdmi, simplebus, imx_hdmi_driver, imx_hdmi_devclass, 0, 0);
+DRIVER_MODULE(dwc_hdmi_fdt, simplebus, dwc_hdmi_fdt_driver,
+    dwc_hdmi_fdt_devclass, 0, 0);
