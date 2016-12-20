@@ -287,3 +287,21 @@ hv_util_detach(device_t dev)
 
 	return (0);
 }
+
+int
+vmbus_ic_sendresp(struct hv_util_sc *sc, struct vmbus_channel *chan,
+    void *data, int dlen, uint64_t xactid)
+{
+	struct vmbus_icmsg_hdr *hdr;
+	int error;
+
+	KASSERT(dlen >= sizeof(*hdr), ("invalid data length %d", dlen));
+	hdr = data;
+
+	hdr->ic_flags = VMBUS_ICMSG_FLAG_XACT | VMBUS_ICMSG_FLAG_RESP;
+	error = vmbus_chan_send(chan, VMBUS_CHANPKT_TYPE_INBAND, 0,
+	    data, dlen, xactid);
+	if (error)
+		device_printf(sc->ic_dev, "resp send failed: %d\n", error);
+	return (error);
+}

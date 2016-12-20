@@ -203,13 +203,9 @@ vmbus_timesync_cb(struct vmbus_channel *chan, void *xsc)
 	}
 
 	/*
-	 * Send response by echoing the updated request back.
+	 * Send response by echoing the request back.
 	 */
-	hdr->ic_flags = VMBUS_ICMSG_FLAG_XACT | VMBUS_ICMSG_FLAG_RESP;
-	error = vmbus_chan_send(chan, VMBUS_CHANPKT_TYPE_INBAND, 0,
-	    data, dlen, xactid);
-	if (error)
-		device_printf(sc->ic_dev, "resp send failed: %d\n", error);
+	vmbus_ic_sendresp(sc, chan, data, dlen, xactid);
 }
 
 static int
