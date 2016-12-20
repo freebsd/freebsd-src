@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/resource.h>
 #include <sys/rman.h>
+#include <sys/gpio.h>
 
 #include <machine/bus.h>
 
@@ -50,8 +51,13 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
+#include <dev/gpio/gpiobusvar.h>
+
 #include <mips/ingenic/jz4780_common.h>
 #include <mips/ingenic/jz4780_codec.h>
+
+#define	CI20_HP_PIN	13
+#define	CI20_HP_PORT	3
 
 struct codec_softc {
 	device_t		dev;
@@ -149,6 +155,41 @@ codec_print_registers(struct codec_softc *sc)
 	printf("codec DR_ADC_AGC %x\n", codec_read(sc, DR_ADC_AGC));
 }
 
+/*
+ * CI20 board-specific
+ */
+static int
+ci20_hp_unmute(struct codec_softc *sc)
+{
+	device_t dev;
+	int port;
+	int err;
+	int pin;
+
+	pin = CI20_HP_PIN;
+	port = CI20_HP_PORT;
+
+	dev = devclass_get_device(devclass_find("gpio"), port);
+	if (dev == NULL)
+		return (0);
+
+	err = GPIO_PIN_SETFLAGS(dev, pin, GPIO_PIN_OUTPUT);
+	if (err != 0) {
+		device_printf(dev, "Cannot configure GPIO pin %d on %s\n",
+		    pin, device_get_nameunit(dev));
+		return (err);
+	}
+
+	err = GPIO_PIN_SET(dev, pin, 0);
+	if (err != 0) {
+		device_printf(dev, "Cannot configure GPIO pin %d on %s\n",
+		    pin, device_get_nameunit(dev));
+		return (err);
+	}
+
+	return (0);
+}
+
 static int
 codec_probe(device_t dev)
 {
@@ -187,9 +228,13 @@ codec_attach(device_t dev)
 	reg &= ~(VIC_SB_SLEEP | VIC_SB);
 	codec_write(sc, CR_VIC, reg);
 
+	DELAY(20000);
+
 	reg = codec_read(sc, CR_DAC);
 	reg &= ~(DAC_SB | DAC_MUTE);
 	codec_write(sc, CR_DAC, reg);
+
+	DELAY(10000);
 
 	/* I2S, 16-bit, 96 kHz. */
 	reg = codec_read(sc, AICR_DAC);
@@ -199,13 +244,19 @@ codec_attach(device_t dev)
 	reg |= AUDIOIF_I2S;
 	codec_write(sc, AICR_DAC, reg);
 
+	DELAY(10000);
+
 	reg = FCR_DAC_96;
 	codec_write(sc, FCR_DAC, reg);
+
+	DELAY(10000);
 
 	/* Unmute headphones. */
 	reg = codec_read(sc, CR_HP);
 	reg &= ~(HP_SB | HP_MUTE);
-	codec_write(sc, CR_HP, 0);
+	codec_write(sc, CR_HP, reg);
+
+	ci20_hp_unmute(sc);
 
 	return (0);
 }
