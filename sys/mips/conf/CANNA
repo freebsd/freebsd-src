@@ -26,5 +26,8 @@ options 	ROOTDEVNAME=\"ufs:mmcsd0s3\"
 
 makeoptions	TRAMPLOADADDR=0x88000000
 
+device		sound
+device		xdma
+
 #options 	VERBOSE_SYSINIT
 options 	PRINTF_BUFR_SIZE=256
