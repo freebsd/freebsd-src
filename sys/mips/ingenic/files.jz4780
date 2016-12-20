@@ -19,6 +19,7 @@ mips/ingenic/jz4780_intr.c	standard
 mips/ingenic/jz4780_gpio.c	standard
 mips/ingenic/jz4780_machdep.c	standard
 mips/ingenic/jz4780_nemc.c	standard
+mips/ingenic/jz4780_pdma.c	standard
 mips/ingenic/jz4780_pinctrl.c	standard
 mips/ingenic/jz4780_timer.c	standard
 
