@@ -1,5 +1,8 @@
 # $FreeBSD$
 
+# Linker error
+WANT_CHERI=none
+
 PACKAGE=at
 MAINSRC=${.CURDIR}/../../usr.bin/at
 

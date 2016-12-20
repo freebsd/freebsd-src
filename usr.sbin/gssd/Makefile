@@ -2,6 +2,9 @@
 
 .include <src.opts.mk>
 
+# Linker error
+WANT_CHERI=none
+
 PROG=	gssd
 MAN=	gssd.8
 SRCS=	gssd.c gssd.h gssd_svc.c gssd_xdr.c gssd_prot.c

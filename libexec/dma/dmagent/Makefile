@@ -2,6 +2,9 @@
 
 .include <src.opts.mk>
 
+# Linker error
+WANT_CHERI=none
+
 LIBADD=	ssl crypto
 
 PROG=	dma

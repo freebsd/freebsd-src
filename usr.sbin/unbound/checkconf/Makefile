@@ -1,5 +1,8 @@
 # $FreeBSD$
 
+# Linker error
+WANT_CHERI=none
+
 # Vendor sources and generated files
 LDNSDIR= ${.CURDIR}/../../../contrib/ldns
 UNBOUNDDIR= ${.CURDIR}/../../../contrib/unbound

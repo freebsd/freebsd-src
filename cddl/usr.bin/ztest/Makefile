@@ -1,5 +1,8 @@
 # $FreeBSD$
 
+# Linker error
+WANT_CHERI=none
+
 .PATH: ${.CURDIR}/../..//contrib/opensolaris/cmd/ztest
 
 PROG=	ztest
