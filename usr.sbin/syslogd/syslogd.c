@@ -383,7 +383,7 @@ close_filed(struct filed *f)
 int
 main(int argc, char *argv[])
 {
-	int ch, i, fdsrmax = 0;
+	int ch, i, fdsrmax = 0, bflag = 0;
 	struct sockaddr_storage ss;
 	fd_set *fdsr = NULL;
 	char line[MAXLINE + 1];
@@ -437,6 +437,7 @@ main(int argc, char *argv[])
 				pe->pe_name = (strlen(optarg) == 0) ?
 				    NULL : optarg;
 			}
+			bflag = 1;
 			STAILQ_INSERT_TAIL(&pqueue, pe, next);
 			break;
 		case 'c':
@@ -528,6 +529,14 @@ main(int argc, char *argv[])
 		}
 	if ((argc -= optind) != 0)
 		usage();
+
+	if (bflag == 0) {
+		pe = calloc(1, sizeof(*pe));
+		*pe = (struct peer) {
+			.pe_serv = "syslog"
+		};
+		STAILQ_INSERT_TAIL(&pqueue, pe, next);
+	}
 	STAILQ_FOREACH(pe, &pqueue, next)
 		socksetup(pe);
 
