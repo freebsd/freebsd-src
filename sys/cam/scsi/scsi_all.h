@@ -2156,6 +2156,7 @@ struct scsi_inquiry_data
 #define		SCSI_REV_SPC2		4
 #define		SCSI_REV_SPC3		5
 #define		SCSI_REV_SPC4		6
+#define		SCSI_REV_SPC5		7
 
 #define	SID_ECMA	0x38
 #define	SID_ISO		0xC0
