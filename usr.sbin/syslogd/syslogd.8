@@ -40,7 +40,7 @@
 .Op Fl a Ar allowed_peer
 .Op Fl b Ar bind_address
 .Op Fl f Ar config_file
-.Op Fl l Oo Ar mode : Oc Ns Ar path
+.Op Fl l Oo Ar mode \&: Oc Ns Ar path
 .Op Fl m Ar mark_interval
 .Op Fl P Ar pid_file
 .Op Fl p Ar log_socket
@@ -103,7 +103,7 @@ option may be any of the following:
 .Sm off
 .Ar ipaddr
 .No / Ar masklen
-.Op : Ar service
+.Op \&: Ar service
 .Sm on
 .Xc
 Accept datagrams from
@@ -145,7 +145,7 @@ is IPv6 address, a missing
 will be substituted by 128.
 .It Xo
 .Sm off
-.Ar domainname Op : Ar service
+.Ar domainname Op \&: Ar service
 .Sm on
 .Xc
 Accept datagrams where the reverse address lookup yields
@@ -156,7 +156,7 @@ The meaning of
 is as explained above.
 .It Xo
 .Sm off
-.No * Ar domainname Op : Ar service
+.No * Ar domainname Op \&: Ar service
 .Sm on
 .Xc
 Same as before, except that any source host whose name
@@ -174,13 +174,13 @@ option is also specified.
 .It Xo
 .Fl b
 .Sm off
-.Ar bind_address Op : Ar service
+.Ar bind_address Op \&: Ar service
 .Sm on
 .Xc
 .It Xo
 .Fl b
 .Sm off
-.Li : Ar service
+.Li \&: Ar service
 .Sm on
 .Xc
 Bind to a specific address and/or port.
