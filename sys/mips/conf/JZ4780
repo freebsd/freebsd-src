@@ -86,6 +86,16 @@ device		mmcsd
 
 device		dme
 
+device		iic
+device		iicbus
+
+# Framebuffer console support
+device		vt
+device		kbdmux
+device		hdmi
+device		videomode
+device		pty
+
 # USB support
 options 	USB_DEBUG	# enable debug msgs
 options 	USB_HOST_ALIGN=128 # L2 cache line size
@@ -95,6 +105,7 @@ device		dwcotg		# DesignWare HS OTG controller
 device		usb		# USB Bus (required)
 #device		udbp		# USB Double Bulk Pipe devices
 device		uhid		# "Human Interface Devices"
+device		ukbd		# Allow keyboard like HIDs to control console
 #device		ulpt		# Printer
 device		umass		# Disks/Mass storage - Requires scbus and da
 device		ums		# Mouse
