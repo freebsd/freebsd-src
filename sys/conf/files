@@ -3262,6 +3262,9 @@ wpi.fw			optional wpifw					\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"wpi.fw"
+dev/xdma/xdma.c			optional xdma
+dev/xdma/xdma_if.m		optional xdma
+dev/xdma/xdma_fdt_test.c	optional xdma xdma_test fdt
 dev/xe/if_xe.c			optional xe
 dev/xe/if_xe_pccard.c		optional xe pccard
 dev/xen/balloon/balloon.c	optional xenhvm
