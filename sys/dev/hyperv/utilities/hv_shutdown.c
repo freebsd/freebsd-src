@@ -47,6 +47,9 @@ __FBSDID("$FreeBSD$");
 #define VMBUS_SHUTDOWN_MSGVER		\
 	VMBUS_IC_VERSION(VMBUS_SHUTDOWN_MSGVER_MAJOR, 0)
 
+static int			vmbus_shutdown_probe(device_t);
+static int			vmbus_shutdown_attach(device_t);
+
 static const struct vmbus_ic_desc vmbus_shutdown_descs[] = {
 	{
 		.ic_guid = { .hv_guid = {
@@ -56,6 +59,27 @@ static const struct vmbus_ic_desc vmbus_shutdown_descs[] = {
 	},
 	VMBUS_IC_DESC_END
 };
+
+static device_method_t vmbus_shutdown_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		vmbus_shutdown_probe),
+	DEVMETHOD(device_attach,	vmbus_shutdown_attach),
+	DEVMETHOD(device_detach,	vmbus_ic_detach),
+	DEVMETHOD_END
+};
+
+static driver_t vmbus_shutdown_driver = {
+	"hvshutdown",
+	vmbus_shutdown_methods,
+	sizeof(struct vmbus_ic_softc)
+};
+
+static devclass_t vmbus_shutdown_devclass;
+
+DRIVER_MODULE(hv_shutdown, vmbus, vmbus_shutdown_driver,
+    vmbus_shutdown_devclass, NULL, NULL);
+MODULE_VERSION(hv_shutdown, 1);
+MODULE_DEPEND(hv_shutdown, vmbus, 1, 1, 1);
 
 static void
 vmbus_shutdown_cb(struct vmbus_channel *chan, void *xsc)
@@ -129,35 +153,15 @@ vmbus_shutdown_cb(struct vmbus_channel *chan, void *xsc)
 }
 
 static int
-hv_shutdown_probe(device_t dev)
+vmbus_shutdown_probe(device_t dev)
 {
 
 	return (vmbus_ic_probe(dev, vmbus_shutdown_descs));
 }
 
 static int
-hv_shutdown_attach(device_t dev)
+vmbus_shutdown_attach(device_t dev)
 {
 
 	return (vmbus_ic_attach(dev, vmbus_shutdown_cb));
 }
-
-static device_method_t shutdown_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_probe, hv_shutdown_probe),
-	DEVMETHOD(device_attach, hv_shutdown_attach),
-	DEVMETHOD(device_detach, vmbus_ic_detach),
-	{ 0, 0 }
-};
-
-static driver_t shutdown_driver = {
-	"hvshutdown",
-	shutdown_methods,
-	sizeof(struct vmbus_ic_softc)
-};
-
-static devclass_t shutdown_devclass;
-
-DRIVER_MODULE(hv_shutdown, vmbus, shutdown_driver, shutdown_devclass, NULL, NULL);
-MODULE_VERSION(hv_shutdown, 1);
-MODULE_DEPEND(hv_shutdown, vmbus, 1, 1, 1);
