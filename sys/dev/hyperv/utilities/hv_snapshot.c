@@ -57,8 +57,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/hyperv/include/hyperv.h>
 #include <dev/hyperv/utilities/hv_utilreg.h>
 #include <dev/hyperv/utilities/vmbus_icreg.h>
+#include <dev/hyperv/utilities/vmbus_icvar.h>
 
-#include "hv_util.h"
 #include "hv_snapshot.h"
 #include "vmbus_if.h"
 
