@@ -252,7 +252,6 @@ SYSCTL_INT(_net_link_lagg, OID_AUTO, default_flowid_shift, CTLFLAG_RWTUN,
     &VNET_NAME(def_flowid_shift), 0,
     "Default setting for flowid shift for load sharing");
 
-#pragma clang optimize off
 static void
 vnet_lagg_init(const void *unused __unused)
 {
