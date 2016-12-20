@@ -827,6 +827,11 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 	struct dqblk dqb;
 	uid_t savuid;
 #endif
+	static struct timeval last64fileid;
+	static size_t count64fileid;
+	static struct timeval last64mountfileid;
+	static size_t count64mountfileid;
+	static struct timeval warninterval = { 60, 0 };
 
 	if (compare) {
 		retnotsup = 0;
@@ -1196,8 +1201,14 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 					*retcmpp = NFSERR_NOTSAME;
 				}
 			} else if (nap != NULL) {
-				if (*tl++)
-					printf("NFSv4 fileid > 32bits\n");
+				if (*tl++) {
+					count64fileid++;
+					if (ratecheck(&last64fileid, &warninterval)) {
+						printf("NFSv4 fileid > 32bits (%zu occurrences)\n",
+						    count64fileid);
+						count64fileid = 0;
+					}
+				}
 				nap->na_fileid = thyp;
 			}
 			attrsum += NFSX_HYPER;
@@ -1734,8 +1745,14 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 				}
 			    }
 			} else if (nap != NULL) {
-			    if (*tl++)
-				printf("NFSv4 mounted on fileid > 32bits\n");
+			    if (*tl++) {
+				count64mountfileid++;
+				if (ratecheck(&last64mountfileid, &warninterval)) {
+					printf("NFSv4 mounted on fileid > 32bits (%zu occurrences)\n",
+					    count64mountfileid);
+					count64mountfileid = 0;
+				}
+			    }
 			    nap->na_mntonfileno = thyp;
 			}
 			attrsum += NFSX_HYPER;
