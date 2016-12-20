@@ -17,7 +17,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 13, 2010
+.Dd December 20, 2016
 .Dt CRONTAB 1
 .Os
 .Sh NAME
@@ -31,7 +31,8 @@
 .Op Fl u Ar user
 {
 .Fl l |
-.Fl r |
+.Fl r Op Fl f
+|
 .Fl e
 }
 .Sh DESCRIPTION
@@ -97,6 +98,11 @@ option for safety's sake.
 Display the current crontab on standard output.
 .It Fl r
 Remove the current crontab.
+By default the
+.Fl r
+option prompts for confirmation, adding the
+.Fl f
+option will attempt to remove the current crontab without confirmation.
 .It Fl e
 Edit the current crontab using the editor specified by
 the
