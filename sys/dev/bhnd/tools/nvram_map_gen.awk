@@ -52,9 +52,6 @@ function main(_i) {
 		AWK_REQ_HEX_PARSING=1
 	}
 
-	# Seed rand()
-	srand()
-
 	# Output type
 	OUT_T = null
 	OUT_T_HEADER = "HEADER"
