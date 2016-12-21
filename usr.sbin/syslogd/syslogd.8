@@ -28,7 +28,7 @@
 .\"     @(#)syslogd.8	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd June 16, 2015
+.Dd December 21, 2016
 .Dt SYSLOGD 8
 .Os
 .Sh NAME
@@ -44,6 +44,7 @@
 .Op Fl m Ar mark_interval
 .Op Fl P Ar pid_file
 .Op Fl p Ar log_socket
+.Op Fl S Ar logpriv_socket
 .Sh DESCRIPTION
 The
 .Nm
@@ -154,16 +155,9 @@ for the sender address.
 The meaning of
 .Ar service
 is as explained above.
-.It Xo
-.Sm off
-.No * Ar domainname Op \&: Ar service
-.Sm on
-.Xc
-Same as before, except that any source host whose name
-.Em ends
-in
 .Ar domainname
-will get permission.
+can contain special characters of a shell-style pattern such as
+.Ql Li \&* .
 .El
 .Pp
 The
