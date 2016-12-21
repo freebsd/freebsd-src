@@ -290,7 +290,7 @@ static const struct ctl_page_index page_index_template[] = {
 	 CTL_PAGE_FLAG_ALL, NULL, ctl_ie_page_handler},
 	{SMS_INFO_EXCEPTIONS_PAGE | SMPH_SPF, 0x02,
 	 sizeof(struct ctl_logical_block_provisioning_page), NULL,
-	 CTL_PAGE_FLAG_DIRECT, NULL, NULL},
+	 CTL_PAGE_FLAG_DIRECT, NULL, ctl_default_page_handler},
 	{SMS_CDDVD_CAPS_PAGE, 0,
 	 sizeof(struct scsi_cddvd_capabilities_page), NULL,
 	 CTL_PAGE_FLAG_CDROM, NULL, NULL},
