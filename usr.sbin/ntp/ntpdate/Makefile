@@ -2,6 +2,9 @@
 
 .include <src.opts.mk>
 
+# Compiler crash
+WANT_CHERI=none
+
 .PATH: ${.CURDIR}/../../../contrib/ntp/ntpdate
 
 PROG=	ntpdate
