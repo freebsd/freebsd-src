@@ -144,28 +144,16 @@ struct peer {
 	mode_t		pe_mode;
 	STAILQ_ENTRY(peer)	next;
 };
+static STAILQ_HEAD(, peer) pqueue = STAILQ_HEAD_INITIALIZER(pqueue);
+
 struct socklist {
 	struct sockaddr_storage	sl_ss;
 	int			sl_socket;
 	struct peer		*sl_peer;
+	int			(*sl_recv)(struct socklist *);
 	STAILQ_ENTRY(socklist)	next;
 };
 static STAILQ_HEAD(, socklist) shead = STAILQ_HEAD_INITIALIZER(shead);
-
-static struct peer funix_secure = {
-	.pe_name = _PATH_LOG_PRIV,
-	.pe_mode = S_IRUSR | S_IWUSR,
-	.next = {NULL},
-};
-static struct peer funix_default = {
-	.pe_name = _PATH_LOG,
-	.pe_mode = DEFFILEMODE,
-	.next = {&funix_secure},
-};
-static STAILQ_HEAD(, peer) pqueue = {
-	&funix_default,
-	&funix_secure.next.stqe_next,
-};
 
 /*
  * Flags to logmsg().
@@ -306,7 +294,6 @@ static int	Foreground = 0;	/* Run in foreground, instead of daemonizing */
 static int	resolve = 1;	/* resolve hostname */
 static char	LocalHostName[MAXHOSTNAMELEN];	/* our hostname */
 static const char *LocalDomain;	/* our local domain name */
-static int	fklog = -1;	/* /dev/klog */
 static int	Initialized;	/* set when we have initialized ourselves */
 static int	MarkInterval = 20 * 60;	/* interval between marks in seconds */
 static int	MarkSeq;	/* mark sequence number */
@@ -337,8 +324,10 @@ static struct pidfh *pfh;
 static volatile sig_atomic_t MarkSet, WantDie;
 
 static int	allowaddr(char *);
-static void	cfline(const char *, struct filed *,
-		    const char *, const char *);
+static int	addfile(struct filed *);
+static int	addpeer(struct peer *);
+static int	addsock(struct sockaddr *, socklen_t, struct socklist *);
+static struct filed *cfline(const char *, const char *, const char *);
 static const char *cvthname(struct sockaddr *);
 static void	deadq_enter(pid_t, const char *);
 static int	deadq_remove(pid_t);
@@ -354,11 +343,12 @@ static void	logmsg(int, const char *, const char *, int);
 static void	log_deadchild(pid_t, int, const char *);
 static void	markit(void);
 static int	socksetup(struct peer *);
+static int	socklist_recv_file(struct socklist *);
+static int	socklist_recv_sock(struct socklist *);
 static int	skip_message(const char *, const char *, int);
 static void	printline(const char *, char *, int);
 static void	printsys(char *);
 static int	p_open(const char *, pid_t *);
-static void	readklog(void);
 static void	reapchild(int);
 static const char *ttymsg_check(struct iovec *, int, char *, int);
 static void	usage(void);
@@ -381,21 +371,61 @@ close_filed(struct filed *f)
 	f->f_type = F_UNUSED;
 }
 
+static int
+addfile(struct filed *f0)
+{
+	struct filed *f;
+
+	f = calloc(1, sizeof(*f));
+	if (f == NULL)
+		err(1, "malloc failed");
+	*f = *f0;
+	STAILQ_INSERT_TAIL(&fhead, f, next);
+
+	return (0);
+}
+
+static int
+addpeer(struct peer *pe0)
+{
+	struct peer *pe;
+
+	pe = calloc(1, sizeof(*pe));
+	if (pe == NULL)
+		err(1, "malloc failed");
+	*pe = *pe0;
+	STAILQ_INSERT_TAIL(&pqueue, pe, next);
+
+	return (0);
+}
+
+static int
+addsock(struct sockaddr *sa, socklen_t sa_len, struct socklist *sl0)
+{
+	struct socklist *sl;
+
+	sl = calloc(1, sizeof(*sl));
+	if (sl == NULL)
+		err(1, "malloc failed");
+	*sl = *sl0;
+	if (sa != NULL && sa_len > 0)
+		memcpy(&sl->sl_ss, sa, sa_len);
+	STAILQ_INSERT_TAIL(&shead, sl, next);
+
+	return (0);
+}
+
 int
 main(int argc, char *argv[])
 {
-	int ch, i, fdsrmax = 0, bflag = 0;
-	struct sockaddr_storage ss;
+	int ch, i, s, fdsrmax = 0, bflag = 0, pflag = 0, Sflag = 0;
 	fd_set *fdsr = NULL;
-	char line[MAXLINE + 1];
-	const char *hname;
 	struct timeval tv, *tvp;
 	struct sigaction sact;
 	struct peer *pe;
 	struct socklist *sl;
 	sigset_t mask;
 	pid_t ppid = 1, spid;
-	socklen_t sslen;
 	char *p;
 
 	if (madvise(NULL, 0, MADV_PROTECT) != 0)
@@ -425,21 +455,22 @@ main(int argc, char *argv[])
 				usage();
 			break;
 		case 'b':
-			if ((pe = calloc(1, sizeof(*pe))) == NULL)
-				err(1, "malloc failed");
+			bflag = 1;
 			if ((p = strchr(optarg, ':')) == NULL) {
 				/* A hostname or filename only. */
-				pe->pe_name = optarg;
-				pe->pe_serv = "syslog";
+				addpeer(&(struct peer){
+					.pe_name = optarg,
+					.pe_serv = "syslog"
+				});
 			} else {
 				/* The case of "name:service". */
 				*p++ = '\0';
-				pe->pe_serv = p;
-				pe->pe_name = (strlen(optarg) == 0) ?
-				    NULL : optarg;
+				addpeer(&(struct peer){
+					.pe_serv = p,
+					.pe_name = (strlen(optarg) == 0) ?
+					    NULL : optarg,
+				});
 			}
-			bflag = 1;
-			STAILQ_INSERT_TAIL(&pqueue, pe, next);
 			break;
 		case 'c':
 			no_compress++;
@@ -460,15 +491,25 @@ main(int argc, char *argv[])
 			KeepKernFac = 1;
 			break;
 		case 'l':
+		case 'p':
+		case 'S':
 		    {
 			long	perml;
 			mode_t	mode;
 			char	*name, *ep;
 
-			if (optarg[0] == '/') {
+			if (ch == 'l')
 				mode = DEFFILEMODE;
+			else if (ch == 'p') {
+				mode = DEFFILEMODE;
+				pflag = 1;
+			} else if (ch == 'S') {
+				mode = S_IRUSR | S_IWUSR;
+				Sflag = 1;
+			}
+			if (optarg[0] == '/')
 				name = optarg;
-			} else if ((name = strchr(optarg, ':')) != NULL) {
+			else if ((name = strchr(optarg, ':')) != NULL) {
 				*name++ = '\0';
 				if (name[0] != '/')
 					errx(1, "socket name must be absolute "
@@ -483,12 +524,13 @@ main(int argc, char *argv[])
 				} else
 					errx(1, "invalid mode %s, exiting",
 					    optarg);
-			}
-			if ((pe = calloc(1, sizeof(*pe))) == NULL)
-				err(1, "malloc failed");
-			pe->pe_name = name;
-			pe->pe_mode = mode;
-			STAILQ_INSERT_TAIL(&pqueue, pe, next);
+			} else
+				errx(1, "invalid filename %s, exiting",
+				    optarg);
+			addpeer(&(struct peer){
+				.pe_name = name,
+				.pe_mode = mode
+			});
 			break;
 		   }
 		case 'm':		/* mark interval */
@@ -504,17 +546,11 @@ main(int argc, char *argv[])
 		case 'o':
 			use_bootfile = 1;
 			break;
-		case 'p':		/* path */
-			funix_default.pe_name = optarg;
-			break;
 		case 'P':		/* path for alt. PID */
 			PidFile = optarg;
 			break;
 		case 's':		/* no network mode */
 			SecureMode++;
-			break;
-		case 'S':		/* path for privileged originator */
-			funix_secure.pe_name = optarg;
 			break;
 		case 'T':
 			RemoteAddDate = 1;
@@ -531,15 +567,33 @@ main(int argc, char *argv[])
 	if ((argc -= optind) != 0)
 		usage();
 
-	if (bflag == 0) {
-		pe = calloc(1, sizeof(*pe));
-		if (pe == NULL)
-			err(1, "malloc failed");
-		*pe = (struct peer) {
-			.pe_serv = "syslog"
-		};
-		STAILQ_INSERT_TAIL(&pqueue, pe, next);
+	/* Listen by default: /dev/klog. */
+	s = open(_PATH_KLOG, O_RDONLY|O_NONBLOCK, 0);
+	if (s < 0) {
+		dprintf("can't open %s (%d)\n", _PATH_KLOG, errno);
+	} else {
+		addsock(NULL, 0, &(struct socklist){
+			.sl_socket = s,
+			.sl_recv = socklist_recv_file,
+		});
 	}
+	/* Listen by default: *:514 if no -b flag. */
+	if (bflag == 0)
+		addpeer(&(struct peer){
+			.pe_serv = "syslog"
+		});
+	/* Listen by default: /var/run/log if no -p flag. */
+	if (pflag == 0)
+		addpeer(&(struct peer){
+			.pe_name = _PATH_LOG,
+			.pe_mode = DEFFILEMODE,
+		});
+	/* Listen by default: /var/run/logpriv if no -S flag. */
+	if (Sflag == 0)
+		addpeer(&(struct peer){
+			.pe_name = _PATH_LOG_PRIV,
+			.pe_mode = S_IRUSR | S_IWUSR,
+		});
 	STAILQ_FOREACH(pe, &pqueue, next)
 		socksetup(pe);
 
@@ -585,9 +639,6 @@ main(int argc, char *argv[])
 
 	TAILQ_INIT(&deadq_head);
 
-	if ((fklog = open(_PATH_KLOG, O_RDONLY|O_NONBLOCK, 0)) < 0)
-		dprintf("can't open %s (%d)\n", _PATH_KLOG, errno);
-
 	/* tuck my process id away */
 	pidfile_write(pfh);
 
@@ -605,13 +656,10 @@ main(int argc, char *argv[])
 	tvp = &tv;
 	tv.tv_sec = tv.tv_usec = 0;
 
-	if (fklog != -1 && fklog > fdsrmax)
-		fdsrmax = fklog;
 	STAILQ_FOREACH(sl, &shead, next) {
 		if (sl->sl_socket > fdsrmax)
 			fdsrmax = sl->sl_socket;
 	}
-
 	fdsr = (fd_set *)calloc(howmany(fdsrmax+1, NFDBITS),
 	    sizeof(fd_mask));
 	if (fdsr == NULL)
@@ -626,8 +674,6 @@ main(int argc, char *argv[])
 		bzero(fdsr, howmany(fdsrmax+1, NFDBITS) *
 		    sizeof(fd_mask));
 
-		if (fklog != -1)
-			FD_SET(fklog, fdsr);
 		STAILQ_FOREACH(sl, &shead, next) {
 			if (sl->sl_socket != -1)
 				FD_SET(sl->sl_socket, fdsr);
@@ -649,47 +695,53 @@ main(int argc, char *argv[])
 				logerror("select");
 			continue;
 		}
-		if (fklog != -1 && FD_ISSET(fklog, fdsr))
-			readklog();
 		STAILQ_FOREACH(sl, &shead, next) {
-			int date, len;
-
-			if (FD_ISSET(sl->sl_socket, fdsr)) {
-				sslen = sizeof(ss);
-				dprintf("sslen(1) = %d\n", sslen);
-				len = recvfrom(sl->sl_socket, line,
-				    sizeof(line) - 1, 0,
-				    sstosa(&ss), &sslen);
-				dprintf("sslen(2) = %d\n", sslen);
-				if (len == 0)
-					continue;
-				if (len < 0) {
-					if (errno != EINTR)
-						logerror("recvfrom");
-					continue;
-				}
-				/* Received valid data. */
-				line[len] = '\0';
-				if (sl->sl_ss.ss_family == AF_LOCAL) {
-					hname = LocalHostName;
-					date = 0;
-				} else {
-					hname = cvthname(sstosa(&ss));
-					unmapped(sstosa(&ss));
-					if (validate(sstosa(&ss), hname) == 0)
-						hname = NULL;
-					date = RemoteAddDate ? ADDDATE : 0;
-				}
-				if (hname != NULL)
-					printline(hname, line, date);
-				else
-					dprintf("Invalid msg from "
-					    "%s was ignored.", hname);
-			}
+			if (FD_ISSET(sl->sl_socket, fdsr))
+				(*sl->sl_recv)(sl);
 		}
 	}
 	if (fdsr)
 		free(fdsr);
+}
+
+static int
+socklist_recv_sock(struct socklist *sl)
+{
+	struct sockaddr_storage ss;
+	struct sockaddr *sa = (struct sockaddr *)&ss;
+	socklen_t sslen;
+	const char *hname;
+	char line[MAXLINE + 1];
+	int date, len;
+
+	sslen = sizeof(ss);
+	len = recvfrom(sl->sl_socket, line, sizeof(line) - 1, 0, sa, &sslen);
+	dprintf("received sa_len = %d\n", sslen);
+	if (len == 0)
+		return (-1);
+	if (len < 0) {
+		if (errno != EINTR)
+			logerror("recvfrom");
+		return (-1);
+	}
+	/* Received valid data. */
+	line[len] = '\0';
+	if (sl->sl_ss.ss_family == AF_LOCAL) {
+		hname = LocalHostName;
+		date = 0;
+	} else {
+		hname = cvthname(sa);
+		unmapped(sa);
+		if (validate(sa, hname) == 0)
+			hname = NULL;
+		date = RemoteAddDate ? ADDDATE : 0;
+	}
+	if (hname != NULL)
+		printline(hname, line, date);
+	else
+		dprintf("Invalid msg from %s was ignored.", hname);
+
+	return (0);
 }
 
 static void
@@ -792,21 +844,22 @@ printline(const char *hname, char *msg, int flags)
 /*
  * Read /dev/klog while data are available, split into lines.
  */
-static void
-readklog(void)
+static int
+socklist_recv_file(struct socklist *sl)
 {
 	char *p, *q, line[MAXLINE + 1];
 	int len, i;
 
 	len = 0;
 	for (;;) {
-		i = read(fklog, line + len, MAXLINE - 1 - len);
+		i = read(sl->sl_socket, line + len, MAXLINE - 1 - len);
 		if (i > 0) {
 			line[i + len] = '\0';
 		} else {
 			if (i < 0 && errno != EINTR && errno != EAGAIN) {
 				logerror("klog");
-				fklog = -1;
+				close(sl->sl_socket);
+				sl->sl_socket = -1;
 			}
 			break;
 		}
@@ -825,6 +878,8 @@ readklog(void)
 	}
 	if (len > 0)
 		printsys(line);
+
+	return (len);
 }
 
 /*
@@ -1225,7 +1280,9 @@ fprintlog(struct filed *f, int flags, const char *msg)
 			struct socklist *sl;
 
 			STAILQ_FOREACH(sl, &shead, next) {
-				if (sl->sl_ss.ss_family == AF_LOCAL)
+				if (sl->sl_ss.ss_family == AF_LOCAL ||
+				    sl->sl_ss.ss_family == AF_UNSPEC ||
+				    sl->sl_socket < 0)
 					continue;
 				lsent = sendto(sl->sl_socket, line, l, 0,
 				    r->ai_addr, r->ai_addrlen);
@@ -1591,7 +1648,6 @@ readconfigfile(FILE *cf, int allow_includes)
 	/*
 	 *  Foreach line in the conf table, open that file.
 	 */
-	f = NULL;
 	include_len = sizeof(include_str) -1;
 	(void)strlcpy(host, "*", sizeof(host));
 	(void)strlcpy(prog, "*", sizeof(prog));
@@ -1693,13 +1749,9 @@ readconfigfile(FILE *cf, int allow_includes)
 		}
 		for (i = strlen(cline) - 1; i >= 0 && isspace(cline[i]); i--)
 			cline[i] = '\0';
-		f = (struct filed *)calloc(1, sizeof(*f));
-		if (f == NULL) {
-			logerror("calloc");
-			exit(1);
-		}
-		STAILQ_INSERT_TAIL(&fhead, f, next);
-		cfline(cline, f, prog, host);
+		f = cfline(cline, prog, host);
+		if (f != NULL)
+			addfile(f);
 	}
 }
 
@@ -1789,23 +1841,14 @@ init(int signo)
 	/* open the configuration file */
 	if ((cf = fopen(ConfFile, "r")) == NULL) {
 		dprintf("cannot open %s\n", ConfFile);
-		f = calloc(1, sizeof(*f));
-		if (f == NULL) {
-			logerror("calloc");
-			exit(1);
-		}
-		cfline("*.ERR\t/dev/console", f, "*", "*");
-		STAILQ_INSERT_TAIL(&fhead, f, next);
-
-		f = calloc(1, sizeof(*f));
-		if (f == NULL) {
-			logerror("calloc");
-			exit(1);
-		}
-		cfline("*.PANIC\t*", f, "*", "*");
-		STAILQ_INSERT_TAIL(&fhead, f, next);
-
+		f = cfline("*.ERR\t/dev/console", "*", "*");
+		if (f != NULL)
+			addfile(f);
+		f = cfline("*.PANIC\t*", "*", "*");
+		if (f != NULL)
+			addfile(f);
 		Initialized = 1;
+
 		return;
 	}
 
@@ -1887,9 +1930,10 @@ init(int signo)
 /*
  * Crack a configuration file line
  */
-static void
-cfline(const char *line, struct filed *f, const char *prog, const char *host)
+static struct filed *
+cfline(const char *line, const char *prog, const char *host)
 {
+	struct filed *f;
 	struct addrinfo hints, *res;
 	int error, i, pri, syncfile;
 	const char *p, *q;
@@ -1898,10 +1942,13 @@ cfline(const char *line, struct filed *f, const char *prog, const char *host)
 
 	dprintf("cfline(\"%s\", f, \"%s\", \"%s\")\n", line, prog, host);
 
+	f = calloc(1, sizeof(*f));
+	if (f == NULL) {
+		logerror("malloc");
+		exit(1);
+	}
 	errno = 0;	/* keep strerror() stuff out of logerror messages */
 
-	/* clear out file entry */
-	memset(f, 0, sizeof(*f));
 	for (i = 0; i <= LOG_NFACILITIES; i++)
 		f->f_pmask[i] = INTERNAL_NOPRI;
 
@@ -1995,7 +2042,7 @@ cfline(const char *line, struct filed *f, const char *prog, const char *host)
 				(void)snprintf(ebuf, sizeof ebuf,
 				    "unknown priority name \"%s\"", buf);
 				logerror(ebuf);
-				return;
+				return (NULL);
 			}
 		}
 		if (!pri_cmp)
@@ -2025,7 +2072,7 @@ cfline(const char *line, struct filed *f, const char *prog, const char *host)
 					    "unknown facility name \"%s\"",
 					    buf);
 					logerror(ebuf);
-					return;
+					return (NULL);
 				}
 				f->f_pmask[i >> 3] = pri;
 				f->f_pcmp[i >> 3] = pri_cmp;
@@ -2142,6 +2189,7 @@ cfline(const char *line, struct filed *f, const char *prog, const char *host)
 		f->f_type = F_USERS;
 		break;
 	}
+	return (f);
 }
 
 
@@ -2731,7 +2779,6 @@ static int
 socksetup(struct peer *pe)
 {
 	struct addrinfo hints, *res, *res0;
-	struct socklist *sl;
 	int error;
 	char *cp;
 	/*
@@ -2853,13 +2900,12 @@ socksetup(struct peer *pe)
 			dprintf("listening on inet socket\n");
 		} else
 			dprintf("sending on inet socket\n");
-		sl = calloc(1, sizeof(*sl));
-		if (sl == NULL)
-			err(1, "malloc failed");
-		sl->sl_socket = s;
-		memcpy(&sl->sl_ss, res->ai_addr, res->ai_addrlen);
-		sl->sl_peer = pe;
-		STAILQ_INSERT_TAIL(&shead, sl, next);
+		addsock(res->ai_addr, res->ai_addrlen,
+		    &(struct socklist){
+			.sl_socket = s,
+			.sl_peer = pe,
+			.sl_recv = socklist_recv_sock
+		});
 	}
 	freeaddrinfo(res0);
 
