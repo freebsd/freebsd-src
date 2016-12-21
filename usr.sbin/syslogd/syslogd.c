@@ -128,6 +128,7 @@ static const char include_ext[] = ".conf";
 
 #define	sstosa(ss)	((struct sockaddr *)(ss))
 #define	satosin6(sa)	((struct sockaddr_in6 *)(void *)(sa))
+#define	sstosin(ss)	((struct sockaddr_in *)(ss))
 #define	satosin(sa)	((struct sockaddr_in *)(void *)(sa))
 #define	s6_addr32	__u6_addr.__u6_addr32
 #define	IN6_ARE_MASKED_ADDR_EQUAL(d, a, m)	(	\
@@ -2368,7 +2369,7 @@ allowaddr(char *s)
 	struct servent *se;
 	int masklen = -1;
 	struct addrinfo hints, *res;
-	struct in_addr *addrp, *maskp;
+	in_addr_t *addrp, *maskp;
 #ifdef INET6
 	int i;
 	u_int32_t *addr6p, *mask6p;
@@ -2434,28 +2435,27 @@ allowaddr(char *s)
 		ap->a_mask.ss_family = res->ai_family;
 		if (res->ai_family == AF_INET) {
 			ap->a_mask.ss_len = sizeof(struct sockaddr_in);
-			maskp = &((struct sockaddr_in *)&ap->a_mask)->sin_addr;
-			addrp = &((struct sockaddr_in *)&ap->a_addr)->sin_addr;
+			maskp = &sstosin(&ap->a_mask)->sin_addr.s_addr;
+			addrp = &sstosin(&ap->a_addr)->sin_addr.s_addr;
 			if (masklen < 0) {
 				/* use default netmask */
-				if (IN_CLASSA(ntohl(addrp->s_addr)))
-					maskp->s_addr = htonl(IN_CLASSA_NET);
-				else if (IN_CLASSB(ntohl(addrp->s_addr)))
-					maskp->s_addr = htonl(IN_CLASSB_NET);
+				if (IN_CLASSA(ntohl(*addrp)))
+					*maskp = htonl(IN_CLASSA_NET);
+				else if (IN_CLASSB(ntohl(*addrp)))
+					*maskp = htonl(IN_CLASSB_NET);
 				else
-					maskp->s_addr = htonl(IN_CLASSC_NET);
+					*maskp = htonl(IN_CLASSC_NET);
+			} else if (masklen == 0) {
+				*maskp = 0;
 			} else if (masklen <= 32) {
 				/* convert masklen to netmask */
-				if (masklen == 0)
-					maskp->s_addr = 0;
-				else
-					maskp->s_addr = htonl(~((1 << (32 - masklen)) - 1));
+				*maskp = htonl(~((1 << (32 - masklen)) - 1));
 			} else {
 				freeaddrinfo(res);
 				return (-1);
 			}
 			/* Lose any host bits in the network number. */
-			addrp->s_addr &= maskp->s_addr;
+			*addrp &= *maskp;
 		}
 #ifdef INET6
 		else if (res->ai_family == AF_INET6 && masklen <= 128) {
