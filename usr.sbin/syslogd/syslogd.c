@@ -223,7 +223,8 @@ struct deadq_entry {
 	int				dq_timeout;
 	TAILQ_ENTRY(deadq_entry)	dq_entries;
 };
-static TAILQ_HEAD(, deadq_entry) deadq_head;
+static TAILQ_HEAD(, deadq_entry) deadq_head =
+    TAILQ_HEAD_INITIALIZER(deadq_head);
 
 /*
  * The timeout to apply to processes waiting on the dead queue.  Unit
@@ -264,11 +265,12 @@ static STAILQ_HEAD(, allowedpeer) aphead = STAILQ_HEAD_INITIALIZER(aphead);
  * we move to the next interval until we reach the largest.
  */
 static int repeatinterval[] = { 30, 120, 600 };	/* # of secs before flush */
-#define	MAXREPEAT ((sizeof(repeatinterval) / sizeof(repeatinterval[0])) - 1)
+#define	MAXREPEAT	(nitems(repeatinterval) - 1)
 #define	REPEATTIME(f)	((f)->f_time + repeatinterval[(f)->f_repeatcount])
-#define	BACKOFF(f)	{ if (++(f)->f_repeatcount > MAXREPEAT) \
-				 (f)->f_repeatcount = MAXREPEAT; \
-			}
+#define	BACKOFF(f)	do {						\
+				if (++(f)->f_repeatcount > MAXREPEAT)	\
+					(f)->f_repeatcount = MAXREPEAT;	\
+			} while (0)
 
 /* values for f_type */
 #define F_UNUSED	0		/* unused entry */
@@ -637,8 +639,6 @@ main(int argc, char *argv[])
 	(void)signal(SIGPIPE, SIG_IGN);	/* We'll catch EPIPE instead. */
 	(void)alarm(TIMERINTVL);
 
-	TAILQ_INIT(&deadq_head);
-
 	/* tuck my process id away */
 	pidfile_write(pfh);
 
@@ -772,11 +772,12 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "%s\n%s\n%s\n%s\n",
+	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n",
 		"usage: syslogd [-468ACcdFknosTuv] [-a allowed_peer]",
 		"               [-b bind_address] [-f config_file]",
 		"               [-l [mode:]path] [-m mark_interval]",
-		"               [-P pid_file] [-p log_socket]");
+		"               [-P pid_file] [-p log_socket]",
+		"               [-S logpriv_socket]");
 	exit(1);
 }
 
@@ -1325,7 +1326,7 @@ fprintlog(struct filed *f, int flags, const char *msg)
 		dprintf(" %s\n", f->fu_fname);
 		v->iov_base = lf;
 		v->iov_len = 1;
-		if (writev(f->f_file, iov, IOV_SIZE) < 0) {
+		if (writev(f->f_file, iov, nitems(iov)) < 0) {
 			/*
 			 * If writev(2) fails for potentially transient errors
 			 * like the filesystem being full, ignore it.
@@ -1355,7 +1356,7 @@ fprintlog(struct filed *f, int flags, const char *msg)
 				break;
 			}
 		}
-		if (writev(f->f_file, iov, IOV_SIZE) < 0) {
+		if (writev(f->f_file, iov, nitems(iov)) < 0) {
 			int e = errno;
 			close_filed(f);
 			if (f->fu_pipe_pid > 0)
@@ -1380,7 +1381,7 @@ fprintlog(struct filed *f, int flags, const char *msg)
 		v->iov_len = 2;
 
 		errno = 0;	/* ttymsg() only sometimes returns an errno */
-		if ((msgret = ttymsg(iov, IOV_SIZE, f->fu_fname, 10))) {
+		if ((msgret = ttymsg(iov, nitems(iov), f->fu_fname, 10))) {
 			f->f_type = F_UNUSED;
 			logerror(msgret);
 		}
@@ -1391,7 +1392,7 @@ fprintlog(struct filed *f, int flags, const char *msg)
 		dprintf("\n");
 		v->iov_base = crlf;
 		v->iov_len = 2;
-		wallmsg(f, iov, IOV_SIZE);
+		wallmsg(f, iov, nitems(iov));
 		break;
 	}
 	f->f_prevcount = 0;
