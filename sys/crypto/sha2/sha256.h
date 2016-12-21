@@ -59,6 +59,12 @@ __BEGIN_DECLS
 #ifndef SHA256_End
 #define SHA256_End		_libmd_SHA256_End
 #endif
+#ifndef SHA256_Fd
+#define SHA256_Fd		_libmd_SHA256_Fd
+#endif
+#ifndef SHA256_FdChunk
+#define SHA256_FdChunk		_libmd_SHA256_FdChunk
+#endif
 #ifndef SHA256_File
 #define SHA256_File		_libmd_SHA256_File
 #endif
@@ -83,6 +89,8 @@ void	SHA256_Final(unsigned char [__min_size(SHA256_DIGEST_LENGTH)],
 #ifndef _KERNEL
 char   *SHA256_End(SHA256_CTX *, char *);
 char   *SHA256_Data(const void *, unsigned int, char *);
+char   *SHA256_Fd(int, char *);
+char   *SHA256_FdChunk(int, char *, off_t, off_t);
 char   *SHA256_File(const char *, char *);
 char   *SHA256_FileChunk(const char *, char *, off_t, off_t);
 #endif
