@@ -98,6 +98,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <fnmatch.h>
 #include <libutil.h>
 #include <limits.h>
 #include <paths.h>
@@ -2476,8 +2477,7 @@ static int
 validate(struct sockaddr *sa, const char *hname)
 {
 	int i;
-	size_t l1, l2;
-	char *cp, name[NI_MAXHOST], ip[NI_MAXHOST], port[NI_MAXSERV];
+	char name[NI_MAXHOST], ip[NI_MAXHOST], port[NI_MAXSERV];
 	struct allowedpeer *ap;
 	struct sockaddr_in *sin4, *a4p = NULL, *m4p = NULL;
 #ifdef INET6
@@ -2558,23 +2558,11 @@ validate(struct sockaddr *sa, const char *hname)
 			else
 				continue;
 		} else {
-			cp = ap->a_name;
-			l1 = strlen(name);
-			if (*cp == '*') {
-				/* allow wildmatch */
-				cp++;
-				l2 = strlen(cp);
-				if (l2 > l1 || memcmp(cp, &name[l1 - l2], l2) != 0) {
-					dprintf("rejected in rule %d due to name mismatch.\n", i);
-					continue;
-				}
-			} else {
-				/* exact match */
-				l2 = strlen(cp);
-				if (l2 != l1 || memcmp(cp, name, l1) != 0) {
-					dprintf("rejected in rule %d due to name mismatch.\n", i);
-					continue;
-				}
+			if (fnmatch(ap->a_name, name, FNM_NOESCAPE) ==
+			    FNM_NOMATCH) {
+				dprintf("rejected in rule %d due to name "
+				    "mismatch.\n", i);
+				continue;
 			}
 		}
 		dprintf("accepted in rule %d.\n", i);
