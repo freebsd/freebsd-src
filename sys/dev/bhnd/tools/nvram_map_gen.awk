@@ -1519,8 +1519,10 @@ function write_srom_bindings(layout, _varname, _var, _all_entries,
 		array_append(_entries, _entry)
 	}
 
-	# Sort entries by variable ID, ascending
-	array_sort(_entries, prop_path_create(p_var, p_vid))
+	# Sort entries by (variable ID, revision range), ascending
+	array_sort(_entries, prop_path_create(p_var, p_vid),
+	    prop_path_create(p_revisions, p_start),
+	    prop_path_create(p_revisions, p_end))
 
 	# Emit all entry binding opcodes
 	emit("static const uint8_t " _varname "[] = {\n")
@@ -2297,17 +2299,24 @@ function array_get(array, idx) {
 #
 # Sort an array, using standard awk comparison operators over its values.
 #
-# If `prop_path` is non-NULL, the corresponding property path (or property ID)
+# If `prop_path*` is non-NULL, the corresponding property path (or property ID)
 # will be fetched from each array element and used as the sorting value.
 #
-function array_sort(array, prop_path, _size) {
+# If multiple property paths are specified, the array is first sorted by
+# the first path, and then any equal values are sorted by the second path,
+# and so on.
+#
+function array_sort(array, prop_path0, prop_path1, prop_path2, _size) {
 	obj_assert_class(array, Array)
+
+	if (_size != null)
+		errorx("no more than three property paths may be specified")
 
 	_size = array_size(array)
 	if (_size <= 1)
 		return
 
-	_qsort(array, prop_path, 0, _size-1)
+	_qsort(array, prop_path0, prop_path1, prop_path2, 0, _size-1)
 }
 
 function _qsort_get_key(array, idx, prop_path, _v) {
@@ -2319,8 +2328,35 @@ function _qsort_get_key(array, idx, prop_path, _v) {
 	return (prop_get_path(_v, prop_path))
 }
 
-function _qsort(array, prop_path, first, last, _qpivot, _qpivot_val, _qleft,
-    _qleft_val, _qright, _qright_val)
+function _qsort_compare(array, lhs_idx, rhs_val, ppath0, ppath1, ppath2,
+    _lhs_val, _rhs_prop_val)
+{
+	_lhs_val = _qsort_get_key(array, lhs_idx, ppath0)
+	if (ppath0 == null)
+		_rhs_prop_val = rhs_val
+	else
+		_rhs_prop_val = prop_get_path(rhs_val, ppath0)
+
+	if (_lhs_val == _rhs_prop_val && ppath1 != null) {
+		_lhs_val = _qsort_get_key(array, lhs_idx, ppath1)
+		_rhs_prop_val = prop_get_path(rhs_val, ppath1)
+
+		if (_lhs_val == _rhs_prop_val && ppath2 != null) {
+			_lhs_val = _qsort_get_key(array, lhs_idx, ppath2)
+			_rhs_prop_val = prop_get_path(rhs_val, ppath2)
+		}
+	}
+
+	if (_lhs_val < _rhs_prop_val)
+		return (-1)
+	else if (_lhs_val > _rhs_prop_val)
+		return (1)
+	else
+		return (0)
+}
+
+function _qsort(array, ppath0, ppath1, ppath2, first, last, _qpivot,
+    _qleft, _qleft_val, _qright, _qright_val)
 {
 	if (first >= last)
 		return
@@ -2330,15 +2366,21 @@ function _qsort(array, prop_path, first, last, _qpivot, _qpivot_val, _qleft,
 	_qleft = first
 	_qright = last
 
-	_qpivot_val = _qsort_get_key(array, _qpivot, prop_path)
+	_qpivot_val = array_get(array, _qpivot)
 
 	# partition
 	while (_qleft <= _qright) {
-		while (_qsort_get_key(array, _qleft, prop_path) < _qpivot_val)
+		while (_qsort_compare(array, _qleft, _qpivot_val, ppath0, ppath1,
+		    ppath2) < 0)
+		{
 			_qleft++
+		}
 
-		while (_qsort_get_key(array, _qright, prop_path) > _qpivot_val)
+		while (_qsort_compare(array, _qright, _qpivot_val, ppath0, ppath1,
+		    ppath2) > 0)
+		{
 			_qright--
+		}
 
 		# swap
 		if (_qleft <= _qright) {
@@ -2354,8 +2396,8 @@ function _qsort(array, prop_path, first, last, _qpivot, _qpivot_val, _qleft,
 	}
 
 	# sort the partitions
-	_qsort(array, prop_path, first, _qright)
-	_qsort(array, prop_path, _qleft, last)
+	_qsort(array, ppath0, ppath1, ppath2, first, _qright)
+	_qsort(array, ppath0, ppath1, ppath2, _qleft, last)
 }
 
 
