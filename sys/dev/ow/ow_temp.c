@@ -164,7 +164,7 @@ ow_temp_event_thread(void *arg)
 						if (scratch[7]) {
 							/*
 							 * Formula from DS18S20 datasheet, page 6
-							 * DS18S20 datahseet says count_per_c is 16, DS1820 does not
+							 * DS18S20 datasheet says count_per_c is 16, DS1820 does not
 							 */
 							sc->temp = (int16_t)((scratch[0] & 0xfe) |
 							    (scratch[1] << 8)) << 3;
