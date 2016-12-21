@@ -1191,10 +1191,10 @@ xpt_getattr(char *buf, size_t len, const char *attr, struct cam_path *path)
 		    && idd->identifier[0] == 0x10) {
 			if ((idd->length - 2) * 2 + 4 < len) {
 				for (l = 2, o = 0; l < idd->length; l++) {
+					if (l == 6 || l == 8 || l == 10 || l == 12)
+					    o += sprintf(buf + o, "-");
 					o += sprintf(buf + o, "%02x",
 					    idd->identifier[l]);
-					if (l == 4 || l == 6 || l == 8 || l == 10)
-					    o += sprintf(buf + o, "-");
 				}
 			} else
 				ret = EFAULT;
