@@ -110,7 +110,7 @@
  * and call the appropriate transform.  The transform callback
  * takes care of further processing (like ingress filtering).
  */
-int
+static int
 ipsec_common_input(struct mbuf *m, int skip, int protoff, int af, int sproto)
 {
 	char buf[IPSEC_ADDRSTRLEN];
