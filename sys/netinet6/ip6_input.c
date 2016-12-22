@@ -118,11 +118,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/nd6.h>
 #include <netinet6/in6_rss.h>
 
-#ifdef IPSEC
-#include <netipsec/ipsec.h>
-#include <netinet6/ip6_ipsec.h>
-#include <netipsec/ipsec6.h>
-#endif /* IPSEC */
+#include <netipsec/ipsec_support.h>
 
 #include <netinet6/ip6protosw.h>
 
@@ -524,14 +520,11 @@ ip6_direct_input(struct mbuf *m)
 			goto bad;
 		}
 
-#ifdef IPSEC
-		/*
-		 * enforce IPsec policy checking if we are seeing last header.
-		 * note that we do not visit this with protocols with pcb layer
-		 * code - like udp/tcp/raw ip.
-		 */
-		if (ip6_ipsec_input(m, nxt))
-			goto bad;
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
+		if (IPSEC_ENABLED(ipv6)) {
+			if (IPSEC_INPUT(ipv6, m, off, nxt) != 0)
+				return;
+		}
 #endif /* IPSEC */
 
 		nxt = (*inet6sw[ip6_protox[nxt]].pr_input)(&m, &off, nxt);
@@ -554,7 +547,7 @@ ip6_input(struct mbuf *m)
 	int nxt, ours = 0;
 	int srcrt = 0;
 
-#ifdef IPSEC
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
 	/*
 	 * should the inner packet be considered authentic?
 	 * see comment in ah4_input().
@@ -728,14 +721,39 @@ ip6_input(struct mbuf *m)
 		goto bad;
 	}
 #endif
-#ifdef IPSEC
+#if 0
+	/*
+	 * Try to forward the packet, but if we fail continue.
+	 * ip6_tryforward() does inbound and outbound packet firewall
+	 * processing. If firewall has decided that destination becomes
+	 * our local address, it sets M_FASTFWD_OURS flag. In this
+	 * case skip another inbound firewall processing and update
+	 * ip6 pointer.
+	 */
+	if (V_ip6_forwarding != 0
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
+	    && (!IPSEC_ENABLED(ipv6) ||
+	    IPSEC_CAPS(ipv6, m, IPSEC_CAP_OPERABLE) == 0)
+#endif
+	    ) {
+		if ((m = ip6_tryforward(m)) == NULL)
+			return;
+		if (m->m_flags & M_FASTFWD_OURS) {
+			m->m_flags &= ~M_FASTFWD_OURS;
+			ours = 1;
+			ip6 = mtod(m, struct ip6_hdr *);
+			goto hbhcheck;
+		}
+	}
+#endif
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
 	/*
 	 * Bypass packet filtering for packets previously handled by IPsec.
 	 */
-	if (ip6_ipsec_filtertunnel(m))
-		goto passin;
-#endif /* IPSEC */
-
+	if (IPSEC_ENABLED(ipv6) &&
+	    IPSEC_CAPS(ipv6, m, IPSEC_CAP_BYPASS_FILTER) != 0)
+			goto passin;
+#endif
 	/*
 	 * Run through list of hooks for input packets.
 	 *
@@ -945,14 +963,11 @@ passin:
 			goto bad;
 		}
 
-#ifdef IPSEC
-		/*
-		 * enforce IPsec policy checking if we are seeing last header.
-		 * note that we do not visit this with protocols with pcb layer
-		 * code - like udp/tcp/raw ip.
-		 */
-		if (ip6_ipsec_input(m, nxt))
-			goto bad;
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
+		if (IPSEC_ENABLED(ipv6)) {
+			if (IPSEC_INPUT(ipv6, m, off, nxt) != 0)
+				return;
+		}
 #endif /* IPSEC */
 
 		nxt = (*inet6sw[ip6_protox[nxt]].pr_input)(&m, &off, nxt);
