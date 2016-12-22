@@ -11,6 +11,10 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20161222	p53	FreeBSD-SA-16:39.ntp
+
+	Fix multiple vulnerabilities of ntp.
+
 20161208	p52	FreeBSD-SA-16:37.libc [revised]
 
 	Fix regressions introduced by SA-16:37.libc.
