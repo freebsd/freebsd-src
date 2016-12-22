@@ -56,9 +56,9 @@ __FBSDID("$FreeBSD$");
 #define	CLK_RATIO_N		(0x3 << 16)
 #define	CLK_RATIO_N_SHIFT	16
 #define	CLK_RATIO_N_MAX		0x3
-#define	CLK_RATIO_M		(0x1f << 0)
+#define	CLK_RATIO_M		(0xf << 0)
 #define	CLK_RATIO_M_SHIFT	0
-#define	CLK_RATIO_M_MAX		0x1f
+#define	CLK_RATIO_M_MAX		0xf
 
 static struct ofw_compat_data compat_data[] = {
 	{ "allwinner,sun4i-a10-mod0-clk",	1 },
