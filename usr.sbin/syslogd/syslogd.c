@@ -236,9 +236,6 @@ static TAILQ_HEAD(, deadq_entry) deadq_head =
 
 #define	 DQ_TIMO_INIT	2
 
-typedef struct deadq_entry *dq_t;
-
-
 /*
  * Struct to hold records of network addresses that are allowed to log
  * to us.
@@ -334,7 +331,8 @@ static int	addsock(struct sockaddr *, socklen_t, struct socklist *);
 static struct filed *cfline(const char *, const char *, const char *);
 static const char *cvthname(struct sockaddr *);
 static void	deadq_enter(pid_t, const char *);
-static int	deadq_remove(pid_t);
+static int	deadq_remove(struct deadq_entry *);
+static int	deadq_removebypid(pid_t);
 static int	decode(const char *, const CODE *);
 static void	die(int) __dead2;
 static void	dodie(int);
@@ -1509,7 +1507,7 @@ reapchild(int signo __unused)
 			continue;
 
 		/* First, look if it's a process from the dead queue. */
-		if (deadq_remove(pid))
+		if (deadq_removebypid(pid))
 			continue;
 
 		/* Now, look in list of active processes. */
@@ -2252,7 +2250,7 @@ static void
 markit(void)
 {
 	struct filed *f;
-	dq_t q, next;
+	struct deadq_entry *dq, *dq0;
 
 	now = time((time_t *)NULL);
 	MarkSeq += TIMERINTVL;
@@ -2273,14 +2271,12 @@ markit(void)
 	}
 
 	/* Walk the dead queue, and see if we should signal somebody. */
-	for (q = TAILQ_FIRST(&deadq_head); q != NULL; q = next) {
-		next = TAILQ_NEXT(q, dq_entries);
-
-		switch (q->dq_timeout) {
+	TAILQ_FOREACH_SAFE(dq, &deadq_head, dq_entries, dq0) {
+		switch (dq->dq_timeout) {
 		case 0:
 			/* Already signalled once, try harder now. */
-			if (kill(q->dq_pid, SIGKILL) != 0)
-				(void)deadq_remove(q->dq_pid);
+			if (kill(dq->dq_pid, SIGKILL) != 0)
+				(void)deadq_remove(dq);
 			break;
 
 		case 1:
@@ -2292,12 +2288,13 @@ markit(void)
 			 * didn't even really exist, in case we simply
 			 * drop it from the dead queue).
 			 */
-			if (kill(q->dq_pid, SIGTERM) != 0)
-				(void)deadq_remove(q->dq_pid);
-			/* FALLTHROUGH */
-
+			if (kill(dq->dq_pid, SIGTERM) != 0)
+				(void)deadq_remove(dq);
+			else
+				dq->dq_timeout--;
+			break;
 		default:
-			q->dq_timeout--;
+			dq->dq_timeout--;
 		}
 	}
 	MarkSet = 0;
@@ -2738,7 +2735,7 @@ p_open(const char *prog, pid_t *rpid)
 static void
 deadq_enter(pid_t pid, const char *name)
 {
-	dq_t p;
+	struct deadq_entry *dq;
 	int status;
 
 	/*
@@ -2752,34 +2749,40 @@ deadq_enter(pid_t pid, const char *name)
 		return;
 	}
 
-	p = malloc(sizeof(struct deadq_entry));
-	if (p == NULL) {
+	dq = malloc(sizeof(*dq));
+	if (dq == NULL) {
 		logerror("malloc");
 		exit(1);
 	}
-	*p = (struct deadq_entry){
+	*dq = (struct deadq_entry){
 		.dq_pid = pid,
 		.dq_timeout = DQ_TIMO_INIT
 	};
-	TAILQ_INSERT_TAIL(&deadq_head, p, dq_entries);
+	TAILQ_INSERT_TAIL(&deadq_head, dq, dq_entries);
 }
 
 static int
-deadq_remove(pid_t pid)
+deadq_remove(struct deadq_entry *dq)
 {
-	dq_t q;
-
-	TAILQ_FOREACH(q, &deadq_head, dq_entries) {
-		if (q->dq_pid == pid)
-			break;
-	}
-	if (q != NULL) {
-		TAILQ_REMOVE(&deadq_head, q, dq_entries);
-		free(q);
+	if (dq != NULL) {
+		TAILQ_REMOVE(&deadq_head, dq, dq_entries);
+		free(dq);
 		return (1);
 	}
 
 	return (0);
+}
+
+static int
+deadq_removebypid(pid_t pid)
+{
+	struct deadq_entry *dq;
+
+	TAILQ_FOREACH(dq, &deadq_head, dq_entries) {
+		if (dq->dq_pid == pid)
+			break;
+	}
+	return (deadq_remove(dq));
 }
 
 static void
