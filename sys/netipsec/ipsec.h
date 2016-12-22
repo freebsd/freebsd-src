@@ -310,19 +310,7 @@ struct secpolicy *ipsec4_checkpolicy(const struct mbuf *, struct inpcb *,
     int *);
 
 u_int ipsec_get_reqlevel(struct secpolicy *, u_int);
-size_t ipsec_hdrsiz_inpcb(struct inpcb *);
 
-int ipsec_init_pcbpolicy(struct inpcb *);
-int ipsec_delete_pcbpolicy(struct inpcb *);
-int ipsec_copy_pcbpolicy(struct inpcb *, struct inpcb *);
-int ipsec_control_pcbpolicy(struct inpcb *, struct sockopt *);
-
-int tcp_ipsec_pcbctl(struct inpcb *, struct sockopt *);
-int tcp_ipsec_input(struct mbuf *, struct tcphdr *, u_char *);
-int tcp_ipsec_output(struct mbuf *, struct tcphdr *, u_char *);
-
-int udp_ipsec_pcbctl(struct inpcb *, struct sockopt *);
-int udp_ipsec_input(struct mbuf *, int, int);
 void udp_ipsec_adjust_cksum(struct mbuf *, struct secasvar *, int, int);
 int udp_ipsec_output(struct mbuf *, struct secasvar *);
 
@@ -338,7 +326,10 @@ char *ipsec_logsastr(struct secasvar *, char *, size_t);
 extern void ipsec_dumpmbuf(const struct mbuf *);
 
 int ipsec4_in_reject(const struct mbuf *, struct inpcb *);
-int ipsec4_common_input(struct mbuf **, int *, int);
+int ipsec4_input(struct mbuf *, int, int);
+int ipsec4_forward(struct mbuf *);
+int ipsec4_output(struct mbuf *, struct inpcb *);
+int ipsec4_capability(struct mbuf *, u_int);
 int ipsec4_common_input_cb(struct mbuf *, struct secasvar *, int, int);
 int ipsec4_process_packet(struct mbuf *, struct secpolicy *, struct inpcb *);
 int ipsec_process_done(struct mbuf *, struct secpolicy *, struct secasvar *,

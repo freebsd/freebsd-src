@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
+#include "opt_ipsec.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -57,6 +58,7 @@ __FBSDID("$FreeBSD$");
 
 #include <netipsec/key.h>
 #include <netipsec/key_debug.h>
+#include <netipsec/ipsec_support.h>
 #include <machine/in_cksum.h>
 
 /*
