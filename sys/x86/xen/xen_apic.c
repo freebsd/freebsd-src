@@ -500,12 +500,9 @@ xen_cpu_ipi_init(int cpu)
 {
 	xen_intr_handle_t *ipi_handle;
 	const struct xen_ipi_handler *ipi;
-	device_t dev;
 	int idx, rc;
 
 	ipi_handle = DPCPU_ID_GET(cpu, ipi_handle);
-	dev = pcpu_find(cpu)->pc_device;
-	KASSERT((dev != NULL), ("NULL pcpu device_t"));
 
 	for (ipi = xen_ipis, idx = 0; idx < nitems(xen_ipis); ipi++, idx++) {
 
@@ -514,7 +511,7 @@ xen_cpu_ipi_init(int cpu)
 			continue;
 		}
 
-		rc = xen_intr_alloc_and_bind_ipi(dev, cpu, ipi->filter,
+		rc = xen_intr_alloc_and_bind_ipi(cpu, ipi->filter,
 		    INTR_TYPE_TTY, &ipi_handle[idx]);
 		if (rc != 0)
 			panic("Unable to allocate a XEN IPI port");
