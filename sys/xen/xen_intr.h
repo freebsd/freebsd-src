@@ -143,7 +143,6 @@ int xen_intr_bind_virq(device_t dev, u_int virq, u_int cpu,
  * interupts and, if successful, associate the port with the specified
  * interrupt handler.
  *
- * \param dev       The device making this bind request.
  * \param cpu       The cpu receiving the IPI.
  * \param filter    The interrupt filter servicing this IPI.
  * \param irqflags  Interrupt handler flags.  See sys/bus.h.
@@ -152,7 +151,7 @@ int xen_intr_bind_virq(device_t dev, u_int virq, u_int cpu,
  *
  * \returns  0 on success, otherwise an errno.
  */
-int xen_intr_alloc_and_bind_ipi(device_t dev, u_int cpu,
+int xen_intr_alloc_and_bind_ipi(u_int cpu,
 	driver_filter_t filter, enum intr_type irqflags,
 	xen_intr_handle_t *handlep);
 
@@ -259,7 +258,7 @@ int xen_release_msi(int vector);
  *
  * \returns  0 on success, otherwise an errno.
  */
-int xen_intr_add_handler(device_t dev, driver_filter_t filter,
+int xen_intr_add_handler(const char *name, driver_filter_t filter,
 	driver_intr_t handler, void *arg, enum intr_type flags,
 	xen_intr_handle_t handle);
 
