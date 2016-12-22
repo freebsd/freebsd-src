@@ -425,7 +425,6 @@ main(int argc, char *argv[])
 	int ch, i, s, fdsrmax = 0, bflag = 0, pflag = 0, Sflag = 0;
 	fd_set *fdsr = NULL;
 	struct timeval tv, *tvp;
-	struct sigaction sact;
 	struct peer *pe;
 	struct socklist *sl;
 	sigset_t mask;
@@ -633,10 +632,11 @@ main(int argc, char *argv[])
 	 */
 	sigemptyset(&mask);
 	sigaddset(&mask, SIGHUP);
-	sact.sa_handler = reapchild;
-	sact.sa_mask = mask;
-	sact.sa_flags = SA_RESTART;
-	(void)sigaction(SIGCHLD, &sact, NULL);
+	(void)sigaction(SIGCHLD, &(struct sigaction){
+	    .sa_handler = reapchild,
+	    .sa_mask = mask,
+	    .sa_flags = SA_RESTART
+	}, NULL);
 	(void)signal(SIGALRM, domark);
 	(void)signal(SIGPIPE, SIG_IGN);	/* We'll catch EPIPE instead. */
 	(void)alarm(TIMERINTVL);
@@ -650,10 +650,11 @@ main(int argc, char *argv[])
 	/* prevent SIGHUP and SIGCHLD handlers from running in parallel */
 	sigemptyset(&mask);
 	sigaddset(&mask, SIGCHLD);
-	sact.sa_handler = init;
-	sact.sa_mask = mask;
-	sact.sa_flags = SA_RESTART;
-	(void)sigaction(SIGHUP, &sact, NULL);
+	(void)sigaction(SIGHUP, &(struct sigaction){
+	    .sa_handler = init,
+	    .sa_mask = mask,
+	    .sa_flags = SA_RESTART
+	}, NULL);
 
 	tvp = &tv;
 	tv.tv_sec = tv.tv_usec = 0;
@@ -750,7 +751,7 @@ static void
 unmapped(struct sockaddr *sa)
 {
 	struct sockaddr_in6 *sin6;
-	struct sockaddr_in sin4;
+	struct sockaddr_in sin;
 
 	if (sa == NULL ||
 	    sa->sa_family != AF_INET6 ||
@@ -759,15 +760,14 @@ unmapped(struct sockaddr *sa)
 	sin6 = satosin6(sa);
 	if (!IN6_IS_ADDR_V4MAPPED(&sin6->sin6_addr))
 		return;
-
-	memset(&sin4, 0, sizeof(sin4));
-	sin4.sin_family = AF_INET;
-	sin4.sin_len = sizeof(sin4);
-	memcpy(&sin4.sin_addr, &sin6->sin6_addr.s6_addr[12],
-	       sizeof(sin4.sin_addr));
-	sin4.sin_port = sin6->sin6_port;
-
-	memcpy(sa, &sin4, sin4.sin_len);
+	sin = (struct sockaddr_in){
+		.sin_family = AF_INET,
+		.sin_len = sizeof(sin),
+		.sin_port = sin6->sin6_port
+	};
+	memcpy(&sin.sin_addr, &sin6->sin6_addr.s6_addr[12],
+	    sizeof(sin.sin_addr));
+	memcpy(sa, &sin, sizeof(sin));
 }
 
 static void
@@ -2154,9 +2154,10 @@ cfline(const char *line, const char *prog, const char *host)
 		else
 			p = NULL;
 
-		memset(&hints, 0, sizeof(hints));
-		hints.ai_family = family;
-		hints.ai_socktype = SOCK_DGRAM;
+		hints = (struct addrinfo){
+			.ai_family = family,
+			.ai_socktype = SOCK_DGRAM
+		};
 		error = getaddrinfo(f->fu_forw_hname,
 				p ? p : "syslog", &hints, &res);
 		if (error) {
@@ -2447,16 +2448,18 @@ allowaddr(char *s)
 		cp2 = NULL;
 	}
 #endif
-	memset(&hints, 0, sizeof(hints));
-	hints.ai_family = PF_UNSPEC;
-	hints.ai_socktype = SOCK_DGRAM;
-	hints.ai_flags = AI_PASSIVE | AI_NUMERICHOST;
+	hints = (struct addrinfo){
+		.ai_family = PF_UNSPEC,
+		.ai_socktype = SOCK_DGRAM,
+		.ai_flags = AI_PASSIVE | AI_NUMERICHOST
+	};
 	if (getaddrinfo(s, NULL, &hints, &res) == 0) {
 		ap->isnumeric = 1;
 		memcpy(&ap->a_addr, res->ai_addr, res->ai_addrlen);
-		memset(&ap->a_mask, 0, sizeof(ap->a_mask));
-		ap->a_mask.ss_family = res->ai_family;
-		ap->a_mask.ss_len = res->ai_addrlen;
+		ap->a_mask = (struct sockaddr_storage){
+			.ss_family = res->ai_family,
+			.ss_len = res->ai_addrlen
+		};
 		if (res->ai_family == AF_INET) {
 			maskp = &sstosin(&ap->a_mask)->sin_addr.s_addr;
 			addrp = &sstosin(&ap->a_addr)->sin_addr.s_addr;
@@ -2567,10 +2570,11 @@ validate(struct sockaddr *sa, const char *hname)
 		return (1);
 
 	(void)strlcpy(name, hname, sizeof(name));
-	memset(&hints, 0, sizeof(hints));
-	hints.ai_family = PF_UNSPEC;
-	hints.ai_socktype = SOCK_DGRAM;
-	hints.ai_flags = AI_PASSIVE | AI_NUMERICHOST;
+	hints = (struct addrinfo){
+		.ai_family = PF_UNSPEC,
+		.ai_socktype = SOCK_DGRAM,
+		.ai_flags = AI_PASSIVE | AI_NUMERICHOST
+	};
 	if (getaddrinfo(name, NULL, &hints, &res) == 0)
 		freeaddrinfo(res);
 	else if (strchr(name, '.') == NULL) {
@@ -2751,9 +2755,10 @@ deadq_enter(pid_t pid, const char *name)
 		logerror("malloc");
 		exit(1);
 	}
-
-	p->dq_pid = pid;
-	p->dq_timeout = DQ_TIMO_INIT;
+	*p = (struct deadq_entry){
+		.dq_pid = pid,
+		.dq_timeout = DQ_TIMO_INIT
+	};
 	TAILQ_INSERT_TAIL(&deadq_head, p, dq_entries);
 }
 
@@ -2831,11 +2836,11 @@ socksetup(struct peer *pe)
 		}
 #endif
 	}
-	memset(&hints, 0, sizeof(hints));
-	hints.ai_family = AF_UNSPEC;
-	hints.ai_socktype = SOCK_DGRAM;
-	hints.ai_flags = AI_PASSIVE;
-
+	hints = (struct addrinfo){
+		.ai_family = AF_UNSPEC,
+		.ai_socktype = SOCK_DGRAM,
+		.ai_flags = AI_PASSIVE
+	};
 	dprintf("Try %s\n", pe->pe_name);
 	if (pe->pe_serv == NULL)
 		pe->pe_serv = "syslog";
@@ -2847,7 +2852,6 @@ socksetup(struct peer *pe)
 	}
 	for (res = res0; res != NULL; res = res->ai_next) {
 		int s;
-		int on = 1;
 
 		if (res->ai_family == AF_LOCAL)
 			unlink(pe->pe_name);
@@ -2868,7 +2872,7 @@ socksetup(struct peer *pe)
 #ifdef INET6
 		if (res->ai_family == AF_INET6) {
 			if (setsockopt(s, IPPROTO_IPV6, IPV6_V6ONLY,
-			       (char *)&on, sizeof(on)) < 0) {
+			       &(int){1}, sizeof(int)) < 0) {
 				logerror("setsockopt(IPV6_V6ONLY)");
 				close(s);
 				error++;
@@ -2877,7 +2881,7 @@ socksetup(struct peer *pe)
 		}
 #endif
 		if (setsockopt(s, SOL_SOCKET, SO_REUSEADDR,
-		       (char *)&on, sizeof(on)) < 0) {
+		    &(int){1}, sizeof(int)) < 0) {
 			logerror("setsockopt(SO_REUSEADDR)");
 			close(s);
 			error++;
@@ -2938,11 +2942,10 @@ socksetup(struct peer *pe)
 static void
 increase_rcvbuf(int fd)
 {
-	socklen_t len, slen;
+	socklen_t len;
 
-	slen = sizeof(len);
-
-	if (getsockopt(fd, SOL_SOCKET, SO_RCVBUF, &len, &slen) == 0) {
+	if (getsockopt(fd, SOL_SOCKET, SO_RCVBUF, &len,
+	    &(socklen_t){sizeof(len)}) == 0) {
 		if (len < RCVBUF_MINSIZE) {
 			len = RCVBUF_MINSIZE;
 			setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &len, sizeof(len));
