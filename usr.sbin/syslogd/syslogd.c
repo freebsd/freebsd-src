@@ -1262,17 +1262,23 @@ fprintlog(struct filed *f, int flags, const char *msg)
 	f->f_time = now;
 
 	switch (f->f_type) {
-		int port;
 	case F_UNUSED:
 		dprintf("\n");
 		break;
 
 	case F_FORW:
-		port = ntohs(satosin(f->fu_forw_addr->ai_addr)->sin_port);
-		if (port != 514) {
-			dprintf(" %s:%d\n", f->fu_forw_hname, port);
-		} else {
-			dprintf(" %s\n", f->fu_forw_hname);
+		dprintf(" %s", f->fu_forw_hname);
+		switch (f->fu_forw_addr->ai_addr->sa_family) {
+		case AF_INET:
+			dprintf(":%d\n",
+			    ntohs(satosin(f->fu_forw_addr->ai_addr)->sin_port));
+			break;
+#ifdef INET6
+		case AF_INET6:
+			dprintf(":%d\n",
+			    ntohs(satosin6(f->fu_forw_addr->ai_addr)->sin6_port));
+			break;
+#endif
 		}
 		/* check for local vs remote messages */
 		if (strcasecmp(f->f_prevhost, LocalHostName))
