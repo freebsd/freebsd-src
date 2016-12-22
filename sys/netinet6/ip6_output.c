@@ -107,12 +107,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/nd6.h>
 #include <netinet6/in6_rss.h>
 
-#ifdef IPSEC
-#include <netipsec/ipsec.h>
-#include <netipsec/ipsec6.h>
-#include <netipsec/key.h>
-#include <netinet6/ip6_ipsec.h>
-#endif /* IPSEC */
+#include <netipsec/ipsec_support.h>
 #ifdef SCTP
 #include <netinet/sctp.h>
 #include <netinet/sctp_crc32.h>
@@ -335,14 +330,19 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 		}
 	}
 
-#ifdef IPSEC
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
 	/*
 	 * IPSec checking which handles several cases.
 	 * FAST IPSEC: We re-injected the packet.
 	 * XXX: need scope argument.
 	 */
-	if (IPSEC_OUTPUT(ipv6, m, inp, &error) != 0)
-		goto done;
+	if (IPSEC_ENABLED(ipv6)) {
+		if ((error = IPSEC_OUTPUT(ipv6, m, inp)) != 0) {
+			if (error == EINPROGRESS)
+				error = 0;
+			goto done;
+		}
+	}
 #endif /* IPSEC */
 
 	bzero(&exthdrs, sizeof(exthdrs));
@@ -1863,10 +1863,13 @@ do { \
 				INP_WUNLOCK(in6p);
 				break;
 
-#ifdef IPSEC
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
 			case IPV6_IPSEC_POLICY:
-				error = ip6_ipsec_pcbctl(in6p, sopt);
-				break;
+				if (IPSEC_ENABLED(ipv6)) {
+					error = IPSEC_PCBCTL(ipv6, in6p, sopt);
+					break;
+				}
+				/* FALLTHROUGH */
 #endif /* IPSEC */
 
 			default:
@@ -2091,12 +2094,14 @@ do { \
 				error = ip6_getmoptions(in6p, sopt);
 				break;
 
-#ifdef IPSEC
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
 			case IPV6_IPSEC_POLICY:
-				error = ip6_ipsec_pcbctl(in6p, sopt);
-				break;
+				if (IPSEC_ENABLED(ipv6)) {
+					error = IPSEC_PCBCTL(ipv6, in6p, sopt);
+					break;
+				}
+				/* FALLTHROUGH */
 #endif /* IPSEC */
-
 			default:
 				error = ENOPROTOOPT;
 				break;
