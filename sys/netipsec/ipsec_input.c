@@ -1,4 +1,3 @@
-/*	$FreeBSD$	*/
 /*	$OpenBSD: ipsec_input.c,v 1.63 2003/02/20 18:35:43 deraadt Exp $	*/
 /*-
  * The authors of this code are John Ioannidis (ji@tla.org),
@@ -19,6 +18,7 @@
  * Copyright (C) 1995, 1996, 1997, 1998, 1999 by John Ioannidis,
  * Angelos D. Keromytis and Niels Provos.
  * Copyright (c) 2001, Angelos D. Keromytis.
+ * Copyright (c) 2016 Andrey V. Elsukov <ae@FreeBSD.org>
  *
  * Permission to use, copy, and modify this software with or without fee
  * is hereby granted, provided that this entire notice is included in
@@ -39,6 +39,9 @@
 /*
  * IPsec input processing.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
@@ -225,18 +228,44 @@ ipsec_common_input(struct mbuf *m, int skip, int protoff, int af, int sproto)
 }
 
 #ifdef INET
+extern struct protosw inetsw[];
+
+/*
+ * IPSEC_INPUT() method implementation for IPv4.
+ *  0 - Permitted by inbound security policy for further processing.
+ *  EACCES - Forbidden by inbound security policy.
+ *  EINPROGRESS - consumed by IPsec.
+ */
 int
-ipsec4_common_input(struct mbuf **mp, int *offp, int proto)
+ipsec4_input(struct mbuf *m, int offset, int proto)
 {
-	struct mbuf *m;
-	int off;
 
-	m = *mp;
-	off = *offp;
-	*mp = NULL;
-
-	ipsec_common_input(m, off, offsetof(struct ip, ip_p), AF_INET, proto);
-	return (IPPROTO_DONE);
+	switch (proto) {
+	case IPPROTO_AH:
+	case IPPROTO_ESP:
+	case IPPROTO_IPCOMP:
+		/* Do inbound IPsec processing for AH/ESP/IPCOMP */
+		ipsec_common_input(m, offset,
+		    offsetof(struct ip, ip_p), AF_INET, proto);
+		return (EINPROGRESS); /* mbuf consumed by IPsec */
+	default:
+		/*
+		 * Protocols with further headers get their IPsec treatment
+		 * within the protocol specific processing.
+		 */
+		if ((inetsw[ip_protox[proto]].pr_flags & PR_LASTHDR) == 0)
+			return (0);
+		/* FALLTHROUGH */
+	};
+	/*
+	 * Enforce IPsec policy checking if we are seeing last header.
+	 */
+	if (ipsec4_in_reject(m, NULL) != 0) {
+		/* Forbidden by inbound security policy */
+		m_freem(m);
+		return (EACCES);
+	}
+	return (0);
 }
 
 /*
@@ -414,48 +443,44 @@ bad:
 #endif /* INET */
 
 #ifdef INET6
-/* IPv6 AH wrapper. */
+extern struct protosw inet6sw[];
+
+/*
+ * IPSEC_INPUT() method implementation for IPv6.
+ *  0 - Permitted by inbound security policy for further processing.
+ *  EACCES - Forbidden by inbound security policy.
+ *  EINPROGRESS - consumed by IPsec.
+ */
 int
-ipsec6_common_input(struct mbuf **mp, int *offp, int proto)
+ipsec6_input(struct mbuf *m, int offset, int proto)
 {
-	int l = 0;
-	int protoff;
-	struct ip6_ext ip6e;
 
-	if (*offp < sizeof(struct ip6_hdr)) {
-		DPRINTF(("%s: bad offset %u\n", __func__, *offp));
-		return IPPROTO_DONE;
-	} else if (*offp == sizeof(struct ip6_hdr)) {
-		protoff = offsetof(struct ip6_hdr, ip6_nxt);
-	} else {
-		/* Chase down the header chain... */
-		protoff = sizeof(struct ip6_hdr);
-
-		do {
-			protoff += l;
-			m_copydata(*mp, protoff, sizeof(ip6e),
-			    (caddr_t) &ip6e);
-
-			if (ip6e.ip6e_nxt == IPPROTO_AH)
-				l = (ip6e.ip6e_len + 2) << 2;
-			else
-				l = (ip6e.ip6e_len + 1) << 3;
-			IPSEC_ASSERT(l > 0, ("l went zero or negative"));
-		} while (protoff + l < *offp);
-
-		/* Malformed packet check */
-		if (protoff + l != *offp) {
-			DPRINTF(("%s: bad packet header chain, protoff %u, "
-				"l %u, off %u\n", __func__, protoff, l, *offp));
-			IPSEC_ISTAT(proto, hdrops);
-			m_freem(*mp);
-			*mp = NULL;
-			return IPPROTO_DONE;
-		}
-		protoff += offsetof(struct ip6_ext, ip6e_nxt);
+	switch (proto) {
+	case IPPROTO_AH:
+	case IPPROTO_ESP:
+	case IPPROTO_IPCOMP:
+		/* Do inbound IPsec processing for AH/ESP/IPCOMP */
+		ipsec_common_input(m, offset,
+		    offsetof(struct ip6_hdr, ip6_nxt), AF_INET6, proto);
+		return (EINPROGRESS); /* mbuf consumed by IPsec */
+	default:
+		/*
+		 * Protocols with further headers get their IPsec treatment
+		 * within the protocol specific processing.
+		 */
+		if ((inet6sw[ip6_protox[proto]].pr_flags & PR_LASTHDR) == 0)
+			return (0);
+		/* FALLTHROUGH */
+	};
+	/*
+	 * Enforce IPsec policy checking if we are seeing last header.
+	 */
+	if (ipsec4_in_reject(m, NULL) != 0) {
+		/* Forbidden by inbound security policy */
+		m_freem(m);
+		return (EACCES);
 	}
-	(void) ipsec_common_input(*mp, *offp, protoff, AF_INET6, proto);
-	return IPPROTO_DONE;
+	return (0);
 }
 
 /*
