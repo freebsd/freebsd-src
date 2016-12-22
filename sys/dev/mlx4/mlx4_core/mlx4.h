@@ -52,7 +52,7 @@
 #define DRV_NAME	"mlx4_core"
 #define PFX		DRV_NAME ": "
 #define DRV_VERSION	"2.1.6"
-#define DRV_RELDATE	__DATE__
+#define DRV_RELDATE	"Sep 30 2016"
 
 #define DRV_STACK_NAME		"Linux-MLNX_OFED"
 #define DRV_STACK_VERSION	"2.1"
