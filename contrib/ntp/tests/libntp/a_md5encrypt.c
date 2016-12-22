@@ -49,9 +49,7 @@ test_Encrypt(void) {
 	u_int32 *packetPtr;
 	int length;
 
-	packetPtr = emalloc(totalLength * sizeof(*packetPtr));
-
-	memset(packetPtr + packetLength, 0, keyIdLength);
+	packetPtr = emalloc_zero(totalLength * sizeof(*packetPtr));
 	memcpy(packetPtr, packet, packetLength);
 
 	cache_secretsize = keyLength;

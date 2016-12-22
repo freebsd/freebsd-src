@@ -1,9 +1,9 @@
-.Dd June 2 2016
+.Dd November 21 2016
 .Dt CALC_TICKADJ 1calc_tickadjmdoc User Commands
 .Os
 .\"  EDIT THIS FILE WITH CAUTION  (calc_tickadj-opts.mdoc)
 .\"
-.\"  It has been AutoGen-ed  June  2, 2016 at 07:24:27 AM by AutoGen 5.18.5
+.\"  It has been AutoGen-ed  November 21, 2016 at 07:58:36 AM by AutoGen 5.18.5
 .\"  From the definitions    calc_tickadj-opts.def
 .\"  and the template file   agmdoc-cmd.tpl
 .Sh NAME

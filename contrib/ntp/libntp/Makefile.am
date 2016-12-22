@@ -73,6 +73,7 @@ libntp_a_SRCS =						\
 	iosignal.c					\
 	is_ip_address.c					\
 	lib_strbuf.c					\
+	libssl_compat.c					\
 	machines.c					\
 	mktime.c					\
 	modetoa.c					\
