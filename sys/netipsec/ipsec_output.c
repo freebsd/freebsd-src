@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2002, 2003 Sam Leffler, Errno Consulting
+ * Copyright (c) 2016 Andrey V. Elsukov <ae@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,6 +33,7 @@
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
+#include "opt_sctp.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -67,6 +69,9 @@
 #ifdef INET6
 #include <netinet/icmp6.h>
 #endif
+#ifdef SCTP
+#include <netinet/sctp_crc32.h>
+#endif
 
 #include <netipsec/ipsec.h>
 #ifdef INET6
@@ -83,10 +88,6 @@
 #include <netipsec/key_debug.h>
 
 #include <machine/in_cksum.h>
-
-#ifdef IPSEC_NAT_T
-#include <netinet/udp.h>
-#endif
 
 #define	IPSEC_OSTAT_INC(proto, name)	do {		\
 	if ((proto) == IPPROTO_ESP)	\
@@ -292,6 +293,111 @@ ipsec4_process_packet(struct mbuf *m, struct secpolicy *sp,
 {
 
 	return (ipsec4_perform_request(m, sp, 0));
+}
+
+static int
+ipsec4_common_output(struct mbuf *m, struct inpcb *inp, int forwarding)
+{
+	struct secpolicy *sp;
+	int error, idx;
+
+	/* Lookup for the corresponding outbound security policy */
+	sp = ipsec4_checkpolicy(m, inp, &error);
+	if (sp == NULL) {
+		if (error == -EINVAL) {
+			/* Discarded by policy. */
+			m_freem(m);
+			return (EACCES);
+		}
+		return (0); /* No IPsec required. */
+	}
+
+	if (forwarding) {
+		/*
+		 * Check that SP has tunnel mode IPsec transform.
+		 * We can't use transport mode when forwarding.
+		 */
+		for (idx = 0; idx < sp->tcount; idx++) {
+			if (sp->req[idx]->saidx.mode == IPSEC_MODE_TUNNEL)
+				break;
+		}
+		if (idx == sp->tcount) {
+			IPSECSTAT_INC(ips_out_inval);
+			key_freesp(&sp);
+			m_freem(m);
+			return (EACCES);
+		}
+	} else {
+		/*
+		 * Do delayed checksums now because we send before
+		 * this is done in the normal processing path.
+		 */
+		if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
+			in_delayed_cksum(m);
+			m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
+		}
+#ifdef SCTP
+		if (m->m_pkthdr.csum_flags & CSUM_SCTP) {
+			struct ip *ip = mtod(m, struct ip *);
+
+			sctp_delayed_cksum(m, (uint32_t)(ip->ip_hl << 2));
+			m->m_pkthdr.csum_flags &= ~CSUM_SCTP;
+		}
+#endif
+	}
+	/* NB: callee frees mbuf and releases reference to SP */
+	error = ipsec4_process_packet(m, sp, inp);
+	if (error == EJUSTRETURN) {
+		/*
+		 * We had a SP with a level of 'use' and no SA. We
+		 * will just continue to process the packet without
+		 * IPsec processing and return without error.
+		 */
+		return (0);
+	}
+	if (error == 0)
+		return (EINPROGRESS); /* consumed by IPsec */
+	return (error);
+}
+
+/*
+ * IPSEC_OUTPUT() method implementation for IPv4.
+ * 0 - no IPsec handling needed
+ * other values - mbuf consumed by IPsec.
+ */
+int
+ipsec4_output(struct mbuf *m, struct inpcb *inp)
+{
+
+	/*
+	 * If the packet is resubmitted to ip_output (e.g. after
+	 * AH, ESP, etc. processing), there will be a tag to bypass
+	 * the lookup and related policy checking.
+	 */
+	if (m_tag_find(m, PACKET_TAG_IPSEC_OUT_DONE, NULL) != NULL)
+		return (0);
+
+	return (ipsec4_common_output(m, inp, 0));
+}
+
+/*
+ * IPSEC_FORWARD() method implementation for IPv4.
+ * 0 - no IPsec handling needed
+ * other values - mbuf consumed by IPsec.
+ */
+int
+ipsec4_forward(struct mbuf *m)
+{
+
+	/*
+	 * Check if this packet has an active inbound SP and needs to be
+	 * dropped instead of forwarded.
+	 */
+	if (ipsec4_in_reject(m, NULL) != 0) {
+		m_freem(m);
+		return (EACCES);
+	}
+	return (ipsec4_common_output(m, NULL, 1));
 }
 #endif
 
@@ -501,6 +607,117 @@ ipsec6_process_packet(struct mbuf *m, struct secpolicy *sp,
 {
 
 	return (ipsec6_perform_request(m, sp, 0));
+}
+
+static int
+ipsec6_common_output(struct mbuf *m, struct inpcb *inp, int forwarding)
+{
+	struct secpolicy *sp;
+	int error, idx;
+
+	/* Lookup for the corresponding outbound security policy */
+	sp = ipsec6_checkpolicy(m, inp, &error);
+	if (sp == NULL) {
+		if (error == -EINVAL) {
+			/* Discarded by policy. */
+			m_freem(m);
+			return (EACCES);
+		}
+		return (0); /* No IPsec required. */
+	}
+
+	if (forwarding) {
+		/*
+		 * Check that SP has tunnel mode IPsec transform.
+		 * We can't use transport mode when forwarding.
+		 *
+		 * RFC2473 says:
+		 * "A tunnel IPv6 packet resulting from the encapsulation of
+		 * an original packet is considered an IPv6 packet originating
+		 * from the tunnel entry-point node."
+		 * So, we don't need MTU checking, after IPsec processing
+		 * we will just fragment it if needed.
+		 */
+		for (idx = 0; idx < sp->tcount; idx++) {
+			if (sp->req[idx]->saidx.mode == IPSEC_MODE_TUNNEL)
+				break;
+		}
+		if (idx == sp->tcount) {
+			IPSEC6STAT_INC(ips_out_inval);
+			key_freesp(&sp);
+			m_freem(m);
+			return (EACCES);
+		}
+	} else {
+		/*
+		 * Do delayed checksums now because we send before
+		 * this is done in the normal processing path.
+		 */
+		if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA_IPV6) {
+			in6_delayed_cksum(m, m->m_pkthdr.len -
+			    sizeof(struct ip6_hdr), sizeof(struct ip6_hdr));
+		m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA_IPV6;
+		}
+#ifdef SCTP
+		if (m->m_pkthdr.csum_flags & CSUM_SCTP_IPV6) {
+			sctp_delayed_cksum(m, sizeof(struct ip6_hdr));
+			m->m_pkthdr.csum_flags &= ~CSUM_SCTP_IPV6;
+		}
+#endif
+	}
+	/* NB: callee frees mbuf and releases reference to SP */
+	error = ipsec6_process_packet(m, sp, inp);
+	if (error == EJUSTRETURN) {
+		/*
+		 * We had a SP with a level of 'use' and no SA. We
+		 * will just continue to process the packet without
+		 * IPsec processing and return without error.
+		 */
+		return (0);
+	}
+	if (error == 0)
+		return (EINPROGRESS); /* consumed by IPsec */
+	return (error);
+}
+
+/*
+ * IPSEC_OUTPUT() method implementation for IPv6.
+ * 0 - no IPsec handling needed
+ * other values - mbuf consumed by IPsec.
+ */
+int
+ipsec6_output(struct mbuf *m, struct inpcb *inp)
+{
+
+	/*
+	 * If the packet is resubmitted to ip_output (e.g. after
+	 * AH, ESP, etc. processing), there will be a tag to bypass
+	 * the lookup and related policy checking.
+	 */
+	if (m_tag_find(m, PACKET_TAG_IPSEC_OUT_DONE, NULL) != NULL)
+		return (0);
+
+	return (ipsec6_common_output(m, inp, 0));
+}
+
+/*
+ * IPSEC_FORWARD() method implementation for IPv6.
+ * 0 - no IPsec handling needed
+ * other values - mbuf consumed by IPsec.
+ */
+int
+ipsec6_forward(struct mbuf *m)
+{
+
+	/*
+	 * Check if this packet has an active inbound SP and needs to be
+	 * dropped instead of forwarded.
+	 */
+	if (ipsec6_in_reject(m, NULL) != 0) {
+		m_freem(m);
+		return (EACCES);
+	}
+	return (ipsec6_common_output(m, NULL, 1));
 }
 #endif /* INET6 */
 
