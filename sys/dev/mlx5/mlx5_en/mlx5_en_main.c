@@ -306,6 +306,12 @@ mlx5e_update_carrier_work(struct work_struct *work)
 	PRIV_UNLOCK(priv);
 }
 
+/*
+ * This function reads the physical port counters from the firmware
+ * using a pre-defined layout defined by various MLX5E_PPORT_XXX()
+ * macros. The output is converted from big-endian 64-bit values into
+ * host endian ones and stored in the "priv->stats.pport" structure.
+ */
 static void
 mlx5e_update_pport_counters(struct mlx5e_priv *priv)
 {
@@ -314,25 +320,32 @@ mlx5e_update_pport_counters(struct mlx5e_priv *priv)
 	struct mlx5e_port_stats_debug *s_debug = &priv->stats.port_stats_debug;
 	u32 *in;
 	u32 *out;
-	u64 *ptr;
+	const u64 *ptr;
 	unsigned sz = MLX5_ST_SZ_BYTES(ppcnt_reg);
 	unsigned x;
 	unsigned y;
 
+	/* allocate firmware request structures */
 	in = mlx5_vzalloc(sz);
 	out = mlx5_vzalloc(sz);
 	if (in == NULL || out == NULL)
 		goto free_out;
 
-	ptr = (uint64_t *)MLX5_ADDR_OF(ppcnt_reg, out, counter_set);
+	/*
+	 * Get pointer to the 64-bit counter set which is located at a
+	 * fixed offset in the output firmware request structure:
+	 */
+	ptr = (const uint64_t *)MLX5_ADDR_OF(ppcnt_reg, out, counter_set);
 
 	MLX5_SET(ppcnt_reg, in, local_port, 1);
 
+	/* read IEEE802_3 counter group using predefined counter layout */
 	MLX5_SET(ppcnt_reg, in, grp, MLX5_IEEE_802_3_COUNTERS_GROUP);
 	mlx5_core_access_reg(mdev, in, sz, out, sz, MLX5_REG_PPCNT, 0, 0);
 	for (x = y = 0; x != MLX5E_PPORT_IEEE802_3_STATS_NUM; x++, y++)
 		s->arg[y] = be64toh(ptr[x]);
 
+	/* read RFC2819 counter group using predefined counter layout */
 	MLX5_SET(ppcnt_reg, in, grp, MLX5_RFC_2819_COUNTERS_GROUP);
 	mlx5_core_access_reg(mdev, in, sz, out, sz, MLX5_REG_PPCNT, 0, 0);
 	for (x = 0; x != MLX5E_PPORT_RFC2819_STATS_NUM; x++, y++)
@@ -341,20 +354,29 @@ mlx5e_update_pport_counters(struct mlx5e_priv *priv)
 	    MLX5E_PPORT_RFC2819_STATS_DEBUG_NUM; x++, y++)
 		s_debug->arg[y] = be64toh(ptr[x]);
 
+	/* read RFC2863 counter group using predefined counter layout */
 	MLX5_SET(ppcnt_reg, in, grp, MLX5_RFC_2863_COUNTERS_GROUP);
 	mlx5_core_access_reg(mdev, in, sz, out, sz, MLX5_REG_PPCNT, 0, 0);
 	for (x = 0; x != MLX5E_PPORT_RFC2863_STATS_DEBUG_NUM; x++, y++)
 		s_debug->arg[y] = be64toh(ptr[x]);
 
+	/* read physical layer stats counter group using predefined counter layout */
 	MLX5_SET(ppcnt_reg, in, grp, MLX5_PHYSICAL_LAYER_COUNTERS_GROUP);
 	mlx5_core_access_reg(mdev, in, sz, out, sz, MLX5_REG_PPCNT, 0, 0);
 	for (x = 0; x != MLX5E_PPORT_PHYSICAL_LAYER_STATS_DEBUG_NUM; x++, y++)
 		s_debug->arg[y] = be64toh(ptr[x]);
 free_out:
+	/* free firmware request structures */
 	kvfree(in);
 	kvfree(out);
 }
 
+/*
+ * This function is called regularly to collect all statistics
+ * counters from the firmware. The values can be viewed through the
+ * sysctl interface. Execution is serialized using the priv's global
+ * configuration lock.
+ */
 static void
 mlx5e_update_stats_work(struct work_struct *work)
 {

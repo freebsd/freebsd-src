@@ -34,13 +34,14 @@
 
 #include "bhnd_nvram_value.h"
 
-int		 bhnd_nvram_val_generic_encode(bhnd_nvram_val_t *value,
+int		 bhnd_nvram_val_generic_encode(bhnd_nvram_val *value,
 		     void *outp, size_t *olen, bhnd_nvram_type otype);
-int		 bhnd_nvram_val_generic_encode_elem(bhnd_nvram_val_t *value,
+int		 bhnd_nvram_val_generic_encode_elem(bhnd_nvram_val *value,
 		     const void *inp, size_t ilen, void *outp, size_t *olen,
 		     bhnd_nvram_type otype);
-const void	*bhnd_nvram_val_generic_next(bhnd_nvram_val_t *value,
-		     const void *prev, size_t *len);
+const void	*bhnd_nvram_val_generic_next(bhnd_nvram_val *value,
+		     const void *prev, size_t *olen);
+
 /**
  * Filter input data prior to initialization.
  * 
@@ -60,24 +61,24 @@ const void	*bhnd_nvram_val_generic_next(bhnd_nvram_val_t *value,
  * @retval EFAULT	if @p ilen is not correctly aligned for elements of
  *			@p itype.
  */
-typedef int (bhnd_nvram_val_op_filter)(const bhnd_nvram_val_fmt_t **fmt,
+typedef int (bhnd_nvram_val_op_filter)(const bhnd_nvram_val_fmt **fmt,
     const void *inp, size_t ilen, bhnd_nvram_type itype);
 
 /** @see bhnd_nvram_val_encode() */
-typedef int (bhnd_nvram_val_op_encode)(bhnd_nvram_val_t *value, void *outp,
+typedef int (bhnd_nvram_val_op_encode)(bhnd_nvram_val *value, void *outp,
     size_t *olen, bhnd_nvram_type otype);
 
 /** @see bhnd_nvram_val_encode_elem() */
-typedef int (bhnd_nvram_val_op_encode_elem)(bhnd_nvram_val_t *value,
+typedef int (bhnd_nvram_val_op_encode_elem)(bhnd_nvram_val *value,
     const void *inp, size_t ilen, void *outp, size_t *olen,
     bhnd_nvram_type otype);
 
 /** @see bhnd_nvram_val_next() */
-typedef const void *(bhnd_nvram_val_op_next)(bhnd_nvram_val_t *value,
-    const void *prev, size_t *len);
+typedef const void *(bhnd_nvram_val_op_next)(bhnd_nvram_val *value,
+    const void *prev, size_t *olen);
 
 /** @see bhnd_nvram_val_nelem() */
-typedef size_t (bhnd_nvram_val_op_nelem)(bhnd_nvram_val_t *value);
+typedef size_t (bhnd_nvram_val_op_nelem)(bhnd_nvram_val *value);
 
 /**
  * NVRAM value format.
@@ -89,7 +90,6 @@ typedef size_t (bhnd_nvram_val_op_nelem)(bhnd_nvram_val_t *value);
 struct bhnd_nvram_val_fmt {
 	const char			*name;		/**< type name */
 	bhnd_nvram_type			 native_type;	/**< native value representation */
-
 	bhnd_nvram_val_op_filter	*op_filter;
 	bhnd_nvram_val_op_encode	*op_encode;
 	bhnd_nvram_val_op_encode_elem	*op_encode_elem;

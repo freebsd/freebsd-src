@@ -49,8 +49,9 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #endif /* _KERNEL */
 
-#include "bhnd_nvram_private.h"
+#include "bhnd_nvram_map.h"
 
+#include "bhnd_nvram_private.h"
 #include "bhnd_nvram_datavar.h"
 
 #include "bhnd_nvram_data_spromvar.h"
@@ -62,44 +63,45 @@ __FBSDID("$FreeBSD$");
  * used on Broadcom wireless and wired adapters, that provides a subset of the
  * variables defined by Broadcom SoC NVRAM formats.
  */
+
+static const bhnd_sprom_layout  *bhnd_nvram_sprom_get_layout(uint8_t sromrev);
+
+static int			 bhnd_nvram_sprom_ident(
+				     struct bhnd_nvram_io *io,
+				     const bhnd_sprom_layout **ident,
+				     struct bhnd_nvram_io **shadow);
+
+static int			 bhnd_nvram_sprom_write_var(
+				     bhnd_sprom_opcode_state *state,
+				     bhnd_sprom_opcode_idx_entry *entry,
+				     bhnd_nvram_val *value,
+				     struct bhnd_nvram_io *io);
+
+static int			 bhnd_nvram_sprom_write_offset(
+				     const struct bhnd_nvram_vardefn *var,
+				     struct bhnd_nvram_io *data,
+				     bhnd_nvram_type type, size_t offset,
+				     uint32_t mask, int8_t shift,
+				     uint32_t value);
+
+static int			 bhnd_nvram_sprom_read_offset(
+				     const struct bhnd_nvram_vardefn *var,
+				     struct bhnd_nvram_io *data,
+				     bhnd_nvram_type type, size_t offset,
+				     uint32_t mask, int8_t shift,
+				     uint32_t *value);
+
+static bool			 bhnd_sprom_is_external_immutable(
+				     const char *name);
+
 BHND_NVRAM_DATA_CLASS_DEFN(sprom, "Broadcom SPROM",
-   sizeof(struct bhnd_nvram_sprom))
+    BHND_NVRAM_DATA_CAP_DEVPATHS, sizeof(struct bhnd_nvram_sprom))
 
-static int	sprom_sort_idx(const void *lhs, const void *rhs);
+#define	SPROM_COOKIE_TO_VID(_cookie)	\
+	(((struct bhnd_sprom_opcode_idx_entry *)(_cookie))->vid)
 
-static int	sprom_opcode_state_init(struct sprom_opcode_state *state,
-		    const struct bhnd_sprom_layout *layout);
-static int	sprom_opcode_state_reset(struct sprom_opcode_state *state);
-static int	sprom_opcode_state_seek(struct sprom_opcode_state *state,
-		    struct sprom_opcode_idx *indexed);
-
-static int	sprom_opcode_next_var(struct sprom_opcode_state *state);
-static int	sprom_opcode_parse_var(struct sprom_opcode_state *state,
-		    struct sprom_opcode_idx *indexed);
-  
-static int	sprom_opcode_next_binding(struct sprom_opcode_state *state);
-
-static int	sprom_opcode_set_type(struct sprom_opcode_state *state,
-		    bhnd_nvram_type type);
-
-static int	sprom_opcode_set_var(struct sprom_opcode_state *state,
-		    size_t vid);
-static int	sprom_opcode_clear_var(struct sprom_opcode_state *state);
-static int	sprom_opcode_flush_bind(struct sprom_opcode_state *state);
-static int	sprom_opcode_read_opval32(struct sprom_opcode_state *state,
-		    uint8_t type, uint32_t *opval);
-static int	sprom_opcode_apply_scale(struct sprom_opcode_state *state,
-		    uint32_t *value);
-
-static int	sprom_opcode_step(struct sprom_opcode_state *state,
-		    uint8_t *opcode);
-
-#define	SPROM_OP_BAD(_state, _fmt, ...)					\
-	BHND_NV_LOG("bad encoding at %td: " _fmt,			\
-	    (_state)->input - (_state)->layout->bindings, ##__VA_ARGS__)
-
-#define	SPROM_COOKIE_TO_NVRAM(_cookie)	\
-	bhnd_nvram_get_vardefn(((struct sprom_opcode_idx *)_cookie)->vid)
+#define	SPROM_COOKIE_TO_NVRAM_VAR(_cookie)	\
+	bhnd_nvram_get_vardefn(SPROM_COOKIE_TO_VID(_cookie))
 
 /**
  * Read the magic value from @p io, and verify that it matches
@@ -118,7 +120,7 @@ static int	sprom_opcode_step(struct sprom_opcode_state *state,
  */
 static int
 bhnd_nvram_sprom_check_magic(struct bhnd_nvram_io *io,
-    const struct bhnd_sprom_layout *layout, uint16_t *magic)
+    const bhnd_sprom_layout *layout, uint16_t *magic)
 {
 	int error;
 
@@ -162,7 +164,7 @@ bhnd_nvram_sprom_check_magic(struct bhnd_nvram_io *io,
  */
 static int
 bhnd_nvram_sprom_ident(struct bhnd_nvram_io *io,
-    const struct bhnd_sprom_layout **ident, struct bhnd_nvram_io **shadow)
+    const bhnd_sprom_layout **ident, struct bhnd_nvram_io **shadow)
 {
 	struct bhnd_nvram_io	*buf;
 	uint8_t			 crc;
@@ -185,13 +187,13 @@ bhnd_nvram_sprom_ident(struct bhnd_nvram_io *io,
 	/* We iterate the SPROM layouts smallest to largest, allowing us to
 	 * perform incremental checksum calculation */
 	for (size_t i = 0; i < bhnd_sprom_num_layouts; i++) {
-		const struct bhnd_sprom_layout	*layout;
-		void				*ptr;
-		size_t				 nbytes, nr;
-		uint16_t			 magic;
-		uint8_t				 srev;
-		bool				 crc_valid;
-		bool				 have_magic;
+		const bhnd_sprom_layout	*layout;
+		void			*ptr;
+		size_t			 nbytes, nr;
+		uint16_t		 magic;
+		uint8_t			 srev;
+		bool			 crc_valid;
+		bool			 have_magic;
 
 		layout = &bhnd_sprom_layouts[i];
 		nbytes = bhnd_nvram_io_getsize(buf);
@@ -295,9 +297,9 @@ failed:
 static int
 bhnd_nvram_sprom_probe(struct bhnd_nvram_io *io)
 {
-	const struct bhnd_sprom_layout	*layout;
-	struct bhnd_nvram_io		*shadow;
-	int				 error;
+	const bhnd_sprom_layout	*layout;
+	struct bhnd_nvram_io	*shadow;
+	int			 error;
 
 	/* Try to parse the input */
 	if ((error = bhnd_nvram_sprom_ident(io, &layout, &shadow)))
@@ -309,12 +311,408 @@ bhnd_nvram_sprom_probe(struct bhnd_nvram_io *io)
 	return (BHND_NVRAM_DATA_PROBE_DEFAULT);
 }
 
+
+/**
+ * Return the SPROM layout definition for the given @p sromrev, or NULL if
+ * not found.
+ */
+static const bhnd_sprom_layout *
+bhnd_nvram_sprom_get_layout(uint8_t sromrev)
+{
+	/* Find matching SPROM layout definition */
+	for (size_t i = 0; i < bhnd_sprom_num_layouts; i++) {
+		if (bhnd_sprom_layouts[i].rev == sromrev)
+			return (&bhnd_sprom_layouts[i]);
+	}
+
+	/* Not found */
+	return (NULL);
+}
+
+/**
+ * Serialize a SPROM variable.
+ *
+ * @param state	The SPROM opcode state describing the layout of @p io.
+ * @param entry	The variable's SPROM opcode index entry.
+ * @param value	The value to encode to @p io as per @p entry.
+ * @param io	I/O context to which @p value should be written, or NULL
+ *		if no output should be produced. This may be used to validate
+ *		values prior to write.
+ *
+ * @retval 0		success
+ * @retval EFTYPE	If value coercion from @p value to the type required by
+ *			@p entry is unsupported.
+ * @retval ERANGE	If value coercion from @p value would overflow
+ *			(or underflow) the type required by @p entry.
+ * @retval non-zero	If serialization otherwise fails, a regular unix error
+ *			code will be returned.
+ */
+static int
+bhnd_nvram_sprom_write_var(bhnd_sprom_opcode_state *state,
+    bhnd_sprom_opcode_idx_entry *entry, bhnd_nvram_val *value,
+    struct bhnd_nvram_io *io)
+{
+	const struct bhnd_nvram_vardefn	*var;
+	uint32_t			 u32[BHND_SPROM_ARRAY_MAXLEN];
+	bhnd_nvram_type			 itype, var_base_type;
+	size_t				 ipos, ilen, nelem;
+	int				 error;
+
+	/* Fetch variable definition and the native element type */
+	var = bhnd_nvram_get_vardefn(entry->vid);
+	BHND_NV_ASSERT(var != NULL, ("missing variable definition"));
+
+	var_base_type = bhnd_nvram_base_type(var->type);
+
+	/* Fetch the element count from the SPROM variable layout definition */
+	if ((error = bhnd_sprom_opcode_parse_var(state, entry)))
+		return (error);
+
+	nelem = state->var.nelem;
+	BHND_NV_ASSERT(nelem <= var->nelem, ("SPROM nelem=%zu exceeds maximum "
+	     "NVRAM nelem=%hhu", nelem, var->nelem));
+
+	/* Promote the data to a common 32-bit representation */
+	if (bhnd_nvram_is_signed_type(var_base_type))
+		itype = BHND_NVRAM_TYPE_INT32_ARRAY;
+	else
+		itype = BHND_NVRAM_TYPE_UINT32_ARRAY;
+
+	/* Calculate total size of the 32-bit promoted representation */
+	if ((ilen = bhnd_nvram_value_size(NULL, 0, itype, nelem)) == 0) {
+		/* Variable-width types are unsupported */
+		BHND_NV_LOG("invalid %s SPROM variable type %d\n",
+			    var->name, var->type);
+		return (EFTYPE);
+	}
+
+	/* The native representation must fit within our scratch array */
+	if (ilen > sizeof(u32)) {
+		BHND_NV_LOG("error encoding '%s', SPROM_ARRAY_MAXLEN "
+			    "incorrect\n", var->name);
+		return (EFTYPE);
+	}
+
+	/* Initialize our common 32-bit value representation */
+	if (bhnd_nvram_val_type(value) == BHND_NVRAM_TYPE_NULL) {
+		/* No value provided; can this variable be encoded as missing
+		 * by setting all bits to one? */
+		if (!(var->flags & BHND_NVRAM_VF_IGNALL1)) {
+			BHND_NV_LOG("missing required property: %s\n",
+			    var->name);
+			return (EINVAL);
+		}
+
+		/* Set all bits */
+		memset(u32, 0xFF, ilen);
+	} else {
+		bhnd_nvram_val	 bcm_val;
+		const void	*var_ptr;
+		bhnd_nvram_type	 var_type, raw_type;
+		size_t		 var_len, enc_nelem;
+
+		/* Try to coerce the value to the native variable format. */
+		error = bhnd_nvram_val_convert_init(&bcm_val, var->fmt, value,
+		    BHND_NVRAM_VAL_DYNAMIC|BHND_NVRAM_VAL_BORROW_DATA);
+		if (error) {
+			BHND_NV_LOG("error converting input type %s to %s "
+			    "format\n",
+			    bhnd_nvram_type_name(bhnd_nvram_val_type(value)),
+			    bhnd_nvram_val_fmt_name(var->fmt));
+			return (error);
+		}
+
+		var_ptr = bhnd_nvram_val_bytes(&bcm_val, &var_len, &var_type);
+
+		/*
+		 * Promote to a common 32-bit representation. 
+		 *
+		 * We must use the raw type to interpret the input data as its
+		 * underlying integer representation -- otherwise, coercion
+		 * would attempt to parse the input as its complex
+		 * representation.
+		 *
+		 * For example, direct CHAR -> UINT32 coercion would attempt to
+		 * parse the character as a decimal integer, rather than
+		 * promoting the raw UTF8 byte value to a 32-bit value.
+		 */
+		raw_type = bhnd_nvram_raw_type(var_type);
+		error = bhnd_nvram_value_coerce(var_ptr, var_len, raw_type,
+		     u32, &ilen, itype);
+
+		/* Clean up temporary value representation */
+		bhnd_nvram_val_release(&bcm_val);
+
+		/* Report coercion failure */
+		if (error) {
+			BHND_NV_LOG("error promoting %s to %s: %d\n",
+			    bhnd_nvram_type_name(var_type),
+			    bhnd_nvram_type_name(itype), error);
+			return (error);
+		}
+
+		/* Encoded element count must match SPROM's definition */
+		error = bhnd_nvram_value_nelem(u32, ilen, itype, &enc_nelem);
+		if (error)
+			return (error);
+
+		if (enc_nelem != nelem) {
+			const char *type_name;
+	
+			type_name = bhnd_nvram_type_name(var_base_type);
+			BHND_NV_LOG("invalid %s property value '%s[%zu]': "
+			    "required %s[%zu]", var->name, type_name,
+			    enc_nelem, type_name, nelem);
+			return (EFTYPE);
+		}
+	}
+
+	/*
+	 * Seek to the start of the variable's SPROM layout definition and
+	 * iterate over all bindings.
+	 */
+	if ((error = bhnd_sprom_opcode_seek(state, entry))) {
+		BHND_NV_LOG("variable seek failed: %d\n", error);
+		return (error);
+	}
+	
+	ipos = 0;
+	while ((error = bhnd_sprom_opcode_next_binding(state)) == 0) {
+		bhnd_sprom_opcode_bind	*binding;
+		bhnd_sprom_opcode_var	*binding_var;
+		size_t			 offset;
+		uint32_t		 skip_out_bytes;
+
+		BHND_NV_ASSERT(
+		    state->var_state >= SPROM_OPCODE_VAR_STATE_OPEN,
+		    ("invalid var state"));
+		BHND_NV_ASSERT(state->var.have_bind, ("invalid bind state"));
+
+		binding_var = &state->var;
+		binding = &state->var.bind;
+
+		/* Calculate output skip bytes for this binding.
+		 * 
+		 * Skip directions are defined in terms of decoding, and
+		 * reversed when encoding. */
+		skip_out_bytes = binding->skip_in;
+		error = bhnd_sprom_opcode_apply_scale(state, &skip_out_bytes);
+		if (error)
+			return (error);
+
+		/* Bind */
+		offset = state->offset;
+		for (size_t i = 0; i < binding->count; i++) {
+			if (ipos >= nelem) {
+				BHND_NV_LOG("input skip %u positioned %zu "
+				    "beyond nelem %zu\n", binding->skip_out,
+				    ipos, nelem);
+				return (EINVAL);
+			}
+
+			/* Write next offset */
+			if (io != NULL) {
+				error = bhnd_nvram_sprom_write_offset(var, io,
+				    binding_var->base_type,
+				    offset,
+				    binding_var->mask,
+				    binding_var->shift,
+				    u32[ipos]);
+				if (error)
+					return (error);
+			}
+
+			/* Adjust output position; this was already verified to
+			 * not overflow/underflow during SPROM opcode
+			 * evaluation */
+			if (binding->skip_in_negative) {
+				offset -= skip_out_bytes;
+			} else {
+				offset += skip_out_bytes;
+			}
+
+			/* Skip advancing input if additional bindings are
+			 * required to fully encode intv */
+			if (binding->skip_out == 0)
+				continue;
+
+			/* Advance input position */
+			if (SIZE_MAX - binding->skip_out < ipos) {
+				BHND_NV_LOG("output skip %u would overflow "
+				    "%zu\n", binding->skip_out, ipos);
+				return (EINVAL);
+			}
+
+			ipos += binding->skip_out;
+		}
+	}
+
+	/* Did we iterate all bindings until hitting end of the variable
+	 * definition? */
+	BHND_NV_ASSERT(error != 0, ("loop terminated early"));
+	if (error != ENOENT)
+		return (error);
+
+	return (0);
+}
+
+static int
+bhnd_nvram_sprom_serialize(bhnd_nvram_data_class *cls, bhnd_nvram_plist *props,
+    bhnd_nvram_plist *options, void *outp, size_t *olen)
+{
+	bhnd_sprom_opcode_state		 state;
+	struct bhnd_nvram_io		*io;
+	bhnd_nvram_prop			*prop;
+	bhnd_sprom_opcode_idx_entry	*entry;
+	const bhnd_sprom_layout		*layout;
+	size_t				 limit;
+	uint8_t				 crc;
+	uint8_t				 sromrev;
+	int				 error;
+
+	limit = *olen;
+	layout = NULL;
+	io = NULL;
+
+	/* Fetch sromrev property */
+	if (!bhnd_nvram_plist_contains(props, BHND_NVAR_SROMREV)) {
+		BHND_NV_LOG("missing required property: %s\n",
+		    BHND_NVAR_SROMREV);
+		return (EINVAL);
+	}
+
+	error = bhnd_nvram_plist_get_uint8(props, BHND_NVAR_SROMREV, &sromrev);
+	if (error) {
+		BHND_NV_LOG("error reading sromrev property: %d\n", error);
+		return (EFTYPE);
+	}
+
+	/* Find SPROM layout definition */
+	if ((layout = bhnd_nvram_sprom_get_layout(sromrev)) == NULL) {
+		BHND_NV_LOG("unsupported sromrev: %hhu\n", sromrev);
+		return (EFTYPE);
+	}
+
+	/* Provide required size to caller */
+	*olen = layout->size;
+	if (outp == NULL)
+		return (0);
+	else if (limit < *olen)
+		return (ENOMEM);
+
+	/* Initialize SPROM layout interpreter */
+	if ((error = bhnd_sprom_opcode_init(&state, layout))) {
+		BHND_NV_LOG("error initializing opcode state: %d\n", error);
+		return (ENXIO);
+	}
+
+	/* Check for unsupported properties */
+	prop = NULL;
+	while ((prop = bhnd_nvram_plist_next(props, prop)) != NULL) {
+		const char *name;
+
+		/* Fetch the corresponding SPROM layout index entry */
+		name = bhnd_nvram_prop_name(prop);
+		entry = bhnd_sprom_opcode_index_find(&state, name);
+		if (entry == NULL) {
+			BHND_NV_LOG("property '%s' unsupported by sromrev "
+			    "%hhu\n", name, layout->rev);
+			error = EINVAL;
+			goto finished;
+		}
+	}
+
+	/* Zero-initialize output */
+	memset(outp, 0, *olen);
+
+	/* Allocate wrapping I/O context for output buffer */
+	io = bhnd_nvram_ioptr_new(outp, *olen, *olen, BHND_NVRAM_IOPTR_RDWR);
+	if (io == NULL) {
+		error = ENOMEM;
+		goto finished;
+	}
+
+	/*
+	 * Serialize all SPROM variable data.
+	 */
+	entry = NULL;
+	while ((entry = bhnd_sprom_opcode_index_next(&state, entry)) != NULL) {
+		const struct bhnd_nvram_vardefn	*var;
+		bhnd_nvram_val			*val;
+
+		var = bhnd_nvram_get_vardefn(entry->vid);
+		BHND_NV_ASSERT(var != NULL, ("missing variable definition"));
+
+		/* Fetch prop; will be NULL if unavailable */
+		prop = bhnd_nvram_plist_get_prop(props, var->name);
+		if (prop != NULL) {
+			val = bhnd_nvram_prop_val(prop);
+		} else {
+			val = BHND_NVRAM_VAL_NULL;
+		}
+
+		/* Attempt to serialize the property value to the appropriate
+		 * offset within the output buffer */
+		error = bhnd_nvram_sprom_write_var(&state, entry, val, io);
+		if (error) {
+			BHND_NV_LOG("error serializing %s to required type "
+			    "%s: %d\n", var->name,
+			    bhnd_nvram_type_name(var->type), error);
+
+			/* ENOMEM is reserved for signaling that the output
+			 * buffer capacity is insufficient */
+			if (error == ENOMEM)
+				error = EINVAL;
+
+			goto finished;
+		}
+	}
+
+	/*
+	 * Write magic value, if any.
+	 */
+	if (!(layout->flags & SPROM_LAYOUT_MAGIC_NONE)) {
+		uint16_t magic;
+
+		magic = htole16(layout->magic_value);
+		error = bhnd_nvram_io_write(io, layout->magic_offset, &magic,
+		    sizeof(magic));
+		if (error) {
+			BHND_NV_LOG("error writing magic value: %d\n", error);
+			goto finished;
+		}
+	}
+
+	/* Calculate the CRC over all SPROM data, not including the CRC byte. */
+	crc = ~bhnd_nvram_crc8(outp, layout->crc_offset,
+	    BHND_NVRAM_CRC8_INITIAL);
+
+	/* Write the checksum. */
+	error = bhnd_nvram_io_write(io, layout->crc_offset, &crc, sizeof(crc));
+	if (error) {
+		BHND_NV_LOG("error writing CRC value: %d\n", error);
+		goto finished;
+	}
+	
+	/*
+	 * Success!
+	 */
+	error = 0;
+
+finished:
+	bhnd_sprom_opcode_fini(&state);
+	
+	if (io != NULL)
+		bhnd_nvram_io_free(io);
+
+	return (error);
+}
+
 static int
 bhnd_nvram_sprom_new(struct bhnd_nvram_data *nv, struct bhnd_nvram_io *io)
 {
-	struct bhnd_nvram_sprom		*sp;
-	size_t				 num_vars;
-	int				 error;
+	struct bhnd_nvram_sprom	*sp;
+	int			 error;
 
 	sp = (struct bhnd_nvram_sprom *)nv;
 
@@ -323,97 +721,25 @@ bhnd_nvram_sprom_new(struct bhnd_nvram_data *nv, struct bhnd_nvram_io *io)
 		goto failed;
 
 	/* Initialize SPROM binding eval state */
-	if ((error = sprom_opcode_state_init(&sp->state, sp->layout)))
+	if ((error = bhnd_sprom_opcode_init(&sp->state, sp->layout)))
 		goto failed;
-
-	/* Allocate our opcode index */
-	sp->num_idx = sp->layout->num_vars;
-	if ((sp->idx = bhnd_nv_calloc(sp->num_idx, sizeof(*sp->idx))) == NULL)
-		goto failed;
-
-	/* Parse out index entries from our stateful opcode stream */
-	for (num_vars = 0; num_vars < sp->num_idx; num_vars++) {
-		size_t opcodes;
-
-		/* Seek to next entry */
-		if ((error = sprom_opcode_next_var(&sp->state))) {
-			SPROM_OP_BAD(&sp->state,
-			    "error reading expected variable entry: %d\n",
-			    error);
-			goto failed;
-		}
-
-		/* We limit the SPROM index representations to the minimal
-		 * type widths capable of covering all known layouts */
-
-		/* Save SPROM image offset */
-		if (sp->state.offset > UINT16_MAX) {
-			SPROM_OP_BAD(&sp->state,
-			    "cannot index large offset %u\n", sp->state.offset);
-		}
-		sp->idx[num_vars].offset = sp->state.offset;
-
-		/* Save current variable ID */
-		if (sp->state.vid > UINT16_MAX) {
-			SPROM_OP_BAD(&sp->state,
-			    "cannot index large vid %zu\n",  sp->state.vid);
-		}
-		sp->idx[num_vars].vid = sp->state.vid;
-
-		/* Save opcode position */
-		opcodes = (sp->state.input - sp->layout->bindings);
-		if (opcodes > UINT16_MAX) {
-			SPROM_OP_BAD(&sp->state,
-			    "cannot index large opcode offset %zu\n", opcodes);
-		}
-		sp->idx[num_vars].opcodes = opcodes;
-	}
-
-	/* Should have reached end of binding table; next read must return
-	 * ENOENT */
-	if ((error = sprom_opcode_next_var(&sp->state)) != ENOENT) {
-		BHND_NV_LOG("expected EOF parsing binding table: %d\n", error);
-		goto failed;
-	}
-
-        /* Sort index by variable ID, ascending */
-        qsort(sp->idx, sp->num_idx, sizeof(sp->idx[0]), sprom_sort_idx);
 
 	return (0);
-	
+
 failed:
 	if (sp->data != NULL)
 		bhnd_nvram_io_free(sp->data);
 
-	if (sp->idx != NULL)
-		bhnd_nv_free(sp->idx);
-
 	return (error);
-}
-
-/* sort function for sprom_opcode_idx values */
-static int
-sprom_sort_idx(const void *lhs, const void *rhs)
-{
-	const struct sprom_opcode_idx	*l, *r;
-
-	l = lhs;
-	r = rhs;
-
-	if (l->vid < r->vid)
-		return (-1);
-	if (l->vid > r->vid)
-		return (1);
-	return (0);
 }
 
 static void
 bhnd_nvram_sprom_free(struct bhnd_nvram_data *nv)
 {
 	struct bhnd_nvram_sprom *sp = (struct bhnd_nvram_sprom *)nv;
-	
+
+	bhnd_sprom_opcode_fini(&sp->state);
 	bhnd_nvram_io_free(sp->data);
-	bhnd_nv_free(sp->idx);
 }
 
 size_t
@@ -423,41 +749,10 @@ bhnd_nvram_sprom_count(struct bhnd_nvram_data *nv)
 	return (sprom->layout->num_vars);
 }
 
-static int
-bhnd_nvram_sprom_size(struct bhnd_nvram_data *nv, size_t *size)
+static bhnd_nvram_plist *
+bhnd_nvram_sprom_options(struct bhnd_nvram_data *nv)
 {
-	struct bhnd_nvram_sprom *sprom = (struct bhnd_nvram_sprom *)nv;
-
-	/* The serialized form will be identical in length
-	 * to our backing buffer representation */
-	*size = bhnd_nvram_io_getsize(sprom->data);
-	return (0);
-}
-
-static int
-bhnd_nvram_sprom_serialize(struct bhnd_nvram_data *nv, void *buf, size_t *len)
-{
-	struct bhnd_nvram_sprom	*sprom;
-	size_t			 limit, req_len;
-	int			 error;
-
-	sprom = (struct bhnd_nvram_sprom *)nv;
-	limit = *len;
-
-	/* Provide the required size */
-	if ((error = bhnd_nvram_sprom_size(nv, &req_len)))
-		return (error);
-
-	*len = req_len;
-
-	if (buf == NULL) {
-		return (0);
-	} else if (*len > limit) {
-		return (ENOMEM);
-	}
-
-	/* Write to the output buffer */
-	return (bhnd_nvram_io_read(sprom->data, 0x0, buf, *len));
+	return (NULL);
 }
 
 static uint32_t
@@ -470,39 +765,17 @@ static const char *
 bhnd_nvram_sprom_next(struct bhnd_nvram_data *nv, void **cookiep)
 {
 	struct bhnd_nvram_sprom		*sp;
-	struct sprom_opcode_idx		*idx_entry;
-	size_t				 idx_next;
+	bhnd_sprom_opcode_idx_entry	*entry;
 	const struct bhnd_nvram_vardefn	*var;
 
 	sp = (struct bhnd_nvram_sprom *)nv;
 
-	/* Seek to appropriate starting point */
-	if (*cookiep == NULL) {
-		/* Start search at first index entry */
-		idx_next = 0;
-	} else {
-		/* Determine current index position */
-		idx_entry = *cookiep;
-		idx_next = (size_t)(idx_entry - sp->idx);
-		BHND_NV_ASSERT(idx_next < sp->num_idx,
-		    ("invalid index %zu; corrupt cookie?", idx_next));
-
-		/* Advance to next entry */
-		idx_next++;
-
-		/* Check for EOF */
-		if (idx_next == sp->num_idx)
-			return (NULL);
-	}
-
-	/* Skip entries that are disabled by virtue of IGNALL1 */
-	for (; idx_next < sp->num_idx; idx_next++) {
-		/* Fetch index entry and update cookiep  */
-		idx_entry = &sp->idx[idx_next];
-		*cookiep = idx_entry;
-
-		/* Fetch variable definition */
-		var = bhnd_nvram_get_vardefn(idx_entry->vid);
+	/* Find next index entry that is not disabled by virtue of IGNALL1 */
+	entry = *cookiep;
+	while ((entry = bhnd_sprom_opcode_index_next(&sp->state, entry))) {
+		/* Update cookiep and fetch variable definition */
+		*cookiep = entry;
+		var = SPROM_COOKIE_TO_NVRAM_VAR(*cookiep);
 
 		/* We might need to parse the variable's value to determine
 		 * whether it should be treated as unset */
@@ -515,7 +788,6 @@ bhnd_nvram_sprom_next(struct bhnd_nvram_data *nv, void **cookiep)
 			if (error) {
 				BHND_NV_ASSERT(error == ENOENT, ("unexpected "
 				    "error parsing variable: %d", error));
-
 				continue;
 			}
 		}
@@ -528,49 +800,120 @@ bhnd_nvram_sprom_next(struct bhnd_nvram_data *nv, void **cookiep)
 	return (NULL);
 }
 
-/* bsearch function used by bhnd_nvram_sprom_find() */
-static int
-bhnd_nvram_sprom_find_vid_compare(const void *key, const void *rhs)
-{
-	const struct sprom_opcode_idx	*r;
-	size_t				 l;
-
-	l = *(const size_t *)key;
-	r = rhs;
-
-	if (l < r->vid)
-		return (-1);
-	if (l > r->vid)
-		return (1);
-	return (0);
-}
-
 static void *
 bhnd_nvram_sprom_find(struct bhnd_nvram_data *nv, const char *name)
 {
 	struct bhnd_nvram_sprom		*sp;
-	const struct bhnd_nvram_vardefn	*var;
-	size_t				 vid;
+	bhnd_sprom_opcode_idx_entry	*entry;
 
 	sp = (struct bhnd_nvram_sprom *)nv;
 
-	/* Determine the variable ID for the given name */
-	if ((var = bhnd_nvram_find_vardefn(name)) == NULL)
-		return (NULL);
-
-	vid = bhnd_nvram_get_vardefn_id(var);
-
-	/* Search our index for the variable ID */
-	return (bsearch(&vid, sp->idx, sp->num_idx, sizeof(sp->idx[0]),
-	    bhnd_nvram_sprom_find_vid_compare));
+	entry = bhnd_sprom_opcode_index_find(&sp->state, name);
+	return (entry);
 }
 
 /**
- * Read the value of @p type from the SPROM data at @p offset, apply @p mask
+ * Write @p value of @p type to the SPROM @p data at @p offset, applying
+ * @p mask and @p shift, and OR with the existing data.
+ *
+ * @param var The NVRAM variable definition.
+ * @param data The SPROM data to be modified.
+ * @param type The type to write at @p offset.
+ * @param offset The data offset to be written.
+ * @param mask The mask to be applied to @p value after shifting.
+ * @param shift The shift to be applied to @p value; if positive, a left
+ * shift will be applied, if negative, a right shift (this is the reverse of the
+ * decoding behavior)
+ * @param value The value to be written. The parsed value will be OR'd with the
+ * current contents of @p data at @p offset.
+ */
+static int
+bhnd_nvram_sprom_write_offset(const struct bhnd_nvram_vardefn *var,
+    struct bhnd_nvram_io *data, bhnd_nvram_type type, size_t offset,
+    uint32_t mask, int8_t shift, uint32_t value)
+{
+	union bhnd_nvram_sprom_storage	scratch;
+	int				error;
+
+#define	NV_WRITE_INT(_widen, _repr, _swap)	do {		\
+	/* Narrow the 32-bit representation */			\
+	scratch._repr[1] = (_widen)value;			\
+								\
+	/* Shift and mask the new value */			\
+	if (shift > 0)						\
+		scratch._repr[1] <<= shift;			\
+	else if (shift < 0)					\
+		scratch._repr[1] >>= -shift;			\
+	scratch._repr[1] &= mask;				\
+								\
+	/* Swap to output byte order */				\
+	scratch._repr[1] = _swap(scratch._repr[1]);		\
+								\
+	/* Fetch the current value */				\
+	error = bhnd_nvram_io_read(data, offset,		\
+	    &scratch._repr[0], sizeof(scratch._repr[0]));	\
+	if (error) {						\
+		BHND_NV_LOG("error reading %s SPROM offset "	\
+		    "%#zx: %d\n", var->name, offset, error);	\
+		return (EFTYPE);				\
+	}							\
+								\
+	/* Mask and set our new value's bits in the current	\
+	 * value */						\
+	if (shift >= 0)						\
+		scratch._repr[0] &= ~_swap(mask << shift);	\
+	else if (shift < 0)					\
+		scratch._repr[0] &= ~_swap(mask >> (-shift));	\
+	scratch._repr[0] |= scratch._repr[1];			\
+								\
+	/* Perform write */					\
+	error = bhnd_nvram_io_write(data, offset,		\
+	    &scratch._repr[0], sizeof(scratch._repr[0]));	\
+	if (error) {						\
+		BHND_NV_LOG("error writing %s SPROM offset "	\
+		    "%#zx: %d\n", var->name, offset, error);	\
+		return (EFTYPE);				\
+	}							\
+} while(0)
+
+	/* Apply mask/shift and widen to a common 32bit representation */
+	switch (type) {
+	case BHND_NVRAM_TYPE_UINT8:
+		NV_WRITE_INT(uint32_t,	u8,	);
+		break;
+	case BHND_NVRAM_TYPE_UINT16:
+		NV_WRITE_INT(uint32_t,	u16,	htole16);
+		break;
+	case BHND_NVRAM_TYPE_UINT32:
+		NV_WRITE_INT(uint32_t,	u32,	htole32);
+		break;
+	case BHND_NVRAM_TYPE_INT8:
+		NV_WRITE_INT(int32_t,	i8,	);
+		break;
+	case BHND_NVRAM_TYPE_INT16:
+		NV_WRITE_INT(int32_t,	i16,	htole16);
+		break;
+	case BHND_NVRAM_TYPE_INT32:
+		NV_WRITE_INT(int32_t,	i32,	htole32);
+		break;
+	case BHND_NVRAM_TYPE_CHAR:
+		NV_WRITE_INT(uint32_t,	u8,	);
+		break;
+	default:
+		BHND_NV_LOG("unhandled %s offset type: %d\n", var->name, type);
+		return (EFTYPE);
+	}
+#undef	NV_WRITE_INT
+
+	return (0);
+}
+
+/**
+ * Read the value of @p type from the SPROM @p data at @p offset, apply @p mask
  * and @p shift, and OR with the existing @p value.
  * 
- * @param sp The SPROM data instance.
- * @param var The NVRAM variable definition
+ * @param var The NVRAM variable definition.
+ * @param data The SPROM data to be decoded.
  * @param type The type to read at @p offset
  * @param offset The data offset to be read.
  * @param mask The mask to be applied to the value read at @p offset.
@@ -580,116 +923,104 @@ bhnd_nvram_sprom_find(struct bhnd_nvram_data *nv, const char *name)
  * current contents of @p value.
  */
 static int
-bhnd_nvram_sprom_read_offset(struct bhnd_nvram_sprom *sp,
-    const struct bhnd_nvram_vardefn *var, bhnd_nvram_type type,
-    size_t offset, uint32_t mask, int8_t shift,
-    union bhnd_nvram_sprom_intv *value)
+bhnd_nvram_sprom_read_offset(const struct bhnd_nvram_vardefn *var,
+    struct bhnd_nvram_io *data, bhnd_nvram_type type, size_t offset,
+    uint32_t mask, int8_t shift, uint32_t *value)
 {
-	size_t	sp_width;
-	int	error;
-	union {
-		uint8_t		u8;
-		uint16_t	u16;
-		uint32_t	u32;
-		int8_t		s8;
-		int16_t		s16;
-		int32_t		s32;
-	} sp_value;
+	union bhnd_nvram_sprom_storage	scratch;
+	int				error;
 
-	/* Determine type width */
-	sp_width = bhnd_nvram_value_size(type, NULL, 0, 1);
-	if (sp_width == 0) {
-		/* Variable-width types are unsupported */
-		BHND_NV_LOG("invalid %s SPROM offset type %d\n", var->name,
-		    type);
-		return (EFTYPE);
-	}
-
-	/* Perform read */
-	error = bhnd_nvram_io_read(sp->data, offset, &sp_value,
-	    sp_width);
-	if (error) {
-		BHND_NV_LOG("error reading %s SPROM offset %#zx: %d\n",
-		    var->name, offset, error);
-		return (EFTYPE);
-	}
-
-#define	NV_PARSE_INT(_type, _src, _dest, _swap)	do {			\
-	/* Swap to host byte order */					\
-	sp_value. _src = (_type) _swap(sp_value. _src);			\
-									\
-	/* Mask and shift the value */					\
-	sp_value. _src &= mask;				\
+#define	NV_PARSE_INT(_widen, _repr, _swap)		do {	\
+	/* Perform read */					\
+	error = bhnd_nvram_io_read(data, offset,		\
+	    &scratch._repr[0], sizeof(scratch._repr[0]));	\
+	if (error) {						\
+		BHND_NV_LOG("error reading %s SPROM offset "	\
+		    "%#zx: %d\n", var->name, offset, error);	\
+		return (EFTYPE);				\
+	}							\
+								\
+	/* Swap to host byte order */				\
+	scratch._repr[0] = _swap(scratch._repr[0]);		\
+								\
+	/* Mask and shift the value */				\
+	scratch._repr[0] &= mask;				\
 	if (shift > 0) {					\
-		sp_value. _src >>= shift;			\
-	} else if (shift < 0) {				\
-		sp_value. _src <<= -shift;			\
-	}								\
-									\
-	/* Emit output, widening to 32-bit representation  */		\
-	value-> _dest |= sp_value. _src;				\
+		scratch. _repr[0] >>= shift;			\
+	} else if (shift < 0) {					\
+		scratch. _repr[0] <<= -shift;			\
+	}							\
+								\
+	/* Widen to 32-bit representation and OR with current	\
+	 * value */						\
+	(*value) |= (_widen)scratch._repr[0];			\
 } while(0)
 
 	/* Apply mask/shift and widen to a common 32bit representation */
 	switch (type) {
 	case BHND_NVRAM_TYPE_UINT8:
-		NV_PARSE_INT(uint8_t,	u8,	u32,	);
+		NV_PARSE_INT(uint32_t,	u8,	);
 		break;
 	case BHND_NVRAM_TYPE_UINT16:
-		NV_PARSE_INT(uint16_t,	u16,	u32,	le16toh);
+		NV_PARSE_INT(uint32_t,	u16,	le16toh);
 		break;
 	case BHND_NVRAM_TYPE_UINT32:
-		NV_PARSE_INT(uint32_t,	u32,	u32,	le32toh);
+		NV_PARSE_INT(uint32_t,	u32,	le32toh);
 		break;
 	case BHND_NVRAM_TYPE_INT8:
-		NV_PARSE_INT(int8_t,	s8,	s32,	);
+		NV_PARSE_INT(int32_t,	i8,	);
 		break;
 	case BHND_NVRAM_TYPE_INT16:
-		NV_PARSE_INT(int16_t,	s16,	s32,	le16toh);
+		NV_PARSE_INT(int32_t,	i16,	le16toh);
 		break;
 	case BHND_NVRAM_TYPE_INT32:
-		NV_PARSE_INT(int32_t,	s32,	s32,	le32toh);
+		NV_PARSE_INT(int32_t,	i32,	le32toh);
 		break;
 	case BHND_NVRAM_TYPE_CHAR:
-		NV_PARSE_INT(uint8_t,	u8,	u32,	);
+		NV_PARSE_INT(uint32_t,	u8,	);
 		break;
-
-	case BHND_NVRAM_TYPE_UINT64:
-	case BHND_NVRAM_TYPE_INT64:
-	case BHND_NVRAM_TYPE_STRING:
-		/* fallthrough (unused by SPROM) */
 	default:
 		BHND_NV_LOG("unhandled %s offset type: %d\n", var->name, type);
 		return (EFTYPE);
 	}
+#undef	NV_PARSE_INT
 
 	return (0);
 }
 
+/**
+ * Common variable decoding; fetches and decodes variable to @p val,
+ * using @p storage for actual data storage.
+ * 
+ * The returned @p val instance will hold a borrowed reference to @p storage,
+ * and must be copied via bhnd_nvram_val_copy() if it will be referenced beyond
+ * the lifetime of @p storage.
+ *
+ * The caller is responsible for releasing any allocated value state
+ * via bhnd_nvram_val_release().
+ */
 static int
-bhnd_nvram_sprom_getvar(struct bhnd_nvram_data *nv, void *cookiep, void *buf,
-    size_t *len, bhnd_nvram_type otype)
+bhnd_nvram_sprom_getvar_common(struct bhnd_nvram_data *nv, void *cookiep,
+    union bhnd_nvram_sprom_storage *storage, bhnd_nvram_val *val)
 {
-	bhnd_nvram_val_t		 val;
 	struct bhnd_nvram_sprom		*sp;
-	struct sprom_opcode_idx		*idx;
+	bhnd_sprom_opcode_idx_entry	*entry;
 	const struct bhnd_nvram_vardefn	*var;
-	union bhnd_nvram_sprom_storage	 storage;
 	union bhnd_nvram_sprom_storage	*inp;
-	union bhnd_nvram_sprom_intv	 intv;
 	bhnd_nvram_type			 var_btype;
+	uint32_t			 intv;
 	size_t				 ilen, ipos, iwidth;
 	size_t				 nelem;
 	bool				 all_bits_set;
 	int				 error;
 
 	sp = (struct bhnd_nvram_sprom *)nv;
-	idx = cookiep;
+	entry = cookiep;
 
 	BHND_NV_ASSERT(cookiep != NULL, ("NULL variable cookiep"));
 
 	/* Fetch canonical variable definition */
-	var = SPROM_COOKIE_TO_NVRAM(cookiep);
+	var = SPROM_COOKIE_TO_NVRAM_VAR(cookiep);
 	BHND_NV_ASSERT(var != NULL, ("invalid cookiep %p", cookiep));
 
 	/*
@@ -699,7 +1030,7 @@ bhnd_nvram_sprom_getvar(struct bhnd_nvram_data *nv, void *cookiep, void *buf,
 	 * canonical NVRAM variable definition, but some SPROM layouts may
 	 * define a smaller element count.
 	 */
-	if ((error = sprom_opcode_parse_var(&sp->state, idx))) {
+	if ((error = bhnd_sprom_opcode_parse_var(&sp->state, entry))) {
 		BHND_NV_LOG("variable evaluation failed: %d\n", error);
 		return (error);
 	}
@@ -716,7 +1047,7 @@ bhnd_nvram_sprom_getvar(struct bhnd_nvram_data *nv, void *cookiep, void *buf,
 	var_btype = bhnd_nvram_base_type(var->type);
 
 	/* Calculate total byte length of the native encoding */
-	if ((iwidth = bhnd_nvram_value_size(var_btype, NULL, 0, 1)) == 0) {
+	if ((iwidth = bhnd_nvram_value_size(NULL, 0, var_btype, 1)) == 0) {
 		/* SPROM does not use (and we do not support) decoding of
 		 * variable-width data types */
 		BHND_NV_LOG("invalid SPROM data type: %d", var->type);
@@ -724,9 +1055,9 @@ bhnd_nvram_sprom_getvar(struct bhnd_nvram_data *nv, void *cookiep, void *buf,
 	}
 	ilen = nelem * iwidth;
 
-	/* Decode into our own local storage. */
-	inp = &storage;
-	if (ilen > sizeof(storage)) {
+	/* Decode into our caller's local storage */
+	inp = storage;
+	if (ilen > sizeof(*storage)) {
 		BHND_NV_LOG("error decoding '%s', SPROM_ARRAY_MAXLEN "
 		    "incorrect\n", var->name);
 		return (EFTYPE);
@@ -739,25 +1070,25 @@ bhnd_nvram_sprom_getvar(struct bhnd_nvram_data *nv, void *cookiep, void *buf,
 	/*
 	 * Decode the SPROM data, iteratively decoding up to nelem values.
 	 */
-	if ((error = sprom_opcode_state_seek(&sp->state, idx))) {
+	if ((error = bhnd_sprom_opcode_seek(&sp->state, entry))) {
 		BHND_NV_LOG("variable seek failed: %d\n", error);
 		return (error);
 	}
 
 	ipos = 0;
-	intv.u32 = 0x0;
+	intv = 0x0;
 	if (var->flags & BHND_NVRAM_VF_IGNALL1)
 		all_bits_set = true;
 	else
 		all_bits_set = false;
-	while ((error = sprom_opcode_next_binding(&sp->state)) == 0) {
-		struct sprom_opcode_bind	*binding;
-		struct sprom_opcode_var		*binding_var;
-		bhnd_nvram_type			 intv_type;
-		size_t				 offset;
-		size_t				 nbyte;
-		uint32_t			 skip_in_bytes;
-		void				*ptr;
+	while ((error = bhnd_sprom_opcode_next_binding(&sp->state)) == 0) {
+		bhnd_sprom_opcode_bind	*binding;
+		bhnd_sprom_opcode_var	*binding_var;
+		bhnd_nvram_type		 intv_type;
+		size_t			 offset;
+		size_t			 nbyte;
+		uint32_t		 skip_in_bytes;
+		void			*ptr;
 
 		BHND_NV_ASSERT(
 		    sp->state.var_state >= SPROM_OPCODE_VAR_STATE_OPEN,
@@ -776,7 +1107,8 @@ bhnd_nvram_sprom_getvar(struct bhnd_nvram_data *nv, void *cookiep, void *buf,
 
 		/* Calculate input skip bytes for this binding */
 		skip_in_bytes = binding->skip_in;
-		error = sprom_opcode_apply_scale(&sp->state, &skip_in_bytes);
+		error = bhnd_sprom_opcode_apply_scale(&sp->state,
+		    &skip_in_bytes);
 		if (error)
 			return (error);
 
@@ -785,7 +1117,7 @@ bhnd_nvram_sprom_getvar(struct bhnd_nvram_data *nv, void *cookiep, void *buf,
 		for (size_t i = 0; i < binding->count; i++) {
 			/* Read the offset value, OR'ing with the current
 			 * value of intv */
-			error = bhnd_nvram_sprom_read_offset(sp, var,
+			error = bhnd_nvram_sprom_read_offset(var, sp->data,
 			    binding_var->base_type,
 			    offset,
 			    binding_var->mask,
@@ -807,7 +1139,7 @@ bhnd_nvram_sprom_getvar(struct bhnd_nvram_data *nv, void *cookiep, void *buf,
 				else if (binding_var->shift < 0)
 					all1 <<= -binding_var->shift;
 
-				if ((intv.u32 & all1) != all1)
+				if ((intv & all1) != all1)
 					all_bits_set = false;
 			}
 
@@ -846,7 +1178,7 @@ bhnd_nvram_sprom_getvar(struct bhnd_nvram_data *nv, void *cookiep, void *buf,
 				return (error);
 
 			/* Clear temporary state */
-			intv.u32 = 0x0;
+			intv = 0x0;
 
 			/* Advance output position */
 			if (SIZE_MAX - binding->skip_out < ipos) {
@@ -871,18 +1203,73 @@ bhnd_nvram_sprom_getvar(struct bhnd_nvram_data *nv, void *cookiep, void *buf,
 	if ((var->flags & BHND_NVRAM_VF_IGNALL1) && all_bits_set)
 		return (ENOENT);
 
+	/* Provide value wrapper */
+	return (bhnd_nvram_val_init(val, var->fmt, inp, ilen, var->type,
+	    BHND_NVRAM_VAL_BORROW_DATA));
+		return (error);
+}
 
-	/* Perform value coercion from our local representation */
-	error = bhnd_nvram_val_init(&val, var->fmt, inp, ilen, var->type,
-	    BHND_NVRAM_VAL_BORROW_DATA);
+static int
+bhnd_nvram_sprom_getvar_order(struct bhnd_nvram_data *nv, void *cookiep1,
+    void *cookiep2)
+{
+	struct bhnd_sprom_opcode_idx_entry *e1, *e2;
+
+	e1 = cookiep1;
+	e2 = cookiep2;
+
+	/* Use the index entry order; this matches the order of variables
+	 * returned via bhnd_nvram_sprom_next() */
+	if (e1 < e2)
+		return (-1);
+	else if (e1 > e2)
+		return (1);
+
+	return (0);
+}
+
+static int
+bhnd_nvram_sprom_getvar(struct bhnd_nvram_data *nv, void *cookiep, void *buf,
+    size_t *len, bhnd_nvram_type otype)
+{
+	bhnd_nvram_val			val;
+	union bhnd_nvram_sprom_storage	storage;
+	int				error;
+
+	/* Decode variable to a new value instance */
+	error = bhnd_nvram_sprom_getvar_common(nv, cookiep, &storage, &val);
 	if (error)
 		return (error);
 
+	/* Perform value coercion */
 	error = bhnd_nvram_val_encode(&val, buf, len, otype);
 
 	/* Clean up */
 	bhnd_nvram_val_release(&val);
 	return (error);
+}
+
+static int
+bhnd_nvram_sprom_copy_val(struct bhnd_nvram_data *nv, void *cookiep,
+    bhnd_nvram_val **value)
+{
+	bhnd_nvram_val			val;
+	union bhnd_nvram_sprom_storage	storage;
+	int				error;
+
+	/* Decode variable to a new value instance */
+	error = bhnd_nvram_sprom_getvar_common(nv, cookiep, &storage, &val);
+	if (error)
+		return (error);
+
+	/* Attempt to copy to heap */
+	*value = bhnd_nvram_val_copy(&val);
+	bhnd_nvram_val_release(&val);
+
+	if (*value == NULL)
+		return (ENOMEM);
+
+	return (0);
 }
 
 static const void *
@@ -900,1089 +1287,95 @@ bhnd_nvram_sprom_getvar_name(struct bhnd_nvram_data *nv, void *cookiep)
 
 	BHND_NV_ASSERT(cookiep != NULL, ("NULL variable cookiep"));
 
-	var = SPROM_COOKIE_TO_NVRAM(cookiep);
+	var = SPROM_COOKIE_TO_NVRAM_VAR(cookiep);
 	BHND_NV_ASSERT(var != NULL, ("invalid cookiep %p", cookiep));
 
 	return (var->name);
 }
 
-/**
- * Initialize SPROM opcode evaluation state.
- * 
- * @param state The opcode state to be initialized.
- * @param layout The SPROM layout to be parsed by this instance.
- * 
- * 
- * @retval 0 success
- * @retval non-zero If initialization fails, a regular unix error code will be
- * returned.
- */
 static int
-sprom_opcode_state_init(struct sprom_opcode_state *state,
-    const struct bhnd_sprom_layout *layout)
+bhnd_nvram_sprom_filter_setvar(struct bhnd_nvram_data *nv, const char *name,
+    bhnd_nvram_val *value, bhnd_nvram_val **result)
 {
-	memset(state, 0, sizeof(*state));
-
-	state->layout = layout;
-	state->input = layout->bindings;
-	state->var_state = SPROM_OPCODE_VAR_STATE_NONE;
-
-	bit_set(state->revs, layout->rev);
-
-	return (0);
-}
-
-/**
- * Reset SPROM opcode evaluation state; future evaluation will be performed
- * starting at the first opcode.
- * 
- * @param state The opcode state to be reset.
- *
- * @retval 0 success
- * @retval non-zero If reset fails, a regular unix error code will be returned.
- */
-static int
-sprom_opcode_state_reset(struct sprom_opcode_state *state)
-{
-	return (sprom_opcode_state_init(state, state->layout));
-}
-
-/**
- * Reset SPROM opcode evaluation state and seek to the @p indexed position.
- * 
- * @param state The opcode state to be reset.
- * @param indexed The indexed location to which we'll seek the opcode state.
- */
-static int
-sprom_opcode_state_seek(struct sprom_opcode_state *state,
-    struct sprom_opcode_idx *indexed)
-{
-	int error;
-
-	BHND_NV_ASSERT(indexed->opcodes < state->layout->bindings_size,
-	    ("index entry references invalid opcode position"));
-
-	/* Reset state */
-	if ((error = sprom_opcode_state_reset(state)))
-		return (error);
-
-	/* Seek to the indexed sprom opcode offset */
-	state->input = state->layout->bindings + indexed->opcodes;
-
-	/* Restore the indexed sprom data offset and VID */
-	state->offset = indexed->offset;
-
-	/* Restore the indexed sprom variable ID */
-	if ((error = sprom_opcode_set_var(state, indexed->vid)))
-		return (error);
-
-	return (0);
-}
-
-/**
- * Set the current revision range for @p state. This also resets
- * variable state.
- * 
- * @param state The opcode state to update
- * @param start The first revision in the range.
- * @param end The last revision in the range.
- *
- * @retval 0 success
- * @retval non-zero If updating @p state fails, a regular unix error code will
- * be returned.
- */
-static inline int
-sprom_opcode_set_revs(struct sprom_opcode_state *state, uint8_t start,
-    uint8_t end)
-{
-	int error;
-
-	/* Validate the revision range */
-	if (start > SPROM_OP_REV_MAX ||
-	    end > SPROM_OP_REV_MAX ||
-	    end < start)
-	{
-		SPROM_OP_BAD(state, "invalid revision range: %hhu-%hhu\n",
-		    start, end);
-		return (EINVAL);
-	}
-
-	/* Clear variable state */
-	if ((error = sprom_opcode_clear_var(state)))
-		return (error);
-
-	/* Reset revision mask */
-	memset(state->revs, 0x0, sizeof(state->revs));
-	bit_nset(state->revs, start, end);
-
-	return (0);
-}
-
-/**
- * Set the current variable's value mask for @p state.
- * 
- * @param state The opcode state to update
- * @param mask The mask to be set
- *
- * @retval 0 success
- * @retval non-zero If updating @p state fails, a regular unix error code will
- * be returned.
- */
-static inline int
-sprom_opcode_set_mask(struct sprom_opcode_state *state, uint32_t mask)
-{
-	if (state->var_state != SPROM_OPCODE_VAR_STATE_OPEN) {
-		SPROM_OP_BAD(state, "no open variable definition\n");
-		return (EINVAL);
-	}
-
-	state->var.mask = mask;
-	return (0);
-}
-
-/**
- * Set the current variable's value shift for @p state.
- * 
- * @param state The opcode state to update
- * @param shift The shift to be set
- *
- * @retval 0 success
- * @retval non-zero If updating @p state fails, a regular unix error code will
- * be returned.
- */
-static inline int
-sprom_opcode_set_shift(struct sprom_opcode_state *state, int8_t shift)
-{
-	if (state->var_state != SPROM_OPCODE_VAR_STATE_OPEN) {
-		SPROM_OP_BAD(state, "no open variable definition\n");
-		return (EINVAL);
-	}
-
-	state->var.shift = shift;
-	return (0);
-}
-
-/**
- * Register a new BIND/BINDN operation with @p state.
- * 
- * @param state The opcode state to update.
- * @param count The number of elements to be bound.
- * @param skip_in The number of input elements to skip after each bind.
- * @param skip_in_negative If true, the input skip should be subtracted from
- * the current offset after each bind. If false, the input skip should be
- * added.
- * @param skip_out The number of output elements to skip after each bind.
- * 
- * @retval 0 success
- * @retval EINVAL if a variable definition is not open.
- * @retval EINVAL if @p skip_in and @p count would trigger an overflow or
- * underflow when applied to the current input offset.
- * @retval ERANGE if @p skip_in would overflow uint32_t when multiplied by
- * @p count and the scale value.
- * @retval ERANGE if @p skip_out would overflow uint32_t when multiplied by
- * @p count and the scale value.
- * @retval non-zero If updating @p state otherwise fails, a regular unix error
- * code will be returned.
- */
-static inline int
-sprom_opcode_set_bind(struct sprom_opcode_state *state, uint8_t count,
-    uint8_t skip_in, bool skip_in_negative, uint8_t skip_out)
-{
-	uint32_t	iskip_total;
-	uint32_t	iskip_scaled;
-	int		error;
-
-	/* Must have an open variable */
-	if (state->var_state != SPROM_OPCODE_VAR_STATE_OPEN) {
-		SPROM_OP_BAD(state, "no open variable definition\n");
-		SPROM_OP_BAD(state, "BIND outside of variable definition\n");
-		return (EINVAL);
-	}
-
-	/* Cannot overwite an existing bind definition */
-	if (state->var.have_bind) {
-		SPROM_OP_BAD(state, "BIND overwrites existing definition\n");
-		return (EINVAL);
-	}
-
-	/* Must have a count of at least 1 */
-	if (count == 0) {
-		SPROM_OP_BAD(state, "BIND with zero count\n");
-		return (EINVAL);
-	}
-
-	/* Scale skip_in by the current type width */
-	iskip_scaled = skip_in;
-	if ((error = sprom_opcode_apply_scale(state, &iskip_scaled)))
-		return (error);
-
-	/* Calculate total input bytes skipped: iskip_scaled * count) */
-	if (iskip_scaled > 0 && UINT32_MAX / iskip_scaled < count) {
-		SPROM_OP_BAD(state, "skip_in %hhu would overflow", skip_in);
-		return (EINVAL);
-	}
-
-	iskip_total = iskip_scaled * count;
-
-	/* Verify that the skip_in value won't under/overflow the current
-	 * input offset. */
-	if (skip_in_negative) {
-		if (iskip_total > state->offset) {
-			SPROM_OP_BAD(state, "skip_in %hhu would underflow "
-			    "offset %u\n", skip_in, state->offset);
-			return (EINVAL);
-		}
-	} else {
-		if (UINT32_MAX - iskip_total < state->offset) {
-			SPROM_OP_BAD(state, "skip_in %hhu would overflow "
-			    "offset %u\n", skip_in, state->offset);
-			return (EINVAL);
-		}
-	}
-
-	/* Set the actual count and skip values */
-	state->var.have_bind = true;
-	state->var.bind.count = count;
-	state->var.bind.skip_in = skip_in;
-	state->var.bind.skip_out = skip_out;
-
-	state->var.bind.skip_in_negative = skip_in_negative;
-
-	/* Update total bind count for the current variable */
-	state->var.bind_total++;
-
-	return (0);
-}
-
-
-/**
- * Apply and clear the current opcode bind state, if any.
- * 
- * @param state The opcode state to update.
- * 
- * @retval 0 success
- * @retval non-zero If updating @p state otherwise fails, a regular unix error
- * code will be returned.
- */
-static int
-sprom_opcode_flush_bind(struct sprom_opcode_state *state)
-{
-	int		error;
-	uint32_t	skip;
-
-	/* Nothing to do? */
-	if (state->var_state != SPROM_OPCODE_VAR_STATE_OPEN ||
-	    !state->var.have_bind)
-		return (0);
-
-	/* Apply SPROM offset adjustment */
-	if (state->var.bind.count > 0) {
-		skip = state->var.bind.skip_in * state->var.bind.count;
-		if ((error = sprom_opcode_apply_scale(state, &skip)))
-			return (error);
-
-		if (state->var.bind.skip_in_negative) {
-			state->offset -= skip;
-		} else {
-			state->offset += skip;
-		}
-	}
-
-	/* Clear bind state */
-	memset(&state->var.bind, 0, sizeof(state->var.bind));
-	state->var.have_bind = false;
-
-	return (0);
-}
-
-/**
- * Set the current type to @p type, and reset type-specific
- * stream state.
- *
- * @param state The opcode state to update.
- * @param type The new type.
- * 
- * @retval 0 success
- * @retval EINVAL if @p vid is not a valid variable ID.
- */
-static int
-sprom_opcode_set_type(struct sprom_opcode_state *state, bhnd_nvram_type type)
-{
-	bhnd_nvram_type	base_type;
-	size_t		width;
-	uint32_t	mask;
-
-	/* Must have an open variable definition */
-	if (state->var_state != SPROM_OPCODE_VAR_STATE_OPEN) {
-		SPROM_OP_BAD(state, "type set outside variable definition\n");
-		return (EINVAL);
-	}
-
-	/* Fetch type width for use as our scale value */
-	width = bhnd_nvram_value_size(type, NULL, 0, 1);
-	if (width == 0) {
-		SPROM_OP_BAD(state, "unsupported variable-width type: %d\n",
-		    type);
-		return (EINVAL);
-	} else if (width > UINT32_MAX) {
-		SPROM_OP_BAD(state, "invalid type width %zu for type: %d\n",
-		    width, type);
-		return (EINVAL);
-	}
-
-	/* Determine default mask value for the element type */
-	base_type = bhnd_nvram_base_type(type);
-	switch (base_type) {
-	case BHND_NVRAM_TYPE_UINT8:
-	case BHND_NVRAM_TYPE_INT8:
-	case BHND_NVRAM_TYPE_CHAR:
-		mask = UINT8_MAX;
-		break;
-	case BHND_NVRAM_TYPE_UINT16:
-	case BHND_NVRAM_TYPE_INT16:
-		mask = UINT16_MAX;
-		break;
-	case BHND_NVRAM_TYPE_UINT32:
-	case BHND_NVRAM_TYPE_INT32:
-		mask = UINT32_MAX;
-		break;
-	case BHND_NVRAM_TYPE_STRING:
-		/* fallthrough (unused by SPROM) */
-	default:
-		SPROM_OP_BAD(state, "unsupported type: %d\n", type);
-		return (EINVAL);
-	}
-	
-	/* Update state */
-	state->var.base_type = base_type;
-	state->var.mask = mask;
-	state->var.scale = (uint32_t)width;
-
-	return (0);
-}
-
-/**
- * Clear current variable state, if any.
- * 
- * @param state The opcode state to update.
- */
-static int
-sprom_opcode_clear_var(struct sprom_opcode_state *state)
-{
-	if (state->var_state == SPROM_OPCODE_VAR_STATE_NONE)
-		return (0);
-
-	BHND_NV_ASSERT(state->var_state == SPROM_OPCODE_VAR_STATE_DONE,
-	    ("incomplete variable definition"));
-	BHND_NV_ASSERT(!state->var.have_bind, ("stale bind state"));
-
-	memset(&state->var, 0, sizeof(state->var));
-	state->var_state = SPROM_OPCODE_VAR_STATE_NONE;
-
-	return (0);
-}
-
-/**
- * Set the current variable's array element count to @p nelem.
- *
- * @param state The opcode state to update.
- * @param nelem The new array length.
- * 
- * @retval 0 success
- * @retval EINVAL if no open variable definition exists.
- * @retval EINVAL if @p nelem is zero.
- * @retval ENXIO if @p nelem is greater than one, and the current variable does
- * not have an array type.
- * @retval ENXIO if @p nelem exceeds the array length of the NVRAM variable
- * definition.
- */
-static int
-sprom_opcode_set_nelem(struct sprom_opcode_state *state, uint8_t nelem)
-{
+	struct bhnd_nvram_sprom		*sp;
 	const struct bhnd_nvram_vardefn	*var;
-
-	/* Must have a defined variable */
-	if (state->var_state != SPROM_OPCODE_VAR_STATE_OPEN) {
-		SPROM_OP_BAD(state, "array length set without open variable "
-		    "state");
-		return (EINVAL);
-	}
-
-	/* Locate the actual variable definition */
-	if ((var = bhnd_nvram_get_vardefn(state->vid)) == NULL) {
-		SPROM_OP_BAD(state, "unknown variable ID: %zu\n", state->vid);
-		return (EINVAL);
-	}
-
-	/* Must be greater than zero */
-	if (nelem == 0) {
-		SPROM_OP_BAD(state, "invalid nelem: %hhu\n", nelem);
-		return (EINVAL);
-	}
-
-	/* If the variable is not an array-typed value, the array length
-	 * must be 1 */
-	if (!bhnd_nvram_is_array_type(var->type) && nelem != 1) {
-		SPROM_OP_BAD(state, "nelem %hhu on non-array %zu\n", nelem,
-		    state->vid);
-		return (ENXIO);
-	}
-	
-	/* Cannot exceed the variable's defined array length */
-	if (nelem > var->nelem) {
-		SPROM_OP_BAD(state, "nelem %hhu exceeds %zu length %hhu\n",
-		    nelem, state->vid, var->nelem);
-		return (ENXIO);
-	}
-
-	/* Valid length; update state */
-	state->var.nelem = nelem;
-
-	return (0);
-}
-
-/**
- * Set the current variable ID to @p vid, and reset variable-specific
- * stream state.
- *
- * @param state The opcode state to update.
- * @param vid The new variable ID.
- * 
- * @retval 0 success
- * @retval EINVAL if @p vid is not a valid variable ID.
- */
-static int
-sprom_opcode_set_var(struct sprom_opcode_state *state, size_t vid)
-{
-	const struct bhnd_nvram_vardefn	*var;
+	bhnd_sprom_opcode_idx_entry	*entry;
+	bhnd_nvram_val			*spval;
 	int				 error;
 
-	BHND_NV_ASSERT(state->var_state == SPROM_OPCODE_VAR_STATE_NONE,
-	    ("overwrite of open variable definition"));
+	sp = (struct bhnd_nvram_sprom *)nv;
 
-	/* Locate the variable definition */
-	if ((var = bhnd_nvram_get_vardefn(vid)) == NULL) {
-		SPROM_OP_BAD(state, "unknown variable ID: %zu\n", vid);
+	/* Is this an externally immutable variable name? */
+	if (bhnd_sprom_is_external_immutable(name))
 		return (EINVAL);
-	}
 
-	/* Update vid and var state */
-	state->vid = vid;
-	state->var_state = SPROM_OPCODE_VAR_STATE_OPEN;
+	/* Variable must be defined in our SPROM layout */
+	if ((entry = bhnd_sprom_opcode_index_find(&sp->state, name)) == NULL)
+		return (ENOENT);
 
-	/* Initialize default variable record values */
-	memset(&state->var, 0x0, sizeof(state->var));
+	var = bhnd_nvram_get_vardefn(entry->vid);
+	BHND_NV_ASSERT(var != NULL, ("missing variable definition"));
 
-	/* Set initial base type */
-	if ((error = sprom_opcode_set_type(state, var->type)))
+	/* Value must be convertible to the native variable type */
+	error = bhnd_nvram_val_convert_new(&spval, var->fmt, value,
+	    BHND_NVRAM_VAL_DYNAMIC);
+	if (error)
 		return (error);
 
-	/* Set default array length */
-	if ((error = sprom_opcode_set_nelem(state, var->nelem)))
+	/* Value must be encodeable by our SPROM layout */
+	error = bhnd_nvram_sprom_write_var(&sp->state, entry, spval, NULL);
+	if (error) {
+		bhnd_nvram_val_release(spval);
 		return (error);
+	}
+
+	/* Success. Transfer our ownership of the converted value to the
+	 * caller */
+	*result = spval;
+	return (0);
+}
+
+static int
+bhnd_nvram_sprom_filter_unsetvar(struct bhnd_nvram_data *nv, const char *name)
+{
+	struct bhnd_nvram_sprom		*sp;
+	const struct bhnd_nvram_vardefn	*var;
+	bhnd_sprom_opcode_idx_entry	*entry;
+
+	sp = (struct bhnd_nvram_sprom *)nv;
+
+	/* Is this an externally immutable variable name? */
+	if (bhnd_sprom_is_external_immutable(name))
+		return (EINVAL);
+
+	/* Variable must be defined in our SPROM layout */
+	if ((entry = bhnd_sprom_opcode_index_find(&sp->state, name)) == NULL)
+		return (ENOENT);
+
+	var = bhnd_nvram_get_vardefn(entry->vid);
+
+	/* Variable must be capable of representing a NULL/deleted value.
+	 * 
+	 * Since SPROM's layout is fixed, this requires IGNALL -- if
+	 * all bits are set, an IGNALL variable is treated as unset. */
+	if (!(var->flags & BHND_NVRAM_VF_IGNALL1))
+		return (EINVAL);
 
 	return (0);
 }
 
 /**
- * Mark the currently open variable definition as complete.
+ * Return true if @p name represents a special immutable variable name
+ * (e.g. sromrev) that cannot be updated in an SPROM existing image.
  * 
- * @param state The opcode state to update.
- *
- * @retval 0 success
- * @retval EINVAL if no incomplete open variable definition exists.
+ * @param name The name to check.
  */
-static int
-sprom_opcode_end_var(struct sprom_opcode_state *state)
+static bool
+bhnd_sprom_is_external_immutable(const char *name)
 {
-	if (state->var_state != SPROM_OPCODE_VAR_STATE_OPEN) {
-		SPROM_OP_BAD(state, "no open variable definition\n");
-		return (EINVAL);
-	}
-
-	state->var_state = SPROM_OPCODE_VAR_STATE_DONE;
-	return (0);
-}
-
-/**
- * Apply the current scale to @p value.
- * 
- * @param state The SPROM opcode state.
- * @param[in,out] value The value to scale
- * 
- * @retval 0 success
- * @retval EINVAL if no open variable definition exists.
- * @retval EINVAL if applying the current scale would overflow.
- */
-static int
-sprom_opcode_apply_scale(struct sprom_opcode_state *state, uint32_t *value)
-{
-	/* Must have a defined variable (and thus, scale) */
-	if (state->var_state != SPROM_OPCODE_VAR_STATE_OPEN) {
-		SPROM_OP_BAD(state, "scaled value encoded without open "
-		    "variable state");
-		return (EINVAL);
-	}
-
-	/* Applying the scale value must not overflow */
-	if (UINT32_MAX / state->var.scale < *value) {
-		SPROM_OP_BAD(state, "cannot represent %" PRIu32 " * %" PRIu32
-		    "\n", *value, state->var.scale);
-		return (EINVAL);
-	}
-
-	*value = (*value) * state->var.scale;
-	return (0);
-}
-
-/**
- * Read a SPROM_OP_DATA_* value from @p opcodes.
- * 
- * @param state The SPROM opcode state.
- * @param type The SROM_OP_DATA_* type to be read.
- * @param opval On success, the 32bit data representation. If @p type is signed,
- * the value will be appropriately sign extended and may be directly cast to
- * int32_t.
- * 
- * @retval 0 success
- * @retval non-zero If reading the value otherwise fails, a regular unix error
- * code will be returned.
- */
-static int
-sprom_opcode_read_opval32(struct sprom_opcode_state *state, uint8_t type,
-   uint32_t *opval)
-{
-	const uint8_t	*p;
-	int		 error;
-
-	p = state->input;
-	switch (type) {
-	case SPROM_OP_DATA_I8:
-		/* Convert to signed value first, then sign extend */
-		*opval = (int32_t)(int8_t)(*p);
-		p += 1;
-		break;
-	case SPROM_OP_DATA_U8:
-		*opval = *p;
-		p += 1;
-		break;
-	case SPROM_OP_DATA_U8_SCALED:
-		*opval = *p;
-
-		if ((error = sprom_opcode_apply_scale(state, opval)))
-			return (error);
-
-		p += 1;
-		break;
-	case SPROM_OP_DATA_U16:
-		*opval = le16dec(p);
-		p += 2;
-		break;
-	case SPROM_OP_DATA_U32:
-		*opval = le32dec(p);
-		p += 4;
-		break;
-	default:
-		SPROM_OP_BAD(state, "unsupported data type: %hhu\n", type);
-		return (EINVAL);
-	}
-
-	/* Update read address */
-	state->input = p;
-
-	return (0);
-}
-
-/**
- * Return true if our layout revision is currently defined by the SPROM
- * opcode state.
- * 
- * This may be used to test whether the current opcode stream state applies
- * to the layout that we are actually parsing.
- * 
- * A given opcode stream may cover multiple layout revisions, switching
- * between them prior to defining a set of variables.
- */
-static inline bool
-sprom_opcode_matches_layout_rev(struct sprom_opcode_state *state)
-{
-	return (bit_test(state->revs, state->layout->rev));
-}
-
-/**
- * When evaluating @p state and @p opcode, rewrite @p opcode and the current
- * evaluation state, as required.
- * 
- * If @p opcode is rewritten, it should be returned from
- * sprom_opcode_step() instead of the opcode parsed from @p state's opcode
- * stream.
- * 
- * If @p opcode remains unmodified, then sprom_opcode_step() should proceed
- * to standard evaluation.
- */
-static int
-sprom_opcode_rewrite_opcode(struct sprom_opcode_state *state, uint8_t *opcode)
-{
-	uint8_t	op;
-	int	error;
-
-	op = SPROM_OPCODE_OP(*opcode);
-	switch (state->var_state) {
-	case SPROM_OPCODE_VAR_STATE_NONE:
-		/* No open variable definition */
-		return (0);
-
-	case SPROM_OPCODE_VAR_STATE_OPEN:
-		/* Open variable definition; check for implicit closure. */
-
-		/*
-		 * If a variable definition contains no explicit bind
-		 * instructions prior to closure, we must generate a DO_BIND
-		 * instruction with count and skip values of 1.
-		 */
-		if (SPROM_OP_IS_VAR_END(op) &&
-		    state->var.bind_total == 0)
-		{
-			uint8_t	count, skip_in, skip_out;
-			bool	skip_in_negative;
-
-			/* Create bind with skip_in/skip_out of 1, count of 1 */
-			count = 1;
-			skip_in = 1;
-			skip_out = 1;
-			skip_in_negative = false;
-
-			error = sprom_opcode_set_bind(state, count, skip_in,
-			    skip_in_negative, skip_out);
-			if (error)
-				return (error);
-
-			/* Return DO_BIND */
-			*opcode = SPROM_OPCODE_DO_BIND |
-			    (0 << SPROM_OP_BIND_SKIP_IN_SIGN) |
-			    (1 << SPROM_OP_BIND_SKIP_IN_SHIFT) |
-			    (1 << SPROM_OP_BIND_SKIP_OUT_SHIFT);
-
-			return (0);
-		}
-
-		/*
-		 * If a variable is implicitly closed (e.g. by a new variable
-		 * definition), we must generate a VAR_END instruction.
-		 */
-		if (SPROM_OP_IS_IMPLICIT_VAR_END(op)) {
-			/* Mark as complete */
-			if ((error = sprom_opcode_end_var(state)))
-				return (error);
-
-			/* Return VAR_END */
-			*opcode = SPROM_OPCODE_VAR_END;
-			return (0);
-		}
-		break;
-
-
-	case SPROM_OPCODE_VAR_STATE_DONE:
-		/* Previously completed variable definition. Discard variable
-		 * state */
-		return (sprom_opcode_clear_var(state));
-	}
-
-	/* Nothing to do */
-	return (0);
-}
-
-/**
- * Evaluate one opcode from @p state.
- *
- * @param state The opcode state to be evaluated.
- * @param[out] opcode On success, the evaluated opcode
- * 
- * @retval 0 success
- * @retval ENOENT if EOF is reached
- * @retval non-zero if evaluation otherwise fails, a regular unix error
- * code will be returned.
- */
-static int
-sprom_opcode_step(struct sprom_opcode_state *state, uint8_t *opcode)
-{
-	int error;
-
-	while (*state->input != SPROM_OPCODE_EOF) {
-		uint32_t	val;
-		uint8_t		op, rewrite, immd;
-
-		/* Fetch opcode */
-		*opcode = *state->input;
-		op = SPROM_OPCODE_OP(*opcode);
-		immd = SPROM_OPCODE_IMM(*opcode);
-
-		/* Clear any existing bind state */
-		if ((error = sprom_opcode_flush_bind(state)))
-			return (error);
-
-		/* Insert local opcode based on current state? */
-		rewrite = *opcode;
-		if ((error = sprom_opcode_rewrite_opcode(state, &rewrite)))
-			return (error);
-
-		if (rewrite != *opcode) {
-			/* Provide rewritten opcode */
-			*opcode = rewrite;
-
-			/* We must keep evaluating until we hit a state
-			 * applicable to the SPROM revision we're parsing */
-			if (!sprom_opcode_matches_layout_rev(state))
-				continue;
-
-			return (0);
-		}
-
-		/* Advance input */
-		state->input++;
-
-		switch (op) {
-		case SPROM_OPCODE_VAR_IMM:
-			if ((error = sprom_opcode_set_var(state, immd)))
-				return (error);
-			break;
-
-		case SPROM_OPCODE_VAR_REL_IMM:
-			error = sprom_opcode_set_var(state, state->vid + immd);
-			if (error)
-				return (error);
-			break;
-
-		case SPROM_OPCODE_VAR:
-			error = sprom_opcode_read_opval32(state, immd, &val);
-			if (error)
-				return (error);
-
-			if ((error = sprom_opcode_set_var(state, val)))
-				return (error);
-
-			break;
-
-		case SPROM_OPCODE_VAR_END:
-			if ((error = sprom_opcode_end_var(state)))
-				return (error);
-			break;
-
-		case SPROM_OPCODE_NELEM:
-			immd = *state->input;
-			if ((error = sprom_opcode_set_nelem(state, immd)))
-				return (error);
-
-			state->input++;
-			break;
-
-		case SPROM_OPCODE_DO_BIND:
-		case SPROM_OPCODE_DO_BINDN: {
-			uint8_t	count, skip_in, skip_out;
-			bool	skip_in_negative;
-
-			/* Fetch skip arguments */
-			skip_in = (immd & SPROM_OP_BIND_SKIP_IN_MASK) >>
-			    SPROM_OP_BIND_SKIP_IN_SHIFT;
-
-			skip_in_negative =
-			    ((immd & SPROM_OP_BIND_SKIP_IN_SIGN) != 0);
-
-			skip_out = (immd & SPROM_OP_BIND_SKIP_OUT_MASK) >>
-			      SPROM_OP_BIND_SKIP_OUT_SHIFT;
-
-			/* Fetch count argument (if any) */
-			if (op == SPROM_OPCODE_DO_BINDN) {
-				/* Count is provided as trailing U8 */
-				count = *state->input;
-				state->input++;
-			} else {
-				count = 1;
-			}
-
-			/* Set BIND state */
-			error = sprom_opcode_set_bind(state, count, skip_in,
-			    skip_in_negative, skip_out);
-			if (error)
-				return (error);
-
-			break;
-		}
-		case SPROM_OPCODE_DO_BINDN_IMM: {
-			uint8_t	count, skip_in, skip_out;
-			bool	skip_in_negative;
-
-			/* Implicit skip_in/skip_out of 1, count encoded as immd
-			 * value */
-			count = immd;
-			skip_in = 1;
-			skip_out = 1;
-			skip_in_negative = false;
-
-			error = sprom_opcode_set_bind(state, count, skip_in,
-			    skip_in_negative, skip_out);
-			if (error)
-				return (error);
-			break;
-		}
-
-		case SPROM_OPCODE_REV_IMM:
-			if ((error = sprom_opcode_set_revs(state, immd, immd)))
-				return (error);
-			break;
-
-		case SPROM_OPCODE_REV_RANGE: {
-			uint8_t range;
-			uint8_t rstart, rend;
-
-			/* Revision range is encoded in next byte, as
-			 * { uint8_t start:4, uint8_t end:4 } */
-			range = *state->input;
-			rstart = (range & SPROM_OP_REV_START_MASK) >>
-			    SPROM_OP_REV_START_SHIFT;
-			rend = (range & SPROM_OP_REV_END_MASK) >>
-			    SPROM_OP_REV_END_SHIFT;
-
-			/* Update revision bitmask */
-			error = sprom_opcode_set_revs(state, rstart, rend);
-			if (error)
-				return (error);
-
-			/* Advance input */
-			state->input++;
-			break;
-		}
-		case SPROM_OPCODE_MASK_IMM:
-			if ((error = sprom_opcode_set_mask(state, immd)))
-				return (error);
-			break;
-
-		case SPROM_OPCODE_MASK:
-			error = sprom_opcode_read_opval32(state, immd, &val);
-			if (error)
-				return (error);
-
-			if ((error = sprom_opcode_set_mask(state, val)))
-				return (error);
-			break;
-
-		case SPROM_OPCODE_SHIFT_IMM:
-			if ((error = sprom_opcode_set_shift(state, immd * 2)))
-				return (error);
-			break;
-
-		case SPROM_OPCODE_SHIFT: {
-			int8_t shift;
-
-			if (immd == SPROM_OP_DATA_I8) {
-				shift = (int8_t)(*state->input);
-			} else if (immd == SPROM_OP_DATA_U8) {
-				val = *state->input;
-				if (val > INT8_MAX) {
-					SPROM_OP_BAD(state, "invalid shift "
-					    "value: %#x\n", val);
-				}
-
-				shift = val;
-			} else {
-				SPROM_OP_BAD(state, "unsupported shift data "
-				    "type: %#hhx\n", immd);
-				return (EINVAL);
-			}
-
-			if ((error = sprom_opcode_set_shift(state, shift)))
-				return (error);
-
-			state->input++;
-			break;
-		}
-		case SPROM_OPCODE_OFFSET_REL_IMM:
-			/* Fetch unscaled relative offset */
-			val = immd;
-
-			/* Apply scale */
-			if ((error = sprom_opcode_apply_scale(state, &val)))
-				return (error);
-	
-			/* Adding val must not overflow our offset */
-			if (UINT32_MAX - state->offset < val) {
-				BHND_NV_LOG("offset out of range\n");
-				return (EINVAL);
-			}
-
-			/* Adjust offset */
-			state->offset += val;
-			break;
-		case SPROM_OPCODE_OFFSET:
-			error = sprom_opcode_read_opval32(state, immd, &val);
-			if (error)
-				return (error);
-
-			state->offset = val;
-			break;
-
-		case SPROM_OPCODE_TYPE:
-			/* Type follows as U8 */
-			immd = *state->input;
-			state->input++;
-
-			/* fall through */
-		case SPROM_OPCODE_TYPE_IMM:
-			switch (immd) {
-			case BHND_NVRAM_TYPE_UINT8:
-			case BHND_NVRAM_TYPE_UINT16:
-			case BHND_NVRAM_TYPE_UINT32:
-			case BHND_NVRAM_TYPE_UINT64:
-			case BHND_NVRAM_TYPE_INT8:
-			case BHND_NVRAM_TYPE_INT16:
-			case BHND_NVRAM_TYPE_INT32:
-			case BHND_NVRAM_TYPE_INT64:
-			case BHND_NVRAM_TYPE_CHAR:
-			case BHND_NVRAM_TYPE_STRING:
-				error = sprom_opcode_set_type(state,
-				    (bhnd_nvram_type)immd);
-				if (error)
-					return (error);
-				break;
-			default:
-				BHND_NV_LOG("unrecognized type %#hhx\n", immd);
-				return (EINVAL);
-			}
-			break;
-
-		default:
-			BHND_NV_LOG("unrecognized opcode %#hhx\n", *opcode);
-			return (EINVAL);
-		}
-
-		/* We must keep evaluating until we hit a state applicable to
-		 * the SPROM revision we're parsing */
-		if (sprom_opcode_matches_layout_rev(state))
-			return (0);
-	}
-
-	/* End of opcode stream */
-	return (ENOENT);
-}
-
-/**
- * Reset SPROM opcode evaluation state, seek to the @p indexed position,
- * and perform complete evaluation of the variable's opcodes.
- * 
- * @param state The opcode state to be to be evaluated.
- * @param indexed The indexed variable location.
- *
- * @retval 0 success
- * @retval non-zero If evaluation fails, a regular unix error code will be
- * returned.
- */
-static int
-sprom_opcode_parse_var(struct sprom_opcode_state *state,
-    struct sprom_opcode_idx *indexed)
-{
-	uint8_t	opcode;
-	int	error;
-
-	/* Seek to entry */
-	if ((error = sprom_opcode_state_seek(state, indexed)))
-		return (error);
-
-	/* Parse full variable definition */
-	while ((error = sprom_opcode_step(state, &opcode)) == 0) {
-		/* Iterate until VAR_END */
-		if (SPROM_OPCODE_OP(opcode) != SPROM_OPCODE_VAR_END)
-			continue;
-
-		BHND_NV_ASSERT(state->var_state == SPROM_OPCODE_VAR_STATE_DONE,
-		    ("incomplete variable definition"));
-
-		return (0);
-	}
-
-	/* Error parsing definition */
-	return (error);
-}
-
-/**
- * Evaluate @p state until the next variable definition is found.
- * 
- * @param state The opcode state to be evaluated.
- * 
- * @retval 0 success
- * @retval ENOENT if no additional variable definitions are available.
- * @retval non-zero if evaluation otherwise fails, a regular unix error
- * code will be returned.
- */
-static int
-sprom_opcode_next_var(struct sprom_opcode_state *state)
-{
-	uint8_t	opcode;
-	int	error;
-
-	/* Step until we hit a variable opcode */
-	while ((error = sprom_opcode_step(state, &opcode)) == 0) {
-		switch (SPROM_OPCODE_OP(opcode)) {
-		case SPROM_OPCODE_VAR:
-		case SPROM_OPCODE_VAR_IMM:
-		case SPROM_OPCODE_VAR_REL_IMM:
-			BHND_NV_ASSERT(
-			    state->var_state == SPROM_OPCODE_VAR_STATE_OPEN,
-			    ("missing variable definition"));
-
-			return (0);
-		default:
-			continue;
-		}
-	}
-
-	/* Reached EOF, or evaluation failed */
-	return (error);
-}
-
-/**
- * Evaluate @p state until the next binding for the current variable definition
- * is found.
- * 
- * @param state The opcode state to be evaluated.
- * 
- * @retval 0 success
- * @retval ENOENT if no additional binding opcodes are found prior to reaching
- * a new variable definition, or the end of @p state's binding opcodes.
- * @retval non-zero if evaluation otherwise fails, a regular unix error
- * code will be returned.
- */
-static int
-sprom_opcode_next_binding(struct sprom_opcode_state *state)
-{
-	uint8_t	opcode;
-	int	error;
-
-	if (state->var_state != SPROM_OPCODE_VAR_STATE_OPEN)
-		return (EINVAL);
-
-	/* Step until we hit a bind opcode, or a new variable */
-	while ((error = sprom_opcode_step(state, &opcode)) == 0) {
-		switch (SPROM_OPCODE_OP(opcode)) {
-		case SPROM_OPCODE_DO_BIND:
-		case SPROM_OPCODE_DO_BINDN:
-		case SPROM_OPCODE_DO_BINDN_IMM:
-			/* Found next bind */
-			BHND_NV_ASSERT(
-			    state->var_state == SPROM_OPCODE_VAR_STATE_OPEN,
-			    ("missing variable definition"));
-			BHND_NV_ASSERT(state->var.have_bind, ("missing bind"));
-
-			return (0);
-
-		case SPROM_OPCODE_VAR_END:
-			/* No further binding opcodes */ 
-			BHND_NV_ASSERT(
-			    state->var_state == SPROM_OPCODE_VAR_STATE_DONE,
-			    ("variable definition still available"));
-			return (ENOENT);
-		}
-	}
-
-	/* Not found, or evaluation failed */
-	return (error);
+	/* The layout revision is immutable and cannot be changed */
+	if (strcmp(name, BHND_NVAR_SROMREV) == 0)
+		return (true);
+
+	return (false);
 }

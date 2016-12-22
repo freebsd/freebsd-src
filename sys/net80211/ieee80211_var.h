@@ -229,6 +229,12 @@ struct ieee80211com {
 	uint8_t			ic_rxstream;    /* # RX streams */
 	uint8_t			ic_txstream;    /* # TX streams */
 
+	/* VHT information */
+	uint32_t		ic_vhtcaps;	/* VHT capabilities */
+	uint32_t		ic_vhtextcaps;	/* VHT extended capabilities (TODO) */
+	struct ieee80211_vht_mcs_info	iv_vht_mcsinfo; /* Support TX/RX VHT MCS */
+	uint32_t		ic_vht_spare[4];
+
 	/* optional state for Atheros SuperG protocol extensions */
 	struct ieee80211_superg	*ic_superg;
 
@@ -389,6 +395,13 @@ struct ieee80211vap {
 	int			iv_inact_auth;	/* auth but not assoc setting */
 	int			iv_inact_run;	/* authorized setting */
 	int			iv_inact_probe;	/* inactive probe time */
+
+	/* VHT flags */
+	uint32_t		iv_flags_vht;	/* VHT state flags */
+	uint32_t		iv_vhtcaps;	/* VHT capabilities */
+	uint32_t		iv_vhtextcaps;	/* VHT extended capabilities (TODO) */
+	struct ieee80211_vht_mcs_info	iv_vht_mcsinfo;
+	uint32_t		iv_vht_spare[4];
 
 	int			iv_des_nssid;	/* # desired ssids */
 	struct ieee80211_scan_ssid iv_des_ssid[1];/* desired ssid table */

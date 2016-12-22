@@ -60,12 +60,11 @@ __FBSDID("$FreeBSD$");
 					PMC_SCRATCH0_MODE_BOOTLOADER | \
 					PMC_SCRATCH0_MODE_RCM)
 
-static vm_offset_t
-tegra124_lastaddr(platform_t plat)
-{
-
-	return (devmap_lastaddr());
-}
+static platform_attach_t tegra124_attach;
+static platform_lastaddr_t tegra124_lastaddr;
+static platform_devmap_init_t tegra124_devmap_init;
+static platform_late_init_t tegra124_late_init;
+static platform_cpu_reset_t tegra124_cpu_reset;
 
 static int
 tegra124_attach(platform_t plat)
@@ -140,7 +139,6 @@ early_putc_t *early_putc = tegra124_early_putc;
 
 static platform_method_t tegra124_methods[] = {
 	PLATFORMMETHOD(platform_attach,		tegra124_attach),
-	PLATFORMMETHOD(platform_lastaddr,	tegra124_lastaddr),
 	PLATFORMMETHOD(platform_devmap_init,	tegra124_devmap_init),
 	PLATFORMMETHOD(platform_late_init,	tegra124_late_init),
 	PLATFORMMETHOD(platform_cpu_reset,	tegra124_cpu_reset),

@@ -25,6 +25,7 @@
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/StmtCXX.h"
+#include "clang/AST/StmtObjC.h"
 #include "clang/Basic/Builtins.h"
 #include "clang/Basic/TargetInfo.h"
 #include "clang/CodeGen/CGFunctionInfo.h"
@@ -436,6 +437,23 @@ void CodeGenFunction::EmitMCountInstrumentation() {
   EmitNounwindRuntimeCall(MCountFn);
 }
 
+// Returns the address space id that should be produced to the
+// kernel_arg_addr_space metadata. This is always fixed to the ids
+// as specified in the SPIR 2.0 specification in order to differentiate
+// for example in clGetKernelArgInfo() implementation between the address
+// spaces with targets without unique mapping to the OpenCL address spaces
+// (basically all single AS CPUs).
+static unsigned ArgInfoAddressSpace(unsigned LangAS) {
+  switch (LangAS) {
+  case LangAS::opencl_global:   return 1;
+  case LangAS::opencl_constant: return 2;
+  case LangAS::opencl_local:    return 3;
+  case LangAS::opencl_generic:  return 4; // Not in SPIR 2.0 specs.
+  default:
+    return 0; // Assume private.
+  }
+}
+
 // OpenCL v1.2 s5.6.4.6 allows the compiler to store kernel argument
 // information in the program executable. The argument information stored
 // includes the argument name, its type, the address and access qualifiers used.
@@ -476,7 +494,7 @@ static void GenOpenCLArgMetadata(const FunctionDecl *FD, llvm::Function *Fn,
 
       // Get address qualifier.
       addressQuals.push_back(llvm::ConstantAsMetadata::get(Builder.getInt32(
-          ASTCtx.getTargetAddressSpace(pointeeTy.getAddressSpace()))));
+        ArgInfoAddressSpace(pointeeTy.getAddressSpace()))));
 
       // Get argument type name.
       std::string typeName =
@@ -513,8 +531,7 @@ static void GenOpenCLArgMetadata(const FunctionDecl *FD, llvm::Function *Fn,
       uint32_t AddrSpc = 0;
       bool isPipe = ty->isPipeType();
       if (ty->isImageType() || isPipe)
-        AddrSpc =
-          CGM.getContext().getTargetAddressSpace(LangAS::opencl_global);
+        AddrSpc = ArgInfoAddressSpace(LangAS::opencl_global);
 
       addressQuals.push_back(
           llvm::ConstantAsMetadata::get(Builder.getInt32(AddrSpc)));
@@ -1143,6 +1160,28 @@ bool CodeGenFunction::containsBreak(const Stmt *S) {
   return false;
 }
 
+bool CodeGenFunction::mightAddDeclToScope(const Stmt *S) {
+  if (!S) return false;
+
+  // Some statement kinds add a scope and thus never add a decl to the current
+  // scope. Note, this list is longer than the list of statements that might
+  // have an unscoped decl nested within them, but this way is conservatively
+  // correct even if more statement kinds are added.
+  if (isa<IfStmt>(S) || isa<SwitchStmt>(S) || isa<WhileStmt>(S) ||
+      isa<DoStmt>(S) || isa<ForStmt>(S) || isa<CompoundStmt>(S) ||
+      isa<CXXForRangeStmt>(S) || isa<CXXTryStmt>(S) ||
+      isa<ObjCForCollectionStmt>(S) || isa<ObjCAtTryStmt>(S))
+    return false;
+
+  if (isa<DeclStmt>(S))
+    return true;
+
+  for (const Stmt *SubStmt : S->children())
+    if (mightAddDeclToScope(SubStmt))
+      return true;
+
+  return false;
+}
 
 /// ConstantFoldsToSimpleInteger - If the specified expression does not fold
 /// to a constant, or if it does but contains a label, return false.  If it

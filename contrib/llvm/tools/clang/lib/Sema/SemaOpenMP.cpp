@@ -9133,7 +9133,7 @@ OMPClause *Sema::ActOnOpenMPReductionClause(
     //  for all threads of the team.
     if (!ASE && !OASE && VD) {
       VarDecl *VDDef = VD->getDefinition();
-      if (VD->getType()->isReferenceType() && VDDef) {
+      if (VD->getType()->isReferenceType() && VDDef && VDDef->hasInit()) {
         DSARefChecker Check(DSAStack);
         if (Check.Visit(VDDef->getInit())) {
           Diag(ELoc, diag::err_omp_reduction_ref_type_arg) << ERange;
@@ -10678,6 +10678,25 @@ static bool CheckMapConflicts(
 
           // Are we dealing with different variables/fields?
           if (CI->getAssociatedDeclaration() != SI->getAssociatedDeclaration())
+            break;
+        }
+        // Check if the extra components of the expressions in the enclosing
+        // data environment are redundant for the current base declaration.
+        // If they are, the maps completely overlap, which is legal.
+        for (; SI != SE; ++SI) {
+          QualType Type;
+          if (auto *ASE =
+              dyn_cast<ArraySubscriptExpr>(SI->getAssociatedExpression())) {
+            Type = ASE->getBase()->IgnoreParenImpCasts()->getType();
+          } else if (auto *OASE =
+              dyn_cast<OMPArraySectionExpr>(SI->getAssociatedExpression())) {
+            auto *E = OASE->getBase()->IgnoreParenImpCasts();
+            Type =
+                OMPArraySectionExpr::getBaseOriginalType(E).getCanonicalType();
+          }
+          if (Type.isNull() || Type->isAnyPointerType() ||
+              CheckArrayExpressionDoesNotReferToWholeSize(
+                  SemaRef, SI->getAssociatedExpression(), Type))
             break;
         }
 

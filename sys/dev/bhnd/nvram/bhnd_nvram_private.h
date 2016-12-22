@@ -73,13 +73,43 @@ MALLOC_DECLARE(M_BHND_NVRAM);
 #define	bhnd_nv_isxdigit(c)	isxdigit(c)
 #define	bhnd_nv_toupper(c)	toupper(c)
 
-#define	bhnd_nv_malloc(size)		malloc((size), M_BHND_NVRAM, M_WAITOK)
+#define	bhnd_nv_malloc(size)		malloc((size), M_BHND_NVRAM, M_NOWAIT)
 #define	bhnd_nv_calloc(n, size)		malloc((n) * (size), M_BHND_NVRAM, \
-					    M_WAITOK | M_ZERO)
+					    M_NOWAIT | M_ZERO)
 #define	bhnd_nv_reallocf(buf, size)	reallocf((buf), (size), M_BHND_NVRAM, \
-					    M_WAITOK)
+					    M_NOWAIT)
 #define	bhnd_nv_free(buf)		free((buf), M_BHND_NVRAM)
-#define	bhnd_nv_strndup(str, len)	strndup(str, len, M_BHND_NVRAM)
+#define	bhnd_nv_asprintf(buf, fmt, ...)	asprintf((buf), M_BHND_NVRAM,	\
+					    fmt, ## __VA_ARGS__)
+
+/* We need our own strdup() implementation to pass required M_NOWAIT */
+static inline char *
+bhnd_nv_strdup(const char *str)
+{
+	char	*dest;
+	size_t	 len;
+
+	len = strlen(str);
+	dest = malloc(len + 1, M_BHND_NVRAM, M_NOWAIT);
+	memcpy(dest, str, len);
+	dest[len] = '\0';
+
+	return (dest);
+}
+
+/* We need our own strndup() implementation to pass required M_NOWAIT */
+static inline char *
+bhnd_nv_strndup(const char *str, size_t len)
+{
+	char	*dest;
+
+	len = strnlen(str, len);
+	dest = malloc(len + 1, M_BHND_NVRAM, M_NOWAIT);
+	memcpy(dest, str, len);
+	dest[len] = '\0';
+
+	return (dest);
+}
 
 #ifdef INVARIANTS
 #define	BHND_NV_INVARIANTS
@@ -118,13 +148,30 @@ MALLOC_DECLARE(M_BHND_NVRAM);
 #define	bhnd_nv_calloc(n, size)		calloc((n), (size))
 #define	bhnd_nv_reallocf(buf, size)	reallocf((buf), (size))
 #define	bhnd_nv_free(buf)		free((buf))
+#define	bhnd_nv_strdup(str)		strdup(str)
 #define	bhnd_nv_strndup(str, len)	strndup(str, len)
+#define	bhnd_nv_asprintf(buf, fmt, ...)	asprintf((buf), fmt, ## __VA_ARGS__)
 
 #ifndef NDEBUG
 #define	BHND_NV_INVARIANTS
 #endif
 
-#define	BHND_NV_ASSERT(expr, ...)	assert(expr)
+#ifdef BHND_NV_INVARIANTS
+
+#define	BHND_NV_ASSERT(expr, msg)	do {				\
+	if (!(expr)) {							\
+		fprintf(stderr, "Assertion failed: %s, function %s, "	\
+		    "file %s, line %u\n", __STRING(expr), __FUNCTION__,	\
+		    __FILE__, __LINE__);				\
+		BHND_NV_PANIC msg;					\
+	}								\
+} while(0)
+
+#else /* !BHND_NV_INVARIANTS */
+
+#define	BHND_NV_ASSERT(expr, msg)
+
+#endif /* BHND_NV_INVARIANTS */
 
 #define	BHND_NV_VERBOSE			(0)
 #define	BHND_NV_PANIC(fmt, ...)		do {			\
@@ -165,11 +212,15 @@ int				 bhnd_nvram_value_coerce(const void *inp,
 				     void *outp, size_t *olen,
 				     bhnd_nvram_type otype);
 
-int				 bhnd_nvram_value_nelem(bhnd_nvram_type type,
-				     const void *data, size_t len,
+int				 bhnd_nvram_value_check_aligned(const void *inp,
+				     size_t ilen, bhnd_nvram_type itype);
+
+int				 bhnd_nvram_value_nelem(const void *inp,
+				     size_t ilen, bhnd_nvram_type itype,
 				     size_t *nelem);
-size_t				 bhnd_nvram_value_size(bhnd_nvram_type type,
-				     const void *data, size_t nbytes, 
+
+size_t				 bhnd_nvram_value_size(const void *inp,
+				     size_t ilen, bhnd_nvram_type itype,
 				     size_t nelem);
 
 int				 bhnd_nvram_value_printf(const char *fmt,
@@ -180,6 +231,10 @@ int				 bhnd_nvram_value_vprintf(const char *fmt,
 				     const void *inp, size_t ilen,
 				     bhnd_nvram_type itype, char *outp,
 				     size_t *olen, va_list ap);
+
+const void			*bhnd_nvram_value_array_next(const void *inp,
+				     size_t ilen, bhnd_nvram_type itype,
+				     const void *prev, size_t *olen);
 
 const struct bhnd_nvram_vardefn	*bhnd_nvram_find_vardefn(const char *varname);
 const struct bhnd_nvram_vardefn	*bhnd_nvram_get_vardefn(size_t id);
@@ -201,8 +256,9 @@ size_t				 bhnd_nvram_parse_field(const char **inp,
 size_t				 bhnd_nvram_trim_field(const char **inp,
 				     size_t ilen, char delim);
 
-bool				 bhnd_nvram_validate_name(const char *name,
-				     size_t name_len);
+const char			*bhnd_nvram_trim_path_name(const char *name);
+
+bool				 bhnd_nvram_validate_name(const char *name);
 
 /**
  * Calculate CRC-8 over @p buf using the Broadcom SPROM/NVRAM CRC-8
@@ -258,7 +314,7 @@ struct bhnd_nvram_vardefn {
 	bhnd_nvram_type			 type;	/**< variable type */
 	uint8_t				 nelem;	/**< element count, or 1 if not
 						     an array-typed variable */
-	const bhnd_nvram_val_fmt_t	*fmt;	/**< value format, or NULL */
+	const bhnd_nvram_val_fmt	*fmt;	/**< value format */
 	uint32_t			 flags;	/**< flags (BHND_NVRAM_VF_*) */
 };
 
@@ -271,19 +327,20 @@ extern const size_t bhnd_nvram_num_vardefns;
 /**
  * SPROM layout descriptor.
  */
-struct bhnd_sprom_layout {
+typedef struct bhnd_sprom_layout {
 	size_t		 size;		/**< SPROM image size, in bytes */
 	uint8_t		 rev;		/**< SPROM revision */
 	uint8_t		 flags;		/**< layout flags (SPROM_LAYOUT_*) */
 	size_t		 srev_offset;	/**< offset to SROM revision */
 	size_t		 magic_offset;	/**< offset to magic value */
 	uint16_t	 magic_value;	/**< expected magic value */
+	size_t		 crc_offset;	/**< offset to crc8 value */
 	const uint8_t	*bindings;	/**< SPROM binding opcode table */
 	size_t		 bindings_size;	/**< SPROM binding opcode table size */
 	uint16_t	 num_vars;	/**< total number of variables defined
 					     for this layout by the binding
 					     table */
-};
+} bhnd_sprom_layout;
 
 /*
  * SPROM layout descriptions generated from nvram_map.

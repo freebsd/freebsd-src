@@ -98,7 +98,7 @@ static char const bhnd_nv_hex2ascii[] = "0123456789abcdefghijklmnopqrstuvwxyz";
  *			underflow) the representation defined by @p fmt.
  */
 int
-bhnd_nvram_val_printf(bhnd_nvram_val_t *value, const char *fmt, char *outp,
+bhnd_nvram_val_printf(bhnd_nvram_val *value, const char *fmt, char *outp,
     size_t *olen, ...)
 {
 	va_list	ap;
@@ -209,7 +209,7 @@ bhnd_nvram_val_printf(bhnd_nvram_val_t *value, const char *fmt, char *outp,
  *			underflow) the representation defined by @p fmt.
  */
 int
-bhnd_nvram_val_vprintf(bhnd_nvram_val_t *value, const char *fmt, char *outp,
+bhnd_nvram_val_vprintf(bhnd_nvram_val *value, const char *fmt, char *outp,
     size_t *olen, va_list ap)
 {
 	const void	*elem;
@@ -830,8 +830,7 @@ bhnd_nvram_val_vprintf(bhnd_nvram_val_t *value, const char *fmt, char *outp,
 				char c;
 
 				arg_type = BHND_NVRAM_TYPE_CHAR;
-				arg_size = bhnd_nvram_value_size(arg_type, NULL,
-				    0, 1);
+				arg_size = bhnd_nvram_type_width(arg_type);
 
 				/* Encode as single character */
 				error = bhnd_nvram_val_encode_elem(value, elem,

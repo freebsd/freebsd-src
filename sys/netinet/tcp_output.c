@@ -543,6 +543,11 @@ after_sack_rexmit:
 	 * (except for the sequence number) for all generated packets.  This
 	 * makes it impossible to transmit any options which vary per generated
 	 * segment or packet.
+	 *
+	 * IPv4 handling has a clear separation of ip options and ip header
+	 * flags while IPv6 combines both in in6p_outputopts. ip6_optlen() does
+	 * the right thing below to provide length of just ip options and thus
+	 * checking for ipoptlen is enough to decide if ip options are present.
 	 */
 #if defined(IPSEC) || defined(IPSEC_SUPPORT)
 	/*
@@ -557,14 +562,24 @@ after_sack_rexmit:
 	if (IPSEC_ENABLED(ipv4))
 		ipsec_optlen = IPSEC_HDRSIZE(ipv4, tp->t_inpcb);
 #endif
+#ifdef INET6
+	if (isipv6)
+		ipoptlen = ip6_optlen(tp->t_inpcb);
+	else
+#endif
+	if (tp->t_inpcb->inp_options)
+		ipoptlen = tp->t_inpcb->inp_options->m_len -
+				offsetof(struct ipoption, ipopt_list);
+	else
+		ipoptlen = 0;
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
+	ipoptlen += ipsec_optlen;
+#endif
+
 	if ((tp->t_flags & TF_TSO) && V_tcp_do_tso && len > tp->t_maxseg &&
 	    ((tp->t_flags & TF_SIGNATURE) == 0) &&
 	    tp->rcv_numsacks == 0 && sack_rxmit == 0 &&
-#if defined(IPSEC) || defined(IPSEC_SUPPORT)
-	    ipsec_optlen == 0 &&
-#endif
-	    tp->t_inpcb->inp_options == NULL &&
-	    tp->t_inpcb->in6p_options == NULL)
+	    ipoptlen == 0)
 		tso = 1;
 
 	if (sack_rxmit) {
@@ -840,20 +855,6 @@ send:
 		/* Processing the options. */
 		hdrlen += optlen = tcp_addoptions(&to, opt);
 	}
-
-#ifdef INET6
-	if (isipv6)
-		ipoptlen = ip6_optlen(tp->t_inpcb);
-	else
-#endif
-	if (tp->t_inpcb->inp_options)
-		ipoptlen = tp->t_inpcb->inp_options->m_len -
-				offsetof(struct ipoption, ipopt_list);
-	else
-		ipoptlen = 0;
-#if defined(IPSEC) || defined(IPSEC_SUPPORT)
-	ipoptlen += ipsec_optlen;
-#endif
 
 	/*
 	 * Adjust data length if insertion of options will

@@ -52,9 +52,6 @@ function main(_i) {
 		AWK_REQ_HEX_PARSING=1
 	}
 
-	# Seed rand()
-	srand()
-
 	# Output type
 	OUT_T = null
 	OUT_T_HEADER = "HEADER"
@@ -253,14 +250,19 @@ function main(_i) {
 	# Value Formats
 	Fmt = class_new("Fmt")
 		class_add_prop(Fmt, p_name, "name")
-		class_add_prop(Fmt, p_symbol, "const")
+		class_add_prop(Fmt, p_symbol, "symbol")
+		class_add_prop(Fmt, p_array_fmt, "array_fmt")
 
 	FmtHex		= fmt_new("hex", "bhnd_nvram_val_bcm_hex_fmt")
 	FmtDec 		= fmt_new("decimal", "bhnd_nvram_val_bcm_decimal_fmt")
 	FmtMAC		= fmt_new("macaddr", "bhnd_nvram_val_bcm_macaddr_fmt")
 	FmtLEDDC	= fmt_new("leddc", "bhnd_nvram_val_bcm_leddc_fmt")
+	FmtCharArray	= fmt_new("char_array", "bhnd_nvram_val_char_array_fmt")
+	FmtChar		= fmt_new("char", "bhnd_nvram_val_char_array_fmt",
+			      FmtCharArray)
 	FmtStr		= fmt_new("string", "bhnd_nvram_val_bcm_string_fmt")
 
+	# User-specifiable value formats
 	ValueFormats = map_new()
 		map_set(ValueFormats, get(FmtHex,	p_name), FmtHex)
 		map_set(ValueFormats, get(FmtDec,	p_name), FmtDec)
@@ -315,7 +317,7 @@ function main(_i) {
 	   "BHND_NVRAM_TYPE_INT32_ARRAY", FmtDec, UInt32Max, 6, 22)
 
 	Char	= type_new("char", 1, 1, "BHND_NVRAM_TYPE_CHAR",
-	   "BHND_NVRAM_TYPE_CHAR_ARRAY", FmtStr, UInt8Max, 8, 24)
+	   "BHND_NVRAM_TYPE_CHAR_ARRAY", FmtChar, UInt8Max, 8, 24)
 
 	BaseTypes = map_new()
 		map_set(BaseTypes, get(UInt8,	p_name), UInt8)
@@ -634,7 +636,7 @@ function write_data_nvram_vardefn(v, _desc, _help, _type, _fmt) {
 # Write a top-level bhnd_sprom_layout entry for the given revision
 # and layout definition
 function write_data_srom_layout(layout, revision, _flags, _size,
-    _sromcrc, _crc_seg,
+    _sromcrc, _crc_seg, _crc_off,
     _sromsig, _sig_seg, _sig_offset, _sig_value,
     _sromrev, _rev_seg, _rev_off,
     _num_vars)
@@ -648,7 +650,8 @@ function write_data_srom_layout(layout, revision, _flags, _size,
 		    "cannot compute total size")
 	} else {
 		_crc_seg = srom_entry_get_single_segment(_sromcrc)
-		_size = get(_crc_seg, p_offset)
+		_crc_off = get(_crc_seg, p_offset)
+		_size = _crc_off
 		_size += get(get(_crc_seg, p_type), p_width)
 	}
 
@@ -702,6 +705,8 @@ function write_data_srom_layout(layout, revision, _flags, _size,
 		emit(".magic_offset = 0,\n")
 		emit(".magic_value = 0,\n")
 	}
+
+	emit(".crc_offset = " _crc_off ",\n")
 
 	emit(".bindings = " srom_layout_get_variable_name(layout) ",\n")
 	emit(".bindings_size = nitems(" \
@@ -1511,8 +1516,10 @@ function write_srom_bindings(layout, _varname, _var, _all_entries,
 		array_append(_entries, _entry)
 	}
 
-	# Sort entries by variable ID, ascending
-	array_sort(_entries, prop_path_create(p_var, p_vid))
+	# Sort entries by (variable ID, revision range), ascending
+	array_sort(_entries, prop_path_create(p_var, p_vid),
+	    prop_path_create(p_revisions, p_start),
+	    prop_path_create(p_revisions, p_end))
 
 	# Emit all entry binding opcodes
 	emit("static const uint8_t " _varname "[] = {\n")
@@ -1739,6 +1746,9 @@ function class_has_prop_id(class, prop_id, _super) {
 		errorx("class_has_prop_id() must be called with two arguments")
 
 	if (class == null)
+		return (0)
+
+	if (prop_id == null)
 		return (0)
 
 	# Check class<->prop cache
@@ -2286,17 +2296,24 @@ function array_get(array, idx) {
 #
 # Sort an array, using standard awk comparison operators over its values.
 #
-# If `prop_path` is non-NULL, the corresponding property path (or property ID)
+# If `prop_path*` is non-NULL, the corresponding property path (or property ID)
 # will be fetched from each array element and used as the sorting value.
 #
-function array_sort(array, prop_path, _size) {
+# If multiple property paths are specified, the array is first sorted by
+# the first path, and then any equal values are sorted by the second path,
+# and so on.
+#
+function array_sort(array, prop_path0, prop_path1, prop_path2, _size) {
 	obj_assert_class(array, Array)
+
+	if (_size != null)
+		errorx("no more than three property paths may be specified")
 
 	_size = array_size(array)
 	if (_size <= 1)
 		return
 
-	_qsort(array, prop_path, 0, _size-1)
+	_qsort(array, prop_path0, prop_path1, prop_path2, 0, _size-1)
 }
 
 function _qsort_get_key(array, idx, prop_path, _v) {
@@ -2308,8 +2325,35 @@ function _qsort_get_key(array, idx, prop_path, _v) {
 	return (prop_get_path(_v, prop_path))
 }
 
-function _qsort(array, prop_path, first, last, _qpivot, _qpivot_val, _qleft,
-    _qleft_val, _qright, _qright_val)
+function _qsort_compare(array, lhs_idx, rhs_val, ppath0, ppath1, ppath2,
+    _lhs_val, _rhs_prop_val)
+{
+	_lhs_val = _qsort_get_key(array, lhs_idx, ppath0)
+	if (ppath0 == null)
+		_rhs_prop_val = rhs_val
+	else
+		_rhs_prop_val = prop_get_path(rhs_val, ppath0)
+
+	if (_lhs_val == _rhs_prop_val && ppath1 != null) {
+		_lhs_val = _qsort_get_key(array, lhs_idx, ppath1)
+		_rhs_prop_val = prop_get_path(rhs_val, ppath1)
+
+		if (_lhs_val == _rhs_prop_val && ppath2 != null) {
+			_lhs_val = _qsort_get_key(array, lhs_idx, ppath2)
+			_rhs_prop_val = prop_get_path(rhs_val, ppath2)
+		}
+	}
+
+	if (_lhs_val < _rhs_prop_val)
+		return (-1)
+	else if (_lhs_val > _rhs_prop_val)
+		return (1)
+	else
+		return (0)
+}
+
+function _qsort(array, ppath0, ppath1, ppath2, first, last, _qpivot,
+    _qleft, _qleft_val, _qright, _qright_val)
 {
 	if (first >= last)
 		return
@@ -2319,15 +2363,21 @@ function _qsort(array, prop_path, first, last, _qpivot, _qpivot_val, _qleft,
 	_qleft = first
 	_qright = last
 
-	_qpivot_val = _qsort_get_key(array, _qpivot, prop_path)
+	_qpivot_val = array_get(array, _qpivot)
 
 	# partition
 	while (_qleft <= _qright) {
-		while (_qsort_get_key(array, _qleft, prop_path) < _qpivot_val)
+		while (_qsort_compare(array, _qleft, _qpivot_val, ppath0, ppath1,
+		    ppath2) < 0)
+		{
 			_qleft++
+		}
 
-		while (_qsort_get_key(array, _qright, prop_path) > _qpivot_val)
+		while (_qsort_compare(array, _qright, _qpivot_val, ppath0, ppath1,
+		    ppath2) > 0)
+		{
 			_qright--
+		}
 
 		# swap
 		if (_qleft <= _qright) {
@@ -2343,8 +2393,8 @@ function _qsort(array, prop_path, first, last, _qpivot, _qpivot_val, _qleft,
 	}
 
 	# sort the partitions
-	_qsort(array, prop_path, first, _qright)
-	_qsort(array, prop_path, _qleft, last)
+	_qsort(array, ppath0, ppath1, ppath2, first, _qright)
+	_qsort(array, ppath0, ppath1, ppath2, _qleft, last)
 }
 
 
@@ -2538,9 +2588,17 @@ function type_get_base(type) {
 }
 
 # Return the default fmt for a given type instance
-function type_get_default_fmt(type, _base) {
+function type_get_default_fmt(type, _base, _fmt, _array_fmt) {
 	_base = type_get_base(type)
-	return (get(_base, p_default_fmt))
+	_fmt = get(_base, p_default_fmt)
+
+	if (obj_is_instanceof(type, ArrayType)) {
+		_array_fmt = get(_fmt, p_array_fmt)
+		if (_array_fmt != null)
+			_fmt = _array_fmt
+	}
+
+	return (_fmt)
 }
 
 # Return a string representation of the given type
@@ -2641,10 +2699,13 @@ function type_named(name, _n, _type) {
 }
 
 # Create a new Fmt instance
-function fmt_new(name, symbol, _obj) {
+function fmt_new(name, symbol, array_fmt, _obj) {
 	_obj = obj_new(Fmt)
 	set(_obj, p_name, name)
 	set(_obj, p_symbol, symbol)
+
+	if (array_fmt != null)
+		set(_obj, p_array_fmt, array_fmt)
 
 	return (_obj)
 }

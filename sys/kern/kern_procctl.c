@@ -243,7 +243,7 @@ reap_kill(struct thread *td, struct proc *p, struct procctl_reaper_kill *rk)
 		return (ECAPMODE);
 	if (rk->rk_sig <= 0 || rk->rk_sig > _SIG_MAXSIG)
 		return (EINVAL);
-	if ((rk->rk_flags & ~REAPER_KILL_CHILDREN) != 0)
+	if ((rk->rk_flags & ~(REAPER_KILL_CHILDREN | REAPER_KILL_SUBTREE)) != 0)
 		return (EINVAL);
 	PROC_UNLOCK(p);
 	reap = (p->p_treeflag & P_TREE_REAPER) == 0 ? p->p_reaper : p;

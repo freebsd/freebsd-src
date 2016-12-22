@@ -85,6 +85,7 @@ struct acpi_device {
     ACPI_HANDLE			ad_handle;
     void			*ad_private;
     int				ad_flags;
+    int				ad_cls_class;
 
     /* Resources */
     struct resource_list	ad_rl;

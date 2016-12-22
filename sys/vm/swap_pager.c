@@ -1916,30 +1916,30 @@ swp_pager_meta_free(vm_object_t object, vm_pindex_t index, daddr_t count)
 static void
 swp_pager_meta_free_all(vm_object_t object)
 {
-	daddr_t index = 0;
+	struct swblock **pswap, *swap;
+	vm_pindex_t index;
+	daddr_t v;
+	int i;
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
 	if (object->type != OBJT_SWAP)
 		return;
 
-	while (object->un_pager.swp.swp_bcount) {
-		struct swblock **pswap;
-		struct swblock *swap;
-
+	index = 0;
+	while (object->un_pager.swp.swp_bcount != 0) {
 		mtx_lock(&swhash_mtx);
 		pswap = swp_pager_hash(object, index);
 		if ((swap = *pswap) != NULL) {
-			int i;
-
 			for (i = 0; i < SWAP_META_PAGES; ++i) {
-				daddr_t v = swap->swb_pages[i];
+				v = swap->swb_pages[i];
 				if (v != SWAPBLK_NONE) {
 					--swap->swb_count;
 					swp_pager_freeswapspace(v, 1);
 				}
 			}
 			if (swap->swb_count != 0)
-				panic("swap_pager_meta_free_all: swb_count != 0");
+				panic(
+				    "swap_pager_meta_free_all: swb_count != 0");
 			*pswap = swap->swb_hnext;
 			uma_zfree(swap_zone, swap);
 			--object->un_pager.swp.swp_bcount;
@@ -2010,6 +2010,44 @@ swp_pager_meta_ctl(vm_object_t object, vm_pindex_t pindex, int flags)
 	}
 	mtx_unlock(&swhash_mtx);
 	return (r1);
+}
+
+/*
+ * Returns the least page index which is greater than or equal to the
+ * parameter pindex and for which there is a swap block allocated.
+ * Returns object's size if the object's type is not swap or if there
+ * are no allocated swap blocks for the object after the requested
+ * pindex.
+ */
+vm_pindex_t
+swap_pager_find_least(vm_object_t object, vm_pindex_t pindex)
+{
+	struct swblock **pswap, *swap;
+	vm_pindex_t i, j, lim;
+	int idx;
+
+	VM_OBJECT_ASSERT_LOCKED(object);
+	if (object->type != OBJT_SWAP || object->un_pager.swp.swp_bcount == 0)
+		return (object->size);
+
+	mtx_lock(&swhash_mtx);
+	for (j = pindex; j < object->size; j = lim) {
+		pswap = swp_pager_hash(object, j);
+		lim = rounddown2(j + SWAP_META_PAGES, SWAP_META_PAGES);
+		if (lim > object->size)
+			lim = object->size;
+		if ((swap = *pswap) != NULL) {
+			for (idx = j & SWAP_META_MASK, i = j; i < lim;
+			    i++, idx++) {
+				if (swap->swb_pages[idx] != SWAPBLK_NONE)
+					goto found;
+			}
+		}
+	}
+	i = object->size;
+found:
+	mtx_unlock(&swhash_mtx);
+	return (i);
 }
 
 /*

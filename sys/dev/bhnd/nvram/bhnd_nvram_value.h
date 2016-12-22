@@ -32,6 +32,7 @@
 #ifndef _BHND_NVRAM_BHND_NVRAM_VALUE_H_
 #define _BHND_NVRAM_BHND_NVRAM_VALUE_H_
 
+
 #include <sys/refcount.h>
 
 #ifdef _KERNEL
@@ -42,51 +43,68 @@
 
 #include "bhnd_nvram.h"
 
-typedef struct bhnd_nvram_val_fmt	bhnd_nvram_val_fmt_t;
-typedef struct bhnd_nvram_val		bhnd_nvram_val_t;
+typedef struct bhnd_nvram_val_fmt	bhnd_nvram_val_fmt;
+typedef struct bhnd_nvram_val		bhnd_nvram_val;
 
-int				 bhnd_nvram_val_init(bhnd_nvram_val_t *value,
-				     const bhnd_nvram_val_fmt_t *fmt,
+const char			*bhnd_nvram_val_fmt_name(
+				     const bhnd_nvram_val_fmt *fmt);
+
+const bhnd_nvram_val_fmt	*bhnd_nvram_val_default_fmt(
+				      bhnd_nvram_type type);
+
+int				 bhnd_nvram_val_init(bhnd_nvram_val *value,
+				     const bhnd_nvram_val_fmt *fmt,
 				     const void *inp, size_t ilen,
 				     bhnd_nvram_type itype, uint32_t flags);
 
-int				 bhnd_nvram_val_new(bhnd_nvram_val_t **value,
-				     const bhnd_nvram_val_fmt_t *fmt,
+int				 bhnd_nvram_val_convert_init(
+				     bhnd_nvram_val *value,
+				     const bhnd_nvram_val_fmt *fmt,
+				     bhnd_nvram_val *src, uint32_t flags);
+
+int				 bhnd_nvram_val_new(bhnd_nvram_val **value,
+				     const bhnd_nvram_val_fmt *fmt,
 				     const void *inp, size_t ilen,
 				     bhnd_nvram_type itype, uint32_t flags);
 
-bhnd_nvram_val_t		*bhnd_nvram_val_copy(bhnd_nvram_val_t *value);
+int				 bhnd_nvram_val_convert_new(
+				     bhnd_nvram_val **value,
+				     const bhnd_nvram_val_fmt *fmt,
+				     bhnd_nvram_val *src, uint32_t flags);
+
+bhnd_nvram_val			*bhnd_nvram_val_copy(bhnd_nvram_val *value);
 
 void				 bhnd_nvram_val_release(
-				     bhnd_nvram_val_t *value);
+				     bhnd_nvram_val *value);
 
-int				 bhnd_nvram_val_encode(bhnd_nvram_val_t *value,
+int				 bhnd_nvram_val_encode(bhnd_nvram_val *value,
 				     void *outp, size_t *olen,
 				     bhnd_nvram_type otype);
 
 int				 bhnd_nvram_val_encode_elem(
-				     bhnd_nvram_val_t *value, const void *inp,
+				     bhnd_nvram_val *value, const void *inp,
 				     size_t ilen, void *outp, size_t *olen,
 				     bhnd_nvram_type otype);
 
-int				 bhnd_nvram_val_printf(bhnd_nvram_val_t *value,
+int				 bhnd_nvram_val_printf(bhnd_nvram_val *value,
 				     const char *fmt, char *outp, size_t *olen,
 				     ...);
-int				 bhnd_nvram_val_vprintf(bhnd_nvram_val_t *value,
+int				 bhnd_nvram_val_vprintf(bhnd_nvram_val *value,
 				     const char *fmt, char *outp, size_t *olen,
 				     va_list ap);
 
 
-const void			*bhnd_nvram_val_bytes(bhnd_nvram_val_t *value,
-				     size_t *len, bhnd_nvram_type *itype);
+const void			*bhnd_nvram_val_bytes(bhnd_nvram_val *value,
+				     size_t *olen, bhnd_nvram_type *otype);
 
+bhnd_nvram_type			 bhnd_nvram_val_type(bhnd_nvram_val *value);
 bhnd_nvram_type			 bhnd_nvram_val_elem_type(
-				     bhnd_nvram_val_t *value);
+				     bhnd_nvram_val *value);
 
-const void			*bhnd_nvram_val_next(bhnd_nvram_val_t *value,
-				     const void *prev, size_t *len);
+const void			*bhnd_nvram_val_next(bhnd_nvram_val *value,
+				     const void *prev, size_t *olen);
 
-size_t				 bhnd_nvram_val_nelem(bhnd_nvram_val_t *value);
+size_t				 bhnd_nvram_val_nelem(bhnd_nvram_val *value);
 
 /**
  * NVRAM value flags
@@ -135,7 +153,7 @@ enum {
  */
 typedef enum {
 	/**
-	 * The value structure has an automatic or static storage duration
+	 * The value structure has an automatic storage duration
 	 * (e.g. it is stack allocated, or is otherwise externally managed),
 	 * and no destructors will be run prior to deallocation of the value.
 	 *
@@ -152,7 +170,16 @@ typedef enum {
 	 * as-is.
 	 */
 	BHND_NVRAM_VAL_STORAGE_DYNAMIC	= 2,
-} bhnd_nvram_val_storage_t;
+
+	/**
+	 * The value structure has a static storage duration, and will never
+	 * be deallocated.
+	 *
+	 * When performing copy/retain, the existing structure may be referenced
+	 * without modification.
+	 */
+	BHND_NVRAM_VAL_STORAGE_STATIC	= 3,
+} bhnd_nvram_val_storage;
 
 /**
  * @internal
@@ -168,57 +195,89 @@ typedef enum {
 	BHND_NVRAM_VAL_DATA_INLINE	= 1,
 
 	/**
-	* Value represented by an external reference to data with a static
-	* storage location. The data need not be copied if copying the value.
-	*/
+	 * Value represented by an external reference to data with a static
+	 * storage location. The data need not be copied if copying the value.
+	 */
 	BHND_NVRAM_VAL_DATA_EXT_STATIC	= 2,
 
 	/**
-	* Value represented by weak external reference, which must be copied
-	* if copying the value */
+	 * Value represented by weak external reference, which must be copied
+	 * if copying the value.
+	 */
 	BHND_NVRAM_VAL_DATA_EXT_WEAK	= 3,
 
 	/**
-	* Value represented by an external reference that must be deallocated
-	* when deallocating the value
-	*/
+	 * Value represented by an external reference that must be deallocated
+	 * when deallocating the value.
+	 */
 	BHND_NVRAM_VAL_DATA_EXT_ALLOC	= 4,
-} bhnd_nvram_val_data_storage_t;
+} bhnd_nvram_val_data_storage;
 
 /**
  * NVRAM value
  */
 struct bhnd_nvram_val {
 	volatile u_int			 refs;		/**< reference count */
-	bhnd_nvram_val_storage_t	 val_storage;	/**< value structure storage */
-	const bhnd_nvram_val_fmt_t	*fmt;		/**< value format, or NULL for default behavior */
-	bhnd_nvram_val_data_storage_t	 data_storage;	/**< data storage */
+	bhnd_nvram_val_storage		 val_storage;	/**< value structure storage */
+	const bhnd_nvram_val_fmt	*fmt;		/**< value format */
+	bhnd_nvram_val_data_storage	 data_storage;	/**< data storage */
 	bhnd_nvram_type			 data_type;	/**< data type */
 	size_t				 data_len;	/**< data size */
 
 	/** data representation */
 	union {
-		uint8_t		 u8[8];		/**< 8-bit unsigned data */
-		uint16_t	 u16[4];	/**< 16-bit unsigned data */
-		uint32_t	 u32[2];	/**< 32-bit unsigned data */
-		uint32_t	 u64[1];	/**< 64-bit unsigned data */
-		int8_t		 i8[8];		/**< 8-bit signed data */
-		int16_t		 i16[4];	/**< 16-bit signed data */
-		int32_t		 i32[2];	/**< 32-bit signed data */
-		int64_t		 i64[1];	/**< 64-bit signed data */
-		unsigned char	 ch[8];		/**< 8-bit character data */
-		const void	*ptr;		/**< external data */
+		uint8_t			 u8[8];		/**< 8-bit unsigned data */
+		uint16_t		 u16[4];	/**< 16-bit unsigned data */
+		uint32_t		 u32[2];	/**< 32-bit unsigned data */
+		uint32_t		 u64[1];	/**< 64-bit unsigned data */
+		int8_t			 i8[8];		/**< 8-bit signed data */
+		int16_t			 i16[4];	/**< 16-bit signed data */
+		int32_t			 i32[2];	/**< 32-bit signed data */
+		int64_t			 i64[1];	/**< 64-bit signed data */
+		unsigned char		 ch[8];		/**< 8-bit character data */
+		bhnd_nvram_bool_t	 b[8];		/**< 8-bit boolean data */
+		const void		*ptr;		/**< external data */
 	} data;
 };
 
 /** Declare a bhnd_nvram_val_fmt with name @p _n */
-#define	BHND_NVRAM_VAL_TYPE_DECL(_n)	\
-	extern const bhnd_nvram_val_fmt_t bhnd_nvram_val_ ## _n ## _fmt;
+#define	BHND_NVRAM_VAL_FMT_DECL(_n)	\
+	extern const bhnd_nvram_val_fmt bhnd_nvram_val_ ## _n ## _fmt;
 
-BHND_NVRAM_VAL_TYPE_DECL(bcm_decimal);
-BHND_NVRAM_VAL_TYPE_DECL(bcm_hex);
-BHND_NVRAM_VAL_TYPE_DECL(bcm_leddc);
-BHND_NVRAM_VAL_TYPE_DECL(bcm_macaddr);
-BHND_NVRAM_VAL_TYPE_DECL(bcm_string);
+BHND_NVRAM_VAL_FMT_DECL(bcm_decimal);
+BHND_NVRAM_VAL_FMT_DECL(bcm_hex);
+BHND_NVRAM_VAL_FMT_DECL(bcm_leddc);
+BHND_NVRAM_VAL_FMT_DECL(bcm_macaddr);
+BHND_NVRAM_VAL_FMT_DECL(bcm_string);
+
+BHND_NVRAM_VAL_FMT_DECL(uint8);
+BHND_NVRAM_VAL_FMT_DECL(uint16);
+BHND_NVRAM_VAL_FMT_DECL(uint32);
+BHND_NVRAM_VAL_FMT_DECL(uint64);
+BHND_NVRAM_VAL_FMT_DECL(int8);
+BHND_NVRAM_VAL_FMT_DECL(int16);
+BHND_NVRAM_VAL_FMT_DECL(int32);
+BHND_NVRAM_VAL_FMT_DECL(int64);
+BHND_NVRAM_VAL_FMT_DECL(char);
+BHND_NVRAM_VAL_FMT_DECL(bool);
+BHND_NVRAM_VAL_FMT_DECL(string);
+BHND_NVRAM_VAL_FMT_DECL(data);
+BHND_NVRAM_VAL_FMT_DECL(null);
+
+BHND_NVRAM_VAL_FMT_DECL(uint8_array);
+BHND_NVRAM_VAL_FMT_DECL(uint16_array);
+BHND_NVRAM_VAL_FMT_DECL(uint32_array);
+BHND_NVRAM_VAL_FMT_DECL(uint64_array);
+BHND_NVRAM_VAL_FMT_DECL(int8_array);
+BHND_NVRAM_VAL_FMT_DECL(int16_array);
+BHND_NVRAM_VAL_FMT_DECL(int32_array);
+BHND_NVRAM_VAL_FMT_DECL(int64_array);
+BHND_NVRAM_VAL_FMT_DECL(char_array);
+BHND_NVRAM_VAL_FMT_DECL(bool_array);
+BHND_NVRAM_VAL_FMT_DECL(string_array);
+
+/** Shared NULL value instance */
+#define	BHND_NVRAM_VAL_NULL	(&bhnd_nvram_val_null)
+extern bhnd_nvram_val bhnd_nvram_val_null;
 
 #endif /* _BHND_NVRAM_BHND_NVRAM_VALUE_H_ */

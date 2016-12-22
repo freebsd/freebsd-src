@@ -4639,7 +4639,7 @@ sctp_generate_no_user_data_cause(uint32_t tsn)
 		no_user_data_cause = mtod(m, struct sctp_error_no_user_data *);
 		no_user_data_cause->cause.code = htons(SCTP_CAUSE_NO_USER_DATA);
 		no_user_data_cause->cause.length = htons(len);
-		no_user_data_cause->tsn = tsn;	/* tsn is passed in as NBO */
+		no_user_data_cause->tsn = htonl(tsn);
 	}
 	return (m);
 }

@@ -153,23 +153,29 @@ jz4780_clk_gen_set_freq(struct clknode *clk, uint64_t fin,
 {
 	struct jz4780_clk_gen_sc *sc;
 	uint64_t _fout;
-	uint32_t divider, div_reg, div_msk, reg;
+	uint32_t divider, div_reg, div_msk, reg, div_l, div_h;
 	int rv;
 
 	sc = clknode_get_softc(clk);
 
-	divider = fin / *fout;
+	/* Find closest divider */
+	div_l = howmany(fin, *fout);
+	div_h = fin / *fout;
+	divider = abs((int64_t)*fout - (fin / div_l)) <
+	    abs((int64_t)*fout - (fin / div_h)) ? div_l : div_h;
 
 	/* Adjust for divider multiplier */
 	div_reg = divider >> sc->clk_descr->clk_div.div_lg;
 	divider = div_reg << sc->clk_descr->clk_div.div_lg;
+	if (divider == 0)
+		divider = 1;
 
 	_fout = fin / divider;
 
 	/* Rounding */
-	if ((flags & CLK_SET_ROUND_UP) && (*fout < _fout))
+	if ((flags & CLK_SET_ROUND_UP) && (*fout > _fout))
 		div_reg--;
-	else if ((flags & CLK_SET_ROUND_DOWN) && (*fout > _fout))
+	else if ((flags & CLK_SET_ROUND_DOWN) && (*fout < _fout))
 		div_reg++;
 	if (div_reg == 0)
 		div_reg = 1;
