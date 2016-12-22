@@ -27,6 +27,10 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_inet.h"
+#include "opt_inet6.h"
+#include "opt_ipsec.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -43,8 +47,11 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_pcb.h>
 
 #include <netipsec/ipsec.h>
+#include <netipsec/ipsec_support.h>
 #include <netipsec/key.h>
 #include <netipsec/key_debug.h>
+
+MALLOC_DEFINE(M_IPSEC_INPCB, "inpcbpolicy", "inpcb-resident ipsec policy");
 
 /* Initialize PCB policy. */
 int
@@ -288,7 +295,7 @@ ipsec_get_pcbpolicy(struct inpcb *inp, void *request, size_t *len)
 }
 
 /* Handle socket option control request for PCB */
-int
+static int
 ipsec_control_pcbpolicy(struct inpcb *inp, struct sockopt *sopt)
 {
 	void *optdata;
@@ -326,4 +333,32 @@ ipsec_control_pcbpolicy(struct inpcb *inp, struct sockopt *sopt)
 	free(optdata, M_TEMP);
 	return (error);
 }
+
+#ifdef INET
+/*
+ * IPSEC_PCBCTL() method implementation for IPv4.
+ */
+int
+ipsec4_pcbctl(struct inpcb *inp, struct sockopt *sopt)
+{
+
+	if (sopt->sopt_name != IP_IPSEC_POLICY)
+		return (ENOPROTOOPT);
+	return (ipsec_control_pcbpolicy(inp, sopt));
+}
+#endif
+
+#ifdef INET6
+/*
+ * IPSEC_PCBCTL() method implementation for IPv6.
+ */
+int
+ipsec6_pcbctl(struct inpcb *inp, struct sockopt *sopt)
+{
+
+	if (sopt->sopt_name != IPV6_IPSEC_POLICY)
+		return (ENOPROTOOPT);
+	return (ipsec_control_pcbpolicy(inp, sopt));
+}
+#endif
 
