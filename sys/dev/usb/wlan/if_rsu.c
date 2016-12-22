@@ -238,8 +238,7 @@ static struct mbuf * rsu_rx_copy_to_mbuf(struct rsu_softc *,
 		    struct r92s_rx_stat *, int);
 static uint32_t	rsu_get_tsf_low(struct rsu_softc *);
 static uint32_t	rsu_get_tsf_high(struct rsu_softc *);
-static struct ieee80211_node * rsu_rx_frame(struct rsu_softc *, struct mbuf *,
-		    int8_t *);
+static struct ieee80211_node * rsu_rx_frame(struct rsu_softc *, struct mbuf *);
 static struct mbuf * rsu_rx_multi_frame(struct rsu_softc *, uint8_t *, int);
 static struct mbuf *
 		rsu_rxeof(struct usb_xfer *, struct rsu_data *);
@@ -2344,14 +2343,16 @@ rsu_get_tsf_high(struct rsu_softc *sc)
 }
 
 static struct ieee80211_node *
-rsu_rx_frame(struct rsu_softc *sc, struct mbuf *m, int8_t *rssi_p)
+rsu_rx_frame(struct rsu_softc *sc, struct mbuf *m)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211_frame_min *wh;
+	struct ieee80211_rx_stats rxs;
 	struct r92s_rx_stat *stat;
 	uint32_t rxdw0, rxdw3;
 	uint8_t cipher, rate;
 	int infosz;
+	int rssi;
 
 	stat = mtod(m, struct r92s_rx_stat *);
 	rxdw0 = le32toh(stat->rxdw0);
@@ -2363,10 +2364,10 @@ rsu_rx_frame(struct rsu_softc *sc, struct mbuf *m, int8_t *rssi_p)
 
 	/* Get RSSI from PHY status descriptor if present. */
 	if (infosz != 0 && (rxdw0 & R92S_RXDW0_PHYST))
-		*rssi_p = rsu_get_rssi(sc, rate, &stat[1]);
+		rssi = rsu_get_rssi(sc, rate, &stat[1]);
 	else {
 		/* Cheat and get the last calibrated RSSI */
-		*rssi_p = rsu_hwrssi_to_rssi(sc, sc->sc_currssi);
+		rssi = rsu_hwrssi_to_rssi(sc, sc->sc_currssi);
 	}
 
 	if (ieee80211_radiotap_active(ic)) {
@@ -2402,7 +2403,7 @@ rsu_rx_frame(struct rsu_softc *sc, struct mbuf *m, int8_t *rssi_p)
 			tap->wr_rate = 0x80 | (rate - 12);
 		}
 
-		tap->wr_dbm_antsignal = *rssi_p;
+		tap->wr_dbm_antsignal = rssi;
 		tap->wr_chan_freq = htole16(ic->ic_curchan->ic_freq);
 		tap->wr_chan_flags = htole16(ic->ic_curchan->ic_flags);
 	};
@@ -2440,6 +2441,78 @@ rsu_rx_frame(struct rsu_softc *sc, struct mbuf *m, int8_t *rssi_p)
 			m->m_pkthdr.csum_data = 0xffff;
 		}
 	}
+
+	/* RX flags */
+
+	/* Set channel flags for input path */
+	bzero(&rxs, sizeof(rxs));
+
+	/* normal RSSI */
+	rxs.r_flags |= IEEE80211_R_NF | IEEE80211_R_RSSI;
+	rxs.c_rssi = rssi;
+	rxs.c_nf = -96;
+
+	/* Rate */
+	if (!(rxdw3 & R92S_RXDW3_HTC)) {
+		switch (rate) {
+		/* CCK. */
+		case 0:
+			rxs.c_rate = 2;
+			rxs.c_pktflags |= IEEE80211_RX_F_CCK;
+			break;
+		case 1:
+			rxs.c_rate = 4;
+			rxs.c_pktflags |= IEEE80211_RX_F_CCK;
+			break;
+		case 2:
+			rxs.c_rate = 11;
+			rxs.c_pktflags |= IEEE80211_RX_F_CCK;
+			break;
+		case 3:
+			rxs.c_rate = 22;
+			rxs.c_pktflags |= IEEE80211_RX_F_CCK;
+			break;
+		/* OFDM. */
+		case 4:
+			rxs.c_rate = 12;
+			rxs.c_pktflags |= IEEE80211_RX_F_OFDM;
+			break;
+		case 5:
+			rxs.c_rate = 18;
+			rxs.c_pktflags |= IEEE80211_RX_F_OFDM;
+			break;
+		case 6:
+			rxs.c_rate = 24;
+			rxs.c_pktflags |= IEEE80211_RX_F_OFDM;
+			break;
+		case 7:
+			rxs.c_rate = 36;
+			rxs.c_pktflags |= IEEE80211_RX_F_OFDM;
+			break;
+		case 8:
+			rxs.c_rate = 48;
+			rxs.c_pktflags |= IEEE80211_RX_F_OFDM;
+			break;
+		case 9:
+			rxs.c_rate = 72;
+			rxs.c_pktflags |= IEEE80211_RX_F_OFDM;
+			break;
+		case 10:
+			rxs.c_rate = 96;
+			rxs.c_pktflags |= IEEE80211_RX_F_OFDM;
+			break;
+		case 11:
+			rxs.c_rate = 108;
+			rxs.c_pktflags |= IEEE80211_RX_F_OFDM;
+			break;
+		}
+	} else if (rate >= 12) {	/* MCS0~15. */
+		/* Bit 7 set means HT MCS instead of rate. */
+		rxs.c_rate = (rate - 12);
+		rxs.c_pktflags |= IEEE80211_RX_F_HT;
+	}
+
+	(void) ieee80211_add_rx_params(m, &rxs);
 
 	/* Drop descriptor. */
 	m_adj(m, sizeof(*stat) + infosz);
@@ -2550,7 +2623,6 @@ rsu_bulk_rx_callback(struct usb_xfer *xfer, usb_error_t error)
 	struct ieee80211_node *ni;
 	struct mbuf *m = NULL, *next;
 	struct rsu_data *data;
-	int8_t rssi;
 
 	RSU_ASSERT_LOCKED(sc);
 
@@ -2584,16 +2656,16 @@ tr_setup:
 			next = m->m_next;
 			m->m_next = NULL;
 
-			ni = rsu_rx_frame(sc, m, &rssi);
+			ni = rsu_rx_frame(sc, m);
 			RSU_UNLOCK(sc);
 
 			if (ni != NULL) {
 				if (ni->ni_flags & IEEE80211_NODE_HT)
 					m->m_flags |= M_AMPDU;
-				(void)ieee80211_input(ni, m, rssi, -96);
+				(void)ieee80211_input_mimo(ni, m);
 				ieee80211_free_node(ni);
 			} else
-				(void)ieee80211_input_all(ic, m, rssi, -96);
+				(void)ieee80211_input_mimo_all(ic, m);
 
 			RSU_LOCK(sc);
 			m = next;
