@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_ddb.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
+#include "opt_ipsec.h"
 #include "opt_tcpdebug.h"
 
 #include <sys/param.h>
@@ -101,9 +102,7 @@ __FBSDID("$FreeBSD$");
 #ifdef TCP_OFFLOAD
 #include <netinet/tcp_offload.h>
 #endif
-#ifdef TCP_SIGNATURE
-#include <netipsec/ipsec.h>
-#endif
+#include <netipsec/ipsec_support.h>
 
 /*
  * TCP protocol interface to socket abstraction.
@@ -1555,13 +1554,17 @@ tcp_default_ctloutput(struct socket *so, struct sockopt *sopt, struct inpcb *inp
 	switch (sopt->sopt_dir) {
 	case SOPT_SET:
 		switch (sopt->sopt_name) {
-#ifdef TCP_SIGNATURE
+#if defined(IPSEC_SUPPORT) || defined(TCP_SIGNATURE)
 		case TCP_MD5SIG:
-			error = tcp_ipsec_pcbctl(inp, sopt);
+			if (!TCPMD5_ENABLED()) {
+				INP_WUNLOCK(inp);
+				return (ENOPROTOOPT);
+			}
+			error = TCPMD5_PCBCTL(inp, sopt);
 			if (error)
 				return (error);
 			goto unlock_and_done;
-#endif /* TCP_SIGNATURE */
+#endif /* IPSEC */
 
 		case TCP_NODELAY:
 		case TCP_NOOPT:
@@ -1787,9 +1790,13 @@ unlock_and_done:
 	case SOPT_GET:
 		tp = intotcpcb(inp);
 		switch (sopt->sopt_name) {
-#ifdef TCP_SIGNATURE
+#if defined(IPSEC_SUPPORT) || defined(TCP_SIGNATURE)
 		case TCP_MD5SIG:
-			error = tcp_ipsec_pcbctl(inp, sopt);
+			if (!TCPMD5_ENABLED()) {
+				INP_WUNLOCK(inp);
+				return (ENOPROTOOPT);
+			}
+			error = TCPMD5_PCBCTL(inp, sopt);
 			break;
 #endif
 

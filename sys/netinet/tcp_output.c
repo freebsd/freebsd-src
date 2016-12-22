@@ -90,9 +90,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_offload.h>
 #endif
 
-#ifdef IPSEC
-#include <netipsec/ipsec.h>
-#endif /*IPSEC*/
+#include <netipsec/ipsec_support.h>
 
 #include <machine/in_cksum.h>
 
@@ -200,7 +198,7 @@ tcp_output(struct tcpcb *tp)
 	struct tcphdr *th;
 	u_char opt[TCP_MAXOLEN];
 	unsigned ipoptlen, optlen, hdrlen;
-#ifdef IPSEC
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
 	unsigned ipsec_optlen = 0;
 #endif
 	int idle, sendalot;
@@ -546,17 +544,23 @@ after_sack_rexmit:
 	 * makes it impossible to transmit any options which vary per generated
 	 * segment or packet.
 	 */
-#ifdef IPSEC
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
 	/*
 	 * Pre-calculate here as we save another lookup into the darknesses
 	 * of IPsec that way and can actually decide if TSO is ok.
 	 */
-	ipsec_optlen = ipsec_hdrsiz_inpcb(tp->t_inpcb);
+#ifdef INET6
+	if (isipv6 && IPSEC_ENABLED(ipv6))
+		ipsec_optlen = IPSEC_HDRSIZE(ipv6, tp->t_inpcb);
+	else
+#endif
+	if (IPSEC_ENABLED(ipv4))
+		ipsec_optlen = IPSEC_HDRSIZE(ipv4, tp->t_inpcb);
 #endif
 	if ((tp->t_flags & TF_TSO) && V_tcp_do_tso && len > tp->t_maxseg &&
 	    ((tp->t_flags & TF_SIGNATURE) == 0) &&
 	    tp->rcv_numsacks == 0 && sack_rxmit == 0 &&
-#ifdef IPSEC
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
 	    ipsec_optlen == 0 &&
 #endif
 	    tp->t_inpcb->inp_options == NULL &&
@@ -823,7 +827,7 @@ send:
 				to.to_sacks = (u_char *)tp->sackblks;
 			}
 		}
-#ifdef TCP_SIGNATURE
+#if defined(IPSEC_SUPPORT) || defined(TCP_SIGNATURE)
 		/* TCP-MD5 (RFC2385). */
 		/*
 		 * Check that TCP_MD5SIG is enabled in tcpcb to
@@ -847,7 +851,7 @@ send:
 				offsetof(struct ipoption, ipopt_list);
 	else
 		ipoptlen = 0;
-#ifdef IPSEC
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
 	ipoptlen += ipsec_optlen;
 #endif
 
@@ -1262,7 +1266,7 @@ send:
 	m->m_pkthdr.len = hdrlen + len; /* in6_cksum() need this */
 	m->m_pkthdr.csum_data = offsetof(struct tcphdr, th_sum);
 
-#ifdef TCP_SIGNATURE
+#if defined(IPSEC_SUPPORT) || defined(TCP_SIGNATURE)
 	if (to.to_flags & TOF_SIGNATURE) {
 		/*
 		 * Calculate MD5 signature and put it into the place
@@ -1270,8 +1274,8 @@ send:
 		 * NOTE: since TCP options buffer doesn't point into
 		 * mbuf's data, calculate offset and use it.
 		 */
-		if ((error = tcp_ipsec_output(m, th, (u_char *)(th + 1) +
-		    (to.to_signature - opt))) != 0) {
+		if (!TCPMD5_ENABLED() || TCPMD5_OUTPUT(m, th,
+		    (u_char *)(th + 1) + (to.to_signature - opt)) != 0) {
 			/*
 			 * Do not send segment if the calculation of MD5
 			 * digest has failed.
@@ -1317,7 +1321,7 @@ send:
 		m->m_pkthdr.tso_segsz = tp->t_maxseg - optlen;
 	}
 
-#ifdef IPSEC
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
 	KASSERT(len + hdrlen + ipoptlen - ipsec_optlen == m_length(m, NULL),
 	    ("%s: mbuf chain shorter than expected: %d + %u + %u - %u != %u",
 	    __func__, len, hdrlen, ipoptlen, ipsec_optlen, m_length(m, NULL)));

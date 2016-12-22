@@ -118,15 +118,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_offload.h>
 #endif
 
-#ifdef IPSEC
-#include <netipsec/ipsec.h>
-#include <netipsec/xform.h>
-#ifdef INET6
-#include <netipsec/ipsec6.h>
-#endif
-#include <netipsec/key.h>
-#include <sys/syslog.h>
-#endif /*IPSEC*/
+#include <netipsec/ipsec_support.h>
 
 #include <machine/in_cksum.h>
 #include <sys/md5.h>
@@ -1058,12 +1050,11 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 			to.to_tsecr = tp->ts_recent;
 			to.to_flags |= TOF_TS;
 		}
-#ifdef TCP_SIGNATURE
+#if defined(IPSEC_SUPPORT) || defined(TCP_SIGNATURE)
 		/* TCP-MD5 (RFC2385). */
 		if (tp->t_flags & TF_SIGNATURE)
 			to.to_flags |= TOF_SIGNATURE;
 #endif
-
 		/* Add the options. */
 		tlen += optlen = tcp_addoptions(&to, optp);
 
@@ -1119,9 +1110,10 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 		nth->th_win = htons((u_short)win);
 	nth->th_urp = 0;
 
-#ifdef TCP_SIGNATURE
+#if defined(IPSEC_SUPPORT) || defined(TCP_SIGNATURE)
 	if (to.to_flags & TOF_SIGNATURE) {
-		if (tcp_ipsec_output(m, nth, to.to_signature) != 0) {
+		if (!TCPMD5_ENABLED() ||
+		    TCPMD5_OUTPUT(m, nth, to.to_signature) != 0) {
 			m_freem(m);
 			return;
 		}
@@ -2498,7 +2490,7 @@ tcp_maxseg(const struct tcpcb *tp)
 			optlen = TCPOLEN_TSTAMP_APPA;
 		else
 			optlen = 0;
-#ifdef TCP_SIGNATURE
+#if defined(IPSEC_SUPPORT) || defined(TCP_SIGNATURE)
 		if (tp->t_flags & TF_SIGNATURE)
 			optlen += PAD(TCPOLEN_SIGNATURE);
 #endif
@@ -2514,7 +2506,7 @@ tcp_maxseg(const struct tcpcb *tp)
 			optlen = PAD(TCPOLEN_MAXSEG);
 		if (tp->t_flags & TF_REQ_SCALE)
 			optlen += PAD(TCPOLEN_WINDOW);
-#ifdef TCP_SIGNATURE
+#if defined(IPSEC_SUPPORT) || defined(TCP_SIGNATURE)
 		if (tp->t_flags & TF_SIGNATURE)
 			optlen += PAD(TCPOLEN_SIGNATURE);
 #endif

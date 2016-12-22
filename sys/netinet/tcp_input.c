@@ -120,10 +120,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_offload.h>
 #endif
 
-#ifdef IPSEC
-#include <netipsec/ipsec.h>
-#include <netipsec/ipsec6.h>
-#endif /*IPSEC*/
+#include <netipsec/ipsec_support.h>
 
 #include <machine/in_cksum.h>
 
@@ -927,13 +924,15 @@ findpcb:
 		inp->inp_flowid = m->m_pkthdr.flowid;
 		inp->inp_flowtype = M_HASHTYPE_GET(m);
 	}
-#ifdef IPSEC
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
 #ifdef INET6
-	if (isipv6 && ipsec6_in_reject(m, inp)) {
+	if (isipv6 && IPSEC_ENABLED(ipv6) &&
+	    IPSEC_CHECK_POLICY(ipv6, m, inp) != 0) {
 		goto dropunlock;
 	} else
 #endif /* INET6 */
-	if (ipsec4_in_reject(m, inp) != 0) {
+	if (IPSEC_ENABLED(ipv4) &&
+	    IPSEC_CHECK_POLICY(ipv4, m, inp) != 0) {
 		goto dropunlock;
 	}
 #endif /* IPSEC */
@@ -1408,14 +1407,15 @@ tfo_socket_result:
 		 */
 		goto dropunlock;
 	}
-#ifdef TCP_SIGNATURE
+#if defined(IPSEC_SUPPORT) || defined(TCP_SIGNATURE)
 	if (tp->t_flags & TF_SIGNATURE) {
 		tcp_dooptions(&to, optp, optlen, thflags);
 		if ((to.to_flags & TOF_SIGNATURE) == 0) {
 			TCPSTAT_INC(tcps_sig_err_nosigopt);
 			goto dropunlock;
 		}
-		if (tcp_ipsec_input(m, th, to.to_signature) != 0)
+		if (!TCPMD5_ENABLED() ||
+		    TCPMD5_INPUT(m, th, to.to_signature) != 0)
 			goto dropunlock;
 	}
 #endif
@@ -1595,7 +1595,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	    (th->th_off << 2) - sizeof(struct tcphdr),
 	    (thflags & TH_SYN) ? TO_SYN : 0);
 
-#ifdef TCP_SIGNATURE
+#if defined(IPSEC_SUPPORT) || defined(TCP_SIGNATURE)
 	if ((tp->t_flags & TF_SIGNATURE) != 0 &&
 	    (to.to_flags & TOF_SIGNATURE) == 0) {
 		TCPSTAT_INC(tcps_sig_err_sigopt);

@@ -96,13 +96,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/toecore.h>
 #endif
 
-#ifdef IPSEC
-#include <netipsec/ipsec.h>
-#ifdef INET6
-#include <netipsec/ipsec6.h>
-#endif
-#include <netipsec/key.h>
-#endif /*IPSEC*/
+#include <netipsec/ipsec_support.h>
 
 #include <machine/in_cksum.h>
 
@@ -736,7 +730,7 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 		INP_HASH_WUNLOCK(&V_tcbinfo);
 		goto abort;
 	}
-#ifdef IPSEC
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
 	/* Copy old policy into new socket's. */
 	if (ipsec_copy_pcbpolicy(sotoinpcb(lso), inp) != 0)
 		printf("syncache_socket: could not copy policy\n");
@@ -872,7 +866,7 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 			tp->ts_recent_age = tcp_ts_getticks();
 			tp->ts_offset = sc->sc_tsoff;
 		}
-#ifdef TCP_SIGNATURE
+#if defined(IPSEC_SUPPORT) || defined(TCP_SIGNATURE)
 		if (sc->sc_flags & SCF_SIGNATURE)
 			tp->t_flags |= TF_SIGNATURE;
 #endif
@@ -996,10 +990,11 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 				    "(probably spoofed)\n", s, __func__);
 			goto failed;
 		}
-#ifdef TCP_SIGNATURE
+#if defined(IPSEC_SUPPORT) || defined(TCP_SIGNATURE)
 		/* If received ACK has MD5 signature, check it. */
 		if ((to->to_flags & TOF_SIGNATURE) != 0 &&
-		    tcp_ipsec_input(m, th, to->to_signature) != 0) {
+		    (!TCPMD5_ENABLED() ||
+		    TCPMD5_INPUT(m, th, to->to_signature) != 0)) {
 			/* Drop the ACK. */
 			if ((s = tcp_log_addrs(inc, th, NULL, NULL))) {
 				log(LOG_DEBUG, "%s; %s: Segment rejected, "
@@ -1012,7 +1007,7 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 		}
 #endif /* TCP_SIGNATURE */
 	} else {
-#ifdef TCP_SIGNATURE
+#if defined(IPSEC_SUPPORT) || defined(TCP_SIGNATURE)
 		/*
 		 * If listening socket requested TCP digests, check that
 		 * received ACK has signature and it is correct.
@@ -1032,7 +1027,8 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 				}
 				return (-1); /* Do not send RST */
 			}
-			if (tcp_ipsec_input(m, th, to->to_signature) != 0) {
+			if (!TCPMD5_ENABLED() ||
+			    TCPMD5_INPUT(m, th, to->to_signature) != 0) {
 				/* Doesn't match or no SA */
 				SCH_UNLOCK(sch);
 				if ((s = tcp_log_addrs(inc, th, NULL, NULL))) {
@@ -1315,7 +1311,7 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 		ipopts = NULL;
 #endif
 
-#ifdef TCP_SIGNATURE
+#if defined(IPSEC_SUPPORT) || defined(TCP_SIGNATURE)
 	/*
 	 * If listening socket requested TCP digests, check that received
 	 * SYN has signature and it is correct. If signature doesn't match
@@ -1326,7 +1322,8 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 			TCPSTAT_INC(tcps_sig_err_nosigopt);
 			goto done;
 		}
-		if (tcp_ipsec_input(m, th, to->to_signature) != 0)
+		if (!TCPMD5_ENABLED() ||
+		    TCPMD5_INPUT(m, th, to->to_signature) != 0)
 			goto done;
 	}
 #endif	/* TCP_SIGNATURE */
@@ -1505,7 +1502,7 @@ skip_alloc:
 			sc->sc_flags |= SCF_WINSCALE;
 		}
 	}
-#ifdef TCP_SIGNATURE
+#if defined(IPSEC_SUPPORT) || defined(TCP_SIGNATURE)
 	/*
 	 * If listening socket requested TCP digests, flag this in the
 	 * syncache so that syncache_respond() will do the right thing
@@ -1712,7 +1709,7 @@ syncache_respond(struct syncache *sc, struct syncache_head *sch, int locked,
 		}
 		if (sc->sc_flags & SCF_SACK)
 			to.to_flags |= TOF_SACKPERM;
-#ifdef TCP_SIGNATURE
+#if defined(IPSEC_SUPPORT) || defined(TCP_SIGNATURE)
 		if (sc->sc_flags & SCF_SIGNATURE)
 			to.to_flags |= TOF_SIGNATURE;
 #endif
@@ -1737,13 +1734,14 @@ syncache_respond(struct syncache *sc, struct syncache_head *sch, int locked,
 		else
 #endif
 			ip->ip_len = htons(ntohs(ip->ip_len) + optlen);
-#ifdef TCP_SIGNATURE
+#if defined(IPSEC_SUPPORT) || defined(TCP_SIGNATURE)
 		if (sc->sc_flags & SCF_SIGNATURE) {
 			KASSERT(to.to_flags & TOF_SIGNATURE,
 			    ("tcp_addoptions() didn't set tcp_signature"));
 
 			/* NOTE: to.to_signature is inside of mbuf */
-			if (tcp_ipsec_output(m, th, to.to_signature) != 0) {
+			if (!TCPMD5_ENABLED() ||
+			    TCPMD5_OUTPUT(m, th, to.to_signature) != 0) {
 				m_freem(m);
 				return (EACCES);
 			}
