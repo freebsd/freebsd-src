@@ -92,10 +92,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/udplite.h>
 #include <netinet/in_rss.h>
 
-#ifdef IPSEC
-#include <netipsec/ipsec.h>
-#include <netipsec/esp.h>
-#endif
+#include <netipsec/ipsec_support.h>
 
 #include <machine/in_cksum.h>
 
@@ -330,15 +327,16 @@ udp_append(struct inpcb *inp, struct ip *ip, struct mbuf *n, int off,
 
 	off += sizeof(struct udphdr);
 
-#ifdef IPSEC
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
 	/* Check AH/ESP integrity. */
-	if (ipsec4_in_reject(n, inp)) {
+	if (IPSEC_ENABLED(ipv4) &&
+	    IPSEC_CHECK_POLICY(ipv4, n, inp) != 0) {
 		m_freem(n);
 		return (0);
 	}
-	KASSERT(up != NULL, ("%s: udpcb NULL", __func__));
 	if (up->u_flags & UF_ESPINUDP) {/* IPSec UDP encaps. */
-		if (udp_ipsec_input(n, off, AF_INET) != 0)
+		if (IPSEC_ENABLED(ipv4) &&
+		    UDPENCAP_INPUT(n, off, AF_INET) != 0)
 			return (0);	/* Consumed. */
 	}
 #endif /* IPSEC */
@@ -1008,9 +1006,13 @@ udp_ctloutput(struct socket *so, struct sockopt *sopt)
 	switch (sopt->sopt_dir) {
 	case SOPT_SET:
 		switch (sopt->sopt_name) {
-#ifdef IPSEC
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
 		case UDP_ENCAP:
-			error = udp_ipsec_pcbctl(inp, sopt);
+			if (!IPSEC_ENABLED(ipv4)) {
+				INP_WUNLOCK(inp);
+				return (ENOPROTOOPT);
+			}
+			error = UDPENCAP_PCBCTL(inp, sopt);
 			break;
 #endif
 		case UDPLITE_SEND_CSCOV:
@@ -1049,9 +1051,13 @@ udp_ctloutput(struct socket *so, struct sockopt *sopt)
 		break;
 	case SOPT_GET:
 		switch (sopt->sopt_name) {
-#ifdef IPSEC
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
 		case UDP_ENCAP:
-			error = udp_ipsec_pcbctl(inp, sopt);
+			if (!IPSEC_ENABLED(ipv4)) {
+				INP_WUNLOCK(inp);
+				return (ENOPROTOOPT);
+			}
+			error = UDPENCAP_PCBCTL(inp, sopt);
 			break;
 #endif
 		case UDPLITE_SEND_CSCOV:
