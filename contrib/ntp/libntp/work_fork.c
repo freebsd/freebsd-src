@@ -114,18 +114,24 @@ interrupt_worker_sleep(void)
 
 /*
  * harvest_child_status() runs in the parent.
+ *
+ * Note the error handling -- this is an interaction with SIGCHLD.
+ * SIG_IGN on SIGCHLD on some OSes means do not wait but reap
+ * automatically. Since we're not really interested in the result code,
+ * we simply ignore the error.
  */
 static void
 harvest_child_status(
 	blocking_child *	c
 	)
 {
-	if (c->pid)
-	{
+	if (c->pid) {
 		/* Wait on the child so it can finish terminating */
 		if (waitpid(c->pid, NULL, 0) == c->pid)
 			TRACE(4, ("harvested child %d\n", c->pid));
-		else msyslog(LOG_ERR, "error waiting on child %d: %m", c->pid);
+		else if (errno != ECHILD)
+			msyslog(LOG_ERR, "error waiting on child %d: %m", c->pid);
+		c->pid = 0;
 	}
 }
 
@@ -162,7 +168,6 @@ cleanup_after_child(
 		close(c->resp_read_pipe);
 		c->resp_read_pipe = -1;
 	}
-	c->pid = 0;
 	c->resp_read_ctx = NULL;
 	DEBUG_INSIST(-1 == c->req_read_pipe);
 	DEBUG_INSIST(-1 == c->resp_write_pipe);
@@ -461,7 +466,10 @@ fork_blocking_child(
 	fflush(stdout);
 	fflush(stderr);
 
-	signal_no_reset(SIGCHLD, SIG_IGN);
+	/* [BUG 3050] setting SIGCHLD to SIG_IGN likely causes unwanted
+	 * or undefined effects. We don't do it and leave SIGCHLD alone.
+	 */
+	/* signal_no_reset(SIGCHLD, SIG_IGN); */
 
 	childpid = fork();
 	if (-1 == childpid) {

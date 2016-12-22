@@ -205,7 +205,7 @@ test_ntp_scanner_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC \
 	-o $@
 am_test_ntp_signd_OBJECTS = t-ntp_signd.$(OBJEXT) \
 	run-t-ntp_signd.$(OBJEXT) test-libntp.$(OBJEXT) \
-	ntp_signd.$(OBJEXT) $(am__objects_1)
+	$(am__objects_1)
 test_ntp_signd_OBJECTS = $(am_test_ntp_signd_OBJECTS)
 test_ntp_signd_DEPENDENCIES = $(am__DEPENDENCIES_3) \
 	$(top_builddir)/ntpd/ntp_config.o \
@@ -871,7 +871,6 @@ test_ntp_signd_SOURCES = \
 	t-ntp_signd.c				\
 	run-t-ntp_signd.c			\
 	$(srcdir)/../libntp/test-libntp.c	\
-	$(srcdir)/../../ntpd/ntp_signd.c	\
 	$(NULL)
 
 
@@ -971,7 +970,6 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ntp_signd.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/run-t-ntp_signd.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/t-ntp_signd.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test-libntp.Po@am__quote@
@@ -1193,20 +1191,6 @@ test-libntp.obj: $(srcdir)/../libntp/test-libntp.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$(srcdir)/../libntp/test-libntp.c' object='test-libntp.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o test-libntp.obj `if test -f '$(srcdir)/../libntp/test-libntp.c'; then $(CYGPATH_W) '$(srcdir)/../libntp/test-libntp.c'; else $(CYGPATH_W) '$(srcdir)/$(srcdir)/../libntp/test-libntp.c'; fi`
-
-ntp_signd.o: $(srcdir)/../../ntpd/ntp_signd.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ntp_signd.o -MD -MP -MF $(DEPDIR)/ntp_signd.Tpo -c -o ntp_signd.o `test -f '$(srcdir)/../../ntpd/ntp_signd.c' || echo '$(srcdir)/'`$(srcdir)/../../ntpd/ntp_signd.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/ntp_signd.Tpo $(DEPDIR)/ntp_signd.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$(srcdir)/../../ntpd/ntp_signd.c' object='ntp_signd.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ntp_signd.o `test -f '$(srcdir)/../../ntpd/ntp_signd.c' || echo '$(srcdir)/'`$(srcdir)/../../ntpd/ntp_signd.c
-
-ntp_signd.obj: $(srcdir)/../../ntpd/ntp_signd.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ntp_signd.obj -MD -MP -MF $(DEPDIR)/ntp_signd.Tpo -c -o ntp_signd.obj `if test -f '$(srcdir)/../../ntpd/ntp_signd.c'; then $(CYGPATH_W) '$(srcdir)/../../ntpd/ntp_signd.c'; else $(CYGPATH_W) '$(srcdir)/$(srcdir)/../../ntpd/ntp_signd.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/ntp_signd.Tpo $(DEPDIR)/ntp_signd.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$(srcdir)/../../ntpd/ntp_signd.c' object='ntp_signd.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ntp_signd.obj `if test -f '$(srcdir)/../../ntpd/ntp_signd.c'; then $(CYGPATH_W) '$(srcdir)/../../ntpd/ntp_signd.c'; else $(CYGPATH_W) '$(srcdir)/$(srcdir)/../../ntpd/ntp_signd.c'; fi`
 
 test_rc_cmdlength-rc_cmdlength.o: rc_cmdlength.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_rc_cmdlength_CFLAGS) $(CFLAGS) -MT test_rc_cmdlength-rc_cmdlength.o -MD -MP -MF $(DEPDIR)/test_rc_cmdlength-rc_cmdlength.Tpo -c -o test_rc_cmdlength-rc_cmdlength.o `test -f 'rc_cmdlength.c' || echo '$(srcdir)/'`rc_cmdlength.c
