@@ -1279,6 +1279,8 @@ fprintlog(struct filed *f, int flags, const char *msg)
 			    ntohs(satosin6(f->fu_forw_addr->ai_addr)->sin6_port));
 			break;
 #endif
+		default:
+			dprintf("\n");
 		}
 		/* check for local vs remote messages */
 		if (strcasecmp(f->f_prevhost, LocalHostName))
