@@ -64,11 +64,11 @@ RM_SYSINIT(ipsec_kmod_lock, &ipsec_kmod_lock, "IPsec KLD lock");
 
 #define	METHOD_DECL(...)	__VA_ARGS__
 #define	METHOD_ARGS(...)	__VA_ARGS__
-#define	IPSEC_KMOD_METHOD(name, sc, method, decl, args)			\
-name (decl)								\
+#define	IPSEC_KMOD_METHOD(type, name, sc, method, decl, args)		\
+type name (decl)							\
 {									\
 	struct rm_priotracker tracker;					\
-	int ret;							\
+	type ret;							\
 	IPSEC_ASSERT(sc != NULL, ("called with NULL methods"));		\
 	rm_rlock(&ipsec_kmod_lock, &tracker);				\
 	ret = (*sc->method)(args);					\
@@ -111,19 +111,19 @@ const int tcp_ipsec_support = 1;
 volatile int tcp_ipsec_support = 0;
 const struct tcpmd5_support * volatile tcp_ipsec_methods = NULL;
 
-int IPSEC_KMOD_METHOD(tcpmd5_kmod_input,
+IPSEC_KMOD_METHOD(int, tcpmd5_kmod_input,
     tcp_ipsec_methods,
     input, METHOD_DECL(struct mbuf *m, struct tcphdr *th, u_char *buf),
     METHOD_ARGS(m, th, buf)
 )
 
-int IPSEC_KMOD_METHOD(tcpmd5_kmod_output,
+IPSEC_KMOD_METHOD(int, tcpmd5_kmod_output,
     tcp_ipsec_methods,
     output, METHOD_DECL(struct mbuf *m, struct tcphdr *th, u_char *buf),
     METHOD_ARGS(m, th, buf)
 )
 
-int IPSEC_KMOD_METHOD(tcpmd5_kmod_pcbctl,
+IPSEC_KMOD_METHOD(int, tcpmd5_kmod_pcbctl,
     tcp_ipsec_methods,
     pcbctl, METHOD_DECL(struct inpcb *inp, struct sockopt *sopt),
     METHOD_ARGS(inp, sopt)
@@ -156,7 +156,7 @@ static struct ipsec_support ipv6_ipsec = {
 	.output = ipsec6_output,
 	.pcbctl = ipsec6_pcbctl,
 	.capability = ipsec6_capability,
-	.check_policy = ipsec6_in_reject
+	.check_policy = ipsec6_in_reject,
 	.hdrsize = ipsec_hdrsiz_inpcb
 };
 const int ipv6_ipsec_support = 1;
@@ -171,13 +171,13 @@ volatile int ipv4_ipsec_support = 0;
 const struct ipsec_support * volatile ipv4_ipsec_methods = NULL;
 const struct udpencap_support * volatile udp_ipsec_methods = NULL;
 
-int IPSEC_KMOD_METHOD(udpencap_kmod_input,
+IPSEC_KMOD_METHOD(int, udpencap_kmod_input,
     udp_ipsec_methods,
     input, METHOD_DECL(struct mbuf *m, int off, int af),
     METHOD_ARGS(m, off, af)
 )
 
-int IPSEC_KMOD_METHOD(udpencap_kmod_pcbctl,
+IPSEC_KMOD_METHOD(int, udpencap_kmod_pcbctl,
     udp_ipsec_methods,
     pcbctl, METHOD_DECL(struct inpcb *inp, struct sockopt *sopt),
     METHOD_ARGS(inp, sopt)
@@ -189,37 +189,37 @@ volatile int ipv6_ipsec_support = 0;
 const struct ipsec_support * volatile ipv6_ipsec_methods = NULL;
 #endif
 
-int IPSEC_KMOD_METHOD(ipsec_kmod_input, sc,
+IPSEC_KMOD_METHOD(int, ipsec_kmod_input, sc,
     input, METHOD_DECL(const struct ipsec_support *sc, struct mbuf *m,
-	int offset,int proto), METHOD_ARGS(m, offset, proto)
+	int offset, int proto), METHOD_ARGS(m, offset, proto)
 )
 
-int IPSEC_KMOD_METHOD(ipsec_kmod_check_policy, sc,
+IPSEC_KMOD_METHOD(int, ipsec_kmod_check_policy, sc,
     check_policy, METHOD_DECL(const struct ipsec_support *sc, struct mbuf *m,
 	struct inpcb *inp), METHOD_ARGS(m, inp)
 )
 
-int IPSEC_KMOD_METHOD(ipsec_kmod_forward, sc,
+IPSEC_KMOD_METHOD(int, ipsec_kmod_forward, sc,
     forward, METHOD_DECL(const struct ipsec_support *sc, struct mbuf *m),
     (m)
 )
 
-int IPSEC_KMOD_METHOD(ipsec_kmod_output, sc,
+IPSEC_KMOD_METHOD(int, ipsec_kmod_output, sc,
     output, METHOD_DECL(const struct ipsec_support *sc, struct mbuf *m,
 	struct inpcb *inp), METHOD_ARGS(m, inp)
 )
 
-int IPSEC_KMOD_METHOD(ipsec_kmod_pcbctl, sc,
+IPSEC_KMOD_METHOD(int, ipsec_kmod_pcbctl, sc,
     pcbctl, METHOD_DECL(const struct ipsec_support *sc, struct inpcb *inp,
 	struct sockopt *sopt), METHOD_ARGS(inp, sopt)
 )
 
-size_t IPSEC_KMOD_METHOD(ipsec_kmod_hdrsize, sc,
+IPSEC_KMOD_METHOD(size_t, ipsec_kmod_hdrsize, sc,
     hdrsize, METHOD_DECL(const struct ipsec_support *sc, struct inpcb *inp),
     (inp)
 )
 
-int static IPSEC_KMOD_METHOD(ipsec_kmod_caps, sc,
+static IPSEC_KMOD_METHOD(int, ipsec_kmod_caps, sc,
     capability, METHOD_DECL(const struct ipsec_support *sc, struct mbuf *m,
 	u_int cap), METHOD_ARGS(m, cap)
 )

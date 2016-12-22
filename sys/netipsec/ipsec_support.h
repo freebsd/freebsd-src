@@ -113,7 +113,7 @@ extern const struct ipsec_support * const ipv6_ipsec_methods;
 #define	IPSEC_CAPS(proto, m, ...)		\
     (*(proto ## _ipsec_methods)->capability)(m, __VA_ARGS__)
 #define	IPSEC_HDRSIZE(proto, inp)		\
-    (*(proto ## _ipsec_methods)->hdrsize)(m, inp)
+    (*(proto ## _ipsec_methods)->hdrsize)(inp)
 
 #elif defined(IPSEC_SUPPORT)
 
