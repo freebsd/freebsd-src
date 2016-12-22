@@ -55,11 +55,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/icmp6.h>
 #include <netinet/udp.h>
 
-#ifdef IPSEC
-#include <netipsec/ipsec.h>
-#include <netipsec/ipsec6.h>
-#endif				/* IPSEC */
-
 extern struct protosw inetsw[];
 
 int
