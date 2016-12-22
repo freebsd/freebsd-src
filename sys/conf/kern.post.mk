@@ -63,7 +63,7 @@ OSRELDATE!=	awk '/^\#define[[:space:]]*__FreeBSD_version/ { print $$3 }' \
 		    ${MAKEOBJDIRPREFIX}${SRC_BASE}/include/osreldate.h
 .endif
 # Keep the related ports builds in the obj directory so that they are only rebuilt once per kernel build
-WRKDIRPREFIX?=	${MAKEOBJDIRPREFIX}${SRC_BASE}/sys/${KERNCONF}
+WRKDIRPREFIX?=	${.OBJDIR}
 PORTSMODULESENV=\
 	env \
 	-u CC \
