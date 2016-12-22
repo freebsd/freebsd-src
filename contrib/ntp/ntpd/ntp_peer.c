@@ -273,6 +273,22 @@ findexistingpeer(
 /*
  * findpeer - find and return a peer match for a received datagram in
  *	      the peer_hash table.
+ *
+ * [Bug 3072] To faciliate a faster reorganisation after routing changes
+ * the original code re-assigned the peer address to be the destination
+ * of the received packet and initiated another round on a mismatch.
+ * Unfortunately this leaves us wide open for a DoS attack where the
+ * attacker directs a packet with forged destination address to us --
+ * this results in a wrong interface assignment, actually creating a DoS
+ * situation.
+ *
+ * This condition would persist until the next update of the interface
+ * list, but a continued attack would put us out of business again soon
+ * enough. Authentication alone does not help here, since it does not
+ * protect the UDP layer and leaves us open for a replay attack.
+ *
+ * So we do not update the adresses and wait until the next interface
+ * list update does the right thing for us.
  */
 struct peer *
 findpeer(
@@ -291,61 +307,50 @@ findpeer(
 	srcadr = &rbufp->recv_srcadr;
 	hash = NTP_HASH_ADDR(srcadr);
 	for (p = peer_hash[hash]; p != NULL; p = p->adr_link) {
-		if (ADDR_PORT_EQ(srcadr, &p->srcadr)) {
 
-			/*
-			 * if the association matching rules determine
-			 * that this is not a valid combination, then
-			 * look for the next valid peer association.
-			 */
-			*action = MATCH_ASSOC(p->hmode, pkt_mode);
+		/* [Bug 3072] ensure interface of peer matches */
+		if (p->dstadr != rbufp->dstadr)
+			continue;
 
-			/*
-			 * A response to our manycastclient solicitation
-			 * might be misassociated with an ephemeral peer
-			 * already spun for the server.  If the packet's
-			 * org timestamp doesn't match the peer's, check
-			 * if it matches the ACST prototype peer's.  If
-			 * so it is a redundant solicitation response,
-			 * return AM_ERR to discard it.  [Bug 1762]
-			 */
-			if (MODE_SERVER == pkt_mode &&
-			    AM_PROCPKT == *action) {
-				pkt = &rbufp->recv_pkt;
-				NTOHL_FP(&pkt->org, &pkt_org);
-				if (!L_ISEQU(&p->aorg, &pkt_org) &&
-				    findmanycastpeer(rbufp))
-					*action = AM_ERR;
-			}
+		/* ensure peer source address matches */
+		if ( ! ADDR_PORT_EQ(srcadr, &p->srcadr))
+			continue;
+		
+		/* If the association matching rules determine that this
+		 * is not a valid combination, then look for the next
+		 * valid peer association.
+		 */
+		*action = MATCH_ASSOC(p->hmode, pkt_mode);
 
-			/*
-			 * if an error was returned, exit back right
-			 * here.
-			 */
-			if (*action == AM_ERR)
-				return NULL;
-
-			/*
-			 * if a match is found, we stop our search.
-			 */
-			if (*action != AM_NOMATCH)
-				break;
+		/* A response to our manycastclient solicitation might
+		 * be misassociated with an ephemeral peer already spun
+		 * for the server.  If the packet's org timestamp
+		 * doesn't match the peer's, check if it matches the
+		 * ACST prototype peer's.  If so it is a redundant
+		 * solicitation response, return AM_ERR to discard it.
+		 * [Bug 1762]
+		 */
+		if (MODE_SERVER == pkt_mode && AM_PROCPKT == *action) {
+			pkt = &rbufp->recv_pkt;
+			NTOHL_FP(&pkt->org, &pkt_org);
+			if (!L_ISEQU(&p->aorg, &pkt_org) &&
+			    findmanycastpeer(rbufp))
+				*action = AM_ERR;
 		}
+
+		/* if an error was returned, exit back right here. */
+		if (*action == AM_ERR)
+			return NULL;
+
+		/* if a match is found, we stop our search. */
+		if (*action != AM_NOMATCH)
+			break;
 	}
 
-	/*
-	 * If no matching association is found
-	 */
-	if (NULL == p) {
+	/* If no matching association is found... */
+	if (NULL == p)
 		*action = MATCH_ASSOC(NO_PEER, pkt_mode);
-	} else if (p->dstadr != rbufp->dstadr) {
-		set_peerdstadr(p, rbufp->dstadr);
-		if (p->dstadr == rbufp->dstadr) {
-			DPRINTF(1, ("Changed %s local address to match response\n",
-				    stoa(&p->srcadr)));
-			return findpeer(rbufp, pkt_mode, action);
-		}
-	}
+
 	return p;
 }
 
@@ -621,6 +626,12 @@ set_peerdstadr(
 {
 	struct peer *	unlinked;
 
+	DEBUG_INSIST(p != NULL);
+
+	if (p == NULL)
+		return;
+
+	/* check for impossible or identical assignment */
 	if (p->dstadr == dstadr)
 		return;
 
@@ -632,6 +643,8 @@ set_peerdstadr(
 	    (INT_MCASTIF & dstadr->flags) && MODE_CLIENT == p->hmode) {
 		return;
 	}
+
+	/* unlink from list if we have an address prior to assignment */
 	if (p->dstadr != NULL) {
 		p->dstadr->peercnt--;
 		UNLINK_SLIST(unlinked, p->dstadr->peers, p, ilink,
@@ -640,8 +653,11 @@ set_peerdstadr(
 			stoa(&p->srcadr), latoa(p->dstadr),
 			latoa(dstadr));
 	}
+	
 	p->dstadr = dstadr;
-	if (dstadr != NULL) {
+
+	/* link to list if we have an address after assignment */
+	if (p->dstadr != NULL) {
 		LINK_SLIST(dstadr->peers, p, ilink);
 		dstadr->peercnt++;
 	}
