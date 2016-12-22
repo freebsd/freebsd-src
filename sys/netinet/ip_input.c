@@ -77,12 +77,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_options.h>
 #include <machine/in_cksum.h>
 #include <netinet/ip_carp.h>
-#ifdef IPSEC
-#include <netipsec/ipsec.h>
-#include <netipsec/key.h>
-#include <netinet/ip_ipsec.h>
-#endif /* IPSEC */
 #include <netinet/in_rss.h>
+
+#include <netipsec/ipsec_support.h>
 
 #include <sys/socketvar.h>
 
@@ -430,6 +427,12 @@ ip_direct_input(struct mbuf *m)
 	ip = mtod(m, struct ip *);
 	hlen = ip->ip_hl << 2;
 
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
+	if (IPSEC_ENABLED(ipv4)) {
+		if (IPSEC_INPUT(ipv4, m, hlen, ip->ip_p) != 0)
+			return;
+	}
+#endif /* IPSEC */
 	IPSTAT_INC(ips_delivered);
 	(*inetsw[ip_protox[ip->ip_p]].pr_input)(&m, &hlen, ip->ip_p);
 	return;
@@ -550,23 +553,37 @@ tooshort:
 			m_adj(m, ip_len - m->m_pkthdr.len);
 	}
 
-	/* Try to forward the packet, but if we fail continue */
-#ifdef IPSEC
-	/* For now we do not handle IPSEC in tryforward. */
-	if (!key_havesp(IPSEC_DIR_INBOUND) && !key_havesp(IPSEC_DIR_OUTBOUND) &&
-	    (V_ipforwarding == 1))
-		if (ip_tryforward(m) == NULL)
+	/*
+	 * Try to forward the packet, but if we fail continue.
+	 * ip_tryforward() does inbound and outbound packet firewall
+	 * processing. If firewall has decided that destination becomes
+	 * our local address, it sets M_FASTFWD_OURS flag. In this
+	 * case skip another inbound firewall processing and update
+	 * ip pointer.
+	 */
+	if (V_ipforwarding != 0
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
+	    && (!IPSEC_ENABLED(ipv4) ||
+	    IPSEC_CAPS(ipv4, m, IPSEC_CAP_OPERABLE) == 0)
+#endif
+	    ) {
+		if ((m = ip_tryforward(m)) == NULL)
 			return;
+		if (m->m_flags & M_FASTFWD_OURS) {
+			m->m_flags &= ~M_FASTFWD_OURS;
+			ip = mtod(m, struct ip *);
+			goto ours;
+		}
+	}
+
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
 	/*
 	 * Bypass packet filtering for packets previously handled by IPsec.
 	 */
-	if (ip_ipsec_filtertunnel(m))
-		goto passin;
-#else
-	if (V_ipforwarding == 1)
-		if (ip_tryforward(m) == NULL)
-			return;
-#endif /* IPSEC */
+	if (IPSEC_ENABLED(ipv4) &&
+	    IPSEC_CAPS(ipv4, m, IPSEC_CAP_BYPASS_FILTER) != 0)
+			goto passin;
+#endif
 
 	/*
 	 * Run through list of hooks for input packets.
@@ -791,14 +808,11 @@ ours:
 		hlen = ip->ip_hl << 2;
 	}
 
-#ifdef IPSEC
-	/*
-	 * enforce IPsec policy checking if we are seeing last header.
-	 * note that we do not visit this with protocols with pcb layer
-	 * code - like udp/tcp/raw ip.
-	 */
-	if (IPSEC_INPUT(ipv4, m, ip->ip_p) != 0)
-		goto bad;
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
+	if (IPSEC_ENABLED(ipv4)) {
+		if (IPSEC_INPUT(ipv4, m, hlen, ip->ip_p) != 0)
+			return;
+	}
 #endif /* IPSEC */
 
 	/*
@@ -1002,21 +1016,17 @@ ip_forward(struct mbuf *m, int srcrt)
 	if (V_ipstealth == 0)
 #endif
 		ip->ip_ttl -= IPTTLDEC;
-#ifdef IPSEC
-	if (IPSEC_FORWARD(ipv4, m, &error) != 0) { /* mbuf consumed by IPsec */
-		m_freem(mcopy);
-		return;
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
+	if (IPSEC_ENABLED(ipv4)) {
+		if ((error = IPSEC_FORWARD(ipv4, m)) != 0) {
+			/* mbuf consumed by IPsec */
+			m_freem(mcopy);
+			if (error != EINPROGRESS)
+				IPSTAT_INC(ips_cantforward);
+			return;
+		}
+		/* No IPsec processing required */
 	}
-	/*
-	 * mbuf wasn't consumed by IPsec, check error code.
-	 */
-	if (error != 0) {
-		IPSTAT_INC(ips_cantforward);
-		m_freem(m);
-		m_freem(mcopy);
-		return;
-	}
-	/* No IPsec processing required */
 #endif /* IPSEC */
 	/*
 	 * If forwarding packet using same interface that it came in on,
