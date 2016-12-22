@@ -69,9 +69,7 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet/in_pcb.h>
 
-#ifdef IPSEC
-#include <netinet6/ip6_ipsec.h>
-#endif /* IPSEC */
+#include <netipsec/ipsec_support.h>
 
 /*
  * Forward a packet.  If some error occurs return the sender
@@ -152,22 +150,17 @@ ip6_forward(struct mbuf *m, int srcrt)
 #endif
 		ip6->ip6_hlim -= IPV6_HLIMDEC;
 
-#ifdef IPSEC
-	if (IPSEC_FORWARD(ipv6, m, &error) != 0) {
-		/* mbuf consumed by IPsec */
-		m_freem(mcopy);
-		return;
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
+	if (IPSEC_ENABLED(ipv6)) {
+		if ((error = IPSEC_FORWARD(ipv4, m)) != 0) {
+			/* mbuf consumed by IPsec */
+			m_freem(mcopy);
+			if (error != EINPROGRESS)
+				IP6STAT_INC(ip6s_cantforward);
+			return;
+		}
+		/* No IPsec processing required */
 	}
-	/*
-	 * mbuf wasn't consumed by IPsec, check error code.
-	 */
-	if (error != 0) {
-		IP6STAT_INC(ip6s_cantforward);
-		m_freem(mcopy);
-		m_freem(m);
-		return;
-	}
-	/* No IPsec processing required */
 #endif
 again:
 	bzero(&rin6, sizeof(struct route_in6));
