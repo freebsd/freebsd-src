@@ -88,6 +88,7 @@
 #include <netipsec/esp_var.h>
 #include <netipsec/ipcomp.h>		/*XXX*/
 #include <netipsec/ipcomp_var.h>
+#include <netipsec/ipsec_support.h>
 
 #include <netipsec/key.h>
 #include <netipsec/keydb.h>
@@ -124,6 +125,8 @@ VNET_DEFINE(int, ip4_ah_net_deflev) = IPSEC_LEVEL_USE;
 VNET_DEFINE(int, ip4_ipsec_ecn) = 0;
 VNET_DEFINE(int, ip4_esp_randpad) = -1;
 
+static VNET_DEFINE(int, ip4_filtertunnel) = 0;
+#define	V_ip4_filtertunnel VNET(ip4_filtertunnel)
 static VNET_DEFINE(int, check_policy_history) = 0;
 #define	V_check_policy_history	VNET(check_policy_history)
 static VNET_DEFINE(struct secpolicy, def_policy);
@@ -190,6 +193,9 @@ SYSCTL_INT(_net_inet_ipsec, OID_AUTO, check_policy_history,
 SYSCTL_INT(_net_inet_ipsec, OID_AUTO, natt_cksum_policy,
 	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(natt_cksum_policy), 0,
 	"Method to fix TCP/UDP checksum for transport mode IPsec after NAT.");
+SYSCTL_INT(_net_inet_ipsec, OID_AUTO, filtertunnel,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip4_filtertunnel), 0,
+	"If set filter packets from an IPsec tunnel.");
 SYSCTL_VNET_PCPUSTAT(_net_inet_ipsec, OID_AUTO, ipsecstats, struct ipsecstat,
     ipsec4stat, "IPsec IPv4 statistics.");
 
@@ -226,6 +232,9 @@ VNET_DEFINE(int, ip6_ah_trans_deflev) = IPSEC_LEVEL_USE;
 VNET_DEFINE(int, ip6_ah_net_deflev) = IPSEC_LEVEL_USE;
 VNET_DEFINE(int, ip6_ipsec_ecn) = 0;	/* ECN ignore(-1)/forbidden(0)/allowed(1) */
 
+static VNET_DEFINE(int, ip6_filtertunnel) = 0;
+#define	V_ip6_filtertunnel	VNET(ip6_filtertunnel)
+
 SYSCTL_DECL(_net_inet6_ipsec6);
 
 /* net.inet6.ipsec6 */
@@ -250,6 +259,9 @@ SYSCTL_INT(_net_inet6_ipsec6, IPSECCTL_ECN, ecn,
 SYSCTL_INT(_net_inet6_ipsec6, IPSECCTL_DEBUG, debug,
 	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ipsec_debug), 0,
 	"Enable IPsec debugging output when set.");
+SYSCTL_INT(_net_inet6_ipsec6, OID_AUTO, filtertunnel,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_filtertunnel),  0,
+	"If set filter packets from an IPsec tunnel.");
 SYSCTL_VNET_PCPUSTAT(_net_inet6_ipsec6, IPSECCTL_STATS, ipsecstats,
     struct ipsecstat, ipsec6stat, "IPsec IPv6 statistics.");
 #endif /* INET6 */
@@ -271,8 +283,6 @@ static void ipsec6_setsockaddrs(const struct mbuf *, union sockaddr_union *,
 static void ipsec6_setspidx_ipaddr(const struct mbuf *,
     struct secpolicyindex *);
 #endif
-
-MALLOC_DEFINE(M_IPSEC_INPCB, "inpcbpolicy", "inpcb-resident ipsec policy");
 
 /*
  * Return a held reference to the default SP.
@@ -329,6 +339,7 @@ ipsec_checkpolicy(struct secpolicy *sp, struct inpcb *inp, int *error)
 		sp = NULL;		/* NB: force NULL result. */
 		break;
 	case IPSEC_POLICY_IPSEC:
+		/* XXXAE: handle LARVAL SP */
 		break;
 	}
 	KEYDBG(IPSEC_DUMP,
@@ -685,6 +696,33 @@ ipsec4_in_reject(const struct mbuf *m, struct inpcb *inp)
 	return (result);
 }
 
+/*
+ * IPSEC_CAP() method implementation for IPv4.
+ */
+int
+ipsec4_capability(struct mbuf *m, u_int cap)
+{
+
+	switch (cap) {
+	case IPSEC_CAP_BYPASS_FILTER:
+		/*
+		 * Bypass packet filtering for packets previously handled
+		 * by IPsec.
+		 */
+		if (!V_ip4_filtertunnel &&
+		    m_tag_find(m, PACKET_TAG_IPSEC_IN_DONE, NULL) != NULL)
+			return (1);
+		return (0);
+	case IPSEC_CAP_OPERABLE:
+		/* Do we have active security policies? */
+		if (key_havesp(IPSEC_DIR_INBOUND) != 0 ||
+		    key_havesp(IPSEC_DIR_OUTBOUND) != 0)
+			return (1);
+		return (0);
+	};
+	return (EOPNOTSUPP);
+}
+
 #endif /* INET */
 
 #ifdef INET6
@@ -859,7 +897,33 @@ ipsec6_in_reject(const struct mbuf *m, struct inpcb *inp)
 	return (result);
 }
 
-#endif
+/*
+ * IPSEC_CAP() method implementation for IPv6.
+ */
+int
+ipsec6_capability(struct mbuf *m, u_int cap)
+{
+
+	switch (cap) {
+	case IPSEC_CAP_BYPASS_FILTER:
+		/*
+		 * Bypass packet filtering for packets previously handled
+		 * by IPsec.
+		 */
+		if (!V_ip6_filtertunnel &&
+		    m_tag_find(m, PACKET_TAG_IPSEC_IN_DONE, NULL) != NULL)
+			return (1);
+		return (0);
+	case IPSEC_CAP_OPERABLE:
+		/* Do we have active security policies? */
+		if (key_havesp(IPSEC_DIR_INBOUND) != 0 ||
+		    key_havesp(IPSEC_DIR_OUTBOUND) != 0)
+			return (1);
+		return (0);
+	};
+	return (EOPNOTSUPP);
+}
+#endif /* INET6 */
 
 int
 ipsec_run_hhooks(struct ipsec_ctx_data *ctx, int type)
