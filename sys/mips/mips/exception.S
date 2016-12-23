@@ -1329,6 +1329,8 @@ tlb_insert_random:
 	 * of this handler. Otherwise the ddb backtrace code will think that
 	 * the panic() was called from MipsTLBMissException.
 	 */
+	.globl	MipsKStackOverflow
+MipsKStackOverflow:
 	nop
 
 	.set pop
