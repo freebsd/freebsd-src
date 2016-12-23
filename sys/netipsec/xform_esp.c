@@ -97,40 +97,6 @@ SYSCTL_VNET_PCPUSTAT(_net_inet_esp, IPSECCTL_STATS, stats,
 static int esp_input_cb(struct cryptop *op);
 static int esp_output_cb(struct cryptop *crp);
 
-/*
- * NB: this is public for use by the PF_KEY support.
- * NB: if you add support here; be sure to add code to esp_attach below!
- */
-struct enc_xform *
-esp_algorithm_lookup(int alg)
-{
-	if (alg >= ESP_ALG_MAX)
-		return NULL;
-	switch (alg) {
-	case SADB_EALG_DESCBC:
-		return &enc_xform_des;
-	case SADB_EALG_3DESCBC:
-		return &enc_xform_3des;
-	case SADB_X_EALG_AES:
-		return &enc_xform_rijndael128;
-	case SADB_X_EALG_BLOWFISHCBC:
-		return &enc_xform_blf;
-	case SADB_X_EALG_CAST128CBC:
-		return &enc_xform_cast5;
-	case SADB_EALG_NULL:
-		return &enc_xform_null;
-	case SADB_X_EALG_CAMELLIACBC:
-		return &enc_xform_camellia;
-	case SADB_X_EALG_AESCTR:
-		return &enc_xform_aes_icm;
-	case SADB_X_EALG_AESGCM16:
-		return &enc_xform_aes_nist_gcm;
-	case SADB_X_EALG_AESGMAC:
-		return &enc_xform_aes_nist_gmac;
-	}
-	return NULL;
-}
-
 size_t
 esp_hdrsiz(struct secasvar *sav)
 {
@@ -168,12 +134,12 @@ esp_hdrsiz(struct secasvar *sav)
 static int
 esp_init(struct secasvar *sav, struct xformsw *xsp)
 {
-	struct enc_xform *txform;
+	const struct enc_xform *txform;
 	struct cryptoini cria, crie;
 	int keylen;
 	int error;
 
-	txform = esp_algorithm_lookup(sav->alg_enc);
+	txform = enc_algorithm_lookup(sav->alg_enc);
 	if (txform == NULL) {
 		DPRINTF(("%s: unsupported encryption algorithm %d\n",
 			__func__, sav->alg_enc));

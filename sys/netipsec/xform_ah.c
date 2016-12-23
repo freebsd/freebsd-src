@@ -141,43 +141,6 @@ xform_ah_authsize(struct auth_hash *esph)
 	return alen;
 }
 
-/*
- * NB: this is public for use by the PF_KEY support.
- */
-struct auth_hash *
-ah_algorithm_lookup(int alg)
-{
-	if (alg > SADB_AALG_MAX)
-		return NULL;
-	switch (alg) {
-	case SADB_X_AALG_NULL:
-		return &auth_hash_null;
-	case SADB_AALG_MD5HMAC:
-		return &auth_hash_hmac_md5;
-	case SADB_AALG_SHA1HMAC:
-		return &auth_hash_hmac_sha1;
-	case SADB_X_AALG_RIPEMD160HMAC:
-		return &auth_hash_hmac_ripemd_160;
-	case SADB_X_AALG_MD5:
-		return &auth_hash_key_md5;
-	case SADB_X_AALG_SHA:
-		return &auth_hash_key_sha1;
-	case SADB_X_AALG_SHA2_256:
-		return &auth_hash_hmac_sha2_256;
-	case SADB_X_AALG_SHA2_384:
-		return &auth_hash_hmac_sha2_384;
-	case SADB_X_AALG_SHA2_512:
-		return &auth_hash_hmac_sha2_512;
-	case SADB_X_AALG_AES128GMAC:
-		return &auth_hash_nist_gmac_aes_128;
-	case SADB_X_AALG_AES192GMAC:
-		return &auth_hash_nist_gmac_aes_192;
-	case SADB_X_AALG_AES256GMAC:
-		return &auth_hash_nist_gmac_aes_256;
-	}
-	return NULL;
-}
-
 size_t
 ah_hdrsiz(struct secasvar *sav)
 {
@@ -202,10 +165,10 @@ ah_hdrsiz(struct secasvar *sav)
 int
 ah_init0(struct secasvar *sav, struct xformsw *xsp, struct cryptoini *cria)
 {
-	struct auth_hash *thash;
+	const struct auth_hash *thash;
 	int keylen;
 
-	thash = ah_algorithm_lookup(sav->alg_auth);
+	thash = auth_algorithm_lookup(sav->alg_auth);
 	if (thash == NULL) {
 		DPRINTF(("%s: unsupported authentication algorithm %u\n",
 			__func__, sav->alg_auth));

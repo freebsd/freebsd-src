@@ -87,18 +87,6 @@ SYSCTL_VNET_PCPUSTAT(_net_inet_ipcomp, IPSECCTL_STATS, stats,
 static int ipcomp_input_cb(struct cryptop *crp);
 static int ipcomp_output_cb(struct cryptop *crp);
 
-struct comp_algo *
-ipcomp_algorithm_lookup(int alg)
-{
-	if (alg >= IPCOMP_ALG_MAX)
-		return NULL;
-	switch (alg) {
-	case SADB_X_CALG_DEFLATE:
-		return &comp_algo_deflate;
-	}
-	return NULL;
-}
-
 /*
  * RFC 3173 p 2.2. Non-Expansion Policy:
  * If the total size of a compressed payload and the IPComp header, as
@@ -160,11 +148,11 @@ ipcomp_nonexp_input(struct mbuf **mp, int *offp, int proto)
 static int
 ipcomp_init(struct secasvar *sav, struct xformsw *xsp)
 {
-	struct comp_algo *tcomp;
+	const struct comp_algo *tcomp;
 	struct cryptoini cric;
 
 	/* NB: algorithm really comes in alg_enc and not alg_comp! */
-	tcomp = ipcomp_algorithm_lookup(sav->alg_enc);
+	tcomp = comp_algorithm_lookup(sav->alg_enc);
 	if (tcomp == NULL) {
 		DPRINTF(("%s: unsupported compression algorithm %d\n", __func__,
 			 sav->alg_comp));

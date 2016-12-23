@@ -509,6 +509,47 @@ struct sadb_msghdr {
 	int extlen[SADB_EXT_MAX + 1];
 };
 
+static struct supported_ealgs {
+	int sadb_alg;
+	const struct enc_xform *xform;
+} supported_ealgs[] = {
+	{ SADB_EALG_DESCBC,		&enc_xform_des },
+	{ SADB_EALG_3DESCBC,		&enc_xform_3des },
+	{ SADB_X_EALG_AES,		&enc_xform_rijndael128 },
+	{ SADB_X_EALG_BLOWFISHCBC,	&enc_xform_blf },
+	{ SADB_X_EALG_CAST128CBC,	&enc_xform_cast5 },
+	{ SADB_EALG_NULL,		&enc_xform_null },
+	{ SADB_X_EALG_CAMELLIACBC,	&enc_xform_camellia },
+	{ SADB_X_EALG_AESCTR,		&enc_xform_aes_icm },
+	{ SADB_X_EALG_AESGCM16,		&enc_xform_aes_nist_gcm },
+	{ SADB_X_EALG_AESGMAC,		&enc_xform_aes_nist_gmac },
+};
+
+static struct supported_aalgs {
+	int sadb_alg;
+	const struct auth_hash *xform;
+} supported_aalgs[] = {
+	{ SADB_X_AALG_NULL,		&auth_hash_null },
+	{ SADB_AALG_MD5HMAC,		&auth_hash_hmac_md5 },
+	{ SADB_AALG_SHA1HMAC,		&auth_hash_hmac_sha1 },
+	{ SADB_X_AALG_RIPEMD160HMAC,	&auth_hash_hmac_ripemd_160 },
+	{ SADB_X_AALG_MD5,		&auth_hash_key_md5 },
+	{ SADB_X_AALG_SHA,		&auth_hash_key_sha1 },
+	{ SADB_X_AALG_SHA2_256,		&auth_hash_hmac_sha2_256 },
+	{ SADB_X_AALG_SHA2_384,		&auth_hash_hmac_sha2_384 },
+	{ SADB_X_AALG_SHA2_512,		&auth_hash_hmac_sha2_512 },
+	{ SADB_X_AALG_AES128GMAC,	&auth_hash_nist_gmac_aes_128 },
+	{ SADB_X_AALG_AES192GMAC,	&auth_hash_nist_gmac_aes_192 },
+	{ SADB_X_AALG_AES256GMAC,	&auth_hash_nist_gmac_aes_256 },
+};
+
+static struct supported_calgs {
+	int sadb_alg;
+	const struct comp_algo *xform;
+} supported_calgs[] = {
+	{ SADB_X_CALG_DEFLATE,		&comp_algo_deflate },
+};
+
 #ifndef IPSEC_DEBUG2
 static struct callout key_timer;
 #endif
@@ -600,7 +641,7 @@ static int key_get(struct socket *, struct mbuf *,
 	const struct sadb_msghdr *);
 
 static void key_getcomb_setlifetime(struct sadb_comb *);
-static struct mbuf *key_getcomb_esp(void);
+static struct mbuf *key_getcomb_ealg(void);
 static struct mbuf *key_getcomb_ah(void);
 static struct mbuf *key_getcomb_ipcomp(void);
 static struct mbuf *key_getprop(const struct secasindex *);
@@ -5777,10 +5818,10 @@ key_getcomb_setlifetime(struct sadb_comb *comb)
  * XXX no idea if the user wants ESP authentication or not
  */
 static struct mbuf *
-key_getcomb_esp()
+key_getcomb_ealg(void)
 {
 	struct sadb_comb *comb;
-	struct enc_xform *algo;
+	const struct enc_xform *algo;
 	struct mbuf *result = NULL, *m, *n;
 	int encmin;
 	int i, off, o;
@@ -5789,7 +5830,7 @@ key_getcomb_esp()
 
 	m = NULL;
 	for (i = 1; i <= SADB_EALG_MAX; i++) {
-		algo = esp_algorithm_lookup(i);
+		algo = enc_algorithm_lookup(i);
 		if (algo == NULL)
 			continue;
 
@@ -5882,8 +5923,8 @@ key_getsizes_ah(const struct auth_hash *ah, int alg, u_int16_t* min,
 static struct mbuf *
 key_getcomb_ah()
 {
+	const struct auth_hash *algo;
 	struct sadb_comb *comb;
-	struct auth_hash *algo;
 	struct mbuf *m;
 	u_int16_t minkeysize, maxkeysize;
 	int i;
@@ -5900,7 +5941,7 @@ key_getcomb_ah()
 		    i != SADB_X_AALG_SHA2_512)
 			continue;
 #endif
-		algo = ah_algorithm_lookup(i);
+		algo = auth_algorithm_lookup(i);
 		if (!algo)
 			continue;
 		key_getsizes_ah(algo, i, &minkeysize, &maxkeysize);
@@ -5940,15 +5981,15 @@ key_getcomb_ah()
 static struct mbuf *
 key_getcomb_ipcomp()
 {
+	const struct comp_algo *algo;
 	struct sadb_comb *comb;
-	struct comp_algo *algo;
 	struct mbuf *m;
 	int i;
 	const int l = PFKEY_ALIGN8(sizeof(struct sadb_comb));
 
 	m = NULL;
 	for (i = 1; i <= SADB_X_CALG_MAX; i++) {
-		algo = ipcomp_algorithm_lookup(i);
+		algo = comp_algorithm_lookup(i);
 		if (!algo)
 			continue;
 
@@ -5991,7 +6032,7 @@ key_getprop(const struct secasindex *saidx)
 
 	switch (saidx->proto)  {
 	case IPPROTO_ESP:
-		m = key_getcomb_esp();
+		m = key_getcomb_ealg();
 		break;
 	case IPPROTO_AH:
 		m = key_getcomb_ah();
@@ -6614,14 +6655,14 @@ key_register(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 	/* create new sadb_msg to reply. */
 	alen = 0;
 	for (i = 1; i <= SADB_AALG_MAX; i++) {
-		if (ah_algorithm_lookup(i))
+		if (auth_algorithm_lookup(i))
 			alen += sizeof(struct sadb_alg);
 	}
 	if (alen)
 		alen += sizeof(struct sadb_supported);
 	elen = 0;
 	for (i = 1; i <= SADB_EALG_MAX; i++) {
-		if (esp_algorithm_lookup(i))
+		if (enc_algorithm_lookup(i))
 			elen += sizeof(struct sadb_alg);
 	}
 	if (elen)
@@ -6660,10 +6701,10 @@ key_register(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 		off += PFKEY_ALIGN8(sizeof(*sup));
 
 		for (i = 1; i <= SADB_AALG_MAX; i++) {
-			struct auth_hash *aalgo;
+			const struct auth_hash *aalgo;
 			u_int16_t minkeysize, maxkeysize;
 
-			aalgo = ah_algorithm_lookup(i);
+			aalgo = auth_algorithm_lookup(i);
 			if (!aalgo)
 				continue;
 			alg = (struct sadb_alg *)(mtod(n, caddr_t) + off);
@@ -6684,9 +6725,9 @@ key_register(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 		off += PFKEY_ALIGN8(sizeof(*sup));
 
 		for (i = 1; i <= SADB_EALG_MAX; i++) {
-			struct enc_xform *ealgo;
+			const struct enc_xform *ealgo;
 
-			ealgo = esp_algorithm_lookup(i);
+			ealgo = enc_algorithm_lookup(i);
 			if (!ealgo)
 				continue;
 			alg = (struct sadb_alg *)(mtod(n, caddr_t) + off);
@@ -7898,6 +7939,39 @@ key_setlifetime(struct seclifetime *src, uint16_t exttype)
 	
 	return m;
 
+}
+
+const struct enc_xform *
+enc_algorithm_lookup(int alg)
+{
+	int i;
+
+	for (i = 0; i < nitems(supported_ealgs); i++)
+		if (alg == supported_ealgs[i].sadb_alg)
+			return (supported_ealgs[i].xform);
+	return (NULL);
+}
+
+const struct auth_hash *
+auth_algorithm_lookup(int alg)
+{
+	int i;
+
+	for (i = 0; i < nitems(supported_aalgs); i++)
+		if (alg == supported_aalgs[i].sadb_alg)
+			return (supported_aalgs[i].xform);
+	return (NULL);
+}
+
+const struct comp_algo *
+comp_algorithm_lookup(int alg)
+{
+	int i;
+
+	for (i = 0; i < nitems(supported_calgs); i++)
+		if (alg == supported_calgs[i].sadb_alg)
+			return (supported_calgs[i].xform);
+	return (NULL);
 }
 
 /*

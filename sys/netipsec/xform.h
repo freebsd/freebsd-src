@@ -98,6 +98,10 @@ struct xformsw {
 };
 
 #ifdef _KERNEL
+const struct enc_xform * enc_algorithm_lookup(int);
+const struct auth_hash * auth_algorithm_lookup(int);
+const struct comp_algo * comp_algorithm_lookup(int);
+
 extern void xform_register(struct xformsw*);
 extern int xform_ah_authsize(struct auth_hash *esph);
 
@@ -106,15 +110,10 @@ struct cryptoini;
 /* XF_AH */
 extern int ah_init0(struct secasvar *, struct xformsw *, struct cryptoini *);
 extern int ah_zeroize(struct secasvar *sav);
-extern struct auth_hash *ah_algorithm_lookup(int alg);
 extern size_t ah_hdrsiz(struct secasvar *);
 
 /* XF_ESP */
-extern struct enc_xform *esp_algorithm_lookup(int alg);
 extern size_t esp_hdrsiz(struct secasvar *sav);
-
-/* XF_COMP */
-extern struct comp_algo *ipcomp_algorithm_lookup(int alg);
 
 #endif /* _KERNEL */
 #endif /* _NETIPSEC_XFORM_H_ */
