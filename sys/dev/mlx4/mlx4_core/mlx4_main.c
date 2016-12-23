@@ -174,7 +174,7 @@ MODULE_PARM_DESC(enable_64b_cqe_eqe,
 
 static char mlx4_version[] __devinitdata =
 	DRV_NAME ": Mellanox ConnectX VPI driver v"
-	DRV_VERSION " (" DRV_RELDATE ")\n";
+	DRV_VERSION "\n";
 
 static int log_num_mac = 7;
 module_param_named(log_num_mac, log_num_mac, int, 0444);
