@@ -488,10 +488,17 @@ acpi_pcib_acpi_attach(device_t dev)
 		    pci_domain_release_bus(sc->ap_segment, dev, rid, bus_res);
 	    }
     } else {
-#ifdef INVARIANTS
-	    if (first_decoded_bus(sc, &start) == 0)
-		    KASSERT(start == sc->ap_bus, ("bus number mismatch"));
-#endif
+	    /*
+	     * Require the bus number from _BBN to match the start of any
+	     * decoded range.
+	     */
+	    if (first_decoded_bus(sc, &start) == 0 && sc->ap_bus != start) {
+		    device_printf(dev,
+		"bus number %d does not match start of decoded range %ju\n",
+			sc->ap_bus, (uintmax_t)start);
+		    pcib_host_res_free(dev, &sc->ap_host_res);
+		    return (ENXIO);
+	    }
     }
 #else
     /*
@@ -514,6 +521,9 @@ acpi_pcib_acpi_attach(device_t dev)
 
     if (device_add_child(dev, "pci", -1) == NULL) {
 	device_printf(device_get_parent(dev), "couldn't attach pci bus\n");
+#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+	pcib_host_res_free(dev, &sc->ap_host_res);
+#endif
 	return (ENXIO);
     }
     return (bus_generic_attach(dev));
