@@ -129,6 +129,7 @@ struct mtx nfs_state_mutex;
 struct mtx nfs_nameid_mutex;
 struct mtx nfs_req_mutex;
 struct mtx nfs_slock_mutex;
+struct mtx nfs_clstate_mutex;
 
 /* local functions */
 static int nfssvc_call(struct thread *, struct nfssvc_args *, struct ucred *);
@@ -647,6 +648,7 @@ newnfs_portinit(void)
 	/* Initialize SMP locks used by both client and server. */
 	mtx_init(&newnfsd_mtx, "newnfsd_mtx", NULL, MTX_DEF);
 	mtx_init(&nfs_state_mutex, "nfs_state_mutex", NULL, MTX_DEF);
+	mtx_init(&nfs_clstate_mutex, "nfs_clstate_mutex", NULL, MTX_DEF);
 }
 
 /*
@@ -712,6 +714,7 @@ nfscommon_modevent(module_t mod, int type, void *data)
 		mtx_destroy(&nfs_nameid_mutex);
 		mtx_destroy(&newnfsd_mtx);
 		mtx_destroy(&nfs_state_mutex);
+		mtx_destroy(&nfs_clstate_mutex);
 		mtx_destroy(&nfs_sockl_mutex);
 		mtx_destroy(&nfs_slock_mutex);
 		mtx_destroy(&nfs_req_mutex);
