@@ -748,6 +748,7 @@ socklist_recv_sock(struct socklist *sl)
 static void
 unmapped(struct sockaddr *sa)
 {
+#if defined(INET) && defined(INET6)
 	struct sockaddr_in6 *sin6;
 	struct sockaddr_in sin;
 
@@ -766,6 +767,10 @@ unmapped(struct sockaddr *sa)
 	memcpy(&sin.sin_addr, &sin6->sin6_addr.s6_addr[12],
 	    sizeof(sin.sin_addr));
 	memcpy(sa, &sin, sizeof(sin));
+#else
+	if (sa == NULL)
+		return;
+#endif
 }
 
 static void
@@ -1533,24 +1538,23 @@ cvthname(struct sockaddr *f)
 	sigset_t omask, nmask;
 	static char hname[NI_MAXHOST], ip[NI_MAXHOST];
 
-	dprintf("cvthname(%d) len = %d, %zu\n", f->sa_family, f->sa_len, sizeof(struct sockaddr_in6));
+	dprintf("cvthname(%d) len = %d\n", f->sa_family, f->sa_len);
 	error = getnameinfo(f, f->sa_len, ip, sizeof(ip), NULL, 0,
 		    NI_NUMERICHOST);
-	dprintf("cvthname(%s)\n", ip);
-
 	if (error) {
 		dprintf("Malformed from address %s\n", gai_strerror(error));
 		return ("???");
 	}
+	dprintf("cvthname(%s)\n", ip);
+
 	if (!resolve)
 		return (ip);
 
 	sigemptyset(&nmask);
 	sigaddset(&nmask, SIGHUP);
 	sigprocmask(SIG_BLOCK, &nmask, &omask);
-	error = getnameinfo((struct sockaddr *)f,
-			    ((struct sockaddr *)f)->sa_len,
-			    hname, sizeof hname, NULL, 0, NI_NAMEREQD);
+	error = getnameinfo(f, f->sa_len, hname, sizeof(hname),
+		    NULL, 0, NI_NAMEREQD);
 	sigprocmask(SIG_SETMASK, &omask, NULL);
 	if (error) {
 		dprintf("Host name for your address (%s) unknown\n", ip);
@@ -2393,7 +2397,9 @@ allowaddr(char *s)
 	struct servent *se;
 	int masklen = -1;
 	struct addrinfo hints, *res;
+#ifdef INET
 	in_addr_t *addrp, *maskp;
+#endif
 #ifdef INET6
 	uint32_t *addr6p, *mask6p;
 #endif
@@ -2459,7 +2465,9 @@ allowaddr(char *s)
 			.ss_family = res->ai_family,
 			.ss_len = res->ai_addrlen
 		};
-		if (res->ai_family == AF_INET) {
+		switch (res->ai_family) {
+#ifdef INET
+		case AF_INET:
 			maskp = &sstosin(&ap->a_mask)->sin_addr.s_addr;
 			addrp = &sstosin(&ap->a_addr)->sin_addr.s_addr;
 			if (masklen < 0) {
@@ -2481,9 +2489,14 @@ allowaddr(char *s)
 			}
 			/* Lose any host bits in the network number. */
 			*addrp &= *maskp;
-		}
+			break;
+#endif
 #ifdef INET6
-		else if (res->ai_family == AF_INET6 && masklen <= 128) {
+		case AF_INET6:
+			if (masklen > 128) {
+				freeaddrinfo(res);
+				return (-1);
+			}
 			if (masklen < 0)
 				masklen = 128;
 			mask6p = (uint32_t *)&sstosin6(&ap->a_mask)->sin6_addr.s6_addr32[0];
@@ -2501,9 +2514,9 @@ allowaddr(char *s)
 					masklen -= 32;
 				}
 			}
-		}
+			break;
 #endif
-		else {
+		default:
 			freeaddrinfo(res);
 			return (-1);
 		}
@@ -2527,12 +2540,12 @@ allowaddr(char *s)
 		printf("allowaddr: rule ");
 		if (ap->isnumeric) {
 			printf("numeric, ");
-			getnameinfo((struct sockaddr *)&ap->a_addr,
-				    ((struct sockaddr *)&ap->a_addr)->sa_len,
+			getnameinfo(sstosa(&ap->a_addr),
+				    (sstosa(&ap->a_addr))->sa_len,
 				    ip, sizeof ip, NULL, 0, NI_NUMERICHOST);
 			printf("addr = %s, ", ip);
-			getnameinfo((struct sockaddr *)&ap->a_mask,
-				    ((struct sockaddr *)&ap->a_mask)->sa_len,
+			getnameinfo(sstosa(&ap->a_mask),
+				    (sstosa(&ap->a_mask))->sa_len,
 				    ip, sizeof ip, NULL, 0, NI_NUMERICHOST);
 			printf("mask = %s; ", ip);
 		} else {
@@ -2552,7 +2565,9 @@ validate(struct sockaddr *sa, const char *hname)
 	int i;
 	char name[NI_MAXHOST], ip[NI_MAXHOST], port[NI_MAXSERV];
 	struct allowedpeer *ap;
+#ifdef INET
 	struct sockaddr_in *sin4, *a4p = NULL, *m4p = NULL;
+#endif
 #ifdef INET6
 	struct sockaddr_in6 *sin6, *a6p = NULL, *m6p = NULL;
 #endif
@@ -2602,7 +2617,8 @@ validate(struct sockaddr *sa, const char *hname)
 				dprintf("rejected in rule %d due to address family mismatch.\n", i);
 				continue;
 			}
-			if (ap->a_addr.ss_family == AF_INET) {
+#ifdef INET
+			else if (ap->a_addr.ss_family == AF_INET) {
 				sin4 = satosin(sa);
 				a4p = satosin(&ap->a_addr);
 				m4p = satosin(&ap->a_mask);
@@ -2612,6 +2628,7 @@ validate(struct sockaddr *sa, const char *hname)
 					continue;
 				}
 			}
+#endif
 #ifdef INET6
 			else if (ap->a_addr.ss_family == AF_INET6) {
 				sin6 = satosin6(sa);
@@ -2702,7 +2719,7 @@ p_open(const char *prog, pid_t *rpid)
 		dup2(pfd[0], STDIN_FILENO);
 		dup2(nulldesc, STDOUT_FILENO);
 		dup2(nulldesc, STDERR_FILENO);
-		closefrom(3);
+		closefrom(STDERR_FILENO + 1);
 
 		(void)execvp(_PATH_BSHELL, argv);
 		_exit(255);
