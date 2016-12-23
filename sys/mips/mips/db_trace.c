@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/stack.h>
 #include <sys/sysent.h>
 
+#include <machine/asm.h>
 #include <machine/db_machdep.h>
 #include <machine/md_var.h>
 #include <machine/mips_opcode.h>
@@ -157,7 +158,6 @@ loop:
 	valid_args[2] = 0;
 	valid_args[3] = 0;
 	next_ra = 0;
-/* Jump here after a nonstandard (interrupt handler) frame */
 	stksize = 0;
 	subr = 0;
 	if (frames++ > 100) {
@@ -213,6 +213,15 @@ loop:
 		ra = 0;
 		goto done;
 	}
+
+	/*
+	 * For a kernel stack overflow, skip to the output and
+	 * afterwards pull the previous registers out of the trapframe
+	 * instead of decoding the function prologue.
+	 */
+	if (pc == (uintptr_t)MipsKStackOverflow)
+		goto done;
+
 	/*
 	 * Find the beginning of the current subroutine by scanning
 	 * backwards from the current PC for the end of the previous
@@ -389,7 +398,21 @@ done:
 	    (uintmax_t)(u_register_t) sp,
 	    stksize);
 
-	if (ra) {
+	if (pc == (uintptr_t)MipsKStackOverflow) {
+#define	TF_REG(base, reg)	((base) + CALLFRAME_SIZ + ((reg) * SZREG))
+#if defined(__mips_n64) || defined(__mips_n32)
+		pc = kdbpeekd((int *)TF_REG(sp, PC));
+		ra = kdbpeekd((int *)TF_REG(sp, RA));
+		sp = kdbpeekd((int *)TF_REG(sp, SP));
+#else
+		pc = kdbpeek((int *)TF_REG(sp, PC));
+		ra = kdbpeek((int *)TF_REG(sp, RA));
+		sp = kdbpeek((int *)TF_REG(sp, SP));
+#endif
+#undef TF_REG
+		(*printfn) ("--- Kernel Stack Overflow ---\n");
+		goto loop;
+	} else if (ra) {
 		if (pc == ra && stksize == 0)
 			(*printfn) ("stacktrace: loop!\n");
 		else {
