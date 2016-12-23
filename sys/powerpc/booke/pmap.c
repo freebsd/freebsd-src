@@ -385,7 +385,7 @@ static mmu_method_t mmu_booke_methods[] = {
 	MMUMETHOD(mmu_kenter,		mmu_booke_kenter),
 	MMUMETHOD(mmu_kenter_attr,	mmu_booke_kenter_attr),
 	MMUMETHOD(mmu_kextract,		mmu_booke_kextract),
-/*	MMUMETHOD(mmu_kremove,		mmu_booke_kremove),	*/
+	MMUMETHOD(mmu_kremove,		mmu_booke_kremove),
 	MMUMETHOD(mmu_unmapdev,		mmu_booke_unmapdev),
 	MMUMETHOD(mmu_change_attr,	mmu_booke_change_attr),
 
