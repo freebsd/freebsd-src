@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2006 Erez Zadok
+ * Copyright (c) 1997-2014 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -16,11 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgment:
- *      This product includes software developed by the University of
- *      California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -69,14 +65,14 @@ amfs_generic_find_srvr(mntfs *mf)
   if (!fs) {
     fs = ALLOC(struct fserver);
     fs->fs_refc = 0;
-    fs->fs_host = strdup("localhost");
-    fs->fs_ip = 0;
+    fs->fs_host = xstrdup("localhost");
+    fs->fs_ip = NULL;
     fs->fs_cid = 0;
     fs->fs_pinger = AM_PINGER;
     fs->fs_flags = FSF_VALID | FSF_PING_UNINIT;
     fs->fs_type = "local";
-    fs->fs_private = 0;
-    fs->fs_prfree = 0;
+    fs->fs_private = NULL;
+    fs->fs_prfree = NULL;
 
     ins_que(&fs->fs_q, &amfs_auto_srvr_list);
 
@@ -135,8 +131,7 @@ timeout_srvr(voidp v)
     /*
      * Free the net address
      */
-    if (fs->fs_ip)
-      XFREE(fs->fs_ip);
+    XFREE(fs->fs_ip);
 
     /*
      * Free the host name.
