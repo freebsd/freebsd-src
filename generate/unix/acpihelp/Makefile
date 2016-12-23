@@ -28,7 +28,9 @@ HEADERS = \
     $(wildcard $(ACPIHELP)/*.h)
 
 OBJECTS = \
+	$(OBJDIR)/ahaml.o\
 	$(OBJDIR)/ahamlops.o\
+	$(OBJDIR)/ahasl.o\
 	$(OBJDIR)/ahaslkey.o\
 	$(OBJDIR)/ahaslops.o\
 	$(OBJDIR)/ahdecode.o\

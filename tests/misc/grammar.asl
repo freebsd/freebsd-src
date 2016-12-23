@@ -965,19 +965,20 @@ DefinitionBlock (
         Store ("DIV0 - noabort", Debug)
     }
 
-    Method (ERR_, 1)
+    Method (ERR_, 2)
     {
+        Local0 = ToDecimalString (Arg1)
         if (LEqual (Arg0, 0))
         {
-            Store ("+*+*+*+* MTHD_ERROR: Results not equal!", Debug)
+            Printf ("+*+*+*+* MTHD_ERROR at line %o: Results not equal!", Local0)
         }
         if (LEqual (Arg0, 1))
         {
-            Store ("+*+*+*+* MTHD_ERROR: Numeric result is incorrect!", Debug)
+            Printf ("+*+*+*+* MTHD_ERROR at line %o: Numeric result is incorrect!", Local0)
         }
         if (LEqual (Arg0, 2))
         {
-            Store ("+*+*+*+* MTHD_ERROR: Operand was clobbered!", Debug)
+            Printf ("+*+*+*+* MTHD_ERROR at line %o: Operand was clobbered!", Local0)
         }
 
         Notify (DEV1, Arg0)
@@ -1033,245 +1034,245 @@ DefinitionBlock (
         Store (\IFEL.TEST(), Local0)
         if (LGreater (Local0, 0))
         {
-            ERR_ (1)
+            ERR_ (1, __LINE__)
             Return(Local0)
         }
 
         Store (\NOSV.TEST(), Local0)
         if (LGreater (Local0, 0))
         {
-            ERR_ (1)
+            ERR_ (1, __LINE__)
             Return(Local0)
         }
 
         Store (\IDXF.TEST(), Local0)
         if (LGreater (Local0, 0))
         {
-            ERR_ (1)
+            ERR_ (1, __LINE__)
             Return(Local0)
         }
 
         Store (\_SB_.NSTL.TEST(), Local0)
         if (LGreater (Local0, 0))
         {
-            ERR_ (1)
+            ERR_ (1, __LINE__)
             Return(Local0)
         }
 
         Store (\RTBF.TEST(), Local0)
         if (LGreater (Local0, 0))
         {
-            ERR_ (1)
+            ERR_ (1, __LINE__)
             Return(Local0)
         }
 
         Store (\_SB_.RTLV.TEST(), Local0)
         if (LGreater (Local0, 0))
         {
-            ERR_ (1)
+            ERR_ (1, __LINE__)
             Return(Local0)
         }
 
         Store (\_SB_.RETP.TEST(), Local0)
         if (LGreater (Local0, 0))
         {
-            ERR_ (1)
+            ERR_ (1, __LINE__)
             Return(Local0)
         }
 
         Store (\WHLR.TEST(), Local0)
         if (LGreater (Local0, 0))
         {
-            ERR_ (1)
+            ERR_ (1, __LINE__)
             Return(Local0)
         }
 
         Store (\ANDO.TEST(), Local0)
         if (LGreater (Local0, 0))
         {
-            ERR_ (1)
+            ERR_ (1, __LINE__)
             Return(Local0)
         }
 
         Store (\BRKP.TEST(), Local0)
         if (LGreater (Local0, 0))
         {
-            ERR_ (1)
+            ERR_ (1, __LINE__)
             Return(Local0)
         }
 
         Store (\ADSU.TEST(), Local0)
         if (LGreater (Local0, 0))
         {
-            ERR_ (1)
+            ERR_ (1, __LINE__)
             Return(Local0)
         }
 
         Store (\INDC.TEST(), Local0)
         if (LGreater (Local0, 0))
         {
-            ERR_ (1)
+            ERR_ (1, __LINE__)
             Return(Local0)
         }
 
         Store (\LOPS.TEST(), Local0)
         if (LGreater (Local0, 0))
         {
-            ERR_ (1)
+            ERR_ (1, __LINE__)
             Return(Local0)
         }
 
         Store (\FDSO.TEST(), Local0)
         if (LGreater (Local0, 0))
         {
-            ERR_ (1)
+            ERR_ (1, __LINE__)
             Return(Local0)
         }
 
         Store (\MLDV.TEST(), Local0)
         if (LGreater (Local0, 0))
         {
-            ERR_ (1)
+            ERR_ (1, __LINE__)
             Return(Local0)
         }
 
         Store (\NBIT.TEST(), Local0)
         if (LGreater (Local0, 0))
         {
-            ERR_ (1)
+            ERR_ (1, __LINE__)
             Return(Local0)
         }
 
         Store (\SHFT.TEST(), Local0)
         if (LGreater (Local0, 0))
         {
-            ERR_ (1)
+            ERR_ (1, __LINE__)
             Return(Local0)
         }
 
         Store (\XORD.TEST(), Local0)
         if (LGreater (Local0, 0))
         {
-            ERR_ (1)
+            ERR_ (1, __LINE__)
             Return(Local0)
         }
 
         Store (\CRBF.TEST(), Local0)
         if (LGreater (Local0, 0))
         {
-            ERR_ (1)
+            ERR_ (1, __LINE__)
             Return(Local0)
         }
 
         Store (\IDX4.TEST(), Local0)
         if (LGreater (Local0, 0))
         {
-            ERR_ (1)
+            ERR_ (1, __LINE__)
             Return(Local0)
         }
 
         Store (\EVNT.TEST(), Local0)
         if (LGreater (Local0, 0))
         {
-            ERR_ (1)
+            ERR_ (1, __LINE__)
             Return(Local0)
         }
 
         Store (\SZLV.TEST(), Local0)
         if (LGreater (Local0, 0))
         {
-            ERR_ (1)
+            ERR_ (1, __LINE__)
             Return(Local0)
         }
 
         Store (\_SB_.BYTF.TEST(), Local0)
         if (LGreater (Local0, 0))
         {
-            ERR_ (1)
+            ERR_ (1, __LINE__)
             Return(Local0)
         }
 
         Store (\DWDF.TEST(), Local0)
         if (LGreater (Local0, 0))
         {
-            ERR_ (1)
+            ERR_ (1, __LINE__)
             Return(Local0)
         }
 
         Store (\DVAX.TEST(), Local0)
         if (LGreater (Local0, 0))
         {
-            ERR_ (1)
+            ERR_ (1, __LINE__)
             Return(Local0)
         }
 
         Store (\IDX6.TEST(), Local0)
         if (LGreater (Local0, 0))
         {
-            ERR_ (1)
+            ERR_ (1, __LINE__)
             Return(Local0)
         }
 
         Store (\IDX5.TEST(), Local0)
         if (LGreater (Local0, 0))
         {
-            ERR_ (1)
+            ERR_ (1, __LINE__)
             Return(Local0)
         }
 
         Store (\_SB_.IDX0.TEST(), Local0)
         if (LGreater (Local0, 0))
         {
-            ERR_ (1)
+            ERR_ (1, __LINE__)
             Return(Local0)
         }
 
         Store (\_SB_.IDX3.TEST(), Local0)
         if (LGreater (Local0, 0))
         {
-            ERR_ (1)
+            ERR_ (1, __LINE__)
             Return(Local0)
         }
 
         Store (\IDX7.TEST(), Local0)
         if (LGreater (Local0, 0))
         {
-            ERR_ (1)
+            ERR_ (1, __LINE__)
             Return(Local0)
         }
 
         Store (\MTCH.TEST(), Local0)
         if (LGreater (Local0, 0))
         {
-            ERR_ (1)
+            ERR_ (1, __LINE__)
             Return(Local0)
         }
 
         Store (\WHLB.TEST(), Local0)
         if (LGreater (Local0, 0))
         {
-            ERR_ (1)
+            ERR_ (1, __LINE__)
             Return(Local0)
         }
 
         Store (\_SB_.IDX2.TEST(), Local0)
         if (LGreater (Local0, 0))
         {
-            ERR_ (1)
+            ERR_ (1, __LINE__)
             Return(Local0)
         }
 
         Store (\SIZO.TEST(), Local0)
         if (LGreater (Local0, 0))
         {
-            ERR_ (1)
+            ERR_ (1, __LINE__)
             Return(Local0)
         }
 
         Store (\_SB_.SMIS.TEST(), Local0)
         if (LGreater (Local0, 0))
         {
-            ERR_ (1)
+            ERR_ (1, __LINE__)
             Return(Local0)
         }
 
@@ -1331,14 +1332,14 @@ DefinitionBlock (
         Store (BIT2, Local0)
         if (LNotEqual (Local0, 0x1))
         {
-            ERR_ (1)
+            ERR_ (1, __LINE__)
         }
         else
         {
             Store (DerefOf (Index (BUF2, 0)), Local0)
             if (LNotEqual (Local0, 0x08))
             {
-                ERR_ (1)
+                ERR_ (1, __LINE__)
             }
             else
             {
@@ -1350,7 +1351,7 @@ DefinitionBlock (
         Store (BYT2, Local0)
         if (LNotEqual (Local0, 0x1A))
         {
-            ERR_ (1)
+            ERR_ (1, __LINE__)
         }
         else
         {
@@ -1361,7 +1362,7 @@ DefinitionBlock (
         Store (WRD2, Local0)
         if (LNotEqual (Local0, 0x1234))
         {
-            ERR_ (1)
+            ERR_ (1, __LINE__)
         }
         else
         {
@@ -1372,7 +1373,7 @@ DefinitionBlock (
         Store (FLD2, Local0)
         if (LNotEqual (Local0, 0x123))
         {
-            ERR_ (1)
+            ERR_ (1, __LINE__)
         }
         else
         {
@@ -1383,7 +1384,7 @@ DefinitionBlock (
         Store (DWD2, Local0)
         if (LNotEqual (Local0, 0x12345678))
         {
-            ERR_ (1)
+            ERR_ (1, __LINE__)
         }
         else
         {
@@ -1394,7 +1395,7 @@ DefinitionBlock (
         Store (QWD2, Local0)
         if (LNotEqual (Local0, 0x1234567887654321))
         {
-            ERR_ (1)
+            ERR_ (1, __LINE__)
         }
         else
         {
@@ -1546,7 +1547,7 @@ DefinitionBlock (
         Store ("++++++++ Checking result from ADD", Debug)
         if (LNotEqual (Local0, Local1))
         {
-            ERR_ (0)
+            ERR_ (0, __LINE__)
         }
 
 
@@ -1561,7 +1562,7 @@ DefinitionBlock (
         Store ("++++++++ Checking result from SUBTRACT", Debug)
         if (LNotEqual (Local4, Local5))
         {
-            ERR_ (0)
+            ERR_ (0, __LINE__)
         }
 
 
@@ -1577,7 +1578,7 @@ DefinitionBlock (
         Store ("++++++++ Checking result from MULTIPLY", Debug)
         if (LNotEqual (Local6, Local7))
         {
-            ERR_ (0)
+            ERR_ (0, __LINE__)
         }
 
 
@@ -1592,7 +1593,7 @@ DefinitionBlock (
         Store ("++++++++ Checking (quotient) result from DIVIDE", Debug)
         if (LNotEqual (Local2, Local3))
         {
-            ERR_ (0)
+            ERR_ (0, __LINE__)
         }
 
 
@@ -1606,7 +1607,7 @@ DefinitionBlock (
         Store ("++++++++ Checking result from INCREMENT", Debug)
         if (LNotEqual (Local0, Local1))
         {
-            ERR_ (0)
+            ERR_ (0, __LINE__)
         }
 
 
@@ -1620,7 +1621,7 @@ DefinitionBlock (
         Store ("++++++++ Checking result from DECREMENT", Debug)
         if (LNotEqual (Local0, Local1))
         {
-            ERR_ (0)
+            ERR_ (0, __LINE__)
         }
 
 
@@ -1649,22 +1650,22 @@ DefinitionBlock (
         Add (Local0, Local1)
         if (LNotEqual (Local0, 3))
         {
-            ERR_ (2)
+            ERR_ (2, __LINE__)
         }
         if (LNotEqual (Local1, 7))
         {
-            ERR_ (2)
+            ERR_ (2, __LINE__)
         }
 
 
         Add (Local0, Local1, Local2)
         if (LNotEqual (Local0, 3))
         {
-            ERR_ (2)
+            ERR_ (2, __LINE__)
         }
         if (LNotEqual (Local1, 7))
         {
-            ERR_ (2)
+            ERR_ (2, __LINE__)
         }
     }
 
@@ -1692,63 +1693,63 @@ DefinitionBlock (
         FindSetLeftBit (0x00100100, Local0)
         if (LNotEqual (Local0, 21))
         {
-            ERR_ (1)
+            ERR_ (1, __LINE__)
         }
 
         Store ("++++++++ FindSetRightBit (0x00100100, Local1)", Debug)
         FindSetRightBit (0x00100100, Local1)
         if (LNotEqual (Local1, 9))
         {
-            ERR_ (1)
+            ERR_ (1, __LINE__)
         }
 
         Store ("++++++++ And (0xF0F0F0F0, 0x11111111, Local2)", Debug)
         And (0xF0F0F0F0, 0x11111111, Local2)
         if (LNotEqual (Local2, 0x10101010))
         {
-            ERR_ (1)
+            ERR_ (1, __LINE__)
         }
 
         Store ("++++++++ NAnd (0xF0F0F0F0, 0x11111111, Local3)", Debug)
         NAnd (0xF0F0F0F0, 0x11111111, Local3)
         if (LNotEqual (Local3, 0xEFEFEFEF))
         {
-            ERR_ (1)
+            ERR_ (1, __LINE__)
         }
 
         Store ("++++++++ Or (0x11111111, 0x22222222, Local4)", Debug)
         Or (0x11111111, 0x22222222, Local4)
         if (LNotEqual (Local4, 0x33333333))
         {
-            ERR_ (1)
+            ERR_ (1, __LINE__)
         }
 
         Store ("++++++++ NOr (0x11111111, 0x22222222, Local5)", Debug)
         NOr (0x11111111, 0x22222222, Local5)
         if (LNotEqual (Local5, 0xCCCCCCCC))
         {
-            ERR_ (1)
+            ERR_ (1, __LINE__)
         }
 
         Store ("++++++++ XOr (0x11113333, 0x22222222, Local6)", Debug)
         XOr (0x11113333, 0x22222222, Local6)
         if (LNotEqual (Local6, 0x33331111))
         {
-            ERR_ (1)
+            ERR_ (1, __LINE__)
         }
 
         Store ("++++++++ ShiftLeft (0x11112222, 2, Local7)", Debug)
         ShiftLeft (0x11112222, 2, Local7)
         if (LNotEqual (Local7, 0x44448888))
         {
-            ERR_ (1)
+            ERR_ (1, __LINE__)
         }
 
         Store ("++++++++ ShiftRight (Local7, 2, Local7)", Debug)
         ShiftRight (Local7, 2, Local7)
         if (LNotEqual (Local7, 0x11112222))
         {
-            ERR_ (1)
+            ERR_ (1, __LINE__)
         }
 
 
@@ -1757,12 +1758,12 @@ DefinitionBlock (
         Not (Local0, Local1)
         if (LNotEqual (Local0, 0x22224444))
         {
-            ERR_ (2)
+            ERR_ (2, __LINE__)
         }
 
         if (LNotEqual (Local1, 0xDDDDBBBB))
         {
-            ERR_ (1)
+            ERR_ (1, __LINE__)
         }
 
         Return (Local7)
@@ -1795,12 +1796,12 @@ DefinitionBlock (
         Store (LNot (Local6), Local7)
         if (LNotEqual (Local6, 0x00001111))
         {
-            ERR_ (2)
+            ERR_ (2, __LINE__)
         }
 
         if (LNotEqual (Local7, 0x0))
         {
-            ERR_ (1)
+            ERR_ (1, __LINE__)
         }
 
 
@@ -1933,25 +1934,25 @@ DefinitionBlock (
         Store (CondRefOf (ABCD, Local0), Local1)
         if (LNotEqual (Local1, 0))
         {
-            ERR_ (2)
+            ERR_ (2, __LINE__)
         }
 
         Store (CondRefOf (BBUF, Local0), Local1)
         if (LNotEqual (Local1, Ones))
         {
-            ERR_ (2)
+            ERR_ (2, __LINE__)
         }
 
         Store (DeRefOf (Index (BBUF, 3)), Local6)
         if (LNotEqual (Local6, 0xB3))
         {
-            ERR_ (2)
+            ERR_ (2, __LINE__)
         }
 
         Store (DeRefOf (Index (DeRefOf (Index (NEST, 1)), 3)), Local0)
         if (LNotEqual (Local0, 0x14))
         {
-            ERR_ (2)
+            ERR_ (2, __LINE__)
         }
 
 
@@ -1961,7 +1962,7 @@ DefinitionBlock (
         Store (DerefOf (Local1), Local2)
         If (LNotEqual (Local2, 0x11223344))
         {
-            ERR_ (2)
+            ERR_ (2, __LINE__)
         }
 
 

@@ -472,7 +472,7 @@ AcpiUtWalkAmlResources (
      * The absolute minimum resource template is one EndTag descriptor.
      * However, we will treat a lone EndTag as just a simple buffer.
      */
-    if (AmlLength <= sizeof (AML_RESOURCE_END_TAG))
+    if (AmlLength < sizeof (AML_RESOURCE_END_TAG))
     {
         return_ACPI_STATUS (AE_AML_NO_RESOURCE_END_TAG);
     }

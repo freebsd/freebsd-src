@@ -163,6 +163,7 @@ OBJECTS = \
 	$(OBJDIR)/nsxfeval.o\
 	$(OBJDIR)/nsxfname.o\
 	$(OBJDIR)/nsxfobj.o\
+	$(OBJDIR)/osgendbg.o\
 	$(OBJDIR)/osunixxf.o\
 	$(OBJDIR)/psargs.o\
 	$(OBJDIR)/psloop.o\

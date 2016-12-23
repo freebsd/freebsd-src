@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Module Name: ahdecode - Operator/Opcode decoding for acpihelp utility
+ * Module Name: ahdecode - Miscellaneous decoding for acpihelp utility
  *
  *****************************************************************************/
 
@@ -48,19 +48,6 @@
 #include "acpredef.h"
 
 
-#define AH_DISPLAY_EXCEPTION(Status, Name) \
-    printf ("%.4X: %s\n", Status, Name)
-
-#define AH_DISPLAY_EXCEPTION_TEXT(Status, Exception) \
-    printf ("%.4X: %-28s (%s)\n", Status, Exception->Name, Exception->Description)
-
-#define BUFFER_LENGTH           128
-#define LINE_BUFFER_LENGTH      512
-
-static char         Gbl_Buffer[BUFFER_LENGTH];
-static char         Gbl_LineBuffer[LINE_BUFFER_LENGTH];
-
-
 /* Local prototypes */
 
 static BOOLEAN
@@ -76,32 +63,77 @@ static void
 AhDisplayResourceName (
     const ACPI_PREDEFINED_INFO  *ThisName);
 
-static void
-AhDisplayAmlOpcode (
-    const AH_AML_OPCODE     *Op);
 
-static void
-AhDisplayAmlType (
-    const AH_AML_TYPE       *Op);
+/*******************************************************************************
+ *
+ * FUNCTION:    AhPrintOneField
+ *
+ * PARAMETERS:  Indent              - Indent length for new line(s)
+ *              CurrentPosition     - Position on current line
+ *              MaxPosition         - Max allowed line length
+ *              Field               - Data to output
+ *
+ * RETURN:      Line position after field is written
+ *
+ * DESCRIPTION: Split long lines appropriately for ease of reading.
+ *
+ ******************************************************************************/
 
-static void
-AhDisplayAslOperator (
-    const AH_ASL_OPERATOR   *Op);
-
-static void
-AhDisplayOperatorKeywords (
-    const AH_ASL_OPERATOR   *Op);
-
-static void
-AhDisplayAslKeyword (
-    const AH_ASL_KEYWORD    *Op);
-
-static void
+void
 AhPrintOneField (
     UINT32                  Indent,
     UINT32                  CurrentPosition,
     UINT32                  MaxPosition,
-    const char              *Field);
+    const char              *Field)
+{
+    UINT32                  Position;
+    UINT32                  TokenLength;
+    const char              *This;
+    const char              *Next;
+    const char              *Last;
+
+
+    This = Field;
+    Position = CurrentPosition;
+
+    if (Position == 0)
+    {
+        printf ("%*s", (int) Indent, " ");
+        Position = Indent;
+    }
+
+    Last = This + strlen (This);
+    while ((Next = strpbrk (This, " ")))
+    {
+        TokenLength = Next - This;
+        Position += TokenLength;
+
+        /* Split long lines */
+
+        if (Position > MaxPosition)
+        {
+            printf ("\n%*s", (int) Indent, " ");
+            Position = TokenLength;
+        }
+
+        printf ("%.*s ", (int) TokenLength, This);
+        This = Next + 1;
+    }
+
+    /* Handle last token on the input line */
+
+    TokenLength = Last - This;
+    if (TokenLength > 0)
+    {
+        Position += TokenLength;
+        if (Position > MaxPosition)
+        {
+            printf ("\n%*s", (int) Indent, " ");
+        }
+
+        printf ("%s", This);
+    }
+}
 
 
 /*******************************************************************************
@@ -125,7 +157,7 @@ AhDisplayDirectives (
 
     printf ("iASL Preprocessor Directives\n\n");
 
-    for (Info = PreprocessorDirectives; Info->Name; Info++)
+    for (Info = Gbl_PreprocessorDirectives; Info->Name; Info++)
     {
         printf ("  %-36s : %s\n", Info->Name, Info->Description);
     }
@@ -329,632 +361,6 @@ AhDisplayResourceName (
 
 /*******************************************************************************
  *
- * FUNCTION:    AhFindAmlOpcode (entry point for AML opcode name search)
- *
- * PARAMETERS:  Name                - Name or prefix for an AML opcode.
- *                                    NULL means "find all"
- *
- * RETURN:      None
- *
- * DESCRIPTION: Find all AML opcodes that match the input Name or name
- *              prefix.
- *
- ******************************************************************************/
-
-void
-AhFindAmlOpcode (
-    char                    *Name)
-{
-    const AH_AML_OPCODE     *Op;
-    BOOLEAN                 Found = FALSE;
-
-
-    AcpiUtStrupr (Name);
-
-    /* Find/display all opcode names that match the input name prefix */
-
-    for (Op = AmlOpcodeInfo; Op->OpcodeString; Op++)
-    {
-        if (!Op->OpcodeName) /* Unused opcodes */
-        {
-            continue;
-        }
-
-        if (!Name || (Name[0] == '*'))
-        {
-            AhDisplayAmlOpcode (Op);
-            Found = TRUE;
-            continue;
-        }
-
-        /* Upper case the opcode name before substring compare */
-
-        strcpy (Gbl_Buffer, Op->OpcodeName);
-        AcpiUtStrupr (Gbl_Buffer);
-
-        if (strstr (Gbl_Buffer, Name) == Gbl_Buffer)
-        {
-            AhDisplayAmlOpcode (Op);
-            Found = TRUE;
-        }
-    }
-
-    if (!Found)
-    {
-        printf ("%s, no matching AML operators\n", Name);
-    }
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AhDecodeAmlOpcode (entry point for AML opcode search)
- *
- * PARAMETERS:  OpcodeString        - String version of AML opcode
- *
- * RETURN:      None
- *
- * DESCRIPTION: Display information about the input AML opcode
- *
- ******************************************************************************/
-
-void
-AhDecodeAmlOpcode (
-    char                    *OpcodeString)
-{
-    const AH_AML_OPCODE     *Op;
-    UINT32                  Opcode;
-    UINT8                   Prefix;
-
-
-    if (!OpcodeString)
-    {
-        AhFindAmlOpcode (NULL);
-        return;
-    }
-
-    Opcode = strtoul (OpcodeString, NULL, 16);
-    if (Opcode > ACPI_UINT16_MAX)
-    {
-        printf ("Invalid opcode (more than 16 bits)\n");
-        return;
-    }
-
-    /* Only valid opcode extension is 0x5B */
-
-    Prefix = (Opcode & 0x0000FF00) >> 8;
-    if (Prefix && (Prefix != 0x5B))
-    {
-        printf ("Invalid opcode (invalid extension prefix 0x%X)\n",
-            Prefix);
-        return;
-    }
-
-    /* Find/Display the opcode. May fall within an opcode range */
-
-    for (Op = AmlOpcodeInfo; Op->OpcodeString; Op++)
-    {
-        if ((Opcode >= Op->OpcodeRangeStart) &&
-            (Opcode <= Op->OpcodeRangeEnd))
-        {
-            AhDisplayAmlOpcode (Op);
-        }
-    }
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AhDisplayAmlOpcode
- *
- * PARAMETERS:  Op                  - An opcode info struct
- *
- * RETURN:      None
- *
- * DESCRIPTION: Display the contents of an AML opcode information struct
- *
- ******************************************************************************/
-
-static void
-AhDisplayAmlOpcode (
-    const AH_AML_OPCODE     *Op)
-{
-
-    if (!Op->OpcodeName)
-    {
-        printf ("%18s: Opcode=%-9s\n", "Reserved opcode", Op->OpcodeString);
-        return;
-    }
-
-    /* Opcode name and value(s) */
-
-    printf ("%18s: Opcode=%-9s Type (%s)",
-        Op->OpcodeName, Op->OpcodeString, Op->Type);
-
-    /* Optional fixed/static arguments */
-
-    if (Op->FixedArguments)
-    {
-        printf (" FixedArgs (");
-        AhPrintOneField (37, 36 + 7 + strlen (Op->Type) + 12,
-            AH_MAX_AML_LINE_LENGTH, Op->FixedArguments);
-        printf (")");
-    }
-
-    /* Optional variable-length argument list */
-
-    if (Op->VariableArguments)
-    {
-        if (Op->FixedArguments)
-        {
-            printf ("\n%*s", 36, " ");
-        }
-        printf (" VariableArgs (");
-        AhPrintOneField (37, 15, AH_MAX_AML_LINE_LENGTH, Op->VariableArguments);
-        printf (")");
-    }
-    printf ("\n");
-
-    /* Grammar specification */
-
-    if (Op->Grammar)
-    {
-        AhPrintOneField (37, 0, AH_MAX_AML_LINE_LENGTH, Op->Grammar);
-        printf ("\n");
-    }
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AhFindAmlTypes (entry point for AML grammar keyword search)
- *
- * PARAMETERS:  Name                - Name or prefix for an AML grammar element.
- *                                    NULL means "find all"
- *
- * RETURN:      None
- *
- * DESCRIPTION: Find all AML grammar keywords that match the input Name or name
- *              prefix.
- *
- ******************************************************************************/
-
-void
-AhFindAmlTypes (
-    char                    *Name)
-{
-    const AH_AML_TYPE       *Keyword;
-    BOOLEAN                 Found = FALSE;
-
-
-    AcpiUtStrupr (Name);
-
-    for (Keyword = AmlTypesInfo; Keyword->Name; Keyword++)
-    {
-        if (!Name)
-        {
-            printf ("    %s\n", Keyword->Name);
-            Found = TRUE;
-            continue;
-        }
-
-        if (*Name == '*')
-        {
-            AhDisplayAmlType (Keyword);
-            Found = TRUE;
-            continue;
-        }
-
-        /* Upper case the operator name before substring compare */
-
-        strcpy (Gbl_Buffer, Keyword->Name);
-        AcpiUtStrupr (Gbl_Buffer);
-
-        if (strstr (Gbl_Buffer, Name) == Gbl_Buffer)
-        {
-            AhDisplayAmlType (Keyword);
-            Found = TRUE;
-        }
-    }
-
-    if (!Found)
-    {
-        printf ("%s, no matching AML grammar type\n", Name);
-    }
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AhDisplayAmlType
- *
- * PARAMETERS:  Op                  - Pointer to AML grammar info
- *
- * RETURN:      None
- *
- * DESCRIPTION: Format and display info for an AML grammar element.
- *
- ******************************************************************************/
-
-static void
-AhDisplayAmlType (
-    const AH_AML_TYPE       *Op)
-{
-    char                    *Description;
-
-
-    Description = Op->Description;
-    printf ("%4s", " ");    /* Primary indent */
-
-    /* Emit the entire description string */
-
-    while (*Description)
-    {
-        /* Description can be multiple lines, must indent each */
-
-        while (*Description != '\n')
-        {
-            printf ("%c", *Description);
-            Description++;
-        }
-
-        printf ("\n");
-        Description++;
-
-        /* Do indent */
-
-        if (*Description)
-        {
-            printf ("%8s", " ");    /* Secondary indent */
-
-            /* Index extra for a comment */
-
-            if ((Description[0] == '/') &&
-                (Description[1] == '/'))
-            {
-                printf ("%4s", " ");
-            }
-        }
-    }
-
-    printf ("\n");
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AhFindAslKeywords (entry point for ASL keyword search)
- *
- * PARAMETERS:  Name                - Name or prefix for an ASL keyword.
- *                                    NULL means "find all"
- *
- * RETURN:      None
- *
- * DESCRIPTION: Find all ASL keywords that match the input Name or name
- *              prefix.
- *
- ******************************************************************************/
-
-void
-AhFindAslKeywords (
-    char                    *Name)
-{
-    const AH_ASL_KEYWORD    *Keyword;
-    BOOLEAN                 Found = FALSE;
-
-
-    AcpiUtStrupr (Name);
-
-    for (Keyword = AslKeywordInfo; Keyword->Name; Keyword++)
-    {
-        if (!Name || (Name[0] == '*'))
-        {
-            AhDisplayAslKeyword (Keyword);
-            Found = TRUE;
-            continue;
-        }
-
-        /* Upper case the operator name before substring compare */
-
-        strcpy (Gbl_Buffer, Keyword->Name);
-        AcpiUtStrupr (Gbl_Buffer);
-
-        if (strstr (Gbl_Buffer, Name) == Gbl_Buffer)
-        {
-            AhDisplayAslKeyword (Keyword);
-            Found = TRUE;
-        }
-    }
-
-    if (!Found)
-    {
-        printf ("%s, no matching ASL keywords\n", Name);
-    }
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AhDisplayAslKeyword
- *
- * PARAMETERS:  Op                  - Pointer to ASL keyword with syntax info
- *
- * RETURN:      None
- *
- * DESCRIPTION: Format and display syntax info for an ASL keyword. Splits
- *              long lines appropriately for reading.
- *
- ******************************************************************************/
-
-static void
-AhDisplayAslKeyword (
-    const AH_ASL_KEYWORD    *Op)
-{
-
-    /* ASL keyword name and description */
-
-    printf ("%22s: %s\n", Op->Name, Op->Description);
-    if (!Op->KeywordList)
-    {
-        return;
-    }
-
-    /* List of actual keywords */
-
-    AhPrintOneField (24, 0, AH_MAX_ASL_LINE_LENGTH, Op->KeywordList);
-    printf ("\n");
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AhFindAslAndAmlOperators
- *
- * PARAMETERS:  Name                - Name or prefix for an ASL operator.
- *                                    NULL means "find all"
- *
- * RETURN:      None
- *
- * DESCRIPTION: Find all ASL operators that match the input Name or name
- *              prefix. Also displays the AML information if only one entry
- *              matches.
- *
- ******************************************************************************/
-
-void
-AhFindAslAndAmlOperators (
-    char                    *Name)
-{
-    UINT32                  MatchCount;
-
-
-    MatchCount = AhFindAslOperators (Name);
-    if (MatchCount == 1)
-    {
-        AhFindAmlOpcode (Name);
-    }
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AhFindAslOperators (entry point for ASL operator search)
- *
- * PARAMETERS:  Name                - Name or prefix for an ASL operator.
- *                                    NULL means "find all"
- *
- * RETURN:      Number of operators that matched the name prefix.
- *
- * DESCRIPTION: Find all ASL operators that match the input Name or name
- *              prefix.
- *
- ******************************************************************************/
-
-UINT32
-AhFindAslOperators (
-    char                    *Name)
-{
-    const AH_ASL_OPERATOR   *Operator;
-    BOOLEAN                 MatchCount = 0;
-
-
-    AcpiUtStrupr (Name);
-
-    /* Find/display all names that match the input name prefix */
-
-    for (Operator = AslOperatorInfo; Operator->Name; Operator++)
-    {
-        if (!Name || (Name[0] == '*'))
-        {
-            AhDisplayAslOperator (Operator);
-            MatchCount++;
-            continue;
-        }
-
-        /* Upper case the operator name before substring compare */
-
-        strcpy (Gbl_Buffer, Operator->Name);
-        AcpiUtStrupr (Gbl_Buffer);
-
-        if (strstr (Gbl_Buffer, Name) == Gbl_Buffer)
-        {
-            AhDisplayAslOperator (Operator);
-            MatchCount++;
-        }
-    }
-
-    if (!MatchCount)
-    {
-        printf ("%s, no matching ASL operators\n", Name);
-    }
-
-    return (MatchCount);
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AhDisplayAslOperator
- *
- * PARAMETERS:  Op                  - Pointer to ASL operator with syntax info
- *
- * RETURN:      None
- *
- * DESCRIPTION: Format and display syntax info for an ASL operator. Splits
- *              long lines appropriately for reading.
- *
- ******************************************************************************/
-
-static void
-AhDisplayAslOperator (
-    const AH_ASL_OPERATOR   *Op)
-{
-
-    /* ASL operator name and description */
-
-    printf ("%16s: %s\n", Op->Name, Op->Description);
-    if (!Op->Syntax)
-    {
-        return;
-    }
-
-    /* Syntax for the operator */
-
-    AhPrintOneField (18, 0, AH_MAX_ASL_LINE_LENGTH, Op->Syntax);
-    printf ("\n");
-
-    AhDisplayOperatorKeywords (Op);
-    printf ("\n");
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AhDisplayOperatorKeywords
- *
- * PARAMETERS:  Op                  - Pointer to ASL keyword with syntax info
- *
- * RETURN:      None
- *
- * DESCRIPTION: Display any/all keywords that are associated with the ASL
- *              operator.
- *
- ******************************************************************************/
-
-static void
-AhDisplayOperatorKeywords (
-    const AH_ASL_OPERATOR   *Op)
-{
-    char                    *Token;
-    char                    *Separators = "(){}, ";
-    BOOLEAN                 FirstKeyword = TRUE;
-
-
-    if (!Op || !Op->Syntax)
-    {
-        return;
-    }
-
-    /*
-     * Find all parameters that have the word "keyword" within, and then
-     * display the info about that keyword
-     */
-    strcpy (Gbl_LineBuffer, Op->Syntax);
-    Token = strtok (Gbl_LineBuffer, Separators);
-    while (Token)
-    {
-        if (strstr (Token, "Keyword"))
-        {
-            if (FirstKeyword)
-            {
-                printf ("\n");
-                FirstKeyword = FALSE;
-            }
-
-            /* Found a keyword, display keyword information */
-
-            AhFindAslKeywords (Token);
-        }
-
-        Token = strtok (NULL, Separators);
-    }
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AhPrintOneField
- *
- * PARAMETERS:  Indent              - Indent length for new line(s)
- *              CurrentPosition     - Position on current line
- *              MaxPosition         - Max allowed line length
- *              Field               - Data to output
- *
- * RETURN:      Line position after field is written
- *
- * DESCRIPTION: Split long lines appropriately for ease of reading.
- *
- ******************************************************************************/
-
-static void
-AhPrintOneField (
-    UINT32                  Indent,
-    UINT32                  CurrentPosition,
-    UINT32                  MaxPosition,
-    const char              *Field)
-{
-    UINT32                  Position;
-    UINT32                  TokenLength;
-    const char              *This;
-    const char              *Next;
-    const char              *Last;
-
-
-    This = Field;
-    Position = CurrentPosition;
-
-    if (Position == 0)
-    {
-        printf ("%*s", (int) Indent, " ");
-        Position = Indent;
-    }
-
-    Last = This + strlen (This);
-    while ((Next = strpbrk (This, " ")))
-    {
-        TokenLength = Next - This;
-        Position += TokenLength;
-
-        /* Split long lines */
-
-        if (Position > MaxPosition)
-        {
-            printf ("\n%*s", (int) Indent, " ");
-            Position = TokenLength;
-        }
-
-        printf ("%.*s ", (int) TokenLength, This);
-        This = Next + 1;
-    }
-
-    /* Handle last token on the input line */
-
-    TokenLength = Last - This;
-    if (TokenLength > 0)
-    {
-        Position += TokenLength;
-        if (Position > MaxPosition)
-        {
-            printf ("\n%*s", (int) Indent, " ");
-        }
-
-        printf ("%s", This);
-    }
-}
-
-
-/*******************************************************************************
- *
  * FUNCTION:    AhDisplayDeviceIds
  *
  * PARAMETERS:  Name                - Device Hardware ID string.
@@ -1049,7 +455,7 @@ AhDisplayUuids (
 
     /* Display entire table of known ACPI-related UUIDs/GUIDs */
 
-    for (Info = AcpiUuids; Info->Description; Info++)
+    for (Info = Gbl_AcpiUuids; Info->Description; Info++)
     {
         if (!Info->String) /* Null UUID string means group description */
         {
@@ -1096,7 +502,7 @@ AhDisplayTables (
 
     printf ("Known ACPI tables:\n");
 
-    for (Info = AcpiSupportedTables; Info->Signature; Info++)
+    for (Info = Gbl_AcpiSupportedTables; Info->Signature; Info++)
     {
         printf ("%8s : %s\n", Info->Signature, Info->Description);
         i++;
