@@ -63,10 +63,8 @@ ipsec_init_pcbpolicy(struct inpcb *inp)
 
 	inp->inp_sp = malloc(sizeof(struct inpcbpolicy), M_IPSEC_INPCB,
 	    M_NOWAIT | M_ZERO);
-	if (inp->inp_sp == NULL) {
-		ipseclog((LOG_DEBUG, "%s: No more memory.\n", __func__));
+	if (inp->inp_sp == NULL)
 		return (ENOBUFS);
-	}
 	return (0);
 }
 
