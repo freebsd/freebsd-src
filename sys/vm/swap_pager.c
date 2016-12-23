@@ -1997,30 +1997,30 @@ swp_pager_meta_free(vm_object_t object, vm_pindex_t index, daddr_t count)
 static void
 swp_pager_meta_free_all(vm_object_t object)
 {
-	daddr_t index = 0;
+	struct swblock **pswap, *swap;
+	vm_pindex_t index;
+	daddr_t v;
+	int i;
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
 	if (object->type != OBJT_SWAP)
 		return;
 
-	while (object->un_pager.swp.swp_bcount) {
-		struct swblock **pswap;
-		struct swblock *swap;
-
+	index = 0;
+	while (object->un_pager.swp.swp_bcount != 0) {
 		mtx_lock(&swhash_mtx);
 		pswap = swp_pager_hash(object, index);
 		if ((swap = *pswap) != NULL) {
-			int i;
-
 			for (i = 0; i < SWAP_META_PAGES; ++i) {
-				daddr_t v = swap->swb_pages[i];
+				v = swap->swb_pages[i];
 				if (v != SWAPBLK_NONE) {
 					--swap->swb_count;
 					swp_pager_freeswapspace(v, 1);
 				}
 			}
 			if (swap->swb_count != 0)
-				panic("swap_pager_meta_free_all: swb_count != 0");
+				panic(
+				    "swap_pager_meta_free_all: swb_count != 0");
 			*pswap = swap->swb_hnext;
 			uma_zfree(swap_zone, swap);
 			--object->un_pager.swp.swp_bcount;
