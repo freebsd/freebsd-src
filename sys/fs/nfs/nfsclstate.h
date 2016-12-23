@@ -65,6 +65,7 @@ struct nfsclsession {
 	uint16_t	nfsess_foreslots;
 	uint16_t	nfsess_backslots;
 	uint8_t		nfsess_sessionid[NFSX_V4SESSIONID];
+	uint8_t		nfsess_defunct;		/* Non-zero for old sessions */
 };
 
 /*
