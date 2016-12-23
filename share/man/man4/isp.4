@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 9, 2015
+.Dd December 20, 2016
 .Dt ISP 4
 .Os
 .Sh NAME
@@ -39,13 +39,15 @@ kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "device scbus"
 .Cd "device isp"
+.Cd "device ispfw"
 .Ed
 .Pp
 Alternatively, to load the driver as a
-module at boot time, place the following line in
+module at boot time, place the following lines in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
 isp_load="YES"
+ispfw_load="YES"
 .Ed
 .Sh DESCRIPTION
 This driver provides access to
@@ -62,6 +64,30 @@ Fibre Channel supports initiator and target modes of FCP SCSI profile,
 utilizing Class 3 and Class 2 (2200 and later) connections.
 Support is available for Public and Private loops, Point-to-Point
 and Fabric connections.
+.Pp
+FC-Tape is supported on 4Gb (2400) and newer controllers.
+FC-Tape is highly recommended for connections to tape drives that support
+it.
+It encompasses four elements from the the T-10 FCP-4 specification:
+.Bl -bullet -offset indent
+.It
+Precise Delivery of Commands
+.It
+Confirmed Completion of FCP I/O Operations
+.It
+Retransmission of Unsuccessfully Transmitted IUs
+.It
+Task Retry Identification
+.El
+.Pp
+Together these features allow for link level error recovery with tape
+devices.
+Without it, an initiator cannot, for instance, tell whether a tape write
+command that has timed out resulted in all, part or none of the data going to
+the tape drive.
+FC-Tape is automatically enabled when connecting controller that supports
+it to a target that supports it.
+It may be disabled using configuration and hint options described below.
 .Sh FIRMWARE
 Firmware loading is supported if the
 .Xr ispfw 4
@@ -120,6 +146,13 @@ Target mode support for Fibre Channel adapters may be enabled with the
 .Cd options ISP_TARGET_MODE
 .Pp
 option.
+.Pp
+To disable FC-Tape, use the following configuration option:
+.Pp
+.Cd options ISP_FCTAPE_OFF
+.Pp
+Note that even if the ISP_FCTAPE_OFF option is used, it may be overridden
+by the fctape hint described below.
 .Sh BOOT OPTIONS
 The following options are switchable by setting values in
 .Pa /boot/device.hints .
@@ -169,6 +202,11 @@ A hint value for a driver debug level (see the file
 for the values.
 .It Va hint.isp.0.vports
 A hint to create specified number of additional virtual ports.
+.It Va hint.isp.0.nofctape
+Set this to 1 to disable FC-Tape operation on the given isp instance.
+.It Va hint.isp.0.fctape
+Set this to 1 to enable FC-Tape operation on the given isp instance for
+targets that support it.
 .El
 .Sh SYSCTL OPTIONS
 .Bl -tag -width indent
