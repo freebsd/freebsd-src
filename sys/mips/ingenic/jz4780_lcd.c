@@ -306,7 +306,10 @@ jzlcd_configure(struct jzlcd_softc *sc, const struct videomode *mode)
 	sc->info.fb_stride = mode->hdisplay * (FB_BPP / NBBY);
 	sc->info.fb_width = mode->hdisplay;
 	sc->info.fb_height = mode->vdisplay;
-
+#ifdef VM_MEMATTR_WRITE_COMBINING
+	sc->info.fb_flags = FB_FLAG_MEMATTR;
+	sc->info.fb_memattr = VM_MEMATTR_WRITE_COMBINING;
+#endif
 	sc->fbdev = device_add_child(sc->dev, "fbd", device_get_unit(sc->dev));
 	if (sc->fbdev == NULL) {
 		device_printf(sc->dev, "failed to add fbd child\n");
