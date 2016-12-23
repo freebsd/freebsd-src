@@ -36,6 +36,9 @@
 #include <machine/segments.h>
 #include <machine/tss.h>
 
+#include <sys/_lock.h>
+#include <sys/_mutex.h>
+
 /*
  * The SMP parts are setup in pmap.c and locore.s for the BSP, and
  * mp_machdep.c sets up the data for the AP's to "see" when they awake.
@@ -58,9 +61,14 @@
 	int	pc_private_tss;		/* Flag indicating private tss*/\
 	u_int	pc_cmci_mask;		/* MCx banks for CMCI */	\
 	u_int	pc_vcpu_id;		/* Xen vCPU ID */		\
+	struct	mtx pc_cmap_lock;					\
+	void	*pc_cmap_pte1;						\
+	void	*pc_cmap_pte2;						\
+	caddr_t	pc_cmap_addr1;						\
+	caddr_t	pc_cmap_addr2;						\
 	vm_offset_t pc_qmap_addr;	/* KVA for temporary mappings */\
 	uint32_t pc_smp_tlb_done;	/* TLB op acknowledgement */	\
-	char	__pad[225]
+	char	__pad[189]
 
 #ifdef _KERNEL
 

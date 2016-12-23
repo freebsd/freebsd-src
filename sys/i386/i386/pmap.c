@@ -257,14 +257,6 @@ vm_offset_t pv_vafree;			/* freelist stored in the PTE */
 /*
  * All those kernel PT submaps that BSD is so fond of
  */
-struct sysmaps {
-	struct	mtx lock;
-	pt_entry_t *CMAP1;
-	pt_entry_t *CMAP2;
-	caddr_t	CADDR1;
-	caddr_t	CADDR2;
-};
-static struct sysmaps sysmaps_pcpu[MAXCPU];
 pt_entry_t *CMAP3;
 static pd_entry_t *KPTD;
 caddr_t ptvmmap = 0;
@@ -379,7 +371,7 @@ pmap_bootstrap(vm_paddr_t firstaddr)
 {
 	vm_offset_t va;
 	pt_entry_t *pte, *unused;
-	struct sysmaps *sysmaps;
+	struct pcpu *pc;
 	int i;
 
 	/*
@@ -441,16 +433,19 @@ pmap_bootstrap(vm_paddr_t firstaddr)
 	va = virtual_avail;
 	pte = vtopte(va);
 
+
 	/*
+	 * Initialize temporary map objects on the current CPU for use
+	 * during early boot.
 	 * CMAP1/CMAP2 are used for zeroing and copying pages.
 	 * CMAP3 is used for the boot-time memory test.
 	 */
-	for (i = 0; i < MAXCPU; i++) {
-		sysmaps = &sysmaps_pcpu[i];
-		mtx_init(&sysmaps->lock, "SYSMAPS", NULL, MTX_DEF);
-		SYSMAP(caddr_t, sysmaps->CMAP1, sysmaps->CADDR1, 1)
-		SYSMAP(caddr_t, sysmaps->CMAP2, sysmaps->CADDR2, 1)
-	}
+	pc = pcpu_find(curcpu);
+	mtx_init(&pc->pc_cmap_lock, "SYSMAPS", NULL, MTX_DEF);
+	SYSMAP(caddr_t, pc->pc_cmap_pte1, pc->pc_cmap_addr1, 1)
+	SYSMAP(caddr_t, pc->pc_cmap_pte2, pc->pc_cmap_addr2, 1)
+	SYSMAP(vm_offset_t, pte, pc->pc_qmap_addr, 1)
+
 	SYSMAP(caddr_t, CMAP3, CADDR3, 1);
 
 	/*
@@ -520,20 +515,33 @@ pmap_bootstrap(vm_paddr_t firstaddr)
 }
 
 static void
-pmap_init_qpages(void)
+pmap_init_reserved_pages(void)
 {
 	struct pcpu *pc;
+	vm_offset_t pages;
 	int i;
 
 	CPU_FOREACH(i) {
 		pc = pcpu_find(i);
-		pc->pc_qmap_addr = kva_alloc(PAGE_SIZE);
-		if (pc->pc_qmap_addr == 0)
-			panic("pmap_init_qpages: unable to allocate KVA");
+		/*
+		 * Skip if the mapping has already been initialized,
+		 * i.e. this is the BSP.
+		 */
+		if (pc->pc_cmap_addr1 != 0)
+			continue;
+		mtx_init(&pc->pc_cmap_lock, "SYSMAPS", NULL, MTX_DEF);
+		pages = kva_alloc(PAGE_SIZE * 3);
+		if (pages == 0)
+			panic("%s: unable to allocate KVA", __func__);
+		pc->pc_cmap_pte1 = vtopte(pages);
+		pc->pc_cmap_pte2 = vtopte(pages + PAGE_SIZE);
+		pc->pc_cmap_addr1 = (caddr_t)pages;
+		pc->pc_cmap_addr2 = (caddr_t)(pages + PAGE_SIZE);
+		pc->pc_qmap_addr = pages + (PAGE_SIZE * 2);
 	}
 }
-
-SYSINIT(qpages_init, SI_SUB_CPU, SI_ORDER_ANY, pmap_init_qpages, NULL);
+ 
+SYSINIT(rpages_init, SI_SUB_CPU, SI_ORDER_ANY, pmap_init_reserved_pages, NULL);
 
 /*
  * Setup the PAT MSR.
@@ -4194,20 +4202,22 @@ pagezero(void *page)
 void
 pmap_zero_page(vm_page_t m)
 {
-	struct sysmaps *sysmaps;
+	pt_entry_t *cmap_pte2;
+	struct pcpu *pc;
 
-	sysmaps = &sysmaps_pcpu[PCPU_GET(cpuid)];
-	mtx_lock(&sysmaps->lock);
-	if (*sysmaps->CMAP2)
-		panic("pmap_zero_page: CMAP2 busy");
 	sched_pin();
-	*sysmaps->CMAP2 = PG_V | PG_RW | VM_PAGE_TO_PHYS(m) | PG_A | PG_M |
+	pc = pcpu_find(curcpu);
+	cmap_pte2 = pc->pc_cmap_pte2;
+	mtx_lock(&pc->pc_cmap_lock);
+	if (*cmap_pte2)
+		panic("pmap_zero_page: CMAP2 busy");
+	*cmap_pte2 = PG_V | PG_RW | VM_PAGE_TO_PHYS(m) | PG_A | PG_M |
 	    pmap_cache_bits(m->md.pat_mode, 0);
-	invlcaddr(sysmaps->CADDR2);
-	pagezero(sysmaps->CADDR2);
-	*sysmaps->CMAP2 = 0;
+	invlcaddr(pc->pc_cmap_addr2);
+	pagezero(pc->pc_cmap_addr2);
+	*cmap_pte2 = 0;
+	mtx_unlock(&pc->pc_cmap_lock);
 	sched_unpin();
-	mtx_unlock(&sysmaps->lock);
 }
 
 /*
@@ -4217,23 +4227,25 @@ pmap_zero_page(vm_page_t m)
 void
 pmap_zero_page_area(vm_page_t m, int off, int size)
 {
-	struct sysmaps *sysmaps;
+	pt_entry_t *cmap_pte2;
+	struct pcpu *pc;
 
-	sysmaps = &sysmaps_pcpu[PCPU_GET(cpuid)];
-	mtx_lock(&sysmaps->lock);
-	if (*sysmaps->CMAP2)
-		panic("pmap_zero_page_area: CMAP2 busy");
 	sched_pin();
-	*sysmaps->CMAP2 = PG_V | PG_RW | VM_PAGE_TO_PHYS(m) | PG_A | PG_M |
+	pc = pcpu_find(curcpu);
+	cmap_pte2 = pc->pc_cmap_pte2;
+	mtx_lock(&pc->pc_cmap_lock);
+	if (*cmap_pte2)
+		panic("pmap_zero_page_area: CMAP2 busy");
+	*cmap_pte2 = PG_V | PG_RW | VM_PAGE_TO_PHYS(m) | PG_A | PG_M |
 	    pmap_cache_bits(m->md.pat_mode, 0);
-	invlcaddr(sysmaps->CADDR2);
+	invlcaddr(pc->pc_cmap_addr2);
 	if (off == 0 && size == PAGE_SIZE) 
-		pagezero(sysmaps->CADDR2);
+		pagezero(pc->pc_cmap_addr2);
 	else
-		bzero((char *)sysmaps->CADDR2 + off, size);
-	*sysmaps->CMAP2 = 0;
+		bzero(pc->pc_cmap_addr2 + off, size);
+	*cmap_pte2 = 0;
+	mtx_unlock(&pc->pc_cmap_lock);
 	sched_unpin();
-	mtx_unlock(&sysmaps->lock);
 }
 
 /*
@@ -4242,26 +4254,29 @@ pmap_zero_page_area(vm_page_t m, int off, int size)
 void
 pmap_copy_page(vm_page_t src, vm_page_t dst)
 {
-	struct sysmaps *sysmaps;
+	pt_entry_t *cmap_pte1, *cmap_pte2;
+	struct pcpu *pc;
 
-	sysmaps = &sysmaps_pcpu[PCPU_GET(cpuid)];
-	mtx_lock(&sysmaps->lock);
-	if (*sysmaps->CMAP1)
-		panic("pmap_copy_page: CMAP1 busy");
-	if (*sysmaps->CMAP2)
-		panic("pmap_copy_page: CMAP2 busy");
 	sched_pin();
-	*sysmaps->CMAP1 = PG_V | VM_PAGE_TO_PHYS(src) | PG_A |
+	pc = pcpu_find(curcpu);
+	cmap_pte1 = pc->pc_cmap_pte1; 
+	cmap_pte2 = pc->pc_cmap_pte2;
+	mtx_lock(&pc->pc_cmap_lock);
+	if (*cmap_pte1)
+		panic("pmap_copy_page: CMAP1 busy");
+	if (*cmap_pte2)
+		panic("pmap_copy_page: CMAP2 busy");
+	*cmap_pte1 = PG_V | VM_PAGE_TO_PHYS(src) | PG_A |
 	    pmap_cache_bits(src->md.pat_mode, 0);
-	invlcaddr(sysmaps->CADDR1);
-	*sysmaps->CMAP2 = PG_V | PG_RW | VM_PAGE_TO_PHYS(dst) | PG_A | PG_M |
+	invlcaddr(pc->pc_cmap_addr1);
+	*cmap_pte2 = PG_V | PG_RW | VM_PAGE_TO_PHYS(dst) | PG_A | PG_M |
 	    pmap_cache_bits(dst->md.pat_mode, 0);
-	invlcaddr(sysmaps->CADDR2);
-	bcopy(sysmaps->CADDR1, sysmaps->CADDR2, PAGE_SIZE);
-	*sysmaps->CMAP1 = 0;
-	*sysmaps->CMAP2 = 0;
+	invlcaddr(pc->pc_cmap_addr2);
+	bcopy(pc->pc_cmap_addr1, pc->pc_cmap_addr2, PAGE_SIZE);
+	*cmap_pte1 = 0;
+	*cmap_pte2 = 0;
+	mtx_unlock(&pc->pc_cmap_lock);
 	sched_unpin();
-	mtx_unlock(&sysmaps->lock);
 }
 
 int unmapped_buf_allowed = 1;
@@ -4270,19 +4285,22 @@ void
 pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
     vm_offset_t b_offset, int xfersize)
 {
-	struct sysmaps *sysmaps;
 	vm_page_t a_pg, b_pg;
 	char *a_cp, *b_cp;
 	vm_offset_t a_pg_offset, b_pg_offset;
+	pt_entry_t *cmap_pte1, *cmap_pte2;
+	struct pcpu *pc;
 	int cnt;
 
-	sysmaps = &sysmaps_pcpu[PCPU_GET(cpuid)];
-	mtx_lock(&sysmaps->lock);
-	if (*sysmaps->CMAP1 != 0)
-		panic("pmap_copy_pages: CMAP1 busy");
-	if (*sysmaps->CMAP2 != 0)
-		panic("pmap_copy_pages: CMAP2 busy");
 	sched_pin();
+	pc = pcpu_find(curcpu);
+	cmap_pte1 = pc->pc_cmap_pte1; 
+	cmap_pte2 = pc->pc_cmap_pte2;
+	mtx_lock(&pc->pc_cmap_lock);
+	if (*cmap_pte1 != 0)
+		panic("pmap_copy_pages: CMAP1 busy");
+	if (*cmap_pte2 != 0)
+		panic("pmap_copy_pages: CMAP2 busy");
 	while (xfersize > 0) {
 		a_pg = ma[a_offset >> PAGE_SHIFT];
 		a_pg_offset = a_offset & PAGE_MASK;
@@ -4290,23 +4308,23 @@ pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
 		b_pg = mb[b_offset >> PAGE_SHIFT];
 		b_pg_offset = b_offset & PAGE_MASK;
 		cnt = min(cnt, PAGE_SIZE - b_pg_offset);
-		*sysmaps->CMAP1 = PG_V | VM_PAGE_TO_PHYS(a_pg) | PG_A |
+		*cmap_pte1 = PG_V | VM_PAGE_TO_PHYS(a_pg) | PG_A |
 		    pmap_cache_bits(a_pg->md.pat_mode, 0);
-		invlcaddr(sysmaps->CADDR1);
-		*sysmaps->CMAP2 = PG_V | PG_RW | VM_PAGE_TO_PHYS(b_pg) | PG_A |
+		invlcaddr(pc->pc_cmap_addr1);
+		*cmap_pte2 = PG_V | PG_RW | VM_PAGE_TO_PHYS(b_pg) | PG_A |
 		    PG_M | pmap_cache_bits(b_pg->md.pat_mode, 0);
-		invlcaddr(sysmaps->CADDR2);
-		a_cp = sysmaps->CADDR1 + a_pg_offset;
-		b_cp = sysmaps->CADDR2 + b_pg_offset;
+		invlcaddr(pc->pc_cmap_addr2);
+		a_cp = pc->pc_cmap_addr1 + a_pg_offset;
+		b_cp = pc->pc_cmap_addr2 + b_pg_offset;
 		bcopy(a_cp, b_cp, cnt);
 		a_offset += cnt;
 		b_offset += cnt;
 		xfersize -= cnt;
 	}
-	*sysmaps->CMAP1 = 0;
-	*sysmaps->CMAP2 = 0;
+	*cmap_pte1 = 0;
+	*cmap_pte2 = 0;
+	mtx_unlock(&pc->pc_cmap_lock);
 	sched_unpin();
-	mtx_unlock(&sysmaps->lock);
 }
 
 /*
@@ -5247,21 +5265,23 @@ pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma)
 static void
 pmap_flush_page(vm_page_t m)
 {
-	struct sysmaps *sysmaps;
+	pt_entry_t *cmap_pte2;
+	struct pcpu *pc;
 	vm_offset_t sva, eva;
 	bool useclflushopt;
 
 	useclflushopt = (cpu_stdext_feature & CPUID_STDEXT_CLFLUSHOPT) != 0;
 	if (useclflushopt || (cpu_feature & CPUID_CLFSH) != 0) {
-		sysmaps = &sysmaps_pcpu[PCPU_GET(cpuid)];
-		mtx_lock(&sysmaps->lock);
-		if (*sysmaps->CMAP2)
-			panic("pmap_flush_page: CMAP2 busy");
 		sched_pin();
-		*sysmaps->CMAP2 = PG_V | PG_RW | VM_PAGE_TO_PHYS(m) |
+		pc = pcpu_find(curcpu);
+		cmap_pte2 = pc->pc_cmap_pte2; 
+		mtx_lock(&pc->pc_cmap_lock);
+		if (*cmap_pte2)
+			panic("pmap_flush_page: CMAP2 busy");
+		*cmap_pte2 = PG_V | PG_RW | VM_PAGE_TO_PHYS(m) |
 		    PG_A | PG_M | pmap_cache_bits(m->md.pat_mode, 0);
-		invlcaddr(sysmaps->CADDR2);
-		sva = (vm_offset_t)sysmaps->CADDR2;
+		invlcaddr(pc->pc_cmap_addr2);
+		sva = (vm_offset_t)pc->pc_cmap_addr2;
 		eva = sva + PAGE_SIZE;
 
 		/*
@@ -5280,9 +5300,9 @@ pmap_flush_page(vm_page_t m)
 		}
 		if (useclflushopt || cpu_vendor_id != CPU_VENDOR_INTEL)
 			mfence();
-		*sysmaps->CMAP2 = 0;
+		*cmap_pte2 = 0;
+		mtx_unlock(&pc->pc_cmap_lock);
 		sched_unpin();
-		mtx_unlock(&sysmaps->lock);
 	} else
 		pmap_invalidate_cache();
 }
