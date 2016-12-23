@@ -135,6 +135,7 @@ struct tsec_softc {
 	int		phyaddr;
 	bus_space_tag_t phy_bst;
 	bus_space_handle_t phy_bsh;
+	int		phy_regoff;
 };
 
 /* interface to get/put generic objects */
@@ -258,9 +259,11 @@ extern struct mtx tsec_phy_mtx;
 #define TSEC_PHY_LOCK(sc)	mtx_lock(&tsec_phy_mtx)
 #define TSEC_PHY_UNLOCK(sc)	mtx_unlock(&tsec_phy_mtx)
 #define TSEC_PHY_READ(sc, reg)		\
-		bus_space_read_4((sc)->phy_bst, (sc)->phy_bsh, (reg))
+		bus_space_read_4((sc)->phy_bst, (sc)->phy_bsh, \
+			(reg) + (sc)->phy_regoff)
 #define TSEC_PHY_WRITE(sc, reg, val)	\
-		bus_space_write_4((sc)->phy_bst, (sc)->phy_bsh, (reg), (val))
+		bus_space_write_4((sc)->phy_bst, (sc)->phy_bsh, \
+			(reg) + (sc)->phy_regoff, (val))
 
 /* Lock for transmitter */
 #define TSEC_TRANSMIT_LOCK(sc) do {					\
