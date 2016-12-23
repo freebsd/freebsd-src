@@ -89,6 +89,7 @@ uint32_t	nfscl_nfs4_done_probes[NFSV41_NPROCS + 1];
 NFSSTATESPINLOCK;
 NFSREQSPINLOCK;
 NFSDLOCKMUTEX;
+NFSCLSTATEMUTEX;
 extern struct nfsstatsv1 nfsstatsv1;
 extern struct nfsreqhead nfsd_reqq;
 extern int nfscl_ticks;
@@ -473,13 +474,13 @@ int
 newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
     struct nfsclient *clp, struct nfssockreq *nrp, vnode_t vp,
     struct thread *td, struct ucred *cred, u_int32_t prog, u_int32_t vers,
-    u_char *retsum, int toplevel, u_int64_t *xidp, struct nfsclsession *sep)
+    u_char *retsum, int toplevel, u_int64_t *xidp, struct nfsclsession *dssep)
 {
-	u_int32_t retseq, retval, *tl;
+	uint32_t retseq, retval, slotseq, *tl;
 	time_t waituntil;
 	int i = 0, j = 0, opcnt, set_sigset = 0, slot;
 	int trycnt, error = 0, usegssname = 0, secflavour = AUTH_SYS;
-	int freeslot, timeo;
+	int freeslot, maxslot, reterr, slotpos, timeo;
 	u_int16_t procnum;
 	u_int trylater_delay = 1;
 	struct nfs_feedback_arg nf;
@@ -491,7 +492,10 @@ newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
 	char *srv_principal = NULL, *clnt_principal = NULL;
 	sigset_t oldset;
 	struct ucred *authcred;
+	struct nfsclsession *sep;
+	uint8_t sessionid[NFSX_V4SESSIONID];
 
+	sep = dssep;
 	if (xidp != NULL)
 		*xidp = 0;
 	/* Reject requests while attempting a forced unmount. */
@@ -803,7 +807,7 @@ tryagain:
 	    nd->nd_procnum != NFSV4PROC_CBNULL) {
 		/* If sep == NULL, set it to the default in nmp. */
 		if (sep == NULL && nmp != NULL)
-			sep = NFSMNT_MDSSESSION(nmp);
+			sep = nfsmnt_mdssession(nmp);
 		/*
 		 * and now the actual NFS xdr.
 		 */
@@ -847,18 +851,25 @@ tryagain:
 					    NFSX_V4SESSIONID +
 					    4 * NFSX_UNSIGNED);
 				mtx_lock(&sep->nfsess_mtx);
-				tl += NFSX_V4SESSIONID / NFSX_UNSIGNED;
-				retseq = fxdr_unsigned(uint32_t, *tl++);
-				slot = fxdr_unsigned(int, *tl++);
-				freeslot = slot;
-				if (retseq != sep->nfsess_slotseq[slot])
-					printf("retseq diff 0x%x\n", retseq);
-				retval = fxdr_unsigned(uint32_t, *++tl);
-				if ((retval + 1) < sep->nfsess_foreslots)
-					sep->nfsess_foreslots = (retval + 1);
-				else if ((retval + 1) > sep->nfsess_foreslots)
-					sep->nfsess_foreslots = (retval < 64) ?
-					    (retval + 1) : 64;
+				if (bcmp(tl, sep->nfsess_sessionid,
+				    NFSX_V4SESSIONID) == 0) {
+					tl += NFSX_V4SESSIONID / NFSX_UNSIGNED;
+					retseq = fxdr_unsigned(uint32_t, *tl++);
+					slot = fxdr_unsigned(int, *tl++);
+					freeslot = slot;
+					if (retseq != sep->nfsess_slotseq[slot])
+						printf("retseq diff 0x%x\n",
+						    retseq);
+					retval = fxdr_unsigned(uint32_t, *++tl);
+					if ((retval + 1) < sep->nfsess_foreslots
+					    )
+						sep->nfsess_foreslots = (retval
+						    + 1);
+					else if ((retval + 1) >
+					    sep->nfsess_foreslots)
+						sep->nfsess_foreslots = (retval
+						    < 64) ? (retval + 1) : 64;
+				}
 				mtx_unlock(&sep->nfsess_mtx);
 
 				/* Grab the op and status for the next one. */
@@ -871,6 +882,76 @@ tryagain:
 			}
 		}
 		if (nd->nd_repstat != 0) {
+			if (nd->nd_repstat == NFSERR_BADSESSION &&
+			    nmp != NULL && dssep == NULL) {
+				/*
+				 * If this is a client side MDS RPC, mark
+				 * the MDS session defunct and initiate
+				 * recovery, as required.
+				 * The nfsess_defunct field is protected by
+				 * the NFSLOCKMNT()/nm_mtx lock and not the
+				 * nfsess_mtx lock to simplify its handling,
+				 * for the MDS session. This lock is also
+				 * sufficient for nfsess_sessionid, since it
+				 * never changes in the structure.
+				 */
+				NFSCL_DEBUG(1, "Got badsession\n");
+				NFSLOCKCLSTATE();
+				NFSLOCKMNT(nmp);
+				sep = NFSMNT_MDSSESSION(nmp);
+				if (bcmp(sep->nfsess_sessionid, nd->nd_sequence,
+				    NFSX_V4SESSIONID) == 0) {
+					/* Initiate recovery. */
+					sep->nfsess_defunct = 1;
+					NFSCL_DEBUG(1, "Marked defunct\n");
+					if (nmp->nm_clp != NULL) {
+						nmp->nm_clp->nfsc_flags |=
+						    NFSCLFLAGS_RECOVER;
+						wakeup(nmp->nm_clp);
+					}
+				}
+				NFSUNLOCKCLSTATE();
+				/*
+				 * Sleep for up to 1sec waiting for a new
+				 * session.
+				 */
+				mtx_sleep(&nmp->nm_sess, &nmp->nm_mtx, PZERO,
+				    "nfsbadsess", hz);
+				/*
+				 * Get the session again, in case a new one
+				 * has been created during the sleep.
+				 */
+				sep = NFSMNT_MDSSESSION(nmp);
+				NFSUNLOCKMNT(nmp);
+				if ((nd->nd_flag & ND_LOOPBADSESS) != 0) {
+					reterr = nfsv4_sequencelookup(nmp, sep,
+					    &slotpos, &maxslot, &slotseq,
+					    sessionid);
+					if (reterr == 0) {
+						/* Fill in new session info. */
+						NFSCL_DEBUG(1,
+						  "Filling in new sequence\n");
+						tl = nd->nd_sequence;
+						bcopy(sessionid, tl,
+						    NFSX_V4SESSIONID);
+						tl += NFSX_V4SESSIONID /
+						    NFSX_UNSIGNED;
+						*tl++ = txdr_unsigned(slotseq);
+						*tl++ = txdr_unsigned(slotpos);
+						*tl = txdr_unsigned(maxslot);
+					}
+					if (reterr == NFSERR_BADSESSION ||
+					    reterr == 0) {
+						NFSCL_DEBUG(1,
+						    "Badsession looping\n");
+						m_freem(nd->nd_mrep);
+						nd->nd_mrep = NULL;
+						goto tryagain;
+					}
+					nd->nd_repstat = reterr;
+					NFSCL_DEBUG(1, "Got err=%d\n", reterr);
+				}
+			}
 			if (((nd->nd_repstat == NFSERR_DELAY ||
 			      nd->nd_repstat == NFSERR_GRACE) &&
 			     (nd->nd_flag & ND_NFSV4) &&
