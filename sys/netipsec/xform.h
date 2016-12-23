@@ -105,7 +105,7 @@ void xform_detach(void *);
 
 struct cryptoini;
 /* XF_AH */
-extern int xform_ah_authsize(struct auth_hash *esph);
+int xform_ah_authsize(const struct auth_hash *);
 extern int ah_init0(struct secasvar *, struct xformsw *, struct cryptoini *);
 extern int ah_zeroize(struct secasvar *sav);
 extern size_t ah_hdrsiz(struct secasvar *);

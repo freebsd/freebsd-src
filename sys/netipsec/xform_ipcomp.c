@@ -64,6 +64,7 @@
 #include <netipsec/ipcomp_var.h>
 
 #include <netipsec/key.h>
+#include <netipsec/key_debug.h>
 
 #include <opencrypto/cryptodev.h>
 #include <opencrypto/deflate.h>
@@ -383,7 +384,7 @@ ipcomp_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
     u_int idx, int skip, int protoff)
 {
 	char buf[IPSEC_ADDRSTRLEN];
-	struct comp_algo *ipcompx;
+	const struct comp_algo *ipcompx;
 	struct cryptodesc *crdc;
 	struct cryptop *crp;
 	struct xform_data *xd;

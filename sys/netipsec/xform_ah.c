@@ -113,7 +113,7 @@ static int ah_input_cb(struct cryptop*);
 static int ah_output_cb(struct cryptop*);
 
 int
-xform_ah_authsize(struct auth_hash *esph)
+xform_ah_authsize(const struct auth_hash *esph)
 {
 	int alen;
 
@@ -545,9 +545,9 @@ static int
 ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 {
 	char buf[128];
+	const struct auth_hash *ahx;
 	struct cryptodesc *crda;
 	struct cryptop *crp;
-	struct auth_hash *ahx;
 	struct xform_data *xd;
 	struct newah *ah;
 	uint64_t cryptoid;
@@ -678,9 +678,9 @@ ah_input_cb(struct cryptop *crp)
 {
 	char buf[IPSEC_ADDRSTRLEN];
 	unsigned char calc[AH_ALEN_MAX];
+	const struct auth_hash *ahx;
 	struct mbuf *m;
 	struct cryptodesc *crd;
-	struct auth_hash *ahx;
 	struct xform_data *xd;
 	struct secasvar *sav;
 	struct secasindex *saidx;
@@ -702,7 +702,7 @@ ah_input_cb(struct cryptop *crp)
 		saidx->dst.sa.sa_family == AF_INET6,
 		("unexpected protocol family %u", saidx->dst.sa.sa_family));
 
-	ahx = (struct auth_hash *) sav->tdb_authalgxform;
+	ahx = sav->tdb_authalgxform;
 
 	/* Check for crypto errors. */
 	if (crp->crp_etype) {
@@ -827,7 +827,7 @@ ah_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
     u_int idx, int skip, int protoff)
 {
 	char buf[IPSEC_ADDRSTRLEN];
-	struct auth_hash *ahx;
+	const struct auth_hash *ahx;
 	struct cryptodesc *crda;
 	struct xform_data *xd;
 	struct mbuf *mi;

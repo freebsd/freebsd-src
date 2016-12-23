@@ -264,8 +264,8 @@ static int
 esp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 {
 	char buf[128];
-	struct auth_hash *esph;
-	struct enc_xform *espx;
+	const struct auth_hash *esph;
+	const struct enc_xform *espx;
 	struct xform_data *xd;
 	struct cryptodesc *crde;
 	struct cryptop *crp;
@@ -435,16 +435,16 @@ esp_input_cb(struct cryptop *crp)
 {
 	char buf[128];
 	u_int8_t lastthree[3], aalg[AH_HMAC_MAXHASHLEN];
-	int hlen, skip, protoff, error, alen;
+	const struct auth_hash *esph;
+	const struct enc_xform *espx;
 	struct mbuf *m;
 	struct cryptodesc *crd;
-	struct auth_hash *esph;
-	struct enc_xform *espx;
 	struct xform_data *xd;
 	struct secasvar *sav;
 	struct secasindex *saidx;
 	caddr_t ptr;
 	uint64_t cryptoid;
+	int hlen, skip, protoff, error, alen;
 
 	crd = crp->crp_desc;
 	IPSEC_ASSERT(crd != NULL, ("null crypto descriptor!"));
@@ -622,8 +622,8 @@ esp_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 	char buf[IPSEC_ADDRSTRLEN];
 	struct cryptodesc *crde = NULL, *crda = NULL;
 	struct cryptop *crp;
-	struct enc_xform *espx;
-	struct auth_hash *esph;
+	const struct auth_hash *esph;
+	const struct enc_xform *espx;
 	struct mbuf *mo = NULL;
 	struct xform_data *xd;
 	struct secasindex *saidx;
