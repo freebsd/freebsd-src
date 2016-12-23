@@ -142,7 +142,7 @@ AcpiPsAppendArg (
     const ACPI_OPCODE_INFO  *OpInfo;
 
 
-    ACPI_FUNCTION_TRACE ("PsAppendArg");
+    ACPI_FUNCTION_TRACE (PsAppendArg);
 
 
     if (!Op)

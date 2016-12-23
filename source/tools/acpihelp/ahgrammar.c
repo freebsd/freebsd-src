@@ -43,7 +43,7 @@
 
 #include "acpihelp.h"
 
-const AH_AML_TYPE           AmlTypesInfo[] =
+const AH_AML_TYPE           Gbl_AmlTypesInfo[] =
 {
     {"ComputationalData",
         "ComputationalData :=\n"

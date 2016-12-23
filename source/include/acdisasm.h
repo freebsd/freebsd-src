@@ -429,7 +429,7 @@ extern ACPI_DMTABLE_INFO        AcpiDmTableInfoGeneric[][2];
  * dmtable and ahtable
  */
 extern const ACPI_DMTABLE_DATA  AcpiDmTableData[];
-extern const AH_TABLE           AcpiSupportedTables[];
+extern const AH_TABLE           Gbl_AcpiSupportedTables[];
 
 UINT8
 AcpiDmGenerateChecksum (
@@ -649,6 +649,10 @@ void
 AcpiDmDisassembleOneOp (
     ACPI_WALK_STATE         *WalkState,
     ACPI_OP_WALK_INFO       *Info,
+    ACPI_PARSE_OBJECT       *Op);
+
+BOOLEAN
+AcpiDmIsTempName (
     ACPI_PARSE_OBJECT       *Op);
 
 UINT32

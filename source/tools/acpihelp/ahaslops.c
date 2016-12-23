@@ -48,7 +48,7 @@
  * Note: All tokens require a space separator.
  * Long lines are automatically split during output.
  */
-const AH_ASL_OPERATOR       AslOperatorInfo[] =
+const AH_ASL_OPERATOR       Gbl_AslOperatorInfo[] =
 {
     {"AccessAs",                "(AccessType, AccessAttribKeyword | "
                                 "ExtendedAttribKeyword (AccessLength))",

@@ -298,6 +298,20 @@ AcpiPsGetNextNamepath (
         PossibleMethodCall &&
         (Node->Type == ACPI_TYPE_METHOD))
     {
+        if ((GET_CURRENT_ARG_TYPE (WalkState->ArgTypes) == ARGP_SUPERNAME) ||
+            (GET_CURRENT_ARG_TYPE (WalkState->ArgTypes) == ARGP_TARGET))
+        {
+            /*
+             * AcpiPsGetNextNamestring has increased the AML pointer past
+             * the method invocation namestring, so we need to restore the
+             * saved AML pointer back to the original method invocation
+             * namestring.
+             */
+            WalkState->ParserState.Aml = Start;
+            WalkState->ArgCount = 1;
+            AcpiPsInitOp (Arg, AML_INT_METHODCALL_OP);
+        }
+
         /* This name is actually a control method invocation */
 
         MethodDesc = AcpiNsGetAttachedObject (Node);
@@ -887,7 +901,10 @@ AcpiPsGetNextArg (
             AcpiUtGetArgumentTypeName (ArgType), ArgType));
 
         Subop = AcpiPsPeekOpcode (ParserState);
-        if (Subop == 0)
+        if (Subop == 0                  ||
+            AcpiPsIsLeadingChar (Subop) ||
+            ACPI_IS_ROOT_PREFIX (Subop) ||
+            ACPI_IS_PARENT_PREFIX (Subop))
         {
             /* NULL target (zero). Convert to a NULL namepath */
 
@@ -899,6 +916,13 @@ AcpiPsGetNextArg (
 
             Status = AcpiPsGetNextNamepath (WalkState, ParserState,
                 Arg, ACPI_POSSIBLE_METHOD_CALL);
+
+            if (Arg->Common.AmlOpcode == AML_INT_METHODCALL_OP)
+            {
+                AcpiPsFreeOp (Arg);
+                Arg = NULL;
+                WalkState->ArgCount = 1;
+            }
         }
         else
         {

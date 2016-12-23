@@ -269,7 +269,7 @@ AcpiUtGetObjectTypeName (
     if (!ObjDesc)
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Null Object Descriptor\n"));
-        return_PTR ("[NULL Object Descriptor]");
+        return_STR ("[NULL Object Descriptor]");
     }
 
     /* These descriptor types share a common area */
@@ -282,7 +282,7 @@ AcpiUtGetObjectTypeName (
             ACPI_GET_DESCRIPTOR_TYPE (ObjDesc),
             AcpiUtGetDescriptorName (ObjDesc), ObjDesc));
 
-        return_PTR ("Invalid object");
+        return_STR ("Invalid object");
     }
 
     return_STR (AcpiUtGetTypeName (ObjDesc->Common.Type));

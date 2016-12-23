@@ -66,10 +66,6 @@ AeDoOptions (
     int                     argc,
     char                    **argv);
 
-static void
-AcpiDbRunBatchMode (
-    void);
-
 
 #define AE_BUFFER_SIZE              1024
 #define ASL_MAX_FILES               256
@@ -663,12 +659,12 @@ EnterDebugger:
     default:
     case AE_MODE_COMMAND_LOOP:
 
-        AcpiDbUserCommands (ACPI_DEBUGGER_COMMAND_PROMPT, NULL);
+        AcpiRunDebugger (NULL);
         break;
 
     case AE_MODE_BATCH_MULTIPLE:
 
-        AcpiDbRunBatchMode ();
+        AcpiRunDebugger (BatchBuffer);
         break;
 
     case AE_MODE_BATCH_SINGLE:
@@ -679,12 +675,7 @@ EnterDebugger:
 
     /* Shut down the debugger and ACPICA */
 
-#if 0
-
-    /* Temporarily removed */
     AcpiTerminateDebugger ();
-    (void) AcpiTerminate ();
-#endif
 
 NormalExit:
     ExitCode = 0;
@@ -692,56 +683,4 @@ NormalExit:
 ErrorExit:
     (void) AcpiOsTerminate ();
     return (ExitCode);
-}
-
-
-/******************************************************************************
- *
- * FUNCTION:    AcpiDbRunBatchMode
- *
- * PARAMETERS:  BatchCommandLine    - A semicolon separated list of commands
- *                                    to be executed.
- *                                    Use only commas to separate elements of
- *                                    particular command.
- * RETURN:      None
- *
- * DESCRIPTION: For each command of list separated by ';' prepare the command
- *              buffer and pass it to AcpiDbCommandDispatch.
- *
- *****************************************************************************/
-
-static void
-AcpiDbRunBatchMode (
-    void)
-{
-    char                    *Ptr = BatchBuffer;
-    char                    *Cmd = Ptr;
-    UINT8                   Run = 0;
-
-
-    AcpiGbl_MethodExecuting = FALSE;
-    AcpiGbl_StepToNextCall = FALSE;
-
-    while (*Ptr)
-    {
-        if (*Ptr == ',')
-        {
-            /* Convert commas to spaces */
-            *Ptr = ' ';
-        }
-        else if (*Ptr == ';')
-        {
-            *Ptr = '\0';
-            Run = 1;
-        }
-
-        Ptr++;
-
-        if (Run || (*Ptr == '\0'))
-        {
-            (void) AcpiDbCommandDispatch (Cmd, NULL, NULL);
-            Run = 0;
-            Cmd = Ptr;
-        }
-    }
 }

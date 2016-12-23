@@ -403,7 +403,7 @@ AcValidateTableHeader (
     UINT32                  i;
 
 
-    ACPI_FUNCTION_TRACE ("AcValidateTableHeader");
+    ACPI_FUNCTION_TRACE (AcValidateTableHeader);
 
 
     /* Read a potential table header */

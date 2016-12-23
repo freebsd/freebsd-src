@@ -155,7 +155,7 @@ UtDisplaySupportedTables (
     /* All ACPI tables with the common table header */
 
     printf ("\n  Supported ACPI tables:\n");
-    for (TableData = AcpiSupportedTables, i = 1;
+    for (TableData = Gbl_AcpiSupportedTables, i = 1;
          TableData->Signature; TableData++, i++)
     {
         printf ("%8u) %s    %s\n", i,
