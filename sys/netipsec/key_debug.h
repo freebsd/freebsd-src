@@ -58,9 +58,6 @@
 	    arg;		\
     }
 
-#define KEYDEBUG(lev,arg) \
-	do { if ((V_key_debug_level & (lev)) == (lev)) { arg; } } while (0)
-
 VNET_DECLARE(uint32_t, key_debug_level);
 #define	V_key_debug_level	VNET(key_debug_level)
 #endif /*_KERNEL*/

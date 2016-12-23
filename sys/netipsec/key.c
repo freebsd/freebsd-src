@@ -7199,12 +7199,6 @@ key_parse(struct mbuf *m, struct socket *so)
 	IPSEC_ASSERT(so != NULL, ("null socket"));
 	IPSEC_ASSERT(m != NULL, ("null mbuf"));
 
-#if 0	/*kdebug_sadb assumes msg in linear buffer*/
-	KEYDEBUG(KEYDEBUG_KEY_DUMP,
-		ipseclog((LOG_DEBUG, "%s: passed sadb_msg\n", __func__));
-		kdebug_sadb(msg));
-#endif
-
 	if (m->m_len < sizeof(struct sadb_msg)) {
 		m = m_pullup(m, sizeof(struct sadb_msg));
 		if (!m)
