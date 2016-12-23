@@ -139,7 +139,7 @@ vmbus_timesync(struct vmbus_ic_softc *sc, uint64_t hvtime, uint64_t sent_tc,
 	}
 
 	if ((tsflags & VMBUS_ICMSG_TS_FLAG_SAMPLE) &&
-	    vmbus_ts_sample_thresh > 0) {
+	    vmbus_ts_sample_thresh >= 0) {
 		int64_t diff;
 
 		if (vmbus_ts_sample_verbose) {
