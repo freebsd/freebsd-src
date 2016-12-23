@@ -4711,6 +4711,26 @@ scsi_sense_ata_sbuf(struct sbuf *sb, struct scsi_sense_data *sense,
 	sbuf_printf(sb, "device: %02x, ", res->device);
 }
 
+void
+scsi_sense_forwarded_sbuf(struct sbuf *sb, struct scsi_sense_data *sense,
+			 u_int sense_len, uint8_t *cdb, int cdb_len,
+			 struct scsi_inquiry_data *inq_data,
+			 struct scsi_sense_desc_header *header)
+{
+	struct scsi_sense_forwarded *forwarded;
+	const char *sense_key_desc;
+	const char *asc_desc;
+	int error_code, sense_key, asc, ascq;
+
+	forwarded = (struct scsi_sense_forwarded *)header;
+	scsi_extract_sense_len((struct scsi_sense_data *)forwarded->sense_data,
+	    forwarded->length - 2, &error_code, &sense_key, &asc, &ascq, 1);
+	scsi_sense_desc(sense_key, asc, ascq, NULL, &sense_key_desc, &asc_desc);
+
+	sbuf_printf(sb, "Forwarded sense: %s asc:%x,%x (%s): ",
+	    sense_key_desc, asc, ascq, asc_desc);
+}
+
 /*
  * Generic sense descriptor printing routine.  This is used when we have
  * not yet implemented a specific printing routine for this descriptor.
@@ -4758,7 +4778,8 @@ struct scsi_sense_desc_printer {
 	{SSD_DESC_STREAM, scsi_sense_stream_sbuf},
 	{SSD_DESC_BLOCK, scsi_sense_block_sbuf},
 	{SSD_DESC_ATA, scsi_sense_ata_sbuf},
-	{SSD_DESC_PROGRESS, scsi_sense_progress_sbuf}
+	{SSD_DESC_PROGRESS, scsi_sense_progress_sbuf},
+	{SSD_DESC_FORWARDED, scsi_sense_forwarded_sbuf}
 };
 
 void
