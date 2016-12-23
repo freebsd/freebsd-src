@@ -1129,15 +1129,15 @@ bad:
 }
 
 static struct xformsw ah_xformsw = {
-	XF_AH,		XFT_AUTH,	"IPsec AH",
-	ah_init,	ah_zeroize,	ah_input,	ah_output,
+	.xf_type =	XF_AH,
+	.xf_name =	"IPsec AH",
+	.xf_init =	ah_init,
+	.xf_zeroize =	ah_zeroize,
+	.xf_input =	ah_input,
+	.xf_output =	ah_output,
 };
 
-static void
-ah_attach(void)
-{
-
-	xform_register(&ah_xformsw);
-}
-
-SYSINIT(ah_xform_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_MIDDLE, ah_attach, NULL);
+SYSINIT(ah_xform_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_MIDDLE,
+    xform_attach, &ah_xformsw);
+SYSUNINIT(ah_xform_uninit, SI_SUB_PROTO_DOMAIN, SI_ORDER_MIDDLE,
+    xform_detach, &ah_xformsw);

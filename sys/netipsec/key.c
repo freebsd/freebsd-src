@@ -464,7 +464,13 @@ MALLOC_DEFINE(M_IPSEC_SAR, "ipsec-reg", "ipsec sa acquire");
 static VNET_DEFINE(uma_zone_t, key_lft_zone);
 #define	V_key_lft_zone		VNET(key_lft_zone)
 
-static struct xformsw* xforms = NULL;
+static LIST_HEAD(xforms_list, xformsw) xforms = LIST_HEAD_INITIALIZER();
+static struct mtx xforms_lock;
+#define	XFORMS_LOCK_INIT()	\
+    mtx_init(&xforms_lock, "xforms_list", "IPsec transforms list", MTX_DEF)
+#define	XFORMS_LOCK_DESTROY()	mtx_destroy(&xforms_lock)
+#define	XFORMS_LOCK()		mtx_lock(&xforms_lock)
+#define	XFORMS_UNLOCK()		mtx_unlock(&xforms_lock)
 
 /*
  * set parameters into secpolicyindex buffer.
@@ -669,7 +675,7 @@ static int key_validate_ext(const struct sadb_ext *, int);
 static int key_align(struct mbuf *, struct sadb_msghdr *);
 static struct mbuf *key_setlifetime(struct seclifetime *, uint16_t);
 static struct mbuf *key_setkey(struct seckey *, uint16_t);
-static int xform_init(struct secasvar *, int);
+static int xform_init(struct secasvar *, u_short);
 
 #define	DBG_IPSEC_INITREF(t, p)	do {				\
 	refcount_init(&(p)->refcnt, 1);				\
@@ -7714,6 +7720,7 @@ key_init(void)
 	if (!IS_DEFAULT_VNET(curvnet))
 		return;
 
+	XFORMS_LOCK_INIT();
 	SPTREE_LOCK_INIT();
 	REGTREE_LOCK_INIT();
 	SAHTREE_LOCK_INIT();
@@ -7975,28 +7982,66 @@ comp_algorithm_lookup(int alg)
 }
 
 /*
- * Register a transform; typically at system startup.
+ * Register a transform.
  */
-void
+static int
 xform_register(struct xformsw* xsp)
 {
+	struct xformsw *entry;
 
-	xsp->xf_next = xforms;
-	xforms = xsp;
+	XFORMS_LOCK();
+	LIST_FOREACH(entry, &xforms, chain) {
+		if (entry->xf_type == xsp->xf_type) {
+			XFORMS_UNLOCK();
+			return (EEXIST);
+		}
+	}
+	LIST_INSERT_HEAD(&xforms, xsp, chain);
+	XFORMS_UNLOCK();
+	return (0);
+}
+
+void
+xform_attach(void *data)
+{
+	struct xformsw *xsp = (struct xformsw *)data;
+
+	if (xform_register(xsp) != 0)
+		printf("%s: failed to register %s xform\n", __func__,
+		    xsp->xf_name);
+}
+
+void
+xform_detach(void *data)
+{
+	struct xformsw *xsp = (struct xformsw *)data;
+
+	XFORMS_LOCK();
+	LIST_REMOVE(xsp, chain);
+	XFORMS_UNLOCK();
 }
 
 /*
  * Initialize transform support in an sav.
  */
 static int
-xform_init(struct secasvar *sav, int xftype)
+xform_init(struct secasvar *sav, u_short xftype)
 {
-	struct xformsw *xsp;
+	struct xformsw *entry;
+	int ret;
 
-	if (sav->tdb_xform != NULL)	/* Previously initialized. */
-		return (0);
-	for (xsp = xforms; xsp; xsp = xsp->xf_next)
-		if (xsp->xf_type == xftype)
-			return ((*xsp->xf_init)(sav, xsp));
+	IPSEC_ASSERT(sav->tdb_xform == NULL,
+	    ("tdb_xform is already initialized"));
+
+	ret = EINVAL;
+	XFORMS_LOCK();
+	LIST_FOREACH(entry, &xforms, chain) {
+	    if (entry->xf_type == xftype) {
+		    ret = (*entry->xf_init)(sav, entry);
+		    break;
+	    }
+	}
+	XFORMS_UNLOCK();
 	return (EINVAL);
 }
+

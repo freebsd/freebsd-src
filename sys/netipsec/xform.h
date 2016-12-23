@@ -42,6 +42,7 @@
 #define _NETIPSEC_XFORM_H_
 
 #include <sys/types.h>
+#include <sys/queue.h>
 #include <netinet/in.h>
 #include <opencrypto/xform.h>
 
@@ -49,6 +50,7 @@
 #define	AH_HMAC_MAXHASHLEN	(SHA2_512_HASH_LEN/2)	/* Keep this updated */
 #define	AH_HMAC_INITIAL_RPL	1	/* replay counter initial value */
 
+#ifdef _KERNEL
 struct secpolicy;
 struct secasvar;
 
@@ -76,38 +78,34 @@ struct xform_data {
 	uint8_t			nxt;		/* next protocol, e.g. IPV4 */
 };
 
-struct xformsw {
-	u_short	xf_type;		/* xform ID */
 #define	XF_IP4		1	/* unused */
 #define	XF_AH		2	/* AH */
 #define	XF_ESP		3	/* ESP */
 #define	XF_TCPSIGNATURE	5	/* TCP MD5 Signature option, RFC 2358 */
 #define	XF_IPCOMP	6	/* IPCOMP */
-	u_short	xf_flags;
-#define	XFT_AUTH	0x0001
-#define	XFT_CONF	0x0100
-#define	XFT_COMP	0x1000
-	char	*xf_name;			/* human-readable name */
+
+struct xformsw {
+	u_short	xf_type;		/* xform ID */
+	char	*xf_name;		/* human-readable name */
 	int	(*xf_init)(struct secasvar*, struct xformsw*);	/* setup */
 	int	(*xf_zeroize)(struct secasvar*);		/* cleanup */
 	int	(*xf_input)(struct mbuf*, struct secasvar*,	/* input */
 			int, int);
 	int	(*xf_output)(struct mbuf*,			/* output */
 	    struct secpolicy *, struct secasvar *, u_int, int, int);
-	struct xformsw *xf_next;		/* list of registered xforms */
+	LIST_ENTRY(xformsw)	chain;
 };
 
-#ifdef _KERNEL
 const struct enc_xform * enc_algorithm_lookup(int);
 const struct auth_hash * auth_algorithm_lookup(int);
 const struct comp_algo * comp_algorithm_lookup(int);
 
-extern void xform_register(struct xformsw*);
-extern int xform_ah_authsize(struct auth_hash *esph);
+void xform_attach(void *);
+void xform_detach(void *);
 
 struct cryptoini;
-
 /* XF_AH */
+extern int xform_ah_authsize(struct auth_hash *esph);
 extern int ah_init0(struct secasvar *, struct xformsw *, struct cryptoini *);
 extern int ah_zeroize(struct secasvar *sav);
 extern size_t ah_hdrsiz(struct secasvar *);

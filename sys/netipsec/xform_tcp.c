@@ -393,17 +393,15 @@ tcpsignature_output(struct mbuf *m, struct secpolicy *sp,
 }
 
 static struct xformsw tcpsignature_xformsw = {
-	XF_TCPSIGNATURE,	XFT_AUTH,		"TCPMD5",
-	tcpsignature_init,	tcpsignature_zeroize,
-	tcpsignature_input,	tcpsignature_output
+	.xf_type =	XF_TCPSIGNATURE,
+	.xf_name =	"TCPMD5",
+	.xf_init =	tcpsignature_init,
+	.xf_zeroize =	tcpsignature_zeroize,
+	.xf_input =	tcpsignature_input,
+	.xf_output =	tcpsignature_output,
 };
 
-static void
-tcpsignature_attach(void)
-{
-
-	xform_register(&tcpsignature_xformsw);
-}
-
 SYSINIT(tcpsignature_xform_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_MIDDLE,
-    tcpsignature_attach, NULL);
+    xform_attach, &tcpsignature_xformsw);
+SYSUNINIT(tcpsignature_xform_uninit, SI_SUB_PROTO_DOMAIN, SI_ORDER_MIDDLE,
+    xform_detach, &tcpsignature_xformsw);

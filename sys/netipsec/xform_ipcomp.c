@@ -645,12 +645,6 @@ bad:
 	return (error);
 }
 
-static struct xformsw ipcomp_xformsw = {
-	XF_IPCOMP,		XFT_COMP,		"IPcomp",
-	ipcomp_init,		ipcomp_zeroize,		ipcomp_input,
-	ipcomp_output
-};
-
 #ifdef INET
 static const struct encaptab *ipe4_cookie = NULL;
 extern struct domain inetdomain;
@@ -734,6 +728,15 @@ ipcomp6_nonexp_encapcheck(const struct mbuf *m, int off, int proto,
 }
 #endif
 
+static struct xformsw ipcomp_xformsw = {
+	.xf_type =	XF_IPCOMP,
+	.xf_name =	"IPcomp",
+	.xf_init =	ipcomp_init,
+	.xf_zeroize =	ipcomp_zeroize,
+	.xf_input =	ipcomp_input,
+	.xf_output =	ipcomp_output,
+};
+
 static void
 ipcomp_attach(void)
 {
@@ -746,8 +749,23 @@ ipcomp_attach(void)
 	ipe6_cookie = encap_attach_func(AF_INET6, -1,
 	    ipcomp6_nonexp_encapcheck, &ipcomp6_protosw, NULL);
 #endif
-	xform_register(&ipcomp_xformsw);
+	xform_attach(&ipcomp_xformsw);
+}
+
+static void
+ipcomp_detach(void)
+{
+
+#ifdef INET
+	encap_detach(ipe4_cookie);
+#endif
+#ifdef INET6
+	encap_detach(ipe6_cookie);
+#endif
+	xform_attach(&ipcomp_xformsw);
 }
 
 SYSINIT(ipcomp_xform_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_MIDDLE,
     ipcomp_attach, NULL);
+SYSUNINIT(ipcomp_xform_uninit, SI_SUB_PROTO_DOMAIN, SI_ORDER_MIDDLE,
+    ipcomp_detach, NULL);

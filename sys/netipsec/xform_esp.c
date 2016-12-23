@@ -941,16 +941,17 @@ bad:
 	key_freesp(&sp);
 	return (error);
 }
+
 static struct xformsw esp_xformsw = {
-	XF_ESP,		XFT_CONF|XFT_AUTH,	"IPsec ESP",
-	esp_init,	esp_zeroize,		esp_input,
-	esp_output
+	.xf_type =	XF_ESP,
+	.xf_name =	"IPsec ESP",
+	.xf_init =	esp_init,
+	.xf_zeroize =	esp_zeroize,
+	.xf_input =	esp_input,
+	.xf_output =	esp_output,
 };
 
-static void
-esp_attach(void)
-{
-
-	xform_register(&esp_xformsw);
-}
-SYSINIT(esp_xform_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_MIDDLE, esp_attach, NULL);
+SYSINIT(esp_xform_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_MIDDLE,
+    xform_attach, &esp_xformsw);
+SYSUNINIT(esp_xform_uninit, SI_SUB_PROTO_DOMAIN, SI_ORDER_MIDDLE,
+    xform_detach, &esp_xformsw);
