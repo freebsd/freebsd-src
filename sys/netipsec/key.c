@@ -8042,6 +8042,6 @@ xform_init(struct secasvar *sav, u_short xftype)
 	    }
 	}
 	XFORMS_UNLOCK();
-	return (EINVAL);
+	return (ret);
 }
 
