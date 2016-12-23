@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2006 Erez Zadok
+ * Copyright (c) 1997-2014 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -16,11 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgment:
- *      This product includes software developed by the University of
- *      California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -65,12 +61,11 @@ u_short nfs_port = 0;
 static void
 checkup(void)
 {
-
   static int max_fd = 0;
-  static char *max_mem = 0;
-
+  static char *max_mem = NULL;
   int next_fd = dup(0);
   caddr_t next_mem = sbrk(0);
+
   close(next_fd);
 
   if (max_fd < next_fd) {
@@ -135,8 +130,8 @@ do_select(int smask, int fds, fd_set *fdp, struct timeval *tvp)
     /*
      * Wait for input
      */
-    nsel = select(fds, fdp, (fd_set *) 0, (fd_set *) 0,
-		  tvp->tv_sec ? tvp : (struct timeval *) 0);
+    nsel = select(fds, fdp, (fd_set *) NULL, (fd_set *) NULL,
+		  tvp->tv_sec ? tvp : (struct timeval *) NULL);
   }
 
 #ifdef HAVE_SIGACTION
@@ -171,7 +166,7 @@ rpc_pending_now(void)
   FD_SET(fwd_sock, &readfds);
 
   tvv.tv_sec = tvv.tv_usec = 0;
-  nsel = select(FD_SETSIZE, &readfds, (fd_set *) 0, (fd_set *) 0, &tvv);
+  nsel = select(FD_SETSIZE, &readfds, (fd_set *) NULL, (fd_set *) NULL, &tvv);
   if (nsel < 1)
     return (0);
   if (FD_ISSET(fwd_sock, &readfds))
@@ -365,15 +360,16 @@ mount_automounter(int ppid)
    * already created the service during restart_automounter_nodes().
    */
   if (nfs_port == 0) {
-    ret = create_nfs_service(&soNFS, &nfs_port, &nfsxprt, nfs_program_2);
+    ret = create_nfs_service(&soNFS, &nfs_port, &nfsxprt, nfs_dispatcher,
+	get_nfs_dispatcher_version(nfs_dispatcher));
     if (ret != 0)
       return ret;
   }
   xsnprintf(pid_fsname, sizeof(pid_fsname), "%s:(pid%ld,port%u)",
 	    am_get_hostname(), (long) am_mypid, nfs_port);
 
-  /* security: if user sets -D amq, don't even create listening socket */
-  if (!amuDebug(D_AMQ)) {
+  /* security: if user sets -D noamq, don't even create listening socket */
+  if (amuDebug(D_AMQ)) {
     ret = create_amq_service(&udp_soAMQ,
 			     &udp_amqp,
 			     &udp_amqncp,
@@ -416,24 +412,32 @@ mount_automounter(int ppid)
     return 0;
   }
 
-  if (!amuDebug(D_AMQ)) {
+  if (amuDebug(D_AMQ)) {
     /*
      * Complete registration of amq (first TCP service then UDP)
      */
-    unregister_amq();
+    int tcp_ok = 0, udp_ok = 0;
 
-    ret = amu_svc_register(tcp_amqp, get_amd_program_number(), AMQ_VERSION,
-			   amq_program_1, IPPROTO_TCP, tcp_amqncp);
-    if (ret != 1) {
-      plog(XLOG_FATAL, "unable to register (AMQ_PROGRAM=%d, AMQ_VERSION, tcp)", get_amd_program_number());
+    unregister_amq();	 /* unregister leftover Amd, if any, just in case */
+
+    tcp_ok = amu_svc_register(tcp_amqp, get_amd_program_number(), AMQ_VERSION,
+			      amq_program_1, IPPROTO_TCP, tcp_amqncp);
+    if (!tcp_ok)
+      plog(XLOG_FATAL,
+	   "unable to register (AMQ_PROGRAM=%lu, AMQ_VERSION, tcp)",
+	   get_amd_program_number());
+
+    udp_ok = amu_svc_register(udp_amqp, get_amd_program_number(), AMQ_VERSION,
+			      amq_program_1, IPPROTO_UDP, udp_amqncp);
+    if (!udp_ok)
+      plog(XLOG_FATAL,
+	   "unable to register (AMQ_PROGRAM=%lu, AMQ_VERSION, udp)",
+	   get_amd_program_number());
+
+    /* return error only if both failed */
+    if (!tcp_ok && !udp_ok) {
+      amd_state = Done;
       return 3;
-    }
-
-    ret = amu_svc_register(udp_amqp, get_amd_program_number(), AMQ_VERSION,
-			   amq_program_1, IPPROTO_UDP, udp_amqncp);
-    if (ret != 1) {
-      plog(XLOG_FATAL, "unable to register (AMQ_PROGRAM=%d, AMQ_VERSION, udp)", get_amd_program_number());
-      return 4;
     }
   }
 

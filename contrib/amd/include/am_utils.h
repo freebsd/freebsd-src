@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2006 Erez Zadok
+ * Copyright (c) 1997-2014 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -16,11 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgment:
- *      This product includes software developed by the University of
- *      California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -109,8 +105,14 @@
 #define	XLOG_DEBUG	0x0020
 #define	XLOG_MAP	0x0040
 #define	XLOG_STATS	0x0080
-#define XLOG_DEFSTR	"all,nomap,nostats"	/* Default log options */
+/* log option compositions */
+#define XLOG_MASK	0x00ff	/* mask for all flags */
+#define XLOG_MANDATORY	(XLOG_FATAL|XLOG_ERROR)	/* cannot turn these off */
 #define XLOG_ALL	(XLOG_FATAL|XLOG_ERROR|XLOG_USER|XLOG_WARNING|XLOG_INFO|XLOG_MAP|XLOG_STATS)
+/* default: fatal + error + user + warning + info */
+#define XLOG_DEFAULT	(XLOG_MASK & (XLOG_ALL & ~XLOG_MAP & ~XLOG_STATS))
+
+/* default: no logging options */
 
 #define NO_SUBNET	"notknown"   /* default subnet name for no subnet */
 #define	NEXP_AP		(1022)			/* gdmr: was 254 */
@@ -258,8 +260,6 @@ extern pid_t am_mypid;
 
 extern int foreground;		/* Foreground process */
 extern int orig_umask;		/* umask() on startup */
-extern int xlog_level;		/* Logging level */
-extern int xlog_level_init;
 extern serv_state amd_state;	/* Should we go now */
 extern struct in_addr myipaddr;	/* (An) IP address of this host */
 extern struct opt_tab xlog_opt[];
@@ -278,15 +278,17 @@ extern char *get_version_string(void);
 extern char *inet_dquad(char *, size_t, u_long);
 extern char *print_wires(void);
 extern char *str3cat(char *, char *, char *, char *);
+extern char *strvcat(const char *, ...);
 extern char *strealloc(char *, char *);
 extern char *strip_selectors(char *, char *);
 extern char *strnsave(const char *, int);
 extern int amu_close(int fd);
 extern int bind_resv_port(int, u_short *);
-extern int cmdoption(char *, struct opt_tab *, int *);
+extern int cmdoption(char *, struct opt_tab *, u_int *);
 extern int compute_automounter_mount_flags(mntent_t *);
 extern int compute_mount_flags(mntent_t *);
-extern int get_amd_program_number(void);
+extern void discard_nfs_args(void *, u_long);
+extern u_long get_amd_program_number(void);
 extern int getcreds(struct svc_req *, uid_t *, gid_t *, SVCXPRT *);
 extern int hasmntval(mntent_t *, char *);
 extern unsigned int hasmntvalerr(mntent_t *, char *, int *);
@@ -300,6 +302,9 @@ extern int make_rpc_packet(char *, int, u_long, struct rpc_msg *, voidp, XDRPROC
 extern int mkdirs(char *, int);
 extern int mount_fs(mntent_t *, int, caddr_t, int, MTYPE_TYPE, u_long, const char *, const char *, int);
 extern void nfs_program_2(struct svc_req *rqstp, SVCXPRT *transp);
+extern void nfs_program_3(struct svc_req *rqstp, SVCXPRT *transp);
+#define get_nfs_dispatcher_version(a) \
+    ((a) == nfs_program_2 ? NFS_VERSION : NFS_VERSION3)
 extern int pickup_rpc_reply(voidp, int, voidp, XDRPROC_T_TYPE);
 extern int switch_option(char *);
 extern int switch_to_logfile(char *logfile, int orig_umask, int truncate_log);
@@ -320,14 +325,16 @@ extern void plog(int, const char *,...)
      __attribute__ ((__format__ (__printf__, 2, 3)));
 extern void rmdirs(char *);
 extern void rpc_msg_init(struct rpc_msg *, u_long, u_long, u_long);
-extern void set_amd_program_number(int program);
+extern void set_amd_program_number(u_long program);
 extern void show_opts(int ch, struct opt_tab *);
 extern void unregister_amq(void);
 extern voidp xmalloc(int);
 extern voidp xrealloc(voidp, int);
 extern voidp xzalloc(int);
+extern char *xstrdup(const char *);
 extern int check_pmap_up(char *host, struct sockaddr_in* sin);
-extern u_long get_nfs_version(char *host, struct sockaddr_in *sin, u_long nfs_version, const char *proto);
+extern u_long get_nfs_version(char *host, struct sockaddr_in *sin, u_long nfs_version, const char *proto, u_long def);
+extern int nfs_valid_version(u_long vers);
 extern long get_server_pid(void);
 extern void setup_sighandler(int signum, void (*handler)(int));
 extern time_t clocktime(nfstime *nt);
@@ -367,9 +374,10 @@ extern void write_mntent(mntent_t *, const char *);
 extern int syslogging;
 #endif /* defined(HAVE_SYSLOG_H) || defined(HAVE_SYS_SYSLOG_H) */
 
-extern void compute_nfs_args(nfs_args_t *nap, mntent_t *mntp, int genflags, struct netconfig *nfsncp, struct sockaddr_in *ip_addr, u_long nfs_version, char *nfs_proto, am_nfs_handle_t *fhp, char *host_name, char *fs_name);
+extern void compute_nfs_args(void *nap, mntent_t *mntp, int genflags, struct netconfig *nfsncp, struct sockaddr_in *ip_addr, u_long nfs_version, char *nfs_proto, am_nfs_handle_t *fhp, char *host_name, char *fs_name);
+extern void destroy_nfs_args(void *nap, u_long nfs_version);
 extern int create_amq_service(int *udp_soAMQp, SVCXPRT **udp_amqpp, struct netconfig **udp_amqncpp, int *tcp_soAMQp, SVCXPRT **tcp_amqpp, struct netconfig **tcp_amqncpp, u_short preferred_amq_port);
-extern int create_nfs_service(int *soNFSp, u_short *nfs_portp, SVCXPRT **nfs_xprtp, void (*dispatch_fxn)(struct svc_req *rqstp, SVCXPRT *transp));
+extern int create_nfs_service(int *soNFSp, u_short *nfs_portp, SVCXPRT **nfs_xprtp, void (*dispatch_fxn)(struct svc_req *rqstp, SVCXPRT *transp), u_long nfs_version);
 extern int amu_svc_register(SVCXPRT *, u_long, u_long, void (*)(struct svc_req *, SVCXPRT *), u_long, struct netconfig *);
 
 #ifdef HAVE_TRANSPORT_TYPE_TLI
@@ -392,8 +400,14 @@ extern int unregister_autofs_service(char *autofs_conftype);
 
 
 /*
- * Network File System: the new generation
- * NFS V.3
+ * Network File System: the old faithful generation NFS V.2
+ */
+#ifndef NFS_VERSION2
+# define NFS_VERSION2 ((u_int) 2)
+#endif /* not NFS_VERSION2 */
+
+/*
+ * Network File System: the not so new anymore generation NFS V.3
  */
 #ifdef HAVE_FS_NFS3
 # ifndef NFS_VERSION3
@@ -401,6 +415,14 @@ extern int unregister_autofs_service(char *autofs_conftype);
 # endif /* not NFS_VERSION3 */
 #endif /* HAVE_FS_NFS3 */
 
+/*
+ * Network File System: the new generation NFS V.4
+ */
+#ifdef HAVE_FS_NFS4
+# ifndef NFS_VERSION4
+#  define NFS_VERSION4 ((u_int) 4)
+# endif /* not NFS_VERSION4 */
+#endif /* HAVE_FS_NFS4 */
 
 /**************************************************************************/
 /*** DEBUGGING								***/
@@ -412,30 +434,32 @@ extern int unregister_autofs_service(char *autofs_conftype);
 
 #ifdef DEBUG
 
-# define	D_ALL		(~(D_MTAB|D_HRTIME|D_XDRTRACE|D_DAEMON|D_FORK|D_AMQ))
-# define	D_DAEMON	0x0001	/* Don't enter daemon mode */
+# define	D_DAEMON	0x0001	/* Enter daemon mode */
 # define	D_TRACE		0x0002	/* Do protocol trace */
 # define	D_FULL		0x0004	/* Do full trace */
 # define	D_MTAB		0x0008	/* Use local mtab */
-# define	D_AMQ		0x0010	/* Don't register amq program */
+# define	D_AMQ		0x0010	/* Register amq program */
 # define	D_STR		0x0020	/* Debug string munging */
 # ifdef DEBUG_MEM
 #  define	D_MEM		0x0040	/* Trace memory allocations */
 # else /* not DEBUG_MEM */
 #  define	D_MEM		0x0000	/* Dummy */
 # endif /* not DEBUG_MEM */
-# define	D_FORK		0x0080	/* Don't fork server */
-		/* info service specific debugging (hesiod, nis, etc) */
-# define	D_INFO		0x0100
+# define	D_FORK		0x0080	/* Fork server (hlfsd only) */
+# define	D_INFO		0x0100	/* info service specific debugging (hesiod, nis, etc) */
 # define	D_HRTIME	0x0200	/* Print high resolution time stamps */
 # define	D_XDRTRACE	0x0400	/* Trace xdr routines */
 # define	D_READDIR	0x0800	/* Show browsable_dir progress */
-
-/*
- * Test mode is test mode: don't daemonize, don't register amq, don't fork,
- * don't touch system mtab, etc.
- */
-# define	D_TEST	(~(D_MEM|D_STR|D_XDRTRACE))
+/* debug option compositions */
+# define	D_MASK		0x0fff  /* mask of known flags */
+# define	D_BASIC		(D_TRACE|D_FULL|D_STR|D_MEM|D_INFO|D_XDRTRACE|D_READDIR)
+# define	D_CONTROL	(D_DAEMON|D_AMQ|D_FORK)
+/* immutable flags: cannot be changed via "amq -D" */
+# define	D_IMMUTABLE	(D_MTAB  | D_CONTROL)
+# define	D_ALL		(D_BASIC | D_CONTROL)
+# define	D_DEFAULT	(D_MASK & D_ALL & ~D_XDRTRACE)
+/* test mode: nodaemon, noamq, nofork, (local) mtab */
+# define	D_TEST		(D_BASIC | D_MTAB)
 
 # define	amuDebug(x)	(debug_flags & (x))
 # define	dlog		if (amuDebug(D_FULL)) dplog
@@ -460,34 +484,49 @@ extern void malloc_verify(void);
 # endif /* not DEBUG_MEM */
 
 /* functions that depend solely on debugging */
-extern void print_nfs_args(const nfs_args_t *nap, u_long nfs_version);
+extern void print_nfs_args(const void *, u_long nfs_version);
 extern int debug_option (char *opt);
 extern void dplog(const char *fmt, ...)
      __attribute__ ((__format__ (__printf__, 1, 2)));
 
 #else /* not DEBUG */
 
+/* set dummy flags to zero */
+# define	D_DAEMON	0x0001	/* Enter daemon mode */
+# define	D_TRACE		0x0000	/* dummy: Do protocol trace */
+# define	D_FULL		0x0000	/* dummy: Do full trace */
+# define	D_MTAB		0x0000	/* dummy: Use local mtab */
+# define	D_AMQ		0x0010	/* Register amq program */
+# define	D_STR		0x0000	/* dummy: Debug string munging */
+# define	D_MEM		0x0000	/* dummy: Trace memory allocations */
+# define	D_FORK		0x0080	/* Fork server (hlfsd only) */
+# define	D_INFO		0x0000	/* dummy: info service debugging */
+# define	D_HRTIME	0x0000	/* dummy: hi-res time stamps */
+# define	D_XDRTRACE	0x0000	/* dummy: Trace xdr routines */
+# define	D_READDIR	0x0000	/* dummy: browsable_dir progress */
+# define	D_CONTROL	(D_DAEMON|D_AMQ|D_FORK)
+# define	amuDebug(x)	(debug_flags & (x))
 /*
  * If not debugging, then also reset the pointer.
  * It's safer -- and besides, free() should do that anyway.
  */
-#  define	XFREE(x) do { free((voidp)x); x = NULL;} while (0)
+# define	XFREE(x) do { free((voidp)x); x = NULL;} while (0)
 
-#define		amuDebug(x)	(0)
-
-#ifdef __GNUC__
-#define		dlog(fmt...)
-#else  /* not __GNUC__ */
+# if defined(HAVE_GCC_VARARGS_MACROS)
+#  define	dlog(fmt...)
+# elif defined(HAVE_C99_VARARGS_MACROS)
+#  define	dlog(...)
+# else  /* no c99 varargs */
 /* this define means that we CCP leaves code behind the (list,of,args)  */
-#define		dlog
-#endif /* not __GNUC__ */
+#  define	dlog
+# endif /* no c99 varargs */
 
-#define		print_nfs_args(nap, nfs_version)
-#define		debug_option(x)	(1)
+# define	print_nfs_args(nap, nfs_version)
+# define	debug_option(x)	(1)
 
 #endif /* not DEBUG */
 
-extern int debug_flags;		/* Debug options */
+extern u_int debug_flags;	/* Debug options */
 extern struct opt_tab dbg_opt[];
 
 /**************************************************************************/

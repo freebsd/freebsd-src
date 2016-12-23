@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2006 Erez Zadok
+ * Copyright (c) 1997-2014 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -16,11 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgment:
- *      This product includes software developed by the University of
- *      California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -84,15 +80,29 @@ get_version_string(void)
   len = 2048 + wire_buf_len;
   vers = xmalloc(len);
   xsnprintf(vers, len, "%s\n%s\n%s\n%s\n",
-	    "Copyright (c) 1997-2006 Erez Zadok",
+	    "Copyright (c) 1997-2014 Erez Zadok",
 	    "Copyright (c) 1990 Jan-Simon Pendry",
 	    "Copyright (c) 1990 Imperial College of Science, Technology & Medicine",
 	    "Copyright (c) 1990 The Regents of the University of California.");
   xsnprintf(tmpbuf, sizeof(tmpbuf), "%s version %s (build %d).\n",
 	    PACKAGE_NAME, PACKAGE_VERSION, AMU_BUILD_VERSION);
-  strlcat(vers, tmpbuf, len);
+  xstrlcat(vers, tmpbuf, len);
   xsnprintf(tmpbuf, sizeof(tmpbuf), "Report bugs to %s.\n", PACKAGE_BUGREPORT);
-  strlcat(vers, tmpbuf, len);
+  xstrlcat(vers, tmpbuf, len);
+#if 0
+  /*
+   * XXX  This block (between from the #if 0 to #endif was in the
+   * XXX  original was in the original merge however in the interest
+   * XXX  of reproduceable builds and the fact that this is redundant
+   * XXX  information, it is effectively removed.
+   */
+  xsnprintf(tmpbuf, sizeof(tmpbuf), "Configured by %s@%s on date %s.\n",
+	    USER_NAME, HOST_NAME, CONFIG_DATE);
+  xstrlcat(vers, tmpbuf, len);
+  xsnprintf(tmpbuf, sizeof(tmpbuf), "Built by %s@%s on date %s.\n",
+	    BUILD_USER, BUILD_HOST, BUILD_DATE);
+  xstrlcat(vers, tmpbuf, len);
+#endif
   xsnprintf(tmpbuf, sizeof(tmpbuf), "Configured by %s@%s on date %s.\n",
 	    USER_NAME, HOST_NAME, CONFIG_DATE);
   strlcat(vers, tmpbuf, len);
@@ -101,27 +111,27 @@ get_version_string(void)
   strlcat(vers, tmpbuf, len);
   xsnprintf(tmpbuf, sizeof(tmpbuf), "cpu=%s (%s-endian), arch=%s, karch=%s.\n",
 	    cpu, endian, gopt.arch, gopt.karch);
-  strlcat(vers, tmpbuf, len);
+  xstrlcat(vers, tmpbuf, len);
   xsnprintf(tmpbuf, sizeof(tmpbuf), "full_os=%s, os=%s, osver=%s, vendor=%s, distro=%s.\n",
 	    gopt.op_sys_full, gopt.op_sys, gopt.op_sys_ver, gopt.op_sys_vendor, DISTRO_NAME);
-  strlcat(vers, tmpbuf, len);
+  xstrlcat(vers, tmpbuf, len);
   xsnprintf(tmpbuf, sizeof(tmpbuf), "domain=%s, host=%s, hostd=%s.\n",
 	    hostdomain, am_get_hostname(), hostd);
-  strlcat(vers, tmpbuf, len);
+  xstrlcat(vers, tmpbuf, len);
 
-  strlcat(vers, "Map support for: ", len);
+  xstrlcat(vers, "Map support for: ", len);
   mapc_showtypes(tmpbuf, sizeof(tmpbuf));
-  strlcat(vers, tmpbuf, len);
-  strlcat(vers, ".\nAMFS: ", len);
+  xstrlcat(vers, tmpbuf, len);
+  xstrlcat(vers, ".\nAMFS: ", len);
   ops_showamfstypes(tmpbuf, sizeof(tmpbuf));
-  strlcat(vers, tmpbuf, len);
-  strlcat(vers, ", inherit.\nFS: ", len); /* hack: "show" that we support type:=inherit */
+  xstrlcat(vers, tmpbuf, len);
+  xstrlcat(vers, ", inherit.\nFS: ", len); /* hack: "show" that we support type:=inherit */
   ops_showfstypes(tmpbuf, sizeof(tmpbuf));
-  strlcat(vers, tmpbuf, len);
+  xstrlcat(vers, tmpbuf, len);
 
   /* append list of networks if available */
   if (wire_buf) {
-    strlcat(vers, wire_buf, len);
+    xstrlcat(vers, wire_buf, len);
     XFREE(wire_buf);
   }
 
@@ -331,19 +341,18 @@ get_args(int argc, char *argv[])
       perror(buf);
       exit(1);
     }
-    yyin = fp;
-    yyparse();
+    conf_in = fp;
+    conf_parse();
     fclose(fp);
     if (process_all_regular_maps() != 0)
       exit(1);
   }
 
-  /* make sure there are some default options defined */
-  if (xlog_level_init == ~0) {
-    switch_option("");
-  }
 #ifdef DEBUG
   usage += switch_option("debug");
+  /* initialize debug options */
+  if (!debug_flags)
+    debug_flags = D_CONTROL;	/* CONTROL = "daemon,amq,fork" */
 #endif /* DEBUG */
 
   /* log information regarding amd.conf file */

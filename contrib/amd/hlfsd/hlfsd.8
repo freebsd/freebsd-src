@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 1997-2006 Erez Zadok
+.\" Copyright (c) 1997-2014 Erez Zadok
 .\" Copyright (c) 1989 Jan-Simon Pendry
 .\" Copyright (c) 1989 Imperial College of Science, Technology & Medicine
 .\" Copyright (c) 1989 The Regents of the University of California.
@@ -16,11 +16,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgment:
-.\"      This product includes software developed by the University of
-.\"      California, Berkeley and its contributors.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -36,8 +32,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: hlfsd.8,v 1.11.2.1 2006/01/02 18:48:25 ezk Exp $
 .\" $FreeBSD$
+.\"
+.\" File: am-utils/hlfsd/hlfsd.8
 .\"
 .\" HLFSD was written at Columbia University Computer Science Department, by
 .\" Erez Zadok <ezk@cs.columbia.edu> and Alexander Dupuy <dupuy@smarts.com>
@@ -330,14 +327,16 @@ symbolic link returned by
 points if it is unable to verify the that
 user's home directory is accessible.
 .El
-.Sh SEE ALSO
-.Xr mail 1 ,
+.SH "SEE ALSO"
+.Xr mail1 ,
 .Xr getgrent 3 ,
 .Xr getpwent 3 ,
+.Xr mnttab 4 ,
+.Xr passwd 4 ,
 .Xr mtab 5 ,
-.Xr passwd 5 ,
 .Xr amd 8 ,
-.Xr cron 8 ,
+.Xr automount 8 ,
+.Xr cron8 ,
 .Xr mount 8 ,
 .Xr sendmail 8 ,
 .Xr umount 8

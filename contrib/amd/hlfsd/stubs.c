@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2006 Erez Zadok
+ * Copyright (c) 1997-2014 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -16,11 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgment:
- *      This product includes software developed by the University of
- *      California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -137,7 +133,7 @@ nfsproc_getattr_2_svc(am_nfs_fh *argp, struct svc_req *rqstp)
       clocktime(&rootfattr.na_mtime);
       rootfattr.na_uid = uid;
     }
-#endif
+#endif /* 0 */
     res.ns_status = NFS_OK;
     res.ns_u.ns_attr_u = rootfattr;
   } else if (eq_fh(argp, &slink)) {
@@ -241,7 +237,7 @@ nfsproc_lookup_2_svc(nfsdiropargs *argp, struct svc_req *rqstp)
 	clocktime(&rootfattr.na_mtime);
 	rootfattr.na_uid = uid;
       }
-#endif
+#endif /* 0 */
       res.dr_u.dr_drok_u.drok_fhandle = root;
       res.dr_u.dr_drok_u.drok_attributes = rootfattr;
       res.dr_status = NFS_OK;
@@ -307,7 +303,7 @@ nfsproc_readlink_2_svc(am_nfs_fh *argp, struct svc_req *rqstp)
   uid_t userid = (uid_t) INVALIDID;
   gid_t groupid = hlfs_gid + 1;	/* anything not hlfs_gid */
   int retval = 0;
-  char *path_val = (char *) NULL;
+  char *path_val = NULL;
   char *username;
   static uid_t last_uid = (uid_t) INVALIDID;
 
@@ -328,7 +324,7 @@ nfsproc_readlink_2_svc(am_nfs_fh *argp, struct svc_req *rqstp)
        * processing, by getting a NULL returned as a
        * "special".  Child returns result.
        */
-      return (nfsreadlinkres *) NULL;
+      return NULL;
     }
 
   } else {			/* check if asked for user mailbox */
@@ -375,14 +371,15 @@ nfsproc_readlink_2_svc(am_nfs_fh *argp, struct svc_req *rqstp)
     retval = 0;
 
   /*
-   * If asked for -D fork, then must return the value,
+   * If asked for -D nofork, then must return the value,
    * NOT exit, or else the main hlfsd server exits.
+   * If -D fork (default), then we do want to exit from the process.
    * Bug: where is that status information being collected?
    */
   if (amuDebug(D_FORK))
+    exit(retval);
+  else
     return &res;
-
-  exit(retval);
 }
 
 
@@ -480,7 +477,7 @@ nfsreaddirres *
 nfsproc_readdir_2_svc(nfsreaddirargs *argp, struct svc_req *rqstp)
 {
   static nfsreaddirres res;
-  static nfsentry slinkent = {SLINKID, 0, {SLINKCOOKIE}};
+  static nfsentry slinkent = {SLINKID, NULL, {SLINKCOOKIE}};
   static nfsentry dotdotent = {ROOTID, "..", {DOTDOTCOOKIE}, &slinkent};
   static nfsentry dotent = {ROOTID, ".", {DOTCOOKIE}, &dotdotent};
 
@@ -503,7 +500,7 @@ nfsproc_readdir_2_svc(nfsreaddirargs *argp, struct svc_req *rqstp)
       res.rdr_u.rdr_reply_u.dl_entries = &slinkent;
       break;
     case SLINKCOOKIE:
-      res.rdr_u.rdr_reply_u.dl_entries = (nfsentry *) 0;
+      res.rdr_u.rdr_reply_u.dl_entries = (nfsentry *) NULL;
       break;
     }
     res.rdr_u.rdr_reply_u.dl_eof = TRUE;

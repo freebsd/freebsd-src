@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 1997-2006 Erez Zadok
+.\" Copyright (c) 1997-2014 Erez Zadok
 .\" Copyright (c) 1989 Jan-Simon Pendry
 .\" Copyright (c) 1989 Imperial College of Science, Technology & Medicine
 .\" Copyright (c) 1989 The Regents of the University of California.
@@ -16,11 +16,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgment:
-.\"      This product includes software developed by the University of
-.\"      California, Berkeley and its contributors.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -36,9 +32,8 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	%W% (Berkeley) %G%
 .\"
-.\" $Id: amd.8,v 1.14.2.1 2006/01/02 18:48:23 ezk Exp $
+.\" File: am-utils/amd/amd.8
 .\" $FreeBSD$
 .\"
 .Dd January 2, 2006
@@ -225,20 +220,20 @@ Specify an
 in seconds, between attempts to dismount
 file systems that have exceeded their cached times.
 The default is 2 minutes.
+.TP
 .It Fl x Ar options
-Specify run-time logging options.
-The options are a comma separated
+Specify run-time logging options.  The options are a comma separated
 list chosen from:
-.Li fatal , error , user , warn , info , map , stats , all .
+.Li fatal, error, user, warn, info, map, stats, defaults, all .
+Note that "fatal" and "error" are mandatory and cannot be turned off.
+.TP
 .It Fl y Ar domain
 Specify an alternative
 .Tn NIS
 domain from which to fetch the
 .Tn NIS
 maps.
-The default is the system domain name.
-This option is ignored if
-.Tn NIS
+The default is the system domain name.  This option is ignored if NIS
 support is not available.
 .It Fl A Ar arch
 Specifies the OS architecture.
@@ -360,14 +355,15 @@ number of process context switches.
 A weird imagination is most useful to gain full advantage of all
 the features.
 .Sh SEE ALSO
-.Xr domainname 1 ,
-.Xr hostname 1 ,
-.Xr syslog 3 ,
-.Xr amd.conf 5 ,
-.Xr mtab 5 ,
-.Xr amq 8 ,
-.Xr mount 8 ,
-.Xr umount 8
+.Xr domainname 1,
+.Xr hostname 1,
+.Xr syslog 3.
+.Xr amd.conf 5,
+.Xr mtab 5,
+.Xr amq 8,
+.Xr automount 8,
+.Xr mount 8,
+.Xr umount 8,
 .Pp
 .Dq am-utils
 .Xr info 1
