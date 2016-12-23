@@ -545,7 +545,7 @@ dtrace_getstackdepth(int aframes)
 		else
 			aframes--;
 		osp = sp;
-		sp = *(uintptr_t *)sp;
+		sp = dtrace_next_sp(sp);
 	}
 	if (depth < aframes)
 		return (0);
