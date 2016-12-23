@@ -90,6 +90,7 @@ __FBSDID("$FreeBSD$");
 
 #include <netipsec/key.h>
 #include <netipsec/keydb.h>
+#include <netipsec/key_debug.h>
 
 #include <netipsec/xform.h>
 #include <netinet6/ip6protosw.h>

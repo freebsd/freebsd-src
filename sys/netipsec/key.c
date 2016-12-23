@@ -1245,6 +1245,21 @@ key_newsp(void)
 	return (sp);
 }
 
+struct ipsecrequest *
+ipsec_newisr(void)
+{
+
+	return (malloc(sizeof(struct ipsecrequest), M_IPSEC_SR,
+	    M_NOWAIT | M_ZERO));
+}
+
+void
+ipsec_delisr(struct ipsecrequest *p)
+{
+
+	free(p, M_IPSEC_SR);
+}
+
 /*
  * create secpolicy structure from sadb_x_policy structure.
  * NOTE: `state', `secpolicyindex' and 'id' in secpolicy structure

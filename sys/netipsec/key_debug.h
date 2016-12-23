@@ -75,6 +75,7 @@ struct secashead;
 struct secasvar;
 struct secreplay;
 struct mbuf;
+union sockaddr_union;
 const char* kdebug_secpolicy_state(u_int);
 const char* kdebug_secpolicy_policy(u_int);
 const char* kdebug_secpolicyindex_dir(u_int);
@@ -88,6 +89,8 @@ void kdebug_secash(struct secashead *, const char *);
 void kdebug_secasv(struct secasvar *);
 void kdebug_mbufhdr(const struct mbuf *);
 void kdebug_mbuf(const struct mbuf *);
+char *ipsec_address(const union sockaddr_union *, char *, socklen_t);
+char *ipsec_sa2str(struct secasvar *, char *, size_t);
 #endif /*_KERNEL*/
 
 struct sockaddr;

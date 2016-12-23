@@ -614,7 +614,7 @@ ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 		SECASVAR_UNLOCK(sav);
 		AHSTAT_INC(ahs_replay);
 		DPRINTF(("%s: packet replay failure: %s\n", __func__,
-		    ipsec_logsastr(sav, buf, sizeof(buf))));
+		    ipsec_sa2str(sav, buf, sizeof(buf))));
 		m_freem(m);
 		return (EACCES);
 	}

@@ -941,21 +941,6 @@ ipsec_run_hhooks(struct ipsec_ctx_data *ctx, int type)
 	return (0);
 }
 
-struct ipsecrequest *
-ipsec_newisr(void)
-{
-
-	return (malloc(sizeof(struct ipsecrequest), M_IPSEC_SR,
-	    M_NOWAIT | M_ZERO));
-}
-
-void
-ipsec_delisr(struct ipsecrequest *p)
-{
-
-	free(p, M_IPSEC_SR);
-}
-
 /*
  * Return current level.
  * Either IPSEC_LEVEL_USE or IPSEC_LEVEL_REQUIRE are always returned.
@@ -1428,7 +1413,7 @@ ok:
 
 		ipseclog((LOG_WARNING, "%s: replay counter made %d cycle. %s\n",
 		    __func__, replay->overflow,
-		    ipsec_logsastr(sav, buf, sizeof(buf))));
+		    ipsec_sa2str(sav, buf, sizeof(buf))));
 	}
 	return (0);
 }
@@ -1477,73 +1462,6 @@ ipsec_updateid(struct secasvar *sav, uint64_t *new, uint64_t *old)
 	sav->tdb_cryptoid = *new;
 	SECASVAR_UNLOCK(sav);
 	return (0);
-}
-
-/* Return a printable string for the address. */
-char*
-ipsec_address(const union sockaddr_union* sa, char *buf, socklen_t size)
-{
-
-	switch (sa->sa.sa_family) {
-#ifdef INET
-	case AF_INET:
-		return (inet_ntop(AF_INET, &sa->sin.sin_addr, buf, size));
-#endif /* INET */
-#ifdef INET6
-	case AF_INET6:
-		if (IN6_IS_SCOPE_LINKLOCAL(&sa->sin6.sin6_addr)) {
-			snprintf(buf, size, "%s%%%u", inet_ntop(AF_INET6,
-			    &sa->sin6.sin6_addr, buf, size),
-			    sa->sin6.sin6_scope_id);
-			return (buf);
-		} else
-			return (inet_ntop(AF_INET6, &sa->sin6.sin6_addr,
-			    buf, size));
-#endif /* INET6 */
-	case 0:
-		return ("*");
-	default:
-		return ("(unknown address family)");
-	}
-}
-
-char *
-ipsec_logsastr(struct secasvar *sav, char *buf, size_t size)
-{
-	char sbuf[IPSEC_ADDRSTRLEN], dbuf[IPSEC_ADDRSTRLEN];
-
-	IPSEC_ASSERT(sav->sah->saidx.src.sa.sa_family ==
-	    sav->sah->saidx.dst.sa.sa_family, ("address family mismatch"));
-
-	snprintf(buf, size, "SA(SPI=%08lx src=%s dst=%s)",
-	    (u_long)ntohl(sav->spi),
-	    ipsec_address(&sav->sah->saidx.src, sbuf, sizeof(sbuf)),
-	    ipsec_address(&sav->sah->saidx.dst, dbuf, sizeof(dbuf)));
-	return (buf);
-}
-
-void
-ipsec_dumpmbuf(const struct mbuf *m)
-{
-	const u_char *p;
-	int totlen;
-	int i;
-
-	totlen = 0;
-	printf("---\n");
-	while (m) {
-		p = mtod(m, const u_char *);
-		for (i = 0; i < m->m_len; i++) {
-			printf("%02x ", p[i]);
-			totlen++;
-			if (totlen % 16 == 0)
-				printf("\n");
-		}
-		m = m->m_next;
-	}
-	if (totlen % 16 != 0)
-		printf("\n");
-	printf("---\n");
 }
 
 static void

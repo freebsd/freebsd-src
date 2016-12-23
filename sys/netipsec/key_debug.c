@@ -787,6 +787,47 @@ kdebug_mbuf(const struct mbuf *m0)
 
 	return;
 }
+
+/* Return a printable string for the address. */
+char *
+ipsec_address(const union sockaddr_union* sa, char *buf, socklen_t size)
+{
+
+	switch (sa->sa.sa_family) {
+#ifdef INET
+	case AF_INET:
+		return (inet_ntop(AF_INET, &sa->sin.sin_addr, buf, size));
+#endif /* INET */
+#ifdef INET6
+	case AF_INET6:
+		if (IN6_IS_SCOPE_LINKLOCAL(&sa->sin6.sin6_addr)) {
+			snprintf(buf, size, "%s%%%u", inet_ntop(AF_INET6,
+			    &sa->sin6.sin6_addr, buf, size),
+			    sa->sin6.sin6_scope_id);
+			return (buf);
+		} else
+			return (inet_ntop(AF_INET6, &sa->sin6.sin6_addr,
+			    buf, size));
+#endif /* INET6 */
+	case 0:
+		return ("*");
+	default:
+		return ("(unknown address family)");
+	}
+}
+
+char *
+ipsec_sa2str(struct secasvar *sav, char *buf, size_t size)
+{
+	char sbuf[IPSEC_ADDRSTRLEN], dbuf[IPSEC_ADDRSTRLEN];
+
+	snprintf(buf, size, "SA(SPI=%08lx src=%s dst=%s)",
+	    (u_long)ntohl(sav->spi),
+	    ipsec_address(&sav->sah->saidx.src, sbuf, sizeof(sbuf)),
+	    ipsec_address(&sav->sah->saidx.dst, dbuf, sizeof(dbuf)));
+	return (buf);
+}
+
 #endif /* _KERNEL */
 
 void

@@ -360,7 +360,7 @@ esp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 		if (ipsec_chkreplay(ntohl(esp->esp_seq), sav) == 0) {
 			SECASVAR_UNLOCK(sav);
 			DPRINTF(("%s: packet replay check for %s\n", __func__,
-			    ipsec_logsastr(sav, buf, sizeof(buf))));
+			    ipsec_sa2str(sav, buf, sizeof(buf))));
 			ESPSTAT_INC(esps_replay);
 			m_freem(m);
 			return (EACCES);
@@ -561,7 +561,7 @@ esp_input_cb(struct cryptop *crp)
 		if (ipsec_updatereplay(ntohl(seq), sav)) {
 			SECASVAR_UNLOCK(sav);
 			DPRINTF(("%s: packet replay check for %s\n", __func__,
-			    ipsec_logsastr(sav, buf, sizeof(buf))));
+			    ipsec_sa2str(sav, buf, sizeof(buf))));
 			ESPSTAT_INC(esps_replay);
 			error = EACCES;
 			goto bad;
