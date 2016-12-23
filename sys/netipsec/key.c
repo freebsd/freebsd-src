@@ -383,10 +383,26 @@ static VNET_DEFINE(int, ipsec_ah_keymin) = 128;
 #define	V_ipsec_esp_auth	VNET(ipsec_esp_auth)
 #define	V_ipsec_ah_keymin	VNET(ipsec_ah_keymin)
 
-#ifdef SYSCTL_DECL
-SYSCTL_DECL(_net_key);
+#ifdef IPSEC_DEBUG
+VNET_DEFINE(int, ipsec_debug) = 1;
+#else
+VNET_DEFINE(int, ipsec_debug) = 0;
 #endif
 
+#ifdef INET
+SYSCTL_DECL(_net_inet_ipsec);
+SYSCTL_INT(_net_inet_ipsec, IPSECCTL_DEBUG, debug,
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ipsec_debug), 0,
+    "Enable IPsec debugging output when set.");
+#endif
+#ifdef INET6
+SYSCTL_DECL(_net_inet6_ipsec6);
+SYSCTL_INT(_net_inet6_ipsec6, IPSECCTL_DEBUG, debug,
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ipsec_debug), 0,
+    "Enable IPsec debugging output when set.");
+#endif
+
+SYSCTL_DECL(_net_key);
 SYSCTL_INT(_net_key, KEYCTL_DEBUG_LEVEL,	debug,
 	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(key_debug_level), 0, "");
 

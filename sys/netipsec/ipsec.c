@@ -100,12 +100,6 @@
 
 #include <opencrypto/cryptodev.h>
 
-#ifdef IPSEC_DEBUG
-VNET_DEFINE(int, ipsec_debug) = 1;
-#else
-VNET_DEFINE(int, ipsec_debug) = 0;
-#endif
-
 /* NB: name changed so netstat doesn't use it. */
 VNET_PCPUSTAT_DEFINE(struct ipsecstat, ipsec4stat);
 VNET_PCPUSTAT_SYSINIT(ipsec4stat);
@@ -181,9 +175,6 @@ SYSCTL_INT(_net_inet_ipsec, IPSECCTL_DFBIT, dfbit,
 SYSCTL_INT(_net_inet_ipsec, IPSECCTL_ECN, ecn,
 	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip4_ipsec_ecn), 0,
 	"Explicit Congestion Notification handling.");
-SYSCTL_INT(_net_inet_ipsec, IPSECCTL_DEBUG, debug,
-	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ipsec_debug), 0,
-	"Enable IPsec debugging output when set.");
 SYSCTL_INT(_net_inet_ipsec, OID_AUTO, crypto_support,
 	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(crypto_support), 0,
 	"Crypto driver selection.");
@@ -256,9 +247,6 @@ SYSCTL_INT(_net_inet6_ipsec6, IPSECCTL_DEF_AH_NETLEV, ah_net_deflev,
 SYSCTL_INT(_net_inet6_ipsec6, IPSECCTL_ECN, ecn,
 	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_ipsec_ecn), 0,
 	"Explicit Congestion Notification handling.");
-SYSCTL_INT(_net_inet6_ipsec6, IPSECCTL_DEBUG, debug,
-	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ipsec_debug), 0,
-	"Enable IPsec debugging output when set.");
 SYSCTL_INT(_net_inet6_ipsec6, OID_AUTO, filtertunnel,
 	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_filtertunnel),  0,
 	"If set filter packets from an IPsec tunnel.");
