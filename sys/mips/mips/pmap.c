@@ -1484,6 +1484,7 @@ pmap_pv_reclaim(pmap_t locked_pmap)
 			/* Entire chunk is free; return it. */
 			m_pc = PHYS_TO_VM_PAGE(MIPS_DIRECT_TO_PHYS(
 			    (vm_offset_t)pc));
+			dump_drop_page(m_pc->phys_addr);
 			break;
 		}
 	}
@@ -1545,6 +1546,7 @@ free_pv_chunk(struct pv_chunk *pc)
 	PV_STAT(pc_chunk_frees++);
 	/* entire chunk is free, return it */
 	m = PHYS_TO_VM_PAGE(MIPS_DIRECT_TO_PHYS((vm_offset_t)pc));
+	dump_drop_page(m->phys_addr);
 	vm_page_unwire(m, PQ_NONE);
 	vm_page_free(m);
 }
@@ -1605,6 +1607,7 @@ retry:
 	}
 	PV_STAT(pc_chunk_count++);
 	PV_STAT(pc_chunk_allocs++);
+	dump_add_page(m->phys_addr);
 	pc = (struct pv_chunk *)MIPS_PHYS_TO_DIRECT(VM_PAGE_TO_PHYS(m));
 	pc->pc_pmap = pmap;
 	pc->pc_map[0] = pc_freemask[0] & ~1ul;	/* preallocated bit 0 */
