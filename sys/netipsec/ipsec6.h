@@ -62,6 +62,8 @@ struct inpcb;
 struct secpolicy *ipsec6_checkpolicy(const struct mbuf *,
     struct inpcb *, int *);
 
+void ipsec6_setsockaddrs(const struct mbuf *, union sockaddr_union *,
+    union sockaddr_union *);
 int ipsec6_input(struct mbuf *, int, int);
 int ipsec6_in_reject(const struct mbuf *, struct inpcb *);
 int ipsec6_forward(struct mbuf *);

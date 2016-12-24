@@ -104,6 +104,69 @@ DECLARE_MODULE(ipsec_support, ipsec_support_mod,
     SI_SUB_PROTO_DOMAIN, SI_ORDER_ANY);
 MODULE_VERSION(ipsec_support, 1);
 
+#ifdef INET
+void
+ipsec4_setsockaddrs(const struct mbuf *m, union sockaddr_union *src,
+    union sockaddr_union *dst)
+{
+	static const struct sockaddr_in template = {
+		sizeof (struct sockaddr_in),
+		AF_INET,
+		0, { 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }
+	};
+
+	src->sin = template;
+	dst->sin = template;
+
+	if (m->m_len < sizeof (struct ip)) {
+		m_copydata(m, offsetof(struct ip, ip_src),
+			   sizeof (struct  in_addr),
+			   (caddr_t) &src->sin.sin_addr);
+		m_copydata(m, offsetof(struct ip, ip_dst),
+			   sizeof (struct  in_addr),
+			   (caddr_t) &dst->sin.sin_addr);
+	} else {
+		const struct ip *ip = mtod(m, const struct ip *);
+		src->sin.sin_addr = ip->ip_src;
+		dst->sin.sin_addr = ip->ip_dst;
+	}
+}
+#endif
+#ifdef INET6
+void
+ipsec6_setsockaddrs(const struct mbuf *m, union sockaddr_union *src,
+    union sockaddr_union *dst)
+{
+	struct ip6_hdr ip6buf;
+	const struct ip6_hdr *ip6;
+
+	if (m->m_len >= sizeof(*ip6))
+		ip6 = mtod(m, const struct ip6_hdr *);
+	else {
+		m_copydata(m, 0, sizeof(ip6buf), (caddr_t)&ip6buf);
+		ip6 = &ip6buf;
+	}
+
+	bzero(&src->sin6, sizeof(struct sockaddr_in6));
+	src->sin6.sin6_family = AF_INET6;
+	src->sin6.sin6_len = sizeof(struct sockaddr_in6);
+	bcopy(&ip6->ip6_src, &src->sin6.sin6_addr, sizeof(ip6->ip6_src));
+	if (IN6_IS_SCOPE_LINKLOCAL(&ip6->ip6_src)) {
+		src->sin6.sin6_addr.s6_addr16[1] = 0;
+		src->sin6.sin6_scope_id = ntohs(ip6->ip6_src.s6_addr16[1]);
+	}
+
+	bzero(&dst->sin6, sizeof(struct sockaddr_in6));
+	dst->sin6.sin6_family = AF_INET6;
+	dst->sin6.sin6_len = sizeof(struct sockaddr_in6);
+	bcopy(&ip6->ip6_dst, &dst->sin6.sin6_addr, sizeof(ip6->ip6_dst));
+	if (IN6_IS_SCOPE_LINKLOCAL(&ip6->ip6_dst)) {
+		dst->sin6.sin6_addr.s6_addr16[1] = 0;
+		dst->sin6.sin6_scope_id = ntohs(ip6->ip6_dst.s6_addr16[1]);
+	}
+}
+#endif
+
 #ifdef TCP_SIGNATURE
 const int tcp_ipsec_support = 1;
 #else

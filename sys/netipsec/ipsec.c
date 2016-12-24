@@ -260,14 +260,10 @@ static void ipsec_setspidx_inpcb(struct inpcb *, struct secpolicyindex *,
     u_int);
 
 static void ipsec4_get_ulp(const struct mbuf *, struct secpolicyindex *, int);
-static void ipsec4_setsockaddrs(const struct mbuf *, union sockaddr_union *,
-    union sockaddr_union *);
 static void ipsec4_setspidx_ipaddr(const struct mbuf *,
     struct secpolicyindex *);
 #ifdef INET6
 static void ipsec6_get_ulp(const struct mbuf *m, struct secpolicyindex *, int);
-static void ipsec6_setsockaddrs(const struct mbuf *, union sockaddr_union *,
-    union sockaddr_union *);
 static void ipsec6_setspidx_ipaddr(const struct mbuf *,
     struct secpolicyindex *);
 #endif
@@ -475,60 +471,7 @@ ipsec_setspidx_inpcb(struct inpcb *inp, struct secpolicyindex *spidx,
 	    printf("%s: ", __func__); kdebug_secpolicyindex(spidx, NULL));
 }
 
-void
-ipsec_setsockaddrs(const struct mbuf *m, union sockaddr_union *src,
-    union sockaddr_union *dst)
-{
-	struct ip *ip;
-
-	IPSEC_ASSERT(m->m_len >= sizeof(*ip), ("unexpected mbuf len"));
-
-	ip = mtod(m, struct ip *);
-	switch (ip->ip_v) {
 #ifdef INET
-	case IPVERSION:
-		ipsec4_setsockaddrs(m, src, dst);
-		break;
-#endif
-#ifdef INET6
-	case (IPV6_VERSION >> 4):
-		ipsec6_setsockaddrs(m, src, dst);
-		break;
-#endif
-	default:
-		bzero(src, sizeof(*src));
-		bzero(dst, sizeof(*dst));
-	}
-}
-
-#ifdef INET
-static void
-ipsec4_setsockaddrs(const struct mbuf *m, union sockaddr_union *src,
-    union sockaddr_union *dst)
-{
-	static const struct sockaddr_in template = {
-		sizeof (struct sockaddr_in),
-		AF_INET,
-		0, { 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }
-	};
-
-	src->sin = template;
-	dst->sin = template;
-
-	if (m->m_len < sizeof (struct ip)) {
-		m_copydata(m, offsetof(struct ip, ip_src),
-			   sizeof (struct  in_addr),
-			   (caddr_t) &src->sin.sin_addr);
-		m_copydata(m, offsetof(struct ip, ip_dst),
-			   sizeof (struct  in_addr),
-			   (caddr_t) &dst->sin.sin_addr);
-	} else {
-		const struct ip *ip = mtod(m, const struct ip *);
-		src->sin.sin_addr = ip->ip_src;
-		dst->sin.sin_addr = ip->ip_dst;
-	}
-}
-
 static void
 ipsec4_get_ulp(const struct mbuf *m, struct secpolicyindex *spidx,
     int needport)
@@ -714,39 +657,6 @@ ipsec4_capability(struct mbuf *m, u_int cap)
 #endif /* INET */
 
 #ifdef INET6
-static void
-ipsec6_setsockaddrs(const struct mbuf *m, union sockaddr_union *src,
-    union sockaddr_union *dst)
-{
-	struct ip6_hdr ip6buf;
-	const struct ip6_hdr *ip6;
-
-	if (m->m_len >= sizeof(*ip6))
-		ip6 = mtod(m, const struct ip6_hdr *);
-	else {
-		m_copydata(m, 0, sizeof(ip6buf), (caddr_t)&ip6buf);
-		ip6 = &ip6buf;
-	}
-
-	bzero(&src->sin6, sizeof(struct sockaddr_in6));
-	src->sin6.sin6_family = AF_INET6;
-	src->sin6.sin6_len = sizeof(struct sockaddr_in6);
-	bcopy(&ip6->ip6_src, &src->sin6.sin6_addr, sizeof(ip6->ip6_src));
-	if (IN6_IS_SCOPE_LINKLOCAL(&ip6->ip6_src)) {
-		src->sin6.sin6_addr.s6_addr16[1] = 0;
-		src->sin6.sin6_scope_id = ntohs(ip6->ip6_src.s6_addr16[1]);
-	}
-
-	bzero(&dst->sin6, sizeof(struct sockaddr_in6));
-	dst->sin6.sin6_family = AF_INET6;
-	dst->sin6.sin6_len = sizeof(struct sockaddr_in6);
-	bcopy(&ip6->ip6_dst, &dst->sin6.sin6_addr, sizeof(ip6->ip6_dst));
-	if (IN6_IS_SCOPE_LINKLOCAL(&ip6->ip6_dst)) {
-		dst->sin6.sin6_addr.s6_addr16[1] = 0;
-		dst->sin6.sin6_scope_id = ntohs(ip6->ip6_dst.s6_addr16[1]);
-	}
-}
-
 static void
 ipsec6_get_ulp(const struct mbuf *m, struct secpolicyindex *spidx,
     int needport)
