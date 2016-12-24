@@ -141,26 +141,25 @@ in
 .Em BlockWrite
 first sends the byte from
 .Fa cmd
-to the device, followed by
+to the device, then the byte from
+.Fa wcount
+followed by
 .Fa wcount
 bytes of data that are taken from the buffer pointed to by
 .Fa wbuf .
 The SMBus specification mandates that no more than 32 bytes of
-data can be transferred in a single block read or write command,
-but since
-.Xr smbus 4
-is also used to access I2C devices, the limit has been increased
-to 1024.
+data can be transferred in a single block read or write command.
 This value can be read from the constant
 .Dv SMB_MAXBLOCKSIZE .
 .It Dv SMB_BREAD Ta
 .Em BlockRead
 first sends the byte from
 .Fa cmd
-to the device, then reads
-.Fa rcount
-bytes of data that from the device.
-This data is returned in the buffer pointed to by
+to the device, then reads a count of data bytes that the device
+is going to provide and then reads that many bytes.
+The count is returned in
+.Fa rcount.
+The data is returned in the buffer pointed to by
 .Fa rbuf .
 .El
 .Pp
