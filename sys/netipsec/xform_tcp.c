@@ -223,6 +223,32 @@ tcp_signature_compute(struct mbuf *m, struct tcphdr *th,
 	return (0);
 }
 
+static void
+setsockaddrs(const struct mbuf *m, union sockaddr_union *src,
+    union sockaddr_union *dst)
+{
+	struct ip *ip;
+
+	IPSEC_ASSERT(m->m_len >= sizeof(*ip), ("unexpected mbuf len"));
+
+	ip = mtod(m, struct ip *);
+	switch (ip->ip_v) {
+#ifdef INET
+	case IPVERSION:
+		ipsec4_setsockaddrs(m, src, dst);
+		break;
+#endif
+#ifdef INET6
+	case (IPV6_VERSION >> 4):
+		ipsec6_setsockaddrs(m, src, dst);
+		break;
+#endif
+	default:
+		bzero(src, sizeof(*src));
+		bzero(dst, sizeof(*dst));
+	}
+}
+
 /*
  * Compute TCP-MD5 hash of an *INBOUND* TCP segment.
  * Parameters:
@@ -239,7 +265,7 @@ tcp_ipsec_input(struct mbuf *m, struct tcphdr *th, u_char *buf)
 	struct secasindex saidx;
 	struct secasvar *sav;
 
-	ipsec_setsockaddrs(m, &saidx.src, &saidx.dst);
+	setsockaddrs(m, &saidx.src, &saidx.dst);
 	saidx.proto = IPPROTO_TCP;
 	saidx.mode = IPSEC_MODE_TCPMD5;
 	saidx.reqid = 0;
@@ -279,7 +305,7 @@ tcp_ipsec_output(struct mbuf *m, struct tcphdr *th, u_char *buf)
 	struct secasindex saidx;
 	struct secasvar *sav;
 
-	ipsec_setsockaddrs(m, &saidx.src, &saidx.dst);
+	setsockaddrs(m, &saidx.src, &saidx.dst);
 	saidx.proto = IPPROTO_TCP;
 	saidx.mode = IPSEC_MODE_TCPMD5;
 	saidx.reqid = 0;
