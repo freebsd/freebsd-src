@@ -144,6 +144,9 @@ ATF_TC_WITH_CLEANUP(mincore_resid);
 ATF_TC_HEAD(mincore_resid, tc)
 {
 	atf_tc_set_md_var(tc, "descr", "Test page residency with mincore(2)");
+#ifdef __FreeBSD__
+	atf_tc_set_md_var(tc, "require.user", "root");
+#endif
 }
 
 ATF_TC_BODY(mincore_resid, tc)
@@ -155,6 +158,13 @@ ATF_TC_BODY(mincore_resid, tc)
 	struct rlimit rlim;
 
 	ATF_REQUIRE(getrlimit(RLIMIT_MEMLOCK, &rlim) == 0);
+#ifdef __FreeBSD__
+	/*
+	 * Bump the mlock limit to unlimited so the rest of the testcase
+	 * passes instead of failing on the mlock call.
+	 */
+	rlim.rlim_max = RLIM_INFINITY;
+#endif
 	rlim.rlim_cur = rlim.rlim_max;
 	ATF_REQUIRE(setrlimit(RLIMIT_MEMLOCK, &rlim) == 0);
 
@@ -206,8 +216,9 @@ ATF_TC_BODY(mincore_resid, tc)
 		    "might be low on memory");
 
 #ifdef __FreeBSD__
-	ATF_REQUIRE_MSG(mlock(addr, npgs * page) == 0, "mlock failed: %s",
-	    strerror(errno));
+	if (mlock(addr, npgs * page) == -1 && errno != ENOMEM)
+		atf_tc_skip("could not wire anonymous test area, system might "
+		    "be low on memory");
 #endif
 	ATF_REQUIRE(check_residency(addr, npgs) == npgs);
 	ATF_REQUIRE(munmap(addr, npgs * page) == 0);
