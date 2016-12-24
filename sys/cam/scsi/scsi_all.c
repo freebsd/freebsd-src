@@ -3742,341 +3742,300 @@ scsi_find_desc(struct scsi_sense_data_desc *sense, u_int sense_len,
 }
 
 /*
+ * Fill in SCSI descriptor sense data with the specified parameters.
+ */
+static void
+scsi_set_sense_data_desc_va(struct scsi_sense_data *sense_data,
+    u_int *sense_len, scsi_sense_data_type sense_format, int current_error,
+    int sense_key, int asc, int ascq, va_list ap)
+{
+	struct scsi_sense_data_desc *sense;
+	scsi_sense_elem_type elem_type;
+	int space, len;
+	uint8_t *desc, *data;
+
+	memset(sense_data, 0, sizeof(*sense_data));
+	sense = (struct scsi_sense_data_desc *)sense_data;
+	if (current_error != 0)
+		sense->error_code = SSD_DESC_CURRENT_ERROR;
+	else
+		sense->error_code = SSD_DESC_DEFERRED_ERROR;
+	sense->sense_key = sense_key;
+	sense->add_sense_code = asc;
+	sense->add_sense_code_qual = ascq;
+	sense->flags = 0;
+
+	desc = &sense->sense_desc[0];
+	space = *sense_len - offsetof(struct scsi_sense_data_desc, sense_desc);
+	while ((elem_type = va_arg(ap, scsi_sense_elem_type)) !=
+	    SSD_ELEM_NONE) {
+		if (elem_type >= SSD_ELEM_MAX) {
+			printf("%s: invalid sense type %d\n", __func__,
+			       elem_type);
+			break;
+		}
+		len = va_arg(ap, int);
+		data = va_arg(ap, uint8_t *);
+
+		switch (elem_type) {
+		case SSD_ELEM_SKIP:
+			break;
+		case SSD_ELEM_DESC:
+			if (space < len) {
+				sense->flags |= SSDD_SDAT_OVFL;
+				break;
+			}
+			bcopy(data, desc, len);
+			desc += len;
+			space -= len;
+			break;
+		case SSD_ELEM_SKS: {
+			struct scsi_sense_sks *sks = (void *)desc;
+
+			if (len > sizeof(sks->sense_key_spec))
+				break;
+			if (space < sizeof(*sks)) {
+				sense->flags |= SSDD_SDAT_OVFL;
+				break;
+			}
+			sks->desc_type = SSD_DESC_SKS;
+			sks->length = sizeof(*sks) -
+			    (offsetof(struct scsi_sense_sks, length) + 1);
+			bcopy(data, &sks->sense_key_spec, len);
+			desc += sizeof(*sks);
+			space -= sizeof(*sks);
+			break;
+		}
+		case SSD_ELEM_COMMAND: {
+			struct scsi_sense_command *cmd = (void *)desc;
+
+			if (len > sizeof(cmd->command_info))
+				break;
+			if (space < sizeof(*cmd)) {
+				sense->flags |= SSDD_SDAT_OVFL;
+				break;
+			}
+			cmd->desc_type = SSD_DESC_COMMAND;
+			cmd->length = sizeof(*cmd) -
+			    (offsetof(struct scsi_sense_command, length) + 1);
+			bcopy(data, &cmd->command_info[
+			    sizeof(cmd->command_info) - len], len);
+			desc += sizeof(*cmd);
+			space -= sizeof(*cmd);
+			break;
+		}
+		case SSD_ELEM_INFO: {
+			struct scsi_sense_info *info = (void *)desc;
+
+			if (len > sizeof(info->info))
+				break;
+			if (space < sizeof(*info)) {
+				sense->flags |= SSDD_SDAT_OVFL;
+				break;
+			}
+			info->desc_type = SSD_DESC_INFO;
+			info->length = sizeof(*info) -
+			    (offsetof(struct scsi_sense_info, length) + 1);
+			info->byte2 = SSD_INFO_VALID;
+			bcopy(data, &info->info[sizeof(info->info) - len], len);
+			desc += sizeof(*info);
+			space -= sizeof(*info);
+			break;
+		}
+		case SSD_ELEM_FRU: {
+			struct scsi_sense_fru *fru = (void *)desc;
+
+			if (len > sizeof(fru->fru))
+				break;
+			if (space < sizeof(*fru)) {
+				sense->flags |= SSDD_SDAT_OVFL;
+				break;
+			}
+			fru->desc_type = SSD_DESC_FRU;
+			fru->length = sizeof(*fru) -
+			    (offsetof(struct scsi_sense_fru, length) + 1);
+			fru->fru = *data;
+			desc += sizeof(*fru);
+			space -= sizeof(*fru);
+			break;
+		}
+		case SSD_ELEM_STREAM: {
+			struct scsi_sense_stream *stream = (void *)desc;
+
+			if (len > sizeof(stream->byte3))
+				break;
+			if (space < sizeof(*stream)) {
+				sense->flags |= SSDD_SDAT_OVFL;
+				break;
+			}
+			stream->desc_type = SSD_DESC_STREAM;
+			stream->length = sizeof(*stream) -
+			    (offsetof(struct scsi_sense_stream, length) + 1);
+			stream->byte3 = *data;
+			desc += sizeof(*stream);
+			space -= sizeof(*stream);
+			break;
+		}
+		default:
+			/*
+			 * We shouldn't get here, but if we do, do nothing.
+			 * We've already consumed the arguments above.
+			 */
+			break;
+		}
+	}
+	sense->extra_len = desc - &sense->sense_desc[0];
+	*sense_len = offsetof(struct scsi_sense_data_desc, extra_len) + 1 +
+	    sense->extra_len;
+}
+
+/*
+ * Fill in SCSI fixed sense data with the specified parameters.
+ */
+static void
+scsi_set_sense_data_fixed_va(struct scsi_sense_data *sense_data,
+    u_int *sense_len, scsi_sense_data_type sense_format, int current_error,
+    int sense_key, int asc, int ascq, va_list ap)
+{
+	struct scsi_sense_data_fixed *sense;
+	scsi_sense_elem_type elem_type;
+	uint8_t *data;
+	int len;
+
+	memset(sense_data, 0, sizeof(*sense_data));
+	sense = (struct scsi_sense_data_fixed *)sense_data;
+	if (current_error != 0)
+		sense->error_code = SSD_CURRENT_ERROR;
+	else
+		sense->error_code = SSD_DEFERRED_ERROR;
+	sense->flags = sense_key & SSD_KEY;
+	sense->extra_len = 0;
+	if (*sense_len >= 13) {
+		sense->add_sense_code = asc;
+		sense->extra_len = MAX(sense->extra_len, 5);
+	} else
+		sense->flags |= SSD_SDAT_OVFL;
+	if (*sense_len >= 14) {
+		sense->add_sense_code_qual = ascq;
+		sense->extra_len = MAX(sense->extra_len, 6);
+	} else
+		sense->flags |= SSD_SDAT_OVFL;
+
+	while ((elem_type = va_arg(ap, scsi_sense_elem_type)) !=
+	    SSD_ELEM_NONE) {
+		if (elem_type >= SSD_ELEM_MAX) {
+			printf("%s: invalid sense type %d\n", __func__,
+			       elem_type);
+			break;
+		}
+		len = va_arg(ap, int);
+		data = va_arg(ap, uint8_t *);
+
+		switch (elem_type) {
+		case SSD_ELEM_SKIP:
+			break;
+		case SSD_ELEM_SKS:
+			if (len > sizeof(sense->sense_key_spec))
+				break;
+			if (*sense_len < 18) {
+				sense->flags |= SSD_SDAT_OVFL;
+				break;
+			}
+			bcopy(data, &sense->sense_key_spec[0], len);
+			sense->extra_len = MAX(sense->extra_len, 10);
+			break;
+		case SSD_ELEM_COMMAND:
+			if (*sense_len < 12) {
+				sense->flags |= SSD_SDAT_OVFL;
+				break;
+			}
+			if (len > sizeof(sense->cmd_spec_info)) {
+				data += len - sizeof(sense->cmd_spec_info);
+				len -= len - sizeof(sense->cmd_spec_info);
+			}
+			bcopy(data, &sense->cmd_spec_info[
+			    sizeof(sense->cmd_spec_info) - len], len);
+			sense->extra_len = MAX(sense->extra_len, 4);
+			break;
+		case SSD_ELEM_INFO:
+			/* Set VALID bit only if no overflow. */
+			sense->error_code |= SSD_ERRCODE_VALID;
+			while (len > sizeof(sense->info)) {
+				if (data[0] != 0)
+					sense->error_code &= ~SSD_ERRCODE_VALID;
+				data ++;
+				len --;
+			}
+			bcopy(data, &sense->info[sizeof(sense->info) - len], len);
+			break;
+		case SSD_ELEM_FRU:
+			if (*sense_len < 15) {
+				sense->flags |= SSD_SDAT_OVFL;
+				break;
+			}
+			sense->fru = *data;
+			sense->extra_len = MAX(sense->extra_len, 7);
+			break;
+		case SSD_ELEM_STREAM:
+			sense->flags |= *data &
+			    (SSD_ILI | SSD_EOM | SSD_FILEMARK);
+			break;
+		default:
+
+			/*
+			 * We can't handle that in fixed format.  Skip it.
+			 */
+			break;
+		}
+	}
+	*sense_len = offsetof(struct scsi_sense_data_fixed, extra_len) + 1 +
+	    sense->extra_len;
+}
+
+/*
  * Fill in SCSI sense data with the specified parameters.  This routine can
  * fill in either fixed or descriptor type sense data.
  */
 void
-scsi_set_sense_data_va(struct scsi_sense_data *sense_data,
+scsi_set_sense_data_va(struct scsi_sense_data *sense_data, u_int *sense_len,
 		      scsi_sense_data_type sense_format, int current_error,
-		      int sense_key, int asc, int ascq, va_list ap) 
+		      int sense_key, int asc, int ascq, va_list ap)
 {
-	int descriptor_sense;
-	scsi_sense_elem_type elem_type;
 
-	/*
-	 * Determine whether to return fixed or descriptor format sense
-	 * data.  If the user specifies SSD_TYPE_NONE for some reason,
-	 * they'll just get fixed sense data.
-	 */
+	if (*sense_len > SSD_FULL_SIZE)
+		*sense_len = SSD_FULL_SIZE;
 	if (sense_format == SSD_TYPE_DESC)
-		descriptor_sense = 1;
+		scsi_set_sense_data_desc_va(sense_data, sense_len,
+		    sense_format, current_error, sense_key, asc, ascq, ap);
 	else
-		descriptor_sense = 0;
-
-	/*
-	 * Zero the sense data, so that we don't pass back any garbage data
-	 * to the user.
-	 */
-	memset(sense_data, 0, sizeof(*sense_data));
-
-	if (descriptor_sense != 0) {
-		struct scsi_sense_data_desc *sense;
-
-		sense = (struct scsi_sense_data_desc *)sense_data;
-		/*
-		 * The descriptor sense format eliminates the use of the
-		 * valid bit.
-		 */
-		if (current_error != 0)
-			sense->error_code = SSD_DESC_CURRENT_ERROR;
-		else
-			sense->error_code = SSD_DESC_DEFERRED_ERROR;
-		sense->sense_key = sense_key;
-		sense->add_sense_code = asc;
-		sense->add_sense_code_qual = ascq;
-		/*
-		 * Start off with no extra length, since the above data
-		 * fits in the standard descriptor sense information.
-		 */
-		sense->extra_len = 0;
-		while ((elem_type = (scsi_sense_elem_type)va_arg(ap,
-			scsi_sense_elem_type)) != SSD_ELEM_NONE) {
-			int sense_len, len_to_copy;
-			uint8_t *data;
-
-			if (elem_type >= SSD_ELEM_MAX) {
-				printf("%s: invalid sense type %d\n", __func__,
-				       elem_type);
-				break;
-			}
-
-			sense_len = (int)va_arg(ap, int);
-			len_to_copy = MIN(sense_len, SSD_EXTRA_MAX -
-					  sense->extra_len);
-			data = (uint8_t *)va_arg(ap, uint8_t *);
-
-			/*
-			 * We've already consumed the arguments for this one.
-			 */
-			if (elem_type == SSD_ELEM_SKIP)
-				continue;
-
-			switch (elem_type) {
-			case SSD_ELEM_DESC: {
-
-				/*
-				 * This is a straight descriptor.  All we
-				 * need to do is copy the data in.
-				 */
-				bcopy(data, &sense->sense_desc[
-				      sense->extra_len], len_to_copy);
-				sense->extra_len += len_to_copy;
-				break;
-			}
-			case SSD_ELEM_SKS: {
-				struct scsi_sense_sks sks;
-
-				bzero(&sks, sizeof(sks));
-
-				/*
-				 * This is already-formatted sense key
-				 * specific data.  We just need to fill out
-				 * the header and copy everything in.
-				 */
-				bcopy(data, &sks.sense_key_spec,
-				      MIN(len_to_copy,
-				          sizeof(sks.sense_key_spec)));
-
-				sks.desc_type = SSD_DESC_SKS;
-				sks.length = sizeof(sks) -
-				    offsetof(struct scsi_sense_sks, reserved1);
-				bcopy(&sks,&sense->sense_desc[sense->extra_len],
-				      sizeof(sks));
-				sense->extra_len += sizeof(sks);
-				break;
-			}
-			case SSD_ELEM_INFO:
-			case SSD_ELEM_COMMAND: {
-				struct scsi_sense_command cmd;
-				struct scsi_sense_info info;
-				uint8_t *data_dest;
-				uint8_t *descriptor;
-				int descriptor_size, i, copy_len;
-
-				bzero(&cmd, sizeof(cmd));
-				bzero(&info, sizeof(info));
-
-				/*
-				 * Command or information data.  The
-				 * operate in pretty much the same way.
-				 */
-				if (elem_type == SSD_ELEM_COMMAND) {
-					len_to_copy = MIN(len_to_copy,
-					    sizeof(cmd.command_info));
-					descriptor = (uint8_t *)&cmd;
-					descriptor_size  = sizeof(cmd);
-					data_dest =(uint8_t *)&cmd.command_info;
-					cmd.desc_type = SSD_DESC_COMMAND;
-					cmd.length = sizeof(cmd) -
-					    offsetof(struct scsi_sense_command,
-						     reserved);
-				} else {
-					len_to_copy = MIN(len_to_copy,
-					    sizeof(info.info));
-					descriptor = (uint8_t *)&info;
-					descriptor_size = sizeof(cmd);
-					data_dest = (uint8_t *)&info.info;
-					info.desc_type = SSD_DESC_INFO;
-					info.byte2 = SSD_INFO_VALID;
-					info.length = sizeof(info) -
-					    offsetof(struct scsi_sense_info,
-						     byte2);
-				}
-
-				/*
-				 * Copy this in reverse because the spec
-				 * (SPC-4) says that when 4 byte quantities
-				 * are stored in this 8 byte field, the
-				 * first four bytes shall be 0.
-				 *
-				 * So we fill the bytes in from the end, and
-				 * if we have less than 8 bytes to copy,
-				 * the initial, most significant bytes will
-				 * be 0.
-				 */
-				for (i = sense_len - 1; i >= 0 &&
-				     len_to_copy > 0; i--, len_to_copy--)
-					data_dest[len_to_copy - 1] = data[i];
-
-				/*
-				 * This calculation looks much like the
-				 * initial len_to_copy calculation, but
-				 * we have to do it again here, because
-				 * we're looking at a larger amount that
-				 * may or may not fit.  It's not only the
-				 * data the user passed in, but also the
-				 * rest of the descriptor.
-				 */
-				copy_len = MIN(descriptor_size,
-				    SSD_EXTRA_MAX - sense->extra_len);
-				bcopy(descriptor, &sense->sense_desc[
-				      sense->extra_len], copy_len);
-				sense->extra_len += copy_len;
-				break;
-			}
-			case SSD_ELEM_FRU: {
-				struct scsi_sense_fru fru;
-				int copy_len;
-
-				bzero(&fru, sizeof(fru));
-
-				fru.desc_type = SSD_DESC_FRU;
-				fru.length = sizeof(fru) -
-				    offsetof(struct scsi_sense_fru, reserved);
-				fru.fru = *data;
-
-				copy_len = MIN(sizeof(fru), SSD_EXTRA_MAX -
-					       sense->extra_len);
-				bcopy(&fru, &sense->sense_desc[
-				      sense->extra_len], copy_len);
-				sense->extra_len += copy_len;
-				break;
-			}
-			case SSD_ELEM_STREAM: {
-				struct scsi_sense_stream stream_sense;
-				int copy_len;
-
-				bzero(&stream_sense, sizeof(stream_sense));
-				stream_sense.desc_type = SSD_DESC_STREAM;
-				stream_sense.length = sizeof(stream_sense) -
-				   offsetof(struct scsi_sense_stream, reserved);
-				stream_sense.byte3 = *data;
-
-				copy_len = MIN(sizeof(stream_sense),
-				    SSD_EXTRA_MAX - sense->extra_len);
-				bcopy(&stream_sense, &sense->sense_desc[
-				      sense->extra_len], copy_len);
-				sense->extra_len += copy_len;
-				break;
-			}
-			default:
-				/*
-				 * We shouldn't get here, but if we do, do
-				 * nothing.  We've already consumed the
-				 * arguments above.
-				 */
-				break;
-			}
-		}
-	} else {
-		struct scsi_sense_data_fixed *sense;
-
-		sense = (struct scsi_sense_data_fixed *)sense_data;
-
-		if (current_error != 0)
-			sense->error_code = SSD_CURRENT_ERROR;
-		else
-			sense->error_code = SSD_DEFERRED_ERROR;
-
-		sense->flags = sense_key;
-		sense->add_sense_code = asc;
-		sense->add_sense_code_qual = ascq;
-		/*
-		 * We've set the ASC and ASCQ, so we have 6 more bytes of
-		 * valid data.  If we wind up setting any of the other
-		 * fields, we'll bump this to 10 extra bytes.
-		 */
-		sense->extra_len = 6;
-
-		while ((elem_type = (scsi_sense_elem_type)va_arg(ap,
-			scsi_sense_elem_type)) != SSD_ELEM_NONE) {
-			int sense_len, len_to_copy;
-			uint8_t *data;
-
-			if (elem_type >= SSD_ELEM_MAX) {
-				printf("%s: invalid sense type %d\n", __func__,
-				       elem_type);
-				break;
-			}
-			/*
-			 * If we get in here, just bump the extra length to
-			 * 10 bytes.  That will encompass anything we're
-			 * going to set here.
-			 */
-			sense->extra_len = 10;
-			sense_len = (int)va_arg(ap, int);
-			data = (uint8_t *)va_arg(ap, uint8_t *);
-
-			switch (elem_type) {
-			case SSD_ELEM_SKS:
-				/*
-				 * The user passed in pre-formatted sense
-				 * key specific data.
-				 */
-				bcopy(data, &sense->sense_key_spec[0],
-				      MIN(sizeof(sense->sense_key_spec),
-				      sense_len));
-				break;
-			case SSD_ELEM_INFO:
-			case SSD_ELEM_COMMAND: {
-				uint8_t *data_dest;
-				int i;
-
-				if (elem_type == SSD_ELEM_COMMAND) {
-					data_dest = &sense->cmd_spec_info[0];
-					len_to_copy = MIN(sense_len,
-					    sizeof(sense->cmd_spec_info));
-				} else {
-					data_dest = &sense->info[0];
-					len_to_copy = MIN(sense_len,
-					    sizeof(sense->info));
-
-					/* Set VALID bit only if no overflow. */
-					for (i = 0; i < sense_len - len_to_copy;
-					    i++) {
-						if (data[i] != 0)
-							break;
-					}
-					if (i >= sense_len - len_to_copy) {
-						sense->error_code |=
-						    SSD_ERRCODE_VALID;
-					}
-				}
-
-				/*
-			 	 * Copy this in reverse so that if we have
-				 * less than 4 bytes to fill, the least
-				 * significant bytes will be at the end.
-				 * If we have more than 4 bytes, only the
-				 * least significant bytes will be included.
-				 */
-				for (i = sense_len - 1; i >= 0 &&
-				     len_to_copy > 0; i--, len_to_copy--)
-					data_dest[len_to_copy - 1] = data[i];
-
-				break;
-			}
-			case SSD_ELEM_FRU:
-				sense->fru = *data;
-				break;
-			case SSD_ELEM_STREAM:
-				sense->flags |= *data;
-				break;
-			case SSD_ELEM_DESC:
-			default:
-
-				/*
-				 * If the user passes in descriptor sense,
-				 * we can't handle that in fixed format.
-				 * So just skip it, and any unknown argument
-				 * types.
-				 */
-				break;
-			}
-		}
-	}
+		scsi_set_sense_data_fixed_va(sense_data, sense_len,
+		    sense_format, current_error, sense_key, asc, ascq, ap);
 }
 
 void
-scsi_set_sense_data(struct scsi_sense_data *sense_data, 
+scsi_set_sense_data(struct scsi_sense_data *sense_data,
 		    scsi_sense_data_type sense_format, int current_error,
-		    int sense_key, int asc, int ascq, ...) 
+		    int sense_key, int asc, int ascq, ...)
+{
+	va_list ap;
+	u_int	sense_len = SSD_FULL_SIZE;
+
+	va_start(ap, ascq);
+	scsi_set_sense_data_va(sense_data, &sense_len, sense_format,
+	    current_error, sense_key, asc, ascq, ap);
+	va_end(ap);
+}
+
+void
+scsi_set_sense_data_len(struct scsi_sense_data *sense_data, u_int *sense_len,
+		    scsi_sense_data_type sense_format, int current_error,
+		    int sense_key, int asc, int ascq, ...)
 {
 	va_list ap;
 
 	va_start(ap, ascq);
-	scsi_set_sense_data_va(sense_data, sense_format, current_error,
-			       sense_key, asc, ascq, ap);
+	scsi_set_sense_data_va(sense_data, sense_len, sense_format,
+	    current_error, sense_key, asc, ascq, ap);
 	va_end(ap);
 }
 
