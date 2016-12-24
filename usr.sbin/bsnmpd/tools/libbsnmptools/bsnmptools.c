@@ -177,7 +177,7 @@ snmptool_init(struct snmp_toolinfo *snmptoolctx)
 		if ((slen = strlen(str)) > MAXSTR)
 			slen = MAXSTR - 1;
 		if ((snmptoolctx->passwd = malloc(slen + 1)) == NULL) {
-			warnx("malloc() failed - %s", strerror(errno));
+			warn("malloc() failed");
 			return (-1);
 		}
 		if (slen > 0)
@@ -252,12 +252,12 @@ add_filename(struct snmp_toolinfo *snmptoolctx, const char *filename,
 	}
 
 	if ((fstring = strdup(filename)) == NULL) {
-		warnx("strdup() failed - %s", strerror(errno));
+		warn("strdup() failed");
 		return (-1);
 	}
 
 	if ((entry = calloc(1, sizeof(struct fname))) == NULL) {
-		warnx("calloc() failed - %s", strerror(errno));
+		warn("calloc() failed");
 		free(fstring);
 		return (-1);
 	}
@@ -668,8 +668,7 @@ parse_user_security(struct snmp_toolinfo *snmptoolctx __unused, char *opt_arg)
 			errno = 0;
 			snmp_client.engine.engine_boots = strtoul(val, NULL, 10);
 			if (errno != 0) {
-				warnx("Bad 'engine-boots' value %s - %s", val,
-				    strerror(errno));
+				warn("Bad 'engine-boots' value %s", val);
 				errno = saved_errno;
 				return (-1);
 			}
@@ -684,8 +683,7 @@ parse_user_security(struct snmp_toolinfo *snmptoolctx __unused, char *opt_arg)
 			errno = 0;
 			snmp_client.engine.engine_time = strtoul(val, NULL, 10);
 			if (errno != 0) {
-				warnx("Bad 'engine-time' value %s - %s", val,
-				    strerror(errno));
+				warn("Bad 'engine-time' value %s", val);
 				errno = saved_errno;
 				return (-1);
 			}
@@ -819,7 +817,7 @@ parse_timeout(char *opt_arg)
 
 	v = strtol(opt_arg, NULL, 10);
 	if (errno != 0) {
-		warnx( "Error parsing timeout value - %s", strerror(errno));
+		warn("Error parsing timeout value");
 		errno = saved_errno;
 		return (-1);
 	}
@@ -842,7 +840,7 @@ parse_retry(char *opt_arg)
 
 	v = strtoul(opt_arg, NULL, 10);
 	if (errno != 0) {
-		warnx("Error parsing retries count - %s", strerror(errno));
+		warn("Error parsing retries count");
 		errno = saved_errno;
 		return (-1);
 	}
@@ -865,7 +863,7 @@ parse_version(char *opt_arg)
 
 	v = strtoul(opt_arg, NULL, 10);
 	if (errno != 0) {
-		warnx("Error parsing version - %s", strerror(errno));
+		warn("Error parsing version");
 		errno = saved_errno;
 		return (-1);
 	}
@@ -917,7 +915,7 @@ parse_buflen(char *opt_arg)
 
 	size = strtoul(opt_arg, NULL, 10);
 	if (errno != 0) {
-		warnx("Error parsing buffer size - %s", strerror(errno));
+		warn("Error parsing buffer size");
 		errno = saved_errno;
 		return (-1);
 	}
@@ -1040,8 +1038,7 @@ snmp_int2asn_oid(char *str, struct asn_oid *oid)
 
 	v = strtol(str, &endptr, 10);
 	if (errno != 0) {
-		warnx("Integer value %s not supported - %s", str,
-		    strerror(errno));
+		warn("Integer value %s not supported", str);
 		errno = saved_errno;
 		return (NULL);
 	}
@@ -1120,8 +1117,7 @@ snmp_uint2asn_oid(char *str, struct asn_oid *oid)
 
 	v = strtoul(str, &endptr, 10);
 	if (errno != 0) {
-		warnx("Integer value %s not supported - %s\n", str,
-		    strerror(errno));
+		warn("Integer value %s not supported", str);
 		errno = saved_errno;
 		return (NULL);
 	}
@@ -1145,8 +1141,7 @@ snmp_cnt64_2asn_oid(char *str, struct asn_oid *oid)
 	v = strtoull(str, &endptr, 10);
 
 	if (errno != 0) {
-		warnx("Integer value %s not supported - %s", str,
-		    strerror(errno));
+		warn("Integer value %s not supported", str);
 		errno = saved_errno;
 		return (NULL);
 	}
