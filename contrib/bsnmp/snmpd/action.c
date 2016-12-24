@@ -40,6 +40,7 @@
 #include <sys/utsname.h>
 #include <ctype.h>
 #include <errno.h>
+#include <inttypes.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -217,6 +218,21 @@ save_boots:
 	fclose(fp);
 
 	return (0);
+}
+
+void
+update_snmpd_engine_time(void)
+{
+	uint64_t etime;
+
+	etime = (get_ticks() - start_tick) / 100ULL;
+	if (etime < INT32_MAX)
+		snmpd_engine.engine_time = etime;
+	else {
+		start_tick = get_ticks();
+		(void)set_snmpd_engine();
+		snmpd_engine.engine_time = start_tick;
+	}
 }
 
 /*************************************************************
@@ -1118,7 +1134,7 @@ op_snmp_engine(struct snmp_context *ctx __unused, struct snmp_value *value,
 		value->v.integer = snmpd_engine.engine_boots;
 		break;
 	case LEAF_snmpEngineTime:
-		snmpd_engine.engine_time = (get_ticks() - start_tick) / 100ULL;
+		update_snmpd_engine_time();
 		value->v.integer = snmpd_engine.engine_time;
 		break;
 	case LEAF_snmpEngineMaxMessageSize:
