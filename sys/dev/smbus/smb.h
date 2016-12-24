@@ -54,11 +54,8 @@ struct smbcmd {
 
 /*
  * SMBus spec 2.0 says block transfers may be at most 32 bytes.
- * We use SMBus for i2c as well, make the size limit something more
- * reasonable.  Keep in mind that a char buf array is declared on the
- * kernel stack.
  */
-#define SMB_MAXBLOCKSIZE	1024
+#define SMB_MAXBLOCKSIZE	32
 
 #define SMB_QUICK_WRITE	_IOW('i', 1, struct smbcmd)
 #define SMB_QUICK_READ	_IOW('i', 2, struct smbcmd)
@@ -71,6 +68,6 @@ struct smbcmd {
 #define SMB_PCALL	_IOWR('i', 9, struct smbcmd)
 #define SMB_BWRITE	_IOW('i', 10, struct smbcmd)
 #define SMB_BREAD	_IOWR('i', 11, struct smbcmd)
-#define SMB_TRANS	_IOWR('i', 12, struct smbcmd)
+#define SMB_OLD_TRANS	_IOWR('i', 12, struct smbcmd)
 
 #endif
