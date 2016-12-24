@@ -38,19 +38,19 @@
  */
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <ctype.h>
+#include <errno.h>
+#include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stddef.h>
 #include <stdarg.h>
+#include <string.h>
 #ifdef HAVE_STDINT_H
 #include <stdint.h>
 #elif defined(HAVE_INTTYPES_H)
 #include <inttypes.h>
 #endif
-#include <string.h>
-#include <ctype.h>
-#include <netdb.h>
-#include <errno.h>
 
 #include "asn1.h"
 #include "snmp.h"
