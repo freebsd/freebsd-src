@@ -21,6 +21,7 @@ mips/ingenic/jz4780_machdep.c	standard
 mips/ingenic/jz4780_nemc.c	standard
 mips/ingenic/jz4780_pdma.c	standard
 mips/ingenic/jz4780_pinctrl.c	standard
+mips/ingenic/jz4780_rtc.c	standard
 mips/ingenic/jz4780_timer.c	standard
 
 # Sound
