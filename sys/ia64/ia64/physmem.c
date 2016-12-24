@@ -38,7 +38,7 @@ static u_int phys_avail_segs;
 vm_paddr_t phys_avail[2 * VM_PHYSSEG_MAX + 2];
 
 vm_paddr_t paddr_max;
-
+long Maxmem;
 long realmem;
 
 static u_int
@@ -168,6 +168,12 @@ ia64_physmem_fini(void)
 	size = 1U << 27;
 	realmem = (realmem + size - 1) & ~(size - 1);
 	realmem = atop(realmem);
+
+	/*
+	 * Maxmem isn't the "maximum memory", it's one larger than the
+	 * highest page of the physical address space.
+	 */
+	Maxmem = atop(paddr_max);
 	return (0);
 }
 
