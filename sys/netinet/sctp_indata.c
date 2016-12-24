@@ -472,7 +472,6 @@ sctp_clean_up_control(struct sctp_tcb *stcb, struct sctp_queued_to_read *control
  */
 static void
 sctp_queue_data_to_stream(struct sctp_tcb *stcb,
-    struct sctp_stream_in *strm,
     struct sctp_association *asoc,
     struct sctp_queued_to_read *control, int *abort_flag, int *need_reasm)
 {
@@ -498,16 +497,17 @@ sctp_queue_data_to_stream(struct sctp_tcb *stcb,
 	int queue_needed;
 	uint32_t nxt_todel;
 	struct mbuf *op_err;
+	struct sctp_stream_in *strm;
 	char msg[SCTP_DIAG_INFO_LEN];
 
+	strm = &asoc->strmin[control->sinfo_stream];
 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_STR_LOGGING_ENABLE) {
 		sctp_log_strm_del(control, NULL, SCTP_STR_LOG_FROM_INTO_STRD);
 	}
 	if (SCTP_MID_GT((asoc->idata_supported), strm->last_mid_delivered, control->mid)) {
 		/* The incoming sseq is behind where we last delivered? */
 		SCTPDBG(SCTP_DEBUG_INDATA1, "Duplicate S-SEQ: %u delivered: %u from peer, Abort association\n",
-		    control->mid, strm->last_mid_delivered);
-protocol_error:
+		    strm->last_mid_delivered, control->mid);
 		/*
 		 * throw it in the stream so it gets cleaned up in
 		 * association destruction
@@ -530,9 +530,6 @@ protocol_error:
 		*abort_flag = 1;
 		return;
 
-	}
-	if ((SCTP_TSN_GE(asoc->cumulative_tsn, control->sinfo_tsn)) && (asoc->idata_supported == 0)) {
-		goto protocol_error;
 	}
 	queue_needed = 1;
 	asoc->size_on_all_streams += control->length;
@@ -1041,7 +1038,7 @@ sctp_deliver_reasm_check(struct sctp_tcb *stcb, struct sctp_association *asoc,
 	}
 	control = TAILQ_FIRST(&strm->uno_inqueue);
 
-	if ((control) &&
+	if ((control != NULL) &&
 	    (asoc->idata_supported == 0)) {
 		/* Special handling needed for "old" data format */
 		if (sctp_handle_old_unordered_data(stcb, asoc, strm, control, pd_point, inp_read_lock_held)) {
@@ -1280,7 +1277,6 @@ sctp_add_chk_to_control(struct sctp_queued_to_read *control,
  */
 static void
 sctp_queue_data_for_reasm(struct sctp_tcb *stcb, struct sctp_association *asoc,
-    struct sctp_stream_in *strm,
     struct sctp_queued_to_read *control,
     struct sctp_tmit_chunk *chk,
     int created_control,
@@ -1288,8 +1284,10 @@ sctp_queue_data_for_reasm(struct sctp_tcb *stcb, struct sctp_association *asoc,
 {
 	uint32_t next_fsn;
 	struct sctp_tmit_chunk *at, *nat;
+	struct sctp_stream_in *strm;
 	int do_wakeup, unordered;
 
+	strm = &asoc->strmin[control->sinfo_stream];
 	/*
 	 * For old un-ordered data chunks.
 	 */
@@ -1582,7 +1580,6 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 	uint32_t ppid;
 	uint8_t chk_flags;
 	struct sctp_stream_reset_list *liste;
-	struct sctp_stream_in *strm;
 	int ordered;
 	size_t clen;
 	int created_control = 0;
@@ -1733,7 +1730,6 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 		}
 		return (0);
 	}
-	strm = &asoc->strmin[sid];
 	/*
 	 * If its a fragmented message, lets see if we can find the control
 	 * on the reassembly queues.
@@ -1750,7 +1746,7 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 		    mid, chk_flags);
 		goto err_out;
 	}
-	control = sctp_find_reasm_entry(strm, mid, ordered, asoc->idata_supported);
+	control = sctp_find_reasm_entry(&asoc->strmin[sid], mid, ordered, asoc->idata_supported);
 	SCTPDBG(SCTP_DEBUG_XXX, "chunk_flags:0x%x look for control on queues %p\n",
 	    chk_flags, control);
 	if ((chk_flags & SCTP_DATA_NOT_FRAG) != SCTP_DATA_NOT_FRAG) {
@@ -2020,7 +2016,7 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 
 		if ((chk_flags & SCTP_DATA_UNORDERED) == 0) {
 			/* for ordered, bump what we delivered */
-			strm->last_mid_delivered++;
+			asoc->strmin[sid].last_mid_delivered++;
 		}
 		SCTP_STAT_INCR(sctps_recvexpress);
 		if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_STR_LOGGING_ENABLE) {
@@ -2130,7 +2126,7 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 		} else {
 			SCTPDBG(SCTP_DEBUG_XXX, "Queue control: %p for reordering MID: %u\n", control,
 			    mid);
-			sctp_queue_data_to_stream(stcb, strm, asoc, control, abort_flag, &need_reasm_check);
+			sctp_queue_data_to_stream(stcb, asoc, control, abort_flag, &need_reasm_check);
 			if (*abort_flag) {
 				if (last_chunk) {
 					*m = NULL;
@@ -2145,7 +2141,7 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 	SCTPDBG(SCTP_DEBUG_XXX,
 	    "Queue data to stream for reasm control: %p MID: %u\n",
 	    control, mid);
-	sctp_queue_data_for_reasm(stcb, asoc, strm, control, chk, created_control, abort_flag, tsn);
+	sctp_queue_data_for_reasm(stcb, asoc, control, chk, created_control, abort_flag, tsn);
 	if (*abort_flag) {
 		/*
 		 * the assoc is now gone and chk was put onto the reasm
@@ -2179,6 +2175,10 @@ finish_express_del:
 		sctp_log_map(asoc->mapping_array_base_tsn, asoc->cumulative_tsn,
 		    asoc->highest_tsn_inside_map, SCTP_MAP_PREPARE_SLIDE);
 	}
+	if (need_reasm_check) {
+		(void)sctp_deliver_reasm_check(stcb, asoc, &asoc->strmin[sid], SCTP_READ_LOCK_NOT_HELD);
+		need_reasm_check = 0;
+	}
 	/* check the special flag for stream resets */
 	if (((liste = TAILQ_FIRST(&asoc->resetHead)) != NULL) &&
 	    SCTP_TSN_GE(asoc->cumulative_tsn, liste->tsn)) {
@@ -2200,9 +2200,13 @@ finish_express_del:
 			/* All can be removed */
 			TAILQ_FOREACH_SAFE(ctl, &asoc->pending_reply_queue, next, nctl) {
 				TAILQ_REMOVE(&asoc->pending_reply_queue, ctl, next);
-				sctp_queue_data_to_stream(stcb, strm, asoc, ctl, abort_flag, &need_reasm_check);
+				sctp_queue_data_to_stream(stcb, asoc, ctl, abort_flag, &need_reasm_check);
 				if (*abort_flag) {
 					return (0);
+				}
+				if (need_reasm_check) {
+					(void)sctp_deliver_reasm_check(stcb, asoc, &asoc->strmin[ctl->sinfo_stream], SCTP_READ_LOCK_NOT_HELD);
+					need_reasm_check = 0;
 				}
 			}
 		} else {
@@ -2216,22 +2220,16 @@ finish_express_del:
 				 * ctl->sinfo_tsn > liste->tsn
 				 */
 				TAILQ_REMOVE(&asoc->pending_reply_queue, ctl, next);
-				sctp_queue_data_to_stream(stcb, strm, asoc, ctl, abort_flag, &need_reasm_check);
+				sctp_queue_data_to_stream(stcb, asoc, ctl, abort_flag, &need_reasm_check);
 				if (*abort_flag) {
 					return (0);
 				}
+				if (need_reasm_check) {
+					(void)sctp_deliver_reasm_check(stcb, asoc, &asoc->strmin[ctl->sinfo_stream], SCTP_READ_LOCK_NOT_HELD);
+					need_reasm_check = 0;
+				}
 			}
 		}
-		/*
-		 * Now service re-assembly to pick up anything that has been
-		 * held on reassembly queue?
-		 */
-		(void)sctp_deliver_reasm_check(stcb, asoc, strm, SCTP_READ_LOCK_NOT_HELD);
-		need_reasm_check = 0;
-	}
-	if (need_reasm_check) {
-		/* Another one waits ? */
-		(void)sctp_deliver_reasm_check(stcb, asoc, strm, SCTP_READ_LOCK_NOT_HELD);
 	}
 	return (1);
 }
