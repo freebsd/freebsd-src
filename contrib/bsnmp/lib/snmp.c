@@ -51,6 +51,8 @@
 #elif defined(HAVE_INTTYPES_H)
 #include <inttypes.h>
 #endif
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 #include "asn1.h"
 #include "snmp.h"
@@ -1384,29 +1386,16 @@ snmp_value_parse(const char *str, enum snmp_syntax syntax, union snmp_values *v)
 	  case SNMP_SYNTAX_IPADDRESS:
 	    {
 		struct hostent *he;
-		u_long ip[4];
-		int n;
 
-		if (sscanf(str, "%lu.%lu.%lu.%lu%n", &ip[0], &ip[1], &ip[2],
-		    &ip[3], &n) == 4 && (size_t)n == strlen(str) &&
-		    ip[0] <= 0xff && ip[1] <= 0xff &&
-		    ip[2] <= 0xff && ip[3] <= 0xff) {
-			v->ipaddress[0] = (u_char)ip[0];
-			v->ipaddress[1] = (u_char)ip[1];
-			v->ipaddress[2] = (u_char)ip[2];
-			v->ipaddress[3] = (u_char)ip[3];
+		if (inet_pton(AF_INET, str, &v->ipaddress) == 1)
 			return (0);
-		}
-
-		if ((he = gethostbyname(str)) == NULL)
+		if ((he = gethostbyname2(str, AF_INET)) == NULL)
 			return (-1);
 		if (he->h_addrtype != AF_INET)
 			return (-1);
 
-		v->ipaddress[0] = he->h_addr[0];
-		v->ipaddress[1] = he->h_addr[1];
-		v->ipaddress[2] = he->h_addr[2];
-		v->ipaddress[3] = he->h_addr[3];
+		memcpy(v->ipaddress, he->h_addr, sizeof(v->ipaddress));
+
 		return (0);
 	    }
 
