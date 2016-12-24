@@ -2348,7 +2348,8 @@ waitdaemon(int maxwait)
 		(void)dup2(fd, STDIN_FILENO);
 		(void)dup2(fd, STDOUT_FILENO);
 		(void)dup2(fd, STDERR_FILENO);
-		closefrom(STDERR_FILENO + 1);
+		if (fd > STDERR_FILENO)
+			(void)close(fd);
 	}
 	return (getppid());
 }
