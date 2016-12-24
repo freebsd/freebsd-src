@@ -332,6 +332,7 @@ int init_actvals(void);
 extern char engine_file[];
 int init_snmpd_engine(void);
 int set_snmpd_engine(void);
+void update_snmpd_engine_time(void);
 
 int read_config(const char *, struct lmodule *);
 int define_macro(const char *name, const char *value);
