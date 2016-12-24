@@ -1840,7 +1840,7 @@ ieee80211_cac_completeswitch(struct ieee80211vap *vap0)
 	ieee80211_new_state_locked(vap0, IEEE80211_S_RUN, 0);
 
 	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next)
-		if (vap->iv_state == IEEE80211_S_CAC)
+		if (vap->iv_state == IEEE80211_S_CAC && vap != vap0)
 			ieee80211_new_state_locked(vap, IEEE80211_S_RUN, 0);
 	IEEE80211_UNLOCK(ic);
 }
