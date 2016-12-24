@@ -81,8 +81,10 @@ spigen_identify(driver_t *driver, device_t parent)
 static int
 spigen_probe(device_t dev)
 {
+
 	device_set_desc(dev, "SPI Generic IO");
-	return (0);
+
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 static int spigen_open(struct cdev *, int, int, struct thread *);
