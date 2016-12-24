@@ -2873,9 +2873,8 @@ socksetup(struct peer *pe)
 	for (res = res0; res != NULL; res = res->ai_next) {
 		int s;
 
-		if (res->ai_family == AF_LOCAL)
-			unlink(pe->pe_name);
-		else if (SecureMode > 1) {
+		if (res->ai_family != AF_LOCAL &&
+		    SecureMode > 1) {
 			/* Only AF_LOCAL in secure mode. */
 			continue;
 		}
@@ -2907,26 +2906,36 @@ socksetup(struct peer *pe)
 			error++;
 			continue;
 		}
+
 		/*
-		 * RFC 3164 recommends that client side message
-		 * should come from the privileged syslogd port.
+		 * Bind INET and UNIX-domain sockets.
 		 *
-		 * If the system administrator choose not to obey
+		 * A UNIX-domain socket is always bound to a pathname
+		 * regardless of -N flag.
+		 *
+		 * For INET sockets, RFC 3164 recommends that client
+		 * side message should come from the privileged syslogd port.
+		 *
+		 * If the system administrator chooses not to obey
 		 * this, we can skip the bind() step so that the
 		 * system will choose a port for us.
 		 */
-		if (NoBind == 0) {
+		if (res->ai_family == AF_LOCAL)
+			unlink(pe->pe_name);
+		if (res->ai_family == AF_LOCAL ||
+		    NoBind == 0 || pe->pe_name != NULL) {
 			if (bind(s, res->ai_addr, res->ai_addrlen) < 0) {
 				logerror("bind");
 				close(s);
 				error++;
 				continue;
 			}
-			if (SecureMode == 0)
+			if (res->ai_family == AF_LOCAL ||
+			    SecureMode == 0)
 				increase_rcvbuf(s);
 		}
 		if (res->ai_family == AF_LOCAL &&
-	    	    chmod(pe->pe_name, pe->pe_mode) < 0) {
+		    chmod(pe->pe_name, pe->pe_mode) < 0) {
 			dprintf("chmod %s: %s\n", pe->pe_name,
 			    strerror(errno));
 			close(s);
@@ -2936,7 +2945,7 @@ socksetup(struct peer *pe)
 		dprintf("new socket fd is %d\n", s);
 		listen(s, 5);
 		dprintf("shutdown\n");
-		if (SecureMode) {
+		if (SecureMode || res->ai_family == AF_LOCAL) {
 			/* Forbid communication in secure mode. */
 			if (shutdown(s, SHUT_RD) < 0 &&
 			    errno != ENOTCONN) {
@@ -2944,9 +2953,9 @@ socksetup(struct peer *pe)
 				if (!Debug)
 					die(0);
 			}
-			dprintf("listening on inet socket\n");
+			dprintf("listening on socket\n");
 		} else
-			dprintf("sending on inet socket\n");
+			dprintf("sending on socket\n");
 		addsock(res->ai_addr, res->ai_addrlen,
 		    &(struct socklist){
 			.sl_socket = s,
