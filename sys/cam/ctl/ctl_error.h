@@ -45,12 +45,12 @@
 
 struct ctl_lun;
 
-void ctl_set_sense_data_va(struct scsi_sense_data *sense_data, void *lun,
-			   scsi_sense_data_type sense_format, int current_error,
-			   int sense_key, int asc, int ascq, va_list ap); 
-void ctl_set_sense_data(struct scsi_sense_data *sense_data, void *lun,
-			scsi_sense_data_type sense_format, int current_error,
-			int sense_key, int asc, int ascq, ...); 
+void ctl_set_sense_data_va(struct scsi_sense_data *sense_data, u_int *sense_len,
+    void *lun, scsi_sense_data_type sense_format, int current_error,
+    int sense_key, int asc, int ascq, va_list ap);
+void ctl_set_sense_data(struct scsi_sense_data *sense_data, u_int *sense_len,
+    void *lun, scsi_sense_data_type sense_format, int current_error,
+    int sense_key, int asc, int ascq, ...);
 void ctl_set_sense(struct ctl_scsiio *ctsio, int current_error, int sense_key,
 		   int asc, int ascq, ...);
 void ctl_sense_to_desc(struct scsi_sense_data_fixed *sense_src,
@@ -60,7 +60,8 @@ void ctl_sense_to_fixed(struct scsi_sense_data_desc *sense_src,
 void ctl_set_ua(struct ctl_scsiio *ctsio, int asc, int ascq);
 ctl_ua_type ctl_build_qae(struct ctl_lun *lun, uint32_t initidx, uint8_t *resp);
 ctl_ua_type ctl_build_ua(struct ctl_lun *lun, uint32_t initidx,
-    struct scsi_sense_data *sense, scsi_sense_data_type sense_format);
+    struct scsi_sense_data *sense, u_int *sense_len,
+    scsi_sense_data_type sense_format);
 void ctl_set_overlapped_cmd(struct ctl_scsiio *ctsio);
 void ctl_set_overlapped_tag(struct ctl_scsiio *ctsio, uint8_t tag);
 void ctl_set_invalid_field(struct ctl_scsiio *ctsio, int sks_valid, int command,
