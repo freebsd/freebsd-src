@@ -299,7 +299,7 @@ op_snmp_target_addrs(struct snmp_context *ctx __unused, struct snmp_value *val,
 				return (target_delete_address(addrs));
 			break;
 		default:
-			break;	
+			break;
 		}
 		return (SNMP_ERR_NOERROR);
 
