@@ -643,6 +643,7 @@ static int key_delete(struct socket *, struct mbuf *,
 	const struct sadb_msghdr *);
 static int key_delete_all(struct socket *, struct mbuf *,
 	const struct sadb_msghdr *, struct secasindex *);
+static void key_delete_xform(const struct xformsw *);
 static int key_get(struct socket *, struct mbuf *,
 	const struct sadb_msghdr *);
 
@@ -5705,6 +5706,52 @@ key_delete_all(struct socket *so, struct mbuf *m,
 }
 
 /*
+ * Delete all alive SAs for corresponding xform.
+ * Larval SAs have not initialized tdb_xform, so it is safe to leave them
+ * here when xform disappears.
+ */
+static void
+key_delete_xform(const struct xformsw *xsp)
+{
+	struct secasvar_queue drainq;
+	struct secashead *sah;
+	struct secasvar *sav, *nextsav;
+
+	TAILQ_INIT(&drainq);
+	SAHTREE_WLOCK();
+	TAILQ_FOREACH(sah, &V_sahtree, chain) {
+		sav = TAILQ_FIRST(&sah->savtree_alive);
+		if (sav == NULL)
+			continue;
+		if (sav->tdb_xform != xsp)
+			continue;
+		/*
+		 * It is supposed that all SAs in the chain are related to
+		 * one xform.
+		 */
+		TAILQ_CONCAT(&drainq, &sah->savtree_alive, chain);
+	}
+	/* Unlink all queued SAs from SPI hash */
+	TAILQ_FOREACH(sav, &drainq, chain) {
+		sav->state = SADB_SASTATE_DEAD;
+		LIST_REMOVE(sav, spihash);
+	}
+	SAHTREE_WUNLOCK();
+
+	/* Now we can release reference for all SAs in drainq */
+	sav = TAILQ_FIRST(&drainq);
+	while (sav != NULL) {
+		KEYDBG(KEY_STAMP,
+		    printf("%s: SA(%p)\n", __func__, sav));
+		KEYDBG(KEY_DATA, kdebug_secasv(sav));
+		nextsav = TAILQ_NEXT(sav, chain);
+		key_freesah(&sav->sah); /* release reference from SAV */
+		key_freesav(&sav); /* release last reference */
+		sav = nextsav;
+	}
+}
+
+/*
  * SADB_GET processing
  * receive
  *   <base, SA(*), address(SD)>
@@ -8019,6 +8066,9 @@ xform_detach(void *data)
 	XFORMS_LOCK();
 	LIST_REMOVE(xsp, chain);
 	XFORMS_UNLOCK();
+
+	/* Delete all SAs related to this xform. */
+	key_delete_xform(xsp);
 }
 
 /*
