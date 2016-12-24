@@ -99,6 +99,7 @@ main(int argc, char *argv[])
 	host = NULL;
 	svcname = "syslog";
 	src = NULL;
+	socks = NULL;
 	pri = LOG_USER | LOG_NOTICE;
 	logflags = 0;
 	unsetenv("TZ");
