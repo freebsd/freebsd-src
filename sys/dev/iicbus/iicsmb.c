@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/iicbus/iiconf.h>
 #include <dev/iicbus/iicbus.h>
 
+#include <dev/smbus/smb.h>
 #include <dev/smbus/smbconf.h>
 
 #include "iicbus_if.h"
@@ -432,7 +433,7 @@ iicsmb_bwrite(device_t dev, u_char slave, char cmd, u_char count, char *buf)
 	};
 	int error;
 
-	if (count > 32 || count == 0)
+	if (count > SMB_MAXBLOCKSIZE || count == 0)
 		return (SMB_EINVAL);
 	error = TRANSFER_MSGS(dev, msgs);
 	return (iic2smb_error(error));
@@ -450,12 +451,6 @@ iicsmb_bread(device_t dev, u_char slave, char cmd, u_char *count, char *buf)
 	};
 	device_t parent = device_get_parent(dev);
 	int error;
-	u_char bufsz;
-
-	/* Stash output buffer size before overwriting it. */
-	bufsz = *count;
-	if (bufsz == 0)
-		return (SMB_EINVAL);
 
 	/* Have to do this because the command is split in two transfers. */
 	error = iicbus_request_bus(parent, dev, IIC_WAIT);
@@ -465,18 +460,13 @@ iicsmb_bread(device_t dev, u_char slave, char cmd, u_char *count, char *buf)
 		/*
 		 * If the slave offers an empty or a too long reply,
 		 * read one byte to generate the stop or abort.
-		 * XXX 32 is hardcoded until SMB_MAXBLOCKSIZE is restored
-		 * to sanity.
 		 */
-		if (*count > 32 || *count == 0)
+		if (*count > SMB_MAXBLOCKSIZE || *count == 0)
 			block_msg[0].len = 1;
-		/* If longer than the buffer, then clamp at the buffer size. */
-		if (*count > bufsz)
-			block_msg[0].len = bufsz;
 		else
 			block_msg[0].len = *count;
 		error = TRANSFER_MSGS(dev, block_msg);
-		if (*count > 32 || *count == 0)
+		if (*count > SMB_MAXBLOCKSIZE || *count == 0)
 			error = SMB_EINVAL;
 	}
 	(void)iicbus_release_bus(parent, dev);
