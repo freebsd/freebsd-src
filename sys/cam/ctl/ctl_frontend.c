@@ -316,8 +316,8 @@ ctl_port_online(struct ctl_port *port)
 	if (port->lun_enable != NULL) {
 		if (port->lun_map) {
 			for (l = 0; l < CTL_MAX_LUNS; l++) {
-				if (ctl_lun_map_from_port(port, l) >=
-				    CTL_MAX_LUNS)
+				if (ctl_lun_map_from_port(port, l) ==
+				    UINT32_MAX)
 					continue;
 				port->lun_enable(port->targ_lun_arg, l);
 			}
@@ -338,7 +338,7 @@ ctl_port_online(struct ctl_port *port)
 	}
 	port->status |= CTL_PORT_STATUS_ONLINE;
 	STAILQ_FOREACH(lun, &softc->lun_list, links) {
-		if (ctl_lun_map_to_port(port, lun->lun) >= CTL_MAX_LUNS)
+		if (ctl_lun_map_to_port(port, lun->lun) == UINT32_MAX)
 			continue;
 		mtx_lock(&lun->lun_lock);
 		ctl_est_ua_all(lun, -1, CTL_UA_INQ_CHANGE);
@@ -360,8 +360,8 @@ ctl_port_offline(struct ctl_port *port)
 	if (port->lun_disable != NULL) {
 		if (port->lun_map) {
 			for (l = 0; l < CTL_MAX_LUNS; l++) {
-				if (ctl_lun_map_from_port(port, l) >=
-				    CTL_MAX_LUNS)
+				if (ctl_lun_map_from_port(port, l) ==
+				    UINT32_MAX)
 					continue;
 				port->lun_disable(port->targ_lun_arg, l);
 			}
@@ -373,7 +373,7 @@ ctl_port_offline(struct ctl_port *port)
 	mtx_lock(&softc->ctl_lock);
 	port->status &= ~CTL_PORT_STATUS_ONLINE;
 	STAILQ_FOREACH(lun, &softc->lun_list, links) {
-		if (ctl_lun_map_to_port(port, lun->lun) >= CTL_MAX_LUNS)
+		if (ctl_lun_map_to_port(port, lun->lun) == UINT32_MAX)
 			continue;
 		mtx_lock(&lun->lun_lock);
 		ctl_est_ua_all(lun, -1, CTL_UA_INQ_CHANGE);
