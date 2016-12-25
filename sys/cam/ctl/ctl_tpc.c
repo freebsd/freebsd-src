@@ -894,7 +894,7 @@ tpc_process_b2b(struct tpc_list *list)
 	dcscd = scsi_2btoul(seg->dst_cscd);
 	sl = tpc_resolve(list, scscd, &srcblock, NULL, NULL);
 	dl = tpc_resolve(list, dcscd, &dstblock, &pb, &pbo);
-	if (sl >= CTL_MAX_LUNS || dl >= CTL_MAX_LUNS) {
+	if (sl == UINT64_MAX || dl == UINT64_MAX) {
 		ctl_set_sense(list->ctsio, /*current_error*/ 1,
 		    /*sense_key*/ SSD_KEY_COPY_ABORTED,
 		    /*asc*/ 0x08, /*ascq*/ 0x04,
@@ -1042,7 +1042,7 @@ tpc_process_verify(struct tpc_list *list)
 	seg = (struct scsi_ec_segment_verify *)list->seg[list->curseg];
 	cscd = scsi_2btoul(seg->src_cscd);
 	sl = tpc_resolve(list, cscd, NULL, NULL, NULL);
-	if (sl >= CTL_MAX_LUNS) {
+	if (sl == UINT64_MAX) {
 		ctl_set_sense(list->ctsio, /*current_error*/ 1,
 		    /*sense_key*/ SSD_KEY_COPY_ABORTED,
 		    /*asc*/ 0x08, /*ascq*/ 0x04,
@@ -1106,7 +1106,7 @@ tpc_process_register_key(struct tpc_list *list)
 	seg = (struct scsi_ec_segment_register_key *)list->seg[list->curseg];
 	cscd = scsi_2btoul(seg->dst_cscd);
 	dl = tpc_resolve(list, cscd, NULL, NULL, NULL);
-	if (dl >= CTL_MAX_LUNS) {
+	if (dl == UINT64_MAX) {
 		ctl_set_sense(list->ctsio, /*current_error*/ 1,
 		    /*sense_key*/ SSD_KEY_COPY_ABORTED,
 		    /*asc*/ 0x08, /*ascq*/ 0x04,
