@@ -1602,7 +1602,10 @@ _gperf=		gnu/usr.bin/gperf
 .if ${MK_SHAREDOCS} != "no" && ${MK_DOCTOOLS} != "no"
 _doctools=	cddl/usr.bin/doctools \
 		usr.bin/soelim \
+		lib/libcapsicum \
 		usr.bin/col
+
+${_bt}-usr.bin/col: ${_bt}-lib/libcapsicum
 .endif
 
 .if ${MK_VT} != "no"
