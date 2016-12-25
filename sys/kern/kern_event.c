@@ -606,7 +606,7 @@ timer2sbintime(intptr_t data, int flags)
 	case NOTE_SECONDS:
 #ifdef __LP64__
 		if (data > (SBT_MAX / SBT_1S))
-			return SBT_MAX;
+			return (SBT_MAX);
 #endif
 		return ((sbintime_t)data << 32);
 	case NOTE_MSECONDS: /* FALLTHROUGH */
@@ -615,7 +615,7 @@ timer2sbintime(intptr_t data, int flags)
 			int64_t secs = data / 1000;
 #ifdef __LP64__
 			if (secs > (SBT_MAX / SBT_1S))
-				return SBT_MAX;
+				return (SBT_MAX);
 #endif
 			return (secs << 32 | MS_TO_SBT(data % 1000));
 		}
@@ -625,7 +625,7 @@ timer2sbintime(intptr_t data, int flags)
 			int64_t secs = data / 1000000;
 #ifdef __LP64__
 			if (secs > (SBT_MAX / SBT_1S))
-				return SBT_MAX;
+				return (SBT_MAX);
 #endif
 			return (secs << 32 | US_TO_SBT(data % 1000000));
 		}
@@ -635,11 +635,11 @@ timer2sbintime(intptr_t data, int flags)
 			int64_t secs = data / 1000000000;
 #ifdef __LP64__
 			if (secs > (SBT_MAX / SBT_1S))
-				return SBT_MAX;
+				return (SBT_MAX);
 #endif
 			return (secs << 32 | US_TO_SBT(data % 1000000000));
 		}
-		return NS_TO_SBT(data);
+		return (NS_TO_SBT(data));
 	default:
 		break;
 	}
