@@ -280,7 +280,7 @@ trap(struct trapframe *frame)
 		case EXC_DEBUG:	/* Single stepping */
 			mtspr(SPR_DBSR, mfspr(SPR_DBSR));
 			frame->srr1 &= ~PSL_DE;
-			frame->cpu.booke.dbcr0 &= ~(DBCR0_IDM || DBCR0_IC);
+			frame->cpu.booke.dbcr0 &= ~(DBCR0_IDM | DBCR0_IC);
 			sig = SIGTRAP;
 			ucode = TRAP_TRACE;
 			break;
@@ -765,8 +765,8 @@ fix_unaligned(struct thread *td, struct trapframe *frame)
 		fpr = (double *)td->td_pcb->pcb_vec.vr[reg];
 		fputhread = PCPU_GET(vecthread);
 
-		/* Juggle the FPU to ensure that we've initialized
-		 * the FPRs, and that their current state is in
+		/* Juggle the SPE to ensure that we've initialized
+		 * the registers, and that their current state is in
 		 * the PCB.
 		 */
 		if (fputhread != td) {

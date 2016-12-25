@@ -1309,7 +1309,7 @@ sdhci_acmd_irq(struct sdhci_slot *slot)
 void
 sdhci_generic_intr(struct sdhci_slot *slot)
 {
-	uint32_t intmask;
+	uint32_t intmask, present;
 	
 	SDHCI_LOCK(slot);
 	/* Read slot interrupt status. */
@@ -1323,6 +1323,13 @@ sdhci_generic_intr(struct sdhci_slot *slot)
 
 	/* Handle card presence interrupts. */
 	if (intmask & (SDHCI_INT_CARD_INSERT | SDHCI_INT_CARD_REMOVE)) {
+		present = RD4(slot, SDHCI_PRESENT_STATE) & SDHCI_CARD_PRESENT;
+		slot->intmask &=
+		    ~(SDHCI_INT_CARD_INSERT | SDHCI_INT_CARD_REMOVE);
+		slot->intmask |= present ? SDHCI_INT_CARD_REMOVE :
+		    SDHCI_INT_CARD_INSERT;
+		WR4(slot, SDHCI_INT_ENABLE, slot->intmask);
+		WR4(slot, SDHCI_SIGNAL_ENABLE, slot->intmask);
 		WR4(slot, SDHCI_INT_STATUS, intmask & 
 		    (SDHCI_INT_CARD_INSERT | SDHCI_INT_CARD_REMOVE));
 

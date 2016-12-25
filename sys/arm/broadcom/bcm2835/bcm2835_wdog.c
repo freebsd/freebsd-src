@@ -34,7 +34,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/rman.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -191,7 +190,7 @@ bcmwd_watchdog_fn(void *private, u_int cmd, int *error)
 }
 
 void
-bcmwd_watchdog_reset()
+bcmwd_watchdog_reset(void)
 {
 
 	if (bcmwd_lsc == NULL)

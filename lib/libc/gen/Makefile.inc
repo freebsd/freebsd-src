@@ -17,6 +17,7 @@ SRCS+=	__getosreldate.c \
 	assert.c \
 	auxv.c \
 	basename.c \
+	basename_compat.c \
 	cap_sandboxed.c \
 	check_utility_compat.c \
 	clock.c \

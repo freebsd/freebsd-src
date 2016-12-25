@@ -220,10 +220,20 @@ enum {
 	MLX5_ETH_WQE_L4_CSUM		= 1 << 7,
 };
 
+enum {
+	MLX5_ETH_WQE_SWP_OUTER_L3_TYPE = 1 << 0,
+	MLX5_ETH_WQE_SWP_OUTER_L4_TYPE = 1 << 1,
+	MLX5_ETH_WQE_SWP_INNER_L3_TYPE = 1 << 4,
+	MLX5_ETH_WQE_SWP_INNER_L4_TYPE = 1 << 5,
+};
+
 struct mlx5_wqe_eth_seg {
-	u8		rsvd0[4];
+	u8              swp_outer_l4_offset;
+	u8		swp_outer_l3_offset;
+	u8		swp_inner_l4_offset;
+	u8		swp_inner_l3_offset;
 	u8		cs_flags;
-	u8		rsvd1;
+	u8		swp_flags;
 	__be16		mss;
 	__be32		rsvd2;
 	__be16		inline_hdr_sz;

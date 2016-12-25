@@ -87,7 +87,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
-#include <vm/vm_pageout.h>
 #include <vm/vnode_pager.h>
 
 #include <ufs/ufs/extattr.h>
@@ -602,15 +601,6 @@ ffs_read(ap)
 		}
 
 		/*
-		 * If IO_DIRECT then set B_DIRECT for the buffer.  This
-		 * will cause us to attempt to release the buffer later on
-		 * and will cause the buffer cache to attempt to free the
-		 * underlying pages.
-		 */
-		if (ioflag & IO_DIRECT)
-			bp->b_flags |= B_DIRECT;
-
-		/*
 		 * We should only get non-zero b_resid when an I/O error
 		 * has occurred, which should cause us to break above.
 		 * However, if the short read did not cause an error,
@@ -634,25 +624,7 @@ ffs_read(ap)
 		if (error)
 			break;
 
-		if ((ioflag & (IO_VMIO|IO_DIRECT)) &&
-		   (LIST_EMPTY(&bp->b_dep))) {
-			/*
-			 * If there are no dependencies, and it's VMIO,
-			 * then we don't need the buf, mark it available
-			 * for freeing.  For non-direct VMIO reads, the VM
-			 * has the data.
-			 */
-			bp->b_flags |= B_RELBUF;
-			brelse(bp);
-		} else {
-			/*
-			 * Otherwise let whoever
-			 * made the request take care of
-			 * freeing it. We just queue
-			 * it onto another list.
-			 */
-			bqrelse(bp);
-		}
+		vfs_bio_brelse(bp, ioflag);
 	}
 
 	/*
@@ -661,15 +633,8 @@ ffs_read(ap)
 	 * and on normal completion has not set a new value into it.
 	 * so it must have come from a 'break' statement
 	 */
-	if (bp != NULL) {
-		if ((ioflag & (IO_VMIO|IO_DIRECT)) &&
-		   (LIST_EMPTY(&bp->b_dep))) {
-			bp->b_flags |= B_RELBUF;
-			brelse(bp);
-		} else {
-			bqrelse(bp);
-		}
-	}
+	if (bp != NULL)
+		vfs_bio_brelse(bp, ioflag);
 
 	if ((error == 0 || uio->uio_resid != orig_resid) &&
 	    (vp->v_mount->mnt_flag & (MNT_NOATIME | MNT_RDONLY)) == 0 &&
@@ -787,8 +752,6 @@ ffs_write(ap)
 			vnode_pager_setsize(vp, ip->i_size);
 			break;
 		}
-		if (ioflag & IO_DIRECT)
-			bp->b_flags |= B_DIRECT;
 		if ((ioflag & (IO_SYNC|IO_INVAL)) == (IO_SYNC|IO_INVAL))
 			bp->b_flags |= B_NOCACHE;
 
@@ -828,10 +791,8 @@ ffs_write(ap)
 		if (error != 0 && (bp->b_flags & B_CACHE) == 0 &&
 		    fs->fs_bsize == xfersize)
 			vfs_bio_clrbuf(bp);
-		if ((ioflag & (IO_VMIO|IO_DIRECT)) &&
-		   (LIST_EMPTY(&bp->b_dep))) {
-			bp->b_flags |= B_RELBUF;
-		}
+
+		vfs_bio_set_flags(bp, ioflag);
 
 		/*
 		 * If IO_SYNC each buffer is written synchronously.  Otherwise
@@ -979,15 +940,6 @@ ffs_extread(struct vnode *vp, struct uio *uio, int ioflag)
 		}
 
 		/*
-		 * If IO_DIRECT then set B_DIRECT for the buffer.  This
-		 * will cause us to attempt to release the buffer later on
-		 * and will cause the buffer cache to attempt to free the
-		 * underlying pages.
-		 */
-		if (ioflag & IO_DIRECT)
-			bp->b_flags |= B_DIRECT;
-
-		/*
 		 * We should only get non-zero b_resid when an I/O error
 		 * has occurred, which should cause us to break above.
 		 * However, if the short read did not cause an error,
@@ -1005,26 +957,7 @@ ffs_extread(struct vnode *vp, struct uio *uio, int ioflag)
 					(int)xfersize, uio);
 		if (error)
 			break;
-
-		if ((ioflag & (IO_VMIO|IO_DIRECT)) &&
-		   (LIST_EMPTY(&bp->b_dep))) {
-			/*
-			 * If there are no dependencies, and it's VMIO,
-			 * then we don't need the buf, mark it available
-			 * for freeing.  For non-direct VMIO reads, the VM
-			 * has the data.
-			 */
-			bp->b_flags |= B_RELBUF;
-			brelse(bp);
-		} else {
-			/*
-			 * Otherwise let whoever
-			 * made the request take care of
-			 * freeing it. We just queue
-			 * it onto another list.
-			 */
-			bqrelse(bp);
-		}
+		vfs_bio_brelse(bp, ioflag);
 	}
 
 	/*
@@ -1033,15 +966,8 @@ ffs_extread(struct vnode *vp, struct uio *uio, int ioflag)
 	 * and on normal completion has not set a new value into it.
 	 * so it must have come from a 'break' statement
 	 */
-	if (bp != NULL) {
-		if ((ioflag & (IO_VMIO|IO_DIRECT)) &&
-		   (LIST_EMPTY(&bp->b_dep))) {
-			bp->b_flags |= B_RELBUF;
-			brelse(bp);
-		} else {
-			bqrelse(bp);
-		}
-	}
+	if (bp != NULL)
+		vfs_bio_brelse(bp, ioflag);
 	return (error);
 }
 
@@ -1110,8 +1036,6 @@ ffs_extwrite(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *ucred)
 		 */
 		if ((bp->b_flags & B_CACHE) == 0 && fs->fs_bsize <= xfersize)
 			vfs_bio_clrbuf(bp);
-		if (ioflag & IO_DIRECT)
-			bp->b_flags |= B_DIRECT;
 
 		if (uio->uio_offset + xfersize > dp->di_extsize)
 			dp->di_extsize = uio->uio_offset + xfersize;
@@ -1122,10 +1046,8 @@ ffs_extwrite(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *ucred)
 
 		error =
 		    uiomove((char *)bp->b_data + blkoffset, (int)xfersize, uio);
-		if ((ioflag & (IO_VMIO|IO_DIRECT)) &&
-		   (LIST_EMPTY(&bp->b_dep))) {
-			bp->b_flags |= B_RELBUF;
-		}
+
+		vfs_bio_set_flags(bp, ioflag);
 
 		/*
 		 * If IO_SYNC each buffer is written synchronously.  Otherwise
@@ -1791,160 +1713,33 @@ SYSCTL_DECL(_vfs_ffs);
 static int use_buf_pager = 1;
 SYSCTL_INT(_vfs_ffs, OID_AUTO, use_buf_pager, CTLFLAG_RWTUN, &use_buf_pager, 0,
     "Always use buffer pager instead of bmap");
-static int buf_pager_relbuf;
-SYSCTL_INT(_vfs_ffs, OID_AUTO, buf_pager_relbuf, CTLFLAG_RWTUN,
-    &buf_pager_relbuf, 0,
-    "Make buffer pager release buffers after reading");
 
-/*
- * The FFS pager.  It uses buffer reads to validate pages.
- *
- * In contrast to the generic local pager from vm/vnode_pager.c, this
- * pager correctly and easily handles volumes where the underlying
- * device block size is greater than the machine page size.  The
- * buffer cache transparently extends the requested page run to be
- * aligned at the block boundary, and does the necessary bogus page
- * replacements in the addends to avoid obliterating already valid
- * pages.
- *
- * The only non-trivial issue is that the exclusive busy state for
- * pages, which is assumed by the vm_pager_getpages() interface, is
- * incompatible with the VMIO buffer cache's desire to share-busy the
- * pages.  This function performs a trivial downgrade of the pages'
- * state before reading buffers, and a less trivial upgrade from the
- * shared-busy to excl-busy state after the read.
- */
+static daddr_t
+ffs_gbp_getblkno(struct vnode *vp, vm_ooffset_t off)
+{
+
+	return (lblkno(VFSTOUFS(vp->v_mount)->um_fs, off));
+}
+
+static int
+ffs_gbp_getblksz(struct vnode *vp, daddr_t lbn)
+{
+
+	return (blksize(VFSTOUFS(vp->v_mount)->um_fs, VTOI(vp), lbn));
+}
+
 static int
 ffs_getpages(struct vop_getpages_args *ap)
 {
 	struct vnode *vp;
-	vm_page_t *ma, m;
-	vm_object_t object;
-	struct buf *bp;
 	struct ufsmount *um;
-	ufs_lbn_t lbn, lbnp;
-	vm_ooffset_t la, lb;
-	long bsize;
-	int bo_bs, count, error, i;
-	bool redo, lpart;
 
 	vp = ap->a_vp;
-	ma = ap->a_m;
-	count = ap->a_count;
+	um = VFSTOUFS(vp->v_mount);
 
-	um = VFSTOUFS(ap->a_vp->v_mount);
-	bo_bs = um->um_devvp->v_bufobj.bo_bsize;
-	if (!use_buf_pager && bo_bs <= PAGE_SIZE)
-		return (vnode_pager_generic_getpages(vp, ma, count,
+	if (!use_buf_pager && um->um_devvp->v_bufobj.bo_bsize <= PAGE_SIZE)
+		return (vnode_pager_generic_getpages(vp, ap->a_m, ap->a_count,
 		    ap->a_rbehind, ap->a_rahead, NULL, NULL));
-
-	object = vp->v_object;
-	la = IDX_TO_OFF(ma[count - 1]->pindex);
-	if (la >= object->un_pager.vnp.vnp_size)
-		return (VM_PAGER_BAD);
-	lpart = la + PAGE_SIZE > object->un_pager.vnp.vnp_size;
-	if (ap->a_rbehind != NULL) {
-		lb = IDX_TO_OFF(ma[0]->pindex);
-		*ap->a_rbehind = OFF_TO_IDX(lb - rounddown2(lb, bo_bs));
-	}
-	if (ap->a_rahead != NULL) {
-		*ap->a_rahead = OFF_TO_IDX(roundup2(la, bo_bs) - la);
-		if (la + IDX_TO_OFF(*ap->a_rahead) >=
-		    object->un_pager.vnp.vnp_size) {
-			*ap->a_rahead = OFF_TO_IDX(roundup2(object->un_pager.
-			    vnp.vnp_size, PAGE_SIZE) - la);
-		}
-	}
-	VM_OBJECT_WLOCK(object);
-again:
-	for (i = 0; i < count; i++)
-		vm_page_busy_downgrade(ma[i]);
-	VM_OBJECT_WUNLOCK(object);
-
-	lbnp = -1;
-	for (i = 0; i < count; i++) {
-		m = ma[i];
-
-		/*
-		 * Pages are shared busy and the object lock is not
-		 * owned, which together allow for the pages'
-		 * invalidation.  The racy test for validity avoids
-		 * useless creation of the buffer for the most typical
-		 * case when invalidation is not used in redo or for
-		 * parallel read.  The shared->excl upgrade loop at
-		 * the end of the function catches the race in a
-		 * reliable way (protected by the object lock).
-		 */
-		if (m->valid == VM_PAGE_BITS_ALL)
-			continue;
-
-		lbn = lblkno(um->um_fs, IDX_TO_OFF(m->pindex));
-		if (lbn != lbnp) {
-			bsize = blksize(um->um_fs, VTOI(vp), lbn);
-			error = bread_gb(vp, lbn, bsize, NOCRED, GB_UNMAPPED,
-			    &bp);
-			if (error != 0)
-				break;
-			KASSERT(1 /* racy, enable for debugging */ ||
-			    m->valid == VM_PAGE_BITS_ALL || i == count - 1,
-			    ("buf %d %p invalid", i, m));
-			if (i == count - 1 && lpart) {
-				VM_OBJECT_WLOCK(object);
-				if (m->valid != 0 &&
-				    m->valid != VM_PAGE_BITS_ALL)
-					vm_page_zero_invalid(m, TRUE);
-				VM_OBJECT_WUNLOCK(object);
-			}
-			if (LIST_EMPTY(&bp->b_dep)) {
-				/*
-				 * Invalidation clears m->valid, but
-				 * may leave B_CACHE flag if the
-				 * buffer existed at the invalidation
-				 * time.  In this case, recycle the
-				 * buffer to do real read on next
-				 * bread() after redo.
-				 *
-				 * Otherwise B_RELBUF is not strictly
-				 * necessary, enable to reduce buf
-				 * cache pressure.
-				 */
-				if (buf_pager_relbuf ||
-				    m->valid != VM_PAGE_BITS_ALL)
-					bp->b_flags |= B_RELBUF;
-
-				bp->b_flags &= ~B_NOCACHE;
-				brelse(bp);
-			} else {
-				bqrelse(bp);
-			}
-			lbnp = lbn;
-		}
-	}
-
-	VM_OBJECT_WLOCK(object);
-	redo = false;
-	for (i = 0; i < count; i++) {
-		vm_page_sunbusy(ma[i]);
-		ma[i] = vm_page_grab(object, ma[i]->pindex, VM_ALLOC_NORMAL);
-
-		/*
-		 * Since the pages were only sbusy while neither the
-		 * buffer nor the object lock was held by us, or
-		 * reallocated while vm_page_grab() slept for busy
-		 * relinguish, they could have been invalidated.
-		 * Recheck the valid bits and re-read as needed.
-		 *
-		 * Note that the last page is made fully valid in the
-		 * read loop, and partial validity for the page at
-		 * index count - 1 could mean that the page was
-		 * invalidated or removed, so we must restart for
-		 * safety as well.
-		 */
-		if (ma[i]->valid != VM_PAGE_BITS_ALL)
-			redo = true;
-	}
-	if (redo && error == 0)
-		goto again;
-	VM_OBJECT_WUNLOCK(object);
-	return (error != 0 ? VM_PAGER_ERROR : VM_PAGER_OK);
+	return (vfs_bio_getpages(vp, ap->a_m, ap->a_count, ap->a_rbehind,
+	    ap->a_rahead, ffs_gbp_getblkno, ffs_gbp_getblksz));
 }

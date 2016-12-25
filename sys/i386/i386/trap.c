@@ -158,14 +158,6 @@ static char *trap_msg[] = {
 int has_f00f_bug = 0;		/* Initialized so that it can be patched. */
 #endif
 
-#ifdef KDB
-static int kdb_on_nmi = 1;
-SYSCTL_INT(_machdep, OID_AUTO, kdb_on_nmi, CTLFLAG_RWTUN,
-	&kdb_on_nmi, 0, "Go to KDB on NMI");
-#endif
-static int panic_on_nmi = 1;
-SYSCTL_INT(_machdep, OID_AUTO, panic_on_nmi, CTLFLAG_RWTUN,
-	&panic_on_nmi, 0, "Panic on NMI");
 static int prot_fault_translation = 0;
 SYSCTL_INT(_machdep, OID_AUTO, prot_fault_translation, CTLFLAG_RW,
 	&prot_fault_translation, 0, "Select signal to deliver on protection fault");
@@ -467,21 +459,7 @@ user_trctrap_out:
 			}
 			goto userout;
 #else /* !POWERFAIL_NMI */
-			/* machine/parity/power fail/"kitchen sink" faults */
-			if (isa_nmi(frame->tf_err) == 0) {
-#ifdef KDB
-				/*
-				 * NMI can be hooked up to a pushbutton
-				 * for debugging.
-				 */
-				if (kdb_on_nmi) {
-					printf ("NMI ... going to debugger\n");
-					kdb_trap(type, 0, frame);
-				}
-#endif /* KDB */
-				goto userout;
-			} else if (panic_on_nmi)
-				panic("NMI indicates hardware failure");
+			nmi_handle_intr(type, frame);
 			break;
 #endif /* POWERFAIL_NMI */
 #endif /* DEV_ISA */
@@ -730,22 +708,8 @@ kernel_trctrap:
 			}
 			goto out;
 #else /* !POWERFAIL_NMI */
-			/* machine/parity/power fail/"kitchen sink" faults */
-			if (isa_nmi(frame->tf_err) == 0) {
-#ifdef KDB
-				/*
-				 * NMI can be hooked up to a pushbutton
-				 * for debugging.
-				 */
-				if (kdb_on_nmi) {
-					printf ("NMI ... going to debugger\n");
-					kdb_trap(type, 0, frame);
-				}
-#endif /* KDB */
-				goto out;
-			} else if (panic_on_nmi == 0)
-				goto out;
-			/* FALLTHROUGH */
+			nmi_handle_intr(type, frame);
+			goto out;
 #endif /* POWERFAIL_NMI */
 #endif /* DEV_ISA */
 		}
@@ -893,6 +857,14 @@ trap_pfault(frame, usermode, eva)
 	}
 
 	/*
+	 * If the trap was caused by errant bits in the PTE then panic.
+	 */
+	if (frame->tf_err & PGEX_RSV) {
+		trap_fatal(frame, eva);
+		return (-1);
+	}
+
+	/*
 	 * PGEX_I is defined only if the execute disable bit capability is
 	 * supported and enabled.
 	 */
@@ -962,9 +934,15 @@ trap_fatal(frame, eva)
 #endif
 	if (type == T_PAGEFLT) {
 		printf("fault virtual address	= 0x%x\n", eva);
-		printf("fault code		= %s %s, %s\n",
+		printf("fault code		= %s %s%s, %s\n",
 			code & PGEX_U ? "user" : "supervisor",
 			code & PGEX_W ? "write" : "read",
+#if defined(PAE) || defined(PAE_TABLES)
+			pg_nx != 0 ?
+			(code & PGEX_I ? " instruction" : " data") :
+#endif
+			"",
+			code & PGEX_RSV ? "reserved bits in PTE" :
 			code & PGEX_P ? "protection violation" : "page not present");
 	}
 	printf("instruction pointer	= 0x%x:0x%x\n",

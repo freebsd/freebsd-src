@@ -33,12 +33,22 @@
 #define	CPSW_INTR_COUNT		4
 
 /* MII BUS  */
-#define	CPSW_MIIBUS_RETRIES	5
-#define	CPSW_MIIBUS_DELAY	1000
+#define	CPSW_MIIBUS_RETRIES	20
+#define	CPSW_MIIBUS_DELAY	100
 
 #define	CPSW_MAX_ALE_ENTRIES	1024
 
 #define	CPSW_SYSCTL_COUNT	34
+
+#ifdef CPSW_ETHERSWITCH
+#define	CPSW_CPU_PORT		0
+#define	CPSW_PORTS_MASK		0x7
+#define	CPSW_VLANS		128	/* Arbitrary number. */
+
+struct cpsw_vlangroups {
+	int vid;
+};
+#endif
 
 struct cpsw_slot {
 	uint32_t bd_offset;  /* Offset of corresponding BD within CPPI RAM. */

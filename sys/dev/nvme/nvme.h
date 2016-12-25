@@ -663,9 +663,27 @@ enum nvme_log_page {
 	NVME_LOG_ERROR			= 0x01,
 	NVME_LOG_HEALTH_INFORMATION	= 0x02,
 	NVME_LOG_FIRMWARE_SLOT		= 0x03,
-	/* 0x04-0x7F - reserved */
+	NVME_LOG_CHANGED_NAMESPACE	= 0x04,
+	NVME_LOG_COMMAND_EFFECT		= 0x05,
+	/* 0x06-0x7F - reserved */
 	/* 0x80-0xBF - I/O command set specific */
+	NVME_LOG_RES_NOTIFICATION	= 0x80,
 	/* 0xC0-0xFF - vendor specific */
+
+	/*
+	 * The following are Intel Specific log pages, but they seem
+	 * to be widely implemented.
+	 */
+	INTEL_LOG_READ_LAT_LOG		= 0xc1,
+	INTEL_LOG_WRITE_LAT_LOG		= 0xc2,
+	INTEL_LOG_TEMP_STATS		= 0xc5,
+	INTEL_LOG_ADD_SMART		= 0xca,
+	INTEL_LOG_DRIVE_MKT_NAME	= 0xdd,
+
+	/*
+	 * HGST log page, with lots ofs sub pages.
+	 */
+	HGST_INFO_LOG			= 0xc1,
 };
 
 struct nvme_error_information_entry {
@@ -724,8 +742,11 @@ struct nvme_health_information_page {
 	uint64_t		unsafe_shutdowns[2];
 	uint64_t		media_errors[2];
 	uint64_t		num_error_info_log_entries[2];
+	uint32_t		warning_temp_time;
+	uint32_t		error_temp_time;
+	uint16_t		temp_sensor[8];
 
-	uint8_t			reserved2[320];
+	uint8_t			reserved2[296];
 } __packed __aligned(4);
 
 struct nvme_firmware_page {
@@ -738,6 +759,19 @@ struct nvme_firmware_page {
 	uint8_t			reserved[7];
 	uint64_t		revision[7]; /* revisions for 7 slots */
 	uint8_t			reserved2[448];
+} __packed __aligned(4);
+
+struct intel_log_temp_stats
+{
+	uint64_t	current;
+	uint64_t	overtemp_flag_last;
+	uint64_t	overtemp_flag_life;
+	uint64_t	max_temp;
+	uint64_t	min_temp;
+	uint64_t	_rsvd[5];
+	uint64_t	max_oper_temp;
+	uint64_t	min_oper_temp;
+	uint64_t	est_offset;
 } __packed __aligned(4);
 
 #define NVME_TEST_MAX_THREADS	128

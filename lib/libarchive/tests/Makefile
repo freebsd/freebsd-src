@@ -71,8 +71,11 @@ TESTS_SRCS= \
 	test_compat_lzop.c			\
 	test_compat_mac.c			\
 	test_compat_pax_libarchive_2x.c		\
+	test_compat_perl_archive_tar.c		\
+	test_compat_plexus_archiver_tar.c	\
 	test_compat_solaris_tar_acl.c		\
 	test_compat_solaris_pax_sparse.c	\
+	test_compat_star_acl_posix1e.c		\
 	test_compat_tar_hardlink.c		\
 	test_compat_uudecode.c			\
 	test_compat_uudecode_large.c		\
@@ -321,6 +324,7 @@ ${PACKAGE}FILES+=	test_compat_bzip2_1.tbz.uu
 ${PACKAGE}FILES+=	test_compat_bzip2_2.tbz.uu
 ${PACKAGE}FILES+=	test_compat_cpio_1.cpio.uu
 ${PACKAGE}FILES+=	test_compat_gtar_1.tar.uu
+${PACKAGE}FILES+=	test_compat_gtar_2.tar.uu
 ${PACKAGE}FILES+=	test_compat_gzip_1.tgz.uu
 ${PACKAGE}FILES+=	test_compat_gzip_2.tgz.uu
 ${PACKAGE}FILES+=	test_compat_lz4_1.tar.lz4.uu
@@ -346,9 +350,12 @@ ${PACKAGE}FILES+=	test_compat_lzop_3.tar.lzo.uu
 ${PACKAGE}FILES+=	test_compat_mac-1.tar.Z.uu
 ${PACKAGE}FILES+=	test_compat_mac-2.tar.Z.uu
 ${PACKAGE}FILES+=	test_compat_pax_libarchive_2x.tar.Z.uu
+${PACKAGE}FILES+=	test_compat_perl_archive_tar.tar.uu
+${PACKAGE}FILES+=	test_compat_plexus_archiver_tar.tar.uu
 ${PACKAGE}FILES+=	test_compat_solaris_pax_sparse_1.pax.Z.uu
 ${PACKAGE}FILES+=	test_compat_solaris_pax_sparse_2.pax.Z.uu
 ${PACKAGE}FILES+=	test_compat_solaris_tar_acl.tar.uu
+${PACKAGE}FILES+=	test_compat_star_acl_posix1e.tar.uu
 ${PACKAGE}FILES+=	test_compat_tar_hardlink_1.tar.uu
 ${PACKAGE}FILES+=	test_compat_uudecode_large.tar.Z.uu
 ${PACKAGE}FILES+=	test_compat_xz_1.txz.uu
@@ -490,6 +497,7 @@ ${PACKAGE}FILES+=	test_read_format_rar_sfx.exe.uu
 ${PACKAGE}FILES+=	test_read_format_rar_subblock.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar_unicode.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar_windows.rar.uu
+${PACKAGE}FILES+=	test_read_format_raw.bufr.uu
 ${PACKAGE}FILES+=	test_read_format_raw.data.Z.uu
 ${PACKAGE}FILES+=	test_read_format_raw.data.uu
 ${PACKAGE}FILES+=	test_read_format_tar_concatenated.tar.uu

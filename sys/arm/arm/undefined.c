@@ -165,7 +165,7 @@ gdb_trapper(u_int addr, u_int insn, struct trapframe *frame, int code)
 static struct undefined_handler gdb_uh;
 
 void
-undefined_init()
+undefined_init(void)
 {
 	int loop;
 

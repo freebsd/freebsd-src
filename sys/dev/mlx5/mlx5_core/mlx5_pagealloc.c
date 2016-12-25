@@ -246,13 +246,14 @@ static int give_pages(struct mlx5_core_dev *dev, u16 func_id, int npages,
 	int inlen;
 	u64 addr;
 	int err;
-	int i;
+	int i = 0;
 
 	inlen = sizeof(*in) + npages * sizeof(in->pas[0]);
 	in = mlx5_vzalloc(inlen);
 	if (!in) {
 		mlx5_core_warn(dev, "vzalloc failed %d\n", inlen);
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto out_alloc;
 	}
 	memset(&out, 0, sizeof(out));
 
@@ -263,7 +264,7 @@ retry:
 			if (err == -ENOMEM)
 				err = alloc_system_page(dev, func_id);
 			if (err)
-				goto out_4k;
+				goto out_alloc;
 
 			goto retry;
 		}
@@ -301,12 +302,11 @@ out_alloc:
 		memset(&out, 0, sizeof(out));
 		nin->hdr.opcode = cpu_to_be16(MLX5_CMD_OP_MANAGE_PAGES);
 		nin->hdr.opmod = cpu_to_be16(MLX5_PAGES_CANT_GIVE);
+		nin->func_id = cpu_to_be16(func_id);
 		if (mlx5_cmd_exec(dev, nin, sizeof(*nin), &out, sizeof(out)))
 			mlx5_core_warn(dev, "page notify failed\n");
 		kfree(nin);
 	}
-
-out_4k:
 	for (i--; i >= 0; i--)
 		free_4k(dev, be64_to_cpu(in->pas[i]));
 out_free:

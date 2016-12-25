@@ -28,12 +28,13 @@ ident		PANDABOARD
 hints		"PANDABOARD.hints"
 
 include 	"std.armv6"
-include 	"../ti/omap4/pandaboard/std.pandaboard"
+include 	"../ti/omap4/std.omap4"
 
 makeoptions	MODULES_EXTRA=dtb/omap4
 
 options 	SCHED_ULE		# ULE scheduler
 options 	PLATFORM
+options 	PLATFORM_SMP
 options 	SMP			# Enable multiple cores
 
 # NFS root from boopt/dhcp

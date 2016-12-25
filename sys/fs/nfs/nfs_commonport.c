@@ -129,6 +129,7 @@ struct mtx nfs_state_mutex;
 struct mtx nfs_nameid_mutex;
 struct mtx nfs_req_mutex;
 struct mtx nfs_slock_mutex;
+struct mtx nfs_clstate_mutex;
 
 /* local functions */
 static int nfssvc_call(struct thread *, struct nfssvc_args *, struct ucred *);
@@ -608,21 +609,6 @@ nfssvc_call(struct thread *p, struct nfssvc_args *uap, struct ucred *cred)
 				nfsstatsv1.srvcache_nonidemdonehits = 0;
 				nfsstatsv1.srvcache_misses = 0;
 				nfsstatsv1.srvcache_tcppeak = 0;
-				nfsstatsv1.srvclients = 0;
-				nfsstatsv1.srvopenowners = 0;
-				nfsstatsv1.srvopens = 0;
-				nfsstatsv1.srvlockowners = 0;
-				nfsstatsv1.srvlocks = 0;
-				nfsstatsv1.srvdelegates = 0;
-				nfsstatsv1.clopenowners = 0;
-				nfsstatsv1.clopens = 0;
-				nfsstatsv1.cllockowners = 0;
-				nfsstatsv1.cllocks = 0;
-				nfsstatsv1.cldelegates = 0;
-				nfsstatsv1.cllocalopenowners = 0;
-				nfsstatsv1.cllocalopens = 0;
-				nfsstatsv1.cllocallockowners = 0;
-				nfsstatsv1.cllocallocks = 0;
 				bzero(nfsstatsv1.srvrpccnt,
 				    sizeof(nfsstatsv1.srvrpccnt));
 				bzero(nfsstatsv1.cbrpccnt,
@@ -662,6 +648,7 @@ newnfs_portinit(void)
 	/* Initialize SMP locks used by both client and server. */
 	mtx_init(&newnfsd_mtx, "newnfsd_mtx", NULL, MTX_DEF);
 	mtx_init(&nfs_state_mutex, "nfs_state_mutex", NULL, MTX_DEF);
+	mtx_init(&nfs_clstate_mutex, "nfs_clstate_mutex", NULL, MTX_DEF);
 }
 
 /*
@@ -727,6 +714,7 @@ nfscommon_modevent(module_t mod, int type, void *data)
 		mtx_destroy(&nfs_nameid_mutex);
 		mtx_destroy(&newnfsd_mtx);
 		mtx_destroy(&nfs_state_mutex);
+		mtx_destroy(&nfs_clstate_mutex);
 		mtx_destroy(&nfs_sockl_mutex);
 		mtx_destroy(&nfs_slock_mutex);
 		mtx_destroy(&nfs_req_mutex);

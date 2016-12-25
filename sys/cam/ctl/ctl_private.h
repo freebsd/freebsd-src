@@ -151,7 +151,6 @@ typedef enum {
 	CTL_LUN_EJECTED		= 0x080,
 	CTL_LUN_PR_RESERVED	= 0x100,
 	CTL_LUN_PRIMARY_SC	= 0x200,
-	CTL_LUN_SENSE_DESC	= 0x400,
 	CTL_LUN_READONLY	= 0x800,
 	CTL_LUN_PEER_SC_PRIMARY	= 0x1000,
 	CTL_LUN_REMOVABLE	= 0x2000
@@ -272,30 +271,29 @@ struct ctl_logical_block_provisioning_page {
 
 static const struct ctl_page_index page_index_template[] = {
 	{SMS_RW_ERROR_RECOVERY_PAGE, 0, sizeof(struct scsi_da_rw_recovery_page), NULL,
-	 CTL_PAGE_FLAG_DIRECT | CTL_PAGE_FLAG_CDROM, NULL, NULL},
+	 CTL_PAGE_FLAG_DIRECT | CTL_PAGE_FLAG_CDROM, NULL, ctl_default_page_handler},
 	{SMS_FORMAT_DEVICE_PAGE, 0, sizeof(struct scsi_format_page), NULL,
 	 CTL_PAGE_FLAG_DIRECT, NULL, NULL},
 	{SMS_RIGID_DISK_PAGE, 0, sizeof(struct scsi_rigid_disk_page), NULL,
 	 CTL_PAGE_FLAG_DIRECT, NULL, NULL},
+	{SMS_VERIFY_ERROR_RECOVERY_PAGE, 0, sizeof(struct scsi_da_verify_recovery_page), NULL,
+	 CTL_PAGE_FLAG_DIRECT | CTL_PAGE_FLAG_CDROM, NULL, ctl_default_page_handler},
 	{SMS_CACHING_PAGE, 0, sizeof(struct scsi_caching_page), NULL,
 	 CTL_PAGE_FLAG_DIRECT | CTL_PAGE_FLAG_CDROM,
-	 NULL, ctl_caching_sp_handler},
+	 NULL, ctl_default_page_handler},
 	{SMS_CONTROL_MODE_PAGE, 0, sizeof(struct scsi_control_page), NULL,
-	 CTL_PAGE_FLAG_ALL, NULL, ctl_control_page_handler},
+	 CTL_PAGE_FLAG_ALL, NULL, ctl_default_page_handler},
 	{SMS_CONTROL_MODE_PAGE | SMPH_SPF, 0x01,
 	 sizeof(struct scsi_control_ext_page), NULL,
-	 CTL_PAGE_FLAG_ALL, NULL, NULL},
+	 CTL_PAGE_FLAG_ALL, NULL, ctl_default_page_handler},
 	{SMS_INFO_EXCEPTIONS_PAGE, 0, sizeof(struct scsi_info_exceptions_page), NULL,
-	 CTL_PAGE_FLAG_ALL, NULL, NULL},
+	 CTL_PAGE_FLAG_ALL, NULL, ctl_ie_page_handler},
 	{SMS_INFO_EXCEPTIONS_PAGE | SMPH_SPF, 0x02,
 	 sizeof(struct ctl_logical_block_provisioning_page), NULL,
-	 CTL_PAGE_FLAG_DIRECT, NULL, NULL},
+	 CTL_PAGE_FLAG_DIRECT, NULL, ctl_default_page_handler},
 	{SMS_CDDVD_CAPS_PAGE, 0,
 	 sizeof(struct scsi_cddvd_capabilities_page), NULL,
 	 CTL_PAGE_FLAG_CDROM, NULL, NULL},
-	{SMS_VENDOR_SPECIFIC_PAGE | SMPH_SPF, DBGCNF_SUBPAGE_CODE,
-	 sizeof(struct copan_debugconf_subpage), NULL, CTL_PAGE_FLAG_ALL,
-	 ctl_debugconf_sp_sense_handler, ctl_debugconf_sp_select_handler},
 };
 
 #define	CTL_NUM_MODE_PAGES sizeof(page_index_template)/   \
@@ -305,15 +303,26 @@ struct ctl_mode_pages {
 	struct scsi_da_rw_recovery_page	rw_er_page[4];
 	struct scsi_format_page		format_page[4];
 	struct scsi_rigid_disk_page	rigid_disk_page[4];
+	struct scsi_da_verify_recovery_page	verify_er_page[4];
 	struct scsi_caching_page	caching_page[4];
 	struct scsi_control_page	control_page[4];
 	struct scsi_control_ext_page	control_ext_page[4];
 	struct scsi_info_exceptions_page ie_page[4];
 	struct ctl_logical_block_provisioning_page lbp_page[4];
 	struct scsi_cddvd_capabilities_page cddvd_page[4];
-	struct copan_debugconf_subpage	debugconf_subpage[4];
 	struct ctl_page_index		index[CTL_NUM_MODE_PAGES];
 };
+
+#define	MODE_RWER	mode_pages.rw_er_page[CTL_PAGE_CURRENT]
+#define	MODE_FMT	mode_pages.format_page[CTL_PAGE_CURRENT]
+#define	MODE_RDISK	mode_pages.rigid_disk_page[CTL_PAGE_CURRENT]
+#define	MODE_VER	mode_pages.verify_er_page[CTL_PAGE_CURRENT]
+#define	MODE_CACHING	mode_pages.caching_page[CTL_PAGE_CURRENT]
+#define	MODE_CTRL	mode_pages.control_page[CTL_PAGE_CURRENT]
+#define	MODE_CTRLE	mode_pages.control_ext_page[CTL_PAGE_CURRENT]
+#define	MODE_IE		mode_pages.ie_page[CTL_PAGE_CURRENT]
+#define	MODE_LBP	mode_pages.lbp_page[CTL_PAGE_CURRENT]
+#define	MODE_CDDVD	mode_pages.cddvd_page[CTL_PAGE_CURRENT]
 
 static const struct ctl_page_index log_page_index_template[] = {
 	{SLS_SUPPORTED_PAGES_PAGE, 0, 0, NULL,
@@ -324,6 +333,8 @@ static const struct ctl_page_index log_page_index_template[] = {
 	 CTL_PAGE_FLAG_DIRECT, ctl_lbp_log_sense_handler, NULL},
 	{SLS_STAT_AND_PERF, 0, 0, NULL,
 	 CTL_PAGE_FLAG_ALL, ctl_sap_log_sense_handler, NULL},
+	{SLS_IE_PAGE, 0, 0, NULL,
+	 CTL_PAGE_FLAG_ALL, ctl_ie_log_sense_handler, NULL},
 };
 
 #define	CTL_NUM_LOG_PAGES sizeof(log_page_index_template)/   \
@@ -338,6 +349,7 @@ struct ctl_log_pages {
 		struct scsi_log_idle_time it;
 		struct scsi_log_time_interval ti;
 	} stat_page;
+	struct scsi_log_informational_exceptions	ie_page;
 	struct ctl_page_index		index[CTL_NUM_LOG_PAGES];
 };
 
@@ -385,6 +397,11 @@ struct ctl_lun {
 	ctl_ua_type			*pending_ua[CTL_MAX_PORTS];
 	uint8_t				ua_tpt_info[8];
 	time_t				lasttpt;
+	uint8_t				ie_asc;	/* Informational exceptions */
+	uint8_t				ie_ascq;
+	int				ie_reported;	/* Already reported */
+	uint32_t			ie_reportcnt;	/* REPORT COUNT */
+	struct callout			ie_callout;	/* INTERVAL TIMER */
 	struct ctl_mode_pages		mode_pages;
 	struct ctl_log_pages		log_pages;
 	struct ctl_lun_io_stats		stats;

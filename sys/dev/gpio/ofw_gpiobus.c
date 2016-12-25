@@ -41,6 +41,8 @@ __FBSDID("$FreeBSD$");
 
 #include "gpiobus_if.h"
 
+#define	GPIO_ACTIVE_LOW		1
+
 static struct ofw_gpiobus_devinfo *ofw_gpiobus_setup_devinfo(device_t,
 	device_t, phandle_t);
 static void ofw_gpiobus_destroy_devinfo(device_t, struct ofw_gpiobus_devinfo *);

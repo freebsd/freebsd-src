@@ -262,6 +262,7 @@ void swap(vector<T,Allocator>& x, vector<T,Allocator>& y)
 */
 
 #include <__config>
+#include <iosfwd> // for forward declaration of vector
 #include <__bit_reference>
 #include <type_traits>
 #include <climits>
@@ -453,7 +454,7 @@ __vector_base<_Tp, _Allocator>::~__vector_base()
     }
 }
 
-template <class _Tp, class _Allocator = allocator<_Tp> >
+template <class _Tp, class _Allocator /* = allocator<_Tp> */>
 class _LIBCPP_TYPE_VIS_ONLY vector
     : private __vector_base<_Tp, _Allocator>
 {
@@ -1811,9 +1812,9 @@ vector<_Tp, _Allocator>::emplace(const_iterator __position, _Args&&... __args)
         }
         else
         {
-            value_type __tmp(_VSTD::forward<_Args>(__args)...);
+            __temp_value<value_type, _Allocator> __tmp(this->__alloc(), _VSTD::forward<_Args>(__args)...);
             __move_range(__p, this->__end_, __p + 1);
-            *__p = _VSTD::move(__tmp);
+            *__p = _VSTD::move(__tmp.get());
         }
         __annotator.__done();
     }
@@ -2362,6 +2363,7 @@ public:
         _NOEXCEPT_(!__alloc_traits::propagate_on_container_swap::value || 
                     __is_nothrow_swappable<allocator_type>::value);
 #endif
+    static void swap(reference __x, reference __y) _NOEXCEPT { _VSTD::swap(__x, __y); }
 
     void resize(size_type __sz, value_type __x = false);
     void flip() _NOEXCEPT;

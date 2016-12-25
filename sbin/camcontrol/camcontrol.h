@@ -81,6 +81,9 @@ int zone(struct cam_device *device, int argc, char **argv, char *combinedopt,
 	 int retry_count, int timeout, int verbosemode);
 int epc(struct cam_device *device, int argc, char **argv, char *combinedopt,
 	int retry_count, int timeout, int verbosemode);
+int timestamp(struct cam_device *device, int argc, char **argv,
+	      char *combinedopt, int retry_count, int timeout,
+	      int verbosemode);
 void mode_sense(struct cam_device *device, int mode_page, int page_control,
 		int dbd, int retry_count, int timeout, u_int8_t *data,
 		int datalen);

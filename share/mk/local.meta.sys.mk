@@ -48,7 +48,7 @@ TARGET_ARCHES_arm64?=   aarch64
 TARGET_ARCHES_mips?=    mipsel mips mips64el mips64 mipsn32 mipsn32el
 TARGET_ARCHES_powerpc?= powerpc powerpc64 powerpcspe
 TARGET_ARCHES_pc98?=    i386
-TARGET_ARCHES_riscv?=   riscv64
+TARGET_ARCHES_riscv?=   riscv64 riscv64sf
 
 # some corner cases
 BOOT_MACHINE_DIR.amd64 = boot/i386

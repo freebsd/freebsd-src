@@ -10,11 +10,12 @@
 #ifndef liblldb_DWARFExpression_h_
 #define liblldb_DWARFExpression_h_
 
-#include "lldb/lldb-private.h"
 #include "lldb/Core/Address.h"
 #include "lldb/Core/DataExtractor.h"
 #include "lldb/Core/Error.h"
 #include "lldb/Core/Scalar.h"
+#include "lldb/lldb-private.h"
+#include <functional>
 
 class DWARFCompileUnit;
 
@@ -166,7 +167,14 @@ public:
 
     bool
     Update_DW_OP_addr (lldb::addr_t file_addr);
-    
+
+    bool
+    ContainsThreadLocalStorage() const;
+
+    bool
+    LinkThreadLocalStorage(lldb::ModuleSP new_module_sp,
+                           std::function<lldb::addr_t(lldb::addr_t file_addr)> const &link_address_callback);
+
     //------------------------------------------------------------------
     /// Make the expression parser read its location information from a
     /// given data source.  Does not change the offset and length
@@ -282,6 +290,7 @@ public:
               ClangExpressionDeclMap *decl_map,
               lldb::addr_t loclist_base_load_addr,
               const Value* initial_value_ptr,
+              const Value* object_address_ptr,
               Value& result,
               Error *error_ptr) const;
 
@@ -296,6 +305,7 @@ public:
               RegisterContext *reg_ctx,
               lldb::addr_t loclist_base_load_addr,
               const Value* initial_value_ptr,
+              const Value* object_address_ptr,
               Value& result,
               Error *error_ptr) const;
 
@@ -370,6 +380,7 @@ public:
               const lldb::offset_t length,
               const lldb::RegisterKind reg_set,
               const Value* initial_value_ptr,
+              const Value* object_address_ptr,
               Value& result,
               Error *error_ptr);
 

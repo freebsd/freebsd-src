@@ -147,7 +147,7 @@ ${X_}COMPILER_TYPE:=	clang
 ${X_}COMPILER_TYPE:=	gcc
 . elif ${_v:M\(GCC\)}
 ${X_}COMPILER_TYPE:=	gcc
-. elif ${_v:Mclang}
+. elif ${_v:Mclang} || ${_v:M(clang-*.*.*)}
 ${X_}COMPILER_TYPE:=	clang
 . else
 .error Unable to determine compiler type for ${cc}=${${cc}}.  Consider setting ${X_}COMPILER_TYPE.

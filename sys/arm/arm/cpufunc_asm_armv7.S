@@ -37,56 +37,16 @@ __FBSDID("$FreeBSD$");
 
 	.cpu cortex-a8
 
+#ifdef ELF_TRAMPOLINE
 .Lcoherency_level:
 	.word	_C_LABEL(arm_cache_loc)
 .Lcache_type:
 	.word	_C_LABEL(arm_cache_type)
-.Larmv7_dcache_line_size:
-	.word	_C_LABEL(arm_dcache_min_line_size)
-.Larmv7_icache_line_size:
-	.word	_C_LABEL(arm_icache_min_line_size)
-.Larmv7_idcache_line_size:
-	.word	_C_LABEL(arm_idcache_min_line_size)
 .Lway_mask:
 	.word	0x3ff
 .Lmax_index:
 	.word	0x7fff
-.Lpage_mask:
-	.word	0xfff
 
-#define PT_NOS          (1 << 5)
-#define PT_S 	        (1 << 1)
-#define PT_INNER_NC	0
-#define PT_INNER_WT	(1 << 0)
-#define PT_INNER_WB	((1 << 0) | (1 << 6))
-#define PT_INNER_WBWA	(1 << 6)
-#define PT_OUTER_NC	0
-#define PT_OUTER_WT	(2 << 3)
-#define PT_OUTER_WB	(3 << 3)
-#define PT_OUTER_WBWA	(1 << 3)
-
-#ifdef SMP
-#define PT_ATTR	(PT_S|PT_INNER_WBWA|PT_OUTER_WBWA|PT_NOS)
-#else
-#define PT_ATTR	(PT_INNER_WBWA|PT_OUTER_WBWA)
-#endif
-
-ENTRY(armv7_setttb)
- 	dsb
-	orr 	r0, r0, #PT_ATTR
- 	mcr	CP15_TTBR0(r0)
-	isb
-#ifdef SMP
- 	mcr	CP15_TLBIALLIS
-#else
- 	mcr     CP15_TLBIALL
-#endif
- 	dsb
- 	isb
-	RET
-END(armv7_setttb)
-
-#ifdef ELF_TRAMPOLINE
 /* Based on algorithm from ARM Architecture Reference Manual */
 ENTRY(armv7_dcache_wbinv_all)
 	stmdb	sp!, {r4, r5, r6, r7, r8, r9}

@@ -38,17 +38,18 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #endif
 
-#include <ufs/ufs/dinode.h>
-#include "ffs/ufs_bswap.h"
-#include <ufs/ffs/fs.h>
-
 #if !defined(_KERNEL)
 #include <stddef.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #define panic(x)	printf("%s\n", (x)), abort()
 #endif
+
+#include <ufs/ufs/dinode.h>
+#include "ffs/ufs_bswap.h"
+#include <ufs/ffs/fs.h>
 
 #define	fs_old_postbloff	fs_spare5[0]
 #define	fs_old_rotbloff		fs_spare5[1]

@@ -467,6 +467,11 @@ ieee80211_swscan_cancel_scan(struct ieee80211vap *vap)
 static void
 ieee80211_swscan_cancel_anyscan(struct ieee80211vap *vap)
 {
+
+	/* XXX for now - just don't do this per packet. */
+	if (vap->iv_flags_ext & IEEE80211_FEXT_SCAN_OFFLOAD)
+		return;
+
 	cancel_scan(vap, 1, __func__);
 }
 

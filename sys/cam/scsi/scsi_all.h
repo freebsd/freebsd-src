@@ -662,6 +662,14 @@ struct scsi_log_fua_stat_and_perf {
 	uint8_t	fuanv_write_int[8];
 };
 
+struct scsi_log_informational_exceptions {
+	struct scsi_log_param_header hdr;
+#define	SLP_IE_GEN			0x0000
+	uint8_t	ie_asc;
+	uint8_t	ie_ascq;
+	uint8_t	temperature;
+};
+
 struct scsi_control_page {
 	u_int8_t page_code;
 	u_int8_t page_length;
@@ -702,7 +710,9 @@ struct scsi_control_page {
 
 struct scsi_control_ext_page {
 	uint8_t page_code;
+#define SCEP_PAGE_CODE			0x0a
 	uint8_t subpage_code;
+#define SCEP_SUBPAGE_CODE		0x01
 	uint8_t page_length[2];
 	uint8_t flags;
 #define	SCEP_TCMOS			0x04	/* Timestamp Changeable by */
@@ -763,21 +773,6 @@ struct scsi_caching_page {
 	uint8_t non_cache_seg_size[3];
 };
 
-/*
- * XXX KDM move this off to a vendor shim.
- */
-struct copan_debugconf_subpage {
-	uint8_t page_code;
-#define DBGCNF_PAGE_CODE		0x00
-	uint8_t subpage;
-#define DBGCNF_SUBPAGE_CODE	0xF0
-	uint8_t page_length[2];
-	uint8_t page_version;
-#define DBGCNF_VERSION			0x00
-	uint8_t ctl_time_io_secs[2];
-};
-
-
 struct scsi_info_exceptions_page {
 	u_int8_t page_code;
 #define	SIEP_PAGE_SAVABLE		0x80	/* Page is savable */
@@ -791,6 +786,12 @@ struct scsi_info_exceptions_page {
 #define	SIEP_FLAGS_EBACKERR		0x02
 #define	SIEP_FLAGS_LOGERR		0x01
 	u_int8_t mrie;
+#define	SIEP_MRIE_NO		0x00
+#define	SIEP_MRIE_UA		0x02
+#define	SIEP_MRIE_REC_COND	0x03
+#define	SIEP_MRIE_REC_UNCOND	0x04
+#define	SIEP_MRIE_NO_SENSE	0x05
+#define	SIEP_MRIE_ON_REQ	0x06
 	u_int8_t interval_timer[4];
 	u_int8_t report_count[4];
 };
@@ -1455,6 +1456,7 @@ struct scsi_report_supported_opcodes
 #define RSO_OPTIONS_ALL		0x00
 #define RSO_OPTIONS_OC		0x01
 #define RSO_OPTIONS_OC_SA	0x02
+#define RSO_OPTIONS_OC_ASA	0x03
         uint8_t  requested_opcode;
         uint8_t  requested_service_action[2];
 	uint8_t  length[4];
@@ -1480,6 +1482,10 @@ struct scsi_report_supported_opcodes_descr
 	uint8_t  flags;
 #define RSO_SERVACTV		0x01
 #define RSO_CTDP		0x02
+#define RSO_CDLP_MASK		0x0c
+#define RSO_CDLP_NO		0x00
+#define RSO_CDLP_A		0x04
+#define RSO_CDLP_B		0x08
 	uint8_t  cdb_length[2];
 	struct scsi_report_supported_opcodes_timeout timeout[0];
 };
@@ -1495,6 +1501,10 @@ struct scsi_report_supported_opcodes_one
 	uint8_t  reserved;
 	uint8_t  support;
 #define RSO_ONE_CTDP		0x80
+#define RSO_ONE_CDLP_MASK	0x18
+#define RSO_ONE_CDLP_NO		0x00
+#define RSO_ONE_CDLP_A		0x08
+#define RSO_ONE_CDLP_B		0x10
 #define RSO_ONE_SUP_MASK	0x07
 #define RSO_ONE_SUP_UNAVAIL	0x00
 #define RSO_ONE_SUP_NOT_SUP	0x01
@@ -1508,7 +1518,9 @@ struct scsi_report_supported_tmf
 {
 	uint8_t  opcode;
 	uint8_t  service_action;
-	uint8_t  reserved[4];
+	uint8_t  options;
+#define RST_REPD		0x80
+	uint8_t  reserved[3];
 	uint8_t  length[4];
 	uint8_t  reserved1;
 	uint8_t  control;
@@ -1529,7 +1541,34 @@ struct scsi_report_supported_tmf_data
 #define RST_ITNRS		0x01
 #define RST_QTSS		0x02
 #define RST_QAES		0x04
-	uint8_t  reserved[2];
+	uint8_t  reserved;
+	uint8_t  length;
+};
+
+struct scsi_report_supported_tmf_ext_data
+{
+	uint8_t  byte1;
+	uint8_t  byte2;
+	uint8_t  reserved;
+	uint8_t  length;
+	uint8_t  byte5;
+#define RST_TMFTMOV		0x01
+	uint8_t  reserved2;
+	uint8_t  byte7;
+#define RST_WAKETS		0x01
+#define RST_TRTS		0x02
+#define RST_QTTS		0x04
+#define RST_LURTS		0x08
+#define RST_CTSTS		0x10
+#define RST_CACATS		0x20
+#define RST_ATSTS		0x40
+#define RST_ATTS		0x80
+	uint8_t  byte8;
+#define RST_ITNRTS		0x01
+#define RST_QTSTS		0x02
+#define RST_QAETS		0x04
+	uint8_t  long_timeout[4];
+	uint8_t  short_timeout[4];
 };
 
 struct scsi_report_timestamp
@@ -2155,6 +2194,7 @@ struct scsi_inquiry_data
 #define		SCSI_REV_SPC2		4
 #define		SCSI_REV_SPC3		5
 #define		SCSI_REV_SPC4		6
+#define		SCSI_REV_SPC5		7
 
 #define	SID_ECMA	0x38
 #define	SID_ISO		0xC0
@@ -2475,10 +2515,17 @@ struct scsi_vpd_extended_inquiry_data
 #define	SVPD_EID_NV_SUP		0x02
 #define	SVPD_EID_V_SUP		0x01
 	uint8_t flags4;
+#define	SVPD_EID_NO_PI_CHK	0x20
 #define	SVPD_EID_P_I_I_SUP	0x10
-#define	SVPD_EID_LUICLT		0x01
+#define	SVPD_EID_LUICLR		0x01
 	uint8_t flags5;
+#define	SVPD_EID_LUCT_MASK	0xe0
+#define	SVPD_EID_LUCT_NOT_REP	0x00
+#define	SVPD_EID_LUCT_CONGL	0x20
+#define	SVPD_EID_LUCT_GROUP	0x40
 #define	SVPD_EID_R_SUP		0x10
+#define	SVPD_EID_RTD_SUP	0x08
+#define	SVPD_EID_HSSRELEF	0x02
 #define	SVPD_EID_CBCS		0x01
 	uint8_t flags6;
 #define	SVPD_EID_MULTI_I_T_FW	0x0F
@@ -2489,10 +2536,16 @@ struct scsi_vpd_extended_inquiry_data
 	uint8_t est[2];
 	uint8_t flags7;
 #define	SVPD_EID_POA_SUP	0x80
-#define	SVPD_EID_HRA_SUP	0x80
-#define	SVPD_EID_VSA_SUP	0x80
+#define	SVPD_EID_HRA_SUP	0x40
+#define	SVPD_EID_VSA_SUP	0x20
 	uint8_t max_sense_length;
-	uint8_t reserved2[50];
+	uint8_t bind_flags;
+#define	SVPD_EID_IBS		0x80
+#define	SVPD_EID_IAS		0x40
+#define	SVPD_EID_SAC		0x04
+#define	SVPD_EID_NRD1		0x02
+#define	SVPD_EID_NRD0		0x01
+	uint8_t reserved2[49];
 };
 
 struct scsi_vpd_mode_page_policy_descr
@@ -2971,6 +3024,31 @@ struct scsi_target_group
 	uint8_t control;
 };
 
+struct scsi_timestamp
+{
+	uint8_t opcode;
+	uint8_t service_action;
+	uint8_t reserved1[4];
+	uint8_t length[4];
+	uint8_t reserved2;
+	uint8_t control;
+};
+
+struct scsi_set_timestamp_parameters
+{
+	uint8_t reserved1[4];
+	uint8_t timestamp[6];
+	uint8_t reserved2[4];
+};
+
+struct scsi_report_timestamp_parameter_data
+{
+	uint8_t length[2];
+	uint8_t reserved1[2];
+	uint8_t timestamp[6];
+	uint8_t reserved2[2];
+};
+
 struct scsi_target_port_descriptor {
 	uint8_t	reserved[2];
 	uint8_t	relative_target_port_identifier[2];
@@ -3118,11 +3196,12 @@ struct scsi_sense_data_fixed
 #define		SSD_KEY_BLANK_CHECK	0x08
 #define		SSD_KEY_Vendor_Specific	0x09
 #define		SSD_KEY_COPY_ABORTED	0x0a
-#define		SSD_KEY_ABORTED_COMMAND	0x0b		
+#define		SSD_KEY_ABORTED_COMMAND	0x0b
 #define		SSD_KEY_EQUAL		0x0c
 #define		SSD_KEY_VOLUME_OVERFLOW	0x0d
 #define		SSD_KEY_MISCOMPARE	0x0e
-#define		SSD_KEY_COMPLETED	0x0f			
+#define		SSD_KEY_COMPLETED	0x0f
+#define	SSD_SDAT_OVFL	0x10
 #define	SSD_ILI		0x20
 #define	SSD_EOM		0x40
 #define	SSD_FILEMARK	0x80
@@ -3160,7 +3239,9 @@ struct scsi_sense_data_desc
 	uint8_t sense_key;
 	uint8_t	add_sense_code;
 	uint8_t	add_sense_code_qual;
-	uint8_t	reserved[3];
+	uint8_t	flags;
+#define	SSDD_SDAT_OVFL		0x80
+	uint8_t	reserved[2];
 	/*
 	 * Note that SPC-4, section 4.5.2.1 says that the extra_len field
 	 * must be less than or equal to 244.
@@ -3454,6 +3535,8 @@ struct scsi_sense_forwarded
 #define	SSD_FORWARDED_SDS_UNK	0x00
 #define	SSD_FORWARDED_SDS_EXSRC	0x01
 #define	SSD_FORWARDED_SDS_EXDST	0x02
+	uint8_t	status;
+	uint8_t	sense_data[];
 };
 
 /*
@@ -3626,13 +3709,15 @@ void scsi_desc_iterate(struct scsi_sense_data_desc *sense, u_int sense_len,
 					void *), void *arg);
 uint8_t *scsi_find_desc(struct scsi_sense_data_desc *sense, u_int sense_len,
 			uint8_t desc_type);
-void scsi_set_sense_data(struct scsi_sense_data *sense_data, 
+void scsi_set_sense_data(struct scsi_sense_data *sense_data,
 			 scsi_sense_data_type sense_format, int current_error,
 			 int sense_key, int asc, int ascq, ...) ;
+void scsi_set_sense_data_len(struct scsi_sense_data *sense_data,
+    u_int *sense_len, scsi_sense_data_type sense_format, int current_error,
+    int sense_key, int asc, int ascq, ...) ;
 void scsi_set_sense_data_va(struct scsi_sense_data *sense_data,
-			    scsi_sense_data_type sense_format,
-			    int current_error, int sense_key, int asc,
-			    int ascq, va_list ap);
+    u_int *sense_len, scsi_sense_data_type sense_format,
+    int current_error, int sense_key, int asc, int ascq, va_list ap);
 int scsi_get_sense_info(struct scsi_sense_data *sense_data, u_int sense_len,
 			uint8_t info_type, uint64_t *info,
 			int64_t *signed_info);
@@ -3686,6 +3771,10 @@ void scsi_sense_ata_sbuf(struct sbuf *sb, struct scsi_sense_data *sense,
 			 u_int sense_len, uint8_t *cdb, int cdb_len,
 			 struct scsi_inquiry_data *inq_data,
 			 struct scsi_sense_desc_header *header);
+void scsi_sense_forwarded_sbuf(struct sbuf *sb, struct scsi_sense_data *sense,
+			      u_int sense_len, uint8_t *cdb, int cdb_len,
+			      struct scsi_inquiry_data *inq_data,
+			      struct scsi_sense_desc_header *header);
 void scsi_sense_generic_sbuf(struct sbuf *sb, struct scsi_sense_data *sense,
 			     u_int sense_len, uint8_t *cdb, int cdb_len,
 			     struct scsi_inquiry_data *inq_data,
@@ -3742,6 +3831,8 @@ int		scsi_devid_is_lun_eui64(uint8_t *bufp);
 int		scsi_devid_is_lun_naa(uint8_t *bufp);
 int		scsi_devid_is_lun_name(uint8_t *bufp);
 int		scsi_devid_is_lun_t10(uint8_t *bufp);
+int		scsi_devid_is_lun_md5(uint8_t *bufp);
+int		scsi_devid_is_lun_uuid(uint8_t *bufp);
 int		scsi_devid_is_port_naa(uint8_t *bufp);
 struct scsi_vpd_id_descriptor *
 		scsi_get_devid(struct scsi_vpd_device_id *id, uint32_t len,
@@ -3966,11 +4057,28 @@ void		scsi_report_target_group(struct ccb_scsiio *csio, u_int32_t retries,
 				 u_int32_t alloc_len, u_int8_t sense_len,
 				 u_int32_t timeout);
 
+void		scsi_report_timestamp(struct ccb_scsiio *csio, u_int32_t retries,
+				 void (*cbfcnp)(struct cam_periph *, 
+				 union ccb *), u_int8_t tag_action, 
+				 u_int8_t pdf,
+				 void *buf,
+				 u_int32_t alloc_len, u_int8_t sense_len,
+				 u_int32_t timeout);
+
 void		scsi_set_target_group(struct ccb_scsiio *csio, u_int32_t retries,
 				 void (*cbfcnp)(struct cam_periph *, 
 				 union ccb *), u_int8_t tag_action, void *buf,
 				 u_int32_t alloc_len, u_int8_t sense_len,
 				 u_int32_t timeout);
+
+void		scsi_create_timestamp(uint8_t *timestamp_6b_buf,
+				      uint64_t timestamp);
+
+void		scsi_set_timestamp(struct ccb_scsiio *csio, u_int32_t retries,
+				   void (*cbfcnp)(struct cam_periph *, 
+				   union ccb *), u_int8_t tag_action,
+				   void *buf, u_int32_t alloc_len,
+				   u_int8_t sense_len, u_int32_t timeout);
 
 void		scsi_synchronize_cache(struct ccb_scsiio *csio, 
 				       u_int32_t retries,

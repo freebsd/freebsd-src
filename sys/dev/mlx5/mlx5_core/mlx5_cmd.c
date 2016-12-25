@@ -1245,8 +1245,11 @@ static int cmd_exec_helper(struct mlx5_core_dev *dev, void *in, int in_size, voi
 
 	err = mlx5_cmd_invoke(dev, inb, outb, out, out_size, callback, context,
 			      pages_queue, &status);
-	if (err)
+	if (err) {
+		if (err == -ETIMEDOUT)
+			return err;
 		goto out_out;
+	}
 
 	mlx5_core_dbg(dev, "err %d, status %d\n", err, status);
 	if (status) {

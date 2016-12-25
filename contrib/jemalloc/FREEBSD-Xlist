@@ -1,6 +1,8 @@
 $FreeBSD$
+.appveyor.yml
 .autom4te.cfg
 .git*
+.travis.yml
 FREEBSD-*
 INSTALL
 Makefile*

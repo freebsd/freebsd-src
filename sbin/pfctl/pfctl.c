@@ -1339,7 +1339,7 @@ pfctl_load_rule(struct pfctl *pf, char *path, struct pf_rule *r, int depth)
 			else
 				snprintf(&path[len], MAXPATHLEN - len,
 				    "%s", r->anchor->name);
-			name = path;
+			name = r->anchor->name;
 		} else
 			name = r->anchor->path;
 	} else

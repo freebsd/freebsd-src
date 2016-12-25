@@ -84,6 +84,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pager.h>
 #include <vm/vm_extern.h>
 
+extern vm_page_t bogus_page;
+
 int cluster_pbuf_freecnt = -1;	/* unlimited to begin with */
 
 struct buf *swbuf;
@@ -260,6 +262,8 @@ vm_pager_assert_in(vm_object_t object, vm_page_t *m, int count)
 	 * not dirty and belong to the proper object.
 	 */
 	for (int i = 0 ; i < count; i++) {
+		if (m[i] == bogus_page)
+			continue;
 		vm_page_assert_xbusied(m[i]);
 		KASSERT(!pmap_page_is_mapped(m[i]),
 		    ("%s: page %p is mapped", __func__, m[i]));
@@ -376,6 +380,7 @@ initpbuf(struct buf *bp)
 	bp->b_iodone = NULL;
 	bp->b_error = 0;
 	BUF_LOCK(bp, LK_EXCLUSIVE, NULL);
+	buf_track(bp, __func__);
 }
 
 /*
@@ -473,6 +478,7 @@ relpbuf(struct buf *bp, int *pfreecnt)
 	KASSERT(bp->b_vp == NULL, ("relpbuf with vp"));
 	KASSERT(bp->b_bufobj == NULL, ("relpbuf with bufobj"));
 
+	buf_track(bp, __func__);
 	BUF_UNLOCK(bp);
 
 	mtx_lock(&pbuf_mtx);

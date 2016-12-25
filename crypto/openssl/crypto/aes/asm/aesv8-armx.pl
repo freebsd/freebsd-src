@@ -42,7 +42,7 @@ $code=<<___;
 #if __ARM_MAX_ARCH__>=7
 .text
 ___
-$code.=".arch	armv8-a+crypto\n"			if ($flavour =~ /64/);
+# $code.=".arch	armv8-a+crypto\n"			if ($flavour =~ /64/);
 $code.=".arch	armv7-a\n.fpu	neon\n.code	32\n"	if ($flavour !~ /64/);
 		#^^^^^^ this is done to simplify adoption by not depending
 		#	on latest binutils.

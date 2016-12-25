@@ -1271,9 +1271,11 @@ enum {
 	MLX5_RFC_2819_COUNTERS_GROUP	      = 0x2,
 	MLX5_RFC_3635_COUNTERS_GROUP	      = 0x3,
 	MLX5_ETHERNET_EXTENDED_COUNTERS_GROUP = 0x5,
+	MLX5_ETHERNET_DISCARD_COUNTERS_GROUP  = 0x6,
 	MLX5_PER_PRIORITY_COUNTERS_GROUP      = 0x10,
 	MLX5_PER_TRAFFIC_CLASS_COUNTERS_GROUP = 0x11,
 	MLX5_PHYSICAL_LAYER_COUNTERS_GROUP    = 0x12,
+	MLX5_INFINIBAND_PORT_COUNTERS_GROUP = 0x20,
 };
 
 enum {
@@ -1348,15 +1350,16 @@ struct mlx5_ifc_mcia_reg_bits {
 
 struct mlx5_mini_cqe8 {
 	union {
-		u32 rx_hash_result;
-		u32 checksum;
+		__be32 rx_hash_result;
+		__be16 checksum;
+		__be16 rsvd;
 		struct {
-			u16 wqe_counter;
+			__be16 wqe_counter;
 			u8  s_wqe_opcode;
 			u8  reserved;
 		} s_wqe_info;
 	};
-	u32 byte_cnt;
+	__be32 byte_cnt;
 };
 
 enum {

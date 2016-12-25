@@ -1872,6 +1872,10 @@ mpssas_action_scsiio(struct mpssas_softc *sassc, union ccb *ccb)
 		}
 	}
 
+#if defined(BUF_TRACKING) || defined(FULL_BUF_TRACKING)
+	if (csio->bio != NULL)
+		biotrack(csio->bio, __func__);
+#endif
 	callout_reset_sbt(&cm->cm_callout, SBT_1MS * ccb->ccb_h.timeout, 0,
 	    mpssas_scsiio_timeout, cm, 0);
 
@@ -2124,6 +2128,11 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 	cm->cm_targ->outstanding--;
 	TAILQ_REMOVE(&cm->cm_targ->commands, cm, cm_link);
 	ccb->ccb_h.status &= ~(CAM_STATUS_MASK | CAM_SIM_QUEUED);
+
+#if defined(BUF_TRACKING) || defined(FULL_BUF_TRACKING)
+	if (ccb->csio.bio != NULL)
+		biotrack(ccb->csio.bio, __func__);
+#endif
 
 	if (cm->cm_state == MPS_CM_STATE_TIMEDOUT) {
 		TAILQ_REMOVE(&cm->cm_targ->timedout_commands, cm, cm_recovery);
@@ -2437,8 +2446,9 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 		 */
 		mpssas_set_ccbstatus(ccb, CAM_REQ_CMP_ERR);
 		mpssas_log_command(cm, MPS_INFO,
-		    "terminated ioc %x scsi %x state %x xfer %u\n",
-		    le16toh(rep->IOCStatus), rep->SCSIStatus, rep->SCSIState,
+		    "terminated ioc %x loginfo %x scsi %x state %x xfer %u\n",
+		    le16toh(rep->IOCStatus), le32toh(rep->IOCLogInfo),
+		    rep->SCSIStatus, rep->SCSIState,
 		    le32toh(rep->TransferCount));
 		break;
 	case MPI2_IOCSTATUS_INVALID_FUNCTION:
@@ -2453,8 +2463,9 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 	case MPI2_IOCSTATUS_SCSI_TASK_MGMT_FAILED:
 	default:
 		mpssas_log_command(cm, MPS_XINFO,
-		    "completed ioc %x scsi %x state %x xfer %u\n",
-		    le16toh(rep->IOCStatus), rep->SCSIStatus, rep->SCSIState,
+		    "completed ioc %x loginfo %x scsi %x state %x xfer %u\n",
+		    le16toh(rep->IOCStatus), le32toh(rep->IOCLogInfo),
+		    rep->SCSIStatus, rep->SCSIState,
 		    le32toh(rep->TransferCount));
 		csio->resid = cm->cm_length;
 		mpssas_set_ccbstatus(ccb, CAM_REQ_CMP_ERR);

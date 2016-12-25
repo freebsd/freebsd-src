@@ -1,0 +1,73 @@
+Contributing to the tz code and data
+
+The time zone database is by no means authoritative: governments
+change timekeeping rules erratically and sometimes with little
+warning, the data entries do not cover all of civil time before
+1970, and undoubtedly errors remain in the code and data.  Feel
+free to fill gaps or fix mistakes, and please email improvements
+to tz@iana.org for use in the future.
+
+To email small changes, please run a POSIX shell command like
+'diff -u old/europe new/europe >myfix.patch', and attach
+myfix.patch to the email.
+
+For more-elaborate changes, please read the Theory file and browse
+the mailing list archives <http://mm.icann.org/pipermail/tz/> for
+examples of patches that tend to work well.  Ideally, additions to
+data should contain commentary citing reliable sources as
+justification.
+
+Please submit changes against either the latest release in
+<ftp://ftp.iana.org/tz/> or the master branch of the development
+repository.  If you use Git the following workflow may be helpful:
+
+  * Copy the development repository.
+
+      git clone https://github.com/eggert/tz.git
+      cd tz
+
+  * Get current with the master branch.
+
+      git checkout master
+      git pull
+
+  * Switch to a new branch for the changes.  Choose a different
+    branch name for each change set.
+
+      git checkout -b mybranch
+
+  * Edit source files.  Include commentary that justifies the
+    changes by citing reliable sources.
+
+  * Debug the changes, e.g.:
+
+      make check
+      make install
+      ./zdump -v America/Los_Angeles
+
+  * For each separable change, commit it in the new branch, e.g.:
+
+      git add northamerica
+      git commit
+
+    See recent 'git log' output for the commit-message style.
+
+  * Create patch files 0001-*, 0002-*, ...
+
+      git format-patch master
+
+  * After reviewing the patch files, send the patches to tz@iana.org
+    for others to review.
+
+      git send-email master
+
+  * Start anew by getting current with the master branch again
+    (the second step above).
+
+Please do not create issues or pull requests on GitHub, as the
+proper procedure for proposing and distributing patches is via
+email as illustrated above.
+
+-----
+
+This file is in the public domain.

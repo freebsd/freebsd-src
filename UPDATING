@@ -41,12 +41,36 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	11.0-RELEASE). These revisions post-date the 10.2 and 9.3 releases, so
 	you'll need to take the unusual step of upgrading to the tip of the
 	stable branch before moving to 11 or -current via a source upgrade.
-	stable/11 and 11.0-RELEASE post-date the fix so you can move from them
-	to -current. This differs from the historical situation where one could
-	upgrade from anywhere on the last couple of stable branches, so be
-	careful.
+	stable/11 and 11.0-RELEASE have working newer compiler. This differs
+	from the historical situation where one could upgrade from anywhere on
+	the last couple of stable branches, so be careful.
+
+	If you're running a hybrid system on 9.x or 10.x with an updated clang
+	compiler or are using an supported external toolchain, the build system
+	will allow the upgrade. Otherwise it will print a reminder.
 
 ****************************** SPECIAL WARNING: ******************************
+
+20161217:
+	Clang, llvm, lldb, compiler-rt and libc++ have been upgraded to 3.9.1.
+	Please see the 20141231 entry below for information about prerequisites
+	and upgrading, if you are not already using clang 3.5.0 or higher.
+
+20161124:
+	Clang, llvm, lldb, compiler-rt and libc++ have been upgraded to 3.9.0.
+	Please see the 20141231 entry below for information about prerequisites
+	and upgrading, if you are not already using clang 3.5.0 or higher.
+
+20161119:
+	The layout of the pmap structure has changed for powerpc to put the pmap
+	statistics at the front for all CPU variations.  libkvm(3) and all tools
+	that link against it need to be recompiled.
+
+20161030:
+	isl(4) and cyapa(4) drivers now require a new driver,
+	chromebook_platform(4), to work properly on Chromebook-class hardware.
+	On other types of hardware the drivers may need to be configured using
+	device hints.  Please see the corresponding manual pages for details.
 
 20161017:
 	The urtwn(4) driver was merged into rtwn(4) and now consists of
@@ -121,7 +145,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 20160527:
 	CAM will now strip leading spaces from SCSI disks' serial numbers.
-	This will effect users who create UFS filesystems on SCSI disks using
+	This will affect users who create UFS filesystems on SCSI disks using
 	those disk's diskid device nodes.  For example, if /etc/fstab
 	previously contained a line like
 	"/dev/diskid/DISK-%20%20%20%20%20%20%20ABCDEFG0123456", you should

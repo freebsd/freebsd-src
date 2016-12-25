@@ -244,7 +244,7 @@ int assertion_file_atime_recent(const char *, int, const char *);
 int assertion_file_birthtime(const char *, int, const char *, long, long);
 int assertion_file_birthtime_recent(const char *, int, const char *);
 int assertion_file_contains_lines_any_order(const char *, int, const char *, const char **);
-int assertion_file_contains_no_invalid_strings(const char *, int, const char *, const char **); 
+int assertion_file_contains_no_invalid_strings(const char *, int, const char *, const char **);
 int assertion_file_contents(const char *, int, const void *, int, const char *);
 int assertion_file_exists(const char *, int, const char *);
 int assertion_file_mode(const char *, int, const char *, int);

@@ -107,15 +107,12 @@ AcpiDsAutoSerializeMethod (
         "Method auto-serialization parse [%4.4s] %p\n",
         AcpiUtGetNodeName (Node), Node));
 
-    AcpiExEnterInterpreter ();
-
     /* Create/Init a root op for the method parse tree */
 
     Op = AcpiPsAllocOp (AML_METHOD_OP, ObjDesc->Method.AmlStart);
     if (!Op)
     {
-        Status = AE_NO_MEMORY;
-        goto Unlock;
+        return_ACPI_STATUS (AE_NO_MEMORY);
     }
 
     AcpiPsSetName (Op, Node->Name.Integer);
@@ -127,8 +124,7 @@ AcpiDsAutoSerializeMethod (
     if (!WalkState)
     {
         AcpiPsFreeOp (Op);
-        Status = AE_NO_MEMORY;
-        goto Unlock;
+        return_ACPI_STATUS (AE_NO_MEMORY);
     }
 
     Status = AcpiDsInitAmlWalk (WalkState, Op, Node,
@@ -147,8 +143,6 @@ AcpiDsAutoSerializeMethod (
     Status = AcpiPsParseAml (WalkState);
 
     AcpiPsDeleteParseTree (Op);
-Unlock:
-    AcpiExExitInterpreter ();
     return_ACPI_STATUS (Status);
 }
 
@@ -784,26 +778,6 @@ AcpiDsTerminateControlMethod (
         AcpiDsMethodDataDeleteAll (WalkState);
 
         /*
-         * If method is serialized, release the mutex and restore the
-         * current sync level for this thread
-         */
-        if (MethodDesc->Method.Mutex)
-        {
-            /* Acquisition Depth handles recursive calls */
-
-            MethodDesc->Method.Mutex->Mutex.AcquisitionDepth--;
-            if (!MethodDesc->Method.Mutex->Mutex.AcquisitionDepth)
-            {
-                WalkState->Thread->CurrentSyncLevel =
-                    MethodDesc->Method.Mutex->Mutex.OriginalSyncLevel;
-
-                AcpiOsReleaseMutex (
-                    MethodDesc->Method.Mutex->Mutex.OsMutex);
-                MethodDesc->Method.Mutex->Mutex.ThreadId = 0;
-            }
-        }
-
-        /*
          * Delete any namespace objects created anywhere within the
          * namespace by the execution of this method. Unless:
          * 1) This method is a module-level executable code method, in which
@@ -834,6 +808,26 @@ AcpiDsTerminateControlMethod (
                 (void) AcpiExEnterInterpreter ();
                 MethodDesc->Method.InfoFlags &=
                     ~ACPI_METHOD_MODIFIED_NAMESPACE;
+            }
+        }
+
+        /*
+         * If method is serialized, release the mutex and restore the
+         * current sync level for this thread
+         */
+        if (MethodDesc->Method.Mutex)
+        {
+            /* Acquisition Depth handles recursive calls */
+
+            MethodDesc->Method.Mutex->Mutex.AcquisitionDepth--;
+            if (!MethodDesc->Method.Mutex->Mutex.AcquisitionDepth)
+            {
+                WalkState->Thread->CurrentSyncLevel =
+                    MethodDesc->Method.Mutex->Mutex.OriginalSyncLevel;
+
+                AcpiOsReleaseMutex (
+                    MethodDesc->Method.Mutex->Mutex.OsMutex);
+                MethodDesc->Method.Mutex->Mutex.ThreadId = 0;
             }
         }
     }

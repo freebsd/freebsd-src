@@ -420,19 +420,24 @@ ath_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m,
 				tsf_remainder = (tsf_beacon - tsf_beacon_old) % tsf_intval;
 			}
 
-			DPRINTF(sc, ATH_DEBUG_BEACON, "%s: old_tsf=%llu, new_tsf=%llu, target_tsf=%llu, delta=%lld, bmiss=%d, remainder=%d\n",
+			DPRINTF(sc, ATH_DEBUG_BEACON, "%s: old_tsf=%llu (%u), new_tsf=%llu (%u), target_tsf=%llu (%u), delta=%lld, bmiss=%d, remainder=%d\n",
 			    __func__,
 			    (unsigned long long) tsf_beacon_old,
+			    (unsigned int) (tsf_beacon_old >> 10),
 			    (unsigned long long) tsf_beacon,
+			    (unsigned int ) (tsf_beacon >> 10),
 			    (unsigned long long) tsf_beacon_target,
+			    (unsigned int) (tsf_beacon_target >> 10),
 			    (long long) tsf_delta,
 			    tsf_delta_bmiss,
 			    tsf_remainder);
 
-			DPRINTF(sc, ATH_DEBUG_BEACON, "%s: tsf=%llu, nexttbtt=%llu, delta=%d\n",
+			DPRINTF(sc, ATH_DEBUG_BEACON, "%s: tsf=%llu (%u), nexttbtt=%llu (%u), delta=%d\n",
 			    __func__,
 			    (unsigned long long) tsf_beacon,
+			    (unsigned int) (tsf_beacon >> 10),
 			    (unsigned long long) nexttbtt,
+			    (unsigned int) (nexttbtt >> 10),
 			    (int32_t) tsf_beacon - (int32_t) nexttbtt + tsf_intval);
 
 			/* We only do syncbeacon on STA VAPs; not on IBSS */
@@ -635,7 +640,9 @@ ath_rx_pkt(struct ath_softc *sc, struct ath_rx_status *rs, HAL_STATUS status,
     struct mbuf *m)
 {
 	uint64_t rstamp;
-	int len, type;
+	/* XXX TODO: make this an mbuf tag? */
+	struct ieee80211_rx_stats rxs;
+	int len, type, i;
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211_node *ni;
 	int is_good = 0;
@@ -904,6 +911,33 @@ rx_accept:
 		sc->sc_stats.ast_rx_agg++;
 #endif /* AH_SUPPORT_AR5416 */
 
+
+	/*
+	 * Populate the per-chain RSSI values where appropriate.
+	 */
+	bzero(&rxs, sizeof(rxs));
+	rxs.r_flags |= IEEE80211_R_NF | IEEE80211_R_RSSI |
+	    IEEE80211_R_C_CHAIN |
+	    IEEE80211_R_C_NF |
+	    IEEE80211_R_C_RSSI |
+	    IEEE80211_R_TSF64 |
+	    IEEE80211_R_TSF_START;	/* XXX TODO: validate */
+	rxs.c_rssi = rs->rs_rssi;
+	rxs.c_nf = nf;
+	rxs.c_chain = 3;	/* XXX TODO: check */
+	rxs.c_rx_tsf = rstamp;
+
+	for (i = 0; i < 3; i++) {
+		rxs.c_rssi_ctl[i] = rs->rs_rssi_ctl[i];
+		rxs.c_rssi_ext[i] = rs->rs_rssi_ext[i];
+		/*
+		 * XXX note: we currently don't track
+		 * per-chain noisefloor.
+		 */
+		rxs.c_nf_ctl[i] = nf;
+		rxs.c_nf_ext[i] = nf;
+	}
+
 	if (ni != NULL) {
 		/*
 		 * Only punt packets for ampdu reorder processing for
@@ -916,7 +950,8 @@ rx_accept:
 		/*
 		 * Sending station is known, dispatch directly.
 		 */
-		type = ieee80211_input(ni, m, rs->rs_rssi, nf);
+		(void) ieee80211_add_rx_params(m, &rxs);
+		type = ieee80211_input_mimo(ni, m);
 		ieee80211_free_node(ni);
 		m = NULL;
 		/*
@@ -929,7 +964,8 @@ rx_accept:
 		    rs->rs_keyix != HAL_RXKEYIX_INVALID)
 			is_good = 1;
 	} else {
-		type = ieee80211_input_all(ic, m, rs->rs_rssi, nf);
+		(void) ieee80211_add_rx_params(m, &rxs);
+		type = ieee80211_input_mimo_all(ic, m);
 		m = NULL;
 	}
 

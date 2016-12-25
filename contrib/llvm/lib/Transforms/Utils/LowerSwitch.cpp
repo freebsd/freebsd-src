@@ -59,12 +59,6 @@ namespace {
 
     bool runOnFunction(Function &F) override;
 
-    void getAnalysisUsage(AnalysisUsage &AU) const override {
-      // This is a cluster of orthogonal Transforms
-      AU.addPreserved<UnifyFunctionExitNodes>();
-      AU.addPreservedID(LowerInvokePassID);
-    }
-
     struct CaseRange {
       ConstantInt* Low;
       ConstantInt* High;
@@ -192,8 +186,8 @@ static void fixPhis(BasicBlock *SuccBB, BasicBlock *OrigBB, BasicBlock *NewBB,
       }
     // Remove incoming values in the reverse order to prevent invalidating
     // *successive* index.
-    for (auto III = Indices.rbegin(), IIE = Indices.rend(); III != IIE; ++III)
-      PN->removeIncomingValue(*III);
+    for (unsigned III : reverse(Indices))
+      PN->removeIncomingValue(III);
   }
 }
 

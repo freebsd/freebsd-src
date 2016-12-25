@@ -200,6 +200,7 @@ _kvm_read_core_phdrs(kvm_t *kd, size_t *phnump, GElf_Phdr **phdrp)
 
 	for (i = 0; i < phnum; i++) {
 		if (gelf_getphdr(elf, i, &phdr[i]) == NULL) {
+			free(phdr);
 			_kvm_err(kd, kd->program, "%s", elf_errmsg(0));
 			goto bad;
 		}

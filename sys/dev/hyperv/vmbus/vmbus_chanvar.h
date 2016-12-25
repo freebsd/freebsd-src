@@ -30,11 +30,13 @@
 #define _VMBUS_CHANVAR_H_
 
 #include <sys/param.h>
+#include <sys/callout.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/queue.h>
-#include <sys/taskqueue.h>
 #include <sys/sysctl.h>
+#include <sys/sx.h>
+#include <sys/taskqueue.h>
 
 #include <dev/hyperv/include/hyperv.h>
 #include <dev/hyperv/include/hyperv_busdma.h>
@@ -48,6 +50,7 @@ struct vmbus_channel {
 	 * target CPU.
 	 */
 	uint32_t			ch_flags;	/* VMBUS_CHAN_FLAG_ */
+	int				ch_poll_flags;	/* callout flags */
 
 	/*
 	 * RX bufring; immediately following ch_txbr.
@@ -56,6 +59,9 @@ struct vmbus_channel {
 
 	struct taskqueue		*ch_tq;
 	struct task			ch_task;
+	struct task			ch_poll_task;
+	sbintime_t			ch_poll_intvl;
+	struct callout			ch_poll_timeo;
 	vmbus_chan_callback_t		ch_cb;
 	void				*ch_cbarg;
 
@@ -138,6 +144,11 @@ struct vmbus_channel {
 	struct hyperv_guid		ch_guid_type;
 	struct hyperv_guid		ch_guid_inst;
 
+	struct sx			ch_orphan_lock;
+	struct vmbus_xact_ctx		*ch_orphan_xact;
+
+	int				ch_refs;
+
 	struct sysctl_ctx_list		ch_sysctl_ctx;
 } __aligned(CACHE_LINE_SIZE);
 
@@ -159,10 +170,12 @@ struct vmbus_channel {
 #define VMBUS_CHAN_ST_ONPRIL_SHIFT	1
 #define VMBUS_CHAN_ST_ONSUBL_SHIFT	2
 #define VMBUS_CHAN_ST_ONLIST_SHIFT	3
+#define VMBUS_CHAN_ST_REVOKED_SHIFT	4	/* sticky */
 #define VMBUS_CHAN_ST_OPENED		(1 << VMBUS_CHAN_ST_OPENED_SHIFT)
 #define VMBUS_CHAN_ST_ONPRIL		(1 << VMBUS_CHAN_ST_ONPRIL_SHIFT)
 #define VMBUS_CHAN_ST_ONSUBL		(1 << VMBUS_CHAN_ST_ONSUBL_SHIFT)
 #define VMBUS_CHAN_ST_ONLIST		(1 << VMBUS_CHAN_ST_ONLIST_SHIFT)
+#define VMBUS_CHAN_ST_REVOKED		(1 << VMBUS_CHAN_ST_REVOKED_SHIFT)
 
 struct vmbus_softc;
 struct vmbus_message;

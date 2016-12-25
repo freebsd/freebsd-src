@@ -67,6 +67,7 @@ pw_nisupdate(const char * path, struct passwd * pwd, char const * user)
 		close(tfd);
 		err(1, "pw_copy()");
 	}
+	fsync(tfd);
 	close(tfd);
 	if (chmod(pw_tempname(), 0644) == -1)
 		err(1, "chmod()");

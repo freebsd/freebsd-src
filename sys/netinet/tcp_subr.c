@@ -1502,6 +1502,7 @@ tcp_discardcb(struct tcpcb *tp)
 	inp->inp_ppcb = NULL;
 	if (tp->t_timers->tt_draincnt == 0) {
 		/* We own the last reference on tcpcb, let's free it. */
+		TCPSTATES_DEC(tp->t_state);
 		if (tp->t_fb->tfb_tcp_fb_fini)
 			(*tp->t_fb->tfb_tcp_fb_fini)(tp, 1);
 		refcount_release(&tp->t_fb->tfb_refcnt);
@@ -1531,6 +1532,7 @@ tcp_timer_discard(void *ptp)
 	tp->t_timers->tt_draincnt--;
 	if (tp->t_timers->tt_draincnt == 0) {
 		/* We own the last reference on this tcpcb, let's free it. */
+		TCPSTATES_DEC(tp->t_state);
 		if (tp->t_fb->tfb_tcp_fb_fini)
 			(*tp->t_fb->tfb_tcp_fb_fini)(tp, 1);
 		refcount_release(&tp->t_fb->tfb_refcnt);
@@ -1577,7 +1579,8 @@ tcp_close(struct tcpcb *tp)
 #endif
 	in_pcbdrop(inp);
 	TCPSTAT_INC(tcps_closed);
-	TCPSTATES_DEC(tp->t_state);
+	if (tp->t_state != TCPS_CLOSED)
+		tcp_state_change(tp, TCPS_CLOSED);
 	KASSERT(inp->inp_socket != NULL, ("tcp_close: inp_socket NULL"));
 	so = inp->inp_socket;
 	soisdisconnected(so);
@@ -2731,6 +2734,7 @@ tcp_signature_do_compute(struct mbuf *m, int len, int optlen,
 	 * Note: Upper-Layer Packet Length comes before Next Header.
 	 */
 	case (IPV6_VERSION >> 4):
+		ip6 = mtod(m, struct ip6_hdr *);
 		in6 = ip6->ip6_src;
 		in6_clearscope(&in6);
 		MD5Update(&ctx, (char *)&in6, sizeof(struct in6_addr));

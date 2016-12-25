@@ -563,9 +563,24 @@ zio_timestamp_compare(const void *x1, const void *x2)
 	if (z1->io_queued_timestamp > z2->io_queued_timestamp)
 		return (1);
 
-	if (z1->io_offset < z2->io_offset)
+	if (z1->io_bookmark.zb_objset < z2->io_bookmark.zb_objset)
 		return (-1);
-	if (z1->io_offset > z2->io_offset)
+	if (z1->io_bookmark.zb_objset > z2->io_bookmark.zb_objset)
+		return (1);
+
+	if (z1->io_bookmark.zb_object < z2->io_bookmark.zb_object)
+		return (-1);
+	if (z1->io_bookmark.zb_object > z2->io_bookmark.zb_object)
+		return (1);
+
+	if (z1->io_bookmark.zb_level < z2->io_bookmark.zb_level)
+		return (-1);
+	if (z1->io_bookmark.zb_level > z2->io_bookmark.zb_level)
+		return (1);
+
+	if (z1->io_bookmark.zb_blkid < z2->io_bookmark.zb_blkid)
+		return (-1);
+	if (z1->io_bookmark.zb_blkid > z2->io_bookmark.zb_blkid)
 		return (1);
 
 	if (z1 < z2)
@@ -2908,20 +2923,21 @@ zio_dva_unallocate(zio_t *zio, zio_gang_node_t *gn, blkptr_t *bp)
  */
 int
 zio_alloc_zil(spa_t *spa, uint64_t txg, blkptr_t *new_bp, blkptr_t *old_bp,
-    uint64_t size, boolean_t use_slog)
+    uint64_t size, boolean_t *slog)
 {
 	int error = 1;
 
 	ASSERT(txg > spa_syncing_txg(spa));
 
-	if (use_slog) {
-		error = metaslab_alloc(spa, spa_log_class(spa), size,
-		    new_bp, 1, txg, old_bp, METASLAB_HINTBP_AVOID, NULL);
-	}
-
-	if (error) {
+	error = metaslab_alloc(spa, spa_log_class(spa), size,
+	    new_bp, 1, txg, old_bp, METASLAB_HINTBP_AVOID, NULL);
+	if (error == 0) {
+		*slog = TRUE;
+	} else {
 		error = metaslab_alloc(spa, spa_normal_class(spa), size,
 		    new_bp, 1, txg, old_bp, METASLAB_HINTBP_AVOID, NULL);
+		if (error == 0)
+			*slog = FALSE;
 	}
 
 	if (error == 0) {

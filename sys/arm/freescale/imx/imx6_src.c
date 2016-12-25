@@ -70,7 +70,7 @@ WR4(struct src_softc *sc, bus_size_t off, uint32_t val)
 }
 
 int
-src_reset_ipu()
+src_reset_ipu(void)
 {
 	uint32_t reg;
 	int timeout = 10000;

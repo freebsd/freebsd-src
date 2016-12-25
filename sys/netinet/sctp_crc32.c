@@ -113,7 +113,6 @@ sctp_calculate_cksum(struct mbuf *m, uint32_t offset)
 	base = sctp_finalize_crc32c(base);
 	return (base);
 }
-
 #endif				/* !defined(SCTP_WITH_NO_CSUM) */
 
 

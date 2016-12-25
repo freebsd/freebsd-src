@@ -115,13 +115,13 @@ archive_string_conversion_set_opt(struct archive_string_conv *, int);
 
 
 /* Copy one archive_string to another in locale conversion.
- * Return -1 if conversion failes. */
+ * Return -1 if conversion fails. */
 int
 archive_strncpy_l(struct archive_string *, const void *, size_t,
     struct archive_string_conv *);
 
 /* Copy one archive_string to another in locale conversion.
- * Return -1 if conversion failes. */
+ * Return -1 if conversion fails. */
 int
 archive_strncat_l(struct archive_string *, const void *, size_t,
     struct archive_string_conv *);

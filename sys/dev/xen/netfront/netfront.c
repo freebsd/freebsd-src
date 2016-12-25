@@ -156,21 +156,6 @@ static int xn_get_responses(struct netfront_rxq *,
 #define virt_to_mfn(x) (vtophys(x) >> PAGE_SHIFT)
 
 #define INVALID_P2M_ENTRY (~0UL)
-
-struct xn_rx_stats
-{
-	u_long	rx_packets;	/* total packets received	*/
-	u_long	rx_bytes;	/* total bytes received 	*/
-	u_long	rx_errors;	/* bad packets received		*/
-};
-
-struct xn_tx_stats
-{
-	u_long	tx_packets;	/* total packets transmitted	*/
-	u_long	tx_bytes;	/* total bytes transmitted	*/
-	u_long	tx_errors;	/* packet transmit problems	*/
-};
-
 #define XN_QUEUE_NAME_LEN  8	/* xn{t,r}x_%u, allow for two digits */
 struct netfront_rxq {
 	struct netfront_info 	*info;
@@ -190,8 +175,6 @@ struct netfront_rxq {
 	struct lro_ctrl		lro;
 
 	struct callout		rx_refill;
-
-	struct xn_rx_stats	stats;
 };
 
 struct netfront_txq {
@@ -215,8 +198,6 @@ struct netfront_txq {
 	struct task       	defrtask;
 
 	bool			full;
-
-	struct xn_tx_stats	stats;
 };
 
 struct netfront_info {
@@ -1191,7 +1172,7 @@ xn_rxeof(struct netfront_rxq *rxq)
 			if (__predict_false(err)) {
 				if (m)
 					(void )mbufq_enqueue(&mbufq_errq, m);
-				rxq->stats.rx_errors++;
+				if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 				continue;
 			}
 
@@ -1215,9 +1196,6 @@ xn_rxeof(struct netfront_rxq *rxq)
 				extras[XEN_NETIF_EXTRA_TYPE_GSO - 1].u.gso.size;
 				m->m_pkthdr.csum_flags |= CSUM_TSO;
 			}
-
-			rxq->stats.rx_packets++;
-			rxq->stats.rx_bytes += m->m_pkthdr.len;
 
 			(void )mbufq_enqueue(&mbufq_rxq, m);
 			rxq->ring.rsp_cons = i;
@@ -1304,12 +1282,6 @@ xn_txeof(struct netfront_txq *txq)
 				"trying to free it again!"));
 			M_ASSERTVALID(m);
 
-			/*
-			 * Increment packet count if this is the last
-			 * mbuf of the chain.
-			 */
-			if (!m->m_next)
-				if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 			if (__predict_false(gnttab_query_foreign_access(
 			    txq->grant_ref[id]) != 0)) {
 				panic("%s: grant id %u still in use by the "
@@ -1701,10 +1673,12 @@ xn_assemble_tx_request(struct netfront_txq *txq, struct mbuf *m_head)
 	}
 	BPF_MTAP(ifp, m_head);
 
-	xn_txeof(txq);
+	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
+	if_inc_counter(ifp, IFCOUNTER_OBYTES, m_head->m_pkthdr.len);
+	if (m_head->m_flags & M_MCAST)
+		if_inc_counter(ifp, IFCOUNTER_OMCASTS, 1);
 
-	txq->stats.tx_bytes += m_head->m_pkthdr.len;
-	txq->stats.tx_packets++;
+	xn_txeof(txq);
 
 	return (0);
 }

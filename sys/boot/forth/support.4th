@@ -1115,7 +1115,7 @@ string current_file_name_ref	\ used to print the file name
 
 : load_error_message verbose? if ." failed!" cr then ;
 
-: load_succesful_message verbose? if ." ok" cr then ;
+: load_successful_message verbose? if ." ok" cr then ;
 
 : load_module
   load_parameters load
@@ -1133,7 +1133,7 @@ string current_file_name_ref	\ used to print the file name
       then
     else
       after_load
-      load_succesful_message true	\ Successful, do not retry
+      load_successful_message true	\ Successful, do not retry
     then
   until
 ;

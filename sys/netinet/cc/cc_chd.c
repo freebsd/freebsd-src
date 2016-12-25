@@ -330,10 +330,12 @@ chd_cong_signal(struct cc_var *ccv, uint32_t signal_type)
 	struct ertt *e_t;
 	struct chd *chd_data;
 	int qdly;
+	u_int mss;
 
 	e_t = khelp_get_osd(CCV(ccv, osd), ertt_id);
 	chd_data = ccv->cc_data;
 	qdly = imax(e_t->rtt, chd_data->maxrtt_in_rtt) - e_t->minrtt;
+	mss = CCV(ccv, t_maxseg);
 
 	switch(signal_type) {
 	case CC_CHD_DELAY:
@@ -372,6 +374,12 @@ chd_cong_signal(struct cc_var *ccv, uint32_t signal_type)
 			    CCV(ccv, t_maxseg) / 2, 2) * CCV(ccv, t_maxseg);
 		}
 		ENTER_FASTRECOVERY(CCV(ccv, t_flags));
+		break;
+	case CC_RTO:
+		CCV(ccv, snd_ssthresh) =
+		    max((CCV(ccv, snd_max) - CCV(ccv, snd_una)) / 2 / mss, 2)
+			* mss;
+		CCV(ccv, snd_cwnd) = mss;
 		break;
 
 	default:

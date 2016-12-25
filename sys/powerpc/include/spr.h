@@ -698,8 +698,12 @@
 #define	  SVR_MPC8572E		  0x80e8
 #define	  SVR_P1011		  0x80e5
 #define	  SVR_P1011E		  0x80ed
+#define	  SVR_P1013		  0x80e7
+#define	  SVR_P1013E		  0x80ef
 #define	  SVR_P1020		  0x80e4
 #define	  SVR_P1020E		  0x80ec
+#define	  SVR_P1022		  0x80e6
+#define	  SVR_P1022E		  0x80ee
 #define	  SVR_P2010		  0x80e3
 #define	  SVR_P2010E		  0x80eb
 #define	  SVR_P2020		  0x80e2

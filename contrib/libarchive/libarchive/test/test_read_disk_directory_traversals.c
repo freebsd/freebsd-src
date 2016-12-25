@@ -33,7 +33,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 /*
- * Test if the current filesytem is mounted with noatime option.
+ * Test if the current filesystem is mounted with noatime option.
  */
 static int
 atimeIsUpdated(void)
@@ -1327,6 +1327,7 @@ test_callbacks(void)
 	if (assert((m = archive_match_new()) != NULL)) {
 		archive_entry_free(ae);
 		archive_read_free(a);
+		archive_match_free(m);
 		return;
 	}
 

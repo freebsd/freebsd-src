@@ -347,6 +347,7 @@ dmi_check_system(const struct dmi_system_id *sysid)
 	return (res);
 }
 
+#if __OS_HAS_MTRR
 int
 drm_mtrr_add(unsigned long offset, unsigned long size, unsigned int flags)
 {
@@ -375,6 +376,7 @@ drm_mtrr_del(int handle __unused, unsigned long offset, unsigned long size,
 	strlcpy(mrdesc.mr_owner, "drm", sizeof(mrdesc.mr_owner));
 	return (-mem_range_attr_set(&mrdesc, &act));
 }
+#endif
 
 void
 drm_clflush_pages(vm_page_t *pages, unsigned long num_pages)

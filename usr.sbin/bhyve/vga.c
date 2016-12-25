@@ -161,10 +161,10 @@ struct vga_softc {
 	 */
 	struct {
 		uint8_t		dac_state;
-		int		dac_rd_index;
-		int		dac_rd_subindex;
-		int		dac_wr_index;
-		int		dac_wr_subindex;
+		uint8_t		dac_rd_index;
+		uint8_t		dac_rd_subindex;
+		uint8_t		dac_wr_index;
+		uint8_t		dac_wr_subindex;
 		uint8_t		dac_palette[3 * 256];
 		uint32_t	dac_palette_rgb[256];
 	} vga_dac;

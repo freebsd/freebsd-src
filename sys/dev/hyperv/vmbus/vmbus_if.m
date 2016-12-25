@@ -33,6 +33,7 @@ INTERFACE vmbus;
 
 HEADER {
 	struct hyperv_guid;
+	struct taskqueue;
 };
 
 METHOD uint32_t get_version {
@@ -44,4 +45,16 @@ METHOD int probe_guid {
 	device_t bus;
 	device_t dev;
 	const struct hyperv_guid *guid;
+};
+
+METHOD uint32_t get_vcpu_id {
+	device_t bus;
+	device_t dev;
+	int cpu;
+};
+
+METHOD struct taskqueue * get_event_taskq {
+	device_t bus;
+	device_t dev;
+	int cpu;
 };

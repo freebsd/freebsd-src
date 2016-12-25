@@ -307,6 +307,7 @@ struct vattr {
 #define	IO_INVAL	0x0040		/* invalidate after I/O */
 #define	IO_SYNC		0x0080		/* do I/O synchronously */
 #define	IO_DIRECT	0x0100		/* attempt to bypass buffer cache */
+#define	IO_NOREUSE	0x0200		/* VMIO data won't be reused */
 #define	IO_EXT		0x0400		/* operate on external attributes */
 #define	IO_NORMAL	0x0800		/* operate on regular data */
 #define	IO_NOMACCHECK	0x1000		/* MAC checks unnecessary */
@@ -827,6 +828,7 @@ void	vput(struct vnode *vp);
 void	vrele(struct vnode *vp);
 void	vref(struct vnode *vp);
 void	vrefl(struct vnode *vp);
+void	vrefact(struct vnode *vp);
 int	vrefcnt(struct vnode *vp);
 void 	v_addpollinfo(struct vnode *vp);
 

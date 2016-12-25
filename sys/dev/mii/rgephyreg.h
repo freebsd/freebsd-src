@@ -199,4 +199,7 @@
 #define	EEELPAR_1000T		0x0004	/* link partner 1000baseT EEE capable */
 #define	EEELPAR_100TX		0x0002	/* link partner 100baseTX EEE capable */
 
+/* RTL8153 */
+#define	URE_GMEDIASTAT		0xe908	/* media status register */
+
 #endif /* _DEV_RGEPHY_MIIREG_H_ */

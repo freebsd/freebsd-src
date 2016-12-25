@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 25, 2015
+.Dd October 03, 2016
 .Dt CYAPA 4
 .Os
 .Sh NAME
@@ -36,7 +36,7 @@ the kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "device cyapa"
 .Cd "device ig4"
-.Cd "device smbus"
+.Cd "device iicbus"
 .Ed
 .Pp
 Alternatively, to load the driver as a module at boot time, place the following line in
@@ -45,6 +45,13 @@ Alternatively, to load the driver as a module at boot time, place the following 
 cyapa_load="YES"
 ig4_load="YES"
 .Ed
+.Pp
+In
+.Pa /boot/device.hints :
+.Cd hint.cyapa.0.at="iicbus0"
+.Cd hint.cyapa.0.addr="0xCE"
+.Cd hint.cyapa.1.at="iicbus1"
+.Cd hint.cyapa.1.addr="0xCE"
 .Sh DESCRIPTION
 The
 .Nm
@@ -85,6 +92,20 @@ The left two thirds of the pad issues a LEFT button event.
 The upper right corner issues a MIDDLE button event.
 The lower right corner issues a RIGHT button.
 Optionally, tap to click can be enabled (see below).
+.El
+.Pp
+On a system using
+.Xr device.hints 5 ,
+these values are configurable for
+.Nm :
+.Bl -tag -width "hint.cyapa.%d.addr"
+.It Va hint.cyapa.%d.at
+target
+.Xr iicbus 4 .
+.It Va hint.cyapa.%d.addr
+.Nm
+i2c address on the
+.Xr iicbus 4 .
 .El
 .Sh SYSCTL VARIABLES
 These
@@ -175,7 +196,7 @@ file:
 .Dl debug.cyapa_enable_tapclick=2
 .Sh SEE ALSO
 .Xr ig4 4 ,
-.Xr smbus 4 ,
+.Xr iicbus 4 ,
 .Xr sysmouse 4 ,
 .Xr moused 8
 .Sh AUTHORS
@@ -195,6 +216,6 @@ This manual page was written by
 .Sh BUGS
 The
 .Nm
-driver detects the device based on its I2C address (0x67).
+driver detects the device from the I2C address.
 This might have unforeseen consequences if the initialization sequence
 is sent to an unknown device at that address.

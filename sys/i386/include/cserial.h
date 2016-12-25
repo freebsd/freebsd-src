@@ -117,7 +117,7 @@ struct e3_statistics {
 
 /*
  * Attach/detach the protocol to the channel.
- * The protocol is given by it's name, char[8].
+ * The protocol is given by its name, char[8].
  * For example "async", "hdlc", "cisco", "fr", "ppp".
  */
 #define SERIAL_GETPROTO		_IOR ('x', 1, char [8])

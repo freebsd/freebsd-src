@@ -6,7 +6,7 @@ _LIBARCHIVEDIR=	${.CURDIR}/../../contrib/libarchive
 _LIBARCHIVECONFDIR=	${.CURDIR}/../../lib/libarchive
 
 PROG=	bsdcat	
-BSDCAT_VERSION_STRING=	3.2.1
+BSDCAT_VERSION_STRING=	3.2.2
 
 .PATH:	${_LIBARCHIVEDIR}/cat
 SRCS=	bsdcat.c cmdline.c

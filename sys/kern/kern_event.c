@@ -48,7 +48,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/fcntl.h>
 #include <sys/kthread.h>
 #include <sys/selinfo.h>
-#include <sys/stdatomic.h>
 #include <sys/queue.h>
 #include <sys/event.h>
 #include <sys/eventvar.h>
@@ -69,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #ifdef KTRACE
 #include <sys/ktrace.h>
 #endif
+#include <machine/atomic.h>
 
 #include <vm/uma.h>
 
@@ -188,7 +188,7 @@ static struct filterops user_filtops = {
 };
 
 static uma_zone_t	knote_zone;
-static atomic_uint	kq_ncallouts = ATOMIC_VAR_INIT(0);
+static unsigned int	kq_ncallouts = 0;
 static unsigned int 	kq_calloutmax = 4 * 1024;
 SYSCTL_UINT(_kern, OID_AUTO, kq_calloutmax, CTLFLAG_RW,
     &kq_calloutmax, 0, "Maximum number of callouts allocated for kqueue");
@@ -672,13 +672,11 @@ filt_timerattach(struct knote *kn)
 	if (to < 0)
 		return (EINVAL);
 
-	ncallouts = atomic_load_explicit(&kq_ncallouts, memory_order_relaxed);
 	do {
+		ncallouts = kq_ncallouts;
 		if (ncallouts >= kq_calloutmax)
 			return (ENOMEM);
-	} while (!atomic_compare_exchange_weak_explicit(&kq_ncallouts,
-	    &ncallouts, ncallouts + 1, memory_order_relaxed,
-	    memory_order_relaxed));
+	} while (!atomic_cmpset_int(&kq_ncallouts, ncallouts, ncallouts + 1));
 
 	kn->kn_flags |= EV_CLEAR;		/* automatically set */
 	kn->kn_status &= ~KN_DETACHED;		/* knlist_add clears it */
@@ -703,7 +701,7 @@ filt_timerdetach(struct knote *kn)
 	callout_drain(calloutp);
 	free(calloutp, M_KQUEUE);
 	free(kn->kn_ptr.p_nexttime, M_KQUEUE);
-	old = atomic_fetch_sub_explicit(&kq_ncallouts, 1, memory_order_relaxed);
+	old = atomic_fetchadd_int(&kq_ncallouts, -1);
 	KASSERT(old > 0, ("Number of callouts cannot become negative"));
 	kn->kn_status |= KN_DETACHED;	/* knlist_remove sets it */
 }
@@ -2008,6 +2006,7 @@ knote(struct knlist *list, long hint, int lockflags)
 	struct kqueue *kq;
 	struct knote *kn, *tkn;
 	int error;
+	bool own_influx;
 
 	if (list == NULL)
 		return;
@@ -2038,11 +2037,14 @@ knote(struct knlist *list, long hint, int lockflags)
 			 */
 			KQ_UNLOCK(kq);
 		} else if ((lockflags & KNF_NOKQLOCK) != 0) {
-			kn->kn_status |= KN_INFLUX;
+			own_influx = (kn->kn_status & KN_INFLUX) == 0;
+			if (own_influx)
+				kn->kn_status |= KN_INFLUX;
 			KQ_UNLOCK(kq);
 			error = kn->kn_fop->f_event(kn, hint);
 			KQ_LOCK(kq);
-			kn->kn_status &= ~KN_INFLUX;
+			if (own_influx)
+				kn->kn_status &= ~KN_INFLUX;
 			if (error)
 				KNOTE_ACTIVATE(kn, 1);
 			KQ_UNLOCK_FLUX(kq);

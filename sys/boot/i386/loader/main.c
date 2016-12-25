@@ -77,7 +77,7 @@ static void		i386_zfs_probe(void);
 #endif
 
 /* from vers.c */
-extern	char bootprog_name[], bootprog_rev[], bootprog_date[], bootprog_maker[];
+extern	char bootprog_info[];
 
 /* XXX debugging */
 extern char end[];
@@ -215,9 +215,7 @@ main(void)
     /* detect PCI BIOS for future reference */
     biospci_detect();
 
-    printf("\n");
-    printf("%s, Revision %s\n", bootprog_name, bootprog_rev);
-    printf("(%s, %s)\n", bootprog_maker, bootprog_date);
+    printf("\n%s", bootprog_info);
 
     extract_currdev();				/* set $currdev and $loaddev */
     setenv("LINES", "24", 1);			/* optional */

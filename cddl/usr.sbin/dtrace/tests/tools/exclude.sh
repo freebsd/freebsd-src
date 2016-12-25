@@ -128,9 +128,6 @@ exclude EXFAIL common/ip/tst.ipv4remoteicmp.ksh
 exclude EXFAIL common/ip/tst.localtcpstate.ksh
 exclude EXFAIL common/ip/tst.remotetcpstate.ksh
 
-# Depends on the number of probes in /bin/sh and the current DOF limit.
-exclude EXFAIL common/pid/err.D_PROC_CREATEFAIL.many.d
-
 # Tries to enable pid$target:libc::entry, though there's no "libc" module.
 # Currently unsure as to whether this might be a libproc bug.
 exclude EXFAIL common/pid/tst.probemod.ksh
@@ -191,3 +188,6 @@ exclude EXFAIL common/usdt/tst.static2.ksh
 
 # Uses the Solaris-specific ppriv(1).
 exclude EXFAIL common/usdt/tst.user.ksh
+
+# Triggers a lock assertion by using the raise() action from a profile probe.
+exclude SKIP common/ustack/tst.spin.ksh

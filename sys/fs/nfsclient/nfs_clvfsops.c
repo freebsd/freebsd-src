@@ -1320,6 +1320,8 @@ out:
 		MNT_ILOCK(mp);
 		mp->mnt_kern_flag |= MNTK_LOOKUP_SHARED | MNTK_NO_IOPF |
 		    MNTK_USES_BCACHE;
+		if ((VFSTONFS(mp)->nm_flag & NFSMNT_NFSV4) != 0)
+			mp->mnt_kern_flag |= MNTK_NULL_NOCACHE;
 		MNT_IUNLOCK(mp);
 	}
 	return (error);
@@ -1383,6 +1385,7 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 		    krbnamelen + dirlen + srvkrbnamelen + 2,
 		    M_NEWNFSMNT, M_WAITOK | M_ZERO);
 		TAILQ_INIT(&nmp->nm_bufq);
+		TAILQ_INIT(&nmp->nm_sess);
 		if (clval == 0)
 			clval = (u_int64_t)nfsboottime.tv_sec;
 		nmp->nm_clval = clval++;

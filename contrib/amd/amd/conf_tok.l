@@ -1,6 +1,6 @@
 %{
 /*
- * Copyright (c) 1997-2006 Erez Zadok
+ * Copyright (c) 1997-2014 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -17,11 +17,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgment:
- *      This product includes software developed by the University of
- *      California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -74,7 +70,7 @@
  */
 #ifdef FLEX_SCANNER
 # ifndef ECHO
-#  define ECHO (void) fwrite( yytext, yyleng, 1, yyout )
+#  define ECHO __IGNORE(fwrite( yytext, yyleng, 1, yyout ))
 # endif /* not ECHO */
 #endif /* FLEX_SCANNER */
 
@@ -86,9 +82,9 @@ int yylex(void);
  * which automatically generates yywrap macros and symbols.  So I must
  * distinguish between them and when yywrap is actually needed.
  */
-#ifndef yywrap
+#if !defined(yywrap) || defined(yylex)
 int yywrap(void);
-#endif /* not yywrap */
+#endif /* not yywrap or yylex */
 
 #define TOK_DEBUG 0
 
@@ -108,6 +104,7 @@ int yywrap(void);
 /* This option causes Solaris lex to fail.  Use flex.  See BUGS file */
 /* no need to use yyunput() */
 %option nounput
+%option noinput
 
 /* allocate more output slots so lex scanners don't run out of mem */
 %o 1024
@@ -131,19 +128,19 @@ NONQUOTE	[^\"]
 
 \[			{
 			dprintf("%8d: Left bracket \"%s\"\n", yytext);
-			yylval.strtype = strdup((char *)yytext);
+			conf_lval.strtype = xstrdup(yytext);
 			amu_return(LEFT_BRACKET);
 			}
 
 \]			{
 			dprintf("%8d: Right bracket \"%s\"\n", yytext);
-			yylval.strtype = strdup((char *)yytext);
+			conf_lval.strtype = xstrdup(yytext);
 			amu_return(RIGHT_BRACKET);
 			}
 
 =			{
 			dprintf("%8d: Equal \"%s\"\n", yytext);
-			yylval.strtype = strdup((char *)yytext);
+			conf_lval.strtype = xstrdup(yytext);
 			amu_return(EQUAL);
 			}
 
@@ -159,7 +156,7 @@ NONQUOTE	[^\"]
 
 {NONWSCHAR}{NONWSCHAR}*	{
 			dprintf("%8d: Non-WS string \"%s\"\n", yytext);
-			yylval.strtype = strdup((char *)yytext);
+			conf_lval.strtype = xstrdup(yytext);
 			amu_return(NONWS_STRING);
 			}
 
@@ -167,13 +164,13 @@ NONQUOTE	[^\"]
 			dprintf("%8d: QUOTED-Non-WS-EQ string \"%s\"\n", yytext);
 			/* must strip quotes */
 			yytext[strlen((char *)yytext)-1] = '\0';
-			yylval.strtype = strdup((char *)&yytext[1]);
+			conf_lval.strtype = xstrdup(&yytext[1]);
 			amu_return(QUOTED_NONWSEQ_STRING);
 			}
 
 {NONWSEQCHAR}{NONWSEQCHAR}*	{
 			dprintf("%8d: Non-WS-EQ string \"%s\"\n", yytext);
-			yylval.strtype = strdup((char *)yytext);
+			conf_lval.strtype = xstrdup(yytext);
 			amu_return(NONWSEQ_STRING);
 			}
 
@@ -184,9 +181,9 @@ NONQUOTE	[^\"]
  * which automatically generates yywrap macros and symbols.  So I must
  * distinguish between them and when yywrap is actually needed.
  */
-#ifndef yywrap
+#if !defined(yywrap) || defined(yylex)
 int yywrap(void)
 {
   return 1;
 }
-#endif /* not yywrap */
+#endif /* not yywrap or yylex */

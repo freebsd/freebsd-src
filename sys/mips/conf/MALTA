@@ -1,4 +1,4 @@
-# MALTA -- Kernel config for MALTA boards
+# MALTA -- Kernel config for MALTA endian-big boards
 #
 # $FreeBSD$
  
@@ -6,6 +6,6 @@ ident		MALTA
 
 include		"std.MALTA"
  
-machine		mips mipsel	# Malta supports both, so it isn't in std.malta
+machine		mips mips
  
 makeoptions	KERNLOADADDR=0x80100000

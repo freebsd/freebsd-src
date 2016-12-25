@@ -52,7 +52,6 @@ uint64_t set_gp(struct Struct_Obj_Entry *obj);
 	__asm __volatile("lla       %0, _DYNAMIC" : "=r"(_dynamic_addr));   \
 	(const Elf_Dyn *)_dynamic_addr;                                 \
 })
-#define RTLD_IS_DYNAMIC() (1)
 
 Elf_Addr reloc_jmpslot(Elf_Addr *where, Elf_Addr target,
 		       const struct Struct_Obj_Entry *defobj,
@@ -77,6 +76,9 @@ Elf_Addr reloc_jmpslot(Elf_Addr *where, Elf_Addr target,
 	(((InitArrFunc)(target))(main_argc, main_argv, environ));	\
 	__asm __volatile("mv    gp, %0" :: "r"(old1));			\
 })
+
+#define	call_ifunc_resolver(ptr) \
+	(((Elf_Addr (*)(void))ptr)())
 
 /*
  * Lazy binding entry point, called via PLT.

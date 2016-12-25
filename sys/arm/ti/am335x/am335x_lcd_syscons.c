@@ -47,7 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <machine/intr.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
@@ -351,7 +350,7 @@ am335x_syscons_find_panel_node(phandle_t start)
 	phandle_t result;
 
 	for (child = OF_child(start); child != 0; child = OF_peer(child)) {
-		if (fdt_is_compatible(child, "ti,am335x-lcd"))
+		if (ofw_bus_node_is_compatible(child, "ti,am335x-lcd"))
 			return (child);
 		if ((result = am335x_syscons_find_panel_node(child)))
 			return (result);
@@ -383,13 +382,13 @@ am335x_syscons_configure(int flags)
 	root = OF_finddevice("/");
 	if ((root != 0) && 
 	    (display = am335x_syscons_find_panel_node(root))) {
-		if ((OF_getprop(display, "panel_width", 
-		    &cell, sizeof(cell))) > 0)
-			va_sc->width = (int)fdt32_to_cpu(cell);
+		if ((OF_getencprop(display, "panel_width", &cell,
+		    sizeof(cell))) > 0)
+			va_sc->width = cell;
 
-		if ((OF_getprop(display, "panel_height", 
-		    &cell, sizeof(cell))) > 0)
-			va_sc->height = (int)fdt32_to_cpu(cell);
+		if ((OF_getencprop(display, "panel_height", &cell,
+		    sizeof(cell))) > 0)
+			va_sc->height = cell;
 	}
 
 	if (va_sc->width == 0)

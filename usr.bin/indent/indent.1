@@ -30,7 +30,7 @@
 .\"	@(#)indent.1	8.1 (Berkeley) 7/1/93
 .\" $FreeBSD$
 .\"
-.Dd August 3, 2016
+.Dd December 2, 2016
 .Dt INDENT 1
 .Os
 .Sh NAME
@@ -41,6 +41,7 @@
 .Op Ar input-file Op Ar output-file
 .Op Fl bacc | Fl nbacc
 .Op Fl bad | Fl nbad
+.Op Fl badp | Fl nbadp
 .Op Fl bap | Fl nbap
 .Bk -words
 .Op Fl ei | Fl ei
@@ -50,6 +51,7 @@
 .Op Fl \&bc | Fl nbc
 .Op Fl \&bl
 .Op Fl \&br
+.Op Fl bs | Fl nbs
 .Op Fl c Ns Ar n
 .Op Fl \&cd Ns Ar n
 .Bk -words
@@ -143,6 +145,14 @@ is specified, a blank line is forced after every block of
 declarations.
 Default:
 .Fl nbad .
+.It Fl badp , nbadp
+This is vaguely similar to
+.Fl bad
+except that it only applies to the first set of declarations
+in a procedure (just after the first `{') and it causes a blank
+line to be generated even if there are no declarations.
+The default is
+.Fl nbadp.
 .It Fl bap , nbap
 If
 .Fl bap
@@ -182,6 +192,10 @@ if (...) {
   code
 }
 .Ed
+.It Fl bs , nbs
+Whether a blank should always be inserted after sizeof.
+The default is
+.Fl nbs.
 .It Fl c Ns Ar n
 The column in which comments on code start.
 The default is 33.
@@ -324,6 +338,10 @@ The default is
 .It Fl l Ns Ar n
 Maximum length of an output line.
 The default is 78.
+.It Fl lc Ns Ar n
+Maximum length of an output line in a block comment.
+The default is 0, which means to limit block comment lines in accordance with
+.Fl l.
 .It Fl \&ldi Ns Ar n
 Specifies the indentation, in character positions,
 of local variable names

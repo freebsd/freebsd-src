@@ -76,22 +76,6 @@ __END_DECLS
 #define	DBL_HAS_SUBNORM	1
 #endif /* __ISO_C_VISIBLE >= 2011 */
 
-#define LDBL_MANT_DIG	DBL_MANT_DIG
-#define LDBL_EPSILON	((long double)DBL_EPSILON)
-#define LDBL_DIG	DBL_DIG
-#define LDBL_MIN_EXP	DBL_MIN_EXP
-#define LDBL_MIN	((long double)DBL_MIN)
-#define LDBL_MIN_10_EXP	DBL_MIN_10_EXP
-#define LDBL_MAX_EXP	DBL_MAX_EXP
-#define LDBL_MAX	((long double)DBL_MAX)
-#define LDBL_MAX_10_EXP	DBL_MAX_10_EXP
-#if __ISO_C_VISIBLE >= 2011
-#define	LDBL_TRUE_MIN	((long double)DBL_TRUE_MIN)
-#define	LDBL_DECIMAL_DIG DBL_DECIMAL_DIG
-#define	LDBL_HAS_SUBNORM DBL_HAS_SUBNORM
-#endif /* __ISO_C_VISIBLE >= 2011 */
-
-#if 0 /* RISCVTODO */
 #define	LDBL_MANT_DIG	113
 #define	LDBL_EPSILON	1.925929944387235853055977942584927319E-34L
 #define	LDBL_DIG	33
@@ -106,6 +90,5 @@ __END_DECLS
 #define	LDBL_DECIMAL_DIG 36
 #define	LDBL_HAS_SUBNORM 1
 #endif /* __ISO_C_VISIBLE >= 2011 */
-#endif
 
 #endif /* _MACHINE_FLOAT_H_ */

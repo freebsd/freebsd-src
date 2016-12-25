@@ -229,6 +229,12 @@ struct ieee80211com {
 	uint8_t			ic_rxstream;    /* # RX streams */
 	uint8_t			ic_txstream;    /* # TX streams */
 
+	/* VHT information */
+	uint32_t		ic_vhtcaps;	/* VHT capabilities */
+	uint32_t		ic_vhtextcaps;	/* VHT extended capabilities (TODO) */
+	struct ieee80211_vht_mcs_info	iv_vht_mcsinfo; /* Support TX/RX VHT MCS */
+	uint32_t		ic_vht_spare[4];
+
 	/* optional state for Atheros SuperG protocol extensions */
 	struct ieee80211_superg	*ic_superg;
 
@@ -389,6 +395,13 @@ struct ieee80211vap {
 	int			iv_inact_auth;	/* auth but not assoc setting */
 	int			iv_inact_run;	/* authorized setting */
 	int			iv_inact_probe;	/* inactive probe time */
+
+	/* VHT flags */
+	uint32_t		iv_flags_vht;	/* VHT state flags */
+	uint32_t		iv_vhtcaps;	/* VHT capabilities */
+	uint32_t		iv_vhtextcaps;	/* VHT extended capabilities (TODO) */
+	struct ieee80211_vht_mcs_info	iv_vht_mcsinfo;
+	uint32_t		iv_vht_spare[4];
 
 	int			iv_des_nssid;	/* # desired ssids */
 	struct ieee80211_scan_ssid iv_des_ssid[1];/* desired ssid table */
@@ -633,70 +646,6 @@ MALLOC_DECLARE(M_80211_VAP);
 
 #define	IEEE80211_FVEN_BITS	"\20"
 
-/* ic_caps/iv_caps: device driver capabilities */
-/* 0x2e available */
-#define	IEEE80211_C_STA		0x00000001	/* CAPABILITY: STA available */
-#define	IEEE80211_C_8023ENCAP	0x00000002	/* CAPABILITY: 802.3 encap */
-#define	IEEE80211_C_FF		0x00000040	/* CAPABILITY: ATH FF avail */
-#define	IEEE80211_C_TURBOP	0x00000080	/* CAPABILITY: ATH Turbo avail*/
-#define	IEEE80211_C_IBSS	0x00000100	/* CAPABILITY: IBSS available */
-#define	IEEE80211_C_PMGT	0x00000200	/* CAPABILITY: Power mgmt */
-#define	IEEE80211_C_HOSTAP	0x00000400	/* CAPABILITY: HOSTAP avail */
-#define	IEEE80211_C_AHDEMO	0x00000800	/* CAPABILITY: Old Adhoc Demo */
-#define	IEEE80211_C_SWRETRY	0x00001000	/* CAPABILITY: sw tx retry */
-#define	IEEE80211_C_TXPMGT	0x00002000	/* CAPABILITY: tx power mgmt */
-#define	IEEE80211_C_SHSLOT	0x00004000	/* CAPABILITY: short slottime */
-#define	IEEE80211_C_SHPREAMBLE	0x00008000	/* CAPABILITY: short preamble */
-#define	IEEE80211_C_MONITOR	0x00010000	/* CAPABILITY: monitor mode */
-#define	IEEE80211_C_DFS		0x00020000	/* CAPABILITY: DFS/radar avail*/
-#define	IEEE80211_C_MBSS	0x00040000	/* CAPABILITY: MBSS available */
-#define	IEEE80211_C_SWSLEEP	0x00080000	/* CAPABILITY: do sleep here */
-#define	IEEE80211_C_SWAMSDUTX	0x00100000	/* CAPABILITY: software A-MSDU TX */
-/* 0x7c0000 available */
-#define	IEEE80211_C_WPA1	0x00800000	/* CAPABILITY: WPA1 avail */
-#define	IEEE80211_C_WPA2	0x01000000	/* CAPABILITY: WPA2 avail */
-#define	IEEE80211_C_WPA		0x01800000	/* CAPABILITY: WPA1+WPA2 avail*/
-#define	IEEE80211_C_BURST	0x02000000	/* CAPABILITY: frame bursting */
-#define	IEEE80211_C_WME		0x04000000	/* CAPABILITY: WME avail */
-#define	IEEE80211_C_WDS		0x08000000	/* CAPABILITY: 4-addr support */
-/* 0x10000000 reserved */
-#define	IEEE80211_C_BGSCAN	0x20000000	/* CAPABILITY: bg scanning */
-#define	IEEE80211_C_TXFRAG	0x40000000	/* CAPABILITY: tx fragments */
-#define	IEEE80211_C_TDMA	0x80000000	/* CAPABILITY: TDMA avail */
-/* XXX protection/barker? */
-
-#define	IEEE80211_C_OPMODE \
-	(IEEE80211_C_STA | IEEE80211_C_IBSS | IEEE80211_C_HOSTAP | \
-	 IEEE80211_C_AHDEMO | IEEE80211_C_MONITOR | IEEE80211_C_WDS | \
-	 IEEE80211_C_TDMA | IEEE80211_C_MBSS)
-
-#define	IEEE80211_C_BITS \
-	"\20\1STA\002803ENCAP\7FF\10TURBOP\11IBSS\12PMGT" \
-	"\13HOSTAP\14AHDEMO\15SWRETRY\16TXPMGT\17SHSLOT\20SHPREAMBLE" \
-	"\21MONITOR\22DFS\23MBSS\30WPA1\31WPA2\32BURST\33WME\34WDS\36BGSCAN" \
-	"\37TXFRAG\40TDMA"
-
-/*
- * ic_htcaps/iv_htcaps: HT-specific device/driver capabilities
- *
- * NB: the low 16-bits are the 802.11 definitions, the upper
- *     16-bits are used to define s/w/driver capabilities.
- */
-#define	IEEE80211_HTC_AMPDU	0x00010000	/* CAPABILITY: A-MPDU tx */
-#define	IEEE80211_HTC_AMSDU	0x00020000	/* CAPABILITY: A-MSDU tx */
-/* NB: HT40 is implied by IEEE80211_HTCAP_CHWIDTH40 */
-#define	IEEE80211_HTC_HT	0x00040000	/* CAPABILITY: HT operation */
-#define	IEEE80211_HTC_SMPS	0x00080000	/* CAPABILITY: MIMO power save*/
-#define	IEEE80211_HTC_RIFS	0x00100000	/* CAPABILITY: RIFS support */
-#define	IEEE80211_HTC_RXUNEQUAL	0x00200000	/* CAPABILITY: RX unequal MCS */
-#define	IEEE80211_HTC_RXMCS32	0x00400000	/* CAPABILITY: MCS32 support */
-#define	IEEE80211_HTC_TXUNEQUAL	0x00800000	/* CAPABILITY: TX unequal MCS */
-#define	IEEE80211_HTC_TXMCS32	0x01000000	/* CAPABILITY: MCS32 suport */
-
-#define	IEEE80211_C_HTCAP_BITS \
-	"\20\1LDPC\2CHWIDTH40\5GREENFIELD\6SHORTGI20\7SHORTGI40\10TXSTBC" \
-	"\21AMPDU\22AMSDU\23HT\24SMPS\25RIFS"
-
 int	ic_printf(struct ieee80211com *, const char *, ...) __printflike(2, 3);
 void	ieee80211_ifattach(struct ieee80211com *);
 void	ieee80211_ifdetach(struct ieee80211com *);
@@ -732,6 +681,9 @@ int	ieee80211_add_channel(struct ieee80211_channel[], int, int *,
 	    uint8_t, uint16_t, int8_t, uint32_t, const uint8_t[]);
 int	ieee80211_add_channel_ht40(struct ieee80211_channel[], int, int *,
 	    uint8_t, int8_t, uint32_t);
+uint32_t ieee80211_get_channel_center_freq(const struct ieee80211_channel *);
+uint32_t ieee80211_get_channel_center_freq1(const struct ieee80211_channel *);
+uint32_t ieee80211_get_channel_center_freq2(const struct ieee80211_channel *);
 int	ieee80211_add_channel_list_2ghz(struct ieee80211_channel[], int, int *,
 	    const uint8_t[], int, const uint8_t[], int);
 int	ieee80211_add_channel_list_5ghz(struct ieee80211_channel[], int, int *,
@@ -747,6 +699,10 @@ enum ieee80211_phymode ieee80211_chan2mode(const struct ieee80211_channel *);
 uint32_t ieee80211_mac_hash(const struct ieee80211com *,
 		const uint8_t addr[IEEE80211_ADDR_LEN]);
 char	ieee80211_channel_type_char(const struct ieee80211_channel *c);
+
+#define	ieee80211_get_current_channel(_ic)	((_ic)->ic_curchan)
+#define	ieee80211_get_home_channel(_ic)		((_ic)->ic_bsschan)
+#define	ieee80211_get_vap_desired_channel(_iv)	((_iv)->iv_des_chan)
 
 void	ieee80211_radiotap_attach(struct ieee80211com *,
 	    struct ieee80211_radiotap_header *th, int tlen,

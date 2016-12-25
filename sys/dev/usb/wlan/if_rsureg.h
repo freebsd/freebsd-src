@@ -43,16 +43,33 @@
 
 #define R92S_CMDCTRL		0x0040
 #define R92S_CR			(R92S_CMDCTRL + 0x000)
+#define R92S_TXPAUSE		(R92S_CMDCTRL + 0x002)
 #define R92S_TCR		(R92S_CMDCTRL + 0x004)
 #define R92S_RCR		(R92S_CMDCTRL + 0x008)
 
 #define R92S_MACIDSETTING	0x0050
 #define R92S_MACID		(R92S_MACIDSETTING + 0x000)
+#define R92S_MAR		(R92S_MACIDSETTING + 0x010)
 
-#define R92S_GP			0x01e0
+#define R92S_TIMECTRL		0x0080
+#define R92S_TSFTR		(R92S_TIMECTRL + 0x000)
+
+#define R92S_FIFOCTRL		0x00a0
+#define R92S_RXFLTMAP_MGT	(R92S_FIFOCTRL + 0x076)
+#define R92S_RXFLTMAP_CTL	(R92S_FIFOCTRL + 0x078)
+#define R92S_RXFLTMAP_DATA	(R92S_FIFOCTRL + 0x07a)
+#define R92S_RXFLTMAP_MESH	(R92S_FIFOCTRL + 0x07c)
+
+#define R92S_SECURITY		0x0240
+#define R92S_CAMCMD		(R92S_SECURITY + 0x000)
+#define R92S_CAMWRITE		(R92S_SECURITY + 0x004)
+#define R92S_CAMREAD		(R92S_SECURITY + 0x008)
+
+#define R92S_GP			0x02e0
 #define R92S_GPIO_CTRL		(R92S_GP + 0x00c)
 #define R92S_GPIO_IO_SEL	(R92S_GP + 0x00e)
 #define R92S_MAC_PINMUX_CTRL	(R92S_GP + 0x011)
+#define R92S_LEDCFG		(R92S_GP + 0x012)
 
 #define R92S_IOCMD_CTRL		0x0370
 #define R92S_IOCMD_DATA		0x0374
@@ -104,6 +121,24 @@
 /* Bits for R92S_CR. */
 #define R92S_CR_TXDMA_EN	0x10
 
+/* Bits for R92S_TXPAUSE. */
+#define R92S_TXPAUSE_VO		0x01
+#define R92S_TXPAUSE_VI		0x02
+#define R92S_TXPAUSE_BE		0x04
+#define R92S_TXPAUSE_BK		0x08
+#define R92S_TXPAUSE_MGT	0x10
+#define R92S_TXPAUSE_HIGH	0x20
+#define R92S_TXPAUSE_HCCA	0x40
+
+/* Shortcuts. */
+#define R92S_TXPAUSE_AC				\
+	(R92S_TXPAUSE_VO | R92S_TXPAUSE_VI |	\
+	 R92S_TXPAUSE_BE | R92S_TXPAUSE_BK)
+
+#define R92S_TXPAUSE_ALL			\
+	(R92S_TXPAUSE_AC | R92S_TXPAUSE_MGT |	\
+	 R92S_TXPAUSE_HIGH | R92S_TXPAUSE_HCCA | 0x80)
+
 /* Bits for R92S_TCR. */
 #define R92S_TCR_IMEM_CODE_DONE	0x01
 #define R92S_TCR_IMEM_CHK_RPT	0x02
@@ -112,6 +147,30 @@
 #define R92S_TCR_DMEM_CODE_DONE	0x10
 #define R92S_TCR_IMEM_RDY	0x20
 #define R92S_TCR_FWRDY		0x80
+
+/* Bits for R92S_RCR. */
+#define R92S_RCR_AAP		0x00000001
+#define R92S_RCR_APM		0x00000002
+#define R92S_RCR_AM		0x00000004
+#define R92S_RCR_AB		0x00000008
+#define R92S_RCR_ACRC32		0x00000020
+#define R92S_RCR_AICV		0x00001000
+#define R92S_RCR_APP_ICV	0x00010000
+#define R92S_RCR_APP_MIC	0x00020000
+#define R92S_RCR_ADF		0x00040000
+#define R92S_RCR_ACF		0x00080000
+#define R92S_RCR_AMF		0x00100000
+#define R92S_RCR_ADD3		0x00200000
+#define R92S_RCR_APWRMGT	0x00400000
+#define R92S_RCR_CBSSID		0x00800000
+#define R92S_RCR_APP_PHYSTS	0x02000000
+#define R92S_RCR_TCP_OFFLD_EN	0x04000000
+#define R92S_RCR_ENMBID		0x08000000
+
+/* Bits for R92S_RXFLTMAP*. */
+#define R92S_RXFLTMAP_MGT_DEF	0x3f3f
+#define R92S_RXFLTMAP_FW(subtype)	\
+	(1 << ((subtype) >> IEEE80211_FC0_SUBTYPE_SHIFT))
 
 /* Bits for R92S_GPIO_IO_SEL. */
 #define R92S_GPIO_WPS	0x10
@@ -124,6 +183,32 @@
 #define R92S_GPIOSEL_GPIO_BT		2
 #define R92S_GPIOSEL_GPIO_WLANDBG	3
 #define R92S_GPIOMUX_EN			0x08
+
+/* Bits for R92S_CAMCMD. */
+#define R92S_CAMCMD_ADDR_M		0x000000ff
+#define R92S_CAMCMD_ADDR_S		0
+#define R92S_CAMCMD_READ		0x00000000
+#define R92S_CAMCMD_WRITE		0x00010000
+#define R92S_CAMCMD_POLLING		0x80000000
+
+/*
+ * CAM entries.
+ */
+#define R92S_CAM_ENTRY_LIMIT	32
+#define R92S_CAM_ENTRY_BYTES	howmany(R92S_CAM_ENTRY_LIMIT, NBBY)
+
+#define R92S_CAM_CTL0(entry)	((entry) * 8 + 0)
+#define R92S_CAM_CTL1(entry)	((entry) * 8 + 1)
+#define R92S_CAM_KEY(entry, i)	((entry) * 8 + 2 + (i))
+
+/* Bits for R92S_CAM_CTL0(i). */
+#define R92S_CAM_KEYID_M	0x00000003
+#define R92S_CAM_KEYID_S	0
+#define R92S_CAM_ALGO_M		0x0000001c
+#define R92S_CAM_ALGO_S		2
+#define R92S_CAM_VALID		0x00008000
+#define R92S_CAM_MACLO_M	0xffff0000
+#define R92S_CAM_MACLO_S	16
 
 /* Bits for R92S_IOCMD_CTRL. */
 #define R92S_IOCMD_CLASS_M		0xff000000
@@ -390,10 +475,18 @@ struct r92s_fw_cmd_set_key {
 #define R92S_KEY_ALGO_TKIP_MMIC	3
 #define R92S_KEY_ALGO_AES	4
 #define R92S_KEY_ALGO_WEP104	5
+#define R92S_KEY_ALGO_INVALID	0xff	/* for rsu_crypto_mode() only */
 
-	uint8_t	id;
+	uint8_t	cam_id;
 	uint8_t	grpkey;
-	uint8_t	key[16];
+	uint8_t	key[IEEE80211_KEYBUF_SIZE];
+} __packed;
+
+/* Structure for R92S_CMD_SET_STA_KEY. */
+struct r92s_fw_cmd_set_key_mac {
+	uint8_t	macaddr[IEEE80211_ADDR_LEN];
+	uint8_t	algo;
+	uint8_t	key[IEEE80211_KEYBUF_SIZE];
 } __packed;
 
 /* Structures for R92S_EVENT_SURVEY/R92S_CMD_JOIN_BSS. */
@@ -484,6 +577,11 @@ struct r92s_set_pwr_mode {
 	uint8_t		bcn_pass_time;
 } __packed;
 
+/* Structure for R92S_CMD_SET_CHANNEL. */
+struct r92s_set_channel {
+	uint32_t	channel;
+} __packed;
+
 /* Structure for event R92S_EVENT_JOIN_BSS. */
 struct r92s_event_join_bss {
 	uint32_t	next;
@@ -496,7 +594,7 @@ struct r92s_event_join_bss {
 	struct		ndis_wlan_bssid_ex bss;
 } __packed;
 
-#define R92S_MACID_BSS	5
+#define R92S_MACID_BSS	5	/* XXX hardcoded somewhere */
 
 /* Rx MAC descriptor. */
 struct r92s_rx_stat {
@@ -504,11 +602,15 @@ struct r92s_rx_stat {
 #define R92S_RXDW0_PKTLEN_M	0x00003fff
 #define R92S_RXDW0_PKTLEN_S	0
 #define R92S_RXDW0_CRCERR	0x00004000
+#define R92S_RXDW0_ICVERR	0x00008000
 #define R92S_RXDW0_INFOSZ_M	0x000f0000
 #define R92S_RXDW0_INFOSZ_S	16
+#define R92S_RXDW0_CIPHER_M	0x00700000
+#define R92S_RXDW0_CIPHER_S	20
 #define R92S_RXDW0_QOS		0x00800000
 #define R92S_RXDW0_SHIFT_M	0x03000000
 #define R92S_RXDW0_SHIFT_S	24
+#define R92S_RXDW0_PHYST	0x04000000
 #define R92S_RXDW0_DECRYPTED	0x08000000
 
 	uint32_t	rxdw1;
@@ -529,7 +631,7 @@ struct r92s_rx_stat {
 #define R92S_RXDW3_HTC		0x00004000
 
 	uint32_t	rxdw4;
-	uint32_t	rxdw5;
+	uint32_t	tsf_low;
 } __packed __aligned(4);
 
 /* Rx PHY descriptor. */
@@ -573,12 +675,13 @@ struct r92s_tx_desc {
 #define R92S_TXDW1_QSEL_M	0x00001f00
 #define R92S_TXDW1_QSEL_S	8
 #define R92S_TXDW1_QSEL_BE	0x03
-#define R92S_TXDW1_QSEL_H2C	0x1f
+#define R92S_TXDW1_QSEL_H2C	0x13
 #define R92S_TXDW1_NONQOS	0x00010000
 #define R92S_TXDW1_KEYIDX_M	0x00060000
 #define R92S_TXDW1_KEYIDX_S	17
 #define R92S_TXDW1_CIPHER_M	0x00c00000
 #define R92S_TXDW1_CIPHER_S	22
+#define R92S_TXDW1_CIPHER_NONE	0
 #define R92S_TXDW1_CIPHER_WEP	1
 #define R92S_TXDW1_CIPHER_TKIP	2
 #define R92S_TXDW1_CIPHER_AES	3
@@ -621,12 +724,10 @@ struct r92s_add_ba_req {
 /*
  * Driver definitions.
  */
-#define RSU_RX_LIST_COUNT	100
+#define RSU_RX_LIST_COUNT	1
 #define RSU_TX_LIST_COUNT	32
 
-#define RSU_HOST_CMD_RING_COUNT	32
-
-#define RSU_RXBUFSZ	(8 * 1024)
+#define RSU_RXBUFSZ	(30 * 1024)
 #define RSU_TXBUFSZ	\
 	((sizeof(struct r92s_tx_desc) + IEEE80211_MAX_LEN + 3) & ~3)
 
@@ -673,6 +774,7 @@ static const uint8_t rsu_qid2idx_11ep[] =
 
 struct rsu_rx_radiotap_header {
 	struct ieee80211_radiotap_header wr_ihdr;
+	uint64_t	wr_tsft;
 	uint8_t		wr_flags;
 	uint8_t		wr_rate;
 	uint16_t	wr_chan_freq;
@@ -681,7 +783,8 @@ struct rsu_rx_radiotap_header {
 } __packed __aligned(8);
 
 #define RSU_RX_RADIOTAP_PRESENT			\
-	(1 << IEEE80211_RADIOTAP_FLAGS |	\
+	(1 << IEEE80211_RADIOTAP_TSFT |		\
+	 1 << IEEE80211_RADIOTAP_FLAGS |	\
 	 1 << IEEE80211_RADIOTAP_RATE |		\
 	 1 << IEEE80211_RADIOTAP_CHANNEL |	\
 	 1 << IEEE80211_RADIOTAP_DBM_ANTSIGNAL)
@@ -698,27 +801,6 @@ struct rsu_tx_radiotap_header {
 	 1 << IEEE80211_RADIOTAP_CHANNEL)
 
 struct rsu_softc;
-
-struct rsu_host_cmd {
-	void	(*cb)(struct rsu_softc *, void *);
-	uint8_t	data[256];
-};
-
-struct rsu_cmd_newstate {
-	enum ieee80211_state	state;
-	int			arg;
-};
-
-struct rsu_cmd_key {
-	struct ieee80211_key	key;
-};
-
-struct rsu_host_cmd_ring {
-	struct rsu_host_cmd	cmd[RSU_HOST_CMD_RING_COUNT];
-	int			cur;
-	int			next;
-	int			queued;
-};
 
 enum {
 	RSU_BULK_RX,
@@ -749,17 +831,21 @@ struct rsu_vap {
 #define	RSU_UNLOCK(sc)			mtx_unlock(&(sc)->sc_mtx)
 #define	RSU_ASSERT_LOCKED(sc)		mtx_assert(&(sc)->sc_mtx, MA_OWNED)
 
+#define RSU_DELKEY_BMAP_LOCK_INIT(_sc)	\
+	mtx_init(&(_sc)->free_keys_bmap_mtx, "bmap lock", NULL, MTX_DEF)
+#define RSU_DELKEY_BMAP_LOCK(_sc)	mtx_lock(&(_sc)->free_keys_bmap_mtx)
+#define RSU_DELKEY_BMAP_UNLOCK(_sc)	mtx_unlock(&(_sc)->free_keys_bmap_mtx)
+#define RSU_DELKEY_BMAP_LOCK_DESTROY(_sc)	\
+	mtx_destroy(&(_sc)->free_keys_bmap_mtx)
+
 struct rsu_softc {
 	struct ieee80211com		sc_ic;
 	struct mbufq			sc_snd;
 	device_t			sc_dev;
 	struct usb_device		*sc_udev;
-	int				(*sc_newstate)(struct ieee80211com *,
-					    enum ieee80211_state, int);
-	struct usbd_interface		*sc_iface;
+
 	struct timeout_task		calib_task;
 	struct task			tx_task;
-	const uint8_t			*qid2idx;
 	struct mtx			sc_mtx;
 	int				sc_ht;
 	int				sc_nendpoints;
@@ -767,17 +853,17 @@ struct rsu_softc {
 	int				sc_currssi;
 
 	u_int				sc_running:1,
+					sc_vap_is_running:1,
+					sc_rx_checksum_enable:1,
 					sc_calibrating:1,
-					sc_scanning:1,
-					sc_scan_pass:1;
+					sc_active_scan:1,
+					sc_extra_scan:1;
 	u_int				cut;
 	uint8_t				sc_rftype;
 	int8_t				sc_nrxstream;
 	int8_t				sc_ntxstream;
-	struct rsu_host_cmd_ring	cmdq;
 	struct rsu_data			sc_rx[RSU_RX_LIST_COUNT];
 	struct rsu_data			sc_tx[RSU_TX_LIST_COUNT];
-	struct rsu_data			*fwcmd_data;
 	uint8_t				cmd_seq;
 	uint8_t				rom[128];
 	struct usb_xfer			*sc_xfer[RSU_N_TRANSFER];
@@ -787,6 +873,13 @@ struct rsu_softc {
 	STAILQ_HEAD(, rsu_data)		sc_tx_active[RSU_N_TRANSFER];
 	STAILQ_HEAD(, rsu_data)		sc_tx_inactive;
 	STAILQ_HEAD(, rsu_data)		sc_tx_pending[RSU_N_TRANSFER];
+
+	struct task			del_key_task;
+	uint8_t				keys_bmap[R92S_CAM_ENTRY_BYTES];
+	const struct ieee80211_key	*group_keys[IEEE80211_WEP_NKID];
+
+	struct mtx			free_keys_bmap_mtx;
+	uint8_t				free_keys_bmap[R92S_CAM_ENTRY_BYTES];
 
 	union {
 		struct rsu_rx_radiotap_header th;

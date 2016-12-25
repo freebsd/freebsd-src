@@ -98,10 +98,11 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <string.h>
-#include <ctype.h>
 #include <sys/param.h>
 #include <sys/queue.h>
+#include <ctype.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "makefs.h"
 #include "cd9660.h"
@@ -1069,7 +1070,7 @@ cd9660_rename_filename(cd9660node *iter, int num, int delete_chars)
 
 	tmp = malloc(ISO_FILENAME_MAXLENGTH_WITH_PADDING);
 
-	while (i < num) {
+	while (i < num && iter) {
 		powers = 1;
 		count = 0;
 		digits = 1;

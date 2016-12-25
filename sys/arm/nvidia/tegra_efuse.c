@@ -44,7 +44,6 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/extres/clk/clk.h>
 #include <dev/extres/hwreset/hwreset.h>
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
@@ -237,7 +236,7 @@ tegra_fuse_read_4(int addr) {
 
 
 static void
-tegra_efuse_dump_sku()
+tegra_efuse_dump_sku(void)
 {
 	printf(" TEGRA SKU Info:\n");
 	printf("  chip_id: %u\n", tegra_sku_info.chip_id);

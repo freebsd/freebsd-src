@@ -58,8 +58,6 @@ __FBSDID("$FreeBSD$");
 #include <arm/lpc/lpcreg.h>
 #include <arm/lpc/lpcvar.h>
 
-#include <dev/fdt/fdt_common.h>
-
 vm_offset_t
 platform_lastaddr(void)
 {

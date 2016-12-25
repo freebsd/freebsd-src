@@ -476,7 +476,7 @@ main(int argc, char **argv)
 	rpc_control(RPC_SVC_CONNMAXREC_SET, &maxrec);
 
 	if (!resvport_only) {
-		if (sysctlbyname("vfs.nfsrv.nfs_privport", NULL, NULL,
+		if (sysctlbyname("vfs.nfsd.nfs_privport", NULL, NULL,
 		    &resvport_only, sizeof(resvport_only)) != 0 &&
 		    errno != ENOENT) {
 			syslog(LOG_ERR, "sysctl: %m");

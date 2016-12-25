@@ -918,10 +918,6 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 	tp->t_keepcnt = sototcpcb(lso)->t_keepcnt;
 	tcp_timer_activate(tp, TT_KEEP, TP_KEEPINIT(tp));
 
-	if ((so->so_options & SO_ACCEPTFILTER) == 0) {
-		soisconnected(so);
-	}
-
 	TCPSTAT_INC(tcps_accepts);
 	return (so);
 
@@ -1073,10 +1069,17 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	}
 
 	/*
-	 * If timestamps were negotiated the reflected timestamp
-	 * must be equal to what we actually sent in the SYN|ACK.
+	 * If timestamps were negotiated, the reflected timestamp
+	 * must be equal to what we actually sent in the SYN|ACK
+	 * except in the case of 0. Some boxes are known for sending
+	 * broken timestamp replies during the 3whs (and potentially
+	 * during the connection also).
+	 *
+	 * Accept the final ACK of 3whs with reflected timestamp of 0
+	 * instead of sending a RST and deleting the syncache entry.
 	 */
-	if ((to->to_flags & TOF_TS) && to->to_tsecr != sc->sc_ts) {
+	if ((to->to_flags & TOF_TS) && to->to_tsecr &&
+	    to->to_tsecr != sc->sc_ts) {
 		if ((s = tcp_log_addrs(inc, th, NULL, NULL)))
 			log(LOG_DEBUG, "%s; %s: TSECR %u != TS %u, "
 			    "segment rejected\n",
@@ -1167,7 +1170,7 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	struct syncache_head *sch;
 	struct mbuf *ipopts = NULL;
 	u_int ltflags;
-	int win, sb_hiwat, ip_ttl, ip_tos;
+	int win, ip_ttl, ip_tos;
 	char *s;
 	int rv = 0;
 #ifdef INET6
@@ -1205,7 +1208,6 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	ip_ttl = inp->inp_ip_ttl;
 	ip_tos = inp->inp_ip_tos;
 	win = sbspace(&so->so_rcv);
-	sb_hiwat = so->so_rcv.sb_hiwat;
 	ltflags = (tp->t_flags & (TF_NOOPT | TF_SIGNATURE));
 
 #ifdef TCP_RFC7413

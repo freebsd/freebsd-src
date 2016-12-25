@@ -110,6 +110,7 @@ int	mrsas_issue_polled(struct mrsas_softc *sc, struct mrsas_mfi_cmd *cmd);
 int	mrsas_reset_ctrl(struct mrsas_softc *sc, u_int8_t reset_reason);
 int	mrsas_wait_for_outstanding(struct mrsas_softc *sc, u_int8_t check_reason);
 int mrsas_complete_cmd(struct mrsas_softc *sc, u_int32_t MSIxIndex);
+int mrsas_reset_targets(struct mrsas_softc *sc);
 int
 mrsas_issue_blocked_cmd(struct mrsas_softc *sc,
     struct mrsas_mfi_cmd *cmd);
@@ -153,7 +154,6 @@ extern void mrsas_cam_detach(struct mrsas_softc *sc);
 extern void mrsas_cmd_done(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd);
 extern void mrsas_free_frame(struct mrsas_softc *sc, struct mrsas_mfi_cmd *cmd);
 extern int mrsas_alloc_mfi_cmds(struct mrsas_softc *sc);
-extern void mrsas_release_mpt_cmd(struct mrsas_mpt_cmd *cmd);
 extern struct mrsas_mpt_cmd *mrsas_get_mpt_cmd(struct mrsas_softc *sc);
 extern int mrsas_passthru(struct mrsas_softc *sc, void *arg, u_long ioctlCmd);
 extern uint8_t MR_ValidateMapInfo(struct mrsas_softc *sc);
@@ -307,28 +307,11 @@ mrsas_enable_intr(struct mrsas_softc *sc)
 static int
 mrsas_clear_intr(struct mrsas_softc *sc)
 {
-	u_int32_t status, fw_status, fw_state;
+	u_int32_t status;
 
 	/* Read received interrupt */
 	status = mrsas_read_reg(sc, offsetof(mrsas_reg_set, outbound_intr_status));
 
-	/*
-	 * If FW state change interrupt is received, write to it again to
-	 * clear
-	 */
-	if (status & MRSAS_FW_STATE_CHNG_INTERRUPT) {
-		fw_status = mrsas_read_reg(sc, offsetof(mrsas_reg_set,
-		    outbound_scratch_pad));
-		fw_state = fw_status & MFI_STATE_MASK;
-		if (fw_state == MFI_STATE_FAULT) {
-			device_printf(sc->mrsas_dev, "FW is in FAULT state!\n");
-			if (sc->ocr_thread_active)
-				wakeup(&sc->ocr_chan);
-		}
-		mrsas_write_reg(sc, offsetof(mrsas_reg_set, outbound_intr_status), status);
-		mrsas_read_reg(sc, offsetof(mrsas_reg_set, outbound_intr_status));
-		return (1);
-	}
 	/* Not our interrupt, so just return */
 	if (!(status & MFI_FUSION_ENABLE_INTERRUPT_MASK))
 		return (0);
@@ -449,6 +432,11 @@ mrsas_setup_sysctl(struct mrsas_softc *sc)
 	    OID_AUTO, "reset_in_progress", CTLFLAG_RD,
 	    &sc->reset_in_progress, 0, "ocr in progress status");
 
+	SYSCTL_ADD_UINT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
+	    OID_AUTO, "block_sync_cache", CTLFLAG_RW,
+	    &sc->block_sync_cache, 0,
+	    "Block SYNC CACHE at driver. <default: 0, send it to FW>");
+
 }
 
 /*
@@ -468,6 +456,7 @@ mrsas_get_tunables(struct mrsas_softc *sc)
 	sc->mrsas_fw_fault_check_delay = 1;
 	sc->reset_count = 0;
 	sc->reset_in_progress = 0;
+	sc->block_sync_cache = 0;
 
 	/*
 	 * Grab the global variables.
@@ -674,16 +663,15 @@ mrsas_register_aen(struct mrsas_softc *sc, u_int32_t seq_num,
 			    sc->aen_cmd);
 
 			if (ret_val) {
-				printf("mrsas: Failed to abort "
-				    "previous AEN command\n");
+				printf("mrsas: Failed to abort previous AEN command\n");
 				return ret_val;
-			}
+			} else
+				sc->aen_cmd = NULL;
 		}
 	}
 	cmd = mrsas_get_mfi_cmd(sc);
-
 	if (!cmd)
-		return -ENOMEM;
+		return ENOMEM;
 
 	dcmd = &cmd->frame->dcmd;
 
@@ -835,6 +823,15 @@ mrsas_attach(device_t dev)
 	sc->mrsas_dev = dev;
 	sc->device_id = pci_get_device(dev);
 
+	if ((sc->device_id == MRSAS_INVADER) ||
+	    (sc->device_id == MRSAS_FURY) ||
+	    (sc->device_id == MRSAS_INTRUDER) ||
+	    (sc->device_id == MRSAS_INTRUDER_24) ||
+	    (sc->device_id == MRSAS_CUTLASS_52) ||
+	    (sc->device_id == MRSAS_CUTLASS_53)) {
+		sc->mrsas_gen3_ctrl = 1;
+    }
+
 	mrsas_get_tunables(sc);
 
 	/*
@@ -875,6 +872,7 @@ mrsas_attach(device_t dev)
 	TAILQ_INIT(&sc->mrsas_mfi_cmd_list_head);
 
 	mrsas_atomic_set(&sc->fw_outstanding, 0);
+	mrsas_atomic_set(&sc->target_reset_outstanding, 0);
 
 	sc->io_cmds_highwater = 0;
 
@@ -953,8 +951,7 @@ mrsas_ich_startup(void *arg)
 	/*
 	 * Intialize a counting Semaphore to take care no. of concurrent IOCTLs
 	 */
-	sema_init(&sc->ioctl_count_sema,
-	    MRSAS_MAX_MFI_CMDS - 5,
+	sema_init(&sc->ioctl_count_sema, MRSAS_MAX_IOCTL_CMDS,
 	    IOCTL_SEMA_DESCRIPTION);
 
 	/* Create a /dev entry for mrsas controller. */
@@ -1070,7 +1067,7 @@ mrsas_detach(device_t dev)
 	mtx_destroy(&sc->raidmap_lock);
 
 	/* Wait for all the semaphores to be released */
-	while (sema_value(&sc->ioctl_count_sema) != (MRSAS_MAX_MFI_CMDS - 5))
+	while (sema_value(&sc->ioctl_count_sema) != MRSAS_MAX_IOCTL_CMDS)
 		pause("mr_shutdown", hz);
 
 	/* Destroy the counting semaphore created for Ioctl */
@@ -1354,9 +1351,11 @@ mrsas_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag,
 	if (!sc)
 		return ENOENT;
 
-	if (sc->remove_in_progress) {
+	if (sc->remove_in_progress ||
+		(sc->adprecovery == MRSAS_HW_CRITICAL_ERROR)) {
 		mrsas_dprint(sc, MRSAS_INFO,
-		    "Driver remove or shutdown called.\n");
+		    "Either driver remove or shutdown called or "
+			"HW is in unrecoverable critical error state.\n");
 		return ENOENT;
 	}
 	mtx_lock_spin(&sc->ioctl_lock);
@@ -1548,7 +1547,10 @@ mrsas_complete_cmd(struct mrsas_softc *sc, u_int32_t MSIxIndex)
 	PLD_LOAD_BALANCE_INFO lbinfo;
 	u_int32_t device_id;
 	int threshold_reply_count = 0;
-
+#if TM_DEBUG
+	MR_TASK_MANAGE_REQUEST *mr_tm_req;
+	MPI2_SCSI_TASK_MANAGE_REQUEST *mpi_tm_req;
+#endif
 
 	/* If we have a hardware error, not need to continue */
 	if (sc->adprecovery == MRSAS_HW_CRITICAL_ERROR)
@@ -1575,6 +1577,16 @@ mrsas_complete_cmd(struct mrsas_softc *sc, u_int32_t MSIxIndex)
 		extStatus = scsi_io_req->RaidContext.exStatus;
 
 		switch (scsi_io_req->Function) {
+		case MPI2_FUNCTION_SCSI_TASK_MGMT:
+#if TM_DEBUG
+			mr_tm_req = (MR_TASK_MANAGE_REQUEST *) cmd_mpt->io_request;
+			mpi_tm_req = (MPI2_SCSI_TASK_MANAGE_REQUEST *)
+			    &mr_tm_req->TmRequest;
+			device_printf(sc->mrsas_dev, "TM completion type 0x%X, "
+			    "TaskMID: 0x%X", mpi_tm_req->TaskType, mpi_tm_req->TaskMID);
+#endif
+            wakeup_one((void *)&sc->ocr_chan);
+            break;
 		case MPI2_FUNCTION_SCSI_IO_REQUEST:	/* Fast Path IO. */
 			device_id = cmd_mpt->ccb_ptr->ccb_h.target_id;
 			lbinfo = &sc->load_balance_info[device_id];
@@ -1592,9 +1604,16 @@ mrsas_complete_cmd(struct mrsas_softc *sc, u_int32_t MSIxIndex)
 			break;
 		case MRSAS_MPI2_FUNCTION_PASSTHRU_IO_REQUEST:	/* MFI command */
 			cmd_mfi = sc->mfi_cmd_list[cmd_mpt->sync_cmd_idx];
-			mrsas_complete_mptmfi_passthru(sc, cmd_mfi, status);
-			cmd_mpt->flags = 0;
-			mrsas_release_mpt_cmd(cmd_mpt);
+			/*
+			 * Make sure NOT TO release the mfi command from the called
+			 * function's context if it is fired with issue_polled call.
+			 * And also make sure that the issue_polled call should only be
+			 * used if INTERRUPT IS DISABLED.
+			 */
+			if (cmd_mfi->frame->hdr.flags & MFI_FRAME_DONT_POST_IN_REPLY_QUEUE)
+				mrsas_release_mfi_cmd(cmd_mfi);
+			else
+				mrsas_complete_mptmfi_passthru(sc, cmd_mfi, status);
 			break;
 		}
 
@@ -1629,12 +1648,7 @@ mrsas_complete_cmd(struct mrsas_softc *sc, u_int32_t MSIxIndex)
 		 */
 		if (threshold_reply_count >= THRESHOLD_REPLY_COUNT) {
 			if (sc->msix_enable) {
-				if ((sc->device_id == MRSAS_INVADER) ||
-				    (sc->device_id == MRSAS_FURY) ||
-				    (sc->device_id == MRSAS_INTRUDER) ||
-				    (sc->device_id == MRSAS_INTRUDER_24) ||
-				    (sc->device_id == MRSAS_CUTLASS_52) ||
-				    (sc->device_id == MRSAS_CUTLASS_53))
+				if (sc->mrsas_gen3_ctrl)
 					mrsas_write_reg(sc, sc->msix_reg_offset[MSIxIndex / 8],
 					    ((MSIxIndex & 0x7) << 24) |
 					    sc->last_reply_idx[MSIxIndex]);
@@ -1655,12 +1669,7 @@ mrsas_complete_cmd(struct mrsas_softc *sc, u_int32_t MSIxIndex)
 
 	/* Clear response interrupt */
 	if (sc->msix_enable) {
-		if ((sc->device_id == MRSAS_INVADER) ||
-		    (sc->device_id == MRSAS_FURY) ||
-		    (sc->device_id == MRSAS_INTRUDER) ||
-		    (sc->device_id == MRSAS_INTRUDER_24) ||
-		    (sc->device_id == MRSAS_CUTLASS_52) ||
-		    (sc->device_id == MRSAS_CUTLASS_53)) {
+			if (sc->mrsas_gen3_ctrl) {
 			mrsas_write_reg(sc, sc->msix_reg_offset[MSIxIndex / 8],
 			    ((MSIxIndex & 0x7) << 24) |
 			    sc->last_reply_idx[MSIxIndex]);
@@ -2435,12 +2444,21 @@ mrsas_ioc_init(struct mrsas_softc *sc)
 	u_int8_t max_wait = MRSAS_IOC_INIT_WAIT_TIME;
 	bus_addr_t phys_addr;
 	int i, retcode = 0;
+	u_int32_t scratch_pad_2;
 
 	/* Allocate memory for the IOC INIT command */
 	if (mrsas_alloc_ioc_cmd(sc)) {
 		device_printf(sc->mrsas_dev, "Cannot allocate IOC command.\n");
 		return (1);
 	}
+
+	if (!sc->block_sync_cache) {
+		scratch_pad_2 = mrsas_read_reg(sc, offsetof(mrsas_reg_set,
+		    outbound_scratch_pad_2));
+		sc->fw_sync_cache_support = (scratch_pad_2 &
+		    MR_CAN_HANDLE_SYNC_CACHE_OFFSET) ? 1 : 0;
+	}
+
 	IOCInitMsg = (pMpi2IOCInitRequest_t)(((char *)sc->ioc_init_mem) + 1024);
 	IOCInitMsg->Function = MPI2_FUNCTION_IOC_INIT;
 	IOCInitMsg->WhoInit = MPI2_WHOINIT_HOST_DRIVER;
@@ -2458,12 +2476,7 @@ mrsas_ioc_init(struct mrsas_softc *sc)
 	init_frame->flags |= MFI_FRAME_DONT_POST_IN_REPLY_QUEUE;
 
 	/* driver support Extended MSIX */
-	if ((sc->device_id == MRSAS_INVADER) ||
-	    (sc->device_id == MRSAS_FURY) ||
-	    (sc->device_id == MRSAS_INTRUDER) ||
-	    (sc->device_id == MRSAS_INTRUDER_24) ||
-	    (sc->device_id == MRSAS_CUTLASS_52) ||
-	    (sc->device_id == MRSAS_CUTLASS_53)) {
+		if (sc->mrsas_gen3_ctrl) {
 		init_frame->driver_operations.
 		    mfi_capabilities.support_additional_msix = 1;
 	}
@@ -2585,7 +2598,7 @@ mrsas_alloc_mpt_cmds(struct mrsas_softc *sc)
 		memset(cmd, 0, sizeof(struct mrsas_mpt_cmd));
 		cmd->index = i + 1;
 		cmd->ccb_ptr = NULL;
-		callout_init(&cmd->cm_callout, 0);
+		callout_init_mtx(&cmd->cm_callout, &sc->sim_lock, 0);
 		cmd->sync_cmd_idx = (u_int32_t)MRSAS_ULONG_MAX;
 		cmd->sc = sc;
 		cmd->io_request = (MRSAS_RAID_SCSI_IO_REQUEST *) (io_req_base + offset);
@@ -2780,6 +2793,7 @@ mrsas_ocr_thread(void *arg)
 {
 	struct mrsas_softc *sc;
 	u_int32_t fw_status, fw_state;
+	u_int8_t tm_target_reset_failed = 0;
 
 	sc = (struct mrsas_softc *)arg;
 
@@ -2802,20 +2816,66 @@ mrsas_ocr_thread(void *arg)
 		fw_status = mrsas_read_reg(sc,
 		    offsetof(mrsas_reg_set, outbound_scratch_pad));
 		fw_state = fw_status & MFI_STATE_MASK;
-		if (fw_state == MFI_STATE_FAULT || sc->do_timedout_reset) {
-			device_printf(sc->mrsas_dev, "%s started due to %s!\n",
-			    sc->disableOnlineCtrlReset ? "Kill Adapter" : "OCR",
-			    sc->do_timedout_reset ? "IO Timeout" :
-			    "FW fault detected");
-			mtx_lock_spin(&sc->ioctl_lock);
-			sc->reset_in_progress = 1;
-			sc->reset_count++;
-			mtx_unlock_spin(&sc->ioctl_lock);
+		if (fw_state == MFI_STATE_FAULT || sc->do_timedout_reset ||
+			mrsas_atomic_read(&sc->target_reset_outstanding)) {
+
+			/* First, freeze further IOs to come to the SIM */
 			mrsas_xpt_freeze(sc);
-			mrsas_reset_ctrl(sc, sc->do_timedout_reset);
-			mrsas_xpt_release(sc);
-			sc->reset_in_progress = 0;
-			sc->do_timedout_reset = 0;
+
+			/* If this is an IO timeout then go for target reset */
+			if (mrsas_atomic_read(&sc->target_reset_outstanding)) {
+				device_printf(sc->mrsas_dev, "Initiating Target RESET "
+				    "because of SCSI IO timeout!\n");
+
+				/* Let the remaining IOs to complete */
+				msleep(&sc->ocr_chan, &sc->sim_lock, PRIBIO,
+				      "mrsas_reset_targets", 5 * hz);
+
+				/* Try to reset the target device */
+				if (mrsas_reset_targets(sc) == FAIL)
+					tm_target_reset_failed = 1;
+			}
+
+			/* If this is a DCMD timeout or FW fault,
+			 * then go for controller reset
+			 */
+			if (fw_state == MFI_STATE_FAULT || tm_target_reset_failed ||
+			    (sc->do_timedout_reset == MFI_DCMD_TIMEOUT_OCR)) {
+				if (tm_target_reset_failed)
+					device_printf(sc->mrsas_dev, "Initiaiting OCR because of "
+					    "TM FAILURE!\n");
+				else
+					device_printf(sc->mrsas_dev, "Initiaiting OCR "
+						"because of %s!\n", sc->do_timedout_reset ?
+						"DCMD IO Timeout" : "FW fault");
+
+				mtx_lock_spin(&sc->ioctl_lock);
+				sc->reset_in_progress = 1;
+				mtx_unlock_spin(&sc->ioctl_lock);
+				sc->reset_count++;
+				
+				/*
+				 * Wait for the AEN task to be completed if it is running.
+				 */
+				mtx_unlock(&sc->sim_lock);
+				taskqueue_drain(sc->ev_tq, &sc->ev_task);
+				mtx_lock(&sc->sim_lock);
+
+				taskqueue_block(sc->ev_tq);
+				/* Try to reset the controller */
+				mrsas_reset_ctrl(sc, sc->do_timedout_reset);
+
+				sc->do_timedout_reset = 0;
+				sc->reset_in_progress = 0;
+				tm_target_reset_failed = 0;
+				mrsas_atomic_set(&sc->target_reset_outstanding, 0);
+				memset(sc->target_reset_pool, 0,
+				    sizeof(sc->target_reset_pool));
+				taskqueue_unblock(sc->ev_tq);
+			}
+
+			/* Now allow IOs to come to the SIM */
+			 mrsas_xpt_release(sc);
 		}
 	}
 	mtx_unlock(&sc->sim_lock);
@@ -2867,6 +2927,7 @@ mrsas_reset_ctrl(struct mrsas_softc *sc, u_int8_t reset_reason)
 	struct mrsas_mfi_cmd *mfi_cmd;
 	struct mrsas_mpt_cmd *mpt_cmd;
 	union mrsas_evt_class_locale class_locale;
+	MRSAS_REQUEST_DESCRIPTOR_UNION *req_desc;
 
 	if (sc->adprecovery == MRSAS_HW_CRITICAL_ERROR) {
 		device_printf(sc->mrsas_dev,
@@ -2994,12 +3055,24 @@ mrsas_reset_ctrl(struct mrsas_softc *sc, u_int8_t reset_reason)
 				mpt_cmd = sc->mpt_cmd_list[j];
 				if (mpt_cmd->sync_cmd_idx != (u_int32_t)MRSAS_ULONG_MAX) {
 					mfi_cmd = sc->mfi_cmd_list[mpt_cmd->sync_cmd_idx];
-					mrsas_release_mfi_cmd(mfi_cmd);
-					mrsas_release_mpt_cmd(mpt_cmd);
+					/* If not an IOCTL then release the command else re-fire */
+					if (!mfi_cmd->sync_cmd) {
+						mrsas_release_mfi_cmd(mfi_cmd);
+					} else {
+						req_desc = mrsas_get_request_desc(sc,
+						    mfi_cmd->cmd_id.context.smid - 1);
+						mrsas_dprint(sc, MRSAS_OCR,
+						    "Re-fire command DCMD opcode 0x%x index %d\n ",
+						    mfi_cmd->frame->dcmd.opcode, j);
+						if (!req_desc)
+							device_printf(sc->mrsas_dev, 
+							    "Cannot build MPT cmd.\n");
+						else
+							mrsas_fire_cmd(sc, req_desc->addr.u.low,
+							    req_desc->addr.u.high);
+					}
 				}
 			}
-
-			sc->aen_cmd = NULL;
 
 			/* Reset load balance info */
 			memset(sc->load_balance_info, 0,
@@ -3015,17 +3088,6 @@ mrsas_reset_ctrl(struct mrsas_softc *sc, u_int8_t reset_reason)
 
 			megasas_setup_jbod_map(sc);
 
-			memset(sc->pd_list, 0,
-			    MRSAS_MAX_PD * sizeof(struct mrsas_pd_list));
-			if (mrsas_get_pd_list(sc) != SUCCESS) {
-				device_printf(sc->mrsas_dev, "Get PD list failed from OCR.\n"
-				    "Will get the latest PD LIST after OCR on event.\n");
-			}
-			memset(sc->ld_ids, 0xff, MRSAS_MAX_LD_IDS);
-			if (mrsas_get_ld_list(sc) != SUCCESS) {
-				device_printf(sc->mrsas_dev, "Get LD lsit failed from OCR.\n"
-				    "Will get the latest LD LIST after OCR on event.\n");
-			}
 			mrsas_clear_bit(MRSAS_FUSION_IN_RESET, &sc->reset_flags);
 			mrsas_enable_intr(sc);
 			sc->adprecovery = MRSAS_HBA_OPERATIONAL;
@@ -3035,6 +3097,7 @@ mrsas_reset_ctrl(struct mrsas_softc *sc, u_int8_t reset_reason)
 			class_locale.members.locale = MR_EVT_LOCALE_ALL;
 			class_locale.members.class = MR_EVT_CLASS_DEBUG;
 
+			mtx_unlock(&sc->sim_lock);
 			if (mrsas_register_aen(sc, sc->last_seq_num,
 			    class_locale.word)) {
 				device_printf(sc->mrsas_dev,
@@ -3044,6 +3107,8 @@ mrsas_reset_ctrl(struct mrsas_softc *sc, u_int8_t reset_reason)
 				    "or the controller does not support AEN.\n"
 				    "Please contact to the SUPPORT TEAM if the problem persists\n");
 			}
+			mtx_lock(&sc->sim_lock);
+
 			/* Adapter reset completed successfully */
 			device_printf(sc->mrsas_dev, "Reset successful\n");
 			retval = SUCCESS;
@@ -3140,6 +3205,11 @@ mrsas_wait_for_outstanding(struct mrsas_softc *sc, u_int8_t check_reason)
 		if (fw_state == MFI_STATE_FAULT) {
 			mrsas_dprint(sc, MRSAS_OCR,
 			    "Found FW in FAULT state, will reset adapter.\n");
+			count = sc->msix_vectors > 0 ? sc->msix_vectors : 1;
+			mtx_unlock(&sc->sim_lock);
+			for (MSIxIndex = 0; MSIxIndex < count; MSIxIndex++)
+				mrsas_complete_cmd(sc, MSIxIndex);
+			mtx_lock(&sc->sim_lock);
 			retval = 1;
 			goto out;
 		}
@@ -3157,8 +3227,10 @@ mrsas_wait_for_outstanding(struct mrsas_softc *sc, u_int8_t check_reason)
 			mrsas_dprint(sc, MRSAS_OCR, "[%2d]waiting for %d "
 			    "commands to complete\n", i, outstanding);
 			count = sc->msix_vectors > 0 ? sc->msix_vectors : 1;
+			mtx_unlock(&sc->sim_lock);
 			for (MSIxIndex = 0; MSIxIndex < count; MSIxIndex++)
 				mrsas_complete_cmd(sc, MSIxIndex);
+			mtx_lock(&sc->sim_lock);
 		}
 		DELAY(1000 * 1000);
 	}
@@ -3177,17 +3249,33 @@ out:
  * mrsas_release_mfi_cmd:	Return a cmd to free command pool
  * input:					Command packet for return to free cmd pool
  *
- * This function returns the MFI command to the command list.
+ * This function returns the MFI & MPT command to the command list.
  */
 void
-mrsas_release_mfi_cmd(struct mrsas_mfi_cmd *cmd)
+mrsas_release_mfi_cmd(struct mrsas_mfi_cmd *cmd_mfi)
 {
-	struct mrsas_softc *sc = cmd->sc;
+	struct mrsas_softc *sc = cmd_mfi->sc;
+	struct mrsas_mpt_cmd *cmd_mpt;
+
 
 	mtx_lock(&sc->mfi_cmd_pool_lock);
-	cmd->ccb_ptr = NULL;
-	cmd->cmd_id.frame_count = 0;
-	TAILQ_INSERT_TAIL(&(sc->mrsas_mfi_cmd_list_head), cmd, next);
+	/*
+	 * Release the mpt command (if at all it is allocated
+	 * associated with the mfi command
+	 */
+	if (cmd_mfi->cmd_id.context.smid) {
+		mtx_lock(&sc->mpt_cmd_pool_lock);
+		/* Get the mpt cmd from mfi cmd frame's smid value */
+		cmd_mpt = sc->mpt_cmd_list[cmd_mfi->cmd_id.context.smid-1];
+		cmd_mpt->flags = 0;
+		cmd_mpt->sync_cmd_idx = (u_int32_t)MRSAS_ULONG_MAX;
+		TAILQ_INSERT_HEAD(&(sc->mrsas_mpt_cmd_list_head), cmd_mpt, next);
+		mtx_unlock(&sc->mpt_cmd_pool_lock);
+	}
+	/* Release the mfi command */
+	cmd_mfi->ccb_ptr = NULL;
+	cmd_mfi->cmd_id.frame_count = 0;
+	TAILQ_INSERT_HEAD(&(sc->mrsas_mfi_cmd_list_head), cmd_mfi, next);
 	mtx_unlock(&sc->mfi_cmd_pool_lock);
 
 	return;
@@ -3236,7 +3324,11 @@ mrsas_get_ctrl_info(struct mrsas_softc *sc)
 	dcmd->sgl.sge32[0].phys_addr = sc->ctlr_info_phys_addr;
 	dcmd->sgl.sge32[0].length = sizeof(struct mrsas_ctrl_info);
 
-	retcode = mrsas_issue_polled(sc, cmd);
+	if (!sc->mask_interrupts)
+		retcode = mrsas_issue_blocked_cmd(sc, cmd);
+	else
+		retcode = mrsas_issue_polled(sc, cmd);
+
 	if (retcode == ETIMEDOUT)
 		goto dcmd_timeout;
 	else
@@ -3247,13 +3339,16 @@ mrsas_get_ctrl_info(struct mrsas_softc *sc)
 
 	sc->use_seqnum_jbod_fp =
 	    sc->ctrl_info->adapterOperations3.useSeqNumJbodFP;
+	sc->disableOnlineCtrlReset =
+	    sc->ctrl_info->properties.OnOffProperties.disableOnlineCtrlReset;
 
 dcmd_timeout:
 	mrsas_free_ctlr_info_cmd(sc);
 
 	if (do_ocr)
 		sc->do_timedout_reset = MFI_DCMD_TIMEOUT_OCR;
-	else
+
+	if (!sc->mask_interrupts)
 		mrsas_release_mfi_cmd(cmd);
 
 	return (retcode);
@@ -3496,12 +3591,7 @@ mrsas_build_mptmfi_passthru(struct mrsas_softc *sc, struct mrsas_mfi_cmd *mfi_cm
 
 	io_req = mpt_cmd->io_request;
 
-	if ((sc->device_id == MRSAS_INVADER) ||
-	    (sc->device_id == MRSAS_FURY) ||
-	    (sc->device_id == MRSAS_INTRUDER) ||
-	    (sc->device_id == MRSAS_INTRUDER_24) ||
-	    (sc->device_id == MRSAS_CUTLASS_52) ||
-	    (sc->device_id == MRSAS_CUTLASS_53)) {
+		if (sc->mrsas_gen3_ctrl) {
 		pMpi25IeeeSgeChain64_t sgl_ptr_end = (pMpi25IeeeSgeChain64_t)&io_req->SGL;
 
 		sgl_ptr_end += sc->max_sge_in_main_msg - 1;
@@ -3869,8 +3959,6 @@ megasas_sync_pd_seq_num(struct mrsas_softc *sc, boolean_t pend)
 dcmd_timeout:
 	if (do_ocr)
 		sc->do_timedout_reset = MFI_DCMD_TIMEOUT_OCR;
-	else
-		mrsas_release_mfi_cmd(cmd);
 
 	return (retcode);
 }
@@ -3947,8 +4035,6 @@ mrsas_get_ld_map_info(struct mrsas_softc *sc)
 	retcode = mrsas_issue_polled(sc, cmd);
 	if (retcode == ETIMEDOUT)
 		sc->do_timedout_reset = MFI_DCMD_TIMEOUT_OCR;
-	else
-		mrsas_release_mfi_cmd(cmd);
 
 	return (retcode);
 }
@@ -3975,9 +4061,8 @@ mrsas_sync_map_info(struct mrsas_softc *sc)
 
 	cmd = mrsas_get_mfi_cmd(sc);
 	if (!cmd) {
-		device_printf(sc->mrsas_dev,
-		    "Cannot alloc for sync map info cmd\n");
-		return 1;
+		device_printf(sc->mrsas_dev, "Cannot alloc for sync map info cmd\n");
+		return ENOMEM;
 	}
 	map = sc->ld_drv_map[sc->map_id & 1];
 	num_lds = map->raidMap.ldCount;
@@ -4077,7 +4162,11 @@ mrsas_get_pd_list(struct mrsas_softc *sc)
 	dcmd->sgl.sge32[0].phys_addr = pd_list_phys_addr;
 	dcmd->sgl.sge32[0].length = MRSAS_MAX_PD * sizeof(struct MR_PD_LIST);
 
-	retcode = mrsas_issue_polled(sc, cmd);
+	if (!sc->mask_interrupts)
+		retcode = mrsas_issue_blocked_cmd(sc, cmd);
+	else
+		retcode = mrsas_issue_polled(sc, cmd);
+
 	if (retcode == ETIMEDOUT)
 		goto dcmd_timeout;
 
@@ -4108,7 +4197,8 @@ dcmd_timeout:
 
 	if (do_ocr)
 		sc->do_timedout_reset = MFI_DCMD_TIMEOUT_OCR;
-	else
+
+	if (!sc->mask_interrupts)
 		mrsas_release_mfi_cmd(cmd);
 
 	return (retcode);
@@ -4170,7 +4260,11 @@ mrsas_get_ld_list(struct mrsas_softc *sc)
 	dcmd->sgl.sge32[0].length = sizeof(struct MR_LD_LIST);
 	dcmd->pad_0 = 0;
 
-	retcode = mrsas_issue_polled(sc, cmd);
+	if (!sc->mask_interrupts)
+		retcode = mrsas_issue_blocked_cmd(sc, cmd);
+	else
+		retcode = mrsas_issue_polled(sc, cmd);
+
 	if (retcode == ETIMEDOUT)
 		goto dcmd_timeout;
 
@@ -4196,7 +4290,7 @@ dcmd_timeout:
 
 	if (do_ocr)
 		sc->do_timedout_reset = MFI_DCMD_TIMEOUT_OCR;
-	else
+	if (!sc->mask_interrupts)
 		mrsas_release_mfi_cmd(cmd);
 
 	return (retcode);
@@ -4360,6 +4454,11 @@ mrsas_aen_handler(struct mrsas_softc *sc)
 		printf("invalid instance!\n");
 		return;
 	}
+	if (sc->remove_in_progress || sc->reset_in_progress) {
+		device_printf(sc->mrsas_dev, "Returning from %s, line no %d\n",
+			__func__, __LINE__);
+		return;
+	}
 	if (sc->evt_detail_mem) {
 		switch (sc->evt_detail_mem->code) {
 		case MR_EVT_PD_INSERTED:
@@ -4368,7 +4467,6 @@ mrsas_aen_handler(struct mrsas_softc *sc)
 				mrsas_bus_scan_sim(sc, sc->sim_1);
 			else
 				goto skip_register_aen;
-			doscan = 0;
 			break;
 		case MR_EVT_PD_REMOVED:
 			fail_aen = mrsas_get_pd_list(sc);
@@ -4376,13 +4474,11 @@ mrsas_aen_handler(struct mrsas_softc *sc)
 				mrsas_bus_scan_sim(sc, sc->sim_1);
 			else
 				goto skip_register_aen;
-			doscan = 0;
 			break;
 		case MR_EVT_LD_OFFLINE:
 		case MR_EVT_CFG_CLEARED:
 		case MR_EVT_LD_DELETED:
 			mrsas_bus_scan_sim(sc, sc->sim_0);
-			doscan = 0;
 			break;
 		case MR_EVT_LD_CREATED:
 			fail_aen = mrsas_get_ld_list(sc);
@@ -4390,15 +4486,18 @@ mrsas_aen_handler(struct mrsas_softc *sc)
 				mrsas_bus_scan_sim(sc, sc->sim_0);
 			else
 				goto skip_register_aen;
-			doscan = 0;
 			break;
 		case MR_EVT_CTRL_HOST_BUS_SCAN_REQUESTED:
 		case MR_EVT_FOREIGN_CFG_IMPORTED:
 		case MR_EVT_LD_STATE_CHANGE:
 			doscan = 1;
 			break;
+		case MR_EVT_CTRL_PROP_CHANGED:
+			fail_aen = mrsas_get_ctrl_info(sc);
+			if (fail_aen)
+				goto skip_register_aen;
+			break;
 		default:
-			doscan = 0;
 			break;
 		}
 	} else {
@@ -4474,8 +4573,7 @@ mrsas_complete_aen(struct mrsas_softc *sc, struct mrsas_mfi_cmd *cmd)
 	sc->aen_cmd = NULL;
 	mrsas_release_mfi_cmd(cmd);
 
-	if (!sc->remove_in_progress)
-		taskqueue_enqueue(sc->ev_tq, &sc->ev_task);
+	taskqueue_enqueue(sc->ev_tq, &sc->ev_task);
 
 	return;
 }

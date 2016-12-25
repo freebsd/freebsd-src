@@ -192,14 +192,27 @@ bool CoreEngine::ExecuteWorkList(const LocationContext *L, unsigned Steps,
     WList->setBlockCounter(BCounterFactory.GetEmptyCounter());
 
     if (!InitState)
-      // Generate the root.
-      generateNode(StartLoc, SubEng.getInitialState(L), nullptr);
-    else
-      generateNode(StartLoc, InitState, nullptr);
+      InitState = SubEng.getInitialState(L);
+
+    bool IsNew;
+    ExplodedNode *Node = G.getNode(StartLoc, InitState, false, &IsNew);
+    assert (IsNew);
+    G.addRoot(Node);
+
+    NodeBuilderContext BuilderCtx(*this, StartLoc.getDst(), Node);
+    ExplodedNodeSet DstBegin;
+    SubEng.processBeginOfFunction(BuilderCtx, Node, DstBegin, StartLoc);
+
+    enqueue(DstBegin);
   }
 
   // Check if we have a steps limit
   bool UnlimitedSteps = Steps == 0;
+  // Cap our pre-reservation in the event that the user specifies
+  // a very large number of maximum steps.
+  const unsigned PreReservationCap = 4000000;
+  if(!UnlimitedSteps)
+    G.reserve(std::min(Steps,PreReservationCap));
 
   while (WList->hasWork()) {
     if (!UnlimitedSteps) {
@@ -243,8 +256,7 @@ void CoreEngine::dispatchWorkItem(ExplodedNode* Pred, ProgramPoint Loc,
       break;
 
     case ProgramPoint::CallEnterKind: {
-      CallEnter CEnter = Loc.castAs<CallEnter>();
-      SubEng.processCallEnter(CEnter, Pred);
+      HandleCallEnter(Loc.castAs<CallEnter>(), Pred);
       break;
     }
 
@@ -454,6 +466,11 @@ void CoreEngine::HandleBlockExit(const CFGBlock * B, ExplodedNode *Pred) {
 
   generateNode(BlockEdge(B, *(B->succ_begin()), Pred->getLocationContext()),
                Pred->State, Pred);
+}
+
+void CoreEngine::HandleCallEnter(const CallEnter &CE, ExplodedNode *Pred) {
+  NodeBuilderContext BuilderCtx(*this, CE.getEntry(), Pred);
+  SubEng.processCallEnter(BuilderCtx, CE, Pred);
 }
 
 void CoreEngine::HandleBranch(const Stmt *Cond, const Stmt *Term,

@@ -85,6 +85,7 @@ struct	reg;
 struct	fpreg;
 struct  dbreg;
 struct	dumperinfo;
+struct	trapframe;
 
 /*
  * The interface type of the interrupt handler entry point cannot be
@@ -92,6 +93,20 @@ struct	dumperinfo;
  * approximation.
  */
 typedef void alias_for_inthand_t(void);
+
+/*
+ * Returns the maximum physical address that can be used with the
+ * current system.
+ */
+static __inline vm_paddr_t
+cpu_getmaxphyaddr(void)
+{
+#if defined(__i386__) && !defined(PAE)
+	return (0xffffffff);
+#else
+	return ((1ULL << cpu_maxphyaddr) - 1);
+#endif
+}
 
 void	*alloc_fpusave(int flags);
 void	busdma_swi(void);
@@ -107,6 +122,9 @@ bool	fix_cpuid(void);
 void	fillw(int /*u_short*/ pat, void *base, size_t cnt);
 int	is_physical_memory(vm_paddr_t addr);
 int	isa_nmi(int cd);
+void	nmi_call_kdb(u_int cpu, u_int type, struct trapframe *frame);
+void	nmi_call_kdb_smp(u_int type, struct trapframe *frame);
+void	nmi_handle_intr(u_int type, struct trapframe *frame);
 void	pagecopy(void *from, void *to);
 void	printcpuinfo(void);
 int	user_dbreg_trap(void);

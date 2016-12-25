@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/rtwn/if_rtwnvar.h>
 #include <dev/rtwn/if_rtwn_debug.h>
 #include <dev/rtwn/if_rtwn_rx.h>
+#include <dev/rtwn/if_rtwn_task.h>
 #include <dev/rtwn/if_rtwn_tx.h>
 
 #include <dev/rtwn/pci/rtwn_pci_var.h>
@@ -120,7 +121,7 @@ rtwn_pci_rx_frame(struct rtwn_softc *sc, struct r92ce_rx_stat *rx_desc,
 
 	pktlen = MS(rxdw0, R92C_RXDW0_PKTLEN);
 	if (__predict_false(pktlen < sizeof(struct ieee80211_frame_ack) ||
-	    pktlen > MCLBYTES)) {
+	    pktlen > MJUMPAGESIZE)) {
 		RTWN_DPRINTF(sc, RTWN_DEBUG_RECV,
 		    "%s: frame is too short/long: %d\n", __func__, pktlen);
 		goto fail;
@@ -129,7 +130,7 @@ rtwn_pci_rx_frame(struct rtwn_softc *sc, struct r92ce_rx_stat *rx_desc,
 	infosz = MS(rxdw0, R92C_RXDW0_INFOSZ) * 8;
 	shift = MS(rxdw0, R92C_RXDW0_SHIFT);
 
-	m1 = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
+	m1 = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, MJUMPAGESIZE);
 	if (__predict_false(m1 == NULL)) {
 		device_printf(sc->sc_dev, "%s: could not allocate RX mbuf\n",
 		    __func__);
@@ -139,20 +140,20 @@ rtwn_pci_rx_frame(struct rtwn_softc *sc, struct r92ce_rx_stat *rx_desc,
 	bus_dmamap_unload(ring->data_dmat, rx_data->map);
 
 	error = bus_dmamap_load(ring->data_dmat, rx_data->map, mtod(m1, void *),
-	    MCLBYTES, rtwn_pci_dma_map_addr, &rx_data->paddr, 0);
+	    MJUMPAGESIZE, rtwn_pci_dma_map_addr, &rx_data->paddr, 0);
 	if (error != 0) {
 		m_freem(m1);
 
 		error = bus_dmamap_load(ring->data_dmat, rx_data->map,
-		    mtod(rx_data->m, void *), MCLBYTES, rtwn_pci_dma_map_addr,
-		    &rx_data->paddr, BUS_DMA_NOWAIT);
+		    mtod(rx_data->m, void *), MJUMPAGESIZE,
+		    rtwn_pci_dma_map_addr, &rx_data->paddr, BUS_DMA_NOWAIT);
 		if (error != 0)
 			panic("%s: could not load old RX mbuf",
 			    device_get_name(sc->sc_dev));
 
 		/* Physical address may have changed. */
-		rtwn_pci_setup_rx_desc(pc, rx_desc, rx_data->paddr, MCLBYTES,
-		    desc_idx);
+		rtwn_pci_setup_rx_desc(pc, rx_desc, rx_data->paddr,
+		    MJUMPAGESIZE, desc_idx);
 		goto fail;
 	}
 
@@ -169,7 +170,7 @@ rtwn_pci_rx_frame(struct rtwn_softc *sc, struct r92ce_rx_stat *rx_desc,
 	    __func__, pktlen, infosz, shift, rssi);
 
 	/* Update RX descriptor. */
-	rtwn_pci_setup_rx_desc(pc, rx_desc, rx_data->paddr, MCLBYTES,
+	rtwn_pci_setup_rx_desc(pc, rx_desc, rx_data->paddr, MJUMPAGESIZE,
 	    desc_idx);
 
 	/* Send the frame to the 802.11 layer. */
@@ -222,6 +223,8 @@ rtwn_pci_tx_done(struct rtwn_softc *sc, int qid)
 
 			data->ni = NULL;
 			ring->queued--;
+			KASSERT(ring->queued >= 0,
+			    ("ring->queued (qid %d) underflow!\n", qid));
 		} else
 			m_freem(data->m);
 
@@ -235,9 +238,27 @@ rtwn_pci_tx_done(struct rtwn_softc *sc, int qid)
 #endif
 	}
 
-	if (ring->queued < (RTWN_PCI_TX_LIST_COUNT - 1))
+	if ((sc->qfullmsk & (1 << qid)) != 0 &&
+	    ring->queued < (RTWN_PCI_TX_LIST_COUNT - 1)) {
 		sc->qfullmsk &= ~(1 << qid);
-	rtwn_start(sc);
+		rtwn_start(sc);
+	}
+
+#ifdef  IEEE80211_SUPPORT_SUPERG
+	/*
+	 * If the TX active queue drops below a certain
+	 * threshold, ensure we age fast-frames out so they're
+	 * transmitted.
+	 */
+	if (sc->sc_ratectl != RTWN_RATECTL_NET80211 && ring->queued <= 1) {
+		/*
+		 * XXX TODO: just make this a callout timer schedule
+		 * so we can flush the FF staging queue if we're
+		 * approaching idle.
+		 */
+		rtwn_cmd_sleepable(sc, NULL, 0, rtwn_ff_flush_all);
+	}
+#endif
 }
 
 static void
@@ -261,6 +282,17 @@ rtwn_pci_rx_done(struct rtwn_softc *sc)
 
 		ring->cur = (ring->cur + 1) % RTWN_PCI_RX_LIST_COUNT;
 	}
+
+	/* Finished receive; age anything left on the FF queue by a little bump */
+	/*
+	 * XXX TODO: just make this a callout timer schedule so we can
+	 * flush the FF staging queue if we're approaching idle.
+	 */
+#ifdef  IEEE80211_SUPPORT_SUPERG
+	if (!(sc->sc_flags & RTWN_FW_LOADED) ||
+	    sc->sc_ratectl != RTWN_RATECTL_NET80211)
+		rtwn_cmd_sleepable(sc, NULL, 0, rtwn_ff_flush_all);
+#endif
 }
 
 void
@@ -274,13 +306,14 @@ rtwn_pci_intr(void *arg)
 	status = rtwn_classify_intr(sc, &tx_rings, 0);
 	RTWN_DPRINTF(sc, RTWN_DEBUG_INTR, "%s: status %08X, tx_rings %08X\n",
 	    __func__, status, tx_rings);
-	if (status == 0 && tx_rings == 0) {
-		RTWN_UNLOCK(sc);
-		return;
-	}
+	if (status == 0 && tx_rings == 0)
+		goto unlock;
 
-	if (status & RTWN_PCI_INTR_RX)
+	if (status & RTWN_PCI_INTR_RX) {
 		rtwn_pci_rx_done(sc);
+		if (!(sc->sc_flags & RTWN_RUNNING))
+			goto unlock;
+	}
 
 	if (tx_rings != 0)
 		for (i = 0; i < RTWN_PCI_NTXQUEUES; i++)
@@ -289,5 +322,6 @@ rtwn_pci_intr(void *arg)
 
 	if (sc->sc_flags & RTWN_RUNNING)
 		rtwn_pci_enable_intr(pc);
+unlock:
 	RTWN_UNLOCK(sc);
 }

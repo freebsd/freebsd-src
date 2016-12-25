@@ -59,7 +59,6 @@
 
 #define DRV_NAME	MLX4_IB_DRV_NAME
 #define DRV_VERSION	"1.0"
-#define DRV_RELDATE	__DATE__
 
 #define MLX4_IB_DRIVER_PROC_DIR_NAME "driver/mlx4_ib"
 #define MLX4_IB_MRS_PROC_DIR_NAME "mrs"
@@ -102,7 +101,7 @@ static spinlock_t dev_num_str_lock;
 
 static const char mlx4_ib_version[] =
 	DRV_NAME ": Mellanox ConnectX InfiniBand driver v"
-	DRV_VERSION " (" DRV_RELDATE ")\n";
+	DRV_VERSION "\n";
 
 struct update_gid_work {
 	struct work_struct	work;

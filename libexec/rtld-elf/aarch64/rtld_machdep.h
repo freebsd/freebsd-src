@@ -45,7 +45,6 @@ struct Struct_Obj_Entry;
 	asm volatile("adr	%0, _DYNAMIC" : "=&r"(_dynamic_addr));	\
 	(const Elf_Dyn *)_dynamic_addr;					\
 })
-#define	RTLD_IS_DYNAMIC() (1)
 
 Elf_Addr reloc_jmpslot(Elf_Addr *where, Elf_Addr target,
 		       const struct Struct_Obj_Entry *defobj,
@@ -61,7 +60,10 @@ Elf_Addr reloc_jmpslot(Elf_Addr *where, Elf_Addr target,
 #define	call_init_pointer(obj, target) \
 	(((InitArrFunc)(target))(main_argc, main_argv, environ))
 
-#define	round(size, align) \
+#define	call_ifunc_resolver(ptr) \
+	(((Elf_Addr (*)(void))ptr)())
+
+#define	round(size, align)				\
 	(((size) + (align) - 1) & ~((align) - 1))
 #define	calculate_first_tls_offset(size, align) \
 	round(16, align)

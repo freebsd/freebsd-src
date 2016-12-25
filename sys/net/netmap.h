@@ -525,6 +525,7 @@ struct nmreq {
 #define NETMAP_BDG_POLLING_ON	10	/* delete polling kthread */
 #define NETMAP_BDG_POLLING_OFF	11	/* delete polling kthread */
 #define NETMAP_VNET_HDR_GET	12      /* get the port virtio-net-hdr length */
+#define NETMAP_POOLS_INFO_GET	13	/* get memory allocator pools info */
 	uint16_t	nr_arg1;	/* reserve extra rings in NIOCREGIF */
 #define NETMAP_BDG_HOST		1	/* attach the host stack on ATTACH */
 
@@ -644,29 +645,4 @@ struct nm_ifreq {
 	char data[NM_IFRDATA_LEN];
 };
 
-/*
- * netmap kernel thread configuration
- */
-/* bhyve/vmm.ko MSIX parameters for IOCTL */
-struct ptn_vmm_ioctl_msix {
-	uint64_t        msg;
-	uint64_t        addr;
-};
-
-/* IOCTL parameters */
-struct nm_kth_ioctl {
-	uint64_t com;
-	/* We use union to support more ioctl commands. */
-	union {
-		struct ptn_vmm_ioctl_msix msix;
-	} data;
-};
-
-/* Configuration of a ptnetmap ring */
-struct ptnet_ring_cfg {
-	uint64_t ioeventfd;		/* eventfd in linux, tsleep() parameter in FreeBSD */
-	uint64_t irqfd;			/* eventfd in linux, ioctl fd in FreeBSD */
-	struct nm_kth_ioctl ioctl;	/* ioctl parameter to send irq (only used in bhyve/FreeBSD) */
-	uint64_t reserved[4];		/* reserved to support of more hypervisors */
-};
 #endif /* _NET_NETMAP_H_ */

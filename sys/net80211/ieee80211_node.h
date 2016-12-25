@@ -36,7 +36,7 @@
  * IEEE80211_INACT_WAIT seconds to handle "inactivity processing".
  * This is used to do node inactivity processing when operating
  * as an AP, adhoc or mesh mode.  For inactivity processing each node
- * has a timeout set in it's ni_inact field that is decremented
+ * has a timeout set in its ni_inact field that is decremented
  * on each timeout and the node is reclaimed when the counter goes
  * to zero.  We use different inactivity timeout values depending
  * on whether the node is associated and authorized (either by
@@ -83,6 +83,11 @@ struct ieee80211_ies {
 	uint8_t	*htinfo_ie;	/* captured HTINFO ie */
 	uint8_t	*tdma_ie;	/* captured TDMA ie */
 	uint8_t *meshid_ie;	/* captured MESH ID ie */
+	uint8_t	*vhtcap_ie;	/* captured VHTCAP ie */
+	uint8_t	*vhtopmode_ie;	/* captured VHTOPMODE ie */
+	uint8_t	*vhtpwrenv_ie;	/* captured VHTPWRENV ie */
+	uint8_t	*apchanrep_ie;	/* captured APCHANREP ie */
+	uint8_t	*bssload_ie;	/* captured BSSLOAD ie */
 	uint8_t	*spare[4];
 	/* NB: these must be the last members of this structure */
 	uint8_t	*data;		/* frame data > 802.11 header */
@@ -218,6 +223,15 @@ struct ieee80211_node {
 	struct ieee80211_htrateset ni_htrates;	/* negotiated ht rate set */
 	struct ieee80211_tx_ampdu ni_tx_ampdu[WME_NUM_TID];
 	struct ieee80211_rx_ampdu ni_rx_ampdu[WME_NUM_TID];
+
+	/* VHT state */
+	uint32_t		ni_vhtcap;
+	uint32_t		ni_vhtinfo;
+	struct ieee80211_vht_mcs_info	ni_vht_mcsinfo;
+	uint8_t			ni_vht_chan1;	/* 20/40/80/160 - VHT chan1 */
+	uint8_t			ni_vht_chan2;	/* 80+80 - VHT chan2 */
+	uint16_t		ni_vht_pad1;
+	uint32_t		ni_vht_spare[8];
 
 	/* fast-frames state */
 	struct mbuf *		ni_tx_superg[WME_NUM_TID];

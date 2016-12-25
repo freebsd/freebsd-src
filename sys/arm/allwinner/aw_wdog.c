@@ -38,7 +38,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/rman.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -238,7 +237,7 @@ aw_wdog_shutdown_fn(void *private, int howto)
 }
 
 void
-aw_wdog_watchdog_reset()
+aw_wdog_watchdog_reset(void)
 {
 
 	if (aw_wdog_sc == NULL) {

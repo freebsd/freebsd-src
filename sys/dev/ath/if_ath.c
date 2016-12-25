@@ -285,22 +285,40 @@ ath_legacy_attach_comp_func(struct ath_softc *sc)
  * the hardware is being programmed elsewhere, it will
  * simply store it away and update it when all current
  * uses of the hardware are completed.
+ *
+ * If the chip is going into network sleep or power off, then
+ * we will wait until all uses of the chip are done before
+ * going into network sleep or power off.
+ *
+ * If the chip is being programmed full-awake, then immediately
+ * program it full-awake so we can actually stay awake rather than
+ * the chip potentially going to sleep underneath us.
  */
 void
-_ath_power_setpower(struct ath_softc *sc, int power_state, const char *file, int line)
+_ath_power_setpower(struct ath_softc *sc, int power_state, int selfgen,
+    const char *file, int line)
 {
 	ATH_LOCK_ASSERT(sc);
 
-	sc->sc_target_powerstate = power_state;
-
-	DPRINTF(sc, ATH_DEBUG_PWRSAVE, "%s: (%s:%d) state=%d, refcnt=%d\n",
+	DPRINTF(sc, ATH_DEBUG_PWRSAVE, "%s: (%s:%d) state=%d, refcnt=%d, target=%d, cur=%d\n",
 	    __func__,
 	    file,
 	    line,
 	    power_state,
-	    sc->sc_powersave_refcnt);
+	    sc->sc_powersave_refcnt,
+	    sc->sc_target_powerstate,
+	    sc->sc_cur_powerstate);
 
-	if (sc->sc_powersave_refcnt == 0 &&
+	sc->sc_target_powerstate = power_state;
+
+	/*
+	 * Don't program the chip into network sleep if the chip
+	 * is being programmed elsewhere.
+	 *
+	 * However, if the chip is being programmed /awake/, force
+	 * the chip awake so we stay awake.
+	 */
+	if ((sc->sc_powersave_refcnt == 0 || power_state == HAL_PM_AWAKE) &&
 	    power_state != sc->sc_cur_powerstate) {
 		sc->sc_cur_powerstate = power_state;
 		ath_hal_setpower(sc->sc_ah, power_state);
@@ -313,7 +331,8 @@ _ath_power_setpower(struct ath_softc *sc, int power_state, const char *file, int
 		 * we let the above call leave the self-gen
 		 * state as "sleep".
 		 */
-		if (sc->sc_cur_powerstate == HAL_PM_AWAKE &&
+		if (selfgen &&
+		    sc->sc_cur_powerstate == HAL_PM_AWAKE &&
 		    sc->sc_target_selfgen_state != HAL_PM_AWAKE) {
 			ath_hal_setselfgenpower(sc->sc_ah,
 			    sc->sc_target_selfgen_state);
@@ -379,10 +398,13 @@ _ath_power_set_power_state(struct ath_softc *sc, int power_state, const char *fi
 
 	sc->sc_powersave_refcnt++;
 
+	/*
+	 * Only do the power state change if we're not programming
+	 * it elsewhere.
+	 */
 	if (power_state != sc->sc_cur_powerstate) {
 		ath_hal_setpower(sc->sc_ah, power_state);
 		sc->sc_cur_powerstate = power_state;
-
 		/*
 		 * Adjust the self-gen powerstate if appropriate.
 		 */
@@ -391,7 +413,6 @@ _ath_power_set_power_state(struct ath_softc *sc, int power_state, const char *fi
 			ath_hal_setselfgenpower(sc->sc_ah,
 			    sc->sc_target_selfgen_state);
 		}
-
 	}
 }
 
@@ -1317,7 +1338,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	 * Put it to sleep for now.
 	 */
 	ATH_LOCK(sc);
-	ath_power_setpower(sc, HAL_PM_FULL_SLEEP);
+	ath_power_setpower(sc, HAL_PM_FULL_SLEEP, 1);
 	ATH_UNLOCK(sc);
 
 	return 0;
@@ -1359,7 +1380,7 @@ ath_detach(struct ath_softc *sc)
 	 */
 	ATH_LOCK(sc);
 	ath_power_set_power_state(sc, HAL_PM_AWAKE);
-	ath_power_setpower(sc, HAL_PM_AWAKE);
+	ath_power_setpower(sc, HAL_PM_AWAKE, 1);
 
 	/*
 	 * Stop things cleanly.
@@ -1942,7 +1963,7 @@ ath_resume(struct ath_softc *sc)
 	ATH_LOCK(sc);
 	ath_power_setselfgen(sc, HAL_PM_AWAKE);
 	ath_power_set_power_state(sc, HAL_PM_AWAKE);
-	ath_power_setpower(sc, HAL_PM_AWAKE);
+	ath_power_setpower(sc, HAL_PM_AWAKE, 1);
 	ATH_UNLOCK(sc);
 
 	ath_hal_reset(ah, sc->sc_opmode,
@@ -2269,8 +2290,13 @@ ath_intr(void *arg)
 			sc->sc_stats.ast_rxorn++;
 		}
 		if (status & HAL_INT_TSFOOR) {
+			/* out of range beacon - wake the chip up,
+			 * but don't modify self-gen frame config */
 			device_printf(sc->sc_dev, "%s: TSFOOR\n", __func__);
 			sc->sc_syncbeacon = 1;
+			ATH_LOCK(sc);
+			ath_power_setpower(sc, HAL_PM_AWAKE, 0);
+			ATH_UNLOCK(sc);
 		}
 		if (status & HAL_INT_MCI) {
 			ath_btcoex_mci_intr(sc);
@@ -2360,12 +2386,22 @@ ath_bmiss_vap(struct ieee80211vap *vap)
 	}
 
 	/*
-	 * There's no need to keep the hardware awake during the call
-	 * to av_bmiss().
+	 * Keep the hardware awake if it's asleep (and leave self-gen
+	 * frame config alone) until the next beacon, so we can resync
+	 * against the next beacon.
+	 *
+	 * This handles three common beacon miss cases in STA powersave mode -
+	 * (a) the beacon TBTT isnt a multiple of bintval;
+	 * (b) the beacon was missed; and
+	 * (c) the beacons are being delayed because the AP is busy and
+	 *     isn't reliably able to meet its TBTT.
 	 */
 	ATH_LOCK(sc);
+	ath_power_setpower(sc, HAL_PM_AWAKE, 0);
 	ath_power_restore_power_state(sc);
 	ATH_UNLOCK(sc);
+	DPRINTF(sc, ATH_DEBUG_BEACON,
+	    "%s: forced awake; force syncbeacon=1\n", __func__);
 
 	/*
 	 * Attempt to force a beacon resync.
@@ -2462,7 +2498,7 @@ ath_init(struct ath_softc *sc)
 	 */
 	ath_power_setselfgen(sc, HAL_PM_AWAKE);
 	ath_power_set_power_state(sc, HAL_PM_AWAKE);
-	ath_power_setpower(sc, HAL_PM_AWAKE);
+	ath_power_setpower(sc, HAL_PM_AWAKE, 1);
 
 	/*
 	 * Stop anything previously setup.  This is safe
@@ -5563,7 +5599,7 @@ ath_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		/* Ensure we stay awake during scan */
 		ATH_LOCK(sc);
 		ath_power_setselfgen(sc, HAL_PM_AWAKE);
-		ath_power_setpower(sc, HAL_PM_AWAKE);
+		ath_power_setpower(sc, HAL_PM_AWAKE, 1);
 		ATH_UNLOCK(sc);
 
 		ath_hal_intrset(ah,
@@ -5739,7 +5775,7 @@ ath_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		 */
 		ATH_LOCK(sc);
 		ath_power_setselfgen(sc, HAL_PM_AWAKE);
-		ath_power_setpower(sc, HAL_PM_AWAKE);
+		ath_power_setpower(sc, HAL_PM_AWAKE, 1);
 
 		/*
 		 * Finally, start any timers and the task q thread
@@ -5795,7 +5831,7 @@ ath_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			 * our beacon timer config may be wrong.
 			 */
 			if (sc->sc_syncbeacon == 0) {
-				ath_power_setpower(sc, HAL_PM_NETWORK_SLEEP);
+				ath_power_setpower(sc, HAL_PM_NETWORK_SLEEP, 1);
 			}
 			ATH_UNLOCK(sc);
 		}
@@ -6177,7 +6213,7 @@ ath_parent(struct ieee80211com *ic)
 	} else {
 		ath_stop(sc);
 		if (!sc->sc_invalid)
-			ath_power_setpower(sc, HAL_PM_FULL_SLEEP);
+			ath_power_setpower(sc, HAL_PM_FULL_SLEEP, 1);
 	}
 	ATH_UNLOCK(sc);
 

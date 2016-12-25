@@ -1,4 +1,4 @@
 # $FreeBSD$
 
 RISCV				opt_global.h
-VFP				opt_global.h
+FPE				opt_global.h

@@ -22,9 +22,10 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/sysctl.h>
@@ -78,7 +79,7 @@ proc_init(pid_t pid, int flags, int status, struct proc_handle **pphdl)
 		goto out;
 
 	memset(phdl, 0, sizeof(*phdl));
-	phdl->pid = pid;
+	phdl->public.pid = pid;
 	phdl->flags = flags;
 	phdl->status = status;
 	phdl->procstat = procstat_open_sysctl();
@@ -126,7 +127,7 @@ proc_attach(pid_t pid, int flags, struct proc_handle **pphdl)
 	struct proc_handle *phdl;
 	int error, status;
 
-	if (pid == 0 || pid == getpid())
+	if (pid == 0 || (pid == getpid() && (flags & PATTACH_RDONLY) == 0))
 		return (EINVAL);
 	if (elf_version(EV_CURRENT) == EV_NONE)
 		return (ENOENT);
@@ -139,27 +140,32 @@ proc_attach(pid_t pid, int flags, struct proc_handle **pphdl)
 	if (error != 0)
 		goto out;
 
-	if (ptrace(PT_ATTACH, phdl->pid, 0, 0) != 0) {
-		error = errno;
-		DPRINTF("ERROR: cannot ptrace child process %d", pid);
-		goto out;
-	}
+	if ((flags & PATTACH_RDONLY) == 0) {
+		if (ptrace(PT_ATTACH, proc_getpid(phdl), 0, 0) != 0) {
+			error = errno;
+			DPRINTF("ERROR: cannot ptrace child process %d", pid);
+			goto out;
+		}
 
-	/* Wait for the child process to stop. */
-	if (waitpid(pid, &status, WUNTRACED) == -1) {
-		error = errno;
-		DPRINTF("ERROR: child process %d didn't stop as expected", pid);
-		goto out;
-	}
+		/* Wait for the child process to stop. */
+		if (waitpid(pid, &status, WUNTRACED) == -1) {
+			error = errno;
+			DPRINTF("ERROR: child process %d didn't stop as expected", pid);
+			goto out;
+		}
 
-	/* Check for an unexpected status. */
-	if (!WIFSTOPPED(status))
-		DPRINTFX("ERROR: child process %d status 0x%x", pid, status);
-	else
-		phdl->status = PS_STOP;
+		/* Check for an unexpected status. */
+		if (!WIFSTOPPED(status))
+			DPRINTFX("ERROR: child process %d status 0x%x", pid, status);
+		else
+			phdl->status = PS_STOP;
+
+		if ((flags & PATTACH_NOSTOP) != 0)
+			proc_continue(phdl);
+	}
 
 out:
-	if (error && phdl != NULL) {
+	if (error != 0 && phdl != NULL) {
 		proc_free(phdl);
 		phdl = NULL;
 	}
@@ -229,8 +235,28 @@ bad:
 void
 proc_free(struct proc_handle *phdl)
 {
+	struct file_info *file;
+	size_t i;
 
+	for (i = 0; i < phdl->nmappings; i++) {
+		file = phdl->mappings[i].file;
+		if (file != NULL && --file->refs == 0) {
+			if (file->elf != NULL) {
+				(void)elf_end(file->elf);
+				(void)close(file->fd);
+				if (file->symtab.nsyms > 0)
+					free(file->symtab.index);
+				if (file->dynsymtab.nsyms > 0)
+					free(file->dynsymtab.index);
+			}
+			free(file);
+		}
+	}
+	if (phdl->maparrsz > 0)
+		free(phdl->mappings);
 	if (phdl->procstat != NULL)
 		procstat_close(phdl->procstat);
+	if (phdl->rdap != NULL)
+		rd_delete(phdl->rdap);
 	free(phdl);
 }

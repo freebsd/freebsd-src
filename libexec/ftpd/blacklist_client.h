@@ -28,5 +28,26 @@
 
 /* $FreeBSD$ */
 
-void blacklist_notify(int, int, char *);
+#ifndef BLACKLIST_CLIENT_H
+#define BLACKLIST_CLIENT_H
+
+enum {
+	BLACKLIST_AUTH_OK = 0,
+	BLACKLIST_AUTH_FAIL
+};
+
+#ifdef USE_BLACKLIST
 void blacklist_init(void);
+void blacklist_notify(int, int, char *);
+
+#define BLACKLIST_INIT() blacklist_init()
+#define BLACKLIST_NOTIFY(x, y, z) blacklist_notify(x, y, z)
+
+#else
+
+#define BLACKLIST_INIT()
+#define BLACKLIST_NOTIFY(x, y, z)
+
+#endif
+
+#endif /* BLACKLIST_CLIENT_H */

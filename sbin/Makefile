@@ -83,10 +83,12 @@ SUBDIR.${MK_IPFW}+=	natd
 SUBDIR.${MK_ISCSI}+=	iscontrol
 SUBDIR.${MK_NAND}+=	nandfs
 SUBDIR.${MK_NAND}+=	newfs_nandfs
+SUBDIR.${MK_OPENSSL}+=	decryptcore
 SUBDIR.${MK_PF}+=	pfctl
 SUBDIR.${MK_PF}+=	pflogd
 SUBDIR.${MK_QUOTAS}+=	quotacheck
 SUBDIR.${MK_ROUTED}+=	routed
+SUBDIR.${MK_ZFS}+=	zfsbootcfg
 
 SUBDIR.${MK_TESTS}+=	tests
 

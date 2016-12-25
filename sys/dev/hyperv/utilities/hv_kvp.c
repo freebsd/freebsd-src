@@ -61,18 +61,24 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 
 #include <dev/hyperv/include/hyperv.h>
+#include <dev/hyperv/include/vmbus.h>
 #include <dev/hyperv/utilities/hv_utilreg.h>
+#include <dev/hyperv/utilities/vmbus_icreg.h>
+#include <dev/hyperv/utilities/vmbus_icvar.h>
 
-#include "hv_util.h"
 #include "unicode.h"
 #include "hv_kvp.h"
 #include "vmbus_if.h"
 
 /* hv_kvp defines */
 #define BUFFERSIZE	sizeof(struct hv_kvp_msg)
-#define KVP_SUCCESS	0
-#define KVP_ERROR	1
 #define kvp_hdr		hdr.kvp_hdr
+
+#define KVP_FWVER_MAJOR		3
+#define KVP_FWVER		VMBUS_IC_VERSION(KVP_FWVER_MAJOR, 0)
+
+#define KVP_MSGVER_MAJOR	4
+#define KVP_MSGVER		VMBUS_IC_VERSION(KVP_MSGVER_MAJOR, 0)
 
 /* hv_kvp debug control */
 static int hv_kvp_log = 0;
@@ -122,7 +128,7 @@ static struct cdevsw hv_kvp_cdevsw =
  * KVP transaction requests from the host.
  */
 typedef struct hv_kvp_sc {
-	struct hv_util_sc	util_sc;
+	struct vmbus_ic_softc	util_sc;
 	device_t		dev;
 
 	/* Unless specified the pending mutex should be
@@ -208,51 +214,9 @@ hv_kvp_transaction_init(hv_kvp_sc *sc, uint32_t rcv_len,
 	sc->host_msg_id = request_id;
 	sc->rcv_buf = rcv_buf;
 	sc->host_kvp_msg = (struct hv_kvp_msg *)&rcv_buf[
-		sizeof(struct hv_vmbus_pipe_hdr) +
-		sizeof(struct hv_vmbus_icmsg_hdr)];
+	    sizeof(struct hv_vmbus_pipe_hdr) +
+	    sizeof(struct hv_vmbus_icmsg_hdr)];
 }
-
-
-/*
- * hv_kvp - version neogtiation function
- */
-static void
-hv_kvp_negotiate_version(struct hv_vmbus_icmsg_hdr *icmsghdrp, uint8_t *buf)
-{
-	struct hv_vmbus_icmsg_negotiate *negop;
-	int icframe_vercnt;
-	int icmsg_vercnt;
-
-	icmsghdrp->icmsgsize = 0x10;
-
-	negop = (struct hv_vmbus_icmsg_negotiate *)&buf[
-		sizeof(struct hv_vmbus_pipe_hdr) +
-		sizeof(struct hv_vmbus_icmsg_hdr)];
-	icframe_vercnt = negop->icframe_vercnt;
-	icmsg_vercnt = negop->icmsg_vercnt;
-
-	/*
-	 * Select the framework version number we will support
-	 */
-	if ((icframe_vercnt >= 2) && (negop->icversion_data[1].major == 3)) {
-		icframe_vercnt = 3;
-		if (icmsg_vercnt > 2)
-			icmsg_vercnt = 4;
-		else
-			icmsg_vercnt = 3;
-	} else {
-		icframe_vercnt = 1;
-		icmsg_vercnt = 1;
-	}
-
-	negop->icframe_vercnt = 1;
-	negop->icmsg_vercnt = 1;
-	negop->icversion_data[0].major = icframe_vercnt;
-	negop->icversion_data[0].minor = 0;
-	negop->icversion_data[1].major = icmsg_vercnt;
-	negop->icversion_data[1].minor = 0;
-}
-
 
 /*
  * Convert ip related info in umsg from utf8 to utf16 and store in hmsg
@@ -514,7 +478,7 @@ hv_kvp_convert_usermsg_to_hostmsg(struct hv_kvp_msg *umsg, struct hv_kvp_msg *hm
 	case HV_KVP_OP_SET_IP_INFO:
 	case HV_KVP_OP_SET:
 	case HV_KVP_OP_DELETE:
-		return (KVP_SUCCESS);
+		return (0);
 
 	case HV_KVP_OP_ENUMERATE:
 		host_exchg_data = &hmsg->body.kvp_enum_data.data;
@@ -535,9 +499,9 @@ hv_kvp_convert_usermsg_to_hostmsg(struct hv_kvp_msg *umsg, struct hv_kvp_msg *hm
 		host_exchg_data->value_type = HV_REG_SZ;
 
 		if ((hkey_len < 0) || (hvalue_len < 0))
-			return (HV_KVP_E_FAIL);
+			return (EINVAL);
 
-		return (KVP_SUCCESS);
+		return (0);
 
 	case HV_KVP_OP_GET:
 		host_exchg_data = &hmsg->body.kvp_get.data;
@@ -553,12 +517,12 @@ hv_kvp_convert_usermsg_to_hostmsg(struct hv_kvp_msg *umsg, struct hv_kvp_msg *hm
 		host_exchg_data->value_type = HV_REG_SZ;
 
 		if ((hkey_len < 0) || (hvalue_len < 0))
-			return (HV_KVP_E_FAIL);
+			return (EINVAL);
 
-		return (KVP_SUCCESS);
+		return (0);
 
 	default:
-		return (HV_KVP_E_FAIL);
+		return (EINVAL);
 	}
 }
 
@@ -567,18 +531,16 @@ hv_kvp_convert_usermsg_to_hostmsg(struct hv_kvp_msg *umsg, struct hv_kvp_msg *hm
  * Send the response back to the host.
  */
 static void
-hv_kvp_respond_host(hv_kvp_sc *sc, int error)
+hv_kvp_respond_host(hv_kvp_sc *sc, uint32_t error)
 {
 	struct hv_vmbus_icmsg_hdr *hv_icmsg_hdrp;
 
 	hv_icmsg_hdrp = (struct hv_vmbus_icmsg_hdr *)
 	    &sc->rcv_buf[sizeof(struct hv_vmbus_pipe_hdr)];
 
-	if (error)
-		error = HV_KVP_E_FAIL;
-
 	hv_icmsg_hdrp->status = error;
-	hv_icmsg_hdrp->icflags = HV_ICMSGHDRFLAG_TRANSACTION | HV_ICMSGHDRFLAG_RESPONSE;
+	hv_icmsg_hdrp->icflags = HV_ICMSGHDRFLAG_TRANSACTION |
+	    HV_ICMSGHDRFLAG_RESPONSE;
 
 	error = vmbus_chan_send(vmbus_get_channel(sc->dev),
 	    VMBUS_CHANPKT_TYPE_INBAND, 0, sc->rcv_buf, sc->host_msg_len,
@@ -622,13 +584,13 @@ hv_kvp_process_request(void *context, int pending)
 	uint32_t recvlen = 0;
 	uint64_t requestid;
 	struct hv_vmbus_icmsg_hdr *icmsghdrp;
-	int ret = 0;
-	hv_kvp_sc		*sc;
+	int ret = 0, error;
+	hv_kvp_sc *sc;
 
 	hv_kvp_log_info("%s: entering hv_kvp_process_request\n", __func__);
 
 	sc = (hv_kvp_sc*)context;
-	kvp_buf = sc->util_sc.receive_buffer;
+	kvp_buf = sc->util_sc.ic_buf;
 	channel = vmbus_get_channel(sc->dev);
 
 	recvlen = sc->util_sc.ic_buflen;
@@ -637,15 +599,18 @@ hv_kvp_process_request(void *context, int pending)
 	/* XXX check recvlen to make sure that it contains enough data */
 
 	while ((ret == 0) && (recvlen > 0)) {
-
 		icmsghdrp = (struct hv_vmbus_icmsg_hdr *)
-			&kvp_buf[sizeof(struct hv_vmbus_pipe_hdr)];
+		    &kvp_buf[sizeof(struct hv_vmbus_pipe_hdr)];
 
 		hv_kvp_transaction_init(sc, recvlen, requestid, kvp_buf);
 		if (icmsghdrp->icmsgtype == HV_ICMSGTYPE_NEGOTIATE) {
-			hv_kvp_negotiate_version(icmsghdrp, kvp_buf);
-			hv_kvp_respond_host(sc, ret);
-
+			error = vmbus_ic_negomsg(&sc->util_sc,
+			    kvp_buf, &recvlen, KVP_FWVER, KVP_MSGVER);
+			/* XXX handle vmbus_ic_negomsg failure. */
+			if (!error)
+				hv_kvp_respond_host(sc, HV_S_OK);
+			else
+				hv_kvp_respond_host(sc, HV_E_FAIL);
 			/*
 			 * It is ok to not acquire the mutex before setting
 			 * req_in_progress here because negotiation is the
@@ -689,7 +654,7 @@ hv_kvp_process_request(void *context, int pending)
 		 */
 		if (hv_kvp_req_in_progress(sc)) {
 			hv_kvp_log_info("%s: request was still active after wait so failing\n", __func__);
-			hv_kvp_respond_host(sc, HV_KVP_E_FAIL);
+			hv_kvp_respond_host(sc, HV_E_FAIL);
 			sc->req_in_progress = false;
 		}
 
@@ -769,9 +734,9 @@ hv_kvp_dev_daemon_read(struct cdev *dev, struct uio *uio, int ioflag __unused)
 	struct hv_kvp_msg *hv_kvp_dev_buf;
 	hv_kvp_sc *sc = (hv_kvp_sc*)dev->si_drv1;
 
-	/* Check hv_kvp daemon registration status*/
+	/* Read is not allowed util registering is done. */
 	if (!sc->register_done)
-		return (KVP_ERROR);
+		return (EPERM);
 
 	sema_wait(&sc->dev_sema);
 
@@ -821,7 +786,7 @@ hv_kvp_dev_daemon_write(struct cdev *dev, struct uio *uio, int ioflag __unused)
 		}
 		else {
 			hv_kvp_log_info("%s, KVP Registration Failed\n", __func__);
-			return (KVP_ERROR);
+			return (EINVAL);
 		}
 	} else {
 
@@ -831,10 +796,15 @@ hv_kvp_dev_daemon_write(struct cdev *dev, struct uio *uio, int ioflag __unused)
 			struct hv_kvp_msg *hmsg = sc->host_kvp_msg;
 			struct hv_kvp_msg *umsg = &sc->daemon_kvp_msg;
 
-			hv_kvp_convert_usermsg_to_hostmsg(umsg, hmsg);
-			hv_kvp_respond_host(sc, KVP_SUCCESS);
+			error = hv_kvp_convert_usermsg_to_hostmsg(umsg, hmsg);
+			hv_kvp_respond_host(sc, umsg->hdr.error);
 			wakeup(sc);
 			sc->req_in_progress = false;
+			if (umsg->hdr.error != HV_S_OK)
+				hv_kvp_log_info("%s, Error 0x%x from daemon\n",
+				    __func__, umsg->hdr.error);
+			if (error)
+				hv_kvp_log_info("%s, Error from convert\n", __func__);
 		}
 
 		sc->daemon_busy = false;
@@ -897,7 +867,7 @@ hv_kvp_attach(device_t dev)
 	child = SYSCTL_CHILDREN(device_get_sysctl_tree(dev));
 
 	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "hv_kvp_log",
-	    CTLFLAG_RW, &hv_kvp_log, 0, "Hyperv KVP service log level");
+	    CTLFLAG_RWTUN, &hv_kvp_log, 0, "Hyperv KVP service log level");
 
 	TASK_INIT(&sc->task, 0, hv_kvp_process_request, sc);
 
@@ -915,7 +885,7 @@ hv_kvp_attach(device_t dev)
 		return (error);
 	sc->hv_kvp_dev->si_drv1 = sc;
 
-	return hv_util_attach(dev, hv_kvp_callback);
+	return (vmbus_ic_attach(dev, hv_kvp_callback));
 }
 
 static int
@@ -930,7 +900,7 @@ hv_kvp_detach(device_t dev)
 	}
 
 	destroy_dev(sc->hv_kvp_dev);
-	return hv_util_detach(dev);
+	return (vmbus_ic_detach(dev));
 }
 
 static device_method_t kvp_methods[] = {

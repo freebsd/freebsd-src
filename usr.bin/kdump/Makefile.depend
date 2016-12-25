@@ -9,6 +9,7 @@ DIRDEPS = \
 	include/xlocale \
 	lib/${CSU_DIR} \
 	lib/libc \
+	lib/libcapsicum \
 	lib/libcasper/libcasper \
 	lib/libcasper/services/cap_grp \
 	lib/libcasper/services/cap_pwd \

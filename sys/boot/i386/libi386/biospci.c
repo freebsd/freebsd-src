@@ -38,7 +38,9 @@ __FBSDID("$FreeBSD$");
 #include <isapnp.h>
 #include <btxv86.h>
 #include "libi386.h"
+#ifdef BOOT_FORTH
 #include "ficl.h"
+#endif
 
 /*
  * Stupid PCI BIOS interface doesn't let you simply enumerate everything
@@ -429,6 +431,7 @@ biospci_count_device_type(uint32_t devid)
 	return i;
 }
 
+#ifdef BOOT_FORTH
 /*
  * pcibios-device-count (devid -- count)
  *
@@ -582,3 +585,4 @@ static void ficlCompilePciBios(FICL_SYSTEM *pSys)
 }
 
 FICL_COMPILE_SET(ficlCompilePciBios);
+#endif

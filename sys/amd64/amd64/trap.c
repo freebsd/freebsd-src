@@ -144,14 +144,6 @@ static char *trap_msg[] = {
 	"DTrace pid return trap",		/* 32 T_DTRACE_RET */
 };
 
-#ifdef KDB
-static int kdb_on_nmi = 1;
-SYSCTL_INT(_machdep, OID_AUTO, kdb_on_nmi, CTLFLAG_RWTUN,
-	&kdb_on_nmi, 0, "Go to KDB on NMI");
-#endif
-static int panic_on_nmi = 1;
-SYSCTL_INT(_machdep, OID_AUTO, panic_on_nmi, CTLFLAG_RWTUN,
-	&panic_on_nmi, 0, "Panic on NMI");
 static int prot_fault_translation;
 SYSCTL_INT(_machdep, OID_AUTO, prot_fault_translation, CTLFLAG_RWTUN,
     &prot_fault_translation, 0,
@@ -377,21 +369,7 @@ trap(struct trapframe *frame)
 
 #ifdef DEV_ISA
 		case T_NMI:
-			/* machine/parity/power fail/"kitchen sink" faults */
-			if (isa_nmi(frame->tf_err) == 0) {
-#ifdef KDB
-				/*
-				 * NMI can be hooked up to a pushbutton
-				 * for debugging.
-				 */
-				if (kdb_on_nmi) {
-					printf ("NMI ... going to debugger\n");
-					kdb_trap(type, 0, frame);
-				}
-#endif /* KDB */
-				goto userout;
-			} else if (panic_on_nmi)
-				panic("NMI indicates hardware failure");
+			nmi_handle_intr(type, frame);
 			break;
 #endif /* DEV_ISA */
 
@@ -563,22 +541,8 @@ trap(struct trapframe *frame)
 
 #ifdef DEV_ISA
 		case T_NMI:
-			/* machine/parity/power fail/"kitchen sink" faults */
-			if (isa_nmi(frame->tf_err) == 0) {
-#ifdef KDB
-				/*
-				 * NMI can be hooked up to a pushbutton
-				 * for debugging.
-				 */
-				if (kdb_on_nmi) {
-					printf ("NMI ... going to debugger\n");
-					kdb_trap(type, 0, frame);
-				}
-#endif /* KDB */
-				goto out;
-			} else if (panic_on_nmi == 0)
-				goto out;
-			/* FALLTHROUGH */
+			nmi_handle_intr(type, frame);
+			goto out;
 #endif /* DEV_ISA */
 		}
 
@@ -797,11 +761,11 @@ trap_fatal(frame, eva)
 #endif
 	if (type == T_PAGEFLT) {
 		printf("fault virtual address	= 0x%lx\n", eva);
-		printf("fault code		= %s %s %s%s, %s\n",
+		printf("fault code		= %s %s %s, %s\n",
 			code & PGEX_U ? "user" : "supervisor",
 			code & PGEX_W ? "write" : "read",
 			code & PGEX_I ? "instruction" : "data",
-			code & PGEX_RSV ? " rsv" : "",
+			code & PGEX_RSV ? "reserved bits in PTE" :
 			code & PGEX_P ? "protection violation" : "page not present");
 	}
 	printf("instruction pointer	= 0x%lx:0x%lx\n",
@@ -950,7 +914,7 @@ amd64_syscall(struct thread *td, int traced)
 	}
 
 	KASSERT(PCB_USER_FPU(td->td_pcb),
-	    ("System call %s returing with kernel FPU ctx leaked",
+	    ("System call %s returning with kernel FPU ctx leaked",
 	     syscallname(td->td_proc, sa.code)));
 	KASSERT(td->td_pcb->pcb_save == get_pcb_user_save_td(td),
 	    ("System call %s returning with mangled pcb_save",
@@ -958,7 +922,6 @@ amd64_syscall(struct thread *td, int traced)
 	KASSERT(td->td_md.md_invl_gen.gen == 0,
 	    ("System call %s returning with leaked invl_gen %lu",
 	    syscallname(td->td_proc, sa.code), td->td_md.md_invl_gen.gen));
-
 
 	syscallret(td, error, &sa);
 

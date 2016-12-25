@@ -312,6 +312,7 @@ uudecode_bidder_bid(struct archive_read_filter_bidder *self,
 	avail -= len;
 
 	if (l == 6) {
+		/* "begin " */
 		if (!uuchar[*b])
 			return (0);
 		/* Get a length of decoded bytes. */
@@ -319,30 +320,14 @@ uudecode_bidder_bid(struct archive_read_filter_bidder *self,
 		if (l > 45)
 			/* Normally, maximum length is 45(character 'M'). */
 			return (0);
-		while (l && len-nl > 0) {
-			if (l > 0) {
-				if (!uuchar[*b++])
-					return (0);
-				if (!uuchar[*b++])
-					return (0);
-				len -= 2;
-				--l;
-			}
-			if (l > 0) {
-				if (!uuchar[*b++])
-					return (0);
-				--len;
-				--l;
-			}
-			if (l > 0) {
-				if (!uuchar[*b++])
-					return (0);
-				--len;
-				--l;
-			}
+		if (l > len - nl)
+			return (0); /* Line too short. */
+		while (l) {
+			if (!uuchar[*b++])
+				return (0);
+			--len;
+			--l;
 		}
-		if (len-nl < 0)
-			return (0);
 		if (len-nl == 1 &&
 		    (uuchar[*b] ||		 /* Check sum. */
 		     (*b >= 'a' && *b <= 'z'))) {/* Padding data(MINIX). */
@@ -352,8 +337,8 @@ uudecode_bidder_bid(struct archive_read_filter_bidder *self,
 		b += nl;
 		if (avail && uuchar[*b])
 			return (firstline+30);
-	}
-	if (l == 13) {
+	} else if (l == 13) {
+		/* "begin-base64 " */
 		while (len-nl > 0) {
 			if (!base64[*b++])
 				return (0);
@@ -510,6 +495,13 @@ read_more:
 		}
 		llen = len;
 		if ((nl == 0) && (uudecode->state != ST_UUEND)) {
+			if (total == 0 && ravail <= 0) {
+				/* There is nothing more to read, fail */
+				archive_set_error(&self->archive->archive,
+				    ARCHIVE_ERRNO_FILE_FORMAT,
+				    "Missing format data");
+				return (ARCHIVE_FATAL);
+			}
 			/*
 			 * Save remaining data which does not contain
 			 * NL('\n','\r').
@@ -566,7 +558,7 @@ read_more:
 				    "Insufficient compressed data");
 				return (ARCHIVE_FATAL);
 			}
-			/* Get length of undecoded bytes of curent line. */
+			/* Get length of undecoded bytes of current line. */
 			l = UUDECODE(*b++);
 			body--;
 			if (l > body) {

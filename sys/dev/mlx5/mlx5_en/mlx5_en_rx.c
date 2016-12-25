@@ -82,9 +82,10 @@ mlx5e_post_rx_wqes(struct mlx5e_rq *rq)
 	while (!mlx5_wq_ll_is_full(&rq->wq)) {
 		struct mlx5e_rx_wqe *wqe = mlx5_wq_ll_get_wqe(&rq->wq, rq->wq.head);
 
-		if (unlikely(mlx5e_alloc_rx_wqe(rq, wqe, rq->wq.head)))
+		if (unlikely(mlx5e_alloc_rx_wqe(rq, wqe, rq->wq.head))) {
+			callout_reset_curcpu(&rq->watchdog, 1, (void *)&mlx5e_post_rx_wqes, rq);
 			break;
-
+		}
 		mlx5_wq_ll_push(&rq->wq, be16_to_cpu(wqe->next.next_wqe_index));
 	}
 

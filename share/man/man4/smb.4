@@ -141,54 +141,26 @@ in
 .Em BlockWrite
 first sends the byte from
 .Fa cmd
-to the device, followed by
+to the device, then the byte from
+.Fa wcount
+followed by
 .Fa wcount
 bytes of data that are taken from the buffer pointed to by
 .Fa wbuf .
 The SMBus specification mandates that no more than 32 bytes of
-data can be transferred in a single block read or write command,
-but since
-.Xr smbus 4
-is also used to access I2C devices, the limit has been increased
-to 1024.
+data can be transferred in a single block read or write command.
 This value can be read from the constant
 .Dv SMB_MAXBLOCKSIZE .
 .It Dv SMB_BREAD Ta
 .Em BlockRead
 first sends the byte from
 .Fa cmd
-to the device, then reads
-.Fa rcount
-bytes of data that from the device.
-This data is returned in the buffer pointed to by
+to the device, then reads a count of data bytes that the device
+is going to provide and then reads that many bytes.
+The count is returned in
+.Fa rcount.
+The data is returned in the buffer pointed to by
 .Fa rbuf .
-.It Dv SMB_TRANS Ta
-.Em Trans
-sends an SMB roll-up transaction with flags that also allow it to
-be used for (mostly) I2C pass-through and with 10-bit addresses.
-This function can be utilized to roll up all of the above functions.
-It first sends the byte from
-.Fa cmd
-to the device, followed by
-.Fa wcount
-bytes of data that are taken from the buffer pointed to by
-.Fa wbuf ,
-then reads
-.Fa rcount
-bytes of data that from the device.
-This data is returned in the buffer pointed to by
-.Fa rbuf .
-.Pp
-The following flags are allowed in
-.Fa op :
-.Pp
-.Bd -literal -compact
-SMB_TRANS_NOSTOP  Do not send STOP at end
-SMB_TRANS_NOCMD   Ignore cmd field (do not tx)
-SMB_TRANS_NOCNT   Do not tx or rx count field
-SMB_TRANS_7BIT    Change address mode to 7-bit
-SMB_TRANS_10BIT   Change address mode to 10-bit
-.Ed
 .El
 .Pp
 The

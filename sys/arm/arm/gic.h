@@ -75,9 +75,9 @@ struct arm_gic_softc {
 #endif
 
 #ifdef INTRNG
-	/* FDT child data */
-	pcell_t			addr_cells;
-	pcell_t			size_cells;
+	uint32_t		gic_iidr;
+	u_int			gic_bus;
+
 	int			nranges;
 	struct arm_gic_range *	ranges;
 #endif

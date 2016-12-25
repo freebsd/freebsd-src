@@ -192,6 +192,10 @@ g_vfs_strategy(struct bufobj *bo, struct buf *bp)
 	}
 	bip->bio_done = g_vfs_done;
 	bip->bio_caller2 = bp;
+#if defined(BUF_TRACKING) || defined(FULL_BUF_TRACKING)
+	buf_track(bp, __func__);
+	bip->bio_track_bp = bp;
+#endif
 	g_io_request(bip, cp);
 }
 

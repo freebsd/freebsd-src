@@ -1,7 +1,6 @@
 #include "arm_arch.h"
 
 .text
-.arch	armv8-a+crypto
 
 .align	5
 .global	_armv7_neon_probe

@@ -198,7 +198,7 @@ hwpstate_goto_pstate(device_t dev, int pstate)
 			}
 			DELAY(100);
 		}
-		HWPSTATE_DEBUG(dev, "result  P%d-state on cpu%d\n",
+		HWPSTATE_DEBUG(dev, "result: P%d-state on cpu%d\n",
 		    (int)msr, PCPU_GET(cpuid));
 		if (msr != id) {
 			HWPSTATE_DEBUG(dev, "error: loop is not enough.\n");
@@ -367,7 +367,8 @@ hwpstate_probe(device_t dev)
 		 */
 		msr = rdmsr(MSR_AMD_10H_11H_LIMIT);
 		if (sc->cfnum != 1 + AMD_10H_11H_GET_PSTATE_MAX_VAL(msr)) {
-			HWPSTATE_DEBUG(dev, "msr and acpi _PSS count mismatch.\n");
+			HWPSTATE_DEBUG(dev, "MSR (%jd) and ACPI _PSS (%d)"
+			    " count mismatch\n", (intmax_t)msr, sc->cfnum);
 			error = TRUE;
 		}
 	}
@@ -408,25 +409,28 @@ hwpstate_get_info_from_msr(device_t dev)
 	hwpstate_set = sc->hwpstate_settings;
 	for (i = 0; i < sc->cfnum; i++) {
 		msr = rdmsr(MSR_AMD_10H_11H_CONFIG + i);
-		if ((msr & ((uint64_t)1 << 63)) != ((uint64_t)1 << 63)) {
+		if ((msr & ((uint64_t)1 << 63)) == 0) {
 			HWPSTATE_DEBUG(dev, "msr is not valid.\n");
 			return (ENXIO);
 		}
 		did = AMD_10H_11H_CUR_DID(msr);
 		fid = AMD_10H_11H_CUR_FID(msr);
+
+		/* Convert fid/did to frequency. */
 		switch(family) {
 		case 0x11:
-			/* fid/did to frequency */
-			hwpstate_set[i].freq = 100 * (fid + 0x08) / (1 << did);
+			hwpstate_set[i].freq = (100 * (fid + 0x08)) >> did;
 			break;
 		case 0x10:
-			/* fid/did to frequency */
-			hwpstate_set[i].freq = 100 * (fid + 0x10) / (1 << did);
+		case 0x12:
+		case 0x15:
+		case 0x16:
+			hwpstate_set[i].freq = (100 * (fid + 0x10)) >> did;
 			break;
 		default:
-			HWPSTATE_DEBUG(dev, "get_info_from_msr: AMD family %d CPU's are not implemented yet. sorry.\n", family);
+			HWPSTATE_DEBUG(dev, "get_info_from_msr: AMD family"
+			    " 0x%02x CPUs are not supported yet\n", family);
 			return (ENXIO);
-			break;
 		}
 		hwpstate_set[i].pstate_id = i;
 		/* There was volts calculation, but deleted it. */

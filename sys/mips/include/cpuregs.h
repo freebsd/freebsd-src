@@ -522,12 +522,18 @@
 
 #define	MIPS_COP_0_COUNT	_(9)
 #define	MIPS_COP_0_COMPARE	_(11)
-
+#ifdef CPU_XBURST
+#define	MIPS_COP_0_XBURST_C12	_(12)
+#endif
 #define	MIPS_COP_0_CONFIG	_(16)
 #define	MIPS_COP_0_LLADDR	_(17)
 #define	MIPS_COP_0_WATCH_LO	_(18)
 #define	MIPS_COP_0_WATCH_HI	_(19)
 #define	MIPS_COP_0_TLB_XCONTEXT _(20)
+#ifdef CPU_XBURST
+#define	MIPS_COP_0_XBURST_MBOX	_(20)
+#endif
+
 #define	MIPS_COP_0_ECC		_(26)
 #define	MIPS_COP_0_CACHE_ERR	_(27)
 #define	MIPS_COP_0_TAG_LO	_(28)

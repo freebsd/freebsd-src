@@ -649,7 +649,7 @@ null_lock(struct vop_lock1_args *ap)
 	nn = VTONULL(vp);
 	/*
 	 * If we're still active we must ask the lower layer to
-	 * lock as ffs has special lock considerations in it's
+	 * lock as ffs has special lock considerations in its
 	 * vop lock.
 	 */
 	if (nn != NULL && (lvp = NULLVPTOLOWERVP(vp)) != NULL) {
@@ -662,7 +662,7 @@ null_lock(struct vop_lock1_args *ap)
 		 * the lowervp's vop_lock routine.  When we vgone we will
 		 * drop our last ref to the lowervp, which would allow it
 		 * to be reclaimed.  The lowervp could then be recycled,
-		 * in which case it is not legal to be sleeping in it's VOP.
+		 * in which case it is not legal to be sleeping in its VOP.
 		 * We prevent it from being recycled by holding the vnode
 		 * here.
 		 */

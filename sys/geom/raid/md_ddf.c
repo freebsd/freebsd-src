@@ -1626,7 +1626,7 @@ g_raid_md_ddf_start_disk(struct g_raid_disk *disk, struct g_raid_volume *vol)
 	vmeta = &pv->pv_meta;
 	gmeta = &mdi->mdio_meta;
 
-	/* Find disk position in metadata by it's reference. */
+	/* Find disk position in metadata by its reference. */
 	disk_pos = ddf_meta_find_disk(vmeta, reference,
 	    &md_disk_bvd, &md_disk_pos);
 	md_pde_pos = ddf_meta_find_pd(gmeta, NULL, reference);

@@ -59,11 +59,13 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr.h>
 
 #ifdef FDT
+#include <dev/fdt/fdt_intr.h>
 #include <dev/ofw/ofw_bus_subr.h>
 #endif
 
 #include "pic_if.h"
 
+#include <arm/arm/gic_common.h>
 #include "gic_v3_reg.h"
 #include "gic_v3_var.h"
 
@@ -295,6 +297,13 @@ gic_v3_attach(device_t dev)
 		}
 	}
 
+	/*
+	 * Read the Peripheral ID2 register. This is an implementation
+	 * defined register, but seems to be implemented in all GICv3
+	 * parts and Linux expects it to be there.
+	 */
+	sc->gic_pidr2 = gic_d_read(sc, 4, GICD_PIDR2);
+
 	/* Get the number of supported interrupt identifier bits */
 	sc->gic_idbits = GICD_TYPER_IDBITS(typer);
 
@@ -355,6 +364,21 @@ gic_v3_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 	case GICV3_IVAR_REDIST_VADDR:
 		*result = (uintptr_t)rman_get_virtual(
 		    sc->gic_redists.pcpu[PCPU_GET(cpuid)]);
+		return (0);
+	case GIC_IVAR_HW_REV:
+		KASSERT(
+		    GICR_PIDR2_ARCH(sc->gic_pidr2) == GICR_PIDR2_ARCH_GICv3 ||
+		    GICR_PIDR2_ARCH(sc->gic_pidr2) == GICR_PIDR2_ARCH_GICv4,
+		    ("gic_v3_read_ivar: Invalid GIC architecture: %d (%.08X)",
+		     GICR_PIDR2_ARCH(sc->gic_pidr2), sc->gic_pidr2));
+		*result = GICR_PIDR2_ARCH(sc->gic_pidr2);
+		return (0);
+	case GIC_IVAR_BUS:
+		KASSERT(sc->gic_bus != GIC_BUS_UNKNOWN,
+		    ("gic_v3_read_ivar: Unknown bus type"));
+		KASSERT(sc->gic_bus <= GIC_BUS_MAX,
+		    ("gic_v3_read_ivar: Invalid bus type %u", sc->gic_bus));
+		*result = sc->gic_bus;
 		return (0);
 	}
 
@@ -470,20 +494,20 @@ gic_map_fdt(device_t dev, u_int ncells, pcell_t *cells, u_int *irqp,
 		return (EINVAL);
 	}
 
-	switch (cells[2] & 0xf) {
-	case 1:
+	switch (cells[2] & FDT_INTR_MASK) {
+	case FDT_INTR_EDGE_RISING:
 		*trigp = INTR_TRIGGER_EDGE;
 		*polp = INTR_POLARITY_HIGH;
 		break;
-	case 2:
+	case FDT_INTR_EDGE_FALLING:
 		*trigp = INTR_TRIGGER_EDGE;
 		*polp = INTR_POLARITY_LOW;
 		break;
-	case 4:
+	case FDT_INTR_LEVEL_HIGH:
 		*trigp = INTR_TRIGGER_LEVEL;
 		*polp = INTR_POLARITY_HIGH;
 		break;
-	case 8:
+	case FDT_INTR_LEVEL_LOW:
 		*trigp = INTR_TRIGGER_LEVEL;
 		*polp = INTR_POLARITY_LOW;
 		break;
@@ -1016,6 +1040,10 @@ gic_v3_dist_init(struct gic_v3_softc *sc)
 	/*
 	 * 2. Configure the Distributor
 	 */
+	/* Set all SPIs to be Group 1 Non-secure */
+	for (i = GIC_FIRST_SPI; i < sc->gic_nirqs; i += GICD_I_PER_IGROUPRn)
+		gic_d_write(sc, 4, GICD_IGROUPR(i), 0xFFFFFFFF);
+
 	/* Set all global interrupts to be level triggered, active low. */
 	for (i = GIC_FIRST_SPI; i < sc->gic_nirqs; i += GICD_I_PER_ICFGRn)
 		gic_d_write(sc, 4, GICD_ICFGR(i), 0x00000000);
@@ -1099,7 +1127,7 @@ gic_v3_redist_find(struct gic_v3_softc *sc)
 		r_bsh = rman_get_bushandle(&r_res);
 
 		pidr2 = bus_read_4(&r_res, GICR_PIDR2);
-		switch (pidr2 & GICR_PIDR2_ARCH_MASK) {
+		switch (GICR_PIDR2_ARCH(pidr2)) {
 		case GICR_PIDR2_ARCH_GICv3: /* fall through */
 		case GICR_PIDR2_ARCH_GICv4:
 			break;
@@ -1181,6 +1209,10 @@ gic_v3_redist_init(struct gic_v3_softc *sc)
 	err = gic_v3_redist_wake(sc);
 	if (err != 0)
 		return (err);
+
+	/* Configure SGIs and PPIs to be Group1 Non-secure */
+	gic_r_write(sc, 4, GICR_SGI_BASE_SIZE + GICR_IGROUPR0,
+	    0xFFFFFFFF);
 
 	/* Disable SPIs */
 	gic_r_write(sc, 4, GICR_SGI_BASE_SIZE + GICR_ICENABLER0,

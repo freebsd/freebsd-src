@@ -1752,7 +1752,7 @@ uhso_if_rxflush(void *arg)
 			 * Allocate a new mbuf for this IP packet and
 			 * copy the IP-packet into it.
 			 */
-			m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
+			m = m_getcl(M_WAITOK, MT_DATA, M_PKTHDR);
 			memcpy(mtod(m, uint8_t *), mtod(m0, uint8_t *), iplen);
 			m->m_pkthdr.len = m->m_len = iplen;
 

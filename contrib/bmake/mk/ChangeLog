@@ -1,3 +1,62 @@
+2016-12-12  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* install-mk (MK_VERSION): 20161212
+	
+	* meta2deps.py: set pid_cwd[pid] when we process 'C'hdir, 
+	rather than when we detect pid change.
+
+2016-12-07  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* install-mk (MK_VERSION): 20161207
+
+	* meta.stage.mk: add stage_as_and_symlink for staging packages.
+	  We build foo.tgz stage_as foo-${VERSION}.tgz but want to be able
+	  to use foo.tgz to reference the latest staged version - so we
+	  make foo.tgz a symlink to it.
+	  Using a target to do both operations ensures we stay in sync.
+	
+2016-11-26  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* install-mk (MK_VERSION): 20161126
+
+	* dirdeps.mk: set DIRDEPS_CACHE before we include local.dirdeps.mk
+	  so it can add dependencies.
+
+2016-10-10  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* dirdeps.mk: set DEP_* before we expand .MAKE.DEPENDFILE_PREFERENCE
+	  do that they can influence the result correctly.
+
+	* dirdeps.mk (${DIRDEPS_CACHE}): make sure we pass on TARGET_SPEC
+
+	* dirdeps.mk: Add ONLY_TARGET_SPEC_LIST and NOT_TARGET_SPEC_LIST
+	  similar to ONLY_MACHINE_LIST and NOT_MACHINE_LIST
+
+2016-10-05  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* dirdeps.mk: remove dependence on jot (normal situations anyway).
+	  Before we read another Makefile.depend* set DEP_* vars from
+	  _DEP_TARGET_SPEC in case it uses any of them with :=
+	  When bootstrapping, trim any ,* from extention of chosen _src
+	  Makefile.depend* to get the machine value we subst for.
+
+2016-09-30  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* dirdeps.mk: use TARGET_SPEC_VARS to qualify components added to
+	  DEP_SKIP_DIR and DEP_DIRDEPS_FILTER
+
+	* sys.mk: extract some bits to sys.{debug,vars}.mk
+	  for easier re-use by others.
+
+2016-09-23  Simon Gerraty  <sjg@sjg-mba13>
+
+	* lib.mk: Use ${PICO} for extension for PIC objects.
+	  default to .pico (like NetBSD) safe on case insensitive filesystem.
+
+2016-08-19  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* meta.sys.mk (META_COOKIE_TOUCH): use ${.OBJDIR}/${.TARGET:T} as default
+
 2016-08-15  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* install-mk (MK_VERSION): 20160815

@@ -4,9 +4,6 @@ PACKAGE=	clibs
 GCCDIR=	${.CURDIR}/../../../contrib/gcc
 GCCLIB=	${.CURDIR}/../../../contrib/gcclibs
 CCDIR=	${.CURDIR}/../../usr.bin/cc
-COMPILERRTDIR=	${.CURDIR}/../../../contrib/compiler-rt
-UNWINDINCDIR=	${.CURDIR}/../../../contrib/llvm/projects/libunwind/include
-UNWINDSRCDIR=	${.CURDIR}/../../../contrib/llvm/projects/libunwind/src
 
 SHLIB_NAME=	libgcc_s.so.1
 SHLIBDIR?=	/lib
@@ -74,33 +71,6 @@ LIB2FUNCS+= _floatdi${mode} _floatundi${mode}
 LIB2ADD = $(LIB2FUNCS_EXTRA)
 LIB2ADD_ST = $(LIB2FUNCS_STATIC_EXTRA)
 
-# Additional sources to handle exceptions; overridden by targets as needed.
-.if ${MK_LLVM_LIBUNWIND} != "no"
-
-.PATH: ${COMPILERRTDIR}/lib/builtins
-.PATH: ${UNWINDSRCDIR}
-LIB2ADDEH = gcc_personality_v0.c \
-	int_util.c \
-	Unwind-EHABI.cpp \
-	Unwind-sjlj.c \
-	UnwindLevel1-gcc-ext.c \
-	UnwindLevel1.c \
-	UnwindRegistersRestore.S \
-	UnwindRegistersSave.S \
-	libunwind.cpp
-
-CFLAGS+=	-I${UNWINDINCDIR} -I${.CURDIR} -D_LIBUNWIND_IS_NATIVE_ONLY
-.if empty(CXXFLAGS:M-std=*)
-CXXFLAGS+=	-std=c++11
-.endif
-CXXFLAGS+=	-fno-rtti
-STATIC_CXXFLAGS+= -fvisibility=hidden -fPIC
-.if ${MK_DIRDEPS_BUILD} == "yes"
-# Avoid dependency on lib/libc++
-CFLAGS+=	-I${SRCTOP}/contrib/libc++/include
-.endif
-
-.else # MK_LLVM_LIBUNWIND
 
 .if ${TARGET_CPUARCH} == "arm"
 LIB2ADDEH =	unwind-arm.c libunwind-arm.S pr-support.c unwind-c.c
@@ -108,8 +78,6 @@ LIB2ADDEH =	unwind-arm.c libunwind-arm.S pr-support.c unwind-c.c
 LIB2ADDEH = unwind-dw2.c unwind-dw2-fde-glibc.c unwind-sjlj.c gthr-gnat.c \
 	unwind-c.c
 .endif
-
-.endif # MK_LLVM_LIBUNWIND
 
 LIB2ADDEHSTATIC = $(LIB2ADDEH)
 LIB2ADDEHSHARED = $(LIB2ADDEH)
@@ -165,7 +133,7 @@ LIBADD+=	compiler_rt
 .if ${TARGET_CPUARCH} == mips
 LIB2FUNCS_EXTRA = floatunsidf.c floatunsisf.c
 # ABIs other than o32 need this
-.if ${TARGET_ARCH} != "mips" && ${TARGET_ARCH} != "mipsel"
+.if ${TARGET_ARCH:Mmips64*} != "" || ${TARGET_ARCH:Mmipsn32*} != ""
 LIB2FUNCS_EXTRA+= floatdidf.c fixunsdfsi.c
 LIB2FUNCS_EXTRA+= floatdisf.c floatundidf.c
 LIB2FUNCS_EXTRA+= fixsfdi.c floatundisf.c
@@ -202,14 +170,7 @@ LIB2_DIVMOD_FUNCS:= ${LIB2_DIVMOD_FUNCS:S/${sym}//g}
 .endif
 
 COMMONHDRS=	tm.h tconfig.h options.h gthr-default.h
-.if ${MK_LLVM_LIBUNWIND} != "no"
-# unwind.h is a generated file when MK_LLVM_LIBUNWIND == "no", and a stale
-# copy may be left behind in OBJDIR when switching, so remove it explicitly.
-beforebuild:
-	@rm -f ${.OBJDIR}/unwind.h
-.else
 COMMONHDRS+=	unwind.h
-.endif
 
 #-----------------------------------------------------------------------
 #
@@ -397,11 +358,11 @@ _libinstall: _lib-eh-install
 
 _lib-eh-install:
 .if ${MK_INSTALLLIB} != "no"
-	${INSTALL} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
+	${INSTALL} ${TAG_ARGS} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 		${_INSTALLFLAGS} libgcc_eh.a ${DESTDIR}${LIBDIR}
 .endif
 .if ${MK_PROFILE} != "no"
-	${INSTALL} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
+	${INSTALL} ${TAG_ARGS} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 		${_INSTALLFLAGS} libgcc_eh_p.a ${DESTDIR}${LIBDIR}
 .endif
 

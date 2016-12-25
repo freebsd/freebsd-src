@@ -959,7 +959,7 @@ sysdecode_umtx_rwlock_flags(FILE *fp, u_long flags, u_long *rem)
 }
 
 /* XXX: This should be in <sys/capsicum.h> */
-#define	CAPMASK(right)	((right) && (((uint64_t)1 << 57) - 1))
+#define	CAPMASK(right)	((right) & (((uint64_t)1 << 57) - 1))
 
 void
 sysdecode_cap_rights(FILE *fp, cap_rights_t *rightsp)

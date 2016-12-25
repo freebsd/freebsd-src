@@ -178,9 +178,6 @@ vm_object_zdtor(void *mem, int size, void *arg)
 	    ("object %p has reservations",
 	    object));
 #endif
-	KASSERT(vm_object_cache_is_empty(object),
-	    ("object %p has cached pages",
-	    object));
 	KASSERT(object->paging_in_progress == 0,
 	    ("object %p paging_in_progress = %d",
 	    object, object->paging_in_progress));
@@ -208,12 +205,9 @@ vm_object_zinit(void *mem, int size, int flags)
 	object->type = OBJT_DEAD;
 	object->ref_count = 0;
 	object->rtree.rt_root = 0;
-	object->rtree.rt_flags = 0;
 	object->paging_in_progress = 0;
 	object->resident_page_count = 0;
 	object->shadow_count = 0;
-	object->cache.rt_root = 0;
-	object->cache.rt_flags = 0;
 
 	mtx_lock(&vm_object_list_mtx);
 	TAILQ_INSERT_TAIL(&vm_object_list, object, object_list);
@@ -792,8 +786,6 @@ vm_object_terminate(vm_object_t object)
 	if (__predict_false(!LIST_EMPTY(&object->rvq)))
 		vm_reserv_break_all(object);
 #endif
-	if (__predict_false(!vm_object_cache_is_empty(object)))
-		vm_page_cache_free(object, 0, 0);
 
 	KASSERT(object->cred == NULL || object->type == OBJT_DEFAULT ||
 	    object->type == OBJT_SWAP,
@@ -1135,13 +1127,6 @@ shadowlookup:
 		} else if ((tobject->flags & OBJ_UNMANAGED) != 0)
 			goto unlock_tobject;
 		m = vm_page_lookup(tobject, tpindex);
-		if (m == NULL && advise == MADV_WILLNEED) {
-			/*
-			 * If the page is cached, reactivate it.
-			 */
-			m = vm_page_alloc(tobject, tpindex, VM_ALLOC_IFCACHED |
-			    VM_ALLOC_NOBUSY);
-		}
 		if (m == NULL) {
 			/*
 			 * There may be swap even if there is no backing page
@@ -1371,7 +1356,7 @@ retry:
 			goto retry;
 		}
 
-		/* vm_page_rename() will handle dirty and cache. */
+		/* vm_page_rename() will dirty the page. */
 		if (vm_page_rename(m, new_object, idx)) {
 			VM_OBJECT_WUNLOCK(new_object);
 			VM_OBJECT_WUNLOCK(orig_object);
@@ -1406,19 +1391,6 @@ retry:
 		swap_pager_copy(orig_object, new_object, offidxstart, 0);
 		TAILQ_FOREACH(m, &new_object->memq, listq)
 			vm_page_xunbusy(m);
-
-		/*
-		 * Transfer any cached pages from orig_object to new_object.
-		 * If swap_pager_copy() found swapped out pages within the
-		 * specified range of orig_object, then it changed
-		 * new_object's type to OBJT_SWAP when it transferred those
-		 * pages to new_object.  Otherwise, new_object's type
-		 * should still be OBJT_DEFAULT and orig_object should not
-		 * contain any cached pages within the specified range.
-		 */
-		if (__predict_false(!vm_object_cache_is_empty(orig_object)))
-			vm_page_cache_transfer(orig_object, offidxstart,
-			    new_object);
 	}
 	VM_OBJECT_WUNLOCK(orig_object);
 	VM_OBJECT_WUNLOCK(new_object);
@@ -1464,36 +1436,40 @@ vm_object_scan_all_shadowed(vm_object_t object)
 {
 	vm_object_t backing_object;
 	vm_page_t p, pp;
-	vm_pindex_t backing_offset_index, new_pindex;
+	vm_pindex_t backing_offset_index, new_pindex, pi, ps;
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
 	VM_OBJECT_ASSERT_WLOCKED(object->backing_object);
 
 	backing_object = object->backing_object;
 
-	/*
-	 * Initial conditions:
-	 *
-	 * We do not want to have to test for the existence of cache or swap
-	 * pages in the backing object.  XXX but with the new swapper this
-	 * would be pretty easy to do.
-	 */
-	if (backing_object->type != OBJT_DEFAULT)
+	if (backing_object->type != OBJT_DEFAULT &&
+	    backing_object->type != OBJT_SWAP)
 		return (false);
 
-	backing_offset_index = OFF_TO_IDX(object->backing_object_offset);
+	pi = backing_offset_index = OFF_TO_IDX(object->backing_object_offset);
+	p = vm_page_find_least(backing_object, pi);
+	ps = swap_pager_find_least(backing_object, pi);
 
-	for (p = TAILQ_FIRST(&backing_object->memq); p != NULL;
-	    p = TAILQ_NEXT(p, listq)) {
-		new_pindex = p->pindex - backing_offset_index;
+	/*
+	 * Only check pages inside the parent object's range and
+	 * inside the parent object's mapping of the backing object.
+	 */
+	for (;; pi++) {
+		if (p != NULL && p->pindex < pi)
+			p = TAILQ_NEXT(p, listq);
+		if (ps < pi)
+			ps = swap_pager_find_least(backing_object, pi);
+		if (p == NULL && ps >= backing_object->size)
+			break;
+		else if (p == NULL)
+			pi = ps;
+		else
+			pi = MIN(p->pindex, ps);
 
-		/*
-		 * Ignore pages outside the parent object's range and outside
-		 * the parent object's mapping of the backing object.
-		 */
-		if (p->pindex < backing_offset_index ||
-		    new_pindex >= object->size)
-			continue;
+		new_pindex = pi - backing_offset_index;
+		if (new_pindex >= object->size)
+			break;
 
 		/*
 		 * See if the parent has the page or if the parent's object
@@ -1618,8 +1594,7 @@ vm_object_collapse_scan(vm_object_t object, int op)
 		 * backing object to the main object.
 		 *
 		 * If the page was mapped to a process, it can remain mapped
-		 * through the rename.  vm_page_rename() will handle dirty and
-		 * cache.
+		 * through the rename.  vm_page_rename() will dirty the page.
 		 */
 		if (vm_page_rename(p, object, new_pindex)) {
 			next = vm_object_collapse_scan_wait(object, NULL, next,
@@ -1754,13 +1729,6 @@ vm_object_collapse(vm_object_t object)
 				    backing_object,
 				    object,
 				    OFF_TO_IDX(object->backing_object_offset), TRUE);
-
-				/*
-				 * Free any cached pages from backing_object.
-				 */
-				if (__predict_false(
-				    !vm_object_cache_is_empty(backing_object)))
-					vm_page_cache_free(backing_object, 0, 0);
 			}
 			/*
 			 * Object now shadows whatever backing_object did.
@@ -1889,7 +1857,7 @@ vm_object_page_remove(vm_object_t object, vm_pindex_t start, vm_pindex_t end,
 	    (options & (OBJPR_CLEANONLY | OBJPR_NOTMAPPED)) == OBJPR_NOTMAPPED,
 	    ("vm_object_page_remove: illegal options for object %p", object));
 	if (object->resident_page_count == 0)
-		goto skipmemq;
+		return;
 	vm_object_pip_add(object, 1);
 again:
 	p = vm_page_find_least(object, start);
@@ -1946,9 +1914,6 @@ next:
 		vm_page_unlock(p);
 	}
 	vm_object_pip_wakeup(object);
-skipmemq:
-	if (__predict_false(!vm_object_cache_is_empty(object)))
-		vm_page_cache_free(object, start, end);
 }
 
 /*
@@ -2329,9 +2294,9 @@ sysctl_vm_object_list(SYSCTL_HANDLER_ARGS)
 			 * sysctl is only meant to give an
 			 * approximation of the system anyway.
 			 */
-			if (m->queue == PQ_ACTIVE)
+			if (vm_page_active(m))
 				kvo.kvo_active++;
-			else if (m->queue == PQ_INACTIVE)
+			else if (vm_page_inactive(m))
 				kvo.kvo_inactive++;
 		}
 

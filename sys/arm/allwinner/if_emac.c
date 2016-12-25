@@ -69,7 +69,6 @@ __FBSDID("$FreeBSD$");
 #include <net/bpf.h>
 #include <net/bpfdesc.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
@@ -783,6 +782,9 @@ emac_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 static int
 emac_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
 
 	if (!ofw_bus_is_compatible(dev, "allwinner,sun4i-a10-emac"))
 		return (ENXIO);

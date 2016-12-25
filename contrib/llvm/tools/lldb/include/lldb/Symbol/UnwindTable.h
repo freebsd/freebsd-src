@@ -12,9 +12,9 @@
 #define liblldb_UnwindTable_h
 
 #include <map>
+#include <mutex>
 
 #include "lldb/lldb-private.h" 
-#include "lldb/Host/Mutex.h"
 
 namespace lldb_private {
 
@@ -39,6 +39,9 @@ public:
 
     lldb::FuncUnwindersSP
     GetFuncUnwindersContainingAddress (const Address& addr, SymbolContext &sc);
+
+    bool
+    GetAllowAssemblyEmulationUnwindPlans ();
 
 // Normally when we create a new FuncUnwinders object we track it in this UnwindTable so it can
 // be reused later.  But for the target modules show-unwind we want to create brand new 
@@ -66,7 +69,7 @@ private:
     collection          m_unwinds;
 
     bool                m_initialized;  // delay some initialization until ObjectFile is set up
-    Mutex               m_mutex;
+    std::mutex m_mutex;
 
     std::unique_ptr<DWARFCallFrameInfo> m_eh_frame_up;
     std::unique_ptr<CompactUnwindInfo>  m_compact_unwind_up;

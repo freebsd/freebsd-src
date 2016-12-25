@@ -148,12 +148,12 @@ pinmux_set(struct iomuxc_softc *sc)
 			continue;
 
 		if ((len = OF_getproplen(child, "iomux_config")) > 0) {
-			OF_getprop(child, "iomux_config", &iomux_config, len);
+			OF_getencprop(child, "iomux_config", iomux_config, len);
 
 			values = len / (sizeof(uint32_t));
 			for (i = 0; i < values; i += 2) {
-				pin = fdt32_to_cpu(iomux_config[i]);
-				pin_cfg = fdt32_to_cpu(iomux_config[i+1]);
+				pin = iomux_config[i];
+				pin_cfg = iomux_config[i+1];
 #if 0
 				device_printf(sc->dev, "Set pin %d to 0x%08x\n",
 				    pin, pin_cfg);

@@ -443,6 +443,9 @@ ieee80211_cancel_scan(struct ieee80211vap *vap)
 
 /*
  * Cancel any scan currently going on.
+ *
+ * This is called during normal 802.11 data path to cancel
+ * a scan so a newly arrived normal data packet can be sent.
  */
 void
 ieee80211_cancel_anyscan(struct ieee80211vap *vap)

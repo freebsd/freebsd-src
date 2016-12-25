@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/kernel.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 
 #include <machine/bus.h>
@@ -47,7 +46,7 @@ __FBSDID("$FreeBSD$");
 void
 cpu_reset(void)
 {
-	uint32_t addr, paddr;
+	uint32_t paddr;
 	bus_addr_t vaddr;
 	phandle_t node;
 
@@ -58,9 +57,8 @@ cpu_reset(void)
 	if (node == -1)
 		goto end;
 
-	if ((OF_getprop(node, "reg", &paddr, sizeof(paddr))) > 0) {
-		addr = fdt32_to_cpu(paddr);
-		if (bus_space_map(fdtbus_bs_tag, addr, 0x8, 0, &vaddr) == 0) {
+	if ((OF_getencprop(node, "reg", &paddr, sizeof(paddr))) > 0) {
+		if (bus_space_map(fdtbus_bs_tag, paddr, 0x8, 0, &vaddr) == 0) {
 			bus_space_write_4(fdtbus_bs_tag, vaddr,
 			    RSTMGR_CTRL, CTRL_SWWARMRSTREQ);
 		}
@@ -69,24 +67,3 @@ cpu_reset(void)
 end:
 	while (1);
 }
-
-#ifndef INTRNG
-static int
-fdt_pic_decode_ic(phandle_t node, pcell_t *intr, int *interrupt, int *trig,
-    int *pol)
-{
-
-	if (!fdt_is_compatible(node, "arm,gic"))
-		return (ENXIO);
-
-	*interrupt = fdt32_to_cpu(intr[0]);
-	*trig = INTR_TRIGGER_CONFORM;
-	*pol = INTR_POLARITY_CONFORM;
-	return (0);
-}
-
-fdt_pic_decode_t fdt_pic_table[] = {
-	&fdt_pic_decode_ic,
-	NULL
-};
-#endif

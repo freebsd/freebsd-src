@@ -43,6 +43,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <machine/intr.h>
 
+#include <dev/fdt/simplebus.h>
+#include <dev/fdt/fdt_common.h>
+#include <dev/ofw/ofw_bus_subr.h>
+
 #include <arm/ti/tivar.h>
 #include <arm/ti/ti_cpuid.h>
 
@@ -268,6 +272,12 @@ am335x_get_revision(void)
 static void
 ti_cpu_ident(void *dummy)
 {
+	phandle_t root;
+
+	root = OF_finddevice("/");
+	if (!ofw_bus_node_is_compatible(root, "ti,omap4") &&
+	    !ofw_bus_node_is_compatible(root, "ti,am33xx"))
+		return;
 	switch(ti_chip()) {
 	case CHIP_OMAP_4:
 		omap4_get_revision();

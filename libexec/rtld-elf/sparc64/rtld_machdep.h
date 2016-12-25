@@ -37,7 +37,6 @@ struct Struct_Obj_Entry;
 /* Return the address of the .dynamic section in the dynamic linker. */
 Elf_Dyn *rtld_dynamic_addr(void);
 #define	rtld_dynamic(obj)	rtld_dynamic_addr()
-#define	RTLD_IS_DYNAMIC()	(rtld_dynamic_addr() != NULL)
 
 Elf_Addr reloc_jmpslot(Elf_Addr *, Elf_Addr,
 		       const struct Struct_Obj_Entry *,
@@ -53,7 +52,10 @@ Elf_Addr reloc_jmpslot(Elf_Addr *, Elf_Addr,
 #define call_init_pointer(obj, target) \
 	(((InitArrFunc)(target))(main_argc, main_argv, environ))
 
-#define round(size, align) \
+#define	call_ifunc_resolver(ptr) \
+	(((Elf_Addr (*)(void))ptr)())
+
+#define round(size, align)				\
 	(((size) + (align) - 1) & ~((align) - 1))
 #define calculate_first_tls_offset(size, align) \
 	round(size, align)
