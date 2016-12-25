@@ -9,3 +9,5 @@ SRCS+=	opt_compat.h opt_debug_si.h opt_eisa.h
 SRCS.DEV_EISA=si_eisa.c eisa_if.h
 
 .include <bsd.kmod.mk>
+
+CWARNFLAGS.si.c=	${NO_WCONSTANT_CONVERSION}
