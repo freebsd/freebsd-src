@@ -85,7 +85,7 @@ LIBCOMPATCFLAGS+=	-isystem ${LIBCOMPATTMP}/usr/include
 .if ${X_COMPILER_VERSION} >= 40800 && \
     (${MK_CLANG_BOOTSTRAP} == "no" && ${MK_GCC_BOOTSTRAP} == "no")
 LIBCOMPATCXXFLAGS+=	-isystem ${LIBCOMPATTMP}/usr/include/c++/v1 -std=c++11 \
-			-nostdinc++ -L${LIBCOMPAT_OBJTREE}${.CURDIR}/lib/libc++
+			-nostdinc++
 .endif
 .endif
 
