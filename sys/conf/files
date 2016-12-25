@@ -2558,7 +2558,8 @@ dev/sdhci/sdhci_if.m		optional sdhci
 dev/sdhci/sdhci_pci.c		optional sdhci pci
 dev/sf/if_sf.c			optional sf pci
 dev/sge/if_sge.c		optional sge pci
-dev/si/si.c			optional si
+dev/si/si.c			optional si \
+	compile-with "${NORMAL_C} ${NO_WCONSTANT_CONVERSION}"
 dev/si/si2_z280.c		optional si
 dev/si/si3_t225.c		optional si
 dev/si/si_eisa.c		optional si eisa
