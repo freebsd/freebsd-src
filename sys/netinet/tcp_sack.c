@@ -470,9 +470,6 @@ tcp_sack_doack(struct tcpcb *tp, struct tcpopt *to, tcp_seq th_ack)
 		tp->snd_fack = sblkp->end;
 		sack_changed = 1;
 	}
-	/* We must have at least one SACK hole in scoreboard. */
-	KASSERT(!TAILQ_EMPTY(&tp->snd_holes),
-	    ("SACK scoreboard must not be empty"));
 	cur = TAILQ_LAST(&tp->snd_holes, sackhole_head); /* Last SACK hole. */
 	/*
 	 * Since the incoming sack blocks are sorted, we can process them
