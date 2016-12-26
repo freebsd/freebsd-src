@@ -36,15 +36,15 @@ arm/nvidia/tegra_soctherm.c		standard
 arm/nvidia/tegra_lic.c			standard
 arm/nvidia/tegra_mc.c			standard
 #arm/nvidia/tegra_hda.c			optional	snd_hda
-#arm/nvidia/drm2/hdmi.c			optional	drm2
-#arm/nvidia/drm2/tegra_drm_if.m		optional	drm2
-#arm/nvidia/drm2/tegra_drm_subr.c	optional	drm2
-#arm/nvidia/drm2/tegra_host1x.c		optional	drm2
-#arm/nvidia/drm2/tegra_hdmi.c		optional	drm2
-#arm/nvidia/drm2/tegra_dc_if.m		optional	drm2
-#arm/nvidia/drm2/tegra_dc.c		optional	drm2
-#arm/nvidia/drm2/tegra_fb.c		optional	drm2
-#arm/nvidia/drm2/tegra_bo.c		optional	drm2
+arm/nvidia/drm2/hdmi.c			optional	drm2
+arm/nvidia/drm2/tegra_drm_if.m		optional	drm2
+arm/nvidia/drm2/tegra_drm_subr.c	optional	drm2
+arm/nvidia/drm2/tegra_host1x.c		optional	drm2
+arm/nvidia/drm2/tegra_hdmi.c		optional	drm2
+arm/nvidia/drm2/tegra_dc_if.m		optional	drm2
+arm/nvidia/drm2/tegra_dc.c		optional	drm2
+arm/nvidia/drm2/tegra_fb.c		optional	drm2
+arm/nvidia/drm2/tegra_bo.c		optional	drm2
 #
 # Firmware
 #
