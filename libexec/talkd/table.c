@@ -60,7 +60,7 @@ static const char rcsid[] =
 
 #define NIL ((TABLE_ENTRY *)0)
 
-static struct timeval tp;
+static struct timespec ts;
 
 typedef struct table_entry TABLE_ENTRY;
 
@@ -85,8 +85,8 @@ find_match(CTL_MSG *request)
 	TABLE_ENTRY *ptr, *next;
 	time_t current_time;
 
-	gettimeofday(&tp, NULL);
-	current_time = tp.tv_sec;
+	clock_gettime(CLOCK_MONOTONIC_FAST, &ts);
+	current_time = ts.tv_sec;
 	if (debug)
 		print_request("find_match", request);
 	for (ptr = table; ptr != NIL; ptr = next) {
@@ -119,8 +119,8 @@ find_request(CTL_MSG *request)
 	TABLE_ENTRY *ptr, *next;
 	time_t current_time;
 
-	gettimeofday(&tp, NULL);
-	current_time = tp.tv_sec;
+	clock_gettime(CLOCK_MONOTONIC_FAST, &ts);
+	current_time = ts.tv_sec;
 	/*
 	 * See if this is a repeated message, and check for
 	 * out of date entries in the table while we are it.
@@ -157,8 +157,8 @@ insert_table(CTL_MSG *request, CTL_RESPONSE *response)
 	TABLE_ENTRY *ptr;
 	time_t current_time;
 
-	gettimeofday(&tp, NULL);
-	current_time = tp.tv_sec;
+	clock_gettime(CLOCK_MONOTONIC_FAST, &ts);
+	current_time = ts.tv_sec;
 	request->id_num = new_id();
 	response->id_num = htonl(request->id_num);
 	/* insert a new entry into the top of the list */
