@@ -1035,9 +1035,8 @@ snmpd_input(struct port_input *pi, struct tport *tport)
 	struct snmp_pdu pdu;
 	enum snmpd_input_err ierr, ferr;
 	enum snmpd_proxy_err perr;
+	ssize_t ret, slen;
 	int32_t vi;
-	int ret;
-	ssize_t slen;
 #ifdef USE_TCPWRAPPERS
 	char client[16];
 #endif
