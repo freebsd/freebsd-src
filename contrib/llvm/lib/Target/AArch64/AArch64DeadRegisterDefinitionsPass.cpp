@@ -48,6 +48,11 @@ public:
 
   bool runOnMachineFunction(MachineFunction &F) override;
 
+  MachineFunctionProperties getRequiredProperties() const override {
+    return MachineFunctionProperties().set(
+        MachineFunctionProperties::Property::AllVRegsAllocated);
+  }
+
   const char *getPassName() const override { return AARCH64_DEAD_REG_DEF_NAME; }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {
@@ -88,6 +93,12 @@ bool AArch64DeadRegisterDefinitions::processMachineBasicBlock(
       DEBUG(dbgs() << "    Ignoring, operand is frame index\n");
       continue;
     }
+    if (MI.definesRegister(AArch64::XZR) || MI.definesRegister(AArch64::WZR)) {
+      // It is not allowed to write to the same register (not even the zero
+      // register) twice in a single instruction.
+      DEBUG(dbgs() << "    Ignoring, XZR or WZR already used by the instruction\n");
+      continue;
+    }
     for (int i = 0, e = MI.getDesc().getNumDefs(); i != e; ++i) {
       MachineOperand &MO = MI.getOperand(i);
       if (MO.isReg() && MO.isDead() && MO.isDef()) {
@@ -100,7 +111,7 @@ bool AArch64DeadRegisterDefinitions::processMachineBasicBlock(
           continue;
         }
         // Don't change the register if there's an implicit def of a subreg or
-        // supperreg.
+        // superreg.
         if (implicitlyDefinesOverlappingReg(MO.getReg(), MI)) {
           DEBUG(dbgs() << "    Ignoring, implicitly defines overlap reg.\n");
           continue;
@@ -123,6 +134,8 @@ bool AArch64DeadRegisterDefinitions::processMachineBasicBlock(
         MO.setReg(NewReg);
         DEBUG(MI.print(dbgs()));
         ++NumDeadDefsReplaced;
+        // Only replace one dead register, see check for zero register above.
+        break;
       }
     }
   }
@@ -135,6 +148,9 @@ bool AArch64DeadRegisterDefinitions::runOnMachineFunction(MachineFunction &MF) {
   TRI = MF.getSubtarget().getRegisterInfo();
   bool Changed = false;
   DEBUG(dbgs() << "***** AArch64DeadRegisterDefinitions *****\n");
+
+  if (skipFunction(*MF.getFunction()))
+    return false;
 
   for (auto &MBB : MF)
     if (processMachineBasicBlock(MBB))

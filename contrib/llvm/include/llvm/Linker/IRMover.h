@@ -15,10 +15,12 @@
 #include <functional>
 
 namespace llvm {
+class Error;
 class GlobalValue;
-class MDNode;
+class Metadata;
 class Module;
 class StructType;
+class TrackingMDRef;
 class Type;
 
 class IRMover {
@@ -39,6 +41,9 @@ class IRMover {
     static bool isEqual(const StructType *LHS, const StructType *RHS);
   };
 
+  /// Type of the Metadata map in \a ValueToValueMapTy.
+  typedef DenseMap<const Metadata *, TrackingMDRef> MDMapT;
+
 public:
   class IdentifiedStructTypeSet {
     // The set of opaque types is the composite module.
@@ -58,17 +63,22 @@ public:
   IRMover(Module &M);
 
   typedef std::function<void(GlobalValue &)> ValueAdder;
-  /// Move in the provide values. The source is destroyed.
-  /// Returns true on error.
-  bool move(Module &Src, ArrayRef<GlobalValue *> ValuesToLink,
-            std::function<void(GlobalValue &GV, ValueAdder Add)> AddLazyFor,
-            DenseMap<unsigned, MDNode *> *ValIDToTempMDMap = nullptr,
-            bool IsMetadataLinkingPostpass = false);
+
+  /// Move in the provide values in \p ValuesToLink from \p Src.
+  ///
+  /// - \p AddLazyFor is a call back that the IRMover will call when a global
+  ///   value is referenced by one of the ValuesToLink (transitively) but was
+  ///   not present in ValuesToLink. The GlobalValue and a ValueAdder callback
+  ///   are passed as an argument, and the callback is expected to be called
+  ///   if the GlobalValue needs to be added to the \p ValuesToLink and linked.
+  Error move(std::unique_ptr<Module> Src, ArrayRef<GlobalValue *> ValuesToLink,
+             std::function<void(GlobalValue &GV, ValueAdder Add)> AddLazyFor);
   Module &getModule() { return Composite; }
 
 private:
   Module &Composite;
   IdentifiedStructTypeSet IdentifiedStructTypes;
+  MDMapT SharedMDs; ///< A Metadata map to use for all calls to \a move().
 };
 
 } // End llvm namespace

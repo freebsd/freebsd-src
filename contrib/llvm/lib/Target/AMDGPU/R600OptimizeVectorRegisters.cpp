@@ -29,6 +29,7 @@
 
 #include "AMDGPU.h"
 #include "AMDGPUSubtarget.h"
+#include "R600Defines.h"
 #include "R600InstrInfo.h"
 #include "llvm/CodeGen/DFAPacketizer.h"
 #include "llvm/CodeGen/MachineDominators.h"
@@ -210,9 +211,9 @@ MachineInstr *R600VectorRegMerger::RebuildVector(
     (void)Tmp;
     SrcVec = DstReg;
   }
-  Pos = BuildMI(MBB, Pos, DL, TII->get(AMDGPU::COPY), Reg)
-      .addReg(SrcVec);
-  DEBUG(dbgs() << "    ->"; Pos->dump(););
+  MachineInstr *NewMI =
+      BuildMI(MBB, Pos, DL, TII->get(AMDGPU::COPY), Reg).addReg(SrcVec);
+  DEBUG(dbgs() << "    ->"; NewMI->dump(););
 
   DEBUG(dbgs() << "  Updating Swizzle:\n");
   for (MachineRegisterInfo::use_instr_iterator It = MRI->use_instr_begin(Reg),
@@ -224,11 +225,11 @@ MachineInstr *R600VectorRegMerger::RebuildVector(
   RSI->Instr->eraseFromParent();
 
   // Update RSI
-  RSI->Instr = Pos;
+  RSI->Instr = NewMI;
   RSI->RegToChan = UpdatedRegToChan;
   RSI->UndefReg = UpdatedUndef;
 
-  return Pos;
+  return NewMI;
 }
 
 void R600VectorRegMerger::RemoveMI(MachineInstr *MI) {
@@ -314,8 +315,13 @@ void R600VectorRegMerger::trackRSI(const RegSeqInfo &RSI) {
 }
 
 bool R600VectorRegMerger::runOnMachineFunction(MachineFunction &Fn) {
-  TII = static_cast<const R600InstrInfo *>(Fn.getSubtarget().getInstrInfo());
-  MRI = &(Fn.getRegInfo());
+  if (skipFunction(*Fn.getFunction()))
+    return false;
+
+  const R600Subtarget &ST = Fn.getSubtarget<R600Subtarget>();
+  TII = ST.getInstrInfo();
+  MRI = &Fn.getRegInfo();
+
   for (MachineFunction::iterator MBB = Fn.begin(), MBBe = Fn.end();
        MBB != MBBe; ++MBB) {
     MachineBasicBlock *MB = &*MBB;
@@ -325,10 +331,10 @@ bool R600VectorRegMerger::runOnMachineFunction(MachineFunction &Fn) {
 
     for (MachineBasicBlock::iterator MII = MB->begin(), MIIE = MB->end();
          MII != MIIE; ++MII) {
-      MachineInstr *MI = MII;
-      if (MI->getOpcode() != AMDGPU::REG_SEQUENCE) {
-        if (TII->get(MI->getOpcode()).TSFlags & R600_InstFlag::TEX_INST) {
-          unsigned Reg = MI->getOperand(1).getReg();
+      MachineInstr &MI = *MII;
+      if (MI.getOpcode() != AMDGPU::REG_SEQUENCE) {
+        if (TII->get(MI.getOpcode()).TSFlags & R600_InstFlag::TEX_INST) {
+          unsigned Reg = MI.getOperand(1).getReg();
           for (MachineRegisterInfo::def_instr_iterator
                It = MRI->def_instr_begin(Reg), E = MRI->def_instr_end();
                It != E; ++It) {
@@ -338,17 +344,17 @@ bool R600VectorRegMerger::runOnMachineFunction(MachineFunction &Fn) {
         continue;
       }
 
-
-      RegSeqInfo RSI(*MRI, MI);
+      RegSeqInfo RSI(*MRI, &MI);
 
       // All uses of MI are swizzeable ?
-      unsigned Reg = MI->getOperand(0).getReg();
+      unsigned Reg = MI.getOperand(0).getReg();
       if (!areAllUsesSwizzeable(Reg))
         continue;
 
-      DEBUG (dbgs() << "Trying to optimize ";
-          MI->dump();
-      );
+      DEBUG({
+        dbgs() << "Trying to optimize ";
+        MI.dump();
+      });
 
       RegSeqInfo CandidateRSI;
       std::vector<std::pair<unsigned, unsigned> > RemapChan;

@@ -1,23 +1,23 @@
 # $FreeBSD$
 
-LLVM_SRCS= ${.CURDIR}/../../../contrib/llvm
+.include "${SRCTOP}/lib/clang/clang.pre.mk"
 
-.include "../../lib/clang/clang.build.mk"
+CFLAGS+=	-I${OBJTOP}/lib/clang/libclang
+CFLAGS+=	-I${OBJTOP}/lib/clang/libllvm
+
+.include "${SRCTOP}/lib/clang/clang.build.mk"
+
+LIBDEPS+=	clang
+LIBDEPS+=	llvm
 
 .for lib in ${LIBDEPS}
-DPADD+=	${.OBJDIR}/../../../lib/clang/lib${lib}/lib${lib}.a
-LDADD+=	${.OBJDIR}/../../../lib/clang/lib${lib}/lib${lib}.a
+DPADD+=		${OBJTOP}/lib/clang/lib${lib}/lib${lib}.a
+LDADD+=		${OBJTOP}/lib/clang/lib${lib}/lib${lib}.a
 .endfor
 
 PACKAGE=	clang
 
-LIBADD+= ncursesw pthread
-
-BINDIR?= /usr/bin
-
-
-.if ${MK_SHARED_TOOLCHAIN} == "no"
-NO_SHARED= yes
-.endif
+LIBADD+=	ncursesw
+LIBADD+=	pthread
 
 .include <bsd.prog.mk>

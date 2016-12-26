@@ -19,6 +19,7 @@
 #include "lldb/Core/Stream.h"
 #include "lldb/Core/StreamFile.h"
 #include "lldb/Core/ValueObject.h"
+#include "lldb/Expression/UserExpression.h"
 #include "lldb/Interpreter/CommandReturnObject.h"
 #include "lldb/Symbol/Symbol.h"
 #include "lldb/Symbol/SymbolContext.h"
@@ -97,8 +98,8 @@ AddressSanitizerRuntime::ModulesDidLoad(lldb_private::ModuleList &module_list)
         Activate();
         return;
     }
-    
-    Mutex::Locker modules_locker(module_list.GetMutex());
+
+    std::lock_guard<std::recursive_mutex> guard(module_list.GetMutex());
     const size_t num_modules = module_list.GetSize();
     for (size_t i = 0; i < num_modules; ++i)
     {
@@ -127,9 +128,10 @@ AddressSanitizerRuntime::IsActive()
 }
 
 #define RETRIEVE_REPORT_DATA_FUNCTION_TIMEOUT_USEC 2*1000*1000
-
 const char *
-address_sanitizer_retrieve_report_data_command = R"(
+address_sanitizer_retrieve_report_data_prefix = R"(
+extern "C"
+{
 int __asan_report_present();
 void *__asan_get_report_pc();
 void *__asan_get_report_bp();
@@ -138,6 +140,11 @@ void *__asan_get_report_address();
 const char *__asan_get_report_description();
 int __asan_get_report_access_type();
 size_t __asan_get_report_access_size();
+}
+)";
+
+const char *
+address_sanitizer_retrieve_report_data_command = R"(
 struct {
     int present;
     int access_type;
@@ -167,7 +174,7 @@ AddressSanitizerRuntime::RetrieveReportData()
     if (!process_sp)
         return StructuredData::ObjectSP();
 
-    ThreadSP thread_sp = process_sp->GetThreadList().GetSelectedThread();
+    ThreadSP thread_sp = process_sp->GetThreadList().GetExpressionExecutionThread();
     StackFrameSP frame_sp = thread_sp->GetSelectedFrame();
     
     if (!frame_sp)
@@ -179,10 +186,24 @@ AddressSanitizerRuntime::RetrieveReportData()
     options.SetStopOthers(true);
     options.SetIgnoreBreakpoints(true);
     options.SetTimeoutUsec(RETRIEVE_REPORT_DATA_FUNCTION_TIMEOUT_USEC);
+    options.SetPrefix(address_sanitizer_retrieve_report_data_prefix);
+    options.SetAutoApplyFixIts(false);
+    options.SetLanguage(eLanguageTypeObjC_plus_plus);
     
     ValueObjectSP return_value_sp;
-    if (process_sp->GetTarget().EvaluateExpression(address_sanitizer_retrieve_report_data_command, frame_sp.get(), return_value_sp, options) != eExpressionCompleted)
+    ExecutionContext exe_ctx;
+    Error eval_error;
+    frame_sp->CalculateExecutionContext(exe_ctx);
+    ExpressionResults result = UserExpression::Evaluate (exe_ctx,
+                              options,
+                              address_sanitizer_retrieve_report_data_command,
+                              "",
+                              return_value_sp,
+                              eval_error);
+    if (result != eExpressionCompleted) {
+        process_sp->GetTarget().GetDebugger().GetAsyncOutputStream()->Printf("Warning: Cannot evaluate AddressSanitizer expression:\n%s\n", eval_error.AsCString());
         return StructuredData::ObjectSP();
+    }
     
     int present = return_value_sp->GetValueForExpressionPath(".present")->GetValueAsUnsigned(0);
     if (present != 1)

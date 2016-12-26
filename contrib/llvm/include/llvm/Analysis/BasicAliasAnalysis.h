@@ -40,6 +40,7 @@ class BasicAAResult : public AAResultBase<BasicAAResult> {
   friend AAResultBase<BasicAAResult>;
 
   const DataLayout &DL;
+  const TargetLibraryInfo &TLI;
   AssumptionCache &AC;
   DominatorTree *DT;
   LoopInfo *LI;
@@ -48,13 +49,14 @@ public:
   BasicAAResult(const DataLayout &DL, const TargetLibraryInfo &TLI,
                 AssumptionCache &AC, DominatorTree *DT = nullptr,
                 LoopInfo *LI = nullptr)
-      : AAResultBase(TLI), DL(DL), AC(AC), DT(DT), LI(LI) {}
+      : AAResultBase(), DL(DL), TLI(TLI), AC(AC), DT(DT), LI(LI) {}
 
   BasicAAResult(const BasicAAResult &Arg)
-      : AAResultBase(Arg), DL(Arg.DL), AC(Arg.AC), DT(Arg.DT), LI(Arg.LI) {}
-  BasicAAResult(BasicAAResult &&Arg)
-      : AAResultBase(std::move(Arg)), DL(Arg.DL), AC(Arg.AC), DT(Arg.DT),
+      : AAResultBase(Arg), DL(Arg.DL), TLI(Arg.TLI), AC(Arg.AC), DT(Arg.DT),
         LI(Arg.LI) {}
+  BasicAAResult(BasicAAResult &&Arg)
+      : AAResultBase(std::move(Arg)), DL(Arg.DL), TLI(Arg.TLI), AC(Arg.AC),
+        DT(Arg.DT), LI(Arg.LI) {}
 
   /// Handle invalidation events from the new pass manager.
   ///
@@ -107,6 +109,20 @@ private:
     }
   };
 
+  // Represents the internal structure of a GEP, decomposed into a base pointer,
+  // constant offsets, and variable scaled indices.
+  struct DecomposedGEP {
+    // Base pointer of the GEP
+    const Value *Base;
+    // Total constant offset w.r.t the base from indexing into structs
+    int64_t StructOffset;
+    // Total constant offset w.r.t the base from indexing through
+    // pointers/arrays/vectors
+    int64_t OtherOffset;
+    // Scaled variable (non-constant) indices.
+    SmallVector<VariableGEPIndex, 4> VarIndices;
+  };
+
   /// Track alias queries to guard against recursion.
   typedef std::pair<MemoryLocation, MemoryLocation> LocPair;
   typedef SmallDenseMap<LocPair, AliasResult, 8> AliasCacheTy;
@@ -137,11 +153,13 @@ private:
                       const DataLayout &DL, unsigned Depth, AssumptionCache *AC,
                       DominatorTree *DT, bool &NSW, bool &NUW);
 
-  static const Value *
-  DecomposeGEPExpression(const Value *V, int64_t &BaseOffs,
-                         SmallVectorImpl<VariableGEPIndex> &VarIndices,
-                         bool &MaxLookupReached, const DataLayout &DL,
-                         AssumptionCache *AC, DominatorTree *DT);
+  static bool DecomposeGEPExpression(const Value *V, DecomposedGEP &Decomposed,
+      const DataLayout &DL, AssumptionCache *AC, DominatorTree *DT);
+
+  static bool isGEPBaseAtNegativeOffset(const GEPOperator *GEPOp,
+      const DecomposedGEP &DecompGEP, const DecomposedGEP &DecompObject,
+      uint64_t ObjectAccessSize);
+
   /// \brief A Heuristic for aliasGEP that searches for a constant offset
   /// between the variables.
   ///
@@ -178,20 +196,14 @@ private:
 };
 
 /// Analysis pass providing a never-invalidated alias analysis result.
-class BasicAA {
+class BasicAA : public AnalysisInfoMixin<BasicAA> {
+  friend AnalysisInfoMixin<BasicAA>;
+  static char PassID;
+
 public:
   typedef BasicAAResult Result;
 
-  /// \brief Opaque, unique identifier for this analysis pass.
-  static void *ID() { return (void *)&PassID; }
-
-  BasicAAResult run(Function &F, AnalysisManager<Function> *AM);
-
-  /// \brief Provide access to a name for this pass for debugging purposes.
-  static StringRef name() { return "BasicAliasAnalysis"; }
-
-private:
-  static char PassID;
+  BasicAAResult run(Function &F, AnalysisManager<Function> &AM);
 };
 
 /// Legacy wrapper pass to provide the BasicAAResult object.

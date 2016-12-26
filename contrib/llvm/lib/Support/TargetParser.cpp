@@ -21,6 +21,7 @@
 
 using namespace llvm;
 using namespace ARM;
+using namespace AArch64;
 
 namespace {
 
@@ -75,6 +76,11 @@ static const struct {
   {NAME, sizeof(NAME) - 1, CPU_ATTR, sizeof(CPU_ATTR) - 1, SUB_ARCH,       \
    sizeof(SUB_ARCH) - 1, ARCH_FPU, ARCH_BASE_EXT, ID, ARCH_ATTR},
 #include "llvm/Support/ARMTargetParser.def"
+},AArch64ARCHNames[] = {
+#define AARCH64_ARCH(NAME, ID, CPU_ATTR, SUB_ARCH, ARCH_ATTR, ARCH_FPU, ARCH_BASE_EXT)       \
+  {NAME, sizeof(NAME) - 1, CPU_ATTR, sizeof(CPU_ATTR) - 1, SUB_ARCH,       \
+   sizeof(SUB_ARCH) - 1, ARCH_FPU, ARCH_BASE_EXT, ID, ARCH_ATTR},
+#include "llvm/Support/AArch64TargetParser.def"
 };
 
 // List of Arch Extension names.
@@ -91,6 +97,10 @@ static const struct {
 #define ARM_ARCH_EXT_NAME(NAME, ID, FEATURE, NEGFEATURE) \
   { NAME, sizeof(NAME) - 1, ID, FEATURE, NEGFEATURE },
 #include "llvm/Support/ARMTargetParser.def"
+},AArch64ARCHExtNames[] = {
+#define AARCH64_ARCH_EXT_NAME(NAME, ID, FEATURE, NEGFEATURE) \
+  { NAME, sizeof(NAME) - 1, ID, FEATURE, NEGFEATURE },
+#include "llvm/Support/AArch64TargetParser.def"
 };
 
 // List of HWDiv names (use getHWDivSynonym) and which architectural
@@ -124,6 +134,10 @@ static const struct {
 #define ARM_CPU_NAME(NAME, ID, DEFAULT_FPU, IS_DEFAULT, DEFAULT_EXT) \
   { NAME, sizeof(NAME) - 1, ID, IS_DEFAULT, DEFAULT_EXT },
 #include "llvm/Support/ARMTargetParser.def"
+},AArch64CPUNames[] = {
+#define AARCH64_CPU_NAME(NAME, ID, DEFAULT_FPU, IS_DEFAULT, DEFAULT_EXT) \
+  { NAME, sizeof(NAME) - 1, ID, IS_DEFAULT, DEFAULT_EXT },
+#include "llvm/Support/AArch64TargetParser.def"
 };
 
 } // namespace
@@ -305,13 +319,13 @@ StringRef llvm::ARM::getArchName(unsigned ArchKind) {
 }
 
 StringRef llvm::ARM::getCPUAttr(unsigned ArchKind) {
-  if (ArchKind >= ARM::AK_LAST)
+  if (ArchKind == ARM::AK_INVALID || ArchKind >= ARM::AK_LAST)
     return StringRef();
   return ARCHNames[ArchKind].getCPUAttr();
 }
 
 StringRef llvm::ARM::getSubArch(unsigned ArchKind) {
-  if (ArchKind >= ARM::AK_LAST)
+  if (ArchKind == ARM::AK_INVALID || ArchKind >= ARM::AK_LAST)
     return StringRef();
   return ARCHNames[ArchKind].getSubArch();
 }
@@ -369,6 +383,156 @@ StringRef llvm::ARM::getDefaultCPU(StringRef Arch) {
   return "generic";
 }
 
+StringRef llvm::AArch64::getFPUName(unsigned FPUKind) {
+  return ARM::getFPUName(FPUKind);
+}
+
+unsigned llvm::AArch64::getFPUVersion(unsigned FPUKind) {
+  return ARM::getFPUVersion(FPUKind);
+}
+
+unsigned llvm::AArch64::getFPUNeonSupportLevel(unsigned FPUKind) {
+  return ARM::getFPUNeonSupportLevel( FPUKind);
+}
+
+unsigned llvm::AArch64::getFPURestriction(unsigned FPUKind) {
+  return ARM::getFPURestriction(FPUKind);
+}
+
+unsigned llvm::AArch64::getDefaultFPU(StringRef CPU, unsigned ArchKind) {
+  if (CPU == "generic")
+    return AArch64ARCHNames[ArchKind].DefaultFPU;
+
+  return StringSwitch<unsigned>(CPU)
+#define AARCH64_CPU_NAME(NAME, ID, DEFAULT_FPU, IS_DEFAULT, DEFAULT_EXT) \
+    .Case(NAME, DEFAULT_FPU)
+#include "llvm/Support/AArch64TargetParser.def"
+    .Default(ARM::FK_INVALID);
+}
+
+unsigned llvm::AArch64::getDefaultExtensions(StringRef CPU, unsigned ArchKind) {
+  if (CPU == "generic")
+    return AArch64ARCHNames[ArchKind].ArchBaseExtensions;
+
+  return StringSwitch<unsigned>(CPU)
+#define AARCH64_CPU_NAME(NAME, ID, DEFAULT_FPU, IS_DEFAULT, DEFAULT_EXT) \
+    .Case(NAME, AArch64ARCHNames[ID].ArchBaseExtensions | DEFAULT_EXT)
+#include "llvm/Support/AArch64TargetParser.def"
+    .Default(AArch64::AEK_INVALID);
+}
+
+bool llvm::AArch64::getExtensionFeatures(unsigned Extensions,
+                                     std::vector<const char *> &Features) {
+
+  if (Extensions == AArch64::AEK_INVALID)
+    return false;
+
+  if (Extensions & AArch64::AEK_FP)
+    Features.push_back("+fp-armv8");
+  if (Extensions & AArch64::AEK_SIMD)
+    Features.push_back("+neon");
+  if (Extensions & AArch64::AEK_CRC)
+    Features.push_back("+crc");
+  if (Extensions & AArch64::AEK_CRYPTO)
+    Features.push_back("+crypto");
+  if (Extensions & AArch64::AEK_FP16)
+    Features.push_back("+fullfp16");
+  if (Extensions & AArch64::AEK_PROFILE)
+    Features.push_back("+spe");
+  if (Extensions & AArch64::AEK_RAS)
+    Features.push_back("+ras");
+
+  return true;
+}
+
+bool llvm::AArch64::getFPUFeatures(unsigned FPUKind,
+                               std::vector<const char *> &Features) {
+  return ARM::getFPUFeatures(FPUKind, Features);
+}
+
+bool llvm::AArch64::getArchFeatures(unsigned ArchKind,
+                                     std::vector<const char *> &Features) {
+  if (ArchKind == ARM::AK_INVALID || ArchKind >= ARM::AK_LAST)
+    return false;
+
+  if (ArchKind == ARM::AK_ARMV8_1A)
+    Features.push_back("+v8.1a");
+  if (ArchKind == ARM::AK_ARMV8_2A)
+    Features.push_back("+v8.2a");
+
+  return true;
+}
+
+StringRef llvm::AArch64::getArchName(unsigned ArchKind) {
+  for (const auto &AI : AArch64ARCHNames)
+    if (AI.ID == ArchKind)
+      return AI.getName();
+  return StringRef();
+}
+
+StringRef llvm::AArch64::getCPUAttr(unsigned ArchKind) {
+  for (const auto &AI : AArch64ARCHNames)
+    if (AI.ID == ArchKind)
+      return AI.getCPUAttr();
+  return StringRef();
+}
+
+StringRef llvm::AArch64::getSubArch(unsigned ArchKind) {
+  for (const auto &AI : AArch64ARCHNames)
+    if (AI.ID == ArchKind)
+      return AI.getSubArch();
+  return StringRef();
+}
+
+unsigned llvm::AArch64::getArchAttr(unsigned ArchKind) {
+  for (const auto &AI : AArch64ARCHNames)
+    if (AI.ID == ArchKind)
+      return AI.ArchAttr;
+  return ARMBuildAttrs::CPUArch::v8_A;
+}
+
+StringRef llvm::AArch64::getArchExtName(unsigned AArchExtKind) {
+  for (const auto &AE : AArch64ARCHExtNames)
+    if (AArchExtKind == AE.ID)
+      return AE.getName();
+  return StringRef();
+}
+
+const char *llvm::AArch64::getArchExtFeature(StringRef ArchExt) {
+  if (ArchExt.startswith("no")) {
+    StringRef ArchExtBase(ArchExt.substr(2));
+    for (const auto &AE : AArch64ARCHExtNames) {
+      if (AE.NegFeature && ArchExtBase == AE.getName())
+        return AE.NegFeature;
+    }
+  }
+
+  for (const auto &AE : AArch64ARCHExtNames)
+    if (AE.Feature && ArchExt == AE.getName())
+      return AE.Feature;
+  return nullptr;
+}
+
+StringRef llvm::AArch64::getDefaultCPU(StringRef Arch) {
+  unsigned AK = parseArch(Arch);
+  if (AK == ARM::AK_INVALID)
+    return StringRef();
+
+  // Look for multiple AKs to find the default for pair AK+Name.
+  for (const auto &CPU : AArch64CPUNames)
+    if (CPU.ArchID == AK && CPU.Default)
+      return CPU.getName();
+
+  // If we can't find a default then target the architecture instead
+  return "generic";
+}
+
+unsigned llvm::AArch64::checkArchVersion(StringRef Arch) {
+  if (Arch[0] == 'v' && std::isdigit(Arch[1]))
+    return (Arch[1] - 48);
+  return 0;
+}
+
 // ======================================================= //
 // Parsers
 // ======================================================= //
@@ -411,6 +575,8 @@ static StringRef getArchSynonym(StringRef Arch) {
       .Cases("v8", "v8a", "aarch64", "arm64", "v8-a")
       .Case("v8.1a", "v8.1-a")
       .Case("v8.2a", "v8.2-a")
+      .Case("v8m.base", "v8-m.base")
+      .Case("v8m.main", "v8-m.main")
       .Default(Arch);
 }
 
@@ -548,6 +714,8 @@ unsigned llvm::ARM::parseArchProfile(StringRef Arch) {
   case ARM::AK_ARMV6M:
   case ARM::AK_ARMV7M:
   case ARM::AK_ARMV7EM:
+  case ARM::AK_ARMV8MMainline:
+  case ARM::AK_ARMV8MBaseline:
     return ARM::PK_M;
   case ARM::AK_ARMV7R:
     return ARM::PK_R;
@@ -597,7 +765,67 @@ unsigned llvm::ARM::parseArchVersion(StringRef Arch) {
   case ARM::AK_ARMV8A:
   case ARM::AK_ARMV8_1A:
   case ARM::AK_ARMV8_2A:
+  case ARM::AK_ARMV8MBaseline:
+  case ARM::AK_ARMV8MMainline:
     return 8;
   }
   return 0;
+}
+
+StringRef llvm::AArch64::getCanonicalArchName(StringRef Arch) {
+  return ARM::getCanonicalArchName(Arch);
+}
+
+unsigned llvm::AArch64::parseFPU(StringRef FPU) {
+  return ARM::parseFPU(FPU);
+}
+
+// Allows partial match, ex. "v8a" matches "armv8a".
+unsigned llvm::AArch64::parseArch(StringRef Arch) {
+  Arch = getCanonicalArchName(Arch);
+  if (checkArchVersion(Arch) < 8)
+    return ARM::AK_INVALID;
+
+  StringRef Syn = getArchSynonym(Arch);
+  for (const auto A : AArch64ARCHNames) {
+    if (A.getName().endswith(Syn))
+      return A.ID;
+  }
+  return ARM::AK_INVALID;
+}
+
+unsigned llvm::AArch64::parseArchExt(StringRef ArchExt) {
+  for (const auto A : AArch64ARCHExtNames) {
+    if (ArchExt == A.getName())
+      return A.ID;
+  }
+  return AArch64::AEK_INVALID;
+}
+
+unsigned llvm::AArch64::parseCPUArch(StringRef CPU) {
+  for (const auto C : AArch64CPUNames) {
+    if (CPU == C.getName())
+      return C.ArchID;
+  }
+  return ARM::AK_INVALID;
+}
+
+// ARM, Thumb, AArch64
+unsigned llvm::AArch64::parseArchISA(StringRef Arch) {
+  return ARM::parseArchISA(Arch);
+}
+
+// Little/Big endian
+unsigned llvm::AArch64::parseArchEndian(StringRef Arch) {
+  return ARM::parseArchEndian(Arch);
+}
+
+// Profile A/R/M
+unsigned llvm::AArch64::parseArchProfile(StringRef Arch) {
+  return ARM::parseArchProfile(Arch);
+}
+
+// Version number (ex. v8 = 8).
+unsigned llvm::AArch64::parseArchVersion(StringRef Arch) {
+  return ARM::parseArchVersion(Arch);
 }

@@ -13,7 +13,9 @@
 #include "SparcTargetMachine.h"
 #include "SparcTargetObjectFile.h"
 #include "Sparc.h"
+#include "LeonPasses.h"
 #include "llvm/CodeGen/Passes.h"
+#include "llvm/CodeGen/TargetPassConfig.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/Support/TargetRegistry.h"
 using namespace llvm;
@@ -52,28 +54,68 @@ static std::string computeDataLayout(const Triple &T, bool is64Bit) {
   return Ret;
 }
 
-/// SparcTargetMachine ctor - Create an ILP32 architecture model
-///
+static Reloc::Model getEffectiveRelocModel(Optional<Reloc::Model> RM) {
+  if (!RM.hasValue())
+    return Reloc::Static;
+  return *RM;
+}
+
+/// Create an ILP32 architecture model
 SparcTargetMachine::SparcTargetMachine(const Target &T, const Triple &TT,
                                        StringRef CPU, StringRef FS,
                                        const TargetOptions &Options,
-                                       Reloc::Model RM, CodeModel::Model CM,
+                                       Optional<Reloc::Model> RM,
+                                       CodeModel::Model CM,
                                        CodeGenOpt::Level OL, bool is64bit)
     : LLVMTargetMachine(T, computeDataLayout(TT, is64bit), TT, CPU, FS, Options,
-                        RM, CM, OL),
+                        getEffectiveRelocModel(RM), CM, OL),
       TLOF(make_unique<SparcELFTargetObjectFile>()),
-      Subtarget(TT, CPU, FS, *this, is64bit) {
+      Subtarget(TT, CPU, FS, *this, is64bit), is64Bit(is64bit) {
   initAsmInfo();
 }
 
 SparcTargetMachine::~SparcTargetMachine() {}
+
+const SparcSubtarget *
+SparcTargetMachine::getSubtargetImpl(const Function &F) const {
+  Attribute CPUAttr = F.getFnAttribute("target-cpu");
+  Attribute FSAttr = F.getFnAttribute("target-features");
+
+  std::string CPU = !CPUAttr.hasAttribute(Attribute::None)
+                        ? CPUAttr.getValueAsString().str()
+                        : TargetCPU;
+  std::string FS = !FSAttr.hasAttribute(Attribute::None)
+                       ? FSAttr.getValueAsString().str()
+                       : TargetFS;
+
+  // FIXME: This is related to the code below to reset the target options,
+  // we need to know whether or not the soft float flag is set on the
+  // function, so we can enable it as a subtarget feature.
+  bool softFloat =
+      F.hasFnAttribute("use-soft-float") &&
+      F.getFnAttribute("use-soft-float").getValueAsString() == "true";
+
+  if (softFloat)
+    FS += FS.empty() ? "+soft-float" : ",+soft-float";
+
+  auto &I = SubtargetMap[CPU + FS];
+  if (!I) {
+    // This needs to be done before we create a new subtarget since any
+    // creation will depend on the TM and the code generation flags on the
+    // function that reside in TargetOptions.
+    resetTargetOptions(F);
+    I = llvm::make_unique<SparcSubtarget>(TargetTriple, CPU, FS, *this,
+                                          this->is64Bit);
+  }
+  return I.get();
+}
 
 namespace {
 /// Sparc Code Generator Pass Configuration Options.
 class SparcPassConfig : public TargetPassConfig {
 public:
   SparcPassConfig(SparcTargetMachine *TM, PassManagerBase &PM)
-    : TargetPassConfig(TM, PM) {}
+      : TargetPassConfig(TM, PM) {}
 
   SparcTargetMachine &getSparcTargetMachine() const {
     return getTM<SparcTargetMachine>();
@@ -100,25 +142,62 @@ bool SparcPassConfig::addInstSelector() {
   return false;
 }
 
-void SparcPassConfig::addPreEmitPass(){
+void SparcPassConfig::addPreEmitPass() {
   addPass(createSparcDelaySlotFillerPass(getSparcTargetMachine()));
+  if (this->getSparcTargetMachine().getSubtargetImpl()->ignoreZeroFlag()) {
+    addPass(new IgnoreZeroFlag(getSparcTargetMachine()));
+  }
+  if (this->getSparcTargetMachine().getSubtargetImpl()->performSDIVReplace()) {
+    addPass(new ReplaceSDIV(getSparcTargetMachine()));
+  }
+  if (this->getSparcTargetMachine().getSubtargetImpl()->fixCallImmediates()) {
+    addPass(new FixCALL(getSparcTargetMachine()));
+  }
+  if (this->getSparcTargetMachine().getSubtargetImpl()->fixFSMULD()) {
+    addPass(new FixFSMULD(getSparcTargetMachine()));
+  }
+  if (this->getSparcTargetMachine().getSubtargetImpl()->replaceFMULS()) {
+    addPass(new ReplaceFMULS(getSparcTargetMachine()));
+  }
+  if (this->getSparcTargetMachine().getSubtargetImpl()->preventRoundChange()) {
+    addPass(new PreventRoundChange(getSparcTargetMachine()));
+  }
+  if (this->getSparcTargetMachine().getSubtargetImpl()->fixAllFDIVSQRT()) {
+    addPass(new FixAllFDIVSQRT(getSparcTargetMachine()));
+  }
+  if (this->getSparcTargetMachine().getSubtargetImpl()->insertNOPsLoadStore()) {
+    addPass(new InsertNOPsLoadStore(getSparcTargetMachine()));
+  }
+  if (this->getSparcTargetMachine().getSubtargetImpl()->insertNOPLoad()) {
+    addPass(new InsertNOPLoad(getSparcTargetMachine()));
+  }
+  if (this->getSparcTargetMachine().getSubtargetImpl()->flushCacheLineSWAP()) {
+    addPass(new FlushCacheLineSWAP(getSparcTargetMachine()));
+  }
+  if (this->getSparcTargetMachine()
+          .getSubtargetImpl()
+          ->insertNOPDoublePrecision()) {
+    addPass(new InsertNOPDoublePrecision(getSparcTargetMachine()));
+  }
 }
 
-void SparcV8TargetMachine::anchor() { }
+void SparcV8TargetMachine::anchor() {}
 
 SparcV8TargetMachine::SparcV8TargetMachine(const Target &T, const Triple &TT,
                                            StringRef CPU, StringRef FS,
                                            const TargetOptions &Options,
-                                           Reloc::Model RM, CodeModel::Model CM,
+                                           Optional<Reloc::Model> RM,
+                                           CodeModel::Model CM,
                                            CodeGenOpt::Level OL)
     : SparcTargetMachine(T, TT, CPU, FS, Options, RM, CM, OL, false) {}
 
-void SparcV9TargetMachine::anchor() { }
+void SparcV9TargetMachine::anchor() {}
 
 SparcV9TargetMachine::SparcV9TargetMachine(const Target &T, const Triple &TT,
                                            StringRef CPU, StringRef FS,
                                            const TargetOptions &Options,
-                                           Reloc::Model RM, CodeModel::Model CM,
+                                           Optional<Reloc::Model> RM,
+                                           CodeModel::Model CM,
                                            CodeGenOpt::Level OL)
     : SparcTargetMachine(T, TT, CPU, FS, Options, RM, CM, OL, true) {}
 
@@ -127,6 +206,7 @@ void SparcelTargetMachine::anchor() {}
 SparcelTargetMachine::SparcelTargetMachine(const Target &T, const Triple &TT,
                                            StringRef CPU, StringRef FS,
                                            const TargetOptions &Options,
-                                           Reloc::Model RM, CodeModel::Model CM,
+                                           Optional<Reloc::Model> RM,
+                                           CodeModel::Model CM,
                                            CodeGenOpt::Level OL)
     : SparcTargetMachine(T, TT, CPU, FS, Options, RM, CM, OL, false) {}

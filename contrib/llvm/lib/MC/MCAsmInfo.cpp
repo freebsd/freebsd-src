@@ -75,6 +75,7 @@ MCAsmInfo::MCAsmInfo() {
   HasSingleParameterDotFile = true;
   HasIdentDirective = false;
   HasNoDeadStrip = false;
+  HasAltEntry = false;
   WeakDirective = "\t.weak\t";
   WeakRefDirective = nullptr;
   HasWeakDefDirective = false;
@@ -106,8 +107,9 @@ MCAsmInfo::MCAsmInfo() {
   //   architecture basis.
   //   - The target subclasses for AArch64, ARM, and X86 handle these cases
   UseIntegratedAssembler = false;
+  PreserveAsmComments = true;
 
-  CompressDebugSections = false;
+  CompressDebugSections = DebugCompressionType::DCT_None;
 }
 
 MCAsmInfo::~MCAsmInfo() {

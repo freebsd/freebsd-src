@@ -123,6 +123,11 @@ SRCF+=		udivti3
 SRCF+=		umoddi3
 SRCF+=		umodti3
 
+# __cpu_model support, only used on x86
+.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
+SRCF+=		cpu_model
+.endif
+
 # 128-bit quad precision long double support, only used on arm64
 .if ${MACHINE_CPUARCH} == "aarch64"
 SRCF+=		addtf3
