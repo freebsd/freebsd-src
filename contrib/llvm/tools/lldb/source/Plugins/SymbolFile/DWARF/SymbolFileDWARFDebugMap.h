@@ -65,6 +65,8 @@ public:
     bool            ParseCompileUnitLineTable (const lldb_private::SymbolContext& sc) override;
     bool            ParseCompileUnitDebugMacros (const lldb_private::SymbolContext& sc) override;
     bool            ParseCompileUnitSupportFiles (const lldb_private::SymbolContext& sc, lldb_private::FileSpecList &support_files) override;
+    bool
+    ParseCompileUnitIsOptimized(const lldb_private::SymbolContext &sc) override;
     bool            ParseImportedModules (const lldb_private::SymbolContext &sc, std::vector<lldb_private::ConstString> &imported_modules) override;
     size_t          ParseFunctionBlocks (const lldb_private::SymbolContext& sc) override;
     size_t          ParseTypes (const lldb_private::SymbolContext& sc) override;
@@ -82,7 +84,7 @@ public:
     uint32_t        FindGlobalVariables (const lldb_private::RegularExpression& regex, bool append, uint32_t max_matches, lldb_private::VariableList& variables) override;
     uint32_t        FindFunctions (const lldb_private::ConstString &name, const lldb_private::CompilerDeclContext *parent_decl_ctx, uint32_t name_type_mask, bool include_inlines, bool append, lldb_private::SymbolContextList& sc_list) override;
     uint32_t        FindFunctions (const lldb_private::RegularExpression& regex, bool include_inlines, bool append, lldb_private::SymbolContextList& sc_list) override;
-    uint32_t        FindTypes (const lldb_private::SymbolContext& sc, const lldb_private::ConstString &name, const lldb_private::CompilerDeclContext *parent_decl_ctx, bool append, uint32_t max_matches, lldb_private::TypeMap& types) override;
+    uint32_t        FindTypes (const lldb_private::SymbolContext& sc, const lldb_private::ConstString &name, const lldb_private::CompilerDeclContext *parent_decl_ctx, bool append, uint32_t max_matches, llvm::DenseSet<lldb_private::SymbolFile *> &searched_symbol_files, lldb_private::TypeMap& types) override;
     lldb_private::CompilerDeclContext
                     FindNamespace (const lldb_private::SymbolContext& sc,
                                    const lldb_private::ConstString &name,
@@ -107,10 +109,11 @@ protected:
         kNumFlags
     };
 
+    friend class DebugMapModule;
+    friend struct DIERef;
+    friend class DWARFASTParserClang;
     friend class DWARFCompileUnit;
     friend class SymbolFileDWARF;
-    friend class DebugMapModule;
-    friend class DWARFASTParserClang;
     struct OSOInfo
     {
         lldb::ModuleSP module_sp;
@@ -348,6 +351,7 @@ protected:
     bool
     AddOSOFileRange (CompileUnitInfo *cu_info,
                      lldb::addr_t exe_file_addr,
+                     lldb::addr_t exe_byte_size,
                      lldb::addr_t oso_file_addr,
                      lldb::addr_t oso_byte_size);
     

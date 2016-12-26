@@ -363,6 +363,7 @@ REPL::IOHandlerInputComplete (IOHandler &io_handler, std::string &code)
                                                                                   result_valobj_sp,
                                                                                   error,
                                                                                   0, // Line offset
+                                                                                  nullptr, // Fixed Expression
                                                                                   &jit_module_sp);
             
             //CommandInterpreter &ci = debugger.GetCommandInterpreter();
@@ -410,7 +411,7 @@ REPL::IOHandlerInputComplete (IOHandler &io_handler, std::string &code)
                         case lldb::eExpressionSetupError:
                         case lldb::eExpressionParseError:
                             add_to_code = false;
-                            // Fall through
+                            LLVM_FALLTHROUGH;
                         case lldb::eExpressionDiscarded:
                             error_sp->Printf("%s\n", error.AsCString());
                             break;
