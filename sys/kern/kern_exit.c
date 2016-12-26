@@ -499,6 +499,11 @@ exit1(struct thread *td, int rv)
 
 		if (!(q->p_flag & P_TRACED)) {
 			proc_reparent(q, q->p_reaper);
+			if (q->p_state == PRS_ZOMBIE) {
+				PROC_LOCK(q->p_reaper);
+				pksignal(q->p_reaper, SIGCHLD, q->p_ksi);
+				PROC_UNLOCK(q->p_reaper);
+			}
 		} else {
 			/*
 			 * Traced processes are killed since their existence
