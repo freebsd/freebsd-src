@@ -53,6 +53,7 @@ DEFINE_TEST(test_option_uid_uname)
 	/* Should force uid and uname fields in ustar header. */
 	assertEqualMem(data + 108, "000021 \0", 8);
 	assertEqualMem(data + 265, "foofoofoo\0", 10);
+	free(data);
 
 	/* Again with just --uid */
 	failure("Error invoking %s c", testprog);
@@ -65,6 +66,7 @@ DEFINE_TEST(test_option_uid_uname)
 	assertEqualMem(data + 108, "000021 \0", 8);
 	/* Uname field in ustar header should be empty. */
 	assertEqualMem(data + 265, "\0", 1);
+	free(data);
 
 	/* Again with just --uname */
 	failure("Error invoking %s c", testprog);
@@ -77,4 +79,7 @@ DEFINE_TEST(test_option_uid_uname)
 	/* Uid should be unchanged from original reference. */
 	assertEqualMem(data + 108, reference + 108, 8);
 	assertEqualMem(data + 265, "foofoofoo\0", 10);
+	free(data);
+
+	free(reference);
 }
