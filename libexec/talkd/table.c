@@ -82,14 +82,15 @@ static TABLE_ENTRY *table = NIL;
 CTL_MSG *
 find_match(CTL_MSG *request)
 {
-	TABLE_ENTRY *ptr;
+	TABLE_ENTRY *ptr, *next;
 	time_t current_time;
 
 	gettimeofday(&tp, NULL);
 	current_time = tp.tv_sec;
 	if (debug)
 		print_request("find_match", request);
-	for (ptr = table; ptr != NIL; ptr = ptr->next) {
+	for (ptr = table; ptr != NIL; ptr = next) {
+		next = ptr->next;
 		if ((ptr->time - current_time) > MAX_LIFE) {
 			/* the entry is too old */
 			if (debug)
@@ -115,7 +116,7 @@ find_match(CTL_MSG *request)
 CTL_MSG *
 find_request(CTL_MSG *request)
 {
-	TABLE_ENTRY *ptr;
+	TABLE_ENTRY *ptr, *next;
 	time_t current_time;
 
 	gettimeofday(&tp, NULL);
@@ -126,7 +127,8 @@ find_request(CTL_MSG *request)
 	 */
 	if (debug)
 		print_request("find_request", request);
-	for (ptr = table; ptr != NIL; ptr = ptr->next) {
+	for (ptr = table; ptr != NIL; ptr = next) {
+		next = ptr->next;
 		if ((ptr->time - current_time) > MAX_LIFE) {
 			/* the entry is too old */
 			if (debug)
