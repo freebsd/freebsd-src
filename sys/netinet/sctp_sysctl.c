@@ -310,8 +310,8 @@ sctp_sysctl_copy_out_local_addresses(struct sctp_inpcb *inp, struct sctp_tcb *st
 				continue;
 			memset((void *)&xladdr, 0, sizeof(struct xsctp_laddr));
 			memcpy((void *)&xladdr.address, (const void *)&laddr->ifa->address, sizeof(union sctp_sockstore));
-			xladdr.start_time.tv_sec = (uint32_t) laddr->start_time.tv_sec;
-			xladdr.start_time.tv_usec = (uint32_t) laddr->start_time.tv_usec;
+			xladdr.start_time.tv_sec = (uint32_t)laddr->start_time.tv_sec;
+			xladdr.start_time.tv_usec = (uint32_t)laddr->start_time.tv_usec;
 			SCTP_INP_RUNLOCK(inp);
 			SCTP_INP_INFO_RUNLOCK();
 			error = SYSCTL_OUT(req, &xladdr, sizeof(struct xsctp_laddr));
@@ -416,10 +416,10 @@ sctp_sysctl_handle_assoclist(SYSCTL_HANDLER_ARGS)
 		} else {
 			xinpcb.qlen = so->so_qlen;
 			xinpcb.qlen_old = so->so_qlen > USHRT_MAX ?
-			    USHRT_MAX : (uint16_t) so->so_qlen;
+			    USHRT_MAX : (uint16_t)so->so_qlen;
 			xinpcb.maxqlen = so->so_qlimit;
 			xinpcb.maxqlen_old = so->so_qlimit > USHRT_MAX ?
-			    USHRT_MAX : (uint16_t) so->so_qlimit;
+			    USHRT_MAX : (uint16_t)so->so_qlimit;
 		}
 		SCTP_INP_INCR_REF(inp);
 		SCTP_INP_RUNLOCK(inp);
@@ -446,7 +446,7 @@ sctp_sysctl_handle_assoclist(SYSCTL_HANDLER_ARGS)
 			if (stcb->asoc.primary_destination != NULL)
 				xstcb.primary_addr = stcb->asoc.primary_destination->ro._l_addr;
 			xstcb.heartbeat_interval = stcb->asoc.heart_beat_delay;
-			xstcb.state = (uint32_t) sctp_map_assoc_state(stcb->asoc.state);
+			xstcb.state = (uint32_t)sctp_map_assoc_state(stcb->asoc.state);
 			/* 7.0 does not support these */
 			xstcb.assoc_id = sctp_get_associd(stcb);
 			xstcb.peers_rwnd = stcb->asoc.peers_rwnd;
@@ -458,10 +458,10 @@ sctp_sysctl_handle_assoclist(SYSCTL_HANDLER_ARGS)
 			xstcb.T1_expireries = stcb->asoc.timoinit + stcb->asoc.timocookie;
 			xstcb.T2_expireries = stcb->asoc.timoshutdown + stcb->asoc.timoshutdownack;
 			xstcb.retransmitted_tsns = stcb->asoc.marked_retrans;
-			xstcb.start_time.tv_sec = (uint32_t) stcb->asoc.start_time.tv_sec;
-			xstcb.start_time.tv_usec = (uint32_t) stcb->asoc.start_time.tv_usec;
-			xstcb.discontinuity_time.tv_sec = (uint32_t) stcb->asoc.discontinuity_time.tv_sec;
-			xstcb.discontinuity_time.tv_usec = (uint32_t) stcb->asoc.discontinuity_time.tv_usec;
+			xstcb.start_time.tv_sec = (uint32_t)stcb->asoc.start_time.tv_sec;
+			xstcb.start_time.tv_usec = (uint32_t)stcb->asoc.start_time.tv_usec;
+			xstcb.discontinuity_time.tv_sec = (uint32_t)stcb->asoc.discontinuity_time.tv_sec;
+			xstcb.discontinuity_time.tv_usec = (uint32_t)stcb->asoc.discontinuity_time.tv_usec;
 			xstcb.total_sends = stcb->total_sends;
 			xstcb.total_recvs = stcb->total_recvs;
 			xstcb.local_tag = stcb->asoc.my_vtag;
@@ -505,8 +505,8 @@ sctp_sysctl_handle_assoclist(SYSCTL_HANDLER_ARGS)
 				xraddr.rtt = net->rtt / 1000;
 				xraddr.heartbeat_interval = net->heart_beat_delay;
 				xraddr.ssthresh = net->ssthresh;
-				xraddr.start_time.tv_sec = (uint32_t) net->start_time.tv_sec;
-				xraddr.start_time.tv_usec = (uint32_t) net->start_time.tv_usec;
+				xraddr.start_time.tv_sec = (uint32_t)net->start_time.tv_sec;
+				xraddr.start_time.tv_usec = (uint32_t)net->start_time.tv_usec;
 				SCTP_INP_RUNLOCK(inp);
 				SCTP_INP_INFO_RUNLOCK();
 				error = SYSCTL_OUT(req, &xraddr, sizeof(struct xsctp_raddr));
