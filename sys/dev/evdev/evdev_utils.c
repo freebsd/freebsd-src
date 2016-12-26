@@ -206,13 +206,13 @@ static uint16_t evdev_led_codes[] = {
 	LED_SCROLLL,	/* SLKED */
 };
 
-inline uint16_t
+uint16_t
 evdev_hid2key(int scancode)
 {
 	return evdev_usb_scancodes[scancode];
 }
 
-inline void
+void
 evdev_support_all_known_keys(struct evdev_dev *evdev)
 {
 	size_t i;
@@ -222,7 +222,7 @@ evdev_support_all_known_keys(struct evdev_dev *evdev)
 			evdev_support_key(evdev, evdev_at_set1_scancodes[i]);
 }
 
-inline uint16_t
+uint16_t
 evdev_scancode2key(int *state, int scancode)
 {
 	uint16_t keycode;
