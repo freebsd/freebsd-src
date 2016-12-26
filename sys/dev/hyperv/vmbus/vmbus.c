@@ -97,6 +97,9 @@ static int			vmbus_probe_guid_method(device_t, device_t,
 				    const struct hyperv_guid *);
 static uint32_t			vmbus_get_vcpu_id_method(device_t bus,
 				    device_t dev, int cpu);
+#ifdef EARLY_AP_STARTUP
+static void			vmbus_intrhook(void *);
+#endif
 
 static int			vmbus_init(struct vmbus_softc *);
 static int			vmbus_connect(struct vmbus_softc *, uint32_t);
@@ -1369,6 +1372,21 @@ vmbus_event_proc_dummy(struct vmbus_softc *sc __unused, int cpu __unused)
 {
 }
 
+#ifdef EARLY_AP_STARTUP
+
+static void
+vmbus_intrhook(void *xsc)
+{
+	struct vmbus_softc *sc = xsc;
+
+	if (bootverbose)
+		device_printf(sc->vmbus_dev, "intrhook\n");
+	vmbus_doattach(sc);
+	config_intrhook_disestablish(&sc->vmbus_intrhook);
+}
+
+#endif	/* EARLY_AP_STARTUP */
+
 static int
 vmbus_attach(device_t dev)
 {
@@ -1383,7 +1401,14 @@ vmbus_attach(device_t dev)
 	 */
 	vmbus_sc->vmbus_event_proc = vmbus_event_proc_dummy;
 
-#ifndef EARLY_AP_STARTUP
+#ifdef EARLY_AP_STARTUP
+	/*
+	 * Defer the real attach until the pause(9) works as expected.
+	 */
+	vmbus_sc->vmbus_intrhook.ich_func = vmbus_intrhook;
+	vmbus_sc->vmbus_intrhook.ich_arg = vmbus_sc;
+	config_intrhook_establish(&vmbus_sc->vmbus_intrhook);
+#else	/* !EARLY_AP_STARTUP */
 	/* 
 	 * If the system has already booted and thread
 	 * scheduling is possible indicated by the global
@@ -1391,8 +1416,8 @@ vmbus_attach(device_t dev)
 	 * initialization directly.
 	 */
 	if (!cold)
-#endif
 		vmbus_doattach(vmbus_sc);
+#endif	/* EARLY_AP_STARTUP */
 
 	return (0);
 }
