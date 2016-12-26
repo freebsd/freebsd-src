@@ -4157,6 +4157,7 @@ netinet6/udp6_usrreq.c		optional inet6
 netipsec/ipsec.c		optional ipsec inet | ipsec inet6
 netipsec/ipsec_input.c		optional ipsec inet | ipsec inet6
 netipsec/ipsec_mbuf.c		optional ipsec inet | ipsec inet6
+netipsec/ipsec_mod.c		optional ipsec inet | ipsec inet6
 netipsec/ipsec_output.c		optional ipsec inet | ipsec inet6
 netipsec/ipsec_pcb.c		optional ipsec inet | ipsec inet6 | \
 	ipsec_support inet | ipsec_support inet6

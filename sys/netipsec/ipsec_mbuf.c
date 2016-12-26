@@ -30,8 +30,6 @@
  * IPsec-specific mbuf routines.
  */
 
-#include "opt_param.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>

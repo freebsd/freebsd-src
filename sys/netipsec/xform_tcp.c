@@ -32,16 +32,18 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
+#include "opt_ipsec.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
 #include <sys/lock.h>
 #include <sys/md5.h>
-#include <sys/rwlock.h>
+#include <sys/rmlock.h>
 #include <sys/socket.h>
 #include <sys/sockopt.h>
 #include <sys/kernel.h>
+#include <sys/module.h>
 #include <sys/protosw.h>
 
 #include <netinet/in.h>
@@ -55,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <net/vnet.h>
 
 #include <netipsec/ipsec.h>
+#include <netipsec/ipsec_support.h>
 #include <netipsec/xform.h>
 
 #ifdef INET6
@@ -64,8 +67,6 @@ __FBSDID("$FreeBSD$");
 
 #include <netipsec/key.h>
 #include <netipsec/key_debug.h>
-
-#ifdef TCP_SIGNATURE
 
 #define	TCP_SIGLEN	16	/* length of computed digest in bytes */
 #define	TCP_KEYLEN_MIN	1	/* minimum length of TCP-MD5 key */
@@ -81,7 +82,7 @@ tcp_fields_to_net(struct tcphdr *th)
 	th->th_urp = htons(th->th_urp);
 }
 
-int
+static int
 tcp_ipsec_pcbctl(struct inpcb *inp, struct sockopt *sopt)
 {
 	struct tcpcb *tp;
@@ -258,7 +259,7 @@ setsockaddrs(const struct mbuf *m, union sockaddr_union *src,
  *
  * Return 0 if successful, otherwise return -1.
  */
-int
+static int
 tcp_ipsec_input(struct mbuf *m, struct tcphdr *th, u_char *buf)
 {
 	char tmpdigest[TCP_SIGLEN];
@@ -299,7 +300,7 @@ tcp_ipsec_input(struct mbuf *m, struct tcphdr *th, u_char *buf)
  *
  * Return 0 if successful, otherwise return error code.
  */
-int
+static int
 tcp_ipsec_output(struct mbuf *m, struct tcphdr *th, u_char *buf)
 {
 	struct secasindex saidx;
@@ -318,16 +319,6 @@ tcp_ipsec_output(struct mbuf *m, struct tcphdr *th, u_char *buf)
 	key_freesav(&sav);
 	return (0);
 }
-#else /* TCP_SIGNATURE */
-
-int
-tcp_ipsec_pcbctl(struct inpcb *inp, struct sockopt *sopt)
-{
-
-	INP_WUNLOCK(inp);
-	return (ENOPROTOOPT);
-}
-#endif /* !TCP_SIGNATURE*/
 
 /*
  * Initialize a TCP-MD5 SA. Called when the SA is being set up.
@@ -369,65 +360,76 @@ tcpsignature_init(struct secasvar *sav, struct xformsw *xsp)
 		DPRINTF(("%s: invalid key length %u\n", __func__, keylen));
 		return (EINVAL);
 	}
-
+	sav->tdb_xform = xsp;
 	return (0);
 }
 
 /*
- * Paranoia.
- *
  * Called when the SA is deleted.
  */
 static int
 tcpsignature_zeroize(struct secasvar *sav)
 {
 
-	if (sav->key_auth)
+	if (sav->key_auth != NULL)
 		bzero(sav->key_auth->key_data, _KEYLEN(sav->key_auth));
-
-	sav->tdb_cryptoid = 0;
-	sav->tdb_authalgxform = NULL;
 	sav->tdb_xform = NULL;
-
 	return (0);
-}
-
-/*
- * Verify that an input packet passes authentication.
- * Called from the ipsec layer.
- * We do this from within tcp itself, so this routine is just a stub.
- */
-static int
-tcpsignature_input(struct mbuf *m, struct secasvar *sav, int skip,
-    int protoff)
-{
-
-	return (0);
-}
-
-/*
- * Prepend the authentication header.
- * Called from the ipsec layer.
- * We do this from within tcp itself, so this routine is just a stub.
- */
-static int
-tcpsignature_output(struct mbuf *m, struct secpolicy *sp,
-    struct secasvar *sav, u_int idx, int skip, int protoff)
-{
-
-	return (EINVAL);
 }
 
 static struct xformsw tcpsignature_xformsw = {
 	.xf_type =	XF_TCPSIGNATURE,
-	.xf_name =	"TCPMD5",
+	.xf_name =	"TCP-MD5",
 	.xf_init =	tcpsignature_init,
 	.xf_zeroize =	tcpsignature_zeroize,
-	.xf_input =	tcpsignature_input,
-	.xf_output =	tcpsignature_output,
 };
 
-SYSINIT(tcpsignature_xform_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_MIDDLE,
-    xform_attach, &tcpsignature_xformsw);
-SYSUNINIT(tcpsignature_xform_uninit, SI_SUB_PROTO_DOMAIN, SI_ORDER_MIDDLE,
-    xform_detach, &tcpsignature_xformsw);
+static const struct tcpmd5_methods tcpmd5_methods = {
+	.input = tcp_ipsec_input,
+	.output = tcp_ipsec_output,
+	.pcbctl = tcp_ipsec_pcbctl,
+};
+
+#ifndef KLD_MODULE
+/* TCP-MD5 support is build in the kernel */
+static const struct tcpmd5_support tcpmd5_ipsec = {
+	.enabled = 1,
+	.methods = &tcpmd5_methods
+};
+const struct tcpmd5_support * const tcp_ipsec_support = &tcpmd5_ipsec;
+#endif /* !KLD_MODULE */
+
+static int
+tcpmd5_modevent(module_t mod, int type, void *data)
+{
+
+	switch (type) {
+	case MOD_LOAD:
+		xform_attach(&tcpsignature_xformsw);
+#ifdef KLD_MODULE
+		tcpmd5_support_enable(&tcpmd5_methods);
+#endif
+		break;
+	case MOD_UNLOAD:
+#ifdef KLD_MODULE
+		tcpmd5_support_disable();
+#endif
+		xform_detach(&tcpsignature_xformsw);
+		break;
+	default:
+		return (EOPNOTSUPP);
+	}
+	return (0);
+}
+
+static moduledata_t tcpmd5_mod = {
+	"tcpmd5",
+	tcpmd5_modevent,
+	0
+};
+
+DECLARE_MODULE(tcpmd5, tcpmd5_mod, SI_SUB_PROTO_DOMAIN, SI_ORDER_ANY);
+MODULE_VERSION(tcpmd5, 1);
+#ifdef KLD_MODULE
+MODULE_DEPEND(tcpmd5, ipsec_support, 1, 1, 1);
+#endif

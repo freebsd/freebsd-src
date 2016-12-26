@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_pcb.h>
 
 #include <netipsec/ipsec.h>
+#include <netipsec/ipsec6.h>
 #include <netipsec/ipsec_support.h>
 #include <netipsec/key.h>
 #include <netipsec/key_debug.h>

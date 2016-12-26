@@ -763,7 +763,7 @@ ipcomp_detach(void)
 #ifdef INET6
 	encap_detach(ipe6_cookie);
 #endif
-	xform_attach(&ipcomp_xformsw);
+	xform_detach(&ipcomp_xformsw);
 }
 
 SYSINIT(ipcomp_xform_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_MIDDLE,

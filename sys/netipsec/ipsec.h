@@ -313,6 +313,8 @@ u_int ipsec_get_reqlevel(struct secpolicy *, u_int);
 
 void udp_ipsec_adjust_cksum(struct mbuf *, struct secasvar *, int, int);
 int udp_ipsec_output(struct mbuf *, struct secasvar *);
+int udp_ipsec_input(struct mbuf *, int, int);
+int udp_ipsec_pcbctl(struct inpcb *, struct sockopt *);
 
 int ipsec_chkreplay(uint32_t, struct secasvar *);
 int ipsec_updatereplay(uint32_t, struct secasvar *);
@@ -323,6 +325,7 @@ void ipsec4_setsockaddrs(const struct mbuf *, union sockaddr_union *,
 int ipsec4_in_reject(const struct mbuf *, struct inpcb *);
 int ipsec4_input(struct mbuf *, int, int);
 int ipsec4_forward(struct mbuf *);
+int ipsec4_pcbctl(struct inpcb *, struct sockopt *);
 int ipsec4_output(struct mbuf *, struct inpcb *);
 int ipsec4_capability(struct mbuf *, u_int);
 int ipsec4_common_input_cb(struct mbuf *, struct secasvar *, int, int);
