@@ -30,6 +30,7 @@
 #define _VMBUS_VAR_H_
 
 #include <sys/param.h>
+#include <sys/kernel.h>
 #include <sys/taskqueue.h>
 #include <sys/rman.h>
 
@@ -127,6 +128,8 @@ struct vmbus_softc {
 	/* Complete channel list */
 	struct mtx		vmbus_chan_lock;
 	TAILQ_HEAD(, vmbus_channel) vmbus_chans;
+
+	struct intr_config_hook	vmbus_intrhook;
 
 #ifdef NEW_PCIB
 	/* The list of usable MMIO ranges for PCIe pass-through */
