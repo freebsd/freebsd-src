@@ -236,7 +236,7 @@ check_priv_dgram(struct port_input *pi, struct sockcred *cred)
  * Input from a datagram socket.
  * Each receive should return one datagram.
  */
-static int
+static ssize_t
 recv_dgram(struct port_input *pi, struct in_addr *laddr)
 {
 	u_char embuf[1000];
