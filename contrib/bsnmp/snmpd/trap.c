@@ -214,7 +214,7 @@ trapsink_unmodify(struct trapsink *t, struct trapsink_dep *tdep)
 		t->version = tdep->rb_version;
 	if (tdep->set & TDEP_COMM)
 		strcpy(t->comm, tdep->rb_comm);
-	
+
 	return (SNMP_ERR_NOERROR);
 }
 
@@ -538,7 +538,7 @@ snmp_send_trap(const struct asn_oid *trap_oid, ...)
 	TAILQ_FOREACH(t, &trapsink_list, link) {
 		if (t->status != TRAPSINK_ACTIVE)
 			continue;
-	
+
 		if (t->version == TRAPSINK_V1)
 			snmp_create_v1_trap(&pdu, t->comm, trap_oid);
 		else
