@@ -806,8 +806,7 @@ rdtun_params(struct cfjail *j, int dofail)
 	if (jailparam_get(rtparams, nrt,
 	    bool_param(j->intparams[IP_ALLOW_DYING]) ? JAIL_DYING : 0) > 0) {
 		rtjp = rtparams + 1;
-		for (jp = j->jp, rtjp = rtparams + 1; rtjp < rtparams + nrt;
-		     jp++) {
+		for (jp = j->jp; rtjp < rtparams + nrt; jp++) {
 			if (JP_RDTUN(jp) && strcmp(jp->jp_name, "jid")) {
 				if (!((jp->jp_flags & (JP_BOOL | JP_NOBOOL)) &&
 				    jp->jp_valuelen == 0 &&
