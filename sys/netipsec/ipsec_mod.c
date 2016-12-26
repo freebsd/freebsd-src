@@ -69,7 +69,7 @@ static const struct ipsec_methods ipv4_methods = {
 };
 #ifndef KLD_MODULE
 static const struct ipsec_support ipv4_ipsec = {
-	.enabled = 1,
+	.enabled = IPSEC_MODULE_ENABLED,
 	.methods = &ipv4_methods
 };
 const struct ipsec_support * const ipv4_ipsec_support = &ipv4_ipsec;
@@ -88,7 +88,7 @@ static const struct ipsec_methods ipv6_methods = {
 };
 #ifndef KLD_MODULE
 static const struct ipsec_support ipv6_ipsec = {
-	.enabled = 1,
+	.enabled = IPSEC_MODULE_ENABLED,
 	.methods = &ipv6_methods
 };
 const struct ipsec_support * const ipv6_ipsec_support = &ipv6_ipsec;

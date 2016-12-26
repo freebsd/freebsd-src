@@ -393,7 +393,7 @@ static const struct tcpmd5_methods tcpmd5_methods = {
 #ifndef KLD_MODULE
 /* TCP-MD5 support is build in the kernel */
 static const struct tcpmd5_support tcpmd5_ipsec = {
-	.enabled = 1,
+	.enabled = IPSEC_MODULE_ENABLED,
 	.methods = &tcpmd5_methods
 };
 const struct tcpmd5_support * const tcp_ipsec_support = &tcpmd5_ipsec;
