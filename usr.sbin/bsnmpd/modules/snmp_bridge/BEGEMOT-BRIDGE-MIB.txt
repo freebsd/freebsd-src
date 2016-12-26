@@ -41,7 +41,7 @@ IMPORTS
 	FROM BEGEMOT-MIB;
 
 begemotBridge MODULE-IDENTITY
-    LAST-UPDATED "200708060000Z"
+    LAST-UPDATED "201612170000Z"
     ORGANIZATION "Sofia University St. Kliment Ohridski"
     CONTACT-INFO
 	    "		Shteryana Shopova
@@ -56,6 +56,9 @@ begemotBridge MODULE-IDENTITY
 	     E-Mail:	syrinx@FreeBSD.org"
     DESCRIPTION
 	    "The Begemot MIB for managing bridge interfaces."
+    REVISION     "201612170000Z"
+    DESCRIPTION
+    	     "Address some minor typos and grammar mistakes."
     REVISION     "200708060000Z"
     DESCRIPTION
 	     "Third revision adds begemotBridgeBasePortPrivate
@@ -856,7 +859,7 @@ begemotBridgeTpLearnedEntryDiscards OBJECT-TYPE
     DESCRIPTION
 	"The total number of Forwarding Database entries that would
 	have been learnt, but have been discarded due to Forwarding
-	Address Table having reached it's maximum entries limit."
+	Address Table having reached its maximum entries limit."
     ::= { begemotBridgeTpEntry 1 }
 
 begemotBridgeTpAgingTime OBJECT-TYPE
@@ -874,7 +877,7 @@ begemotBridgeTpMaxAddresses OBJECT-TYPE
     MAX-ACCESS	read-write
     STATUS	current
     DESCRIPTION
-	"The maximum number of entires that this bridge can
+	"The maximum number of entries that this bridge can
 	learn in it's Forwarding Address Table and use for
 	making forwarding decisions."
     ::= { begemotBridgeTpEntry 3 }
