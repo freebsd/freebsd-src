@@ -72,10 +72,18 @@
 
 #define	prefetch(x)
 
+#define LINUX_LIST_HEAD_INIT(name) { &(name), &(name) }
+
+#define LINUX_LIST_HEAD(name) \
+	struct list_head name = LINUX_LIST_HEAD_INIT(name)
+
+#ifndef LIST_HEAD_DEF
+#define	LIST_HEAD_DEF
 struct list_head {
 	struct list_head *next;
 	struct list_head *prev;
 };
+#endif
 
 static inline void
 INIT_LIST_HEAD(struct list_head *list)
@@ -91,12 +99,26 @@ list_empty(const struct list_head *head)
 	return (head->next == head);
 }
 
+static inline int
+list_empty_careful(const struct list_head *head)
+{
+	struct list_head *next = head->next;
+
+	return ((next == head) && (next == head->prev));
+}
+
+static inline void
+__list_del(struct list_head *prev, struct list_head *next)
+{
+	next->prev = prev;
+	WRITE_ONCE(prev->next, next);
+}
+
 static inline void
 list_del(struct list_head *entry)
 {
 
-	entry->next->prev = entry->prev;
-	entry->prev->next = entry->next;
+	__list_del(entry->prev, entry->next);
 }
 
 static inline void
@@ -182,6 +204,11 @@ list_del_init(struct list_head *entry)
 #define	list_for_each_entry_reverse(p, h, field)			\
 	for (p = list_entry((h)->prev, typeof(*p), field); &(p)->field != (h); \
 	    p = list_entry((p)->field.prev, typeof(*p), field))
+
+#define	list_for_each_entry_safe_reverse(p, n, h, field)		\
+	for (p = list_entry((h)->prev, typeof(*p), field), 		\
+	    n = list_entry((p)->field.prev, typeof(*p), field); &(p)->field != (h); \
+	    p = n, n = list_entry(n->field.prev, typeof(*n), field))
 
 #define	list_for_each_entry_continue_reverse(p, h, field) \
 	for (p = list_entry((p)->field.prev, typeof(*p), field); &(p)->field != (h); \
