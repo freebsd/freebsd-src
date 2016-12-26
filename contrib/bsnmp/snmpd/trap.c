@@ -464,7 +464,6 @@ static void
 snmp_create_v3_trap(struct snmp_pdu *pdu, struct target_param *target,
     const struct asn_oid *trap_oid)
 {
-	uint64_t etime;
 	struct usm_user *usmuser;
 
 	memset(pdu, 0, sizeof(*pdu));
@@ -487,14 +486,7 @@ snmp_create_v3_trap(struct snmp_pdu *pdu, struct target_param *target,
 
 	pdu->nbindings = 2;
 
-	etime = (get_ticks() - start_tick)  / 100ULL;
-	if (etime < INT32_MAX)
-		snmpd_engine.engine_time = etime;
-	else {
-		start_tick = get_ticks();
-		set_snmpd_engine();
-		snmpd_engine.engine_time = start_tick;
-	}
+	update_snmpd_engine_time();
 
 	memcpy(pdu->engine.engine_id, snmpd_engine.engine_id,
 	    snmpd_engine.engine_len);
