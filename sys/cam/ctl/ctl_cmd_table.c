@@ -990,7 +990,7 @@ const struct ctl_cmd_entry ctl_cmd_table[256] =
 				     CTL_CMD_FLAG_OK_ON_NO_MEDIA |
 				     CTL_CMD_FLAG_OK_ON_STANDBY |
 				     CTL_FLAG_DATA_OUT,
- CTL_LUN_PAT_NONE, 6, {0x11, 0, 0, 0xff, 0x07}},
+ CTL_LUN_PAT_NONE, 6, {0x13, 0, 0, 0xff, 0x07}},
 
 /* 16 RESERVE(6) */
 {ctl_scsi_reserve, CTL_SERIDX_RES, CTL_CMD_FLAG_ALLOW_ON_RESV |
@@ -1260,7 +1260,7 @@ const struct ctl_cmd_entry ctl_cmd_table[256] =
 				     CTL_CMD_FLAG_OK_ON_NO_MEDIA |
 				     CTL_CMD_FLAG_OK_ON_STANDBY |
 				     CTL_FLAG_DATA_OUT,
- CTL_LUN_PAT_NONE, 10, {0x11, 0, 0, 0, 0, 0, 0xff, 0xff, 0x07} },
+ CTL_LUN_PAT_NONE, 10, {0x13, 0, 0, 0, 0, 0, 0xff, 0xff, 0x07} },
 
 /* 56 RESERVE(10) */
 {ctl_scsi_reserve, CTL_SERIDX_RES, CTL_CMD_FLAG_ALLOW_ON_RESV |
