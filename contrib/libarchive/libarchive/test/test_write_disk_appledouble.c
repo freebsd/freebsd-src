@@ -144,7 +144,7 @@ DEFINE_TEST(test_write_disk_appledouble)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("./file3", archive_entry_pathname(ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_extract2(a, ae, ad));
-	/* Extract ._file3 which will be merged into file3 as medtadata. */
+	/* Extract ._file3 which will be merged into file3 as metadata. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("./._file3", archive_entry_pathname(ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_extract2(a, ae, ad));
@@ -203,7 +203,7 @@ DEFINE_TEST(test_write_disk_appledouble)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("./file3", archive_entry_pathname(ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_extract2(a, ae, ad));
-	/* Extract ._file3 which will be merged into file3 as medtadata. */
+	/* Extract ._file3 which will be merged into file3 as metadata. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("./._file3", archive_entry_pathname(ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_extract2(a, ae, ad));
