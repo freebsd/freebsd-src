@@ -53,6 +53,7 @@ void key_addref(struct secpolicy *);
 void key_freesp(struct secpolicy **);
 int key_spdacquire(struct secpolicy *);
 int key_havesp(u_int);
+void key_bumpspgen(void);
 uint32_t key_getspgen(void);
 uint32_t key_newreqid(void);
 

@@ -747,6 +747,13 @@ key_getspgen(void)
 	return (V_sp_genid);
 }
 
+void
+key_bumpspgen(void)
+{
+
+	V_sp_genid++;
+}
+
 static int
 key_checksockaddrs(struct sockaddr *src, struct sockaddr *dst)
 {

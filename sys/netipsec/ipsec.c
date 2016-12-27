@@ -1381,6 +1381,9 @@ def_policy_init(const void *unused __unused)
 	bzero(&V_def_policy, sizeof(struct secpolicy));
 	V_def_policy.policy = IPSEC_POLICY_NONE;
 	V_def_policy.refcnt = 1;
+
+	/* Force INPCB SP cache invalidation */
+	key_bumpspgen();
 }
 VNET_SYSINIT(def_policy_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_FIRST,
     def_policy_init, NULL);
