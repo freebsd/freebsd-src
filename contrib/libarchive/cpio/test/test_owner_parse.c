@@ -38,7 +38,7 @@ static const int root_gids[] = { 0, 1 };
  * its primary group membership depends on how the user set up
  * their /etc/passwd. Likely values are 513 (None), 545 (Users),
  * or 544 (Administrators). Just check for one of those...
- * TODO: Handle non-English localizations...e.g. French 'Administrateur'
+ * TODO: Handle non-English localizations... e.g. French 'Administrateur'
  *       Use CreateWellKnownSID() and LookupAccountName()?
  */
 #define ROOT "Administrator"
