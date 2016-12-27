@@ -862,7 +862,7 @@ next_entry(struct archive_read_disk *a, struct tree *t,
 
 	/* Save the times to be restored. This must be in before
 	 * calling archive_read_disk_descend() or any chance of it,
-	 * especially, invokng a callback. */
+	 * especially, invoking a callback. */
 	t->restore_time.lastWriteTime = st->ftLastWriteTime;
 	t->restore_time.lastAccessTime = st->ftLastAccessTime;
 	t->restore_time.filetype = archive_entry_filetype(entry);
