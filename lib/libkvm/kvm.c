@@ -167,8 +167,10 @@ _kvm_open(kvm_t *kd, const char *uf, const char *mf, int flag, char *errout)
 			return (kd);
 		}
 	}
+
 	/*
-	 * This is a crash dump.
+	 * This is either a crash dump or a remote live system with its physical
+	 * memory fully accessible via a special device.
 	 * Open the namelist fd and determine the architecture.
 	 */
 	if ((kd->nlfd = open(uf, O_RDONLY | O_CLOEXEC, 0)) < 0) {
@@ -177,8 +179,11 @@ _kvm_open(kvm_t *kd, const char *uf, const char *mf, int flag, char *errout)
 	}
 	if (_kvm_read_kernel_ehdr(kd) < 0)
 		goto failed;
-	if (strncmp(mf, _PATH_FWMEM, strlen(_PATH_FWMEM)) == 0)
+	if (strncmp(mf, _PATH_FWMEM, strlen(_PATH_FWMEM)) == 0 ||
+	    strncmp(mf, _PATH_DEVVMM, strlen(_PATH_DEVVMM)) == 0) {
 		kd->rawdump = 1;
+		kd->writable = 1;
+	}
 	SET_FOREACH(parch, kvm_arch) {
 		if ((*parch)->ka_probe(kd)) {
 			kd->arch = *parch;
@@ -405,6 +410,15 @@ ssize_t
 kvm_write(kvm_t *kd, u_long kva, const void *buf, size_t len)
 {
 	int cc;
+	ssize_t cw;
+	off_t pa;
+	const char *cp;
+
+	if (!ISALIVE(kd) && !kd->writable) {
+		_kvm_err(kd, kd->program,
+		    "kvm_write not implemented for dead kernels");
+		return (-1);
+	}
 
 	if (ISALIVE(kd)) {
 		/*
@@ -422,12 +436,38 @@ kvm_write(kvm_t *kd, u_long kva, const void *buf, size_t len)
 		} else if ((size_t)cc < len)
 			_kvm_err(kd, kd->program, "short write");
 		return (cc);
-	} else {
-		_kvm_err(kd, kd->program,
-		    "kvm_write not implemented for dead kernels");
-		return (-1);
 	}
-	/* NOTREACHED */
+
+	cp = buf;
+	while (len > 0) {
+		cc = kd->arch->ka_kvatop(kd, kva, &pa);
+		if (cc == 0)
+			return (-1);
+		if (cc > (ssize_t)len)
+			cc = len;
+		errno = 0;
+		if (lseek(kd->pmfd, pa, 0) == -1 && errno != 0) {
+			_kvm_syserr(kd, 0, _PATH_MEM);
+			break;
+		}
+		cw = write(kd->pmfd, cp, cc);
+		if (cw < 0) {
+			_kvm_syserr(kd, kd->program, "kvm_write");
+			break;
+		}
+		/*
+		 * If ka_kvatop returns a bogus value or our core file is
+		 * truncated, we might wind up seeking beyond the end of the
+		 * core file in which case the read will return 0 (EOF).
+		 */
+		if (cw == 0)
+			break;
+		cp += cw;
+		kva += cw;
+		len -= cw;
+	}
+
+	return (cp - (char *)buf);
 }
 
 int
