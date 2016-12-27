@@ -28,7 +28,7 @@
 .\"	@(#)getfsstat.2	8.3 (Berkeley) 5/25/95
 .\" $FreeBSD$
 .\"
-.Dd November 6, 2016
+.Dd December 27, 2016
 .Dt GETFSSTAT 2
 .Os
 .Sh NAME
@@ -41,7 +41,7 @@
 .In sys/ucred.h
 .In sys/mount.h
 .Ft int
-.Fn getfsstat "struct statfs *buf" "long bufsize" "int flags"
+.Fn getfsstat "struct statfs *buf" "long bufsize" "int mode"
 .Sh DESCRIPTION
 The
 .Fn getfsstat
@@ -74,11 +74,11 @@ is given as NULL,
 returns just the number of mounted file systems.
 .Pp
 Normally
-.Fa flags
+.Fa mode
 should be specified as
 .Dv MNT_WAIT .
 If
-.Fa flags
+.Fa mode
 is set to
 .Dv MNT_NOWAIT ,
 .Fn getfsstat
@@ -108,6 +108,12 @@ The
 .Fa buf
 argument
 points to an invalid address.
+.It Bq Er EINVAL
+.Fa mode
+is set to a value other than
+.Dv MNT_WAIT
+or
+.Dv MNT_NOWAIT .
 .It Bq Er EIO
 An
 .Tn I/O

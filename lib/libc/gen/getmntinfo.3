@@ -28,7 +28,7 @@
 .\"     @(#)getmntinfo.3	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd June 9, 1993
+.Dd December 27, 2016
 .Dt GETMNTINFO 3
 .Os
 .Sh NAME
@@ -41,7 +41,7 @@
 .In sys/ucred.h
 .In sys/mount.h
 .Ft int
-.Fn getmntinfo "struct statfs **mntbufp" "int flags"
+.Fn getmntinfo "struct statfs **mntbufp" "int mode"
 .Sh DESCRIPTION
 The
 .Fn getmntinfo
@@ -55,7 +55,7 @@ The
 .Fn getmntinfo
 function
 passes its
-.Fa flags
+.Fa mode
 argument transparently to
 .Xr getfsstat 2 .
 .Sh RETURN VALUES
