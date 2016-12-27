@@ -578,7 +578,7 @@ op_vacm_view(struct snmp_context *ctx, struct snmp_value *val, uint32_t sub,
 				return (vacm_delete_view(view));
 			break;
 		default:
-			break;	
+			break;
 		}
 		return (SNMP_ERR_NOERROR);
 
@@ -683,7 +683,7 @@ vacm_append_access_rule_index(struct asn_oid *oid, uint sub,
     const struct vacm_access *acl)
 {
 	uint32_t i;
-  
+
 	oid->len = sub + strlen(acl->group->groupname) +
 	    strlen(acl->ctx_prefix) + 4;
 
@@ -776,7 +776,7 @@ vacm_get_next_access_rule(const struct asn_oid *oid __unused, uint sub __unused)
 static int
 vacm_view_index_decode(const struct asn_oid *oid, uint sub, char *vname,
    struct asn_oid *view_oid)
-{	
+{
 	uint32_t i;
 	int viod_off;
 

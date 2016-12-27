@@ -29,7 +29,7 @@
  * $FreeBSD$
  */
 
-#include <sys/param.h> 
+#include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/uio.h>
 
@@ -636,7 +636,7 @@ snmp_mapping_dumptable(struct snmp_table_index *headp)
 	}
 }
 
-void 
+void
 snmp_mapping_dump(struct snmp_toolinfo *snmptoolctx /* int bits */)
 {
 	if (!_bsnmptools_debug)

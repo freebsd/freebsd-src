@@ -4,7 +4,7 @@
  *	All rights reserved.
  *
  * Author: Harti Brandt <harti@freebsd.org>
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -1228,7 +1228,7 @@ mib_fetch_rtab(int af, int info, int arg, size_t *lenp)
 			return (NULL);
 		}
 		buf = newbuf;
-			
+
 		if (sysctl(name, 6, buf, lenp, NULL, 0) == 0)
 			break;
 
@@ -1329,7 +1329,7 @@ mib_arp_update(void)
 		in_update_arp = 0;
 		return;
 	}
-	
+
 	next = buf;
 	while (next < buf + needed) {
 		rtm = (struct rt_msghdr *)(void *)next;
@@ -1521,7 +1521,7 @@ mib_unmodify_ifa(struct mibifa *ifa)
 }
 
 /*
- * Modify an IFA. 
+ * Modify an IFA.
  */
 int
 mib_modify_ifa(struct mibifa *ifa)
