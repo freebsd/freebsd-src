@@ -470,6 +470,8 @@ struct ieee80211vap {
 	struct ieee80211_appie	*iv_appie_wpa;
 	uint8_t			*iv_wpa_ie;
 	uint8_t			*iv_rsn_ie;
+
+	/* Key management */
 	uint16_t		iv_max_keyix;	/* max h/w key index */
 	ieee80211_keyix		iv_def_txkey;	/* default/group tx key index */
 	struct ieee80211_key	iv_nw_keys[IEEE80211_WEP_NKID];
@@ -482,6 +484,8 @@ struct ieee80211vap {
 				    const struct ieee80211_key *);
 	void			(*iv_key_update_begin)(struct ieee80211vap *);
 	void			(*iv_key_update_end)(struct ieee80211vap *);
+	void			(*iv_update_deftxkey)(struct ieee80211vap *,
+				    ieee80211_keyix deftxkey);
 
 	const struct ieee80211_authenticator *iv_auth; /* authenticator glue */
 	void			*iv_ec;		/* private auth state */
@@ -536,6 +540,7 @@ struct ieee80211vap {
 	/* 802.3 output method for raw frame xmit */
 	int			(*iv_output)(struct ifnet *, struct mbuf *,
 				    const struct sockaddr *, struct route *);
+
 	uint64_t		iv_spare[6];
 };
 MALLOC_DECLARE(M_80211_VAP);
