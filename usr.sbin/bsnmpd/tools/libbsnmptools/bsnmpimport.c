@@ -53,7 +53,7 @@
  * subtype := STRING
  *
  * enum := ENUM '(' value ')'
- * 
+ *
  * bits := BITS '(' value ')'
  *
  * value := INT STRING | INT STRING value
@@ -483,7 +483,7 @@ snmp_import_update_table(enum snmp_tbl_entry te, struct snmp_index_entry *tbl)
 	switch (te) {
 		case ENTRY_NONE:
 			if (table_data.tbl_type == ENTRY_NONE)
-				return (NULL);	
+				return (NULL);
 			if (table_data.tbl_type == ENTRY_INDEX)
 				table_data.table_idx = NULL;
 			table_data.tbl_type--;
@@ -539,7 +539,7 @@ parse_subtype(struct snmp_toolinfo *snmptoolctx, int32_t *tok,
 		warnx("subtype expected after '|'");
 		return (-1);
 	}
-	
+
 	*tc = snmp_get_tc(nexttok);
 	*tok = gettoken(snmptoolctx);
 
@@ -806,7 +806,7 @@ snmp_import_object(struct snmp_toolinfo *snmptoolctx)
 		if (snmp_suboid_append(&current_oid, (asn_subid_t) val) < 0)
 			goto error;
 
-		/* 
+		/*
 		 * Ignore the error for nodes since the .def files currently
 		 * contain different strings for 1.3.6.1.2.1 - mibII. Only make
 		 * sure the memory is freed and don't complain.

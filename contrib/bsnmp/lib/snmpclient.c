@@ -68,7 +68,7 @@
 struct snmp_client snmp_client;
 
 /* List of all outstanding requests */
-struct sent_pdu {	
+struct sent_pdu {
 	int		reqid;
 	struct snmp_pdu	*pdu;
 	struct timeval	time;
@@ -510,7 +510,7 @@ table_check_response(struct tabwork *work, const struct snmp_pdu *resp)
 				table_free(work, 1);
 				return (-2);
 			}
-					
+
 			continue;
 		}
 		if (!asn_is_suboid(&work->descr->table, &b->var) ||
@@ -754,7 +754,7 @@ snmp_oid_append(struct asn_oid *oid, const char *fmt, ...)
 	ret = 0;
 	while (*fmt != '\0') {
 		switch (*fmt++) {
-		  case 'i': 
+		  case 'i':
 			/* just an integer more */
 			if (oid->len + 1 > ASN_MAXOIDLEN) {
 				warnx("%s: OID too long for integer", __func__);
@@ -804,7 +804,7 @@ snmp_oid_append(struct asn_oid *oid, const char *fmt, ...)
 			break;
 
 		  case 'b':
-			/* append `size` characters */ 
+			/* append `size` characters */
 			str = (const u_char *)va_arg(va, const char *);
 			if (oid->len + size > ASN_MAXOIDLEN) {
 				warnx("%s: OID too long for string", __func__);
@@ -852,7 +852,7 @@ snmp_client_init(struct snmp_client *c)
 
 	strcpy(c->read_community, "public");
 	strcpy(c->write_community, "private");
-	
+
 	c->security_model = SNMP_SECMODEL_USM;
 	strcpy(c->cname, "");
 
@@ -863,7 +863,7 @@ snmp_client_init(struct snmp_client *c)
 	c->txbuflen = c->rxbuflen = 10000;
 
 	c->fd = -1;
-	
+
 	c->max_reqid = INT32_MAX;
 	c->min_reqid = 0;
 	c->next_reqid = 0;

@@ -433,7 +433,7 @@ bridge_update_bif(struct bridge_if *bif)
 }
 
 /*
- * Update all bridge interfaces' ports only - 
+ * Update all bridge interfaces' ports only -
  * make sure each bridge interface exists first.
  */
 void
