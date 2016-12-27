@@ -109,7 +109,7 @@ int	kern_futimens(struct thread *td, int fd, struct timespec *tptr,
 int	kern_getdirentries(struct thread *td, int fd, char *buf, u_int count,
 	    long *basep, ssize_t *residp, enum uio_seg bufseg);
 int	kern_getfsstat(struct thread *td, struct statfs **buf, size_t bufsize,
-	    size_t *countp, enum uio_seg bufseg, int flags);
+	    size_t *countp, enum uio_seg bufseg, int mode);
 int	kern_getitimer(struct thread *, u_int, struct itimerval *);
 int	kern_getppid(struct thread *);
 int	kern_getpeername(struct thread *td, int fd, struct sockaddr **sa,
