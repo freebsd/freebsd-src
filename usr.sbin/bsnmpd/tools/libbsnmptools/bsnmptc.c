@@ -269,7 +269,7 @@ parse_octetstring(struct snmp_value *value, char *val)
 	value->v.octetstring.len = len;
 
 	if((value->v.octetstring.octets = malloc(len)) == NULL) {
-		syslog(LOG_ERR,"malloc failed: %s", strerror(errno));
+		syslog(LOG_ERR, "malloc failed: %s", strerror(errno));
 		return (-1);
 	}
 
@@ -570,7 +570,7 @@ parse_dateandtime(struct snmp_value *sv, char *val)
 	date[10] = v;
 
 	if ((sv->v.octetstring.octets = malloc(SNMP_DATETIME_OCTETS)) == NULL) {
-		warnx("malloc() failed - %s", strerror(errno));
+		warn("malloc() failed");
 		return (-1);
 	}
 
@@ -626,7 +626,7 @@ snmp_addr2asn_oid(char *str, struct asn_oid *oid)
 			return (NULL);
 		}
 		if (*endptr != ':') {
-			warnx("Failed adding oid - %s",str);
+			warnx("Failed adding oid - %s", str);
 			return (NULL);
 		}
 		if (snmp_suboid_append(oid, (asn_subid_t) v) < 0)
@@ -679,7 +679,7 @@ parse_physaddress(struct snmp_value *sv, char *val)
 	phys_addr[5] = v;
 
 	if ((sv->v.octetstring.octets = malloc(SNMP_PHYSADDR_OCTETS)) == NULL) {
-		syslog(LOG_ERR,"malloc failed: %s", strerror(errno));
+		syslog(LOG_ERR, "malloc failed: %s", strerror(errno));
 		return (-1);
 	}
 
@@ -743,7 +743,7 @@ snmp_ntp_ts2asn_oid(char *str, struct asn_oid *oid)
 		errno = saved_errno;
 
 	if (*endptr != '.') {
-		warnx("Failed adding oid - %s",str);
+		warnx("Failed adding oid - %s", str);
 		return (NULL);
 	}
 
@@ -824,7 +824,7 @@ parse_ntp_ts(struct snmp_value *sv, char *val)
 	}
 
 	if ((sv->v.octetstring.octets = malloc(SNMP_NTP_TS_OCTETS)) == NULL) {
-		syslog(LOG_ERR,"malloc failed: %s", strerror(errno));
+		syslog(LOG_ERR, "malloc failed: %s", strerror(errno));
 		return (-1);
 	}
 
@@ -987,7 +987,7 @@ parse_bridge_id(struct snmp_value *sv, char *string)
 	bridge_id[7] = v;
 
 	if ((sv->v.octetstring.octets = malloc(SNMP_BRIDGEID_OCTETS)) == NULL) {
-		syslog(LOG_ERR,"malloc failed: %s", strerror(errno));
+		syslog(LOG_ERR, "malloc failed: %s", strerror(errno));
 		return (-1);
 	}
 
@@ -1098,7 +1098,7 @@ parse_bport_id(struct snmp_value *value, char *string)
 	bport_id[1] = v;
 
 	if ((value->v.octetstring.octets = malloc(SNMP_BPORT_OCTETS)) == NULL) {
-		syslog(LOG_ERR,"malloc failed: %s", strerror(errno));
+		syslog(LOG_ERR, "malloc failed: %s", strerror(errno));
 		return (-1);
 	}
 
@@ -1178,7 +1178,7 @@ snmp_oct2inetaddr(uint32_t len, char *octets, char *buf)
 	}
 
 	if (inet_ntop(af, ip, buf, SNMP_INADDRS_STRSZ) == NULL) {
-		warnx("inet_ntop failed - %s", strerror(errno));
+		warn("inet_ntop failed");
 		return (NULL);
 	}
 
@@ -1230,7 +1230,7 @@ snmp_bits2oct(char *str, struct asn_oid *oid)
 
 	v = strtoull(str, &endptr, 16);
 	if (errno != 0) {
-		warnx("Bad BITS value %s - %s", str, strerror(errno));
+		warn("Bad BITS value %s", str);
 		errno = saved_errno;
 		return (NULL);
 	}
@@ -1270,7 +1270,7 @@ parse_bits(struct snmp_value *value, char *string)
 	v = strtoull(string, &endptr, 16);
 
 	if (errno != 0) {
-		warnx("Bad BITS value %s - %s", string, strerror(errno));
+		warn("Bad BITS value %s", string);
 		errno = saved_errno;
 		return (-1);
 	}

@@ -357,7 +357,7 @@ static void	usage(void);
 static int	validate(struct sockaddr *, const char *);
 static void	unmapped(struct sockaddr *);
 static void	wallmsg(struct filed *, struct iovec *, const int iovlen);
-static int	waitdaemon(int, int, int);
+static int	waitdaemon(int);
 static void	timedout(int);
 static void	increase_rcvbuf(int);
 
@@ -606,7 +606,7 @@ main(int argc, char *argv[])
 	}
 
 	if ((!Foreground) && (!Debug)) {
-		ppid = waitdaemon(0, 0, 30);
+		ppid = waitdaemon(30);
 		if (ppid < 0) {
 			warn("could not become daemon");
 			pidfile_remove(pfh);
@@ -748,6 +748,7 @@ socklist_recv_sock(struct socklist *sl)
 static void
 unmapped(struct sockaddr *sa)
 {
+#if defined(INET) && defined(INET6)
 	struct sockaddr_in6 *sin6;
 	struct sockaddr_in sin;
 
@@ -766,6 +767,10 @@ unmapped(struct sockaddr *sa)
 	memcpy(&sin.sin_addr, &sin6->sin6_addr.s6_addr[12],
 	    sizeof(sin.sin_addr));
 	memcpy(sa, &sin, sizeof(sin));
+#else
+	if (sa == NULL)
+		return;
+#endif
 }
 
 static void
@@ -1533,24 +1538,23 @@ cvthname(struct sockaddr *f)
 	sigset_t omask, nmask;
 	static char hname[NI_MAXHOST], ip[NI_MAXHOST];
 
-	dprintf("cvthname(%d) len = %d, %zu\n", f->sa_family, f->sa_len, sizeof(struct sockaddr_in6));
+	dprintf("cvthname(%d) len = %d\n", f->sa_family, f->sa_len);
 	error = getnameinfo(f, f->sa_len, ip, sizeof(ip), NULL, 0,
 		    NI_NUMERICHOST);
-	dprintf("cvthname(%s)\n", ip);
-
 	if (error) {
 		dprintf("Malformed from address %s\n", gai_strerror(error));
 		return ("???");
 	}
+	dprintf("cvthname(%s)\n", ip);
+
 	if (!resolve)
 		return (ip);
 
 	sigemptyset(&nmask);
 	sigaddset(&nmask, SIGHUP);
 	sigprocmask(SIG_BLOCK, &nmask, &omask);
-	error = getnameinfo((struct sockaddr *)f,
-			    ((struct sockaddr *)f)->sa_len,
-			    hname, sizeof hname, NULL, 0, NI_NAMEREQD);
+	error = getnameinfo(f, f->sa_len, hname, sizeof(hname),
+		    NULL, 0, NI_NAMEREQD);
 	sigprocmask(SIG_SETMASK, &omask, NULL);
 	if (error) {
 		dprintf("Host name for your address (%s) unknown\n", ip);
@@ -2307,7 +2311,7 @@ markit(void)
  * Set a timer so we don't hang forever if it wedges.
  */
 static int
-waitdaemon(int nochdir, int noclose, int maxwait)
+waitdaemon(int maxwait)
 {
 	int fd;
 	int status;
@@ -2339,15 +2343,13 @@ waitdaemon(int nochdir, int noclose, int maxwait)
 	if (setsid() == -1)
 		return (-1);
 
-	if (!nochdir)
-		(void)chdir("/");
-
-	if (!noclose && (fd = open(_PATH_DEVNULL, O_RDWR, 0)) != -1) {
+	(void)chdir("/");
+	if ((fd = open(_PATH_DEVNULL, O_RDWR, 0)) != -1) {
 		(void)dup2(fd, STDIN_FILENO);
 		(void)dup2(fd, STDOUT_FILENO);
 		(void)dup2(fd, STDERR_FILENO);
-		if (fd > 2)
-			(void)close (fd);
+		if (fd > STDERR_FILENO)
+			(void)close(fd);
 	}
 	return (getppid());
 }
@@ -2393,7 +2395,9 @@ allowaddr(char *s)
 	struct servent *se;
 	int masklen = -1;
 	struct addrinfo hints, *res;
+#ifdef INET
 	in_addr_t *addrp, *maskp;
+#endif
 #ifdef INET6
 	uint32_t *addr6p, *mask6p;
 #endif
@@ -2459,7 +2463,9 @@ allowaddr(char *s)
 			.ss_family = res->ai_family,
 			.ss_len = res->ai_addrlen
 		};
-		if (res->ai_family == AF_INET) {
+		switch (res->ai_family) {
+#ifdef INET
+		case AF_INET:
 			maskp = &sstosin(&ap->a_mask)->sin_addr.s_addr;
 			addrp = &sstosin(&ap->a_addr)->sin_addr.s_addr;
 			if (masklen < 0) {
@@ -2481,9 +2487,14 @@ allowaddr(char *s)
 			}
 			/* Lose any host bits in the network number. */
 			*addrp &= *maskp;
-		}
+			break;
+#endif
 #ifdef INET6
-		else if (res->ai_family == AF_INET6 && masklen <= 128) {
+		case AF_INET6:
+			if (masklen > 128) {
+				freeaddrinfo(res);
+				return (-1);
+			}
 			if (masklen < 0)
 				masklen = 128;
 			mask6p = (uint32_t *)&sstosin6(&ap->a_mask)->sin6_addr.s6_addr32[0];
@@ -2501,9 +2512,9 @@ allowaddr(char *s)
 					masklen -= 32;
 				}
 			}
-		}
+			break;
 #endif
-		else {
+		default:
 			freeaddrinfo(res);
 			return (-1);
 		}
@@ -2527,12 +2538,12 @@ allowaddr(char *s)
 		printf("allowaddr: rule ");
 		if (ap->isnumeric) {
 			printf("numeric, ");
-			getnameinfo((struct sockaddr *)&ap->a_addr,
-				    ((struct sockaddr *)&ap->a_addr)->sa_len,
+			getnameinfo(sstosa(&ap->a_addr),
+				    (sstosa(&ap->a_addr))->sa_len,
 				    ip, sizeof ip, NULL, 0, NI_NUMERICHOST);
 			printf("addr = %s, ", ip);
-			getnameinfo((struct sockaddr *)&ap->a_mask,
-				    ((struct sockaddr *)&ap->a_mask)->sa_len,
+			getnameinfo(sstosa(&ap->a_mask),
+				    (sstosa(&ap->a_mask))->sa_len,
 				    ip, sizeof ip, NULL, 0, NI_NUMERICHOST);
 			printf("mask = %s; ", ip);
 		} else {
@@ -2552,7 +2563,9 @@ validate(struct sockaddr *sa, const char *hname)
 	int i;
 	char name[NI_MAXHOST], ip[NI_MAXHOST], port[NI_MAXSERV];
 	struct allowedpeer *ap;
+#ifdef INET
 	struct sockaddr_in *sin4, *a4p = NULL, *m4p = NULL;
+#endif
 #ifdef INET6
 	struct sockaddr_in6 *sin6, *a6p = NULL, *m6p = NULL;
 #endif
@@ -2602,7 +2615,8 @@ validate(struct sockaddr *sa, const char *hname)
 				dprintf("rejected in rule %d due to address family mismatch.\n", i);
 				continue;
 			}
-			if (ap->a_addr.ss_family == AF_INET) {
+#ifdef INET
+			else if (ap->a_addr.ss_family == AF_INET) {
 				sin4 = satosin(sa);
 				a4p = satosin(&ap->a_addr);
 				m4p = satosin(&ap->a_mask);
@@ -2612,6 +2626,7 @@ validate(struct sockaddr *sa, const char *hname)
 					continue;
 				}
 			}
+#endif
 #ifdef INET6
 			else if (ap->a_addr.ss_family == AF_INET6) {
 				sin6 = satosin6(sa);
@@ -2702,7 +2717,7 @@ p_open(const char *prog, pid_t *rpid)
 		dup2(pfd[0], STDIN_FILENO);
 		dup2(nulldesc, STDOUT_FILENO);
 		dup2(nulldesc, STDERR_FILENO);
-		closefrom(3);
+		closefrom(STDERR_FILENO + 1);
 
 		(void)execvp(_PATH_BSHELL, argv);
 		_exit(255);
@@ -2858,9 +2873,8 @@ socksetup(struct peer *pe)
 	for (res = res0; res != NULL; res = res->ai_next) {
 		int s;
 
-		if (res->ai_family == AF_LOCAL)
-			unlink(pe->pe_name);
-		else if (SecureMode > 1) {
+		if (res->ai_family != AF_LOCAL &&
+		    SecureMode > 1) {
 			/* Only AF_LOCAL in secure mode. */
 			continue;
 		}
@@ -2892,26 +2906,36 @@ socksetup(struct peer *pe)
 			error++;
 			continue;
 		}
+
 		/*
-		 * RFC 3164 recommends that client side message
-		 * should come from the privileged syslogd port.
+		 * Bind INET and UNIX-domain sockets.
 		 *
-		 * If the system administrator choose not to obey
+		 * A UNIX-domain socket is always bound to a pathname
+		 * regardless of -N flag.
+		 *
+		 * For INET sockets, RFC 3164 recommends that client
+		 * side message should come from the privileged syslogd port.
+		 *
+		 * If the system administrator chooses not to obey
 		 * this, we can skip the bind() step so that the
 		 * system will choose a port for us.
 		 */
-		if (NoBind == 0) {
+		if (res->ai_family == AF_LOCAL)
+			unlink(pe->pe_name);
+		if (res->ai_family == AF_LOCAL ||
+		    NoBind == 0 || pe->pe_name != NULL) {
 			if (bind(s, res->ai_addr, res->ai_addrlen) < 0) {
 				logerror("bind");
 				close(s);
 				error++;
 				continue;
 			}
-			if (SecureMode == 0)
+			if (res->ai_family == AF_LOCAL ||
+			    SecureMode == 0)
 				increase_rcvbuf(s);
 		}
 		if (res->ai_family == AF_LOCAL &&
-	    	    chmod(pe->pe_name, pe->pe_mode) < 0) {
+		    chmod(pe->pe_name, pe->pe_mode) < 0) {
 			dprintf("chmod %s: %s\n", pe->pe_name,
 			    strerror(errno));
 			close(s);
@@ -2921,7 +2945,7 @@ socksetup(struct peer *pe)
 		dprintf("new socket fd is %d\n", s);
 		listen(s, 5);
 		dprintf("shutdown\n");
-		if (SecureMode) {
+		if (SecureMode || res->ai_family == AF_LOCAL) {
 			/* Forbid communication in secure mode. */
 			if (shutdown(s, SHUT_RD) < 0 &&
 			    errno != ENOTCONN) {
@@ -2929,9 +2953,9 @@ socksetup(struct peer *pe)
 				if (!Debug)
 					die(0);
 			}
-			dprintf("listening on inet socket\n");
+			dprintf("listening on socket\n");
 		} else
-			dprintf("sending on inet socket\n");
+			dprintf("sending on socket\n");
 		addsock(res->ai_addr, res->ai_addrlen,
 		    &(struct socklist){
 			.sl_socket = s,

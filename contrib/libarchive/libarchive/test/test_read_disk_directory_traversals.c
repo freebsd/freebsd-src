@@ -500,8 +500,8 @@ test_basic(void)
 
 	/*
 	 * We should be on the initial directory where we performed
-	 * archive_read_disk_new() after we perfome archive_read_free()
-	 *  even if we broke off the directory traversals.
+	 * archive_read_disk_new() after we perform archive_read_free()
+	 * even if we broke off the directory traversals.
 	 */
 
 	/* Save current working directory. */
@@ -1565,11 +1565,11 @@ DEFINE_TEST(test_read_disk_directory_traversals)
 {
 	/* Basic test. */
 	test_basic();
-	/* Test hybird mode; follow symlink initially, then not. */
+	/* Test hybrid mode; follow symlink initially, then not. */
 	test_symlink_hybrid();
-	/* Test logcal mode; follow all symlinks. */
+	/* Test logical mode; follow all symlinks. */
 	test_symlink_logical();
-	/* Test logcal mode; prevent loop in symlinks. */ 
+	/* Test logical mode; prevent loop in symlinks. */
 	test_symlink_logical_loop();
 	/* Test to restore atime. */
 	test_restore_atime();

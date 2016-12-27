@@ -193,6 +193,7 @@ struct transport_def {
 
 	ssize_t		(*send)(struct tport *, const u_char *, size_t,
 			    const struct sockaddr *, size_t);
+	ssize_t         (*recv)(struct port_input *);
 };
 struct transport {
 	struct asn_oid	index;		/* transport table index */
@@ -332,6 +333,7 @@ int init_actvals(void);
 extern char engine_file[];
 int init_snmpd_engine(void);
 int set_snmpd_engine(void);
+void update_snmpd_engine_time(void);
 
 int read_config(const char *, struct lmodule *);
 int define_macro(const char *name, const char *value);

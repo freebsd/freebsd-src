@@ -85,6 +85,8 @@ zoneinfo: yearistype ${TDATA}
 
 beforeinstall: install-zoneinfo
 install-zoneinfo:
+	mkdir -p ${DESTDIR}/usr/share/zoneinfo
+	cd ${DESTDIR}/usr/share/zoneinfo;  mkdir -p ${TZBUILDSUBDIRS}
 	cd ${TZBUILDDIR} && \
 	    find -s * -type f -print -exec ${INSTALL} ${TAG_ARGS} \
 	    -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \

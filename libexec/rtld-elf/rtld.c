@@ -87,7 +87,10 @@ static char *errmsg_save(void);
 static void *fill_search_info(const char *, size_t, void *);
 static char *find_library(const char *, const Obj_Entry *, int *);
 static const char *gethints(bool);
+static void hold_object(Obj_Entry *);
+static void unhold_object(Obj_Entry *);
 static void init_dag(Obj_Entry *);
+static void init_marker(Obj_Entry *);
 static void init_pagesizes(Elf_Auxinfo **aux_info);
 static void init_rtld(caddr_t, Elf_Auxinfo **);
 static void initlist_add_neededs(Needed_Entry *, Objlist *);
@@ -112,6 +115,7 @@ static void objlist_put_after(Objlist *, Obj_Entry *, Obj_Entry *);
 static void objlist_remove(Objlist *, Obj_Entry *);
 static int parse_libdir(const char *);
 static void *path_enumerate(const char *, path_enum_proc, void *);
+static void release_object(Obj_Entry *);
 static int relocate_object_dag(Obj_Entry *root, bool bind_now,
     Obj_Entry *rtldobj, int flags, RtldLockState *lockstate);
 static int relocate_object(Obj_Entry *obj, bool bind_now, Obj_Entry *rtldobj,
@@ -1826,6 +1830,14 @@ init_dag(Obj_Entry *root)
     root->dag_inited = true;
 }
 
+static void
+init_marker(Obj_Entry *marker)
+{
+
+	bzero(marker, sizeof(*marker));
+	marker->marker = true;
+}
+
 Obj_Entry *
 globallist_curr(const Obj_Entry *obj)
 {
@@ -1850,6 +1862,23 @@ globallist_next(const Obj_Entry *obj)
 		if (!obj->marker)
 			return (__DECONST(Obj_Entry *, obj));
 	}
+}
+
+/* Prevent the object from being unmapped while the bind lock is dropped. */
+static void
+hold_object(Obj_Entry *obj)
+{
+
+	obj->holdcount++;
+}
+
+static void
+unhold_object(Obj_Entry *obj)
+{
+
+	assert(obj->holdcount > 0);
+	if (--obj->holdcount == 0 && obj->unholdfree)
+		release_object(obj);
 }
 
 static void
@@ -2209,7 +2238,7 @@ load_object(const char *name, int fd_u, const Obj_Entry *refobj, int flags)
     fd = -1;
     if (name != NULL) {
 	TAILQ_FOREACH(obj, &obj_list, next) {
-	    if (obj->marker)
+	    if (obj->marker || obj->doomed)
 		continue;
 	    if (object_match_name(obj, name))
 		return (obj);
@@ -2256,7 +2285,7 @@ load_object(const char *name, int fd_u, const Obj_Entry *refobj, int flags)
 	return NULL;
     }
     TAILQ_FOREACH(obj, &obj_list, next) {
-	if (obj->marker)
+	if (obj->marker || obj->doomed)
 	    continue;
 	if (obj->ino == sb.st_ino && obj->dev == sb.st_dev)
 	    break;
@@ -2398,6 +2427,9 @@ objlist_call_fini(Objlist *list, Obj_Entry *root, RtldLockState *lockstate)
 
     assert(root == NULL || root->refcount == 1);
 
+    if (root != NULL)
+	root->doomed = true;
+
     /*
      * Preserve the current error message since a fini function might
      * call into the dynamic linker and overwrite it.
@@ -2410,15 +2442,11 @@ objlist_call_fini(Objlist *list, Obj_Entry *root, RtldLockState *lockstate)
 		continue;
 	    /* Remove object from fini list to prevent recursive invocation. */
 	    STAILQ_REMOVE(list, elm, Struct_Objlist_Entry, link);
-	    /*
-	     * XXX: If a dlopen() call references an object while the
-	     * fini function is in progress, we might end up trying to
-	     * unload the referenced object in dlclose() or the object
-	     * won't be unloaded although its fini function has been
-	     * called.
-	     */
-	    lock_release(rtld_bind_lock, lockstate);
+	    /* Ensure that new references cannot be acquired. */
+	    elm->obj->doomed = true;
 
+	    hold_object(elm->obj);
+	    lock_release(rtld_bind_lock, lockstate);
 	    /*
 	     * It is legal to have both DT_FINI and DT_FINI_ARRAY defined.
 	     * When this happens, DT_FINI_ARRAY is processed first.
@@ -2444,6 +2472,7 @@ objlist_call_fini(Objlist *list, Obj_Entry *root, RtldLockState *lockstate)
 		call_initfini_pointer(elm->obj, elm->obj->fini);
 	    }
 	    wlock_acquire(rtld_bind_lock, lockstate);
+	    unhold_object(elm->obj);
 	    /* No need to free anything if process is going down. */
 	    if (root != NULL)
 	    	free(elm);
@@ -2497,6 +2526,7 @@ objlist_call_init(Objlist *list, RtldLockState *lockstate)
 	 * without better locking.
 	 */
 	elm->obj->init_done = true;
+	hold_object(elm->obj);
 	lock_release(rtld_bind_lock, lockstate);
 
         /*
@@ -2523,6 +2553,7 @@ objlist_call_init(Objlist *list, RtldLockState *lockstate)
 	    }
 	}
 	wlock_acquire(rtld_bind_lock, lockstate);
+	unhold_object(elm->obj);
     }
     errmsg_restore(saved_msg);
 }
@@ -3544,8 +3575,7 @@ dl_iterate_phdr(__dl_iterate_hdr_callback callback, void *param)
 	RtldLockState bind_lockstate, phdr_lockstate;
 	int error;
 
-	bzero(&marker, sizeof(marker));
-	marker.marker = true;
+	init_marker(&marker);
 	error = 0;
 
 	wlock_acquire(rtld_phdr_lock, &phdr_lockstate);
@@ -3553,11 +3583,13 @@ dl_iterate_phdr(__dl_iterate_hdr_callback callback, void *param)
 	for (obj = globallist_curr(TAILQ_FIRST(&obj_list)); obj != NULL;) {
 		TAILQ_INSERT_AFTER(&obj_list, obj, &marker, next);
 		rtld_fill_dl_phdr_info(obj, &phdr_info);
+		hold_object(obj);
 		lock_release(rtld_bind_lock, &bind_lockstate);
 
 		error = callback(&phdr_info, sizeof phdr_info, param);
 
 		wlock_acquire(rtld_bind_lock, &bind_lockstate);
+		unhold_object(obj);
 		obj = globallist_next(&marker);
 		TAILQ_REMOVE(&obj_list, &marker, next);
 		if (error != 0) {
@@ -3810,6 +3842,19 @@ _r_debug_postinit(struct link_map *m)
 
 	/* See r_debug_state(). */
 	__compiler_membar();
+}
+
+static void
+release_object(Obj_Entry *obj)
+{
+
+	if (obj->holdcount > 0) {
+		obj->unholdfree = true;
+		return;
+	}
+	munmap(obj->mapbase, obj->mapsize);
+	linkmap_delete(obj);
+	obj_free(obj);
 }
 
 /*
@@ -4382,7 +4427,7 @@ trace_loaded_objects(Obj_Entry *obj)
 static void
 unload_object(Obj_Entry *root)
 {
-	Obj_Entry *obj, *obj1;
+	Obj_Entry marker, *obj, *next;
 
 	assert(root->refcount == 0);
 
@@ -4393,18 +4438,32 @@ unload_object(Obj_Entry *root)
 	unlink_object(root);
 
 	/* Unmap all objects that are no longer referenced. */
-	TAILQ_FOREACH_SAFE(obj, &obj_list, next, obj1) {
+	for (obj = TAILQ_FIRST(&obj_list); obj != NULL; obj = next) {
+		next = TAILQ_NEXT(obj, next);
 		if (obj->marker || obj->refcount != 0)
 			continue;
 		LD_UTRACE(UTRACE_UNLOAD_OBJECT, obj, obj->mapbase,
 		    obj->mapsize, 0, obj->path);
 		dbg("unloading \"%s\"", obj->path);
-		unload_filtees(root);
-		munmap(obj->mapbase, obj->mapsize);
-		linkmap_delete(obj);
+		/*
+		 * Unlink the object now to prevent new references from
+		 * being acquired while the bind lock is dropped in
+		 * recursive dlclose() invocations.
+		 */
 		TAILQ_REMOVE(&obj_list, obj, next);
 		obj_count--;
-		obj_free(obj);
+
+		if (obj->filtees_loaded) {
+			if (next != NULL) {
+				init_marker(&marker);
+				TAILQ_INSERT_BEFORE(next, &marker, next);
+				unload_filtees(obj);
+				next = TAILQ_NEXT(&marker, next);
+				TAILQ_REMOVE(&obj_list, &marker, next);
+			} else
+				unload_filtees(obj);
+		}
+		release_object(obj);
 	}
 }
 
