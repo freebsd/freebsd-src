@@ -78,6 +78,7 @@ struct __kvm {
 	 */
 	struct vmstate *vmst;
 	int	rawdump;	/* raw dump format */
+	int	writable;	/* physical memory is writable */
 
 	int		vnet_initialized;	/* vnet fields set up */
 	kvaddr_t	vnet_start;	/* start of kernel's vnet region */
