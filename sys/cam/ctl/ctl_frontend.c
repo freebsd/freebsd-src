@@ -315,7 +315,7 @@ ctl_port_online(struct ctl_port *port)
 
 	if (port->lun_enable != NULL) {
 		if (port->lun_map) {
-			for (l = 0; l < CTL_MAX_LUNS; l++) {
+			for (l = 0; l < port->lun_map_size; l++) {
 				if (ctl_lun_map_from_port(port, l) ==
 				    UINT32_MAX)
 					continue;
@@ -359,7 +359,7 @@ ctl_port_offline(struct ctl_port *port)
 		port->port_offline(port->onoff_arg);
 	if (port->lun_disable != NULL) {
 		if (port->lun_map) {
-			for (l = 0; l < CTL_MAX_LUNS; l++) {
+			for (l = 0; l < port->lun_map_size; l++) {
 				if (ctl_lun_map_from_port(port, l) ==
 				    UINT32_MAX)
 					continue;
