@@ -764,7 +764,7 @@ archive_read_header_position(struct archive *_a)
  * we cannot say whether there are encrypted entries, then
  * ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW is returned.
  * In general, this function will return values below zero when the
- * reader is uncertain or totally uncapable of encryption support.
+ * reader is uncertain or totally incapable of encryption support.
  * When this function returns 0 you can be sure that the reader
  * supports encryption detection but no encrypted entries have
  * been found yet.

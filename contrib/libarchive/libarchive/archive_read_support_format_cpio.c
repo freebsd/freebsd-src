@@ -326,7 +326,7 @@ archive_read_format_cpio_options(struct archive_read *a,
 
 	cpio = (struct cpio *)(a->format->data);
 	if (strcmp(key, "compat-2x")  == 0) {
-		/* Handle filnames as libarchive 2.x */
+		/* Handle filenames as libarchive 2.x */
 		cpio->init_default_conversion = (val != NULL)?1:0;
 		return (ARCHIVE_OK);
 	} else if (strcmp(key, "hdrcharset")  == 0) {
