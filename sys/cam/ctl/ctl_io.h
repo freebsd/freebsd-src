@@ -145,7 +145,9 @@ struct ctl_ptr_len_flags {
 union ctl_priv {
 	uint8_t		bytes[sizeof(uint64_t) * 2];
 	uint64_t	integer;
+	uint64_t	integers[2];
 	void		*ptr;
+	void		*ptrs[2];
 };
 
 /*
