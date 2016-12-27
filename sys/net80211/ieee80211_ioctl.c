@@ -855,6 +855,8 @@ ieee80211_ioctl_get80211(struct ieee80211vap *vap, u_long cmd,
 		 * Tx power limit is the min of max regulatory
 		 * power, any user-set limit, and the max the
 		 * radio can do.
+		 *
+		 * TODO: methodize this
 		 */
 		ireq->i_val = 2*ic->ic_curchan->ic_maxregpower;
 		if (ireq->i_val > ic->ic_txpowlimit)
@@ -1013,6 +1015,7 @@ ieee80211_ioctl_get80211(struct ieee80211vap *vap, u_long cmd,
 			ireq->i_val |= 2;
 		break;
 	case IEEE80211_IOC_AMPDU_LIMIT:
+		/* XXX TODO: make this a per-node thing; and leave this as global */
 		if (vap->iv_opmode == IEEE80211_M_HOSTAP)
 			ireq->i_val = vap->iv_ampdu_rxmax;
 		else if (vap->iv_state == IEEE80211_S_RUN || vap->iv_state == IEEE80211_S_SLEEP)
@@ -1026,6 +1029,7 @@ ieee80211_ioctl_get80211(struct ieee80211vap *vap, u_long cmd,
 			ireq->i_val = vap->iv_ampdu_limit;
 		break;
 	case IEEE80211_IOC_AMPDU_DENSITY:
+		/* XXX TODO: make this a per-node thing; and leave this as global */
 		if (vap->iv_opmode == IEEE80211_M_STA &&
 		    (vap->iv_state == IEEE80211_S_RUN || vap->iv_state == IEEE80211_S_SLEEP))
 			/*
@@ -1204,7 +1208,15 @@ ieee80211_ioctl_setkey(struct ieee80211vap *vap, struct ieee80211req *ireq)
 		if (!ieee80211_crypto_setkey(vap, wk))
 			error = EIO;
 		else if ((ik.ik_flags & IEEE80211_KEY_DEFAULT))
-			vap->iv_def_txkey = kid;
+			/*
+			 * Inform the driver that this is the default
+			 * transmit key.  Now, ideally we'd just set
+			 * a flag in the key update that would
+			 * say "yes, we're the default key", but
+			 * that currently isn't the way the ioctl ->
+			 * key interface works.
+			 */
+			ieee80211_crypto_set_deftxkey(vap, kid);
 	} else
 		error = ENXIO;
 	ieee80211_key_update_end(vap);
@@ -2687,7 +2699,17 @@ ieee80211_ioctl_set80211(struct ieee80211vap *vap, u_long cmd, struct ieee80211r
 		if (kid >= IEEE80211_WEP_NKID &&
 		    (uint16_t) kid != IEEE80211_KEYIX_NONE)
 			return EINVAL;
-		vap->iv_def_txkey = kid;
+		/*
+		 * Firmware devices may need to be told about an explicit
+		 * key index here, versus just inferring it from the
+		 * key set / change.  Since we may also need to pause
+		 * things like transmit before the key is updated,
+		 * give the driver a chance to flush things by tying
+		 * into key update begin/end.
+		 */
+		ieee80211_key_update_begin(vap);
+		ieee80211_crypto_set_deftxkey(vap, kid);
+		ieee80211_key_update_end(vap);
 		break;
 	case IEEE80211_IOC_AUTHMODE:
 		switch (ireq->i_val) {
@@ -3094,6 +3116,7 @@ ieee80211_ioctl_set80211(struct ieee80211vap *vap, u_long cmd, struct ieee80211r
 			error = ERESTART;
 		break;
 	case IEEE80211_IOC_AMPDU_LIMIT:
+		/* XXX TODO: figure out ampdu_limit versus ampdu_rxmax */
 		if (!(IEEE80211_HTCAP_MAXRXAMPDU_8K <= ireq->i_val &&
 		      ireq->i_val <= IEEE80211_HTCAP_MAXRXAMPDU_64K))
 			return EINVAL;
