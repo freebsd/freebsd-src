@@ -433,6 +433,22 @@ default_reset(struct ieee80211vap *vap, u_long cmd)
 }
 
 /*
+ * Default for updating the VAP default TX key index.
+ *
+ * Drivers that support TX offload as well as hardware encryption offload
+ * may need to be informed of key index changes separate from the key
+ * update.
+ */
+static void
+default_update_deftxkey(struct ieee80211vap *vap, ieee80211_keyix kid)
+{
+
+	/* XXX assert validity */
+	/* XXX assert we're in a key update block */
+	vap->iv_def_txkey = kid;
+}
+
+/*
  * Add underlying device errors to vap errors.
  */
 static uint64_t
@@ -560,6 +576,12 @@ ieee80211_vap_setup(struct ieee80211com *ic, struct ieee80211vap *vap,
 	 * the driver can override this.
 	 */
 	vap->iv_reset = default_reset;
+
+	/*
+	 * Install a default crypto key update method, the driver
+	 * can override this.
+	 */
+	vap->iv_update_deftxkey = default_update_deftxkey;
 
 	ieee80211_sysctl_vattach(vap);
 	ieee80211_crypto_vattach(vap);
