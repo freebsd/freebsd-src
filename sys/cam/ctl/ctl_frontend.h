@@ -225,6 +225,7 @@ struct ctl_port {
 	void		*onoff_arg;		/* passed to CTL */
 	lun_func_t	lun_enable;		/* passed to CTL */
 	lun_func_t	lun_disable;		/* passed to CTL */
+	int		lun_map_size;		/* passed to CTL */
 	uint32_t	*lun_map;		/* passed to CTL */
 	void		*targ_lun_arg;		/* passed to CTL */
 	void		(*fe_datamove)(union ctl_io *io); /* passed to CTL */
