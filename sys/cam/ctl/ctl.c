@@ -5833,7 +5833,7 @@ ctl_default_page_handler(struct ctl_scsiio *ctsio,
 			 struct ctl_page_index *page_index, uint8_t *page_ptr)
 {
 	struct ctl_lun *lun;
-	uint8_t *current_cp, *saved_cp;
+	uint8_t *current_cp;
 	int set_ua;
 	uint32_t initidx;
 
@@ -5843,13 +5843,10 @@ ctl_default_page_handler(struct ctl_scsiio *ctsio,
 
 	current_cp = (page_index->page_data + (page_index->page_len *
 	    CTL_PAGE_CURRENT));
-	saved_cp = (page_index->page_data + (page_index->page_len *
-	    CTL_PAGE_SAVED));
 
 	mtx_lock(&lun->lun_lock);
 	if (memcmp(current_cp, page_ptr, page_index->page_len)) {
 		memcpy(current_cp, page_ptr, page_index->page_len);
-		memcpy(saved_cp, page_ptr, page_index->page_len);
 		set_ua = 1;
 	}
 	if (set_ua != 0)
