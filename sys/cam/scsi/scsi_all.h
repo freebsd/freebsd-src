@@ -228,6 +228,7 @@ struct scsi_mode_select_6
 	u_int8_t opcode;
 	u_int8_t byte2;
 #define	SMS_SP	0x01
+#define	SMS_RTD	0x02
 #define	SMS_PF	0x10
 	u_int8_t unused[2];
 	u_int8_t length;
