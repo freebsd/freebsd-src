@@ -365,7 +365,7 @@ struct ctl_taskio {
 /*
  * HA link messages.
  */
-#define	CTL_HA_VERSION		1
+#define	CTL_HA_VERSION		2
 
 /*
  * Used for CTL_MSG_LOGIN.
