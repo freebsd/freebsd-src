@@ -4,7 +4,7 @@
  *	All rights reserved.
  *
  * Author: Harti Brandt <harti@freebsd.org>
- * 
+ *
  * Copyright (c) 2010 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -19,7 +19,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -684,7 +684,7 @@ snmp_pdu_snoop(const struct asn_buf *b0)
 	struct asn_buf b = *b0;
 
 	/* <0x10|0x20> <len> <data...> */
-	
+
 	if (b.asn_len == 0)
 		return (0);
 	if (b.asn_cptr[0] != (ASN_TYPE_SEQUENCE | ASN_TYPE_CONSTRUCTED)) {
@@ -759,7 +759,7 @@ snmp_pdu_encode_header(struct asn_buf *b, struct snmp_pdu *pdu)
 		if (asn_put_temp_header(b, (ASN_TYPE_SEQUENCE |
 		    ASN_TYPE_CONSTRUCTED), &v3_hdr_ptr) != ASN_ERR_OK)
 			return (SNMP_CODE_FAILED);
-	
+
 		if (asn_put_integer(b, pdu->identifier) != ASN_ERR_OK)
 			return (SNMP_CODE_FAILED);
 
