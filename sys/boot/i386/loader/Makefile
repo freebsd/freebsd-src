@@ -99,8 +99,7 @@ ${LOADER}: ${LOADER}.bin ${BTXLDR} ${BTXKERN}
 		-b ${BTXKERN} ${LOADER}.bin
 
 ${LOADER}.bin: ${LOADER}.sym
-	cp ${.ALLSRC} ${.TARGET}
-	strip -R .comment -R .note ${.TARGET}
+	strip -R .comment -R .note -o ${.TARGET} ${.ALLSRC}
 
 loader.help: help.common help.i386
 	cat ${.ALLSRC} | awk -f ${.CURDIR}/../../common/merge_help.awk > ${.TARGET}
