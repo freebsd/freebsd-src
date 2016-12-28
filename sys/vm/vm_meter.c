@@ -32,6 +32,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_compat.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -119,15 +121,10 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 	 */
 	sx_slock(&allproc_lock);
 	FOREACH_PROC_IN_SYSTEM(p) {
-		if (p->p_flag & P_SYSTEM)
+		if ((p->p_flag & P_SYSTEM) != 0)
 			continue;
 		PROC_LOCK(p);
-		switch (p->p_state) {
-		case PRS_NEW:
-			PROC_UNLOCK(p);
-			continue;
-			break;
-		default:
+		if (p->p_state != PRS_NEW) {
 			FOREACH_THREAD_IN_PROC(p, td) {
 				thread_lock(td);
 				switch (td->td_state) {
@@ -144,15 +141,13 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 							total.t_pw++;
 					}
 					break;
-
 				case TDS_CAN_RUN:
 					total.t_sw++;
 					break;
 				case TDS_RUNQ:
 				case TDS_RUNNING:
 					total.t_rq++;
-					thread_unlock(td);
-					continue;
+					break;
 				default:
 					break;
 				}
@@ -314,3 +309,14 @@ VM_STATS_VM(v_forkpages, "VM pages affected by fork()");
 VM_STATS_VM(v_vforkpages, "VM pages affected by vfork()");
 VM_STATS_VM(v_rforkpages, "VM pages affected by rfork()");
 VM_STATS_VM(v_kthreadpages, "VM pages affected by fork() by kernel");
+
+#ifdef COMPAT_FREEBSD11
+/*
+ * Provide compatibility sysctls for the benefit of old utilities which exit
+ * with an error if they cannot be found.
+ */
+SYSCTL_UINT(_vm_stats_vm, OID_AUTO, v_cache_count, CTLFLAG_RD,
+    SYSCTL_NULL_UINT_PTR, 0, "Dummy for compatibility");
+SYSCTL_UINT(_vm_stats_vm, OID_AUTO, v_tcached, CTLFLAG_RD,
+    SYSCTL_NULL_UINT_PTR, 0, "Dummy for compatibility");
+#endif

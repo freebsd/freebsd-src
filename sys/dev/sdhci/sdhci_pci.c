@@ -63,15 +63,15 @@ __FBSDID("$FreeBSD$");
 #define PCI_SDHCI_IFVENDOR		0x02
 
 #define PCI_SLOT_INFO			0x40	/* 8 bits */
-#define  PCI_SLOT_INFO_SLOTS(x)		(((x >> 4) & 7) + 1)
-#define  PCI_SLOT_INFO_FIRST_BAR(x)	((x) & 7)
+#define PCI_SLOT_INFO_SLOTS(x)		(((x >> 4) & 7) + 1)
+#define PCI_SLOT_INFO_FIRST_BAR(x)	((x) & 7)
 
 /*
  * RICOH specific PCI registers
  */
 #define	SDHC_PCI_MODE_KEY		0xf9
 #define	SDHC_PCI_MODE			0x150
-#define	 SDHC_PCI_MODE_SD20		0x10
+#define	SDHC_PCI_MODE_SD20		0x10
 #define	SDHC_PCI_BASE_FREQ_KEY		0xfc
 #define	SDHC_PCI_BASE_FREQ		0xe1
 
@@ -107,6 +107,8 @@ static const struct sdhci_device {
 	    SDHCI_QUIRK_RESET_AFTER_REQUEST },
 	{ 0x16bc14e4,	0xffff,	"Broadcom BCM577xx SDXC/MMC Card Reader",
 	    SDHCI_QUIRK_BCM577XX_400KHZ_CLKSRC },
+	{ 0x22948086,	0xffff,	"Intel Braswell Storage Cluster Control MMC Port",
+	    0 },
 	{ 0,		0xffff,	NULL,
 	    0 }
 };
@@ -450,11 +452,11 @@ static device_method_t sdhci_methods[] = {
 	DEVMETHOD(bus_write_ivar,	sdhci_generic_write_ivar),
 
 	/* mmcbr_if */
-	DEVMETHOD(mmcbr_update_ios, sdhci_generic_update_ios),
-	DEVMETHOD(mmcbr_request, sdhci_generic_request),
-	DEVMETHOD(mmcbr_get_ro, sdhci_generic_get_ro),
-	DEVMETHOD(mmcbr_acquire_host, sdhci_generic_acquire_host),
-	DEVMETHOD(mmcbr_release_host, sdhci_generic_release_host),
+	DEVMETHOD(mmcbr_update_ios,     sdhci_generic_update_ios),
+	DEVMETHOD(mmcbr_request,        sdhci_generic_request),
+	DEVMETHOD(mmcbr_get_ro,         sdhci_generic_get_ro),
+	DEVMETHOD(mmcbr_acquire_host,   sdhci_generic_acquire_host),
+	DEVMETHOD(mmcbr_release_host,   sdhci_generic_release_host),
 
 	/* SDHCI registers accessors */
 	DEVMETHOD(sdhci_read_1,		sdhci_pci_read_1),

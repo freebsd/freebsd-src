@@ -41,6 +41,7 @@
 #define	CAPH_IGNORE_EBADF	0x0001
 #define	CAPH_READ		0x0002
 #define	CAPH_WRITE		0x0004
+#define	CAPH_LOOKUP		0x0008
 
 static __inline int
 caph_limit_stream(int fd, int flags)
@@ -54,6 +55,8 @@ caph_limit_stream(int fd, int flags)
 		cap_rights_set(&rights, CAP_READ);
 	if ((flags & CAPH_WRITE) != 0)
 		cap_rights_set(&rights, CAP_WRITE);
+	if ((flags & CAPH_LOOKUP) != 0)
+		cap_rights_set(&rights, CAP_LOOKUP);
 
 	if (cap_rights_limit(fd, &rights) < 0 && errno != ENOSYS) {
 		if (errno == EBADF && (flags & CAPH_IGNORE_EBADF) != 0)
@@ -94,12 +97,12 @@ caph_limit_stdout(void)
 static __inline int
 caph_limit_stdio(void)
 {
+	const int iebadf = CAPH_IGNORE_EBADF;
 
-	if (caph_limit_stdin() == -1 || caph_limit_stdout() == -1 ||
-	    caph_limit_stderr() == -1) {
+	if (caph_limit_stream(STDIN_FILENO, CAPH_READ | iebadf) == -1 ||
+	    caph_limit_stream(STDOUT_FILENO, CAPH_WRITE | iebadf) == -1 ||
+	    caph_limit_stream(STDERR_FILENO, CAPH_WRITE | iebadf) == -1)
 		return (-1);
-	}
-
 	return (0);
 }
 

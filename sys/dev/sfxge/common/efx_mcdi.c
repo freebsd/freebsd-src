@@ -1728,8 +1728,7 @@ fail1:
 
 #if EFSYS_OPT_MAC_STATS
 
-typedef enum efx_stats_action_e
-{
+typedef enum efx_stats_action_e {
 	EFX_STATS_CLEAR,
 	EFX_STATS_UPLOAD,
 	EFX_STATS_ENABLE_NOEVENTS,
@@ -1766,7 +1765,7 @@ efx_mcdi_mac_stats(
 	    MAC_STATS_IN_PERIODIC_CHANGE, enable | events | disable,
 	    MAC_STATS_IN_PERIODIC_ENABLE, enable | events,
 	    MAC_STATS_IN_PERIODIC_NOEVENT, !events,
-	    MAC_STATS_IN_PERIOD_MS, (enable | events) ? 1000: 0);
+	    MAC_STATS_IN_PERIOD_MS, (enable | events) ? 1000 : 0);
 
 	if (esmp != NULL) {
 		int bytes = MC_CMD_MAC_NSTATS * sizeof (uint64_t);

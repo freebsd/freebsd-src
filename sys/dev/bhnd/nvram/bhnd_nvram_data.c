@@ -59,9 +59,57 @@ __FBSDID("$FreeBSD$");
  * @param cls The NVRAM class.
  */
 const char *
-bhnd_nvram_data_class_desc(bhnd_nvram_data_class_t *cls)
+bhnd_nvram_data_class_desc(bhnd_nvram_data_class *cls)
 {
 	return (cls->desc);
+}
+
+/**
+ * Return the class-level capability flags (@see BHND_NVRAM_DATA_CAP_*) for
+ * of @p cls.
+ *
+ * @param cls The NVRAM class.
+ */
+uint32_t
+bhnd_nvram_data_class_caps(bhnd_nvram_data_class *cls)
+{
+	return (cls->caps);
+}
+
+/**
+ * Serialize all NVRAM properties in @p plist using @p cls's NVRAM data
+ * format, writing the result to @p outp.
+ * 
+ * @param		cls	The NVRAM data class to be used to perform
+ *				serialization.
+ * @param		props	The raw property values to be serialized to
+ *				@p outp, in serialization order.
+ * @param		options	Serialization options for @p cls, or NULL.
+ * @param[out]		outp	On success, the serialed NVRAM data will be
+ *				written to this buffer. This argment may be
+ *				NULL if the value is not desired.
+ * @param[in,out]	olen	The capacity of @p buf. On success, will be set
+ *				to the actual length of the serialized data.
+ *
+ * @retval 0		success
+ * 
+ * @retval ENOMEM	If @p outp is non-NULL and a buffer of @p olen is too
+ *			small to hold the serialized data.
+ * @retval EINVAL	If a property value required by @p cls is not found in
+ *			@p plist.
+ * @retval EFTYPE	If a property value in @p plist cannot be represented
+ *			as the data type required by @p cls.
+ * @retval ERANGE	If a property value in @p plist would would overflow
+ *			(or underflow) the data type required by @p cls.
+ * @retval non-zero	If serialization otherwise fails, a regular unix error
+ *			code will be returned.
+ */
+int
+bhnd_nvram_data_serialize(bhnd_nvram_data_class *cls,
+    bhnd_nvram_plist *props, bhnd_nvram_plist *options, void *outp,
+    size_t *olen)
+{
+	return (cls->op_serialize(cls, props, options, outp, olen));
 }
 
 /**
@@ -80,7 +128,7 @@ bhnd_nvram_data_class_desc(bhnd_nvram_data_class_t *cls)
  * code should be returned.
  */
 int
-bhnd_nvram_data_probe(bhnd_nvram_data_class_t *cls, struct bhnd_nvram_io *io)
+bhnd_nvram_data_probe(bhnd_nvram_data_class *cls, struct bhnd_nvram_io *io)
 {
 	return (cls->op_probe(io));
 }
@@ -106,10 +154,10 @@ bhnd_nvram_data_probe(bhnd_nvram_data_class_t *cls, struct bhnd_nvram_io *io)
  */
 int
 bhnd_nvram_data_probe_classes(struct bhnd_nvram_data **data,
-    struct bhnd_nvram_io *io, bhnd_nvram_data_class_t *classes[],
+    struct bhnd_nvram_io *io, bhnd_nvram_data_class *classes[],
     size_t num_classes)
 {
-	bhnd_nvram_data_class_t *cls;
+	bhnd_nvram_data_class	*cls;
 	int			 error, prio, result;
 
 	cls = NULL;
@@ -124,7 +172,7 @@ bhnd_nvram_data_probe_classes(struct bhnd_nvram_data **data,
 
 	/* Try to find the best data class capable of parsing io */
 	for (size_t i = 0; i < num_classes; i++) {
-		bhnd_nvram_data_class_t *next_cls;
+		bhnd_nvram_data_class *next_cls;
 
 		next_cls = classes[i];
 
@@ -196,8 +244,8 @@ bhnd_nvram_data_probe_classes(struct bhnd_nvram_data **data,
  * regular unix error code will be returned.
  */
 int
-bhnd_nvram_data_new(bhnd_nvram_data_class_t *cls,
-    struct bhnd_nvram_data **nv, struct bhnd_nvram_io *io)
+bhnd_nvram_data_new(bhnd_nvram_data_class *cls, struct bhnd_nvram_data **nv,
+    struct bhnd_nvram_io *io)
 {
 	struct bhnd_nvram_data	*data;
 	int			 error;
@@ -263,8 +311,8 @@ bhnd_nvram_data_release(struct bhnd_nvram_data *nv)
  * 
  * @param nv The NVRAM data instance to be queried.
  */
-bhnd_nvram_data_class_t *
-bhnd_nvram_data_class(struct bhnd_nvram_data *nv)
+bhnd_nvram_data_class *
+bhnd_nvram_data_get_class(struct bhnd_nvram_data *nv)
 {
 	return (nv->cls);
 }
@@ -281,48 +329,15 @@ bhnd_nvram_data_count(struct bhnd_nvram_data *nv)
 }
 
 /**
- * Compute the size of the serialized form of @p nv.
- *
- * Serialization may be performed via bhnd_nvram_data_serialize().
- *
- * @param	nv	The NVRAM data to be queried.
- * @param[out]	len	On success, will be set to the computed size.
+ * Return a borrowed reference to the serialization options for @p nv,
+ * suitable for use with bhnd_nvram_data_serialize(), or NULL if none.
  * 
- * @retval 0		success
- * @retval non-zero	if computing the serialized size otherwise fails, a
- *			regular unix error code will be returned.
+ * @param nv The NVRAM data to be queried.
  */
-int
-bhnd_nvram_data_size(struct bhnd_nvram_data *nv, size_t *len)
+bhnd_nvram_plist *
+bhnd_nvram_data_options(struct bhnd_nvram_data *nv)
 {
-	return (nv->cls->op_size(nv, len));
-}
-
-/**
- * Serialize the NVRAM data to @p buf, using the NVRAM data class' native
- * format.
- * 
- * The resulting serialization may be reparsed with @p nv's BHND NVRAM data
- * class.
- * 
- * @param		nv	The NVRAM data to be serialized.
- * @param[out]		buf	On success, the serialed NVRAM data will be
- *				written to this buffer. This argment may be
- *				NULL if the value is not desired.
- * @param[in,out]	len	The capacity of @p buf. On success, will be set
- *				to the actual length of the serialized data.
- *
- * @retval 0		success
- * @retval ENOMEM	If @p buf is non-NULL and a buffer of @p len is too
- *			small to hold the serialized data.
- * @retval non-zero	If serialization otherwise fails, a regular unix error
- *			code will be returned.
- */
-int
-bhnd_nvram_data_serialize(struct bhnd_nvram_data *nv,
-    void *buf, size_t *len)
-{
-	return (nv->cls->op_serialize(nv, buf, len));
+	return (nv->cls->op_options(nv));
 }
 
 /**
@@ -350,7 +365,26 @@ bhnd_nvram_data_caps(struct bhnd_nvram_data *nv)
 const char *
 bhnd_nvram_data_next(struct bhnd_nvram_data *nv, void **cookiep)
 {
-	return (nv->cls->op_next(nv, cookiep));
+	const char	*name;
+#ifdef BHND_NV_INVARIANTS
+	void		*prev = *cookiep;
+#endif
+
+	/* Fetch next */
+	if ((name = nv->cls->op_next(nv, cookiep)) == NULL)
+		return (NULL);
+
+	/* Enforce precedence ordering invariant between bhnd_nvram_data_next()
+	 * and bhnd_nvram_data_getvar_order() */
+#ifdef BHND_NV_INVARIANTS
+	if (prev != NULL &&
+	    bhnd_nvram_data_getvar_order(nv, prev, *cookiep) > 0)
+	{
+		BHND_NV_PANIC("%s: returned out-of-order entry", __FUNCTION__);
+	}
+#endif
+
+	return (name);
 }
 
 /**
@@ -388,12 +422,43 @@ bhnd_nvram_data_generic_find(struct bhnd_nvram_data *nv, const char *name)
 
 	cookiep = NULL;
 	while ((next = bhnd_nvram_data_next(nv, &cookiep))) {
-		if (strcasecmp(name, next) == 0)
+		if (strcmp(name, next) == 0)
 			return (cookiep);
 	}
 
 	/* Not found */
 	return (NULL);
+}
+
+/**
+ * Compare the declaration order of two NVRAM variables.
+ * 
+ * Variable declaration order is used to determine the current order of
+ * the variables in the source data, as well as to determine the precedence
+ * of variable declarations in data sources that define duplicate names.
+ * 
+ * The comparison order will match the order of variables returned via
+ * bhnd_nvstore_path_data_next().
+ *
+ * @param		nv		The NVRAM data.
+ * @param		cookiep1	An NVRAM variable cookie previously
+ *					returned via bhnd_nvram_data_next() or
+ *					bhnd_nvram_data_find().
+ * @param		cookiep2	An NVRAM variable cookie previously
+ *					returned via bhnd_nvram_data_next() or
+ *					bhnd_nvram_data_find().
+ *
+ * @retval <= -1	If @p cookiep1 has an earlier declaration order than
+ *			@p cookiep2.
+ * @retval 0		If @p cookiep1 and @p cookiep2 are identical.
+ * @retval >= 1		If @p cookiep has a later declaration order than
+ *			@p cookiep2.
+ */
+int
+bhnd_nvram_data_getvar_order(struct bhnd_nvram_data *nv, void *cookiep1,
+    void *cookiep2)
+{
+	return (nv->cls->op_getvar_order(nv, cookiep1, cookiep2));
 }
 
 /**
@@ -423,6 +488,59 @@ bhnd_nvram_data_getvar(struct bhnd_nvram_data *nv, void *cookiep, void *buf,
 	return (nv->cls->op_getvar(nv, cookiep, buf, len, type));
 }
 
+/*
+ * Common bhnd_nvram_data_getvar_ptr() wrapper used by
+ * bhnd_nvram_data_generic_rp_getvar() and
+ * bhnd_nvram_data_generic_rp_copy_val().
+ *
+ * If a variable definition for the requested variable is found via
+ * bhnd_nvram_find_vardefn(), the definition will be used to populate fmt.
+ */
+static const void *
+bhnd_nvram_data_getvar_ptr_info(struct bhnd_nvram_data *nv, void *cookiep,
+    size_t *len, bhnd_nvram_type *type, const bhnd_nvram_val_fmt **fmt)
+{
+	const struct bhnd_nvram_vardefn	*vdefn;
+	const char			*name;
+	const void			*vptr;
+
+	BHND_NV_ASSERT(bhnd_nvram_data_caps(nv) & BHND_NVRAM_DATA_CAP_READ_PTR,
+	    ("instance does not advertise READ_PTR support"));
+
+	/* Fetch pointer to variable data */
+	vptr = bhnd_nvram_data_getvar_ptr(nv, cookiep, len, type);
+	if (vptr == NULL)
+		return (NULL);
+
+	/* Select a default value format implementation */
+
+
+	/* Fetch the reference variable name */
+	name = bhnd_nvram_data_getvar_name(nv, cookiep);
+
+	/* Trim path prefix, if any; the Broadcom NVRAM format assumes a global
+	 * namespace for all variable definitions */
+	if (bhnd_nvram_data_caps(nv) & BHND_NVRAM_DATA_CAP_DEVPATHS)
+		name = bhnd_nvram_trim_path_name(name);
+
+	/* Check the variable definition table for a matching entry; if
+	 * it exists, use it to populate the value format. */
+	vdefn = bhnd_nvram_find_vardefn(name);
+	if (vdefn != NULL) {
+		BHND_NV_ASSERT(vdefn->fmt != NULL,
+		    ("NULL format for %s", name));
+		*fmt = vdefn->fmt;
+	} else if (*type == BHND_NVRAM_TYPE_STRING) {
+		/* Default to Broadcom-specific string interpretation */
+		*fmt = &bhnd_nvram_val_bcm_string_fmt;
+	} else {
+		/* Fall back on native formatting */
+		*fmt = bhnd_nvram_val_default_fmt(*type);
+	}
+
+	return (vptr);
+}
+
 /**
  * A generic implementation of bhnd_nvram_data_getvar().
  * 
@@ -431,17 +549,15 @@ bhnd_nvram_data_getvar(struct bhnd_nvram_data *nv, void *cookiep, void *buf,
  * of the caller.
  *
  * If a variable definition for the requested variable is available via
- * bhnd_nvram_find_vardefn(), the definition will be used to provide
- * formatting hints to bhnd_nvram_coerce_value().
+ * bhnd_nvram_find_vardefn(), the definition will be used to provide a
+ * formatting instance to bhnd_nvram_val_init().
  */
 int
 bhnd_nvram_data_generic_rp_getvar(struct bhnd_nvram_data *nv, void *cookiep,
     void *outp, size_t *olen, bhnd_nvram_type otype)
 {
-	bhnd_nvram_val_t		 val;
-	const struct bhnd_nvram_vardefn	*vdefn;
-	const bhnd_nvram_val_fmt_t	*fmt;
-	const char			*name;
+	bhnd_nvram_val			 val;
+	const bhnd_nvram_val_fmt	*fmt;
 	const void			*vptr;
 	bhnd_nvram_type			 vtype;
 	size_t				 vlen;
@@ -450,27 +566,11 @@ bhnd_nvram_data_generic_rp_getvar(struct bhnd_nvram_data *nv, void *cookiep,
 	BHND_NV_ASSERT(bhnd_nvram_data_caps(nv) & BHND_NVRAM_DATA_CAP_READ_PTR,
 	    ("instance does not advertise READ_PTR support"));
 
-	/* Fetch pointer to our variable data */
-	vptr = bhnd_nvram_data_getvar_ptr(nv, cookiep, &vlen, &vtype);
+	/* Fetch variable data and value format*/
+	vptr = bhnd_nvram_data_getvar_ptr_info(nv, cookiep, &vlen, &vtype,
+	    &fmt);
 	if (vptr == NULL)
 		return (EINVAL);
-
-	/* Use the NVRAM string support */
-	switch (vtype) {
-	case BHND_NVRAM_TYPE_STRING:
-	case BHND_NVRAM_TYPE_STRING_ARRAY:
-		fmt = &bhnd_nvram_val_bcm_string_fmt;
-		break;
-	default:
-		fmt = NULL;
-	}
-
-	/* Check the variable definition table for a matching entry; if
-	 * it exists, use it to populate the value format. */
-	name = bhnd_nvram_data_getvar_name(nv, cookiep);
-	vdefn = bhnd_nvram_find_vardefn(name);
-	if (vdefn != NULL)
-		fmt = vdefn->fmt;
 
 	/* Attempt value coercion */
 	error = bhnd_nvram_val_init(&val, fmt, vptr, vlen, vtype,
@@ -483,6 +583,63 @@ bhnd_nvram_data_generic_rp_getvar(struct bhnd_nvram_data *nv, void *cookiep,
 	/* Clean up */
 	bhnd_nvram_val_release(&val);
 	return (error);
+}
+
+/**
+ * Return a caller-owned copy of an NVRAM entry's variable data.
+ * 
+ * The caller is responsible for deallocating the returned value via
+ * bhnd_nvram_val_release().
+ *
+ * @param	nv	The NVRAM data.
+ * @param	cookiep	An NVRAM variable cookie previously returned
+ *			via bhnd_nvram_data_next() or bhnd_nvram_data_find().
+ * @param[out]	value	On success, the caller-owned value instance.
+ *
+ * @retval 0		success
+ * @retval ENOMEM	If allocation fails.
+ * @retval non-zero	If initialization of the value otherwise fails, a
+ *			regular unix error code will be returned.
+ */
+int
+bhnd_nvram_data_copy_val(struct bhnd_nvram_data *nv, void *cookiep,
+    bhnd_nvram_val **value)
+{
+	return (nv->cls->op_copy_val(nv, cookiep, value));
+}
+
+/**
+ * A generic implementation of bhnd_nvram_data_copy_val().
+ * 
+ * This implementation will call bhnd_nvram_data_getvar_ptr() to fetch
+ * a pointer to the variable data and perform data coercion on behalf
+ * of the caller.
+ *
+ * If a variable definition for the requested variable is available via
+ * bhnd_nvram_find_vardefn(), the definition will be used to provide a
+ * formatting instance to bhnd_nvram_val_init().
+ */
+int
+bhnd_nvram_data_generic_rp_copy_val(struct bhnd_nvram_data *nv,
+    void *cookiep, bhnd_nvram_val **value)
+{
+	const bhnd_nvram_val_fmt	*fmt;
+	const void			*vptr;
+	bhnd_nvram_type			 vtype;
+	size_t				 vlen;
+
+	BHND_NV_ASSERT(bhnd_nvram_data_caps(nv) & BHND_NVRAM_DATA_CAP_READ_PTR,
+	    ("instance does not advertise READ_PTR support"));
+
+	/* Fetch variable data and value format*/
+	vptr = bhnd_nvram_data_getvar_ptr_info(nv, cookiep, &vlen, &vtype,
+	    &fmt);
+	if (vptr == NULL)
+		return (EINVAL);
+
+	/* Allocate and return the new value instance */
+	return (bhnd_nvram_val_new(value, fmt, vptr, vlen, vtype,
+	    BHND_NVRAM_VAL_DYNAMIC));
 }
 
 /**
@@ -524,4 +681,45 @@ const char *
 bhnd_nvram_data_getvar_name(struct bhnd_nvram_data *nv, void *cookiep)
 {
 	return (nv->cls->op_getvar_name(nv, cookiep));
+}
+
+/**
+ * Filter a request to set variable @p name with @p value.
+ * 
+ * On success, the caller owns a reference to @p result, and must release
+ * any held resources via bhnd_nvram_val_release().
+ * 
+ * @param	nv	The NVRAM data instance.
+ * @param	name	The name of the variable to be set.
+ * @param	value	The proposed value to be set.
+ * @param[out]	result	On success, a caller-owned reference to the filtered
+ *			value to be set.
+ * 
+ * @retval	0	success
+ * @retval	ENOENT	if @p name is unrecognized by @p nv.
+ * @retval	EINVAL	if @p name is read-only.
+ * @retval	EINVAL	if @p value cannot be converted to the required value
+ *			type.
+ */
+int
+bhnd_nvram_data_filter_setvar(struct bhnd_nvram_data *nv, const char *name,
+    bhnd_nvram_val *value, bhnd_nvram_val **result)
+{
+	return (nv->cls->op_filter_setvar(nv, name, value, result));
+}
+
+/**
+ * Filter a request to delete variable @p name.
+ * 
+ * @param	nv	The NVRAM data instance.
+ * @param	name	The name of the variable to be deleted.
+ * 
+ * @retval	0	success
+ * @retval	ENOENT	if @p name is unrecognized by @p nv.
+ * @retval	EINVAL	if @p name is read-only.
+ */
+int
+bhnd_nvram_data_filter_unsetvar(struct bhnd_nvram_data *nv, const char *name)
+{
+	return (nv->cls->op_filter_unsetvar(nv, name));
 }

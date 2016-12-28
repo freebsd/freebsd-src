@@ -746,7 +746,7 @@ cpsw_get_fdt_data(struct cpsw_softc *sc, int port)
 	for (child = OF_child(sc->node); child != 0; child = OF_peer(child)) {
 		if (OF_getprop_alloc(child, "name", 1, (void **)&name) < 0)
 			continue;
-		if (sscanf(name, "slave@%x", &mdio_child_addr) != 1) {
+		if (sscanf(name, "slave@%lx", &mdio_child_addr) != 1) {
 			OF_prop_free(name);
 			continue;
 		}
@@ -1512,9 +1512,6 @@ cpswp_miibus_writereg(device_t dev, int phy, int reg, int value)
 		return (0);
 	}
 
-	if ((cpsw_read_4(sc->swsc, sc->phyaccess) & MDIO_PHYACCESS_ACK) == 0)
-		device_printf(dev, "Failed to write to PHY.\n");
-
 	return (0);
 }
 
@@ -1760,7 +1757,7 @@ cpsw_rx_enqueue(struct cpsw_softc *sc)
 	sc->rx.queue_adds += added;
 	sc->rx.avail_queue_len -= added;
 	sc->rx.active_queue_len += added;
-	cpsw_write_4(sc, CPSW_CPDMA_RX_FREEBUFFER(0), sc->rx.active_queue_len);
+	cpsw_write_4(sc, CPSW_CPDMA_RX_FREEBUFFER(0), added);
 	if (sc->rx.active_queue_len > sc->rx.max_active_queue_len) {
 		sc->rx.max_active_queue_len = sc->rx.active_queue_len;
 	}

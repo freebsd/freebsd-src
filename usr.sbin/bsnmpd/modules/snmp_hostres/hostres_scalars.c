@@ -193,7 +193,7 @@ OS_getSystemInitialLoadParameters(u_char **params)
 			syslog(LOG_ERR, "malloc failed");
 			return (SNMP_ERR_GENERR);
 		}
-                if (sysctl(mib, 2, buf, &buf_len, NULL, 0)) {
+		if (sysctl(mib, 2, buf, &buf_len, NULL, 0)) {
 			syslog(LOG_ERR,
 			    "sysctl({CTL_KERN,KERN_BOOTFILE}) failed: %m");
 			free(buf);
@@ -296,7 +296,7 @@ OS_getMemorySize(uint32_t *ms)
 		*ms = UINT32_MAX;
 	else
 		*ms = phys_mem_size;
-        return (SNMP_ERR_NOERROR);
+	return (SNMP_ERR_NOERROR);
 }
 
 /*
@@ -360,7 +360,7 @@ OS_setSystemDate(const struct timeval *timeval_to_set)
 	if (settimeofday(timeval_to_set, NULL) == -1) {
 		syslog(LOG_ERR, "settimeofday failed: %m");
 		return (SNMP_ERR_GENERR);
-        }
+	}
 	return (SNMP_ERR_NOERROR);
 }
 
@@ -378,7 +378,7 @@ op_hrSystem(struct snmp_context *ctx, struct snmp_value *value,
 
 	switch (curr_op) {
 
-          case SNMP_OP_GET:
+	  case SNMP_OP_GET:
 		switch (value->var.subs[sub - 1]) {
 
 		case LEAF_hrSystemUptime:

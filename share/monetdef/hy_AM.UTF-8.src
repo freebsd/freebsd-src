@@ -13,10 +13,10 @@ AMD
 ,
 #
 # mon_thousands_sep
-.
+ 
 #
 # mon_grouping
--1
+3
 #
 # positive_sign
 
@@ -31,13 +31,13 @@ AMD
 0
 #
 # p_cs_precedes
-0
+1
 #
 # p_sep_by_space
 1
 #
 # n_cs_precedes
-0
+1
 #
 # n_sep_by_space
 1

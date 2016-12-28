@@ -185,6 +185,9 @@ MALLOC_DEFINE(M_CTLFE, "CAM CTL FE", "CAM CTL FE interface");
 /* This is only used in the CTIO */
 #define	ccb_atio	ppriv_ptr1
 
+#define PRIV_CCB(io)	((io)->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptrs[0])
+#define PRIV_INFO(io)	((io)->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptrs[1])
+
 int			ctlfeinitialize(void);
 void			ctlfeshutdown(void);
 static periph_init_t	ctlfeperiphinit;
@@ -554,7 +557,7 @@ ctlferegister(struct cam_periph *periph, void *arg)
 			status = CAM_RESRC_UNAVAIL;
 			break;
 		}
-		new_io->io_hdr.ctl_private[CTL_PRIV_FRONTEND2].ptr = cmd_info;
+		PRIV_INFO(new_io) = cmd_info;
 		softc->atios_alloced++;
 		new_ccb->ccb_h.io_ptr = new_io;
 
@@ -702,7 +705,7 @@ ctlfedata(struct ctlfe_lun_softc *softc, union ctl_io *io,
 	size_t off;
 	int i, idx;
 
-	cmd_info = io->io_hdr.ctl_private[CTL_PRIV_FRONTEND2].ptr;
+	cmd_info = PRIV_INFO(io);
 	bus_softc = softc->parent_softc;
 
 	/*
@@ -806,7 +809,7 @@ ctlfestart(struct cam_periph *periph, union ccb *start_ccb)
 
 	flags = atio->ccb_h.flags &
 		(CAM_DIS_DISCONNECT|CAM_TAG_ACTION_VALID|CAM_DIR_MASK);
-	cmd_info = io->io_hdr.ctl_private[CTL_PRIV_FRONTEND2].ptr;
+	cmd_info = PRIV_INFO(io);
 	cmd_info->cur_transfer_index = 0;
 	cmd_info->cur_transfer_off = 0;
 	cmd_info->flags = 0;
@@ -987,7 +990,7 @@ ctlfe_free_ccb(struct cam_periph *periph, union ccb *ccb)
 	switch (ccb->ccb_h.func_code) {
 	case XPT_ACCEPT_TARGET_IO:
 		softc->atios_freed++;
-		cmd_info = io->io_hdr.ctl_private[CTL_PRIV_FRONTEND2].ptr;
+		cmd_info = PRIV_INFO(io);
 		free(cmd_info, M_CTLFE);
 		break;
 	case XPT_IMMEDIATE_NOTIFY:
@@ -1154,12 +1157,12 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 		 */
 		mtx_unlock(mtx);
 		io = done_ccb->ccb_h.io_ptr;
-		cmd_info = io->io_hdr.ctl_private[CTL_PRIV_FRONTEND2].ptr;
+		cmd_info = PRIV_INFO(io);
 		ctl_zero_io(io);
 
 		/* Save pointers on both sides */
-		io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr = done_ccb;
-		io->io_hdr.ctl_private[CTL_PRIV_FRONTEND2].ptr = cmd_info;
+		PRIV_CCB(io) = done_ccb;
+		PRIV_INFO(io) = cmd_info;
 		done_ccb->ccb_h.io_ptr = io;
 
 		/*
@@ -1315,7 +1318,7 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 			struct ccb_scsiio *csio;
 
 			csio = &done_ccb->csio;
-			cmd_info = io->io_hdr.ctl_private[CTL_PRIV_FRONTEND2].ptr;
+			cmd_info = PRIV_INFO(io);
 
 			io->io_hdr.flags &= ~CTL_FLAG_DMA_INPROG;
 
@@ -1444,7 +1447,7 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 		send_ctl_io = 1;
 
 		io->io_hdr.io_type = CTL_IO_TASK;
-		io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr =done_ccb;
+		PRIV_CCB(io) = done_ccb;
 		inot->ccb_h.io_ptr = io;
 		io->io_hdr.nexus.initid = inot->initiator_id;
 		io->io_hdr.nexus.targ_port = bus_softc->port.targ_port;
@@ -2002,7 +2005,7 @@ ctlfe_datamove(union ctl_io *io)
 	KASSERT(io->io_hdr.io_type == CTL_IO_SCSI,
 	    ("Unexpected io_type (%d) in ctlfe_datamove", io->io_hdr.io_type));
 
-	ccb = io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr;
+	ccb = PRIV_CCB(io);
 	periph = xpt_path_periph(ccb->ccb_h.path);
 	cam_periph_lock(periph);
 	softc = (struct ctlfe_lun_softc *)periph->softc;
@@ -2022,7 +2025,7 @@ ctlfe_done(union ctl_io *io)
 	struct cam_periph *periph;
 	struct ctlfe_lun_softc *softc;
 
-	ccb = io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr;
+	ccb = PRIV_CCB(io);
 	periph = xpt_path_periph(ccb->ccb_h.path);
 	cam_periph_lock(periph);
 	softc = (struct ctlfe_lun_softc *)periph->softc;

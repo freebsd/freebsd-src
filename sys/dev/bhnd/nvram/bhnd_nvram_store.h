@@ -35,12 +35,8 @@
 #ifdef _KERNEL
 #include <sys/param.h>
 #include <sys/bus.h>
-#include <sys/nv.h>
 #else /* !_KERNEL */
 #include <errno.h>
-
-#include <nv.h>
-
 #include <stdint.h>
 #include <stdlib.h>
 #endif
@@ -52,17 +48,45 @@
 
 struct bhnd_nvram_store;
 
+/**
+ * NVRAM export flags.
+ */
+enum {
+	BHND_NVSTORE_EXPORT_CHILDREN		= (1<<0),	/**< Include all subpaths */
+	BHND_NVSTORE_EXPORT_PRESERVE_DEVPATHS	= (1<<1),	/**< Preserve existing device path definitions (default) */
+	BHND_NVSTORE_EXPORT_COMPACT_DEVPATHS	= (1<<2),	/**< Re-encode all device paths using compact syntax */
+	BHND_NVSTORE_EXPORT_EXPAND_DEVPATHS	= (1<<3),	/**< Re-encode all device paths using non-compact syntax */
+	BHND_NVSTORE_EXPORT_ALL_VARS		= (1<<6|1<<7),	/**< Include all variables (default) */
+	BHND_NVSTORE_EXPORT_COMMITTED		= (1<<6),	/**< Include all committed changes */
+	BHND_NVSTORE_EXPORT_UNCOMMITTED		= (1<<7),	/**< Include all uncommitted changes (not including deletions) */
+	BHND_NVSTORE_EXPORT_DELETED		= (1<<8),	/**< Include all uncommitted deltions (as
+								     properties of type BHND_NVRAM_TYPE_NULL) */
+};
+
 int	bhnd_nvram_store_new(struct bhnd_nvram_store **store,
 	    struct bhnd_nvram_data *data);
 
 int	bhnd_nvram_store_parse_new(struct bhnd_nvram_store **store,
-	    struct bhnd_nvram_io *io, bhnd_nvram_data_class_t *cls);
+	    struct bhnd_nvram_io *io, bhnd_nvram_data_class *cls);
 
 void	bhnd_nvram_store_free(struct bhnd_nvram_store *store);
 
+int	bhnd_nvram_store_export(struct bhnd_nvram_store *store,
+	    const char *path, bhnd_nvram_data_class **cls,
+	    bhnd_nvram_plist **props, bhnd_nvram_plist **options,
+	    uint32_t flags);
+
+int	bhnd_nvram_store_serialize(struct bhnd_nvram_store *store,
+	    const char *path, struct bhnd_nvram_io **data,  uint32_t flags);
+
 int	bhnd_nvram_store_getvar(struct bhnd_nvram_store *sc, const char *name,
-	    void *buf, size_t *len, bhnd_nvram_type type);
+	    void *outp, size_t *olen, bhnd_nvram_type otype);
 int	bhnd_nvram_store_setvar(struct bhnd_nvram_store *sc, const char *name,
-	    const void *buf, size_t len, bhnd_nvram_type type);
+	    const void *inp, size_t ilen, bhnd_nvram_type itype);
+int	bhnd_nvram_store_unsetvar(struct bhnd_nvram_store *sc,
+	    const char *name);
+
+int	bhnd_nvram_store_setval(struct bhnd_nvram_store *sc, const char *name,
+	    bhnd_nvram_val *value);
 
 #endif /* _BHND_NVRAM_BHND_NVRAM_STORE_H_ */

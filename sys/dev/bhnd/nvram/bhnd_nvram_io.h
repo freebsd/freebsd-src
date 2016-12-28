@@ -52,6 +52,9 @@ struct bhnd_nvram_io	*bhnd_nvram_iobuf_copy(struct bhnd_nvram_io *src);
 struct bhnd_nvram_io	*bhnd_nvram_iobuf_copy_range(struct bhnd_nvram_io *src,
 			     size_t offset, size_t size);
 
+struct bhnd_nvram_io	*bhnd_nvram_ioptr_new(const void *ptr, size_t size,
+			     size_t capacity, uint32_t flags);
+
 #ifdef _KERNEL
 struct bhnd_nvram_io	*bhnd_nvram_iores_new(struct bhnd_resource *r,
 			     bus_size_t offset, bus_size_t size,
@@ -75,5 +78,13 @@ int			 bhnd_nvram_io_write_ptr(struct bhnd_nvram_io *io,
 			     size_t *navail);
 
 void			 bhnd_nvram_io_free(struct bhnd_nvram_io *io);
+
+/**
+ * bhnd_nvram_ioptr flags
+ */
+enum {
+	BHND_NVRAM_IOPTR_RDONLY	= (1<<0),	/**< read-only */
+	BHND_NVRAM_IOPTR_RDWR	= (1<<1),	/**< read/write */
+};
 
 #endif /* _BHND_NVRAM_BHND_NVRAM_IO_H_ */

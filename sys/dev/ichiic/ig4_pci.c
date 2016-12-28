@@ -68,6 +68,12 @@ static int ig4iic_pci_detach(device_t dev);
 
 #define PCI_CHIP_LYNXPT_LP_I2C_1	0x9c618086
 #define PCI_CHIP_LYNXPT_LP_I2C_2	0x9c628086
+#define PCI_CHIP_BRASWELL_I2C_1 	0x22c18086
+#define PCI_CHIP_BRASWELL_I2C_2 	0x22c28086
+#define PCI_CHIP_BRASWELL_I2C_3 	0x22c38086
+#define PCI_CHIP_BRASWELL_I2C_5 	0x22c58086
+#define PCI_CHIP_BRASWELL_I2C_6 	0x22c68086
+#define PCI_CHIP_BRASWELL_I2C_7 	0x22c78086
 
 static int
 ig4iic_pci_probe(device_t dev)
@@ -78,6 +84,24 @@ ig4iic_pci_probe(device_t dev)
 		break;
 	case PCI_CHIP_LYNXPT_LP_I2C_2:
 		device_set_desc(dev, "Intel Lynx Point-LP I2C Controller-2");
+		break;
+	case PCI_CHIP_BRASWELL_I2C_1:
+		device_set_desc(dev, "Intel Braswell Serial I/O I2C Port 1");
+		break;
+	case PCI_CHIP_BRASWELL_I2C_2:
+		device_set_desc(dev, "Intel Braswell Serial I/O I2C Port 2");
+		break;
+	case PCI_CHIP_BRASWELL_I2C_3:
+		device_set_desc(dev, "Intel Braswell Serial I/O I2C Port 3");
+		break;
+	case PCI_CHIP_BRASWELL_I2C_5:
+		device_set_desc(dev, "Intel Braswell Serial I/O I2C Port 5");
+		break;
+	case PCI_CHIP_BRASWELL_I2C_6:
+		device_set_desc(dev, "Intel Braswell Serial I/O I2C Port 6");
+		break;
+	case PCI_CHIP_BRASWELL_I2C_7:
+		device_set_desc(dev, "Intel Braswell Serial I/O I2C Port 7");
 		break;
 	default:
 		return (ENXIO);
@@ -90,11 +114,6 @@ ig4iic_pci_attach(device_t dev)
 {
 	ig4iic_softc_t *sc = device_get_softc(dev);
 	int error;
-
-	bzero(sc, sizeof(*sc));
-
-	mtx_init(&sc->io_lock, "IG4 I/O lock", NULL, MTX_DEF);
-	sx_init(&sc->call_lock, "IG4 call lock");
 
 	sc->dev = dev;
 	sc->regs_rid = PCIR_BAR(0);
@@ -116,7 +135,7 @@ ig4iic_pci_attach(device_t dev)
 		ig4iic_pci_detach(dev);
 		return (ENXIO);
 	}
-	sc->pci_attached = 1;
+	sc->platform_attached = 1;
 
 	error = ig4iic_attach(sc);
 	if (error)
@@ -131,11 +150,11 @@ ig4iic_pci_detach(device_t dev)
 	ig4iic_softc_t *sc = device_get_softc(dev);
 	int error;
 
-	if (sc->pci_attached) {
+	if (sc->platform_attached) {
 		error = ig4iic_detach(sc);
 		if (error)
 			return (error);
-		sc->pci_attached = 0;
+		sc->platform_attached = 0;
 	}
 
 	if (sc->intr_res) {
@@ -149,10 +168,6 @@ ig4iic_pci_detach(device_t dev)
 		bus_release_resource(dev, SYS_RES_MEMORY,
 				     sc->regs_rid, sc->regs_res);
 		sc->regs_res = NULL;
-	}
-	if (mtx_initialized(&sc->io_lock)) {
-		mtx_destroy(&sc->io_lock);
-		sx_destroy(&sc->call_lock);
 	}
 
 	return (0);
@@ -172,15 +187,15 @@ static device_method_t ig4iic_pci_methods[] = {
 };
 
 static driver_t ig4iic_pci_driver = {
-	"ig4iic",
+	"ig4iic_pci",
 	ig4iic_pci_methods,
 	sizeof(struct ig4iic_softc)
 };
 
 static devclass_t ig4iic_pci_devclass;
 
-DRIVER_MODULE_ORDERED(ig4iic, pci, ig4iic_pci_driver, ig4iic_pci_devclass, 0, 0,
+DRIVER_MODULE_ORDERED(ig4iic_pci, pci, ig4iic_pci_driver, ig4iic_pci_devclass, 0, 0,
     SI_ORDER_ANY);
-MODULE_DEPEND(ig4iic, pci, 1, 1, 1);
-MODULE_DEPEND(ig4iic, iicbus, IICBUS_MINVER, IICBUS_PREFVER, IICBUS_MAXVER);
-MODULE_VERSION(ig4iic, 1);
+MODULE_DEPEND(ig4iic_pci, pci, 1, 1, 1);
+MODULE_DEPEND(ig4iic_pci, iicbus, IICBUS_MINVER, IICBUS_PREFVER, IICBUS_MAXVER);
+MODULE_VERSION(ig4iic_pci, 1);

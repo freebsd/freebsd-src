@@ -111,6 +111,7 @@ void trapDump(char *msg);
 void MipsFPTrap(u_int, u_int, u_int);
 void MipsKernGenException(void);
 void MipsKernIntr(void);
+void MipsKStackOverflow(void);
 void MipsTLBInvalidException(void);
 void MipsTLBMissException(void);
 void MipsUserGenException(void);

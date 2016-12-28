@@ -964,10 +964,27 @@ ath_beacon_config(struct ath_softc *sc, struct ieee80211vap *vap)
 		/* NB: the beacon interval is kept internally in TU's */
 		intval = ni->ni_intval & HAL_BEACON_PERIOD;
 	}
+
+	/*
+	 * Note: rounding up to the next intval can cause problems with
+	 * bad APs when we're in powersave mode.
+	 *
+	 * In STA mode with powersave enabled, beacons are only received
+	 * whenever the beacon timer fires to wake up the hardware.
+	 * Now, if this is rounded up to the next intval, it assumes
+	 * that the AP has started transmitting beacons at TSF values that
+	 * are multiples of intval, versus say being 25 TU off.
+	 *
+	 * The specification (802.11-2012 10.1.3.2 - Beacon Generation in
+	 * Infrastructure Networks) requires APs be beaconing at a
+	 * mutiple of intval.  So, if bintval=100, then we shouldn't
+	 * get beacons at intervals other than around multiples of 100.
+	 */
 	if (nexttbtt == 0)		/* e.g. for ap mode */
 		nexttbtt = intval;
-	else if (intval)		/* NB: can be 0 for monitor mode */
+	else
 		nexttbtt = roundup(nexttbtt, intval);
+
 	DPRINTF(sc, ATH_DEBUG_BEACON, "%s: nexttbtt %u intval %u (%u)\n",
 		__func__, nexttbtt, intval, ni->ni_intval);
 	if (ic->ic_opmode == IEEE80211_M_STA && !sc->sc_swbmiss) {

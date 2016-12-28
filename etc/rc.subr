@@ -1045,6 +1045,7 @@ run_rc_command()
 					#
 			check_startmsgs && echo "Starting ${name}."
 			if [ -n "$_chroot" ]; then
+				_cd=
 				_doit="\
 ${_nice:+nice -n $_nice }\
 ${_fib:+setfib -F $_fib }\
@@ -1052,8 +1053,8 @@ ${_env:+env $_env }\
 chroot ${_user:+-u $_user }${_group:+-g $_group }${_groups:+-G $_groups }\
 $_chroot $command $rc_flags $command_args"
 			else
+				_cd="${_chdir:+cd $_chdir && }"
 				_doit="\
-${_chdir:+cd $_chdir && }\
 ${_fib:+setfib -F $_fib }\
 ${_env:+env $_env }\
 $command $rc_flags $command_args"
@@ -1072,7 +1073,7 @@ $command $rc_flags $command_args"
 			fi
 
 					# Prepend default limits
-			_doit="limits -C $_login_class $_doit"
+			_doit="$_cd limits -C $_login_class $_doit"
 
 					# run the full command
 					#
@@ -2118,6 +2119,13 @@ _echoonce()
 	*)	[ -z "$_var" ] && echo -n "$_msg" && eval "$1=finished" ;;
 	esac
 }
+
+# If the loader env variable rc.debug is set, turn on debugging. rc.conf will
+# still override this, but /etc/defaults/rc.conf can't unconditionally set this
+# since it would undo what we've done here.
+if kenv -q rc.debug > /dev/null ; then
+	rc_debug=YES
+fi
 
 fi # [ -z "${_rc_subr_loaded}" ]
 

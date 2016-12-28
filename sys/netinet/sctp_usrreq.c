@@ -70,9 +70,9 @@ sctp_init(void)
 	 * Allow a user to take no more than 1/2 the number of clusters or
 	 * the SB_MAX whichever is smaller for the send window.
 	 */
-	sb_max_adj = (u_long)((u_quad_t) (SB_MAX) * MCLBYTES / (MSIZE + MCLBYTES));
+	sb_max_adj = (u_long)((u_quad_t)(SB_MAX) * MCLBYTES / (MSIZE + MCLBYTES));
 	SCTP_BASE_SYSCTL(sctp_sendspace) = min(sb_max_adj,
-	    (((uint32_t) nmbclusters / 2) * SCTP_DEFAULT_MAXSEGMENT));
+	    (((uint32_t)nmbclusters / 2) * SCTP_DEFAULT_MAXSEGMENT));
 	/*
 	 * Now for the recv window, should we take the same amount? or
 	 * should I do 1/2 the SB_MAX instead in the SB_MAX min above. For
@@ -134,8 +134,8 @@ sctp_pathmtu_adjustment(struct sctp_tcb *stcb, uint16_t nxtsz)
 					sctp_misc_ints(SCTP_FLIGHT_LOG_DOWN_PMTU,
 					    chk->whoTo->flight_size,
 					    chk->book_size,
-					    (uint32_t) (uintptr_t) chk->whoTo,
-					    chk->rec.data.TSN_seq);
+					    (uint32_t)(uintptr_t)chk->whoTo,
+					    chk->rec.data.tsn);
 				}
 				/* Clear any time so NO RTT is being done */
 				chk->do_rtt = 0;
@@ -156,7 +156,6 @@ sctp_notify(struct sctp_inpcb *inp,
 {
 #if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 	struct socket *so;
-
 #endif
 	int timer_stopped;
 
@@ -344,7 +343,6 @@ sctp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 	}
 	return;
 }
-
 #endif
 
 static int
@@ -1021,14 +1019,11 @@ sctp_fill_up_addresses_vrf(struct sctp_inpcb *inp,
 	struct sctp_ifa *sctp_ifa;
 	size_t actual;
 	int loopback_scope;
-
 #if defined(INET)
 	int ipv4_local_scope, ipv4_addr_legal;
-
 #endif
 #if defined(INET6)
 	int local_scope, site_scope, ipv6_addr_legal;
-
 #endif
 	struct sctp_vrf *vrf;
 
@@ -1174,19 +1169,14 @@ sctp_fill_up_addresses_vrf(struct sctp_inpcb *inp,
 							if (sin6->sin6_scope_id == 0) {
 								if (sa6_recoverscope(sin6) != 0)
 									/*
-									 * 
+									 *
 									 * bad
-									 * 
-									 * li
-									 * nk
-									 * 
-									 * loc
-									 * al
-									 * 
-									 * add
-									 * re
-									 * ss
-									 * */
+									 * link
+									 *
+									 * local
+									 *
+									 * address
+									 */
 									continue;
 							}
 						}
@@ -1491,7 +1481,7 @@ sctp_do_connect_x(struct socket *so, struct sctp_inpcb *inp, void *optval,
 		    SCTP_FROM_SCTP_USRREQ + SCTP_LOC_7);
 		goto out_now;
 	}
-	a_id = (sctp_assoc_t *) optval;
+	a_id = (sctp_assoc_t *)optval;
 	*a_id = sctp_get_associd(stcb);
 
 	/* initialize authentication parameters for the assoc */
@@ -1521,19 +1511,19 @@ out_now:
 		stcb = LIST_FIRST(&inp->sctp_asoc_list); \
 		if (stcb) { \
 			SCTP_TCB_LOCK(stcb); \
-                } \
+		} \
 		SCTP_INP_RUNLOCK(inp); \
 	} else if (assoc_id > SCTP_ALL_ASSOC) { \
 		stcb = sctp_findassociation_ep_asocid(inp, assoc_id, 1); \
 		if (stcb == NULL) { \
-		        SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, ENOENT); \
+			SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, ENOENT); \
 			error = ENOENT; \
 			break; \
 		} \
 	} else { \
 		stcb = NULL; \
-        } \
-  }
+	} \
+}
 
 
 #define SCTP_CHECK_AND_CAST(destp, srcp, type, size) {\
@@ -1544,7 +1534,7 @@ out_now:
 	} else { \
 		destp = (type *)srcp; \
 	} \
-      }
+}
 
 static int
 sctp_getopt(struct socket *so, int optname, void *optval, size_t *optsize,
@@ -2190,7 +2180,7 @@ flags_out:
 
 			SCTP_CHECK_AND_CAST(value, optval, uint32_t, *optsize);
 			/* FIXME MT: change to sctp_assoc_value? */
-			SCTP_FIND_STCB(inp, stcb, (sctp_assoc_t) * value);
+			SCTP_FIND_STCB(inp, stcb, (sctp_assoc_t)*value);
 
 			if (stcb) {
 				size = 0;
@@ -2220,7 +2210,7 @@ flags_out:
 					}
 				}
 				SCTP_TCB_UNLOCK(stcb);
-				*value = (uint32_t) size;
+				*value = (uint32_t)size;
 				*optsize = sizeof(uint32_t);
 			} else {
 				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, ENOTCONN);
@@ -2326,10 +2316,8 @@ flags_out:
 			struct sctp_paddrparams *paddrp;
 			struct sctp_nets *net;
 			struct sockaddr *addr;
-
 #if defined(INET) && defined(INET6)
 			struct sockaddr_in sin_store;
-
 #endif
 
 			SCTP_CHECK_AND_CAST(paddrp, optval, struct sctp_paddrparams, *optsize);
@@ -2529,10 +2517,8 @@ flags_out:
 			struct sctp_paddrinfo *paddri;
 			struct sctp_nets *net;
 			struct sockaddr *addr;
-
 #if defined(INET) && defined(INET6)
 			struct sockaddr_in sin_store;
-
 #endif
 
 			SCTP_CHECK_AND_CAST(paddri, optval, struct sctp_paddrinfo, *optsize);
@@ -2950,7 +2936,7 @@ flags_out:
 				} else {
 					/* copy in the chunks */
 					(void)sctp_serialize_auth_chunks(chklist, sac->gauth_chunks);
-					sac->gauth_number_of_chunks = (uint32_t) size;
+					sac->gauth_number_of_chunks = (uint32_t)size;
 					*optsize = sizeof(struct sctp_authchunks) + size;
 				}
 				SCTP_TCB_UNLOCK(stcb);
@@ -2969,7 +2955,7 @@ flags_out:
 					} else {
 						/* copy in the chunks */
 						(void)sctp_serialize_auth_chunks(chklist, sac->gauth_chunks);
-						sac->gauth_number_of_chunks = (uint32_t) size;
+						sac->gauth_number_of_chunks = (uint32_t)size;
 						*optsize = sizeof(struct sctp_authchunks) + size;
 					}
 					SCTP_INP_RUNLOCK(inp);
@@ -3000,7 +2986,7 @@ flags_out:
 				} else {
 					/* copy in the chunks */
 					(void)sctp_serialize_auth_chunks(chklist, sac->gauth_chunks);
-					sac->gauth_number_of_chunks = (uint32_t) size;
+					sac->gauth_number_of_chunks = (uint32_t)size;
 					*optsize = sizeof(struct sctp_authchunks) + size;
 				}
 				SCTP_TCB_UNLOCK(stcb);
@@ -3198,10 +3184,8 @@ flags_out:
 			struct sctp_paddrthlds *thlds;
 			struct sctp_nets *net;
 			struct sockaddr *addr;
-
 #if defined(INET) && defined(INET6)
 			struct sockaddr_in sin_store;
-
 #endif
 
 			SCTP_CHECK_AND_CAST(thlds, optval, struct sctp_paddrthlds, *optsize);
@@ -3312,10 +3296,8 @@ flags_out:
 			struct sctp_udpencaps *encaps;
 			struct sctp_nets *net;
 			struct sockaddr *addr;
-
 #if defined(INET) && defined(INET6)
 			struct sockaddr_in sin_store;
-
 #endif
 
 			SCTP_CHECK_AND_CAST(encaps, optval, struct sctp_udpencaps, *optsize);
@@ -3610,14 +3592,14 @@ flags_out:
 			SCTP_FIND_STCB(inp, stcb, av->assoc_id);
 
 			if (stcb) {
-				av->assoc_value = (uint32_t) stcb->asoc.local_strreset_support;
+				av->assoc_value = (uint32_t)stcb->asoc.local_strreset_support;
 				SCTP_TCB_UNLOCK(stcb);
 			} else {
 				if ((inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) ||
 				    (inp->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL) ||
 				    (av->assoc_id == SCTP_FUTURE_ASSOC)) {
 					SCTP_INP_RLOCK(inp);
-					av->assoc_value = (uint32_t) inp->local_strreset_support;
+					av->assoc_value = (uint32_t)inp->local_strreset_support;
 					SCTP_INP_RUNLOCK(inp);
 				} else {
 					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
@@ -4294,7 +4276,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 				 * insert/replace it
 				 */
 				if (size > 0) {
-					key = sctp_set_key(sca->sca_key, (uint32_t) size);
+					key = sctp_set_key(sca->sca_key, (uint32_t)size);
 					if (key == NULL) {
 						SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, ENOMEM);
 						error = ENOMEM;
@@ -4331,7 +4313,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 					 * insert/replace it
 					 */
 					if (size > 0) {
-						key = sctp_set_key(sca->sca_key, (uint32_t) size);
+						key = sctp_set_key(sca->sca_key, (uint32_t)size);
 						if (key == NULL) {
 							SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, ENOMEM);
 							error = ENOMEM;
@@ -4368,7 +4350,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 						 * and insert/replace it
 						 */
 						if (size > 0) {
-							key = sctp_set_key(sca->sca_key, (uint32_t) size);
+							key = sctp_set_key(sca->sca_key, (uint32_t)size);
 							if (key == NULL) {
 								SCTP_TCB_UNLOCK(stcb);
 								continue;
@@ -4404,7 +4386,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 				error = EINVAL;
 				break;
 			}
-			hmaclist = sctp_alloc_hmaclist((uint16_t) shmac->shmac_number_of_idents);
+			hmaclist = sctp_alloc_hmaclist((uint16_t)shmac->shmac_number_of_idents);
 			if (hmaclist == NULL) {
 				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, ENOMEM);
 				error = ENOMEM;
@@ -4575,7 +4557,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 			}
 			SCTP_FIND_STCB(inp, stcb, av->assoc_id);
 			if (stcb) {
-				stcb->asoc.local_strreset_support = (uint8_t) av->assoc_value;
+				stcb->asoc.local_strreset_support = (uint8_t)av->assoc_value;
 				SCTP_TCB_UNLOCK(stcb);
 			} else {
 				if ((inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) ||
@@ -4583,7 +4565,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 				    (av->assoc_id == SCTP_FUTURE_ASSOC) ||
 				    (av->assoc_id == SCTP_ALL_ASSOC)) {
 					SCTP_INP_WLOCK(inp);
-					inp->local_strreset_support = (uint8_t) av->assoc_value;
+					inp->local_strreset_support = (uint8_t)av->assoc_value;
 					SCTP_INP_WUNLOCK(inp);
 				}
 				if ((av->assoc_id == SCTP_CURRENT_ASSOC) ||
@@ -4591,7 +4573,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 					SCTP_INP_RLOCK(inp);
 					LIST_FOREACH(stcb, &inp->sctp_asoc_list, sctp_tcblist) {
 						SCTP_TCB_LOCK(stcb);
-						stcb->asoc.local_strreset_support = (uint8_t) av->assoc_value;
+						stcb->asoc.local_strreset_support = (uint8_t)av->assoc_value;
 						SCTP_TCB_UNLOCK(stcb);
 					}
 					SCTP_INP_RUNLOCK(inp);
@@ -4790,7 +4772,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 			uint32_t *value;
 
 			SCTP_CHECK_AND_CAST(value, optval, uint32_t, optsize);
-			SCTP_FIND_STCB(inp, stcb, (sctp_assoc_t) * value);
+			SCTP_FIND_STCB(inp, stcb, (sctp_assoc_t)*value);
 			if (stcb == NULL) {
 				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, ENOENT);
 				error = ENOENT;
@@ -5195,10 +5177,8 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 			struct sctp_paddrparams *paddrp;
 			struct sctp_nets *net;
 			struct sockaddr *addr;
-
 #if defined(INET) && defined(INET6)
 			struct sockaddr_in sin_store;
-
 #endif
 
 			SCTP_CHECK_AND_CAST(paddrp, optval, struct sctp_paddrparams, optsize);
@@ -5699,10 +5679,8 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 			struct sctp_setprim *spa;
 			struct sctp_nets *net;
 			struct sockaddr *addr;
-
 #if defined(INET) && defined(INET6)
 			struct sockaddr_in sin_store;
-
 #endif
 
 			SCTP_CHECK_AND_CAST(spa, optval, struct sctp_setprim, optsize);
@@ -5791,10 +5769,8 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 		{
 			struct sctp_setpeerprim *sspp;
 			struct sockaddr *addr;
-
 #if defined(INET) && defined(INET6)
 			struct sockaddr_in sin_store;
-
 #endif
 
 			SCTP_CHECK_AND_CAST(sspp, optval, struct sctp_setpeerprim, optsize);
@@ -6244,10 +6220,8 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 			struct sctp_paddrthlds *thlds;
 			struct sctp_nets *net;
 			struct sockaddr *addr;
-
 #if defined(INET) && defined(INET6)
 			struct sockaddr_in sin_store;
-
 #endif
 
 			SCTP_CHECK_AND_CAST(thlds, optval, struct sctp_paddrthlds, optsize);
@@ -6415,10 +6389,8 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 			struct sctp_udpencaps *encaps;
 			struct sctp_nets *net;
 			struct sockaddr *addr;
-
 #if defined(INET) && defined(INET6)
 			struct sockaddr_in sin_store;
-
 #endif
 
 			SCTP_CHECK_AND_CAST(encaps, optval, struct sctp_udpencaps, optsize);
@@ -7010,7 +6982,6 @@ out_now:
 	SCTP_INP_DECR_REF(inp);
 	return (error);
 }
-
 #endif
 
 int
@@ -7184,10 +7155,8 @@ sctp_accept(struct socket *so, struct sockaddr **addr)
 	struct sctp_tcb *stcb;
 	struct sctp_inpcb *inp;
 	union sctp_sockstore store;
-
 #ifdef INET6
 	int error;
-
 #endif
 	inp = (struct sctp_inpcb *)so->so_pcb;
 
@@ -7353,7 +7322,7 @@ sctp_ingetaddr(struct socket *so, struct sockaddr **addr)
 			vrf_id = inp->def_vrf_id;
 			sctp_ifa = sctp_source_address_selection(inp,
 			    stcb,
-			    (sctp_route_t *) & net->ro,
+			    (sctp_route_t *)&net->ro,
 			    net, 0, vrf_id);
 			if (sctp_ifa) {
 				sin->sin_addr = sctp_ifa->address.sin.sin_addr;
@@ -7470,5 +7439,4 @@ struct pr_usrreqs sctp_usrreqs = {
 	.pru_sosend = sctp_sosend,
 	.pru_soreceive = sctp_soreceive
 };
-
 #endif

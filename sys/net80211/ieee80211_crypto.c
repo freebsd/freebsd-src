@@ -78,7 +78,7 @@ null_key_alloc(struct ieee80211vap *vap, struct ieee80211_key *k,
 			return 0;
 		*keyix = 0;	/* NB: use key index 0 for ucast key */
 	} else {
-		*keyix = k - vap->iv_nw_keys;
+		*keyix = ieee80211_crypto_get_key_wepidx(vap, k);
 	}
 	*rxkeyix = IEEE80211_KEYIX_NONE;	/* XXX maybe *keyix? */
 	return 1;
@@ -520,6 +520,26 @@ ieee80211_crypto_setkey(struct ieee80211vap *vap, struct ieee80211_key *key)
 	return dev_key_set(vap, key);
 }
 
+/*
+ * Return index if the key is a WEP key (0..3); -1 otherwise.
+ *
+ * This is different to "get_keyid" which defaults to returning
+ * 0 for unicast keys; it assumes that it won't be used for WEP.
+ */
+int
+ieee80211_crypto_get_key_wepidx(const struct ieee80211vap *vap,
+    const struct ieee80211_key *k)
+{
+
+	if (k >= &vap->iv_nw_keys[0] &&
+	    k <  &vap->iv_nw_keys[IEEE80211_WEP_NKID])
+		return (k - vap->iv_nw_keys);
+	return (-1);
+}
+
+/*
+ * Note: only supports a single unicast key (0).
+ */
 uint8_t
 ieee80211_crypto_get_keyid(struct ieee80211vap *vap, struct ieee80211_key *k)
 {
@@ -766,4 +786,19 @@ ieee80211_crypto_reload_keys(struct ieee80211com *ic)
 	 * Unicast keys.
 	 */
 	ieee80211_iterate_nodes(&ic->ic_sta, load_ucastkey, NULL);
+}
+
+/*
+ * Set the default key index for WEP, or KEYIX_NONE for no default TX key.
+ *
+ * This should be done as part of a key update block (iv_key_update_begin /
+ * iv_key_update_end.)
+ */
+void
+ieee80211_crypto_set_deftxkey(struct ieee80211vap *vap, ieee80211_keyix kid)
+{
+
+	/* XXX TODO: assert we're in a key update block */
+
+	vap->iv_update_deftxkey(vap, kid);
 }

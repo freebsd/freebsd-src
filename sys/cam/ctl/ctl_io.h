@@ -145,7 +145,9 @@ struct ctl_ptr_len_flags {
 union ctl_priv {
 	uint8_t		bytes[sizeof(uint64_t) * 2];
 	uint64_t	integer;
+	uint64_t	integers[2];
 	void		*ptr;
+	void		*ptrs[2];
 };
 
 /*
@@ -365,7 +367,7 @@ struct ctl_taskio {
 /*
  * HA link messages.
  */
-#define	CTL_HA_VERSION		1
+#define	CTL_HA_VERSION		2
 
 /*
  * Used for CTL_MSG_LOGIN.

@@ -295,7 +295,7 @@ bridge_set_priority(struct bridge_if *bif, int32_t priority)
 
 	/*
 	 * Re-fetching the data from the driver after that might be a good
-	 * idea, since changing our bridge's priority should invoke 
+	 * idea, since changing our bridge's priority should invoke
 	 * recalculation of the active spanning tree topology in the network.
 	 */
 	bif->priority = priority;
@@ -1319,7 +1319,7 @@ bridge_addrs_getinfo_ifalist(struct bridge_if *bif, struct ifbareq **buf)
 	struct ifbaconf bac;
 	struct ifdrv ifd;
 
-	*buf = NULL; 
+	*buf = NULL;
 	strlcpy(ifd.ifd_name, bif->bif_name, IFNAMSIZ);
 	ifd.ifd_cmd = BRDGRTS;
 	ifd.ifd_len = sizeof(bac);
@@ -1472,7 +1472,7 @@ bridge_do_pfctl(int32_t bridge_ctl, enum snmp_op op, int32_t *val)
 	} else
 		s_len = 0;
 
-        len = sizeof(i);
+	len = sizeof(i);
 
 	strcpy(mib_name, bridge_sysctl);
 

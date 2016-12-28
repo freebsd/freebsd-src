@@ -57,8 +57,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/hyperv/include/hyperv.h>
 #include <dev/hyperv/utilities/hv_utilreg.h>
 #include <dev/hyperv/utilities/vmbus_icreg.h>
+#include <dev/hyperv/utilities/vmbus_icvar.h>
 
-#include "hv_util.h"
 #include "hv_snapshot.h"
 #include "vmbus_if.h"
 
@@ -204,7 +204,7 @@ struct hv_vss_dev_sc {
  * https://clovertrail.github.io/assets/vssdot.png
  */
 typedef struct hv_vss_sc {
-	struct hv_util_sc			util_sc;
+	struct vmbus_ic_softc			util_sc;
 	device_t				dev;
 
 	struct task				task;
@@ -808,7 +808,7 @@ hv_vss_process_request(void *context, int pending __unused)
 	hv_vss_log_info("%s: entering hv_vss_process_request\n", __func__);
 
 	sc = (hv_vss_sc*)context;
-	vss_buf = sc->util_sc.receive_buffer;
+	vss_buf = sc->util_sc.ic_buf;
 	channel = vmbus_get_channel(sc->dev);
 
 	recvlen = sc->util_sc.ic_buflen;
@@ -1020,7 +1020,7 @@ hv_vss_attach(device_t dev)
 	sc->hv_appvss_dev->si_drv1 = &sc->app_sc;
 	sc->app_sc.sc = sc;
 
-	return hv_util_attach(dev, hv_vss_callback);
+	return (vmbus_ic_attach(dev, hv_vss_callback));
 }
 
 static int
@@ -1041,7 +1041,7 @@ hv_vss_detach(device_t dev)
 	hv_vss_destroy_send_receive_queue(dev);
 	destroy_dev(sc->hv_vss_dev);
 	destroy_dev(sc->hv_appvss_dev);
-	return hv_util_detach(dev);
+	return (vmbus_ic_detach(dev));
 }
 
 static device_method_t vss_methods[] = {

@@ -1206,7 +1206,7 @@ isu8cont(unsigned char c)
 /*
  * Parse a LDAP value
  * notes:
- *	the argument u should be a NULL terminated sequence of ASCII bytes.
+ *	the argument p should be a NUL-terminated sequence of ASCII bytes.
  */
 char *
 parseval(char *p, size_t len)

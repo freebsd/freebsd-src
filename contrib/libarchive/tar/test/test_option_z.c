@@ -42,14 +42,17 @@ DEFINE_TEST(test_option_z)
 	if (r != 0) {
 		if (!canGzip()) {
 			skipping("gzip is not supported on this platform");
-			return;
+			goto done;
 		}
 		failure("-z option is broken");
 		assertEqualInt(r, 0);
-		return;
+		goto done;
 	}
+	free(p);
 	/* Check that the archive file has a gzip signature. */
 	p = slurpfile(&s, "archive.out");
 	assert(s > 4);
 	assertEqualMem(p, "\x1f\x8b\x08\x00", 4);
+done:
+	free(p);
 }

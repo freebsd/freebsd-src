@@ -294,6 +294,57 @@ archive_read_format_tar_cleanup(struct archive_read *a)
 	return (ARCHIVE_OK);
 }
 
+/*
+ * Validate number field
+ *
+ * This has to be pretty lenient in order to accommodate the enormous
+ * variety of tar writers in the world:
+ *  = POSIX (IEEE Std 1003.1-1988) ustar requires octal values with leading
+ *    zeros and allows fields to be terminated with space or null characters
+ *  = Many writers use different termination (in particular, libarchive
+ *    omits terminator bytes to squeeze one or two more digits)
+ *  = Many writers pad with space and omit leading zeros
+ *  = GNU tar and star write base-256 values if numbers are too
+ *    big to be represented in octal
+ *
+ *  Examples of specific tar headers that we should support:
+ *  = Perl Archive::Tar terminates uid, gid, devminor and devmajor with two
+ *    null bytes, pads size with spaces and other numeric fields with zeroes
+ *  = plexus-archiver prior to 2.6.3 (before switching to commons-compress)
+ *    may have uid and gid fields filled with spaces without any octal digits
+ *    at all and pads all numeric fields with spaces
+ *
+ * This should tolerate all variants in use.  It will reject a field
+ * where the writer just left garbage after a trailing NUL.
+ */
+static int
+validate_number_field(const char* p_field, size_t i_size)
+{
+	unsigned char marker = (unsigned char)p_field[0];
+	if (marker == 128 || marker == 255 || marker == 0) {
+		/* Base-256 marker, there's nothing we can check. */
+		return 1;
+	} else {
+		/* Must be octal */
+		size_t i = 0;
+		/* Skip any leading spaces */
+		while (i < i_size && p_field[i] == ' ') {
+			++i;
+		}
+		/* Skip octal digits. */
+		while (i < i_size && p_field[i] >= '0' && p_field[i] <= '7') {
+			++i;
+		}
+		/* Any remaining characters must be space or NUL padding. */
+		while (i < i_size) {
+			if (p_field[i] != ' ' && p_field[i] != 0) {
+				return 0;
+			}
+			++i;
+		}
+		return 1;
+	}
+}
 
 static int
 archive_read_format_tar_bid(struct archive_read *a, int best_bid)
@@ -346,23 +397,19 @@ archive_read_format_tar_bid(struct archive_read *a, int best_bid)
 		return (0);
 	bid += 2;  /* 6 bits of variation in an 8-bit field leaves 2 bits. */
 
-	/* Sanity check: Look at first byte of mode field. */
-	switch (255 & (unsigned)header->mode[0]) {
-	case 0: case 255:
-		/* Base-256 value: No further verification possible! */
-		break;
-	case ' ': /* Not recommended, but not illegal, either. */
-		break;
-	case '0': case '1': case '2': case '3':
-	case '4': case '5': case '6': case '7':
-		/* Octal Value. */
-		/* TODO: Check format of remainder of this field. */
-		break;
-	default:
-		/* Not a valid mode; bail out here. */
-		return (0);
+	/*
+	 * Check format of mode/uid/gid/mtime/size/rdevmajor/rdevminor fields.
+	 */
+	if (bid > 0 && (
+	    validate_number_field(header->mode, sizeof(header->mode)) == 0
+	    || validate_number_field(header->uid, sizeof(header->uid)) == 0
+	    || validate_number_field(header->gid, sizeof(header->gid)) == 0
+	    || validate_number_field(header->mtime, sizeof(header->mtime)) == 0
+	    || validate_number_field(header->size, sizeof(header->size)) == 0
+	    || validate_number_field(header->rdevmajor, sizeof(header->rdevmajor)) == 0
+	    || validate_number_field(header->rdevminor, sizeof(header->rdevminor)) == 0)) {
+		bid = 0;
 	}
-	/* TODO: Sanity test uid/gid/size/mtime/rdevmajor/rdevminor fields. */
 
 	return (bid);
 }
@@ -376,7 +423,7 @@ archive_read_format_tar_options(struct archive_read *a,
 
 	tar = (struct tar *)(a->format->data);
 	if (strcmp(key, "compat-2x")  == 0) {
-		/* Handle UTF-8 filnames as libarchive 2.x */
+		/* Handle UTF-8 filenames as libarchive 2.x */
 		tar->compat_2x = (val != NULL && val[0] != 0);
 		tar->init_default_conversion = tar->compat_2x;
 		return (ARCHIVE_OK);
@@ -2142,12 +2189,11 @@ gnu_add_sparse_entry(struct archive_read *a, struct tar *tar,
 {
 	struct sparse_block *p;
 
-	p = (struct sparse_block *)malloc(sizeof(*p));
+	p = (struct sparse_block *)calloc(1, sizeof(*p));
 	if (p == NULL) {
 		archive_set_error(&a->archive, ENOMEM, "Out of memory");
 		return (ARCHIVE_FATAL);
 	}
-	memset(p, 0, sizeof(*p));
 	if (tar->sparse_last != NULL)
 		tar->sparse_last->next = p;
 	else
@@ -2498,7 +2544,7 @@ tar_atol_base_n(const char *p, size_t char_cnt, int base)
 	last_digit_limit = INT64_MAX % base;
 
 	/* the pointer will not be dereferenced if char_cnt is zero
-	 * due to the way the && operator is evaulated.
+	 * due to the way the && operator is evaluated.
 	 */
 	while (char_cnt != 0 && (*p == ' ' || *p == '\t')) {
 		p++;

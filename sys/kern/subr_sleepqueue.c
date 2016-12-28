@@ -880,7 +880,7 @@ int
 sleepq_broadcast(void *wchan, int flags, int pri, int queue)
 {
 	struct sleepqueue *sq;
-	struct thread *td;
+	struct thread *td, *tdn;
 	int wakeup_swapper;
 
 	CTR2(KTR_PROC, "sleepq_broadcast(%p, %d)", wchan, flags);
@@ -892,9 +892,14 @@ sleepq_broadcast(void *wchan, int flags, int pri, int queue)
 	KASSERT(sq->sq_type == (flags & SLEEPQ_TYPE),
 	    ("%s: mismatch between sleep/wakeup and cv_*", __func__));
 
-	/* Resume all blocked threads on the sleep queue. */
+	/*
+	 * Resume all blocked threads on the sleep queue.  The last thread will
+	 * be given ownership of sq and may re-enqueue itself before
+	 * sleepq_resume_thread() returns, so we must cache the "next" queue
+	 * item at the beginning of the final iteration.
+	 */
 	wakeup_swapper = 0;
-	while ((td = TAILQ_FIRST(&sq->sq_blocked[queue])) != NULL) {
+	TAILQ_FOREACH_SAFE(td, &sq->sq_blocked[queue], td_slpq, tdn) {
 		thread_lock(td);
 		wakeup_swapper |= sleepq_resume_thread(sq, td, pri);
 		thread_unlock(td);

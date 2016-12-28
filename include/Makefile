@@ -108,7 +108,7 @@ NEWVERS_SH=		${SYSDIR}/conf/newvers.sh
 PARAM_H=		${SYSDIR}/sys/param.h
 MK_OSRELDATE_SH=	${.CURDIR}/mk-osreldate.sh
 
-SYMLINKS+= ${INCLUDEDIR} ${LIBDIR}/include
+SYMLINKS+= ${LIBDIR:C,[^/]+,..,g:C,^/,,}${INCLUDEDIR} ${LIBDIR}/include
 
 osreldate.h: ${NEWVERS_SH} ${PARAM_H} ${MK_OSRELDATE_SH}
 	env NEWVERS_SH=${NEWVERS_SH} PARAMFILE=${PARAM_H} SYSDIR=${SYSDIR} \
@@ -185,6 +185,9 @@ copies: .PHONY .META
 	    ${DESTDIR}${INCLUDEDIR}/dev/evdev; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 uinput.h \
 	    ${DESTDIR}${INCLUDEDIR}/dev/evdev
+	cd ${.CURDIR}/../sys/dev/hyperv/include; \
+	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 hyperv.h \
+	    ${DESTDIR}${INCLUDEDIR}/dev/hyperv
 	cd ${.CURDIR}/../sys/dev/hyperv/utilities; \
 	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 hv_snapshot.h \
 	    ${DESTDIR}${INCLUDEDIR}/dev/hyperv
@@ -292,6 +295,11 @@ symlinks: .PHONY .META
 	for h in input.h input-event-codes.h uinput.h; do \
 		ln -fs ../../../../sys/dev/evdev/$$h \
 		    ${DESTDIR}${INCLUDEDIR}/dev/evdev; \
+	done
+	cd ${.CURDIR}/../sys/dev/hyperv/include; \
+	for h in hyperv.h; do \
+		${INSTALL_SYMLINK} ${TAG_ARGS} ../../../../sys/dev/hyperv/include/$$h \
+		    ${DESTDIR}${INCLUDEDIR}/dev/hyperv; \
 	done
 	cd ${.CURDIR}/../sys/dev/hyperv/utilities; \
 	for h in hv_snapshot.h; do \

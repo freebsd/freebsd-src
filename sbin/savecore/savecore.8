@@ -28,7 +28,7 @@
 .\"     From: @(#)savecore.8	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd December 1, 2015
+.Dd December 10, 2016
 .Dt SAVECORE 8
 .Os
 .Sh NAME
@@ -119,6 +119,10 @@ If it passes these checks, it saves the core image in
 .Ar directory Ns Pa /vmcore.#
 and information about the core in
 .Ar directory Ns Pa /info.# .
+If the core is encrypted, it saves the dump key in
+.Ar directory Ns Pa /key.# .
+The core can be later decrypted using
+.Xr decryptcore 8 .
 For kernel textdumps generated with the
 .Xr textdump 4
 facility, output will be stored in the
@@ -166,6 +170,7 @@ is meant to be called near the end of the initialization file
 .Xr xo_parse_args 3 ,
 .Xr textdump 4 ,
 .Xr tar 5 ,
+.Xr decryptcore 8 ,
 .Xr dumpon 8 ,
 .Xr syslogd 8
 .Sh HISTORY

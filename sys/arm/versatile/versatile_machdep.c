@@ -100,7 +100,7 @@ platform_devmap_init(void)
 }
 
 void
-cpu_reset()
+cpu_reset(void)
 {
 	printf("cpu_reset\n");
 	while (1);

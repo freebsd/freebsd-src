@@ -79,6 +79,64 @@ uma_zone_t namei_zone;
 /* Placeholder vnode for mp traversal. */
 static struct vnode *vp_crossmp;
 
+static int
+crossmp_vop_islocked(struct vop_islocked_args *ap)
+{
+
+	return (LK_SHARED);
+}
+
+static int
+crossmp_vop_lock1(struct vop_lock1_args *ap)
+{
+	struct vnode *vp;
+	struct lock *lk;
+	const char *file;
+	int flags, line;
+
+	vp = ap->a_vp;
+	lk = vp->v_vnlock;
+	flags = ap->a_flags;
+	file = ap->a_file;
+	line = ap->a_line;
+
+	if ((flags & LK_SHARED) == 0)
+		panic("invalid lock request for crossmp");
+
+	WITNESS_CHECKORDER(&lk->lock_object, LOP_NEWORDER, file, line,
+	    flags & LK_INTERLOCK ? &VI_MTX(vp)->lock_object : NULL);
+	WITNESS_LOCK(&lk->lock_object, 0, file, line);
+	if ((flags & LK_INTERLOCK) != 0)
+		VI_UNLOCK(vp);
+	LOCK_LOG_LOCK("SLOCK", &lk->lock_object, 0, 0, ap->a_file, line);
+	return (0);
+}
+
+static int
+crossmp_vop_unlock(struct vop_unlock_args *ap)
+{
+	struct vnode *vp;
+	struct lock *lk;
+	int flags;
+
+	vp = ap->a_vp;
+	lk = vp->v_vnlock;
+	flags = ap->a_flags;
+
+	if ((flags & LK_INTERLOCK) != 0)
+		VI_UNLOCK(vp);
+	WITNESS_UNLOCK(&lk->lock_object, 0, LOCK_FILE, LOCK_LINE);
+	LOCK_LOG_LOCK("SUNLOCK", &lk->lock_object, 0, 0, LOCK_FILE,
+	    LOCK_LINE);
+	return (0);
+}
+
+static struct vop_vector crossmp_vnodeops = {
+	.vop_islocked =		crossmp_vop_islocked,
+	.vop_lock1 =		crossmp_vop_lock1,
+	.vop_unlock =		crossmp_vop_unlock,
+};
+
 struct nameicap_tracker {
 	struct vnode *dp;
 	TAILQ_ENTRY(nameicap_tracker) nm_link;
@@ -95,10 +153,7 @@ nameiinit(void *dummy __unused)
 	    UMA_ALIGN_PTR, 0);
 	nt_zone = uma_zcreate("rentr", sizeof(struct nameicap_tracker),
 	    NULL, NULL, NULL, NULL, sizeof(void *), 0);
-	getnewvnode("crossmp", NULL, &dead_vnodeops, &vp_crossmp);
-	vn_lock(vp_crossmp, LK_EXCLUSIVE);
-	VN_LOCK_ASHARE(vp_crossmp);
-	VOP_UNLOCK(vp_crossmp, 0);
+	getnewvnode("crossmp", NULL, &crossmp_vnodeops, &vp_crossmp);
 }
 SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_SECOND, nameiinit, NULL);
 
@@ -106,16 +161,11 @@ static int lookup_shared = 1;
 SYSCTL_INT(_vfs, OID_AUTO, lookup_shared, CTLFLAG_RWTUN, &lookup_shared, 0,
     "enables shared locks for path name translation");
 
-/*
- * Intent is that lookup_cap_dotdot becomes unconditionally enabled,
- * but it defaults to the disabled state until verification efforts
- * are complete.
- */
-static int lookup_cap_dotdot = 0;
+static int lookup_cap_dotdot = 1;
 SYSCTL_INT(_vfs, OID_AUTO, lookup_cap_dotdot, CTLFLAG_RWTUN,
     &lookup_cap_dotdot, 0,
     "enables \"..\" components in path lookup in capability mode");
-static int lookup_cap_dotdot_nonlocal = 0;
+static int lookup_cap_dotdot_nonlocal = 1;
 SYSCTL_INT(_vfs, OID_AUTO, lookup_cap_dotdot_nonlocal, CTLFLAG_RWTUN,
     &lookup_cap_dotdot_nonlocal, 0,
     "enables \"..\" components in path lookup in capability mode "
@@ -205,7 +255,7 @@ namei_handle_root(struct nameidata *ndp, struct vnode **dpp)
 		ndp->ni_pathlen--;
 	}
 	*dpp = ndp->ni_rootdir;
-	VREF(*dpp);
+	vrefact(*dpp);
 	return (0);
 }
 
@@ -326,7 +376,7 @@ namei(struct nameidata *ndp)
 	 */
 	FILEDESC_SLOCK(fdp);
 	ndp->ni_rootdir = fdp->fd_rdir;
-	VREF(ndp->ni_rootdir);
+	vrefact(ndp->ni_rootdir);
 	ndp->ni_topdir = fdp->fd_jdir;
 
 	/*
@@ -348,7 +398,7 @@ namei(struct nameidata *ndp)
 			startdir_used = 1;
 		} else if (ndp->ni_dirfd == AT_FDCWD) {
 			dp = fdp->fd_cdir;
-			VREF(dp);
+			vrefact(dp);
 		} else {
 			rights = ndp->ni_rightsneeded;
 			cap_rights_set(&rights, CAP_LOOKUP);
@@ -807,9 +857,8 @@ unionlookup:
 	 * If we have a shared lock we may need to upgrade the lock for the
 	 * last operation.
 	 */
-	if (dp != vp_crossmp &&
-	    VOP_ISLOCKED(dp) == LK_SHARED &&
-	    (cnp->cn_flags & ISLASTCN) && (cnp->cn_flags & LOCKPARENT))
+	if ((cnp->cn_flags & LOCKPARENT) && (cnp->cn_flags & ISLASTCN) &&
+	    dp != vp_crossmp && VOP_ISLOCKED(dp) == LK_SHARED)
 		vn_lock(dp, LK_UPGRADE|LK_RETRY);
 	if ((dp->v_iflag & VI_DOOMED) != 0) {
 		error = ENOENT;
@@ -907,7 +956,7 @@ good:
 			vput(ndp->ni_dvp);
 		else
 			vrele(ndp->ni_dvp);
-		vref(vp_crossmp);
+		vrefact(vp_crossmp);
 		ndp->ni_dvp = vp_crossmp;
 		error = VFS_ROOT(mp, compute_cn_lkflags(mp, cnp->cn_lkflags,
 		    cnp->cn_flags), &tdp);

@@ -213,7 +213,7 @@ struct _7zip {
 	int			 header_is_encoded;
 	uint64_t		 header_bytes_remaining;
 	unsigned long		 header_crc32;
-	/* Header offset to check that reading pointes of the file contens
+	/* Header offset to check that reading points of the file contents
 	 * will not exceed the header. */
 	uint64_t		 header_offset;
 	/* Base offset of the archive file for a seek in case reading SFX. */
@@ -263,22 +263,22 @@ struct _7zip {
 	/*
 	 * Decompressor controllers.
 	 */
-	/* Decording LZMA1 and LZMA2 data. */
+	/* Decoding LZMA1 and LZMA2 data. */
 #ifdef HAVE_LZMA_H
 	lzma_stream		 lzstream;
 	int			 lzstream_valid;
 #endif
-	/* Decording bzip2 data. */
+	/* Decoding bzip2 data. */
 #if defined(HAVE_BZLIB_H) && defined(BZ_CONFIG_ERROR)
 	bz_stream		 bzstream;
 	int			 bzstream_valid;
 #endif
-	/* Decording deflate data. */
+	/* Decoding deflate data. */
 #ifdef HAVE_ZLIB_H
 	z_stream		 stream;
 	int			 stream_valid;
 #endif
-	/* Decording PPMd data. */
+	/* Decoding PPMd data. */
 	int			 ppmd7_stat;
 	CPpmd7			 ppmd7_context;
 	CPpmd7z_RangeDec	 range_dec;
@@ -1056,10 +1056,7 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 #endif
 	{
 		lzma_options_delta delta_opt;
-		lzma_filter filters[LZMA_FILTERS_MAX];
-#if LZMA_VERSION < 50010000
-		lzma_filter *ff;
-#endif
+		lzma_filter filters[LZMA_FILTERS_MAX], *ff;
 		int fi = 0;
 
 		if (zip->lzstream_valid) {
@@ -1144,9 +1141,7 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 		else
 			filters[fi].id = LZMA_FILTER_LZMA1;
 		filters[fi].options = NULL;
-#if LZMA_VERSION < 50010000
 		ff = &filters[fi];
-#endif
 		r = lzma_properties_decode(&filters[fi], NULL,
 		    coder1->properties, (size_t)coder1->propertiesSize);
 		if (r != LZMA_OK) {
@@ -1158,9 +1153,7 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 		filters[fi].id = LZMA_VLI_UNKNOWN;
 		filters[fi].options = NULL;
 		r = lzma_raw_decoder(&(zip->lzstream), filters);
-#if LZMA_VERSION < 50010000
 		free(ff->options);
-#endif
 		if (r != LZMA_OK) {
 			set_error(a, r);
 			return (ARCHIVE_FAILED);

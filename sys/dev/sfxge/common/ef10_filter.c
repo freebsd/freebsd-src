@@ -1246,7 +1246,7 @@ ef10_filter_reconfigure(
 	efx_nic_cfg_t *encp = &enp->en_nic_cfg;
 	ef10_filter_table_t *table = enp->en_filter.ef_ef10_filter_table;
 	efx_filter_flag_t filter_flags;
-	unsigned i;
+	unsigned int i;
 	efx_rc_t all_unicst_rc = 0;
 	efx_rc_t all_mulcst_rc = 0;
 	efx_rc_t rc;

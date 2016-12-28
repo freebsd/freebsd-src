@@ -38,8 +38,8 @@ __FBSDID("$FreeBSD$");
 
 #if EFSYS_OPT_MON_STATS
 
-#define	MCDI_MON_NEXT_PAGE  (uint16_t)0xfffe
-#define	MCDI_MON_INVALID_SENSOR (uint16_t)0xfffd
+#define	MCDI_MON_NEXT_PAGE  ((uint16_t)0xfffe)
+#define	MCDI_MON_INVALID_SENSOR ((uint16_t)0xfffd)
 #define	MCDI_MON_PAGE_SIZE 0x20
 
 /* Bitmasks of valid port(s) for each sensor */
@@ -155,8 +155,8 @@ static const struct mcdi_sensor_map_s {
 	STAT(Px, PHY0_VCC),		/* 0x4c PHY0_VCC */
 	STAT(Px, PHY1_VCC),		/* 0x4d PHY1_VCC */
 	STAT(Px, CONTROLLER_TDIODE_TEMP), /* 0x4e CONTROLLER_TDIODE_TEMP */
-	STAT(Px, BOARD_FRONT_TEMP), 	/* 0x4f BOARD_FRONT_TEMP */
-	STAT(Px, BOARD_BACK_TEMP), 	/* 0x50 BOARD_BACK_TEMP */
+	STAT(Px, BOARD_FRONT_TEMP),	/* 0x4f BOARD_FRONT_TEMP */
+	STAT(Px, BOARD_BACK_TEMP),	/* 0x50 BOARD_BACK_TEMP */
 };
 
 #define	MCDI_STATIC_SENSOR_ASSERT(_field)				\

@@ -433,6 +433,22 @@ default_reset(struct ieee80211vap *vap, u_long cmd)
 }
 
 /*
+ * Default for updating the VAP default TX key index.
+ *
+ * Drivers that support TX offload as well as hardware encryption offload
+ * may need to be informed of key index changes separate from the key
+ * update.
+ */
+static void
+default_update_deftxkey(struct ieee80211vap *vap, ieee80211_keyix kid)
+{
+
+	/* XXX assert validity */
+	/* XXX assert we're in a key update block */
+	vap->iv_def_txkey = kid;
+}
+
+/*
  * Add underlying device errors to vap errors.
  */
 static uint64_t
@@ -560,6 +576,12 @@ ieee80211_vap_setup(struct ieee80211com *ic, struct ieee80211vap *vap,
 	 * the driver can override this.
 	 */
 	vap->iv_reset = default_reset;
+
+	/*
+	 * Install a default crypto key update method, the driver
+	 * can override this.
+	 */
+	vap->iv_update_deftxkey = default_update_deftxkey;
 
 	ieee80211_sysctl_vattach(vap);
 	ieee80211_crypto_vattach(vap);
@@ -1167,6 +1189,53 @@ ieee80211_add_channel_ht40(struct ieee80211_channel chans[], int maxchans,
 	    maxregpower, flags | IEEE80211_CHAN_HT40D);
 
 	return (error);
+}
+
+/*
+ * Fetch the center frequency for the primary channel.
+ */
+uint32_t
+ieee80211_get_channel_center_freq(const struct ieee80211_channel *c)
+{
+
+	return (c->ic_freq);
+}
+
+/*
+ * Fetch the center frequency for the primary BAND channel.
+ *
+ * For 5, 10, 20MHz channels it'll be the normally configured channel
+ * frequency.
+ *
+ * For 40MHz, 80MHz, 160Mhz channels it'll the the centre of the
+ * wide channel, not the centre of the primary channel (that's ic_freq).
+ *
+ * For 80+80MHz channels this will be the centre of the primary
+ * 80MHz channel; the secondary 80MHz channel will be center_freq2().
+ */
+
+uint32_t
+ieee80211_get_channel_center_freq1(const struct ieee80211_channel *c)
+{
+
+	if (IEEE80211_IS_CHAN_HT40U(c)) {
+		return (c->ic_freq + 10);
+	}
+	if (IEEE80211_IS_CHAN_HT40D(c)) {
+		return (c->ic_freq - 10);
+	}
+
+	return (c->ic_freq);
+}
+
+/*
+ * For now, no 80+80 support; this is zero.
+ */
+uint32_t
+ieee80211_get_channel_center_freq2(const struct ieee80211_channel *c)
+{
+
+	return (0);
 }
 
 /*
@@ -1973,6 +2042,10 @@ ieee80211_rate2media(struct ieee80211com *ic, int rate, enum ieee80211_phymode m
 	case IEEE80211_MODE_11NG:
 	case IEEE80211_MODE_TURBO_G:
 		return findmedia(rates, nitems(rates), rate | IFM_IEEE80211_11G);
+	case IEEE80211_MODE_VHT_2GHZ:
+	case IEEE80211_MODE_VHT_5GHZ:
+		/* XXX TODO: need to figure out mapping for VHT rates */
+		return IFM_AUTO;
 	}
 	return IFM_AUTO;
 }
@@ -2006,6 +2079,7 @@ ieee80211_media2rate(int mword)
 		9,		/* IFM_IEEE80211_OFDM4 */
 		54,		/* IFM_IEEE80211_OFDM27 */
 		-1,		/* IFM_IEEE80211_MCS */
+		-1,		/* IFM_IEEE80211_VHT */
 	};
 	return IFM_SUBTYPE(mword) < nitems(ieeerates) ?
 		ieeerates[IFM_SUBTYPE(mword)] : 0;
@@ -2056,6 +2130,8 @@ ieee80211_channel_type_char(const struct ieee80211_channel *c)
 		return 'T';
 	if (IEEE80211_IS_CHAN_108G(c))
 		return 'G';
+	if (IEEE80211_IS_CHAN_VHT(c))
+		return 'v';
 	if (IEEE80211_IS_CHAN_HT(c))
 		return 'n';
 	if (IEEE80211_IS_CHAN_A(c))

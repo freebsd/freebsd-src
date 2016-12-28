@@ -32,6 +32,8 @@
 #ifndef _BHND_NVRAM_BHND_NVRAM_BCMVAR_H_
 #define _BHND_NVRAM_BHND_NVRAM_BCMVAR_H_
 
+#define	BCM_NVRAM_ENCODE_OPT_VERSION	"bcm_version"
+
 /**
  * BCM NVRAM header value data.
  */

@@ -3826,7 +3826,11 @@ ng_uncallout(struct callout *c, node_p node)
 	}
 	c->c_arg = NULL;
 
-	return (rval);
+	/*
+	 * Callers only want to know if the callout was cancelled and
+	 * not draining or stopped.
+	 */
+	return (rval > 0);
 }
 
 /*

@@ -10,8 +10,13 @@ mips/ingenic/jz4780_clk_pll.c	standard
 mips/ingenic/jz4780_intr.c	standard
 mips/ingenic/jz4780_gpio.c	standard
 mips/ingenic/jz4780_machdep.c	standard
+mips/ingenic/jz4780_pdma.c	standard
 mips/ingenic/jz4780_pinctrl.c	standard
 mips/ingenic/jz4780_timer.c	standard
+
+# Sound
+mips/ingenic/jz4780_aic.c	optional sound xdma
+mips/ingenic/jz4780_codec.c	optional sound
 
 # Custom interface between pinctrl and gpio
 mips/ingenic/jz4780_gpio_if.m	standard

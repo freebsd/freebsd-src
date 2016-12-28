@@ -81,7 +81,6 @@ int	r92c_set_page_size(struct rtwn_softc *);
 void	r92c_init_bb_common(struct rtwn_softc *);
 int	r92c_init_rf_chain(struct rtwn_softc *,
 	    const struct rtwn_rf_prog *, int);
-void	r92c_init_rf_common(struct rtwn_softc *);
 void	r92c_init_rf(struct rtwn_softc *);
 void	r92c_init_edca(struct rtwn_softc *);
 void	r92c_init_ampdu(struct rtwn_softc *);

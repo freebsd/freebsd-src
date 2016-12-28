@@ -680,7 +680,7 @@ struct iso9660 {
 	/* The creation time of ISO image. */
 	time_t			 birth_time;
 	/* A file stream of a temporary file, which file contents
-	 * save to until ISO iamge can be created. */
+	 * save to until ISO image can be created. */
 	int			 temp_fd;
 
 	struct isofile		*cur_file;
@@ -1995,7 +1995,7 @@ iso9660_close(struct archive_write *a)
 	 * Write an ISO 9660 image.
 	 */
 
-	/* Switc to start using wbuff as file buffer. */
+	/* Switch to start using wbuff as file buffer. */
 	iso9660->wbuff_remaining = wb_buffmax();
 	iso9660->wbuff_type = WB_TO_STREAM;
 	iso9660->wbuff_offset = 0;
@@ -3024,8 +3024,8 @@ set_directory_record_rr(unsigned char *bp, int dr_len,
 		 *    +----+----+----+----+----+
 		 *   10   11   12   13   14   15
 		 *
-	 	 *    - cflg : flag of componet
-		 *    - clen : length of componet
+		 *    - cflg : flag of component
+		 *    - clen : length of component
 		 */
 		const char *sl;
 		char sl_last;
@@ -4558,7 +4558,7 @@ write_file_descriptors(struct archive_write *a)
 		file->cur_content = &(file->content);
 		do {
 			blocks += file->cur_content->blocks;
-			/* Next fragument */
+			/* Next fragment */
 			file->cur_content = file->cur_content->next;
 		} while (file->cur_content != NULL);
 	}
@@ -4748,7 +4748,7 @@ isofile_gen_utility_names(struct archive_write *a, struct isofile *file)
 		}
 
 		/*
-		 * Converte a filename to UTF-16BE.
+		 * Convert a filename to UTF-16BE.
 		 */
 		if (0 > archive_entry_pathname_l(file->entry, &u16, &u16len,
 		    iso9660->sconv_to_utf16be)) {
@@ -5512,7 +5512,7 @@ isoent_setup_file_location(struct iso9660 *iso9660, int location)
 			file->cur_content->location = location;
 			location += file->cur_content->blocks;
 			total_block += file->cur_content->blocks;
-			/* Next fragument */
+			/* Next fragment */
 			file->cur_content = file->cur_content->next;
 		} while (file->cur_content != NULL);
 	}
@@ -6164,7 +6164,7 @@ isoent_gen_iso9660_identifier(struct archive_write *a, struct isoent *isoent,
 		np->id_len = l = ext_off + np->ext_len;
 
 		/* Make an offset of the number which is used to be set
-		 * hexadecimal number to avoid duplicate identififier. */
+		 * hexadecimal number to avoid duplicate identifier. */
 		if (iso9660->opt.iso_level == 1) {
 			if (ext_off >= 5)
 				noff = 5;
@@ -6742,7 +6742,7 @@ isoent_rr_move(struct archive_write *a)
 	int r;
 
 	pt = &(iso9660->primary.pathtbl[MAX_DEPTH-1]);
-	/* Theare aren't level 8 directories reaching a deepr level. */
+	/* There aren't level 8 directories reaching a deeper level. */
 	if (pt->cnt == 0)
 		return (ARCHIVE_OK);
 
@@ -6813,7 +6813,7 @@ _compare_path_table(const void *v1, const void *v2)
 	if (cmp != 0)
 		return (cmp);
 
-	/* Compare indetifier */
+	/* Compare identifier */
 	s1 = p1->identifier;
 	s2 = p2->identifier;
 	l = p1->ext_off;
@@ -6855,7 +6855,7 @@ _compare_path_table_joliet(const void *v1, const void *v2)
 	if (cmp != 0)
 		return (cmp);
 
-	/* Compare indetifier */
+	/* Compare identifier */
 	s1 = (const unsigned char *)p1->identifier;
 	s2 = (const unsigned char *)p2->identifier;
 	l = p1->ext_off;

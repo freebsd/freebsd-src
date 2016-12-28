@@ -22,9 +22,8 @@ __FBSDID("$FreeBSD$");
  * Driver for Realtek RTL8188SU/RTL8191SU/RTL8192SU.
  *
  * TODO:
- *   o h/w crypto
+ *   o tx a-mpdu
  *   o hostap / ibss / mesh
- *   o sensible RSSI levels
  *   o power-save operation
  */
 
@@ -69,9 +68,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usbdi.h>
 #include "usbdevs.h"
 
-#define USB_DEBUG_VAR rsu_debug
-#include <dev/usb/usb_debug.h>
-
 #include <dev/usb/wlan/if_rsureg.h>
 
 #ifdef USB_DEBUG
@@ -103,6 +99,8 @@ TUNABLE_INT("hw.usb.rsu.enable_11n", &rsu_enable_11n);
 #define	RSU_DEBUG_FW		0x00000100
 #define	RSU_DEBUG_FWDBG		0x00000200
 #define	RSU_DEBUG_AMPDU		0x00000400
+#define	RSU_DEBUG_KEY		0x00000800
+#define	RSU_DEBUG_USB		0x00001000
 
 static const STRUCT_USB_HOST_ID rsu_devs[] = {
 #define	RSU_HT_NOT_SUPPORTED 0
@@ -175,6 +173,7 @@ static void	rsu_getradiocaps(struct ieee80211com *, int, int *,
 static void	rsu_set_channel(struct ieee80211com *);
 static void	rsu_scan_curchan(struct ieee80211_scan_state *, unsigned long);
 static void	rsu_scan_mindwell(struct ieee80211_scan_state *);
+static void	rsu_update_promisc(struct ieee80211com *);
 static uint8_t	rsu_get_multi_pos(const uint8_t[]);
 static void	rsu_set_multi(struct rsu_softc *);
 static void	rsu_update_mcast(struct ieee80211com *);
@@ -202,11 +201,29 @@ static int	rsu_read_rom(struct rsu_softc *);
 static int	rsu_fw_cmd(struct rsu_softc *, uint8_t, void *, int);
 static void	rsu_calib_task(void *, int);
 static void	rsu_tx_task(void *, int);
+static void	rsu_set_led(struct rsu_softc *, int);
+static int	rsu_monitor_newstate(struct ieee80211vap *,
+		    enum ieee80211_state, int);
 static int	rsu_newstate(struct ieee80211vap *, enum ieee80211_state, int);
-#ifdef notyet
-static void	rsu_set_key(struct rsu_softc *, const struct ieee80211_key *);
-static void	rsu_delete_key(struct rsu_softc *, const struct ieee80211_key *);
-#endif
+static int	rsu_key_alloc(struct ieee80211vap *, struct ieee80211_key *,
+		    ieee80211_keyix *, ieee80211_keyix *);
+static int	rsu_process_key(struct ieee80211vap *,
+		    const struct ieee80211_key *, int);
+static int	rsu_key_set(struct ieee80211vap *,
+		    const struct ieee80211_key *);
+static int	rsu_key_delete(struct ieee80211vap *,
+		    const struct ieee80211_key *);
+static int	rsu_cam_read(struct rsu_softc *, uint8_t, uint32_t *);
+static void	rsu_cam_write(struct rsu_softc *, uint8_t, uint32_t);
+static int	rsu_key_check(struct rsu_softc *, ieee80211_keyix, int);
+static uint8_t	rsu_crypto_mode(struct rsu_softc *, u_int, int);
+static int	rsu_set_key_group(struct rsu_softc *,
+		    const struct ieee80211_key *);
+static int	rsu_set_key_pair(struct rsu_softc *,
+		    const struct ieee80211_key *);
+static int	rsu_reinit_static_keys(struct rsu_softc *);
+static int	rsu_delete_key(struct rsu_softc *sc, ieee80211_keyix);
+static void	rsu_delete_key_pair_cb(void *, int);
 static int	rsu_site_survey(struct rsu_softc *,
 		    struct ieee80211_scan_ssid *);
 static int	rsu_join_bss(struct rsu_softc *, struct ieee80211_node *);
@@ -216,22 +233,28 @@ static void	rsu_event_survey(struct rsu_softc *, uint8_t *, int);
 static void	rsu_event_join_bss(struct rsu_softc *, uint8_t *, int);
 static void	rsu_rx_event(struct rsu_softc *, uint8_t, uint8_t *, int);
 static void	rsu_rx_multi_event(struct rsu_softc *, uint8_t *, int);
-#if 0
 static int8_t	rsu_get_rssi(struct rsu_softc *, int, void *);
-#endif
-static struct mbuf * rsu_rx_frame(struct rsu_softc *, uint8_t *, int);
+static struct mbuf * rsu_rx_copy_to_mbuf(struct rsu_softc *,
+		    struct r92s_rx_stat *, int);
+static uint32_t	rsu_get_tsf_low(struct rsu_softc *);
+static uint32_t	rsu_get_tsf_high(struct rsu_softc *);
+static struct ieee80211_node * rsu_rx_frame(struct rsu_softc *, struct mbuf *);
 static struct mbuf * rsu_rx_multi_frame(struct rsu_softc *, uint8_t *, int);
 static struct mbuf *
 		rsu_rxeof(struct usb_xfer *, struct rsu_data *);
 static void	rsu_txeof(struct usb_xfer *, struct rsu_data *);
 static int	rsu_raw_xmit(struct ieee80211_node *, struct mbuf *, 
 		    const struct ieee80211_bpf_params *);
-static void	rsu_init(struct rsu_softc *);
+static void	rsu_rxfilter_init(struct rsu_softc *);
+static void	rsu_rxfilter_set(struct rsu_softc *, uint32_t, uint32_t);
+static void	rsu_rxfilter_refresh(struct rsu_softc *);
+static int	rsu_init(struct rsu_softc *);
 static int	rsu_tx_start(struct rsu_softc *, struct ieee80211_node *, 
 		    struct mbuf *, struct rsu_data *);
 static int	rsu_transmit(struct ieee80211com *, struct mbuf *);
 static void	rsu_start(struct rsu_softc *);
 static void	_rsu_start(struct rsu_softc *);
+static int	rsu_ioctl_net(struct ieee80211com *, u_long, void *);
 static void	rsu_parent(struct ieee80211com *);
 static void	rsu_stop(struct rsu_softc *);
 static void	rsu_ms_delay(struct rsu_softc *, int);
@@ -421,6 +444,7 @@ rsu_attach(device_t self)
 	device_set_usb_desc(self);
 	sc->sc_udev = uaa->device;
 	sc->sc_dev = self;
+	sc->sc_rx_checksum_enable = 1;
 	if (rsu_enable_11n)
 		sc->sc_ht = !! (USB_GET_DRIVER_INFO(uaa) & RSU_HT_SUPPORTED);
 
@@ -437,8 +461,10 @@ rsu_attach(device_t self)
 
 	mtx_init(&sc->sc_mtx, device_get_nameunit(self), MTX_NETWORK_LOCK,
 	    MTX_DEF);
+	RSU_DELKEY_BMAP_LOCK_INIT(sc);
 	TIMEOUT_TASK_INIT(taskqueue_thread, &sc->calib_task, 0, 
 	    rsu_calib_task, sc);
+	TASK_INIT(&sc->del_key_task, 0, rsu_delete_key_pair_cb, sc);
 	TASK_INIT(&sc->tx_task, 0, rsu_tx_task, sc);
 	mbufq_init(&sc->sc_snd, ifqmaxlen);
 
@@ -516,6 +542,7 @@ rsu_attach(device_t self)
 	/* Set device capabilities. */
 	ic->ic_caps =
 	    IEEE80211_C_STA |		/* station mode */
+	    IEEE80211_C_MONITOR |	/* monitor mode supported */
 #if 0
 	    IEEE80211_C_BGSCAN |	/* Background scan. */
 #endif
@@ -523,6 +550,11 @@ rsu_attach(device_t self)
 	    IEEE80211_C_WME |		/* WME/QoS */
 	    IEEE80211_C_SHSLOT |	/* Short slot time supported. */
 	    IEEE80211_C_WPA;		/* WPA/RSN. */
+
+	ic->ic_cryptocaps =
+	    IEEE80211_CRYPTO_WEP |
+	    IEEE80211_CRYPTO_TKIP |
+	    IEEE80211_CRYPTO_AES_CCM;
 
 	/* Check if HT support is present. */
 	if (sc->sc_ht) {
@@ -557,7 +589,9 @@ rsu_attach(device_t self)
 	ic->ic_scan_mindwell = rsu_scan_mindwell;
 	ic->ic_vap_create = rsu_vap_create;
 	ic->ic_vap_delete = rsu_vap_delete;
+	ic->ic_update_promisc = rsu_update_promisc;
 	ic->ic_update_mcast = rsu_update_mcast;
+	ic->ic_ioctl = rsu_ioctl_net;
 	ic->ic_parent = rsu_parent;
 	ic->ic_transmit = rsu_transmit;
 	ic->ic_send_mgmt = rsu_send_mgmt;
@@ -588,9 +622,7 @@ rsu_detach(device_t self)
 	struct rsu_softc *sc = device_get_softc(self);
 	struct ieee80211com *ic = &sc->sc_ic;
 
-	RSU_LOCK(sc);
 	rsu_stop(sc);
-	RSU_UNLOCK(sc);
 
 	usbd_transfer_unsetup(sc->sc_xfer, RSU_N_TRANSFER);
 
@@ -608,8 +640,10 @@ rsu_detach(device_t self)
 	ieee80211_ifdetach(ic);
 
 	taskqueue_drain_timeout(taskqueue_thread, &sc->calib_task);
+	taskqueue_drain(taskqueue_thread, &sc->del_key_task);
 	taskqueue_drain(taskqueue_thread, &sc->tx_task);
 
+	RSU_DELKEY_BMAP_LOCK_DESTROY(sc);
 	mtx_destroy(&sc->sc_mtx);
 
 	return (0);
@@ -629,8 +663,9 @@ rsu_do_request(struct rsu_softc *sc, struct usb_device_request *req,
 		    req, data, 0, NULL, 250 /* ms */);
 		if (err == 0 || err == USB_ERR_NOT_CONFIGURED)
 			break;
-		DPRINTFN(1, "Control request failed, %s (retrying)\n",
-		    usbd_errstr(err));
+		RSU_DPRINTF(sc, RSU_DEBUG_USB,
+		    "Control request failed, %s (retries left: %d)\n",
+		    usbd_errstr(err), ntries);
 		rsu_ms_delay(sc, 10);
         }
 
@@ -643,8 +678,10 @@ rsu_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
     const uint8_t bssid[IEEE80211_ADDR_LEN],
     const uint8_t mac[IEEE80211_ADDR_LEN])
 {
+	struct rsu_softc *sc = ic->ic_softc;
 	struct rsu_vap *uvp;
 	struct ieee80211vap *vap;
+	struct ifnet *ifp;
 
 	if (!TAILQ_EMPTY(&ic->ic_vaps))         /* only one at a time */
 		return (NULL);
@@ -659,9 +696,22 @@ rsu_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 		return (NULL);
 	}
 
+	ifp = vap->iv_ifp;
+	ifp->if_capabilities = IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6;
+	RSU_LOCK(sc);
+	if (sc->sc_rx_checksum_enable)
+		ifp->if_capenable |= IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6;
+	RSU_UNLOCK(sc);
+
 	/* override state transition machine */
 	uvp->newstate = vap->iv_newstate;
-	vap->iv_newstate = rsu_newstate;
+	if (opmode == IEEE80211_M_MONITOR)
+		vap->iv_newstate = rsu_monitor_newstate;
+	else
+		vap->iv_newstate = rsu_newstate;
+	vap->iv_key_alloc = rsu_key_alloc;
+	vap->iv_key_set = rsu_key_set;
+	vap->iv_key_delete = rsu_key_delete;
 
 	/* Limits from the r92su driver */
 	vap->iv_ampdu_density = IEEE80211_HTCAP_MPDUDENSITY_16;
@@ -729,9 +779,30 @@ rsu_getradiocaps(struct ieee80211com *ic,
 }
 
 static void
-rsu_set_channel(struct ieee80211com *ic __unused)
+rsu_set_channel(struct ieee80211com *ic)
 {
-	/* We are unable to switch channels, yet. */
+	struct rsu_softc *sc = ic->ic_softc;
+
+	/*
+	 * Only need to set the channel in Monitor mode. AP scanning and auth
+	 * are already taken care of by their respective firmware commands.
+	 */	
+	if (ic->ic_opmode == IEEE80211_M_MONITOR) {
+		struct r92s_set_channel cmd;
+		int error;
+
+		cmd.channel = IEEE80211_CHAN2IEEE(ic->ic_curchan);
+
+		RSU_LOCK(sc);
+		error = rsu_fw_cmd(sc, R92S_CMD_SET_CHANNEL, &cmd,
+		    sizeof(cmd));
+		if (error != 0) {
+			device_printf(sc->sc_dev,
+			    "%s: error %d setting channel\n", __func__,
+			    error);
+		}
+		RSU_UNLOCK(sc);
+	}
 }
 
 static void
@@ -750,6 +821,17 @@ static void
 rsu_scan_mindwell(struct ieee80211_scan_state *ss)
 {
 	/* NB: don't try to abort scan; wait for firmware to finish */
+}
+
+static void
+rsu_update_promisc(struct ieee80211com *ic)
+{
+	struct rsu_softc *sc = ic->ic_softc;
+
+	RSU_LOCK(sc);
+	if (sc->sc_running)
+		rsu_rxfilter_refresh(sc);
+	RSU_UNLOCK(sc);
 }
 
 /*
@@ -1133,7 +1215,7 @@ rsu_read_rom(struct rsu_softc *sc)
 		}
 	}
 #ifdef USB_DEBUG
-	if (rsu_debug >= 5) {
+	if (rsu_debug & RSU_DEBUG_RESET) {
 		/* Dump ROM content. */
 		printf("\n");
 		for (i = 0; i < sizeof(sc->rom); i++)
@@ -1220,7 +1302,7 @@ rsu_calib_task(void *arg, int pending __unused)
 	    rsu_read_1(sc, R92S_GPIO_IO_SEL) & ~R92S_GPIO_WPS);
 	reg = rsu_read_1(sc, R92S_GPIO_CTRL);
 	if (reg != 0xff && (reg & R92S_GPIO_WPS))
-		DPRINTF(("WPS PBC is pushed\n"));
+		RSU_DPRINTF(sc, RSU_DEBUG_CALIB, "WPS PBC is pushed\n");
 #endif
 	/* Read current signal level. */
 	if (rsu_fw_iocmd(sc, 0xf4000001) == 0) {
@@ -1313,6 +1395,47 @@ rsu_set_fw_power_state(struct rsu_softc *sc, int state)
 	return (error);
 }
 
+static void
+rsu_set_led(struct rsu_softc *sc, int on)
+{
+	rsu_write_1(sc, R92S_LEDCFG,
+	    (rsu_read_1(sc, R92S_LEDCFG) & 0xf0) | (!on << 3));
+}
+
+static int
+rsu_monitor_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate,
+    int arg)
+{
+	struct ieee80211com *ic = vap->iv_ic;
+	struct rsu_softc *sc = ic->ic_softc;
+	struct rsu_vap *uvp = RSU_VAP(vap);
+
+	if (vap->iv_state != nstate) {
+		IEEE80211_UNLOCK(ic);
+		RSU_LOCK(sc);
+
+		switch (nstate) {
+		case IEEE80211_S_INIT:
+			sc->sc_vap_is_running = 0;
+			rsu_set_led(sc, 0);
+			break;
+		case IEEE80211_S_RUN:
+			sc->sc_vap_is_running = 1;
+			rsu_set_led(sc, 1);
+			break;
+		default:
+			/* NOTREACHED */
+			break;
+		}
+		rsu_rxfilter_refresh(sc);
+
+		RSU_UNLOCK(sc);
+		IEEE80211_LOCK(ic);
+	}
+
+	return (uvp->newstate(vap, nstate, arg));
+}
+
 static int
 rsu_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 {
@@ -1335,12 +1458,26 @@ rsu_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		RSU_LOCK(sc);
 		/* Stop calibration. */
 		sc->sc_calibrating = 0;
+
+		/* Pause Tx for AC queues. */
+		rsu_write_1(sc, R92S_TXPAUSE, R92S_TXPAUSE_AC);
+		usb_pause_mtx(&sc->sc_mtx, USB_MS_TO_TICKS(10));
+
 		RSU_UNLOCK(sc);
 		taskqueue_drain_timeout(taskqueue_thread, &sc->calib_task);
 		taskqueue_drain(taskqueue_thread, &sc->tx_task);
-		/* Disassociate from our current BSS. */
 		RSU_LOCK(sc);
+		/* Disassociate from our current BSS. */
 		rsu_disconnect(sc);
+		usb_pause_mtx(&sc->sc_mtx, USB_MS_TO_TICKS(10));
+
+		/* Refresh Rx filter (may be modified by firmware). */
+		sc->sc_vap_is_running = 0;
+		rsu_rxfilter_refresh(sc);
+
+		/* Reinstall static keys. */
+		if (sc->sc_running)
+			rsu_reinit_static_keys(sc);
 	} else
 		RSU_LOCK(sc);
 	switch (nstate) {
@@ -1358,6 +1495,9 @@ rsu_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		}
 		break;
 	case IEEE80211_S_RUN:
+		/* Flush all AC queues. */
+		rsu_write_1(sc, R92S_TXPAUSE, 0);
+
 		ni = ieee80211_ref_node(vap->iv_bss);
 		rs = &ni->ni_rates;
 		/* Indicate highest supported rate. */
@@ -1380,46 +1520,365 @@ rsu_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	return (uvp->newstate(vap, nstate, arg));
 }
 
-#ifdef notyet
+static int
+rsu_key_alloc(struct ieee80211vap *vap, struct ieee80211_key *k,
+    ieee80211_keyix *keyix, ieee80211_keyix *rxkeyix)
+{
+	struct rsu_softc *sc = vap->iv_ic->ic_softc;
+	int is_checked = 0;
+
+	if (&vap->iv_nw_keys[0] <= k &&
+	    k < &vap->iv_nw_keys[IEEE80211_WEP_NKID]) {
+		*keyix = ieee80211_crypto_get_key_wepidx(vap, k);
+	} else {
+		if (vap->iv_opmode != IEEE80211_M_STA) {
+			*keyix = 0;
+			/* TODO: obtain keyix from node id */
+			is_checked = 1;
+			k->wk_flags |= IEEE80211_KEY_SWCRYPT;
+		} else
+			*keyix = R92S_MACID_BSS;
+	}
+
+	if (!is_checked) {
+		RSU_LOCK(sc);
+		if (isset(sc->keys_bmap, *keyix)) {
+			device_printf(sc->sc_dev,
+			    "%s: key slot %d is already used!\n",
+			    __func__, *keyix);
+			RSU_UNLOCK(sc);
+			return (0);
+		}
+		setbit(sc->keys_bmap, *keyix);
+		RSU_UNLOCK(sc);
+	}
+
+	*rxkeyix = *keyix;
+
+	return (1);
+}
+
+static int
+rsu_process_key(struct ieee80211vap *vap, const struct ieee80211_key *k,
+    int set)
+{
+	struct rsu_softc *sc = vap->iv_ic->ic_softc;
+	int ret;
+
+	if (k->wk_flags & IEEE80211_KEY_SWCRYPT) {
+		/* Not for us. */
+		return (1);
+	}
+
+	/* Handle group keys. */
+	if (&vap->iv_nw_keys[0] <= k &&
+	    k < &vap->iv_nw_keys[IEEE80211_WEP_NKID]) {
+		KASSERT(k->wk_keyix < nitems(sc->group_keys),
+		    ("keyix %u > %zu\n", k->wk_keyix, nitems(sc->group_keys)));
+
+		RSU_LOCK(sc);
+		sc->group_keys[k->wk_keyix] = (set ? k : NULL);
+		if (!sc->sc_running) {
+			/* Static keys will be set during device startup. */
+			RSU_UNLOCK(sc);
+			return (1);
+		}
+
+		if (set)
+			ret = rsu_set_key_group(sc, k);
+		else
+			ret = rsu_delete_key(sc, k->wk_keyix);
+		RSU_UNLOCK(sc);
+
+		return (!ret);
+	}
+
+	if (set) {
+		/* wait for pending key removal */
+		taskqueue_drain(taskqueue_thread, &sc->del_key_task);
+
+		RSU_LOCK(sc);
+		ret = rsu_set_key_pair(sc, k);
+		RSU_UNLOCK(sc);
+	} else {
+		RSU_DELKEY_BMAP_LOCK(sc);
+		setbit(sc->free_keys_bmap, k->wk_keyix);
+		RSU_DELKEY_BMAP_UNLOCK(sc);
+
+		/* workaround ieee80211_node_delucastkey() locking */
+		taskqueue_enqueue(taskqueue_thread, &sc->del_key_task);
+		ret = 0;	/* fake success */
+	}
+
+	return (!ret);
+}
+
+static int
+rsu_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k)
+{
+	return (rsu_process_key(vap, k, 1));
+}
+
+static int
+rsu_key_delete(struct ieee80211vap *vap, const struct ieee80211_key *k)
+{
+	return (rsu_process_key(vap, k, 0));
+}
+
+static int
+rsu_cam_read(struct rsu_softc *sc, uint8_t addr, uint32_t *val)
+{
+	int ntries;
+
+	rsu_write_4(sc, R92S_CAMCMD,
+	    R92S_CAMCMD_POLLING | SM(R92S_CAMCMD_ADDR, addr));
+	for (ntries = 0; ntries < 10; ntries++) {
+		if (!(rsu_read_4(sc, R92S_CAMCMD) & R92S_CAMCMD_POLLING))
+			break;
+
+		usb_pause_mtx(&sc->sc_mtx, USB_MS_TO_TICKS(1));
+	}
+	if (ntries == 10) {
+		device_printf(sc->sc_dev,
+		    "%s: cannot read CAM entry at address %02X\n",
+		    __func__, addr);
+		return (ETIMEDOUT);
+	}
+
+	*val = rsu_read_4(sc, R92S_CAMREAD);
+
+	return (0);
+}
+
 static void
-rsu_set_key(struct rsu_softc *sc, const struct ieee80211_key *k)
+rsu_cam_write(struct rsu_softc *sc, uint8_t addr, uint32_t data)
+{
+
+	rsu_write_4(sc, R92S_CAMWRITE, data);
+	rsu_write_4(sc, R92S_CAMCMD,
+	    R92S_CAMCMD_POLLING | R92S_CAMCMD_WRITE |
+	    SM(R92S_CAMCMD_ADDR, addr));
+}
+
+static int
+rsu_key_check(struct rsu_softc *sc, ieee80211_keyix keyix, int is_valid)
+{
+	uint32_t val;
+	int error, ntries;
+
+	for (ntries = 0; ntries < 20; ntries++) {
+		usb_pause_mtx(&sc->sc_mtx, USB_MS_TO_TICKS(1));
+
+		error = rsu_cam_read(sc, R92S_CAM_CTL0(keyix), &val);
+		if (error != 0) {
+			device_printf(sc->sc_dev,
+			    "%s: cannot check key status!\n", __func__);
+			return (error);
+		}
+		if (((val & R92S_CAM_VALID) == 0) ^ is_valid)
+			break;
+	}
+	if (ntries == 20) {
+		device_printf(sc->sc_dev,
+		    "%s: key %d is %s marked as valid, rejecting request\n",
+		    __func__, keyix, is_valid ? "not" : "still");
+		return (EIO);
+	}
+
+	return (0);
+}
+
+/*
+ * Map net80211 cipher to RTL8712 security mode.
+ */
+static uint8_t
+rsu_crypto_mode(struct rsu_softc *sc, u_int cipher, int keylen)
+{
+	switch (cipher) {
+	case IEEE80211_CIPHER_WEP:
+		return keylen < 8 ? R92S_KEY_ALGO_WEP40 : R92S_KEY_ALGO_WEP104;
+	case IEEE80211_CIPHER_TKIP:
+		return R92S_KEY_ALGO_TKIP;
+	case IEEE80211_CIPHER_AES_CCM:
+		return R92S_KEY_ALGO_AES;
+	default:
+		device_printf(sc->sc_dev, "unknown cipher %d\n", cipher);
+		return R92S_KEY_ALGO_INVALID;
+	}
+}
+
+static int
+rsu_set_key_group(struct rsu_softc *sc, const struct ieee80211_key *k)
 {
 	struct r92s_fw_cmd_set_key key;
+	uint8_t algo;
+	int error;
+
+	RSU_ASSERT_LOCKED(sc);
+
+	/* Map net80211 cipher to HW crypto algorithm. */
+	algo = rsu_crypto_mode(sc, k->wk_cipher->ic_cipher, k->wk_keylen);
+	if (algo == R92S_KEY_ALGO_INVALID)
+		return (EINVAL);
 
 	memset(&key, 0, sizeof(key));
-	/* Map net80211 cipher to HW crypto algorithm. */
-	switch (k->wk_cipher->ic_cipher) {
-	case IEEE80211_CIPHER_WEP:
-		if (k->wk_keylen < 8)
-			key.algo = R92S_KEY_ALGO_WEP40;
-		else
-			key.algo = R92S_KEY_ALGO_WEP104;
-		break;
-	case IEEE80211_CIPHER_TKIP:
-		key.algo = R92S_KEY_ALGO_TKIP;
-		break;
-	case IEEE80211_CIPHER_AES_CCM:
-		key.algo = R92S_KEY_ALGO_AES;
-		break;
-	default:
-		return;
-	}
-	key.id = k->wk_keyix;
+	key.algo = algo;
+	key.cam_id = k->wk_keyix;
 	key.grpkey = (k->wk_flags & IEEE80211_KEY_GROUP) != 0;
 	memcpy(key.key, k->wk_key, MIN(k->wk_keylen, sizeof(key.key)));
-	(void)rsu_fw_cmd(sc, R92S_CMD_SET_KEY, &key, sizeof(key));
+
+	RSU_DPRINTF(sc, RSU_DEBUG_KEY | RSU_DEBUG_FWCMD,
+	    "%s: keyix %u, group %u, algo %u/%u, flags %04X, len %u, "
+	    "macaddr %s\n", __func__, key.cam_id, key.grpkey,
+	    k->wk_cipher->ic_cipher, key.algo, k->wk_flags, k->wk_keylen,
+	    ether_sprintf(k->wk_macaddr));
+
+	error = rsu_fw_cmd(sc, R92S_CMD_SET_KEY, &key, sizeof(key));
+	if (error != 0) {
+		device_printf(sc->sc_dev,
+		    "%s: cannot send firmware command, error %d\n",
+		    __func__, error);
+		return (error);
+	}
+
+	return (rsu_key_check(sc, k->wk_keyix, 1));
+}
+
+static int
+rsu_set_key_pair(struct rsu_softc *sc, const struct ieee80211_key *k)
+{
+	struct r92s_fw_cmd_set_key_mac key;
+	uint8_t algo;
+	int error;
+
+	RSU_ASSERT_LOCKED(sc);
+
+	if (!sc->sc_running)
+		return (ESHUTDOWN);
+
+	/* Map net80211 cipher to HW crypto algorithm. */
+	algo = rsu_crypto_mode(sc, k->wk_cipher->ic_cipher, k->wk_keylen);
+	if (algo == R92S_KEY_ALGO_INVALID)
+		return (EINVAL);
+
+	memset(&key, 0, sizeof(key));
+	key.algo = algo;
+	memcpy(key.macaddr, k->wk_macaddr, sizeof(key.macaddr));
+	memcpy(key.key, k->wk_key, MIN(k->wk_keylen, sizeof(key.key)));
+
+	RSU_DPRINTF(sc, RSU_DEBUG_KEY | RSU_DEBUG_FWCMD,
+	    "%s: keyix %u, algo %u/%u, flags %04X, len %u, macaddr %s\n",
+	    __func__, k->wk_keyix, k->wk_cipher->ic_cipher, key.algo,
+	    k->wk_flags, k->wk_keylen, ether_sprintf(key.macaddr));
+
+	error = rsu_fw_cmd(sc, R92S_CMD_SET_STA_KEY, &key, sizeof(key));
+	if (error != 0) {
+		device_printf(sc->sc_dev,
+		    "%s: cannot send firmware command, error %d\n",
+		    __func__, error);
+		return (error);
+	}
+
+	return (rsu_key_check(sc, k->wk_keyix, 1));
+}
+
+static int
+rsu_reinit_static_keys(struct rsu_softc *sc)
+{
+	int i, error;
+
+	for (i = 0; i < nitems(sc->group_keys); i++) {
+		if (sc->group_keys[i] != NULL) {
+			error = rsu_set_key_group(sc, sc->group_keys[i]);
+			if (error != 0) {
+				device_printf(sc->sc_dev,
+				    "%s: failed to set static key %d, "
+				    "error %d\n", __func__, i, error);
+				return (error);
+			}
+		}
+	}
+
+	return (0);
+}
+
+static int
+rsu_delete_key(struct rsu_softc *sc, ieee80211_keyix keyix)
+{
+	struct r92s_fw_cmd_set_key key;
+	uint32_t val;
+	int error;
+
+	RSU_ASSERT_LOCKED(sc);
+
+	if (!sc->sc_running)
+		return (0);
+
+	/* check if it was automatically removed by firmware */
+	error = rsu_cam_read(sc, R92S_CAM_CTL0(keyix), &val);
+	if (error == 0 && (val & R92S_CAM_VALID) == 0) {
+		RSU_DPRINTF(sc, RSU_DEBUG_KEY,
+		    "%s: key %u does not exist\n", __func__, keyix);
+		clrbit(sc->keys_bmap, keyix);
+		return (0);
+	}
+
+	memset(&key, 0, sizeof(key));
+	key.cam_id = keyix;
+
+	RSU_DPRINTF(sc, RSU_DEBUG_KEY | RSU_DEBUG_FWCMD,
+	    "%s: removing key %u\n", __func__, key.cam_id);
+
+	error = rsu_fw_cmd(sc, R92S_CMD_SET_KEY, &key, sizeof(key));
+	if (error != 0) {
+		device_printf(sc->sc_dev,
+		    "%s: cannot send firmware command, error %d\n",
+		    __func__, error);
+		goto finish;
+	}
+
+	usb_pause_mtx(&sc->sc_mtx, USB_MS_TO_TICKS(5));
+
+	/*
+	 * Clear 'valid' bit manually (cannot be done via firmware command).
+	 * Used for key check + when firmware command cannot be sent.
+	 */
+finish:
+	rsu_cam_write(sc, R92S_CAM_CTL0(keyix), 0);
+
+	clrbit(sc->keys_bmap, keyix);
+
+	return (rsu_key_check(sc, keyix, 0));
 }
 
 static void
-rsu_delete_key(struct rsu_softc *sc, const struct ieee80211_key *k)
+rsu_delete_key_pair_cb(void *arg, int pending __unused)
 {
-	struct r92s_fw_cmd_set_key key;
+	struct rsu_softc *sc = arg;
+	int i;
 
-	memset(&key, 0, sizeof(key));
-	key.id = k->wk_keyix;
-	(void)rsu_fw_cmd(sc, R92S_CMD_SET_KEY, &key, sizeof(key));
+	RSU_DELKEY_BMAP_LOCK(sc);
+	for (i = IEEE80211_WEP_NKID; i < R92S_CAM_ENTRY_LIMIT; i++) {
+		if (isset(sc->free_keys_bmap, i)) {
+			RSU_DELKEY_BMAP_UNLOCK(sc);
+
+			RSU_LOCK(sc);
+			RSU_DPRINTF(sc, RSU_DEBUG_KEY,
+			    "%s: calling rsu_delete_key() with keyix = %d\n",
+			    __func__, i);
+			(void) rsu_delete_key(sc, i);
+			RSU_UNLOCK(sc);
+
+			RSU_DELKEY_BMAP_LOCK(sc);
+			clrbit(sc->free_keys_bmap, i);
+
+			/* bmap can be changed */
+			i = IEEE80211_WEP_NKID - 1;
+			continue;
+		}
+	}
+	RSU_DELKEY_BMAP_UNLOCK(sc);
 }
-#endif
 
 static int
 rsu_site_survey(struct rsu_softc *sc, struct ieee80211_scan_ssid *ssid)
@@ -1662,7 +2121,7 @@ rsu_event_join_bss(struct rsu_softc *sc, uint8_t *buf, int len)
 
 	tmp = le32toh(rsp->associd);
 	if (tmp >= vap->iv_max_aid) {
-		DPRINTF("Assoc ID overflow\n");
+		RSU_DPRINTF(sc, RSU_DEBUG_ANY, "Assoc ID overflow\n");
 		tmp = 1;
 	}
 	RSU_DPRINTF(sc, RSU_DEBUG_STATE | RSU_DEBUG_FWCMD,
@@ -1670,6 +2129,11 @@ rsu_event_join_bss(struct rsu_softc *sc, uint8_t *buf, int len)
 	    __func__, ether_sprintf(rsp->bss.macaddr), tmp);
 	/* XXX is this required? What's the top two bits for again? */
 	ni->ni_associd = tmp | 0xc000;
+
+	/* Refresh Rx filter (was changed by firmware). */
+	sc->sc_vap_is_running = 1;
+	rsu_rxfilter_refresh(sc);
+
 	RSU_UNLOCK(sc);
 	ieee80211_new_state(vap, IEEE80211_S_RUN,
 	    IEEE80211_FC0_SUBTYPE_ASSOC_RESP);
@@ -1803,7 +2267,6 @@ rsu_rx_multi_event(struct rsu_softc *sc, uint8_t *buf, int len)
 	}
 }
 
-#if 0
 static int8_t
 rsu_get_rssi(struct rsu_softc *sc, int rate, void *physt)
 {
@@ -1824,67 +2287,101 @@ rsu_get_rssi(struct rsu_softc *sc, int rate, void *physt)
 	}
 	return (rssi);
 }
-#endif
 
 static struct mbuf *
-rsu_rx_frame(struct rsu_softc *sc, uint8_t *buf, int pktlen)
+rsu_rx_copy_to_mbuf(struct rsu_softc *sc, struct r92s_rx_stat *stat,
+    int totlen)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
-	struct ieee80211_frame *wh;
+	struct mbuf *m;
+	uint32_t rxdw0;
+	int pktlen;
+
+	rxdw0 = le32toh(stat->rxdw0);
+	if (__predict_false(rxdw0 & (R92S_RXDW0_CRCERR | R92S_RXDW0_ICVERR))) {
+		RSU_DPRINTF(sc, RSU_DEBUG_RX,
+		    "%s: RX flags error (%s)\n", __func__,
+		    rxdw0 & R92S_RXDW0_CRCERR ? "CRC" : "ICV");
+		goto fail;
+	}
+
+	pktlen = MS(rxdw0, R92S_RXDW0_PKTLEN);
+	if (__predict_false(pktlen < sizeof (struct ieee80211_frame_ack))) {
+		RSU_DPRINTF(sc, RSU_DEBUG_RX,
+		    "%s: frame is too short: %d\n", __func__, pktlen);
+		goto fail;
+	}
+
+	m = m_get2(totlen, M_NOWAIT, MT_DATA, M_PKTHDR);
+	if (__predict_false(m == NULL)) {
+		device_printf(sc->sc_dev,
+		    "%s: could not allocate RX mbuf, totlen %d\n",
+		    __func__, totlen);
+		goto fail;
+	}
+
+	/* Finalize mbuf. */
+	memcpy(mtod(m, uint8_t *), (uint8_t *)stat, totlen);
+	m->m_pkthdr.len = m->m_len = totlen;
+ 
+	return (m);
+fail:
+	counter_u64_add(ic->ic_ierrors, 1);
+	return (NULL);
+}
+
+static uint32_t
+rsu_get_tsf_low(struct rsu_softc *sc)
+{
+	return (rsu_read_4(sc, R92S_TSFTR));
+}
+
+static uint32_t
+rsu_get_tsf_high(struct rsu_softc *sc)
+{
+	return (rsu_read_4(sc, R92S_TSFTR + 4));
+}
+
+static struct ieee80211_node *
+rsu_rx_frame(struct rsu_softc *sc, struct mbuf *m)
+{
+	struct ieee80211com *ic = &sc->sc_ic;
+	struct ieee80211_frame_min *wh;
+	struct ieee80211_rx_stats rxs;
 	struct r92s_rx_stat *stat;
 	uint32_t rxdw0, rxdw3;
-	struct mbuf *m;
-	uint8_t rate;
+	uint8_t cipher, rate;
 	int infosz;
+	int rssi;
 
-	stat = (struct r92s_rx_stat *)buf;
+	stat = mtod(m, struct r92s_rx_stat *);
 	rxdw0 = le32toh(stat->rxdw0);
 	rxdw3 = le32toh(stat->rxdw3);
 
-	if (__predict_false(rxdw0 & R92S_RXDW0_CRCERR)) {
-		counter_u64_add(ic->ic_ierrors, 1);
-		return NULL;
-	}
-	if (__predict_false(pktlen < sizeof(*wh) || pktlen > MCLBYTES)) {
-		counter_u64_add(ic->ic_ierrors, 1);
-		return NULL;
-	}
-
 	rate = MS(rxdw3, R92S_RXDW3_RATE);
+	cipher = MS(rxdw0, R92S_RXDW0_CIPHER);
 	infosz = MS(rxdw0, R92S_RXDW0_INFOSZ) * 8;
 
-#if 0
 	/* Get RSSI from PHY status descriptor if present. */
-	if (infosz != 0)
-		*rssi = rsu_get_rssi(sc, rate, &stat[1]);
-	else
-		*rssi = 0;
-#endif
-
-	RSU_DPRINTF(sc, RSU_DEBUG_RX,
-	    "%s: Rx frame len=%d rate=%d infosz=%d\n",
-	    __func__, pktlen, rate, infosz);
-
-	m = m_get2(pktlen, M_NOWAIT, MT_DATA, M_PKTHDR);
-	if (__predict_false(m == NULL)) {
-		counter_u64_add(ic->ic_ierrors, 1);
-		return NULL;
+	if (infosz != 0 && (rxdw0 & R92S_RXDW0_PHYST))
+		rssi = rsu_get_rssi(sc, rate, &stat[1]);
+	else {
+		/* Cheat and get the last calibrated RSSI */
+		rssi = rsu_hwrssi_to_rssi(sc, sc->sc_currssi);
 	}
-	/* Hardware does Rx TCP checksum offload. */
-	if (rxdw3 & R92S_RXDW3_TCPCHKVALID) {
-		if (__predict_true(rxdw3 & R92S_RXDW3_TCPCHKRPT))
-			m->m_pkthdr.csum_flags |= CSUM_DATA_VALID;
-	}
-	wh = (struct ieee80211_frame *)((uint8_t *)&stat[1] + infosz);
-	memcpy(mtod(m, uint8_t *), wh, pktlen);
-	m->m_pkthdr.len = m->m_len = pktlen;
 
 	if (ieee80211_radiotap_active(ic)) {
 		struct rsu_rx_radiotap_header *tap = &sc->sc_rxtap;
 
 		/* Map HW rate index to 802.11 rate. */
-		tap->wr_flags = 2;
-		if (!(rxdw3 & R92S_RXDW3_HTC)) {
+		tap->wr_flags = 0;		/* TODO */
+		tap->wr_tsft = rsu_get_tsf_high(sc);
+		if (le32toh(stat->tsf_low) > rsu_get_tsf_low(sc))
+			tap->wr_tsft--;
+		tap->wr_tsft = (uint64_t)htole32(tap->wr_tsft) << 32;
+		tap->wr_tsft += stat->tsf_low;
+
+		if (rate < 12) {
 			switch (rate) {
 			/* CCK. */
 			case  0: tap->wr_rate =   2; break;
@@ -1901,20 +2398,138 @@ rsu_rx_frame(struct rsu_softc *sc, uint8_t *buf, int pktlen)
 			case 10: tap->wr_rate =  96; break;
 			case 11: tap->wr_rate = 108; break;
 			}
-		} else if (rate >= 12) {	/* MCS0~15. */
+		} else {			/* MCS0~15. */
 			/* Bit 7 set means HT MCS instead of rate. */
 			tap->wr_rate = 0x80 | (rate - 12);
 		}
-#if 0
-		tap->wr_dbm_antsignal = *rssi;
-#endif
-		/* XXX not nice */
-		tap->wr_dbm_antsignal = rsu_hwrssi_to_rssi(sc, sc->sc_currssi);
+
+		tap->wr_dbm_antsignal = rssi;
 		tap->wr_chan_freq = htole16(ic->ic_curchan->ic_freq);
 		tap->wr_chan_flags = htole16(ic->ic_curchan->ic_flags);
+	};
+
+	/* Hardware does Rx TCP checksum offload. */
+	/*
+	 * This flag can be set for some other
+	 * (e.g., EAPOL) frame types, so don't rely on it.
+	 */
+	if (rxdw3 & R92S_RXDW3_TCPCHKVALID) {
+		RSU_DPRINTF(sc, RSU_DEBUG_RX,
+		    "%s: TCP/IP checksums: %schecked / %schecked\n",
+		    __func__,
+		    (rxdw3 & R92S_RXDW3_TCPCHKRPT) ? "" : "not ",
+		    (rxdw3 & R92S_RXDW3_IPCHKRPT) ? "" : "not ");
+
+		/*
+		 * 'IP header checksum valid' bit will not be set if
+		 * the frame was not checked / has incorrect checksum /
+		 * does not have checksum (IPv6).
+		 *
+		 * NB: if DF bit is not set then frame will not be checked.
+		 */
+		if (rxdw3 & R92S_RXDW3_IPCHKRPT) {
+			m->m_pkthdr.csum_flags = CSUM_IP_CHECKED;
+			m->m_pkthdr.csum_flags |= CSUM_IP_VALID;
+		}
+
+		/*
+		 * This is independent of the above check.
+		 */
+		if (rxdw3 & R92S_RXDW3_TCPCHKRPT) {
+			m->m_pkthdr.csum_flags |= CSUM_DATA_VALID;
+			m->m_pkthdr.csum_flags |= CSUM_PSEUDO_HDR;
+			m->m_pkthdr.csum_data = 0xffff;
+		}
 	}
 
-	return (m);
+	/* RX flags */
+
+	/* Set channel flags for input path */
+	bzero(&rxs, sizeof(rxs));
+
+	/* normal RSSI */
+	rxs.r_flags |= IEEE80211_R_NF | IEEE80211_R_RSSI;
+	rxs.c_rssi = rssi;
+	rxs.c_nf = -96;
+
+	/* Rate */
+	if (!(rxdw3 & R92S_RXDW3_HTC)) {
+		switch (rate) {
+		/* CCK. */
+		case 0:
+			rxs.c_rate = 2;
+			rxs.c_pktflags |= IEEE80211_RX_F_CCK;
+			break;
+		case 1:
+			rxs.c_rate = 4;
+			rxs.c_pktflags |= IEEE80211_RX_F_CCK;
+			break;
+		case 2:
+			rxs.c_rate = 11;
+			rxs.c_pktflags |= IEEE80211_RX_F_CCK;
+			break;
+		case 3:
+			rxs.c_rate = 22;
+			rxs.c_pktflags |= IEEE80211_RX_F_CCK;
+			break;
+		/* OFDM. */
+		case 4:
+			rxs.c_rate = 12;
+			rxs.c_pktflags |= IEEE80211_RX_F_OFDM;
+			break;
+		case 5:
+			rxs.c_rate = 18;
+			rxs.c_pktflags |= IEEE80211_RX_F_OFDM;
+			break;
+		case 6:
+			rxs.c_rate = 24;
+			rxs.c_pktflags |= IEEE80211_RX_F_OFDM;
+			break;
+		case 7:
+			rxs.c_rate = 36;
+			rxs.c_pktflags |= IEEE80211_RX_F_OFDM;
+			break;
+		case 8:
+			rxs.c_rate = 48;
+			rxs.c_pktflags |= IEEE80211_RX_F_OFDM;
+			break;
+		case 9:
+			rxs.c_rate = 72;
+			rxs.c_pktflags |= IEEE80211_RX_F_OFDM;
+			break;
+		case 10:
+			rxs.c_rate = 96;
+			rxs.c_pktflags |= IEEE80211_RX_F_OFDM;
+			break;
+		case 11:
+			rxs.c_rate = 108;
+			rxs.c_pktflags |= IEEE80211_RX_F_OFDM;
+			break;
+		}
+	} else if (rate >= 12) {	/* MCS0~15. */
+		/* Bit 7 set means HT MCS instead of rate. */
+		rxs.c_rate = (rate - 12);
+		rxs.c_pktflags |= IEEE80211_RX_F_HT;
+	}
+
+	(void) ieee80211_add_rx_params(m, &rxs);
+
+	/* Drop descriptor. */
+	m_adj(m, sizeof(*stat) + infosz);
+	wh = mtod(m, struct ieee80211_frame_min *);
+	if ((wh->i_fc[1] & IEEE80211_FC1_PROTECTED) &&
+	    cipher != R92S_KEY_ALGO_NONE) {
+		m->m_flags |= M_WEP;
+	}
+
+	RSU_DPRINTF(sc, RSU_DEBUG_RX,
+	    "%s: Rx frame len %d, rate %d, infosz %d\n",
+	    __func__, m->m_len, rate, infosz);
+
+	if (m->m_len >= sizeof(*wh))
+		return (ieee80211_find_rxnode(ic, wh));
+
+	return (NULL);
 }
 
 static struct mbuf *
@@ -1924,6 +2539,13 @@ rsu_rx_multi_frame(struct rsu_softc *sc, uint8_t *buf, int len)
 	uint32_t rxdw0;
 	int totlen, pktlen, infosz, npkts;
 	struct mbuf *m, *m0 = NULL, *prevm = NULL;
+
+	/*
+	 * don't pass packets to the ieee80211 framework if the driver isn't
+	 * RUNNING.
+	 */
+	if (!sc->sc_running)
+		return (NULL);
 
 	/* Get the number of encapsulated frames. */
 	stat = (struct r92s_rx_stat *)buf;
@@ -1950,7 +2572,7 @@ rsu_rx_multi_frame(struct rsu_softc *sc, uint8_t *buf, int len)
 			break;
 
 		/* Process 802.11 frame. */
-		m = rsu_rx_frame(sc, buf, pktlen);
+		m = rsu_rx_copy_to_mbuf(sc, stat, totlen);
 		if (m0 == NULL)
 			m0 = m;
 		if (prevm == NULL)
@@ -1979,7 +2601,7 @@ rsu_rxeof(struct usb_xfer *xfer, struct rsu_data *data)
 	usbd_xfer_status(xfer, &len, NULL, NULL, NULL);
 
 	if (__predict_false(len < sizeof(*stat))) {
-		DPRINTF("xfer too short %d\n", len);
+		RSU_DPRINTF(sc, RSU_DEBUG_RX, "xfer too short %d\n", len);
 		counter_u64_add(ic->ic_ierrors, 1);
 		return (NULL);
 	}
@@ -1998,7 +2620,6 @@ rsu_bulk_rx_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct rsu_softc *sc = usbd_xfer_softc(xfer);
 	struct ieee80211com *ic = &sc->sc_ic;
-	struct ieee80211_frame *wh;
 	struct ieee80211_node *ni;
 	struct mbuf *m = NULL, *next;
 	struct rsu_data *data;
@@ -2016,10 +2637,6 @@ rsu_bulk_rx_callback(struct usb_xfer *xfer, usb_error_t error)
 		/* FALLTHROUGH */
 	case USB_ST_SETUP:
 tr_setup:
-		/*
-		 * XXX TODO: if we have an mbuf list, but then
-		 * we hit data == NULL, what now?
-		 */
 		data = STAILQ_FIRST(&sc->sc_rx_inactive);
 		if (data == NULL) {
 			KASSERT(m == NULL, ("mbuf isn't NULL"));
@@ -2035,28 +2652,24 @@ tr_setup:
 		 * ieee80211_input() because here is at the end of a USB
 		 * callback and safe to unlock.
 		 */
-		RSU_UNLOCK(sc);
 		while (m != NULL) {
-			int rssi;
-
-			/* Cheat and get the last calibrated RSSI */
-			rssi = rsu_hwrssi_to_rssi(sc, sc->sc_currssi);
-
 			next = m->m_next;
 			m->m_next = NULL;
-			wh = mtod(m, struct ieee80211_frame *);
-			ni = ieee80211_find_rxnode(ic,
-			    (struct ieee80211_frame_min *)wh);
+
+			ni = rsu_rx_frame(sc, m);
+			RSU_UNLOCK(sc);
+
 			if (ni != NULL) {
 				if (ni->ni_flags & IEEE80211_NODE_HT)
 					m->m_flags |= M_AMPDU;
-				(void)ieee80211_input(ni, m, rssi, -96);
+				(void)ieee80211_input_mimo(ni, m);
 				ieee80211_free_node(ni);
 			} else
-				(void)ieee80211_input_all(ic, m, rssi, -96);
+				(void)ieee80211_input_mimo_all(ic, m);
+
+			RSU_LOCK(sc);
 			m = next;
 		}
-		RSU_LOCK(sc);
 		break;
 	default:
 		/* needs it to the inactive queue due to a error. */
@@ -2202,7 +2815,7 @@ rsu_tx_start(struct rsu_softc *sc, struct ieee80211_node *ni,
 	struct ieee80211_frame *wh;
 	struct ieee80211_key *k = NULL;
 	struct r92s_tx_desc *txd;
-	uint8_t type;
+	uint8_t type, cipher;
 	int prio = 0;
 	uint8_t which;
 	int hasqos;
@@ -2275,8 +2888,7 @@ rsu_tx_start(struct rsu_softc *sc, struct ieee80211_node *ni,
 	    SM(R92S_TXDW1_MACID, R92S_MACID_BSS) | SM(R92S_TXDW1_QSEL, qid));
 	if (!hasqos)
 		txd->txdw1 |= htole32(R92S_TXDW1_NONQOS);
-#ifdef notyet
-	if (k != NULL) {
+	if (k != NULL && !(k->wk_flags & IEEE80211_KEY_SWENCRYPT)) {
 		switch (k->wk_cipher->ic_cipher) {
 		case IEEE80211_CIPHER_WEP:
 			cipher = R92S_TXDW1_CIPHER_WEP;
@@ -2292,9 +2904,8 @@ rsu_tx_start(struct rsu_softc *sc, struct ieee80211_node *ni,
 		}
 		txd->txdw1 |= htole32(
 		    SM(R92S_TXDW1_CIPHER, cipher) |
-		    SM(R92S_TXDW1_KEYIDX, k->k_id));
+		    SM(R92S_TXDW1_KEYIDX, k->wk_keyix));
 	}
-#endif
 	/* XXX todo: set AGGEN bit if appropriate? */
 	txd->txdw2 |= htole32(R92S_TXDW2_BK);
 	if (IEEE80211_IS_MULTICAST(wh->i_addr1))
@@ -2416,24 +3027,74 @@ rsu_start(struct rsu_softc *sc)
 	taskqueue_enqueue(taskqueue_thread, &sc->tx_task);
 }
 
+static int
+rsu_ioctl_net(struct ieee80211com *ic, u_long cmd, void *data)
+{
+	struct rsu_softc *sc = ic->ic_softc;
+	struct ifreq *ifr = (struct ifreq *)data;
+	int error;
+
+	error = 0;
+	switch (cmd) {
+	case SIOCSIFCAP:
+	{
+		struct ieee80211vap *vap;
+		int rxmask;
+
+		rxmask = ifr->ifr_reqcap & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6);
+
+		RSU_LOCK(sc);
+		/* Both RXCSUM bits must be set (or unset). */
+		if (sc->sc_rx_checksum_enable &&
+		    rxmask != (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6)) {
+			rxmask = 0;
+			sc->sc_rx_checksum_enable = 0;
+			rsu_rxfilter_set(sc, R92S_RCR_TCP_OFFLD_EN, 0);
+		} else if (!sc->sc_rx_checksum_enable && rxmask != 0) {
+			rxmask = IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6;
+			sc->sc_rx_checksum_enable = 1;
+			rsu_rxfilter_set(sc, 0, R92S_RCR_TCP_OFFLD_EN);
+		} else {
+			/* Nothing to do. */
+			RSU_UNLOCK(sc);
+			break;
+		}
+		RSU_UNLOCK(sc);
+
+		IEEE80211_LOCK(ic);	/* XXX */
+		TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next) {
+			struct ifnet *ifp = vap->iv_ifp;
+
+			ifp->if_capenable &=
+			    ~(IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6);
+			ifp->if_capenable |= rxmask;
+		}
+		IEEE80211_UNLOCK(ic);
+		break;
+	}
+	default:
+		error = ENOTTY;		/* for net80211 */
+		break;
+	}
+
+	return (error);
+}
+
 static void
 rsu_parent(struct ieee80211com *ic)
 {
 	struct rsu_softc *sc = ic->ic_softc;
-	int startall = 0;
 
-	RSU_LOCK(sc);
 	if (ic->ic_nrunning > 0) {
-		if (!sc->sc_running) {
-			rsu_init(sc);
-			startall = 1;
+		if (rsu_init(sc) == 0)
+			ieee80211_start_all(ic);
+		else {
+			struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
+			if (vap != NULL)
+				ieee80211_stop(vap);
 		}
-	} else if (sc->sc_running)
+	} else
 		rsu_stop(sc);
-	RSU_UNLOCK(sc);
-
-	if (startall)
-		ieee80211_start_all(ic);
 }
 
 /*
@@ -2750,8 +3411,9 @@ rsu_load_firmware(struct rsu_softc *sc)
 		error = EINVAL;
 		goto fail;
 	}
-	DPRINTF("FW V%d %02x-%02x %02x:%02x\n", le16toh(hdr->version),
-	    hdr->month, hdr->day, hdr->hour, hdr->minute);
+	RSU_DPRINTF(sc, RSU_DEBUG_FW, "FW V%d %02x-%02x %02x:%02x\n",
+	    le16toh(hdr->version), hdr->month, hdr->day, hdr->hour,
+	    hdr->minute);
 
 	/* Make sure that driver and firmware are in sync. */
 	if (hdr->privsz != htole32(sizeof(*dmem))) {
@@ -2924,6 +3586,67 @@ rsu_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 }
 
 static void
+rsu_rxfilter_init(struct rsu_softc *sc)
+{
+	uint32_t reg;
+
+	RSU_ASSERT_LOCKED(sc);
+
+	/* Setup multicast filter. */
+	rsu_set_multi(sc);
+
+	/* Adjust Rx filter. */
+	reg = rsu_read_4(sc, R92S_RCR);
+	reg &= ~R92S_RCR_AICV;
+	reg |= R92S_RCR_APP_PHYSTS;
+	if (sc->sc_rx_checksum_enable)
+		reg |= R92S_RCR_TCP_OFFLD_EN;
+	rsu_write_4(sc, R92S_RCR, reg);
+
+	/* Update dynamic Rx filter parts. */
+	rsu_rxfilter_refresh(sc);
+}
+
+static void
+rsu_rxfilter_set(struct rsu_softc *sc, uint32_t clear, uint32_t set)
+{
+	/* NB: firmware can touch this register too. */
+	rsu_write_4(sc, R92S_RCR,
+	   (rsu_read_4(sc, R92S_RCR) & ~clear) | set);
+}
+
+static void
+rsu_rxfilter_refresh(struct rsu_softc *sc)
+{
+	struct ieee80211com *ic = &sc->sc_ic;
+	uint32_t mask_all, mask_min;
+
+	RSU_ASSERT_LOCKED(sc);
+
+	/* NB: RCR_AMF / RXFLTMAP_MGT are used by firmware. */
+	mask_all = R92S_RCR_ACF | R92S_RCR_AAP;
+	mask_min = R92S_RCR_APM;
+	if (sc->sc_vap_is_running)
+		mask_min |= R92S_RCR_CBSSID;
+	else
+		mask_all |= R92S_RCR_ADF;
+
+	if (ic->ic_opmode == IEEE80211_M_MONITOR) {
+		uint16_t rxfltmap;
+		if (sc->sc_vap_is_running)
+			rxfltmap = 0;
+		else
+			rxfltmap = R92S_RXFLTMAP_MGT_DEF;
+		rsu_write_2(sc, R92S_RXFLTMAP_MGT, rxfltmap);
+	}
+
+	if (ic->ic_promisc == 0 && ic->ic_opmode != IEEE80211_M_MONITOR)
+		rsu_rxfilter_set(sc, mask_all, mask_min);
+	else
+		rsu_rxfilter_set(sc, mask_min, mask_all);
+}
+
+static int
 rsu_init(struct rsu_softc *sc)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
@@ -2932,13 +3655,15 @@ rsu_init(struct rsu_softc *sc)
 	int error;
 	int i;
 
-	RSU_ASSERT_LOCKED(sc);
+	RSU_LOCK(sc);
+
+	if (sc->sc_running) {
+		RSU_UNLOCK(sc);
+		return (0);
+	}
 
 	/* Ensure the mbuf queue is drained */
 	rsu_drain_mbufq(sc);
-
-	/* Init host async commands ring. */
-	sc->cmdq.cur = sc->cmdq.next = sc->cmdq.queued = 0;
 
 	/* Reset power management state. */
 	rsu_write_1(sc, R92S_USB_HRPWM, 0);
@@ -2953,13 +3678,6 @@ rsu_init(struct rsu_softc *sc)
 	error = rsu_load_firmware(sc);
 	if (error != 0)
 		goto fail;
-
-	/* Enable Rx TCP checksum offload. */
-	rsu_write_4(sc, R92S_RCR,
-	    rsu_read_4(sc, R92S_RCR) | 0x04000000);
-	/* Append PHY status. */
-	rsu_write_4(sc, R92S_RCR,
-	    rsu_read_4(sc, R92S_RCR) | 0x02000000);
 
 	rsu_write_4(sc, R92S_CR,
 	    rsu_read_4(sc, R92S_CR) & ~0xff000000);
@@ -2983,7 +3701,7 @@ rsu_init(struct rsu_softc *sc)
 	rsu_write_region_1(sc, R92S_MACID, macaddr, IEEE80211_ADDR_LEN);
 
 	/* It really takes 1.5 seconds for the firmware to boot: */
-	rsu_ms_delay(sc, 2000);
+	usb_pause_mtx(&sc->sc_mtx, USB_MS_TO_TICKS(2000));
 
 	RSU_DPRINTF(sc, RSU_DEBUG_RESET, "%s: setting MAC address to %s\n",
 	    __func__,
@@ -2995,27 +3713,36 @@ rsu_init(struct rsu_softc *sc)
 		goto fail;
 	}
 
-	/* Setup multicast filter (must be done after firmware loading). */
-	rsu_set_multi(sc);
+	/* Initialize Rx filter. */
+	rsu_rxfilter_init(sc);
 
 	/* Set PS mode fully active */
 	error = rsu_set_fw_power_state(sc, RSU_PWR_ACTIVE);
-
 	if (error != 0) {
 		device_printf(sc->sc_dev, "could not set PS mode\n");
 		goto fail;
 	}
+
+	/* Install static keys (if any). */
+	error = rsu_reinit_static_keys(sc);
+	if (error != 0)
+		goto fail;
 
 	sc->sc_extra_scan = 0;
 	usbd_transfer_start(sc->sc_xfer[RSU_BULK_RX]);
 
 	/* We're ready to go. */
 	sc->sc_running = 1;
-	return;
+	RSU_UNLOCK(sc);
+
+	return (0);
 fail:
 	/* Need to stop all failed transfers, if any */
 	for (i = 0; i != RSU_N_TRANSFER; i++)
 		usbd_transfer_stop(sc->sc_xfer[i]);
+	RSU_UNLOCK(sc);
+
+	return (error);
 }
 
 static void
@@ -3023,9 +3750,14 @@ rsu_stop(struct rsu_softc *sc)
 {
 	int i;
 
-	RSU_ASSERT_LOCKED(sc);
+	RSU_LOCK(sc);
+	if (!sc->sc_running) {
+		RSU_UNLOCK(sc);
+		return;
+	}
 
 	sc->sc_running = 0;
+	sc->sc_vap_is_running = 0;
 	sc->sc_calibrating = 0;
 	taskqueue_cancel_timeout(taskqueue_thread, &sc->calib_task, NULL);
 	taskqueue_cancel(taskqueue_thread, &sc->tx_task, NULL);
@@ -3033,11 +3765,19 @@ rsu_stop(struct rsu_softc *sc)
 	/* Power off adapter. */
 	rsu_power_off(sc);
 
+	/*
+	 * CAM is not accessible after shutdown;
+	 * all entries are marked (by firmware?) as invalid.
+	 */
+	memset(sc->free_keys_bmap, 0, sizeof(sc->free_keys_bmap));
+	memset(sc->keys_bmap, 0, sizeof(sc->keys_bmap));
+
 	for (i = 0; i < RSU_N_TRANSFER; i++)
 		usbd_transfer_stop(sc->sc_xfer[i]);
 
 	/* Ensure the mbuf queue is drained */
 	rsu_drain_mbufq(sc);
+	RSU_UNLOCK(sc);
 }
 
 /*

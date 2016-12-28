@@ -19,7 +19,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -214,7 +214,7 @@ trapsink_unmodify(struct trapsink *t, struct trapsink_dep *tdep)
 		t->version = tdep->rb_version;
 	if (tdep->set & TDEP_COMM)
 		strcpy(t->comm, tdep->rb_comm);
-	
+
 	return (SNMP_ERR_NOERROR);
 }
 
@@ -464,7 +464,6 @@ static void
 snmp_create_v3_trap(struct snmp_pdu *pdu, struct target_param *target,
     const struct asn_oid *trap_oid)
 {
-	uint64_t etime;
 	struct usm_user *usmuser;
 
 	memset(pdu, 0, sizeof(*pdu));
@@ -487,14 +486,7 @@ snmp_create_v3_trap(struct snmp_pdu *pdu, struct target_param *target,
 
 	pdu->nbindings = 2;
 
-	etime = (get_ticks() - start_tick)  / 100ULL;
-	if (etime < INT32_MAX)
-		snmpd_engine.engine_time = etime;
-	else {
-		start_tick = get_ticks();
-		set_snmpd_engine();
-		snmpd_engine.engine_time = start_tick;
-	}
+	update_snmpd_engine_time();
 
 	memcpy(pdu->engine.engine_id, snmpd_engine.engine_id,
 	    snmpd_engine.engine_len);
@@ -546,7 +538,7 @@ snmp_send_trap(const struct asn_oid *trap_oid, ...)
 	TAILQ_FOREACH(t, &trapsink_list, link) {
 		if (t->status != TRAPSINK_ACTIVE)
 			continue;
-	
+
 		if (t->version == TRAPSINK_V1)
 			snmp_create_v1_trap(&pdu, t->comm, trap_oid);
 		else

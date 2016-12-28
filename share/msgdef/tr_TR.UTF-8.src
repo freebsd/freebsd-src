@@ -7,11 +7,11 @@
 ^(([eE]([vV][eE][tT])?)|([eE])|([yY]([eE][sS])?)|([yY]))
 #
 # noexpr
-^(([hH]([aA][yY][ıI][rR])?)|([hH]([aA][yY][iI][rR])?)|([hH])|([nN]([oO])?)|([nN]))
+^(([hH]([aA][yY][iI][rR])?)|([hH])|([nN]([oO])?)|([nN]))
 #
 # yesstr
 evet:e:EVET:E:yes:y:YES:Y
 #
 # nostr
-hayır:hayir:h:HAYIR:HAYİR:H:no:n:NO:N
+hayir:h:HAYİR:H:no:n:NO:N
 # EOF

@@ -71,12 +71,6 @@ __FBSDID("$FreeBSD$");
 MALLOC_DEFINE(M_BHND_NVRAM, "bhnd_nvram", "bhnd nvram data");
 #endif
 
-/** signed/unsigned 32-bit integer value storage */
-union bhnd_nvram_int_storage {
-	uint32_t	u32;
-	int32_t		s32;
-};
-
 /*
  * CRC-8 lookup table used to checksum SPROM and NVRAM data via
  * bhnd_nvram_crc8().
@@ -142,6 +136,12 @@ bhnd_nvram_type_name(bhnd_nvram_type type)
 		return ("int64");
 	case BHND_NVRAM_TYPE_STRING:
 		return ("string");
+	case BHND_NVRAM_TYPE_BOOL:
+		return ("bool");
+	case BHND_NVRAM_TYPE_NULL:
+		return ("null");
+	case BHND_NVRAM_TYPE_DATA:
+		return ("data");
 	case BHND_NVRAM_TYPE_UINT8_ARRAY:
 		return ("uint8[]");
 	case BHND_NVRAM_TYPE_UINT16_ARRAY:
@@ -162,6 +162,8 @@ bhnd_nvram_type_name(bhnd_nvram_type type)
 		return ("char[]");
 	case BHND_NVRAM_TYPE_STRING_ARRAY:
 		return ("string[]");
+	case BHND_NVRAM_TYPE_BOOL_ARRAY:
+		return ("bool[]");
 	}
 
 	/* Quiesce gcc4.2 */
@@ -192,6 +194,9 @@ bhnd_nvram_is_signed_type(bhnd_nvram_type type)
 	case BHND_NVRAM_TYPE_UINT32:
 	case BHND_NVRAM_TYPE_UINT64:
 	case BHND_NVRAM_TYPE_STRING:
+	case BHND_NVRAM_TYPE_BOOL:
+	case BHND_NVRAM_TYPE_NULL:
+	case BHND_NVRAM_TYPE_DATA:
 	case BHND_NVRAM_TYPE_UINT8_ARRAY:
 	case BHND_NVRAM_TYPE_UINT16_ARRAY:
 	case BHND_NVRAM_TYPE_UINT32_ARRAY:
@@ -202,6 +207,7 @@ bhnd_nvram_is_signed_type(bhnd_nvram_type type)
 	case BHND_NVRAM_TYPE_INT64_ARRAY:
 	case BHND_NVRAM_TYPE_CHAR_ARRAY:
 	case BHND_NVRAM_TYPE_STRING_ARRAY:
+	case BHND_NVRAM_TYPE_BOOL_ARRAY:
 		return (false);
 	}
 
@@ -249,6 +255,9 @@ bhnd_nvram_is_int_type(bhnd_nvram_type type)
 
 	case BHND_NVRAM_TYPE_CHAR:
 	case BHND_NVRAM_TYPE_STRING:
+	case BHND_NVRAM_TYPE_BOOL:
+	case BHND_NVRAM_TYPE_NULL:
+	case BHND_NVRAM_TYPE_DATA:
 	case BHND_NVRAM_TYPE_UINT8_ARRAY:
 	case BHND_NVRAM_TYPE_UINT16_ARRAY:
 	case BHND_NVRAM_TYPE_UINT32_ARRAY:
@@ -259,6 +268,7 @@ bhnd_nvram_is_int_type(bhnd_nvram_type type)
 	case BHND_NVRAM_TYPE_INT64_ARRAY:
 	case BHND_NVRAM_TYPE_CHAR_ARRAY:
 	case BHND_NVRAM_TYPE_STRING_ARRAY:
+	case BHND_NVRAM_TYPE_BOOL_ARRAY:
 		return (false);
 	}
 
@@ -285,6 +295,9 @@ bhnd_nvram_is_array_type(bhnd_nvram_type type)
 	case BHND_NVRAM_TYPE_INT64:
 	case BHND_NVRAM_TYPE_CHAR:
 	case BHND_NVRAM_TYPE_STRING:
+	case BHND_NVRAM_TYPE_BOOL:
+	case BHND_NVRAM_TYPE_NULL:
+	case BHND_NVRAM_TYPE_DATA:
 		return (false);
 
 	case BHND_NVRAM_TYPE_UINT8_ARRAY:
@@ -297,6 +310,7 @@ bhnd_nvram_is_array_type(bhnd_nvram_type type)
 	case BHND_NVRAM_TYPE_INT64_ARRAY:
 	case BHND_NVRAM_TYPE_CHAR_ARRAY:
 	case BHND_NVRAM_TYPE_STRING_ARRAY:
+	case BHND_NVRAM_TYPE_BOOL_ARRAY:
 		return (true);
 	}
 
@@ -324,6 +338,9 @@ bhnd_nvram_base_type(bhnd_nvram_type type)
 	case BHND_NVRAM_TYPE_INT64:
 	case BHND_NVRAM_TYPE_CHAR:
 	case BHND_NVRAM_TYPE_STRING:
+	case BHND_NVRAM_TYPE_BOOL:
+	case BHND_NVRAM_TYPE_NULL:
+	case BHND_NVRAM_TYPE_DATA:
 		return (type);
 
 	case BHND_NVRAM_TYPE_UINT8_ARRAY:	return (BHND_NVRAM_TYPE_UINT8);
@@ -336,6 +353,7 @@ bhnd_nvram_base_type(bhnd_nvram_type type)
 	case BHND_NVRAM_TYPE_INT64_ARRAY:	return (BHND_NVRAM_TYPE_INT64);
 	case BHND_NVRAM_TYPE_CHAR_ARRAY:	return (BHND_NVRAM_TYPE_CHAR);
 	case BHND_NVRAM_TYPE_STRING_ARRAY:	return (BHND_NVRAM_TYPE_STRING);
+	case BHND_NVRAM_TYPE_BOOL_ARRAY:	return (BHND_NVRAM_TYPE_BOOL);
 	}
 
 	/* Quiesce gcc4.2 */
@@ -343,100 +361,46 @@ bhnd_nvram_base_type(bhnd_nvram_type type)
 }
 
 /**
- * Calculate the number of elements represented by a value of @p len bytes
- * with @p type.
+ * Return the raw data type used to represent values of @p type, or return
+ * @p type is @p type is not a complex type.
  *
- * @param	type	The value type.
- * @param	data	The actual data to be queried, or NULL if unknown.
- * @param	len	The length in bytes of @p data, or if @p data is NULL,
- *			the expected length in bytes.
- * @param[out]	nelem	On success, the number of elements. If @p type is not
- *			a fixed width type (e.g. BHND_NVRAM_TYPE_STRING_ARRAY),
- *			and @p data is NULL, an @p nelem value of 0 will be
- *			returned.
- *
- * @retval 0		success
- * @retval EFTYPE	if @p type is not an array type, and @p len is not
- *			equal to the size of a single element of @p type.
- * @retval EFAULT	if @p len is not correctly aligned for elements of
- *			@p type.
+ * @param type The type to query.
  */
-int
-bhnd_nvram_value_nelem(bhnd_nvram_type type, const void *data, size_t len,
-    size_t *nelem)
+bhnd_nvram_type
+bhnd_nvram_raw_type(bhnd_nvram_type type)
 {
-	bhnd_nvram_type	base_type;
-	size_t		base_size;
-
-	/* Length must be aligned to the element size */
-	base_type = bhnd_nvram_base_type(type);
-	base_size = bhnd_nvram_value_size(base_type, NULL, 0, 1);
-	if (base_size != 0 && len % base_size != 0)
-		return (EFAULT);
-
 	switch (type) {
-	case BHND_NVRAM_TYPE_STRING:
-	case BHND_NVRAM_TYPE_STRING_ARRAY: {
-		const char	*p;
-		size_t		 nleft;
-
-		/* Cannot determine the element count without parsing
-		 * the actual data */
-		if (data == NULL) {
-			*nelem = 0;
-			return (0);
-		}
-
-		/* Iterate over the NUL-terminated strings to calculate
-		 * total element count */
-		p = data;
-		nleft = len;
-		*nelem = 0;
-		while (nleft > 0) {
-			size_t slen;
-
-			/* Increment element count */
-			(*nelem)++;
-
-			/* If not a string array, data must not contain more
-			 * than one entry. */
-			if (!bhnd_nvram_is_array_type(type) && *nelem > 1)
-				return (EFTYPE);
-
-			/* Determine string length */
-			slen = strnlen(p, nleft);
-			nleft -= slen;
-	
-			/* Advance input */
-			p += slen;
-
-			/* Account for trailing NUL, if we haven't hit the end
-			 * of the input */
-			if (nleft > 0) {
-				nleft--;
-				p++;
-			}
-		}
-
-		return (0);
-	}
-	case BHND_NVRAM_TYPE_INT8:
-	case BHND_NVRAM_TYPE_UINT8:
 	case BHND_NVRAM_TYPE_CHAR:
-	case BHND_NVRAM_TYPE_INT16:
-	case BHND_NVRAM_TYPE_UINT16:
-	case BHND_NVRAM_TYPE_INT32:
-	case BHND_NVRAM_TYPE_UINT32:
-	case BHND_NVRAM_TYPE_INT64:
-	case BHND_NVRAM_TYPE_UINT64:
-		/* Length must be equal to the size of exactly one
-		 * element (arrays can represent zero elements -- non-array
-		 * types cannot) */
-		if (len != base_size)
-			return (EFTYPE);
-		*nelem = 1;
-		return (0);
+		return (BHND_NVRAM_TYPE_UINT8);
 
+	case BHND_NVRAM_TYPE_CHAR_ARRAY:
+		return (BHND_NVRAM_TYPE_UINT8_ARRAY);
+
+	case BHND_NVRAM_TYPE_BOOL: {
+		_Static_assert(sizeof(bhnd_nvram_bool_t) == sizeof(uint8_t),
+		    "bhnd_nvram_bool_t must be uint8-representable");
+		return (BHND_NVRAM_TYPE_UINT8);
+	}
+
+	case BHND_NVRAM_TYPE_BOOL_ARRAY:
+		return (BHND_NVRAM_TYPE_UINT8_ARRAY);
+
+	case BHND_NVRAM_TYPE_DATA:
+		return (BHND_NVRAM_TYPE_UINT8_ARRAY);
+
+	case BHND_NVRAM_TYPE_STRING:
+	case BHND_NVRAM_TYPE_STRING_ARRAY:
+		return (BHND_NVRAM_TYPE_UINT8_ARRAY);
+
+	case BHND_NVRAM_TYPE_UINT8:
+	case BHND_NVRAM_TYPE_UINT16:
+	case BHND_NVRAM_TYPE_UINT32:
+	case BHND_NVRAM_TYPE_UINT64:
+	case BHND_NVRAM_TYPE_INT8:
+	case BHND_NVRAM_TYPE_INT16:
+	case BHND_NVRAM_TYPE_INT32:
+	case BHND_NVRAM_TYPE_INT64:
+	case BHND_NVRAM_TYPE_NULL:
 	case BHND_NVRAM_TYPE_UINT8_ARRAY:
 	case BHND_NVRAM_TYPE_UINT16_ARRAY:
 	case BHND_NVRAM_TYPE_UINT32_ARRAY:
@@ -445,10 +409,7 @@ bhnd_nvram_value_nelem(bhnd_nvram_type type, const void *data, size_t len,
 	case BHND_NVRAM_TYPE_INT16_ARRAY:
 	case BHND_NVRAM_TYPE_INT32_ARRAY:
 	case BHND_NVRAM_TYPE_INT64_ARRAY:
-	case BHND_NVRAM_TYPE_CHAR_ARRAY:
-		BHND_NV_ASSERT(base_size != 0, ("invalid base size"));
-		*nelem = len / base_size;
-		return (0);
+		return (type);
 	}
 
 	/* Quiesce gcc4.2 */
@@ -456,129 +417,51 @@ bhnd_nvram_value_nelem(bhnd_nvram_type type, const void *data, size_t len,
 }
 
 /**
- * Return the size, in bytes, of a value of @p type with @p nelem elements.
+ * Return the size, in bytes, of a single element of @p type, or 0
+ * if @p type is a variable-width type.
  * 
- * @param	type	The value type.
- * @param	data	The actual data to be queried, or NULL if unknown. If
- *			NULL and the base type is not a fixed width type
- *			(e.g. BHND_NVRAM_TYPE_STRING), 0 will be returned.
- * @param	nbytes	The size of @p data, in bytes, or 0 if @p data is NULL.
- * @param	nelem	The number of elements. If @p type is not an array type,
- *			this value must be 1.
- * 
- * @retval 0		If @p type has a variable width, and @p data is NULL.
- * @retval 0		If a @p nelem value greater than 1 is provided for a
- *			non-array @p type.
- * @retval 0		If a @p nelem value of 0 is provided.
- * @retval 0		If the result would exceed the maximum value
- *			representable by size_t.
- * @retval non-zero	The size, in bytes, of @p type with @p nelem elements.
+ * @param type	The type to query.
  */
 size_t
-bhnd_nvram_value_size(bhnd_nvram_type type, const void *data, size_t nbytes,
-    size_t nelem)
+bhnd_nvram_type_width(bhnd_nvram_type type)
 {
-	/* If nelem 0, nothing to do */
-	if (nelem == 0)
-		return (0);
-
-	/* Non-array types must have an nelem value of 1 */
-	if (!bhnd_nvram_is_array_type(type) && nelem != 1)
-		return (0);
-
 	switch (type) {
-	case BHND_NVRAM_TYPE_UINT8_ARRAY:
-	case BHND_NVRAM_TYPE_UINT16_ARRAY:
-	case BHND_NVRAM_TYPE_UINT32_ARRAY:
-	case BHND_NVRAM_TYPE_UINT64_ARRAY:
-	case BHND_NVRAM_TYPE_INT8_ARRAY:
-	case BHND_NVRAM_TYPE_INT16_ARRAY:
-	case BHND_NVRAM_TYPE_INT32_ARRAY:
-	case BHND_NVRAM_TYPE_INT64_ARRAY:
-	case BHND_NVRAM_TYPE_CHAR_ARRAY: {
-		bhnd_nvram_type	base_type;
-		size_t		base_size;
+	case BHND_NVRAM_TYPE_STRING:
+	case BHND_NVRAM_TYPE_STRING_ARRAY:
+	case BHND_NVRAM_TYPE_DATA:
+		return (0);
 
-		base_type = bhnd_nvram_base_type(type);
-		base_size = bhnd_nvram_value_size(base_type, NULL, 0, 1);
+	case BHND_NVRAM_TYPE_NULL:
+		return (0);
 
-		/* Would nelem * base_size overflow? */
-		if (SIZE_MAX / nelem < base_size) {
-			BHND_NV_LOG("cannot represent size %s * %zu\n",
-			    bhnd_nvram_type_name(base_type), nelem);
-			return (0);
-		}
+	case BHND_NVRAM_TYPE_BOOL:
+	case BHND_NVRAM_TYPE_BOOL_ARRAY:
+		return (sizeof(bhnd_nvram_bool_t));
 
-		return (nelem * base_size);
-	}
-
-	case BHND_NVRAM_TYPE_STRING_ARRAY: {
-		const char	*p;
-		size_t		 total_size;
-
-		if (data == NULL)
-			return (0);
-
-		/* Iterate over the NUL-terminated strings to calculate
-		 * total byte length */
-		p = data;
-		total_size = 0;
-		for (size_t i = 0; i < nelem; i++) {
-			size_t	elem_size;
-
-			elem_size = strnlen(p, nbytes - total_size);
-			p += elem_size;
-
-			/* Check for (and skip) terminating NUL */
-			if (total_size < nbytes && *p == '\0') {
-				elem_size++;
-				p++;
-			}
-
-			/* Would total_size + elem_size overflow?
-			 * 
-			 * A memory range larger than SIZE_MAX shouldn't be,
-			 * possible, but include the check for completeness */
-			if (SIZE_MAX - total_size < elem_size)
-				return (0);
-
-			total_size += elem_size;
-		}
-
-		return (total_size);
-	}
-
-	case BHND_NVRAM_TYPE_STRING: {
-		size_t size;
-
-		if (data == NULL)
-			return (0);
-
-		/* Find length */
-		size = strnlen(data, nbytes);
-
-		/* Is there a terminating NUL, or did we just hit the
-		 * end of the string input */
-		if (size < nbytes)
-			size++;
-
-		return (size);
-	}
-	case BHND_NVRAM_TYPE_INT8:
-	case BHND_NVRAM_TYPE_UINT8:
 	case BHND_NVRAM_TYPE_CHAR:
+	case BHND_NVRAM_TYPE_CHAR_ARRAY:
+	case BHND_NVRAM_TYPE_UINT8:
+	case BHND_NVRAM_TYPE_UINT8_ARRAY:
+	case BHND_NVRAM_TYPE_INT8:
+	case BHND_NVRAM_TYPE_INT8_ARRAY:
 		return (sizeof(uint8_t));
 
-	case BHND_NVRAM_TYPE_INT16:
 	case BHND_NVRAM_TYPE_UINT16:
+	case BHND_NVRAM_TYPE_UINT16_ARRAY:
+	case BHND_NVRAM_TYPE_INT16:
+	case BHND_NVRAM_TYPE_INT16_ARRAY:
 		return (sizeof(uint16_t));
 
-	case BHND_NVRAM_TYPE_INT32:
 	case BHND_NVRAM_TYPE_UINT32:
+	case BHND_NVRAM_TYPE_UINT32_ARRAY:
+	case BHND_NVRAM_TYPE_INT32:
+	case BHND_NVRAM_TYPE_INT32_ARRAY:
 		return (sizeof(uint32_t));
 
 	case BHND_NVRAM_TYPE_UINT64:
+	case BHND_NVRAM_TYPE_UINT64_ARRAY:
 	case BHND_NVRAM_TYPE_INT64:
+	case BHND_NVRAM_TYPE_INT64_ARRAY:
 		return (sizeof(uint64_t));
 	}
 
@@ -587,132 +470,83 @@ bhnd_nvram_value_size(bhnd_nvram_type type, const void *data, size_t nbytes,
 }
 
 /**
- * Iterate over all strings in the @p inp string array.
+ * Return the native host alignment for values of @p type.
+ * 
+ * @param type The type to query.
+ */
+size_t
+bhnd_nvram_type_host_align(bhnd_nvram_type type)
+{
+	switch (type) {
+	case BHND_NVRAM_TYPE_CHAR:
+	case BHND_NVRAM_TYPE_CHAR_ARRAY:
+	case BHND_NVRAM_TYPE_DATA:
+	case BHND_NVRAM_TYPE_STRING:
+	case BHND_NVRAM_TYPE_STRING_ARRAY:
+		return (_Alignof(uint8_t));
+	case BHND_NVRAM_TYPE_BOOL:
+	case BHND_NVRAM_TYPE_BOOL_ARRAY: {
+		_Static_assert(sizeof(bhnd_nvram_bool_t) == sizeof(uint8_t),
+		    "bhnd_nvram_bool_t must be uint8-representable");
+		return (_Alignof(uint8_t));
+	}
+	case BHND_NVRAM_TYPE_NULL:
+		return (1);
+	case BHND_NVRAM_TYPE_UINT8:
+	case BHND_NVRAM_TYPE_UINT8_ARRAY:
+		return (_Alignof(uint8_t));
+	case BHND_NVRAM_TYPE_UINT16:
+	case BHND_NVRAM_TYPE_UINT16_ARRAY:
+		return (_Alignof(uint16_t));
+	case BHND_NVRAM_TYPE_UINT32:
+	case BHND_NVRAM_TYPE_UINT32_ARRAY:
+		return (_Alignof(uint32_t));
+	case BHND_NVRAM_TYPE_UINT64:
+	case BHND_NVRAM_TYPE_UINT64_ARRAY:
+		return (_Alignof(uint64_t));
+	case BHND_NVRAM_TYPE_INT8:
+	case BHND_NVRAM_TYPE_INT8_ARRAY:
+		return (_Alignof(int8_t));
+	case BHND_NVRAM_TYPE_INT16:
+	case BHND_NVRAM_TYPE_INT16_ARRAY:
+		return (_Alignof(int16_t));
+	case BHND_NVRAM_TYPE_INT32:
+	case BHND_NVRAM_TYPE_INT32_ARRAY:
+		return (_Alignof(int32_t));
+	case BHND_NVRAM_TYPE_INT64:
+	case BHND_NVRAM_TYPE_INT64_ARRAY:
+		return (_Alignof(int64_t));
+	}
+
+	/* Quiesce gcc4.2 */
+	BHND_NV_PANIC("bhnd nvram type %u unknown", type);
+}
+
+/**
+ * Iterate over all strings in the @p inp string array (@see
+ * BHNF_NVRAM_TYPE_STRING_ARRAY).
  *
- * @param	inp	The string array to be iterated. This must be a buffer
- *			of one or more NUL-terminated strings --
- *			@see BHND_NVRAM_TYPE_STRING_ARRAY.
- * @param	ilen	The size, in bytes, of @p inp, including any
- *			terminating NUL character(s).
- * @param	prev	The value previously returned by
- *			bhnd_nvram_string_array_next(), or NULL to begin
- *			iteration.
+ * @param		inp	The string array to be iterated. This must be a
+ *				buffer of one or more NUL-terminated strings.
+ * @param		ilen	The size, in bytes, of @p inp, including any
+ *				terminating NUL character(s).
+ * @param		prev	The pointer previously returned by
+ *				bhnd_nvram_string_array_next(), or NULL to begin
+ *				iteration.
+* @param[in,out]	olen	If @p prev is non-NULL, @p olen must be a
+ *				pointer to the length previously returned by
+ *				bhnd_nvram_string_array_next(). On success, will
+ *				be set to the next element's length, in bytes.
  *
  * @retval non-NULL	A reference to the next NUL-terminated string
  * @retval NULL		If the end of the string array is reached.
  */
 const char *
-bhnd_nvram_string_array_next(const char *inp, size_t ilen, const char *prev)
+bhnd_nvram_string_array_next(const char *inp, size_t ilen, const char *prev,
+    size_t *olen)
 {
-	size_t nremain, plen;
-
-	if (ilen == 0)
-		return (NULL);
-
-	if (prev == NULL)
-		return (inp);
-
-	/* Advance to next value */
-	BHND_NV_ASSERT(prev >= inp, ("invalid prev pointer"));
-	BHND_NV_ASSERT(prev < (inp+ilen), ("invalid prev pointer"));
-
-	nremain = ilen - (size_t)(prev - inp);
-	plen = strnlen(prev, nremain);
-	nremain -= plen;
-
-	/* Only a trailing NUL remains? */
-	if (nremain <= 1)
-		return (NULL);
-
-	return (prev + plen + 1);
-}
-
-/**
- * Format a string representation of @p inp using @p fmt, with, writing the
- * result to @p outp.
- *
- * Refer to bhnd_nvram_val_vprintf() for full format string documentation.
- *
- * @param		fmt	The format string.
- * @param		inp	The value to be formatted.
- * @param		ilen	The size of @p inp, in bytes.
- * @param		itype	The type of @p inp.
- * @param[out]		outp	On success, the string value will be written to
- *				this buffer. This argment may be NULL if the
- *				value is not desired.
- * @param[in,out]	olen	The capacity of @p outp. On success, will be set
- *				to the actual size of the formatted string.
- *
- * @retval 0		success
- * @retval EINVAL	If @p fmt contains unrecognized format string
- *			specifiers.
- * @retval ENOMEM	If the @p outp is non-NULL, and the provided @p olen
- *			is too small to hold the encoded value.
- * @retval EFTYPE	If value coercion from @p inp to a string value via
- *			@p fmt is unsupported.
- * @retval ERANGE	If value coercion of @p value would overflow (or
- *			underflow) the representation defined by @p fmt.
- */
-int
-bhnd_nvram_value_printf(const char *fmt, const void *inp, size_t ilen,
-    bhnd_nvram_type itype, char *outp, size_t *olen, ...)
-{
-	va_list	ap;
-	int	error;
-
-	va_start(ap, olen);
-	error = bhnd_nvram_value_vprintf(fmt, inp, ilen, itype, outp, olen, ap);
-	va_end(ap);
-
-	return (error);
-}
-
-/**
- * Format a string representation of @p inp using @p fmt, with, writing the
- * result to @p outp.
- *
- * Refer to bhnd_nvram_val_vprintf() for full format string documentation.
- *
- * @param		fmt	The format string.
- * @param		inp	The value to be formatted.
- * @param		ilen	The size of @p inp, in bytes.
- * @param		itype	The type of @p inp.
- * @param[out]		outp	On success, the string value will be written to
- *				this buffer. This argment may be NULL if the
- *				value is not desired.
- * @param[in,out]	olen	The capacity of @p outp. On success, will be set
- *				to the actual size of the formatted string.
- * @param		ap	Argument list.
- *
- * @retval 0		success
- * @retval EINVAL	If @p fmt contains unrecognized format string
- *			specifiers.
- * @retval ENOMEM	If the @p outp is non-NULL, and the provided @p olen
- *			is too small to hold the encoded value.
- * @retval EFTYPE	If value coercion from @p inp to a string value via
- *			@p fmt is unsupported.
- * @retval ERANGE	If value coercion of @p value would overflow (or
- *			underflow) the representation defined by @p fmt.
- */
-int
-bhnd_nvram_value_vprintf(const char *fmt, const void *inp, size_t ilen,
-    bhnd_nvram_type itype, char *outp, size_t *olen, va_list ap)
-{
-	bhnd_nvram_val_t	val;
-	int			error;
-
-	/* Map input buffer as a value instance */
-	error = bhnd_nvram_val_init(&val, NULL, inp, ilen, itype,
-	    BHND_NVRAM_VAL_BORROW_DATA);
-	if (error)
-		return (error);
-
-	/* Attempt to format the value */
-	error = bhnd_nvram_val_vprintf(&val, fmt, outp, olen, ap);
-
-	/* Clean up */
-	bhnd_nvram_val_release(&val);
-	return (error);
+	return (bhnd_nvram_value_array_next(inp, ilen,
+	    BHND_NVRAM_TYPE_STRING_ARRAY, prev, olen));
 }
 
 /* used by bhnd_nvram_find_vardefn() */
@@ -780,89 +614,49 @@ bhnd_nvram_get_vardefn(size_t id)
  * Scans for special characters (path delimiters, value delimiters, path
  * alias prefixes), returning false if the given name cannot be used
  * as a relative NVRAM key.
- * 
+ *
  * @param name A relative NVRAM variable name to validate.
- * @param name_len The length of @p name, in bytes.
  * 
  * @retval true If @p name is a valid relative NVRAM key.
  * @retval false If @p name should not be used as a relative NVRAM key.
  */
 bool
-bhnd_nvram_validate_name(const char *name, size_t name_len)
+bhnd_nvram_validate_name(const char *name)
 {
-	size_t limit;
-
-	limit = strnlen(name, name_len);
-	if (limit == 0)
+	/* Reject path-prefixed variable names */
+	if (bhnd_nvram_trim_path_name(name) != name)
 		return (false);
 
-	/* Disallow path alias prefixes ([0-9]+:.*) */
-	if (limit >= 2 && bhnd_nv_isdigit(*name)) {
-		for (const char *p = name; (size_t)(p - name) < limit; p++) {
-			if (bhnd_nv_isdigit(*p))
-				continue;
-			else if (*p == ':')
-				return (false);
-			else
-				break;
-		}
+	/* Reject device path alias declarations (devpath[1-9][0-9]*.*\0) */
+	if (strncmp(name, "devpath", strlen("devpath")) == 0) {
+		const char	*p;
+		char		*endp;
+
+		/* Check for trailing [1-9][0-9]* */
+		p = name + strlen("devpath");
+		strtoul(p, &endp, 10);
+		if (endp != p)
+			return (false);
 	}
 
-	/* Scan for special characters */
-	for (const char *p = name; (size_t)(p - name) < limit; p++) {
+	/* Scan for [^A-Za-z_0-9] */
+	for (const char *p = name; *p != '\0'; p++) {
 		switch (*p) {
-		case '/':	/* path delimiter */
-		case '=':	/* key=value delimiter */
-			return (false);
+		/* [0-9_] */
+		case '0': case '1': case '2': case '3': case '4':
+		case '5': case '6': case '7': case '8': case '9':
+		case '_':
+			break;
 
+		/* [A-Za-z] */
 		default:
-			if (!isascii(*p) || bhnd_nv_isspace(*p))
+			if (!bhnd_nv_isalpha(*p))
 				return (false);
+			break;
 		}
 	}
 
 	return (true);
-}
-
-/**
- * Coerce value @p inp of type @p itype to @p otype, writing the
- * result to @p outp.
- *
- * @param		inp	The value to be coerced.
- * @param		ilen	The size of @p inp, in bytes.
- * @param		itype	The base data type of @p inp.
- * @param[out]		outp	On success, the value will be written to this 
- *				buffer. This argment may be NULL if the value
- *				is not desired.
- * @param[in,out]	olen	The capacity of @p outp. On success, will be set
- *				to the actual size of the requested value.
- * @param		otype	The data type to be written to @p outp.
- *
- * @retval 0		success
- * @retval ENOMEM	If @p outp is non-NULL and a buffer of @p olen is too
- *			small to hold the requested value.
- * @retval EFTYPE	If the variable data cannot be coerced to @p otype.
- * @retval ERANGE	If value coercion would overflow @p otype.
- */
-int
-bhnd_nvram_value_coerce(const void *inp, size_t ilen, bhnd_nvram_type itype,
-    void *outp, size_t *olen, bhnd_nvram_type otype)
-{
-	bhnd_nvram_val_t	val;
-	int			error;
-
-	/* Wrap input buffer in a value instance */
-	error = bhnd_nvram_val_init(&val, NULL, inp, ilen,
-	    itype, BHND_NVRAM_VAL_BORROW_DATA|BHND_NVRAM_VAL_FIXED);
-	if (error)
-		return (error);
-
-	/* Try to encode as requested type */
-	error = bhnd_nvram_val_encode(&val, outp, olen, otype);
-
-	/* Clean up and return error */
-	bhnd_nvram_val_release(&val);
-	return (error);
 }
 
 /**
@@ -1114,7 +908,7 @@ bhnd_nvram_parse_int(const char *str, size_t maxlen,  u_int base,
 		value = -value;
 
 	/* Provide (and verify) required length */
-	*olen = bhnd_nvram_value_size(otype, NULL, 0, 1);
+	*olen = bhnd_nvram_type_width(otype);
 	if (outp == NULL)
 		return (0);
 	else if (limit < *olen)
@@ -1154,6 +948,46 @@ bhnd_nvram_parse_int(const char *str, size_t maxlen,  u_int base,
 	}
 
 	return (0);
+}
+
+/**
+ * Trim leading path (pci/1/1) or path alias (0:) prefix from @p name, if any,
+ * returning a pointer to the start of the relative variable name.
+ * 
+ * @par Examples
+ * 
+ * - "/foo"		-> "foo"
+ * - "dev/pci/foo"	-> "foo"
+ * - "0:foo"		-> "foo"
+ * - "foo"		-> "foo"
+ * 
+ * @param name The string to be trimmed.
+ * 
+ * @return A pointer to the start of the relative variable name in @p name.
+ */
+const char *
+bhnd_nvram_trim_path_name(const char *name)
+{
+	char *endp;
+
+	/* path alias prefix? (0:varname) */
+	if (bhnd_nv_isdigit(*name)) {
+		/* Parse '0...:' alias prefix, if it exists */
+		strtoul(name, &endp, 10);
+		if (endp != name && *endp == ':') {
+			/* Variable name follows 0: prefix */
+			return (endp+1);
+		}
+	}
+
+	/* device path prefix? (pci/1/1/varname) */
+	if ((endp = strrchr(name, '/')) != NULL) {
+		/* Variable name follows the final path separator '/' */
+		return (endp+1);
+	}
+
+	/* variable name is not prefixed */
+	return (name);
 }
 
 /**

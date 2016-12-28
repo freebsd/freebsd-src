@@ -522,6 +522,9 @@ ig4iic_attach(ig4iic_softc_t *sc)
 	int error;
 	uint32_t v;
 
+	mtx_init(&sc->io_lock, "IG4 I/O lock", NULL, MTX_DEF);
+	sx_init(&sc->call_lock, "IG4 call lock");
+
 	v = reg_read(sc, IG4_REG_COMP_TYPE);
 	v = reg_read(sc, IG4_REG_COMP_PARAM1);
 	v = reg_read(sc, IG4_REG_GENERAL);
@@ -664,6 +667,10 @@ ig4iic_detach(ig4iic_softc_t *sc)
 
 	mtx_unlock(&sc->io_lock);
 	sx_xunlock(&sc->call_lock);
+
+	mtx_destroy(&sc->io_lock);
+	sx_destroy(&sc->call_lock);
+
 	return (0);
 }
 
@@ -731,4 +738,5 @@ ig4iic_dump(ig4iic_softc_t *sc)
 }
 #undef REGDUMP
 
-DRIVER_MODULE(iicbus, ig4iic, iicbus_driver, iicbus_devclass, NULL, NULL);
+DRIVER_MODULE(iicbus, ig4iic_acpi, iicbus_driver, iicbus_devclass, NULL, NULL);
+DRIVER_MODULE(iicbus, ig4iic_pci, iicbus_driver, iicbus_devclass, NULL, NULL);

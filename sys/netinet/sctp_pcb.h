@@ -353,7 +353,6 @@ struct sctp_pcbtsn_rlog {
 	uint16_t sz;
 	uint16_t flgs;
 };
-
 #define SCTP_READ_LOG_SIZE 135	/* we choose the number to make a pcb a page */
 
 
@@ -490,7 +489,6 @@ VNET_DECLARE(struct sctp_base_info, system_base_info);
 
 #ifdef INET6
 int SCTP6_ARE_ADDR_EQUAL(struct sockaddr_in6 *a, struct sockaddr_in6 *b);
-
 #endif
 
 void sctp_fill_pcbinfo(struct sctp_pcbinfo *);
@@ -646,7 +644,6 @@ sctp_initiate_iterator(inp_func inpf,
     end_func ef,
     struct sctp_inpcb *,
     uint8_t co_off);
-
 #if defined(__FreeBSD__) && defined(SCTP_MCORE_INPUT) && defined(SMP)
 void
      sctp_queue_to_mcore(struct mbuf *m, int off, int cpu_to_use);

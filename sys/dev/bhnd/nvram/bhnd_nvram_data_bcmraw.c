@@ -72,26 +72,26 @@ struct bhnd_nvram_bcmraw {
 };
 
 BHND_NVRAM_DATA_CLASS_DEFN(bcmraw, "Broadcom (RAW)",
-   sizeof(struct bhnd_nvram_bcmraw))
+    BHND_NVRAM_DATA_CAP_DEVPATHS, sizeof(struct bhnd_nvram_bcmraw))
 
 static int
 bhnd_nvram_bcmraw_probe(struct bhnd_nvram_io *io)
 {
 	char	 envp[16];
 	size_t	 envp_len;
+	size_t	 io_size;
 	int	 error;
 
+	io_size = bhnd_nvram_io_getsize(io);
+
 	/*
-	 * Fetch the initial bytes to try to identify BCM data.
-	 * 
-	 * We always assert a low probe priority, as we only scan the initial
-	 * bytes of the file.
+	 * Fetch initial bytes
 	 */
-	envp_len = bhnd_nv_ummin(sizeof(envp), bhnd_nvram_io_getsize(io));
+	envp_len = bhnd_nv_ummin(sizeof(envp), io_size);
 	if ((error = bhnd_nvram_io_read(io, 0x0, envp, envp_len)))
 		return (error);
 
-	/* A zero-length BCM-RAW buffer should contain a single terminating
+	/* An empty BCM-RAW buffer should still contain a single terminating
 	 * NUL */
 	if (envp_len == 0)
 		return (ENXIO);
@@ -103,21 +103,130 @@ bhnd_nvram_bcmraw_probe(struct bhnd_nvram_io *io)
 		return (BHND_NVRAM_DATA_PROBE_MAYBE);
 	}
 
-	/* Don't match on non-ASCII, non-printable data */
+	/* Must contain only printable ASCII characters delimited
+	 * by NUL record delimiters */
 	for (size_t i = 0; i < envp_len; i++) {
 		char c = envp[i];
-		if (envp[i] == '\0')
-			break;
 
-		if (!bhnd_nv_isprint(c))
+		/* If we hit a newline, this is probably BCM-TXT */
+		if (c == '\n')
 			return (ENXIO);
+
+		if (c == '\0' && !bhnd_nv_isprint(c))
+			continue;
 	}
 
-	/* The first character should be a valid key char */
-	if (!bhnd_nv_isalpha(envp[0]))
+	/* A valid BCM-RAW buffer should contain a terminating NUL for
+	 * the last record, followed by a final empty record terminated by
+	 * NUL */
+	envp_len = 2;
+	if (io_size < envp_len)
 		return (ENXIO);
 
-	return (BHND_NVRAM_DATA_PROBE_MAYBE);
+	if ((error = bhnd_nvram_io_read(io, io_size-envp_len, envp, envp_len)))
+		return (error);
+
+	if (envp[0] != '\0' || envp[1] != '\0')
+		return (ENXIO);
+
+	return (BHND_NVRAM_DATA_PROBE_MAYBE + 1);
+}
+
+static int
+bhnd_nvram_bcmraw_serialize(bhnd_nvram_data_class *cls, bhnd_nvram_plist *props,
+    bhnd_nvram_plist *options, void *outp, size_t *olen)
+{
+	bhnd_nvram_prop	*prop;
+	size_t		 limit, nbytes;
+	int		 error;
+
+	/* Determine output byte limit */
+	if (outp != NULL)
+		limit = *olen;
+	else
+		limit = 0;
+
+	nbytes = 0;
+
+	/* Write all properties */
+	prop = NULL;
+	while ((prop = bhnd_nvram_plist_next(props, prop)) != NULL) {
+		const char	*name;
+		char		*p;
+		size_t		 prop_limit;
+		size_t		 name_len, value_len;
+
+		if (outp == NULL || limit < nbytes) {
+			p = NULL;
+			prop_limit = 0;
+		} else {
+			p = ((char *)outp) + nbytes;
+			prop_limit = limit - nbytes;
+		}
+
+		/* Fetch and write name + '=' to output */
+		name = bhnd_nvram_prop_name(prop);
+		name_len = strlen(name) + 1;
+
+		if (prop_limit > name_len) {
+			memcpy(p, name, name_len - 1);
+			p[name_len - 1] = '=';
+
+			prop_limit -= name_len;
+			p += name_len;
+		} else {
+			prop_limit = 0;
+			p = NULL;
+		}
+
+		/* Advance byte count */
+		if (SIZE_MAX - nbytes < name_len)
+			return (EFTYPE); /* would overflow size_t */
+
+		nbytes += name_len;
+
+		/* Attempt to write NUL-terminated value to output */
+		value_len = prop_limit;
+		error = bhnd_nvram_prop_encode(prop, p, &value_len,
+		    BHND_NVRAM_TYPE_STRING);
+
+		/* If encoding failed for any reason other than ENOMEM (which
+		 * we'll detect and report after encoding all properties),
+		 * return immediately */
+		if (error && error != ENOMEM) {
+			BHND_NV_LOG("error serializing %s to required type "
+			    "%s: %d\n", name,
+			    bhnd_nvram_type_name(BHND_NVRAM_TYPE_STRING),
+			    error);
+			return (error);
+		}
+
+		/* Advance byte count */
+		if (SIZE_MAX - nbytes < value_len)
+			return (EFTYPE); /* would overflow size_t */
+
+		nbytes += value_len;
+	}
+
+	/* Write terminating '\0' */
+	if (limit > nbytes)
+		*((char *)outp + nbytes) = '\0';
+
+	if (nbytes == SIZE_MAX)
+		return (EFTYPE); /* would overflow size_t */
+	else
+		nbytes++;
+
+	/* Provide required length */
+	*olen = nbytes;
+	if (limit < *olen) {
+		if (outp == NULL)
+			return (0);
+
+		return (ENOMEM);
+	}
+
+	return (0);
 }
 
 /**
@@ -237,79 +346,18 @@ bhnd_nvram_bcmraw_free(struct bhnd_nvram_data *nv)
 		bhnd_nv_free(bcm->data);
 }
 
+static bhnd_nvram_plist *
+bhnd_nvram_bcmraw_options(struct bhnd_nvram_data *nv)
+{
+	return (NULL);
+}
+
 static size_t
 bhnd_nvram_bcmraw_count(struct bhnd_nvram_data *nv)
 {
 	struct bhnd_nvram_bcmraw *bcm = (struct bhnd_nvram_bcmraw *)nv;
 
 	return (bcm->count);
-}
-
-static int
-bhnd_nvram_bcmraw_size(struct bhnd_nvram_data *nv, size_t *size)
-{
-	return (bhnd_nvram_bcmraw_serialize(nv, NULL, size));
-}
-
-static int
-bhnd_nvram_bcmraw_serialize(struct bhnd_nvram_data *nv, void *buf, size_t *len)
-{
-	struct bhnd_nvram_bcmraw	*bcm;
-	char * const			 p = (char *)buf;
-	size_t				 limit;
-	size_t				 offset;
-
-	bcm = (struct bhnd_nvram_bcmraw *)nv;
-
-	/* Save the output buffer limit */
-	if (buf == NULL)
-		limit = 0;
-	else
-		limit = *len;
-
-	/* The serialized form will be exactly the length
-	 * of our backing buffer representation */
-	*len = bcm->size;
-
-	/* Skip serialization if not requested, or report ENOMEM if
-	 * buffer is too small */
-	if (buf == NULL) {
-		return (0);
-	} else if (*len > limit) {
-		return (ENOMEM);
-	}
-
-	/* Write all variables to the output buffer */
-	memcpy(buf, bcm->data, *len);
-
-	/* Rewrite all '\0' delimiters back to '=' */
-	offset = 0;
-	while (offset < bcm->size) {
-		size_t name_len, value_len;
-
-		name_len = strlen(p + offset);
-
-		/* EOF? */
-		if (name_len == 0) {
-			BHND_NV_ASSERT(*(p + offset) == '\0',
-			    ("no NUL terminator"));
-
-			offset++;
-			break;
-		}
-
-		/* Rewrite 'name\0' to 'name=' */
-		offset += name_len;
-		BHND_NV_ASSERT(*(p + offset) == '\0', ("incorrect offset"));
-
-		*(p + offset) = '=';
-		offset++;
-
-		value_len = strlen(p + offset);
-		offset += value_len + 1;
-	}
-
-	return (0);
 }
 
 static uint32_t
@@ -351,10 +399,30 @@ bhnd_nvram_bcmraw_find(struct bhnd_nvram_data *nv, const char *name)
 }
 
 static int
+bhnd_nvram_bcmraw_getvar_order(struct bhnd_nvram_data *nv, void *cookiep1,
+    void *cookiep2)
+{
+	if (cookiep1 < cookiep2)
+		return (-1);
+
+	if (cookiep1 > cookiep2)
+		return (1);
+
+	return (0);
+}
+
+static int
 bhnd_nvram_bcmraw_getvar(struct bhnd_nvram_data *nv, void *cookiep, void *buf,
     size_t *len, bhnd_nvram_type type)
 {
 	return (bhnd_nvram_data_generic_rp_getvar(nv, cookiep, buf, len, type));
+}
+
+static int
+bhnd_nvram_bcmraw_copy_val(struct bhnd_nvram_data *nv, void *cookiep,
+    bhnd_nvram_val **value)
+{
+	return (bhnd_nvram_data_generic_rp_copy_val(nv, cookiep, value));
 }
 
 static const void *
@@ -377,4 +445,33 @@ bhnd_nvram_bcmraw_getvar_name(struct bhnd_nvram_data *nv, void *cookiep)
 {
 	/* Cookie points to key\0value\0 */
 	return (cookiep);
+}
+
+static int
+bhnd_nvram_bcmraw_filter_setvar(struct bhnd_nvram_data *nv, const char *name,
+    bhnd_nvram_val *value, bhnd_nvram_val **result)
+{
+	bhnd_nvram_val	*str;
+	int		 error;
+
+	/* Name (trimmed of any path prefix) must be valid */
+	if (!bhnd_nvram_validate_name(bhnd_nvram_trim_path_name(name)))
+		return (EINVAL);
+
+	/* Value must be bcm-formatted string */
+	error = bhnd_nvram_val_convert_new(&str, &bhnd_nvram_val_bcm_string_fmt,
+	    value, BHND_NVRAM_VAL_DYNAMIC);
+	if (error)
+		return (error);
+
+	/* Success. Transfer result ownership to the caller. */
+	*result = str;
+	return (0);
+}
+
+static int
+bhnd_nvram_bcmraw_filter_unsetvar(struct bhnd_nvram_data *nv, const char *name)
+{
+	/* We permit deletion of any variable */
+	return (0);
 }

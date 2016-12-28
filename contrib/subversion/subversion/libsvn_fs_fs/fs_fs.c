@@ -492,6 +492,7 @@ read_format(int *pformat,
       svn_error_clear(err);
       *pformat = 1;
       *max_files_per_dir = 0;
+      *use_log_addressing = FALSE;
 
       return SVN_NO_ERROR;
     }

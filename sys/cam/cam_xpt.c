@@ -1115,7 +1115,7 @@ xpt_denounce_periph(struct cam_periph *periph)
 int
 xpt_getattr(char *buf, size_t len, const char *attr, struct cam_path *path)
 {
-	int ret = -1, l;
+	int ret = -1, l, o;
 	struct ccb_dev_advinfo cdai;
 	struct scsi_vpd_id_descriptor *idd;
 
@@ -1124,6 +1124,7 @@ xpt_getattr(char *buf, size_t len, const char *attr, struct cam_path *path)
 	memset(&cdai, 0, sizeof(cdai));
 	xpt_setup_ccb(&cdai.ccb_h, path, CAM_PRIORITY_NORMAL);
 	cdai.ccb_h.func_code = XPT_DEV_ADVINFO;
+	cdai.flags = CDAI_FLAG_NONE;
 	cdai.bufsiz = len;
 
 	if (!strcmp(attr, "GEOM::ident"))
@@ -1154,6 +1155,12 @@ xpt_getattr(char *buf, size_t len, const char *attr, struct cam_path *path)
 			if (idd == NULL)
 				idd = scsi_get_devid((struct scsi_vpd_device_id *)cdai.buf,
 				    cdai.provsiz, scsi_devid_is_lun_eui64);
+			if (idd == NULL)
+				idd = scsi_get_devid((struct scsi_vpd_device_id *)cdai.buf,
+				    cdai.provsiz, scsi_devid_is_lun_uuid);
+			if (idd == NULL)
+				idd = scsi_get_devid((struct scsi_vpd_device_id *)cdai.buf,
+				    cdai.provsiz, scsi_devid_is_lun_md5);
 		} else
 			idd = NULL;
 		if (idd == NULL)
@@ -1178,6 +1185,17 @@ xpt_getattr(char *buf, size_t len, const char *attr, struct cam_path *path)
 			if (l < len) {
 				bcopy(idd->identifier, buf, l);
 				buf[l] = 0;
+			} else
+				ret = EFAULT;
+		} else if ((idd->id_type & SVPD_ID_TYPE_MASK) == SVPD_ID_TYPE_UUID
+		    && idd->identifier[0] == 0x10) {
+			if ((idd->length - 2) * 2 + 4 < len) {
+				for (l = 2, o = 0; l < idd->length; l++) {
+					if (l == 6 || l == 8 || l == 10 || l == 12)
+					    o += sprintf(buf + o, "-");
+					o += sprintf(buf + o, "%02x",
+					    idd->identifier[l]);
+				}
 			} else
 				ret = EFAULT;
 		} else {

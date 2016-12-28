@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <fcntl.h>
 #include <fstab.h>
 #include <libufs.h>
+#include <mntopts.h>
 #include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -93,9 +94,11 @@ main(int argc, char *argv[])
 	int kvalue, Lflag, lflag, mflag, mvalue, Nflag, nflag, oflag, ovalue;
 	int pflag, sflag, svalue, Svalue, tflag;
 	int ch, found_arg, i;
+	int iovlen = 0;
 	const char *chg[2];
-	struct ufs_args args;
 	struct statfs stfs;
+	struct iovec *iov = NULL;
+	char errmsg[255] = {0};
 
 	if (argc < 3)
 		usage();
@@ -556,10 +559,16 @@ main(int argc, char *argv[])
 		goto err;
 	ufs_disk_close(&disk);
 	if (active) {
-		bzero(&args, sizeof(args));
-		if (mount("ufs", on,
-		    stfs.f_flags | MNT_UPDATE | MNT_RELOAD, &args) < 0)
-			err(9, "%s: reload", special);
+		build_iovec_argf(&iov, &iovlen, "fstype", "ufs");
+		build_iovec_argf(&iov, &iovlen, "fspath", "%s", on);
+		build_iovec(&iov, &iovlen, "errmsg", errmsg, sizeof(errmsg));
+		if (nmount(iov, iovlen,
+		    stfs.f_flags | MNT_UPDATE | MNT_RELOAD) < 0) {
+			if (errmsg[0])
+				err(9, "%s: reload: %s", special, errmsg);
+			else
+				err(9, "%s: reload", special);
+		}
 		warnx("file system reloaded");
 	}
 	exit(0);

@@ -30,6 +30,7 @@
 #define _VMBUS_VAR_H_
 
 #include <sys/param.h>
+#include <sys/kernel.h>
 #include <sys/taskqueue.h>
 #include <sys/rman.h>
 
@@ -92,7 +93,7 @@ struct vmbus_softc {
 
 	u_long			*vmbus_rx_evtflags;
 						/* compat evtflgs from host */
-	struct vmbus_channel	**vmbus_chmap;
+	struct vmbus_channel *volatile *vmbus_chmap;
 	struct vmbus_xact_ctx	*vmbus_xc;
 	struct vmbus_pcpu_data	vmbus_pcpu[MAXCPU];
 
@@ -128,6 +129,8 @@ struct vmbus_softc {
 	struct mtx		vmbus_chan_lock;
 	TAILQ_HEAD(, vmbus_channel) vmbus_chans;
 
+	struct intr_config_hook	vmbus_intrhook;
+
 #ifdef NEW_PCIB
 	/* The list of usable MMIO ranges for PCIe pass-through */
 	struct pcib_host_resources vmbus_mmio_res;
@@ -157,8 +160,13 @@ void		vmbus_msghc_put(struct vmbus_softc *, struct vmbus_msghc *);
 void		*vmbus_msghc_dataptr(struct vmbus_msghc *);
 int		vmbus_msghc_exec_noresult(struct vmbus_msghc *);
 int		vmbus_msghc_exec(struct vmbus_softc *, struct vmbus_msghc *);
+void		vmbus_msghc_exec_cancel(struct vmbus_softc *,
+		    struct vmbus_msghc *);
 const struct vmbus_message *
 		vmbus_msghc_wait_result(struct vmbus_softc *,
+		    struct vmbus_msghc *);
+const struct vmbus_message *
+		vmbus_msghc_poll_result(struct vmbus_softc *,
 		    struct vmbus_msghc *);
 void		vmbus_msghc_wakeup(struct vmbus_softc *,
 		    const struct vmbus_message *);

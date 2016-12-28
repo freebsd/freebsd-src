@@ -47,7 +47,7 @@ static const efx_phy_ops_t	__efx_phy_siena_ops = {
 #endif	/* EFSYS_OPT_PHY_STATS */
 #if EFSYS_OPT_BIST
 	NULL,				/* epo_bist_enable_offline */
-	siena_phy_bist_start, 		/* epo_bist_start */
+	siena_phy_bist_start,		/* epo_bist_start */
 	siena_phy_bist_poll,		/* epo_bist_poll */
 	siena_phy_bist_stop,		/* epo_bist_stop */
 #endif	/* EFSYS_OPT_BIST */
@@ -336,8 +336,8 @@ fail1:
 
 #if EFSYS_OPT_NAMES
 
-/* START MKCONFIG GENERATED PhyStatNamesBlock d5f79b4bc2c050fe */
-static const char 	*__efx_phy_stat_name[] = {
+/* START MKCONFIG GENERATED PhyStatNamesBlock af9ffa24da3bc100 */
+static const char * const __efx_phy_stat_name[] = {
 	"oui",
 	"pma_pmd_link_up",
 	"pma_pmd_rx_fault",

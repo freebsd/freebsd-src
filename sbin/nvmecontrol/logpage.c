@@ -113,7 +113,7 @@ uint128_to_str(uint128_t u, char *buf, size_t buflen)
 	return end;
 }
 
-/* "fMissing" from endian.h */
+/* "Missing" from endian.h */
 static __inline uint64_t
 le48dec(const void *pp)
 {
@@ -324,6 +324,47 @@ print_intel_temp_stats(void *buf, uint32_t size __unused)
 	printf("Estimated Temperature Offset:   %ju C/K\n", (uintmax_t)temp->est_offset);
 }
 
+/*
+ * Format from Table 22, section 5.7 IO Command Latency Statistics.
+ * Read and write stats pages have identical encoding.
+ */
+static void
+print_intel_read_write_lat_log(void *buf, uint32_t size __unused)
+{
+	const char *walker = buf;
+	int i;
+
+	printf("Major:                         %d\n", le16dec(walker + 0));
+	printf("Minor:                         %d\n", le16dec(walker + 2));
+	for (i = 0; i < 32; i++)
+		printf("%4dus-%4dus:                 %ju\n", i * 32, (i + 1) * 32, (uintmax_t)le32dec(walker + 4 + i * 4));
+	for (i = 1; i < 32; i++)
+		printf("%4dms-%4dms:                 %ju\n", i, i + 1, (uintmax_t)le32dec(walker + 132 + i * 4));
+	for (i = 1; i < 32; i++)
+		printf("%4dms-%4dms:                 %ju\n", i * 32, (i + 1) * 32, (uintmax_t)le32dec(walker + 256 + i * 4));
+}
+
+static void
+print_intel_read_lat_log(void *buf, uint32_t size)
+{
+
+	printf("Intel Read Latency Log\n");
+	printf("======================\n");
+	print_intel_read_write_lat_log(buf, size);
+}
+
+static void
+print_intel_write_lat_log(void *buf, uint32_t size)
+{
+
+	printf("Intel Write Latency Log\n");
+	printf("=======================\n");
+	print_intel_read_write_lat_log(buf, size);
+}
+
+/*
+ * Table 19. 5.4 SMART Attributes
+ */
 static void
 print_intel_add_smart(void *buf, uint32_t size __unused)
 {
@@ -793,23 +834,27 @@ print_hgst_info_log(void *buf, uint32_t size __unused)
  */
 static struct logpage_function {
 	uint8_t		log_page;
+	const char     *vendor;
 	print_fn_t	print_fn;
 	size_t		size;
 } logfuncs[] = {
-	{NVME_LOG_ERROR,		print_log_error,
+	{NVME_LOG_ERROR,		NULL,	print_log_error,
 	 0},
-	{NVME_LOG_HEALTH_INFORMATION,	print_log_health,
+	{NVME_LOG_HEALTH_INFORMATION,	NULL,	print_log_health,
 	 sizeof(struct nvme_health_information_page)},
-	{NVME_LOG_FIRMWARE_SLOT,	print_log_firmware,
+	{NVME_LOG_FIRMWARE_SLOT,	NULL,	print_log_firmware,
 	 sizeof(struct nvme_firmware_page)},
-	{INTEL_LOG_TEMP_STATS,		print_intel_temp_stats,
+	{HGST_INFO_LOG,			"hgst",	print_hgst_info_log,
+	 DEFAULT_SIZE},
+	{INTEL_LOG_TEMP_STATS,		"intel", print_intel_temp_stats,
 	 sizeof(struct intel_log_temp_stats)},
-	{INTEL_LOG_ADD_SMART,		print_intel_add_smart,
+	{INTEL_LOG_READ_LAT_LOG,	"intel", print_intel_read_lat_log,
 	 DEFAULT_SIZE},
-	{HGST_INFO_LOG,			print_hgst_info_log,
+	{INTEL_LOG_WRITE_LAT_LOG,	"intel", print_intel_write_lat_log,
 	 DEFAULT_SIZE},
-	{0,				NULL,
-	 0},
+	{INTEL_LOG_ADD_SMART,		"intel", print_intel_add_smart,
+	 DEFAULT_SIZE},
+	{0,				NULL,	NULL,	 0},
 };
 
 static void
@@ -830,11 +875,12 @@ logpage(int argc, char *argv[])
 	char				cname[64];
 	uint32_t			size;
 	void				*buf;
+	const char			*vendor = NULL;
 	struct logpage_function		*f;
 	struct nvme_controller_data	cdata;
 	print_fn_t			print_fn;
 
-	while ((ch = getopt(argc, argv, "p:x")) != -1) {
+	while ((ch = getopt(argc, argv, "p:xv:")) != -1) {
 		switch (ch) {
 		case 'p':
 			/* TODO: Add human-readable ASCII page IDs */
@@ -849,6 +895,9 @@ logpage(int argc, char *argv[])
 			break;
 		case 'x':
 			hexflag = true;
+			break;
+		case 'v':
+			vendor = optarg;
 			break;
 		}
 	}
@@ -893,18 +942,21 @@ logpage(int argc, char *argv[])
 	size = DEFAULT_SIZE;
 	if (!hexflag) {
 		/*
-		 * See if there is a pretty print function for the
-		 *  specified log page.  If one isn't found, we
-		 *  just revert to the default (print_hex).
+		 * See if there is a pretty print function for the specified log
+		 * page.  If one isn't found, we just revert to the default
+		 * (print_hex). If there was a vendor specified bt the user, and
+		 * the page is vendor specific, don't match the print function
+		 * unless the vendors match.
 		 */
-		f = logfuncs;
-		while (f->log_page > 0) {
-			if (log_page == f->log_page) {
-				print_fn = f->print_fn;
-				size = f->size;
-				break;
-			}
-			f++;
+		for (f = logfuncs; f->log_page > 0; f++) {
+			if (f->vendor != NULL && vendor != NULL &&
+			    strcmp(f->vendor, vendor) != 0)
+				continue;
+			if (log_page != f->log_page)
+				continue;
+			print_fn = f->print_fn;
+			size = f->size;
+			break;
 		}
 	}
 

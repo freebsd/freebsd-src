@@ -373,10 +373,10 @@ db_search_symbol(db_addr_t val, db_strategy_t strategy, db_expr_t *offp)
 	register int	i;
 	c_db_sym_t	ret = C_DB_SYM_NULL, sym;
 
-	newdiff = diff = ~0;
+	newdiff = diff = val;
 	for (i = 0; i < db_nsymtab; i++) {
 	    sym = X_db_search_symbol(&db_symtabs[i], val, strategy, &newdiff);
-	    if (newdiff < diff) {
+	    if ((uintmax_t)newdiff < (uintmax_t)diff) {
 		db_last_symtab = &db_symtabs[i];
 		diff = newdiff;
 		ret = sym;

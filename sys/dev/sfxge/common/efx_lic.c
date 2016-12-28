@@ -456,7 +456,7 @@ fail1:
  *  Value (V):  L bytes - payload
  */
 #define EFX_LICENSE_V1V2_PAYLOAD_LENGTH_MAX    (256)
-#define EFX_LICENSE_V1V2_HEADER_LENGTH         (2*sizeof(uint16_t))
+#define EFX_LICENSE_V1V2_HEADER_LENGTH         (2 * sizeof(uint16_t))
 
 	__checkReturn		efx_rc_t
 efx_lic_v1v2_find_start(
@@ -509,8 +509,8 @@ efx_lic_v1v2_find_key(
 	if ((size_t)buffer_size - offset < EFX_LICENSE_V1V2_HEADER_LENGTH)
 		goto fail1;
 
-	tlv_type = __LE_TO_CPU_16(((uint16_t*)&bufferp[offset])[0]);
-	tlv_length = __LE_TO_CPU_16(((uint16_t*)&bufferp[offset])[1]);
+	tlv_type = __LE_TO_CPU_16(((uint16_t *)&bufferp[offset])[0]);
+	tlv_length = __LE_TO_CPU_16(((uint16_t *)&bufferp[offset])[1]);
 	if ((tlv_length > EFX_LICENSE_V1V2_PAYLOAD_LENGTH_MAX) ||
 	    (tlv_type == 0 && tlv_length == 0)) {
 		found = B_FALSE;
@@ -543,8 +543,8 @@ efx_lic_v1v2_validate_key(
 		goto fail1;
 	}
 
-	tlv_type = __LE_TO_CPU_16(((uint16_t*)keyp)[0]);
-	tlv_length = __LE_TO_CPU_16(((uint16_t*)keyp)[1]);
+	tlv_type = __LE_TO_CPU_16(((uint16_t *)keyp)[0]);
+	tlv_length = __LE_TO_CPU_16(((uint16_t *)keyp)[1]);
 
 	if (tlv_length > EFX_LICENSE_V1V2_PAYLOAD_LENGTH_MAX) {
 		goto fail2;
@@ -625,9 +625,9 @@ efx_lic_v1v2_write_key(
 	EFSYS_ASSERT(length <= (EFX_LICENSE_V1V2_PAYLOAD_LENGTH_MAX +
 	    EFX_LICENSE_V1V2_HEADER_LENGTH));
 
-	// Ensure space for terminator remains
+	/* Ensure space for terminator remains */
 	if ((offset + length) >
-	    (buffer_size - EFX_LICENSE_V1V2_HEADER_LENGTH) ) {
+	    (buffer_size - EFX_LICENSE_V1V2_HEADER_LENGTH)) {
 		rc = ENOSPC;
 		goto fail1;
 	}
@@ -662,7 +662,7 @@ efx_lic_v1v2_delete_key(
 	_NOTE(ARGUNUSED(enp))
 	EFSYS_ASSERT(end <= buffer_size);
 
-	// Shift everything after the key down
+	/* Shift everything after the key down */
 	memmove(bufferp + offset, bufferp + move_start, move_length);
 
 	*deltap = length;
@@ -681,7 +681,7 @@ efx_lic_v1v2_create_partition(
 	_NOTE(ARGUNUSED(enp))
 	EFSYS_ASSERT(EFX_LICENSE_V1V2_HEADER_LENGTH <= buffer_size);
 
-	// Write terminator
+	/* Write terminator */
 	memset(bufferp, '\0', EFX_LICENSE_V1V2_HEADER_LENGTH);
 	return (0);
 }
@@ -1082,9 +1082,10 @@ efx_mcdi_licensing_v3_get_id(
 	} else {
 		/* Shift ID down to start of buffer */
 		memmove(bufferp,
-		  bufferp+MC_CMD_LICENSING_GET_ID_V3_OUT_LICENSE_ID_OFST,
-		  *lengthp);
-		memset(bufferp+(*lengthp), 0, MC_CMD_LICENSING_GET_ID_V3_OUT_LICENSE_ID_OFST);
+		    bufferp + MC_CMD_LICENSING_GET_ID_V3_OUT_LICENSE_ID_OFST,
+		    *lengthp);
+		memset(bufferp + (*lengthp), 0,
+		    MC_CMD_LICENSING_GET_ID_V3_OUT_LICENSE_ID_OFST);
 	}
 
 	return (0);
@@ -1154,7 +1155,7 @@ efx_lic_v3_validate_key(
 	__in			uint32_t length
 	)
 {
-	// Check key is a valid V3 key
+	/* Check key is a valid V3 key */
 	uint8_t key_type;
 	uint8_t key_length;
 
@@ -1168,8 +1169,8 @@ efx_lic_v3_validate_key(
 		goto fail2;
 	}
 
-	key_type = ((uint8_t*)keyp)[0];
-	key_length = ((uint8_t*)keyp)[1];
+	key_type = ((uint8_t *)keyp)[0];
+	key_length = ((uint8_t *)keyp)[1];
 
 	if (key_type < 3) {
 		goto fail3;
@@ -1271,7 +1272,7 @@ efx_lic_v3_create_partition(
 {
 	efx_rc_t rc;
 
-	// Construct empty partition
+	/* Construct empty partition */
 	if ((rc = ef10_nvram_buffer_create(enp,
 	    NVRAM_PARTITION_TYPE_LICENSE,
 	    bufferp, buffer_size)) != 0) {
@@ -1302,7 +1303,7 @@ efx_lic_v3_finish_partition(
 		goto fail1;
 	}
 
-	// Validate completed partition
+	/* Validate completed partition */
 	if ((rc = ef10_nvram_buffer_validate(enp, NVRAM_PARTITION_TYPE_LICENSE,
 					bufferp, buffer_size)) != 0) {
 		goto fail2;

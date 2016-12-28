@@ -329,7 +329,7 @@ efx_tx_qcreate(
 
 	if ((rc = etxop->etxo_qcreate(enp, index, label, esmp,
 	    n, id, flags, eep, etp, addedp)) != 0)
-			goto fail2;
+		goto fail2;
 
 	enp->en_tx_qcount++;
 	*etpp = etp;
@@ -1029,8 +1029,8 @@ siena_tx_qdesc_dma_create(
 
 #if EFSYS_OPT_QSTATS
 #if EFSYS_OPT_NAMES
-/* START MKCONFIG GENERATED EfxTransmitQueueStatNamesBlock 9d8d26a0a5e2c453 */
-static const char 	*__efx_tx_qstat_name[] = {
+/* START MKCONFIG GENERATED EfxTransmitQueueStatNamesBlock 2866874ecd7a363b */
+static const char * const __efx_tx_qstat_name[] = {
 	"post",
 	"post_pio",
 };

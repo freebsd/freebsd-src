@@ -65,9 +65,9 @@ __FBSDID("$FreeBSD$");
 #include <cam/ctl/ctl_private.h>
 
 void
-ctl_set_sense_data_va(struct scsi_sense_data *sense_data, void *lunptr,
-		      scsi_sense_data_type sense_format, int current_error,
-		      int sense_key, int asc, int ascq, va_list ap) 
+ctl_set_sense_data_va(struct scsi_sense_data *sense_data, u_int *sense_len,
+    void *lunptr, scsi_sense_data_type sense_format, int current_error,
+    int sense_key, int asc, int ascq, va_list ap)
 {
 	struct ctl_lun *lun;
 
@@ -83,27 +83,36 @@ ctl_set_sense_data_va(struct scsi_sense_data *sense_data, void *lunptr,
 		 * sense if the LUN exists and descriptor sense is turned
 		 * on for that LUN.
 		 */
-		if ((lun != NULL)
-		 && (lun->flags & CTL_LUN_SENSE_DESC))
+		if ((lun != NULL) && (lun->MODE_CTRL.rlec & SCP_DSENSE))
 			sense_format = SSD_TYPE_DESC;
 		else
 			sense_format = SSD_TYPE_FIXED;
 	}
 
-	scsi_set_sense_data_va(sense_data, sense_format, current_error,
-			       sense_key, asc, ascq, ap);
+	/*
+	 * Determine maximum sense data length to return.
+	 */
+	if (*sense_len == 0) {
+		if ((lun != NULL) && (lun->MODE_CTRLE.max_sense != 0))
+			*sense_len = lun->MODE_CTRLE.max_sense;
+		else
+			*sense_len = SSD_FULL_SIZE;
+	}
+
+	scsi_set_sense_data_va(sense_data, sense_len, sense_format,
+	    current_error, sense_key, asc, ascq, ap);
 }
 
 void
-ctl_set_sense_data(struct scsi_sense_data *sense_data, void *lunptr,
-		   scsi_sense_data_type sense_format, int current_error,
-		   int sense_key, int asc, int ascq, ...) 
+ctl_set_sense_data(struct scsi_sense_data *sense_data, u_int *sense_len,
+    void *lunptr, scsi_sense_data_type sense_format, int current_error,
+    int sense_key, int asc, int ascq, ...)
 {
 	va_list ap;
 
 	va_start(ap, ascq);
-	ctl_set_sense_data_va(sense_data, lunptr, sense_format, current_error,
-			      sense_key, asc, ascq, ap);
+	ctl_set_sense_data_va(sense_data, sense_len, lunptr, sense_format,
+	    current_error, sense_key, asc, ascq, ap);
 	va_end(ap);
 }
 
@@ -113,6 +122,7 @@ ctl_set_sense(struct ctl_scsiio *ctsio, int current_error, int sense_key,
 {
 	va_list ap;
 	struct ctl_lun *lun;
+	u_int sense_len;
 
 	/*
 	 * The LUN can't go away until all of the commands have been
@@ -122,7 +132,8 @@ ctl_set_sense(struct ctl_scsiio *ctsio, int current_error, int sense_key,
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 
 	va_start(ap, ascq);
-	ctl_set_sense_data_va(&ctsio->sense_data,
+	sense_len = 0;
+	ctl_set_sense_data_va(&ctsio->sense_data, &sense_len,
 			      lun,
 			      SSD_TYPE_NONE,
 			      current_error,
@@ -133,7 +144,7 @@ ctl_set_sense(struct ctl_scsiio *ctsio, int current_error, int sense_key,
 	va_end(ap);
 
 	ctsio->scsi_status = SCSI_STATUS_CHECK_COND;
-	ctsio->sense_len = SSD_FULL_SIZE;
+	ctsio->sense_len = sense_len;
 	ctsio->io_hdr.status = CTL_SCSI_ERROR | CTL_AUTOSENSE;
 }
 
@@ -149,6 +160,7 @@ ctl_sense_to_desc(struct scsi_sense_data_fixed *sense_src,
 {
 	struct scsi_sense_stream stream_sense;
 	int current_error;
+	u_int sense_len;
 	uint8_t stream_bits;
 
 	bzero(sense_dest, sizeof(*sense_dest));
@@ -174,7 +186,8 @@ ctl_sense_to_desc(struct scsi_sense_data_fixed *sense_src,
 	 * value is set in the fixed sense data, set it in the descriptor
 	 * data.  Otherwise, skip it.
 	 */
-	ctl_set_sense_data((struct scsi_sense_data *)sense_dest,
+	sense_len = SSD_FULL_SIZE;
+	ctl_set_sense_data((struct scsi_sense_data *)sense_dest, &sense_len,
 			   /*lun*/ NULL,
 			   /*sense_format*/ SSD_TYPE_DESC,
 			   current_error,
@@ -182,8 +195,8 @@ ctl_sense_to_desc(struct scsi_sense_data_fixed *sense_src,
 			   /*asc*/ sense_src->add_sense_code,
 			   /*ascq*/ sense_src->add_sense_code_qual,
 
-			   /* Information Bytes */ 
-			   (scsi_4btoul(sense_src->info) != 0) ?
+			   /* Information Bytes */
+			   (sense_src->error_code & SSD_ERRCODE_VALID) ?
 			   SSD_ELEM_INFO : SSD_ELEM_SKIP,
 			   sizeof(sense_src->info),
 			   sense_src->info,
@@ -234,6 +247,7 @@ ctl_sense_to_fixed(struct scsi_sense_data_desc *sense_src,
 	int info_size = 0, cmd_size = 0, fru_size = 0;
 	int sks_size = 0, stream_size = 0;
 	int pos;
+	u_int sense_len;
 
 	if ((sense_src->error_code & SSD_ERRCODE) == SSD_DESC_CURRENT_ERROR)
 		current_error = 1;
@@ -319,7 +333,8 @@ ctl_sense_to_fixed(struct scsi_sense_data_desc *sense_src,
 		}
 	}
 
-	ctl_set_sense_data((struct scsi_sense_data *)sense_dest,
+	sense_len = SSD_FULL_SIZE;
+	ctl_set_sense_data((struct scsi_sense_data *)sense_dest, &sense_len,
 			   /*lun*/ NULL,
 			   /*sense_format*/ SSD_TYPE_FIXED,
 			   current_error,
@@ -367,7 +382,7 @@ ctl_set_ua(struct ctl_scsiio *ctsio, int asc, int ascq)
 }
 
 static void
-ctl_ua_to_acsq(struct ctl_lun *lun, ctl_ua_type ua_to_build, int *asc,
+ctl_ua_to_ascq(struct ctl_lun *lun, ctl_ua_type ua_to_build, int *asc,
     int *ascq, ctl_ua_type *ua_to_clear, uint8_t **info)
 {
 
@@ -461,6 +476,11 @@ ctl_ua_to_acsq(struct ctl_lun *lun, ctl_ua_type ua_to_build, int *asc,
 		*asc = 0x28;
 		*ascq = 0x00;
 		break;
+	case CTL_UA_IE:
+		/* Informational exception */
+		*asc = lun->ie_asc;
+		*ascq = lun->ie_ascq;
+		break;
 	default:
 		panic("%s: Unknown UA %x", __func__, ua_to_build);
 	}
@@ -488,7 +508,7 @@ ctl_build_qae(struct ctl_lun *lun, uint32_t initidx, uint8_t *resp)
 	ua_to_build = (1 << (ffs(ua) - 1));
 	ua_to_clear = ua_to_build;
 	info = NULL;
-	ctl_ua_to_acsq(lun, ua_to_build, &asc, &ascq, &ua_to_clear, &info);
+	ctl_ua_to_ascq(lun, ua_to_build, &asc, &ascq, &ua_to_clear, &info);
 
 	resp[0] = SSD_KEY_UNIT_ATTENTION;
 	if (ua_to_build == ua)
@@ -497,12 +517,13 @@ ctl_build_qae(struct ctl_lun *lun, uint32_t initidx, uint8_t *resp)
 		resp[0] |= 0x20;
 	resp[1] = asc;
 	resp[2] = ascq;
-	return (ua);
+	return (ua_to_build);
 }
 
 ctl_ua_type
 ctl_build_ua(struct ctl_lun *lun, uint32_t initidx,
-    struct scsi_sense_data *sense, scsi_sense_data_type sense_format)
+    struct scsi_sense_data *sense, u_int *sense_len,
+    scsi_sense_data_type sense_format)
 {
 	ctl_ua_type *ua;
 	ctl_ua_type ua_to_build, ua_to_clear;
@@ -511,6 +532,7 @@ ctl_build_ua(struct ctl_lun *lun, uint32_t initidx,
 	uint32_t p, i;
 
 	mtx_assert(&lun->lun_lock, MA_OWNED);
+	mtx_assert(&lun->ctl_softc->ctl_lock, MA_NOTOWNED);
 	p = initidx / CTL_MAX_INIT_PER_PORT;
 	if ((ua = lun->pending_ua[p]) == NULL) {
 		mtx_unlock(&lun->lun_lock);
@@ -533,15 +555,26 @@ ctl_build_ua(struct ctl_lun *lun, uint32_t initidx,
 	ua_to_build = (1 << (ffs(ua[i]) - 1));
 	ua_to_clear = ua_to_build;
 	info = NULL;
-	ctl_ua_to_acsq(lun, ua_to_build, &asc, &ascq, &ua_to_clear, &info);
+	ctl_ua_to_ascq(lun, ua_to_build, &asc, &ascq, &ua_to_clear, &info);
 
-	ctl_set_sense_data(sense, lun, sense_format, /*current_error*/ 1,
+	ctl_set_sense_data(sense, sense_len, lun, sense_format, 1,
 	    /*sense_key*/ SSD_KEY_UNIT_ATTENTION, asc, ascq,
 	    ((info != NULL) ? SSD_ELEM_INFO : SSD_ELEM_SKIP), 8, info,
 	    SSD_ELEM_NONE);
 
 	/* We're reporting this UA, so clear it */
 	ua[i] &= ~ua_to_clear;
+
+	if (ua_to_build == CTL_UA_LUN_CHANGE) {
+		mtx_unlock(&lun->lun_lock);
+		mtx_lock(&lun->ctl_softc->ctl_lock);
+		ctl_clr_ua_allluns(lun->ctl_softc, initidx, ua_to_build);
+		mtx_unlock(&lun->ctl_softc->ctl_lock);
+		mtx_lock(&lun->lun_lock);
+	} else if (ua_to_build == CTL_UA_THIN_PROV_THRES &&
+	    (lun->MODE_LBP.main.flags & SLBPP_SITUA) != 0) {
+		ctl_clr_ua_all(lun, -1, ua_to_build);
+	}
 
 	return (ua_to_build);
 }
@@ -723,14 +756,20 @@ ctl_set_aborted(struct ctl_scsiio *ctsio)
 }
 
 void
-ctl_set_lba_out_of_range(struct ctl_scsiio *ctsio)
+ctl_set_lba_out_of_range(struct ctl_scsiio *ctsio, uint64_t lba)
 {
+	uint8_t	info[8];
+
+	scsi_u64to8b(lba, info);
+
 	/* "Logical block address out of range" */
 	ctl_set_sense(ctsio,
 		      /*current_error*/ 1,
 		      /*sense_key*/ SSD_KEY_ILLEGAL_REQUEST,
 		      /*asc*/ 0x21,
 		      /*ascq*/ 0x00,
+		      /*type*/ (lba != 0) ? SSD_ELEM_INFO : SSD_ELEM_SKIP,
+		      /*size*/ sizeof(info), /*data*/ &info,
 		      SSD_ELEM_NONE);
 }
 

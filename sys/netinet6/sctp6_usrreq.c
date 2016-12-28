@@ -74,10 +74,8 @@ sctp6_input_with_port(struct mbuf **i_pak, int *offp, uint16_t port)
 	struct sctphdr *sh;
 	struct sctp_chunkhdr *ch;
 	int length, offset;
-
 #if !defined(SCTP_WITH_NO_CSUM)
 	uint8_t compute_crc;
-
 #endif
 	uint32_t mflowid;
 	uint8_t mflowtype;
@@ -194,7 +192,6 @@ sctp6_notify(struct sctp_inpcb *inp,
 {
 #if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 	struct socket *so;
-
 #endif
 	int timer_stopped;
 
@@ -309,7 +306,7 @@ sctp6_ctlinput(int cmd, struct sockaddr *pktdst, void *d)
 		 * verification tag of the SCTP common header.
 		 */
 		if (ip6cp->ip6c_m->m_pkthdr.len <
-		    (int32_t) (ip6cp->ip6c_off + offsetof(struct sctphdr, checksum))) {
+		    (int32_t)(ip6cp->ip6c_off + offsetof(struct sctphdr, checksum))) {
 			return;
 		}
 		/* Copy out the port numbers and the verification tag. */
@@ -391,7 +388,7 @@ sctp6_ctlinput(int cmd, struct sockaddr *pktdst, void *d)
 			sctp6_notify(inp, stcb, net,
 			    ip6cp->ip6c_icmp6->icmp6_type,
 			    ip6cp->ip6c_icmp6->icmp6_code,
-			    (uint16_t) ntohl(ip6cp->ip6c_icmp6->icmp6_mtu));
+			    (uint16_t)ntohl(ip6cp->ip6c_icmp6->icmp6_mtu));
 		} else {
 			if ((stcb == NULL) && (inp != NULL)) {
 				/* reduce inp's ref-count */
@@ -696,7 +693,6 @@ sctp6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 
 #ifdef INET
 	struct sockaddr_in6 *sin6;
-
 #endif				/* INET */
 	/* No SPL needed since sctp_output does this */
 
@@ -798,12 +794,10 @@ sctp6_connect(struct socket *so, struct sockaddr *addr, struct thread *p)
 	int error = 0;
 	struct sctp_inpcb *inp;
 	struct sctp_tcb *stcb;
-
 #ifdef INET
 	struct in6pcb *inp6;
 	struct sockaddr_in6 *sin6;
 	union sctp_sockstore store;
-
 #endif
 
 #ifdef INET
@@ -1005,7 +999,7 @@ sctp6_getaddr(struct socket *so, struct sockaddr **addr)
 				return (ENOENT);
 			}
 			vrf_id = inp->def_vrf_id;
-			sctp_ifa = sctp_source_address_selection(inp, stcb, (sctp_route_t *) & net->ro, net, 0, vrf_id);
+			sctp_ifa = sctp_source_address_selection(inp, stcb, (sctp_route_t *)&net->ro, net, 0, vrf_id);
 			if (sctp_ifa) {
 				sin6->sin6_addr = sctp_ifa->address.sin6.sin6_addr;
 			}

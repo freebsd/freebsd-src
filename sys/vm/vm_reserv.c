@@ -62,7 +62,7 @@ __FBSDID("$FreeBSD$");
 
 /*
  * The reservation system supports the speculative allocation of large physical
- * pages ("superpages").  Speculative allocation enables the fully-automatic
+ * pages ("superpages").  Speculative allocation enables the fully automatic
  * utilization of superpages by the virtual memory system.  In other words, no
  * programmatic directives are required to use superpages.
  */
@@ -155,11 +155,11 @@ popmap_is_set(popmap_t popmap[], int i)
  * physical pages for the range [pindex, pindex + VM_LEVEL_0_NPAGES) of offsets
  * within that object.  The reservation's "popcnt" tracks the number of these
  * small physical pages that are in use at any given time.  When and if the
- * reservation is not fully utilized, it appears in the queue of partially-
+ * reservation is not fully utilized, it appears in the queue of partially
  * populated reservations.  The reservation always appears on the containing
  * object's list of reservations.
  *
- * A partially-populated reservation can be broken and reclaimed at any time.
+ * A partially populated reservation can be broken and reclaimed at any time.
  */
 struct vm_reserv {
 	TAILQ_ENTRY(vm_reserv) partpopq;
@@ -196,11 +196,11 @@ struct vm_reserv {
 static vm_reserv_t vm_reserv_array;
 
 /*
- * The partially-populated reservation queue
+ * The partially populated reservation queue
  *
- * This queue enables the fast recovery of an unused cached or free small page
- * from a partially-populated reservation.  The reservation at the head of
- * this queue is the least-recently-changed, partially-populated reservation.
+ * This queue enables the fast recovery of an unused free small page from a
+ * partially populated reservation.  The reservation at the head of this queue
+ * is the least recently changed, partially populated reservation.
  *
  * Access to this queue is synchronized by the free page queue lock.
  */
@@ -225,7 +225,7 @@ SYSCTL_PROC(_vm_reserv, OID_AUTO, fullpop, CTLTYPE_INT | CTLFLAG_RD, NULL, 0,
 static int sysctl_vm_reserv_partpopq(SYSCTL_HANDLER_ARGS);
 
 SYSCTL_OID(_vm_reserv, OID_AUTO, partpopq, CTLTYPE_STRING | CTLFLAG_RD, NULL, 0,
-    sysctl_vm_reserv_partpopq, "A", "Partially-populated reservation queues");
+    sysctl_vm_reserv_partpopq, "A", "Partially populated reservation queues");
 
 static long vm_reserv_reclaimed;
 SYSCTL_LONG(_vm_reserv, OID_AUTO, reclaimed, CTLFLAG_RD,
@@ -267,7 +267,7 @@ sysctl_vm_reserv_fullpop(SYSCTL_HANDLER_ARGS)
 }
 
 /*
- * Describes the current state of the partially-populated reservation queue.
+ * Describes the current state of the partially populated reservation queue.
  */
 static int
 sysctl_vm_reserv_partpopq(SYSCTL_HANDLER_ARGS)
@@ -301,7 +301,7 @@ sysctl_vm_reserv_partpopq(SYSCTL_HANDLER_ARGS)
 /*
  * Reduces the given reservation's population count.  If the population count
  * becomes zero, the reservation is destroyed.  Additionally, moves the
- * reservation to the tail of the partially-populated reservation queue if the
+ * reservation to the tail of the partially populated reservation queue if the
  * population count is non-zero.
  *
  * The free page queue lock must be held.
@@ -363,7 +363,7 @@ vm_reserv_has_pindex(vm_reserv_t rv, vm_pindex_t pindex)
 
 /*
  * Increases the given reservation's population count.  Moves the reservation
- * to the tail of the partially-populated reservation queue.
+ * to the tail of the partially populated reservation queue.
  *
  * The free page queue must be locked.
  */
@@ -597,7 +597,7 @@ found:
 }
 
 /*
- * Allocates a page from an existing or newly-created reservation.
+ * Allocates a page from an existing or newly created reservation.
  *
  * The page "mpred" must immediately precede the offset "pindex" within the
  * specified object.
@@ -721,12 +721,12 @@ found:
 }
 
 /*
- * Breaks the given reservation.  Except for the specified cached or free
- * page, all cached and free pages in the reservation are returned to the
- * physical memory allocator.  The reservation's population count and map are
- * reset to their initial state.
+ * Breaks the given reservation.  Except for the specified free page, all free
+ * pages in the reservation are returned to the physical memory allocator.
+ * The reservation's population count and map are reset to their initial
+ * state.
  *
- * The given reservation must not be in the partially-populated reservation
+ * The given reservation must not be in the partially populated reservation
  * queue.  The free page queue lock must be held.
  */
 static void
@@ -895,7 +895,7 @@ vm_reserv_level(vm_page_t m)
 }
 
 /*
- * Returns a reservation level if the given page belongs to a fully-populated
+ * Returns a reservation level if the given page belongs to a fully populated
  * reservation and -1 otherwise.
  */
 int
@@ -908,8 +908,8 @@ vm_reserv_level_iffullpop(vm_page_t m)
 }
 
 /*
- * Breaks the given partially-populated reservation, releasing its cached and
- * free pages to the physical memory allocator.
+ * Breaks the given partially populated reservation, releasing its free pages
+ * to the physical memory allocator.
  *
  * The free page queue lock must be held.
  */
@@ -927,9 +927,9 @@ vm_reserv_reclaim(vm_reserv_t rv)
 }
 
 /*
- * Breaks the reservation at the head of the partially-populated reservation
- * queue, releasing its cached and free pages to the physical memory
- * allocator.  Returns TRUE if a reservation is broken and FALSE otherwise.
+ * Breaks the reservation at the head of the partially populated reservation
+ * queue, releasing its free pages to the physical memory allocator.  Returns
+ * TRUE if a reservation is broken and FALSE otherwise.
  *
  * The free page queue lock must be held.
  */
@@ -947,11 +947,10 @@ vm_reserv_reclaim_inactive(void)
 }
 
 /*
- * Searches the partially-populated reservation queue for the least recently
- * active reservation with unused pages, i.e., cached or free, that satisfy the
- * given request for contiguous physical memory.  If a satisfactory reservation
- * is found, it is broken.  Returns TRUE if a reservation is broken and FALSE
- * otherwise.
+ * Searches the partially populated reservation queue for the least recently
+ * changed reservation with free pages that satisfy the given request for
+ * contiguous physical memory.  If a satisfactory reservation is found, it is
+ * broken.  Returns TRUE if a reservation is broken and FALSE otherwise.
  *
  * The free page queue lock must be held.
  */

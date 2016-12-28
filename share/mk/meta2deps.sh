@@ -1,4 +1,3 @@
-# $FreeBSD$
 #!/bin/sh
 
 # NAME:
@@ -53,7 +52,7 @@
 #	$SB/obj-i386/bsd/gnu/lib/csu
 #	$SB/obj-i386/bsd/gnu/lib/libgcc
 #	$SB/obj-i386/bsd/include
-#	$SB/obj-i386/bsd/lib/csu/i386-elf
+#	$SB/obj-i386/bsd/lib/csu/i386
 #	$SB/obj-i386/bsd/lib/libc
 #	$SB/src/bsd/include
 #	$SB/src/bsd/sys/i386/include
@@ -78,7 +77,8 @@
 
 
 # RCSid:
-#	$Id: meta2deps.sh,v 1.9 2015/04/03 18:23:25 sjg Exp $
+#	$FreeBSD$
+#	$Id: meta2deps.sh,v 1.12 2016/12/13 20:44:16 sjg Exp $
 
 # Copyright (c) 2010-2013, Juniper Networks, Inc.
 # All rights reserved.
@@ -256,7 +256,7 @@ meta2deps() {
 	*)
 	    case "$lpid" in
 	    "") ;;
-	    *) eval ldir_$lpid=$ldir cwd_$lpid=$cwd;;
+	    *) eval ldir_$lpid=$ldir;;
 	    esac
 	    eval ldir=\${ldir_$pid:-$CWD} cwd=\${cwd_$pid:-$CWD}
 	    lpid=$pid
@@ -272,9 +272,11 @@ meta2deps() {
 	    esac
 	    # watch out for temp dirs that no longer exist
 	    test -d ${cwd:-/dev/null/no/such} || cwd=$CWD
+	    eval cwd_$pid=$cwd
 	    continue
 	    ;;
-	F,*)  eval cwd_$path=$cwd ldir_$path=$ldir
+	F,*) # $path is new pid  
+	    eval cwd_$path=$cwd ldir_$path=$ldir
 	    continue
 	    ;;	  
 	*)  dir=${path%/*}

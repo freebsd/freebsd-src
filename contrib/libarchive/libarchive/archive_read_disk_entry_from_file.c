@@ -125,6 +125,10 @@ static int setup_xattrs(struct archive_read_disk *,
     struct archive_entry *, int *fd);
 static int setup_sparse(struct archive_read_disk *,
     struct archive_entry *, int *fd);
+#if defined(HAVE_LINUX_FIEMAP_H)
+static int setup_sparse_fiemap(struct archive_read_disk *,
+    struct archive_entry *, int *fd);
+#endif
 
 int
 archive_read_disk_entry_from_file(struct archive *_a,
@@ -686,7 +690,7 @@ translate_acl(struct archive_read_disk *a,
 #ifdef ACL_TYPE_NFS4
 		if (default_entry_acl_type & ARCHIVE_ENTRY_ACL_TYPE_NFS4) {
 			/*
-			 * acl_get_entry_type_np() falis with non-NFSv4 ACLs
+			 * acl_get_entry_type_np() fails with non-NFSv4 ACLs
 			 */
 			if (acl_get_entry_type_np(acl_entry, &acl_type) != 0) {
 				archive_set_error(&a->archive, errno, "Failed "
@@ -1124,7 +1128,7 @@ setup_xattrs(struct archive_read_disk *a,
 #if defined(HAVE_LINUX_FIEMAP_H)
 
 /*
- * Linux sparse interface.
+ * Linux FIEMAP sparse interface.
  *
  * The FIEMAP ioctl returns an "extent" for each physical allocation
  * on disk.  We need to process those to generate a more compact list
@@ -1139,7 +1143,7 @@ setup_xattrs(struct archive_read_disk *a,
  */
 
 static int
-setup_sparse(struct archive_read_disk *a,
+setup_sparse_fiemap(struct archive_read_disk *a,
     struct archive_entry *entry, int *fd)
 {
 	char buff[4096];
@@ -1190,8 +1194,8 @@ setup_sparse(struct archive_read_disk *a,
 		if (r < 0) {
 			/* When something error happens, it is better we
 			 * should return ARCHIVE_OK because an earlier
-			 * version(<2.6.28) cannot perfom FS_IOC_FIEMAP. */
-			goto exit_setup_sparse;
+			 * version(<2.6.28) cannot perform FS_IOC_FIEMAP. */
+			goto exit_setup_sparse_fiemap;
 		}
 		if (fm->fm_mapped_extents == 0) {
 			if (iters == 0) {
@@ -1226,14 +1230,24 @@ setup_sparse(struct archive_read_disk *a,
 		} else
 			break;
 	}
-exit_setup_sparse:
+exit_setup_sparse_fiemap:
 	return (exit_sts);
 }
 
-#elif defined(SEEK_HOLE) && defined(SEEK_DATA) && defined(_PC_MIN_HOLE_SIZE)
+#if !defined(SEEK_HOLE) || !defined(SEEK_DATA)
+static int
+setup_sparse(struct archive_read_disk *a,
+    struct archive_entry *entry, int *fd)
+{
+	return setup_sparse_fiemap(a, entry, fd);
+}
+#endif
+#endif	/* defined(HAVE_LINUX_FIEMAP_H) */
+
+#if defined(SEEK_HOLE) && defined(SEEK_DATA)
 
 /*
- * FreeBSD and Solaris sparse interface.
+ * SEEK_HOLE sparse interface (FreeBSD, Linux, Solaris)
  */
 
 static int
@@ -1241,8 +1255,8 @@ setup_sparse(struct archive_read_disk *a,
     struct archive_entry *entry, int *fd)
 {
 	int64_t size;
-	off_t initial_off; /* FreeBSD/Solaris only, so off_t okay here */
-	off_t off_s, off_e; /* FreeBSD/Solaris only, so off_t okay here */
+	off_t initial_off;
+	off_t off_s, off_e;
 	int exit_sts = ARCHIVE_OK;
 	int check_fully_sparse = 0;
 
@@ -1268,8 +1282,10 @@ setup_sparse(struct archive_read_disk *a,
 	}
 
 	if (*fd >= 0) {
+#ifdef _PC_MIN_HOLE_SIZE
 		if (fpathconf(*fd, _PC_MIN_HOLE_SIZE) <= 0)
 			return (ARCHIVE_OK);
+#endif
 		initial_off = lseek(*fd, 0, SEEK_CUR);
 		if (initial_off != 0)
 			lseek(*fd, 0, SEEK_SET);
@@ -1280,8 +1296,10 @@ setup_sparse(struct archive_read_disk *a,
 		if (path == NULL)
 			path = archive_entry_pathname(entry);
 			
+#ifdef _PC_MIN_HOLE_SIZE
 		if (pathconf(path, _PC_MIN_HOLE_SIZE) <= 0)
 			return (ARCHIVE_OK);
+#endif
 		*fd = open(path, O_RDONLY | O_NONBLOCK | O_CLOEXEC);
 		if (*fd < 0) {
 			archive_set_error(&a->archive, errno,
@@ -1291,6 +1309,19 @@ setup_sparse(struct archive_read_disk *a,
 		__archive_ensure_cloexec_flag(*fd);
 		initial_off = 0;
 	}
+
+#ifndef _PC_MIN_HOLE_SIZE
+	/* Check if the underlying filesystem supports seek hole */
+	off_s = lseek(*fd, 0, SEEK_HOLE);
+	if (off_s < 0)
+#if defined(HAVE_LINUX_FIEMAP_H)
+		return setup_sparse_fiemap(a, entry, fd);
+#else
+		goto exit_setup_sparse;
+#endif
+	else if (off_s > 0)
+		lseek(*fd, 0, SEEK_SET);
+#endif
 
 	off_s = 0;
 	size = archive_entry_size(entry);
@@ -1323,7 +1354,7 @@ setup_sparse(struct archive_read_disk *a,
 			goto exit_setup_sparse;
 		}
 		if (off_s == 0 && off_e == size)
-			break;/* This is not spase. */
+			break;/* This is not sparse. */
 		archive_entry_sparse_add_entry(entry, off_s,
 			off_e - off_s);
 		off_s = off_e;
@@ -1341,7 +1372,7 @@ exit_setup_sparse:
 	return (exit_sts);
 }
 
-#else
+#elif !defined(HAVE_LINUX_FIEMAP_H)
 
 /*
  * Generic (stub) sparse support.

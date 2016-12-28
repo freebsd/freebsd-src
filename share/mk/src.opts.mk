@@ -190,6 +190,7 @@ __DEFAULT_NO_OPTIONS = \
     OFED \
     OPENLDAP \
     RCS \
+    REPRODUCIBLE_BUILD \
     SHARED_TOOLCHAIN \
     SORT_THREADS \
     SVN \
@@ -309,6 +310,10 @@ MK_LLVM_LIBUNWIND:=	no
 
 .if ${MK_BINUTILS} == "no"
 MK_GDB:=	no
+.endif
+
+.if ${MK_CAPSICUM} == "no"
+MK_CASPER:=	no
 .endif
 
 .if ${MK_LIBPTHREAD} == "no"

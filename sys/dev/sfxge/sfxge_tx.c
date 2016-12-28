@@ -838,8 +838,9 @@ sfxge_if_transmit(struct ifnet *ifp, struct mbuf *m)
 		/* check if flowid is set */
 		if (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE) {
 			uint32_t hash = m->m_pkthdr.flowid;
+			uint32_t idx = hash % nitems(sc->rx_indir_table);
 
-			index = sc->rx_indir_table[hash % SFXGE_RX_SCALE_MAX];
+			index = sc->rx_indir_table[idx];
 		}
 #endif
 #if SFXGE_TX_PARSE_EARLY

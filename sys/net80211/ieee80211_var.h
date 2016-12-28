@@ -229,6 +229,12 @@ struct ieee80211com {
 	uint8_t			ic_rxstream;    /* # RX streams */
 	uint8_t			ic_txstream;    /* # TX streams */
 
+	/* VHT information */
+	uint32_t		ic_vhtcaps;	/* VHT capabilities */
+	uint32_t		ic_vhtextcaps;	/* VHT extended capabilities (TODO) */
+	struct ieee80211_vht_mcs_info	iv_vht_mcsinfo; /* Support TX/RX VHT MCS */
+	uint32_t		ic_vht_spare[4];
+
 	/* optional state for Atheros SuperG protocol extensions */
 	struct ieee80211_superg	*ic_superg;
 
@@ -390,6 +396,13 @@ struct ieee80211vap {
 	int			iv_inact_run;	/* authorized setting */
 	int			iv_inact_probe;	/* inactive probe time */
 
+	/* VHT flags */
+	uint32_t		iv_flags_vht;	/* VHT state flags */
+	uint32_t		iv_vhtcaps;	/* VHT capabilities */
+	uint32_t		iv_vhtextcaps;	/* VHT extended capabilities (TODO) */
+	struct ieee80211_vht_mcs_info	iv_vht_mcsinfo;
+	uint32_t		iv_vht_spare[4];
+
 	int			iv_des_nssid;	/* # desired ssids */
 	struct ieee80211_scan_ssid iv_des_ssid[1];/* desired ssid table */
 	uint8_t			iv_des_bssid[IEEE80211_ADDR_LEN];
@@ -457,6 +470,8 @@ struct ieee80211vap {
 	struct ieee80211_appie	*iv_appie_wpa;
 	uint8_t			*iv_wpa_ie;
 	uint8_t			*iv_rsn_ie;
+
+	/* Key management */
 	uint16_t		iv_max_keyix;	/* max h/w key index */
 	ieee80211_keyix		iv_def_txkey;	/* default/group tx key index */
 	struct ieee80211_key	iv_nw_keys[IEEE80211_WEP_NKID];
@@ -469,6 +484,8 @@ struct ieee80211vap {
 				    const struct ieee80211_key *);
 	void			(*iv_key_update_begin)(struct ieee80211vap *);
 	void			(*iv_key_update_end)(struct ieee80211vap *);
+	void			(*iv_update_deftxkey)(struct ieee80211vap *,
+				    ieee80211_keyix deftxkey);
 
 	const struct ieee80211_authenticator *iv_auth; /* authenticator glue */
 	void			*iv_ec;		/* private auth state */
@@ -523,6 +540,7 @@ struct ieee80211vap {
 	/* 802.3 output method for raw frame xmit */
 	int			(*iv_output)(struct ifnet *, struct mbuf *,
 				    const struct sockaddr *, struct route *);
+
 	uint64_t		iv_spare[6];
 };
 MALLOC_DECLARE(M_80211_VAP);
@@ -668,6 +686,9 @@ int	ieee80211_add_channel(struct ieee80211_channel[], int, int *,
 	    uint8_t, uint16_t, int8_t, uint32_t, const uint8_t[]);
 int	ieee80211_add_channel_ht40(struct ieee80211_channel[], int, int *,
 	    uint8_t, int8_t, uint32_t);
+uint32_t ieee80211_get_channel_center_freq(const struct ieee80211_channel *);
+uint32_t ieee80211_get_channel_center_freq1(const struct ieee80211_channel *);
+uint32_t ieee80211_get_channel_center_freq2(const struct ieee80211_channel *);
 int	ieee80211_add_channel_list_2ghz(struct ieee80211_channel[], int, int *,
 	    const uint8_t[], int, const uint8_t[], int);
 int	ieee80211_add_channel_list_5ghz(struct ieee80211_channel[], int, int *,
@@ -683,6 +704,10 @@ enum ieee80211_phymode ieee80211_chan2mode(const struct ieee80211_channel *);
 uint32_t ieee80211_mac_hash(const struct ieee80211com *,
 		const uint8_t addr[IEEE80211_ADDR_LEN]);
 char	ieee80211_channel_type_char(const struct ieee80211_channel *c);
+
+#define	ieee80211_get_current_channel(_ic)	((_ic)->ic_curchan)
+#define	ieee80211_get_home_channel(_ic)		((_ic)->ic_bsschan)
+#define	ieee80211_get_vap_desired_channel(_iv)	((_iv)->iv_des_chan)
 
 void	ieee80211_radiotap_attach(struct ieee80211com *,
 	    struct ieee80211_radiotap_header *th, int tlen,

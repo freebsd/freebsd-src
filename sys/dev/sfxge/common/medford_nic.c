@@ -66,7 +66,7 @@ efx_mcdi_get_rxdp_config(
 		/* RX DMA end padding is disabled */
 		end_padding = 0;
 	} else {
-		switch(MCDI_OUT_DWORD_FIELD(req, GET_RXDP_CONFIG_OUT_DATA,
+		switch (MCDI_OUT_DWORD_FIELD(req, GET_RXDP_CONFIG_OUT_DATA,
 					    GET_RXDP_CONFIG_OUT_PAD_HOST_LEN)) {
 		case MC_CMD_SET_RXDP_CONFIG_IN_PAD_HOST_64:
 			end_padding = 64;
@@ -283,7 +283,7 @@ medford_board_cfg(
 
 	/* Check capabilities of running datapath firmware */
 	if ((rc = ef10_get_datapath_caps(enp)) != 0)
-	    goto fail10;
+		goto fail10;
 
 	/* Alignment for receive packet DMA buffers */
 	encp->enc_rx_buf_align_start = 1;

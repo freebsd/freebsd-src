@@ -2284,7 +2284,7 @@ svn_fs_fs__commit_txn(const char **conflict_p,
 
   if (ffd->pack_after_commit)
     {
-      SVN_ERR(svn_fs_fs__pack(fs, NULL, NULL, NULL, NULL, pool));
+      SVN_ERR(svn_fs_fs__pack(fs, 0, NULL, NULL, NULL, NULL, pool));
     }
 
   return SVN_NO_ERROR;

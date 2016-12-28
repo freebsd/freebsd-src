@@ -27,6 +27,8 @@ options 	KDB
 options 	ALQ
 options         ALT_BREAK_TO_DEBUGGER
 
+options 	UMTX_CHAINS=16
+
 options 	SCHED_4BSD		#4BSD scheduler
 options 	INET			#InterNETworking
 #options 	INET6			#InterNETworking

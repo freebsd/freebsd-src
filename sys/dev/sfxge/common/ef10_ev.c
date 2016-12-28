@@ -800,7 +800,7 @@ ef10_ev_rx(
 		 * or headers that are too long for the parser.
 		 * Headers and checksums must be validated by the host.
 		 */
-		// TODO: EFX_EV_QSTAT_INCR(eep, EV_RX_PARSE_INCOMPLETE);
+		/* TODO: EFX_EV_QSTAT_INCR(eep, EV_RX_PARSE_INCOMPLETE); */
 		goto deliver;
 	}
 
@@ -990,7 +990,7 @@ ef10_ev_mcdi(
 	__in_opt	void *arg)
 {
 	efx_nic_t *enp = eep->ee_enp;
-	unsigned code;
+	unsigned int code;
 	boolean_t should_abort = B_FALSE;
 
 	EFX_EV_QSTAT_INCR(eep, EV_MCDI_RESPONSE);

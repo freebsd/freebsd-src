@@ -64,7 +64,7 @@
 #define	GFP_IOFS	M_NOWAIT
 #define	GFP_NOIO	M_NOWAIT
 #define	GFP_DMA32	0
-#define	GFP_TEMPORARY	0
+#define	GFP_TEMPORARY	M_NOWAIT
 
 static inline void *
 page_address(struct page *page)
@@ -136,8 +136,8 @@ alloc_pages(gfp_t gfp_mask, unsigned int order)
 	size_t size;
 
 	size = PAGE_SIZE << order;
-	page = kmem_alloc_contig(kmem_arena, size, gfp_mask, 0, -1,
-	    size, 0, VM_MEMATTR_DEFAULT);
+	page = kmem_alloc_contig(kmem_arena, size, gfp_mask,
+	    0, ~(vm_paddr_t)0, size, 0, VM_MEMATTR_DEFAULT);
 	if (page == 0)
 		return (NULL);
         return (virt_to_page(page));

@@ -370,6 +370,9 @@ options 	COMPAT_FREEBSD9
 # Enable FreeBSD10 compatibility syscalls
 options 	COMPAT_FREEBSD10
 
+# Enable FreeBSD11 compatibility syscalls
+options 	COMPAT_FREEBSD11
+
 # Enable Linux Kernel Programming Interface
 options 	COMPAT_LINUXKPI
 
@@ -3069,3 +3072,6 @@ options 	EVDEV_SUPPORT	# evdev support in legacy drivers
 options 	EVDEV_DEBUG	# enable event debug msgs
 device		uinput		# install /dev/uinput cdev
 options 	UINPUT_DEBUG	# enable uinput debug msgs
+
+# Encrypted kernel crash dumps.
+options 	EKCD
