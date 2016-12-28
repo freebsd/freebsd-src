@@ -246,7 +246,7 @@ typedef union efx_oword_u {
 
 #pragma pack()
 
-#define	__SWAP16(_x) 				\
+#define	__SWAP16(_x)				\
 	((((_x) & 0xff) << 8) |			\
 	(((_x) >> 8) & 0xff))
 
@@ -1212,16 +1212,16 @@ extern int fix_lint;
 #define	EFX_INSERT_FIELD8(_min, _max, _field, _value)			\
 	__NATIVE_8(EFX_INSERT_FIELD_NATIVE8(_min, _max, _field, _value))
 
-#define	EFX_INPLACE_MASK64(_min, _max, _field)			       	\
+#define	EFX_INPLACE_MASK64(_min, _max, _field)				\
 	EFX_INSERT_FIELD64(_min, _max, _field, EFX_MASK64(_field))
 
-#define	EFX_INPLACE_MASK32(_min, _max, _field)			       	\
+#define	EFX_INPLACE_MASK32(_min, _max, _field)				\
 	EFX_INSERT_FIELD32(_min, _max, _field, EFX_MASK32(_field))
 
-#define	EFX_INPLACE_MASK16(_min, _max, _field)			       	\
+#define	EFX_INPLACE_MASK16(_min, _max, _field)				\
 	EFX_INSERT_FIELD16(_min, _max, _field, EFX_MASK16(_field))
 
-#define	EFX_INPLACE_MASK8(_min, _max, _field)			       	\
+#define	EFX_INPLACE_MASK8(_min, _max, _field)				\
 	EFX_INSERT_FIELD8(_min, _max, _field, EFX_MASK8(_field))
 
 #define	EFX_SET_OWORD_FIELD64(_oword, _field, _value)			\
