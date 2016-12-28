@@ -169,7 +169,7 @@ extern		void
 efx_nic_unprobe(
 	__in		efx_nic_t *enp);
 
-extern 		void
+extern		void
 efx_nic_destroy(
 	__in	efx_nic_t *enp);
 
@@ -286,21 +286,21 @@ efx_intr_init(
 	__in		efx_intr_type_t type,
 	__in		efsys_mem_t *esmp);
 
-extern 			void
+extern			void
 efx_intr_enable(
 	__in		efx_nic_t *enp);
 
-extern 			void
+extern			void
 efx_intr_disable(
 	__in		efx_nic_t *enp);
 
-extern 			void
+extern			void
 efx_intr_disable_unlocked(
 	__in		efx_nic_t *enp);
 
 #define	EFX_INTR_NEVQS	32
 
-extern __checkReturn	efx_rc_t
+extern	__checkReturn	efx_rc_t
 efx_intr_trigger(
 	__in		efx_nic_t *enp,
 	__in		unsigned int level);
@@ -819,7 +819,7 @@ efx_port_poll(
 	__in		efx_nic_t *enp,
 	__out_opt	efx_link_mode_t	*link_modep);
 
-extern 		void
+extern		void
 efx_port_fini(
 	__in	efx_nic_t *enp);
 
@@ -1253,7 +1253,7 @@ efx_vpd_verify(
 	__in_bcount(size)	caddr_t data,
 	__in			size_t size);
 
-extern  __checkReturn		efx_rc_t
+extern	__checkReturn		efx_rc_t
 efx_vpd_reinit(
 	__in			efx_nic_t *enp,
 	__in_bcount(size)	caddr_t data,
@@ -1281,7 +1281,7 @@ efx_vpd_next(
 	__out			efx_vpd_value_t *evvp,
 	__inout			unsigned int *contp);
 
-extern __checkReturn		efx_rc_t
+extern	__checkReturn		efx_rc_t
 efx_vpd_write(
 	__in			efx_nic_t *enp,
 	__in_bcount(size)	caddr_t data,
@@ -1499,7 +1499,7 @@ typedef enum efx_pattern_type_t {
 	EFX_PATTERN_NTYPES
 } efx_pattern_type_t;
 
-typedef 		void
+typedef			void
 (*efx_sram_pattern_fn_t)(
 	__in		size_t row,
 	__in		boolean_t negate,

@@ -913,7 +913,7 @@ struct efx_txq_s {
 		    uint32_t, (_edp)->ed_u32[0]);			\
 		EFSYS_BAR_WRITED((_enp)->en_esbp,			\
 		    (_reg ## _OFST +					\
-		    (2 * sizeof (efx_dword_t)) + 			\
+		    (2 * sizeof (efx_dword_t)) +			\
 		    ((_index) * _reg ## _STEP)),			\
 		    (_edp), (_lock));					\
 	_NOTE(CONSTANTCONDITION)					\
@@ -928,7 +928,7 @@ struct efx_txq_s {
 		    uint32_t, (_edp)->ed_u32[0]);			\
 		EFSYS_BAR_WRITED((_enp)->en_esbp,			\
 		    (_reg ## _OFST +					\
-		    (3 * sizeof (efx_dword_t)) + 			\
+		    (3 * sizeof (efx_dword_t)) +			\
 		    ((_index) * _reg ## _STEP)),			\
 		    (_edp), (_lock));					\
 	_NOTE(CONSTANTCONDITION)					\
