@@ -751,6 +751,12 @@ tcp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	    "{N:/ignored RSTs in the window%s}\n");
 	p(tcps_connects, "\t{:connections-established/%ju} "
 	    "{N:/connection%s established (including accepts)}\n");
+	p(tcps_usedrtt, "\t\t{:connections-hostcache-rtt/%ju} "
+	    "{N:/time%s used RTT from hostcache}\n");
+	p(tcps_usedrttvar, "\t\t{:connections-hostcache-rttvar/%ju} "
+	    "{N:/time%s used RTT variance from hostcache}\n");
+	p(tcps_usedssthresh, "\t\t{:connections-hostcache-ssthresh/%ju} "
+	    "{N:/time%s used slow-start threshold from hostcache}\n");
 	p2(tcps_closed, tcps_drops, "\t{:connections-closed/%ju} "
 	    "{N:/connection%s closed (including} "
 	    "{:connection-drops/%ju} {N:/drop%s})\n");
