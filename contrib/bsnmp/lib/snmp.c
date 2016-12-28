@@ -357,8 +357,8 @@ static enum snmp_code
 pdu_encode_secparams(struct asn_buf *b, struct snmp_pdu *pdu)
 {
 	u_char buf[256], *sptr;
-        struct asn_buf tb;
-        size_t auth_off, moved = 0;
+	struct asn_buf tb;
+	size_t auth_off, moved = 0;
 
 	auth_off = 0;
 	memset(buf, 0, 256);
