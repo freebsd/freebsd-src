@@ -627,7 +627,7 @@ efx_lic_v1v2_write_key(
 
 	// Ensure space for terminator remains
 	if ((offset + length) >
-	    (buffer_size - EFX_LICENSE_V1V2_HEADER_LENGTH) ) {
+	    (buffer_size - EFX_LICENSE_V1V2_HEADER_LENGTH)) {
 		rc = ENOSPC;
 		goto fail1;
 	}
