@@ -1640,20 +1640,20 @@ err:
 static int
 altq_is_enabled(int pfdev)
 {
-        struct pfioc_altq pa;
+	struct pfioc_altq pa;
 
 	errno = 0;
-        if (ioctl(pfdev, DIOCGETALTQS, &pa)) {
-                if (errno == ENODEV) {
+	if (ioctl(pfdev, DIOCGETALTQS, &pa)) {
+		if (errno == ENODEV) {
 			syslog(LOG_INFO, "No ALTQ support in kernel\n"
 			    "ALTQ related functions disabled\n");
-                        return (0);
-                } else
-                        syslog(LOG_ERR, "DIOCGETALTQS returned an error: %s",
+			return (0);
+		} else
+			syslog(LOG_ERR, "DIOCGETALTQS returned an error: %s",
 			    strerror(errno));
 			return (-1);
-        }
-        return (1);
+	}
+	return (1);
 }
 
 /*
