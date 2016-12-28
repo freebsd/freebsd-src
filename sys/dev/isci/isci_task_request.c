@@ -210,8 +210,9 @@ isci_task_request_complete(SCI_CONTROLLER_HANDLE_T scif_controller,
 			retry_task = FALSE;
 			isci_log_message(0, "ISCI",
 			    "task timeout - not retrying\n");
-			scif_cb_domain_device_removed(isci_controller,
-			    isci_remote_device->domain, isci_remote_device);
+			scif_cb_domain_device_removed(scif_controller,
+			    isci_remote_device->domain->sci_object,
+			    remote_device);
 		} else {
 			retry_task = TRUE;
 			isci_log_message(0, "ISCI",
