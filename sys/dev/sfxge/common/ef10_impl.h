@@ -950,7 +950,7 @@ typedef struct ef10_filter_entry_s {
 
 typedef struct ef10_filter_table_s {
 	ef10_filter_entry_t	eft_entry[EFX_EF10_FILTER_TBL_ROWS];
-	efx_rxq_t *		eft_default_rxq;
+	efx_rxq_t		*eft_default_rxq;
 	boolean_t		eft_using_rss;
 	uint32_t		eft_unicst_filter_indexes[
 	    EFX_EF10_FILTER_UNICAST_FILTERS_MAX];
