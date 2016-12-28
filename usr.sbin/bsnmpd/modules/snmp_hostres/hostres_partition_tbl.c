@@ -177,7 +177,7 @@ partition_entry_create(int32_t ds_index, const char *chunk_name)
 
 		if (next_partition_index > INT_MAX) {
 			/* Unrecoverable error - die clean and quicly*/
-		        syslog(LOG_ERR, "%s: hrPartitionTable index wrap",
+			syslog(LOG_ERR, "%s: hrPartitionTable index wrap",
 			    __func__);
 			errx(EX_SOFTWARE, "hrPartitionTable index wrap");
 		}
