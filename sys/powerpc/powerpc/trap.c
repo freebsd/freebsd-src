@@ -88,7 +88,7 @@ static int	fix_unaligned(struct thread *td, struct trapframe *frame);
 static int	handle_onfault(struct trapframe *frame);
 static void	syscall(struct trapframe *frame);
 
-#ifdef __powerpc64__
+#if defined(__powerpc64__) && defined(AIM)
        void	handle_kernel_slb_spill(int, register_t, register_t);
 static int	handle_user_slb_spill(pmap_t pm, vm_offset_t addr);
 extern int	n_slbs;
@@ -208,7 +208,7 @@ trap(struct trapframe *frame)
 			ucode = TRAP_TRACE;
 			break;
 
-#ifdef __powerpc64__
+#if defined(__powerpc64__) && defined(AIM)
 		case EXC_ISE:
 		case EXC_DSE:
 			if (handle_user_slb_spill(&p->p_vmspace->vm_pmap,
@@ -347,7 +347,7 @@ trap(struct trapframe *frame)
 			}
 			break;
 #endif
-#ifdef __powerpc64__
+#if defined(__powerpc64__) && defined(AIM)
 		case EXC_DSE:
 			if ((frame->dar & SEGMENT_MASK) == USER_ADDR) {
 				__asm __volatile ("slbmte %0, %1" ::
@@ -578,7 +578,7 @@ syscall(struct trapframe *frame)
 	td = curthread;
 	td->td_frame = frame;
 
-#ifdef __powerpc64__
+#if defined(__powerpc64__) && defined(AIM)
 	/*
 	 * Speculatively restore last user SLB segment, which we know is
 	 * invalid already, since we are likely to do copyin()/copyout().
@@ -591,7 +591,7 @@ syscall(struct trapframe *frame)
 	syscallret(td, error, &sa);
 }
 
-#ifdef __powerpc64__
+#if defined(__powerpc64__) && defined(AIM)
 /* Handle kernel SLB faults -- runs in real mode, all seat belts off */
 void
 handle_kernel_slb_spill(int type, register_t dar, register_t srr0)
