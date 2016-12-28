@@ -171,6 +171,11 @@
 #define	MIPS_CCA_CACHED		MIPS_CCA_CCS
 #endif
 
+#if defined(CPU_XBURST)
+#define	MIPS_CCA_UA		0x01
+#define	MIPS_CCA_WC		MIPS_CCA_UA
+#endif
+
 #ifndef	MIPS_CCA_UNCACHED
 #define	MIPS_CCA_UNCACHED	MIPS_CCA_UC
 #endif
