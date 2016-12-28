@@ -954,7 +954,7 @@ typedef struct ef10_filter_table_s {
 	boolean_t		eft_using_rss;
 	uint32_t		eft_unicst_filter_indexes[
 	    EFX_EF10_FILTER_UNICAST_FILTERS_MAX];
-	boolean_t		eft_unicst_filter_count;
+	uint32_t		eft_unicst_filter_count;
 	uint32_t		eft_mulcst_filter_indexes[
 	    EFX_EF10_FILTER_MULTICAST_FILTERS_MAX];
 	uint32_t		eft_mulcst_filter_count;
