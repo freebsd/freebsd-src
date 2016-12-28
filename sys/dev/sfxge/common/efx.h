@@ -1311,6 +1311,7 @@ typedef enum efx_nvram_type_e {
 	EFX_NVRAM_FPGA_BACKUP,
 	EFX_NVRAM_DYNAMIC_CFG,
 	EFX_NVRAM_LICENSE,
+	EFX_NVRAM_UEFIROM,
 	EFX_NVRAM_NTYPES,
 } efx_nvram_type_t;
 
