@@ -172,7 +172,7 @@ fail1:
 
 #if EFSYS_OPT_NAMES
 
-static const char 	*__efx_loopback_type_name[] = {
+static const char * const __efx_loopback_type_name[] = {
 	"OFF",
 	"DATA",
 	"GMAC",
