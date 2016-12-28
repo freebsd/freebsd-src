@@ -278,7 +278,6 @@ fail1:
 ef10_phy_reconfigure(
 	__in		efx_nic_t *enp)
 {
-	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	efx_port_t *epp = &(enp->en_port);
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_SET_LINK_IN_LEN,
@@ -286,9 +285,12 @@ ef10_phy_reconfigure(
 	uint32_t cap_mask;
 	unsigned int led_mode;
 	unsigned int speed;
+	boolean_t supported;
 	efx_rc_t rc;
 
-	if (~encp->enc_func_flags & EFX_NIC_FUNC_LINKCTRL)
+	if ((rc = efx_mcdi_link_control_supported(enp, &supported)) != 0)
+		goto fail1;
+	if (supported == B_FALSE)
 		goto out;
 
 	(void) memset(payload, 0, sizeof (payload));
@@ -349,7 +351,7 @@ ef10_phy_reconfigure(
 
 	if (req.emr_rc != 0) {
 		rc = req.emr_rc;
-		goto fail1;
+		goto fail2;
 	}
 
 	/* And set the blink mode */
@@ -385,11 +387,13 @@ ef10_phy_reconfigure(
 
 	if (req.emr_rc != 0) {
 		rc = req.emr_rc;
-		goto fail2;
+		goto fail3;
 	}
 out:
 	return (0);
 
+fail3:
+	EFSYS_PROBE(fail3);
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
