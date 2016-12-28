@@ -81,11 +81,11 @@ ext2_update(struct vnode *vp, int waitfor)
 		return (0);
 	ip->i_flag &= ~(IN_LAZYACCESS | IN_LAZYMOD | IN_MODIFIED);
 	fs = ip->i_e2fs;
-	if(fs->e2fs_ronly)
+	if (fs->e2fs_ronly)
 		return (0);
 	if ((error = bread(ip->i_devvp,
 	    fsbtodb(fs, ino_to_fsba(fs, ip->i_number)),
-		(int)fs->e2fs_bsize, NOCRED, &bp)) != 0) {
+	    (int)fs->e2fs_bsize, NOCRED, &bp)) != 0) {
 		brelse(bp);
 		return (error);
 	}
@@ -130,10 +130,10 @@ ext2_truncate(struct vnode *vp, off_t length, int flags, struct ucred *cred,
 	bo = &ovp->v_bufobj;
 #endif
 
-	ASSERT_VOP_LOCKED(vp, "ext2_truncate");	
+	ASSERT_VOP_LOCKED(vp, "ext2_truncate");
 
 	if (length < 0)
-	    return (EINVAL);
+		return (EINVAL);
 
 	if (ovp->v_type == VLNK &&
 	    oip->i_size < ovp->v_mount->mnt_maxsymlinklen) {
@@ -345,7 +345,7 @@ done:
 	    bo->bo_clean.bv_cnt != 0))
 		panic("itrunc3");
 	BO_UNLOCK(bo);
-#endif /* INVARIANTS */
+#endif	/* INVARIANTS */
 	/*
 	 * Put back the real size.
 	 */
@@ -418,12 +418,11 @@ ext2_indirtrunc(struct inode *ip, daddr_t lbn, daddr_t dbn,
 		*countp = 0;
 		return (error);
 	}
-
 	bap = (e2fs_daddr_t *)bp->b_data;
 	copy = malloc(fs->e2fs_bsize, M_TEMP, M_WAITOK);
 	bcopy((caddr_t)bap, (caddr_t)copy, (u_int)fs->e2fs_bsize);
 	bzero((caddr_t)&bap[last + 1],
-	  (NINDIR(fs) - (last + 1)) * sizeof(e2fs_daddr_t));
+	    (NINDIR(fs) - (last + 1)) * sizeof(e2fs_daddr_t));
 	if (last == -1)
 		bp->b_flags |= B_INVAL;
 	if (DOINGASYNC(vp)) {
