@@ -1472,7 +1472,7 @@ bridge_do_pfctl(int32_t bridge_ctl, enum snmp_op op, int32_t *val)
 	} else
 		s_len = 0;
 
-        len = sizeof(i);
+	len = sizeof(i);
 
 	strcpy(mib_name, bridge_sysctl);
 
