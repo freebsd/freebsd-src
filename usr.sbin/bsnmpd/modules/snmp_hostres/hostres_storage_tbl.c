@@ -376,8 +376,11 @@ storage_OS_get_swap(void)
 {
 	struct storage_entry *entry;
 	char swap_w_prefix[SE_DESC_MLEN];
-	size_t len = sizeof(nswapdev);
-	int nswapdev = 0;
+	size_t len;
+	int nswapdev;
+
+	len = sizeof(nswapdev);
+	nswapdev = 0;
 
 	if (sysctlbyname("vm.nswapdev", &nswapdev, &len, NULL,0 ) < 0) {
 		syslog(LOG_ERR,
