@@ -212,8 +212,7 @@ typedef enum efx_mcdi_exception_e {
 } efx_mcdi_exception_t;
 
 #if EFSYS_OPT_MCDI_LOGGING
-typedef enum efx_log_msg_e
-{
+typedef enum efx_log_msg_e {
 	EFX_LOG_INVALID,
 	EFX_LOG_MCDI_REQUEST,
 	EFX_LOG_MCDI_RESPONSE,
@@ -1172,8 +1171,7 @@ efx_nic_cfg_get(
 	__in		efx_nic_t *enp);
 
 /* Driver resource limits (minimum required/maximum usable). */
-typedef struct efx_drv_limits_s
-{
+typedef struct efx_drv_limits_s {
 	uint32_t	edl_min_evq_count;
 	uint32_t	edl_max_evq_count;
 

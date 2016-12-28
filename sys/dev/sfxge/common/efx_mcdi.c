@@ -1728,8 +1728,7 @@ fail1:
 
 #if EFSYS_OPT_MAC_STATS
 
-typedef enum efx_stats_action_e
-{
+typedef enum efx_stats_action_e {
 	EFX_STATS_CLEAR,
 	EFX_STATS_UPLOAD,
 	EFX_STATS_ENABLE_NOEVENTS,
