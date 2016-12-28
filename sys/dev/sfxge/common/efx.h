@@ -847,7 +847,7 @@ typedef enum efx_phy_cap_type_e {
 extern		void
 efx_phy_adv_cap_get(
 	__in		efx_nic_t *enp,
-	__in            uint32_t flag,
+	__in		uint32_t flag,
 	__out		uint32_t *maskp);
 
 extern	__checkReturn	efx_rc_t
@@ -1132,20 +1132,20 @@ typedef struct efx_nic_cfg_s {
 	boolean_t		enc_rx_batching_enabled;
 	/* Maximum number of descriptors completed in an rx event. */
 	uint32_t		enc_rx_batch_max;
-        /* Number of rx descriptors the hardware requires for a push. */
-        uint32_t		enc_rx_push_align;
+	/* Number of rx descriptors the hardware requires for a push. */
+	uint32_t		enc_rx_push_align;
 	/*
 	 * Maximum number of bytes into the packet the TCP header can start for
 	 * the hardware to apply TSO packet edits.
 	 */
-	uint32_t                enc_tx_tso_tcp_header_offset_limit;
-	boolean_t               enc_fw_assisted_tso_enabled;
-	boolean_t               enc_fw_assisted_tso_v2_enabled;
-	boolean_t               enc_hw_tx_insert_vlan_enabled;
+	uint32_t		enc_tx_tso_tcp_header_offset_limit;
+	boolean_t		enc_fw_assisted_tso_enabled;
+	boolean_t		enc_fw_assisted_tso_v2_enabled;
+	boolean_t		enc_hw_tx_insert_vlan_enabled;
 	/* Datapath firmware vadapter/vport/vswitch support */
 	boolean_t		enc_datapath_cap_evb;
-	boolean_t               enc_rx_disable_scatter_supported;
-	boolean_t               enc_allow_set_mac_with_installed_filters;
+	boolean_t		enc_rx_disable_scatter_supported;
+	boolean_t		enc_allow_set_mac_with_installed_filters;
 	boolean_t		enc_enhanced_set_mac_supported;
 	boolean_t		enc_init_evq_v2_supported;
 	/* External port identifier */
@@ -1846,8 +1846,8 @@ typedef enum efx_rx_hash_support_e {
 } efx_rx_hash_support_t;
 
 #define	EFX_RSS_TBL_SIZE	128	/* Rows in RX indirection table */
-#define	EFX_MAXRSS	    	64	/* RX indirection entry range */
-#define	EFX_MAXRSS_LEGACY   	16 	/* See bug16611 and bug17213 */
+#define	EFX_MAXRSS		64	/* RX indirection entry range */
+#define	EFX_MAXRSS_LEGACY	16	/* See bug16611 and bug17213 */
 
 typedef enum efx_rx_scale_support_e {
 	EFX_RX_SCALE_UNAVAILABLE = 0,	/* Not supported */
@@ -2059,7 +2059,7 @@ efx_tx_qpio_write(
 	__in			efx_txq_t *etp,
 	__in_ecount(buf_length)	uint8_t *buffer,
 	__in			size_t buf_length,
-	__in                    size_t pio_buf_offset);
+	__in			size_t pio_buf_offset);
 
 extern	__checkReturn	efx_rc_t
 efx_tx_qpio_post(
