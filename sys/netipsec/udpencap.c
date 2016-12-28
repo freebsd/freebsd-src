@@ -232,19 +232,16 @@ udp_ipsec_output(struct mbuf *m, struct secasvar *sav)
 		DPRINTF(("%s: m_makespace for udphdr failed\n", __func__));
 		return (ENOBUFS);
 	}
-	/*
-	 * IP header should stay in the same place of mbuf m.
-	 * m_makespace() can add new mbuf or move the remaining data into
-	 * the end of mbuf space. Thus mtod() isn't required for ip pointer.
-	 */
+
 	udp = mtodo(n, off);
 	udp->uh_dport = sav->natt->dport;
 	udp->uh_sport = sav->natt->sport;
 	udp->uh_sum = 0;
 	udp->uh_ulen = htons(m->m_pkthdr.len - hlen);
+
+	ip = mtod(m, struct ip *);
 	ip->ip_len = htons(m->m_pkthdr.len);
 	ip->ip_p = IPPROTO_UDP;
-
 	return (0);
 }
 

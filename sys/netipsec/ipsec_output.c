@@ -73,6 +73,9 @@
 #include <netinet/sctp_crc32.h>
 #endif
 
+#include <netinet/udp.h>
+#include <netipsec/ah.h>
+#include <netipsec/esp.h>
 #include <netipsec/ipsec.h>
 #ifdef INET6
 #include <netipsec/ipsec6.h>
@@ -845,6 +848,52 @@ bad:
 	return (error);
 }
 
+/*
+ * ipsec_prepend() is optimized version of M_PREPEND().
+ * ipsec_encap() is called by IPsec output routine for tunnel mode SA.
+ * It is expected that after IP encapsulation some IPsec transform will
+ * be performed. Each IPsec transform inserts its variable length header
+ * just after outer IP header using m_makespace(). If given mbuf has not
+ * enough free space at the beginning, we allocate new mbuf and reserve
+ * some space at the beginning and at the end.
+ * This helps avoid allocating of new mbuf and data copying in m_makespace(),
+ * we place outer header in the middle of mbuf's data with reserved leading
+ * and trailing space:
+ *	[ LEADINGSPACE ][ Outer IP header ][ TRAILINGSPACE ]
+ * LEADINGSPACE will be used to add ethernet header, TRAILINGSPACE will
+ * be used to inject AH/ESP/IPCOMP header.
+ */
+#define	IPSEC_TRAILINGSPACE	(sizeof(struct udphdr) +/* NAT-T */	\
+    max(sizeof(struct newesp) + EALG_MAX_BLOCK_LEN,	/* ESP + IV */	\
+	sizeof(struct newah) + HASH_MAX_LEN		/* AH + ICV */))
+static struct mbuf *
+ipsec_prepend(struct mbuf *m, int len, int how)
+{
+	struct mbuf *n;
+
+	M_ASSERTPKTHDR(m);
+	IPSEC_ASSERT(len < MHLEN, ("wrong length"));
+	if (M_LEADINGSPACE(m) >= len) {
+		/* No need to allocate new mbuf. */
+		m->m_data -= len;
+		m->m_len += len;
+		m->m_pkthdr.len += len;
+		return (m);
+	}
+	n = m_gethdr(how, m->m_type);
+	if (n == NULL) {
+		m_freem(m);
+		return (NULL);
+	}
+	m_move_pkthdr(n, m);
+	n->m_next = m;
+	if (len + IPSEC_TRAILINGSPACE < M_SIZE(n))
+		m_align(n, len + IPSEC_TRAILINGSPACE);
+	n->m_len = len;
+	n->m_pkthdr.len += len;
+	return (n);
+}
+
 static int
 ipsec_encap(struct mbuf **mp, struct secasindex *saidx)
 {
@@ -896,7 +945,7 @@ ipsec_encap(struct mbuf **mp, struct secasindex *saidx)
 		    saidx->src.sin.sin_addr.s_addr == INADDR_ANY ||
 		    saidx->dst.sin.sin_addr.s_addr == INADDR_ANY)
 			return (EINVAL);
-		M_PREPEND(*mp, sizeof(struct ip), M_NOWAIT);
+		*mp = ipsec_prepend(*mp, sizeof(struct ip), M_NOWAIT);
 		if (*mp == NULL)
 			return (ENOBUFS);
 		ip = mtod(*mp, struct ip *);
@@ -919,7 +968,7 @@ ipsec_encap(struct mbuf **mp, struct secasindex *saidx)
 		    IN6_IS_ADDR_UNSPECIFIED(&saidx->src.sin6.sin6_addr) ||
 		    IN6_IS_ADDR_UNSPECIFIED(&saidx->dst.sin6.sin6_addr))
 			return (EINVAL);
-		M_PREPEND(*mp, sizeof(struct ip6_hdr), M_NOWAIT);
+		*mp = ipsec_prepend(*mp, sizeof(struct ip6_hdr), M_NOWAIT);
 		if (*mp == NULL)
 			return (ENOBUFS);
 		ip6 = mtod(*mp, struct ip6_hdr *);
