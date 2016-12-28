@@ -289,8 +289,13 @@ medford_board_cfg(
 	encp->enc_rx_buf_align_start = 1;
 
 	/* Get the RX DMA end padding alignment configuration */
-	if ((rc = efx_mcdi_get_rxdp_config(enp, &end_padding)) != 0)
-		goto fail11;
+	if ((rc = efx_mcdi_get_rxdp_config(enp, &end_padding)) != 0) {
+		if (rc != EACCES)
+			goto fail11;
+
+		/* Assume largest tail padding size supported by hardware */
+		end_padding = 256;
+	}
 	encp->enc_rx_buf_align_end = end_padding;
 
 	/* Alignment for WPTR updates */
