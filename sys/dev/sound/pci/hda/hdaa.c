@@ -2130,7 +2130,8 @@ hdaa_channel_start(struct hdaa_chan *ch)
 	uint32_t fmt;
 
 	fmt = hdaa_stream_format(ch);
-	ch->stripectl = fls(ch->stripecap & hdaa_allowed_stripes(fmt)) - 1;
+	ch->stripectl = fls(ch->stripecap & hdaa_allowed_stripes(fmt) &
+	    hda_get_stripes_mask(devinfo->dev)) - 1;
 	ch->sid = HDAC_STREAM_ALLOC(device_get_parent(devinfo->dev), devinfo->dev,
 	    ch->dir == PCMDIR_PLAY ? 1 : 0, fmt, ch->stripectl, &ch->dmapos);
 	if (ch->sid <= 0)
