@@ -1357,8 +1357,8 @@ fail1:
 
 #if EFSYS_OPT_QSTATS
 #if EFSYS_OPT_NAMES
-/* START MKCONFIG GENERATED EfxEventQueueStatNamesBlock b693ddf85aee1bfd */
-static const char 	*__efx_ev_qstat_name[] = {
+/* START MKCONFIG GENERATED EfxEventQueueStatNamesBlock c0f3bc5083b40532 */
+static const char * const __efx_ev_qstat_name[] = {
 	"all",
 	"rx",
 	"rx_ok",
