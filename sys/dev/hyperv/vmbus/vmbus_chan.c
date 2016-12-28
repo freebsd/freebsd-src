@@ -775,9 +775,7 @@ vmbus_chan_clrchmap_task(void *xchan, int pending __unused)
 {
 	struct vmbus_channel *chan = xchan;
 
-	critical_enter();
 	chan->ch_vmbus->vmbus_chmap[chan->ch_id] = NULL;
-	critical_exit();
 }
 
 static void
@@ -1308,15 +1306,17 @@ vmbus_chan_pollcfg_task(void *xarg, int pending __unused)
 	chan->ch_poll_flags = poll_flags;
 
 	/*
-	 * Disable interrupt from the RX bufring (TX bufring does not
-	 * generate interrupt to VM), and disconnect this channel from
-	 * the channel map to make sure that ISR can not enqueue this
-	 * channel task anymore.
+	 * Disconnect this channel from the channel map to make sure that
+	 * the RX bufring interrupt enabling bit can not be touched, and
+	 * ISR can not enqueue this channel task anymore.  THEN, disable
+	 * interrupt from the RX bufring (TX bufring does not generate
+	 * interrupt to VM).
+	 *
+	 * NOTE: order is critical.
 	 */
-	critical_enter();
-	vmbus_rxbr_intr_mask(&chan->ch_rxbr);
 	chan->ch_vmbus->vmbus_chmap[chan->ch_id] = NULL;
-	critical_exit();
+	__compiler_membar();
+	vmbus_rxbr_intr_mask(&chan->ch_rxbr);
 
 	/*
 	 * NOTE:
@@ -1380,11 +1380,9 @@ vmbus_chan_polldis_task(void *xchan, int pending __unused)
 	 * Plug this channel back to the channel map and unmask
 	 * the RX bufring interrupt.
 	 */
-	critical_enter();
 	chan->ch_vmbus->vmbus_chmap[chan->ch_id] = chan;
 	__compiler_membar();
 	vmbus_rxbr_intr_unmask(&chan->ch_rxbr);
-	critical_exit();
 
 	/*
 	 * Kick start the interrupt task, just in case unmasking
