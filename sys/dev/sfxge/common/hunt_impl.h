@@ -75,16 +75,16 @@ hunt_board_cfg(
 #if EFSYS_OPT_BIST
 
 extern	__checkReturn		efx_rc_t
-hunt_bist_enable_offline(
+ef10_bist_enable_offline(
 	__in			efx_nic_t *enp);
 
 extern	__checkReturn		efx_rc_t
-hunt_bist_start(
+ef10_bist_start(
 	__in			efx_nic_t *enp,
 	__in			efx_bist_type_t type);
 
 extern	__checkReturn		efx_rc_t
-hunt_bist_poll(
+ef10_bist_poll(
 	__in			efx_nic_t *enp,
 	__in			efx_bist_type_t type,
 	__out			efx_bist_result_t *resultp,
@@ -95,7 +95,7 @@ hunt_bist_poll(
 	__in			size_t count);
 
 extern				void
-hunt_bist_stop(
+ef10_bist_stop(
 	__in			efx_nic_t *enp,
 	__in			efx_bist_type_t type);
 
