@@ -435,7 +435,7 @@ typedef enum efx_link_mode_e {
 
 #define	EFX_MAC_ADDR_LEN 6
 
-#define	EFX_MAC_ADDR_IS_MULTICAST(_address) (((uint8_t*)_address)[0] & 0x01)
+#define	EFX_MAC_ADDR_IS_MULTICAST(_address) (((uint8_t *)_address)[0] & 0x01)
 
 #define	EFX_MAC_MULTICAST_LIST_MAX	256
 
