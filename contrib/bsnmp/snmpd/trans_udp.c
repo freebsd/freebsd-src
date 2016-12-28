@@ -334,10 +334,10 @@ static ssize_t
 udp_recv(struct tport *tp, struct port_input *pi)
 {
 	struct udp_port *p = (struct udp_port *)tp;
+	struct cmsghdr *cmsgp;
 	struct in_addr *laddr;
 	struct msghdr msg;
 	char cbuf[CMSG_SPACE(sizeof(struct in_addr))];
-	struct cmsghdr *cmsgp;
 	ssize_t ret;
 
 	memset(cbuf, 0, sizeof(cbuf));
