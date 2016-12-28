@@ -73,17 +73,16 @@ struct pv_entry;
 struct pv_chunk;
 
 struct md_page {
-	TAILQ_HEAD(, pv_entry) pv_list;
-	vm_memattr_t pv_memattr;
+	int pv_flags;
 #ifdef MIPS64_NEW_PMAP
 	int pv_gen;
-#else /* ! MIPS64_NEW_PMAP */
-	int pv_flags;
-#endif /* ! MIPS64_NEW_PMAP */
+#endif /* MIPS64_NEW_PMAP */
+	TAILQ_HEAD(, pv_entry) pv_list;
 };
 
 #define	PV_TABLE_REF		0x02	/* referenced */
-#define	PV_MEMATTR_UNCACHEABLE	0x04
+#define	PV_MEMATTR_MASK		0xf0	/* store vm_memattr_t here */
+#define	PV_MEMATTR_SHIFT	0x04
 
 #define	ASID_BITS		8
 #define	ASIDGEN_BITS		(32 - ASID_BITS)
@@ -175,16 +174,17 @@ extern vm_offset_t virtual_end;
 
 extern vm_paddr_t dump_avail[PHYS_AVAIL_ENTRIES + 2];
 
-#define	pmap_page_get_memattr(m)	((m)->md.pv_memattr)
+#define	pmap_page_get_memattr(m) (((m)->md.pv_flags & PV_MEMATTR_MASK) >> PV_MEMATTR_SHIFT)
 #define	pmap_page_is_write_mapped(m)	(((m)->aflags & PGA_WRITEABLE) != 0)
 
 void pmap_bootstrap(void);
 void *pmap_mapdev(vm_paddr_t, vm_size_t);
 boolean_t pmap_page_is_mapped(vm_page_t m);
+void *pmap_mapdev_attr(vm_paddr_t, vm_size_t, vm_memattr_t);
 void pmap_unmapdev(vm_offset_t, vm_size_t);
 vm_offset_t pmap_steal_memory(vm_size_t size);
 void pmap_kenter(vm_offset_t va, vm_paddr_t pa);
-void pmap_kenter_attr(vm_offset_t va, vm_paddr_t pa, int attr);
+void pmap_kenter_attr(vm_offset_t va, vm_paddr_t pa, vm_memattr_t attr);
 void pmap_kremove(vm_offset_t va);
 void *pmap_kenter_temporary(vm_paddr_t pa, int i);
 void pmap_kenter_temporary_free(vm_paddr_t pa);
@@ -192,6 +192,7 @@ void pmap_flush_pvcache(vm_page_t m);
 int pmap_emulate_modified(pmap_t pmap, vm_offset_t va);
 int pmap_emulate_referenced(pmap_t pmap, vm_offset_t va);
 void pmap_page_set_memattr(vm_page_t, vm_memattr_t);
+int pmap_change_attr(vm_offset_t, vm_size_t, vm_memattr_t);
 
 #endif				/* _KERNEL */
 

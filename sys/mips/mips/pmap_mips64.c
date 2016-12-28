@@ -260,6 +260,21 @@ static void pmap_invalidate_page_action(void *arg);
 static void pmap_invalidate_range_action(void *arg);
 static void pmap_update_page_action(void *arg);
 
+static __inline int
+pmap_pte_cache_bits(vm_paddr_t pa, vm_page_t m)
+{
+	vm_memattr_t ma;
+
+	ma = pmap_page_get_memattr(m);
+	if (ma == VM_MEMATTR_WRITE_BACK && !is_cacheable_mem(pa))
+		ma = VM_MEMATTR_UNCACHEABLE;
+	return PTE_C(ma);
+}
+#define PMAP_PTE_SET_CACHE_BITS(pte, ps, m) {   \
+    pte &= ~PTE_C_MASK;                         \
+    pte |= pmap_pte_cache_bits(pa, m);          \
+}
+
 /*
  * Page table entry lookup routines.
  */
@@ -538,7 +553,7 @@ pmap_page_init(vm_page_t m)
 {
 
 	TAILQ_INIT(&m->md.pv_list);
-	m->md.pv_memattr = VM_MEMATTR_DEFAULT;
+	m->md.pv_flags = VM_MEMATTR_DEFAULT << PV_MEMATTR_SHIFT;
 }
 
 /*
@@ -982,7 +997,7 @@ pmap_kextract(vm_offset_t va)
  * add a wired page to the kva
  */
 void
-pmap_kenter_attr(vm_offset_t va, vm_paddr_t pa, int attr)
+pmap_kenter_attr(vm_offset_t va, vm_paddr_t pa, vm_memattr_t ma)
 {
 	pt_entry_t *pte;
 	pt_entry_t opte, npte;
@@ -993,7 +1008,7 @@ pmap_kenter_attr(vm_offset_t va, vm_paddr_t pa, int attr)
 
 	pte = pmap_pte(kernel_pmap, va);
 	opte = *pte;
-	npte = TLBLO_PA_TO_PFN(pa) | attr | PTE_D | PTE_REF | PTE_VALID | PTE_G;
+	npte = TLBLO_PA_TO_PFN(pa) | PTE_C(ma) | PTE_D | PTE_REF | PTE_VALID | PTE_G;
 	pte_store(pte, npte);
 	if (pte_is_valid(&opte) && opte != npte)
 		pmap_update_page(kernel_pmap, va, npte);
@@ -1006,7 +1021,7 @@ pmap_kenter(vm_offset_t va, vm_paddr_t pa)
 	KASSERT(is_cacheable_mem(pa),
 		("pmap_kenter: memory at 0x%lx is not cacheable", (u_long)pa));
 
-	pmap_kenter_attr(va, pa, PTE_C_CACHE);
+	pmap_kenter_attr(va, pa, VM_MEMATTR_DEFAULT);
 }
 
 /*-
@@ -3033,13 +3048,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
                 newpte |= PTE_W;
         if (is_kernel_pmap(pmap))
                 newpte |= PTE_G;
-        if (is_cacheable_mem(pa)) {
-                if (m->md.pv_memattr == VM_MEMATTR_UNCACHEABLE)
-                        newpte |= PTE_C_UNCACHED;
-                else
-                        newpte |= PTE_C_CACHE;
-        } else
-                newpte |= PTE_C_UNCACHED;
+	PMAP_PTE_SET_CACHE_BITS(newpte, pa, m);
 #ifdef CPU_CHERI
         if ((flags & PMAP_ENTER_NOLOADTAGS) != 0)
                 newpte |= PTE_LC;
@@ -3330,13 +3339,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	if ((m->oflags & VPO_UNMANAGED) == 0)
 		newpte |= PTE_MANAGED;
 
-	if (is_cacheable_mem(pa)) {
-		if (m->md.pv_memattr == VM_MEMATTR_UNCACHEABLE)
-			newpte |= PTE_C_UNCACHED;
-		else
-			newpte |= PTE_C_CACHE;
-	} else
-		newpte |= PTE_C_UNCACHED;
+	PMAP_PTE_SET_CACHE_BITS(newpte, pa, m);
 
 	sched_pin();
 	if (is_kernel_pmap(pmap)) {
@@ -3458,13 +3461,7 @@ pmap_enter_pde(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	}
 	pa = VM_PAGE_TO_PHYS(m);
         newpde = PTE_RO | TLBLO_PA_TO_PFN(pa) | PTE_VALID | PTE_PS_1M;
-	if (is_cacheable_mem(pa)) {
-		if (m->md.pv_memattr == VM_MEMATTR_UNCACHEABLE)
-			newpde |= PTE_C_UNCACHED;
-		else
-			newpde |= PTE_C_CACHE;
-	} else
-		newpde |= PTE_C_UNCACHED;
+	PMAP_PTE_SET_CACHE_BITS(newpde, pa, m);
 	if ((m->oflags & VPO_UNMANAGED) == 0) {
 		newpde |= PTE_MANAGED;
 
@@ -3596,7 +3593,7 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr, vm_object_t object,
 		p = vm_page_lookup(object, pindex);
 		KASSERT(p->valid == VM_PAGE_BITS_ALL,
 		    ("%s: invalid page %p", __func__, p));
-		memattr = p->md.pv_memattr;
+		memattr = pmap_page_get_memattr(p);
 
 		/*
 		 * Abort the mapping if the first page is not physically
@@ -3617,7 +3614,7 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr, vm_object_t object,
 			KASSERT(p->valid == VM_PAGE_BITS_ALL,
 			    ("%s: invalid page %p", __func__, p));
 			if (pa != VM_PAGE_TO_PHYS(p) ||
-			    memattr != p->md.pv_memattr)
+			    memattr != pmap_page_get_memattr(p))
 				return;
 			p = TAILQ_NEXT(p, listq);
 		}
@@ -3647,15 +3644,7 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr, vm_object_t object,
 				pt_entry_t newpte = TLBLO_PA_TO_PFN(pa) |
 				    PTE_PS_1M | PTE_D | PTE_REF | PTE_VALID;
 
-				if (is_cacheable_mem(pa)) {
-					if (pdpg->md.pv_memattr ==
-					    VM_MEMATTR_UNCACHEABLE)
-						newpte |= PTE_C_UNCACHED;
-					else
-						newpte |= PTE_C_CACHE;
-				} else
-					newpte |= PTE_C_UNCACHED;
-
+				PMAP_PTE_SET_CACHE_BITS(newpte, pa, p);
 				pde_store(pde, newpte);
 				pmap_resident_count_inc(pmap, NBPDR/PAGE_SIZE);
 				atomic_add_long(&pmap_pde_mappings, 1);
@@ -5114,7 +5103,10 @@ pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma)
 	 * Set the memattr field so the appropriate bits are set in the
 	 * PTE as mappings are created.
 	 */
-	m->md.pv_memattr = ma;
+
+	/* Clean memattr portion of pv_flags */
+	m->md.pv_flags &= ~PV_MEMATTR_MASK;
+	m->md.pv_flags |= (ma << PV_MEMATTR_SHIFT) & PV_MEMATTR_MASK;
 
 	/*
 	 * It is assumed that this function is only called before any mappings
@@ -5126,6 +5118,122 @@ pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma)
 	 */
 	if (TAILQ_FIRST(&m->md.pv_list) != NULL)
 		panic("Can't change memattr on page with existing mappings");
+}
+
+static inline void
+pmap_pte_attr(pt_entry_t *pte, vm_memattr_t ma)
+{
+	u_int npte;
+
+	npte = *(u_int *)pte;
+	npte &= ~PTE_C_MASK;
+	npte |= PTE_C(ma);
+	*pte = npte;
+}
+
+/*
+ * Changes the specified virtual address range's memory attribute to that
+ * given by the parameter "ma".  The specified virtual address range must be
+ * completely contained within the kernel map.
+ *
+ * Returns zero if the change completed successfully, and either EINVAL or
+ * ENOMEM if the change failed.  Specifically, EINVAL is returned if some part
+ * of the virtual address range was not mapped, and ENOMEM is returned if
+ * there was insufficient memory available to complete the change.  In the
+ * latter case, the memory type may have been changed on some part of the
+ * virtual address range or the direct map.
+ */
+int
+pmap_change_attr(vm_offset_t sva, vm_size_t size, vm_memattr_t ma)
+{
+	pd_entry_t *pde, *pdpe;
+	pt_entry_t *pte;
+	vm_offset_t ova, eva, va, va_next;
+
+	ova = sva;
+	eva = sva + size;
+	if (eva < sva)
+		return (EINVAL);
+
+	PMAP_LOCK(kernel_pmap);
+
+	for (; sva < eva; sva = va_next) {
+		pdpe = pmap_segmap(kernel_pmap, sva);
+		if (*pdpe == 0) {
+			va_next = (sva + NBSEG) & ~SEGMASK;
+			if (va_next < sva)
+				va_next = eva;
+			continue;
+		}
+		va_next = (sva + NBPDR) & ~PDRMASK;
+		if (va_next < sva)
+			va_next = eva;
+
+		pde = pmap_pdpe_to_pde(pdpe, sva);
+		if (*pde == NULL)
+			continue;
+
+		if (pde_is_1m_superpage(pde)) {
+			if (pte_cache_bits(pte) == ma) {
+				/*
+				 * Superpage already has the required memory type
+				 * so we don't need to demote it. Increment to the
+				 * next superpage frame.
+				 */
+				va_next = (sva + NBPDR) & ~PDRMASK;
+				if (va_next < sva)
+					va_next = eva;
+				continue;
+			}
+
+			if ((sva & PDRMASK) == 0 && (sva + PDRMASK < eva)) {
+				/*
+				 * Aligns with the superpage frame and there
+				 * is at least a superpage left in the range.
+				 * No need to break down into 4K pages.
+				 */
+				va_next = sva + NBPDR;
+				continue;
+			}
+
+
+			if (!pmap_demote_pde(kernel_pmap, pde, sva)) {
+				PMAP_UNLOCK(kernel_pmap);
+				return (ENOMEM);
+			}
+		}
+
+		/*
+		 * Limit our scan to either the end of the va represented
+		 * by the current page table page, or to the end of the
+		 * range being removed.
+		 */
+		if (va_next > eva)
+			va_next = eva;
+
+		va = va_next;
+		for (pte = pmap_pde_to_pte(pde, sva); sva != va_next; pte++,
+		    sva += PAGE_SIZE) {
+			if (!pte_test(pte, PTE_VALID) || pte_cache_bits(pte) == ma) {
+				if (va != va_next) {
+					pmap_invalidate_range(kernel_pmap, va, sva);
+					va = va_next;
+				}
+				continue;
+			}
+			if (va == va_next)
+				va = sva;
+
+			pmap_pte_attr(pte, ma);
+		}
+		if (va != va_next)
+			pmap_invalidate_range(kernel_pmap, va, sva);
+	}
+	PMAP_UNLOCK(kernel_pmap);
+
+	/* Flush caches to be in the safe side */
+	mips_dcache_wbinv_range(ova, size);
+	return 0;
 }
 
 /*

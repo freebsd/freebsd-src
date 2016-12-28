@@ -155,8 +155,10 @@ typedef	pt_entry_t *pd_entry_t;
  * 		it is matched.
  */
 #define	PTE_C(attr)		((attr & 0x07) << 3)
+#define	PTE_C_MASK		(PTE_C(0x07))
 #define	PTE_C_UNCACHED		(PTE_C(MIPS_CCA_UNCACHED))
 #define	PTE_C_CACHE		(PTE_C(MIPS_CCA_CACHED))
+#define	PTE_C_WC		(PTE_C(MIPS_CCA_WC))
 #define	PTE_D			0x04
 #define	PTE_VR			0x02
 #define	PTE_G			0x01
@@ -500,6 +502,8 @@ TLBLO_PTE_TO_PA(pt_entry_t pte)
 }
 #endif /* ! _LOCORE */
 #endif /* ! PHYSADDR_64_BIT */
+
+#define	pte_cache_bits(pte)	((*(pte) >> 3) & 0x07)
 
 /* Assembly support for PTE access*/
 #ifdef LOCORE
