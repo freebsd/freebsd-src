@@ -160,7 +160,7 @@ siena_vpd_init(
 {
 	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
 	caddr_t svpd = NULL;
-	unsigned partn;
+	unsigned int partn;
 	size_t size = 0;
 	efx_rc_t rc;
 
