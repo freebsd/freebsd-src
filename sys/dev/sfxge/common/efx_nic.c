@@ -556,7 +556,7 @@ efx_nic_destroy(
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, ==, 0);
 
-	enp->en_family = 0;
+	enp->en_family = EFX_FAMILY_INVALID;
 	enp->en_esip = NULL;
 	enp->en_esbp = NULL;
 	enp->en_eslp = NULL;
