@@ -772,7 +772,7 @@ ef10_nvram_buffer_create(
 	struct tlv_partition_header header;
 	struct tlv_partition_trailer trailer;
 
-	unsigned min_buf_size = sizeof (struct tlv_partition_header) +
+	unsigned int min_buf_size = sizeof (struct tlv_partition_header) +
 	    sizeof (struct tlv_partition_trailer);
 	if (partn_size < min_buf_size) {
 		rc = EINVAL;
