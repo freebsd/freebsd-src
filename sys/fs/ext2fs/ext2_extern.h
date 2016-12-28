@@ -110,4 +110,4 @@ int	ext2_search_dirblock(struct inode *, void *, int *, const char *, int,
 extern struct vop_vector ext2_vnodeops;
 extern struct vop_vector ext2_fifoops;
 
-#endif /* !_FS_EXT2FS_EXT2_EXTERN_H_ */
+#endif	/* !_FS_EXT2FS_EXT2_EXTERN_H_ */
