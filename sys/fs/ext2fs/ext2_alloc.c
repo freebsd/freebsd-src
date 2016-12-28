@@ -81,7 +81,7 @@ static daddr_t  ext2_mapsearch(struct m_ext2fs *, char *, daddr_t);
  */
 int
 ext2_alloc(struct inode *ip, daddr_t lbn, e4fs_daddr_t bpref, int size,
-        struct ucred *cred, e4fs_daddr_t *bnp)
+    struct ucred *cred, e4fs_daddr_t *bnp)
 {
 	struct m_ext2fs *fs;
 	struct ext2mount *ump;
