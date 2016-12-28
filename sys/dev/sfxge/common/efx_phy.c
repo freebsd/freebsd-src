@@ -336,8 +336,8 @@ fail1:
 
 #if EFSYS_OPT_NAMES
 
-/* START MKCONFIG GENERATED PhyStatNamesBlock d5f79b4bc2c050fe */
-static const char 	*__efx_phy_stat_name[] = {
+/* START MKCONFIG GENERATED PhyStatNamesBlock af9ffa24da3bc100 */
+static const char * const __efx_phy_stat_name[] = {
 	"oui",
 	"pma_pmd_link_up",
 	"pma_pmd_rx_fault",
