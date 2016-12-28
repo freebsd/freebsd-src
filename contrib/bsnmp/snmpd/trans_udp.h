@@ -39,6 +39,7 @@ struct udp_port {
 	struct port_input input;	/* common input stuff */
 
 	struct sockaddr_in ret;		/* the return address */
+	struct in_addr recv_addr;	/* the address the request was sent to */
 };
 
 /* argument for open call */

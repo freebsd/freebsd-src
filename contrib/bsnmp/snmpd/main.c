@@ -1040,10 +1040,8 @@ snmpd_input(struct port_input *pi, struct tport *tport)
 #ifdef USE_TCPWRAPPERS
 	char client[16];
 #endif
-	struct msghdr msg;
-	struct iovec iov[1];
 
-	ret = tport->transport->vtab->recv(pi);
+	ret = tport->transport->vtab->recv(tport, pi);
 	if (ret == -1)
 		return (-1);
 
@@ -1186,21 +1184,15 @@ snmpd_input(struct port_input *pi, struct tport *tport)
 	    sndbuf, &sndlen, "SNMP", ierr, vi, NULL);
 
 	if (ferr == SNMPD_INPUT_OK) {
-		msg.msg_name = pi->peer;
-		msg.msg_namelen = pi->peerlen;
-		msg.msg_iov = iov;
-		msg.msg_iovlen = 1;
-		msg.msg_flags = 0;
-		iov[0].iov_base = sndbuf;
-		iov[0].iov_len = sndlen;
-
-		slen = sendmsg(pi->fd, &msg, 0);
+		slen = tport->transport->vtab->send(tport, sndbuf, sndlen,
+		    pi->peer, pi->peerlen);
 		if (slen == -1)
-			syslog(LOG_ERR, "sendmsg: %m");
+			syslog(LOG_ERR, "send*: %m");
 		else if ((size_t)slen != sndlen)
-			syslog(LOG_ERR, "sendmsg: short write %zu/%zu",
-			    sndlen, (size_t)slen);
+			syslog(LOG_ERR, "send*: short write %zu/%zu", sndlen,
+			    (size_t)slen);
 	}
+
 	snmp_pdu_free(&pdu);
 	free(sndbuf);
 	snmp_input_consume(pi);
