@@ -404,14 +404,18 @@ vm_reserv_populate(vm_reserv_t rv, int index)
  * physical address boundary that is a multiple of that value.  Both
  * "alignment" and "boundary" must be a power of two.
  *
+ * The page "mpred" must immediately precede the offset "pindex" within the
+ * specified object.
+ *
  * The object and free page queue must be locked.
  */
 vm_page_t
 vm_reserv_alloc_contig(vm_object_t object, vm_pindex_t pindex, u_long npages,
-    vm_paddr_t low, vm_paddr_t high, u_long alignment, vm_paddr_t boundary)
+    vm_paddr_t low, vm_paddr_t high, u_long alignment, vm_paddr_t boundary,
+    vm_page_t mpred)
 {
 	vm_paddr_t pa, size;
-	vm_page_t m, m_ret, mpred, msucc;
+	vm_page_t m, m_ret, msucc;
 	vm_pindex_t first, leftcap, rightcap;
 	vm_reserv_t rv;
 	u_long allocpages, maxpages, minpages;
@@ -448,10 +452,11 @@ vm_reserv_alloc_contig(vm_object_t object, vm_pindex_t pindex, u_long npages,
 	/*
 	 * Look for an existing reservation.
 	 */
-	mpred = vm_radix_lookup_le(&object->rtree, pindex);
 	if (mpred != NULL) {
+		KASSERT(mpred->object == object,
+		    ("vm_reserv_alloc_contig: object doesn't contain mpred"));
 		KASSERT(mpred->pindex < pindex,
-		    ("vm_reserv_alloc_contig: pindex already allocated"));
+		    ("vm_reserv_alloc_contig: mpred doesn't precede pindex"));
 		rv = vm_reserv_from_page(mpred);
 		if (rv->object == object && vm_reserv_has_pindex(rv, pindex))
 			goto found;
@@ -460,7 +465,7 @@ vm_reserv_alloc_contig(vm_object_t object, vm_pindex_t pindex, u_long npages,
 		msucc = TAILQ_FIRST(&object->memq);
 	if (msucc != NULL) {
 		KASSERT(msucc->pindex > pindex,
-		    ("vm_reserv_alloc_contig: pindex already allocated"));
+		    ("vm_reserv_alloc_contig: msucc doesn't succeed pindex"));
 		rv = vm_reserv_from_page(msucc);
 		if (rv->object == object && vm_reserv_has_pindex(rv, pindex))
 			goto found;
