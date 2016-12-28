@@ -50,7 +50,7 @@
 #include "hostres_oid.h"
 #include "hostres_tree.h"
 
-#define	CONTENTS_FNAME          "+CONTENTS"
+#define	CONTENTS_FNAME	"+CONTENTS"
 
 enum SWInstalledType {
 	SWI_UNKNOWN		= 1,
@@ -136,7 +136,7 @@ swins_entry_create(const char *name)
 		size_t name_len;
 		/* new object - get a new index */
 		if (next_swins_index > INT_MAX) {
-		        syslog(LOG_ERR, "%s: hrSWInstalledTable index wrap",
+			syslog(LOG_ERR, "%s: hrSWInstalledTable index wrap",
 			    __func__ );
 			/* There isn't much we can do here.
 			 * If the next_swins_index is consumed
@@ -292,7 +292,7 @@ swins_get_packages(void)
 	struct stat sb;
 	DIR *p_dir;
 	struct dirent *ent;
-        struct tm k_ts;
+	struct tm k_ts;
 	char *pkg_file;
 	struct swins_entry *entry;
 	int ret = 0;
@@ -327,7 +327,7 @@ swins_get_packages(void)
 		return (-1);
 	}
 
-        while (errno = 0, (ent = readdir(p_dir)) != NULL) {
+	while (errno = 0, (ent = readdir(p_dir)) != NULL) {
 		HRDBG("  pkg file: %s", ent->d_name);
 
 		/* check that the contents file is a regular file */
@@ -371,7 +371,7 @@ swins_get_packages(void)
 		entry->type = (int32_t)SWI_APPLICATION;
 
 		entry->date_len = make_date_time(entry->date, &k_ts, 0);
-        }
+	}
 
 	if (errno != 0) {
 		syslog(LOG_ERR, "hrSWInstalledTable: readdir_r(\"%s\") failed:"
