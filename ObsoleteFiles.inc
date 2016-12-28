@@ -574,6 +574,8 @@ OLD_FILES+=usr/sbin/unbound-control-setup
 OLD_FILES+=usr/share/mdocml/example.style.css
 OLD_FILES+=usr/share/mdocml/style.css
 OLD_DIRS+=usr/share/mdocml
+# 20160107: GNU ld installed as ld.bfd and linked as ld
+OLD_FILES+=usr/lib/debug/usr/bin/ld.debug
 # 20151225: new clang import which bumps version from 3.7.0 to 3.7.1.
 OLD_FILES+=usr/lib/clang/3.7.0/include/sanitizer/allocator_interface.h
 OLD_FILES+=usr/lib/clang/3.7.0/include/sanitizer/asan_interface.h
