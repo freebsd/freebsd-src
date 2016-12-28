@@ -329,7 +329,7 @@ efx_tx_qcreate(
 
 	if ((rc = etxop->etxo_qcreate(enp, index, label, esmp,
 	    n, id, flags, eep, etp, addedp)) != 0)
-			goto fail2;
+		goto fail2;
 
 	enp->en_tx_qcount++;
 	*etpp = etp;
