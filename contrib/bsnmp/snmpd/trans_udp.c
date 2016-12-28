@@ -55,7 +55,7 @@ static void udp_close_port(struct tport *);
 static int udp_init_port(struct tport *);
 static ssize_t udp_send(struct tport *, const u_char *, size_t,
     const struct sockaddr *, size_t);
-static ssize_t udp_recv(struct port_input *);
+static ssize_t udp_recv(struct tport *, struct port_input *);
 
 /* exported */
 const struct transport_def udp_trans = {
@@ -217,8 +217,30 @@ udp_send(struct tport *tp, const u_char *buf, size_t len,
     const struct sockaddr *addr, size_t addrlen)
 {
 	struct udp_port *p = (struct udp_port *)tp;
+	struct cmsghdr *cmsg;
+	struct in_addr *src_addr;
+	struct msghdr msg;
+	char cbuf[CMSG_SPACE(sizeof(struct in_addr))];
+	struct iovec iov;
 
-	return (sendto(p->input.fd, buf, len, 0, addr, addrlen));
+	iov.iov_base = __DECONST(void*, buf);
+	iov.iov_len = len;
+
+	msg.msg_iov = &iov;
+	msg.msg_iovlen = 1;
+	msg.msg_name = __DECONST(void *, addr);
+	msg.msg_namelen = addrlen;
+	msg.msg_control = cbuf;
+	msg.msg_controllen = sizeof(cbuf);
+
+	cmsg = CMSG_FIRSTHDR(&msg);
+	cmsg->cmsg_level = IPPROTO_IP;
+	cmsg->cmsg_type = IP_SENDSRCADDR;
+	cmsg->cmsg_len = CMSG_LEN(sizeof(struct in_addr));
+	src_addr = (struct in_addr *)(void*)CMSG_DATA(cmsg);
+	memcpy(src_addr, &p->recv_addr, sizeof(struct in_addr));
+
+	return (sendmsg(p->input.fd, &msg, 0));
 }
 
 static void
@@ -309,8 +331,9 @@ recv_dgram(struct port_input *pi, struct in_addr *laddr)
  * Receive something
  */
 static ssize_t
-udp_recv(struct port_input *pi)
+udp_recv(struct tport *tp, struct port_input *pi)
 {
+	struct udp_port *p = (struct udp_port *)tp;
 	struct in_addr *laddr;
 	struct msghdr msg;
 	char cbuf[CMSG_SPACE(sizeof(struct in_addr))];
@@ -329,6 +352,8 @@ udp_recv(struct port_input *pi)
 	laddr = (struct in_addr *)CMSG_DATA(cmsgp);
 
 	ret = recv_dgram(pi, laddr);
+
+	memcpy(&p->recv_addr, laddr, sizeof(struct in_addr));
 
 	if (laddr->s_addr == INADDR_ANY) {
 		msg.msg_control = NULL;
