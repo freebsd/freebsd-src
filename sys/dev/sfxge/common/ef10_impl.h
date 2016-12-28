@@ -85,6 +85,7 @@ ef10_ev_qcreate(
 	__in		size_t n,
 	__in		uint32_t id,
 	__in		uint32_t us,
+	__in		uint32_t flags,
 	__in		efx_evq_t *eep);
 
 			void
