@@ -39,7 +39,7 @@ __FBSDID("$FreeBSD$");
 #if EFSYS_OPT_BIST
 
 	__checkReturn		efx_rc_t
-hunt_bist_enable_offline(
+ef10_bist_enable_offline(
 	__in			efx_nic_t *enp)
 {
 	efx_rc_t rc;
@@ -56,7 +56,7 @@ fail1:
 }
 
 	__checkReturn		efx_rc_t
-hunt_bist_start(
+ef10_bist_start(
 	__in			efx_nic_t *enp,
 	__in			efx_bist_type_t type)
 {
@@ -74,7 +74,7 @@ fail1:
 }
 
 	__checkReturn		efx_rc_t
-hunt_bist_poll(
+ef10_bist_poll(
 	__in			efx_nic_t *enp,
 	__in			efx_bist_type_t type,
 	__out			efx_bist_result_t *resultp,
@@ -179,11 +179,11 @@ fail1:
 }
 
 			void
-hunt_bist_stop(
+ef10_bist_stop(
 	__in		efx_nic_t *enp,
 	__in		efx_bist_type_t type)
 {
-	/* There is no way to stop BIST on Huntinton. */
+	/* There is no way to stop BIST on EF10. */
 	_NOTE(ARGUNUSED(enp, type))
 }
 
