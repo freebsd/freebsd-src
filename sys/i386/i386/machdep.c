@@ -2089,7 +2089,6 @@ getmemsize(int first)
 	 * use that and do not make any VM86 calls.
 	 */
 	physmap_idx = 0;
-	smapbase = NULL;
 	kmdp = preload_search_by_type("elf kernel");
 	if (kmdp == NULL)
 		kmdp = preload_search_by_type("elf32 kernel");
@@ -2223,6 +2222,9 @@ physmap_done:
 	 * highest page of the physical address space.  It should be
 	 * called something like "Maxphyspage".  We may adjust this 
 	 * based on ``hw.physmem'' and the results of the memory test.
+	 *
+	 * This is especially confusing when it is much larger than the
+	 * memory size and is displayed as "realmem".
 	 */
 	Maxmem = atop(physmap[physmap_idx + 1]);
 
@@ -2428,6 +2430,19 @@ do_next:
 }
 #endif /* PC98 */
 
+static void
+i386_kdb_init(void)
+{
+#ifdef DDB
+	db_fetch_ksymtab(bootinfo.bi_symtab, bootinfo.bi_esymtab);
+#endif
+	kdb_init();
+#ifdef KDB
+	if (boothowto & RB_KDB)
+		kdb_enter(KDB_WHY_BOOTFLAGS, "Boot flags requested debugger");
+#endif
+}
+
 register_t
 init386(first)
 	int first;
@@ -2438,6 +2453,7 @@ init386(first)
 #ifdef CPU_ENABLE_SSE
 	struct xstate_hdr *xhdr;
 #endif
+	int late_console;
 
 	thread0.td_kstack = proc0kstack;
 	thread0.td_kstack_pages = TD0_KSTACK_PAGES;
@@ -2502,6 +2518,7 @@ init386(first)
 	first += DPCPU_SIZE;
 	PCPU_SET(prvspace, pc);
 	PCPU_SET(curthread, &thread0);
+	/* Non-late cninit() and printf() can be moved up to here. */
 
 	/*
 	 * Initialize mutexes.
@@ -2636,20 +2653,17 @@ init386(first)
 	dblfault_tss.tss_cs = GSEL(GCODE_SEL, SEL_KPL);
 	dblfault_tss.tss_ldt = GSEL(GLDT_SEL, SEL_KPL);
 
-	vm86_initialize();
-	getmemsize(first);
-	init_param2(physmem);
+	/* Initialize the tss (except for the final esp0) early for vm86. */
+	PCPU_SET(common_tss.tss_esp0, thread0.td_kstack +
+	    thread0.td_kstack_pages * PAGE_SIZE - 16);
+	PCPU_SET(common_tss.tss_ss0, GSEL(GDATA_SEL, SEL_KPL));
+	gsel_tss = GSEL(GPROC0_SEL, SEL_KPL);
+	PCPU_SET(tss_gdt, &gdt[GPROC0_SEL].sd);
+	PCPU_SET(common_tssd, *PCPU_GET(tss_gdt));
+	PCPU_SET(common_tss.tss_ioopt, (sizeof (struct i386tss)) << 16);
+	ltr(gsel_tss);
 
-	/* now running on new page tables, configured,and u/iom is accessible */
-
-	/*
-	 * Initialize the console before we print anything out.
-	 */
-	cninit();
-
-	if (metadata_missing)
-		printf("WARNING: loader(8) metadata is missing!\n");
-
+	/* Initialize the PIC early for vm86 calls. */
 #ifdef DEV_ISA
 #ifdef DEV_ATPIC
 #ifndef PC98
@@ -2671,16 +2685,33 @@ init386(first)
 #endif
 #endif
 
-#ifdef DDB
-	db_fetch_ksymtab(bootinfo.bi_symtab, bootinfo.bi_esymtab);
-#endif
+	/*
+	 * The console and kdb should be initialized even earlier than here,
+	 * but some console drivers don't work until after getmemsize().
+	 * Default to late console initialization to support these drivers.
+	 * This loses mainly printf()s in getmemsize() and early debugging.
+	 */
+	late_console = 1;
+	TUNABLE_INT_FETCH("debug.late_console", &late_console);
+	if (!late_console) {
+		cninit();
+		i386_kdb_init();
+	}
 
-	kdb_init();
+	vm86_initialize();
+	getmemsize(first);
+	init_param2(physmem);
 
-#ifdef KDB
-	if (boothowto & RB_KDB)
-		kdb_enter(KDB_WHY_BOOTFLAGS, "Boot flags requested debugger");
-#endif
+	/* now running on new page tables, configured,and u/iom is accessible */
+
+	if (late_console)
+		cninit();
+
+	if (metadata_missing)
+		printf("WARNING: loader(8) metadata is missing!\n");
+
+	if (late_console)
+		i386_kdb_init();
 
 	msgbufinit(msgbufp, msgbufsize);
 #ifdef DEV_NPX
@@ -2701,14 +2732,10 @@ init386(first)
 	}
 #endif
 	PCPU_SET(curpcb, thread0.td_pcb);
-	/* make an initial tss so cpu can get interrupt stack on syscall! */
+	/* Move esp0 in the tss to its final place. */
 	/* Note: -16 is so we can grow the trapframe if we came from vm86 */
 	PCPU_SET(common_tss.tss_esp0, (vm_offset_t)thread0.td_pcb - 16);
-	PCPU_SET(common_tss.tss_ss0, GSEL(GDATA_SEL, SEL_KPL));
-	gsel_tss = GSEL(GPROC0_SEL, SEL_KPL);
-	PCPU_SET(tss_gdt, &gdt[GPROC0_SEL].sd);
-	PCPU_SET(common_tssd, *PCPU_GET(tss_gdt));
-	PCPU_SET(common_tss.tss_ioopt, (sizeof (struct i386tss)) << 16);
+	gdt[GPROC0_SEL].sd.sd_type = SDT_SYS386TSS;	/* clear busy bit */
 	ltr(gsel_tss);
 
 	/* make a call gate to reenter kernel with */
