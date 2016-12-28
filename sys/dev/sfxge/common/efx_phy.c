@@ -47,7 +47,7 @@ static const efx_phy_ops_t	__efx_phy_siena_ops = {
 #endif	/* EFSYS_OPT_PHY_STATS */
 #if EFSYS_OPT_BIST
 	NULL,				/* epo_bist_enable_offline */
-	siena_phy_bist_start, 		/* epo_bist_start */
+	siena_phy_bist_start,		/* epo_bist_start */
 	siena_phy_bist_poll,		/* epo_bist_poll */
 	siena_phy_bist_stop,		/* epo_bist_stop */
 #endif	/* EFSYS_OPT_BIST */

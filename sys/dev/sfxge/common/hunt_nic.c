@@ -83,7 +83,7 @@ hunt_nic_get_required_pcie_bandwidth(
 
 		if ((rc = ef10_nic_get_port_mode_bandwidth(max_port_mode,
 							    &bandwidth)) != 0)
-		    goto fail2;
+			goto fail2;
 	}
 
 out:
@@ -295,7 +295,7 @@ hunt_board_cfg(
 
 	/* Check capabilities of running datapath firmware */
 	if ((rc = ef10_get_datapath_caps(enp)) != 0)
-	    goto fail12;
+		goto fail12;
 
 	/* Alignment for receive packet DMA buffers */
 	encp->enc_rx_buf_align_start = 1;
