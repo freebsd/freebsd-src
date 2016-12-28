@@ -329,7 +329,7 @@ void print_flags_buffer(char *buf, size_t sz, struct _s_x *list, uint32_t set);
 
 struct _ip_fw3_opheader;
 int do_cmd(int optname, void *optval, uintptr_t optlen);
-int do_set3(int optname, struct _ip_fw3_opheader *op3, uintptr_t optlen);
+int do_set3(int optname, struct _ip_fw3_opheader *op3, size_t optlen);
 int do_get3(int optname, struct _ip_fw3_opheader *op3, size_t *optlen);
 
 struct in6_addr;
