@@ -646,6 +646,8 @@ efx_mcdi_request_errcode(
 	case MC_CMD_ERR_ENOSPC:
 		return (ENOSPC);
 #endif
+	case MC_CMD_ERR_ERANGE:
+		return (ERANGE);
 
 	case MC_CMD_ERR_ALLOC_FAIL:
 		return (ENOMEM);
