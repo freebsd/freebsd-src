@@ -438,9 +438,6 @@ MAN=	aac.4 \
 	rtwnfw.4 \
 	rtwn_pci.4 \
 	rue.4 \
-	rum.4 \
-	run.4 \
-	runfw.4 \
 	sa.4 \
 	safe.4 \
 	sbp.4 \
@@ -574,8 +571,7 @@ MAN=	aac.4 \
 	xl.4 \
 	${_xnb.4} \
 	xpt.4 \
-	zero.4 \
-	zyd.4
+	zero.4
 
 MLINKS=	ae.4 if_ae.4
 MLINKS+=age.4 if_age.4
@@ -710,8 +706,6 @@ MLINKS+=rl.4 if_rl.4
 MLINKS+=rtwn.4 if_rtwn.4
 MLINKS+=rtwn_pci.4 if_rtwn_pci.4
 MLINKS+=rue.4 if_rue.4
-MLINKS+=rum.4 if_rum.4
-MLINKS+=run.4 if_run.4
 MLINKS+=scsi.4 CAM.4 \
 	scsi.4 cam.4 \
 	scsi.4 scbus.4 \
@@ -756,7 +750,6 @@ MLINKS+=wi.4 if_wi.4
 MLINKS+=${_wpi.4} ${_if_wpi.4}
 MLINKS+=xe.4 if_xe.4
 MLINKS+=xl.4 if_xl.4
-MLINKS+=zyd.4 if_zyd.4
 
 .if ${MACHINE_CPUARCH} == "aarch64"
 _armv8crypto.4=	armv8crypto.4
@@ -915,6 +908,9 @@ MAN+=	\
 	rsu.4 \
 	rsufw.4 \
 	rtwn_usb.4 \
+	rum.4 \
+	run.4 \
+	runfw.4 \
 	u3g.4 \
 	uark.4 \
 	uart.4 \
@@ -965,10 +961,13 @@ MAN+=	\
 	utopia.4 \
 	uvisor.4 \
 	uvscom.4 \
+	zyd.4
 
 MLINKS+=otus.4 if_otus.4
 MLINKS+=rsu.4 if_rsu.4
 MLINKS+=rtwn_usb.4 if_rtwn_usb.4
+MLINKS+=rum.4 if_rum.4
+MLINKS+=run.4 if_run.4
 MLINKS+=u3g.4 u3gstub.4
 MLINKS+=uath.4 if_uath.4
 MLINKS+=udav.4 if_udav.4
@@ -976,6 +975,7 @@ MLINKS+=upgt.4 if_upgt.4
 MLINKS+=ural.4 if_ural.4
 MLINKS+=urndis.4 if_urndis.4
 MLINKS+=${_urtw.4} ${_if_urtw.4}
+MLINKS+=zyd.4 if_zyd.4
 .endif
 
 .include <bsd.prog.mk>
