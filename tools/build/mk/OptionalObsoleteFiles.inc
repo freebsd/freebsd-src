@@ -3004,6 +3004,12 @@ OLD_FILES+=usr/share/man/man5/hast.conf.5.gz
 OLD_FILES+=usr/share/man/man8/hastctl.8.gz
 OLD_FILES+=usr/share/man/man8/hastd.8.gz
 OLD_DIRS+=usr/share/examples/hast
+# bsnmp
+OLD_FILES+=usr/lib/snmp_hast.so
+OLD_LIBS+=usr/lib/snmp_hast.so.6
+OLD_FILES+=usr/share/man/man3/snmp_hast.3.gz
+OLD_FILES+=usr/share/snmp/defs/hast_tree.def
+OLD_FILES+=usr/share/snmp/mibs/BEGEMOT-HAST-MIB.txt
 .endif
 
 .if ${MK_HESIOD} == no
