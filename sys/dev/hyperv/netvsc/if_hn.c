@@ -2367,9 +2367,6 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			break;
 		}
 
-		/* Disable polling. */
-		hn_polling(sc, 0);
-
 		/*
 		 * Suspend this interface before the synthetic parts
 		 * are ripped.
@@ -2414,13 +2411,6 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		 * All done!  Resume the interface now.
 		 */
 		hn_resume(sc);
-
-		/*
-		 * Re-enable polling if this interface is running and
-		 * the polling is requested.
-		 */
-		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) && sc->hn_pollhz > 0)
-			hn_polling(sc, sc->hn_pollhz);
 
 		HN_UNLOCK(sc);
 		break;
@@ -4900,6 +4890,9 @@ static void
 hn_suspend(struct hn_softc *sc)
 {
 
+	/* Disable polling. */
+	hn_polling(sc, 0);
+
 	if (sc->hn_ifp->if_drv_flags & IFF_DRV_RUNNING)
 		hn_suspend_data(sc);
 	hn_suspend_mgmt(sc);
@@ -4992,6 +4985,13 @@ hn_resume(struct hn_softc *sc)
 	if (sc->hn_ifp->if_drv_flags & IFF_DRV_RUNNING)
 		hn_resume_data(sc);
 	hn_resume_mgmt(sc);
+
+	/*
+	 * Re-enable polling if this interface is running and
+	 * the polling is requested.
+	 */
+	if ((sc->hn_ifp->if_drv_flags & IFF_DRV_RUNNING) && sc->hn_pollhz > 0)
+		hn_polling(sc, sc->hn_pollhz);
 }
 
 static void 
