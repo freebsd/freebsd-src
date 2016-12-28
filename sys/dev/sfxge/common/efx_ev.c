@@ -953,7 +953,7 @@ siena_ev_mcdi(
 	__in_opt	void *arg)
 {
 	efx_nic_t *enp = eep->ee_enp;
-	unsigned code;
+	unsigned int code;
 	boolean_t should_abort = B_FALSE;
 
 	EFSYS_ASSERT3U(enp->en_family, ==, EFX_FAMILY_SIENA);
