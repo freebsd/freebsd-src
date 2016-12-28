@@ -124,7 +124,7 @@ typedef struct efx_tx_ops_s {
 	void		(*etxo_qenable)(efx_txq_t *);
 	efx_rc_t	(*etxo_qpio_enable)(efx_txq_t *);
 	void		(*etxo_qpio_disable)(efx_txq_t *);
-	efx_rc_t	(*etxo_qpio_write)(efx_txq_t *,uint8_t *, size_t,
+	efx_rc_t	(*etxo_qpio_write)(efx_txq_t *, uint8_t *, size_t,
 					   size_t);
 	efx_rc_t	(*etxo_qpio_post)(efx_txq_t *, size_t, unsigned int,
 					   unsigned int *);
@@ -801,7 +801,7 @@ struct efx_txq_s {
 #else
 #define	EFX_CHECK_REG(_enp, _reg) do {					\
 	_NOTE(CONSTANTCONDITION)					\
-	} while(B_FALSE)
+	} while (B_FALSE)
 #endif
 
 #define	EFX_BAR_READD(_enp, _reg, _edp, _lock)				\
