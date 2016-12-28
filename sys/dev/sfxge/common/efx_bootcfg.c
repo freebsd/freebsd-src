@@ -43,8 +43,8 @@ __FBSDID("$FreeBSD$");
  */
 #define	BOOTCFG_MAX_SIZE 0x1000
 
-#define	DHCP_END (uint8_t)0xff
-#define	DHCP_PAD (uint8_t)0
+#define	DHCP_END ((uint8_t)0xff)
+#define	DHCP_PAD ((uint8_t)0)
 
 static	__checkReturn		uint8_t
 efx_bootcfg_csum(

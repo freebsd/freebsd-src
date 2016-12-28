@@ -38,8 +38,8 @@ __FBSDID("$FreeBSD$");
 
 #if EFSYS_OPT_MON_STATS
 
-#define	MCDI_MON_NEXT_PAGE  (uint16_t)0xfffe
-#define	MCDI_MON_INVALID_SENSOR (uint16_t)0xfffd
+#define	MCDI_MON_NEXT_PAGE  ((uint16_t)0xfffe)
+#define	MCDI_MON_INVALID_SENSOR ((uint16_t)0xfffd)
 #define	MCDI_MON_PAGE_SIZE 0x20
 
 /* Bitmasks of valid port(s) for each sensor */

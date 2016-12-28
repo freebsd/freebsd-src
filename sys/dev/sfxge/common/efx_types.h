@@ -264,37 +264,37 @@ typedef union efx_oword_u {
 
 #if EFSYS_IS_BIG_ENDIAN
 
-#define	__CPU_TO_LE_16(_x)	(uint16_t)__SWAP16(_x)
-#define	__LE_TO_CPU_16(_x)	(uint16_t)__SWAP16(_x)
-#define	__CPU_TO_BE_16(_x)	(uint16_t)__NOSWAP16(_x)
-#define	__BE_TO_CPU_16(_x)	(uint16_t)__NOSWAP16(_x)
+#define	__CPU_TO_LE_16(_x)	((uint16_t)__SWAP16(_x))
+#define	__LE_TO_CPU_16(_x)	((uint16_t)__SWAP16(_x))
+#define	__CPU_TO_BE_16(_x)	((uint16_t)__NOSWAP16(_x))
+#define	__BE_TO_CPU_16(_x)	((uint16_t)__NOSWAP16(_x))
 
-#define	__CPU_TO_LE_32(_x)	(uint32_t)__SWAP32(_x)
-#define	__LE_TO_CPU_32(_x)	(uint32_t)__SWAP32(_x)
-#define	__CPU_TO_BE_32(_x)	(uint32_t)__NOSWAP32(_x)
-#define	__BE_TO_CPU_32(_x)	(uint32_t)__NOSWAP32(_x)
+#define	__CPU_TO_LE_32(_x)	((uint32_t)__SWAP32(_x))
+#define	__LE_TO_CPU_32(_x)	((uint32_t)__SWAP32(_x))
+#define	__CPU_TO_BE_32(_x)	((uint32_t)__NOSWAP32(_x))
+#define	__BE_TO_CPU_32(_x)	((uint32_t)__NOSWAP32(_x))
 
-#define	__CPU_TO_LE_64(_x)	(uint64_t)__SWAP64(_x)
-#define	__LE_TO_CPU_64(_x)	(uint64_t)__SWAP64(_x)
-#define	__CPU_TO_BE_64(_x)	(uint64_t)__NOSWAP64(_x)
-#define	__BE_TO_CPU_64(_x)	(uint64_t)__NOSWAP64(_x)
+#define	__CPU_TO_LE_64(_x)	((uint64_t)__SWAP64(_x))
+#define	__LE_TO_CPU_64(_x)	((uint64_t)__SWAP64(_x))
+#define	__CPU_TO_BE_64(_x)	((uint64_t)__NOSWAP64(_x))
+#define	__BE_TO_CPU_64(_x)	((uint64_t)__NOSWAP64(_x))
 
 #elif EFSYS_IS_LITTLE_ENDIAN
 
-#define	__CPU_TO_LE_16(_x)	(uint16_t)__NOSWAP16(_x)
-#define	__LE_TO_CPU_16(_x)	(uint16_t)__NOSWAP16(_x)
-#define	__CPU_TO_BE_16(_x)	(uint16_t)__SWAP16(_x)
-#define	__BE_TO_CPU_16(_x)	(uint16_t)__SWAP16(_x)
+#define	__CPU_TO_LE_16(_x)	((uint16_t)__NOSWAP16(_x))
+#define	__LE_TO_CPU_16(_x)	((uint16_t)__NOSWAP16(_x))
+#define	__CPU_TO_BE_16(_x)	((uint16_t)__SWAP16(_x))
+#define	__BE_TO_CPU_16(_x)	((uint16_t)__SWAP16(_x))
 
-#define	__CPU_TO_LE_32(_x)	(uint32_t)__NOSWAP32(_x)
-#define	__LE_TO_CPU_32(_x)	(uint32_t)__NOSWAP32(_x)
-#define	__CPU_TO_BE_32(_x)	(uint32_t)__SWAP32(_x)
-#define	__BE_TO_CPU_32(_x)	(uint32_t)__SWAP32(_x)
+#define	__CPU_TO_LE_32(_x)	((uint32_t)__NOSWAP32(_x))
+#define	__LE_TO_CPU_32(_x)	((uint32_t)__NOSWAP32(_x))
+#define	__CPU_TO_BE_32(_x)	((uint32_t)__SWAP32(_x))
+#define	__BE_TO_CPU_32(_x)	((uint32_t)__SWAP32(_x))
 
-#define	__CPU_TO_LE_64(_x)	(uint64_t)__NOSWAP64(_x)
-#define	__LE_TO_CPU_64(_x)	(uint64_t)__NOSWAP64(_x)
-#define	__CPU_TO_BE_64(_x)	(uint64_t)__SWAP64(_x)
-#define	__BE_TO_CPU_64(_x)	(uint64_t)__SWAP64(_x)
+#define	__CPU_TO_LE_64(_x)	((uint64_t)__NOSWAP64(_x))
+#define	__LE_TO_CPU_64(_x)	((uint64_t)__NOSWAP64(_x))
+#define	__CPU_TO_BE_64(_x)	((uint64_t)__SWAP64(_x))
+#define	__BE_TO_CPU_64(_x)	((uint64_t)__SWAP64(_x))
 
 #else
 
