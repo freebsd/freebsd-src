@@ -509,8 +509,8 @@ efx_lic_v1v2_find_key(
 	if ((size_t)buffer_size - offset < EFX_LICENSE_V1V2_HEADER_LENGTH)
 		goto fail1;
 
-	tlv_type = __LE_TO_CPU_16(((uint16_t*)&bufferp[offset])[0]);
-	tlv_length = __LE_TO_CPU_16(((uint16_t*)&bufferp[offset])[1]);
+	tlv_type = __LE_TO_CPU_16(((uint16_t *)&bufferp[offset])[0]);
+	tlv_length = __LE_TO_CPU_16(((uint16_t *)&bufferp[offset])[1]);
 	if ((tlv_length > EFX_LICENSE_V1V2_PAYLOAD_LENGTH_MAX) ||
 	    (tlv_type == 0 && tlv_length == 0)) {
 		found = B_FALSE;
@@ -543,8 +543,8 @@ efx_lic_v1v2_validate_key(
 		goto fail1;
 	}
 
-	tlv_type = __LE_TO_CPU_16(((uint16_t*)keyp)[0]);
-	tlv_length = __LE_TO_CPU_16(((uint16_t*)keyp)[1]);
+	tlv_type = __LE_TO_CPU_16(((uint16_t *)keyp)[0]);
+	tlv_length = __LE_TO_CPU_16(((uint16_t *)keyp)[1]);
 
 	if (tlv_length > EFX_LICENSE_V1V2_PAYLOAD_LENGTH_MAX) {
 		goto fail2;
@@ -1169,8 +1169,8 @@ efx_lic_v3_validate_key(
 		goto fail2;
 	}
 
-	key_type = ((uint8_t*)keyp)[0];
-	key_length = ((uint8_t*)keyp)[1];
+	key_type = ((uint8_t *)keyp)[0];
+	key_length = ((uint8_t *)keyp)[1];
 
 	if (key_type < 3) {
 		goto fail3;
