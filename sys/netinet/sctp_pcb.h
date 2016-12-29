@@ -379,8 +379,10 @@ struct sctp_inpcb {
 
 	/* list of addrs in use by the EP, NULL if bound-all */
 	struct sctpladdr sctp_addr_list;
-	/* used for source address selection rotation when we are subset
-	 * bound */
+	/*
+	 * used for source address selection rotation when we are subset
+	 * bound
+	 */
 	struct sctp_laddr *next_addr_touse;
 
 	/* back pointer to our socket */
