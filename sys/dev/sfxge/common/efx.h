@@ -1139,6 +1139,8 @@ typedef struct efx_nic_cfg_s {
 	uint32_t		enc_tx_tso_tcp_header_offset_limit;
 	boolean_t		enc_fw_assisted_tso_enabled;
 	boolean_t		enc_fw_assisted_tso_v2_enabled;
+	/* Number of TSO contexts on the NIC (FATSOv2) */
+	uint32_t		enc_fw_assisted_tso_v2_n_contexts;
 	boolean_t		enc_hw_tx_insert_vlan_enabled;
 	/* Datapath firmware vadapter/vport/vswitch support */
 	boolean_t		enc_datapath_cap_evb;

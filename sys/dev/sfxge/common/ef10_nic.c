@@ -497,7 +497,8 @@ static	__checkReturn	efx_rc_t
 efx_mcdi_get_capabilities(
 	__in		efx_nic_t *enp,
 	__out		uint32_t *flagsp,
-	__out		uint32_t *flags2p)
+	__out		uint32_t *flags2p,
+	__out		uint32_t *tso2ncp)
 {
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_GET_CAPABILITIES_IN_LEN,
@@ -525,10 +526,14 @@ efx_mcdi_get_capabilities(
 
 	*flagsp = MCDI_OUT_DWORD(req, GET_CAPABILITIES_OUT_FLAGS1);
 
-	if (req.emr_out_length_used < MC_CMD_GET_CAPABILITIES_V2_OUT_LEN)
+	if (req.emr_out_length_used < MC_CMD_GET_CAPABILITIES_V2_OUT_LEN) {
 		*flags2p = 0;
-	else
+		*tso2ncp = 0;
+	} else {
 		*flags2p = MCDI_OUT_DWORD(req, GET_CAPABILITIES_V2_OUT_FLAGS2);
+		*tso2ncp = MCDI_OUT_WORD(req,
+				GET_CAPABILITIES_V2_OUT_TX_TSO_V2_N_CONTEXTS);
+	}
 
 	return (0);
 
@@ -963,9 +968,11 @@ ef10_get_datapath_caps(
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	uint32_t flags;
 	uint32_t flags2;
+	uint32_t tso2nc;
 	efx_rc_t rc;
 
-	if ((rc = efx_mcdi_get_capabilities(enp, &flags, &flags2)) != 0)
+	if ((rc = efx_mcdi_get_capabilities(enp, &flags, &flags2,
+					    &tso2nc)) != 0)
 		goto fail1;
 
 #define	CAP_FLAG(flags1, field)		\
@@ -991,6 +998,10 @@ ef10_get_datapath_caps(
 	/* Check if the firmware supports FATSOv2 */
 	encp->enc_fw_assisted_tso_v2_enabled =
 	    CAP_FLAG2(flags2, TX_TSO_V2) ? B_TRUE : B_FALSE;
+
+	/* Get the number of TSO contexts (FATSOv2) */
+	encp->enc_fw_assisted_tso_v2_n_contexts =
+		CAP_FLAG2(flags2, TX_TSO_V2) ? tso2nc : 0;
 
 	/* Check if the firmware has vadapter/vport/vswitch support */
 	encp->enc_datapath_cap_evb =
