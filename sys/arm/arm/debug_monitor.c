@@ -792,10 +792,21 @@ dbg_get_ossr(void)
 static __inline boolean_t
 dbg_arch_supported(void)
 {
+	uint32_t dbg_didr;
 
 	switch (dbg_model) {
 	case ID_DFR0_CP_DEBUG_M_V6:
 	case ID_DFR0_CP_DEBUG_M_V6_1:
+		dbg_didr = cp14_dbgdidr_get();
+		/*
+		 * read-all-zeroes is used by QEMU
+		 * to indicate that ARMv6 debug support
+		 * is not implemented. Real hardware has at
+		 * least version bits set
+		 */
+		if (dbg_didr == 0)
+			return (FALSE);
+		return (TRUE);
 	case ID_DFR0_CP_DEBUG_M_V7:
 	case ID_DFR0_CP_DEBUG_M_V7_1:	/* fall through */
 		return (TRUE);
