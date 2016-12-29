@@ -507,7 +507,7 @@ hn_set_lro_lenlim(struct hn_softc *sc, int lenlim)
 {
 	int i;
 
-	for (i = 0; i < sc->hn_rx_ring_inuse; ++i)
+	for (i = 0; i < sc->hn_rx_ring_cnt; ++i)
 		sc->hn_rx_ring[i].hn_lro.lro_length_lim = lenlim;
 }
 #endif
@@ -1148,6 +1148,13 @@ hn_attach(device_t dev)
 
 	/* Enable all available capabilities by default. */
 	ifp->if_capenable = ifp->if_capabilities;
+
+	/*
+	 * Disable IPv6 TSO and TXCSUM by default, they still can
+	 * be enabled through SIOCSIFCAP.
+	 */
+	ifp->if_capenable &= ~(IFCAP_TXCSUM_IPV6 | IFCAP_TSO6);
+	ifp->if_hwassist &= ~(HN_CSUM_IP6_MASK | CSUM_IP6_TSO);
 
 	if (ifp->if_capabilities & (IFCAP_TSO6 | IFCAP_TSO4)) {
 		hn_set_tso_maxsize(sc, hn_tso_maxlen, ETHERMTU);
@@ -2573,7 +2580,7 @@ hn_lro_ackcnt_sysctl(SYSCTL_HANDLER_ARGS)
 	 */
 	--ackcnt;
 	HN_LOCK(sc);
-	for (i = 0; i < sc->hn_rx_ring_inuse; ++i)
+	for (i = 0; i < sc->hn_rx_ring_cnt; ++i)
 		sc->hn_rx_ring[i].hn_lro.lro_ackcnt_lim = ackcnt;
 	HN_UNLOCK(sc);
 	return 0;
@@ -2597,7 +2604,7 @@ hn_trust_hcsum_sysctl(SYSCTL_HANDLER_ARGS)
 		return error;
 
 	HN_LOCK(sc);
-	for (i = 0; i < sc->hn_rx_ring_inuse; ++i) {
+	for (i = 0; i < sc->hn_rx_ring_cnt; ++i) {
 		struct hn_rx_ring *rxr = &sc->hn_rx_ring[i];
 
 		if (on)
@@ -2665,7 +2672,7 @@ hn_rx_stat_u64_sysctl(SYSCTL_HANDLER_ARGS)
 	uint64_t stat;
 
 	stat = 0;
-	for (i = 0; i < sc->hn_rx_ring_inuse; ++i) {
+	for (i = 0; i < sc->hn_rx_ring_cnt; ++i) {
 		rxr = &sc->hn_rx_ring[i];
 		stat += *((uint64_t *)((uint8_t *)rxr + ofs));
 	}
@@ -2675,7 +2682,7 @@ hn_rx_stat_u64_sysctl(SYSCTL_HANDLER_ARGS)
 		return error;
 
 	/* Zero out this stat. */
-	for (i = 0; i < sc->hn_rx_ring_inuse; ++i) {
+	for (i = 0; i < sc->hn_rx_ring_cnt; ++i) {
 		rxr = &sc->hn_rx_ring[i];
 		*((uint64_t *)((uint8_t *)rxr + ofs)) = 0;
 	}
@@ -2719,7 +2726,7 @@ hn_tx_stat_ulong_sysctl(SYSCTL_HANDLER_ARGS)
 	u_long stat;
 
 	stat = 0;
-	for (i = 0; i < sc->hn_tx_ring_inuse; ++i) {
+	for (i = 0; i < sc->hn_tx_ring_cnt; ++i) {
 		txr = &sc->hn_tx_ring[i];
 		stat += *((u_long *)((uint8_t *)txr + ofs));
 	}
@@ -2729,7 +2736,7 @@ hn_tx_stat_ulong_sysctl(SYSCTL_HANDLER_ARGS)
 		return error;
 
 	/* Zero out this stat. */
-	for (i = 0; i < sc->hn_tx_ring_inuse; ++i) {
+	for (i = 0; i < sc->hn_tx_ring_cnt; ++i) {
 		txr = &sc->hn_tx_ring[i];
 		*((u_long *)((uint8_t *)txr + ofs)) = 0;
 	}
@@ -2751,7 +2758,7 @@ hn_tx_conf_int_sysctl(SYSCTL_HANDLER_ARGS)
 		return error;
 
 	HN_LOCK(sc);
-	for (i = 0; i < sc->hn_tx_ring_inuse; ++i) {
+	for (i = 0; i < sc->hn_tx_ring_cnt; ++i) {
 		txr = &sc->hn_tx_ring[i];
 		*((int *)((uint8_t *)txr + ofs)) = conf;
 	}
@@ -3622,7 +3629,7 @@ hn_set_chim_size(struct hn_softc *sc, int chim_size)
 {
 	int i;
 
-	for (i = 0; i < sc->hn_tx_ring_inuse; ++i)
+	for (i = 0; i < sc->hn_tx_ring_cnt; ++i)
 		sc->hn_tx_ring[i].hn_chim_size = chim_size;
 }
 
@@ -3672,12 +3679,10 @@ hn_fixup_tx_data(struct hn_softc *sc)
 		csum_assist |= CSUM_IP_TCP;
 	if (sc->hn_caps & HN_CAP_UDP4CS)
 		csum_assist |= CSUM_IP_UDP;
-#ifdef notyet
 	if (sc->hn_caps & HN_CAP_TCP6CS)
 		csum_assist |= CSUM_IP6_TCP;
 	if (sc->hn_caps & HN_CAP_UDP6CS)
 		csum_assist |= CSUM_IP6_UDP;
-#endif
 	for (i = 0; i < sc->hn_tx_ring_cnt; ++i)
 		sc->hn_tx_ring[i].hn_csum_assist = csum_assist;
 
