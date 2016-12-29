@@ -91,7 +91,8 @@ struct hn_rx_ring {
 #define HN_TRUST_HCSUM_TCP	0x0002
 #define HN_TRUST_HCSUM_UDP	0x0004
 
-#define HN_RX_FLAG_ATTACHED	0x1
+#define HN_RX_FLAG_ATTACHED	0x0001
+#define HN_RX_FLAG_BR_REF	0x0002
 
 struct hn_tx_ring {
 #ifndef HN_USE_TXDESC_BUFRING
@@ -162,8 +163,8 @@ struct hn_tx_ring {
 	struct sysctl_oid *hn_tx_sysctl_tree;
 } __aligned(CACHE_LINE_SIZE);
 
-#define HN_TX_FLAG_ATTACHED	0x1
-#define HN_TX_FLAG_HASHVAL	0x2	/* support HASHVAL pktinfo */
+#define HN_TX_FLAG_ATTACHED	0x0001
+#define HN_TX_FLAG_HASHVAL	0x0002	/* support HASHVAL pktinfo */
 
 /*
  * Device-specific softc structure
@@ -238,6 +239,10 @@ struct hn_softc {
 #define HN_FLAG_HAS_RSSIND		0x0008
 #define HN_FLAG_SYNTH_ATTACHED		0x0010
 #define HN_FLAG_NO_SLEEPING		0x0020
+#define HN_FLAG_RXBUF_REF		0x0040
+#define HN_FLAG_CHIM_REF		0x0080
+
+#define HN_FLAG_ERRORS			(HN_FLAG_RXBUF_REF | HN_FLAG_CHIM_REF)
 
 #define HN_NO_SLEEPING(sc)			\
 do {						\
