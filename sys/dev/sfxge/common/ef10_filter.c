@@ -947,7 +947,7 @@ static	__checkReturn	efx_rc_t
 ef10_filter_insert_unicast(
 	__in				efx_nic_t *enp,
 	__in_ecount(6)			uint8_t const *addr,
-	__in				efx_filter_flag_t filter_flags)
+	__in				efx_filter_flags_t filter_flags)
 {
 	ef10_filter_table_t *eftp = enp->en_filter.ef_ef10_filter_table;
 	efx_filter_spec_t spec;
@@ -978,7 +978,7 @@ fail1:
 static	__checkReturn	efx_rc_t
 ef10_filter_insert_all_unicast(
 	__in				efx_nic_t *enp,
-	__in				efx_filter_flag_t filter_flags)
+	__in				efx_filter_flags_t filter_flags)
 {
 	ef10_filter_table_t *eftp = enp->en_filter.ef_ef10_filter_table;
 	efx_filter_spec_t spec;
@@ -1012,7 +1012,7 @@ ef10_filter_insert_multicast_list(
 	__in				boolean_t brdcst,
 	__in_ecount(6*count)		uint8_t const *addrs,
 	__in				uint32_t count,
-	__in				efx_filter_flag_t filter_flags,
+	__in				efx_filter_flags_t filter_flags,
 	__in				boolean_t rollback)
 {
 	ef10_filter_table_t *eftp = enp->en_filter.ef_ef10_filter_table;
@@ -1105,7 +1105,7 @@ fail1:
 static	__checkReturn	efx_rc_t
 ef10_filter_insert_all_multicast(
 	__in				efx_nic_t *enp,
-	__in				efx_filter_flag_t filter_flags)
+	__in				efx_filter_flags_t filter_flags)
 {
 	ef10_filter_table_t *eftp = enp->en_filter.ef_ef10_filter_table;
 	efx_filter_spec_t spec;
@@ -1207,7 +1207,7 @@ ef10_filter_reconfigure(
 {
 	efx_nic_cfg_t *encp = &enp->en_nic_cfg;
 	ef10_filter_table_t *table = enp->en_filter.ef_ef10_filter_table;
-	efx_filter_flag_t filter_flags;
+	efx_filter_flags_t filter_flags;
 	unsigned int i;
 	efx_rc_t all_unicst_rc = 0;
 	efx_rc_t all_mulcst_rc = 0;
