@@ -237,6 +237,20 @@ struct hn_softc {
 #define HN_FLAG_HAS_RSSKEY		0x0004
 #define HN_FLAG_HAS_RSSIND		0x0008
 #define HN_FLAG_SYNTH_ATTACHED		0x0010
+#define HN_FLAG_NO_SLEEPING		0x0020
+
+#define HN_NO_SLEEPING(sc)			\
+do {						\
+	(sc)->hn_flags |= HN_FLAG_NO_SLEEPING;	\
+} while (0)
+
+#define HN_SLEEPING_OK(sc)			\
+do {						\
+	(sc)->hn_flags &= ~HN_FLAG_NO_SLEEPING;	\
+} while (0)
+
+#define HN_CAN_SLEEP(sc)		\
+	(((sc)->hn_flags & HN_FLAG_NO_SLEEPING) == 0)
 
 #define HN_CAP_VLAN			0x0001
 #define HN_CAP_MTU			0x0002
