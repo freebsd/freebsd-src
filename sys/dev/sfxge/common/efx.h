@@ -1183,6 +1183,8 @@ typedef struct efx_nic_cfg_s {
 	/* Minimum unidirectional bandwidth in Mb/s to max out all ports */
 	uint32_t		enc_required_pcie_bandwidth_mbps;
 	uint32_t		enc_max_pcie_link_gen;
+	/* Firmware verifies integrity of NVRAM updates */
+	uint32_t		enc_fw_verified_nvram_update_required;
 } efx_nic_cfg_t;
 
 #define	EFX_PCI_FUNCTION_IS_PF(_encp)	((_encp)->enc_vf == 0xffff)
@@ -1366,7 +1368,7 @@ efx_nvram_rw_start(
 	__in			efx_nvram_type_t type,
 	__out_opt		size_t *pref_chunkp);
 
-extern				void
+extern	__checkReturn		efx_rc_t
 efx_nvram_rw_finish(
 	__in			efx_nic_t *enp,
 	__in			efx_nvram_type_t type);
