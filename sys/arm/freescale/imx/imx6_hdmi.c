@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 
 #include <dev/videomode/videomode.h>
+#include <dev/videomode/edidvar.h>
 
 #include <arm/freescale/imx/imx_ccmvar.h>
 #include <arm/freescale/imx/imx_iomuxvar.h>
