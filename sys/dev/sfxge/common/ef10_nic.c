@@ -961,6 +961,50 @@ ef10_nic_pio_unlink(
 	return (efx_mcdi_unlink_piobuf(enp, vi_index));
 }
 
+static	__checkReturn	efx_rc_t
+ef10_mcdi_get_pf_count(
+	__in		efx_nic_t *enp,
+	__out		uint32_t *pf_countp)
+{
+	efx_mcdi_req_t req;
+	uint8_t payload[MAX(MC_CMD_GET_PF_COUNT_IN_LEN,
+			    MC_CMD_GET_PF_COUNT_OUT_LEN)];
+	efx_rc_t rc;
+
+	(void) memset(payload, 0, sizeof (payload));
+	req.emr_cmd = MC_CMD_GET_PF_COUNT;
+	req.emr_in_buf = payload;
+	req.emr_in_length = MC_CMD_GET_PF_COUNT_IN_LEN;
+	req.emr_out_buf = payload;
+	req.emr_out_length = MC_CMD_GET_PF_COUNT_OUT_LEN;
+
+	efx_mcdi_execute(enp, &req);
+
+	if (req.emr_rc != 0) {
+		rc = req.emr_rc;
+		goto fail1;
+	}
+
+	if (req.emr_out_length_used < MC_CMD_GET_PF_COUNT_OUT_LEN) {
+		rc = EMSGSIZE;
+		goto fail2;
+	}
+
+	*pf_countp = *MCDI_OUT(req, uint8_t,
+				MC_CMD_GET_PF_COUNT_OUT_PF_COUNT_OFST);
+
+	EFSYS_ASSERT(*pf_countp != 0);
+
+	return (0);
+
+fail2:
+	EFSYS_PROBE(fail2);
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
 	__checkReturn	efx_rc_t
 ef10_get_datapath_caps(
 	__in		efx_nic_t *enp)
@@ -973,6 +1017,9 @@ ef10_get_datapath_caps(
 
 	if ((rc = efx_mcdi_get_capabilities(enp, &flags, &flags2,
 					    &tso2nc)) != 0)
+		goto fail1;
+
+	if ((rc = ef10_mcdi_get_pf_count(enp, &encp->enc_hw_pf_count)) != 0)
 		goto fail1;
 
 #define	CAP_FLAG(flags1, field)		\
