@@ -603,7 +603,6 @@ hn_rndis_conf_offload(struct hn_softc *sc, int mtu)
 	if ((hwcaps.ndis_lsov2.ndis_ip6_encap & NDIS_OFFLOAD_ENCAP_8023) &&
 	    (hwcaps.ndis_lsov2.ndis_ip6_opts & HN_NDIS_LSOV2_CAP_IP6) ==
 	    HN_NDIS_LSOV2_CAP_IP6) {
-#ifdef notyet
 		caps |= HN_CAP_TSO6;
 		params.ndis_lsov2_ip6 = NDIS_OFFLOAD_LSOV2_ON;
 
@@ -611,7 +610,6 @@ hn_rndis_conf_offload(struct hn_softc *sc, int mtu)
 			tso_maxsz = hwcaps.ndis_lsov2.ndis_ip6_maxsz;
 		if (hwcaps.ndis_lsov2.ndis_ip6_minsg > tso_minsg)
 			tso_minsg = hwcaps.ndis_lsov2.ndis_ip6_minsg;
-#endif
 	}
 	sc->hn_ndis_tso_szmax = 0;
 	sc->hn_ndis_tso_sgmin = 0;
