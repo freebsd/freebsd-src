@@ -74,6 +74,7 @@
 #define	 VIC_SB		(1 << 0)	/* complete power-down */
 #define	CR_CK		0x1C	/* Clock Control Register */
 #define	FCR_DAC		0x1D	/* DAC Frequency Control Register */
+#define	 FCR_DAC_48	8	/* 48 kHz. */
 #define	 FCR_DAC_96	10	/* 96 kHz. */
 #define	FCR_ADC		0x20	/* ADC Frequency Control Register */
 #define	CR_TIMER_MSB	0x21	/* MSB of programmable counter */
