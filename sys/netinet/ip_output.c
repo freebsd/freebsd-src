@@ -696,7 +696,8 @@ sendit:
 			 */
 			m_clrprotoflags(m);
 
-			IP_PROBE(send, NULL, NULL, ip, ifp, ip, NULL);
+			IP_PROBE(send, NULL, NULL, mtod(m, struct ip *), ifp,
+			    mtod(m, struct ip *), NULL);
 			error = (*ifp->if_output)(ifp, m,
 			    (const struct sockaddr *)gw, ro);
 		} else
