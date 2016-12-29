@@ -242,26 +242,29 @@ static struct neglist ncneg_hot;
 
 static int	shrink_list_turn;
 
-static u_int	numneglists;
+#define	numneglists (ncneghash + 1)
+static u_int	ncneghash;
 static inline struct neglist *
 NCP2NEGLIST(struct namecache *ncp)
 {
 
-	return (&neglists[(((uintptr_t)(ncp) >> 8) % numneglists)]);
+	return (&neglists[(((uintptr_t)(ncp) >> 8) & ncneghash)]);
 }
 
-static u_int   numbucketlocks;
+#define	numbucketlocks (ncbuckethash + 1)
+static u_int   ncbuckethash;
 static struct rwlock_padalign  *bucketlocks;
 #define	HASH2BUCKETLOCK(hash) \
-	((struct rwlock *)(&bucketlocks[((hash) % numbucketlocks)]))
+	((struct rwlock *)(&bucketlocks[((hash) & ncbuckethash)]))
 
-static u_int   numvnodelocks;
+#define	numvnodelocks (ncvnodehash + 1)
+static u_int   ncvnodehash;
 static struct mtx *vnodelocks;
 static inline struct mtx *
 VP2VNODELOCK(struct vnode *vp)
 {
 
-	return (&vnodelocks[(((uintptr_t)(vp) >> 8) % numvnodelocks)]);
+	return (&vnodelocks[(((uintptr_t)(vp) >> 8) & ncvnodehash)]);
 }
 
 /*
@@ -1369,9 +1372,10 @@ cache_lock_vnodes_cel_3(struct celockstate *cel, struct vnode *vp)
 	cache_assert_vlp_locked(cel->vlp[0]);
 	cache_assert_vlp_locked(cel->vlp[1]);
 	MPASS(cel->vlp[2] == NULL);
-	MPASS(vp != NULL);
 
+	MPASS(vp != NULL);
 	vlp = VP2VNODELOCK(vp);
+
 	ret = true;
 	if (vlp >= cel->vlp[1]) {
 		mtx_lock(vlp);
@@ -1774,21 +1778,21 @@ nchinit(void *dummy __unused)
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_ZINIT);
 
 	nchashtbl = hashinit(desiredvnodes * 2, M_VFSCACHE, &nchash);
-	numbucketlocks = cache_roundup_2(mp_ncpus * 64);
-	if (numbucketlocks > nchash + 1)
-		numbucketlocks = nchash + 1;
+	ncbuckethash = cache_roundup_2(mp_ncpus * 64) - 1;
+	if (ncbuckethash > nchash)
+		ncbuckethash = nchash;
 	bucketlocks = malloc(sizeof(*bucketlocks) * numbucketlocks, M_VFSCACHE,
 	    M_WAITOK | M_ZERO);
 	for (i = 0; i < numbucketlocks; i++)
 		rw_init_flags(&bucketlocks[i], "ncbuc", RW_DUPOK | RW_RECURSE);
-	numvnodelocks = cache_roundup_2(mp_ncpus * 64);
+	ncvnodehash = cache_roundup_2(mp_ncpus * 64) - 1;
 	vnodelocks = malloc(sizeof(*vnodelocks) * numvnodelocks, M_VFSCACHE,
 	    M_WAITOK | M_ZERO);
 	for (i = 0; i < numvnodelocks; i++)
 		mtx_init(&vnodelocks[i], "ncvn", NULL, MTX_DUPOK | MTX_RECURSE);
 	ncpurgeminvnodes = numbucketlocks;
 
-	numneglists = 4;
+	ncneghash = 3;
 	neglists = malloc(sizeof(*neglists) * numneglists, M_VFSCACHE,
 	    M_WAITOK | M_ZERO);
 	for (i = 0; i < numneglists; i++) {
