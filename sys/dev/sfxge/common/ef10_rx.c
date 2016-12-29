@@ -769,12 +769,10 @@ ef10_rx_qcreate(
 	}
 
 	/* Scatter can only be disabled if the firmware supports doing so */
-	if ((type != EFX_RXQ_TYPE_SCATTER) &&
-	    enp->en_nic_cfg.enc_rx_disable_scatter_supported) {
-		disable_scatter = B_TRUE;
-	} else {
+	if (type == EFX_RXQ_TYPE_SCATTER)
 		disable_scatter = B_FALSE;
-	}
+	else
+		disable_scatter = encp->enc_rx_disable_scatter_supported;
 
 	if ((rc = efx_mcdi_init_rxq(enp, n, eep->ee_index, label, index,
 	    esmp, disable_scatter)) != 0)
