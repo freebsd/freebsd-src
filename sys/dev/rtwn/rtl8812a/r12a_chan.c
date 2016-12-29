@@ -332,7 +332,7 @@ r12a_set_band(struct rtwn_softc *sc, struct ieee80211_channel *c)
 
 	/* XXX PATH_B is set by vendor driver. */
 	for (i = 0; i < 2; i++) {
-		uint16_t val;
+		uint16_t val = 0;
 
 		switch ((swing >> i * 2) & 0x3) {
 		case 0:
