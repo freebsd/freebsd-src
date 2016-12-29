@@ -251,6 +251,7 @@ ctl_tpc_lun_shutdown(struct ctl_lun *lun)
 int
 ctl_inquiry_evpd_tpc(struct ctl_scsiio *ctsio, int alloc_len)
 {
+	struct ctl_lun *lun = CTL_LUN(ctsio);
 	struct scsi_vpd_tpc *tpc_ptr;
 	struct scsi_vpd_tpc_descriptor *d_ptr;
 	struct scsi_vpd_tpc_descriptor_bdrl *bdrl_ptr;
@@ -264,10 +265,7 @@ ctl_inquiry_evpd_tpc(struct ctl_scsiio *ctsio, int alloc_len)
 	struct scsi_vpd_tpc_descriptor_srt *srt_ptr;
 	struct scsi_vpd_tpc_descriptor_srtd *srtd_ptr;
 	struct scsi_vpd_tpc_descriptor_gco *gco_ptr;
-	struct ctl_lun *lun;
 	int data_len;
-
-	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 
 	data_len = sizeof(struct scsi_vpd_tpc) +
 	    sizeof(struct scsi_vpd_tpc_descriptor_bdrl) +
@@ -521,7 +519,7 @@ tpc_find_list(struct ctl_lun *lun, uint32_t list_id, uint32_t init_idx)
 int
 ctl_receive_copy_status_lid1(struct ctl_scsiio *ctsio)
 {
-	struct ctl_lun *lun;
+	struct ctl_lun *lun = CTL_LUN(ctsio);
 	struct scsi_receive_copy_status_lid1 *cdb;
 	struct scsi_receive_copy_status_lid1_data *data;
 	struct tpc_list *list;
@@ -533,8 +531,6 @@ ctl_receive_copy_status_lid1(struct ctl_scsiio *ctsio)
 	CTL_DEBUG_PRINT(("ctl_receive_copy_status_lid1\n"));
 
 	cdb = (struct scsi_receive_copy_status_lid1 *)ctsio->cdb;
-	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
-
 	retval = CTL_RETVAL_COMPLETE;
 
 	list_id = cdb->list_identifier;
@@ -603,7 +599,7 @@ ctl_receive_copy_status_lid1(struct ctl_scsiio *ctsio)
 int
 ctl_receive_copy_failure_details(struct ctl_scsiio *ctsio)
 {
-	struct ctl_lun *lun;
+	struct ctl_lun *lun = CTL_LUN(ctsio);
 	struct scsi_receive_copy_failure_details *cdb;
 	struct scsi_receive_copy_failure_details_data *data;
 	struct tpc_list *list;
@@ -615,8 +611,6 @@ ctl_receive_copy_failure_details(struct ctl_scsiio *ctsio)
 	CTL_DEBUG_PRINT(("ctl_receive_copy_failure_details\n"));
 
 	cdb = (struct scsi_receive_copy_failure_details *)ctsio->cdb;
-	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
-
 	retval = CTL_RETVAL_COMPLETE;
 
 	list_id = cdb->list_identifier;
@@ -675,7 +669,7 @@ ctl_receive_copy_failure_details(struct ctl_scsiio *ctsio)
 int
 ctl_receive_copy_status_lid4(struct ctl_scsiio *ctsio)
 {
-	struct ctl_lun *lun;
+	struct ctl_lun *lun = CTL_LUN(ctsio);
 	struct scsi_receive_copy_status_lid4 *cdb;
 	struct scsi_receive_copy_status_lid4_data *data;
 	struct tpc_list *list;
@@ -687,8 +681,6 @@ ctl_receive_copy_status_lid4(struct ctl_scsiio *ctsio)
 	CTL_DEBUG_PRINT(("ctl_receive_copy_status_lid4\n"));
 
 	cdb = (struct scsi_receive_copy_status_lid4 *)ctsio->cdb;
-	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
-
 	retval = CTL_RETVAL_COMPLETE;
 
 	list_id = scsi_4btoul(cdb->list_identifier);
@@ -761,7 +753,7 @@ ctl_receive_copy_status_lid4(struct ctl_scsiio *ctsio)
 int
 ctl_copy_operation_abort(struct ctl_scsiio *ctsio)
 {
-	struct ctl_lun *lun;
+	struct ctl_lun *lun = CTL_LUN(ctsio);
 	struct scsi_copy_operation_abort *cdb;
 	struct tpc_list *list;
 	int retval;
@@ -770,8 +762,6 @@ ctl_copy_operation_abort(struct ctl_scsiio *ctsio)
 	CTL_DEBUG_PRINT(("ctl_copy_operation_abort\n"));
 
 	cdb = (struct scsi_copy_operation_abort *)ctsio->cdb;
-	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
-
 	retval = CTL_RETVAL_COMPLETE;
 
 	list_id = scsi_4btoul(cdb->list_identifier);
@@ -1705,11 +1695,11 @@ tpc_done(union ctl_io *io)
 int
 ctl_extended_copy_lid1(struct ctl_scsiio *ctsio)
 {
+	struct ctl_lun *lun = CTL_LUN(ctsio);
 	struct scsi_extended_copy *cdb;
 	struct scsi_extended_copy_lid1_data *data;
 	struct scsi_ec_cscd *cscd;
 	struct scsi_ec_segment *seg;
-	struct ctl_lun *lun;
 	struct tpc_list *list, *tlist;
 	uint8_t *ptr;
 	char *value;
@@ -1717,7 +1707,6 @@ ctl_extended_copy_lid1(struct ctl_scsiio *ctsio)
 
 	CTL_DEBUG_PRINT(("ctl_extended_copy_lid1\n"));
 
-	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 	cdb = (struct scsi_extended_copy *)ctsio->cdb;
 	len = scsi_4btoul(cdb->length);
 
@@ -1861,11 +1850,11 @@ done:
 int
 ctl_extended_copy_lid4(struct ctl_scsiio *ctsio)
 {
+	struct ctl_lun *lun = CTL_LUN(ctsio);
 	struct scsi_extended_copy *cdb;
 	struct scsi_extended_copy_lid4_data *data;
 	struct scsi_ec_cscd *cscd;
 	struct scsi_ec_segment *seg;
-	struct ctl_lun *lun;
 	struct tpc_list *list, *tlist;
 	uint8_t *ptr;
 	char *value;
@@ -1873,7 +1862,6 @@ ctl_extended_copy_lid4(struct ctl_scsiio *ctsio)
 
 	CTL_DEBUG_PRINT(("ctl_extended_copy_lid4\n"));
 
-	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 	cdb = (struct scsi_extended_copy *)ctsio->cdb;
 	len = scsi_4btoul(cdb->length);
 
@@ -2064,11 +2052,11 @@ tpc_create_token(struct ctl_lun *lun, struct ctl_port *port, off_t len,
 int
 ctl_populate_token(struct ctl_scsiio *ctsio)
 {
+	struct ctl_softc *softc = CTL_SOFTC(ctsio);
+	struct ctl_port *port = CTL_PORT(ctsio);
+	struct ctl_lun *lun = CTL_LUN(ctsio);
 	struct scsi_populate_token *cdb;
 	struct scsi_populate_token_data *data;
-	struct ctl_softc *softc;
-	struct ctl_lun *lun;
-	struct ctl_port *port;
 	struct tpc_list *list, *tlist;
 	struct tpc_token *token;
 	uint64_t lba;
@@ -2076,9 +2064,6 @@ ctl_populate_token(struct ctl_scsiio *ctsio)
 
 	CTL_DEBUG_PRINT(("ctl_populate_token\n"));
 
-	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
-	softc = lun->ctl_softc;
-	port = softc->ctl_ports[ctsio->io_hdr.nexus.targ_port];
 	cdb = (struct scsi_populate_token *)ctsio->cdb;
 	len = scsi_4btoul(cdb->length);
 
@@ -2232,10 +2217,10 @@ done:
 int
 ctl_write_using_token(struct ctl_scsiio *ctsio)
 {
+	struct ctl_softc *softc = CTL_SOFTC(ctsio);
+	struct ctl_lun *lun = CTL_LUN(ctsio);
 	struct scsi_write_using_token *cdb;
 	struct scsi_write_using_token_data *data;
-	struct ctl_softc *softc;
-	struct ctl_lun *lun;
 	struct tpc_list *list, *tlist;
 	struct tpc_token *token;
 	uint64_t lba;
@@ -2243,8 +2228,6 @@ ctl_write_using_token(struct ctl_scsiio *ctsio)
 
 	CTL_DEBUG_PRINT(("ctl_write_using_token\n"));
 
-	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
-	softc = lun->ctl_softc;
 	cdb = (struct scsi_write_using_token *)ctsio->cdb;
 	len = scsi_4btoul(cdb->length);
 
@@ -2389,7 +2372,7 @@ done:
 int
 ctl_receive_rod_token_information(struct ctl_scsiio *ctsio)
 {
-	struct ctl_lun *lun;
+	struct ctl_lun *lun = CTL_LUN(ctsio);
 	struct scsi_receive_rod_token_information *cdb;
 	struct scsi_receive_copy_status_lid4_data *data;
 	struct tpc_list *list;
@@ -2402,8 +2385,6 @@ ctl_receive_rod_token_information(struct ctl_scsiio *ctsio)
 	CTL_DEBUG_PRINT(("ctl_receive_rod_token_information\n"));
 
 	cdb = (struct scsi_receive_rod_token_information *)ctsio->cdb;
-	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
-
 	retval = CTL_RETVAL_COMPLETE;
 
 	list_id = scsi_4btoul(cdb->list_identifier);
@@ -2487,8 +2468,7 @@ ctl_receive_rod_token_information(struct ctl_scsiio *ctsio)
 int
 ctl_report_all_rod_tokens(struct ctl_scsiio *ctsio)
 {
-	struct ctl_softc *softc;
-	struct ctl_lun *lun;
+	struct ctl_softc *softc = CTL_SOFTC(ctsio);
 	struct scsi_report_all_rod_tokens *cdb;
 	struct scsi_report_all_rod_tokens_data *data;
 	struct tpc_token *token;
@@ -2498,9 +2478,6 @@ ctl_report_all_rod_tokens(struct ctl_scsiio *ctsio)
 	CTL_DEBUG_PRINT(("ctl_receive_rod_token_information\n"));
 
 	cdb = (struct scsi_report_all_rod_tokens *)ctsio->cdb;
-	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
-	softc = lun->ctl_softc;
-
 	retval = CTL_RETVAL_COMPLETE;
 
 	tokens = 0;

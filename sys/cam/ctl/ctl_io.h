@@ -166,6 +166,12 @@ union ctl_priv {
 #define	CTL_PRIV_FRONTEND	4	/* Frontend storage */
 #define	CTL_PRIV_FRONTEND2	5	/* Another frontend storage */
 
+#define CTL_LUN(io)	((io)->io_hdr.ctl_private[CTL_PRIV_LUN].ptrs[0])
+#define CTL_SOFTC(io)	((io)->io_hdr.ctl_private[CTL_PRIV_LUN].ptrs[1])
+#define CTL_BACKEND_LUN(io)	((io)->io_hdr.ctl_private[CTL_PRIV_BACKEND_LUN].ptrs[0])
+#define CTL_PORT(io)	(((struct ctl_softc *)CTL_SOFTC(io))->	\
+    ctl_ports[(io)->io_hdr.nexus.targ_port])
+
 #define CTL_INVALID_PORTNAME 0xFF
 #define CTL_UNMAPPED_IID     0xFF
 
