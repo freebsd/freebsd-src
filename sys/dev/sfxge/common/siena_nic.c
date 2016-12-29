@@ -166,6 +166,8 @@ siena_board_cfg(
 	encp->enc_required_pcie_bandwidth_mbps = 2 * 10000;
 	encp->enc_max_pcie_link_gen = EFX_PCIE_LINK_SPEED_GEN2;
 
+	encp->enc_fw_verified_nvram_update_required = B_FALSE;
+
 	return (0);
 
 fail2:
