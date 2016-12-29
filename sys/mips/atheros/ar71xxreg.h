@@ -527,7 +527,10 @@ typedef enum {
     *((volatile uint32_t *)MIPS_PHYS_TO_KSEG1((reg)))
 
 #define ATH_WRITE_REG(reg, val) \
-    *((volatile uint32_t *)MIPS_PHYS_TO_KSEG1((reg))) = (val)
+    do { \
+      *((volatile uint32_t *)MIPS_PHYS_TO_KSEG1((reg))) = (val); \
+      (void) ATH_READ_REG(reg); \
+    } while (0)
 
 static inline void
 ar71xx_ddr_flush(uint32_t reg)
