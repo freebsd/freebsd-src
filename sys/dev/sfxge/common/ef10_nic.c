@@ -1091,6 +1091,20 @@ ef10_get_datapath_caps(
 	encp->enc_init_evq_v2_supported =
 		CAP_FLAG2(flags2, INIT_EVQ_V2) ? B_TRUE : B_FALSE;
 
+	/*
+	 * Check if firmware provides packet memory and Rx datapath
+	 * counters.
+	 */
+	encp->enc_pm_and_rxdp_counters =
+	    CAP_FLAG(flags, PM_AND_RXDP_COUNTERS) ? B_TRUE : B_FALSE;
+
+	/*
+	 * Check if the 40G MAC hardware is capable of reporting
+	 * statistics for Tx size bins.
+	 */
+	encp->enc_mac_stats_40g_tx_size_bins =
+	    CAP_FLAG2(flags2, MAC_STATS_40G_TX_SIZE_BINS) ? B_TRUE : B_FALSE;
+
 #undef CAP_FLAG
 #undef CAP_FLAG2
 
