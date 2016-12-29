@@ -330,8 +330,9 @@ static void __sfxge_rx_deliver(struct sfxge_softc *sc, struct mbuf *m)
 }
 
 static void
-sfxge_rx_deliver(struct sfxge_softc *sc, struct sfxge_rx_sw_desc *rx_desc)
+sfxge_rx_deliver(struct sfxge_rxq *rxq, struct sfxge_rx_sw_desc *rx_desc)
 {
+	struct sfxge_softc *sc = rxq->sc;
 	struct mbuf *m = rx_desc->mbuf;
 	int flags = rx_desc->flags;
 	int csum_flags;
@@ -344,7 +345,7 @@ sfxge_rx_deliver(struct sfxge_softc *sc, struct sfxge_rx_sw_desc *rx_desc)
 
 	if (flags & (EFX_PKT_IPV4 | EFX_PKT_IPV6)) {
 		m->m_pkthdr.flowid =
-			efx_psuedo_hdr_hash_get(sc->enp,
+			efx_psuedo_hdr_hash_get(rxq->common,
 						EFX_RX_HASHALG_TOEPLITZ,
 						mtod(m, uint8_t *));
 		/* The hash covers a 4-tuple for TCP only */
@@ -423,7 +424,7 @@ static void sfxge_lro_drop(struct sfxge_rxq *rxq, struct sfxge_lro_conn *c)
 	KASSERT(!c->mbuf, ("found orphaned mbuf"));
 
 	if (c->next_buf.mbuf != NULL) {
-		sfxge_rx_deliver(rxq->sc, &c->next_buf);
+		sfxge_rx_deliver(rxq, &c->next_buf);
 		LIST_REMOVE(c, active_link);
 	}
 
@@ -618,7 +619,7 @@ sfxge_lro_try_merge(struct sfxge_rxq *rxq, struct sfxge_lro_conn *c)
 	return (1);
 
  deliver_buf_out:
-	sfxge_rx_deliver(rxq->sc, rx_buf);
+	sfxge_rx_deliver(rxq, rx_buf);
 	return (1);
 }
 
@@ -679,7 +680,7 @@ sfxge_lro(struct sfxge_rxq *rxq, struct sfxge_rx_sw_desc *rx_buf)
 	unsigned bucket;
 
 	/* Get the hardware hash */
-	conn_hash = efx_psuedo_hdr_hash_get(sc->enp,
+	conn_hash = efx_psuedo_hdr_hash_get(rxq->common,
 					    EFX_RX_HASHALG_TOEPLITZ,
 					    mtod(m, uint8_t *));
 
@@ -765,7 +766,7 @@ sfxge_lro(struct sfxge_rxq *rxq, struct sfxge_rx_sw_desc *rx_buf)
 
 	sfxge_lro_new_conn(&rxq->lro, conn_hash, l2_id, nh, th);
  deliver_now:
-	sfxge_rx_deliver(sc, rx_buf);
+	sfxge_rx_deliver(rxq, rx_buf);
 }
 
 static void sfxge_lro_end_of_burst(struct sfxge_rxq *rxq)
@@ -842,7 +843,7 @@ sfxge_rx_qcomplete(struct sfxge_rxq *rxq, boolean_t eop)
 		if (rx_desc->flags & EFX_PKT_PREFIX_LEN) {
 			uint16_t tmp_size;
 			int rc;
-			rc = efx_psuedo_hdr_pkt_length_get(sc->enp,
+			rc = efx_psuedo_hdr_pkt_length_get(rxq->common,
 							   mtod(m, uint8_t *),
 							   &tmp_size);
 			KASSERT(rc == 0, ("cannot get packet length: %d", rc));
@@ -891,7 +892,7 @@ sfxge_rx_qcomplete(struct sfxge_rxq *rxq, boolean_t eop)
 			     (EFX_PKT_TCP | EFX_CKSUM_TCPUDP)))
 				sfxge_lro(rxq, prev);
 			else
-				sfxge_rx_deliver(sc, prev);
+				sfxge_rx_deliver(rxq, prev);
 		}
 		prev = rx_desc;
 		continue;
@@ -912,7 +913,7 @@ discard:
 		     (EFX_PKT_TCP | EFX_CKSUM_TCPUDP)))
 			sfxge_lro(rxq, prev);
 		else
-			sfxge_rx_deliver(sc, prev);
+			sfxge_rx_deliver(rxq, prev);
 	}
 
 	/*

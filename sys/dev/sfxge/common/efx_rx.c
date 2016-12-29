@@ -541,11 +541,14 @@ efx_rx_qdestroy(
 
 	__checkReturn	efx_rc_t
 efx_psuedo_hdr_pkt_length_get(
-	__in		efx_nic_t *enp,
+	__in		efx_rxq_t *erp,
 	__in		uint8_t *buffer,
 	__out		uint16_t *lengthp)
 {
+	efx_nic_t *enp = erp->er_enp;
 	const efx_rx_ops_t *erxop = enp->en_erxop;
+
+	EFSYS_ASSERT3U(erp->er_magic, ==, EFX_RXQ_MAGIC);
 
 	return (erxop->erxo_prefix_pktlen(enp, buffer, lengthp));
 }
@@ -553,11 +556,14 @@ efx_psuedo_hdr_pkt_length_get(
 #if EFSYS_OPT_RX_SCALE
 	__checkReturn	uint32_t
 efx_psuedo_hdr_hash_get(
-	__in		efx_nic_t *enp,
+	__in		efx_rxq_t *erp,
 	__in		efx_rx_hash_alg_t func,
 	__in		uint8_t *buffer)
 {
+	efx_nic_t *enp = erp->er_enp;
 	const efx_rx_ops_t *erxop = enp->en_erxop;
+
+	EFSYS_ASSERT3U(erp->er_magic, ==, EFX_RXQ_MAGIC);
 
 	EFSYS_ASSERT3U(enp->en_hash_support, ==, EFX_RX_HASH_AVAILABLE);
 	return (erxop->erxo_prefix_hash(enp, func, buffer));
