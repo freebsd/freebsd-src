@@ -40,6 +40,8 @@ struct vmbus_xact_ctx	*vmbus_xact_ctx_create(bus_dma_tag_t dtag,
 			    size_t req_size, size_t resp_size,
 			    size_t priv_size);
 void			vmbus_xact_ctx_destroy(struct vmbus_xact_ctx *ctx);
+bool			vmbus_xact_ctx_orphan(struct vmbus_xact_ctx *ctx);
+
 struct vmbus_xact	*vmbus_xact_get(struct vmbus_xact_ctx *ctx,
 			    size_t req_len);
 void			vmbus_xact_put(struct vmbus_xact *xact);
