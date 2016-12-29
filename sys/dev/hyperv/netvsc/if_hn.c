@@ -306,7 +306,8 @@ static void			hn_resume(struct hn_softc *);
 static void			hn_resume_data(struct hn_softc *);
 static void			hn_resume_mgmt(struct hn_softc *);
 static void			hn_suspend_mgmt_taskfunc(void *, int);
-static void			hn_chan_drain(struct vmbus_channel *);
+static void			hn_chan_drain(struct hn_softc *,
+				    struct vmbus_channel *);
 
 static void			hn_update_link_status(struct hn_softc *);
 static void			hn_change_network(struct hn_softc *);
@@ -330,6 +331,8 @@ static int			hn_create_tx_data(struct hn_softc *, int);
 static void			hn_fixup_tx_data(struct hn_softc *);
 static void			hn_destroy_tx_data(struct hn_softc *);
 static void			hn_txdesc_dmamap_destroy(struct hn_txdesc *);
+static void			hn_txdesc_gc(struct hn_tx_ring *,
+				    struct hn_txdesc *);
 static int			hn_encap(struct ifnet *, struct hn_tx_ring *,
 				    struct hn_txdesc *, struct mbuf **);
 static int			hn_txpkt(struct ifnet *, struct hn_tx_ring *,
@@ -1011,8 +1014,25 @@ hn_attach(device_t dev)
 	 */
 	sc->hn_xact = vmbus_xact_ctx_create(bus_get_dma_tag(dev),
 	    HN_XACT_REQ_SIZE, HN_XACT_RESP_SIZE, 0);
-	if (sc->hn_xact == NULL)
+	if (sc->hn_xact == NULL) {
+		error = ENXIO;
 		goto failed;
+	}
+
+	/*
+	 * Install orphan handler for the revocation of this device's
+	 * primary channel.
+	 *
+	 * NOTE:
+	 * The processing order is critical here:
+	 * Install the orphan handler, _before_ testing whether this
+	 * device's primary channel has been revoked or not.
+	 */
+	vmbus_chan_set_orphan(sc->hn_prichan, sc->hn_xact);
+	if (vmbus_chan_is_revoked(sc->hn_prichan)) {
+		error = ENXIO;
+		goto failed;
+	}
 
 	/*
 	 * Attach the synthetic parts, i.e. NVS and RNDIS.
@@ -1192,6 +1212,14 @@ hn_detach(device_t dev)
 	struct hn_softc *sc = device_get_softc(dev);
 	struct ifnet *ifp = sc->hn_ifp;
 
+	if (sc->hn_xact != NULL && vmbus_chan_is_revoked(sc->hn_prichan)) {
+		/*
+		 * In case that the vmbus missed the orphan handler
+		 * installation.
+		 */
+		vmbus_xact_ctx_orphan(sc->hn_xact);
+	}
+
 	if (device_is_attached(dev)) {
 		HN_LOCK(sc);
 		if (sc->hn_flags & HN_FLAG_SYNTH_ATTACHED) {
@@ -1217,8 +1245,14 @@ hn_detach(device_t dev)
 		taskqueue_free(sc->hn_tx_taskq);
 	taskqueue_free(sc->hn_mgmt_taskq0);
 
-	if (sc->hn_xact != NULL)
+	if (sc->hn_xact != NULL) {
+		/*
+		 * Uninstall the orphan handler _before_ the xact is
+		 * destructed.
+		 */
+		vmbus_chan_unset_orphan(sc->hn_prichan);
 		vmbus_xact_ctx_destroy(sc->hn_xact);
+	}
 
 	if_free(ifp);
 
@@ -1457,7 +1491,7 @@ hn_txdesc_hold(struct hn_txdesc *txd)
 {
 
 	/* 0->1 transition will never work */
-	KASSERT(txd->refs > 0, ("invalid refs %d", txd->refs));
+	KASSERT(txd->refs > 0, ("invalid txd refs %d", txd->refs));
 	atomic_add_int(&txd->refs, 1);
 }
 
@@ -3475,24 +3509,43 @@ hn_txdesc_dmamap_destroy(struct hn_txdesc *txd)
 }
 
 static void
+hn_txdesc_gc(struct hn_tx_ring *txr, struct hn_txdesc *txd)
+{
+
+	KASSERT(txd->refs == 0 || txd->refs == 1,
+	    ("invalid txd refs %d", txd->refs));
+
+	/* Aggregated txds will be freed by their aggregating txd. */
+	if (txd->refs > 0 && (txd->flags & HN_TXD_FLAG_ONAGG) == 0) {
+		int freed;
+
+		freed = hn_txdesc_put(txr, txd);
+		KASSERT(freed, ("can't free txdesc"));
+	}
+}
+
+static void
 hn_tx_ring_destroy(struct hn_tx_ring *txr)
 {
-	struct hn_txdesc *txd;
+	int i;
 
 	if (txr->hn_txdesc == NULL)
 		return;
 
-#ifndef HN_USE_TXDESC_BUFRING
-	while ((txd = SLIST_FIRST(&txr->hn_txlist)) != NULL) {
-		SLIST_REMOVE_HEAD(&txr->hn_txlist, link);
-		hn_txdesc_dmamap_destroy(txd);
-	}
-#else
-	mtx_lock(&txr->hn_tx_lock);
-	while ((txd = buf_ring_dequeue_sc(txr->hn_txdesc_br)) != NULL)
-		hn_txdesc_dmamap_destroy(txd);
-	mtx_unlock(&txr->hn_tx_lock);
-#endif
+	/*
+	 * NOTE:
+	 * Because the freeing of aggregated txds will be deferred
+	 * to the aggregating txd, two passes are used here:
+	 * - The first pass GCes any pending txds.  This GC is necessary,
+	 *   since if the channels are revoked, hypervisor will not
+	 *   deliver send-done for all pending txds.
+	 * - The second pass frees the busdma stuffs, i.e. after all txds
+	 *   were freed.
+	 */
+	for (i = 0; i < txr->hn_txdesc_cnt; ++i)
+		hn_txdesc_gc(txr, &txr->hn_txdesc[i]);
+	for (i = 0; i < txr->hn_txdesc_cnt; ++i)
+		hn_txdesc_dmamap_destroy(&txr->hn_txdesc[i]);
 
 	if (txr->hn_tx_data_dtag != NULL)
 		bus_dma_tag_destroy(txr->hn_tx_data_dtag);
@@ -4525,10 +4578,17 @@ hn_set_ring_inuse(struct hn_softc *sc, int ring_cnt)
 }
 
 static void
-hn_chan_drain(struct vmbus_channel *chan)
+hn_chan_drain(struct hn_softc *sc, struct vmbus_channel *chan)
 {
 
-	while (!vmbus_chan_rx_empty(chan) || !vmbus_chan_tx_empty(chan))
+	/*
+	 * NOTE:
+	 * The TX bufring will not be drained by the hypervisor,
+	 * if the primary channel is revoked.
+	 */
+	while (!vmbus_chan_rx_empty(chan) ||
+	    (!vmbus_chan_is_revoked(sc->hn_prichan) &&
+	     !vmbus_chan_tx_empty(chan)))
 		pause("waitch", 1);
 	vmbus_chan_intr_drain(chan);
 }
@@ -4537,6 +4597,7 @@ static void
 hn_suspend_data(struct hn_softc *sc)
 {
 	struct vmbus_channel **subch = NULL;
+	struct hn_tx_ring *txr;
 	int i, nsubch;
 
 	HN_LOCK_ASSERT(sc);
@@ -4545,19 +4606,23 @@ hn_suspend_data(struct hn_softc *sc)
 	 * Suspend TX.
 	 */
 	for (i = 0; i < sc->hn_tx_ring_inuse; ++i) {
-		struct hn_tx_ring *txr = &sc->hn_tx_ring[i];
+		txr = &sc->hn_tx_ring[i];
 
 		mtx_lock(&txr->hn_tx_lock);
 		txr->hn_suspended = 1;
 		mtx_unlock(&txr->hn_tx_lock);
 		/* No one is able send more packets now. */
 
-		/* Wait for all pending sends to finish. */
-		while (hn_tx_ring_pending(txr))
+		/*
+		 * Wait for all pending sends to finish.
+		 *
+		 * NOTE:
+		 * We will _not_ receive all pending send-done, if the
+		 * primary channel is revoked.
+		 */
+		while (hn_tx_ring_pending(txr) &&
+		    !vmbus_chan_is_revoked(sc->hn_prichan))
 			pause("hnwtx", 1 /* 1 tick */);
-
-		taskqueue_drain(txr->hn_tx_taskq, &txr->hn_tx_task);
-		taskqueue_drain(txr->hn_tx_taskq, &txr->hn_txeof_task);
 	}
 
 	/*
@@ -4580,12 +4645,27 @@ hn_suspend_data(struct hn_softc *sc)
 
 	if (subch != NULL) {
 		for (i = 0; i < nsubch; ++i)
-			hn_chan_drain(subch[i]);
+			hn_chan_drain(sc, subch[i]);
 	}
-	hn_chan_drain(sc->hn_prichan);
+	hn_chan_drain(sc, sc->hn_prichan);
 
 	if (subch != NULL)
 		vmbus_subchan_rel(subch, nsubch);
+
+	/*
+	 * Drain any pending TX tasks.
+	 *
+	 * NOTE:
+	 * The above hn_chan_drain() can dispatch TX tasks, so the TX
+	 * tasks will have to be drained _after_ the above hn_chan_drain()
+	 * calls.
+	 */
+	for (i = 0; i < sc->hn_tx_ring_inuse; ++i) {
+		txr = &sc->hn_tx_ring[i];
+
+		taskqueue_drain(txr->hn_tx_taskq, &txr->hn_tx_task);
+		taskqueue_drain(txr->hn_tx_taskq, &txr->hn_txeof_task);
+	}
 }
 
 static void
