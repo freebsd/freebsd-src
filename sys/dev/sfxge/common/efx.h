@@ -2180,20 +2180,22 @@ efx_tx_qdestroy(
 #define	EFX_IPPROTO_TCP 6
 #define	EFX_IPPROTO_UDP 17
 
-typedef enum efx_filter_flag_e {
-	EFX_FILTER_FLAG_RX_RSS = 0x01,		/* use RSS to spread across
-						 * multiple queues */
-	EFX_FILTER_FLAG_RX_SCATTER = 0x02,	/* enable RX scatter */
-	EFX_FILTER_FLAG_RX_OVER_AUTO = 0x04,	/* Override an automatic filter
-						 * (priority EFX_FILTER_PRI_AUTO).
-						 * May only be set by the filter
-						 * implementation for each type.
-						 * A removal request will
-						 * restore the automatic filter
-						 * in its place. */
-	EFX_FILTER_FLAG_RX = 0x08,		/* Filter is for RX */
-	EFX_FILTER_FLAG_TX = 0x10,		/* Filter is for TX */
-} efx_filter_flag_t;
+/* Use RSS to spread across multiple queues */
+#define	EFX_FILTER_FLAG_RX_RSS		0x01
+/* Enable RX scatter */
+#define	EFX_FILTER_FLAG_RX_SCATTER	0x02
+/*
+ * Override an automatic filter (priority EFX_FILTER_PRI_AUTO).
+ * May only be set by the filter implementation for each type.
+ * A removal request will restore the automatic filter in its place.
+ */
+#define	EFX_FILTER_FLAG_RX_OVER_AUTO	0x04
+/* Filter is for RX */
+#define	EFX_FILTER_FLAG_RX		0x08
+/* Filter is for TX */
+#define	EFX_FILTER_FLAG_TX		0x10
+
+typedef unsigned int efx_filter_flags_t;
 
 typedef enum efx_filter_match_flags_e {
 	EFX_FILTER_MATCH_REM_HOST = 0x0001,	/* Match by remote IP host
@@ -2289,7 +2291,7 @@ extern			void
 efx_filter_spec_init_rx(
 	__out		efx_filter_spec_t *spec,
 	__in		efx_filter_priority_t priority,
-	__in		efx_filter_flag_t flags,
+	__in		efx_filter_flags_t flags,
 	__in		efx_rxq_t *erp);
 
 extern			void
