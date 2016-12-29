@@ -1751,8 +1751,7 @@ ctl_be_block_submit(union ctl_io *io)
 
 	DPRINTF("entered\n");
 
-	cbe_lun = (struct ctl_be_lun *)io->io_hdr.ctl_private[
-		CTL_PRIV_BACKEND_LUN].ptr;
+	cbe_lun = CTL_BACKEND_LUN(io);
 	be_lun = (struct ctl_be_block_lun *)cbe_lun->be_lun;
 
 	/*
@@ -2717,8 +2716,7 @@ ctl_be_block_config_write(union ctl_io *io)
 
 	DPRINTF("entered\n");
 
-	cbe_lun = (struct ctl_be_lun *)io->io_hdr.ctl_private[
-		CTL_PRIV_BACKEND_LUN].ptr;
+	cbe_lun = CTL_BACKEND_LUN(io);
 	be_lun = (struct ctl_be_block_lun *)cbe_lun->be_lun;
 
 	retval = 0;
@@ -2803,8 +2801,7 @@ ctl_be_block_config_read(union ctl_io *io)
 
 	DPRINTF("entered\n");
 
-	cbe_lun = (struct ctl_be_lun *)io->io_hdr.ctl_private[
-		CTL_PRIV_BACKEND_LUN].ptr;
+	cbe_lun = CTL_BACKEND_LUN(io);
 	be_lun = (struct ctl_be_block_lun *)cbe_lun->be_lun;
 
 	switch (io->scsiio.cdb[0]) {
