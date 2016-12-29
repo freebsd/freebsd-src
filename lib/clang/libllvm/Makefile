@@ -308,24 +308,24 @@ SRCS_MIN+=	DebugInfo/CodeView/TypeRecord.cpp
 SRCS_MIN+=	DebugInfo/CodeView/TypeRecordBuilder.cpp
 SRCS_MIN+=	DebugInfo/CodeView/TypeStreamMerger.cpp
 SRCS_MIN+=	DebugInfo/CodeView/TypeTableBuilder.cpp
-SRCS_MIW+=	DebugInfo/DWARF/DWARFAbbreviationDeclaration.cpp
-SRCS_MIW+=	DebugInfo/DWARF/DWARFAcceleratorTable.cpp
-SRCS_MIW+=	DebugInfo/DWARF/DWARFCompileUnit.cpp
-SRCS_MIW+=	DebugInfo/DWARF/DWARFContext.cpp
-SRCS_MIW+=	DebugInfo/DWARF/DWARFDebugAbbrev.cpp
-SRCS_MIW+=	DebugInfo/DWARF/DWARFDebugArangeSet.cpp
-SRCS_MIW+=	DebugInfo/DWARF/DWARFDebugAranges.cpp
-SRCS_MIW+=	DebugInfo/DWARF/DWARFDebugFrame.cpp
-SRCS_MIW+=	DebugInfo/DWARF/DWARFDebugInfoEntry.cpp
-SRCS_MIW+=	DebugInfo/DWARF/DWARFDebugLine.cpp
-SRCS_MIW+=	DebugInfo/DWARF/DWARFDebugLoc.cpp
-SRCS_MIW+=	DebugInfo/DWARF/DWARFDebugMacro.cpp
-SRCS_MIW+=	DebugInfo/DWARF/DWARFDebugRangeList.cpp
-SRCS_MIW+=	DebugInfo/DWARF/DWARFFormValue.cpp
-SRCS_MIW+=	DebugInfo/DWARF/DWARFTypeUnit.cpp
-SRCS_MIW+=	DebugInfo/DWARF/DWARFUnit.cpp
-SRCS_MIW+=	DebugInfo/DWARF/DWARFUnitIndex.cpp
-SRCS_MIW+=	DebugInfo/DWARF/SyntaxHighlighting.cpp
+SRCS_EXT+=	DebugInfo/DWARF/DWARFAbbreviationDeclaration.cpp
+SRCS_EXT+=	DebugInfo/DWARF/DWARFAcceleratorTable.cpp
+SRCS_EXT+=	DebugInfo/DWARF/DWARFCompileUnit.cpp
+SRCS_EXT+=	DebugInfo/DWARF/DWARFContext.cpp
+SRCS_EXT+=	DebugInfo/DWARF/DWARFDebugAbbrev.cpp
+SRCS_EXT+=	DebugInfo/DWARF/DWARFDebugArangeSet.cpp
+SRCS_EXT+=	DebugInfo/DWARF/DWARFDebugAranges.cpp
+SRCS_EXT+=	DebugInfo/DWARF/DWARFDebugFrame.cpp
+SRCS_EXT+=	DebugInfo/DWARF/DWARFDebugInfoEntry.cpp
+SRCS_EXT+=	DebugInfo/DWARF/DWARFDebugLine.cpp
+SRCS_EXT+=	DebugInfo/DWARF/DWARFDebugLoc.cpp
+SRCS_EXT+=	DebugInfo/DWARF/DWARFDebugMacro.cpp
+SRCS_EXT+=	DebugInfo/DWARF/DWARFDebugRangeList.cpp
+SRCS_EXT+=	DebugInfo/DWARF/DWARFFormValue.cpp
+SRCS_EXT+=	DebugInfo/DWARF/DWARFTypeUnit.cpp
+SRCS_EXT+=	DebugInfo/DWARF/DWARFUnit.cpp
+SRCS_EXT+=	DebugInfo/DWARF/DWARFUnitIndex.cpp
+SRCS_EXT+=	DebugInfo/DWARF/SyntaxHighlighting.cpp
 SRCS_EXT+=	DebugInfo/PDB/GenericError.cpp
 SRCS_EXT+=	DebugInfo/PDB/PDB.cpp
 SRCS_EXT+=	DebugInfo/PDB/PDBContext.cpp
@@ -699,7 +699,7 @@ SRCS_MIN+=	Target/AArch64/AArch64TargetObjectFile.cpp
 SRCS_MIN+=	Target/AArch64/AArch64TargetTransformInfo.cpp
 SRCS_MIN+=	Target/AArch64/AsmParser/AArch64AsmParser.cpp
 SRCS_XDB+=	Target/AArch64/Disassembler/AArch64Disassembler.cpp
-SRCS_XDW+=	Target/AArch64/Disassembler/AArch64ExternalSymbolizer.cpp
+SRCS_XDB+=	Target/AArch64/Disassembler/AArch64ExternalSymbolizer.cpp
 SRCS_MIN+=	Target/AArch64/InstPrinter/AArch64InstPrinter.cpp
 SRCS_MIN+=	Target/AArch64/MCTargetDesc/AArch64AsmBackend.cpp
 SRCS_MIN+=	Target/AArch64/MCTargetDesc/AArch64ELFObjectWriter.cpp
@@ -880,7 +880,7 @@ SRCS_MIN+=	Target/TargetSubtargetInfo.cpp
 SRCS_MIN+=	Target/X86/AsmParser/X86AsmInstrumentation.cpp
 SRCS_MIN+=	Target/X86/AsmParser/X86AsmParser.cpp
 SRCS_XDB+=	Target/X86/Disassembler/X86Disassembler.cpp
-SRCS_XDW+=	Target/X86/Disassembler/X86DisassemblerDecoder.cpp
+SRCS_XDB+=	Target/X86/Disassembler/X86DisassemblerDecoder.cpp
 SRCS_MIN+=	Target/X86/InstPrinter/X86ATTInstPrinter.cpp
 SRCS_MIN+=	Target/X86/InstPrinter/X86InstComments.cpp
 SRCS_MIN+=	Target/X86/InstPrinter/X86IntelInstPrinter.cpp
@@ -1090,9 +1090,6 @@ SRCS_MIN+=	Transforms/Vectorize/SLPVectorizer.cpp
 SRCS_EXT+=	Transforms/Vectorize/Vectorize.cpp
 
 SRCS_ALL+=	${SRCS_MIN}
-.if !defined(TOOLS_PREFIX)
-SRCS_ALL+=	${SRCS_MIW}
-.endif
 .if ${MK_CLANG_EXTRAS} != "no"
 SRCS_ALL+=	${SRCS_EXT}
 .endif
@@ -1107,9 +1104,6 @@ SRCS_ALL+=	${SRCS_XDB}
 .endif
 .if ${MK_CLANG_EXTRAS} != "no" || ${MK_LLDB} != "no" || ${MK_LLD} != "no"
 SRCS_ALL+=	${SRCS_XDL}
-.endif
-.if ${MK_CLANG_EXTRAS} != "no" || ${MK_LLDB} != "no" || !defined(TOOLS_PREFIX)
-SRCS_ALL+=	${SRCS_XDW}
 .endif
 SRCS+=		${SRCS_ALL:O}
 
