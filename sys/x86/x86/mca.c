@@ -508,7 +508,7 @@ mca_record_entry(enum scan_mode mode, const struct mca_record *record)
 	STAILQ_INSERT_TAIL(&mca_records, rec, link);
 	mca_count++;
 	mtx_unlock_spin(&mca_lock);
-	if (mode == CMCI)
+	if (mode == CMCI && !cold)
 		taskqueue_enqueue(mca_tq, &mca_refill_task);
 }
 
@@ -714,6 +714,9 @@ mca_createtq(void *dummy)
 	mca_tq = taskqueue_create_fast("mca", M_WAITOK,
 	    taskqueue_thread_enqueue, &mca_tq);
 	taskqueue_start_threads(&mca_tq, 1, PI_SWI(SWI_TQ), "mca taskq");
+
+	/* CMCIs during boot may have claimed items from the freelist. */
+	mca_fill_freelist();
 }
 SYSINIT(mca_createtq, SI_SUB_CONFIGURE, SI_ORDER_ANY, mca_createtq, NULL);
 
