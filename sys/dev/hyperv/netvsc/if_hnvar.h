@@ -193,7 +193,7 @@ struct hn_softc {
 	int		hn_chim_szmax;
 
 	int		hn_cpu;
-	struct taskqueue *hn_tx_taskq;
+	struct taskqueue **hn_tx_taskqs;
 	struct sysctl_oid *hn_tx_sysctl_tree;
 	struct sysctl_oid *hn_rx_sysctl_tree;
 	struct vmbus_xact_ctx *hn_xact;
