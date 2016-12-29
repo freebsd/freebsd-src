@@ -1104,7 +1104,7 @@ cache_lookup(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp,
 	uint32_t hash;
 	int error, ltype;
 
-	if (!doingcache) {
+	if (__predict_false(!doingcache)) {
 		cnp->cn_flags &= ~MAKEENTRY;
 		return (0);
 	}
@@ -1544,13 +1544,13 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 	VNASSERT(dvp == NULL || (dvp->v_iflag & VI_DOOMED) == 0, dvp,
 	    ("cache_enter: Doomed vnode used as src"));
 
-	if (!doingcache)
+	if (__predict_false(!doingcache))
 		return;
 
 	/*
 	 * Avoid blowout in namecache entries.
 	 */
-	if (numcache >= desiredvnodes * ncsizefactor)
+	if (__predict_false(numcache >= desiredvnodes * ncsizefactor))
 		return;
 
 	cache_celockstate_init(&cel);
@@ -2054,9 +2054,9 @@ kern___getcwd(struct thread *td, char *buf, enum uio_seg bufseg, u_int buflen,
 	struct vnode *cdir, *rdir;
 	int error;
 
-	if (disablecwd)
+	if (__predict_false(disablecwd))
 		return (ENODEV);
-	if (buflen < 2)
+	if (__predict_false(buflen < 2))
 		return (EINVAL);
 	if (buflen > path_max)
 		buflen = path_max;
@@ -2107,9 +2107,9 @@ vn_fullpath(struct thread *td, struct vnode *vn, char **retbuf, char **freebuf)
 	struct vnode *rdir;
 	int error;
 
-	if (disablefullpath)
+	if (__predict_false(disablefullpath))
 		return (ENODEV);
-	if (vn == NULL)
+	if (__predict_false(vn == NULL))
 		return (EINVAL);
 
 	buf = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
@@ -2141,9 +2141,9 @@ vn_fullpath_global(struct thread *td, struct vnode *vn,
 	char *buf;
 	int error;
 
-	if (disablefullpath)
+	if (__predict_false(disablefullpath))
 		return (ENODEV);
-	if (vn == NULL)
+	if (__predict_false(vn == NULL))
 		return (EINVAL);
 	buf = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
 	error = vn_fullpath1(td, vn, rootvnode, buf, retbuf, MAXPATHLEN);
@@ -2407,7 +2407,7 @@ vn_path_to_global_path(struct thread *td, struct vnode *vp, char *path,
 	ASSERT_VOP_ELOCKED(vp, __func__);
 
 	/* Return ENODEV if sysctl debug.disablefullpath==1 */
-	if (disablefullpath)
+	if (__predict_false(disablefullpath))
 		return (ENODEV);
 
 	/* Construct global filesystem path from vp. */
