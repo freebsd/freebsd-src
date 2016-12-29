@@ -32,15 +32,15 @@
  */
 #include <sys/types.h>
 #include <sys/queue.h>
-#include <sys/un.h>
 #include <sys/stat.h>
+#include <sys/un.h>
 
+#include <errno.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stddef.h>
-#include <syslog.h>
 #include <string.h>
-#include <errno.h>
+#include <syslog.h>
 #include <unistd.h>
 
 #include "snmpmod.h"
@@ -417,7 +417,7 @@ lsock_send(struct tport *tp, const u_char *buf, size_t len,
 			return (-1);
 		}
 	}
-	
+
 	return (sendto(peer->input.fd, buf, len, 0, addr, addrlen));
 }
 
