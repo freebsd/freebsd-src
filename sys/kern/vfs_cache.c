@@ -229,8 +229,6 @@ SYSCTL_UINT(_vfs, OID_AUTO, ncneghitsrequeue, CTLFLAG_RW, &ncneghitsrequeue, 0,
 struct nchstats	nchstats;		/* cache effectiveness statistics */
 
 static struct mtx       ncneg_shrink_lock;
-MTX_SYSINIT(vfscache_shrink_neg, &ncneg_shrink_lock, "Name Cache shrink neg",
-    MTX_DEF);
 
 struct neglist {
 	struct mtx		nl_lock;
@@ -1801,6 +1799,8 @@ nchinit(void *dummy __unused)
 	}
 	mtx_init(&ncneg_hot.nl_lock, "ncneglh", NULL, MTX_DEF);
 	TAILQ_INIT(&ncneg_hot.nl_list);
+
+	mtx_init(&ncneg_shrink_lock, "ncnegs", NULL, MTX_DEF);
 
 	numcalls = counter_u64_alloc(M_WAITOK);
 	dothits = counter_u64_alloc(M_WAITOK);
