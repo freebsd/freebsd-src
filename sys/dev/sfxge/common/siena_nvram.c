@@ -170,7 +170,7 @@ fail1:
 	return (rc);
 }
 
-				void
+	__checkReturn		efx_rc_t
 siena_nvram_partn_unlock(
 	__in			efx_nic_t *enp,
 	__in			uint32_t partn)
@@ -186,14 +186,16 @@ siena_nvram_partn_unlock(
 		    partn == MC_CMD_NVRAM_TYPE_PHY_PORT1 ||
 		    partn == MC_CMD_NVRAM_TYPE_DISABLED_CALLISTO);
 
-	if ((rc = efx_mcdi_nvram_update_finish(enp, partn, reboot)) != 0) {
+	rc = efx_mcdi_nvram_update_finish(enp, partn, reboot, NULL);
+	if (rc != 0)
 		goto fail1;
-	}
 
-	return;
+	return (0);
 
 fail1:
 	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
 }
 
 #endif	/* EFSYS_OPT_VPD || EFSYS_OPT_NVRAM */
@@ -585,12 +587,22 @@ fail1:
 	return (rc);
 }
 
-				void
+	__checkReturn		efx_rc_t
 siena_nvram_partn_rw_finish(
 	__in			efx_nic_t *enp,
 	__in			uint32_t partn)
 {
-	siena_nvram_partn_unlock(enp, partn);
+	efx_rc_t rc;
+
+	if ((rc = siena_nvram_partn_unlock(enp, partn)) != 0)
+		goto fail1;
+
+	return (0);
+
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
 }
 
 	__checkReturn		efx_rc_t

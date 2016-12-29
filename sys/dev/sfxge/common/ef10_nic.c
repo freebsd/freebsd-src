@@ -1105,6 +1105,18 @@ ef10_get_datapath_caps(
 	encp->enc_mac_stats_40g_tx_size_bins =
 	    CAP_FLAG2(flags2, MAC_STATS_40G_TX_SIZE_BINS) ? B_TRUE : B_FALSE;
 
+	/*
+	 * Check if firmware-verified NVRAM updates must be used.
+	 *
+	 * The firmware trusted installer requires all NVRAM updates to use
+	 * version 2 of MC_CMD_NVRAM_UPDATE_START (to enable verified update)
+	 * and version 2 of MC_CMD_NVRAM_UPDATE_FINISH (to verify the updated
+	 * partition and report the result).
+	 */
+	encp->enc_fw_verified_nvram_update_required =
+	    CAP_FLAG2(flags2, NVRAM_UPDATE_REPORT_VERIFY_RESULT) ?
+	    B_TRUE : B_FALSE;
+
 #undef CAP_FLAG
 #undef CAP_FLAG2
 
