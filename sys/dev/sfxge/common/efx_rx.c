@@ -731,12 +731,12 @@ siena_rx_scale_mode_set(
 
 	case EFX_RX_HASHALG_TOEPLITZ:
 		EFX_RX_TOEPLITZ_IPV4_HASH(enp, insert,
-		    type & (1 << EFX_RX_HASH_IPV4),
-		    type & (1 << EFX_RX_HASH_TCPIPV4));
+		    type & EFX_RX_HASH_IPV4,
+		    type & EFX_RX_HASH_TCPIPV4);
 
 		EFX_RX_TOEPLITZ_IPV6_HASH(enp,
-		    type & (1 << EFX_RX_HASH_IPV6),
-		    type & (1 << EFX_RX_HASH_TCPIPV6),
+		    type & EFX_RX_HASH_IPV6,
+		    type & EFX_RX_HASH_TCPIPV6,
 		    rc);
 		if (rc != 0)
 			goto fail1;
