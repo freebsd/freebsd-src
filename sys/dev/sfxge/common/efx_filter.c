@@ -1179,6 +1179,7 @@ siena_filter_restore(
 	efx_oword_t filter;
 	int filter_idx;
 	int state;
+	uint32_t key;
 	efx_rc_t rc;
 
 	EFSYS_LOCK(enp->en_eslp, state);
@@ -1192,8 +1193,10 @@ siena_filter_restore(
 				continue;
 
 			spec = &sftp->sft_spec[filter_idx];
-			if ((rc = siena_filter_build(&filter, spec)) != 0)
+			if ((key = siena_filter_build(&filter, spec)) == 0) {
+				rc = EINVAL;
 				goto fail1;
+			}
 			if ((rc = siena_filter_push_entry(enp,
 				    spec->sfs_type, filter_idx, &filter)) != 0)
 				goto fail2;
