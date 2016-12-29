@@ -839,11 +839,15 @@ hn_rndis_init(struct hn_softc *sc)
 		error = EIO;
 		goto done;
 	}
+	sc->hn_rndis_agg_size = comp->rm_pktmaxsz;
+	sc->hn_rndis_agg_pkts = comp->rm_pktmaxcnt;
+	sc->hn_rndis_agg_align = 1U << comp->rm_align;
+
 	if (bootverbose) {
 		if_printf(sc->hn_ifp, "RNDIS ver %u.%u, pktsz %u, pktcnt %u, "
 		    "align %u\n", comp->rm_ver_major, comp->rm_ver_minor,
-		    comp->rm_pktmaxsz, comp->rm_pktmaxcnt,
-		    1U << comp->rm_align);
+		    sc->hn_rndis_agg_size, sc->hn_rndis_agg_pkts,
+		    sc->hn_rndis_agg_align);
 	}
 	error = 0;
 done:
