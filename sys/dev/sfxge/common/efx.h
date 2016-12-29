@@ -1105,18 +1105,16 @@ typedef struct efx_nic_cfg_s {
 #if EFSYS_OPT_PHY_STATS
 	uint64_t		enc_phy_stat_mask;
 #endif	/* EFSYS_OPT_PHY_STATS */
-#if EFSYS_OPT_SIENA
+#if EFSYS_OPT_MCDI
 	uint8_t			enc_mcdi_mdio_channel;
 #if EFSYS_OPT_PHY_STATS
 	uint32_t		enc_mcdi_phy_stat_mask;
 #endif	/* EFSYS_OPT_PHY_STATS */
-#endif /* EFSYS_OPT_SIENA */
-#if (EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD)
 #if EFSYS_OPT_MON_STATS
 	uint32_t		*enc_mcdi_sensor_maskp;
 	uint32_t		enc_mcdi_sensor_mask_size;
 #endif	/* EFSYS_OPT_MON_STATS */
-#endif	/* (EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD) */
+#endif	/* EFSYS_OPT_MCDI */
 #if EFSYS_OPT_BIST
 	uint32_t		enc_bist_mask;
 #endif	/* EFSYS_OPT_BIST */
