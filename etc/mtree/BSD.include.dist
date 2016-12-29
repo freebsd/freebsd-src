@@ -118,6 +118,8 @@
         ..
         hwpmc
         ..
+        hyperv
+        ..
         ic
         ..
         ieee488
