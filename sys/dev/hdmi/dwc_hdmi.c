@@ -53,7 +53,22 @@ __FBSDID("$FreeBSD$");
 #include "hdmi_if.h"
 
 #define	I2C_DDC_ADDR	(0x50 << 1)
+#define	I2C_DDC_SEGADDR	(0x30 << 1)
 #define	EDID_LENGTH	0x80
+
+#define	EXT_TAG			0x00
+#define	CEA_TAG_ID		0x02
+#define	CEA_DTD			0x03
+#define	DTD_BASIC_AUDIO		(1 << 6)
+#define	CEA_REV			0x02
+#define	CEA_DATA_OFF		0x03
+#define	CEA_DATA_START		4
+#define	BLOCK_TAG(x)		(((x) >> 5) & 0x7)
+#define	BLOCK_TAG_VSDB		3
+#define	BLOCK_LEN(x)		((x) & 0x1f)
+#define	HDMI_VSDB_MINLEN	5
+#define	HDMI_OUI		"\x03\x0c\x00"
+#define	HDMI_OUI_LEN		3
 
 static void
 dwc_hdmi_phy_wait_i2c_done(struct dwc_hdmi_softc *sc, int msec)
@@ -122,7 +137,7 @@ dwc_hdmi_av_composer(struct dwc_hdmi_softc *sc)
 		HDMI_FC_INVIDCONF_IN_I_P_PROGRESSIVE);
 
 	/* TODO: implement HDMI part */
-	is_dvi = 1;
+	is_dvi = sc->sc_has_audio == 0;
 	inv_val |= (is_dvi ?
 		HDMI_FC_INVIDCONF_DVI_MODEZ_DVI_MODE :
 		HDMI_FC_INVIDCONF_DVI_MODEZ_HDMI_MODE);
@@ -419,6 +434,70 @@ dwc_hdmi_enable_video_path(struct dwc_hdmi_softc *sc)
 }
 
 static void
+dwc_hdmi_configure_audio(struct dwc_hdmi_softc *sc)
+{
+	unsigned int n;
+	uint8_t val;
+
+	if (sc->sc_has_audio == 0)
+		return;
+
+	/* The following values are for 48 kHz */
+	switch (sc->sc_mode.dot_clock) {
+	case 25170:
+		n = 6864;
+		break;
+	case 27020:
+		n = 6144;
+		break;
+	case 74170:
+		n = 11648;
+		break;
+	case 148350:
+		n = 5824;
+		break;
+	default:
+		n = 6144;
+		break;
+	}
+
+	WR1(sc, HDMI_AUD_N1, (n >> 0) & 0xff);
+	WR1(sc, HDMI_AUD_N2, (n >> 8) & 0xff);
+	WR1(sc, HDMI_AUD_N3, (n >> 16) & 0xff);
+
+	val = RD1(sc, HDMI_AUD_CTS3);
+	val &= ~(HDMI_AUD_CTS3_N_SHIFT_MASK | HDMI_AUD_CTS3_CTS_MANUAL);
+	WR1(sc, HDMI_AUD_CTS3, val);
+
+	val = RD1(sc, HDMI_AUD_CONF0);
+	val &= ~HDMI_AUD_CONF0_INTERFACE_MASK;
+	val |= HDMI_AUD_CONF0_INTERFACE_IIS;
+	val &= ~HDMI_AUD_CONF0_I2SINEN_MASK;
+	val |= HDMI_AUD_CONF0_I2SINEN_CH2;
+	WR1(sc, HDMI_AUD_CONF0, val);
+
+	val = RD1(sc, HDMI_AUD_CONF1);
+	val &= ~HDMI_AUD_CONF1_DATAMODE_MASK;
+	val |= HDMI_AUD_CONF1_DATAMODE_IIS;
+	val &= ~HDMI_AUD_CONF1_DATWIDTH_MASK;
+	val |= HDMI_AUD_CONF1_DATWIDTH_16BIT;
+	WR1(sc, HDMI_AUD_CONF1, val);
+
+	WR1(sc, HDMI_AUD_INPUTCLKFS, HDMI_AUD_INPUTCLKFS_64);
+
+	WR1(sc, HDMI_FC_AUDICONF0, 1 << 4);	/* CC=1 */
+	WR1(sc, HDMI_FC_AUDICONF1, 0);
+	WR1(sc, HDMI_FC_AUDICONF2, 0);		/* CA=0 */
+	WR1(sc, HDMI_FC_AUDICONF3, 0);
+	WR1(sc, HDMI_FC_AUDSV, 0xee);		/* channels valid */
+
+	/* Enable audio clock */
+	val = RD1(sc, HDMI_MC_CLKDIS);
+	val &= ~HDMI_MC_CLKDIS_AUDCLK_DISABLE;
+	WR1(sc, HDMI_MC_CLKDIS, val);
+}
+
+static void
 dwc_hdmi_video_packetize(struct dwc_hdmi_softc *sc)
 {
 	unsigned int color_depth = 0;
@@ -552,11 +631,15 @@ static int
 dwc_hdmi_set_mode(struct dwc_hdmi_softc *sc)
 {
 
+	/* XXX */
+	sc->sc_has_audio = 1;
+
 	dwc_hdmi_disable_overflow_interrupts(sc);
 	dwc_hdmi_av_composer(sc);
 	dwc_hdmi_phy_init(sc);
 	dwc_hdmi_enable_video_path(sc);
-	/* TODO: AVI infoframes */
+	dwc_hdmi_configure_audio(sc);
+	/* TODO:  dwc_hdmi_config_avi(sc); */
 	dwc_hdmi_video_packetize(sc);
 	/* TODO:  dwc_hdmi_video_csc(sc); */
 	dwc_hdmi_video_sample(sc);
@@ -567,14 +650,17 @@ dwc_hdmi_set_mode(struct dwc_hdmi_softc *sc)
 }
 
 static int
-hdmi_edid_read(struct dwc_hdmi_softc *sc, uint8_t **edid, uint32_t *edid_len)
+hdmi_edid_read(struct dwc_hdmi_softc *sc, int block, uint8_t **edid,
+    uint32_t *edid_len)
 {
 	device_t i2c_dev;
 	int result;
-	uint8_t addr = 0;
+	uint8_t addr = block & 1 ? EDID_LENGTH : 0;
+	uint8_t segment = block >> 1;
 	struct iic_msg msg[] = {
-		{ 0, IIC_M_WR, 1, &addr },
-		{ 0, IIC_M_RD, EDID_LENGTH, NULL}
+		{ I2C_DDC_SEGADDR, IIC_M_WR, 1, &segment },
+		{ I2C_DDC_ADDR, IIC_M_WR, 1, &addr },
+		{ I2C_DDC_ADDR, IIC_M_RD, EDID_LENGTH, sc->sc_edid }
 	};
 
 	*edid = NULL;
@@ -588,12 +674,10 @@ hdmi_edid_read(struct dwc_hdmi_softc *sc, uint8_t **edid, uint32_t *edid_len)
 		return (ENXIO);
 	}
 
-	device_printf(sc->sc_dev, "reading EDID from %s, addr %02x\n",
-	    device_get_nameunit(i2c_dev), I2C_DDC_ADDR/2);
-
-	msg[0].slave = I2C_DDC_ADDR;
-	msg[1].slave = I2C_DDC_ADDR;
-	msg[1].buf = sc->sc_edid;
+	if (bootverbose)
+		device_printf(sc->sc_dev,
+		    "reading EDID from %s, block %d, addr %02x\n",
+		    device_get_nameunit(i2c_dev), block, I2C_DDC_ADDR/2);
 
 	result = iicbus_request_bus(i2c_dev, sc->sc_dev, IIC_INTRWAIT);
 
@@ -602,7 +686,7 @@ hdmi_edid_read(struct dwc_hdmi_softc *sc, uint8_t **edid, uint32_t *edid_len)
 		return (result);
 	}
 
-	result = iicbus_transfer(i2c_dev, msg, 2);
+	result = iicbus_transfer(i2c_dev, msg, 3);
 	iicbus_release_bus(i2c_dev, sc->sc_dev);
 
 	if (result) {
@@ -670,11 +754,84 @@ out:
 	return (err);
 }
 
+static int
+dwc_hdmi_detect_hdmi_vsdb(uint8_t *edid)
+{
+	int off, p, btag, blen;
+
+	if (edid[EXT_TAG] != CEA_TAG_ID)
+		return (0);
+
+	off = edid[CEA_DATA_OFF];
+
+	/* CEA data block collection starts at byte 4 */
+	if (off <= CEA_DATA_START)
+		return (0);
+
+	/* Parse the CEA data blocks */
+	for (p = CEA_DATA_START; p < off;) {
+		btag = BLOCK_TAG(edid[p]);
+		blen = BLOCK_LEN(edid[p]);
+
+		/* Make sure the length is sane */
+		if (p + blen + 1 > off)
+			break;
+
+		/* Look for a VSDB with the HDMI 24-bit IEEE registration ID */
+		if (btag == BLOCK_TAG_VSDB && blen >= HDMI_VSDB_MINLEN &&
+		    memcmp(&edid[p + 1], HDMI_OUI, HDMI_OUI_LEN) == 0)
+			return (1);
+
+		/* Next data block */
+		p += (1 + blen);
+	}
+
+	/* Not found */
+	return (0);
+}
+
+static void
+dwc_hdmi_detect_hdmi(struct dwc_hdmi_softc *sc)
+{
+	uint8_t *edid;
+	uint32_t edid_len;
+	int block;
+
+	sc->sc_has_audio = 0;
+
+	/* Scan through extension blocks, looking for a CEA-861 block */
+	for (block = 1; block <= sc->sc_edid_info.edid_ext_block_count;
+	    block++) {
+		if (hdmi_edid_read(sc, block, &edid, &edid_len) != 0)
+			return;
+		if (dwc_hdmi_detect_hdmi_vsdb(edid) != 0) {
+			if (bootverbose)
+				device_printf(sc->sc_dev,
+				    "enabling audio support\n");
+			sc->sc_has_audio =
+			    (edid[CEA_DTD] & DTD_BASIC_AUDIO) != 0;
+			return;
+		}
+	}
+}
+
 int
 dwc_hdmi_get_edid(device_t dev, uint8_t **edid, uint32_t *edid_len)
 {
+	struct dwc_hdmi_softc *sc;
+	int error;
 
-	return (hdmi_edid_read(device_get_softc(dev), edid, edid_len));
+	sc = device_get_softc(dev);
+
+	memset(&sc->sc_edid_info, 0, sizeof(sc->sc_edid_info));
+
+	error = hdmi_edid_read(sc, 0, edid, edid_len);
+	if (error != 0)
+		return (error);
+
+	edid_parse(*edid, &sc->sc_edid_info);
+
+	return (0);
 }
 
 int
@@ -684,6 +841,8 @@ dwc_hdmi_set_videomode(device_t dev, const struct videomode *mode)
 
 	sc = device_get_softc(dev);
 	memcpy(&sc->sc_mode, mode, sizeof(*mode));
+
+	dwc_hdmi_detect_hdmi(sc);
 
 	dwc_hdmi_set_mode(sc);
 
