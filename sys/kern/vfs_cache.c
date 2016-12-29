@@ -260,12 +260,8 @@ static struct mtx *vnodelocks;
 static inline struct mtx *
 VP2VNODELOCK(struct vnode *vp)
 {
-	struct mtx *vlp;
 
-	if (vp == NULL)
-		return (NULL);
-	vlp = &vnodelocks[(((uintptr_t)(vp) >> 8) % numvnodelocks)];
-	return (vlp);
+	return (&vnodelocks[(((uintptr_t)(vp) >> 8) % numvnodelocks)]);
 }
 
 /*
@@ -1373,10 +1369,9 @@ cache_lock_vnodes_cel_3(struct celockstate *cel, struct vnode *vp)
 	cache_assert_vlp_locked(cel->vlp[0]);
 	cache_assert_vlp_locked(cel->vlp[1]);
 	MPASS(cel->vlp[2] == NULL);
+	MPASS(vp != NULL);
 
 	vlp = VP2VNODELOCK(vp);
-	MPASS(vlp != NULL);
-
 	ret = true;
 	if (vlp >= cel->vlp[1]) {
 		mtx_lock(vlp);
