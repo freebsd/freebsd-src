@@ -152,9 +152,6 @@ efx_filter_init(
 	const efx_filter_ops_t *efop;
 	efx_rc_t rc;
 
-	/* Check that efx_filter_spec_t is 64 bytes. */
-	EFX_STATIC_ASSERT(sizeof (efx_filter_spec_t) == 64);
-
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_PROBE);
 	EFSYS_ASSERT(!(enp->en_mod_flags & EFX_MOD_FILTER));
@@ -390,7 +387,7 @@ efx_filter_spec_set_uc_def(
 {
 	EFSYS_ASSERT3P(spec, !=, NULL);
 
-	spec->efs_match_flags |= EFX_FILTER_MATCH_LOC_MAC_IG;
+	spec->efs_match_flags |= EFX_FILTER_MATCH_UNKNOWN_UCAST_DST;
 	return (0);
 }
 
@@ -403,8 +400,7 @@ efx_filter_spec_set_mc_def(
 {
 	EFSYS_ASSERT3P(spec, !=, NULL);
 
-	spec->efs_match_flags |= EFX_FILTER_MATCH_LOC_MAC_IG;
-	spec->efs_loc_mac[0] = 1;
+	spec->efs_match_flags |= EFX_FILTER_MATCH_UNKNOWN_MCAST_DST;
 	return (0);
 }
 
