@@ -65,10 +65,10 @@ void
  * Function prototypes
  */
 int32_t
-sctp_map_assoc_state(int);
+        sctp_map_assoc_state(int);
 
 uint32_t
-sctp_get_ifa_hash_val(struct sockaddr *addr);
+         sctp_get_ifa_hash_val(struct sockaddr *addr);
 
 struct sctp_ifa *
          sctp_find_ifa_in_ep(struct sctp_inpcb *inp, struct sockaddr *addr, int hold_lock);
