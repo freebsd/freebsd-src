@@ -50,6 +50,9 @@
 #define VMBUS_VERSION_MAJOR(ver)	(((uint32_t)(ver)) >> 16)
 #define VMBUS_VERSION_MINOR(ver)	(((uint32_t)(ver)) & 0xffff)
 
+#define VMBUS_CHAN_POLLHZ_MIN		100	/* 10ms interval */
+#define VMBUS_CHAN_POLLHZ_MAX		1000000	/* 1us interval */
+
 /*
  * GPA stuffs.
  */
@@ -220,5 +223,9 @@ bool		vmbus_chan_rx_empty(const struct vmbus_channel *chan);
 bool		vmbus_chan_tx_empty(const struct vmbus_channel *chan);
 struct taskqueue *
 		vmbus_chan_mgmt_tq(const struct vmbus_channel *chan);
+
+void		vmbus_chan_poll_enable(struct vmbus_channel *chan,
+		    u_int pollhz);
+void		vmbus_chan_poll_disable(struct vmbus_channel *chan);
 
 #endif	/* !_VMBUS_H_ */
