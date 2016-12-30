@@ -128,11 +128,6 @@ typedef struct efx_rxq_s	efx_rxq_t;
 
 typedef struct efx_nic_s	efx_nic_t;
 
-#define	EFX_NIC_FUNC_PRIMARY	0x00000001
-#define	EFX_NIC_FUNC_LINKCTRL	0x00000002
-#define	EFX_NIC_FUNC_TRUSTED	0x00000004
-
-
 extern	__checkReturn	efx_rc_t
 efx_nic_create(
 	__in		efx_family_t family,
@@ -1100,7 +1095,6 @@ typedef struct efx_nic_cfg_s {
 	unsigned int		enc_features;
 	uint8_t			enc_mac_addr[6];
 	uint8_t			enc_port;	/* PHY port number */
-	uint32_t		enc_func_flags;
 	uint32_t		enc_intr_vec_base;
 	uint32_t		enc_intr_limit;
 	uint32_t		enc_evq_limit;
