@@ -82,28 +82,9 @@ enum {
 	NORMAL_OPT,
 	FCASE_SENSITIVE_OPT,
 	FCASE_IGNORE_OPT,
-	FROMFILE_OPT,
-	TOFILE_OPT,
-	UNIDIR_OPT,
 	STRIPCR_OPT,
-	HORIZ_OPT,
-	SUPCL_OPT,
-	LF_OPT,
-	/* the following groupings must be in sequence */
-	OLDGF_OPT,
-	NEWGF_OPT,
-	UNCGF_OPT,
-	CHGF_OPT,
-	OLDLF_OPT,
-	NEWLF_OPT,
-	UNCLF_OPT,
-	/* end order-sensitive enums */
 	TSIZE_OPT,
-	HLINES_OPT,
-	LFILES_OPT,
 	DIFFPROG_OPT,
-
-	NOOP_OPT,
 };
 
 static struct option longopts[] = {
