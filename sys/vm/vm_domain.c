@@ -140,7 +140,6 @@ vm_domain_policy_localcopy(struct vm_domain_policy *dst,
 		*dst = *src;
 		if (seq_consistent(&src->seq, seq))
 			return;
-		cpu_spinwait();
 	}
 }
 
@@ -168,7 +167,6 @@ vm_domain_policy_copy(struct vm_domain_policy *dst,
 			seq_write_end(&dst->seq);
 			return;
 		}
-		cpu_spinwait();
 	}
 }
 
@@ -330,7 +328,6 @@ vm_domain_iterator_set_policy(struct vm_domain_iterator *vi,
 			_vm_domain_iterator_set_policy(vi, &vt_lcl);
 			return;
 		}
-		cpu_spinwait();
 	}
 }
 

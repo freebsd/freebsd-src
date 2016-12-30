@@ -2556,10 +2556,8 @@ fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
 		fde = &fdt->fdt_ofiles[fd];
 		haverights = *cap_rights_fde(fde);
 		fp = fde->fde_file;
-		if (!seq_consistent(fd_seq(fdt, fd), seq)) {
-			cpu_spinwait();
+		if (!seq_consistent(fd_seq(fdt, fd), seq))
 			continue;
-		}
 #else
 		fp = fdt->fdt_ofiles[fd].fde_file;
 #endif
