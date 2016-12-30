@@ -283,7 +283,7 @@ DEFINE_TEST(test_acl_freebsd_posix1e_restore)
 }
 
 /*
- * Verify ACL reaed-from-disk.  This test is FreeBSD-specific.
+ * Verify ACL read-from-disk.  This test is FreeBSD-specific.
  */
 DEFINE_TEST(test_acl_freebsd_posix1e_read)
 {

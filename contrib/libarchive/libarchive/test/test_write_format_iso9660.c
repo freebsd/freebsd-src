@@ -719,7 +719,7 @@ DEFINE_TEST(test_write_format_iso9660)
 	assertEqualInt(5, archive_entry_ctime(ae));
 	assert(archive_entry_mtime_is_set(ae));
 	assertEqualInt(5, archive_entry_mtime(ae));
-	/* Trim lngname to 64 characters. */
+	/* Trim longname to 64 characters. */
 	longname[64] = '\0';
 	assertEqualString(longname, archive_entry_pathname(ae));
 	assert((AE_IFREG | 0400) == archive_entry_mode(ae));
