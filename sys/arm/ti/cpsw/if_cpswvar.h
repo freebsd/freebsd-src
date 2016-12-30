@@ -80,6 +80,7 @@ struct cpsw_softc {
 	phandle_t	node;
 	struct bintime	attach_uptime; /* system uptime when attach happened. */
 	struct cpsw_port port[2];
+	unsigned	coal_us;
 
 	/* RX and TX buffer tracking */
 	struct cpsw_queue rx, tx;
