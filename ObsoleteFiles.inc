@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20161230: libarchive ACL pax test renamed to test_acl_pax_posix1e.tar.uu
+OLD_FILES+=usr/tests/lib/libarchive/test_acl_pax.tar.uu
 # 20161217: new clang import which bumps version from 3.9.0 to 3.9.1.
 OLD_FILES+=usr/lib/clang/3.9.0/include/sanitizer/allocator_interface.h
 OLD_FILES+=usr/lib/clang/3.9.0/include/sanitizer/asan_interface.h
