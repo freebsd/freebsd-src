@@ -947,3 +947,6 @@ RANDOM_RWFILE	opt_random.h
 
 # Intel em(4) driver
 EM_MULTIQUEUE	opt_em.h
+
+# Hyper-V network driver
+HN_DEBUG	opt_hn.h
