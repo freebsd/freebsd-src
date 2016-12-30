@@ -79,7 +79,7 @@ typedef enum {
 	WT_RVIS,
 	/* conversion, unsupported */
 	WT_CONV,
-	/* continutation, unsupported at the moment */
+	/* continuation, unsupported at the moment */
 	WT_CONT,
 	/* invalid type */
 	LAST_WT
