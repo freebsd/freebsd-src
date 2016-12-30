@@ -393,7 +393,8 @@ ef10_nvram_partn_lock(
 extern	__checkReturn		efx_rc_t
 ef10_nvram_partn_unlock(
 	__in			efx_nic_t *enp,
-	__in			uint32_t partn);
+	__in			uint32_t partn,
+	__out_opt		uint32_t *resultp);
 
 #endif /* EFSYS_OPT_NVRAM || EFSYS_OPT_VPD */
 
