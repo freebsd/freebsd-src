@@ -105,6 +105,12 @@ typedef int64_t la_int64_t;
 # define __LA_DECL
 #endif
 
+#if defined(__GNUC__) && __GNUC__ >= 3 && __GNUC_MINOR__ >= 1
+# define __LA_DEPRECATED __attribute__((deprecated))
+#else
+# define __LA_DEPRECATED
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -529,9 +535,9 @@ __LA_DECL int archive_entry_acl_from_text(struct archive_entry *,
 
 /* Deprecated functions */
 __LA_DECL const wchar_t	*archive_entry_acl_text_w(struct archive_entry *,
-		    int /* flags */) __attribute__ ((deprecated));
+		    int /* flags */) __LA_DEPRECATED;
 __LA_DECL const char *archive_entry_acl_text(struct archive_entry *,
-		    int /* flags */) __attribute__ ((deprecated));
+		    int /* flags */) __LA_DEPRECATED;
 
 /* Return bitmask of ACL types in an archive entry */
 __LA_DECL int	 archive_entry_acl_types(struct archive_entry *);
