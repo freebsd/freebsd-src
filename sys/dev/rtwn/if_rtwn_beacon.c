@@ -160,7 +160,8 @@ rtwn_tx_beacon(struct rtwn_softc *sc, struct rtwn_vap *uvp)
 void
 rtwn_update_beacon(struct ieee80211vap *vap, int item)
 {
-	struct rtwn_softc *sc = vap->iv_ic->ic_softc;
+	struct ieee80211com *ic = vap->iv_ic;
+	struct rtwn_softc *sc = ic->ic_softc;
 	struct rtwn_vap *uvp = RTWN_VAP(vap);
 	struct ieee80211_beacon_offsets *bo = &vap->iv_bcn_off;
 	struct ieee80211_node *ni = vap->iv_bss;
@@ -176,19 +177,69 @@ rtwn_update_beacon(struct ieee80211vap *vap, int item)
 			return;
 		}
 	}
+
+	RTWN_DPRINTF(sc, RTWN_DEBUG_BEACON,
+	    "%s: vap id %d, iv_csa_count %d, ic_csa_count %d, item %d\n",
+	    __func__, uvp->id, vap->iv_csa_count, ic->ic_csa_count, item);
+
+	switch (item) {
+	case IEEE80211_BEACON_CSA:
+		if (vap->iv_csa_count != ic->ic_csa_count) {
+			/*
+			 * XXX two APs with different beacon intervals
+			 * are not handled properly.
+			 */
+			/* XXX check TBTT? */
+			taskqueue_enqueue_timeout(taskqueue_thread,
+			    &uvp->tx_beacon_csa,
+			    msecs_to_ticks(ni->ni_intval));
+		}
+		break;
+	case IEEE80211_BEACON_TIM:
+		mcast = 1;	/* XXX */
+		break;
+	default:
+		break;
+	}
+
+	setbit(bo->bo_flags, item);
+
 	rtwn_beacon_update_begin(sc, vap);
 	RTWN_UNLOCK(sc);
 
-	if (item == IEEE80211_BEACON_TIM)
-		mcast = 1;	/* XXX */
-
-	setbit(bo->bo_flags, item);
 	ieee80211_beacon_update(ni, uvp->bcn_mbuf, mcast);
+
+	/* XXX clear manually */
+	clrbit(bo->bo_flags, IEEE80211_BEACON_CSA);
 
 	RTWN_LOCK(sc);
 	rtwn_tx_beacon(sc, uvp);
 	rtwn_beacon_update_end(sc, vap);
 	RTWN_UNLOCK(sc);
+}
+
+void
+rtwn_tx_beacon_csa(void *arg, int npending __unused)
+{
+	struct ieee80211vap *vap = arg;
+	struct ieee80211com *ic = vap->iv_ic;
+	struct rtwn_softc *sc = ic->ic_softc;
+	struct rtwn_vap *rvp = RTWN_VAP(vap);
+
+	KASSERT (rvp->id == 0 || rvp->id == 1,
+	    ("wrong port id %d\n", rvp->id));
+
+	IEEE80211_LOCK(ic);
+	if (ic->ic_flags & IEEE80211_F_CSAPENDING) {
+		RTWN_DPRINTF(sc, RTWN_DEBUG_BEACON,
+		    "%s: vap id %d, iv_csa_count %d, ic_csa_count %d\n",
+		    __func__, rvp->id, vap->iv_csa_count, ic->ic_csa_count);
+
+		rtwn_update_beacon(vap, IEEE80211_BEACON_CSA);
+	}
+	IEEE80211_UNLOCK(ic);
+
+	(void) rvp;
 }
 
 int

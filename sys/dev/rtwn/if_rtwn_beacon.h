@@ -22,6 +22,7 @@
 void	rtwn_switch_bcnq(struct rtwn_softc *, int);
 int	rtwn_setup_beacon(struct rtwn_softc *, struct ieee80211_node *);
 void	rtwn_update_beacon(struct ieee80211vap *, int);
+void	rtwn_tx_beacon_csa(void *arg, int);
 int	rtwn_tx_beacon_check(struct rtwn_softc *, struct rtwn_vap *);
 
 #endif	/* IF_RTWN_BEACON_H */
