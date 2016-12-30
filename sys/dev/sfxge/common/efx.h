@@ -1075,7 +1075,6 @@ efx_bist_stop(
 #define	EFX_FEATURE_LFSR_HASH_INSERT	0x00000002
 #define	EFX_FEATURE_LINK_EVENTS		0x00000004
 #define	EFX_FEATURE_PERIODIC_MAC_STATS	0x00000008
-#define	EFX_FEATURE_WOL			0x00000010
 #define	EFX_FEATURE_MCDI		0x00000020
 #define	EFX_FEATURE_LOOKAHEAD_SPLIT	0x00000040
 #define	EFX_FEATURE_MAC_HEADER_FILTERS	0x00000080
@@ -1458,87 +1457,6 @@ efx_bootcfg_write(
 	__in			size_t size);
 
 #endif	/* EFSYS_OPT_BOOTCFG */
-
-#if EFSYS_OPT_WOL
-
-typedef enum efx_wol_type_e {
-	EFX_WOL_TYPE_INVALID,
-	EFX_WOL_TYPE_MAGIC,
-	EFX_WOL_TYPE_BITMAP,
-	EFX_WOL_TYPE_LINK,
-	EFX_WOL_NTYPES,
-} efx_wol_type_t;
-
-typedef enum efx_lightsout_offload_type_e {
-	EFX_LIGHTSOUT_OFFLOAD_TYPE_INVALID,
-	EFX_LIGHTSOUT_OFFLOAD_TYPE_ARP,
-	EFX_LIGHTSOUT_OFFLOAD_TYPE_NS,
-} efx_lightsout_offload_type_t;
-
-#define	EFX_WOL_BITMAP_MASK_SIZE    (48)
-#define	EFX_WOL_BITMAP_VALUE_SIZE   (128)
-
-typedef union efx_wol_param_u {
-	struct {
-		uint8_t mac_addr[6];
-	} ewp_magic;
-	struct {
-		uint8_t mask[EFX_WOL_BITMAP_MASK_SIZE];   /* 1 bit per byte */
-		uint8_t value[EFX_WOL_BITMAP_VALUE_SIZE]; /* value to match */
-		uint8_t value_len;
-	} ewp_bitmap;
-} efx_wol_param_t;
-
-typedef union efx_lightsout_offload_param_u {
-	struct {
-		uint8_t mac_addr[6];
-		uint32_t ip;
-	} elop_arp;
-	struct {
-		uint8_t mac_addr[6];
-		uint32_t solicited_node[4];
-		uint32_t ip[4];
-	} elop_ns;
-} efx_lightsout_offload_param_t;
-
-extern	__checkReturn	efx_rc_t
-efx_wol_init(
-	__in		efx_nic_t *enp);
-
-extern	__checkReturn	efx_rc_t
-efx_wol_filter_clear(
-	__in		efx_nic_t *enp);
-
-extern	__checkReturn	efx_rc_t
-efx_wol_filter_add(
-	__in		efx_nic_t *enp,
-	__in		efx_wol_type_t type,
-	__in		efx_wol_param_t *paramp,
-	__out		uint32_t *filter_idp);
-
-extern	__checkReturn	efx_rc_t
-efx_wol_filter_remove(
-	__in		efx_nic_t *enp,
-	__in		uint32_t filter_id);
-
-extern	__checkReturn	efx_rc_t
-efx_lightsout_offload_add(
-	__in		efx_nic_t *enp,
-	__in		efx_lightsout_offload_type_t type,
-	__in		efx_lightsout_offload_param_t *paramp,
-	__out		uint32_t *filter_idp);
-
-extern	__checkReturn	efx_rc_t
-efx_lightsout_offload_remove(
-	__in		efx_nic_t *enp,
-	__in		efx_lightsout_offload_type_t type,
-	__in		uint32_t filter_id);
-
-extern			void
-efx_wol_fini(
-	__in		efx_nic_t *enp);
-
-#endif	/* EFSYS_OPT_WOL */
 
 #if EFSYS_OPT_DIAG
 

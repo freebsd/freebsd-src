@@ -266,7 +266,6 @@ sfxge_map_mbuf_fast(bus_dma_tag_t tag, bus_dmamap_t map,
 #define	EFSYS_OPT_BOOTCFG 0
 
 #define	EFSYS_OPT_DIAG 0
-#define	EFSYS_OPT_WOL 1
 #define	EFSYS_OPT_RX_SCALE 1
 #define	EFSYS_OPT_QSTATS 1
 #define	EFSYS_OPT_FILTER 1
