@@ -48,35 +48,27 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/endian.h>
-#include <sys/mbuf.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
+#include <sys/bus.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/mbuf.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
+#include <sys/rman.h>
 #include <sys/socket.h>
+#include <sys/sockio.h>
 #include <sys/sysctl.h>
+
+#include <machine/bus.h>
+#include <machine/resource.h>
+#include <machine/stdarg.h>
 
 #include <net/ethernet.h>
 #include <net/bpf.h>
 #include <net/if.h>
-#include <net/if_arp.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
 #include <net/if_types.h>
-#include <net/if_var.h>
-#include <net/if_vlan_var.h>
-
-#include <netinet/in_systm.h>
-#include <netinet/in.h>
-#include <netinet/ip.h>
-
-#include <sys/sockio.h>
-#include <sys/bus.h>
-#include <machine/bus.h>
-#include <sys/rman.h>
-#include <machine/resource.h>
 
 #include <arm/ti/ti_scm.h>
 #include <arm/ti/am335x/am335x_scm.h>
@@ -263,8 +255,6 @@ static struct cpsw_stat {
  * Basic debug support.
  */
 
-#define	IF_DEBUG(_sc)		if ((_sc)->if_flags & IFF_DEBUG)
-
 static void
 cpsw_debugf_head(const char *funcname)
 {
@@ -273,7 +263,6 @@ cpsw_debugf_head(const char *funcname)
 	printf("%02d:%02d:%02d %s ", t / (60 * 60), (t / 60) % 60, t % 60, funcname);
 }
 
-#include <machine/stdarg.h>
 static void
 cpsw_debugf(const char *fmt, ...)
 {
@@ -287,19 +276,11 @@ cpsw_debugf(const char *fmt, ...)
 }
 
 #define	CPSW_DEBUGF(_sc, a) do {					\
-	if (sc->debug) {						\
+	if ((_sc)->debug) {						\
 		cpsw_debugf_head(__func__);				\
 		cpsw_debugf a;						\
 	}								\
 } while (0)
-
-#define	CPSWP_DEBUGF(_sc, a) do {					\
-	IF_DEBUG((_sc)) {						\
-		cpsw_debugf_head(__func__);				\
-		cpsw_debugf a;						\
-	}								\
-} while (0)
-
 
 /*
  * Locking macros
@@ -319,25 +300,6 @@ cpsw_debugf(const char *fmt, ...)
 
 #define	CPSW_RX_UNLOCK(sc)		mtx_unlock(&(sc)->rx.lock)
 #define	CPSW_RX_LOCK_ASSERT(sc)	mtx_assert(&(sc)->rx.lock, MA_OWNED)
-
-#define	CPSW_GLOBAL_LOCK(sc) do {					\
-		if ((mtx_owned(&(sc)->tx.lock) ? 1 : 0) !=		\
-		    (mtx_owned(&(sc)->rx.lock) ? 1 : 0)) {		\
-			panic("cpsw deadlock possibility detection!");	\
-		}							\
-		mtx_lock(&(sc)->tx.lock);				\
-		mtx_lock(&(sc)->rx.lock);				\
-} while (0)
-
-#define	CPSW_GLOBAL_UNLOCK(sc) do {					\
-		CPSW_RX_UNLOCK(sc);					\
-		CPSW_TX_UNLOCK(sc);					\
-} while (0)
-
-#define	CPSW_GLOBAL_LOCK_ASSERT(sc) do {				\
-		CPSW_TX_LOCK_ASSERT(sc);				\
-		CPSW_RX_LOCK_ASSERT(sc);				\
-} while (0)
 
 #define CPSW_PORT_LOCK(_sc) do {					\
 		mtx_assert(&(_sc)->lock, MA_NOTOWNED);			\
@@ -1061,7 +1023,7 @@ cpswp_detach(device_t dev)
 	struct cpswp_softc *sc;
 
 	sc = device_get_softc(dev);
-	CPSWP_DEBUGF(sc, (""));
+	CPSW_DEBUGF(sc->swsc, (""));
 	if (device_is_attached(dev)) {
 		ether_ifdetach(sc->ifp);
 		CPSW_PORT_LOCK(sc);
@@ -1107,7 +1069,7 @@ cpswp_init(void *arg)
 {
 	struct cpswp_softc *sc = arg;
 
-	CPSWP_DEBUGF(sc, (""));
+	CPSW_DEBUGF(sc->swsc, (""));
 	CPSW_PORT_LOCK(sc);
 	cpswp_init_locked(arg);
 	CPSW_PORT_UNLOCK(sc);
@@ -1120,7 +1082,7 @@ cpswp_init_locked(void *arg)
 	struct ifnet *ifp;
 	uint32_t reg;
 
-	CPSWP_DEBUGF(sc, (""));
+	CPSW_DEBUGF(sc->swsc, (""));
 	CPSW_PORT_LOCK_ASSERT(sc);
 	ifp = sc->ifp;
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
@@ -1198,7 +1160,7 @@ cpsw_rx_teardown_locked(struct cpsw_softc *sc)
 	cpsw_write_4(sc, CPSW_CPDMA_RX_TEARDOWN, 0);
 	for (;;) {
 		received = cpsw_rx_dequeue(sc);
-		CPSW_GLOBAL_UNLOCK(sc);
+		CPSW_RX_UNLOCK(sc);
 		while (received != NULL) {
 			next = received->m_nextpkt;
 			received->m_nextpkt = NULL;
@@ -1207,7 +1169,7 @@ cpsw_rx_teardown_locked(struct cpsw_softc *sc)
 			if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 			received = next;
 		}
-		CPSW_GLOBAL_LOCK(sc);
+		CPSW_RX_LOCK(sc);
 		if (!sc->rx.running) {
 			CPSW_DEBUGF(sc,
 			    ("finished RX teardown (%d retries)", i));
@@ -1249,7 +1211,7 @@ cpswp_stop_locked(struct cpswp_softc *sc)
 	uint32_t reg;
 
 	ifp = sc->ifp;
-	CPSWP_DEBUGF(sc, (""));
+	CPSW_DEBUGF(sc->swsc, (""));
 	CPSW_PORT_LOCK_ASSERT(sc);
 
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
@@ -1264,10 +1226,12 @@ cpswp_stop_locked(struct cpswp_softc *sc)
 
 	/* Tear down the RX/TX queues. */
 	if (cpsw_ports_down(sc->swsc)) {
-		CPSW_GLOBAL_LOCK(sc->swsc);
+		CPSW_RX_LOCK(sc->swsc);
 		cpsw_rx_teardown_locked(sc->swsc);
+		CPSW_RX_UNLOCK(sc->swsc);
+		CPSW_TX_LOCK(sc->swsc);
 		cpsw_tx_teardown_locked(sc->swsc);
-		CPSW_GLOBAL_UNLOCK(sc->swsc);
+		CPSW_TX_UNLOCK(sc->swsc);
 	}
 
 	/* Stop MAC RX/TX modules. */
@@ -1371,7 +1335,7 @@ cpswp_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		if (ifp->if_flags & IFF_UP) {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 				changed = ifp->if_flags ^ sc->if_flags;
-				CPSWP_DEBUGF(sc,
+				CPSW_DEBUGF(sc->swsc,
 				    ("SIOCSIFFLAGS: UP & RUNNING (changed=0x%x)",
 				    changed));
 				if (changed & IFF_PROMISC)
@@ -1381,12 +1345,12 @@ cpswp_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 					cpsw_set_allmulti(sc,
 					    ifp->if_flags & IFF_ALLMULTI);
 			} else {
-				CPSWP_DEBUGF(sc,
+				CPSW_DEBUGF(sc->swsc,
 				    ("SIOCSIFFLAGS: UP but not RUNNING; starting up"));
 				cpswp_init_locked(sc);
 			}
 		} else if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-			CPSWP_DEBUGF(sc,
+			CPSW_DEBUGF(sc->swsc,
 			    ("SIOCSIFFLAGS: not UP but RUNNING; shutting down"));
 			cpswp_stop_locked(sc);
 		}
@@ -1497,7 +1461,7 @@ cpswp_miibus_statchg(device_t dev)
 	uint32_t mac_control, reg;
 
 	sc = device_get_softc(dev);
-	CPSWP_DEBUGF(sc, (""));
+	CPSW_DEBUGF(sc->swsc, (""));
 
 	reg = CPSW_SL_MACCONTROL(sc->unit);
 	mac_control = cpsw_read_4(sc->swsc, reg);
@@ -1775,7 +1739,7 @@ cpswp_tx_enqueue(struct cpswp_softc *sc)
 				    "Can't defragment packet; dropping\n");
 				m_freem(slot->mbuf);
 			} else {
-				CPSWP_DEBUGF(sc,
+				CPSW_DEBUGF(sc->swsc,
 				    ("Requeueing defragmented packet"));
 				IF_PREPEND(&sc->ifp->if_snd, m0);
 			}
@@ -1795,7 +1759,7 @@ cpswp_tx_enqueue(struct cpswp_softc *sc)
 		bus_dmamap_sync(sc->swsc->mbuf_dtag, slot->dmamap,
 				BUS_DMASYNC_PREWRITE);
 
-		CPSWP_DEBUGF(sc,
+		CPSW_DEBUGF(sc->swsc,
 		    ("Queueing TX packet: %d segments + %d pad bytes",
 		    nsegs, padlen));
 
@@ -1941,7 +1905,7 @@ cpsw_tx_dequeue(struct cpsw_softc *sc)
 
 		/* TearDown complete is only marked on the SOP for the packet. */
 		if ((flags & (CPDMA_BD_SOP | CPDMA_BD_TDOWNCMPLT)) ==
-		    (CPDMA_BD_EOP | CPDMA_BD_TDOWNCMPLT)) {
+		    (CPDMA_BD_SOP | CPDMA_BD_TDOWNCMPLT)) {
 			CPSW_DEBUGF(sc, ("TX teardown in progress"));
 			cpsw_write_cp(sc, &sc->tx, 0xfffffffc);
 			// TODO: Increment a count of dropped TX packets
@@ -2124,7 +2088,7 @@ cpswp_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 	struct mii_data *mii;
 
 	sc = ifp->if_softc;
-	CPSWP_DEBUGF(sc, (""));
+	CPSW_DEBUGF(sc->swsc, (""));
 	CPSW_PORT_LOCK(sc);
 
 	mii = sc->mii;
@@ -2141,7 +2105,7 @@ cpswp_ifmedia_upd(struct ifnet *ifp)
 	struct cpswp_softc *sc;
 
 	sc = ifp->if_softc;
-	CPSWP_DEBUGF(sc, (""));
+	CPSW_DEBUGF(sc->swsc, (""));
 	CPSW_PORT_LOCK(sc);
 	mii_mediachg(sc->mii);
 	sc->media_status = sc->mii->mii_media.ifm_media;
@@ -2174,7 +2138,7 @@ cpsw_tx_watchdog(void *msc)
 	struct cpsw_softc *sc;
 
 	sc = msc;
-	CPSW_GLOBAL_LOCK(sc);
+	CPSW_TX_LOCK(sc);
 	if (sc->tx.active_queue_len == 0 || !sc->tx.running) {
 		sc->watchdog.timer = 0; /* Nothing to do. */
 	} else if (sc->tx.queue_removes > sc->tx.queue_removes_at_last_tick) {
@@ -2191,7 +2155,7 @@ cpsw_tx_watchdog(void *msc)
 		}
 	}
 	sc->tx.queue_removes_at_last_tick = sc->tx.queue_removes;
-	CPSW_GLOBAL_UNLOCK(sc);
+	CPSW_TX_UNLOCK(sc);
 
 	/* Schedule another timeout one second from now */
 	callout_reset(&sc->watchdog.callout, hz, cpsw_tx_watchdog, sc);
