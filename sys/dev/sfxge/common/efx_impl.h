@@ -711,6 +711,8 @@ struct efx_evq_s {
 #endif	/* EFSYS_OPT_MCDI */
 
 	efx_evq_rxq_state_t		ee_rxq_state[EFX_EV_RX_NLABELS];
+
+	uint32_t			ee_flags;
 };
 
 #define	EFX_EVQ_MAGIC	0x08081997
