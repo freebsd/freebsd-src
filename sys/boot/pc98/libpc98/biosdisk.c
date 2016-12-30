@@ -118,9 +118,9 @@ static int	bd_printbsdslice(struct open_disk *od, daddr_t offset,
 
 static int	bd_init(void);
 static int	bd_strategy(void *devdata, int flag, daddr_t dblk,
-		    size_t offset, size_t size, char *buf, size_t *rsize);
+		    size_t size, char *buf, size_t *rsize);
 static int	bd_realstrategy(void *devdata, int flag, daddr_t dblk,
-		    size_t offset, size_t size, char *buf, size_t *rsize);
+		    size_t size, char *buf, size_t *rsize);
 static int	bd_open(struct open_file *f, ...);
 static int	bd_close(struct open_file *f);
 static int	bd_print(int verbose);
@@ -746,7 +746,7 @@ bd_closedisk(struct open_disk *od)
 }
 
 static int 
-bd_strategy(void *devdata, int rw, daddr_t dblk, size_t offset, size_t size,
+bd_strategy(void *devdata, int rw, daddr_t dblk, size_t size,
     char *buf, size_t *rsize)
 {
     struct bcache_devdata	bcd;
@@ -756,12 +756,11 @@ bd_strategy(void *devdata, int rw, daddr_t dblk, size_t offset, size_t size,
     bcd.dv_strategy = bd_realstrategy;
     bcd.dv_devdata = devdata;
     bcd.dv_cache = BD(dev).bd_bcache;
-    return(bcache_strategy(&bcd, rw, dblk+od->od_boff, offset,
-	size, buf, rsize));
+    return(bcache_strategy(&bcd, rw, dblk+od->od_boff, size, buf, rsize));
 }
 
 static int 
-bd_realstrategy(void *devdata, int rw, daddr_t dblk, size_t offset,
+bd_realstrategy(void *devdata, int rw, daddr_t dblk,
     size_t size, char *buf, size_t *rsize)
 {
     struct open_disk	*od = (struct open_disk *)(((struct i386_devdesc *)devdata)->d_kind.biosdisk.data);
