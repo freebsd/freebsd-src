@@ -128,10 +128,10 @@ static int bd_write(struct disk_devdesc *dev, daddr_t dblk, int blks,
 static int bd_int13probe(struct bdinfo *bd);
 
 static int bd_init(void);
-static int bd_strategy(void *devdata, int flag, daddr_t dblk, size_t offset,
-    size_t size, char *buf, size_t *rsize);
-static int bd_realstrategy(void *devdata, int flag, daddr_t dblk, size_t offset,
-    size_t size, char *buf, size_t *rsize);
+static int bd_strategy(void *devdata, int flag, daddr_t dblk, size_t size,
+    char *buf, size_t *rsize);
+static int bd_realstrategy(void *devdata, int flag, daddr_t dblk, size_t size,
+    char *buf, size_t *rsize);
 static int bd_open(struct open_file *f, ...);
 static int bd_close(struct open_file *f);
 static int bd_ioctl(struct open_file *f, u_long cmd, void *data);
@@ -502,7 +502,7 @@ bd_ioctl(struct open_file *f, u_long cmd, void *data)
 }
 
 static int
-bd_strategy(void *devdata, int rw, daddr_t dblk, size_t offset, size_t size,
+bd_strategy(void *devdata, int rw, daddr_t dblk, size_t size,
     char *buf, size_t *rsize)
 {
 	struct bcache_devdata bcd;
@@ -512,12 +512,12 @@ bd_strategy(void *devdata, int rw, daddr_t dblk, size_t offset, size_t size,
 	bcd.dv_strategy = bd_realstrategy;
 	bcd.dv_devdata = devdata;
 	bcd.dv_cache = BD(dev).bd_bcache;
-	return (bcache_strategy(&bcd, rw, dblk + dev->d_offset, offset,
+	return (bcache_strategy(&bcd, rw, dblk + dev->d_offset,
 	    size, buf, rsize));
 }
 
 static int
-bd_realstrategy(void *devdata, int rw, daddr_t dblk, size_t offset, size_t size,
+bd_realstrategy(void *devdata, int rw, daddr_t dblk, size_t size,
     char *buf, size_t *rsize)
 {
     struct disk_devdesc *dev = (struct disk_devdesc *)devdata;

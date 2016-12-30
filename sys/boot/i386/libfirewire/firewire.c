@@ -66,7 +66,7 @@ struct crom_src_buf {
 
 static int	fw_init(void);
 static int	fw_strategy(void *devdata, int flag, daddr_t dblk,
-		    size_t offset, size_t size, char *buf, size_t *rsize);
+		    size_t size, char *buf, size_t *rsize);
 static int	fw_open(struct open_file *f, ...);
 static int	fw_close(struct open_file *f);
 static int	fw_print(int verbose);
@@ -210,7 +210,7 @@ fw_cleanup()
 }
 
 static int 
-fw_strategy(void *devdata, int rw, daddr_t dblk, size_t offset, size_t size,
+fw_strategy(void *devdata, int rw, daddr_t dblk, size_t size,
     char *buf, size_t *rsize)
 {
 	return (EIO);

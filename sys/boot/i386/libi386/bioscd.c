@@ -95,9 +95,9 @@ static int nbcinfo = 0;
 static int	bc_read(int unit, daddr_t dblk, int blks, caddr_t dest);
 static int	bc_init(void);
 static int	bc_strategy(void *devdata, int flag, daddr_t dblk,
-    size_t offset, size_t size, char *buf, size_t *rsize);
+    size_t size, char *buf, size_t *rsize);
 static int	bc_realstrategy(void *devdata, int flag, daddr_t dblk,
-    size_t offset, size_t size, char *buf, size_t *rsize);
+    size_t size, char *buf, size_t *rsize);
 static int	bc_open(struct open_file *f, ...);
 static int	bc_close(struct open_file *f);
 static int	bc_print(int verbose);
@@ -237,7 +237,7 @@ bc_close(struct open_file *f)
 }
 
 static int
-bc_strategy(void *devdata, int rw, daddr_t dblk, size_t offset, size_t size,
+bc_strategy(void *devdata, int rw, daddr_t dblk, size_t size,
     char *buf, size_t *rsize)
 {
 	struct bcache_devdata bcd;
@@ -248,11 +248,11 @@ bc_strategy(void *devdata, int rw, daddr_t dblk, size_t offset, size_t size,
 	bcd.dv_devdata = devdata;
 	bcd.dv_cache = BC(dev).bc_bcache;
 
-	return (bcache_strategy(&bcd, rw, dblk, offset, size, buf, rsize));
+	return (bcache_strategy(&bcd, rw, dblk, size, buf, rsize));
 }
 
 static int 
-bc_realstrategy(void *devdata, int rw, daddr_t dblk, size_t offset, size_t size,
+bc_realstrategy(void *devdata, int rw, daddr_t dblk, size_t size,
     char *buf, size_t *rsize)
 {
 	struct i386_devdesc *dev;
