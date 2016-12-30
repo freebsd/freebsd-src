@@ -132,7 +132,9 @@ CK_PR_FAS(ptr, void, void *, char, "xchgq")
 
 #define CK_PR_FAS_S(S, T, I) CK_PR_FAS(S, T, T, T, I)
 
+#ifndef CK_PR_DISABLE_DOUBLE
 CK_PR_FAS_S(double, double, "xchgq")
+#endif
 CK_PR_FAS_S(char, char, "xchgb")
 CK_PR_FAS_S(uint, unsigned int, "xchgl")
 CK_PR_FAS_S(int, int, "xchgl")
@@ -166,7 +168,9 @@ CK_PR_LOAD(ptr, void, void *, char, "movq")
 CK_PR_LOAD_S(char, char, "movb")
 CK_PR_LOAD_S(uint, unsigned int, "movl")
 CK_PR_LOAD_S(int, int, "movl")
+#ifndef CK_PR_DISABLE_DOUBLE
 CK_PR_LOAD_S(double, double, "movq")
+#endif
 CK_PR_LOAD_S(64, uint64_t, "movq")
 CK_PR_LOAD_S(32, uint32_t, "movl")
 CK_PR_LOAD_S(16, uint16_t, "movw")
@@ -240,7 +244,9 @@ CK_PR_LOAD_2(8, 16, uint8_t)
 	}
 
 CK_PR_STORE_IMM(ptr, void, const void *, char, "movq", CK_CC_IMM_U32)
+#ifndef CK_PR_DISABLE_DOUBLE
 CK_PR_STORE(double, double, double, double, "movq")
+#endif
 
 #define CK_PR_STORE_S(S, T, I, K) CK_PR_STORE_IMM(S, T, T, T, I, K)
 
@@ -404,7 +410,9 @@ CK_PR_CAS(ptr, void, void *, char, "cmpxchgq")
 CK_PR_CAS_S(char, char, "cmpxchgb")
 CK_PR_CAS_S(int, int, "cmpxchgl")
 CK_PR_CAS_S(uint, unsigned int, "cmpxchgl")
+#ifndef CK_PR_DISABLE_DOUBLE
 CK_PR_CAS_S(double, double, "cmpxchgq")
+#endif
 CK_PR_CAS_S(64, uint64_t, "cmpxchgq")
 CK_PR_CAS_S(32, uint32_t, "cmpxchgl")
 CK_PR_CAS_S(16, uint16_t, "cmpxchgw")
@@ -441,7 +449,9 @@ CK_PR_CAS_O(ptr, void, void *, char, "q", "rax")
 CK_PR_CAS_O_S(char, char, "b", "al")
 CK_PR_CAS_O_S(int, int, "l", "eax")
 CK_PR_CAS_O_S(uint, unsigned int, "l", "eax")
+#ifndef CK_PR_DISABLE_DOUBLE
 CK_PR_CAS_O_S(double, double, "q", "rax")
+#endif
 CK_PR_CAS_O_S(64, uint64_t, "q", "rax")
 CK_PR_CAS_O_S(32, uint32_t, "l", "eax")
 CK_PR_CAS_O_S(16, uint16_t, "w", "ax")
@@ -526,7 +536,9 @@ ck_pr_cas_##S##_##W##_value(T *t, T c[W], T s[W], T *v)		\
 				    (uint64_t *)(void *)v);	\
 }
 
+#ifndef CK_PR_DISABLE_DOUBLE
 CK_PR_CAS_V(double, 2, double)
+#endif
 CK_PR_CAS_V(char, 16, char)
 CK_PR_CAS_V(int, 4, int)
 CK_PR_CAS_V(uint, 4, unsigned int)

@@ -112,7 +112,9 @@ CK_PR_LOAD_S(uint, unsigned int, "lwz")
 CK_PR_LOAD_S(int, int, "lwz")
 CK_PR_LOAD_S(short, short, "lhz")
 CK_PR_LOAD_S(char, char, "lbz")
+#ifndef CK_PR_DISABLE_DOUBLE
 CK_PR_LOAD_S(double, double, "ld")
+#endif
 
 #undef CK_PR_LOAD_S
 #undef CK_PR_LOAD
@@ -140,7 +142,9 @@ CK_PR_STORE_S(uint, unsigned int, "stw")
 CK_PR_STORE_S(int, int, "stw")
 CK_PR_STORE_S(short, short, "sth")
 CK_PR_STORE_S(char, char, "stb")
+#ifndef CK_PR_DISABLE_DOUBLE
 CK_PR_STORE_S(double, double, "std")
+#endif
 
 #undef CK_PR_STORE_S
 #undef CK_PR_STORE
@@ -294,7 +298,9 @@ CK_PR_CAS(int, int)
 
 CK_PR_FAS(64, uint64_t, uint64_t, "d")
 CK_PR_FAS(32, uint32_t, uint32_t, "w")
+#ifndef CK_PR_DISABLE_DOUBLE
 CK_PR_FAS(double, double, double, "d")
+#endif
 CK_PR_FAS(ptr, void, void *, "d")
 CK_PR_FAS(int, int, int, "w")
 CK_PR_FAS(uint, unsigned int, unsigned int, "w")
