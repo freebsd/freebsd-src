@@ -64,7 +64,7 @@ __FBSDID("$FreeBSD$");
 
 static void
 r12a_write_txpower(struct rtwn_softc *sc, int chain,
-    struct ieee80211_channel *c, uint16_t power[RTWN_RIDX_COUNT])
+    struct ieee80211_channel *c, uint8_t power[RTWN_RIDX_COUNT])
 {
 
 	if (IEEE80211_IS_CHAN_2GHZ(c)) {
@@ -163,7 +163,7 @@ r12a_get_power_group(struct rtwn_softc *sc, struct ieee80211_channel *c)
 
 static void
 r12a_get_txpower(struct rtwn_softc *sc, int chain,
-    struct ieee80211_channel *c, uint16_t power[RTWN_RIDX_COUNT])
+    struct ieee80211_channel *c, uint8_t power[RTWN_RIDX_COUNT])
 {
 	struct r12a_softc *rs = sc->sc_priv;
 	int i, ridx, group, max_mcs;
@@ -187,11 +187,8 @@ r12a_get_txpower(struct rtwn_softc *sc, int chain,
 		for (ridx = RTWN_RIDX_OFDM6; ridx <= max_mcs; ridx++)
 			power[ridx] = rs->ht40_tx_pwr_2g[chain][group];
 
-		if (RTWN_RATE_IS_OFDM(ridx)) {
-			uint8_t pwr_diff = rs->ofdm_tx_pwr_diff_2g[chain][0];
-			for (ridx = RTWN_RIDX_CCK1; ridx <= max_mcs; ridx++)
-				power[ridx] += pwr_diff;
-		}
+		for (ridx = RTWN_RIDX_OFDM6; ridx <= RTWN_RIDX_OFDM54; ridx++)
+			power[ridx] += rs->ofdm_tx_pwr_diff_2g[chain][0];
 
 		for (i = 0; i < sc->ntxchains; i++) {
 			uint8_t min_mcs;
@@ -208,13 +205,16 @@ r12a_get_txpower(struct rtwn_softc *sc, int chain,
 			else
 				pwr_diff = rs->bw20_tx_pwr_diff_2g[chain][i];
 
-			min_mcs = RTWN_RIDX_MCS(i * 8 + 7);
+			min_mcs = RTWN_RIDX_MCS(i * 8);
 			for (ridx = min_mcs; ridx <= max_mcs; ridx++)
 				power[ridx] += pwr_diff;
 		}
 	} else {	/* 5GHz */
 		for (ridx = RTWN_RIDX_OFDM6; ridx <= max_mcs; ridx++)
 			power[ridx] = rs->ht40_tx_pwr_5g[chain][group];
+
+		for (ridx = RTWN_RIDX_OFDM6; ridx <= RTWN_RIDX_OFDM54; ridx++)
+			power[ridx] += rs->ofdm_tx_pwr_diff_5g[chain][0];
 
 		for (i = 0; i < sc->ntxchains; i++) {
 			uint8_t min_mcs;
@@ -231,7 +231,7 @@ r12a_get_txpower(struct rtwn_softc *sc, int chain,
 			else
 				pwr_diff = rs->bw20_tx_pwr_diff_5g[chain][i];
 
-			min_mcs = RTWN_RIDX_MCS(i * 8 + 7);
+			min_mcs = RTWN_RIDX_MCS(i * 8);
 			for (ridx = min_mcs; ridx <= max_mcs; ridx++)
 				power[ridx] += pwr_diff;
 		}
@@ -256,7 +256,7 @@ r12a_get_txpower(struct rtwn_softc *sc, int chain,
 static void
 r12a_set_txpower(struct rtwn_softc *sc, struct ieee80211_channel *c)
 {
-	uint16_t power[RTWN_RIDX_COUNT];
+	uint8_t power[RTWN_RIDX_COUNT];
 	int i;
 
 	for (i = 0; i < sc->ntxchains; i++) {
@@ -463,7 +463,7 @@ r12a_set_chan(struct rtwn_softc *sc, struct ieee80211_channel *c)
 	/* RTL8812AU-specific */
 	rtwn_r12a_fix_spur(sc, c);
 
-	for (i = 0; i < 2; i++)
+	for (i = 0; i < sc->nrxchains; i++)
 		rtwn_rf_setbits(sc, i, R92C_RF_CHNLBW, 0xc00, val);
 
 	/* Set Tx power for this new channel. */
