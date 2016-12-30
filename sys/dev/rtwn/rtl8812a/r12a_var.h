@@ -39,6 +39,10 @@ struct r12a_softc {
 #define R12A_RXCKSUM_EN		0x01
 #define R12A_RXCKSUM6_EN	0x02
 #define R12A_IQK_RUNNING	0x04
+#define R12A_RADAR_ENABLED	0x08
+
+	int			rs_radar;
+	struct timeout_task	rs_chan_check;
 
 	/* ROM variables */
 	int			ext_pa_2g:1,
@@ -76,6 +80,11 @@ struct r12a_softc {
 	int8_t	bw160_tx_pwr_diff_5g[R12A_MAX_RF_PATH][R12A_MAX_TX_COUNT];
 
 	int		sc_ant;
+
+	int		(*rs_newstate[RTWN_PORT_COUNT])(struct ieee80211vap *,
+			    enum ieee80211_state, int);
+	void		(*rs_scan_start)(struct ieee80211com *);
+	void		(*rs_scan_end)(struct ieee80211com *);
 
 	void		(*rs_crystalcap_write)(struct rtwn_softc *);
 	void		(*rs_fix_spur)(struct rtwn_softc *,
