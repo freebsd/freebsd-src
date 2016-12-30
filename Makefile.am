@@ -328,6 +328,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_acl_nfs4.c \
 	libarchive/test/test_acl_pax.c \
 	libarchive/test/test_acl_posix1e.c \
+	libarchive/test/test_acl_text.c \
 	libarchive/test/test_archive_api_feature.c \
 	libarchive/test/test_archive_clear_error.c \
 	libarchive/test/test_archive_cmdline.c \
@@ -376,7 +377,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_compat_plexus_archiver_tar.c \
 	libarchive/test/test_compat_solaris_tar_acl.c \
 	libarchive/test/test_compat_solaris_pax_sparse.c \
-	libarchive/test/test_compat_star_acl_posix1e.c \
+	libarchive/test/test_compat_star_acl.c \
 	libarchive/test/test_compat_tar_hardlink.c \
 	libarchive/test/test_compat_uudecode.c \
 	libarchive/test/test_compat_uudecode_large.c \
@@ -598,7 +599,8 @@ libarchive_TESTS_ENVIRONMENT= LIBARCHIVE_TEST_FILES=`cd $(top_srcdir);/bin/pwd`/
 
 libarchive_test_EXTRA_DIST=\
 	libarchive/test/list.h \
-	libarchive/test/test_acl_pax.tar.uu \
+	libarchive/test/test_acl_pax_posix1e.tar.uu \
+	libarchive/test/test_acl_pax_nfs4.tar.uu \
 	libarchive/test/test_archive_string_conversion.txt.Z.uu \
 	libarchive/test/test_compat_bzip2_1.tbz.uu \
 	libarchive/test/test_compat_bzip2_2.tbz.uu \
@@ -635,6 +637,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_compat_solaris_pax_sparse_1.pax.Z.uu \
 	libarchive/test/test_compat_solaris_pax_sparse_2.pax.Z.uu \
 	libarchive/test/test_compat_solaris_tar_acl.tar.uu \
+	libarchive/test/test_compat_star_acl_nfs4.tar.uu \
 	libarchive/test/test_compat_star_acl_posix1e.tar.uu \
 	libarchive/test/test_compat_tar_hardlink_1.tar.uu \
 	libarchive/test/test_compat_uudecode_large.tar.Z.uu \
