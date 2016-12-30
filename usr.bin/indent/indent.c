@@ -525,7 +525,12 @@ check_type:
 	    break;
 
 	case lparen:		/* got a '(' or '[' */
-	    ++ps.p_l_follow;	/* count parens to make Healy happy */
+	    /* count parens to make Healy happy */
+	    if (++ps.p_l_follow == nitems(ps.paren_indents)) {
+		diag3(0, "Reached internal limit of %d unclosed parens",
+		    nitems(ps.paren_indents));
+		ps.p_l_follow--;
+	    }
 	    if (ps.want_blank && *token != '[' &&
 		    (ps.last_token != ident || proc_calls_space ||
 		    /* offsetof (1) is never allowed a space; sizeof (2) gets
