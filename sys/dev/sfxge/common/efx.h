@@ -243,6 +243,12 @@ efx_mcdi_new_epoch(
 	__in		efx_nic_t *enp);
 
 extern			void
+efx_mcdi_get_timeout(
+	__in		efx_nic_t *enp,
+	__in		efx_mcdi_req_t *emrp,
+	__out		uint32_t *usec_timeoutp);
+
+extern			void
 efx_mcdi_request_start(
 	__in		efx_nic_t *enp,
 	__in		efx_mcdi_req_t *emrp,
