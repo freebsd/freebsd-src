@@ -59,7 +59,6 @@ typedef uint32_t seq_t;
  * 		lobj = gobj;
  * 		if (seq_consistent(&gobj->seq, seq))
  * 			break;
- * 		cpu_spinwait();
  * 	}
  * 	foo(lobj);
  */		
