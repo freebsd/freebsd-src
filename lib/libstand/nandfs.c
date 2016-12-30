@@ -1045,7 +1045,7 @@ nandfs_probe_sectorsize(struct open_file *f)
 
 	for (i = 512; i < (16 * 1024); i <<= 1) {
 		NANDFS_DEBUG("%d ", i);
-		err = (f->f_dev->dv_strategy)(f->f_devdata, F_READ, 0, 0, i,
+		err = (f->f_dev->dv_strategy)(f->f_devdata, F_READ, 0, i,
 		    buffer, NULL);
 
 		if (err == 0) {
