@@ -871,13 +871,16 @@ fail1:
 
 static	__checkReturn	efx_rc_t
 efx_mcdi_get_parser_disp_info(
-	__in		efx_nic_t *enp,
-	__out		uint32_t *list,
-	__out		size_t *length)
+	__in				efx_nic_t *enp,
+	__out_ecount(buffer_length)	uint32_t *buffer,
+	__in				size_t buffer_length,
+	__out				size_t *list_lengthp)
 {
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_GET_PARSER_DISP_INFO_IN_LEN,
 			    MC_CMD_GET_PARSER_DISP_INFO_OUT_LENMAX)];
+	size_t matches_count;
+	size_t list_size;
 	efx_rc_t rc;
 
 	(void) memset(payload, 0, sizeof (payload));
@@ -897,25 +900,41 @@ efx_mcdi_get_parser_disp_info(
 		goto fail1;
 	}
 
-	*length = MCDI_OUT_DWORD(req,
+	matches_count = MCDI_OUT_DWORD(req,
 	    GET_PARSER_DISP_INFO_OUT_NUM_SUPPORTED_MATCHES);
 
 	if (req.emr_out_length_used <
-	    MC_CMD_GET_PARSER_DISP_INFO_OUT_LEN(*length)) {
+	    MC_CMD_GET_PARSER_DISP_INFO_OUT_LEN(matches_count)) {
 		rc = EMSGSIZE;
 		goto fail2;
 	}
 
-	memcpy(list,
-	    MCDI_OUT2(req,
-	    uint32_t,
-	    GET_PARSER_DISP_INFO_OUT_SUPPORTED_MATCHES),
-	    (*length) * sizeof (uint32_t));
+	*list_lengthp = matches_count;
+
+	if (buffer_length < matches_count) {
+		rc = ENOSPC;
+		goto fail3;
+	}
+
+	/*
+	 * Check that the elements in the list in the MCDI response are the size
+	 * we expect, so we can just copy them directly. Any conversion of the
+	 * flags is handled by the caller.
+	 */
 	EFX_STATIC_ASSERT(sizeof (uint32_t) ==
 	    MC_CMD_GET_PARSER_DISP_INFO_OUT_SUPPORTED_MATCHES_LEN);
 
+	list_size = matches_count *
+		MC_CMD_GET_PARSER_DISP_INFO_OUT_SUPPORTED_MATCHES_LEN;
+	memcpy(buffer,
+	    MCDI_OUT2(req, uint32_t,
+		    GET_PARSER_DISP_INFO_OUT_SUPPORTED_MATCHES),
+	    list_size);
+
 	return (0);
 
+fail3:
+	EFSYS_PROBE(fail3);
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
@@ -926,14 +945,55 @@ fail1:
 
 	__checkReturn	efx_rc_t
 ef10_filter_supported_filters(
-	__in		efx_nic_t *enp,
-	__out		uint32_t *list,
-	__out		size_t *length)
+	__in				efx_nic_t *enp,
+	__out_ecount(buffer_length)	uint32_t *buffer,
+	__in				size_t buffer_length,
+	__out				size_t *list_lengthp)
 {
-	efx_rc_t rc;
 
-	if ((rc = efx_mcdi_get_parser_disp_info(enp, list, length)) != 0)
+	size_t mcdi_list_length;
+	size_t list_length;
+	uint32_t i;
+	efx_rc_t rc;
+	uint32_t all_filter_flags =
+	    (EFX_FILTER_MATCH_REM_HOST | EFX_FILTER_MATCH_LOC_HOST |
+	    EFX_FILTER_MATCH_REM_MAC | EFX_FILTER_MATCH_REM_PORT |
+	    EFX_FILTER_MATCH_LOC_MAC | EFX_FILTER_MATCH_LOC_PORT |
+	    EFX_FILTER_MATCH_ETHER_TYPE | EFX_FILTER_MATCH_INNER_VID |
+	    EFX_FILTER_MATCH_OUTER_VID | EFX_FILTER_MATCH_IP_PROTO |
+	    EFX_FILTER_MATCH_UNKNOWN_MCAST_DST |
+	    EFX_FILTER_MATCH_UNKNOWN_UCAST_DST);
+
+	rc = efx_mcdi_get_parser_disp_info(enp, buffer, buffer_length,
+					    &mcdi_list_length);
+	if (rc != 0) {
+		if (rc == ENOSPC) {
+			/* Pass through mcdi_list_length for the list length */
+			*list_lengthp = mcdi_list_length;
+		}
 		goto fail1;
+	}
+
+	/*
+	 * The static assertions in ef10_filter_init() ensure that the values of
+	 * the EFX_FILTER_MATCH flags match those used by MCDI, so they don't
+	 * need to be converted.
+	 *
+	 * In case support is added to MCDI for additional flags, remove any
+	 * matches from the list which include flags we don't support. The order
+	 * of the matches is preserved as they are ordered from highest to
+	 * lowest priority.
+	 */
+	EFSYS_ASSERT(mcdi_list_length <= buffer_length);
+	list_length = 0;
+	for (i = 0; i < mcdi_list_length; i++) {
+		if ((buffer[i] & ~all_filter_flags) == 0) {
+			buffer[list_length] = buffer[i];
+			list_length++;
+		}
+	}
+
+	*list_lengthp = list_length;
 
 	return (0);
 
