@@ -65,18 +65,17 @@ int
 getc(int fn)
 {
 
-	/*
-	 * The extra comparison against zero is an attempt to work around
-	 * what appears to be a bug in QEMU and Bochs. Both emulators
-	 * sometimes report a key-press with scancode one and ascii zero
-	 * when no such key is pressed in reality. As far as I can tell,
-	 * this only happens shortly after a reboot.
-	 */
 	v86.ctl = V86_FLAGS;
 	v86.addr = 0x16;
 	v86.eax = fn << 8;
 	v86int();
-	return fn == 0 ? v86.eax & 0xff : (!V86_ZR(v86.efl) && (v86.eax & 0xff));
+
+	if (fn == 0)
+		return (v86.eax);
+
+	if (V86_ZR(v86.efl))
+		return (0);
+	return (v86.eax);
 }
 
 int
@@ -106,14 +105,22 @@ getchar(void)
 int
 keyhit(unsigned int secs)
 {
-	uint32_t t0, t1;
+	uint32_t t0, t1, c;
 
 	if (OPT_CHECK(RBX_NOINTR))
 		return (0);
 	secs *= SECOND;
 	t0 = 0;
 	for (;;) {
-		if (xgetc(1))
+		/*
+		 * The extra comparison is an attempt to work around
+		 * what appears to be a bug in QEMU and Bochs. Both emulators
+		 * sometimes report a key-press with scancode one and ascii zero
+		 * when no such key is pressed in reality. As far as I can tell,
+		 * this only happens shortly after a reboot.
+		 */
+		c = xgetc(1);
+		if (c != 0 && c != 0x0100)
 			return (1);
 		if (secs > 0) {
 			t1 = *(uint32_t *)PTOV(0x46c);
@@ -134,9 +141,19 @@ getstr(char *cmdstr, size_t cmdstrsize)
 
 	s = cmdstr;
 	for (;;) {
-		switch (c = xgetc(0)) {
-		case 0:
+		c = xgetc(0);
+
+		/* Translate some extended codes. */
+		switch (c) {
+		case 0x5300:    /* delete */
+			c = '\177';
 			break;
+		default:
+			c &= 0xff;
+			break;
+		}
+
+		switch (c) {
 		case '\177':
 		case '\b':
 			if (s > cmdstr) {
@@ -149,9 +166,11 @@ getstr(char *cmdstr, size_t cmdstrsize)
 			*s = 0;
 			return;
 		default:
-			if (s - cmdstr < cmdstrsize - 1)
-				*s++ = c;
-			putchar(c);
+			if (c >= 0x20 && c <= 0x7e) {
+				if (s - cmdstr < cmdstrsize - 1)
+					*s++ = c;
+				putchar(c);
+			}
 			break;
 		}
 	}
