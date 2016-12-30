@@ -456,7 +456,7 @@ fail1:
  *  Value (V):  L bytes - payload
  */
 #define EFX_LICENSE_V1V2_PAYLOAD_LENGTH_MAX    (256)
-#define EFX_LICENSE_V1V2_HEADER_LENGTH         (2*sizeof(uint16_t))
+#define EFX_LICENSE_V1V2_HEADER_LENGTH         (2 * sizeof(uint16_t))
 
 	__checkReturn		efx_rc_t
 efx_lic_v1v2_find_start(
@@ -1082,9 +1082,10 @@ efx_mcdi_licensing_v3_get_id(
 	} else {
 		/* Shift ID down to start of buffer */
 		memmove(bufferp,
-		  bufferp+MC_CMD_LICENSING_GET_ID_V3_OUT_LICENSE_ID_OFST,
-		  *lengthp);
-		memset(bufferp+(*lengthp), 0, MC_CMD_LICENSING_GET_ID_V3_OUT_LICENSE_ID_OFST);
+		    bufferp + MC_CMD_LICENSING_GET_ID_V3_OUT_LICENSE_ID_OFST,
+		    *lengthp);
+		memset(bufferp + (*lengthp), 0,
+		    MC_CMD_LICENSING_GET_ID_V3_OUT_LICENSE_ID_OFST);
 	}
 
 	return (0);
