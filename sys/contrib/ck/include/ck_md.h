@@ -49,6 +49,10 @@
 #define CK_MD_VMA_BITS_UNKNOWN 
 #endif /* CK_MD_VMA_BITS_UNKNOWN */
 
+#ifndef CK_PR_DISABLE_DOUBLE
+#define CK_PR_DISABLE_DOUBLE
+#endif /* CK_PR_DISABLE_DOUBLE */
+
 #ifndef CK_MD_RMO
 #define CK_MD_RMO
 #endif /* CK_MD_RMO */
