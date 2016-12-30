@@ -27,6 +27,7 @@ TESTS_SRCS= \
 	test_acl_nfs4.c				\
 	test_acl_pax.c				\
 	test_acl_posix1e.c			\
+	test_acl_text.c				\
 	test_archive_api_feature.c		\
 	test_archive_clear_error.c		\
 	test_archive_cmdline.c			\
@@ -75,7 +76,7 @@ TESTS_SRCS= \
 	test_compat_plexus_archiver_tar.c	\
 	test_compat_solaris_tar_acl.c		\
 	test_compat_solaris_pax_sparse.c	\
-	test_compat_star_acl_posix1e.c		\
+	test_compat_star_acl.c			\
 	test_compat_tar_hardlink.c		\
 	test_compat_uudecode.c			\
 	test_compat_uudecode_large.c		\
@@ -317,9 +318,9 @@ list.h: ${TESTS_SRCS} Makefile
 	@mv ${.TARGET}.tmp ${.TARGET}
 
 CLEANTESTS+=	list.h list.h.tmp
-
 ${PACKAGE}FILES+=	README
-${PACKAGE}FILES+=	test_acl_pax.tar.uu
+${PACKAGE}FILES+=	test_acl_pax_posix1e.tar.uu
+${PACKAGE}FILES+=	test_acl_pax_nfs4.tar.uu
 ${PACKAGE}FILES+=	test_archive_string_conversion.txt.Z.uu
 ${PACKAGE}FILES+=	test_compat_bzip2_1.tbz.uu
 ${PACKAGE}FILES+=	test_compat_bzip2_2.tbz.uu
@@ -356,6 +357,7 @@ ${PACKAGE}FILES+=	test_compat_plexus_archiver_tar.tar.uu
 ${PACKAGE}FILES+=	test_compat_solaris_pax_sparse_1.pax.Z.uu
 ${PACKAGE}FILES+=	test_compat_solaris_pax_sparse_2.pax.Z.uu
 ${PACKAGE}FILES+=	test_compat_solaris_tar_acl.tar.uu
+${PACKAGE}FILES+=	test_compat_star_acl_nfs4.tar.uu
 ${PACKAGE}FILES+=	test_compat_star_acl_posix1e.tar.uu
 ${PACKAGE}FILES+=	test_compat_tar_hardlink_1.tar.uu
 ${PACKAGE}FILES+=	test_compat_uudecode_large.tar.Z.uu

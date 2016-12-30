@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 2003-2009 Tim Kientzle
  * Copyright (c) 2010-2012 Michihiro NAKAJIMA
+ * Copyright (c) 2016 Martin Matuska
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -440,7 +441,7 @@ setup_acls(struct archive_read_disk *a,
 	acl = NULL;
 
 #ifdef ACL_TYPE_NFS4
-	/* Try NFS4 ACL first. */
+	/* Try NFSv4 ACL first. */
 	if (*fd >= 0)
 #if HAVE_ACL_GET_FD_NP
 		acl = acl_get_fd_np(*fd, ACL_TYPE_NFS4);
