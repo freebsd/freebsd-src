@@ -374,7 +374,7 @@ struct iso9660 {
 	size_t		 utf16be_path_len;
 	unsigned char *utf16be_previous_path;
 	size_t		 utf16be_previous_path_len;
-	/* Null buufer used in bidder to improve its performance. */
+	/* Null buffer used in bidder to improve its performance. */
 	unsigned char	 null[2048];
 };
 
@@ -1199,7 +1199,7 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 			    archive_string_conversion_from_charset(
 				&(a->archive), "UTF-16BE", 1);
 			if (iso9660->sconv_utf16be == NULL)
-				/* Coundn't allocate memory */
+				/* Couldn't allocate memory */
 				return (ARCHIVE_FATAL);
 		}
 		if (iso9660->utf16be_path == NULL) {
@@ -2407,7 +2407,7 @@ read_CE(struct archive_read *a, struct iso9660 *iso9660)
 				return (ARCHIVE_FATAL);
 		} while (heap->cnt &&
 		    heap->reqs[0].offset == iso9660->current_position);
-		/* NOTE: Do not move this consume's code to fron of
+		/* NOTE: Do not move this consume's code to front of
 		 * do-while loop. Registration of nested CE extension
 		 * might cause error because of current position. */
 		__archive_read_consume(a, step);
@@ -2729,7 +2729,7 @@ next_cache_entry(struct archive_read *a, struct iso9660 *iso9660,
 		if (file == NULL) {
 			/*
 			 * If directory entries all which are descendant of
-			 * rr_moved are stil remaning, expose their. 
+			 * rr_moved are still remaining, expose their.
 			 */
 			if (iso9660->re_files.first != NULL && 
 			    iso9660->rr_moved != NULL &&
@@ -2852,7 +2852,7 @@ next_cache_entry(struct archive_read *a, struct iso9660 *iso9660,
 	empty_files.last = &empty_files.first;
 	/* Collect files which has the same file serial number.
 	 * Peek pending_files so that file which number is different
-	 * is not put bak. */
+	 * is not put back. */
 	while (iso9660->pending_files.used > 0 &&
 	    (iso9660->pending_files.files[0]->number == -1 ||
 	     iso9660->pending_files.files[0]->number == number)) {
@@ -2860,7 +2860,7 @@ next_cache_entry(struct archive_read *a, struct iso9660 *iso9660,
 			/* This file has the same offset
 			 * but it's wrong offset which empty files
 			 * and symlink files have.
-			 * NOTE: This wrong offse was recorded by
+			 * NOTE: This wrong offset was recorded by
 			 * old mkisofs utility. If ISO images is
 			 * created by latest mkisofs, this does not
 			 * happen.
