@@ -247,7 +247,7 @@ SOLINKOPTS+=	-Wl,--fatal-warnings
 SOLINKOPTS+=	-Wl,--warn-shared-textrel
 .endif
 
-.if defined(WANT_DUMP)
+.if defined(WANT_DUMP) && ${WANT_DUMP} != "no"
 ${SHLIB_NAME}.dump: ${SHLIB_NAME_FULL}
 	${OBJDUMP} -xrsSd ${SHLIB_NAME_FULL} > ${.TARGET}
 
@@ -385,7 +385,7 @@ _libinstall:
 	${INSTALL} ${TAG_ARGS} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${_INSTALLFLAGS} ${_SHLINSTALLFLAGS} \
 	    ${SHLIB_NAME_INSTALL} ${DESTDIR}${_SHLIBDIR}/${SHLIB_NAME}
-.if defined(WANT_DUMP)
+.if defined(WANT_DUMP) && ${WANT_DUMP} != "no"
 	${INSTALL} -T dump -o ${LIBOWN} -g ${LIBGRP} -m ${DEBUGMODE} \
 	    ${_INSTALLFLAGS} \
 	    ${SHLIB_NAME}.dump ${DESTDIR}${_SHLIBDIR}/

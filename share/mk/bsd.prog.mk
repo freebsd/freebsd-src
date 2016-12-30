@@ -161,7 +161,7 @@ ${PROG_INSTALL}: ${PROG}
 	strip -o ${.TARGET} ${STRIP_FLAGS} ${PROG}
 .endif
 
-.if defined(WANT_DUMP)
+.if defined(WANT_DUMP) && ${WANT_DUMP} != "no"
 ${PROGNAME}.dump: ${PROG_FULL}
 	${OBJDUMP} -xrsSd ${PROG_FULL} > ${.TARGET}
 .endif
@@ -203,7 +203,7 @@ CLEANFILES+= ${PROG}.stripped
 .if ${MK_DEBUG_FILES} != "no"
 CLEANFILES+= ${PROG_FULL} ${PROG_FULL}.bc ${PROGNAME}.debug ${PROG_FULL}.ll
 .endif
-.if defined(WANT_DUMP)
+.if defined(WANT_DUMP) && ${WANT_DUMP} != "no"
 CLEANFILES+=	${PROGNAME}.dump
 .endif
 .endif
@@ -265,7 +265,7 @@ _proginstall:
 .endif
 .endif	# !target(realinstall)
 
-.if defined(WANT_DUMP)
+.if defined(WANT_DUMP) && ${WANT_DUMP} != "no"
 FILES+=	${PROGNAME}.dump
 .endif
 
