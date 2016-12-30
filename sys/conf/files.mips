@@ -52,7 +52,8 @@ kern/kern_clocksource.c			standard
 kern/link_elf_obj.c			standard
 kern/subr_busdma_bufalloc.c		standard
 kern/subr_dummy_vdso_tc.c		standard
-kern/subr_sfbuf.c			standard
+kern/subr_sfbuf.c			optional	mips | mipsel | mipsn32
+kern/subr_sfbuf.c			optional	mipshf | mipselhf
 
 # gcc/clang runtime
 libkern/ffsl.c				standard
