@@ -1432,7 +1432,7 @@ http_connect(struct url *URL, struct url *purl, const char *flags)
 			default:
 				/* ignore */ ;
 			}
-		} while (h < hdr_end);
+		} while (h > hdr_end);
 	}
 	if (strcasecmp(URL->scheme, SCHEME_HTTPS) == 0 &&
 	    fetch_ssl(conn, URL, verbose) == -1) {
