@@ -29,10 +29,13 @@
 #define __AM335X_SCM_H__
 
 /* AM335x-specific registers for control module (scm) */
+#define	SCM_CTRL_STATUS	0x40
 #define	SCM_USB_CTRL0	0x620
 #define	SCM_USB_STS0	0x624
 #define	SCM_USB_CTRL1	0x628
 #define	SCM_USB_STS1	0x62C
+#define	SCM_MAC_ID0_LO	0x630
+#define	SCM_MAC_ID0_HI	0x634
 #define	SCM_PWMSS_CTRL	0x664
 
 #endif /* __AM335X_SCM_H__ */
