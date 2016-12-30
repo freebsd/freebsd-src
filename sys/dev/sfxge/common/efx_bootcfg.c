@@ -42,17 +42,24 @@ __FBSDID("$FreeBSD$");
  */
 #define	BOOTCFG_MAX_SIZE 0x1000
 
+/* Medford per-PF bootcfg sector */
+#define	BOOTCFG_PER_PF   0x800
+#define	BOOTCFG_PF_COUNT 16
+
 #define	DHCP_END ((uint8_t)0xff)
 #define	DHCP_PAD ((uint8_t)0)
 
 
-/* Report size and offset of bootcfg sector in NVRAM partition. */
-static	__checkReturn		efx_rc_t
-efx_bootcfg_sector(
+/* Report the layout of bootcfg sectors in NVRAM partition. */
+	__checkReturn		efx_rc_t
+efx_bootcfg_sector_info(
 	__in			efx_nic_t *enp,
+	__in			uint32_t pf,
+	__out_opt		uint32_t *sector_countp,
 	__out			size_t *offsetp,
 	__out			size_t *max_sizep)
 {
+	uint32_t count;
 	size_t max_size;
 	size_t offset;
 	int rc;
@@ -62,6 +69,7 @@ efx_bootcfg_sector(
 	case EFX_FAMILY_SIENA:
 		max_size = BOOTCFG_MAX_SIZE;
 		offset = 0;
+		count = 1;
 		break;
 #endif /* EFSYS_OPT_SIENA */
 
@@ -69,16 +77,20 @@ efx_bootcfg_sector(
 	case EFX_FAMILY_HUNTINGTON:
 		max_size = BOOTCFG_MAX_SIZE;
 		offset = 0;
+		count = 1;
 		break;
 #endif /* EFSYS_OPT_HUNTINGTON */
 
 #if EFSYS_OPT_MEDFORD
 	case EFX_FAMILY_MEDFORD: {
-		efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
-
 		/* Shared partition (array indexed by PF) */
-		max_size = 0x0800;
-		offset = max_size * encp->enc_pf;
+		max_size = BOOTCFG_PER_PF;
+		count = BOOTCFG_PF_COUNT;
+		if (pf >= count) {
+			rc = EINVAL;
+			goto fail2;
+		}
+		offset = max_size * pf;
 		break;
 	}
 #endif /* EFSYS_OPT_MEDFORD */
@@ -90,11 +102,17 @@ efx_bootcfg_sector(
 	}
 	EFSYS_ASSERT3U(max_size, <=, BOOTCFG_MAX_SIZE);
 
+	if (sector_countp != NULL)
+		*sector_countp = count;
 	*offsetp = offset;
 	*max_sizep = max_size;
 
 	return (0);
 
+#if EFSYS_OPT_MEDFORD
+fail2:
+	EFSYS_PROBE(fail2);
+#endif
 fail1:
 	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 	return (rc);
@@ -104,7 +122,7 @@ fail1:
 static	__checkReturn		uint8_t
 efx_bootcfg_csum(
 	__in			efx_nic_t *enp,
-	__in_bcount(size)	caddr_t data,
+	__in_bcount(size)	uint8_t const *data,
 	__in			size_t size)
 {
 	_NOTE(ARGUNUSED(enp))
@@ -120,7 +138,7 @@ efx_bootcfg_csum(
 static	__checkReturn		efx_rc_t
 efx_bootcfg_verify(
 	__in			efx_nic_t *enp,
-	__in_bcount(size)	caddr_t data,
+	__in_bcount(size)	uint8_t const *data,
 	__in			size_t size,
 	__out_opt		size_t *usedp)
 {
@@ -183,6 +201,95 @@ fail1:
 	return (rc);
 }
 
+/*
+ * Copy bootcfg sector data to a target buffer which may differ in size.
+ * Optionally corrects format errors in source buffer.
+ */
+				efx_rc_t
+efx_bootcfg_copy_sector(
+	__in			efx_nic_t *enp,
+	__inout_bcount(sector_length)
+				uint8_t *sector,
+	__in			size_t sector_length,
+	__out_bcount(data_size)	uint8_t *data,
+	__in			size_t data_size,
+	__in			boolean_t handle_format_errors)
+{
+	size_t used_bytes;
+	efx_rc_t rc;
+
+	/* Verify that the area is correctly formatted and checksummed */
+	rc = efx_bootcfg_verify(enp, sector, sector_length,
+				    &used_bytes);
+
+	if (!handle_format_errors) {
+		if (rc != 0)
+			goto fail1;
+
+		if ((used_bytes < 2) ||
+		    (sector[used_bytes - 1] != DHCP_END)) {
+			/* Block too short, or DHCP_END missing */
+			rc = ENOENT;
+			goto fail2;
+		}
+	}
+
+	/* Synthesize empty format on verification failure */
+	if (rc != 0 || used_bytes == 0) {
+		sector[0] = 0;
+		sector[1] = DHCP_END;
+		used_bytes = 2;
+	}
+	EFSYS_ASSERT(used_bytes >= 2);	/* checksum and DHCP_END */
+	EFSYS_ASSERT(used_bytes <= sector_length);
+	EFSYS_ASSERT(sector_length >= 2);
+
+	/*
+	 * Legacy bootcfg sectors don't terminate with a DHCP_END character.
+	 * Modify the returned payload so it does.
+	 * Reinitialise the sector if there isn't room for the character.
+	 */
+	if (sector[used_bytes - 1] != DHCP_END) {
+		if (used_bytes >= sector_length) {
+			sector[0] = 0;
+			used_bytes = 1;
+		}
+		sector[used_bytes] = DHCP_END;
+		++used_bytes;
+	}
+
+	/*
+	 * Verify that the target buffer is large enough for the
+	 * entire used bootcfg area, then copy into the target buffer.
+	 */
+	if (used_bytes > data_size) {
+		rc = ENOSPC;
+		goto fail3;
+	}
+	memcpy(data, sector, used_bytes);
+
+	/* Zero out the unused portion of the target buffer */
+	if (used_bytes < data_size)
+		(void) memset(data + used_bytes, 0, data_size - used_bytes);
+
+	/*
+	 * The checksum includes trailing data after any DHCP_END character,
+	 * which we've just modified (by truncation or appending DHCP_END).
+	 */
+	data[0] -= efx_bootcfg_csum(enp, data, data_size);
+
+	return (0);
+
+fail3:
+	EFSYS_PROBE(fail3);
+fail2:
+	EFSYS_PROBE(fail2);
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
 				efx_rc_t
 efx_bootcfg_read(
 	__in			efx_nic_t *enp,
@@ -195,13 +302,20 @@ efx_bootcfg_read(
 	size_t sector_length;
 	size_t sector_offset;
 	efx_rc_t rc;
+	uint32_t sector_number;
 
+#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
+	sector_number = enp->en_nic_cfg.enc_pf;
+#else
+	sector_number = 0;
+#endif
 	rc = efx_nvram_size(enp, EFX_NVRAM_BOOTROM_CFG, &partn_length);
 	if (rc != 0)
 		goto fail1;
 
 	/* The bootcfg sector may be stored in a (larger) shared partition */
-	rc = efx_bootcfg_sector(enp, &sector_offset, &sector_length);
+	rc = efx_bootcfg_sector_info(enp, sector_number,
+	    NULL, &sector_offset, &sector_length);
 	if (rc != 0)
 		goto fail2;
 
@@ -232,17 +346,18 @@ efx_bootcfg_read(
 	if ((rc = efx_nvram_rw_start(enp, EFX_NVRAM_BOOTROM_CFG, NULL)) != 0)
 		goto fail5;
 
-	rc = efx_nvram_read_chunk(enp, EFX_NVRAM_BOOTROM_CFG, sector_offset,
-				    (caddr_t)payload, sector_length);
-
-	efx_nvram_rw_finish(enp, EFX_NVRAM_BOOTROM_CFG);
-
-	if (rc != 0)
+	if ((rc = efx_nvram_read_chunk(enp, EFX_NVRAM_BOOTROM_CFG,
+	    sector_offset, (caddr_t)payload, sector_length)) != 0) {
+		(void) efx_nvram_rw_finish(enp, EFX_NVRAM_BOOTROM_CFG);
 		goto fail6;
+	}
+
+	if ((rc = efx_nvram_rw_finish(enp, EFX_NVRAM_BOOTROM_CFG)) != 0)
+		goto fail7;
 
 	/* Verify that the area is correctly formatted and checksummed */
 	rc = efx_bootcfg_verify(enp, (caddr_t)payload, sector_length,
-				    &used_bytes);
+	    &used_bytes);
 	if (rc != 0 || used_bytes == 0) {
 		payload[0] = (uint8_t)~DHCP_END;
 		payload[1] = DHCP_END;
@@ -274,7 +389,7 @@ efx_bootcfg_read(
 	 */
 	if (used_bytes > size) {
 		rc = ENOSPC;
-		goto fail7;
+		goto fail8;
 	}
 	if (sector_length > size) {
 		memcpy(data, payload, used_bytes);
@@ -293,6 +408,8 @@ efx_bootcfg_read(
 
 	return (0);
 
+fail8:
+	EFSYS_PROBE(fail8);
 fail7:
 	EFSYS_PROBE(fail7);
 fail6:
@@ -326,13 +443,21 @@ efx_bootcfg_write(
 	size_t sector_offset;
 	size_t used_bytes;
 	efx_rc_t rc;
+	uint32_t sector_number;
+
+#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
+	sector_number = enp->en_nic_cfg.enc_pf;
+#else
+	sector_number = 0;
+#endif
 
 	rc = efx_nvram_size(enp, EFX_NVRAM_BOOTROM_CFG, &partn_length);
 	if (rc != 0)
 		goto fail1;
 
 	/* The bootcfg sector may be stored in a (larger) shared partition */
-	rc = efx_bootcfg_sector(enp, &sector_offset, &sector_length);
+	rc = efx_bootcfg_sector_info(enp, sector_number,
+	    NULL, &sector_offset, &sector_length);
 	if (rc != 0)
 		goto fail2;
 
@@ -396,16 +521,18 @@ efx_bootcfg_write(
 		goto fail10;
 
 	if ((rc = efx_nvram_write_chunk(enp, EFX_NVRAM_BOOTROM_CFG,
-		    0, partn_data, partn_length)) != 0) {
+		    0, (caddr_t)partn_data, partn_length)) != 0)
 		goto fail11;
-	}
 
-	efx_nvram_rw_finish(enp, EFX_NVRAM_BOOTROM_CFG);
+	if ((rc = efx_nvram_rw_finish(enp, EFX_NVRAM_BOOTROM_CFG)) != 0)
+		goto fail12;
 
 	EFSYS_KMEM_FREE(enp->en_esip, partn_length, partn_data);
 
 	return (0);
 
+fail12:
+	EFSYS_PROBE(fail12);
 fail11:
 	EFSYS_PROBE(fail11);
 fail10:
@@ -413,7 +540,7 @@ fail10:
 fail9:
 	EFSYS_PROBE(fail9);
 
-	efx_nvram_rw_finish(enp, EFX_NVRAM_BOOTROM_CFG);
+	(void) efx_nvram_rw_finish(enp, EFX_NVRAM_BOOTROM_CFG);
 fail8:
 	EFSYS_PROBE(fail8);
 
