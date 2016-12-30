@@ -412,7 +412,7 @@ xdma_prep_memcpy(xdma_channel_t *xchan, uintptr_t src_addr,
 	if (ret != 0) {
 		device_printf(xdma->dev,
 		    "%s: Can't prepare memcpy transfer.\n", __func__);
-		XDMA_UNLOCK();
+		XCHAN_UNLOCK(xchan);
 
 		return (-1);
 	}
@@ -460,7 +460,8 @@ xdma_prep_cyclic(xdma_channel_t *xchan, enum xdma_direction dir,
 	if (ret != 0) {
 		device_printf(xdma->dev,
 		    "%s: Can't prepare cyclic transfer.\n", __func__);
-		XDMA_UNLOCK();
+		XCHAN_UNLOCK(xchan);
+
 		return (-1);
 	}
 

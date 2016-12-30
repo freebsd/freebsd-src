@@ -77,8 +77,8 @@ struct xdma_channel_config {
 typedef struct xdma_channel_config xdma_config_t;
 
 struct xdma_descriptor {
-	uintptr_t	ds_addr;
-	uint32_t	ds_len;
+	bus_addr_t	ds_addr;
+	bus_size_t	ds_len;
 };
 
 typedef struct xdma_descriptor xdma_descriptor_t;
