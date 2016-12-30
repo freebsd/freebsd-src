@@ -35,6 +35,8 @@ options 	KTRACE
 options 	CAPABILITY_MODE
 options 	CAPABILITIES
 
+options 	COMPAT_FREEBSD10
+
 options 	SCHED_ULE
 
 options 	FFS			#Berkeley Fast Filesystem
