@@ -169,7 +169,9 @@ ck_pr_rfo(const void *m)
 
 #define ck_pr_store_ptr(DST, VAL) CK_PR_STORE_SAFE((DST), (VAL), ptr)
 #define ck_pr_store_char(DST, VAL) CK_PR_STORE_SAFE((DST), (VAL), char)
+#ifndef CK_PR_DISABLE_DOUBLE
 #define ck_pr_store_double(DST, VAL) CK_PR_STORE_SAFE((DST), (VAL), double)
+#endif
 #define ck_pr_store_uint(DST, VAL) CK_PR_STORE_SAFE((DST), (VAL), uint)
 #define ck_pr_store_int(DST, VAL) CK_PR_STORE_SAFE((DST), (VAL), int)
 #define ck_pr_store_32(DST, VAL) CK_PR_STORE_SAFE((DST), (VAL), 32)
@@ -187,7 +189,9 @@ ck_pr_rfo(const void *m)
 
 #define CK_PR_LOAD_SAFE(SRC, TYPE) ck_pr_md_load_##TYPE((SRC))
 #define ck_pr_load_char(SRC) CK_PR_LOAD_SAFE((SRC), char)
+#ifndef CK_PR_DISABLE_DOUBLE
 #define ck_pr_load_double(SRC) CK_PR_LOAD_SAFE((SRC), double)
+#endif
 #define ck_pr_load_uint(SRC) CK_PR_LOAD_SAFE((SRC), uint)
 #define ck_pr_load_int(SRC) CK_PR_LOAD_SAFE((SRC), int)
 #define ck_pr_load_32(SRC) CK_PR_LOAD_SAFE((SRC), 32)
@@ -275,7 +279,8 @@ CK_PR_BIN_S(or, int, int, |)
 
 #endif /* CK_F_PR_LOAD_INT && CK_F_PR_CAS_INT_VALUE */
 
-#if defined(CK_F_PR_LOAD_DOUBLE) && defined(CK_F_PR_CAS_DOUBLE_VALUE)
+#if defined(CK_F_PR_LOAD_DOUBLE) && defined(CK_F_PR_CAS_DOUBLE_VALUE) && \
+	    !defined(CK_PR_DISABLE_DOUBLE)
 
 #ifndef CK_F_PR_ADD_DOUBLE
 #define CK_F_PR_ADD_DOUBLE
@@ -287,7 +292,7 @@ CK_PR_BIN_S(add, double, double, +)
 CK_PR_BIN_S(sub, double, double, -)
 #endif /* CK_F_PR_SUB_DOUBLE */
 
-#endif /* CK_F_PR_LOAD_DOUBLE && CK_F_PR_CAS_DOUBLE_VALUE */
+#endif /* CK_F_PR_LOAD_DOUBLE && CK_F_PR_CAS_DOUBLE_VALUE && !CK_PR_DISABLE_DOUBLE */
 
 #if defined(CK_F_PR_LOAD_UINT) && defined(CK_F_PR_CAS_UINT_VALUE)
 
@@ -675,7 +680,8 @@ CK_PR_UNARY_Z_S(dec, int, int, -, 1)
 
 #endif /* CK_F_PR_LOAD_INT && CK_F_PR_CAS_INT_VALUE */
 
-#if defined(CK_F_PR_LOAD_DOUBLE) && defined(CK_F_PR_CAS_DOUBLE_VALUE)
+#if defined(CK_F_PR_LOAD_DOUBLE) && defined(CK_F_PR_CAS_DOUBLE_VALUE) && \
+	    !defined(CK_PR_DISABLE_DOUBLE)
 
 #ifndef CK_F_PR_INC_DOUBLE
 #define CK_F_PR_INC_DOUBLE
@@ -687,7 +693,7 @@ CK_PR_UNARY_S(inc, add, double, double)
 CK_PR_UNARY_S(dec, sub, double, double)
 #endif /* CK_F_PR_DEC_DOUBLE */
 
-#endif /* CK_F_PR_LOAD_DOUBLE && CK_F_PR_CAS_DOUBLE_VALUE */
+#endif /* CK_F_PR_LOAD_DOUBLE && CK_F_PR_CAS_DOUBLE_VALUE && !CK_PR_DISABLE_DOUBLE */
 
 #if defined(CK_F_PR_LOAD_UINT) && defined(CK_F_PR_CAS_UINT_VALUE)
 
@@ -914,14 +920,15 @@ CK_PR_N_Z_S(int, int)
 
 #endif /* CK_F_PR_LOAD_INT && CK_F_PR_CAS_INT_VALUE */
 
-#if defined(CK_F_PR_LOAD_DOUBLE) && defined(CK_F_PR_CAS_DOUBLE_VALUE)
+#if defined(CK_F_PR_LOAD_DOUBLE) && defined(CK_F_PR_CAS_DOUBLE_VALUE) && \
+	    !defined(CK_PR_DISABLE_DOUBLE)
 
 #ifndef CK_F_PR_NEG_DOUBLE
 #define CK_F_PR_NEG_DOUBLE
 CK_PR_N_S(neg, double, double, -)
 #endif /* CK_F_PR_NEG_DOUBLE */
 
-#endif /* CK_F_PR_LOAD_DOUBLE && CK_F_PR_CAS_DOUBLE_VALUE */
+#endif /* CK_F_PR_LOAD_DOUBLE && CK_F_PR_CAS_DOUBLE_VALUE && !CK_PR_DISABLE_DOUBLE */
 
 #if defined(CK_F_PR_LOAD_UINT) && defined(CK_F_PR_CAS_UINT_VALUE)
 
@@ -1105,7 +1112,8 @@ CK_PR_FAS_S(int, int)
 
 #endif /* CK_F_PR_LOAD_INT && CK_F_PR_CAS_INT_VALUE */
 
-#if defined(CK_F_PR_LOAD_DOUBLE) && defined(CK_F_PR_CAS_DOUBLE_VALUE)
+#if defined(CK_F_PR_LOAD_DOUBLE) && defined(CK_F_PR_CAS_DOUBLE_VALUE) && \
+	    !defined(CK_PR_DISABLE_DOUBLE)
 
 #ifndef CK_F_PR_FAA_DOUBLE
 #define CK_F_PR_FAA_DOUBLE
@@ -1117,7 +1125,7 @@ CK_PR_FAA_S(double, double)
 CK_PR_FAS_S(double, double)
 #endif /* CK_F_PR_FAS_DOUBLE */
 
-#endif /* CK_F_PR_LOAD_DOUBLE && CK_F_PR_CAS_DOUBLE_VALUE */
+#endif /* CK_F_PR_LOAD_DOUBLE && CK_F_PR_CAS_DOUBLE_VALUE && !CK_PR_DISABLE_DOUBLE */
 
 #if defined(CK_F_PR_LOAD_UINT) && defined(CK_F_PR_CAS_UINT_VALUE)
 
