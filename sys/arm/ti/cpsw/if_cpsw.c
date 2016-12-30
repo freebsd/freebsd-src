@@ -583,6 +583,11 @@ cpsw_init(struct cpsw_softc *sc)
 	struct cpsw_slot *slot;
 	uint32_t reg;
 
+	/* Disable the interrupt pacing. */
+	reg = cpsw_read_4(sc, CPSW_WR_INT_CONTROL);
+	reg &= ~(CPSW_WR_INT_PACE_EN | CPSW_WR_INT_PRESCALE_MASK);
+	cpsw_write_4(sc, CPSW_WR_INT_CONTROL, reg);
+
 	/* Clear ALE */
 	cpsw_write_4(sc, CPSW_ALE_CONTROL, CPSW_ALE_CTL_CLEAR_TBL);
 
@@ -2492,6 +2497,51 @@ cpsw_stat_attached(SYSCTL_HANDLER_ARGS)
 }
 
 static int
+cpsw_intr_coalesce(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+	struct cpsw_softc *sc;
+	uint32_t ctrl, intr_per_ms;
+
+	sc = (struct cpsw_softc *)arg1;
+	error = sysctl_handle_int(oidp, &sc->coal_us, 0, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+
+	ctrl = cpsw_read_4(sc, CPSW_WR_INT_CONTROL);
+	ctrl &= ~(CPSW_WR_INT_PACE_EN | CPSW_WR_INT_PRESCALE_MASK);
+	if (sc->coal_us == 0) {
+		/* Disable the interrupt pace hardware. */
+		cpsw_write_4(sc, CPSW_WR_INT_CONTROL, ctrl);
+		cpsw_write_4(sc, CPSW_WR_C_RX_IMAX(0), 0);
+		cpsw_write_4(sc, CPSW_WR_C_TX_IMAX(0), 0);
+		return (0);
+	}
+
+	if (sc->coal_us > CPSW_WR_C_IMAX_US_MAX)
+		sc->coal_us = CPSW_WR_C_IMAX_US_MAX;
+	if (sc->coal_us < CPSW_WR_C_IMAX_US_MIN)
+		sc->coal_us = CPSW_WR_C_IMAX_US_MIN;
+	intr_per_ms = 1000 / sc->coal_us;
+	/* Just to make sure... */
+	if (intr_per_ms > CPSW_WR_C_IMAX_MAX)
+		intr_per_ms = CPSW_WR_C_IMAX_MAX;
+	if (intr_per_ms < CPSW_WR_C_IMAX_MIN)
+		intr_per_ms = CPSW_WR_C_IMAX_MIN;
+
+	/* Set the prescale to produce 4us pulses from the 125 Mhz clock. */
+	ctrl |= (125 * 4) & CPSW_WR_INT_PRESCALE_MASK;
+
+	/* Enable the interrupt pace hardware. */
+	cpsw_write_4(sc, CPSW_WR_C_RX_IMAX(0), intr_per_ms);
+	cpsw_write_4(sc, CPSW_WR_C_TX_IMAX(0), intr_per_ms);
+	ctrl |= CPSW_WR_INT_C0_RX_PULSE | CPSW_WR_INT_C0_TX_PULSE;
+	cpsw_write_4(sc, CPSW_WR_INT_CONTROL, ctrl);
+
+	return (0);
+}
+
+static int
 cpsw_stat_uptime(SYSCTL_HANDLER_ARGS)
 {
 	struct cpsw_softc *swsc;
@@ -2575,6 +2625,10 @@ cpsw_add_sysctls(struct cpsw_softc *sc)
 	SYSCTL_ADD_PROC(ctx, parent, OID_AUTO, "attachedSecs",
 	    CTLTYPE_UINT | CTLFLAG_RD, sc, 0, cpsw_stat_attached, "IU",
 	    "Time since driver attach");
+
+	SYSCTL_ADD_PROC(ctx, parent, OID_AUTO, "intr_coalesce_us",
+	    CTLTYPE_UINT | CTLFLAG_RW, sc, 0, cpsw_intr_coalesce, "IU",
+	    "minimum time between interrupts");
 
 	node = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "ports",
 	    CTLFLAG_RD, NULL, "CPSW Ports Statistics");
