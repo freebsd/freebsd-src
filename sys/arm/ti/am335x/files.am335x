@@ -13,6 +13,7 @@ arm/ti/am335x/am335x_pwmss.c		standard
 arm/ti/am335x/am335x_ehrpwm.c		standard
 arm/ti/am335x/am335x_ecap.c		standard
 arm/ti/am335x/am335x_rtc.c		optional	am335x_rtc
+arm/ti/am335x/am335x_scm.c		standard
 arm/ti/am335x/am335x_scm_padconf.c	standard
 arm/ti/am335x/am335x_usbss.c		optional	musb fdt
 arm/ti/am335x/am335x_musb.c		optional	musb fdt
