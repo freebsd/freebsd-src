@@ -302,7 +302,7 @@ struct sfxge_softc {
 	unsigned int			max_rss_channels;
 	uma_zone_t			rxq_cache;
 	struct sfxge_rxq		*rxq[SFXGE_RX_SCALE_MAX];
-	unsigned int			rx_indir_table[SFXGE_RX_SCALE_MAX];
+	unsigned int			rx_indir_table[EFX_RSS_TBL_SIZE];
 
 	struct sfxge_txq		*txq[SFXGE_TXQ_NTYPES + SFXGE_RX_SCALE_MAX];
 
