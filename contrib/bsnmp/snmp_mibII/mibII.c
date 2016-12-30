@@ -707,10 +707,11 @@ mibif_free(struct mibif *ifp)
 	}
 
 	free(ifp->private);
-	if (ifp->physaddr != NULL)
-		free(ifp->physaddr);
-	if (ifp->specmib != NULL)
-		free(ifp->specmib);
+	ifp->private = NULL;
+	free(ifp->physaddr);
+	ifp->physaddr = NULL;
+	free(ifp->specmib);
+	ifp->specmib = NULL;
 
 	STAILQ_FOREACH(map, &mibindexmap_list, link)
 		if (map->mibif == ifp) {
@@ -745,8 +746,8 @@ mibif_free(struct mibif *ifp)
 		at = at1;
 	}
 
-
 	free(ifp);
+	ifp = NULL;
 	mib_if_number--;
 	mib_iftable_last_change = this_tick;
 }
