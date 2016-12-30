@@ -182,8 +182,8 @@ bcache_free(void *cache)
  * cache with the new values.
  */
 static int
-write_strategy(void *devdata, int rw, daddr_t blk, size_t offset,
-    size_t size, char *buf, size_t *rsize)
+write_strategy(void *devdata, int rw, daddr_t blk, size_t size,
+    char *buf, size_t *rsize)
 {
     struct bcache_devdata	*dd = (struct bcache_devdata *)devdata;
     struct bcache		*bc = dd->dv_cache;
@@ -197,7 +197,7 @@ write_strategy(void *devdata, int rw, daddr_t blk, size_t offset,
     }
 
     /* Write the blocks */
-    return (dd->dv_strategy(dd->dv_devdata, rw, blk, offset, size, buf, rsize));
+    return (dd->dv_strategy(dd->dv_devdata, rw, blk, size, buf, rsize));
 }
 
 /*
@@ -206,8 +206,8 @@ write_strategy(void *devdata, int rw, daddr_t blk, size_t offset,
  * device I/O and then use the I/O results to populate the cache. 
  */
 static int
-read_strategy(void *devdata, int rw, daddr_t blk, size_t offset,
-    size_t size, char *buf, size_t *rsize)
+read_strategy(void *devdata, int rw, daddr_t blk, size_t size,
+    char *buf, size_t *rsize)
 {
     struct bcache_devdata	*dd = (struct bcache_devdata *)devdata;
     struct bcache		*bc = dd->dv_cache;
@@ -225,7 +225,7 @@ read_strategy(void *devdata, int rw, daddr_t blk, size_t offset,
 	*rsize = 0;
 
     nblk = size / bcache_blksize;
-    if ((nblk == 0 && size != 0) || offset != 0)
+    if (nblk == 0 && size != 0)
 	nblk++;
     result = 0;
     complete = 1;
@@ -246,8 +246,7 @@ read_strategy(void *devdata, int rw, daddr_t blk, size_t offset,
    if (complete) {	/* whole set was in cache, return it */
 	if (bc->ra < BCACHE_READAHEAD)
 		bc->ra <<= 1;	/* increase read ahead */
-	bcopy(bc->bcache_data + (bcache_blksize * BHASH(bc, blk)) + offset,
-	    buf, size);
+	bcopy(bc->bcache_data + (bcache_blksize * BHASH(bc, blk)), buf, size);
 	goto done;
    }
 
@@ -282,7 +281,7 @@ read_strategy(void *devdata, int rw, daddr_t blk, size_t offset,
      * in either case we should return the data in bcache and only
      * return error if there is no data.
      */
-    result = dd->dv_strategy(dd->dv_devdata, rw, p_blk, 0,
+    result = dd->dv_strategy(dd->dv_devdata, rw, p_blk,
 	p_size * bcache_blksize, p_buf, &r_size);
 
     r_size /= bcache_blksize;
@@ -307,8 +306,7 @@ read_strategy(void *devdata, int rw, daddr_t blk, size_t offset,
 	size = i * bcache_blksize;
 
     if (size != 0) {
-	bcopy(bc->bcache_data + (bcache_blksize * BHASH(bc, blk)) + offset,
-	    buf, size);
+	bcopy(bc->bcache_data + (bcache_blksize * BHASH(bc, blk)), buf, size);
 	result = 0;
     }
 
@@ -323,8 +321,8 @@ read_strategy(void *devdata, int rw, daddr_t blk, size_t offset,
  * directly to the disk.  XXX tune this.
  */
 int
-bcache_strategy(void *devdata, int rw, daddr_t blk, size_t offset,
-    size_t size, char *buf, size_t *rsize)
+bcache_strategy(void *devdata, int rw, daddr_t blk, size_t size,
+    char *buf, size_t *rsize)
 {
     struct bcache_devdata	*dd = (struct bcache_devdata *)devdata;
     struct bcache		*bc = dd->dv_cache;
@@ -339,23 +337,16 @@ bcache_strategy(void *devdata, int rw, daddr_t blk, size_t offset,
 
     /* bypass large requests, or when the cache is inactive */
     if (bc == NULL ||
-	(offset == 0 && ((size * 2 / bcache_blksize) > bcache_nblks))) {
+	((size * 2 / bcache_blksize) > bcache_nblks)) {
 	DEBUG("bypass %d from %d", size / bcache_blksize, blk);
 	bcache_bypasses++;
-	return (dd->dv_strategy(dd->dv_devdata, rw, blk, offset, size, buf,
-	    rsize));
-    }
-
-    /* normalize offset */
-    while (offset >= bcache_blksize) {
-	blk++;
-	offset -= bcache_blksize;
+	return (dd->dv_strategy(dd->dv_devdata, rw, blk, size, buf, rsize));
     }
 
     switch (rw) {
     case F_READ:
 	nblk = size / bcache_blksize;
-	if (offset || (size != 0 && nblk == 0))
+	if (size != 0 && nblk == 0)
 	    nblk++;	/* read at least one block */
 
 	ret = 0;
@@ -366,14 +357,10 @@ bcache_strategy(void *devdata, int rw, daddr_t blk, size_t offset,
 
 	    if (size <= bcache_blksize)
 		csize = size;
-	    else {
+	    else
 		csize = cblk * bcache_blksize;
-		if (offset)
-		    csize -= (bcache_blksize - offset);
-	    }
 
-	    ret = read_strategy(devdata, rw, blk, offset,
-		csize, buf+total, &isize);
+	    ret = read_strategy(devdata, rw, blk, csize, buf+total, &isize);
 
 	    /*
 	     * we may have error from read ahead, if we have read some data
@@ -384,8 +371,7 @@ bcache_strategy(void *devdata, int rw, daddr_t blk, size_t offset,
 		    ret = 0;
 		break;
 	    }
-	    blk += (offset+isize) / bcache_blksize;
-	    offset = 0;
+	    blk += isize / bcache_blksize;
 	    total += isize;
 	    size -= isize;
 	    nblk = size / bcache_blksize;
@@ -396,7 +382,7 @@ bcache_strategy(void *devdata, int rw, daddr_t blk, size_t offset,
 
 	return (ret);
     case F_WRITE:
-	return write_strategy(devdata, rw, blk, offset, size, buf, rsize);
+	return write_strategy(devdata, rw, blk, size, buf, rsize);
     }
     return -1;
 }

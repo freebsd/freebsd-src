@@ -1024,7 +1024,7 @@ ioread(struct open_file *f, off_t pos, void *buf, u_int length)
 
 	buffer = malloc(nsec * bsize);
 
-	err = (f->f_dev->dv_strategy)(f->f_devdata, F_READ, pos, 0,
+	err = (f->f_dev->dv_strategy)(f->f_devdata, F_READ, pos,
 	    nsec * bsize, buffer, NULL);
 
 	memcpy(buf, (void *)((uintptr_t)buffer + off), length);
