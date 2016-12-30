@@ -1,4 +1,5 @@
 .\" Copyright (c) 2003-2009 Tim Kientzle
+.\" Copyright (c) 2016 Martin Matuska
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -24,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 23, 2011
+.Dd December 27, 2016
 .Dt TAR 5
 .Os
 .Sh NAME
@@ -440,11 +441,11 @@ archives to store files much larger than the historic 8GB limit.
 Vendor-specific attributes used by Joerg Schilling's
 .Nm star
 implementation.
-.It Cm SCHILY.acl.access , Cm SCHILY.acl.default
-Stores the access and default ACLs as textual strings in a format
+.It Cm SCHILY.acl.access , Cm SCHILY.acl.default, Cm SCHILY.acl.ace
+Stores the access, default and NFSv4 ACLs as textual strings in a format
 that is an extension of the format specified by POSIX.1e draft 17.
-In particular, each user or group access specification can include a fourth
-colon-separated field with the numeric UID or GID.
+In particular, each user or group access specification can include
+an additional colon-separated field with the numeric UID or GID.
 This allows ACLs to be restored on systems that may not have complete
 user or group information available (such as when NIS/YP or LDAP services
 are temporarily unavailable).
