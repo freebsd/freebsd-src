@@ -5,7 +5,7 @@
 #NO_UNIVERSE
 
 ident		JZ4780
-machine		mips mipsel
+machine		mips mipselhf
 cpu		CPU_XBURST
 cpu		CPU_MIPS4KC
 
