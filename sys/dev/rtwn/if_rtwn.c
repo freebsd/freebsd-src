@@ -580,6 +580,8 @@ rtwn_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 	vap->iv_ampdu_density = IEEE80211_HTCAP_MPDUDENSITY_16;
 	vap->iv_ampdu_rxmax = IEEE80211_HTCAP_MAXRXAMPDU_64K;
 
+	TIMEOUT_TASK_INIT(taskqueue_thread, &uvp->tx_beacon_csa, 0,
+	    rtwn_tx_beacon_csa, vap);
 	if (opmode == IEEE80211_M_IBSS) {
 		uvp->recv_mgmt = vap->iv_recv_mgmt;
 		vap->iv_recv_mgmt = rtwn_adhoc_recv_mgmt;
@@ -1067,9 +1069,26 @@ rtwn_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	} else
 		early_newstate = 0;
 
+	if (ostate == IEEE80211_S_CSA) {
+		taskqueue_cancel_timeout(taskqueue_thread,
+		    &uvp->tx_beacon_csa, NULL);
+
+		/*
+		 * In multi-vap case second counter may not be cleared
+		 * properly.
+		 */
+		vap->iv_csa_count = 0;
+	}
 	IEEE80211_UNLOCK(ic);
 	RTWN_LOCK(sc);
-	if (ostate == IEEE80211_S_RUN) {
+
+	if (ostate == IEEE80211_S_CSA) {
+		/* Unblock all queues (multi-vap case). */
+		rtwn_write_1(sc, R92C_TXPAUSE, 0);
+	}
+
+	if ((ostate == IEEE80211_S_RUN && nstate != IEEE80211_S_CSA) ||
+	    ostate == IEEE80211_S_CSA) {
 		sc->vaps_running--;
 
 		/* Set media status to 'No Link'. */
@@ -1140,6 +1159,11 @@ rtwn_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		}
 
 		sc->vaps_running++;
+		break;
+	case IEEE80211_S_CSA:
+		/* Block all Tx queues (except beacon queue). */
+		rtwn_setbits_1(sc, R92C_TXPAUSE, 0,
+		    R92C_TX_QUEUE_AC | R92C_TX_QUEUE_MGT | R92C_TX_QUEUE_HIGH);
 		break;
 	default:
 		break;

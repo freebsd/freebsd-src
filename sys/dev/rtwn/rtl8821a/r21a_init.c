@@ -280,7 +280,7 @@ r21a_power_off(struct rtwn_softc *sc)
 	/* Enable GPIO9 as EXT WAKEUP. */
 	rtwn_setbits_1(sc, R92C_GPIO_INTM + 2, 0, 0x01);
 
-	rs->rs_flags &= ~R12A_IQK_RUNNING;
+	rs->rs_flags &= ~(R12A_IQK_RUNNING | R12A_RADAR_ENABLED);
 }
 
 int

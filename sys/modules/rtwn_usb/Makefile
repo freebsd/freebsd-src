@@ -25,7 +25,7 @@ SRCS	+= r12au_attach.c r12au_init.c r12au_rx.c r12au_tx.c \
 	   r12au.h r12au_reg.h r12au_tx_desc.h
 
 .PATH: ${.CURDIR}/../../dev/rtwn/rtl8821a/usb
-SRCS	+= r21au_attach.c r21au_init.c \
+SRCS	+= r21au_attach.c r21au_init.c r21au_dfs.c \
 	   r21au.h r21au_reg.h
 
 opt_rtwn.h:
