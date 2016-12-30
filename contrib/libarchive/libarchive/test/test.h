@@ -346,6 +346,23 @@ extern const char *testworkdir;
 #include "archive.h"
 #include "archive_entry.h"
 
+/* ACL structure */
+struct archive_test_acl_t {
+	int type;  /* Type of ACL */
+	int permset; /* Permissions for this class of users. */
+	int tag; /* Owner, User, Owning group, group, other, etc. */
+	int qual; /* GID or UID of user/group, depending on tag. */
+	const char *name; /* Name of user/group, depending on tag. */
+};
+
+/* Set ACLs */
+void archive_test_set_acls(struct archive_entry *, struct archive_test_acl_t *,
+    int);
+
+/* Compare ACLs */
+void archive_test_compare_acls(struct archive_entry *,
+    struct archive_test_acl_t *, int, int, int);
+
 /* Special customized read-from-memory interface. */
 int read_open_memory(struct archive *, const void *, size_t, size_t);
 /* _minimal version exercises a slightly different set of libarchive APIs. */
