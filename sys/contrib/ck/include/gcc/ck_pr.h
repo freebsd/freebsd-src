@@ -101,7 +101,9 @@ ck_pr_md_store_ptr(void *target, const void *v)
 CK_PR_LOAD_S(char, char)
 CK_PR_LOAD_S(uint, unsigned int)
 CK_PR_LOAD_S(int, int)
+#ifndef CK_PR_DISABLE_DOUBLE
 CK_PR_LOAD_S(double, double)
+#endif
 CK_PR_LOAD_S(64, uint64_t)
 CK_PR_LOAD_S(32, uint32_t)
 CK_PR_LOAD_S(16, uint16_t)
