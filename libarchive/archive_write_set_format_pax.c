@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 2003-2007 Tim Kientzle
  * Copyright (c) 2010-2012 Michihiro NAKAJIMA
+ * Copyright (c) 2016 Martin Matuska
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -70,6 +71,8 @@ static void		 add_pax_attr_int(struct archive_string *,
 static void		 add_pax_attr_time(struct archive_string *,
 			     const char *key, int64_t sec,
 			     unsigned long nanos);
+static int		 add_pax_acl(struct archive_write *,
+			    struct archive_entry *, struct pax *, int);
 static ssize_t		 archive_write_pax_data(struct archive_write *,
 			     const void *, size_t);
 static int		 archive_write_pax_close(struct archive_write *);
@@ -449,6 +452,45 @@ get_entry_symlink(struct archive_write *a, struct archive_entry *entry,
 	return (ARCHIVE_OK);
 }
 
+/* Add ACL to pax header */
+static int
+add_pax_acl(struct archive_write *a,
+    struct archive_entry *entry, struct pax *pax, int flags)
+{
+	char *p;
+	const char *attr;
+	int acl_types;
+
+	acl_types = archive_entry_acl_types(entry);
+
+	if ((acl_types & ARCHIVE_ENTRY_ACL_TYPE_NFS4) != 0)
+		attr = "SCHILY.acl.ace";
+	else if ((flags & ARCHIVE_ENTRY_ACL_TYPE_ACCESS) != 0)
+		attr = "SCHILY.acl.access";
+	else if ((flags & ARCHIVE_ENTRY_ACL_TYPE_DEFAULT) != 0)
+		attr = "SCHILY.acl.default";
+	else
+		return (ARCHIVE_FATAL);
+
+	p = archive_entry_acl_to_text_l(entry, NULL, flags, pax->sconv_utf8);
+	if (p == NULL) {
+		if (errno == ENOMEM) {
+			archive_set_error(&a->archive, ENOMEM, "%s %s",
+			    "Can't allocate memory for ", attr);
+			return (ARCHIVE_FATAL);
+		}
+		archive_set_error(&a->archive,
+		    ARCHIVE_ERRNO_FILE_FORMAT, "%s %s %s",
+		    "Can't translate ", attr, " to UTF-8");
+		return(ARCHIVE_WARN);
+	} else if (*p != '\0') {
+		add_pax_attr(&(pax->pax_header),
+		    attr, p);
+		free(p);
+	}
+	return(ARCHIVE_OK);
+}
+
 /*
  * TODO: Consider adding 'comment' and 'charset' fields to
  * archive_entry so that clients can specify them.  Also, consider
@@ -465,6 +507,7 @@ archive_write_pax_header(struct archive_write *a,
 	const char *p;
 	const char *suffix;
 	int need_extension, r, ret;
+	int acl_types;
 	int sparse_count;
 	uint64_t sparse_total, real_size;
 	struct pax *pax;
@@ -1016,22 +1059,18 @@ archive_write_pax_header(struct archive_write *a,
 	if (!need_extension && p != NULL  &&  *p != '\0')
 		need_extension = 1;
 
-	/* If there are non-trivial ACL entries, we need an extension. */
-	if (!need_extension && archive_entry_acl_count(entry_original,
-		ARCHIVE_ENTRY_ACL_TYPE_ACCESS) > 0)
-		need_extension = 1;
-
-	/* If there are non-trivial ACL entries, we need an extension. */
-	if (!need_extension && archive_entry_acl_count(entry_original,
-		ARCHIVE_ENTRY_ACL_TYPE_DEFAULT) > 0)
-		need_extension = 1;
-
 	/* If there are extended attributes, we need an extension */
 	if (!need_extension && archive_entry_xattr_count(entry_original) > 0)
 		need_extension = 1;
 
 	/* If there are sparse info, we need an extension */
 	if (!need_extension && sparse_count > 0)
+		need_extension = 1;
+
+	acl_types = archive_entry_acl_types(entry_original);
+
+	/* If there are any ACL entries, we need an extension */
+	if (!need_extension && acl_types != 0)
 		need_extension = 1;
 
 	/*
@@ -1085,43 +1124,28 @@ archive_write_pax_header(struct archive_write *a,
 			add_pax_attr(&(pax->pax_header), "SCHILY.fflags", p);
 
 		/* I use star-compatible ACL attributes. */
-		r = archive_entry_acl_text_l(entry_original,
-		    ARCHIVE_ENTRY_ACL_TYPE_ACCESS |
-		    ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID,
-		    &p, NULL, pax->sconv_utf8);
-		if (r != 0) {
-			if (errno == ENOMEM) {
-				archive_set_error(&a->archive, ENOMEM,
-				    "Can't allocate memory for "
-				    "ACL.access");
+		if ((acl_types & ARCHIVE_ENTRY_ACL_TYPE_NFS4) != 0) {
+			ret = add_pax_acl(a, entry_original, pax,
+			    ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID |
+			    ARCHIVE_ENTRY_ACL_STYLE_SEPARATOR_COMMA);
+			if (ret == ARCHIVE_FATAL)
 				return (ARCHIVE_FATAL);
-			}
-			archive_set_error(&a->archive,
-			    ARCHIVE_ERRNO_FILE_FORMAT,
-			    "Can't translate ACL.access to UTF-8");
-			ret = ARCHIVE_WARN;
-		} else if (p != NULL && *p != '\0') {
-			add_pax_attr(&(pax->pax_header),
-			    "SCHILY.acl.access", p);
 		}
-		r = archive_entry_acl_text_l(entry_original,
-		    ARCHIVE_ENTRY_ACL_TYPE_DEFAULT |
-		    ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID,
-		    &p, NULL, pax->sconv_utf8);
-		if (r != 0) {
-			if (errno == ENOMEM) {
-				archive_set_error(&a->archive, ENOMEM,
-				    "Can't allocate memory for "
-				    "ACL.default");
+		if (acl_types & ARCHIVE_ENTRY_ACL_TYPE_ACCESS) {
+			ret = add_pax_acl(a, entry_original, pax,
+			    ARCHIVE_ENTRY_ACL_TYPE_ACCESS |
+			    ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID |
+			    ARCHIVE_ENTRY_ACL_STYLE_SEPARATOR_COMMA);
+			if (ret == ARCHIVE_FATAL)
 				return (ARCHIVE_FATAL);
-			}
-			archive_set_error(&a->archive,
-			    ARCHIVE_ERRNO_FILE_FORMAT,
-			    "Can't translate ACL.default to UTF-8");
-			ret = ARCHIVE_WARN;
-		} else if (p != NULL && *p != '\0') {
-			add_pax_attr(&(pax->pax_header),
-			    "SCHILY.acl.default", p);
+		}
+		if (acl_types & ARCHIVE_ENTRY_ACL_TYPE_DEFAULT) {
+			ret = add_pax_acl(a, entry_original, pax,
+			    ARCHIVE_ENTRY_ACL_TYPE_DEFAULT |
+			    ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID |
+			    ARCHIVE_ENTRY_ACL_STYLE_SEPARATOR_COMMA);
+			if (ret == ARCHIVE_FATAL)
+				return (ARCHIVE_FATAL);
 		}
 
 		/* We use GNU-tar-compatible sparse attributes. */

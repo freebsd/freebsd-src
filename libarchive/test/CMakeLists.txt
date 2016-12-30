@@ -14,6 +14,7 @@ IF(ENABLE_TEST)
     test_acl_nfs4.c
     test_acl_pax.c
     test_acl_posix1e.c
+    test_acl_text.c
     test_archive_api_feature.c
     test_archive_clear_error.c
     test_archive_cmdline.c
@@ -62,7 +63,7 @@ IF(ENABLE_TEST)
     test_compat_plexus_archiver_tar.c
     test_compat_solaris_pax_sparse.c
     test_compat_solaris_tar_acl.c
-    test_compat_star_acl_posix1e.c
+    test_compat_star_acl.c
     test_compat_tar_hardlink.c
     test_compat_uudecode.c
     test_compat_uudecode_large.c
