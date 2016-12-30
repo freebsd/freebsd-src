@@ -356,6 +356,11 @@ static int pci_do_msix = 1;
 SYSCTL_INT(_hw_pci, OID_AUTO, enable_msix, CTLFLAG_RWTUN, &pci_do_msix, 1,
     "Enable support for MSI-X interrupts");
 
+static int pci_msix_rewrite_table = 0;
+SYSCTL_INT(_hw_pci, OID_AUTO, msix_rewrite_table, CTLFLAG_RWTUN,
+    &pci_msix_rewrite_table, 0,
+    "Rewrite entire MSI-X table when updating MSI-X entries");
+
 static int pci_honor_msi_blacklist = 1;
 SYSCTL_INT(_hw_pci, OID_AUTO, honor_msi_blacklist, CTLFLAG_RDTUN,
     &pci_honor_msi_blacklist, 1, "Honor chipset blacklist for MSI/MSI-X");
@@ -1482,11 +1487,10 @@ pci_find_extcap_method(device_t dev, device_t child, int capability,
 /*
  * Support for MSI-X message interrupts.
  */
-void
-pci_enable_msix_method(device_t dev, device_t child, u_int index,
-    uint64_t address, uint32_t data)
+static void
+pci_write_msix_entry(device_t dev, u_int index, uint64_t address, uint32_t data)
 {
-	struct pci_devinfo *dinfo = device_get_ivars(child);
+	struct pci_devinfo *dinfo = device_get_ivars(dev);
 	struct pcicfg_msix *msix = &dinfo->cfg.msix;
 	uint32_t offset;
 
@@ -1495,6 +1499,31 @@ pci_enable_msix_method(device_t dev, device_t child, u_int index,
 	bus_write_4(msix->msix_table_res, offset, address & 0xffffffff);
 	bus_write_4(msix->msix_table_res, offset + 4, address >> 32);
 	bus_write_4(msix->msix_table_res, offset + 8, data);
+}
+
+void
+pci_enable_msix_method(device_t dev, device_t child, u_int index,
+    uint64_t address, uint32_t data)
+{
+
+	if (pci_msix_rewrite_table) {
+		struct pci_devinfo *dinfo = device_get_ivars(child);
+		struct pcicfg_msix *msix = &dinfo->cfg.msix;
+
+		/*
+		 * Some VM hosts require MSIX to be disabled in the
+		 * control register before updating the MSIX table
+		 * entries are allowed. It is not enough to only
+		 * disable MSIX while updating a single entry. MSIX
+		 * must be disabled while updating all entries in the
+		 * table.
+		 */
+		pci_write_config(child,
+		    msix->msix_location + PCIR_MSIX_CTRL,
+		    msix->msix_ctrl & ~PCIM_MSIXCTRL_MSIX_ENABLE, 2);
+		pci_resume_msix(child);
+	} else
+		pci_write_msix_entry(child, index, address, data);
 
 	/* Enable MSI -> HT mapping. */
 	pci_ht_map_msi(child, address);
@@ -1570,7 +1599,8 @@ pci_resume_msix(device_t dev)
 			if (mte->mte_vector == 0 || mte->mte_handlers == 0)
 				continue;
 			mv = &msix->msix_vectors[mte->mte_vector - 1];
-			pci_enable_msix(dev, i, mv->mv_address, mv->mv_data);
+			pci_write_msix_entry(dev, i, mv->mv_address,
+			    mv->mv_data);
 			pci_unmask_msix(dev, i);
 		}
 	}
@@ -4401,12 +4431,20 @@ pci_setup_intr(device_t dev, device_t child, struct resource *irq, int flags,
 				mv->mv_address = addr;
 				mv->mv_data = data;
 			}
-			if (mte->mte_handlers == 0) {
+
+			/*
+			 * The MSIX table entry must be made valid by
+			 * incrementing the mte_handlers before
+			 * calling pci_enable_msix() and
+			 * pci_resume_msix(). Else the MSIX rewrite
+			 * table quirk will not work as expected.
+			 */
+			mte->mte_handlers++;
+			if (mte->mte_handlers == 1) {
 				pci_enable_msix(child, rid - 1, mv->mv_address,
 				    mv->mv_data);
 				pci_unmask_msix(child, rid - 1);
 			}
-			mte->mte_handlers++;
 		}
 
 		/*
