@@ -109,6 +109,7 @@ struct rtwn_vap {
 
 	struct rtwn_tx_buf	bcn_desc;
 	struct mbuf		*bcn_mbuf;
+	struct timeout_task	tx_beacon_csa;
 
 	struct callout		tsf_sync_adhoc;
 	struct task		tsf_sync_adhoc_task;
