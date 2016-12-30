@@ -598,23 +598,29 @@ carp6_input(struct mbuf **mp, int *offp, int proto)
 static int
 carp_source_is_self(struct mbuf *m, struct ifaddr *ifa, sa_family_t af)
 {
+#ifdef INET
 	struct ip *ip4;
 	struct in_addr in4;
+#endif
+#ifdef INET6
 	struct ip6_hdr *ip6;
 	struct in6_addr in6;
+#endif
 
 	switch (af) {
+#ifdef INET
 	case AF_INET:
 		ip4 = mtod(m, struct ip *);
 		in4 = ifatoia(ifa)->ia_addr.sin_addr;
 		return (in4.s_addr == ip4->ip_src.s_addr);
-
+#endif
+#ifdef INET6
 	case AF_INET6:
 		ip6 = mtod(m, struct ip6_hdr *);
 		in6 = ifatoia6(ifa)->ia_addr.sin6_addr;
 		return (memcmp(&in6, &ip6->ip6_src, sizeof(in6)) == 0);
-
-	default:		/* how did this happen? */
+#endif
+	default:
 		break;
 	}
 	return (0);
