@@ -73,9 +73,9 @@ static struct mtx xdma_mtx;
 /*
  * Per channel locks.
  */
-#define	XCHAN_LOCK(xchan)		mtx_lock(&xchan->mtx_lock)
-#define	XCHAN_UNLOCK(xchan)		mtx_unlock(&xchan->mtx_lock)
-#define	XCHAN_ASSERT_LOCKED(xchan)	mtx_assert(&xchan->mtx_lock, MA_OWNED)
+#define	XCHAN_LOCK(xchan)		mtx_lock(&(xchan)->mtx_lock)
+#define	XCHAN_UNLOCK(xchan)		mtx_unlock(&(xchan)->mtx_lock)
+#define	XCHAN_ASSERT_LOCKED(xchan)	mtx_assert(&(xchan)->mtx_lock, MA_OWNED)
 
 /*
  * Allocate virtual xDMA channel.
