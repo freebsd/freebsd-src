@@ -127,6 +127,12 @@ siena_mcdi_feature_supported(
 	__in		efx_mcdi_feature_id_t id,
 	__out		boolean_t *supportedp);
 
+extern			void
+siena_mcdi_get_timeout(
+	__in		efx_nic_t *enp,
+	__in		efx_mcdi_req_t *emrp,
+	__out		uint32_t *timeoutp);
+
 #endif /* EFSYS_OPT_MCDI */
 
 #if EFSYS_OPT_NVRAM || EFSYS_OPT_VPD

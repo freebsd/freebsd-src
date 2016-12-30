@@ -67,6 +67,7 @@ static const efx_mcdi_ops_t	__efx_mcdi_siena_ops = {
 	siena_mcdi_read_response,	/* emco_read_response */
 	siena_mcdi_fini,		/* emco_fini */
 	siena_mcdi_feature_supported,	/* emco_feature_supported */
+	siena_mcdi_get_timeout,		/* emco_get_timeout */
 };
 
 #endif	/* EFSYS_OPT_SIENA */
@@ -81,6 +82,7 @@ static const efx_mcdi_ops_t	__efx_mcdi_ef10_ops = {
 	ef10_mcdi_read_response,	/* emco_read_response */
 	ef10_mcdi_fini,			/* emco_fini */
 	ef10_mcdi_feature_supported,	/* emco_feature_supported */
+	ef10_mcdi_get_timeout,		/* emco_get_timeout */
 };
 
 #endif	/* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD */
@@ -603,6 +605,17 @@ efx_mcdi_request_abort(
 	EFSYS_UNLOCK(enp->en_eslp, state);
 
 	return (aborted);
+}
+
+			void
+efx_mcdi_get_timeout(
+	__in		efx_nic_t *enp,
+	__in		efx_mcdi_req_t *emrp,
+	__out		uint32_t *timeoutp)
+{
+	const efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
+
+	emcop->emco_get_timeout(enp, emrp, timeoutp);
 }
 
 	__checkReturn	efx_rc_t

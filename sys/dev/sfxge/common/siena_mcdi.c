@@ -247,4 +247,19 @@ fail1:
 	return (rc);
 }
 
+/* Default timeout for MCDI command processing. */
+#define	SIENA_MCDI_CMD_TIMEOUT_US	(10 * 1000 * 1000)
+
+			void
+siena_mcdi_get_timeout(
+	__in		efx_nic_t *enp,
+	__in		efx_mcdi_req_t *emrp,
+	__out		uint32_t *timeoutp)
+{
+	_NOTE(ARGUNUSED(enp, emrp))
+
+	*timeoutp = SIENA_MCDI_CMD_TIMEOUT_US;
+}
+
+
 #endif	/* EFSYS_OPT_SIENA && EFSYS_OPT_MCDI */
