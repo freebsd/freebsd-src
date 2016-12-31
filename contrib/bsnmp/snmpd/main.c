@@ -492,6 +492,8 @@ snmp_input_start(const u_char *buf, size_t len, const char *source,
 	b.asn_cptr = buf;
 	b.asn_len = len;
 
+	ret = SNMPD_INPUT_OK;
+
 	/* look whether we have enough bytes for the entire PDU. */
 	switch (sret = snmp_pdu_snoop(&b)) {
 
@@ -519,8 +521,6 @@ snmp_input_start(const u_char *buf, size_t len, const char *source,
 			goto decoded;
 	}
 	code = snmp_pdu_decode_scoped(&b, pdu, ip);
-
-	ret = SNMPD_INPUT_OK;
 
 decoded:
 	snmpd_stats.inPkts++;
