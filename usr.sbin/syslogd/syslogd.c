@@ -710,8 +710,7 @@ main(int argc, char *argv[])
 				(*sl->sl_recv)(sl);
 		}
 	}
-	if (fdsr)
-		free(fdsr);
+	free(fdsr);
 }
 
 static int
