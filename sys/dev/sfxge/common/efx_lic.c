@@ -625,7 +625,7 @@ efx_lic_v1v2_write_key(
 	EFSYS_ASSERT(length <= (EFX_LICENSE_V1V2_PAYLOAD_LENGTH_MAX +
 	    EFX_LICENSE_V1V2_HEADER_LENGTH));
 
-	// Ensure space for terminator remains
+	/* Ensure space for terminator remains */
 	if ((offset + length) >
 	    (buffer_size - EFX_LICENSE_V1V2_HEADER_LENGTH) ) {
 		rc = ENOSPC;
@@ -662,7 +662,7 @@ efx_lic_v1v2_delete_key(
 	_NOTE(ARGUNUSED(enp))
 	EFSYS_ASSERT(end <= buffer_size);
 
-	// Shift everything after the key down
+	/* Shift everything after the key down */
 	memmove(bufferp + offset, bufferp + move_start, move_length);
 
 	*deltap = length;
@@ -681,7 +681,7 @@ efx_lic_v1v2_create_partition(
 	_NOTE(ARGUNUSED(enp))
 	EFSYS_ASSERT(EFX_LICENSE_V1V2_HEADER_LENGTH <= buffer_size);
 
-	// Write terminator
+	/* Write terminator */
 	memset(bufferp, '\0', EFX_LICENSE_V1V2_HEADER_LENGTH);
 	return (0);
 }
@@ -1155,7 +1155,7 @@ efx_lic_v3_validate_key(
 	__in			uint32_t length
 	)
 {
-	// Check key is a valid V3 key
+	/* Check key is a valid V3 key */
 	uint8_t key_type;
 	uint8_t key_length;
 
@@ -1272,7 +1272,7 @@ efx_lic_v3_create_partition(
 {
 	efx_rc_t rc;
 
-	// Construct empty partition
+	/* Construct empty partition */
 	if ((rc = ef10_nvram_buffer_create(enp,
 	    NVRAM_PARTITION_TYPE_LICENSE,
 	    bufferp, buffer_size)) != 0) {
@@ -1303,7 +1303,7 @@ efx_lic_v3_finish_partition(
 		goto fail1;
 	}
 
-	// Validate completed partition
+	/* Validate completed partition */
 	if ((rc = ef10_nvram_buffer_validate(enp, NVRAM_PARTITION_TYPE_LICENSE,
 					bufferp, buffer_size)) != 0) {
 		goto fail2;
