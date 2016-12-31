@@ -754,7 +754,7 @@ sys_fchdir(td, uap)
 	if (error != 0)
 		return (error);
 	vp = fp->f_vnode;
-	VREF(vp);
+	vrefact(vp);
 	fdrop(fp, td);
 	vn_lock(vp, LK_SHARED | LK_RETRY);
 	AUDIT_ARG_VNODE1(vp);

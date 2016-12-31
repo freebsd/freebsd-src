@@ -318,11 +318,11 @@ pwd_ensure_dirs(void)
 	FILEDESC_XLOCK(fdp);
 	if (fdp->fd_cdir == NULL) {
 		fdp->fd_cdir = rootvnode;
-		VREF(rootvnode);
+		vrefact(rootvnode);
 	}
 	if (fdp->fd_rdir == NULL) {
 		fdp->fd_rdir = rootvnode;
-		VREF(rootvnode);
+		vrefact(rootvnode);
 	}
 	FILEDESC_XUNLOCK(fdp);
 }
@@ -1855,13 +1855,13 @@ fdinit(struct filedesc *fdp, bool prepfiles)
 	FILEDESC_SLOCK(fdp);
 	newfdp->fd_cdir = fdp->fd_cdir;
 	if (newfdp->fd_cdir)
-		VREF(newfdp->fd_cdir);
+		vrefact(newfdp->fd_cdir);
 	newfdp->fd_rdir = fdp->fd_rdir;
 	if (newfdp->fd_rdir)
-		VREF(newfdp->fd_rdir);
+		vrefact(newfdp->fd_rdir);
 	newfdp->fd_jdir = fdp->fd_jdir;
 	if (newfdp->fd_jdir)
-		VREF(newfdp->fd_jdir);
+		vrefact(newfdp->fd_jdir);
 
 	if (!prepfiles) {
 		FILEDESC_SUNLOCK(fdp);
@@ -2688,7 +2688,7 @@ _fgetvp(struct thread *td, int fd, int flags, cap_rights_t *needrightsp,
 		error = EINVAL;
 	} else {
 		*vpp = fp->f_vnode;
-		vref(*vpp);
+		vrefact(*vpp);
 	}
 	fdrop(fp, td);
 
@@ -2727,7 +2727,7 @@ fgetvp_rights(struct thread *td, int fd, cap_rights_t *needrightsp,
 		return (EINVAL);
 
 	*vpp = fp->f_vnode;
-	vref(*vpp);
+	vrefact(*vpp);
 	filecaps_copy(&fdp->fd_ofiles[fd].fde_caps, havecaps, true);
 
 	return (0);
@@ -3033,10 +3033,10 @@ pwd_chroot(struct thread *td, struct vnode *vp)
 		}
 	}
 	oldvp = fdp->fd_rdir;
-	VREF(vp);
+	vrefact(vp);
 	fdp->fd_rdir = vp;
 	if (fdp->fd_jdir == NULL) {
-		VREF(vp);
+		vrefact(vp);
 		fdp->fd_jdir = vp;
 	}
 	FILEDESC_XUNLOCK(fdp);
@@ -3084,17 +3084,17 @@ mountcheckdirs(struct vnode *olddp, struct vnode *newdp)
 			continue;
 		FILEDESC_XLOCK(fdp);
 		if (fdp->fd_cdir == olddp) {
-			vref(newdp);
+			vrefact(newdp);
 			fdp->fd_cdir = newdp;
 			nrele++;
 		}
 		if (fdp->fd_rdir == olddp) {
-			vref(newdp);
+			vrefact(newdp);
 			fdp->fd_rdir = newdp;
 			nrele++;
 		}
 		if (fdp->fd_jdir == olddp) {
-			vref(newdp);
+			vrefact(newdp);
 			fdp->fd_jdir = newdp;
 			nrele++;
 		}
@@ -3103,13 +3103,13 @@ mountcheckdirs(struct vnode *olddp, struct vnode *newdp)
 	}
 	sx_sunlock(&allproc_lock);
 	if (rootvnode == olddp) {
-		vref(newdp);
+		vrefact(newdp);
 		rootvnode = newdp;
 		nrele++;
 	}
 	mtx_lock(&prison0.pr_mtx);
 	if (prison0.pr_root == olddp) {
-		vref(newdp);
+		vrefact(newdp);
 		prison0.pr_root = newdp;
 		nrele++;
 	}
@@ -3118,7 +3118,7 @@ mountcheckdirs(struct vnode *olddp, struct vnode *newdp)
 	TAILQ_FOREACH(pr, &allprison, pr_list) {
 		mtx_lock(&pr->pr_mtx);
 		if (pr->pr_root == olddp) {
-			vref(newdp);
+			vrefact(newdp);
 			pr->pr_root = newdp;
 			nrele++;
 		}
@@ -3445,17 +3445,17 @@ kern_proc_filedesc_out(struct proc *p,  struct sbuf *sb, ssize_t maxlen,
 	/* ktrace vnode */
 	tracevp = p->p_tracevp;
 	if (tracevp != NULL)
-		vref(tracevp);
+		vrefact(tracevp);
 	/* text vnode */
 	textvp = p->p_textvp;
 	if (textvp != NULL)
-		vref(textvp);
+		vrefact(textvp);
 	/* Controlling tty. */
 	cttyvp = NULL;
 	if (p->p_pgrp != NULL && p->p_pgrp->pg_session != NULL) {
 		cttyvp = p->p_pgrp->pg_session->s_ttyvp;
 		if (cttyvp != NULL)
-			vref(cttyvp);
+			vrefact(cttyvp);
 	}
 	fdp = fdhold(p);
 	PROC_UNLOCK(p);
@@ -3479,17 +3479,17 @@ kern_proc_filedesc_out(struct proc *p,  struct sbuf *sb, ssize_t maxlen,
 	FILEDESC_SLOCK(fdp);
 	/* working directory */
 	if (fdp->fd_cdir != NULL) {
-		vref(fdp->fd_cdir);
+		vrefact(fdp->fd_cdir);
 		export_vnode_to_sb(fdp->fd_cdir, KF_FD_TYPE_CWD, FREAD, efbuf);
 	}
 	/* root directory */
 	if (fdp->fd_rdir != NULL) {
-		vref(fdp->fd_rdir);
+		vrefact(fdp->fd_rdir);
 		export_vnode_to_sb(fdp->fd_rdir, KF_FD_TYPE_ROOT, FREAD, efbuf);
 	}
 	/* jail directory */
 	if (fdp->fd_jdir != NULL) {
-		vref(fdp->fd_jdir);
+		vrefact(fdp->fd_jdir);
 		export_vnode_to_sb(fdp->fd_jdir, KF_FD_TYPE_JAIL, FREAD, efbuf);
 	}
 	for (i = 0; fdp->fd_refcnt > 0 && i <= fdp->fd_lastfile; i++) {
@@ -3579,7 +3579,7 @@ export_vnode_for_osysctl(struct vnode *vp, int type, struct kinfo_file *kif,
 {
 	int error;
 
-	vref(vp);
+	vrefact(vp);
 	FILEDESC_SUNLOCK(fdp);
 	export_vnode_to_kinfo(vp, type, 0, kif, KERN_FILEDESC_PACK_KINFO);
 	kinfo_to_okinfo(kif, okif);
@@ -3706,7 +3706,7 @@ kern_proc_cwd_out(struct proc *p,  struct sbuf *sb, ssize_t maxlen)
 	if (fdp->fd_cdir == NULL)
 		error = EINVAL;
 	else {
-		vref(fdp->fd_cdir);
+		vrefact(fdp->fd_cdir);
 		error = export_vnode_to_sb(fdp->fd_cdir, KF_FD_TYPE_CWD,
 		    FREAD, efbuf);
 	}

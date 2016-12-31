@@ -1122,9 +1122,9 @@ kern___getcwd(struct thread *td, char *buf, enum uio_seg bufseg, u_int buflen,
 	fdp = td->td_proc->p_fd;
 	FILEDESC_SLOCK(fdp);
 	cdir = fdp->fd_cdir;
-	VREF(cdir);
+	vrefact(cdir);
 	rdir = fdp->fd_rdir;
-	VREF(rdir);
+	vrefact(rdir);
 	FILEDESC_SUNLOCK(fdp);
 	error = vn_fullpath1(td, cdir, rdir, tmpbuf, &bp, buflen);
 	vrele(rdir);
