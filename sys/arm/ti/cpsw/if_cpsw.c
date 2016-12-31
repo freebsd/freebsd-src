@@ -47,6 +47,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_cpsw.h"
+
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
@@ -79,6 +81,11 @@ __FBSDID("$FreeBSD$");
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+ 
+#ifdef CPSW_ETHERSWITCH
+#include <dev/etherswitch/etherswitch.h>
+#include "etherswitch_if.h"
+#endif
 
 #include "if_cpswreg.h"
 #include "if_cpswvar.h"
@@ -143,6 +150,19 @@ static void cpsw_add_sysctls(struct cpsw_softc *);
 static void cpsw_stats_collect(struct cpsw_softc *);
 static int cpsw_stats_sysctl(SYSCTL_HANDLER_ARGS);
 
+#ifdef CPSW_ETHERSWITCH
+static etherswitch_info_t *cpsw_getinfo(device_t);
+static int cpsw_getport(device_t, etherswitch_port_t *);
+static int cpsw_setport(device_t, etherswitch_port_t *);
+static int cpsw_getconf(device_t, etherswitch_conf_t *);
+static int cpsw_getvgroup(device_t, etherswitch_vlangroup_t *);
+static int cpsw_setvgroup(device_t, etherswitch_vlangroup_t *);
+static int cpsw_readreg(device_t, int);
+static int cpsw_writereg(device_t, int, int);
+static int cpsw_readphy(device_t, int, int);
+static int cpsw_writephy(device_t, int, int, int);
+#endif
+
 /*
  * Arbitrary limit on number of segments in an mbuf to be transmitted.
  * Packets with more segments than this will be defragmented before
@@ -159,8 +179,23 @@ static device_method_t cpsw_methods[] = {
 	DEVMETHOD(device_shutdown,	cpsw_shutdown),
 	DEVMETHOD(device_suspend,	cpsw_suspend),
 	DEVMETHOD(device_resume,	cpsw_resume),
+	/* Bus interface */
+	DEVMETHOD(bus_add_child,	device_add_child_ordered),
 	/* OFW methods */
 	DEVMETHOD(ofw_bus_get_node,	cpsw_get_node),
+#ifdef CPSW_ETHERSWITCH
+	/* etherswitch interface */
+	DEVMETHOD(etherswitch_getinfo,	cpsw_getinfo),
+	DEVMETHOD(etherswitch_readreg,	cpsw_readreg),
+	DEVMETHOD(etherswitch_writereg,	cpsw_writereg),
+	DEVMETHOD(etherswitch_readphyreg,	cpsw_readphy),
+	DEVMETHOD(etherswitch_writephyreg,	cpsw_writephy),
+	DEVMETHOD(etherswitch_getport,	cpsw_getport),
+	DEVMETHOD(etherswitch_setport,	cpsw_setport),
+	DEVMETHOD(etherswitch_getvgroup,	cpsw_getvgroup),
+	DEVMETHOD(etherswitch_setvgroup,	cpsw_setvgroup),
+	DEVMETHOD(etherswitch_getconf,	cpsw_getconf),
+#endif
 	DEVMETHOD_END
 };
 
@@ -195,10 +230,19 @@ static driver_t cpswp_driver = {
 
 static devclass_t cpswp_devclass;
 
+#ifdef CPSW_ETHERSWITCH
+DRIVER_MODULE(etherswitch, cpswss, etherswitch_driver, etherswitch_devclass, 0, 0);
+MODULE_DEPEND(cpswss, etherswitch, 1, 1, 1);
+#endif
+
 DRIVER_MODULE(cpsw, cpswss, cpswp_driver, cpswp_devclass, 0, 0);
 DRIVER_MODULE(miibus, cpsw, miibus_driver, miibus_devclass, 0, 0);
 MODULE_DEPEND(cpsw, ether, 1, 1, 1);
 MODULE_DEPEND(cpsw, miibus, 1, 1, 1);
+
+#ifdef CPSW_ETHERSWITCH
+static struct cpsw_vlangroups cpsw_vgroups[CPSW_VLANS];
+#endif
 
 static uint32_t slave_mdio_addr[] = { 0x4a100200, 0x4a100300 };
 
@@ -577,7 +621,8 @@ cpsw_init(struct cpsw_softc *sc)
 	cpsw_write_4(sc, CPSW_PORT_P0_CPDMA_RX_CH_MAP, 0);
 
 	/* Initialize ALE: set host port to forwarding(3). */
-	cpsw_write_4(sc, CPSW_ALE_PORTCTL(0), 3);
+	cpsw_write_4(sc, CPSW_ALE_PORTCTL(0),
+	    ALE_PORTCTL_INGRESS | ALE_PORTCTL_FORWARD);
 
 	cpsw_write_4(sc, CPSW_SS_PTYPE, 0);
 
@@ -852,6 +897,11 @@ cpsw_attach(device_t dev)
 		return (ENXIO);
 	}
 
+#ifdef CPSW_ETHERSWITCH
+	for (i = 0; i < CPSW_VLANS; i++)
+		cpsw_vgroups[i].vid = -1;
+#endif
+
 	/* Reset the controller. */
 	cpsw_reset(sc);
 	cpsw_init(sc);
@@ -865,6 +915,7 @@ cpsw_attach(device_t dev)
 			return (ENXIO);
 		}
 	}
+	bus_generic_probe(dev);
 	bus_generic_attach(dev);
 
 	return (0);
@@ -919,7 +970,12 @@ cpsw_detach(device_t dev)
 	mtx_destroy(&sc->rx.lock);
 	mtx_destroy(&sc->tx.lock);
 
-	return (0);
+	/* Detach the switch device, if present. */
+	error = bus_generic_detach(dev);
+	if (error != 0)
+		return (error);
+        
+	return (device_delete_children(dev));
 }
 
 static phandle_t
@@ -1086,6 +1142,9 @@ cpswp_init(void *arg)
 static void
 cpswp_init_locked(void *arg)
 {
+#ifdef CPSW_ETHERSWITCH
+	int i;
+#endif
 	struct cpswp_softc *sc = arg;
 	struct ifnet *ifp;
 	uint32_t reg;
@@ -1116,8 +1175,9 @@ cpswp_init_locked(void *arg)
 	reg |= CPSW_SL_MACTL_GMII_ENABLE;
 	cpsw_write_4(sc->swsc, CPSW_SL_MACCONTROL(sc->unit), reg);
 
-	/* Initialize ALE: set port to forwarding(3), initialize addrs */
-	cpsw_write_4(sc->swsc, CPSW_ALE_PORTCTL(sc->unit + 1), 3);
+	/* Initialize ALE: set port to forwarding, initialize addrs */
+	cpsw_write_4(sc->swsc, CPSW_ALE_PORTCTL(sc->unit + 1),
+	    ALE_PORTCTL_INGRESS | ALE_PORTCTL_FORWARD);
 	cpswp_ale_update_addresses(sc, 1);
 
 	if (sc->swsc->dualemac) {
@@ -1128,6 +1188,14 @@ cpswp_init_locked(void *arg)
 		    (1 << (sc->unit + 1)) | (1 << 0), /* Member list */
 		    (1 << (sc->unit + 1)) | (1 << 0), /* Untagged egress */
 		    (1 << (sc->unit + 1)) | (1 << 0), 0); /* mcast reg flood */
+#ifdef CPSW_ETHERSWITCH
+		for (i = 0; i < CPSW_VLANS; i++) {
+			if (cpsw_vgroups[i].vid != -1)
+				continue;
+			cpsw_vgroups[i].vid = sc->vlan;
+			break;
+		}
+#endif
 	}
 
 	mii_mediachg(sc->mii);
@@ -2700,3 +2768,229 @@ cpsw_add_sysctls(struct cpsw_softc *sc)
 	    CTLFLAG_RD, NULL, "Watchdog Statistics");
 	cpsw_add_watchdog_sysctls(ctx, node, sc);
 }
+
+#ifdef CPSW_ETHERSWITCH
+static etherswitch_info_t etherswitch_info = {
+	.es_nports =		CPSW_PORTS + 1,
+	.es_nvlangroups =	CPSW_VLANS,
+	.es_name =		"TI Common Platform Ethernet Switch (CPSW)",
+	.es_vlan_caps =		ETHERSWITCH_VLAN_DOT1Q,
+};
+
+static etherswitch_info_t *
+cpsw_getinfo(device_t dev)
+{
+	return (&etherswitch_info);
+}
+
+static int
+cpsw_getport(device_t dev, etherswitch_port_t *p)
+{
+	int err;
+	struct cpsw_softc *sc;
+	struct cpswp_softc *psc;
+	struct ifmediareq *ifmr;
+	uint32_t reg;
+
+	if (p->es_port < 0 || p->es_port > CPSW_PORTS)
+		return (ENXIO);
+
+	err = 0;
+	sc = device_get_softc(dev);
+	if (p->es_port == CPSW_CPU_PORT) {
+		p->es_flags |= ETHERSWITCH_PORT_CPU;
+ 		ifmr = &p->es_ifmr;
+		ifmr->ifm_current = ifmr->ifm_active =
+		    IFM_ETHER | IFM_1000_T | IFM_FDX;
+		ifmr->ifm_mask = 0;
+		ifmr->ifm_status = IFM_ACTIVE | IFM_AVALID;
+		ifmr->ifm_count = 0;
+	} else {
+		psc = device_get_softc(sc->port[p->es_port - 1].dev);
+		err = ifmedia_ioctl(psc->ifp, &p->es_ifr,
+		    &psc->mii->mii_media, SIOCGIFMEDIA);
+	}
+	reg = cpsw_read_4(sc, CPSW_PORT_P_VLAN(p->es_port));
+	p->es_pvid = reg & ETHERSWITCH_VID_MASK;
+
+	reg = cpsw_read_4(sc, CPSW_ALE_PORTCTL(p->es_port));
+	if (reg & ALE_PORTCTL_DROP_UNTAGGED)
+		p->es_flags |= ETHERSWITCH_PORT_DROPUNTAGGED;
+	if (reg & ALE_PORTCTL_INGRESS)
+		p->es_flags |= ETHERSWITCH_PORT_INGRESS;
+
+	return (err);
+}
+
+static int
+cpsw_setport(device_t dev, etherswitch_port_t *p)
+{
+	struct cpsw_softc *sc;
+	struct cpswp_softc *psc;
+	struct ifmedia *ifm;
+	uint32_t reg;
+
+	if (p->es_port < 0 || p->es_port > CPSW_PORTS)
+		return (ENXIO);
+
+	sc = device_get_softc(dev);
+	if (p->es_pvid != 0) {
+		cpsw_write_4(sc, CPSW_PORT_P_VLAN(p->es_port),
+		    p->es_pvid & ETHERSWITCH_VID_MASK);
+	}
+
+	reg = cpsw_read_4(sc, CPSW_ALE_PORTCTL(p->es_port));
+	if (p->es_flags & ETHERSWITCH_PORT_DROPUNTAGGED)
+		reg |= ALE_PORTCTL_DROP_UNTAGGED;
+	else
+		reg &= ~ALE_PORTCTL_DROP_UNTAGGED;
+	if (p->es_flags & ETHERSWITCH_PORT_INGRESS)
+		reg |= ALE_PORTCTL_INGRESS;
+	else
+		reg &= ~ALE_PORTCTL_INGRESS;
+	cpsw_write_4(sc, CPSW_ALE_PORTCTL(p->es_port), reg);
+
+	/* CPU port does not allow media settings. */
+	if (p->es_port == CPSW_CPU_PORT)
+		return (0);
+
+	psc = device_get_softc(sc->port[p->es_port - 1].dev);
+	ifm = &psc->mii->mii_media;
+
+	return (ifmedia_ioctl(psc->ifp, &p->es_ifr, ifm, SIOCSIFMEDIA));
+}
+
+static int
+cpsw_getconf(device_t dev, etherswitch_conf_t *conf)
+{
+
+	/* Return the VLAN mode. */
+	conf->cmd = ETHERSWITCH_CONF_VLAN_MODE;
+	conf->vlan_mode = ETHERSWITCH_VLAN_DOT1Q;
+
+	return (0);
+}
+
+static int
+cpsw_getvgroup(device_t dev, etherswitch_vlangroup_t *vg)
+{
+	int i, vid;
+	uint32_t ale_entry[3];
+	struct cpsw_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	if (vg->es_vlangroup >= CPSW_VLANS)
+		return (EINVAL);
+
+	vg->es_vid = 0;
+	vid = cpsw_vgroups[vg->es_vlangroup].vid;
+	if (vid == -1)
+		return (0);
+
+	for (i = 0; i < CPSW_MAX_ALE_ENTRIES; i++) {
+		cpsw_ale_read_entry(sc, i, ale_entry);
+		if (ALE_TYPE(ale_entry) != ALE_TYPE_VLAN)
+			continue;
+		if (vid != ALE_VLAN(ale_entry))
+			continue;
+
+		vg->es_fid = 0;
+		vg->es_vid = ALE_VLAN(ale_entry) | ETHERSWITCH_VID_VALID;
+		vg->es_member_ports = ALE_VLAN_MEMBERS(ale_entry);
+		vg->es_untagged_ports = ALE_VLAN_UNTAG(ale_entry);
+	}
+
+	return (0);
+}
+
+static void
+cpsw_remove_vlan(struct cpsw_softc *sc, int vlan)
+{
+	int i;
+	uint32_t ale_entry[3];
+
+	for (i = 0; i < CPSW_MAX_ALE_ENTRIES; i++) {
+		cpsw_ale_read_entry(sc, i, ale_entry);
+		if (ALE_TYPE(ale_entry) != ALE_TYPE_VLAN)
+			continue;
+		if (vlan != ALE_VLAN(ale_entry))
+			continue;
+		ale_entry[0] = ale_entry[1] = ale_entry[2] = 0;
+		cpsw_ale_write_entry(sc, i, ale_entry);
+		break;
+	}
+}
+
+static int
+cpsw_setvgroup(device_t dev, etherswitch_vlangroup_t *vg)
+{
+	int i;
+	struct cpsw_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	for (i = 0; i < CPSW_VLANS; i++) {
+		/* Is this Vlan ID in use by another vlangroup ? */
+		if (vg->es_vlangroup != i && cpsw_vgroups[i].vid == vg->es_vid)
+			return (EINVAL);
+	}
+
+	if (vg->es_vid == 0) {
+		if (cpsw_vgroups[vg->es_vlangroup].vid == -1)
+			return (0);
+		cpsw_remove_vlan(sc, cpsw_vgroups[vg->es_vlangroup].vid);
+		cpsw_vgroups[vg->es_vlangroup].vid = -1;
+		vg->es_untagged_ports = 0;
+		vg->es_member_ports = 0;
+		vg->es_vid = 0;
+		return (0);
+	}
+
+	vg->es_vid &= ETHERSWITCH_VID_MASK;
+	vg->es_member_ports &= CPSW_PORTS_MASK;
+	vg->es_untagged_ports &= CPSW_PORTS_MASK;
+
+	if (cpsw_vgroups[vg->es_vlangroup].vid != -1 &&
+	    cpsw_vgroups[vg->es_vlangroup].vid != vg->es_vid)
+		return (EINVAL);
+
+	cpsw_vgroups[vg->es_vlangroup].vid = vg->es_vid;
+	cpsw_ale_update_vlan_table(sc, vg->es_vid, vg->es_member_ports,
+	    vg->es_untagged_ports, vg->es_member_ports, 0);
+
+	return (0);
+}
+
+static int
+cpsw_readreg(device_t dev, int addr)
+{
+
+	/* Not supported. */
+	return (0);
+}
+
+static int
+cpsw_writereg(device_t dev, int addr, int value)
+{
+
+	/* Not supported. */
+	return (0);
+}
+
+static int
+cpsw_readphy(device_t dev, int phy, int reg)
+{
+
+	/* Not supported. */
+	return (0);
+}
+
+static int
+cpsw_writephy(device_t dev, int phy, int reg, int data)
+{
+
+	/* Not supported. */
+	return (0);
+}
+#endif
