@@ -2576,6 +2576,28 @@ vrefl(struct vnode *vp)
 	v_incr_usecount_locked(vp);
 }
 
+void
+vrefact(struct vnode *vp)
+{
+
+	CTR2(KTR_VFS, "%s: vp %p", __func__, vp);
+	if (__predict_false(vp->v_type == VCHR)) {
+		VNASSERT(vp->v_holdcnt > 0 && vp->v_usecount > 0, vp,
+		    ("%s: wrong ref counts", __func__));
+		vref(vp);
+		return;
+	}
+#ifdef INVARIANTS
+	int old = atomic_fetchadd_int(&vp->v_holdcnt, 1);
+	VNASSERT(old > 0, vp, ("%s: wrong hold count", __func__));
+	old = atomic_fetchadd_int(&vp->v_usecount, 1);
+	VNASSERT(old > 0, vp, ("%s: wrong use count", __func__));
+#else
+	refcount_acquire(&vp->v_holdcnt);
+	refcount_acquire(&vp->v_usecount);
+#endif
+}
+
 /*
  * Return reference count of a vnode.
  *
