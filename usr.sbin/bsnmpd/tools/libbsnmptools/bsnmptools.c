@@ -1093,6 +1093,7 @@ snmp_ip2asn_oid(char *str, struct asn_oid *oid)
 	char *endptr, *ptr;
 
 	ptr = str;
+
 	for (i = 0; i < 4; i++) {
 		v = strtoul(ptr, &endptr, 10);
 		if (v > 0xff)
