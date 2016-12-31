@@ -498,7 +498,6 @@ snmptool_walk(struct snmp_toolinfo *snmptoolctx)
 			}
 
 			outputs += rc;
-			snmp_pdu_free(&resp);
 
 			if ((u_int)rc < resp.nbindings)
 				break;
@@ -518,8 +517,6 @@ snmptool_walk(struct snmp_toolinfo *snmptoolctx)
 					snmp_output_err_resp(snmptoolctx, &resp);
 				else
 					snmp_output_resp(snmptoolctx, &(resp), NULL);
-
-				snmp_pdu_free(&resp);
 			} else
 				warn("Snmp dialog");
 		}
@@ -528,6 +525,8 @@ snmptool_walk(struct snmp_toolinfo *snmptoolctx)
 			warnx("snmp_object_remove");
 			break;
 		}
+
+		snmp_pdu_free(&resp);
 
 		snmp_pdu_create(&req, op);
 	}
