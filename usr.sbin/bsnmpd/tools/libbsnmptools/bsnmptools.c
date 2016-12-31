@@ -31,7 +31,7 @@
  * $FreeBSD$
  */
 
-#include <sys/param.h> 
+#include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/uio.h>
 
@@ -117,7 +117,7 @@ static const struct {
 	{ "Gauge", SNMP_SYNTAX_GAUGE },
 	{ "TimeTicks", SNMP_SYNTAX_TIMETICKS },
 	{ "Counter64", SNMP_SYNTAX_COUNTER64 },
-	{ "Unknown", SNMP_SYNTAX_UNKNOWN }, 
+	{ "Unknown", SNMP_SYNTAX_UNKNOWN },
 };
 
 int
@@ -189,7 +189,7 @@ snmptool_init(struct snmp_toolinfo *snmptoolctx)
 
 #define	OBJECT_IDX_LIST(o)	o->info->table_idx->index_list
 
-/* 
+/*
  * Walk through the file list and import string<->oid mappings from each file.
  */
 int32_t
@@ -287,7 +287,7 @@ free_filelist(struct snmp_toolinfo *snmptoolctx)
 	}
 }
 
-static char 
+static char
 isvalid_fchar(char c, int pos)
 {
 	if (isalpha(c)|| c == '/'|| c == '_' || c == '.' || c == '~' ||
@@ -652,7 +652,7 @@ parse_user_security(struct snmp_toolinfo *snmptoolctx __unused, char *opt_arg)
 				warnx("Suboption 'engine' - no argument");
 				return (-1);
 			}
-			snmp_client.engine.engine_len = parse_ascii(val, 
+			snmp_client.engine.engine_len = parse_ascii(val,
 			    snmp_client.engine.engine_id, SNMP_ENGINE_ID_SIZ);
 			if ((int32_t)snmp_client.engine.engine_len == -1) {
 				warnx("Bad EngineID - %s", val);
@@ -1470,7 +1470,7 @@ snmp_pdu_add_bindings(struct snmp_toolinfo *snmptoolctx,
 	/* Return 0 in case of no more work todo. */
 	if (SLIST_EMPTY(&snmptoolctx->snmp_objectlist))
 		return (0);
-	
+
 	if (maxcount < 0 || maxcount > SNMP_MAX_BINDINGS) {
 		warnx("maxcount out of range: <0 || >SNMP_MAX_BINDINGS");
 		return (-1);

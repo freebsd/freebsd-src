@@ -7,7 +7,7 @@
  *	All rights reserved.
  *
  * Author: Harti Brandt <harti@freebsd.org>
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -16,7 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -170,7 +170,7 @@ init_snmpd_engine(void)
 	} else {
 		memcpy(snmpd_engine.engine_id + snmpd_engine.engine_len,
 		    hostid, strlen(hostid));
-		snmpd_engine.engine_len += strlen(hostid);		
+		snmpd_engine.engine_len += strlen(hostid);
 	}
 
 	free(hostid);
@@ -1073,7 +1073,7 @@ op_snmp_engine(struct snmp_context *ctx __unused, struct snmp_value *value,
 			ctx->scratch->int1 = snmpd_engine.max_msg_size;
 			snmpd_engine.max_msg_size = value->v.integer;
 			break;
-	
+
 		default:
 			return (SNMP_ERR_NOT_WRITEABLE);
 		}
@@ -1103,7 +1103,7 @@ op_snmp_engine(struct snmp_context *ctx __unused, struct snmp_value *value,
 				snmpd_engine.engine_len = ctx->scratch->int1;
 				memcpy(snmpd_engine.engine_id,
 				    ctx->scratch->ptr1, ctx->scratch->int1);
-			}	
+			}
 			free(ctx->scratch->ptr1);
 		}
 		return (SNMP_ERR_NOERROR);
