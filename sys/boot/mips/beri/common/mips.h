@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011 Robert N. M. Watson
+ * Copyright (c) 2011, 2016 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -143,6 +143,11 @@ mips_iowrite_uint32le(vaddr_t vaddr, uint32_t v)
 /*
  * Coprocessor 0 interfaces.
  */
+#define	MIPS_CONFIG_IB_SHIFT	5	/* IB: Instruction-cache line size */
+#define	MIPS_CONFIG_IB_MASK	0x20	/* IB: Instruction-cache line size */
+#define	MIPS_CONFIG_DB_SHIFT	4	/* DB: Instruction-cache line size */
+#define	MIPS_CONFIG_DB_MASK	0x10	/* DB: Instruction-cache line size */
+
 static inline register_t
 cp0_count_get(void)
 {
@@ -152,4 +157,12 @@ cp0_count_get(void)
        return (count);
 }
 
+static inline register_t
+cp0_config_get(void)
+{
+	register_t config;
+
+	__asm__ __volatile__ ("dmfc0 %0, $16" : "=r" (config));
+	return (config);
+}
 #endif

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013-2014 Robert N. M. Watson
+ * Copyright (c) 2013-2014, 2016 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/elf.h>
 
 #include <bootstrap.h>
+#include <cache.h>
 #include <loader.h>
 #include <mips.h>
 #include <stand.h>
@@ -111,6 +112,12 @@ beri_elf64_exec(struct preloaded_file *fp)
 	bootinfo.bi_dtb = boot2_bootinfo.bi_dtb;
 	bootinfo.bi_memsize = boot2_bootinfo.bi_memsize;
 	bootinfo.bi_modulep = mdp;
+
+	/*
+	 * Flush the instruction cache before running any instructions from
+	 * the loaded kernel.
+	 */
+	beri_icache_sync();
 
 	/*
 	 * XXXRW: For now, pass 'memsize' rather than dtb or bootinfo.  This

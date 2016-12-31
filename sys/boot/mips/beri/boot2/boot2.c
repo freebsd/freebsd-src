@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013-2014 Robert N. M. Watson
+ * Copyright (c) 2013-2014, 2016 Robert N. M. Watson
  * Copyright (c) 2014 SRI International
  * All rights reserved.
  *
@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 
 #include <beri.h>
+#include <cache.h>
 #include <cfi.h>
 #include <cons.h>
 #include <mips.h>
@@ -432,6 +433,9 @@ boot_fromfs(void)
 	printf("Invalid %s\n", "format");
 	return;
     }
+
+    /* Flush the instruction cache before calling the start function. */
+    beri_icache_sync();
     boot((void *)addr, beri_argc, beri_argv, beri_envv);
 }
 

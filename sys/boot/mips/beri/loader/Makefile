@@ -1,5 +1,5 @@
 #-
-# Copyright (c) 2013-2014 Robert N. M. Watson
+# Copyright (c) 2013-2014, 2016 Robert N. M. Watson
 # All rights reserved.
 #
 # This software was developed by SRI International and the University of
@@ -53,6 +53,7 @@ SRCS+=		beri_console.c					\
 
 # Common code with boot2
 SRCS+=		altera_jtag_uart.c				\
+		cache.c						\
 		cfi.c						\
 		sdcard.c
 
