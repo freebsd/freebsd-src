@@ -265,7 +265,7 @@ mib_if_admin(struct mibif *ifp, int up)
 {
 	struct ifreq ifr;
 
-	strncpy(ifr.ifr_name, ifp->name, sizeof(ifr.ifr_name));
+	strlcpy(ifr.ifr_name, ifp->name, sizeof(ifr.ifr_name));
 	if (ioctl(mib_netsock, SIOCGIFFLAGS, &ifr) == -1) {
 		syslog(LOG_ERR, "SIOCGIFFLAGS(%s): %m", ifp->name);
 		return (-1);
@@ -515,7 +515,7 @@ mib_fetch_ifmib(struct mibif *ifp)
 	}
 
   out:
-	strncpy(irr.ifr_name, ifp->name, sizeof(irr.ifr_name));
+	strlcpy(irr.ifr_name, ifp->name, sizeof(irr.ifr_name));
 	irr.ifr_buffer.buffer = MIBIF_PRIV(ifp)->alias;
 	irr.ifr_buffer.length = sizeof(MIBIF_PRIV(ifp)->alias);
 	if (ioctl(mib_netsock, SIOCGIFDESCR, &irr) == -1) {
@@ -1384,7 +1384,7 @@ siocaifaddr(char *ifname, struct in_addr addr, struct in_addr mask,
 	struct sockaddr_in *sa;
 
 	memset(&addreq, 0, sizeof(addreq));
-	strncpy(addreq.ifra_name, ifname, sizeof(addreq.ifra_name));
+	strlcpy(addreq.ifra_name, ifname, sizeof(addreq.ifra_name));
 
 	sa = (struct sockaddr_in *)(void *)&addreq.ifra_addr;
 	sa->sin_family = AF_INET;
@@ -1414,7 +1414,7 @@ siocdifaddr(const char *ifname, struct in_addr addr)
 	struct sockaddr_in *sa;
 
 	memset(&delreq, 0, sizeof(delreq));
-	strncpy(delreq.ifr_name, ifname, sizeof(delreq.ifr_name));
+	strlcpy(delreq.ifr_name, ifname, sizeof(delreq.ifr_name));
 	sa = (struct sockaddr_in *)(void *)&delreq.ifr_addr;
 	sa->sin_family = AF_INET;
 	sa->sin_len = sizeof(*sa);
@@ -1433,7 +1433,7 @@ verify_ifa(const char *name, struct mibifa *ifa)
 	struct sockaddr_in *sa;
 
 	memset(&req, 0, sizeof(req));
-	strncpy(req.ifr_name, name, sizeof(req.ifr_name));
+	strlcpy(req.ifr_name, name, sizeof(req.ifr_name));
 	sa = (struct sockaddr_in *)(void *)&req.ifr_addr;
 	sa->sin_family = AF_INET;
 	sa->sin_len = sizeof(*sa);
