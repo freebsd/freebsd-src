@@ -163,7 +163,7 @@ hostres_start(void)
 	start_processor_tbl(hostres_module);
 	start_network_tbl();
 
-        HRDBG("done.");
+	HRDBG("done.");
 }
 
 /* this identifies the HOST RESOURCES mib module */
@@ -175,8 +175,8 @@ const struct snmp_module config = {
 	NULL,
 	NULL,
 	hostres_start,
-	NULL,                   /* proxy a PDU */
-	hostres_ctree,          /* see the generated hostres_tree.h */
+	NULL,		   /* proxy a PDU */
+	hostres_ctree,	  /* see the generated hostres_tree.h */
 	hostres_CTREE_SIZE,     /* see the generated hostres_tree.h */
 	NULL
 };
