@@ -1937,20 +1937,18 @@ snmp_parse_server(struct snmp_client *sc, const char *str)
 		}
 		/* port */
 		free(sc->cport);
-		if ((sc->cport = malloc(strlen(p + 1) + 1)) == NULL) {
+		if ((sc->cport = strdup(p + 1)) == NULL) {
 			seterr(sc, "%s", strerror(errno));
 			return (-1);
 		}
-		strcpy(sc->cport, p + 1);
 
 	} else if (p > s) {
 		/* host */
 		free(sc->chost);
-		if ((sc->chost = malloc(strlen(s) + 1)) == NULL) {
+		if ((sc->chost = strdup(strlen(s))) == NULL) {
 			seterr(sc, "%s", strerror(errno));
 			return (-1);
 		}
-		strcpy(sc->chost, s);
 	}
 	return (0);
 }
