@@ -422,7 +422,7 @@ snmp_create_v1_trap(struct snmp_pdu *pdu, char *com,
     const struct asn_oid *trap_oid)
 {
 	memset(pdu, 0, sizeof(*pdu));
-	strcpy(pdu->community, com);
+	strlcpy(pdu->community, com, sizeof(pdu->community));
 
 	pdu->version = SNMP_V1;
 	pdu->type = SNMP_PDU_TRAP;
@@ -439,7 +439,7 @@ snmp_create_v2_trap(struct snmp_pdu *pdu, char *com,
     const struct asn_oid *trap_oid)
 {
 	memset(pdu, 0, sizeof(*pdu));
-	strcpy(pdu->community, com);
+	strlcpy(pdu->community, com, sizeof(pdu->community));
 
 	pdu->version = SNMP_V2c;
 	pdu->type = SNMP_PDU_TRAP2;
