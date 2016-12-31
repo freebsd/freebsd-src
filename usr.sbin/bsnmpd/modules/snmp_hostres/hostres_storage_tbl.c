@@ -153,7 +153,7 @@ storage_entry_create(const char *name)
 	if (map == NULL) {
 		/* new object - get a new index */
 		if (next_storage_index > INT_MAX) {
-		        syslog(LOG_ERR,
+			syslog(LOG_ERR,
 			    "%s: hrStorageTable index wrap", __func__);
 			errx(EX_SOFTWARE, "hrStorageTable index wrap");
 		}
@@ -188,7 +188,7 @@ storage_entry_create(const char *name)
 		syslog(LOG_WARNING, "%s: %m", __func__);
 		return (NULL);
 	}
-        memset(entry, 0, sizeof(*entry));
+	memset(entry, 0, sizeof(*entry));
 
 	entry->index = map->hrIndex;
 
@@ -374,10 +374,13 @@ storage_OS_get_memstat(void)
 static void
 storage_OS_get_swap(void)
 {
-        int nswapdev = 0;
-	size_t len = sizeof(nswapdev);
 	struct storage_entry *entry;
 	char swap_w_prefix[SE_DESC_MLEN];
+	size_t len;
+	int nswapdev;
+
+	len = sizeof(nswapdev);
+	nswapdev = 0;
 
 	if (sysctlbyname("vm.nswapdev", &nswapdev, &len, NULL,0 ) < 0) {
 		syslog(LOG_ERR,
