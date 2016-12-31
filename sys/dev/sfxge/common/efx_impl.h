@@ -564,7 +564,7 @@ typedef struct efx_lic_ops_s {
 	efx_rc_t	(*elo_find_start)
 				(efx_nic_t *, caddr_t, size_t, uint32_t *);
 	efx_rc_t	(*elo_find_end)(efx_nic_t *, caddr_t, size_t,
-				uint32_t , uint32_t *);
+				uint32_t, uint32_t *);
 	boolean_t	(*elo_find_key)(efx_nic_t *, caddr_t, size_t,
 				uint32_t, uint32_t *, uint32_t *);
 	boolean_t	(*elo_validate_key)(efx_nic_t *,
