@@ -178,7 +178,7 @@
 			compatible = "allwinner,sun8i-a83t-usb-phy";
 			reg = <0x01c19400 0x2c>,
 			      <0x01c1a800 0x4>,
-			      <0x01c1a800 0x4>;
+			      <0x01c1b800 0x4>;
 			clocks = <&usb_clk 8>,
 				 <&usb_clk 9>,
 				 <&usb_clk 10>,
