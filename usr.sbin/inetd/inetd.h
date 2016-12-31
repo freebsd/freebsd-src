@@ -123,12 +123,7 @@ struct	servtab {
 #define	se_reset		se_flags.se_reset
 
 int		check_loop(const struct sockaddr *, const struct servtab *sep);
-int		getvalue(const char *, int *, const char *);
-char	       *newstr(const char *);
 void		inetd_setproctitle(const char *, int);
-void		print_service(const char *, const struct servtab *);
-char	       *sskip(char **);
-char	       *skip(char **);
 struct servtab *tcpmux(int);
 
 extern int	 debug;
@@ -143,3 +138,4 @@ struct biltin {
 	int	bi_maxchild;		/* max number of children, -1=default */
 	bi_fn_t	*bi_fn;			/* function which performs it */
 };
+extern struct biltin biltins[];
