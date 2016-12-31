@@ -65,11 +65,10 @@ static const efx_phy_ops_t	__efx_phy_ef10_ops = {
 	ef10_phy_stats_update,		/* epo_stats_update */
 #endif	/* EFSYS_OPT_PHY_STATS */
 #if EFSYS_OPT_BIST
-	/* FIXME: Are these BIST methods appropriate for Medford? */
-	hunt_bist_enable_offline,	/* epo_bist_enable_offline */
-	hunt_bist_start,		/* epo_bist_start */
-	hunt_bist_poll,			/* epo_bist_poll */
-	hunt_bist_stop,			/* epo_bist_stop */
+	ef10_bist_enable_offline,	/* epo_bist_enable_offline */
+	ef10_bist_start,		/* epo_bist_start */
+	ef10_bist_poll,			/* epo_bist_poll */
+	ef10_bist_stop,			/* epo_bist_stop */
 #endif	/* EFSYS_OPT_BIST */
 };
 #endif	/* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD */
