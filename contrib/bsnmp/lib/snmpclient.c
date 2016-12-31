@@ -1214,7 +1214,7 @@ snmp_next_reqid(struct snmp_client * c)
 	int32_t i;
 
 	i = c->next_reqid;
-	if (c->next_reqid >= c->max_reqid)	
+	if (c->next_reqid >= c->max_reqid)
 		c->next_reqid = c->min_reqid;
 	else
 		c->next_reqid++;
@@ -1230,7 +1230,7 @@ snmp_send_packet(struct snmp_pdu * pdu)
 	u_char *buf;
 	struct asn_buf b;
 	ssize_t ret;
- 
+
 	if ((buf = malloc(snmp_client.txbuflen)) == NULL) {
 		seterr(&snmp_client, "%s", strerror(errno));
 		return (-1);
@@ -1684,9 +1684,9 @@ snmp_dialog(struct snmp_v1_pdu *req, struct snmp_v1_pdu *resp)
 	struct timeval tv = snmp_client.timeout;
 	struct timeval end;
 	struct snmp_pdu pdu;
-	u_int i;
-	int32_t reqid;
 	int ret;
+	int32_t reqid;
+	u_int i;
 
 	/*
 	 * Make a copy of the request and replace the syntaxes by NULL
