@@ -321,8 +321,9 @@ static int	LogFacPri;	/* Put facility and priority in log message: */
 static int	KeepKernFac;	/* Keep remotely logged kernel facility */
 static int	needdofsync = 0; /* Are any file(s) waiting to be fsynced? */
 static struct pidfh *pfh;
+static int	sigp[2];	/* Pipe to catch a signal during select(). */
 
-static volatile sig_atomic_t MarkSet, WantDie;
+static volatile sig_atomic_t MarkSet, WantDie, WantInitialize, WantReapchild;
 
 static int	allowaddr(char *);
 static int	addfile(struct filed *);
@@ -340,6 +341,7 @@ static void	dofsync(void);
 static void	domark(int);
 static void	fprintlog(struct filed *, int, const char *);
 static void	init(int);
+static void	init_sh(int);
 static void	logerror(const char *);
 static void	logmsg(int, const char *, const char *, int);
 static void	log_deadchild(pid_t, int, const char *);
@@ -347,11 +349,13 @@ static void	markit(void);
 static int	socksetup(struct peer *);
 static int	socklist_recv_file(struct socklist *);
 static int	socklist_recv_sock(struct socklist *);
+static int	socklist_recv_signal(struct socklist *);
 static int	skip_message(const char *, const char *, int);
 static void	printline(const char *, char *, int);
 static void	printsys(char *);
 static int	p_open(const char *, pid_t *);
 static void	reapchild(int);
+static void	reapchild_sh(int);
 static const char *ttymsg_check(struct iovec *, int, char *, int);
 static void	usage(void);
 static int	validate(struct sockaddr *, const char *);
@@ -435,7 +439,6 @@ main(int argc, char *argv[])
 	struct timeval tv, *tvp;
 	struct peer *pe;
 	struct socklist *sl;
-	sigset_t mask;
 	pid_t ppid = 1, spid;
 	char *p;
 
@@ -578,6 +581,17 @@ main(int argc, char *argv[])
 	if ((argc -= optind) != 0)
 		usage();
 
+	/* Pipe to catch a signal during select(). */
+	s = pipe2(sigp, O_NONBLOCK);
+	if (s < 0) {
+		err(1, "cannot open a pipe for signals");
+	} else {
+		addsock(NULL, 0, &(struct socklist){
+		    .sl_socket = sigp[1],
+		    .sl_recv = socklist_recv_signal
+		});
+	}
+
 	/* Listen by default: /dev/klog. */
 	s = open(_PATH_KLOG, O_RDONLY|O_NONBLOCK, 0);
 	if (s < 0) {
@@ -632,19 +646,8 @@ main(int argc, char *argv[])
 	(void)signal(SIGTERM, dodie);
 	(void)signal(SIGINT, Debug ? dodie : SIG_IGN);
 	(void)signal(SIGQUIT, Debug ? dodie : SIG_IGN);
-	/*
-	 * We don't want the SIGCHLD and SIGHUP handlers to interfere
-	 * with each other; they are likely candidates for being called
-	 * simultaneously (SIGHUP closes pipe descriptor, process dies,
-	 * SIGCHLD happens).
-	 */
-	sigemptyset(&mask);
-	sigaddset(&mask, SIGHUP);
-	(void)sigaction(SIGCHLD, &(struct sigaction){
-	    .sa_handler = reapchild,
-	    .sa_mask = mask,
-	    .sa_flags = SA_RESTART
-	}, NULL);
+	(void)signal(SIGHUP, init_sh);
+	(void)signal(SIGCHLD, reapchild_sh);
 	(void)signal(SIGALRM, domark);
 	(void)signal(SIGPIPE, SIG_IGN);	/* We'll catch EPIPE instead. */
 	(void)alarm(TIMERINTVL);
@@ -653,16 +656,6 @@ main(int argc, char *argv[])
 	pidfile_write(pfh);
 
 	dprintf("off & running....\n");
-
-	init(0);
-	/* prevent SIGHUP and SIGCHLD handlers from running in parallel */
-	sigemptyset(&mask);
-	sigaddset(&mask, SIGCHLD);
-	(void)sigaction(SIGHUP, &(struct sigaction){
-	    .sa_handler = init,
-	    .sa_mask = mask,
-	    .sa_flags = SA_RESTART
-	}, NULL);
 
 	tvp = &tv;
 	tv.tv_sec = tv.tv_usec = 0;
@@ -677,6 +670,12 @@ main(int argc, char *argv[])
 		errx(1, "calloc fd_set");
 
 	for (;;) {
+		if (Initialized == 0)
+			init(0);
+		else if (WantInitialize)
+			init(WantInitialize);
+		if (WantReapchild)
+			reapchild(WantReapchild);
 		if (MarkSet)
 			markit();
 		if (WantDie)
@@ -713,6 +712,19 @@ main(int argc, char *argv[])
 	}
 	if (fdsr)
 		free(fdsr);
+}
+
+static int
+socklist_recv_signal(struct socklist *sl __unused)
+{
+	ssize_t len;
+	static char buf[BUFSIZ];
+
+	/* Clear an wake-up signal by reading dummy data. */
+	while ((len = read(sigp[0], buf, sizeof(buf))) > 0)
+		;
+
+	return (0);
 }
 
 static int
@@ -987,15 +999,13 @@ static void
 logmsg(int pri, const char *msg, const char *from, int flags)
 {
 	struct filed *f;
-	int i, fac, msglen, omask, prilev;
+	int i, fac, msglen, prilev;
 	const char *timestamp;
  	char prog[NAME_MAX+1];
 	char buf[MAXLINE+1];
 
 	dprintf("logmsg: pri %o, flags %x, from %s, msg %s\n",
 	    pri, flags, from, msg);
-
-	omask = sigblock(sigmask(SIGHUP)|sigmask(SIGALRM));
 
 	/*
 	 * Check to see if msg looks non-standard.
@@ -1027,10 +1037,8 @@ logmsg(int pri, const char *msg, const char *from, int flags)
 		fac = LOG_FAC(pri);
 
 	/* Check maximum facility number. */
-	if (fac > LOG_NFACILITIES) {
-		(void)sigsetmask(omask);
+	if (fac > LOG_NFACILITIES)
 		return;
-	}
 
 	prilev = LOG_PRI(pri);
 
@@ -1067,7 +1075,6 @@ logmsg(int pri, const char *msg, const char *from, int flags)
 			close(f->f_file);
 			f->f_file = -1;
 		}
-		(void)sigsetmask(omask);
 		return;
 	}
 	STAILQ_FOREACH(f, &fhead, next) {
@@ -1139,7 +1146,6 @@ logmsg(int pri, const char *msg, const char *from, int flags)
 			}
 		}
 	}
-	(void)sigsetmask(omask);
 }
 
 static void
@@ -1507,6 +1513,17 @@ ttymsg_check(struct iovec *iov, int iovcnt, char *line, int tmout)
 }
 
 static void
+reapchild_sh(int signo)
+{
+	static char buf[BUFSIZ];
+
+	WantReapchild = signo;
+	/* Send an wake-up signal to the select() loop. */
+	read(sigp[0], buf, sizeof(buf));
+	write(sigp[1], &signo, sizeof(signo));
+}
+
+static void
 reapchild(int signo __unused)
 {
 	int status;
@@ -1514,10 +1531,6 @@ reapchild(int signo __unused)
 	struct filed *f;
 
 	while ((pid = wait3(&status, WNOHANG, (struct rusage *)NULL)) > 0) {
-		if (!Initialized)
-			/* Don't tell while we are initting. */
-			continue;
-
 		/* First, look if it's a process from the dead queue. */
 		if (deadq_removebypid(pid))
 			continue;
@@ -1532,6 +1545,7 @@ reapchild(int signo __unused)
 			}
 		}
 	}
+	WantReapchild = 0;
 }
 
 /*
@@ -1541,7 +1555,6 @@ static const char *
 cvthname(struct sockaddr *f)
 {
 	int error, hl;
-	sigset_t omask, nmask;
 	static char hname[NI_MAXHOST], ip[NI_MAXHOST];
 
 	dprintf("cvthname(%d) len = %d\n", f->sa_family, f->sa_len);
@@ -1556,12 +1569,8 @@ cvthname(struct sockaddr *f)
 	if (!resolve)
 		return (ip);
 
-	sigemptyset(&nmask);
-	sigaddset(&nmask, SIGHUP);
-	sigprocmask(SIG_BLOCK, &nmask, &omask);
 	error = getnameinfo(f, f->sa_len, hname, sizeof(hname),
 		    NULL, 0, NI_NAMEREQD);
-	sigprocmask(SIG_SETMASK, &omask, NULL);
 	if (error) {
 		dprintf("Host name for your address (%s) unknown\n", ip);
 		return (ip);
@@ -1616,11 +1625,8 @@ die(int signo)
 {
 	struct filed *f;
 	struct socklist *sl;
-	int was_initialized;
 	char buf[100];
 
-	was_initialized = Initialized;
-	Initialized = 0;	/* Don't log SIGCHLDs. */
 	STAILQ_FOREACH(f, &fhead, next) {
 		/* flush any pending output */
 		if (f->f_prevcount)
@@ -1628,7 +1634,6 @@ die(int signo)
 		if (f->f_type == F_PIPE && f->fu_pipe_pid > 0)
 			close_filed(f);
 	}
-	Initialized = was_initialized;
 	if (signo) {
 		dprintf("syslogd: exiting on signal %d\n", signo);
 		(void)snprintf(buf, sizeof(buf), "exiting on signal %d", signo);
@@ -1793,6 +1798,17 @@ readconfigfile(FILE *cf, int allow_includes)
  *  INIT -- Initialize syslogd from configuration table
  */
 static void
+init_sh(int signo)
+{
+	static char buf[BUFSIZ];
+
+	WantInitialize = signo;
+	/* Send an wake-up signal to the select() loop. */
+	read(sigp[0], buf, sizeof(buf));
+	write(sigp[1], &signo, sizeof(signo));
+}
+
+static void
 init(int signo)
 {
 	int i;
@@ -1804,6 +1820,7 @@ init(int signo)
 	char bootfileMsg[LINE_MAX];
 
 	dprintf("init\n");
+	WantInitialize = 0;
 
 	/*
 	 * Load hostname (may have changed).
@@ -2669,7 +2686,6 @@ p_open(const char *prog, pid_t *rpid)
 {
 	int pfd[2], nulldesc;
 	pid_t pid;
-	sigset_t omask, mask;
 	char *argv[4]; /* sh -c cmd NULL */
 	char errmsg[200];
 
@@ -2679,17 +2695,13 @@ p_open(const char *prog, pid_t *rpid)
 		/* we are royally screwed anyway */
 		return (-1);
 
-	sigemptyset(&mask);
-	sigaddset(&mask, SIGALRM);
-	sigaddset(&mask, SIGHUP);
-	sigprocmask(SIG_BLOCK, &mask, &omask);
 	switch ((pid = fork())) {
 	case -1:
-		sigprocmask(SIG_SETMASK, &omask, 0);
 		close(nulldesc);
 		return (-1);
 
 	case 0:
+		(void)setsid();	/* Avoid catching SIGHUPs. */
 		argv[0] = strdup("sh");
 		argv[1] = strdup("-c");
 		argv[2] = strdup(prog);
@@ -2700,19 +2712,11 @@ p_open(const char *prog, pid_t *rpid)
 		}
 
 		alarm(0);
-		(void)setsid();	/* Avoid catching SIGHUPs. */
 
-		/*
-		 * Throw away pending signals, and reset signal
-		 * behaviour to standard values.
-		 */
-		signal(SIGALRM, SIG_IGN);
-		signal(SIGHUP, SIG_IGN);
-		sigprocmask(SIG_SETMASK, &omask, 0);
-		signal(SIGPIPE, SIG_DFL);
-		signal(SIGQUIT, SIG_DFL);
-		signal(SIGALRM, SIG_DFL);
-		signal(SIGHUP, SIG_DFL);
+		/* Restore signals marked as SIG_IGN. */
+		(void)signal(SIGINT, SIG_DFL);
+		(void)signal(SIGQUIT, SIG_DFL);
+		(void)signal(SIGPIPE, SIG_DFL);
 
 		dup2(pfd[0], STDIN_FILENO);
 		dup2(nulldesc, STDOUT_FILENO);
@@ -2722,8 +2726,6 @@ p_open(const char *prog, pid_t *rpid)
 		(void)execvp(_PATH_BSHELL, argv);
 		_exit(255);
 	}
-
-	sigprocmask(SIG_SETMASK, &omask, 0);
 	close(nulldesc);
 	close(pfd[0]);
 	/*
