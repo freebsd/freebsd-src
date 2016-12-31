@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/buf.h>
 #include <sys/condvar.h>
 #include <sys/conf.h>
+#include <sys/counter.h>
 #include <sys/dirent.h>
 #include <sys/event.h>
 #include <sys/eventhandler.h>
@@ -124,9 +125,9 @@ static unsigned long	numvnodes;
 SYSCTL_ULONG(_vfs, OID_AUTO, numvnodes, CTLFLAG_RD, &numvnodes, 0,
     "Number of vnodes in existence");
 
-static u_long vnodes_created;
-SYSCTL_ULONG(_vfs, OID_AUTO, vnodes_created, CTLFLAG_RD, &vnodes_created,
-    0, "Number of vnodes created by getnewvnode");
+static counter_u64_t vnodes_created;
+SYSCTL_COUNTER_U64(_vfs, OID_AUTO, vnodes_created, CTLFLAG_RD, &vnodes_created,
+    "Number of vnodes created by getnewvnode");
 
 static u_long mnt_free_list_batch = 128;
 SYSCTL_ULONG(_vfs, OID_AUTO, mnt_free_list_batch, CTLFLAG_RW,
@@ -180,8 +181,8 @@ static u_long freevnodes;
 SYSCTL_ULONG(_vfs, OID_AUTO, freevnodes, CTLFLAG_RD,
     &freevnodes, 0, "Number of \"free\" vnodes");
 
-static u_long recycles_count;
-SYSCTL_ULONG(_vfs, OID_AUTO, recycles, CTLFLAG_RD, &recycles_count, 0,
+static counter_u64_t recycles_count;
+SYSCTL_COUNTER_U64(_vfs, OID_AUTO, recycles, CTLFLAG_RD, &recycles_count,
     "Number of vnodes recycled to meet vnode cache targets");
 
 /*
@@ -193,8 +194,8 @@ static int reassignbufcalls;
 SYSCTL_INT(_vfs, OID_AUTO, reassignbufcalls, CTLFLAG_RW, &reassignbufcalls, 0,
     "Number of calls to reassignbuf");
 
-static u_long free_owe_inact;
-SYSCTL_ULONG(_vfs, OID_AUTO, free_owe_inact, CTLFLAG_RD, &free_owe_inact, 0,
+static counter_u64_t free_owe_inact;
+SYSCTL_COUNTER_U64(_vfs, OID_AUTO, free_owe_inact, CTLFLAG_RD, &free_owe_inact,
     "Number of times free vnodes kept on active list due to VFS "
     "owing inactivation");
 
@@ -476,6 +477,11 @@ vntblinit(void *dummy __unused)
 	    NULL, NULL, pctrie_zone_init, NULL, UMA_ALIGN_PTR, 
 	    UMA_ZONE_NOFREE | UMA_ZONE_VM);
 	uma_prealloc(buf_trie_zone, nbuf);
+
+	vnodes_created = counter_u64_alloc(M_WAITOK);
+	recycles_count = counter_u64_alloc(M_WAITOK);
+	free_owe_inact = counter_u64_alloc(M_WAITOK);
+
 	/*
 	 * Initialize the filesystem syncer.
 	 */
@@ -922,7 +928,7 @@ vlrureclaim(struct mount *mp, int reclaim_nc_src, int trigger)
 		}
 		KASSERT((vp->v_iflag & VI_DOOMED) == 0,
 		    ("VI_DOOMED unexpectedly detected in vlrureclaim()"));
-		atomic_add_long(&recycles_count, 1);
+		counter_u64_add(recycles_count, 1);
 		vgonel(vp);
 		VOP_UNLOCK(vp, 0);
 		vdropl(vp);
@@ -1287,7 +1293,7 @@ vtryrecycle(struct vnode *vp)
 		return (EBUSY);
 	}
 	if ((vp->v_iflag & VI_DOOMED) == 0) {
-		atomic_add_long(&recycles_count, 1);
+		counter_u64_add(recycles_count, 1);
 		vgonel(vp);
 	}
 	VOP_UNLOCK(vp, LK_INTERLOCK);
@@ -1446,7 +1452,7 @@ getnewvnode(const char *tag, struct mount *mp, struct vop_vector *vops,
 	atomic_add_long(&numvnodes, 1);
 	mtx_unlock(&vnode_free_list_mtx);
 alloc:
-	atomic_add_long(&vnodes_created, 1);
+	counter_u64_add(vnodes_created, 1);
 	vp = (struct vnode *) uma_zalloc(vnode_zone, M_WAITOK);
 	/*
 	 * Locks are given the generic name "vnode" when created.
@@ -2938,7 +2944,7 @@ _vdrop(struct vnode *vp, bool locked)
 			mtx_unlock(&mp->mnt_listmtx);
 		} else {
 			VI_UNLOCK(vp);
-			atomic_add_long(&free_owe_inact, 1);
+			counter_u64_add(free_owe_inact, 1);
 		}
 		return;
 	}
