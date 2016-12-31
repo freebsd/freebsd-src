@@ -40,7 +40,7 @@ __FBSDID("$FreeBSD$");
 
 #if EFSYS_OPT_NAMES
 
-static const char	*__efx_mon_name[] = {
+static const char * const __efx_mon_name[] = {
 	"",
 	"sfx90x0",
 	"sfx91x0",
