@@ -1484,7 +1484,6 @@ OLD_FILES+=usr/bin/llvm-link
 OLD_FILES+=usr/bin/llvm-lto
 OLD_FILES+=usr/bin/llvm-mc
 OLD_FILES+=usr/bin/llvm-nm
-OLD_FILES+=usr/bin/llvm-objdump
 OLD_FILES+=usr/bin/llvm-pdbdump
 OLD_FILES+=usr/bin/llvm-rtdyld
 OLD_FILES+=usr/bin/llvm-symbolizer
