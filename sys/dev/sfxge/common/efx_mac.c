@@ -515,8 +515,8 @@ efx_mac_filter_default_rxq_clear(
 
 #if EFSYS_OPT_NAMES
 
-/* START MKCONFIG GENERATED EfxMacStatNamesBlock 054d43a31d2d7a45 */
-static const char 	*__efx_mac_stat_name[] = {
+/* START MKCONFIG GENERATED EfxMacStatNamesBlock c11b91b42f922516 */
+static const char * const __efx_mac_stat_name[] = {
 	"rx_octets",
 	"rx_pkts",
 	"rx_unicst_pkts",
