@@ -48,7 +48,7 @@ typedef struct tftpinfo {
 } tftpinfo_t;
 
 static  ipftuneable_t   ipf_tftp_tuneables[] = {
-	{ { (void *)offsetof(ipf_tftp_softc_t, ipf_p_tftp_readonly) },
+	{ { .ipftp_offset = offsetof(ipf_tftp_softc_t, ipf_p_tftp_readonly) },
 		"tftp_read_only",	0,	1,
 		stsizeof(ipf_tftp_softc_t, ipf_p_tftp_readonly),
 		0, NULL, NULL },

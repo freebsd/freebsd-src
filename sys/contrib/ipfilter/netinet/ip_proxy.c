@@ -129,7 +129,7 @@ typedef struct ipf_proxy_softc_s {
 } ipf_proxy_softc_t;
 
 static ipftuneable_t ipf_proxy_tuneables[] = {
-	{ { (void *)offsetof(ipf_proxy_softc_t, ips_proxy_debug) },
+	{ { .ipftp_offset = offsetof(ipf_proxy_softc_t, ips_proxy_debug) },
 		"proxy_debug",	0,	0x1f,
 		stsizeof(ipf_proxy_softc_t, ips_proxy_debug),
 		0,	NULL,	NULL },
