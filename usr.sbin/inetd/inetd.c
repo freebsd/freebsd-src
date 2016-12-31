@@ -204,30 +204,36 @@ __FBSDID("$FreeBSD$");
 
 #define	SIGBLOCK	(sigmask(SIGCHLD)|sigmask(SIGHUP)|sigmask(SIGALRM))
 
-void		close_sep(struct servtab *);
-void		flag_signal(int);
-void		flag_config(int);
-void		config(void);
-int		cpmip(const struct servtab *, int);
-void		endconfig(void);
-struct servtab *enter(struct servtab *);
-void		freeconfig(struct servtab *);
-struct servtab *getconfigent(void);
-int		matchservent(const char *, const char *, const char *);
-char	       *nextline(FILE *);
-void		addchild(struct servtab *, int);
-void		flag_reapchild(int);
-void		reapchild(void);
-void		enable(struct servtab *);
-void		disable(struct servtab *);
-void		flag_retry(int);
-void		retry(void);
-int		setconfig(void);
-void		setup(struct servtab *);
-#ifdef IPSEC
-void		ipsecsetup(struct servtab *);
+#define	satosin(sa)	((struct sockaddr_in *)(void *)sa)
+#define	csatosin(sa)	((const struct sockaddr_in *)(const void *)sa)
+#ifdef INET6
+#define	satosin6(sa)	((struct sockaddr_in6 *)(void *)sa)
+#define	csatosin6(sa)	((const struct sockaddr_in6 *)(const void *)sa)
 #endif
-void		unregisterrpc(register struct servtab *sep);
+static void	close_sep(struct servtab *);
+static void	flag_signal(int);
+static void	flag_config(int);
+static void	config(void);
+static int	cpmip(const struct servtab *, int);
+static void	endconfig(void);
+static struct servtab *enter(struct servtab *);
+static void	freeconfig(struct servtab *);
+static struct servtab *getconfigent(void);
+static int	matchservent(const char *, const char *, const char *);
+static char	*nextline(FILE *);
+static void	addchild(struct servtab *, int);
+static void	flag_reapchild(int);
+static void	reapchild(void);
+static void	enable(struct servtab *);
+static void	disable(struct servtab *);
+static void	flag_retry(int);
+static void	retry(void);
+static int	setconfig(void);
+static void	setup(struct servtab *);
+#ifdef IPSEC
+static void	ipsecsetup(struct servtab *);
+#endif
+static void	unregisterrpc(register struct servtab *sep);
 static struct conninfo *search_conn(struct servtab *sep, int ctrl);
 static int	room_conn(struct servtab *sep, struct conninfo *conn);
 static void	addchild_conn(struct conninfo *conn, pid_t pid);
@@ -238,51 +244,55 @@ static void	free_connlist(struct servtab *sep);
 static void	free_proc(struct procinfo *);
 static struct procinfo *search_proc(pid_t pid, int add);
 static int	hashval(char *p, int len);
+static char	*skip(char **);
+static char	*sskip(char **);
+static char	*newstr(const char *);
+static void	print_service(const char *, const struct servtab *);
 
+/* tcpd.h */
 int	allow_severity;
 int	deny_severity;
-int	wrap_ex = 0;
-int	wrap_bi = 0;
+
+static int	wrap_ex = 0;
+static int	wrap_bi = 0;
 int	debug = 0;
-int	dolog = 0;
-int	maxsock;			/* highest-numbered descriptor */
-fd_set	allsock;
-int	options;
-int	timingout;
-int	toomany = TOOMANY;
-int	maxchild = MAXCHILD;
-int	maxcpm = MAXCPM;
-int	maxperip = MAXPERIP;
-struct	servent *sp;
-struct	rpcent *rpc;
-char	*hostname = NULL;
-struct	sockaddr_in *bind_sa4;
-int	v4bind_ok = 0;
+static int	dolog = 0;
+static int	maxsock;		/* highest-numbered descriptor */
+static fd_set	allsock;
+static int	options;
+static int	timingout;
+static int	toomany = TOOMANY;
+static int	maxchild = MAXCHILD;
+static int	maxcpm = MAXCPM;
+static int	maxperip = MAXPERIP;
+static struct	servent *sp;
+static struct	rpcent *rpc;
+static char	*hostname = NULL;
+static struct	sockaddr_in *bind_sa4;
+static int	v4bind_ok = 0;
 #ifdef INET6
-struct	sockaddr_in6 *bind_sa6;
-int	v6bind_ok = 0;
+static struct	sockaddr_in6 *bind_sa6;
+static int	v6bind_ok = 0;
 #endif
-int	signalpipe[2];
+static int	signalpipe[2];
 #ifdef SANITY_CHECK
-int	nsock;
+static int	nsock;
 #endif
-uid_t	euid;
-gid_t	egid;
-mode_t	mask;
+static uid_t	euid;
+static gid_t	egid;
+static mode_t	mask;
 
-struct	servtab *servtab;
+struct servtab *servtab;
 
-extern struct biltin biltins[];
+static const char	*CONFIG = _PATH_INETDCONF;
+static const char	*pid_file = _PATH_INETDPID;
+static struct pidfh	*pfh = NULL;
 
-const char	*CONFIG = _PATH_INETDCONF;
-const char	*pid_file = _PATH_INETDPID;
-struct pidfh	*pfh = NULL;
-
-struct netconfig *udpconf, *tcpconf, *udp6conf, *tcp6conf;
+static struct netconfig *udpconf, *tcpconf, *udp6conf, *tcp6conf;
 
 static LIST_HEAD(, procinfo) proctable[PERIPSIZE];
 
-int
+static int
 getvalue(const char *arg, int *value, const char *whine)
 {
 	int  tmp;
@@ -306,7 +316,7 @@ whichaf(struct request_info *req)
 	if (sa == NULL)
 		return AF_UNSPEC;
 	if (sa->sa_family == AF_INET6 &&
-	    IN6_IS_ADDR_V4MAPPED(&((struct sockaddr_in6 *)sa)->sin6_addr))
+	    IN6_IS_ADDR_V4MAPPED(&satosin6(sa)->sin6_addr))
 		return AF_INET;
 	return sa->sa_family;
 }
@@ -413,7 +423,7 @@ main(int argc, char **argv)
 		case AF_INET:
 			if (v4bind_ok)
 				continue;
-			bind_sa4 = (struct sockaddr_in *)res->ai_addr;
+			bind_sa4 = satosin(res->ai_addr);
 			/* init port num in case servname is dummy */
 			bind_sa4->sin_port = 0;
 			v4bind_ok = 1;
@@ -422,7 +432,7 @@ main(int argc, char **argv)
 		case AF_INET6:
 			if (v6bind_ok)
 				continue;
-			bind_sa6 = (struct sockaddr_in6 *)res->ai_addr;
+			bind_sa6 = satosin6(res->ai_addr);
 			/* init port num in case servname is dummy */
 			bind_sa6->sin6_port = 0;
 			v6bind_ok = 1;
@@ -879,7 +889,7 @@ main(int argc, char **argv)
  * Add a signal flag to the signal flag queue for later handling
  */
 
-void
+static void
 flag_signal(int c)
 {
 	char ch = c;
@@ -895,7 +905,7 @@ flag_signal(int c)
  * limit on children, then stop accepting incoming requests.
  */
 
-void
+static void
 addchild(struct servtab *sep, pid_t pid)
 {
 	if (sep->se_maxchild <= 0)
@@ -916,13 +926,13 @@ addchild(struct servtab *sep, pid_t pid)
  * Some child process has exited. See if it's on somebody's list.
  */
 
-void
+static void
 flag_reapchild(int signo __unused)
 {
 	flag_signal('C');
 }
 
-void
+static void
 reapchild(void)
 {
 	int k, status;
@@ -960,13 +970,13 @@ reapchild(void)
 	}
 }
 
-void
+static void
 flag_config(int signo __unused)
 {
 	flag_signal('H');
 }
 
-void
+static void
 config(void)
 {
 	struct servtab *sep, *new, **sepp;
@@ -1174,7 +1184,7 @@ config(void)
 	(void) sigsetmask(omask);
 }
 
-void
+static void
 unregisterrpc(struct servtab *sep)
 {
         u_int i;
@@ -1229,13 +1239,13 @@ unregisterrpc(struct servtab *sep)
 	(void) sigsetmask(omask);
 }
 
-void
+static void
 flag_retry(int signo __unused)
 {
 	flag_signal('A');
 }
 
-void
+static void
 retry(void)
 {
 	struct servtab *sep;
@@ -1246,7 +1256,7 @@ retry(void)
 			setup(sep);
 }
 
-void
+static void
 setup(struct servtab *sep)
 {
 	int on = 1;
@@ -1369,7 +1379,7 @@ setsockopt(fd, SOL_SOCKET, opt, (char *)&on, sizeof (on))
 }
 
 #ifdef IPSEC
-void
+static void
 ipsecsetup(struct servtab *sep)
 {
 	char *buf;
@@ -1443,7 +1453,7 @@ ipsecsetup(struct servtab *sep)
 /*
  * Finish with a service and its socket.
  */
-void
+static void
 close_sep(struct servtab *sep)
 {
 	if (sep->se_fd >= 0) {
@@ -1456,7 +1466,7 @@ close_sep(struct servtab *sep)
 	sep->se_numchild = 0;	/* forget about any existing children */
 }
 
-int
+static int
 matchservent(const char *name1, const char *name2, const char *proto)
 {
 	char **alias, *p;
@@ -1480,7 +1490,7 @@ matchservent(const char *name1, const char *name2, const char *proto)
 	return(0);
 }
 
-struct servtab *
+static struct servtab *
 enter(struct servtab *cp)
 {
 	struct servtab *sep;
@@ -1500,7 +1510,7 @@ enter(struct servtab *cp)
 	return (sep);
 }
 
-void
+static void
 enable(struct servtab *sep)
 {
 	if (debug)
@@ -1529,7 +1539,7 @@ enable(struct servtab *sep)
 		maxsock = sep->se_fd;
 }
 
-void
+static void
 disable(struct servtab *sep)
 {
 	if (debug)
@@ -1562,11 +1572,11 @@ disable(struct servtab *sep)
 		maxsock--;
 }
 
-FILE	*fconfig = NULL;
-struct	servtab serv;
-char	line[LINE_MAX];
+static FILE	*fconfig = NULL;
+static struct	servtab serv;
+static char	line[LINE_MAX];
 
-int
+static int
 setconfig(void)
 {
 
@@ -1578,7 +1588,7 @@ setconfig(void)
 	return (fconfig != NULL);
 }
 
-void
+static void
 endconfig(void)
 {
 	if (fconfig) {
@@ -1587,7 +1597,7 @@ endconfig(void)
 	}
 }
 
-struct servtab *
+static struct servtab *
 getconfigent(void)
 {
 	struct servtab *sep = &serv;
@@ -1965,7 +1975,7 @@ more:
 	return (sep);
 }
 
-void
+static void
 freeconfig(struct servtab *cp)
 {
 	int i;
@@ -2001,7 +2011,7 @@ freeconfig(struct servtab *cp)
  * Safe skip - if skip returns null, log a syntax error in the
  * configuration file and exit.
  */
-char *
+static char *
 sskip(char **cpp)
 {
 	char *cp;
@@ -2014,7 +2024,7 @@ sskip(char **cpp)
 	return (cp);
 }
 
-char *
+static char *
 skip(char **cpp)
 {
 	char *cp = *cpp;
@@ -2050,7 +2060,7 @@ again:
 	return (start);
 }
 
-char *
+static char *
 nextline(FILE *fd)
 {
 	char *cp;
@@ -2063,7 +2073,7 @@ nextline(FILE *fd)
 	return (line);
 }
 
-char *
+static char *
 newstr(const char *cp)
 {
 	char *cr;
@@ -2103,13 +2113,13 @@ check_loop(const struct sockaddr *sa, const struct servtab *sep)
 
 		switch (se2->se_family) {
 		case AF_INET:
-			if (((const struct sockaddr_in *)sa)->sin_port ==
+			if (csatosin(sa)->sin_port ==
 			    se2->se_ctrladdr4.sin_port)
 				goto isloop;
 			continue;
 #ifdef INET6
 		case AF_INET6:
-			if (((const struct sockaddr_in6 *)sa)->sin6_port ==
+			if (csatosin6(sa)->sin6_port ==
 			    se2->se_ctrladdr6.sin6_port)
 				goto isloop;
 			continue;
@@ -2133,7 +2143,7 @@ check_loop(const struct sockaddr *sa, const struct servtab *sep)
  * print_service:
  *	Dump relevant information to stderr
  */
-void
+static void
 print_service(const char *action, const struct servtab *sep)
 {
 	fprintf(stderr,
@@ -2181,9 +2191,9 @@ typedef struct CHash {
 	CTime		ch_Times[CHTSIZE];
 } CHash;
 
-CHash	CHashAry[CPMHSIZE];
+static CHash	CHashAry[CPMHSIZE];
 
-int
+static int
 cpmip(const struct servtab *sep, int ctrl)
 {
 	struct sockaddr_storage rss;
