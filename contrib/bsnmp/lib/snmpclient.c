@@ -1945,7 +1945,7 @@ snmp_parse_server(struct snmp_client *sc, const char *str)
 	} else if (p > s) {
 		/* host */
 		free(sc->chost);
-		if ((sc->chost = strdup(strlen(s))) == NULL) {
+		if ((sc->chost = strdup(s)) == NULL) {
 			seterr(sc, "%s", strerror(errno));
 			return (-1);
 		}
