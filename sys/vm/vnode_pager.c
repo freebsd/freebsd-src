@@ -265,7 +265,7 @@ retry:
 #endif
 		VM_OBJECT_WUNLOCK(object);
 	}
-	vref(vp);
+	vrefact(vp);
 	return (object);
 }
 
