@@ -282,12 +282,13 @@ snmp_output(struct snmp_pdu *pdu, u_char *sndbuf, size_t *sndlen,
     const char *dest)
 {
 	struct asn_buf resp_b;
+	enum snmp_code code;
 
 	resp_b.asn_ptr = sndbuf;
 	resp_b.asn_len = snmpd.txbuf;
 
-	if (snmp_pdu_encode(pdu, &resp_b) != 0) {
-		syslog(LOG_ERR, "cannot encode message");
+	if ((code = snmp_pdu_encode(pdu, &resp_b)) != SNMP_CODE_OK) {
+		syslog(LOG_ERR, "cannot encode message (code=%d)", code);
 		abort();
 	}
 	if (debug.dump_pdus) {
