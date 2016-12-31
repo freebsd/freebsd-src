@@ -79,6 +79,10 @@ static ieee80211_send_action_func *vendor_send_action[8] = {
 	send_inval, send_inval, send_inval, send_inval,
 };
 
+static ieee80211_send_action_func *vht_send_action[3] = {
+	send_inval, send_inval, send_inval,
+};
+
 int
 ieee80211_send_action_register(int cat, int act, ieee80211_send_action_func *f)
 {
@@ -107,6 +111,11 @@ ieee80211_send_action_register(int cat, int act, ieee80211_send_action_func *f)
 		if (act >= nitems(vendor_send_action))
 			break;
 		vendor_send_action[act] = f;
+		return 0;
+	case IEEE80211_ACTION_CAT_VHT:
+		if (act >= nitems(vht_send_action))
+			break;
+		vht_send_action[act] = f;
 		return 0;
 	}
 	return EINVAL;
@@ -144,6 +153,10 @@ ieee80211_send_action(struct ieee80211_node *ni, int cat, int act, void *sa)
 		if (act < nitems(vendor_send_action))
 			f = vendor_send_action[act];
 		break;
+	case IEEE80211_ACTION_CAT_VHT:
+		if (act < nitems(vht_send_action))
+			f = vht_send_action[act];
+		break;
 	}
 	return f(ni, cat, act, sa);
 }
@@ -177,6 +190,10 @@ static ieee80211_recv_action_func *vendor_recv_action[8] = {
 	recv_inval, recv_inval, recv_inval, recv_inval,
 };
 
+static ieee80211_recv_action_func *vht_recv_action[3] = {
+	recv_inval, recv_inval, recv_inval
+};
+
 int
 ieee80211_recv_action_register(int cat, int act, ieee80211_recv_action_func *f)
 {
@@ -205,6 +222,11 @@ ieee80211_recv_action_register(int cat, int act, ieee80211_recv_action_func *f)
 		if (act >= nitems(vendor_recv_action))
 			break;
 		vendor_recv_action[act] = f;
+		return 0;
+	case IEEE80211_ACTION_CAT_VHT:
+		if (act >= nitems(vht_recv_action))
+			break;
+		vht_recv_action[act] = f;
 		return 0;
 	}
 	return EINVAL;
@@ -255,6 +277,10 @@ ieee80211_recv_action(struct ieee80211_node *ni,
 	case IEEE80211_ACTION_CAT_VENDOR:
 		if (ia->ia_action < nitems(vendor_recv_action))
 			f = vendor_recv_action[ia->ia_action];
+		break;
+	case IEEE80211_ACTION_CAT_VHT:
+		if (ia->ia_action < nitems(vht_recv_action))
+			f = vht_recv_action[ia->ia_action];
 		break;
 	}
 	return f(ni, wh, frm, efrm);
