@@ -238,7 +238,7 @@ typedef union efx_oword_u {
 #endif
 #if EFSYS_HAS_UINT64
 	uint64_t eo_u64[2];
-#endif	
+#endif
 	uint32_t eo_u32[4];
 	uint16_t eo_u16[8];
 	uint8_t eo_u8[16];
