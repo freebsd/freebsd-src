@@ -321,7 +321,7 @@ static int	LogFacPri;	/* Put facility and priority in log message: */
 static int	KeepKernFac;	/* Keep remotely logged kernel facility */
 static int	needdofsync = 0; /* Are any file(s) waiting to be fsynced? */
 static struct pidfh *pfh;
-static int	sigp[2];	/* Pipe to catch a signal during select(). */
+static int	sigpipe[2];	/* Pipe to catch a signal during select(). */
 
 static volatile sig_atomic_t MarkSet, WantDie, WantInitialize, WantReapchild;
 
@@ -341,7 +341,6 @@ static void	dofsync(void);
 static void	domark(int);
 static void	fprintlog(struct filed *, int, const char *);
 static void	init(int);
-static void	init_sh(int);
 static void	logerror(const char *);
 static void	logmsg(int, const char *, const char *, int);
 static void	log_deadchild(pid_t, int, const char *);
@@ -350,12 +349,12 @@ static int	socksetup(struct peer *);
 static int	socklist_recv_file(struct socklist *);
 static int	socklist_recv_sock(struct socklist *);
 static int	socklist_recv_signal(struct socklist *);
+static void	sighandler(int);
 static int	skip_message(const char *, const char *, int);
 static void	printline(const char *, char *, int);
 static void	printsys(char *);
 static int	p_open(const char *, pid_t *);
 static void	reapchild(int);
-static void	reapchild_sh(int);
 static const char *ttymsg_check(struct iovec *, int, char *, int);
 static void	usage(void);
 static int	validate(struct sockaddr *, const char *);
@@ -582,18 +581,18 @@ main(int argc, char *argv[])
 		usage();
 
 	/* Pipe to catch a signal during select(). */
-	s = pipe2(sigp, O_NONBLOCK);
+	s = pipe2(sigpipe, O_CLOEXEC);
 	if (s < 0) {
 		err(1, "cannot open a pipe for signals");
 	} else {
 		addsock(NULL, 0, &(struct socklist){
-		    .sl_socket = sigp[1],
+		    .sl_socket = sigpipe[0],
 		    .sl_recv = socklist_recv_signal
 		});
 	}
 
 	/* Listen by default: /dev/klog. */
-	s = open(_PATH_KLOG, O_RDONLY|O_NONBLOCK, 0);
+	s = open(_PATH_KLOG, O_RDONLY | O_NONBLOCK | O_CLOEXEC, 0);
 	if (s < 0) {
 		dprintf("can't open %s (%d)\n", _PATH_KLOG, errno);
 	} else {
@@ -646,8 +645,8 @@ main(int argc, char *argv[])
 	(void)signal(SIGTERM, dodie);
 	(void)signal(SIGINT, Debug ? dodie : SIG_IGN);
 	(void)signal(SIGQUIT, Debug ? dodie : SIG_IGN);
-	(void)signal(SIGHUP, init_sh);
-	(void)signal(SIGCHLD, reapchild_sh);
+	(void)signal(SIGHUP, sighandler);
+	(void)signal(SIGCHLD, sighandler);
 	(void)signal(SIGALRM, domark);
 	(void)signal(SIGPIPE, SIG_IGN);	/* We'll catch EPIPE instead. */
 	(void)alarm(TIMERINTVL);
@@ -717,12 +716,31 @@ static int
 socklist_recv_signal(struct socklist *sl __unused)
 {
 	ssize_t len;
-	static char buf[BUFSIZ];
+	int i, nsig, signo;
 
-	/* Clear an wake-up signal by reading dummy data. */
-	while ((len = read(sigp[0], buf, sizeof(buf))) > 0)
-		;
-
+	if (ioctl(sigpipe[0], FIONREAD, &i) != 0) {
+		logerror("ioctl(FIONREAD)");
+		err(1, "signal pipe read failed");
+	}
+	nsig = i / sizeof(signo);
+	dprintf("# of received signals = %d\n", nsig);
+	for (i = 0; i < nsig; i++) {
+		len = read(sigpipe[0], &signo, sizeof(signo));
+		if (len != sizeof(signo)) {
+			logerror("signal pipe read failed");
+			err(1, "signal pipe read failed");
+		}
+		dprintf("Received signal: %d from fd=%d\n", signo,
+		    sigpipe[0]);
+		switch (signo) {
+		case SIGHUP:
+			WantInitialize = 1;
+			break;
+		case SIGCHLD:
+			WantReapchild = 1;
+			break;
+		}
+	}
 	return (0);
 }
 
@@ -1512,17 +1530,6 @@ ttymsg_check(struct iovec *iov, int iovcnt, char *line, int tmout)
 }
 
 static void
-reapchild_sh(int signo)
-{
-	static char buf[BUFSIZ];
-
-	WantReapchild = signo;
-	/* Send an wake-up signal to the select() loop. */
-	read(sigp[0], buf, sizeof(buf));
-	write(sigp[1], &signo, sizeof(signo));
-}
-
-static void
 reapchild(int signo __unused)
 {
 	int status;
@@ -1793,20 +1800,17 @@ readconfigfile(FILE *cf, int allow_includes)
 	}
 }
 
+static void
+sighandler(int signo)
+{
+
+	/* Send an wake-up signal to the select() loop. */
+	write(sigpipe[1], &signo, sizeof(signo));
+}
+
 /*
  *  INIT -- Initialize syslogd from configuration table
  */
-static void
-init_sh(int signo)
-{
-	static char buf[BUFSIZ];
-
-	WantInitialize = signo;
-	/* Send an wake-up signal to the select() loop. */
-	read(sigp[0], buf, sizeof(buf));
-	write(sigp[1], &signo, sizeof(signo));
-}
-
 static void
 init(int signo)
 {
