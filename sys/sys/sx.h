@@ -148,7 +148,8 @@ __sx_xlock(struct sx *sx, struct thread *td, int opts, const char *file,
 	uintptr_t tid = (uintptr_t)td;
 	int error = 0;
 
-	if (!atomic_cmpset_acq_ptr(&sx->sx_lock, SX_LOCK_UNLOCKED, tid))
+	if (sx->sx_lock != SX_LOCK_UNLOCKED ||
+	    !atomic_cmpset_acq_ptr(&sx->sx_lock, SX_LOCK_UNLOCKED, tid))
 		error = _sx_xlock_hard(sx, tid, opts, file, line);
 	else 
 		LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(LS_SX_XLOCK_ACQUIRE,
@@ -163,7 +164,8 @@ __sx_xunlock(struct sx *sx, struct thread *td, const char *file, int line)
 {
 	uintptr_t tid = (uintptr_t)td;
 
-	if (!atomic_cmpset_rel_ptr(&sx->sx_lock, tid, SX_LOCK_UNLOCKED))
+	if (sx->sx_lock != tid ||
+	    !atomic_cmpset_rel_ptr(&sx->sx_lock, tid, SX_LOCK_UNLOCKED))
 		_sx_xunlock_hard(sx, tid, file, line);
 }
 
