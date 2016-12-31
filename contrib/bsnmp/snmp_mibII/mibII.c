@@ -204,7 +204,7 @@ mib_if_set_dyn(const char *name)
 			return;
 	if ((d = malloc(sizeof(*d))) == NULL)
 		err(1, NULL);
-	strcpy(d->name, name);
+	strlcpy(d->name, name, sizeof(d->name));
 	SLIST_INSERT_HEAD(&mibdynif_list, d, link);
 }
 
@@ -774,8 +774,8 @@ mibif_create(u_int sysindex, const char *name)
 	memset(ifp->private, 0, sizeof(struct mibif_private));
 
 	ifp->sysindex = sysindex;
-	strcpy(ifp->name, name);
-	strcpy(ifp->descr, name);
+	strlcpy(ifp->name, name, sizeof(ifp->name));
+	strlcpy(ifp->descr, name, sizeof(ifp->descr));
 	ifp->spec_oid = oid_zeroDotZero;
 
 	map = NULL;
