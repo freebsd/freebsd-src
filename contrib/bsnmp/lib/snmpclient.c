@@ -1227,9 +1227,9 @@ snmp_next_reqid(struct snmp_client * c)
 static int32_t
 snmp_send_packet(struct snmp_pdu * pdu)
 {
-        u_char *buf;
-        struct asn_buf b;
-        ssize_t ret;
+	u_char *buf;
+	struct asn_buf b;
+	ssize_t ret;
  
 	if ((buf = malloc(snmp_client.txbuflen)) == NULL) {
 		seterr(&snmp_client, "%s", strerror(errno));
