@@ -2003,20 +2003,25 @@ snmp_output_object(struct snmp_toolinfo *snmptoolctx, struct snmp_object *o)
 void
 snmp_output_err_resp(struct snmp_toolinfo *snmptoolctx, struct snmp_pdu *pdu)
 {
+	struct snmp_object *object;
 	char buf[ASN_OIDSTRLEN];
-	struct snmp_object object;
 
 	if (pdu == NULL || (pdu->error_index > (int32_t) pdu->nbindings)) {
-		fprintf(stdout,"Invalid error index in PDU\n");
+		fprintf(stdout, "Invalid error index in PDU\n");
+		return;
+	}
+
+	if ((object = calloc(1, sizeof(struct snmp_object))) != NULL) {
+		fprintf(stdout, "calloc: %s", strerror(errno));
 		return;
 	}
 
 	fprintf(stdout, "Agent %s:%s returned error \n", snmp_client.chost,
 	    snmp_client.cport);
 
-	if (!ISSET_NUMERIC(snmptoolctx) && (snmp_fill_object(snmptoolctx, &object,
+	if (!ISSET_NUMERIC(snmptoolctx) && (snmp_fill_object(snmptoolctx, object,
 	    &(pdu->bindings[pdu->error_index - 1])) > 0))
-		snmp_output_object(snmptoolctx, &object);
+		snmp_output_object(snmptoolctx, object);
 	else {
 		asn_oid2str_r(&(pdu->bindings[pdu->error_index - 1].var), buf);
 		fprintf(stdout,"%s", buf);
@@ -2028,16 +2033,22 @@ snmp_output_err_resp(struct snmp_toolinfo *snmptoolctx, struct snmp_pdu *pdu)
 		fprintf(stdout, "%s\n", error_strings[pdu->error_status].str);
 	else
 		fprintf(stdout,"%s\n", error_strings[SNMP_ERR_UNKNOWN].str);
+
+	free(object);
+	object = NULL;
 }
 
 int32_t
 snmp_output_resp(struct snmp_toolinfo *snmptoolctx, struct snmp_pdu *pdu,
     struct asn_oid *root)
 {
-	struct snmp_object object;
+	struct snmp_object *object;
 	char p[ASN_OIDSTRLEN];
 	int32_t error;
 	uint32_t i;
+
+	if ((object = calloc(1, sizeof(struct snmp_object))) == NULL)
+		return (-1);
 
 	i = error = 0;
 	while (i < pdu->nbindings) {
@@ -2047,17 +2058,21 @@ snmp_output_resp(struct snmp_toolinfo *snmptoolctx, struct snmp_pdu *pdu,
 
 		if (GET_OUTPUT(snmptoolctx) != OUTPUT_QUIET) {
 			if (!ISSET_NUMERIC(snmptoolctx) &&
-			    (snmp_fill_object(snmptoolctx, &object,
+			    (snmp_fill_object(snmptoolctx, object,
 			    &(pdu->bindings[i])) > 0))
-				snmp_output_object(snmptoolctx, &object);
+				snmp_output_object(snmptoolctx, object);
 			else {
 				asn_oid2str_r(&(pdu->bindings[i].var), p);
 				fprintf(stdout, "%s", p);
 			}
 		}
-		error |= snmp_output_numval(snmptoolctx, &(pdu->bindings[i]), object.info);
+		error |= snmp_output_numval(snmptoolctx, &(pdu->bindings[i]),
+		    object->info);
 		i++;
 	}
+
+	free(object);
+	object = NULL;
 
 	if (error)
 		return (-1);
