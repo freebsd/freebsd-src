@@ -422,6 +422,7 @@ snmptool_get(struct snmp_toolinfo *snmptoolctx)
 		snmp_pdu_create(&req, GET_PDUTYPE(snmptoolctx));
 	}
 
+	snmp_pdu_free(&req);
 	snmp_pdu_free(&resp);
 
 	return (0);
@@ -507,6 +508,7 @@ snmptool_walk(struct snmp_toolinfo *snmptoolctx)
 			if (op == SNMP_PDU_GETBULK)
 				snmpget_fix_getbulk(&req, GET_MAXREP(snmptoolctx),
 				    GET_NONREP(snmptoolctx));
+			snmp_pdu_free(&resp);
 		}
 
 		/* Just in case our root was a leaf. */
@@ -517,6 +519,7 @@ snmptool_walk(struct snmp_toolinfo *snmptoolctx)
 					snmp_output_err_resp(snmptoolctx, &resp);
 				else
 					snmp_output_resp(snmptoolctx, &(resp), NULL);
+				snmp_pdu_free(&resp);
 			} else
 				warn("Snmp dialog");
 		}
@@ -526,10 +529,12 @@ snmptool_walk(struct snmp_toolinfo *snmptoolctx)
 			break;
 		}
 
-		snmp_pdu_free(&resp);
-
+		snmp_pdu_free(&req);
 		snmp_pdu_create(&req, op);
 	}
+
+	snmp_pdu_free(&req);
+	snmp_pdu_free(&resp);
 
 	if (rc == 0)
 		return (0);
