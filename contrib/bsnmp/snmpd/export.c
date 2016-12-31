@@ -194,6 +194,7 @@ ip_get(struct snmp_value *value, u_char *valp)
 	value->v.ipaddress[1] = valp[1];
 	value->v.ipaddress[2] = valp[2];
 	value->v.ipaddress[3] = valp[3];
+
 	return (SNMP_ERR_NOERROR);
 }
 
