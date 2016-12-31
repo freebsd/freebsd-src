@@ -1793,12 +1793,14 @@ snmp_discover_engine(char *passwd)
 		return (0);
 	}
 
+	snmp_pdu_free(&req);
+
 	snmp_pdu_create(&req, SNMP_PDU_GET);
 	req.engine.engine_boots = 0;
 	req.engine.engine_time = 0;
 
 	if (snmp_dialog(&req, &resp) == -1)
-		 return (-1);
+		return (-1);
 
 	if (resp.version != req.version) {
 		seterr(&snmp_client, "wrong version");
@@ -1812,6 +1814,9 @@ snmp_discover_engine(char *passwd)
 
 	snmp_client.engine.engine_boots = resp.engine.engine_boots;
 	snmp_client.engine.engine_time = resp.engine.engine_time;
+
+	snmp_pdu_free(&req);
+	snmp_pdu_free(&resp);
 
 	return (0);
 }
