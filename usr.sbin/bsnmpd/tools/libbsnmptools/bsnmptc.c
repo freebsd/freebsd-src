@@ -31,7 +31,7 @@
  * $FreeBSD$
  */
 
-#include <sys/param.h> 
+#include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/uio.h>
@@ -1143,7 +1143,7 @@ parse_bport_id(struct snmp_value *value, char *string)
  **************************************************************
  * TODO: FIXME!!! syrinx: Since we do not support checking the
  * consistency of a varbinding based on the value of a previous
- * one, try to guess the type of address based on the 
+ * one, try to guess the type of address based on the
  * OctetString SIZE - 4 for IPv4, 16 for IPv6, others currently
  * not supported.
  */
