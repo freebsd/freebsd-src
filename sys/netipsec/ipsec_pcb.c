@@ -125,7 +125,10 @@ ipsec_deepcopy_pcbpolicy(struct secpolicy *src)
 	return (dst);
 }
 
-/* Copy old IPsec policy into new. */
+/*
+ * Copy IPsec policy from old INPCB into new.
+ * It is expected that new INPCB has not configured policies.
+ */
 int
 ipsec_copy_pcbpolicy(struct inpcb *old, struct inpcb *new)
 {
@@ -140,39 +143,26 @@ ipsec_copy_pcbpolicy(struct inpcb *old, struct inpcb *new)
 		return (0);
 
 	IPSEC_ASSERT(new->inp_sp != NULL, ("new inp_sp is NULL"));
+	IPSEC_ASSERT((new->inp_sp->flags & (
+	    INP_INBOUND_POLICY | INP_OUTBOUND_POLICY)) == 0,
+	    ("new PCB already has configured policies"));
 	INP_WLOCK_ASSERT(new);
+	INP_LOCK_ASSERT(old);
 
 	if (old->inp_sp->flags & INP_INBOUND_POLICY) {
 		sp = ipsec_deepcopy_pcbpolicy(old->inp_sp->sp_in);
 		if (sp == NULL)
 			return (ENOBUFS);
-	} else
-		sp = NULL;
-
-	if (new->inp_sp->flags & INP_INBOUND_POLICY)
-		key_freesp(&new->inp_sp->sp_in);
-
-	new->inp_sp->sp_in = sp;
-	if (sp != NULL)
+		new->inp_sp->sp_in = sp;
 		new->inp_sp->flags |= INP_INBOUND_POLICY;
-	else
-		new->inp_sp->flags &= ~INP_INBOUND_POLICY;
-
+	}
 	if (old->inp_sp->flags & INP_OUTBOUND_POLICY) {
 		sp = ipsec_deepcopy_pcbpolicy(old->inp_sp->sp_out);
 		if (sp == NULL)
 			return (ENOBUFS);
-	} else
-		sp = NULL;
-
-	if (new->inp_sp->flags & INP_OUTBOUND_POLICY)
-		key_freesp(&new->inp_sp->sp_out);
-
-	new->inp_sp->sp_out = sp;
-	if (sp != NULL)
+		new->inp_sp->sp_out = sp;
 		new->inp_sp->flags |= INP_OUTBOUND_POLICY;
-	else
-		new->inp_sp->flags &= ~INP_OUTBOUND_POLICY;
+	}
 	return (0);
 }
 
