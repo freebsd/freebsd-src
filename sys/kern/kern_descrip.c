@@ -1754,21 +1754,23 @@ falloc_noinstall(struct thread *td, struct file **resultfp)
 {
 	struct file *fp;
 	int maxuserfiles = maxfiles - (maxfiles / 20);
+	int openfiles_new;
 	static struct timeval lastfail;
 	static int curfail;
 
 	KASSERT(resultfp != NULL, ("%s: resultfp == NULL", __func__));
 
-	if ((openfiles >= maxuserfiles &&
+	openfiles_new = atomic_fetchadd_int(&openfiles, 1) + 1;
+	if ((openfiles_new >= maxuserfiles &&
 	    priv_check(td, PRIV_MAXFILES) != 0) ||
-	    openfiles >= maxfiles) {
+	    openfiles_new >= maxfiles) {
+		atomic_subtract_int(&openfiles, 1);
 		if (ppsratecheck(&lastfail, &curfail, 1)) {
 			printf("kern.maxfiles limit exceeded by uid %i, (%s) "
 			    "please see tuning(7).\n", td->td_ucred->cr_ruid, td->td_proc->p_comm);
 		}
 		return (ENFILE);
 	}
-	atomic_add_int(&openfiles, 1);
 	fp = uma_zalloc(file_zone, M_WAITOK | M_ZERO);
 	refcount_init(&fp->f_count, 1);
 	fp->f_cred = crhold(td->td_ucred);
