@@ -77,6 +77,9 @@ MLINKS+=	bsnmpagent.3	tree_size.3
 
 MLINKS+=	bsnmpclient.3	snmp_add_binding.3
 MLINKS+=	bsnmpclient.3	snmp_client.3
+MLINKS+=	bsnmpclient.3	snmp_client_init.3
+MLINKS+=	bsnmpclient.3	snmp_client_set_host.3
+MLINKS+=	bsnmpclient.3	snmp_client_set_port.3
 MLINKS+=	bsnmpclient.3	snmp_close.3
 MLINKS+=	bsnmpclient.3	snmp_dialog.3
 MLINKS+=	bsnmpclient.3	snmp_discover_engine.3
