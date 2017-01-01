@@ -2010,6 +2010,44 @@ swp_pager_meta_ctl(vm_object_t object, vm_pindex_t pindex, int flags)
 }
 
 /*
+ * Returns the least page index which is greater than or equal to the
+ * parameter pindex and for which there is a swap block allocated.
+ * Returns object's size if the object's type is not swap or if there
+ * are no allocated swap blocks for the object after the requested
+ * pindex.
+ */
+vm_pindex_t
+swap_pager_find_least(vm_object_t object, vm_pindex_t pindex)
+{
+	struct swblock **pswap, *swap;
+	vm_pindex_t i, j, lim;
+	int idx;
+
+	VM_OBJECT_ASSERT_LOCKED(object);
+	if (object->type != OBJT_SWAP || object->un_pager.swp.swp_bcount == 0)
+		return (object->size);
+
+	mtx_lock(&swhash_mtx);
+	for (j = pindex; j < object->size; j = lim) {
+		pswap = swp_pager_hash(object, j);
+		lim = rounddown2(j + SWAP_META_PAGES, SWAP_META_PAGES);
+		if (lim > object->size)
+			lim = object->size;
+		if ((swap = *pswap) != NULL) {
+			for (idx = j & SWAP_META_MASK, i = j; i < lim;
+			    i++, idx++) {
+				if (swap->swb_pages[idx] != SWAPBLK_NONE)
+					goto found;
+			}
+		}
+	}
+	i = object->size;
+found:
+	mtx_unlock(&swhash_mtx);
+	return (i);
+}
+
+/*
  * System call swapon(name) enables swapping on device name,
  * which must be in the swdevsw.  Return EBUSY
  * if already swapping on this device.

@@ -1464,36 +1464,40 @@ vm_object_scan_all_shadowed(vm_object_t object)
 {
 	vm_object_t backing_object;
 	vm_page_t p, pp;
-	vm_pindex_t backing_offset_index, new_pindex;
+	vm_pindex_t backing_offset_index, new_pindex, pi, ps;
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
 	VM_OBJECT_ASSERT_WLOCKED(object->backing_object);
 
 	backing_object = object->backing_object;
 
-	/*
-	 * Initial conditions:
-	 *
-	 * We do not want to have to test for the existence of cache or swap
-	 * pages in the backing object.  XXX but with the new swapper this
-	 * would be pretty easy to do.
-	 */
-	if (backing_object->type != OBJT_DEFAULT)
+	if (backing_object->type != OBJT_DEFAULT &&
+	    backing_object->type != OBJT_SWAP)
 		return (false);
 
-	backing_offset_index = OFF_TO_IDX(object->backing_object_offset);
+	pi = backing_offset_index = OFF_TO_IDX(object->backing_object_offset);
+	p = vm_page_find_least(backing_object, pi);
+	ps = swap_pager_find_least(backing_object, pi);
 
-	for (p = TAILQ_FIRST(&backing_object->memq); p != NULL;
-	    p = TAILQ_NEXT(p, listq)) {
-		new_pindex = p->pindex - backing_offset_index;
+	/*
+	 * Only check pages inside the parent object's range and
+	 * inside the parent object's mapping of the backing object.
+	 */
+	for (;; pi++) {
+		if (p != NULL && p->pindex < pi)
+			p = TAILQ_NEXT(p, listq);
+		if (ps < pi)
+			ps = swap_pager_find_least(backing_object, pi);
+		if (p == NULL && ps >= backing_object->size)
+			break;
+		else if (p == NULL)
+			pi = ps;
+		else
+			pi = MIN(p->pindex, ps);
 
-		/*
-		 * Ignore pages outside the parent object's range and outside
-		 * the parent object's mapping of the backing object.
-		 */
-		if (p->pindex < backing_offset_index ||
-		    new_pindex >= object->size)
-			continue;
+		new_pindex = pi - backing_offset_index;
+		if (new_pindex >= object->size)
+			break;
 
 		/*
 		 * See if the parent has the page or if the parent's object
