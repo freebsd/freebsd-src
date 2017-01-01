@@ -216,6 +216,24 @@ ipsec_set_pcbpolicy(struct inpcb *inp, struct ucred *cred,
 		if (newsp == NULL)
 			return (error);
 		newsp->state = IPSEC_SPSTATE_PCB;
+#ifdef INET
+		if (inp->inp_vflag & INP_IPV4) {
+			newsp->spidx.src.sin.sin_family =
+			    newsp->spidx.dst.sin.sin_family = AF_INET;
+			newsp->spidx.src.sin.sin_len =
+			    newsp->spidx.dst.sin.sin_len =
+			    sizeof(struct sockaddr_in);
+		}
+#endif
+#ifdef INET6
+		if (inp->inp_vflag & INP_IPV6) {
+			newsp->spidx.src.sin6.sin6_family =
+			    newsp->spidx.dst.sin6.sin6_family = AF_INET6;
+			newsp->spidx.src.sin6.sin6_len =
+			    newsp->spidx.dst.sin6.sin6_len =
+			    sizeof(struct sockaddr_in6);
+		}
+#endif
 		break;
 	case IPSEC_POLICY_ENTRUST:
 		/* We just use NULL pointer for ENTRUST policy */
