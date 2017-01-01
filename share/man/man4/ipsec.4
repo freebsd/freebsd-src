@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 29, 2009
+.Dd January 1, 2017
 .Dt IPSEC 4
 .Os
 .Sh NAME
@@ -37,6 +37,7 @@
 .Nd Internet Protocol Security protocol
 .Sh SYNOPSIS
 .Cd "options IPSEC"
+.Cd "options IPSEC_SUPPORT"
 .Cd "device crypto"
 .Pp
 .In sys/types.h
@@ -150,6 +151,16 @@ filtering rules.
 Refer to
 .Xr setkey 8
 on how to use it.
+.Pp
+Depending from the socket's address family, IPPROTO_IP or IPPROTO_IPV6
+transport level and IP_IPSEC_POLICY or IPV6_IPSEC_POLICY socket options
+may be used to configure per-socket security policies.
+The properly formed IPsec policy specification structure can be
+created using
+.Xr ipsec_set_policy 3
+function and used as socket option value for
+.Xr setsockopt 2
+call.
 .Pp
 When setting policies using the
 .Xr setkey 8
