@@ -131,7 +131,7 @@ ssize_t drainbuf(int, unsigned char *, size_t *);
 ssize_t fillbuf(int, unsigned char *, size_t *);
 
 #ifdef IPSEC
-void	add_ipsec_policy(int, char *);
+void	add_ipsec_policy(int, int, char *);
 
 char	*ipsec_policy[2];
 #endif
@@ -642,12 +642,6 @@ remote_connect(const char *host, const char *port, struct addrinfo hints)
 		if ((s = socket(res0->ai_family, res0->ai_socktype,
 		    res0->ai_protocol)) < 0)
 			continue;
-#ifdef IPSEC
-		if (ipsec_policy[0] != NULL)
-			add_ipsec_policy(s, ipsec_policy[0]);
-		if (ipsec_policy[1] != NULL)
-			add_ipsec_policy(s, ipsec_policy[1]);
-#endif
 
 		if (rtableid >= 0 && (setsockopt(s, SOL_SOCKET, SO_SETFIB,
 		    &rtableid, sizeof(rtableid)) == -1))
@@ -765,12 +759,7 @@ local_listen(char *host, char *port, struct addrinfo hints)
 		ret = setsockopt(s, SOL_SOCKET, SO_REUSEPORT, &x, sizeof(x));
 		if (ret == -1)
 			err(1, NULL);
-#ifdef IPSEC
-		if (ipsec_policy[0] != NULL)
-			add_ipsec_policy(s, ipsec_policy[0]);
-		if (ipsec_policy[1] != NULL)
-			add_ipsec_policy(s, ipsec_policy[1]);
-#endif
+
 		if (FreeBSD_Oflag) {
 			if (setsockopt(s, IPPROTO_TCP, TCP_NOOPT,
 			    &FreeBSD_Oflag, sizeof(FreeBSD_Oflag)) == -1)
@@ -1235,6 +1224,12 @@ set_common_sockopts(int s, int af)
 		    &FreeBSD_Oflag, sizeof(FreeBSD_Oflag)) == -1)
 			err(1, "disable TCP options");
 	}
+#ifdef IPSEC
+	if (ipsec_policy[0] != NULL)
+		add_ipsec_policy(s, af, ipsec_policy[0]);
+	if (ipsec_policy[1] != NULL)
+		add_ipsec_policy(s, af, ipsec_policy[1]);
+#endif
 }
 
 int
@@ -1360,7 +1355,7 @@ help(void)
 
 #ifdef IPSEC
 void
-add_ipsec_policy(int s, char *policy)
+add_ipsec_policy(int s, int af, char *policy)
 {
 	char *raw;
 	int e;
@@ -1369,8 +1364,12 @@ add_ipsec_policy(int s, char *policy)
 	if (raw == NULL)
 		errx(1, "ipsec_set_policy `%s': %s", policy,
 		     ipsec_strerror());
-	e = setsockopt(s, IPPROTO_IP, IP_IPSEC_POLICY, raw,
-			ipsec_get_policylen(raw));
+	if (af == AF_INET)
+		e = setsockopt(s, IPPROTO_IP, IP_IPSEC_POLICY, raw,
+		    ipsec_get_policylen(raw));
+	if (af == AF_INET6)
+		e = setsockopt(s, IPPROTO_IPV6, IPV6_IPSEC_POLICY, raw,
+		    ipsec_get_policylen(raw));
 	if (e < 0)
 		err(1, "ipsec policy cannot be configured");
 	free(raw);
