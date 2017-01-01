@@ -82,10 +82,10 @@ int	sigdelset(sigset_t *, int);
 int	sigemptyset(sigset_t *);
 int	sigfillset(sigset_t *);
 int	sigismember(const sigset_t *, int);
-int	sigpending(sigset_t *) __nonnull(1);
+int	sigpending(sigset_t *);
 int	sigprocmask(int, const sigset_t * __restrict, sigset_t * __restrict);
-int	sigsuspend(const sigset_t *) __nonnull(1);
-int	sigwait(const sigset_t * __restrict, int * __restrict) __nonnull_all;
+int	sigsuspend(const sigset_t *);
+int	sigwait(const sigset_t * __restrict, int * __restrict);
 #endif
 
 #if __POSIX_VISIBLE >= 199506 || __XSI_VISIBLE >= 600
