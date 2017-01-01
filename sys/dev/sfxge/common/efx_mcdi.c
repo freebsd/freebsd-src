@@ -1184,11 +1184,9 @@ efx_mcdi_drv_attach(
 	__in		efx_nic_t *enp,
 	__in		boolean_t attach)
 {
-	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_DRV_ATTACH_IN_LEN,
 			    MC_CMD_DRV_ATTACH_EXT_OUT_LEN)];
-	uint32_t flags;
 	efx_rc_t rc;
 
 	(void) memset(payload, 0, sizeof (payload));
@@ -1219,36 +1217,8 @@ efx_mcdi_drv_attach(
 		goto fail2;
 	}
 
-	if (attach == B_FALSE) {
-		flags = 0;
-	} else if (enp->en_family == EFX_FAMILY_SIENA) {
-		efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
-
-		/* Create synthetic privileges for Siena functions */
-		flags = EFX_NIC_FUNC_LINKCTRL | EFX_NIC_FUNC_TRUSTED;
-		if (emip->emi_port == 1)
-			flags |= EFX_NIC_FUNC_PRIMARY;
-	} else {
-		EFX_STATIC_ASSERT(EFX_NIC_FUNC_PRIMARY ==
-		    (1u << MC_CMD_DRV_ATTACH_EXT_OUT_FLAG_PRIMARY));
-		EFX_STATIC_ASSERT(EFX_NIC_FUNC_LINKCTRL ==
-		    (1u << MC_CMD_DRV_ATTACH_EXT_OUT_FLAG_LINKCTRL));
-		EFX_STATIC_ASSERT(EFX_NIC_FUNC_TRUSTED ==
-		    (1u << MC_CMD_DRV_ATTACH_EXT_OUT_FLAG_TRUSTED));
-
-		/* Save function privilege flags (EF10 and later) */
-		if (req.emr_out_length_used < MC_CMD_DRV_ATTACH_EXT_OUT_LEN) {
-			rc = EMSGSIZE;
-			goto fail3;
-		}
-		flags = MCDI_OUT_DWORD(req, DRV_ATTACH_EXT_OUT_FUNC_FLAGS);
-	}
-	encp->enc_func_flags = flags;
-
 	return (0);
 
-fail3:
-	EFSYS_PROBE(fail3);
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
