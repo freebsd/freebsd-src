@@ -181,7 +181,7 @@ efx_mcdi_new_epoch(
 	__in		efx_nic_t *enp)
 {
 	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
-	int state;
+	efsys_lock_state_t state;
 
 	/* Start a new epoch (allow fresh MCDI requests to succeed) */
 	EFSYS_LOCK(enp->en_eslp, state);
@@ -252,7 +252,7 @@ efx_mcdi_request_start(
 	unsigned int seq;
 	unsigned int xflags;
 	boolean_t new_epoch;
-	int state;
+	efsys_lock_state_t state;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_MCDI);
@@ -500,7 +500,7 @@ efx_mcdi_request_poll(
 {
 	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
 	efx_mcdi_req_t *emrp;
-	int state;
+	efsys_lock_state_t state;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
@@ -568,7 +568,7 @@ efx_mcdi_request_abort(
 	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
 	efx_mcdi_req_t *emrp;
 	boolean_t aborted;
-	int state;
+	efsys_lock_state_t state;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_MCDI);
@@ -743,7 +743,7 @@ efx_mcdi_ev_cpl(
 	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
 	const efx_mcdi_transport_t *emtp = enp->en_mcdi.em_emtp;
 	efx_mcdi_req_t *emrp;
-	int state;
+	efsys_lock_state_t state;
 
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_MCDI);
 	EFSYS_ASSERT3U(enp->en_features, &, EFX_FEATURE_MCDI);
@@ -854,7 +854,7 @@ efx_mcdi_ev_death(
 	const efx_mcdi_transport_t *emtp = enp->en_mcdi.em_emtp;
 	efx_mcdi_req_t *emrp = NULL;
 	boolean_t ev_cpl;
-	int state;
+	efsys_lock_state_t state;
 
 	/*
 	 * The MCDI request (if there is one) has been terminated, either
