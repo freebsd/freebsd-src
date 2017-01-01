@@ -317,8 +317,8 @@ struct systemg {
 	u_char		*contact;
 	u_char		*name;
 	u_char		*location;
-	u_int32_t	services;
-	u_int32_t	or_last_change;
+	uint32_t	services;
+	uint32_t	or_last_change;
 };
 extern struct systemg systemg;
 
