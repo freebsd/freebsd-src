@@ -1095,6 +1095,8 @@ typedef struct efsys_lock_s {
 #define	SFXGE_EFSYS_LOCK_ASSERT_OWNED(_eslp)				\
 	mtx_assert(&(_eslp)->lock, MA_OWNED)
 
+typedef int efsys_lock_state_t;
+
 #define	EFSYS_LOCK_MAGIC	0x000010c4
 
 #define	EFSYS_LOCK(_lockp, _state)					\
