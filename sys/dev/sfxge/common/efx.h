@@ -535,6 +535,29 @@ efx_mac_stat_name(
 
 #endif	/* EFSYS_OPT_NAMES */
 
+#define	EFX_MAC_STATS_MASK_BITS_PER_PAGE	(8 * sizeof (uint32_t))
+
+#define	EFX_MAC_STATS_MASK_NPAGES	\
+	(P2ROUNDUP(EFX_MAC_NSTATS, EFX_MAC_STATS_MASK_BITS_PER_PAGE) / \
+	    EFX_MAC_STATS_MASK_BITS_PER_PAGE)
+
+/*
+ * Get mask of MAC statistics supported by the hardware.
+ *
+ * If mask_size is insufficient to return the mask, EINVAL error is
+ * returned. EFX_MAC_STATS_MASK_NPAGES multiplied by size of the page
+ * (which is sizeof (uint32_t)) is sufficient.
+ */
+extern	__checkReturn			efx_rc_t
+efx_mac_stats_get_mask(
+	__in				efx_nic_t *enp,
+	__out_bcount(mask_size)		uint32_t *maskp,
+	__in				size_t mask_size);
+
+#define	EFX_MAC_STAT_SUPPORTED(_mask, _stat)	\
+	((_mask)[(_stat) / EFX_MAC_STATS_MASK_BITS_PER_PAGE] &	\
+	 (1ULL << ((_stat) & (EFX_MAC_STATS_MASK_BITS_PER_PAGE - 1))))
+
 #define	EFX_MAC_STATS_SIZE 0x400
 
 /*
@@ -1150,6 +1173,8 @@ typedef struct efx_nic_cfg_s {
 	boolean_t		enc_allow_set_mac_with_installed_filters;
 	boolean_t		enc_enhanced_set_mac_supported;
 	boolean_t		enc_init_evq_v2_supported;
+	boolean_t		enc_pm_and_rxdp_counters;
+	boolean_t		enc_mac_stats_40g_tx_size_bins;
 	/* External port identifier */
 	uint8_t			enc_external_port;
 	uint32_t		enc_mcdi_max_payload_length;
