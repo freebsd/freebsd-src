@@ -608,7 +608,7 @@ sfxge_tx_qdpl_put_unlocked(struct sfxge_txq *txq, struct mbuf *mbuf)
 	volatile uintptr_t *putp;
 	uintptr_t old;
 	uintptr_t new;
-	unsigned old_len;
+	unsigned int put_count;
 
 	KASSERT(mbuf->m_nextpkt == NULL, ("mbuf->m_nextpkt != NULL"));
 
@@ -622,14 +622,14 @@ sfxge_tx_qdpl_put_unlocked(struct sfxge_txq *txq, struct mbuf *mbuf)
 		old = *putp;
 		if (old != 0) {
 			struct mbuf *mp = (struct mbuf *)old;
-			old_len = mp->m_pkthdr.csum_data;
+			put_count = mp->m_pkthdr.csum_data;
 		} else
-			old_len = 0;
-		if (old_len >= stdp->std_put_max) {
+			put_count = 0;
+		if (put_count >= stdp->std_put_max) {
 			atomic_add_long(&txq->put_overflow, 1);
 			return (ENOBUFS);
 		}
-		mbuf->m_pkthdr.csum_data = old_len + 1;
+		mbuf->m_pkthdr.csum_data = put_count + 1;
 		mbuf->m_nextpkt = (void *)old;
 	} while (atomic_cmpset_ptr(putp, old, new) == 0);
 
