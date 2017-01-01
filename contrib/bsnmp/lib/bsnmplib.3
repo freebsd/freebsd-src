@@ -37,7 +37,7 @@
 .\"
 .\" $Begemot: bsnmp/lib/bsnmplib.3,v 1.9 2005/10/04 08:46:51 brandt_h Exp $
 .\"
-.Dd December 19, 2010
+.Dd December 31, 2016
 .Dt BSNMPLIB 3
 .Os
 .Sh NAME
@@ -381,7 +381,7 @@ The function
 verifies the authentication parameter contained in the PDU (if present) and
 if the PDU is encrypted, decrypts the PDU contents pointed to by
 .Fa buf .
-If successfull, a plain text scoped PDU is stored in the buffer.
+If successful, a plain text scoped PDU is stored in the buffer.
 .Pp
 The function
 .Fn snmp_pdu_init_secparams
@@ -477,7 +477,7 @@ The requested securityLevel contained in the PDU is not supported.
 The PDU authentication parameter received in the PDU did not match the
 calculated message digest.
 .It Bq Er SNMP_CODE_EDECRYPT
-Error occured while trying to decrypt the PDU.
+Error occurred while trying to decrypt the PDU.
 .El
 .Pp
 .Fn snmp_pdu_encode
