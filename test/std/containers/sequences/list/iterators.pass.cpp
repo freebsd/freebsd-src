@@ -20,6 +20,7 @@
 #include <cassert>
 #include <iterator>
 
+#include "test_macros.h"
 #include "min_allocator.h"
 
 struct A
@@ -135,9 +136,8 @@ int main()
         assert(j->first == 3);
     }
 #endif
-#if _LIBCPP_STD_VER > 11
+#if TEST_STD_VER > 11
     {
-        std::list<int> c;
         std::list<int>::iterator ii1{}, ii2{};
         std::list<int>::iterator ii4 = ii1;
         std::list<int>::const_iterator cii{};
@@ -150,9 +150,6 @@ int main()
         assert ( (cii == ii1 ));
         assert (!(ii1 != cii ));
         assert (!(cii != ii1 ));
-
-        assert ( ii1 != c.cbegin());
-        assert ( cii != c.begin());
     }
 #endif
 

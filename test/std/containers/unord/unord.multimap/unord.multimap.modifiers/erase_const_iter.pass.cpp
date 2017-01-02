@@ -18,6 +18,7 @@
 #include <unordered_map>
 #include <string>
 #include <cassert>
+#include <cstddef>
 
 #include "min_allocator.h"
 
@@ -46,7 +47,10 @@ int main()
         };
         C c(a, a + sizeof(a)/sizeof(a[0]));
         C::const_iterator i = c.find(2);
+        C::const_iterator i_next = i;
+        ++i_next;
         C::iterator j = c.erase(i);
+        assert(j == i_next);
 
         assert(c.size() == 5);
         typedef std::pair<C::const_iterator, C::const_iterator> Eq;
@@ -73,8 +77,8 @@ int main()
         k = eq.first;
         assert(k->first == 4);
         assert(k->second == "four");
-        assert(std::distance(c.begin(), c.end()) == c.size());
-        assert(std::distance(c.cbegin(), c.cend()) == c.size());
+        assert(static_cast<std::size_t>(std::distance(c.begin(), c.end())) == c.size());
+        assert(static_cast<std::size_t>(std::distance(c.cbegin(), c.cend())) == c.size());
     }
 #if TEST_STD_VER >= 11
     {
@@ -92,7 +96,10 @@ int main()
         };
         C c(a, a + sizeof(a)/sizeof(a[0]));
         C::const_iterator i = c.find(2);
+        C::const_iterator i_next = i;
+        ++i_next;
         C::iterator j = c.erase(i);
+        assert(j == i_next);
 
         assert(c.size() == 5);
         typedef std::pair<C::const_iterator, C::const_iterator> Eq;
@@ -119,8 +126,8 @@ int main()
         k = eq.first;
         assert(k->first == 4);
         assert(k->second == "four");
-        assert(std::distance(c.begin(), c.end()) == c.size());
-        assert(std::distance(c.cbegin(), c.cend()) == c.size());
+        assert(static_cast<std::size_t>(std::distance(c.begin(), c.end())) == c.size());
+        assert(static_cast<std::size_t>(std::distance(c.cbegin(), c.cend())) == c.size());
     }
 #endif
 #if TEST_STD_VER >= 14

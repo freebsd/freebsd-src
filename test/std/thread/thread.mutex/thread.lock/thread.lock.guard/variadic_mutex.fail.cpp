@@ -16,6 +16,7 @@
 
 // explicit lock_guard(Mutex&...);
 
+// MODULES_DEFINES: _LIBCPP_ABI_VARIADIC_LOCK_GUARD
 #define _LIBCPP_ABI_VARIADIC_LOCK_GUARD
 #include <mutex>
 

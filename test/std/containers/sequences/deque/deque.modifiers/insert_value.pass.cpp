@@ -13,6 +13,7 @@
 
 #include <deque>
 #include <cassert>
+#include <cstddef>
 
 #include "test_macros.h"
 #include "min_allocator.h"
@@ -48,13 +49,13 @@ test(int P, C& c1, int x)
     CI i = c1.insert(c1.begin() + P, x);
     assert(i == c1.begin() + P);
     assert(c1.size() == c1_osize + 1);
-    assert(distance(c1.begin(), c1.end()) == c1.size());
+    assert(static_cast<std::size_t>(distance(c1.begin(), c1.end())) == c1.size());
     i = c1.begin();
     for (int j = 0; j < P; ++j, ++i)
         assert(*i == j);
     assert(*i == x);
     ++i;
-    for (int j = P; j < c1_osize; ++j, ++i)
+    for (int j = P; static_cast<std::size_t>(j) < c1_osize; ++j, ++i)
         assert(*i == j);
 }
 
@@ -102,7 +103,7 @@ self_reference_test()
             CI jt = c.cbegin() + j;
             c.insert(it, *jt);
             assert(c.size() == 21);
-            assert(distance(c.begin(), c.end()) == c.size());
+            assert(static_cast<std::size_t>(distance(c.begin(), c.end())) == c.size());
             it = c.cbegin();
             for (int k = 0; k < i; ++k, ++it)
                 assert(*it == k);

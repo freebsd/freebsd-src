@@ -123,3 +123,53 @@ supported by libc++ they may be useful to users.
 Known 3rd Party Implementations Include:
 
 * `Koutheir's libc++ pretty-printers <https://github.com/koutheir/libcxx-pretty-printers>`_.
+
+
+Libc++ Configuration Macros
+===========================
+
+Libc++ provides a number of configuration macros which can be used to enable
+or disable extended libc++ behavior, including enabling "debug mode" or
+thread safety annotations.
+
+**_LIBCPP_DEBUG**:
+  See :ref:`using-debug-mode` for more information.
+
+**_LIBCPP_ENABLE_THREAD_SAFETY_ANNOTATIONS**:
+  This macro is used to enable -Wthread-safety annotations on libc++'s
+  ``std::mutex`` and ``std::lock_guard``. By default these annotations are
+  disabled and must be manually enabled by the user.
+
+**_LIBCPP_DISABLE_VISIBILITY_ANNOTATIONS**:
+  This macro is used to disable all visibility annotations inside libc++.
+  Defining this macro and then building libc++ with hidden visibility gives a
+  build of libc++ which does not export any symbols, which can be useful when
+  building statically for inclusion into another library.
+
+**_LIBCPP_ENABLE_TUPLE_IMPLICIT_REDUCED_ARITY_EXTENSION**:
+  This macro is used to re-enable an extension in `std::tuple` which allowed
+  it to be implicitly constructed from fewer initializers than contained
+  elements. Elements without an initializer are default constructed. For example:
+
+  .. code-block:: cpp
+
+    std::tuple<std::string, int, std::error_code> foo() {
+      return {"hello world", 42}; // default constructs error_code
+    }
+
+
+  Since libc++ 4.0 this extension has been disabled by default. This macro
+  may be defined to re-enable it in order to support existing code that depends
+  on the extension. New use of this extension should be discouraged.
+  See `PR 27374 <http://llvm.org/PR27374>`_ for more information.
+
+  Note: The "reduced-arity-initialization" extension is still offered but only
+  for explicit conversions. Example:
+
+  .. code-block:: cpp
+
+    auto foo() {
+      using Tup = std::tuple<std::string, int, std::error_code>;
+      return Tup{"hello world", 42}; // explicit constructor called. OK.
+    }
+

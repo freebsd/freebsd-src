@@ -7,7 +7,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// XFAIL: libcpp-no-exceptions
+// UNSUPPORTED: libcpp-no-exceptions
 // UNSUPPORTED: libcpp-has-no-threads
 // UNSUPPORTED: c++98, c++03
 
@@ -22,7 +22,6 @@
 
 void func(std::promise<int> p)
 {
-    const int i = 5;
     p.set_exception_at_thread_exit(std::make_exception_ptr(3));
 }
 

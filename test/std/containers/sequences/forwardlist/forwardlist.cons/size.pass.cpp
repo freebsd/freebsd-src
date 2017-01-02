@@ -14,18 +14,23 @@
 
 #include <forward_list>
 #include <cassert>
+#include <cstddef>
 
+#include "test_macros.h"
 #include "DefaultOnly.h"
 #include "min_allocator.h"
 
 template <class T, class Allocator>
 void check_allocator(unsigned n, Allocator const &alloc = Allocator())
 {
-#if _LIBCPP_STD_VER > 11
+#if TEST_STD_VER > 11
     typedef std::forward_list<T, Allocator> C;
     C d(n, alloc);
     assert(d.get_allocator() == alloc);
-    assert(std::distance(d.begin(), d.end()) == n);
+    assert(static_cast<std::size_t>(std::distance(d.begin(), d.end())) == n);
+#else
+    ((void)n);
+    ((void)alloc);
 #endif
 }
 
@@ -37,12 +42,14 @@ int main()
         unsigned N = 10;
         C c(N);
         unsigned n = 0;
-        for (C::const_iterator i = c.begin(), e = c.end(); i != e; ++i, ++n)
-#ifndef _LIBCPP_HAS_NO_RVALUE_REFERENCES
+
+        for (C::const_iterator i = c.begin(), e = c.end(); i != e; ++i, ++n) {
+#if TEST_STD_VER >= 11
             assert(*i == T());
 #else
-            ;
+            ((void)0);
 #endif
+        }
         assert(n == N);
     }
 #if TEST_STD_VER >= 11
@@ -53,11 +60,7 @@ int main()
         C c(N);
         unsigned n = 0;
         for (C::const_iterator i = c.begin(), e = c.end(); i != e; ++i, ++n)
-#ifndef _LIBCPP_HAS_NO_RVALUE_REFERENCES
             assert(*i == T());
-#else
-            ;
-#endif
         assert(n == N);
         check_allocator<T, min_allocator<T>> ( 0 );
         check_allocator<T, min_allocator<T>> ( 3 );

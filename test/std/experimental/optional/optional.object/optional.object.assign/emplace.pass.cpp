@@ -8,7 +8,6 @@
 //===----------------------------------------------------------------------===//
 
 // UNSUPPORTED: c++98, c++03, c++11
-// XFAIL: libcpp-no-exceptions
 // <optional>
 
 // template <class... Args> void optional<T>::emplace(Args&&... args);
@@ -17,6 +16,8 @@
 #include <type_traits>
 #include <cassert>
 #include <memory>
+
+#include "test_macros.h"
 
 using std::experimental::optional;
 
@@ -48,7 +49,7 @@ class Z
 public:
     static bool dtor_called;
     Z() = default;
-    Z(int) {throw 6;}
+    Z(int) {TEST_THROW(6);}
     ~Z() {dtor_called = true;}
 };
 
@@ -76,6 +77,12 @@ int main()
     }
     {
         optional<int> opt(2);
+        opt.emplace(1);
+        assert(static_cast<bool>(opt) == true);
+        assert(*opt == 1);
+    }
+    {
+        optional<const int> opt(2);
         opt.emplace(1);
         assert(static_cast<bool>(opt) == true);
         assert(*opt == 1);
@@ -125,6 +132,7 @@ int main()
             assert(Y::dtor_called == true);
         }
     }
+#ifndef TEST_HAS_NO_EXCEPTIONS
     {
         Z z;
         optional<Z> opt(z);
@@ -141,4 +149,5 @@ int main()
             assert(Z::dtor_called == true);
         }
     }
+#endif
 }

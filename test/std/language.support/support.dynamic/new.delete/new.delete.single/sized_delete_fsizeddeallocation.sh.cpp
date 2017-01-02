@@ -14,9 +14,6 @@
 
 // UNSUPPORTED: sanitizer-new-delete
 
-// TODO Investigate why UBSAN prevents new from calling our replacement.
-// XFAIL: ubsan
-
 // NOTE: Only clang-3.7 and GCC 5.1 and greater support -fsized-deallocation.
 // REQUIRES: fsized-deallocation
 
@@ -36,31 +33,35 @@
 #include <cstdlib>
 #include <cassert>
 
+#include "test_macros.h"
+
 int unsized_delete_called = 0;
 int unsized_delete_nothrow_called = 0;
 int sized_delete_called = 0;
 
-void operator delete(void* p) throw()
+void operator delete(void* p) TEST_NOEXCEPT
 {
     ++unsized_delete_called;
     std::free(p);
 }
 
-void operator delete(void* p, const std::nothrow_t&) throw()
+void operator delete(void* p, const std::nothrow_t&) TEST_NOEXCEPT
 {
     ++unsized_delete_nothrow_called;
     std::free(p);
 }
 
-void operator delete(void* p, std::size_t) throw()
+void operator delete(void* p, std::size_t) TEST_NOEXCEPT
 {
     ++sized_delete_called;
     std::free(p);
 }
 
+int* volatile x;
+
 int main()
 {
-    int *x = new int(42);
+    x = new int(42);
     assert(0 == sized_delete_called);
     assert(0 == unsized_delete_called);
     assert(0 == unsized_delete_nothrow_called);

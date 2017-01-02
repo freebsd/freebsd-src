@@ -49,7 +49,7 @@ test1()
     double var = 0;
     double skew = 0;
     double kurtosis = 0;
-    for (int i = 0; i < u.size(); ++i)
+    for (unsigned i = 0; i < u.size(); ++i)
     {
         double dbl = (u[i] - mean);
         double d2 = sqr(dbl);
@@ -92,7 +92,7 @@ test2()
     double var = 0;
     double skew = 0;
     double kurtosis = 0;
-    for (int i = 0; i < u.size(); ++i)
+    for (unsigned i = 0; i < u.size(); ++i)
     {
         double dbl = (u[i] - mean);
         double d2 = sqr(dbl);
@@ -135,7 +135,7 @@ test3()
     double var = 0;
     double skew = 0;
     double kurtosis = 0;
-    for (int i = 0; i < u.size(); ++i)
+    for (unsigned i = 0; i < u.size(); ++i)
     {
         double dbl = (u[i] - mean);
         double d2 = sqr(dbl);
@@ -178,7 +178,7 @@ test4()
     double var = 0;
     double skew = 0;
     double kurtosis = 0;
-    for (int i = 0; i < u.size(); ++i)
+    for (unsigned i = 0; i < u.size(); ++i)
     {
         double dbl = (u[i] - mean);
         double d2 = sqr(dbl);
@@ -187,7 +187,7 @@ test4()
         kurtosis += d2 * d2;
     }
     var /= u.size();
-    double dev = std::sqrt(var);
+    //double dev = std::sqrt(var);
     // In this case:
     //   skew     computes to 0./0. == nan
     //   kurtosis computes to 0./0. == nan
@@ -227,7 +227,7 @@ test5()
     double var = 0;
     double skew = 0;
     double kurtosis = 0;
-    for (int i = 0; i < u.size(); ++i)
+    for (unsigned i = 0; i < u.size(); ++i)
     {
         double dbl = (u[i] - mean);
         double d2 = sqr(dbl);
@@ -236,7 +236,7 @@ test5()
         kurtosis += d2 * d2;
     }
     var /= u.size();
-    double dev = std::sqrt(var);
+//    double dev = std::sqrt(var);
     // In this case:
     //   skew     computes to 0./0. == nan
     //   kurtosis computes to 0./0. == nan
@@ -276,7 +276,7 @@ test6()
     double var = 0;
     double skew = 0;
     double kurtosis = 0;
-    for (int i = 0; i < u.size(); ++i)
+    for (unsigned i = 0; i < u.size(); ++i)
     {
         double dbl = (u[i] - mean);
         double d2 = sqr(dbl);
@@ -319,7 +319,7 @@ test7()
     double var = 0;
     double skew = 0;
     double kurtosis = 0;
-    for (int i = 0; i < u.size(); ++i)
+    for (unsigned i = 0; i < u.size(); ++i)
     {
         double dbl = (u[i] - mean);
         double d2 = sqr(dbl);
@@ -352,8 +352,12 @@ test8()
     std::binomial_distribution<>         dist1(5, 0.1);
     std::binomial_distribution<unsigned> dist2(5, 0.1);
 
-    for(int i = 0; i < N; ++i)
-        assert(dist1(gen1) == dist2(gen2));
+    for(int i = 0; i < N; ++i) {
+        int r1 = dist1(gen1);
+        unsigned r2 = dist2(gen2);
+        assert(r1 >= 0);
+        assert(static_cast<unsigned>(r1) == r2);
+    }
 }
 
 void
@@ -376,7 +380,7 @@ test9()
     double var = 0;
     double skew = 0;
     double kurtosis = 0;
-    for (int i = 0; i < u.size(); ++i)
+    for (unsigned i = 0; i < u.size(); ++i)
     {
         double dbl = (u[i] - mean);
         double d2 = sqr(dbl);
@@ -385,7 +389,7 @@ test9()
         kurtosis += d2 * d2;
     }
     var /= u.size();
-    double dev = std::sqrt(var);
+//    double dev = std::sqrt(var);
     // In this case:
     //   skew     computes to 0./0. == nan
     //   kurtosis computes to 0./0. == nan
@@ -425,7 +429,7 @@ test10()
     double var = 0;
     double skew = 0;
     double kurtosis = 0;
-    for (int i = 0; i < u.size(); ++i)
+    for (unsigned i = 0; i < u.size(); ++i)
     {
         double dbl = (u[i] - mean);
         double d2 = sqr(dbl);
@@ -434,7 +438,7 @@ test10()
         kurtosis += d2 * d2;
     }
     var /= u.size();
-    double dev = std::sqrt(var);
+//    double dev = std::sqrt(var);
     // In this case:
     //   skew     computes to 0./0. == nan
     //   kurtosis computes to 0./0. == nan
@@ -474,7 +478,7 @@ test11()
     double var = 0;
     double skew = 0;
     double kurtosis = 0;
-    for (int i = 0; i < u.size(); ++i)
+    for (unsigned i = 0; i < u.size(); ++i)
     {
         double dbl = (u[i] - mean);
         double d2 = sqr(dbl);
@@ -483,7 +487,7 @@ test11()
         kurtosis += d2 * d2;
     }
     var /= u.size();
-    double dev = std::sqrt(var);
+//    double dev = std::sqrt(var);
     // In this case:
     //   skew     computes to 0./0. == nan
     //   kurtosis computes to 0./0. == nan

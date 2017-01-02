@@ -19,6 +19,7 @@
 #include <string>
 #include <cassert>
 
+#include "test_macros.h"
 
 template <class ...>
 struct never {
@@ -81,12 +82,13 @@ int main()
     {
         // check that the literal '0' can implicitly initialize a stored pointer.
         std::tuple<int*> t = 0;
+        assert(std::get<0>(t) == nullptr);
     }
     {
         std::tuple<int> t(2);
         assert(std::get<0>(t) == 2);
     }
-#if _LIBCPP_STD_VER > 11
+#if TEST_STD_VER > 11
     {
         constexpr std::tuple<int> t(2);
         static_assert(std::get<0>(t) == 2, "");
@@ -101,7 +103,7 @@ int main()
         assert(std::get<0>(t) == 2);
         assert(std::get<1>(t) == nullptr);
     }
-#if _LIBCPP_STD_VER > 11
+#if TEST_STD_VER > 11
     {
         constexpr std::tuple<int, char*> t(2, nullptr);
         static_assert(std::get<0>(t) == 2, "");

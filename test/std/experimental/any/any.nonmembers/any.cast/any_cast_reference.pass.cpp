@@ -24,7 +24,7 @@
 #include <type_traits>
 #include <cassert>
 
-#include "any_helpers.h"
+#include "experimental_any_helpers.h"
 #include "count_new.hpp"
 #include "test_macros.h"
 
@@ -98,6 +98,8 @@ void checkThrows(any& a)
     } catch (...) {
         assert(false);
     }
+#else
+  ((void)a);
 #endif
 }
 
@@ -176,7 +178,6 @@ void test_cast_to_value() {
     Type::reset();
     {
         any a((Type(42)));
-        any const& ca = a;
         assert(Type::count == 1);
         assert(Type::copied == 0);
         assert(Type::moved == 1);

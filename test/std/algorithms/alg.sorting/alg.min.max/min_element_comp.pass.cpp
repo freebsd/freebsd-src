@@ -18,6 +18,7 @@
 #include <functional>
 #include <cassert>
 
+#include "test_macros.h"
 #include "test_iterators.h"
 
 template <class Iter>
@@ -36,7 +37,7 @@ test(Iter first, Iter last)
 
 template <class Iter>
 void
-test(unsigned N)
+test(int N)
 {
     int* a = new int[N];
     for (int i = 0; i < N; ++i)
@@ -66,7 +67,7 @@ void test_eq0(Iter first, Iter last, Pred p)
 
 void test_eq()
 {
-    const size_t N = 10;
+    const int N = 10;
     int* a = new int[N];
     for (int i = 0; i < N; ++i)
         a[i] = 10; // all the same

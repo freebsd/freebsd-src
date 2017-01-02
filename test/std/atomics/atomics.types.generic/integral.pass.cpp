@@ -92,6 +92,8 @@
 
 #include <cmpxchg_loop.h>
 
+#include "test_macros.h"
+
 template <class A, class T>
 void
 do_test()
@@ -151,7 +153,7 @@ do_test()
     assert(obj == T(8));
 
     {
-        _ALIGNAS_TYPE(A) char storage[sizeof(A)] = {23};
+        TEST_ALIGNAS_TYPE(A) char storage[sizeof(A)] = {23};
         A& zero = *new (storage) A();
         assert(zero == 0);
         zero.~A();
@@ -193,7 +195,7 @@ int main()
 	test<std::atomic_uint32_t, uint32_t>();
 	test<std::atomic_int64_t,   int64_t>();
 	test<std::atomic_uint64_t, uint64_t>();
-	
+
     test<volatile std::atomic_char, char>();
     test<volatile std::atomic_schar, signed char>();
     test<volatile std::atomic_uchar, unsigned char>();

@@ -61,6 +61,9 @@ public:
 #include <exception>
 #include <cstddef>
 #include <cstdint>
+#ifdef _LIBCPP_NO_EXCEPTIONS
+#include <cstdlib>
+#endif
 
 #if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
 #pragma GCC system_header
@@ -73,6 +76,7 @@ class _LIBCPP_EXCEPTION_ABI type_info
 {
     type_info& operator=(const type_info&);
     type_info(const type_info&);
+
 protected:
 #ifndef _LIBCPP_NONUNIQUE_RTTI_BIT
     const char* __type_name;
@@ -113,7 +117,7 @@ public:
     _LIBCPP_INLINE_VISIBILITY
     size_t hash_code() const _NOEXCEPT
 #ifndef _LIBCPP_NONUNIQUE_RTTI_BIT
-        {return *reinterpret_cast<const size_t*>(&__type_name);}
+        {return reinterpret_cast<size_t>(__type_name);}
 #else
         {if (!(__type_name & _LIBCPP_NONUNIQUE_RTTI_BIT)) return __type_name;
          const char *__ptr = name();
@@ -164,5 +168,17 @@ public:
 };
 
 }  // std
+
+_LIBCPP_BEGIN_NAMESPACE_STD
+_LIBCPP_NORETURN inline _LIBCPP_ALWAYS_INLINE
+void __throw_bad_cast()
+{
+#ifndef _LIBCPP_NO_EXCEPTIONS
+    throw bad_cast();
+#else
+	_VSTD::abort();
+#endif
+}
+_LIBCPP_END_NAMESPACE_STD
 
 #endif  // __LIBCPP_TYPEINFO

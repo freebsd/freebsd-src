@@ -15,6 +15,9 @@
 
 #include <initializer_list>
 #include <cassert>
+#include <cstddef>
+
+#include "test_macros.h"
 
 #ifndef _LIBCPP_HAS_NO_GENERALIZED_INITIALIZERS
 
@@ -25,14 +28,14 @@ struct A
         const int* b = il.begin();
         const int* e = il.end();
         assert(il.size() == 3);
-        assert(e - b == il.size());
+        assert(static_cast<std::size_t>(e - b) == il.size());
         assert(*b++ == 3);
         assert(*b++ == 2);
         assert(*b++ == 1);
     }
 };
 
-#if _LIBCPP_STD_VER > 11
+#if TEST_STD_VER > 11
 struct B
 {
     constexpr B(std::initializer_list<int> il)
@@ -40,14 +43,14 @@ struct B
         const int* b = il.begin();
         const int* e = il.end();
         assert(il.size() == 3);
-        assert(e - b == il.size());
+        assert(static_cast<std::size_t>(e - b) == il.size());
         assert(*b++ == 3);
         assert(*b++ == 2);
         assert(*b++ == 1);
     }
 };
 
-#endif  // _LIBCPP_STD_VER > 11
+#endif  // TEST_STD_VER > 11
 
 #endif  // _LIBCPP_HAS_NO_GENERALIZED_INITIALIZERS
 
@@ -56,7 +59,7 @@ int main()
 #ifndef _LIBCPP_HAS_NO_GENERALIZED_INITIALIZERS
     A test1 = {3, 2, 1};
 #endif
-#if _LIBCPP_STD_VER > 11
+#if TEST_STD_VER > 11
     constexpr B test2 = {3, 2, 1};
-#endif  // _LIBCPP_STD_VER > 11
+#endif  // TEST_STD_VER > 11
 }
