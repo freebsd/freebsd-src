@@ -1920,7 +1920,7 @@ efx_rx_scale_key_set(
 	__in		size_t n);
 
 extern	__checkReturn	uint32_t
-efx_psuedo_hdr_hash_get(
+efx_pseudo_hdr_hash_get(
 	__in		efx_rxq_t *erp,
 	__in		efx_rx_hash_alg_t func,
 	__in		uint8_t *buffer);
@@ -1928,7 +1928,7 @@ efx_psuedo_hdr_hash_get(
 #endif	/* EFSYS_OPT_RX_SCALE */
 
 extern	__checkReturn	efx_rc_t
-efx_psuedo_hdr_pkt_length_get(
+efx_pseudo_hdr_pkt_length_get(
 	__in		efx_rxq_t *erp,
 	__in		uint8_t *buffer,
 	__out		uint16_t *pkt_lengthp);
