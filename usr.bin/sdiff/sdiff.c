@@ -83,34 +83,13 @@ enum {
 	NORMAL_OPT,
 	FCASE_SENSITIVE_OPT,
 	FCASE_IGNORE_OPT,
-	FROMFILE_OPT,
-	TOFILE_OPT,
-	UNIDIR_OPT,
 	STRIPCR_OPT,
-	HORIZ_OPT,
-	LEFTC_OPT,
-	SUPCL_OPT,
-	LF_OPT,
-	/* the following groupings must be in sequence */
-	OLDGF_OPT,
-	NEWGF_OPT,
-	UNCGF_OPT,
-	CHGF_OPT,
-	OLDLF_OPT,
-	NEWLF_OPT,
-	UNCLF_OPT,
-	/* end order-sensitive enums */
 	TSIZE_OPT,
-	HLINES_OPT,
-	LFILES_OPT,
 	DIFFPROG_OPT,
-
-	NOOP_OPT,
 };
 
 static struct option longopts[] = {
 	/* options only processed in sdiff */
-	{ "left-column",		no_argument,		NULL,	LEFTC_OPT },
 	{ "suppress-common-lines",	no_argument,		NULL,	's' },
 	{ "width",			required_argument,	NULL,	'w' },
 
@@ -130,6 +109,7 @@ static struct option longopts[] = {
 	{ "ignore-tab-expansion",	no_argument,		NULL,	'E' },
 	{ "ignore-matching-lines",	required_argument,	NULL,	'I' },
 	{ "ignore-case",		no_argument,		NULL,	'i' },
+	{ "left-column",		no_argument,		NULL,	'l' },
 	{ "expand-tabs",		no_argument,		NULL,	't' },
 	{ "speed-large-files",		no_argument,		NULL,	'H' },
 	{ "ignore-all-space",		no_argument,		NULL,	'W' },
