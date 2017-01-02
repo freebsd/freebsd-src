@@ -26,10 +26,13 @@ ETSRCS=	\
 	${KRB5DIR}/lib/krb5/k524_err.et \
 	${KRB5DIR}/lib/krb5/krb5_err.et \
 	${KRB5DIR}/lib/krb5/krb_err.et \
-	${KRB5DIR}/lib/gssapi/krb5/gkrb5_err.et \
 	${KRB5DIR}/lib/hx509/hx509_err.et \
 	${KRB5DIR}/lib/wind/wind_err.et \
 	${KRB5DIR}/lib/ntlm/ntlm_err.et
+
+.if ${MK_GSSAPI} != "no"
+ETSRCS+=	${KRB5DIR}/lib/gssapi/krb5/gkrb5_err.et
+.endif
 
 .for ET in ${ETSRCS}
 .for _ET in ${ET:T:R}
