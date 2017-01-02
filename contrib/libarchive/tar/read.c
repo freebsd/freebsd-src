@@ -188,18 +188,17 @@ read_archive(struct bsdtar *bsdtar, char mode, struct archive *writer)
 
 	reader_options = getenv(ENV_READER_OPTIONS);
 	if (reader_options != NULL) {
+		size_t module_len = sizeof(IGNORE_WRONG_MODULE_NAME) - 1;
+		size_t opt_len = strlen(reader_options) + 1;
 		char *p;
 		/* Set default read options. */
-		p = (char *)malloc(sizeof(IGNORE_WRONG_MODULE_NAME)
-		    + strlen(reader_options) + 1);
-		if (p == NULL)
+		if ((p = malloc(module_len + opt_len)) == NULL)
 			lafe_errc(1, errno, "Out of memory");
 		/* Prepend magic code to ignore options for
 		 * a format or  modules which are not added to
 		 *  the archive read object. */
-		strncpy(p, IGNORE_WRONG_MODULE_NAME,
-		    sizeof(IGNORE_WRONG_MODULE_NAME) -1);
-		strcpy(p + sizeof(IGNORE_WRONG_MODULE_NAME) -1, reader_options);
+		memcpy(p, IGNORE_WRONG_MODULE_NAME, module_len);
+		memcpy(p + module_len, reader_options, opt_len);
 		r = archive_read_set_options(a, p);
 		free(p);
 		if (r == ARCHIVE_FATAL)
