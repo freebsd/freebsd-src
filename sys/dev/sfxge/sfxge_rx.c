@@ -353,7 +353,7 @@ sfxge_rx_deliver(struct sfxge_rxq *rxq, struct sfxge_rx_sw_desc *rx_desc)
 	/* The hash covers a 4-tuple for TCP only */
 	if (flags & EFX_PKT_TCP) {
 		m->m_pkthdr.flowid =
-			efx_psuedo_hdr_hash_get(rxq->common,
+			efx_pseudo_hdr_hash_get(rxq->common,
 						EFX_RX_HASHALG_TOEPLITZ,
 						mtod(m, uint8_t *));
 		M_HASHTYPE_SET(m, M_HASHTYPE_OPAQUE);
@@ -680,7 +680,7 @@ sfxge_lro(struct sfxge_rxq *rxq, struct sfxge_rx_sw_desc *rx_buf)
 	unsigned bucket;
 
 	/* Get the hardware hash */
-	conn_hash = efx_psuedo_hdr_hash_get(rxq->common,
+	conn_hash = efx_pseudo_hdr_hash_get(rxq->common,
 					    EFX_RX_HASHALG_TOEPLITZ,
 					    mtod(m, uint8_t *));
 
@@ -843,7 +843,7 @@ sfxge_rx_qcomplete(struct sfxge_rxq *rxq, boolean_t eop)
 		if (rx_desc->flags & EFX_PKT_PREFIX_LEN) {
 			uint16_t tmp_size;
 			int rc;
-			rc = efx_psuedo_hdr_pkt_length_get(rxq->common,
+			rc = efx_pseudo_hdr_pkt_length_get(rxq->common,
 							   mtod(m, uint8_t *),
 							   &tmp_size);
 			KASSERT(rc == 0, ("cannot get packet length: %d", rc));
