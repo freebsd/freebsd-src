@@ -374,7 +374,7 @@ kern_fstatfs(struct thread *td, int fd, struct statfs *buf)
 	AUDIT_ARG_VNODE1(vp);
 #endif
 	mp = vp->v_mount;
-	if (mp)
+	if (mp != NULL)
 		vfs_ref(mp);
 	VOP_UNLOCK(vp, 0);
 	fdrop(fp, td);
