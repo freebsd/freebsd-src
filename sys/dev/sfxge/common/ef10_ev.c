@@ -49,6 +49,12 @@ __FBSDID("$FreeBSD$");
 #define	EFX_EV_QSTAT_INCR(_eep, _stat)
 #endif
 
+/*
+ * Non-interrupting event queue requires interrrupting event queue to
+ * refer to for wake-up events even if wake ups are never used.
+ * It could be even non-allocated event queue.
+ */
+#define	EFX_EF10_ALWAYS_INTERRUPTING_EVQ_INDEX	(0)
 
 static	__checkReturn	boolean_t
 ef10_ev_rx(
@@ -151,6 +157,7 @@ efx_mcdi_init_evq(
 	uint64_t addr;
 	int npages;
 	int i;
+	boolean_t interrupting;
 	int ev_cut_through;
 	efx_rc_t rc;
 
@@ -170,6 +177,9 @@ efx_mcdi_init_evq(
 	MCDI_IN_SET_DWORD(req, INIT_EVQ_IN_SIZE, nevs);
 	MCDI_IN_SET_DWORD(req, INIT_EVQ_IN_INSTANCE, instance);
 	MCDI_IN_SET_DWORD(req, INIT_EVQ_IN_IRQ_NUM, irq);
+
+	interrupting = ((flags & EFX_EVQ_FLAGS_NOTIFY_MASK) ==
+	    EFX_EVQ_FLAGS_NOTIFY_INTERRUPT);
 
 	/*
 	 * On Huntington RX and TX event batching can only be requested together
@@ -194,7 +204,7 @@ efx_mcdi_init_evq(
 		goto fail2;
 	}
 	MCDI_IN_POPULATE_DWORD_6(req, INIT_EVQ_IN_FLAGS,
-	    INIT_EVQ_IN_FLAG_INTERRUPTING, 1,
+	    INIT_EVQ_IN_FLAG_INTERRUPTING, interrupting,
 	    INIT_EVQ_IN_FLAG_RPTR_DOS, 0,
 	    INIT_EVQ_IN_FLAG_INT_ARMD, 0,
 	    INIT_EVQ_IN_FLAG_CUT_THRU, ev_cut_through,
@@ -280,6 +290,7 @@ efx_mcdi_init_evq_v2(
 	uint8_t payload[
 		MAX(MC_CMD_INIT_EVQ_V2_IN_LEN(EFX_EVQ_NBUFS(EFX_EVQ_MAXNEVS)),
 		    MC_CMD_INIT_EVQ_V2_OUT_LEN)];
+	boolean_t interrupting;
 	unsigned int evq_type;
 	efx_qword_t *dma_addr;
 	uint64_t addr;
@@ -304,6 +315,9 @@ efx_mcdi_init_evq_v2(
 	MCDI_IN_SET_DWORD(req, INIT_EVQ_V2_IN_INSTANCE, instance);
 	MCDI_IN_SET_DWORD(req, INIT_EVQ_V2_IN_IRQ_NUM, irq);
 
+	interrupting = ((flags & EFX_EVQ_FLAGS_NOTIFY_MASK) ==
+	    EFX_EVQ_FLAGS_NOTIFY_INTERRUPT);
+
 	switch (flags & EFX_EVQ_FLAGS_TYPE_MASK) {
 	case EFX_EVQ_FLAGS_TYPE_AUTO:
 		evq_type = MC_CMD_INIT_EVQ_V2_IN_FLAG_TYPE_AUTO;
@@ -319,7 +333,7 @@ efx_mcdi_init_evq_v2(
 		goto fail2;
 	}
 	MCDI_IN_POPULATE_DWORD_4(req, INIT_EVQ_V2_IN_FLAGS,
-	    INIT_EVQ_V2_IN_FLAG_INTERRUPTING, 1,
+	    INIT_EVQ_V2_IN_FLAG_INTERRUPTING, interrupting,
 	    INIT_EVQ_V2_IN_FLAG_RPTR_DOS, 0,
 	    INIT_EVQ_V2_IN_FLAG_INT_ARMD, 0,
 	    INIT_EVQ_V2_IN_FLAG_TYPE, evq_type);
@@ -484,7 +498,17 @@ ef10_ev_qcreate(
 	eep->ee_mcdi	= ef10_ev_mcdi;
 
 	/* Set up the event queue */
-	irq = index;	/* INIT_EVQ expects function-relative vector number */
+	/* INIT_EVQ expects function-relative vector number */
+	if ((flags & EFX_EVQ_FLAGS_NOTIFY_MASK) ==
+	    EFX_EVQ_FLAGS_NOTIFY_INTERRUPT) {
+		irq = index;
+	} else if (index == EFX_EF10_ALWAYS_INTERRUPTING_EVQ_INDEX) {
+		irq = index;
+		flags = (flags & ~EFX_EVQ_FLAGS_NOTIFY_MASK) |
+		    EFX_EVQ_FLAGS_NOTIFY_INTERRUPT;
+	} else {
+		irq = EFX_EF10_ALWAYS_INTERRUPTING_EVQ_INDEX;
+	}
 
 	/*
 	 * Interrupts may be raised for events immediately after the queue is

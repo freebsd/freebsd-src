@@ -1622,6 +1622,10 @@ efx_ev_fini(
 #define	EFX_EVQ_FLAGS_TYPE_THROUGHPUT	(0x1)
 #define	EFX_EVQ_FLAGS_TYPE_LOW_LATENCY	(0x2)
 
+#define	EFX_EVQ_FLAGS_NOTIFY_MASK	(0xC)
+#define	EFX_EVQ_FLAGS_NOTIFY_INTERRUPT	(0x0)	/* Interrupting (default) */
+#define	EFX_EVQ_FLAGS_NOTIFY_DISABLED	(0x4)	/* Non-interrupting */
+
 extern	__checkReturn	efx_rc_t
 efx_ev_qcreate(
 	__in		efx_nic_t *enp,
