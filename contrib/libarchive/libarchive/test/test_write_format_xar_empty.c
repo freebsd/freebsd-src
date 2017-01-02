@@ -115,6 +115,6 @@ DEFINE_TEST(test_write_format_xar_empty)
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
-	/* Verify the correct format for an empy Xar archive. */
+	/* Verify the correct format for an empty Xar archive. */
 	assertEqualInt(used, 0);
 }

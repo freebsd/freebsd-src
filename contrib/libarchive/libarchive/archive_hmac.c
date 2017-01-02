@@ -176,8 +176,10 @@ __hmac_sha1_cleanup(archive_hmac_sha1_ctx *ctx)
 static int
 __hmac_sha1_init(archive_hmac_sha1_ctx *ctx, const uint8_t *key, size_t key_len)
 {
-	HMAC_CTX_init(ctx);
-	HMAC_Init(ctx, key, key_len, EVP_sha1());
+	*ctx = HMAC_CTX_new();
+	if (*ctx == NULL)
+		return -1;
+	HMAC_Init_ex(*ctx, key, key_len, EVP_sha1(), NULL);
 	return 0;
 }
 
@@ -185,22 +187,22 @@ static void
 __hmac_sha1_update(archive_hmac_sha1_ctx *ctx, const uint8_t *data,
     size_t data_len)
 {
-	HMAC_Update(ctx, data, data_len);
+	HMAC_Update(*ctx, data, data_len);
 }
 
 static void
 __hmac_sha1_final(archive_hmac_sha1_ctx *ctx, uint8_t *out, size_t *out_len)
 {
 	unsigned int len = (unsigned int)*out_len;
-	HMAC_Final(ctx, out, &len);
+	HMAC_Final(*ctx, out, &len);
 	*out_len = len;
 }
 
 static void
 __hmac_sha1_cleanup(archive_hmac_sha1_ctx *ctx)
 {
-	HMAC_CTX_cleanup(ctx);
-	memset(ctx, 0, sizeof(*ctx));
+	HMAC_CTX_free(*ctx);
+	*ctx = NULL;
 }
 
 #else

@@ -127,13 +127,12 @@ archive_write_set_format_pax(struct archive *_a)
 	if (a->format_free != NULL)
 		(a->format_free)(a);
 
-	pax = (struct pax *)malloc(sizeof(*pax));
+	pax = (struct pax *)calloc(1, sizeof(*pax));
 	if (pax == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate pax data");
 		return (ARCHIVE_FATAL);
 	}
-	memset(pax, 0, sizeof(*pax));
 	a->format_data = pax;
 	a->format_name = "pax";
 	a->format_options = archive_write_pax_options;
@@ -709,7 +708,7 @@ archive_write_pax_header(struct archive_write *a,
 
 	/* Copy entry so we can modify it as needed. */
 #if defined(_WIN32) && !defined(__CYGWIN__)
-	/* Make sure the path separators in pahtname, hardlink and symlink
+	/* Make sure the path separators in pathname, hardlink and symlink
 	 * are all slash '/', not the Windows path separator '\'. */
 	entry_main = __la_win_entry_in_posix_pathseparator(entry_original);
 	if (entry_main == entry_original)

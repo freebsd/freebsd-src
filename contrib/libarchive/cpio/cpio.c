@@ -1324,10 +1324,9 @@ lookup_name(struct cpio *cpio, struct name_cache **name_cache_variable,
 
 
 	if (*name_cache_variable == NULL) {
-		*name_cache_variable = malloc(sizeof(struct name_cache));
+		*name_cache_variable = calloc(1, sizeof(struct name_cache));
 		if (*name_cache_variable == NULL)
 			lafe_errc(1, ENOMEM, "No more memory");
-		memset(*name_cache_variable, 0, sizeof(struct name_cache));
 		(*name_cache_variable)->size = name_cache_size;
 	}
 

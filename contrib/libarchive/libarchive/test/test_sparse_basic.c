@@ -146,28 +146,14 @@ create_sparse_file(const char *path, const struct sparse *s)
 
 #else
 
-#if defined(_PC_MIN_HOLE_SIZE)
-
-/*
- * FreeBSD and Solaris can detect 'hole' of a sparse file
- * through lseek(HOLE) on ZFS. (UFS does not support yet)
- */
-
-static int
-is_sparse_supported(const char *path)
-{
-	return (pathconf(path, _PC_MIN_HOLE_SIZE) > 0);
-}
-
-#elif defined(__linux__)&& defined(HAVE_LINUX_FIEMAP_H)
-
+#if defined(HAVE_LINUX_FIEMAP_H)
 /*
  * FIEMAP, which can detect 'hole' of a sparse file, has
  * been supported from 2.6.28
  */
 
 static int
-is_sparse_supported(const char *path)
+is_sparse_supported_fiemap(const char *path)
 {
 	const struct sparse sparse_file[] = {
  		/* This hole size is too small to create a sparse
@@ -198,7 +184,58 @@ is_sparse_supported(const char *path)
 	return (r >= 0);
 }
 
-#else
+#if !defined(SEEK_HOLE) || !defined(SEEK_DATA)
+static int
+is_sparse_supported(const char *path)
+{
+	return is_sparse_supported_fiemap(path);
+}
+#endif
+#endif
+
+#if defined(_PC_MIN_HOLE_SIZE)
+
+/*
+ * FreeBSD and Solaris can detect 'hole' of a sparse file
+ * through lseek(HOLE) on ZFS. (UFS does not support yet)
+ */
+
+static int
+is_sparse_supported(const char *path)
+{
+	return (pathconf(path, _PC_MIN_HOLE_SIZE) > 0);
+}
+
+#elif defined(SEEK_HOLE) && defined(SEEK_DATA)
+
+static int
+is_sparse_supported(const char *path)
+{
+	const struct sparse sparse_file[] = {
+ 		/* This hole size is too small to create a sparse
+		 * files for almost filesystem. */
+		{ HOLE,	 1024 }, { DATA, 10240 },
+		{ END,	0 }
+	};
+	int fd, r;
+	const char *testfile = "can_sparse";
+
+	(void)path; /* UNUSED */
+	create_sparse_file(testfile, sparse_file);
+	fd = open(testfile,  O_RDWR);
+	if (fd < 0)
+		return (0);
+	r = lseek(fd, 0, SEEK_HOLE);
+	close(fd);
+	unlink(testfile);
+#if defined(HAVE_LINUX_FIEMAP_H)
+	if (r < 0)
+		return (is_sparse_supported_fiemap(path));
+#endif
+	return (r >= 0);
+}
+
+#elif !defined(HAVE_LINUX_FIEMAP_H)
 
 /*
  * Other system may do not have the API such as lseek(HOLE),
