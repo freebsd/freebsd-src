@@ -136,6 +136,7 @@ static struct fileops kqueueops = {
 
 static int 	knote_attach(struct knote *kn, struct kqueue *kq);
 static void 	knote_drop(struct knote *kn, struct thread *td);
+static void 	knote_drop_detached(struct knote *kn, struct thread *td);
 static void 	knote_enqueue(struct knote *kn);
 static void 	knote_dequeue(struct knote *kn);
 static void 	knote_init(void);
@@ -1358,7 +1359,7 @@ findkn:
 			}
 
 			if ((error = kn->kn_fop->f_attach(kn)) != 0) {
-				knote_drop(kn, td);
+				knote_drop_detached(kn, td);
 				goto done;
 			}
 			knl = kn_list_lock(kn);
@@ -1374,8 +1375,6 @@ findkn:
 	if (kev->flags & EV_DELETE) {
 		kn_enter_flux(kn);
 		KQ_UNLOCK(kq);
-		if (!(kn->kn_status & KN_DETACHED))
-			kn->kn_fop->f_detach(kn);
 		knote_drop(kn, td);
 		goto done;
 	}
@@ -1703,8 +1702,6 @@ retry:
 			 * We don't need to lock the list since we've
 			 * marked it as in flux.
 			 */
-			if (!(kn->kn_status & KN_DETACHED))
-				kn->kn_fop->f_detach(kn);
 			knote_drop(kn, td);
 			KQ_LOCK(kq);
 			continue;
@@ -1718,8 +1715,6 @@ retry:
 			 * marked the knote as being in flux.
 			 */
 			*kevp = kn->kn_kevent;
-			if (!(kn->kn_status & KN_DETACHED))
-				kn->kn_fop->f_detach(kn);
 			knote_drop(kn, td);
 			KQ_LOCK(kq);
 			kn = NULL;
@@ -1921,8 +1916,6 @@ kqueue_drain(struct kqueue *kq, struct thread *td)
 			}
 			kn_enter_flux(kn);
 			KQ_UNLOCK(kq);
-			if (!(kn->kn_status & KN_DETACHED))
-				kn->kn_fop->f_detach(kn);
 			knote_drop(kn, td);
 			KQ_LOCK(kq);
 		}
@@ -1938,8 +1931,6 @@ kqueue_drain(struct kqueue *kq, struct thread *td)
 				}
 				kn_enter_flux(kn);
 				KQ_UNLOCK(kq);
-				if (!(kn->kn_status & KN_DETACHED))
-					kn->kn_fop->f_detach(kn);
 				knote_drop(kn, td);
 				KQ_LOCK(kq);
 			}
@@ -2342,10 +2333,9 @@ again:		/* need to reacquire lock since we have dropped it */
 		}
 		knlist_remove_kq(knl, kn, 1, 1);
 		if (killkn) {
-			kn->kn_status |= KN_DETACHED;
 			kn_enter_flux(kn);
 			KQ_UNLOCK(kq);
-			knote_drop(kn, td);
+			knote_drop_detached(kn, td);
 		} else {
 			/* Make sure cleared knotes disappear soon */
 			kn->kn_flags |= EV_EOF | EV_ONESHOT;
@@ -2411,10 +2401,8 @@ again:
 			}
 			kn_enter_flux(kn);
 			KQ_UNLOCK(kq);
-			if (!(kn->kn_status & KN_DETACHED))
-				kn->kn_fop->f_detach(kn);
-			knote_drop(kn, td);
 			influx = 1;
+			knote_drop(kn, td);
 			KQ_LOCK(kq);
 		}
 		KQ_UNLOCK_FLUX(kq);
@@ -2442,20 +2430,27 @@ knote_attach(struct knote *kn, struct kqueue *kq)
 	return (0);
 }
 
-/*
- * knote must already have been detached using the f_detach method.
- * no lock need to be held, it is assumed that the influx state is set
- * to prevent other removal.
- */
 static void
 knote_drop(struct knote *kn, struct thread *td)
+{
+
+	if ((kn->kn_status & KN_DETACHED) == 0)
+		kn->kn_fop->f_detach(kn);
+	knote_drop_detached(kn, td);
+}
+
+static void
+knote_drop_detached(struct knote *kn, struct thread *td)
 {
 	struct kqueue *kq;
 	struct klist *list;
 
 	kq = kn->kn_kq;
 
+	KASSERT((kn->kn_status & KN_DETACHED) != 0,
+	    ("knote %p still attached", kn));
 	KQ_NOTOWNED(kq);
+
 	KQ_LOCK(kq);
 	KASSERT(kn->kn_influx == 1,
 	    ("knote_drop called on %p with influx %d", kn, kn->kn_influx));
