@@ -16,9 +16,8 @@
 
 #include "clang/AST/ASTMutationListener.h"
 #include "clang/AST/Decl.h"
-#include "clang/AST/DeclarationName.h"
-#include "clang/Frontend/PCHContainerOperations.h"
 #include "clang/AST/TemplateBase.h"
+#include "clang/Frontend/PCHContainerOperations.h"
 #include "clang/Sema/SemaConsumer.h"
 #include "clang/Serialization/ASTBitCodes.h"
 #include "clang/Serialization/ASTDeserializationListener.h"
@@ -26,21 +25,19 @@
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/MapVector.h"
 #include "llvm/ADT/SetVector.h"
-#include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Bitcode/BitstreamWriter.h"
-#include <map>
 #include <queue>
 #include <vector>
 
 namespace llvm {
   class APFloat;
   class APInt;
-  class BitstreamWriter;
 }
 
 namespace clang {
 
+class DeclarationName;
 class ASTContext;
 class Attr;
 class NestedNameSpecifier;
@@ -376,9 +373,10 @@ private:
   /// it.
   llvm::SmallSetVector<const DeclContext *, 16> UpdatedDeclContexts;
 
-  /// \brief Keeps track of visible decls that were added in DeclContexts
-  /// coming from another AST file.
-  SmallVector<const Decl *, 16> UpdatingVisibleDecls;
+  /// \brief Keeps track of declarations that we must emit, even though we're
+  /// not guaranteed to be able to find them by walking the AST starting at the
+  /// translation unit.
+  SmallVector<const Decl *, 16> DeclsToEmitEvenIfUnreferenced;
 
   /// \brief The set of Objective-C class that have categories we
   /// should serialize.
@@ -461,6 +459,9 @@ private:
   void WriteDeclContextVisibleUpdate(const DeclContext *DC);
   void WriteFPPragmaOptions(const FPOptions &Opts);
   void WriteOpenCLExtensions(Sema &SemaRef);
+  void WriteOpenCLExtensionTypes(Sema &SemaRef);
+  void WriteOpenCLExtensionDecls(Sema &SemaRef);
+  void WriteCUDAPragmas(Sema &SemaRef);
   void WriteObjCCategories();
   void WriteLateParsedTemplates(Sema &SemaRef);
   void WriteOptimizePragmaOptions(Sema &SemaRef);
@@ -670,6 +671,14 @@ private:
   void CompletedTagDefinition(const TagDecl *D) override;
   void AddedVisibleDecl(const DeclContext *DC, const Decl *D) override;
   void AddedCXXImplicitMember(const CXXRecordDecl *RD, const Decl *D) override;
+  void AddedCXXTemplateSpecialization(
+      const ClassTemplateDecl *TD,
+      const ClassTemplateSpecializationDecl *D) override;
+  void AddedCXXTemplateSpecialization(
+      const VarTemplateDecl *TD,
+      const VarTemplateSpecializationDecl *D) override;
+  void AddedCXXTemplateSpecialization(const FunctionTemplateDecl *TD,
+                                      const FunctionDecl *D) override;
   void ResolvedExceptionSpec(const FunctionDecl *FD) override;
   void DeducedReturnType(const FunctionDecl *FD, QualType ReturnType) override;
   void ResolvedOperatorDelete(const CXXDestructorDecl *DD,
@@ -677,6 +686,7 @@ private:
   void CompletedImplicitDefinition(const FunctionDecl *D) override;
   void StaticDataMemberInstantiated(const VarDecl *D) override;
   void DefaultArgumentInstantiated(const ParmVarDecl *D) override;
+  void DefaultMemberInitializerInstantiated(const FieldDecl *D) override;
   void FunctionDefinitionInstantiated(const FunctionDecl *D) override;
   void AddedObjCCategoryToInterface(const ObjCCategoryDecl *CatD,
                                     const ObjCInterfaceDecl *IFD) override;
@@ -911,7 +921,6 @@ public:
 class PCHGenerator : public SemaConsumer {
   const Preprocessor &PP;
   std::string OutputFile;
-  clang::Module *Module;
   std::string isysroot;
   Sema *SemaPtr;
   std::shared_ptr<PCHBuffer> Buffer;
@@ -927,7 +936,7 @@ protected:
 public:
   PCHGenerator(
     const Preprocessor &PP, StringRef OutputFile,
-    clang::Module *Module, StringRef isysroot,
+    StringRef isysroot,
     std::shared_ptr<PCHBuffer> Buffer,
     ArrayRef<llvm::IntrusiveRefCntPtr<ModuleFileExtension>> Extensions,
     bool AllowASTWithErrors = false,

@@ -15,6 +15,7 @@
 #include "clang/AST/Expr.h"
 #include "clang/AST/ExprObjC.h"
 #include "clang/Analysis/CFGStmtMap.h"
+#include "clang/Lex/Lexer.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugReporter.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/PathDiagnostic.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CallEvent.h"
@@ -916,7 +917,7 @@ static const Expr *peelOffOuterExpr(const Expr *Ex,
     if (PropRef && PropRef->isMessagingGetter()) {
       const Expr *GetterMessageSend =
           POE->getSemanticExpr(POE->getNumSemanticExprs() - 1);
-      assert(isa<ObjCMessageExpr>(GetterMessageSend));
+      assert(isa<ObjCMessageExpr>(GetterMessageSend->IgnoreParenCasts()));
       return peelOffOuterExpr(GetterMessageSend, N);
     }
   }
@@ -1271,7 +1272,22 @@ ConditionBRVisitor::VisitTerminator(const Stmt *Term,
                                     BugReporterContext &BRC) {
   const Expr *Cond = nullptr;
 
+  // In the code below, Term is a CFG terminator and Cond is a branch condition
+  // expression upon which the decision is made on this terminator.
+  //
+  // For example, in "if (x == 0)", the "if (x == 0)" statement is a terminator,
+  // and "x == 0" is the respective condition.
+  //
+  // Another example: in "if (x && y)", we've got two terminators and two
+  // conditions due to short-circuit nature of operator "&&":
+  // 1. The "if (x && y)" statement is a terminator,
+  //    and "y" is the respective condition.
+  // 2. Also "x && ..." is another terminator,
+  //    and "x" is its condition.
+
   switch (Term->getStmtClass()) {
+  // FIXME: Stmt::SwitchStmtClass is worth handling, however it is a bit
+  // more tricky because there are more than two branches to account for.
   default:
     return nullptr;
   case Stmt::IfStmtClass:
@@ -1280,6 +1296,24 @@ ConditionBRVisitor::VisitTerminator(const Stmt *Term,
   case Stmt::ConditionalOperatorClass:
     Cond = cast<ConditionalOperator>(Term)->getCond();
     break;
+  case Stmt::BinaryOperatorClass:
+    // When we encounter a logical operator (&& or ||) as a CFG terminator,
+    // then the condition is actually its LHS; otheriwse, we'd encounter
+    // the parent, such as if-statement, as a terminator.
+    const auto *BO = cast<BinaryOperator>(Term);
+    assert(BO->isLogicalOp() &&
+           "CFG terminator is not a short-circuit operator!");
+    Cond = BO->getLHS();
+    break;
+  }
+
+  // However, when we encounter a logical operator as a branch condition,
+  // then the condition is actually its RHS, because LHS would be
+  // the condition for the logical operator terminator.
+  while (const auto *InnerBO = dyn_cast<BinaryOperator>(Cond)) {
+    if (!InnerBO->isLogicalOp())
+      break;
+    Cond = InnerBO->getRHS()->IgnoreParens();
   }
 
   assert(Cond);
@@ -1294,40 +1328,101 @@ ConditionBRVisitor::VisitTrueTest(const Expr *Cond,
                                   BugReporterContext &BRC,
                                   BugReport &R,
                                   const ExplodedNode *N) {
-
-  const Expr *Ex = Cond;
+  // These will be modified in code below, but we need to preserve the original
+  //  values in case we want to throw the generic message.
+  const Expr *CondTmp = Cond;
+  bool tookTrueTmp = tookTrue;
 
   while (true) {
-    Ex = Ex->IgnoreParenCasts();
-    switch (Ex->getStmtClass()) {
+    CondTmp = CondTmp->IgnoreParenCasts();
+    switch (CondTmp->getStmtClass()) {
       default:
-        return nullptr;
+        break;
       case Stmt::BinaryOperatorClass:
-        return VisitTrueTest(Cond, cast<BinaryOperator>(Ex), tookTrue, BRC,
-                             R, N);
+        if (PathDiagnosticPiece *P = VisitTrueTest(
+                Cond, cast<BinaryOperator>(CondTmp), tookTrueTmp, BRC, R, N))
+          return P;
+        break;
       case Stmt::DeclRefExprClass:
-        return VisitTrueTest(Cond, cast<DeclRefExpr>(Ex), tookTrue, BRC,
-                             R, N);
+        if (PathDiagnosticPiece *P = VisitTrueTest(
+                Cond, cast<DeclRefExpr>(CondTmp), tookTrueTmp, BRC, R, N))
+          return P;
+        break;
       case Stmt::UnaryOperatorClass: {
-        const UnaryOperator *UO = cast<UnaryOperator>(Ex);
+        const UnaryOperator *UO = cast<UnaryOperator>(CondTmp);
         if (UO->getOpcode() == UO_LNot) {
-          tookTrue = !tookTrue;
-          Ex = UO->getSubExpr();
+          tookTrueTmp = !tookTrueTmp;
+          CondTmp = UO->getSubExpr();
           continue;
         }
-        return nullptr;
+        break;
       }
     }
+    break;
   }
+
+  // Condition too complex to explain? Just say something so that the user
+  // knew we've made some path decision at this point.
+  const LocationContext *LCtx = N->getLocationContext();
+  PathDiagnosticLocation Loc(Cond, BRC.getSourceManager(), LCtx);
+  if (!Loc.isValid() || !Loc.asLocation().isValid())
+    return nullptr;
+
+  PathDiagnosticEventPiece *Event = new PathDiagnosticEventPiece(
+      Loc, tookTrue ? GenericTrueMessage : GenericFalseMessage);
+  return Event;
 }
 
-bool ConditionBRVisitor::patternMatch(const Expr *Ex, raw_ostream &Out,
+bool ConditionBRVisitor::patternMatch(const Expr *Ex,
+                                      const Expr *ParentEx,
+                                      raw_ostream &Out,
                                       BugReporterContext &BRC,
                                       BugReport &report,
                                       const ExplodedNode *N,
                                       Optional<bool> &prunable) {
   const Expr *OriginalExpr = Ex;
   Ex = Ex->IgnoreParenCasts();
+
+  // Use heuristics to determine if Ex is a macro expending to a literal and
+  // if so, use the macro's name.
+  SourceLocation LocStart = Ex->getLocStart();
+  SourceLocation LocEnd = Ex->getLocEnd();
+  if (LocStart.isMacroID() && LocEnd.isMacroID() &&
+      (isa<GNUNullExpr>(Ex) ||
+       isa<ObjCBoolLiteralExpr>(Ex) ||
+       isa<CXXBoolLiteralExpr>(Ex) ||
+       isa<IntegerLiteral>(Ex) ||
+       isa<FloatingLiteral>(Ex))) {
+
+    StringRef StartName = Lexer::getImmediateMacroNameForDiagnostics(LocStart,
+      BRC.getSourceManager(), BRC.getASTContext().getLangOpts());
+    StringRef EndName = Lexer::getImmediateMacroNameForDiagnostics(LocEnd,
+      BRC.getSourceManager(), BRC.getASTContext().getLangOpts());
+    bool beginAndEndAreTheSameMacro = StartName.equals(EndName);
+
+    bool partOfParentMacro = false;
+    if (ParentEx->getLocStart().isMacroID()) {
+      StringRef PName = Lexer::getImmediateMacroNameForDiagnostics(
+        ParentEx->getLocStart(), BRC.getSourceManager(),
+        BRC.getASTContext().getLangOpts());
+      partOfParentMacro = PName.equals(StartName);
+    }
+
+    if (beginAndEndAreTheSameMacro && !partOfParentMacro ) {
+      // Get the location of the macro name as written by the caller.
+      SourceLocation Loc = LocStart;
+      while (LocStart.isMacroID()) {
+        Loc = LocStart;
+        LocStart = BRC.getSourceManager().getImmediateMacroCallerLoc(LocStart);
+      }
+      StringRef MacroName = Lexer::getImmediateMacroNameForDiagnostics(
+        Loc, BRC.getSourceManager(), BRC.getASTContext().getLangOpts());
+
+      // Return the macro name.
+      Out << MacroName;
+      return false;
+    }
+  }
 
   if (const DeclRefExpr *DR = dyn_cast<DeclRefExpr>(Ex)) {
     const bool quotes = isa<VarDecl>(DR->getDecl());
@@ -1389,10 +1484,10 @@ ConditionBRVisitor::VisitTrueTest(const Expr *Cond,
   SmallString<128> LhsString, RhsString;
   {
     llvm::raw_svector_ostream OutLHS(LhsString), OutRHS(RhsString);
-    const bool isVarLHS = patternMatch(BExpr->getLHS(), OutLHS, BRC, R, N,
-                                       shouldPrune);
-    const bool isVarRHS = patternMatch(BExpr->getRHS(), OutRHS, BRC, R, N,
-                                       shouldPrune);
+    const bool isVarLHS = patternMatch(BExpr->getLHS(), BExpr, OutLHS,
+                                       BRC, R, N, shouldPrune);
+    const bool isVarRHS = patternMatch(BExpr->getRHS(), BExpr, OutRHS,
+                                       BRC, R, N, shouldPrune);
 
     shouldInvert = !isVarLHS && isVarRHS;
   }
@@ -1552,6 +1647,17 @@ ConditionBRVisitor::VisitTrueTest(const Expr *Cond,
   return event;
 }
 
+const char *const ConditionBRVisitor::GenericTrueMessage =
+    "Assuming the condition is true";
+const char *const ConditionBRVisitor::GenericFalseMessage =
+    "Assuming the condition is false";
+
+bool ConditionBRVisitor::isPieceMessageGeneric(
+    const PathDiagnosticPiece *Piece) {
+  return Piece->getString() == GenericTrueMessage ||
+         Piece->getString() == GenericFalseMessage;
+}
+
 std::unique_ptr<PathDiagnosticPiece>
 LikelyFalsePositiveSuppressionBRVisitor::getEndPath(BugReporterContext &BRC,
                                                     const ExplodedNode *N,
@@ -1692,4 +1798,57 @@ UndefOrNullArgVisitor::VisitNode(const ExplodedNode *N,
     }
   }
   return nullptr;
+}
+
+PathDiagnosticPiece *
+CXXSelfAssignmentBRVisitor::VisitNode(const ExplodedNode *Succ,
+                                      const ExplodedNode *Pred,
+                                      BugReporterContext &BRC, BugReport &BR) {
+  if (Satisfied)
+    return nullptr;
+
+  auto Edge = Succ->getLocation().getAs<BlockEdge>();
+  if (!Edge.hasValue())
+    return nullptr;
+
+  auto Tag = Edge->getTag();
+  if (!Tag)
+    return nullptr;
+
+  if (Tag->getTagDescription() != "cplusplus.SelfAssignment")
+    return nullptr;
+
+  Satisfied = true;
+
+  const auto *Met =
+      dyn_cast<CXXMethodDecl>(Succ->getCodeDecl().getAsFunction());
+  assert(Met && "Not a C++ method.");
+  assert((Met->isCopyAssignmentOperator() || Met->isMoveAssignmentOperator()) &&
+         "Not a copy/move assignment operator.");
+
+  const auto *LCtx = Edge->getLocationContext();
+
+  const auto &State = Succ->getState();
+  auto &SVB = State->getStateManager().getSValBuilder();
+
+  const auto Param =
+      State->getSVal(State->getRegion(Met->getParamDecl(0), LCtx));
+  const auto This =
+      State->getSVal(SVB.getCXXThis(Met, LCtx->getCurrentStackFrame()));
+
+  auto L = PathDiagnosticLocation::create(Met, BRC.getSourceManager());
+
+  if (!L.isValid() || !L.asLocation().isValid())
+    return nullptr;
+
+  SmallString<256> Buf;
+  llvm::raw_svector_ostream Out(Buf);
+
+  Out << "Assuming " << Met->getParamDecl(0)->getName() <<
+    ((Param == This) ? " == " : " != ") << "*this";
+
+  auto *Piece = new PathDiagnosticEventPiece(L, Out.str());
+  Piece->addRange(Met->getSourceRange());
+
+  return Piece;
 }

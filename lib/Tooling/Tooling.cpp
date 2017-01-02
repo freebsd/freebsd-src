@@ -13,23 +13,26 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Tooling/Tooling.h"
-#include "clang/AST/ASTConsumer.h"
 #include "clang/Driver/Compilation.h"
 #include "clang/Driver/Driver.h"
+#include "clang/Driver/Options.h"
 #include "clang/Driver/Tool.h"
 #include "clang/Driver/ToolChain.h"
 #include "clang/Frontend/ASTUnit.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
 #include "clang/Frontend/TextDiagnosticPrinter.h"
+#include "clang/Lex/PreprocessorOptions.h"
 #include "clang/Tooling/ArgumentsAdjusters.h"
 #include "clang/Tooling/CompilationDatabase.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Config/llvm-config.h"
+#include "llvm/Option/ArgList.h"
 #include "llvm/Option/Option.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Host.h"
+#include "llvm/Support/Path.h"
 #include "llvm/Support/raw_ostream.h"
 #include <utility>
 
@@ -240,6 +243,11 @@ bool ToolInvocation::run() {
     Argv.push_back(Str.c_str());
   const char *const BinaryName = Argv[0];
   IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts = new DiagnosticOptions();
+  unsigned MissingArgIndex, MissingArgCount;
+  std::unique_ptr<llvm::opt::OptTable> Opts(driver::createDriverOptTable());
+  llvm::opt::InputArgList ParsedArgs = Opts->ParseArgs(
+      ArrayRef<const char *>(Argv).slice(1), MissingArgIndex, MissingArgCount);
+  ParseDiagnosticArgs(*DiagOpts, ParsedArgs);
   TextDiagnosticPrinter DiagnosticPrinter(
       llvm::errs(), &*DiagOpts);
   DiagnosticsEngine Diagnostics(

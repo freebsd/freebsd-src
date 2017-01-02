@@ -4,10 +4,12 @@ set(LLVM_LINK_COMPONENTS
 
 add_clang_library(clangStaticAnalyzerCheckers
   AllocationDiagnostics.cpp
+  AnalysisOrderChecker.cpp
   AnalyzerStatsChecker.cpp
   ArrayBoundChecker.cpp
   ArrayBoundCheckerV2.cpp
   BasicObjCFoundationChecks.cpp
+  BlockInCriticalSectionChecker.cpp
   BoolAssignmentChecker.cpp
   BuiltinFunctionChecker.cpp
   CStringChecker.cpp
@@ -22,6 +24,9 @@ add_clang_library(clangStaticAnalyzerCheckers
   CheckerDocumentation.cpp
   ChrootChecker.cpp
   ClangCheckers.cpp
+  CloneChecker.cpp
+  ConversionChecker.cpp
+  CXXSelfAssignmentChecker.cpp
   DeadStoresChecker.cpp
   DebugCheckers.cpp
   DereferenceChecker.cpp
@@ -32,6 +37,7 @@ add_clang_library(clangStaticAnalyzerCheckers
   ExprInspectionChecker.cpp
   FixedAddressChecker.cpp
   GenericTaintChecker.cpp
+  GTestChecker.cpp
   IdenticalExprChecker.cpp
   IvarInvalidationChecker.cpp
   LLVMConventionsChecker.cpp
@@ -49,10 +55,12 @@ add_clang_library(clangStaticAnalyzerCheckers
   NoReturnFunctionChecker.cpp
   NonNullParamChecker.cpp
   NullabilityChecker.cpp
+  NumberObjectConversionChecker.cpp
   ObjCAtSyncChecker.cpp
   ObjCContainersASTChecker.cpp
   ObjCContainersChecker.cpp
   ObjCMissingSuperCallChecker.cpp
+  ObjCPropertyChecker.cpp
   ObjCSelfInitChecker.cpp
   ObjCSuperDeallocChecker.cpp
   ObjCUnusedIVarsChecker.cpp
@@ -65,6 +73,7 @@ add_clang_library(clangStaticAnalyzerCheckers
   ReturnUndefChecker.cpp
   SimpleStreamChecker.cpp
   StackAddrEscapeChecker.cpp
+  StdLibraryFunctionsChecker.cpp
   StreamChecker.cpp
   TaintTesterChecker.cpp
   TestAfterDivZeroChecker.cpp
@@ -78,6 +87,7 @@ add_clang_library(clangStaticAnalyzerCheckers
   UnreachableCodeChecker.cpp
   VforkChecker.cpp
   VLASizeChecker.cpp
+  ValistChecker.cpp
   VirtualCallChecker.cpp
 
   DEPENDS
@@ -85,6 +95,7 @@ add_clang_library(clangStaticAnalyzerCheckers
 
   LINK_LIBS
   clangAST
+  clangASTMatchers
   clangAnalysis
   clangBasic
   clangLex

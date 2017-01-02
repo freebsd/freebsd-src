@@ -1,5 +1,5 @@
-// RUN: %clang_cc1 -triple i686-windows-msvc   -emit-llvm -std=c++1y -fno-threadsafe-statics -fms-extensions -O1 -mconstructor-aliases -disable-llvm-optzns -o - %s -w -fms-compatibility-version=19.00 | FileCheck --check-prefix=MSC --check-prefix=M32 -check-prefix=MSVC2015 -check-prefix=M32MSVC2015 %s
-// RUN: %clang_cc1 -triple i686-windows-msvc   -emit-llvm -std=c++1y -fno-threadsafe-statics -fms-extensions -O1 -mconstructor-aliases -disable-llvm-optzns -o - %s -w -fms-compatibility-version=18.00 | FileCheck --check-prefix=MSC --check-prefix=M32 -check-prefix=MSVC2013 -check-prefix=M32MSVC2013 %s
+// RUN: %clang_cc1 -triple i686-windows-msvc   -emit-llvm -std=c++1y -fno-threadsafe-statics -fms-extensions -O1 -mconstructor-aliases -disable-llvm-passes -o - %s -w -fms-compatibility-version=19.00 | FileCheck --check-prefix=MSC --check-prefix=M32 -check-prefix=MSVC2015 -check-prefix=M32MSVC2015 %s
+// RUN: %clang_cc1 -triple i686-windows-msvc   -emit-llvm -std=c++1y -fno-threadsafe-statics -fms-extensions -O1 -mconstructor-aliases -disable-llvm-passes -o - %s -w -fms-compatibility-version=18.00 | FileCheck --check-prefix=MSC --check-prefix=M32 -check-prefix=MSVC2013 -check-prefix=M32MSVC2013 %s
 
 // RUN: %clang_cc1 -triple x86_64-windows-msvc -emit-llvm -std=c++1y -fno-threadsafe-statics -fms-extensions -O0 -o - %s -w -fms-compatibility-version=19.00 | FileCheck --check-prefix=MSC --check-prefix=M64 -check-prefix=MSVC2015 -check-prefix=M64MSVC2015 %s
 // RUN: %clang_cc1 -triple x86_64-windows-msvc -emit-llvm -std=c++1y -fno-threadsafe-statics -fms-extensions -O0 -o - %s -w -fms-compatibility-version=18.00 | FileCheck --check-prefix=MSC --check-prefix=M64 -check-prefix=MSVC2013 -check-prefix=M64MSVC2013 %s
@@ -612,9 +612,9 @@ void W::foo() {}
 // Copy ctor:
 // M32-DAG: define weak_odr dllexport x86_thiscallcc %struct.W* @"\01??0W@@QAE@ABU0@@Z"
 // vftable:
-// M32-DAG: [[W_VTABLE:@.*]] = private unnamed_addr constant [2 x i8*] [i8* bitcast (%rtti.CompleteObjectLocator* @"\01??_R4W@@6B@" to i8*), i8* bitcast (void (%struct.W*)* @"\01?foo@W@@UAEXXZ" to i8*)], comdat($"\01??_7W@@6B@")
-// M32-DAG: @"\01??_7W@@6B@" = dllexport unnamed_addr alias i8*, getelementptr inbounds ([2 x i8*], [2 x i8*]* [[W_VTABLE]], i32 0, i32 1)
-// G32-DAG: @_ZTV1W = dllexport unnamed_addr constant [3 x i8*] [i8* null, i8* bitcast ({ i8*, i8* }* @_ZTI1W to i8*), i8* bitcast (void (%struct.W*)* @_ZN1W3fooEv to i8*)]
+// M32-DAG: [[W_VTABLE:@.*]] = private unnamed_addr constant { [2 x i8*] } { [2 x i8*] [i8* bitcast (%rtti.CompleteObjectLocator* @"\01??_R4W@@6B@" to i8*), i8* bitcast (void (%struct.W*)* @"\01?foo@W@@UAEXXZ" to i8*)] }, comdat($"\01??_7W@@6B@")
+// M32-DAG: @"\01??_7W@@6B@" = dllexport unnamed_addr alias i8*, getelementptr inbounds ({ [2 x i8*] }, { [2 x i8*] }* [[W_VTABLE]], i32 0, i32 0, i32 1)
+// G32-DAG: @_ZTV1W = dllexport unnamed_addr constant { [3 x i8*] } { [3 x i8*] [i8* null, i8* bitcast ({ i8*, i8* }* @_ZTI1W to i8*), i8* bitcast (void (%struct.W*)* @_ZN1W3fooEv to i8*)] }
 
 struct __declspec(dllexport) X : public virtual W {};
 // vbtable:
@@ -770,6 +770,13 @@ USEMEMFUNC(ExplicitInstantiationDeclExportedDefTemplate<int>, f);
 // M32-DAG: define weak_odr dllexport x86_thiscallcc void @"\01?f@?$ExplicitInstantiationDeclExportedDefTemplate@H@@QAEXXZ"
 // M32-DAG: define weak_odr dllexport x86_thiscallcc %struct.ExplicitInstantiationDeclExportedDefTemplate* @"\01??0?$ExplicitInstantiationDeclExportedDefTemplate@H@@QAE@XZ"
 // G32-DAG: define weak_odr x86_thiscallcc void @_ZN44ExplicitInstantiationDeclExportedDefTemplateIiE1fEv
+
+template <typename T> struct ImplicitInstantiationExplicitInstantiationDefExportedTemplate { void f() {} };
+ImplicitInstantiationExplicitInstantiationDefExportedTemplate<int> ImplicitInstantiationExplicitInstantiationDefExportedTemplateInstance;
+template class __declspec(dllexport) ImplicitInstantiationExplicitInstantiationDefExportedTemplate<int>;
+USEMEMFUNC(ImplicitInstantiationExplicitInstantiationDefExportedTemplate<int>, f);
+// M32-DAG: define weak_odr dllexport x86_thiscallcc void @"\01?f@?$ImplicitInstantiationExplicitInstantiationDefExportedTemplate@H@@QAEXXZ"
+// G32-DAG: define weak_odr x86_thiscallcc void @_ZN61ImplicitInstantiationExplicitInstantiationDefExportedTemplateIiE1fEv
 
 namespace { struct InternalLinkageType {}; }
 struct __declspec(dllexport) PR23308 {

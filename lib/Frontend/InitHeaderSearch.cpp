@@ -11,10 +11,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "clang/Frontend/Utils.h"
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/LangOptions.h"
 #include "clang/Config/config.h" // C_INCLUDE_DIRS
+#include "clang/Frontend/Utils.h"
 #include "clang/Lex/HeaderMap.h"
 #include "clang/Lex/HeaderSearch.h"
 #include "clang/Lex/HeaderSearchOptions.h"
@@ -25,7 +25,6 @@
 #include "llvm/ADT/Triple.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/Support/ErrorHandling.h"
-#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/raw_ostream.h"
 
@@ -527,7 +526,7 @@ static unsigned RemoveDuplicates(std::vector<DirectoryLookup> &SearchList,
     if (CurEntry.getDirCharacteristic() != SrcMgr::C_User) {
       // Find the dir that this is the same of.
       unsigned FirstDir;
-      for (FirstDir = 0; ; ++FirstDir) {
+      for (FirstDir = First;; ++FirstDir) {
         assert(FirstDir != i && "Didn't find dupe?");
 
         const DirectoryLookup &SearchEntry = SearchList[FirstDir];
@@ -626,7 +625,7 @@ void InitHeaderSearch::Realize(const LangOptions &Lang) {
     for (unsigned i = 0, e = SearchList.size(); i != e; ++i) {
       if (i == NumQuoted)
         llvm::errs() << "#include <...> search starts here:\n";
-      const char *Name = SearchList[i].getName();
+      StringRef Name = SearchList[i].getName();
       const char *Suffix;
       if (SearchList[i].isNormalDir())
         Suffix = "";

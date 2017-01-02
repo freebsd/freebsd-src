@@ -156,10 +156,10 @@ void check_writeback_specifier()
 
 void check_invalid_specifier(FILE* fp, char *buf)
 {
-  printf("%s%lb%d","unix",10,20); // expected-warning {{invalid conversion specifier 'b'}}
+  printf("%s%lb%d","unix",10,20); // expected-warning {{invalid conversion specifier 'b'}} expected-warning {{data argument not used by format string}}
   fprintf(fp,"%%%l"); // expected-warning {{incomplete format specifier}}
   sprintf(buf,"%%%%%ld%d%d", 1, 2, 3); // expected-warning{{format specifies type 'long' but the argument has type 'int'}}
-  snprintf(buf, 2, "%%%%%ld%;%d", 1, 2, 3); // expected-warning{{format specifies type 'long' but the argument has type 'int'}} expected-warning {{invalid conversion specifier ';'}}
+  snprintf(buf, 2, "%%%%%ld%;%d", 1, 2, 3); // expected-warning{{format specifies type 'long' but the argument has type 'int'}} expected-warning {{invalid conversion specifier ';'}} expected-warning {{data argument not used by format string}}
 }
 
 void check_null_char_string(char* b)
@@ -251,7 +251,7 @@ void test10(int x, float f, int i, long long lli) {
   printf("%**\n"); // expected-warning{{invalid conversion specifier '*'}}
   printf("%d%d\n", x); // expected-warning{{more '%' conversions than data arguments}}
   printf("%d\n", x, x); // expected-warning{{data argument not used by format string}}
-  printf("%W%d\n", x, x); // expected-warning{{invalid conversion specifier 'W'}}
+  printf("%W%d\n", x, x); // expected-warning{{invalid conversion specifier 'W'}}  expected-warning {{data argument not used by format string}}
   printf("%"); // expected-warning{{incomplete format specifier}}
   printf("%.d", x); // no-warning
   printf("%.", x);  // expected-warning{{incomplete format specifier}}
@@ -270,7 +270,7 @@ void test10(int x, float f, int i, long long lli) {
   printf("%.0Lf", (long double) 1.0); // no-warning
   printf("%c\n", "x"); // expected-warning{{format specifies type 'int' but the argument has type 'char *'}}
   printf("%c\n", 1.23); // expected-warning{{format specifies type 'int' but the argument has type 'double'}}
-  printf("Format %d, is %! %f", 1, 2, 4.4); // expected-warning{{invalid conversion specifier '!'}}
+  printf("Format %d, is %! %f", 1, 4.4); // expected-warning{{invalid conversion specifier '!'}}
 }
 
 typedef unsigned char uint8_t;
@@ -652,3 +652,43 @@ void test_format_security_pos(char* string) {
   // expected-note@-1{{treat the string as an argument to avoid this}}
 }
 #pragma GCC diagnostic warning "-Wformat-nonliteral"
+
+void test_char_pointer_arithmetic(int b) {
+  const char s1[] = "string";
+  const char s2[] = "%s string";
+
+  printf(s1 - 1);  // expected-warning {{format string is not a string literal (potentially insecure)}}
+  // expected-note@-1{{treat the string as an argument to avoid this}}
+
+  printf(s1 + 2);  // no-warning
+  printf(s2 + 2);  // no-warning
+
+  const char s3[] = "%s string";
+  printf((s3 + 2) - 2);  // expected-warning{{more '%' conversions than data arguments}}
+  // expected-note@-2{{format string is defined here}}
+  printf(2 + s2);             // no-warning
+  printf(6 + s2 - 2);         // no-warning
+  printf(2 + (b ? s1 : s2));  // no-warning
+
+  const char s5[] = "string %s";
+  printf(2 + (b ? s2 : s5));  // expected-warning{{more '%' conversions than data arguments}}
+  // expected-note@-2{{format string is defined here}}
+  printf(2 + (b ? s2 : s5), "");      // no-warning
+  printf(2 + (b ? s1 : s2 - 2), "");  // no-warning
+
+  const char s6[] = "%s string";
+  printf(2 + (b ? s1 : s6 - 2));  // expected-warning{{more '%' conversions than data arguments}}
+  // expected-note@-2{{format string is defined here}}
+  printf(1 ? s2 + 2 : s2);  // no-warning
+  printf(0 ? s2 : s2 + 2);  // no-warning
+  printf(2 + s2 + 5 * 3 - 16, "");  // expected-warning{{data argument not used}}
+
+  const char s7[] = "%s string %s %s";
+  printf(s7 + 3, "");  // expected-warning{{more '%' conversions than data arguments}}
+  // expected-note@-2{{format string is defined here}}
+}
+
+void PR30481() {
+  // This caused crashes due to invalid casts.
+  printf(1 > 0); // expected-warning{{format string is not a string literal}} expected-warning{{incompatible integer to pointer conversion}} expected-note@format-strings.c:*{{passing argument to parameter here}} expected-note{{to avoid this}}
+}

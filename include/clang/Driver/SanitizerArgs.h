@@ -38,6 +38,9 @@ class SanitizerArgs {
   bool LinkCXXRuntimes = false;
   bool NeedPIE = false;
   bool Stats = false;
+  bool TsanMemoryAccess = true;
+  bool TsanFuncEntryExit = true;
+  bool TsanAtomics = true;
 
  public:
   /// Parses the sanitizer arguments from an argument list.
@@ -66,6 +69,7 @@ class SanitizerArgs {
   bool requiresPIE() const;
   bool needsUnwindTables() const;
   bool linkCXXRuntimes() const { return LinkCXXRuntimes; }
+  bool hasCrossDsoCfi() const { return CfiCrossDso; }
   void addArgs(const ToolChain &TC, const llvm::opt::ArgList &Args,
                llvm::opt::ArgStringList &CmdArgs, types::ID InputType) const;
 };

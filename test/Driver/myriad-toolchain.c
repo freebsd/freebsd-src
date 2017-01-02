@@ -1,15 +1,16 @@
 // RUN: %clang -no-canonical-prefixes -### -target sparc-myriad-rtems-elf %s \
+// RUN: -ccc-install-dir %S/Inputs/basic_myriad_tree/bin \
 // RUN: --gcc-toolchain=%S/Inputs/basic_myriad_tree 2>&1 | FileCheck %s -check-prefix=LINK_WITH_RTEMS
 // LINK_WITH_RTEMS: Inputs{{.*}}crti.o
 // LINK_WITH_RTEMS: Inputs{{.*}}crtbegin.o
-// LINK_WITH_RTEMS: "-L{{.*}}Inputs/basic_myriad_tree/lib/gcc/sparc-myriad-elf/4.8.2/../../..{{/|\\\\}}../sparc-myriad-elf/lib"
 // LINK_WITH_RTEMS: "-L{{.*}}Inputs/basic_myriad_tree/lib/gcc/sparc-myriad-elf/4.8.2"
-// LINK_WITH_RTEMS: "--start-group" "-lc" "-lrtemscpu" "-lrtemsbsp" "--end-group" "-lgcc"
+// LINK_WITH_RTEMS: "-L{{.*}}Inputs/basic_myriad_tree/bin/../sparc-myriad-elf/lib"
+// LINK_WITH_RTEMS: "--start-group" "-lc" "-lgcc" "-lrtemscpu" "-lrtemsbsp" "--end-group"
 // LINK_WITH_RTEMS: Inputs{{.*}}crtend.o
 // LINK_WITH_RTEMS: Inputs{{.*}}crtn.o
 
 // RUN: %clang -c -no-canonical-prefixes -### -target sparc-myriad-rtems-elf -x c++ %s \
-// RUN: --gcc-toolchain=%S/Inputs/basic_myriad_tree 2>&1 | FileCheck %s -check-prefix=COMPILE_CXX
+// RUN: -stdlib=libstdc++ --gcc-toolchain=%S/Inputs/basic_myriad_tree 2>&1 | FileCheck %s -check-prefix=COMPILE_CXX
 // COMPILE_CXX: "-internal-isystem" "{{.*}}/Inputs/basic_myriad_tree/lib/gcc/sparc-myriad-elf/4.8.2/../../../../sparc-myriad-elf/include/c++/4.8.2"
 // COMPILE_CXX: "-internal-isystem" "{{.*}}/Inputs/basic_myriad_tree/lib/gcc/sparc-myriad-elf/4.8.2/../../../../sparc-myriad-elf/include/c++/4.8.2/sparc-myriad-elf"
 // COMPILE_CXX: "-internal-isystem" "{{.*}}/Inputs/basic_myriad_tree/lib/gcc/sparc-myriad-elf/4.8.2/../../../../sparc-myriad-elf/include/c++/4.8.2/backward"
@@ -50,8 +51,9 @@
 // RUN:   | FileCheck %s -check-prefix=INCLUDES
 // INCLUDES: "-iquote" "quotepath" "-isystem" "syspath"
 
+// -fno-split-dwarf-inlining is consumed but not passed to moviCompile.
 // RUN: %clang -target shave-myriad -c -### %s -g -fno-inline-functions \
-// RUN: -fno-inline-functions-called-once -Os -Wall -MF dep.d \
+// RUN: -fno-inline-functions-called-once -Os -Wall -MF dep.d -fno-split-dwarf-inlining \
 // RUN: -ffunction-sections 2>&1 | FileCheck %s -check-prefix=PASSTHRU_OPTIONS
 // PASSTHRU_OPTIONS: "-g" "-fno-inline-functions" "-fno-inline-functions-called-once"
 // PASSTHRU_OPTIONS: "-Os" "-Wall" "-MF" "dep.d" "-ffunction-sections"
@@ -68,8 +70,11 @@
 // RUN:   | FileCheck %s -check-prefix=PREPROCESS
 // PREPROCESS: "-E" "-DMYRIAD2" "-I" "foo"
 
-// RUN: %clang -target sparc-myriad -### --driver-mode=g++ %s 2>&1 | FileCheck %s --check-prefix=STDLIBCXX
-// STDLIBCXX: "-lstdc++" "-lc" "-lgcc"
+// RUN: %clang -stdlib=platform -target sparc-myriad -### --driver-mode=g++ %s 2>&1 | FileCheck %s --check-prefix=LIBSTDCXX
+// LIBSTDCXX: "-lstdc++" "-lc" "-lgcc"
+
+// RUN: %clang -stdlib=libc++ -### -target sparcel-myriad -S -x c++ %s 2>&1 | FileCheck %s -check-prefix=LIBCXX
+// LIBCXX: "-internal-isystem" "{{.*}}/../include/c++/v1"
 
 // RUN: %clang -target sparc-myriad -### -nostdlib %s 2>&1 | FileCheck %s --check-prefix=NOSTDLIB
 // NOSTDLIB-NOT: crtbegin.o

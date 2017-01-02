@@ -90,7 +90,7 @@ namespace dr407 { // dr407: 3.8
     struct S *p;
     {
       typedef struct S S; // expected-note {{here}}
-      struct S *p; // expected-error {{refers to a typedef}}
+      struct S *p; // expected-error {{typedef 'S' cannot be referenced with a struct specifier}}
     }
   }
   struct S {};
@@ -327,7 +327,7 @@ namespace dr420 { // dr420: yes
 
 namespace dr421 { // dr421: yes
   struct X { X(); int n; int &r; };
-  int *p = &X().n; // expected-error {{taking the address of a temporary}}
+  int *p = &X().n; // expected-error-re {{{{taking the address of a temporary|cannot take the address of an rvalue}}}}
   int *q = &X().r;
 }
 
@@ -508,9 +508,18 @@ namespace dr437 { // dr437: sup 1308
   template<typename U> struct T : U {};
   struct S {
     void f() throw(S);
+#if __cplusplus > 201402L
+    // expected-error@-2 {{ISO C++1z does not allow}} expected-note@-2 {{use 'noexcept}}
+#endif
     void g() throw(T<S>);
+#if __cplusplus > 201402L
+    // expected-error@-2 {{ISO C++1z does not allow}} expected-note@-2 {{use 'noexcept}}
+#endif
     struct U;
     void h() throw(U);
+#if __cplusplus > 201402L
+    // expected-error@-2 {{ISO C++1z does not allow}} expected-note@-2 {{use 'noexcept}}
+#endif
     struct U {};
   };
 }
@@ -553,12 +562,21 @@ namespace dr446 { // dr446: yes
     void(b ? a : a);
     b ? A() : a; // expected-error {{deleted}}
     b ? a : A(); // expected-error {{deleted}}
-    b ? A() : A(); // expected-error {{deleted}}
+    b ? A() : A();
+#if __cplusplus <= 201402L
+    // expected-error@-2 {{deleted}}
+#endif
 
     void(b ? a : c);
     b ? a : C(); // expected-error {{deleted}}
-    b ? c : A(); // expected-error {{deleted}}
-    b ? A() : C(); // expected-error {{deleted}}
+    b ? c : A();
+#if __cplusplus <= 201402L
+    // expected-error@-2 {{deleted}}
+#endif
+    b ? A() : C();
+#if __cplusplus <= 201402L
+    // expected-error@-2 {{deleted}}
+#endif
   }
 }
 
@@ -874,10 +892,12 @@ namespace dr479 { // dr479: yes
   void f() {
     throw S();
     // expected-error@-1 {{temporary of type 'dr479::S' has private destructor}}
-    // expected-error@-2 {{calling a private constructor}}
-    // expected-error@-3 {{exception object of type 'dr479::S' has private destructor}}
+    // expected-error@-2 {{exception object of type 'dr479::S' has private destructor}}
 #if __cplusplus < 201103L
-    // expected-error@-5 {{C++98 requires an accessible copy constructor}}
+    // expected-error@-4 {{C++98 requires an accessible copy constructor}}
+#endif
+#if __cplusplus <= 201402L
+    // expected-error@-7 {{calling a private constructor}} (copy ctor)
 #endif
   }
   void g() {

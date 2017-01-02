@@ -38,7 +38,6 @@ void f() {
   __movsd(0, 0, 0);
   __movsw(0, 0, 0);
 
-  __stosb(0, 0, 0);
   __stosd(0, 0, 0);
   __stosw(0, 0, 0);
 
@@ -52,6 +51,7 @@ void f() {
   __cpuidex(info, 0, 0);
   _xgetbv(0);
   __halt();
+  __nop();
   __readmsr(0);
 
   // FIXME: Call these in 64-bit too once the intrinsics have been fixed to
@@ -59,5 +59,9 @@ void f() {
 #ifndef _M_X64
   __readcr3();
   __writecr3(0);
+#endif
+
+#ifdef _M_ARM
+  __dmb(_ARM_BARRIER_ISHST);
 #endif
 }

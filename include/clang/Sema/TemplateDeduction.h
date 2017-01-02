@@ -40,6 +40,9 @@ class TemplateDeductionInfo {
   /// \brief Have we suppressed an error during deduction?
   bool HasSFINAEDiagnostic;
 
+  /// \brief The template parameter depth for which we're performing deduction.
+  unsigned DeducedDepth;
+
   /// \brief Warnings (and follow-on notes) that were suppressed due to
   /// SFINAE while performing template argument deduction.
   SmallVector<PartialDiagnosticAt, 4> SuppressedDiagnostics;
@@ -48,14 +51,20 @@ class TemplateDeductionInfo {
   void operator=(const TemplateDeductionInfo &) = delete;
 
 public:
-  TemplateDeductionInfo(SourceLocation Loc)
+  TemplateDeductionInfo(SourceLocation Loc, unsigned DeducedDepth = 0)
     : Deduced(nullptr), Loc(Loc), HasSFINAEDiagnostic(false),
-      Expression(nullptr) {}
+      DeducedDepth(DeducedDepth), Expression(nullptr) {}
 
   /// \brief Returns the location at which template argument is
   /// occurring.
   SourceLocation getLocation() const {
     return Loc;
+  }
+
+  /// \brief The depth of template parameters for which deduction is being
+  /// performed.
+  unsigned getDeducedDepth() const {
+    return DeducedDepth;
   }
 
   /// \brief Take ownership of the deduced template argument list.
@@ -70,6 +79,11 @@ public:
     assert(HasSFINAEDiagnostic);
     PD.first = SuppressedDiagnostics.front().first;
     PD.second.swap(SuppressedDiagnostics.front().second);
+    clearSFINAEDiagnostic();
+  }
+
+  /// \brief Discard any SFINAE diagnostics.
+  void clearSFINAEDiagnostic() {
     SuppressedDiagnostics.clear();
     HasSFINAEDiagnostic = false;
   }
@@ -199,10 +213,7 @@ struct DeductionFailureInfo {
   void *Data;
 
   /// \brief A diagnostic indicating why deduction failed.
-  union {
-    void *Align;
-    char Diagnostic[sizeof(PartialDiagnosticAt)];
-  };
+  alignas(PartialDiagnosticAt) char Diagnostic[sizeof(PartialDiagnosticAt)];
 
   /// \brief Retrieve the diagnostic which caused this deduction failure,
   /// if any.

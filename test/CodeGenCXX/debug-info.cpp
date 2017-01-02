@@ -1,14 +1,16 @@
 // RUN: %clang_cc1 -triple x86_64-none-linux-gnu -emit-llvm -debug-info-kind=limited %s -o - | FileCheck %s --check-prefix=CHECK --check-prefix=BOTH
 // RUN: %clang_cc1 -triple i686-pc-windows-msvc -emit-llvm -debug-info-kind=limited %s -o - | FileCheck %s --check-prefix=MSVC --check-prefix=BOTH
 
+// CHECK: @_ZN6pr96081xE = global [3 x i8]* null, align 8, !dbg [[X:![0-9]+]]
+
 // CHECK: define void @_ZN7pr147634funcENS_3fooE
 // CHECK: call void @llvm.dbg.declare({{.*}}, metadata ![[F:[0-9]+]], metadata ![[EXPR:[0-9]+]])
 
 // !llvm.dbg.cu pulls in globals and their types first.
 // CHECK-NOT: !DIGlobalVariable(name: "c"
-// CHECK: !DIGlobalVariable(name: "x", linkageName: "_ZN6pr96081xE"
-// CHECK-SAME:              type: [[INCARRAYPTR:![0-9]*]]
-// CHECK-SAME:              variable: [3 x i8]** @_ZN6pr96081xE
+// CHECK: [[X]] = !DIGlobalVariableExpression(var: [[XV:!.*]])
+// CHECK: [[XV]] = distinct !DIGlobalVariable(name: "x", linkageName: "_ZN6pr96081xE"
+// CHECK-SAME:                                type: [[INCARRAYPTR:![0-9]*]]
 // CHECK: [[INCARRAYPTR]] = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: [[INCARRAY:![0-9]+]]
 // CHECK: [[INCARRAY]] = !DICompositeType(tag: DW_TAG_array_type
 // CHECK-NOT:                             line:
@@ -67,8 +69,8 @@ namespace VirtualBase {
   struct A { int a; };
   struct B : virtual A { int b; };
 // BOTH: ![[VBASE_B:[0-9]+]] ={{.*}}!DICompositeType(tag: DW_TAG_structure_type, name: "B",{{.*}} line: [[@LINE-1]],
-// MSVC-SAME:                                        size: 96, align: 32
-// CHECK-SAME:                                       size: 128, align: 64,
+// MSVC-SAME:                                        size: 96
+// CHECK-SAME:                                       size: 128,
 // BOTH-NOT:                                         offset:
 // BOTH-NOT:                                         DIFlagFwdDecl
 // BOTH-SAME:                                        elements: [[VBASE_B_DEF:![0-9]+]]

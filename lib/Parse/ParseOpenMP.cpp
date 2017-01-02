@@ -12,7 +12,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "RAIIObjectsForParser.h"
-#include "clang/AST/ASTConsumer.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/StmtOpenMP.h"
 #include "clang/Parse/ParseDiagnostic.h"
@@ -40,7 +39,9 @@ enum OpenMPDirectiveKindEx {
   OMPD_target_enter,
   OMPD_target_exit,
   OMPD_update,
-  OMPD_distribute_parallel
+  OMPD_distribute_parallel,
+  OMPD_teams_distribute_parallel,
+  OMPD_target_teams_distribute_parallel
 };
 
 class ThreadprivateListParserHelper final {
@@ -107,8 +108,18 @@ static OpenMPDirectiveKind ParseOpenMPDirectiveKind(Parser &P) {
     { OMPD_parallel, OMPD_sections, OMPD_parallel_sections },
     { OMPD_taskloop, OMPD_simd, OMPD_taskloop_simd },
     { OMPD_target, OMPD_parallel, OMPD_target_parallel },
+    { OMPD_target, OMPD_simd, OMPD_target_simd },
     { OMPD_target_parallel, OMPD_for, OMPD_target_parallel_for },
-    { OMPD_target_parallel_for, OMPD_simd, OMPD_target_parallel_for_simd }
+    { OMPD_target_parallel_for, OMPD_simd, OMPD_target_parallel_for_simd },
+    { OMPD_teams, OMPD_distribute, OMPD_teams_distribute },
+    { OMPD_teams_distribute, OMPD_simd, OMPD_teams_distribute_simd },
+    { OMPD_teams_distribute, OMPD_parallel, OMPD_teams_distribute_parallel },
+    { OMPD_teams_distribute_parallel, OMPD_for, OMPD_teams_distribute_parallel_for },
+    { OMPD_teams_distribute_parallel_for, OMPD_simd, OMPD_teams_distribute_parallel_for_simd },
+    { OMPD_target, OMPD_teams, OMPD_target_teams },
+    { OMPD_target_teams, OMPD_distribute, OMPD_target_teams_distribute },
+    { OMPD_target_teams_distribute, OMPD_parallel, OMPD_target_teams_distribute_parallel },
+    { OMPD_target_teams_distribute_parallel, OMPD_for, OMPD_target_teams_distribute_parallel_for }
   };
   enum { CancellationPoint = 0, DeclareReduction = 1, TargetData = 2 };
   auto Tok = P.getCurToken();
@@ -609,7 +620,6 @@ Parser::DeclGroupPtrTy Parser::ParseOpenMPDeclarativeDirectiveWithExtDecl(
       if (AS == AS_none) {
         assert(TagType == DeclSpec::TST_unspecified);
         MaybeParseCXX11Attributes(Attrs);
-        MaybeParseMicrosoftAttributes(Attrs);
         ParsingDeclSpec PDS(*this);
         Ptr = ParseExternalDeclaration(Attrs, &PDS);
       } else {
@@ -671,7 +681,6 @@ Parser::DeclGroupPtrTy Parser::ParseOpenMPDeclarativeDirectiveWithExtDecl(
            Tok.isNot(tok::eof) && Tok.isNot(tok::r_brace)) {
       ParsedAttributesWithRange attrs(AttrFactory);
       MaybeParseCXX11Attributes(attrs);
-      MaybeParseMicrosoftAttributes(attrs);
       ParseExternalDeclaration(attrs);
       if (Tok.isAnnotation() && Tok.is(tok::annot_pragma_openmp)) {
         TentativeParsingAction TPA(*this);
@@ -741,6 +750,14 @@ Parser::DeclGroupPtrTy Parser::ParseOpenMPDeclarativeDirectiveWithExtDecl(
   case OMPD_distribute_parallel_for_simd:
   case OMPD_distribute_simd:
   case OMPD_target_parallel_for_simd:
+  case OMPD_target_simd:
+  case OMPD_teams_distribute:
+  case OMPD_teams_distribute_simd:
+  case OMPD_teams_distribute_parallel_for_simd:
+  case OMPD_teams_distribute_parallel_for:
+  case OMPD_target_teams:
+  case OMPD_target_teams_distribute:
+  case OMPD_target_teams_distribute_parallel_for:
     Diag(Tok, diag::err_omp_unexpected_directive)
         << getOpenMPDirectiveName(DKind);
     break;
@@ -774,7 +791,12 @@ Parser::DeclGroupPtrTy Parser::ParseOpenMPDeclarativeDirectiveWithExtDecl(
 ///         'target parallel' | 'target parallel for' |
 ///         'target update' | 'distribute parallel for' |
 ///         'distribute paralle for simd' | 'distribute simd' |
-///         'target parallel for simd' {clause}
+///         'target parallel for simd' | 'target simd' |
+///         'teams distribute' | 'teams distribute simd' |
+///         'teams distribute parallel for simd' |
+///         'teams distribute parallel for' | 'target teams' |
+///         'target teams distribute' |
+///         'target teams distribute parallel for' {clause}
 ///         annot_pragma_openmp_end
 ///
 StmtResult Parser::ParseOpenMPDeclarativeOrExecutableDirective(
@@ -882,7 +904,15 @@ StmtResult Parser::ParseOpenMPDeclarativeOrExecutableDirective(
   case OMPD_distribute_parallel_for:
   case OMPD_distribute_parallel_for_simd:
   case OMPD_distribute_simd:
-  case OMPD_target_parallel_for_simd: {
+  case OMPD_target_parallel_for_simd:
+  case OMPD_target_simd:
+  case OMPD_teams_distribute:
+  case OMPD_teams_distribute_simd:
+  case OMPD_teams_distribute_parallel_for_simd:
+  case OMPD_teams_distribute_parallel_for:
+  case OMPD_target_teams:
+  case OMPD_target_teams_distribute:
+  case OMPD_target_teams_distribute_parallel_for: {
     ConsumeToken();
     // Parse directive name of the 'critical' directive if any.
     if (DKind == OMPD_critical) {
@@ -1441,15 +1471,19 @@ OMPClause *Parser::ParseOpenMPSingleExprWithArgClause(OpenMPClauseKind Kind) {
   } else {
     assert(Kind == OMPC_if);
     KLoc.push_back(Tok.getLocation());
+    TentativeParsingAction TPA(*this);
     Arg.push_back(ParseOpenMPDirectiveKind(*this));
     if (Arg.back() != OMPD_unknown) {
       ConsumeToken();
-      if (Tok.is(tok::colon))
+      if (Tok.is(tok::colon) && getLangOpts().OpenMP > 40) {
+        TPA.Commit();
         DelimLoc = ConsumeToken();
-      else
-        Diag(Tok, diag::warn_pragma_expected_colon)
-            << "directive name modifier";
-    }
+      } else {
+        TPA.Revert();
+        Arg.back() = OMPD_unknown;
+      }
+    } else
+      TPA.Revert();
   }
 
   bool NeedAnExpression = (Kind == OMPC_schedule && DelimLoc.isValid()) ||

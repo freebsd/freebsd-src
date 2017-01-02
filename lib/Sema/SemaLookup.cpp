@@ -12,9 +12,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "clang/Sema/Lookup.h"
 #include "clang/AST/ASTContext.h"
-#include "clang/AST/ASTMutationListener.h"
 #include "clang/AST/CXXInheritance.h"
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclCXX.h"
@@ -29,6 +27,7 @@
 #include "clang/Lex/ModuleLoader.h"
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Sema/DeclSpec.h"
+#include "clang/Sema/Lookup.h"
 #include "clang/Sema/Overload.h"
 #include "clang/Sema/Scope.h"
 #include "clang/Sema/ScopeInfo.h"
@@ -37,17 +36,13 @@
 #include "clang/Sema/TemplateDeduction.h"
 #include "clang/Sema/TypoCorrection.h"
 #include "llvm/ADT/STLExtras.h"
-#include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/SmallPtrSet.h"
-#include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/TinyPtrVector.h"
 #include "llvm/ADT/edit_distance.h"
 #include "llvm/Support/ErrorHandling.h"
 #include <algorithm>
 #include <iterator>
-#include <limits>
 #include <list>
-#include <map>
 #include <set>
 #include <utility>
 #include <vector>
@@ -455,15 +450,18 @@ static bool canHideTag(NamedDecl *D) {
   //   Given a set of declarations in a single declarative region [...]
   //   exactly one declaration shall declare a class name or enumeration name
   //   that is not a typedef name and the other declarations shall all refer to
-  //   the same variable or enumerator, or all refer to functions and function
-  //   templates; in this case the class name or enumeration name is hidden.
+  //   the same variable, non-static data member, or enumerator, or all refer
+  //   to functions and function templates; in this case the class name or
+  //   enumeration name is hidden.
   // C++ [basic.scope.hiding]p2:
   //   A class name or enumeration name can be hidden by the name of a
   //   variable, data member, function, or enumerator declared in the same
   //   scope.
+  // An UnresolvedUsingValueDecl always instantiates to one of these.
   D = D->getUnderlyingDecl();
   return isa<VarDecl>(D) || isa<EnumConstantDecl>(D) || isa<FunctionDecl>(D) ||
-         isa<FunctionTemplateDecl>(D) || isa<FieldDecl>(D);
+         isa<FunctionTemplateDecl>(D) || isa<FieldDecl>(D) ||
+         isa<UnresolvedUsingValueDecl>(D);
 }
 
 /// Resolves the result kind of this lookup.
@@ -1298,7 +1296,7 @@ bool Sema::CppLookupName(LookupResult &R, Scope *S) {
         // If we have a context, and it's not a context stashed in the
         // template parameter scope for an out-of-line definition, also
         // look into that context.
-        if (!(Found && S && S->isTemplateParamScope())) {
+        if (!(Found && S->isTemplateParamScope())) {
           assert(Ctx->isFileContext() &&
               "We should have been looking only at file context here already.");
 
@@ -1372,8 +1370,9 @@ Module *Sema::getOwningModule(Decl *Entity) {
       auto &SrcMgr = PP.getSourceManager();
       SourceLocation StartLoc =
           SrcMgr.getLocForStartOfFile(SrcMgr.getMainFileID());
-      auto &TopLevel =
-          VisibleModulesStack.empty() ? VisibleModules : VisibleModulesStack[0];
+      auto &TopLevel = ModuleScopes.empty()
+                           ? VisibleModules
+                           : ModuleScopes[0].OuterVisibleModules;
       TopLevel.setVisible(CachedFakeTopLevelModule, StartLoc);
     }
 
@@ -1542,12 +1541,17 @@ bool LookupResult::isVisibleSlow(Sema &SemaRef, NamedDecl *D) {
   // If this declaration is not at namespace scope nor module-private,
   // then it is visible if its lexical parent has a visible definition.
   DeclContext *DC = D->getLexicalDeclContext();
-  if (!D->isModulePrivate() &&
-      DC && !DC->isFileContext() && !isa<LinkageSpecDecl>(DC)) {
+  if (!D->isModulePrivate() && DC && !DC->isFileContext() &&
+      !isa<LinkageSpecDecl>(DC) && !isa<ExportDecl>(DC)) {
     // For a parameter, check whether our current template declaration's
     // lexical context is visible, not whether there's some other visible
     // definition of it, because parameters aren't "within" the definition.
-    if ((D->isTemplateParameter() || isa<ParmVarDecl>(D))
+    //
+    // In C++ we need to check for a visible definition due to ODR merging,
+    // and in C we must not because each declaration of a function gets its own
+    // set of declarations for tags in prototype scope.
+    if ((D->isTemplateParameter() || isa<ParmVarDecl>(D)
+         || (isa<FunctionDecl>(DC) && !SemaRef.getLangOpts().CPlusPlus))
             ? isVisible(SemaRef, cast<NamedDecl>(DC))
             : SemaRef.hasVisibleDefinition(cast<NamedDecl>(DC))) {
       if (SemaRef.ActiveTemplateInstantiations.empty() &&
@@ -5081,6 +5085,10 @@ void Sema::diagnoseTypo(const TypoCorrection &Correction,
   if (PrevNote.getDiagID() && ChosenDecl)
     Diag(ChosenDecl->getLocation(), PrevNote)
       << CorrectedQuotedStr << (ErrorRecovery ? FixItHint() : FixTypo);
+
+  // Add any extra diagnostics.
+  for (const PartialDiagnostic &PD : Correction.getExtraDiagnostics())
+    Diag(Correction.getCorrectionRange().getBegin(), PD);
 }
 
 TypoExpr *Sema::createDelayedTypo(std::unique_ptr<TypoCorrectionConsumer> TCC,

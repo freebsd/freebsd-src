@@ -15,6 +15,7 @@
 #include "clang/AST/ASTConsumer.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/ASTLambda.h"
+#include "clang/AST/ASTMutationListener.h"
 #include "clang/AST/DeclTemplate.h"
 #include "clang/AST/Expr.h"
 #include "clang/Basic/LangOptions.h"
@@ -208,9 +209,11 @@ Sema::InstantiatingTemplate::InstantiatingTemplate(
     sema::TemplateDeductionInfo *DeductionInfo)
     : SemaRef(SemaRef), SavedInNonInstantiationSFINAEContext(
                             SemaRef.InNonInstantiationSFINAEContext) {
-  // Don't allow further instantiation if a fatal error has occcured.  Any
-  // diagnostics we might have raised will not be visible.
-  if (SemaRef.Diags.hasFatalErrorOccurred()) {
+  // Don't allow further instantiation if a fatal error and an uncompilable
+  // error have occurred. Any diagnostics we might have raised will not be
+  // visible, and we do not need to construct a correct AST.
+  if (SemaRef.Diags.hasFatalErrorOccurred() &&
+      SemaRef.Diags.hasUncompilableErrorOccurred()) {
     Invalid = true;
     return;
   }
@@ -273,6 +276,17 @@ Sema::InstantiatingTemplate::InstantiatingTemplate(
     Kind == ActiveTemplateInstantiation::ExplicitTemplateArgumentSubstitution ||
     Kind == ActiveTemplateInstantiation::DeducedTemplateArgumentSubstitution);
 }
+
+Sema::InstantiatingTemplate::InstantiatingTemplate(
+    Sema &SemaRef, SourceLocation PointOfInstantiation,
+    TemplateDecl *Template,
+    ArrayRef<TemplateArgument> TemplateArgs,
+    sema::TemplateDeductionInfo &DeductionInfo, SourceRange InstantiationRange)
+    : InstantiatingTemplate(
+          SemaRef,
+          ActiveTemplateInstantiation::DeducedTemplateArgumentSubstitution,
+          PointOfInstantiation, InstantiationRange, Template, nullptr,
+          TemplateArgs, &DeductionInfo) {}
 
 Sema::InstantiatingTemplate::InstantiatingTemplate(
     Sema &SemaRef, SourceLocation PointOfInstantiation,
@@ -420,8 +434,7 @@ void Sema::PrintInstantiationStack() {
         if (isa<ClassTemplateSpecializationDecl>(Record))
           DiagID = diag::note_template_class_instantiation_here;
         Diags.Report(Active->PointOfInstantiation, DiagID)
-          << Context.getTypeDeclType(Record)
-          << Active->InstantiationRange;
+          << Record << Active->InstantiationRange;
       } else if (FunctionDecl *Function = dyn_cast<FunctionDecl>(D)) {
         unsigned DiagID;
         if (Function->getPrimaryTemplate())
@@ -482,20 +495,9 @@ void Sema::PrintInstantiationStack() {
       break;
     }
 
-    case ActiveTemplateInstantiation::DeducedTemplateArgumentSubstitution:
-      if (ClassTemplatePartialSpecializationDecl *PartialSpec =
-            dyn_cast<ClassTemplatePartialSpecializationDecl>(Active->Entity)) {
-        Diags.Report(Active->PointOfInstantiation,
-                     diag::note_partial_spec_deduct_instantiation_here)
-          << Context.getTypeDeclType(PartialSpec)
-          << getTemplateArgumentBindingsText(
-                                         PartialSpec->getTemplateParameters(), 
-                                             Active->TemplateArgs, 
-                                             Active->NumTemplateArgs)
-          << Active->InstantiationRange;
-      } else {
-        FunctionTemplateDecl *FnTmpl
-          = cast<FunctionTemplateDecl>(Active->Entity);
+    case ActiveTemplateInstantiation::DeducedTemplateArgumentSubstitution: {
+      if (FunctionTemplateDecl *FnTmpl =
+              dyn_cast<FunctionTemplateDecl>(Active->Entity)) {
         Diags.Report(Active->PointOfInstantiation,
                      diag::note_function_template_deduction_instantiation_here)
           << FnTmpl
@@ -503,8 +505,33 @@ void Sema::PrintInstantiationStack() {
                                              Active->TemplateArgs, 
                                              Active->NumTemplateArgs)
           << Active->InstantiationRange;
+      } else {
+        bool IsVar = isa<VarTemplateDecl>(Active->Entity) ||
+                     isa<VarTemplateSpecializationDecl>(Active->Entity);
+        bool IsTemplate = false;
+        TemplateParameterList *Params;
+        if (auto *D = dyn_cast<TemplateDecl>(Active->Entity)) {
+          IsTemplate = true;
+          Params = D->getTemplateParameters();
+        } else if (auto *D = dyn_cast<ClassTemplatePartialSpecializationDecl>(
+                       Active->Entity)) {
+          Params = D->getTemplateParameters();
+        } else if (auto *D = dyn_cast<VarTemplatePartialSpecializationDecl>(
+                       Active->Entity)) {
+          Params = D->getTemplateParameters();
+        } else {
+          llvm_unreachable("unexpected template kind");
+        }
+
+        Diags.Report(Active->PointOfInstantiation,
+                     diag::note_deduced_template_arg_substitution_here)
+          << IsVar << IsTemplate << cast<NamedDecl>(Active->Entity)
+          << getTemplateArgumentBindingsText(Params, Active->TemplateArgs, 
+                                             Active->NumTemplateArgs)
+          << Active->InstantiationRange;
       }
       break;
+    }
 
     case ActiveTemplateInstantiation::DefaultFunctionArgumentInstantiation: {
       ParmVarDecl *Param = cast<ParmVarDecl>(Active->Entity);
@@ -1178,8 +1205,8 @@ ExprResult TemplateInstantiator::transformNonTypeTemplateParmRef(
                         cast<PackExpansionType>(parm->getType())->getPattern(),
                                      TemplateArgs, loc, parm->getDeclName());
     } else {
-      type = SemaRef.SubstType(parm->getType(), TemplateArgs, 
-                               loc, parm->getDeclName());
+      type = SemaRef.SubstType(VD ? arg.getParamTypeForDecl() : arg.getNullPtrType(),
+                               TemplateArgs, loc, parm->getDeclName());
     }
     assert(!type.isNull() && "type substitution failed for param type");
     assert(!type->isDependentType() && "param type still dependent");
@@ -1684,7 +1711,7 @@ ParmVarDecl *Sema::SubstParmVarDecl(ParmVarDecl *OldParm,
       // Instantiate default arguments for methods of local classes (DR1484)
       // and non-defining declarations.
       Sema::ContextRAII SavedContext(*this, OwningFunc);
-      LocalInstantiationScope Local(*this);
+      LocalInstantiationScope Local(*this, true);
       ExprResult NewArg = SubstExpr(Arg, TemplateArgs);
       if (NewArg.isUsable()) {
         // It would be nice if we still had this.
@@ -1858,62 +1885,6 @@ namespace clang {
   }
 }
 
-/// Determine whether we would be unable to instantiate this template (because
-/// it either has no definition, or is in the process of being instantiated).
-static bool DiagnoseUninstantiableTemplate(Sema &S,
-                                           SourceLocation PointOfInstantiation,
-                                           TagDecl *Instantiation,
-                                           bool InstantiatedFromMember,
-                                           TagDecl *Pattern,
-                                           TagDecl *PatternDef,
-                                           TemplateSpecializationKind TSK,
-                                           bool Complain = true) {
-  if (PatternDef && !PatternDef->isBeingDefined()) {
-    NamedDecl *SuggestedDef = nullptr;
-    if (!S.hasVisibleDefinition(PatternDef, &SuggestedDef,
-                                /*OnlyNeedComplete*/false)) {
-      // If we're allowed to diagnose this and recover, do so.
-      bool Recover = Complain && !S.isSFINAEContext();
-      if (Complain)
-        S.diagnoseMissingImport(PointOfInstantiation, SuggestedDef,
-                                Sema::MissingImportKind::Definition, Recover);
-      return !Recover;
-    }
-    return false;
-  }
-
-  if (!Complain || (PatternDef && PatternDef->isInvalidDecl())) {
-    // Say nothing
-  } else if (PatternDef) {
-    assert(PatternDef->isBeingDefined());
-    S.Diag(PointOfInstantiation,
-           diag::err_template_instantiate_within_definition)
-      << (TSK != TSK_ImplicitInstantiation)
-      << S.Context.getTypeDeclType(Instantiation);
-    // Not much point in noting the template declaration here, since
-    // we're lexically inside it.
-    Instantiation->setInvalidDecl();
-  } else if (InstantiatedFromMember) {
-    S.Diag(PointOfInstantiation,
-           diag::err_implicit_instantiate_member_undefined)
-      << S.Context.getTypeDeclType(Instantiation);
-    S.Diag(Pattern->getLocation(), diag::note_member_declared_at);
-  } else {
-    S.Diag(PointOfInstantiation, diag::err_template_instantiate_undefined)
-      << (TSK != TSK_ImplicitInstantiation)
-      << S.Context.getTypeDeclType(Instantiation);
-    S.Diag(Pattern->getLocation(), diag::note_template_decl_here);
-  }
-
-  // In general, Instantiation isn't marked invalid to get more than one
-  // error for multiple undefined instantiations. But the code that does
-  // explicit declaration -> explicit definition conversion can't handle
-  // invalid declarations, so mark as invalid in that case.
-  if (TSK == TSK_ExplicitInstantiationDeclaration)
-    Instantiation->setInvalidDecl();
-  return true;
-}
-
 /// \brief Instantiate the definition of a class from a given pattern.
 ///
 /// \param PointOfInstantiation The point of instantiation within the
@@ -1944,7 +1915,7 @@ Sema::InstantiateClass(SourceLocation PointOfInstantiation,
                        bool Complain) {
   CXXRecordDecl *PatternDef
     = cast_or_null<CXXRecordDecl>(Pattern->getDefinition());
-  if (DiagnoseUninstantiableTemplate(*this, PointOfInstantiation, Instantiation,
+  if (DiagnoseUninstantiableTemplate(PointOfInstantiation, Instantiation,
                                 Instantiation->getInstantiatedFromMemberClass(),
                                      Pattern, PatternDef, TSK, Complain))
     return true;
@@ -2174,7 +2145,7 @@ bool Sema::InstantiateEnum(SourceLocation PointOfInstantiation,
                            const MultiLevelTemplateArgumentList &TemplateArgs,
                            TemplateSpecializationKind TSK) {
   EnumDecl *PatternDef = Pattern->getDefinition();
-  if (DiagnoseUninstantiableTemplate(*this, PointOfInstantiation, Instantiation,
+  if (DiagnoseUninstantiableTemplate(PointOfInstantiation, Instantiation,
                                  Instantiation->getInstantiatedFromMemberEnum(),
                                      Pattern, PatternDef, TSK,/*Complain*/true))
     return true;
@@ -2251,14 +2222,10 @@ bool Sema::InstantiateInClassInitializer(
   if (!OldInit) {
     RecordDecl *PatternRD = Pattern->getParent();
     RecordDecl *OutermostClass = PatternRD->getOuterLexicalRecordContext();
-    if (OutermostClass == PatternRD) {
-      Diag(Pattern->getLocEnd(), diag::err_in_class_initializer_not_yet_parsed)
-          << PatternRD << Pattern;
-    } else {
-      Diag(Pattern->getLocEnd(),
-           diag::err_in_class_initializer_not_yet_parsed_outer_class)
-          << PatternRD << OutermostClass << Pattern;
-    }
+    Diag(PointOfInstantiation,
+         diag::err_in_class_initializer_not_yet_parsed)
+        << OutermostClass << Pattern;
+    Diag(Pattern->getLocEnd(), diag::note_in_class_initializer_not_yet_parsed);
     Instantiation->setInvalidDecl();
     return true;
   }
@@ -2293,6 +2260,9 @@ bool Sema::InstantiateInClassInitializer(
   assert((!Init || !isa<ParenListExpr>(Init)) && "call-style init in class");
   ActOnFinishCXXInClassMemberInitializer(
       Instantiation, Init ? Init->getLocStart() : SourceLocation(), Init);
+
+  if (auto *L = getASTMutationListener())
+    L->DefaultMemberInitializerInstantiated(Instantiation);
 
   // Exit the scope of this instantiation.
   SavedContext.pop();

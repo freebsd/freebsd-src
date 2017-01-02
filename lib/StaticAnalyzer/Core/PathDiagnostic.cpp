@@ -60,6 +60,7 @@ PathDiagnosticEventPiece::~PathDiagnosticEventPiece() {}
 PathDiagnosticCallPiece::~PathDiagnosticCallPiece() {}
 PathDiagnosticControlFlowPiece::~PathDiagnosticControlFlowPiece() {}
 PathDiagnosticMacroPiece::~PathDiagnosticMacroPiece() {}
+PathDiagnosticNotePiece::~PathDiagnosticNotePiece() {}
 
 void PathPieces::flattenTo(PathPieces &Primary, PathPieces &Current,
                            bool ShouldFlattenMacros) const {
@@ -95,6 +96,7 @@ void PathPieces::flattenTo(PathPieces &Primary, PathPieces &Current,
     }
     case PathDiagnosticPiece::Event:
     case PathDiagnosticPiece::ControlFlow:
+    case PathDiagnosticPiece::Note:
       Current.push_back(Piece);
       break;
     }
@@ -211,6 +213,12 @@ void PathDiagnosticConsumer::HandlePathDiagnostic(
     const SourceManager &SMgr = D->path.front()->getLocation().getManager();
     SmallVector<const PathPieces *, 5> WorkList;
     WorkList.push_back(&D->path);
+    SmallString<128> buf;
+    llvm::raw_svector_ostream warning(buf);
+    warning << "warning: Path diagnostic report is not generated. Current "
+            << "output format does not support diagnostics that cross file "
+            << "boundaries. Refer to --analyzer-output for valid output "
+            << "formats\n";
 
     while (!WorkList.empty()) {
       const PathPieces &path = *WorkList.pop_back_val();
@@ -222,19 +230,25 @@ void PathDiagnosticConsumer::HandlePathDiagnostic(
 
         if (FID.isInvalid()) {
           FID = SMgr.getFileID(L);
-        } else if (SMgr.getFileID(L) != FID)
-          return; // FIXME: Emit a warning?
+        } else if (SMgr.getFileID(L) != FID) {
+          llvm::errs() << warning.str();
+          return;
+        }
 
         // Check the source ranges.
         ArrayRef<SourceRange> Ranges = piece->getRanges();
         for (ArrayRef<SourceRange>::iterator I = Ranges.begin(),
                                              E = Ranges.end(); I != E; ++I) {
           SourceLocation L = SMgr.getExpansionLoc(I->getBegin());
-          if (!L.isFileID() || SMgr.getFileID(L) != FID)
-            return; // FIXME: Emit a warning?
+          if (!L.isFileID() || SMgr.getFileID(L) != FID) {
+            llvm::errs() << warning.str();
+            return;
+          }
           L = SMgr.getExpansionLoc(I->getEnd());
-          if (!L.isFileID() || SMgr.getFileID(L) != FID)
-            return; // FIXME: Emit a warning?
+          if (!L.isFileID() || SMgr.getFileID(L) != FID) {
+            llvm::errs() << warning.str();
+            return;
+          }
         }
 
         if (const PathDiagnosticCallPiece *call =
@@ -342,15 +356,16 @@ static Optional<bool> comparePiece(const PathDiagnosticPiece &X,
   }
 
   switch (X.getKind()) {
-    case clang::ento::PathDiagnosticPiece::ControlFlow:
+    case PathDiagnosticPiece::ControlFlow:
       return compareControlFlow(cast<PathDiagnosticControlFlowPiece>(X),
                                 cast<PathDiagnosticControlFlowPiece>(Y));
-    case clang::ento::PathDiagnosticPiece::Event:
+    case PathDiagnosticPiece::Event:
+    case PathDiagnosticPiece::Note:
       return None;
-    case clang::ento::PathDiagnosticPiece::Macro:
+    case PathDiagnosticPiece::Macro:
       return compareMacro(cast<PathDiagnosticMacroPiece>(X),
                           cast<PathDiagnosticMacroPiece>(Y));
-    case clang::ento::PathDiagnosticPiece::Call:
+    case PathDiagnosticPiece::Call:
       return compareCall(cast<PathDiagnosticCallPiece>(X),
                          cast<PathDiagnosticCallPiece>(Y));
   }
@@ -1096,6 +1111,10 @@ void PathDiagnosticMacroPiece::Profile(llvm::FoldingSetNodeID &ID) const {
   for (PathPieces::const_iterator I = subPieces.begin(), E = subPieces.end();
        I != E; ++I)
     ID.Add(**I);
+}
+
+void PathDiagnosticNotePiece::Profile(llvm::FoldingSetNodeID &ID) const {
+  PathDiagnosticSpotPiece::Profile(ID);
 }
 
 void PathDiagnostic::Profile(llvm::FoldingSetNodeID &ID) const {

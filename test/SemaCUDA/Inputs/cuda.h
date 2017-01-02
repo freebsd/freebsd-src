@@ -21,4 +21,11 @@ typedef struct cudaStream *cudaStream_t;
 
 int cudaConfigureCall(dim3 gridSize, dim3 blockSize, size_t sharedSize = 0,
                       cudaStream_t stream = 0);
+
+// Host- and device-side placement new overloads.
+void *operator new(__SIZE_TYPE__, void *p) { return p; }
+void *operator new[](__SIZE_TYPE__, void *p) { return p; }
+__device__ void *operator new(__SIZE_TYPE__, void *p) { return p; }
+__device__ void *operator new[](__SIZE_TYPE__, void *p) { return p; }
+
 #endif // !__NVCC__

@@ -464,6 +464,9 @@ public:
   /// FileEntry, uniquing them through the 'HeaderMaps' datastructure.
   const HeaderMap *CreateHeaderMap(const FileEntry *FE);
 
+  /// \brief Get filenames for all registered header maps.
+  void getHeaderMapFileNames(SmallVectorImpl<std::string> &Names) const;
+
   /// \brief Retrieve the name of the module file that should be used to 
   /// load the given module.
   ///
@@ -481,9 +484,12 @@ public:
   /// \param ModuleMapPath A path that when combined with \c ModuleName
   /// uniquely identifies this module. See Module::ModuleMap.
   ///
+  /// \param UsePrebuiltPath Whether we should use the prebuilt module path.
+  ///
   /// \returns The name of the module file that corresponds to this module,
   /// or an empty string if this module does not correspond to any module file.
-  std::string getModuleFileName(StringRef ModuleName, StringRef ModuleMapPath);
+  std::string getModuleFileName(StringRef ModuleName, StringRef ModuleMapPath,
+                                bool UsePrebuiltPath);
 
   /// \brief Lookup a module Search for a module with the given name.
   ///
@@ -520,8 +526,10 @@ public:
   /// \brief Retrieve the module that corresponds to the given file, if any.
   ///
   /// \param File The header that we wish to map to a module.
-  ModuleMap::KnownHeader findModuleForHeader(const FileEntry *File) const;
-  
+  /// \param AllowTextual Whether we want to find textual headers too.
+  ModuleMap::KnownHeader findModuleForHeader(const FileEntry *File,
+                                             bool AllowTextual = false) const;
+
   /// \brief Read the contents of the given module map file.
   ///
   /// \param File The module map file.
@@ -539,6 +547,19 @@ public:
   void loadTopLevelSystemModules();
 
 private:
+
+  /// \brief Lookup a module with the given module name and search-name.
+  ///
+  /// \param ModuleName The name of the module we're looking for.
+  ///
+  /// \param SearchName The "search-name" to derive filesystem paths from
+  /// when looking for the module map; this is usually equal to ModuleName,
+  /// but for compatibility with some buggy frameworks, additional attempts
+  /// may be made to find the module under a related-but-different search-name.
+  ///
+  /// \returns The module named ModuleName.
+  Module *lookupModule(StringRef ModuleName, StringRef SearchName);
+
   /// \brief Retrieve a module with the given name, which may be part of the
   /// given framework.
   ///

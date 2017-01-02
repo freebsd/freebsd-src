@@ -7,13 +7,17 @@
 
 #include "Inputs/register.h"
 
-void f() throw();
-void g() throw(int);
-void h() throw(...);
-#if __cplusplus >= 201103L
+void g() throw();
+void h() throw(int);
+void i() throw(...);
+#if __cplusplus > 201402L
 // expected-warning@-4 {{dynamic exception specifications are deprecated}} expected-note@-4 {{use 'noexcept' instead}}
-// expected-warning@-4 {{dynamic exception specifications are deprecated}} expected-note@-4 {{use 'noexcept(false)' instead}}
-// expected-warning@-4 {{dynamic exception specifications are deprecated}} expected-note@-4 {{use 'noexcept(false)' instead}}
+// expected-error@-4 {{ISO C++1z does not allow dynamic exception specifications}} expected-note@-4 {{use 'noexcept(false)' instead}}
+// expected-error@-4 {{ISO C++1z does not allow dynamic exception specifications}} expected-note@-4 {{use 'noexcept(false)' instead}}
+#elif __cplusplus >= 201103L
+// expected-warning@-8 {{dynamic exception specifications are deprecated}} expected-note@-8 {{use 'noexcept' instead}}
+// expected-warning@-8 {{dynamic exception specifications are deprecated}} expected-note@-8 {{use 'noexcept(false)' instead}}
+// expected-warning@-8 {{dynamic exception specifications are deprecated}} expected-note@-8 {{use 'noexcept(false)' instead}}
 #endif
 
 void stuff() {

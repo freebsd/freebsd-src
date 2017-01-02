@@ -16,12 +16,14 @@
 #include "clang/Driver/DriverDiagnostic.h"
 #include "clang/Driver/Options.h"
 #include "llvm/ADT/StringExtras.h"
+#include "llvm/ADT/StringSwitch.h"
 #include "llvm/Config/llvm-config.h"
 #include "llvm/Option/Arg.h"
 #include "llvm/Option/ArgList.h"
 #include "llvm/Support/ConvertUTF.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/FileSystem.h"
+#include "llvm/Support/Path.h"
 #include "llvm/Support/Process.h"
 #include <cstdio>
 
@@ -113,6 +115,9 @@ static bool readFullStringValue(HKEY hkey, const char *valueName,
   if (result == ERROR_SUCCESS) {
     std::wstring WideValue(reinterpret_cast<const wchar_t *>(buffer.data()),
                            valueSize / sizeof(wchar_t));
+    if (valueSize && WideValue.back() == L'\0') {
+      WideValue.pop_back();
+    }
     // The destination buffer must be empty as an invariant of the conversion
     // function; but this function is sometimes called in a loop that passes in
     // the same buffer, however. Simply clear it out so we can overwrite it.
@@ -190,8 +195,7 @@ static bool getSystemRegistryString(const char *keyPath, const char *valueName,
           lResult = RegOpenKeyExA(hTopKey, bestName.c_str(), 0,
                                   KEY_READ | KEY_WOW64_32KEY, &hKey);
           if (lResult == ERROR_SUCCESS) {
-            lResult = readFullStringValue(hKey, valueName, value);
-            if (lResult == ERROR_SUCCESS) {
+            if (readFullStringValue(hKey, valueName, value)) {
               bestValue = dvalue;
               if (phValue)
                 *phValue = bestName;
@@ -208,8 +212,7 @@ static bool getSystemRegistryString(const char *keyPath, const char *valueName,
     lResult =
         RegOpenKeyExA(hRootKey, keyPath, 0, KEY_READ | KEY_WOW64_32KEY, &hKey);
     if (lResult == ERROR_SUCCESS) {
-      lResult = readFullStringValue(hKey, valueName, value);
-      if (lResult == ERROR_SUCCESS)
+      if (readFullStringValue(hKey, valueName, value))
         returnValue = true;
       if (phValue)
         phValue->clear();
@@ -470,6 +473,14 @@ bool MSVCToolChain::getVisualStudioBinariesFolder(const char *clangProgramPath,
   return true;
 }
 
+VersionTuple MSVCToolChain::getMSVCVersionFromTriple() const {
+  unsigned Major, Minor, Micro;
+  getTriple().getEnvironmentVersion(Major, Minor, Micro);
+  if (Major || Minor || Micro)
+    return VersionTuple(Major, Minor, Micro);
+  return VersionTuple();
+}
+
 VersionTuple MSVCToolChain::getMSVCVersionFromExe() const {
   VersionTuple Version;
 #ifdef USE_WIN32
@@ -512,9 +523,9 @@ VersionTuple MSVCToolChain::getMSVCVersionFromExe() const {
 // Get Visual Studio installation directory.
 bool MSVCToolChain::getVisualStudioInstallDir(std::string &path) const {
   // First check the environment variables that vsvars32.bat sets.
-  const char *vcinstalldir = getenv("VCINSTALLDIR");
-  if (vcinstalldir) {
-    path = vcinstalldir;
+  if (llvm::Optional<std::string> VcInstallDir =
+          llvm::sys::Process::GetEnv("VCINSTALLDIR")) {
+    path = std::move(*VcInstallDir);
     path = path.substr(0, path.find("\\VC"));
     return true;
   }
@@ -540,26 +551,26 @@ bool MSVCToolChain::getVisualStudioInstallDir(std::string &path) const {
   }
 
   // Try the environment.
-  const char *vs120comntools = getenv("VS120COMNTOOLS");
-  const char *vs100comntools = getenv("VS100COMNTOOLS");
-  const char *vs90comntools = getenv("VS90COMNTOOLS");
-  const char *vs80comntools = getenv("VS80COMNTOOLS");
+  std::string vcomntools;
+  if (llvm::Optional<std::string> vs120comntools =
+          llvm::sys::Process::GetEnv("VS120COMNTOOLS"))
+    vcomntools = std::move(*vs120comntools);
+  else if (llvm::Optional<std::string> vs100comntools =
+               llvm::sys::Process::GetEnv("VS100COMNTOOLS"))
+    vcomntools = std::move(*vs100comntools);
+  else if (llvm::Optional<std::string> vs90comntools =
+               llvm::sys::Process::GetEnv("VS90COMNTOOLS"))
+    vcomntools = std::move(*vs90comntools);
+  else if (llvm::Optional<std::string> vs80comntools =
+               llvm::sys::Process::GetEnv("VS80COMNTOOLS"))
+    vcomntools = std::move(*vs80comntools);
 
-  const char *vscomntools = nullptr;
-
-  // Find any version we can
-  if (vs120comntools)
-    vscomntools = vs120comntools;
-  else if (vs100comntools)
-    vscomntools = vs100comntools;
-  else if (vs90comntools)
-    vscomntools = vs90comntools;
-  else if (vs80comntools)
-    vscomntools = vs80comntools;
-
-  if (vscomntools && *vscomntools) {
-    const char *p = strstr(vscomntools, "\\Common7\\Tools");
-    path = p ? std::string(vscomntools, p) : vscomntools;
+  // Find any version we can.
+  if (!vcomntools.empty()) {
+    size_t p = vcomntools.find("\\Common7\\Tools");
+    if (p != std::string::npos)
+      vcomntools.resize(p);
+    path = std::move(vcomntools);
     return true;
   }
   return false;
@@ -592,9 +603,10 @@ void MSVCToolChain::AddClangSystemIncludeArgs(const ArgList &DriverArgs,
     return;
 
   // Honor %INCLUDE%. It should know essential search paths with vcvarsall.bat.
-  if (const char *cl_include_dir = getenv("INCLUDE")) {
+  if (llvm::Optional<std::string> cl_include_dir =
+          llvm::sys::Process::GetEnv("INCLUDE")) {
     SmallVector<StringRef, 8> Dirs;
-    StringRef(cl_include_dir)
+    StringRef(*cl_include_dir)
         .split(Dirs, ";", /*MaxSplit=*/-1, /*KeepEmpty=*/false);
     for (StringRef Dir : Dirs)
       addSystemInclude(DriverArgs, CC1Args, Dir);
@@ -646,6 +658,7 @@ void MSVCToolChain::AddClangSystemIncludeArgs(const ArgList &DriverArgs,
     return;
   }
 
+#if defined(LLVM_ON_WIN32)
   // As a fallback, select default install paths.
   // FIXME: Don't guess drives and paths like this on Windows.
   const StringRef Paths[] = {
@@ -656,6 +669,7 @@ void MSVCToolChain::AddClangSystemIncludeArgs(const ArgList &DriverArgs,
     "C:/Program Files/Microsoft Visual Studio 8/VC/PlatformSDK/Include"
   };
   addSystemIncludes(DriverArgs, CC1Args, Paths);
+#endif
 }
 
 void MSVCToolChain::AddClangCXXStdlibIncludeArgs(const ArgList &DriverArgs,
@@ -663,21 +677,34 @@ void MSVCToolChain::AddClangCXXStdlibIncludeArgs(const ArgList &DriverArgs,
   // FIXME: There should probably be logic here to find libc++ on Windows.
 }
 
+VersionTuple MSVCToolChain::computeMSVCVersion(const Driver *D,
+                                               const ArgList &Args) const {
+  bool IsWindowsMSVC = getTriple().isWindowsMSVCEnvironment();
+  VersionTuple MSVT = ToolChain::computeMSVCVersion(D, Args);
+  if (MSVT.empty()) MSVT = getMSVCVersionFromTriple();
+  if (MSVT.empty() && IsWindowsMSVC) MSVT = getMSVCVersionFromExe();
+  if (MSVT.empty() &&
+      Args.hasFlag(options::OPT_fms_extensions, options::OPT_fno_ms_extensions,
+                   IsWindowsMSVC)) {
+    // -fms-compatibility-version=18.00 is default.
+    // FIXME: Consider bumping this to 19 (MSVC2015) soon.
+    MSVT = VersionTuple(18);
+  }
+  return MSVT;
+}
+
 std::string
 MSVCToolChain::ComputeEffectiveClangTriple(const ArgList &Args,
                                            types::ID InputType) const {
-  std::string TripleStr =
-      ToolChain::ComputeEffectiveClangTriple(Args, InputType);
-  llvm::Triple Triple(TripleStr);
-  VersionTuple MSVT =
-      tools::visualstudio::getMSVCVersion(/*D=*/nullptr, *this, Triple, Args,
-                                          /*IsWindowsMSVC=*/true);
-  if (MSVT.empty())
-    return TripleStr;
-
+  // The MSVC version doesn't care about the architecture, even though it
+  // may look at the triple internally.
+  VersionTuple MSVT = computeMSVCVersion(/*D=*/nullptr, Args);
   MSVT = VersionTuple(MSVT.getMajor(), MSVT.getMinor().getValueOr(0),
                       MSVT.getSubminor().getValueOr(0));
 
+  // For the rest of the triple, however, a computed architecture name may
+  // be needed.
+  llvm::Triple Triple(ToolChain::ComputeEffectiveClangTriple(Args, InputType));
   if (Triple.getEnvironment() == llvm::Triple::MSVC) {
     StringRef ObjFmt = Triple.getEnvironmentName().split('-').second;
     if (ObjFmt.empty())
@@ -806,7 +833,7 @@ static void TranslateDArg(Arg *A, llvm::opt::DerivedArgList &DAL,
 
 llvm::opt::DerivedArgList *
 MSVCToolChain::TranslateArgs(const llvm::opt::DerivedArgList &Args,
-                             const char *BoundArch) const {
+                             StringRef BoundArch, Action::OffloadKind) const {
   DerivedArgList *DAL = new DerivedArgList(Args.getBaseArgs());
   const OptTable &Opts = getDriver().getOpts();
 

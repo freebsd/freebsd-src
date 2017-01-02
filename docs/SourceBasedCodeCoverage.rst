@@ -61,7 +61,7 @@ To compile code with coverage enabled, pass ``-fprofile-instr-generate
     % clang++ -fprofile-instr-generate -fcoverage-mapping foo.cc -o foo
 
 Note that linking together code with and without coverage instrumentation is
-supported: any uninstrumented code simply won't be accounted for.
+supported. Uninstrumented code simply won't be accounted for in reports.
 
 Running the instrumented program
 ================================
@@ -95,27 +95,21 @@ Creating coverage reports
 =========================
 
 Raw profiles have to be **indexed** before they can be used to generate
-coverage reports. This is done using the "merge" tool in ``llvm-profdata``, so
-named because it can combine and index profiles at the same time:
+coverage reports. This is done using the "merge" tool in ``llvm-profdata``
+(which can combine multiple raw profiles and index them at the same time):
 
 .. code-block:: console
 
     # Step 3(a): Index the raw profile.
     % llvm-profdata merge -sparse foo.profraw -o foo.profdata
 
-There are multiple different ways to render coverage reports. One option is to
-generate a line-oriented report:
+There are multiple different ways to render coverage reports. The simplest
+option is to generate a line-oriented report:
 
 .. code-block:: console
 
     # Step 3(b): Create a line-oriented coverage report.
     % llvm-cov show ./foo -instr-profile=foo.profdata
-
-To demangle any C++ identifiers in the output, use:
-
-.. code-block:: console
-
-    % llvm-cov show ./foo -instr-profile=foo.profdata | c++filt -n
 
 This report includes a summary view as well as dedicated sub-views for
 templated functions and their instantiations. For our example program, we get
@@ -125,38 +119,43 @@ region counts (even in macro expansions):
 
 .. code-block:: none
 
-       20|    1|#define BAR(x) ((x) || (x))
+        1|   20|#define BAR(x) ((x) || (x))
                                ^20     ^2
         2|    2|template <typename T> void foo(T x) {
-       22|    3|  for (unsigned I = 0; I < 10; ++I) { BAR(I); }
+        3|   22|  for (unsigned I = 0; I < 10; ++I) { BAR(I); }
                                        ^22     ^20  ^20^20
-        2|    4|}
+        4|    2|}
     ------------------
     | void foo<int>(int):
-    |      1|    2|template <typename T> void foo(T x) {
-    |     11|    3|  for (unsigned I = 0; I < 10; ++I) { BAR(I); }
+    |      2|    1|template <typename T> void foo(T x) {
+    |      3|   11|  for (unsigned I = 0; I < 10; ++I) { BAR(I); }
     |                                     ^11     ^10  ^10^10
-    |      1|    4|}
+    |      4|    1|}
     ------------------
     | void foo<float>(int):
-    |      1|    2|template <typename T> void foo(T x) {
-    |     11|    3|  for (unsigned I = 0; I < 10; ++I) { BAR(I); }
+    |      2|    1|template <typename T> void foo(T x) {
+    |      3|   11|  for (unsigned I = 0; I < 10; ++I) { BAR(I); }
     |                                     ^11     ^10  ^10^10
-    |      1|    4|}
+    |      4|    1|}
     ------------------
 
-It's possible to generate a file-level summary of coverage statistics (instead
-of a line-oriented report) with:
+To generate a file-level summary of coverage statistics instead of a
+line-oriented report, try:
 
 .. code-block:: console
 
     # Step 3(c): Create a coverage summary.
     % llvm-cov report ./foo -instr-profile=foo.profdata
-    Filename                    Regions    Miss   Cover Functions  Executed
-    -----------------------------------------------------------------------
-    /tmp/foo.cc                      13       0 100.00%         3   100.00%
-    -----------------------------------------------------------------------
-    TOTAL                            13       0 100.00%         3   100.00%
+    Filename           Regions    Missed Regions     Cover   Functions  Missed Functions  Executed       Lines      Missed Lines     Cover
+    --------------------------------------------------------------------------------------------------------------------------------------
+    /tmp/foo.cc             13                 0   100.00%           3                 0   100.00%          13                 0   100.00%
+    --------------------------------------------------------------------------------------------------------------------------------------
+    TOTAL                   13                 0   100.00%           3                 0   100.00%          13                 0   100.00%
+
+The ``llvm-cov`` tool supports specifying a custom demangler, writing out
+reports in a directory structure, and generating html reports. For the full
+list of options, please refer to the `command guide
+<http://llvm.org/docs/CommandGuide/llvm-cov.html>`_.
 
 A few final notes:
 
@@ -177,6 +176,40 @@ A few final notes:
 
       % llvm-profdata merge -sparse foo1.profraw foo2.profdata -o foo3.profdata
 
+Exporting coverage data
+=======================
+
+Coverage data can be exported into JSON using the ``llvm-cov export``
+sub-command. There is a comprehensive reference which defines the structure of
+the exported data at a high level in the llvm-cov source code.
+
+Interpreting reports
+====================
+
+There are four statistics tracked in a coverage summary:
+
+* Function coverage is the percentage of functions which have been executed at
+  least once. A function is considered to be executed if any of its
+  instantiations are executed.
+
+* Instantiation coverage is the percentage of function instantiations which
+  have been executed at least once. Template functions and static inline
+  functions from headers are two kinds of functions which may have multiple
+  instantiations.
+
+* Line coverage is the percentage of code lines which have been executed at
+  least once. Only executable lines within function bodies are considered to be
+  code lines.
+
+* Region coverage is the percentage of code regions which have been executed at
+  least once. A code region may span multiple lines (e.g in a large function
+  body with no control flow). However, it's also possible for a single line to
+  contain multiple code regions (e.g in "return x || y && z").
+
+Of these four statistics, function coverage is usually the least granular while
+region coverage is the most granular. The project-wide totals for each
+statistic are listed in the summary.
+
 Format compatibility guarantees
 ===============================
 
@@ -189,9 +222,14 @@ Format compatibility guarantees
   These formats are not forwards-compatible: i.e, a tool which uses format
   version X will not be able to understand format version (X+k).
 
-* There is a third format in play: the format of the coverage mappings emitted
-  into instrumented binaries. Tools must retain **backwards** compatibility
-  with these formats. These formats are not forwards-compatible.
+* Tools must also retain **backwards** compatibility with the format of the
+  coverage mappings emitted into instrumented binaries. These formats are not
+  forwards-compatible.
+
+* The JSON coverage export format has a (major, minor, patch) version triple.
+  Only a major version increment indicates a backwards-incompatible change. A
+  minor version increment is for added functionality, and patch version
+  increments are for bugfixes.
 
 Using the profiling runtime without static initializers
 =======================================================
@@ -217,6 +255,18 @@ without using static initializers, do this manually:
   out a profile. This function returns 0 when it succeeds, and a non-zero value
   otherwise. Calling this function multiple times appends profile data to an
   existing on-disk raw profile.
+
+Collecting coverage reports for the llvm project
+================================================
+
+To prepare a coverage report for llvm (and any of its sub-projects), add
+``-DLLVM_BUILD_INSTRUMENTED_COVERAGE=On`` to the cmake configuration. Raw
+profiles will be written to ``$BUILD_DIR/profiles/``. To prepare an html
+report, run ``llvm/utils/prepare-code-coverage-artifact.py``.
+
+To specify an alternate directory for raw profiles, use
+``-DLLVM_PROFILE_DATA_DIR``. To change the size of the profile merge pool, use
+``-DLLVM_PROFILE_MERGE_POOL_SIZE``.
 
 Drawbacks and limitations
 =========================

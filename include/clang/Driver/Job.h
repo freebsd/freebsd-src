@@ -116,7 +116,7 @@ public:
   const llvm::opt::ArgStringList &getArguments() const { return Arguments; }
 
   /// Print a command argument, and optionally quote it.
-  static void printArg(llvm::raw_ostream &OS, const char *Arg, bool Quote);
+  static void printArg(llvm::raw_ostream &OS, StringRef Arg, bool Quote);
 };
 
 /// Like Command, but with a fallback which is executed in case
@@ -175,6 +175,7 @@ public:
 
   const list_type &getJobs() const { return Jobs; }
 
+  bool empty() const { return Jobs.empty(); }
   size_type size() const { return Jobs.size(); }
   iterator begin() { return Jobs.begin(); }
   const_iterator begin() const { return Jobs.begin(); }

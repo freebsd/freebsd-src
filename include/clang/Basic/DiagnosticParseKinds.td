@@ -13,10 +13,11 @@
 
 let Component = "Parse" in {
 
-def w_asm_qualifier_ignored : Warning<"ignored %0 qualifier on asm">,
-                              CatInlineAsm;
+def warn_asm_qualifier_ignored : Warning<
+  "ignored %0 qualifier on asm">, CatInlineAsm, InGroup<ASMIgnoredQualifier>;
 def warn_file_asm_volatile : Warning<
-  "meaningless 'volatile' on asm outside function">, CatInlineAsm;
+  "meaningless 'volatile' on asm outside function">, CatInlineAsm,
+  InGroup<ASMIgnoredQualifier>;
 
 let CategoryName = "Inline Assembly Issue" in {
 def err_asm_empty : Error<"__asm used with no assembly instructions">;
@@ -63,7 +64,7 @@ def ext_nullability : Extension<
   "type nullability specifier %0 is a Clang extension">,
   InGroup<DiagGroup<"nullability-extension">>;
 
-def error_empty_enum : Error<"use of empty enum">;
+def err_empty_enum : Error<"use of empty enum">;
 
 def ext_ident_list_in_param : Extension<
   "type-less parameter names in function declaration">;
@@ -346,14 +347,16 @@ def ext_c11_static_assert : Extension<
 def warn_cxx98_compat_static_assert : Warning<
   "static_assert declarations are incompatible with C++98">,
   InGroup<CXX98Compat>, DefaultIgnore;
-def err_paren_after_colon_colon : Error<
-  "unexpected parenthesis after '::'">;
 def err_function_definition_not_allowed : Error<
   "function definition is not allowed here">;
 def err_expected_end_of_enumerator : Error<
   "expected '= constant-expression' or end of enumerator definition">;
 def err_expected_coloncolon_after_super : Error<
   "expected '::' after '__super'">;
+
+def ext_decomp_decl_empty : ExtWarn<
+  "ISO C++1z does not allow a decomposition group to be empty">,
+  InGroup<DiagGroup<"empty-decomposition">>;
 
 /// Objective-C parser diagnostics
 def err_expected_minus_or_plus : Error<
@@ -395,7 +398,7 @@ def err_objc_expected_selector_for_getter_setter : Error<
   "expected selector for Objective-C %select{setter|getter}0">;
 def err_objc_property_requires_field_name : Error<
   "property requires fields to be named">;
-def err_objc_property_bitfield : Error<"property name cannot be a bitfield">;
+def err_objc_property_bitfield : Error<"property name cannot be a bit-field">;
 def err_objc_expected_property_attr : Error<"unknown property attribute %0">;
 def err_objc_properties_require_objc2 : Error<
   "properties are an Objective-C 2 feature">;
@@ -417,13 +420,11 @@ def err_unexpected_protocol_qualifier : Error<
   "@implementation declaration cannot be protocol qualified">;
 def err_objc_unexpected_atend : Error<
   "'@end' appears where closing brace '}' is expected">;
-def error_property_ivar_decl : Error<
-  "property synthesize requires specification of an ivar">;
 def err_synthesized_property_name : Error<
   "expected a property name in @synthesize">;
 def warn_semicolon_before_method_body : Warning<
   "semicolon before method body is ignored">,
-  InGroup<DiagGroup<"semicolon-before-method-body">>, DefaultIgnore;
+  InGroup<SemiBeforeMethodBody>, DefaultIgnore;
 def note_extra_comma_message_arg : Note<
   "comma separating Objective-C messaging arguments">;
 
@@ -517,6 +518,12 @@ def ext_constexpr_if : ExtWarn<
 def warn_cxx14_compat_constexpr_if : Warning<
   "constexpr if is incompatible with C++ standards before C++1z">,
   DefaultIgnore, InGroup<CXXPre1zCompat>;
+def ext_init_statement : ExtWarn<
+  "'%select{if|switch}0' initialization statements are a C++1z extension">,
+  InGroup<CXX1z>;
+def warn_cxx14_compat_init_statement : Warning<
+  "%select{if|switch}0 initialization statements are incompatible with "
+  "C++ standards before C++1z">, DefaultIgnore, InGroup<CXXPre1zCompat>;
 
 // C++ derived classes
 def err_dup_virtual : Error<"duplicate 'virtual' in base specifier">;
@@ -719,7 +726,7 @@ def warn_cxx98_compat_nonstatic_member_init : Warning<
   "in-class initialization of non-static data members is incompatible with C++98">,
   InGroup<CXX98Compat>, DefaultIgnore;
 def err_bitfield_member_init: Error<
-  "bitfield member cannot have an in-class initializer">;
+  "bit-field member cannot have an in-class initializer">;
 def err_incomplete_array_member_init: Error<
   "array bound cannot be deduced from an in-class initializer">;
 
@@ -733,6 +740,22 @@ def err_alias_declaration_not_identifier : Error<
   "name defined in alias declaration must be an identifier">;
 def err_alias_declaration_specialization : Error<
   "%select{partial specialization|explicit specialization|explicit instantiation}0 of alias templates is not permitted">;
+def err_alias_declaration_pack_expansion : Error<
+  "alias declaration cannot be a pack expansion">;
+
+// C++1z using-declaration pack expansions
+def ext_multi_using_declaration : ExtWarn<
+  "use of multiple declarators in a single using declaration is "
+  "a C++1z extension">, InGroup<CXX1z>;
+def warn_cxx1z_compat_multi_using_declaration : Warning<
+  "use of multiple declarators in a single using declaration is "
+  "incompatible with C++ standards before C++1z">,
+  InGroup<CXXPre1zCompat>, DefaultIgnore;
+def ext_using_declaration_pack : ExtWarn<
+  "pack expansion of using declaration is a C++1z extension">, InGroup<CXX1z>;
+def warn_cxx1z_compat_using_declaration_pack : Warning<
+  "pack expansion using declaration is incompatible with C++ standards "
+  "before C++1z">, InGroup<CXXPre1zCompat>, DefaultIgnore;
 
 // C++11 override control
 def ext_override_control_keyword : ExtWarn<
@@ -780,10 +803,19 @@ def warn_cxx98_compat_lambda : Warning<
   InGroup<CXX98Compat>, DefaultIgnore;
 def err_lambda_missing_parens : Error<
   "lambda requires '()' before %select{'mutable'|return type|"
-  "attribute specifier}0">;
+  "attribute specifier|'constexpr'}0">;
+def err_lambda_decl_specifier_repeated : Error<
+  "%select{'mutable'|'constexpr'}0 cannot appear multiple times in a lambda declarator">;
 // C++1z lambda expressions
 def err_expected_star_this_capture : Error<
   "expected 'this' following '*' in lambda capture list">;
+
+// C++1z constexpr lambda expressions
+def warn_cxx14_compat_constexpr_on_lambda : Warning<
+  "constexpr on lambda expressions is incompatible with C++ standards before C++1z">,
+  InGroup<CXXPre1zCompat>, DefaultIgnore;
+def ext_constexpr_on_lambda_cxx1z : ExtWarn<
+  "'constexpr' on lambda expressions is a C++1z extension">, InGroup<CXX1z>;
 
 // Availability attribute
 def err_expected_version : Error<
@@ -815,8 +847,6 @@ def warn_availability_and_unavailable : Warning<
   InGroup<Availability>;
 
 // @available(...)
-def err_avail_query_expected_condition : Error<
-  "expected an availability condition here">;
 def err_avail_query_expected_platform_name : Error<
   "expected a platform name here">;
 
@@ -900,6 +930,10 @@ def warn_pragma_invalid_action : Warning<
 def warn_pragma_pack_malformed : Warning<
   "expected integer or identifier in '#pragma pack' - ignored">,
   InGroup<IgnoredPragmas>;
+// - #pragma intrinsic
+def warn_pragma_intrinsic_builtin : Warning<
+  "%0 is not a recognized builtin%select{|; consider including <intrin.h> to access non-builtin intrinsics}1">,
+  InGroup<IgnoredPragmaIntrinsic>;
 // - #pragma unused
 def warn_pragma_unused_expected_var : Warning<
   "expected '#pragma unused' argument to be a variable name">,
@@ -941,8 +975,10 @@ def err_opencl_unroll_hint_on_non_loop : Error<
 // OpenCL EXTENSION pragma (OpenCL 1.1 [9.1])
 def warn_pragma_expected_colon : Warning<
   "missing ':' after %0 - ignoring">, InGroup<IgnoredPragmas>;
-def warn_pragma_expected_enable_disable : Warning<
-  "expected 'enable' or 'disable' - ignoring">, InGroup<IgnoredPragmas>;
+def warn_pragma_expected_predicate : Warning<
+  "expected %select{'enable', 'disable', 'begin' or 'end'|'disable'}0 - ignoring">, InGroup<IgnoredPragmas>;
+def warn_pragma_begin_end_mismatch : Warning<
+  "OpenCL extension end directive mismatches begin directive - ignoring">, InGroup<IgnoredPragmas>;
 def warn_pragma_unknown_extension : Warning<
   "unknown OpenCL extension %0 - ignoring">, InGroup<IgnoredPragmas>;
 def warn_pragma_unsupported_extension : Warning<
@@ -1007,14 +1043,36 @@ def err_pragma_invalid_keyword : Error<
 def warn_pragma_unroll_cuda_value_in_parens : Warning<
   "argument to '#pragma unroll' should not be in parentheses in CUDA C/C++">,
   InGroup<CudaCompat>;
+
+def warn_cuda_attr_lambda_position : Warning<
+  "nvcc does not allow '__%0__' to appear after '()' in lambdas">,
+  InGroup<CudaCompat>;
+def warn_pragma_force_cuda_host_device_bad_arg : Warning<
+  "incorrect use of #pragma clang force_cuda_host_device begin|end">,
+  InGroup<IgnoredPragmas>;
+def err_pragma_cannot_end_force_cuda_host_device : Error<
+  "force_cuda_host_device end pragma without matching "
+  "force_cuda_host_device begin">;
 } // end of Parse Issue category.
 
 let CategoryName = "Modules Issue" in {
+def err_expected_module_interface_decl : Error<
+  "expected module declaration at start of module interface">;
+def err_unexpected_module_decl : Error<
+  "module declaration must be the first declaration in the translation unit">;
 def err_module_expected_ident : Error<
-  "expected a module name after module import">;
+  "expected a module name after module%select{| import}0">;
+def err_unexpected_module_kind : Error<
+  "unexpected module kind %0; expected 'implementation' or 'partition'">;
+def err_attribute_not_module_attr : Error<
+  "%0 attribute cannot be applied to a module">;
+def err_attribute_not_import_attr : Error<
+  "%0 attribute cannot be applied to a module import">;
 def err_module_expected_semi : Error<
   "expected ';' after module name">;
 def err_missing_before_module_end : Error<"expected %0 at end of module">;
+
+def err_export_empty : Error<"export declaration cannot be empty">;
 }
 
 let CategoryName = "Generics Issue" in {

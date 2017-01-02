@@ -418,3 +418,17 @@ module Empty {}
 module MacroFabs1 {
   header "MacroFabs1.h"
 }
+
+module DiagOutOfDate {
+  header "DiagOutOfDate.h"
+}
+
+module DebugNestedA {
+  header "DebugNestedA.h"
+  export *
+}
+
+module DebugNestedB {
+  header "DebugNestedB.h"
+  export *
+}

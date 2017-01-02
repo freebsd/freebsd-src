@@ -4,8 +4,6 @@
 
 // Verify that using an initializer list for a non-aggregate looks for
 // constructors..
-// Note that due to a (likely) standard bug, this is technically an aggregate,
-// but we do not treat it as one.
 struct NonAggr1 { // expected-note 2 {{candidate constructor}}
   NonAggr1(int, int) { } // expected-note {{candidate constructor}}
 
@@ -57,7 +55,7 @@ struct A {
   A(int);
   ~A();
   
-  A(const A&) = delete; // expected-note 2 {{'A' has been explicitly marked deleted here}}
+  A(const A&) = delete; // expected-note 0-2{{'A' has been explicitly marked deleted here}}
 };
 
 struct B {
@@ -70,10 +68,16 @@ struct C {
 
 void f() {
   A as1[1] = { };
-  A as2[1] = { 1 }; // expected-error {{copying array element of type 'A' invokes deleted constructor}}
+  A as2[1] = { 1 };
+#if __cplusplus <= 201402L
+  // expected-error@-2 {{copying array element of type 'A' invokes deleted constructor}}
+#endif
 
   B b1 = { };
-  B b2 = { 1 }; // expected-error {{copying member subobject of type 'A' invokes deleted constructor}}
+  B b2 = { 1 };
+#if __cplusplus <= 201402L
+  // expected-error@-2 {{copying member subobject of type 'A' invokes deleted constructor}}
+#endif
   
   C c1 = { 1 };
 }

@@ -24,15 +24,20 @@ protected:
     return std::vector<tooling::Range>(1, tooling::Range(0, Code.size()));
   }
 
-  std::string sort(StringRef Code, StringRef FileName = "input.cpp") {
-    auto Ranges = GetCodeRange(Code);
-    auto Sorted =
-        applyAllReplacements(Code, sortIncludes(Style, Code, Ranges, FileName));
+  std::string sort(StringRef Code, std::vector<tooling::Range> Ranges,
+                   StringRef FileName = "input.cc") {
+    auto Replaces = sortIncludes(Style, Code, Ranges, FileName);
+    Ranges = tooling::calculateRangesAfterReplacements(Replaces, Ranges);
+    auto Sorted = applyAllReplacements(Code, Replaces);
     EXPECT_TRUE(static_cast<bool>(Sorted));
     auto Result = applyAllReplacements(
         *Sorted, reformat(Style, *Sorted, Ranges, FileName));
     EXPECT_TRUE(static_cast<bool>(Result));
     return *Result;
+  }
+
+  std::string sort(StringRef Code, StringRef FileName = "input.cpp") {
+    return sort(Code, GetCodeRange(Code), FileName);
   }
 
   unsigned newCursor(llvm::StringRef Code, unsigned Cursor) {
@@ -51,16 +56,24 @@ TEST_F(SortIncludesTest, BasicSorting) {
             sort("#include \"a.h\"\n"
                  "#include \"c.h\"\n"
                  "#include \"b.h\"\n"));
+
+  EXPECT_EQ("// comment\n"
+            "#include <a>\n"
+            "#include <b>\n",
+            sort("// comment\n"
+                 "#include <b>\n"
+                 "#include <a>\n",
+                 {tooling::Range(25, 1)}));
 }
 
 TEST_F(SortIncludesTest, NoReplacementsForValidIncludes) {
   // Identical #includes have led to a failure with an unstable sort.
   std::string Code = "#include <a>\n"
                      "#include <b>\n"
-                     "#include <b>\n"
-                     "#include <b>\n"
-                     "#include <b>\n"
-                     "#include <c>\n";
+                     "#include <c>\n"
+                     "#include <d>\n"
+                     "#include <e>\n"
+                     "#include <f>\n";
   EXPECT_TRUE(sortIncludes(Style, Code, GetCodeRange(Code), "a.cc").empty());
 }
 
@@ -284,6 +297,82 @@ TEST_F(SortIncludesTest, CalculatesCorrectCursorPosition) {
   EXPECT_EQ(41u, newCursor(Code, 10));
   EXPECT_EQ(23u, newCursor(Code, 25));
   EXPECT_EQ(10u, newCursor(Code, 43));
+}
+
+TEST_F(SortIncludesTest, DeduplicateIncludes) {
+  EXPECT_EQ("#include <a>\n"
+            "#include <b>\n"
+            "#include <c>\n",
+            sort("#include <a>\n"
+                 "#include <b>\n"
+                 "#include <b>\n"
+                 "#include <b>\n"
+                 "#include <b>\n"
+                 "#include <c>\n"));
+}
+
+TEST_F(SortIncludesTest, SortAndDeduplicateIncludes) {
+  EXPECT_EQ("#include <a>\n"
+            "#include <b>\n"
+            "#include <c>\n",
+            sort("#include <b>\n"
+                 "#include <a>\n"
+                 "#include <b>\n"
+                 "#include <b>\n"
+                 "#include <c>\n"
+                 "#include <b>\n"));
+}
+
+TEST_F(SortIncludesTest, CalculatesCorrectCursorPositionAfterDeduplicate) {
+  std::string Code = "#include <b>\n"      // Start of line: 0
+                     "#include <a>\n"      // Start of line: 13
+                     "#include <b>\n"      // Start of line: 26
+                     "#include <b>\n"      // Start of line: 39
+                     "#include <c>\n"      // Start of line: 52
+                     "#include <b>\n";     // Start of line: 65
+  std::string Expected = "#include <a>\n"  // Start of line: 0
+                         "#include <b>\n"  // Start of line: 13
+                         "#include <c>\n"; // Start of line: 26
+  EXPECT_EQ(Expected, sort(Code));
+  // Cursor on 'i' in "#include <a>".
+  EXPECT_EQ(1u, newCursor(Code, 14));
+  // Cursor on 'b' in "#include <b>".
+  EXPECT_EQ(23u, newCursor(Code, 10));
+  EXPECT_EQ(23u, newCursor(Code, 36));
+  EXPECT_EQ(23u, newCursor(Code, 49));
+  EXPECT_EQ(23u, newCursor(Code, 36));
+  EXPECT_EQ(23u, newCursor(Code, 75));
+  // Cursor on '#' in "#include <c>".
+  EXPECT_EQ(26u, newCursor(Code, 52));
+}
+
+TEST_F(SortIncludesTest, DeduplicateLocallyInEachBlock) {
+  EXPECT_EQ("#include <a>\n"
+            "#include <b>\n"
+            "\n"
+            "#include <b>\n"
+            "#include <c>\n",
+            sort("#include <a>\n"
+                 "#include <b>\n"
+                 "\n"
+                 "#include <c>\n"
+                 "#include <b>\n"
+                 "#include <b>\n"));
+}
+
+TEST_F(SortIncludesTest, ValidAffactedRangesAfterDeduplicatingIncludes) {
+  std::string Code = "#include <a>\n"
+                     "#include <b>\n"
+                     "#include <a>\n"
+                     "#include <a>\n"
+                     "\n"
+                     "   int     x ;";
+  std::vector<tooling::Range> Ranges = {tooling::Range(0, 52)};
+  auto Replaces = sortIncludes(Style, Code, Ranges, "input.cpp");
+  Ranges = tooling::calculateRangesAfterReplacements(Replaces, Ranges);
+  EXPECT_EQ(1u, Ranges.size());
+  EXPECT_EQ(0u, Ranges[0].getOffset());
+  EXPECT_EQ(26u, Ranges[0].getLength());
 }
 
 } // end namespace
