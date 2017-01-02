@@ -105,6 +105,13 @@ siena_board_cfg(
 
 	encp->enc_board_type = board_type;
 
+	/*
+	 * There is no possibility to determine the number of PFs on Siena
+	 * by issuing MCDI request, and it is not an easy task to find the
+	 * value based on the board type, so 'enc_hw_pf_count' is set to 1
+	 */
+	encp->enc_hw_pf_count = 1;
+
 	/* Additional capabilities */
 	encp->enc_clk_mult = 1;
 	if (EFX_DWORD_FIELD(capabilities, MC_CMD_CAPABILITIES_TURBO)) {
