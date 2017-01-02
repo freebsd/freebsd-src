@@ -2062,12 +2062,12 @@ knlist_empty(struct knlist *knl)
 {
 
 	KNL_ASSERT_LOCKED(knl);
-	return SLIST_EMPTY(&knl->kl_list);
+	return (SLIST_EMPTY(&knl->kl_list));
 }
 
-static struct mtx	knlist_lock;
+static struct mtx knlist_lock;
 MTX_SYSINIT(knlist_lock, &knlist_lock, "knlist lock for lockless objects",
-	MTX_DEF);
+    MTX_DEF);
 static void knlist_mtx_lock(void *arg);
 static void knlist_mtx_unlock(void *arg);
 
@@ -2306,17 +2306,15 @@ knote_attach(struct knote *kn, struct kqueue *kq)
 
 	if (kn->kn_fop->f_isfd) {
 		if (kn->kn_id >= kq->kq_knlistsize)
-			return ENOMEM;
+			return (ENOMEM);
 		list = &kq->kq_knlist[kn->kn_id];
 	} else {
 		if (kq->kq_knhash == NULL)
-			return ENOMEM;
+			return (ENOMEM);
 		list = &kq->kq_knhash[KN_HASH(kn->kn_id, kq->kq_knhashmask)];
 	}
-
 	SLIST_INSERT_HEAD(list, kn, kn_link);
-
-	return 0;
+	return (0);
 }
 
 /*
@@ -2425,11 +2423,9 @@ kqfd_register(int fd, struct kevent *kev, struct thread *td, int waitok)
 		goto noacquire;
 
 	error = kqueue_register(kq, kev, td, waitok);
-
 	kqueue_release(kq, 0);
 
 noacquire:
 	fdrop(fp, td);
-
-	return error;
+	return (error);
 }
