@@ -1308,8 +1308,7 @@ update_ifa_info(void)
 
 /*
  * Update arp table
- *
-*/
+ */
 void
 mib_arp_update(void)
 {
@@ -1351,7 +1350,7 @@ mib_arp_update(void)
 
 
 /*
- * Intput on the routing socket.
+ * Input on the routing socket.
  */
 static void
 route_input(int fd, void *udata __unused)
