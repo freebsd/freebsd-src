@@ -35,7 +35,7 @@ SRCS+=	ef10_ev.c ef10_filter.c ef10_intr.c ef10_mac.c ef10_mcdi.c ef10_nic.c
 SRCS+=	ef10_nvram.c ef10_phy.c ef10_rx.c ef10_tx.c ef10_vpd.c
 SRCS+=	ef10_impl.h
 
-SRCS+=	hunt_nic.c hunt_phy.c
+SRCS+=	hunt_nic.c
 SRCS+=	hunt_impl.h
 
 SRCS+=	medford_nic.c
