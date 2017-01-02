@@ -470,9 +470,9 @@ fail1:
 }
 
 /*
- * This improves performance by pushing a TX descriptor at the same time as the
- * doorbell. The descriptor must be added to the TXQ, so that can be used if the
- * hardware decides not to use the pushed descriptor.
+ * This improves performance by, when possible, pushing a TX descriptor at the
+ * same time as the doorbell. The descriptor must be added to the TXQ, so that
+ * can be used if the hardware decides not to use the pushed descriptor.
  */
 			void
 ef10_tx_qpush(
@@ -492,16 +492,46 @@ ef10_tx_qpush(
 	offset = id * sizeof (efx_qword_t);
 
 	EFSYS_MEM_READQ(etp->et_esmp, offset, &desc);
-	EFX_POPULATE_OWORD_3(oword,
-	    ERF_DZ_TX_DESC_WPTR, wptr,
-	    ERF_DZ_TX_DESC_HWORD, EFX_QWORD_FIELD(desc, EFX_DWORD_1),
-	    ERF_DZ_TX_DESC_LWORD, EFX_QWORD_FIELD(desc, EFX_DWORD_0));
 
-	/* Guarantee ordering of memory (descriptors) and PIO (doorbell) */
-	EFX_DMA_SYNC_QUEUE_FOR_DEVICE(etp->et_esmp, etp->et_mask + 1, wptr, id);
-	EFSYS_PIO_WRITE_BARRIER();
-	EFX_BAR_TBL_DOORBELL_WRITEO(enp, ER_DZ_TX_DESC_UPD_REG, etp->et_index,
-				    &oword);
+	/*
+	 * SF Bug 65776: TSO option descriptors cannot be pushed if pacer bypass
+	 * is enabled on the event queue this transmit queue is attached to.
+	 *
+	 * To ensure the code is safe, it is easiest to simply test the type of
+	 * the descriptor to push, and only push it is if it not a TSO option
+	 * descriptor.
+	 */
+	if ((EFX_QWORD_FIELD(desc, ESF_DZ_TX_DESC_IS_OPT) != 1) ||
+	    (EFX_QWORD_FIELD(desc, ESF_DZ_TX_OPTION_TYPE) !=
+	    ESE_DZ_TX_OPTION_DESC_TSO)) {
+		/* Push the descriptor and update the wptr. */
+		EFX_POPULATE_OWORD_3(oword, ERF_DZ_TX_DESC_WPTR, wptr,
+		    ERF_DZ_TX_DESC_HWORD, EFX_QWORD_FIELD(desc, EFX_DWORD_1),
+		    ERF_DZ_TX_DESC_LWORD, EFX_QWORD_FIELD(desc, EFX_DWORD_0));
+
+		/* Ensure ordering of memory (descriptors) and PIO (doorbell) */
+		EFX_DMA_SYNC_QUEUE_FOR_DEVICE(etp->et_esmp, etp->et_mask + 1,
+					    wptr, id);
+		EFSYS_PIO_WRITE_BARRIER();
+		EFX_BAR_TBL_DOORBELL_WRITEO(enp, ER_DZ_TX_DESC_UPD_REG,
+					    etp->et_index, &oword);
+	} else {
+		efx_dword_t dword;
+
+		/*
+		 * Only update the wptr. This is signalled to the hardware by
+		 * only writing one DWORD of the doorbell register.
+		 */
+		EFX_POPULATE_OWORD_1(oword, ERF_DZ_TX_DESC_WPTR, wptr);
+		dword = oword.eo_dword[2];
+
+		/* Ensure ordering of memory (descriptors) and PIO (doorbell) */
+		EFX_DMA_SYNC_QUEUE_FOR_DEVICE(etp->et_esmp, etp->et_mask + 1,
+					    wptr, id);
+		EFSYS_PIO_WRITE_BARRIER();
+		EFX_BAR_TBL_WRITED2(enp, ER_DZ_TX_DESC_UPD_REG,
+				    etp->et_index, &dword, B_FALSE);
+	}
 }
 
 	__checkReturn	efx_rc_t
