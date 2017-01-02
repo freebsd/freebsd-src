@@ -7,13 +7,15 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "Writer.h"
 #include "Config.h"
 #include "DLL.h"
 #include "Error.h"
 #include "InputFiles.h"
+#include "Memory.h"
+#include "PDB.h"
 #include "SymbolTable.h"
 #include "Symbols.h"
-#include "Writer.h"
 #include "lld/Core/Parallel.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/STLExtras.h"
@@ -21,6 +23,7 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/Endian.h"
 #include "llvm/Support/FileOutputBuffer.h"
+#include "llvm/Support/RandomNumberGenerator.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
 #include <cstdio>
@@ -42,6 +45,61 @@ static const int DOSStubSize = 64;
 static const int NumberfOfDataDirectory = 16;
 
 namespace {
+
+class DebugDirectoryChunk : public Chunk {
+public:
+  DebugDirectoryChunk(const std::vector<std::unique_ptr<Chunk>> &R)
+      : Records(R) {}
+
+  size_t getSize() const override {
+    return Records.size() * sizeof(debug_directory);
+  }
+
+  void writeTo(uint8_t *B) const override {
+    auto *D = reinterpret_cast<debug_directory *>(B + OutputSectionOff);
+
+    for (const std::unique_ptr<Chunk> &Record : Records) {
+      D->Characteristics = 0;
+      D->TimeDateStamp = 0;
+      D->MajorVersion = 0;
+      D->MinorVersion = 0;
+      D->Type = COFF::IMAGE_DEBUG_TYPE_CODEVIEW;
+      D->SizeOfData = Record->getSize();
+      D->AddressOfRawData = Record->getRVA();
+      // TODO(compnerd) get the file offset
+      D->PointerToRawData = 0;
+
+      ++D;
+    }
+  }
+
+private:
+  const std::vector<std::unique_ptr<Chunk>> &Records;
+};
+
+class CVDebugRecordChunk : public Chunk {
+  size_t getSize() const override {
+    return sizeof(codeview::DebugInfo) + Config->PDBPath.size() + 1;
+  }
+
+  void writeTo(uint8_t *B) const override {
+    // Save off the DebugInfo entry to backfill the file signature (build id)
+    // in Writer::writeBuildId
+    DI = reinterpret_cast<codeview::DebugInfo *>(B + OutputSectionOff);
+
+    DI->Signature.CVSignature = OMF::Signature::PDB70;
+
+    // variable sized field (PDB Path)
+    auto *P = reinterpret_cast<char *>(B + OutputSectionOff + sizeof(*DI));
+    if (!Config->PDBPath.empty())
+      memcpy(P, Config->PDBPath.data(), Config->PDBPath.size());
+    P[Config->PDBPath.size()] = '\0';
+  }
+
+public:
+  mutable codeview::DebugInfo *DI = nullptr;
+};
+
 // The writer writes a SymbolTable result to a file.
 class Writer {
 public:
@@ -62,6 +120,7 @@ private:
   void setSectionPermissions();
   void writeSections();
   void sortExceptionTable();
+  void writeBuildId();
   void applyRelocations();
 
   llvm::Optional<coff_symbol16> createSymbol(Defined *D);
@@ -76,9 +135,7 @@ private:
   std::map<StringRef, std::vector<DefinedImportData *>> binImports();
 
   SymbolTable *Symtab;
-  std::unique_ptr<llvm::FileOutputBuffer> Buffer;
-  llvm::SpecificBumpPtrAllocator<OutputSection> CAlloc;
-  llvm::SpecificBumpPtrAllocator<BaserelChunk> BAlloc;
+  std::unique_ptr<FileOutputBuffer> Buffer;
   std::vector<OutputSection *> OutputSections;
   std::vector<char> Strtab;
   std::vector<llvm::object::coff_symbol16> OutputSymtab;
@@ -86,6 +143,11 @@ private:
   DelayLoadContents DelayIdata;
   EdataContents Edata;
   std::unique_ptr<SEHTableChunk> SEHTable;
+
+  std::unique_ptr<Chunk> DebugDirectory;
+  std::vector<std::unique_ptr<Chunk>> DebugRecords;
+  CVDebugRecordChunk *BuildId = nullptr;
+  ArrayRef<uint8_t> SectionTable;
 
   uint64_t FileSize;
   uint32_t PointerToSymbolTable = 0;
@@ -239,6 +301,11 @@ void Writer::run() {
   fixSafeSEHSymbols();
   writeSections();
   sortExceptionTable();
+  writeBuildId();
+
+  if (!Config->PDBPath.empty())
+    createPDB(Config->PDBPath, Symtab, SectionTable);
+
   if (auto EC = Buffer->commit())
     fatal(EC, "failed to write the output file");
 }
@@ -274,7 +341,7 @@ void Writer::createSections() {
     StringRef Name = getOutputSection(Pair.first);
     OutputSection *&Sec = Sections[Name];
     if (!Sec) {
-      Sec = new (CAlloc.Allocate()) OutputSection(Name);
+      Sec = make<OutputSection>(Name);
       OutputSections.push_back(Sec);
     }
     std::vector<Chunk *> &Chunks = Pair.second;
@@ -286,25 +353,46 @@ void Writer::createSections() {
 }
 
 void Writer::createMiscChunks() {
+  OutputSection *RData = createSection(".rdata");
+
   // Create thunks for locally-dllimported symbols.
   if (!Symtab->LocalImportChunks.empty()) {
-    OutputSection *Sec = createSection(".rdata");
     for (Chunk *C : Symtab->LocalImportChunks)
-      Sec->addChunk(C);
+      RData->addChunk(C);
+  }
+
+  // Create Debug Information Chunks
+  if (Config->Debug) {
+    DebugDirectory = llvm::make_unique<DebugDirectoryChunk>(DebugRecords);
+
+    // TODO(compnerd) create a coffgrp entry if DebugType::CV is not enabled
+    if (Config->DebugTypes & static_cast<unsigned>(coff::DebugType::CV)) {
+      auto Chunk = llvm::make_unique<CVDebugRecordChunk>();
+
+      BuildId = Chunk.get();
+      DebugRecords.push_back(std::move(Chunk));
+    }
+
+    RData->addChunk(DebugDirectory.get());
+    for (const std::unique_ptr<Chunk> &C : DebugRecords)
+      RData->addChunk(C.get());
   }
 
   // Create SEH table. x86-only.
   if (Config->Machine != I386)
     return;
+
   std::set<Defined *> Handlers;
+
   for (lld::coff::ObjectFile *File : Symtab->ObjectFiles) {
     if (!File->SEHCompat)
       return;
     for (SymbolBody *B : File->SEHandlers)
-      Handlers.insert(cast<Defined>(B->repl()));
+      Handlers.insert(cast<Defined>(B));
   }
+
   SEHTable.reset(new SEHTableChunk(Handlers));
-  createSection(".rdata")->addChunk(SEHTable.get());
+  RData->addChunk(SEHTable.get());
 }
 
 // Create .idata section for the DLL-imported symbol table.
@@ -340,7 +428,7 @@ void Writer::createImportTables() {
       Sec->addChunk(C);
   }
   if (!DelayIdata.empty()) {
-    Defined *Helper = cast<Defined>(Config->DelayLoadHelper->repl());
+    Defined *Helper = cast<Defined>(Config->DelayLoadHelper);
     DelayIdata.create(Helper);
     OutputSection *Sec = createSection(".didat");
     for (Chunk *C : DelayIdata.getChunks())
@@ -383,6 +471,10 @@ size_t Writer::addEntryToStringTable(StringRef Str) {
 }
 
 Optional<coff_symbol16> Writer::createSymbol(Defined *Def) {
+  // Relative symbols are unrepresentable in a COFF symbol table.
+  if (isa<DefinedRelative>(Def))
+    return None;
+
   if (auto *D = dyn_cast<DefinedRegular>(Def))
     if (!D->getChunk()->isLive())
       return None;
@@ -409,7 +501,6 @@ Optional<coff_symbol16> Writer::createSymbol(Defined *Def) {
 
   switch (Def->kind()) {
   case SymbolBody::DefinedAbsoluteKind:
-  case SymbolBody::DefinedRelativeKind:
     Sym.Value = Def->getRVA();
     Sym.SectionNumber = IMAGE_SYM_ABSOLUTE;
     break;
@@ -445,13 +536,11 @@ void Writer::createSymbolAndStringTable() {
   for (lld::coff::ObjectFile *File : Symtab->ObjectFiles)
     for (SymbolBody *B : File->getSymbols())
       if (auto *D = dyn_cast<Defined>(B))
-        if (Optional<coff_symbol16> Sym = createSymbol(D))
-          OutputSymtab.push_back(*Sym);
-
-  for (ImportFile *File : Symtab->ImportFiles)
-    for (SymbolBody *B : File->getSymbols())
-      if (Optional<coff_symbol16> Sym = createSymbol(cast<Defined>(B)))
-        OutputSymtab.push_back(*Sym);
+        if (!D->WrittenToSymtab) {
+          D->WrittenToSymtab = true;
+          if (Optional<coff_symbol16> Sym = createSymbol(D))
+            OutputSymtab.push_back(*Sym);
+        }
 
   OutputSection *LastSection = OutputSections.back();
   // We position the symbol table to be adjacent to the end of the last section.
@@ -542,7 +631,7 @@ template <typename PEHeaderTy> void Writer::writeHeader() {
   PE->SizeOfImage = SizeOfImage;
   PE->SizeOfHeaders = SizeOfHeaders;
   if (!Config->NoEntry) {
-    Defined *Entry = cast<Defined>(Config->Entry->repl());
+    Defined *Entry = cast<Defined>(Config->Entry);
     PE->AddressOfEntryPoint = Entry->getRVA();
     // Pointer to thumb code must have the LSB set, so adjust it.
     if (Config->Machine == ARMNT)
@@ -584,33 +673,32 @@ template <typename PEHeaderTy> void Writer::writeHeader() {
     Dir[IAT].RelativeVirtualAddress = Idata.getIATRVA();
     Dir[IAT].Size = Idata.getIATSize();
   }
-  if (!DelayIdata.empty()) {
-    Dir[DELAY_IMPORT_DESCRIPTOR].RelativeVirtualAddress =
-        DelayIdata.getDirRVA();
-    Dir[DELAY_IMPORT_DESCRIPTOR].Size = DelayIdata.getDirSize();
-  }
   if (OutputSection *Sec = findSection(".rsrc")) {
     Dir[RESOURCE_TABLE].RelativeVirtualAddress = Sec->getRVA();
     Dir[RESOURCE_TABLE].Size = Sec->getVirtualSize();
-  }
-  if (OutputSection *Sec = findSection(".reloc")) {
-    Dir[BASE_RELOCATION_TABLE].RelativeVirtualAddress = Sec->getRVA();
-    Dir[BASE_RELOCATION_TABLE].Size = Sec->getVirtualSize();
   }
   if (OutputSection *Sec = findSection(".pdata")) {
     Dir[EXCEPTION_TABLE].RelativeVirtualAddress = Sec->getRVA();
     Dir[EXCEPTION_TABLE].Size = Sec->getVirtualSize();
   }
+  if (OutputSection *Sec = findSection(".reloc")) {
+    Dir[BASE_RELOCATION_TABLE].RelativeVirtualAddress = Sec->getRVA();
+    Dir[BASE_RELOCATION_TABLE].Size = Sec->getVirtualSize();
+  }
   if (Symbol *Sym = Symtab->findUnderscore("_tls_used")) {
-    if (Defined *B = dyn_cast<Defined>(Sym->Body)) {
+    if (Defined *B = dyn_cast<Defined>(Sym->body())) {
       Dir[TLS_TABLE].RelativeVirtualAddress = B->getRVA();
       Dir[TLS_TABLE].Size = Config->is64()
                                 ? sizeof(object::coff_tls_directory64)
                                 : sizeof(object::coff_tls_directory32);
     }
   }
+  if (Config->Debug) {
+    Dir[DEBUG_DIRECTORY].RelativeVirtualAddress = DebugDirectory->getRVA();
+    Dir[DEBUG_DIRECTORY].Size = DebugDirectory->getSize();
+  }
   if (Symbol *Sym = Symtab->findUnderscore("_load_config_used")) {
-    if (auto *B = dyn_cast<DefinedRegular>(Sym->Body)) {
+    if (auto *B = dyn_cast<DefinedRegular>(Sym->body())) {
       SectionChunk *SC = B->getChunk();
       assert(B->getRVA() >= SC->getRVA());
       uint64_t OffsetInChunk = B->getRVA() - SC->getRVA();
@@ -626,12 +714,19 @@ template <typename PEHeaderTy> void Writer::writeHeader() {
       Dir[LOAD_CONFIG_TABLE].Size = LoadConfigSize;
     }
   }
+  if (!DelayIdata.empty()) {
+    Dir[DELAY_IMPORT_DESCRIPTOR].RelativeVirtualAddress =
+        DelayIdata.getDirRVA();
+    Dir[DELAY_IMPORT_DESCRIPTOR].Size = DelayIdata.getDirSize();
+  }
 
   // Write section table
   for (OutputSection *Sec : OutputSections) {
     Sec->writeHeaderTo(Buf);
     Buf += sizeof(coff_section);
   }
+  SectionTable = ArrayRef<uint8_t>(
+      Buf - OutputSections.size() * sizeof(coff_section), Buf);
 
   if (OutputSymtab.empty())
     return;
@@ -660,8 +755,10 @@ void Writer::openFile(StringRef Path) {
 void Writer::fixSafeSEHSymbols() {
   if (!SEHTable)
     return;
-  Config->SEHTable->setRVA(SEHTable->getRVA());
-  Config->SEHCount->setVA(SEHTable->getSize() / 4);
+  if (auto *T = dyn_cast<DefinedRelative>(Config->SEHTable->body()))
+    T->setRVA(SEHTable->getRVA());
+  if (auto *C = dyn_cast<DefinedAbsolute>(Config->SEHCount->body()))
+    C->setVA(SEHTable->getSize() / 4);
 }
 
 // Handles /section options to allow users to overwrite
@@ -715,6 +812,30 @@ void Writer::sortExceptionTable() {
   errs() << "warning: don't know how to handle .pdata.\n";
 }
 
+// Backfill the CVSignature in a PDB70 Debug Record.  This backfilling allows us
+// to get reproducible builds.
+void Writer::writeBuildId() {
+  // There is nothing to backfill if BuildId was not setup.
+  if (BuildId == nullptr)
+    return;
+
+  MD5 Hash;
+  MD5::MD5Result Res;
+
+  Hash.update(ArrayRef<uint8_t>{Buffer->getBufferStart(),
+                                Buffer->getBufferEnd()});
+  Hash.final(Res);
+
+  assert(BuildId->DI->Signature.CVSignature == OMF::Signature::PDB70 &&
+         "only PDB 7.0 is supported");
+  assert(sizeof(Res) == sizeof(BuildId->DI->PDB70.Signature) &&
+         "signature size mismatch");
+  memcpy(BuildId->DI->PDB70.Signature, Res,
+         sizeof(codeview::PDB70DebugInfo::Signature));
+  // TODO(compnerd) track the Age
+  BuildId->DI->PDB70.Age = 1;
+}
+
 OutputSection *Writer::findSection(StringRef Name) {
   for (OutputSection *Sec : OutputSections)
     if (Sec->getName() == Name)
@@ -744,16 +865,13 @@ OutputSection *Writer::createSection(StringRef Name) {
   uint32_t Perms = StringSwitch<uint32_t>(Name)
                        .Case(".bss", BSS | R | W)
                        .Case(".data", DATA | R | W)
-                       .Case(".didat", DATA | R)
-                       .Case(".edata", DATA | R)
-                       .Case(".idata", DATA | R)
-                       .Case(".rdata", DATA | R)
+                       .Cases(".didat", ".edata", ".idata", ".rdata", DATA | R)
                        .Case(".reloc", DATA | DISCARDABLE | R)
                        .Case(".text", CODE | R | X)
                        .Default(0);
   if (!Perms)
     llvm_unreachable("unknown section name");
-  auto Sec = new (CAlloc.Allocate()) OutputSection(Name);
+  auto Sec = make<OutputSection>(Name);
   Sec->addPermissions(Perms);
   OutputSections.push_back(Sec);
   return Sec;
@@ -784,13 +902,11 @@ void Writer::addBaserelBlocks(OutputSection *Dest, std::vector<Baserel> &V) {
     uint32_t P = V[J].RVA & Mask;
     if (P == Page)
       continue;
-    BaserelChunk *Buf = BAlloc.Allocate();
-    Dest->addChunk(new (Buf) BaserelChunk(Page, &V[I], &V[0] + J));
+    Dest->addChunk(make<BaserelChunk>(Page, &V[I], &V[0] + J));
     I = J;
     Page = P;
   }
   if (I == J)
     return;
-  BaserelChunk *Buf = BAlloc.Allocate();
-  Dest->addChunk(new (Buf) BaserelChunk(Page, &V[I], &V[0] + J));
+  Dest->addChunk(make<BaserelChunk>(Page, &V[I], &V[0] + J));
 }

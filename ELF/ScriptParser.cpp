@@ -20,69 +20,101 @@ using namespace llvm;
 using namespace lld;
 using namespace lld::elf;
 
-// Returns the line that the character S[Pos] is in.
-static StringRef getLine(StringRef S, size_t Pos) {
-  size_t Begin = S.rfind('\n', Pos);
-  size_t End = S.find('\n', Pos);
-  Begin = (Begin == StringRef::npos) ? 0 : Begin + 1;
-  if (End == StringRef::npos)
-    End = S.size();
-  // rtrim for DOS-style newlines.
-  return S.substr(Begin, End - Begin).rtrim();
+// Returns a whole line containing the current token.
+StringRef ScriptParserBase::getLine() {
+  StringRef S = getCurrentMB().getBuffer();
+  StringRef Tok = Tokens[Pos - 1];
+
+  size_t Pos = S.rfind('\n', Tok.data() - S.data());
+  if (Pos != StringRef::npos)
+    S = S.substr(Pos + 1);
+  return S.substr(0, S.find_first_of("\r\n"));
 }
 
-void ScriptParserBase::printErrorPos() {
-  StringRef Tok = Tokens[Pos == 0 ? 0 : Pos - 1];
-  StringRef Line = getLine(Input, Tok.data() - Input.data());
-  size_t Col = Tok.data() - Line.data();
-  error(Line);
-  error(std::string(Col, ' ') + "^");
+// Returns 1-based line number of the current token.
+size_t ScriptParserBase::getLineNumber() {
+  StringRef S = getCurrentMB().getBuffer();
+  StringRef Tok = Tokens[Pos - 1];
+  return S.substr(0, Tok.data() - S.data()).count('\n') + 1;
 }
+
+// Returns 0-based column number of the current token.
+size_t ScriptParserBase::getColumnNumber() {
+  StringRef Tok = Tokens[Pos - 1];
+  return Tok.data() - getLine().data();
+}
+
+std::string ScriptParserBase::getCurrentLocation() {
+  std::string Filename = getCurrentMB().getBufferIdentifier();
+  if (!Pos)
+    return Filename;
+  return (Filename + ":" + Twine(getLineNumber())).str();
+}
+
+ScriptParserBase::ScriptParserBase(MemoryBufferRef MB) { tokenize(MB); }
 
 // We don't want to record cascading errors. Keep only the first one.
 void ScriptParserBase::setError(const Twine &Msg) {
   if (Error)
     return;
-  if (Input.empty() || Tokens.empty()) {
-    error(Msg);
-  } else {
-    error("line " + Twine(getPos()) + ": " + Msg);
-    printErrorPos();
-  }
   Error = true;
+
+  if (!Pos) {
+    error(getCurrentLocation() + ": " + Msg);
+    return;
+  }
+
+  std::string S = getCurrentLocation() + ": ";
+  error(S + Msg);
+  error(S + getLine());
+  error(S + std::string(getColumnNumber(), ' ') + "^");
 }
 
 // Split S into linker script tokens.
-std::vector<StringRef> ScriptParserBase::tokenize(StringRef S) {
-  std::vector<StringRef> Ret;
+void ScriptParserBase::tokenize(MemoryBufferRef MB) {
+  std::vector<StringRef> Vec;
+  MBs.push_back(MB);
+  StringRef S = MB.getBuffer();
+  StringRef Begin = S;
+
   for (;;) {
     S = skipSpace(S);
     if (S.empty())
-      return Ret;
+      break;
 
-    // Quoted token
+    // Quoted token. Note that double-quote characters are parts of a token
+    // because, in a glob match context, only unquoted tokens are interpreted
+    // as glob patterns. Double-quoted tokens are literal patterns in that
+    // context.
     if (S.startswith("\"")) {
       size_t E = S.find("\"", 1);
       if (E == StringRef::npos) {
-        error("unclosed quote");
-        return {};
+        StringRef Filename = MB.getBufferIdentifier();
+        size_t Lineno = Begin.substr(0, S.data() - Begin.data()).count('\n');
+        error(Filename + ":" + Twine(Lineno + 1) + ": unclosed quote");
+        return;
       }
-      Ret.push_back(S.substr(1, E - 1));
+
+      Vec.push_back(S.take_front(E + 1));
       S = S.substr(E + 1);
       continue;
     }
 
-    // Unquoted token
+    // Unquoted token. This is more relaxed than tokens in C-like language,
+    // so that you can write "file-name.cpp" as one bare token, for example.
     size_t Pos = S.find_first_not_of(
         "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
-        "0123456789_.$/\\~=+[]*?-:!<>");
+        "0123456789_.$/\\~=+[]*?-:!<>^");
+
     // A character that cannot start a word (which is usually a
     // punctuation) forms a single character token.
     if (Pos == 0)
       Pos = 1;
-    Ret.push_back(S.substr(0, Pos));
+    Vec.push_back(S.substr(0, Pos));
     S = S.substr(Pos);
   }
+
+  Tokens.insert(Tokens.begin() + Pos, Vec.begin(), Vec.end());
 }
 
 // Skip leading whitespace characters or comments.
@@ -132,18 +164,15 @@ StringRef ScriptParserBase::peek() {
   return Tok;
 }
 
-bool ScriptParserBase::skip(StringRef Tok) {
-  if (Error)
-    return false;
-  if (atEOF()) {
-    setError("unexpected EOF");
-    return false;
+bool ScriptParserBase::consume(StringRef Tok) {
+  if (peek() == Tok) {
+    skip();
+    return true;
   }
-  if (Tokens[Pos] != Tok)
-    return false;
-  ++Pos;
-  return true;
+  return false;
 }
+
+void ScriptParserBase::skip() { (void)next(); }
 
 void ScriptParserBase::expect(StringRef Expect) {
   if (Error)
@@ -153,11 +182,19 @@ void ScriptParserBase::expect(StringRef Expect) {
     setError(Expect + " expected, but got " + Tok);
 }
 
-// Returns the current line number.
-size_t ScriptParserBase::getPos() {
-  if (Pos == 0)
-    return 1;
-  const char *Begin = Input.data();
-  const char *Tok = Tokens[Pos - 1].data();
-  return StringRef(Begin, Tok - Begin).count('\n') + 1;
+// Returns true if S encloses T.
+static bool encloses(StringRef S, StringRef T) {
+  return S.bytes_begin() <= T.bytes_begin() && T.bytes_end() <= S.bytes_end();
+}
+
+MemoryBufferRef ScriptParserBase::getCurrentMB() {
+  // Find input buffer containing the current token.
+  assert(!MBs.empty());
+  if (!Pos)
+    return MBs[0];
+
+  for (MemoryBufferRef MB : MBs)
+    if (encloses(MB.getBuffer(), Tokens[Pos - 1]))
+      return MB;
+  llvm_unreachable("getCurrentMB: failed to find a token");
 }

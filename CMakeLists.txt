@@ -1,3 +1,54 @@
+# Check if lld is built as a standalone project.
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+  project(lld)
+  cmake_minimum_required(VERSION 3.4.3)
+
+  set(CMAKE_INCLUDE_CURRENT_DIR ON)
+  set(LLD_BUILT_STANDALONE TRUE)
+
+  find_program(LLVM_CONFIG_PATH "llvm-config" DOC "Path to llvm-config binary")
+  if(NOT LLVM_CONFIG_PATH)
+    message(FATAL_ERROR "llvm-config not found: specify LLVM_CONFIG_PATH")
+  endif()
+
+  execute_process(COMMAND "${LLVM_CONFIG_PATH}" "--obj-root" "--includedir"
+                  RESULT_VARIABLE HAD_ERROR
+                  OUTPUT_VARIABLE LLVM_CONFIG_OUTPUT
+                  OUTPUT_STRIP_TRAILING_WHITESPACE)
+  if(HAD_ERROR)
+    message(FATAL_ERROR "llvm-config failed with status ${HAD_ERROR}")
+  endif()
+
+  string(REGEX REPLACE "[ \t]*[\r\n]+[ \t]*" ";" LLVM_CONFIG_OUTPUT "${LLVM_CONFIG_OUTPUT}")
+
+  list(GET LLVM_CONFIG_OUTPUT 0 OBJ_ROOT)
+  list(GET LLVM_CONFIG_OUTPUT 1 MAIN_INCLUDE_DIR)
+
+  set(LLVM_OBJ_ROOT ${OBJ_ROOT} CACHE PATH "path to LLVM build tree")
+  set(LLVM_MAIN_INCLUDE_DIR ${MAIN_INCLUDE_DIR} CACHE PATH "path to llvm/include")
+
+  file(TO_CMAKE_PATH ${LLVM_OBJ_ROOT} LLVM_BINARY_DIR)
+  set(LLVM_CMAKE_PATH "${LLVM_BINARY_DIR}/lib${LLVM_LIBDIR_SUFFIX}/cmake/llvm")
+
+  if(NOT EXISTS "${LLVM_CMAKE_PATH}/LLVMConfig.cmake")
+    message(FATAL_ERROR "LLVMConfig.cmake not found")
+  endif()
+  include("${LLVM_CMAKE_PATH}/LLVMConfig.cmake")
+
+  list(APPEND CMAKE_MODULE_PATH "${LLVM_CMAKE_PATH}")
+
+  set(PACKAGE_VERSION "${LLVM_PACKAGE_VERSION}")
+  include_directories("${LLVM_BINARY_DIR}/include" ${LLVM_INCLUDE_DIRS})
+  link_directories(${LLVM_LIBRARY_DIRS})
+
+  set(LLVM_RUNTIME_OUTPUT_INTDIR ${CMAKE_BINARY_DIR}/${CMAKE_CFG_INTDIR}/bin)
+  find_program(LLVM_TABLEGEN_EXE "llvm-tblgen" ${LLVM_TOOLS_BINARY_DIR} NO_DEFAULT_PATH)
+
+  include(AddLLVM)
+  include(TableGen)
+  include(HandleLLVMOptions)
+endif()
+
 set(LLD_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 set(LLD_INCLUDE_DIR ${LLD_SOURCE_DIR}/include )
 set(LLD_BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR})
@@ -55,6 +106,8 @@ endif()
 
 list (APPEND CMAKE_MODULE_PATH "${LLD_SOURCE_DIR}/cmake/modules")
 
+include(AddLLD)
+
 option(LLD_USE_VTUNE
        "Enable VTune user task tracking."
        OFF)
@@ -67,6 +120,8 @@ if (LLD_USE_VTUNE)
   endif()
 endif()
 
+option(LLD_BUILD_TOOLS
+  "Build the lld tools. If OFF, just generate build targets." ON)
 
 if (MSVC)
   add_definitions(-wd4530) # Suppress 'warning C4530: C++ exception handler used, but unwind semantics are not enabled.'
@@ -86,12 +141,6 @@ if (NOT LLVM_INSTALL_TOOLCHAIN_ONLY)
     PATTERN ".svn" EXCLUDE
     )
 endif()
-
-macro(add_lld_library name)
-  add_llvm_library(${name} ${ARGN})
-  set_target_properties(${name} PROPERTIES FOLDER "lld libraries")
-endmacro(add_lld_library)
-
 
 add_subdirectory(lib)
 add_subdirectory(tools/lld)

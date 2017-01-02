@@ -1,6 +1,7 @@
 ; REQUIRES: x86
 ; RUN: llvm-as -o %t.bc %s
-; RUN: ld.lld -m elf_x86_64 --lto-jobs=2 -save-temps -o %t %t.bc -e foo --lto-O0
+; RUN: ld.lld -m elf_x86_64 --lto-partitions=2 -save-temps -o %t %t.bc \
+; RUN:   -e foo --lto-O0
 ; RUN: llvm-readobj -t -dyn-symbols %t | FileCheck %s
 ; RUN: llvm-nm %t0.lto.o | FileCheck --check-prefix=CHECK0 %s
 ; RUN: llvm-nm %t1.lto.o | FileCheck --check-prefix=CHECK1 %s
@@ -16,8 +17,8 @@
 ; CHECK-NEXT:     Section: Undefined (0x0)
 ; CHECK-NEXT:   }
 ; CHECK-NEXT:   Symbol {
-; CHECK-NEXT:     Name: bar (5)
-; CHECK-NEXT:     Value: 0x11010
+; CHECK-NEXT:     Name: bar
+; CHECK-NEXT:     Value: 0x201010
 ; CHECK-NEXT:     Size: 8
 ; CHECK-NEXT:     Binding: Local (0x0)
 ; CHECK-NEXT:     Type: Function (0x2)
@@ -27,8 +28,8 @@
 ; CHECK-NEXT:     Section: .text (0x2)
 ; CHECK-NEXT:   }
 ; CHECK-NEXT:   Symbol {
-; CHECK-NEXT:     Name: foo (1)
-; CHECK-NEXT:     Value: 0x11000
+; CHECK-NEXT:     Name: foo
+; CHECK-NEXT:     Value: 0x201000
 ; CHECK-NEXT:     Size: 8
 ; CHECK-NEXT:     Binding: Global (0x1)
 ; CHECK-NEXT:     Type: Function (0x2)

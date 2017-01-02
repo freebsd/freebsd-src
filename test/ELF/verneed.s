@@ -5,12 +5,12 @@
 
 # CHECK:        Section {
 # CHECK:         Index: 1
-# CHECK-NEXT:    Name: .dynsym (1)
+# CHECK-NEXT:    Name: .dynsym
 # CHECK-NEXT:    Type: SHT_DYNSYM (0xB)
 # CHECK-NEXT:    Flags [ (0x2)
 # CHECK-NEXT:      SHF_ALLOC (0x2)
 # CHECK-NEXT:    ]
-# CHECK-NEXT:    Address: 0x101C8
+# CHECK-NEXT:    Address: 0x2001C8
 # CHECK-NEXT:    Offset: 0x1C8
 # CHECK-NEXT:    Size: 96
 # CHECK-NEXT:    Link: 5
@@ -19,12 +19,12 @@
 # CHECK-NEXT:    EntrySize: 24
 # CHECK:       Section {
 # CHECK-NEXT:   Index: 2
-# CHECK-NEXT:   Name: .gnu.version (9)
+# CHECK-NEXT:   Name: .gnu.version
 # CHECK-NEXT:   Type: SHT_GNU_versym (0x6FFFFFFF)
 # CHECK-NEXT:   Flags [ (0x2)
 # CHECK-NEXT:     SHF_ALLOC (0x2)
 # CHECK-NEXT:   ]
-# CHECK-NEXT:   Address: 0x10228
+# CHECK-NEXT:   Address: 0x200228
 # CHECK-NEXT:   Offset: 0x228
 # CHECK-NEXT:   Size: 8
 # CHECK-NEXT:   Link: 1
@@ -33,12 +33,12 @@
 # CHECK-NEXT:   EntrySize: 2
 # CHECK:       Section {
 # CHECK-NEXT:   Index: 3
-# CHECK-NEXT:   Name: .gnu.version_r (22)
+# CHECK-NEXT:   Name: .gnu.version_r
 # CHECK-NEXT:   Type: SHT_GNU_verneed (0x6FFFFFFE)
 # CHECK-NEXT:   Flags [ (0x2)
 # CHECK-NEXT:     SHF_ALLOC (0x2)
 # CHECK-NEXT:   ]
-# CHECK-NEXT:   Address: 0x10230
+# CHECK-NEXT:   Address: 0x200230
 # CHECK-NEXT:   Offset: 0x230
 # CHECK-NEXT:   Size: 80
 # CHECK-NEXT:   Link: 5
@@ -52,7 +52,7 @@
 # CHECK-NEXT:   Flags [ (0x2)
 # CHECK-NEXT:     SHF_ALLOC (0x2)
 # CHECK-NEXT:   ]
-# CHECK-NEXT:   Address: 0x102A8
+# CHECK-NEXT:   Address: 0x2002A8
 # CHECK-NEXT:   Offset: 0x2A8
 # CHECK-NEXT:   Size: 47
 # CHECK-NEXT:   Link: 0
@@ -60,15 +60,15 @@
 # CHECK-NEXT:   AddressAlignment: 1
 # CHECK-NEXT:   EntrySize: 0
 # CHECK-NEXT:   SectionData (
-# CHECK-NEXT:     0000: 00663100 7665726E 65656431 2E736F2E  |.f1.verneed1.so.|
-# CHECK-NEXT:     0010: 30007633 00663200 76320067 31007665  |0.v3.f2.v2.g1.ve|
-# CHECK-NEXT:     0020: 726E6565 64322E73 6F2E3000 763100    |rneed2.so.0.v1.|
+# CHECK-NEXT:     0000: 00766572 6E656564 312E736F 2E300076  |.verneed1.so.0.v|
+# CHECK-NEXT:     0010: 65726E65 6564322E 736F2E30 00663100  |erneed2.so.0.f1.|
+# CHECK-NEXT:     0020: 76330066 32007632 00673100 763100    |v3.f2.v2.g1.v1.|
 # CHECK-NEXT:   )
 # CHECK-NEXT: }
 
 # CHECK:      DynamicSymbols [
 # CHECK-NEXT:   Symbol {
-# CHECK-NEXT:     Name: @ (0)
+# CHECK-NEXT:     Name: @
 # CHECK-NEXT:     Value: 0x0
 # CHECK-NEXT:     Size: 0
 # CHECK-NEXT:     Binding: Local (0x0)
@@ -77,7 +77,7 @@
 # CHECK-NEXT:     Section: Undefined (0x0)
 # CHECK-NEXT:   }
 # CHECK-NEXT:   Symbol {
-# CHECK-NEXT:     Name: f1@v3 (1)
+# CHECK-NEXT:     Name: f1@v3
 # CHECK-NEXT:     Value: 0x0
 # CHECK-NEXT:     Size: 0
 # CHECK-NEXT:     Binding: Global (0x1)
@@ -86,7 +86,7 @@
 # CHECK-NEXT:     Section: Undefined (0x0)
 # CHECK-NEXT:   }
 # CHECK-NEXT:   Symbol {
-# CHECK-NEXT:     Name: f2@v2 (21)
+# CHECK-NEXT:     Name: f2@v2
 # CHECK-NEXT:     Value: 0x0
 # CHECK-NEXT:     Size: 0
 # CHECK-NEXT:     Binding: Global (0x1)
@@ -95,7 +95,7 @@
 # CHECK-NEXT:     Section: Undefined (0x0)
 # CHECK-NEXT:   }
 # CHECK-NEXT:   Symbol {
-# CHECK-NEXT:     Name: g1@v1 (27)
+# CHECK-NEXT:     Name: g1@v1
 # CHECK-NEXT:     Value: 0x0
 # CHECK-NEXT:     Size: 0
 # CHECK-NEXT:     Binding: Global (0x1)
@@ -105,13 +105,13 @@
 # CHECK-NEXT:   }
 # CHECK-NEXT: ]
 
-# CHECK:      0x000000006FFFFFF0 VERSYM               0x10228
-# CHECK-NEXT: 0x000000006FFFFFFE VERNEED              0x10230
+# CHECK:      0x000000006FFFFFF0 VERSYM               0x200228
+# CHECK-NEXT: 0x000000006FFFFFFE VERNEED              0x200230
 # CHECK-NEXT: 0x000000006FFFFFFF VERNEEDNUM           2
 
 # CHECK:      Version symbols {
 # CHECK-NEXT:    Section Name: .gnu.version
-# CHECK-NEXT:    Address: 0x10228
+# CHECK-NEXT:    Address: 0x200228
 # CHECK-NEXT:    Offset: 0x228
 # CHECK-NEXT:    Link: 1
 # CHECK-NEXT:    Symbols [
