@@ -21,6 +21,7 @@
 #include "clang/AST/StmtCXX.h"
 #include "clang/AST/StmtObjC.h"
 #include "clang/Analysis/CFG.h"
+#include "clang/Analysis/CFGStmtMap.h"
 #include "clang/Analysis/ProgramPoint.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
@@ -78,7 +79,9 @@ static PathDiagnosticEventPiece *
 eventsDescribeSameCondition(PathDiagnosticEventPiece *X,
                             PathDiagnosticEventPiece *Y) {
   // Prefer diagnostics that come from ConditionBRVisitor over
-  // those that came from TrackConstraintBRVisitor.
+  // those that came from TrackConstraintBRVisitor,
+  // unless the one from ConditionBRVisitor is
+  // its generic fallback diagnostic.
   const void *tagPreferred = ConditionBRVisitor::getTag();
   const void *tagLesser = TrackConstraintBRVisitor::getTag();
 
@@ -86,10 +89,10 @@ eventsDescribeSameCondition(PathDiagnosticEventPiece *X,
     return nullptr;
 
   if (X->getTag() == tagPreferred && Y->getTag() == tagLesser)
-    return X;
+    return ConditionBRVisitor::isPieceMessageGeneric(X) ? Y : X;
 
   if (Y->getTag() == tagPreferred && X->getTag() == tagLesser)
-    return Y;
+    return ConditionBRVisitor::isPieceMessageGeneric(Y) ? X : Y;
 
   return nullptr;
 }
@@ -112,15 +115,15 @@ static void removeRedundantMsgs(PathPieces &path) {
     path.pop_front();
 
     switch (piece->getKind()) {
-      case clang::ento::PathDiagnosticPiece::Call:
+      case PathDiagnosticPiece::Call:
         removeRedundantMsgs(cast<PathDiagnosticCallPiece>(piece)->path);
         break;
-      case clang::ento::PathDiagnosticPiece::Macro:
+      case PathDiagnosticPiece::Macro:
         removeRedundantMsgs(cast<PathDiagnosticMacroPiece>(piece)->subPieces);
         break;
-      case clang::ento::PathDiagnosticPiece::ControlFlow:
+      case PathDiagnosticPiece::ControlFlow:
         break;
-      case clang::ento::PathDiagnosticPiece::Event: {
+      case PathDiagnosticPiece::Event: {
         if (i == N-1)
           break;
 
@@ -140,6 +143,8 @@ static void removeRedundantMsgs(PathPieces &path) {
         }
         break;
       }
+      case PathDiagnosticPiece::Note:
+        break;
     }
     path.push_back(piece);
   }
@@ -196,6 +201,9 @@ static bool removeUnneededCalls(PathPieces &pieces, BugReport *R,
         break;
       }
       case PathDiagnosticPiece::ControlFlow:
+        break;
+
+      case PathDiagnosticPiece::Note:
         break;
     }
 
@@ -3104,6 +3112,7 @@ bool GRBugReporter::generatePathDiagnostic(PathDiagnostic& PD,
     R->addVisitor(llvm::make_unique<NilReceiverBRVisitor>());
     R->addVisitor(llvm::make_unique<ConditionBRVisitor>());
     R->addVisitor(llvm::make_unique<LikelyFalsePositiveSuppressionBRVisitor>());
+    R->addVisitor(llvm::make_unique<CXXSelfAssignmentBRVisitor>());
 
     BugReport::VisitorList visitors;
     unsigned origReportConfigToken, finalReportConfigToken;
@@ -3277,6 +3286,19 @@ struct FRIEC_WLItem {
 };
 }
 
+static const CFGBlock *findBlockForNode(const ExplodedNode *N) {
+  ProgramPoint P = N->getLocation();
+  if (auto BEP = P.getAs<BlockEntrance>())
+    return BEP->getBlock();
+
+  // Find the node's current statement in the CFG.
+  if (const Stmt *S = PathDiagnosticLocation::getStmt(N))
+    return N->getLocationContext()->getAnalysisDeclContext()
+                                  ->getCFGStmtMap()->getBlock(S);
+
+  return nullptr;
+}
+
 static BugReport *
 FindReportInEquivalenceClass(BugReportEquivClass& EQ,
                              SmallVectorImpl<BugReport*> &bugReports) {
@@ -3324,6 +3346,18 @@ FindReportInEquivalenceClass(BugReportEquivClass& EQ,
         exampleReport = &*I;
       continue;
     }
+
+    // See if we are in a no-return CFG block. If so, treat this similarly
+    // to being post-dominated by a sink. This works better when the analysis
+    // is incomplete and we have never reached a no-return function
+    // we're post-dominated by.
+    // This is not quite enough to handle the incomplete analysis case.
+    // We may be post-dominated in subsequent blocks, or even
+    // inter-procedurally. However, it is not clear if more complicated
+    // cases are generally worth suppressing.
+    if (const CFGBlock *B = findBlockForNode(errorNode))
+      if (B->hasNoReturnElement())
+        continue;
 
     // At this point we know that 'N' is not a sink and it has at least one
     // successor.  Use a DFS worklist to find a non-sink end-of-path node.
@@ -3402,25 +3436,28 @@ void BugReporter::FlushReport(BugReport *exampleReport,
       exampleReport->getUniqueingLocation(),
       exampleReport->getUniqueingDecl()));
 
-  MaxBugClassSize = std::max(bugReports.size(),
-                             static_cast<size_t>(MaxBugClassSize));
+  if (exampleReport->isPathSensitive()) {
+    // Generate the full path diagnostic, using the generation scheme
+    // specified by the PathDiagnosticConsumer. Note that we have to generate
+    // path diagnostics even for consumers which do not support paths, because
+    // the BugReporterVisitors may mark this bug as a false positive.
+    assert(!bugReports.empty());
 
-  // Generate the full path diagnostic, using the generation scheme
-  // specified by the PathDiagnosticConsumer. Note that we have to generate
-  // path diagnostics even for consumers which do not support paths, because
-  // the BugReporterVisitors may mark this bug as a false positive.
-  if (!bugReports.empty())
+    MaxBugClassSize =
+        std::max(bugReports.size(), static_cast<size_t>(MaxBugClassSize));
+
     if (!generatePathDiagnostic(*D.get(), PD, bugReports))
       return;
 
-  MaxValidBugClassSize = std::max(bugReports.size(),
-                                  static_cast<size_t>(MaxValidBugClassSize));
+    MaxValidBugClassSize =
+        std::max(bugReports.size(), static_cast<size_t>(MaxValidBugClassSize));
 
-  // Examine the report and see if the last piece is in a header. Reset the
-  // report location to the last piece in the main source file.
-  AnalyzerOptions& Opts = getAnalyzerOptions();
-  if (Opts.shouldReportIssuesInMainSourceFile() && !Opts.AnalyzeAll)
-    D->resetDiagnosticLocationToMainFile();
+    // Examine the report and see if the last piece is in a header. Reset the
+    // report location to the last piece in the main source file.
+    AnalyzerOptions &Opts = getAnalyzerOptions();
+    if (Opts.shouldReportIssuesInMainSourceFile() && !Opts.AnalyzeAll)
+      D->resetDiagnosticLocationToMainFile();
+  }
 
   // If the path is empty, generate a single step path with the location
   // of the issue.
@@ -3431,6 +3468,27 @@ void BugReporter::FlushReport(BugReport *exampleReport,
     for (SourceRange Range : exampleReport->getRanges())
       piece->addRange(Range);
     D->setEndOfPath(std::move(piece));
+  }
+
+  PathPieces &Pieces = D->getMutablePieces();
+  if (getAnalyzerOptions().shouldDisplayNotesAsEvents()) {
+    // For path diagnostic consumers that don't support extra notes,
+    // we may optionally convert those to path notes.
+    for (auto I = exampleReport->getNotes().rbegin(),
+              E = exampleReport->getNotes().rend(); I != E; ++I) {
+      PathDiagnosticNotePiece *Piece = I->get();
+      PathDiagnosticEventPiece *ConvertedPiece =
+          new PathDiagnosticEventPiece(Piece->getLocation(),
+                                       Piece->getString());
+      for (const auto &R: Piece->getRanges())
+        ConvertedPiece->addRange(R);
+
+      Pieces.push_front(ConvertedPiece);
+    }
+  } else {
+    for (auto I = exampleReport->getNotes().rbegin(),
+              E = exampleReport->getNotes().rend(); I != E; ++I)
+      Pieces.push_front(*I);
   }
 
   // Get the meta data.
@@ -3515,6 +3573,13 @@ LLVM_DUMP_METHOD void PathDiagnosticControlFlowPiece::dump() const {
 LLVM_DUMP_METHOD void PathDiagnosticMacroPiece::dump() const {
   llvm::errs() << "MACRO\n--------------\n";
   // FIXME: Print which macro is being invoked.
+}
+
+LLVM_DUMP_METHOD void PathDiagnosticNotePiece::dump() const {
+  llvm::errs() << "NOTE\n--------------\n";
+  llvm::errs() << getString() << "\n";
+  llvm::errs() << " ---- at ----\n";
+  getLocation().dump();
 }
 
 LLVM_DUMP_METHOD void PathDiagnosticLocation::dump() const {

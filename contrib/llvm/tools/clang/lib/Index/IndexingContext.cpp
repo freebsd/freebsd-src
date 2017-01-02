@@ -130,9 +130,10 @@ bool IndexingContext::isTemplateImplicitInstantiation(const Decl *D) {
   if (const ClassTemplateSpecializationDecl *
       SD = dyn_cast<ClassTemplateSpecializationDecl>(D)) {
     TKind = SD->getSpecializationKind();
-  }
-  if (const FunctionDecl *FD = dyn_cast<FunctionDecl>(D)) {
+  } else if (const FunctionDecl *FD = dyn_cast<FunctionDecl>(D)) {
     TKind = FD->getTemplateSpecializationKind();
+  } else if (auto *VD = dyn_cast<VarDecl>(D)) {
+    TKind = VD->getTemplateSpecializationKind();
   }
   switch (TKind) {
     case TSK_Undeclared:
@@ -164,9 +165,10 @@ static const Decl *adjustTemplateImplicitInstantiation(const Decl *D) {
   if (const ClassTemplateSpecializationDecl *
       SD = dyn_cast<ClassTemplateSpecializationDecl>(D)) {
     return SD->getTemplateInstantiationPattern();
-  }
-  if (const FunctionDecl *FD = dyn_cast<FunctionDecl>(D)) {
+  } else if (const FunctionDecl *FD = dyn_cast<FunctionDecl>(D)) {
     return FD->getTemplateInstantiationPattern();
+  } else if (auto *VD = dyn_cast<VarDecl>(D)) {
+    return VD->getTemplateInstantiationPattern();
   }
   return nullptr;
 }
@@ -290,19 +292,9 @@ bool IndexingContext::handleDeclOccurrence(const Decl *D, SourceLocation Loc,
     Roles |= (unsigned)SymbolRole::Declaration;
 
   D = getCanonicalDecl(D);
-  if (D->isImplicit() && !isa<ObjCMethodDecl>(D) &&
-      !(isa<FunctionDecl>(D) && cast<FunctionDecl>(D)->getBuiltinID())) {
-    // operator new declarations will link to the implicit one as canonical.
-    return true;
-  }
   Parent = adjustParent(Parent);
   if (Parent)
     Parent = getCanonicalDecl(Parent);
-  assert((!Parent || !Parent->isImplicit() ||
-          (isa<FunctionDecl>(Parent) &&
-           cast<FunctionDecl>(Parent)->getBuiltinID()) ||
-          isa<ObjCInterfaceDecl>(Parent) || isa<ObjCMethodDecl>(Parent)) &&
-         "unexpected implicit parent!");
 
   SmallVector<SymbolRelation, 6> FinalRelations;
   FinalRelations.reserve(Relations.size()+1);

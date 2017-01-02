@@ -7,6 +7,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "clang/Driver/ToolChain.h"
 #include "Tools.h"
 #include "clang/Basic/ObjCRuntime.h"
 #include "clang/Config/config.h"
@@ -15,16 +16,15 @@
 #include "clang/Driver/DriverDiagnostic.h"
 #include "clang/Driver/Options.h"
 #include "clang/Driver/SanitizerArgs.h"
-#include "clang/Driver/ToolChain.h"
 #include "llvm/ADT/SmallString.h"
-#include "llvm/ADT/StringSwitch.h"
 #include "llvm/Option/Arg.h"
 #include "llvm/Option/ArgList.h"
 #include "llvm/Option/Option.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/FileSystem.h"
-#include "llvm/Support/TargetRegistry.h"
+#include "llvm/Support/Path.h"
 #include "llvm/Support/TargetParser.h"
+#include "llvm/Support/TargetRegistry.h"
 
 using namespace clang::driver;
 using namespace clang::driver::tools;
@@ -68,7 +68,8 @@ static ToolChain::RTTIMode CalculateRTTIMode(const ArgList &Args,
 ToolChain::ToolChain(const Driver &D, const llvm::Triple &T,
                      const ArgList &Args)
     : D(D), Triple(T), Args(Args), CachedRTTIArg(GetRTTIArgument(Args)),
-      CachedRTTIMode(CalculateRTTIMode(Args, Triple, CachedRTTIArg)) {
+      CachedRTTIMode(CalculateRTTIMode(Args, Triple, CachedRTTIArg)),
+      EffectiveTriple() {
   if (Arg *A = Args.getLastArg(options::OPT_mthread_model))
     if (!isThreadModelSupported(A->getValue()))
       D.Diag(diag::err_drv_invalid_thread_model_for_target)
@@ -238,6 +239,12 @@ Tool *ToolChain::getLink() const {
   return Link.get();
 }
 
+Tool *ToolChain::getOffloadBundler() const {
+  if (!OffloadBundler)
+    OffloadBundler.reset(new tools::OffloadBundler(*this));
+  return OffloadBundler.get();
+}
+
 Tool *ToolChain::getTool(Action::ActionClass AC) const {
   switch (AC) {
   case Action::AssembleJobClass:
@@ -262,6 +269,10 @@ Tool *ToolChain::getTool(Action::ActionClass AC) const {
   case Action::VerifyPCHJobClass:
   case Action::BackendJobClass:
     return getClang();
+
+  case Action::OffloadBundlingJobClass:
+  case Action::OffloadUnbundlingJobClass:
+    return getOffloadBundler();
   }
 
   llvm_unreachable("Invalid tool kind.");
@@ -340,36 +351,34 @@ std::string ToolChain::GetProgramPath(const char *Name) const {
 }
 
 std::string ToolChain::GetLinkerPath() const {
-  if (Arg *A = Args.getLastArg(options::OPT_fuse_ld_EQ)) {
-    StringRef UseLinker = A->getValue();
+  const Arg* A = Args.getLastArg(options::OPT_fuse_ld_EQ);
+  StringRef UseLinker = A ? A->getValue() : CLANG_DEFAULT_LINKER;
 
-    if (llvm::sys::path::is_absolute(UseLinker)) {
-      // If we're passed -fuse-ld= with what looks like an absolute path,
-      // don't attempt to second-guess that.
-      if (llvm::sys::fs::exists(UseLinker))
-        return UseLinker;
-    } else {
-      // If we're passed -fuse-ld= with no argument, or with the argument ld,
-      // then use whatever the default system linker is.
-      if (UseLinker.empty() || UseLinker == "ld")
-        return GetProgramPath("ld");
+  if (llvm::sys::path::is_absolute(UseLinker)) {
+    // If we're passed what looks like an absolute path, don't attempt to
+    // second-guess that.
+    if (llvm::sys::fs::exists(UseLinker))
+      return UseLinker;
+  } else if (UseLinker.empty() || UseLinker == "ld") {
+    // If we're passed -fuse-ld= with no argument, or with the argument ld,
+    // then use whatever the default system linker is.
+    return GetProgramPath(getDefaultLinker());
+  } else {
+    llvm::SmallString<8> LinkerName("ld.");
+    LinkerName.append(UseLinker);
 
-      llvm::SmallString<8> LinkerName("ld.");
-      LinkerName.append(UseLinker);
-
-      std::string LinkerPath(GetProgramPath(LinkerName.c_str()));
-      if (llvm::sys::fs::exists(LinkerPath))
-        return LinkerPath;
-    }
-
-    getDriver().Diag(diag::err_drv_invalid_linker_name) << A->getAsString(Args);
-    return "";
+    std::string LinkerPath(GetProgramPath(LinkerName.c_str()));
+    if (llvm::sys::fs::exists(LinkerPath))
+      return LinkerPath;
   }
 
-  return GetProgramPath(DefaultLinker);
+  if (A)
+    getDriver().Diag(diag::err_drv_invalid_linker_name) << A->getAsString(Args);
+
+  return GetProgramPath(getDefaultLinker());
 }
 
-types::ID ToolChain::LookupTypeForExtension(const char *Ext) const {
+types::ID ToolChain::LookupTypeForExtension(StringRef Ext) const {
   return types::lookupTypeForExtension(Ext);
 }
 
@@ -487,8 +496,10 @@ std::string ToolChain::ComputeLLVMTriple(const ArgList &Args,
       ArchName = "arm";
 
     // Assembly files should start in ARM mode, unless arch is M-profile.
+    // Windows is always thumb.
     if ((InputType != types::TY_PP_Asm && Args.hasFlag(options::OPT_mthumb,
-         options::OPT_mno_thumb, ThumbDefault)) || IsMProfile) {
+         options::OPT_mno_thumb, ThumbDefault)) || IsMProfile ||
+         getTriple().isOSWindows()) {
       if (IsBigEndian)
         ArchName = "thumbeb";
       else
@@ -526,54 +537,39 @@ void ToolChain::addProfileRTLibs(const llvm::opt::ArgList &Args,
 
 ToolChain::RuntimeLibType ToolChain::GetRuntimeLibType(
     const ArgList &Args) const {
-  if (Arg *A = Args.getLastArg(options::OPT_rtlib_EQ)) {
-    StringRef Value = A->getValue();
-    if (Value == "compiler-rt")
-      return ToolChain::RLT_CompilerRT;
-    if (Value == "libgcc")
-      return ToolChain::RLT_Libgcc;
-    getDriver().Diag(diag::err_drv_invalid_rtlib_name)
-      << A->getAsString(Args);
-  }
+  const Arg* A = Args.getLastArg(options::OPT_rtlib_EQ);
+  StringRef LibName = A ? A->getValue() : CLANG_DEFAULT_RTLIB;
+
+  // Only use "platform" in tests to override CLANG_DEFAULT_RTLIB!
+  if (LibName == "compiler-rt")
+    return ToolChain::RLT_CompilerRT;
+  else if (LibName == "libgcc")
+    return ToolChain::RLT_Libgcc;
+  else if (LibName == "platform")
+    return GetDefaultRuntimeLibType();
+
+  if (A)
+    getDriver().Diag(diag::err_drv_invalid_rtlib_name) << A->getAsString(Args);
 
   return GetDefaultRuntimeLibType();
 }
 
-static bool ParseCXXStdlibType(const StringRef& Name,
-                               ToolChain::CXXStdlibType& Type) {
-  if (Name == "libc++")
-    Type = ToolChain::CST_Libcxx;
-  else if (Name == "libstdc++")
-    Type = ToolChain::CST_Libstdcxx;
-  else
-    return false;
-
-  return true;
-}
-
 ToolChain::CXXStdlibType ToolChain::GetCXXStdlibType(const ArgList &Args) const{
-  ToolChain::CXXStdlibType Type;
-  bool HasValidType = false;
-  bool ForcePlatformDefault = false;
-
   const Arg *A = Args.getLastArg(options::OPT_stdlib_EQ);
-  if (A) {
-    StringRef Value = A->getValue();
-    HasValidType = ParseCXXStdlibType(Value, Type);
+  StringRef LibName = A ? A->getValue() : CLANG_DEFAULT_CXX_STDLIB;
 
-    // Only use in tests to override CLANG_DEFAULT_CXX_STDLIB!
-    if (Value == "platform")
-      ForcePlatformDefault = true;
-    else if (!HasValidType)
-      getDriver().Diag(diag::err_drv_invalid_stdlib_name)
-        << A->getAsString(Args);
-  }
+  // Only use "platform" in tests to override CLANG_DEFAULT_CXX_STDLIB!
+  if (LibName == "libc++")
+    return ToolChain::CST_Libcxx;
+  else if (LibName == "libstdc++")
+    return ToolChain::CST_Libstdcxx;
+  else if (LibName == "platform")
+    return GetDefaultCXXStdlibType();
 
-  if (!HasValidType && (ForcePlatformDefault ||
-      !ParseCXXStdlibType(CLANG_DEFAULT_CXX_STDLIB, Type)))
-    Type = GetDefaultCXXStdlibType();
+  if (A)
+    getDriver().Diag(diag::err_drv_invalid_stdlib_name) << A->getAsString(Args);
 
-  return Type;
+  return GetDefaultCXXStdlibType();
 }
 
 /// \brief Utility function to add a system include directory to CC1 arguments.
@@ -688,7 +684,11 @@ SanitizerMask ToolChain::getSupportedSanitizers() const {
   SanitizerMask Res = (Undefined & ~Vptr & ~Function) | (CFI & ~CFIICall) |
                       CFICastStrict | UnsignedIntegerOverflow | LocalBounds;
   if (getTriple().getArch() == llvm::Triple::x86 ||
-      getTriple().getArch() == llvm::Triple::x86_64)
+      getTriple().getArch() == llvm::Triple::x86_64 ||
+      getTriple().getArch() == llvm::Triple::arm ||
+      getTriple().getArch() == llvm::Triple::aarch64 ||
+      getTriple().getArch() == llvm::Triple::wasm32 ||
+      getTriple().getArch() == llvm::Triple::wasm64)
     Res |= CFIICall;
   return Res;
 }
@@ -698,3 +698,57 @@ void ToolChain::AddCudaIncludeArgs(const ArgList &DriverArgs,
 
 void ToolChain::AddIAMCUIncludeArgs(const ArgList &DriverArgs,
                                     ArgStringList &CC1Args) const {}
+
+static VersionTuple separateMSVCFullVersion(unsigned Version) {
+  if (Version < 100)
+    return VersionTuple(Version);
+
+  if (Version < 10000)
+    return VersionTuple(Version / 100, Version % 100);
+
+  unsigned Build = 0, Factor = 1;
+  for (; Version > 10000; Version = Version / 10, Factor = Factor * 10)
+    Build = Build + (Version % 10) * Factor;
+  return VersionTuple(Version / 100, Version % 100, Build);
+}
+
+VersionTuple
+ToolChain::computeMSVCVersion(const Driver *D,
+                              const llvm::opt::ArgList &Args) const {
+  const Arg *MSCVersion = Args.getLastArg(options::OPT_fmsc_version);
+  const Arg *MSCompatibilityVersion =
+      Args.getLastArg(options::OPT_fms_compatibility_version);
+
+  if (MSCVersion && MSCompatibilityVersion) {
+    if (D)
+      D->Diag(diag::err_drv_argument_not_allowed_with)
+          << MSCVersion->getAsString(Args)
+          << MSCompatibilityVersion->getAsString(Args);
+    return VersionTuple();
+  }
+
+  if (MSCompatibilityVersion) {
+    VersionTuple MSVT;
+    if (MSVT.tryParse(MSCompatibilityVersion->getValue())) {
+      if (D)
+        D->Diag(diag::err_drv_invalid_value)
+            << MSCompatibilityVersion->getAsString(Args)
+            << MSCompatibilityVersion->getValue();
+    } else {
+      return MSVT;
+    }
+  }
+
+  if (MSCVersion) {
+    unsigned Version = 0;
+    if (StringRef(MSCVersion->getValue()).getAsInteger(10, Version)) {
+      if (D)
+        D->Diag(diag::err_drv_invalid_value)
+            << MSCVersion->getAsString(Args) << MSCVersion->getValue();
+    } else {
+      return separateMSVCFullVersion(Version);
+    }
+  }
+
+  return VersionTuple();
+}

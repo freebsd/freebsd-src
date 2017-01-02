@@ -396,6 +396,21 @@ struct FormatToken {
     }
   }
 
+  /// \brief Returns \c true if this is a string literal that's like a label,
+  /// e.g. ends with "=" or ":".
+  bool isLabelString() const {
+    if (!is(tok::string_literal))
+      return false;
+    StringRef Content = TokenText;
+    if (Content.startswith("\"") || Content.startswith("'"))
+      Content = Content.drop_front(1);
+    if (Content.endswith("\"") || Content.endswith("'"))
+      Content = Content.drop_back(1);
+    Content = Content.trim();
+    return Content.size() > 1 &&
+           (Content.back() == ':' || Content.back() == '=');
+  }
+
   /// \brief Returns actual token start location without leading escaped
   /// newlines and whitespace.
   ///
@@ -580,12 +595,14 @@ struct AdditionalKeywords {
     kw_as = &IdentTable.get("as");
     kw_async = &IdentTable.get("async");
     kw_await = &IdentTable.get("await");
+    kw_declare = &IdentTable.get("declare");
     kw_finally = &IdentTable.get("finally");
     kw_from = &IdentTable.get("from");
     kw_function = &IdentTable.get("function");
     kw_import = &IdentTable.get("import");
     kw_is = &IdentTable.get("is");
     kw_let = &IdentTable.get("let");
+    kw_module = &IdentTable.get("module");
     kw_type = &IdentTable.get("type");
     kw_var = &IdentTable.get("var");
     kw_yield = &IdentTable.get("yield");
@@ -632,12 +649,14 @@ struct AdditionalKeywords {
   IdentifierInfo *kw_as;
   IdentifierInfo *kw_async;
   IdentifierInfo *kw_await;
+  IdentifierInfo *kw_declare;
   IdentifierInfo *kw_finally;
   IdentifierInfo *kw_from;
   IdentifierInfo *kw_function;
   IdentifierInfo *kw_import;
   IdentifierInfo *kw_is;
   IdentifierInfo *kw_let;
+  IdentifierInfo *kw_module;
   IdentifierInfo *kw_type;
   IdentifierInfo *kw_var;
   IdentifierInfo *kw_yield;

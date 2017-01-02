@@ -101,12 +101,14 @@ public:
     AS_CXX11,
     /// __declspec(...)
     AS_Declspec,
+    /// [uuid("...")] class Foo
+    AS_Microsoft,
     /// __ptr16, alignas(...), etc.
     AS_Keyword,
     /// Context-sensitive version of a keyword attribute.
     AS_ContextSensitiveKeyword,
     /// #pragma ...
-    AS_Pragma
+    AS_Pragma,
   };
 
 private:
@@ -369,6 +371,7 @@ public:
   }
 
   bool isDeclspecAttribute() const { return SyntaxUsed == AS_Declspec; }
+  bool isMicrosoftAttribute() const { return SyntaxUsed == AS_Microsoft; }
   bool isCXX11Attribute() const {
     return SyntaxUsed == AS_CXX11 || isAlignasAttribute();
   }
@@ -745,6 +748,19 @@ public:
     list = newList;
   }
 
+  void addAllAtEnd(AttributeList *newList) {
+    if (!list) {
+      list = newList;
+      return;
+    }
+
+    AttributeList *lastInList = list;
+    while (AttributeList *next = lastInList->getNext())
+      lastInList = next;
+
+    lastInList->setNext(newList);
+  }
+
   void set(AttributeList *newList) {
     list = newList;
   }
@@ -869,12 +885,14 @@ enum AttributeDeclKind {
   ExpectedFunction,
   ExpectedUnion,
   ExpectedVariableOrFunction,
+  ExpectedFunctionOrGlobalVar,
   ExpectedFunctionVariableOrObjCInterface,
   ExpectedFunctionOrMethod,
   ExpectedParameter,
   ExpectedFunctionMethodOrBlock,
   ExpectedFunctionMethodOrClass,
   ExpectedFunctionMethodOrParameter,
+  ExpectedFunctionMethodOrGlobalVar,
   ExpectedClass,
   ExpectedEnum,
   ExpectedVariable,
@@ -897,6 +915,7 @@ enum AttributeDeclKind {
   ExpectedFunctionVariableOrClass,
   ExpectedFunctionVariableClassOrObjCInterface,
   ExpectedObjectiveCProtocol,
+  ExpectedStaticOrTLSVar,
   ExpectedFunctionGlobalVarMethodOrProperty,
   ExpectedStructOrUnionOrTypedef,
   ExpectedStructOrTypedef,
@@ -906,7 +925,8 @@ enum AttributeDeclKind {
   ExpectedVariableEnumFieldOrTypedef,
   ExpectedFunctionMethodEnumOrClass,
   ExpectedStructClassVariableFunctionOrInlineNamespace,
-  ExpectedForMaybeUnused
+  ExpectedForMaybeUnused,
+  ExpectedEnumOrClass,
 };
 
 }  // end namespace clang

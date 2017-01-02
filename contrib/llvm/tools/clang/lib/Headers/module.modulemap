@@ -63,11 +63,13 @@ module _Builtin_intrinsics [system] [extern_c] {
     textual header "mwaitxintrin.h"
 
     explicit module mm_malloc {
+      requires !freestanding
       header "mm_malloc.h"
       export * // note: for <stdlib.h> dependency
     }
 
     explicit module cpuid {
+      requires gnuinlineasm
       header "cpuid.h"
     }
 

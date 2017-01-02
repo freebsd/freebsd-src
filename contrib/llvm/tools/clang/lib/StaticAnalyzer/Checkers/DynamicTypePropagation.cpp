@@ -626,7 +626,7 @@ static bool isObjCTypeParamDependent(QualType Type) {
       : public RecursiveASTVisitor<IsObjCTypeParamDependentTypeVisitor> {
   public:
     IsObjCTypeParamDependentTypeVisitor() : Result(false) {}
-    bool VisitTypedefType(const TypedefType *Type) {
+    bool VisitObjCTypeParamType(const ObjCTypeParamType *Type) {
       if (isa<ObjCTypeParamDecl>(Type->getDecl())) {
         Result = true;
         return false;
@@ -726,6 +726,37 @@ void DynamicTypePropagation::checkPreObjCMessage(const ObjCMethodCall &M,
   // It is possible to call non-existent methods in Obj-C.
   if (!Method)
     return;
+
+  // If the method is declared on a class that has a non-invariant
+  // type parameter, don't warn about parameter mismatches after performing
+  // substitution. This prevents warning when the programmer has purposely
+  // casted the receiver to a super type or unspecialized type but the analyzer
+  // has a more precise tracked type than the programmer intends at the call
+  // site.
+  //
+  // For example, consider NSArray (which has a covariant type parameter)
+  // and NSMutableArray (a subclass of NSArray where the type parameter is
+  // invariant):
+  // NSMutableArray *a = [[NSMutableArray<NSString *> alloc] init;
+  //
+  // [a containsObject:number]; // Safe: -containsObject is defined on NSArray.
+  // NSArray<NSObject *> *other = [a arrayByAddingObject:number]  // Safe
+  //
+  // [a addObject:number] // Unsafe: -addObject: is defined on NSMutableArray
+  //
+
+  const ObjCInterfaceDecl *Interface = Method->getClassInterface();
+  if (!Interface)
+    return;
+
+  ObjCTypeParamList *TypeParams = Interface->getTypeParamList();
+  if (!TypeParams)
+    return;
+
+  for (ObjCTypeParamDecl *TypeParam : *TypeParams) {
+    if (TypeParam->getVariance() != ObjCTypeParamVariance::Invariant)
+      return;
+  }
 
   Optional<ArrayRef<QualType>> TypeArgs =
       (*TrackedType)->getObjCSubstitutions(Method->getDeclContext());
@@ -909,12 +940,7 @@ PathDiagnosticPiece *DynamicTypePropagation::GenericsBugVisitor::VisitNode(
     return nullptr;
 
   // Retrieve the associated statement.
-  const Stmt *S = nullptr;
-  ProgramPoint ProgLoc = N->getLocation();
-  if (Optional<StmtPoint> SP = ProgLoc.getAs<StmtPoint>()) {
-    S = SP->getStmt();
-  }
-
+  const Stmt *S = PathDiagnosticLocation::getStmt(N);
   if (!S)
     return nullptr;
 

@@ -30,22 +30,22 @@ bool SimpleConstraintManager::canReasonAbout(SVal X) const {
 
     if (const SymIntExpr *SIE = dyn_cast<SymIntExpr>(SE)) {
       switch (SIE->getOpcode()) {
-          // We don't reason yet about bitwise-constraints on symbolic values.
-        case BO_And:
-        case BO_Or:
-        case BO_Xor:
-          return false;
-        // We don't reason yet about these arithmetic constraints on
-        // symbolic values.
-        case BO_Mul:
-        case BO_Div:
-        case BO_Rem:
-        case BO_Shl:
-        case BO_Shr:
-          return false;
-        // All other cases.
-        default:
-          return true;
+      // We don't reason yet about bitwise-constraints on symbolic values.
+      case BO_And:
+      case BO_Or:
+      case BO_Xor:
+        return false;
+      // We don't reason yet about these arithmetic constraints on
+      // symbolic values.
+      case BO_Mul:
+      case BO_Div:
+      case BO_Rem:
+      case BO_Shl:
+      case BO_Shr:
+        return false;
+      // All other cases.
+      default:
+        return true;
       }
     }
 
@@ -65,12 +65,12 @@ bool SimpleConstraintManager::canReasonAbout(SVal X) const {
   return true;
 }
 
-ProgramStateRef SimpleConstraintManager::assume(ProgramStateRef state,
-                                               DefinedSVal Cond,
-                                               bool Assumption) {
+ProgramStateRef SimpleConstraintManager::assume(ProgramStateRef State,
+                                                DefinedSVal Cond,
+                                                bool Assumption) {
   // If we have a Loc value, cast it to a bool NonLoc first.
   if (Optional<Loc> LV = Cond.getAs<Loc>()) {
-    SValBuilder &SVB = state->getStateManager().getSValBuilder();
+    SValBuilder &SVB = State->getStateManager().getSValBuilder();
     QualType T;
     const MemRegion *MR = LV->getAsRegion();
     if (const TypedRegion *TR = dyn_cast_or_null<TypedRegion>(MR))
@@ -81,18 +81,16 @@ ProgramStateRef SimpleConstraintManager::assume(ProgramStateRef state,
     Cond = SVB.evalCast(*LV, SVB.getContext().BoolTy, T).castAs<DefinedSVal>();
   }
 
-  return assume(state, Cond.castAs<NonLoc>(), Assumption);
+  return assume(State, Cond.castAs<NonLoc>(), Assumption);
 }
 
-ProgramStateRef SimpleConstraintManager::assume(ProgramStateRef state,
-                                               NonLoc cond,
-                                               bool assumption) {
-  state = assumeAux(state, cond, assumption);
+ProgramStateRef SimpleConstraintManager::assume(ProgramStateRef State,
+                                                NonLoc Cond, bool Assumption) {
+  State = assumeAux(State, Cond, Assumption);
   if (NotifyAssumeClients && SU)
-    return SU->processAssume(state, cond, assumption);
-  return state;
+    return SU->processAssume(State, Cond, Assumption);
+  return State;
 }
-
 
 ProgramStateRef
 SimpleConstraintManager::assumeAuxForSymbol(ProgramStateRef State,
@@ -111,16 +109,16 @@ SimpleConstraintManager::assumeAuxForSymbol(ProgramStateRef State,
     return assumeSymEQ(State, Sym, zero, zero);
 }
 
-ProgramStateRef SimpleConstraintManager::assumeAux(ProgramStateRef state,
-                                                  NonLoc Cond,
-                                                  bool Assumption) {
+ProgramStateRef SimpleConstraintManager::assumeAux(ProgramStateRef State,
+                                                   NonLoc Cond,
+                                                   bool Assumption) {
 
   // We cannot reason about SymSymExprs, and can only reason about some
   // SymIntExprs.
   if (!canReasonAbout(Cond)) {
     // Just add the constraint to the expression without trying to simplify.
-    SymbolRef sym = Cond.getAsSymExpr();
-    return assumeAuxForSymbol(state, sym, Assumption);
+    SymbolRef Sym = Cond.getAsSymExpr();
+    return assumeAuxForSymbol(State, Sym, Assumption);
   }
 
   switch (Cond.getSubKind()) {
@@ -129,26 +127,26 @@ ProgramStateRef SimpleConstraintManager::assumeAux(ProgramStateRef state,
 
   case nonloc::SymbolValKind: {
     nonloc::SymbolVal SV = Cond.castAs<nonloc::SymbolVal>();
-    SymbolRef sym = SV.getSymbol();
-    assert(sym);
+    SymbolRef Sym = SV.getSymbol();
+    assert(Sym);
 
     // Handle SymbolData.
     if (!SV.isExpression()) {
-      return assumeAuxForSymbol(state, sym, Assumption);
+      return assumeAuxForSymbol(State, Sym, Assumption);
 
-    // Handle symbolic expression.
-    } else if (const SymIntExpr *SE = dyn_cast<SymIntExpr>(sym)) {
+      // Handle symbolic expression.
+    } else if (const SymIntExpr *SE = dyn_cast<SymIntExpr>(Sym)) {
       // We can only simplify expressions whose RHS is an integer.
 
-      BinaryOperator::Opcode op = SE->getOpcode();
-      if (BinaryOperator::isComparisonOp(op)) {
+      BinaryOperator::Opcode Op = SE->getOpcode();
+      if (BinaryOperator::isComparisonOp(Op)) {
         if (!Assumption)
-          op = BinaryOperator::negateComparisonOp(op);
+          Op = BinaryOperator::negateComparisonOp(Op);
 
-        return assumeSymRel(state, SE->getLHS(), op, SE->getRHS());
+        return assumeSymRel(State, SE->getLHS(), Op, SE->getRHS());
       }
 
-    } else if (const SymSymExpr *SSE = dyn_cast<SymSymExpr>(sym)) {
+    } else if (const SymSymExpr *SSE = dyn_cast<SymSymExpr>(Sym)) {
       // Translate "a != b" to "(b - a) != 0".
       // We invert the order of the operands as a heuristic for how loop
       // conditions are usually written ("begin != end") as compared to length
@@ -163,34 +161,40 @@ ProgramStateRef SimpleConstraintManager::assumeAux(ProgramStateRef state,
       assert(Loc::isLocType(SSE->getLHS()->getType()));
       assert(Loc::isLocType(SSE->getRHS()->getType()));
       QualType DiffTy = SymMgr.getContext().getPointerDiffType();
-      SymbolRef Subtraction = SymMgr.getSymSymExpr(SSE->getRHS(), BO_Sub,
-                                                   SSE->getLHS(), DiffTy);
+      SymbolRef Subtraction =
+          SymMgr.getSymSymExpr(SSE->getRHS(), BO_Sub, SSE->getLHS(), DiffTy);
 
       const llvm::APSInt &Zero = getBasicVals().getValue(0, DiffTy);
       Op = BinaryOperator::reverseComparisonOp(Op);
       if (!Assumption)
         Op = BinaryOperator::negateComparisonOp(Op);
-      return assumeSymRel(state, Subtraction, Op, Zero);
+      return assumeSymRel(State, Subtraction, Op, Zero);
     }
 
     // If we get here, there's nothing else we can do but treat the symbol as
     // opaque.
-    return assumeAuxForSymbol(state, sym, Assumption);
+    return assumeAuxForSymbol(State, Sym, Assumption);
   }
 
   case nonloc::ConcreteIntKind: {
     bool b = Cond.castAs<nonloc::ConcreteInt>().getValue() != 0;
     bool isFeasible = b ? Assumption : !Assumption;
-    return isFeasible ? state : nullptr;
+    return isFeasible ? State : nullptr;
+  }
+
+  case nonloc::PointerToMemberKind: {
+    bool IsNull = !Cond.castAs<nonloc::PointerToMember>().isNullMemberPointer();
+    bool IsFeasible = IsNull ? Assumption : !Assumption;
+    return IsFeasible ? State : nullptr;
   }
 
   case nonloc::LocAsIntegerKind:
-    return assume(state, Cond.castAs<nonloc::LocAsInteger>().getLoc(),
+    return assume(State, Cond.castAs<nonloc::LocAsInteger>().getLoc(),
                   Assumption);
   } // end switch
 }
 
-ProgramStateRef SimpleConstraintManager::assumeWithinInclusiveRange(
+ProgramStateRef SimpleConstraintManager::assumeInclusiveRange(
     ProgramStateRef State, NonLoc Value, const llvm::APSInt &From,
     const llvm::APSInt &To, bool InRange) {
 
@@ -207,7 +211,7 @@ ProgramStateRef SimpleConstraintManager::assumeWithinInclusiveRange(
 
   switch (Value.getSubKind()) {
   default:
-    llvm_unreachable("'assumeWithinInclusiveRange' is not implemented"
+    llvm_unreachable("'assumeInclusiveRange' is not implemented"
                      "for this NonLoc");
 
   case nonloc::LocAsIntegerKind:
@@ -243,12 +247,25 @@ static void computeAdjustment(SymbolRef &Sym, llvm::APSInt &Adjustment) {
   }
 }
 
-ProgramStateRef SimpleConstraintManager::assumeSymRel(ProgramStateRef state,
-                                                     const SymExpr *LHS,
-                                                     BinaryOperator::Opcode op,
-                                                     const llvm::APSInt& Int) {
-  assert(BinaryOperator::isComparisonOp(op) &&
+ProgramStateRef SimpleConstraintManager::assumeSymRel(ProgramStateRef State,
+                                                      const SymExpr *LHS,
+                                                      BinaryOperator::Opcode Op,
+                                                      const llvm::APSInt &Int) {
+  assert(BinaryOperator::isComparisonOp(Op) &&
          "Non-comparison ops should be rewritten as comparisons to zero.");
+
+  SymbolRef Sym = LHS;
+
+  // Simplification: translate an assume of a constraint of the form
+  // "(exp comparison_op expr) != 0" to true into an assume of 
+  // "exp comparison_op expr" to true. (And similarly, an assume of the form
+  // "(exp comparison_op expr) == 0" to true into an assume of
+  // "exp comparison_op expr" to false.)
+  if (Int == 0 && (Op == BO_EQ || Op == BO_NE)) {
+    if (const BinarySymExpr *SE = dyn_cast<BinarySymExpr>(Sym))
+      if (BinaryOperator::isComparisonOp(SE->getOpcode()))
+        return assume(State, nonloc::SymbolVal(Sym), (Op == BO_NE ? true : false));
+  }
 
   // Get the type used for calculating wraparound.
   BasicValueFactory &BVF = getBasicVals();
@@ -261,7 +278,6 @@ ProgramStateRef SimpleConstraintManager::assumeSymRel(ProgramStateRef state,
   // x < 4 has the solution [0, 3]. x+2 < 4 has the solution [0-2, 3-2], which
   // in modular arithmetic is [0, 1] U [UINT_MAX-1, UINT_MAX]. It's up to
   // the subclasses of SimpleConstraintManager to handle the adjustment.
-  SymbolRef Sym = LHS;
   llvm::APSInt Adjustment = WraparoundType.getZeroValue();
   computeAdjustment(Sym, Adjustment);
 
@@ -274,36 +290,33 @@ ProgramStateRef SimpleConstraintManager::assumeSymRel(ProgramStateRef state,
       ComparisonType.isUnsigned() && !WraparoundType.isUnsigned())
     Adjustment.setIsSigned(false);
 
-  switch (op) {
+  switch (Op) {
   default:
     llvm_unreachable("invalid operation not caught by assertion above");
 
   case BO_EQ:
-    return assumeSymEQ(state, Sym, ConvertedInt, Adjustment);
+    return assumeSymEQ(State, Sym, ConvertedInt, Adjustment);
 
   case BO_NE:
-    return assumeSymNE(state, Sym, ConvertedInt, Adjustment);
+    return assumeSymNE(State, Sym, ConvertedInt, Adjustment);
 
   case BO_GT:
-    return assumeSymGT(state, Sym, ConvertedInt, Adjustment);
+    return assumeSymGT(State, Sym, ConvertedInt, Adjustment);
 
   case BO_GE:
-    return assumeSymGE(state, Sym, ConvertedInt, Adjustment);
+    return assumeSymGE(State, Sym, ConvertedInt, Adjustment);
 
   case BO_LT:
-    return assumeSymLT(state, Sym, ConvertedInt, Adjustment);
+    return assumeSymLT(State, Sym, ConvertedInt, Adjustment);
 
   case BO_LE:
-    return assumeSymLE(state, Sym, ConvertedInt, Adjustment);
+    return assumeSymLE(State, Sym, ConvertedInt, Adjustment);
   } // end switch
 }
 
-ProgramStateRef
-SimpleConstraintManager::assumeSymWithinInclusiveRange(ProgramStateRef State,
-                                                       SymbolRef Sym,
-                                                       const llvm::APSInt &From,
-                                                       const llvm::APSInt &To,
-                                                       bool InRange) {
+ProgramStateRef SimpleConstraintManager::assumeSymWithinInclusiveRange(
+    ProgramStateRef State, SymbolRef Sym, const llvm::APSInt &From,
+    const llvm::APSInt &To, bool InRange) {
   // Get the type used for calculating wraparound.
   BasicValueFactory &BVF = getBasicVals();
   APSIntType WraparoundType = BVF.getAPSIntType(Sym->getType());

@@ -59,16 +59,18 @@ enum class SymbolLanguage {
   CXX,
 };
 
-enum class SymbolSubKind : uint8_t {
+/// Set of properties that provide additional info about a symbol.
+enum class SymbolProperty : uint8_t {
   Generic                       = 1 << 0,
   TemplatePartialSpecialization = 1 << 1,
   TemplateSpecialization        = 1 << 2,
   UnitTest                      = 1 << 3,
   IBAnnotated                   = 1 << 4,
   IBOutletCollection            = 1 << 5,
+  GKInspectable                 = 1 << 6,
 };
-static const unsigned SymbolSubKindBitNum = 6;
-typedef unsigned SymbolSubKindSet;
+static const unsigned SymbolPropertyBitNum = 7;
+typedef unsigned SymbolPropertySet;
 
 /// Set of roles that are attributed to symbol occurrences.
 enum class SymbolRole : uint16_t {
@@ -88,8 +90,10 @@ enum class SymbolRole : uint16_t {
   RelationOverrideOf  = 1 << 11,
   RelationReceivedBy  = 1 << 12,
   RelationCalledBy    = 1 << 13,
+  RelationExtendedBy  = 1 << 14,
+  RelationAccessorOf  = 1 << 15,
 };
-static const unsigned SymbolRoleBitNum = 14;
+static const unsigned SymbolRoleBitNum = 16;
 typedef unsigned SymbolRoleSet;
 
 /// Represents a relation to another symbol for a symbol occurrence.
@@ -103,7 +107,7 @@ struct SymbolRelation {
 
 struct SymbolInfo {
   SymbolKind Kind;
-  SymbolSubKindSet SubKinds;
+  SymbolPropertySet Properties;
   SymbolLanguage Lang;
 };
 
@@ -119,9 +123,9 @@ bool printSymbolName(const Decl *D, const LangOptions &LO, raw_ostream &OS);
 StringRef getSymbolKindString(SymbolKind K);
 StringRef getSymbolLanguageString(SymbolLanguage K);
 
-void applyForEachSymbolSubKind(SymbolSubKindSet SubKinds,
-                            llvm::function_ref<void(SymbolSubKind)> Fn);
-void printSymbolSubKinds(SymbolSubKindSet SubKinds, raw_ostream &OS);
+void applyForEachSymbolProperty(SymbolPropertySet Props,
+                            llvm::function_ref<void(SymbolProperty)> Fn);
+void printSymbolProperties(SymbolPropertySet Props, raw_ostream &OS);
 
 } // namespace index
 } // namespace clang

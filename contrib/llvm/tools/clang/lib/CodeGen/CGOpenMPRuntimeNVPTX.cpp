@@ -244,6 +244,9 @@ void CGOpenMPRuntimeNVPTX::emitEntryHeader(CodeGenFunction &CGF,
 
 void CGOpenMPRuntimeNVPTX::emitEntryFooter(CodeGenFunction &CGF,
                                            EntryFunctionState &EST) {
+  if (!EST.ExitBB)
+    EST.ExitBB = CGF.createBasicBlock(".exit");
+
   CGBuilderTy &Bld = CGF.Builder;
   llvm::BasicBlock *TerminateBB = CGF.createBasicBlock(".termination.notifier");
   CGF.EmitBranch(TerminateBB);
@@ -259,6 +262,7 @@ void CGOpenMPRuntimeNVPTX::emitEntryFooter(CodeGenFunction &CGF,
   CGF.EmitBranch(EST.ExitBB);
 
   CGF.EmitBlock(EST.ExitBB);
+  EST.ExitBB = nullptr;
 }
 
 /// \brief Returns specified OpenMP runtime function for the current OpenMP
@@ -368,6 +372,7 @@ llvm::Value *CGOpenMPRuntimeNVPTX::emitParallelOrTeamsOutlinedFunction(
         CGOpenMPRuntime::emitParallelOrTeamsOutlinedFunction(
             D, ThreadIDVar, InnermostKind, CodeGen);
     OutlinedFun = cast<llvm::Function>(OutlinedFunVal);
+    OutlinedFun->removeFnAttr(llvm::Attribute::NoInline);
     OutlinedFun->addFnAttr(llvm::Attribute::AlwaysInline);
   } else
     llvm_unreachable("parallel directive is not yet supported for nvptx "

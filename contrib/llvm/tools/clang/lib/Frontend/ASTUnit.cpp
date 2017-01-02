@@ -41,7 +41,6 @@
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/Mutex.h"
 #include "llvm/Support/MutexGuard.h"
-#include "llvm/Support/Path.h"
 #include "llvm/Support/Timer.h"
 #include "llvm/Support/raw_ostream.h"
 #include <atomic>
@@ -926,7 +925,7 @@ public:
   PrecompilePreambleConsumer(ASTUnit &Unit, PrecompilePreambleAction *Action,
                              const Preprocessor &PP, StringRef isysroot,
                              std::unique_ptr<raw_ostream> Out)
-      : PCHGenerator(PP, "", nullptr, isysroot, std::make_shared<PCHBuffer>(),
+      : PCHGenerator(PP, "", isysroot, std::make_shared<PCHBuffer>(),
                      ArrayRef<llvm::IntrusiveRefCntPtr<ModuleFileExtension>>(),
                      /*AllowASTWithErrors=*/true),
         Unit(Unit), Hash(Unit.getCurrentTopLevelHashValue()), Action(Action),
@@ -1393,7 +1392,8 @@ ASTUnit::getMainBufferWithPrecompiledPreamble(
         }
 
         OverriddenFiles[Status.getUniqueID()] = PreambleFileHash::createForFile(
-            Status.getSize(), Status.getLastModificationTime().toEpochTime());
+            Status.getSize(),
+            llvm::sys::toTimeT(Status.getLastModificationTime()));
       }
 
       for (const auto &RB : PreprocessorOpts.RemappedFileBuffers) {
@@ -1434,8 +1434,8 @@ ASTUnit::getMainBufferWithPrecompiledPreamble(
         
         // The file was not remapped; check whether it has changed on disk.
         if (Status.getSize() != uint64_t(F->second.Size) ||
-            Status.getLastModificationTime().toEpochTime() !=
-                uint64_t(F->second.ModTime))
+            llvm::sys::toTimeT(Status.getLastModificationTime()) !=
+                F->second.ModTime)
           AnyFileChanged = true;
       }
           
@@ -2806,6 +2806,7 @@ const FileEntry *ASTUnit::getPCHFile() {
     switch (M.Kind) {
     case serialization::MK_ImplicitModule:
     case serialization::MK_ExplicitModule:
+    case serialization::MK_PrebuiltModule:
       return true; // skip dependencies.
     case serialization::MK_PCH:
       Mod = &M;
@@ -2825,7 +2826,7 @@ const FileEntry *ASTUnit::getPCHFile() {
 }
 
 bool ASTUnit::isModuleFile() {
-  return isMainFileAST() && ASTFileLangOpts.CompilingModule;
+  return isMainFileAST() && ASTFileLangOpts.isCompilingModule();
 }
 
 void ASTUnit::PreambleData::countLines() const {
