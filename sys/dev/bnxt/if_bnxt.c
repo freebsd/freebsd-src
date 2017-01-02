@@ -277,7 +277,6 @@ char bnxt_driver_version[] = "FreeBSD base";
 extern struct if_txrx bnxt_txrx;
 static struct if_shared_ctx bnxt_sctx_init = {
 	.isc_magic = IFLIB_MAGIC,
-	.isc_txrx = &bnxt_txrx,
 	.isc_driver = &bnxt_iflib_driver,
 	.isc_nfl = 2,				// Number of Free Lists
 	.isc_flags = IFLIB_HAS_RXCQ | IFLIB_HAS_TXCQ,
@@ -679,6 +678,20 @@ bnxt_attach_pre(if_ctx_t ctx)
 		goto failed;
 	iflib_set_mac(ctx, softc->func.mac_addr);
 
+	scctx->isc_txrx = &bnxt_txrx;
+	scctx->isc_tx_csum_flags = (CSUM_IP | CSUM_TCP | CSUM_UDP |
+	    CSUM_TCP_IPV6 | CSUM_UDP_IPV6 | CSUM_TSO);
+	scctx->isc_capenable =
+	    /* These are translated to hwassit bits */
+	    IFCAP_TXCSUM | IFCAP_TXCSUM_IPV6 | IFCAP_TSO4 | IFCAP_TSO6 |
+	    /* These are checked by iflib */
+	    IFCAP_LRO | IFCAP_VLAN_HWFILTER |
+	    /* These are part of the iflib mask */
+	    IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6 | IFCAP_VLAN_MTU |
+	    IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_HWTSO |
+	    /* These likely get lost... */
+	    IFCAP_VLAN_HWCSUM | IFCAP_JUMBO_MTU;
+
 	/* Get the queue config */
 	rc = bnxt_hwrm_queue_qportcfg(softc);
 	if (rc) {
@@ -793,7 +806,6 @@ bnxt_attach_post(if_ctx_t ctx)
 {
 	struct bnxt_softc *softc = iflib_get_softc(ctx);
 	if_t ifp = iflib_get_ifp(ctx);
-	int capabilities, enabling;
 	int rc;
 
 	bnxt_create_config_sysctls_post(softc);
@@ -807,26 +819,6 @@ bnxt_attach_post(if_ctx_t ctx)
 	bnxt_create_ver_sysctls(softc);
 	bnxt_add_media_types(softc);
 	ifmedia_set(softc->media, IFM_ETHER | IFM_AUTO);
-
-	if_sethwassist(ifp, (CSUM_TCP | CSUM_UDP | CSUM_TCP_IPV6 |
-	    CSUM_UDP_IPV6 | CSUM_TSO));
-
-	capabilities =
-	    /* These are translated to hwassit bits */
-	    IFCAP_TXCSUM | IFCAP_TXCSUM_IPV6 | IFCAP_TSO4 | IFCAP_TSO6 |
-	    /* These are checked by iflib */
-	    IFCAP_LRO | IFCAP_VLAN_HWFILTER |
-	    /* These are part of the iflib mask */
-	    IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6 | IFCAP_VLAN_MTU |
-	    IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_HWTSO |
-	    /* These likely get lost... */
-	    IFCAP_VLAN_HWCSUM | IFCAP_JUMBO_MTU;
-
-	if_setcapabilities(ifp, capabilities);
-
-	enabling = capabilities;
-
-	if_setcapenable(ifp, enabling);
 
 	softc->scctx->isc_max_frame_size = ifp->if_mtu + ETHER_HDR_LEN +
 	    ETHER_CRC_LEN;

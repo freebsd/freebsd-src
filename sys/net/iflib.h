@@ -184,6 +184,8 @@ typedef struct if_softc_ctx {
 	int isc_tx_tso_segments_max;
 	int isc_tx_tso_size_max;
 	int isc_tx_tso_segsize_max;
+	int isc_tx_csum_flags;
+	int isc_capenable;
 	int isc_rss_table_size;
 	int isc_rss_table_mask;
 	int isc_nrxqsets_max;
@@ -192,6 +194,7 @@ typedef struct if_softc_ctx {
 	iflib_intr_mode_t isc_intr;
 	uint16_t isc_max_frame_size; /* set at init time by driver */
 	pci_vendor_info_t isc_vendor_info;	/* set by iflib prior to attach_pre */
+	if_txrx_t isc_txrx;
 } *if_softc_ctx_t;
 
 /*
@@ -199,7 +202,6 @@ typedef struct if_softc_ctx {
  */
 struct if_shared_ctx {
 	int isc_magic;
-	if_txrx_t isc_txrx;
 	driver_t *isc_driver;
 	int isc_nfl;
 	int isc_flags;
@@ -256,20 +258,28 @@ typedef enum {
 /*
  * Interface has a separate command queue for RX
  */
-#define IFLIB_HAS_RXCQ		0x1
+#define IFLIB_HAS_RXCQ		0x01
 /*
  * Driver has already allocated vectors
  */
-#define IFLIB_SKIP_MSIX		0x2
-
+#define IFLIB_SKIP_MSIX		0x02
 /*
  * Interface is a virtual function
  */
-#define IFLIB_IS_VF		0x4
+#define IFLIB_IS_VF		0x04
 /*
  * Interface has a separate command queue for TX
  */
-#define IFLIB_HAS_TXCQ		0x8
+#define IFLIB_HAS_TXCQ		0x08
+/*
+ * Interface does checksum in place
+ */
+#define IFLIB_NEED_SCRATCH	0x10
+/*
+ * Interface doesn't expect in_pseudo for th_sum
+ */
+#define IFLIB_TSO_INIT_IP	0x20
+
 
 
 /*

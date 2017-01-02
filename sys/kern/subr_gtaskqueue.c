@@ -99,6 +99,15 @@ struct gtaskqueue {
 	} while (0)
 #define	TQ_ASSERT_UNLOCKED(tq)	mtx_assert(&(tq)->tq_mutex, MA_NOTOWNED)
 
+#ifdef INVARIANTS
+static void
+gtask_dump(struct gtask *gtask)
+{
+	printf("gtask: %p ta_flags=%x ta_priority=%d ta_func=%p ta_context=%p\n",
+	       gtask, gtask->ta_flags, gtask->ta_priority, gtask->ta_func, gtask->ta_context);
+}
+#endif
+
 static __inline int
 TQ_SLEEP(struct gtaskqueue *tq, void *p, struct mtx *m, int pri, const char *wm,
     int t)
@@ -172,6 +181,12 @@ gtaskqueue_free(struct gtaskqueue *queue)
 int
 grouptaskqueue_enqueue(struct gtaskqueue *queue, struct gtask *gtask)
 {
+#ifdef INVARIANTS
+	if (queue == NULL) {
+		gtask_dump(gtask);
+		panic("queue == NULL");
+	}
+#endif
 	TQ_LOCK(queue);
 	if (gtask->ta_flags & TASK_ENQUEUED) {
 		TQ_UNLOCK(queue);
