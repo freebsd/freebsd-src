@@ -10,28 +10,75 @@
 #ifndef LLVM_DEBUGINFO_CODEVIEW_MODULESUBSTREAMVISITOR_H
 #define LLVM_DEBUGINFO_CODEVIEW_MODULESUBSTREAMVISITOR_H
 
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/DebugInfo/CodeView/CodeView.h"
 #include "llvm/DebugInfo/CodeView/CodeViewError.h"
 #include "llvm/DebugInfo/CodeView/Line.h"
 #include "llvm/DebugInfo/CodeView/ModuleSubstream.h"
-#include "llvm/DebugInfo/CodeView/StreamReader.h"
-#include "llvm/DebugInfo/CodeView/StreamRef.h"
+#include "llvm/DebugInfo/MSF/StreamArray.h"
+#include "llvm/DebugInfo/MSF/StreamReader.h"
+#include "llvm/DebugInfo/MSF/StreamRef.h"
+#include "llvm/Support/Endian.h"
+#include "llvm/Support/Error.h"
+#include <cstdint>
 
 namespace llvm {
+
 namespace codeview {
 
 struct LineColumnEntry {
   support::ulittle32_t NameIndex;
-  FixedStreamArray<LineNumberEntry> LineNumbers;
-  FixedStreamArray<ColumnNumberEntry> Columns;
+  msf::FixedStreamArray<LineNumberEntry> LineNumbers;
+  msf::FixedStreamArray<ColumnNumberEntry> Columns;
 };
 
-template <> class VarStreamArrayExtractor<LineColumnEntry> {
-public:
-  VarStreamArrayExtractor(const LineSubstreamHeader *Header) : Header(Header) {}
+struct FileChecksumEntry {
+  uint32_t FileNameOffset;    // Byte offset of filename in global stringtable.
+  FileChecksumKind Kind;      // The type of checksum.
+  ArrayRef<uint8_t> Checksum; // The bytes of the checksum.
+};
 
-  Error operator()(StreamRef Stream, uint32_t &Len,
-                   LineColumnEntry &Item) const {
+typedef msf::VarStreamArray<LineColumnEntry> LineInfoArray;
+typedef msf::VarStreamArray<FileChecksumEntry> FileChecksumArray;
+
+class IModuleSubstreamVisitor {
+public:
+  virtual ~IModuleSubstreamVisitor() = default;
+
+  virtual Error visitUnknown(ModuleSubstreamKind Kind,
+                             msf::ReadableStreamRef Data) = 0;
+  virtual Error visitSymbols(msf::ReadableStreamRef Data);
+  virtual Error visitLines(msf::ReadableStreamRef Data,
+                           const LineSubstreamHeader *Header,
+                           const LineInfoArray &Lines);
+  virtual Error visitStringTable(msf::ReadableStreamRef Data);
+  virtual Error visitFileChecksums(msf::ReadableStreamRef Data,
+                                   const FileChecksumArray &Checksums);
+  virtual Error visitFrameData(msf::ReadableStreamRef Data);
+  virtual Error visitInlineeLines(msf::ReadableStreamRef Data);
+  virtual Error visitCrossScopeImports(msf::ReadableStreamRef Data);
+  virtual Error visitCrossScopeExports(msf::ReadableStreamRef Data);
+  virtual Error visitILLines(msf::ReadableStreamRef Data);
+  virtual Error visitFuncMDTokenMap(msf::ReadableStreamRef Data);
+  virtual Error visitTypeMDTokenMap(msf::ReadableStreamRef Data);
+  virtual Error visitMergedAssemblyInput(msf::ReadableStreamRef Data);
+  virtual Error visitCoffSymbolRVA(msf::ReadableStreamRef Data);
+};
+
+Error visitModuleSubstream(const ModuleSubstream &R,
+                           IModuleSubstreamVisitor &V);
+} // end namespace codeview
+
+namespace msf {
+
+template <> class VarStreamArrayExtractor<codeview::LineColumnEntry> {
+public:
+  VarStreamArrayExtractor(const codeview::LineSubstreamHeader *Header)
+      : Header(Header) {}
+
+  Error operator()(ReadableStreamRef Stream, uint32_t &Len,
+                   codeview::LineColumnEntry &Item) const {
+    using namespace codeview;
     const LineFileBlockHeader *BlockHeader;
     StreamReader Reader(Stream);
     if (auto EC = Reader.readObject(BlockHeader))
@@ -61,19 +108,14 @@ public:
   }
 
 private:
-  const LineSubstreamHeader *Header;
+  const codeview::LineSubstreamHeader *Header;
 };
 
-struct FileChecksumEntry {
-  uint32_t FileNameOffset;    // Byte offset of filename in global stringtable.
-  FileChecksumKind Kind;      // The type of checksum.
-  ArrayRef<uint8_t> Checksum; // The bytes of the checksum.
-};
-
-template <> class VarStreamArrayExtractor<FileChecksumEntry> {
+template <> class VarStreamArrayExtractor<codeview::FileChecksumEntry> {
 public:
-  Error operator()(StreamRef Stream, uint32_t &Len,
-                   FileChecksumEntry &Item) const {
+  Error operator()(ReadableStreamRef Stream, uint32_t &Len,
+                   codeview::FileChecksumEntry &Item) const {
+    using namespace codeview;
     const FileChecksum *Header;
     StreamReader Reader(Stream);
     if (auto EC = Reader.readObject(Header))
@@ -87,35 +129,8 @@ public:
   }
 };
 
-typedef VarStreamArray<LineColumnEntry> LineInfoArray;
-typedef VarStreamArray<FileChecksumEntry> FileChecksumArray;
+} // end namespace msf
 
-class IModuleSubstreamVisitor {
-public:
-  virtual ~IModuleSubstreamVisitor() {}
-
-  virtual Error visitUnknown(ModuleSubstreamKind Kind, StreamRef Data) = 0;
-  virtual Error visitSymbols(StreamRef Data);
-  virtual Error visitLines(StreamRef Data, const LineSubstreamHeader *Header,
-                           const LineInfoArray &Lines);
-  virtual Error visitStringTable(StreamRef Data);
-  virtual Error visitFileChecksums(StreamRef Data,
-                                   const FileChecksumArray &Checksums);
-  virtual Error visitFrameData(StreamRef Data);
-  virtual Error visitInlineeLines(StreamRef Data);
-  virtual Error visitCrossScopeImports(StreamRef Data);
-  virtual Error visitCrossScopeExports(StreamRef Data);
-  virtual Error visitILLines(StreamRef Data);
-  virtual Error visitFuncMDTokenMap(StreamRef Data);
-  virtual Error visitTypeMDTokenMap(StreamRef Data);
-  virtual Error visitMergedAssemblyInput(StreamRef Data);
-  virtual Error visitCoffSymbolRVA(StreamRef Data);
-};
-
-Error visitModuleSubstream(const ModuleSubstream &R,
-                           IModuleSubstreamVisitor &V);
-
-} // namespace codeview
-} // namespace llvm
+} // end namespace llvm
 
 #endif // LLVM_DEBUGINFO_CODEVIEW_MODULESUBSTREAMVISITOR_H

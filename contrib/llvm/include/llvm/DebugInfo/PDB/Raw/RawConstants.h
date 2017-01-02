@@ -17,6 +17,8 @@
 namespace llvm {
 namespace pdb {
 
+const uint16_t kInvalidStreamIndex = 0xFFFF;
+
 enum PdbRaw_ImplVer : uint32_t {
   PdbImplVC2 = 19941610,
   PdbImplVC4 = 19950623,
@@ -61,6 +63,8 @@ enum SpecialStream : uint32_t {
   StreamTPI = 2,
   StreamDBI = 3,
   StreamIPI = 4,
+
+  kSpecialStreamCount
 };
 
 enum class DbgHeaderType : uint16_t {

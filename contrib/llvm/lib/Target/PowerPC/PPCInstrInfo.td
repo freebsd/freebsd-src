@@ -23,6 +23,15 @@ def SDT_PPCstfiwx : SDTypeProfile<0, 2, [ // stfiwx
 def SDT_PPClfiwx : SDTypeProfile<1, 1, [ // lfiw[az]x
   SDTCisVT<0, f64>, SDTCisPtrTy<1>
 ]>;
+def SDT_PPCLxsizx : SDTypeProfile<1, 2, [
+  SDTCisVT<0, f64>, SDTCisPtrTy<1>, SDTCisPtrTy<2>
+]>;
+def SDT_PPCstxsix : SDTypeProfile<0, 3, [
+  SDTCisVT<0, f64>, SDTCisPtrTy<1>, SDTCisPtrTy<2>
+]>;
+def SDT_PPCVexts  : SDTypeProfile<1, 2, [
+  SDTCisVT<0, f64>, SDTCisVT<1, f64>, SDTCisPtrTy<2>
+]>;
 
 def SDT_PPCCallSeqStart : SDCallSeqStart<[ SDTCisVT<0, i32> ]>;
 def SDT_PPCCallSeqEnd   : SDCallSeqEnd<[ SDTCisVT<0, i32>,
@@ -108,6 +117,11 @@ def PPClfiwax : SDNode<"PPCISD::LFIWAX", SDT_PPClfiwx,
                        [SDNPHasChain, SDNPMayLoad]>;
 def PPClfiwzx : SDNode<"PPCISD::LFIWZX", SDT_PPClfiwx,
                        [SDNPHasChain, SDNPMayLoad]>;
+def PPClxsizx : SDNode<"PPCISD::LXSIZX", SDT_PPCLxsizx,
+                       [SDNPHasChain, SDNPMayLoad]>;
+def PPCstxsix : SDNode<"PPCISD::STXSIX", SDT_PPCstxsix,
+                       [SDNPHasChain, SDNPMayStore]>;
+def PPCVexts  : SDNode<"PPCISD::VEXTS", SDT_PPCVexts, []>;
 
 // Extract FPSCR (not modeled at the DAG level).
 def PPCmffs   : SDNode<"PPCISD::MFFS",
@@ -312,6 +326,8 @@ def immZExt16  : PatLeaf<(imm), [{
   // field.  Used by instructions like 'ori'.
   return (uint64_t)N->getZExtValue() == (unsigned short)N->getZExtValue();
 }], LO16>;
+def immAnyExt8 : ImmLeaf<i32, [{ return isInt<8>(Imm) || isUInt<8>(Imm); }]>;
+def immSExt5NonZero : ImmLeaf<i32, [{ return Imm && isInt<5>(Imm); }]>;
 
 // imm16Shifted* - These match immediates where the low 16-bits are zero.  There
 // are two forms: imm16ShiftedSExt and imm16ShiftedZExt.  These two forms are
@@ -444,6 +460,12 @@ def PPCRegVRRCAsmOperand : AsmOperandClass {
 def vrrc : RegisterOperand<VRRC> {
   let ParserMatchClass = PPCRegVRRCAsmOperand;
 }
+def PPCRegVFRCAsmOperand : AsmOperandClass {
+  let Name = "RegVFRC"; let PredicateMethod = "isRegNumber";
+}
+def vfrc : RegisterOperand<VFRC> {
+  let ParserMatchClass = PPCRegVFRCAsmOperand;
+}
 def PPCRegCRBITRCAsmOperand : AsmOperandClass {
   let Name = "RegCRBITRC"; let PredicateMethod = "isCRBitNumber";
 }
@@ -476,6 +498,15 @@ def PPCU2ImmAsmOperand : AsmOperandClass {
 def u2imm   : Operand<i32> {
   let PrintMethod = "printU2ImmOperand";
   let ParserMatchClass = PPCU2ImmAsmOperand;
+}
+
+def PPCATBitsAsHintAsmOperand : AsmOperandClass {
+  let Name = "ATBitsAsHint"; let PredicateMethod = "isATBitsAsHint";
+  let RenderMethod = "addImmOperands"; // Irrelevant, predicate always fails.
+}
+def atimm   : Operand<i32> {
+  let PrintMethod = "printATBitsAsHint";
+  let ParserMatchClass = PPCATBitsAsHintAsmOperand;
 }
 
 def PPCU3ImmAsmOperand : AsmOperandClass {
@@ -591,6 +622,9 @@ def s17imm  : Operand<i32> {
   let ParserMatchClass = PPCS17ImmAsmOperand;
   let DecoderMethod = "decodeSImmOperand<16>";
 }
+
+def fpimm0 : PatLeaf<(fpimm), [{ return N->isExactlyValue(+0.0); }]>;
+
 def PPCDirectBrAsmOperand : AsmOperandClass {
   let Name = "DirectBr"; let PredicateMethod = "isDirectBr";
   let RenderMethod = "addBranchTargetOperands";
@@ -1448,9 +1482,6 @@ def RFEBB : XLForm_S<19, 146, (outs), (ins u1imm:$imm), "rfebb $imm",
 def DCBA   : DCB_Form<758, 0, (outs), (ins memrr:$dst), "dcba $dst",
                       IIC_LdStDCBF, [(int_ppc_dcba xoaddr:$dst)]>,
                       PPC970_DGroup_Single;
-def DCBF   : DCB_Form<86, 0, (outs), (ins memrr:$dst), "dcbf $dst",
-                      IIC_LdStDCBF, [(int_ppc_dcbf xoaddr:$dst)]>,
-                      PPC970_DGroup_Single;
 def DCBI   : DCB_Form<470, 0, (outs), (ins memrr:$dst), "dcbi $dst",
                       IIC_LdStDCBF, [(int_ppc_dcbi xoaddr:$dst)]>,
                       PPC970_DGroup_Single;
@@ -1462,6 +1493,10 @@ def DCBZ   : DCB_Form<1014, 0, (outs), (ins memrr:$dst), "dcbz $dst",
                       PPC970_DGroup_Single;
 def DCBZL  : DCB_Form<1014, 1, (outs), (ins memrr:$dst), "dcbzl $dst",
                       IIC_LdStDCBF, [(int_ppc_dcbzl xoaddr:$dst)]>,
+                      PPC970_DGroup_Single;
+
+def DCBF   : DCB_Form_hint<86, (outs), (ins u5imm:$TH, memrr:$dst),
+                      "dcbf $dst, $TH", IIC_LdStDCBF, []>,
                       PPC970_DGroup_Single;
 
 let hasSideEffects = 0, mayLoad = 1, mayStore = 1 in {
@@ -1480,6 +1515,8 @@ def : Pat<(int_ppc_dcbt xoaddr:$dst),
           (DCBT 0, xoaddr:$dst)>;
 def : Pat<(int_ppc_dcbtst xoaddr:$dst),
           (DCBTST 0, xoaddr:$dst)>;
+def : Pat<(int_ppc_dcbf xoaddr:$dst),
+          (DCBF 0, xoaddr:$dst)>;
 
 def : Pat<(prefetch xoaddr:$dst, (i32 0), imm, (i32 1)),
           (DCBT 0, xoaddr:$dst)>;   // data prefetch for loads
@@ -2146,15 +2183,15 @@ let Uses = [RM] in {
 
   defm FRSP   : XForm_26r<63, 12, (outs f4rc:$frD), (ins f8rc:$frB),
                           "frsp", "$frD, $frB", IIC_FPGeneral,
-                          [(set f32:$frD, (fround f64:$frB))]>;
+                          [(set f32:$frD, (fpround f64:$frB))]>;
 
   let Interpretation64Bit = 1, isCodeGenOnly = 1 in
   defm FRIND  : XForm_26r<63, 392, (outs f8rc:$frD), (ins f8rc:$frB),
                           "frin", "$frD, $frB", IIC_FPGeneral,
-                          [(set f64:$frD, (frnd f64:$frB))]>;
+                          [(set f64:$frD, (fround f64:$frB))]>;
   defm FRINS  : XForm_26r<63, 392, (outs f4rc:$frD), (ins f4rc:$frB),
                           "frin", "$frD, $frB", IIC_FPGeneral,
-                          [(set f32:$frD, (frnd f32:$frB))]>;
+                          [(set f32:$frD, (fround f32:$frB))]>;
   }
 
   let hasSideEffects = 0 in {
@@ -2892,7 +2929,7 @@ def : Pat<(f64 (extloadf32 iaddr:$src)),
 def : Pat<(f64 (extloadf32 xaddr:$src)),
           (COPY_TO_REGCLASS (LFSX xaddr:$src), F8RC)>;
 
-def : Pat<(f64 (fextend f32:$src)),
+def : Pat<(f64 (fpextend f32:$src)),
           (COPY_TO_REGCLASS $src, F8RC)>;
 
 // Only seq_cst fences require the heavyweight sync (SYNC 0).
@@ -3184,6 +3221,46 @@ defm : ExtSetCCPat<SETLE,
                               (RLWINM $in, 1, 31, 31)>,
                    OutPatFrag<(ops node:$in),
                               (RLDICL $in, 1, 63)> >;
+
+// An extended SETCC with shift amount.
+multiclass ExtSetCCShiftPat<CondCode cc, PatFrag pfrag,
+                            OutPatFrag rfrag, OutPatFrag rfrag8> {
+  def : Pat<(i32 (zext (i1 (pfrag i32:$s1, i32:$sa, cc)))),
+            (rfrag $s1, $sa)>;
+  def : Pat<(i64 (zext (i1 (pfrag i64:$s1, i32:$sa, cc)))),
+            (rfrag8 $s1, $sa)>;
+  def : Pat<(i64 (zext (i1 (pfrag i32:$s1, i32:$sa, cc)))),
+            (INSERT_SUBREG (i64 (IMPLICIT_DEF)), (rfrag $s1, $sa), sub_32)>;
+  def : Pat<(i32 (zext (i1 (pfrag i64:$s1, i32:$sa, cc)))),
+            (EXTRACT_SUBREG (rfrag8 $s1, $sa), sub_32)>;
+
+  def : Pat<(i32 (anyext (i1 (pfrag i32:$s1, i32:$sa, cc)))),
+            (rfrag $s1, $sa)>;
+  def : Pat<(i64 (anyext (i1 (pfrag i64:$s1, i32:$sa, cc)))),
+            (rfrag8 $s1, $sa)>;
+  def : Pat<(i64 (anyext (i1 (pfrag i32:$s1, i32:$sa, cc)))),
+            (INSERT_SUBREG (i64 (IMPLICIT_DEF)), (rfrag $s1, $sa), sub_32)>;
+  def : Pat<(i32 (anyext (i1 (pfrag i64:$s1, i32:$sa, cc)))),
+            (EXTRACT_SUBREG (rfrag8 $s1, $sa), sub_32)>;
+}
+
+defm : ExtSetCCShiftPat<SETNE,
+                        PatFrag<(ops node:$in, node:$sa, node:$cc),
+                                (setcc (and $in, (shl 1, $sa)), 0, $cc)>,
+                        OutPatFrag<(ops node:$in, node:$sa),
+                                   (RLWNM $in, (SUBFIC $sa, 32), 31, 31)>,
+                        OutPatFrag<(ops node:$in, node:$sa),
+                                   (RLDCL $in, (SUBFIC $sa, 64), 63)> >;
+
+defm : ExtSetCCShiftPat<SETEQ,
+                        PatFrag<(ops node:$in, node:$sa, node:$cc),
+                                (setcc (and $in, (shl 1, $sa)), 0, $cc)>,
+                        OutPatFrag<(ops node:$in, node:$sa),
+                                   (RLWNM (i32not $in),
+                                          (SUBFIC $sa, 32), 31, 31)>,
+                        OutPatFrag<(ops node:$in, node:$sa),
+                                   (RLDCL (i64not $in),
+                                          (SUBFIC $sa, 64), 63)> >;
 
 // SETCC for i32.
 def : Pat<(i1 (setcc i32:$s1, immZExt16:$imm, SETULT)),
@@ -3654,6 +3731,9 @@ def SLBMTE : XForm_26<31, 402, (outs), (ins gprc:$RS, gprc:$RB),
 def SLBMFEE : XForm_26<31, 915, (outs gprc:$RT), (ins gprc:$RB),
                        "slbmfee $RT, $RB", IIC_SprSLBMFEE, []>;
 
+def SLBMFEV : XLForm_1_gen<31, 851, (outs gprc:$RT), (ins gprc:$RB),
+                       "slbmfev $RT, $RB", IIC_SprSLBMFEV, []>;
+
 def SLBIA : XForm_0<31, 498, (outs), (ins), "slbia", IIC_SprSLBIA, []>;
 
 def TLBIA : XForm_0<31, 370, (outs), (ins),
@@ -3715,6 +3795,9 @@ def MFDCR : XFXForm_1<31, 323, (outs gprc:$RT), (ins i32imm:$SPR),
                       "mfdcr $RT, $SPR", IIC_SprMFSPR>, Requires<[IsPPC4xx]>;
 def MTDCR : XFXForm_1<31, 451, (outs), (ins gprc:$RT, i32imm:$SPR),
                       "mtdcr $SPR, $RT", IIC_SprMTSPR>, Requires<[IsPPC4xx]>;
+
+def HRFID : XLForm_1_np<19, 274, (outs), (ins), "hrfid", IIC_BrB, []>;
+def NAP   : XLForm_1_np<19, 434, (outs), (ins), "nap", IIC_BrB, []>;
 
 def ATTN : XForm_attn<0, 256, (outs), (ins), "attn", IIC_BrB>;
 
@@ -3779,6 +3862,10 @@ def DCBTT  : PPCAsmPseudo<"dcbtt $dst", (ins memrr:$dst)>;
 def DCBTSTCT : PPCAsmPseudo<"dcbtstct $dst, $TH", (ins memrr:$dst, u5imm:$TH)>;
 def DCBTSTDS : PPCAsmPseudo<"dcbtstds $dst, $TH", (ins memrr:$dst, u5imm:$TH)>;
 def DCBTSTT  : PPCAsmPseudo<"dcbtstt $dst", (ins memrr:$dst)>;
+
+def DCBFx  : PPCAsmPseudo<"dcbf $dst", (ins memrr:$dst)>;
+def DCBFL  : PPCAsmPseudo<"dcbfl $dst", (ins memrr:$dst)>;
+def DCBFLP : PPCAsmPseudo<"dcbflp $dst", (ins memrr:$dst)>;
 
 def : InstAlias<"crset $bx", (CREQV crbitrc:$bx, crbitrc:$bx, crbitrc:$bx)>;
 def : InstAlias<"crclr $bx", (CRXOR crbitrc:$bx, crbitrc:$bx, crbitrc:$bx)>;
@@ -4081,6 +4168,16 @@ let PPC970_Unit = 7 in {
     def gBCA : BForm_3<16, 1, 0, (outs),
                        (ins u5imm:$bo, crbitrc:$bi, abscondbrtarget:$dst),
                        "bca $bo, $bi, $dst">;
+    let isAsmParserOnly = 1 in {
+      def gBCat : BForm_3_at<16, 0, 0, (outs),
+                             (ins u5imm:$bo, atimm:$at, crbitrc:$bi,
+                                  condbrtarget:$dst),
+                                  "bc$at $bo, $bi, $dst">;
+      def gBCAat : BForm_3_at<16, 1, 0, (outs),
+                              (ins u5imm:$bo, atimm:$at, crbitrc:$bi,
+                                   abscondbrtarget:$dst),
+                                   "bca$at $bo, $bi, $dst">;
+    } // isAsmParserOnly = 1
   }
   let Defs = [LR, CTR], Uses = [CTR, RM] in {
     def gBCL : BForm_3<16, 0, 1, (outs),
@@ -4089,6 +4186,16 @@ let PPC970_Unit = 7 in {
     def gBCLA : BForm_3<16, 1, 1, (outs),
                         (ins u5imm:$bo, crbitrc:$bi, abscondbrtarget:$dst),
                         "bcla $bo, $bi, $dst">;
+    let isAsmParserOnly = 1 in {
+      def gBCLat : BForm_3_at<16, 0, 1, (outs),
+                         (ins u5imm:$bo, atimm:$at, crbitrc:$bi,
+                              condbrtarget:$dst),
+                              "bcl$at $bo, $bi, $dst">;
+      def gBCLAat : BForm_3_at<16, 1, 1, (outs),
+                          (ins u5imm:$bo, atimm:$at, crbitrc:$bi,
+                               abscondbrtarget:$dst),
+                               "bcla$at $bo, $bi, $dst">;
+    } // // isAsmParserOnly = 1
   }
   let Defs = [CTR], Uses = [CTR, LR, RM] in
     def gBCLR : XLForm_2<19, 16, 0, (outs),
@@ -4107,6 +4214,20 @@ let PPC970_Unit = 7 in {
                            (ins u5imm:$bo, crbitrc:$bi, i32imm:$bh),
                            "bcctrl $bo, $bi, $bh", IIC_BrB, []>;
 }
+
+multiclass BranchSimpleMnemonicAT<string pm, int at> {
+  def : InstAlias<"bc"#pm#" $bo, $bi, $dst", (gBCat u5imm:$bo, at, crbitrc:$bi,
+                                                    condbrtarget:$dst)>;
+  def : InstAlias<"bca"#pm#" $bo, $bi, $dst", (gBCAat u5imm:$bo, at, crbitrc:$bi,
+                                                      condbrtarget:$dst)>;
+  def : InstAlias<"bcl"#pm#" $bo, $bi, $dst", (gBCLat u5imm:$bo, at, crbitrc:$bi,
+                                                      condbrtarget:$dst)>;
+  def : InstAlias<"bcla"#pm#" $bo, $bi, $dst", (gBCLAat u5imm:$bo, at, crbitrc:$bi,
+                                                        condbrtarget:$dst)>;
+}
+defm : BranchSimpleMnemonicAT<"+", 3>;
+defm : BranchSimpleMnemonicAT<"-", 2>;
+
 def : InstAlias<"bclr $bo, $bi", (gBCLR u5imm:$bo, crbitrc:$bi, 0)>;
 def : InstAlias<"bclrl $bo, $bi", (gBCLRL u5imm:$bo, crbitrc:$bi, 0)>;
 def : InstAlias<"bcctr $bo, $bi", (gBCCTR u5imm:$bo, crbitrc:$bi, 0)>;

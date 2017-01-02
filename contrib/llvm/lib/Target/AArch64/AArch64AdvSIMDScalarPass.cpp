@@ -61,10 +61,6 @@ STATISTIC(NumScalarInsnsUsed, "Number of scalar instructions used");
 STATISTIC(NumCopiesDeleted, "Number of cross-class copies deleted");
 STATISTIC(NumCopiesInserted, "Number of cross-class copies inserted");
 
-namespace llvm {
-void initializeAArch64AdvSIMDScalarPass(PassRegistry &);
-}
-
 #define AARCH64_ADVSIMD_NAME "AdvSIMD Scalar Operation Optimization"
 
 namespace {
@@ -94,9 +90,7 @@ public:
 
   bool runOnMachineFunction(MachineFunction &F) override;
 
-  const char *getPassName() const override {
-    return AARCH64_ADVSIMD_NAME;
-  }
+  StringRef getPassName() const override { return AARCH64_ADVSIMD_NAME; }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.setPreservesCFG();

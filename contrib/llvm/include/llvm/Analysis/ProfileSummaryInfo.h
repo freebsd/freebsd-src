@@ -27,6 +27,8 @@
 #include <memory>
 
 namespace llvm {
+class BasicBlock;
+class BlockFrequencyInfo;
 class ProfileSummary;
 /// \brief Analysis providing profile information.
 ///
@@ -51,14 +53,16 @@ public:
   ProfileSummaryInfo(Module &M) : M(M) {}
   ProfileSummaryInfo(ProfileSummaryInfo &&Arg)
       : M(Arg.M), Summary(std::move(Arg.Summary)) {}
+  /// \brief Returns true if \p F has hot function entry.
+  bool isFunctionEntryHot(const Function *F);
+  /// \brief Returns true if \p F has cold function entry.
+  bool isFunctionEntryCold(const Function *F);
   /// \brief Returns true if \p F is a hot function.
-  bool isHotFunction(const Function *F);
-  /// \brief Returns true if \p F is a cold function.
-  bool isColdFunction(const Function *F);
-  /// \brief Returns true if count \p C is considered hot.
   bool isHotCount(uint64_t C);
   /// \brief Returns true if count \p C is considered cold.
   bool isColdCount(uint64_t C);
+  /// \brief Returns true if BasicBlock \p B is considered hot.
+  bool isHotBB(const BasicBlock *B, BlockFrequencyInfo *BFI);
 };
 
 /// An analysis pass based on legacy pass manager to deliver ProfileSummaryInfo.
@@ -69,7 +73,12 @@ public:
   static char ID;
   ProfileSummaryInfoWrapperPass();
 
-  ProfileSummaryInfo *getPSI(Module &M);
+  ProfileSummaryInfo *getPSI() {
+    return &*PSI;
+  }
+
+  bool doInitialization(Module &M) override;
+  bool doFinalization(Module &M) override;
   void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.setPreservesAll();
   }
@@ -81,21 +90,11 @@ class ProfileSummaryAnalysis
 public:
   typedef ProfileSummaryInfo Result;
 
-  ProfileSummaryAnalysis() {}
-  ProfileSummaryAnalysis(const ProfileSummaryAnalysis &Arg) {}
-  ProfileSummaryAnalysis(ProfileSummaryAnalysis &&Arg) {}
-  ProfileSummaryAnalysis &operator=(const ProfileSummaryAnalysis &RHS) {
-    return *this;
-  }
-  ProfileSummaryAnalysis &operator=(ProfileSummaryAnalysis &&RHS) {
-    return *this;
-  }
-
   Result run(Module &M, ModuleAnalysisManager &);
 
 private:
   friend AnalysisInfoMixin<ProfileSummaryAnalysis>;
-  static char PassID;
+  static AnalysisKey Key;
 };
 
 /// \brief Printer pass that uses \c ProfileSummaryAnalysis.
@@ -105,7 +104,7 @@ class ProfileSummaryPrinterPass
 
 public:
   explicit ProfileSummaryPrinterPass(raw_ostream &OS) : OS(OS) {}
-  PreservedAnalyses run(Module &M, AnalysisManager<Module> &AM);
+  PreservedAnalyses run(Module &M, ModuleAnalysisManager &AM);
 };
 
 } // end namespace llvm

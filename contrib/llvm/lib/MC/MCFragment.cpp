@@ -10,6 +10,7 @@
 #include "llvm/MC/MCFragment.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/Twine.h"
+#include "llvm/MC/MCAssembler.h"
 #include "llvm/MC/MCAsmBackend.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCAsmLayout.h"
@@ -231,13 +232,7 @@ uint64_t llvm::computeBundlePadding(const MCAssembler &Assembler,
 
 /* *** */
 
-void ilist_node_traits<MCFragment>::deleteNode(MCFragment *V) {
-  V->destroy();
-}
-
-MCFragment::MCFragment() : Kind(FragmentType(~0)), HasInstructions(false),
-                           AlignToBundleEnd(false), BundlePadding(0) {
-}
+void ilist_alloc_traits<MCFragment>::deleteNode(MCFragment *V) { V->destroy(); }
 
 MCFragment::~MCFragment() { }
 
@@ -315,7 +310,6 @@ raw_ostream &operator<<(raw_ostream &OS, const MCFixup &AF) {
 
 }
 
-#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
 LLVM_DUMP_METHOD void MCFragment::dump() {
   raw_ostream &OS = llvm::errs();
 
@@ -475,4 +469,3 @@ LLVM_DUMP_METHOD void MCAssembler::dump() {
   }
   OS << "]>\n";
 }
-#endif

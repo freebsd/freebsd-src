@@ -118,6 +118,22 @@ static cl::opt<bool> DiscardValueNames(
     cl::desc("Discard names from Value (other than GlobalValue)."),
     cl::init(false), cl::Hidden);
 
+static cl::opt<std::string> StopBefore("stop-before",
+    cl::desc("Stop compilation before a specific pass"),
+    cl::value_desc("pass-name"), cl::init(""));
+
+static cl::opt<std::string> StopAfter("stop-after",
+    cl::desc("Stop compilation after a specific pass"),
+    cl::value_desc("pass-name"), cl::init(""));
+
+static cl::opt<std::string> StartBefore("start-before",
+    cl::desc("Resume compilation before a specific pass"),
+    cl::value_desc("pass-name"), cl::init(""));
+
+static cl::opt<std::string> StartAfter("start-after",
+    cl::desc("Resume compilation after a specific pass"),
+    cl::value_desc("pass-name"), cl::init(""));
+
 namespace {
 static ManagedStatic<std::vector<std::string>> RunPassNames;
 
@@ -246,7 +262,9 @@ int main(int argc, char **argv) {
   initializeCodeGen(*Registry);
   initializeLoopStrengthReducePass(*Registry);
   initializeLowerIntrinsicsPass(*Registry);
+  initializeCountingFunctionInserterPass(*Registry);
   initializeUnreachableBlockElimLegacyPassPass(*Registry);
+  initializeConstantHoistingLegacyPassPass(*Registry);
 
   // Register the target printer for --version.
   cl::AddExtraVersionPrinter(TargetRegistry::printRegisteredTargetsForVersion);
@@ -293,6 +311,20 @@ static bool addPass(PassManagerBase &PM, const char *argv0,
   TPC.printAndVerify(Banner);
 
   return false;
+}
+
+static AnalysisID getPassID(const char *argv0, const char *OptionName,
+                            StringRef PassName) {
+  if (PassName.empty())
+    return nullptr;
+
+  const PassRegistry &PR = *PassRegistry::getPassRegistry();
+  const PassInfo *PI = PR.getPassInfo(PassName);
+  if (!PI) {
+    errs() << argv0 << ": " << OptionName << " pass is not registered.\n";
+    exit(1);
+  }
+  return PI->getTypeInfo();
 }
 
 static int compileModule(char **argv, LLVMContext &Context) {
@@ -425,12 +457,9 @@ static int compileModule(char **argv, LLVMContext &Context) {
       OS = BOS.get();
     }
 
-    AnalysisID StartBeforeID = nullptr;
-    AnalysisID StartAfterID = nullptr;
-    AnalysisID StopAfterID = nullptr;
-    const PassRegistry *PR = PassRegistry::getPassRegistry();
     if (!RunPassNames->empty()) {
-      if (!StartAfter.empty() || !StopAfter.empty()) {
+      if (!StartAfter.empty() || !StopAfter.empty() || !StartBefore.empty() ||
+          !StopBefore.empty()) {
         errs() << argv[0] << ": start-after and/or stop-after passes are "
                              "redundant when run-pass is specified.\n";
         return 1;
@@ -442,8 +471,9 @@ static int compileModule(char **argv, LLVMContext &Context) {
       LLVMTargetMachine &LLVMTM = static_cast<LLVMTargetMachine&>(*Target);
       TargetPassConfig &TPC = *LLVMTM.createPassConfig(PM);
       PM.add(&TPC);
-      LLVMTM.addMachineModuleInfo(PM);
-      LLVMTM.addMachineFunctionAnalysis(PM, MIR.get());
+      MachineModuleInfo *MMI = new MachineModuleInfo(&LLVMTM);
+      MMI->setMachineFunctionInitializer(MIR.get());
+      PM.add(MMI);
       TPC.printAndVerify("");
 
       for (const std::string &RunPassName : *RunPassNames) {
@@ -452,27 +482,25 @@ static int compileModule(char **argv, LLVMContext &Context) {
       }
       PM.add(createPrintMIRPass(*OS));
     } else {
-      if (!StartAfter.empty()) {
-        const PassInfo *PI = PR->getPassInfo(StartAfter);
-        if (!PI) {
-          errs() << argv[0] << ": start-after pass is not registered.\n";
-          return 1;
-        }
-        StartAfterID = PI->getTypeInfo();
+      const char *argv0 = argv[0];
+      AnalysisID StartBeforeID = getPassID(argv0, "start-before", StartBefore);
+      AnalysisID StartAfterID = getPassID(argv0, "start-after", StartAfter);
+      AnalysisID StopAfterID = getPassID(argv0, "stop-after", StopAfter);
+      AnalysisID StopBeforeID = getPassID(argv0, "stop-before", StopBefore);
+
+      if (StartBeforeID && StartAfterID) {
+        errs() << argv[0] << ": -start-before and -start-after specified!\n";
+        return 1;
       }
-      if (!StopAfter.empty()) {
-        const PassInfo *PI = PR->getPassInfo(StopAfter);
-        if (!PI) {
-          errs() << argv[0] << ": stop-after pass is not registered.\n";
-          return 1;
-        }
-        StopAfterID = PI->getTypeInfo();
+      if (StopBeforeID && StopAfterID) {
+        errs() << argv[0] << ": -stop-before and -stop-after specified!\n";
+        return 1;
       }
 
       // Ask the target to add backend passes as necessary.
       if (Target->addPassesToEmitFile(PM, *OS, FileType, NoVerify,
-                                      StartBeforeID, StartAfterID, StopAfterID,
-                                      MIR.get())) {
+                                      StartBeforeID, StartAfterID, StopBeforeID,
+                                      StopAfterID, MIR.get())) {
         errs() << argv[0] << ": target does not support generation of this"
                << " file type!\n";
         return 1;

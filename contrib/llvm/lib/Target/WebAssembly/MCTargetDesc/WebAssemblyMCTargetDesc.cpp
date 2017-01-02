@@ -77,7 +77,8 @@ static MCCodeEmitter *createCodeEmitter(const MCInstrInfo &MCII,
 
 static MCAsmBackend *createAsmBackend(const Target & /*T*/,
                                       const MCRegisterInfo & /*MRI*/,
-                                      const Triple &TT, StringRef /*CPU*/) {
+                                      const Triple &TT, StringRef /*CPU*/,
+                                      const MCTargetOptions & /*Options*/) {
   return createWebAssemblyAsmBackend(TT);
 }
 
@@ -100,7 +101,8 @@ static MCTargetStreamer *createAsmTargetStreamer(MCStreamer &S,
 
 // Force static initialization.
 extern "C" void LLVMInitializeWebAssemblyTargetMC() {
-  for (Target *T : {&TheWebAssemblyTarget32, &TheWebAssemblyTarget64}) {
+  for (Target *T :
+       {&getTheWebAssemblyTarget32(), &getTheWebAssemblyTarget64()}) {
     // Register the MC asm info.
     RegisterMCAsmInfoFn X(*T, createMCAsmInfo);
 
@@ -130,5 +132,15 @@ extern "C" void LLVMInitializeWebAssemblyTargetMC() {
                                                  createObjectTargetStreamer);
     // Register the asm target streamer.
     TargetRegistry::RegisterAsmTargetStreamer(*T, createAsmTargetStreamer);
+  }
+}
+
+WebAssembly::ValType WebAssembly::toValType(const MVT &Ty) {
+  switch (Ty.SimpleTy) {
+  case MVT::i32: return WebAssembly::ValType::I32;
+  case MVT::i64: return WebAssembly::ValType::I64;
+  case MVT::f32: return WebAssembly::ValType::F32;
+  case MVT::f64: return WebAssembly::ValType::F64;
+  default: llvm_unreachable("unexpected type");
   }
 }

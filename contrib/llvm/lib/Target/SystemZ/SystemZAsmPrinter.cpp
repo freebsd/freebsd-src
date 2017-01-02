@@ -418,10 +418,10 @@ void SystemZAsmPrinter::EmitInstruction(const MachineInstr *MI) {
 
   case SystemZ::Serialize:
     if (MF->getSubtarget<SystemZSubtarget>().hasFastSerialization())
-      LoweredMI = MCInstBuilder(SystemZ::AsmBCR)
+      LoweredMI = MCInstBuilder(SystemZ::BCRAsm)
         .addImm(14).addReg(SystemZ::R0D);
     else
-      LoweredMI = MCInstBuilder(SystemZ::AsmBCR)
+      LoweredMI = MCInstBuilder(SystemZ::BCRAsm)
         .addImm(15).addReg(SystemZ::R0D);
     break;
 
@@ -523,5 +523,5 @@ bool SystemZAsmPrinter::PrintAsmMemoryOperand(const MachineInstr *MI,
 
 // Force static initialization.
 extern "C" void LLVMInitializeSystemZAsmPrinter() {
-  RegisterAsmPrinter<SystemZAsmPrinter> X(TheSystemZTarget);
+  RegisterAsmPrinter<SystemZAsmPrinter> X(getTheSystemZTarget());
 }

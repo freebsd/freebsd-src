@@ -29,10 +29,28 @@ using namespace llvm;
 
 #define DEBUG_TYPE "wasm"
 
+// Emscripten's asm.js-style exception handling
+static cl::opt<bool> EnableEmException(
+    "enable-emscripten-cxx-exceptions",
+    cl::desc("WebAssembly Emscripten-style exception handling"),
+    cl::init(false));
+
+// Emscripten's asm.js-style setjmp/longjmp handling
+static cl::opt<bool> EnableEmSjLj(
+    "enable-emscripten-sjlj",
+    cl::desc("WebAssembly Emscripten-style setjmp/longjmp handling"),
+    cl::init(false));
+
 extern "C" void LLVMInitializeWebAssemblyTarget() {
   // Register the target.
-  RegisterTargetMachine<WebAssemblyTargetMachine> X(TheWebAssemblyTarget32);
-  RegisterTargetMachine<WebAssemblyTargetMachine> Y(TheWebAssemblyTarget64);
+  RegisterTargetMachine<WebAssemblyTargetMachine> X(
+      getTheWebAssemblyTarget32());
+  RegisterTargetMachine<WebAssemblyTargetMachine> Y(
+      getTheWebAssemblyTarget64());
+
+  // Register exception handling pass to opt
+  initializeWebAssemblyLowerEmscriptenEHSjLjPass(
+      *PassRegistry::getPassRegistry());
 }
 
 //===----------------------------------------------------------------------===//
@@ -57,10 +75,10 @@ WebAssemblyTargetMachine::WebAssemblyTargetMachine(
                         TT, CPU, FS, Options, getEffectiveRelocModel(RM),
                         CM, OL),
       TLOF(make_unique<WebAssemblyTargetObjectFile>()) {
-  // WebAssembly type-checks expressions, but a noreturn function with a return
+  // WebAssembly type-checks instructions, but a noreturn function with a return
   // type that doesn't match the context will cause a check failure. So we lower
   // LLVM 'unreachable' to ISD::TRAP and then lower that to WebAssembly's
-  // 'unreachable' expression which is meant for that case.
+  // 'unreachable' instructions which is meant for that case.
   this->Options.TrapUnreachable = true;
 
   initAsmInfo();
@@ -149,6 +167,23 @@ void WebAssemblyPassConfig::addIRPasses() {
   if (getOptLevel() != CodeGenOpt::None)
     addPass(createWebAssemblyOptimizeReturned());
 
+  // If exception handling is not enabled and setjmp/longjmp handling is
+  // enabled, we lower invokes into calls and delete unreachable landingpad
+  // blocks. Lowering invokes when there is no EH support is done in
+  // TargetPassConfig::addPassesToHandleExceptions, but this runs after this
+  // function and SjLj handling expects all invokes to be lowered before.
+  if (!EnableEmException) {
+    addPass(createLowerInvokePass());
+    // The lower invoke pass may create unreachable code. Remove it in order not
+    // to process dead blocks in setjmp/longjmp handling.
+    addPass(createUnreachableBlockEliminationPass());
+  }
+
+  // Handle exceptions and setjmp/longjmp if enabled.
+  if (EnableEmException || EnableEmSjLj)
+    addPass(createWebAssemblyLowerEmscriptenEHSjLj(EnableEmException,
+                                                   EnableEmSjLj));
+
   TargetPassConfig::addIRPasses();
 }
 
@@ -175,7 +210,7 @@ void WebAssemblyPassConfig::addPostRegAlloc() {
   // Has no asserts of its own, but was not written to handle virtual regs.
   disablePass(&ShrinkWrapID);
 
-  // These functions all require the AllVRegsAllocated property.
+  // These functions all require the NoVRegs property.
   disablePass(&MachineCopyPropagationID);
   disablePass(&PostRASchedulerID);
   disablePass(&FuncletLayoutID);
@@ -194,6 +229,11 @@ void WebAssemblyPassConfig::addPreEmitPass() {
   // colored, and numbered with the rest of the registers.
   addPass(createWebAssemblyReplacePhysRegs());
 
+  // Rewrite pseudo call_indirect instructions as real instructions.
+  // This needs to run before register stackification, because we change the
+  // order of the arguments.
+  addPass(createWebAssemblyCallIndirectFixup());
+
   if (getOptLevel() != CodeGenOpt::None) {
     // LiveIntervals isn't commonly run this late. Re-establish preconditions.
     addPass(createWebAssemblyPrepareForLiveIntervals());
@@ -204,7 +244,7 @@ void WebAssemblyPassConfig::addPreEmitPass() {
     // Prepare store instructions for register stackifying.
     addPass(createWebAssemblyStoreResults());
 
-    // Mark registers as representing wasm's expression stack. This is a key
+    // Mark registers as representing wasm's value stack. This is a key
     // code-compression technique in WebAssembly. We run this pass (and
     // StoreResults above) very late, so that it sees as much code as possible,
     // including code emitted by PEI and expanded by late tail duplication.
@@ -215,6 +255,9 @@ void WebAssemblyPassConfig::addPreEmitPass() {
     // that become stackified.
     addPass(createWebAssemblyRegColoring());
   }
+
+  // Insert explicit get_local and set_local operators.
+  addPass(createWebAssemblyExplicitLocals());
 
   // Eliminate multiple-entry loops.
   addPass(createWebAssemblyFixIrreducibleControlFlow());

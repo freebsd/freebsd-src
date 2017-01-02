@@ -33,11 +33,11 @@ class SITargetLowering final : public AMDGPUTargetLowering {
   SDValue LowerINTRINSIC_WO_CHAIN(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerINTRINSIC_W_CHAIN(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerINTRINSIC_VOID(SDValue Op, SelectionDAG &DAG) const;
-  SDValue LowerFrameIndex(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerLOAD(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerSELECT(SDValue Op, SelectionDAG &DAG) const;
   SDValue lowerFastUnsafeFDIV(SDValue Op, SelectionDAG &DAG) const;
   SDValue lowerFDIV_FAST(SDValue Op, SelectionDAG &DAG) const;
+  SDValue LowerFDIV16(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerFDIV32(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerFDIV64(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerFDIV(SDValue Op, SelectionDAG &DAG) const;
@@ -46,6 +46,16 @@ class SITargetLowering final : public AMDGPUTargetLowering {
   SDValue LowerTrig(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerATOMIC_CMP_SWAP(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerBRCOND(SDValue Op, SelectionDAG &DAG) const;
+
+  /// \brief Converts \p Op, which must be of floating point type, to the
+  /// floating point type \p VT, by either extending or truncating it.
+  SDValue getFPExtOrFPTrunc(SelectionDAG &DAG,
+                            SDValue Op,
+                            const SDLoc &DL,
+                            EVT VT) const;
+
+  /// \brief Custom lowering for ISD::FP_ROUND for MVT::f16.
+  SDValue lowerFP_ROUND(SDValue Op, SelectionDAG &DAG) const;
 
   SDValue getSegmentAperture(unsigned AS, SelectionDAG &DAG) const;
   SDValue lowerADDRSPACECAST(SDValue Op, SelectionDAG &DAG) const;
@@ -58,14 +68,27 @@ class SITargetLowering final : public AMDGPUTargetLowering {
   SDValue performSHLPtrCombine(SDNode *N,
                                unsigned AS,
                                DAGCombinerInfo &DCI) const;
+
+  SDValue performMemSDNodeCombine(MemSDNode *N, DAGCombinerInfo &DCI) const;
+
+  SDValue splitBinaryBitConstantOp(DAGCombinerInfo &DCI, const SDLoc &SL,
+                                   unsigned Opc, SDValue LHS,
+                                   const ConstantSDNode *CRHS) const;
+
   SDValue performAndCombine(SDNode *N, DAGCombinerInfo &DCI) const;
   SDValue performOrCombine(SDNode *N, DAGCombinerInfo &DCI) const;
+  SDValue performXorCombine(SDNode *N, DAGCombinerInfo &DCI) const;
   SDValue performClassCombine(SDNode *N, DAGCombinerInfo &DCI) const;
   SDValue performFCanonicalizeCombine(SDNode *N, DAGCombinerInfo &DCI) const;
 
   SDValue performMinMaxCombine(SDNode *N, DAGCombinerInfo &DCI) const;
 
+  unsigned getFusedOpcode(const SelectionDAG &DAG,
+                          const SDNode *N0, const SDNode *N1) const;
+  SDValue performFAddCombine(SDNode *N, DAGCombinerInfo &DCI) const;
+  SDValue performFSubCombine(SDNode *N, DAGCombinerInfo &DCI) const;
   SDValue performSetCCCombine(SDNode *N, DAGCombinerInfo &DCI) const;
+  SDValue performCvtF32UByteNCombine(SDNode *N, DAGCombinerInfo &DCI) const;
 
   bool isLegalFlatAddressingMode(const AddrMode &AM) const;
   bool isLegalMUBUFAddressingMode(const AddrMode &AM) const;
@@ -73,6 +96,19 @@ class SITargetLowering final : public AMDGPUTargetLowering {
   bool isCFIntrinsic(const SDNode *Intr) const;
 
   void createDebuggerPrologueStackObjects(MachineFunction &MF) const;
+
+  /// \returns True if fixup needs to be emitted for given global value \p GV,
+  /// false otherwise.
+  bool shouldEmitFixup(const GlobalValue *GV) const;
+
+  /// \returns True if GOT relocation needs to be emitted for given global value
+  /// \p GV, false otherwise.
+  bool shouldEmitGOTReloc(const GlobalValue *GV) const;
+
+  /// \returns True if PC-relative relocation needs to be emitted for given
+  /// global value \p GV, false otherwise.
+  bool shouldEmitPCReloc(const GlobalValue *GV) const;
+
 public:
   SITargetLowering(const TargetMachine &tm, const SISubtarget &STI);
 
@@ -98,7 +134,9 @@ public:
                           MachineFunction &MF) const override;
 
   bool isMemOpUniform(const SDNode *N) const;
+  bool isMemOpHasNoClobberedMemOperand(const SDNode *N) const;
   bool isNoopAddrSpaceCast(unsigned SrcAS, unsigned DestAS) const override;
+  bool isCheapAddrSpaceCast(unsigned SrcAS, unsigned DestAS) const override;
 
   TargetLoweringBase::LegalizeTypeAction
   getPreferredVectorAction(EVT VT) const override;
@@ -141,7 +179,6 @@ public:
   void AdjustInstrPostInstrSelection(MachineInstr &MI,
                                      SDNode *Node) const override;
 
-  int32_t analyzeImmediate(const SDNode *N) const;
   SDValue CreateLiveInRegister(SelectionDAG &DAG, const TargetRegisterClass *RC,
                                unsigned Reg, EVT VT) const override;
   void legalizeTargetIndependentNode(SDNode *Node, SelectionDAG &DAG) const;

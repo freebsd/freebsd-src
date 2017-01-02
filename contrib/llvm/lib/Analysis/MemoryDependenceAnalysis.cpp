@@ -15,24 +15,38 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Analysis/MemoryDependenceAnalysis.h"
+#include "llvm/ADT/SmallSet.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/AssumptionCache.h"
-#include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/Analysis/MemoryBuiltins.h"
 #include "llvm/Analysis/PHITransAddr.h"
 #include "llvm/Analysis/OrderedBasicBlock.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
+#include "llvm/IR/CallSite.h"
+#include "llvm/IR/Constants.h"
 #include "llvm/IR/DataLayout.h"
+#include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/Function.h"
+#include "llvm/IR/Instruction.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/PredIteratorCache.h"
+#include "llvm/Support/AtomicOrdering.h"
+#include "llvm/Support/Casting.h"
+#include "llvm/Support/CommandLine.h"
+#include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/MathExtras.h"
+#include <algorithm>
+#include <cassert>
+#include <iterator>
+
 using namespace llvm;
 
 #define DEBUG_TYPE "memdep"
@@ -166,7 +180,7 @@ MemDepResult MemoryDependenceResults::getCallSiteDependencyFrom(
     BasicBlock *BB) {
   unsigned Limit = BlockScanLimit;
 
-  // Walk backwards through the block, looking for dependencies
+  // Walk backwards through the block, looking for dependencies.
   while (ScanIt != BB->begin()) {
     // Limit the amount of scanning we do so we don't end up with quadratic
     // running time on extreme testcases.
@@ -218,26 +232,6 @@ MemDepResult MemoryDependenceResults::getCallSiteDependencyFrom(
   if (BB != &BB->getParent()->getEntryBlock())
     return MemDepResult::getNonLocal();
   return MemDepResult::getNonFuncLocal();
-}
-
-/// Return true if LI is a load that would fully overlap MemLoc if done as
-/// a wider legal integer load.
-///
-/// MemLocBase, MemLocOffset are lazily computed here the first time the
-/// base/offs of memloc is needed.
-static bool isLoadLoadClobberIfExtendedToFullWidth(const MemoryLocation &MemLoc,
-                                                   const Value *&MemLocBase,
-                                                   int64_t &MemLocOffs,
-                                                   const LoadInst *LI) {
-  const DataLayout &DL = LI->getModule()->getDataLayout();
-
-  // If we haven't already computed the base/offset of MemLoc, do so now.
-  if (!MemLocBase)
-    MemLocBase = GetPointerBaseWithConstantOffset(MemLoc.Ptr, MemLocOffs, DL);
-
-  unsigned Size = MemoryDependenceResults::getLoadLoadClobberFullWidthSize(
-      MemLocBase, MemLocOffs, MemLoc.Size, LI);
-  return Size != 0;
 }
 
 unsigned MemoryDependenceResults::getLoadLoadClobberFullWidthSize(
@@ -292,7 +286,7 @@ unsigned MemoryDependenceResults::getLoadLoadClobberFullWidthSize(
   unsigned NewLoadByteSize = LI->getType()->getPrimitiveSizeInBits() / 8U;
   NewLoadByteSize = NextPowerOf2(NewLoadByteSize);
 
-  while (1) {
+  while (true) {
     // If this load size is bigger than our known alignment or would not fit
     // into a native integer register, then we fail.
     if (NewLoadByteSize > LoadAlign ||
@@ -327,7 +321,7 @@ static bool isVolatile(Instruction *Inst) {
 
 MemDepResult MemoryDependenceResults::getPointerDependencyFrom(
     const MemoryLocation &MemLoc, bool isLoad, BasicBlock::iterator ScanIt,
-    BasicBlock *BB, Instruction *QueryInst) {
+    BasicBlock *BB, Instruction *QueryInst, unsigned *Limit) {
 
   if (QueryInst != nullptr) {
     if (auto *LI = dyn_cast<LoadInst>(QueryInst)) {
@@ -338,49 +332,69 @@ MemDepResult MemoryDependenceResults::getPointerDependencyFrom(
         return invariantGroupDependency;
     }
   }
-  return getSimplePointerDependencyFrom(MemLoc, isLoad, ScanIt, BB, QueryInst);
+  return getSimplePointerDependencyFrom(MemLoc, isLoad, ScanIt, BB, QueryInst,
+                                        Limit);
 }
 
 MemDepResult
 MemoryDependenceResults::getInvariantGroupPointerDependency(LoadInst *LI,
-                                                             BasicBlock *BB) {
+                                                            BasicBlock *BB) {
+
+  auto *InvariantGroupMD = LI->getMetadata(LLVMContext::MD_invariant_group);
+  if (!InvariantGroupMD)
+    return MemDepResult::getUnknown();
+
   Value *LoadOperand = LI->getPointerOperand();
   // It's is not safe to walk the use list of global value, because function
   // passes aren't allowed to look outside their functions.
   if (isa<GlobalValue>(LoadOperand))
     return MemDepResult::getUnknown();
 
-  auto *InvariantGroupMD = LI->getMetadata(LLVMContext::MD_invariant_group);
-  if (!InvariantGroupMD)
-    return MemDepResult::getUnknown();
-
-  MemDepResult Result = MemDepResult::getUnknown();
-  llvm::SmallSet<Value *, 14> Seen;
   // Queue to process all pointers that are equivalent to load operand.
-  llvm::SmallVector<Value *, 8> LoadOperandsQueue;
-  LoadOperandsQueue.push_back(LoadOperand);
+  SmallVector<const Value *, 8> LoadOperandsQueue;
+  SmallSet<const Value *, 14> SeenValues;
+  auto TryInsertToQueue = [&](Value *V) {
+    if (SeenValues.insert(V).second)
+      LoadOperandsQueue.push_back(V);
+  };
+
+  TryInsertToQueue(LoadOperand);
   while (!LoadOperandsQueue.empty()) {
-    Value *Ptr = LoadOperandsQueue.pop_back_val();
+    const Value *Ptr = LoadOperandsQueue.pop_back_val();
+    assert(Ptr);
     if (isa<GlobalValue>(Ptr))
       continue;
 
-    if (auto *BCI = dyn_cast<BitCastInst>(Ptr)) {
-      if (Seen.insert(BCI->getOperand(0)).second) {
-        LoadOperandsQueue.push_back(BCI->getOperand(0));
-      }
-    }
+    // Value comes from bitcast: Ptr = bitcast x. Insert x.
+    if (auto *BCI = dyn_cast<BitCastInst>(Ptr))
+      TryInsertToQueue(BCI->getOperand(0));
+    // Gep with zeros is equivalent to bitcast.
+    // FIXME: we are not sure if some bitcast should be canonicalized to gep 0
+    // or gep 0 to bitcast because of SROA, so there are 2 forms. When typeless
+    // pointers will be upstream then both cases will be gone (and this BFS
+    // also won't be needed).
+    if (auto *GEP = dyn_cast<GetElementPtrInst>(Ptr))
+      if (GEP->hasAllZeroIndices())
+        TryInsertToQueue(GEP->getOperand(0));
 
-    for (Use &Us : Ptr->uses()) {
+    for (const Use &Us : Ptr->uses()) {
       auto *U = dyn_cast<Instruction>(Us.getUser());
       if (!U || U == LI || !DT.dominates(U, LI))
         continue;
 
-      if (auto *BCI = dyn_cast<BitCastInst>(U)) {
-        if (Seen.insert(BCI).second) {
-          LoadOperandsQueue.push_back(BCI);
-        }
+      // Bitcast or gep with zeros are using Ptr. Add to queue to check it's
+      // users.      U = bitcast Ptr
+      if (isa<BitCastInst>(U)) {
+        TryInsertToQueue(U);
         continue;
       }
+      // U = getelementptr Ptr, 0, 0...
+      if (auto *GEP = dyn_cast<GetElementPtrInst>(U))
+        if (GEP->hasAllZeroIndices()) {
+          TryInsertToQueue(U);
+          continue;
+        }
+
       // If we hit load/store with the same invariant.group metadata (and the
       // same pointer operand) we can assume that value pointed by pointer
       // operand didn't change.
@@ -389,17 +403,19 @@ MemoryDependenceResults::getInvariantGroupPointerDependency(LoadInst *LI,
         return MemDepResult::getDef(U);
     }
   }
-  return Result;
+  return MemDepResult::getUnknown();
 }
 
 MemDepResult MemoryDependenceResults::getSimplePointerDependencyFrom(
     const MemoryLocation &MemLoc, bool isLoad, BasicBlock::iterator ScanIt,
-    BasicBlock *BB, Instruction *QueryInst) {
-
-  const Value *MemLocBase = nullptr;
-  int64_t MemLocOffset = 0;
-  unsigned Limit = BlockScanLimit;
+    BasicBlock *BB, Instruction *QueryInst, unsigned *Limit) {
   bool isInvariantLoad = false;
+
+  if (!Limit) {
+    unsigned DefaultLimit = BlockScanLimit;
+    return getSimplePointerDependencyFrom(MemLoc, isLoad, ScanIt, BB, QueryInst,
+                                          &DefaultLimit);
+  }
 
   // We must be careful with atomic accesses, as they may allow another thread
   //   to touch this location, clobbering it. We are conservative: if the
@@ -474,8 +490,8 @@ MemDepResult MemoryDependenceResults::getSimplePointerDependencyFrom(
 
     // Limit the amount of scanning we do so we don't end up with quadratic
     // running time on extreme testcases.
-    --Limit;
-    if (!Limit)
+    --*Limit;
+    if (!*Limit)
       return MemDepResult::getUnknown();
 
     if (IntrinsicInst *II = dyn_cast<IntrinsicInst>(Inst)) {
@@ -530,21 +546,8 @@ MemDepResult MemoryDependenceResults::getSimplePointerDependencyFrom(
       AliasResult R = AA.alias(LoadLoc, MemLoc);
 
       if (isLoad) {
-        if (R == NoAlias) {
-          // If this is an over-aligned integer load (for example,
-          // "load i8* %P, align 4") see if it would obviously overlap with the
-          // queried location if widened to a larger load (e.g. if the queried
-          // location is 1 byte at P+1).  If so, return it as a load/load
-          // clobber result, allowing the client to decide to widen the load if
-          // it wants to.
-          if (IntegerType *ITy = dyn_cast<IntegerType>(LI->getType())) {
-            if (LI->getAlignment() * 8 > ITy->getPrimitiveSizeInBits() &&
-                isLoadLoadClobberIfExtendedToFullWidth(MemLoc, MemLocBase,
-                                                       MemLocOffset, LI))
-              return MemDepResult::getClobber(Inst);
-          }
+        if (R == NoAlias)
           continue;
-        }
 
         // Must aliased loads are defs of each other.
         if (R == MustAlias)
@@ -697,7 +700,7 @@ MemDepResult MemoryDependenceResults::getDependency(Instruction *QueryInst) {
 
   // Do the scan.
   if (BasicBlock::iterator(QueryInst) == QueryParent->begin()) {
-    // No dependence found.  If this is the entry block of the function, it is
+    // No dependence found. If this is the entry block of the function, it is
     // unknown, otherwise it is non-local.
     if (QueryParent != &QueryParent->getParent()->getEntryBlock())
       LocalCache = MemDepResult::getNonLocal();
@@ -709,7 +712,7 @@ MemDepResult MemoryDependenceResults::getDependency(Instruction *QueryInst) {
     if (MemLoc.Ptr) {
       // If we can do a pointer scan, make it happen.
       bool isLoad = !(MR & MRI_Mod);
-      if (IntrinsicInst *II = dyn_cast<IntrinsicInst>(QueryInst))
+      if (auto *II = dyn_cast<IntrinsicInst>(QueryInst))
         isLoad |= II->getIntrinsicID() == Intrinsic::lifetime_start;
 
       LocalCache = getPointerDependencyFrom(
@@ -1010,7 +1013,7 @@ SortNonLocalDepInfoCache(MemoryDependenceResults::NonLocalDepInfo &Cache,
     MemoryDependenceResults::NonLocalDepInfo::iterator Entry =
         std::upper_bound(Cache.begin(), Cache.end() - 1, Val);
     Cache.insert(Entry, Val);
-    // FALL THROUGH.
+    LLVM_FALLTHROUGH;
   }
   case 1:
     // One new entry, Just insert the new value at the appropriate position.
@@ -1659,10 +1662,10 @@ void MemoryDependenceResults::verifyRemoved(Instruction *D) const {
 #endif
 }
 
-char MemoryDependenceAnalysis::PassID;
+AnalysisKey MemoryDependenceAnalysis::Key;
 
 MemoryDependenceResults
-MemoryDependenceAnalysis::run(Function &F, AnalysisManager<Function> &AM) {
+MemoryDependenceAnalysis::run(Function &F, FunctionAnalysisManager &AM) {
   auto &AA = AM.getResult<AAManager>(F);
   auto &AC = AM.getResult<AssumptionAnalysis>(F);
   auto &TLI = AM.getResult<TargetLibraryAnalysis>(F);
@@ -1684,6 +1687,7 @@ INITIALIZE_PASS_END(MemoryDependenceWrapperPass, "memdep",
 MemoryDependenceWrapperPass::MemoryDependenceWrapperPass() : FunctionPass(ID) {
   initializeMemoryDependenceWrapperPassPass(*PassRegistry::getPassRegistry());
 }
+
 MemoryDependenceWrapperPass::~MemoryDependenceWrapperPass() {}
 
 void MemoryDependenceWrapperPass::releaseMemory() {
@@ -1696,6 +1700,28 @@ void MemoryDependenceWrapperPass::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.addRequired<DominatorTreeWrapperPass>();
   AU.addRequiredTransitive<AAResultsWrapperPass>();
   AU.addRequiredTransitive<TargetLibraryInfoWrapperPass>();
+}
+
+bool MemoryDependenceResults::invalidate(Function &F, const PreservedAnalyses &PA,
+                               FunctionAnalysisManager::Invalidator &Inv) {
+  // Check whether our analysis is preserved.
+  auto PAC = PA.getChecker<MemoryDependenceAnalysis>();
+  if (!PAC.preserved() && !PAC.preservedSet<AllAnalysesOn<Function>>())
+    // If not, give up now.
+    return true;
+
+  // Check whether the analyses we depend on became invalid for any reason.
+  if (Inv.invalidate<AAManager>(F, PA) ||
+      Inv.invalidate<AssumptionAnalysis>(F, PA) ||
+      Inv.invalidate<DominatorTreeAnalysis>(F, PA))
+    return true;
+
+  // Otherwise this analysis result remains valid.
+  return false;
+}
+
+unsigned MemoryDependenceResults::getDefaultBlockScanLimit() const {
+  return BlockScanLimit;
 }
 
 bool MemoryDependenceWrapperPass::runOnFunction(Function &F) {

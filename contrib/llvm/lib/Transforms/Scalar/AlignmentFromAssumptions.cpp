@@ -297,6 +297,11 @@ bool AlignmentFromAssumptionsPass::processAssumption(CallInst *ACall) {
   if (!extractAlignmentInfo(ACall, AAPtr, AlignSCEV, OffSCEV))
     return false;
 
+  // Skip ConstantPointerNull and UndefValue.  Assumptions on these shouldn't
+  // affect other users.
+  if (isa<ConstantData>(AAPtr))
+    return false;
+
   const SCEV *AASCEV = SE->getSCEV(AAPtr);
 
   // Apply the assumption to all other users of the specified pointer.
@@ -434,6 +439,11 @@ AlignmentFromAssumptionsPass::run(Function &F, FunctionAnalysisManager &AM) {
   ScalarEvolution &SE = AM.getResult<ScalarEvolutionAnalysis>(F);
   DominatorTree &DT = AM.getResult<DominatorTreeAnalysis>(F);
   bool Changed = runImpl(F, AC, &SE, &DT);
+
+  // FIXME: We need to invalidate this to avoid PR28400. Is there a better
+  // solution?
+  AM.invalidate<ScalarEvolutionAnalysis>(F);
+
   if (!Changed)
     return PreservedAnalyses::all();
   PreservedAnalyses PA;

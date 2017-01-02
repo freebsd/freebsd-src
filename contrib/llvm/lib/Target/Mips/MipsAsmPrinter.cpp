@@ -60,10 +60,6 @@ MipsTargetStreamer &MipsAsmPrinter::getTargetStreamer() const {
 bool MipsAsmPrinter::runOnMachineFunction(MachineFunction &MF) {
   Subtarget = &MF.getSubtarget<MipsSubtarget>();
 
-  // Initialize TargetLoweringObjectFile.
-  const_cast<TargetLoweringObjectFile &>(getObjFileLowering())
-      .Initialize(OutContext, TM);
-
   MipsFI = MF.getInfo<MipsFunctionInfo>();
   if (Subtarget->inMips16Mode())
     for (std::map<
@@ -98,6 +94,7 @@ bool MipsAsmPrinter::lowerOperand(const MachineOperand &MO, MCOperand &MCOp) {
 void MipsAsmPrinter::emitPseudoIndirectBranch(MCStreamer &OutStreamer,
                                               const MachineInstr *MI) {
   bool HasLinkReg = false;
+  bool InMicroMipsMode = Subtarget->inMicroMipsMode();
   MCInst TmpInst0;
 
   if (Subtarget->hasMips64r6()) {
@@ -106,8 +103,12 @@ void MipsAsmPrinter::emitPseudoIndirectBranch(MCStreamer &OutStreamer,
     HasLinkReg = true;
   } else if (Subtarget->hasMips32r6()) {
     // MIPS32r6 should use (JALR ZERO, $rs)
-    TmpInst0.setOpcode(Mips::JALR);
-    HasLinkReg = true;
+    if (InMicroMipsMode)
+      TmpInst0.setOpcode(Mips::JRC16_MMR6);
+    else {
+      TmpInst0.setOpcode(Mips::JALR);
+      HasLinkReg = true;
+    }
   } else if (Subtarget->inMicroMipsMode())
     // microMIPS should use (JR_MM $rs)
     TmpInst0.setOpcode(Mips::JR_MM);
@@ -185,7 +186,9 @@ void MipsAsmPrinter::EmitInstruction(const MachineInstr *MI) {
     if (I->getOpcode() == Mips::PseudoReturn ||
         I->getOpcode() == Mips::PseudoReturn64 ||
         I->getOpcode() == Mips::PseudoIndirectBranch ||
-        I->getOpcode() == Mips::PseudoIndirectBranch64) {
+        I->getOpcode() == Mips::PseudoIndirectBranch64 ||
+        I->getOpcode() == Mips::TAILCALLREG ||
+        I->getOpcode() == Mips::TAILCALLREG64) {
       emitPseudoIndirectBranch(*OutStreamer, &*I);
       continue;
     }
@@ -250,9 +253,9 @@ void MipsAsmPrinter::printSavedRegsBitmask() {
   int CPUTopSavedRegOff, FPUTopSavedRegOff;
 
   // Set the CPU and FPU Bitmasks
-  const MachineFrameInfo *MFI = MF->getFrameInfo();
+  const MachineFrameInfo &MFI = MF->getFrameInfo();
   const TargetRegisterInfo *TRI = MF->getSubtarget().getRegisterInfo();
-  const std::vector<CalleeSavedInfo> &CSI = MFI->getCalleeSavedInfo();
+  const std::vector<CalleeSavedInfo> &CSI = MFI.getCalleeSavedInfo();
   // size of stack area to which FP callee-saved regs are saved.
   unsigned CPURegSize = Mips::GPR32RegClass.getSize();
   unsigned FGR32RegSize = Mips::FGR32RegClass.getSize();
@@ -302,7 +305,7 @@ void MipsAsmPrinter::emitFrameDirective() {
 
   unsigned stackReg  = RI.getFrameRegister(*MF);
   unsigned returnReg = RI.getRARegister();
-  unsigned stackSize = MF->getFrameInfo()->getStackSize();
+  unsigned stackSize = MF->getFrameInfo().getStackSize();
 
   getTargetStreamer().emitFrame(stackReg, stackSize, returnReg);
 }
@@ -497,7 +500,7 @@ bool MipsAsmPrinter::PrintAsmOperand(const MachineInstr *MI, unsigned OpNum,
 
       unsigned RegOp = OpNum;
       if (!Subtarget->isGP64bit()){
-        // Endianess reverses which register holds the high or low value
+        // Endianness reverses which register holds the high or low value
         // between M and L.
         switch(ExtraCode[0]) {
         case 'M':
@@ -1063,8 +1066,8 @@ bool MipsAsmPrinter::isLongBranchPseudo(int Opcode) const {
 
 // Force static initialization.
 extern "C" void LLVMInitializeMipsAsmPrinter() {
-  RegisterAsmPrinter<MipsAsmPrinter> X(TheMipsTarget);
-  RegisterAsmPrinter<MipsAsmPrinter> Y(TheMipselTarget);
-  RegisterAsmPrinter<MipsAsmPrinter> A(TheMips64Target);
-  RegisterAsmPrinter<MipsAsmPrinter> B(TheMips64elTarget);
+  RegisterAsmPrinter<MipsAsmPrinter> X(getTheMipsTarget());
+  RegisterAsmPrinter<MipsAsmPrinter> Y(getTheMipselTarget());
+  RegisterAsmPrinter<MipsAsmPrinter> A(getTheMips64Target());
+  RegisterAsmPrinter<MipsAsmPrinter> B(getTheMips64elTarget());
 }

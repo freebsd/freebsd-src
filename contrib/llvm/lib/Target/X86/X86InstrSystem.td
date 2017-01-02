@@ -23,7 +23,7 @@ let Defs = [RAX, RCX, RDX] in
 
 // CPU flow control instructions
 
-let isTerminator = 1, isBarrier = 1, hasCtrlDep = 1 in {
+let mayLoad = 1, mayStore = 0, hasSideEffects = 1 in {
   def TRAP    : I<0x0B, RawFrm, (outs), (ins), "ud2", [(trap)]>, TB;
   def UD2B    : I<0xB9, RawFrm, (outs), (ins), "ud2b", []>, TB;
 }
@@ -481,8 +481,11 @@ let Defs = [EDX, EAX], Uses = [ECX] in
   def XGETBV : I<0x01, MRM_D0, (outs), (ins), "xgetbv", []>, TB;
 
 let Uses = [EDX, EAX, ECX] in
-  def XSETBV : I<0x01, MRM_D1, (outs), (ins), "xsetbv", []>, TB;
-}
+  def XSETBV : I<0x01, MRM_D1, (outs), (ins), 
+                "xsetbv", 
+                [(int_x86_xsetbv ECX, EDX, EAX)]>, TB;
+
+} // HasXSAVE
 
 let Uses = [EDX, EAX] in {
 let Predicates = [HasXSAVE] in {

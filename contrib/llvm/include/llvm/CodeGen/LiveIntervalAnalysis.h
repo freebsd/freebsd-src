@@ -163,16 +163,24 @@ extern cl::opt<bool> UseSegmentSetForPhysRegs;
     /// LiveInterval::removeEmptySubranges() afterwards.
     void shrinkToUses(LiveInterval::SubRange &SR, unsigned Reg);
 
-    /// extendToIndices - Extend the live range of LI to reach all points in
-    /// Indices. The points in the Indices array must be jointly dominated by
-    /// existing defs in LI. PHI-defs are added as needed to maintain SSA form.
+    /// Extend the live range @p LR to reach all points in @p Indices. The
+    /// points in the @p Indices array must be jointly dominated by the union
+    /// of the existing defs in @p LR and points in @p Undefs.
     ///
-    /// If a SlotIndex in Indices is the end index of a basic block, LI will be
-    /// extended to be live out of the basic block.
+    /// PHI-defs are added as needed to maintain SSA form.
+    ///
+    /// If a SlotIndex in @p Indices is the end index of a basic block, @p LR
+    /// will be extended to be live out of the basic block.
+    /// If a SlotIndex in @p Indices is jointy dominated only by points in
+    /// @p Undefs, the live range will not be extended to that point.
     ///
     /// See also LiveRangeCalc::extend().
-    void extendToIndices(LiveRange &LR, ArrayRef<SlotIndex> Indices);
+    void extendToIndices(LiveRange &LR, ArrayRef<SlotIndex> Indices,
+                         ArrayRef<SlotIndex> Undefs);
 
+    void extendToIndices(LiveRange &LR, ArrayRef<SlotIndex> Indices) {
+      extendToIndices(LR, Indices, /*Undefs=*/{});
+    }
 
     /// If @p LR has a live value at @p Kill, prune its live range by removing
     /// any liveness reachable from Kill. Add live range end points to
@@ -253,8 +261,8 @@ extern cl::opt<bool> UseSegmentSetForPhysRegs;
       Indexes->removeMachineInstrFromMaps(MI);
     }
 
-    void ReplaceMachineInstrInMaps(MachineInstr &MI, MachineInstr &NewMI) {
-      Indexes->replaceMachineInstrInMaps(MI, NewMI);
+    SlotIndex ReplaceMachineInstrInMaps(MachineInstr &MI, MachineInstr &NewMI) {
+      return Indexes->replaceMachineInstrInMaps(MI, NewMI);
     }
 
     VNInfo::Allocator& getVNInfoAllocator() { return VNInfoAllocator; }
@@ -392,6 +400,13 @@ extern cl::opt<bool> UseSegmentSetForPhysRegs;
       return RegUnitRanges[Unit];
     }
 
+    /// removeRegUnit - Remove computed live range for Unit. Subsequent uses
+    /// should rely on on-demand recomputation.
+    void removeRegUnit(unsigned Unit) {
+      delete RegUnitRanges[Unit];
+      RegUnitRanges[Unit] = nullptr;
+    }
+
     /// Remove value numbers and related live segments starting at position
     /// @p Pos that are part of any liverange of physical register @p Reg or one
     /// of its subregisters.
@@ -444,7 +459,8 @@ extern cl::opt<bool> UseSegmentSetForPhysRegs;
     void repairOldRegInRange(MachineBasicBlock::iterator Begin,
                              MachineBasicBlock::iterator End,
                              const SlotIndex endIdx, LiveRange &LR,
-                             unsigned Reg, LaneBitmask LaneMask = ~0u);
+                             unsigned Reg,
+                             LaneBitmask LaneMask = LaneBitmask::getAll());
 
     class HMEditor;
   };

@@ -326,6 +326,10 @@ bool LoopRotate::rotateLoop(Loop *L, bool SimplifiedLatch) {
       // Otherwise, stick the new instruction into the new block!
       C->setName(Inst->getName());
       C->insertBefore(LoopEntryBranch);
+
+      if (auto *II = dyn_cast<IntrinsicInst>(C))
+        if (II->getIntrinsicID() == Intrinsic::assume)
+          AC->registerAssumption(II);
     }
   }
 
@@ -501,7 +505,8 @@ static bool shouldSpeculateInstrs(BasicBlock::iterator Begin,
       // GEPs are cheap if all indices are constant.
       if (!cast<GEPOperator>(I)->hasAllConstantIndices())
         return false;
-    // fall-thru to increment case
+      // fall-thru to increment case
+      LLVM_FALLTHROUGH;
     case Instruction::Add:
     case Instruction::Sub:
     case Instruction::And:
@@ -617,9 +622,10 @@ bool LoopRotate::processLoop(Loop *L) {
   return MadeChange;
 }
 
-LoopRotatePass::LoopRotatePass() {}
+LoopRotatePass::LoopRotatePass(bool EnableHeaderDuplication)
+    : EnableHeaderDuplication(EnableHeaderDuplication) {}
 
-PreservedAnalyses LoopRotatePass::run(Loop &L, AnalysisManager<Loop> &AM) {
+PreservedAnalyses LoopRotatePass::run(Loop &L, LoopAnalysisManager &AM) {
   auto &FAM = AM.getResult<FunctionAnalysisManagerLoopProxy>(L).getManager();
   Function *F = L.getHeader()->getParent();
 
@@ -631,7 +637,8 @@ PreservedAnalyses LoopRotatePass::run(Loop &L, AnalysisManager<Loop> &AM) {
   // Optional analyses.
   auto *DT = FAM.getCachedResult<DominatorTreeAnalysis>(*F);
   auto *SE = FAM.getCachedResult<ScalarEvolutionAnalysis>(*F);
-  LoopRotate LR(DefaultRotationThreshold, LI, TTI, AC, DT, SE);
+  int Threshold = EnableHeaderDuplication ? DefaultRotationThreshold : 0;
+  LoopRotate LR(Threshold, LI, TTI, AC, DT, SE);
 
   bool Changed = LR.processLoop(&L);
   if (!Changed)

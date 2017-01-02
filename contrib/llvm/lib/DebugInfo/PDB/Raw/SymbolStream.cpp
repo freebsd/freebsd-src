@@ -10,10 +10,9 @@
 #include "llvm/DebugInfo/PDB/Raw/SymbolStream.h"
 
 #include "llvm/DebugInfo/CodeView/CodeView.h"
-#include "llvm/DebugInfo/CodeView/StreamReader.h"
 #include "llvm/DebugInfo/CodeView/TypeRecord.h"
-#include "llvm/DebugInfo/PDB/Raw/IndexedStreamData.h"
-#include "llvm/DebugInfo/PDB/Raw/MappedBlockStream.h"
+#include "llvm/DebugInfo/MSF/MappedBlockStream.h"
+#include "llvm/DebugInfo/MSF/StreamReader.h"
 #include "llvm/DebugInfo/PDB/Raw/PDBFile.h"
 #include "llvm/DebugInfo/PDB/Raw/RawConstants.h"
 #include "llvm/DebugInfo/PDB/Raw/RawError.h"
@@ -21,6 +20,7 @@
 #include "llvm/Support/Endian.h"
 
 using namespace llvm;
+using namespace llvm::msf;
 using namespace llvm::support;
 using namespace llvm::pdb;
 
@@ -30,7 +30,7 @@ SymbolStream::SymbolStream(std::unique_ptr<MappedBlockStream> Stream)
 SymbolStream::~SymbolStream() {}
 
 Error SymbolStream::reload() {
-  codeview::StreamReader Reader(*Stream);
+  StreamReader Reader(*Stream);
 
   if (auto EC = Reader.readArray(SymbolRecords, Stream->getLength()))
     return EC;

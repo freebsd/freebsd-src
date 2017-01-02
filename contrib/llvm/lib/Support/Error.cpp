@@ -11,6 +11,7 @@
 #include "llvm/ADT/Twine.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/ManagedStatic.h"
+#include <system_error>
 
 
 using namespace llvm;
@@ -27,7 +28,7 @@ namespace {
   // deal with the Error value directly, rather than converting to error_code.
   class ErrorErrorCategory : public std::error_category {
   public:
-    const char *name() const LLVM_NOEXCEPT override { return "Error"; }
+    const char *name() const noexcept override { return "Error"; }
 
     std::string message(int condition) const override {
       switch (static_cast<ErrorErrorCode>(condition)) {
@@ -111,3 +112,18 @@ void report_fatal_error(Error Err, bool GenCrashDiag) {
 }
 
 }
+
+#ifndef _MSC_VER
+namespace llvm {
+
+// One of these two variables will be referenced by a symbol defined in
+// llvm-config.h. We provide a link-time (or load time for DSO) failure when
+// there is a mismatch in the build configuration of the API client and LLVM.
+#if LLVM_ENABLE_ABI_BREAKING_CHECKS
+int EnableABIBreakingChecks;
+#else
+int DisableABIBreakingChecks;
+#endif
+
+} // end namespace llvm
+#endif
