@@ -123,15 +123,10 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 	 */
 	sx_slock(&allproc_lock);
 	FOREACH_PROC_IN_SYSTEM(p) {
-		if (p->p_flag & P_SYSTEM)
+		if ((p->p_flag & P_SYSTEM) != 0)
 			continue;
 		PROC_LOCK(p);
-		switch (p->p_state) {
-		case PRS_NEW:
-			PROC_UNLOCK(p);
-			continue;
-			break;
-		default:
+		if (p->p_state != PRS_NEW) {
 			FOREACH_THREAD_IN_PROC(p, td) {
 				thread_lock(td);
 				switch (td->td_state) {
@@ -148,15 +143,13 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 							total.t_pw++;
 					}
 					break;
-
 				case TDS_CAN_RUN:
 					total.t_sw++;
 					break;
 				case TDS_RUNQ:
 				case TDS_RUNNING:
 					total.t_rq++;
-					thread_unlock(td);
-					continue;
+					break;
 				default:
 					break;
 				}
