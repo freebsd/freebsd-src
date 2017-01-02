@@ -698,7 +698,8 @@ sfxge_ev_qstart(struct sfxge_softc *sc, unsigned int index)
 
 	/* Create the common code event queue. */
 	if ((rc = efx_ev_qcreate(sc->enp, index, esmp, evq->entries,
-	    evq->buf_base_id, sc->ev_moderation, &evq->common)) != 0)
+	    evq->buf_base_id, sc->ev_moderation, EFX_EVQ_FLAGS_TYPE_AUTO,
+	    &evq->common)) != 0)
 		goto fail;
 
 	SFXGE_EVQ_LOCK(evq);
