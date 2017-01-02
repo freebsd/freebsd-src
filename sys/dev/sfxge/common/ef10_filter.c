@@ -484,7 +484,7 @@ ef10_filter_restore(
 	efx_filter_spec_t *spec;
 	ef10_filter_table_t *eftp = enp->en_filter.ef_ef10_filter_table;
 	boolean_t restoring;
-	int state;
+	efsys_lock_state_t state;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
@@ -559,7 +559,7 @@ ef10_filter_add_internal(
 	int ins_index;
 	boolean_t replacing = B_FALSE;
 	unsigned int i;
-	int state;
+	efsys_lock_state_t state;
 	boolean_t locked = B_FALSE;
 
 	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
@@ -761,7 +761,7 @@ ef10_filter_delete_internal(
 	efx_rc_t rc;
 	ef10_filter_table_t *table = enp->en_filter.ef_ef10_filter_table;
 	efx_filter_spec_t *spec;
-	int state;
+	efsys_lock_state_t state;
 	uint32_t filter_idx = filter_id % EFX_EF10_FILTER_TBL_ROWS;
 
 	/*
@@ -835,7 +835,7 @@ ef10_filter_delete(
 	unsigned int hash;
 	unsigned int depth;
 	unsigned int i;
-	int state;
+	efsys_lock_state_t state;
 	boolean_t locked = B_FALSE;
 
 	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
