@@ -23,6 +23,7 @@ namespace ast_type_traits {
 const ASTNodeKind::KindInfo ASTNodeKind::AllKindInfo[] = {
   { NKI_None, "<None>" },
   { NKI_None, "TemplateArgument" },
+  { NKI_None, "TemplateName" },
   { NKI_None, "NestedNameSpecifierLoc" },
   { NKI_None, "QualType" },
   { NKI_None, "TypeLoc" },
@@ -109,6 +110,8 @@ void DynTypedNode::print(llvm::raw_ostream &OS,
                          const PrintingPolicy &PP) const {
   if (const TemplateArgument *TA = get<TemplateArgument>())
     TA->print(PP, OS);
+  else if (const TemplateName *TN = get<TemplateName>())
+    TN->print(OS, PP);
   else if (const NestedNameSpecifier *NNS = get<NestedNameSpecifier>())
     NNS->print(OS, PP);
   else if (const NestedNameSpecifierLoc *NNSL = get<NestedNameSpecifierLoc>())
@@ -132,6 +135,8 @@ void DynTypedNode::dump(llvm::raw_ostream &OS, SourceManager &SM) const {
     D->dump(OS);
   else if (const Stmt *S = get<Stmt>())
     S->dump(OS, SM);
+  else if (const Type *T = get<Type>())
+    T->dump(OS);
   else
     OS << "Unable to dump values of type " << NodeKind.asStringRef() << "\n";
 }

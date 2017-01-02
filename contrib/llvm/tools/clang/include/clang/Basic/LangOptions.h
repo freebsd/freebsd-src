@@ -58,6 +58,12 @@ public:
     SOB_Trapping    // -ftrapv
   };
 
+  enum CompilingModuleKind {
+    CMK_None,           ///< Not compiling a module interface at all.
+    CMK_ModuleMap,      ///< Compiling a module from a module map.
+    CMK_ModuleInterface ///< Compiling a C++ modules TS module interface unit.
+  };
+
   enum PragmaMSPointersToMembersKind {
     PPTMK_BestCase,
     PPTMK_FullGeneralitySingleInheritance,
@@ -126,6 +132,10 @@ public:
   /// host code generation.
   std::string OMPHostIRFile;
 
+  /// \brief Indicates whether the front-end is explicitly told that the
+  /// input is a header file (i.e. -x c-header).
+  bool IsHeaderFile;
+
   LangOptions();
 
   // Define accessors/mutators for language options of enumeration type.
@@ -134,7 +144,12 @@ public:
   Type get##Name() const { return static_cast<Type>(Name); } \
   void set##Name(Type Value) { Name = static_cast<unsigned>(Value); }  
 #include "clang/Basic/LangOptions.def"
-  
+
+  /// Are we compiling a module interface (.cppm or module map)?
+  bool isCompilingModule() const {
+    return getCompilingModule() != CMK_None;
+  }
+
   bool isSignedOverflowDefined() const {
     return getSignedOverflowBehavior() == SOB_Defined;
   }
@@ -154,7 +169,7 @@ public:
 
   /// \brief Is this a libc/libm function that is no longer recognized as a
   /// builtin because a -fno-builtin-* option has been specified?
-  bool isNoBuiltinFunc(const char *Name) const;
+  bool isNoBuiltinFunc(StringRef Name) const;
 };
 
 /// \brief Floating point control options

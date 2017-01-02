@@ -11,7 +11,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "clang/Sema/SemaInternal.h"
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/RecordLayout.h"
 #include "clang/AST/TypeLoc.h"
@@ -21,8 +20,9 @@
 #include "clang/Sema/Lookup.h"
 #include "clang/Sema/Scope.h"
 #include "clang/Sema/ScopeInfo.h"
+#include "clang/Sema/SemaInternal.h"
 #include "llvm/ADT/ArrayRef.h"
-#include "llvm/ADT/BitVector.h"
+#include "llvm/ADT/StringSet.h"
 #include "llvm/MC/MCParser/MCAsmParser.h"
 using namespace clang;
 using namespace sema;
@@ -136,6 +136,56 @@ static bool checkExprMemoryConstraintCompat(Sema &S, Expr *E,
   }
 
   return false;
+}
+
+// Extracting the register name from the Expression value,
+// if there is no register name to extract, returns ""
+static StringRef extractRegisterName(const Expr *Expression,
+                                     const TargetInfo &Target) {
+  Expression = Expression->IgnoreImpCasts();
+  if (const DeclRefExpr *AsmDeclRef = dyn_cast<DeclRefExpr>(Expression)) {
+    // Handle cases where the expression is a variable
+    const VarDecl *Variable = dyn_cast<VarDecl>(AsmDeclRef->getDecl());
+    if (Variable && Variable->getStorageClass() == SC_Register) {
+      if (AsmLabelAttr *Attr = Variable->getAttr<AsmLabelAttr>())
+        if (Target.isValidGCCRegisterName(Attr->getLabel()))
+          return Target.getNormalizedGCCRegisterName(Attr->getLabel(), true);
+    }
+  }
+  return "";
+}
+
+// Checks if there is a conflict between the input and output lists with the
+// clobbers list. If there's a conflict, returns the location of the
+// conflicted clobber, else returns nullptr
+static SourceLocation
+getClobberConflictLocation(MultiExprArg Exprs, StringLiteral **Constraints,
+                           StringLiteral **Clobbers, int NumClobbers,
+                           const TargetInfo &Target, ASTContext &Cont) {
+  llvm::StringSet<> InOutVars;
+  // Collect all the input and output registers from the extended asm
+  // statement in order to check for conflicts with the clobber list
+  for (unsigned int i = 0; i < Exprs.size(); ++i) {
+    StringRef Constraint = Constraints[i]->getString();
+    StringRef InOutReg = Target.getConstraintRegister(
+        Constraint, extractRegisterName(Exprs[i], Target));
+    if (InOutReg != "")
+      InOutVars.insert(InOutReg);
+  }
+  // Check for each item in the clobber list if it conflicts with the input
+  // or output
+  for (int i = 0; i < NumClobbers; ++i) {
+    StringRef Clobber = Clobbers[i]->getString();
+    // We only check registers, therefore we don't check cc and memory
+    // clobbers
+    if (Clobber == "cc" || Clobber == "memory")
+      continue;
+    Clobber = Target.getNormalizedGCCRegisterName(Clobber, true);
+    // Go over the output's registers we collected
+    if (InOutVars.count(Clobber))
+      return Clobbers[i]->getLocStart();
+  }
+  return SourceLocation();
 }
 
 StmtResult Sema::ActOnGCCAsmStmt(SourceLocation AsmLoc, bool IsSimple,
@@ -544,6 +594,13 @@ StmtResult Sema::ActOnGCCAsmStmt(SourceLocation AsmLoc, bool IsSimple,
     return StmtError();
   }
 
+  // Check for conflicts between clobber list and input or output lists
+  SourceLocation ConstraintLoc =
+      getClobberConflictLocation(Exprs, Constraints, Clobbers, NumClobbers,
+                                 Context.getTargetInfo(), Context);
+  if (ConstraintLoc.isValid())
+    return Diag(ConstraintLoc, diag::error_inoutput_conflict_with_clobber);
+  
   return NS;
 }
 
@@ -751,17 +808,17 @@ LabelDecl *Sema::GetOrCreateMSAsmLabel(StringRef ExternalLabelName,
     // Otherwise, insert it, but only resolve it if we have seen the label itself.
     std::string InternalName;
     llvm::raw_string_ostream OS(InternalName);
-    // Create an internal name for the label.  The name should not be a valid mangled
-    // name, and should be unique.  We use a dot to make the name an invalid mangled
-    // name.
-    OS << "__MSASMLABEL_." << MSAsmLabelNameCounter++ << "__";
-    for (auto it = ExternalLabelName.begin(); it != ExternalLabelName.end();
-         ++it) {
-      OS << *it;
-      if (*it == '$') {
-        // We escape '$' in asm strings by replacing it with "$$"
+    // Create an internal name for the label.  The name should not be a valid
+    // mangled name, and should be unique.  We use a dot to make the name an
+    // invalid mangled name. We use LLVM's inline asm ${:uid} escape so that a
+    // unique label is generated each time this blob is emitted, even after
+    // inlining or LTO.
+    OS << "__MSASMLABEL_.${:uid}__";
+    for (char C : ExternalLabelName) {
+      OS << C;
+      // We escape '$' in asm strings by replacing it with "$$"
+      if (C == '$')
         OS << '$';
-      }
     }
     Label->setMSAsmLabel(OS.str());
   }

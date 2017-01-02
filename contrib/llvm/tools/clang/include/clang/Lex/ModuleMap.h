@@ -12,22 +12,28 @@
 //
 //===----------------------------------------------------------------------===//
 
-
 #ifndef LLVM_CLANG_LEX_MODULEMAP_H
 #define LLVM_CLANG_LEX_MODULEMAP_H
 
 #include "clang/Basic/LangOptions.h"
 #include "clang/Basic/Module.h"
+#include "clang/Basic/SourceLocation.h"
 #include "clang/Basic/SourceManager.h"
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/IntrusiveRefCntPtr.h"
+#include "llvm/ADT/PointerIntPair.h"
+#include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/Twine.h"
+#include <algorithm>
+#include <memory>
 #include <string>
+#include <utility>
 
 namespace clang {
-  
+
 class DirectoryEntry;
 class FileEntry;
 class FileManager;
@@ -40,7 +46,7 @@ class ModuleMapParser;
 /// reads module map files.
 class ModuleMapCallbacks {
 public:
-  virtual ~ModuleMapCallbacks() {}
+  virtual ~ModuleMapCallbacks() = default;
 
   /// \brief Called when a module map file has been read.
   ///
@@ -153,7 +159,7 @@ public:
   typedef llvm::SmallPtrSet<const FileEntry *, 1> AdditionalModMapsSet;
 
 private:
-  typedef llvm::DenseMap<const FileEntry *, SmallVector<KnownHeader, 1> >
+  typedef llvm::DenseMap<const FileEntry *, SmallVector<KnownHeader, 1>>
   HeadersMap;
 
   /// \brief Mapping from each header to the module that owns the contents of
@@ -170,7 +176,8 @@ private:
 
   /// \brief The set of attributes that can be attached to a module.
   struct Attributes {
-    Attributes() : IsSystem(), IsExternC(), IsExhaustive() {}
+    Attributes()
+        : IsSystem(), IsExternC(), IsExhaustive(), NoUndeclaredIncludes() {}
 
     /// \brief Whether this is a system module.
     unsigned IsSystem : 1;
@@ -180,6 +187,10 @@ private:
 
     /// \brief Whether this is an exhaustive set of configuration macros.
     unsigned IsExhaustive : 1;
+
+    /// \brief Whether files in this module can only include non-modular headers
+    /// and headers from used modules.
+    unsigned NoUndeclaredIncludes : 1;
   };
 
   /// \brief A directory for which framework modules can be inferred.
@@ -314,10 +325,15 @@ public:
   ///
   /// \param File The header file that is likely to be included.
   ///
+  /// \param AllowTextual If \c true and \p File is a textual header, return
+  /// its owning module. Otherwise, no KnownHeader will be returned if the
+  /// file is only known as a textual header.
+  ///
   /// \returns The module KnownHeader, which provides the module that owns the
   /// given header file.  The KnownHeader is default constructed to indicate
   /// that no module owns this header file.
-  KnownHeader findModuleForHeader(const FileEntry *File);
+  KnownHeader findModuleForHeader(const FileEntry *File,
+                                  bool AllowTextual = false);
 
   /// \brief Retrieve all the modules that contain the given header file. This
   /// may not include umbrella modules, nor information from external sources,
@@ -401,6 +417,15 @@ public:
   std::pair<Module *, bool> findOrCreateModule(StringRef Name, Module *Parent,
                                                bool IsFramework,
                                                bool IsExplicit);
+
+  /// \brief Create a new module for a C++ Modules TS module interface unit.
+  /// The module must not already exist, and will be configured for the current
+  /// compilation.
+  ///
+  /// Note that this also sets the current module to the newly-created module.
+  ///
+  /// \returns The newly-created module.
+  Module *createModuleForInterfaceUnit(SourceLocation Loc, StringRef Name);
 
   /// \brief Infer the contents of a framework module map from the given
   /// framework directory.
@@ -529,5 +554,6 @@ public:
   module_iterator module_end()   const { return Modules.end(); }
 };
   
-}
-#endif
+} // end namespace clang
+
+#endif // LLVM_CLANG_LEX_MODULEMAP_H

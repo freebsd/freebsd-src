@@ -334,9 +334,9 @@ public:
 // Path "pieces" for path-sensitive diagnostics.
 //===----------------------------------------------------------------------===//
 
-class PathDiagnosticPiece : public RefCountedBaseVPTR {
+class PathDiagnosticPiece : public RefCountedBase<PathDiagnosticPiece> {
 public:
-  enum Kind { ControlFlow, Event, Macro, Call };
+  enum Kind { ControlFlow, Event, Macro, Call, Note };
   enum DisplayHint { Above, Below };
 
 private:
@@ -366,7 +366,7 @@ protected:
   PathDiagnosticPiece(Kind k, DisplayHint hint = Below);
 
 public:
-  ~PathDiagnosticPiece() override;
+  virtual ~PathDiagnosticPiece();
 
   StringRef getString() const { return str; }
 
@@ -452,7 +452,8 @@ public:
   void Profile(llvm::FoldingSetNodeID &ID) const override;
 
   static bool classof(const PathDiagnosticPiece *P) {
-    return P->getKind() == Event || P->getKind() == Macro;
+    return P->getKind() == Event || P->getKind() == Macro ||
+           P->getKind() == Note;
   }
 };
 
@@ -703,6 +704,23 @@ public:
 
   static inline bool classof(const PathDiagnosticPiece *P) {
     return P->getKind() == Macro;
+  }
+
+  void dump() const override;
+
+  void Profile(llvm::FoldingSetNodeID &ID) const override;
+};
+
+class PathDiagnosticNotePiece: public PathDiagnosticSpotPiece {
+public:
+  PathDiagnosticNotePiece(const PathDiagnosticLocation &Pos, StringRef S,
+                               bool AddPosRange = true)
+      : PathDiagnosticSpotPiece(Pos, S, Note, AddPosRange) {}
+
+  ~PathDiagnosticNotePiece() override;
+
+  static inline bool classof(const PathDiagnosticPiece *P) {
+    return P->getKind() == Note;
   }
 
   void dump() const override;

@@ -13,12 +13,9 @@
 
 #include "CodeGenFunction.h"
 #include "CodeGenModule.h"
-#include "clang/AST/ASTContext.h"
 #include "clang/AST/StmtVisitor.h"
 #include "llvm/ADT/STLExtras.h"
-#include "llvm/ADT/SmallString.h"
 #include "llvm/IR/Constants.h"
-#include "llvm/IR/Function.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/MDBuilder.h"
 #include "llvm/IR/Metadata.h"
@@ -483,7 +480,9 @@ ComplexPairTy ComplexExprEmitter::EmitCast(CastKind CK, Expr *Op,
   case CK_CopyAndAutoreleaseBlockObject:
   case CK_BuiltinFnToFnPtr:
   case CK_ZeroToOCLEvent:
+  case CK_ZeroToOCLQueue:
   case CK_AddressSpaceConversion:
+  case CK_IntToOCLSampler:
     llvm_unreachable("invalid cast kind for complex value");
 
   case CK_FloatingRealToComplex:
@@ -600,10 +599,10 @@ ComplexPairTy ComplexExprEmitter::EmitComplexBinOpLibCall(StringRef LibCallName,
 
   llvm::FunctionType *FTy = CGF.CGM.getTypes().GetFunctionType(FuncInfo);
   llvm::Constant *Func = CGF.CGM.CreateBuiltinFunction(FTy, LibCallName);
-  llvm::Instruction *Call;
+  CGCallee Callee = CGCallee::forDirect(Func, FQTy->getAs<FunctionProtoType>());
 
-  RValue Res = CGF.EmitCall(FuncInfo, Func, ReturnValueSlot(), Args,
-                            FQTy->getAs<FunctionProtoType>(), &Call);
+  llvm::Instruction *Call;
+  RValue Res = CGF.EmitCall(FuncInfo, Callee, ReturnValueSlot(), Args, &Call);
   cast<llvm::CallInst>(Call)->setCallingConv(CGF.CGM.getBuiltinCC());
   return Res.getComplexVal();
 }

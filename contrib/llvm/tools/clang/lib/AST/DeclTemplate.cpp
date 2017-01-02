@@ -31,10 +31,11 @@ using namespace clang;
 TemplateParameterList::TemplateParameterList(SourceLocation TemplateLoc,
                                              SourceLocation LAngleLoc,
                                              ArrayRef<NamedDecl *> Params,
-                                             SourceLocation RAngleLoc)
+                                             SourceLocation RAngleLoc,
+                                             Expr *RequiresClause)
   : TemplateLoc(TemplateLoc), LAngleLoc(LAngleLoc), RAngleLoc(RAngleLoc),
-    NumParams(Params.size()), ContainsUnexpandedParameterPack(false) {
-  assert(this->NumParams == NumParams && "Too many template parameters");
+    NumParams(Params.size()), ContainsUnexpandedParameterPack(false),
+    HasRequiresClause(static_cast<bool>(RequiresClause)) {
   for (unsigned Idx = 0; Idx < NumParams; ++Idx) {
     NamedDecl *P = Params[Idx];
     begin()[Idx] = P;
@@ -52,15 +53,21 @@ TemplateParameterList::TemplateParameterList(SourceLocation TemplateLoc,
       // template parameter list does too.
     }
   }
+  if (RequiresClause) {
+    *getTrailingObjects<Expr *>() = RequiresClause;
+  }
 }
 
-TemplateParameterList *TemplateParameterList::Create(
-    const ASTContext &C, SourceLocation TemplateLoc, SourceLocation LAngleLoc,
-    ArrayRef<NamedDecl *> Params, SourceLocation RAngleLoc) {
-  void *Mem = C.Allocate(totalSizeToAlloc<NamedDecl *>(Params.size()),
-                         llvm::alignOf<TemplateParameterList>());
+TemplateParameterList *
+TemplateParameterList::Create(const ASTContext &C, SourceLocation TemplateLoc,
+                              SourceLocation LAngleLoc,
+                              ArrayRef<NamedDecl *> Params,
+                              SourceLocation RAngleLoc, Expr *RequiresClause) {
+  void *Mem = C.Allocate(totalSizeToAlloc<NamedDecl *, Expr *>(
+                             Params.size(), RequiresClause ? 1u : 0u),
+                         alignof(TemplateParameterList));
   return new (Mem) TemplateParameterList(TemplateLoc, LAngleLoc, Params,
-                                         RAngleLoc);
+                                         RAngleLoc, RequiresClause);
 }
 
 unsigned TemplateParameterList::getMinRequiredArguments() const {
@@ -197,44 +204,6 @@ void RedeclarableTemplateDecl::addSpecializationImpl(
                                       SETraits::getDecl(Entry));
 }
 
-/// \brief Generate the injected template arguments for the given template
-/// parameter list, e.g., for the injected-class-name of a class template.
-static void GenerateInjectedTemplateArgs(ASTContext &Context,
-                                         TemplateParameterList *Params,
-                                         TemplateArgument *Args) {
-  for (NamedDecl *Param : *Params) {
-    TemplateArgument Arg;
-    if (auto *TTP = dyn_cast<TemplateTypeParmDecl>(Param)) {
-      QualType ArgType = Context.getTypeDeclType(TTP);
-      if (TTP->isParameterPack())
-        ArgType = Context.getPackExpansionType(ArgType, None);
-
-      Arg = TemplateArgument(ArgType);
-    } else if (auto *NTTP = dyn_cast<NonTypeTemplateParmDecl>(Param)) {
-      Expr *E = new (Context) DeclRefExpr(NTTP, /*enclosing*/ false,
-                                  NTTP->getType().getNonLValueExprType(Context),
-                                  Expr::getValueKindForType(NTTP->getType()),
-                                          NTTP->getLocation());
-
-      if (NTTP->isParameterPack())
-        E = new (Context) PackExpansionExpr(Context.DependentTy, E,
-                                            NTTP->getLocation(), None);
-      Arg = TemplateArgument(E);
-    } else {
-      auto *TTP = cast<TemplateTemplateParmDecl>(Param);
-      if (TTP->isParameterPack())
-        Arg = TemplateArgument(TemplateName(TTP), Optional<unsigned>());
-      else
-        Arg = TemplateArgument(TemplateName(TTP));
-    }
-
-    if (Param->isTemplateParameterPack())
-      Arg = TemplateArgument::CreatePackCopy(Context, Arg);
-
-    *Args++ = Arg;
-  }
-}
-
 //===----------------------------------------------------------------------===//
 // FunctionTemplateDecl Implementation
 //===----------------------------------------------------------------------===//
@@ -303,10 +272,13 @@ ArrayRef<TemplateArgument> FunctionTemplateDecl::getInjectedTemplateArgs() {
   TemplateParameterList *Params = getTemplateParameters();
   Common *CommonPtr = getCommonPtr();
   if (!CommonPtr->InjectedArgs) {
-    CommonPtr->InjectedArgs
-      = new (getASTContext()) TemplateArgument[Params->size()];
-    GenerateInjectedTemplateArgs(getASTContext(), Params,
-                                 CommonPtr->InjectedArgs);
+    auto &Context = getASTContext();
+    SmallVector<TemplateArgument, 16> TemplateArgs;
+    Context.getInjectedTemplateArgs(Params, TemplateArgs);
+    CommonPtr->InjectedArgs =
+        new (Context) TemplateArgument[TemplateArgs.size()];
+    std::copy(TemplateArgs.begin(), TemplateArgs.end(),
+              CommonPtr->InjectedArgs);
   }
 
   return llvm::makeArrayRef(CommonPtr->InjectedArgs, Params->size());
@@ -457,8 +429,7 @@ ClassTemplateDecl::getInjectedClassNameSpecialization() {
   ASTContext &Context = getASTContext();
   TemplateParameterList *Params = getTemplateParameters();
   SmallVector<TemplateArgument, 16> TemplateArgs;
-  TemplateArgs.resize(Params->size());
-  GenerateInjectedTemplateArgs(getASTContext(), Params, TemplateArgs.data());
+  Context.getInjectedTemplateArgs(Params, TemplateArgs);
   CommonPtr->InjectedClassNameType
     = Context.getTemplateSpecializationType(TemplateName(this),
                                             TemplateArgs);
@@ -754,9 +725,16 @@ void ClassTemplateSpecializationDecl::getNameForDiagnostic(
     raw_ostream &OS, const PrintingPolicy &Policy, bool Qualified) const {
   NamedDecl::getNameForDiagnostic(OS, Policy, Qualified);
 
-  const TemplateArgumentList &TemplateArgs = getTemplateArgs();
-  TemplateSpecializationType::PrintTemplateArgumentList(
-      OS, TemplateArgs.asArray(), Policy);
+  auto *PS = dyn_cast<ClassTemplatePartialSpecializationDecl>(this);
+  if (const ASTTemplateArgumentListInfo *ArgsAsWritten =
+          PS ? PS->getTemplateArgsAsWritten() : nullptr) {
+    TemplateSpecializationType::PrintTemplateArgumentList(
+        OS, ArgsAsWritten->arguments(), Policy);
+  } else {
+    const TemplateArgumentList &TemplateArgs = getTemplateArgs();
+    TemplateSpecializationType::PrintTemplateArgumentList(
+        OS, TemplateArgs.asArray(), Policy);
+  }
 }
 
 ClassTemplateDecl *
@@ -1086,9 +1064,16 @@ void VarTemplateSpecializationDecl::getNameForDiagnostic(
     raw_ostream &OS, const PrintingPolicy &Policy, bool Qualified) const {
   NamedDecl::getNameForDiagnostic(OS, Policy, Qualified);
 
-  const TemplateArgumentList &TemplateArgs = getTemplateArgs();
-  TemplateSpecializationType::PrintTemplateArgumentList(
-      OS, TemplateArgs.asArray(), Policy);
+  auto *PS = dyn_cast<VarTemplatePartialSpecializationDecl>(this);
+  if (const ASTTemplateArgumentListInfo *ArgsAsWritten =
+          PS ? PS->getTemplateArgsAsWritten() : nullptr) {
+    TemplateSpecializationType::PrintTemplateArgumentList(
+        OS, ArgsAsWritten->arguments(), Policy);
+  } else {
+    const TemplateArgumentList &TemplateArgs = getTemplateArgs();
+    TemplateSpecializationType::PrintTemplateArgumentList(
+        OS, TemplateArgs.asArray(), Policy);
+  }
 }
 
 VarTemplateDecl *VarTemplateSpecializationDecl::getSpecializedTemplate() const {
@@ -1169,7 +1154,7 @@ createMakeIntegerSeqParameterList(const ASTContext &C, DeclContext *DC) {
   // <typename T, T ...Ints>
   NamedDecl *P[2] = {T, N};
   auto *TPL = TemplateParameterList::Create(
-      C, SourceLocation(), SourceLocation(), P, SourceLocation());
+      C, SourceLocation(), SourceLocation(), P, SourceLocation(), nullptr);
 
   // template <typename T, ...Ints> class IntSeq
   auto *TemplateTemplateParm = TemplateTemplateParmDecl::Create(
@@ -1194,7 +1179,7 @@ createMakeIntegerSeqParameterList(const ASTContext &C, DeclContext *DC) {
 
   // template <template <typename T, T ...Ints> class IntSeq, typename T, T N>
   return TemplateParameterList::Create(C, SourceLocation(), SourceLocation(),
-                                       Params, SourceLocation());
+                                       Params, SourceLocation(), nullptr);
 }
 
 static TemplateParameterList *
@@ -1215,7 +1200,7 @@ createTypePackElementParameterList(const ASTContext &C, DeclContext *DC) {
   NamedDecl *Params[] = {Index, Ts};
   return TemplateParameterList::Create(C, SourceLocation(), SourceLocation(),
                                        llvm::makeArrayRef(Params),
-                                       SourceLocation());
+                                       SourceLocation(), nullptr);
 }
 
 static TemplateParameterList *createBuiltinTemplateParameterList(

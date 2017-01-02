@@ -347,7 +347,7 @@ class ConcreteTypeLoc : public Base {
 
 public:
   unsigned getLocalDataAlignment() const {
-    return std::max(llvm::alignOf<LocalData>(),
+    return std::max(unsigned(alignof(LocalData)),
                     asDerived()->getExtraLocalDataAlignment());
   }
   unsigned getLocalDataSize() const {
@@ -487,8 +487,10 @@ class TypeSpecTypeLoc : public ConcreteTypeLoc<UnqualTypeLoc,
                                                Type,
                                                TypeSpecLocInfo> {
 public:
-  enum { LocalDataSize = sizeof(TypeSpecLocInfo),
-         LocalDataAlignment = llvm::AlignOf<TypeSpecLocInfo>::Alignment };
+  enum {
+    LocalDataSize = sizeof(TypeSpecLocInfo),
+    LocalDataAlignment = alignof(TypeSpecLocInfo)
+  };
 
   SourceLocation getNameLoc() const {
     return this->getLocalData()->NameLoc;
@@ -510,7 +512,7 @@ private:
 
 
 struct BuiltinLocInfo {
-  SourceLocation BuiltinLoc;
+  SourceRange BuiltinRange;
 };
 
 /// \brief Wrapper for source info for builtin types.
@@ -520,10 +522,19 @@ class BuiltinTypeLoc : public ConcreteTypeLoc<UnqualTypeLoc,
                                               BuiltinLocInfo> {
 public:
   SourceLocation getBuiltinLoc() const {
-    return getLocalData()->BuiltinLoc;
+    return getLocalData()->BuiltinRange.getBegin();
   }
   void setBuiltinLoc(SourceLocation Loc) {
-    getLocalData()->BuiltinLoc = Loc;
+    getLocalData()->BuiltinRange = Loc;
+  }
+  void expandBuiltinRange(SourceRange Range) {
+    SourceRange &BuiltinRange = getLocalData()->BuiltinRange;
+    if (!BuiltinRange.getBegin().isValid()) {
+      BuiltinRange = Range;
+    } else {
+      BuiltinRange.setBegin(std::min(Range.getBegin(), BuiltinRange.getBegin()));
+      BuiltinRange.setEnd(std::max(Range.getEnd(), BuiltinRange.getEnd()));
+    }
   }
 
   SourceLocation getNameLoc() const { return getBuiltinLoc(); }
@@ -548,11 +559,11 @@ public:
   }
 
   unsigned getExtraLocalDataAlignment() const {
-    return needsExtraLocalData() ? llvm::alignOf<WrittenBuiltinSpecs>() : 1;
+    return needsExtraLocalData() ? alignof(WrittenBuiltinSpecs) : 1;
   }
 
   SourceRange getLocalSourceRange() const {
-    return SourceRange(getBuiltinLoc(), getBuiltinLoc());
+    return getLocalData()->BuiltinRange;
   }
 
   TypeSpecifierSign getWrittenSignSpec() const {
@@ -691,6 +702,91 @@ class TemplateTypeParmTypeLoc :
                                      TemplateTypeParmType> {
 public:
   TemplateTypeParmDecl *getDecl() const { return getTypePtr()->getDecl(); }
+};
+
+struct ObjCTypeParamTypeLocInfo {
+  SourceLocation NameLoc;
+};
+
+/// ProtocolLAngleLoc, ProtocolRAngleLoc, and the source locations for
+/// protocol qualifiers are stored after Info.
+class ObjCTypeParamTypeLoc : public ConcreteTypeLoc<UnqualTypeLoc,
+                                     ObjCTypeParamTypeLoc,
+                                     ObjCTypeParamType,
+                                     ObjCTypeParamTypeLocInfo> {
+  // SourceLocations are stored after Info, one for each protocol qualifier.
+  SourceLocation *getProtocolLocArray() const {
+    return (SourceLocation*)this->getExtraLocalData() + 2;
+  }
+
+public:
+  ObjCTypeParamDecl *getDecl() const { return getTypePtr()->getDecl(); }
+
+  SourceLocation getNameLoc() const {
+    return this->getLocalData()->NameLoc;
+  }
+
+  void setNameLoc(SourceLocation Loc) {
+    this->getLocalData()->NameLoc = Loc;
+  }
+
+  SourceLocation getProtocolLAngleLoc() const {
+    return getNumProtocols()  ?
+      *((SourceLocation*)this->getExtraLocalData()) :
+      SourceLocation();
+  }
+  void setProtocolLAngleLoc(SourceLocation Loc) {
+    *((SourceLocation*)this->getExtraLocalData()) = Loc;
+  }
+
+  SourceLocation getProtocolRAngleLoc() const {
+    return getNumProtocols()  ?
+      *((SourceLocation*)this->getExtraLocalData() + 1) :
+      SourceLocation();
+  }
+  void setProtocolRAngleLoc(SourceLocation Loc) {
+    *((SourceLocation*)this->getExtraLocalData() + 1) = Loc;
+  }
+
+  unsigned getNumProtocols() const {
+    return this->getTypePtr()->getNumProtocols();
+  }
+
+  SourceLocation getProtocolLoc(unsigned i) const {
+    assert(i < getNumProtocols() && "Index is out of bounds!");
+    return getProtocolLocArray()[i];
+  }
+  void setProtocolLoc(unsigned i, SourceLocation Loc) {
+    assert(i < getNumProtocols() && "Index is out of bounds!");
+    getProtocolLocArray()[i] = Loc;
+  }
+
+  ObjCProtocolDecl *getProtocol(unsigned i) const {
+    assert(i < getNumProtocols() && "Index is out of bounds!");
+    return *(this->getTypePtr()->qual_begin() + i);
+  }
+
+  ArrayRef<SourceLocation> getProtocolLocs() const {
+    return llvm::makeArrayRef(getProtocolLocArray(), getNumProtocols());
+  }
+
+  void initializeLocal(ASTContext &Context, SourceLocation Loc);
+
+  unsigned getExtraLocalDataSize() const {
+    if (!this->getNumProtocols()) return 0;
+    // When there are protocol qualifers, we have LAngleLoc and RAngleLoc
+    // as well.
+    return (this->getNumProtocols() + 2) * sizeof(SourceLocation) ;
+  }
+  unsigned getExtraLocalDataAlignment() const {
+    return alignof(SourceLocation);
+  }
+  SourceRange getLocalSourceRange() const {
+    SourceLocation start = getNameLoc();
+    SourceLocation end = getProtocolRAngleLoc();
+    if (end.isInvalid()) return SourceRange(start, start);
+    return SourceRange(start, end);
+  }
 };
 
 /// \brief Wrapper for substituted template type parameters.
@@ -960,10 +1056,9 @@ public:
   }
 
   unsigned getExtraLocalDataAlignment() const {
-    assert(llvm::alignOf<ObjCObjectTypeLoc>()
-	     >= llvm::alignOf<TypeSourceInfo *>() &&
-	   "not enough alignment for tail-allocated data");
-    return llvm::alignOf<TypeSourceInfo *>();
+    static_assert(alignof(ObjCObjectTypeLoc) >= alignof(TypeSourceInfo *),
+                  "not enough alignment for tail-allocated data");
+    return alignof(TypeSourceInfo *);
   }
 
   QualType getInnerType() const {
@@ -1329,9 +1424,7 @@ public:
     return getNumParams() * sizeof(ParmVarDecl *);
   }
 
-  unsigned getExtraLocalDataAlignment() const {
-    return llvm::alignOf<ParmVarDecl*>();
-  }
+  unsigned getExtraLocalDataAlignment() const { return alignof(ParmVarDecl *); }
 
   QualType getInnerType() const { return getTypePtr()->getReturnType(); }
 };
@@ -1525,7 +1618,7 @@ public:
   }
 
   unsigned getExtraLocalDataAlignment() const {
-    return llvm::alignOf<TemplateArgumentLocInfo>();
+    return alignof(TemplateArgumentLocInfo);
   }
 
 private:
@@ -1935,7 +2028,7 @@ public:
   }
 
   unsigned getExtraLocalDataAlignment() const {
-    return llvm::alignOf<TemplateArgumentLocInfo>();
+    return alignof(TemplateArgumentLocInfo);
   }
 
 private:

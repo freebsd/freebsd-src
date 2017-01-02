@@ -11,11 +11,12 @@
 #define LLVM_CLANG_FRONTEND_COMPILERINSTANCE_H_
 
 #include "clang/AST/ASTConsumer.h"
-#include "clang/Frontend/PCHContainerOperations.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Frontend/CompilerInvocation.h"
+#include "clang/Frontend/PCHContainerOperations.h"
 #include "clang/Frontend/Utils.h"
+#include "clang/Lex/HeaderSearchOptions.h"
 #include "clang/Lex/ModuleLoader.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
@@ -35,7 +36,6 @@ class TimerGroup;
 
 namespace clang {
 class ASTContext;
-class ASTConsumer;
 class ASTReader;
 class CodeCompleteConsumer;
 class DiagnosticsEngine;
@@ -95,6 +95,9 @@ class CompilerInstance : public ModuleLoader {
 
   /// The AST context.
   IntrusiveRefCntPtr<ASTContext> Context;
+
+  /// An optional sema source that will be attached to sema.
+  IntrusiveRefCntPtr<ExternalSemaSource> ExternalSemaSrc;
 
   /// The AST consumer.
   std::unique_ptr<ASTConsumer> Consumer;
@@ -774,6 +777,8 @@ public:
   void addDependencyCollector(std::shared_ptr<DependencyCollector> Listener) {
     DependencyCollectors.push_back(std::move(Listener));
   }
+
+  void setExternalSemaSource(IntrusiveRefCntPtr<ExternalSemaSource> ESS);
 };
 
 } // end namespace clang

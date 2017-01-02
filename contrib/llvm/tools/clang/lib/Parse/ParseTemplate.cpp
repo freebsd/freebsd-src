@@ -11,12 +11,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "clang/Parse/Parser.h"
 #include "RAIIObjectsForParser.h"
-#include "clang/AST/ASTConsumer.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/DeclTemplate.h"
 #include "clang/Parse/ParseDiagnostic.h"
+#include "clang/Parse/Parser.h"
 #include "clang/Sema/DeclSpec.h"
 #include "clang/Sema/ParsedTemplate.h"
 #include "clang/Sema/Scope.h"
@@ -197,9 +196,12 @@ Parser::ParseSingleDeclarationAfterTemplate(
   ParsedAttributesWithRange prefixAttrs(AttrFactory);
   MaybeParseCXX11Attributes(prefixAttrs);
 
-  if (Tok.is(tok::kw_using))
-    return ParseUsingDirectiveOrDeclaration(Context, TemplateInfo, DeclEnd,
-                                            prefixAttrs);
+  if (Tok.is(tok::kw_using)) {
+    // FIXME: We should return the DeclGroup to the caller.
+    ParseUsingDirectiveOrDeclaration(Context, TemplateInfo, DeclEnd,
+                                     prefixAttrs);
+    return nullptr;
+  }
 
   // Parse the declaration specifiers, stealing any diagnostics from
   // the template parameters.

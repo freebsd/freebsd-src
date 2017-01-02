@@ -16,7 +16,6 @@
 
 #include "clang-c/Index.h"
 #include "clang/AST/ASTContext.h"
-#include "clang/Basic/FileManager.h"
 #include "clang/Basic/FileSystemOptions.h"
 #include "clang/Basic/LangOptions.h"
 #include "clang/Basic/SourceManager.h"
@@ -30,9 +29,7 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/Support/MD5.h"
-#include "llvm/Support/Path.h"
 #include <cassert>
-#include <map>
 #include <memory>
 #include <string>
 #include <sys/types.h>
@@ -47,7 +44,6 @@ namespace clang {
 class Sema;
 class ASTContext;
 class ASTReader;
-class CodeCompleteConsumer;
 class CompilerInvocation;
 class CompilerInstance;
 class Decl;
@@ -58,7 +54,6 @@ class HeaderSearch;
 class Preprocessor;
 class PCHContainerOperations;
 class PCHContainerReader;
-class SourceManager;
 class TargetInfo;
 class FrontendAction;
 class ASTDeserializationListener;
@@ -437,9 +432,6 @@ private:
                      bool PreambleEndsAtStartOfLine)
         : Buffer(Buffer), Owner(std::move(Owner)), Size(Size),
           PreambleEndsAtStartOfLine(PreambleEndsAtStartOfLine) {}
-    ComputedPreamble(ComputedPreamble &&C)
-        : Buffer(C.Buffer), Owner(std::move(C.Owner)), Size(C.Size),
-          PreambleEndsAtStartOfLine(C.PreambleEndsAtStartOfLine) {}
   };
   ComputedPreamble ComputePreamble(CompilerInvocation &Invocation,
                                    unsigned MaxLines);

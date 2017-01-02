@@ -109,7 +109,8 @@ public:
   /// Called by CoreEngine.  Used to notify checkers that processing a
   /// function has ended. Called for both inlined and and top-level functions.
   virtual void processEndOfFunction(NodeBuilderContext& BC,
-                                    ExplodedNode *Pred) = 0;
+                                    ExplodedNode *Pred,
+                                    const ReturnStmt *RS = nullptr) = 0;
 
   // Generate the entry node of the callee.
   virtual void processCallEnter(NodeBuilderContext& BC, CallEnter CE,
@@ -122,10 +123,6 @@ public:
   /// logic for handling assumptions on symbolic values.
   virtual ProgramStateRef processAssume(ProgramStateRef state,
                                        SVal cond, bool assumption) = 0;
-
-  /// wantsRegionChangeUpdate - Called by ProgramStateManager to determine if a
-  ///  region change should trigger a processRegionChanges update.
-  virtual bool wantsRegionChangeUpdate(ProgramStateRef state) = 0;
 
   /// processRegionChanges - Called by ProgramStateManager whenever a change is
   /// made to the store. Used to update checkers that track region values.
