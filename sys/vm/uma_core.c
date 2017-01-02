@@ -1184,7 +1184,7 @@ page_free(void *mem, vm_size_t size, uint8_t flags)
 	else if (flags & UMA_SLAB_KERNEL)
 		vmem = kernel_arena;
 	else
-		panic("UMA: page_free used with invalid flags %d", flags);
+		panic("UMA: page_free used with invalid flags %x", flags);
 
 	kmem_free(vmem, (vm_offset_t)mem, size);
 }
