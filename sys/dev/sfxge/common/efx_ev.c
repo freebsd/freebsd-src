@@ -242,17 +242,32 @@ efx_ev_qcreate(
 
 	EFSYS_ASSERT3U(enp->en_ev_qcount + 1, <, encp->enc_evq_limit);
 
+	switch (flags & EFX_EVQ_FLAGS_NOTIFY_MASK) {
+	case EFX_EVQ_FLAGS_NOTIFY_INTERRUPT:
+		break;
+	case EFX_EVQ_FLAGS_NOTIFY_DISABLED:
+		if (us != 0) {
+			rc = EINVAL;
+			goto fail1;
+		}
+		break;
+	default:
+		rc = EINVAL;
+		goto fail2;
+	}
+
 	/* Allocate an EVQ object */
 	EFSYS_KMEM_ALLOC(enp->en_esip, sizeof (efx_evq_t), eep);
 	if (eep == NULL) {
 		rc = ENOMEM;
-		goto fail1;
+		goto fail3;
 	}
 
 	eep->ee_magic = EFX_EVQ_MAGIC;
 	eep->ee_enp = enp;
 	eep->ee_index = index;
 	eep->ee_mask = n - 1;
+	eep->ee_flags = flags;
 	eep->ee_esmp = esmp;
 
 	/*
@@ -268,16 +283,20 @@ efx_ev_qcreate(
 
 	if ((rc = eevop->eevo_qcreate(enp, index, esmp, n, id, us, flags,
 	    eep)) != 0)
-		goto fail2;
+		goto fail4;
 
 	return (0);
 
-fail2:
-	EFSYS_PROBE(fail2);
+fail4:
+	EFSYS_PROBE(fail4);
 
 	*eepp = NULL;
 	enp->en_ev_qcount--;
 	EFSYS_KMEM_FREE(enp->en_esip, sizeof (efx_evq_t), eep);
+fail3:
+	EFSYS_PROBE(fail3);
+fail2:
+	EFSYS_PROBE(fail2);
 fail1:
 	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 	return (rc);
@@ -440,11 +459,19 @@ efx_ev_qmoderate(
 
 	EFSYS_ASSERT3U(eep->ee_magic, ==, EFX_EVQ_MAGIC);
 
-	if ((rc = eevop->eevo_qmoderate(eep, us)) != 0)
+	if ((eep->ee_flags & EFX_EVQ_FLAGS_NOTIFY_MASK) ==
+	    EFX_EVQ_FLAGS_NOTIFY_DISABLED) {
+		rc = EINVAL;
 		goto fail1;
+	}
+
+	if ((rc = eevop->eevo_qmoderate(eep, us)) != 0)
+		goto fail2;
 
 	return (0);
 
+fail2:
+	EFSYS_PROBE(fail2);
 fail1:
 	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 	return (rc);
@@ -1289,6 +1316,7 @@ siena_ev_qcreate(
 	uint32_t size;
 	efx_oword_t oword;
 	efx_rc_t rc;
+	boolean_t notify_mode;
 
 	_NOTE(ARGUNUSED(esmp))
 
@@ -1329,8 +1357,13 @@ siena_ev_qcreate(
 	eep->ee_mcdi	= siena_ev_mcdi;
 #endif	/* EFSYS_OPT_MCDI */
 
+	notify_mode = ((flags & EFX_EVQ_FLAGS_NOTIFY_MASK) !=
+	    EFX_EVQ_FLAGS_NOTIFY_INTERRUPT);
+
 	/* Set up the new event queue */
-	EFX_POPULATE_OWORD_1(oword, FRF_CZ_TIMER_Q_EN, 1);
+	EFX_POPULATE_OWORD_3(oword, FRF_CZ_TIMER_Q_EN, 1,
+	    FRF_CZ_HOST_NOTIFY_MODE, notify_mode,
+	    FRF_CZ_TIMER_MODE, FFE_CZ_TIMER_MODE_DIS);
 	EFX_BAR_TBL_WRITEO(enp, FR_AZ_TIMER_TBL, index, &oword, B_TRUE);
 
 	EFX_POPULATE_OWORD_3(oword, FRF_AZ_EVQ_EN, 1, FRF_AZ_EVQ_SIZE, size,
