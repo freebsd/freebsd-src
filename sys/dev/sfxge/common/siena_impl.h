@@ -294,7 +294,7 @@ siena_vpd_fini(
 typedef struct siena_link_state_s {
 	uint32_t		sls_adv_cap_mask;
 	uint32_t		sls_lp_cap_mask;
-	unsigned int 		sls_fcntl;
+	unsigned int		sls_fcntl;
 	efx_link_mode_t		sls_link_mode;
 #if EFSYS_OPT_LOOPBACK
 	efx_loopback_type_t	sls_loopback;
@@ -362,7 +362,7 @@ siena_phy_bist_poll(
 	__in			efx_bist_type_t type,
 	__out			efx_bist_result_t *resultp,
 	__out_opt __drv_when(count > 0, __notnull)
-	uint32_t 	*value_maskp,
+	uint32_t	*value_maskp,
 	__out_ecount_opt(count)	__drv_when(count > 0, __notnull)
 	unsigned long	*valuesp,
 	__in			size_t count);
