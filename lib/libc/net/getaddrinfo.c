@@ -691,7 +691,7 @@ reorder(struct addrinfo *sentinel)
 		return(n);
 
 	/* allocate a temporary array for sort and initialization of it. */
-	if ((aio = calloc(1, sizeof(*aio) * n)) == NULL)
+	if ((aio = calloc(n, sizeof(*aio))) == NULL)
 		return(n);	/* give up reordering */
 
 	/* retrieve address selection policy from the kernel */
