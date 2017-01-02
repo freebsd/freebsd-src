@@ -29,12 +29,10 @@ public:
 
   MachineFunctionProperties getRequiredProperties() const override {
     return MachineFunctionProperties().set(
-        MachineFunctionProperties::Property::AllVRegsAllocated);
+        MachineFunctionProperties::Property::NoVRegs);
   }
 
-  const char *getPassName() const override {
-    return "optimise barriers pass";
-  }
+  StringRef getPassName() const override { return "optimise barriers pass"; }
 };
 char ARMOptimizeBarriersPass::ID = 0;
 }

@@ -83,10 +83,6 @@ enum NodeType : unsigned {
   // base of the dynamically-allocatable area.
   ADJDYNALLOC,
 
-  // Extracts the value of a 32-bit access register.  Operand 0 is
-  // the number of the register.
-  EXTRACT_ACCESS,
-
   // Count number of bits set in operand 0 per byte.
   POPCNT,
 
@@ -382,7 +378,7 @@ public:
     //
     // (c) there are no multiplication instructions for the widest integer
     //     type (v2i64).
-    if (VT.getVectorElementType().getSizeInBits() % 8 == 0)
+    if (VT.getScalarSizeInBits() % 8 == 0)
       return TypeWidenVector;
     return TargetLoweringBase::getPreferredVectorAction(VT);
   }
@@ -394,6 +390,7 @@ public:
   bool isLegalAddImmediate(int64_t Imm) const override;
   bool isLegalAddressingMode(const DataLayout &DL, const AddrMode &AM, Type *Ty,
                              unsigned AS) const override;
+  bool isFoldableMemAccessOffset(Instruction *I, int64_t Offset) const override;
   bool allowsMisalignedMemoryAccesses(EVT VT, unsigned AS,
                                       unsigned Align,
                                       bool *Fast) const override;
@@ -564,7 +561,8 @@ private:
                                   MachineBasicBlock *Target) const;
 
   // Implement EmitInstrWithCustomInserter for individual operation types.
-  MachineBasicBlock *emitSelect(MachineInstr &MI, MachineBasicBlock *BB) const;
+  MachineBasicBlock *emitSelect(MachineInstr &MI, MachineBasicBlock *BB,
+                                unsigned LOCROpcode) const;
   MachineBasicBlock *emitCondStore(MachineInstr &MI, MachineBasicBlock *BB,
                                    unsigned StoreOpcode, unsigned STOCOpcode,
                                    bool Invert) const;

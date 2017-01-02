@@ -39,16 +39,16 @@
 using namespace llvm;
 
 DwarfCFIExceptionBase::DwarfCFIExceptionBase(AsmPrinter *A)
-    : EHStreamer(A), shouldEmitCFI(false) {}
+    : EHStreamer(A), shouldEmitCFI(false), hasEmittedCFISections(false) {}
 
 void DwarfCFIExceptionBase::markFunctionEnd() {
   endFragment();
 
-  if (MMI->getLandingPads().empty())
-    return;
-
   // Map all labels and get rid of any dead landing pads.
-  MMI->TidyLandingPads();
+  if (!Asm->MF->getLandingPads().empty()) {
+    MachineFunction *NonConstMF = const_cast<MachineFunction*>(Asm->MF);
+    NonConstMF->tidyLandingPads();
+  }
 }
 
 void DwarfCFIExceptionBase::endFragment() {
@@ -59,7 +59,7 @@ void DwarfCFIExceptionBase::endFragment() {
 DwarfCFIException::DwarfCFIException(AsmPrinter *A)
     : DwarfCFIExceptionBase(A), shouldEmitPersonality(false),
       forceEmitPersonality(false), shouldEmitLSDA(false),
-      shouldEmitMoves(false), moveTypeModule(AsmPrinter::CFI_M_None) {}
+      shouldEmitMoves(false) {}
 
 DwarfCFIException::~DwarfCFIException() {}
 
@@ -69,9 +69,6 @@ void DwarfCFIException::endModule() {
   // SjLj uses this pass and it doesn't need this info.
   if (!Asm->MAI->usesCFIForEH())
     return;
-
-  if (moveTypeModule == AsmPrinter::CFI_M_Debug)
-    Asm->OutStreamer->EmitCFISections(false, true);
 
   const TargetLoweringObjectFile &TLOF = Asm->getObjFileLowering();
 
@@ -98,14 +95,10 @@ void DwarfCFIException::beginFunction(const MachineFunction *MF) {
   const Function *F = MF->getFunction();
 
   // If any landing pads survive, we need an EH table.
-  bool hasLandingPads = !MMI->getLandingPads().empty();
+  bool hasLandingPads = !MF->getLandingPads().empty();
 
   // See if we need frame move info.
   AsmPrinter::CFIMoveType MoveType = Asm->needsCFIMoves();
-  if (MoveType == AsmPrinter::CFI_M_EH ||
-      (MoveType == AsmPrinter::CFI_M_Debug &&
-       moveTypeModule == AsmPrinter::CFI_M_None))
-    moveTypeModule = MoveType;
 
   shouldEmitMoves = MoveType != AsmPrinter::CFI_M_None;
 
@@ -143,6 +136,12 @@ void DwarfCFIException::beginFragment(const MachineBasicBlock *MBB,
   if (!shouldEmitCFI)
     return;
 
+  if (!hasEmittedCFISections) {
+    if (Asm->needsCFIMoves() == AsmPrinter::CFI_M_Debug)
+      Asm->OutStreamer->EmitCFISections(false, true);
+    hasEmittedCFISections = true;
+  }
+
   Asm->OutStreamer->EmitCFIStartProc(/*IsSimple=*/false);
 
   // Indicate personality routine, if any.
@@ -160,8 +159,7 @@ void DwarfCFIException::beginFragment(const MachineBasicBlock *MBB,
 
   const TargetLoweringObjectFile &TLOF = Asm->getObjFileLowering();
   unsigned PerEncoding = TLOF.getPersonalityEncoding();
-  const MCSymbol *Sym =
-      TLOF.getCFIPersonalitySymbol(P, *Asm->Mang, Asm->TM, MMI);
+  const MCSymbol *Sym = TLOF.getCFIPersonalitySymbol(P, Asm->TM, MMI);
   Asm->OutStreamer->EmitCFIPersonality(Sym, PerEncoding);
 
   // Provide LSDA information.
@@ -171,7 +169,7 @@ void DwarfCFIException::beginFragment(const MachineBasicBlock *MBB,
 
 /// endFunction - Gather and emit post-function exception information.
 ///
-void DwarfCFIException::endFunction(const MachineFunction *) {
+void DwarfCFIException::endFunction(const MachineFunction *MF) {
   if (!shouldEmitPersonality)
     return;
 

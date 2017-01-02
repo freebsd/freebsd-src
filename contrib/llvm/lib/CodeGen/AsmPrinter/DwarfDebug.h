@@ -22,6 +22,7 @@
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/MapVector.h"
+#include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/CodeGen/DIE.h"
@@ -134,8 +135,8 @@ public:
 
     Expr.append(V.Expr.begin(), V.Expr.end());
     FrameIndex.append(V.FrameIndex.begin(), V.FrameIndex.end());
-    assert(std::all_of(Expr.begin(), Expr.end(), [](const DIExpression *E) {
-             return E && E->isBitPiece();
+    assert(all_of(Expr, [](const DIExpression *E) {
+             return E && E->isFragment();
            }) && "conflicting locations for variable");
   }
 
@@ -216,7 +217,9 @@ class DwarfDebug : public DebugHandlerBase {
 
   /// This is a collection of subprogram MDNodes that are processed to
   /// create DIEs.
-  SmallPtrSet<const MDNode *, 16> ProcessedSPNodes;
+  SetVector<const DISubprogram *, SmallVector<const DISubprogram *, 16>,
+            SmallPtrSet<const DISubprogram *, 16>>
+      ProcessedSPNodes;
 
   /// If nonnull, stores the current machine function we're processing.
   const MachineFunction *CurFn;
@@ -253,9 +256,6 @@ class DwarfDebug : public DebugHandlerBase {
 
   /// Whether to emit all linkage names, or just abstract subprograms.
   bool UseAllLinkageNames;
-
-  /// Version of dwarf we're emitting.
-  unsigned DwarfVersion;
 
   /// DWARF5 Experimental Options
   /// @{
@@ -443,9 +443,8 @@ class DwarfDebug : public DebugHandlerBase {
   void buildLocationList(SmallVectorImpl<DebugLocEntry> &DebugLoc,
                          const DbgValueHistoryMap::InstrRanges &Ranges);
 
-  /// Collect variable information from the side table maintained
-  /// by MMI.
-  void collectVariableInfoFromMMITable(DenseSet<InlinedVariable> &P);
+  /// Collect variable information from the side table maintained by MF.
+  void collectVariableInfoFromMFTable(DenseSet<InlinedVariable> &P);
 
 public:
   //===--------------------------------------------------------------------===//
@@ -515,7 +514,7 @@ public:
   bool useSplitDwarf() const { return HasSplitDwarf; }
 
   /// Returns the Dwarf Version.
-  unsigned getDwarfVersion() const { return DwarfVersion; }
+  uint16_t getDwarfVersion() const;
 
   /// Returns the previous CU that was being updated
   const DwarfCompileUnit *getPrevCU() const { return PrevCU; }
@@ -537,11 +536,6 @@ public:
     return Ref.resolve();
   }
 
-  /// Find the DwarfCompileUnit for the given CU Die.
-  DwarfCompileUnit *lookupUnit(const DIE *CU) const {
-    return CUDieMap.lookup(CU);
-  }
-
   void addSubprogramNames(const DISubprogram *SP, DIE &Die);
 
   AddressPool &getAddressPool() { return AddrPool; }
@@ -559,12 +553,6 @@ public:
   /// A helper function to check whether the DIE for a given Scope is
   /// going to be null.
   bool isLexicalScopeDIENull(LexicalScope *Scope);
-
-  // FIXME: Sink these functions down into DwarfFile/Dwarf*Unit.
-
-  SmallPtrSet<const MDNode *, 16> &getProcessedSPNodes() {
-    return ProcessedSPNodes;
-  }
 };
 } // End of namespace llvm
 

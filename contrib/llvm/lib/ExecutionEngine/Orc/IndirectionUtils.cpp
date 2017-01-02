@@ -24,7 +24,7 @@ void IndirectStubsManager::anchor() {}
 
 std::unique_ptr<JITCompileCallbackManager>
 createLocalCompileCallbackManager(const Triple &T,
-                                  TargetAddress ErrorHandlerAddress) {
+                                  JITTargetAddress ErrorHandlerAddress) {
   switch (T.getArch()) {
     default: return nullptr;
 
@@ -71,7 +71,7 @@ createLocalIndirectStubsManagerBuilder(const Triple &T) {
   }
 }
 
-Constant* createIRTypedAddress(FunctionType &FT, TargetAddress Addr) {
+Constant* createIRTypedAddress(FunctionType &FT, JITTargetAddress Addr) {
   Constant *AddrIntVal =
     ConstantInt::get(Type::getInt64Ty(FT.getContext()), Addr);
   Constant *AddrPtrVal =
@@ -239,6 +239,15 @@ GlobalAlias* cloneGlobalAliasDecl(Module &Dst, const GlobalAlias &OrigA,
   NewA->copyAttributesFrom(&OrigA);
   VMap[&OrigA] = NewA;
   return NewA;
+}
+
+void cloneModuleFlagsMetadata(Module &Dst, const Module &Src,
+                              ValueToValueMapTy &VMap) {
+  auto *MFs = Src.getModuleFlagsMetadata();
+  if (!MFs)
+    return;
+  for (auto *MF : MFs->operands())
+    Dst.addModuleFlag(MapMetadata(MF, VMap));
 }
 
 } // End namespace orc.

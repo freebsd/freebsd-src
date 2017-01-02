@@ -56,7 +56,7 @@ public:
   }
   void getAnalysisUsage(AnalysisUsage &AU) const override;
   bool runOnMachineFunction(MachineFunction &MF) override;
-  const char *getPassName() const override { return "Machine InstCombiner"; }
+  StringRef getPassName() const override { return "Machine InstCombiner"; }
 
 private:
   bool doSubstitute(unsigned NewSize, unsigned OldSize);
@@ -71,6 +71,7 @@ private:
   improvesCriticalPathLen(MachineBasicBlock *MBB, MachineInstr *Root,
                           MachineTraceMetrics::Trace BlockTrace,
                           SmallVectorImpl<MachineInstr *> &InsInstrs,
+                          SmallVectorImpl<MachineInstr *> &DelInstrs,
                           DenseMap<unsigned, unsigned> &InstrIdxForVirtReg,
                           MachineCombinerPattern Pattern);
   bool preservesResourceLen(MachineBasicBlock *MBB,
@@ -134,7 +135,7 @@ MachineCombiner::getDepth(SmallVectorImpl<MachineInstr *> &InsInstrs,
   // are tracked in the InstrIdxForVirtReg map depth is looked up in InstrDepth
   for (auto *InstrPtr : InsInstrs) { // for each Use
     unsigned IDepth = 0;
-    DEBUG(dbgs() << "NEW INSTR "; InstrPtr->dump(); dbgs() << "\n";);
+    DEBUG(dbgs() << "NEW INSTR "; InstrPtr->dump(TII); dbgs() << "\n";);
     for (const MachineOperand &MO : InstrPtr->operands()) {
       // Check for virtual register operand.
       if (!(MO.isReg() && TargetRegisterInfo::isVirtualRegister(MO.getReg())))
@@ -242,6 +243,7 @@ bool MachineCombiner::improvesCriticalPathLen(
     MachineBasicBlock *MBB, MachineInstr *Root,
     MachineTraceMetrics::Trace BlockTrace,
     SmallVectorImpl<MachineInstr *> &InsInstrs,
+    SmallVectorImpl<MachineInstr *> &DelInstrs,
     DenseMap<unsigned, unsigned> &InstrIdxForVirtReg,
     MachineCombinerPattern Pattern) {
   assert(TSchedModel.hasInstrSchedModelOrItineraries() &&
@@ -269,8 +271,13 @@ bool MachineCombiner::improvesCriticalPathLen(
   // A more flexible cost calculation for the critical path includes the slack
   // of the original code sequence. This may allow the transform to proceed
   // even if the instruction depths (data dependency cycles) become worse.
+
   unsigned NewRootLatency = getLatency(Root, NewRoot, BlockTrace);
-  unsigned RootLatency = TSchedModel.computeInstrLatency(Root);
+  unsigned RootLatency = 0;
+
+  for (auto I : DelInstrs)
+    RootLatency += TSchedModel.computeInstrLatency(I);
+
   unsigned RootSlack = BlockTrace.getInstrSlack(*Root);
 
   DEBUG(dbgs() << " NewRootLatency: " << NewRootLatency << "\n";
@@ -421,7 +428,7 @@ bool MachineCombiner::combineInstructions(MachineBasicBlock *MBB) {
       // resource pressure.
       if (SubstituteAlways || doSubstitute(NewInstCount, OldInstCount) ||
           (improvesCriticalPathLen(MBB, &MI, BlockTrace, InsInstrs,
-                                   InstrIdxForVirtReg, P) &&
+                                   DelInstrs, InstrIdxForVirtReg, P) &&
            preservesResourceLen(MBB, BlockTrace, InsInstrs, DelInstrs))) {
         for (auto *InstrPtr : InsInstrs)
           MBB->insert((MachineBasicBlock::iterator) &MI, InstrPtr);

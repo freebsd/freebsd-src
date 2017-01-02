@@ -17,7 +17,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/IR/LLVMContext.h"
-#include "llvm/Bitcode/ReaderWriter.h"
+#include "llvm/Bitcode/BitcodeReader.h"
 #include "llvm/IR/AssemblyAnnotationWriter.h"
 #include "llvm/IR/DebugInfo.h"
 #include "llvm/IR/DiagnosticInfo.h"
@@ -26,7 +26,6 @@
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
 #include "llvm/Support/CommandLine.h"
-#include "llvm/Support/DataStream.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/FormattedStream.h"
@@ -138,41 +137,27 @@ static void diagnosticHandler(const DiagnosticInfo &DI, void *Context) {
     exit(1);
 }
 
-static Expected<std::unique_ptr<Module>> openInputFile(LLVMContext &Context) {
-  if (MaterializeMetadata) {
-    ErrorOr<std::unique_ptr<MemoryBuffer>> MBOrErr =
-        MemoryBuffer::getFileOrSTDIN(InputFilename);
-    if (!MBOrErr)
-      return errorCodeToError(MBOrErr.getError());
-    ErrorOr<std::unique_ptr<Module>> MOrErr =
-        getLazyBitcodeModule(std::move(*MBOrErr), Context,
-                             /*ShouldLazyLoadMetadata=*/true);
-    if (!MOrErr)
-      return errorCodeToError(MOrErr.getError());
-    (*MOrErr)->materializeMetadata();
-    return std::move(*MOrErr);
-  } else {
-    std::string ErrorMessage;
-    std::unique_ptr<DataStreamer> Streamer =
-        getDataFileStreamer(InputFilename, &ErrorMessage);
-    if (!Streamer)
-      return make_error<StringError>(ErrorMessage, inconvertibleErrorCode());
-    std::string DisplayFilename;
-    if (InputFilename == "-")
-      DisplayFilename = "<stdin>";
-    else
-      DisplayFilename = InputFilename;
-    ErrorOr<std::unique_ptr<Module>> MOrErr =
-        getStreamedBitcodeModule(DisplayFilename, std::move(Streamer), Context);
-    (*MOrErr)->materializeAll();
-    return std::move(*MOrErr);
-  }
+static ExitOnError ExitOnErr;
+
+static std::unique_ptr<Module> openInputFile(LLVMContext &Context) {
+  std::unique_ptr<MemoryBuffer> MB =
+      ExitOnErr(errorOrToExpected(MemoryBuffer::getFileOrSTDIN(InputFilename)));
+  std::unique_ptr<Module> M =
+      ExitOnErr(getOwningLazyBitcodeModule(std::move(MB), Context,
+                                           /*ShouldLazyLoadMetadata=*/true));
+  if (MaterializeMetadata)
+    ExitOnErr(M->materializeMetadata());
+  else
+    ExitOnErr(M->materializeAll());
+  return M;
 }
 
 int main(int argc, char **argv) {
   // Print a stack trace if we signal out.
   sys::PrintStackTraceOnErrorSignal(argv[0]);
   PrettyStackTraceProgram X(argc, argv);
+
+  ExitOnErr.setBanner(std::string(argv[0]) + ": error: ");
 
   LLVMContext Context;
   llvm_shutdown_obj Y;  // Call llvm_shutdown() on exit.
@@ -181,16 +166,7 @@ int main(int argc, char **argv) {
 
   cl::ParseCommandLineOptions(argc, argv, "llvm .bc -> .ll disassembler\n");
 
-  Expected<std::unique_ptr<Module>> MOrErr = openInputFile(Context);
-  if (!MOrErr) {
-    handleAllErrors(MOrErr.takeError(), [&](ErrorInfoBase &EIB) {
-      errs() << argv[0] << ": ";
-      EIB.log(errs());
-      errs() << '\n';
-    });
-    return 1;
-  }
-  std::unique_ptr<Module> M = std::move(*MOrErr);
+  std::unique_ptr<Module> M = openInputFile(Context);
 
   // Just use stdout.  We won't actually print anything on it.
   if (DontPrint)

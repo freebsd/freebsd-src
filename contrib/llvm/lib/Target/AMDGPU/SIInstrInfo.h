@@ -86,6 +86,10 @@ private:
   unsigned findUsedSGPR(const MachineInstr &MI, int OpIndices[3]) const;
 
 protected:
+  bool swapSourceModifiers(MachineInstr &MI,
+                           MachineOperand &Src0, unsigned Src0OpName,
+                           MachineOperand &Src1, unsigned Src1OpName) const;
+
   MachineInstr *commuteInstructionImpl(MachineInstr &MI, bool NewMI,
                                        unsigned OpIdx0,
                                        unsigned OpIdx1) const override;
@@ -94,7 +98,18 @@ public:
 
   enum TargetOperandFlags {
     MO_NONE = 0,
-    MO_GOTPCREL = 1
+    // MO_GOTPCREL -> symbol@GOTPCREL -> R_AMDGPU_GOTPCREL.
+    MO_GOTPCREL = 1,
+    // MO_GOTPCREL32_LO -> symbol@gotpcrel32@lo -> R_AMDGPU_GOTPCREL32_LO.
+    MO_GOTPCREL32 = 2,
+    MO_GOTPCREL32_LO = 2,
+    // MO_GOTPCREL32_HI -> symbol@gotpcrel32@hi -> R_AMDGPU_GOTPCREL32_HI.
+    MO_GOTPCREL32_HI = 3,
+    // MO_REL32_LO -> symbol@rel32@lo -> R_AMDGPU_REL32_LO.
+    MO_REL32 = 4,
+    MO_REL32_LO = 4,
+    // MO_REL32_HI -> symbol@rel32@hi -> R_AMDGPU_REL32_HI.
+    MO_REL32_HI = 5
   };
 
   explicit SIInstrInfo(const SISubtarget &);
@@ -144,23 +159,48 @@ public:
   unsigned getMovOpcode(const TargetRegisterClass *DstRC) const;
 
   LLVM_READONLY
-  int commuteOpcode(const MachineInstr &MI) const;
+  int commuteOpcode(unsigned Opc) const;
+
+  LLVM_READONLY
+  inline int commuteOpcode(const MachineInstr &MI) const {
+    return commuteOpcode(MI.getOpcode());
+  }
 
   bool findCommutedOpIndices(MachineInstr &MI, unsigned &SrcOpIdx1,
                              unsigned &SrcOpIdx2) const override;
+
+  bool isBranchOffsetInRange(unsigned BranchOpc,
+                             int64_t BrOffset) const override;
+
+  MachineBasicBlock *getBranchDestBlock(const MachineInstr &MI) const override;
+
+  unsigned insertIndirectBranch(MachineBasicBlock &MBB,
+                                MachineBasicBlock &NewDestBB,
+                                const DebugLoc &DL,
+                                int64_t BrOffset,
+                                RegScavenger *RS = nullptr) const override;
+
+  bool analyzeBranchImpl(MachineBasicBlock &MBB,
+                         MachineBasicBlock::iterator I,
+                         MachineBasicBlock *&TBB,
+                         MachineBasicBlock *&FBB,
+                         SmallVectorImpl<MachineOperand> &Cond,
+                         bool AllowModify) const;
 
   bool analyzeBranch(MachineBasicBlock &MBB, MachineBasicBlock *&TBB,
                      MachineBasicBlock *&FBB,
                      SmallVectorImpl<MachineOperand> &Cond,
                      bool AllowModify) const override;
 
-  unsigned RemoveBranch(MachineBasicBlock &MBB) const override;
+  unsigned removeBranch(MachineBasicBlock &MBB,
+                        int *BytesRemoved = nullptr) const override;
 
-  unsigned InsertBranch(MachineBasicBlock &MBB, MachineBasicBlock *TBB,
+  unsigned insertBranch(MachineBasicBlock &MBB, MachineBasicBlock *TBB,
                         MachineBasicBlock *FBB, ArrayRef<MachineOperand> Cond,
-                        const DebugLoc &DL) const override;
+                        const DebugLoc &DL,
+                        int *BytesAdded = nullptr) const override;
 
-  bool ReverseBranchCondition(
+  bool reverseBranchCondition(
     SmallVectorImpl<MachineOperand> &Cond) const override;
 
   bool
@@ -332,6 +372,14 @@ public:
     return get(Opcode).TSFlags & SIInstrFlags::FLAT;
   }
 
+  static bool isEXP(const MachineInstr &MI) {
+    return MI.getDesc().TSFlags & SIInstrFlags::EXP;
+  }
+
+  bool isEXP(uint16_t Opcode) const {
+    return get(Opcode).TSFlags & SIInstrFlags::EXP;
+  }
+
   static bool isWQM(const MachineInstr &MI) {
     return MI.getDesc().TSFlags & SIInstrFlags::WQM;
   }
@@ -356,6 +404,14 @@ public:
     return get(Opcode).TSFlags & SIInstrFlags::VGPRSpill;
   }
 
+  static bool isSGPRSpill(const MachineInstr &MI) {
+    return MI.getDesc().TSFlags & SIInstrFlags::SGPRSpill;
+  }
+
+  bool isSGPRSpill(uint16_t Opcode) const {
+    return get(Opcode).TSFlags & SIInstrFlags::SGPRSpill;
+  }
+
   static bool isDPP(const MachineInstr &MI) {
     return MI.getDesc().TSFlags & SIInstrFlags::DPP;
   }
@@ -372,6 +428,32 @@ public:
     return MI.getDesc().TSFlags & SIInstrFlags::VM_CNT;
   }
 
+  static bool sopkIsZext(const MachineInstr &MI) {
+    return MI.getDesc().TSFlags & SIInstrFlags::SOPK_ZEXT;
+  }
+
+  bool sopkIsZext(uint16_t Opcode) const {
+    return get(Opcode).TSFlags & SIInstrFlags::SOPK_ZEXT;
+  }
+
+  /// \returns true if this is an s_store_dword* instruction. This is more
+  /// specific than than isSMEM && mayStore.
+  static bool isScalarStore(const MachineInstr &MI) {
+    return MI.getDesc().TSFlags & SIInstrFlags::SCALAR_STORE;
+  }
+
+  bool isScalarStore(uint16_t Opcode) const {
+    return get(Opcode).TSFlags & SIInstrFlags::SCALAR_STORE;
+  }
+
+  static bool isFixedSize(const MachineInstr &MI) {
+    return MI.getDesc().TSFlags & SIInstrFlags::FIXED_SIZE;
+  }
+
+  bool isFixedSize(uint16_t Opcode) const {
+    return get(Opcode).TSFlags & SIInstrFlags::FIXED_SIZE;
+  }
+
   bool isVGPRCopy(const MachineInstr &MI) const {
     assert(MI.isCopy());
     unsigned Dest = MI.getOperand(0).getReg();
@@ -380,9 +462,96 @@ public:
     return !RI.isSGPRReg(MRI, Dest);
   }
 
+  static int operandBitWidth(uint8_t OperandType) {
+    switch (OperandType) {
+    case AMDGPU::OPERAND_REG_IMM_INT32:
+    case AMDGPU::OPERAND_REG_IMM_FP32:
+    case AMDGPU::OPERAND_REG_INLINE_C_INT32:
+    case AMDGPU::OPERAND_REG_INLINE_C_FP32:
+      return 32;
+    case AMDGPU::OPERAND_REG_IMM_INT64:
+    case AMDGPU::OPERAND_REG_IMM_FP64:
+    case AMDGPU::OPERAND_REG_INLINE_C_INT64:
+    case AMDGPU::OPERAND_REG_INLINE_C_FP64:
+      return 64;
+    case AMDGPU::OPERAND_REG_INLINE_C_INT16:
+    case AMDGPU::OPERAND_REG_INLINE_C_FP16:
+    case AMDGPU::OPERAND_REG_IMM_INT16:
+    case AMDGPU::OPERAND_REG_IMM_FP16:
+      return 16;
+    default:
+      llvm_unreachable("unexpected operand type");
+    }
+  }
+
   bool isInlineConstant(const APInt &Imm) const;
-  bool isInlineConstant(const MachineOperand &MO, unsigned OpSize) const;
-  bool isLiteralConstant(const MachineOperand &MO, unsigned OpSize) const;
+
+  bool isInlineConstant(const MachineOperand &MO, uint8_t OperandType) const;
+
+  bool isInlineConstant(const MachineOperand &MO,
+                        const MCOperandInfo &OpInfo) const {
+    return isInlineConstant(MO, OpInfo.OperandType);
+  }
+
+  /// \p returns true if \p UseMO is substituted with \p DefMO in \p MI it would
+  /// be an inline immediate.
+  bool isInlineConstant(const MachineInstr &MI,
+                        const MachineOperand &UseMO,
+                        const MachineOperand &DefMO) const {
+    assert(UseMO.getParent() == &MI);
+    int OpIdx = MI.getOperandNo(&UseMO);
+    if (!MI.getDesc().OpInfo || OpIdx >= MI.getDesc().NumOperands) {
+      return false;
+    }
+
+    return isInlineConstant(DefMO, MI.getDesc().OpInfo[OpIdx]);
+  }
+
+  /// \p returns true if the operand \p OpIdx in \p MI is a valid inline
+  /// immediate.
+  bool isInlineConstant(const MachineInstr &MI, unsigned OpIdx) const {
+    const MachineOperand &MO = MI.getOperand(OpIdx);
+    return isInlineConstant(MO, MI.getDesc().OpInfo[OpIdx].OperandType);
+  }
+
+  bool isInlineConstant(const MachineInstr &MI, unsigned OpIdx,
+                        const MachineOperand &MO) const {
+    if (!MI.getDesc().OpInfo || OpIdx >= MI.getDesc().NumOperands)
+      return false;
+
+    if (MI.isCopy()) {
+      unsigned Size = getOpSize(MI, OpIdx);
+      assert(Size == 8 || Size == 4);
+
+      uint8_t OpType = (Size == 8) ?
+        AMDGPU::OPERAND_REG_IMM_INT64 : AMDGPU::OPERAND_REG_IMM_INT32;
+      return isInlineConstant(MO, OpType);
+    }
+
+    return isInlineConstant(MO, MI.getDesc().OpInfo[OpIdx].OperandType);
+  }
+
+  bool isInlineConstant(const MachineOperand &MO) const {
+    const MachineInstr *Parent = MO.getParent();
+    return isInlineConstant(*Parent, Parent->getOperandNo(&MO));
+  }
+
+  bool isLiteralConstant(const MachineOperand &MO,
+                         const MCOperandInfo &OpInfo) const {
+    return MO.isImm() && !isInlineConstant(MO, OpInfo.OperandType);
+  }
+
+  bool isLiteralConstant(const MachineInstr &MI, int OpIdx) const {
+    const MachineOperand &MO = MI.getOperand(OpIdx);
+    return MO.isImm() && !isInlineConstant(MI, OpIdx);
+  }
+
+  // Returns true if this operand could potentially require a 32-bit literal
+  // operand, but not necessarily. A FrameIndex for example could resolve to an
+  // inline immediate value that will not require an additional 4-bytes; this
+  // assumes that it will.
+  bool isLiteralConstantLike(const MachineOperand &MO,
+                             const MCOperandInfo &OpInfo) const;
 
   bool isImmOperandLegal(const MachineInstr &MI, unsigned OpNo,
                          const MachineOperand &MO) const;
@@ -394,7 +563,7 @@ public:
   /// \brief Returns true if this operand uses the constant bus.
   bool usesConstantBus(const MachineRegisterInfo &MRI,
                        const MachineOperand &MO,
-                       unsigned OpSize) const;
+                       const MCOperandInfo &OpInfo) const;
 
   /// \brief Return true if this instruction has any modifiers.
   ///  e.g. src[012]_mod, omod, clamp.
@@ -487,6 +656,12 @@ public:
 
   void legalizeOperandsSMRD(MachineRegisterInfo &MRI, MachineInstr &MI) const;
 
+  void legalizeGenericOperand(MachineBasicBlock &InsertMBB,
+                              MachineBasicBlock::iterator I,
+                              const TargetRegisterClass *DstRC,
+                              MachineOperand &Op, MachineRegisterInfo &MRI,
+                              const DebugLoc &DL) const;
+
   /// \brief Legalize all operands in this instruction.  This function may
   /// create new instruction and insert them before \p MI.
   void legalizeOperands(MachineInstr &MI) const;
@@ -535,7 +710,17 @@ public:
     return get(pseudoToMCOpcode(Opcode));
   }
 
-  unsigned getInstSizeInBytes(const MachineInstr &MI) const;
+  unsigned isStackAccess(const MachineInstr &MI, int &FrameIndex) const;
+  unsigned isSGPRStackAccess(const MachineInstr &MI, int &FrameIndex) const;
+
+  unsigned isLoadFromStackSlot(const MachineInstr &MI,
+                               int &FrameIndex) const override;
+  unsigned isStoreToStackSlot(const MachineInstr &MI,
+                              int &FrameIndex) const override;
+
+  unsigned getInstSizeInBytes(const MachineInstr &MI) const override;
+
+  bool mayAccessFlatAddressSpace(const MachineInstr &MI) const;
 
   ArrayRef<std::pair<int, const char *>>
   getSerializableTargetIndices() const override;
@@ -570,10 +755,19 @@ namespace AMDGPU {
   LLVM_READONLY
   int getAtomicNoRetOp(uint16_t Opcode);
 
+  LLVM_READONLY
+  int getSOPKOp(uint16_t Opcode);
+
   const uint64_t RSRC_DATA_FORMAT = 0xf00000000000LL;
   const uint64_t RSRC_ELEMENT_SIZE_SHIFT = (32 + 19);
   const uint64_t RSRC_INDEX_STRIDE_SHIFT = (32 + 21);
   const uint64_t RSRC_TID_ENABLE = UINT64_C(1) << (32 + 23);
+
+  // For MachineOperands.
+  enum TargetFlags {
+    TF_LONG_BRANCH_FORWARD = 1 << 0,
+    TF_LONG_BRANCH_BACKWARD = 1 << 1
+  };
 } // End namespace AMDGPU
 
 namespace SI {

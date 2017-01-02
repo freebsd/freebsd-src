@@ -13,10 +13,10 @@
 #include "llvm/ADT/iterator_range.h"
 #include "llvm/DebugInfo/CodeView/CVRecord.h"
 #include "llvm/DebugInfo/CodeView/ModuleSubstream.h"
-#include "llvm/DebugInfo/CodeView/StreamArray.h"
-#include "llvm/DebugInfo/CodeView/StreamRef.h"
 #include "llvm/DebugInfo/CodeView/SymbolRecord.h"
-#include "llvm/DebugInfo/PDB/Raw/MappedBlockStream.h"
+#include "llvm/DebugInfo/MSF/MappedBlockStream.h"
+#include "llvm/DebugInfo/MSF/StreamArray.h"
+#include "llvm/DebugInfo/MSF/StreamRef.h"
 #include "llvm/Support/Error.h"
 
 namespace llvm {
@@ -26,10 +26,13 @@ class ModInfo;
 
 class ModStream {
 public:
-  ModStream(const ModInfo &Module, std::unique_ptr<MappedBlockStream> Stream);
+  ModStream(const ModInfo &Module,
+            std::unique_ptr<msf::MappedBlockStream> Stream);
   ~ModStream();
 
   Error reload();
+
+  uint32_t signature() const { return Signature; }
 
   iterator_range<codeview::CVSymbolArray::Iterator>
   symbols(bool *HadError) const;
@@ -42,12 +45,14 @@ public:
 private:
   const ModInfo &Mod;
 
-  std::unique_ptr<MappedBlockStream> Stream;
+  uint32_t Signature;
+
+  std::unique_ptr<msf::MappedBlockStream> Stream;
 
   codeview::CVSymbolArray SymbolsSubstream;
-  codeview::StreamRef LinesSubstream;
-  codeview::StreamRef C13LinesSubstream;
-  codeview::StreamRef GlobalRefsSubstream;
+  msf::ReadableStreamRef LinesSubstream;
+  msf::ReadableStreamRef C13LinesSubstream;
+  msf::ReadableStreamRef GlobalRefsSubstream;
 
   codeview::ModuleSubstreamArray LineInfo;
 };

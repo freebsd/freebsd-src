@@ -16,7 +16,11 @@
 #define LLVM_ANALYSIS_LOOPPASSMANAGER_H
 
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/LoopInfo.h"
+#include "llvm/Analysis/ScalarEvolution.h"
+#include "llvm/Analysis/TargetLibraryInfo.h"
+#include "llvm/IR/Dominators.h"
 #include "llvm/IR/PassManager.h"
 
 namespace llvm {
@@ -38,10 +42,20 @@ extern template class AnalysisManager<Loop>;
 /// pass manager infrastructure.
 typedef AnalysisManager<Loop> LoopAnalysisManager;
 
-extern template class InnerAnalysisManagerProxy<LoopAnalysisManager, Function>;
 /// A proxy from a \c LoopAnalysisManager to a \c Function.
 typedef InnerAnalysisManagerProxy<LoopAnalysisManager, Function>
     LoopAnalysisManagerFunctionProxy;
+
+/// Specialization of the invalidate method for the \c
+/// LoopAnalysisManagerFunctionProxy's result.
+template <>
+bool LoopAnalysisManagerFunctionProxy::Result::invalidate(
+    Function &F, const PreservedAnalyses &PA,
+    FunctionAnalysisManager::Invalidator &Inv);
+
+// Ensure the \c LoopAnalysisManagerFunctionProxy is provided as an extern
+// template.
+extern template class InnerAnalysisManagerProxy<LoopAnalysisManager, Function>;
 
 extern template class OuterAnalysisManagerProxy<FunctionAnalysisManager, Loop>;
 /// A proxy from a \c FunctionAnalysisManager to a \c Loop.
@@ -64,21 +78,6 @@ class FunctionToLoopPassAdaptor
 public:
   explicit FunctionToLoopPassAdaptor(LoopPassT Pass)
       : Pass(std::move(Pass)) {}
-  // We have to explicitly define all the special member functions because MSVC
-  // refuses to generate them.
-  FunctionToLoopPassAdaptor(const FunctionToLoopPassAdaptor &Arg)
-      : Pass(Arg.Pass) {}
-  FunctionToLoopPassAdaptor(FunctionToLoopPassAdaptor &&Arg)
-      : Pass(std::move(Arg.Pass)) {}
-  friend void swap(FunctionToLoopPassAdaptor &LHS,
-                   FunctionToLoopPassAdaptor &RHS) {
-    using std::swap;
-    swap(LHS.Pass, RHS.Pass);
-  }
-  FunctionToLoopPassAdaptor &operator=(FunctionToLoopPassAdaptor RHS) {
-    swap(*this, RHS);
-    return *this;
-  }
 
   /// \brief Runs the loop passes across every loop in the function.
   PreservedAnalyses run(Function &F, FunctionAnalysisManager &AM) {
@@ -87,6 +86,14 @@ public:
         AM.getResult<LoopAnalysisManagerFunctionProxy>(F).getManager();
     // Get the loop structure for this function
     LoopInfo &LI = AM.getResult<LoopAnalysis>(F);
+
+    // Also precompute all of the function analyses used by loop passes.
+    // FIXME: These should be handed into the loop passes when the loop pass
+    // management layer is reworked to follow the design of CGSCC.
+    (void)AM.getResult<AAManager>(F);
+    (void)AM.getResult<DominatorTreeAnalysis>(F);
+    (void)AM.getResult<ScalarEvolutionAnalysis>(F);
+    (void)AM.getResult<TargetLibraryAnalysis>(F);
 
     PreservedAnalyses PA = PreservedAnalyses::all();
 
@@ -104,24 +111,24 @@ public:
     // post-order.
     for (auto *L : reverse(Loops)) {
       PreservedAnalyses PassPA = Pass.run(*L, LAM);
-      assert(PassPA.preserved(getLoopPassPreservedAnalyses()) &&
-             "Loop passes must preserve all relevant analyses");
+      // FIXME: We should verify the set of analyses relevant to Loop passes
+      // are preserved.
 
       // We know that the loop pass couldn't have invalidated any other loop's
       // analyses (that's the contract of a loop pass), so directly handle the
-      // loop analysis manager's invalidation here.  Also, update the
-      // preserved analyses to reflect that once invalidated these can again
-      // be preserved.
-      PassPA = LAM.invalidate(*L, std::move(PassPA));
+      // loop analysis manager's invalidation here.
+      LAM.invalidate(*L, PassPA);
 
       // Then intersect the preserved set so that invalidation of module
       // analyses will eventually occur when the module pass completes.
       PA.intersect(std::move(PassPA));
     }
 
-    // By definition we preserve the proxy. This precludes *any* invalidation of
-    // loop analyses by the proxy, but that's OK because we've taken care to
-    // invalidate analyses in the loop analysis manager incrementally above.
+    // By definition we preserve the proxy. We also preserve all analyses on
+    // Loops. This precludes *any* invalidation of loop analyses by the proxy,
+    // but that's OK because we've taken care to invalidate analyses in the
+    // loop analysis manager incrementally above.
+    PA.preserveSet<AllAnalysesOn<Loop>>();
     PA.preserve<LoopAnalysisManagerFunctionProxy>();
     return PA;
   }

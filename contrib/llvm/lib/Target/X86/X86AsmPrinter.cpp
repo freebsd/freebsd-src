@@ -57,10 +57,10 @@ bool X86AsmPrinter::runOnMachineFunction(MachineFunction &MF) {
   SetupMachineFunction(MF);
 
   if (Subtarget->isTargetCOFF()) {
-    bool Intrn = MF.getFunction()->hasInternalLinkage();
+    bool Local = MF.getFunction()->hasLocalLinkage();
     OutStreamer->BeginCOFFSymbolDef(CurrentFnSym);
-    OutStreamer->EmitCOFFSymbolStorageClass(Intrn ? COFF::IMAGE_SYM_CLASS_STATIC
-                                            : COFF::IMAGE_SYM_CLASS_EXTERNAL);
+    OutStreamer->EmitCOFFSymbolStorageClass(
+        Local ? COFF::IMAGE_SYM_CLASS_STATIC : COFF::IMAGE_SYM_CLASS_EXTERNAL);
     OutStreamer->EmitCOFFSymbolType(COFF::IMAGE_SYM_DTYPE_FUNCTION
                                                << COFF::SCT_COMPLEX_TYPE_SHIFT);
     OutStreamer->EndCOFFSymbolDef();
@@ -627,11 +627,11 @@ void X86AsmPrinter::EmitEndOfAsmFile(Module &M) {
     raw_string_ostream FlagsOS(Flags);
 
     for (const auto &Function : M)
-      TLOFCOFF.emitLinkerFlagsForGlobal(FlagsOS, &Function, *Mang);
+      TLOFCOFF.emitLinkerFlagsForGlobal(FlagsOS, &Function);
     for (const auto &Global : M.globals())
-      TLOFCOFF.emitLinkerFlagsForGlobal(FlagsOS, &Global, *Mang);
+      TLOFCOFF.emitLinkerFlagsForGlobal(FlagsOS, &Global);
     for (const auto &Alias : M.aliases())
-      TLOFCOFF.emitLinkerFlagsForGlobal(FlagsOS, &Alias, *Mang);
+      TLOFCOFF.emitLinkerFlagsForGlobal(FlagsOS, &Alias);
 
     FlagsOS.flush();
 
@@ -656,6 +656,6 @@ void X86AsmPrinter::EmitEndOfAsmFile(Module &M) {
 
 // Force static initialization.
 extern "C" void LLVMInitializeX86AsmPrinter() {
-  RegisterAsmPrinter<X86AsmPrinter> X(TheX86_32Target);
-  RegisterAsmPrinter<X86AsmPrinter> Y(TheX86_64Target);
+  RegisterAsmPrinter<X86AsmPrinter> X(getTheX86_32Target());
+  RegisterAsmPrinter<X86AsmPrinter> Y(getTheX86_64Target());
 }

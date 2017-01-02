@@ -25,8 +25,8 @@ template <typename T> class ArrayRef;
 /// Function 'VectorFnName' is equivalent to 'ScalarFnName' vectorized
 /// by a factor 'VectorizationFactor'.
 struct VecDesc {
-  const char *ScalarFnName;
-  const char *VectorFnName;
+  StringRef ScalarFnName;
+  StringRef VectorFnName;
   unsigned VectorizationFactor;
 };
 
@@ -50,7 +50,8 @@ class TargetLibraryInfoImpl {
 
   unsigned char AvailableArray[(LibFunc::NumLibFuncs+3)/4];
   llvm::DenseMap<unsigned, std::string> CustomNames;
-  static const char *const StandardNames[LibFunc::NumLibFuncs];
+  static StringRef const StandardNames[LibFunc::NumLibFuncs];
+  bool ShouldExtI32Param, ShouldExtI32Return, ShouldSignExtI32Param;
 
   enum AvailabilityState {
     StandardName = 3, // (memset to all ones)
@@ -85,8 +86,9 @@ public:
   /// addVectorizableFunctionsFromVecLib for filling up the tables of
   /// vectorizable functions.
   enum VectorLibrary {
-    NoLibrary, // Don't use any vector library.
-    Accelerate // Use Accelerate framework.
+    NoLibrary,  // Don't use any vector library.
+    Accelerate, // Use Accelerate framework.
+    SVML        // Intel short vector math library.
   };
 
   TargetLibraryInfoImpl();
@@ -171,6 +173,26 @@ public:
   ///
   /// Set VF to the vectorization factor.
   StringRef getScalarizedFunction(StringRef F, unsigned &VF) const;
+
+  /// Set to true iff i32 parameters to library functions should have signext
+  /// or zeroext attributes if they correspond to C-level int or unsigned int,
+  /// respectively.
+  void setShouldExtI32Param(bool Val) {
+    ShouldExtI32Param = Val;
+  }
+
+  /// Set to true iff i32 results from library functions should have signext
+  /// or zeroext attributes if they correspond to C-level int or unsigned int,
+  /// respectively.
+  void setShouldExtI32Return(bool Val) {
+    ShouldExtI32Return = Val;
+  }
+
+  /// Set to true iff i32 parameters to library functions should have signext
+  /// attribute if they correspond to C-level int or unsigned int.
+  void setShouldSignExtI32Param(bool Val) {
+    ShouldSignExtI32Param = Val;
+  }
 };
 
 /// Provides information about what library functions are available for
@@ -251,7 +273,7 @@ public:
     case LibFunc::exp2:      case LibFunc::exp2f:      case LibFunc::exp2l:
     case LibFunc::memcmp:    case LibFunc::strcmp:     case LibFunc::strcpy:
     case LibFunc::stpcpy:    case LibFunc::strlen:     case LibFunc::strnlen:
-    case LibFunc::memchr:
+    case LibFunc::memchr:    case LibFunc::mempcpy:
       return true;
     }
     return false;
@@ -267,11 +289,38 @@ public:
     return Impl->CustomNames.find(F)->second;
   }
 
+  /// Returns extension attribute kind to be used for i32 parameters
+  /// correpsonding to C-level int or unsigned int.  May be zeroext, signext,
+  /// or none.
+  Attribute::AttrKind getExtAttrForI32Param(bool Signed = true) const {
+    if (Impl->ShouldExtI32Param)
+      return Signed ? Attribute::SExt : Attribute::ZExt;
+    if (Impl->ShouldSignExtI32Param)
+      return Attribute::SExt;
+    return Attribute::None;
+  }
+
+  /// Returns extension attribute kind to be used for i32 return values
+  /// correpsonding to C-level int or unsigned int.  May be zeroext, signext,
+  /// or none.
+  Attribute::AttrKind getExtAttrForI32Return(bool Signed = true) const {
+    if (Impl->ShouldExtI32Return)
+      return Signed ? Attribute::SExt : Attribute::ZExt;
+    return Attribute::None;
+  }
+
   /// Handle invalidation from the pass manager.
   ///
   /// If we try to invalidate this info, just return false. It cannot become
-  /// invalid even if the module changes.
-  bool invalidate(Module &, const PreservedAnalyses &) { return false; }
+  /// invalid even if the module or function changes.
+  bool invalidate(Module &, const PreservedAnalyses &,
+                  ModuleAnalysisManager::Invalidator &) {
+    return false;
+  }
+  bool invalidate(Function &, const PreservedAnalyses &,
+                  FunctionAnalysisManager::Invalidator &) {
+    return false;
+  }
 };
 
 /// Analysis pass providing the \c TargetLibraryInfo.
@@ -295,21 +344,12 @@ public:
   TargetLibraryAnalysis(TargetLibraryInfoImpl PresetInfoImpl)
       : PresetInfoImpl(std::move(PresetInfoImpl)) {}
 
-  // Move semantics. We spell out the constructors for MSVC.
-  TargetLibraryAnalysis(TargetLibraryAnalysis &&Arg)
-      : PresetInfoImpl(std::move(Arg.PresetInfoImpl)), Impls(std::move(Arg.Impls)) {}
-  TargetLibraryAnalysis &operator=(TargetLibraryAnalysis &&RHS) {
-    PresetInfoImpl = std::move(RHS.PresetInfoImpl);
-    Impls = std::move(RHS.Impls);
-    return *this;
-  }
-
   TargetLibraryInfo run(Module &M, ModuleAnalysisManager &);
   TargetLibraryInfo run(Function &F, FunctionAnalysisManager &);
 
 private:
   friend AnalysisInfoMixin<TargetLibraryAnalysis>;
-  static char PassID;
+  static AnalysisKey Key;
 
   Optional<TargetLibraryInfoImpl> PresetInfoImpl;
 

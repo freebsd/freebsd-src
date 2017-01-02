@@ -100,7 +100,7 @@ public:
   const MCPhysReg *
   getCalleeSavedRegs(const MachineFunction* MF) const override;
   const MCPhysReg *
-  getCalleeSavedRegsViaCopy(const MachineFunction *MF) const override;
+  getCalleeSavedRegsViaCopy(const MachineFunction *MF) const;
   const uint32_t *getCallPreservedMask(const MachineFunction &MF,
                                        CallingConv::ID) const override;
   const uint32_t *getNoPreservedMask() const override;
@@ -136,9 +136,6 @@ public:
   // FIXME: Move to FrameInfok
   unsigned getSlotSize() const { return SlotSize; }
 };
-
-//get512BitRegister - X86 utility - returns 512-bit super register
-unsigned get512BitSuperRegister(unsigned Reg);
 
 } // End llvm namespace
 

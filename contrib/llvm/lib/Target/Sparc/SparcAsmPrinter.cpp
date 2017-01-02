@@ -46,9 +46,7 @@ namespace {
                              std::unique_ptr<MCStreamer> Streamer)
         : AsmPrinter(TM, std::move(Streamer)) {}
 
-    const char *getPassName() const override {
-      return "Sparc Assembly Printer";
-    }
+    StringRef getPassName() const override { return "Sparc Assembly Printer"; }
 
     void printOperand(const MachineInstr *MI, int opNum, raw_ostream &OS);
     void printMemOperand(const MachineInstr *MI, int opNum, raw_ostream &OS,
@@ -445,7 +443,7 @@ bool SparcAsmPrinter::PrintAsmMemoryOperand(const MachineInstr *MI,
 
 // Force static initialization.
 extern "C" void LLVMInitializeSparcAsmPrinter() {
-  RegisterAsmPrinter<SparcAsmPrinter> X(TheSparcTarget);
-  RegisterAsmPrinter<SparcAsmPrinter> Y(TheSparcV9Target);
-  RegisterAsmPrinter<SparcAsmPrinter> Z(TheSparcelTarget);
+  RegisterAsmPrinter<SparcAsmPrinter> X(getTheSparcTarget());
+  RegisterAsmPrinter<SparcAsmPrinter> Y(getTheSparcV9Target());
+  RegisterAsmPrinter<SparcAsmPrinter> Z(getTheSparcelTarget());
 }

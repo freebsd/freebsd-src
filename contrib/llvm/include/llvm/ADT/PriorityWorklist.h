@@ -17,10 +17,12 @@
 #define LLVM_ADT_PRIORITYWORKLIST_H
 
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/Support/Compiler.h"
 #include <algorithm>
 #include <cassert>
-#include <utility>
+#include <cstddef>
 #include <vector>
 
 namespace llvm {
@@ -59,7 +61,7 @@ public:
   typedef typename MapT::size_type size_type;
 
   /// Construct an empty PriorityWorklist
-  PriorityWorklist() {}
+  PriorityWorklist() = default;
 
   /// Determine if the PriorityWorklist is empty or not.
   bool empty() const {
@@ -115,7 +117,7 @@ public:
     } while (!V.empty() && V.back() == T());
   }
 
-  T LLVM_ATTRIBUTE_UNUSED_RESULT pop_back_val() {
+  LLVM_NODISCARD T pop_back_val() {
     T Ret = back();
     pop_back();
     return Ret;
@@ -147,7 +149,7 @@ public:
   /// write it:
   ///
   /// \code
-  ///   V.erase(std::remove_if(V.begin(), V.end(), P), V.end());
+  ///   V.erase(remove_if(V, P), V.end());
   /// \endcode
   ///
   /// However, PriorityWorklist doesn't expose non-const iterators, making any
@@ -156,8 +158,8 @@ public:
   /// \returns true if any element is removed.
   template <typename UnaryPredicate>
   bool erase_if(UnaryPredicate P) {
-    typename VectorT::iterator E = std::remove_if(
-        V.begin(), V.end(), TestAndEraseFromMap<UnaryPredicate>(P, M));
+    typename VectorT::iterator E =
+        remove_if(V, TestAndEraseFromMap<UnaryPredicate>(P, M));
     if (E == V.end())
       return false;
     for (auto I = V.begin(); I != E; ++I)
@@ -216,9 +218,9 @@ class SmallPriorityWorklist
     : public PriorityWorklist<T, SmallVector<T, N>,
                               SmallDenseMap<T, ptrdiff_t>> {
 public:
-  SmallPriorityWorklist() {}
+  SmallPriorityWorklist() = default;
 };
 
-}
+} // end namespace llvm
 
-#endif
+#endif // LLVM_ADT_PRIORITYWORKLIST_H

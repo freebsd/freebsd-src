@@ -193,12 +193,6 @@ public:
 
   bool shouldPrintMachineCode() const { return Options.PrintMachineCode; }
 
-  /// Returns the default value of asm verbosity.
-  ///
-  bool getAsmVerbosityDefault() const {
-    return Options.MCOptions.AsmVerbose;
-  }
-
   bool getUniqueSectionNames() const { return Options.UniqueSectionNames; }
 
   /// Return true if data objects should be emitted into their own section,
@@ -241,7 +235,8 @@ public:
   virtual bool addPassesToEmitFile(
       PassManagerBase &, raw_pwrite_stream &, CodeGenFileType,
       bool /*DisableVerify*/ = true, AnalysisID /*StartBefore*/ = nullptr,
-      AnalysisID /*StartAfter*/ = nullptr, AnalysisID /*StopAfter*/ = nullptr,
+      AnalysisID /*StartAfter*/ = nullptr, AnalysisID /*StopBefore*/ = nullptr,
+      AnalysisID /*StopAfter*/ = nullptr,
       MachineFunctionInitializer * /*MFInitializer*/ = nullptr) {
     return true;
   }
@@ -266,7 +261,7 @@ public:
 
   void getNameWithPrefix(SmallVectorImpl<char> &Name, const GlobalValue *GV,
                          Mangler &Mang, bool MayAlwaysUsePrivate = false) const;
-  MCSymbol *getSymbol(const GlobalValue *GV, Mangler &Mang) const;
+  MCSymbol *getSymbol(const GlobalValue *GV) const;
 
   /// True if the target uses physical regs at Prolog/Epilog insertion
   /// time. If true (most machines), all vregs must be allocated before
@@ -302,7 +297,8 @@ public:
   bool addPassesToEmitFile(
       PassManagerBase &PM, raw_pwrite_stream &Out, CodeGenFileType FileType,
       bool DisableVerify = true, AnalysisID StartBefore = nullptr,
-      AnalysisID StartAfter = nullptr, AnalysisID StopAfter = nullptr,
+      AnalysisID StartAfter = nullptr, AnalysisID StopBefore = nullptr,
+      AnalysisID StopAfter = nullptr,
       MachineFunctionInitializer *MFInitializer = nullptr) override;
 
   /// Add passes to the specified pass manager to get machine code emitted with
@@ -312,13 +308,6 @@ public:
   bool addPassesToEmitMC(PassManagerBase &PM, MCContext *&Ctx,
                          raw_pwrite_stream &OS,
                          bool DisableVerify = true) override;
-
-  /// Add MachineModuleInfo pass to pass manager.
-  MachineModuleInfo &addMachineModuleInfo(PassManagerBase &PM) const;
-
-  /// Add MachineFunctionAnalysis pass to pass manager.
-  void addMachineFunctionAnalysis(PassManagerBase &PM,
-      MachineFunctionInitializer *MFInitializer) const;
 };
 
 } // End llvm namespace

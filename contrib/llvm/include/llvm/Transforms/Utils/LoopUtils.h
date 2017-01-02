@@ -246,7 +246,7 @@ private:
   RecurrenceKind Kind;
   // If this a min/max recurrence the kind of recurrence.
   MinMaxRecurrenceKind MinMaxKind;
-  // First occurance of unasfe algebra in the PHI's use-chain.
+  // First occurrence of unasfe algebra in the PHI's use-chain.
   Instruction *UnsafeAlgebraInst;
   // The type of the recurrence.
   Type *RecurrenceType;
@@ -263,13 +263,15 @@ public:
   enum InductionKind {
     IK_NoInduction,  ///< Not an induction variable.
     IK_IntInduction, ///< Integer induction variable. Step = C.
-    IK_PtrInduction  ///< Pointer induction var. Step = C / sizeof(elem).
+    IK_PtrInduction, ///< Pointer induction var. Step = C / sizeof(elem).
+    IK_FpInduction   ///< Floating point induction variable.
   };
 
 public:
   /// Default constructor - creates an invalid induction.
   InductionDescriptor()
-      : StartValue(nullptr), IK(IK_NoInduction), Step(nullptr) {}
+    : StartValue(nullptr), IK(IK_NoInduction), Step(nullptr),
+    InductionBinOp(nullptr) {}
 
   /// Get the consecutive direction. Returns:
   ///   0 - unknown or non-consecutive.
@@ -291,26 +293,58 @@ public:
   const SCEV *getStep() const { return Step; }
   ConstantInt *getConstIntStepValue() const;
 
-  /// Returns true if \p Phi is an induction. If \p Phi is an induction,
-  /// the induction descriptor \p D will contain the data describing this
-  /// induction. If by some other means the caller has a better SCEV
+  /// Returns true if \p Phi is an induction in the loop \p L. If \p Phi is an
+  /// induction, the induction descriptor \p D will contain the data describing
+  /// this induction. If by some other means the caller has a better SCEV
   /// expression for \p Phi than the one returned by the ScalarEvolution
   /// analysis, it can be passed through \p Expr.
-  static bool isInductionPHI(PHINode *Phi, ScalarEvolution *SE,
+  static bool isInductionPHI(PHINode *Phi, const Loop* L, ScalarEvolution *SE,
                              InductionDescriptor &D,
                              const SCEV *Expr = nullptr);
 
-  /// Returns true if \p Phi is an induction, in the context associated with
-  /// the run-time predicate of PSE. If \p Assume is true, this can add further
-  /// SCEV predicates to \p PSE in order to prove that \p Phi is an induction.
+  /// Returns true if \p Phi is a floating point induction in the loop \p L.
+  /// If \p Phi is an induction, the induction descriptor \p D will contain 
+  /// the data describing this induction.
+  static bool isFPInductionPHI(PHINode *Phi, const Loop* L,
+                               ScalarEvolution *SE, InductionDescriptor &D);
+
+  /// Returns true if \p Phi is a loop \p L induction, in the context associated
+  /// with the run-time predicate of PSE. If \p Assume is true, this can add
+  /// further SCEV predicates to \p PSE in order to prove that \p Phi is an
+  /// induction.
   /// If \p Phi is an induction, \p D will contain the data describing this
   /// induction.
-  static bool isInductionPHI(PHINode *Phi, PredicatedScalarEvolution &PSE,
+  static bool isInductionPHI(PHINode *Phi, const Loop* L,
+                             PredicatedScalarEvolution &PSE,
                              InductionDescriptor &D, bool Assume = false);
+
+  /// Returns true if the induction type is FP and the binary operator does
+  /// not have the "fast-math" property. Such operation requires a relaxed FP
+  /// mode.
+  bool hasUnsafeAlgebra() {
+    return InductionBinOp &&
+      !cast<FPMathOperator>(InductionBinOp)->hasUnsafeAlgebra();
+  }
+
+  /// Returns induction operator that does not have "fast-math" property
+  /// and requires FP unsafe mode.
+  Instruction *getUnsafeAlgebraInst() {
+    if (!InductionBinOp ||
+        cast<FPMathOperator>(InductionBinOp)->hasUnsafeAlgebra())
+      return nullptr;
+    return InductionBinOp;
+  }
+
+  /// Returns binary opcode of the induction operator.
+  Instruction::BinaryOps getInductionOpcode() const {
+    return InductionBinOp ? InductionBinOp->getOpcode() :
+      Instruction::BinaryOpsEnd;
+  }
 
 private:
   /// Private constructor - used by \c isInductionPHI.
-  InductionDescriptor(Value *Start, InductionKind K, const SCEV *Step);
+  InductionDescriptor(Value *Start, InductionKind K, const SCEV *Step,
+                      BinaryOperator *InductionBinOp = nullptr);
 
   /// Start value.
   TrackingVH<Value> StartValue;
@@ -318,6 +352,8 @@ private:
   InductionKind IK;
   /// Step value.
   const SCEV *Step;
+  // Instruction that advances induction variable.
+  BinaryOperator *InductionBinOp;
 };
 
 BasicBlock *InsertPreheaderForLoop(Loop *L, DominatorTree *DT, LoopInfo *LI,
@@ -425,12 +461,28 @@ Optional<const MDOperand *> findStringMetadataForLoop(Loop *TheLoop,
 void addStringMetadataToLoop(Loop *TheLoop, const char *MDString,
                              unsigned V = 0);
 
+/// \brief Get a loop's estimated trip count based on branch weight metadata.
+/// Returns 0 when the count is estimated to be 0, or None when a meaningful
+/// estimate can not be made.
+Optional<unsigned> getLoopEstimatedTripCount(Loop *L);
+
 /// Helper to consistently add the set of standard passes to a loop pass's \c
 /// AnalysisUsage.
 ///
 /// All loop passes should call this as part of implementing their \c
 /// getAnalysisUsage.
 void getLoopAnalysisUsage(AnalysisUsage &AU);
+
+/// Returns true if the hoister and sinker can handle this instruction.
+/// If SafetyInfo is null, we are checking for sinking instructions from
+/// preheader to loop body (no speculation).
+/// If SafetyInfo is not null, we are checking for hoisting/sinking
+/// instructions from loop body to preheader/exit. Check if the instruction
+/// can execute specultatively.
+///
+bool canSinkOrHoistInst(Instruction &I, AAResults *AA, DominatorTree *DT,
+                        Loop *CurLoop, AliasSetTracker *CurAST,
+                        LoopSafetyInfo *SafetyInfo);
 }
 
 #endif

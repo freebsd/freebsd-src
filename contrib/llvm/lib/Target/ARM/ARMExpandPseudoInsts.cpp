@@ -53,10 +53,10 @@ namespace {
 
     MachineFunctionProperties getRequiredProperties() const override {
       return MachineFunctionProperties().set(
-          MachineFunctionProperties::Property::AllVRegsAllocated);
+          MachineFunctionProperties::Property::NoVRegs);
     }
 
-    const char *getPassName() const override {
+    StringRef getPassName() const override {
       return "ARM pseudo instruction expansion pass";
     }
 
@@ -657,6 +657,9 @@ static bool IsAnAddressOperand(const MachineOperand &MO) {
     return true;
   case MachineOperand::MO_CFIIndex:
     return false;
+  case MachineOperand::MO_IntrinsicID:
+  case MachineOperand::MO_Predicate:
+    llvm_unreachable("should not exist post-isel");
   }
   llvm_unreachable("unhandled machine operand type");
 }
@@ -1175,8 +1178,8 @@ bool ARMExpandPseudo::ExpandMI(MachineBasicBlock &MBB,
         }
         // If there's dynamic realignment, adjust for it.
         if (RI.needsStackRealignment(MF)) {
-          MachineFrameInfo  *MFI = MF.getFrameInfo();
-          unsigned MaxAlign = MFI->getMaxAlignment();
+          MachineFrameInfo &MFI = MF.getFrameInfo();
+          unsigned MaxAlign = MFI.getMaxAlignment();
           assert (!AFI->isThumb1OnlyFunction());
           // Emit bic r6, r6, MaxAlign
           assert(MaxAlign <= 256 && "The BIC instruction cannot encode "

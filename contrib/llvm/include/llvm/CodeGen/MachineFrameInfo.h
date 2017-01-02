@@ -103,7 +103,7 @@ class MachineFrameInfo {
 
     /// If true, this stack slot is used to spill a value (could be deopt
     /// and/or GC related) over a statepoint. We know that the address of the
-    /// slot can't alias any LLVM IR value.  This is very similiar to a Spill
+    /// slot can't alias any LLVM IR value.  This is very similar to a Spill
     /// Slot, but is created by statepoint lowering is SelectionDAG, not the
     /// register allocator. 
     bool isStatepointSpillSlot;
@@ -544,7 +544,8 @@ public:
 
   /// Create a spill slot at a fixed location on the stack.
   /// Returns an index with a negative value.
-  int CreateFixedSpillStackObject(uint64_t Size, int64_t SPOffset);
+  int CreateFixedSpillStackObject(uint64_t Size, int64_t SPOffset,
+                                  bool Immutable = false);
 
   /// Returns true if the specified index corresponds to a fixed stack object.
   bool isFixedObjectIndex(int ObjectIdx) const {

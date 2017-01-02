@@ -39,7 +39,7 @@ public:
   WebAssemblyReplacePhysRegs() : MachineFunctionPass(ID) {}
 
 private:
-  const char *getPassName() const override {
+  StringRef getPassName() const override {
     return "WebAssembly Replace Physical Registers";
   }
 
@@ -76,7 +76,7 @@ bool WebAssemblyReplacePhysRegs::runOnMachineFunction(MachineFunction &MF) {
   for (unsigned PReg = WebAssembly::NoRegister + 1;
        PReg < WebAssembly::NUM_TARGET_REGS; ++PReg) {
     // Skip fake registers that are never used explicitly.
-    if (PReg == WebAssembly::EXPR_STACK || PReg == WebAssembly::ARGUMENTS)
+    if (PReg == WebAssembly::VALUE_STACK || PReg == WebAssembly::ARGUMENTS)
       continue;
 
     // Replace explicit uses of the physical register with a virtual register.
@@ -88,6 +88,8 @@ bool WebAssemblyReplacePhysRegs::runOnMachineFunction(MachineFunction &MF) {
         if (VReg == WebAssembly::NoRegister)
           VReg = MRI.createVirtualRegister(RC);
         MO.setReg(VReg);
+        if (MO.getParent()->isDebugValue())
+          MO.setIsDebug();
         Changed = true;
       }
     }

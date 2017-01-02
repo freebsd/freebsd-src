@@ -398,6 +398,14 @@ class tPseudoInst<dag oops, dag iops, int sz, InstrItinClass itin,
   list<Predicate> Predicates = [IsThumb];
 }
 
+// PseudoInst that's in ARMv8-M baseline (Somewhere between Thumb and Thumb2)
+class t2basePseudoInst<dag oops, dag iops, int sz, InstrItinClass itin,
+                    list<dag> pattern>
+  : PseudoInst<oops, iops, itin, pattern> {
+  let Size = sz;
+  list<Predicate> Predicates = [IsThumb,HasV8MBaseline];
+}
+
 // PseudoInst that's Thumb2-mode only.
 class t2PseudoInst<dag oops, dag iops, int sz, InstrItinClass itin,
                     list<dag> pattern>
@@ -998,6 +1006,15 @@ class VFPPat<dag pattern, dag result> : Pat<pattern, result> {
 }
 class VFPNoNEONPat<dag pattern, dag result> : Pat<pattern, result> {
   list<Predicate> Predicates = [HasVFP2, DontUseNEONForFP];
+}
+class Thumb2DSPPat<dag pattern, dag result> : Pat<pattern, result> {
+  list<Predicate> Predicates = [IsThumb2, HasDSP];
+}
+class Thumb2DSPMulPat<dag pattern, dag result> : Pat<pattern, result> {
+  list<Predicate> Predicates = [IsThumb2, UseMulOps, HasDSP];
+}
+class Thumb2ExtractPat<dag pattern, dag result> : Pat<pattern, result> {
+  list<Predicate> Predicates = [IsThumb2, HasT2ExtractPack];
 }
 //===----------------------------------------------------------------------===//
 // Thumb Instruction Format Definitions.

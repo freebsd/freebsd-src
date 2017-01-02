@@ -23,11 +23,12 @@
 #include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/Analysis/LoopIterator.h"
 #include "llvm/Analysis/LoopPass.h"
+#include "llvm/Analysis/OptimizationDiagnosticInfo.h"
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/DataLayout.h"
-#include "llvm/IR/DiagnosticInfo.h"
 #include "llvm/IR/Dominators.h"
+#include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
@@ -46,7 +47,7 @@ STATISTIC(NumCompletelyUnrolled, "Number of loops completely unrolled");
 STATISTIC(NumUnrolled, "Number of loops unrolled (completely or otherwise)");
 
 static cl::opt<bool>
-UnrollRuntimeEpilog("unroll-runtime-epilog", cl::init(true), cl::Hidden,
+UnrollRuntimeEpilog("unroll-runtime-epilog", cl::init(false), cl::Hidden,
                     cl::desc("Allow runtime unrolled loops to be unrolled "
                              "with epilog instead of prolog."));
 
@@ -177,14 +178,19 @@ static bool needToInsertPhisForLCSSA(Loop *L, std::vector<BasicBlock *> Blocks,
 /// branch instruction. However, if the trip count (and multiple) are not known,
 /// loop unrolling will mostly produce more code that is no faster.
 ///
-/// TripCount is generally defined as the number of times the loop header
-/// executes. UnrollLoop relaxes the definition to permit early exits: here
-/// TripCount is the iteration on which control exits LatchBlock if no early
-/// exits were taken. Note that UnrollLoop assumes that the loop counter test
-/// terminates LatchBlock in order to remove unnecesssary instances of the
-/// test. In other words, control may exit the loop prior to TripCount
-/// iterations via an early branch, but control may not exit the loop from the
-/// LatchBlock's terminator prior to TripCount iterations.
+/// TripCount is the upper bound of the iteration on which control exits
+/// LatchBlock. Control may exit the loop prior to TripCount iterations either
+/// via an early branch in other loop block or via LatchBlock terminator. This
+/// is relaxed from the general definition of trip count which is the number of
+/// times the loop header executes. Note that UnrollLoop assumes that the loop
+/// counter test is in LatchBlock in order to remove unnecesssary instances of
+/// the test.  If control can exit the loop from the LatchBlock's terminator
+/// prior to TripCount iterations, flag PreserveCondBr needs to be set.
+///
+/// PreserveCondBr indicates whether the conditional branch of the LatchBlock
+/// needs to be preserved.  It is needed when we use trip count upper bound to
+/// fully unroll the loop. If PreserveOnlyFirst is also set then only the first
+/// conditional branch needs to be preserved.
 ///
 /// Similarly, TripMultiple divides the number of times that the LatchBlock may
 /// execute without exiting the loop.
@@ -196,15 +202,21 @@ static bool needToInsertPhisForLCSSA(Loop *L, std::vector<BasicBlock *> Blocks,
 /// runtime-unroll the loop if computing RuntimeTripCount will be expensive and
 /// AllowExpensiveTripCount is false.
 ///
+/// If we want to perform PGO-based loop peeling, PeelCount is set to the 
+/// number of iterations we want to peel off.
+///
 /// The LoopInfo Analysis that is passed will be kept consistent.
 ///
 /// This utility preserves LoopInfo. It will also preserve ScalarEvolution and
 /// DominatorTree if they are non-null.
 bool llvm::UnrollLoop(Loop *L, unsigned Count, unsigned TripCount, bool Force,
                       bool AllowRuntime, bool AllowExpensiveTripCount,
-                      unsigned TripMultiple, LoopInfo *LI, ScalarEvolution *SE,
-                      DominatorTree *DT, AssumptionCache *AC,
+                      bool PreserveCondBr, bool PreserveOnlyFirst,
+                      unsigned TripMultiple, unsigned PeelCount, LoopInfo *LI,
+                      ScalarEvolution *SE, DominatorTree *DT,
+                      AssumptionCache *AC, OptimizationRemarkEmitter *ORE,
                       bool PreserveLCSSA) {
+
   BasicBlock *Preheader = L->getLoopPreheader();
   if (!Preheader) {
     DEBUG(dbgs() << "  Can't unroll; loop preheader-insertion failed.\n");
@@ -250,9 +262,8 @@ bool llvm::UnrollLoop(Loop *L, unsigned Count, unsigned TripCount, bool Force,
   if (TripCount != 0 && Count > TripCount)
     Count = TripCount;
 
-  // Don't enter the unroll code if there is nothing to do. This way we don't
-  // need to support "partial unrolling by 1".
-  if (TripCount == 0 && Count < 2)
+  // Don't enter the unroll code if there is nothing to do.
+  if (TripCount == 0 && Count < 2 && PeelCount == 0)
     return false;
 
   assert(Count > 0);
@@ -272,13 +283,21 @@ bool llvm::UnrollLoop(Loop *L, unsigned Count, unsigned TripCount, bool Force,
   // now we just recompute LCSSA for the outer loop, but it should be possible
   // to fix it in-place.
   bool NeedToFixLCSSA = PreserveLCSSA && CompletelyUnroll &&
-      std::any_of(ExitBlocks.begin(), ExitBlocks.end(),
-                  [&](BasicBlock *BB) { return isa<PHINode>(BB->begin()); });
+                        any_of(ExitBlocks, [](const BasicBlock *BB) {
+                          return isa<PHINode>(BB->begin());
+                        });
 
   // We assume a run-time trip count if the compiler cannot
   // figure out the loop trip count and the unroll-runtime
   // flag is specified.
   bool RuntimeTripCount = (TripCount == 0 && Count > 0 && AllowRuntime);
+
+  assert((!RuntimeTripCount || !PeelCount) &&
+         "Did not expect runtime trip-count unrolling "
+         "and peeling for the same loop");
+
+  if (PeelCount)
+    peelLoop(L, PeelCount, LI, SE, DT, PreserveLCSSA);
 
   // Loops containing convergent instructions must have a count that divides
   // their TripMultiple.
@@ -293,9 +312,7 @@ bool llvm::UnrollLoop(Loop *L, unsigned Count, unsigned TripCount, bool Force,
                "Unroll count must divide trip multiple if loop contains a "
                "convergent operation.");
       });
-  // Don't output the runtime loop remainder if Count is a multiple of
-  // TripMultiple.  Such a remainder is never needed, and is unsafe if the loop
-  // contains a convergent instruction.
+
   if (RuntimeTripCount && TripMultiple % Count != 0 &&
       !UnrollRuntimeLoopRemainder(L, Count, AllowExpensiveTripCount,
                                   UnrollRuntimeEpilog, LI, SE, DT, 
@@ -322,35 +339,40 @@ bool llvm::UnrollLoop(Loop *L, unsigned Count, unsigned TripCount, bool Force,
       (unsigned)GreatestCommonDivisor64(Count, TripMultiple);
   }
 
+  using namespace ore;
   // Report the unrolling decision.
-  DebugLoc LoopLoc = L->getStartLoc();
-  Function *F = Header->getParent();
-  LLVMContext &Ctx = F->getContext();
-
   if (CompletelyUnroll) {
     DEBUG(dbgs() << "COMPLETELY UNROLLING loop %" << Header->getName()
           << " with trip count " << TripCount << "!\n");
-    emitOptimizationRemark(Ctx, DEBUG_TYPE, *F, LoopLoc,
-                           Twine("completely unrolled loop with ") +
-                               Twine(TripCount) + " iterations");
+    ORE->emit(OptimizationRemark(DEBUG_TYPE, "FullyUnrolled", L->getStartLoc(),
+                                 L->getHeader())
+              << "completely unrolled loop with "
+              << NV("UnrollCount", TripCount) << " iterations");
+  } else if (PeelCount) {
+    DEBUG(dbgs() << "PEELING loop %" << Header->getName()
+                 << " with iteration count " << PeelCount << "!\n");
+    ORE->emit(OptimizationRemark(DEBUG_TYPE, "Peeled", L->getStartLoc(),
+                                 L->getHeader())
+              << " peeled loop by " << NV("PeelCount", PeelCount)
+              << " iterations");
   } else {
-    auto EmitDiag = [&](const Twine &T) {
-      emitOptimizationRemark(Ctx, DEBUG_TYPE, *F, LoopLoc,
-                             "unrolled loop by a factor of " + Twine(Count) +
-                                 T);
-    };
+    OptimizationRemark Diag(DEBUG_TYPE, "PartialUnrolled", L->getStartLoc(),
+                            L->getHeader());
+    Diag << "unrolled loop by a factor of " << NV("UnrollCount", Count);
 
     DEBUG(dbgs() << "UNROLLING loop %" << Header->getName()
           << " by " << Count);
     if (TripMultiple == 0 || BreakoutTrip != TripMultiple) {
       DEBUG(dbgs() << " with a breakout at trip " << BreakoutTrip);
-      EmitDiag(" with a breakout at trip " + Twine(BreakoutTrip));
+      ORE->emit(Diag << " with a breakout at trip "
+                     << NV("BreakoutTrip", BreakoutTrip));
     } else if (TripMultiple != 1) {
       DEBUG(dbgs() << " with " << TripMultiple << " trips per branch");
-      EmitDiag(" with " + Twine(TripMultiple) + " trips per branch");
+      ORE->emit(Diag << " with " << NV("TripMultiple", TripMultiple)
+                     << " trips per branch");
     } else if (RuntimeTripCount) {
       DEBUG(dbgs() << " with run-time trip count");
-      EmitDiag(" with run-time trip count");
+      ORE->emit(Diag << " with run-time trip count");
     }
     DEBUG(dbgs() << "!\n");
   }
@@ -382,6 +404,15 @@ bool llvm::UnrollLoop(Loop *L, unsigned Count, unsigned TripCount, bool Force,
   LoopBlocksDFS::RPOIterator BlockEnd = DFS.endRPO();
 
   std::vector<BasicBlock*> UnrolledLoopBlocks = L->getBlocks();
+
+  // Loop Unrolling might create new loops. While we do preserve LoopInfo, we
+  // might break loop-simplified form for these loops (as they, e.g., would
+  // share the same exit blocks). We'll keep track of loops for which we can
+  // break this so that later we can re-simplify them.
+  SmallSetVector<Loop *, 4> LoopsToSimplify;
+  for (Loop *SubLoop : *L)
+    LoopsToSimplify.insert(SubLoop);
+
   for (unsigned It = 1; It != Count; ++It) {
     std::vector<BasicBlock*> NewBlocks;
     SmallDenseMap<const Loop *, Loop *, 4> NewLoops;
@@ -412,6 +443,7 @@ bool llvm::UnrollLoop(Loop *L, unsigned Count, unsigned TripCount, bool Force,
                  "Expected parent loop before sub-loop in RPO");
           NewLoop = new Loop;
           NewLoopParent->addChildLoop(NewLoop);
+          LoopsToSimplify.insert(NewLoop);
 
           // Forget the old loop, since its inputs may have changed.
           if (SE)
@@ -480,9 +512,14 @@ bool llvm::UnrollLoop(Loop *L, unsigned Count, unsigned TripCount, bool Force,
     }
 
     // Remap all instructions in the most recent iteration
-    for (BasicBlock *NewBlock : NewBlocks)
-      for (Instruction &I : *NewBlock)
+    for (BasicBlock *NewBlock : NewBlocks) {
+      for (Instruction &I : *NewBlock) {
         ::remapInstruction(&I, LastValueMap);
+        if (auto *II = dyn_cast<IntrinsicInst>(&I))
+          if (II->getIntrinsicID() == Intrinsic::assume)
+            AC->registerAssumption(II);
+      }
+    }
   }
 
   // Loop over the PHI nodes in the original block, setting incoming values.
@@ -524,12 +561,16 @@ bool llvm::UnrollLoop(Loop *L, unsigned Count, unsigned TripCount, bool Force,
     if (CompletelyUnroll) {
       if (j == 0)
         Dest = LoopExit;
-      NeedConditional = false;
-    }
-
-    // If we know the trip count or a multiple of it, we can safely use an
-    // unconditional branch for some iterations.
-    if (j != BreakoutTrip && (TripMultiple == 0 || j % TripMultiple != 0)) {
+      // If using trip count upper bound to completely unroll, we need to keep
+      // the conditional branch except the last one because the loop may exit
+      // after any iteration.
+      assert(NeedConditional &&
+             "NeedCondition cannot be modified by both complete "
+             "unrolling and runtime unrolling");
+      NeedConditional = (PreserveCondBr && j && !(PreserveOnlyFirst && i != 0));
+    } else if (j != BreakoutTrip && (TripMultiple == 0 || j % TripMultiple != 0)) {
+      // If we know the trip count or a multiple of it, we can safely use an
+      // unconditional branch for some iterations.
       NeedConditional = false;
     }
 
@@ -595,10 +636,6 @@ bool llvm::UnrollLoop(Loop *L, unsigned Count, unsigned TripCount, bool Force,
     }
   }
 
-  // FIXME: We could register any cloned assumptions instead of clearing the
-  // whole function's cache.
-  AC->clear();
-
   // FIXME: We only preserve DT info for complete unrolling now. Incrementally
   // updating domtree after partial loop unrolling should also be easy.
   if (DT && !CompletelyUnroll)
@@ -607,7 +644,7 @@ bool llvm::UnrollLoop(Loop *L, unsigned Count, unsigned TripCount, bool Force,
     DEBUG(DT->verifyDomTree());
 
   // Simplify any new induction variables in the partially unrolled loop.
-  if (SE && !CompletelyUnroll) {
+  if (SE && !CompletelyUnroll && Count > 1) {
     SmallVector<WeakVH, 16> DeadInsts;
     simplifyLoopIVs(L, SE, DT, LI, DeadInsts);
 
@@ -636,6 +673,11 @@ bool llvm::UnrollLoop(Loop *L, unsigned Count, unsigned TripCount, bool Force,
     }
   }
 
+  // TODO: after peeling or unrolling, previously loop variant conditions are
+  // likely to fold to constants, eagerly propagating those here will require
+  // fewer cleanup passes to be run.  Alternatively, a LoopEarlyCSE might be
+  // appropriate.
+
   NumCompletelyUnrolled += CompletelyUnroll;
   ++NumUnrolled;
 
@@ -663,6 +705,11 @@ bool llvm::UnrollLoop(Loop *L, unsigned Count, unsigned TripCount, bool Force,
     if (!OuterL && !CompletelyUnroll)
       OuterL = L;
     if (OuterL) {
+      // OuterL includes all loops for which we can break loop-simplify, so
+      // it's sufficient to simplify only it (it'll recursively simplify inner
+      // loops too).
+      // TODO: That potentially might be compile-time expensive. We should try
+      // to fix the loop-simplified form incrementally.
       simplifyLoop(OuterL, DT, LI, SE, AC, PreserveLCSSA);
 
       // LCSSA must be performed on the outermost affected loop. The unrolled
@@ -678,6 +725,10 @@ bool llvm::UnrollLoop(Loop *L, unsigned Count, unsigned TripCount, bool Force,
       else
         assert(OuterL->isLCSSAForm(*DT) &&
                "Loops should be in LCSSA form after loop-unroll.");
+    } else {
+      // Simplify loops for which we might've broken loop-simplify form.
+      for (Loop *SubLoop : LoopsToSimplify)
+        simplifyLoop(SubLoop, DT, LI, SE, AC, PreserveLCSSA);
     }
   }
 

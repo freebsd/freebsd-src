@@ -82,16 +82,18 @@ class AArch64A53Fix835769 : public MachineFunctionPass {
 
 public:
   static char ID;
-  explicit AArch64A53Fix835769() : MachineFunctionPass(ID) {}
+  explicit AArch64A53Fix835769() : MachineFunctionPass(ID) {
+    initializeAArch64A53Fix835769Pass(*PassRegistry::getPassRegistry());
+  }
 
   bool runOnMachineFunction(MachineFunction &F) override;
 
   MachineFunctionProperties getRequiredProperties() const override {
     return MachineFunctionProperties().set(
-        MachineFunctionProperties::Property::AllVRegsAllocated);
+        MachineFunctionProperties::Property::NoVRegs);
   }
 
-  const char *getPassName() const override {
+  StringRef getPassName() const override {
     return "Workaround A53 erratum 835769 pass";
   }
 
@@ -106,6 +108,9 @@ private:
 char AArch64A53Fix835769::ID = 0;
 
 } // end anonymous namespace
+
+INITIALIZE_PASS(AArch64A53Fix835769, "aarch64-fix-cortex-a53-835769-pass",
+                "AArch64 fix for A53 erratum 835769", false, false)
 
 //===----------------------------------------------------------------------===//
 

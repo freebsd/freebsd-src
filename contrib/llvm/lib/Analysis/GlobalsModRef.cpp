@@ -78,7 +78,7 @@ class GlobalsAAResult::FunctionInfo {
       return (AlignedMap *)P;
     }
     enum { NumLowBitsAvailable = 3 };
-    static_assert(AlignOf<AlignedMap>::Alignment >= (1 << NumLowBitsAvailable),
+    static_assert(alignof(AlignedMap) >= (1 << NumLowBitsAvailable),
                   "AlignedMap insufficiently aligned to have enough low bits.");
   };
 
@@ -366,6 +366,10 @@ bool GlobalsAAResult::AnalyzeUsesOfPointer(Value *V,
     } else if (ICmpInst *ICI = dyn_cast<ICmpInst>(I)) {
       if (!isa<ConstantPointerNull>(ICI->getOperand(1)))
         return true; // Allow comparison against null.
+    } else if (Constant *C = dyn_cast<Constant>(I)) {
+      // Ignore constants which don't have any live uses.
+      if (isa<GlobalValue>(C) || C->isConstantUsed())
+        return true;
     } else {
       return true;
     }
@@ -521,7 +525,7 @@ void GlobalsAAResult::AnalyzeCallGraph(CallGraph &CG, Module &M) {
             // Can't say anything about it.  However, if it is inside our SCC,
             // then nothing needs to be done.
             CallGraphNode *CalleeNode = CG[Callee];
-            if (std::find(SCC.begin(), SCC.end(), CalleeNode) == SCC.end())
+            if (!is_contained(SCC, CalleeNode))
               KnowNothing = true;
           }
         } else {
@@ -857,22 +861,22 @@ ModRefInfo GlobalsAAResult::getModRefInfoForArgument(ImmutableCallSite CS,
   if (CS.doesNotAccessMemory())
     return MRI_NoModRef;
   ModRefInfo ConservativeResult = CS.onlyReadsMemory() ? MRI_Ref : MRI_ModRef;
-  
+
   // Iterate through all the arguments to the called function. If any argument
   // is based on GV, return the conservative result.
   for (auto &A : CS.args()) {
     SmallVector<Value*, 4> Objects;
     GetUnderlyingObjects(A, Objects, DL);
-    
+
     // All objects must be identified.
-    if (!std::all_of(Objects.begin(), Objects.end(), isIdentifiedObject) &&
+    if (!all_of(Objects, isIdentifiedObject) &&
         // Try ::alias to see if all objects are known not to alias GV.
-        !std::all_of(Objects.begin(), Objects.end(), [&](Value *V) {
+        !all_of(Objects, [&](Value *V) {
           return this->alias(MemoryLocation(V), MemoryLocation(GV)) == NoAlias;
-          }))
+        }))
       return ConservativeResult;
 
-    if (std::find(Objects.begin(), Objects.end(), GV) != Objects.end())
+    if (is_contained(Objects, GV))
       return ConservativeResult;
   }
 
@@ -937,9 +941,9 @@ GlobalsAAResult::analyzeModule(Module &M, const TargetLibraryInfo &TLI,
   return Result;
 }
 
-char GlobalsAA::PassID;
+AnalysisKey GlobalsAA::Key;
 
-GlobalsAAResult GlobalsAA::run(Module &M, AnalysisManager<Module> &AM) {
+GlobalsAAResult GlobalsAA::run(Module &M, ModuleAnalysisManager &AM) {
   return GlobalsAAResult::analyzeModule(M,
                                         AM.getResult<TargetLibraryAnalysis>(M),
                                         AM.getResult<CallGraphAnalysis>(M));

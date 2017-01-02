@@ -15,6 +15,7 @@
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/Loads.h"
+#include "llvm/IR/ConstantRange.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/IntrinsicInst.h"
@@ -59,14 +60,14 @@ isOnlyCopiedFromConstantGlobal(Value *V, MemTransferInst *&TheCopy,
   // eliminate the markers.
 
   SmallVector<std::pair<Value *, bool>, 35> ValuesToInspect;
-  ValuesToInspect.push_back(std::make_pair(V, false));
+  ValuesToInspect.emplace_back(V, false);
   while (!ValuesToInspect.empty()) {
     auto ValuePair = ValuesToInspect.pop_back_val();
     const bool IsOffset = ValuePair.second;
     for (auto &U : ValuePair.first->uses()) {
-      Instruction *I = cast<Instruction>(U.getUser());
+      auto *I = cast<Instruction>(U.getUser());
 
-      if (LoadInst *LI = dyn_cast<LoadInst>(I)) {
+      if (auto *LI = dyn_cast<LoadInst>(I)) {
         // Ignore non-volatile loads, they are always ok.
         if (!LI->isSimple()) return false;
         continue;
@@ -74,14 +75,13 @@ isOnlyCopiedFromConstantGlobal(Value *V, MemTransferInst *&TheCopy,
 
       if (isa<BitCastInst>(I) || isa<AddrSpaceCastInst>(I)) {
         // If uses of the bitcast are ok, we are ok.
-        ValuesToInspect.push_back(std::make_pair(I, IsOffset));
+        ValuesToInspect.emplace_back(I, IsOffset);
         continue;
       }
-      if (GetElementPtrInst *GEP = dyn_cast<GetElementPtrInst>(I)) {
+      if (auto *GEP = dyn_cast<GetElementPtrInst>(I)) {
         // If the GEP has all zero indices, it doesn't offset the pointer. If it
         // doesn't, it does.
-        ValuesToInspect.push_back(
-            std::make_pair(I, IsOffset || !GEP->hasAllZeroIndices()));
+        ValuesToInspect.emplace_back(I, IsOffset || !GEP->hasAllZeroIndices());
         continue;
       }
 
@@ -286,7 +286,7 @@ Instruction *InstCombiner::visitAllocaInst(AllocaInst &AI) {
     SmallVector<Instruction *, 4> ToDelete;
     if (MemTransferInst *Copy = isOnlyCopiedFromConstantGlobal(&AI, ToDelete)) {
       unsigned SourceAlign = getOrEnforceKnownAlignment(
-          Copy->getSource(), AI.getAlignment(), DL, &AI, AC, DT);
+          Copy->getSource(), AI.getAlignment(), DL, &AI, &AC, &DT);
       if (AI.getAlignment() <= SourceAlign) {
         DEBUG(dbgs() << "Found alloca equal to global: " << AI << '\n');
         DEBUG(dbgs() << "  memcpy = " << *Copy << '\n');
@@ -308,6 +308,11 @@ Instruction *InstCombiner::visitAllocaInst(AllocaInst &AI) {
   return visitAllocSite(AI);
 }
 
+// Are we allowed to form a atomic load or store of this type?
+static bool isSupportedAtomicType(Type *Ty) {
+  return Ty->isIntegerTy() || Ty->isPointerTy() || Ty->isFloatingPointTy();
+}
+
 /// \brief Helper to combine a load to a new type.
 ///
 /// This just does the work of combining a load to a new type. It handles
@@ -319,6 +324,9 @@ Instruction *InstCombiner::visitAllocaInst(AllocaInst &AI) {
 /// point the \c InstCombiner currently is using.
 static LoadInst *combineLoadToNewType(InstCombiner &IC, LoadInst &LI, Type *NewTy,
                                       const Twine &Suffix = "") {
+  assert((!LI.isAtomic() || isSupportedAtomicType(NewTy)) &&
+         "can't fold an atomic load to requested type");
+  
   Value *Ptr = LI.getPointerOperand();
   unsigned AS = LI.getPointerAddressSpace();
   SmallVector<std::pair<unsigned, MDNode *>, 8> MD;
@@ -380,8 +388,16 @@ static LoadInst *combineLoadToNewType(InstCombiner &IC, LoadInst &LI, Type *NewT
       break;
     case LLVMContext::MD_range:
       // FIXME: It would be nice to propagate this in some way, but the type
-      // conversions make it hard. If the new type is a pointer, we could
-      // translate it to !nonnull metadata.
+      // conversions make it hard.
+
+      // If it's a pointer now and the range does not contain 0, make it !nonnull.
+      if (NewTy->isPointerTy()) {
+        unsigned BitWidth = IC.getDataLayout().getTypeSizeInBits(NewTy);
+        if (!getConstantRangeFromMetadata(*N).contains(APInt(BitWidth, 0))) {
+          MDNode *NN = MDNode::get(LI.getContext(), None);
+          NewLoad->setMetadata(LLVMContext::MD_nonnull, NN);
+        }
+      }
       break;
     }
   }
@@ -392,6 +408,9 @@ static LoadInst *combineLoadToNewType(InstCombiner &IC, LoadInst &LI, Type *NewT
 ///
 /// Returns the newly created store instruction.
 static StoreInst *combineStoreToNewValue(InstCombiner &IC, StoreInst &SI, Value *V) {
+  assert((!SI.isAtomic() || isSupportedAtomicType(V->getType())) &&
+         "can't fold an atomic store of requested type");
+  
   Value *Ptr = SI.getPointerOperand();
   unsigned AS = SI.getPointerAddressSpace();
   SmallVector<std::pair<unsigned, MDNode *>, 8> MD;
@@ -466,6 +485,10 @@ static Instruction *combineLoadToOperationType(InstCombiner &IC, LoadInst &LI) {
   if (LI.use_empty())
     return nullptr;
 
+  // swifterror values can't be bitcasted.
+  if (LI.getPointerOperand()->isSwiftError())
+    return nullptr;
+
   Type *Ty = LI.getType();
   const DataLayout &DL = IC.getDataLayout();
 
@@ -475,8 +498,9 @@ static Instruction *combineLoadToOperationType(InstCombiner &IC, LoadInst &LI) {
   // size is a legal integer type.
   if (!Ty->isIntegerTy() && Ty->isSized() &&
       DL.isLegalInteger(DL.getTypeStoreSizeInBits(Ty)) &&
-      DL.getTypeStoreSizeInBits(Ty) == DL.getTypeSizeInBits(Ty)) {
-    if (std::all_of(LI.user_begin(), LI.user_end(), [&LI](User *U) {
+      DL.getTypeStoreSizeInBits(Ty) == DL.getTypeSizeInBits(Ty) &&
+      !DL.isNonIntegralPointerType(Ty)) {
+    if (all_of(LI.users(), [&LI](User *U) {
           auto *SI = dyn_cast<StoreInst>(U);
           return SI && SI->getPointerOperand() != &LI;
         })) {
@@ -501,14 +525,14 @@ static Instruction *combineLoadToOperationType(InstCombiner &IC, LoadInst &LI) {
   // as long as those are noops (i.e., the source or dest type have the same
   // bitwidth as the target's pointers).
   if (LI.hasOneUse())
-    if (auto* CI = dyn_cast<CastInst>(LI.user_back())) {
-      if (CI->isNoopCast(DL)) {
-        LoadInst *NewLoad = combineLoadToNewType(IC, LI, CI->getDestTy());
-        CI->replaceAllUsesWith(NewLoad);
-        IC.eraseInstFromFunction(*CI);
-        return &LI;
-      }
-    }
+    if (auto* CI = dyn_cast<CastInst>(LI.user_back()))
+      if (CI->isNoopCast(DL))
+        if (!LI.isAtomic() || isSupportedAtomicType(CI->getDestTy())) {
+          LoadInst *NewLoad = combineLoadToNewType(IC, LI, CI->getDestTy());
+          CI->replaceAllUsesWith(NewLoad);
+          IC.eraseInstFromFunction(*CI);
+          return &LI;
+        }
 
   // FIXME: We should also canonicalize loads of vectors when their elements are
   // cast to other types.
@@ -802,7 +826,7 @@ Instruction *InstCombiner::visitLoadInst(LoadInst &LI) {
 
   // Attempt to improve the alignment.
   unsigned KnownAlign = getOrEnforceKnownAlignment(
-      Op, DL.getPrefTypeAlignment(LI.getType()), DL, &LI, AC, DT);
+      Op, DL.getPrefTypeAlignment(LI.getType()), DL, &LI, &AC, &DT);
   unsigned LoadAlign = LI.getAlignment();
   unsigned EffectiveLoadAlign =
       LoadAlign != 0 ? LoadAlign : DL.getABITypeAlignment(LI.getType());
@@ -825,11 +849,10 @@ Instruction *InstCombiner::visitLoadInst(LoadInst &LI) {
   // where there are several consecutive memory accesses to the same location,
   // separated by a few arithmetic operations.
   BasicBlock::iterator BBI(LI);
-  AAMDNodes AATags;
   bool IsLoadCSE = false;
   if (Value *AvailableVal =
       FindAvailableLoadedValue(&LI, LI.getParent(), BBI,
-                               DefMaxInstsToScan, AA, &AATags, &IsLoadCSE)) {
+                               DefMaxInstsToScan, AA, &IsLoadCSE)) {
     if (IsLoadCSE) {
       LoadInst *NLI = cast<LoadInst>(AvailableVal);
       unsigned KnownIDs[] = {
@@ -1005,19 +1028,26 @@ static bool combineStoreToValueType(InstCombiner &IC, StoreInst &SI) {
   if (!SI.isUnordered())
     return false;
 
+  // swifterror values can't be bitcasted.
+  if (SI.getPointerOperand()->isSwiftError())
+    return false;
+
   Value *V = SI.getValueOperand();
 
   // Fold away bit casts of the stored value by storing the original type.
   if (auto *BC = dyn_cast<BitCastInst>(V)) {
     V = BC->getOperand(0);
-    combineStoreToNewValue(IC, SI, V);
-    return true;
+    if (!SI.isAtomic() || isSupportedAtomicType(V->getType())) {
+      combineStoreToNewValue(IC, SI, V);
+      return true;
+    }
   }
 
-  if (Value *U = likeBitCastFromVector(IC, V)) {
-    combineStoreToNewValue(IC, SI, U);
-    return true;
-  }
+  if (Value *U = likeBitCastFromVector(IC, V))
+    if (!SI.isAtomic() || isSupportedAtomicType(U->getType())) {
+      combineStoreToNewValue(IC, SI, U);
+      return true;
+    }
 
   // FIXME: We should also canonicalize stores of vectors when their elements
   // are cast to other types.
@@ -1169,7 +1199,7 @@ Instruction *InstCombiner::visitStoreInst(StoreInst &SI) {
 
   // Attempt to improve the alignment.
   unsigned KnownAlign = getOrEnforceKnownAlignment(
-      Ptr, DL.getPrefTypeAlignment(Val->getType()), DL, &SI, AC, DT);
+      Ptr, DL.getPrefTypeAlignment(Val->getType()), DL, &SI, &AC, &DT);
   unsigned StoreAlign = SI.getAlignment();
   unsigned EffectiveStoreAlign =
       StoreAlign != 0 ? StoreAlign : DL.getABITypeAlignment(Val->getType());
@@ -1293,7 +1323,7 @@ Instruction *InstCombiner::visitStoreInst(StoreInst &SI) {
 bool InstCombiner::SimplifyStoreAtEndOfBlock(StoreInst &SI) {
   assert(SI.isUnordered() &&
          "this code has not been auditted for volatile or ordered store case");
-  
+
   BasicBlock *StoreBB = SI.getParent();
 
   // Check to see if the successor block has exactly two incoming edges.  If

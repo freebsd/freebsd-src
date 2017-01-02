@@ -46,7 +46,7 @@ ARMConstantPoolValue::ARMConstantPoolValue(LLVMContext &C, unsigned id,
 
 ARMConstantPoolValue::~ARMConstantPoolValue() {}
 
-const char *ARMConstantPoolValue::getModifierText() const {
+StringRef ARMConstantPoolValue::getModifierText() const {
   switch (Modifier) {
     // FIXME: Are these case sensitive? It'd be nice to lower-case all the
     // strings if that's legal.
@@ -60,6 +60,8 @@ const char *ARMConstantPoolValue::getModifierText() const {
     return "gottpoff";
   case ARMCP::TPOFF:
     return "tpoff";
+  case ARMCP::SBREL:
+    return "SBREL";
   case ARMCP::SECREL:
     return "secrel32";
   }
@@ -129,10 +131,22 @@ ARMConstantPoolConstant::ARMConstantPoolConstant(const Constant *C,
                          AddCurrentAddress),
     CVal(C) {}
 
+ARMConstantPoolConstant::ARMConstantPoolConstant(const GlobalVariable *GV,
+                                                 const Constant *C)
+    : ARMConstantPoolValue((Type *)C->getType(), 0, ARMCP::CPPromotedGlobal, 0,
+                           ARMCP::no_modifier, false),
+      CVal(C), GVar(GV) {}
+
 ARMConstantPoolConstant *
 ARMConstantPoolConstant::Create(const Constant *C, unsigned ID) {
   return new ARMConstantPoolConstant(C, ID, ARMCP::CPValue, 0,
                                      ARMCP::no_modifier, false);
+}
+
+ARMConstantPoolConstant *
+ARMConstantPoolConstant::Create(const GlobalVariable *GVar,
+                                const Constant *Initializer) {
+  return new ARMConstantPoolConstant(GVar, Initializer);
 }
 
 ARMConstantPoolConstant *
@@ -191,18 +205,17 @@ void ARMConstantPoolConstant::print(raw_ostream &O) const {
 // ARMConstantPoolSymbol
 //===----------------------------------------------------------------------===//
 
-ARMConstantPoolSymbol::ARMConstantPoolSymbol(LLVMContext &C, const char *s,
-                                             unsigned id,
-                                             unsigned char PCAdj,
+ARMConstantPoolSymbol::ARMConstantPoolSymbol(LLVMContext &C, StringRef s,
+                                             unsigned id, unsigned char PCAdj,
                                              ARMCP::ARMCPModifier Modifier,
                                              bool AddCurrentAddress)
-  : ARMConstantPoolValue(C, id, ARMCP::CPExtSymbol, PCAdj, Modifier,
-                         AddCurrentAddress),
-    S(s) {}
+    : ARMConstantPoolValue(C, id, ARMCP::CPExtSymbol, PCAdj, Modifier,
+                           AddCurrentAddress),
+      S(s) {}
 
-ARMConstantPoolSymbol *
-ARMConstantPoolSymbol::Create(LLVMContext &C, const char *s,
-                              unsigned ID, unsigned char PCAdj) {
+ARMConstantPoolSymbol *ARMConstantPoolSymbol::Create(LLVMContext &C,
+                                                     StringRef s, unsigned ID,
+                                                     unsigned char PCAdj) {
   return new ARMConstantPoolSymbol(C, s, ID, PCAdj, ARMCP::no_modifier, false);
 }
 

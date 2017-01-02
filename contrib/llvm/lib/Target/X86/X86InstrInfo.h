@@ -15,6 +15,7 @@
 #define LLVM_LIB_TARGET_X86_X86INSTRINFO_H
 
 #include "MCTargetDesc/X86BaseInfo.h"
+#include "X86InstrFMA3Info.h"
 #include "X86RegisterInfo.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/Target/TargetInstrInfo.h"
@@ -265,7 +266,7 @@ public:
                              unsigned &SrcOpIdx2) const override;
 
   /// Returns true if the routine could find two commutable operands
-  /// in the given FMA instruction. Otherwise, returns false.
+  /// in the given FMA instruction \p MI. Otherwise, returns false.
   ///
   /// \p SrcOpIdx1 and \p SrcOpIdx2 are INPUT and OUTPUT arguments.
   /// The output indices of the commuted operands are returned in these
@@ -274,10 +275,12 @@ public:
   /// value 'CommuteAnyOperandIndex' which means that the corresponding
   /// operand index is not set and this method is free to pick any of
   /// available commutable operands.
+  /// The parameter \p FMA3Group keeps the reference to the group of relative
+  /// FMA3 opcodes including register/memory forms of 132/213/231 opcodes.
   ///
   /// For example, calling this method this way:
   ///     unsigned Idx1 = 1, Idx2 = CommuteAnyOperandIndex;
-  ///     findFMA3CommutedOpIndices(MI, Idx1, Idx2);
+  ///     findFMA3CommutedOpIndices(MI, Idx1, Idx2, FMA3Group);
   /// can be interpreted as a query asking if the operand #1 can be swapped
   /// with any other available operand (e.g. operand #2, operand #3, etc.).
   ///
@@ -286,24 +289,40 @@ public:
   ///     FMA213 #1, #2, #3
   /// results into instruction with adjusted opcode:
   ///     FMA231 #3, #2, #1
-  bool findFMA3CommutedOpIndices(MachineInstr &MI, unsigned &SrcOpIdx1,
-                                 unsigned &SrcOpIdx2) const;
+  bool findFMA3CommutedOpIndices(const MachineInstr &MI,
+                                 unsigned &SrcOpIdx1,
+                                 unsigned &SrcOpIdx2,
+                                 const X86InstrFMA3Group &FMA3Group) const;
 
   /// Returns an adjusted FMA opcode that must be used in FMA instruction that
-  /// performs the same computations as the given MI but which has the operands
-  /// \p SrcOpIdx1 and \p SrcOpIdx2 commuted.
+  /// performs the same computations as the given \p MI but which has the
+  /// operands \p SrcOpIdx1 and \p SrcOpIdx2 commuted.
   /// It may return 0 if it is unsafe to commute the operands.
+  /// Note that a machine instruction (instead of its opcode) is passed as the
+  /// first parameter to make it possible to analyze the instruction's uses and
+  /// commute the first operand of FMA even when it seems unsafe when you look
+  /// at the opcode. For example, it is Ok to commute the first operand of
+  /// VFMADD*SD_Int, if ONLY the lowest 64-bit element of the result is used.
   ///
   /// The returned FMA opcode may differ from the opcode in the given \p MI.
   /// For example, commuting the operands #1 and #3 in the following FMA
   ///     FMA213 #1, #2, #3
   /// results into instruction with adjusted opcode:
   ///     FMA231 #3, #2, #1
-  unsigned getFMA3OpcodeToCommuteOperands(MachineInstr &MI, unsigned SrcOpIdx1,
-                                          unsigned SrcOpIdx2) const;
+  unsigned getFMA3OpcodeToCommuteOperands(const MachineInstr &MI,
+                                          unsigned SrcOpIdx1,
+                                          unsigned SrcOpIdx2,
+                                          const X86InstrFMA3Group &FMA3Group) const;
 
   // Branch analysis.
   bool isUnpredicatedTerminator(const MachineInstr &MI) const override;
+  bool isUnconditionalTailCall(const MachineInstr &MI) const override;
+  bool canMakeTailCallConditional(SmallVectorImpl<MachineOperand> &Cond,
+                                  const MachineInstr &TailCall) const override;
+  void replaceBranchWithTailCall(MachineBasicBlock &MBB,
+                                 SmallVectorImpl<MachineOperand> &Cond,
+                                 const MachineInstr &TailCall) const override;
+
   bool analyzeBranch(MachineBasicBlock &MBB, MachineBasicBlock *&TBB,
                      MachineBasicBlock *&FBB,
                      SmallVectorImpl<MachineOperand> &Cond,
@@ -316,10 +335,12 @@ public:
                               TargetInstrInfo::MachineBranchPredicate &MBP,
                               bool AllowModify = false) const override;
 
-  unsigned RemoveBranch(MachineBasicBlock &MBB) const override;
-  unsigned InsertBranch(MachineBasicBlock &MBB, MachineBasicBlock *TBB,
+  unsigned removeBranch(MachineBasicBlock &MBB,
+                        int *BytesRemoved = nullptr) const override;
+  unsigned insertBranch(MachineBasicBlock &MBB, MachineBasicBlock *TBB,
                         MachineBasicBlock *FBB, ArrayRef<MachineOperand> Cond,
-                        const DebugLoc &DL) const override;
+                        const DebugLoc &DL,
+                        int *BytesAdded = nullptr) const override;
   bool canInsertSelect(const MachineBasicBlock&, ArrayRef<MachineOperand> Cond,
                        unsigned, unsigned, int&, int&, int&) const override;
   void insertSelect(MachineBasicBlock &MBB, MachineBasicBlock::iterator MI,
@@ -356,6 +377,10 @@ public:
                        SmallVectorImpl<MachineInstr*> &NewMIs) const;
 
   bool expandPostRAPseudo(MachineInstr &MI) const override;
+
+  /// Check whether the target can fold a load that feeds a subreg operand
+  /// (or a subreg operand that feeds a store).
+  bool isSubregFoldable() const override { return true; }
 
   /// foldMemoryOperand - If this target supports it, fold a load or store of
   /// the specified stack slot into the specified machine instruction for the
@@ -418,13 +443,13 @@ public:
                                int64_t Offset1, int64_t Offset2,
                                unsigned NumLoads) const override;
 
-  bool shouldScheduleAdjacent(MachineInstr &First,
-                              MachineInstr &Second) const override;
+  bool shouldScheduleAdjacent(const MachineInstr &First,
+                              const MachineInstr &Second) const override;
 
   void getNoopForMachoTarget(MCInst &NopInst) const override;
 
   bool
-  ReverseBranchCondition(SmallVectorImpl<MachineOperand> &Cond) const override;
+  reverseBranchCondition(SmallVectorImpl<MachineOperand> &Cond) const override;
 
   /// isSafeToMoveRegClassDefs - Return true if it's safe to move a machine
   /// instruction that defines the specified register class.
@@ -466,14 +491,6 @@ public:
                                       MachineBasicBlock::iterator InsertPt,
                                       unsigned Size, unsigned Alignment,
                                       bool AllowCommute) const;
-
-  void
-  getUnconditionalBranch(MCInst &Branch,
-                         const MCSymbolRefExpr *BranchTarget) const override;
-
-  void getTrap(MCInst &MI) const override;
-
-  unsigned getJumpInstrTableEntryBound() const override;
 
   bool isHighLatencyDef(int opc) const override;
 
@@ -529,6 +546,8 @@ public:
   ArrayRef<std::pair<unsigned, const char *>>
   getSerializableDirectMachineOperandTargetFlags() const override;
 
+  bool isTailCall(const MachineInstr &Inst) const override;
+
 protected:
   /// Commutes the operands in the given instruction by changing the operands
   /// order and/or changing the instruction's opcode and/or the immediate value
@@ -564,8 +583,24 @@ private:
   bool isFrameOperand(const MachineInstr &MI, unsigned int Op,
                       int &FrameIndex) const;
 
-  /// Expand the MOVImmSExti8 pseudo-instructions.
-  bool ExpandMOVImmSExti8(MachineInstrBuilder &MIB) const;
+  /// Returns true iff the routine could find two commutable operands in the
+  /// given machine instruction with 3 vector inputs.
+  /// The 'SrcOpIdx1' and 'SrcOpIdx2' are INPUT and OUTPUT arguments. Their
+  /// input values can be re-defined in this method only if the input values
+  /// are not pre-defined, which is designated by the special value
+  /// 'CommuteAnyOperandIndex' assigned to it.
+  /// If both of indices are pre-defined and refer to some operands, then the
+  /// method simply returns true if the corresponding operands are commutable
+  /// and returns false otherwise.
+  ///
+  /// For example, calling this method this way:
+  ///     unsigned Op1 = 1, Op2 = CommuteAnyOperandIndex;
+  ///     findThreeSrcCommutedOpIndices(MI, Op1, Op2);
+  /// can be interpreted as a query asking to find an operand that would be
+  /// commutable with the operand#1.
+  bool findThreeSrcCommutedOpIndices(const MachineInstr &MI,
+                                     unsigned &SrcOpIdx1,
+                                     unsigned &SrcOpIdx2) const;
 };
 
 } // End llvm namespace

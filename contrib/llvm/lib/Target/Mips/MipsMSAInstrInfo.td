@@ -389,10 +389,6 @@ def mulsub : PatFrag<(ops node:$wd, node:$ws, node:$wt),
 def mul_fexp2 : PatFrag<(ops node:$ws, node:$wt),
                         (fmul node:$ws, (fexp2 node:$wt))>;
 
-// Immediates
-def immSExt5 : ImmLeaf<i32, [{return isInt<5>(Imm);}]>;
-def immSExt10: ImmLeaf<i32, [{return isInt<10>(Imm);}]>;
-
 // Instruction encoding.
 class ADD_A_B_ENC : MSA_3R_FMT<0b000, 0b00, 0b010000>;
 class ADD_A_H_ENC : MSA_3R_FMT<0b000, 0b01, 0b010000>;
@@ -2308,9 +2304,12 @@ class LD_DESC_BASE<string instr_asm, SDPatternOperator OpNode,
 }
 
 class LD_B_DESC : LD_DESC_BASE<"ld.b", load, v16i8, MSA128BOpnd, mem_simm10>;
-class LD_H_DESC : LD_DESC_BASE<"ld.h", load, v8i16, MSA128HOpnd, mem_simm10_lsl1>;
-class LD_W_DESC : LD_DESC_BASE<"ld.w", load, v4i32, MSA128WOpnd, mem_simm10_lsl2>;
-class LD_D_DESC : LD_DESC_BASE<"ld.d", load, v2i64, MSA128DOpnd, mem_simm10_lsl3>;
+class LD_H_DESC : LD_DESC_BASE<"ld.h", load, v8i16, MSA128HOpnd,
+                               mem_simm10_lsl1, addrimm10lsl1>;
+class LD_W_DESC : LD_DESC_BASE<"ld.w", load, v4i32, MSA128WOpnd,
+                               mem_simm10_lsl2, addrimm10lsl2>;
+class LD_D_DESC : LD_DESC_BASE<"ld.d", load, v2i64, MSA128DOpnd,
+                               mem_simm10_lsl3, addrimm10lsl3>;
 
 class LDI_B_DESC : MSA_I10_LDI_DESC_BASE<"ldi.b", MSA128BOpnd>;
 class LDI_H_DESC : MSA_I10_LDI_DESC_BASE<"ldi.h", MSA128HOpnd>;
@@ -2641,9 +2640,12 @@ class ST_DESC_BASE<string instr_asm, SDPatternOperator OpNode,
 }
 
 class ST_B_DESC : ST_DESC_BASE<"st.b", store, v16i8, MSA128BOpnd, mem_simm10>;
-class ST_H_DESC : ST_DESC_BASE<"st.h", store, v8i16, MSA128HOpnd, mem_simm10_lsl1>;
-class ST_W_DESC : ST_DESC_BASE<"st.w", store, v4i32, MSA128WOpnd, mem_simm10_lsl2>;
-class ST_D_DESC : ST_DESC_BASE<"st.d", store, v2i64, MSA128DOpnd, mem_simm10_lsl3>;
+class ST_H_DESC : ST_DESC_BASE<"st.h", store, v8i16, MSA128HOpnd,
+                               mem_simm10_lsl1, addrimm10lsl1>;
+class ST_W_DESC : ST_DESC_BASE<"st.w", store, v4i32, MSA128WOpnd,
+                               mem_simm10_lsl2, addrimm10lsl2>;
+class ST_D_DESC : ST_DESC_BASE<"st.d", store, v2i64, MSA128DOpnd,
+                               mem_simm10_lsl3, addrimm10lsl3>;
 
 class SUBS_S_B_DESC : MSA_3R_DESC_BASE<"subs_s.b", int_mips_subs_s_b,
                                        MSA128BOpnd>;
@@ -3523,16 +3525,16 @@ class MSAPat<dag pattern, dag result, list<Predicate> pred = [HasMSA]> :
 def : MSAPat<(extractelt (v4i32 MSA128W:$ws), immZExt4:$idx),
              (COPY_S_W MSA128W:$ws, immZExt4:$idx)>;
 
-def : MSAPat<(v8f16 (load addrimm10:$addr)), (LD_H addrimm10:$addr)>;
-def : MSAPat<(v4f32 (load addrimm10:$addr)), (LD_W addrimm10:$addr)>;
-def : MSAPat<(v2f64 (load addrimm10:$addr)), (LD_D addrimm10:$addr)>;
+def : MSAPat<(v8f16 (load addrimm10lsl1:$addr)), (LD_H addrimm10lsl1:$addr)>;
+def : MSAPat<(v4f32 (load addrimm10lsl2:$addr)), (LD_W addrimm10lsl2:$addr)>;
+def : MSAPat<(v2f64 (load addrimm10lsl3:$addr)), (LD_D addrimm10lsl3:$addr)>;
 
-def ST_FH : MSAPat<(store (v8f16 MSA128H:$ws), addrimm10:$addr),
-                   (ST_H MSA128H:$ws, addrimm10:$addr)>;
-def ST_FW : MSAPat<(store (v4f32 MSA128W:$ws), addrimm10:$addr),
-                   (ST_W MSA128W:$ws, addrimm10:$addr)>;
-def ST_FD : MSAPat<(store (v2f64 MSA128D:$ws), addrimm10:$addr),
-                   (ST_D MSA128D:$ws, addrimm10:$addr)>;
+def ST_FH : MSAPat<(store (v8f16 MSA128H:$ws), addrimm10lsl1:$addr),
+                   (ST_H MSA128H:$ws, addrimm10lsl1:$addr)>;
+def ST_FW : MSAPat<(store (v4f32 MSA128W:$ws), addrimm10lsl2:$addr),
+                   (ST_W MSA128W:$ws, addrimm10lsl2:$addr)>;
+def ST_FD : MSAPat<(store (v2f64 MSA128D:$ws), addrimm10lsl3:$addr),
+                   (ST_D MSA128D:$ws, addrimm10lsl3:$addr)>;
 
 class MSA_FABS_PSEUDO_DESC_BASE<RegisterOperand ROWD,
                                 RegisterOperand ROWS = ROWD,
@@ -3728,6 +3730,56 @@ def SZ_D_PSEUDO : MSA_CBRANCH_PSEUDO_DESC_BASE<MipsVAllZero, v2i64,
                                                MSA128D, NoItinerary>;
 def SZ_V_PSEUDO : MSA_CBRANCH_PSEUDO_DESC_BASE<MipsVAnyZero, v16i8,
                                                MSA128B, NoItinerary>;
+
+// Pseudoes used to implement transparent fp16 support.
+
+let Predicates = [HasMSA] in {
+ def ST_F16 : MipsPseudo<(outs), (ins MSA128F16:$ws, mem_simm10:$addr),
+                          [(store (f16 MSA128F16:$ws), (addrimm10:$addr))]> {
+   let usesCustomInserter = 1;
+ }
+
+ def LD_F16 : MipsPseudo<(outs MSA128F16:$ws), (ins mem_simm10:$addr),
+                         [(set MSA128F16:$ws, (f16 (load addrimm10:$addr)))]> {
+   let usesCustomInserter = 1;
+ }
+
+ def MSA_FP_EXTEND_W_PSEUDO : MipsPseudo<(outs FGR32Opnd:$fd),
+                                         (ins MSA128F16:$ws),
+                              [(set FGR32Opnd:$fd,
+                                    (f32 (fpextend MSA128F16:$ws)))]> {
+  let usesCustomInserter = 1;
+ }
+
+ def MSA_FP_ROUND_W_PSEUDO : MipsPseudo<(outs MSA128F16:$wd),
+                                        (ins FGR32Opnd:$fs),
+                              [(set MSA128F16:$wd,
+                                    (f16 (fpround FGR32Opnd:$fs)))]> {
+  let usesCustomInserter = 1;
+ }
+
+ def MSA_FP_EXTEND_D_PSEUDO : MipsPseudo<(outs FGR64Opnd:$fd),
+                                         (ins MSA128F16:$ws),
+                              [(set FGR64Opnd:$fd,
+                                    (f64 (fpextend MSA128F16:$ws)))]> {
+  let usesCustomInserter = 1;
+ }
+
+ def MSA_FP_ROUND_D_PSEUDO : MipsPseudo<(outs MSA128F16:$wd),
+                                        (ins FGR64Opnd:$fs),
+                              [(set MSA128F16:$wd,
+                                    (f16 (fpround FGR64Opnd:$fs)))]> {
+  let usesCustomInserter = 1;
+ }
+
+ def : MipsPat<(MipsTruncIntFP MSA128F16:$ws),
+               (TRUNC_W_D64 (MSA_FP_EXTEND_D_PSEUDO MSA128F16:$ws))>;
+
+ def : MipsPat<(MipsFPCmp MSA128F16:$ws, MSA128F16:$wt, imm:$cond),
+               (FCMP_S32 (MSA_FP_EXTEND_W_PSEUDO MSA128F16:$ws),
+                         (MSA_FP_EXTEND_W_PSEUDO MSA128F16:$wt), imm:$cond)>,
+       ISA_MIPS1_NOT_32R6_64R6;
+}
 
 // Vector extraction with fixed index.
 //

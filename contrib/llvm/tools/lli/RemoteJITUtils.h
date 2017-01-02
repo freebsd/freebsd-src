@@ -14,7 +14,7 @@
 #ifndef LLVM_TOOLS_LLI_REMOTEJITUTILS_H
 #define LLVM_TOOLS_LLI_REMOTEJITUTILS_H
 
-#include "llvm/ExecutionEngine/Orc/RPCChannel.h"
+#include "llvm/ExecutionEngine/Orc/RawByteChannel.h"
 #include "llvm/ExecutionEngine/RTDyldMemoryManager.h"
 #include <mutex>
 
@@ -25,9 +25,9 @@
 #endif
 
 /// RPC channel that reads from and writes from file descriptors.
-class FDRPCChannel final : public llvm::orc::remote::RPCChannel {
+class FDRawChannel final : public llvm::orc::rpc::RawByteChannel {
 public:
-  FDRPCChannel(int InFD, int OutFD) : InFD(InFD), OutFD(OutFD) {}
+  FDRawChannel(int InFD, int OutFD) : InFD(InFD), OutFD(OutFD) {}
 
   llvm::Error readBytes(char *Dst, unsigned Size) override {
     assert(Dst && "Attempt to read into null.");
@@ -72,18 +72,19 @@ private:
 };
 
 // launch the remote process (see lli.cpp) and return a channel to it.
-std::unique_ptr<FDRPCChannel> launchRemote();
+std::unique_ptr<FDRawChannel> launchRemote();
 
 namespace llvm {
 
-// ForwardingMM - Adapter to connect MCJIT to Orc's Remote memory manager.
+// ForwardingMM - Adapter to connect MCJIT to Orc's Remote8
+// memory manager.
 class ForwardingMemoryManager : public llvm::RTDyldMemoryManager {
 public:
   void setMemMgr(std::unique_ptr<RuntimeDyld::MemoryManager> MemMgr) {
     this->MemMgr = std::move(MemMgr);
   }
 
-  void setResolver(std::unique_ptr<RuntimeDyld::SymbolResolver> Resolver) {
+  void setResolver(std::unique_ptr<JITSymbolResolver> Resolver) {
     this->Resolver = std::move(Resolver);
   }
 
@@ -134,18 +135,18 @@ public:
   // Don't hide the sibling notifyObjectLoaded from RTDyldMemoryManager.
   using RTDyldMemoryManager::notifyObjectLoaded;
 
-  RuntimeDyld::SymbolInfo findSymbol(const std::string &Name) override {
+  JITSymbol findSymbol(const std::string &Name) override {
     return Resolver->findSymbol(Name);
   }
 
-  RuntimeDyld::SymbolInfo
+  JITSymbol
   findSymbolInLogicalDylib(const std::string &Name) override {
     return Resolver->findSymbolInLogicalDylib(Name);
   }
 
 private:
   std::unique_ptr<RuntimeDyld::MemoryManager> MemMgr;
-  std::unique_ptr<RuntimeDyld::SymbolResolver> Resolver;
+  std::unique_ptr<JITSymbolResolver> Resolver;
 };
 }
 

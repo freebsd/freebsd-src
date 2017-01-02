@@ -18,6 +18,7 @@
 #include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/Analysis/LazyValueInfo.h"
 #include "llvm/IR/CFG.h"
+#include "llvm/IR/ConstantRange.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Instructions.h"
@@ -37,6 +38,7 @@ STATISTIC(NumCmps,      "Number of comparisons propagated");
 STATISTIC(NumReturns,   "Number of return values propagated");
 STATISTIC(NumDeadCases, "Number of switch cases removed");
 STATISTIC(NumSDivs,     "Number of sdiv converted to udiv");
+STATISTIC(NumAShrs,     "Number of ashr converted to lshr");
 STATISTIC(NumSRems,     "Number of srem converted to urem");
 
 namespace {
@@ -381,6 +383,78 @@ static bool processSDiv(BinaryOperator *SDI, LazyValueInfo *LVI) {
   return true;
 }
 
+static bool processAShr(BinaryOperator *SDI, LazyValueInfo *LVI) {
+  if (SDI->getType()->isVectorTy() || hasLocalDefs(SDI))
+    return false;
+
+  Constant *Zero = ConstantInt::get(SDI->getType(), 0);
+  if (LVI->getPredicateAt(ICmpInst::ICMP_SGE, SDI->getOperand(0), Zero, SDI) !=
+      LazyValueInfo::True)
+    return false;
+
+  ++NumAShrs;
+  auto *BO = BinaryOperator::CreateLShr(SDI->getOperand(0), SDI->getOperand(1),
+                                        SDI->getName(), SDI);
+  BO->setIsExact(SDI->isExact());
+  SDI->replaceAllUsesWith(BO);
+  SDI->eraseFromParent();
+
+  return true;
+}
+
+static bool processAdd(BinaryOperator *AddOp, LazyValueInfo *LVI) {
+  typedef OverflowingBinaryOperator OBO;
+
+  if (AddOp->getType()->isVectorTy() || hasLocalDefs(AddOp))
+    return false;
+
+  bool NSW = AddOp->hasNoSignedWrap();
+  bool NUW = AddOp->hasNoUnsignedWrap();
+  if (NSW && NUW)
+    return false;
+
+  BasicBlock *BB = AddOp->getParent();
+
+  Value *LHS = AddOp->getOperand(0);
+  Value *RHS = AddOp->getOperand(1);
+
+  ConstantRange LRange = LVI->getConstantRange(LHS, BB, AddOp);
+
+  // Initialize RRange only if we need it. If we know that guaranteed no wrap
+  // range for the given LHS range is empty don't spend time calculating the
+  // range for the RHS.
+  Optional<ConstantRange> RRange;
+  auto LazyRRange = [&] () {
+      if (!RRange)
+        RRange = LVI->getConstantRange(RHS, BB, AddOp);
+      return RRange.getValue();
+  };
+
+  bool Changed = false;
+  if (!NUW) {
+    ConstantRange NUWRange =
+            LRange.makeGuaranteedNoWrapRegion(BinaryOperator::Add, LRange,
+                                              OBO::NoUnsignedWrap);
+    if (!NUWRange.isEmptySet()) {
+      bool NewNUW = NUWRange.contains(LazyRRange());
+      AddOp->setHasNoUnsignedWrap(NewNUW);
+      Changed |= NewNUW;
+    }
+  }
+  if (!NSW) {
+    ConstantRange NSWRange =
+            LRange.makeGuaranteedNoWrapRegion(BinaryOperator::Add, LRange,
+                                              OBO::NoSignedWrap);
+    if (!NSWRange.isEmptySet()) {
+      bool NewNSW = NSWRange.contains(LazyRRange());
+      AddOp->setHasNoSignedWrap(NewNSW);
+      Changed |= NewNSW;
+    }
+  }
+
+  return Changed;
+}
+
 static Constant *getConstantAt(Value *V, Instruction *At, LazyValueInfo *LVI) {
   if (Constant *C = LVI->getConstant(V, At->getParent(), At))
     return C;
@@ -407,9 +481,14 @@ static Constant *getConstantAt(Value *V, Instruction *At, LazyValueInfo *LVI) {
 static bool runImpl(Function &F, LazyValueInfo *LVI) {
   bool FnChanged = false;
 
-  for (BasicBlock &BB : F) {
+  // Visiting in a pre-order depth-first traversal causes us to simplify early
+  // blocks before querying later blocks (which require us to analyze early
+  // blocks).  Eagerly simplifying shallow blocks means there is strictly less
+  // work to do for deep blocks.  This also means we don't visit unreachable
+  // blocks. 
+  for (BasicBlock *BB : depth_first(&F.getEntryBlock())) {
     bool BBChanged = false;
-    for (BasicBlock::iterator BI = BB.begin(), BE = BB.end(); BI != BE;) {
+    for (BasicBlock::iterator BI = BB->begin(), BE = BB->end(); BI != BE;) {
       Instruction *II = &*BI++;
       switch (II->getOpcode()) {
       case Instruction::Select:
@@ -436,10 +515,16 @@ static bool runImpl(Function &F, LazyValueInfo *LVI) {
       case Instruction::SDiv:
         BBChanged |= processSDiv(cast<BinaryOperator>(II), LVI);
         break;
+      case Instruction::AShr:
+        BBChanged |= processAShr(cast<BinaryOperator>(II), LVI);
+        break;
+      case Instruction::Add:
+        BBChanged |= processAdd(cast<BinaryOperator>(II), LVI);
+        break;
       }
     }
 
-    Instruction *Term = BB.getTerminator();
+    Instruction *Term = BB->getTerminator();
     switch (Term->getOpcode()) {
     case Instruction::Switch:
       BBChanged |= processSwitch(cast<SwitchInst>(Term), LVI);

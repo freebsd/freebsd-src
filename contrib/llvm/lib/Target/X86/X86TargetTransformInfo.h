@@ -43,13 +43,6 @@ public:
       : BaseT(TM, F.getParent()->getDataLayout()), ST(TM->getSubtargetImpl(F)),
         TLI(ST->getTargetLowering()) {}
 
-  // Provide value semantics. MSVC requires that we spell all of these out.
-  X86TTIImpl(const X86TTIImpl &Arg)
-      : BaseT(static_cast<const BaseT &>(Arg)), ST(Arg.ST), TLI(Arg.TLI) {}
-  X86TTIImpl(X86TTIImpl &&Arg)
-      : BaseT(std::move(static_cast<BaseT &>(Arg))), ST(std::move(Arg.ST)),
-        TLI(std::move(Arg.TLI)) {}
-
   /// \name Scalar TTI Implementations
   /// @{
   TTI::PopcntSupportKind getPopcntSupport(unsigned TyWidth);
@@ -87,6 +80,13 @@ public:
 
   int getReductionCost(unsigned Opcode, Type *Ty, bool IsPairwiseForm);
 
+  int getInterleavedMemoryOpCost(unsigned Opcode, Type *VecTy,
+                                 unsigned Factor, ArrayRef<unsigned> Indices,
+                                 unsigned Alignment, unsigned AddressSpace);
+  int getInterleavedMemoryOpCostAVX512(unsigned Opcode, Type *VecTy,
+                                 unsigned Factor, ArrayRef<unsigned> Indices,
+                                 unsigned Alignment, unsigned AddressSpace);
+
   int getIntImmCost(int64_t);
 
   int getIntImmCost(const APInt &Imm, Type *Ty);
@@ -100,6 +100,8 @@ public:
   bool isLegalMaskedScatter(Type *DataType);
   bool areInlineCompatible(const Function *Caller,
                            const Function *Callee) const;
+
+  bool enableInterleavedAccessVectorization();
 private:
   int getGSScalarCost(unsigned Opcode, Type *DataTy, bool VariableMask,
                       unsigned Alignment, unsigned AddressSpace);

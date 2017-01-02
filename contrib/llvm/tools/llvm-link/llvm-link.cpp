@@ -13,7 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/ADT/STLExtras.h"
-#include "llvm/Bitcode/ReaderWriter.h"
+#include "llvm/Bitcode/BitcodeWriter.h"
 #include "llvm/IR/AutoUpgrade.h"
 #include "llvm/IR/DiagnosticInfo.h"
 #include "llvm/IR/DiagnosticPrinter.h"
@@ -82,8 +82,11 @@ static cl::opt<bool>
 Force("f", cl::desc("Enable binary output on terminals"));
 
 static cl::opt<bool>
-OutputAssembly("S",
-         cl::desc("Write output as LLVM assembly"), cl::Hidden);
+    DisableLazyLoad("disable-lazy-loading",
+                    cl::desc("Disable lazy module loading"));
+
+static cl::opt<bool>
+    OutputAssembly("S", cl::desc("Write output as LLVM assembly"), cl::Hidden);
 
 static cl::opt<bool>
 Verbose("v", cl::desc("Print information about actions taken"));
@@ -105,6 +108,8 @@ static cl::opt<bool> PreserveAssemblyUseListOrder(
     cl::desc("Preserve use-list order when writing LLVM assembly."),
     cl::init(false), cl::Hidden);
 
+static ExitOnError ExitOnErr;
+
 // Read the specified bitcode file in and return it. This routine searches the
 // link path for the specified file to try to find it...
 //
@@ -114,15 +119,19 @@ static std::unique_ptr<Module> loadFile(const char *argv0,
                                         bool MaterializeMetadata = true) {
   SMDiagnostic Err;
   if (Verbose) errs() << "Loading '" << FN << "'\n";
-  std::unique_ptr<Module> Result =
-      getLazyIRFileModule(FN, Err, Context, !MaterializeMetadata);
+  std::unique_ptr<Module> Result;
+  if (DisableLazyLoad)
+    Result = parseIRFile(FN, Err, Context);
+  else
+    Result = getLazyIRFileModule(FN, Err, Context, !MaterializeMetadata);
+
   if (!Result) {
     Err.print(argv0, errs());
     return nullptr;
   }
 
   if (MaterializeMetadata) {
-    Result->materializeMetadata();
+    ExitOnErr(Result->materializeMetadata());
     UpgradeDebugInfo(*Result);
   }
 
@@ -171,7 +180,7 @@ Module &ModuleLazyLoaderCache::operator()(const char *argv0,
 }
 } // anonymous namespace
 
-static void diagnosticHandler(const DiagnosticInfo &DI) {
+static void diagnosticHandler(const DiagnosticInfo &DI, void *C) {
   unsigned Severity = DI.getSeverity();
   switch (Severity) {
   case DS_Error:
@@ -192,23 +201,13 @@ static void diagnosticHandler(const DiagnosticInfo &DI) {
   errs() << '\n';
 }
 
-static void diagnosticHandlerWithContext(const DiagnosticInfo &DI, void *C) {
-  diagnosticHandler(DI);
-}
-
 /// Import any functions requested via the -import option.
 static bool importFunctions(const char *argv0, LLVMContext &Context,
                             Linker &L) {
   if (SummaryIndex.empty())
     return true;
-  ErrorOr<std::unique_ptr<ModuleSummaryIndex>> IndexOrErr =
-      llvm::getModuleSummaryIndexForFile(SummaryIndex, diagnosticHandler);
-  std::error_code EC = IndexOrErr.getError();
-  if (EC) {
-    errs() << EC.message() << '\n';
-    return false;
-  }
-  auto Index = std::move(IndexOrErr.get());
+  std::unique_ptr<ModuleSummaryIndex> Index =
+      ExitOnErr(llvm::getModuleSummaryIndexForFile(SummaryIndex));
 
   // Map of Module -> List of globals to import from the Module
   std::map<StringRef, DenseSet<const GlobalValue *>> ModuleToGlobalsToImportMap;
@@ -257,7 +256,7 @@ static bool importFunctions(const char *argv0, LLVMContext &Context,
     auto &Entry = ModuleToGlobalsToImportMap[SrcModule.getModuleIdentifier()];
     Entry.insert(F);
 
-    F->materialize();
+    ExitOnErr(F->materialize());
   }
 
   // Do the actual import of globals now, one Module at a time
@@ -270,7 +269,7 @@ static bool importFunctions(const char *argv0, LLVMContext &Context,
 
     // If modules were created with lazy metadata loading, materialize it
     // now, before linking it (otherwise this will be a noop).
-    SrcModule->materializeMetadata();
+    ExitOnErr(SrcModule->materializeMetadata());
     UpgradeDebugInfo(*SrcModule);
 
     // Linkage Promotion and renaming
@@ -310,14 +309,18 @@ static bool linkFiles(const char *argv0, LLVMContext &Context, Linker &L,
     // If a module summary index is supplied, load it so linkInModule can treat
     // local functions/variables as exported and promote if necessary.
     if (!SummaryIndex.empty()) {
-      ErrorOr<std::unique_ptr<ModuleSummaryIndex>> IndexOrErr =
-          llvm::getModuleSummaryIndexForFile(SummaryIndex, diagnosticHandler);
-      std::error_code EC = IndexOrErr.getError();
-      if (EC) {
-        errs() << EC.message() << '\n';
-        return false;
+      std::unique_ptr<ModuleSummaryIndex> Index =
+          ExitOnErr(llvm::getModuleSummaryIndexForFile(SummaryIndex));
+
+      // Conservatively mark all internal values as promoted, since this tool
+      // does not do the ThinLink that would normally determine what values to
+      // promote.
+      for (auto &I : *Index) {
+        for (auto &S : I.second) {
+          if (GlobalValue::isLocalLinkage(S->linkage()))
+            S->setLinkage(GlobalValue::ExternalLinkage);
+        }
       }
-      auto Index = std::move(IndexOrErr.get());
 
       // Promotion
       if (renameModuleForThinLTO(*M, *Index))
@@ -341,8 +344,10 @@ int main(int argc, char **argv) {
   sys::PrintStackTraceOnErrorSignal(argv[0]);
   PrettyStackTraceProgram X(argc, argv);
 
+  ExitOnErr.setBanner(std::string(argv[0]) + ": ");
+
   LLVMContext Context;
-  Context.setDiagnosticHandler(diagnosticHandlerWithContext, nullptr, true);
+  Context.setDiagnosticHandler(diagnosticHandler, nullptr, true);
 
   llvm_shutdown_obj Y;  // Call llvm_shutdown() on exit.
   cl::ParseCommandLineOptions(argc, argv, "llvm linker\n");

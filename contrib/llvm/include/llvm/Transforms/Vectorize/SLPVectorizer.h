@@ -80,7 +80,7 @@ private:
   /// \returns true if a value was vectorized.
   bool tryToVectorizeList(ArrayRef<Value *> VL, slpvectorizer::BoUpSLP &R,
                           ArrayRef<Value *> BuildVector = None,
-                          bool allowReorder = false);
+                          bool AllowReorder = false);
 
   /// \brief Try to vectorize a chain that may start at the operands of \V;
   bool tryToVectorize(BinaryOperator *V, slpvectorizer::BoUpSLP &R);
@@ -92,15 +92,20 @@ private:
   /// collected in GEPs.
   bool vectorizeGEPIndices(BasicBlock *BB, slpvectorizer::BoUpSLP &R);
 
+  /// Try to find horizontal reduction or otherwise vectorize a chain of binary
+  /// operators.
+  bool vectorizeRootInstruction(PHINode *P, Value *V, BasicBlock *BB,
+                                slpvectorizer::BoUpSLP &R,
+                                TargetTransformInfo *TTI);
+
   /// \brief Scan the basic block and look for patterns that are likely to start
   /// a vectorization chain.
   bool vectorizeChainsInBlock(BasicBlock *BB, slpvectorizer::BoUpSLP &R);
 
-  bool vectorizeStoreChain(ArrayRef<Value *> Chain, int CostThreshold,
-                           slpvectorizer::BoUpSLP &R, unsigned VecRegSize);
+  bool vectorizeStoreChain(ArrayRef<Value *> Chain, slpvectorizer::BoUpSLP &R,
+                           unsigned VecRegSize);
 
-  bool vectorizeStores(ArrayRef<StoreInst *> Stores, int costThreshold,
-                       slpvectorizer::BoUpSLP &R);
+  bool vectorizeStores(ArrayRef<StoreInst *> Stores, slpvectorizer::BoUpSLP &R);
 
   /// The store instructions in a basic block organized by base pointer.
   StoreListMap Stores;

@@ -26,9 +26,6 @@ static cl::opt<bool> EnableSpillSGPRToVGPR(
   cl::ReallyHidden,
   cl::init(true));
 
-// Pin the vtable to this file.
-void SIMachineFunctionInfo::anchor() {}
-
 SIMachineFunctionInfo::SIMachineFunctionInfo(const MachineFunction &MF)
   : AMDGPUMachineFunction(MF),
     TIDReg(AMDGPU::NoRegister),
@@ -51,8 +48,8 @@ SIMachineFunctionInfo::SIMachineFunctionInfo(const MachineFunction &MF)
     PrivateSegmentWaveByteOffsetSystemSGPR(AMDGPU::NoRegister),
     PSInputAddr(0),
     ReturnsVoid(true),
-    MaximumWorkGroupSize(0),
-    DebuggerReservedVGPRCount(0),
+    FlatWorkGroupSizes(0, 0),
+    WavesPerEU(0, 0),
     DebuggerWorkGroupIDStackObjectIndices({{0, 0, 0}}),
     DebuggerWorkItemIDStackObjectIndices({{0, 0, 0}}),
     LDSWaveSpillSize(0),
@@ -62,14 +59,13 @@ SIMachineFunctionInfo::SIMachineFunctionInfo(const MachineFunction &MF)
     HasSpilledSGPRs(false),
     HasSpilledVGPRs(false),
     HasNonSpillStackObjects(false),
-    HasFlatInstructions(false),
     NumSpilledSGPRs(0),
     NumSpilledVGPRs(0),
     PrivateSegmentBuffer(false),
     DispatchPtr(false),
     QueuePtr(false),
-    DispatchID(false),
     KernargSegmentPtr(false),
+    DispatchID(false),
     FlatScratchInit(false),
     GridWorkgroupCountX(false),
     GridWorkgroupCountY(false),
@@ -87,7 +83,7 @@ SIMachineFunctionInfo::SIMachineFunctionInfo(const MachineFunction &MF)
 
   PSInputAddr = AMDGPU::getInitialPSInputAddr(*F);
 
-  const MachineFrameInfo *FrameInfo = MF.getFrameInfo();
+  const MachineFrameInfo &FrameInfo = MF.getFrameInfo();
 
   if (!AMDGPU::isShader(F->getCallingConv())) {
     KernargSegmentPtr = true;
@@ -113,12 +109,12 @@ SIMachineFunctionInfo::SIMachineFunctionInfo(const MachineFunction &MF)
     WorkItemIDY = true;
 
   bool MaySpill = ST.isVGPRSpillingEnabled(*F);
-  bool HasStackObjects = FrameInfo->hasStackObjects();
+  bool HasStackObjects = FrameInfo.hasStackObjects();
 
   if (HasStackObjects || MaySpill)
     PrivateSegmentWaveByteOffset = true;
 
-  if (ST.isAmdHsaOS()) {
+  if (ST.isAmdCodeObjectV2()) {
     if (HasStackObjects || MaySpill)
       PrivateSegmentBuffer = true;
 
@@ -127,6 +123,9 @@ SIMachineFunctionInfo::SIMachineFunctionInfo(const MachineFunction &MF)
 
     if (F->hasFnAttribute("amdgpu-queue-ptr"))
       QueuePtr = true;
+
+    if (F->hasFnAttribute("amdgpu-dispatch-id"))
+      DispatchID = true;
   }
 
   // We don't need to worry about accessing spills with flat instructions.
@@ -136,13 +135,8 @@ SIMachineFunctionInfo::SIMachineFunctionInfo(const MachineFunction &MF)
       ST.isAmdHsaOS())
     FlatScratchInit = true;
 
-  if (AMDGPU::isCompute(F->getCallingConv()))
-    MaximumWorkGroupSize = AMDGPU::getMaximumWorkGroupSize(*F);
-  else
-    MaximumWorkGroupSize = ST.getWavefrontSize();
-
-  if (ST.debuggerReserveRegs())
-    DebuggerReservedVGPRCount = 4;
+  FlatWorkGroupSizes = ST.getFlatWorkGroupSizes(*F);
+  WavesPerEU = ST.getWavesPerEU(*F);
 }
 
 unsigned SIMachineFunctionInfo::addPrivateSegmentBuffer(
@@ -174,6 +168,13 @@ unsigned SIMachineFunctionInfo::addKernargSegmentPtr(const SIRegisterInfo &TRI) 
   return KernargSegmentPtrUserSGPR;
 }
 
+unsigned SIMachineFunctionInfo::addDispatchID(const SIRegisterInfo &TRI) {
+  DispatchIDUserSGPR = TRI.getMatchingSuperReg(
+    getNextUserSGPR(), AMDGPU::sub0, &AMDGPU::SReg_64RegClass);
+  NumUserSGPRs += 2;
+  return DispatchIDUserSGPR;
+}
+
 unsigned SIMachineFunctionInfo::addFlatScratchInit(const SIRegisterInfo &TRI) {
   FlatScratchInitUserSGPR = TRI.getMatchingSuperReg(
     getNextUserSGPR(), AMDGPU::sub0, &AMDGPU::SReg_64RegClass);
@@ -191,9 +192,9 @@ SIMachineFunctionInfo::SpilledReg SIMachineFunctionInfo::getSpilledReg (
   const SISubtarget &ST = MF->getSubtarget<SISubtarget>();
   const SIRegisterInfo *TRI = ST.getRegisterInfo();
 
-  MachineFrameInfo *FrameInfo = MF->getFrameInfo();
+  MachineFrameInfo &FrameInfo = MF->getFrameInfo();
   MachineRegisterInfo &MRI = MF->getRegInfo();
-  int64_t Offset = FrameInfo->getObjectOffset(FrameIndex);
+  int64_t Offset = FrameInfo.getObjectOffset(FrameIndex);
   Offset += SubIdx * 4;
 
   unsigned LaneVGPRIdx = Offset / (64 * 4);
@@ -222,9 +223,4 @@ SIMachineFunctionInfo::SpilledReg SIMachineFunctionInfo::getSpilledReg (
 
   Spill.VGPR = LaneVGPRs[LaneVGPRIdx];
   return Spill;
-}
-
-unsigned SIMachineFunctionInfo::getMaximumWorkGroupSize(
-                                              const MachineFunction &MF) const {
-  return MaximumWorkGroupSize;
 }

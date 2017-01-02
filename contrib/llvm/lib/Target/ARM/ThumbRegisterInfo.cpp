@@ -126,6 +126,7 @@ static void emitThumbRegPlusImmInReg(
     bool CanChangeCC, const TargetInstrInfo &TII,
     const ARMBaseRegisterInfo &MRI, unsigned MIFlags = MachineInstr::NoFlags) {
   MachineFunction &MF = *MBB.getParent();
+  const ARMSubtarget &ST = MF.getSubtarget<ARMSubtarget>();
   bool isHigh = !isARMLowRegister(DestReg) ||
                 (BaseReg != 0 && !isARMLowRegister(BaseReg));
   bool isSub = false;
@@ -154,6 +155,9 @@ static void emitThumbRegPlusImmInReg(
     AddDefaultT1CC(BuildMI(MBB, MBBI, dl, TII.get(ARM::tRSB), LdReg))
         .addReg(LdReg, RegState::Kill)
         .setMIFlags(MIFlags);
+  } else if (ST.genExecuteOnly()) {
+    BuildMI(MBB, MBBI, dl, TII.get(ARM::t2MOVi32imm), LdReg)
+      .addImm(NumBytes).setMIFlags(MIFlags);
   } else
     MRI.emitLoadConstPool(MBB, MBBI, dl, LdReg, 0, NumBytes, ARMCC::AL, 0,
                           MIFlags);
@@ -511,10 +515,10 @@ void ThumbRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
 
   unsigned FrameReg = ARM::SP;
   int FrameIndex = MI.getOperand(FIOperandNum).getIndex();
-  int Offset = MF.getFrameInfo()->getObjectOffset(FrameIndex) +
-               MF.getFrameInfo()->getStackSize() + SPAdj;
+  int Offset = MF.getFrameInfo().getObjectOffset(FrameIndex) +
+               MF.getFrameInfo().getStackSize() + SPAdj;
 
-  if (MF.getFrameInfo()->hasVarSizedObjects()) {
+  if (MF.getFrameInfo().hasVarSizedObjects()) {
     assert(SPAdj == 0 && STI.getFrameLowering()->hasFP(MF) && "Unexpected");
     // There are alloca()'s in this function, must reference off the frame
     // pointer or base pointer instead.
@@ -534,7 +538,7 @@ void ThumbRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
     assert(STI.getFrameLowering()->hasReservedCallFrame(MF) &&
            "Cannot use SP to access the emergency spill slot in "
            "functions without a reserved call frame");
-    assert(!MF.getFrameInfo()->hasVarSizedObjects() &&
+    assert(!MF.getFrameInfo().hasVarSizedObjects() &&
            "Cannot use SP to access the emergency spill slot in "
            "functions with variable sized frame objects");
   }
@@ -570,7 +574,7 @@ void ThumbRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
     unsigned TmpReg = MI.getOperand(0).getReg();
     bool UseRR = false;
     if (Opcode == ARM::tLDRspi) {
-      if (FrameReg == ARM::SP)
+      if (FrameReg == ARM::SP || STI.genExecuteOnly())
         emitThumbRegPlusImmInReg(MBB, II, dl, TmpReg, FrameReg,
                                  Offset, false, TII, *this);
       else {
@@ -594,7 +598,7 @@ void ThumbRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
       bool UseRR = false;
 
       if (Opcode == ARM::tSTRspi) {
-        if (FrameReg == ARM::SP)
+        if (FrameReg == ARM::SP || STI.genExecuteOnly())
           emitThumbRegPlusImmInReg(MBB, II, dl, VReg, FrameReg,
                                    Offset, false, TII, *this);
         else {

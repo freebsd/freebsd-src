@@ -104,7 +104,7 @@ LanaiTargetLowering::LanaiTargetLowering(const TargetMachine &TM,
 
   setOperationAction(ISD::ROTR, MVT::i32, Expand);
   setOperationAction(ISD::ROTL, MVT::i32, Expand);
-  setOperationAction(ISD::SHL_PARTS, MVT::i32, Expand);
+  setOperationAction(ISD::SHL_PARTS, MVT::i32, Custom);
   setOperationAction(ISD::SRL_PARTS, MVT::i32, Custom);
   setOperationAction(ISD::SRA_PARTS, MVT::i32, Expand);
 
@@ -179,6 +179,8 @@ SDValue LanaiTargetLowering::LowerOperation(SDValue Op,
     return LowerSETCC(Op, DAG);
   case ISD::SETCCE:
     return LowerSETCCE(Op, DAG);
+  case ISD::SHL_PARTS:
+    return LowerSHL_PARTS(Op, DAG);
   case ISD::SRL_PARTS:
     return LowerSRL_PARTS(Op, DAG);
   case ISD::VASTART:
@@ -423,7 +425,7 @@ SDValue LanaiTargetLowering::LowerCCCArguments(
     const SmallVectorImpl<ISD::InputArg> &Ins, const SDLoc &DL,
     SelectionDAG &DAG, SmallVectorImpl<SDValue> &InVals) const {
   MachineFunction &MF = DAG.getMachineFunction();
-  MachineFrameInfo *MFI = MF.getFrameInfo();
+  MachineFrameInfo &MFI = MF.getFrameInfo();
   MachineRegisterInfo &RegInfo = MF.getRegInfo();
   LanaiMachineFunctionInfo *LanaiMFI = MF.getInfo<LanaiMachineFunctionInfo>();
 
@@ -480,7 +482,7 @@ SDValue LanaiTargetLowering::LowerCCCArguments(
                << EVT(VA.getLocVT()).getEVTString() << "\n";
       }
       // Create the frame index object for this incoming parameter...
-      int FI = MFI->CreateFixedObject(ObjSize, VA.getLocMemOffset(), true);
+      int FI = MFI.CreateFixedObject(ObjSize, VA.getLocMemOffset(), true);
 
       // Create the SelectionDAG nodes corresponding to a load
       // from this parameter
@@ -507,7 +509,7 @@ SDValue LanaiTargetLowering::LowerCCCArguments(
   if (IsVarArg) {
     // Record the frame index of the first variable argument
     // which is a value necessary to VASTART.
-    int FI = MFI->CreateFixedObject(4, CCInfo.getNextStackOffset(), true);
+    int FI = MFI.CreateFixedObject(4, CCInfo.getNextStackOffset(), true);
     LanaiMFI->setVarArgsFrameIndex(FI);
   }
 
@@ -588,7 +590,7 @@ SDValue LanaiTargetLowering::LowerCCCCallTo(
   CCState CCInfo(CallConv, IsVarArg, DAG.getMachineFunction(), ArgLocs,
                  *DAG.getContext());
   GlobalAddressSDNode *G = dyn_cast<GlobalAddressSDNode>(Callee);
-  MachineFrameInfo *MFI = DAG.getMachineFunction().getFrameInfo();
+  MachineFrameInfo &MFI = DAG.getMachineFunction().getFrameInfo();
 
   NumFixedArgs = 0;
   if (IsVarArg && G) {
@@ -619,7 +621,7 @@ SDValue LanaiTargetLowering::LowerCCCCallTo(
     unsigned Size = Flags.getByValSize();
     unsigned Align = Flags.getByValAlign();
 
-    int FI = MFI->CreateStackObject(Size, Align, false);
+    int FI = MFI.CreateStackObject(Size, Align, false);
     SDValue FIPtr = DAG.getFrameIndex(FI, getPointerTy(DAG.getDataLayout()));
     SDValue SizeNode = DAG.getConstant(Size, DL, MVT::i32);
 
@@ -1052,8 +1054,8 @@ SDValue LanaiTargetLowering::LowerDYNAMIC_STACKALLOC(SDValue Op,
 SDValue LanaiTargetLowering::LowerRETURNADDR(SDValue Op,
                                              SelectionDAG &DAG) const {
   MachineFunction &MF = DAG.getMachineFunction();
-  MachineFrameInfo *MFI = MF.getFrameInfo();
-  MFI->setReturnAddressIsTaken(true);
+  MachineFrameInfo &MFI = MF.getFrameInfo();
+  MFI.setReturnAddressIsTaken(true);
 
   EVT VT = Op.getValueType();
   SDLoc DL(Op);
@@ -1074,8 +1076,8 @@ SDValue LanaiTargetLowering::LowerRETURNADDR(SDValue Op,
 
 SDValue LanaiTargetLowering::LowerFRAMEADDR(SDValue Op,
                                             SelectionDAG &DAG) const {
-  MachineFrameInfo *MFI = DAG.getMachineFunction().getFrameInfo();
-  MFI->setFrameAddressIsTaken(true);
+  MachineFrameInfo &MFI = DAG.getMachineFunction().getFrameInfo();
+  MFI.setFrameAddressIsTaken(true);
 
   EVT VT = Op.getValueType();
   SDLoc DL(Op);
@@ -1167,8 +1169,8 @@ SDValue LanaiTargetLowering::LowerGlobalAddress(SDValue Op,
 
   // If the code model is small or global variable will be placed in the small
   // section, then assume address will fit in 21-bits.
-  if (getTargetMachine().getCodeModel() == CodeModel::Small ||
-      TLOF->isGlobalInSmallSection(GV, getTargetMachine())) {
+  const GlobalObject *GO = GV->getBaseObject();
+  if (TLOF->isGlobalInSmallSection(GO, getTargetMachine())) {
     SDValue Small = DAG.getTargetGlobalAddress(
         GV, DL, getPointerTy(DAG.getDataLayout()), Offset, LanaiII::MO_NO_FLAG);
     return DAG.getNode(ISD::OR, DL, MVT::i32,
@@ -1230,6 +1232,55 @@ SDValue LanaiTargetLowering::LowerJumpTable(SDValue Op,
     SDValue Result = DAG.getNode(ISD::OR, DL, MVT::i32, Hi, Lo);
     return Result;
   }
+}
+
+SDValue LanaiTargetLowering::LowerSHL_PARTS(SDValue Op,
+                                            SelectionDAG &DAG) const {
+  EVT VT = Op.getValueType();
+  unsigned VTBits = VT.getSizeInBits();
+  SDLoc dl(Op);
+  assert(Op.getNumOperands() == 3 && "Unexpected SHL!");
+  SDValue ShOpLo = Op.getOperand(0);
+  SDValue ShOpHi = Op.getOperand(1);
+  SDValue ShAmt = Op.getOperand(2);
+
+  // Performs the following for (ShOpLo + (ShOpHi << 32)) << ShAmt:
+  //   LoBitsForHi = (ShAmt == 0) ? 0 : (ShOpLo >> (32-ShAmt))
+  //   HiBitsForHi = ShOpHi << ShAmt
+  //   Hi = (ShAmt >= 32) ? (ShOpLo << (ShAmt-32)) : (LoBitsForHi | HiBitsForHi)
+  //   Lo = (ShAmt >= 32) ? 0 : (ShOpLo << ShAmt)
+  //   return (Hi << 32) | Lo;
+
+  SDValue RevShAmt = DAG.getNode(ISD::SUB, dl, MVT::i32,
+                                 DAG.getConstant(VTBits, dl, MVT::i32), ShAmt);
+  SDValue LoBitsForHi = DAG.getNode(ISD::SRL, dl, VT, ShOpLo, RevShAmt);
+
+  // If ShAmt == 0, we just calculated "(SRL ShOpLo, 32)" which is "undef". We
+  // wanted 0, so CSEL it directly.
+  SDValue Zero = DAG.getConstant(0, dl, MVT::i32);
+  SDValue SetCC = DAG.getSetCC(dl, MVT::i32, ShAmt, Zero, ISD::SETEQ);
+  LoBitsForHi = DAG.getSelect(dl, MVT::i32, SetCC, Zero, LoBitsForHi);
+
+  SDValue ExtraShAmt = DAG.getNode(ISD::SUB, dl, MVT::i32, ShAmt,
+                                   DAG.getConstant(VTBits, dl, MVT::i32));
+  SDValue HiBitsForHi = DAG.getNode(ISD::SHL, dl, VT, ShOpHi, ShAmt);
+  SDValue HiForNormalShift =
+      DAG.getNode(ISD::OR, dl, VT, LoBitsForHi, HiBitsForHi);
+
+  SDValue HiForBigShift = DAG.getNode(ISD::SHL, dl, VT, ShOpLo, ExtraShAmt);
+
+  SetCC = DAG.getSetCC(dl, MVT::i32, ExtraShAmt, Zero, ISD::SETGE);
+  SDValue Hi =
+      DAG.getSelect(dl, MVT::i32, SetCC, HiForBigShift, HiForNormalShift);
+
+  // Lanai shifts of larger than register sizes are wrapped rather than
+  // clamped, so we can't just emit "lo << b" if b is too big.
+  SDValue LoForNormalShift = DAG.getNode(ISD::SHL, dl, VT, ShOpLo, ShAmt);
+  SDValue Lo = DAG.getSelect(
+      dl, MVT::i32, SetCC, DAG.getConstant(0, dl, MVT::i32), LoForNormalShift);
+
+  SDValue Ops[2] = {Lo, Hi};
+  return DAG.getMergeValues(Ops, dl);
 }
 
 SDValue LanaiTargetLowering::LowerSRL_PARTS(SDValue Op,

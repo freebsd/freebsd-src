@@ -22,9 +22,15 @@
 #include "llvm/ADT/SparseBitVector.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/AliasAnalysis.h"
+#include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/MachineBlockFrequencyInfo.h"
+#include "llvm/CodeGen/MachineBranchProbabilityInfo.h"
 #include "llvm/CodeGen/MachineDominators.h"
+#include "llvm/CodeGen/MachineFunction.h"
+#include "llvm/CodeGen/MachineFunctionPass.h"
+#include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineLoopInfo.h"
+#include "llvm/CodeGen/MachineOperand.h"
 #include "llvm/CodeGen/MachinePostDominators.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/IR/LLVMContext.h"
@@ -34,6 +40,13 @@
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetRegisterInfo.h"
 #include "llvm/Target/TargetSubtargetInfo.h"
+#include <algorithm>
+#include <cassert>
+#include <cstdint>
+#include <map>
+#include <utility>
+#include <vector>
+
 using namespace llvm;
 
 #define DEBUG_TYPE "machine-sink"
@@ -48,12 +61,21 @@ UseBlockFreqInfo("machine-sink-bfi",
            cl::desc("Use block frequency info to find successors to sink"),
            cl::init(true), cl::Hidden);
 
+static cl::opt<unsigned> SplitEdgeProbabilityThreshold(
+    "machine-sink-split-probability-threshold",
+    cl::desc(
+        "Percentage threshold for splitting single-instruction critical edge. "
+        "If the branch threshold is higher than this threshold, we allow "
+        "speculative execution of up to 1 instruction to avoid branching to "
+        "splitted critical edge"),
+    cl::init(40), cl::Hidden);
 
 STATISTIC(NumSunk,      "Number of machine instructions sunk");
 STATISTIC(NumSplit,     "Number of critical edges split");
 STATISTIC(NumCoalesces, "Number of copies coalesced");
 
 namespace {
+
   class MachineSinking : public MachineFunctionPass {
     const TargetInstrInfo *TII;
     const TargetRegisterInfo *TRI;
@@ -62,15 +84,16 @@ namespace {
     MachinePostDominatorTree *PDT; // Machine post dominator tree
     MachineLoopInfo *LI;
     const MachineBlockFrequencyInfo *MBFI;
+    const MachineBranchProbabilityInfo *MBPI;
     AliasAnalysis *AA;
 
     // Remember which edges have been considered for breaking.
-    SmallSet<std::pair<MachineBasicBlock*,MachineBasicBlock*>, 8>
+    SmallSet<std::pair<MachineBasicBlock*, MachineBasicBlock*>, 8>
     CEBCandidates;
     // Remember which edges we are about to split.
     // This is different from CEBCandidates since those edges
     // will be split.
-    SetVector<std::pair<MachineBasicBlock*,MachineBasicBlock*> > ToSplit;
+    SetVector<std::pair<MachineBasicBlock*, MachineBasicBlock*> > ToSplit;
 
     SparseBitVector<> RegsToClearKillFlags;
 
@@ -79,6 +102,7 @@ namespace {
 
   public:
     static char ID; // Pass identification
+
     MachineSinking() : MachineFunctionPass(ID) {
       initializeMachineSinkingPass(*PassRegistry::getPassRegistry());
     }
@@ -92,6 +116,7 @@ namespace {
       AU.addRequired<MachineDominatorTree>();
       AU.addRequired<MachinePostDominatorTree>();
       AU.addRequired<MachineLoopInfo>();
+      AU.addRequired<MachineBranchProbabilityInfo>();
       AU.addPreserved<MachineDominatorTree>();
       AU.addPreserved<MachinePostDominatorTree>();
       AU.addPreserved<MachineLoopInfo>();
@@ -143,12 +168,14 @@ namespace {
     GetAllSortedSuccessors(MachineInstr &MI, MachineBasicBlock *MBB,
                            AllSuccsCache &AllSuccessors) const;
   };
+
 } // end anonymous namespace
 
 char MachineSinking::ID = 0;
 char &llvm::MachineSinkingID = MachineSinking::ID;
 INITIALIZE_PASS_BEGIN(MachineSinking, "machine-sink",
                 "Machine code sinking", false, false)
+INITIALIZE_PASS_DEPENDENCY(MachineBranchProbabilityInfo)
 INITIALIZE_PASS_DEPENDENCY(MachineDominatorTree)
 INITIALIZE_PASS_DEPENDENCY(MachineLoopInfo)
 INITIALIZE_PASS_DEPENDENCY(AAResultsWrapperPass)
@@ -269,11 +296,12 @@ bool MachineSinking::runOnMachineFunction(MachineFunction &MF) {
   PDT = &getAnalysis<MachinePostDominatorTree>();
   LI = &getAnalysis<MachineLoopInfo>();
   MBFI = UseBlockFreqInfo ? &getAnalysis<MachineBlockFrequencyInfo>() : nullptr;
+  MBPI = &getAnalysis<MachineBranchProbabilityInfo>();
   AA = &getAnalysis<AAResultsWrapperPass>().getAAResults();
 
   bool EverMadeChange = false;
 
-  while (1) {
+  while (true) {
     bool MadeChange = false;
 
     // Process all basic blocks.
@@ -367,6 +395,10 @@ bool MachineSinking::isWorthBreakingCriticalEdge(MachineInstr &MI,
     return true;
 
   if (!MI.isCopy() && !TII->isAsCheapAsAMove(MI))
+    return true;
+
+  if (From->isSuccessor(To) && MBPI->getEdgeProbability(From, To) <=
+      BranchProbability(SplitEdgeProbabilityThreshold, 100))
     return true;
 
   // MI is cheap, we probably don't want to break the critical edge for it.
@@ -604,7 +636,7 @@ MachineSinking::FindSuccToSinkTo(MachineInstr &MI, MachineBasicBlock *MBB,
         // If the physreg has no defs anywhere, it's just an ambient register
         // and we can freely move its uses. Alternatively, if it's allocatable,
         // it could get allocated to something with a def during allocation.
-        if (!MRI->isConstantPhysReg(Reg, *MBB->getParent()))
+        if (!MRI->isConstantPhysReg(Reg))
           return nullptr;
       } else if (!MO.isDead()) {
         // A def that isn't dead. We can't move it.
