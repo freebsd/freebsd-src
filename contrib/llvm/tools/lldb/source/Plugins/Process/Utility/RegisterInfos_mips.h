@@ -12,27 +12,27 @@
 
 // C++ Includes
 // Other libraries and framework includes
-#include "llvm/Support/Compiler.h"
 #include "lldb/Core/dwarf.h"
+#include "llvm/Support/Compiler.h"
 
 // Project includes
 
 #ifdef DECLARE_REGISTER_INFOS_MIPS_STRUCT
 
 // Computes the offset of the given GPR in the user data area.
-#define GPR_OFFSET(regname) \
-    (LLVM_EXTENSION offsetof(UserArea, gpr) + \
-     LLVM_EXTENSION offsetof(GPR_linux_mips, regname))
+#define GPR_OFFSET(regname)                                                    \
+  (LLVM_EXTENSION offsetof(UserArea, gpr) +                                    \
+   LLVM_EXTENSION offsetof(GPR_linux_mips, regname))
 
 // Computes the offset of the given FPR in the extended data area.
-#define FPR_OFFSET(regname)  \
-     (LLVM_EXTENSION offsetof(UserArea, fpr) + \
-      LLVM_EXTENSION offsetof(FPR_linux_mips, regname))
+#define FPR_OFFSET(regname)                                                    \
+  (LLVM_EXTENSION offsetof(UserArea, fpr) +                                    \
+   LLVM_EXTENSION offsetof(FPR_linux_mips, regname))
 
 // Computes the offset of the given MSA in the extended data area.
-#define MSA_OFFSET(regname)  \
-     (LLVM_EXTENSION offsetof(UserArea, msa) + \
-      LLVM_EXTENSION offsetof(MSA_linux_mips, regname))
+#define MSA_OFFSET(regname)                                                    \
+  (LLVM_EXTENSION offsetof(UserArea, msa) +                                    \
+   LLVM_EXTENSION offsetof(MSA_linux_mips, regname))
 
 // Note that the size and offset will be updated by platform-specific classes.
 #define DEFINE_GPR(reg, alt, kind1, kind2, kind3)                              \
@@ -44,11 +44,10 @@
                                   NULL, NULL, NULL, 0                          \
   }
 
-const uint8_t dwarf_opcode_mips [] = {
-                                        llvm::dwarf::DW_OP_regx, dwarf_sr_mips, llvm::dwarf::DW_OP_lit1,
-                                        llvm::dwarf::DW_OP_lit26, llvm::dwarf::DW_OP_shl, llvm::dwarf::DW_OP_and,
-                                        llvm::dwarf::DW_OP_lit26, llvm::dwarf::DW_OP_shr
-                                     };
+const uint8_t dwarf_opcode_mips[] = {
+    llvm::dwarf::DW_OP_regx,  dwarf_sr_mips,          llvm::dwarf::DW_OP_lit1,
+    llvm::dwarf::DW_OP_lit26, llvm::dwarf::DW_OP_shl, llvm::dwarf::DW_OP_and,
+    llvm::dwarf::DW_OP_lit26, llvm::dwarf::DW_OP_shr};
 
 #define DEFINE_FPR(reg, alt, kind1, kind2, kind3)                              \
   {                                                                            \
@@ -69,13 +68,23 @@ const uint8_t dwarf_opcode_mips [] = {
                                   NULL, NULL, NULL, 0                          \
   }
 
-#define DEFINE_MSA(reg, alt, kind1, kind2, kind3, kind4)    \
-    { #reg, alt, sizeof(((MSA_linux_mips*)0)->reg), MSA_OFFSET(reg), eEncodingVector,   \
-      eFormatVectorOfUInt8, { kind1, kind2, kind3, kind4, msa_##reg##_mips }, NULL, NULL, NULL, 0}
+#define DEFINE_MSA(reg, alt, kind1, kind2, kind3, kind4)                       \
+  {                                                                            \
+    #reg, alt, sizeof(((MSA_linux_mips *) 0)->reg),                            \
+                      MSA_OFFSET(reg), eEncodingVector, eFormatVectorOfUInt8,  \
+                                 {kind1, kind2, kind3, kind4,                  \
+                                  msa_##reg##_mips },                          \
+                                  NULL, NULL, NULL, 0                          \
+  }
 
-#define DEFINE_MSA_INFO(reg, alt, kind1, kind2, kind3, kind4)    \
-    { #reg, alt, sizeof(((MSA_linux_mips*)0)->reg), MSA_OFFSET(reg), eEncodingUint, \
-      eFormatHex, { kind1, kind2, kind3, kind4, msa_##reg##_mips }, NULL, NULL, NULL, 0}
+#define DEFINE_MSA_INFO(reg, alt, kind1, kind2, kind3, kind4)                  \
+  {                                                                            \
+    #reg, alt, sizeof(((MSA_linux_mips *) 0)->reg),                            \
+                      MSA_OFFSET(reg), eEncodingUint, eFormatHex,              \
+                                 {kind1, kind2, kind3, kind4,                  \
+                                  msa_##reg##_mips },                          \
+                                  NULL, NULL, NULL, 0                          \
+  }
 
 // RegisterKind: EH_Frame, DWARF, Generic, Procss Plugin, LLDB
 
@@ -283,11 +292,11 @@ static RegisterInfo g_register_infos_mips[] = {
     DEFINE_MSA_INFO(fir, nullptr, dwarf_fir_mips, dwarf_fir_mips,
                     LLDB_INVALID_REGNUM, LLDB_INVALID_REGNUM),
     DEFINE_MSA_INFO(config5, nullptr, dwarf_config5_mips, dwarf_config5_mips,
-                    LLDB_INVALID_REGNUM, LLDB_INVALID_REGNUM)
-};
+                    LLDB_INVALID_REGNUM, LLDB_INVALID_REGNUM)};
 
-static_assert((sizeof(g_register_infos_mips) / sizeof(g_register_infos_mips[0])) == k_num_registers_mips,
-    "g_register_infos_mips has wrong number of register infos");
+static_assert((sizeof(g_register_infos_mips) /
+               sizeof(g_register_infos_mips[0])) == k_num_registers_mips,
+              "g_register_infos_mips has wrong number of register infos");
 
 #undef GPR_OFFSET
 #undef FPR_OFFSET
