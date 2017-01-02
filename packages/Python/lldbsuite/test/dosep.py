@@ -46,6 +46,7 @@ import signal
 import sys
 import threading
 
+from six import StringIO
 from six.moves import queue
 
 # Our packages and modules
@@ -64,6 +65,8 @@ from .test_runner import process_control
 # Status codes for running command with timeout.
 eTimedOut, ePassed, eFailed = 124, 0, 1
 
+g_session_dir = None
+g_runner_context = None
 output_lock = None
 test_counter = None
 total_tests = None
@@ -103,6 +106,7 @@ def setup_global_variables(
 
         global GET_WORKER_INDEX
         GET_WORKER_INDEX = get_worker_index_use_pid
+
 
 def report_test_failure(name, command, output, timeout):
     global output_lock
@@ -152,14 +156,15 @@ def parse_test_results(output):
                                result, re.MULTILINE)
         error_count = re.search("^RESULT:.*([0-9]+) errors",
                                 result, re.MULTILINE)
-        unexpected_success_count = re.search("^RESULT:.*([0-9]+) unexpected successes",
-                                             result, re.MULTILINE)
+        unexpected_success_count = re.search(
+            "^RESULT:.*([0-9]+) unexpected successes", result, re.MULTILINE)
         if pass_count is not None:
             passes = passes + int(pass_count.group(1))
         if fail_count is not None:
             failures = failures + int(fail_count.group(1))
         if unexpected_success_count is not None:
-            unexpected_successes = unexpected_successes + int(unexpected_success_count.group(1))
+            unexpected_successes = unexpected_successes + \
+                int(unexpected_success_count.group(1))
         if error_count is not None:
             failures = failures + int(error_count.group(1))
     return passes, failures, unexpected_successes
@@ -167,6 +172,7 @@ def parse_test_results(output):
 
 class DoTestProcessDriver(process_control.ProcessDriver):
     """Drives the dotest.py inferior process and handles bookkeeping."""
+
     def __init__(self, output_file, output_file_lock, pid_events, file_name,
                  soft_terminate_timeout):
         super(DoTestProcessDriver, self).__init__(
@@ -210,7 +216,11 @@ class DoTestProcessDriver(process_control.ProcessDriver):
             # only stderr does.
             report_test_pass(self.file_name, output[1])
         else:
-            report_test_failure(self.file_name, command, output[1], was_timeout)
+            report_test_failure(
+                self.file_name,
+                command,
+                output[1],
+                was_timeout)
 
         # Save off the results for the caller.
         self.results = (
@@ -219,6 +229,52 @@ class DoTestProcessDriver(process_control.ProcessDriver):
             passes,
             failures,
             unexpected_successes)
+
+    def on_timeout_pre_kill(self):
+        # We're just about to have a timeout take effect.  Here's our chance
+        # to do a pre-kill action.
+
+        # For now, we look to see if the lldbsuite.pre_kill module has a
+        # runner for our platform.
+        module_name = "lldbsuite.pre_kill_hook." + platform.system().lower()
+        import importlib
+        try:
+            module = importlib.import_module(module_name)
+        except ImportError:
+            # We don't have one for this platform.  Skip.
+            sys.stderr.write("\nwarning: no timeout handler module: " +
+                             module_name + "\n")
+            return
+
+        # Try to run the pre-kill-hook method.
+        try:
+            # Run the pre-kill command.
+            output_io = StringIO()
+            module.do_pre_kill(self.pid, g_runner_context, output_io)
+
+            # Write the output to a filename associated with the test file and
+            # pid.
+            MAX_UNCOMPRESSED_BYTE_COUNT = 10 * 1024
+
+            content = output_io.getvalue()
+            compress_output = len(content) > MAX_UNCOMPRESSED_BYTE_COUNT
+            basename = "{}-{}.sample".format(self.file_name, self.pid)
+            sample_path = os.path.join(g_session_dir, basename)
+
+            if compress_output:
+                # Write compressed output into a .zip file.
+                from zipfile import ZipFile, ZIP_DEFLATED
+                zipfile = sample_path + ".zip"
+                with ZipFile(zipfile, "w", ZIP_DEFLATED) as sample_zip:
+                    sample_zip.writestr(basename, content)
+            else:
+                # Write raw output into a text file.
+                with open(sample_path, "w") as output_file:
+                    output_file.write(content)
+        except Exception as e:
+            sys.stderr.write("caught exception while running "
+                             "pre-kill action: {}\n".format(e))
+            return
 
     def is_exceptional_exit(self):
         """Returns whether the process returned a timeout.
@@ -628,32 +684,52 @@ def find_test_files_in_dir_tree(dir_root, found_func):
             found_func(root, tests)
 
 
-def initialize_global_vars_common(num_threads, test_work_items):
-    global total_tests, test_counter, test_name_len
+def initialize_global_vars_common(num_threads, test_work_items, session_dir,
+                                  runner_context):
+    global g_session_dir, g_runner_context, total_tests, test_counter
+    global test_name_len
 
     total_tests = sum([len(item[1]) for item in test_work_items])
     test_counter = multiprocessing.Value('i', 0)
     test_name_len = multiprocessing.Value('i', 0)
+    g_session_dir = session_dir
+    g_runner_context = runner_context
     if not (RESULTS_FORMATTER and RESULTS_FORMATTER.is_using_terminal()):
-        print("Testing: %d test suites, %d thread%s" % (
-            total_tests, num_threads, (num_threads > 1) * "s"), file=sys.stderr)
+        print(
+            "Testing: %d test suites, %d thread%s" %
+            (total_tests,
+             num_threads,
+             (num_threads > 1) *
+                "s"),
+            file=sys.stderr)
     update_progress()
 
 
-def initialize_global_vars_multiprocessing(num_threads, test_work_items):
+def initialize_global_vars_multiprocessing(num_threads, test_work_items,
+                                           session_dir, runner_context):
     # Initialize the global state we'll use to communicate with the
     # rest of the flat module.
     global output_lock
     output_lock = multiprocessing.RLock()
 
-    initialize_global_vars_common(num_threads, test_work_items)
+    initialize_global_vars_common(num_threads, test_work_items, session_dir,
+                                  runner_context)
 
 
-def initialize_global_vars_threading(num_threads, test_work_items):
+def initialize_global_vars_threading(num_threads, test_work_items, session_dir,
+                                     runner_context):
     """Initializes global variables used in threading mode.
+
     @param num_threads specifies the number of workers used.
+
     @param test_work_items specifies all the work items
     that will be processed.
+
+    @param session_dir the session directory where test-run-speciif files are
+    written.
+
+    @param runner_context a dictionary of platform-related data that is passed
+    to the timeout pre-kill hook.
     """
     # Initialize the global state we'll use to communicate with the
     # rest of the flat module.
@@ -671,11 +747,11 @@ def initialize_global_vars_threading(num_threads, test_work_items):
                 index_map[thread_id] = len(index_map)
             return index_map[thread_id]
 
-
     global GET_WORKER_INDEX
     GET_WORKER_INDEX = get_worker_index_threading
 
-    initialize_global_vars_common(num_threads, test_work_items)
+    initialize_global_vars_common(num_threads, test_work_items, session_dir,
+                                  runner_context)
 
 
 def ctrl_c_loop(main_op_func, done_func, ctrl_c_handler):
@@ -822,7 +898,8 @@ def workers_and_async_done(workers, async_map):
     return True
 
 
-def multiprocessing_test_runner(num_threads, test_work_items):
+def multiprocessing_test_runner(num_threads, test_work_items, session_dir,
+                                runner_context):
     """Provides hand-wrapped pooling test runner adapter with Ctrl-C support.
 
     This concurrent test runner is based on the multiprocessing
@@ -836,10 +913,17 @@ def multiprocessing_test_runner(num_threads, test_work_items):
 
     @param test_work_items the iterable of test work item tuples
     to run.
+
+    @param session_dir the session directory where test-run-speciif files are
+    written.
+
+    @param runner_context a dictionary of platform-related data that is passed
+    to the timeout pre-kill hook.
     """
 
     # Initialize our global state.
-    initialize_global_vars_multiprocessing(num_threads, test_work_items)
+    initialize_global_vars_multiprocessing(num_threads, test_work_items,
+                                           session_dir, runner_context)
 
     # Create jobs.
     job_queue = multiprocessing.Queue(len(test_work_items))
@@ -944,9 +1028,11 @@ def map_async_run_loop(future, channel_map, listener_channel):
     return map_results
 
 
-def multiprocessing_test_runner_pool(num_threads, test_work_items):
+def multiprocessing_test_runner_pool(num_threads, test_work_items, session_dir,
+                                     runner_context):
     # Initialize our global state.
-    initialize_global_vars_multiprocessing(num_threads, test_work_items)
+    initialize_global_vars_multiprocessing(num_threads, test_work_items,
+                                           session_dir, runner_context)
 
     manager = multiprocessing.Manager()
     worker_index_map = manager.dict()
@@ -964,7 +1050,8 @@ def multiprocessing_test_runner_pool(num_threads, test_work_items):
         map_future, RUNNER_PROCESS_ASYNC_MAP, RESULTS_LISTENER_CHANNEL)
 
 
-def threading_test_runner(num_threads, test_work_items):
+def threading_test_runner(num_threads, test_work_items, session_dir,
+                          runner_context):
     """Provides hand-wrapped pooling threading-based test runner adapter
     with Ctrl-C support.
 
@@ -976,10 +1063,17 @@ def threading_test_runner(num_threads, test_work_items):
 
     @param test_work_items the iterable of test work item tuples
     to run.
-    """
+
+    @param session_dir the session directory where test-run-speciif files are
+    written.
+
+    @param runner_context a dictionary of platform-related data that is passed
+    to the timeout pre-kill hook.
+   """
 
     # Initialize our global state.
-    initialize_global_vars_threading(num_threads, test_work_items)
+    initialize_global_vars_threading(num_threads, test_work_items, session_dir,
+                                     runner_context)
 
     # Create jobs.
     job_queue = queue.Queue()
@@ -1027,9 +1121,11 @@ def threading_test_runner(num_threads, test_work_items):
     return test_results
 
 
-def threading_test_runner_pool(num_threads, test_work_items):
+def threading_test_runner_pool(num_threads, test_work_items, session_dir,
+                               runner_context):
     # Initialize our global state.
-    initialize_global_vars_threading(num_threads, test_work_items)
+    initialize_global_vars_threading(num_threads, test_work_items, session_dir,
+                                     runner_context)
 
     pool = multiprocessing.pool.ThreadPool(num_threads)
     map_future = pool.map_async(
@@ -1049,13 +1145,17 @@ def asyncore_run_loop(channel_map):
         pass
 
 
-def inprocess_exec_test_runner(test_work_items):
+def inprocess_exec_test_runner(test_work_items, session_dir, runner_context):
     # Initialize our global state.
-    initialize_global_vars_multiprocessing(1, test_work_items)
+    initialize_global_vars_multiprocessing(1, test_work_items, session_dir,
+                                           runner_context)
 
     # We're always worker index 0
+    def get_single_worker_index():
+        return 0
+
     global GET_WORKER_INDEX
-    GET_WORKER_INDEX = lambda: 0
+    GET_WORKER_INDEX = get_single_worker_index
 
     # Run the listener and related channel maps in a separate thread.
     # global RUNNER_PROCESS_ASYNC_MAP
@@ -1078,6 +1178,7 @@ def inprocess_exec_test_runner(test_work_items):
         socket_thread.join()
 
     return test_results
+
 
 def walk_and_invoke(test_files, dotest_argv, num_workers, test_runner_func):
     """Invokes the test runner on each test file specified by test_files.
@@ -1193,11 +1294,19 @@ def find(pattern, path):
     return result
 
 
-def get_test_runner_strategies(num_threads):
+def get_test_runner_strategies(num_threads, session_dir, runner_context):
     """Returns the test runner strategies by name in a dictionary.
 
     @param num_threads specifies the number of threads/processes
     that will be used for concurrent test runners.
+
+    @param session_dir specifies the session dir to use for
+    auxiliary files.
+
+    @param runner_context a dictionary of details on the architectures and
+    platform used to run the test suite.  This is passed along verbatim to
+    the timeout pre-kill handler, allowing that decoupled component to do
+    process inspection in a platform-specific way.
 
     @return dictionary with key as test runner strategy name and
     value set to a callable object that takes the test work item
@@ -1208,32 +1317,34 @@ def get_test_runner_strategies(num_threads):
         # multiprocessing.Pool.
         "multiprocessing":
         (lambda work_items: multiprocessing_test_runner(
-            num_threads, work_items)),
+            num_threads, work_items, session_dir, runner_context)),
 
         # multiprocessing-pool uses multiprocessing.Pool but
         # does not support Ctrl-C.
         "multiprocessing-pool":
         (lambda work_items: multiprocessing_test_runner_pool(
-            num_threads, work_items)),
+            num_threads, work_items, session_dir, runner_context)),
 
         # threading uses a hand-rolled worker pool much
         # like multiprocessing, but instead uses in-process
         # worker threads.  This one supports Ctrl-C.
         "threading":
-        (lambda work_items: threading_test_runner(num_threads, work_items)),
+        (lambda work_items: threading_test_runner(
+            num_threads, work_items, session_dir, runner_context)),
 
         # threading-pool uses threading for the workers (in-process)
         # and uses the multiprocessing.pool thread-enabled pool.
         # This does not properly support Ctrl-C.
         "threading-pool":
         (lambda work_items: threading_test_runner_pool(
-            num_threads, work_items)),
+            num_threads, work_items, session_dir, runner_context)),
 
         # serial uses the subprocess-based, single process
         # test runner.  This provides process isolation but
         # no concurrent test execution.
         "serial":
-        inprocess_exec_test_runner
+        (lambda work_items: inprocess_exec_test_runner(
+            work_items, session_dir, runner_context))
     }
 
 
@@ -1278,7 +1389,7 @@ def _remove_option(
                 removal_count = 2
             else:
                 removal_count = 1
-            del args[index:index+removal_count]
+            del args[index:index + removal_count]
             return True
         except ValueError:
             # Thanks to argparse not handling options with known arguments
@@ -1335,7 +1446,8 @@ def adjust_inferior_options(dotest_argv):
         # every dotest invocation from creating its own directory
         import datetime
         # The windows platforms don't like ':' in the pathname.
-        timestamp_started = datetime.datetime.now().strftime("%Y-%m-%d-%H_%M_%S")
+        timestamp_started = (datetime.datetime.now()
+                             .strftime("%Y-%m-%d-%H_%M_%S"))
         dotest_argv.append('-s')
         dotest_argv.append(timestamp_started)
         dotest_options.s = timestamp_started
@@ -1413,7 +1525,8 @@ def default_test_runner_name(num_threads):
     return test_runner_name
 
 
-def rerun_tests(test_subdir, tests_for_rerun, dotest_argv):
+def rerun_tests(test_subdir, tests_for_rerun, dotest_argv, session_dir,
+                runner_context):
     # Build the list of test files to rerun.  Some future time we'll
     # enable re-run by test method so we can constrain the rerun set
     # to just the method(s) that were in issued within a file.
@@ -1453,7 +1566,8 @@ def rerun_tests(test_subdir, tests_for_rerun, dotest_argv):
     print("rerun will use the '{}' test runner strategy".format(
         rerun_runner_name))
 
-    runner_strategies_by_name = get_test_runner_strategies(rerun_thread_count)
+    runner_strategies_by_name = get_test_runner_strategies(
+        rerun_thread_count, session_dir, runner_context)
     rerun_runner_func = runner_strategies_by_name[
         rerun_runner_name]
     if rerun_runner_func is None:
@@ -1515,6 +1629,10 @@ def main(num_threads, test_subdir, test_runner_name, results_formatter):
     test_directory = os.path.dirname(os.path.realpath(__file__))
     if test_subdir and len(test_subdir) > 0:
         test_subdir = os.path.join(test_directory, test_subdir)
+        if not os.path.isdir(test_subdir):
+            print(
+                'specified test subdirectory {} is not a valid directory\n'
+                .format(test_subdir))
     else:
         test_subdir = test_directory
 
@@ -1531,8 +1649,19 @@ def main(num_threads, test_subdir, test_runner_name, results_formatter):
     if results_formatter is not None:
         results_formatter.set_expected_timeouts_by_basename(expected_timeout)
 
+    # Setup the test runner context.  This is a dictionary of information that
+    # will be passed along to the timeout pre-kill handler and allows for loose
+    # coupling of its implementation.
+    runner_context = {
+        "archs": configuration.archs,
+        "platform_name": configuration.lldb_platform_name,
+        "platform_url": configuration.lldb_platform_url,
+        "platform_working_dir": configuration.lldb_platform_working_dir,
+    }
+
     # Figure out which testrunner strategy we'll use.
-    runner_strategies_by_name = get_test_runner_strategies(num_threads)
+    runner_strategies_by_name = get_test_runner_strategies(
+        num_threads, session_dir, runner_context)
 
     # If the user didn't specify a test runner strategy, determine
     # the default now based on number of threads and OS type.
@@ -1572,6 +1701,12 @@ def main(num_threads, test_subdir, test_runner_name, results_formatter):
             print("\n{} test files marked for rerun\n".format(
                 rerun_file_count))
 
+            # Clear errors charged to any of the files of the tests that
+            # we are rerunning.
+            # https://llvm.org/bugs/show_bug.cgi?id=27423
+            results_formatter.clear_file_level_issues(tests_for_rerun,
+                                                      sys.stdout)
+
             # Check if the number of files exceeds the max cutoff.  If so,
             # we skip the rerun step.
             if rerun_file_count > configuration.rerun_max_file_threshold:
@@ -1579,7 +1714,8 @@ def main(num_threads, test_subdir, test_runner_name, results_formatter):
                       "exceeded".format(
                           configuration.rerun_max_file_threshold))
             else:
-                rerun_tests(test_subdir, tests_for_rerun, dotest_argv)
+                rerun_tests(test_subdir, tests_for_rerun, dotest_argv,
+                            session_dir, runner_context)
 
     # The results formatter - if present - is done now.  Tell it to
     # terminate.
@@ -1660,7 +1796,9 @@ def main(num_threads, test_subdir, test_runner_name, results_formatter):
             unexpected_successes.sort()
             print("\nUnexpected Successes (%d)" % len(unexpected_successes))
             for u in unexpected_successes:
-                print("UNEXPECTED SUCCESS: LLDB (suite) :: %s (%s)" % (u, system_info))
+                print(
+                    "UNEXPECTED SUCCESS: LLDB (suite) :: %s (%s)" %
+                    (u, system_info))
 
     sys.exit(exit_code)
 

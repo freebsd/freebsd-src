@@ -3,6 +3,7 @@
 add_subdirectory(i386)
 #add_subdirectory(ppc)
 add_subdirectory(x86_64)
+add_subdirectory(DarwinLog)
 
 include_directories(..)
 
@@ -32,12 +33,12 @@ set(DEBUGSERVER_USED_LIBS
   lldbUtility
   lldbDebugserverMacOSX_I386
   lldbDebugserverMacOSX_X86_64
+  lldbDebugserverMacOSX_DarwinLog
   )
 
-add_lldb_executable(debugserver
+add_lldb_tool(debugserver INCLUDE_IN_FRAMEWORK
   HasAVX.s
   CFBundle.cpp
-  CFData.cpp
   CFString.cpp
   Genealogy.cpp
   MachException.cpp
@@ -47,6 +48,7 @@ add_lldb_executable(debugserver
   MachThreadList.cpp
   MachVMMemory.cpp
   MachVMRegion.cpp
+  OsLogger.cpp
   ${generated_mach_interfaces}
   ${DEBUGSERVER_VERS_GENERATED_FILE}
   )
@@ -67,25 +69,12 @@ if (NOT ("${LLDB_CODESIGN_IDENTITY}" STREQUAL ""))
     OUTPUT_STRIP_TRAILING_WHITESPACE
     OUTPUT_VARIABLE CODESIGN_ALLOCATE
     )
-  # Older cmake versions don't support "-E env".
-  if (${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION} LESS 3.2)
-    add_custom_command(TARGET debugserver
-      POST_BUILD
-      # Note: --entitlements option removed, as it causes errors when debugging.
-      # was: COMMAND CODESIGN_ALLOCATE=${CODESIGN_ALLOCATE} codesign --entitlements ${CMAKE_CURRENT_SOURCE_DIR}/../debugserver-entitlements.plist --force --sign ${LLDB_CODESIGN_IDENTITY} debugserver
-      COMMAND CODESIGN_ALLOCATE=${CODESIGN_ALLOCATE} codesign --force --sign ${LLDB_CODESIGN_IDENTITY} debugserver
-      WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
-    )
-  else()
-    add_custom_command(TARGET debugserver
-      POST_BUILD
-      # Note: --entitlements option removed (see comment above).
-      COMMAND ${CMAKE_COMMAND} -E env CODESIGN_ALLOCATE=${CODESIGN_ALLOCATE} codesign --force --sign ${LLDB_CODESIGN_IDENTITY} debugserver
-      WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
-    )
-  endif()
-endif()
-
-install(TARGETS debugserver
-  RUNTIME DESTINATION bin
+  add_custom_command(TARGET debugserver
+    POST_BUILD
+    # Note: --entitlements option removed (see comment above).
+    COMMAND ${CMAKE_COMMAND} -E env CODESIGN_ALLOCATE=${CODESIGN_ALLOCATE}
+            codesign --force --sign ${LLDB_CODESIGN_IDENTITY}
+            $<TARGET_FILE:debugserver>
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
   )
+endif()

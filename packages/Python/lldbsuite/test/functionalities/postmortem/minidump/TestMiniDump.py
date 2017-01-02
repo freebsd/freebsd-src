@@ -11,12 +11,12 @@ from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
 from lldbsuite.test import lldbutil
 
+
 class MiniDumpTestCase(TestBase):
 
     mydir = TestBase.compute_mydir(__file__)
+    NO_DEBUG_INFO_TESTCASE = True
 
-    @skipUnlessWindows  # for now mini-dump debugging is limited to Windows hosts
-    @no_debug_info_test
     def test_process_info_in_mini_dump(self):
         """Test that lldb can read the process information from the minidump."""
         # target create -c fizzbuzz_no_heap.dmp
@@ -27,23 +27,20 @@ class MiniDumpTestCase(TestBase):
         self.assertEqual(self.process.GetNumThreads(), 1)
         self.assertEqual(self.process.GetProcessID(), 4440)
 
-    @skipUnlessWindows  # for now mini-dump debugging is limited to Windows hosts
-    @no_debug_info_test
     def test_thread_info_in_mini_dump(self):
         """Test that lldb can read the thread information from the minidump."""
         # target create -c fizzbuzz_no_heap.dmp
         self.dbg.CreateTarget("")
         self.target = self.dbg.GetSelectedTarget()
         self.process = self.target.LoadCore("fizzbuzz_no_heap.dmp")
-        # This process crashed due to an access violation (0xc0000005) in its one and only thread.
+        # This process crashed due to an access violation (0xc0000005) in its
+        # one and only thread.
         self.assertEqual(self.process.GetNumThreads(), 1)
         thread = self.process.GetThreadAtIndex(0)
         self.assertEqual(thread.GetStopReason(), lldb.eStopReasonException)
-        stop_description = thread.GetStopDescription(256);
-        self.assertTrue("0xc0000005" in stop_description);
+        stop_description = thread.GetStopDescription(256)
+        self.assertTrue("0xc0000005" in stop_description)
 
-    @skipUnlessWindows  # for now mini-dump debugging is limited to Windows hosts
-    @no_debug_info_test
     def test_stack_info_in_mini_dump(self):
         """Test that we can see a trivial stack in a VS-generate mini dump."""
         # target create -c fizzbuzz_no_heap.dmp
@@ -61,8 +58,7 @@ class MiniDumpTestCase(TestBase):
         self.assertTrue(eip.IsValid())
         self.assertEqual(pc, eip.GetValueAsUnsigned())
 
-    @skipUnlessWindows
-    @not_remote_testsuite_ready
+    @skipUnlessWindows # Minidump saving works only on windows
     def test_deeper_stack_in_mini_dump(self):
         """Test that we can examine a more interesting stack in a mini dump."""
         self.build()
@@ -72,7 +68,8 @@ class MiniDumpTestCase(TestBase):
             # Set a breakpoint and capture a mini dump.
             target = self.dbg.CreateTarget(exe)
             breakpoint = target.BreakpointCreateByName("bar")
-            process = target.LaunchSimple(None, None, self.get_process_working_directory())
+            process = target.LaunchSimple(
+                None, None, self.get_process_working_directory())
             self.assertEqual(process.GetState(), lldb.eStateStopped)
             self.assertTrue(process.SaveCore(core))
             self.assertTrue(os.path.isfile(core))
@@ -83,7 +80,7 @@ class MiniDumpTestCase(TestBase):
             process = target.LoadCore(core)
             thread = process.GetThreadAtIndex(0)
 
-            expected_stack = { 0: 'bar', 1: 'foo', 2: 'main' }
+            expected_stack = {0: 'bar', 1: 'foo', 2: 'main'}
             self.assertGreaterEqual(thread.GetNumFrames(), len(expected_stack))
             for index, name in iteritems(expected_stack):
                 frame = thread.GetFrameAtIndex(index)
@@ -97,8 +94,7 @@ class MiniDumpTestCase(TestBase):
             if (os.path.isfile(core)):
                 os.unlink(core)
 
-    @skipUnlessWindows
-    @not_remote_testsuite_ready
+    @skipUnlessWindows # Minidump saving works only on windows
     def test_local_variables_in_mini_dump(self):
         """Test that we can examine local variables in a mini dump."""
         self.build()
@@ -108,7 +104,8 @@ class MiniDumpTestCase(TestBase):
             # Set a breakpoint and capture a mini dump.
             target = self.dbg.CreateTarget(exe)
             breakpoint = target.BreakpointCreateByName("bar")
-            process = target.LaunchSimple(None, None, self.get_process_working_directory())
+            process = target.LaunchSimple(
+                None, None, self.get_process_working_directory())
             self.assertEqual(process.GetState(), lldb.eStateStopped)
             self.assertTrue(process.SaveCore(core))
             self.assertTrue(os.path.isfile(core))

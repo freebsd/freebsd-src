@@ -244,6 +244,9 @@ public:
     StepUsingScriptedThreadPlan (const char *script_class_name);
 
     SBError
+    StepUsingScriptedThreadPlan (const char *script_class_name, bool resume_immediately);
+
+    SBError
     JumpToLine (lldb::SBFileSpec &file_spec, uint32_t line);
 
     void
@@ -320,6 +323,15 @@ public:
     bool
     GetDescription (lldb::SBStream &description) const;
     
+    %feature("docstring", "
+    //--------------------------------------------------------------------------
+    /// Get the description strings for this thread that match what the 
+    /// lldb driver will present, using the thread-format (stop_format==false)
+    /// or thread-stop-format (stop_format = true). 
+    //--------------------------------------------------------------------------
+    ") GetDescription;
+    bool GetDescription(lldb::SBStream &description, bool stop_format) const;
+
     bool
     GetStatus (lldb::SBStream &status) const;
     

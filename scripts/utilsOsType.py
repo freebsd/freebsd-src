@@ -28,6 +28,7 @@ import sys      # Provide system information
 #--
 if sys.version_info.major >= 3:
     from enum import Enum
+
     class EnumOsType(Enum):
         Unknown = 0
         Darwin = 1
@@ -35,6 +36,7 @@ if sys.version_info.major >= 3:
         Linux = 3
         NetBSD = 4
         Windows = 5
+        kFreeBSD = 6
 else:
     class EnumOsType(object):
         values = ["Unknown",
@@ -42,14 +44,17 @@ else:
                   "FreeBSD",
                   "Linux",
                   "NetBSD",
-                  "Windows"]
+                  "Windows",
+                  "kFreeBSD"]
+
         class __metaclass__(type):
-#++---------------------------------------------------------------------------
-# Details:  Fn acts as an enumeration.
-# Args:     vName - (R) Enumeration to match.
-# Returns:  Int - Matching enumeration/index.
-# Throws:   None.
-#--
+            #++----------------------------------------------------------------
+            # Details:  Fn acts as an enumeration.
+            # Args:     vName - (R) Enumeration to match.
+            # Returns:  Int - Matching enumeration/index.
+            # Throws:   None.
+            #--
+
             def __getattr__(cls, vName):
                 return cls.values.index(vName)
 
@@ -72,6 +77,8 @@ else:
 # Returns:  EnumOsType - The OS type being used ATM.
 # Throws:   None.
 #--
+
+
 def determine_os_type():
     eOSType = EnumOsType.Unknown
 
@@ -86,5 +93,7 @@ def determine_os_type():
         eOSType = EnumOsType.NetBSD
     elif strOS == "win32":
         eOSType = EnumOsType.Windows
+    elif strOS.startswith("gnukfreebsd"):
+        eOSType = EnumOsType.kFreeBSD
 
     return eOSType

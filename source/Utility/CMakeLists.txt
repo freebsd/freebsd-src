@@ -3,18 +3,17 @@ add_lldb_library(lldbUtility
   ARM64_DWARF_Registers.cpp
   ConvertEnum.cpp
   JSON.cpp
-  KQueue.cpp
   LLDBAssert.cpp
   ModuleCache.cpp
   NameMatches.cpp
   PseudoTerminal.cpp
   Range.cpp
   RegisterNumber.cpp
+  SelectHelper.cpp
   SharingPtr.cpp
   StringExtractor.cpp
   StringExtractorGDBRemote.cpp
   StringLexer.cpp
   TaskPool.cpp
-  TimeSpecTimeout.cpp
   UriParser.cpp
   )

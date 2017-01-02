@@ -10,4 +10,6 @@ add_lldb_library(lldbPluginCPlusPlusLanguage
   LibCxxUnorderedMap.cpp
   LibCxxVector.cpp
   LibStdcpp.cpp
+  LibStdcppTuple.cpp
+  LibStdcppUniquePointer.cpp
 )

@@ -12,6 +12,14 @@ endif ()
 
 include(${LLDB_PROJECT_ROOT}/cmake/LLDBDependencies.cmake)
 
+if (LLDB_BUILT_STANDALONE)
+  # Build the gtest library needed for unittests, if we have LLVM sources
+  # handy.
+  if (EXISTS ${LLVM_MAIN_SRC_DIR}/utils/unittest AND NOT TARGET gtest)
+    add_subdirectory(${LLVM_MAIN_SRC_DIR}/utils/unittest utils/unittest)
+  endif()
+endif()
+
 function(add_lldb_unittest test_name)
   add_unittest(LLDBUnitTests
     ${test_name}
@@ -38,12 +46,17 @@ function(add_unittest_inputs test_name inputs)
   endforeach()
 endfunction()
 
+add_subdirectory(Breakpoint)
 add_subdirectory(Core)
 add_subdirectory(Editline)
 add_subdirectory(Expression)
 add_subdirectory(Host)
 add_subdirectory(Interpreter)
+add_subdirectory(Language)
+add_subdirectory(Platform)
+add_subdirectory(Process)
 add_subdirectory(ScriptInterpreter)
 add_subdirectory(Symbol)
 add_subdirectory(SymbolFile)
+add_subdirectory(UnwindAssembly)
 add_subdirectory(Utility)
