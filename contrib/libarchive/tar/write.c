@@ -145,18 +145,17 @@ set_writer_options(struct bsdtar *bsdtar, struct archive *a)
 
 	writer_options = getenv(ENV_WRITER_OPTIONS);
 	if (writer_options != NULL) {
+		size_t module_len = sizeof(IGNORE_WRONG_MODULE_NAME) - 1;
+		size_t opt_len = strlen(writer_options) + 1;
 		char *p;
 		/* Set default write options. */
-		p = malloc(sizeof(IGNORE_WRONG_MODULE_NAME)
-		    + strlen(writer_options) + 1);
-		if (p == NULL)
+		if ((p = malloc(module_len + opt_len)) == NULL)
 			lafe_errc(1, errno, "Out of memory");
 		/* Prepend magic code to ignore options for
 		 * a format or filters which are not added to
 		 * the archive write object. */
-		strncpy(p, IGNORE_WRONG_MODULE_NAME,
-		    sizeof(IGNORE_WRONG_MODULE_NAME) -1);
-		strcpy(p + sizeof(IGNORE_WRONG_MODULE_NAME) -1, writer_options);
+		memcpy(p, IGNORE_WRONG_MODULE_NAME, module_len);
+		memcpy(p, writer_options, opt_len);
 		r = archive_write_set_options(a, p);
 		free(p);
 		if (r < ARCHIVE_WARN)
@@ -178,18 +177,18 @@ set_reader_options(struct bsdtar *bsdtar, struct archive *a)
 
 	reader_options = getenv(ENV_READER_OPTIONS);
 	if (reader_options != NULL) {
+		size_t module_len = sizeof(IGNORE_WRONG_MODULE_NAME) - 1;
+		size_t opt_len = strlen(reader_options) + 1;
 		char *p;
 		/* Set default write options. */
-		p = malloc(sizeof(IGNORE_WRONG_MODULE_NAME)
-		    + strlen(reader_options) + 1);
+		if ((p = malloc(module_len + opt_len)) == NULL)
 		if (p == NULL)
 			lafe_errc(1, errno, "Out of memory");
 		/* Prepend magic code to ignore options for
 		 * a format or filters which are not added to
 		 * the archive write object. */
-		strncpy(p, IGNORE_WRONG_MODULE_NAME,
-		    sizeof(IGNORE_WRONG_MODULE_NAME) -1);
-		strcpy(p + sizeof(IGNORE_WRONG_MODULE_NAME) -1, reader_options);
+		memcpy(p, IGNORE_WRONG_MODULE_NAME, module_len);
+		memcpy(p, reader_options, opt_len);
 		r = archive_read_set_options(a, p);
 		free(p);
 		if (r < ARCHIVE_WARN)
@@ -527,7 +526,7 @@ write_archive(struct archive *a, struct bsdtar *bsdtar)
 		struct archive *disk = bsdtar->diskreader;
 
 		/*
-		 * This tricky code here is to correctly read the cotents
+		 * This tricky code here is to correctly read the contents
 		 * of the entry because the disk reader bsdtar->diskreader
 		 * is pointing at does not have any information about the
 		 * entry by this time and using archive_read_data_block()

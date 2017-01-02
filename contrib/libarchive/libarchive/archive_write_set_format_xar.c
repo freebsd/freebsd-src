@@ -192,7 +192,7 @@ struct file {
 	struct file		*parent;	/* parent directory entry */
 	/*
 	 * To manage sub directory files.
-	 * We use 'chnext' a menber of struct file to chain.
+	 * We use 'chnext' (a member of struct file) to chain.
 	 */
 	struct {
 		struct file	*first;
@@ -258,7 +258,7 @@ struct xar {
 	/*
 	 * The list of all file entries is used to manage struct file
 	 * objects.
-	 * We use 'next' a menber of struct file to chain.
+	 * We use 'next' (a member of struct file) to chain.
 	 */
 	struct {
 		struct file	*first;
@@ -266,7 +266,7 @@ struct xar {
 	}			 file_list;
 	/*
 	 * The list of hard-linked file entries.
-	 * We use 'hlnext' a menber of struct file to chain.
+	 * We use 'hlnext' (a member of struct file) to chain.
 	 */
 	struct archive_rb_tree	 hardlink_rbtree;
 };

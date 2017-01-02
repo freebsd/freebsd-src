@@ -248,10 +248,9 @@ archive_entry_new2(struct archive *a)
 {
 	struct archive_entry *entry;
 
-	entry = (struct archive_entry *)malloc(sizeof(*entry));
+	entry = (struct archive_entry *)calloc(1, sizeof(*entry));
 	if (entry == NULL)
 		return (NULL);
-	memset(entry, 0, sizeof(*entry));
 	entry->archive = a;
 	return (entry);
 }
@@ -1439,6 +1438,15 @@ archive_entry_acl_add_entry_w(struct archive_entry *entry,
 {
 	return archive_acl_add_entry_w_len(&entry->acl,
 	    type, permset, tag, id, name, wcslen(name));
+}
+
+/*
+ * Return a bitmask of ACL types in an archive entry ACL list
+ */
+int
+archive_entry_acl_types(struct archive_entry *entry)
+{
+	return ((&entry->acl)->acl_types);
 }
 
 /*
