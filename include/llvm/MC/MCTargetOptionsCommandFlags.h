@@ -26,8 +26,7 @@ cl::opt<MCTargetOptions::AsmInstrumentation> AsmInstrumentation(
     cl::values(clEnumValN(MCTargetOptions::AsmInstrumentationNone, "none",
                           "no instrumentation at all"),
                clEnumValN(MCTargetOptions::AsmInstrumentationAddress, "address",
-                          "instrument instructions with memory arguments"),
-               clEnumValEnd));
+                          "instrument instructions with memory arguments")));
 
 cl::opt<bool> RelaxAll("mc-relax-all",
                        cl::desc("When used with filetype=obj, "
@@ -38,6 +37,8 @@ cl::opt<bool> IncrementalLinkerCompatible(
     cl::desc(
         "When used with filetype=obj, "
         "emit an object file which can be used with an incremental linker"));
+
+cl::opt<bool> PIECopyRelocations("pie-copy-relocations", cl::desc("PIE Copy Relocations"));
 
 cl::opt<int> DwarfVersion("dwarf-version", cl::desc("Dwarf version"),
                           cl::init(0));
@@ -52,6 +53,9 @@ cl::opt<bool> FatalWarnings("fatal-warnings",
 cl::opt<bool> NoWarn("no-warn", cl::desc("Suppress all warnings"));
 cl::alias NoWarnW("W", cl::desc("Alias for --no-warn"), cl::aliasopt(NoWarn));
 
+cl::opt<bool> NoDeprecatedWarn("no-deprecated-warn",
+                               cl::desc("Suppress all deprecated warnings"));
+
 cl::opt<std::string>
 ABIName("target-abi", cl::Hidden,
         cl::desc("The name of the ABI to be targeted from the backend."),
@@ -63,11 +67,13 @@ static inline MCTargetOptions InitMCTargetOptionsFromFlags() {
       (AsmInstrumentation == MCTargetOptions::AsmInstrumentationAddress);
   Options.MCRelaxAll = RelaxAll;
   Options.MCIncrementalLinkerCompatible = IncrementalLinkerCompatible;
+  Options.MCPIECopyRelocations = PIECopyRelocations;
   Options.DwarfVersion = DwarfVersion;
   Options.ShowMCInst = ShowMCInst;
   Options.ABIName = ABIName;
   Options.MCFatalWarnings = FatalWarnings;
   Options.MCNoWarn = NoWarn;
+  Options.MCNoDeprecatedWarn = NoDeprecatedWarn;
   return Options;
 }
 

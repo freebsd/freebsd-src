@@ -23,7 +23,8 @@ class LitConfig(object):
                  useValgrind, valgrindLeakCheck, valgrindArgs,
                  noExecute, debug, isWindows,
                  params, config_prefix = None,
-                 maxIndividualTestTime = 0):
+                 maxIndividualTestTime = 0,
+                 maxFailures = None):
         # The name of the test runner.
         self.progname = progname
         # The items to add to the PATH environment variable.
@@ -60,6 +61,7 @@ class LitConfig(object):
             self.valgrindArgs.extend(self.valgrindUserArgs)
 
         self.maxIndividualTestTime = maxIndividualTestTime
+        self.maxFailures = maxFailures
 
     @property
     def maxIndividualTestTime(self):
@@ -81,7 +83,7 @@ class LitConfig(object):
             # a timeout per test. Check it's available.
             # See lit.util.killProcessAndChildren()
             try:
-                import psutil
+                import psutil  # noqa: F401
             except ImportError:
                 self.fatal("Setting a timeout per test requires the"
                            " Python psutil module but it could not be"
@@ -132,7 +134,7 @@ class LitConfig(object):
         # Step out of _write_message, and then out of wrapper.
         f = f.f_back.f_back
         file,line,_,_,_ = inspect.getframeinfo(f)
-        location = '%s:%d' % (os.path.basename(file), line)
+        location = '%s:%d' % (file, line)
 
         sys.stderr.write('%s: %s: %s: %s\n' % (self.progname, location,
                                                kind, message))

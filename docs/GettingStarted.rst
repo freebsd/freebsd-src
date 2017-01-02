@@ -202,7 +202,7 @@ uses the package and provides other details.
 Package                                                     Version      Notes
 =========================================================== ============ ==========================================
 `GNU Make <http://savannah.gnu.org/projects/make>`_         3.79, 3.79.1 Makefile/build processor
-`GCC <http://gcc.gnu.org/>`_                                >=4.7.0      C/C++ compiler\ :sup:`1`
+`GCC <http://gcc.gnu.org/>`_                                >=4.8.0      C/C++ compiler\ :sup:`1`
 `python <http://www.python.org/>`_                          >=2.7        Automated test suite\ :sup:`2`
 `zlib <http://zlib.net>`_                                   >=1.2.3.4    Compression library\ :sup:`3`
 =========================================================== ============ ==========================================
@@ -261,8 +261,8 @@ For the most popular host toolchains we check for specific minimum versions in
 our build systems:
 
 * Clang 3.1
-* GCC 4.7
-* Visual Studio 2013
+* GCC 4.8
+* Visual Studio 2015 (Update 3)
 
 Anything older than these toolchains *may* work, but will require forcing the
 build system with a special option and is not really a supported host platform.
@@ -274,9 +274,6 @@ recent version may be required to support all of the C++ features used in LLVM.
 
 We track certain versions of software that are *known* to fail when used as
 part of the host toolchain. These even include linkers at times.
-
-**GCC 4.6.3 on ARM**: Miscompiles ``llvm-readobj`` at ``-O3``. A test failure
-in ``test/Object/readobj-shared-object.test`` is one symptom of the problem.
 
 **GNU ld 2.16.X**. Some 2.16.X versions of the ld linker will produce very long
 warning messages complaining that some "``.gnu.linkonce.t.*``" symbol was
@@ -294,26 +291,13 @@ intermittent failures when building LLVM with position independent code.  The
 symptom is an error about cyclic dependencies.  We recommend upgrading to a
 newer version of Gold.
 
-**Clang 3.0 with libstdc++ 4.7.x**: a few Linux distributions (Ubuntu 12.10,
-Fedora 17) have both Clang 3.0 and libstdc++ 4.7 in their repositories.  Clang
-3.0 does not implement a few builtins that are used in this library.  We
-recommend using the system GCC to compile LLVM and Clang in this case.
-
-**Clang 3.0 on Mageia 2**.  There's a packaging issue: Clang can not find at
-least some (``cxxabi.h``) libstdc++ headers.
-
-**Clang in C++11 mode and libstdc++ 4.7.2**.  This version of libstdc++
-contained `a bug <http://gcc.gnu.org/bugzilla/show_bug.cgi?id=53841>`__ which
-causes Clang to refuse to compile condition_variable header file.  At the time
-of writing, this breaks LLD build.
-
 Getting a Modern Host C++ Toolchain
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 This section mostly applies to Linux and older BSDs. On Mac OS X, you should
 have a sufficiently modern Xcode, or you will likely need to upgrade until you
-do. On Windows, just use Visual Studio 2013 as the host compiler, it is
-explicitly supported and widely available. FreeBSD 10.0 and newer have a modern
+do. Windows does not have a "system compiler", so you must install either Visual
+Studio 2015 or a recent version of mingw64. FreeBSD 10.0 and newer have a modern
 Clang as the system compiler.
 
 However, some Linux distributions and some other or older BSDs sometimes have
@@ -695,6 +679,73 @@ about files with uncommitted changes. The fix is to rebuild the metadata:
   % git svn rebase -l
 
 Please, refer to the Git-SVN manual (``man git-svn``) for more information.
+
+For developers to work with a git monorepo
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. note::
+
+   This set-up is using unofficial mirror hosted on GitHub, use with caution.
+
+To set up a clone of all the llvm projects using a unified repository:
+
+.. code-block:: console
+
+  % export TOP_LEVEL_DIR=`pwd`
+  % git clone https://github.com/llvm-project/llvm-project/
+  % cd llvm-project
+  % git config branch.master.rebase true
+
+You can configure various build directory from this clone, starting with a build
+of LLVM alone:
+
+.. code-block:: console
+
+  % cd $TOP_LEVEL_DIR
+  % mkdir llvm-build && cd llvm-build
+  % cmake -GNinja ../llvm-project/llvm
+
+Or lldb:
+
+.. code-block:: console
+
+  % cd $TOP_LEVEL_DIR
+  % mkdir lldb-build && cd lldb-build
+  % cmake -GNinja ../llvm-project/llvm -DLLVM_ENABLE_PROJECTS=lldb
+
+Or a combination of multiple projects:
+
+.. code-block:: console
+
+  % cd $TOP_LEVEL_DIR
+  % mkdir clang-build && cd clang-build
+  % cmake -GNinja ../llvm-project/llvm -DLLVM_ENABLE_PROJECTS="clang;libcxx;compiler-rt"
+
+A helper script is provided in `llvm/utils/git-svn/git-llvm`. After you add it
+to your path, you can push committed changes upstream with `git llvm push`.
+
+.. code-block:: console
+
+  % export PATH=$PATH:$TOP_LEVEL_DIR/llvm-project/llvm/utils/git-svn/
+  % git llvm push
+
+While this is using SVN under the hood, it does not require any interaction from
+you with git-svn.
+After a few minutes, `git pull` should get back the changes as they were
+commited. Note that a current limitation is that `git` does not directly record
+file rename, and thus it is propagated to SVN as a combination of delete-add
+instead of a file rename.
+
+If you are using `arc` to interact with Phabricator, you need to manually put it
+at the root of the checkout:
+
+.. code-block:: console
+
+  % cd $TOP_LEVEL_DIR
+  % cp llvm/.arcconfig ./
+  % mkdir -p .git/info/
+  % echo .arcconfig >> .git/info/exclude
+
 
 Local LLVM Configuration
 ------------------------

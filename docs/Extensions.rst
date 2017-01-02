@@ -67,7 +67,7 @@ the target.  It corresponds to the COFF relocation types
     .long 4
     .long 242
     .long 40
-    .secrel32 _function_name
+    .secrel32 _function_name + 0
     .secidx   _function_name
     ...
 
@@ -164,6 +164,22 @@ and ``.bar`` is associated to ``.foo``.
 
 	.section	.foo,"bw",discard, "sym"
 	.section	.bar,"rd",associative, "sym"
+
+MC supports these flags in the COFF ``.section`` directive:
+
+  - ``b``: BSS section (``IMAGE_SCN_CNT_INITIALIZED_DATA``)
+  - ``d``: Data section (``IMAGE_SCN_CNT_UNINITIALIZED_DATA``)
+  - ``n``: Section is not loaded (``IMAGE_SCN_LNK_REMOVE``)
+  - ``r``: Read-only
+  - ``s``: Shared section
+  - ``w``: Writable
+  - ``x``: Executable section
+  - ``y``: Not readable
+  - ``D``: Discardable (``IMAGE_SCN_MEM_DISCARDABLE``)
+
+These flags are all compatible with gas, with the exception of the ``D`` flag,
+which gnu as does not support. For gas compatibility, sections with a name
+starting with ".debug" are implicitly discardable.
 
 
 ELF-Dependent

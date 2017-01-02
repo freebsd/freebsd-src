@@ -13,30 +13,204 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Analysis/OptimizationDiagnosticInfo.h"
+#include "llvm/Analysis/BranchProbabilityInfo.h"
 #include "llvm/Analysis/LazyBlockFrequencyInfo.h"
 #include "llvm/Analysis/LoopInfo.h"
+#include "llvm/IR/DebugInfo.h"
 #include "llvm/IR/DiagnosticInfo.h"
+#include "llvm/IR/Dominators.h"
 #include "llvm/IR/LLVMContext.h"
 
 using namespace llvm;
 
-Optional<uint64_t> OptimizationRemarkEmitter::computeHotness(Value *V) {
+OptimizationRemarkEmitter::OptimizationRemarkEmitter(Function *F)
+    : F(F), BFI(nullptr) {
+  if (!F->getContext().getDiagnosticHotnessRequested())
+    return;
+
+  // First create a dominator tree.
+  DominatorTree DT;
+  DT.recalculate(*F);
+
+  // Generate LoopInfo from it.
+  LoopInfo LI;
+  LI.analyze(DT);
+
+  // Then compute BranchProbabilityInfo.
+  BranchProbabilityInfo BPI;
+  BPI.calculate(*F, LI);
+
+  // Finally compute BFI.
+  OwnedBFI = llvm::make_unique<BlockFrequencyInfo>(*F, BPI, LI);
+  BFI = OwnedBFI.get();
+}
+
+Optional<uint64_t> OptimizationRemarkEmitter::computeHotness(const Value *V) {
   if (!BFI)
     return None;
 
   return BFI->getBlockProfileCount(cast<BasicBlock>(V));
 }
 
-void OptimizationRemarkEmitter::emitOptimizationRemarkMissed(
-    const char *PassName, const DebugLoc &DLoc, Value *V, const Twine &Msg) {
+namespace llvm {
+namespace yaml {
+
+template <> struct MappingTraits<DiagnosticInfoOptimizationBase *> {
+  static void mapping(IO &io, DiagnosticInfoOptimizationBase *&OptDiag) {
+    assert(io.outputting() && "input not yet implemented");
+
+    if (io.mapTag("!Passed", OptDiag->getKind() == DK_OptimizationRemark))
+      ;
+    else if (io.mapTag("!Missed",
+                       OptDiag->getKind() == DK_OptimizationRemarkMissed))
+      ;
+    else if (io.mapTag("!Analysis",
+                       OptDiag->getKind() == DK_OptimizationRemarkAnalysis))
+      ;
+    else if (io.mapTag("!AnalysisFPCommute",
+                       OptDiag->getKind() ==
+                           DK_OptimizationRemarkAnalysisFPCommute))
+      ;
+    else if (io.mapTag("!AnalysisAliasing",
+                       OptDiag->getKind() ==
+                           DK_OptimizationRemarkAnalysisAliasing))
+      ;
+    else
+      llvm_unreachable("todo");
+
+    // These are read-only for now.
+    DebugLoc DL = OptDiag->getDebugLoc();
+    StringRef FN = GlobalValue::getRealLinkageName(
+        OptDiag->getFunction().getName());
+
+    StringRef PassName(OptDiag->PassName);
+    io.mapRequired("Pass", PassName);
+    io.mapRequired("Name", OptDiag->RemarkName);
+    if (!io.outputting() || DL)
+      io.mapOptional("DebugLoc", DL);
+    io.mapRequired("Function", FN);
+    io.mapOptional("Hotness", OptDiag->Hotness);
+    io.mapOptional("Args", OptDiag->Args);
+  }
+};
+
+template <> struct MappingTraits<DebugLoc> {
+  static void mapping(IO &io, DebugLoc &DL) {
+    assert(io.outputting() && "input not yet implemented");
+
+    auto *Scope = cast<DIScope>(DL.getScope());
+    StringRef File = Scope->getFilename();
+    unsigned Line = DL.getLine();
+    unsigned Col = DL.getCol();
+
+    io.mapRequired("File", File);
+    io.mapRequired("Line", Line);
+    io.mapRequired("Column", Col);
+  }
+
+  static const bool flow = true;
+};
+
+// Implement this as a mapping for now to get proper quotation for the value.
+template <> struct MappingTraits<DiagnosticInfoOptimizationBase::Argument> {
+  static void mapping(IO &io, DiagnosticInfoOptimizationBase::Argument &A) {
+    assert(io.outputting() && "input not yet implemented");
+    io.mapRequired(A.Key.data(), A.Val);
+    if (A.DLoc)
+      io.mapOptional("DebugLoc", A.DLoc);
+  }
+};
+
+} // end namespace yaml
+} // end namespace llvm
+
+LLVM_YAML_IS_SEQUENCE_VECTOR(DiagnosticInfoOptimizationBase::Argument)
+
+void OptimizationRemarkEmitter::computeHotness(
+    DiagnosticInfoOptimizationBase &OptDiag) {
+  Value *V = OptDiag.getCodeRegion();
+  if (V)
+    OptDiag.setHotness(computeHotness(V));
+}
+
+void OptimizationRemarkEmitter::emit(DiagnosticInfoOptimizationBase &OptDiag) {
+  computeHotness(OptDiag);
+
+  yaml::Output *Out = F->getContext().getDiagnosticsOutputFile();
+  if (Out) {
+    auto *P = &const_cast<DiagnosticInfoOptimizationBase &>(OptDiag);
+    *Out << P;
+  }
+  // FIXME: now that IsVerbose is part of DI, filtering for this will be moved
+  // from here to clang.
+  if (!OptDiag.isVerbose() || shouldEmitVerbose())
+    F->getContext().diagnose(OptDiag);
+}
+
+void OptimizationRemarkEmitter::emitOptimizationRemark(const char *PassName,
+                                                       const DebugLoc &DLoc,
+                                                       const Value *V,
+                                                       const Twine &Msg) {
   LLVMContext &Ctx = F->getContext();
-  Ctx.diagnose(DiagnosticInfoOptimizationRemarkMissed(PassName, *F, DLoc, Msg,
-                                                      computeHotness(V)));
+  Ctx.diagnose(OptimizationRemark(PassName, *F, DLoc, Msg, computeHotness(V)));
+}
+
+void OptimizationRemarkEmitter::emitOptimizationRemark(const char *PassName,
+                                                       Loop *L,
+                                                       const Twine &Msg) {
+  emitOptimizationRemark(PassName, L->getStartLoc(), L->getHeader(), Msg);
 }
 
 void OptimizationRemarkEmitter::emitOptimizationRemarkMissed(
+    const char *PassName, const DebugLoc &DLoc, const Value *V,
+    const Twine &Msg, bool IsVerbose) {
+  LLVMContext &Ctx = F->getContext();
+  if (!IsVerbose || shouldEmitVerbose())
+    Ctx.diagnose(
+        OptimizationRemarkMissed(PassName, *F, DLoc, Msg, computeHotness(V)));
+}
+
+void OptimizationRemarkEmitter::emitOptimizationRemarkMissed(
+    const char *PassName, Loop *L, const Twine &Msg, bool IsVerbose) {
+  emitOptimizationRemarkMissed(PassName, L->getStartLoc(), L->getHeader(), Msg,
+                               IsVerbose);
+}
+
+void OptimizationRemarkEmitter::emitOptimizationRemarkAnalysis(
+    const char *PassName, const DebugLoc &DLoc, const Value *V,
+    const Twine &Msg, bool IsVerbose) {
+  LLVMContext &Ctx = F->getContext();
+  if (!IsVerbose || shouldEmitVerbose())
+    Ctx.diagnose(
+        OptimizationRemarkAnalysis(PassName, *F, DLoc, Msg, computeHotness(V)));
+}
+
+void OptimizationRemarkEmitter::emitOptimizationRemarkAnalysis(
+    const char *PassName, Loop *L, const Twine &Msg, bool IsVerbose) {
+  emitOptimizationRemarkAnalysis(PassName, L->getStartLoc(), L->getHeader(),
+                                 Msg, IsVerbose);
+}
+
+void OptimizationRemarkEmitter::emitOptimizationRemarkAnalysisFPCommute(
+    const char *PassName, const DebugLoc &DLoc, const Value *V,
+    const Twine &Msg) {
+  LLVMContext &Ctx = F->getContext();
+  Ctx.diagnose(OptimizationRemarkAnalysisFPCommute(PassName, *F, DLoc, Msg,
+                                                   computeHotness(V)));
+}
+
+void OptimizationRemarkEmitter::emitOptimizationRemarkAnalysisAliasing(
+    const char *PassName, const DebugLoc &DLoc, const Value *V,
+    const Twine &Msg) {
+  LLVMContext &Ctx = F->getContext();
+  Ctx.diagnose(OptimizationRemarkAnalysisAliasing(PassName, *F, DLoc, Msg,
+                                                  computeHotness(V)));
+}
+
+void OptimizationRemarkEmitter::emitOptimizationRemarkAnalysisAliasing(
     const char *PassName, Loop *L, const Twine &Msg) {
-  emitOptimizationRemarkMissed(PassName, L->getStartLoc(), L->getHeader(), Msg);
+  emitOptimizationRemarkAnalysisAliasing(PassName, L->getStartLoc(),
+                                         L->getHeader(), Msg);
 }
 
 OptimizationRemarkEmitterWrapperPass::OptimizationRemarkEmitterWrapperPass()
@@ -63,10 +237,11 @@ void OptimizationRemarkEmitterWrapperPass::getAnalysisUsage(
   AU.setPreservesAll();
 }
 
-char OptimizationRemarkEmitterAnalysis::PassID;
+AnalysisKey OptimizationRemarkEmitterAnalysis::Key;
 
 OptimizationRemarkEmitter
-OptimizationRemarkEmitterAnalysis::run(Function &F, AnalysisManager<Function> &AM) {
+OptimizationRemarkEmitterAnalysis::run(Function &F,
+                                       FunctionAnalysisManager &AM) {
   BlockFrequencyInfo *BFI;
 
   if (F.getContext().getDiagnosticHotnessRequested())

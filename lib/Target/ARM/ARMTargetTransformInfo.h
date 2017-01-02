@@ -45,13 +45,6 @@ public:
       : BaseT(TM, F.getParent()->getDataLayout()), ST(TM->getSubtargetImpl(F)),
         TLI(ST->getTargetLowering()) {}
 
-  // Provide value semantics. MSVC requires that we spell all of these out.
-  ARMTTIImpl(const ARMTTIImpl &Arg)
-      : BaseT(static_cast<const BaseT &>(Arg)), ST(Arg.ST), TLI(Arg.TLI) {}
-  ARMTTIImpl(ARMTTIImpl &&Arg)
-      : BaseT(std::move(static_cast<BaseT &>(Arg))), ST(std::move(Arg.ST)),
-        TLI(std::move(Arg.TLI)) {}
-
   bool enableInterleavedAccessVectorization() { return true; }
 
   /// Floating-point computation using ARMv8 AArch32 Advanced
@@ -128,6 +121,16 @@ public:
   int getInterleavedMemoryOpCost(unsigned Opcode, Type *VecTy, unsigned Factor,
                                  ArrayRef<unsigned> Indices, unsigned Alignment,
                                  unsigned AddressSpace);
+
+  bool shouldBuildLookupTablesForConstant(Constant *C) const {
+    // In the ROPI and RWPI relocation models we can't have pointers to global
+    // variables or functions in constant data, so don't convert switches to
+    // lookup tables if any of the values would need relocation.
+    if (ST->isROPI() || ST->isRWPI())
+      return !C->needsRelocation();
+
+    return true;
+  }
   /// @}
 };
 

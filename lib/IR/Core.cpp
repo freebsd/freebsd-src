@@ -14,7 +14,7 @@
 
 #include "llvm-c/Core.h"
 #include "llvm/ADT/StringSwitch.h"
-#include "llvm/Bitcode/ReaderWriter.h"
+#include "llvm/Bitcode/BitcodeReader.h"
 #include "llvm/IR/Attributes.h"
 #include "AttributeSetNode.h"
 #include "llvm/IR/CallSite.h"
@@ -578,8 +578,11 @@ LLVMTypeRef LLVMVectorType(LLVMTypeRef ElementType, unsigned ElementCount) {
   return wrap(VectorType::get(unwrap(ElementType), ElementCount));
 }
 
-LLVMTypeRef LLVMGetElementType(LLVMTypeRef Ty) {
-  return wrap(unwrap<SequentialType>(Ty)->getElementType());
+LLVMTypeRef LLVMGetElementType(LLVMTypeRef WrappedTy) {
+  auto *Ty = unwrap<Type>(WrappedTy);
+  if (auto *PTy = dyn_cast<PointerType>(Ty))
+    return wrap(PTy->getElementType());
+  return wrap(cast<SequentialType>(Ty)->getElementType());
 }
 
 unsigned LLVMGetArrayLength(LLVMTypeRef ArrayTy) {
@@ -980,7 +983,7 @@ double LLVMConstRealGetDouble(LLVMValueRef ConstantVal, LLVMBool *LosesInfo) {
 
   bool APFLosesInfo;
   APFloat APF = cFP->getValueAPF();
-  APF.convert(APFloat::IEEEdouble, APFloat::rmNearestTiesToEven, &APFLosesInfo);
+  APF.convert(APFloat::IEEEdouble(), APFloat::rmNearestTiesToEven, &APFLosesInfo);
   *LosesInfo = APFLosesInfo;
   return APF.convertToDouble();
 }
@@ -1176,6 +1179,12 @@ LLVMValueRef LLVMConstFMul(LLVMValueRef LHSConstant, LLVMValueRef RHSConstant) {
 LLVMValueRef LLVMConstUDiv(LLVMValueRef LHSConstant, LLVMValueRef RHSConstant) {
   return wrap(ConstantExpr::getUDiv(unwrap<Constant>(LHSConstant),
                                     unwrap<Constant>(RHSConstant)));
+}
+
+LLVMValueRef LLVMConstExactUDiv(LLVMValueRef LHSConstant,
+                                LLVMValueRef RHSConstant) {
+  return wrap(ConstantExpr::getExactUDiv(unwrap<Constant>(LHSConstant),
+                                         unwrap<Constant>(RHSConstant)));
 }
 
 LLVMValueRef LLVMConstSDiv(LLVMValueRef LHSConstant, LLVMValueRef RHSConstant) {
@@ -1829,17 +1838,6 @@ void LLVMSetGC(LLVMValueRef Fn, const char *GC) {
     F->clearGC();
 }
 
-void LLVMAddFunctionAttr(LLVMValueRef Fn, LLVMAttribute PA) {
-  Function *Func = unwrap<Function>(Fn);
-  const AttributeSet PAL = Func->getAttributes();
-  AttrBuilder B(PA);
-  const AttributeSet PALnew =
-    PAL.addAttributes(Func->getContext(), AttributeSet::FunctionIndex,
-                      AttributeSet::get(Func->getContext(),
-                                        AttributeSet::FunctionIndex, B));
-  Func->setAttributes(PALnew);
-}
-
 void LLVMAddAttributeAtIndex(LLVMValueRef F, LLVMAttributeIndex Idx,
                              LLVMAttributeRef A) {
   unwrap<Function>(F)->addAttribute(Idx, unwrap(A));
@@ -1847,12 +1845,16 @@ void LLVMAddAttributeAtIndex(LLVMValueRef F, LLVMAttributeIndex Idx,
 
 unsigned LLVMGetAttributeCountAtIndex(LLVMValueRef F, LLVMAttributeIndex Idx) {
   auto *ASN = AttributeSetNode::get(unwrap<Function>(F)->getAttributes(), Idx);
+  if (!ASN)
+    return 0;
   return ASN->getNumAttributes();
 }
 
 void LLVMGetAttributesAtIndex(LLVMValueRef F, LLVMAttributeIndex Idx,
                               LLVMAttributeRef *Attrs) {
   auto *ASN = AttributeSetNode::get(unwrap<Function>(F)->getAttributes(), Idx);
+  if (!ASN)
+    return;
   for (auto A: make_range(ASN->begin(), ASN->end()))
     *Attrs++ = wrap(A);
 }
@@ -1890,23 +1892,6 @@ void LLVMAddTargetDependentFunctionAttr(LLVMValueRef Fn, const char *A,
   B.addAttribute(A, V);
   AttributeSet Set = AttributeSet::get(Func->getContext(), Idx, B);
   Func->addAttributes(Idx, Set);
-}
-
-void LLVMRemoveFunctionAttr(LLVMValueRef Fn, LLVMAttribute PA) {
-  Function *Func = unwrap<Function>(Fn);
-  const AttributeSet PAL = Func->getAttributes();
-  AttrBuilder B(PA);
-  const AttributeSet PALnew =
-    PAL.removeAttributes(Func->getContext(), AttributeSet::FunctionIndex,
-                         AttributeSet::get(Func->getContext(),
-                                           AttributeSet::FunctionIndex, B));
-  Func->setAttributes(PALnew);
-}
-
-LLVMAttribute LLVMGetFunctionAttr(LLVMValueRef Fn) {
-  Function *Func = unwrap<Function>(Fn);
-  const AttributeSet PAL = Func->getAttributes();
-  return (LLVMAttribute)PAL.Raw(AttributeSet::FunctionIndex);
 }
 
 /*--.. Operations on parameters ............................................--*/
@@ -1965,24 +1950,6 @@ LLVMValueRef LLVMGetPreviousParam(LLVMValueRef Arg) {
   if (I == A->getParent()->arg_begin())
     return nullptr;
   return wrap(&*--I);
-}
-
-void LLVMAddAttribute(LLVMValueRef Arg, LLVMAttribute PA) {
-  Argument *A = unwrap<Argument>(Arg);
-  AttrBuilder B(PA);
-  A->addAttr(AttributeSet::get(A->getContext(), A->getArgNo() + 1,  B));
-}
-
-void LLVMRemoveAttribute(LLVMValueRef Arg, LLVMAttribute PA) {
-  Argument *A = unwrap<Argument>(Arg);
-  AttrBuilder B(PA);
-  A->removeAttr(AttributeSet::get(A->getContext(), A->getArgNo() + 1,  B));
-}
-
-LLVMAttribute LLVMGetAttribute(LLVMValueRef Arg) {
-  Argument *A = unwrap<Argument>(Arg);
-  return (LLVMAttribute)A->getParent()->getAttributes().
-    Raw(A->getArgNo()+1);
 }
 
 void LLVMSetParamAlignment(LLVMValueRef Arg, unsigned align) {
@@ -2193,26 +2160,6 @@ void LLVMSetInstructionCallConv(LLVMValueRef Instr, unsigned CC) {
     .setCallingConv(static_cast<CallingConv::ID>(CC));
 }
 
-void LLVMAddInstrAttribute(LLVMValueRef Instr, unsigned index,
-                           LLVMAttribute PA) {
-  CallSite Call = CallSite(unwrap<Instruction>(Instr));
-  AttrBuilder B(PA);
-  Call.setAttributes(
-    Call.getAttributes().addAttributes(Call->getContext(), index,
-                                       AttributeSet::get(Call->getContext(),
-                                                         index, B)));
-}
-
-void LLVMRemoveInstrAttribute(LLVMValueRef Instr, unsigned index,
-                              LLVMAttribute PA) {
-  CallSite Call = CallSite(unwrap<Instruction>(Instr));
-  AttrBuilder B(PA);
-  Call.setAttributes(Call.getAttributes()
-                       .removeAttributes(Call->getContext(), index,
-                                         AttributeSet::get(Call->getContext(),
-                                                           index, B)));
-}
-
 void LLVMSetInstrParamAlignment(LLVMValueRef Instr, unsigned index,
                                 unsigned align) {
   CallSite Call = CallSite(unwrap<Instruction>(Instr));
@@ -2233,6 +2180,8 @@ unsigned LLVMGetCallSiteAttributeCount(LLVMValueRef C,
                                        LLVMAttributeIndex Idx) {
   auto CS = CallSite(unwrap<Instruction>(C));
   auto *ASN = AttributeSetNode::get(CS.getAttributes(), Idx);
+  if (!ASN)
+    return 0;
   return ASN->getNumAttributes();
 }
 
@@ -2240,6 +2189,8 @@ void LLVMGetCallSiteAttributes(LLVMValueRef C, LLVMAttributeIndex Idx,
                                LLVMAttributeRef *Attrs) {
   auto CS = CallSite(unwrap<Instruction>(C));
   auto *ASN = AttributeSetNode::get(CS.getAttributes(), Idx);
+  if (!ASN)
+    return;
   for (auto A: make_range(ASN->begin(), ASN->end()))
     *Attrs++ = wrap(A);
 }
@@ -2410,8 +2361,8 @@ LLVMBuilderRef LLVMCreateBuilder(void) {
 void LLVMPositionBuilder(LLVMBuilderRef Builder, LLVMBasicBlockRef Block,
                          LLVMValueRef Instr) {
   BasicBlock *BB = unwrap(Block);
-  Instruction *I = Instr? unwrap<Instruction>(Instr) : (Instruction*) BB->end();
-  unwrap(Builder)->SetInsertPoint(BB, I->getIterator());
+  auto I = Instr ? unwrap<Instruction>(Instr)->getIterator() : BB->end();
+  unwrap(Builder)->SetInsertPoint(BB, I);
 }
 
 void LLVMPositionBuilderBefore(LLVMBuilderRef Builder, LLVMValueRef Instr) {
@@ -2622,6 +2573,11 @@ LLVMValueRef LLVMBuildFMul(LLVMBuilderRef B, LLVMValueRef LHS, LLVMValueRef RHS,
 LLVMValueRef LLVMBuildUDiv(LLVMBuilderRef B, LLVMValueRef LHS, LLVMValueRef RHS,
                            const char *Name) {
   return wrap(unwrap(B)->CreateUDiv(unwrap(LHS), unwrap(RHS), Name));
+}
+
+LLVMValueRef LLVMBuildExactUDiv(LLVMBuilderRef B, LLVMValueRef LHS,
+                                LLVMValueRef RHS, const char *Name) {
+  return wrap(unwrap(B)->CreateExactUDiv(unwrap(LHS), unwrap(RHS), Name));
 }
 
 LLVMValueRef LLVMBuildSDiv(LLVMBuilderRef B, LLVMValueRef LHS, LLVMValueRef RHS,

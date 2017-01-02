@@ -50,6 +50,10 @@ namespace llvm {
       /// unsigned integers.
       FCTIDUZ, FCTIWUZ,
 
+      /// VEXTS, ByteWidth - takes an input in VSFRC and produces an output in
+      /// VSFRC that is sign-extended from ByteWidth to a 64-byte integer.
+      VEXTS,
+
       /// Reciprocal estimate instructions (unary FP ops).
       FRE, FRSQRTE,
 
@@ -365,6 +369,16 @@ namespace llvm {
       /// destination 64-bit register.
       LFIWZX,
 
+      /// GPRC, CHAIN = LXSIZX, CHAIN, Ptr, ByteWidth - This is a load of an
+      /// integer smaller than 64 bits into a VSR. The integer is zero-extended.
+      /// This can be used for converting loaded integers to floating point.
+      LXSIZX,
+
+      /// STXSIX - The STXSI[bh]X instruction. The first operand is an input
+      /// chain, then an f64 value to store, then an address to store it to,
+      /// followed by a byte-width for the store.
+      STXSIX,
+
       /// VSRC, CHAIN = LXVD2X_LE CHAIN, Ptr - Occurs only for little endian.
       /// Maps directly to an lxvd2x instruction that will be followed by
       /// an xxswapd.
@@ -474,7 +488,7 @@ namespace llvm {
     /// then the VPERM for the shuffle. All in all a very slow sequence.
     TargetLoweringBase::LegalizeTypeAction getPreferredVectorAction(EVT VT)
       const override {
-      if (VT.getVectorElementType().getSizeInBits() % 8 == 0)
+      if (VT.getScalarSizeInBits() % 8 == 0)
         return TypeWidenVector;
       return TargetLoweringBase::getPreferredVectorAction(VT);
     }
@@ -489,6 +503,14 @@ namespace llvm {
     }
 
     bool isCheapToSpeculateCtlz() const override {
+      return true;
+    }
+
+    bool isCtlzFast() const override {
+      return true;
+    }
+
+    bool hasAndNotCompare(SDValue) const override {
       return true;
     }
 
@@ -747,18 +769,40 @@ namespace llvm {
     bool useLoadStackGuardNode() const override;
     void insertSSPDeclarations(Module &M) const override;
 
+    bool isFPImmLegal(const APFloat &Imm, EVT VT) const override;
+
+    unsigned getJumpTableEncoding() const override;
+    bool isJumpTableRelative() const override;
+    SDValue getPICJumpTableRelocBase(SDValue Table,
+                                     SelectionDAG &DAG) const override;
+    const MCExpr *getPICJumpTableRelocBaseExpr(const MachineFunction *MF,
+                                               unsigned JTI,
+                                               MCContext &Ctx) const override;
+
   private:
     struct ReuseLoadInfo {
       SDValue Ptr;
       SDValue Chain;
       SDValue ResChain;
       MachinePointerInfo MPI;
+      bool IsDereferenceable;
       bool IsInvariant;
       unsigned Alignment;
       AAMDNodes AAInfo;
       const MDNode *Ranges;
 
-      ReuseLoadInfo() : IsInvariant(false), Alignment(0), Ranges(nullptr) {}
+      ReuseLoadInfo()
+          : IsDereferenceable(false), IsInvariant(false), Alignment(0),
+            Ranges(nullptr) {}
+
+      MachineMemOperand::Flags MMOFlags() const {
+        MachineMemOperand::Flags F = MachineMemOperand::MONone;
+        if (IsDereferenceable)
+          F |= MachineMemOperand::MODereferenceable;
+        if (IsInvariant)
+          F |= MachineMemOperand::MOInvariant;
+        return F;
+      }
     };
 
     bool canReuseLoadAddress(SDValue Op, EVT MemVT, ReuseLoadInfo &RLI,
@@ -771,6 +815,8 @@ namespace llvm {
                                 SelectionDAG &DAG, const SDLoc &dl) const;
     SDValue LowerFP_TO_INTDirectMove(SDValue Op, SelectionDAG &DAG,
                                      const SDLoc &dl) const;
+
+    bool directMoveIsProfitable(const SDValue &Op) const;
     SDValue LowerINT_TO_FPDirectMove(SDValue Op, SelectionDAG &DAG,
                                      const SDLoc &dl) const;
 
@@ -815,6 +861,7 @@ namespace llvm {
     SDValue LowerSTACKRESTORE(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerGET_DYNAMIC_AREA_OFFSET(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerDYNAMIC_STACKALLOC(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerEH_DWARF_CFA(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerLOAD(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerSTORE(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerTRUNCATE(SDValue Op, SelectionDAG &DAG) const;
@@ -932,14 +979,23 @@ namespace llvm {
     SDValue DAGCombineTruncBoolExt(SDNode *N, DAGCombinerInfo &DCI) const;
     SDValue combineFPToIntToFP(SDNode *N, DAGCombinerInfo &DCI) const;
 
-    SDValue getRsqrtEstimate(SDValue Operand, DAGCombinerInfo &DCI,
-                             unsigned &RefinementSteps,
-                             bool &UseOneConstNR) const override;
-    SDValue getRecipEstimate(SDValue Operand, DAGCombinerInfo &DCI,
-                             unsigned &RefinementSteps) const override;
+    /// ConvertSETCCToSubtract - looks at SETCC that compares ints. It replaces
+    /// SETCC with integer subtraction when (1) there is a legal way of doing it
+    /// (2) keeping the result of comparison in GPR has performance benefit.
+    SDValue ConvertSETCCToSubtract(SDNode *N, DAGCombinerInfo &DCI) const;
+
+    SDValue getSqrtEstimate(SDValue Operand, SelectionDAG &DAG, int Enabled,
+                            int &RefinementSteps, bool &UseOneConstNR,
+                            bool Reciprocal) const override;
+    SDValue getRecipEstimate(SDValue Operand, SelectionDAG &DAG, int Enabled,
+                             int &RefinementSteps) const override;
     unsigned combineRepeatedFPDivisors() const override;
 
     CCAssignFn *useFastISelCCs(unsigned Flag) const;
+
+    SDValue
+      combineElementTruncationToVectorTruncation(SDNode *N,
+                                                 DAGCombinerInfo &DCI) const;
   };
 
   namespace PPC {
@@ -957,6 +1013,13 @@ namespace llvm {
                                          CCValAssign::LocInfo &LocInfo,
                                          ISD::ArgFlagsTy &ArgFlags,
                                          CCState &State);
+
+  bool 
+  CC_PPC32_SVR4_Custom_SkipLastArgRegsPPCF128(unsigned &ValNo, MVT &ValVT,
+                                                 MVT &LocVT,
+                                                 CCValAssign::LocInfo &LocInfo,
+                                                 ISD::ArgFlagsTy &ArgFlags,
+                                                 CCState &State);
 
   bool CC_PPC32_SVR4_Custom_AlignFPArgRegs(unsigned &ValNo, MVT &ValVT,
                                            MVT &LocVT,

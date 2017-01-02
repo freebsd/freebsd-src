@@ -6,7 +6,7 @@ RUN: LLVMFuzzer-SimpleTest 2>&1 | FileCheck %s
 # only_ascii mode. Will perform some minimal self-validation.
 RUN: LLVMFuzzer-SimpleTest -only_ascii=1 2>&1
 
-RUN: LLVMFuzzer-SimpleCmpTest -max_total_time=1 2>&1 | FileCheck %s --check-prefix=MaxTotalTime
+RUN: LLVMFuzzer-SimpleCmpTest -max_total_time=1 -use_cmp=0 2>&1 | FileCheck %s --check-prefix=MaxTotalTime
 MaxTotalTime: Done {{.*}} runs in {{.}} second(s)
 
 RUN: not LLVMFuzzer-NullDerefTest                  2>&1 | FileCheck %s --check-prefix=NullDerefTest
@@ -23,13 +23,15 @@ NULL_DEREF_ON_EMPTY: stat::number_of_executed_units:
 
 #not LLVMFuzzer-FullCoverageSetTest -timeout=15 -seed=1 -mutate_depth=2 -use_full_coverage_set=1 2>&1 | FileCheck %s
 
-RUN: not LLVMFuzzer-CounterTest -use_counters=1 -max_len=6 -seed=1 -timeout=15 2>&1 | FileCheck %s
+RUN: not LLVMFuzzer-CounterTest  -max_len=6 -seed=1 -timeout=15 2>&1 | FileCheck %s --check-prefix=COUNTERS
 
-RUN: not LLVMFuzzer-CallerCalleeTest                     -cross_over=0 -max_len=6 -seed=1 -timeout=15 2>&1 | FileCheck %s
-# This one is flaky, may actually find the goal even w/o use_indir_calls.
-# LLVMFuzzer-CallerCalleeTest  -use_indir_calls=0 -cross_over=0 -max_len=6 -seed=1 -runs=1000000 2>&1 | FileCheck %s  --check-prefix=Done1000000
+COUNTERS: INITED {{.*}} {{bits:|ft:}}
+COUNTERS: NEW {{.*}} {{bits:|ft:}} {{[1-9]*}}
+COUNTERS: NEW {{.*}} {{bits:|ft:}} {{[1-9]*}}
+COUNTERS: BINGO
 
-RUN: not LLVMFuzzer-UninstrumentedTest-Uninstrumented 2>&1 | FileCheck %s --check-prefix=UNINSTRUMENTED
+# Don't run UninstrumentedTest for now since we build libFuzzer itself with asan.
+DISABLED: not LLVMFuzzer-UninstrumentedTest-Uninstrumented 2>&1 | FileCheck %s --check-prefix=UNINSTRUMENTED
 UNINSTRUMENTED: ERROR: __sanitizer_set_death_callback is not defined. Exiting.
 
 RUN: not LLVMFuzzer-UninstrumentedTest-NoCoverage 2>&1 | FileCheck %s --check-prefix=NO_COVERAGE
@@ -39,5 +41,17 @@ RUN: not LLVMFuzzer-BufferOverflowOnInput 2>&1 | FileCheck %s --check-prefix=OOB
 OOB: AddressSanitizer: heap-buffer-overflow
 OOB: is located 0 bytes to the right of 3-byte region
 
-RUN: not LLVMFuzzer-InitializeTest 2>&1 | FileCheck %s
+RUN: not LLVMFuzzer-InitializeTest -use_value_profile=1 2>&1 | FileCheck %s
 
+RUN: not LLVMFuzzer-DSOTest 2>&1 | FileCheck %s --check-prefix=DSO
+DSO: INFO: Loaded 3 modules
+DSO: BINGO
+
+RUN: LLVMFuzzer-SimpleTest  -exit_on_src_pos=SimpleTest.cpp:17                 2>&1 | FileCheck %s --check-prefix=EXIT_ON_SRC_POS
+RUN: LLVMFuzzer-ShrinkControlFlowTest  -exit_on_src_pos=ShrinkControlFlowTest.cpp:23 2>&1 | FileCheck %s --check-prefix=EXIT_ON_SRC_POS
+EXIT_ON_SRC_POS: INFO: found line matching '{{.*}}', exiting.
+
+RUN: ASAN_OPTIONS=strict_string_checks=1 not LLVMFuzzer-StrncmpOOBTest -seed=1 -runs=1000000 2>&1 | FileCheck %s --check-prefix=STRNCMP
+STRNCMP: AddressSanitizer: heap-buffer-overflow
+STRNCMP-NOT: __sanitizer_weak_hook_strncmp
+STRNCMP: in LLVMFuzzerTestOneInput

@@ -24,6 +24,7 @@
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/SelectionDAGISel.h"
+#include "llvm/IR/ConstantRange.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Intrinsics.h"
@@ -165,7 +166,7 @@ namespace {
         : SelectionDAGISel(tm, OptLevel), OptForSize(false),
           OptForMinSize(false) {}
 
-    const char *getPassName() const override {
+    StringRef getPassName() const override {
       return "X86 DAG->DAG Instruction Selection";
     }
 
@@ -228,6 +229,7 @@ namespace {
                              SDValue &Index, SDValue &Disp,
                              SDValue &Segment,
                              SDValue &NodeWithChain);
+    bool selectRelocImm(SDValue N, SDValue &Op);
 
     bool tryFoldLoad(SDNode *P, SDValue N,
                      SDValue &Base, SDValue &Scale,
@@ -1234,7 +1236,7 @@ bool X86DAGToDAGISel::matchAddressRecursively(SDValue N, X86ISelAddressMode &AM,
   case ISD::UMUL_LOHI:
     // A mul_lohi where we need the low part can be folded as a plain multiply.
     if (N.getResNo() != 0) break;
-    // FALL THROUGH
+    LLVM_FALLTHROUGH;
   case ISD::MUL:
   case X86ISD::MUL_IMM:
     // X*[3,5,9] -> X+X*[2,4,8]
@@ -1435,7 +1437,7 @@ bool X86DAGToDAGISel::selectVectorAddr(SDNode *Parent, SDValue N, SDValue &Base,
   SDLoc DL(N);
   Base = Mgs->getBasePtr();
   Index = Mgs->getIndex();
-  unsigned ScalarSize = Mgs->getValue().getValueType().getScalarSizeInBits();
+  unsigned ScalarSize = Mgs->getValue().getScalarValueSizeInBits();
   Scale = getI8Imm(ScalarSize/8, DL);
 
   // If Base is 0, the whole address is in index and the Scale is 1
@@ -1512,16 +1514,39 @@ bool X86DAGToDAGISel::selectScalarSSELoad(SDNode *Root,
                                           SDValue &Scale, SDValue &Index,
                                           SDValue &Disp, SDValue &Segment,
                                           SDValue &PatternNodeWithChain) {
-  if (N.getOpcode() == ISD::SCALAR_TO_VECTOR) {
+  // We can allow a full vector load here since narrowing a load is ok.
+  if (ISD::isNON_EXTLoad(N.getNode())) {
+    PatternNodeWithChain = N;
+    if (IsProfitableToFold(PatternNodeWithChain, N.getNode(), Root) &&
+        IsLegalToFold(PatternNodeWithChain, *N->use_begin(), Root, OptLevel)) {
+      LoadSDNode *LD = cast<LoadSDNode>(PatternNodeWithChain);
+      return selectAddr(LD, LD->getBasePtr(), Base, Scale, Index, Disp,
+                        Segment);
+    }
+  }
+
+  // We can also match the special zero extended load opcode.
+  if (N.getOpcode() == X86ISD::VZEXT_LOAD) {
+    PatternNodeWithChain = N;
+    if (IsProfitableToFold(PatternNodeWithChain, N.getNode(), Root) &&
+        IsLegalToFold(PatternNodeWithChain, *N->use_begin(), Root, OptLevel)) {
+      auto *MI = cast<MemIntrinsicSDNode>(PatternNodeWithChain);
+      return selectAddr(MI, MI->getBasePtr(), Base, Scale, Index, Disp,
+                        Segment);
+    }
+  }
+
+  // Need to make sure that the SCALAR_TO_VECTOR and load are both only used
+  // once. Otherwise the load might get duplicated and the chain output of the
+  // duplicate load will not be observed by all dependencies.
+  if (N.getOpcode() == ISD::SCALAR_TO_VECTOR && N.getNode()->hasOneUse()) {
     PatternNodeWithChain = N.getOperand(0);
     if (ISD::isNON_EXTLoad(PatternNodeWithChain.getNode()) &&
-        PatternNodeWithChain.hasOneUse() &&
-        IsProfitableToFold(N.getOperand(0), N.getNode(), Root) &&
-        IsLegalToFold(N.getOperand(0), N.getNode(), Root, OptLevel)) {
+        IsProfitableToFold(PatternNodeWithChain, N.getNode(), Root) &&
+        IsLegalToFold(PatternNodeWithChain, N.getNode(), Root, OptLevel)) {
       LoadSDNode *LD = cast<LoadSDNode>(PatternNodeWithChain);
-      if (!selectAddr(LD, LD->getBasePtr(), Base, Scale, Index, Disp, Segment))
-        return false;
-      return true;
+      return selectAddr(LD, LD->getBasePtr(), Base, Scale, Index, Disp,
+                        Segment);
     }
   }
 
@@ -1530,18 +1555,18 @@ bool X86DAGToDAGISel::selectScalarSSELoad(SDNode *Root,
   if (N.getOpcode() == X86ISD::VZEXT_MOVL && N.getNode()->hasOneUse() &&
       // Check to see if the top elements are all zeros (or bitcast of zeros).
       N.getOperand(0).getOpcode() == ISD::SCALAR_TO_VECTOR &&
-      N.getOperand(0).getNode()->hasOneUse() &&
-      ISD::isNON_EXTLoad(N.getOperand(0).getOperand(0).getNode()) &&
-      N.getOperand(0).getOperand(0).hasOneUse() &&
-      IsProfitableToFold(N.getOperand(0), N.getNode(), Root) &&
-      IsLegalToFold(N.getOperand(0), N.getNode(), Root, OptLevel)) {
-    // Okay, this is a zero extending load.  Fold it.
-    LoadSDNode *LD = cast<LoadSDNode>(N.getOperand(0).getOperand(0));
-    if (!selectAddr(LD, LD->getBasePtr(), Base, Scale, Index, Disp, Segment))
-      return false;
-    PatternNodeWithChain = SDValue(LD, 0);
-    return true;
+      N.getOperand(0).getNode()->hasOneUse()) {
+    PatternNodeWithChain = N.getOperand(0).getOperand(0);
+    if (ISD::isNON_EXTLoad(PatternNodeWithChain.getNode()) &&
+        IsProfitableToFold(PatternNodeWithChain, N.getNode(), Root) &&
+        IsLegalToFold(PatternNodeWithChain, N.getNode(), Root, OptLevel)) {
+      // Okay, this is a zero extending load.  Fold it.
+      LoadSDNode *LD = cast<LoadSDNode>(PatternNodeWithChain);
+      return selectAddr(LD, LD->getBasePtr(), Base, Scale, Index, Disp,
+                        Segment);
+    }
   }
+
   return false;
 }
 
@@ -1563,16 +1588,21 @@ bool X86DAGToDAGISel::selectMOV64Imm32(SDValue N, SDValue &Imm) {
          "Unexpected node type for MOV32ri64");
   N = N.getOperand(0);
 
-  if (N->getOpcode() != ISD::TargetConstantPool &&
-      N->getOpcode() != ISD::TargetJumpTable &&
-      N->getOpcode() != ISD::TargetGlobalAddress &&
-      N->getOpcode() != ISD::TargetExternalSymbol &&
-      N->getOpcode() != ISD::MCSymbol &&
-      N->getOpcode() != ISD::TargetBlockAddress)
+  // At least GNU as does not accept 'movl' for TPOFF relocations.
+  // FIXME: We could use 'movl' when we know we are targeting MC.
+  if (N->getOpcode() == ISD::TargetGlobalTLSAddress)
     return false;
 
   Imm = N;
-  return TM.getCodeModel() == CodeModel::Small;
+  if (N->getOpcode() != ISD::TargetGlobalAddress)
+    return TM.getCodeModel() == CodeModel::Small;
+
+  Optional<ConstantRange> CR =
+      cast<GlobalAddressSDNode>(N)->getGlobal()->getAbsoluteSymbolRange();
+  if (!CR)
+    return TM.getCodeModel() == CodeModel::Small;
+
+  return CR->getUnsignedMax().ult(1ull << 32);
 }
 
 bool X86DAGToDAGISel::selectLEA64_32Addr(SDValue N, SDValue &Base,
@@ -1704,6 +1734,48 @@ bool X86DAGToDAGISel::selectTLSADDRAddr(SDValue N, SDValue &Base,
   return true;
 }
 
+bool X86DAGToDAGISel::selectRelocImm(SDValue N, SDValue &Op) {
+  if (auto *CN = dyn_cast<ConstantSDNode>(N)) {
+    Op = CurDAG->getTargetConstant(CN->getAPIntValue(), SDLoc(CN),
+                                   N.getValueType());
+    return true;
+  }
+
+  // Keep track of the original value type and whether this value was
+  // truncated. If we see a truncation from pointer type to VT that truncates
+  // bits that are known to be zero, we can use a narrow reference.
+  EVT VT = N.getValueType();
+  bool WasTruncated = false;
+  if (N.getOpcode() == ISD::TRUNCATE) {
+    WasTruncated = true;
+    N = N.getOperand(0);
+  }
+
+  if (N.getOpcode() != X86ISD::Wrapper)
+    return false;
+
+  // We can only use non-GlobalValues as immediates if they were not truncated,
+  // as we do not have any range information. If we have a GlobalValue and the
+  // address was not truncated, we can select it as an operand directly.
+  unsigned Opc = N.getOperand(0)->getOpcode();
+  if (Opc != ISD::TargetGlobalAddress || !WasTruncated) {
+    Op = N.getOperand(0);
+    // We can only select the operand directly if we didn't have to look past a
+    // truncate.
+    return !WasTruncated;
+  }
+
+  // Check that the global's range fits into VT.
+  auto *GA = cast<GlobalAddressSDNode>(N.getOperand(0));
+  Optional<ConstantRange> CR = GA->getGlobal()->getAbsoluteSymbolRange();
+  if (!CR || CR->getUnsignedMax().uge(1ull << VT.getSizeInBits()))
+    return false;
+
+  // Okay, we can use a narrow reference.
+  Op = CurDAG->getTargetGlobalAddress(GA->getGlobal(), SDLoc(N), VT,
+                                      GA->getOffset(), GA->getTargetFlags());
+  return true;
+}
 
 bool X86DAGToDAGISel::tryFoldLoad(SDNode *P, SDValue N,
                                   SDValue &Base, SDValue &Scale,
@@ -2700,7 +2772,7 @@ SelectInlineAsmMemoryOperand(const SDValue &Op, unsigned ConstraintID,
   case InlineAsm::Constraint_i:
     // FIXME: It seems strange that 'i' is needed here since it's supposed to
     //        be an immediate and not a memory constraint.
-    // Fallthrough.
+    LLVM_FALLTHROUGH;
   case InlineAsm::Constraint_o: // offsetable        ??
   case InlineAsm::Constraint_v: // not offsetable    ??
   case InlineAsm::Constraint_m: // memory

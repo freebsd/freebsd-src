@@ -9,17 +9,15 @@
 
 #include "llvm/IR/Module.h"
 #include "llvm/Support/TargetRegistry.h"
-
 namespace llvm {
-Target TheAVRTarget;
+Target &getTheAVRTarget() {
+  static Target TheAVRTarget;
+  return TheAVRTarget;
+}
 }
 
 extern "C" void LLVMInitializeAVRTargetInfo() {
-  llvm::RegisterTarget<llvm::Triple::avr> X(
-      llvm::TheAVRTarget, "avr", "Atmel AVR Microcontroller");
+  llvm::RegisterTarget<llvm::Triple::avr> X(llvm::getTheAVRTarget(), "avr",
+                                            "Atmel AVR Microcontroller");
 }
 
-// FIXME: Temporary stub - this function must be defined for linking
-// to succeed. Remove once this function is properly implemented.
-extern "C" void LLVMInitializeAVRTargetMC() {
-}

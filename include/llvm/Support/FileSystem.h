@@ -31,10 +31,9 @@
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Twine.h"
-#include "llvm/Support/DataTypes.h"
+#include "llvm/Support/Chrono.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/ErrorOr.h"
-#include "llvm/Support/TimeValue.h"
 #include <cassert>
 #include <cstdint>
 #include <ctime>
@@ -125,6 +124,7 @@ class UniqueID {
 public:
   UniqueID() = default;
   UniqueID(uint64_t Device, uint64_t File) : Device(Device), File(File) {}
+
   bool operator==(const UniqueID &Other) const {
     return Device == Other.Device && File == Other.File;
   }
@@ -132,6 +132,7 @@ public:
   bool operator<(const UniqueID &Other) const {
     return std::tie(Device, File) < std::tie(Other.Device, Other.File);
   }
+
   uint64_t getDevice() const { return Device; }
   uint64_t getFile() const { return File; }
 };
@@ -209,8 +210,8 @@ public:
   // getters
   file_type type() const { return Type; }
   perms permissions() const { return Perms; }
-  TimeValue getLastAccessedTime() const;
-  TimeValue getLastModificationTime() const;
+  TimePoint<> getLastAccessedTime() const;
+  TimePoint<> getLastModificationTime() const;
   UniqueID getUniqueID() const;
 
   #if defined(LLVM_ON_UNIX)
@@ -258,10 +259,12 @@ struct file_magic {
     macho_dsym_companion,     ///< Mach-O dSYM companion file
     macho_kext_bundle,        ///< Mach-O kext bundle file
     macho_universal_binary,   ///< Mach-O universal binary
+    coff_cl_gl_object,        ///< Microsoft cl.exe's intermediate code file
     coff_object,              ///< COFF object file
     coff_import_library,      ///< COFF import library
     pecoff_executable,        ///< PECOFF executable file
-    windows_resource          ///< Windows compiled resource file (.rc)
+    windows_resource,         ///< Windows compiled resource file (.rc)
+    wasm_object               ///< WebAssembly Object file
   };
 
   bool is_object() const {
@@ -338,6 +341,14 @@ std::error_code create_directory(const Twine &path, bool IgnoreExisting = true,
 /// @returns errc::success if the link was created, otherwise a platform
 /// specific error_code.
 std::error_code create_link(const Twine &to, const Twine &from);
+
+/// Create a hard link from \a from to \a to, or return an error.
+///
+/// @param to The path to hard link to.
+/// @param from The path to hard link from. This is created.
+/// @returns errc::success if the link was created, otherwise a platform
+/// specific error_code.
+std::error_code create_hard_link(const Twine &to, const Twine &from);
 
 /// @brief Get the current path.
 ///
@@ -540,7 +551,7 @@ inline std::error_code file_size(const Twine &Path, uint64_t &Result) {
 /// @returns errc::success if the file times were successfully set, otherwise a
 ///          platform-specific error_code or errc::function_not_supported on
 ///          platforms where the functionality isn't available.
-std::error_code setLastModificationAndAccessTime(int FD, TimeValue Time);
+std::error_code setLastModificationAndAccessTime(int FD, TimePoint<> Time);
 
 /// @brief Is status available?
 ///
@@ -672,10 +683,6 @@ ErrorOr<space_info> disk_space(const Twine &Path);
 /// This class represents a memory mapped file. It is based on
 /// boost::iostreams::mapped_file.
 class mapped_file_region {
-  mapped_file_region() = delete;
-  mapped_file_region(mapped_file_region&) = delete;
-  mapped_file_region &operator =(mapped_file_region&) = delete;
-
 public:
   enum mapmode {
     readonly, ///< May only access map via const_data as read only.
@@ -691,6 +698,10 @@ private:
   std::error_code init(int FD, uint64_t Offset, mapmode Mode);
 
 public:
+  mapped_file_region() = delete;
+  mapped_file_region(mapped_file_region&) = delete;
+  mapped_file_region &operator =(mapped_file_region&) = delete;
+
   /// \param fd An open file descriptor to map. mapped_file_region takes
   ///   ownership if closefd is true. It must have been opended in the correct
   ///   mode.
@@ -731,7 +742,7 @@ public:
     : Path(path.str())
     , Status(st) {}
 
-  directory_entry() {}
+  directory_entry() = default;
 
   void assign(const Twine &path, file_status st = file_status()) {
     Path = path.str();
@@ -829,7 +840,7 @@ namespace detail {
       : Level(0)
       , HasNoPushRequest(false) {}
 
-    std::stack<directory_iterator, std::vector<directory_iterator> > Stack;
+    std::stack<directory_iterator, std::vector<directory_iterator>> Stack;
     uint16_t Level;
     bool HasNoPushRequest;
   };
@@ -841,13 +852,14 @@ class recursive_directory_iterator {
   IntrusiveRefCntPtr<detail::RecDirIterState> State;
 
 public:
-  recursive_directory_iterator() {}
+  recursive_directory_iterator() = default;
   explicit recursive_directory_iterator(const Twine &path, std::error_code &ec)
       : State(new detail::RecDirIterState) {
     State->Stack.push(directory_iterator(path, ec));
     if (State->Stack.top() == directory_iterator())
       State.reset();
   }
+
   // No operator++ because we need error_code.
   recursive_directory_iterator &increment(std::error_code &ec) {
     const directory_iterator end_itr;

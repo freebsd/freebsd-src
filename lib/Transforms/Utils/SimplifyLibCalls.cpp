@@ -56,6 +56,38 @@ static bool ignoreCallingConv(LibFunc::Func Func) {
          Func == LibFunc::llabs || Func == LibFunc::strlen;
 }
 
+static bool isCallingConvCCompatible(CallInst *CI) {
+  switch(CI->getCallingConv()) {
+  default:
+    return false;
+  case llvm::CallingConv::C:
+    return true;
+  case llvm::CallingConv::ARM_APCS:
+  case llvm::CallingConv::ARM_AAPCS:
+  case llvm::CallingConv::ARM_AAPCS_VFP: {
+
+    // The iOS ABI diverges from the standard in some cases, so for now don't
+    // try to simplify those calls.
+    if (Triple(CI->getModule()->getTargetTriple()).isiOS())
+      return false;
+
+    auto *FuncTy = CI->getFunctionType();
+
+    if (!FuncTy->getReturnType()->isPointerTy() &&
+        !FuncTy->getReturnType()->isIntegerTy() &&
+        !FuncTy->getReturnType()->isVoidTy())
+      return false;
+
+    for (auto Param : FuncTy->params()) {
+      if (!Param->isPointerTy() && !Param->isIntegerTy())
+        return false;
+    }
+    return true;
+  }
+  }
+  return false;
+}
+
 /// Return true if it only matters that the value is equal or not-equal to zero.
 static bool isOnlyUsedInZeroEqualityComparison(Value *V) {
   for (User *U : V->users()) {
@@ -83,7 +115,7 @@ static bool isOnlyUsedInEqualityComparison(Value *V, Value *With) {
 }
 
 static bool callHasFloatingPointArgument(const CallInst *CI) {
-  return std::any_of(CI->op_begin(), CI->op_end(), [](const Use &OI) {
+  return any_of(CI->operands(), [](const Use &OI) {
     return OI->getType()->isFloatingPointTy();
   });
 }
@@ -868,7 +900,7 @@ static Value *valueHasFloatPrecision(Value *Val) {
   if (ConstantFP *Const = dyn_cast<ConstantFP>(Val)) {
     APFloat F = Const->getValueAPF();
     bool losesInfo;
-    (void)F.convert(APFloat::IEEEsingle, APFloat::rmNearestTiesToEven,
+    (void)F.convert(APFloat::IEEEsingle(), APFloat::rmNearestTiesToEven,
                     &losesInfo);
     if (!losesInfo)
       return ConstantFP::get(Const->getContext(), F);
@@ -993,16 +1025,20 @@ Value *LibCallSimplifier::optimizePow(CallInst *CI, IRBuilder<> &B) {
     Ret = optimizeUnaryDoubleFP(CI, B, true);
 
   Value *Op1 = CI->getArgOperand(0), *Op2 = CI->getArgOperand(1);
+
+  // pow(1.0, x) -> 1.0
+  if (match(Op1, m_SpecificFP(1.0)))
+    return Op1;
+  // pow(2.0, x) -> llvm.exp2(x)
+  if (match(Op1, m_SpecificFP(2.0))) {
+    Value *Exp2 = Intrinsic::getDeclaration(CI->getModule(), Intrinsic::exp2,
+                                            CI->getType());
+    return B.CreateCall(Exp2, Op2, "exp2");
+  }
+
+  // There's no llvm.exp10 intrinsic yet, but, maybe, some day there will
+  // be one.
   if (ConstantFP *Op1C = dyn_cast<ConstantFP>(Op1)) {
-    // pow(1.0, x) -> 1.0
-    if (Op1C->isExactlyValue(1.0))
-      return Op1C;
-    // pow(2.0, x) -> exp2(x)
-    if (Op1C->isExactlyValue(2.0) &&
-        hasUnaryFloatFn(TLI, Op1->getType(), LibFunc::exp2, LibFunc::exp2f,
-                        LibFunc::exp2l))
-      return emitUnaryFloatFnCall(Op2, TLI->getName(LibFunc::exp2), B,
-                                  Callee->getAttributes());
     // pow(10.0, x) -> exp10(x)
     if (Op1C->isExactlyValue(10.0) &&
         hasUnaryFloatFn(TLI, Op1->getType(), LibFunc::exp10, LibFunc::exp10f,
@@ -1048,6 +1084,9 @@ Value *LibCallSimplifier::optimizePow(CallInst *CI, IRBuilder<> &B) {
     if (CI->hasUnsafeAlgebra()) {
       IRBuilder<>::FastMathFlagGuard Guard(B);
       B.setFastMathFlags(CI->getFastMathFlags());
+
+      // Unlike other math intrinsics, sqrt has differerent semantics
+      // from the libc function. See LangRef for details.
       return emitUnaryFloatFnCall(Op1, TLI->getName(LibFunc::sqrt), B,
                                   Callee->getAttributes());
     }
@@ -1090,7 +1129,7 @@ Value *LibCallSimplifier::optimizePow(CallInst *CI, IRBuilder<> &B) {
     // We cannot readily convert a non-double type (like float) to a double.
     // So we first convert V to something which could be converted to double.
     bool ignored;
-    V.convert(APFloat::IEEEdouble, APFloat::rmTowardZero, &ignored);
+    V.convert(APFloat::IEEEdouble(), APFloat::rmTowardZero, &ignored);
     
     // TODO: Should the new instructions propagate the 'fast' flag of the pow()?
     Value *FMul = getPow(InnerChain, V.convertToDouble(), B);
@@ -1428,6 +1467,12 @@ Value *LibCallSimplifier::optimizeSinCosPi(CallInst *CI, IRBuilder<> &B) {
   Value *Sin, *Cos, *SinCos;
   insertSinCosCall(B, CI->getCalledFunction(), Arg, IsFloat, Sin, Cos, SinCos);
 
+  auto replaceTrigInsts = [this](SmallVectorImpl<CallInst *> &Calls,
+                                 Value *Res) {
+    for (CallInst *C : Calls)
+      replaceAllUsesWith(C, Res);
+  };
+
   replaceTrigInsts(SinCalls, Sin);
   replaceTrigInsts(CosCalls, Cos);
   replaceTrigInsts(SinCosCalls, SinCos);
@@ -1472,38 +1517,34 @@ void LibCallSimplifier::classifyArgUse(
   }
 }
 
-void LibCallSimplifier::replaceTrigInsts(SmallVectorImpl<CallInst *> &Calls,
-                                         Value *Res) {
-  for (CallInst *C : Calls)
-    replaceAllUsesWith(C, Res);
-}
-
 //===----------------------------------------------------------------------===//
 // Integer Library Call Optimizations
 //===----------------------------------------------------------------------===//
 
 Value *LibCallSimplifier::optimizeFFS(CallInst *CI, IRBuilder<> &B) {
-  Function *Callee = CI->getCalledFunction();
-  Value *Op = CI->getArgOperand(0);
-
-  // Constant fold.
-  if (ConstantInt *CI = dyn_cast<ConstantInt>(Op)) {
-    if (CI->isZero()) // ffs(0) -> 0.
-      return B.getInt32(0);
-    // ffs(c) -> cttz(c)+1
-    return B.getInt32(CI->getValue().countTrailingZeros() + 1);
-  }
-
   // ffs(x) -> x != 0 ? (i32)llvm.cttz(x)+1 : 0
+  Value *Op = CI->getArgOperand(0);
   Type *ArgType = Op->getType();
-  Value *F =
-      Intrinsic::getDeclaration(Callee->getParent(), Intrinsic::cttz, ArgType);
+  Value *F = Intrinsic::getDeclaration(CI->getCalledFunction()->getParent(),
+                                       Intrinsic::cttz, ArgType);
   Value *V = B.CreateCall(F, {Op, B.getTrue()}, "cttz");
   V = B.CreateAdd(V, ConstantInt::get(V->getType(), 1));
   V = B.CreateIntCast(V, B.getInt32Ty(), false);
 
   Value *Cond = B.CreateICmpNE(Op, Constant::getNullValue(ArgType));
   return B.CreateSelect(Cond, V, B.getInt32(0));
+}
+
+Value *LibCallSimplifier::optimizeFls(CallInst *CI, IRBuilder<> &B) {
+  // fls(x) -> (i32)(sizeInBits(x) - llvm.ctlz(x, false))
+  Value *Op = CI->getArgOperand(0);
+  Type *ArgType = Op->getType();
+  Value *F = Intrinsic::getDeclaration(CI->getCalledFunction()->getParent(),
+                                       Intrinsic::ctlz, ArgType);
+  Value *V = B.CreateCall(F, {Op, B.getFalse()}, "ctlz");
+  V = B.CreateSub(ConstantInt::get(V->getType(), ArgType->getIntegerBitWidth()),
+                  V);
+  return B.CreateIntCast(V, CI->getType(), false);
 }
 
 Value *LibCallSimplifier::optimizeAbs(CallInst *CI, IRBuilder<> &B) {
@@ -1891,7 +1932,7 @@ Value *LibCallSimplifier::optimizeStringMemoryLibCall(CallInst *CI,
   if (TLI->getLibFunc(*Callee, Func) && TLI->has(Func)) {
     // Make sure we never change the calling convention.
     assert((ignoreCallingConv(Func) ||
-            CI->getCallingConv() == llvm::CallingConv::C) &&
+            isCallingConvCCompatible(CI)) &&
       "Optimizing string/memory libcall would change the calling convention");
     switch (Func) {
     case LibFunc::strcat:
@@ -1958,7 +1999,7 @@ Value *LibCallSimplifier::optimizeCall(CallInst *CI) {
   SmallVector<OperandBundleDef, 2> OpBundles;
   CI->getOperandBundlesAsDefs(OpBundles);
   IRBuilder<> Builder(CI, /*FPMathTag=*/nullptr, OpBundles);
-  bool isCallingConvC = CI->getCallingConv() == llvm::CallingConv::C;
+  bool isCallingConvC = isCallingConvCCompatible(CI);
 
   // Command-line parameter overrides instruction attribute.
   if (EnableUnsafeFPShrink.getNumOccurrences() > 0)
@@ -2042,6 +2083,10 @@ Value *LibCallSimplifier::optimizeCall(CallInst *CI) {
     case LibFunc::ffsl:
     case LibFunc::ffsll:
       return optimizeFFS(CI, Builder);
+    case LibFunc::fls:
+    case LibFunc::flsl:
+    case LibFunc::flsll:
+      return optimizeFls(CI, Builder);
     case LibFunc::abs:
     case LibFunc::labs:
     case LibFunc::llabs:
@@ -2314,7 +2359,7 @@ Value *FortifiedLibCallSimplifier::optimizeCall(CallInst *CI) {
   SmallVector<OperandBundleDef, 2> OpBundles;
   CI->getOperandBundlesAsDefs(OpBundles);
   IRBuilder<> Builder(CI, /*FPMathTag=*/nullptr, OpBundles);
-  bool isCallingConvC = CI->getCallingConv() == llvm::CallingConv::C;
+  bool isCallingConvC = isCallingConvCCompatible(CI);
 
   // First, check that this is a known library functions and that the prototype
   // is correct.

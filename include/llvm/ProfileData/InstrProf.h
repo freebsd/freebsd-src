@@ -55,6 +55,7 @@ inline StringRef getInstrProfNameSectionName(bool AddSegment) {
 /// data.
 inline StringRef getInstrProfDataSectionName(bool AddSegment) {
   return AddSegment ? "__DATA," INSTR_PROF_DATA_SECT_NAME_STR
+                      ",regular,live_support"
                     : INSTR_PROF_DATA_SECT_NAME_STR;
 }
 
@@ -81,7 +82,7 @@ inline StringRef getInstrProfValueProfFuncName() {
 /// Return the name of the section containing function coverage mapping
 /// data.
 inline StringRef getInstrProfCoverageSectionName(bool AddSegment) {
-  return AddSegment ? "__DATA," INSTR_PROF_COVMAP_SECT_NAME_STR
+  return AddSegment ? "__LLVM_COV," INSTR_PROF_COVMAP_SECT_NAME_STR
                     : INSTR_PROF_COVMAP_SECT_NAME_STR;
 }
 
@@ -155,19 +156,13 @@ inline StringRef getInstrProfInitFuncName() { return "__llvm_profile_init"; }
 /// A reference to the variable causes the linker to link in the runtime
 /// initialization module (which defines the hook variable).
 inline StringRef getInstrProfRuntimeHookVarName() {
-  return "__llvm_profile_runtime";
+  return INSTR_PROF_QUOTE(INSTR_PROF_PROFILE_RUNTIME_VAR);
 }
 
 /// Return the name of the compiler generated function that references the
 /// runtime hook variable. The function is a weak global.
 inline StringRef getInstrProfRuntimeHookVarUseFuncName() {
   return "__llvm_profile_runtime_user";
-}
-
-/// Return the name of the profile runtime interface that overrides the default
-/// profile data file name.
-inline StringRef getInstrProfFileOverriderFuncName() {
-  return "__llvm_profile_override_default_filename";
 }
 
 /// Return the marker used to separate PGO names during serialization.
@@ -231,7 +226,7 @@ Error collectPGOFuncNameStrings(const std::vector<GlobalVariable *> &NameVars,
                                 std::string &Result, bool doCompression = true);
 class InstrProfSymtab;
 /// \c NameStrings is a string composed of one of more sub-strings encoded in
-/// the format described above. The substrings are seperated by 0 or more zero
+/// the format described above. The substrings are separated by 0 or more zero
 /// bytes. This method decodes the string and populates the \c Symtab.
 Error readPGOFuncNameStrings(StringRef NameStrings, InstrProfSymtab &Symtab);
 
@@ -274,6 +269,10 @@ MDNode *getPGOFuncNameMetadata(const Function &F);
 /// declared by users only.
 void createPGOFuncNameMetadata(Function &F, StringRef PGOFuncName);
 
+/// Check if we can use Comdat for profile variables. This will eliminate
+/// the duplicated profile variables for Comdat functions.
+bool needsComdatForCounter(const Function &F, const Module &M);
+
 const std::error_category &instrprof_category();
 
 enum class instrprof_error {
@@ -293,7 +292,8 @@ enum class instrprof_error {
   counter_overflow,
   value_site_count_mismatch,
   compress_failed,
-  uncompress_failed
+  uncompress_failed,
+  empty_raw_profile
 };
 
 inline std::error_code make_error_code(instrprof_error E) {

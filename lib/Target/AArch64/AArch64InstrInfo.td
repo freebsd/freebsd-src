@@ -26,6 +26,8 @@ def HasCrypto        : Predicate<"Subtarget->hasCrypto()">,
                                  AssemblerPredicate<"FeatureCrypto", "crypto">;
 def HasCRC           : Predicate<"Subtarget->hasCRC()">,
                                  AssemblerPredicate<"FeatureCRC", "crc">;
+def HasLSE           : Predicate<"Subtarget->hasLSE()">,
+                                 AssemblerPredicate<"FeatureLSE", "lse">;
 def HasRAS           : Predicate<"Subtarget->hasRAS()">,
                                  AssemblerPredicate<"FeatureRAS", "ras">;
 def HasPerfMon       : Predicate<"Subtarget->hasPerfMon()">;
@@ -287,7 +289,9 @@ def AArch64smull    : SDNode<"AArch64ISD::SMULL", SDT_AArch64mull>;
 def AArch64umull    : SDNode<"AArch64ISD::UMULL", SDT_AArch64mull>;
 
 def AArch64frecpe   : SDNode<"AArch64ISD::FRECPE", SDTFPUnaryOp>;
+def AArch64frecps   : SDNode<"AArch64ISD::FRECPS", SDTFPBinOp>;
 def AArch64frsqrte  : SDNode<"AArch64ISD::FRSQRTE", SDTFPUnaryOp>;
+def AArch64frsqrts  : SDNode<"AArch64ISD::FRSQRTS", SDTFPBinOp>;
 
 def AArch64saddv    : SDNode<"AArch64ISD::SADDV", SDT_AArch64UnaryVec>;
 def AArch64uaddv    : SDNode<"AArch64ISD::UADDV", SDT_AArch64UnaryVec>;
@@ -1133,6 +1137,14 @@ def : Pat<(AArch64csel (i32 0), (i32 1), (i32 imm:$cc), NZCV),
           (CSINCWr WZR, WZR, (i32 imm:$cc))>;
 def : Pat<(AArch64csel (i64 0), (i64 1), (i32 imm:$cc), NZCV),
           (CSINCXr XZR, XZR, (i32 imm:$cc))>;
+def : Pat<(AArch64csel GPR32:$tval, (i32 1), (i32 imm:$cc), NZCV),
+          (CSINCWr GPR32:$tval, WZR, (i32 imm:$cc))>;
+def : Pat<(AArch64csel GPR64:$tval, (i64 1), (i32 imm:$cc), NZCV),
+          (CSINCXr GPR64:$tval, XZR, (i32 imm:$cc))>;
+def : Pat<(AArch64csel (i32 1), GPR32:$fval, (i32 imm:$cc), NZCV),
+          (CSINCWr GPR32:$fval, WZR, (i32 (inv_cond_XFORM imm:$cc)))>;
+def : Pat<(AArch64csel (i64 1), GPR64:$fval, (i32 imm:$cc), NZCV),
+          (CSINCXr GPR64:$fval, XZR, (i32 (inv_cond_XFORM imm:$cc)))>;
 def : Pat<(AArch64csel (i32 0), (i32 -1), (i32 imm:$cc), NZCV),
           (CSINVWr WZR, WZR, (i32 imm:$cc))>;
 def : Pat<(AArch64csel (i64 0), (i64 -1), (i32 imm:$cc), NZCV),
@@ -2545,8 +2557,8 @@ defm : FPToIntegerPats<fp_to_sint, ffloor, "FCVTMS">;
 defm : FPToIntegerPats<fp_to_uint, ffloor, "FCVTMU">;
 defm : FPToIntegerPats<fp_to_sint, ftrunc, "FCVTZS">;
 defm : FPToIntegerPats<fp_to_uint, ftrunc, "FCVTZU">;
-defm : FPToIntegerPats<fp_to_sint, frnd,   "FCVTAS">;
-defm : FPToIntegerPats<fp_to_uint, frnd,   "FCVTAU">;
+defm : FPToIntegerPats<fp_to_sint, fround, "FCVTAS">;
+defm : FPToIntegerPats<fp_to_uint, fround, "FCVTAU">;
 
 //===----------------------------------------------------------------------===//
 // Scaled integer to floating point conversion instructions.
@@ -2582,7 +2594,7 @@ defm FCVT : FPConversion<"fcvt">;
 defm FABS   : SingleOperandFPData<0b0001, "fabs", fabs>;
 defm FMOV   : SingleOperandFPData<0b0000, "fmov">;
 defm FNEG   : SingleOperandFPData<0b0010, "fneg", fneg>;
-defm FRINTA : SingleOperandFPData<0b1100, "frinta", frnd>;
+defm FRINTA : SingleOperandFPData<0b1100, "frinta", fround>;
 defm FRINTI : SingleOperandFPData<0b1111, "frinti", fnearbyint>;
 defm FRINTM : SingleOperandFPData<0b1010, "frintm", ffloor>;
 defm FRINTN : SingleOperandFPData<0b1000, "frintn", int_aarch64_neon_frintn>;
@@ -2788,13 +2800,13 @@ def : Pat<(v4f32 (int_aarch64_neon_vcvthf2fp (v4i16 V64:$Rn))),
 def : Pat<(v4f32 (int_aarch64_neon_vcvthf2fp (extract_subvector (v8i16 V128:$Rn),
                                                               (i64 4)))),
           (FCVTLv8i16 V128:$Rn)>;
-def : Pat<(v2f64 (fextend (v2f32 V64:$Rn))), (FCVTLv2i32 V64:$Rn)>;
-def : Pat<(v2f64 (fextend (v2f32 (extract_subvector (v4f32 V128:$Rn),
+def : Pat<(v2f64 (fpextend (v2f32 V64:$Rn))), (FCVTLv2i32 V64:$Rn)>;
+def : Pat<(v2f64 (fpextend (v2f32 (extract_subvector (v4f32 V128:$Rn),
                                                     (i64 2))))),
           (FCVTLv4i32 V128:$Rn)>;
 
-def : Pat<(v4f32 (fextend (v4f16 V64:$Rn))), (FCVTLv4i16 V64:$Rn)>;
-def : Pat<(v4f32 (fextend (v4f16 (extract_subvector (v8f16 V128:$Rn),
+def : Pat<(v4f32 (fpextend (v4f16 V64:$Rn))), (FCVTLv4i16 V64:$Rn)>;
+def : Pat<(v4f32 (fpextend (v4f16 (extract_subvector (v8f16 V128:$Rn),
                                                     (i64 4))))),
           (FCVTLv8i16 V128:$Rn)>;
 
@@ -2808,9 +2820,9 @@ def : Pat<(v4i16 (int_aarch64_neon_vcvtfp2hf (v4f32 V128:$Rn))),
 def : Pat<(concat_vectors V64:$Rd,
                           (v4i16 (int_aarch64_neon_vcvtfp2hf (v4f32 V128:$Rn)))),
           (FCVTNv8i16 (INSERT_SUBREG (IMPLICIT_DEF), V64:$Rd, dsub), V128:$Rn)>;
-def : Pat<(v2f32 (fround (v2f64 V128:$Rn))), (FCVTNv2i32 V128:$Rn)>;
-def : Pat<(v4f16 (fround (v4f32 V128:$Rn))), (FCVTNv4i16 V128:$Rn)>;
-def : Pat<(concat_vectors V64:$Rd, (v2f32 (fround (v2f64 V128:$Rn)))),
+def : Pat<(v2f32 (fpround (v2f64 V128:$Rn))), (FCVTNv2i32 V128:$Rn)>;
+def : Pat<(v4f16 (fpround (v4f32 V128:$Rn))), (FCVTNv4i16 V128:$Rn)>;
+def : Pat<(concat_vectors V64:$Rd, (v2f32 (fpround (v2f64 V128:$Rn)))),
           (FCVTNv4i32 (INSERT_SUBREG (IMPLICIT_DEF), V64:$Rd, dsub), V128:$Rn)>;
 defm FCVTPS : SIMDTwoVectorFPToInt<0,1,0b11010, "fcvtps",int_aarch64_neon_fcvtps>;
 defm FCVTPU : SIMDTwoVectorFPToInt<1,1,0b11010, "fcvtpu",int_aarch64_neon_fcvtpu>;
@@ -2833,7 +2845,7 @@ def : Pat<(v2i64 (int_aarch64_neon_fcvtzu v2f64:$Rn)), (FCVTZUv2f64 $Rn)>;
 
 defm FNEG   : SIMDTwoVectorFP<1, 1, 0b01111, "fneg", fneg>;
 defm FRECPE : SIMDTwoVectorFP<0, 1, 0b11101, "frecpe", int_aarch64_neon_frecpe>;
-defm FRINTA : SIMDTwoVectorFP<1, 0, 0b11000, "frinta", frnd>;
+defm FRINTA : SIMDTwoVectorFP<1, 0, 0b11000, "frinta", fround>;
 defm FRINTI : SIMDTwoVectorFP<1, 1, 0b11001, "frinti", fnearbyint>;
 defm FRINTM : SIMDTwoVectorFP<0, 0, 0b11001, "frintm", ffloor>;
 defm FRINTN : SIMDTwoVectorFP<0, 0, 0b11000, "frintn", int_aarch64_neon_frintn>;
@@ -3414,6 +3426,17 @@ def : Pat<(v1f64 (AArch64frecpe (v1f64 FPR64:$Rn))),
 def : Pat<(v2f64 (AArch64frecpe (v2f64 FPR128:$Rn))),
           (FRECPEv2f64 FPR128:$Rn)>;
 
+def : Pat<(f32 (AArch64frecps (f32 FPR32:$Rn), (f32 FPR32:$Rm))),
+          (FRECPS32 FPR32:$Rn, FPR32:$Rm)>;
+def : Pat<(v2f32 (AArch64frecps (v2f32 V64:$Rn), (v2f32 V64:$Rm))),
+          (FRECPSv2f32 V64:$Rn, V64:$Rm)>;
+def : Pat<(v4f32 (AArch64frecps (v4f32 FPR128:$Rn), (v4f32 FPR128:$Rm))),
+          (FRECPSv4f32 FPR128:$Rn, FPR128:$Rm)>;
+def : Pat<(f64 (AArch64frecps (f64 FPR64:$Rn), (f64 FPR64:$Rm))),
+          (FRECPS64 FPR64:$Rn, FPR64:$Rm)>;
+def : Pat<(v2f64 (AArch64frecps (v2f64 FPR128:$Rn), (v2f64 FPR128:$Rm))),
+          (FRECPSv2f64 FPR128:$Rn, FPR128:$Rm)>;
+
 def : Pat<(f32 (int_aarch64_neon_frecpx (f32 FPR32:$Rn))),
           (FRECPXv1i32 FPR32:$Rn)>;
 def : Pat<(f64 (int_aarch64_neon_frecpx (f64 FPR64:$Rn))),
@@ -3438,6 +3461,17 @@ def : Pat<(v1f64 (AArch64frsqrte (v1f64 FPR64:$Rn))),
           (FRSQRTEv1i64 FPR64:$Rn)>;
 def : Pat<(v2f64 (AArch64frsqrte (v2f64 FPR128:$Rn))),
           (FRSQRTEv2f64 FPR128:$Rn)>;
+
+def : Pat<(f32 (AArch64frsqrts (f32 FPR32:$Rn), (f32 FPR32:$Rm))),
+          (FRSQRTS32 FPR32:$Rn, FPR32:$Rm)>;
+def : Pat<(v2f32 (AArch64frsqrts (v2f32 V64:$Rn), (v2f32 V64:$Rm))),
+          (FRSQRTSv2f32 V64:$Rn, V64:$Rm)>;
+def : Pat<(v4f32 (AArch64frsqrts (v4f32 FPR128:$Rn), (v4f32 FPR128:$Rm))),
+          (FRSQRTSv4f32 FPR128:$Rn, FPR128:$Rm)>;
+def : Pat<(f64 (AArch64frsqrts (f64 FPR64:$Rn), (f64 FPR64:$Rm))),
+          (FRSQRTS64 FPR64:$Rn, FPR64:$Rm)>;
+def : Pat<(v2f64 (AArch64frsqrts (v2f64 FPR128:$Rn), (v2f64 FPR128:$Rm))),
+          (FRSQRTSv2f64 FPR128:$Rn, FPR128:$Rm)>;
 
 // If an integer is about to be converted to a floating point value,
 // just load it on the floating point unit.
@@ -5293,15 +5327,8 @@ def SHA256SU0rr : SHATiedInstVV<0b0010, "sha256su0",int_aarch64_crypto_sha256su0
 //----------------------------------------------------------------------------
 // FIXME: Like for X86, these should go in their own separate .td file.
 
-// Any instruction that defines a 32-bit result leaves the high half of the
-// register. Truncate can be lowered to EXTRACT_SUBREG. CopyFromReg may
-// be copying from a truncate. But any other 32-bit operation will zero-extend
-// up to 64 bits.
-// FIXME: X86 also checks for CMOV here. Do we need something similar?
 def def32 : PatLeaf<(i32 GPR32:$src), [{
-  return N->getOpcode() != ISD::TRUNCATE &&
-         N->getOpcode() != TargetOpcode::EXTRACT_SUBREG &&
-         N->getOpcode() != ISD::CopyFromReg;
+  return isDef32(*N);
 }]>;
 
 // In the case of a 32-bit def that is known to implicitly zero-extend,

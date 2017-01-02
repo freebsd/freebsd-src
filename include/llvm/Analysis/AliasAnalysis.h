@@ -112,8 +112,10 @@ enum FunctionModRefLocation {
   FMRL_Nowhere = 0,
   /// Access to memory via argument pointers.
   FMRL_ArgumentPointees = 4,
+  /// Memory that is inaccessible via LLVM IR.
+  FMRL_InaccessibleMem = 8,
   /// Access to any memory.
-  FMRL_Anywhere = 8 | FMRL_ArgumentPointees
+  FMRL_Anywhere = 16 | FMRL_InaccessibleMem | FMRL_ArgumentPointees
 };
 
 /// Summary of how a function affects memory in the program.
@@ -142,6 +144,22 @@ enum FunctionModRefBehavior {
   ///
   /// This property corresponds to the IntrArgMemOnly LLVM intrinsic flag.
   FMRB_OnlyAccessesArgumentPointees = FMRL_ArgumentPointees | MRI_ModRef,
+
+  /// The only memory references in this function (if it has any) are
+  /// references of memory that is otherwise inaccessible via LLVM IR.
+  ///
+  /// This property corresponds to the LLVM IR inaccessiblememonly attribute.
+  FMRB_OnlyAccessesInaccessibleMem = FMRL_InaccessibleMem | MRI_ModRef,
+
+  /// The function may perform non-volatile loads and stores of objects
+  /// pointed to by its pointer-typed arguments, with arbitrary offsets, and
+  /// it may also perform loads and stores of memory that is otherwise
+  /// inaccessible via LLVM IR.
+  ///
+  /// This property corresponds to the LLVM IR
+  /// inaccessiblemem_or_argmemonly attribute.
+  FMRB_OnlyAccessesInaccessibleOrArgMem = FMRL_InaccessibleMem |
+                                          FMRL_ArgumentPointees | MRI_ModRef,
 
   /// This function does not perform any non-local stores or volatile loads,
   /// but may read from any memory location.
@@ -178,6 +196,20 @@ public:
     // ideally involve two pointers and no separate allocation.
     AAs.emplace_back(new Model<AAResultT>(AAResult, *this));
   }
+
+  /// Register a function analysis ID that the results aggregation depends on.
+  ///
+  /// This is used in the new pass manager to implement the invalidation logic
+  /// where we must invalidate the results aggregation if any of our component
+  /// analyses become invalid.
+  void addAADependencyID(AnalysisKey *ID) { AADeps.push_back(ID); }
+
+  /// Handle invalidation events in the new pass manager.
+  ///
+  /// The aggregation is invalidated if any of the underlying analyses is
+  /// invalidated.
+  bool invalidate(Function &F, const PreservedAnalyses &PA,
+                  FunctionAnalysisManager::Invalidator &Inv);
 
   //===--------------------------------------------------------------------===//
   /// \name Alias Queries
@@ -337,6 +369,26 @@ public:
   /// (with arbitrary offsets).
   static bool doesAccessArgPointees(FunctionModRefBehavior MRB) {
     return (MRB & MRI_ModRef) && (MRB & FMRL_ArgumentPointees);
+  }
+
+  /// Checks if functions with the specified behavior are known to read and
+  /// write at most from memory that is inaccessible from LLVM IR.
+  static bool onlyAccessesInaccessibleMem(FunctionModRefBehavior MRB) {
+    return !(MRB & FMRL_Anywhere & ~FMRL_InaccessibleMem);
+  }
+
+  /// Checks if functions with the specified behavior are known to potentially
+  /// read or write from memory that is inaccessible from LLVM IR.
+  static bool doesAccessInaccessibleMem(FunctionModRefBehavior MRB) {
+    return (MRB & MRI_ModRef) && (MRB & FMRL_InaccessibleMem);
+  }
+
+  /// Checks if functions with the specified behavior are known to read and
+  /// write at most from memory that is inaccessible from LLVM IR or objects
+  /// pointed to by their pointer-typed arguments (with arbitrary offsets).
+  static bool onlyAccessesInaccessibleOrArgMem(FunctionModRefBehavior MRB) {
+    return !(MRB & FMRL_Anywhere &
+             ~(FMRL_InaccessibleMem | FMRL_ArgumentPointees));
   }
 
   /// getModRefInfo (for call sites) - Return information about whether
@@ -571,6 +623,8 @@ private:
   const TargetLibraryInfo &TLI;
 
   std::vector<std::unique_ptr<Concept>> AAs;
+
+  std::vector<AnalysisKey *> AADeps;
 };
 
 /// Temporary typedef for legacy code that uses a generic \c AliasAnalysis
@@ -854,20 +908,6 @@ class AAManager : public AnalysisInfoMixin<AAManager> {
 public:
   typedef AAResults Result;
 
-  // This type hase value semantics. We have to spell these out because MSVC
-  // won't synthesize them.
-  AAManager() {}
-  AAManager(AAManager &&Arg) : ResultGetters(std::move(Arg.ResultGetters)) {}
-  AAManager(const AAManager &Arg) : ResultGetters(Arg.ResultGetters) {}
-  AAManager &operator=(AAManager &&RHS) {
-    ResultGetters = std::move(RHS.ResultGetters);
-    return *this;
-  }
-  AAManager &operator=(const AAManager &RHS) {
-    ResultGetters = RHS.ResultGetters;
-    return *this;
-  }
-
   /// Register a specific AA result.
   template <typename AnalysisT> void registerFunctionAnalysis() {
     ResultGetters.push_back(&getFunctionAAResultImpl<AnalysisT>);
@@ -878,7 +918,7 @@ public:
     ResultGetters.push_back(&getModuleAAResultImpl<AnalysisT>);
   }
 
-  Result run(Function &F, AnalysisManager<Function> &AM) {
+  Result run(Function &F, FunctionAnalysisManager &AM) {
     Result R(AM.getResult<TargetLibraryAnalysis>(F));
     for (auto &Getter : ResultGetters)
       (*Getter)(F, AM, R);
@@ -887,26 +927,30 @@ public:
 
 private:
   friend AnalysisInfoMixin<AAManager>;
-  static char PassID;
+  static AnalysisKey Key;
 
-  SmallVector<void (*)(Function &F, AnalysisManager<Function> &AM,
+  SmallVector<void (*)(Function &F, FunctionAnalysisManager &AM,
                        AAResults &AAResults),
               4> ResultGetters;
 
   template <typename AnalysisT>
   static void getFunctionAAResultImpl(Function &F,
-                                      AnalysisManager<Function> &AM,
+                                      FunctionAnalysisManager &AM,
                                       AAResults &AAResults) {
     AAResults.addAAResult(AM.template getResult<AnalysisT>(F));
+    AAResults.addAADependencyID(AnalysisT::ID());
   }
 
   template <typename AnalysisT>
-  static void getModuleAAResultImpl(Function &F, AnalysisManager<Function> &AM,
+  static void getModuleAAResultImpl(Function &F, FunctionAnalysisManager &AM,
                                     AAResults &AAResults) {
-    auto &MAM =
-        AM.getResult<ModuleAnalysisManagerFunctionProxy>(F).getManager();
-    if (auto *R = MAM.template getCachedResult<AnalysisT>(*F.getParent()))
+    auto &MAMProxy = AM.getResult<ModuleAnalysisManagerFunctionProxy>(F);
+    auto &MAM = MAMProxy.getManager();
+    if (auto *R = MAM.template getCachedResult<AnalysisT>(*F.getParent())) {
       AAResults.addAAResult(*R);
+      MAMProxy
+          .template registerOuterAnalysisInvalidation<AnalysisT, AAManager>();
+    }
   }
 };
 

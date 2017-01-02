@@ -26,6 +26,7 @@
 #include "llvm/CodeGen/LivePhysRegs.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/CodeGen/RegisterClassInfo.h"
 #include "llvm/Support/Allocator.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
@@ -137,6 +138,7 @@ class ExeDepsFix : public MachineFunctionPass {
   MachineFunction *MF;
   const TargetInstrInfo *TII;
   const TargetRegisterInfo *TRI;
+  RegisterClassInfo RegClassInfo;
   std::vector<SmallVector<int, 1>> AliasMap;
   const unsigned NumRegs;
   LiveReg *LiveRegs;
@@ -170,12 +172,10 @@ public:
 
   MachineFunctionProperties getRequiredProperties() const override {
     return MachineFunctionProperties().set(
-        MachineFunctionProperties::Property::AllVRegsAllocated);
+        MachineFunctionProperties::Property::NoVRegs);
   }
 
-  const char *getPassName() const override {
-    return "Execution dependency fix";
-  }
+  StringRef getPassName() const override { return "Execution dependency fix"; }
 
 private:
   iterator_range<SmallVectorImpl<int>::const_iterator>
@@ -203,6 +203,8 @@ private:
   void processDefs(MachineInstr*, bool Kill);
   void visitSoftInstr(MachineInstr*, unsigned mask);
   void visitHardInstr(MachineInstr*, unsigned domain);
+  void pickBestRegisterForUndef(MachineInstr *MI, unsigned OpIdx,
+                                unsigned Pref);
   bool shouldBreakDependence(MachineInstr*, unsigned OpIdx, unsigned Pref);
   void processUndefReads(MachineBasicBlock*);
 };
@@ -473,6 +475,60 @@ void ExeDepsFix::visitInstr(MachineInstr *MI) {
   processDefs(MI, !DomP.first);
 }
 
+/// \brief Helps avoid false dependencies on undef registers by updating the
+/// machine instructions' undef operand to use a register that the instruction
+/// is truly dependent on, or use a register with clearance higher than Pref.
+void ExeDepsFix::pickBestRegisterForUndef(MachineInstr *MI, unsigned OpIdx,
+                                          unsigned Pref) {
+  MachineOperand &MO = MI->getOperand(OpIdx);
+  assert(MO.isUndef() && "Expected undef machine operand");
+
+  unsigned OriginalReg = MO.getReg();
+
+  // Update only undef operands that are mapped to one register.
+  if (AliasMap[OriginalReg].size() != 1)
+    return;
+
+  // Get the undef operand's register class
+  const TargetRegisterClass *OpRC =
+      TII->getRegClass(MI->getDesc(), OpIdx, TRI, *MF);
+
+  // If the instruction has a true dependency, we can hide the false depdency
+  // behind it.
+  for (MachineOperand &CurrMO : MI->operands()) {
+    if (!CurrMO.isReg() || CurrMO.isDef() || CurrMO.isUndef() ||
+        !OpRC->contains(CurrMO.getReg()))
+      continue;
+    // We found a true dependency - replace the undef register with the true
+    // dependency.
+    MO.setReg(CurrMO.getReg());
+    return;
+  }
+
+  // Go over all registers in the register class and find the register with
+  // max clearance or clearance higher than Pref.
+  unsigned MaxClearance = 0;
+  unsigned MaxClearanceReg = OriginalReg;
+  ArrayRef<MCPhysReg> Order = RegClassInfo.getOrder(OpRC);
+  for (auto Reg : Order) {
+    assert(AliasMap[Reg].size() == 1 &&
+           "Reg is expected to be mapped to a single index");
+    int RCrx = *regIndices(Reg).begin();
+    unsigned Clearance = CurInstr - LiveRegs[RCrx].Def;
+    if (Clearance <= MaxClearance)
+      continue;
+    MaxClearance = Clearance;
+    MaxClearanceReg = Reg;
+
+    if (MaxClearance > Pref)
+      break;
+  }
+
+  // Update the operand if we found a register with better clearance.
+  if (MaxClearanceReg != OriginalReg)
+    MO.setReg(MaxClearanceReg);
+}
+
 /// \brief Return true to if it makes sense to break dependence on a partial def
 /// or undef use.
 bool ExeDepsFix::shouldBreakDependence(MachineInstr *MI, unsigned OpIdx,
@@ -510,6 +566,7 @@ void ExeDepsFix::processDefs(MachineInstr *MI, bool Kill) {
   unsigned OpNum;
   unsigned Pref = TII->getUndefRegClearance(*MI, OpNum, TRI);
   if (Pref) {
+    pickBestRegisterForUndef(MI, OpNum, Pref);
     if (shouldBreakDependence(MI, OpNum, Pref))
       UndefReads.push_back(std::make_pair(MI, OpNum));
   }
@@ -520,8 +577,6 @@ void ExeDepsFix::processDefs(MachineInstr *MI, bool Kill) {
     MachineOperand &MO = MI->getOperand(i);
     if (!MO.isReg())
       continue;
-    if (MO.isImplicit())
-      break;
     if (MO.isUse())
       continue;
     for (int rx : regIndices(MO.getReg())) {
@@ -557,7 +612,7 @@ void ExeDepsFix::processUndefReads(MachineBasicBlock *MBB) {
     return;
 
   // Collect this block's live out register units.
-  LiveRegSet.init(TRI);
+  LiveRegSet.init(*TRI);
   // We do not need to care about pristine registers as they are just preserved
   // but not actually used in the function.
   LiveRegSet.addLiveOutsNoPristines(*MBB);
@@ -731,6 +786,7 @@ bool ExeDepsFix::runOnMachineFunction(MachineFunction &mf) {
   MF = &mf;
   TII = MF->getSubtarget().getInstrInfo();
   TRI = MF->getSubtarget().getRegisterInfo();
+  RegClassInfo.runOnMachineFunction(mf);
   LiveRegs = nullptr;
   assert(NumRegs == RC->getNumRegs() && "Bad regclass");
 

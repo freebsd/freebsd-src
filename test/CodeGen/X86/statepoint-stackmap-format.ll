@@ -79,7 +79,7 @@ declare i32 addrspace(1)* @llvm.experimental.gc.relocate.p1i32(token, i32, i32) 
 ; CHECK-LABEL: .section .llvm_stackmaps
 ; CHECK-NEXT:  __LLVM_StackMaps:
 ; Header
-; CHECK-NEXT:   .byte 1
+; CHECK-NEXT:   .byte 2
 ; CHECK-NEXT:   .byte 0
 ; CHECK-NEXT:   .short 0
 ; Num Functions
@@ -92,10 +92,13 @@ declare i32 addrspace(1)* @llvm.experimental.gc.relocate.p1i32(token, i32, i32) 
 ; Functions and stack size
 ; CHECK-NEXT:   .quad test
 ; CHECK-NEXT:   .quad 40
+; CHECK-NEXT:   .quad 1
 ; CHECK-NEXT:   .quad test_derived_arg
 ; CHECK-NEXT:   .quad 40
+; CHECK-NEXT:   .quad 1
 ; CHECK-NEXT:   .quad test_id
 ; CHECK-NEXT:   .quad 8
+; CHECK-NEXT:   .quad 1
 
 ;
 ; test
@@ -106,7 +109,7 @@ declare i32 addrspace(1)* @llvm.experimental.gc.relocate.p1i32(token, i32, i32) 
 
 ; Callsites
 ; Constant arguments
-; CHECK-NEXT: .long	.Ltmp1-test
+; CHECK-NEXT: .long	.Ltmp0-test
 ; CHECK: .short	0
 ; CHECK: .short	11
 ; SmallConstant (0)
@@ -178,7 +181,7 @@ declare i32 addrspace(1)* @llvm.experimental.gc.relocate.p1i32(token, i32, i32) 
 
 ; Callsites
 ; Constant arguments
-; CHECK-NEXT: .long	.Ltmp3-test_derived_arg
+; CHECK-NEXT: .long	.Ltmp1-test_derived_arg
 ; CHECK: .short	0
 ; CHECK: .short	11
 ; SmallConstant (0)
@@ -243,7 +246,7 @@ declare i32 addrspace(1)* @llvm.experimental.gc.relocate.p1i32(token, i32, i32) 
 ; CHECK-NEXT: .quad	237
 
 ; Instruction Offset
-; CHECK-NEXT: .long	.Ltmp5-test_id
+; CHECK-NEXT: .long	.Ltmp2-test_id
 
 ; Reserved:
 ; CHECK: .short	0
@@ -276,4 +279,3 @@ declare i32 addrspace(1)* @llvm.experimental.gc.relocate.p1i32(token, i32, i32) 
 ; CHECK: .short	0
 ; CHECK: .short	0
 ; CHECK: .p2align	3
-

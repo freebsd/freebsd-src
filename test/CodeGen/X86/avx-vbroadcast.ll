@@ -573,11 +573,11 @@ define float @broadcast_lifetime() nounwind {
 ; X64-LABEL: broadcast_lifetime:
 ; X64:       ## BB#0:
 ; X64-NEXT:    subq $40, %rsp
-; X64-NEXT:    leaq (%rsp), %rdi
+; X64-NEXT:    movq %rsp, %rdi
 ; X64-NEXT:    callq _gfunc
 ; X64-NEXT:    vbroadcastss {{[0-9]+}}(%rsp), %xmm0
 ; X64-NEXT:    vmovaps %xmm0, {{[0-9]+}}(%rsp) ## 16-byte Spill
-; X64-NEXT:    leaq (%rsp), %rdi
+; X64-NEXT:    movq %rsp, %rdi
 ; X64-NEXT:    callq _gfunc
 ; X64-NEXT:    vbroadcastss {{[0-9]+}}(%rsp), %xmm0
 ; X64-NEXT:    vsubss {{[0-9]+}}(%rsp), %xmm0, %xmm0 ## 16-byte Folded Reload

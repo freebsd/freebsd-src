@@ -35,11 +35,13 @@ namespace {
 
 class AArch64MCCodeEmitter : public MCCodeEmitter {
   MCContext &Ctx;
+  const MCInstrInfo &MCII;
 
   AArch64MCCodeEmitter(const AArch64MCCodeEmitter &); // DO NOT IMPLEMENT
   void operator=(const AArch64MCCodeEmitter &);     // DO NOT IMPLEMENT
 public:
-  AArch64MCCodeEmitter(const MCInstrInfo &mcii, MCContext &ctx) : Ctx(ctx) {}
+  AArch64MCCodeEmitter(const MCInstrInfo &mcii, MCContext &ctx)
+      : Ctx(ctx), MCII(mcii) {}
 
   ~AArch64MCCodeEmitter() override {}
 
@@ -170,6 +172,11 @@ public:
 
   unsigned fixOneOperandFPComparison(const MCInst &MI, unsigned EncodedValue,
                                      const MCSubtargetInfo &STI) const;
+
+private:
+  uint64_t computeAvailableFeatures(const FeatureBitset &FB) const;
+  void verifyInstructionPredicates(const MCInst &MI,
+                                   uint64_t AvailableFeatures) const;
 };
 
 } // end anonymous namespace
@@ -253,7 +260,7 @@ AArch64MCCodeEmitter::getAddSubImmOpValue(const MCInst &MI, unsigned OpIdx,
   assert((ShiftVal == 0 || ShiftVal == 12) &&
          "unexpected shift value for add/sub immediate");
   if (MO.isImm())
-    return MO.getImm() | (ShiftVal == 0 ? 0 : (1 << 12));
+    return MO.getImm() | (ShiftVal == 0 ? 0 : (1 << ShiftVal));
   assert(MO.isExpr() && "Unable to encode MCOperand!");
   const MCExpr *Expr = MO.getExpr();
 
@@ -263,7 +270,15 @@ AArch64MCCodeEmitter::getAddSubImmOpValue(const MCInst &MI, unsigned OpIdx,
 
   ++MCNumFixups;
 
-  return 0;
+  // Set the shift bit of the add instruction for relocation types
+  // R_AARCH64_TLSLE_ADD_TPREL_HI12 and R_AARCH64_TLSLD_ADD_DTPREL_HI12.
+  if (const AArch64MCExpr *A64E = dyn_cast<AArch64MCExpr>(Expr)) {
+    AArch64MCExpr::VariantKind RefKind = A64E->getKind();
+    if (RefKind == AArch64MCExpr::VK_TPREL_HI12 ||
+        RefKind == AArch64MCExpr::VK_DTPREL_HI12)
+      ShiftVal = 12;
+  }
+  return ShiftVal == 0 ? 0 : (1 << ShiftVal);
 }
 
 /// getCondBranchTargetOpValue - Return the encoded value for a conditional
@@ -539,6 +554,9 @@ unsigned AArch64MCCodeEmitter::fixMOVZ(const MCInst &MI, unsigned EncodedValue,
 void AArch64MCCodeEmitter::encodeInstruction(const MCInst &MI, raw_ostream &OS,
                                              SmallVectorImpl<MCFixup> &Fixups,
                                              const MCSubtargetInfo &STI) const {
+  verifyInstructionPredicates(MI,
+                              computeAvailableFeatures(STI.getFeatureBits()));
+
   if (MI.getOpcode() == AArch64::TLSDESCCALL) {
     // This is a directive which applies an R_AARCH64_TLSDESC_CALL to the
     // following (BLR) instruction. It doesn't emit any code itself so it
@@ -581,4 +599,5 @@ unsigned AArch64MCCodeEmitter::fixOneOperandFPComparison(
   return EncodedValue;
 }
 
+#define ENABLE_INSTR_PREDICATE_VERIFIER
 #include "AArch64GenMCCodeEmitter.inc"

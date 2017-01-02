@@ -1,10 +1,17 @@
 # List of all GlobalISel files.
 set(GLOBAL_ISEL_FILES
+      CallLowering.cpp
       IRTranslator.cpp
+      InstructionSelect.cpp
+      InstructionSelector.cpp
       MachineIRBuilder.cpp
+      LegalizerHelper.cpp
+      Legalizer.cpp
+      LegalizerInfo.cpp
       RegBankSelect.cpp
       RegisterBank.cpp
       RegisterBankInfo.cpp
+      Utils.cpp
       )
 
 # Add GlobalISel files to the dependencies if the user wants to build it.
@@ -22,6 +29,7 @@ endif()
 add_llvm_library(LLVMGlobalISel
         ${GLOBAL_ISEL_BUILD_FILES}
         GlobalISel.cpp
+        
+        DEPENDS
+        intrinsics_gen
   )
-
-add_dependencies(LLVMGlobalISel intrinsics_gen)

@@ -22,14 +22,16 @@
 #define LLVM_SUPPORT_ALLOCATOR_H
 
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/Support/AlignOf.h"
-#include "llvm/Support/DataTypes.h"
+#include "llvm/Support/Compiler.h"
 #include "llvm/Support/MathExtras.h"
-#include "llvm/Support/Memory.h"
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
+#include <cstdint>
 #include <cstdlib>
+#include <iterator>
+#include <type_traits>
+#include <utility>
 
 namespace llvm {
 
@@ -74,7 +76,7 @@ public:
 
   /// \brief Allocate space for a sequence of objects without constructing them.
   template <typename T> T *Allocate(size_t Num = 1) {
-    return static_cast<T *>(Allocate(Num * sizeof(T), AlignOf<T>::Alignment));
+    return static_cast<T *>(Allocate(Num * sizeof(T), alignof(T)));
   }
 
   /// \brief Deallocate space for a sequence of objects without constructing them.
@@ -114,7 +116,8 @@ namespace detail {
 // printing code uses Allocator.h in its implementation.
 void printBumpPtrAllocatorStats(unsigned NumSlabs, size_t BytesAllocated,
                                 size_t TotalMemory);
-} // End namespace detail.
+
+} // end namespace detail
 
 /// \brief Allocate memory in an ever growing pool, as if by bump-pointer.
 ///
@@ -366,7 +369,7 @@ template <typename T> class SpecificBumpPtrAllocator {
   BumpPtrAllocator Allocator;
 
 public:
-  SpecificBumpPtrAllocator() : Allocator() {}
+  SpecificBumpPtrAllocator() = default;
   SpecificBumpPtrAllocator(SpecificBumpPtrAllocator &&Old)
       : Allocator(std::move(Old.Allocator)) {}
   ~SpecificBumpPtrAllocator() { DestroyAll(); }
@@ -381,7 +384,7 @@ public:
   /// all memory allocated so far.
   void DestroyAll() {
     auto DestroyElements = [](char *Begin, char *End) {
-      assert(Begin == (char*)alignAddr(Begin, alignOf<T>()));
+      assert(Begin == (char *)alignAddr(Begin, alignof(T)));
       for (char *Ptr = Begin; Ptr + sizeof(T) <= End; Ptr += sizeof(T))
         reinterpret_cast<T *>(Ptr)->~T();
     };
@@ -390,7 +393,7 @@ public:
          ++I) {
       size_t AllocatedSlabSize = BumpPtrAllocator::computeSlabSize(
           std::distance(Allocator.Slabs.begin(), I));
-      char *Begin = (char*)alignAddr(*I, alignOf<T>());
+      char *Begin = (char *)alignAddr(*I, alignof(T));
       char *End = *I == Allocator.Slabs.back() ? Allocator.CurPtr
                                                : (char *)*I + AllocatedSlabSize;
 
@@ -400,7 +403,7 @@ public:
     for (auto &PtrAndSize : Allocator.CustomSizedSlabs) {
       void *Ptr = PtrAndSize.first;
       size_t Size = PtrAndSize.second;
-      DestroyElements((char*)alignAddr(Ptr, alignOf<T>()), (char *)Ptr + Size);
+      DestroyElements((char *)alignAddr(Ptr, alignof(T)), (char *)Ptr + Size);
     }
 
     Allocator.Reset();
@@ -410,7 +413,7 @@ public:
   T *Allocate(size_t num = 1) { return Allocator.Allocate<T>(num); }
 };
 
-}  // end namespace llvm
+} // end namespace llvm
 
 template <typename AllocatorT, size_t SlabSize, size_t SizeThreshold>
 void *operator new(size_t Size,

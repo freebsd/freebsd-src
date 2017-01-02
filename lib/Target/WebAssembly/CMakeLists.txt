@@ -12,7 +12,9 @@ add_public_tablegen_target(WebAssemblyCommonTableGen)
 add_llvm_target(WebAssemblyCodeGen
   WebAssemblyArgumentMove.cpp
   WebAssemblyAsmPrinter.cpp
+  WebAssemblyCallIndirectFixup.cpp
   WebAssemblyCFGStackify.cpp
+  WebAssemblyExplicitLocals.cpp
   WebAssemblyFastISel.cpp
   WebAssemblyFixIrreducibleControlFlow.cpp
   WebAssemblyFrameLowering.cpp
@@ -20,6 +22,7 @@ add_llvm_target(WebAssemblyCodeGen
   WebAssemblyISelLowering.cpp
   WebAssemblyInstrInfo.cpp
   WebAssemblyLowerBrUnless.cpp
+  WebAssemblyLowerEmscriptenEHSjLj.cpp
   WebAssemblyMachineFunctionInfo.cpp
   WebAssemblyMCInstLower.cpp
   WebAssemblyOptimizeLiveIntervals.cpp
@@ -38,9 +41,11 @@ add_llvm_target(WebAssemblyCodeGen
   WebAssemblyTargetMachine.cpp
   WebAssemblyTargetObjectFile.cpp
   WebAssemblyTargetTransformInfo.cpp
-)
+  WebAssemblyUtilities.cpp
 
-add_dependencies(LLVMWebAssemblyCodeGen intrinsics_gen)
+  DEPENDS
+  intrinsics_gen
+)
 
 add_subdirectory(Disassembler)
 add_subdirectory(InstPrinter)

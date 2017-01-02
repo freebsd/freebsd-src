@@ -2,7 +2,6 @@ set(LLVM_TARGET_DEFINITIONS Hexagon.td)
 
 tablegen(LLVM HexagonGenAsmMatcher.inc -gen-asm-matcher)
 tablegen(LLVM HexagonGenAsmWriter.inc -gen-asm-writer)
-tablegen(LLVM HexagonGenCallingConv.inc -gen-callingconv)
 tablegen(LLVM HexagonGenDAGISel.inc -gen-dag-isel)
 tablegen(LLVM HexagonGenDFAPacketizer.inc -gen-dfa-packetizer)
 tablegen(LLVM HexagonGenDisassemblerTables.inc -gen-disassembler)
@@ -21,6 +20,7 @@ add_llvm_target(HexagonCodeGen
   HexagonBranchRelaxation.cpp
   HexagonCFGOptimizer.cpp
   HexagonCommonGEP.cpp
+  HexagonConstPropagation.cpp
   HexagonCopyToCombine.cpp
   HexagonEarlyIfConv.cpp
   HexagonExpandCondsets.cpp
@@ -31,6 +31,7 @@ add_llvm_target(HexagonCodeGen
   HexagonGenMux.cpp
   HexagonGenPredicate.cpp
   HexagonHardwareLoops.cpp
+  HexagonHazardRecognizer.cpp
   HexagonInstrInfo.cpp
   HexagonISelDAGToDAG.cpp
   HexagonISelLowering.cpp
@@ -41,7 +42,6 @@ add_llvm_target(HexagonCodeGen
   HexagonOptAddrMode.cpp
   HexagonOptimizeSZextends.cpp
   HexagonPeephole.cpp
-  HexagonRDF.cpp
   HexagonRDFOpt.cpp
   HexagonRegisterInfo.cpp
   HexagonSelectionDAGInfo.cpp
@@ -52,6 +52,7 @@ add_llvm_target(HexagonCodeGen
   HexagonTargetMachine.cpp
   HexagonTargetObjectFile.cpp
   HexagonTargetTransformInfo.cpp
+  HexagonVectorPrint.cpp
   HexagonVLIWPacketizer.cpp
   RDFCopy.cpp
   RDFDeadCode.cpp
@@ -63,3 +64,4 @@ add_subdirectory(AsmParser)
 add_subdirectory(TargetInfo)
 add_subdirectory(MCTargetDesc)
 add_subdirectory(Disassembler)
+

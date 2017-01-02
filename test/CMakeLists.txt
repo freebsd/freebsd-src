@@ -32,6 +32,8 @@ set(LLVM_TEST_DEPENDS
           llvm-as
           llvm-bcanalyzer
           llvm-c-test
+          llvm-cat
+          llvm-cxxfilt
           llvm-config
           llvm-cov
           llvm-cxxdump
@@ -43,10 +45,13 @@ set(LLVM_TEST_DEPENDS
           llvm-extract
           llvm-lib
           llvm-link
+          llvm-lto2
           llvm-mc
           llvm-mcmarkup
+          llvm-modextract
           llvm-nm
           llvm-objdump
+          llvm-opt-report
           llvm-pdbdump
           llvm-profdata
           llvm-ranlib
@@ -54,8 +59,10 @@ set(LLVM_TEST_DEPENDS
           llvm-rtdyld
           llvm-size
           llvm-split
+          llvm-strings
           llvm-symbolizer
           llvm-tblgen
+          llvm-xray
           not
           obj2yaml
           opt
@@ -87,7 +94,22 @@ if(TARGET LTO)
   set(LLVM_TEST_DEPENDS ${LLVM_TEST_DEPENDS} LTO)
 endif()
 
+if(LLVM_BUILD_EXAMPLES)
+  list(APPEND LLVM_TEST_DEPENDS
+    Kaleidoscope-Ch3
+    Kaleidoscope-Ch4
+    Kaleidoscope-Ch5
+    Kaleidoscope-Ch6
+    Kaleidoscope-Ch7
+    )
+endif()
+
 if(TARGET ocaml_llvm)
+  # Clear all non-OCaml cross-target dependencies when building out-of-tree.
+  if(LLVM_OCAML_OUT_OF_TREE)
+    set(LLVM_TEST_DEPENDS)
+  endif()
+
   set(LLVM_TEST_DEPENDS ${LLVM_TEST_DEPENDS}
           ocaml_llvm
           ocaml_llvm_all_backends
@@ -104,16 +126,6 @@ if(TARGET ocaml_llvm)
           ocaml_llvm_transform_utils
           ocaml_llvm_vectorize
         )
-endif()
-
-if(LLVM_BUILD_EXAMPLES)
-  list(APPEND LLVM_TEST_DEPENDS
-    Kaleidoscope-Ch3
-    Kaleidoscope-Ch4
-    Kaleidoscope-Ch5
-    Kaleidoscope-Ch6
-    Kaleidoscope-Ch7
-    )
 endif()
 
 add_custom_target(llvm-test-depends DEPENDS ${LLVM_TEST_DEPENDS})

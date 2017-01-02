@@ -53,7 +53,7 @@ public:
                                     unsigned ConstraintID,
                                     std::vector<SDValue> &OutOps) override;
 
-  const char *getPassName() const override {
+  StringRef getPassName() const override {
     return "SPARC DAG->DAG Pattern Instruction Selection";
   }
 
@@ -360,20 +360,13 @@ void SparcDAGToDAGISel::Select(SDNode *N) {
 
     // FIXME: Handle div by immediate.
     unsigned Opcode = N->getOpcode() == ISD::SDIV ? SP::SDIVrr : SP::UDIVrr;
+    // SDIV is a hardware erratum on some LEON2 processors. Replace it with SDIVcc here.
+    if (((SparcTargetMachine&)TM).getSubtargetImpl()->performSDIVReplace()
+        &&
+        Opcode == SP::SDIVrr) {
+      Opcode = SP::SDIVCCrr;
+    }
     CurDAG->SelectNodeTo(N, Opcode, MVT::i32, DivLHS, DivRHS, TopPart);
-    return;
-  }
-  case ISD::MULHU:
-  case ISD::MULHS: {
-    // FIXME: Handle mul by immediate.
-    SDValue MulLHS = N->getOperand(0);
-    SDValue MulRHS = N->getOperand(1);
-    unsigned Opcode = N->getOpcode() == ISD::MULHU ? SP::UMULrr : SP::SMULrr;
-    SDNode *Mul =
-        CurDAG->getMachineNode(Opcode, dl, MVT::i32, MVT::i32, MulLHS, MulRHS);
-    SDValue ResultHigh = SDValue(Mul, 1);
-    ReplaceUses(SDValue(N, 0), ResultHigh);
-    CurDAG->RemoveDeadNode(N);
     return;
   }
   }

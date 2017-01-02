@@ -16,13 +16,16 @@ add_llvm_target(SystemZCodeGen
   SystemZCallingConv.cpp
   SystemZConstantPoolValue.cpp
   SystemZElimCompare.cpp
+  SystemZExpandPseudo.cpp
   SystemZFrameLowering.cpp
+  SystemZHazardRecognizer.cpp
   SystemZISelDAGToDAG.cpp
   SystemZISelLowering.cpp
   SystemZInstrInfo.cpp
   SystemZLDCleanup.cpp
   SystemZLongBranch.cpp
   SystemZMachineFunctionInfo.cpp
+  SystemZMachineScheduler.cpp
   SystemZMCInstLower.cpp
   SystemZRegisterInfo.cpp
   SystemZSelectionDAGInfo.cpp

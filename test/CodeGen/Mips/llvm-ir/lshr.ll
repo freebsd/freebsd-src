@@ -123,20 +123,20 @@ entry:
   ; GP64:         dsrlv   $2, $4, $5
 
   ; MMR3:       srlv      $[[T0:[0-9]+]], $5, $7
-  ; MMR3:       sll16     $[[T1:[0-9]+]], $4, 1
-  ; MMR3:       not16     $[[T2:[0-9]+]], $7
-  ; MMR3:       sllv      $[[T3:[0-9]+]], $[[T1]], $[[T2]]
+  ; MMR3:       not16     $[[T1:[0-9]+]], $7
+  ; MMR3:       sll16     $[[T2:[0-9]+]], $4, 1
+  ; MMR3:       sllv      $[[T3:[0-9]+]], $[[T2]], $[[T1]]
   ; MMR3:       or16      $[[T4:[0-9]+]], $[[T0]]
   ; MMR3:       srlv      $[[T5:[0-9]+]], $4, $7
   ; MMR3:       andi16    $[[T6:[0-9]+]], $7, 32
   ; MMR3:       movn      $[[T7:[0-9]+]], $[[T5]], $[[T6]]
-  ; MMR3:       lui       $[[T8:[0-9]+]], 0
+  ; MMR3:       li16      $[[T8:[0-9]+]], 0
   ; MMR3:       movn      $2, $[[T8]], $[[T6]]
 
   ; MMR6:       srlv      $[[T0:[0-9]+]], $5, $7
-  ; MMR6:       sll16     $[[T1:[0-9]+]], $4, 1
-  ; MMR6:       not16     $[[T2:[0-9]+]], $7
-  ; MMR6:       sllv      $[[T3:[0-9]+]], $[[T1]], $[[T2]]
+  ; MMR6:       not16     $[[T1:[0-9]+]], $7
+  ; MMR6:       sll16     $[[T2:[0-9]+]], $4, 1
+  ; MMR6:       sllv      $[[T3:[0-9]+]], $[[T2]], $[[T1]]
   ; MMR6:       or16      $[[T4:[0-9]+]], $[[T0]]
   ; MMR6:       andi16    $[[T5:[0-9]+]], $7, 32
   ; MMR6:       seleqz    $[[T6:[0-9]+]], $[[T4]], $[[T5]]
@@ -153,7 +153,9 @@ define signext i128 @lshr_i128(i128 signext %a, i128 signext %b) {
 entry:
 ; ALL-LABEL: lshr_i128:
 
-  ; GP32:         lw      $25, %call16(__lshrti3)($gp)
+  ; o32 shouldn't use TImode helpers.
+  ; GP32-NOT:       lw        $25, %call16(__lshrti3)($gp)
+  ; MM-NOT:         lw        $25, %call16(__lshrti3)($2)
 
   ; M3:             sll       $[[T0:[0-9]+]], $7, 0
   ; M3:             dsrlv     $[[T1:[0-9]+]], $4, $7
@@ -199,8 +201,6 @@ entry:
   ; 64R6:           or        $3, $[[T10]], $[[T8]]
   ; 64R6:           jr        $ra
   ; 64R6:           seleqz    $2, $[[T9]], $[[T7]]
-
-  ; MM:             lw        $25, %call16(__lshrti3)($2)
 
   %r = lshr i128 %a, %b
   ret i128 %r

@@ -61,6 +61,15 @@ enum PPC970_Unit {
   PPC970_VPERM  = 6 << PPC970_Shift,   // Vector Permute Unit
   PPC970_BRU    = 7 << PPC970_Shift    // Branch Unit
 };
+
+enum {
+  /// Shift count to bypass PPC970 flags
+  NewDef_Shift = 6,
+
+  /// The VSX instruction that uses VSX register (vs0-vs63), instead of VMX
+  /// register (v0-v31).
+  UseVSXReg = 0x1 << NewDef_Shift
+};
 } // end namespace PPCII
 
 class PPCSubtarget;
@@ -168,10 +177,12 @@ public:
                      MachineBasicBlock *&FBB,
                      SmallVectorImpl<MachineOperand> &Cond,
                      bool AllowModify) const override;
-  unsigned RemoveBranch(MachineBasicBlock &MBB) const override;
-  unsigned InsertBranch(MachineBasicBlock &MBB, MachineBasicBlock *TBB,
+  unsigned removeBranch(MachineBasicBlock &MBB,
+                        int *BytesRemoved = nullptr) const override;
+  unsigned insertBranch(MachineBasicBlock &MBB, MachineBasicBlock *TBB,
                         MachineBasicBlock *FBB, ArrayRef<MachineOperand> Cond,
-                        const DebugLoc &DL) const override;
+                        const DebugLoc &DL,
+                        int *BytesAdded = nullptr) const override;
 
   // Select analysis.
   bool canInsertSelect(const MachineBasicBlock &, ArrayRef<MachineOperand> Cond,
@@ -198,7 +209,7 @@ public:
                             const TargetRegisterInfo *TRI) const override;
 
   bool
-  ReverseBranchCondition(SmallVectorImpl<MachineOperand> &Cond) const override;
+  reverseBranchCondition(SmallVectorImpl<MachineOperand> &Cond) const override;
 
   bool FoldImmediate(MachineInstr &UseMI, MachineInstr &DefMI, unsigned Reg,
                      MachineRegisterInfo *MRI) const override;
@@ -256,7 +267,7 @@ public:
   /// GetInstSize - Return the number of bytes of code the specified
   /// instruction may be.  This returns the maximum number of bytes.
   ///
-  unsigned GetInstSizeInBytes(const MachineInstr &MI) const;
+  unsigned getInstSizeInBytes(const MachineInstr &MI) const override;
 
   void getNoopForMachoTarget(MCInst &NopInst) const override;
 
@@ -271,6 +282,14 @@ public:
 
   // Lower pseudo instructions after register allocation.
   bool expandPostRAPseudo(MachineInstr &MI) const override;
+
+  static bool isVFRegister(unsigned Reg) {
+    return Reg >= PPC::VF0 && Reg <= PPC::VF31;
+  }
+  static bool isVRRegister(unsigned Reg) {
+    return Reg >= PPC::V0 && Reg <= PPC::V31;
+  }
+  const TargetRegisterClass *updatedRC(const TargetRegisterClass *RC) const;
 };
 
 }

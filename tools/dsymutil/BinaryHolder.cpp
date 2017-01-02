@@ -41,9 +41,8 @@ void BinaryHolder::changeBackingMemoryBuffer(
   CurrentMemoryBuffer = std::move(Buf);
 }
 
-ErrorOr<std::vector<MemoryBufferRef>>
-BinaryHolder::GetMemoryBuffersForFile(StringRef Filename,
-                                      sys::TimeValue Timestamp) {
+ErrorOr<std::vector<MemoryBufferRef>> BinaryHolder::GetMemoryBuffersForFile(
+    StringRef Filename, sys::TimePoint<std::chrono::seconds> Timestamp) {
   if (Verbose)
     outs() << "trying to open '" << Filename << "'\n";
 
@@ -85,9 +84,8 @@ BinaryHolder::GetMemoryBuffersForFile(StringRef Filename,
                                   *CurrentFatBinary);
 }
 
-ErrorOr<std::vector<MemoryBufferRef>>
-BinaryHolder::GetArchiveMemberBuffers(StringRef Filename,
-                                      sys::TimeValue Timestamp) {
+ErrorOr<std::vector<MemoryBufferRef>> BinaryHolder::GetArchiveMemberBuffers(
+    StringRef Filename, sys::TimePoint<std::chrono::seconds> Timestamp) {
   if (CurrentArchives.empty())
     return make_error_code(errc::no_such_file_or_directory);
 
@@ -102,12 +100,15 @@ BinaryHolder::GetArchiveMemberBuffers(StringRef Filename,
   Buffers.reserve(CurrentArchives.size());
 
   for (const auto &CurrentArchive : CurrentArchives) {
-    Error Err;
+    Error Err = Error::success();
     for (auto Child : CurrentArchive->children(Err)) {
       if (auto NameOrErr = Child.getName()) {
         if (*NameOrErr == Filename) {
-          if (Timestamp != sys::TimeValue::PosixZeroTime() &&
-              Timestamp != Child.getLastModified()) {
+          auto ModTimeOrErr = Child.getLastModified();
+          if (!ModTimeOrErr)
+            return errorToErrorCode(ModTimeOrErr.takeError());
+          if (Timestamp != sys::TimePoint<>() &&
+              Timestamp != ModTimeOrErr.get()) {
             if (Verbose)
               outs() << "\tmember had timestamp mismatch.\n";
             continue;
@@ -115,8 +116,8 @@ BinaryHolder::GetArchiveMemberBuffers(StringRef Filename,
           if (Verbose)
             outs() << "\tfound member in current archive.\n";
           auto ErrOrMem = Child.getMemoryBufferRef();
-          if (auto Err = ErrOrMem.getError())
-            return Err;
+          if (!ErrOrMem)
+            return errorToErrorCode(ErrOrMem.takeError());
           Buffers.push_back(*ErrOrMem);
         }
       }
@@ -131,8 +132,8 @@ BinaryHolder::GetArchiveMemberBuffers(StringRef Filename,
 }
 
 ErrorOr<std::vector<MemoryBufferRef>>
-BinaryHolder::MapArchiveAndGetMemberBuffers(StringRef Filename,
-                                            sys::TimeValue Timestamp) {
+BinaryHolder::MapArchiveAndGetMemberBuffers(
+    StringRef Filename, sys::TimePoint<std::chrono::seconds> Timestamp) {
   StringRef ArchiveFilename = Filename.substr(0, Filename.find('('));
 
   auto ErrOrBuff = MemoryBuffer::getFileOrSTDIN(ArchiveFilename);
@@ -180,7 +181,8 @@ BinaryHolder::getObjfileForArch(const Triple &T) {
 }
 
 ErrorOr<std::vector<const object::ObjectFile *>>
-BinaryHolder::GetObjectFiles(StringRef Filename, sys::TimeValue Timestamp) {
+BinaryHolder::GetObjectFiles(StringRef Filename,
+                             sys::TimePoint<std::chrono::seconds> Timestamp) {
   auto ErrOrMemBufferRefs = GetMemoryBuffersForFile(Filename, Timestamp);
   if (auto Err = ErrOrMemBufferRefs.getError())
     return Err;

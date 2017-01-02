@@ -1,6 +1,6 @@
 set(LIBFUZZER_FLAGS_BASE "${CMAKE_CXX_FLAGS}")
 # Disable the coverage and sanitizer instrumentation for the fuzzer itself.
-set(CMAKE_CXX_FLAGS "${LIBFUZZER_FLAGS_BASE} -fno-sanitize=all -fno-sanitize-coverage=edge,trace-cmp,indirect-calls,8bit-counters -Werror")
+set(CMAKE_CXX_FLAGS "${LIBFUZZER_FLAGS_BASE} -fno-sanitize-coverage=trace-pc-guard,edge,trace-cmp,indirect-calls,8bit-counters -Werror")
 if( LLVM_USE_SANITIZE_COVERAGE )
   if(NOT "${LLVM_USE_SANITIZER}" STREQUAL "Address")
     message(FATAL_ERROR
@@ -10,16 +10,24 @@ if( LLVM_USE_SANITIZE_COVERAGE )
   endif()
   add_library(LLVMFuzzerNoMainObjects OBJECT
     FuzzerCrossOver.cpp
-    FuzzerTraceState.cpp
     FuzzerDriver.cpp
     FuzzerExtFunctionsDlsym.cpp
     FuzzerExtFunctionsWeak.cpp
+    FuzzerExtFunctionsWeakAlias.cpp
     FuzzerIO.cpp
+    FuzzerIOPosix.cpp
+    FuzzerIOWindows.cpp
     FuzzerLoop.cpp
+    FuzzerMerge.cpp
     FuzzerMutate.cpp
     FuzzerSHA1.cpp
     FuzzerTracePC.cpp
+    FuzzerTraceState.cpp
     FuzzerUtil.cpp
+    FuzzerUtilDarwin.cpp
+    FuzzerUtilLinux.cpp
+    FuzzerUtilPosix.cpp
+    FuzzerUtilWindows.cpp
     )
   add_library(LLVMFuzzerNoMain STATIC
     $<TARGET_OBJECTS:LLVMFuzzerNoMainObjects>

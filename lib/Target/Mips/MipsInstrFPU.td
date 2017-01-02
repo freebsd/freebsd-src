@@ -284,6 +284,16 @@ defm CEIL_W  : ROUND_M<"ceil.w.d", II_CEIL>, ABSS_FM<0xe, 17>, ISA_MIPS2;
 defm FLOOR_W : ROUND_M<"floor.w.d", II_FLOOR>, ABSS_FM<0xf, 17>, ISA_MIPS2;
 defm CVT_W   : ROUND_M<"cvt.w.d", II_CVT>, ABSS_FM<0x24, 17>;
 
+let AdditionalPredicates = [NotInMicroMips] in {
+  def RECIP_S : MMRel, ABSS_FT<"recip.s", FGR32Opnd, FGR32Opnd, II_RECIP_S>,
+                ABSS_FM<0b010101, 0x10>, INSN_MIPS4_32R2;
+  def RECIP_D : MMRel, ABSS_FT<"recip.d", FGR64Opnd, FGR64Opnd, II_RECIP_D>,
+                ABSS_FM<0b010101, 0x11>, INSN_MIPS4_32R2;
+  def RSQRT_S : MMRel, ABSS_FT<"rsqrt.s", FGR32Opnd, FGR32Opnd, II_RSQRT_S>,
+                ABSS_FM<0b010110, 0x10>, INSN_MIPS4_32R2;
+  def RSQRT_D : MMRel, ABSS_FT<"rsqrt.d", FGR64Opnd, FGR64Opnd, II_RSQRT_D>,
+                ABSS_FM<0b010110, 0x11>, INSN_MIPS4_32R2;
+}
 let DecoderNamespace = "Mips64" in {
   let AdditionalPredicates = [NotInMicroMips] in {
   def ROUND_L_S : ABSS_FT<"round.l.s", FGR64Opnd, FGR32Opnd, II_ROUND>,
@@ -361,8 +371,10 @@ defm FSQRT : ABSS_M<"sqrt.d", II_SQRT_D, fsqrt>, ABSS_FM<0x4, 17>, ISA_MIPS2;
 // regardless of register aliasing.
 
 /// Move Control Registers From/To CPU Registers
-def CFC1 : MMRel, MFC1_FT<"cfc1", GPR32Opnd, CCROpnd, II_CFC1>, MFC1_FM<2>;
-def CTC1 : MMRel, MTC1_FT<"ctc1", CCROpnd, GPR32Opnd, II_CTC1>, MFC1_FM<6>;
+let AdditionalPredicates = [NotInMicroMips] in {
+  def CFC1 : MMRel, MFC1_FT<"cfc1", GPR32Opnd, CCROpnd, II_CFC1>, MFC1_FM<2>;
+  def CTC1 : MMRel, MTC1_FT<"ctc1", CCROpnd, GPR32Opnd, II_CTC1>, MFC1_FM<6>;
+}
 def MFC1 : MMRel, MFC1_FT<"mfc1", GPR32Opnd, FGR32Opnd, II_MFC1,
                           bitconvert>, MFC1_FM<0>;
 def MTC1 : MMRel, MTC1_FT<"mtc1", FGR32Opnd, GPR32Opnd, II_MTC1,
@@ -599,6 +611,25 @@ def : MipsInstAlias<"bc1f $offset", (BC1F FCC0, brtarget:$offset)>,
 def : MipsInstAlias<"bc1fl $offset", (BC1FL FCC0, brtarget:$offset)>,
       ISA_MIPS2_NOT_32R6_64R6, HARDFLOAT;
 
+def : MipsInstAlias
+        <"s.s $fd, $addr", (SWC1 FGR32Opnd:$fd, mem_simm16:$addr), 0>,
+      ISA_MIPS2, HARDFLOAT;
+def : MipsInstAlias
+        <"s.d $fd, $addr", (SDC1 AFGR64Opnd:$fd, mem_simm16:$addr), 0>,
+      FGR_32, ISA_MIPS2, HARDFLOAT;
+def : MipsInstAlias
+        <"s.d $fd, $addr", (SDC164 FGR64Opnd:$fd, mem_simm16:$addr), 0>,
+      FGR_64, ISA_MIPS2, HARDFLOAT;
+
+def : MipsInstAlias
+        <"l.s $fd, $addr", (LWC1 FGR32Opnd:$fd, mem_simm16:$addr), 0>,
+      ISA_MIPS2, HARDFLOAT;
+def : MipsInstAlias
+        <"l.d $fd, $addr", (LDC1 AFGR64Opnd:$fd, mem_simm16:$addr), 0>,
+      FGR_32, ISA_MIPS2, HARDFLOAT;
+def : MipsInstAlias
+        <"l.d $fd, $addr", (LDC164 FGR64Opnd:$fd, mem_simm16:$addr), 0>,
+      FGR_64, ISA_MIPS2, HARDFLOAT;
 //===----------------------------------------------------------------------===//
 // Floating Point Patterns
 //===----------------------------------------------------------------------===//
@@ -614,9 +645,9 @@ def : MipsPat<(f64 (sint_to_fp GPR32Opnd:$src)),
               (PseudoCVT_D32_W GPR32Opnd:$src)>, FGR_32;
 def : MipsPat<(MipsTruncIntFP AFGR64Opnd:$src),
               (TRUNC_W_D32 AFGR64Opnd:$src)>, FGR_32;
-def : MipsPat<(f32 (fround AFGR64Opnd:$src)),
+def : MipsPat<(f32 (fpround AFGR64Opnd:$src)),
               (CVT_S_D32 AFGR64Opnd:$src)>, FGR_32;
-def : MipsPat<(f64 (fextend FGR32Opnd:$src)),
+def : MipsPat<(f64 (fpextend FGR32Opnd:$src)),
               (CVT_D32_S FGR32Opnd:$src)>, FGR_32;
 
 def : MipsPat<(f64 fpimm0), (DMTC1 ZERO_64)>, FGR_64;
@@ -636,9 +667,9 @@ def : MipsPat<(MipsTruncIntFP FGR32Opnd:$src),
 def : MipsPat<(MipsTruncIntFP FGR64Opnd:$src),
               (TRUNC_L_D64 FGR64Opnd:$src)>, FGR_64;
 
-def : MipsPat<(f32 (fround FGR64Opnd:$src)),
+def : MipsPat<(f32 (fpround FGR64Opnd:$src)),
               (CVT_S_D64 FGR64Opnd:$src)>, FGR_64;
-def : MipsPat<(f64 (fextend FGR32Opnd:$src)),
+def : MipsPat<(f64 (fpextend FGR32Opnd:$src)),
               (CVT_D64_S FGR32Opnd:$src)>, FGR_64;
 
 // Patterns for loads/stores with a reg+imm operand.

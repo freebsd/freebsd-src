@@ -9,10 +9,12 @@
 ; GCN: s_mov_b32 m0, -1
 
 ; GCN: BB0_2:
+; GCN-NOT: m0
 ; GCN: ds_read_b32
+; GCN-NOT: m0
 ; GCN: buffer_store_dword
 
-; GCN: s_cbranch_vccz BB0_2
+; GCN: s_cbranch_scc0 BB0_2
 
 ; GCN: BB0_3:
 ; GCN-NEXT: s_endpgm

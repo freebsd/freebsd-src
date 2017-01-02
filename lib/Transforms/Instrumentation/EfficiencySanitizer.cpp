@@ -99,12 +99,23 @@ static const char *const EsanWhichToolName = "__esan_which_tool";
 // FIXME: Try to place these shadow constants, the names of the __esan_*
 // interface functions, and the ToolType enum into a header shared between
 // llvm and compiler-rt.
-static const uint64_t ShadowMask = 0x00000fffffffffffull;
-static const uint64_t ShadowOffs[3] = { // Indexed by scale
-  0x0000130000000000ull,
-  0x0000220000000000ull,
-  0x0000440000000000ull,
+struct ShadowMemoryParams {
+  uint64_t ShadowMask;
+  uint64_t ShadowOffs[3];
 };
+
+static const ShadowMemoryParams ShadowParams47 = {
+    0x00000fffffffffffull,
+    {
+        0x0000130000000000ull, 0x0000220000000000ull, 0x0000440000000000ull,
+    }};
+
+static const ShadowMemoryParams ShadowParams40 = {
+    0x0fffffffffull,
+    {
+        0x1300000000ull, 0x2200000000ull, 0x4400000000ull,
+    }};
+
 // This array is indexed by the ToolType enum.
 static const int ShadowScale[] = {
   0, // ESAN_None.
@@ -154,7 +165,7 @@ public:
   EfficiencySanitizer(
       const EfficiencySanitizerOptions &Opts = EfficiencySanitizerOptions())
       : ModulePass(ID), Options(OverrideOptionsFromCL(Opts)) {}
-  const char *getPassName() const override;
+  StringRef getPassName() const override;
   void getAnalysisUsage(AnalysisUsage &AU) const override;
   bool runOnModule(Module &M) override;
   static char ID;
@@ -219,6 +230,7 @@ private:
   // Remember the counter variable for each struct type to avoid
   // recomputing the variable name later during instrumentation.
   std::map<Type *, GlobalVariable *> StructTyMap;
+  ShadowMemoryParams ShadowParams;
 };
 } // namespace
 
@@ -231,7 +243,7 @@ INITIALIZE_PASS_END(
     EfficiencySanitizer, "esan",
     "EfficiencySanitizer: finds performance issues.", false, false)
 
-const char *EfficiencySanitizer::getPassName() const {
+StringRef EfficiencySanitizer::getPassName() const {
   return "EfficiencySanitizer";
 }
 
@@ -301,21 +313,21 @@ void EfficiencySanitizer::createStructCounterName(
   else
     NameStr += "struct.anon";
   // We allow the actual size of the StructCounterName to be larger than
-  // MaxStructCounterNameSize and append #NumFields and at least one
+  // MaxStructCounterNameSize and append $NumFields and at least one
   // field type id.
-  // Append #NumFields.
-  NameStr += "#";
+  // Append $NumFields.
+  NameStr += "$";
   Twine(StructTy->getNumElements()).toVector(NameStr);
   // Append struct field type ids in the reverse order.
   for (int i = StructTy->getNumElements() - 1; i >= 0; --i) {
-    NameStr += "#";
+    NameStr += "$";
     Twine(StructTy->getElementType(i)->getTypeID()).toVector(NameStr);
     if (NameStr.size() >= MaxStructCounterNameSize)
       break;
   }
   if (StructTy->isLiteral()) {
-    // End with # for literal struct.
-    NameStr += "#";
+    // End with $ for literal struct.
+    NameStr += "$";
   }
 }
 
@@ -528,6 +540,13 @@ void EfficiencySanitizer::createDestructor(Module &M, Constant *ToolInfoArg) {
 }
 
 bool EfficiencySanitizer::initOnModule(Module &M) {
+
+  Triple TargetTriple(M.getTargetTriple());
+  if (TargetTriple.getArch() == Triple::mips64 || TargetTriple.getArch() == Triple::mips64el)
+    ShadowParams = ShadowParams40;
+  else
+    ShadowParams = ShadowParams47;
+
   Ctx = &M.getContext();
   const DataLayout &DL = M.getDataLayout();
   IRBuilder<> IRB(M.getContext());
@@ -559,13 +578,13 @@ bool EfficiencySanitizer::initOnModule(Module &M) {
 
 Value *EfficiencySanitizer::appToShadow(Value *Shadow, IRBuilder<> &IRB) {
   // Shadow = ((App & Mask) + Offs) >> Scale
-  Shadow = IRB.CreateAnd(Shadow, ConstantInt::get(IntptrTy, ShadowMask));
+  Shadow = IRB.CreateAnd(Shadow, ConstantInt::get(IntptrTy, ShadowParams.ShadowMask));
   uint64_t Offs;
   int Scale = ShadowScale[Options.ToolType];
   if (Scale <= 2)
-    Offs = ShadowOffs[Scale];
+    Offs = ShadowParams.ShadowOffs[Scale];
   else
-    Offs = ShadowOffs[0] << Scale;
+    Offs = ShadowParams.ShadowOffs[0] << Scale;
   Shadow = IRB.CreateAdd(Shadow, ConstantInt::get(IntptrTy, Offs));
   if (Scale > 0)
     Shadow = IRB.CreateLShr(Shadow, Scale);

@@ -37,7 +37,11 @@ set(LLVM_CXXFLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_${uppercase_CMAKE_BUILD_
 set(LLVM_BUILD_SYSTEM cmake)
 set(LLVM_HAS_RTTI ${LLVM_CONFIG_HAS_RTTI})
 set(LLVM_DYLIB_VERSION "${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}${LLVM_VERSION_SUFFIX}")
-set(LLVM_HAS_GLOBAL_ISEL "${LLVM_BUILD_GLOBAL_ISEL}")
+if(LLVM_BUILD_GLOBAL_ISEL)
+  set(LLVM_HAS_GLOBAL_ISEL "ON")
+else()
+  set(LLVM_HAS_GLOBAL_ISEL "OFF")
+endif()
 
 # Use the C++ link flags, since they should be a superset of C link flags.
 set(LLVM_LDFLAGS "${CMAKE_CXX_LINK_FLAGS}")
@@ -65,7 +69,8 @@ if(CMAKE_CROSSCOMPILING)
     COMMAND ${CMAKE_COMMAND} --build . --target llvm-config --config $<CONFIGURATION>
     DEPENDS ${LLVM_NATIVE_BUILD}/CMakeCache.txt
     WORKING_DIRECTORY ${LLVM_NATIVE_BUILD}
-    COMMENT "Building native llvm-config...")
+    COMMENT "Building native llvm-config..."
+    USES_TERMINAL)
   add_custom_target(${project}NativeLLVMConfig DEPENDS ${${project}_LLVM_CONFIG_EXE})
   add_dependencies(${project}NativeLLVMConfig CONFIGURE_LLVM_NATIVE)
 

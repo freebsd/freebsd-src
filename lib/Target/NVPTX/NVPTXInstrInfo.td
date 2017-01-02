@@ -71,10 +71,6 @@ def CmpLT   : PatLeaf<(i32 2)>;
 def CmpLE   : PatLeaf<(i32 3)>;
 def CmpGT   : PatLeaf<(i32 4)>;
 def CmpGE   : PatLeaf<(i32 5)>;
-def CmpLO   : PatLeaf<(i32 6)>;
-def CmpLS   : PatLeaf<(i32 7)>;
-def CmpHI   : PatLeaf<(i32 8)>;
-def CmpHS   : PatLeaf<(i32 9)>;
 def CmpEQU  : PatLeaf<(i32 10)>;
 def CmpNEU  : PatLeaf<(i32 11)>;
 def CmpLTU  : PatLeaf<(i32 12)>;
@@ -90,10 +86,6 @@ def CmpLT_FTZ   : PatLeaf<(i32 0x102)>;
 def CmpLE_FTZ   : PatLeaf<(i32 0x103)>;
 def CmpGT_FTZ   : PatLeaf<(i32 0x104)>;
 def CmpGE_FTZ   : PatLeaf<(i32 0x105)>;
-def CmpLO_FTZ   : PatLeaf<(i32 0x106)>;
-def CmpLS_FTZ   : PatLeaf<(i32 0x107)>;
-def CmpHI_FTZ   : PatLeaf<(i32 0x108)>;
-def CmpHS_FTZ   : PatLeaf<(i32 0x109)>;
 def CmpEQU_FTZ  : PatLeaf<(i32 0x10A)>;
 def CmpNEU_FTZ  : PatLeaf<(i32 0x10B)>;
 def CmpLTU_FTZ  : PatLeaf<(i32 0x10C)>;
@@ -106,13 +98,6 @@ def CmpNAN_FTZ  : PatLeaf<(i32 0x111)>;
 def CmpMode : Operand<i32> {
   let PrintMethod = "printCmpMode";
 }
-
-def F32ConstZero : Operand<f32>, PatLeaf<(f32 fpimm)>, SDNodeXForm<fpimm, [{
-    return CurDAG->getTargetConstantFP(0.0, MVT::f32);
-  }]>;
-def F32ConstOne : Operand<f32>, PatLeaf<(f32 fpimm)>, SDNodeXForm<fpimm, [{
-    return CurDAG->getTargetConstantFP(1.0, MVT::f32);
-  }]>;
 
 //===----------------------------------------------------------------------===//
 // NVPTX Instruction Predicate Definitions
@@ -131,6 +116,10 @@ def hasAtomRedGen64 : Predicate<"Subtarget->hasAtomRedGen64()">;
 def useAtomRedG64forGen64 :
   Predicate<"!Subtarget->hasAtomRedGen64() && Subtarget->hasAtomRedG64()">;
 def hasAtomAddF32 : Predicate<"Subtarget->hasAtomAddF32()">;
+def hasAtomAddF64 : Predicate<"Subtarget->hasAtomAddF64()">;
+def hasAtomScope : Predicate<"Subtarget->hasAtomScope()">;
+def hasAtomBitwise64 : Predicate<"Subtarget->hasAtomBitwise64()">;
+def hasAtomMinMax64 : Predicate<"Subtarget->hasAtomMinMax64()">;
 def hasVote : Predicate<"Subtarget->hasVote()">;
 def hasDouble : Predicate<"Subtarget->hasDouble()">;
 def reqPTX20 : Predicate<"Subtarget->reqPTX20()">;
@@ -207,15 +196,63 @@ multiclass ADD_SUB_INT_32<string OpcStr, SDNode OpNode> {
 }
 
 // Template for instructions which take three fp64 or fp32 args.  The
-// instructions are named "<OpcStr>.f<Width>" (e.g. "add.f64").
+// instructions are named "<OpcStr>.f<Width>" (e.g. "min.f64").
 //
 // Also defines ftz (flush subnormal inputs and results to sign-preserving
 // zero) variants for fp32 functions.
+//
+// This multiclass should be used for nodes that cannot be folded into FMAs.
+// For nodes that can be folded into FMAs (i.e. adds and muls), use
+// F3_fma_component.
 multiclass F3<string OpcStr, SDNode OpNode> {
    def f64rr :
      NVPTXInst<(outs Float64Regs:$dst),
                (ins Float64Regs:$a, Float64Regs:$b),
                !strconcat(OpcStr, ".f64 \t$dst, $a, $b;"),
+               [(set Float64Regs:$dst, (OpNode Float64Regs:$a, Float64Regs:$b))]>;
+   def f64ri :
+     NVPTXInst<(outs Float64Regs:$dst),
+               (ins Float64Regs:$a, f64imm:$b),
+               !strconcat(OpcStr, ".f64 \t$dst, $a, $b;"),
+               [(set Float64Regs:$dst, (OpNode Float64Regs:$a, fpimm:$b))]>;
+   def f32rr_ftz :
+     NVPTXInst<(outs Float32Regs:$dst),
+               (ins Float32Regs:$a, Float32Regs:$b),
+               !strconcat(OpcStr, ".ftz.f32 \t$dst, $a, $b;"),
+               [(set Float32Regs:$dst, (OpNode Float32Regs:$a, Float32Regs:$b))]>,
+               Requires<[doF32FTZ]>;
+   def f32ri_ftz :
+     NVPTXInst<(outs Float32Regs:$dst),
+               (ins Float32Regs:$a, f32imm:$b),
+               !strconcat(OpcStr, ".ftz.f32 \t$dst, $a, $b;"),
+               [(set Float32Regs:$dst, (OpNode Float32Regs:$a, fpimm:$b))]>,
+               Requires<[doF32FTZ]>;
+   def f32rr :
+     NVPTXInst<(outs Float32Regs:$dst),
+               (ins Float32Regs:$a, Float32Regs:$b),
+               !strconcat(OpcStr, ".f32 \t$dst, $a, $b;"),
+               [(set Float32Regs:$dst, (OpNode Float32Regs:$a, Float32Regs:$b))]>;
+   def f32ri :
+     NVPTXInst<(outs Float32Regs:$dst),
+               (ins Float32Regs:$a, f32imm:$b),
+               !strconcat(OpcStr, ".f32 \t$dst, $a, $b;"),
+               [(set Float32Regs:$dst, (OpNode Float32Regs:$a, fpimm:$b))]>;
+}
+
+// Template for instructions which take three fp64 or fp32 args.  The
+// instructions are named "<OpcStr>.f<Width>" (e.g. "add.f64").
+//
+// Also defines ftz (flush subnormal inputs and results to sign-preserving
+// zero) variants for fp32 functions.
+//
+// This multiclass should be used for nodes that can be folded to make fma ops.
+// In this case, we use the ".rn" variant when FMA is disabled, as this behaves
+// just like the non ".rn" op, but prevents ptxas from creating FMAs.
+multiclass F3_fma_component<string OpcStr, SDNode OpNode> {
+   def f64rr :
+     NVPTXInst<(outs Float64Regs:$dst),
+               (ins Float64Regs:$a, Float64Regs:$b),
+               !strconcat(OpcStr, ".f64 \t$dst, $a, $b;"),
                [(set Float64Regs:$dst, (OpNode Float64Regs:$a, Float64Regs:$b))]>,
                Requires<[allowFMA]>;
    def f64ri :
@@ -248,41 +285,39 @@ multiclass F3<string OpcStr, SDNode OpNode> {
                !strconcat(OpcStr, ".f32 \t$dst, $a, $b;"),
                [(set Float32Regs:$dst, (OpNode Float32Regs:$a, fpimm:$b))]>,
                Requires<[allowFMA]>;
-}
 
-// Same as F3, but defines ".rn" variants (round to nearest even).
-multiclass F3_rn<string OpcStr, SDNode OpNode> {
-   def f64rr :
+   // These have strange names so we don't perturb existing mir tests.
+   def _rnf64rr :
      NVPTXInst<(outs Float64Regs:$dst),
                (ins Float64Regs:$a, Float64Regs:$b),
                !strconcat(OpcStr, ".rn.f64 \t$dst, $a, $b;"),
                [(set Float64Regs:$dst, (OpNode Float64Regs:$a, Float64Regs:$b))]>,
                Requires<[noFMA]>;
-   def f64ri :
+   def _rnf64ri :
      NVPTXInst<(outs Float64Regs:$dst),
                (ins Float64Regs:$a, f64imm:$b),
                !strconcat(OpcStr, ".rn.f64 \t$dst, $a, $b;"),
                [(set Float64Regs:$dst, (OpNode Float64Regs:$a, fpimm:$b))]>,
                Requires<[noFMA]>;
-   def f32rr_ftz :
+   def _rnf32rr_ftz :
      NVPTXInst<(outs Float32Regs:$dst),
                (ins Float32Regs:$a, Float32Regs:$b),
                !strconcat(OpcStr, ".rn.ftz.f32 \t$dst, $a, $b;"),
                [(set Float32Regs:$dst, (OpNode Float32Regs:$a, Float32Regs:$b))]>,
                Requires<[noFMA, doF32FTZ]>;
-   def f32ri_ftz :
+   def _rnf32ri_ftz :
      NVPTXInst<(outs Float32Regs:$dst),
                (ins Float32Regs:$a, f32imm:$b),
                !strconcat(OpcStr, ".rn.ftz.f32 \t$dst, $a, $b;"),
                [(set Float32Regs:$dst, (OpNode Float32Regs:$a, fpimm:$b))]>,
                Requires<[noFMA, doF32FTZ]>;
-   def f32rr :
+   def _rnf32rr :
      NVPTXInst<(outs Float32Regs:$dst),
                (ins Float32Regs:$a, Float32Regs:$b),
                !strconcat(OpcStr, ".rn.f32 \t$dst, $a, $b;"),
                [(set Float32Regs:$dst, (OpNode Float32Regs:$a, Float32Regs:$b))]>,
                Requires<[noFMA]>;
-   def f32ri :
+   def _rnf32ri :
      NVPTXInst<(outs Float32Regs:$dst),
                (ins Float32Regs:$a, f32imm:$b),
                !strconcat(OpcStr, ".rn.f32 \t$dst, $a, $b;"),
@@ -704,22 +739,21 @@ def INEG64 :
 
 // Constant 1.0f
 def FloatConst1 : PatLeaf<(fpimm), [{
-  return &N->getValueAPF().getSemantics() == &llvm::APFloat::IEEEsingle &&
+  return &N->getValueAPF().getSemantics() == &llvm::APFloat::IEEEsingle() &&
          N->getValueAPF().convertToFloat() == 1.0f;
 }]>;
 // Constant 1.0 (double)
 def DoubleConst1 : PatLeaf<(fpimm), [{
-  return &N->getValueAPF().getSemantics() == &llvm::APFloat::IEEEdouble &&
+  return &N->getValueAPF().getSemantics() == &llvm::APFloat::IEEEdouble() &&
          N->getValueAPF().convertToDouble() == 1.0;
 }]>;
 
-defm FADD : F3<"add", fadd>;
-defm FSUB : F3<"sub", fsub>;
-defm FMUL : F3<"mul", fmul>;
+defm FADD : F3_fma_component<"add", fadd>;
+defm FSUB : F3_fma_component<"sub", fsub>;
+defm FMUL : F3_fma_component<"mul", fmul>;
 
-defm FADD_rn : F3_rn<"add", fadd>;
-defm FSUB_rn : F3_rn<"sub", fsub>;
-defm FMUL_rn : F3_rn<"mul", fmul>;
+defm FMIN : F3<"min", fminnum>;
+defm FMAX : F3<"max", fmaxnum>;
 
 defm FABS  : F2<"abs", fabs>;
 defm FNEG  : F2<"neg", fneg>;
@@ -2613,20 +2647,69 @@ def : Pat<(ctpop Int64Regs:$a), (CVT_u64_u32 (POPCr64 Int64Regs:$a), CvtNONE)>;
 def : Pat<(ctpop Int16Regs:$a),
           (CVT_u16_u32 (POPCr32 (CVT_u32_u16 Int16Regs:$a, CvtNONE)), CvtNONE)>;
 
-// fround f64 -> f32
-def : Pat<(f32 (fround Float64Regs:$a)),
+// fpround f64 -> f32
+def : Pat<(f32 (fpround Float64Regs:$a)),
           (CVT_f32_f64 Float64Regs:$a, CvtRN_FTZ)>, Requires<[doF32FTZ]>;
-def : Pat<(f32 (fround Float64Regs:$a)),
+def : Pat<(f32 (fpround Float64Regs:$a)),
           (CVT_f32_f64 Float64Regs:$a, CvtRN)>;
 
-// fextend f32 -> f64
-def : Pat<(f64 (fextend Float32Regs:$a)),
+// fpextend f32 -> f64
+def : Pat<(f64 (fpextend Float32Regs:$a)),
           (CVT_f64_f32 Float32Regs:$a, CvtNONE_FTZ)>, Requires<[doF32FTZ]>;
-def : Pat<(f64 (fextend Float32Regs:$a)),
+def : Pat<(f64 (fpextend Float32Regs:$a)),
           (CVT_f64_f32 Float32Regs:$a, CvtNONE)>;
 
 def retflag : SDNode<"NVPTXISD::RET_FLAG", SDTNone,
                      [SDNPHasChain, SDNPOptInGlue]>;
+
+// fceil, ffloor, fround, ftrunc.
+
+def : Pat<(fceil Float32Regs:$a),
+          (CVT_f32_f32 Float32Regs:$a, CvtRPI_FTZ)>, Requires<[doF32FTZ]>;
+def : Pat<(fceil Float32Regs:$a),
+          (CVT_f32_f32 Float32Regs:$a, CvtRPI)>, Requires<[doNoF32FTZ]>;
+def : Pat<(fceil Float64Regs:$a),
+          (CVT_f64_f64 Float64Regs:$a, CvtRPI)>;
+
+def : Pat<(ffloor Float32Regs:$a),
+          (CVT_f32_f32 Float32Regs:$a, CvtRMI_FTZ)>, Requires<[doF32FTZ]>;
+def : Pat<(ffloor Float32Regs:$a),
+          (CVT_f32_f32 Float32Regs:$a, CvtRMI)>, Requires<[doNoF32FTZ]>;
+def : Pat<(ffloor Float64Regs:$a),
+          (CVT_f64_f64 Float64Regs:$a, CvtRMI)>;
+
+def : Pat<(fround Float32Regs:$a),
+          (CVT_f32_f32 Float32Regs:$a, CvtRNI_FTZ)>, Requires<[doF32FTZ]>;
+def : Pat<(f32 (fround Float32Regs:$a)),
+          (CVT_f32_f32 Float32Regs:$a, CvtRNI)>, Requires<[doNoF32FTZ]>;
+def : Pat<(f64 (fround Float64Regs:$a)),
+          (CVT_f64_f64 Float64Regs:$a, CvtRNI)>;
+
+def : Pat<(ftrunc Float32Regs:$a),
+          (CVT_f32_f32 Float32Regs:$a, CvtRZI_FTZ)>, Requires<[doF32FTZ]>;
+def : Pat<(ftrunc Float32Regs:$a),
+          (CVT_f32_f32 Float32Regs:$a, CvtRZI)>, Requires<[doNoF32FTZ]>;
+def : Pat<(ftrunc Float64Regs:$a),
+          (CVT_f64_f64 Float64Regs:$a, CvtRZI)>;
+
+// nearbyint and rint are implemented as rounding to nearest even.  This isn't
+// strictly correct, because it causes us to ignore the rounding mode.  But it
+// matches what CUDA's "libm" does.
+
+def : Pat<(fnearbyint Float32Regs:$a),
+          (CVT_f32_f32 Float32Regs:$a, CvtRNI_FTZ)>, Requires<[doF32FTZ]>;
+def : Pat<(fnearbyint Float32Regs:$a),
+          (CVT_f32_f32 Float32Regs:$a, CvtRNI)>, Requires<[doNoF32FTZ]>;
+def : Pat<(fnearbyint Float64Regs:$a),
+          (CVT_f64_f64 Float64Regs:$a, CvtRNI)>;
+
+def : Pat<(frint Float32Regs:$a),
+          (CVT_f32_f32 Float32Regs:$a, CvtRNI_FTZ)>, Requires<[doF32FTZ]>;
+def : Pat<(frint Float32Regs:$a),
+          (CVT_f32_f32 Float32Regs:$a, CvtRNI)>, Requires<[doNoF32FTZ]>;
+def : Pat<(frint Float64Regs:$a),
+          (CVT_f64_f64 Float64Regs:$a, CvtRNI)>;
+
 
 //-----------------------------------
 // Control-flow

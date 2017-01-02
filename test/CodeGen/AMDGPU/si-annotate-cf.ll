@@ -30,7 +30,7 @@ ENDIF:
 ; FIXME: This could be folded into the s_or_b64 instruction
 ; SI: s_mov_b64 [[ZERO:s\[[0-9]+:[0-9]+\]]], 0
 ; SI: [[LOOP_LABEL:[A-Z0-9]+]]
-; SI: v_cmp_ne_i32_e32 vcc, 0, v{{[0-9]+}}
+; SI: v_cmp_ne_u32_e32 vcc, 0, v{{[0-9]+}}
 
 ; SI_IF_BREAK instruction:
 ; SI: s_or_b64 [[BREAK:s\[[0-9]+:[0-9]+\]]], vcc, [[ZERO]]
@@ -92,7 +92,7 @@ declare float @llvm.fabs.f32(float) nounwind readnone
 ; SI: s_cmp_gt_i32
 ; SI-NEXT: s_cbranch_scc0 [[ENDPGM:BB[0-9]+_[0-9]+]]
 
-; SI: s_cmp_gt_i32
+; SI: s_cmpk_gt_i32
 ; SI-NEXT: s_cbranch_scc1 [[ENDPGM]]
 
 ; SI: [[INFLOOP:BB[0-9]+_[0-9]+]]

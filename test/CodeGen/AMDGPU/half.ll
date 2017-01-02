@@ -1,11 +1,12 @@
 ; RUN: llc -march=amdgcn -verify-machineinstrs < %s | FileCheck -check-prefix=GCN -check-prefix=SI %s
 ; RUN: llc -march=amdgcn -mcpu=tonga -verify-machineinstrs < %s | FileCheck -check-prefix=GCN -check-prefix=VI %s
 
-; half args should be promoted to float
+; half args should be promoted to float for SI and lower.
 
 ; GCN-LABEL: {{^}}load_f16_arg:
 ; GCN: s_load_dword [[ARG:s[0-9]+]]
-; GCN: v_cvt_f16_f32_e32 [[CVT:v[0-9]+]], [[ARG]]
+; SI: v_cvt_f16_f32_e32 [[CVT:v[0-9]+]], [[ARG]]
+; VI: v_trunc_f16_e32 [[CVT:v[0-9]+]], [[ARG]]
 ; GCN: buffer_store_short [[CVT]]
 define void @load_f16_arg(half addrspace(1)* %out, half %arg) #0 {
   store half %arg, half addrspace(1)* %out
@@ -16,7 +17,7 @@ define void @load_f16_arg(half addrspace(1)* %out, half %arg) #0 {
 ; GCN-DAG: buffer_load_ushort [[V0:v[0-9]+]], off, s{{\[[0-9]+:[0-9]+\]}}, 0 offset:44
 ; GCN-DAG: buffer_load_ushort [[V1:v[0-9]+]], off, s{{\[[0-9]+:[0-9]+\]}}, 0 offset:46
 ; GCN: v_lshlrev_b32_e32 [[HI:v[0-9]+]], 16, [[V1]]
-; GCN: v_or_b32_e32 [[PACKED:v[0-9]+]], [[V0]], [[HI]]
+; GCN: v_or_b32_e32 [[PACKED:v[0-9]+]], [[HI]], [[V0]]
 ; GCN: buffer_store_dword [[PACKED]], off, s{{\[[0-9]+:[0-9]+\]}}, 0{{$}}
 ; GCN: s_endpgm
 define void @load_v2f16_arg(<2 x half> addrspace(1)* %out, <2 x half> %arg) #0 {
@@ -131,8 +132,11 @@ define void @extload_v8f16_to_v8f32_arg(<8 x float> addrspace(1)* %out, <8 x hal
 
 ; GCN-LABEL: {{^}}extload_f16_to_f64_arg:
 ; SI: s_load_dword [[ARG:s[0-9]+]], s{{\[[0-9]+:[0-9]+\]}}, 0xb{{$}}
+; SI: v_cvt_f64_f32_e32 [[RESULT:v\[[0-9]+:[0-9]+\]]], [[ARG]]
 ; VI: s_load_dword [[ARG:s[0-9]+]], s{{\[[0-9]+:[0-9]+\]}}, 0x2c{{$}}
-; GCN: v_cvt_f64_f32_e32 [[RESULT:v\[[0-9]+:[0-9]+\]]], [[ARG]]
+; VI: v_trunc_f16_e32 v[[VARG:[0-9]+]], [[ARG]]
+; VI: v_cvt_f32_f16_e32 v[[VARG_F32:[0-9]+]], v[[VARG]]
+; VI: v_cvt_f64_f32_e32 [[RESULT:v\[[0-9]+:[0-9]+\]]], v[[VARG_F32]]
 ; GCN: buffer_store_dwordx2 [[RESULT]]
 define void @extload_f16_to_f64_arg(double addrspace(1)* %out, half %arg) #0 {
   %ext = fpext half %arg to double
@@ -279,8 +283,9 @@ define void @global_extload_f16_to_f32(float addrspace(1)* %out, half addrspace(
 
 ; GCN-LABEL: {{^}}global_extload_v2f16_to_v2f32:
 ; GCN: buffer_load_dword [[LOAD:v[0-9]+]], off, s{{\[[0-9]+:[0-9]+\]}}, 0{{$}}
+; VI:  v_lshrrev_b32_e32 [[HI:v[0-9]+]], 16, [[LOAD]]
 ; GCN: v_cvt_f32_f16_e32 v[[CVT0:[0-9]+]], [[LOAD]]
-; GCN: v_lshrrev_b32_e32 [[HI:v[0-9]+]], 16, [[LOAD]]
+; SI:  v_lshrrev_b32_e32 [[HI:v[0-9]+]], 16, [[LOAD]]
 ; GCN: v_cvt_f32_f16_e32 v[[CVT1:[0-9]+]], [[HI]]
 ; GCN: buffer_store_dwordx2 v{{\[}}[[CVT0]]:[[CVT1]]{{\]}}
 ; GCN: s_endpgm
@@ -379,19 +384,34 @@ define void @global_extload_v2f16_to_v2f64(<2 x double> addrspace(1)* %out, <2 x
 
 ; GCN-LABEL: {{^}}global_extload_v3f16_to_v3f64:
 
-; GCN: buffer_load_dwordx2 [[LOAD:v\[[0-9]+:[0-9]+\]]]
-; GCN-DAG: v_cvt_f32_f16_e32
-; GCN-DAG: v_lshrrev_b32_e32 {{v[0-9]+}}, 16, {{v[0-9]+}}
-; GCN-DAG: v_cvt_f32_f16_e32
-; GCN-DAG: v_cvt_f32_f16_e32
+; XSI: buffer_load_dwordx2 [[LOAD:v\[[0-9]+:[0-9]+\]]]
+; XSI: v_cvt_f32_f16_e32
+; XSI: v_cvt_f32_f16_e32
+; XSI-DAG: v_lshrrev_b32_e32 {{v[0-9]+}}, 16, {{v[0-9]+}}
+; XSI: v_cvt_f32_f16_e32
+; XSI-NOT: v_cvt_f32_f16
 
-; GCN: v_cvt_f64_f32_e32
-; GCN: v_cvt_f64_f32_e32
-; GCN: v_cvt_f64_f32_e32
+; XVI: buffer_load_dwordx2 [[LOAD:v\[[0-9]+:[0-9]+\]]]
+; XVI-DAG: v_lshrrev_b32_e32 {{v[0-9]+}}, 16, {{v[0-9]+}}
+; XVI: v_cvt_f32_f16_e32
+; XVI: v_cvt_f32_f16_e32
+; XVI: v_cvt_f32_f16_e32
+; XVI-NOT: v_cvt_f32_f16
+
+; GCN: buffer_load_dwordx2 v{{\[}}[[IN_LO:[0-9]+]]:[[IN_HI:[0-9]+]]
+; VI:  v_lshrrev_b32_e32 [[Y16:v[0-9]+]], 16, v[[IN_LO]]
+; GCN: v_cvt_f32_f16_e32 [[Z32:v[0-9]+]], v[[IN_HI]]
+; GCN: v_cvt_f32_f16_e32 [[X32:v[0-9]+]], v[[IN_LO]]
+; SI:  v_lshrrev_b32_e32 [[Y16:v[0-9]+]], 16, v[[IN_LO]]
+; GCN: v_cvt_f32_f16_e32 [[Y32:v[0-9]+]], [[Y16]]
+
+; GCN: v_cvt_f64_f32_e32 [[Z:v\[[0-9]+:[0-9]+\]]], [[Z32]]
+; GCN: v_cvt_f64_f32_e32 v{{\[}}[[XLO:[0-9]+]]:{{[0-9]+}}], [[X32]]
+; GCN: v_cvt_f64_f32_e32 v[{{[0-9]+}}:[[YHI:[0-9]+]]{{\]}}, [[Y32]]
 ; GCN-NOT: v_cvt_f64_f32_e32
 
-; GCN-DAG: buffer_store_dwordx4 v{{\[[0-9]+:[0-9]+\]}}, off, s{{\[[0-9]+:[0-9]+\]}}, 0{{$}}
-; GCN-DAG: buffer_store_dwordx2 v{{\[[0-9]+:[0-9]+\]}}, off, s{{\[[0-9]+:[0-9]+\]}}, 0 offset:16
+; GCN-DAG: buffer_store_dwordx4 v{{\[}}[[XLO]]:[[YHI]]{{\]}}, off, s{{\[[0-9]+:[0-9]+\]}}, 0{{$}}
+; GCN-DAG: buffer_store_dwordx2 [[Z]], off, s{{\[[0-9]+:[0-9]+\]}}, 0 offset:16
 ; GCN: s_endpgm
 define void @global_extload_v3f16_to_v3f64(<3 x double> addrspace(1)* %out, <3 x half> addrspace(1)* %in) #0 {
   %val = load <3 x half>, <3 x half> addrspace(1)* %in
@@ -440,7 +460,7 @@ define void @global_truncstore_f32_to_f16(half addrspace(1)* %out, float addrspa
 ; GCN-DAG: v_cvt_f16_f32_e32 [[CVT0:v[0-9]+]], v[[LO]]
 ; GCN-DAG: v_cvt_f16_f32_e32 [[CVT1:v[0-9]+]], v[[HI]]
 ; GCN-DAG: v_lshlrev_b32_e32 [[SHL:v[0-9]+]], 16, [[CVT1]]
-; GCN-DAG: v_or_b32_e32 [[PACKED:v[0-9]+]], [[CVT0]], [[SHL]]
+; GCN-DAG: v_or_b32_e32 [[PACKED:v[0-9]+]], [[SHL]], [[CVT0]]
 ; GCN-DAG: buffer_store_dword [[PACKED]]
 ; GCN: s_endpgm
 define void @global_truncstore_v2f32_to_v2f16(<2 x half> addrspace(1)* %out, <2 x float> addrspace(1)* %in) #0 {
@@ -584,18 +604,6 @@ define void @fadd_v4f16(<4 x half> addrspace(1)* %out, <4 x half> addrspace(1)* 
 define void @fadd_v8f16(<8 x half> addrspace(1)* %out, <8 x half> %a, <8 x half> %b) #0 {
   %add = fadd <8 x half> %a, %b
   store <8 x half> %add, <8 x half> addrspace(1)* %out, align 32
-  ret void
-}
-
-; GCN-LABEL: {{^}}fsub_f16:
-; GCN: v_subrev_f32_e32
-; GCN: s_endpgm
-define void @fsub_f16(half addrspace(1)* %out, half addrspace(1)* %in) #0 {
-  %b_ptr = getelementptr half, half addrspace(1)* %in, i32 1
-  %a = load half, half addrspace(1)* %in
-  %b = load half, half addrspace(1)* %b_ptr
-  %sub = fsub half %a, %b
-  store half %sub, half addrspace(1)* %out
   ret void
 }
 

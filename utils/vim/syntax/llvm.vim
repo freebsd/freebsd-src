@@ -1,7 +1,7 @@
 " Vim syntax file
 " Language:   llvm
 " Maintainer: The LLVM team, http://llvm.org/
-" Version:      $Revision: 275248 $
+" Version:      $Revision: 285927 $
 
 if version < 600
   syntax clear
@@ -23,7 +23,8 @@ syn match   llvmType /\<i\d\+\>/
 " The true and false tokens can be used for comparison opcodes, but it's
 " much more common for these tokens to be used for boolean constants.
 syn keyword llvmStatement add addrspacecast alloca and arcp ashr atomicrmw
-syn keyword llvmStatement bitcast br call cmpxchg eq exact extractelement
+syn keyword llvmStatement bitcast br catchpad catchswitch catchret call
+syn keyword llvmStatement cleanuppad cleanupret cmpxchg eq exact extractelement
 syn keyword llvmStatement extractvalue fadd fast fcmp fdiv fence fmul fpext
 syn keyword llvmStatement fptosi fptoui fptrunc free frem fsub getelementptr
 syn keyword llvmStatement icmp inbounds indirectbr insertelement insertvalue
@@ -45,6 +46,7 @@ syn keyword llvmKeyword
       \ alignstack
       \ alwaysinline
       \ appending
+      \ argmemonly
       \ arm_aapcscc
       \ arm_aapcs_vfpcc
       \ arm_apcscc
@@ -55,10 +57,12 @@ syn keyword llvmKeyword
       \ byval
       \ c
       \ catch
+      \ caller
       \ cc
       \ ccc
       \ cleanup
       \ coldcc
+      \ comdat
       \ common
       \ constant
       \ datalayout
@@ -66,6 +70,7 @@ syn keyword llvmKeyword
       \ default
       \ define
       \ deplibs
+      \ dereferenceable
       \ distinct
       \ dllexport
       \ dllimport
@@ -75,6 +80,7 @@ syn keyword llvmKeyword
       \ extern_weak
       \ fastcc
       \ filter
+      \ from
       \ gc
       \ global
       \ hhvmcc
@@ -103,6 +109,7 @@ syn keyword llvmKeyword
       \ noimplicitfloat
       \ noinline
       \ nonlazybind
+      \ norecurse
       \ noredzone
       \ noreturn
       \ nounwind
@@ -146,6 +153,8 @@ syn keyword llvmKeyword
       \ volatile
       \ weak
       \ weak_odr
+      \ within
+      \ writeonly
       \ x86_64_sysvcc
       \ x86_64_win64cc
       \ x86_fastcallcc
@@ -162,7 +171,7 @@ syn match   llvmNumber /-\?\<\d\+\>/
 syn match   llvmFloat  /-\?\<\d\+\.\d*\(e[+-]\d\+\)\?\>/
 syn match   llvmFloat  /\<0x\x\+\>/
 syn keyword llvmBoolean true false
-syn keyword llvmConstant zeroinitializer undef null
+syn keyword llvmConstant zeroinitializer undef null none
 syn match   llvmComment /;.*$/
 syn region  llvmString start=/"/ skip=/\\"/ end=/"/
 syn match   llvmLabel /[-a-zA-Z$._][-a-zA-Z$._0-9]*:/
@@ -183,6 +192,7 @@ syn match   llvmConstant /\<DIFlag[A-Za-z]\+\>/
 syn match  llvmSpecialComment /;\s*PR\d*\s*$/
 syn match  llvmSpecialComment /;\s*REQUIRES:.*$/
 syn match  llvmSpecialComment /;\s*RUN:.*$/
+syn match  llvmSpecialComment /;\s*CHECK:.*$/
 syn match  llvmSpecialComment /;\s*XFAIL:.*$/
 
 if version >= 508 || !exists("did_c_syn_inits")

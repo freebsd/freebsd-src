@@ -20,6 +20,7 @@
 
 namespace llvm {
 
+struct InlineParams;
 class StringRef;
 class ModuleSummaryIndex;
 class ModulePass;
@@ -27,6 +28,7 @@ class Pass;
 class Function;
 class BasicBlock;
 class GlobalValue;
+class raw_ostream;
 
 //===----------------------------------------------------------------------===//
 //
@@ -41,6 +43,10 @@ ModulePass *createStripSymbolsPass(bool OnlyDebugInfo = false);
 // Only debugging information is not stripped.
 //
 ModulePass *createStripNonDebugSymbolsPass();
+
+/// This function returns a new pass that downgrades the debug info in the
+/// module to line tables only.
+ModulePass *createStripNonLineTableDebugInfoPass();
 
 //===----------------------------------------------------------------------===//
 //
@@ -89,7 +95,7 @@ ModulePass *createGVExtractionPass(std::vector<GlobalValue*>& GVs, bool
 
 //===----------------------------------------------------------------------===//
 /// This pass performs iterative function importing from other modules.
-Pass *createFunctionImportPass(const ModuleSummaryIndex *Index = nullptr);
+Pass *createFunctionImportPass();
 
 //===----------------------------------------------------------------------===//
 /// createFunctionInliningPass - Return a new pass object that uses a heuristic
@@ -103,12 +109,7 @@ Pass *createFunctionImportPass(const ModuleSummaryIndex *Index = nullptr);
 Pass *createFunctionInliningPass();
 Pass *createFunctionInliningPass(int Threshold);
 Pass *createFunctionInliningPass(unsigned OptLevel, unsigned SizeOptLevel);
-
-//===----------------------------------------------------------------------===//
-/// createAlwaysInlinerPass - Return a new pass object that inlines only
-/// functions that are marked as "always_inline".
-Pass *createAlwaysInlinerPass();
-Pass *createAlwaysInlinerPass(bool InsertLifetime);
+Pass *createFunctionInliningPass(InlineParams &Params);
 
 //===----------------------------------------------------------------------===//
 /// createPruneEHPass - Return a new pass object which transforms invoke
@@ -225,11 +226,18 @@ ModulePass *createCrossDSOCFIPass();
 /// metadata.
 ModulePass *createWholeProgramDevirtPass();
 
+/// This pass splits globals into pieces for the benefit of whole-program
+/// devirtualization and control-flow integrity.
+ModulePass *createGlobalSplitPass();
+
 //===----------------------------------------------------------------------===//
 // SampleProfilePass - Loads sample profile data from disk and generates
 // IR metadata to reflect the profile.
 ModulePass *createSampleProfileLoaderPass();
 ModulePass *createSampleProfileLoaderPass(StringRef Name);
+
+/// Write ThinLTO-ready bitcode to Str.
+ModulePass *createWriteThinLTOBitcodePass(raw_ostream &Str);
 
 } // End llvm namespace
 

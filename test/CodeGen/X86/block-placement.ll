@@ -177,6 +177,12 @@ exit:
   ret i32 %sum
 }
 
+; Tail duplication during layout can entirely remove body0 by duplicating it
+; into the entry block and into body1. This is a good thing but it isn't what
+; this test is looking for. So to make the blocks longer so they don't get
+; duplicated, we add some calls to dummy.
+declare void @dummy()
+
 define i32 @test_loop_rotate(i32 %i, i32* %a) {
 ; Check that we rotate conditional exits from the loop to the bottom of the
 ; loop, eliminating unconditional branches to the top.
@@ -194,6 +200,8 @@ body0:
   %base = phi i32 [ 0, %entry ], [ %sum, %body1 ]
   %next = add i32 %iv, 1
   %exitcond = icmp eq i32 %next, %i
+  call void @dummy()
+  call void @dummy()
   br i1 %exitcond, label %exit, label %body1
 
 body1:
@@ -470,12 +478,12 @@ define void @fpcmp_unanalyzable_branch(i1 %cond) {
 ; CHECK-LABEL: fpcmp_unanalyzable_branch:
 ; CHECK:       # BB#0: # %entry
 ; CHECK:       # BB#1: # %entry.if.then_crit_edge
-; CHECK:       .LBB10_4: # %if.then
-; CHECK:       .LBB10_5: # %if.end
+; CHECK:       .LBB10_5: # %if.then
+; CHECK:       .LBB10_6: # %if.end
 ; CHECK:       # BB#3: # %exit
 ; CHECK:       jne .LBB10_4
-; CHECK-NEXT:  jnp .LBB10_5
-; CHECK-NEXT:  jmp .LBB10_4
+; CHECK-NEXT:  jnp .LBB10_6
+; CHECK:       jmp .LBB10_5
 
 entry:
 ; Note that this branch must be strongly biased toward
@@ -945,7 +953,7 @@ define void @benchmark_heapsort(i32 %n, double* nocapture %ra) {
 ; First rotated loop top.
 ; CHECK: .p2align
 ; CHECK: %while.end
-; CHECK: %for.cond
+; %for.cond gets completely tail-duplicated away.
 ; CHECK: %if.then
 ; CHECK: %if.else
 ; CHECK: %if.end10
@@ -1283,6 +1291,174 @@ exit:
   ret void
 }
 
+declare void @a()
+declare void @b()
+
+define void @test_forked_hot_diamond(i32* %a) {
+; Test that a hot-branch with probability > 80% followed by a 50/50 branch
+; will not place the cold predecessor if the probability for the fallthrough
+; remains above 80%
+; CHECK-LABEL: test_forked_hot_diamond
+; CHECK: %entry
+; CHECK: %then
+; CHECK: %fork1
+; CHECK: %else
+; CHECK: %fork2
+; CHECK: %exit
+entry:
+  %gep1 = getelementptr i32, i32* %a, i32 1
+  %val1 = load i32, i32* %gep1
+  %cond1 = icmp ugt i32 %val1, 1
+  br i1 %cond1, label %then, label %else, !prof !5
+
+then:
+  call void @hot_function()
+  %gep2 = getelementptr i32, i32* %a, i32 2
+  %val2 = load i32, i32* %gep2
+  %cond2 = icmp ugt i32 %val2, 2
+  br i1 %cond2, label %fork1, label %fork2, !prof !8
+
+else:
+  call void @cold_function()
+  %gep3 = getelementptr i32, i32* %a, i32 3
+  %val3 = load i32, i32* %gep3
+  %cond3 = icmp ugt i32 %val3, 3
+  br i1 %cond3, label %fork1, label %fork2, !prof !8
+
+fork1:
+  call void @a()
+  br label %exit
+
+fork2:
+  call void @b()
+  br label %exit
+
+exit:
+  call void @hot_function()
+  ret void
+}
+
+define void @test_forked_hot_diamond_gets_cold(i32* %a) {
+; Test that a hot-branch with probability > 80% followed by a 50/50 branch
+; will place the cold predecessor if the probability for the fallthrough
+; falls below 80%
+; The probability for both branches is 85%. For then2 vs else1
+; this results in a compounded probability of 83%.
+; Neither then2->fork1 nor then2->fork2 has a large enough relative
+; probability to break the CFG.
+; Relative probs:
+; then2 -> fork1 vs else1 -> fork1 = 71%
+; then2 -> fork2 vs else2 -> fork2 = 74%
+; CHECK-LABEL: test_forked_hot_diamond_gets_cold
+; CHECK: %entry
+; CHECK: %then1
+; CHECK: %then2
+; CHECK: %else1
+; CHECK: %fork1
+; CHECK: %else2
+; CHECK: %fork2
+; CHECK: %exit
+entry:
+  %gep1 = getelementptr i32, i32* %a, i32 1
+  %val1 = load i32, i32* %gep1
+  %cond1 = icmp ugt i32 %val1, 1
+  br i1 %cond1, label %then1, label %else1, !prof !9
+
+then1:
+  call void @hot_function()
+  %gep2 = getelementptr i32, i32* %a, i32 2
+  %val2 = load i32, i32* %gep2
+  %cond2 = icmp ugt i32 %val2, 2
+  br i1 %cond2, label %then2, label %else2, !prof !9
+
+else1:
+  call void @cold_function()
+  br label %fork1
+
+then2:
+  call void @hot_function()
+  %gep3 = getelementptr i32, i32* %a, i32 3
+  %val3 = load i32, i32* %gep2
+  %cond3 = icmp ugt i32 %val2, 3
+  br i1 %cond3, label %fork1, label %fork2, !prof !8
+
+else2:
+  call void @cold_function()
+  br label %fork2
+
+fork1:
+  call void @a()
+  br label %exit
+
+fork2:
+  call void @b()
+  br label %exit
+
+exit:
+  call void @hot_function()
+  ret void
+}
+
+define void @test_forked_hot_diamond_stays_hot(i32* %a) {
+; Test that a hot-branch with probability > 88.88% (1:8) followed by a 50/50
+; branch will not place the cold predecessor as the probability for the
+; fallthrough stays above 80%
+; (1:8) followed by (1:1) is still (1:4)
+; Here we use 90% probability because two in a row
+; have a 89 % probability vs the original branch.
+; CHECK-LABEL: test_forked_hot_diamond_stays_hot
+; CHECK: %entry
+; CHECK: %then1
+; CHECK: %then2
+; CHECK: %fork1
+; CHECK: %else1
+; CHECK: %else2
+; CHECK: %fork2
+; CHECK: %exit
+entry:
+  %gep1 = getelementptr i32, i32* %a, i32 1
+  %val1 = load i32, i32* %gep1
+  %cond1 = icmp ugt i32 %val1, 1
+  br i1 %cond1, label %then1, label %else1, !prof !10
+
+then1:
+  call void @hot_function()
+  %gep2 = getelementptr i32, i32* %a, i32 2
+  %val2 = load i32, i32* %gep2
+  %cond2 = icmp ugt i32 %val2, 2
+  br i1 %cond2, label %then2, label %else2, !prof !10
+
+else1:
+  call void @cold_function()
+  br label %fork1
+
+then2:
+  call void @hot_function()
+  %gep3 = getelementptr i32, i32* %a, i32 3
+  %val3 = load i32, i32* %gep2
+  %cond3 = icmp ugt i32 %val2, 3
+  br i1 %cond3, label %fork1, label %fork2, !prof !8
+
+else2:
+  call void @cold_function()
+  br label %fork2
+
+fork1:
+  call void @a()
+  br label %exit
+
+fork2:
+  call void @b()
+  br label %exit
+
+exit:
+  call void @hot_function()
+  ret void
+}
+
 !5 = !{!"branch_weights", i32 84, i32 16}
 !6 = !{!"function_entry_count", i32 10}
 !7 = !{!"branch_weights", i32 60, i32 40}
+!8 = !{!"branch_weights", i32 5001, i32 4999}
+!9 = !{!"branch_weights", i32 85, i32 15}
+!10 = !{!"branch_weights", i32 90, i32 10}

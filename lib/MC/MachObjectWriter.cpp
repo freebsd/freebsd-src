@@ -422,7 +422,7 @@ void MachObjectWriter::writeLinkerOptionsLoadCommand(
   uint64_t BytesWritten = sizeof(MachO::linker_option_command);
   for (const std::string &Option : Options) {
     // Write each string, including the null byte.
-    writeBytes(Option.c_str(), Option.size() + 1);
+    writeBytes(Option, Option.size() + 1);
     BytesWritten += Option.size() + 1;
   }
 
@@ -882,7 +882,7 @@ void MachObjectWriter::writeObject(MCAssembler &Asm,
                                               sizeof(MachO::nlist_64) :
                                               sizeof(MachO::nlist));
     writeSymtabLoadCommand(SymbolTableOffset, NumSymTabSymbols,
-                           StringTableOffset, StringTable.data().size());
+                           StringTableOffset, StringTable.getSize());
 
     writeDysymtabLoadCommand(FirstLocalSymbol, NumLocalSymbols,
                              FirstExternalSymbol, NumExternalSymbols,
@@ -977,7 +977,7 @@ void MachObjectWriter::writeObject(MCAssembler &Asm,
         writeNlist(Entry, Layout);
 
     // Write the string table.
-    getStream() << StringTable.data();
+    StringTable.write(getStream());
   }
 }
 

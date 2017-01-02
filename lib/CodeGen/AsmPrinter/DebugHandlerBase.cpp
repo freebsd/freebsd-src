@@ -18,6 +18,7 @@
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/IR/DebugInfo.h"
+#include "llvm/MC/MCStreamer.h"
 #include "llvm/Target/TargetSubtargetInfo.h"
 
 using namespace llvm;
@@ -62,14 +63,14 @@ MCSymbol *DebugHandlerBase::getLabelAfterInsn(const MachineInstr *MI) {
   return LabelsAfterInsn.lookup(MI);
 }
 
-// Determine the relative position of the pieces described by P1 and P2.
-// Returns  -1 if P1 is entirely before P2, 0 if P1 and P2 overlap,
-// 1 if P1 is entirely after P2.
-int DebugHandlerBase::pieceCmp(const DIExpression *P1, const DIExpression *P2) {
-  unsigned l1 = P1->getBitPieceOffset();
-  unsigned l2 = P2->getBitPieceOffset();
-  unsigned r1 = l1 + P1->getBitPieceSize();
-  unsigned r2 = l2 + P2->getBitPieceSize();
+int DebugHandlerBase::fragmentCmp(const DIExpression *P1,
+                                  const DIExpression *P2) {
+  auto Fragment1 = *P1->getFragmentInfo();
+  auto Fragment2 = *P2->getFragmentInfo();
+  unsigned l1 = Fragment1.OffsetInBits;
+  unsigned l2 = Fragment2.OffsetInBits;
+  unsigned r1 = l1 + Fragment1.SizeInBits;
+  unsigned r2 = l2 + Fragment2.SizeInBits;
   if (r1 <= l2)
     return -1;
   else if (r2 <= l1)
@@ -78,11 +79,11 @@ int DebugHandlerBase::pieceCmp(const DIExpression *P1, const DIExpression *P2) {
     return 0;
 }
 
-/// Determine whether two variable pieces overlap.
-bool DebugHandlerBase::piecesOverlap(const DIExpression *P1, const DIExpression *P2) {
-  if (!P1->isBitPiece() || !P2->isBitPiece())
+bool DebugHandlerBase::fragmentsOverlap(const DIExpression *P1,
+                                        const DIExpression *P2) {
+  if (!P1->isFragment() || !P2->isFragment())
     return true;
-  return pieceCmp(P1, P2) == 0;
+  return fragmentCmp(P1, P2) == 0;
 }
 
 /// If this type is derived from a base type then return base type size.
@@ -97,7 +98,7 @@ uint64_t DebugHandlerBase::getBaseTypeSize(const DITypeRef TyRef) {
 
   if (Tag != dwarf::DW_TAG_member && Tag != dwarf::DW_TAG_typedef &&
       Tag != dwarf::DW_TAG_const_type && Tag != dwarf::DW_TAG_volatile_type &&
-      Tag != dwarf::DW_TAG_restrict_type)
+      Tag != dwarf::DW_TAG_restrict_type && Tag != dwarf::DW_TAG_atomic_type)
     return DDTy->getSizeInBits();
 
   DIType *BaseType = DDTy->getBaseType().resolve();
@@ -141,14 +142,15 @@ void DebugHandlerBase::beginFunction(const MachineFunction *MF) {
     if (DIVar->isParameter() &&
         getDISubprogram(DIVar->getScope())->describes(MF->getFunction())) {
       LabelsBeforeInsn[Ranges.front().first] = Asm->getFunctionBegin();
-      if (Ranges.front().first->getDebugExpression()->isBitPiece()) {
-        // Mark all non-overlapping initial pieces.
+      if (Ranges.front().first->getDebugExpression()->isFragment()) {
+        // Mark all non-overlapping initial fragments.
         for (auto I = Ranges.begin(); I != Ranges.end(); ++I) {
-          const DIExpression *Piece = I->first->getDebugExpression();
+          const DIExpression *Fragment = I->first->getDebugExpression();
           if (std::all_of(Ranges.begin(), I,
                           [&](DbgValueHistoryMap::InstrRange Pred) {
-                return !piecesOverlap(Piece, Pred.first->getDebugExpression());
-              }))
+                            return !fragmentsOverlap(
+                                Fragment, Pred.first->getDebugExpression());
+                          }))
             LabelsBeforeInsn[I->first] = Asm->getFunctionBegin();
           else
             break;
@@ -200,8 +202,10 @@ void DebugHandlerBase::endInstruction() {
   assert(CurMI != nullptr);
   // Don't create a new label after DBG_VALUE instructions.
   // They don't generate code.
-  if (!CurMI->isDebugValue())
+  if (!CurMI->isDebugValue()) {
     PrevLabel = nullptr;
+    PrevInstBB = CurMI->getParent();
+  }
 
   DenseMap<const MachineInstr *, MCSymbol *>::iterator I =
       LabelsAfterInsn.find(CurMI);

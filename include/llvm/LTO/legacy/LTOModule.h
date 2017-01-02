@@ -19,6 +19,7 @@
 #include "llvm/ADT/StringSet.h"
 #include "llvm/IR/Module.h"
 #include "llvm/Object/IRObjectFile.h"
+#include "llvm/Object/ModuleSymbolTable.h"
 #include "llvm/Target/TargetMachine.h"
 #include <string>
 #include <vector>
@@ -37,33 +38,36 @@ namespace llvm {
 struct LTOModule {
 private:
   struct NameAndAttributes {
-    const char        *name;
-    uint32_t           attributes;
-    bool               isFunction;
-    const GlobalValue *symbol;
+    StringRef name;
+    uint32_t           attributes = 0;
+    bool               isFunction = 0;
+    const GlobalValue *symbol = 0;
   };
 
   std::unique_ptr<LLVMContext> OwnedContext;
 
   std::string LinkerOpts;
 
-  std::unique_ptr<object::IRObjectFile> IRFile;
+  std::unique_ptr<Module> Mod;
+  MemoryBufferRef MBRef;
+  ModuleSymbolTable SymTab;
   std::unique_ptr<TargetMachine> _target;
   std::vector<NameAndAttributes> _symbols;
 
   // _defines and _undefines only needed to disambiguate tentative definitions
   StringSet<>                             _defines;
   StringMap<NameAndAttributes> _undefines;
-  std::vector<const char*>                _asm_undefines;
+  std::vector<StringRef> _asm_undefines;
 
-  LTOModule(std::unique_ptr<object::IRObjectFile> Obj, TargetMachine *TM);
+  LTOModule(std::unique_ptr<Module> M, MemoryBufferRef MBRef,
+            TargetMachine *TM);
 
 public:
   ~LTOModule();
 
   /// Returns 'true' if the file or memory contents is LLVM bitcode.
   static bool isBitcodeFile(const void *mem, size_t length);
-  static bool isBitcodeFile(const char *path);
+  static bool isBitcodeFile(StringRef path);
 
   /// Returns 'true' if the Module is produced for ThinLTO.
   bool isThinLTO();
@@ -91,13 +95,13 @@ public:
   /// InitializeAllAsmPrinters();
   /// InitializeAllAsmParsers();
   static ErrorOr<std::unique_ptr<LTOModule>>
-  createFromFile(LLVMContext &Context, const char *path,
+  createFromFile(LLVMContext &Context, StringRef path,
                  const TargetOptions &options);
   static ErrorOr<std::unique_ptr<LTOModule>>
-  createFromOpenFile(LLVMContext &Context, int fd, const char *path,
-                     size_t size, const TargetOptions &options);
+  createFromOpenFile(LLVMContext &Context, int fd, StringRef path, size_t size,
+                     const TargetOptions &options);
   static ErrorOr<std::unique_ptr<LTOModule>>
-  createFromOpenFileSlice(LLVMContext &Context, int fd, const char *path,
+  createFromOpenFileSlice(LLVMContext &Context, int fd, StringRef path,
                           size_t map_size, off_t offset,
                           const TargetOptions &options);
   static ErrorOr<std::unique_ptr<LTOModule>>
@@ -108,14 +112,10 @@ public:
                        size_t length, const TargetOptions &options,
                        StringRef path);
 
-  const Module &getModule() const {
-    return const_cast<LTOModule*>(this)->getModule();
-  }
-  Module &getModule() {
-    return IRFile->getModule();
-  }
+  const Module &getModule() const { return *Mod; }
+  Module &getModule() { return *Mod; }
 
-  std::unique_ptr<Module> takeModule() { return IRFile->takeModule(); }
+  std::unique_ptr<Module> takeModule() { return std::move(Mod); }
 
   /// Return the Module's target triple.
   const std::string &getTargetTriple() {
@@ -140,10 +140,10 @@ public:
   }
 
   /// Get the name of the symbol at the specified index.
-  const char *getSymbolName(uint32_t index) {
+  StringRef getSymbolName(uint32_t index) {
     if (index < _symbols.size())
       return _symbols[index].name;
-    return nullptr;
+    return StringRef();
   }
 
   const GlobalValue *getSymbolGV(uint32_t index) {
@@ -152,13 +152,9 @@ public:
     return nullptr;
   }
 
-  const char *getLinkerOpts() {
-    return LinkerOpts.c_str();
-  }
+  StringRef getLinkerOpts() { return LinkerOpts; }
 
-  const std::vector<const char*> &getAsmUndefinedRefs() {
-    return _asm_undefines;
-  }
+  const std::vector<StringRef> &getAsmUndefinedRefs() { return _asm_undefines; }
 
 private:
   /// Parse metadata from the module
@@ -170,26 +166,26 @@ private:
   void parseSymbols();
 
   /// Add a symbol which isn't defined just yet to a list to be resolved later.
-  void addPotentialUndefinedSymbol(const object::BasicSymbolRef &Sym,
+  void addPotentialUndefinedSymbol(ModuleSymbolTable::Symbol Sym,
                                    bool isFunc);
 
   /// Add a defined symbol to the list.
-  void addDefinedSymbol(const char *Name, const GlobalValue *def,
+  void addDefinedSymbol(StringRef Name, const GlobalValue *def,
                         bool isFunction);
 
   /// Add a data symbol as defined to the list.
-  void addDefinedDataSymbol(const object::BasicSymbolRef &Sym);
-  void addDefinedDataSymbol(const char*Name, const GlobalValue *v);
+  void addDefinedDataSymbol(ModuleSymbolTable::Symbol Sym);
+  void addDefinedDataSymbol(StringRef Name, const GlobalValue *v);
 
   /// Add a function symbol as defined to the list.
-  void addDefinedFunctionSymbol(const object::BasicSymbolRef &Sym);
-  void addDefinedFunctionSymbol(const char *Name, const Function *F);
+  void addDefinedFunctionSymbol(ModuleSymbolTable::Symbol Sym);
+  void addDefinedFunctionSymbol(StringRef Name, const Function *F);
 
   /// Add a global symbol from module-level ASM to the defined list.
-  void addAsmGlobalSymbol(const char *, lto_symbol_attributes scope);
+  void addAsmGlobalSymbol(StringRef, lto_symbol_attributes scope);
 
   /// Add a global symbol from module-level ASM to the undefined list.
-  void addAsmGlobalSymbolUndef(const char *);
+  void addAsmGlobalSymbolUndef(StringRef);
 
   /// Parse i386/ppc ObjC class data structure.
   void addObjCClass(const GlobalVariable *clgv);

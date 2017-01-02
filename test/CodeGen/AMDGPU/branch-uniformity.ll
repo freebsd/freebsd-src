@@ -1,4 +1,4 @@
-; RUN: llc -mtriple=amdgcn-- < %s | FileCheck %s
+; RUN: llc -march=amdgcn -verify-machineinstrs < %s | FileCheck %s
 
 ; The branch instruction in LOOP49 has a uniform condition, but PHI instructions
 ; introduced by the structurizecfg pass previously caused a false divergence
@@ -8,7 +8,7 @@
 ;
 ; CHECK-LABEL: {{^}}main:
 ; CHECK: ; %LOOP49
-; CHECK: v_cmp_ne_i32_e32 vcc,
+; CHECK: v_cmp_ne_u32_e32 vcc,
 ; CHECK: s_cbranch_vccnz
 ; CHECK: ; %ENDIF53
 define amdgpu_vs float @main(i32 %in) {

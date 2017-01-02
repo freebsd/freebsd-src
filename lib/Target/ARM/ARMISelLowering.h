@@ -190,7 +190,8 @@ namespace llvm {
       MEMCPY,
 
       // Vector load N-element structure to all lanes:
-      VLD2DUP = ISD::FIRST_TARGET_MEMORY_OPCODE,
+      VLD1DUP = ISD::FIRST_TARGET_MEMORY_OPCODE,
+      VLD2DUP,
       VLD3DUP,
       VLD4DUP,
 
@@ -202,6 +203,7 @@ namespace llvm {
       VLD2LN_UPD,
       VLD3LN_UPD,
       VLD4LN_UPD,
+      VLD1DUP_UPD,
       VLD2DUP_UPD,
       VLD3DUP_UPD,
       VLD4DUP_UPD,
@@ -291,6 +293,14 @@ namespace llvm {
     /// by AM is legal for this target, for a load/store of the specified type.
     bool isLegalAddressingMode(const DataLayout &DL, const AddrMode &AM,
                                Type *Ty, unsigned AS) const override;
+
+    /// getScalingFactorCost - Return the cost of the scaling used in
+    /// addressing mode represented by AM.
+    /// If the AM is supported, the return value must be >= 0.
+    /// If the AM is not supported, the return value must be negative.
+    int getScalingFactorCost(const DataLayout &DL, const AddrMode &AM, Type *Ty,
+                             unsigned AS) const override;
+
     bool isLegalT2ScaledAddressingMode(const AddrMode &AM, EVT VT) const;
 
     /// isLegalICmpImmediate - Return true if the specified immediate is legal
@@ -421,6 +431,10 @@ namespace llvm {
     bool shouldConvertConstantLoadToIntImm(const APInt &Imm,
                                            Type *Ty) const override;
 
+    /// Return true if EXTRACT_SUBVECTOR is cheap for this result type
+    /// with this index.
+    bool isExtractSubvectorCheap(EVT ResVT, unsigned Index) const override;
+
     /// \brief Returns true if an argument of type Ty needs to be passed in a
     /// contiguous block of registers in calling convention CallConv.
     bool functionArgumentNeedsConsecutiveRegisters(
@@ -482,6 +496,9 @@ namespace llvm {
       return HasStandaloneRem;
     }
 
+    CCAssignFn *CCAssignFnForCall(CallingConv::ID CC, bool isVarArg) const;
+    CCAssignFn *CCAssignFnForReturn(CallingConv::ID CC, bool isVarArg) const;
+
   protected:
     std::pair<const TargetRegisterClass *, uint8_t>
     findRepresentativeClass(const TargetRegisterInfo *TRI,
@@ -505,6 +522,8 @@ namespace llvm {
     bool InsertFencesForAtomic;
 
     bool HasStandaloneRem = true;
+
+    void InitLibcallCallingConvs();
 
     void addTypeForNEON(MVT VT, MVT PromotedLdStVT, MVT PromotedBitwiseVT);
     void addDRTypeForNEON(MVT VT);

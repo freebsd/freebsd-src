@@ -84,7 +84,7 @@ define i32 @no_sink_readonly_call(i32 %x, i32 %y, i32* %p) {
 ; CHECK-LABEL: stack_uses:
 ; CHECK: .param i32, i32, i32, i32{{$}}
 ; CHECK-NEXT: .result i32{{$}}
-; CHECK-NEXT: block{{$}}
+; CHECK-NEXT: block   {{$}}
 ; CHECK-NEXT: i32.const   $push[[L13:[0-9]+]]=, 1{{$}}
 ; CHECK-NEXT: i32.lt_s    $push[[L0:[0-9]+]]=, $0, $pop[[L13]]{{$}}
 ; CHECK-NEXT: i32.const   $push[[L1:[0-9]+]]=, 2{{$}}
@@ -127,14 +127,14 @@ false:
 ; CHECK-LABEL: multiple_uses:
 ; CHECK: .param       i32, i32, i32{{$}}
 ; CHECK-NEXT: .local       i32{{$}}
-; CHECK-NEXT: block{{$}}
+; CHECK-NEXT: block   {{$}}
 ; CHECK-NEXT: i32.load    $push[[NUM0:[0-9]+]]=, 0($2){{$}}
 ; CHECK-NEXT: tee_local   $push[[NUM1:[0-9]+]]=, $3=, $pop[[NUM0]]{{$}}
 ; CHECK-NEXT: i32.ge_u    $push[[NUM2:[0-9]+]]=, $pop[[NUM1]], $1{{$}}
 ; CHECK-NEXT: br_if       0, $pop[[NUM2]]{{$}}
 ; CHECK-NEXT: i32.lt_u    $push[[NUM3:[0-9]+]]=, $3, $0{{$}}
 ; CHECK-NEXT: br_if       0, $pop[[NUM3]]{{$}}
-; CHECK-NEXT: i32.store   $drop=, 0($2), $3{{$}}
+; CHECK-NEXT: i32.store   0($2), $3{{$}}
 ; CHECK-NEXT: .LBB8_3:
 ; CHECK-NEXT: end_block{{$}}
 ; CHECK-NEXT: return{{$}}
@@ -166,7 +166,7 @@ return:
 ; CHECK:      side_effects:
 ; CHECK:      store
 ; CHECK-NEXT: call
-; CHECK-NEXT: store
+; CHECK:      store
 ; CHECK-NEXT: call
 declare void @evoke_side_effects()
 define hidden void @stackify_store_across_side_effects(double* nocapture %d) {
@@ -377,9 +377,9 @@ define i32 @no_stackify_call_past_load() {
 
 ; Don't move stores past loads if there may be aliasing
 ; CHECK-LABEL: no_stackify_store_past_load
-; CHECK: i32.store $[[L0:[0-9]+]]=, 0($1), $0
+; CHECK: i32.store 0($1), $0
 ; CHECK: i32.load {{.*}}, 0($2)
-; CHECK: i32.call {{.*}}, callee@FUNCTION, $[[L0]]{{$}}
+; CHECK: i32.call {{.*}}, callee@FUNCTION, $0{{$}}
 define i32 @no_stackify_store_past_load(i32 %a, i32* %p1, i32* %p2) {
   store i32 %a, i32* %p1
   %b = load i32, i32* %p2, align 4
@@ -389,8 +389,8 @@ define i32 @no_stackify_store_past_load(i32 %a, i32* %p1, i32* %p2) {
 
 ; Can still stackify past invariant loads.
 ; CHECK-LABEL: store_past_invar_load
-; CHECK: i32.store $push{{.*}}, 0($1), $0
-; CHECK: i32.call {{.*}}, callee@FUNCTION, $pop
+; CHECK: i32.store 0($1), $0
+; CHECK: i32.call {{.*}}, callee@FUNCTION, $0
 ; CHECK: i32.load $push{{.*}}, 0($2)
 ; CHECK: return $pop
 define i32 @store_past_invar_load(i32 %a, i32* %p1, i32* dereferenceable(4) %p2) {
@@ -450,13 +450,32 @@ bb10:                                             ; preds = %bb9, %bb
 ; CHECK-LABEL: stackpointer_dependency:
 ; CHECK:      call {{.+}}, stackpointer_callee@FUNCTION,
 ; CHECK:      i32.const $push[[L0:.+]]=, 0
-; CHECK-NEXT: i32.store $drop=, __stack_pointer($pop[[L0]]),
+; CHECK-NEXT: i32.store __stack_pointer($pop[[L0]]),
 declare i32 @stackpointer_callee(i8* readnone, i8* readnone)
 declare i8* @llvm.frameaddress(i32)
 define i32 @stackpointer_dependency(i8* readnone) {
   %2 = tail call i8* @llvm.frameaddress(i32 0)
   %3 = tail call i32 @stackpointer_callee(i8* %0, i8* %2)
   ret i32 %3
+}
+
+; Stackify a call_indirect with respect to its ordering
+
+; CHECK-LABEL: call_indirect_stackify:
+; CHECK: i32.load  $push[[L4:.+]]=, 0($0)
+; CHECK-NEXT: tee_local $push[[L3:.+]]=, $0=, $pop[[L4]]
+; CHECK-NEXT: i32.load  $push[[L0:.+]]=, 0($0)
+; CHECK-NEXT: i32.load  $push[[L1:.+]]=, 0($pop[[L0]])
+; CHECK-NEXT: i32.call_indirect $push{{.+}}=, $pop[[L3]], $1, $pop[[L1]]
+%class.call_indirect = type { i32 (...)** }
+define i32 @call_indirect_stackify(%class.call_indirect** %objptr, i32 %arg) {
+  %obj = load %class.call_indirect*, %class.call_indirect** %objptr
+  %addr = bitcast %class.call_indirect* %obj to i32(%class.call_indirect*, i32)***
+  %vtable = load i32(%class.call_indirect*, i32)**, i32(%class.call_indirect*, i32)*** %addr
+  %vfn = getelementptr inbounds i32(%class.call_indirect*, i32)*, i32(%class.call_indirect*, i32)** %vtable, i32 0
+  %f = load i32(%class.call_indirect*, i32)*, i32(%class.call_indirect*, i32)** %vfn
+  %ret = call i32 %f(%class.call_indirect* %obj, i32 %arg)
+  ret i32 %ret
 }
 
 !llvm.module.flags = !{!0}

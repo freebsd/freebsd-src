@@ -15,7 +15,6 @@
 #include "NVPTX.h"
 #include "MCTargetDesc/NVPTXBaseInfo.h"
 #include "NVPTXUtilities.h"
-#include "llvm/CodeGen/MachineFunctionAnalysis.h"
 #include "llvm/CodeGen/ValueTypes.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DerivedTypes.h"
@@ -55,7 +54,6 @@ private:
                                                 IRBuilder<> &Builder);
   Value *remapConstantExpr(Module *M, Function *F, ConstantExpr *C,
                            IRBuilder<> &Builder);
-  void remapNamedMDNode(ValueToValueMapTy &VM, NamedMDNode *N);
 
   typedef ValueMap<GlobalVariable *, GlobalVariable *> GVMapTy;
   typedef ValueMap<Constant *, Value *> ConstantToValueMapTy;
@@ -129,12 +127,6 @@ bool GenericToNVVM::runOnModule(Module &M) {
   ValueToValueMapTy VM;
   for (auto I = GVMap.begin(), E = GVMap.end(); I != E; ++I)
     VM[I->first] = I->second;
-
-  // Walk through the metadata section and update the debug information
-  // associated with the global variables in the default address space.
-  for (NamedMDNode &I : M.named_metadata()) {
-    remapNamedMDNode(VM, &I);
-  }
 
   // Walk through the global variable  initializers, and replace any use of
   // original global variables in GVMap with a use of the corresponding copies
@@ -358,34 +350,5 @@ Value *GenericToNVVM::remapConstantExpr(Module *M, Function *F, ConstantExpr *C,
                                 NewOperands[0], C->getType());
     }
     llvm_unreachable("GenericToNVVM encountered an unsupported ConstantExpr");
-  }
-}
-
-void GenericToNVVM::remapNamedMDNode(ValueToValueMapTy &VM, NamedMDNode *N) {
-
-  bool OperandChanged = false;
-  SmallVector<MDNode *, 16> NewOperands;
-  unsigned NumOperands = N->getNumOperands();
-
-  // Check if any operand is or contains a global variable in  GVMap, and thus
-  // converted to another value.
-  for (unsigned i = 0; i < NumOperands; ++i) {
-    MDNode *Operand = N->getOperand(i);
-    MDNode *NewOperand = MapMetadata(Operand, VM);
-    OperandChanged |= Operand != NewOperand;
-    NewOperands.push_back(NewOperand);
-  }
-
-  // If none of the operands has been modified, return immediately.
-  if (!OperandChanged) {
-    return;
-  }
-
-  // Replace the old operands with the new operands.
-  N->dropAllReferences();
-  for (SmallVectorImpl<MDNode *>::iterator I = NewOperands.begin(),
-                                           E = NewOperands.end();
-       I != E; ++I) {
-    N->addOperand(*I);
   }
 }

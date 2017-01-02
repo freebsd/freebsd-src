@@ -40,7 +40,7 @@ class FixupLEAPass : public MachineFunctionPass {
   /// where appropriate.
   bool processBasicBlock(MachineFunction &MF, MachineFunction::iterator MFI);
 
-  const char *getPassName() const override { return "X86 LEA Fixup"; }
+  StringRef getPassName() const override { return "X86 LEA Fixup"; }
 
   /// \brief Given a machine register, look for the instruction
   /// which writes it in the current basic block. If found,
@@ -95,7 +95,7 @@ public:
   // This pass runs after regalloc and doesn't support VReg operands.
   MachineFunctionProperties getRequiredProperties() const override {
     return MachineFunctionProperties().set(
-        MachineFunctionProperties::Property::AllVRegsAllocated);
+        MachineFunctionProperties::Property::NoVRegs);
   }
 
 private:

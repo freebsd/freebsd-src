@@ -258,10 +258,10 @@ define void @v_and_constant_i64(i64 addrspace(1)* %out, i64 addrspace(1)* %aptr)
 }
 
 ; FUNC-LABEL: {{^}}v_and_multi_use_constant_i64:
-; SI: buffer_load_dwordx2 v{{\[}}[[LO0:[0-9]+]]:[[HI0:[0-9]+]]{{\]}}
-; SI: buffer_load_dwordx2 v{{\[}}[[LO1:[0-9]+]]:[[HI1:[0-9]+]]{{\]}}
-; SI-DAG: s_mov_b32 [[KLO:s[0-9]+]], 0xab19b207{{$}}
+; SI-DAG: buffer_load_dwordx2 v{{\[}}[[LO0:[0-9]+]]:[[HI0:[0-9]+]]{{\]}}
+; SI-DAG: buffer_load_dwordx2 v{{\[}}[[LO1:[0-9]+]]:[[HI1:[0-9]+]]{{\]}}
 ; SI-DAG: s_movk_i32 [[KHI:s[0-9]+]], 0x11e{{$}}
+; SI-DAG: s_mov_b32 [[KLO:s[0-9]+]], 0xab19b207{{$}}
 ; SI-DAG: v_and_b32_e32 {{v[0-9]+}}, [[KLO]], v[[LO0]]
 ; SI-DAG: v_and_b32_e32 {{v[0-9]+}}, [[KHI]], v[[HI0]]
 ; SI-DAG: v_and_b32_e32 {{v[0-9]+}}, [[KLO]], v[[LO1]]
@@ -284,10 +284,9 @@ define void @v_and_multi_use_constant_i64(i64 addrspace(1)* %out, i64 addrspace(
 ; SI: buffer_load_dwordx2 v{{\[}}[[LO1:[0-9]+]]:[[HI1:[0-9]+]]{{\]}}
 ; SI-NOT: and
 ; SI: v_and_b32_e32 v[[RESLO0:[0-9]+]], 63, v[[LO0]]
-; SI-NOT: and
-; SI: buffer_store_dwordx2 v{{\[}}[[RESLO0]]
 ; SI: v_and_b32_e32 v[[RESLO1:[0-9]+]], 63, v[[LO1]]
 ; SI-NOT: and
+; SI: buffer_store_dwordx2 v{{\[}}[[RESLO0]]
 ; SI: buffer_store_dwordx2 v{{\[}}[[RESLO1]]
 define void @v_and_multi_use_inline_imm_i64(i64 addrspace(1)* %out, i64 addrspace(1)* %aptr) {
   %a = load volatile i64, i64 addrspace(1)* %aptr
@@ -321,6 +320,20 @@ define void @v_and_i64_32_bit_constant(i64 addrspace(1)* %out, i64 addrspace(1)*
 define void @v_and_inline_imm_i64(i64 addrspace(1)* %out, i64 addrspace(1)* %aptr) {
   %a = load i64, i64 addrspace(1)* %aptr, align 8
   %and = and i64 %a, 64
+  store i64 %and, i64 addrspace(1)* %out, align 8
+  ret void
+}
+
+; FIXME: Should be able to reduce load width
+; FUNC-LABEL: {{^}}v_and_inline_neg_imm_i64:
+; SI: buffer_load_dwordx2 v{{\[}}[[VAL_LO:[0-9]+]]:[[VAL_HI:[0-9]+]]{{\]}}
+; SI-NOT: and
+; SI: v_and_b32_e32 v[[VAL_LO]], -8, v[[VAL_LO]]
+; SI-NOT: and
+; SI: buffer_store_dwordx2 v{{\[}}[[VAL_LO]]:[[VAL_HI]]{{\]}}
+define void @v_and_inline_neg_imm_i64(i64 addrspace(1)* %out, i64 addrspace(1)* %aptr) {
+  %a = load i64, i64 addrspace(1)* %aptr, align 8
+  %and = and i64 %a, -8
   store i64 %and, i64 addrspace(1)* %out, align 8
   ret void
 }
@@ -486,8 +499,8 @@ define void @s_and_inline_imm_neg_4.0_i64(i64 addrspace(1)* %out, i64 addrspace(
 ; low 32-bits, which is not a valid 64-bit inline immmediate.
 
 ; FUNC-LABEL: {{^}}s_and_inline_imm_f32_4.0_i64:
-; SI: s_load_dword s
 ; SI: s_load_dwordx2
+; SI: s_load_dword s
 ; SI-NOT: and
 ; SI: s_and_b32 s[[K_HI:[0-9]+]], s{{[0-9]+}}, 4.0
 ; SI-NOT: and

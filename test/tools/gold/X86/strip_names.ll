@@ -3,7 +3,7 @@
 ; RUN: %gold -plugin %llvmshlibdir/LLVMgold.so \
 ; RUN:    --plugin-opt=save-temps \
 ; RUN:    -shared %t.o -o %t2.o
-; RUN: llvm-dis %t2.o.bc -o - | FileCheck %s
+; RUN: llvm-dis %t2.o.0.2.internalize.bc -o - | FileCheck %s
 
 ; RUN: %gold -plugin %llvmshlibdir/LLVMgold.so \
 ; RUN:    --plugin-opt=emit-llvm \
@@ -23,6 +23,8 @@
 ; NONAME:  %2 = load i32, i32* @GlobalValueName
 ; NONAME:  %3 = add i32 %0, %2
 ; NONAME:  ret i32 %3
+
+target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"
 
 @GlobalValueName = global i32 0
 

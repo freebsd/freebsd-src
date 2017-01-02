@@ -15,12 +15,14 @@
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/IR/Constants.h"
+#include "llvm/IR/ConstantRange.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/GlobalAlias.h"
 #include "llvm/IR/GlobalValue.h"
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Operator.h"
+#include "llvm/Support/Error.h"
 #include "llvm/Support/ErrorHandling.h"
 using namespace llvm;
 
@@ -28,12 +30,19 @@ using namespace llvm;
 //                            GlobalValue Class
 //===----------------------------------------------------------------------===//
 
+// GlobalValue should be a Constant, plus a type, a module, some flags, and an
+// intrinsic ID. Add an assert to prevent people from accidentally growing
+// GlobalValue while adding flags.
+static_assert(sizeof(GlobalValue) ==
+                  sizeof(Constant) + 2 * sizeof(void *) + 2 * sizeof(unsigned),
+              "unexpected GlobalValue size growth");
+
 bool GlobalValue::isMaterializable() const {
   if (const Function *F = dyn_cast<Function>(this))
     return F->isMaterializable();
   return false;
 }
-std::error_code GlobalValue::materialize() {
+Error GlobalValue::materialize() {
   return getParent()->materialize(this);
 }
 
@@ -213,6 +222,34 @@ bool GlobalValue::canIncreaseAlignment() const {
   return true;
 }
 
+GlobalObject *GlobalValue::getBaseObject() {
+  if (auto *GO = dyn_cast<GlobalObject>(this))
+    return GO;
+  if (auto *GA = dyn_cast<GlobalAlias>(this))
+    return GA->getBaseObject();
+  return nullptr;
+}
+
+bool GlobalValue::isAbsoluteSymbolRef() const {
+  auto *GO = dyn_cast<GlobalObject>(this);
+  if (!GO)
+    return false;
+
+  return GO->getMetadata(LLVMContext::MD_absolute_symbol);
+}
+
+Optional<ConstantRange> GlobalValue::getAbsoluteSymbolRange() const {
+  auto *GO = dyn_cast<GlobalObject>(this);
+  if (!GO)
+    return None;
+
+  MDNode *MD = GO->getMetadata(LLVMContext::MD_absolute_symbol);
+  if (!MD)
+    return None;
+
+  return getConstantRangeFromMetadata(*MD);
+}
+
 //===----------------------------------------------------------------------===//
 // GlobalVariable Implementation
 //===----------------------------------------------------------------------===//
@@ -255,10 +292,6 @@ GlobalVariable::GlobalVariable(Module &M, Type *Ty, bool constant,
     Before->getParent()->getGlobalList().insert(Before->getIterator(), this);
   else
     M.getGlobalList().push_back(this);
-}
-
-void GlobalVariable::setParent(Module *parent) {
-  Parent = parent;
 }
 
 void GlobalVariable::removeFromParent() {
@@ -359,10 +392,6 @@ GlobalAlias *GlobalAlias::create(const Twine &Name, GlobalValue *Aliasee) {
   return create(Aliasee->getLinkage(), Name, Aliasee);
 }
 
-void GlobalAlias::setParent(Module *parent) {
-  Parent = parent;
-}
-
 void GlobalAlias::removeFromParent() {
   getParent()->getAliasList().remove(getIterator());
 }
@@ -394,10 +423,6 @@ GlobalIFunc *GlobalIFunc::create(Type *Ty, unsigned AddressSpace,
                                  LinkageTypes Link, const Twine &Name,
                                  Constant *Resolver, Module *ParentModule) {
   return new GlobalIFunc(Ty, AddressSpace, Link, Name, Resolver, ParentModule);
-}
-
-void GlobalIFunc::setParent(Module *parent) {
-  Parent = parent;
 }
 
 void GlobalIFunc::removeFromParent() {

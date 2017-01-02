@@ -70,7 +70,7 @@ namespace ISD {
     /// of the frame or return address to return.  An index of zero corresponds
     /// to the current function's frame or return address, an index of one to
     /// the parent's frame or return address, and so on.
-    FRAMEADDR, RETURNADDR,
+    FRAMEADDR, RETURNADDR, ADDROFRETURNADDR,
 
     /// LOCAL_RECOVER - Represents the llvm.localrecover intrinsic.
     /// Materializes the offset from the local object pointer of another
@@ -89,6 +89,11 @@ namespace ISD {
     /// first (possible) on-stack argument. This is needed for correct stack
     /// adjustment during unwind.
     FRAME_TO_ARGS_OFFSET,
+
+    /// EH_DWARF_CFA - This node represents the pointer to the DWARF Canonical
+    /// Frame Address (CFA), generally the value of the stack pointer at the
+    /// call site in the previous frame.
+    EH_DWARF_CFA,
 
     /// OUTCHAIN = EH_RETURN(INCHAIN, OFFSET, HANDLER) - This node represents
     /// 'eh_return' gcc dwarf builtin, which is used to return from

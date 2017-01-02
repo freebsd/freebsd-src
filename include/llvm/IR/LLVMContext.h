@@ -15,25 +15,30 @@
 #ifndef LLVM_IR_LLVMCONTEXT_H
 #define LLVM_IR_LLVMCONTEXT_H
 
+#include "llvm-c/Types.h"
 #include "llvm/Support/CBindingWrapping.h"
 #include "llvm/Support/Options.h"
+#include <cstdint>
+#include <memory>
+#include <string>
 
 namespace llvm {
 
-class LLVMContextImpl;
-class StringRef;
-class Twine;
-class Instruction;
-class Module;
-class MDString;
-class DICompositeType;
-class SMDiagnostic;
 class DiagnosticInfo;
 enum DiagnosticSeverity : char;
-template <typename T> class SmallVectorImpl;
 class Function;
-class DebugLoc;
+class Instruction;
+class LLVMContextImpl;
+class Module;
 class OptBisect;
+template <typename T> class SmallVectorImpl;
+class SMDiagnostic;
+class StringRef;
+class Twine;
+
+namespace yaml {
+class Output;
+} // end namespace yaml
 
 /// This is an important class for using LLVM in a threaded context.  It
 /// (opaquely) owns and manages the core "global" data of LLVM's core
@@ -44,6 +49,8 @@ class LLVMContext {
 public:
   LLVMContextImpl *const pImpl;
   LLVMContext();
+  LLVMContext(LLVMContext &) = delete;
+  LLVMContext &operator=(const LLVMContext &) = delete;
   ~LLVMContext();
 
   // Pinned metadata names, which always have the same value.  This is a
@@ -69,6 +76,8 @@ public:
     MD_align = 17,                    // "align"
     MD_loop = 18,                     // "llvm.loop"
     MD_type = 19,                     // "type"
+    MD_section_prefix = 20,           // "section_prefix"
+    MD_absolute_symbol = 21,          // "absolute_symbol"
   };
 
   /// Known operand bundle tag IDs, which always have the same value.  All
@@ -181,6 +190,17 @@ public:
   /// diagnostics.
   void setDiagnosticHotnessRequested(bool Requested);
 
+  /// \brief Return the YAML file used by the backend to save optimization
+  /// diagnostics.  If null, diagnostics are not saved in a file but only
+  /// emitted via the diagnostic handler.
+  yaml::Output *getDiagnosticsOutputFile();
+  /// Set the diagnostics output file used for optimization diagnostics.
+  ///
+  /// By default or if invoked with null, diagnostics are not saved in a file
+  /// but only emitted via the diagnostic handler.  Even if an output file is
+  /// set, the handler is invoked for each diagnostic message.
+  void setDiagnosticsOutputFile(std::unique_ptr<yaml::Output> F);
+
   /// \brief Get the prefix that should be printed in front of a diagnostic of
   ///        the given \p Severity
   static const char *getDiagnosticMessagePrefix(DiagnosticSeverity Severity);
@@ -244,8 +264,8 @@ public:
   /// analysis.
   OptBisect &getOptBisect();
 private:
-  LLVMContext(LLVMContext&) = delete;
-  void operator=(LLVMContext&) = delete;
+  // Module needs access to the add/removeModule methods.
+  friend class Module;
 
   /// addModule - Register a module as being instantiated in this context.  If
   /// the context is deleted, the module will be deleted as well.
@@ -253,9 +273,6 @@ private:
 
   /// removeModule - Unregister a module from this context.
   void removeModule(Module*);
-
-  // Module needs access to the add/removeModule methods.
-  friend class Module;
 };
 
 // Create wrappers for C Binding types (see CBindingWrapping.h).
@@ -271,6 +288,6 @@ inline LLVMContextRef *wrap(const LLVMContext **Tys) {
   return reinterpret_cast<LLVMContextRef*>(const_cast<LLVMContext**>(Tys));
 }
 
-}
+} // end namespace llvm
 
-#endif
+#endif // LLVM_IR_LLVMCONTEXT_H

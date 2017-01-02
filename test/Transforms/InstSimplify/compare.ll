@@ -65,6 +65,17 @@ define i1 @gep4() {
 ; CHECK-NEXT: ret i1 false
 }
 
+@a = common global [1 x i32] zeroinitializer, align 4
+
+define i1 @PR31262() {
+; CHECK-LABEL: @PR31262(
+; CHECK-NEXT:    ret i1 icmp uge (i32* getelementptr ([1 x i32], [1 x i32]* @a, i64 0, i64 undef), i32* getelementptr inbounds ([1 x i32], [1 x i32]* @a, i32 0, i32 0))
+;
+  %idx = getelementptr inbounds [1 x i32], [1 x i32]* @a, i64 0, i64 undef
+  %cmp = icmp uge i32* %idx, getelementptr inbounds ([1 x i32], [1 x i32]* @a, i32 0, i32 0)
+  ret i1 %cmp
+}
+
 define i1 @gep5() {
 ; CHECK-LABEL: @gep5(
   %x = alloca %gept, align 8
@@ -203,6 +214,19 @@ define i1 @gep16(i8* %ptr, i32 %a) {
   %cmp = icmp eq i8* %x, null
   ret i1 %cmp
 ; CHECK-NEXT: ret i1 false
+}
+
+define i1 @gep17() {
+; CHECK-LABEL: @gep17(
+  %alloca = alloca i32, align 4
+  %bc = bitcast i32* %alloca to [4 x i8]*
+  %gep1 = getelementptr inbounds i32, i32* %alloca, i32 1
+  %pti1 = ptrtoint i32* %gep1 to i32
+  %gep2 = getelementptr inbounds [4 x i8], [4 x i8]* %bc, i32 0, i32 1
+  %pti2 = ptrtoint i8* %gep2 to i32
+  %cmp = icmp ugt i32 %pti1, %pti2
+  ret i1 %cmp
+; CHECK-NEXT: ret i1 true
 }
 
 define i1 @zext(i32 %x) {
@@ -356,14 +380,6 @@ define i1 @shl1(i32 %x) {
 ; CHECK: ret i1 false
 }
 
-define i1 @shl2(i32 %X) {
-; CHECK: @shl2
-  %sub = shl nsw i32 -1, %X
-  %cmp = icmp eq i32 %sub, 31
-  ret i1 %cmp
-; CHECK-NEXT: ret i1 false
-}
-
 define i1 @shl3(i32 %X) {
 ; CHECK: @shl3
   %sub = shl nuw i32 4, %X
@@ -372,34 +388,10 @@ define i1 @shl3(i32 %X) {
 ; CHECK-NEXT: ret i1 false
 }
 
-define i1 @shl4(i32 %X) {
-; CHECK: @shl4
-  %sub = shl nsw i32 -1, %X
-  %cmp = icmp sle i32 %sub, -1
-  ret i1 %cmp
-; CHECK-NEXT: ret i1 true
-}
-
-define i1 @shl5(i32 %X) {
-; CHECK: @shl5
-  %sub = shl nuw i32 4, %X
-  %cmp = icmp ugt i32 %sub, 3
-  ret i1 %cmp
-; CHECK-NEXT: ret i1 true
-}
-
 define i1 @lshr1(i32 %x) {
 ; CHECK-LABEL: @lshr1(
   %s = lshr i32 -1, %x
   %c = icmp eq i32 %s, 0
-  ret i1 %c
-; CHECK: ret i1 false
-}
-
-define i1 @lshr2(i32 %x) {
-; CHECK-LABEL: @lshr2(
-  %s = lshr i32 %x, 30
-  %c = icmp ugt i32 %s, 8
   ret i1 %c
 ; CHECK: ret i1 false
 }
@@ -428,18 +420,26 @@ define i1 @lshr5(i32 %X, i32 %Y) {
 ; CHECK: ret i1 false
 }
 
+define i1 @lshr6(i32 %X, i32 %Y) {
+; CHECK-LABEL: @lshr6(
+  %A = lshr i32 %X, %Y
+  %C = icmp ult i32 %X, %A
+  ret i1 %C
+; CHECK: ret i1 false
+}
+
+define i1 @lshr7(i32 %X, i32 %Y) {
+; CHECK-LABEL: @lshr7(
+  %A = lshr i32 %X, %Y
+  %C = icmp uge i32 %X, %A
+  ret i1 %C
+; CHECK: ret i1 true
+}
+
 define i1 @ashr1(i32 %x) {
 ; CHECK-LABEL: @ashr1(
   %s = ashr i32 -1, %x
   %c = icmp eq i32 %s, 0
-  ret i1 %c
-; CHECK: ret i1 false
-}
-
-define i1 @ashr2(i32 %x) {
-; CHECK-LABEL: @ashr2(
-  %s = ashr i32 %x, 30
-  %c = icmp slt i32 %s, -5
   ret i1 %c
 ; CHECK: ret i1 false
 }
@@ -521,14 +521,6 @@ define i1 @urem2(i32 %X, i32 %Y) {
 ; CHECK: ret i1 false
 }
 
-define i1 @urem3(i32 %X) {
-; CHECK-LABEL: @urem3(
-  %A = urem i32 %X, 10
-  %B = icmp ult i32 %A, 15
-  ret i1 %B
-; CHECK: ret i1 true
-}
-
 define i1 @urem4(i32 %X) {
 ; CHECK-LABEL: @urem4(
   %A = urem i32 %X, 15
@@ -562,14 +554,6 @@ define i1 @urem7(i32 %X) {
 ; CHECK-NOT: ret i1 false
 }
 
-define i1 @srem1(i32 %X) {
-; CHECK-LABEL: @srem1(
-  %A = srem i32 %X, -5
-  %B = icmp sgt i32 %A, 5
-  ret i1 %B
-; CHECK: ret i1 false
-}
-
 ; PR9343 #15
 ; CHECK-LABEL: @srem2(
 ; CHECK: ret i1 false
@@ -590,14 +574,6 @@ define i1 @srem3(i16 %X, i32 %Y) {
   %D = srem i32 %C, %Y
   %E = icmp slt i32 %D, 0
   ret i1 %E
-}
-
-define i1 @udiv1(i32 %X) {
-; CHECK-LABEL: @udiv1(
-  %A = udiv i32 %X, 1000000
-  %B = icmp ult i32 %A, 5000
-  ret i1 %B
-; CHECK: ret i1 true
 }
 
 define i1 @udiv2(i32 %X, i32 %Y, i32 %Z) {
@@ -625,14 +601,6 @@ define i1 @udiv4(i32 %X, i32 %Y) {
 ; CHECK: ret i1 true
 }
 
-define i1 @udiv5(i32 %X) {
-; CHECK-LABEL: @udiv5(
-  %A = udiv i32 123, %X
-  %C = icmp ugt i32 %A, 124
-  ret i1 %C
-; CHECK: ret i1 false
-}
-
 ; PR11340
 define i1 @udiv6(i32 %X) nounwind {
 ; CHECK-LABEL: @udiv6(
@@ -642,29 +610,20 @@ define i1 @udiv6(i32 %X) nounwind {
 ; CHECK: ret i1 %C
 }
 
+define i1 @udiv7(i32 %X, i32 %Y) {
+; CHECK-LABEL: @udiv7(
+  %A = udiv i32 %X, %Y
+  %C = icmp ult i32 %X, %A
+  ret i1 %C
+; CHECK: ret i1 false
+}
 
-define i1 @sdiv1(i32 %X) {
-; CHECK-LABEL: @sdiv1(
-  %A = sdiv i32 %X, 1000000
-  %B = icmp slt i32 %A, 3000
-  ret i1 %B
+define i1 @udiv8(i32 %X, i32 %Y) {
+; CHECK-LABEL: @udiv8(
+  %A = udiv i32 %X, %Y
+  %C = icmp uge i32 %X, %A
+  ret i1 %C
 ; CHECK: ret i1 true
-}
-
-define i1 @or1(i32 %X) {
-; CHECK-LABEL: @or1(
-  %A = or i32 %X, 62
-  %B = icmp ult i32 %A, 50
-  ret i1 %B
-; CHECK: ret i1 false
-}
-
-define i1 @and1(i32 %X) {
-; CHECK-LABEL: @and1(
-  %A = and i32 %X, 62
-  %B = icmp ugt i32 %A, 70
-  ret i1 %B
-; CHECK: ret i1 false
 }
 
 define i1 @mul1(i32 %X) {
@@ -881,52 +840,11 @@ define i1 @compare_always_false_ne(i16 %a) {
 ; CHECK-NEXT: ret i1 true
 }
 
-define i1 @compare_dividend(i32 %a) {
-  %div = sdiv i32 2, %a
-  %cmp = icmp eq i32 %div, 3
-  ret i1 %cmp
-
-; CHECK-LABEL: @compare_dividend
-; CHECK-NEXT: ret i1 false
-}
-
 define i1 @lshr_ugt_false(i32 %a) {
   %shr = lshr i32 1, %a
   %cmp = icmp ugt i32 %shr, 1
   ret i1 %cmp
 ; CHECK-LABEL: @lshr_ugt_false
-; CHECK-NEXT: ret i1 false
-}
-
-define i1 @exact_lshr_ugt_false(i32 %a) {
-  %shr = lshr exact i32 30, %a
-  %cmp = icmp ult i32 %shr, 15
-  ret i1 %cmp
-; CHECK-LABEL: @exact_lshr_ugt_false
-; CHECK-NEXT: ret i1 false
-}
-
-define i1 @lshr_sgt_false(i32 %a) {
-  %shr = lshr i32 1, %a
-  %cmp = icmp sgt i32 %shr, 1
-  ret i1 %cmp
-; CHECK-LABEL: @lshr_sgt_false
-; CHECK-NEXT: ret i1 false
-}
-
-define i1 @ashr_sgt_false(i32 %a) {
-  %shr = ashr i32 -30, %a
-  %cmp = icmp sgt i32 %shr, -1
-  ret i1 %cmp
-; CHECK-LABEL: @ashr_sgt_false
-; CHECK-NEXT: ret i1 false
-}
-
-define i1 @exact_ashr_sgt_false(i32 %a) {
-  %shr = ashr exact i32 -30, %a
-  %cmp = icmp sgt i32 %shr, -15
-  ret i1 %cmp
-; CHECK-LABEL: @exact_ashr_sgt_false
 ; CHECK-NEXT: ret i1 false
 }
 
@@ -1005,22 +923,40 @@ define i1 @nonnull_load_as_inner(i32 addrspace(1)** %addr) {
 
 ; If a bit is known to be zero for A and known to be one for B,
 ; then A and B cannot be equal.
-define i1 @icmp_eq_const(i32 %a) nounwind {
+define i1 @icmp_eq_const(i32 %a) {
+; CHECK-LABEL: @icmp_eq_const(
+; CHECK-NEXT:    ret i1 false
+;
   %b = mul nsw i32 %a, -2
   %c = icmp eq i32 %b, 1
   ret i1 %c
-
-; CHECK-LABEL: @icmp_eq_const
-; CHECK-NEXT: ret i1 false 
 }
 
-define i1 @icmp_ne_const(i32 %a) nounwind {
+define <2 x i1> @icmp_eq_const_vec(<2 x i32> %a) {
+; CHECK-LABEL: @icmp_eq_const_vec(
+; CHECK-NEXT:    ret <2 x i1> zeroinitializer
+;
+  %b = mul nsw <2 x i32> %a, <i32 -2, i32 -2>
+  %c = icmp eq <2 x i32> %b, <i32 1, i32 1>
+  ret <2 x i1> %c
+}
+
+define i1 @icmp_ne_const(i32 %a) {
+; CHECK-LABEL: @icmp_ne_const(
+; CHECK-NEXT:    ret i1 true
+;
   %b = mul nsw i32 %a, -2
   %c = icmp ne i32 %b, 1
   ret i1 %c
+}
 
-; CHECK-LABEL: @icmp_ne_const
-; CHECK-NEXT: ret i1 true
+define <2 x i1> @icmp_ne_const_vec(<2 x i32> %a) {
+; CHECK-LABEL: @icmp_ne_const_vec(
+; CHECK-NEXT:    ret <2 x i1> <i1 true, i1 true>
+;
+  %b = mul nsw <2 x i32> %a, <i32 -2, i32 -2>
+  %c = icmp ne <2 x i32> %b, <i32 1, i32 1>
+  ret <2 x i1> %c
 }
 
 define i1 @icmp_sdiv_int_min(i32 %a) {
@@ -1075,24 +1011,6 @@ define i1 @icmp_shl_nuw_1(i64 %a) {
  ret i1 %cmp
 
 ; CHECK-LABEL: @icmp_shl_nuw_1
-; CHECK-NEXT: ret i1 true
-}
-
-define i1 @icmp_shl_nsw_neg1(i64 %a) {
- %shl = shl nsw i64 -1, %a
- %cmp = icmp sge i64 %shl, 3
- ret i1 %cmp
-
-; CHECK-LABEL: @icmp_shl_nsw_neg1
-; CHECK-NEXT: ret i1 false
-}
-
-define i1 @icmp_shl_nsw_1(i64 %a) {
- %shl = shl nsw i64 1, %a
- %cmp = icmp sge i64 %shl, 0
- ret i1 %cmp
-
-; CHECK-LABEL: @icmp_shl_nsw_1
 ; CHECK-NEXT: ret i1 true
 }
 
@@ -1194,14 +1112,6 @@ define i1 @tautological8(i32 %A, i32 %B) {
   ret i1 %D
 ; CHECK-LABEL: @tautological8(
 ; CHECK: ret i1 false
-}
-
-define i1 @tautological9(i32 %x) {
-  %add = add nuw i32 %x, 13
-  %cmp = icmp ne i32 %add, 12
-  ret i1 %cmp
-; CHECK-LABEL: @tautological9(
-; CHECK: ret i1 true
 }
 
 declare void @helper_i1(i1)

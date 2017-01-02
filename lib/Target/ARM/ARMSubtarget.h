@@ -25,6 +25,7 @@
 #include "Thumb1InstrInfo.h"
 #include "Thumb2InstrInfo.h"
 #include "llvm/ADT/Triple.h"
+#include "llvm/CodeGen/GlobalISel/GISelAccessor.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/MC/MCInstrItineraries.h"
 #include "llvm/Target/TargetSubtargetInfo.h"
@@ -43,7 +44,7 @@ class ARMSubtarget : public ARMGenSubtargetInfo {
 protected:
   enum ARMProcFamilyEnum {
     Others, CortexA5, CortexA7, CortexA8, CortexA9, CortexA12, CortexA15,
-    CortexA17, CortexR4, CortexR4F, CortexR5, CortexR7, CortexM3,
+    CortexA17, CortexR4, CortexR4F, CortexR5, CortexR7, CortexR52, CortexM3,
     CortexA32, CortexA35, CortexA53, CortexA57, CortexA72, CortexA73,
     Krait, Swift, ExynosM1
   };
@@ -53,7 +54,8 @@ protected:
   enum ARMArchEnum {
     ARMv2, ARMv2a, ARMv3, ARMv3m, ARMv4, ARMv4t, ARMv5, ARMv5t, ARMv5te,
     ARMv5tej, ARMv6, ARMv6k, ARMv6kz, ARMv6t2, ARMv6m, ARMv6sm, ARMv7a, ARMv7r,
-    ARMv7m, ARMv7em, ARMv8a, ARMv81a, ARMv82a, ARMv8mMainline, ARMv8mBaseline
+    ARMv7m, ARMv7em, ARMv8a, ARMv81a, ARMv82a, ARMv8mMainline, ARMv8mBaseline,
+    ARMv8r
   };
 
 public:
@@ -234,6 +236,9 @@ protected:
   /// particularly effective at zeroing a VFP register.
   bool HasZeroCycleZeroing = false;
 
+  /// HasFPAO - if true, processor  does positive address offset computation faster
+  bool HasFPAO = false;
+
   /// If true, if conversion may decide to leave some instructions unpredicated.
   bool IsProfitableToUnpredicate = false;
 
@@ -296,6 +301,9 @@ protected:
   /// Generate calls via indirect call instructions.
   bool GenLongCalls = false;
 
+  /// Generate code that does not contain data access to code sections.
+  bool GenExecuteOnly = false;
+
   /// Target machine allowed unsafe FP math (such as use of NEON fp)
   bool UnsafeFPMath = false;
 
@@ -346,6 +354,9 @@ public:
   ARMSubtarget(const Triple &TT, const std::string &CPU, const std::string &FS,
                const ARMBaseTargetMachine &TM, bool IsLittle);
 
+  /// This object will take onwership of \p GISelAccessor.
+  void setGISelAccessor(GISelAccessor &GISel) { this->GISel.reset(&GISel); }
+
   /// getMaxInlineSizeThreshold - Returns the maximum memset / memcpy size
   /// that still makes it profitable to inline the call.
   unsigned getMaxInlineSizeThreshold() const {
@@ -375,6 +386,11 @@ public:
     return &InstrInfo->getRegisterInfo();
   }
 
+  const CallLowering *getCallLowering() const override;
+  const InstructionSelector *getInstructionSelector() const override;
+  const LegalizerInfo *getLegalizerInfo() const override;
+  const RegisterBankInfo *getRegBankInfo() const override;
+
 private:
   ARMSelectionDAGInfo TSInfo;
   // Either Thumb1FrameLowering or ARMFrameLowering.
@@ -382,6 +398,11 @@ private:
   // Either Thumb1InstrInfo or Thumb2InstrInfo.
   std::unique_ptr<ARMBaseInstrInfo> InstrInfo;
   ARMTargetLowering   TLInfo;
+
+  /// Gather the accessor points to GlobalISel-related APIs.
+  /// This is used to avoid ifndefs spreading around while GISel is
+  /// an optional library.
+  std::unique_ptr<GISelAccessor> GISel;
 
   void initializeEnvironment();
   void initSubtargetFeatures(StringRef CPU, StringRef FS);
@@ -452,6 +473,7 @@ public:
   bool hasTrustZone() const { return HasTrustZone; }
   bool has8MSecExt() const { return Has8MSecExt; }
   bool hasZeroCycleZeroing() const { return HasZeroCycleZeroing; }
+  bool hasFPAO() const { return HasFPAO; }
   bool isProfitableToUnpredicate() const { return IsProfitableToUnpredicate; }
   bool hasSlowVGETLNi32() const { return HasSlowVGETLNi32; }
   bool hasSlowVDUP32() const { return HasSlowVDUP32; }
@@ -475,6 +497,7 @@ public:
   bool useNaClTrap() const { return UseNaClTrap; }
   bool useSjLjEH() const { return UseSjLjEH; }
   bool genLongCalls() const { return GenLongCalls; }
+  bool genExecuteOnly() const { return GenExecuteOnly; }
 
   bool hasFP16() const { return HasFP16; }
   bool hasD16() const { return HasD16; }
@@ -540,9 +563,14 @@ public:
   }
   bool isTargetAndroid() const { return TargetTriple.isAndroid(); }
 
+  virtual bool isXRaySupported() const override;
+
   bool isAPCS_ABI() const;
   bool isAAPCS_ABI() const;
   bool isAAPCS16_ABI() const;
+
+  bool isROPI() const;
+  bool isRWPI() const;
 
   bool useSoftFloat() const { return UseSoftFloat; }
   bool isThumb() const { return InThumbMode; }
@@ -557,11 +585,17 @@ public:
     return isTargetMachO() ? (ReserveR9 || !HasV6Ops) : ReserveR9;
   }
 
+  bool useR7AsFramePointer() const {
+    return isTargetDarwin() || (!isTargetWindows() && isThumb());
+  }
   /// Returns true if the frame setup is split into two separate pushes (first
   /// r0-r7,lr then r8-r11), principally so that the frame pointer is adjacent
-  /// to lr.
-  bool splitFramePushPop() const {
-    return isTargetMachO();
+  /// to lr. This is always required on Thumb1-only targets, as the push and
+  /// pop instructions can't access the high registers.
+  bool splitFramePushPop(const MachineFunction &MF) const {
+    return (useR7AsFramePointer() &&
+            MF.getTarget().Options.DisableFramePointerElim(MF)) ||
+           isThumb1Only();
   }
 
   bool useStride4VFPs(const MachineFunction &MF) const;

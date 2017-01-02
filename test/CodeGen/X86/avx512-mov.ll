@@ -13,7 +13,7 @@ define i32 @test1(float %x) {
 define <4 x i32> @test2(i32 %x) {
 ; CHECK-LABEL: test2:
 ; CHECK:       ## BB#0:
-; CHECK-NEXT:    vmovd %edi, %xmm0 ## encoding: [0x62,0xf1,0x7d,0x08,0x6e,0xc7]
+; CHECK-NEXT:    vmovd %edi, %xmm0 ## EVEX TO VEX Compression encoding: [0xc5,0xf9,0x6e,0xc7]
 ; CHECK-NEXT:    retq ## encoding: [0xc3]
    %res = insertelement <4 x i32>undef, i32 %x, i32 0
    ret <4 x i32>%res
@@ -22,7 +22,7 @@ define <4 x i32> @test2(i32 %x) {
 define <2 x i64> @test3(i64 %x) {
 ; CHECK-LABEL: test3:
 ; CHECK:       ## BB#0:
-; CHECK-NEXT:    vmovq %rdi, %xmm0 ## encoding: [0x62,0xf1,0xfd,0x08,0x6e,0xc7]
+; CHECK-NEXT:    vmovq %rdi, %xmm0 ## EVEX TO VEX Compression encoding: [0xc4,0xe1,0xf9,0x6e,0xc7]
 ; CHECK-NEXT:    retq ## encoding: [0xc3]
    %res = insertelement <2 x i64>undef, i64 %x, i32 0
    ret <2 x i64>%res
@@ -31,7 +31,7 @@ define <2 x i64> @test3(i64 %x) {
 define <4 x i32> @test4(i32* %x) {
 ; CHECK-LABEL: test4:
 ; CHECK:       ## BB#0:
-; CHECK-NEXT:    vmovd (%rdi), %xmm0 ## encoding: [0x62,0xf1,0x7d,0x08,0x6e,0x07]
+; CHECK-NEXT:    vmovss (%rdi), %xmm0 ## EVEX TO VEX Compression encoding: [0xc5,0xfa,0x10,0x07]
 ; CHECK-NEXT:    ## xmm0 = mem[0],zero,zero,zero
 ; CHECK-NEXT:    retq ## encoding: [0xc3]
    %y = load i32, i32* %x
@@ -42,7 +42,7 @@ define <4 x i32> @test4(i32* %x) {
 define void @test5(float %x, float* %y) {
 ; CHECK-LABEL: test5:
 ; CHECK:       ## BB#0:
-; CHECK-NEXT:    vmovss %xmm0, (%rdi) ## encoding: [0x62,0xf1,0x7e,0x08,0x11,0x07]
+; CHECK-NEXT:    vmovss %xmm0, (%rdi) ## EVEX TO VEX Compression encoding: [0xc5,0xfa,0x11,0x07]
 ; CHECK-NEXT:    retq ## encoding: [0xc3]
    store float %x, float* %y, align 4
    ret void
@@ -51,7 +51,7 @@ define void @test5(float %x, float* %y) {
 define void @test6(double %x, double* %y) {
 ; CHECK-LABEL: test6:
 ; CHECK:       ## BB#0:
-; CHECK-NEXT:    vmovsd %xmm0, (%rdi) ## encoding: [0x62,0xf1,0xff,0x08,0x11,0x07]
+; CHECK-NEXT:    vmovsd %xmm0, (%rdi) ## EVEX TO VEX Compression encoding: [0xc5,0xfb,0x11,0x07]
 ; CHECK-NEXT:    retq ## encoding: [0xc3]
    store double %x, double* %y, align 8
    ret void
@@ -60,7 +60,7 @@ define void @test6(double %x, double* %y) {
 define float @test7(i32* %x) {
 ; CHECK-LABEL: test7:
 ; CHECK:       ## BB#0:
-; CHECK-NEXT:    vmovss (%rdi), %xmm0 ## encoding: [0x62,0xf1,0x7e,0x08,0x10,0x07]
+; CHECK-NEXT:    vmovss (%rdi), %xmm0 ## EVEX TO VEX Compression encoding: [0xc5,0xfa,0x10,0x07]
 ; CHECK-NEXT:    ## xmm0 = mem[0],zero,zero,zero
 ; CHECK-NEXT:    retq ## encoding: [0xc3]
    %y = load i32, i32* %x
@@ -71,7 +71,7 @@ define float @test7(i32* %x) {
 define i32 @test8(<4 x i32> %x) {
 ; CHECK-LABEL: test8:
 ; CHECK:       ## BB#0:
-; CHECK-NEXT:    vmovd %xmm0, %eax ## encoding: [0x62,0xf1,0x7d,0x08,0x7e,0xc0]
+; CHECK-NEXT:    vmovd %xmm0, %eax ## EVEX TO VEX Compression encoding: [0xc5,0xf9,0x7e,0xc0]
 ; CHECK-NEXT:    retq ## encoding: [0xc3]
    %res = extractelement <4 x i32> %x, i32 0
    ret i32 %res
@@ -80,7 +80,7 @@ define i32 @test8(<4 x i32> %x) {
 define i64 @test9(<2 x i64> %x) {
 ; CHECK-LABEL: test9:
 ; CHECK:       ## BB#0:
-; CHECK-NEXT:    vmovq %xmm0, %rax ## encoding: [0x62,0xf1,0xfd,0x08,0x7e,0xc0]
+; CHECK-NEXT:    vmovq %xmm0, %rax ## EVEX TO VEX Compression encoding: [0xc4,0xe1,0xf9,0x7e,0xc0]
 ; CHECK-NEXT:    retq ## encoding: [0xc3]
    %res = extractelement <2 x i64> %x, i32 0
    ret i64 %res
@@ -89,7 +89,7 @@ define i64 @test9(<2 x i64> %x) {
 define <4 x i32> @test10(i32* %x) {
 ; CHECK-LABEL: test10:
 ; CHECK:       ## BB#0:
-; CHECK-NEXT:    vmovd (%rdi), %xmm0 ## encoding: [0x62,0xf1,0x7d,0x08,0x6e,0x07]
+; CHECK-NEXT:    vmovss (%rdi), %xmm0 ## EVEX TO VEX Compression encoding: [0xc5,0xfa,0x10,0x07]
 ; CHECK-NEXT:    ## xmm0 = mem[0],zero,zero,zero
 ; CHECK-NEXT:    retq ## encoding: [0xc3]
    %y = load i32, i32* %x, align 4
@@ -100,7 +100,7 @@ define <4 x i32> @test10(i32* %x) {
 define <4 x float> @test11(float* %x) {
 ; CHECK-LABEL: test11:
 ; CHECK:       ## BB#0:
-; CHECK-NEXT:    vmovss (%rdi), %xmm0 ## encoding: [0x62,0xf1,0x7e,0x08,0x10,0x07]
+; CHECK-NEXT:    vmovss (%rdi), %xmm0 ## EVEX TO VEX Compression encoding: [0xc5,0xfa,0x10,0x07]
 ; CHECK-NEXT:    ## xmm0 = mem[0],zero,zero,zero
 ; CHECK-NEXT:    retq ## encoding: [0xc3]
    %y = load float, float* %x, align 4
@@ -111,7 +111,7 @@ define <4 x float> @test11(float* %x) {
 define <2 x double> @test12(double* %x) {
 ; CHECK-LABEL: test12:
 ; CHECK:       ## BB#0:
-; CHECK-NEXT:    vmovsd (%rdi), %xmm0 ## encoding: [0x62,0xf1,0xff,0x08,0x10,0x07]
+; CHECK-NEXT:    vmovsd (%rdi), %xmm0 ## EVEX TO VEX Compression encoding: [0xc5,0xfb,0x10,0x07]
 ; CHECK-NEXT:    ## xmm0 = mem[0],zero
 ; CHECK-NEXT:    retq ## encoding: [0xc3]
    %y = load double, double* %x, align 8
@@ -122,7 +122,7 @@ define <2 x double> @test12(double* %x) {
 define <2 x i64> @test13(i64 %x) {
 ; CHECK-LABEL: test13:
 ; CHECK:       ## BB#0:
-; CHECK-NEXT:    vmovq %rdi, %xmm0 ## encoding: [0x62,0xf1,0xfd,0x08,0x6e,0xc7]
+; CHECK-NEXT:    vmovq %rdi, %xmm0 ## EVEX TO VEX Compression encoding: [0xc4,0xe1,0xf9,0x6e,0xc7]
 ; CHECK-NEXT:    retq ## encoding: [0xc3]
    %res = insertelement <2 x i64>zeroinitializer, i64 %x, i32 0
    ret <2 x i64>%res
@@ -131,7 +131,7 @@ define <2 x i64> @test13(i64 %x) {
 define <4 x i32> @test14(i32 %x) {
 ; CHECK-LABEL: test14:
 ; CHECK:       ## BB#0:
-; CHECK-NEXT:    vmovd %edi, %xmm0 ## encoding: [0x62,0xf1,0x7d,0x08,0x6e,0xc7]
+; CHECK-NEXT:    vmovd %edi, %xmm0 ## EVEX TO VEX Compression encoding: [0xc5,0xf9,0x6e,0xc7]
 ; CHECK-NEXT:    retq ## encoding: [0xc3]
    %res = insertelement <4 x i32>zeroinitializer, i32 %x, i32 0
    ret <4 x i32>%res
@@ -140,7 +140,7 @@ define <4 x i32> @test14(i32 %x) {
 define <4 x i32> @test15(i32* %x) {
 ; CHECK-LABEL: test15:
 ; CHECK:       ## BB#0:
-; CHECK-NEXT:    vmovd (%rdi), %xmm0 ## encoding: [0x62,0xf1,0x7d,0x08,0x6e,0x07]
+; CHECK-NEXT:    vmovss (%rdi), %xmm0 ## EVEX TO VEX Compression encoding: [0xc5,0xfa,0x10,0x07]
 ; CHECK-NEXT:    ## xmm0 = mem[0],zero,zero,zero
 ; CHECK-NEXT:    retq ## encoding: [0xc3]
    %y = load i32, i32* %x, align 4
@@ -151,7 +151,7 @@ define <4 x i32> @test15(i32* %x) {
 define <16 x i32> @test16(i8 * %addr) {
 ; CHECK-LABEL: test16:
 ; CHECK:       ## BB#0:
-; CHECK-NEXT:    vmovdqu32 (%rdi), %zmm0 ## encoding: [0x62,0xf1,0x7e,0x48,0x6f,0x07]
+; CHECK-NEXT:    vmovups (%rdi), %zmm0 ## encoding: [0x62,0xf1,0x7c,0x48,0x10,0x07]
 ; CHECK-NEXT:    retq ## encoding: [0xc3]
   %vaddr = bitcast i8* %addr to <16 x i32>*
   %res = load <16 x i32>, <16 x i32>* %vaddr, align 1
@@ -161,7 +161,7 @@ define <16 x i32> @test16(i8 * %addr) {
 define <16 x i32> @test17(i8 * %addr) {
 ; CHECK-LABEL: test17:
 ; CHECK:       ## BB#0:
-; CHECK-NEXT:    vmovdqa32 (%rdi), %zmm0 ## encoding: [0x62,0xf1,0x7d,0x48,0x6f,0x07]
+; CHECK-NEXT:    vmovaps (%rdi), %zmm0 ## encoding: [0x62,0xf1,0x7c,0x48,0x28,0x07]
 ; CHECK-NEXT:    retq ## encoding: [0xc3]
   %vaddr = bitcast i8* %addr to <16 x i32>*
   %res = load <16 x i32>, <16 x i32>* %vaddr, align 64
@@ -171,7 +171,7 @@ define <16 x i32> @test17(i8 * %addr) {
 define void @test18(i8 * %addr, <8 x i64> %data) {
 ; CHECK-LABEL: test18:
 ; CHECK:       ## BB#0:
-; CHECK-NEXT:    vmovdqa64 %zmm0, (%rdi) ## encoding: [0x62,0xf1,0xfd,0x48,0x7f,0x07]
+; CHECK-NEXT:    vmovaps %zmm0, (%rdi) ## encoding: [0x62,0xf1,0x7c,0x48,0x29,0x07]
 ; CHECK-NEXT:    retq ## encoding: [0xc3]
   %vaddr = bitcast i8* %addr to <8 x i64>*
   store <8 x i64>%data, <8 x i64>* %vaddr, align 64
@@ -181,7 +181,7 @@ define void @test18(i8 * %addr, <8 x i64> %data) {
 define void @test19(i8 * %addr, <16 x i32> %data) {
 ; CHECK-LABEL: test19:
 ; CHECK:       ## BB#0:
-; CHECK-NEXT:    vmovdqu32 %zmm0, (%rdi) ## encoding: [0x62,0xf1,0x7e,0x48,0x7f,0x07]
+; CHECK-NEXT:    vmovups %zmm0, (%rdi) ## encoding: [0x62,0xf1,0x7c,0x48,0x11,0x07]
 ; CHECK-NEXT:    retq ## encoding: [0xc3]
   %vaddr = bitcast i8* %addr to <16 x i32>*
   store <16 x i32>%data, <16 x i32>* %vaddr, align 1
@@ -191,7 +191,7 @@ define void @test19(i8 * %addr, <16 x i32> %data) {
 define void @test20(i8 * %addr, <16 x i32> %data) {
 ; CHECK-LABEL: test20:
 ; CHECK:       ## BB#0:
-; CHECK-NEXT:    vmovdqa32 %zmm0, (%rdi) ## encoding: [0x62,0xf1,0x7d,0x48,0x7f,0x07]
+; CHECK-NEXT:    vmovaps %zmm0, (%rdi) ## encoding: [0x62,0xf1,0x7c,0x48,0x29,0x07]
 ; CHECK-NEXT:    retq ## encoding: [0xc3]
   %vaddr = bitcast i8* %addr to <16 x i32>*
   store <16 x i32>%data, <16 x i32>* %vaddr, align 64
@@ -201,7 +201,7 @@ define void @test20(i8 * %addr, <16 x i32> %data) {
 define  <8 x i64> @test21(i8 * %addr) {
 ; CHECK-LABEL: test21:
 ; CHECK:       ## BB#0:
-; CHECK-NEXT:    vmovdqa64 (%rdi), %zmm0 ## encoding: [0x62,0xf1,0xfd,0x48,0x6f,0x07]
+; CHECK-NEXT:    vmovaps (%rdi), %zmm0 ## encoding: [0x62,0xf1,0x7c,0x48,0x28,0x07]
 ; CHECK-NEXT:    retq ## encoding: [0xc3]
   %vaddr = bitcast i8* %addr to <8 x i64>*
   %res = load <8 x i64>, <8 x i64>* %vaddr, align 64
@@ -211,7 +211,7 @@ define  <8 x i64> @test21(i8 * %addr) {
 define void @test22(i8 * %addr, <8 x i64> %data) {
 ; CHECK-LABEL: test22:
 ; CHECK:       ## BB#0:
-; CHECK-NEXT:    vmovdqu64 %zmm0, (%rdi) ## encoding: [0x62,0xf1,0xfe,0x48,0x7f,0x07]
+; CHECK-NEXT:    vmovups %zmm0, (%rdi) ## encoding: [0x62,0xf1,0x7c,0x48,0x11,0x07]
 ; CHECK-NEXT:    retq ## encoding: [0xc3]
   %vaddr = bitcast i8* %addr to <8 x i64>*
   store <8 x i64>%data, <8 x i64>* %vaddr, align 1
@@ -221,7 +221,7 @@ define void @test22(i8 * %addr, <8 x i64> %data) {
 define <8 x i64> @test23(i8 * %addr) {
 ; CHECK-LABEL: test23:
 ; CHECK:       ## BB#0:
-; CHECK-NEXT:    vmovdqu64 (%rdi), %zmm0 ## encoding: [0x62,0xf1,0xfe,0x48,0x6f,0x07]
+; CHECK-NEXT:    vmovups (%rdi), %zmm0 ## encoding: [0x62,0xf1,0x7c,0x48,0x10,0x07]
 ; CHECK-NEXT:    retq ## encoding: [0xc3]
   %vaddr = bitcast i8* %addr to <8 x i64>*
   %res = load <8 x i64>, <8 x i64>* %vaddr, align 1
@@ -231,7 +231,7 @@ define <8 x i64> @test23(i8 * %addr) {
 define void @test24(i8 * %addr, <8 x double> %data) {
 ; CHECK-LABEL: test24:
 ; CHECK:       ## BB#0:
-; CHECK-NEXT:    vmovapd %zmm0, (%rdi) ## encoding: [0x62,0xf1,0xfd,0x48,0x29,0x07]
+; CHECK-NEXT:    vmovaps %zmm0, (%rdi) ## encoding: [0x62,0xf1,0x7c,0x48,0x29,0x07]
 ; CHECK-NEXT:    retq ## encoding: [0xc3]
   %vaddr = bitcast i8* %addr to <8 x double>*
   store <8 x double>%data, <8 x double>* %vaddr, align 64
@@ -241,7 +241,7 @@ define void @test24(i8 * %addr, <8 x double> %data) {
 define <8 x double> @test25(i8 * %addr) {
 ; CHECK-LABEL: test25:
 ; CHECK:       ## BB#0:
-; CHECK-NEXT:    vmovapd (%rdi), %zmm0 ## encoding: [0x62,0xf1,0xfd,0x48,0x28,0x07]
+; CHECK-NEXT:    vmovaps (%rdi), %zmm0 ## encoding: [0x62,0xf1,0x7c,0x48,0x28,0x07]
 ; CHECK-NEXT:    retq ## encoding: [0xc3]
   %vaddr = bitcast i8* %addr to <8 x double>*
   %res = load <8 x double>, <8 x double>* %vaddr, align 64
@@ -271,7 +271,7 @@ define <16 x float> @test27(i8 * %addr) {
 define void @test28(i8 * %addr, <8 x double> %data) {
 ; CHECK-LABEL: test28:
 ; CHECK:       ## BB#0:
-; CHECK-NEXT:    vmovupd %zmm0, (%rdi) ## encoding: [0x62,0xf1,0xfd,0x48,0x11,0x07]
+; CHECK-NEXT:    vmovups %zmm0, (%rdi) ## encoding: [0x62,0xf1,0x7c,0x48,0x11,0x07]
 ; CHECK-NEXT:    retq ## encoding: [0xc3]
   %vaddr = bitcast i8* %addr to <8 x double>*
   store <8 x double>%data, <8 x double>* %vaddr, align 1
@@ -281,7 +281,7 @@ define void @test28(i8 * %addr, <8 x double> %data) {
 define <8 x double> @test29(i8 * %addr) {
 ; CHECK-LABEL: test29:
 ; CHECK:       ## BB#0:
-; CHECK-NEXT:    vmovupd (%rdi), %zmm0 ## encoding: [0x62,0xf1,0xfd,0x48,0x10,0x07]
+; CHECK-NEXT:    vmovups (%rdi), %zmm0 ## encoding: [0x62,0xf1,0x7c,0x48,0x10,0x07]
 ; CHECK-NEXT:    retq ## encoding: [0xc3]
   %vaddr = bitcast i8* %addr to <8 x double>*
   %res = load <8 x double>, <8 x double>* %vaddr, align 1

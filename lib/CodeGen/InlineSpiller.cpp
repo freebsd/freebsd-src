@@ -114,7 +114,7 @@ public:
         AA(&pass.getAnalysis<AAResultsWrapperPass>().getAAResults()),
         MDT(pass.getAnalysis<MachineDominatorTree>()),
         Loops(pass.getAnalysis<MachineLoopInfo>()), VRM(vrm),
-        MFI(*mf.getFrameInfo()), MRI(mf.getRegInfo()),
+        MFI(mf.getFrameInfo()), MRI(mf.getRegInfo()),
         TII(*mf.getSubtarget().getInstrInfo()),
         TRI(*mf.getSubtarget().getRegisterInfo()),
         MBFI(pass.getAnalysis<MachineBlockFrequencyInfo>()),
@@ -172,7 +172,7 @@ public:
         AA(&pass.getAnalysis<AAResultsWrapperPass>().getAAResults()),
         MDT(pass.getAnalysis<MachineDominatorTree>()),
         Loops(pass.getAnalysis<MachineLoopInfo>()), VRM(vrm),
-        MFI(*mf.getFrameInfo()), MRI(mf.getRegInfo()),
+        MFI(mf.getFrameInfo()), MRI(mf.getRegInfo()),
         TII(*mf.getSubtarget().getInstrInfo()),
         TRI(*mf.getSubtarget().getRegisterInfo()),
         MBFI(pass.getAnalysis<MachineBlockFrequencyInfo>()),
@@ -185,10 +185,7 @@ private:
   bool isSnippet(const LiveInterval &SnipLI);
   void collectRegsToSpill();
 
-  bool isRegToSpill(unsigned Reg) {
-    return std::find(RegsToSpill.begin(),
-                     RegsToSpill.end(), Reg) != RegsToSpill.end();
-  }
+  bool isRegToSpill(unsigned Reg) { return is_contained(RegsToSpill, Reg); }
 
   bool isSibling(unsigned Reg);
   bool hoistSpillInsideBB(LiveInterval &SpillLI, MachineInstr &CopyMI);
@@ -380,7 +377,7 @@ bool InlineSpiller::hoistSpillInsideBB(LiveInterval &SpillLI,
   MachineBasicBlock *MBB = LIS.getMBBFromIndex(SrcVNI->def);
   MachineBasicBlock::iterator MII;
   if (SrcVNI->isPHIDef())
-    MII = MBB->SkipPHIsAndLabels(MBB->begin());
+    MII = MBB->SkipPHIsLabelsAndDebug(MBB->begin());
   else {
     MachineInstr *DefMI = LIS.getInstructionFromIndex(SrcVNI->def);
     assert(DefMI && "Defining instruction disappeared");
@@ -553,12 +550,18 @@ bool InlineSpiller::reMaterializeFor(LiveInterval &VirtReg, MachineInstr &MI) {
     return true;
   }
 
-  // Alocate a new register for the remat.
+  // Allocate a new register for the remat.
   unsigned NewVReg = Edit->createFrom(Original);
 
   // Finally we can rematerialize OrigMI before MI.
   SlotIndex DefIdx =
       Edit->rematerializeAt(*MI.getParent(), MI, NewVReg, RM, TRI);
+
+  // We take the DebugLoc from MI, since OrigMI may be attributed to a
+  // different source location. 
+  auto *NewMI = LIS.getInstructionFromIndex(DefIdx);
+  NewMI->setDebugLoc(MI.getDebugLoc());
+
   (void)DefIdx;
   DEBUG(dbgs() << "\tremat:  " << DefIdx << '\t'
                << *LIS.getInstructionFromIndex(DefIdx));
@@ -736,9 +739,12 @@ foldMemoryOperand(ArrayRef<std::pair<MachineInstr*, unsigned> > Ops,
   bool WasCopy = MI->isCopy();
   unsigned ImpReg = 0;
 
-  bool SpillSubRegs = (MI->getOpcode() == TargetOpcode::STATEPOINT ||
-                       MI->getOpcode() == TargetOpcode::PATCHPOINT ||
-                       MI->getOpcode() == TargetOpcode::STACKMAP);
+  // Spill subregs if the target allows it.
+  // We always want to spill subregs for stackmap/patchpoint pseudos.
+  bool SpillSubRegs = TII.isSubregFoldable() ||
+                      MI->getOpcode() == TargetOpcode::STATEPOINT ||
+                      MI->getOpcode() == TargetOpcode::PATCHPOINT ||
+                      MI->getOpcode() == TargetOpcode::STACKMAP;
 
   // TargetInstrInfo::foldMemoryOperand only expects explicit, non-tied
   // operands.
@@ -751,7 +757,7 @@ foldMemoryOperand(ArrayRef<std::pair<MachineInstr*, unsigned> > Ops,
       ImpReg = MO.getReg();
       continue;
     }
-    // FIXME: Teach targets to deal with subregs.
+
     if (!SpillSubRegs && MO.getSubReg())
       return false;
     // We cannot fold a load instruction into a def.
@@ -761,6 +767,11 @@ foldMemoryOperand(ArrayRef<std::pair<MachineInstr*, unsigned> > Ops,
     if (!MI->isRegTiedToDefOperand(Idx))
       FoldOps.push_back(Idx);
   }
+
+  // If we only have implicit uses, we won't be able to fold that.
+  // Moreover, TargetInstrInfo::foldMemoryOperand will assert if we try!
+  if (FoldOps.empty())
+    return false;
 
   MachineInstrSpan MIS(MI);
 

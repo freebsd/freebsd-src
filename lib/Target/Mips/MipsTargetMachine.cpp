@@ -39,10 +39,10 @@ using namespace llvm;
 
 extern "C" void LLVMInitializeMipsTarget() {
   // Register the target.
-  RegisterTargetMachine<MipsebTargetMachine> X(TheMipsTarget);
-  RegisterTargetMachine<MipselTargetMachine> Y(TheMipselTarget);
-  RegisterTargetMachine<MipsebTargetMachine> A(TheMips64Target);
-  RegisterTargetMachine<MipselTargetMachine> B(TheMips64elTarget);
+  RegisterTargetMachine<MipsebTargetMachine> X(getTheMipsTarget());
+  RegisterTargetMachine<MipselTargetMachine> Y(getTheMipselTarget());
+  RegisterTargetMachine<MipsebTargetMachine> A(getTheMips64Target());
+  RegisterTargetMachine<MipselTargetMachine> B(getTheMips64elTarget());
 }
 
 static std::string computeDataLayout(const Triple &TT, StringRef CPU,
@@ -208,7 +208,6 @@ public:
 
   void addIRPasses() override;
   bool addInstSelector() override;
-  void addMachineSSAOptimization() override;
   void addPreEmitPass() override;
 
   void addPreRegAlloc() override;
@@ -237,14 +236,8 @@ bool MipsPassConfig::addInstSelector() {
   return false;
 }
 
-void MipsPassConfig::addMachineSSAOptimization() {
-  addPass(createMipsOptimizePICCallPass(getMipsTargetMachine()));
-  TargetPassConfig::addMachineSSAOptimization();
-}
-
 void MipsPassConfig::addPreRegAlloc() {
-  if (getOptLevel() == CodeGenOpt::None)
-    addPass(createMipsOptimizePICCallPass(getMipsTargetMachine()));
+  addPass(createMipsOptimizePICCallPass(getMipsTargetMachine()));
 }
 
 TargetIRAnalysis MipsTargetMachine::getTargetIRAnalysis() {

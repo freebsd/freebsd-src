@@ -47,7 +47,7 @@ public:
       : SelectionDAGISel(tm, OptLevel), Subtarget(nullptr),
         ForCodeSize(false) {}
 
-  const char *getPassName() const override {
+  StringRef getPassName() const override {
     return "AArch64 Instruction Selection";
   }
 
@@ -349,7 +349,7 @@ bool AArch64DAGToDAGISel::SelectShiftedRegister(SDValue N, bool AllowROR,
     return false;
 
   if (ConstantSDNode *RHS = dyn_cast<ConstantSDNode>(N.getOperand(1))) {
-    unsigned BitSize = N.getValueType().getSizeInBits();
+    unsigned BitSize = N.getValueSizeInBits();
     unsigned Val = RHS->getZExtValue() & (BitSize - 1);
     unsigned ShVal = AArch64_AM::getShifterImm(ShType, Val);
 
@@ -586,6 +586,11 @@ bool AArch64DAGToDAGISel::SelectArithExtendedRegister(SDValue N, SDValue &Reg,
       return false;
 
     Reg = N.getOperand(0);
+
+    // Don't match if free 32-bit -> 64-bit zext can be used instead.
+    if (Ext == AArch64_AM::UXTW &&
+        Reg->getValueType(0).getSizeInBits() == 32 && isDef32(*Reg.getNode()))
+      return false;
   }
 
   // AArch64 mandates that the RHS of the operation must use the smallest
@@ -1149,6 +1154,12 @@ void AArch64DAGToDAGISel::SelectLoad(SDNode *N, unsigned NumVecs, unsigned Opc,
         CurDAG->getTargetExtractSubreg(SubRegIdx + i, dl, VT, SuperReg));
 
   ReplaceUses(SDValue(N, NumVecs), SDValue(Ld, 1));
+
+  // Transfer memoperands.
+  MachineSDNode::mmo_iterator MemOp = MF->allocateMemRefsArray(1);
+  MemOp[0] = cast<MemIntrinsicSDNode>(N)->getMemOperand();
+  cast<MachineSDNode>(Ld)->setMemRefs(MemOp, MemOp + 1);
+
   CurDAG->RemoveDeadNode(N);
 }
 
@@ -1196,6 +1207,11 @@ void AArch64DAGToDAGISel::SelectStore(SDNode *N, unsigned NumVecs,
 
   SDValue Ops[] = {RegSeq, N->getOperand(NumVecs + 2), N->getOperand(0)};
   SDNode *St = CurDAG->getMachineNode(Opc, dl, N->getValueType(0), Ops);
+
+  // Transfer memoperands.
+  MachineSDNode::mmo_iterator MemOp = MF->allocateMemRefsArray(1);
+  MemOp[0] = cast<MemIntrinsicSDNode>(N)->getMemOperand();
+  cast<MachineSDNode>(St)->setMemRefs(MemOp, MemOp + 1);
 
   ReplaceNode(N, St);
 }
@@ -1266,7 +1282,7 @@ void AArch64DAGToDAGISel::SelectLoadLane(SDNode *N, unsigned NumVecs,
   SmallVector<SDValue, 4> Regs(N->op_begin() + 2, N->op_begin() + 2 + NumVecs);
 
   if (Narrow)
-    std::transform(Regs.begin(), Regs.end(), Regs.begin(),
+    transform(Regs, Regs.begin(),
                    WidenVector(*CurDAG));
 
   SDValue RegSeq = createQTuple(Regs);
@@ -1305,7 +1321,7 @@ void AArch64DAGToDAGISel::SelectPostLoadLane(SDNode *N, unsigned NumVecs,
   SmallVector<SDValue, 4> Regs(N->op_begin() + 1, N->op_begin() + 1 + NumVecs);
 
   if (Narrow)
-    std::transform(Regs.begin(), Regs.end(), Regs.begin(),
+    transform(Regs, Regs.begin(),
                    WidenVector(*CurDAG));
 
   SDValue RegSeq = createQTuple(Regs);
@@ -1360,7 +1376,7 @@ void AArch64DAGToDAGISel::SelectStoreLane(SDNode *N, unsigned NumVecs,
   SmallVector<SDValue, 4> Regs(N->op_begin() + 2, N->op_begin() + 2 + NumVecs);
 
   if (Narrow)
-    std::transform(Regs.begin(), Regs.end(), Regs.begin(),
+    transform(Regs, Regs.begin(),
                    WidenVector(*CurDAG));
 
   SDValue RegSeq = createQTuple(Regs);
@@ -1390,7 +1406,7 @@ void AArch64DAGToDAGISel::SelectPostStoreLane(SDNode *N, unsigned NumVecs,
   SmallVector<SDValue, 4> Regs(N->op_begin() + 1, N->op_begin() + 1 + NumVecs);
 
   if (Narrow)
-    std::transform(Regs.begin(), Regs.end(), Regs.begin(),
+    transform(Regs, Regs.begin(),
                    WidenVector(*CurDAG));
 
   SDValue RegSeq = createQTuple(Regs);
@@ -1859,23 +1875,52 @@ static void getUsefulBitsFromBFM(SDValue Op, SDValue Orig, APInt &UsefulBits,
   uint64_t MSB =
       cast<const ConstantSDNode>(Op.getOperand(3).getNode())->getZExtValue();
 
-  if (Op.getOperand(1) == Orig)
-    return getUsefulBitsFromBitfieldMoveOpd(Op, UsefulBits, Imm, MSB, Depth);
-
   APInt OpUsefulBits(UsefulBits);
   OpUsefulBits = 1;
 
+  APInt ResultUsefulBits(UsefulBits.getBitWidth(), 0);
+  ResultUsefulBits.flipAllBits();
+  APInt Mask(UsefulBits.getBitWidth(), 0);
+
+  getUsefulBits(Op, ResultUsefulBits, Depth + 1);
+
   if (MSB >= Imm) {
-    OpUsefulBits = OpUsefulBits.shl(MSB - Imm + 1);
+    // The instruction is a BFXIL.
+    uint64_t Width = MSB - Imm + 1;
+    uint64_t LSB = Imm;
+
+    OpUsefulBits = OpUsefulBits.shl(Width);
     --OpUsefulBits;
-    UsefulBits &= ~OpUsefulBits;
-    getUsefulBits(Op, UsefulBits, Depth + 1);
+
+    if (Op.getOperand(1) == Orig) {
+      // Copy the low bits from the result to bits starting from LSB.
+      Mask = ResultUsefulBits & OpUsefulBits;
+      Mask = Mask.shl(LSB);
+    }
+
+    if (Op.getOperand(0) == Orig)
+      // Bits starting from LSB in the input contribute to the result.
+      Mask |= (ResultUsefulBits & ~OpUsefulBits);
   } else {
-    OpUsefulBits = OpUsefulBits.shl(MSB + 1);
+    // The instruction is a BFI.
+    uint64_t Width = MSB + 1;
+    uint64_t LSB = UsefulBits.getBitWidth() - Imm;
+
+    OpUsefulBits = OpUsefulBits.shl(Width);
     --OpUsefulBits;
-    UsefulBits = ~(OpUsefulBits.shl(OpUsefulBits.getBitWidth() - Imm));
-    getUsefulBits(Op, UsefulBits, Depth + 1);
+    OpUsefulBits = OpUsefulBits.shl(LSB);
+
+    if (Op.getOperand(1) == Orig) {
+      // Copy the bits from the result to the zero bits.
+      Mask = ResultUsefulBits & OpUsefulBits;
+      Mask = Mask.lshr(LSB);
+    }
+
+    if (Op.getOperand(0) == Orig)
+      Mask |= (ResultUsefulBits & ~OpUsefulBits);
   }
+
+  UsefulBits &= Mask;
 }
 
 static void getUsefulBitsForUse(SDNode *UserNode, APInt &UsefulBits,
@@ -1931,7 +1976,7 @@ static void getUsefulBits(SDValue Op, APInt &UsefulBits, unsigned Depth) {
     return;
   // Initialize UsefulBits
   if (!Depth) {
-    unsigned Bitwidth = Op.getValueType().getScalarType().getSizeInBits();
+    unsigned Bitwidth = Op.getScalarValueSizeInBits();
     // At the beginning, assume every produced bits is useful
     UsefulBits = APInt(Bitwidth, 0);
     UsefulBits.flipAllBits();

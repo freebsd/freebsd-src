@@ -17,12 +17,16 @@
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/Analysis/BlockFrequencyInfo.h"
+#include "llvm/Analysis/BranchProbabilityInfo.h"
 #include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/Analysis/LoopInfo.h"
+#include "llvm/Analysis/ProfileSummaryInfo.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/Analysis/MemoryBuiltins.h"
+#include "llvm/CodeGen/Analysis.h"
 #include "llvm/IR/CallSite.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DataLayout.h"
@@ -118,6 +122,19 @@ static cl::opt<bool> DisablePreheaderProtect(
     "disable-preheader-prot", cl::Hidden, cl::init(false),
     cl::desc("Disable protection against removing loop preheaders"));
 
+static cl::opt<bool> ProfileGuidedSectionPrefix(
+    "profile-guided-section-prefix", cl::Hidden, cl::init(true),
+    cl::desc("Use profile info to add section prefix for hot/cold functions"));
+
+static cl::opt<unsigned> FreqRatioToSkipMerge(
+    "cgp-freq-ratio-to-skip-merge", cl::Hidden, cl::init(2),
+    cl::desc("Skip merging empty blocks if (frequency of empty block) / "
+             "(frequency of destination block) is greater than this ratio"));
+
+static cl::opt<bool> ForceSplitStore(
+    "force-split-store", cl::Hidden, cl::init(false),
+    cl::desc("Force store splitting no matter what the target query says."));
+
 namespace {
 typedef SmallPtrSet<Instruction *, 16> SetOfInstrs;
 typedef PointerIntPair<Type *, 1, bool> TypeIsSExt;
@@ -130,6 +147,8 @@ class TypePromotionTransaction;
     const TargetTransformInfo *TTI;
     const TargetLibraryInfo *TLInfo;
     const LoopInfo *LI;
+    std::unique_ptr<BlockFrequencyInfo> BFI;
+    std::unique_ptr<BranchProbabilityInfo> BPI;
 
     /// As we scan instructions optimizing them, this is the next instruction
     /// to optimize. Transforms that can invalidate this should update it.
@@ -163,10 +182,11 @@ class TypePromotionTransaction;
       }
     bool runOnFunction(Function &F) override;
 
-    const char *getPassName() const override { return "CodeGen Prepare"; }
+    StringRef getPassName() const override { return "CodeGen Prepare"; }
 
     void getAnalysisUsage(AnalysisUsage &AU) const override {
       // FIXME: When we can selectively preserve passes, preserve the domtree.
+      AU.addRequired<ProfileSummaryInfoWrapperPass>();
       AU.addRequired<TargetLibraryInfoWrapperPass>();
       AU.addRequired<TargetTransformInfoWrapperPass>();
       AU.addRequired<LoopInfoWrapperPass>();
@@ -175,8 +195,11 @@ class TypePromotionTransaction;
   private:
     bool eliminateFallThrough(Function &F);
     bool eliminateMostlyEmptyBlocks(Function &F);
+    BasicBlock *findDestBlockOfMergeableEmptyBlock(BasicBlock *BB);
     bool canMergeBlocks(const BasicBlock *BB, const BasicBlock *DestBB) const;
     void eliminateMostlyEmptyBlock(BasicBlock *BB);
+    bool isMergingEmptyBlockProfitable(BasicBlock *BB, BasicBlock *DestBB,
+                                       bool isPreheader);
     bool optimizeBlock(BasicBlock &BB, bool& ModifiedDT);
     bool optimizeInst(Instruction *I, bool& ModifiedDT);
     bool optimizeMemoryInst(Instruction *I, Value *Addr,
@@ -199,13 +222,15 @@ class TypePromotionTransaction;
                         unsigned CreatedInstCost);
     bool splitBranchCondition(Function &F);
     bool simplifyOffsetableRelocate(Instruction &I);
-    void stripInvariantGroupMetadata(Instruction &I);
   };
 }
 
 char CodeGenPrepare::ID = 0;
-INITIALIZE_TM_PASS(CodeGenPrepare, "codegenprepare",
-                   "Optimize for code generation", false, false)
+INITIALIZE_TM_PASS_BEGIN(CodeGenPrepare, "codegenprepare",
+                         "Optimize for code generation", false, false)
+INITIALIZE_PASS_DEPENDENCY(ProfileSummaryInfoWrapperPass)
+INITIALIZE_TM_PASS_END(CodeGenPrepare, "codegenprepare",
+                       "Optimize for code generation", false, false)
 
 FunctionPass *llvm::createCodeGenPreparePass(const TargetMachine *TM) {
   return new CodeGenPrepare(TM);
@@ -221,6 +246,8 @@ bool CodeGenPrepare::runOnFunction(Function &F) {
   // Clear per function information.
   InsertedInsts.clear();
   PromotedInsts.clear();
+  BFI.reset();
+  BPI.reset();
 
   ModifiedDT = false;
   if (TM)
@@ -229,6 +256,15 @@ bool CodeGenPrepare::runOnFunction(Function &F) {
   TTI = &getAnalysis<TargetTransformInfoWrapperPass>().getTTI(F);
   LI = &getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
   OptSize = F.optForSize();
+
+  if (ProfileGuidedSectionPrefix) {
+    ProfileSummaryInfo *PSI =
+        getAnalysis<ProfileSummaryInfoWrapperPass>().getPSI();
+    if (PSI->isFunctionEntryHot(&F))
+      F.setSectionPrefix(".hot");
+    else if (PSI->isFunctionEntryCold(&F))
+      F.setSectionPrefix(".cold");
+  }
 
   /// This optimization identifies DIV instructions that can be
   /// profitably bypassed and carried out with a shorter, faster divide.
@@ -364,6 +400,38 @@ bool CodeGenPrepare::eliminateFallThrough(Function &F) {
   return Changed;
 }
 
+/// Find a destination block from BB if BB is mergeable empty block.
+BasicBlock *CodeGenPrepare::findDestBlockOfMergeableEmptyBlock(BasicBlock *BB) {
+  // If this block doesn't end with an uncond branch, ignore it.
+  BranchInst *BI = dyn_cast<BranchInst>(BB->getTerminator());
+  if (!BI || !BI->isUnconditional())
+    return nullptr;
+
+  // If the instruction before the branch (skipping debug info) isn't a phi
+  // node, then other stuff is happening here.
+  BasicBlock::iterator BBI = BI->getIterator();
+  if (BBI != BB->begin()) {
+    --BBI;
+    while (isa<DbgInfoIntrinsic>(BBI)) {
+      if (BBI == BB->begin())
+        break;
+      --BBI;
+    }
+    if (!isa<DbgInfoIntrinsic>(BBI) && !isa<PHINode>(BBI))
+      return nullptr;
+  }
+
+  // Do not break infinite loops.
+  BasicBlock *DestBB = BI->getSuccessor(0);
+  if (DestBB == BB)
+    return nullptr;
+
+  if (!canMergeBlocks(BB, DestBB))
+    DestBB = nullptr;
+
+  return DestBB;
+}
+
 /// Eliminate blocks that contain only PHI nodes, debug info directives, and an
 /// unconditional branch. Passes before isel (e.g. LSR/loopsimplify) often split
 /// edges in ways that are non-optimal for isel. Start by eliminating these
@@ -382,46 +450,106 @@ bool CodeGenPrepare::eliminateMostlyEmptyBlocks(Function &F) {
   // Note that this intentionally skips the entry block.
   for (Function::iterator I = std::next(F.begin()), E = F.end(); I != E;) {
     BasicBlock *BB = &*I++;
-
-    // If this block doesn't end with an uncond branch, ignore it.
-    BranchInst *BI = dyn_cast<BranchInst>(BB->getTerminator());
-    if (!BI || !BI->isUnconditional())
+    BasicBlock *DestBB = findDestBlockOfMergeableEmptyBlock(BB);
+    if (!DestBB ||
+        !isMergingEmptyBlockProfitable(BB, DestBB, Preheaders.count(BB)))
       continue;
-
-    // If the instruction before the branch (skipping debug info) isn't a phi
-    // node, then other stuff is happening here.
-    BasicBlock::iterator BBI = BI->getIterator();
-    if (BBI != BB->begin()) {
-      --BBI;
-      while (isa<DbgInfoIntrinsic>(BBI)) {
-        if (BBI == BB->begin())
-          break;
-        --BBI;
-      }
-      if (!isa<DbgInfoIntrinsic>(BBI) && !isa<PHINode>(BBI))
-        continue;
-    }
-
-    // Do not break infinite loops.
-    BasicBlock *DestBB = BI->getSuccessor(0);
-    if (DestBB == BB)
-      continue;
-
-    if (!canMergeBlocks(BB, DestBB))
-      continue;
-
-    // Do not delete loop preheaders if doing so would create a critical edge.
-    // Loop preheaders can be good locations to spill registers. If the
-    // preheader is deleted and we create a critical edge, registers may be
-    // spilled in the loop body instead.
-    if (!DisablePreheaderProtect && Preheaders.count(BB) &&
-        !(BB->getSinglePredecessor() && BB->getSinglePredecessor()->getSingleSuccessor()))
-     continue;
 
     eliminateMostlyEmptyBlock(BB);
     MadeChange = true;
   }
   return MadeChange;
+}
+
+bool CodeGenPrepare::isMergingEmptyBlockProfitable(BasicBlock *BB,
+                                                   BasicBlock *DestBB,
+                                                   bool isPreheader) {
+  // Do not delete loop preheaders if doing so would create a critical edge.
+  // Loop preheaders can be good locations to spill registers. If the
+  // preheader is deleted and we create a critical edge, registers may be
+  // spilled in the loop body instead.
+  if (!DisablePreheaderProtect && isPreheader &&
+      !(BB->getSinglePredecessor() &&
+        BB->getSinglePredecessor()->getSingleSuccessor()))
+    return false;
+
+  // Try to skip merging if the unique predecessor of BB is terminated by a
+  // switch or indirect branch instruction, and BB is used as an incoming block
+  // of PHIs in DestBB. In such case, merging BB and DestBB would cause ISel to
+  // add COPY instructions in the predecessor of BB instead of BB (if it is not
+  // merged). Note that the critical edge created by merging such blocks wont be
+  // split in MachineSink because the jump table is not analyzable. By keeping
+  // such empty block (BB), ISel will place COPY instructions in BB, not in the
+  // predecessor of BB.
+  BasicBlock *Pred = BB->getUniquePredecessor();
+  if (!Pred ||
+      !(isa<SwitchInst>(Pred->getTerminator()) ||
+        isa<IndirectBrInst>(Pred->getTerminator())))
+    return true;
+
+  if (BB->getTerminator() != BB->getFirstNonPHI())
+    return true;
+
+  // We use a simple cost heuristic which determine skipping merging is
+  // profitable if the cost of skipping merging is less than the cost of
+  // merging : Cost(skipping merging) < Cost(merging BB), where the
+  // Cost(skipping merging) is Freq(BB) * (Cost(Copy) + Cost(Branch)), and
+  // the Cost(merging BB) is Freq(Pred) * Cost(Copy).
+  // Assuming Cost(Copy) == Cost(Branch), we could simplify it to :
+  //   Freq(Pred) / Freq(BB) > 2.
+  // Note that if there are multiple empty blocks sharing the same incoming
+  // value for the PHIs in the DestBB, we consider them together. In such
+  // case, Cost(merging BB) will be the sum of their frequencies.
+
+  if (!isa<PHINode>(DestBB->begin()))
+    return true;
+
+  SmallPtrSet<BasicBlock *, 16> SameIncomingValueBBs;
+
+  // Find all other incoming blocks from which incoming values of all PHIs in
+  // DestBB are the same as the ones from BB.
+  for (pred_iterator PI = pred_begin(DestBB), E = pred_end(DestBB); PI != E;
+       ++PI) {
+    BasicBlock *DestBBPred = *PI;
+    if (DestBBPred == BB)
+      continue;
+
+    bool HasAllSameValue = true;
+    BasicBlock::const_iterator DestBBI = DestBB->begin();
+    while (const PHINode *DestPN = dyn_cast<PHINode>(DestBBI++)) {
+      if (DestPN->getIncomingValueForBlock(BB) !=
+          DestPN->getIncomingValueForBlock(DestBBPred)) {
+        HasAllSameValue = false;
+        break;
+      }
+    }
+    if (HasAllSameValue)
+      SameIncomingValueBBs.insert(DestBBPred);
+  }
+
+  // See if all BB's incoming values are same as the value from Pred. In this
+  // case, no reason to skip merging because COPYs are expected to be place in
+  // Pred already.
+  if (SameIncomingValueBBs.count(Pred))
+    return true;
+
+  if (!BFI) {
+    Function &F = *BB->getParent();
+    LoopInfo LI{DominatorTree(F)};
+    BPI.reset(new BranchProbabilityInfo(F, LI));
+    BFI.reset(new BlockFrequencyInfo(F, *BPI, LI));
+  }
+
+  BlockFrequency PredFreq = BFI->getBlockFreq(Pred);
+  BlockFrequency BBFreq = BFI->getBlockFreq(BB);
+
+  for (auto SameValueBB : SameIncomingValueBBs)
+    if (SameValueBB->getUniquePredecessor() == Pred &&
+        DestBB == findDestBlockOfMergeableEmptyBlock(SameValueBB))
+      BBFreq += BFI->getBlockFreq(SameValueBB);
+
+  return PredFreq.getFrequency() <=
+         BBFreq.getFrequency() * FreqRatioToSkipMerge;
 }
 
 /// Return true if we can merge BB into DestBB if there is a single
@@ -805,6 +933,14 @@ static bool SinkCast(CastInst *CI) {
 ///
 static bool OptimizeNoopCopyExpression(CastInst *CI, const TargetLowering &TLI,
                                        const DataLayout &DL) {
+  // Sink only "cheap" (or nop) address-space casts.  This is a weaker condition
+  // than sinking only nop casts, but is helpful on some platforms.
+  if (auto *ASC = dyn_cast<AddrSpaceCastInst>(CI)) {
+    if (!TLI.isCheapAddrSpaceCast(ASC->getSrcAddressSpace(),
+                                  ASC->getDestAddressSpace()))
+      return false;
+  }
+
   // If this is a noop copy,
   EVT SrcVT = TLI.getValueType(DL, CI->getOperand(0)->getType());
   EVT DstVT = TLI.getValueType(DL, CI->getType());
@@ -925,6 +1061,8 @@ static bool SinkCmpExpression(CmpInst *CI, const TargetLowering *TLI) {
       InsertedCmp =
           CmpInst::Create(CI->getOpcode(), CI->getPredicate(),
                           CI->getOperand(0), CI->getOperand(1), "", &*InsertPt);
+      // Propagate the debug info.
+      InsertedCmp->setDebugLoc(CI->getDebugLoc());
     }
 
     // Replace a use of the cmp with a use of the new cmp.
@@ -1814,18 +1952,8 @@ bool CodeGenPrepare::optimizeCallInst(CallInst *CI, bool& ModifiedDT) {
     default: break;
     case Intrinsic::objectsize: {
       // Lower all uses of llvm.objectsize.*
-      uint64_t Size;
-      Type *ReturnTy = CI->getType();
-      Constant *RetVal = nullptr;
-      ConstantInt *Op1 = cast<ConstantInt>(II->getArgOperand(1));
-      ObjSizeMode Mode = Op1->isZero() ? ObjSizeMode::Max : ObjSizeMode::Min;
-      if (getObjectSize(II->getArgOperand(0),
-                        Size, *DL, TLInfo, false, Mode)) {
-        RetVal = ConstantInt::get(ReturnTy, Size);
-      } else {
-        RetVal = ConstantInt::get(ReturnTy,
-                                  Mode == ObjSizeMode::Min ? 0 : -1ULL);
-      }
+      ConstantInt *RetVal =
+          lowerObjectSizeCall(II, *DL, TLInfo, /*MustSucceed=*/true);
       // Substituting this can cause recursive simplifications, which can
       // invalidate our iterator.  Use a WeakVH to hold onto it in case this
       // happens.
@@ -1963,13 +2091,13 @@ bool CodeGenPrepare::dupRetToEnableTailCallOpts(BasicBlock *BB) {
   if (!TLI)
     return false;
 
-  ReturnInst *RI = dyn_cast<ReturnInst>(BB->getTerminator());
-  if (!RI)
+  ReturnInst *RetI = dyn_cast<ReturnInst>(BB->getTerminator());
+  if (!RetI)
     return false;
 
   PHINode *PN = nullptr;
   BitCastInst *BCI = nullptr;
-  Value *V = RI->getReturnValue();
+  Value *V = RetI->getReturnValue();
   if (V) {
     BCI = dyn_cast<BitCastInst>(V);
     if (BCI)
@@ -1983,14 +2111,6 @@ bool CodeGenPrepare::dupRetToEnableTailCallOpts(BasicBlock *BB) {
   if (PN && PN->getParent() != BB)
     return false;
 
-  // It's not safe to eliminate the sign / zero extension of the return value.
-  // See llvm::isInTailCallPosition().
-  const Function *F = BB->getParent();
-  AttributeSet CallerAttrs = F->getAttributes();
-  if (CallerAttrs.hasAttribute(AttributeSet::ReturnIndex, Attribute::ZExt) ||
-      CallerAttrs.hasAttribute(AttributeSet::ReturnIndex, Attribute::SExt))
-    return false;
-
   // Make sure there are no instructions between the PHI and return, or that the
   // return is the first instruction in the block.
   if (PN) {
@@ -1999,24 +2119,26 @@ bool CodeGenPrepare::dupRetToEnableTailCallOpts(BasicBlock *BB) {
     if (&*BI == BCI)
       // Also skip over the bitcast.
       ++BI;
-    if (&*BI != RI)
+    if (&*BI != RetI)
       return false;
   } else {
     BasicBlock::iterator BI = BB->begin();
     while (isa<DbgInfoIntrinsic>(BI)) ++BI;
-    if (&*BI != RI)
+    if (&*BI != RetI)
       return false;
   }
 
   /// Only dup the ReturnInst if the CallInst is likely to be emitted as a tail
   /// call.
+  const Function *F = BB->getParent();
   SmallVector<CallInst*, 4> TailCalls;
   if (PN) {
     for (unsigned I = 0, E = PN->getNumIncomingValues(); I != E; ++I) {
       CallInst *CI = dyn_cast<CallInst>(PN->getIncomingValue(I));
       // Make sure the phi value is indeed produced by the tail call.
       if (CI && CI->hasOneUse() && CI->getParent() == PN->getIncomingBlock(I) &&
-          TLI->mayBeEmittedAsTailCall(CI))
+          TLI->mayBeEmittedAsTailCall(CI) &&
+          attributesPermitTailCall(F, CI, RetI, *TLI))
         TailCalls.push_back(CI);
     }
   } else {
@@ -2033,7 +2155,8 @@ bool CodeGenPrepare::dupRetToEnableTailCallOpts(BasicBlock *BB) {
         continue;
 
       CallInst *CI = dyn_cast<CallInst>(&*RI);
-      if (CI && CI->use_empty() && TLI->mayBeEmittedAsTailCall(CI))
+      if (CI && CI->use_empty() && TLI->mayBeEmittedAsTailCall(CI) &&
+          attributesPermitTailCall(F, CI, RetI, *TLI))
         TailCalls.push_back(CI);
     }
   }
@@ -2060,7 +2183,7 @@ bool CodeGenPrepare::dupRetToEnableTailCallOpts(BasicBlock *BB) {
       continue;
 
     // Duplicate the return into CallBB.
-    (void)FoldReturnIntoUncondBranch(RI, BB, CallBB);
+    (void)FoldReturnIntoUncondBranch(RetI, BB, CallBB);
     ModifiedDT = Changed = true;
     ++NumRetsDup;
   }
@@ -3237,7 +3360,7 @@ bool AddressingModeMatcher::matchOperationAddr(User *AddrInst, unsigned Opcode,
     int64_t ConstantOffset = 0;
     gep_type_iterator GTI = gep_type_begin(AddrInst);
     for (unsigned i = 1, e = AddrInst->getNumOperands(); i != e; ++i, ++GTI) {
-      if (StructType *STy = dyn_cast<StructType>(*GTI)) {
+      if (StructType *STy = GTI.getStructTypeOrNull()) {
         const StructLayout *SL = DL.getStructLayout(STy);
         unsigned Idx =
           cast<ConstantInt>(AddrInst->getOperand(i))->getZExtValue();
@@ -3665,8 +3788,7 @@ isProfitableToFoldIntoAddressingMode(Instruction *I, ExtAddrMode &AMBefore,
     TPT.rollback(LastKnownGood);
 
     // If the match didn't cover I, then it won't be shared by it.
-    if (std::find(MatchedAddrModeInsts.begin(), MatchedAddrModeInsts.end(),
-                  I) == MatchedAddrModeInsts.end())
+    if (!is_contained(MatchedAddrModeInsts, I))
       return false;
 
     MatchedAddrModeInsts.clear();
@@ -3791,18 +3913,10 @@ bool CodeGenPrepare::optimizeMemoryInst(Instruction *MemoryInst, Value *Addr,
   }
   TPT.commit();
 
-  // Check to see if any of the instructions supersumed by this addr mode are
-  // non-local to I's BB.
-  bool AnyNonLocal = false;
-  for (unsigned i = 0, e = AddrModeInsts.size(); i != e; ++i) {
-    if (IsNonLocalValue(AddrModeInsts[i], MemoryInst->getParent())) {
-      AnyNonLocal = true;
-      break;
-    }
-  }
-
   // If all the instructions matched are already in this BB, don't do anything.
-  if (!AnyNonLocal) {
+  if (none_of(AddrModeInsts, [&](Value *V) {
+        return IsNonLocalValue(V, MemoryInst->getParent());
+      })) {
     DEBUG(dbgs() << "CGP: Found      local addrmode: " << AddrMode << "\n");
     return false;
   }
@@ -4217,6 +4331,10 @@ bool CodeGenPrepare::extLdPromotion(TypePromotionTransaction &TPT,
 /// promotions apply.
 ///
 bool CodeGenPrepare::moveExtToFormExtLoad(Instruction *&I) {
+  // ExtLoad formation infrastructure requires TLI to be effective.
+  if (!TLI)
+    return false;
+
   // Try to promote a chain of computation if it allows to form
   // an extended load.
   TypePromotionTransaction TPT;
@@ -4246,7 +4364,7 @@ bool CodeGenPrepare::moveExtToFormExtLoad(Instruction *&I) {
 
   // If the load has other users and the truncate is not free, this probably
   // isn't worthwhile.
-  if (!LI->hasOneUse() && TLI &&
+  if (!LI->hasOneUse() &&
       (TLI->isTypeLegal(LoadVT) || !TLI->isTypeLegal(VT)) &&
       !TLI->isTruncateFree(I->getType(), LI->getType())) {
     I = OldExt;
@@ -4262,7 +4380,7 @@ bool CodeGenPrepare::moveExtToFormExtLoad(Instruction *&I) {
     assert(isa<SExtInst>(I) && "Unexpected ext type!");
     LType = ISD::SEXTLOAD;
   }
-  if (TLI && !TLI->isLoadExtLegal(LType, VT, LoadVT)) {
+  if (!TLI->isLoadExtLegal(LType, VT, LoadVT)) {
     I = OldExt;
     TPT.rollback(LastKnownGood);
     return false;
@@ -4273,6 +4391,14 @@ bool CodeGenPrepare::moveExtToFormExtLoad(Instruction *&I) {
   TPT.commit();
   I->removeFromParent();
   I->insertAfter(LI);
+  // CGP does not check if the zext would be speculatively executed when moved
+  // to the same basic block as the load. Preserving its original location would
+  // pessimize the debugging experience, as well as negatively impact the 
+  // quality of sample pgo. We don't want to use "line 0" as that has a
+  // size cost in the line-table section and logically the zext can be seen as
+  // part of the load. Therefore we conservatively reuse the same debug location
+  // for the load and the zext.
+  I->setDebugLoc(LI->getDebugLoc());
   ++NumExtsMoved;
   return true;
 }
@@ -4583,10 +4709,45 @@ static bool isFormingBranchFromSelectProfitable(const TargetTransformInfo *TTI,
   return false;
 }
 
+/// If \p isTrue is true, return the true value of \p SI, otherwise return
+/// false value of \p SI. If the true/false value of \p SI is defined by any
+/// select instructions in \p Selects, look through the defining select
+/// instruction until the true/false value is not defined in \p Selects.
+static Value *getTrueOrFalseValue(
+    SelectInst *SI, bool isTrue,
+    const SmallPtrSet<const Instruction *, 2> &Selects) {
+  Value *V;
+
+  for (SelectInst *DefSI = SI; DefSI != nullptr && Selects.count(DefSI);
+       DefSI = dyn_cast<SelectInst>(V)) {
+    assert(DefSI->getCondition() == SI->getCondition() &&
+           "The condition of DefSI does not match with SI");
+    V = (isTrue ? DefSI->getTrueValue() : DefSI->getFalseValue());
+  }
+  return V;
+}
 
 /// If we have a SelectInst that will likely profit from branch prediction,
 /// turn it into a branch.
 bool CodeGenPrepare::optimizeSelectInst(SelectInst *SI) {
+  // Find all consecutive select instructions that share the same condition.
+  SmallVector<SelectInst *, 2> ASI;
+  ASI.push_back(SI);
+  for (BasicBlock::iterator It = ++BasicBlock::iterator(SI);
+       It != SI->getParent()->end(); ++It) {
+    SelectInst *I = dyn_cast<SelectInst>(&*It);
+    if (I && SI->getCondition() == I->getCondition()) {
+      ASI.push_back(I);
+    } else {
+      break;
+    }
+  }
+
+  SelectInst *LastSI = ASI.back();
+  // Increment the current iterator to skip all the rest of select instructions
+  // because they will be either "not lowered" or "all lowered" to branch.
+  CurInstIterator = std::next(LastSI->getIterator());
+
   bool VectorCond = !SI->getCondition()->getType()->isIntegerTy(1);
 
   // Can we convert the 'select' to CF ?
@@ -4633,7 +4794,7 @@ bool CodeGenPrepare::optimizeSelectInst(SelectInst *SI) {
 
   // First, we split the block containing the select into 2 blocks.
   BasicBlock *StartBlock = SI->getParent();
-  BasicBlock::iterator SplitPt = ++(BasicBlock::iterator(SI));
+  BasicBlock::iterator SplitPt = ++(BasicBlock::iterator(LastSI));
   BasicBlock *EndBlock = StartBlock->splitBasicBlock(SplitPt, "select.end");
 
   // Delete the unconditional branch that was just created by the split.
@@ -4643,22 +4804,30 @@ bool CodeGenPrepare::optimizeSelectInst(SelectInst *SI) {
   // At least one will become an actual new basic block.
   BasicBlock *TrueBlock = nullptr;
   BasicBlock *FalseBlock = nullptr;
+  BranchInst *TrueBranch = nullptr;
+  BranchInst *FalseBranch = nullptr;
 
   // Sink expensive instructions into the conditional blocks to avoid executing
   // them speculatively.
-  if (sinkSelectOperand(TTI, SI->getTrueValue())) {
-    TrueBlock = BasicBlock::Create(SI->getContext(), "select.true.sink",
-                                   EndBlock->getParent(), EndBlock);
-    auto *TrueBranch = BranchInst::Create(EndBlock, TrueBlock);
-    auto *TrueInst = cast<Instruction>(SI->getTrueValue());
-    TrueInst->moveBefore(TrueBranch);
-  }
-  if (sinkSelectOperand(TTI, SI->getFalseValue())) {
-    FalseBlock = BasicBlock::Create(SI->getContext(), "select.false.sink",
-                                    EndBlock->getParent(), EndBlock);
-    auto *FalseBranch = BranchInst::Create(EndBlock, FalseBlock);
-    auto *FalseInst = cast<Instruction>(SI->getFalseValue());
-    FalseInst->moveBefore(FalseBranch);
+  for (SelectInst *SI : ASI) {
+    if (sinkSelectOperand(TTI, SI->getTrueValue())) {
+      if (TrueBlock == nullptr) {
+        TrueBlock = BasicBlock::Create(SI->getContext(), "select.true.sink",
+                                       EndBlock->getParent(), EndBlock);
+        TrueBranch = BranchInst::Create(EndBlock, TrueBlock);
+      }
+      auto *TrueInst = cast<Instruction>(SI->getTrueValue());
+      TrueInst->moveBefore(TrueBranch);
+    }
+    if (sinkSelectOperand(TTI, SI->getFalseValue())) {
+      if (FalseBlock == nullptr) {
+        FalseBlock = BasicBlock::Create(SI->getContext(), "select.false.sink",
+                                        EndBlock->getParent(), EndBlock);
+        FalseBranch = BranchInst::Create(EndBlock, FalseBlock);
+      }
+      auto *FalseInst = cast<Instruction>(SI->getFalseValue());
+      FalseInst->moveBefore(FalseBranch);
+    }
   }
 
   // If there was nothing to sink, then arbitrarily choose the 'false' side
@@ -4677,28 +4846,42 @@ bool CodeGenPrepare::optimizeSelectInst(SelectInst *SI) {
   // of the condition, it means that side of the branch goes to the end block
   // directly and the path originates from the start block from the point of
   // view of the new PHI.
+  BasicBlock *TT, *FT;
   if (TrueBlock == nullptr) {
-    BranchInst::Create(EndBlock, FalseBlock, SI->getCondition(), SI);
+    TT = EndBlock;
+    FT = FalseBlock;
     TrueBlock = StartBlock;
   } else if (FalseBlock == nullptr) {
-    BranchInst::Create(TrueBlock, EndBlock, SI->getCondition(), SI);
+    TT = TrueBlock;
+    FT = EndBlock;
     FalseBlock = StartBlock;
   } else {
-    BranchInst::Create(TrueBlock, FalseBlock, SI->getCondition(), SI);
+    TT = TrueBlock;
+    FT = FalseBlock;
   }
+  IRBuilder<>(SI).CreateCondBr(SI->getCondition(), TT, FT, SI);
 
-  // The select itself is replaced with a PHI Node.
-  PHINode *PN = PHINode::Create(SI->getType(), 2, "", &EndBlock->front());
-  PN->takeName(SI);
-  PN->addIncoming(SI->getTrueValue(), TrueBlock);
-  PN->addIncoming(SI->getFalseValue(), FalseBlock);
+  SmallPtrSet<const Instruction *, 2> INS;
+  INS.insert(ASI.begin(), ASI.end());
+  // Use reverse iterator because later select may use the value of the
+  // earlier select, and we need to propagate value through earlier select
+  // to get the PHI operand.
+  for (auto It = ASI.rbegin(); It != ASI.rend(); ++It) {
+    SelectInst *SI = *It;
+    // The select itself is replaced with a PHI Node.
+    PHINode *PN = PHINode::Create(SI->getType(), 2, "", &EndBlock->front());
+    PN->takeName(SI);
+    PN->addIncoming(getTrueOrFalseValue(SI, true, INS), TrueBlock);
+    PN->addIncoming(getTrueOrFalseValue(SI, false, INS), FalseBlock);
 
-  SI->replaceAllUsesWith(PN);
-  SI->eraseFromParent();
+    SI->replaceAllUsesWith(PN);
+    SI->eraseFromParent();
+    INS.erase(SI);
+    ++NumSelectsExpanded;
+  }
 
   // Instruct OptimizeBlock to skip to the next block.
   CurInstIterator = StartBlock->end();
-  ++NumSelectsExpanded;
   return true;
 }
 
@@ -5179,6 +5362,117 @@ bool CodeGenPrepare::optimizeExtractElementInst(Instruction *Inst) {
   return false;
 }
 
+/// For the instruction sequence of store below, F and I values
+/// are bundled together as an i64 value before being stored into memory.
+/// Sometimes it is more efficent to generate separate stores for F and I,
+/// which can remove the bitwise instructions or sink them to colder places.
+///
+///   (store (or (zext (bitcast F to i32) to i64),
+///              (shl (zext I to i64), 32)), addr)  -->
+///   (store F, addr) and (store I, addr+4)
+///
+/// Similarly, splitting for other merged store can also be beneficial, like:
+/// For pair of {i32, i32}, i64 store --> two i32 stores.
+/// For pair of {i32, i16}, i64 store --> two i32 stores.
+/// For pair of {i16, i16}, i32 store --> two i16 stores.
+/// For pair of {i16, i8},  i32 store --> two i16 stores.
+/// For pair of {i8, i8},   i16 store --> two i8 stores.
+///
+/// We allow each target to determine specifically which kind of splitting is
+/// supported.
+///
+/// The store patterns are commonly seen from the simple code snippet below
+/// if only std::make_pair(...) is sroa transformed before inlined into hoo.
+///   void goo(const std::pair<int, float> &);
+///   hoo() {
+///     ...
+///     goo(std::make_pair(tmp, ftmp));
+///     ...
+///   }
+///
+/// Although we already have similar splitting in DAG Combine, we duplicate
+/// it in CodeGenPrepare to catch the case in which pattern is across
+/// multiple BBs. The logic in DAG Combine is kept to catch case generated
+/// during code expansion.
+static bool splitMergedValStore(StoreInst &SI, const DataLayout &DL,
+                                const TargetLowering &TLI) {
+  // Handle simple but common cases only.
+  Type *StoreType = SI.getValueOperand()->getType();
+  if (DL.getTypeStoreSizeInBits(StoreType) != DL.getTypeSizeInBits(StoreType) ||
+      DL.getTypeSizeInBits(StoreType) == 0)
+    return false;
+
+  unsigned HalfValBitSize = DL.getTypeSizeInBits(StoreType) / 2;
+  Type *SplitStoreType = Type::getIntNTy(SI.getContext(), HalfValBitSize);
+  if (DL.getTypeStoreSizeInBits(SplitStoreType) !=
+      DL.getTypeSizeInBits(SplitStoreType))
+    return false;
+
+  // Match the following patterns:
+  // (store (or (zext LValue to i64),
+  //            (shl (zext HValue to i64), 32)), HalfValBitSize)
+  //  or
+  // (store (or (shl (zext HValue to i64), 32)), HalfValBitSize)
+  //            (zext LValue to i64),
+  // Expect both operands of OR and the first operand of SHL have only
+  // one use.
+  Value *LValue, *HValue;
+  if (!match(SI.getValueOperand(),
+             m_c_Or(m_OneUse(m_ZExt(m_Value(LValue))),
+                    m_OneUse(m_Shl(m_OneUse(m_ZExt(m_Value(HValue))),
+                                   m_SpecificInt(HalfValBitSize))))))
+    return false;
+
+  // Check LValue and HValue are int with size less or equal than 32.
+  if (!LValue->getType()->isIntegerTy() ||
+      DL.getTypeSizeInBits(LValue->getType()) > HalfValBitSize ||
+      !HValue->getType()->isIntegerTy() ||
+      DL.getTypeSizeInBits(HValue->getType()) > HalfValBitSize)
+    return false;
+
+  // If LValue/HValue is a bitcast instruction, use the EVT before bitcast
+  // as the input of target query.
+  auto *LBC = dyn_cast<BitCastInst>(LValue);
+  auto *HBC = dyn_cast<BitCastInst>(HValue);
+  EVT LowTy = LBC ? EVT::getEVT(LBC->getOperand(0)->getType())
+                  : EVT::getEVT(LValue->getType());
+  EVT HighTy = HBC ? EVT::getEVT(HBC->getOperand(0)->getType())
+                   : EVT::getEVT(HValue->getType());
+  if (!ForceSplitStore && !TLI.isMultiStoresCheaperThanBitsMerge(LowTy, HighTy))
+    return false;
+
+  // Start to split store.
+  IRBuilder<> Builder(SI.getContext());
+  Builder.SetInsertPoint(&SI);
+
+  // If LValue/HValue is a bitcast in another BB, create a new one in current
+  // BB so it may be merged with the splitted stores by dag combiner.
+  if (LBC && LBC->getParent() != SI.getParent())
+    LValue = Builder.CreateBitCast(LBC->getOperand(0), LBC->getType());
+  if (HBC && HBC->getParent() != SI.getParent())
+    HValue = Builder.CreateBitCast(HBC->getOperand(0), HBC->getType());
+
+  auto CreateSplitStore = [&](Value *V, bool Upper) {
+    V = Builder.CreateZExtOrBitCast(V, SplitStoreType);
+    Value *Addr = Builder.CreateBitCast(
+        SI.getOperand(1),
+        SplitStoreType->getPointerTo(SI.getPointerAddressSpace()));
+    if (Upper)
+      Addr = Builder.CreateGEP(
+          SplitStoreType, Addr,
+          ConstantInt::get(Type::getInt32Ty(SI.getContext()), 1));
+    Builder.CreateAlignedStore(
+        V, Addr, Upper ? SI.getAlignment() / 2 : SI.getAlignment());
+  };
+
+  CreateSplitStore(LValue, false);
+  CreateSplitStore(HValue, true);
+
+  // Delete the old store.
+  SI.eraseFromParent();
+  return true;
+}
+
 bool CodeGenPrepare::optimizeInst(Instruction *I, bool& ModifiedDT) {
   // Bail out if we inserted the instruction to prevent optimizations from
   // stepping on each other's toes.
@@ -5232,7 +5526,7 @@ bool CodeGenPrepare::optimizeInst(Instruction *I, bool& ModifiedDT) {
       return OptimizeCmpExpression(CI, TLI);
 
   if (LoadInst *LI = dyn_cast<LoadInst>(I)) {
-    stripInvariantGroupMetadata(*LI);
+    LI->setMetadata(LLVMContext::MD_invariant_group, nullptr);
     if (TLI) {
       bool Modified = optimizeLoadExt(LI);
       unsigned AS = LI->getPointerAddressSpace();
@@ -5243,7 +5537,9 @@ bool CodeGenPrepare::optimizeInst(Instruction *I, bool& ModifiedDT) {
   }
 
   if (StoreInst *SI = dyn_cast<StoreInst>(I)) {
-    stripInvariantGroupMetadata(*SI);
+    if (TLI && splitMergedValStore(*SI, *DL, *TLI))
+      return true;
+    SI->setMetadata(LLVMContext::MD_invariant_group, nullptr);
     if (TLI) {
       unsigned AS = SI->getPointerAddressSpace();
       return optimizeMemoryInst(I, SI->getOperand(1),
@@ -5542,7 +5838,7 @@ bool CodeGenPrepare::splitBranchCondition(Function &F) {
     // incoming edge to the PHI nodes, because both branch instructions target
     // now the same successor. Depending on the original branch condition
     // (and/or) we have to swap the successors (TrueDest, FalseDest), so that
-    // we perfrom the correct update for the PHI nodes.
+    // we perform the correct update for the PHI nodes.
     // This doesn't change the successor order of the just created branch
     // instruction (or any other instruction).
     if (Opc == Instruction::Or)
@@ -5648,9 +5944,4 @@ bool CodeGenPrepare::splitBranchCondition(Function &F) {
           TmpBB->dump());
   }
   return MadeChange;
-}
-
-void CodeGenPrepare::stripInvariantGroupMetadata(Instruction &I) {
-  if (auto *InvariantMD = I.getMetadata(LLVMContext::MD_invariant_group))
-    I.dropUnknownNonDebugMetadata(InvariantMD->getMetadataID());
 }

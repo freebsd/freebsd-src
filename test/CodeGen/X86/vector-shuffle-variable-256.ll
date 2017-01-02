@@ -41,7 +41,8 @@ define <4 x double> @var_shuffle_v4f64_v4f64_uxx0_i64(<4 x double> %x, i64 %i0, 
 ; ALL-NEXT:    andq $-32, %rsp
 ; ALL-NEXT:    subq $64, %rsp
 ; ALL-NEXT:    vmovaps %ymm0, (%rsp)
-; ALL-NEXT:    vmovddup {{.*#+}} xmm0 = mem[0,0]
+; ALL-NEXT:    vmovsd {{.*#+}} xmm0 = mem[0],zero
+; ALL-NEXT:    vmovddup {{.*#+}} xmm0 = xmm0[0,0]
 ; ALL-NEXT:    vmovsd {{.*#+}} xmm1 = mem[0],zero
 ; ALL-NEXT:    vinsertf128 $1, %xmm1, %ymm0, %ymm0
 ; ALL-NEXT:    movq %rbp, %rsp
@@ -249,9 +250,9 @@ define <8 x float> @var_shuffle_v8f32_v8f32_xxxxxxxx_i32(<8 x float> %x, i32 %i0
 ; AVX2-NEXT:    vpermps %ymm0, %ymm5, %ymm5
 ; AVX2-NEXT:    vmovd %r9d, %xmm6
 ; AVX2-NEXT:    vpermps %ymm0, %ymm6, %ymm6
-; AVX2-NEXT:    vmovd {{.*#+}} xmm7 = mem[0],zero,zero,zero
+; AVX2-NEXT:    vmovss {{.*#+}} xmm7 = mem[0],zero,zero,zero
 ; AVX2-NEXT:    vpermps %ymm0, %ymm7, %ymm7
-; AVX2-NEXT:    vmovd {{.*#+}} xmm8 = mem[0],zero,zero,zero
+; AVX2-NEXT:    vmovss {{.*#+}} xmm8 = mem[0],zero,zero,zero
 ; AVX2-NEXT:    vpermps %ymm0, %ymm8, %ymm0
 ; AVX2-NEXT:    vinsertps {{.*#+}} xmm5 = xmm5[0],xmm6[0],xmm5[2,3]
 ; AVX2-NEXT:    vinsertps {{.*#+}} xmm5 = xmm5[0,1],xmm7[0],xmm5[3]

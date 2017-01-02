@@ -30,7 +30,8 @@
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/AsmParser/Parser.h"
-#include "llvm/Bitcode/ReaderWriter.h"
+#include "llvm/Bitcode/BitcodeReader.h"
+#include "llvm/Bitcode/BitcodeWriter.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/UseListOrder.h"
@@ -159,11 +160,11 @@ std::unique_ptr<Module> TempFile::readBitcode(LLVMContext &Context) const {
   }
 
   MemoryBuffer *Buffer = BufferOr.get().get();
-  ErrorOr<std::unique_ptr<Module>> ModuleOr =
+  Expected<std::unique_ptr<Module>> ModuleOr =
       parseBitcodeFile(Buffer->getMemBufferRef(), Context);
   if (!ModuleOr) {
-    errs() << "verify-uselistorder: error: " << ModuleOr.getError().message()
-           << "\n";
+    logAllUnhandledErrors(ModuleOr.takeError(), errs(),
+                          "verify-uselistorder: error: ");
     return nullptr;
   }
   return std::move(ModuleOr.get());

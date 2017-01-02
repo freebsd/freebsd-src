@@ -108,24 +108,24 @@ bool EEVT::TypeSet::FillWithPossibleTypes(TreePattern &TP,
 /// hasIntegerTypes - Return true if this TypeSet contains iAny or an
 /// integer value type.
 bool EEVT::TypeSet::hasIntegerTypes() const {
-  return std::any_of(TypeVec.begin(), TypeVec.end(), isInteger);
+  return any_of(TypeVec, isInteger);
 }
 
 /// hasFloatingPointTypes - Return true if this TypeSet contains an fAny or
 /// a floating point value type.
 bool EEVT::TypeSet::hasFloatingPointTypes() const {
-  return std::any_of(TypeVec.begin(), TypeVec.end(), isFloatingPoint);
+  return any_of(TypeVec, isFloatingPoint);
 }
 
 /// hasScalarTypes - Return true if this TypeSet contains a scalar value type.
 bool EEVT::TypeSet::hasScalarTypes() const {
-  return std::any_of(TypeVec.begin(), TypeVec.end(), isScalar);
+  return any_of(TypeVec, isScalar);
 }
 
 /// hasVectorTypes - Return true if this TypeSet contains a vAny or a vector
 /// value type.
 bool EEVT::TypeSet::hasVectorTypes() const {
-  return std::any_of(TypeVec.begin(), TypeVec.end(), isVector);
+  return any_of(TypeVec, isVector);
 }
 
 
@@ -239,8 +239,7 @@ bool EEVT::TypeSet::EnforceInteger(TreePattern &TP) {
   TypeSet InputSet(*this);
 
   // Filter out all the fp types.
-  TypeVec.erase(std::remove_if(TypeVec.begin(), TypeVec.end(),
-                               std::not1(std::ptr_fun(isInteger))),
+  TypeVec.erase(remove_if(TypeVec, std::not1(std::ptr_fun(isInteger))),
                 TypeVec.end());
 
   if (TypeVec.empty()) {
@@ -265,8 +264,7 @@ bool EEVT::TypeSet::EnforceFloatingPoint(TreePattern &TP) {
   TypeSet InputSet(*this);
 
   // Filter out all the integer types.
-  TypeVec.erase(std::remove_if(TypeVec.begin(), TypeVec.end(),
-                               std::not1(std::ptr_fun(isFloatingPoint))),
+  TypeVec.erase(remove_if(TypeVec, std::not1(std::ptr_fun(isFloatingPoint))),
                 TypeVec.end());
 
   if (TypeVec.empty()) {
@@ -292,8 +290,7 @@ bool EEVT::TypeSet::EnforceScalar(TreePattern &TP) {
   TypeSet InputSet(*this);
 
   // Filter out all the vector types.
-  TypeVec.erase(std::remove_if(TypeVec.begin(), TypeVec.end(),
-                               std::not1(std::ptr_fun(isScalar))),
+  TypeVec.erase(remove_if(TypeVec, std::not1(std::ptr_fun(isScalar))),
                 TypeVec.end());
 
   if (TypeVec.empty()) {
@@ -317,8 +314,7 @@ bool EEVT::TypeSet::EnforceVector(TreePattern &TP) {
   bool MadeChange = false;
 
   // Filter out all the scalar types.
-  TypeVec.erase(std::remove_if(TypeVec.begin(), TypeVec.end(),
-                               std::not1(std::ptr_fun(isVector))),
+  TypeVec.erase(remove_if(TypeVec, std::not1(std::ptr_fun(isVector))),
                 TypeVec.end());
 
   if (TypeVec.empty()) {
@@ -395,16 +391,15 @@ bool EEVT::TypeSet::EnforceSmallerThan(EEVT::TypeSet &Other, TreePattern &TP) {
                 A.getSizeInBits() < B.getSizeInBits());
       });
 
-    auto I = std::remove_if(Other.TypeVec.begin(), Other.TypeVec.end(),
-      [Smallest](MVT OtherVT) {
-        // Don't compare vector and non-vector types.
-        if (OtherVT.isVector() != Smallest.isVector())
-          return false;
-        // The getSizeInBits() check here is only needed for vectors, but is
-        // a subset of the scalar check for scalars so no need to qualify.
-        return OtherVT.getScalarSizeInBits() <= Smallest.getScalarSizeInBits()||
-               OtherVT.getSizeInBits() < Smallest.getSizeInBits();
-      });
+    auto I = remove_if(Other.TypeVec, [Smallest](MVT OtherVT) {
+      // Don't compare vector and non-vector types.
+      if (OtherVT.isVector() != Smallest.isVector())
+        return false;
+      // The getSizeInBits() check here is only needed for vectors, but is
+      // a subset of the scalar check for scalars so no need to qualify.
+      return OtherVT.getScalarSizeInBits() <= Smallest.getScalarSizeInBits() ||
+             OtherVT.getSizeInBits() < Smallest.getSizeInBits();
+    });
     MadeChange |= I != Other.TypeVec.end(); // If we're about to remove types.
     Other.TypeVec.erase(I, Other.TypeVec.end());
 
@@ -428,14 +423,13 @@ bool EEVT::TypeSet::EnforceSmallerThan(EEVT::TypeSet &Other, TreePattern &TP) {
                (A.getScalarSizeInBits() == B.getScalarSizeInBits() &&
                 A.getSizeInBits() < B.getSizeInBits());
       });
-    auto I = std::remove_if(TypeVec.begin(), TypeVec.end(),
-      [Largest](MVT OtherVT) {
-        // Don't compare vector and non-vector types.
-        if (OtherVT.isVector() != Largest.isVector())
-          return false;
-        return OtherVT.getScalarSizeInBits() >= Largest.getScalarSizeInBits() ||
-               OtherVT.getSizeInBits() > Largest.getSizeInBits();
-      });
+    auto I = remove_if(TypeVec, [Largest](MVT OtherVT) {
+      // Don't compare vector and non-vector types.
+      if (OtherVT.isVector() != Largest.isVector())
+        return false;
+      return OtherVT.getScalarSizeInBits() >= Largest.getScalarSizeInBits() ||
+             OtherVT.getSizeInBits() > Largest.getSizeInBits();
+    });
     MadeChange |= I != TypeVec.end(); // If we're about to remove types.
     TypeVec.erase(I, TypeVec.end());
 
@@ -460,10 +454,9 @@ bool EEVT::TypeSet::EnforceVectorEltTypeIs(MVT::SimpleValueType VT,
   TypeSet InputSet(*this);
 
   // Filter out all the types which don't have the right element type.
-  auto I = std::remove_if(TypeVec.begin(), TypeVec.end(),
-    [VT](MVT VVT) {
-      return VVT.getVectorElementType().SimpleTy != VT;
-    });
+  auto I = remove_if(TypeVec, [VT](MVT VVT) {
+    return VVT.getVectorElementType().SimpleTy != VT;
+  });
   MadeChange |= I != TypeVec.end();
   TypeVec.erase(I, TypeVec.end());
 
@@ -547,10 +540,9 @@ bool EEVT::TypeSet::EnforceVectorSubVectorTypeIs(EEVT::TypeSet &VTOperand,
     // Only keep types that have less elements than VTOperand.
     TypeSet InputSet(VTOperand);
 
-    auto I = std::remove_if(VTOperand.TypeVec.begin(), VTOperand.TypeVec.end(),
-                            [NumElems](MVT VVT) {
-                              return VVT.getVectorNumElements() >= NumElems;
-                            });
+    auto I = remove_if(VTOperand.TypeVec, [NumElems](MVT VVT) {
+      return VVT.getVectorNumElements() >= NumElems;
+    });
     MadeChange |= I != VTOperand.TypeVec.end();
     VTOperand.TypeVec.erase(I, VTOperand.TypeVec.end());
 
@@ -571,10 +563,9 @@ bool EEVT::TypeSet::EnforceVectorSubVectorTypeIs(EEVT::TypeSet &VTOperand,
     // Only keep types that have more elements than 'this'.
     TypeSet InputSet(*this);
 
-    auto I = std::remove_if(TypeVec.begin(), TypeVec.end(),
-                            [NumElems](MVT VVT) {
-                              return VVT.getVectorNumElements() <= NumElems;
-                            });
+    auto I = remove_if(TypeVec, [NumElems](MVT VVT) {
+      return VVT.getVectorNumElements() <= NumElems;
+    });
     MadeChange |= I != TypeVec.end();
     TypeVec.erase(I, TypeVec.end());
 
@@ -609,10 +600,9 @@ bool EEVT::TypeSet::EnforceVectorSameNumElts(EEVT::TypeSet &VTOperand,
     // Only keep types that have same elements as 'this'.
     TypeSet InputSet(VTOperand);
 
-    auto I = std::remove_if(VTOperand.TypeVec.begin(), VTOperand.TypeVec.end(),
-                            [NumElems](MVT VVT) {
-                              return VVT.getVectorNumElements() != NumElems;
-                            });
+    auto I = remove_if(VTOperand.TypeVec, [NumElems](MVT VVT) {
+      return VVT.getVectorNumElements() != NumElems;
+    });
     MadeChange |= I != VTOperand.TypeVec.end();
     VTOperand.TypeVec.erase(I, VTOperand.TypeVec.end());
 
@@ -629,10 +619,9 @@ bool EEVT::TypeSet::EnforceVectorSameNumElts(EEVT::TypeSet &VTOperand,
     // Only keep types that have same elements as VTOperand.
     TypeSet InputSet(*this);
 
-    auto I = std::remove_if(TypeVec.begin(), TypeVec.end(),
-                            [NumElems](MVT VVT) {
-                              return VVT.getVectorNumElements() != NumElems;
-                            });
+    auto I = remove_if(TypeVec, [NumElems](MVT VVT) {
+      return VVT.getVectorNumElements() != NumElems;
+    });
     MadeChange |= I != TypeVec.end();
     TypeVec.erase(I, TypeVec.end());
 
@@ -663,10 +652,8 @@ bool EEVT::TypeSet::EnforceSameSize(EEVT::TypeSet &VTOperand,
     // Only keep types that have the same size as 'this'.
     TypeSet InputSet(VTOperand);
 
-    auto I = std::remove_if(VTOperand.TypeVec.begin(), VTOperand.TypeVec.end(),
-                            [&](MVT VT) {
-                              return VT.getSizeInBits() != Size;
-                            });
+    auto I = remove_if(VTOperand.TypeVec,
+                       [&](MVT VT) { return VT.getSizeInBits() != Size; });
     MadeChange |= I != VTOperand.TypeVec.end();
     VTOperand.TypeVec.erase(I, VTOperand.TypeVec.end());
 
@@ -683,10 +670,8 @@ bool EEVT::TypeSet::EnforceSameSize(EEVT::TypeSet &VTOperand,
     // Only keep types that have the same size as VTOperand.
     TypeSet InputSet(*this);
 
-    auto I = std::remove_if(TypeVec.begin(), TypeVec.end(),
-                            [&](MVT VT) {
-                              return VT.getSizeInBits() != Size;
-                            });
+    auto I =
+        remove_if(TypeVec, [&](MVT VT) { return VT.getSizeInBits() != Size; });
     MadeChange |= I != TypeVec.end();
     TypeVec.erase(I, TypeVec.end());
 
@@ -770,7 +755,7 @@ bool TreePredicateFn::isAlwaysTrue() const {
 /// Return the name to use in the generated code to reference this, this is
 /// "Predicate_foo" if from a pattern fragment "foo".
 std::string TreePredicateFn::getFnName() const {
-  return "Predicate_" + PatFragRec->getRecord()->getName();
+  return "Predicate_" + PatFragRec->getRecord()->getName().str();
 }
 
 /// getCodeToRunOnSDNode - Return the code for the function body that
@@ -820,14 +805,9 @@ static unsigned getPatternSize(const TreePatternNode *P,
   if (P->isLeaf() && isa<IntInit>(P->getLeafValue()))
     Size += 2;
 
-  // FIXME: This is a hack to statically increase the priority of patterns
-  // which maps a sub-dag to a complex pattern. e.g. favors LEA over ADD.
-  // Later we can allow complexity / cost for each pattern to be (optionally)
-  // specified. To get best possible pattern match we'll need to dynamically
-  // calculate the complexity of all patterns a dag can potentially map to.
   const ComplexPattern *AM = P->getComplexPatternInfo(CGP);
   if (AM) {
-    Size += AM->getNumOperands() * 3;
+    Size += AM->getComplexity();
 
     // We don't want to count any children twice, so return early.
     return Size;
@@ -2026,7 +2006,7 @@ bool TreePatternNode::canPatternMatch(std::string &Reason,
     // Scan all of the operands of the node and make sure that only the last one
     // is a constant node, unless the RHS also is.
     if (!OnlyOnRHSOfCommutative(getChild(getNumChildren()-1))) {
-      bool Skip = isCommIntrinsic ? 1 : 0; // First operand is intrinsic id.
+      unsigned Skip = isCommIntrinsic ? 1 : 0; // First operand is intrinsic id.
       for (unsigned i = Skip, e = getNumChildren()-1; i != e; ++i)
         if (OnlyOnRHSOfCommutative(getChild(i))) {
           Reason="Immediate value must be on the RHS of commutative operators!";
@@ -2092,8 +2072,8 @@ TreePatternNode *TreePattern::ParseTreePattern(Init *TheInit, StringRef OpName){
     ///   (foo GPR, imm) -> (foo GPR, (imm))
     if (R->isSubClassOf("SDNode") || R->isSubClassOf("PatFrag"))
       return ParseTreePattern(
-        DagInit::get(DI, "",
-                     std::vector<std::pair<Init*, std::string> >()),
+        DagInit::get(DI, nullptr,
+                     std::vector<std::pair<Init*, StringInit*> >()),
         OpName);
 
     // Input argument?
@@ -2147,7 +2127,8 @@ TreePatternNode *TreePattern::ParseTreePattern(Init *TheInit, StringRef OpName){
     if (Dag->getNumArgs() != 1)
       error("Type cast only takes one operand!");
 
-    TreePatternNode *New = ParseTreePattern(Dag->getArg(0), Dag->getArgName(0));
+    TreePatternNode *New = ParseTreePattern(Dag->getArg(0),
+                                            Dag->getArgNameStr(0));
 
     // Apply the type cast.
     assert(New->getNumTypes() == 1 && "FIXME: Unhandled");
@@ -2198,7 +2179,7 @@ TreePatternNode *TreePattern::ParseTreePattern(Init *TheInit, StringRef OpName){
 
   // Parse all the operands.
   for (unsigned i = 0, e = Dag->getNumArgs(); i != e; ++i)
-    Children.push_back(ParseTreePattern(Dag->getArg(i), Dag->getArgName(i)));
+    Children.push_back(ParseTreePattern(Dag->getArg(i), Dag->getArgNameStr(i)));
 
   // If the operator is an intrinsic, then this is just syntactic sugar for for
   // (intrinsic_* <number>, ..children..).  Pick the right intrinsic node, and
@@ -2246,9 +2227,9 @@ TreePatternNode *TreePattern::ParseTreePattern(Init *TheInit, StringRef OpName){
   TreePatternNode *Result = new TreePatternNode(Operator, Children, NumResults);
   Result->setName(OpName);
 
-  if (!Dag->getName().empty()) {
+  if (Dag->getName()) {
     assert(Result->getName().empty());
-    Result->setName(Dag->getName());
+    Result->setName(Dag->getNameStr());
   }
   return Result;
 }
@@ -2504,13 +2485,14 @@ void CodeGenDAGPatterns::ParsePatternFragments(bool OutFrags) {
       if (!isa<DefInit>(OpsList->getArg(j)) ||
           cast<DefInit>(OpsList->getArg(j))->getDef()->getName() != "node")
         P->error("Operands list should all be 'node' values.");
-      if (OpsList->getArgName(j).empty())
+      if (!OpsList->getArgName(j))
         P->error("Operands list should have names for each operand!");
-      if (!OperandsSet.count(OpsList->getArgName(j)))
-        P->error("'" + OpsList->getArgName(j) +
+      StringRef ArgNameStr = OpsList->getArgNameStr(j);
+      if (!OperandsSet.count(ArgNameStr))
+        P->error("'" + ArgNameStr +
                  "' does not occur in pattern or was multiply specified!");
-      OperandsSet.erase(OpsList->getArgName(j));
-      Args.push_back(OpsList->getArgName(j));
+      OperandsSet.erase(ArgNameStr);
+      Args.push_back(ArgNameStr);
     }
 
     if (!OperandsSet.empty())
@@ -2562,11 +2544,11 @@ void CodeGenDAGPatterns::ParseDefaultOperands() {
 
     // Clone the DefaultInfo dag node, changing the operator from 'ops' to
     // SomeSDnode so that we can parse this.
-    std::vector<std::pair<Init*, std::string> > Ops;
+    std::vector<std::pair<Init*, StringInit*> > Ops;
     for (unsigned op = 0, e = DefaultInfo->getNumArgs(); op != e; ++op)
       Ops.push_back(std::make_pair(DefaultInfo->getArg(op),
                                    DefaultInfo->getArgName(op)));
-    DagInit *DI = DagInit::get(SomeSDNode, "", Ops);
+    DagInit *DI = DagInit::get(SomeSDNode, nullptr, Ops);
 
     // Create a TreePattern to parse this.
     TreePattern P(DefaultOps[i], DI, false, *this);
@@ -3602,10 +3584,9 @@ static void CombineChildVariants(TreePatternNode *Orig,
     //   (and GPRC:$a, GPRC:$b) -> (and GPRC:$b, GPRC:$a)
     // which are the same pattern.  Ignore the dups.
     if (R->canPatternMatch(ErrString, CDP) &&
-        std::none_of(OutVariants.begin(), OutVariants.end(),
-                     [&](TreePatternNode *Variant) {
-                       return R->isIsomorphicTo(Variant, DepVars);
-                     }))
+        none_of(OutVariants, [&](TreePatternNode *Variant) {
+          return R->isIsomorphicTo(Variant, DepVars);
+        }))
       OutVariants.push_back(R.release());
 
     // Increment indices to the next permutation by incrementing the

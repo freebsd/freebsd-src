@@ -46,7 +46,11 @@ def Write64Bit : SchedWrite;
 // instructions)
 
 class SISchedMachineModel : SchedMachineModel {
-  let CompleteModel = 0;
+  let CompleteModel = 1;
+  // MicroOpBufferSize = 1 means that instructions will always be added
+  // the ready queue when they become available.  This exposes them
+  // to the register pressure analysis.
+  let MicroOpBufferSize = 1;
   let IssueWidth = 1;
   let PostRAScheduler = 1;
 }

@@ -1,9 +1,9 @@
-; RUN: opt -S -irce < %s | FileCheck %s
+; RUN: opt -S -verify-loop-info -irce < %s | FileCheck %s
 
 define void @f_0(i32 *%arr, i32 *%a_len_ptr, i32 %n, i1* %cond_buf) {
 ; CHECK-LABEL: @f_0(
 
-; CHECK-LABEL: loop.preheader:
+; CHECK: loop.preheader:
 ; CHECK: [[not_n:[^ ]+]] = sub i32 -1, %n
 ; CHECK: [[not_safe_range_end:[^ ]+]] = sub i32 3, %len
 ; CHECK: [[not_exit_main_loop_at_hiclamp_cmp:[^ ]+]] = icmp sgt i32 [[not_n]], [[not_safe_range_end]]
@@ -12,7 +12,10 @@ define void @f_0(i32 *%arr, i32 *%a_len_ptr, i32 %n, i1* %cond_buf) {
 ; CHECK: [[exit_main_loop_at_loclamp_cmp:[^ ]+]] = icmp sgt i32 [[exit_main_loop_at_hiclamp]], 0
 ; CHECK: [[exit_main_loop_at_loclamp:[^ ]+]] = select i1 [[exit_main_loop_at_loclamp_cmp]], i32 [[exit_main_loop_at_hiclamp]], i32 0
 ; CHECK: [[enter_main_loop:[^ ]+]] = icmp slt i32 0, [[exit_main_loop_at_loclamp]]
-; CHECK: br i1 [[enter_main_loop]], label %loop, label %main.pseudo.exit
+; CHECK: br i1 [[enter_main_loop]], label %loop.preheader2, label %main.pseudo.exit
+
+; CHECK: loop.preheader2:
+; CHECK: br label %loop
 
  entry:
   %len = load i32, i32* %a_len_ptr, !range !0
@@ -31,7 +34,10 @@ define void @f_0(i32 *%arr, i32 *%a_len_ptr, i32 %n, i1* %cond_buf) {
 ; CHECK: loop:
 ; CHECK:  %cond = load volatile i1, i1* %cond_buf
 ; CHECK:  %abc = and i1 %cond, true
-; CHECK:  br i1 %abc, label %in.bounds, label %out.of.bounds, !prof !1
+; CHECK:  br i1 %abc, label %in.bounds, label %out.of.bounds.loopexit3, !prof !1
+
+; CHECK: out.of.bounds.loopexit:
+; CHECK:  br label %out.of.bounds
 
  in.bounds:
   %addr = getelementptr i32, i32* %arr, i32 %idx.for.abc
@@ -50,7 +56,7 @@ define void @f_1(
     i32* %arr_a, i32* %a_len_ptr, i32* %arr_b, i32* %b_len_ptr, i32 %n) {
 ; CHECK-LABEL: @f_1(
 
-; CHECK-LABEL: loop.preheader:
+; CHECK: loop.preheader:
 ; CHECK: [[not_len_b:[^ ]+]] = sub i32 -1, %len.b
 ; CHECK: [[not_len_a:[^ ]+]] = sub i32 -1, %len.a
 ; CHECK: [[smax_not_len_cond:[^ ]+]] = icmp sgt i32 [[not_len_b]], [[not_len_a]]
@@ -78,7 +84,11 @@ define void @f_1(
 
 ; CHECK: loop:
 ; CHECK:   %abc = and i1 true, true
-; CHECK:   br i1 %abc, label %in.bounds, label %out.of.bounds, !prof !1
+; CHECK:   br i1 %abc, label %in.bounds, label %out.of.bounds.loopexit4, !prof !1
+
+; CHECK: out.of.bounds.loopexit:
+; CHECK-NEXT:  br label %out.of.bounds
+
 
  in.bounds:
   %addr.a = getelementptr i32, i32* %arr_a, i32 %idx

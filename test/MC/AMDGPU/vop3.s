@@ -1,6 +1,8 @@
-// RUN: llvm-mc -arch=amdgcn -show-encoding %s | FileCheck %s --check-prefix=SICI
-// RUN: llvm-mc -arch=amdgcn -mcpu=SI -show-encoding %s | FileCheck %s --check-prefix=SICI
+// RUN: not llvm-mc -arch=amdgcn -show-encoding %s | FileCheck %s --check-prefix=SICI
+// RUN: llvm-mc -arch=amdgcn -mcpu=hawaii -show-encoding %s | FileCheck %s --check-prefix=CI
 // RUN: not llvm-mc -arch=amdgcn -mcpu=tonga -show-encoding %s | FileCheck %s --check-prefix=VI
+
+// RUN: not llvm-mc -arch=amdgcn -show-encoding %s 2>&1 | FileCheck %s --check-prefix=NOSI
 // RUN: not llvm-mc -arch=amdgcn -mcpu=tonga -show-encoding %s 2>&1 | FileCheck %s -check-prefix=NOVI
 
 
@@ -240,6 +242,22 @@ v_mul_i32_i24 v1, v3, s5
 // SICI: v_mul_i32_i24_e64 v1, v3, s5 ; encoding: [0x01,0x00,0x12,0xd2,0x03,0x0b,0x00,0x00]
 // VI:   v_mul_i32_i24_e64 v1, v3, s5 ; encoding: [0x01,0x00,0x06,0xd1,0x03,0x0b,0x00,0x00]
 
+v_mac_f32_e64 v0, v1, v2
+// SICI: v_mac_f32_e64 v0, v1, v2 ; encoding: [0x00,0x00,0x3e,0xd2,0x01,0x05,0x02,0x00]
+// VI:   v_mac_f32_e64 v0, v1, v2 ; encoding: [0x00,0x00,0x16,0xd1,0x01,0x05,0x02,0x00]
+
+v_mac_f32_e64 v0, v1, v2 clamp
+// SICI: v_mac_f32_e64 v0, v1, v2 clamp ; encoding: [0x00,0x08,0x3e,0xd2,0x01,0x05,0x02,0x00]
+// VI:   v_mac_f32_e64 v0, v1, v2 clamp ; encoding: [0x00,0x80,0x16,0xd1,0x01,0x05,0x02,0x00]
+
+v_mac_f32_e64 v0, v1, v2 mul:2
+// SICI: v_mac_f32_e64 v0, v1, v2 mul:2 ; encoding: [0x00,0x00,0x3e,0xd2,0x01,0x05,0x02,0x08]
+// VI:   v_mac_f32_e64 v0, v1, v2 mul:2 ; encoding: [0x00,0x00,0x16,0xd1,0x01,0x05,0x02,0x08]
+
+v_mac_f32_e64 v0, -v1, |v2|
+// SICI: v_mac_f32_e64 v0, -v1, |v2| ; encoding: [0x00,0x02,0x3e,0xd2,0x01,0x05,0x02,0x20]
+// VI:   v_mac_f32_e64 v0, -v1, |v2| ; encoding: [0x00,0x02,0x16,0xd1,0x01,0x05,0x02,0x20]
+
 ///===---------------------------------------------------------------------===//
 // VOP3 Instructions
 ///===---------------------------------------------------------------------===//
@@ -357,3 +375,8 @@ v_div_scale_f32 v24, vcc, v22, v22, 0xc0000000
 v_mad_f32 v9, 0.5, v5, -v8
 // SICI: v_mad_f32 v9, 0.5, v5, -v8      ; encoding: [0x09,0x00,0x82,0xd2,0xf0,0x0a,0x22,0x84]
 // VI:   v_mad_f32 v9, 0.5, v5, -v8      ; encoding: [0x09,0x00,0xc1,0xd1,0xf0,0x0a,0x22,0x84]
+
+v_mqsad_u32_u8 v[0:3], s[2:3], v4, v[0:3]
+// CI: v_mqsad_u32_u8 v[0:3], s[2:3], v4, v[0:3] ; encoding: [0x00,0x00,0xe8,0xd2,0x02,0x08,0x02,0x04]
+// VI: v_mqsad_u32_u8 v[0:3], s[2:3], v4, v[0:3] ; encoding: [0x00,0x00,0xe7,0xd1,0x02,0x08,0x02,0x04]
+// NOSI: error: instruction not supported on this GPU

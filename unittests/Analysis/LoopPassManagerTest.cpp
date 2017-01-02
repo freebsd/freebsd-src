@@ -7,8 +7,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "gtest/gtest.h"
+#include "llvm/Analysis/AliasAnalysis.h"
+#include "llvm/Analysis/AssumptionCache.h"
 #include "llvm/Analysis/LoopPassManager.h"
+#include "llvm/Analysis/ScalarEvolution.h"
+#include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/AsmParser/Parser.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/Function.h"
@@ -16,14 +19,15 @@
 #include "llvm/IR/Module.h"
 #include "llvm/IR/PassManager.h"
 #include "llvm/Support/SourceMgr.h"
+#include "gtest/gtest.h"
 
 using namespace llvm;
 
 namespace {
 
-class TestLoopAnalysis {
-  /// \brief Private static data to provide unique ID.
-  static char PassID;
+class TestLoopAnalysis : public AnalysisInfoMixin<TestLoopAnalysis> {
+  friend AnalysisInfoMixin<TestLoopAnalysis>;
+  static AnalysisKey Key;
 
   int &Runs;
 
@@ -33,16 +37,10 @@ public:
     int BlockCount;
   };
 
-  /// \brief Returns an opaque, unique ID for this pass type.
-  static void *ID() { return (void *)&PassID; }
-
-  /// \brief Returns the name of the analysis.
-  static StringRef name() { return "TestLoopAnalysis"; }
-
   TestLoopAnalysis(int &Runs) : Runs(Runs) {}
 
   /// \brief Run the analysis pass over the loop and return a result.
-  Result run(Loop &L, AnalysisManager<Loop> &AM) {
+  Result run(Loop &L, LoopAnalysisManager &AM) {
     ++Runs;
     int Count = 0;
 
@@ -52,7 +50,7 @@ public:
   }
 };
 
-char TestLoopAnalysis::PassID;
+AnalysisKey TestLoopAnalysis::Key;
 
 class TestLoopPass {
   std::vector<StringRef> &VisitedLoops;
@@ -65,7 +63,7 @@ public:
       : VisitedLoops(VisitedLoops), AnalyzedBlockCount(AnalyzedBlockCount),
         OnlyUseCachedResults(OnlyUseCachedResults) {}
 
-  PreservedAnalyses run(Loop &L, AnalysisManager<Loop> &AM) {
+  PreservedAnalyses run(Loop &L, LoopAnalysisManager &AM) {
     VisitedLoops.push_back(L.getName());
 
     if (OnlyUseCachedResults) {
@@ -91,7 +89,7 @@ class TestLoopInvalidatingPass {
 public:
   TestLoopInvalidatingPass(StringRef LoopName) : Name(LoopName) {}
 
-  PreservedAnalyses run(Loop &L, AnalysisManager<Loop> &AM) {
+  PreservedAnalyses run(Loop &L, LoopAnalysisManager &AM) {
     return L.getName() == Name ? getLoopPassPreservedAnalyses()
                                : PreservedAnalyses::all();
   }
@@ -152,6 +150,12 @@ TEST_F(LoopPassManagerTest, Basic) {
   // We need DominatorTreeAnalysis for LoopAnalysis.
   FAM.registerPass([&] { return DominatorTreeAnalysis(); });
   FAM.registerPass([&] { return LoopAnalysis(); });
+  // We also allow loop passes to assume a set of other analyses and so need
+  // those.
+  FAM.registerPass([&] { return AAManager(); });
+  FAM.registerPass([&] { return TargetLibraryAnalysis(); });
+  FAM.registerPass([&] { return ScalarEvolutionAnalysis(); });
+  FAM.registerPass([&] { return AssumptionAnalysis(); });
   FAM.registerPass([&] { return LoopAnalysisManagerFunctionProxy(LAM); });
   LAM.registerPass([&] { return FunctionAnalysisManagerLoopProxy(FAM); });
 

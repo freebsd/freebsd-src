@@ -8,7 +8,6 @@ beautification by scripts.  The fields are: name (N), email (E), web-address
 (W), PGP key ID and fingerprint (P), description (D), snail-mail address
 (S), and (I) IRC handle.
 
-
 N: Vikram Adve
 E: vadve@cs.uiuc.edu
 W: http://www.cs.uiuc.edu/~vadve/
@@ -370,6 +369,10 @@ N: Francois Pichet
 E: pichet2000@gmail.com
 D: MSVC support
 
+N: Adrian Prantl
+E: aprantl@apple.com
+D: Debug Information
+
 N: Vladimir Prus
 W: http://vladimir_prus.blogspot.com
 E: ghost@cs.msu.su
@@ -397,7 +400,7 @@ D: Fixes and improvements to the AArch64 backend
 
 N: Nadav Rotem
 E: nadav.rotem@me.com
-D: X86 code generation improvements, Loop Vectorizer.
+D: X86 code generation improvements, Loop Vectorizer, SLP Vectorizer
 
 N: Roman Samoilov
 E: roman@codedgers.com
@@ -468,4 +471,3 @@ D: Bunches of stuff
 N: Bob Wilson
 E: bob.wilson@acm.org
 D: Advanced SIMD (NEON) support in the ARM backend.
-

@@ -12,7 +12,11 @@
 
 #include "Hexagon.h"
 #include "HexagonBlockRanges.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/CodeGen/MachineBasicBlock.h"
+#include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/Target/TargetFrameLowering.h"
+#include <vector>
 
 namespace llvm {
 
@@ -31,11 +35,13 @@ public:
       override;
   void emitEpilogue(MachineFunction &MF, MachineBasicBlock &MBB) const
       override {}
+
   bool spillCalleeSavedRegisters(MachineBasicBlock &MBB,
       MachineBasicBlock::iterator MI, const std::vector<CalleeSavedInfo> &CSI,
       const TargetRegisterInfo *TRI) const override {
     return true;
   }
+
   bool restoreCalleeSavedRegisters(MachineBasicBlock &MBB,
       MachineBasicBlock::iterator MI, const std::vector<CalleeSavedInfo> &CSI,
       const TargetRegisterInfo *TRI) const override {
@@ -53,6 +59,7 @@ public:
   bool targetHandlesStackFrameRounding() const override {
     return true;
   }
+
   int getFrameIndexReference(const MachineFunction &MF, int FI,
       unsigned &FrameReg) const override;
   bool hasFP(const MachineFunction &MF) const override;
@@ -91,7 +98,8 @@ private:
       const HexagonRegisterInfo &HRI, bool &PrologueStubs) const;
   bool insertCSRRestoresInBlock(MachineBasicBlock &MBB, const CSIVect &CSI,
       const HexagonRegisterInfo &HRI) const;
-  bool updateExitPaths(MachineBasicBlock &MBB, MachineBasicBlock *RestoreB,
+  void updateEntryPaths(MachineFunction &MF, MachineBasicBlock &SaveB) const;
+  bool updateExitPaths(MachineBasicBlock &MBB, MachineBasicBlock &RestoreB,
       BitVector &DoneT, BitVector &DoneF, BitVector &Path) const;
   void insertCFIInstructionsAt(MachineBasicBlock &MBB,
       MachineBasicBlock::iterator At) const;
@@ -140,11 +148,12 @@ private:
 
   void addCalleeSaveRegistersAsImpOperand(MachineInstr *MI, const CSIVect &CSI,
       bool IsDef, bool IsKill) const;
-  bool shouldInlineCSR(llvm::MachineFunction &MF, const CSIVect &CSI) const;
+  bool shouldInlineCSR(MachineFunction &MF, const CSIVect &CSI) const;
   bool useSpillFunction(MachineFunction &MF, const CSIVect &CSI) const;
   bool useRestoreFunction(MachineFunction &MF, const CSIVect &CSI) const;
+  bool mayOverflowFrameOffset(MachineFunction &MF) const;
 };
 
-} // End llvm namespace
+} // end namespace llvm
 
-#endif
+#endif // LLVM_LIB_TARGET_HEXAGON_HEXAGONFRAMELOWERING_H

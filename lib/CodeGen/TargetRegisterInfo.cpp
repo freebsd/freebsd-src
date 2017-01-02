@@ -30,8 +30,8 @@ using namespace llvm;
 TargetRegisterInfo::TargetRegisterInfo(const TargetRegisterInfoDesc *ID,
                              regclass_iterator RCB, regclass_iterator RCE,
                              const char *const *SRINames,
-                             const unsigned *SRILaneMasks,
-                             unsigned SRICoveringLanes)
+                             const LaneBitmask *SRILaneMasks,
+                             LaneBitmask SRICoveringLanes)
   : InfoDesc(ID), SubRegIndexNames(SRINames),
     SubRegIndexLaneMasks(SRILaneMasks),
     RegClassBegin(RCB), RegClassEnd(RCE),
@@ -39,6 +39,36 @@ TargetRegisterInfo::TargetRegisterInfo(const TargetRegisterInfoDesc *ID,
 }
 
 TargetRegisterInfo::~TargetRegisterInfo() {}
+
+void TargetRegisterInfo::markSuperRegs(BitVector &RegisterSet, unsigned Reg)
+    const {
+  for (MCSuperRegIterator AI(Reg, this, true); AI.isValid(); ++AI)
+    RegisterSet.set(*AI);
+}
+
+bool TargetRegisterInfo::checkAllSuperRegsMarked(const BitVector &RegisterSet,
+    ArrayRef<MCPhysReg> Exceptions) const {
+  // Check that all super registers of reserved regs are reserved as well.
+  BitVector Checked(getNumRegs());
+  for (int Reg = RegisterSet.find_first(); Reg>=0;
+       Reg = RegisterSet.find_next(Reg)) {
+    if (Checked[Reg])
+      continue;
+    for (MCSuperRegIterator SR(Reg, this); SR.isValid(); ++SR) {
+      if (!RegisterSet[*SR] && !is_contained(Exceptions, Reg)) {
+        dbgs() << "Error: Super register " << PrintReg(*SR, this)
+               << " of reserved register " << PrintReg(Reg, this)
+               << " is not reserved.\n";
+        return false;
+      }
+
+      // We transitively check superregs. So we can remember this for later
+      // to avoid compiletime explosion in deep register hierarchies.
+      Checked.set(*SR);
+    }
+  }
+  return true;
+}
 
 namespace llvm {
 
@@ -94,12 +124,6 @@ Printable PrintVRegOrUnit(unsigned Unit, const TargetRegisterInfo *TRI) {
     } else {
       OS << PrintRegUnit(Unit, TRI);
     }
-  });
-}
-
-Printable PrintLaneMask(LaneBitmask LaneMask) {
-  return Printable([LaneMask](raw_ostream &OS) {
-    OS << format("%08X", LaneMask);
   });
 }
 
@@ -354,7 +378,7 @@ TargetRegisterInfo::getRegAllocationHints(unsigned VirtReg,
   // Check that Phys is in the allocation order. We shouldn't heed hints
   // from VirtReg's register class if they aren't in the allocation order. The
   // target probably has a reason for removing the register.
-  if (std::find(Order.begin(), Order.end(), Phys) == Order.end())
+  if (!is_contained(Order, Phys))
     return;
 
   // All clear, tell the register allocator to prefer this register.
@@ -367,11 +391,11 @@ bool TargetRegisterInfo::canRealignStack(const MachineFunction &MF) const {
 
 bool TargetRegisterInfo::needsStackRealignment(
     const MachineFunction &MF) const {
-  const MachineFrameInfo *MFI = MF.getFrameInfo();
+  const MachineFrameInfo &MFI = MF.getFrameInfo();
   const TargetFrameLowering *TFI = MF.getSubtarget().getFrameLowering();
   const Function *F = MF.getFunction();
   unsigned StackAlign = TFI->getStackAlignment();
-  bool requiresRealignment = ((MFI->getMaxAlignment() > StackAlign) ||
+  bool requiresRealignment = ((MFI.getMaxAlignment() > StackAlign) ||
                               F->hasFnAttribute(Attribute::StackAlignment));
   if (MF.getFunction()->hasFnAttribute("stackrealign") || requiresRealignment) {
     if (canRealignStack(MF))

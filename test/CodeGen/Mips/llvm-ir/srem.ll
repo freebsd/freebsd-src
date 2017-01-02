@@ -40,24 +40,26 @@ entry:
   ; NOT-R6:       div     $zero, $4, $5
   ; NOT-R6:       teq     $5, $zero, 7
   ; NOT-R6:       mfhi    $[[T0:[0-9]+]]
-  ; NOT-R6:       sll     $[[T1:[0-9]+]], $[[T0]], 31
-  ; NOT-R6:       sra     $2, $[[T1]], 31
+  ; NOT-R6:       andi    $[[T0]], $[[T0]], 1
+  ; NOT-R6:       negu    $2, $[[T0]]
 
   ; R6:           mod     $[[T0:[0-9]+]], $4, $5
   ; R6:           teq     $5, $zero, 7
-  ; R6:           sll     $[[T3:[0-9]+]], $[[T0]], 31
-  ; R6:           sra     $2, $[[T3]], 31
+  ; R6:           andi    $[[T0]], $[[T0]], 1
+  ; R6:           negu    $2, $[[T0]]
 
   ; MMR3:         div     $zero, $4, $5
   ; MMR3:         teq     $5, $zero, 7
   ; MMR3:         mfhi    $[[T0:[0-9]+]]
-  ; MMR3:         sll     $[[T1:[0-9]+]], $[[T0]], 31
-  ; MMR3:         sra     $2, $[[T1]], 31
+  ; MMR3:         andi16  $[[T0]], $[[T0]], 1
+  ; MMR3:         li16    $[[T1:[0-9]+]], 0
+  ; MMR3:         subu16  $2, $[[T1]], $[[T0]]
 
   ; MMR6:         mod     $[[T0:[0-9]+]], $4, $5
   ; MMR6:         teq     $5, $zero, 7
-  ; MMR6:         sll     $[[T1:[0-9]+]], $[[T0]], 31
-  ; MMR6:         sra     $2, $[[T1]], 31
+  ; MMR6:         andi16  $[[T0]], $[[T0]], 1
+  ; MMR6:         li16    $[[T1:[0-9]+]], 0
+  ; MMR6:         subu16  $2, $[[T1]], $[[T0]]
 
   %r = srem i1 %a, %b
   ret i1 %r
@@ -180,7 +182,7 @@ entry:
   ; GP64-NOT-R6:  ld      $25, %call16(__modti3)($gp)
   ; 64R6:         ld      $25, %call16(__modti3)($gp)
 
-  ; MM32:         lw      $25, %call16(__modti3)($2)
+  ; MM32:         lw      $25, %call16(__modti3)($16)
 
   ; MM64:         ld      $25, %call16(__modti3)($2)
 

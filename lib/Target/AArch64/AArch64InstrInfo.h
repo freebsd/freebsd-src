@@ -27,7 +27,7 @@ namespace llvm {
 class AArch64Subtarget;
 class AArch64TargetMachine;
 
-class AArch64InstrInfo : public AArch64GenInstrInfo {
+class AArch64InstrInfo final : public AArch64GenInstrInfo {
   const AArch64RegisterInfo RI;
   const AArch64Subtarget &Subtarget;
 
@@ -39,7 +39,7 @@ public:
   /// always be able to get register info as well (through this method).
   const AArch64RegisterInfo &getRegisterInfo() const { return RI; }
 
-  unsigned GetInstSizeInBytes(const MachineInstr &MI) const;
+  unsigned getInstSizeInBytes(const MachineInstr &MI) const override;
 
   bool isAsCheapAsAMove(const MachineInstr &MI) const override;
 
@@ -87,6 +87,38 @@ public:
   /// Return true if this is an unscaled load/store.
   bool isUnscaledLdSt(MachineInstr &MI) const;
 
+  static bool isPairableLdStInst(const MachineInstr &MI) {
+    switch (MI.getOpcode()) {
+    default:
+      return false;
+    // Scaled instructions.
+    case AArch64::STRSui:
+    case AArch64::STRDui:
+    case AArch64::STRQui:
+    case AArch64::STRXui:
+    case AArch64::STRWui:
+    case AArch64::LDRSui:
+    case AArch64::LDRDui:
+    case AArch64::LDRQui:
+    case AArch64::LDRXui:
+    case AArch64::LDRWui:
+    case AArch64::LDRSWui:
+    // Unscaled instructions.
+    case AArch64::STURSi:
+    case AArch64::STURDi:
+    case AArch64::STURQi:
+    case AArch64::STURWi:
+    case AArch64::STURXi:
+    case AArch64::LDURSi:
+    case AArch64::LDURDi:
+    case AArch64::LDURQi:
+    case AArch64::LDURWi:
+    case AArch64::LDURXi:
+    case AArch64::LDURSWi:
+      return true;
+    }
+  }
+
   /// Return true if this is a load/store that can be potentially paired/merged.
   bool isCandidateToMergeOrPair(MachineInstr &MI) const;
 
@@ -101,15 +133,11 @@ public:
                                   int64_t &Offset, unsigned &Width,
                                   const TargetRegisterInfo *TRI) const;
 
-  bool enableClusterLoads() const override { return true; }
-
-  bool enableClusterStores() const override { return true; }
-
   bool shouldClusterMemOps(MachineInstr &FirstLdSt, MachineInstr &SecondLdSt,
                            unsigned NumLoads) const override;
 
-  bool shouldScheduleAdjacent(MachineInstr &First,
-                              MachineInstr &Second) const override;
+  bool shouldScheduleAdjacent(const MachineInstr &First,
+                              const MachineInstr &Second) const override;
 
   MachineInstr *emitFrameIndexDebugValue(MachineFunction &MF, int FrameIx,
                                          uint64_t Offset, const MDNode *Var,
@@ -141,16 +169,25 @@ public:
                         MachineBasicBlock::iterator InsertPt, int FrameIndex,
                         LiveIntervals *LIS = nullptr) const override;
 
+  /// \returns true if a branch from an instruction with opcode \p BranchOpc
+  ///  bytes is capable of jumping to a position \p BrOffset bytes away.
+  bool isBranchOffsetInRange(unsigned BranchOpc,
+                             int64_t BrOffset) const override;
+
+  MachineBasicBlock *getBranchDestBlock(const MachineInstr &MI) const override;
+
   bool analyzeBranch(MachineBasicBlock &MBB, MachineBasicBlock *&TBB,
                      MachineBasicBlock *&FBB,
                      SmallVectorImpl<MachineOperand> &Cond,
                      bool AllowModify = false) const override;
-  unsigned RemoveBranch(MachineBasicBlock &MBB) const override;
-  unsigned InsertBranch(MachineBasicBlock &MBB, MachineBasicBlock *TBB,
+  unsigned removeBranch(MachineBasicBlock &MBB,
+                        int *BytesRemoved = nullptr) const override;
+  unsigned insertBranch(MachineBasicBlock &MBB, MachineBasicBlock *TBB,
                         MachineBasicBlock *FBB, ArrayRef<MachineOperand> Cond,
-                        const DebugLoc &DL) const override;
+                        const DebugLoc &DL,
+                        int *BytesAdded = nullptr) const override;
   bool
-  ReverseBranchCondition(SmallVectorImpl<MachineOperand> &Cond) const override;
+  reverseBranchCondition(SmallVectorImpl<MachineOperand> &Cond) const override;
   bool canInsertSelect(const MachineBasicBlock &, ArrayRef<MachineOperand> Cond,
                        unsigned, unsigned, int &, int &, int &) const override;
   void insertSelect(MachineBasicBlock &MBB, MachineBasicBlock::iterator MI,

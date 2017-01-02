@@ -149,18 +149,21 @@ namespace {
       spillImpossible = ~0u
     };
   public:
-    const char *getPassName() const override {
-      return "Fast Register Allocator";
-    }
+    StringRef getPassName() const override { return "Fast Register Allocator"; }
 
     void getAnalysisUsage(AnalysisUsage &AU) const override {
       AU.setPreservesCFG();
       MachineFunctionPass::getAnalysisUsage(AU);
     }
 
+    MachineFunctionProperties getRequiredProperties() const override {
+      return MachineFunctionProperties().set(
+          MachineFunctionProperties::Property::NoPHIs);
+    }
+
     MachineFunctionProperties getSetProperties() const override {
       return MachineFunctionProperties().set(
-          MachineFunctionProperties::Property::AllVRegsAllocated);
+          MachineFunctionProperties::Property::NoVRegs);
     }
 
   private:
@@ -209,8 +212,8 @@ int RAFast::getStackSpaceFor(unsigned VirtReg, const TargetRegisterClass *RC) {
     return SS;          // Already has space allocated?
 
   // Allocate a new stack object for this spill location...
-  int FrameIdx = MF->getFrameInfo()->CreateSpillStackObject(RC->getSize(),
-                                                            RC->getAlignment());
+  int FrameIdx = MF->getFrameInfo().CreateSpillStackObject(RC->getSize(),
+                                                           RC->getAlignment());
 
   // Assign the slot.
   StackSlotForVirtReg[VirtReg] = FrameIdx;
@@ -360,7 +363,7 @@ void RAFast::usePhysReg(MachineOperand &MO) {
     break;
   case regReserved:
     PhysRegState[PhysReg] = regFree;
-    // Fall through
+    LLVM_FALLTHROUGH;
   case regFree:
     MO.setIsKill();
     return;
@@ -389,7 +392,7 @@ void RAFast::usePhysReg(MachineOperand &MO) {
       assert((TRI->isSuperRegister(PhysReg, Alias) ||
               TRI->isSuperRegister(Alias, PhysReg)) &&
              "Instruction is not using a subregister of a reserved register");
-      // Fall through.
+      LLVM_FALLTHROUGH;
     case regFree:
       if (TRI->isSuperRegister(PhysReg, Alias)) {
         // Leave the superregister in the working set.
@@ -421,7 +424,7 @@ void RAFast::definePhysReg(MachineInstr &MI, unsigned PhysReg,
     break;
   default:
     spillVirtReg(MI, VirtReg);
-    // Fall through.
+    LLVM_FALLTHROUGH;
   case regFree:
   case regReserved:
     PhysRegState[PhysReg] = NewState;
@@ -437,7 +440,7 @@ void RAFast::definePhysReg(MachineInstr &MI, unsigned PhysReg,
       break;
     default:
       spillVirtReg(MI, VirtReg);
-      // Fall through.
+      LLVM_FALLTHROUGH;
     case regFree:
     case regReserved:
       PhysRegState[Alias] = regDisabled;
@@ -1092,8 +1095,6 @@ bool RAFast::runOnMachineFunction(MachineFunction &Fn) {
   RegClassInfo.runOnMachineFunction(Fn);
   UsedInInstr.clear();
   UsedInInstr.setUniverse(TRI->getNumRegUnits());
-
-  assert(!MRI->isSSA() && "regalloc requires leaving SSA");
 
   // initialize the virtual->physical register map to have a 'null'
   // mapping for all virtual registers

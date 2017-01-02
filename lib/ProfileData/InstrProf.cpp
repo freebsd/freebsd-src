@@ -14,6 +14,7 @@
 
 #include "llvm/ProfileData/InstrProf.h"
 #include "llvm/ADT/StringExtras.h"
+#include "llvm/ADT/Triple.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/GlobalVariable.h"
@@ -69,6 +70,8 @@ std::string getInstrProfErrString(instrprof_error Err) {
     return "Failed to compress data (zlib)";
   case instrprof_error::uncompress_failed:
     return "Failed to uncompress data (zlib)";
+  case instrprof_error::empty_raw_profile:
+    return "Empty raw profile file";
   }
   llvm_unreachable("A value of instrprof_error has no message.");
 }
@@ -77,7 +80,7 @@ std::string getInstrProfErrString(instrprof_error Err) {
 // will be removed once this transition is complete. Clients should prefer to
 // deal with the Error value directly, rather than converting to error_code.
 class InstrProfErrorCategoryType : public std::error_category {
-  const char *name() const LLVM_NOEXCEPT override { return "llvm.instrprof"; }
+  const char *name() const noexcept override { return "llvm.instrprof"; }
   std::string message(int IE) const override {
     return getInstrProfErrString(static_cast<instrprof_error>(IE));
   }
@@ -135,6 +138,9 @@ std::string getPGOFuncName(StringRef RawFuncName,
 // (when \c InLTO is true): LTO's internalization privatizes many global linkage
 // symbols. This happens after value profile annotation, but those internal
 // linkage functions should not have a source prefix.
+// Additionally, for ThinLTO mode, exported internal functions are promoted
+// and renamed. We need to ensure that the original internal PGO name is
+// used when computing the GUID that is compared against the profiled GUIDs.
 // To differentiate compiler generated internal symbols from original ones,
 // PGOFuncName meta data are created and attached to the original internal
 // symbols in the value profile annotation step
@@ -780,4 +786,29 @@ void createPGOFuncNameMetadata(Function &F, StringRef PGOFuncName) {
   F.setMetadata(getPGOFuncNameMetadataName(), N);
 }
 
+bool needsComdatForCounter(const Function &F, const Module &M) {
+  if (F.hasComdat())
+    return true;
+
+  Triple TT(M.getTargetTriple());
+  if (!TT.isOSBinFormatELF())
+    return false;
+
+  // See createPGOFuncNameVar for more details. To avoid link errors, profile
+  // counters for function with available_externally linkage needs to be changed
+  // to linkonce linkage. On ELF based systems, this leads to weak symbols to be
+  // created. Without using comdat, duplicate entries won't be removed by the
+  // linker leading to increased data segement size and raw profile size. Even
+  // worse, since the referenced counter from profile per-function data object
+  // will be resolved to the common strong definition, the profile counts for
+  // available_externally functions will end up being duplicated in raw profile
+  // data. This can result in distorted profile as the counts of those dups
+  // will be accumulated by the profile merger.
+  GlobalValue::LinkageTypes Linkage = F.getLinkage();
+  if (Linkage != GlobalValue::ExternalWeakLinkage &&
+      Linkage != GlobalValue::AvailableExternallyLinkage)
+    return false;
+
+  return true;
+}
 } // end namespace llvm

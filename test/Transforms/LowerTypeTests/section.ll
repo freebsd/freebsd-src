@@ -5,9 +5,8 @@
 
 target triple = "x86_64-unknown-linux-gnu"
 
-; CHECK: @[[A:.*]] = private constant {{.*}} section ".text"
-; CHECK: @f = alias void (), bitcast ({{.*}}* @[[A]] to void ()*)
-; CHECK: define private void {{.*}} section "xxx"
+; CHECK: @f = alias void (), void ()* @[[JT:.*]]
+; CHECK: define internal void @f.cfi() section "xxx"
 
 define void @f() section "xxx" !type !0 {
 entry:
@@ -19,6 +18,8 @@ entry:
   %0 = call i1 @llvm.type.test(i8* bitcast (void ()* @f to i8*), metadata !"_ZTSFvE")
   ret i1 %0
 }
+
+; CHECK: define private void @[[JT]]() #{{.*}} section ".text.cfi" align {{.*}} {
 
 declare i1 @llvm.type.test(i8*, metadata) nounwind readnone
 

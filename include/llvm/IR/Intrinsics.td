@@ -43,6 +43,15 @@ def IntrWriteMem : IntrinsicProperty;
 // reads from and (possibly volatile) writes to memory, it has no side effects.
 def IntrArgMemOnly : IntrinsicProperty;
 
+// IntrInaccessibleMemOnly -- This intrinsic only accesses memory that is not
+// accessible by the module being compiled. This is a weaker form of IntrNoMem.
+def IntrInaccessibleMemOnly : IntrinsicProperty;
+
+// IntrInaccessibleMemOrArgMemOnly -- This intrinsic only accesses memory that
+// its pointer-typed arguments point to or memory that is not accessible
+// by the module being compiled. This is a weaker form of IntrArgMemOnly.
+def IntrInaccessibleMemOrArgMemOnly : IntrinsicProperty;
+
 // Commutative - This intrinsic is commutative: X op Y == Y op X.
 def Commutative : IntrinsicProperty;
 
@@ -133,6 +142,7 @@ class LLVMVectorSameWidth<int num, LLVMType elty>
   ValueType ElTy = elty.VT;
 }
 class LLVMPointerTo<int num> : LLVMMatchType<num>;
+class LLVMPointerToElt<int num> : LLVMMatchType<num>;
 class LLVMVectorOfPointersToElt<int num> : LLVMMatchType<num>;
 
 // Match the type of another intrinsic parameter that is expected to be a
@@ -290,6 +300,7 @@ def int_gcwrite : Intrinsic<[],
 //===--------------------- Code Generator Intrinsics ----------------------===//
 //
 def int_returnaddress : Intrinsic<[llvm_ptr_ty], [llvm_i32_ty], [IntrNoMem]>;
+def int_addressofreturnaddress : Intrinsic<[llvm_ptr_ty], [], [IntrNoMem]>;
 def int_frameaddress  : Intrinsic<[llvm_ptr_ty], [llvm_i32_ty], [IntrNoMem]>;
 def int_read_register  : Intrinsic<[llvm_anyint_ty], [llvm_metadata_ty],
                                    [IntrReadMem], "llvm.read_register">;
@@ -344,6 +355,12 @@ def int_stackguard : Intrinsic<[llvm_ptr_ty], [], []>;
 def int_instrprof_increment : Intrinsic<[],
                                         [llvm_ptr_ty, llvm_i64_ty,
                                          llvm_i32_ty, llvm_i32_ty],
+                                        []>;
+
+// A counter increment with step for instrumentation based profiling.
+def int_instrprof_increment_step : Intrinsic<[],
+                                        [llvm_ptr_ty, llvm_i64_ty,
+                                         llvm_i32_ty, llvm_i32_ty, llvm_i64_ty],
                                         []>;
 
 // A call to profile runtime for value profiling of target expressions
@@ -554,11 +571,11 @@ def int_lifetime_end    : Intrinsic<[],
                                     [llvm_i64_ty, llvm_ptr_ty],
                                     [IntrArgMemOnly, NoCapture<1>]>;
 def int_invariant_start : Intrinsic<[llvm_descriptor_ty],
-                                    [llvm_i64_ty, llvm_ptr_ty],
+                                    [llvm_i64_ty, llvm_anyptr_ty],
                                     [IntrArgMemOnly, NoCapture<1>]>;
 def int_invariant_end   : Intrinsic<[],
                                     [llvm_descriptor_ty, llvm_i64_ty,
-                                     llvm_ptr_ty],
+                                     llvm_anyptr_ty],
                                     [IntrArgMemOnly, NoCapture<2>]>;
 
 def int_invariant_group_barrier : Intrinsic<[llvm_ptr_ty], 
@@ -597,7 +614,50 @@ def int_experimental_gc_relocate : Intrinsic<[llvm_any_ty],
                                 [llvm_token_ty, llvm_i32_ty, llvm_i32_ty],
                                 [IntrReadMem]>;
 
-//===-------------------------- Other Intrinsics --------------------------===//
+//===------------------------ Coroutine Intrinsics ---------------===//
+// These are documented in docs/Coroutines.rst
+
+// Coroutine Structure Intrinsics.
+
+def int_coro_id : Intrinsic<[llvm_token_ty], [llvm_i32_ty, llvm_ptr_ty, 
+                             llvm_ptr_ty, llvm_ptr_ty], 
+                            [IntrArgMemOnly, IntrReadMem, 
+                             ReadNone<1>, ReadOnly<2>, NoCapture<2>]>;
+def int_coro_alloc : Intrinsic<[llvm_i1_ty], [llvm_token_ty], []>;
+def int_coro_begin : Intrinsic<[llvm_ptr_ty], [llvm_token_ty, llvm_ptr_ty],
+                               [WriteOnly<1>]>;
+
+def int_coro_free : Intrinsic<[llvm_ptr_ty], [llvm_token_ty, llvm_ptr_ty], 
+                              [IntrReadMem, IntrArgMemOnly, ReadOnly<1>, 
+                               NoCapture<1>]>;
+def int_coro_end : Intrinsic<[], [llvm_ptr_ty, llvm_i1_ty], []>;
+
+def int_coro_frame : Intrinsic<[llvm_ptr_ty], [], [IntrNoMem]>;
+def int_coro_size : Intrinsic<[llvm_anyint_ty], [], [IntrNoMem]>;
+
+def int_coro_save : Intrinsic<[llvm_token_ty], [llvm_ptr_ty], []>;
+def int_coro_suspend : Intrinsic<[llvm_i8_ty], [llvm_token_ty, llvm_i1_ty], []>;
+
+def int_coro_param : Intrinsic<[llvm_i1_ty], [llvm_ptr_ty, llvm_ptr_ty],
+                               [IntrNoMem, ReadNone<0>, ReadNone<1>]>;
+
+// Coroutine Manipulation Intrinsics.
+
+def int_coro_resume : Intrinsic<[], [llvm_ptr_ty], [Throws]>;
+def int_coro_destroy : Intrinsic<[], [llvm_ptr_ty], [Throws]>;
+def int_coro_done : Intrinsic<[llvm_i1_ty], [llvm_ptr_ty],
+                              [IntrArgMemOnly, ReadOnly<0>, NoCapture<0>]>;
+def int_coro_promise : Intrinsic<[llvm_ptr_ty],
+                                 [llvm_ptr_ty, llvm_i32_ty, llvm_i1_ty],
+                                 [IntrNoMem, NoCapture<0>]>;
+
+// Coroutine Lowering Intrinsics. Used internally by coroutine passes.
+
+def int_coro_subfn_addr : Intrinsic<[llvm_ptr_ty], [llvm_ptr_ty, llvm_i8_ty],
+                                    [IntrReadMem, IntrArgMemOnly, ReadOnly<0>,
+                                     NoCapture<0>]>;
+
+///===-------------------------- Other Intrinsics --------------------------===//
 //
 def int_flt_rounds : Intrinsic<[llvm_i32_ty]>,
                      GCCBuiltin<"__builtin_flt_rounds">;
@@ -668,12 +728,24 @@ def int_masked_gather: Intrinsic<[llvm_anyvector_ty],
                                  [LLVMVectorOfPointersToElt<0>, llvm_i32_ty,
                                   LLVMVectorSameWidth<0, llvm_i1_ty>,
                                   LLVMMatchType<0>],
-				  [IntrReadMem]>;
+                                 [IntrReadMem]>;
 
 def int_masked_scatter: Intrinsic<[],
                                   [llvm_anyvector_ty,
                                    LLVMVectorOfPointersToElt<0>, llvm_i32_ty,
                                    LLVMVectorSameWidth<0, llvm_i1_ty>]>;
+
+def int_masked_expandload: Intrinsic<[llvm_anyvector_ty],
+                                     [LLVMPointerToElt<0>,
+                                      LLVMVectorSameWidth<0, llvm_i1_ty>,
+                                      LLVMMatchType<0>],
+                                     [IntrReadMem]>;
+
+def int_masked_compressstore: Intrinsic<[],
+                                     [llvm_anyvector_ty,
+                                      LLVMPointerToElt<0>,
+                                      LLVMVectorSameWidth<0, llvm_i1_ty>],
+                                     [IntrArgMemOnly]>;
 
 // Test whether a pointer is associated with a type metadata identifier.
 def int_type_test : Intrinsic<[llvm_i1_ty], [llvm_ptr_ty, llvm_metadata_ty],
@@ -686,6 +758,15 @@ def int_type_checked_load : Intrinsic<[llvm_ptr_ty, llvm_i1_ty],
 
 def int_load_relative: Intrinsic<[llvm_ptr_ty], [llvm_ptr_ty, llvm_anyint_ty],
                                  [IntrReadMem, IntrArgMemOnly]>;
+
+//===------ Memory intrinsics with element-wise atomicity guarantees ------===//
+//
+
+def int_memcpy_element_atomic  : Intrinsic<[],
+                                           [llvm_anyptr_ty, llvm_anyptr_ty,
+                                            llvm_i64_ty, llvm_i32_ty],
+                                 [IntrArgMemOnly, NoCapture<0>, NoCapture<1>,
+                                  WriteOnly<0>, ReadOnly<1>]>;
 
 //===----------------------------------------------------------------------===//
 // Target-specific intrinsics

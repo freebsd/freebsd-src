@@ -350,10 +350,40 @@ define i1 @test31(i64 %A) {
 ; CHECK-NEXT:    [[D:%.*]] = icmp eq i64 [[C]], 10
 ; CHECK-NEXT:    ret i1 [[D]]
 ;
-  %B = trunc i64 %A to i32                ; <i32> [#uses=1]
-  %C = and i32 %B, 42             ; <i32> [#uses=1]
-  %D = icmp eq i32 %C, 10         ; <i1> [#uses=1]
+  %B = trunc i64 %A to i32
+  %C = and i32 %B, 42
+  %D = icmp eq i32 %C, 10
   ret i1 %D
+}
+
+; FIXME: Vectors should fold too...or not?
+; Does this depend on the whether the source/dest types of the trunc are legal in the data layout?
+define <2 x i1> @test31vec(<2 x i64> %A) {
+; CHECK-LABEL: @test31vec(
+; CHECK-NEXT:    [[B:%.*]] = trunc <2 x i64> %A to <2 x i32>
+; CHECK-NEXT:    [[C:%.*]] = and <2 x i32> [[B]], <i32 42, i32 42>
+; CHECK-NEXT:    [[D:%.*]] = icmp eq <2 x i32> [[C]], <i32 10, i32 10>
+; CHECK-NEXT:    ret <2 x i1> [[D]]
+;
+  %B = trunc <2 x i64> %A to <2 x i32>
+  %C = and <2 x i32> %B, <i32 42, i32 42>
+  %D = icmp eq <2 x i32> %C, <i32 10, i32 10>
+  ret <2 x i1> %D
+}
+
+; Verify that the 'and' was narrowed, the zext was eliminated, and the compare was narrowed
+; even for vectors. Earlier folds should ensure that the icmp(and(zext)) pattern never occurs.
+
+define <2 x i1> @test32vec(<2 x i8> %A) {
+; CHECK-LABEL: @test32vec(
+; CHECK-NEXT:    [[TMP1:%.*]] = and <2 x i8> %A, <i8 42, i8 42>
+; CHECK-NEXT:    [[D:%.*]] = icmp eq <2 x i8> [[TMP1]], <i8 10, i8 10>
+; CHECK-NEXT:    ret <2 x i1> [[D]]
+;
+  %B = zext <2 x i8> %A to <2 x i16>
+  %C = and <2 x i16> %B, <i16 42, i16 42>
+  %D = icmp eq <2 x i16> %C, <i16 10, i16 10>
+  ret <2 x i1> %D
 }
 
 define i32 @test33(i32 %c1) {
@@ -387,7 +417,6 @@ define i16 @test35(i16 %a) {
   ret i16 %c2
 }
 
-; icmp sgt i32 %a, -1
 ; rdar://6480391
 define i1 @test36(i32 %a) {
 ; CHECK-LABEL: @test36(
@@ -400,7 +429,17 @@ define i1 @test36(i32 %a) {
   ret i1 %d
 }
 
-; ret i1 false
+define <2 x i1> @test36vec(<2 x i32> %a) {
+; CHECK-LABEL: @test36vec(
+; CHECK-NEXT:    [[D:%.*]] = icmp sgt <2 x i32> %a, <i32 -1, i32 -1>
+; CHECK-NEXT:    ret <2 x i1> [[D]]
+;
+  %b = lshr <2 x i32> %a, <i32 31, i32 31>
+  %c = trunc <2 x i32> %b to <2 x i8>
+  %d = icmp eq <2 x i8> %c, zeroinitializer
+  ret <2 x i1> %d
+}
+
 define i1 @test37(i32 %a) {
 ; CHECK-LABEL: @test37(
 ; CHECK-NEXT:    ret i1 false
@@ -637,9 +676,9 @@ define i32 @test52(i64 %A) {
 
 define i64 @test53(i32 %A) {
 ; CHECK-LABEL: @test53(
-; CHECK-NEXT:    [[B:%.*]] = zext i32 %A to i64
-; CHECK-NEXT:    [[C:%.*]] = and i64 [[B]], 7224
-; CHECK-NEXT:    [[D:%.*]] = or i64 [[C]], 32962
+; CHECK-NEXT:    [[TMP1:%.*]] = and i32 %A, 7224
+; CHECK-NEXT:    [[TMP2:%.*]] = or i32 [[TMP1]], 32962
+; CHECK-NEXT:    [[D:%.*]] = zext i32 [[TMP2]] to i64
 ; CHECK-NEXT:    ret i64 [[D]]
 ;
   %B = trunc i32 %A to i16
@@ -665,8 +704,8 @@ define i32 @test54(i64 %A) {
 
 define i64 @test55(i32 %A) {
 ; CHECK-LABEL: @test55(
-; CHECK-NEXT:    [[B:%.*]] = zext i32 %A to i64
-; CHECK-NEXT:    [[C:%.*]] = and i64 [[B]], 7224
+; CHECK-NEXT:    [[TMP1:%.*]] = and i32 %A, 7224
+; CHECK-NEXT:    [[C:%.*]] = zext i32 [[TMP1]] to i64
 ; CHECK-NEXT:    [[D:%.*]] = or i64 [[C]], -32574
 ; CHECK-NEXT:    ret i64 [[D]]
 ;
@@ -1371,4 +1410,25 @@ define i16 @PR24763(i8 %V) {
   %l = lshr i32 %conv, 1
   %t = trunc i32 %l to i16
   ret i16 %t
+}
+
+define i64 @PR28745() {
+; CHECK-LABEL: @PR28745(
+; CHECK-NEXT:    ret i64 1
+
+  %b = zext i32 extractvalue ({ i32 } select (i1 icmp eq (i16 extractelement (<2 x i16> bitcast (<1 x i32> <i32 1> to <2 x i16>), i32 0), i16 0), { i32 } { i32 1 }, { i32 } zeroinitializer), 0) to i64
+  ret i64 %b
+}
+
+define i32 @test89() {
+; CHECK-LABEL: @test89(
+; CHECK-NEXT:    ret i32 393216
+  ret i32 bitcast (<2 x i16> <i16 6, i16 undef> to i32)
+}
+
+define <2 x i32> @test90() {
+; CHECK-LABEL: @test90(
+; CHECK: ret <2 x i32> <i32 0, i32 15360>
+  %tmp6 = bitcast <4 x half> <half undef, half undef, half undef, half 0xH3C00> to <2 x i32>
+  ret <2 x i32> %tmp6
 }

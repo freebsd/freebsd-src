@@ -1493,7 +1493,7 @@ getT2SORegOpValue(const MCInst &MI, unsigned OpIdx,
   case ARM_AM::lsl: SBits = 0x0; break;
   case ARM_AM::lsr: SBits = 0x2; break;
   case ARM_AM::asr: SBits = 0x4; break;
-  case ARM_AM::rrx: // FALLTHROUGH
+  case ARM_AM::rrx: LLVM_FALLTHROUGH;
   case ARM_AM::ror: SBits = 0x6; break;
   }
 
@@ -1545,8 +1545,15 @@ getRegisterListOpValue(const MCInst &MI, unsigned Op,
     else
       Binary |= NumRegs * 2;
   } else {
+    const MCRegisterInfo &MRI = *CTX.getRegisterInfo();
+    assert(std::is_sorted(MI.begin() + Op, MI.end(),
+                          [&](const MCOperand &LHS, const MCOperand &RHS) {
+                            return MRI.getEncodingValue(LHS.getReg()) <
+                                   MRI.getEncodingValue(RHS.getReg());
+                          }));
+
     for (unsigned I = Op, E = MI.getNumOperands(); I < E; ++I) {
-      unsigned RegNo = CTX.getRegisterInfo()->getEncodingValue(MI.getOperand(I).getReg());
+      unsigned RegNo = MRI.getEncodingValue(MI.getOperand(I).getReg());
       Binary |= 1 << RegNo;
     }
   }
