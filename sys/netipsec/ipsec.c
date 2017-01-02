@@ -256,8 +256,6 @@ SYSCTL_VNET_PCPUSTAT(_net_inet6_ipsec6, IPSECCTL_STATS, ipsecstats,
 
 static int ipsec_in_reject(struct secpolicy *, struct inpcb *,
     const struct mbuf *);
-static void ipsec_setspidx_inpcb(struct inpcb *, struct secpolicyindex *,
-    u_int);
 
 static void ipsec4_get_ulp(const struct mbuf *, struct secpolicyindex *, int);
 static void ipsec4_setspidx_ipaddr(const struct mbuf *,
@@ -374,101 +372,6 @@ ipsec_getpcbpolicy(struct inpcb *inp, u_int dir)
 	IPSEC_ASSERT(sp != NULL, ("null SP, but flags is 0x%04x", flags));
 	key_addref(sp);
 	return (sp);
-}
-
-static void
-ipsec_setsockaddrs_inpcb(struct inpcb *inp, union sockaddr_union *src,
-    union sockaddr_union *dst, u_int dir)
-{
-
-#ifdef INET6
-	if (inp->inp_vflag & INP_IPV6) {
-		struct sockaddr_in6 *sin6;
-
-		bzero(&src->sin6, sizeof(src->sin6));
-		bzero(&dst->sin6, sizeof(dst->sin6));
-		src->sin6.sin6_family = AF_INET6;
-		src->sin6.sin6_len = sizeof(struct sockaddr_in6);
-		dst->sin6.sin6_family = AF_INET6;
-		dst->sin6.sin6_len = sizeof(struct sockaddr_in6);
-
-		if (dir == IPSEC_DIR_OUTBOUND)
-			sin6 = &src->sin6;
-		else
-			sin6 = &dst->sin6;
-		sin6->sin6_addr = inp->in6p_laddr;
-		sin6->sin6_port = inp->inp_lport;
-		if (IN6_IS_SCOPE_LINKLOCAL(&inp->in6p_laddr)) {
-			/* XXXAE: use in6p_zoneid */
-			sin6->sin6_addr.s6_addr16[1] = 0;
-			sin6->sin6_scope_id = ntohs(
-			    inp->in6p_laddr.s6_addr16[1]);
-		}
-
-		if (dir == IPSEC_DIR_OUTBOUND)
-			sin6 = &dst->sin6;
-		else
-			sin6 = &src->sin6;
-		sin6->sin6_addr = inp->in6p_faddr;
-		sin6->sin6_port = inp->inp_fport;
-		if (IN6_IS_SCOPE_LINKLOCAL(&inp->in6p_faddr)) {
-			/* XXXAE: use in6p_zoneid */
-			sin6->sin6_addr.s6_addr16[1] = 0;
-			sin6->sin6_scope_id = ntohs(
-			    inp->in6p_faddr.s6_addr16[1]);
-		}
-	}
-#endif
-#ifdef INET
-	if (inp->inp_vflag & INP_IPV4) {
-		struct sockaddr_in *sin;
-
-		bzero(&src->sin, sizeof(src->sin));
-		bzero(&dst->sin, sizeof(dst->sin));
-		src->sin.sin_family = AF_INET;
-		src->sin.sin_len = sizeof(struct sockaddr_in);
-		dst->sin.sin_family = AF_INET;
-		dst->sin.sin_len = sizeof(struct sockaddr_in);
-
-		if (dir == IPSEC_DIR_OUTBOUND)
-			sin = &src->sin;
-		else
-			sin = &dst->sin;
-		sin->sin_addr = inp->inp_laddr;
-		sin->sin_port = inp->inp_lport;
-
-		if (dir == IPSEC_DIR_OUTBOUND)
-			sin = &dst->sin;
-		else
-			sin = &src->sin;
-		sin->sin_addr = inp->inp_faddr;
-		sin->sin_port = inp->inp_fport;
-	}
-#endif
-}
-
-static void
-ipsec_setspidx_inpcb(struct inpcb *inp, struct secpolicyindex *spidx,
-    u_int dir)
-{
-
-	ipsec_setsockaddrs_inpcb(inp, &spidx->src, &spidx->dst, dir);
-#ifdef INET6
-	if (inp->inp_vflag & INP_IPV6) {
-		spidx->prefs = sizeof(struct in6_addr) << 3;
-		spidx->prefd = sizeof(struct in6_addr) << 3;
-	}
-#endif
-#ifdef INET
-	if (inp->inp_vflag & INP_IPV4) {
-		spidx->prefs = sizeof(struct in_addr) << 3;
-		spidx->prefd = sizeof(struct in_addr) << 3;
-	}
-#endif
-	spidx->ul_proto = inp->inp_ip_p;
-	spidx->dir = dir;
-	KEYDBG(IPSEC_DUMP,
-	    printf("%s: ", __func__); kdebug_secpolicyindex(spidx, NULL));
 }
 
 #ifdef INET

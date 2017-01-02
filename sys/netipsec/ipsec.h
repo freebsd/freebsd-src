@@ -320,6 +320,8 @@ int ipsec_chkreplay(uint32_t, struct secasvar *);
 int ipsec_updatereplay(uint32_t, struct secasvar *);
 int ipsec_updateid(struct secasvar *, uint64_t *, uint64_t *);
 
+void ipsec_setspidx_inpcb(struct inpcb *, struct secpolicyindex *, u_int);
+
 void ipsec4_setsockaddrs(const struct mbuf *, union sockaddr_union *,
     union sockaddr_union *);
 int ipsec4_in_reject(const struct mbuf *, struct inpcb *);

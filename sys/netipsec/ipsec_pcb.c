@@ -54,6 +54,101 @@ __FBSDID("$FreeBSD$");
 
 MALLOC_DEFINE(M_IPSEC_INPCB, "inpcbpolicy", "inpcb-resident ipsec policy");
 
+static void
+ipsec_setsockaddrs_inpcb(struct inpcb *inp, union sockaddr_union *src,
+    union sockaddr_union *dst, u_int dir)
+{
+
+#ifdef INET6
+	if (inp->inp_vflag & INP_IPV6) {
+		struct sockaddr_in6 *sin6;
+
+		bzero(&src->sin6, sizeof(src->sin6));
+		bzero(&dst->sin6, sizeof(dst->sin6));
+		src->sin6.sin6_family = AF_INET6;
+		src->sin6.sin6_len = sizeof(struct sockaddr_in6);
+		dst->sin6.sin6_family = AF_INET6;
+		dst->sin6.sin6_len = sizeof(struct sockaddr_in6);
+
+		if (dir == IPSEC_DIR_OUTBOUND)
+			sin6 = &src->sin6;
+		else
+			sin6 = &dst->sin6;
+		sin6->sin6_addr = inp->in6p_laddr;
+		sin6->sin6_port = inp->inp_lport;
+		if (IN6_IS_SCOPE_LINKLOCAL(&inp->in6p_laddr)) {
+			/* XXXAE: use in6p_zoneid */
+			sin6->sin6_addr.s6_addr16[1] = 0;
+			sin6->sin6_scope_id = ntohs(
+			    inp->in6p_laddr.s6_addr16[1]);
+		}
+
+		if (dir == IPSEC_DIR_OUTBOUND)
+			sin6 = &dst->sin6;
+		else
+			sin6 = &src->sin6;
+		sin6->sin6_addr = inp->in6p_faddr;
+		sin6->sin6_port = inp->inp_fport;
+		if (IN6_IS_SCOPE_LINKLOCAL(&inp->in6p_faddr)) {
+			/* XXXAE: use in6p_zoneid */
+			sin6->sin6_addr.s6_addr16[1] = 0;
+			sin6->sin6_scope_id = ntohs(
+			    inp->in6p_faddr.s6_addr16[1]);
+		}
+	}
+#endif
+#ifdef INET
+	if (inp->inp_vflag & INP_IPV4) {
+		struct sockaddr_in *sin;
+
+		bzero(&src->sin, sizeof(src->sin));
+		bzero(&dst->sin, sizeof(dst->sin));
+		src->sin.sin_family = AF_INET;
+		src->sin.sin_len = sizeof(struct sockaddr_in);
+		dst->sin.sin_family = AF_INET;
+		dst->sin.sin_len = sizeof(struct sockaddr_in);
+
+		if (dir == IPSEC_DIR_OUTBOUND)
+			sin = &src->sin;
+		else
+			sin = &dst->sin;
+		sin->sin_addr = inp->inp_laddr;
+		sin->sin_port = inp->inp_lport;
+
+		if (dir == IPSEC_DIR_OUTBOUND)
+			sin = &dst->sin;
+		else
+			sin = &src->sin;
+		sin->sin_addr = inp->inp_faddr;
+		sin->sin_port = inp->inp_fport;
+	}
+#endif
+}
+
+void
+ipsec_setspidx_inpcb(struct inpcb *inp, struct secpolicyindex *spidx,
+    u_int dir)
+{
+
+	ipsec_setsockaddrs_inpcb(inp, &spidx->src, &spidx->dst, dir);
+#ifdef INET6
+	if (inp->inp_vflag & INP_IPV6) {
+		spidx->prefs = sizeof(struct in6_addr) << 3;
+		spidx->prefd = sizeof(struct in6_addr) << 3;
+	}
+#endif
+#ifdef INET
+	if (inp->inp_vflag & INP_IPV4) {
+		spidx->prefs = sizeof(struct in_addr) << 3;
+		spidx->prefd = sizeof(struct in_addr) << 3;
+	}
+#endif
+	spidx->ul_proto = IPPROTO_TCP; /* XXX: currently only TCP uses this */
+	spidx->dir = dir;
+	KEYDBG(IPSEC_DUMP,
+	    printf("%s: ", __func__); kdebug_secpolicyindex(spidx, NULL));
+}
+
 /* Initialize PCB policy. */
 int
 ipsec_init_pcbpolicy(struct inpcb *inp)
@@ -104,6 +199,7 @@ ipsec_deepcopy_pcbpolicy(struct secpolicy *src)
 	if (dst == NULL)
 		return (NULL);
 
+	/* spidx is not copied here */
 	dst->policy = src->policy;
 	dst->state = src->state;
 	dst->priority = src->priority;
@@ -153,6 +249,7 @@ ipsec_copy_pcbpolicy(struct inpcb *old, struct inpcb *new)
 		sp = ipsec_deepcopy_pcbpolicy(old->inp_sp->sp_in);
 		if (sp == NULL)
 			return (ENOBUFS);
+		ipsec_setspidx_inpcb(new, &sp->spidx, IPSEC_DIR_INBOUND);
 		new->inp_sp->sp_in = sp;
 		new->inp_sp->flags |= INP_INBOUND_POLICY;
 	}
@@ -160,6 +257,7 @@ ipsec_copy_pcbpolicy(struct inpcb *old, struct inpcb *new)
 		sp = ipsec_deepcopy_pcbpolicy(old->inp_sp->sp_out);
 		if (sp == NULL)
 			return (ENOBUFS);
+		ipsec_setspidx_inpcb(new, &sp->spidx, IPSEC_DIR_OUTBOUND);
 		new->inp_sp->sp_out = sp;
 		new->inp_sp->flags |= INP_OUTBOUND_POLICY;
 	}
@@ -206,6 +304,7 @@ ipsec_set_pcbpolicy(struct inpcb *inp, struct ucred *cred,
 		if (newsp == NULL)
 			return (error);
 		newsp->state = IPSEC_SPSTATE_PCB;
+		newsp->spidx.ul_proto = IPSEC_ULPROTO_ANY;
 #ifdef INET
 		if (inp->inp_vflag & INP_IPV4) {
 			newsp->spidx.src.sin.sin_family =
