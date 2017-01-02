@@ -970,7 +970,7 @@ siena_filter_search(
 	__out		int *filter_index,
 	__out		unsigned int *depth_required)
 {
-	unsigned hash, incr, filter_idx, depth;
+	unsigned int hash, incr, filter_idx, depth;
 
 	hash = siena_filter_tbl_hash(key);
 	incr = siena_filter_tbl_increment(key);
