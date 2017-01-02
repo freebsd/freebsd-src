@@ -4,9 +4,12 @@ set(ASAN_SOURCES
   asan_allocator.cc
   asan_activation.cc
   asan_debugging.cc
+  asan_descriptions.cc
+  asan_errors.cc
   asan_fake_stack.cc
   asan_flags.cc
   asan_globals.cc
+  asan_globals_win.cc
   asan_interceptors.cc
   asan_linux.cc
   asan_mac.cc
@@ -35,14 +38,9 @@ include_directories(..)
 set(ASAN_CFLAGS ${SANITIZER_COMMON_CFLAGS})
 append_rtti_flag(OFF ASAN_CFLAGS)
 
-set(ASAN_COMMON_DEFINITIONS
-  ASAN_HAS_EXCEPTIONS=1)
-
 set(ASAN_DYNAMIC_LINK_FLAGS)
 
 if(ANDROID)
-  list(APPEND ASAN_COMMON_DEFINITIONS
-    ASAN_LOW_MEMORY=1)
 # On Android, -z global does not do what it is documented to do.
 # On Android, -z global moves the library ahead in the lookup order,
 # placing it right after the LD_PRELOADs. This is used to compensate for the fact
@@ -105,8 +103,7 @@ if(NOT APPLE)
 endif()
 
 # Build ASan runtimes shipped with Clang.
-add_custom_target(asan)
-set_target_properties(asan PROPERTIES FOLDER "Compiler-RT Misc")
+add_compiler_rt_component(asan)
 
 if(APPLE)
   add_compiler_rt_runtime(clang_rt.asan
@@ -207,15 +204,25 @@ else()
         STATIC
         ARCHS ${arch}
         SOURCES asan_win_dll_thunk.cc
+                asan_globals_win.cc
                 $<TARGET_OBJECTS:RTInterception.${arch}>
         CFLAGS ${ASAN_CFLAGS} -DASAN_DLL_THUNK
         DEFS ${ASAN_COMMON_DEFINITIONS}
         PARENT_TARGET asan)
+
+      set(DYNAMIC_RUNTIME_THUNK_CFLAGS "-DASAN_DYNAMIC_RUNTIME_THUNK")
+      if(MSVC)
+        list(APPEND DYNAMIC_RUNTIME_THUNK_CFLAGS "-Zl")
+      elseif(CMAKE_C_COMPILER_ID MATCHES Clang)
+        list(APPEND DYNAMIC_RUNTIME_THUNK_CFLAGS "-nodefaultlibs")
+      endif()
+
       add_compiler_rt_runtime(clang_rt.asan_dynamic_runtime_thunk
         STATIC
         ARCHS ${arch}
         SOURCES asan_win_dynamic_runtime_thunk.cc
-        CFLAGS ${ASAN_CFLAGS} -DASAN_DYNAMIC_RUNTIME_THUNK -Zl
+                asan_globals_win.cc
+        CFLAGS ${ASAN_CFLAGS} ${DYNAMIC_RUNTIME_THUNK_CFLAGS}
         DEFS ${ASAN_COMMON_DEFINITIONS}
         PARENT_TARGET asan)
     endif()
@@ -223,7 +230,6 @@ else()
 endif()
 
 add_compiler_rt_resource_file(asan_blacklist asan_blacklist.txt asan)
-add_dependencies(compiler-rt asan)
 
 add_subdirectory(scripts)
 

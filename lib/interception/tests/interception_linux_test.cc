@@ -11,6 +11,10 @@
 // Tests for interception_linux.h.
 //
 //===----------------------------------------------------------------------===//
+
+// Do not declare isdigit in ctype.h.
+#define __NO_CTYPE
+
 #include "interception/interception.h"
 
 #include "gtest/gtest.h"
@@ -31,10 +35,9 @@ INTERCEPTOR(int, isdigit, int d) {
 namespace __interception {
 
 TEST(Interception, GetRealFunctionAddress) {
-  uptr expected_malloc_address = (uptr)(void*)&malloc;
   uptr malloc_address = 0;
   EXPECT_TRUE(GetRealFunctionAddress("malloc", &malloc_address, 0, 0));
-  EXPECT_EQ(expected_malloc_address, malloc_address);
+  EXPECT_NE(0U, malloc_address);
 
   uptr dummy_address = 0;
   EXPECT_TRUE(

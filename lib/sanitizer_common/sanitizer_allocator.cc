@@ -13,27 +13,33 @@
 //===----------------------------------------------------------------------===//
 
 #include "sanitizer_allocator.h"
+
 #include "sanitizer_allocator_internal.h"
+#include "sanitizer_atomic.h"
 #include "sanitizer_common.h"
 
 namespace __sanitizer {
 
 // ThreadSanitizer for Go uses libc malloc/free.
-#if defined(SANITIZER_GO) || defined(SANITIZER_USE_MALLOC)
+#if SANITIZER_GO || defined(SANITIZER_USE_MALLOC)
 # if SANITIZER_LINUX && !SANITIZER_ANDROID
 extern "C" void *__libc_malloc(uptr size);
+#  if !SANITIZER_GO
 extern "C" void *__libc_memalign(uptr alignment, uptr size);
+#  endif
 extern "C" void *__libc_realloc(void *ptr, uptr size);
 extern "C" void __libc_free(void *ptr);
 # else
 #  include <stdlib.h>
 #  define __libc_malloc malloc
+#  if !SANITIZER_GO
 static void *__libc_memalign(uptr alignment, uptr size) {
   void *p;
   uptr error = posix_memalign(&p, alignment, size);
   if (error) return nullptr;
   return p;
 }
+#  endif
 #  define __libc_realloc realloc
 #  define __libc_free free
 # endif
@@ -41,10 +47,20 @@ static void *__libc_memalign(uptr alignment, uptr size) {
 static void *RawInternalAlloc(uptr size, InternalAllocatorCache *cache,
                               uptr alignment) {
   (void)cache;
+#if !SANITIZER_GO
   if (alignment == 0)
     return __libc_malloc(size);
   else
     return __libc_memalign(alignment, size);
+#else
+  // Windows does not provide __libc_memalign/posix_memalign. It provides
+  // __aligned_malloc, but the allocated blocks can't be passed to free,
+  // they need to be passed to __aligned_free. InternalAlloc interface does
+  // not account for such requirement. Alignemnt does not seem to be used
+  // anywhere in runtime, so just call __libc_malloc for now.
+  DCHECK_EQ(alignment, 0);
+  return __libc_malloc(size);
+#endif
 }
 
 static void *RawInternalRealloc(void *ptr, uptr size,
@@ -62,7 +78,7 @@ InternalAllocator *internal_allocator() {
   return 0;
 }
 
-#else  // defined(SANITIZER_GO) || defined(SANITIZER_USE_MALLOC)
+#else  // SANITIZER_GO || defined(SANITIZER_USE_MALLOC)
 
 static ALIGNED(64) char internal_alloc_placeholder[sizeof(InternalAllocator)];
 static atomic_uint8_t internal_allocator_initialized;
@@ -78,7 +94,8 @@ InternalAllocator *internal_allocator() {
     SpinMutexLock l(&internal_alloc_init_mu);
     if (atomic_load(&internal_allocator_initialized, memory_order_relaxed) ==
         0) {
-      internal_allocator_instance->Init(/* may_return_null*/ false);
+      internal_allocator_instance->Init(
+          /* may_return_null */ false, kReleaseToOSIntervalNever);
       atomic_store(&internal_allocator_initialized, 1, memory_order_release);
     }
   }
@@ -115,7 +132,7 @@ static void RawInternalFree(void *ptr, InternalAllocatorCache *cache) {
   internal_allocator()->Deallocate(cache, ptr);
 }
 
-#endif  // defined(SANITIZER_GO) || defined(SANITIZER_USE_MALLOC)
+#endif  // SANITIZER_GO || defined(SANITIZER_USE_MALLOC)
 
 const u64 kBlockMagic = 0x6A6CB03ABCEBC041ull;
 
@@ -145,7 +162,7 @@ void *InternalRealloc(void *addr, uptr size, InternalAllocatorCache *cache) {
 
 void *InternalCalloc(uptr count, uptr size, InternalAllocatorCache *cache) {
   if (CallocShouldReturnNullDueToOverflow(count, size))
-    return internal_allocator()->ReturnNullOrDie();
+    return internal_allocator()->ReturnNullOrDieOnBadRequest();
   void *p = InternalAlloc(count * size, cache);
   if (p) internal_memset(p, 0, count * size);
   return p;
@@ -192,7 +209,12 @@ bool CallocShouldReturnNullDueToOverflow(uptr size, uptr n) {
   return (max / size) < n;
 }
 
-void NORETURN ReportAllocatorCannotReturnNull() {
+static atomic_uint8_t reporting_out_of_memory = {0};
+
+bool IsReportingOOM() { return atomic_load_relaxed(&reporting_out_of_memory); }
+
+void NORETURN ReportAllocatorCannotReturnNull(bool out_of_memory) {
+  if (out_of_memory) atomic_store_relaxed(&reporting_out_of_memory, 1);
   Report("%s's allocator is terminating the process instead of returning 0\n",
          SanitizerToolName);
   Report("If you don't like this behavior set allocator_may_return_null=1\n");

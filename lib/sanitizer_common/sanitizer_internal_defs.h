@@ -24,7 +24,7 @@
 # define SANITIZER_INTERFACE_ATTRIBUTE __declspec(dllexport)
 // FIXME find out what we need on Windows, if anything.
 # define SANITIZER_WEAK_ATTRIBUTE
-#elif defined(SANITIZER_GO)
+#elif SANITIZER_GO
 # define SANITIZER_INTERFACE_ATTRIBUTE
 # define SANITIZER_WEAK_ATTRIBUTE
 #else
@@ -32,7 +32,7 @@
 # define SANITIZER_WEAK_ATTRIBUTE  __attribute__((weak))
 #endif
 
-#if (SANITIZER_LINUX || SANITIZER_WINDOWS) && !defined(SANITIZER_GO)
+#if (SANITIZER_LINUX || SANITIZER_WINDOWS) && !SANITIZER_GO
 # define SANITIZER_SUPPORTS_WEAK_HOOKS 1
 #else
 # define SANITIZER_SUPPORTS_WEAK_HOOKS 0
@@ -296,12 +296,12 @@ inline void Trap() {
 }
 #else
 extern "C" void* _ReturnAddress(void);
+extern "C" void* _AddressOfReturnAddress(void);
 # pragma intrinsic(_ReturnAddress)
+# pragma intrinsic(_AddressOfReturnAddress)
 # define GET_CALLER_PC() (uptr)_ReturnAddress()
 // CaptureStackBackTrace doesn't need to know BP on Windows.
-// FIXME: This macro is still used when printing error reports though it's not
-// clear if the BP value is needed in the ASan reports on Windows.
-# define GET_CURRENT_FRAME() (uptr)0xDEADBEEF
+# define GET_CURRENT_FRAME() (((uptr)_AddressOfReturnAddress()) + sizeof(uptr))
 
 extern "C" void __ud2(void);
 # pragma intrinsic(__ud2)
@@ -328,6 +328,17 @@ inline void Trap() {
 
 }  // namespace __sanitizer
 
-using namespace __sanitizer;  // NOLINT
+namespace __asan  { using namespace __sanitizer; }  // NOLINT
+namespace __dsan  { using namespace __sanitizer; }  // NOLINT
+namespace __dfsan { using namespace __sanitizer; }  // NOLINT
+namespace __esan  { using namespace __sanitizer; }  // NOLINT
+namespace __lsan  { using namespace __sanitizer; }  // NOLINT
+namespace __msan  { using namespace __sanitizer; }  // NOLINT
+namespace __tsan  { using namespace __sanitizer; }  // NOLINT
+namespace __scudo { using namespace __sanitizer; }  // NOLINT
+namespace __ubsan { using namespace __sanitizer; }  // NOLINT
+namespace __xray  { using namespace __sanitizer; }  // NOLINT
+namespace __interception  { using namespace __sanitizer; }  // NOLINT
+
 
 #endif  // SANITIZER_DEFS_H

@@ -1,3 +1,4 @@
+include(CMakeCheckCompilerFlagCommonPatterns)
 
 # This function takes an OS and a list of architectures and identifies the
 # subset of the architectures list that the installed toolchain can target.
@@ -10,7 +11,13 @@ function(try_compile_only output)
   file(WRITE ${SIMPLE_C} "${ARG_SOURCE}\n")
   string(REGEX MATCHALL "<[A-Za-z0-9_]*>" substitutions
          ${CMAKE_C_COMPILE_OBJECT})
-  string(REPLACE ";" " " extra_flags "${ARG_FLAGS}")
+
+  set(TRY_COMPILE_FLAGS "${ARG_FLAGS}")
+  if(CMAKE_C_COMPILER_ID MATCHES Clang AND CMAKE_C_COMPILER_TARGET)
+    list(APPEND TRY_COMPILE_FLAGS "-target ${CMAKE_C_COMPILER_TARGET}")
+  endif()
+
+  string(REPLACE ";" " " extra_flags "${TRY_COMPILE_FLAGS}")
 
   set(test_compile_command "${CMAKE_C_COMPILE_OBJECT}")
   foreach(substitution ${substitutions})
@@ -41,7 +48,19 @@ function(try_compile_only output)
     OUTPUT_VARIABLE TEST_OUTPUT
     ERROR_VARIABLE TEST_ERROR
   )
-  if(result EQUAL 0)
+
+  CHECK_COMPILER_FLAG_COMMON_PATTERNS(_CheckCCompilerFlag_COMMON_PATTERNS)
+  set(ERRORS_FOUND OFF)
+  foreach(var ${_CheckCCompilerFlag_COMMON_PATTERNS})
+    if("${var}" STREQUAL "FAIL_REGEX")
+      continue()
+    endif()
+    if("${TEST_ERROR}" MATCHES "${var}" OR "${TEST_OUTPUT}" MATCHES "${var}")
+      set(ERRORS_FOUND ON)
+    endif()
+  endforeach()
+
+  if(result EQUAL 0 AND NOT ERRORS_FOUND)
     set(${output} True PARENT_SCOPE)
   else()
     file(APPEND ${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/CMakeError.log
