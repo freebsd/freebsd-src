@@ -1867,6 +1867,7 @@ cross-tools: .MAKE .PHONY
 
 NXBDESTDIR=	${OBJTREE}/nxb-bin
 NXBENV=		MAKEOBJDIRPREFIX=${OBJTREE}/nxb \
+		TOOLS_PREFIX= \
 		INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		PATH=${PATH}:${OBJTREE}/gperf_for_gcc/usr/bin
 NXBMAKE=	${NXBENV} ${MAKE} \
