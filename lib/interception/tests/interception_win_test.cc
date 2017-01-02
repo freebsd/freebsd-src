@@ -163,6 +163,13 @@ const u8 kPatchableCode4[] = {
     0x90, 0x90, 0x90, 0x90,
 };
 
+const u8 kPatchableCode5[] = {
+    0x55,                                      // push    ebp
+    0x8b, 0xec,                                // mov     ebp,esp
+    0x8d, 0xa4, 0x24, 0x30, 0xfd, 0xff, 0xff,  // lea     esp,[esp-2D0h]
+    0x54,                                      // push    esp
+};
+
 const u8 kUnpatchableCode1[] = {
     0xC3,                           // ret
 };
@@ -197,7 +204,29 @@ const u8 kUnpatchableCode6[] = {
 
 // A buffer holding the dynamically generated code under test.
 u8* ActiveCode;
-size_t ActiveCodeLength = 4096;
+const size_t ActiveCodeLength = 4096;
+
+int InterceptorFunction(int x);
+
+/// Allocate code memory more than 2GB away from Base.
+u8 *AllocateCode2GBAway(u8 *Base) {
+  // Find a 64K aligned location after Base plus 2GB.
+  size_t TwoGB = 0x80000000;
+  size_t AllocGranularity = 0x10000;
+  Base = (u8 *)((((uptr)Base + TwoGB + AllocGranularity)) & ~(AllocGranularity - 1));
+
+  // Check if that location is free, and if not, loop over regions until we find
+  // one that is.
+  MEMORY_BASIC_INFORMATION mbi = {};
+  while (sizeof(mbi) == VirtualQuery(Base, &mbi, sizeof(mbi))) {
+    if (mbi.State & MEM_FREE) break;
+    Base += mbi.RegionSize;
+  }
+
+  // Allocate one RWX page at the free location.
+  return (u8 *)::VirtualAlloc(Base, ActiveCodeLength, MEM_COMMIT | MEM_RESERVE,
+                              PAGE_EXECUTE_READWRITE);
+}
 
 template<class T>
 static void LoadActiveCode(
@@ -205,11 +234,8 @@ static void LoadActiveCode(
     uptr *entry_point,
     FunctionPrefixKind prefix_kind = FunctionPrefixNone) {
   if (ActiveCode == nullptr) {
-    ActiveCode =
-        (u8*)::VirtualAlloc(nullptr, ActiveCodeLength,
-                            MEM_COMMIT | MEM_RESERVE,
-                            PAGE_EXECUTE_READWRITE);
-    ASSERT_NE(ActiveCode, nullptr);
+    ActiveCode = AllocateCode2GBAway((u8*)&InterceptorFunction);
+    ASSERT_NE(ActiveCode, nullptr) << "failed to allocate RWX memory 2GB away";
   }
 
   size_t position = 0;
@@ -474,6 +500,7 @@ TEST(Interception, PatchableFunction) {
   EXPECT_TRUE(TestFunctionPatching(kPatchableCode3, override));
 #endif
   EXPECT_TRUE(TestFunctionPatching(kPatchableCode4, override));
+  EXPECT_TRUE(TestFunctionPatching(kPatchableCode5, override));
 
   EXPECT_FALSE(TestFunctionPatching(kUnpatchableCode1, override));
   EXPECT_FALSE(TestFunctionPatching(kUnpatchableCode2, override));

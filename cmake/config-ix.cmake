@@ -29,6 +29,7 @@ check_cxx_compiler_flag(-std=c++11           COMPILER_RT_HAS_STD_CXX11_FLAG)
 check_cxx_compiler_flag(-ftls-model=initial-exec COMPILER_RT_HAS_FTLS_MODEL_INITIAL_EXEC)
 check_cxx_compiler_flag(-fno-lto             COMPILER_RT_HAS_FNO_LTO_FLAG)
 check_cxx_compiler_flag("-Werror -msse3" COMPILER_RT_HAS_MSSE3_FLAG)
+check_cxx_compiler_flag("-Werror -msse4.2"   COMPILER_RT_HAS_MSSE4_2_FLAG)
 check_cxx_compiler_flag(--sysroot=.          COMPILER_RT_HAS_SYSROOT_FLAG)
 
 if(NOT WIN32 AND NOT CYGWIN)
@@ -93,14 +94,7 @@ set(COMPILER_RT_SUPPORTED_ARCH)
 # runtime libraries supported by our current compilers cross-compiling
 # abilities.
 set(SIMPLE_SOURCE ${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/simple.cc)
-file(WRITE ${SIMPLE_SOURCE} "#include <stdlib.h>\n#include <limits>\nint main() {}\n")
-
-# Add $arch as supported with no additional flags.
-macro(add_default_target_arch arch)
-  set(TARGET_${arch}_CFLAGS "")
-  set(CAN_TARGET_${arch} 1)
-  list(APPEND COMPILER_RT_SUPPORTED_ARCH ${arch})
-endmacro()
+file(WRITE ${SIMPLE_SOURCE} "#include <stdlib.h>\n#include <stdio.h>\nint main() { printf(\"hello, world\"); }\n")
 
 # Detect whether the current target platform is 32-bit or 64-bit, and setup
 # the correct commandline flags needed to attempt to target 32-bit and 64-bit.
@@ -128,6 +122,24 @@ function(get_target_flags_for_arch arch out_var)
   endif()
 endfunction()
 
+# Returns a compiler and CFLAGS that should be used to run tests for the
+# specific architecture.  When cross-compiling, this is controled via
+# COMPILER_RT_TEST_COMPILER and COMPILER_RT_TEST_COMPILER_CFLAGS.
+macro(get_test_cc_for_arch arch cc_out cflags_out)
+  if(ANDROID OR ${arch} MATCHES "arm|aarch64")
+    # This is only true if we are cross-compiling.
+    # Build all tests with host compiler and use host tools.
+    set(${cc_out} ${COMPILER_RT_TEST_COMPILER})
+    set(${cflags_out} ${COMPILER_RT_TEST_COMPILER_CFLAGS})
+  else()
+    get_target_flags_for_arch(${arch} ${cflags_out})
+    if(APPLE)
+      list(APPEND ${cflags_out} ${DARWIN_osx_CFLAGS})
+    endif()
+    string(REPLACE ";" " " ${cflags_out} "${${cflags_out}}")
+  endif()
+endmacro()
+
 set(ARM64 aarch64)
 set(ARM32 arm armhf)
 set(X86 i386 i686)
@@ -148,19 +160,20 @@ endif()
 set(ALL_SANITIZER_COMMON_SUPPORTED_ARCH ${X86} ${X86_64} ${PPC64}
     ${ARM32} ${ARM64} ${MIPS32} ${MIPS64} ${S390X})
 set(ALL_ASAN_SUPPORTED_ARCH ${X86} ${X86_64} ${ARM32} ${ARM64}
-    ${MIPS32} ${MIPS64} ${PPC64})
+    ${MIPS32} ${MIPS64} ${PPC64} ${S390X})
 set(ALL_DFSAN_SUPPORTED_ARCH ${X86_64} ${MIPS64} ${ARM64})
 set(ALL_LSAN_SUPPORTED_ARCH ${X86_64} ${MIPS64} ${ARM64})
 set(ALL_MSAN_SUPPORTED_ARCH ${X86_64} ${MIPS64} ${ARM64} ${PPC64})
 set(ALL_PROFILE_SUPPORTED_ARCH ${X86} ${X86_64} ${ARM32} ${ARM64} ${PPC64}
-    ${MIPS32} ${MIPS64})
+    ${MIPS32} ${MIPS64} ${S390X})
 set(ALL_TSAN_SUPPORTED_ARCH ${X86_64} ${MIPS64} ${ARM64} ${PPC64})
 set(ALL_UBSAN_SUPPORTED_ARCH ${X86} ${X86_64} ${ARM32} ${ARM64}
     ${MIPS32} ${MIPS64} ${PPC64} ${S390X})
 set(ALL_SAFESTACK_SUPPORTED_ARCH ${X86} ${X86_64} ${ARM64} ${MIPS32} ${MIPS64})
 set(ALL_CFI_SUPPORTED_ARCH ${X86} ${X86_64} ${MIPS64})
-set(ALL_ESAN_SUPPORTED_ARCH ${X86_64})
-set(ALL_SCUDO_SUPPORTED_ARCH ${X86_64})
+set(ALL_ESAN_SUPPORTED_ARCH ${X86_64} ${MIPS64})
+set(ALL_SCUDO_SUPPORTED_ARCH ${X86} ${X86_64} ${ARM32})
+set(ALL_XRAY_SUPPORTED_ARCH ${X86_64} ${ARM32} ${ARM64})
 
 if(APPLE)
   include(CompilerRTDarwinUtils)
@@ -172,6 +185,14 @@ if(APPLE)
   find_darwin_sdk_dir(DARWIN_watchos_SYSROOT watchos)
   find_darwin_sdk_dir(DARWIN_tvossim_SYSROOT appletvsimulator)
   find_darwin_sdk_dir(DARWIN_tvos_SYSROOT appletvos)
+
+  if(NOT DARWIN_osx_SYSROOT)
+    if(EXISTS /usr/include)
+      set(DARWIN_osx_SYSROOT /)
+    else()
+      message(ERROR "Could not detect OS X Sysroot. Either install Xcode or the Apple Command Line Tools")
+    endif()
+  endif()
 
   if(COMPILER_RT_ENABLE_IOS)
     list(APPEND DARWIN_EMBEDDED_PLATFORMS ios)
@@ -208,7 +229,11 @@ if(APPLE)
       set(SANITIZER_MIN_OSX_VERSION 10.9)
     endif()
     if(SANITIZER_MIN_OSX_VERSION VERSION_LESS "10.7")
-      message(FATAL_ERROR "Too old OS X version: ${SANITIZER_MIN_OSX_VERSION}")
+      message(FATAL_ERROR "macOS deployment target '${SANITIZER_MIN_OSX_VERSION}' is too old.")
+    endif()
+    if(SANITIZER_MIN_OSX_VERSION VERSION_GREATER "10.9")
+      message(WARNING "macOS deployment target '${SANITIZER_MIN_OSX_VERSION}' is too new, setting to '10.9' instead.")
+      set(SANITIZER_MIN_OSX_VERSION 10.9)
     endif()
   endif()
 
@@ -268,7 +293,7 @@ if(APPLE)
           DARWIN_${platform}sim_ARCHS
           ${toolchain_arches})
         message(STATUS "${platform} Simulator supported arches: ${DARWIN_${platform}sim_ARCHS}")
-        if(DARWIN_${platform}_ARCHS)
+        if(DARWIN_${platform}sim_ARCHS)
           list(APPEND SANITIZER_COMMON_SUPPORTED_OS ${platform}sim)
           list(APPEND PROFILE_SUPPORTED_OS ${platform}sim)
           if(DARWIN_${platform}_SYSROOT_INTERNAL)
@@ -350,6 +375,9 @@ if(APPLE)
   list_intersect(SCUDO_SUPPORTED_ARCH
     ALL_SCUDO_SUPPORTED_ARCH
     SANITIZER_COMMON_SUPPORTED_ARCH)
+  list_intersect(XRAY_SUPPORTED_ARCH
+    ALL_XRAY_SUPPORTED_ARCH
+		SANITIZER_COMMON_SUPPORTED_ARCH)
 else()
   # Architectures supported by compiler-rt libraries.
   filter_available_targets(SANITIZER_COMMON_SUPPORTED_ARCH
@@ -371,8 +399,8 @@ else()
     ${ALL_SAFESTACK_SUPPORTED_ARCH})
   filter_available_targets(CFI_SUPPORTED_ARCH ${ALL_CFI_SUPPORTED_ARCH})
   filter_available_targets(ESAN_SUPPORTED_ARCH ${ALL_ESAN_SUPPORTED_ARCH})
-  filter_available_targets(SCUDO_SUPPORTED_ARCH
-    ${ALL_SCUDO_SUPPORTED_ARCH})
+  filter_available_targets(SCUDO_SUPPORTED_ARCH ${ALL_SCUDO_SUPPORTED_ARCH})
+  filter_available_targets(XRAY_SUPPORTED_ARCH ${ALL_XRAY_SUPPORTED_ARCH})
 endif()
 
 if (MSVC)
@@ -387,6 +415,11 @@ else()
   set(CAN_SYMBOLIZE 1)
 endif()
 
+find_program(GOLD_EXECUTABLE NAMES ${LLVM_DEFAULT_TARGET_TRIPLE}-ld.gold ld.gold ${LLVM_DEFAULT_TARGET_TRIPLE}-ld ld DOC "The gold linker")
+
+if(COMPILER_RT_SUPPORTED_ARCH)
+  list(REMOVE_DUPLICATES COMPILER_RT_SUPPORTED_ARCH)
+endif()
 message(STATUS "Compiler-RT supported architectures: ${COMPILER_RT_SUPPORTED_ARCH}")
 
 if(ANDROID)
@@ -395,9 +428,14 @@ else()
   set(OS_NAME "${CMAKE_SYSTEM_NAME}")
 endif()
 
+set(ALL_SANITIZERS asan;dfsan;msan;tsan;safestack;cfi;esan;scudo)
+set(COMPILER_RT_SANITIZERS_TO_BUILD ${ALL_SANITIZERS} CACHE STRING
+    "sanitizers to build if supported on the target (all;${ALL_SANITIZERS})")
+list_replace(COMPILER_RT_SANITIZERS_TO_BUILD all "${ALL_SANITIZERS}")
+
 if (SANITIZER_COMMON_SUPPORTED_ARCH AND NOT LLVM_USE_SANITIZER AND
     (OS_NAME MATCHES "Android|Darwin|Linux|FreeBSD" OR
-    (OS_NAME MATCHES "Windows" AND MSVC)))
+    (OS_NAME MATCHES "Windows" AND (NOT MINGW AND NOT CYGWIN))))
   set(COMPILER_RT_HAS_SANITIZER_COMMON TRUE)
 else()
   set(COMPILER_RT_HAS_SANITIZER_COMMON FALSE)
@@ -444,7 +482,7 @@ else()
   set(COMPILER_RT_HAS_MSAN FALSE)
 endif()
 
-if (PROFILE_SUPPORTED_ARCH AND
+if (PROFILE_SUPPORTED_ARCH AND NOT LLVM_USE_SANITIZER AND
     OS_NAME MATCHES "Darwin|Linux|FreeBSD|Windows")
   set(COMPILER_RT_HAS_PROFILE TRUE)
 else()
@@ -493,3 +531,9 @@ else()
   set(COMPILER_RT_HAS_SCUDO FALSE)
 endif()
 
+if (COMPILER_RT_HAS_SANITIZER_COMMON AND XRAY_SUPPORTED_ARCH AND
+    OS_NAME MATCHES "Linux")
+  set(COMPILER_RT_HAS_XRAY TRUE)
+else()
+  set(COMPILER_RT_HAS_XRAY FALSE)
+endif()

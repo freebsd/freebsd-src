@@ -4,18 +4,17 @@ include(CheckCSourceCompiles)
 # Make all the tests only check the compiler
 set(TEST_COMPILE_ONLY On)
 
+# Check host compiler support for certain flags
 builtin_check_c_compiler_flag(-fPIC                 COMPILER_RT_HAS_FPIC_FLAG)
 builtin_check_c_compiler_flag(-fPIE                 COMPILER_RT_HAS_FPIE_FLAG)
 builtin_check_c_compiler_flag(-fno-builtin          COMPILER_RT_HAS_FNO_BUILTIN_FLAG)
-builtin_check_c_compiler_flag(-std=c99              COMPILER_RT_HAS_STD_C99_FLAG)
+builtin_check_c_compiler_flag(-std=c11              COMPILER_RT_HAS_STD_C11_FLAG)
 builtin_check_c_compiler_flag(-fvisibility=hidden   COMPILER_RT_HAS_VISIBILITY_HIDDEN_FLAG)
 builtin_check_c_compiler_flag(-fomit-frame-pointer  COMPILER_RT_HAS_OMIT_FRAME_POINTER_FLAG)
 builtin_check_c_compiler_flag(-ffreestanding        COMPILER_RT_HAS_FREESTANDING_FLAG)
-builtin_check_c_compiler_flag(-mfloat-abi=soft      COMPILER_RT_HAS_FLOAT_ABI_SOFT_FLAG)
-builtin_check_c_compiler_flag(-mfloat-abi=hard      COMPILER_RT_HAS_FLOAT_ABI_HARD_FLAG)
-builtin_check_c_compiler_flag(-static               COMPILER_RT_HAS_STATIC_FLAG)
+builtin_check_c_compiler_flag(-fxray-instrument     COMPILER_RT_HAS_XRAY_COMPILER_FLAG)
 
-builtin_check_c_compiler_source(COMPILER_RT_SUPPORTS_ATOMIC_KEYWORD
+builtin_check_c_compiler_source(COMPILER_RT_HAS_ATOMIC_KEYWORD
 "
 int foo(int x, int y) {
  _Atomic int result = x * y;

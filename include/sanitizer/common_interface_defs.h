@@ -117,6 +117,16 @@ extern "C" {
   // Print the stack trace leading to this call. Useful for debugging user code.
   void __sanitizer_print_stack_trace();
 
+  // Symbolizes the supplied 'pc' using the format string 'fmt'.
+  // Outputs at most 'out_buf_size' bytes into 'out_buf'.
+  // The format syntax is described in
+  // lib/sanitizer_common/sanitizer_stacktrace_printer.h.
+  void __sanitizer_symbolize_pc(void *pc, const char *fmt, char *out_buf,
+                                size_t out_buf_size);
+  // Same as __sanitizer_symbolize_pc, but for data section (i.e. globals).
+  void __sanitizer_symbolize_global(void *data_ptr, const char *fmt,
+                                    char *out_buf, size_t out_buf_size);
+
   // Sets the callback to be called right before death on error.
   // Passing 0 will unset the callback.
   void __sanitizer_set_death_callback(void (*callback)(void));
@@ -169,7 +179,16 @@ extern "C" {
   // use-after-return detection.
   void __sanitizer_start_switch_fiber(void **fake_stack_save,
                                       const void *bottom, size_t size);
-  void __sanitizer_finish_switch_fiber(void *fake_stack_save);
+  void __sanitizer_finish_switch_fiber(void *fake_stack_save,
+                                       const void **bottom_old,
+                                       size_t *size_old);
+
+  // Get full module name and calculate pc offset within it.
+  // Returns 1 if pc belongs to some module, 0 if module was not found.
+  int __sanitizer_get_module_and_offset_for_pc(void *pc, char *module_path,
+                                               size_t module_path_len,
+                                               void **pc_offset);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

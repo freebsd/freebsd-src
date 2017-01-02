@@ -49,7 +49,7 @@ macro(append_string_if condition value)
 endmacro()
 
 macro(append_rtti_flag polarity list)
-  if(polarity)
+  if(${polarity})
     append_list_if(COMPILER_RT_HAS_FRTTI_FLAG -frtti ${list})
     append_list_if(COMPILER_RT_HAS_GR_FLAG /GR ${list})
   else()
@@ -76,6 +76,18 @@ macro(list_intersect output input1 input2)
   endforeach()
 endmacro()
 
+function(list_replace input_list old new)
+  set(replaced_list)
+  foreach(item ${${input_list}})
+    if(${item} STREQUAL ${old})
+      list(APPEND replaced_list ${new})
+    else()
+      list(APPEND replaced_list ${item})
+    endif()
+  endforeach()
+  set(${input_list} "${replaced_list}" PARENT_SCOPE)
+endfunction()
+
 # Takes ${ARGN} and puts only supported architectures in @out_var list.
 function(filter_available_targets out_var)
   set(archs ${${out_var}})
@@ -87,6 +99,13 @@ function(filter_available_targets out_var)
   endforeach()
   set(${out_var} ${archs} PARENT_SCOPE)
 endfunction()
+
+# Add $arch as supported with no additional flags.
+macro(add_default_target_arch arch)
+  set(TARGET_${arch}_CFLAGS "")
+  set(CAN_TARGET_${arch} 1)
+  list(APPEND COMPILER_RT_SUPPORTED_ARCH ${arch})
+endmacro()
 
 function(check_compile_definition def argstring out_var)
   if("${def}" STREQUAL "")
@@ -113,20 +132,26 @@ macro(test_target_arch arch def)
     set(argstring "${argstring} ${arg}")
   endforeach()
   check_compile_definition("${def}" "${argstring}" HAS_${arch}_DEF)
-  if(NOT HAS_${arch}_DEF)
-    set(CAN_TARGET_${arch} FALSE)
-  elseif(TEST_COMPILE_ONLY)
-    try_compile_only(CAN_TARGET_${arch} ${TARGET_${arch}_CFLAGS})
-  else()
-    set(argstring "${CMAKE_EXE_LINKER_FLAGS} ${argstring}")
-    try_compile(CAN_TARGET_${arch} ${CMAKE_BINARY_DIR} ${SIMPLE_SOURCE}
-                COMPILE_DEFINITIONS "${TARGET_${arch}_CFLAGS}"
-                OUTPUT_VARIABLE TARGET_${arch}_OUTPUT
-                CMAKE_FLAGS "-DCMAKE_EXE_LINKER_FLAGS:STRING=${argstring}")
+  if(NOT DEFINED CAN_TARGET_${arch})
+    if(NOT HAS_${arch}_DEF)
+      set(CAN_TARGET_${arch} FALSE)
+    elseif(TEST_COMPILE_ONLY)
+      try_compile_only(CAN_TARGET_${arch} ${TARGET_${arch}_CFLAGS})
+    else()
+      set(argstring "${CMAKE_EXE_LINKER_FLAGS} ${argstring}")
+      set(FLAG_NO_EXCEPTIONS "")
+      if(COMPILER_RT_HAS_FNO_EXCEPTIONS_FLAG)
+        set(FLAG_NO_EXCEPTIONS " -fno-exceptions ")
+      endif()
+      try_compile(CAN_TARGET_${arch} ${CMAKE_BINARY_DIR} ${SIMPLE_SOURCE}
+                  COMPILE_DEFINITIONS "${TARGET_${arch}_CFLAGS} ${FLAG_NO_EXCEPTIONS}"
+                  OUTPUT_VARIABLE TARGET_${arch}_OUTPUT
+                  CMAKE_FLAGS "-DCMAKE_EXE_LINKER_FLAGS:STRING=${argstring}")
+    endif()
   endif()
   if(${CAN_TARGET_${arch}})
     list(APPEND COMPILER_RT_SUPPORTED_ARCH ${arch})
-  elseif("${COMPILER_RT_DEFAULT_TARGET_ARCH}" MATCHES "${arch}" AND
+  elseif("${COMPILER_RT_DEFAULT_TARGET_ARCH}" STREQUAL "${arch}" AND
          COMPILER_RT_HAS_EXPLICIT_DEFAULT_TARGET_TRIPLE)
     # Bail out if we cannot target the architecture we plan to test.
     message(FATAL_ERROR "Cannot compile for ${arch}:\n${TARGET_${arch}_OUTPUT}")
@@ -164,5 +189,75 @@ macro(detect_target_arch)
     add_default_target_arch(wasm32)
   elseif(__WEBASSEMBLY64)
     add_default_target_arch(wasm64)
+  endif()
+endmacro()
+
+macro(load_llvm_config)
+  if (NOT LLVM_CONFIG_PATH)
+    find_program(LLVM_CONFIG_PATH "llvm-config"
+                 DOC "Path to llvm-config binary")
+    if (NOT LLVM_CONFIG_PATH)
+      message(FATAL_ERROR "llvm-config not found: specify LLVM_CONFIG_PATH")
+    endif()
+  endif()
+  execute_process(
+    COMMAND ${LLVM_CONFIG_PATH} "--obj-root" "--bindir" "--libdir" "--src-root"
+    RESULT_VARIABLE HAD_ERROR
+    OUTPUT_VARIABLE CONFIG_OUTPUT)
+  if (HAD_ERROR)
+    message(FATAL_ERROR "llvm-config failed with status ${HAD_ERROR}")
+  endif()
+  string(REGEX REPLACE "[ \t]*[\r\n]+[ \t]*" ";" CONFIG_OUTPUT ${CONFIG_OUTPUT})
+  list(GET CONFIG_OUTPUT 0 BINARY_DIR)
+  list(GET CONFIG_OUTPUT 1 TOOLS_BINARY_DIR)
+  list(GET CONFIG_OUTPUT 2 LIBRARY_DIR)
+  list(GET CONFIG_OUTPUT 3 MAIN_SRC_DIR)
+
+  set(LLVM_BINARY_DIR ${BINARY_DIR} CACHE PATH "Path to LLVM build tree")
+  set(LLVM_TOOLS_BINARY_DIR ${TOOLS_BINARY_DIR} CACHE PATH "Path to llvm/bin")
+  set(LLVM_LIBRARY_DIR ${LIBRARY_DIR} CACHE PATH "Path to llvm/lib")
+  set(LLVM_MAIN_SRC_DIR ${MAIN_SRC_DIR} CACHE PATH "Path to LLVM source tree")
+
+  # Make use of LLVM CMake modules.
+  file(TO_CMAKE_PATH ${LLVM_BINARY_DIR} LLVM_BINARY_DIR_CMAKE_STYLE)
+  set(LLVM_CMAKE_PATH "${LLVM_BINARY_DIR_CMAKE_STYLE}/lib${LLVM_LIBDIR_SUFFIX}/cmake/llvm")
+  list(APPEND CMAKE_MODULE_PATH "${LLVM_CMAKE_PATH}")
+  # Get some LLVM variables from LLVMConfig.
+  include("${LLVM_CMAKE_PATH}/LLVMConfig.cmake")
+
+  set(LLVM_LIBRARY_OUTPUT_INTDIR
+    ${LLVM_BINARY_DIR}/${CMAKE_CFG_INTDIR}/lib${LLVM_LIBDIR_SUFFIX})
+endmacro()
+
+macro(construct_compiler_rt_default_triple)
+  if(COMPILER_RT_DEFAULT_TARGET_ONLY)
+    if(DEFINED COMPILER_RT_DEFAULT_TARGET_TRIPLE)
+      message(FATAL_ERROR "COMPILER_RT_DEFAULT_TARGET_TRIPLE isn't supported when building for default target only")
+    endif()
+    set(COMPILER_RT_DEFAULT_TARGET_TRIPLE ${CMAKE_C_COMPILER_TARGET})
+  else()
+    set(COMPILER_RT_DEFAULT_TARGET_TRIPLE ${TARGET_TRIPLE} CACHE STRING
+          "Default triple for which compiler-rt runtimes will be built.")
+  endif()
+
+  if(DEFINED COMPILER_RT_TEST_TARGET_TRIPLE)
+    # Backwards compatibility: this variable used to be called
+    # COMPILER_RT_TEST_TARGET_TRIPLE.
+    set(COMPILER_RT_DEFAULT_TARGET_TRIPLE ${COMPILER_RT_TEST_TARGET_TRIPLE})
+  endif()
+
+  string(REPLACE "-" ";" TARGET_TRIPLE_LIST ${COMPILER_RT_DEFAULT_TARGET_TRIPLE})
+  list(GET TARGET_TRIPLE_LIST 0 COMPILER_RT_DEFAULT_TARGET_ARCH)
+  list(GET TARGET_TRIPLE_LIST 1 COMPILER_RT_DEFAULT_TARGET_OS)
+  list(LENGTH TARGET_TRIPLE_LIST TARGET_TRIPLE_LIST_LENGTH)
+  if(TARGET_TRIPLE_LIST_LENGTH GREATER 2)
+    list(GET TARGET_TRIPLE_LIST 2 COMPILER_RT_DEFAULT_TARGET_ABI)
+  endif()
+  # Determine if test target triple is specified explicitly, and doesn't match the
+  # default.
+  if(NOT COMPILER_RT_DEFAULT_TARGET_TRIPLE STREQUAL TARGET_TRIPLE)
+    set(COMPILER_RT_HAS_EXPLICIT_DEFAULT_TARGET_TRIPLE TRUE)
+  else()
+    set(COMPILER_RT_HAS_EXPLICIT_DEFAULT_TARGET_TRIPLE FALSE)
   endif()
 endmacro()

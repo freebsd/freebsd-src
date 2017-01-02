@@ -7,13 +7,15 @@ function(find_darwin_sdk_dir var sdk_name)
   # Let's first try the internal SDK, otherwise use the public SDK.
   execute_process(
     COMMAND xcodebuild -version -sdk ${sdk_name}.internal Path
+    RESULT_VARIABLE result_process
     OUTPUT_VARIABLE var_internal
     OUTPUT_STRIP_TRAILING_WHITESPACE
     ERROR_FILE /dev/null
   )
-  if("" STREQUAL "${var_internal}")
+  if((NOT result_process EQUAL 0) OR "" STREQUAL "${var_internal}")
     execute_process(
       COMMAND xcodebuild -version -sdk ${sdk_name} Path
+      RESULT_VARIABLE result_process
       OUTPUT_VARIABLE var_internal
       OUTPUT_STRIP_TRAILING_WHITESPACE
       ERROR_FILE /dev/null
@@ -21,7 +23,9 @@ function(find_darwin_sdk_dir var sdk_name)
   else()
     set(${var}_INTERNAL ${var_internal} PARENT_SCOPE)
   endif()
-  set(${var} ${var_internal} PARENT_SCOPE)
+  if(result_process EQUAL 0)
+    set(${var} ${var_internal} PARENT_SCOPE)
+  endif()
 endfunction()
 
 # There isn't a clear mapping of what architectures are supported with a given
@@ -256,30 +260,6 @@ function(darwin_filter_builtin_sources output_var exclude_or_include excluded_li
   set(${output_var} ${intermediate} PARENT_SCOPE)
 endfunction()
 
-function(darwin_add_eprintf_library)
-  cmake_parse_arguments(LIB
-    ""
-    ""
-    "CFLAGS"
-    ${ARGN})
-
-  add_library(clang_rt.eprintf STATIC eprintf.c)
-  set_target_compile_flags(clang_rt.eprintf
-    -isysroot ${DARWIN_osx_SYSROOT}
-    ${DARWIN_osx_BUILTIN_MIN_VER_FLAG}
-    -arch i386
-    ${LIB_CFLAGS})
-  set_target_properties(clang_rt.eprintf PROPERTIES
-      OUTPUT_NAME clang_rt.eprintf${COMPILER_RT_OS_SUFFIX})
-  set_target_properties(clang_rt.eprintf PROPERTIES
-    OSX_ARCHITECTURES i386)
-  add_dependencies(builtins clang_rt.eprintf)
-  set_target_properties(clang_rt.eprintf PROPERTIES
-        ARCHIVE_OUTPUT_DIRECTORY ${COMPILER_RT_LIBRARY_OUTPUT_DIR})
-  install(TARGETS clang_rt.eprintf
-      ARCHIVE DESTINATION ${COMPILER_RT_LIBRARY_INSTALL_DIR})
-endfunction()
-
 # Generates builtin libraries for all operating systems specified in ARGN. Each
 # OS library is constructed by lipo-ing together single-architecture libraries.
 macro(darwin_add_builtin_libraries)
@@ -349,8 +329,6 @@ macro(darwin_add_builtin_libraries)
                       INSTALL_DIR ${COMPILER_RT_LIBRARY_INSTALL_DIR})
     endif()
   endforeach()
-
-  darwin_add_eprintf_library(CFLAGS ${CFLAGS})
 
   # We put the x86 sim slices into the archives for their base OS
   foreach (os ${ARGN})

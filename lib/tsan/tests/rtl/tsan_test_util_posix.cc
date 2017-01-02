@@ -14,6 +14,7 @@
 
 #include "sanitizer_common/sanitizer_atomic.h"
 #include "tsan_interface.h"
+#include "tsan_posix_util.h"
 #include "tsan_test_util.h"
 #include "tsan_report.h"
 
@@ -32,52 +33,6 @@ using namespace __tsan;  // NOLINT
 static __thread bool expect_report;
 static __thread bool expect_report_reported;
 static __thread ReportType expect_report_type;
-
-#ifdef __APPLE__
-#define __interceptor_memcpy wrap_memcpy
-#define __interceptor_memset wrap_memset
-#define __interceptor_pthread_create wrap_pthread_create
-#define __interceptor_pthread_join wrap_pthread_join
-#define __interceptor_pthread_detach wrap_pthread_detach
-#define __interceptor_pthread_mutex_init wrap_pthread_mutex_init
-#define __interceptor_pthread_mutex_lock wrap_pthread_mutex_lock
-#define __interceptor_pthread_mutex_unlock wrap_pthread_mutex_unlock
-#define __interceptor_pthread_mutex_destroy wrap_pthread_mutex_destroy
-#define __interceptor_pthread_mutex_trylock wrap_pthread_mutex_trylock
-#define __interceptor_pthread_rwlock_init wrap_pthread_rwlock_init
-#define __interceptor_pthread_rwlock_destroy wrap_pthread_rwlock_destroy
-#define __interceptor_pthread_rwlock_trywrlock wrap_pthread_rwlock_trywrlock
-#define __interceptor_pthread_rwlock_wrlock wrap_pthread_rwlock_wrlock
-#define __interceptor_pthread_rwlock_unlock wrap_pthread_rwlock_unlock
-#define __interceptor_pthread_rwlock_rdlock wrap_pthread_rwlock_rdlock
-#define __interceptor_pthread_rwlock_tryrdlock wrap_pthread_rwlock_tryrdlock
-#endif
-
-extern "C" void *__interceptor_memcpy(void *, const void *, uptr);
-extern "C" void *__interceptor_memset(void *, int, uptr);
-extern "C" int __interceptor_pthread_create(pthread_t *thread,
-                                            const pthread_attr_t *attr,
-                                            void *(*start_routine)(void *),
-                                            void *arg);
-extern "C" int __interceptor_pthread_join(pthread_t thread, void **value_ptr);
-extern "C" int __interceptor_pthread_detach(pthread_t thread);
-
-extern "C" int __interceptor_pthread_mutex_init(
-    pthread_mutex_t *mutex, const pthread_mutexattr_t *attr);
-extern "C" int __interceptor_pthread_mutex_lock(pthread_mutex_t *mutex);
-extern "C" int __interceptor_pthread_mutex_unlock(pthread_mutex_t *mutex);
-extern "C" int __interceptor_pthread_mutex_destroy(pthread_mutex_t *mutex);
-extern "C" int __interceptor_pthread_mutex_trylock(pthread_mutex_t *mutex);
-
-extern "C" int __interceptor_pthread_rwlock_init(
-    pthread_rwlock_t *rwlock, const pthread_rwlockattr_t *attr);
-extern "C" int __interceptor_pthread_rwlock_destroy(pthread_rwlock_t *rwlock);
-extern "C" int __interceptor_pthread_rwlock_trywrlock(pthread_rwlock_t *rwlock);
-extern "C" int __interceptor_pthread_rwlock_wrlock(pthread_rwlock_t *rwlock);
-extern "C" int __interceptor_pthread_rwlock_unlock(pthread_rwlock_t *rwlock);
-extern "C" int __interceptor_pthread_rwlock_rdlock(pthread_rwlock_t *rwlock);
-extern "C" int __interceptor_pthread_rwlock_tryrdlock(pthread_rwlock_t *rwlock);
-
 
 static void *BeforeInitThread(void *param) {
   (void)param;
@@ -105,11 +60,11 @@ bool OnReport(const ReportDesc *rep, bool suppressed) {
     if (rep->typ != expect_report_type) {
       printf("Expected report of type %d, got type %d\n",
              (int)expect_report_type, (int)rep->typ);
-      EXPECT_FALSE("Wrong report type");
+      EXPECT_TRUE(false) << "Wrong report type";
       return false;
     }
   } else {
-    EXPECT_FALSE("Unexpected report");
+    EXPECT_TRUE(false) << "Unexpected report";
     return false;
   }
   expect_report_reported = true;
@@ -368,7 +323,7 @@ void ScopedThread::Impl::HandleEvent(Event *ev) {
   }
   if (expect_report && !expect_report_reported) {
     printf("Missed expected report of type %d\n", (int)ev->report_type);
-    EXPECT_FALSE("Missed expected race");
+    EXPECT_TRUE(false) << "Missed expected race";
   }
   expect_report = false;
 }

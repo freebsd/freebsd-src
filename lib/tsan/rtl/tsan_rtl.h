@@ -52,7 +52,7 @@
 
 namespace __tsan {
 
-#ifndef SANITIZER_GO
+#if !SANITIZER_GO
 struct MapUnmapCallback;
 #if defined(__mips64) || defined(__aarch64__) || defined(__powerpc__)
 static const uptr kAllocatorSpace = 0;
@@ -66,9 +66,15 @@ typedef SizeClassAllocator32<kAllocatorSpace, kAllocatorSize, 0,
     CompactSizeClassMap, kAllocatorRegionSizeLog, ByteMap,
     MapUnmapCallback> PrimaryAllocator;
 #else
-typedef SizeClassAllocator64<Mapping::kHeapMemBeg,
-    Mapping::kHeapMemEnd - Mapping::kHeapMemBeg, 0,
-    DefaultSizeClassMap, MapUnmapCallback> PrimaryAllocator;
+struct AP64 {  // Allocator64 parameters. Deliberately using a short name.
+  static const uptr kSpaceBeg = Mapping::kHeapMemBeg;
+  static const uptr kSpaceSize = Mapping::kHeapMemEnd - Mapping::kHeapMemBeg;
+  static const uptr kMetadataSize = 0;
+  typedef DefaultSizeClassMap SizeClassMap;
+  typedef __tsan::MapUnmapCallback MapUnmapCallback;
+  static const uptr kFlags = 0;
+};
+typedef SizeClassAllocator64<AP64> PrimaryAllocator;
 #endif
 typedef SizeClassAllocatorLocalCache<PrimaryAllocator> AllocatorCache;
 typedef LargeMmapAllocator<MapUnmapCallback> SecondaryAllocator;
@@ -335,7 +341,7 @@ struct JmpBuf {
 // A ThreadState must be wired with a Processor to handle events.
 struct Processor {
   ThreadState *thr; // currently wired thread, or nullptr
-#ifndef SANITIZER_GO
+#if !SANITIZER_GO
   AllocatorCache alloc_cache;
   InternalAllocatorCache internal_alloc_cache;
 #endif
@@ -345,7 +351,7 @@ struct Processor {
   DDPhysicalThread *dd_pt;
 };
 
-#ifndef SANITIZER_GO
+#if !SANITIZER_GO
 // ScopedGlobalProcessor temporary setups a global processor for the current
 // thread, if it does not have one. Intended for interceptors that can run
 // at the very thread end, when we already destroyed the thread processor.
@@ -376,7 +382,7 @@ struct ThreadState {
   int ignore_reads_and_writes;
   int ignore_sync;
   // Go does not support ignores.
-#ifndef SANITIZER_GO
+#if !SANITIZER_GO
   IgnoreSet mop_ignore_set;
   IgnoreSet sync_ignore_set;
 #endif
@@ -389,7 +395,7 @@ struct ThreadState {
   u64 racy_state[2];
   MutexSet mset;
   ThreadClock clock;
-#ifndef SANITIZER_GO
+#if !SANITIZER_GO
   Vector<JmpBuf> jmp_bufs;
   int ignore_interceptors;
 #endif
@@ -417,7 +423,7 @@ struct ThreadState {
 
   // Current wired Processor, or nullptr. Required to handle any events.
   Processor *proc1;
-#ifndef SANITIZER_GO
+#if !SANITIZER_GO
   Processor *proc() { return proc1; }
 #else
   Processor *proc();
@@ -426,7 +432,7 @@ struct ThreadState {
   atomic_uintptr_t in_signal_handler;
   ThreadSignalContext *signal_ctx;
 
-#ifndef SANITIZER_GO
+#if !SANITIZER_GO
   u32 last_sleep_stack_id;
   ThreadClock last_sleep_clock;
 #endif
@@ -443,7 +449,7 @@ struct ThreadState {
                        uptr tls_addr, uptr tls_size);
 };
 
-#ifndef SANITIZER_GO
+#if !SANITIZER_GO
 #if SANITIZER_MAC || SANITIZER_ANDROID
 ThreadState *cur_thread();
 void cur_thread_finalize();
@@ -541,13 +547,13 @@ extern Context *ctx;  // The one and the only global runtime context.
 
 struct ScopedIgnoreInterceptors {
   ScopedIgnoreInterceptors() {
-#ifndef SANITIZER_GO
+#if !SANITIZER_GO
     cur_thread()->ignore_interceptors++;
 #endif
   }
 
   ~ScopedIgnoreInterceptors() {
-#ifndef SANITIZER_GO
+#if !SANITIZER_GO
     cur_thread()->ignore_interceptors--;
 #endif
   }
@@ -584,6 +590,7 @@ class ScopedReport {
   void operator = (const ScopedReport&);
 };
 
+ThreadContext *IsThreadStackOrTls(uptr addr, bool *is_stack);
 void RestoreStack(int tid, const u64 epoch, VarSizeStackTrace *stk,
                   MutexSet *mset);
 
@@ -787,7 +794,7 @@ void ALWAYS_INLINE TraceAddEvent(ThreadState *thr, FastState fs,
   StatInc(thr, StatEvents);
   u64 pos = fs.GetTracePos();
   if (UNLIKELY((pos % kTracePartSize) == 0)) {
-#ifndef SANITIZER_GO
+#if !SANITIZER_GO
     HACKY_CALL(__tsan_trace_switch);
 #else
     TraceSwitch(thr);
@@ -799,7 +806,7 @@ void ALWAYS_INLINE TraceAddEvent(ThreadState *thr, FastState fs,
   *evp = ev;
 }
 
-#ifndef SANITIZER_GO
+#if !SANITIZER_GO
 uptr ALWAYS_INLINE HeapEnd() {
   return HeapMemEnd() + PrimaryAllocator::AdditionalSize();
 }

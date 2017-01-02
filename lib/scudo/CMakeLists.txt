@@ -1,11 +1,10 @@
-add_custom_target(scudo)
-set_target_properties(scudo PROPERTIES FOLDER "Compiler-RT Misc")
+add_compiler_rt_component(scudo)
 
 include_directories(..)
 
 set(SCUDO_CFLAGS ${SANITIZER_COMMON_CFLAGS})
 append_rtti_flag(OFF SCUDO_CFLAGS)
-list(APPEND SCUDO_CFLAGS -msse4.2 -mcx16)
+append_list_if(COMPILER_RT_HAS_MSSE4_2_FLAG -msse4.2 SCUDO_CFLAGS)
 
 set(SCUDO_SOURCES
   scudo_allocator.cpp
@@ -28,6 +27,3 @@ if(COMPILER_RT_HAS_SCUDO)
       PARENT_TARGET scudo)
   endforeach()
 endif()
-
-add_dependencies(compiler-rt scudo)
-
