@@ -792,6 +792,18 @@ void ASTStmtWriter::VisitNoInitExpr(NoInitExpr *E) {
   Code = serialization::EXPR_NO_INIT;
 }
 
+void ASTStmtWriter::VisitArrayInitLoopExpr(ArrayInitLoopExpr *E) {
+  VisitExpr(E);
+  Record.AddStmt(E->SubExprs[0]);
+  Record.AddStmt(E->SubExprs[1]);
+  Code = serialization::EXPR_ARRAY_INIT_LOOP;
+}
+
+void ASTStmtWriter::VisitArrayInitIndexExpr(ArrayInitIndexExpr *E) {
+  VisitExpr(E);
+  Code = serialization::EXPR_ARRAY_INIT_INDEX;
+}
+
 void ASTStmtWriter::VisitImplicitValueInitExpr(ImplicitValueInitExpr *E) {
   VisitExpr(E);
   Code = serialization::EXPR_IMPLICIT_VALUE_INIT;
@@ -1245,10 +1257,6 @@ void ASTStmtWriter::VisitCXXTemporaryObjectExpr(CXXTemporaryObjectExpr *E) {
 void ASTStmtWriter::VisitLambdaExpr(LambdaExpr *E) {
   VisitExpr(E);
   Record.push_back(E->NumCaptures);
-  unsigned NumArrayIndexVars = 0;
-  if (E->HasArrayIndexVars)
-    NumArrayIndexVars = E->getArrayIndexStarts()[E->NumCaptures];
-  Record.push_back(NumArrayIndexVars);
   Record.AddSourceRange(E->IntroducerRange);
   Record.push_back(E->CaptureDefault); // FIXME: stable encoding
   Record.AddSourceLocation(E->CaptureDefaultLoc);
@@ -1261,15 +1269,6 @@ void ASTStmtWriter::VisitLambdaExpr(LambdaExpr *E) {
                                       CEnd = E->capture_init_end();
        C != CEnd; ++C) {
     Record.AddStmt(*C);
-  }
-  
-  // Add array index variables, if any.
-  if (NumArrayIndexVars) {
-    Record.append(E->getArrayIndexStarts(), 
-                  E->getArrayIndexStarts() + E->NumCaptures + 1);
-    VarDecl **ArrayIndexVars = E->getArrayIndexVars();
-    for (unsigned I = 0; I != NumArrayIndexVars; ++I)
-      Record.AddDeclRef(ArrayIndexVars[I]);
   }
   
   Code = serialization::EXPR_LAMBDA;
@@ -1392,6 +1391,7 @@ void ASTStmtWriter::VisitCXXNewExpr(CXXNewExpr *E) {
   VisitExpr(E);
   Record.push_back(E->isGlobalNew());
   Record.push_back(E->isArray());
+  Record.push_back(E->passAlignment());
   Record.push_back(E->doesUsualArrayDeleteWantSize());
   Record.push_back(E->getNumPlacementArgs());
   Record.push_back(E->StoredInitializationStyle);
@@ -1576,6 +1576,7 @@ void ASTStmtWriter::VisitArrayTypeTraitExpr(ArrayTypeTraitExpr *E) {
   Record.push_back(E->getValue());
   Record.AddSourceRange(E->getSourceRange());
   Record.AddTypeSourceInfo(E->getQueriedTypeSourceInfo());
+  Record.AddStmt(E->getDimensionExpression());
   Code = serialization::EXPR_ARRAY_TYPE_TRAIT;
 }
 
@@ -2151,17 +2152,45 @@ void OMPClauseWriter::VisitOMPFromClause(OMPFromClause *C) {
 
 void OMPClauseWriter::VisitOMPUseDevicePtrClause(OMPUseDevicePtrClause *C) {
   Record.push_back(C->varlist_size());
+  Record.push_back(C->getUniqueDeclarationsNum());
+  Record.push_back(C->getTotalComponentListNum());
+  Record.push_back(C->getTotalComponentsNum());
   Record.AddSourceLocation(C->getLParenLoc());
-  for (auto *VE : C->varlists()) {
+  for (auto *E : C->varlists())
+    Record.AddStmt(E);
+  for (auto *VE : C->private_copies())
     Record.AddStmt(VE);
+  for (auto *VE : C->inits())
+    Record.AddStmt(VE);
+  for (auto *D : C->all_decls())
+    Record.AddDeclRef(D);
+  for (auto N : C->all_num_lists())
+    Record.push_back(N);
+  for (auto N : C->all_lists_sizes())
+    Record.push_back(N);
+  for (auto &M : C->all_components()) {
+    Record.AddStmt(M.getAssociatedExpression());
+    Record.AddDeclRef(M.getAssociatedDeclaration());
   }
 }
 
 void OMPClauseWriter::VisitOMPIsDevicePtrClause(OMPIsDevicePtrClause *C) {
   Record.push_back(C->varlist_size());
+  Record.push_back(C->getUniqueDeclarationsNum());
+  Record.push_back(C->getTotalComponentListNum());
+  Record.push_back(C->getTotalComponentsNum());
   Record.AddSourceLocation(C->getLParenLoc());
-  for (auto *VE : C->varlists()) {
-    Record.AddStmt(VE);
+  for (auto *E : C->varlists())
+    Record.AddStmt(E);
+  for (auto *D : C->all_decls())
+    Record.AddDeclRef(D);
+  for (auto N : C->all_num_lists())
+    Record.push_back(N);
+  for (auto N : C->all_lists_sizes())
+    Record.push_back(N);
+  for (auto &M : C->all_components()) {
+    Record.AddStmt(M.getAssociatedExpression());
+    Record.AddDeclRef(M.getAssociatedDeclaration());
   }
 }
 
@@ -2477,6 +2506,54 @@ void ASTStmtWriter::VisitOMPTargetParallelForSimdDirective(
     OMPTargetParallelForSimdDirective *D) {
   VisitOMPLoopDirective(D);
   Code = serialization::STMT_OMP_TARGET_PARALLEL_FOR_SIMD_DIRECTIVE;
+}
+
+void ASTStmtWriter::VisitOMPTargetSimdDirective(OMPTargetSimdDirective *D) {
+  VisitOMPLoopDirective(D);
+  Code = serialization::STMT_OMP_TARGET_SIMD_DIRECTIVE;
+}
+
+void ASTStmtWriter::VisitOMPTeamsDistributeDirective(
+    OMPTeamsDistributeDirective *D) {
+  VisitOMPLoopDirective(D);
+  Code = serialization::STMT_OMP_TEAMS_DISTRIBUTE_DIRECTIVE;
+}
+
+void ASTStmtWriter::VisitOMPTeamsDistributeSimdDirective(
+    OMPTeamsDistributeSimdDirective *D) {
+  VisitOMPLoopDirective(D);
+  Code = serialization::STMT_OMP_TEAMS_DISTRIBUTE_SIMD_DIRECTIVE;
+}
+
+void ASTStmtWriter::VisitOMPTeamsDistributeParallelForSimdDirective(
+    OMPTeamsDistributeParallelForSimdDirective *D) {
+  VisitOMPLoopDirective(D);
+  Code = serialization::STMT_OMP_TEAMS_DISTRIBUTE_PARALLEL_FOR_SIMD_DIRECTIVE;
+}
+
+void ASTStmtWriter::VisitOMPTeamsDistributeParallelForDirective(
+    OMPTeamsDistributeParallelForDirective *D) {
+  VisitOMPLoopDirective(D);
+  Code = serialization::STMT_OMP_TEAMS_DISTRIBUTE_PARALLEL_FOR_DIRECTIVE;
+}
+
+void ASTStmtWriter::VisitOMPTargetTeamsDirective(OMPTargetTeamsDirective *D) {
+  VisitStmt(D);
+  Record.push_back(D->getNumClauses());
+  VisitOMPExecutableDirective(D);
+  Code = serialization::STMT_OMP_TARGET_TEAMS_DIRECTIVE;
+}
+
+void ASTStmtWriter::VisitOMPTargetTeamsDistributeDirective(
+    OMPTargetTeamsDistributeDirective *D) {
+  VisitOMPLoopDirective(D);
+  Code = serialization::STMT_OMP_TARGET_TEAMS_DISTRIBUTE_DIRECTIVE;
+}
+
+void ASTStmtWriter::VisitOMPTargetTeamsDistributeParallelForDirective(
+    OMPTargetTeamsDistributeParallelForDirective *D) {
+  VisitOMPLoopDirective(D);
+  Code = serialization::STMT_OMP_TARGET_TEAMS_DISTRIBUTE_PARALLEL_FOR_DIRECTIVE;
 }
 
 //===----------------------------------------------------------------------===//

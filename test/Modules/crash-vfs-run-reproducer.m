@@ -31,11 +31,12 @@
 // CHECKSH: "-isysroot" "{{[^"]*}}/i/"
 // CHECKSH: "crash-vfs-{{[^ ]*}}.m"
 // CHECKSH: "-ivfsoverlay" "crash-vfs-{{[^ ]*}}.cache/vfs/vfs.yaml"
-// CHECKSH: "-fmodules-cache-path=crash-vfs-{{[^ ]*}}.cache/modules"
+// CHECKSH: "-fmodules-cache-path=crash-vfs-{{[^ ]*}}.cache/repro-modules"
 
 // CHECKYAML: 'case-sensitive':
 // CHECKYAML-NEXT: 'use-external-names': 'false',
 // CHECKYAML-NEXT: 'overlay-relative': 'true',
+// CHECKYAML-NEXT: 'ignore-non-existent-contents': 'false'
 // CHECKYAML: 'type': 'directory'
 // CHECKYAML: 'name': "/[[PATH:.*]]/Inputs/crash-recovery/usr/include",
 // CHECKYAML-NEXT: 'contents': [
@@ -52,6 +53,5 @@
 // inside .cache/vfs, mapped by .cache/vfs/vfs.yaml.
 
 // RUN: cd %t
-// RUN: rm -rf crash-vfs-run-reproducer-*.cache/modules/*
 // RUN: chmod 755 crash-vfs-*.sh
 // RUN: ./crash-vfs-*.sh

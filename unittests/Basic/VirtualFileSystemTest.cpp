@@ -12,7 +12,6 @@
 #include "llvm/Support/Errc.h"
 #include "llvm/Support/Host.h"
 #include "llvm/Support/MemoryBuffer.h"
-#include "llvm/Support/Path.h"
 #include "llvm/Support/SourceMgr.h"
 #include "gtest/gtest.h"
 #include <map>
@@ -116,20 +115,23 @@ public:
   }
 
   void addRegularFile(StringRef Path, sys::fs::perms Perms = sys::fs::all_all) {
-    vfs::Status S(Path, UniqueID(FSID, FileID++), sys::TimeValue::now(), 0, 0,
-                  1024, sys::fs::file_type::regular_file, Perms);
+    vfs::Status S(Path, UniqueID(FSID, FileID++),
+                  std::chrono::system_clock::now(), 0, 0, 1024,
+                  sys::fs::file_type::regular_file, Perms);
     addEntry(Path, S);
   }
 
   void addDirectory(StringRef Path, sys::fs::perms Perms = sys::fs::all_all) {
-    vfs::Status S(Path, UniqueID(FSID, FileID++), sys::TimeValue::now(), 0, 0,
-                  0, sys::fs::file_type::directory_file, Perms);
+    vfs::Status S(Path, UniqueID(FSID, FileID++),
+                  std::chrono::system_clock::now(), 0, 0, 0,
+                  sys::fs::file_type::directory_file, Perms);
     addEntry(Path, S);
   }
 
   void addSymlink(StringRef Path) {
-    vfs::Status S(Path, UniqueID(FSID, FileID++), sys::TimeValue::now(), 0, 0,
-                  0, sys::fs::file_type::symlink_file, sys::fs::all_all);
+    vfs::Status S(Path, UniqueID(FSID, FileID++),
+                  std::chrono::system_clock::now(), 0, 0, 0,
+                  sys::fs::file_type::symlink_file, sys::fs::all_all);
     addEntry(Path, S);
   }
 };

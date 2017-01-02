@@ -59,3 +59,38 @@ void foo() {
   // CHECK: @_Z13addrof_singlePc
   void *vp3 = &addrof_single;
 }
+
+
+void ovl_bar(char *) __attribute__((overloadable));
+void ovl_bar(int) __attribute__((overloadable));
+
+// CHECK-LABEL: define void @bar
+void bar() {
+  char charbuf[1];
+  unsigned char ucharbuf[1];
+
+  // CHECK: call void @_Z7ovl_barPc
+  ovl_bar(charbuf);
+  // CHECK: call void @_Z7ovl_barPc
+  ovl_bar(ucharbuf);
+}
+
+void ovl_baz(int *, int) __attribute__((overloadable));
+void ovl_baz(unsigned int *, unsigned int) __attribute__((overloadable));
+void ovl_baz2(int, int *) __attribute__((overloadable));
+void ovl_baz2(unsigned int, unsigned int *) __attribute__((overloadable));
+// CHECK-LABEL: define void @baz
+void baz() {
+  unsigned int j;
+  // Initial rules for incompatible pointer conversions made this overload
+  // ambiguous.
+  // CHECK: call void @_Z7ovl_bazPjj
+  ovl_baz(&j, 0);
+  // CHECK: call void @_Z7ovl_bazPjj
+  ovl_baz(&j, 0u);
+
+  // CHECK: call void @_Z8ovl_baz2jPj
+  ovl_baz2(0, &j);
+  // CHECK: call void @_Z8ovl_baz2jPj
+  ovl_baz2(0u, &j);
+}

@@ -19,6 +19,9 @@
 #include "clang/AST/Attr.h"
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclObjC.h"
+#include "clang/AST/RecursiveASTVisitor.h"
+#include "clang/AST/StmtVisitor.h"
+#include "clang/Lex/Lexer.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugReporter.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "clang/StaticAnalyzer/Core/Checker.h"
@@ -26,11 +29,7 @@
 #include "clang/StaticAnalyzer/Core/PathSensitive/CallEvent.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ExprEngine.h"
-#include "clang/Lex/Lexer.h"
-#include "clang/AST/RecursiveASTVisitor.h"
-#include "clang/AST/StmtVisitor.h"
 #include "llvm/Support/Unicode.h"
-#include "llvm/ADT/StringSet.h"
 
 using namespace clang;
 using namespace ento;
@@ -189,6 +188,22 @@ void NonLocalizedStringChecker::initUIMethods(ASTContext &Ctx) const {
   NEW_RECEIVER(NSButton)
   ADD_UNARY_METHOD(NSButton, setTitle, 0)
   ADD_UNARY_METHOD(NSButton, setAlternateTitle, 0)
+  IdentifierInfo *radioButtonWithTitleNSButton[] = {
+      &Ctx.Idents.get("radioButtonWithTitle"), &Ctx.Idents.get("target"),
+      &Ctx.Idents.get("action")};
+  ADD_METHOD(NSButton, radioButtonWithTitleNSButton, 3, 0)
+  IdentifierInfo *buttonWithTitleNSButtonImage[] = {
+      &Ctx.Idents.get("buttonWithTitle"), &Ctx.Idents.get("image"),
+      &Ctx.Idents.get("target"), &Ctx.Idents.get("action")};
+  ADD_METHOD(NSButton, buttonWithTitleNSButtonImage, 4, 0)
+  IdentifierInfo *checkboxWithTitleNSButton[] = {
+      &Ctx.Idents.get("checkboxWithTitle"), &Ctx.Idents.get("target"),
+      &Ctx.Idents.get("action")};
+  ADD_METHOD(NSButton, checkboxWithTitleNSButton, 3, 0)
+  IdentifierInfo *buttonWithTitleNSButtonTarget[] = {
+      &Ctx.Idents.get("buttonWithTitle"), &Ctx.Idents.get("target"),
+      &Ctx.Idents.get("action")};
+  ADD_METHOD(NSButton, buttonWithTitleNSButtonTarget, 3, 0)
 
   NEW_RECEIVER(NSSavePanel)
   ADD_UNARY_METHOD(NSSavePanel, setPrompt, 0)
@@ -271,6 +286,9 @@ void NonLocalizedStringChecker::initUIMethods(ASTContext &Ctx) const {
   ADD_UNARY_METHOD(NSButtonCell, setTitle, 0)
   ADD_UNARY_METHOD(NSButtonCell, setAlternateTitle, 0)
 
+  NEW_RECEIVER(NSDatePickerCell)
+  ADD_UNARY_METHOD(NSDatePickerCell, initTextCell, 0)
+
   NEW_RECEIVER(NSSliderCell)
   ADD_UNARY_METHOD(NSSliderCell, setTitle, 0)
 
@@ -336,9 +354,6 @@ void NonLocalizedStringChecker::initUIMethods(ASTContext &Ctx) const {
   ADD_UNARY_METHOD(UIActionSheet, addButtonWithTitle, 0)
   ADD_UNARY_METHOD(UIActionSheet, setTitle, 0)
 
-  NEW_RECEIVER(NSURLSessionTask)
-  ADD_UNARY_METHOD(NSURLSessionTask, setTaskDescription, 0)
-
   NEW_RECEIVER(UIAccessibilityCustomAction)
   IdentifierInfo *initWithNameUIAccessibilityCustomAction[] = {
       &Ctx.Idents.get("initWithName"), &Ctx.Idents.get("target"),
@@ -363,6 +378,9 @@ void NonLocalizedStringChecker::initUIMethods(ASTContext &Ctx) const {
 
   NEW_RECEIVER(NSTextField)
   ADD_UNARY_METHOD(NSTextField, setPlaceholderString, 0)
+  ADD_UNARY_METHOD(NSTextField, textFieldWithString, 0)
+  ADD_UNARY_METHOD(NSTextField, wrappingLabelWithString, 0)
+  ADD_UNARY_METHOD(NSTextField, labelWithString, 0)
 
   NEW_RECEIVER(NSAttributedString)
   ADD_UNARY_METHOD(NSAttributedString, initWithString, 0)
@@ -522,9 +540,6 @@ void NonLocalizedStringChecker::initUIMethods(ASTContext &Ctx) const {
       &Ctx.Idents.get("actionWithIdentifier"), &Ctx.Idents.get("title")};
   ADD_METHOD(NSUserNotificationAction,
              actionWithIdentifierNSUserNotificationAction, 2, 1)
-
-  NEW_RECEIVER(NSURLSession)
-  ADD_UNARY_METHOD(NSURLSession, setSessionDescription, 0)
 
   NEW_RECEIVER(UITextField)
   ADD_UNARY_METHOD(UITextField, setText, 0)
@@ -1001,6 +1016,8 @@ void EmptyLocalizationContextChecker::checkASTDecl(
 void EmptyLocalizationContextChecker::MethodCrawler::VisitObjCMessageExpr(
     const ObjCMessageExpr *ME) {
 
+  // FIXME: We may be able to use PPCallbacks to check for empy context
+  // comments as part of preprocessing and avoid this re-lexing hack.
   const ObjCInterfaceDecl *OD = ME->getReceiverInterface();
   if (!OD)
     return;
@@ -1035,7 +1052,12 @@ void EmptyLocalizationContextChecker::MethodCrawler::VisitObjCMessageExpr(
     SE = Mgr.getSourceManager().getSLocEntry(SLInfo.first);
   }
 
-  llvm::MemoryBuffer *BF = SE.getFile().getContentCache()->getRawBuffer();
+  bool Invalid = false;
+  llvm::MemoryBuffer *BF =
+      Mgr.getSourceManager().getBuffer(SLInfo.first, SL, &Invalid);
+  if (Invalid)
+    return;
+
   Lexer TheLexer(SL, LangOptions(), BF->getBufferStart(),
                  BF->getBufferStart() + SLInfo.second, BF->getBufferEnd());
 

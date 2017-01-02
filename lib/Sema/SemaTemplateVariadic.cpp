@@ -390,21 +390,18 @@ void Sema::collectUnexpandedParameterPacks(QualType T,
 void Sema::collectUnexpandedParameterPacks(TypeLoc TL,
                    SmallVectorImpl<UnexpandedParameterPack> &Unexpanded) {
   CollectUnexpandedParameterPacksVisitor(Unexpanded).TraverseTypeLoc(TL);  
-}  
-
-void Sema::collectUnexpandedParameterPacks(CXXScopeSpec &SS,
-                                           SmallVectorImpl<UnexpandedParameterPack> &Unexpanded) {
-  NestedNameSpecifier *Qualifier = SS.getScopeRep();
-  if (!Qualifier)
-    return;
-  
-  NestedNameSpecifierLoc QualifierLoc(Qualifier, SS.location_data());
-  CollectUnexpandedParameterPacksVisitor(Unexpanded)
-    .TraverseNestedNameSpecifierLoc(QualifierLoc);
 }
 
-void Sema::collectUnexpandedParameterPacks(const DeclarationNameInfo &NameInfo,
-                         SmallVectorImpl<UnexpandedParameterPack> &Unexpanded) {
+void Sema::collectUnexpandedParameterPacks(
+    NestedNameSpecifierLoc NNS,
+    SmallVectorImpl<UnexpandedParameterPack> &Unexpanded) {
+  CollectUnexpandedParameterPacksVisitor(Unexpanded)
+      .TraverseNestedNameSpecifierLoc(NNS);
+}
+
+void Sema::collectUnexpandedParameterPacks(
+    const DeclarationNameInfo &NameInfo,
+    SmallVectorImpl<UnexpandedParameterPack> &Unexpanded) {
   CollectUnexpandedParameterPacksVisitor(Unexpanded)
     .TraverseDeclarationNameInfo(NameInfo);
 }
@@ -639,7 +636,7 @@ bool Sema::CheckParameterPacksForExpansion(
       return true;
     }
   }
-  
+
   return false;
 }
 
@@ -772,7 +769,7 @@ bool Sema::containsUnexpandedParameterPacks(Declarator &D) {
       }
 
       if (Chunk.Fun.getExceptionSpecType() == EST_Dynamic) {
-        for (unsigned i = 0; i != Chunk.Fun.NumExceptions; ++i) {
+        for (unsigned i = 0; i != Chunk.Fun.getNumExceptions(); ++i) {
           if (Chunk.Fun.Exceptions[i]
                   .Ty.get()
                   ->containsUnexpandedParameterPack())
@@ -936,12 +933,71 @@ Sema::getTemplateArgumentPackExpansionPattern(
   llvm_unreachable("Invalid TemplateArgument Kind!");
 }
 
+Optional<unsigned> Sema::getFullyPackExpandedSize(TemplateArgument Arg) {
+  assert(Arg.containsUnexpandedParameterPack());
+
+  // If this is a substituted pack, grab that pack. If not, we don't know
+  // the size yet.
+  // FIXME: We could find a size in more cases by looking for a substituted
+  // pack anywhere within this argument, but that's not necessary in the common
+  // case for 'sizeof...(A)' handling.
+  TemplateArgument Pack;
+  switch (Arg.getKind()) {
+  case TemplateArgument::Type:
+    if (auto *Subst = Arg.getAsType()->getAs<SubstTemplateTypeParmPackType>())
+      Pack = Subst->getArgumentPack();
+    else
+      return None;
+    break;
+
+  case TemplateArgument::Expression:
+    if (auto *Subst =
+            dyn_cast<SubstNonTypeTemplateParmPackExpr>(Arg.getAsExpr()))
+      Pack = Subst->getArgumentPack();
+    else if (auto *Subst = dyn_cast<FunctionParmPackExpr>(Arg.getAsExpr()))  {
+      for (ParmVarDecl *PD : *Subst)
+        if (PD->isParameterPack())
+          return None;
+      return Subst->getNumExpansions();
+    } else
+      return None;
+    break;
+
+  case TemplateArgument::Template:
+    if (SubstTemplateTemplateParmPackStorage *Subst =
+            Arg.getAsTemplate().getAsSubstTemplateTemplateParmPack())
+      Pack = Subst->getArgumentPack();
+    else
+      return None;
+    break;
+
+  case TemplateArgument::Declaration:
+  case TemplateArgument::NullPtr:
+  case TemplateArgument::TemplateExpansion:
+  case TemplateArgument::Integral:
+  case TemplateArgument::Pack:
+  case TemplateArgument::Null:
+    return None;
+  }
+
+  // Check that no argument in the pack is itself a pack expansion.
+  for (TemplateArgument Elem : Pack.pack_elements()) {
+    // There's no point recursing in this case; we would have already
+    // expanded this pack expansion into the enclosing pack if we could.
+    if (Elem.isPackExpansion())
+      return None;
+  }
+  return Pack.pack_size();
+}
+
 static void CheckFoldOperand(Sema &S, Expr *E) {
   if (!E)
     return;
 
   E = E->IgnoreImpCasts();
-  if (isa<BinaryOperator>(E) || isa<AbstractConditionalOperator>(E)) {
+  auto *OCE = dyn_cast<CXXOperatorCallExpr>(E);
+  if ((OCE && OCE->isInfixBinaryOp()) || isa<BinaryOperator>(E) ||
+      isa<AbstractConditionalOperator>(E)) {
     S.Diag(E->getExprLoc(), diag::err_fold_expression_bad_operand)
         << E->getSourceRange()
         << FixItHint::CreateInsertion(E->getLocStart(), "(")

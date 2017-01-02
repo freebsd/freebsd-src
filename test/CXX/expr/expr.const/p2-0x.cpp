@@ -33,11 +33,11 @@ struct NonConstexpr3 {
   int m : NonConstexpr2().n; // expected-error {{constant expression}} expected-note {{undefined constructor 'NonConstexpr2'}}
 };
 struct NonConstexpr4 {
-  NonConstexpr4(); // expected-note {{declared here}}
+  NonConstexpr4();
   int n;
 };
 struct NonConstexpr5 {
-  int n : NonConstexpr4().n; // expected-error {{constant expression}} expected-note {{non-constexpr constructor 'NonConstexpr4' cannot be used in a constant expression}}
+  int n : NonConstexpr4().n; // expected-error {{constant expression}} expected-note {{non-literal type 'NonConstexpr4' cannot be used in a constant expression}}
 };
 
 // - an invocation of an undefined constexpr function or an undefined
@@ -321,7 +321,7 @@ namespace LValueToRValue {
   //   temporary object whose lifetime has not ended, initialized with a
   //   constant expression;
   constexpr volatile S f() { return S(); }
-  static_assert(f().i, ""); // ok! there's no lvalue-to-rvalue conversion here!
+  static_assert(f().i, ""); // expected-error {{constant expression}} expected-note {{read of volatile-qualified type}}
   static_assert(((volatile const S&&)(S)0).i, ""); // expected-error {{constant expression}} expected-note {{read of volatile-qualified type}}
 }
 
@@ -461,14 +461,14 @@ namespace UnspecifiedRelations {
   constexpr bool u2 = p > q; // expected-error {{constant expression}}
   constexpr bool u3 = p <= q; // expected-error {{constant expression}}
   constexpr bool u4 = p >= q; // expected-error {{constant expression}}
-  constexpr bool u5 = p < 0; // expected-error {{constant expression}}
-  constexpr bool u6 = p <= 0; // expected-error {{constant expression}}
-  constexpr bool u7 = p > 0; // expected-error {{constant expression}}
-  constexpr bool u8 = p >= 0; // expected-error {{constant expression}}
-  constexpr bool u9 = 0 < q; // expected-error {{constant expression}}
-  constexpr bool u10 = 0 <= q; // expected-error {{constant expression}}
-  constexpr bool u11 = 0 > q; // expected-error {{constant expression}}
-  constexpr bool u12 = 0 >= q; // expected-error {{constant expression}}
+  constexpr bool u5 = p < (int*)0; // expected-error {{constant expression}}
+  constexpr bool u6 = p <= (int*)0; // expected-error {{constant expression}}
+  constexpr bool u7 = p > (int*)0; // expected-error {{constant expression}}
+  constexpr bool u8 = p >= (int*)0; // expected-error {{constant expression}}
+  constexpr bool u9 = (int*)0 < q; // expected-error {{constant expression}}
+  constexpr bool u10 = (int*)0 <= q; // expected-error {{constant expression}}
+  constexpr bool u11 = (int*)0 > q; // expected-error {{constant expression}}
+  constexpr bool u12 = (int*)0 >= q; // expected-error {{constant expression}}
   void f(), g();
 
   constexpr void (*pf)() = &f, (*pg)() = &g;
@@ -522,7 +522,7 @@ namespace UnspecifiedRelations {
   constexpr void *null = 0;
   constexpr void *pv = (void*)&s.a;
   constexpr void *qv = (void*)&s.b;
-  constexpr bool v1 = null < 0;
+  constexpr bool v1 = null < (int*)0;
   constexpr bool v2 = null < pv; // expected-error {{constant expression}}
   constexpr bool v3 = null == pv; // ok
   constexpr bool v4 = qv == pv; // ok

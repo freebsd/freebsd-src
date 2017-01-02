@@ -133,7 +133,8 @@ LANGOPT(Freestanding, 1, 0, "freestanding implementation")
 LANGOPT(NoBuiltin         , 1, 0, "disable builtin functions")
 LANGOPT(NoMathBuiltin     , 1, 0, "disable math builtin functions")
 LANGOPT(GNUAsm            , 1, 1, "GNU-style inline assembly")
-LANGOPT(Coroutines        , 1, 0, "C++ coroutines")
+LANGOPT(CoroutinesTS      , 1, 0, "C++ coroutines TS")
+LANGOPT(RelaxedTemplateTemplateArgs, 1, 0, "C++17 relaxed matching of template template arguments")
 
 BENIGN_LANGOPT(ThreadsafeStatics , 1, 1, "thread-safe static initializers")
 LANGOPT(POSIXThreads      , 1, 0, "POSIX thread support")
@@ -142,7 +143,9 @@ BENIGN_LANGOPT(EmitAllDecls      , 1, 0, "emitting all declarations")
 LANGOPT(MathErrno         , 1, 1, "errno in math functions")
 BENIGN_LANGOPT(HeinousExtensions , 1, 0, "extensions that we really don't like and may be ripped out at any time")
 LANGOPT(Modules           , 1, 0, "modules extension to C")
-BENIGN_LANGOPT(CompilingModule, 1, 0, "compiling a module interface")
+COMPATIBLE_LANGOPT(ModulesTS  , 1, 0, "C++ Modules TS")
+BENIGN_ENUM_LANGOPT(CompilingModule, CompilingModuleKind, 2, CMK_None,
+                    "compiling a module interface")
 COMPATIBLE_LANGOPT(ModulesDeclUse    , 1, 0, "require declaration of module uses")
 BENIGN_LANGOPT(ModulesSearchAll  , 1, 1, "searching even non-imported modules to find unresolved references")
 COMPATIBLE_LANGOPT(ModulesStrictDeclUse, 1, 0, "requiring declaration of module uses and all headers to be in modules")
@@ -193,7 +196,9 @@ LANGOPT(CUDAHostDeviceConstexpr, 1, 1, "treating unattributed constexpr function
 LANGOPT(CUDADeviceFlushDenormalsToZero, 1, 0, "flushing denormals to zero")
 LANGOPT(CUDADeviceApproxTranscendentals, 1, 0, "using approximate transcendental functions")
 
-LANGOPT(SizedDeallocation , 1, 0, "enable sized deallocation functions")
+LANGOPT(SizedDeallocation , 1, 0, "sized deallocation")
+LANGOPT(AlignedAllocation , 1, 0, "aligned allocation")
+LANGOPT(NewAlignOverride  , 32, 0, "maximum alignment guaranteed by '::operator new(size_t)'")
 LANGOPT(ConceptsTS , 1, 0, "enable C++ Extensions for Concepts")
 BENIGN_LANGOPT(ElideConstructors , 1, 1, "C++ copy constructor elision")
 BENIGN_LANGOPT(DumpRecordLayouts , 1, 0, "dumping the layout of IRgen'd records")
@@ -234,7 +239,7 @@ ENUM_LANGOPT(SignedOverflowBehavior, SignedOverflowBehaviorTy, 2, SOB_Undefined,
 
 BENIGN_LANGOPT(ArrowDepth, 32, 256,
                "maximum number of operator->s to follow")
-BENIGN_LANGOPT(InstantiationDepth, 32, 256,
+BENIGN_LANGOPT(InstantiationDepth, 32, 1024,
                "maximum template instantiation depth")
 BENIGN_LANGOPT(ConstexprCallDepth, 32, 512,
                "maximum constexpr call depth")

@@ -95,6 +95,39 @@ namespace ImplicitCapture {
   }
 }
 
+namespace SpecialMembers {
+  void f() {
+    auto a = []{}; // expected-note 2{{here}} expected-note 2{{candidate}}
+    decltype(a) b; // expected-error {{no matching constructor}}
+    decltype(a) c = a;
+    decltype(a) d = static_cast<decltype(a)&&>(a);
+    a = a; // expected-error {{copy assignment operator is implicitly deleted}}
+    a = static_cast<decltype(a)&&>(a); // expected-error {{copy assignment operator is implicitly deleted}}
+  }
+  struct P {
+    P(const P&) = delete; // expected-note {{deleted here}}
+  };
+  struct Q {
+    ~Q() = delete; // expected-note {{deleted here}}
+  };
+  struct R {
+    R(const R&) = default;
+    R(R&&) = delete;
+    R &operator=(const R&) = delete;
+    R &operator=(R&&) = delete;
+  };
+  void g(P &p, Q &q, R &r) {
+    auto pp = [p]{}; // expected-error {{deleted constructor}}
+    auto qq = [q]{}; // expected-error {{deleted function}} expected-note {{because}}
+
+    auto a = [r]{}; // expected-note 2{{here}}
+    decltype(a) b = a;
+    decltype(a) c = static_cast<decltype(a)&&>(a); // ok, copies R
+    a = a; // expected-error {{copy assignment operator is implicitly deleted}}
+    a = static_cast<decltype(a)&&>(a); // expected-error {{copy assignment operator is implicitly deleted}}
+  }
+}
+
 namespace PR12031 {
   struct X {
     template<typename T>
@@ -523,5 +556,20 @@ template <class T> struct C {
 int func() {
   C<int> a;
   decltype(a)::D b;
+}
+}
+
+namespace PR30566 {
+int name1; // expected-note {{'name1' declared here}}
+
+struct S1 {
+  template<class T>
+  S1(T t) { s = sizeof(t); }
+  int s;
+};
+
+void foo1() {
+  auto s0 = S1{[name=]() {}}; // expected-error 2 {{expected expression}}
+  auto s1 = S1{[name=name]() {}}; // expected-error {{use of undeclared identifier 'name'; did you mean 'name1'?}}
 }
 }

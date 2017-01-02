@@ -71,8 +71,7 @@ testImport(const std::string &FromCode, Language FromLang,
         ToCtx.getSourceManager().getFileManager().getVirtualFileSystem().get());
   vfs::InMemoryFileSystem *MFS = static_cast<vfs::InMemoryFileSystem *>(
         OFS->overlays_begin()->get());
-  MFS->addFile(InputFileName, 0,
-               llvm::MemoryBuffer::getMemBuffer(FromCode.c_str()));
+  MFS->addFile(InputFileName, 0, llvm::MemoryBuffer::getMemBuffer(FromCode));
 
   ASTImporter Importer(ToCtx, ToAST->getFileManager(),
                        FromCtx, FromAST->getFileManager(), false);
@@ -453,6 +452,40 @@ TEST(ImportExpr, ImportInitListExpr) {
                                 has(floatLiteral(equals(2.0))),
                                 has(floatLiteral(equals(1.0)))))
                               )))))))))));
+}
+
+
+const internal::VariadicDynCastAllOfMatcher<Expr, VAArgExpr> vaArgExpr;
+
+TEST(ImportExpr, ImportVAArgExpr) {
+  MatchVerifier<Decl> Verifier;
+  EXPECT_TRUE(
+        testImport(
+          "void declToImport(__builtin_va_list list, ...) {"
+          "  (void)__builtin_va_arg(list, int); }",
+          Lang_CXX, "", Lang_CXX, Verifier,
+          functionDecl(
+            hasBody(
+              compoundStmt(
+                has(
+                  cStyleCastExpr(
+                    hasSourceExpression(
+                      vaArgExpr()))))))));
+}
+
+
+TEST(ImportType, ImportAtomicType) {
+  MatchVerifier<Decl> Verifier;
+  EXPECT_TRUE(testImport("void declToImport() { typedef _Atomic(int) a_int; }",
+                         Lang_CXX11, "", Lang_CXX11, Verifier,
+                         functionDecl(
+                           hasBody(
+                             compoundStmt(
+                               has(
+                                 declStmt(
+                                   has(
+                                     typedefDecl(
+                                       has(atomicType()))))))))));
 }
 
 

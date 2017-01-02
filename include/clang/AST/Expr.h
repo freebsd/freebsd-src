@@ -445,6 +445,11 @@ public:
     return const_cast<Expr*>(this)->getSourceBitField();
   }
 
+  Decl *getReferencedDeclOfCallee();
+  const Decl *getReferencedDeclOfCallee() const {
+    return const_cast<Expr*>(this)->getReferencedDeclOfCallee();
+  }
+
   /// \brief If this expression is an l-value for an Objective C
   /// property, find the underlying property reference expression.
   const ObjCPropertyRefExpr *getObjCProperty() const;
@@ -823,12 +828,22 @@ public:
   /// behavior if the object isn't dynamically of the derived type.
   const CXXRecordDecl *getBestDynamicClassType() const;
 
+  /// \brief Get the inner expression that determines the best dynamic class.
+  /// If this is a prvalue, we guarantee that it is of the most-derived type
+  /// for the object itself.
+  const Expr *getBestDynamicClassTypeExpr() const;
+
   /// Walk outwards from an expression we want to bind a reference to and
   /// find the expression whose lifetime needs to be extended. Record
   /// the LHSs of comma expressions and adjustments needed along the path.
   const Expr *skipRValueSubobjectAdjustments(
       SmallVectorImpl<const Expr *> &CommaLHS,
       SmallVectorImpl<SubobjectAdjustment> &Adjustments) const;
+  const Expr *skipRValueSubobjectAdjustments() const {
+    SmallVector<const Expr *, 8> CommaLHSs;
+    SmallVector<SubobjectAdjustment, 8> Adjustments;
+    return skipRValueSubobjectAdjustments(CommaLHSs, Adjustments);
+  }
 
   static bool classof(const Stmt *T) {
     return T->getStmtClass() >= firstExprConstant &&
@@ -2406,8 +2421,8 @@ public:
 
   /// \brief Retrieve the member declaration to which this expression refers.
   ///
-  /// The returned declaration will either be a FieldDecl or (in C++)
-  /// a CXXMethodDecl.
+  /// The returned declaration will be a FieldDecl or (in C++) a VarDecl (for
+  /// static data members), a CXXMethodDecl, or an EnumConstantDecl.
   ValueDecl *getMemberDecl() const { return MemberDecl; }
   void setMemberDecl(ValueDecl *D) { MemberDecl = D; }
 
@@ -3771,14 +3786,23 @@ public:
 
   /// \brief Build an empty initializer list.
   explicit InitListExpr(EmptyShell Empty)
-    : Expr(InitListExprClass, Empty) { }
+    : Expr(InitListExprClass, Empty), AltForm(nullptr, true) { }
 
   unsigned getNumInits() const { return InitExprs.size(); }
 
   /// \brief Retrieve the set of initializers.
   Expr **getInits() { return reinterpret_cast<Expr **>(InitExprs.data()); }
 
+  /// \brief Retrieve the set of initializers.
+  Expr * const *getInits() const {
+    return reinterpret_cast<Expr * const *>(InitExprs.data());
+  }
+
   ArrayRef<Expr *> inits() {
+    return llvm::makeArrayRef(getInits(), getNumInits());
+  }
+
+  ArrayRef<Expr *> inits() const {
     return llvm::makeArrayRef(getInits(), getNumInits());
   }
 
@@ -3862,13 +3886,18 @@ public:
 
   // Explicit InitListExpr's originate from source code (and have valid source
   // locations). Implicit InitListExpr's are created by the semantic analyzer.
-  bool isExplicit() {
+  bool isExplicit() const {
     return LBraceLoc.isValid() && RBraceLoc.isValid();
   }
 
   // Is this an initializer for an array of characters, initialized by a string
   // literal or an @encode?
   bool isStringLiteralInit() const;
+
+  /// Is this a transparent initializer list (that is, an InitListExpr that is
+  /// purely syntactic, and whose semantics are that of the sole contained
+  /// initializer)?
+  bool isTransparent() const;
 
   SourceLocation getLBraceLoc() const { return LBraceLoc; }
   void setLBraceLoc(SourceLocation Loc) { LBraceLoc = Loc; }
@@ -4304,6 +4333,98 @@ public:
   }
 };
 
+/// \brief Represents a loop initializing the elements of an array.
+///
+/// The need to initialize the elements of an array occurs in a number of
+/// contexts:
+///
+///  * in the implicit copy/move constructor for a class with an array member
+///  * when a lambda-expression captures an array by value
+///  * when a decomposition declaration decomposes an array
+///
+/// There are two subexpressions: a common expression (the source array)
+/// that is evaluated once up-front, and a per-element initializer that
+/// runs once for each array element.
+///
+/// Within the per-element initializer, the common expression may be referenced
+/// via an OpaqueValueExpr, and the current index may be obtained via an
+/// ArrayInitIndexExpr.
+class ArrayInitLoopExpr : public Expr {
+  Stmt *SubExprs[2];
+
+  explicit ArrayInitLoopExpr(EmptyShell Empty)
+      : Expr(ArrayInitLoopExprClass, Empty), SubExprs{} {}
+
+public:
+  explicit ArrayInitLoopExpr(QualType T, Expr *CommonInit, Expr *ElementInit)
+      : Expr(ArrayInitLoopExprClass, T, VK_RValue, OK_Ordinary, false,
+             CommonInit->isValueDependent() || ElementInit->isValueDependent(),
+             T->isInstantiationDependentType(),
+             CommonInit->containsUnexpandedParameterPack() ||
+                 ElementInit->containsUnexpandedParameterPack()),
+        SubExprs{CommonInit, ElementInit} {}
+
+  /// Get the common subexpression shared by all initializations (the source
+  /// array).
+  OpaqueValueExpr *getCommonExpr() const {
+    return cast<OpaqueValueExpr>(SubExprs[0]);
+  }
+
+  /// Get the initializer to use for each array element.
+  Expr *getSubExpr() const { return cast<Expr>(SubExprs[1]); }
+
+  llvm::APInt getArraySize() const {
+    return cast<ConstantArrayType>(getType()->castAsArrayTypeUnsafe())
+        ->getSize();
+  }
+
+  static bool classof(const Stmt *S) {
+    return S->getStmtClass() == ArrayInitLoopExprClass;
+  }
+
+  SourceLocation getLocStart() const LLVM_READONLY {
+    return getCommonExpr()->getLocStart();
+  }
+  SourceLocation getLocEnd() const LLVM_READONLY {
+    return getCommonExpr()->getLocEnd();
+  }
+
+  child_range children() {
+    return child_range(SubExprs, SubExprs + 2);
+  }
+
+  friend class ASTReader;
+  friend class ASTStmtReader;
+  friend class ASTStmtWriter;
+};
+
+/// \brief Represents the index of the current element of an array being
+/// initialized by an ArrayInitLoopExpr. This can only appear within the
+/// subexpression of an ArrayInitLoopExpr.
+class ArrayInitIndexExpr : public Expr {
+  explicit ArrayInitIndexExpr(EmptyShell Empty)
+      : Expr(ArrayInitIndexExprClass, Empty) {}
+
+public:
+  explicit ArrayInitIndexExpr(QualType T)
+      : Expr(ArrayInitIndexExprClass, T, VK_RValue, OK_Ordinary,
+             false, false, false, false) {}
+
+  static bool classof(const Stmt *S) {
+    return S->getStmtClass() == ArrayInitIndexExprClass;
+  }
+
+  SourceLocation getLocStart() const LLVM_READONLY { return SourceLocation(); }
+  SourceLocation getLocEnd() const LLVM_READONLY { return SourceLocation(); }
+
+  child_range children() {
+    return child_range(child_iterator(), child_iterator());
+  }
+
+  friend class ASTReader;
+  friend class ASTStmtReader;
+};
+
 /// \brief Represents an implicitly-generated value initialization of
 /// an object of a given type.
 ///
@@ -4447,11 +4568,19 @@ public:
     return cast<Expr>(SubExprs[END_EXPR+i]);
   }
   Expr *getAssocExpr(unsigned i) { return cast<Expr>(SubExprs[END_EXPR+i]); }
-
+  ArrayRef<Expr *> getAssocExprs() const {
+    return NumAssocs
+               ? llvm::makeArrayRef(
+                     &reinterpret_cast<Expr **>(SubExprs)[END_EXPR], NumAssocs)
+               : None;
+  }
   const TypeSourceInfo *getAssocTypeSourceInfo(unsigned i) const {
     return AssocTypes[i];
   }
   TypeSourceInfo *getAssocTypeSourceInfo(unsigned i) { return AssocTypes[i]; }
+  ArrayRef<TypeSourceInfo *> getAssocTypeSourceInfos() const {
+    return NumAssocs ? llvm::makeArrayRef(&AssocTypes[0], NumAssocs) : None;
+  }
 
   QualType getAssocType(unsigned i) const {
     if (const TypeSourceInfo *TS = getAssocTypeSourceInfo(i))

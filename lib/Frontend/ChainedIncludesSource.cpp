@@ -17,6 +17,7 @@
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/TextDiagnosticPrinter.h"
 #include "clang/Lex/Preprocessor.h"
+#include "clang/Lex/PreprocessorOptions.h"
 #include "clang/Parse/ParseAST.h"
 #include "clang/Sema/MultiplexExternalSemaSource.h"
 #include "clang/Serialization/ASTReader.h"
@@ -160,7 +161,7 @@ IntrusiveRefCntPtr<ExternalSemaSource> clang::createChainedIncludesSource(
     auto Buffer = std::make_shared<PCHBuffer>();
     ArrayRef<llvm::IntrusiveRefCntPtr<ModuleFileExtension>> Extensions;
     auto consumer = llvm::make_unique<PCHGenerator>(
-        Clang->getPreprocessor(), "-", nullptr, /*isysroot=*/"", Buffer,
+        Clang->getPreprocessor(), "-", /*isysroot=*/"", Buffer,
         Extensions, /*AllowASTWithErrors=*/true);
     Clang->getASTContext().setASTMutationListener(
                                             consumer->GetASTMutationListener());

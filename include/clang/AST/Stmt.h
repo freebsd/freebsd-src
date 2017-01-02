@@ -56,7 +56,7 @@ namespace clang {
 
 /// Stmt - This represents one statement.
 ///
-class LLVM_ALIGNAS(LLVM_PTR_SIZE) Stmt {
+class alignas(void *) Stmt {
 public:
   enum StmtClass {
     NoStmtClass = 0,
@@ -71,10 +71,10 @@ public:
 
   // Make vanilla 'new' and 'delete' illegal for Stmts.
 protected:
-  void *operator new(size_t bytes) LLVM_NOEXCEPT {
+  void *operator new(size_t bytes) noexcept {
     llvm_unreachable("Stmts cannot be allocated with regular 'new'.");
   }
-  void operator delete(void *data) LLVM_NOEXCEPT {
+  void operator delete(void *data) noexcept {
     llvm_unreachable("Stmts cannot be released with regular 'delete'.");
   }
 
@@ -284,12 +284,12 @@ public:
     return operator new(bytes, *C, alignment);
   }
 
-  void *operator new(size_t bytes, void *mem) LLVM_NOEXCEPT { return mem; }
+  void *operator new(size_t bytes, void *mem) noexcept { return mem; }
 
-  void operator delete(void *, const ASTContext &, unsigned) LLVM_NOEXCEPT {}
-  void operator delete(void *, const ASTContext *, unsigned) LLVM_NOEXCEPT {}
-  void operator delete(void *, size_t) LLVM_NOEXCEPT {}
-  void operator delete(void *, void *) LLVM_NOEXCEPT {}
+  void operator delete(void *, const ASTContext &, unsigned) noexcept {}
+  void operator delete(void *, const ASTContext *, unsigned) noexcept {}
+  void operator delete(void *, size_t) noexcept {}
+  void operator delete(void *, void *) noexcept {}
 
 public:
   /// \brief A placeholder type used to construct an empty shell of a
@@ -340,7 +340,7 @@ protected:
 
 public:
   Stmt(StmtClass SC) {
-    static_assert(sizeof(*this) % llvm::AlignOf<void *>::Alignment == 0,
+    static_assert(sizeof(*this) % alignof(void *) == 0,
                   "Insufficient alignment!");
     StmtBits.sClass = SC;
     if (StatisticsEnabled) Stmt::addStmtClass(SC);
@@ -387,6 +387,9 @@ public:
   /// Skip past any implicit AST nodes which might surround this
   /// statement, such as ExprWithCleanups or ImplicitCastExpr nodes.
   Stmt *IgnoreImplicit();
+  const Stmt *IgnoreImplicit() const {
+    return const_cast<Stmt *>(this)->IgnoreImplicit();
+  }
 
   /// \brief Skip no-op (attributed, compound) container stmts and skip captured
   /// stmt at the top, if \a IgnoreCaptured is true.
@@ -932,6 +935,8 @@ public:
 
   bool isConstexpr() const { return IfStmtBits.IsConstexpr; }
   void setConstexpr(bool C) { IfStmtBits.IsConstexpr = C; }
+
+  bool isObjCAvailabilityCheck() const;
 
   SourceLocation getLocStart() const LLVM_READONLY { return IfLoc; }
   SourceLocation getLocEnd() const LLVM_READONLY {

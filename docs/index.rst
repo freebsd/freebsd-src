@@ -17,8 +17,10 @@ Using Clang as a Compiler
    :maxdepth: 1
 
    UsersManual
+   Toolchain
    LanguageExtensions
    AttributeReference
+   DiagnosticsReference
    CrossCompilation
    ThreadSafetyAnalysis
    AddressSanitizer
@@ -36,6 +38,7 @@ Using Clang as a Compiler
    SourceBasedCodeCoverage
    Modules
    MSVCCompatibility
+   ThinLTO
    CommandGuide/index
    FAQ
 

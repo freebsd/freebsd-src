@@ -174,6 +174,9 @@ Command-line parameters
 ``-fmodules``
   Enable the modules feature.
 
+``-fbuiltin-module-map``
+  Load the Clang builtins module map file. (Equivalent to ``-fmodule-map-file=<resource dir>/include/module.modulemap``)
+
 ``-fimplicit-module-maps``
   Enable implicit search for module map files named ``module.modulemap`` and similar. This option is implied by ``-fmodules``. If this is disabled with ``-fno-implicit-module-maps``, module map files will only be loaded if they are explicitly specified via ``-fmodule-map-file`` or transitively used by another module map file.
 
@@ -212,6 +215,9 @@ Command-line parameters
 
 ``-fmodule-file=<file>``
   Load the given precompiled module file.
+
+``-fprebuilt-module-path=<directory>``
+  Specify the path to the prebuilt modules. If specified, we will look for modules in this directory for a given top-level module name. We don't need a module map for loading prebuilt modules in this directory and the compiler will not try to rebuild these modules. This can be specified multiple times.
 
 Module Semantics
 ================
@@ -362,6 +368,8 @@ The ``system`` attribute specifies that the module is a system module. When a sy
 
 The ``extern_c`` attribute specifies that the module contains C code that can be used from within C++. When such a module is built for use in C++ code, all of the module's headers will be treated as if they were contained within an implicit ``extern "C"`` block. An import for a module with this attribute can appear within an ``extern "C"`` block. No other restrictions are lifted, however: the module currently cannot be imported within an ``extern "C"`` block in a namespace.
 
+The ``no_undeclared_includes`` attribute specifies that the module can only reach non-modular headers and headers from used modules. Since some headers could be present in more than one search path and map to different modules in each path, this mechanism helps clang to find the right header, i.e., prefer the one for the current module or in a submodule instead of the first usual match in the search paths.
+
 Modules can have a number of different kinds of members, each of which is described below:
 
 .. parsed-literal::
@@ -409,6 +417,12 @@ cplusplus
 
 cplusplus11
   C++11 support is available.
+
+freestanding
+  A freestanding environment is available.
+
+gnuinlineasm
+  GNU inline ASM is available.
 
 objc
   Objective-C support is available.

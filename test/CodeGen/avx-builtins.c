@@ -1,8 +1,6 @@
-// RUN: %clang_cc1 %s -triple=x86_64-apple-darwin -target-feature +avx -emit-llvm -o - -Werror | FileCheck %s
-// RUN: %clang_cc1 %s -triple=x86_64-apple-darwin -target-feature +avx -fno-signed-char -emit-llvm -o - -Werror | FileCheck %s
+// RUN: %clang_cc1 -ffreestanding %s -triple=x86_64-apple-darwin -target-feature +avx -emit-llvm -o - -Wall -Werror | FileCheck %s
+// RUN: %clang_cc1 -ffreestanding %s -triple=x86_64-apple-darwin -target-feature +avx -fno-signed-char -emit-llvm -o - -Wall -Werror | FileCheck %s
 
-// Don't include mm_malloc.h, it's system specific.
-#define __MM_MALLOC_H
 
 #include <x86intrin.h>
 
@@ -84,13 +82,15 @@ __m256 test_mm256_blendv_ps(__m256 V1, __m256 V2, __m256 V3) {
 
 __m256d test_mm256_broadcast_pd(__m128d* A) {
   // CHECK-LABEL: test_mm256_broadcast_pd
-  // CHECK: call <4 x double> @llvm.x86.avx.vbroadcastf128.pd.256(i8* %{{.*}})
+  // CHECK: load <2 x double>, <2 x double>* %{{.*}}, align 1{{$}}
+  // CHECK: shufflevector <2 x double> %{{.*}}, <2 x double> %{{.*}}, <4 x i32> <i32 0, i32 1, i32 0, i32 1>
   return _mm256_broadcast_pd(A);
 }
 
 __m256 test_mm256_broadcast_ps(__m128* A) {
   // CHECK-LABEL: test_mm256_broadcast_ps
-  // CHECK: call <8 x float> @llvm.x86.avx.vbroadcastf128.ps.256(i8* %{{.*}})
+  // CHECK: load <4 x float>, <4 x float>* %{{.*}}, align 1{{$}}
+  // CHECK: shufflevector <4 x float> %{{.*}}, <4 x float> %{{.*}}, <8 x i32> <i32 0, i32 1, i32 2, i32 3, i32 0, i32 1, i32 2, i32 3>
   return _mm256_broadcast_ps(A);
 }
 

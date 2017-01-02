@@ -1,8 +1,6 @@
-// RUN: %clang_cc1 %s -triple=x86_64-apple-darwin -target-feature +sse2 -emit-llvm -o - -Werror | FileCheck %s
-// RUN: %clang_cc1 %s -triple=x86_64-apple-darwin -target-feature +sse2 -fno-signed-char -emit-llvm -o - -Werror | FileCheck %s
+// RUN: %clang_cc1 -ffreestanding %s -triple=x86_64-apple-darwin -target-feature +sse2 -emit-llvm -o - -Wall -Werror | FileCheck %s
+// RUN: %clang_cc1 -ffreestanding %s -triple=x86_64-apple-darwin -target-feature +sse2 -fno-signed-char -emit-llvm -o - -Wall -Werror | FileCheck %s
 
-// Don't include mm_malloc.h, it's system specific.
-#define __MM_MALLOC_H
 
 #include <x86intrin.h>
 
@@ -73,7 +71,7 @@ __m128i test_mm_adds_epu16(__m128i A, __m128i B) {
 
 __m128d test_mm_and_pd(__m128d A, __m128d B) {
   // CHECK-LABEL: test_mm_and_pd
-  // CHECK: and <4 x i32>
+  // CHECK: and <2 x i64>
   return _mm_and_pd(A, B);
 }
 
@@ -85,8 +83,8 @@ __m128i test_mm_and_si128(__m128i A, __m128i B) {
 
 __m128d test_mm_andnot_pd(__m128d A, __m128d B) {
   // CHECK-LABEL: test_mm_andnot_pd
-  // CHECK: xor <4 x i32> %{{.*}}, <i32 -1, i32 -1, i32 -1, i32 -1>
-  // CHECK: and <4 x i32>
+  // CHECK: xor <2 x i64> %{{.*}}, <i64 -1, i64 -1>
+  // CHECK: and <2 x i64>
   return _mm_andnot_pd(A, B);
 }
 
@@ -845,7 +843,7 @@ __m128i test_mm_mullo_epi16(__m128i A, __m128i B) {
 
 __m128d test_mm_or_pd(__m128d A, __m128d B) {
   // CHECK-LABEL: test_mm_or_pd
-  // CHECK: or <4 x i32> %{{.*}}, %{{.*}}
+  // CHECK: or <2 x i64> %{{.*}}, %{{.*}}
   return _mm_or_pd(A, B);
 }
 
@@ -1529,7 +1527,7 @@ __m128d test_mm_unpacklo_pd(__m128d A, __m128d B) {
 
 __m128d test_mm_xor_pd(__m128d A, __m128d B) {
   // CHECK-LABEL: test_mm_xor_pd
-  // CHECK: xor <4 x i32> %{{.*}}, %{{.*}}
+  // CHECK: xor <2 x i64> %{{.*}}, %{{.*}}
   return _mm_xor_pd(A, B);
 }
 

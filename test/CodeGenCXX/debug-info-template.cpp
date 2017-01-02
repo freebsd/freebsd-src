@@ -1,5 +1,9 @@
 // RUN: %clang -S -emit-llvm -target x86_64-unknown_unknown -g %s -o - -std=c++11 | FileCheck %s
 
+// CHECK: @tci = global %"struct.TC<unsigned int, 2, &glb, &foo::e, &foo::f, &foo::g, 1, 2, 3>::nested" zeroinitializer, align 1, !dbg [[TCI:![0-9]+]]
+// CHECK: @tcn = global %struct.TC zeroinitializer, align 1, !dbg [[TCN:![0-9]+]]
+// CHECK: @nn = global %struct.NN zeroinitializer, align 1, !dbg [[NN:![0-9]+]]
+
 // CHECK: !DICompileUnit(
 // CHECK: [[EMPTY:![0-9]*]] = !{}
 
@@ -18,13 +22,12 @@ struct TC {
   };
 };
 
-// CHECK: [[INT:![0-9]+]] = !DIBasicType(name: "int"
 int glb;
 void func();
 
-// CHECK: !DIGlobalVariable(name: "tci",
-// CHECK-SAME:              type: ![[TCNESTED:[0-9]+]]
-// CHECK-SAME:              variable: %"struct.TC<unsigned int, 2, &glb, &foo::e, &foo::f, &foo::g, 1, 2, 3>::nested"* @tci
+// CHECK: [[TCI]] = !DIGlobalVariableExpression(var: [[TCIV:.*]])
+// CHECK: [[TCIV]] = distinct !DIGlobalVariable(name: "tci",
+// CHECK-SAME:                                  type: ![[TCNESTED:[0-9]+]]
 // CHECK: ![[TCNESTED]] ={{.*}}!DICompositeType(tag: DW_TAG_structure_type, name: "nested",
 // CHECK-SAME:             scope: ![[TC:[0-9]+]],
 
@@ -39,7 +42,8 @@ TC
   2,
 // CHECK: [[TCARG3]] = !DITemplateValueParameter(name: "x", type: [[CINTPTR:![0-9]*]], value: i32* @glb)
 // CHECK: [[CINTPTR]] = !DIDerivedType(tag: DW_TAG_pointer_type, {{.*}}baseType: [[CINT:![0-9]+]]
-// CHECK: [[CINT]] = !DIDerivedType(tag: DW_TAG_const_type, {{.*}}baseType: [[INT]]
+// CHECK: [[CINT]] = !DIDerivedType(tag: DW_TAG_const_type, {{.*}}baseType: [[INT:![0-9]+]]
+// CHECK: [[INT]] = !DIBasicType(name: "int"
   &glb,
 // CHECK: [[TCARG4]] = !DITemplateValueParameter(name: "a", type: [[MEMINTPTR:![0-9]*]], value: i64 8)
 // CHECK: [[MEMINTPTR]] = !DIDerivedType(tag: DW_TAG_ptr_to_member_type, {{.*}}baseType: [[INT]], {{.*}}extraData: ![[FOO:[0-9]+]])
@@ -59,7 +63,7 @@ TC
 // CHECK: [[FARG1]] = !DIDerivedType(tag: DW_TAG_pointer_type,
 // CHECK-SAME:                       baseType: ![[FOO]]
 // CHECK-NOT:                        line:
-// CHECK-SAME:                       size: 64, align: 64
+// CHECK-SAME:                       size: 64
 // CHECK-NOT:                        offset: 0
 // CHECK-SAME:                       DIFlagArtificial
 // CHECK: [[FUNTYPE:![0-9]*]] = !DISubroutineType(types: [[FUNARGS:![0-9]*]])
@@ -80,9 +84,9 @@ TC
 // CHECK: [[TCARG7_3]] = !DITemplateValueParameter(type: [[INT]], value: i32 3)
   3>::nested tci;
 
-// CHECK: !DIGlobalVariable(name: "tcn"
-// CHECK-SAME:              type: ![[TCNT:[0-9]+]]
-// CHECK-SAME:              variable: %struct.TC* @tcn
+// CHECK: [[TCN]] = !DIGlobalVariableExpression(var: [[TCNV:.*]])
+// CHECK: [[TCNV]] = distinct !DIGlobalVariable(name: "tcn"
+// CHECK-SAME:                                  type: ![[TCNT:[0-9]+]]
 TC
 // CHECK: ![[TCNT]] ={{.*}}!DICompositeType(tag: DW_TAG_structure_type, name: "TC<int, -3, nullptr, nullptr, nullptr, nullptr>"
 // CHECK-SAME:             templateParams: [[TCNARGS:![0-9]*]]
@@ -121,9 +125,9 @@ template <template <typename> class tmpl, int &lvr, int &&rvr>
 struct NN {
 };
 
-// CHECK: !DIGlobalVariable(name: "nn"
-// CHECK-SAME:              type: ![[NNT:[0-9]+]]
-// CHECK-SAME:              variable: %struct.NN* @nn
+// CHECK: [[NN]] = !DIGlobalVariableExpression(var: [[NNV:.*]])
+// CHECK: [[NNV]] = distinct !DIGlobalVariable(name: "nn"
+// CHECK-SAME:                                 type: ![[NNT:[0-9]+]]
 
 // FIXME: these parameters should probably be rendered as 'glb' rather than
 // '&glb', since they're references, not pointers.
@@ -150,7 +154,7 @@ PaddingAtEnd PaddedObj = {};
 // CHECK-SAME:             templateParams: [[PTOARGS:![0-9]*]]
 // CHECK: [[PTOARGS]] = !{[[PTOARG1:![0-9]*]]}
 // CHECK: [[PTOARG1]] = !DITemplateValueParameter(type: [[CONST_PADDINGATEND_PTR:![0-9]*]], value: %struct.PaddingAtEnd* @PaddedObj)
-// CHECK: [[CONST_PADDINGATEND_PTR]] = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: ![[PADDINGATEND]], size: 64, align: 64)
+// CHECK: [[CONST_PADDINGATEND_PTR]] = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: ![[PADDINGATEND]], size: 64)
 template <PaddingAtEnd *>
 struct PaddingAtEndTemplate {
 };

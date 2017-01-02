@@ -40,11 +40,13 @@
 // RUN: %clang -target x86_64-linux-gnu -fsanitize=address -fsanitize-coverage=func -fno-sanitize=address %s -### 2>&1 | FileCheck %s --check-prefix=CHECK-SANITIZE-COVERAGE-SAN-DISABLED
 // CHECK-SANITIZE-COVERAGE-SAN-DISABLED-NOT: argument unused
 
-// RUN: %clang -target x86_64-linux-gnu -fsanitize=address -fsanitize-coverage=edge,indirect-calls,trace-bb,trace-pc,trace-cmp,8bit-counters %s -### 2>&1 | FileCheck %s --check-prefix=CHECK-SANITIZE-COVERAGE-FEATURES
+// RUN: %clang -target x86_64-linux-gnu -fsanitize=address -fsanitize-coverage=edge,indirect-calls,trace-bb,trace-pc,trace-cmp,8bit-counters,trace-div,trace-gep %s -### 2>&1 | FileCheck %s --check-prefix=CHECK-SANITIZE-COVERAGE-FEATURES
 // CHECK-SANITIZE-COVERAGE-FEATURES: -fsanitize-coverage-type=3
 // CHECK-SANITIZE-COVERAGE-FEATURES: -fsanitize-coverage-indirect-calls
 // CHECK-SANITIZE-COVERAGE-FEATURES: -fsanitize-coverage-trace-bb
 // CHECK-SANITIZE-COVERAGE-FEATURES: -fsanitize-coverage-trace-cmp
+// CHECK-SANITIZE-COVERAGE-FEATURES: -fsanitize-coverage-trace-div
+// CHECK-SANITIZE-COVERAGE-FEATURES: -fsanitize-coverage-trace-gep
 // CHECK-SANITIZE-COVERAGE-FEATURES: -fsanitize-coverage-8bit-counters
 // CHECK-SANITIZE-COVERAGE-FEATURES: -fsanitize-coverage-trace-pc
 
@@ -69,6 +71,14 @@
 // RUN: %clang -target x86_64-linux-gnu -fsanitize-coverage=func,trace-pc %s -### 2>&1 | FileCheck %s --check-prefix=CHECK-TRACE_PC_FUNC
 // CHECK-TRACE_PC_FUNC: -fsanitize-coverage-type=1
 // CHECK-TRACE_PC_FUNC: -fsanitize-coverage-trace-pc
+
+// RUN: %clang -target x86_64-linux-gnu -fsanitize-coverage=trace-pc-guard %s -### 2>&1 | FileCheck %s --check-prefix=CHECK-TRACE_PC_GUARD_EDGE
+// RUN: %clang -target x86_64-linux-gnu -fsanitize-coverage=edge,trace-pc-guard %s -### 2>&1 | FileCheck %s --check-prefix=CHECK-TRACE_PC_GUARD_EDGE
+// CHECK-TRACE_PC_GUARD_EDGE: -fsanitize-coverage-type=3
+// CHECK-TRACE_PC_GUARD_EDGE: -fsanitize-coverage-trace-pc-guard
+// RUN: %clang -target x86_64-linux-gnu -fsanitize-coverage=func,trace-pc-guard %s -### 2>&1 | FileCheck %s --check-prefix=CHECK-TRACE_PC_GUARD_FUNC
+// CHECK-TRACE_PC_GUARD_FUNC: -fsanitize-coverage-type=1
+// CHECK-TRACE_PC_GUARD_FUNC: -fsanitize-coverage-trace-pc-guard
 
 // RUN: %clang -target x86_64-linux-gnu -fsanitize=address -fsanitize-coverage=trace-cmp,indirect-calls %s -### 2>&1 | FileCheck %s --check-prefix=CHECK-NO-TYPE-NECESSARY
 // CHECK-NO-TYPE-NECESSARY-NOT: error:

@@ -297,11 +297,14 @@ void ModuleMap::diagnoseHeaderInclusion(Module *RequestingModule,
   if (LangOpts.ModulesStrictDeclUse) {
     Diags.Report(FilenameLoc, diag::err_undeclared_use_of_module)
         << RequestingModule->getFullModuleName() << Filename;
-  } else if (RequestingModule && RequestingModuleIsModuleInterface) {
+  } else if (RequestingModule && RequestingModuleIsModuleInterface &&
+             LangOpts.isCompilingModule()) {
+    // Do not diagnose when we are not compiling a module. 
     diag::kind DiagID = RequestingModule->getTopLevelModule()->IsFramework ?
         diag::warn_non_modular_include_in_framework_module :
         diag::warn_non_modular_include_in_module;
-    Diags.Report(FilenameLoc, DiagID) << RequestingModule->getFullModuleName();
+    Diags.Report(FilenameLoc, DiagID) << RequestingModule->getFullModuleName()
+        << File->getName();
   }
 }
 
@@ -325,9 +328,10 @@ static bool isBetterKnownHeader(const ModuleMap::KnownHeader &New,
   return false;
 }
 
-ModuleMap::KnownHeader ModuleMap::findModuleForHeader(const FileEntry *File) {
+ModuleMap::KnownHeader ModuleMap::findModuleForHeader(const FileEntry *File,
+                                                      bool AllowTextual) {
   auto MakeResult = [&](ModuleMap::KnownHeader R) -> ModuleMap::KnownHeader {
-    if (R.getRole() & ModuleMap::TextualHeader)
+    if (!AllowTextual && R.getRole() & ModuleMap::TextualHeader)
       return ModuleMap::KnownHeader();
     return R;
   };
@@ -558,6 +562,25 @@ ModuleMap::findOrCreateModule(StringRef Name, Module *Parent, bool IsFramework,
   return std::make_pair(Result, true);
 }
 
+Module *ModuleMap::createModuleForInterfaceUnit(SourceLocation Loc,
+                                                StringRef Name) {
+  assert(LangOpts.CurrentModule == Name && "module name mismatch");
+  assert(!Modules[Name] && "redefining existing module");
+
+  auto *Result =
+      new Module(Name, Loc, nullptr, /*IsFramework*/ false,
+                 /*IsExplicit*/ false, NumCreatedModules++);
+  Modules[Name] = SourceModule = Result;
+
+  // Mark the main source file as being within the newly-created module so that
+  // declarations and macros are properly visibility-restricted to it.
+  auto *MainFile = SourceMgr.getFileEntryForID(SourceMgr.getMainFileID());
+  assert(MainFile && "no input file for module interface");
+  Headers[MainFile].push_back(KnownHeader(Result, PrivateHeader));
+
+  return Result;
+}
+
 /// \brief For a framework module, infer the framework against which we
 /// should link.
 static void inferFrameworkLink(Module *Mod, const DirectoryEntry *FrameworkDir,
@@ -573,8 +596,7 @@ static void inferFrameworkLink(Module *Mod, const DirectoryEntry *FrameworkDir,
   // The library name of a framework has more than one possible extension since
   // the introduction of the text-based dynamic library format. We need to check
   // for both before we give up.
-  static const char *frameworkExtensions[] = {"", ".tbd"};
-  for (const auto *extension : frameworkExtensions) {
+  for (const char *extension : {"", ".tbd"}) {
     llvm::sys::path::replace_extension(LibName, extension);
     if (FileMgr.getFile(LibName)) {
       Mod->LinkLibraries.push_back(Module::LinkLibrary(Mod->Name,
@@ -653,6 +675,8 @@ Module *ModuleMap::inferFrameworkModule(const DirectoryEntry *FrameworkDir,
           Attrs.IsSystem |= inferred->second.Attrs.IsSystem;
           Attrs.IsExternC |= inferred->second.Attrs.IsExternC;
           Attrs.IsExhaustive |= inferred->second.Attrs.IsExhaustive;
+          Attrs.NoUndeclaredIncludes |=
+              inferred->second.Attrs.NoUndeclaredIncludes;
           ModuleMapFile = inferred->second.ModuleMapFile;
         }
       }
@@ -690,6 +714,7 @@ Module *ModuleMap::inferFrameworkModule(const DirectoryEntry *FrameworkDir,
   Result->IsSystem |= Attrs.IsSystem;
   Result->IsExternC |= Attrs.IsExternC;
   Result->ConfigMacrosExhaustive |= Attrs.IsExhaustive;
+  Result->NoUndeclaredIncludes |= Attrs.NoUndeclaredIncludes;
   Result->Directory = FrameworkDir;
 
   // umbrella header "umbrella-header-name"
@@ -802,10 +827,10 @@ void ModuleMap::addHeader(Module *Mod, Module::Header Header,
       return;
 
   HeaderList.push_back(KH);
-  Mod->Headers[headerRoleToKind(Role)].push_back(std::move(Header));
+  Mod->Headers[headerRoleToKind(Role)].push_back(Header);
 
   bool isCompilingModuleHeader =
-      LangOpts.CompilingModule && Mod->getTopLevelModule() == SourceModule;
+      LangOpts.isCompilingModule() && Mod->getTopLevelModule() == SourceModule;
   if (!Imported || isCompilingModuleHeader) {
     // When we import HeaderFileInfo, the external source is expected to
     // set the isModuleHeader flag itself.
@@ -1288,7 +1313,9 @@ namespace {
     /// \brief The 'extern_c' attribute.
     AT_extern_c,
     /// \brief The 'exhaustive' attribute.
-    AT_exhaustive
+    AT_exhaustive,
+    /// \brief The 'no_undeclared_includes' attribute.
+    AT_no_undeclared_includes
   };
 }
 
@@ -1458,7 +1485,46 @@ void ModuleMapParser::parseModuleDecl() {
     ActiveModule->IsSystem = true;
   if (Attrs.IsExternC)
     ActiveModule->IsExternC = true;
+  if (Attrs.NoUndeclaredIncludes ||
+      (!ActiveModule->Parent && ModuleName == "Darwin"))
+    ActiveModule->NoUndeclaredIncludes = true;
   ActiveModule->Directory = Directory;
+
+  if (!ActiveModule->Parent) {
+    StringRef MapFileName(ModuleMapFile->getName());
+    if (MapFileName.endswith("module.private.modulemap") ||
+        MapFileName.endswith("module_private.map")) {
+      // Adding a top-level module from a private modulemap is likely a
+      // user error; we check to see if there's another top-level module
+      // defined in the non-private map in the same dir, and if so emit a
+      // warning.
+      for (auto E = Map.module_begin(); E != Map.module_end(); ++E) {
+        auto const *M = E->getValue();
+        if (!M->Parent &&
+            M->Directory == ActiveModule->Directory &&
+            M->Name != ActiveModule->Name) {
+          Diags.Report(ActiveModule->DefinitionLoc,
+                       diag::warn_mmap_mismatched_top_level_private)
+            << ActiveModule->Name << M->Name;
+          // The pattern we're defending against here is typically due to
+          // a module named FooPrivate which is supposed to be a submodule
+          // called Foo.Private. Emit a fixit in that case.
+          auto D =
+            Diags.Report(ActiveModule->DefinitionLoc,
+                         diag::note_mmap_rename_top_level_private_as_submodule);
+          D << ActiveModule->Name << M->Name;
+          StringRef Bad(ActiveModule->Name);
+          if (Bad.consume_back("Private")) {
+            SmallString<128> Fixed = Bad;
+            Fixed.append(".Private");
+            D << FixItHint::CreateReplacement(ActiveModule->DefinitionLoc,
+                                              Fixed);
+          }
+          break;
+        }
+      }
+    }
+  }
 
   bool Done = false;
   do {
@@ -1624,15 +1690,12 @@ void ModuleMapParser::parseExternModuleDecl() {
 ///    was never correct and causes issues now that we check it, so drop it.
 static bool shouldAddRequirement(Module *M, StringRef Feature,
                                  bool &IsRequiresExcludedHack) {
-  static const StringRef DarwinCExcluded[] = {"Darwin", "C", "excluded"};
-  static const StringRef TclPrivate[] = {"Tcl", "Private"};
-  static const StringRef IOKitAVC[] = {"IOKit", "avc"};
-
-  if (Feature == "excluded" && (M->fullModuleNameIs(DarwinCExcluded) ||
-                                M->fullModuleNameIs(TclPrivate))) {
+  if (Feature == "excluded" &&
+      (M->fullModuleNameIs({"Darwin", "C", "excluded"}) ||
+       M->fullModuleNameIs({"Tcl", "Private"}))) {
     IsRequiresExcludedHack = true;
     return false;
-  } else if (Feature == "cplusplus" && M->fullModuleNameIs(IOKitAVC)) {
+  } else if (Feature == "cplusplus" && M->fullModuleNameIs({"IOKit", "avc"})) {
     return false;
   }
 
@@ -1824,13 +1887,7 @@ void ModuleMapParser::parseHeaderDecl(MMToken::TokenKind LeadingToken,
         // If Clang supplies this header but the underlying system does not,
         // just silently swap in our builtin version. Otherwise, we'll end
         // up adding both (later).
-        //
-        // For local visibility, entirely replace the system file with our
-        // one and textually include the system one. We need to pass macros
-        // from our header to the system one if we #include_next it.
-        //
-        // FIXME: Can we do this in all cases?
-        if (BuiltinFile && (!File || Map.LangOpts.ModulesLocalVisibility)) {
+        if (BuiltinFile && !File) {
           File = BuiltinFile;
           RelativePathName = BuiltinPathName;
           BuiltinFile = nullptr;
@@ -1856,15 +1913,20 @@ void ModuleMapParser::parseHeaderDecl(MMToken::TokenKind LeadingToken,
       Module::Header H = {RelativePathName.str(), File};
       Map.excludeHeader(ActiveModule, H);
     } else {
-      // If there is a builtin counterpart to this file, add it now, before
-      // the "real" header, so we build the built-in one first when building
-      // the module.
+      // If there is a builtin counterpart to this file, add it now so it can
+      // wrap the system header.
       if (BuiltinFile) {
         // FIXME: Taking the name from the FileEntry is unstable and can give
         // different results depending on how we've previously named that file
         // in this build.
         Module::Header H = { BuiltinFile->getName(), BuiltinFile };
         Map.addHeader(ActiveModule, H, Role);
+
+        // If we have both a builtin and system version of the file, the
+        // builtin version may want to inject macros into the system header, so
+        // force the system header to be treated as a textual header in this
+        // case.
+        Role = ModuleMap::ModuleHeaderRole(Role | ModuleMap::TextualHeader);
       }
 
       // Record this header.
@@ -2354,6 +2416,7 @@ bool ModuleMapParser::parseOptionalAttributes(Attributes &Attrs) {
       = llvm::StringSwitch<AttributeKind>(Tok.getString())
           .Case("exhaustive", AT_exhaustive)
           .Case("extern_c", AT_extern_c)
+          .Case("no_undeclared_includes", AT_no_undeclared_includes)
           .Case("system", AT_system)
           .Default(AT_unknown);
     switch (Attribute) {
@@ -2372,6 +2435,10 @@ bool ModuleMapParser::parseOptionalAttributes(Attributes &Attrs) {
 
     case AT_exhaustive:
       Attrs.IsExhaustive = true;
+      break;
+
+    case AT_no_undeclared_includes:
+      Attrs.NoUndeclaredIncludes = true;
       break;
     }
     consumeToken();

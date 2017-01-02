@@ -17,6 +17,7 @@
 #include "clang/Driver/Util.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/Option/Option.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/Compiler.h"
 
 namespace clang {
@@ -101,6 +102,12 @@ private:
 
   mutable std::unique_ptr<visualstudio::Compiler> CLFallback;
 
+  mutable std::unique_ptr<llvm::raw_fd_ostream> CompilationDatabase = nullptr;
+  void DumpCompilationDatabase(Compilation &C, StringRef Filename,
+                               StringRef Target,
+                               const InputInfo &Output, const InputInfo &Input,
+                               const llvm::opt::ArgList &Args) const;
+
 public:
   // CAUTION! The first constructor argument ("clang") is not arbitrary,
   // as it is for other tools. Some operations on a Tool actually test
@@ -125,6 +132,8 @@ public:
       : Tool("clang::as", "clang integrated assembler", TC, RF_Full) {}
   void AddMIPSTargetArgs(const llvm::opt::ArgList &Args,
                          llvm::opt::ArgStringList &CmdArgs) const;
+  void AddX86TargetArgs(const llvm::opt::ArgList &Args,
+                        llvm::opt::ArgStringList &CmdArgs) const;
   bool hasGoodDiagnostics() const override { return true; }
   bool hasIntegratedAssembler() const override { return false; }
   bool hasIntegratedCPP() const override { return false; }
@@ -133,6 +142,24 @@ public:
                     const InputInfo &Output, const InputInfoList &Inputs,
                     const llvm::opt::ArgList &TCArgs,
                     const char *LinkingOutput) const override;
+};
+
+/// Offload bundler tool.
+class LLVM_LIBRARY_VISIBILITY OffloadBundler final : public Tool {
+public:
+  OffloadBundler(const ToolChain &TC)
+      : Tool("offload bundler", "clang-offload-bundler", TC) {}
+
+  bool hasIntegratedCPP() const override { return false; }
+  void ConstructJob(Compilation &C, const JobAction &JA,
+                    const InputInfo &Output, const InputInfoList &Inputs,
+                    const llvm::opt::ArgList &TCArgs,
+                    const char *LinkingOutput) const override;
+  void ConstructJobMultipleOutputs(Compilation &C, const JobAction &JA,
+                                   const InputInfoList &Outputs,
+                                   const InputInfoList &Inputs,
+                                   const llvm::opt::ArgList &TCArgs,
+                                   const char *LinkingOutput) const override;
 };
 
 /// \brief Base class for all GNU tools that provide the same behavior when
@@ -594,6 +621,21 @@ public:
 };
 } // end namespace nacltools
 
+namespace fuchsia {
+class LLVM_LIBRARY_VISIBILITY Linker : public GnuTool {
+public:
+  Linker(const ToolChain &TC) : GnuTool("fuchsia::Linker", "ld.lld", TC) {}
+
+  bool hasIntegratedCPP() const override { return false; }
+  bool isLinkJob() const override { return true; }
+
+  void ConstructJob(Compilation &C, const JobAction &JA,
+                    const InputInfo &Output, const InputInfoList &Inputs,
+                    const llvm::opt::ArgList &TCArgs,
+                    const char *LinkingOutput) const override;
+};
+} // end namespace fuchsia
+
 /// minix -- Directly call GNU Binutils assembler and linker
 namespace minix {
 class LLVM_LIBRARY_VISIBILITY Assembler : public GnuTool {
@@ -683,10 +725,6 @@ public:
 
 /// Visual studio tools.
 namespace visualstudio {
-VersionTuple getMSVCVersion(const Driver *D, const ToolChain &TC,
-                            const llvm::Triple &Triple,
-                            const llvm::opt::ArgList &Args, bool IsWindowsMSVC);
-
 class LLVM_LIBRARY_VISIBILITY Linker : public Tool {
 public:
   Linker(const ToolChain &TC)

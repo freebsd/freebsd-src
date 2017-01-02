@@ -18,8 +18,9 @@
 #include "clang/Tooling/Tooling.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Config/llvm-config.h"
-#include "llvm/Support/TargetSelect.h"
+#include "llvm/Support/Path.h"
 #include "llvm/Support/TargetRegistry.h"
+#include "llvm/Support/TargetSelect.h"
 #include "gtest/gtest.h"
 #include <algorithm>
 #include <string>
@@ -329,6 +330,44 @@ TEST(runToolOnCodeWithArgs, TestNoDepFile) {
   EXPECT_TRUE(runToolOnCodeWithArgs(new SkipBodyAction, "", Args));
   EXPECT_FALSE(llvm::sys::fs::exists(DepFilePath.str()));
   EXPECT_FALSE(llvm::sys::fs::remove(DepFilePath.str()));
+}
+
+struct CheckColoredDiagnosticsAction : public clang::ASTFrontendAction {
+  CheckColoredDiagnosticsAction(bool ShouldShowColor)
+      : ShouldShowColor(ShouldShowColor) {}
+  std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &Compiler,
+                                                 StringRef) override {
+    if (Compiler.getDiagnosticOpts().ShowColors != ShouldShowColor)
+      Compiler.getDiagnostics().Report(
+          Compiler.getDiagnostics().getCustomDiagID(
+              DiagnosticsEngine::Fatal,
+              "getDiagnosticOpts().ShowColors != ShouldShowColor"));
+    return llvm::make_unique<ASTConsumer>();
+  }
+
+private:
+  bool ShouldShowColor = true;
+};
+
+TEST(runToolOnCodeWithArgs, DiagnosticsColor) {
+
+  EXPECT_TRUE(runToolOnCodeWithArgs(new CheckColoredDiagnosticsAction(true), "",
+                                    {"-fcolor-diagnostics"}));
+  EXPECT_TRUE(runToolOnCodeWithArgs(new CheckColoredDiagnosticsAction(false),
+                                    "", {"-fno-color-diagnostics"}));
+  EXPECT_TRUE(
+      runToolOnCodeWithArgs(new CheckColoredDiagnosticsAction(true), "",
+                            {"-fno-color-diagnostics", "-fcolor-diagnostics"}));
+  EXPECT_TRUE(
+      runToolOnCodeWithArgs(new CheckColoredDiagnosticsAction(false), "",
+                            {"-fcolor-diagnostics", "-fno-color-diagnostics"}));
+  EXPECT_TRUE(runToolOnCodeWithArgs(
+      new CheckColoredDiagnosticsAction(true), "",
+      {"-fno-color-diagnostics", "-fdiagnostics-color=always"}));
+
+  // Check that this test would fail if ShowColors is not what it should.
+  EXPECT_FALSE(runToolOnCodeWithArgs(new CheckColoredDiagnosticsAction(false),
+                                     "", {"-fcolor-diagnostics"}));
 }
 
 TEST(ClangToolTest, ArgumentAdjusters) {

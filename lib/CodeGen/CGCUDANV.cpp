@@ -15,6 +15,7 @@
 #include "CGCUDARuntime.h"
 #include "CodeGenFunction.h"
 #include "CodeGenModule.h"
+#include "ConstantBuilder.h"
 #include "clang/AST/Decl.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/CallSite.h"
@@ -29,7 +30,8 @@ namespace {
 class CGNVCUDARuntime : public CGCUDARuntime {
 
 private:
-  llvm::Type *IntTy, *SizeTy, *VoidTy;
+  llvm::IntegerType *IntTy, *SizeTy;
+  llvm::Type *VoidTy;
   llvm::PointerType *CharPtrTy, *VoidPtrTy, *VoidPtrPtrTy;
 
   /// Convenience reference to LLVM Context
@@ -55,10 +57,18 @@ private:
   /// where the C code specifies const char*.
   llvm::Constant *makeConstantString(const std::string &Str,
                                      const std::string &Name = "",
+                                     const std::string &SectionName = "",
                                      unsigned Alignment = 0) {
     llvm::Constant *Zeros[] = {llvm::ConstantInt::get(SizeTy, 0),
                                llvm::ConstantInt::get(SizeTy, 0)};
     auto ConstStr = CGM.GetAddrOfConstantCString(Str, Name.c_str());
+    llvm::GlobalVariable *GV =
+        cast<llvm::GlobalVariable>(ConstStr.getPointer());
+    if (!SectionName.empty())
+      GV->setSection(SectionName);
+    if (Alignment)
+      GV->setAlignment(Alignment);
+
     return llvm::ConstantExpr::getGetElementPtr(ConstStr.getElementType(),
                                                 ConstStr.getPointer(), Zeros);
  }
@@ -87,9 +97,9 @@ CGNVCUDARuntime::CGNVCUDARuntime(CodeGenModule &CGM)
   CodeGen::CodeGenTypes &Types = CGM.getTypes();
   ASTContext &Ctx = CGM.getContext();
 
-  IntTy = Types.ConvertType(Ctx.IntTy);
-  SizeTy = Types.ConvertType(Ctx.getSizeType());
-  VoidTy = llvm::Type::getVoidTy(Context);
+  IntTy = CGM.IntTy;
+  SizeTy = CGM.SizeTy;
+  VoidTy = CGM.VoidTy;
 
   CharPtrTy = llvm::PointerType::getUnqual(Types.ConvertType(Ctx.CharTy));
   VoidPtrTy = cast<llvm::PointerType>(Types.ConvertType(Ctx.VoidPtrTy));
@@ -118,37 +128,28 @@ void CGNVCUDARuntime::emitDeviceStub(CodeGenFunction &CGF,
 
 void CGNVCUDARuntime::emitDeviceStubBody(CodeGenFunction &CGF,
                                          FunctionArgList &Args) {
-  // Build the argument value list and the argument stack struct type.
-  SmallVector<llvm::Value *, 16> ArgValues;
-  std::vector<llvm::Type *> ArgTypes;
-  for (FunctionArgList::const_iterator I = Args.begin(), E = Args.end();
-       I != E; ++I) {
-    llvm::Value *V = CGF.GetAddrOfLocalVar(*I).getPointer();
-    ArgValues.push_back(V);
-    assert(isa<llvm::PointerType>(V->getType()) && "Arg type not PointerType");
-    ArgTypes.push_back(cast<llvm::PointerType>(V->getType())->getElementType());
-  }
-  llvm::StructType *ArgStackTy = llvm::StructType::get(Context, ArgTypes);
-
-  llvm::BasicBlock *EndBlock = CGF.createBasicBlock("setup.end");
-
-  // Emit the calls to cudaSetupArgument
+  // Emit a call to cudaSetupArgument for each arg in Args.
   llvm::Constant *cudaSetupArgFn = getSetupArgumentFn();
-  for (unsigned I = 0, E = Args.size(); I != E; ++I) {
-    llvm::Value *Args[3];
-    llvm::BasicBlock *NextBlock = CGF.createBasicBlock("setup.next");
-    Args[0] = CGF.Builder.CreatePointerCast(ArgValues[I], VoidPtrTy);
-    Args[1] = CGF.Builder.CreateIntCast(
-        llvm::ConstantExpr::getSizeOf(ArgTypes[I]),
-        SizeTy, false);
-    Args[2] = CGF.Builder.CreateIntCast(
-        llvm::ConstantExpr::getOffsetOf(ArgStackTy, I),
-        SizeTy, false);
+  llvm::BasicBlock *EndBlock = CGF.createBasicBlock("setup.end");
+  CharUnits Offset = CharUnits::Zero();
+  for (const VarDecl *A : Args) {
+    CharUnits TyWidth, TyAlign;
+    std::tie(TyWidth, TyAlign) =
+        CGM.getContext().getTypeInfoInChars(A->getType());
+    Offset = Offset.alignTo(TyAlign);
+    llvm::Value *Args[] = {
+        CGF.Builder.CreatePointerCast(CGF.GetAddrOfLocalVar(A).getPointer(),
+                                      VoidPtrTy),
+        llvm::ConstantInt::get(SizeTy, TyWidth.getQuantity()),
+        llvm::ConstantInt::get(SizeTy, Offset.getQuantity()),
+    };
     llvm::CallSite CS = CGF.EmitRuntimeCallOrInvoke(cudaSetupArgFn, Args);
     llvm::Constant *Zero = llvm::ConstantInt::get(IntTy, 0);
     llvm::Value *CSZero = CGF.Builder.CreateICmpEQ(CS.getInstruction(), Zero);
+    llvm::BasicBlock *NextBlock = CGF.createBasicBlock("setup.next");
     CGF.Builder.CreateCondBr(CSZero, NextBlock, EndBlock);
     CGF.EmitBlock(NextBlock);
+    Offset += TyWidth;
   }
 
   // Emit the call to cudaLaunch
@@ -290,18 +291,29 @@ llvm::Function *CGNVCUDARuntime::makeModuleCtorFunction() {
       continue;
     }
 
-    // Create initialized wrapper structure that points to the loaded GPU binary
-    llvm::Constant *Values[] = {
-        llvm::ConstantInt::get(IntTy, 0x466243b1), // Fatbin wrapper magic.
-        llvm::ConstantInt::get(IntTy, 1),          // Fatbin version.
-        makeConstantString(GpuBinaryOrErr.get()->getBuffer(), "", 16), // Data.
-        llvm::ConstantPointerNull::get(VoidPtrTy)}; // Unused in fatbin v1.
-    llvm::GlobalVariable *FatbinWrapper = new llvm::GlobalVariable(
-        TheModule, FatbinWrapperTy, true, llvm::GlobalValue::InternalLinkage,
-        llvm::ConstantStruct::get(FatbinWrapperTy, Values),
-        "__cuda_fatbin_wrapper");
+    const char *FatbinConstantName =
+        CGM.getTriple().isMacOSX() ? "__NV_CUDA,__nv_fatbin" : ".nv_fatbin";
     // NVIDIA's cuobjdump looks for fatbins in this section.
-    FatbinWrapper->setSection(".nvFatBinSegment");
+    const char *FatbinSectionName =
+        CGM.getTriple().isMacOSX() ? "__NV_CUDA,__fatbin" : ".nvFatBinSegment";
+
+    // Create initialized wrapper structure that points to the loaded GPU binary
+    ConstantInitBuilder Builder(CGM);
+    auto Values = Builder.beginStruct(FatbinWrapperTy);
+    // Fatbin wrapper magic.
+    Values.addInt(IntTy, 0x466243b1);
+    // Fatbin version.
+    Values.addInt(IntTy, 1);
+    // Data.
+    Values.add(makeConstantString(GpuBinaryOrErr.get()->getBuffer(), 
+                                  "", FatbinConstantName, 8));
+    // Unused in fatbin v1.
+    Values.add(llvm::ConstantPointerNull::get(VoidPtrTy));
+    llvm::GlobalVariable *FatbinWrapper =
+      Values.finishAndCreateGlobal("__cuda_fatbin_wrapper",
+                                   CGM.getPointerAlign(),
+                                   /*constant*/ true);
+    FatbinWrapper->setSection(FatbinSectionName);
 
     // GpuBinaryHandle = __cudaRegisterFatBinary(&FatbinWrapper);
     llvm::CallInst *RegisterFatbinCall = CtorBuilder.CreateCall(

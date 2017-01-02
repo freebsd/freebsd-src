@@ -26,7 +26,7 @@
 #include "clang/Lex/PPCallbacks.h"
 #include "clang/Lex/PPConditionalDirectiveRecord.h"
 #include "clang/Lex/Preprocessor.h"
-#include "clang/Sema/SemaConsumer.h"
+#include "clang/Lex/PreprocessorOptions.h"
 #include "llvm/Support/CrashRecoveryContext.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/Mutex.h"
@@ -687,8 +687,6 @@ static CXErrorCode clang_indexTranslationUnit_Impl(
 // libclang public APIs.
 //===----------------------------------------------------------------------===//
 
-extern "C" {
-
 int clang_index_isEntityObjCContainerKind(CXIdxEntityKind K) {
   return CXIdxEntity_ObjCClass <= K && K <= CXIdxEntity_ObjCCategory;
 }
@@ -977,6 +975,4 @@ CXSourceLocation clang_indexLoc_getCXSourceLocation(CXIdxLoc location) {
       *static_cast<CXIndexDataConsumer*>(location.ptr_data[0]);
   return cxloc::translateSourceLocation(DataConsumer.getASTContext(), Loc);
 }
-
-} // end: extern "C"
 

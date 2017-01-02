@@ -41,8 +41,7 @@ static cl::opt<ActionType>
 Action(cl::desc("Action:"), cl::init(ActionType::None),
        cl::values(
           clEnumValN(ActionType::PrintSourceSymbols,
-                     "print-source-symbols", "Print symbols from source"),
-          clEnumValEnd),
+                     "print-source-symbols", "Print symbols from source")),
        cl::cat(IndexTestCoreCategory));
 
 static cl::extrahelp MoreHelp(
@@ -168,9 +167,9 @@ static bool printSourceSymbols(ArrayRef<const char *> Args) {
 
 static void printSymbolInfo(SymbolInfo SymInfo, raw_ostream &OS) {
   OS << getSymbolKindString(SymInfo.Kind);
-  if (SymInfo.SubKinds) {
+  if (SymInfo.Properties) {
     OS << '(';
-    printSymbolSubKinds(SymInfo.SubKinds, OS);
+    printSymbolProperties(SymInfo.Properties, OS);
     OS << ')';
   }
   OS << '/' << getSymbolLanguageString(SymInfo.Lang);

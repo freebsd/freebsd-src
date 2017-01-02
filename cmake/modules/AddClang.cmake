@@ -89,9 +89,16 @@ macro(add_clang_library name)
     target_link_libraries(${name} INTERFACE ${LLVM_COMMON_LIBS})
 
     if (NOT LLVM_INSTALL_TOOLCHAIN_ONLY OR ${name} STREQUAL "libclang")
+
+      if(${name} IN_LIST LLVM_DISTRIBUTION_COMPONENTS OR
+          NOT LLVM_DISTRIBUTION_COMPONENTS)
+        set(export_to_clangtargets EXPORT ClangTargets)
+        set_property(GLOBAL PROPERTY CLANG_HAS_EXPORTS True)
+      endif()
+
       install(TARGETS ${name}
         COMPONENT ${name}
-        EXPORT ClangTargets
+        ${export_to_clangtargets}
         LIBRARY DESTINATION lib${LLVM_LIBDIR_SUFFIX}
         ARCHIVE DESTINATION lib${LLVM_LIBDIR_SUFFIX}
         RUNTIME DESTINATION bin)
@@ -128,7 +135,14 @@ macro(add_clang_tool name)
   add_clang_executable(${name} ${ARGN})
 
   if (CLANG_BUILD_TOOLS)
+    if(${name} IN_LIST LLVM_DISTRIBUTION_COMPONENTS OR
+        NOT LLVM_DISTRIBUTION_COMPONENTS)
+      set(export_to_clangtargets EXPORT ClangTargets)
+      set_property(GLOBAL PROPERTY CLANG_HAS_EXPORTS True)
+    endif()
+
     install(TARGETS ${name}
+      ${export_to_clangtargets}
       RUNTIME DESTINATION bin
       COMPONENT ${name})
 
@@ -139,6 +153,7 @@ macro(add_clang_tool name)
         -DCMAKE_INSTALL_COMPONENT=${name}
         -P "${CMAKE_BINARY_DIR}/cmake_install.cmake")
     endif()
+    set_property(GLOBAL APPEND PROPERTY CLANG_EXPORTS ${name})
   endif()
 endmacro()
 

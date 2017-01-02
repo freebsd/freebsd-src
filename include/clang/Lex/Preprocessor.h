@@ -265,6 +265,10 @@ class Preprocessor : public RefCountedBase<Preprocessor> {
   /// \brief True if we hit the code-completion point.
   bool CodeCompletionReached;
 
+  /// \brief The code completion token containing the information
+  /// on the stem that is to be code completed.
+  IdentifierInfo *CodeCompletionII;
+
   /// \brief The directory that the main file should be considered to occupy,
   /// if it does not correspond to a real file (as happens when building a
   /// module).
@@ -346,14 +350,6 @@ class Preprocessor : public RefCountedBase<Preprocessor> {
           ThePPLexer(std::move(ThePPLexer)),
           TheTokenLexer(std::move(TheTokenLexer)),
           TheDirLookup(std::move(TheDirLookup)) {}
-    IncludeStackInfo(IncludeStackInfo &&RHS)
-        : CurLexerKind(std::move(RHS.CurLexerKind)),
-          TheSubmodule(std::move(RHS.TheSubmodule)),
-          TheLexer(std::move(RHS.TheLexer)),
-          ThePTHLexer(std::move(RHS.ThePTHLexer)),
-          ThePPLexer(std::move(RHS.ThePPLexer)),
-          TheTokenLexer(std::move(RHS.TheTokenLexer)),
-          TheDirLookup(std::move(RHS.TheDirLookup)) {}
   };
   std::vector<IncludeStackInfo> IncludeMacroStack;
 
@@ -394,6 +390,8 @@ class Preprocessor : public RefCountedBase<Preprocessor> {
 
     ModuleMacroInfo *getModuleInfo(Preprocessor &PP,
                                    const IdentifierInfo *II) const {
+      if (II->isOutOfDate())
+        PP.updateOutOfDateIdentifier(const_cast<IdentifierInfo&>(*II));
       // FIXME: Find a spare bit on IdentifierInfo and store a
       //        HasModuleMacros flag.
       if (!II->hasMacroDefinition() ||
@@ -418,10 +416,10 @@ class Preprocessor : public RefCountedBase<Preprocessor> {
   public:
     MacroState() : MacroState(nullptr) {}
     MacroState(MacroDirective *MD) : State(MD) {}
-    MacroState(MacroState &&O) LLVM_NOEXCEPT : State(O.State) {
+    MacroState(MacroState &&O) noexcept : State(O.State) {
       O.State = (MacroDirective *)nullptr;
     }
-    MacroState &operator=(MacroState &&O) LLVM_NOEXCEPT {
+    MacroState &operator=(MacroState &&O) noexcept {
       auto S = O.State;
       O.State = (MacroDirective *)nullptr;
       State = S;
@@ -648,6 +646,8 @@ class Preprocessor : public RefCountedBase<Preprocessor> {
     DeserializedMacroInfoChain *Next;
   };
   DeserializedMacroInfoChain *DeserialMIChainHead;
+
+  void updateOutOfDateIdentifier(IdentifierInfo &II) const;
 
 public:
   Preprocessor(IntrusiveRefCntPtr<PreprocessorOptions> PPOpts,
@@ -887,7 +887,8 @@ public:
     return appendDefMacroDirective(II, MI, MI->getDefinitionLoc());
   }
   /// \brief Set a MacroDirective that was loaded from a PCH file.
-  void setLoadedMacroDirective(IdentifierInfo *II, MacroDirective *MD);
+  void setLoadedMacroDirective(IdentifierInfo *II, MacroDirective *ED,
+                               MacroDirective *MD);
 
   /// \brief Register an exported macro for a module and identifier.
   ModuleMacro *addModuleMacro(Module *Mod, IdentifierInfo *II, MacroInfo *Macro,
@@ -896,6 +897,8 @@ public:
 
   /// \brief Get the list of leaf (non-overridden) module macros for a name.
   ArrayRef<ModuleMacro*> getLeafModuleMacros(const IdentifierInfo *II) const {
+    if (II->isOutOfDate())
+      updateOutOfDateIdentifier(const_cast<IdentifierInfo&>(*II));
     auto I = LeafModuleMacros.find(II);
     if (I != LeafModuleMacros.end())
       return I->second;
@@ -983,6 +986,18 @@ public:
   /// \brief Hook used by the lexer to invoke the "natural language" code
   /// completion point.
   void CodeCompleteNaturalLanguage();
+
+  /// \brief Set the code completion token for filtering purposes.
+  void setCodeCompletionIdentifierInfo(IdentifierInfo *Filter) {
+    CodeCompletionII = Filter;
+  }
+
+  /// \brief Get the code completion token for filtering purposes.
+  StringRef getCodeCompletionFilter() {
+    if (CodeCompletionII)
+      return CodeCompletionII->getName();
+    return {};
+  }
 
   /// \brief Retrieve the preprocessing record, or NULL if there is no
   /// preprocessing record.
@@ -1862,12 +1877,12 @@ private:
   /// Handle*Directive - implement the various preprocessor directives.  These
   /// should side-effect the current preprocessor object so that the next call
   /// to Lex() will return the appropriate token next.
-  void HandleLineDirective(Token &Tok);
+  void HandleLineDirective();
   void HandleDigitDirective(Token &Tok);
   void HandleUserDiagnosticDirective(Token &Tok, bool isWarning);
   void HandleIdentSCCSDirective(Token &Tok);
   void HandleMacroPublicDirective(Token &Tok);
-  void HandleMacroPrivateDirective(Token &Tok);
+  void HandleMacroPrivateDirective();
 
   // File inclusion.
   void HandleIncludeDirective(SourceLocation HashLoc,
@@ -1907,7 +1922,7 @@ public:
 private:
   // Macro handling.
   void HandleDefineDirective(Token &Tok, bool ImmediatelyAfterTopLevelIfndef);
-  void HandleUndefDirective(Token &Tok);
+  void HandleUndefDirective();
 
   // Conditional Inclusion.
   void HandleIfdefDirective(Token &Tok, bool isIfndef,
@@ -1923,7 +1938,7 @@ private:
 public:
   void HandlePragmaOnce(Token &OnceTok);
   void HandlePragmaMark();
-  void HandlePragmaPoison(Token &PoisonTok);
+  void HandlePragmaPoison();
   void HandlePragmaSystemHeader(Token &SysHeaderTok);
   void HandlePragmaDependency(Token &DependencyTok);
   void HandlePragmaPushMacro(Token &Tok);
@@ -1955,7 +1970,5 @@ public:
 typedef llvm::Registry<PragmaHandler> PragmaHandlerRegistry;
 
 }  // end namespace clang
-
-extern template class llvm::Registry<clang::PragmaHandler>;
 
 #endif

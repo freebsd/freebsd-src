@@ -1,6 +1,6 @@
-// RUN: %clang_cc1 -verify -fopenmp -ast-print %s | FileCheck %s
-// RUN: %clang_cc1 -fopenmp -x c++ -std=c++11 -emit-pch -o %t %s
-// RUN: %clang_cc1 -fopenmp -std=c++11 -include-pch %t -fsyntax-only -verify %s -ast-print | FileCheck %s
+// RUN: %clang_cc1 -verify -fopenmp -fopenmp-version=45 -ast-print %s | FileCheck %s
+// RUN: %clang_cc1 -fopenmp -fopenmp-version=45 -x c++ -std=c++11 -emit-pch -o %t %s
+// RUN: %clang_cc1 -fopenmp -fopenmp-version=45 -std=c++11 -include-pch %t -fsyntax-only -verify %s -ast-print | FileCheck %s
 // expected-no-diagnostics
 
 #ifndef HEADER
@@ -35,9 +35,9 @@ public:
   }
 };
 
-// CHECK: #pragma omp parallel for simd private(this->a) private(this->a) private(this->S1::a)
 // CHECK: #pragma omp parallel for simd private(this->a) private(this->a) private(T::a)
 // CHECK: #pragma omp parallel for simd private(this->a) private(this->a)
+// CHECK: #pragma omp parallel for simd private(this->a) private(this->a) private(this->S1::a)
 
 class S8 : public S7<S1> {
   S8() {}
@@ -126,7 +126,7 @@ template<int LEN> struct S2 {
 };
 
 // S2<4>::func is called below in main.
-// CHECK: template <int LEN = 4> struct S2 {
+// CHECK: template<> struct S2<4> {
 // CHECK-NEXT: static void func(int n, float *a, float *b, float *c)     {
 // CHECK-NEXT:   int k1 = 0, k2 = 0;
 // CHECK-NEXT: #pragma omp parallel for simd safelen(4) linear(k1,k2: 4) aligned(a: 4) simdlen(4)

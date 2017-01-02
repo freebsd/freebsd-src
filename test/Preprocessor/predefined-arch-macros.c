@@ -1865,6 +1865,12 @@
 //
 // CHECK_PPC_POWER8_VECTOR_M64: #define __POWER8_VECTOR__ 1
 //
+// RUN: %clang -mpower9-vector -E -dM %s -o - 2>&1 \
+// RUN:     -target powerpc64-unknown-linux \
+// RUN:   | FileCheck -match-full-lines %s -check-prefix=CHECK_PPC_POWER9_VECTOR_M64
+//
+// CHECK_PPC_POWER9_VECTOR_M64: #define __POWER9_VECTOR__ 1
+//
 // RUN: %clang -mcrypto -E -dM %s -o - 2>&1 \
 // RUN:     -target powerpc64-unknown-linux \
 // RUN:   | FileCheck -match-full-lines %s -check-prefix=CHECK_PPC_CRYPTO_M64
@@ -1921,6 +1927,8 @@
 // RUN:   | FileCheck -match-full-lines %s -check-prefix=CHECK_MYRIAD2-1 -check-prefix=CHECK_SPARCEL
 // RUN: %clang -E -dM %s -o - -target sparcel-myriad -mcpu=myriad2.2 2>&1 \
 // RUN:   | FileCheck -match-full-lines %s -check-prefix=CHECK_MYRIAD2-2 -check-prefix=CHECK_SPARCEL
+// RUN: %clang -E -dM %s -o - -target sparcel-myriad -mcpu=ma2450 2>&1 \
+// RUN:   | FileCheck -match-full-lines %s -check-prefix=CHECK_MYRIAD2-2 -check-prefix=CHECK_SPARCEL
 // CHECK_SPARCEL: #define __LITTLE_ENDIAN__ 1
 // CHECK_MYRIAD2-1: #define __myriad2 1
 // CHECK_MYRIAD2-1: #define __myriad2__ 1
@@ -1928,6 +1936,7 @@
 // CHECK_MYRIAD2-2: #define __myriad2__ 2
 // CHECK_SPARCEL: #define __sparc 1
 // CHECK_SPARCEL: #define __sparc__ 1
+// CHECK_MYRIAD2-1: #define __sparc_v8__ 1
 // CHECK_SPARCEL: #define __sparcv8 1
 //
 // RUN: %clang -E -dM %s -o - 2>&1 \
@@ -1958,6 +1967,9 @@
 // CHECK_SYSTEMZ_Z10: #define __zarch__ 1
 //
 // RUN: %clang -march=zEC12 -E -dM %s -o - 2>&1 \
+// RUN:     -target s390x-unknown-linux \
+// RUN:   | FileCheck -match-full-lines %s -check-prefix=CHECK_SYSTEMZ_ZEC12
+// RUN: %clang -march=arch10 -E -dM %s -o - 2>&1 \
 // RUN:     -target s390x-unknown-linux \
 // RUN:   | FileCheck -match-full-lines %s -check-prefix=CHECK_SYSTEMZ_ZEC12
 //

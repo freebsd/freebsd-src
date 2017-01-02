@@ -1164,7 +1164,8 @@ CFGBlock *CFGBuilder::addInitializer(CXXCtorInitializer *I) {
 /// \brief Retrieve the type of the temporary object whose lifetime was 
 /// extended by a local reference with the given initializer.
 static QualType getReferenceInitTemporaryType(ASTContext &Context,
-                                              const Expr *Init) {
+                                              const Expr *Init,
+                                              bool *FoundMTE = nullptr) {
   while (true) {
     // Skip parentheses.
     Init = Init->IgnoreParens();
@@ -1179,6 +1180,8 @@ static QualType getReferenceInitTemporaryType(ASTContext &Context,
     if (const MaterializeTemporaryExpr *MTE
           = dyn_cast<MaterializeTemporaryExpr>(Init)) {
       Init = MTE->GetTemporaryExpr();
+      if (FoundMTE)
+        *FoundMTE = true;
       continue;
     }
     
@@ -1370,13 +1373,12 @@ LocalScope* CFGBuilder::addLocalScopeForVarDecl(VarDecl *VD,
     const Expr *Init = VD->getInit();
     if (!Init)
       return Scope;
-    if (const ExprWithCleanups *EWC = dyn_cast<ExprWithCleanups>(Init))
-      Init = EWC->getSubExpr();
-    if (!isa<MaterializeTemporaryExpr>(Init))
-      return Scope;
 
     // Lifetime-extending a temporary.
-    QT = getReferenceInitTemporaryType(*Context, Init);
+    bool FoundMTE = false;
+    QT = getReferenceInitTemporaryType(*Context, Init, &FoundMTE);
+    if (!FoundMTE)
+      return Scope;
   }
 
   // Check for constant size array. Set type to array element type.
@@ -2050,8 +2052,7 @@ CFGBlock *CFGBuilder::VisitDeclStmt(DeclStmt *DS) {
                                        E = DS->decl_rend();
        I != E; ++I) {
     // Get the alignment of the new DeclStmt, padding out to >=8 bytes.
-    unsigned A = llvm::AlignOf<DeclStmt>::Alignment < 8
-               ? 8 : llvm::AlignOf<DeclStmt>::Alignment;
+    unsigned A = alignof(DeclStmt) < 8 ? 8 : alignof(DeclStmt);
 
     // Allocate the DeclStmt using the BumpPtrAllocator.  It will get
     // automatically freed with the CFG.
@@ -2983,20 +2984,19 @@ CFGBlock *CFGBuilder::VisitDoStmt(DoStmt *D) {
         return nullptr;
     }
 
-    if (!KnownVal.isFalse()) {
-      // Add an intermediate block between the BodyBlock and the
-      // ExitConditionBlock to represent the "loop back" transition.  Create an
-      // empty block to represent the transition block for looping back to the
-      // head of the loop.
-      // FIXME: Can we do this more efficiently without adding another block?
-      Block = nullptr;
-      Succ = BodyBlock;
-      CFGBlock *LoopBackBlock = createBlock();
-      LoopBackBlock->setLoopTarget(D);
+    // Add an intermediate block between the BodyBlock and the
+    // ExitConditionBlock to represent the "loop back" transition.  Create an
+    // empty block to represent the transition block for looping back to the
+    // head of the loop.
+    // FIXME: Can we do this more efficiently without adding another block?
+    Block = nullptr;
+    Succ = BodyBlock;
+    CFGBlock *LoopBackBlock = createBlock();
+    LoopBackBlock->setLoopTarget(D);
 
+    if (!KnownVal.isFalse())
       // Add the loop body entry as a successor to the condition.
       addSuccessor(ExitConditionBlock, LoopBackBlock);
-    }
     else
       addSuccessor(ExitConditionBlock, nullptr);
   }
@@ -3583,11 +3583,13 @@ CFGBlock *CFGBuilder::VisitCXXDeleteExpr(CXXDeleteExpr *DE,
   autoCreateBlock();
   appendStmt(Block, DE);
   QualType DTy = DE->getDestroyedType();
-  DTy = DTy.getNonReferenceType();
-  CXXRecordDecl *RD = Context->getBaseElementType(DTy)->getAsCXXRecordDecl();
-  if (RD) {
-    if (RD->isCompleteDefinition() && !RD->hasTrivialDestructor())
-      appendDeleteDtor(Block, RD, DE);
+  if (!DTy.isNull()) {
+    DTy = DTy.getNonReferenceType();
+    CXXRecordDecl *RD = Context->getBaseElementType(DTy)->getAsCXXRecordDecl();
+    if (RD) {
+      if (RD->isCompleteDefinition() && !RD->hasTrivialDestructor())
+        appendDeleteDtor(Block, RD, DE);
+    }
   }
 
   return VisitChildren(DE);
