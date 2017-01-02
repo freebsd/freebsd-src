@@ -244,50 +244,14 @@ statfs_scale_blocks(struct statfs *sf, long max_size)
 	sf->f_bavail >>= shift;
 }
 
-/*
- * Get filesystem statistics.
- */
-#ifndef _SYS_SYSPROTO_H_
-struct statfs_args {
-	char *path;
-	struct statfs *buf;
-};
-#endif
-int
-sys_statfs(td, uap)
-	struct thread *td;
-	register struct statfs_args /* {
-		char *path;
-		struct statfs *buf;
-	} */ *uap;
+static int
+kern_do_statfs(struct thread *td, struct mount *mp, struct statfs *buf)
 {
-	struct statfs sf;
-	int error;
-
-	error = kern_statfs(td, uap->path, UIO_USERSPACE, &sf);
-	if (error == 0)
-		error = copyout(&sf, uap->buf, sizeof(sf));
-	return (error);
-}
-
-int
-kern_statfs(struct thread *td, char *path, enum uio_seg pathseg,
-    struct statfs *buf)
-{
-	struct mount *mp;
 	struct statfs *sp, sb;
-	struct nameidata nd;
 	int error;
 
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKSHARED | LOCKLEAF | AUDITVNODE1,
-	    pathseg, path, td);
-	error = namei(&nd);
-	if (error != 0)
-		return (error);
-	mp = nd.ni_vp->v_mount;
-	vfs_ref(mp);
-	NDFREE(&nd, NDF_ONLY_PNBUF);
-	vput(nd.ni_vp);
+	if (mp == NULL)
+		return (EBADF);
 	error = vfs_busy(mp, 0);
 	vfs_rel(mp);
 	if (error != 0)
@@ -323,6 +287,52 @@ out:
  * Get filesystem statistics.
  */
 #ifndef _SYS_SYSPROTO_H_
+struct statfs_args {
+	char *path;
+	struct statfs *buf;
+};
+#endif
+int
+sys_statfs(td, uap)
+	struct thread *td;
+	register struct statfs_args /* {
+		char *path;
+		struct statfs *buf;
+	} */ *uap;
+{
+	struct statfs sf;
+	int error;
+
+	error = kern_statfs(td, uap->path, UIO_USERSPACE, &sf);
+	if (error == 0)
+		error = copyout(&sf, uap->buf, sizeof(sf));
+	return (error);
+}
+
+int
+kern_statfs(struct thread *td, char *path, enum uio_seg pathseg,
+    struct statfs *buf)
+{
+	struct mount *mp;
+	struct nameidata nd;
+	int error;
+
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKSHARED | LOCKLEAF | AUDITVNODE1,
+	    pathseg, path, td);
+	error = namei(&nd);
+	if (error != 0)
+		return (error);
+	mp = nd.ni_vp->v_mount;
+	vfs_ref(mp);
+	NDFREE(&nd, NDF_ONLY_PNBUF);
+	vput(nd.ni_vp);
+	return (kern_do_statfs(td, mp, buf));
+}
+
+/*
+ * Get filesystem statistics.
+ */
+#ifndef _SYS_SYSPROTO_H_
 struct fstatfs_args {
 	int fd;
 	struct statfs *buf;
@@ -350,7 +360,6 @@ kern_fstatfs(struct thread *td, int fd, struct statfs *buf)
 {
 	struct file *fp;
 	struct mount *mp;
-	struct statfs *sp, sb;
 	struct vnode *vp;
 	cap_rights_t rights;
 	int error;
@@ -369,40 +378,7 @@ kern_fstatfs(struct thread *td, int fd, struct statfs *buf)
 		vfs_ref(mp);
 	VOP_UNLOCK(vp, 0);
 	fdrop(fp, td);
-	if (mp == NULL) {
-		error = EBADF;
-		goto out;
-	}
-	error = vfs_busy(mp, 0);
-	vfs_rel(mp);
-	if (error != 0)
-		return (error);
-#ifdef MAC
-	error = mac_mount_check_stat(td->td_ucred, mp);
-	if (error != 0)
-		goto out;
-#endif
-	/*
-	 * Set these in case the underlying filesystem fails to do so.
-	 */
-	sp = &mp->mnt_stat;
-	sp->f_version = STATFS_VERSION;
-	sp->f_namemax = NAME_MAX;
-	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
-	error = VFS_STATFS(mp, sp);
-	if (error != 0)
-		goto out;
-	if (priv_check(td, PRIV_VFS_GENERATION)) {
-		bcopy(sp, &sb, sizeof(sb));
-		sb.f_fsid.val[0] = sb.f_fsid.val[1] = 0;
-		prison_enforce_statfs(td->td_ucred, mp, &sb);
-		sp = &sb;
-	}
-	*buf = *sp;
-out:
-	if (mp)
-		vfs_unbusy(mp);
-	return (error);
+	return (kern_do_statfs(td, mp, buf));
 }
 
 /*
