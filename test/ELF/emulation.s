@@ -1,3 +1,37 @@
+# RUN: llvm-mc -filetype=obj -triple=x86_64-unknown-freebsd %s -o %tx64
+# RUN: ld.lld -m elf_amd64_fbsd %tx64 -o %t2x64
+# RUN: llvm-readobj -file-headers %t2x64 | FileCheck --check-prefix=AMD64 %s
+# RUN: ld.lld %tx64 -o %t3x64
+# RUN: llvm-readobj -file-headers %t3x64 | FileCheck --check-prefix=AMD64 %s
+# RUN: llvm-mc -filetype=obj -triple=x86_64-unknown-linux %s -o %t.sysv
+# RUN: ld.lld -m elf_amd64_fbsd %t.sysv -o %t.freebsd
+# RUN: llvm-readobj -file-headers %t.freebsd | FileCheck --check-prefix=AMD64 %s
+# AMD64:      ElfHeader {
+# AMD64-NEXT:   Ident {
+# AMD64-NEXT:     Magic: (7F 45 4C 46)
+# AMD64-NEXT:     Class: 64-bit (0x2)
+# AMD64-NEXT:     DataEncoding: LittleEndian (0x1)
+# AMD64-NEXT:     FileVersion: 1
+# AMD64-NEXT:     OS/ABI: FreeBSD (0x9)
+# AMD64-NEXT:     ABIVersion: 0
+# AMD64-NEXT:     Unused: (00 00 00 00 00 00 00)
+# AMD64-NEXT:   }
+# AMD64-NEXT:   Type: Executable (0x2)
+# AMD64-NEXT:   Machine: EM_X86_64 (0x3E)
+# AMD64-NEXT:   Version: 1
+# AMD64-NEXT:   Entry:
+# AMD64-NEXT:   ProgramHeaderOffset: 0x40
+# AMD64-NEXT:   SectionHeaderOffset:
+# AMD64-NEXT:   Flags [ (0x0)
+# AMD64-NEXT:   ]
+# AMD64-NEXT:   HeaderSize: 64
+# AMD64-NEXT:   ProgramHeaderEntrySize: 56
+# AMD64-NEXT:   ProgramHeaderCount:
+# AMD64-NEXT:   SectionHeaderEntrySize: 64
+# AMD64-NEXT:   SectionHeaderCount:
+# AMD64-NEXT:   StringTableSectionIndex:
+# AMD64-NEXT: }
+
 # RUN: llvm-mc -filetype=obj -triple=x86_64-unknown-linux %s -o %tx64
 # RUN: ld.lld -m elf_x86_64 %tx64 -o %t2x64
 # RUN: llvm-readobj -file-headers %t2x64 | FileCheck --check-prefix=X86-64 %s
@@ -122,6 +156,37 @@
 # X86FBSD-NEXT:   StringTableSectionIndex:
 # X86FBSD-NEXT: }
 
+# RUN: llvm-mc -filetype=obj -triple=i586-intel-elfiamcu %s -o %tiamcu
+# RUN: ld.lld -m elf_iamcu %tiamcu -o %t2iamcu
+# RUN: llvm-readobj -file-headers %t2iamcu | FileCheck --check-prefix=IAMCU %s
+# RUN: ld.lld %tiamcu -o %t3iamcu
+# RUN: llvm-readobj -file-headers %t3iamcu | FileCheck --check-prefix=IAMCU %s
+# IAMCU:      ElfHeader {
+# IAMCU-NEXT:   Ident {
+# IAMCU-NEXT:     Magic: (7F 45 4C 46)
+# IAMCU-NEXT:     Class: 32-bit (0x1)
+# IAMCU-NEXT:     DataEncoding: LittleEndian (0x1)
+# IAMCU-NEXT:     FileVersion: 1
+# IAMCU-NEXT:     OS/ABI: SystemV (0x0)
+# IAMCU-NEXT:     ABIVersion: 0
+# IAMCU-NEXT:     Unused: (00 00 00 00 00 00 00)
+# IAMCU-NEXT:   }
+# IAMCU-NEXT:   Type: Executable (0x2)
+# IAMCU-NEXT:   Machine: EM_IAMCU (0x6)
+# IAMCU-NEXT:   Version: 1
+# IAMCU-NEXT:   Entry:
+# IAMCU-NEXT:   ProgramHeaderOffset: 0x34
+# IAMCU-NEXT:   SectionHeaderOffset:
+# IAMCU-NEXT:   Flags [ (0x0)
+# IAMCU-NEXT:   ]
+# IAMCU-NEXT:   HeaderSize: 52
+# IAMCU-NEXT:   ProgramHeaderEntrySize: 32
+# IAMCU-NEXT:   ProgramHeaderCount:
+# IAMCU-NEXT:   SectionHeaderEntrySize: 40
+# IAMCU-NEXT:   SectionHeaderCount:
+# IAMCU-NEXT:   StringTableSectionIndex:
+# IAMCU-NEXT: }
+
 # RUN: llvm-mc -filetype=obj -triple=powerpc64-unknown-linux %s -o %tppc64
 # RUN: ld.lld -m elf64ppc %tppc64 -o %t2ppc64
 # RUN: llvm-readobj -file-headers %t2ppc64 | FileCheck --check-prefix=PPC64 %s
@@ -176,7 +241,7 @@
 # MIPS-NEXT:   SectionHeaderOffset:
 # MIPS-NEXT:   Flags [
 # MIPS-NEXT:     EF_MIPS_ABI_O32
-# MIPS-NEXT:     EF_MIPS_ARCH_32R2
+# MIPS-NEXT:     EF_MIPS_ARCH_32
 # MIPS-NEXT:     EF_MIPS_CPIC
 # MIPS-NEXT:   ]
 
@@ -205,7 +270,7 @@
 # MIPSEL-NEXT:   SectionHeaderOffset:
 # MIPSEL-NEXT:   Flags [
 # MIPSEL-NEXT:     EF_MIPS_ABI_O32
-# MIPSEL-NEXT:     EF_MIPS_ARCH_32R2
+# MIPSEL-NEXT:     EF_MIPS_ARCH_32
 # MIPSEL-NEXT:     EF_MIPS_CPIC
 # MIPSEL-NEXT:   ]
 
@@ -231,7 +296,7 @@
 # MIPS64-NEXT:   ProgramHeaderOffset: 0x40
 # MIPS64-NEXT:   SectionHeaderOffset:
 # MIPS64-NEXT:   Flags [
-# MIPS64-NEXT:     EF_MIPS_ARCH_64R2
+# MIPS64-NEXT:     EF_MIPS_ARCH_64
 # MIPS64-NEXT:     EF_MIPS_CPIC
 # MIPS64-NEXT:     EF_MIPS_PIC
 # MIPS64-NEXT:   ]
@@ -258,7 +323,7 @@
 # MIPS64EL-NEXT:   ProgramHeaderOffset: 0x40
 # MIPS64EL-NEXT:   SectionHeaderOffset:
 # MIPS64EL-NEXT:   Flags [
-# MIPS64EL-NEXT:     EF_MIPS_ARCH_64R2
+# MIPS64EL-NEXT:     EF_MIPS_ARCH_64
 # MIPS64EL-NEXT:     EF_MIPS_CPIC
 # MIPS64EL-NEXT:     EF_MIPS_PIC
 # MIPS64EL-NEXT:   ]

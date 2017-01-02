@@ -25,7 +25,7 @@
 // CHECK-NEXT:   }
 // CHECK-NEXT:   Symbol {
 // CHECK-NEXT:     Name: foo
-// CHECK-NEXT:     Value: 0x11000
+// CHECK-NEXT:     Value: 0x201000
 // CHECK-NEXT:     Size: 0
 // CHECK-NEXT:     Binding: Global
 // CHECK-NEXT:     Type: Function
@@ -37,7 +37,7 @@
 .text
 .globl foo
 .type foo,@function
-foo:  
+foo:
 nop
 
 .text

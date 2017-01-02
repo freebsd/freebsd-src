@@ -13,12 +13,13 @@
 #include "Config.h"
 #include "SymbolTable.h"
 #include "lld/Core/LLVM.h"
+#include "lld/Core/Reproduce.h"
 #include "llvm/ADT/Optional.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/Object/Archive.h"
 #include "llvm/Object/COFF.h"
 #include "llvm/Option/Arg.h"
 #include "llvm/Option/ArgList.h"
-#include "llvm/Support/StringSaver.h"
 #include <memory>
 #include <set>
 #include <vector>
@@ -42,7 +43,6 @@ void doICF(const std::vector<Chunk *> &Chunks);
 
 class ArgParser {
 public:
-  ArgParser() : Alloc(AllocAux) {}
   // Parses command line options.
   llvm::opt::InputArgList parse(llvm::ArrayRef<const char *> Args);
 
@@ -56,24 +56,25 @@ private:
   std::vector<const char *> tokenize(StringRef S);
 
   std::vector<const char *> replaceResponseFiles(std::vector<const char *>);
-
-  llvm::BumpPtrAllocator AllocAux;
-  llvm::StringSaver Alloc;
 };
 
 class LinkerDriver {
 public:
-  LinkerDriver() : Alloc(AllocAux) {}
+  LinkerDriver() { coff::Symtab = &Symtab; }
   void link(llvm::ArrayRef<const char *> Args);
 
   // Used by the resolver to parse .drectve section contents.
   void parseDirectives(StringRef S);
 
+  // Used by ArchiveFile to enqueue members.
+  void enqueueArchiveMember(const Archive::Child &C, StringRef SymName,
+                            StringRef ParentName);
+
 private:
-  llvm::BumpPtrAllocator AllocAux;
-  llvm::StringSaver Alloc;
   ArgParser Parser;
   SymbolTable Symtab;
+
+  std::unique_ptr<CpioFile> Cpio; // for /linkrepro
 
   // Opens a file. Path has to be resolved already.
   MemoryBufferRef openFile(StringRef Path);
@@ -90,8 +91,9 @@ private:
   // Library search path. The first element is always "" (current directory).
   std::vector<StringRef> SearchPaths;
   std::set<std::string> VisitedFiles;
+  std::set<std::string> VisitedLibs;
 
-  Undefined *addUndefined(StringRef Sym);
+  SymbolBody *addUndefined(StringRef Sym);
   StringRef mangle(StringRef Sym);
 
   // Windows specific -- "main" is not the only main function in Windows.
@@ -104,12 +106,26 @@ private:
   StringRef findDefaultEntry();
   WindowsSubsystem inferSubsystem();
 
+  MemoryBufferRef takeBuffer(std::unique_ptr<MemoryBuffer> MB);
+  void addBuffer(std::unique_ptr<MemoryBuffer> MB);
+  void addArchiveBuffer(MemoryBufferRef MBRef, StringRef SymName,
+                        StringRef ParentName);
+
+  void enqueuePath(StringRef Path);
+
+  void enqueueTask(std::function<void()> Task);
+  bool run();
+
   // Driver is the owner of all opened files.
   // InputFiles have MemoryBufferRefs to them.
   std::vector<std::unique_ptr<MemoryBuffer>> OwningMBs;
+
+  std::list<std::function<void()>> TaskQueue;
+  std::vector<StringRef> FilePaths;
+  std::vector<MemoryBufferRef> Resources;
 };
 
-void parseModuleDefs(MemoryBufferRef MB, llvm::StringSaver *Alloc);
+void parseModuleDefs(MemoryBufferRef MB);
 void writeImportLibrary();
 
 // Functions below this line are defined in DriverUtils.cpp.
@@ -160,8 +176,6 @@ void checkFailIfMismatch(StringRef Arg);
 // using cvtres.exe.
 std::unique_ptr<MemoryBuffer>
 convertResToCOFF(const std::vector<MemoryBufferRef> &MBs);
-
-void createPDB(StringRef Path);
 
 // Create enum with OPT_xxx values for each option in Options.td
 enum {

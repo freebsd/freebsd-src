@@ -3,6 +3,8 @@
 // RUN:   %p/Inputs/libsearch-dyn.s -o %tdyn.o
 // RUN: llvm-mc -filetype=obj -triple=x86_64-unknown-linux \
 // RUN:   %p/Inputs/libsearch-st.s -o %tst.o
+// RUN: llvm-mc -filetype=obj -triple=x86_64-unknown-linux \
+// RUN:   %p/Inputs/use-bar.s -o %tbar.o
 // RUN: mkdir -p %t.dir
 // RUN: ld.lld -shared %tdyn.o -o %t.dir/libls.so
 // RUN: cp -f %t.dir/libls.so %t.dir/libls2.so
@@ -13,12 +15,14 @@
 // Should fail if no library specified
 // RUN: not ld.lld -l 2>&1 \
 // RUN:   | FileCheck --check-prefix=NOLIBRARY %s
-// NOLIBRARY: missing arg value for "-l", expected 1 argument.
+// NOLIBRARY: -l: missing argument
 
+// Should link normally, because _bar is not used
+// RUN: ld.lld -o %t3 %t.o
 // Should not link because of undefined symbol _bar
-// RUN: not ld.lld -o %t3 %t.o 2>&1 \
+// RUN: not ld.lld -o %t3 %t.o %tbar.o 2>&1 \
 // RUN:   | FileCheck --check-prefix=UNDEFINED %s
-// UNDEFINED: undefined symbol: _bar
+// UNDEFINED: error: {{.*}}:(.bar+0x0): undefined symbol '_bar'
 
 // Should fail if cannot find specified library (without -L switch)
 // RUN: not ld.lld -o %t3 %t.o -lls 2>&1 \
@@ -84,6 +88,13 @@
 // RUN: llvm-readobj --symbols %t3 | FileCheck --check-prefix=DYNAMIC %s
 // RUN: ld.lld -o %t3 %t.o -L%t.dir -Bstatic -call_shared -lls
 // RUN: llvm-readobj --symbols %t3 | FileCheck --check-prefix=DYNAMIC %s
+
+// -nostdlib
+// RUN: echo 'SEARCH_DIR("'%t.dir'")' > %t.script
+// RUN: ld.lld -o %t3 %t.o -script %t.script -lls
+// RUN: not ld.lld -o %t3 %t.o -script %t.script -lls -nostdlib \
+// RUN:   2>&1 | FileCheck --check-prefix=NOSTDLIB %s
+// NOSTDLIB: unable to find library -lls
 
 .globl _start,_bar
 _start:

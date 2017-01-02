@@ -14,7 +14,7 @@
 // SO-NEXT: Flags [
 // SO-NEXT: ]
 // SO-NEXT: Address:
-// SO-NEXT: Offset: 0x1030
+// SO-NEXT: Offset: 0x1038
 // SO-NEXT: Size:
 // SO-NEXT: Link:
 // SO-NEXT: Info:
@@ -184,7 +184,7 @@
 
 // CHECK:      DynamicSymbols [
 // CHECK-NEXT:   Symbol {
-// CHECK-NEXT:     Name: @ (0)
+// CHECK-NEXT:     Name: @
 // CHECK-NEXT:     Value: 0x0
 // CHECK-NEXT:     Size: 0
 // CHECK-NEXT:     Binding: Local
@@ -223,7 +223,7 @@
 
 // DONT_EXPORT:      DynamicSymbols [
 // DONT_EXPORT-NEXT:   Symbol {
-// DONT_EXPORT-NEXT:     Name: @ (0)
+// DONT_EXPORT-NEXT:     Name: @
 // DONT_EXPORT-NEXT:     Value: 0x0
 // DONT_EXPORT-NEXT:     Size: 0
 // DONT_EXPORT-NEXT:     Binding: Local (0x0)
@@ -255,6 +255,7 @@
 // CHECK-NEXT:   Tag        Type                 Name/Value
 // CHECK-NEXT:   0x0000001D RUNPATH              foo:bar
 // CHECK-NEXT:   0x00000001 NEEDED               SharedLibrary ({{.*}}2.so)
+// CHECK-NEXT:   0x00000015 DEBUG                0x0
 // CHECK-NEXT:   0x00000011 REL                  [[RELADDR]]
 // CHECK-NEXT:   0x00000012 RELSZ                [[RELSIZE]] (bytes)
 // CHECK-NEXT:   0x00000013 RELENT               [[RELENT]] (bytes)
@@ -263,7 +264,6 @@
 // CHECK-NEXT:   0x00000005 STRTAB               [[DYNSTRADDR]]
 // CHECK-NEXT:   0x0000000A STRSZ
 // CHECK-NEXT:   0x00000004 HASH                 [[HASHADDR]]
-// CHECK-NEXT:   0x00000015 DEBUG                0x0
 // CHECK-NEXT:   0x00000000 NULL                 0x0
 // CHECK-NEXT: ]
 

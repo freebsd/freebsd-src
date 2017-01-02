@@ -43,9 +43,7 @@ LLVM_ATTRIBUTE_NORETURN static void die(const Twine &S) {
 
 static Flavor getFlavor(StringRef S) {
   return StringSwitch<Flavor>(S)
-      .Case("ld", Gnu)
-      .Case("ld.lld", Gnu)
-      .Case("gnu", Gnu)
+      .Cases("ld", "ld.lld", "gnu", Gnu)
       .Case("link", WinLink)
       .Case("darwin", Darwin)
       .Default(Invalid);
@@ -103,7 +101,7 @@ int main(int Argc, const char **Argv) {
   std::vector<const char *> Args(Argv, Argv + Argc);
   switch (parseFlavor(Args)) {
   case Gnu:
-    return !elf::link(Args);
+    return !elf::link(Args, true);
   case WinLink:
     return !coff::link(Args);
   case Darwin:
