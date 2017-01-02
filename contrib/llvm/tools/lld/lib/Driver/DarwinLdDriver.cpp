@@ -14,24 +14,45 @@
 //===----------------------------------------------------------------------===//
 
 #include "lld/Core/ArchiveLibraryFile.h"
+#include "lld/Core/Error.h"
 #include "lld/Core/File.h"
 #include "lld/Core/Instrumentation.h"
+#include "lld/Core/LLVM.h"
+#include "lld/Core/Node.h"
 #include "lld/Core/PassManager.h"
 #include "lld/Core/Resolver.h"
 #include "lld/Core/SharedLibraryFile.h"
-#include "lld/Driver/Driver.h"
+#include "lld/Core/Simple.h"
+#include "lld/Core/LinkingContext.h"
 #include "lld/ReaderWriter/MachOLinkingContext.h"
 #include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/Optional.h"
+#include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringExtras.h"
-#include "llvm/ADT/Triple.h"
+#include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/Twine.h"
 #include "llvm/Option/Arg.h"
+#include "llvm/Option/ArgList.h"
 #include "llvm/Option/Option.h"
+#include "llvm/Option/OptTable.h"
+#include "llvm/Support/Casting.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Error.h"
+#include "llvm/Support/ErrorOr.h"
 #include "llvm/Support/Format.h"
+#include "llvm/Support/MachO.h"
+#include "llvm/Support/MathExtras.h"
+#include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/raw_ostream.h"
+#include <algorithm>
+#include <cstdint>
+#include <memory>
+#include <string>
+#include <system_error>
+#include <utility>
+#include <vector>
 
 using namespace lld;
 
@@ -116,7 +137,7 @@ loadFile(MachOLinkingContext &ctx, StringRef path,
   return files;
 }
 
-} // anonymous namespace
+} // end anonymous namespace
 
 // Test may be running on Windows. Canonicalize the path
 // separator to '/' to get consistent outputs for tests.
@@ -165,8 +186,6 @@ static std::error_code parseExportsList(StringRef exportFilePath,
   }
   return std::error_code();
 }
-
-
 
 /// Order files are one symbol per line. Blank lines are ignored.
 /// Trailing comments start with #. Symbol names can be prefixed with an
@@ -270,7 +289,7 @@ static llvm::Error loadFileList(StringRef fileListPath,
     addFile(path, ctx, forceLoad, false, diagnostics);
     buffer = lineAndRest.second;
   }
-  return llvm::Error();
+  return llvm::Error::success();
 }
 
 /// Parse number assuming it is base 16, but allow 0x prefix.
@@ -739,9 +758,10 @@ bool parse(llvm::ArrayRef<const char *> args, MachOLinkingContext &ctx,
         }
         break;
       case MachOLinkingContext::OS::iOS_simulator:
-        if (pie->getOption().getID() == OPT_no_pie)
+        if (pie->getOption().getID() == OPT_no_pie) {
           diagnostics << "iOS simulator programs must be built PIE\n";
           return false;
+        }
         break;
       case MachOLinkingContext::OS::unknown:
         break;
@@ -759,7 +779,6 @@ bool parse(llvm::ArrayRef<const char *> args, MachOLinkingContext &ctx,
       diagnostics << pie->getSpelling()
                   << " can only used when linking main executables\n";
       return false;
-      break;
     }
   }
 
@@ -1136,6 +1155,18 @@ bool parse(llvm::ArrayRef<const char *> args, MachOLinkingContext &ctx,
   return ctx.validate(diagnostics);
 }
 
+static void createFiles(MachOLinkingContext &ctx, bool Implicit) {
+  std::vector<std::unique_ptr<File>> Files;
+  if (Implicit)
+    ctx.createImplicitFiles(Files);
+  else
+    ctx.createInternalFiles(Files);
+  for (auto i = Files.rbegin(), e = Files.rend(); i != e; ++i) {
+    auto &members = ctx.getNodes();
+    members.insert(members.begin(), llvm::make_unique<FileNode>(std::move(*i)));
+  }
+}
+
 /// This is where the link is actually performed.
 bool link(llvm::ArrayRef<const char *> args, raw_ostream &diagnostics) {
   MachOLinkingContext ctx;
@@ -1150,20 +1181,10 @@ bool link(llvm::ArrayRef<const char *> args, raw_ostream &diagnostics) {
     if (FileNode *node = dyn_cast<FileNode>(ie.get()))
       node->getFile()->parse();
 
-  std::vector<std::unique_ptr<File>> internalFiles;
-  ctx.createInternalFiles(internalFiles);
-  for (auto i = internalFiles.rbegin(), e = internalFiles.rend(); i != e; ++i) {
-    auto &members = ctx.getNodes();
-    members.insert(members.begin(), llvm::make_unique<FileNode>(std::move(*i)));
-  }
+  createFiles(ctx, false /* Implicit */);
 
-  // Give target a chance to add files.
-  std::vector<std::unique_ptr<File>> implicitFiles;
-  ctx.createImplicitFiles(implicitFiles);
-  for (auto i = implicitFiles.rbegin(), e = implicitFiles.rend(); i != e; ++i) {
-    auto &members = ctx.getNodes();
-    members.insert(members.begin(), llvm::make_unique<FileNode>(std::move(*i)));
-  }
+  // Give target a chance to add files
+  createFiles(ctx, true /* Implicit */);
 
   // Give target a chance to postprocess input files.
   // Mach-O uses this chance to move all object files before library files.
@@ -1211,5 +1232,6 @@ bool link(llvm::ArrayRef<const char *> args, raw_ostream &diagnostics) {
 
   return true;
 }
-} // namespace mach_o
-} // namespace lld
+
+} // end namespace mach_o
+} // end namespace lld
