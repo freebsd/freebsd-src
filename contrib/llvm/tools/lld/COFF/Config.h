@@ -26,7 +26,8 @@ using llvm::StringRef;
 class DefinedAbsolute;
 class DefinedRelative;
 class StringChunk;
-class Undefined;
+struct Symbol;
+class SymbolBody;
 
 // Short aliases.
 static const auto AMD64 = llvm::COFF::IMAGE_FILE_MACHINE_AMD64;
@@ -37,7 +38,7 @@ static const auto I386 = llvm::COFF::IMAGE_FILE_MACHINE_I386;
 struct Export {
   StringRef Name;       // N in /export:N or /export:E=N
   StringRef ExtName;    // E in /export:E=N
-  Undefined *Sym = nullptr;
+  SymbolBody *Sym = nullptr;
   uint16_t Ordinal = 0;
   bool Noname = false;
   bool Data = false;
@@ -61,6 +62,13 @@ struct Export {
   }
 };
 
+enum class DebugType {
+  None  = 0x0,
+  CV    = 0x1,  /// CodeView
+  PData = 0x2,  /// Procedure Data
+  Fixup = 0x4,  /// Relocation Table
+};
+
 // Global configuration.
 struct Configuration {
   enum ManifestKind { SideBySide, Embed, No };
@@ -69,7 +77,7 @@ struct Configuration {
   llvm::COFF::MachineTypes Machine = IMAGE_FILE_MACHINE_UNKNOWN;
   bool Verbose = false;
   WindowsSubsystem Subsystem = llvm::COFF::IMAGE_SUBSYSTEM_UNKNOWN;
-  Undefined *Entry = nullptr;
+  SymbolBody *Entry = nullptr;
   bool NoEntry = false;
   std::string OutputFile;
   bool DoGC = true;
@@ -78,9 +86,11 @@ struct Configuration {
   bool Force = false;
   bool Debug = false;
   bool WriteSymtab = true;
+  unsigned DebugTypes = static_cast<unsigned>(DebugType::None);
+  StringRef PDBPath;
 
   // Symbols in this set are considered as live by the garbage collector.
-  std::set<Undefined *> GCRoot;
+  std::set<SymbolBody *> GCRoot;
 
   std::set<StringRef> NoDefaultLibs;
   bool NoDefaultLibAll = false;
@@ -91,11 +101,11 @@ struct Configuration {
   std::vector<Export> Exports;
   std::set<std::string> DelayLoads;
   std::map<std::string, int> DLLOrder;
-  Undefined *DelayLoadHelper = nullptr;
+  SymbolBody *DelayLoadHelper = nullptr;
 
   // Used for SafeSEH.
-  DefinedRelative *SEHTable = nullptr;
-  DefinedAbsolute *SEHCount = nullptr;
+  Symbol *SEHTable = nullptr;
+  Symbol *SEHCount = nullptr;
 
   // Used for /opt:lldlto=N
   unsigned LTOOptLevel = 2;
@@ -141,6 +151,10 @@ struct Configuration {
   bool TerminalServerAware = true;
   bool LargeAddressAware = false;
   bool HighEntropyVA = false;
+
+  // This is for debugging.
+  bool DebugPdb = false;
+  bool DumpPdb = false;
 };
 
 extern Configuration *Config;

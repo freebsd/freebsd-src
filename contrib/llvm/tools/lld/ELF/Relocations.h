@@ -15,14 +15,20 @@
 namespace lld {
 namespace elf {
 class SymbolBody;
+class InputSectionData;
 template <class ELFT> class InputSection;
 template <class ELFT> class InputSectionBase;
 
+// List of target-independent relocation types. Relocations read
+// from files are converted to these types so that the main code
+// doesn't have to know about architecture-specific details.
 enum RelExpr {
   R_ABS,
   R_GOT,
   R_GOTONLY_PC,
+  R_GOTONLY_PC_FROM_END,
   R_GOTREL,
+  R_GOTREL_FROM_END,
   R_GOT_FROM_END,
   R_GOT_OFF,
   R_GOT_PAGE_PC,
@@ -30,6 +36,8 @@ enum RelExpr {
   R_HINT,
   R_MIPS_GOT_LOCAL_PAGE,
   R_MIPS_GOT_OFF,
+  R_MIPS_GOT_OFF32,
+  R_MIPS_GOTREL,
   R_MIPS_TLSGD,
   R_MIPS_TLSLD,
   R_NEG_TLS,
@@ -58,25 +66,54 @@ enum RelExpr {
   R_TLS,
   R_TLSDESC,
   R_TLSDESC_PAGE,
+  R_TLSDESC_CALL,
   R_TLSGD,
   R_TLSGD_PC,
   R_TLSLD,
-  R_TLSLD_PC
+  R_TLSLD_PC,
 };
 
-template <class ELFT> struct Relocation {
+// Build a bitmask with one bit set for each RelExpr.
+//
+// Constexpr function arguments can't be used in static asserts, so we
+// use template arguments to build the mask.
+// But function template partial specializations don't exist (needed
+// for base case of the recursion), so we need a dummy struct.
+template <RelExpr... Exprs> struct RelExprMaskBuilder {
+  static inline uint64_t build() { return 0; }
+};
+
+// Specialization for recursive case.
+template <RelExpr Head, RelExpr... Tail>
+struct RelExprMaskBuilder<Head, Tail...> {
+  static inline uint64_t build() {
+    static_assert(0 <= Head && Head < 64,
+                  "RelExpr is too large for 64-bit mask!");
+    return (uint64_t(1) << Head) | RelExprMaskBuilder<Tail...>::build();
+  }
+};
+
+// Return true if `Expr` is one of `Exprs`.
+// There are fewer than 64 RelExpr's, so we can represent any set of
+// RelExpr's as a constant bit mask and test for membership with a
+// couple cheap bitwise operations.
+template <RelExpr... Exprs> bool isRelExprOneOf(RelExpr Expr) {
+  assert(0 <= Expr && (int)Expr < 64 && "RelExpr is too large for 64-bit mask!");
+  return (uint64_t(1) << Expr) & RelExprMaskBuilder<Exprs...>::build();
+}
+
+// Architecture-neutral representation of relocation.
+struct Relocation {
   RelExpr Expr;
   uint32_t Type;
-  InputSectionBase<ELFT> *InputSec;
   uint64_t Offset;
   uint64_t Addend;
   SymbolBody *Sym;
 };
 
-template <class ELFT> void scanRelocations(InputSection<ELFT> &);
+template <class ELFT> void scanRelocations(InputSectionBase<ELFT> &);
 
-template <class ELFT>
-void scanRelocations(InputSectionBase<ELFT> &, const typename ELFT::Shdr &);
+template <class ELFT> void createThunks(InputSectionBase<ELFT> &);
 
 template <class ELFT>
 static inline typename ELFT::uint getAddend(const typename ELFT::Rel &Rel) {

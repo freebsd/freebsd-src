@@ -11,14 +11,31 @@
 
 #include "llvm/ADT/Twine.h"
 #include "llvm/Support/Error.h"
+#include "llvm/Support/Process.h"
 #include "llvm/Support/raw_ostream.h"
+
+#if !defined(_MSC_VER) && !defined(__MINGW32__)
+#include <unistd.h>
+#endif
+
+using namespace llvm;
 
 namespace lld {
 namespace coff {
 
 void fatal(const Twine &Msg) {
-  llvm::errs() << Msg << "\n";
-  exit(1);
+  if (sys::Process::StandardErrHasColors()) {
+    errs().changeColor(raw_ostream::RED, /*bold=*/true);
+    errs() << "error: ";
+    errs().resetColor();
+  } else {
+    errs() << "error: ";
+  }
+  errs() << Msg << "\n";
+
+  outs().flush();
+  errs().flush();
+  _exit(1);
 }
 
 void fatal(std::error_code EC, const Twine &Msg) {
