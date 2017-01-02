@@ -956,8 +956,11 @@ ipsec_set_tunnel(struct ipsec_softc *sc, struct sockaddr *src,
 	}
 
 	sc->ifp->if_drv_flags |= IFF_DRV_RUNNING;
-	if (f != 0)
+	if (f != 0) {
 		key_unregister_ifnet(oldsp, IPSEC_SPCOUNT);
+		for (i = 0; i < IPSEC_SPCOUNT; i++)
+			key_freesp(&oldsp[i]);
+	}
 	return (0);
 }
 
@@ -986,5 +989,7 @@ ipsec_delete_tunnel(struct ifnet *ifp, int locked)
 		if (!locked)
 			IPSEC_SC_WUNLOCK();
 		key_unregister_ifnet(oldsp, IPSEC_SPCOUNT);
+		for (i = 0; i < IPSEC_SPCOUNT; i++)
+			key_freesp(&oldsp[i]);
 	}
 }
