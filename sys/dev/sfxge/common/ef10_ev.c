@@ -800,7 +800,7 @@ ef10_ev_rx(
 		 * or headers that are too long for the parser.
 		 * Headers and checksums must be validated by the host.
 		 */
-		// TODO: EFX_EV_QSTAT_INCR(eep, EV_RX_PARSE_INCOMPLETE);
+		/* TODO: EFX_EV_QSTAT_INCR(eep, EV_RX_PARSE_INCOMPLETE); */
 		goto deliver;
 	}
 

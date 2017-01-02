@@ -852,7 +852,7 @@ ef10_nvram_buffer_find_item_start(
 	__in			size_t buffer_size,
 	__out			uint32_t *startp)
 {
-	// Read past partition header to find start address of the first key
+	/* Read past partition header to find start address of the first key */
 	tlv_cursor_t cursor;
 	efx_rc_t rc;
 
@@ -898,7 +898,7 @@ ef10_nvram_buffer_find_end(
 	__in			uint32_t offset,
 	__out			uint32_t *endp)
 {
-	// Read to end of partition
+	/* Read to end of partition */
 	tlv_cursor_t cursor;
 	efx_rc_t rc;
 	uint32_t *segment_used;
@@ -956,7 +956,7 @@ ef10_nvram_buffer_find_item(
 	__out			uint32_t *startp,
 	__out			uint32_t *lengthp)
 {
-	// Find TLV at offset and return key start and length
+	/* Find TLV at offset and return key start and length */
 	tlv_cursor_t cursor;
 	uint8_t *key;
 	uint32_t tag;
