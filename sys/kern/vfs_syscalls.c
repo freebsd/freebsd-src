@@ -247,7 +247,7 @@ statfs_scale_blocks(struct statfs *sf, long max_size)
 static int
 kern_do_statfs(struct thread *td, struct mount *mp, struct statfs *buf)
 {
-	struct statfs *sp, sb;
+	struct statfs *sp;
 	int error;
 
 	if (mp == NULL)
@@ -271,13 +271,11 @@ kern_do_statfs(struct thread *td, struct mount *mp, struct statfs *buf)
 	error = VFS_STATFS(mp, sp);
 	if (error != 0)
 		goto out;
-	if (priv_check(td, PRIV_VFS_GENERATION)) {
-		bcopy(sp, &sb, sizeof(sb));
-		sb.f_fsid.val[0] = sb.f_fsid.val[1] = 0;
-		prison_enforce_statfs(td->td_ucred, mp, &sb);
-		sp = &sb;
-	}
 	*buf = *sp;
+	if (priv_check(td, PRIV_VFS_GENERATION)) {
+		buf->f_fsid.val[0] = buf->f_fsid.val[1] = 0;
+		prison_enforce_statfs(td->td_ucred, mp, buf);
+	}
 out:
 	vfs_unbusy(mp);
 	return (error);
