@@ -37,6 +37,8 @@ __FBSDID("$FreeBSD$");
 
 #if EFSYS_OPT_SIENA
 
+#if EFSYS_OPT_VPD || EFSYS_OPT_NVRAM
+
 static	__checkReturn		efx_rc_t
 siena_nic_get_partn_mask(
 	__in			efx_nic_t *enp,
@@ -77,6 +79,8 @@ fail1:
 
 	return (rc);
 }
+
+#endif /* EFSYS_OPT_VPD || EFSYS_OPT_NVRAM */
 
 static	__checkReturn	efx_rc_t
 siena_board_cfg(
