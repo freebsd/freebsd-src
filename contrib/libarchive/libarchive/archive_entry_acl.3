@@ -33,7 +33,8 @@
 .Nm archive_entry_acl_next ,
 .Nm archive_entry_acl_next_w ,
 .Nm archive_entry_acl_reset ,
-.Nm archive_entry_acl_text_w
+.Nm archive_entry_acl_text_w ,
+.Nm archive_entry_acl_types
 .Nd functions for manipulating Access Control Lists in archive entry descriptions
 .Sh LIBRARY
 Streaming Archive Library (libarchive, -larchive)
@@ -85,6 +86,8 @@ Streaming Archive Library (libarchive, -larchive)
 .Fn archive_entry_acl_reset "struct archive_entry *a" "int type"
 .Ft const wchar_t *
 .Fn archive_entry_acl_text_w "struct archive_entry *a" "int flags"
+.Ft int
+.Fn archive_entry_acl_types "struct archive_entry *a"
 .\" enum?
 .Sh DESCRIPTION
 An
@@ -192,6 +195,11 @@ The returned long string is valid until the next call to
 .Fn archive_entry_acl_add_entry_w
 or
 .Fn archive_entry_acl_text_w .
+.Pp
+.Fn archive_entry_acl_types
+get ACL entry types contained in an archive entry's ACL. As POSIX.1e and NFSv4
+ACL entries cannot be mixed, this function is a very efficient way to detect if
+an ACL already contains POSIX.1e or NFSv4 ACL entries.
 .Sh RETURN VALUES
 .Fn archive_entry_acl_count
 and
@@ -225,6 +233,9 @@ The returned long string is valid until the next call to
 .Fn archive_entry_acl_add_entry_w
 or
 .Fn archive_entry_acl_text_w .
+.Pp
+.Fn archive_entry_acl_types
+returns a bitmask of ACL entry types or 0 if archive entry has no ACL entries.
 .Sh SEE ALSO
 .Xr archive_entry 3
 .Xr libarchive 3 ,

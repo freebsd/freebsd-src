@@ -523,7 +523,7 @@ drive_compressor_independence(struct archive_write_filter *f, const char *p,
 		archive_le32enc(data->out, outsize);
 		data->out += 4;
 	} else {
-		/* The buffer is not compressed. The commpressed size was
+		/* The buffer is not compressed. The compressed size was
 		 * bigger than its uncompressed size. */
 		archive_le32enc(data->out, length | 0x80000000);
 		data->out += 4;
@@ -608,7 +608,7 @@ drive_compressor_dependence(struct archive_write_filter *f, const char *p,
 		archive_le32enc(data->out, outsize);
 		data->out += 4;
 	} else {
-		/* The buffer is not compressed. The commpressed size was
+		/* The buffer is not compressed. The compressed size was
 		 * bigger than its uncompressed size. */
 		archive_le32enc(data->out, length | 0x80000000);
 		data->out += 4;

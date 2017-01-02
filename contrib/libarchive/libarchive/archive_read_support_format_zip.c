@@ -864,29 +864,33 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 		zip_entry->mode |= AE_IFREG;
 	}
 
-	if ((zip_entry->mode & AE_IFMT) == 0) {
-		/* Especially in streaming mode, we can end up
-		   here without having seen proper mode information.
-		   Guess from the filename. */
+	/* If the mode is totally empty, set some sane default. */
+	if (zip_entry->mode == 0) {
+		zip_entry->mode |= 0664;
+	}
+
+	/* Make sure that entries with a trailing '/' are marked as directories
+	 * even if the External File Attributes contains bogus values.  If this
+	 * is not a directory and there is no type, assume regularfile. */
+	if ((zip_entry->mode & AE_IFMT) != AE_IFDIR) {
+		int has_slash;
+
 		wp = archive_entry_pathname_w(entry);
 		if (wp != NULL) {
 			len = wcslen(wp);
-			if (len > 0 && wp[len - 1] == L'/')
-				zip_entry->mode |= AE_IFDIR;
-			else
-				zip_entry->mode |= AE_IFREG;
+			has_slash = len > 0 && wp[len - 1] == L'/';
 		} else {
 			cp = archive_entry_pathname(entry);
 			len = (cp != NULL)?strlen(cp):0;
-			if (len > 0 && cp[len - 1] == '/')
-				zip_entry->mode |= AE_IFDIR;
-			else
-				zip_entry->mode |= AE_IFREG;
+			has_slash = len > 0 && cp[len - 1] == '/';
 		}
-		if (zip_entry->mode == AE_IFDIR) {
-			zip_entry->mode |= 0775;
-		} else if (zip_entry->mode == AE_IFREG) {
-			zip_entry->mode |= 0664;
+		/* Correct file type as needed. */
+		if (has_slash) {
+			zip_entry->mode &= ~AE_IFMT;
+			zip_entry->mode |= AE_IFDIR;
+			zip_entry->mode |= 0111;
+		} else if ((zip_entry->mode & AE_IFMT) == 0) {
+			zip_entry->mode |= AE_IFREG;
 		}
 	}
 
