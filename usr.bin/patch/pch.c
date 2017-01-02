@@ -56,7 +56,7 @@ static LINENUM	p_max;		/* max allowed value of p_end */
 static LINENUM	p_context = 3;	/* # of context lines */
 static LINENUM	p_input_line = 0;	/* current line # from patch file */
 static char	**p_line = NULL;/* the text of the hunk */
-static unsigned short	*p_len = NULL; /* length of each line */
+static u_int	*p_len = NULL; /* length of each line */
 static char	*p_char = NULL;	/* +, -, and ! */
 static int	hunkmax = INITHUNKMAX;	/* size of above arrays to begin with */
 static int	p_indent;	/* indent to patch */
@@ -136,7 +136,7 @@ set_hunkmax(void)
 	if (p_line == NULL)
 		p_line = malloc(hunkmax * sizeof(char *));
 	if (p_len == NULL)
-		p_len = malloc(hunkmax * sizeof(unsigned short));
+		p_len = malloc(hunkmax * sizeof(u_int));
 	if (p_char == NULL)
 		p_char = malloc(hunkmax * sizeof(char));
 }
@@ -153,7 +153,7 @@ grow_hunkmax(void)
 		fatal("Internal memory allocation error\n");
 
 	p_line = reallocf(p_line, new_hunkmax * sizeof(char *));
-	p_len = reallocf(p_len, new_hunkmax * sizeof(unsigned short));
+	p_len = reallocf(p_len, new_hunkmax * sizeof(u_int));
 	p_char = reallocf(p_char, new_hunkmax * sizeof(char));
 
 	if (p_line != NULL && p_len != NULL && p_char != NULL) {
@@ -1210,7 +1210,7 @@ bool
 pch_swap(void)
 {
 	char	**tp_line;	/* the text of the hunk */
-	unsigned short	*tp_len;/* length of each line */
+	u_int	*tp_len;	/* length of each line */
 	char	*tp_char;	/* +, -, and ! */
 	LINENUM	i;
 	LINENUM	n;
@@ -1367,7 +1367,7 @@ pch_context(void)
 /*
  * Return the length of a particular patch line.
  */
-unsigned short
+u_int
 pch_line_len(LINENUM line)
 {
 	return p_len[line];
