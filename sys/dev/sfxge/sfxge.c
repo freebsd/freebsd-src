@@ -739,6 +739,16 @@ sfxge_create(struct sfxge_softc *sc)
 		goto fail3;
 	sc->enp = enp;
 
+	/* Initialize MCDI to talk to the microcontroller. */
+	DBGPRINT(sc->dev, "mcdi_init...");
+	if ((error = sfxge_mcdi_init(sc)) != 0)
+		goto fail4;
+
+	/* Probe the NIC and build the configuration data area. */
+	DBGPRINT(sc->dev, "nic_probe...");
+	if ((error = efx_nic_probe(enp)) != 0)
+		goto fail5;
+
 	if (!ISP2(sfxge_rx_ring_entries) ||
 	    (sfxge_rx_ring_entries < EFX_RXQ_MINNDESCS) ||
 	    (sfxge_rx_ring_entries > EFX_RXQ_MAXNDESCS)) {
@@ -760,16 +770,6 @@ sfxge_create(struct sfxge_softc *sc)
 		goto fail_tx_ring_entries;
 	}
 	sc->txq_entries = sfxge_tx_ring_entries;
-
-	/* Initialize MCDI to talk to the microcontroller. */
-	DBGPRINT(sc->dev, "mcdi_init...");
-	if ((error = sfxge_mcdi_init(sc)) != 0)
-		goto fail4;
-
-	/* Probe the NIC and build the configuration data area. */
-	DBGPRINT(sc->dev, "nic_probe...");
-	if ((error = efx_nic_probe(enp)) != 0)
-		goto fail5;
 
 	SYSCTL_ADD_STRING(device_get_sysctl_ctx(dev),
 			  SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
@@ -863,14 +863,14 @@ fail7:
 	efx_nvram_fini(enp);
 
 fail6:
+fail_tx_ring_entries:
+fail_rx_ring_entries:
 	efx_nic_unprobe(enp);
 
 fail5:
 	sfxge_mcdi_fini(sc);
 
 fail4:
-fail_tx_ring_entries:
-fail_rx_ring_entries:
 	sc->enp = NULL;
 	efx_nic_destroy(enp);
 	SFXGE_EFSYS_LOCK_DESTROY(&sc->enp_lock);
