@@ -22,6 +22,7 @@ add_tablegen(llvm-tblgen LLVM
   DisassemblerEmitter.cpp
   FastISelEmitter.cpp
   FixedLenDecoderEmitter.cpp
+  GlobalISelEmitter.cpp
   InstrInfoEmitter.cpp
   IntrinsicEmitter.cpp
   OptParserEmitter.cpp
@@ -29,7 +30,9 @@ add_tablegen(llvm-tblgen LLVM
   RegisterInfoEmitter.cpp
   SearchableTableEmitter.cpp
   SubtargetEmitter.cpp
+  SubtargetFeatureInfo.cpp
   TableGen.cpp
+  Types.cpp
   X86DisassemblerTables.cpp
   X86ModRMFilters.cpp
   X86RecognizableInstr.cpp

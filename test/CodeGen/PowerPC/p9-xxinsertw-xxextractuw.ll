@@ -972,10 +972,10 @@ define <4 x float> @insertVarF(<4 x float> %a, float %f, i32 %el) {
 entry:
 ; CHECK-LABEL: insertVarF
 ; CHECK: stxsspx 1,
-; CHECK: lxvd2x
+; CHECK: lxvx
 ; CHECK-BE-LABEL: insertVarF
 ; CHECK-BE: stxsspx 1,
-; CHECK-BE: lxvw4x
+; CHECK-BE: lxvx
   %vecins = insertelement <4 x float> %a, float %f, i32 %el
   ret <4 x float> %vecins
 }
@@ -983,10 +983,28 @@ define <4 x i32> @insertVarI(<4 x i32> %a, i32 %i, i32 %el) {
 entry:
 ; CHECK-LABEL: insertVarI
 ; CHECK: stwx
-; CHECK: lxvd2x
+; CHECK: lxvx
 ; CHECK-BE-LABEL: insertVarI
 ; CHECK-BE: stwx
-; CHECK-BE: lxvw4x
+; CHECK-BE: lxvx
   %vecins = insertelement <4 x i32> %a, i32 %i, i32 %el
   ret <4 x i32> %vecins
 }
+define <4 x i32> @intrinsicInsertTest(<4 x i32> %a, <2 x i64> %b) {
+entry:
+; CHECK-LABEL:intrinsicInsertTest
+; CHECK: xxinsertw 34, 35, 3
+; CHECK: blr
+  %ans = tail call <4 x i32> @llvm.ppc.vsx.xxinsertw(<4 x i32> %a, <2 x i64> %b, i32 3)
+  ret <4 x i32> %ans
+}
+declare <4 x i32> @llvm.ppc.vsx.xxinsertw(<4 x i32>, <2 x i64>, i32)
+define <2 x i64> @intrinsicExtractTest(<2 x i64> %a) {
+entry:
+; CHECK-LABEL: intrinsicExtractTest
+; CHECK: xxextractuw 0, 34, 5
+; CHECK: blr
+  %ans = tail call <2 x i64> @llvm.ppc.vsx.xxextractuw(<2 x i64> %a, i32 5)
+  ret <2 x i64> %ans
+}
+declare <2 x i64>  @llvm.ppc.vsx.xxextractuw(<2 x i64>, i32)

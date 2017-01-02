@@ -46,7 +46,7 @@ entry:
 ; X64-LABEL: TestFPExtF64_F128:
 ; X64:       movsd      vf64(%rip), %xmm0
 ; X64-NEXT:  callq      __extenddftf2
-; X64-NEXT:  movapd     %xmm0, vf128(%rip)
+; X64-NEXT:  movaps     %xmm0, vf128(%rip)
 ; X64:       ret
 }
 
@@ -351,8 +351,10 @@ cleanup:                                          ; preds = %entry, %if.then
 ;
 ; X64-LABEL: TestTruncCopysign:
 ; X64:       callq __trunctfdf2
-; X64-NEXT:  andpd {{.*}}, %xmm0
-; X64-NEXT:  orpd {{.*}}, %xmm0
+; X64-NEXT:  movsd {{.*}}, %xmm1
+; X64-NEXT:  movlhps %xmm1, %xmm1
+; X64-NEXT:  andps {{.*}}, %xmm0
+; X64-NEXT:  orps %xmm1, %xmm0
 ; X64-NEXT:  callq __extenddftf2
 ; X64:       retq
 }

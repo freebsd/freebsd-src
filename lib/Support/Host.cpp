@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Support/Host.h"
+#include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/StringSwitch.h"
@@ -19,7 +20,9 @@
 #include "llvm/Config/config.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/FileSystem.h"
+#include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/raw_ostream.h"
+#include <assert.h>
 #include <string.h>
 
 // Include the platform-specific parts of this class.
@@ -69,9 +72,8 @@ static ssize_t LLVM_ATTRIBUTE_UNUSED readCpuInfo(void *Buf, size_t Size) {
 }
 #endif
 
-#if defined(i386) || defined(__i386__) || defined(__x86__) ||                  \
-    defined(_M_IX86) || defined(__x86_64__) || defined(_M_AMD64) ||            \
-    defined(_M_X64)
+#if defined(__i386__) || defined(_M_IX86) || \
+    defined(__x86_64__) || defined(_M_X64)
 
 enum VendorSignatures {
   SIG_INTEL = 0x756e6547 /* Genu */,
@@ -169,30 +171,63 @@ enum ProcessorFeatures {
   FEATURE_EM64T
 };
 
+// The check below for i386 was copied from clang's cpuid.h (__get_cpuid_max).
+// Check motivated by bug reports for OpenSSL crashing on CPUs without CPUID
+// support. Consequently, for i386, the presence of CPUID is checked first
+// via the corresponding eflags bit.
+// Removal of cpuid.h header motivated by PR30384
+// Header cpuid.h and method __get_cpuid_max are not used in llvm, clang, openmp
+// or test-suite, but are used in external projects e.g. libstdcxx
+static bool isCpuIdSupported() {
+#if defined(__GNUC__) || defined(__clang__)
+#if defined(__i386__)
+  int __cpuid_supported;
+  __asm__("  pushfl\n"
+          "  popl   %%eax\n"
+          "  movl   %%eax,%%ecx\n"
+          "  xorl   $0x00200000,%%eax\n"
+          "  pushl  %%eax\n"
+          "  popfl\n"
+          "  pushfl\n"
+          "  popl   %%eax\n"
+          "  movl   $0,%0\n"
+          "  cmpl   %%eax,%%ecx\n"
+          "  je     1f\n"
+          "  movl   $1,%0\n"
+          "1:"
+          : "=r"(__cpuid_supported)
+          :
+          : "eax", "ecx");
+  if (!__cpuid_supported)
+    return false;
+#endif
+  return true;
+#endif
+  return true;
+}
+
 /// getX86CpuIDAndInfo - Execute the specified cpuid and return the 4 values in
 /// the specified arguments.  If we can't run cpuid on the host, return true.
 static bool getX86CpuIDAndInfo(unsigned value, unsigned *rEAX, unsigned *rEBX,
                                unsigned *rECX, unsigned *rEDX) {
+#if defined(__GNUC__) || defined(__clang__) || defined(_MSC_VER)
 #if defined(__GNUC__) || defined(__clang__)
-#if defined(__x86_64__) || defined(_M_AMD64) || defined(_M_X64)
-  // gcc doesn't know cpuid would clobber ebx/rbx. Preseve it manually.
-  asm("movq\t%%rbx, %%rsi\n\t"
-      "cpuid\n\t"
-      "xchgq\t%%rbx, %%rsi\n\t"
-      : "=a"(*rEAX), "=S"(*rEBX), "=c"(*rECX), "=d"(*rEDX)
-      : "a"(value));
-  return false;
-#elif defined(i386) || defined(__i386__) || defined(__x86__) || defined(_M_IX86)
-  asm("movl\t%%ebx, %%esi\n\t"
-      "cpuid\n\t"
-      "xchgl\t%%ebx, %%esi\n\t"
-      : "=a"(*rEAX), "=S"(*rEBX), "=c"(*rECX), "=d"(*rEDX)
-      : "a"(value));
-  return false;
-// pedantic #else returns to appease -Wunreachable-code (so we don't generate
-// postprocessed code that looks like "return true; return false;")
+#if defined(__x86_64__)
+  // gcc doesn't know cpuid would clobber ebx/rbx. Preserve it manually.
+  // FIXME: should we save this for Clang?
+  __asm__("movq\t%%rbx, %%rsi\n\t"
+          "cpuid\n\t"
+          "xchgq\t%%rbx, %%rsi\n\t"
+          : "=a"(*rEAX), "=S"(*rEBX), "=c"(*rECX), "=d"(*rEDX)
+          : "a"(value));
+#elif defined(__i386__)
+  __asm__("movl\t%%ebx, %%esi\n\t"
+          "cpuid\n\t"
+          "xchgl\t%%ebx, %%esi\n\t"
+          : "=a"(*rEAX), "=S"(*rEBX), "=c"(*rECX), "=d"(*rEDX)
+          : "a"(value));
 #else
-  return true;
+  assert(0 && "This method is defined only for x86.");
 #endif
 #elif defined(_MSC_VER)
   // The MSVC intrinsic is portable across x86 and x64.
@@ -202,6 +237,7 @@ static bool getX86CpuIDAndInfo(unsigned value, unsigned *rEAX, unsigned *rEBX,
   *rEBX = registers[1];
   *rECX = registers[2];
   *rEDX = registers[3];
+#endif
   return false;
 #else
   return true;
@@ -214,15 +250,16 @@ static bool getX86CpuIDAndInfo(unsigned value, unsigned *rEAX, unsigned *rEBX,
 static bool getX86CpuIDAndInfoEx(unsigned value, unsigned subleaf,
                                  unsigned *rEAX, unsigned *rEBX, unsigned *rECX,
                                  unsigned *rEDX) {
-#if defined(__x86_64__) || defined(_M_AMD64) || defined(_M_X64)
-#if defined(__GNUC__)
+#if defined(__GNUC__) || defined(__clang__) || defined(_MSC_VER)
+#if defined(__x86_64__) || defined(_M_X64)
+#if defined(__GNUC__) || defined(__clang__)
   // gcc doesn't know cpuid would clobber ebx/rbx. Preseve it manually.
-  asm("movq\t%%rbx, %%rsi\n\t"
-      "cpuid\n\t"
-      "xchgq\t%%rbx, %%rsi\n\t"
-      : "=a"(*rEAX), "=S"(*rEBX), "=c"(*rECX), "=d"(*rEDX)
-      : "a"(value), "c"(subleaf));
-  return false;
+  // FIXME: should we save this for Clang?
+  __asm__("movq\t%%rbx, %%rsi\n\t"
+          "cpuid\n\t"
+          "xchgq\t%%rbx, %%rsi\n\t"
+          : "=a"(*rEAX), "=S"(*rEBX), "=c"(*rECX), "=d"(*rEDX)
+          : "a"(value), "c"(subleaf));
 #elif defined(_MSC_VER)
   int registers[4];
   __cpuidex(registers, value, subleaf);
@@ -230,18 +267,14 @@ static bool getX86CpuIDAndInfoEx(unsigned value, unsigned subleaf,
   *rEBX = registers[1];
   *rECX = registers[2];
   *rEDX = registers[3];
-  return false;
-#else
-  return true;
 #endif
-#elif defined(i386) || defined(__i386__) || defined(__x86__) || defined(_M_IX86)
-#if defined(__GNUC__)
-  asm("movl\t%%ebx, %%esi\n\t"
-      "cpuid\n\t"
-      "xchgl\t%%ebx, %%esi\n\t"
-      : "=a"(*rEAX), "=S"(*rEBX), "=c"(*rECX), "=d"(*rEDX)
-      : "a"(value), "c"(subleaf));
-  return false;
+#elif defined(__i386__) || defined(_M_IX86)
+#if defined(__GNUC__) || defined(__clang__)
+  __asm__("movl\t%%ebx, %%esi\n\t"
+          "cpuid\n\t"
+          "xchgl\t%%ebx, %%esi\n\t"
+          : "=a"(*rEAX), "=S"(*rEBX), "=c"(*rECX), "=d"(*rEDX)
+          : "a"(value), "c"(subleaf));
 #elif defined(_MSC_VER)
   __asm {
       mov   eax,value
@@ -256,17 +289,18 @@ static bool getX86CpuIDAndInfoEx(unsigned value, unsigned subleaf,
       mov   esi,rEDX
       mov   dword ptr [esi],edx
   }
-  return false;
-#else
-  return true;
 #endif
+#else
+  assert(0 && "This method is defined only for x86.");
+#endif
+  return false;
 #else
   return true;
 #endif
 }
 
 static bool getX86XCR0(unsigned *rEAX, unsigned *rEDX) {
-#if defined(__GNUC__)
+#if defined(__GNUC__) || defined(__clang__)
   // Check xgetbv; this uses a .byte sequence instead of the instruction
   // directly because older assemblers do not include support for xgetbv and
   // there is no easy way to conditionally compile based on the assembler used.
@@ -743,6 +777,14 @@ StringRef sys::getHostCPUName() {
   unsigned EAX = 0, EBX = 0, ECX = 0, EDX = 0;
   unsigned MaxLeaf, Vendor;
 
+#if defined(__GNUC__) || defined(__clang__)
+  //FIXME: include cpuid.h from clang or copy __get_cpuid_max here
+  // and simplify it to not invoke __cpuid (like cpu_model.c in
+  // compiler-rt/lib/builtins/cpu_model.c?
+  // Opting for the second option.
+  if(!isCpuIdSupported())
+    return "generic";
+#endif
   if (getX86CpuIDAndInfo(0, &MaxLeaf, &Vendor, &ECX, &EDX))
     return "generic";
   if (getX86CpuIDAndInfo(0x1, &EAX, &EBX, &ECX, &EDX))
@@ -1148,9 +1190,81 @@ StringRef sys::getHostCPUName() {
 StringRef sys::getHostCPUName() { return "generic"; }
 #endif
 
-#if defined(i386) || defined(__i386__) || defined(__x86__) ||                  \
-    defined(_M_IX86) || defined(__x86_64__) || defined(_M_AMD64) ||            \
-    defined(_M_X64)
+#if defined(__linux__) && defined(__x86_64__)
+// On Linux, the number of physical cores can be computed from /proc/cpuinfo,
+// using the number of unique physical/core id pairs. The following
+// implementation reads the /proc/cpuinfo format on an x86_64 system.
+static int computeHostNumPhysicalCores() {
+  // Read /proc/cpuinfo as a stream (until EOF reached). It cannot be
+  // mmapped because it appears to have 0 size.
+  llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>> Text =
+      llvm::MemoryBuffer::getFileAsStream("/proc/cpuinfo");
+  if (std::error_code EC = Text.getError()) {
+    llvm::errs() << "Can't read "
+                 << "/proc/cpuinfo: " << EC.message() << "\n";
+  }
+  SmallVector<StringRef, 8> strs;
+  (*Text)->getBuffer().split(strs, "\n", /*MaxSplit=*/-1,
+                             /*KeepEmpty=*/false);
+  int CurPhysicalId = -1;
+  int CurCoreId = -1;
+  SmallSet<std::pair<int, int>, 32> UniqueItems;
+  for (auto &Line : strs) {
+    Line = Line.trim();
+    if (!Line.startswith("physical id") && !Line.startswith("core id"))
+      continue;
+    std::pair<StringRef, StringRef> Data = Line.split(':');
+    auto Name = Data.first.trim();
+    auto Val = Data.second.trim();
+    if (Name == "physical id") {
+      assert(CurPhysicalId == -1 &&
+             "Expected a core id before seeing another physical id");
+      Val.getAsInteger(10, CurPhysicalId);
+    }
+    if (Name == "core id") {
+      assert(CurCoreId == -1 &&
+             "Expected a physical id before seeing another core id");
+      Val.getAsInteger(10, CurCoreId);
+    }
+    if (CurPhysicalId != -1 && CurCoreId != -1) {
+      UniqueItems.insert(std::make_pair(CurPhysicalId, CurCoreId));
+      CurPhysicalId = -1;
+      CurCoreId = -1;
+    }
+  }
+  return UniqueItems.size();
+}
+#elif defined(__APPLE__) && defined(__x86_64__)
+#include <sys/param.h>
+#include <sys/sysctl.h>
+
+// Gets the number of *physical cores* on the machine.
+static int computeHostNumPhysicalCores() {
+  uint32_t count;
+  size_t len = sizeof(count);
+  sysctlbyname("hw.physicalcpu", &count, &len, NULL, 0);
+  if (count < 1) {
+    int nm[2];
+    nm[0] = CTL_HW;
+    nm[1] = HW_AVAILCPU;
+    sysctl(nm, 2, &count, &len, NULL, 0);
+    if (count < 1)
+      return -1;
+  }
+  return count;
+}
+#else
+// On other systems, return -1 to indicate unknown.
+static int computeHostNumPhysicalCores() { return -1; }
+#endif
+
+int sys::getHostNumPhysicalCores() {
+  static int NumCores = computeHostNumPhysicalCores();
+  return NumCores;
+}
+
+#if defined(__i386__) || defined(_M_IX86) || \
+    defined(__x86_64__) || defined(_M_X64)
 bool sys::getHostCPUFeatures(StringMap<bool> &Features) {
   unsigned EAX = 0, EBX = 0, ECX = 0, EDX = 0;
   unsigned MaxLevel;

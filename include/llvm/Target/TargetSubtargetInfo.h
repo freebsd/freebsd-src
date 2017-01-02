@@ -25,6 +25,8 @@ namespace llvm {
 
 class CallLowering;
 class DataLayout;
+class InstructionSelector;
+class LegalizerInfo;
 class MachineFunction;
 class MachineInstr;
 class RegisterBankInfo;
@@ -69,6 +71,8 @@ public:
 
   virtual ~TargetSubtargetInfo();
 
+  virtual bool isXRaySupported() const { return false; }
+
   // Interfaces to the major aspects of target machine information:
   //
   // -- Instruction opcode and operand information
@@ -88,11 +92,22 @@ public:
     return nullptr;
   }
   virtual const CallLowering *getCallLowering() const { return nullptr; }
+
+  // FIXME: This lets targets specialize the selector by subtarget (which lets
+  // us do things like a dedicated avx512 selector).  However, we might want
+  // to also specialize selectors by MachineFunction, which would let us be
+  // aware of optsize/optnone and such.
+  virtual const InstructionSelector *getInstructionSelector() const {
+    return nullptr;
+  }
+
   /// Target can subclass this hook to select a different DAG scheduler.
   virtual RegisterScheduler::FunctionPassCtor
       getDAGScheduler(CodeGenOpt::Level) const {
     return nullptr;
   }
+
+  virtual const LegalizerInfo *getLegalizerInfo() const { return nullptr; }
 
   /// getRegisterInfo - If register information is available, return it.  If
   /// not, return null.
@@ -176,6 +191,12 @@ public:
       std::vector<std::unique_ptr<ScheduleDAGMutation>> &Mutations) const {
   }
 
+  // \brief Provide an ordered list of schedule DAG mutations for the machine
+  // pipeliner.
+  virtual void getSMSMutations(
+      std::vector<std::unique_ptr<ScheduleDAGMutation>> &Mutations) const {
+  }
+
   // For use with PostRAScheduling: get the minimum optimization level needed
   // to enable post-RA scheduling.
   virtual CodeGenOpt::Level getOptLevelToEnablePostRAScheduler() const {
@@ -203,6 +224,8 @@ public:
   }
 
   /// Enable tracking of subregister liveness in register allocator.
+  /// Please use MachineRegisterInfo::subRegLivenessEnabled() instead where
+  /// possible.
   virtual bool enableSubRegLiveness() const { return false; }
 };
 

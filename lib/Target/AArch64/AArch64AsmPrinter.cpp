@@ -37,6 +37,9 @@
 #include "llvm/MC/MCLinkerOptimizationHint.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSymbol.h"
+#include "llvm/MC/MCSymbolELF.h"
+#include "llvm/MC/MCSectionELF.h"
+#include "llvm/MC/MCSectionMachO.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/raw_ostream.h"
@@ -56,9 +59,7 @@ public:
       : AsmPrinter(TM, std::move(Streamer)), MCInstLowering(OutContext, *this),
         SM(*this), AArch64FI(nullptr) {}
 
-  const char *getPassName() const override {
-    return "AArch64 Assembly Printer";
-  }
+  StringRef getPassName() const override { return "AArch64 Assembly Printer"; }
 
   /// \brief Wrapper for MCInstLowering.lowerOperand() for the
   /// tblgen'erated pseudo lowering.
@@ -70,6 +71,14 @@ public:
                      const MachineInstr &MI);
   void LowerPATCHPOINT(MCStreamer &OutStreamer, StackMaps &SM,
                        const MachineInstr &MI);
+
+  void LowerPATCHABLE_FUNCTION_ENTER(const MachineInstr &MI);
+  void LowerPATCHABLE_FUNCTION_EXIT(const MachineInstr &MI);
+  void LowerPATCHABLE_TAIL_CALL(const MachineInstr &MI);
+
+  void EmitXRayTable();
+  void EmitSled(const MachineInstr &MI, SledKind Kind);
+
   /// \brief tblgen'erated driver function for lowering simple MI->MC
   /// pseudo instructions.
   bool emitPseudoExpansionLowering(MCStreamer &OutStreamer,
@@ -85,7 +94,9 @@ public:
   bool runOnMachineFunction(MachineFunction &F) override {
     AArch64FI = F.getInfo<AArch64FunctionInfo>();
     STI = static_cast<const AArch64Subtarget*>(&F.getSubtarget());
-    return AsmPrinter::runOnMachineFunction(F);
+    bool Result = AsmPrinter::runOnMachineFunction(F);
+    EmitXRayTable();
+    return Result;
   }
 
 private:
@@ -123,6 +134,114 @@ private:
 } // end of anonymous namespace
 
 //===----------------------------------------------------------------------===//
+
+void AArch64AsmPrinter::LowerPATCHABLE_FUNCTION_ENTER(const MachineInstr &MI)
+{
+  EmitSled(MI, SledKind::FUNCTION_ENTER);
+}
+
+void AArch64AsmPrinter::LowerPATCHABLE_FUNCTION_EXIT(const MachineInstr &MI)
+{
+  EmitSled(MI, SledKind::FUNCTION_EXIT);
+}
+
+void AArch64AsmPrinter::LowerPATCHABLE_TAIL_CALL(const MachineInstr &MI)
+{
+  EmitSled(MI, SledKind::TAIL_CALL);
+}
+
+void AArch64AsmPrinter::EmitXRayTable()
+{
+  //TODO: merge the logic for ELF XRay sleds at a higher level, so to avoid
+  // code duplication as it is now for x86_64, ARM32 and AArch64.
+  if (Sleds.empty())
+    return;
+
+  auto PrevSection = OutStreamer->getCurrentSectionOnly();
+  auto Fn = MF->getFunction();
+  MCSection *Section;
+
+  if (STI->isTargetELF()) {
+    if (Fn->hasComdat())
+      Section = OutContext.getELFSection("xray_instr_map", ELF::SHT_PROGBITS,
+        ELF::SHF_ALLOC | ELF::SHF_GROUP, 0,
+        Fn->getComdat()->getName());
+    else
+      Section = OutContext.getELFSection("xray_instr_map", ELF::SHT_PROGBITS,
+        ELF::SHF_ALLOC);
+  } else if (STI->isTargetMachO()) {
+    Section = OutContext.getMachOSection("__DATA", "xray_instr_map", 0,
+                                         SectionKind::getReadOnlyWithRel());
+  } else {
+    llvm_unreachable("Unsupported target");
+  }
+
+  // Before we switch over, we force a reference to a label inside the
+  // xray_instr_map section. Since EmitXRayTable() is always called just
+  // before the function's end, we assume that this is happening after the
+  // last return instruction.
+  //
+  // We then align the reference to 16 byte boundaries, which we determined
+  // experimentally to be beneficial to avoid causing decoder stalls.
+  MCSymbol *Tmp = OutContext.createTempSymbol("xray_synthetic_", true);
+  OutStreamer->EmitCodeAlignment(16);
+  OutStreamer->EmitSymbolValue(Tmp, 8, false);
+  OutStreamer->SwitchSection(Section);
+  OutStreamer->EmitLabel(Tmp);
+  for (const auto &Sled : Sleds) {
+    OutStreamer->EmitSymbolValue(Sled.Sled, 8);
+    OutStreamer->EmitSymbolValue(CurrentFnSym, 8);
+    auto Kind = static_cast<uint8_t>(Sled.Kind);
+    OutStreamer->EmitBytes(
+      StringRef(reinterpret_cast<const char *>(&Kind), 1));
+    OutStreamer->EmitBytes(
+      StringRef(reinterpret_cast<const char *>(&Sled.AlwaysInstrument), 1));
+    OutStreamer->EmitZeros(14);
+  }
+  OutStreamer->SwitchSection(PrevSection);
+
+  Sleds.clear();
+}
+
+void AArch64AsmPrinter::EmitSled(const MachineInstr &MI, SledKind Kind)
+{
+  static const int8_t NoopsInSledCount = 7;
+  // We want to emit the following pattern:
+  //
+  // .Lxray_sled_N:
+  //   ALIGN
+  //   B #32
+  //   ; 7 NOP instructions (28 bytes)
+  // .tmpN
+  //
+  // We need the 28 bytes (7 instructions) because at runtime, we'd be patching
+  // over the full 32 bytes (8 instructions) with the following pattern:
+  //
+  //   STP X0, X30, [SP, #-16]! ; push X0 and the link register to the stack
+  //   LDR W0, #12 ; W0 := function ID
+  //   LDR X16,#12 ; X16 := addr of __xray_FunctionEntry or __xray_FunctionExit
+  //   BLR X16 ; call the tracing trampoline
+  //   ;DATA: 32 bits of function ID
+  //   ;DATA: lower 32 bits of the address of the trampoline
+  //   ;DATA: higher 32 bits of the address of the trampoline
+  //   LDP X0, X30, [SP], #16 ; pop X0 and the link register from the stack
+  //
+  OutStreamer->EmitCodeAlignment(4);
+  auto CurSled = OutContext.createTempSymbol("xray_sled_", true);
+  OutStreamer->EmitLabel(CurSled);
+  auto Target = OutContext.createTempSymbol();
+
+  // Emit "B #32" instruction, which jumps over the next 28 bytes.
+  // The operand has to be the number of 4-byte instructions to jump over,
+  // including the current instruction.
+  EmitToStreamer(*OutStreamer, MCInstBuilder(AArch64::B).addImm(8));
+
+  for (int8_t I = 0; I < NoopsInSledCount; I++)
+    EmitToStreamer(*OutStreamer, MCInstBuilder(AArch64::HINT).addImm(0));
+
+  OutStreamer->EmitLabel(Target);
+  recordSled(CurSled, MI, Kind);
+}
 
 void AArch64AsmPrinter::EmitEndOfAsmFile(Module &M) {
   const Triple &TT = TM.getTargetTriple();
@@ -162,7 +281,7 @@ MCSymbol *AArch64AsmPrinter::GetCPISymbol(unsigned CPID) const {
   // Darwin uses a linker-private symbol name for constant-pools (to
   // avoid addends on the relocation?), ELF has no such concept and
   // uses a normal private symbol.
-  if (getDataLayout().getLinkerPrivateGlobalPrefix()[0])
+  if (!getDataLayout().getLinkerPrivateGlobalPrefix().empty())
     return OutContext.getOrCreateSymbol(
         Twine(getDataLayout().getLinkerPrivateGlobalPrefix()) + "CPI" +
         Twine(getFunctionNumber()) + "_" + Twine(CPID));
@@ -354,7 +473,7 @@ void AArch64AsmPrinter::PrintDebugValueComment(const MachineInstr *MI,
 
 void AArch64AsmPrinter::LowerSTACKMAP(MCStreamer &OutStreamer, StackMaps &SM,
                                       const MachineInstr &MI) {
-  unsigned NumNOPBytes = MI.getOperand(1).getImm();
+  unsigned NumNOPBytes = StackMapOpers(&MI).getNumPatchBytes();
 
   SM.recordStackMap(MI);
   assert(NumNOPBytes % 4 == 0 && "Invalid number of NOP bytes requested!");
@@ -386,7 +505,7 @@ void AArch64AsmPrinter::LowerPATCHPOINT(MCStreamer &OutStreamer, StackMaps &SM,
 
   PatchPointOpers Opers(&MI);
 
-  int64_t CallTarget = Opers.getMetaOper(PatchPointOpers::TargetPos).getImm();
+  int64_t CallTarget = Opers.getCallTarget().getImm();
   unsigned EncodedBytes = 0;
   if (CallTarget) {
     assert((CallTarget & 0xFFFFFFFFFFFF) == CallTarget &&
@@ -411,7 +530,7 @@ void AArch64AsmPrinter::LowerPATCHPOINT(MCStreamer &OutStreamer, StackMaps &SM,
     EmitToStreamer(OutStreamer, MCInstBuilder(AArch64::BLR).addReg(ScratchReg));
   }
   // Emit padding.
-  unsigned NumBytes = Opers.getMetaOper(PatchPointOpers::NBytesPos).getImm();
+  unsigned NumBytes = Opers.getNumPatchBytes();
   assert(NumBytes >= EncodedBytes &&
          "Patchpoint can't request size less than the length of a call.");
   assert((NumBytes - EncodedBytes) % 4 == 0 &&
@@ -569,6 +688,18 @@ void AArch64AsmPrinter::EmitInstruction(const MachineInstr *MI) {
 
   case TargetOpcode::PATCHPOINT:
     return LowerPATCHPOINT(*OutStreamer, SM, *MI);
+
+  case TargetOpcode::PATCHABLE_FUNCTION_ENTER:
+    LowerPATCHABLE_FUNCTION_ENTER(*MI);
+    return;
+
+  case TargetOpcode::PATCHABLE_FUNCTION_EXIT:
+    LowerPATCHABLE_FUNCTION_EXIT(*MI);
+    return;
+
+  case TargetOpcode::PATCHABLE_TAIL_CALL:
+    LowerPATCHABLE_TAIL_CALL(*MI);
+    return;
   }
 
   // Finally, do the automated lowerings for everything else.
@@ -579,7 +710,7 @@ void AArch64AsmPrinter::EmitInstruction(const MachineInstr *MI) {
 
 // Force static initialization.
 extern "C" void LLVMInitializeAArch64AsmPrinter() {
-  RegisterAsmPrinter<AArch64AsmPrinter> X(TheAArch64leTarget);
-  RegisterAsmPrinter<AArch64AsmPrinter> Y(TheAArch64beTarget);
-  RegisterAsmPrinter<AArch64AsmPrinter> Z(TheARM64Target);
+  RegisterAsmPrinter<AArch64AsmPrinter> X(getTheAArch64leTarget());
+  RegisterAsmPrinter<AArch64AsmPrinter> Y(getTheAArch64beTarget());
+  RegisterAsmPrinter<AArch64AsmPrinter> Z(getTheARM64Target());
 }

@@ -110,7 +110,7 @@ define i32 @f8(i32 %a, i32 %b, i32 %c, i32 %d, i32 %e) "no-frame-pointer-elim"="
   %gep = getelementptr [300 x i8], [300 x i8]* %alloca, i32 0, i32 0
   call void @external(i8* %gep)
   ; CHECK:        subq    $32, %rsp
-  ; CHECK:        leaq    (%rbx), %rcx
+  ; CHECK:        movq    %rbx, %rcx
   ; CHECK:        callq   external
   ; CHECK:        addq    $32, %rsp
 
@@ -184,7 +184,26 @@ define i64 @f10(i64* %foo, i64 %bar, i64 %baz) {
   ; CHECK-NEXT: popq    %rbp
 }
 
+define i8* @f11() "no-frame-pointer-elim"="true" {
+  ; CHECK-LABEL: f11:
+  ; CHECK:      pushq   %rbp
+  ; CHECK:      movq    %rsp, %rbp
+  ; CHECK:      .seh_setframe 5, 0
+  ; CHECK:      leaq    8(%rbp), %rax
+  %aora = call i8* @llvm.addressofreturnaddress()
+  ret i8* %aora
+}
+
+define i8* @f12() {
+  ; CHECK-LABEL: f12:
+  ; CHECK-NOT:  push
+  ; CHECK:      movq    %rsp, %rax
+  %aora = call i8* @llvm.addressofreturnaddress()
+  ret i8* %aora
+}
+
 declare i8* @llvm.returnaddress(i32) nounwind readnone
+declare i8* @llvm.addressofreturnaddress() nounwind readnone
 declare i64 @llvm.x86.flags.read.u64()
 
 declare void @llvm.va_start(i8*) nounwind

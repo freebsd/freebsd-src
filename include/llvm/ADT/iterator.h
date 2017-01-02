@@ -12,6 +12,7 @@
 
 #include <cstddef>
 #include <iterator>
+#include <type_traits>
 
 namespace llvm {
 
@@ -256,6 +257,23 @@ struct pointee_iterator
   T &operator*() const { return **this->I; }
 };
 
-}
+template <typename WrappedIteratorT,
+          typename T = decltype(&*std::declval<WrappedIteratorT>())>
+class pointer_iterator
+    : public iterator_adaptor_base<pointer_iterator<WrappedIteratorT>,
+                                   WrappedIteratorT, T> {
+  mutable T Ptr;
 
-#endif
+public:
+  pointer_iterator() = default;
+
+  explicit pointer_iterator(WrappedIteratorT u)
+      : pointer_iterator::iterator_adaptor_base(std::move(u)) {}
+
+  T &operator*() { return Ptr = &*this->I; }
+  const T &operator*() const { return Ptr = &*this->I; }
+};
+
+} // end namespace llvm
+
+#endif // LLVM_ADT_ITERATOR_H

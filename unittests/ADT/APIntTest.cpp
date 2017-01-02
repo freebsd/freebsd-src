@@ -32,6 +32,11 @@ TEST(APIntTest, ShiftLeftByZero) {
   EXPECT_FALSE(Shl[1]);
 }
 
+TEST(APIntTest, i64_ArithmeticRightShiftNegative) {
+  const APInt neg_one(64, static_cast<uint64_t>(-1), true);
+  EXPECT_EQ(neg_one, neg_one.ashr(7));
+}
+
 TEST(APIntTest, i128_NegativeCount) {
   APInt Minus3(128, static_cast<uint64_t>(-3), true);
   EXPECT_EQ(126u, Minus3.countLeadingOnes());
@@ -47,9 +52,6 @@ TEST(APIntTest, i128_NegativeCount) {
   EXPECT_EQ(-1, Minus1.getSExtValue());
 }
 
-// XFAIL this test on FreeBSD where the system gcc-4.2.1 seems to miscompile it.
-#if defined(__llvm__) || !defined(__FreeBSD__)
-
 TEST(APIntTest, i33_Count) {
   APInt i33minus2(33, static_cast<uint64_t>(-2), true);
   EXPECT_EQ(0u, i33minus2.countLeadingZeros());
@@ -60,8 +62,6 @@ TEST(APIntTest, i33_Count) {
   EXPECT_EQ(-2, i33minus2.getSExtValue());
   EXPECT_EQ(((uint64_t)-2)&((1ull<<33) -1), i33minus2.getZExtValue());
 }
-
-#endif
 
 TEST(APIntTest, i65_Count) {
   APInt i65(65, 0, true);
@@ -414,6 +414,175 @@ TEST(APIntTest, compareLargeIntegers) {
   EXPECT_TRUE(!Two.slt(MinusTwo));
   EXPECT_TRUE(!MinusOne.slt(MinusTwo));
   EXPECT_TRUE(!MinusTwo.slt(MinusTwo));
+}
+
+TEST(APIntTest, rvalue_arithmetic) {
+  // Test all combinations of lvalue/rvalue lhs/rhs of add/sub
+
+  // Lamdba to return an APInt by value, but also provide the raw value of the
+  // allocated data.
+  auto getRValue = [](const char *HexString, uint64_t const *&RawData) {
+    APInt V(129, HexString, 16);
+    RawData = V.getRawData();
+    return V;
+  };
+
+  APInt One(129, "1", 16);
+  APInt Two(129, "2", 16);
+  APInt Three(129, "3", 16);
+  APInt MinusOne = -One;
+
+  const uint64_t *RawDataL = nullptr;
+  const uint64_t *RawDataR = nullptr;
+
+  {
+    // 1 + 1 = 2
+    APInt AddLL = One + One;
+    EXPECT_EQ(AddLL, Two);
+
+    APInt AddLR = One + getRValue("1", RawDataR);
+    EXPECT_EQ(AddLR, Two);
+    EXPECT_EQ(AddLR.getRawData(), RawDataR);
+
+    APInt AddRL = getRValue("1", RawDataL) + One;
+    EXPECT_EQ(AddRL, Two);
+    EXPECT_EQ(AddRL.getRawData(), RawDataL);
+
+    APInt AddRR = getRValue("1", RawDataL) + getRValue("1", RawDataR);
+    EXPECT_EQ(AddRR, Two);
+    EXPECT_EQ(AddRR.getRawData(), RawDataR);
+
+    // LValue's and constants
+    APInt AddLK = One + 1;
+    EXPECT_EQ(AddLK, Two);
+
+    APInt AddKL = 1 + One;
+    EXPECT_EQ(AddKL, Two);
+
+    // RValue's and constants
+    APInt AddRK = getRValue("1", RawDataL) + 1;
+    EXPECT_EQ(AddRK, Two);
+    EXPECT_EQ(AddRK.getRawData(), RawDataL);
+
+    APInt AddKR = 1 + getRValue("1", RawDataR);
+    EXPECT_EQ(AddKR, Two);
+    EXPECT_EQ(AddKR.getRawData(), RawDataR);
+  }
+
+  {
+    // 0x0,FFFF...FFFF + 0x2 = 0x100...0001
+    APInt AllOnes(129, "0FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF", 16);
+    APInt HighOneLowOne(129, "100000000000000000000000000000001", 16);
+
+    APInt AddLL = AllOnes + Two;
+    EXPECT_EQ(AddLL, HighOneLowOne);
+
+    APInt AddLR = AllOnes + getRValue("2", RawDataR);
+    EXPECT_EQ(AddLR, HighOneLowOne);
+    EXPECT_EQ(AddLR.getRawData(), RawDataR);
+
+    APInt AddRL = getRValue("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF", RawDataL) + Two;
+    EXPECT_EQ(AddRL, HighOneLowOne);
+    EXPECT_EQ(AddRL.getRawData(), RawDataL);
+
+    APInt AddRR = getRValue("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF", RawDataL) +
+                  getRValue("2", RawDataR);
+    EXPECT_EQ(AddRR, HighOneLowOne);
+    EXPECT_EQ(AddRR.getRawData(), RawDataR);
+
+    // LValue's and constants
+    APInt AddLK = AllOnes + 2;
+    EXPECT_EQ(AddLK, HighOneLowOne);
+
+    APInt AddKL = 2 + AllOnes;
+    EXPECT_EQ(AddKL, HighOneLowOne);
+
+    // RValue's and constants
+    APInt AddRK = getRValue("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF", RawDataL) + 2;
+    EXPECT_EQ(AddRK, HighOneLowOne);
+    EXPECT_EQ(AddRK.getRawData(), RawDataL);
+
+    APInt AddKR = 2 + getRValue("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF", RawDataR);
+    EXPECT_EQ(AddKR, HighOneLowOne);
+    EXPECT_EQ(AddKR.getRawData(), RawDataR);
+  }
+
+  {
+    // 2 - 1 = 1
+    APInt SubLL = Two - One;
+    EXPECT_EQ(SubLL, One);
+
+    APInt SubLR = Two - getRValue("1", RawDataR);
+    EXPECT_EQ(SubLR, One);
+    EXPECT_EQ(SubLR.getRawData(), RawDataR);
+
+    APInt SubRL = getRValue("2", RawDataL) - One;
+    EXPECT_EQ(SubRL, One);
+    EXPECT_EQ(SubRL.getRawData(), RawDataL);
+
+    APInt SubRR = getRValue("2", RawDataL) - getRValue("1", RawDataR);
+    EXPECT_EQ(SubRR, One);
+    EXPECT_EQ(SubRR.getRawData(), RawDataR);
+
+    // LValue's and constants
+    APInt SubLK = Two - 1;
+    EXPECT_EQ(SubLK, One);
+
+    APInt SubKL = 2 - One;
+    EXPECT_EQ(SubKL, One);
+
+    // RValue's and constants
+    APInt SubRK = getRValue("2", RawDataL) - 1;
+    EXPECT_EQ(SubRK, One);
+    EXPECT_EQ(SubRK.getRawData(), RawDataL);
+
+    APInt SubKR = 2 - getRValue("1", RawDataR);
+    EXPECT_EQ(SubKR, One);
+    EXPECT_EQ(SubKR.getRawData(), RawDataR);
+  }
+
+  {
+    // 0x100...0001 - 0x0,FFFF...FFFF = 0x2
+    APInt AllOnes(129, "0FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF", 16);
+    APInt HighOneLowOne(129, "100000000000000000000000000000001", 16);
+
+    APInt SubLL = HighOneLowOne - AllOnes;
+    EXPECT_EQ(SubLL, Two);
+
+    APInt SubLR = HighOneLowOne -
+                  getRValue("0FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF", RawDataR);
+    EXPECT_EQ(SubLR, Two);
+    EXPECT_EQ(SubLR.getRawData(), RawDataR);
+
+    APInt SubRL = getRValue("100000000000000000000000000000001", RawDataL) -
+                  AllOnes;
+    EXPECT_EQ(SubRL, Two);
+    EXPECT_EQ(SubRL.getRawData(), RawDataL);
+
+    APInt SubRR = getRValue("100000000000000000000000000000001", RawDataL) -
+                  getRValue("0FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF", RawDataR);
+    EXPECT_EQ(SubRR, Two);
+    EXPECT_EQ(SubRR.getRawData(), RawDataR);
+
+    // LValue's and constants
+    // 0x100...0001 - 0x2 = 0x0,FFFF...FFFF
+    APInt SubLK = HighOneLowOne - 2;
+    EXPECT_EQ(SubLK, AllOnes);
+
+    // 2 - (-1) = 3
+    APInt SubKL = 2 - MinusOne;
+    EXPECT_EQ(SubKL, Three);
+
+    // RValue's and constants
+    // 0x100...0001 - 0x2 = 0x0,FFFF...FFFF
+    APInt SubRK = getRValue("100000000000000000000000000000001", RawDataL) - 2;
+    EXPECT_EQ(SubRK, AllOnes);
+    EXPECT_EQ(SubRK.getRawData(), RawDataL);
+
+    APInt SubKR = 2 - getRValue("1FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF", RawDataR);
+    EXPECT_EQ(SubKR, Three);
+    EXPECT_EQ(SubKR.getRawData(), RawDataR);
+  }
 }
 
 

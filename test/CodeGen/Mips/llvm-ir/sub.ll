@@ -36,12 +36,13 @@ entry:
 ; ALL-LABEL: sub_i1:
 
   ; NOT-MM:         subu    $[[T0:[0-9]+]], $4, $5
-  ; NOT-MM:         sll     $[[T0]], $[[T0]], 31
-  ; NOT-MM:         sra     $2, $[[T0]], 31
+  ; NOT-MM:         andi    $[[T0]], $[[T0]], 1
+  ; NOT-MM:         negu    $2, $[[T0]]
 
   ; MM:             subu16  $[[T0:[0-9]+]], $4, $5
-  ; MM:             sll     $[[T1:[0-9]+]], $[[T0]], 31
-  ; MM:             sra     $[[T0]], $[[T1]], 31
+  ; MM:             andi16  $[[T0]], $[[T0]], 1
+  ; MM:             li16    $[[T1:[0-9]+]], 0
+  ; MM:             subu16  $2, $[[T1]], $[[T0]]
 
   %r = sub i1 %a, %b
   ret i1 %r
@@ -134,16 +135,16 @@ entry:
   ; GP32-MM:        sltu      $[[T1:[0-9]+]], $[[T2:[0-9]+]], $[[T0]]
   ; GP32-MM:        lw        $[[T3:[0-9]+]], 16($sp)
   ; GP32-MM:        addu      $[[T3]], $[[T1]], $[[T3]]
-  ; GP32-MM:        lw        $[[T4:[0-9]+]], 28($sp)
-  ; GP32-MM:        subu      $[[T1]], $7, $[[T4]]
-  ; GP32-MM:        subu      $[[T3]], $[[T5:[0-9]+]], $[[T3]]
-  ; GP32-MM:        lw        $[[T5]], 24($sp)
-  ; GP32-MM:        sltu      $[[T6:[0-9]+]], $6, $[[T5]]
+  ; GP32-MM:        lw        $[[T4:[0-9]+]], 24($sp)
+  ; GP32-MM:        lw        $[[T5:[0-9]+]], 28($sp)
+  ; GP32-MM:        subu      $[[T1]], $7, $[[T5]]
+  ; GP32-MM:        subu      $[[T3]], $[[T6:[0-9]+]], $[[T3]]
+  ; GP32-MM:        sltu      $[[T6]], $6, $[[T4]]
   ; GP32-MM:        addu      $[[T0]], $[[T6]], $[[T0]]
   ; GP32-MM:        subu      $[[T0]], $5, $[[T0]]
-  ; GP32-MM:        sltu      $[[T2]], $7, $[[T4]]
-  ; GP32-MM:        addu      $[[T5]], $[[T2]], $[[T5]]
-  ; GP32-MM:        subu      $[[T5]], $6, $[[T5]]
+  ; GP32-MM:        sltu      $[[T6]], $7, $[[T5]]
+  ; GP32-MM:        addu      $[[T6]], $[[T6]], $[[T4]]
+  ; GP32-MM:        subu      $[[T6]], $6, $[[T6]]
   ; GP32-MM:        move      $[[T2]], $[[T1]]
 
   ; GP64:           dsubu     $3, $5, $7

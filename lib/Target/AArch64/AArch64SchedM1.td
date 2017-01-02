@@ -32,33 +32,31 @@ def ExynosM1Model : SchedMachineModel {
 
 def M1UnitA  : ProcResource<2>; // Simple integer
 def M1UnitC  : ProcResource<1>; // Simple and complex integer
+def M1UnitD  : ProcResource<1>; // Integer division (inside C, serialized)
 def M1UnitB  : ProcResource<2>; // Branch
 def M1UnitL  : ProcResource<1>; // Load
 def M1UnitS  : ProcResource<1>; // Store
 def M1PipeF0 : ProcResource<1>; // FP #0
-def M1PipeF1 : ProcResource<1>; // FP #1
-
 let Super = M1PipeF0 in {
   def M1UnitFMAC   : ProcResource<1>; // FP multiplication
-  def M1UnitFCVT   : ProcResource<1>; // FP conversion
-  def M1UnitNAL0   : ProcResource<1>; // Simple vector.
+  def M1UnitNAL0   : ProcResource<1>; // Simple vector
   def M1UnitNMISC  : ProcResource<1>; // Miscellanea
+  def M1UnitFCVT   : ProcResource<1>; // FP conversion
   def M1UnitNCRYPT : ProcResource<1>; // Cryptographic
 }
-
+def M1PipeF1 : ProcResource<1>; // FP #1
 let Super = M1PipeF1 in {
   def M1UnitFADD : ProcResource<1>; // Simple FP
-  let BufferSize = 1 in
+  def M1UnitNAL1 : ProcResource<1>; // Simple vector
   def M1UnitFVAR : ProcResource<1>; // FP division & square root (serialized)
-  def M1UnitNAL1 : ProcResource<1>; // Simple vector.
   def M1UnitFST  : ProcResource<1>; // FP store
 }
 
 let SchedModel = ExynosM1Model in {
   def M1UnitALU  : ProcResGroup<[M1UnitA,
-                                 M1UnitC]>;    // All simple integer.
+                                 M1UnitC]>;    // All integer
   def M1UnitNALU : ProcResGroup<[M1UnitNAL0,
-                                 M1UnitNAL1]>; // All simple vector.
+                                 M1UnitNAL1]>; // All simple vector
 }
 
 let SchedModel = ExynosM1Model in {
@@ -66,11 +64,33 @@ let SchedModel = ExynosM1Model in {
 //===----------------------------------------------------------------------===//
 // Coarse scheduling model for the Exynos-M1.
 
+def M1WriteA1 : SchedWriteRes<[M1UnitALU]> { let Latency = 1; }
+def M1WriteA2 : SchedWriteRes<[M1UnitALU]> { let Latency = 2; }
+def M1WriteC1 : SchedWriteRes<[M1UnitC]>   { let Latency = 1; }
+def M1WriteC2 : SchedWriteRes<[M1UnitC]>   { let Latency = 2; }
+
+def M1WriteB1 : SchedWriteRes<[M1UnitB]>      { let Latency = 1; }
+
+def M1WriteL5 : SchedWriteRes<[M1UnitL]>   { let Latency = 5; }
+def M1WriteLA : SchedWriteVariant<[SchedVar<ScaledIdxPred, [M1WriteL5,
+                                                            M1WriteA1]>,
+                                   SchedVar<NoSchedPred,   [M1WriteL5]>]>;
+
+def M1WriteS1 : SchedWriteRes<[M1UnitS]> { let Latency = 1; }
+def M1WriteS2 : SchedWriteRes<[M1UnitS]> { let Latency = 2; }
+def M1WriteS4 : SchedWriteRes<[M1UnitS]> { let Latency = 4; }
+def M1WriteSA : SchedWriteVariant<[SchedVar<ScaledIdxPred, [M1WriteS2,
+                                                            M1WriteA1]>,
+                                   SchedVar<NoSchedPred,   [M1WriteS1]>]>;
+
+def M1ReadAdrBase : SchedReadVariant<[SchedVar<ScaledIdxPred, [ReadDefault]>,
+                                      SchedVar<NoSchedPred,   [ReadDefault]>]>;
+def : SchedAlias<ReadAdrBase, M1ReadAdrBase>;
+
 // Branch instructions.
-// TODO: Non-conditional direct branches take zero cycles and units.
+// NOTE: Unconditional direct branches actually take neither cycles nor units.
 def : WriteRes<WriteBr,    [M1UnitB]> { let Latency = 1; }
 def : WriteRes<WriteBrReg, [M1UnitC]> { let Latency = 1; }
-// TODO: Branch and link is much different.
 
 // Arithmetic and logical integer instructions.
 def : WriteRes<WriteI,     [M1UnitALU]> { let Latency = 1; }
@@ -83,9 +103,12 @@ def : WriteRes<WriteIS,    [M1UnitALU]> { let Latency = 1; }
 def : WriteRes<WriteImm, [M1UnitALU]> { let Latency = 1; }
 
 // Divide and multiply instructions.
-// TODO: Division blocks the divider inside C.
-def : WriteRes<WriteID32, [M1UnitC]> { let Latency = 13; }
-def : WriteRes<WriteID64, [M1UnitC]> { let Latency = 21; }
+def : WriteRes<WriteID32, [M1UnitC,
+                           M1UnitD]> { let Latency = 13;
+                                       let ResourceCycles = [1, 13]; }
+def : WriteRes<WriteID64, [M1UnitC,
+                           M1UnitD]> { let Latency = 21;
+                                       let ResourceCycles = [1, 21]; }
 // TODO: Long multiplication take 5 cycles and also the ALU.
 // TODO: Multiplication with accumulation can be advanced.
 def : WriteRes<WriteIM32, [M1UnitC]> { let Latency = 3; }
@@ -101,31 +124,27 @@ def : WriteRes<WriteAdr, []> { let Latency = 0; }
 
 // Load instructions.
 def : WriteRes<WriteLD,    [M1UnitL]>   { let Latency = 4; }
-// TODO: Extended address requires also the ALU.
-def : WriteRes<WriteLDIdx, [M1UnitL]>   { let Latency = 5; }
 def : WriteRes<WriteLDHi,  [M1UnitALU]> { let Latency = 4; }
+def : SchedAlias<WriteLDIdx, M1WriteLA>;
 
 // Store instructions.
 def : WriteRes<WriteST,    [M1UnitS]> { let Latency = 1; }
-// TODO: Extended address requires also the ALU.
-def : WriteRes<WriteSTIdx, [M1UnitS]> { let Latency = 1; }
 def : WriteRes<WriteSTP,   [M1UnitS]> { let Latency = 1; }
 def : WriteRes<WriteSTX,   [M1UnitS]> { let Latency = 1; }
+def : SchedAlias<WriteSTIdx, M1WriteSA>;
 
 // FP data instructions.
 def : WriteRes<WriteF,    [M1UnitFADD]>  { let Latency = 3; }
 // TODO: FCCMP is much different.
 def : WriteRes<WriteFCmp, [M1UnitNMISC]> { let Latency = 4; }
-// TODO: DP takes longer.
-def : WriteRes<WriteFDiv, [M1UnitFVAR]>  { let Latency = 15; }
-// TODO: MACC takes longer.
+def : WriteRes<WriteFDiv, [M1UnitFVAR]>  { let Latency = 15;
+                                           let ResourceCycles = [15]; }
 def : WriteRes<WriteFMul, [M1UnitFMAC]>  { let Latency = 4; }
 
 // FP miscellaneous instructions.
 // TODO: Conversion between register files is much different.
 def : WriteRes<WriteFCvt,  [M1UnitFCVT]> { let Latency = 3; }
 def : WriteRes<WriteFImm,  [M1UnitNALU]> { let Latency = 1; }
-// TODO: Copy from FPR to GPR is much different.
 def : WriteRes<WriteFCopy, [M1UnitS]>    { let Latency = 4; }
 
 // FP load instructions.
@@ -137,7 +156,6 @@ def : WriteRes<WriteVLD, [M1UnitL]> { let Latency = 5; }
 def : WriteRes<WriteVST, [M1UnitS, M1UnitFST]> { let Latency = 1; }
 
 // ASIMD FP instructions.
-// TODO: Other operations are much different.
 def : WriteRes<WriteV, [M1UnitFADD]> { let Latency = 3; }
 
 // Other miscellaneous instructions.
@@ -191,24 +209,15 @@ def M1WriteNEONJ   : SchedWriteRes<[M1UnitNMISC,
                                     M1UnitFMAC]>   { let Latency = 6; }
 def M1WriteNEONK   : SchedWriteRes<[M1UnitNMISC,
                                     M1UnitFMAC]>   { let Latency = 7; }
-def M1WriteALU1    : SchedWriteRes<[M1UnitALU]>    { let Latency = 1; }
-def M1WriteB       : SchedWriteRes<[M1UnitB]>      { let Latency = 1; }
-// FIXME: This is the worst case, conditional branch and link.
-def M1WriteBL      : SchedWriteRes<[M1UnitB,
-                                    M1UnitALU]>    { let Latency = 1; }
-// FIXME: This is the worst case, when using LR.
-def M1WriteBLR     : SchedWriteRes<[M1UnitB,
-                                    M1UnitALU,
-                                    M1UnitALU]>    { let Latency = 2; }
-def M1WriteC1      : SchedWriteRes<[M1UnitC]>      { let Latency = 1; }
-def M1WriteC2      : SchedWriteRes<[M1UnitC]>      { let Latency = 2; }
 def M1WriteFADD3   : SchedWriteRes<[M1UnitFADD]>   { let Latency = 3; }
 def M1WriteFCVT3   : SchedWriteRes<[M1UnitFCVT]>   { let Latency = 3; }
 def M1WriteFCVT4   : SchedWriteRes<[M1UnitFCVT]>   { let Latency = 4; }
 def M1WriteFMAC4   : SchedWriteRes<[M1UnitFMAC]>   { let Latency = 4; }
 def M1WriteFMAC5   : SchedWriteRes<[M1UnitFMAC]>   { let Latency = 5; }
-def M1WriteFVAR15  : SchedWriteRes<[M1UnitFVAR]>   { let Latency = 15; }
-def M1WriteFVAR23  : SchedWriteRes<[M1UnitFVAR]>   { let Latency = 23; }
+def M1WriteFVAR15  : SchedWriteRes<[M1UnitFVAR]>   { let Latency = 15;
+                                                     let ResourceCycles = [15]; }
+def M1WriteFVAR23  : SchedWriteRes<[M1UnitFVAR]>   { let Latency = 23;
+                                                     let ResourceCycles = [23]; }
 def M1WriteNALU1   : SchedWriteRes<[M1UnitNALU]>   { let Latency = 1; }
 def M1WriteNALU2   : SchedWriteRes<[M1UnitNALU]>   { let Latency = 2; }
 def M1WriteNAL11   : SchedWriteRes<[M1UnitNAL1]>   { let Latency = 1; }
@@ -220,19 +229,22 @@ def M1WriteNMISC1  : SchedWriteRes<[M1UnitNMISC]>  { let Latency = 1; }
 def M1WriteNMISC2  : SchedWriteRes<[M1UnitNMISC]>  { let Latency = 2; }
 def M1WriteNMISC3  : SchedWriteRes<[M1UnitNMISC]>  { let Latency = 3; }
 def M1WriteNMISC4  : SchedWriteRes<[M1UnitNMISC]>  { let Latency = 4; }
-def M1WriteS4      : SchedWriteRes<[M1UnitS]>      { let Latency = 4; }
 def M1WriteTB      : SchedWriteRes<[M1UnitC,
                                     M1UnitALU]>    { let Latency = 2; }
 
 // Branch instructions
-def : InstRW<[M1WriteB ],  (instrs Bcc)>;
-def : InstRW<[M1WriteBL],  (instrs BL)>;
-def : InstRW<[M1WriteBLR], (instrs BLR)>;
-def : InstRW<[M1WriteC1],  (instregex "^CBN?Z[WX]")>;
-def : InstRW<[M1WriteTB],  (instregex "^TBN?Z[WX]")>;
+def : InstRW<[M1WriteB1], (instrs Bcc)>;
+// NOTE: Conditional branch and link adds a B uop.
+def : InstRW<[M1WriteA1], (instrs BL)>;
+// NOTE: Indirect branch and link with LR adds an ALU uop.
+def : InstRW<[M1WriteA1,
+              M1WriteC1], (instrs BLR)>;
+def : InstRW<[M1WriteC1], (instregex "^CBN?Z[WX]")>;
+def : InstRW<[M1WriteC1,
+              M1WriteA2], (instregex "^TBN?Z[WX]")>;
 
 // Arithmetic and logical integer instructions.
-def : InstRW<[M1WriteALU1], (instrs COPY)>;
+def : InstRW<[M1WriteA1], (instrs COPY)>;
 
 // Divide and multiply instructions.
 

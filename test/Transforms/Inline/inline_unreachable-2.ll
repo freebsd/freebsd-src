@@ -1,4 +1,5 @@
 ; RUN: opt < %s -inline -S | FileCheck %s
+; RUN: opt < %s -passes='cgscc(inline)' -S | FileCheck %s
 
 ; CHECK-LABEL: caller
 ; CHECK: call void @callee
@@ -8,6 +9,7 @@ define void @caller(i32 %a, i1 %b) #0 {
 }
 
 define void @callee(i32 %a, i1 %b) {
+  call void @extern()
   call void asm sideeffect "", ""()
   br i1 %b, label %bb1, label %bb2
 bb1:
@@ -17,3 +19,5 @@ bb2:
   call void asm sideeffect "", ""()
   ret void
 }
+
+declare void @extern()

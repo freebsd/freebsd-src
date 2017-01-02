@@ -296,9 +296,9 @@ FunctionType *FunctionType::get(Type *ReturnType,
   FunctionType *FT;
 
   if (I == pImpl->FunctionTypes.end()) {
-    FT = (FunctionType*) pImpl->TypeAllocator.
-      Allocate(sizeof(FunctionType) + sizeof(Type*) * (Params.size() + 1),
-               AlignOf<FunctionType>::Alignment);
+    FT = (FunctionType *)pImpl->TypeAllocator.Allocate(
+        sizeof(FunctionType) + sizeof(Type *) * (Params.size() + 1),
+        alignof(FunctionType));
     new (FT) FunctionType(ReturnType, Params, isVarArg);
     pImpl->FunctionTypes.insert(FT);
   } else {
@@ -601,9 +601,7 @@ bool CompositeType::indexValid(unsigned Idx) const {
 //===----------------------------------------------------------------------===//
 
 ArrayType::ArrayType(Type *ElType, uint64_t NumEl)
-  : SequentialType(ArrayTyID, ElType) {
-  NumElements = NumEl;
-}
+  : SequentialType(ArrayTyID, ElType, NumEl) {}
 
 ArrayType *ArrayType::get(Type *ElementType, uint64_t NumElements) {
   assert(isValidElementType(ElementType) && "Invalid type for array element!");
@@ -628,9 +626,7 @@ bool ArrayType::isValidElementType(Type *ElemTy) {
 //===----------------------------------------------------------------------===//
 
 VectorType::VectorType(Type *ElType, unsigned NumEl)
-  : SequentialType(VectorTyID, ElType) {
-  NumElements = NumEl;
-}
+  : SequentialType(VectorTyID, ElType, NumEl) {}
 
 VectorType *VectorType::get(Type *ElementType, unsigned NumElements) {
   assert(NumElements > 0 && "#Elements of a VectorType must be greater than 0");
@@ -673,13 +669,10 @@ PointerType *PointerType::get(Type *EltTy, unsigned AddressSpace) {
 
 
 PointerType::PointerType(Type *E, unsigned AddrSpace)
-  : SequentialType(PointerTyID, E) {
-#ifndef NDEBUG
-  const unsigned oldNCT = NumContainedTys;
-#endif
+  : Type(E->getContext(), PointerTyID), PointeeTy(E) {
+  ContainedTys = &PointeeTy;
+  NumContainedTys = 1;
   setSubclassData(AddrSpace);
-  // Check for miscompile. PR11652.
-  assert(oldNCT == NumContainedTys && "bitfield written out of bounds?");
 }
 
 PointerType *Type::getPointerTo(unsigned addrs) const {

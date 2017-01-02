@@ -1,4 +1,4 @@
-; RUN: llc -mtriple=aarch64-linux-gnu -aarch64-atomic-cfg-tidy=0 -disable-lsr -verify-machineinstrs -o - %s | FileCheck %s
+; RUN: llc -mtriple=aarch64-linux-gnu -aarch64-enable-atomic-cfg-tidy=0 -disable-lsr -verify-machineinstrs -o - %s | FileCheck %s
 
 ; This file contains tests for the AArch64 load/store optimizer.
 
@@ -1331,5 +1331,227 @@ for.body:
   %cond = icmp sgt i64 %dec.i, 0
   br i1 %cond, label %for.body, label %end
 end:
+  ret void
+}
+
+; DAGCombiner::MergeConsecutiveStores merges this into a vector store,
+; replaceZeroVectorStore should split the vector store back into
+; scalar stores which should get merged by AArch64LoadStoreOptimizer.
+define void @merge_zr32(i32* %p) {
+; CHECK-LABEL: merge_zr32:
+; CHECK: // %entry
+; CHECK-NEXT: str xzr, [x{{[0-9]+}}]
+; CHECK-NEXT: ret
+entry:
+  store i32 0, i32* %p
+  %p1 = getelementptr i32, i32* %p, i32 1
+  store i32 0, i32* %p1
+  ret void
+}
+
+; Same sa merge_zr32 but the merged stores should also get paried.
+define void @merge_zr32_2(i32* %p) {
+; CHECK-LABEL: merge_zr32_2:
+; CHECK: // %entry
+; CHECK-NEXT: stp xzr, xzr, [x{{[0-9]+}}]
+; CHECK-NEXT: ret
+entry:
+  store i32 0, i32* %p
+  %p1 = getelementptr i32, i32* %p, i32 1
+  store i32 0, i32* %p1
+  %p2 = getelementptr i32, i32* %p, i64 2
+  store i32 0, i32* %p2
+  %p3 = getelementptr i32, i32* %p, i64 3
+  store i32 0, i32* %p3
+  ret void
+}
+
+; Like merge_zr32_2, but checking the largest allowed stp immediate offset.
+define void @merge_zr32_2_offset(i32* %p) {
+; CHECK-LABEL: merge_zr32_2_offset:
+; CHECK: // %entry
+; CHECK-NEXT: stp xzr, xzr, [x{{[0-9]+}}, #504]
+; CHECK-NEXT: ret
+entry:
+  %p0 = getelementptr i32, i32* %p, i32 126
+  store i32 0, i32* %p0
+  %p1 = getelementptr i32, i32* %p, i32 127
+  store i32 0, i32* %p1
+  %p2 = getelementptr i32, i32* %p, i64 128
+  store i32 0, i32* %p2
+  %p3 = getelementptr i32, i32* %p, i64 129
+  store i32 0, i32* %p3
+  ret void
+}
+
+; Like merge_zr32, but replaceZeroVectorStore should not split this
+; vector store since the address offset is too large for the stp
+; instruction.
+define void @no_merge_zr32_2_offset(i32* %p) {
+; CHECK-LABEL: no_merge_zr32_2_offset:
+; CHECK: // %entry
+; CHECK-NEXT: movi v[[REG:[0-9]]].2d, #0000000000000000
+; CHECK-NEXT: str q[[REG]], [x{{[0-9]+}}, #4096]
+; CHECK-NEXT: ret
+entry:
+  %p0 = getelementptr i32, i32* %p, i32 1024
+  store i32 0, i32* %p0
+  %p1 = getelementptr i32, i32* %p, i32 1025
+  store i32 0, i32* %p1
+  %p2 = getelementptr i32, i32* %p, i64 1026
+  store i32 0, i32* %p2
+  %p3 = getelementptr i32, i32* %p, i64 1027
+  store i32 0, i32* %p3
+  ret void
+}
+
+; Like merge_zr32, but replaceZeroVectorStore should not split the
+; vector store since the zero constant vector has multiple uses, so we
+; err on the side that allows for stp q instruction generation.
+define void @merge_zr32_3(i32* %p) {
+; CHECK-LABEL: merge_zr32_3:
+; CHECK: // %entry
+; CHECK-NEXT: movi v[[REG:[0-9]]].2d, #0000000000000000
+; CHECK-NEXT: stp q[[REG]], q[[REG]], [x{{[0-9]+}}]
+; CHECK-NEXT: ret
+entry:
+  store i32 0, i32* %p
+  %p1 = getelementptr i32, i32* %p, i32 1
+  store i32 0, i32* %p1
+  %p2 = getelementptr i32, i32* %p, i64 2
+  store i32 0, i32* %p2
+  %p3 = getelementptr i32, i32* %p, i64 3
+  store i32 0, i32* %p3
+  %p4 = getelementptr i32, i32* %p, i64 4
+  store i32 0, i32* %p4
+  %p5 = getelementptr i32, i32* %p, i64 5
+  store i32 0, i32* %p5
+  %p6 = getelementptr i32, i32* %p, i64 6
+  store i32 0, i32* %p6
+  %p7 = getelementptr i32, i32* %p, i64 7
+  store i32 0, i32* %p7
+  ret void
+}
+
+; Like merge_zr32, but with 2-vector type.
+define void @merge_zr32_2vec(<2 x i32>* %p) {
+; CHECK-LABEL: merge_zr32_2vec:
+; CHECK: // %entry
+; CHECK-NEXT: str xzr, [x{{[0-9]+}}]
+; CHECK-NEXT: ret
+entry:
+  store <2 x i32> zeroinitializer, <2 x i32>* %p
+  ret void
+}
+
+; Like merge_zr32, but with 3-vector type.
+define void @merge_zr32_3vec(<3 x i32>* %p) {
+; CHECK-LABEL: merge_zr32_3vec:
+; CHECK: // %entry
+; CHECK-NEXT: str xzr, [x{{[0-9]+}}]
+; CHECK-NEXT: str wzr, [x{{[0-9]+}}, #8]
+; CHECK-NEXT: ret
+entry:
+  store <3 x i32> zeroinitializer, <3 x i32>* %p
+  ret void
+}
+
+; Like merge_zr32, but with 4-vector type.
+define void @merge_zr32_4vec(<4 x i32>* %p) {
+; CHECK-LABEL: merge_zr32_4vec:
+; CHECK: // %entry
+; CHECK-NEXT: stp xzr, xzr, [x{{[0-9]+}}]
+; CHECK-NEXT: ret
+entry:
+  store <4 x i32> zeroinitializer, <4 x i32>* %p
+  ret void
+}
+
+; Like merge_zr32, but with 2-vector float type.
+define void @merge_zr32_2vecf(<2 x float>* %p) {
+; CHECK-LABEL: merge_zr32_2vecf:
+; CHECK: // %entry
+; CHECK-NEXT: str xzr, [x{{[0-9]+}}]
+; CHECK-NEXT: ret
+entry:
+  store <2 x float> zeroinitializer, <2 x float>* %p
+  ret void
+}
+
+; Like merge_zr32, but with 4-vector float type.
+define void @merge_zr32_4vecf(<4 x float>* %p) {
+; CHECK-LABEL: merge_zr32_4vecf:
+; CHECK: // %entry
+; CHECK-NEXT: stp xzr, xzr, [x{{[0-9]+}}]
+; CHECK-NEXT: ret
+entry:
+  store <4 x float> zeroinitializer, <4 x float>* %p
+  ret void
+}
+
+; Similar to merge_zr32, but for 64-bit values.
+define void @merge_zr64(i64* %p) {
+; CHECK-LABEL: merge_zr64:
+; CHECK: // %entry
+; CHECK-NEXT: stp xzr, xzr, [x{{[0-9]+}}]
+; CHECK-NEXT: ret
+entry:
+  store i64 0, i64* %p
+  %p1 = getelementptr i64, i64* %p, i64 1
+  store i64 0, i64* %p1
+  ret void
+}
+
+; Similar to merge_zr32_3, replaceZeroVectorStore should not split the
+; vector store since the zero constant vector has multiple uses.
+define void @merge_zr64_2(i64* %p) {
+; CHECK-LABEL: merge_zr64_2:
+; CHECK: // %entry
+; CHECK-NEXT: movi v[[REG:[0-9]]].2d, #0000000000000000
+; CHECK-NEXT: stp q[[REG]], q[[REG]], [x{{[0-9]+}}]
+; CHECK-NEXT: ret
+entry:
+  store i64 0, i64* %p
+  %p1 = getelementptr i64, i64* %p, i64 1
+  store i64 0, i64* %p1
+  %p2 = getelementptr i64, i64* %p, i64 2
+  store i64 0, i64* %p2
+  %p3 = getelementptr i64, i64* %p, i64 3
+  store i64 0, i64* %p3
+  ret void
+}
+
+; Like merge_zr64, but with 2-vector double type.
+define void @merge_zr64_2vecd(<2 x double>* %p) {
+; CHECK-LABEL: merge_zr64_2vecd:
+; CHECK: // %entry
+; CHECK-NEXT: stp xzr, xzr, [x{{[0-9]+}}]
+; CHECK-NEXT: ret
+entry:
+  store <2 x double> zeroinitializer, <2 x double>* %p
+  ret void
+}
+
+; Like merge_zr64, but with 3-vector i64 type.
+define void @merge_zr64_3vec(<3 x i64>* %p) {
+; CHECK-LABEL: merge_zr64_3vec:
+; CHECK: // %entry
+; CHECK-NEXT: stp xzr, xzr, [x{{[0-9]+}}]
+; CHECK-NEXT: str xzr, [x{{[0-9]+}}, #16]
+; CHECK-NEXT: ret
+entry:
+  store <3 x i64> zeroinitializer, <3 x i64>* %p
+  ret void
+}
+
+; Like merge_zr64_2, but with 4-vector double type.
+define void @merge_zr64_4vecd(<4 x double>* %p) {
+; CHECK-LABEL: merge_zr64_4vecd:
+; CHECK: // %entry
+; CHECK-NEXT: movi v[[REG:[0-9]]].2d, #0000000000000000
+; CHECK-NEXT: stp q[[REG]], q[[REG]], [x{{[0-9]+}}]
+; CHECK-NEXT: ret
+entry:
+  store <4 x double> zeroinitializer, <4 x double>* %p
   ret void
 }

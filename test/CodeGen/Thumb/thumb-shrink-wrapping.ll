@@ -139,7 +139,6 @@ declare i32 @doSomething(i32, i32*)
 ; CHECK: movs [[TMP:r[0-9]+]], #1
 ; CHECK: adds [[SUM]], [[TMP]], [[SUM]]
 ; CHECK-NEXT: subs [[IV]], [[IV]], #1
-; CHECK-NEXT: cmp [[IV]], #0
 ; CHECK-NEXT: bne [[LOOP]]
 ;
 ; Next BB.
@@ -209,7 +208,6 @@ declare i32 @something(...)
 ; CHECK: movs [[TMP:r[0-9]+]], #1
 ; CHECK: adds [[SUM]], [[TMP]], [[SUM]]
 ; CHECK-NEXT: subs [[IV]], [[IV]], #1
-; CHECK-NEXT: cmp [[IV]], #0
 ; CHECK-NEXT: bne [[LOOP_LABEL]]
 ; Next BB.
 ; CHECK: @ %for.exit
@@ -265,7 +263,6 @@ for.end:                                          ; preds = %for.body
 ; CHECK: movs [[TMP:r[0-9]+]], #1
 ; CHECK: adds [[SUM]], [[TMP]], [[SUM]]
 ; CHECK-NEXT: subs [[IV]], [[IV]], #1
-; CHECK-NEXT: cmp [[IV]], #0
 ; CHECK-NEXT: bne [[LOOP]]
 ;
 ; Next BB.
@@ -349,7 +346,6 @@ declare void @somethingElse(...)
 ; CHECK: movs [[TMP:r[0-9]+]], #1
 ; CHECK: adds [[SUM]], [[TMP]], [[SUM]]
 ; CHECK-NEXT: subs [[IV]], [[IV]], #1
-; CHECK-NEXT: cmp [[IV]], #0
 ; CHECK-NEXT: bne [[LOOP]]
 ;
 ; Next BB.
@@ -435,7 +431,6 @@ entry:
 ; CHECK: [[LOOP:LBB[0-9_]+]]: @ %for.body
 ; CHECK: movs r4, #1
 ; CHECK: subs [[IV]], [[IV]], #1
-; CHECK-NEXT: cmp [[IV]], #0
 ; CHECK-NEXT: bne [[LOOP]]
 ;
 ; Next BB.
@@ -571,8 +566,7 @@ declare i32 @someVariadicFunc(i32, ...)
 ; CHECK-LABEL: noreturn:
 ; DISABLE: push
 ;
-; CHECK: movs [[TMP:r[0-9]+]], #255
-; CHECK-NEXT: tst  r0, [[TMP]]
+; CHECK: cmp r0, #0
 ; CHECK-NEXT: bne      [[ABORT:LBB[0-9_]+]]
 ;
 ; CHECK: movs r0, #42
@@ -656,11 +650,14 @@ define i1 @beq_to_bx(i32* %y, i32 %head) {
 
 ; CHECK: tst r3, r4
 ; ENABLE-NEXT: pop {r4}
-; ENABLE-NEXT: pop {r3}
-; ENABLE-NEXT: mov lr, r3
+; ENABLE-NEXT: mov r12, r{{.*}}
+; ENABLE-NEXT: pop {r0}
+; ENABLE-NEXT: mov lr, r0
+; ENABLE-NEXT: mov r0, r12
 ; CHECK-NEXT: beq [[EXIT_LABEL]]
 
 ; CHECK: str r1, [r2]
+; CHECK: str r3, [r2]
 ; CHECK-NEXT: movs r0, #0
 ; CHECK-NEXT: [[EXIT_LABEL]]: @ %cleanup
 ; ENABLE-NEXT: bx lr
@@ -681,6 +678,7 @@ if.end:
 
 if.end4:
   store i32 %head, i32* %y, align 4
+  store volatile i32 %z, i32* %y, align 4
   br label %cleanup
 
 cleanup:

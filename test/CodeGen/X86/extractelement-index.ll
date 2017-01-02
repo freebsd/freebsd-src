@@ -244,12 +244,19 @@ define i32 @extractelement_v8i32_0(<8 x i32> %a) nounwind {
 ; SSE-NEXT:    movd %xmm1, %eax
 ; SSE-NEXT:    retq
 ;
-; AVX-LABEL: extractelement_v8i32_0:
-; AVX:       # BB#0:
-; AVX-NEXT:    vextractf128 $1, %ymm0, %xmm0
-; AVX-NEXT:    vmovd %xmm0, %eax
-; AVX-NEXT:    vzeroupper
-; AVX-NEXT:    retq
+; AVX1-LABEL: extractelement_v8i32_0:
+; AVX1:       # BB#0:
+; AVX1-NEXT:    vextractf128 $1, %ymm0, %xmm0
+; AVX1-NEXT:    vmovd %xmm0, %eax
+; AVX1-NEXT:    vzeroupper
+; AVX1-NEXT:    retq
+;
+; AVX2-LABEL: extractelement_v8i32_0:
+; AVX2:       # BB#0:
+; AVX2-NEXT:    vextracti128 $1, %ymm0, %xmm0
+; AVX2-NEXT:    vmovd %xmm0, %eax
+; AVX2-NEXT:    vzeroupper
+; AVX2-NEXT:    retq
   %b = extractelement <8 x i32> %a, i256 4
   ret i32 %b
 }
@@ -260,12 +267,19 @@ define i32 @extractelement_v8i32_4(<8 x i32> %a) nounwind {
 ; SSE-NEXT:    movd %xmm1, %eax
 ; SSE-NEXT:    retq
 ;
-; AVX-LABEL: extractelement_v8i32_4:
-; AVX:       # BB#0:
-; AVX-NEXT:    vextractf128 $1, %ymm0, %xmm0
-; AVX-NEXT:    vmovd %xmm0, %eax
-; AVX-NEXT:    vzeroupper
-; AVX-NEXT:    retq
+; AVX1-LABEL: extractelement_v8i32_4:
+; AVX1:       # BB#0:
+; AVX1-NEXT:    vextractf128 $1, %ymm0, %xmm0
+; AVX1-NEXT:    vmovd %xmm0, %eax
+; AVX1-NEXT:    vzeroupper
+; AVX1-NEXT:    retq
+;
+; AVX2-LABEL: extractelement_v8i32_4:
+; AVX2:       # BB#0:
+; AVX2-NEXT:    vextracti128 $1, %ymm0, %xmm0
+; AVX2-NEXT:    vmovd %xmm0, %eax
+; AVX2-NEXT:    vzeroupper
+; AVX2-NEXT:    retq
   %b = extractelement <8 x i32> %a, i256 4
   ret i32 %b
 }
@@ -414,7 +428,7 @@ define i8 @extractelement_v32i8_var(<32 x i8> %a, i256 %i) nounwind {
 ; SSE-NEXT:    subq $64, %rsp
 ; SSE-NEXT:    movaps %xmm1, {{[0-9]+}}(%rsp)
 ; SSE-NEXT:    movaps %xmm0, (%rsp)
-; SSE-NEXT:    leaq (%rsp), %rax
+; SSE-NEXT:    movq %rsp, %rax
 ; SSE-NEXT:    movb (%rdi,%rax), %al
 ; SSE-NEXT:    movq %rbp, %rsp
 ; SSE-NEXT:    popq %rbp
@@ -427,7 +441,7 @@ define i8 @extractelement_v32i8_var(<32 x i8> %a, i256 %i) nounwind {
 ; AVX-NEXT:    andq $-32, %rsp
 ; AVX-NEXT:    subq $64, %rsp
 ; AVX-NEXT:    vmovaps %ymm0, (%rsp)
-; AVX-NEXT:    leaq (%rsp), %rax
+; AVX-NEXT:    movq %rsp, %rax
 ; AVX-NEXT:    movb (%rdi,%rax), %al
 ; AVX-NEXT:    movq %rbp, %rsp
 ; AVX-NEXT:    popq %rbp

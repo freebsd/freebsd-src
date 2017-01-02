@@ -112,6 +112,18 @@ static void ConnectProlog(Loop *L, Value *BECount, unsigned Count,
     }
   }
 
+  // Make sure that created prolog loop is in simplified form
+  SmallVector<BasicBlock *, 4> PrologExitPreds;
+  Loop *PrologLoop = LI->getLoopFor(PrologLatch);
+  if (PrologLoop) {
+    for (BasicBlock *PredBB : predecessors(PrologExit))
+      if (PrologLoop->contains(PredBB))
+        PrologExitPreds.push_back(PredBB);
+
+    SplitBlockPredecessors(PrologExit, PrologExitPreds, ".unr-lcssa", DT, LI,
+                           PreserveLCSSA);
+  }
+
   // Create a branch around the original loop, which is taken if there are no
   // iterations remaining to be executed after running the prologue.
   Instruction *InsertPt = PrologExit->getTerminator();
@@ -479,11 +491,6 @@ bool llvm::UnrollRuntimeLoopRemainder(Loop *L, unsigned Count,
   if (Log2_32(Count) > BEWidth)
     return false;
 
-  // If this loop is nested, then the loop unroller changes the code in the
-  // parent loop, so the Scalar Evolution pass needs to be run again.
-  if (Loop *ParentLoop = L->getParentLoop())
-    SE->forgetLoop(ParentLoop);
-
   BasicBlock *Latch = L->getLoopLatch();
 
   // Loop structure is the following:
@@ -673,6 +680,12 @@ bool llvm::UnrollRuntimeLoopRemainder(Loop *L, unsigned Count,
     ConnectProlog(L, BECount, Count, PrologExit, PreHeader, NewPreHeader,
                   VMap, DT, LI, PreserveLCSSA);
   }
+
+  // If this loop is nested, then the loop unroller changes the code in the
+  // parent loop, so the Scalar Evolution pass needs to be run again.
+  if (Loop *ParentLoop = L->getParentLoop())
+    SE->forgetLoop(ParentLoop);
+
   NumRuntimeUnrolled++;
   return true;
 }

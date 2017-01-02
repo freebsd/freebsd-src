@@ -103,9 +103,11 @@ define i32 @weighted_select3(i32 %a, i32 %b) {
 ; CHECK-LABEL: weighted_select3:
 ; CHECK:       # BB#0:
 ; CHECK-NEXT:    testl %edi, %edi
-; CHECK-NEXT:    jne [[LABEL_BB6:.*]]
-; CHECK:         movl %esi, %edi
-; CHECK-NEXT:  [[LABEL_BB6]]
+; CHECK-NEXT:    je [[LABEL_BB6:.*]]
+; CHECK:         movl %edi, %eax
+; CHECK-NEXT:    retq
+; CHECK:         [[LABEL_BB6]]
+; CHECK-NEXT:    movl %esi, %edi
 ; CHECK-NEXT:    movl %edi, %eax
 ; CHECK-NEXT:    retq
 ;

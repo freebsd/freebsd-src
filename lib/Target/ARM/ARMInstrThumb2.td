@@ -536,9 +536,9 @@ class T2FourReg<dag oops, dag iops, InstrItinClass itin,
 }
 
 class T2MulLong<bits<3> opc22_20, bits<4> opc7_4,
-                dag oops, dag iops, InstrItinClass itin,
-                string opc, string asm, list<dag> pattern>
-  : T2I<oops, iops, itin, opc, asm, pattern> {
+                string opc, list<dag> pattern>
+  : T2I<(outs rGPR:$RdLo, rGPR:$RdHi), (ins rGPR:$Rn, rGPR:$Rm), IIC_iMUL64,
+         opc, "\t$RdLo, $RdHi, $Rn, $Rm", pattern> {
   bits<4> RdLo;
   bits<4> RdHi;
   bits<4> Rn;
@@ -552,10 +552,11 @@ class T2MulLong<bits<3> opc22_20, bits<4> opc7_4,
   let Inst{7-4}   = opc7_4;
   let Inst{3-0}   = Rm;
 }
-class T2MlaLong<bits<3> opc22_20, bits<4> opc7_4,
-                dag oops, dag iops, InstrItinClass itin,
-                string opc, string asm, list<dag> pattern>
-  : T2I<oops, iops, itin, opc, asm, pattern> {
+class T2MlaLong<bits<3> opc22_20, bits<4> opc7_4, string opc>
+  : T2I<(outs rGPR:$RdLo, rGPR:$RdHi),
+        (ins rGPR:$Rn, rGPR:$Rm, rGPR:$RLo, rGPR:$RHi), IIC_iMAC64,
+        opc, "\t$RdLo, $RdHi, $Rn, $Rm", []>,
+        RegConstraint<"$RLo = $RdLo, $RHi = $RdHi"> {
   bits<4> RdLo;
   bits<4> RdHi;
   bits<4> Rn;
@@ -1983,12 +1984,19 @@ def t2SXTAB16 : T2I_exta_rrot_np<0b010, "sxtab16">;
 // A simple right-shift can also be used in most cases (the exception is the
 // SXTH operations with a rotate of 24: there the non-contiguous bits are
 // relevant).
-def : Pat<(add rGPR:$Rn, (sext_inreg (srl rGPR:$Rm, rot_imm:$rot), i8)),
-          (t2SXTAB rGPR:$Rn, rGPR:$Rm, rot_imm:$rot)>,
-      Requires<[HasT2ExtractPack, IsThumb2]>;
-def : Pat<(add rGPR:$Rn, (sext_inreg (srl rGPR:$Rm, imm8_or_16:$rot), i16)),
-          (t2SXTAH rGPR:$Rn, rGPR:$Rm, rot_imm:$rot)>,
-      Requires<[HasT2ExtractPack, IsThumb2]>;
+def : Thumb2ExtractPat<(add rGPR:$Rn, (sext_inreg
+                                        (srl rGPR:$Rm, rot_imm:$rot), i8)),
+                       (t2SXTAB rGPR:$Rn, rGPR:$Rm, rot_imm:$rot)>;
+def : Thumb2ExtractPat<(add rGPR:$Rn, (sext_inreg
+                                        (srl rGPR:$Rm, imm8_or_16:$rot), i16)),
+                       (t2SXTAH rGPR:$Rn, rGPR:$Rm, rot_imm:$rot)>;
+def : Thumb2ExtractPat<(add rGPR:$Rn, (sext_inreg
+                                        (rotr rGPR:$Rm, (i32 24)), i16)),
+                       (t2SXTAH rGPR:$Rn, rGPR:$Rm, (i32 3))>;
+def : Thumb2ExtractPat<(add rGPR:$Rn, (sext_inreg
+                                        (or (srl rGPR:$Rm, (i32 24)),
+                                              (shl rGPR:$Rm, (i32 8))), i16)),
+                       (t2SXTAH rGPR:$Rn, rGPR:$Rm, (i32 3))>;
 
 // Zero extenders
 
@@ -2017,12 +2025,12 @@ def t2UXTAH : T2I_exta_rrot<0b001, "uxtah",
                            BinOpFrag<(add node:$LHS, (and node:$RHS, 0xFFFF))>>;
 def t2UXTAB16 : T2I_exta_rrot_np<0b011, "uxtab16">;
 
-def : Pat<(add rGPR:$Rn, (and (srl rGPR:$Rm, rot_imm:$rot), 0xFF)),
-          (t2UXTAB rGPR:$Rn, rGPR:$Rm, rot_imm:$rot)>,
-      Requires<[HasT2ExtractPack, IsThumb2]>;
-def : Pat<(add rGPR:$Rn, (and (srl rGPR:$Rm, imm8_or_16:$rot), 0xFFFF)),
-          (t2UXTAH rGPR:$Rn, rGPR:$Rm, rot_imm:$rot)>,
-      Requires<[HasT2ExtractPack, IsThumb2]>;
+def : Thumb2ExtractPat<(add rGPR:$Rn, (and (srl rGPR:$Rm, rot_imm:$rot),
+                                           0xFF)),
+                       (t2UXTAB rGPR:$Rn, rGPR:$Rm, rot_imm:$rot)>;
+def : Thumb2ExtractPat<(add rGPR:$Rn, (and (srl rGPR:$Rm, imm8_or_16:$rot),
+                                            0xFFFF)),
+                       (t2UXTAH rGPR:$Rn, rGPR:$Rm, rot_imm:$rot)>;
 }
 
 
@@ -2030,6 +2038,7 @@ def : Pat<(add rGPR:$Rn, (and (srl rGPR:$Rm, imm8_or_16:$rot), 0xFFFF)),
 //  Arithmetic Instructions.
 //
 
+let isAdd = 1 in
 defm t2ADD  : T2I_bin_ii12rs<0b000, "add", add, 1>;
 defm t2SUB  : T2I_bin_ii12rs<0b101, "sub", sub>;
 
@@ -2546,367 +2555,194 @@ def t2MUL: T2ThreeReg<(outs rGPR:$Rd), (ins rGPR:$Rn, rGPR:$Rm), IIC_iMUL32,
   let Inst{7-4} = 0b0000; // Multiply
 }
 
-def t2MLA: T2FourReg<
-                (outs rGPR:$Rd), (ins rGPR:$Rn, rGPR:$Rm, rGPR:$Ra), IIC_iMAC32,
-                "mla", "\t$Rd, $Rn, $Rm, $Ra",
-                [(set rGPR:$Rd, (add (mul rGPR:$Rn, rGPR:$Rm), rGPR:$Ra))]>,
-           Requires<[IsThumb2, UseMulOps]> {
+class T2FourRegMLA<bits<4> op7_4, string opc, list<dag> pattern>
+  : T2FourReg<(outs rGPR:$Rd), (ins rGPR:$Rn, rGPR:$Rm, rGPR:$Ra), IIC_iMAC32,
+               opc, "\t$Rd, $Rn, $Rm, $Ra", pattern>,
+               Requires<[IsThumb2, UseMulOps]> {
   let Inst{31-27} = 0b11111;
   let Inst{26-23} = 0b0110;
   let Inst{22-20} = 0b000;
-  let Inst{7-4} = 0b0000; // Multiply
+  let Inst{7-4} = op7_4;
 }
 
-def t2MLS: T2FourReg<
-                (outs rGPR:$Rd), (ins rGPR:$Rn, rGPR:$Rm, rGPR:$Ra), IIC_iMAC32,
-                "mls", "\t$Rd, $Rn, $Rm, $Ra",
-                [(set rGPR:$Rd, (sub rGPR:$Ra, (mul rGPR:$Rn, rGPR:$Rm)))]>,
-           Requires<[IsThumb2, UseMulOps]> {
-  let Inst{31-27} = 0b11111;
-  let Inst{26-23} = 0b0110;
-  let Inst{22-20} = 0b000;
-  let Inst{7-4} = 0b0001; // Multiply and Subtract
-}
+def t2MLA : T2FourRegMLA<0b0000, "mla",
+                         [(set rGPR:$Rd, (add (mul rGPR:$Rn, rGPR:$Rm),
+                                               rGPR:$Ra))]>;
+def t2MLS: T2FourRegMLA<0b0001, "mls",
+                        [(set rGPR:$Rd, (sub rGPR:$Ra, (mul rGPR:$Rn,
+                                                            rGPR:$Rm)))]>;
 
 // Extra precision multiplies with low / high results
 let hasSideEffects = 0 in {
 let isCommutable = 1 in {
-def t2SMULL : T2MulLong<0b000, 0b0000,
-                  (outs rGPR:$RdLo, rGPR:$RdHi),
-                  (ins rGPR:$Rn, rGPR:$Rm), IIC_iMUL64,
-                   "smull", "\t$RdLo, $RdHi, $Rn, $Rm", []>;
-
-def t2UMULL : T2MulLong<0b010, 0b0000,
-                  (outs rGPR:$RdLo, rGPR:$RdHi),
-                  (ins rGPR:$Rn, rGPR:$Rm), IIC_iMUL64,
-                   "umull", "\t$RdLo, $RdHi, $Rn, $Rm", []>;
+def t2SMULL : T2MulLong<0b000, 0b0000, "smull", []>;
+def t2UMULL : T2MulLong<0b010, 0b0000, "umull", []>;
 } // isCommutable
 
 // Multiply + accumulate
-def t2SMLAL : T2MlaLong<0b100, 0b0000,
-                  (outs rGPR:$RdLo, rGPR:$RdHi),
-                  (ins rGPR:$Rn, rGPR:$Rm, rGPR:$RLo, rGPR:$RHi), IIC_iMAC64,
-                  "smlal", "\t$RdLo, $RdHi, $Rn, $Rm", []>,
-                  RegConstraint<"$RLo = $RdLo, $RHi = $RdHi">;
-
-def t2UMLAL : T2MlaLong<0b110, 0b0000,
-                  (outs rGPR:$RdLo, rGPR:$RdHi),
-                  (ins rGPR:$Rn, rGPR:$Rm, rGPR:$RLo, rGPR:$RHi), IIC_iMAC64,
-                  "umlal", "\t$RdLo, $RdHi, $Rn, $Rm", []>,
-                  RegConstraint<"$RLo = $RdLo, $RHi = $RdHi">;
-
-def t2UMAAL : T2MulLong<0b110, 0b0110,
-                  (outs rGPR:$RdLo, rGPR:$RdHi),
-                  (ins rGPR:$Rn, rGPR:$Rm, rGPR:$RLo, rGPR:$RHi), IIC_iMAC64,
-                  "umaal", "\t$RdLo, $RdHi, $Rn, $Rm", []>,
-          RegConstraint<"$RLo = $RdLo, $RHi = $RdHi">,
-          Requires<[IsThumb2, HasDSP]>;
+def t2SMLAL : T2MlaLong<0b100, 0b0000, "smlal">;
+def t2UMLAL : T2MlaLong<0b110, 0b0000, "umlal">;
+def t2UMAAL : T2MlaLong<0b110, 0b0110, "umaal">, Requires<[IsThumb2, HasDSP]>;
 } // hasSideEffects
 
 // Rounding variants of the below included for disassembly only
 
 // Most significant word multiply
-def t2SMMUL : T2ThreeReg<(outs rGPR:$Rd), (ins rGPR:$Rn, rGPR:$Rm), IIC_iMUL32,
-                  "smmul", "\t$Rd, $Rn, $Rm",
-                  [(set rGPR:$Rd, (mulhs rGPR:$Rn, rGPR:$Rm))]>,
-          Requires<[IsThumb2, HasDSP]> {
+class T2SMMUL<bits<4> op7_4, string opc, list<dag> pattern>
+  : T2ThreeReg<(outs rGPR:$Rd),
+               (ins rGPR:$Rn, rGPR:$Rm), IIC_iMUL32,
+               opc, "\t$Rd, $Rn, $Rm", pattern>,
+               Requires<[IsThumb2, HasDSP]> {
   let Inst{31-27} = 0b11111;
   let Inst{26-23} = 0b0110;
   let Inst{22-20} = 0b101;
   let Inst{15-12} = 0b1111; // Ra = 0b1111 (no accumulate)
-  let Inst{7-4} = 0b0000; // No Rounding (Inst{4} = 0)
+  let Inst{7-4} = op7_4;
 }
+def t2SMMUL : T2SMMUL<0b0000, "smmul", [(set rGPR:$Rd, (mulhs rGPR:$Rn,
+                                                              rGPR:$Rm))]>;
+def t2SMMULR : T2SMMUL<0b0001, "smmulr", []>;
 
-def t2SMMULR : T2ThreeReg<(outs rGPR:$Rd), (ins rGPR:$Rn, rGPR:$Rm), IIC_iMUL32,
-                  "smmulr", "\t$Rd, $Rn, $Rm", []>,
-          Requires<[IsThumb2, HasDSP]> {
-  let Inst{31-27} = 0b11111;
-  let Inst{26-23} = 0b0110;
-  let Inst{22-20} = 0b101;
-  let Inst{15-12} = 0b1111; // Ra = 0b1111 (no accumulate)
-  let Inst{7-4} = 0b0001; // Rounding (Inst{4} = 1)
-}
-
-def t2SMMLA : T2FourReg<
-        (outs rGPR:$Rd), (ins rGPR:$Rn, rGPR:$Rm, rGPR:$Ra), IIC_iMAC32,
-                "smmla", "\t$Rd, $Rn, $Rm, $Ra",
-                [(set rGPR:$Rd, (add (mulhs rGPR:$Rm, rGPR:$Rn), rGPR:$Ra))]>,
+class T2FourRegSMMLA<bits<3> op22_20, bits<4> op7_4, string opc,
+                     list<dag> pattern>
+  : T2FourReg<(outs rGPR:$Rd), (ins rGPR:$Rn, rGPR:$Rm, rGPR:$Ra), IIC_iMAC32,
+              opc, "\t$Rd, $Rn, $Rm, $Ra", pattern>,
               Requires<[IsThumb2, HasDSP, UseMulOps]> {
   let Inst{31-27} = 0b11111;
   let Inst{26-23} = 0b0110;
-  let Inst{22-20} = 0b101;
-  let Inst{7-4} = 0b0000; // No Rounding (Inst{4} = 0)
+  let Inst{22-20} = op22_20;
+  let Inst{7-4} = op7_4;
 }
 
-def t2SMMLAR: T2FourReg<
-        (outs rGPR:$Rd), (ins rGPR:$Rn, rGPR:$Rm, rGPR:$Ra), IIC_iMAC32,
-                  "smmlar", "\t$Rd, $Rn, $Rm, $Ra", []>,
-          Requires<[IsThumb2, HasDSP]> {
-  let Inst{31-27} = 0b11111;
-  let Inst{26-23} = 0b0110;
-  let Inst{22-20} = 0b101;
-  let Inst{7-4} = 0b0001; // Rounding (Inst{4} = 1)
+def t2SMMLA :   T2FourRegSMMLA<0b101, 0b0000, "smmla",
+                [(set rGPR:$Rd, (add (mulhs rGPR:$Rm, rGPR:$Rn), rGPR:$Ra))]>;
+def t2SMMLAR:   T2FourRegSMMLA<0b101, 0b0001, "smmlar", []>;
+def t2SMMLS:    T2FourRegSMMLA<0b110, 0b0000, "smmls", []>;
+def t2SMMLSR:   T2FourRegSMMLA<0b110, 0b0001, "smmlsr", []>;
+
+class T2ThreeRegSMUL<bits<3> op22_20, bits<2> op5_4, string opc,
+                     list<dag> pattern>
+  : T2ThreeReg<(outs rGPR:$Rd), (ins rGPR:$Rn, rGPR:$Rm), IIC_iMUL16, opc,
+               "\t$Rd, $Rn, $Rm", pattern>,
+    Requires<[IsThumb2, HasDSP]> {
+    let Inst{31-27} = 0b11111;
+    let Inst{26-23} = 0b0110;
+    let Inst{22-20} = op22_20;
+    let Inst{15-12} = 0b1111; // Ra = 0b1111 (no accumulate)
+    let Inst{7-6} = 0b00;
+    let Inst{5-4} = op5_4;
 }
 
-def t2SMMLS: T2FourReg<
-        (outs rGPR:$Rd), (ins rGPR:$Rn, rGPR:$Rm, rGPR:$Ra), IIC_iMAC32,
-                "smmls", "\t$Rd, $Rn, $Rm, $Ra",
-                [(set rGPR:$Rd, (sub rGPR:$Ra, (mulhs rGPR:$Rn, rGPR:$Rm)))]>,
-             Requires<[IsThumb2, HasDSP, UseMulOps]> {
-  let Inst{31-27} = 0b11111;
-  let Inst{26-23} = 0b0110;
-  let Inst{22-20} = 0b110;
-  let Inst{7-4} = 0b0000; // No Rounding (Inst{4} = 0)
+def t2SMULBB : T2ThreeRegSMUL<0b001, 0b00, "smulbb",
+             [(set rGPR:$Rd, (mul (sext_inreg rGPR:$Rn, i16),
+                                   (sext_inreg rGPR:$Rm, i16)))]>;
+def t2SMULBT : T2ThreeRegSMUL<0b001, 0b01, "smulbt",
+             [(set rGPR:$Rd, (mul (sext_inreg rGPR:$Rn, i16),
+                                   (sra rGPR:$Rm, (i32 16))))]>;
+def t2SMULTB : T2ThreeRegSMUL<0b001, 0b10, "smultb",
+             [(set rGPR:$Rd, (mul (sra rGPR:$Rn, (i32 16)),
+                                   (sext_inreg rGPR:$Rm, i16)))]>;
+def t2SMULTT : T2ThreeRegSMUL<0b001, 0b11, "smultt",
+             [(set rGPR:$Rd, (mul (sra rGPR:$Rn, (i32 16)),
+                                   (sra rGPR:$Rm, (i32 16))))]>;
+def t2SMULWB : T2ThreeRegSMUL<0b011, 0b00, "smulwb", []>;
+def t2SMULWT : T2ThreeRegSMUL<0b011, 0b01, "smulwt", []>;
+
+def : Thumb2DSPPat<(mul sext_16_node:$Rm, sext_16_node:$Rn),
+                   (t2SMULBB rGPR:$Rm, rGPR:$Rn)>;
+def : Thumb2DSPPat<(mul sext_16_node:$Rn, (sra rGPR:$Rm, (i32 16))),
+                   (t2SMULBT rGPR:$Rn, rGPR:$Rm)>;
+def : Thumb2DSPPat<(mul (sra rGPR:$Rn, (i32 16)), sext_16_node:$Rm),
+                   (t2SMULTB rGPR:$Rn, rGPR:$Rm)>;
+
+class T2FourRegSMLA<bits<3> op22_20, bits<2> op5_4, string opc,
+                    list<dag> pattern>
+  : T2FourReg<(outs rGPR:$Rd), (ins rGPR:$Rn, rGPR:$Rm, rGPR:$Ra), IIC_iMUL16,
+               opc, "\t$Rd, $Rn, $Rm, $Ra", pattern>,
+    Requires<[IsThumb2, HasDSP, UseMulOps]> {
+    let Inst{31-27} = 0b11111;
+    let Inst{26-23} = 0b0110;
+    let Inst{22-20} = op22_20;
+    let Inst{7-6} = 0b00;
+    let Inst{5-4} = op5_4;
 }
 
-def t2SMMLSR:T2FourReg<
-        (outs rGPR:$Rd), (ins rGPR:$Rn, rGPR:$Rm, rGPR:$Ra), IIC_iMAC32,
-                "smmlsr", "\t$Rd, $Rn, $Rm, $Ra", []>,
-          Requires<[IsThumb2, HasDSP]> {
-  let Inst{31-27} = 0b11111;
-  let Inst{26-23} = 0b0110;
-  let Inst{22-20} = 0b110;
-  let Inst{7-4} = 0b0001; // Rounding (Inst{4} = 1)
-}
+def t2SMLABB : T2FourRegSMLA<0b001, 0b00, "smlabb",
+             [(set rGPR:$Rd, (add rGPR:$Ra,
+                               (mul (sext_inreg rGPR:$Rn, i16),
+                                     (sext_inreg rGPR:$Rm, i16))))]>;
+def t2SMLABT : T2FourRegSMLA<0b001, 0b01, "smlabt",
+             [(set rGPR:$Rd, (add rGPR:$Ra, (mul (sext_inreg rGPR:$Rn, i16),
+                                                 (sra rGPR:$Rm, (i32 16)))))]>;
+def t2SMLATB : T2FourRegSMLA<0b001, 0b10, "smlatb",
+             [(set rGPR:$Rd, (add rGPR:$Ra, (mul (sra rGPR:$Rn, (i32 16)),
+                                                (sext_inreg rGPR:$Rm, i16))))]>;
+def t2SMLATT : T2FourRegSMLA<0b001, 0b11, "smlatt",
+             [(set rGPR:$Rd, (add rGPR:$Ra, (mul (sra rGPR:$Rn, (i32 16)),
+                                                 (sra rGPR:$Rm, (i32 16)))))]>;
+def t2SMLAWB : T2FourRegSMLA<0b011, 0b00, "smlawb", []>;
+def t2SMLAWT : T2FourRegSMLA<0b011, 0b01, "smlawt", []>;
 
-multiclass T2I_smul<string opc, SDNode opnode> {
-  def BB : T2ThreeReg<(outs rGPR:$Rd), (ins rGPR:$Rn, rGPR:$Rm), IIC_iMUL16,
-              !strconcat(opc, "bb"), "\t$Rd, $Rn, $Rm",
-              [(set rGPR:$Rd, (opnode (sext_inreg rGPR:$Rn, i16),
-                                      (sext_inreg rGPR:$Rm, i16)))]>,
-          Requires<[IsThumb2, HasDSP]> {
-    let Inst{31-27} = 0b11111;
-    let Inst{26-23} = 0b0110;
-    let Inst{22-20} = 0b001;
-    let Inst{15-12} = 0b1111; // Ra = 0b1111 (no accumulate)
-    let Inst{7-6} = 0b00;
-    let Inst{5-4} = 0b00;
-  }
+def : Thumb2DSPMulPat<(add rGPR:$Ra, (mul sext_16_node:$Rn, sext_16_node:$Rm)),
+                      (t2SMLABB rGPR:$Rn, rGPR:$Rm, rGPR:$Ra)>;
+def : Thumb2DSPMulPat<(add rGPR:$Ra,
+                        (mul sext_16_node:$Rn, (sra rGPR:$Rm, (i32 16)))),
+                      (t2SMLABT rGPR:$Rn, rGPR:$Rm, rGPR:$Ra)>;
+def : Thumb2DSPMulPat<(add rGPR:$Ra,
+                        (mul (sra rGPR:$Rn, (i32 16)), sext_16_node:$Rm)),
+                      (t2SMLATB rGPR:$Rn, rGPR:$Rm, rGPR:$Ra)>;
 
-  def BT : T2ThreeReg<(outs rGPR:$Rd), (ins rGPR:$Rn, rGPR:$Rm), IIC_iMUL16,
-              !strconcat(opc, "bt"), "\t$Rd, $Rn, $Rm",
-              [(set rGPR:$Rd, (opnode (sext_inreg rGPR:$Rn, i16),
-                                      (sra rGPR:$Rm, (i32 16))))]>,
-          Requires<[IsThumb2, HasDSP]> {
-    let Inst{31-27} = 0b11111;
-    let Inst{26-23} = 0b0110;
-    let Inst{22-20} = 0b001;
-    let Inst{15-12} = 0b1111; // Ra = 0b1111 (no accumulate)
-    let Inst{7-6} = 0b00;
-    let Inst{5-4} = 0b01;
-  }
-
-  def TB : T2ThreeReg<(outs rGPR:$Rd), (ins rGPR:$Rn, rGPR:$Rm), IIC_iMUL16,
-              !strconcat(opc, "tb"), "\t$Rd, $Rn, $Rm",
-              [(set rGPR:$Rd, (opnode (sra rGPR:$Rn, (i32 16)),
-                                      (sext_inreg rGPR:$Rm, i16)))]>,
-          Requires<[IsThumb2, HasDSP]> {
-    let Inst{31-27} = 0b11111;
-    let Inst{26-23} = 0b0110;
-    let Inst{22-20} = 0b001;
-    let Inst{15-12} = 0b1111; // Ra = 0b1111 (no accumulate)
-    let Inst{7-6} = 0b00;
-    let Inst{5-4} = 0b10;
-  }
-
-  def TT : T2ThreeReg<(outs rGPR:$Rd), (ins rGPR:$Rn, rGPR:$Rm), IIC_iMUL16,
-              !strconcat(opc, "tt"), "\t$Rd, $Rn, $Rm",
-              [(set rGPR:$Rd, (opnode (sra rGPR:$Rn, (i32 16)),
-                                      (sra rGPR:$Rm, (i32 16))))]>,
-          Requires<[IsThumb2, HasDSP]> {
-    let Inst{31-27} = 0b11111;
-    let Inst{26-23} = 0b0110;
-    let Inst{22-20} = 0b001;
-    let Inst{15-12} = 0b1111; // Ra = 0b1111 (no accumulate)
-    let Inst{7-6} = 0b00;
-    let Inst{5-4} = 0b11;
-  }
-
-  def WB : T2ThreeReg<(outs rGPR:$Rd), (ins rGPR:$Rn, rGPR:$Rm), IIC_iMUL16,
-              !strconcat(opc, "wb"), "\t$Rd, $Rn, $Rm",
-              []>,
-          Requires<[IsThumb2, HasDSP]> {
-    let Inst{31-27} = 0b11111;
-    let Inst{26-23} = 0b0110;
-    let Inst{22-20} = 0b011;
-    let Inst{15-12} = 0b1111; // Ra = 0b1111 (no accumulate)
-    let Inst{7-6} = 0b00;
-    let Inst{5-4} = 0b00;
-  }
-
-  def WT : T2ThreeReg<(outs rGPR:$Rd), (ins rGPR:$Rn, rGPR:$Rm), IIC_iMUL16,
-              !strconcat(opc, "wt"), "\t$Rd, $Rn, $Rm",
-              []>,
-          Requires<[IsThumb2, HasDSP]> {
-    let Inst{31-27} = 0b11111;
-    let Inst{26-23} = 0b0110;
-    let Inst{22-20} = 0b011;
-    let Inst{15-12} = 0b1111; // Ra = 0b1111 (no accumulate)
-    let Inst{7-6} = 0b00;
-    let Inst{5-4} = 0b01;
-  }
-}
-
-
-multiclass T2I_smla<string opc, SDNode opnode> {
-  def BB : T2FourReg<
-        (outs rGPR:$Rd), (ins rGPR:$Rn, rGPR:$Rm, rGPR:$Ra), IIC_iMAC16,
-              !strconcat(opc, "bb"), "\t$Rd, $Rn, $Rm, $Ra",
-              [(set rGPR:$Rd, (add rGPR:$Ra,
-                               (opnode (sext_inreg rGPR:$Rn, i16),
-                                       (sext_inreg rGPR:$Rm, i16))))]>,
-           Requires<[IsThumb2, HasDSP, UseMulOps]> {
-    let Inst{31-27} = 0b11111;
-    let Inst{26-23} = 0b0110;
-    let Inst{22-20} = 0b001;
-    let Inst{7-6} = 0b00;
-    let Inst{5-4} = 0b00;
-  }
-
-  def BT : T2FourReg<
-       (outs rGPR:$Rd), (ins rGPR:$Rn, rGPR:$Rm, rGPR:$Ra), IIC_iMAC16,
-             !strconcat(opc, "bt"), "\t$Rd, $Rn, $Rm, $Ra",
-             [(set rGPR:$Rd, (add rGPR:$Ra, (opnode (sext_inreg rGPR:$Rn, i16),
-                                                 (sra rGPR:$Rm, (i32 16)))))]>,
-           Requires<[IsThumb2, HasDSP, UseMulOps]> {
-    let Inst{31-27} = 0b11111;
-    let Inst{26-23} = 0b0110;
-    let Inst{22-20} = 0b001;
-    let Inst{7-6} = 0b00;
-    let Inst{5-4} = 0b01;
-  }
-
-  def TB : T2FourReg<
-        (outs rGPR:$Rd), (ins rGPR:$Rn, rGPR:$Rm, rGPR:$Ra), IIC_iMAC16,
-              !strconcat(opc, "tb"), "\t$Rd, $Rn, $Rm, $Ra",
-              [(set rGPR:$Rd, (add rGPR:$Ra, (opnode (sra rGPR:$Rn, (i32 16)),
-                                               (sext_inreg rGPR:$Rm, i16))))]>,
-           Requires<[IsThumb2, HasDSP, UseMulOps]> {
-    let Inst{31-27} = 0b11111;
-    let Inst{26-23} = 0b0110;
-    let Inst{22-20} = 0b001;
-    let Inst{7-6} = 0b00;
-    let Inst{5-4} = 0b10;
-  }
-
-  def TT : T2FourReg<
-        (outs rGPR:$Rd), (ins rGPR:$Rn, rGPR:$Rm, rGPR:$Ra), IIC_iMAC16,
-              !strconcat(opc, "tt"), "\t$Rd, $Rn, $Rm, $Ra",
-             [(set rGPR:$Rd, (add rGPR:$Ra, (opnode (sra rGPR:$Rn, (i32 16)),
-                                                 (sra rGPR:$Rm, (i32 16)))))]>,
-           Requires<[IsThumb2, HasDSP, UseMulOps]> {
-    let Inst{31-27} = 0b11111;
-    let Inst{26-23} = 0b0110;
-    let Inst{22-20} = 0b001;
-    let Inst{7-6} = 0b00;
-    let Inst{5-4} = 0b11;
-  }
-
-  def WB : T2FourReg<
-        (outs rGPR:$Rd), (ins rGPR:$Rn, rGPR:$Rm, rGPR:$Ra), IIC_iMAC16,
-              !strconcat(opc, "wb"), "\t$Rd, $Rn, $Rm, $Ra",
-              []>,
-           Requires<[IsThumb2, HasDSP, UseMulOps]> {
-    let Inst{31-27} = 0b11111;
-    let Inst{26-23} = 0b0110;
-    let Inst{22-20} = 0b011;
-    let Inst{7-6} = 0b00;
-    let Inst{5-4} = 0b00;
-  }
-
-  def WT : T2FourReg<
-        (outs rGPR:$Rd), (ins rGPR:$Rn, rGPR:$Rm, rGPR:$Ra), IIC_iMAC16,
-              !strconcat(opc, "wt"), "\t$Rd, $Rn, $Rm, $Ra",
-              []>,
-           Requires<[IsThumb2, HasDSP, UseMulOps]> {
-    let Inst{31-27} = 0b11111;
-    let Inst{26-23} = 0b0110;
-    let Inst{22-20} = 0b011;
-    let Inst{7-6} = 0b00;
-    let Inst{5-4} = 0b01;
-  }
-}
-
-defm t2SMUL : T2I_smul<"smul", mul>;
-defm t2SMLA : T2I_smla<"smla", mul>;
+class T2SMLAL<bits<3> op22_20, bits<4> op7_4, string opc, list<dag> pattern>
+  : T2FourReg_mac<1, op22_20, op7_4,
+                  (outs rGPR:$Ra, rGPR:$Rd),
+                  (ins rGPR:$Rn, rGPR:$Rm),
+                  IIC_iMAC64, opc, "\t$Ra, $Rd, $Rn, $Rm", []>,
+                  Requires<[IsThumb2, HasDSP]>;
 
 // Halfword multiple accumulate long: SMLAL<x><y>
-def t2SMLALBB : T2FourReg_mac<1, 0b100, 0b1000, (outs rGPR:$Ra,rGPR:$Rd),
-         (ins rGPR:$Rn,rGPR:$Rm), IIC_iMAC64, "smlalbb", "\t$Ra, $Rd, $Rn, $Rm",
-           [/* For disassembly only; pattern left blank */]>,
-          Requires<[IsThumb2, HasDSP]>;
-def t2SMLALBT : T2FourReg_mac<1, 0b100, 0b1001, (outs rGPR:$Ra,rGPR:$Rd),
-         (ins rGPR:$Rn,rGPR:$Rm), IIC_iMAC64, "smlalbt", "\t$Ra, $Rd, $Rn, $Rm",
-           [/* For disassembly only; pattern left blank */]>,
-          Requires<[IsThumb2, HasDSP]>;
-def t2SMLALTB : T2FourReg_mac<1, 0b100, 0b1010, (outs rGPR:$Ra,rGPR:$Rd),
-         (ins rGPR:$Rn,rGPR:$Rm), IIC_iMAC64, "smlaltb", "\t$Ra, $Rd, $Rn, $Rm",
-           [/* For disassembly only; pattern left blank */]>,
-          Requires<[IsThumb2, HasDSP]>;
-def t2SMLALTT : T2FourReg_mac<1, 0b100, 0b1011, (outs rGPR:$Ra,rGPR:$Rd),
-         (ins rGPR:$Rn,rGPR:$Rm), IIC_iMAC64, "smlaltt", "\t$Ra, $Rd, $Rn, $Rm",
-           [/* For disassembly only; pattern left blank */]>,
-          Requires<[IsThumb2, HasDSP]>;
+def t2SMLALBB : T2SMLAL<0b100, 0b1000, "smlalbb", []>;
+def t2SMLALBT : T2SMLAL<0b100, 0b1001, "smlalbt", []>;
+def t2SMLALTB : T2SMLAL<0b100, 0b1010, "smlaltb", []>;
+def t2SMLALTT : T2SMLAL<0b100, 0b1011, "smlaltt", []>;
+
+class T2DualHalfMul<bits<3> op22_20, bits<4> op7_4, string opc>
+  : T2ThreeReg_mac<0, op22_20, op7_4,
+                   (outs rGPR:$Rd),
+                   (ins rGPR:$Rn, rGPR:$Rm),
+                   IIC_iMAC32, opc, "\t$Rd, $Rn, $Rm", []>,
+                   Requires<[IsThumb2, HasDSP]> {
+  let Inst{15-12} = 0b1111;
+}
 
 // Dual halfword multiple: SMUAD, SMUSD, SMLAD, SMLSD, SMLALD, SMLSLD
-def t2SMUAD: T2ThreeReg_mac<
-            0, 0b010, 0b0000, (outs rGPR:$Rd), (ins rGPR:$Rn, rGPR:$Rm),
-            IIC_iMAC32, "smuad", "\t$Rd, $Rn, $Rm", []>,
-          Requires<[IsThumb2, HasDSP]> {
-  let Inst{15-12} = 0b1111;
-}
-def t2SMUADX:T2ThreeReg_mac<
-            0, 0b010, 0b0001, (outs rGPR:$Rd), (ins rGPR:$Rn, rGPR:$Rm),
-            IIC_iMAC32, "smuadx", "\t$Rd, $Rn, $Rm", []>,
-          Requires<[IsThumb2, HasDSP]> {
-  let Inst{15-12} = 0b1111;
-}
-def t2SMUSD: T2ThreeReg_mac<
-            0, 0b100, 0b0000, (outs rGPR:$Rd), (ins rGPR:$Rn, rGPR:$Rm),
-            IIC_iMAC32, "smusd", "\t$Rd, $Rn, $Rm", []>,
-          Requires<[IsThumb2, HasDSP]> {
-  let Inst{15-12} = 0b1111;
-}
-def t2SMUSDX:T2ThreeReg_mac<
-            0, 0b100, 0b0001, (outs rGPR:$Rd), (ins rGPR:$Rn, rGPR:$Rm),
-            IIC_iMAC32, "smusdx", "\t$Rd, $Rn, $Rm", []>,
-          Requires<[IsThumb2, HasDSP]> {
-  let Inst{15-12} = 0b1111;
-}
-def t2SMLAD   : T2FourReg_mac<
-            0, 0b010, 0b0000, (outs rGPR:$Rd),
-            (ins rGPR:$Rn, rGPR:$Rm, rGPR:$Ra), IIC_iMAC32, "smlad",
-            "\t$Rd, $Rn, $Rm, $Ra", []>,
-          Requires<[IsThumb2, HasDSP]>;
-def t2SMLADX  : T2FourReg_mac<
-            0, 0b010, 0b0001, (outs rGPR:$Rd),
-            (ins rGPR:$Rn, rGPR:$Rm, rGPR:$Ra), IIC_iMAC32, "smladx",
-            "\t$Rd, $Rn, $Rm, $Ra", []>,
-          Requires<[IsThumb2, HasDSP]>;
-def t2SMLSD   : T2FourReg_mac<0, 0b100, 0b0000, (outs rGPR:$Rd),
-            (ins rGPR:$Rn, rGPR:$Rm, rGPR:$Ra), IIC_iMAC32, "smlsd",
-            "\t$Rd, $Rn, $Rm, $Ra", []>,
-          Requires<[IsThumb2, HasDSP]>;
-def t2SMLSDX  : T2FourReg_mac<0, 0b100, 0b0001, (outs rGPR:$Rd),
-            (ins rGPR:$Rn, rGPR:$Rm, rGPR:$Ra), IIC_iMAC32, "smlsdx",
-            "\t$Rd, $Rn, $Rm, $Ra", []>,
-          Requires<[IsThumb2, HasDSP]>;
-def t2SMLALD  : T2FourReg_mac<1, 0b100, 0b1100, (outs rGPR:$Ra,rGPR:$Rd),
-                        (ins rGPR:$Rn, rGPR:$Rm), IIC_iMAC64, "smlald",
-                        "\t$Ra, $Rd, $Rn, $Rm", []>,
-          Requires<[IsThumb2, HasDSP]>;
-def t2SMLALDX : T2FourReg_mac<1, 0b100, 0b1101, (outs rGPR:$Ra,rGPR:$Rd),
-                        (ins rGPR:$Rn,rGPR:$Rm), IIC_iMAC64, "smlaldx",
-                        "\t$Ra, $Rd, $Rn, $Rm", []>,
-          Requires<[IsThumb2, HasDSP]>;
-def t2SMLSLD  : T2FourReg_mac<1, 0b101, 0b1100, (outs rGPR:$Ra,rGPR:$Rd),
-                        (ins rGPR:$Rn,rGPR:$Rm), IIC_iMAC64, "smlsld",
-                        "\t$Ra, $Rd, $Rn, $Rm", []>,
-          Requires<[IsThumb2, HasDSP]>;
-def t2SMLSLDX : T2FourReg_mac<1, 0b101, 0b1101, (outs rGPR:$Ra,rGPR:$Rd),
-                        (ins rGPR:$Rm,rGPR:$Rn), IIC_iMAC64, "smlsldx",
-                        "\t$Ra, $Rd, $Rn, $Rm", []>,
-          Requires<[IsThumb2, HasDSP]>;
+def t2SMUAD: T2DualHalfMul<0b010, 0b0000, "smuad">;
+def t2SMUADX: T2DualHalfMul<0b010, 0b0001, "smuadx">;
+def t2SMUSD: T2DualHalfMul<0b100, 0b0000, "smusd">;
+def t2SMUSDX: T2DualHalfMul<0b100, 0b0001, "smusdx">;
+
+class T2DualHalfMulAdd<bits<3> op22_20, bits<4> op7_4, string opc>
+  : T2FourReg_mac<0, op22_20, op7_4,
+                  (outs rGPR:$Rd),
+                  (ins rGPR:$Rn, rGPR:$Rm, rGPR:$Ra),
+                  IIC_iMAC32, opc, "\t$Rd, $Rn, $Rm, $Ra", []>,
+                  Requires<[IsThumb2, HasDSP]>;
+
+def t2SMLAD   : T2DualHalfMulAdd<0b010, 0b0000, "smlad">;
+def t2SMLADX  : T2DualHalfMulAdd<0b010, 0b0001, "smladx">;
+def t2SMLSD   : T2DualHalfMulAdd<0b100, 0b0000, "smlsd">;
+def t2SMLSDX  : T2DualHalfMulAdd<0b100, 0b0001, "smlsdx">;
+
+class T2DualHalfMulAddLong<bits<3> op22_20, bits<4> op7_4, string opc>
+  : T2FourReg_mac<1, op22_20, op7_4,
+                  (outs rGPR:$Ra, rGPR:$Rd),
+                  (ins rGPR:$Rn, rGPR:$Rm),
+                  IIC_iMAC64, opc, "\t$Ra, $Rd, $Rn, $Rm", []>,
+                  Requires<[IsThumb2, HasDSP]>;
+
+def t2SMLALD  : T2DualHalfMulAddLong<0b100, 0b1100, "smlald">;
+def t2SMLALDX : T2DualHalfMulAddLong<0b100, 0b1101, "smlaldx">;
+def t2SMLSLD  : T2DualHalfMulAddLong<0b101, 0b1100, "smlsld">;
+def t2SMLSLDX : T2DualHalfMulAddLong<0b101, 0b1101, "smlsldx">;
 
 //===----------------------------------------------------------------------===//
 //  Division Instructions.
@@ -3545,7 +3381,9 @@ def t2B   : T2I<(outs), (ins thumb_br_target:$target), IIC_Br,
 }
 
 let Size = 4, isNotDuplicable = 1, isIndirectBranch = 1 in {
-def t2BR_JT : t2PseudoInst<(outs),
+
+// available in both v8-M.Baseline and Thumb2 targets
+def t2BR_JT : t2basePseudoInst<(outs),
           (ins GPR:$target, GPR:$index, i32imm:$jt),
            0, IIC_Br,
           [(ARMbr2jt GPR:$target, GPR:$index, tjumptable:$jt)]>,
@@ -3645,6 +3483,7 @@ def t2IT : Thumb2XI<(outs), (ins it_pred:$cc, it_mask:$mask),
 
 // Branch and Exchange Jazelle -- for disassembly only
 // Rm = Inst{19-16}
+let isBranch = 1, isTerminator = 1, isBarrier = 1, isIndirectBranch = 1 in
 def t2BXJ : T2I<(outs), (ins GPRnopc:$func), NoItinerary, "bxj", "\t$func", []>,
     Sched<[WriteBr]>, Requires<[IsThumb2, IsNotMClass]> {
   bits<4> func;
@@ -3753,6 +3592,7 @@ def t2DBG : T2I<(outs), (ins imm0_15:$opt), NoItinerary, "dbg", "\t$opt",
 
 // Secure Monitor Call is a system instruction.
 // Option = Inst{19-16}
+let isCall = 1, Uses = [SP] in
 def t2SMC : T2I<(outs), (ins imm0_15:$opt), NoItinerary, "smc", "\t$opt",
                 []>, Requires<[IsThumb2, HasTrustZone]> {
   let Inst{31-27} = 0b11110;
@@ -3809,6 +3649,7 @@ def : t2InstAlias<"srsia${p} $mode", (t2SRSIA imm0_31:$mode, pred:$p)>;
 def : t2InstAlias<"srsia${p} $mode!", (t2SRSIA_UPD imm0_31:$mode, pred:$p)>;
 
 // Return From Exception is a system instruction.
+let isReturn = 1, isBarrier = 1, isTerminator = 1, Defs = [PC] in
 class T2RFE<bits<12> op31_20, dag oops, dag iops, InstrItinClass itin,
           string opc, string asm, list<dag> pattern>
   : T2I<oops, iops, itin, opc, asm, pattern>,
@@ -4568,7 +4409,7 @@ def : t2InstAlias<"ldrsh${p} $Rt, $addr",
                   (t2LDRSHs rGPR:$Rt, t2addrmode_so_reg:$addr, pred:$p)>;
 
 def : t2InstAlias<"ldr${p} $Rt, $addr",
-                  (t2LDRpci GPRnopc:$Rt, t2ldrlabel:$addr, pred:$p)>;
+                  (t2LDRpci GPR:$Rt, t2ldrlabel:$addr, pred:$p)>;
 def : t2InstAlias<"ldrb${p} $Rt, $addr",
                   (t2LDRBpci rGPR:$Rt, t2ldrlabel:$addr, pred:$p)>;
 def : t2InstAlias<"ldrh${p} $Rt, $addr",

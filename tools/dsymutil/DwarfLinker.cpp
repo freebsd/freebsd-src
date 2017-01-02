@@ -38,6 +38,7 @@
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
+#include <memory>
 #include <string>
 #include <tuple>
 
@@ -101,7 +102,7 @@ class DeclContext {
   StringRef Name;
   StringRef File;
   const DeclContext &Parent;
-  const DWARFDebugInfoEntryMinimal *LastSeenDIE;
+  DWARFDie LastSeenDIE;
   uint32_t LastSeenCompileUnitID;
   uint32_t CanonicalDIEOffset;
 
@@ -113,19 +114,18 @@ public:
   DeclContext()
       : QualifiedNameHash(0), Line(0), ByteSize(0),
         Tag(dwarf::DW_TAG_compile_unit), Name(), File(), Parent(*this),
-        LastSeenDIE(nullptr), LastSeenCompileUnitID(0), CanonicalDIEOffset(0) {}
+        LastSeenDIE(), LastSeenCompileUnitID(0), CanonicalDIEOffset(0) {}
 
   DeclContext(unsigned Hash, uint32_t Line, uint32_t ByteSize, uint16_t Tag,
               StringRef Name, StringRef File, const DeclContext &Parent,
-              const DWARFDebugInfoEntryMinimal *LastSeenDIE = nullptr,
-              unsigned CUId = 0)
+              DWARFDie LastSeenDIE = DWARFDie(), unsigned CUId = 0)
       : QualifiedNameHash(Hash), Line(Line), ByteSize(ByteSize), Tag(Tag),
         Name(Name), File(File), Parent(Parent), LastSeenDIE(LastSeenDIE),
         LastSeenCompileUnitID(CUId), CanonicalDIEOffset(0) {}
 
   uint32_t getQualifiedNameHash() const { return QualifiedNameHash; }
 
-  bool setLastSeenDIE(CompileUnit &U, const DWARFDebugInfoEntryMinimal *Die);
+  bool setLastSeenDIE(CompileUnit &U, const DWARFDie &Die);
 
   uint32_t getCanonicalDIEOffset() const { return CanonicalDIEOffset; }
   void setCanonicalDIEOffset(uint32_t Offset) { CanonicalDIEOffset = Offset; }
@@ -173,7 +173,7 @@ public:
   /// emulate some dsymutil-classic functionality.
   PointerIntPair<DeclContext *, 1>
   getChildDeclContext(DeclContext &Context,
-                      const DWARFDebugInfoEntryMinimal *DIE, CompileUnit &Unit,
+                      const DWARFDie &DIE, CompileUnit &Unit,
                       NonRelocatableStringpool &StringPool, bool InClangModule);
 
   DeclContext &getRoot() { return Root; }
@@ -197,13 +197,15 @@ public:
 
   CompileUnit(DWARFUnit &OrigUnit, unsigned ID, bool CanUseODR,
               StringRef ClangModuleName)
-      : OrigUnit(OrigUnit), ID(ID), LowPc(UINT64_MAX), HighPc(0), RangeAlloc(),
-        Ranges(RangeAlloc), ClangModuleName(ClangModuleName) {
+      : OrigUnit(OrigUnit), ID(ID), NewUnit(OrigUnit.getVersion(),
+                                            OrigUnit.getAddressByteSize(),
+                                            OrigUnit.getUnitDIE().getTag()),
+          LowPc(UINT64_MAX), HighPc(0), RangeAlloc(), Ranges(RangeAlloc),
+          ClangModuleName(ClangModuleName) {
     Info.resize(OrigUnit.getNumDIEs());
 
-    const auto *CUDie = OrigUnit.getUnitDIE(false);
-    unsigned Lang = CUDie->getAttributeValueAsUnsignedConstant(
-        &OrigUnit, dwarf::DW_AT_language, 0);
+    auto CUDie = OrigUnit.getUnitDIE(false);
+    unsigned Lang = CUDie.getAttributeValueAsUnsignedConstant(dwarf::DW_AT_language, 0);
     HasODR = CanUseODR && (Lang == dwarf::DW_LANG_C_plus_plus ||
                            Lang == dwarf::DW_LANG_C_plus_plus_03 ||
                            Lang == dwarf::DW_LANG_C_plus_plus_11 ||
@@ -211,21 +213,13 @@ public:
                            Lang == dwarf::DW_LANG_ObjC_plus_plus);
   }
 
-  CompileUnit(CompileUnit &&RHS)
-      : OrigUnit(RHS.OrigUnit), Info(std::move(RHS.Info)),
-        CUDie(std::move(RHS.CUDie)), StartOffset(RHS.StartOffset),
-        NextUnitOffset(RHS.NextUnitOffset), RangeAlloc(), Ranges(RangeAlloc) {
-    // The CompileUnit container has been 'reserve()'d with the right
-    // size. We cannot move the IntervalMap anyway.
-    llvm_unreachable("CompileUnits should not be moved.");
-  }
-
   DWARFUnit &getOrigUnit() const { return OrigUnit; }
 
   unsigned getUniqueID() const { return ID; }
 
-  DIE *getOutputUnitDIE() const { return CUDie; }
-  void setOutputUnitDIE(DIE *Die) { CUDie = Die; }
+  DIE *getOutputUnitDIE() const {
+    return &const_cast<DIEUnit &>(NewUnit).getUnitDie();
+  }
 
   bool hasODR() const { return HasODR; }
   bool isClangModule() const { return !ClangModuleName.empty(); }
@@ -333,7 +327,7 @@ private:
   DWARFUnit &OrigUnit;
   unsigned ID;
   std::vector<DIEInfo> Info; ///< DIE info indexed by DIE index.
-  DIE *CUDie;                ///< Root of the linked DIE tree.
+  DIEUnit NewUnit;
 
   uint64_t StartOffset;
   uint64_t NextUnitOffset;
@@ -401,8 +395,7 @@ uint64_t CompileUnit::computeNextUnitOffset() {
   // The root DIE might be null, meaning that the Unit had nothing to
   // contribute to the linked output. In that case, we will emit the
   // unit header without any actual DIE.
-  if (CUDie)
-    NextUnitOffset += CUDie->getSize();
+  NextUnitOffset += NewUnit.getUnitDie().getSize();
   return NextUnitOffset;
 }
 
@@ -597,7 +590,8 @@ bool DwarfStreamer::init(Triple TheTriple, StringRef OutputFilename) {
   MC.reset(new MCContext(MAI.get(), MRI.get(), MOFI.get()));
   MOFI->InitMCObjectFileInfo(TheTriple, /*PIC*/ false, CodeModel::Default, *MC);
 
-  MAB = TheTarget->createMCAsmBackend(*MRI, TripleName, "");
+  MCTargetOptions Options;
+  MAB = TheTarget->createMCAsmBackend(*MRI, TripleName, "", Options);
   if (!MAB)
     return error("no asm backend for target " + TripleName, Context);
 
@@ -845,12 +839,11 @@ void DwarfStreamer::emitLocationsForUnit(const CompileUnit &Unit,
   const DWARFSection &InputSec = Dwarf.getLocSection();
   DataExtractor Data(InputSec.Data, Dwarf.isLittleEndian(), AddressSize);
   DWARFUnit &OrigUnit = Unit.getOrigUnit();
-  const auto *OrigUnitDie = OrigUnit.getUnitDIE(false);
+  auto OrigUnitDie = OrigUnit.getUnitDIE(false);
   int64_t UnitPcOffset = 0;
-  uint64_t OrigLowPc = OrigUnitDie->getAttributeValueAsAddress(
-      &OrigUnit, dwarf::DW_AT_low_pc, -1ULL);
-  if (OrigLowPc != -1ULL)
-    UnitPcOffset = int64_t(OrigLowPc) - Unit.getLowPc();
+  auto OrigLowPc = OrigUnitDie.getAttributeValueAsAddress(dwarf::DW_AT_low_pc);
+  if (OrigLowPc)
+    UnitPcOffset = int64_t(*OrigLowPc) - Unit.getLowPc();
 
   for (const auto &Attr : Attributes) {
     uint32_t Offset = Attr.first.get();
@@ -1120,8 +1113,8 @@ public:
   /// \brief Link the contents of the DebugMap.
   bool link(const DebugMap &);
 
-  void reportWarning(const Twine &Warning, const DWARFUnit *Unit = nullptr,
-                     const DWARFDebugInfoEntryMinimal *DIE = nullptr) const;
+  void reportWarning(const Twine &Warning,
+                     const DWARFDie *DIE = nullptr) const;
 
 private:
   /// \brief Called at the start of a debug object link.
@@ -1197,7 +1190,7 @@ private:
   /// \brief Recursively walk the \p DIE tree and look for DIEs to
   /// keep. Store that information in \p CU's DIEInfo.
   void lookForDIEsToKeep(RelocationManager &RelocMgr,
-                         const DWARFDebugInfoEntryMinimal &DIE,
+                         const DWARFDie &DIE,
                          const DebugMapObject &DMO, CompileUnit &CU,
                          unsigned Flags);
 
@@ -1207,7 +1200,7 @@ private:
   /// A skeleton CU is a CU without children, a DW_AT_gnu_dwo_name
   /// pointing to the module, and a DW_AT_gnu_dwo_id with the module
   /// hash.
-  bool registerModuleReference(const DWARFDebugInfoEntryMinimal &CUDie,
+  bool registerModuleReference(const DWARFDie &CUDie,
                                const DWARFUnit &Unit, DebugMap &ModuleMap,
                                unsigned Indent = 0);
 
@@ -1231,23 +1224,23 @@ private:
   /// \brief Mark the passed DIE as well as all the ones it depends on
   /// as kept.
   void keepDIEAndDependencies(RelocationManager &RelocMgr,
-                               const DWARFDebugInfoEntryMinimal &DIE,
+                               const DWARFDie &DIE,
                                CompileUnit::DIEInfo &MyInfo,
                                const DebugMapObject &DMO, CompileUnit &CU,
                                bool UseODR);
 
   unsigned shouldKeepDIE(RelocationManager &RelocMgr,
-                         const DWARFDebugInfoEntryMinimal &DIE,
+                         const DWARFDie &DIE,
                          CompileUnit &Unit, CompileUnit::DIEInfo &MyInfo,
                          unsigned Flags);
 
   unsigned shouldKeepVariableDIE(RelocationManager &RelocMgr,
-                                 const DWARFDebugInfoEntryMinimal &DIE,
+                                 const DWARFDie &DIE,
                                  CompileUnit &Unit,
                                  CompileUnit::DIEInfo &MyInfo, unsigned Flags);
 
   unsigned shouldKeepSubprogramDIE(RelocationManager &RelocMgr,
-                                   const DWARFDebugInfoEntryMinimal &DIE,
+                                   const DWARFDie &DIE,
                                    CompileUnit &Unit,
                                    CompileUnit::DIEInfo &MyInfo,
                                    unsigned Flags);
@@ -1265,13 +1258,14 @@ private:
     RelocationManager &RelocMgr;
     /// Allocator used for all the DIEValue objects.
     BumpPtrAllocator &DIEAlloc;
-    MutableArrayRef<CompileUnit> CompileUnits;
+    std::vector<std::unique_ptr<CompileUnit>> &CompileUnits;
     LinkOptions Options;
 
   public:
     DIECloner(DwarfLinker &Linker, RelocationManager &RelocMgr,
               BumpPtrAllocator &DIEAlloc,
-              MutableArrayRef<CompileUnit> CompileUnits, LinkOptions &Options)
+              std::vector<std::unique_ptr<CompileUnit>> &CompileUnits,
+              LinkOptions &Options)
         : Linker(Linker), RelocMgr(RelocMgr), DIEAlloc(DIEAlloc),
           CompileUnits(CompileUnits), Options(Options) {}
 
@@ -1284,10 +1278,11 @@ private:
     /// compile unit.
     /// \param PCOffset (while cloning a function scope) is the offset
     /// applied to the entry point of the function to get the linked address.
-    ///
+    /// \param Die the output DIE to use, pass NULL to create one.
     /// \returns the root of the cloned tree or null if nothing was selected.
-    DIE *cloneDIE(const DWARFDebugInfoEntryMinimal &InputDIE, CompileUnit &U,
-                  int64_t PCOffset, uint32_t OutOffset, unsigned Flags);
+    DIE *cloneDIE(const DWARFDie &InputDIE, CompileUnit &U,
+                  int64_t PCOffset, uint32_t OutOffset, unsigned Flags,
+                  DIE *Die = nullptr);
 
     /// Construct the output DIE tree by cloning the DIEs we
     /// chose to keep above. If there are no valid relocs, then there's
@@ -1318,7 +1313,7 @@ private:
 
     /// Helper for cloneDIE.
     unsigned cloneAttribute(DIE &Die,
-                            const DWARFDebugInfoEntryMinimal &InputDIE,
+                            const DWARFDie &InputDIE,
                             CompileUnit &U, const DWARFFormValue &Val,
                             const AttributeSpec AttrSpec, unsigned AttrSize,
                             AttributesInfo &AttrInfo);
@@ -1335,7 +1330,7 @@ private:
     /// \returns the size of the new attribute.
     unsigned
     cloneDieReferenceAttribute(DIE &Die,
-                               const DWARFDebugInfoEntryMinimal &InputDIE,
+                               const DWARFDie &InputDIE,
                                AttributeSpec AttrSpec, unsigned AttrSize,
                                const DWARFFormValue &Val, CompileUnit &Unit);
 
@@ -1356,7 +1351,7 @@ private:
     /// Clone a scalar attribute  and add it to \p Die.
     /// \returns the size of the new attribute.
     unsigned cloneScalarAttribute(DIE &Die,
-                                  const DWARFDebugInfoEntryMinimal &InputDIE,
+                                  const DWARFDie &InputDIE,
                                   CompileUnit &U, AttributeSpec AttrSpec,
                                   const DWARFFormValue &Val, unsigned AttrSize,
                                   AttributesInfo &Info);
@@ -1365,8 +1360,7 @@ private:
     /// described by \p Die and store them in \Info if they are not
     /// already there.
     /// \returns is a name was found.
-    bool getDIENames(const DWARFDebugInfoEntryMinimal &Die, DWARFUnit &U,
-                     AttributesInfo &Info);
+    bool getDIENames(const DWARFDie &Die, AttributesInfo &Info);
 
     /// Create a copy of abbreviation Abbrev.
     void copyAbbrev(const DWARFAbbreviationDeclaration &Abbrev, bool hasODR);
@@ -1432,7 +1426,8 @@ private:
   unsigned UnitID; ///< A unique ID that identifies each compile unit.
 
   /// The units of the current debug map object.
-  std::vector<CompileUnit> Units;
+  std::vector<std::unique_ptr<CompileUnit>> Units;
+
 
   /// The debug map object currently under consideration.
   DebugMapObject *CurrentDebugObject;
@@ -1467,33 +1462,33 @@ private:
 
 /// Similar to DWARFUnitSection::getUnitForOffset(), but returning our
 /// CompileUnit object instead.
-static CompileUnit *getUnitForOffset(MutableArrayRef<CompileUnit> Units,
-                                     unsigned Offset) {
+static CompileUnit *getUnitForOffset(
+    std::vector<std::unique_ptr<CompileUnit>> &Units, unsigned Offset) {
   auto CU =
       std::upper_bound(Units.begin(), Units.end(), Offset,
-                       [](uint32_t LHS, const CompileUnit &RHS) {
-                         return LHS < RHS.getOrigUnit().getNextUnitOffset();
+                       [](uint32_t LHS, const std::unique_ptr<CompileUnit> &RHS) {
+                         return LHS < RHS->getOrigUnit().getNextUnitOffset();
                        });
-  return CU != Units.end() ? &*CU : nullptr;
+  return CU != Units.end() ? CU->get() : nullptr;
 }
 
 /// Resolve the DIE attribute reference that has been
 /// extracted in \p RefValue. The resulting DIE migh be in another
 /// CompileUnit which is stored into \p ReferencedCU.
 /// \returns null if resolving fails for any reason.
-static const DWARFDebugInfoEntryMinimal *resolveDIEReference(
-    const DwarfLinker &Linker, MutableArrayRef<CompileUnit> Units,
+static DWARFDie resolveDIEReference(
+    const DwarfLinker &Linker, std::vector<std::unique_ptr<CompileUnit>> &Units,
     const DWARFFormValue &RefValue, const DWARFUnit &Unit,
-    const DWARFDebugInfoEntryMinimal &DIE, CompileUnit *&RefCU) {
+    const DWARFDie &DIE, CompileUnit *&RefCU) {
   assert(RefValue.isFormClass(DWARFFormValue::FC_Reference));
-  uint64_t RefOffset = *RefValue.getAsReference(&Unit);
+  uint64_t RefOffset = *RefValue.getAsReference();
 
   if ((RefCU = getUnitForOffset(Units, RefOffset)))
-    if (const auto *RefDie = RefCU->getOrigUnit().getDIEForOffset(RefOffset))
+    if (const auto RefDie = RefCU->getOrigUnit().getDIEForOffset(RefOffset))
       return RefDie;
 
-  Linker.reportWarning("could not find referenced DIE", &Unit, &DIE);
-  return nullptr;
+  Linker.reportWarning("could not find referenced DIE", &DIE);
+  return DWARFDie();
 }
 
 /// \returns whether the passed \a Attr type might contain a DIE
@@ -1527,7 +1522,7 @@ static bool isODRAttribute(uint16_t Attr) {
 /// If a context that is not a namespace appears twice in the same CU,
 /// we know it is ambiguous. Make it invalid.
 bool DeclContext::setLastSeenDIE(CompileUnit &U,
-                                 const DWARFDebugInfoEntryMinimal *Die) {
+                                 const  DWARFDie &Die) {
   if (LastSeenCompileUnitID == U.getUniqueID()) {
     DWARFUnit &OrigUnit = U.getOrigUnit();
     uint32_t FirstIdx = OrigUnit.getDIEIndex(LastSeenDIE);
@@ -1541,9 +1536,9 @@ bool DeclContext::setLastSeenDIE(CompileUnit &U,
 }
 
 PointerIntPair<DeclContext *, 1> DeclContextTree::getChildDeclContext(
-    DeclContext &Context, const DWARFDebugInfoEntryMinimal *DIE, CompileUnit &U,
+    DeclContext &Context, const DWARFDie &DIE, CompileUnit &U,
     NonRelocatableStringpool &StringPool, bool InClangModule) {
-  unsigned Tag = DIE->getTag();
+  unsigned Tag = DIE.getTag();
 
   // FIXME: dsymutil-classic compat: We should bail out here if we
   // have a specification or an abstract_origin. We will get the
@@ -1561,10 +1556,9 @@ PointerIntPair<DeclContext *, 1> DeclContextTree::getChildDeclContext(
     // Do not unique anything inside CU local functions.
     if ((Context.getTag() == dwarf::DW_TAG_namespace ||
          Context.getTag() == dwarf::DW_TAG_compile_unit) &&
-        !DIE->getAttributeValueAsUnsignedConstant(&U.getOrigUnit(),
-                                                  dwarf::DW_AT_external, 0))
+        !DIE.getAttributeValueAsUnsignedConstant(dwarf::DW_AT_external, 0))
       return PointerIntPair<DeclContext *, 1>(nullptr);
-  // Fallthrough
+    LLVM_FALLTHROUGH;
   case dwarf::DW_TAG_member:
   case dwarf::DW_TAG_namespace:
   case dwarf::DW_TAG_structure_type:
@@ -1576,14 +1570,13 @@ PointerIntPair<DeclContext *, 1> DeclContextTree::getChildDeclContext(
     // created on demand. For example implicitely defined constructors
     // are ambiguous because of the way we identify contexts, and they
     // won't be generated everytime everywhere.
-    if (DIE->getAttributeValueAsUnsignedConstant(&U.getOrigUnit(),
-                                                 dwarf::DW_AT_artificial, 0))
+    if (DIE.getAttributeValueAsUnsignedConstant(dwarf::DW_AT_artificial, 0))
       return PointerIntPair<DeclContext *, 1>(nullptr);
     break;
   }
 
-  const char *Name = DIE->getName(&U.getOrigUnit(), DINameKind::LinkageName);
-  const char *ShortName = DIE->getName(&U.getOrigUnit(), DINameKind::ShortName);
+  const char *Name = DIE.getName(DINameKind::LinkageName);
+  const char *ShortName = DIE.getName(DINameKind::ShortName);
   StringRef NameRef;
   StringRef ShortNameRef;
   StringRef FileRef;
@@ -1617,11 +1610,11 @@ PointerIntPair<DeclContext *, 1> DeclContextTree::getChildDeclContext(
     // namespaces, use these additional data points to make the process
     // safer.  This is disabled for clang modules, because forward
     // declarations of module-defined types do not have a file and line.
-    ByteSize = DIE->getAttributeValueAsUnsignedConstant(
-        &U.getOrigUnit(), dwarf::DW_AT_byte_size, UINT64_MAX);
+    ByteSize = DIE.getAttributeValueAsUnsignedConstant(
+        dwarf::DW_AT_byte_size, UINT64_MAX);
     if (Tag != dwarf::DW_TAG_namespace || !Name) {
-      if (unsigned FileNum = DIE->getAttributeValueAsUnsignedConstant(
-              &U.getOrigUnit(), dwarf::DW_AT_decl_file, 0)) {
+      if (unsigned FileNum = DIE.getAttributeValueAsUnsignedConstant(
+              dwarf::DW_AT_decl_file, 0)) {
         if (const auto *LT = U.getOrigUnit().getContext().getLineTableForUnit(
                 &U.getOrigUnit())) {
           // FIXME: dsymutil-classic compatibility. I'd rather not
@@ -1633,18 +1626,21 @@ PointerIntPair<DeclContext *, 1> DeclContextTree::getChildDeclContext(
           // FIXME: Passing U.getOrigUnit().getCompilationDir()
           // instead of "" would allow more uniquing, but for now, do
           // it this way to match dsymutil-classic.
-          std::string File;
-          if (LT->getFileNameByIndex(
-                  FileNum, "",
-                  DILineInfoSpecifier::FileLineInfoKind::AbsoluteFilePath,
-                  File)) {
-            Line = DIE->getAttributeValueAsUnsignedConstant(
-                &U.getOrigUnit(), dwarf::DW_AT_decl_line, 0);
+          if (LT->hasFileAtIndex(FileNum)) {
+            Line = DIE.getAttributeValueAsUnsignedConstant(
+                dwarf::DW_AT_decl_line, 0);
             // Cache the resolved paths, because calling realpath is expansive.
             StringRef ResolvedPath = U.getResolvedPath(FileNum);
             if (!ResolvedPath.empty()) {
               FileRef = ResolvedPath;
             } else {
+              std::string File;
+              bool gotFileName =
+                LT->getFileNameByIndex(FileNum, "",
+                        DILineInfoSpecifier::FileLineInfoKind::AbsoluteFilePath,
+                        File);
+              (void)gotFileName;
+              assert(gotFileName && "Must get file name from line table");
 #ifdef HAVE_REALPATH
               char RealPath[PATH_MAX + 1];
               RealPath[PATH_MAX] = 0;
@@ -1712,16 +1708,16 @@ PointerIntPair<DeclContext *, 1> DeclContextTree::getChildDeclContext(
   return PointerIntPair<DeclContext *, 1>(*ContextIter);
 }
 
-bool DwarfLinker::DIECloner::getDIENames(const DWARFDebugInfoEntryMinimal &Die,
-                                         DWARFUnit &U, AttributesInfo &Info) {
+bool DwarfLinker::DIECloner::getDIENames(const DWARFDie &Die,
+                                         AttributesInfo &Info) {
   // FIXME: a bit wasteful as the first getName might return the
   // short name.
   if (!Info.MangledName &&
-      (Info.MangledName = Die.getName(&U, DINameKind::LinkageName)))
+      (Info.MangledName = Die.getName(DINameKind::LinkageName)))
     Info.MangledNameOffset =
         Linker.StringPool.getStringOffset(Info.MangledName);
 
-  if (!Info.Name && (Info.Name = Die.getName(&U, DINameKind::ShortName)))
+  if (!Info.Name && (Info.Name = Die.getName(DINameKind::ShortName)))
     Info.NameOffset = Linker.StringPool.getStringOffset(Info.Name);
 
   return Info.Name || Info.MangledName;
@@ -1729,8 +1725,8 @@ bool DwarfLinker::DIECloner::getDIENames(const DWARFDebugInfoEntryMinimal &Die,
 
 /// \brief Report a warning to the user, optionaly including
 /// information about a specific \p DIE related to the warning.
-void DwarfLinker::reportWarning(const Twine &Warning, const DWARFUnit *Unit,
-                                const DWARFDebugInfoEntryMinimal *DIE) const {
+void DwarfLinker::reportWarning(const Twine &Warning,
+                                const DWARFDie *DIE) const {
   StringRef Context = "<debug map>";
   if (CurrentDebugObject)
     Context = CurrentDebugObject->getObjectFilename();
@@ -1740,8 +1736,7 @@ void DwarfLinker::reportWarning(const Twine &Warning, const DWARFUnit *Unit,
     return;
 
   errs() << "    in DIE:\n";
-  DIE->dump(errs(), const_cast<DWARFUnit *>(Unit), 0 /* RecurseDepth */,
-            6 /* Indent */);
+  DIE->dump(errs(), 0 /* RecurseDepth */, 6 /* Indent */);
 }
 
 bool DwarfLinker::createStreamer(const Triple &TheTriple,
@@ -1759,7 +1754,7 @@ bool DwarfLinker::createStreamer(const Triple &TheTriple,
 /// \return true when this DIE and all of its children are only
 /// forward declarations to types defined in external clang modules
 /// (i.e., forward declarations that are children of a DW_TAG_module).
-static bool analyzeContextInfo(const DWARFDebugInfoEntryMinimal *DIE,
+static bool analyzeContextInfo(const DWARFDie &DIE,
                                unsigned ParentIdx, CompileUnit &CU,
                                DeclContext *CurrentDeclContext,
                                NonRelocatableStringpool &StringPool,
@@ -1780,9 +1775,9 @@ static bool analyzeContextInfo(const DWARFDebugInfoEntryMinimal *DIE,
   //   definitions match)."
   //
   // We treat non-C++ modules like namespaces for this reason.
-  if (DIE->getTag() == dwarf::DW_TAG_module && ParentIdx == 0 &&
-      DIE->getAttributeValueAsString(&CU.getOrigUnit(), dwarf::DW_AT_name,
-                                     "") != CU.getClangModuleName()) {
+  if (DIE.getTag() == dwarf::DW_TAG_module && ParentIdx == 0 &&
+      DIE.getAttributeValueAsString(dwarf::DW_AT_name,
+                                    "") != CU.getClangModuleName()) {
     InImportedModule = true;
   }
 
@@ -1800,18 +1795,18 @@ static bool analyzeContextInfo(const DWARFDebugInfoEntryMinimal *DIE,
   }
 
   Info.Prune = InImportedModule;
-  if (DIE->hasChildren())
-    for (auto *Child = DIE->getFirstChild(); Child && !Child->isNULL();
-         Child = Child->getSibling())
+  if (DIE.hasChildren())
+    for (auto Child = DIE.getFirstChild(); Child && !Child.isNULL();
+         Child = Child.getSibling())
       Info.Prune &= analyzeContextInfo(Child, MyIdx, CU, CurrentDeclContext,
                                        StringPool, Contexts, InImportedModule);
 
   // Prune this DIE if it is either a forward declaration inside a
   // DW_TAG_module or a DW_TAG_module that contains nothing but
   // forward declarations.
-  Info.Prune &= (DIE->getTag() == dwarf::DW_TAG_module) ||
-                DIE->getAttributeValueAsUnsignedConstant(
-                    &CU.getOrigUnit(), dwarf::DW_AT_declaration, 0);
+  Info.Prune &= (DIE.getTag() == dwarf::DW_TAG_module) ||
+                DIE.getAttributeValueAsUnsignedConstant(
+                    dwarf::DW_AT_declaration, 0);
 
   // Don't prune it if there is no definition for the DIE.
   Info.Prune &= Info.Ctxt && Info.Ctxt->getCanonicalDIEOffset();
@@ -1834,14 +1829,7 @@ static bool dieNeedsChildrenToBeMeaningful(uint32_t Tag) {
   llvm_unreachable("Invalid Tag");
 }
 
-static unsigned getRefAddrSize(const DWARFUnit &U) {
-  if (U.getVersion() == 2)
-    return U.getAddressByteSize();
-  return 4;
-}
-
 void DwarfLinker::startDebugObject(DWARFContext &Dwarf, DebugMapObject &Obj) {
-  Units.reserve(Dwarf.getNumCompileUnits());
   // Iterate over the debug map entries and put all the ones that are
   // functions (because they have a size) into the Ranges map. This
   // map is very similar to the FunctionRanges that are stored in each
@@ -2076,7 +2064,7 @@ getAttributeOffsets(const DWARFAbbreviationDeclaration *Abbrev, unsigned Idx,
 /// \brief Check if a variable describing DIE should be kept.
 /// \returns updated TraversalFlags.
 unsigned DwarfLinker::shouldKeepVariableDIE(RelocationManager &RelocMgr,
-                                            const DWARFDebugInfoEntryMinimal &DIE,
+                                            const DWARFDie &DIE,
                                             CompileUnit &Unit,
                                             CompileUnit::DIEInfo &MyInfo,
                                             unsigned Flags) {
@@ -2084,20 +2072,21 @@ unsigned DwarfLinker::shouldKeepVariableDIE(RelocationManager &RelocMgr,
 
   // Global variables with constant value can always be kept.
   if (!(Flags & TF_InFunctionScope) &&
-      Abbrev->findAttributeIndex(dwarf::DW_AT_const_value) != -1U) {
+      Abbrev->findAttributeIndex(dwarf::DW_AT_const_value)) {
     MyInfo.InDebugMap = true;
     return Flags | TF_Keep;
   }
 
-  uint32_t LocationIdx = Abbrev->findAttributeIndex(dwarf::DW_AT_location);
-  if (LocationIdx == -1U)
+  Optional<uint32_t> LocationIdx =
+      Abbrev->findAttributeIndex(dwarf::DW_AT_location);
+  if (!LocationIdx)
     return Flags;
 
   uint32_t Offset = DIE.getOffset() + getULEB128Size(Abbrev->getCode());
   const DWARFUnit &OrigUnit = Unit.getOrigUnit();
   uint32_t LocationOffset, LocationEndOffset;
   std::tie(LocationOffset, LocationEndOffset) =
-      getAttributeOffsets(Abbrev, LocationIdx, Offset, OrigUnit);
+      getAttributeOffsets(Abbrev, *LocationIdx, Offset, OrigUnit);
 
   // See if there is a relocation to a valid debug map entry inside
   // this variable's location. The order is important here. We want to
@@ -2109,7 +2098,7 @@ unsigned DwarfLinker::shouldKeepVariableDIE(RelocationManager &RelocMgr,
     return Flags;
 
   if (Options.Verbose)
-    DIE.dump(outs(), const_cast<DWARFUnit *>(&OrigUnit), 0, 8 /* Indent */);
+    DIE.dump(outs(), 0, 8 /* Indent */);
 
   return Flags | TF_Keep;
 }
@@ -2118,59 +2107,50 @@ unsigned DwarfLinker::shouldKeepVariableDIE(RelocationManager &RelocMgr,
 /// \returns updated TraversalFlags.
 unsigned DwarfLinker::shouldKeepSubprogramDIE(
     RelocationManager &RelocMgr,
-    const DWARFDebugInfoEntryMinimal &DIE, CompileUnit &Unit,
+    const DWARFDie &DIE, CompileUnit &Unit,
     CompileUnit::DIEInfo &MyInfo, unsigned Flags) {
   const auto *Abbrev = DIE.getAbbreviationDeclarationPtr();
 
   Flags |= TF_InFunctionScope;
 
-  uint32_t LowPcIdx = Abbrev->findAttributeIndex(dwarf::DW_AT_low_pc);
-  if (LowPcIdx == -1U)
+  Optional<uint32_t> LowPcIdx = Abbrev->findAttributeIndex(dwarf::DW_AT_low_pc);
+  if (!LowPcIdx)
     return Flags;
 
   uint32_t Offset = DIE.getOffset() + getULEB128Size(Abbrev->getCode());
   const DWARFUnit &OrigUnit = Unit.getOrigUnit();
   uint32_t LowPcOffset, LowPcEndOffset;
   std::tie(LowPcOffset, LowPcEndOffset) =
-      getAttributeOffsets(Abbrev, LowPcIdx, Offset, OrigUnit);
+      getAttributeOffsets(Abbrev, *LowPcIdx, Offset, OrigUnit);
 
-  uint64_t LowPc =
-      DIE.getAttributeValueAsAddress(&OrigUnit, dwarf::DW_AT_low_pc, -1ULL);
-  assert(LowPc != -1ULL && "low_pc attribute is not an address.");
-  if (LowPc == -1ULL ||
+  auto LowPc = DIE.getAttributeValueAsAddress(dwarf::DW_AT_low_pc);
+  assert(LowPc.hasValue() && "low_pc attribute is not an address.");
+  if (!LowPc ||
       !RelocMgr.hasValidRelocation(LowPcOffset, LowPcEndOffset, MyInfo))
     return Flags;
 
   if (Options.Verbose)
-    DIE.dump(outs(), const_cast<DWARFUnit *>(&OrigUnit), 0, 8 /* Indent */);
+    DIE.dump(outs(), 0, 8 /* Indent */);
 
   Flags |= TF_Keep;
 
-  DWARFFormValue HighPcValue;
-  if (!DIE.getAttributeValue(&OrigUnit, dwarf::DW_AT_high_pc, HighPcValue)) {
+  Optional<uint64_t> HighPc = DIE.getHighPC(*LowPc);
+  if (!HighPc) {
     reportWarning("Function without high_pc. Range will be discarded.\n",
-                  &OrigUnit, &DIE);
+                  &DIE);
     return Flags;
   }
 
-  uint64_t HighPc;
-  if (HighPcValue.isFormClass(DWARFFormValue::FC_Address)) {
-    HighPc = *HighPcValue.getAsAddress(&OrigUnit);
-  } else {
-    assert(HighPcValue.isFormClass(DWARFFormValue::FC_Constant));
-    HighPc = LowPc + *HighPcValue.getAsUnsignedConstant();
-  }
-
   // Replace the debug map range with a more accurate one.
-  Ranges[LowPc] = std::make_pair(HighPc, MyInfo.AddrAdjust);
-  Unit.addFunctionRange(LowPc, HighPc, MyInfo.AddrAdjust);
+  Ranges[*LowPc] = std::make_pair(*HighPc, MyInfo.AddrAdjust);
+  Unit.addFunctionRange(*LowPc, *HighPc, MyInfo.AddrAdjust);
   return Flags;
 }
 
 /// \brief Check if a DIE should be kept.
 /// \returns updated TraversalFlags.
 unsigned DwarfLinker::shouldKeepDIE(RelocationManager &RelocMgr,
-                                    const DWARFDebugInfoEntryMinimal &DIE,
+                                    const DWARFDie &DIE,
                                     CompileUnit &Unit,
                                     CompileUnit::DIEInfo &MyInfo,
                                     unsigned Flags) {
@@ -2186,6 +2166,8 @@ unsigned DwarfLinker::shouldKeepDIE(RelocationManager &RelocMgr,
   case dwarf::DW_TAG_imported_unit:
     // We always want to keep these.
     return Flags | TF_Keep;
+  default:
+    break;
   }
 
   return Flags;
@@ -2200,18 +2182,18 @@ unsigned DwarfLinker::shouldKeepDIE(RelocationManager &RelocMgr,
 /// TraversalFlags to inform it that it's not doing the primary DIE
 /// tree walk.
 void DwarfLinker::keepDIEAndDependencies(RelocationManager &RelocMgr,
-                                          const DWARFDebugInfoEntryMinimal &Die,
+                                          const DWARFDie &Die,
                                           CompileUnit::DIEInfo &MyInfo,
                                           const DebugMapObject &DMO,
                                           CompileUnit &CU, bool UseODR) {
-  const DWARFUnit &Unit = CU.getOrigUnit();
+  DWARFUnit &Unit = CU.getOrigUnit();
   MyInfo.Keep = true;
 
   // First mark all the parent chain as kept.
   unsigned AncestorIdx = MyInfo.ParentIdx;
   while (!CU.getInfo(AncestorIdx).Keep) {
     unsigned ODRFlag = UseODR ? TF_ODR : 0;
-    lookForDIEsToKeep(RelocMgr, *Unit.getDIEAtIndex(AncestorIdx), DMO, CU,
+    lookForDIEsToKeep(RelocMgr, Unit.getDIEAtIndex(AncestorIdx), DMO, CU,
                       TF_ParentWalk | TF_Keep | TF_DependencyWalk | ODRFlag);
     AncestorIdx = CU.getInfo(AncestorIdx).ParentIdx;
   }
@@ -2233,9 +2215,8 @@ void DwarfLinker::keepDIEAndDependencies(RelocationManager &RelocMgr,
 
     Val.extractValue(Data, &Offset, &Unit);
     CompileUnit *ReferencedCU;
-    if (const auto *RefDIE =
-            resolveDIEReference(*this, MutableArrayRef<CompileUnit>(Units), Val,
-                                Unit, Die, ReferencedCU)) {
+    if (auto RefDIE =
+            resolveDIEReference(*this, Units, Val, Unit, Die, ReferencedCU)) {
       uint32_t RefIdx = ReferencedCU->getOrigUnit().getDIEIndex(RefDIE);
       CompileUnit::DIEInfo &Info = ReferencedCU->getInfo(RefIdx);
       // If the referenced DIE has a DeclContext that has already been
@@ -2257,7 +2238,7 @@ void DwarfLinker::keepDIEAndDependencies(RelocationManager &RelocMgr,
         Info.Prune = false;
 
       unsigned ODRFlag = UseODR ? TF_ODR : 0;
-      lookForDIEsToKeep(RelocMgr, *RefDIE, DMO, *ReferencedCU,
+      lookForDIEsToKeep(RelocMgr, RefDIE, DMO, *ReferencedCU,
                         TF_Keep | TF_DependencyWalk | ODRFlag);
     }
   }
@@ -2276,10 +2257,10 @@ void DwarfLinker::keepDIEAndDependencies(RelocationManager &RelocMgr,
 /// not respected. The TF_DependencyWalk flag tells us which kind of
 /// traversal we are currently doing.
 void DwarfLinker::lookForDIEsToKeep(RelocationManager &RelocMgr,
-                                    const DWARFDebugInfoEntryMinimal &Die,
+                                    const DWARFDie &Die,
                                     const DebugMapObject &DMO, CompileUnit &CU,
                                     unsigned Flags) {
-  unsigned Idx = CU.getOrigUnit().getDIEIndex(&Die);
+  unsigned Idx = CU.getOrigUnit().getDIEIndex(Die);
   CompileUnit::DIEInfo &MyInfo = CU.getInfo(Idx);
   bool AlreadyKept = MyInfo.Keep;
   if (MyInfo.Prune)
@@ -2313,9 +2294,9 @@ void DwarfLinker::lookForDIEsToKeep(RelocationManager &RelocMgr,
   if (!Die.hasChildren() || (Flags & TF_ParentWalk))
     return;
 
-  for (auto *Child = Die.getFirstChild(); Child && !Child->isNULL();
-       Child = Child->getSibling())
-    lookForDIEsToKeep(RelocMgr, *Child, DMO, CU, Flags);
+  for (auto Child = Die.getFirstChild(); Child && !Child.isNULL();
+       Child = Child.getSibling())
+    lookForDIEsToKeep(RelocMgr, Child, DMO, CU, Flags);
 }
 
 /// \brief Assign an abbreviation numer to \p Abbrev.
@@ -2353,7 +2334,7 @@ unsigned DwarfLinker::DIECloner::cloneStringAttribute(DIE &Die,
                                                       const DWARFFormValue &Val,
                                                       const DWARFUnit &U) {
   // Switch everything to out of line strings.
-  const char *String = *Val.getAsCString(&U);
+  const char *String = *Val.getAsCString();
   unsigned Offset = Linker.StringPool.getStringOffset(String);
   Die.addValue(DIEAlloc, dwarf::Attribute(AttrSpec.Attr), dwarf::DW_FORM_strp,
                DIEInteger(Offset));
@@ -2361,17 +2342,17 @@ unsigned DwarfLinker::DIECloner::cloneStringAttribute(DIE &Die,
 }
 
 unsigned DwarfLinker::DIECloner::cloneDieReferenceAttribute(
-    DIE &Die, const DWARFDebugInfoEntryMinimal &InputDIE,
+    DIE &Die, const DWARFDie &InputDIE,
     AttributeSpec AttrSpec, unsigned AttrSize, const DWARFFormValue &Val,
     CompileUnit &Unit) {
   const DWARFUnit &U = Unit.getOrigUnit();
-  uint32_t Ref = *Val.getAsReference(&U);
+  uint32_t Ref = *Val.getAsReference();
   DIE *NewRefDie = nullptr;
   CompileUnit *RefUnit = nullptr;
   DeclContext *Ctxt = nullptr;
 
-  const DWARFDebugInfoEntryMinimal *RefDie =
-      resolveDIEReference(Linker, CompileUnits, Val, U, InputDIE, RefUnit);
+  DWARFDie RefDie = resolveDIEReference(Linker, CompileUnits, Val, U, InputDIE,
+                                        RefUnit);
 
   // If the referenced DIE is not found,  drop the attribute.
   if (!RefDie)
@@ -2388,7 +2369,7 @@ unsigned DwarfLinker::DIECloner::cloneDieReferenceAttribute(
       DIEInteger Attr(Ctxt->getCanonicalDIEOffset());
       Die.addValue(DIEAlloc, dwarf::Attribute(AttrSpec.Attr),
                    dwarf::DW_FORM_ref_addr, Attr);
-      return getRefAddrSize(U);
+      return U.getRefAddrByteSize();
     }
   }
 
@@ -2396,7 +2377,7 @@ unsigned DwarfLinker::DIECloner::cloneDieReferenceAttribute(
     assert(Ref > InputDIE.getOffset());
     // We haven't cloned this DIE yet. Just create an empty one and
     // store it. It'll get really cloned when we process it.
-    RefInfo.Clone = DIE::get(DIEAlloc, dwarf::Tag(RefDie->getTag()));
+    RefInfo.Clone = DIE::get(DIEAlloc, dwarf::Tag(RefDie.getTag()));
   }
   NewRefDie = RefInfo.Clone;
 
@@ -2423,7 +2404,7 @@ unsigned DwarfLinker::DIECloner::cloneDieReferenceAttribute(
           Die.addValue(DIEAlloc, dwarf::Attribute(AttrSpec.Attr),
                        dwarf::DW_FORM_ref_addr, DIEInteger(Attr)));
     }
-    return getRefAddrSize(U);
+    return U.getRefAddrByteSize();
   }
 
   Die.addValue(DIEAlloc, dwarf::Attribute(AttrSpec.Attr),
@@ -2477,7 +2458,7 @@ unsigned DwarfLinker::DIECloner::cloneBlockAttribute(DIE &Die,
 unsigned DwarfLinker::DIECloner::cloneAddressAttribute(
     DIE &Die, AttributeSpec AttrSpec, const DWARFFormValue &Val,
     const CompileUnit &Unit, AttributesInfo &Info) {
-  uint64_t Addr = *Val.getAsAddress(&Unit.getOrigUnit());
+  uint64_t Addr = *Val.getAsAddress();
   if (AttrSpec.Attr == dwarf::DW_AT_low_pc) {
     if (Die.getTag() == dwarf::DW_TAG_inlined_subroutine ||
         Die.getTag() == dwarf::DW_TAG_lexical_block)
@@ -2512,7 +2493,7 @@ unsigned DwarfLinker::DIECloner::cloneAddressAttribute(
 }
 
 unsigned DwarfLinker::DIECloner::cloneScalarAttribute(
-    DIE &Die, const DWARFDebugInfoEntryMinimal &InputDIE, CompileUnit &Unit,
+    DIE &Die, const DWARFDie &InputDIE, CompileUnit &Unit,
     AttributeSpec AttrSpec, const DWARFFormValue &Val, unsigned AttrSize,
     AttributesInfo &Info) {
   uint64_t Value;
@@ -2531,7 +2512,7 @@ unsigned DwarfLinker::DIECloner::cloneScalarAttribute(
   else {
     Linker.reportWarning(
         "Unsupported scalar attribute form. Dropping attribute.",
-        &Unit.getOrigUnit(), &InputDIE);
+        &InputDIE);
     return 0;
   }
   PatchLocation Patch =
@@ -2556,7 +2537,7 @@ unsigned DwarfLinker::DIECloner::cloneScalarAttribute(
 /// value \p Val, and add it to \p Die.
 /// \returns the size of the cloned attribute.
 unsigned DwarfLinker::DIECloner::cloneAttribute(
-    DIE &Die, const DWARFDebugInfoEntryMinimal &InputDIE, CompileUnit &Unit,
+    DIE &Die, const DWARFDie &InputDIE, CompileUnit &Unit,
     const DWARFFormValue &Val, const AttributeSpec AttrSpec, unsigned AttrSize,
     AttributesInfo &Info) {
   const DWARFUnit &U = Unit.getOrigUnit();
@@ -2593,8 +2574,7 @@ unsigned DwarfLinker::DIECloner::cloneAttribute(
                                 Info);
   default:
     Linker.reportWarning(
-        "Unsupported attribute form in cloneAttribute. Dropping.", &U,
-        &InputDIE);
+        "Unsupported attribute form in cloneAttribute. Dropping.", &InputDIE);
   }
 
   return 0;
@@ -2668,6 +2648,7 @@ static bool isTypeTag(uint16_t Tag) {
   case dwarf::DW_TAG_packed_type:
   case dwarf::DW_TAG_volatile_type:
   case dwarf::DW_TAG_restrict_type:
+  case dwarf::DW_TAG_atomic_type:
   case dwarf::DW_TAG_interface_type:
   case dwarf::DW_TAG_unspecified_type:
   case dwarf::DW_TAG_shared_type:
@@ -2703,10 +2684,10 @@ shouldSkipAttribute(DWARFAbbreviationDeclaration::AttributeSpec AttrSpec,
 }
 
 DIE *DwarfLinker::DIECloner::cloneDIE(
-    const DWARFDebugInfoEntryMinimal &InputDIE, CompileUnit &Unit,
-    int64_t PCOffset, uint32_t OutOffset, unsigned Flags) {
+    const DWARFDie &InputDIE, CompileUnit &Unit,
+    int64_t PCOffset, uint32_t OutOffset, unsigned Flags, DIE *Die) {
   DWARFUnit &U = Unit.getOrigUnit();
-  unsigned Idx = U.getDIEIndex(&InputDIE);
+  unsigned Idx = U.getDIEIndex(InputDIE);
   CompileUnit::DIEInfo &Info = Unit.getInfo(Idx);
 
   // Should the DIE appear in the output?
@@ -2714,11 +2695,15 @@ DIE *DwarfLinker::DIECloner::cloneDIE(
     return nullptr;
 
   uint32_t Offset = InputDIE.getOffset();
-  // The DIE might have been already created by a forward reference
-  // (see cloneDieReferenceAttribute()).
-  DIE *Die = Info.Clone;
-  if (!Die)
-    Die = Info.Clone = DIE::get(DIEAlloc, dwarf::Tag(InputDIE.getTag()));
+  assert(!(Die && Info.Clone) && "Can't supply a DIE and a cloned DIE");
+  if (!Die) {
+    // The DIE might have been already created by a forward reference
+    // (see cloneDieReferenceAttribute()).
+    if (!Info.Clone)
+      Info.Clone = DIE::get(DIEAlloc, dwarf::Tag(InputDIE.getTag()));
+    Die = Info.Clone;
+  }
+
   assert(Die->getTag() == InputDIE.getTag());
   Die->setOffset(OutOffset);
   if ((Unit.hasODR() || Unit.isClangModule()) &&
@@ -2738,7 +2723,7 @@ DIE *DwarfLinker::DIECloner::cloneDIE(
   // DW_TAG_compile_unit without any children, point to the next unit.
   uint32_t NextOffset =
     (Idx + 1 < U.getNumDIEs())
-    ? U.getDIEAtIndex(Idx + 1)->getOffset()
+    ? U.getDIEAtIndex(Idx + 1).getOffset()
     : U.getNextUnitOffset();
   AttributesInfo AttrInfo;
 
@@ -2757,12 +2742,12 @@ DIE *DwarfLinker::DIECloner::cloneDIE(
     // independantly by the linker). The computation of the actual
     // high_pc value is done in cloneAddressAttribute().
     AttrInfo.OrigHighPc =
-        InputDIE.getAttributeValueAsAddress(&U, dwarf::DW_AT_high_pc, 0);
+        InputDIE.getAttributeValueAsAddress(dwarf::DW_AT_high_pc, 0);
     // Also store the low_pc. It might get relocated in an
     // inline_subprogram that happens at the beginning of its
     // inlining function.
     AttrInfo.OrigLowPc =
-        InputDIE.getAttributeValueAsAddress(&U, dwarf::DW_AT_low_pc, UINT64_MAX);
+        InputDIE.getAttributeValueAsAddress(dwarf::DW_AT_low_pc, UINT64_MAX);
   }
 
   // Reset the Offset to 0 as we will be working on the local copy of
@@ -2814,7 +2799,7 @@ DIE *DwarfLinker::DIECloner::cloneDIE(
   // accelerator tables too. For now stick with dsymutil's behavior.
   if ((Info.InDebugMap || AttrInfo.HasLowPc) &&
       Tag != dwarf::DW_TAG_compile_unit &&
-      getDIENames(InputDIE, Unit.getOrigUnit(), AttrInfo)) {
+      getDIENames(InputDIE, AttrInfo)) {
     if (AttrInfo.MangledName && AttrInfo.MangledName != AttrInfo.Name)
       Unit.addNameAccelerator(Die, AttrInfo.MangledName,
                               AttrInfo.MangledNameOffset,
@@ -2823,14 +2808,14 @@ DIE *DwarfLinker::DIECloner::cloneDIE(
       Unit.addNameAccelerator(Die, AttrInfo.Name, AttrInfo.NameOffset,
                               Tag == dwarf::DW_TAG_inlined_subroutine);
   } else if (isTypeTag(Tag) && !AttrInfo.IsDeclaration &&
-             getDIENames(InputDIE, Unit.getOrigUnit(), AttrInfo)) {
+             getDIENames(InputDIE, AttrInfo)) {
     Unit.addTypeAccelerator(Die, AttrInfo.Name, AttrInfo.NameOffset);
   }
 
   // Determine whether there are any children that we want to keep.
   bool HasChildren = false;
-  for (auto *Child = InputDIE.getFirstChild(); Child && !Child->isNULL();
-       Child = Child->getSibling()) {
+  for (auto Child = InputDIE.getFirstChild(); Child && !Child.isNULL();
+       Child = Child.getSibling()) {
     unsigned Idx = U.getDIEIndex(Child);
     if (Unit.getInfo(Idx).Keep) {
       HasChildren = true;
@@ -2855,9 +2840,9 @@ DIE *DwarfLinker::DIECloner::cloneDIE(
   }
 
   // Recursively clone children.
-  for (auto *Child = InputDIE.getFirstChild(); Child && !Child->isNULL();
-       Child = Child->getSibling()) {
-    if (DIE *Clone = cloneDIE(*Child, Unit, PCOffset, OutOffset, Flags)) {
+  for (auto Child = InputDIE.getFirstChild(); Child && !Child.isNULL();
+       Child = Child.getSibling()) {
+    if (DIE *Clone = cloneDIE(Child, Unit, PCOffset, OutOffset, Flags)) {
       Die->addChild(Clone);
       OutOffset = Clone->getOffset() + Clone->getSize();
     }
@@ -2882,9 +2867,9 @@ void DwarfLinker::patchRangesForUnit(const CompileUnit &Unit,
                                OrigDwarf.isLittleEndian(), AddressSize);
   auto InvalidRange = FunctionRanges.end(), CurrRange = InvalidRange;
   DWARFUnit &OrigUnit = Unit.getOrigUnit();
-  const auto *OrigUnitDie = OrigUnit.getUnitDIE(false);
-  uint64_t OrigLowPc = OrigUnitDie->getAttributeValueAsAddress(
-      &OrigUnit, dwarf::DW_AT_low_pc, -1ULL);
+  auto OrigUnitDie = OrigUnit.getUnitDIE(false);
+  uint64_t OrigLowPc = OrigUnitDie.getAttributeValueAsAddress(
+      dwarf::DW_AT_low_pc, -1ULL);
   // Ranges addresses are based on the unit's low_pc. Compute the
   // offset we need to apply to adapt to the new unit's low_pc.
   int64_t UnitPcOffset = 0;
@@ -2978,10 +2963,9 @@ static void patchStmtList(DIE &Die, DIEInteger Offset) {
 /// are present in the binary.
 void DwarfLinker::patchLineTableForUnit(CompileUnit &Unit,
                                         DWARFContext &OrigDwarf) {
-  const DWARFDebugInfoEntryMinimal *CUDie = Unit.getOrigUnit().getUnitDIE();
-  uint64_t StmtList = CUDie->getAttributeValueAsSectionOffset(
-      &Unit.getOrigUnit(), dwarf::DW_AT_stmt_list, -1ULL);
-  if (StmtList == -1ULL)
+  DWARFDie CUDie = Unit.getOrigUnit().getUnitDIE();
+  auto StmtList = CUDie.getAttributeValueAsSectionOffset(dwarf::DW_AT_stmt_list);
+  if (!StmtList)
     return;
 
   // Update the cloned DW_AT_stmt_list with the correct debug_line offset.
@@ -2990,7 +2974,7 @@ void DwarfLinker::patchLineTableForUnit(CompileUnit &Unit,
 
   // Parse the original line info for the unit.
   DWARFDebugLine::LineTable LineTable;
-  uint32_t StmtOffset = StmtList;
+  uint32_t StmtOffset = *StmtList;
   StringRef LineData = OrigDwarf.getLineSection().Data;
   DataExtractor LineExtractor(LineData, OrigDwarf.isLittleEndian(),
                               Unit.getOrigUnit().getAddressByteSize());
@@ -3084,7 +3068,7 @@ void DwarfLinker::patchLineTableForUnit(CompileUnit &Unit,
   }
 
   // Finished extracting, now emit the line tables.
-  uint32_t PrologueEnd = StmtList + 10 + LineTable.Prologue.PrologueLength;
+  uint32_t PrologueEnd = *StmtList + 10 + LineTable.Prologue.PrologueLength;
   // FIXME: LLVM hardcodes it's prologue values. We just copy the
   // prologue over and that works because we act as both producer and
   // consumer. It would be nicer to have a real configurable line
@@ -3099,7 +3083,7 @@ void DwarfLinker::patchLineTableForUnit(CompileUnit &Unit,
     Params.DWARF2LineBase = LineTable.Prologue.LineBase;
     Params.DWARF2LineRange = LineTable.Prologue.LineRange;
     Streamer->emitLineTableForUnit(Params,
-                                   LineData.slice(StmtList + 4, PrologueEnd),
+                                   LineData.slice(*StmtList + 4, PrologueEnd),
                                    LineTable.Prologue.MinInstLength, NewRows,
                                    Unit.getOrigUnit().getAddressByteSize());
   }
@@ -3210,34 +3194,35 @@ void DwarfLinker::DIECloner::copyAbbrev(
   Linker.AssignAbbrev(Copy);
 }
 
-static uint64_t getDwoId(const DWARFDebugInfoEntryMinimal &CUDie,
+static uint64_t getDwoId(const DWARFDie &CUDie,
                          const DWARFUnit &Unit) {
-  uint64_t DwoId =
-      CUDie.getAttributeValueAsUnsignedConstant(&Unit, dwarf::DW_AT_dwo_id, 0);
-  if (!DwoId)
-    DwoId = CUDie.getAttributeValueAsUnsignedConstant(&Unit,
-                                                      dwarf::DW_AT_GNU_dwo_id, 0);
-  return DwoId;
+  auto DwoId = CUDie.getAttributeValueAsUnsignedConstant(dwarf::DW_AT_dwo_id);
+  if (DwoId)
+    return *DwoId;
+  DwoId = CUDie.getAttributeValueAsUnsignedConstant(dwarf::DW_AT_GNU_dwo_id);
+  if (DwoId)
+    return *DwoId;
+  return 0;
 }
 
 bool DwarfLinker::registerModuleReference(
-    const DWARFDebugInfoEntryMinimal &CUDie, const DWARFUnit &Unit,
+    const DWARFDie &CUDie, const DWARFUnit &Unit,
     DebugMap &ModuleMap, unsigned Indent) {
   std::string PCMfile =
-      CUDie.getAttributeValueAsString(&Unit, dwarf::DW_AT_dwo_name, "");
+      CUDie.getAttributeValueAsString(dwarf::DW_AT_dwo_name, "");
   if (PCMfile.empty())
     PCMfile =
-        CUDie.getAttributeValueAsString(&Unit, dwarf::DW_AT_GNU_dwo_name, "");
+        CUDie.getAttributeValueAsString(dwarf::DW_AT_GNU_dwo_name, "");
   if (PCMfile.empty())
     return false;
 
   // Clang module DWARF skeleton CUs abuse this for the path to the module.
   std::string PCMpath =
-      CUDie.getAttributeValueAsString(&Unit, dwarf::DW_AT_comp_dir, "");
+      CUDie.getAttributeValueAsString(dwarf::DW_AT_comp_dir, "");
   uint64_t DwoId = getDwoId(CUDie, Unit);
 
   std::string Name =
-      CUDie.getAttributeValueAsString(&Unit, dwarf::DW_AT_name, "");
+      CUDie.getAttributeValueAsString(dwarf::DW_AT_name, "");
   if (Name.empty()) {
     reportWarning("Anonymous module skeleton CU for " + PCMfile);
     return true;
@@ -3295,7 +3280,7 @@ void DwarfLinker::loadClangModule(StringRef Filename, StringRef ModulePath,
     sys::path::append(Path, Filename);
   BinaryHolder ObjHolder(Options.Verbose);
   auto &Obj =
-      ModuleMap.addDebugMapObject(Path, sys::TimeValue::PosixZeroTime());
+      ModuleMap.addDebugMapObject(Path, sys::TimePoint<std::chrono::seconds>());
   auto ErrOrObj = loadObject(ObjHolder, Obj, ModuleMap);
   if (!ErrOrObj) {
     // Try and emit more helpful warnings by applying some heuristics.
@@ -3338,9 +3323,9 @@ void DwarfLinker::loadClangModule(StringRef Filename, StringRef ModulePath,
   DWARFContextInMemory DwarfContext(*ErrOrObj);
   RelocationManager RelocMgr(*this);
   for (const auto &CU : DwarfContext.compile_units()) {
-    auto *CUDie = CU->getUnitDIE(false);
+    auto CUDie = CU->getUnitDIE(false);
     // Recursively get all modules imported by this one.
-    if (!registerModuleReference(*CUDie, *CU, ModuleMap, Indent)) {
+    if (!registerModuleReference(CUDie, *CU, ModuleMap, Indent)) {
       if (Unit) {
         errs() << Filename << ": Clang modules are expected to have exactly"
                << " 1 compile unit.\n";
@@ -3349,7 +3334,7 @@ void DwarfLinker::loadClangModule(StringRef Filename, StringRef ModulePath,
       // FIXME: Until PR27449 (https://llvm.org/bugs/show_bug.cgi?id=27449) is
       // fixed in clang, only warn about DWO_id mismatches in verbose mode.
       // ASTFileSignatures will change randomly when a module is rebuilt.
-      uint64_t PCMDwoId = getDwoId(*CUDie, *CU);
+      uint64_t PCMDwoId = getDwoId(CUDie, *CU);
       if (PCMDwoId != DwoId) {
         if (Options.Verbose)
           reportWarning(
@@ -3374,8 +3359,9 @@ void DwarfLinker::loadClangModule(StringRef Filename, StringRef ModulePath,
     outs() << "cloning .debug_info from " << Filename << "\n";
   }
 
-  DIECloner(*this, RelocMgr, DIEAlloc, MutableArrayRef<CompileUnit>(*Unit),
-            Options)
+  std::vector<std::unique_ptr<CompileUnit>> CompileUnits;
+  CompileUnits.push_back(std::move(Unit));
+  DIECloner(*this, RelocMgr, DIEAlloc, CompileUnits, Options)
       .cloneAllCompileUnits(DwarfContext);
 }
 
@@ -3385,23 +3371,24 @@ void DwarfLinker::DIECloner::cloneAllCompileUnits(
     return;
 
   for (auto &CurrentUnit : CompileUnits) {
-    const auto *InputDIE = CurrentUnit.getOrigUnit().getUnitDIE();
-    CurrentUnit.setStartOffset(Linker.OutputDebugInfoSize);
-    DIE *OutputDIE = cloneDIE(*InputDIE, CurrentUnit, 0 /* PC offset */,
-                              11 /* Unit Header size */, 0);
-    CurrentUnit.setOutputUnitDIE(OutputDIE);
-    Linker.OutputDebugInfoSize = CurrentUnit.computeNextUnitOffset();
+    auto InputDIE = CurrentUnit->getOrigUnit().getUnitDIE();
+    CurrentUnit->setStartOffset(Linker.OutputDebugInfoSize);
+    // Clonse the InputDIE into your Unit DIE in our compile unit since it
+    // already has a DIE inside of it.
+    if (!cloneDIE(InputDIE, *CurrentUnit, 0 /* PC offset */,
+                  11 /* Unit Header size */, 0,
+                  CurrentUnit->getOutputUnitDIE()))
+      continue;
+    Linker.OutputDebugInfoSize = CurrentUnit->computeNextUnitOffset();
     if (Linker.Options.NoOutput)
       continue;
     // FIXME: for compatibility with the classic dsymutil, we emit
     // an empty line table for the unit, even if the unit doesn't
     // actually exist in the DIE tree.
-    Linker.patchLineTableForUnit(CurrentUnit, DwarfContext);
-    if (!OutputDIE)
-      continue;
-    Linker.patchRangesForUnit(CurrentUnit, DwarfContext);
-    Linker.Streamer->emitLocationsForUnit(CurrentUnit, DwarfContext);
-    Linker.emitAcceleratorEntriesForUnit(CurrentUnit);
+    Linker.patchLineTableForUnit(*CurrentUnit, DwarfContext);
+    Linker.patchRangesForUnit(*CurrentUnit, DwarfContext);
+    Linker.Streamer->emitLocationsForUnit(*CurrentUnit, DwarfContext);
+    Linker.emitAcceleratorEntriesForUnit(*CurrentUnit);
   }
 
   if (Linker.Options.NoOutput)
@@ -3409,12 +3396,12 @@ void DwarfLinker::DIECloner::cloneAllCompileUnits(
 
   // Emit all the compile unit's debug information.
   for (auto &CurrentUnit : CompileUnits) {
-    Linker.generateUnitRanges(CurrentUnit);
-    CurrentUnit.fixupForwardReferences();
-    Linker.Streamer->emitCompileUnitHeader(CurrentUnit);
-    if (!CurrentUnit.getOutputUnitDIE())
+    Linker.generateUnitRanges(*CurrentUnit);
+    CurrentUnit->fixupForwardReferences();
+    Linker.Streamer->emitCompileUnitHeader(*CurrentUnit);
+    if (!CurrentUnit->getOutputUnitDIE())
       continue;
-    Linker.Streamer->emitDIE(*CurrentUnit.getOutputUnitDIE());
+    Linker.Streamer->emitDIE(*CurrentUnit->getOutputUnitDIE());
   }
 }
 
@@ -3452,19 +3439,20 @@ bool DwarfLinker::link(const DebugMap &Map) {
 
     // In a first phase, just read in the debug info and load all clang modules.
     for (const auto &CU : DwarfContext.compile_units()) {
-      auto *CUDie = CU->getUnitDIE(false);
+      auto CUDie = CU->getUnitDIE(false);
       if (Options.Verbose) {
         outs() << "Input compilation unit:";
-        CUDie->dump(outs(), CU.get(), 0);
+        CUDie.dump(outs(), 0);
       }
 
-      if (!registerModuleReference(*CUDie, *CU, ModuleMap))
-        Units.emplace_back(*CU, UnitID++, !Options.NoODR, "");
+      if (!registerModuleReference(CUDie, *CU, ModuleMap))
+        Units.push_back(llvm::make_unique<CompileUnit>(*CU, UnitID++,
+                                                       !Options.NoODR, ""));
     }
 
     // Now build the DIE parent links that we will use during the next phase.
     for (auto &CurrentUnit : Units)
-      analyzeContextInfo(CurrentUnit.getOrigUnit().getUnitDIE(), 0, CurrentUnit,
+      analyzeContextInfo(CurrentUnit->getOrigUnit().getUnitDIE(), 0, *CurrentUnit,
                          &ODRContexts.getRoot(), StringPool, ODRContexts);
 
     // Then mark all the DIEs that need to be present in the linked
@@ -3473,8 +3461,8 @@ bool DwarfLinker::link(const DebugMap &Map) {
     // references require the ParentIdx to be setup for every CU in
     // the object file before calling this.
     for (auto &CurrentUnit : Units)
-      lookForDIEsToKeep(RelocMgr, *CurrentUnit.getOrigUnit().getUnitDIE(), *Obj,
-                        CurrentUnit, 0);
+      lookForDIEsToKeep(RelocMgr, CurrentUnit->getOrigUnit().getUnitDIE(), *Obj,
+                        *CurrentUnit, 0);
 
     // The calls to applyValidRelocs inside cloneDIE will walk the
     // reloc array again (in the same way findValidRelocsInDebugInfo()
@@ -3485,7 +3473,7 @@ bool DwarfLinker::link(const DebugMap &Map) {
           .cloneAllCompileUnits(DwarfContext);
     if (!Options.NoOutput && !Units.empty())
       patchFrameInfoForObject(*Obj, DwarfContext,
-                              Units[0].getOrigUnit().getAddressByteSize());
+                              Units[0]->getOrigUnit().getAddressByteSize());
 
     // Clean-up before starting working on the next object.
     endDebugObject();

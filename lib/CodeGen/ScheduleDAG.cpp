@@ -139,8 +139,7 @@ void SUnit::removePred(const SDep &D) {
       SDep P = D;
       P.setSUnit(this);
       SUnit *N = D.getSUnit();
-      SmallVectorImpl<SDep>::iterator Succ = std::find(N->Succs.begin(),
-                                                       N->Succs.end(), P);
+      SmallVectorImpl<SDep>::iterator Succ = find(N->Succs, P);
       assert(Succ != N->Succs.end() && "Mismatching preds / succs lists!");
       N->Succs.erase(Succ);
       Preds.erase(I);
@@ -311,10 +310,20 @@ void SUnit::biasCriticalPath() {
 }
 
 #if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
+static void dumpSUIdentifier(const ScheduleDAG &DAG, const SUnit &SU) {
+  if (&SU == &DAG.ExitSU)
+    dbgs() << "ExitSU";
+  else if (&SU == &DAG.EntrySU)
+    dbgs() << "EntrySU";
+  else
+    dbgs() << "SU(" << SU.NodeNum << ")";
+}
+
 /// SUnit - Scheduling unit. It's an wrapper around either a single SDNode or
 /// a group of nodes flagged together.
 void SUnit::dump(const ScheduleDAG *G) const {
-  dbgs() << "SU(" << NodeNum << "): ";
+  dumpSUIdentifier(*G, *this);
+  dbgs() << ": ";
   G->dumpNode(this);
 }
 
@@ -338,12 +347,12 @@ void SUnit::dumpAll(const ScheduleDAG *G) const {
          I != E; ++I) {
       dbgs() << "   ";
       switch (I->getKind()) {
-      case SDep::Data:        dbgs() << "val "; break;
-      case SDep::Anti:        dbgs() << "anti"; break;
-      case SDep::Output:      dbgs() << "out "; break;
-      case SDep::Order:       dbgs() << "ch  "; break;
+      case SDep::Data:   dbgs() << "data "; break;
+      case SDep::Anti:   dbgs() << "anti "; break;
+      case SDep::Output: dbgs() << "out  "; break;
+      case SDep::Order:  dbgs() << "ord  "; break;
       }
-      dbgs() << "SU(" << I->getSUnit()->NodeNum << ")";
+      dumpSUIdentifier(*G, *I->getSUnit());
       if (I->isArtificial())
         dbgs() << " *";
       dbgs() << ": Latency=" << I->getLatency();
@@ -358,12 +367,12 @@ void SUnit::dumpAll(const ScheduleDAG *G) const {
          I != E; ++I) {
       dbgs() << "   ";
       switch (I->getKind()) {
-      case SDep::Data:        dbgs() << "val "; break;
-      case SDep::Anti:        dbgs() << "anti"; break;
-      case SDep::Output:      dbgs() << "out "; break;
-      case SDep::Order:       dbgs() << "ch  "; break;
+      case SDep::Data:   dbgs() << "data "; break;
+      case SDep::Anti:   dbgs() << "anti "; break;
+      case SDep::Output: dbgs() << "out  "; break;
+      case SDep::Order:  dbgs() << "ord  "; break;
       }
-      dbgs() << "SU(" << I->getSUnit()->NodeNum << ")";
+      dumpSUIdentifier(*G, *I->getSUnit());
       if (I->isArtificial())
         dbgs() << " *";
       dbgs() << ": Latency=" << I->getLatency();

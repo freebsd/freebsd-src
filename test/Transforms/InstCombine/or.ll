@@ -189,9 +189,22 @@ define i1 @test18(i32 %A) {
 ;
   %B = icmp sge i32 %A, 100
   %C = icmp slt i32 %A, 50
-  ;; (A-50) >u 50
   %D = or i1 %B, %C
   ret i1 %D
+}
+
+; FIXME: Vectors should fold too.
+define <2 x i1> @test18vec(<2 x i32> %A) {
+; CHECK-LABEL: @test18vec(
+; CHECK-NEXT:    [[B:%.*]] = icmp sgt <2 x i32> %A, <i32 99, i32 99>
+; CHECK-NEXT:    [[C:%.*]] = icmp slt <2 x i32> %A, <i32 50, i32 50>
+; CHECK-NEXT:    [[D:%.*]] = or <2 x i1> [[B]], [[C]]
+; CHECK-NEXT:    ret <2 x i1> [[D]]
+;
+  %B = icmp sge <2 x i32> %A, <i32 100, i32 100>
+  %C = icmp slt <2 x i32> %A, <i32 50, i32 50>
+  %D = or <2 x i1> %B, %C
+  ret <2 x i1> %D
 }
 
 define i1 @test19(i32 %A) {
@@ -307,6 +320,20 @@ define i1 @test27(i32* %A, i32* %B) {
   ret i1 %E
 }
 
+define <2 x i1> @test27vec(<2 x i32*> %A, <2 x i32*> %B) {
+; CHECK-LABEL: @test27vec(
+; CHECK-NEXT:    [[TMP1:%.*]] = icmp eq <2 x i32*> %A, zeroinitializer
+; CHECK-NEXT:    [[TMP2:%.*]] = icmp eq <2 x i32*> %B, zeroinitializer
+; CHECK-NEXT:    [[E:%.*]] = and <2 x i1> [[TMP1]], [[TMP2]]
+; CHECK-NEXT:    ret <2 x i1> [[E]]
+;
+  %C1 = ptrtoint <2 x i32*> %A to <2 x i32>
+  %C2 = ptrtoint <2 x i32*> %B to <2 x i32>
+  %D = or <2 x i32> %C1, %C2
+  %E = icmp eq <2 x i32> %D, zeroinitializer
+  ret <2 x i1> %E
+}
+
 ; PR5634
 define i1 @test28(i32 %A, i32 %B) {
 ; CHECK-LABEL: @test28(
@@ -333,6 +360,20 @@ define i1 @test29(i32* %A, i32* %B) {
   %D = or i32 %C1, %C2
   %E = icmp ne i32 %D, 0
   ret i1 %E
+}
+
+define <2 x i1> @test29vec(<2 x i32*> %A, <2 x i32*> %B) {
+; CHECK-LABEL: @test29vec(
+; CHECK-NEXT:    [[TMP1:%.*]] = icmp ne <2 x i32*> %A, zeroinitializer
+; CHECK-NEXT:    [[TMP2:%.*]] = icmp ne <2 x i32*> %B, zeroinitializer
+; CHECK-NEXT:    [[E:%.*]] = or <2 x i1> [[TMP1]], [[TMP2]]
+; CHECK-NEXT:    ret <2 x i1> [[E]]
+;
+  %C1 = ptrtoint <2 x i32*> %A to <2 x i32>
+  %C2 = ptrtoint <2 x i32*> %B to <2 x i32>
+  %D = or <2 x i32> %C1, %C2
+  %E = icmp ne <2 x i32> %D, zeroinitializer
+  ret <2 x i1> %E
 }
 
 ; PR4216
@@ -514,6 +555,8 @@ define i32 @test41(i32 %a, i32 %b) {
   ret i32 %or
 }
 
+; (~A ^ B) | (A & B) -> (~A ^ B)
+
 define i32 @test42(i32 %a, i32 %b) {
 ; CHECK-LABEL: @test42(
 ; CHECK-NEXT:    [[TMP1:%.*]] = xor i32 %a, -1
@@ -527,6 +570,34 @@ define i32 @test42(i32 %a, i32 %b) {
   ret i32 %or
 }
 
+define i32 @test42_commuted_and(i32 %a, i32 %b) {
+; CHECK-LABEL: @test42_commuted_and(
+; CHECK-NEXT:    [[TMP1:%.*]] = xor i32 %a, -1
+; CHECK-NEXT:    [[OR:%.*]] = xor i32 [[TMP1]], %b
+; CHECK-NEXT:    ret i32 [[OR]]
+;
+  %nega = xor i32 %a, -1
+  %xor = xor i32 %nega, %b
+  %and = and i32 %b, %a
+  %or = or i32 %xor, %and
+  ret i32 %or
+}
+
+define i32 @test42_commuted_xor(i32 %a, i32 %b) {
+; CHECK-LABEL: @test42_commuted_xor(
+; CHECK-NEXT:    [[TMP1:%.*]] = xor i32 %a, -1
+; CHECK-NEXT:    [[OR:%.*]] = xor i32 [[TMP1]], %b
+; CHECK-NEXT:    ret i32 [[OR]]
+;
+  %nega = xor i32 %a, -1
+  %xor = xor i32 %b, %nega
+  %and = and i32 %a, %b
+  %or = or i32 %xor, %and
+  ret i32 %or
+}
+
+; (A & ~B) | (A ^ B) -> A ^ B
+
 define i32 @test43(i32 %a, i32 %b) {
 ; CHECK-LABEL: @test43(
 ; CHECK-NEXT:    [[OR:%.*]] = xor i32 %a, %b
@@ -539,6 +610,21 @@ define i32 @test43(i32 %a, i32 %b) {
   ret i32 %or
 }
 
+define i32 @test43_commuted_and(i32 %a, i32 %b) {
+; CHECK-LABEL: @test43_commuted_and(
+; CHECK-NEXT:    [[OR:%.*]] = xor i32 %a, %b
+; CHECK-NEXT:    ret i32 [[OR]]
+;
+  %neg = xor i32 %b, -1
+  %and = and i32 %neg, %a
+  %xor = xor i32 %a, %b
+  %or = or i32 %and, %xor
+  ret i32 %or
+}
+
+; Commute operands of the 'or'.
+; (A ^ B) | (A & ~B) -> A ^ B
+
 define i32 @test44(i32 %a, i32 %b) {
 ; CHECK-LABEL: @test44(
 ; CHECK-NEXT:    [[OR:%.*]] = xor i32 %a, %b
@@ -547,6 +633,18 @@ define i32 @test44(i32 %a, i32 %b) {
   %xor = xor i32 %a, %b
   %neg = xor i32 %b, -1
   %and = and i32 %a, %neg
+  %or = or i32 %xor, %and
+  ret i32 %or
+}
+
+define i32 @test44_commuted_and(i32 %a, i32 %b) {
+; CHECK-LABEL: @test44_commuted_and(
+; CHECK-NEXT:    [[OR:%.*]] = xor i32 %a, %b
+; CHECK-NEXT:    ret i32 [[OR]]
+;
+  %xor = xor i32 %a, %b
+  %neg = xor i32 %b, -1
+  %and = and i32 %neg, %a
   %or = or i32 %xor, %and
   ret i32 %or
 }

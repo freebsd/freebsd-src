@@ -3,12 +3,15 @@
 ; Test a simple uniform loop that lives inside non-uniform control flow.
 
 ; CHECK-LABEL: {{^}}test1:
-; CHECK: v_cmp_ne_i32_e32 vcc, 0
+; CHECK: v_cmp_ne_u32_e32 vcc, 0
 ; CHECK: s_and_saveexec_b64
+; CHECK-NEXT: s_xor_b64
+; CHECK-NEXT: ; mask branch
+
+; CHECK-NEXT: BB{{[0-9]+_[0-9]+}}: ; %loop_body.preheader
 
 ; CHECK: [[LOOP_BODY_LABEL:BB[0-9]+_[0-9]+]]:
-; CHECK: s_and_b64 vcc, exec, vcc
-; CHECK: s_cbranch_vccz [[LOOP_BODY_LABEL]]
+; CHECK: s_cbranch_scc0 [[LOOP_BODY_LABEL]]
 
 ; CHECK: s_endpgm
 define amdgpu_ps void @test1(<8 x i32> inreg %rsrc, <2 x i32> %addr.base, i32 %y, i32 %p) {
@@ -30,10 +33,11 @@ out:
   ret void
 }
 
-;CHECK-LABEL: {{^}}test2:
-;CHECK: s_and_saveexec_b64
-;CHECK: s_xor_b64
-;CHECK-NEXT: s_cbranch_execz
+; CHECK-LABEL: {{^}}test2:
+; CHECK: s_and_saveexec_b64
+; CHECK-NEXT: s_xor_b64
+; CHECK-NEXT: ; mask branch
+; CHECK-NEXT: s_cbranch_execz
 define void @test2(i32 addrspace(1)* %out, i32 %a, i32 %b) {
 main_body:
   %tid = call i32 @llvm.amdgcn.workitem.id.x() #1

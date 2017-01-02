@@ -16,9 +16,11 @@
 #ifndef LLVM_PASSES_PASSBUILDER_H
 #define LLVM_PASSES_PASSBUILDER_H
 
+#include "llvm/ADT/Optional.h"
 #include "llvm/Analysis/CGSCCPassManager.h"
 #include "llvm/Analysis/LoopPassManager.h"
 #include "llvm/IR/PassManager.h"
+#include <vector>
 
 namespace llvm {
 class StringRef;
@@ -163,35 +165,68 @@ public:
   /// additional analyses.
   void registerLoopAnalyses(LoopAnalysisManager &LAM);
 
-  /// \brief Add a per-module default optimization pipeline to a pass manager.
+  /// Construct the core LLVM function canonicalization and simplification
+  /// pipeline.
+  ///
+  /// This is a long pipeline and uses most of the per-function optimization
+  /// passes in LLVM to canonicalize and simplify the IR. It is suitable to run
+  /// repeatedly over the IR and is not expected to destroy important
+  /// information about the semantics of the IR.
+  ///
+  /// Note that \p Level cannot be `O0` here. The pipelines produced are
+  /// only intended for use when attempting to optimize code. If frontends
+  /// require some transformations for semantic reasons, they should explicitly
+  /// build them.
+  FunctionPassManager
+  buildFunctionSimplificationPipeline(OptimizationLevel Level,
+                                      bool DebugLogging = false);
+
+  /// Build a per-module default optimization pipeline.
   ///
   /// This provides a good default optimization pipeline for per-module
   /// optimization and code generation without any link-time optimization. It
   /// typically correspond to frontend "-O[123]" options for optimization
   /// levels \c O1, \c O2 and \c O3 resp.
-  void addPerModuleDefaultPipeline(ModulePassManager &MPM,
-                                   OptimizationLevel Level,
-                                   bool DebugLogging = false);
+  ///
+  /// Note that \p Level cannot be `O0` here. The pipelines produced are
+  /// only intended for use when attempting to optimize code. If frontends
+  /// require some transformations for semantic reasons, they should explicitly
+  /// build them.
+  ModulePassManager buildPerModuleDefaultPipeline(OptimizationLevel Level,
+                                                  bool DebugLogging = false);
 
-  /// \brief Add a pre-link, LTO-targeting default optimization pipeline to
-  /// a pass manager.
+  /// Build a pre-link, LTO-targeting default optimization pipeline to a pass
+  /// manager.
   ///
   /// This adds the pre-link optimizations tuned to work well with a later LTO
   /// run. It works to minimize the IR which needs to be analyzed without
   /// making irreversible decisions which could be made better during the LTO
   /// run.
-  void addLTOPreLinkDefaultPipeline(ModulePassManager &MPM,
-                                    OptimizationLevel Level,
-                                    bool DebugLogging = false);
+  ///
+  /// Note that \p Level cannot be `O0` here. The pipelines produced are
+  /// only intended for use when attempting to optimize code. If frontends
+  /// require some transformations for semantic reasons, they should explicitly
+  /// build them.
+  ModulePassManager buildLTOPreLinkDefaultPipeline(OptimizationLevel Level,
+                                                   bool DebugLogging = false);
 
-  /// \brief Add an LTO default optimization pipeline to a pass manager.
+  /// Build an LTO default optimization pipeline to a pass manager.
   ///
   /// This provides a good default optimization pipeline for link-time
   /// optimization and code generation. It is particularly tuned to fit well
   /// when IR coming into the LTO phase was first run through \c
   /// addPreLinkLTODefaultPipeline, and the two coordinate closely.
-  void addLTODefaultPipeline(ModulePassManager &MPM, OptimizationLevel Level,
-                             bool DebugLogging = false);
+  ///
+  /// Note that \p Level cannot be `O0` here. The pipelines produced are
+  /// only intended for use when attempting to optimize code. If frontends
+  /// require some transformations for semantic reasons, they should explicitly
+  /// build them.
+  ModulePassManager buildLTODefaultPipeline(OptimizationLevel Level,
+                                            bool DebugLogging = false);
+
+  /// Build the default `AAManager` with the default alias analysis pipeline
+  /// registered.
+  AAManager buildDefaultAAPipeline();
 
   /// \brief Parse a textual pass pipeline description into a \c ModulePassManager.
   ///
@@ -242,20 +277,36 @@ public:
   bool parseAAPipeline(AAManager &AA, StringRef PipelineText);
 
 private:
-  bool parseModulePassName(ModulePassManager &MPM, StringRef Name,
-                           bool DebugLogging);
-  bool parseCGSCCPassName(CGSCCPassManager &CGPM, StringRef Name);
-  bool parseFunctionPassName(FunctionPassManager &FPM, StringRef Name);
-  bool parseLoopPassName(LoopPassManager &LPM, StringRef Name);
+  /// A struct to capture parsed pass pipeline names.
+  struct PipelineElement {
+    StringRef Name;
+    std::vector<PipelineElement> InnerPipeline;
+  };
+
+  static Optional<std::vector<PipelineElement>>
+  parsePipelineText(StringRef Text);
+
+  bool parseModulePass(ModulePassManager &MPM, const PipelineElement &E,
+                       bool VerifyEachPass, bool DebugLogging);
+  bool parseCGSCCPass(CGSCCPassManager &CGPM, const PipelineElement &E,
+                      bool VerifyEachPass, bool DebugLogging);
+  bool parseFunctionPass(FunctionPassManager &FPM, const PipelineElement &E,
+                     bool VerifyEachPass, bool DebugLogging);
+  bool parseLoopPass(LoopPassManager &LPM, const PipelineElement &E,
+                     bool VerifyEachPass, bool DebugLogging);
   bool parseAAPassName(AAManager &AA, StringRef Name);
-  bool parseLoopPassPipeline(LoopPassManager &LPM, StringRef &PipelineText,
+
+  bool parseLoopPassPipeline(LoopPassManager &LPM,
+                             ArrayRef<PipelineElement> Pipeline,
                              bool VerifyEachPass, bool DebugLogging);
   bool parseFunctionPassPipeline(FunctionPassManager &FPM,
-                                 StringRef &PipelineText, bool VerifyEachPass,
-                                 bool DebugLogging);
-  bool parseCGSCCPassPipeline(CGSCCPassManager &CGPM, StringRef &PipelineText,
+                                 ArrayRef<PipelineElement> Pipeline,
+                                 bool VerifyEachPass, bool DebugLogging);
+  bool parseCGSCCPassPipeline(CGSCCPassManager &CGPM,
+                              ArrayRef<PipelineElement> Pipeline,
                               bool VerifyEachPass, bool DebugLogging);
-  bool parseModulePassPipeline(ModulePassManager &MPM, StringRef &PipelineText,
+  bool parseModulePassPipeline(ModulePassManager &MPM,
+                               ArrayRef<PipelineElement> Pipeline,
                                bool VerifyEachPass, bool DebugLogging);
 };
 }

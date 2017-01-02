@@ -196,6 +196,16 @@ define i1 @test18(i32 %A) {
   ret i1 %C
 }
 
+define <2 x i1> @test18_vec(<2 x i32> %A) {
+; CHECK-LABEL: @test18_vec(
+; CHECK-NEXT:    [[C:%.*]] = icmp ugt <2 x i32> %A, <i32 127, i32 127>
+; CHECK-NEXT:    ret <2 x i1> [[C]]
+;
+  %B = and <2 x i32> %A, <i32 -128, i32 -128>
+  %C = icmp ne <2 x i32> %B, zeroinitializer
+  ret <2 x i1> %C
+}
+
 define i1 @test18a(i8 %A) {
 ; CHECK-LABEL: @test18a(
 ; CHECK-NEXT:    [[C:%.*]] = icmp ult i8 %A, 2
@@ -204,6 +214,16 @@ define i1 @test18a(i8 %A) {
   %B = and i8 %A, -2
   %C = icmp eq i8 %B, 0
   ret i1 %C
+}
+
+define <2 x i1> @test18a_vec(<2 x i8> %A) {
+; CHECK-LABEL: @test18a_vec(
+; CHECK-NEXT:    [[C:%.*]] = icmp ult <2 x i8> %A, <i8 2, i8 2>
+; CHECK-NEXT:    ret <2 x i1> [[C]]
+;
+  %B = and <2 x i8> %A, <i8 -2, i8 -2>
+  %C = icmp eq <2 x i8> %B, zeroinitializer
+  ret <2 x i1> %C
 }
 
 define i32 @test19(i32 %A) {
@@ -235,9 +255,22 @@ define i1 @test23(i32 %A) {
 ;
   %B = icmp sgt i32 %A, 1
   %C = icmp sle i32 %A, 2
-  ;; A == 2
   %D = and i1 %B, %C
   ret i1 %D
+}
+
+; FIXME: Vectors should fold too.
+define <2 x i1> @test23vec(<2 x i32> %A) {
+; CHECK-LABEL: @test23vec(
+; CHECK-NEXT:    [[B:%.*]] = icmp sgt <2 x i32> %A, <i32 1, i32 1>
+; CHECK-NEXT:    [[C:%.*]] = icmp slt <2 x i32> %A, <i32 3, i32 3>
+; CHECK-NEXT:    [[D:%.*]] = and <2 x i1> [[B]], [[C]]
+; CHECK-NEXT:    ret <2 x i1> [[D]]
+;
+  %B = icmp sgt <2 x i32> %A, <i32 1, i32 1>
+  %C = icmp sle <2 x i32> %A, <i32 2, i32 2>
+  %D = and <2 x i1> %B, %C
+  ret <2 x i1> %D
 }
 
 define i1 @test24(i32 %A) {
@@ -260,9 +293,22 @@ define i1 @test25(i32 %A) {
 ;
   %B = icmp sge i32 %A, 50
   %C = icmp slt i32 %A, 100
-  ;; (A-50) <u 50
   %D = and i1 %B, %C
   ret i1 %D
+}
+
+; FIXME: Vectors should fold too.
+define <2 x i1> @test25vec(<2 x i32> %A) {
+; CHECK-LABEL: @test25vec(
+; CHECK-NEXT:    [[B:%.*]] = icmp sgt <2 x i32> %A, <i32 49, i32 49>
+; CHECK-NEXT:    [[C:%.*]] = icmp slt <2 x i32> %A, <i32 100, i32 100>
+; CHECK-NEXT:    [[D:%.*]] = and <2 x i1> [[B]], [[C]]
+; CHECK-NEXT:    ret <2 x i1> [[D]]
+;
+  %B = icmp sge <2 x i32> %A, <i32 50, i32 50>
+  %C = icmp slt <2 x i32> %A, <i32 100, i32 100>
+  %D = and <2 x i1> %B, %C
+  ret <2 x i1> %D
 }
 
 define i1 @test26(i32 %A) {
@@ -366,5 +412,16 @@ define i32 @test34(i32 %A, i32 %B) {
   %tmp.2 = or i32 %B, %A
   %tmp.4 = and i32 %tmp.2, %B
   ret i32 %tmp.4
+}
+
+; FIXME: This test should only need -instsimplify (ValueTracking / computeKnownBits), not -instcombine.
+
+define <2 x i32> @PR24942(<2 x i32> %x) {
+; CHECK-LABEL: @PR24942(
+; CHECK-NEXT:    ret <2 x i32> zeroinitializer
+;
+  %lshr = lshr <2 x i32> %x, <i32 31, i32 31>
+  %and = and <2 x i32> %lshr, <i32 2, i32 2>
+  ret <2 x i32> %and
 }
 

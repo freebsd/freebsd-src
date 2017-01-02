@@ -87,6 +87,12 @@ TEST(TripleTest, ParsedIDs) {
   EXPECT_EQ(Triple::ELFIAMCU, T.getOS());
   EXPECT_EQ(Triple::UnknownEnvironment, T.getEnvironment());
 
+  T = Triple("i386-pc-contiki-unknown");
+  EXPECT_EQ(Triple::x86, T.getArch());
+  EXPECT_EQ(Triple::PC, T.getVendor());
+  EXPECT_EQ(Triple::Contiki, T.getOS());
+  EXPECT_EQ(Triple::UnknownEnvironment, T.getEnvironment());
+
   T = Triple("x86_64-pc-linux-gnu");
   EXPECT_EQ(Triple::x86_64, T.getArch());
   EXPECT_EQ(Triple::PC, T.getVendor());
@@ -200,6 +206,12 @@ TEST(TripleTest, ParsedIDs) {
   EXPECT_EQ(Triple::CloudABI, T.getOS());
   EXPECT_EQ(Triple::UnknownEnvironment, T.getEnvironment());
 
+  T = Triple("x86_64-unknown-fuchsia");
+  EXPECT_EQ(Triple::x86_64, T.getArch());
+  EXPECT_EQ(Triple::UnknownVendor, T.getVendor());
+  EXPECT_EQ(Triple::Fuchsia, T.getOS());
+  EXPECT_EQ(Triple::UnknownEnvironment, T.getEnvironment());
+
   T = Triple("wasm32-unknown-unknown");
   EXPECT_EQ(Triple::wasm32, T.getArch());
   EXPECT_EQ(Triple::UnknownVendor, T.getVendor());
@@ -246,6 +258,30 @@ TEST(TripleTest, ParsedIDs) {
   EXPECT_EQ(Triple::amdgcn, T.getArch());
   EXPECT_EQ(Triple::AMD, T.getVendor());
   EXPECT_EQ(Triple::AMDHSA, T.getOS());
+  EXPECT_EQ(Triple::UnknownEnvironment, T.getEnvironment());
+
+  T = Triple("amdgcn-amd-amdhsa-opencl");
+  EXPECT_EQ(Triple::amdgcn, T.getArch());
+  EXPECT_EQ(Triple::AMD, T.getVendor());
+  EXPECT_EQ(Triple::AMDHSA, T.getOS());
+  EXPECT_EQ(Triple::OpenCL, T.getEnvironment());
+
+  T = Triple("riscv32-unknown-unknown");
+  EXPECT_EQ(Triple::riscv32, T.getArch());
+  EXPECT_EQ(Triple::UnknownVendor, T.getVendor());
+  EXPECT_EQ(Triple::UnknownOS, T.getOS());
+  EXPECT_EQ(Triple::UnknownEnvironment, T.getEnvironment());
+
+  T = Triple("riscv64-unknown-linux");
+  EXPECT_EQ(Triple::riscv64, T.getArch());
+  EXPECT_EQ(Triple::UnknownVendor, T.getVendor());
+  EXPECT_EQ(Triple::Linux, T.getOS());
+  EXPECT_EQ(Triple::UnknownEnvironment, T.getEnvironment());
+
+  T = Triple("riscv64-unknown-freebsd");
+  EXPECT_EQ(Triple::riscv64, T.getArch());
+  EXPECT_EQ(Triple::UnknownVendor, T.getVendor());
+  EXPECT_EQ(Triple::FreeBSD, T.getOS());
   EXPECT_EQ(Triple::UnknownEnvironment, T.getEnvironment());
 
   T = Triple("huh");
@@ -302,60 +338,74 @@ TEST(TripleTest, Normalization) {
 
   // Check that normalizing a permutated set of valid components returns a
   // triple with the unpermuted components.
-  StringRef C[4];
-  for (int Arch = 1+Triple::UnknownArch; Arch <= Triple::LastArchType; ++Arch) {
+  //
+  // We don't check every possible combination. For the set of architectures A,
+  // vendors V, operating systems O, and environments E, that would require |A|
+  // * |V| * |O| * |E| * 4! tests. Instead we check every option for any given
+  // slot and make sure it gets normalized to the correct position from every
+  // permutation. This should cover the core logic while being a tractable
+  // number of tests at (|A| + |V| + |O| + |E|) * 4!.
+  auto FirstArchType = Triple::ArchType(Triple::UnknownArch + 1);
+  auto FirstVendorType = Triple::VendorType(Triple::UnknownVendor + 1);
+  auto FirstOSType = Triple::OSType(Triple::UnknownOS + 1);
+  auto FirstEnvType = Triple::EnvironmentType(Triple::UnknownEnvironment + 1);
+  StringRef InitialC[] = {Triple::getArchTypeName(FirstArchType),
+                          Triple::getVendorTypeName(FirstVendorType),
+                          Triple::getOSTypeName(FirstOSType),
+                          Triple::getEnvironmentTypeName(FirstEnvType)};
+  for (int Arch = FirstArchType; Arch <= Triple::LastArchType; ++Arch) {
+    StringRef C[] = {InitialC[0], InitialC[1], InitialC[2], InitialC[3]};
     C[0] = Triple::getArchTypeName(Triple::ArchType(Arch));
-    for (int Vendor = 1+Triple::UnknownVendor; Vendor <= Triple::LastVendorType;
-         ++Vendor) {
-      C[1] = Triple::getVendorTypeName(Triple::VendorType(Vendor));
-      for (int OS = 1+Triple::UnknownOS; OS <= Triple::LastOSType; ++OS) {
-        if (OS == Triple::Win32)
-          continue;
-
-        C[2] = Triple::getOSTypeName(Triple::OSType(OS));
-
-        std::string E = Join(C[0], C[1], C[2]);
-        EXPECT_EQ(E, Triple::normalize(Join(C[0], C[1], C[2])));
-
-        EXPECT_EQ(E, Triple::normalize(Join(C[0], C[2], C[1])));
-        EXPECT_EQ(E, Triple::normalize(Join(C[1], C[2], C[0])));
-        EXPECT_EQ(E, Triple::normalize(Join(C[1], C[0], C[2])));
-        EXPECT_EQ(E, Triple::normalize(Join(C[2], C[0], C[1])));
-        EXPECT_EQ(E, Triple::normalize(Join(C[2], C[1], C[0])));
-
-        for (int Env = 1 + Triple::UnknownEnvironment; Env <= Triple::LastEnvironmentType;
-             ++Env) {
-          C[3] = Triple::getEnvironmentTypeName(Triple::EnvironmentType(Env));
-
-          std::string F = Join(C[0], C[1], C[2], C[3]);
-          EXPECT_EQ(F, Triple::normalize(Join(C[0], C[1], C[2], C[3])));
-
-          EXPECT_EQ(F, Triple::normalize(Join(C[0], C[1], C[3], C[2])));
-          EXPECT_EQ(F, Triple::normalize(Join(C[0], C[2], C[3], C[1])));
-          EXPECT_EQ(F, Triple::normalize(Join(C[0], C[2], C[1], C[3])));
-          EXPECT_EQ(F, Triple::normalize(Join(C[0], C[3], C[1], C[2])));
-          EXPECT_EQ(F, Triple::normalize(Join(C[0], C[3], C[2], C[1])));
-          EXPECT_EQ(F, Triple::normalize(Join(C[1], C[2], C[3], C[0])));
-          EXPECT_EQ(F, Triple::normalize(Join(C[1], C[2], C[0], C[3])));
-          EXPECT_EQ(F, Triple::normalize(Join(C[1], C[3], C[0], C[2])));
-          EXPECT_EQ(F, Triple::normalize(Join(C[1], C[3], C[2], C[0])));
-          EXPECT_EQ(F, Triple::normalize(Join(C[1], C[0], C[2], C[3])));
-          EXPECT_EQ(F, Triple::normalize(Join(C[1], C[0], C[3], C[2])));
-          EXPECT_EQ(F, Triple::normalize(Join(C[2], C[3], C[0], C[1])));
-          EXPECT_EQ(F, Triple::normalize(Join(C[2], C[3], C[1], C[0])));
-          EXPECT_EQ(F, Triple::normalize(Join(C[2], C[0], C[1], C[3])));
-          EXPECT_EQ(F, Triple::normalize(Join(C[2], C[0], C[3], C[1])));
-          EXPECT_EQ(F, Triple::normalize(Join(C[2], C[1], C[3], C[0])));
-          EXPECT_EQ(F, Triple::normalize(Join(C[2], C[1], C[0], C[3])));
-          EXPECT_EQ(F, Triple::normalize(Join(C[3], C[0], C[1], C[2])));
-          EXPECT_EQ(F, Triple::normalize(Join(C[3], C[0], C[2], C[1])));
-          EXPECT_EQ(F, Triple::normalize(Join(C[3], C[1], C[2], C[0])));
-          EXPECT_EQ(F, Triple::normalize(Join(C[3], C[1], C[0], C[2])));
-          EXPECT_EQ(F, Triple::normalize(Join(C[3], C[2], C[0], C[1])));
-          EXPECT_EQ(F, Triple::normalize(Join(C[3], C[2], C[1], C[0])));
-        }
-      }
-    }
+    std::string E = Join(C[0], C[1], C[2]);
+    int I[] = {0, 1, 2};
+    do {
+      EXPECT_EQ(E, Triple::normalize(Join(C[I[0]], C[I[1]], C[I[2]])));
+    } while (std::next_permutation(std::begin(I), std::end(I)));
+    std::string F = Join(C[0], C[1], C[2], C[3]);
+    int J[] = {0, 1, 2, 3};
+    do {
+      EXPECT_EQ(F, Triple::normalize(Join(C[J[0]], C[J[1]], C[J[2]], C[J[3]])));
+    } while (std::next_permutation(std::begin(J), std::end(J)));
+  }
+  for (int Vendor = FirstVendorType; Vendor <= Triple::LastVendorType;
+       ++Vendor) {
+    StringRef C[] = {InitialC[0], InitialC[1], InitialC[2], InitialC[3]};
+    C[1] = Triple::getVendorTypeName(Triple::VendorType(Vendor));
+    std::string E = Join(C[0], C[1], C[2]);
+    int I[] = {0, 1, 2};
+    do {
+      EXPECT_EQ(E, Triple::normalize(Join(C[I[0]], C[I[1]], C[I[2]])));
+    } while (std::next_permutation(std::begin(I), std::end(I)));
+    std::string F = Join(C[0], C[1], C[2], C[3]);
+    int J[] = {0, 1, 2, 3};
+    do {
+      EXPECT_EQ(F, Triple::normalize(Join(C[J[0]], C[J[1]], C[J[2]], C[J[3]])));
+    } while (std::next_permutation(std::begin(J), std::end(J)));
+  }
+  for (int OS = FirstOSType; OS <= Triple::LastOSType; ++OS) {
+    if (OS == Triple::Win32)
+      continue;
+    StringRef C[] = {InitialC[0], InitialC[1], InitialC[2], InitialC[3]};
+    C[2] = Triple::getOSTypeName(Triple::OSType(OS));
+    std::string E = Join(C[0], C[1], C[2]);
+    int I[] = {0, 1, 2};
+    do {
+      EXPECT_EQ(E, Triple::normalize(Join(C[I[0]], C[I[1]], C[I[2]])));
+    } while (std::next_permutation(std::begin(I), std::end(I)));
+    std::string F = Join(C[0], C[1], C[2], C[3]);
+    int J[] = {0, 1, 2, 3};
+    do {
+      EXPECT_EQ(F, Triple::normalize(Join(C[J[0]], C[J[1]], C[J[2]], C[J[3]])));
+    } while (std::next_permutation(std::begin(J), std::end(J)));
+  }
+  for (int Env = FirstEnvType; Env <= Triple::LastEnvironmentType; ++Env) {
+    StringRef C[] = {InitialC[0], InitialC[1], InitialC[2], InitialC[3]};
+    C[3] = Triple::getEnvironmentTypeName(Triple::EnvironmentType(Env));
+    std::string F = Join(C[0], C[1], C[2], C[3]);
+    int J[] = {0, 1, 2, 3};
+    do {
+      EXPECT_EQ(F, Triple::normalize(Join(C[J[0]], C[J[1]], C[J[2]], C[J[3]])));
+    } while (std::next_permutation(std::begin(J), std::end(J)));
   }
 
   // Various real-world funky triples.  The value returned by GCC's config.sub
@@ -527,6 +577,16 @@ TEST(TripleTest, BitWidthPredicates) {
   EXPECT_FALSE(T.isArch16Bit());
   EXPECT_TRUE(T.isArch32Bit());
   EXPECT_FALSE(T.isArch64Bit());
+
+  T.setArch(Triple::riscv32);
+  EXPECT_FALSE(T.isArch16Bit());
+  EXPECT_TRUE(T.isArch32Bit());
+  EXPECT_FALSE(T.isArch64Bit());
+
+  T.setArch(Triple::riscv64);
+  EXPECT_FALSE(T.isArch16Bit());
+  EXPECT_FALSE(T.isArch32Bit());
+  EXPECT_TRUE(T.isArch64Bit());
 }
 
 TEST(TripleTest, BitWidthArchVariants) {
@@ -617,6 +677,14 @@ TEST(TripleTest, BitWidthArchVariants) {
   T.setArch(Triple::wasm64);
   EXPECT_EQ(Triple::wasm32, T.get32BitArchVariant().getArch());
   EXPECT_EQ(Triple::wasm64, T.get64BitArchVariant().getArch());
+
+  T.setArch(Triple::riscv32);
+  EXPECT_EQ(Triple::riscv32, T.get32BitArchVariant().getArch());
+  EXPECT_EQ(Triple::riscv64, T.get64BitArchVariant().getArch());
+
+  T.setArch(Triple::riscv64);
+  EXPECT_EQ(Triple::riscv32, T.get32BitArchVariant().getArch());
+  EXPECT_EQ(Triple::riscv64, T.get64BitArchVariant().getArch());
 }
 
 TEST(TripleTest, EndianArchVariants) {
@@ -874,112 +942,6 @@ TEST(TripleTest, NormalizeWindows) {
 }
 
 TEST(TripleTest, getARMCPUForArch) {
-  // Standard ARM Architectures.
-  {
-    llvm::Triple Triple("armv4-unknown-eabi");
-    EXPECT_EQ("strongarm", Triple.getARMCPUForArch());
-  }
-  {
-    llvm::Triple Triple("armv4t-unknown-eabi");
-    EXPECT_EQ("arm7tdmi", Triple.getARMCPUForArch());
-  }
-  {
-    llvm::Triple Triple("armv5-unknown-eabi");
-    EXPECT_EQ("arm10tdmi", Triple.getARMCPUForArch());
-  }
-  {
-    llvm::Triple Triple("armv5t-unknown-eabi");
-    EXPECT_EQ("arm10tdmi", Triple.getARMCPUForArch());
-  }
-  {
-    llvm::Triple Triple("armv5e-unknown-eabi");
-    EXPECT_EQ("arm1022e", Triple.getARMCPUForArch());
-  }
-  {
-    llvm::Triple Triple("armv5tej-unknown-eabi");
-    EXPECT_EQ("arm926ej-s", Triple.getARMCPUForArch());
-  }
-  {
-    llvm::Triple Triple("armv6-unknown-eabi");
-    EXPECT_EQ("arm1136jf-s", Triple.getARMCPUForArch());
-  }
-  {
-    llvm::Triple Triple("armv6j-unknown-eabi");
-    EXPECT_EQ("arm1136jf-s", Triple.getARMCPUForArch());
-  }
-  {
-    llvm::Triple Triple("armv6k-unknown-eabi");
-    EXPECT_EQ("arm1176j-s", Triple.getARMCPUForArch());
-  }
-  {
-    llvm::Triple Triple("armv6kz-unknown-eabi");
-    EXPECT_EQ("arm1176jzf-s", Triple.getARMCPUForArch());
-  }
-  {
-    llvm::Triple Triple("armv6zk-unknown-eabi");
-    EXPECT_EQ("arm1176jzf-s", Triple.getARMCPUForArch());
-  }
-  {
-    llvm::Triple Triple("armv6t2-unknown-eabi");
-    EXPECT_EQ("arm1156t2-s", Triple.getARMCPUForArch());
-  }
-  {
-    llvm::Triple Triple("armv6m-unknown-eabi");
-    EXPECT_EQ("cortex-m0", Triple.getARMCPUForArch());
-  }
-  {
-    llvm::Triple Triple("armv7-unknown-eabi");
-    EXPECT_EQ("cortex-a8", Triple.getARMCPUForArch());
-  }
-  {
-    llvm::Triple Triple("armv7a-unknown-eabi");
-    EXPECT_EQ("cortex-a8", Triple.getARMCPUForArch());
-  }
-  {
-    llvm::Triple Triple("armv7m-unknown-eabi");
-    EXPECT_EQ("cortex-m3", Triple.getARMCPUForArch());
-  }
-  {
-    llvm::Triple Triple("armv7r-unknown-eabi");
-    EXPECT_EQ("cortex-r4", Triple.getARMCPUForArch());
-  }
-  {
-    llvm::Triple Triple("armv7r-unknown-eabi");
-    EXPECT_EQ("cortex-r4", Triple.getARMCPUForArch());
-  }
-  {
-    llvm::Triple Triple("armv7r-unknown-eabi");
-    EXPECT_EQ("cortex-r4", Triple.getARMCPUForArch());
-  }
-  {
-    llvm::Triple Triple("armv7r-unknown-eabi");
-    EXPECT_EQ("cortex-r4", Triple.getARMCPUForArch());
-  }
-  {
-    llvm::Triple Triple("armv8a-unknown-eabi");
-    EXPECT_EQ("cortex-a53", Triple.getARMCPUForArch());
-  }
-  {
-    llvm::Triple Triple("armv8.1a-unknown-eabi");
-    EXPECT_EQ("generic", Triple.getARMCPUForArch());
-  }
-  // Non-synonym names, using -march style, not default arch.
-  {
-    llvm::Triple Triple("arm");
-    EXPECT_EQ("cortex-a8", Triple.getARMCPUForArch("armv7-a"));
-  }
-  {
-    llvm::Triple Triple("arm");
-    EXPECT_EQ("cortex-m3", Triple.getARMCPUForArch("armv7-m"));
-  }
-  {
-    llvm::Triple Triple("arm");
-    EXPECT_EQ("cortex-a53", Triple.getARMCPUForArch("armv8"));
-  }
-  {
-    llvm::Triple Triple("arm");
-    EXPECT_EQ("cortex-a53", Triple.getARMCPUForArch("armv8-a"));
-  }
   // Platform specific defaults.
   {
     llvm::Triple Triple("arm--nacl");
@@ -1003,18 +965,6 @@ TEST(TripleTest, getARMCPUForArch) {
   }
   // Some alternative architectures
   {
-    llvm::Triple Triple("xscale-unknown-eabi");
-    EXPECT_EQ("xscale", Triple.getARMCPUForArch());
-  }
-  {
-    llvm::Triple Triple("iwmmxt-unknown-eabi");
-    EXPECT_EQ("iwmmxt", Triple.getARMCPUForArch());
-  }
-  {
-    llvm::Triple Triple("armv7s-apple-ios7");
-    EXPECT_EQ("swift", Triple.getARMCPUForArch());
-  }
-  {
     llvm::Triple Triple("armv7k-apple-ios9");
     EXPECT_EQ("cortex-a7", Triple.getARMCPUForArch());
   }
@@ -1025,18 +975,6 @@ TEST(TripleTest, getARMCPUForArch) {
   {
     llvm::Triple Triple("armv7k-apple-tvos9");
     EXPECT_EQ("cortex-a7", Triple.getARMCPUForArch());
-  }
-  {
-    llvm::Triple Triple("armv7em-apple-ios7");
-    EXPECT_EQ("cortex-m4", Triple.getARMCPUForArch());
-  }
-  {
-    llvm::Triple Triple("armv7l-linux-gnueabihf");
-    EXPECT_EQ("cortex-a8", Triple.getARMCPUForArch());
-  }
-  {
-    llvm::Triple Triple("armv6sm-apple-ios7");
-    EXPECT_EQ("cortex-m0", Triple.getARMCPUForArch());
   }
   // armeb is permitted, but armebeb is not
   {
@@ -1050,15 +988,6 @@ TEST(TripleTest, getARMCPUForArch) {
   {
     llvm::Triple Triple("armebv6eb-none-eabi");
     EXPECT_EQ("", Triple.getARMCPUForArch());
-  }
-  // armebv6 and armv6eb are permitted, but armebv6eb is not
-  {
-    llvm::Triple Triple("armebv6-non-eabi");
-    EXPECT_EQ("arm1136jf-s", Triple.getARMCPUForArch());
-  }
-  {
-    llvm::Triple Triple("armv6eb-none-eabi");
-    EXPECT_EQ("arm1136jf-s", Triple.getARMCPUForArch());
   }
   // xscaleeb is permitted, but armebxscale is not
   {
@@ -1095,27 +1024,7 @@ TEST(TripleTest, ParseARMArch) {
     EXPECT_EQ(Triple::arm, T.getArch());
   }
   {
-    Triple T = Triple("armv6t2");
-    EXPECT_EQ(Triple::arm, T.getArch());
-  }
-  {
-    Triple T = Triple("armv8");
-    EXPECT_EQ(Triple::arm, T.getArch());
-  }
-  {
     Triple T = Triple("armeb");
-    EXPECT_EQ(Triple::armeb, T.getArch());
-  }
-  {
-    Triple T = Triple("armv5eb");
-    EXPECT_EQ(Triple::armeb, T.getArch());
-  }
-  {
-    Triple T = Triple("armebv7m");
-    EXPECT_EQ(Triple::armeb, T.getArch());
-  }
-  {
-    Triple T = Triple("armv7eb");
     EXPECT_EQ(Triple::armeb, T.getArch());
   }
   // THUMB
@@ -1124,32 +1033,8 @@ TEST(TripleTest, ParseARMArch) {
     EXPECT_EQ(Triple::thumb, T.getArch());
   }
   {
-    Triple T = Triple("thumbv7a");
-    EXPECT_EQ(Triple::thumb, T.getArch());
-  }
-  {
     Triple T = Triple("thumbeb");
     EXPECT_EQ(Triple::thumbeb, T.getArch());
-  }
-  {
-    Triple T = Triple("thumbv4teb");
-    EXPECT_EQ(Triple::thumbeb, T.getArch());
-  }
-  {
-    Triple T = Triple("thumbebv7");
-    EXPECT_EQ(Triple::thumbeb, T.getArch());
-  }
-  {
-    Triple T = Triple("armv6m");
-    EXPECT_EQ(Triple::thumb, T.getArch());
-  }
-  {
-    Triple T = Triple("thumbv2");
-    EXPECT_EQ(Triple::UnknownArch, T.getArch());
-  }
-  {
-    Triple T = Triple("thumbebv6eb");
-    EXPECT_EQ(Triple::UnknownArch, T.getArch());
   }
   // AARCH64
   {
@@ -1163,14 +1048,6 @@ TEST(TripleTest, ParseARMArch) {
   {
     Triple T = Triple("aarch64_be");
     EXPECT_EQ(Triple::aarch64_be, T.getArch());
-  }
-  {
-    Triple T = Triple("aarch64be");
-    EXPECT_EQ(Triple::UnknownArch, T.getArch());
-  }
-  {
-    Triple T = Triple("arm64be");
-    EXPECT_EQ(Triple::UnknownArch, T.getArch());
   }
 }
 } // end anonymous namespace

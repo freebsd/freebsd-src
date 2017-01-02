@@ -18,6 +18,7 @@
 #include "llvm/ADT/Statistic.h"
 #include "llvm/ExecutionEngine/GenericValue.h"
 #include "llvm/ExecutionEngine/JITEventListener.h"
+#include "llvm/ExecutionEngine/ObjectCache.h"
 #include "llvm/ExecutionEngine/RTDyldMemoryManager.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DataLayout.h"
@@ -48,18 +49,21 @@ STATISTIC(NumGlobals  , "Number of global vars initialized");
 ExecutionEngine *(*ExecutionEngine::MCJITCtor)(
     std::unique_ptr<Module> M, std::string *ErrorStr,
     std::shared_ptr<MCJITMemoryManager> MemMgr,
-    std::shared_ptr<RuntimeDyld::SymbolResolver> Resolver,
+
+    std::shared_ptr<JITSymbolResolver> Resolver,
     std::unique_ptr<TargetMachine> TM) = nullptr;
 
 ExecutionEngine *(*ExecutionEngine::OrcMCJITReplacementCtor)(
   std::string *ErrorStr, std::shared_ptr<MCJITMemoryManager> MemMgr,
-  std::shared_ptr<RuntimeDyld::SymbolResolver> Resolver,
+  std::shared_ptr<JITSymbolResolver> Resolver,
   std::unique_ptr<TargetMachine> TM) = nullptr;
 
 ExecutionEngine *(*ExecutionEngine::InterpCtor)(std::unique_ptr<Module> M,
                                                 std::string *ErrorStr) =nullptr;
 
 void JITEventListener::anchor() {}
+
+void ObjectCache::anchor() {}
 
 void ExecutionEngine::Init(std::unique_ptr<Module> M) {
   CompilingLazily         = false;
@@ -151,7 +155,7 @@ bool ExecutionEngine::removeModule(Module *M) {
   return false;
 }
 
-Function *ExecutionEngine::FindFunctionNamed(const char *FnName) {
+Function *ExecutionEngine::FindFunctionNamed(StringRef FnName) {
   for (unsigned i = 0, e = Modules.size(); i != e; ++i) {
     Function *F = Modules[i]->getFunction(FnName);
     if (F && !F->isDeclaration())
@@ -160,7 +164,7 @@ Function *ExecutionEngine::FindFunctionNamed(const char *FnName) {
   return nullptr;
 }
 
-GlobalVariable *ExecutionEngine::FindGlobalVariableNamed(const char *Name, bool AllowInternal) {
+GlobalVariable *ExecutionEngine::FindGlobalVariableNamed(StringRef Name, bool AllowInternal) {
   for (unsigned i = 0, e = Modules.size(); i != e; ++i) {
     GlobalVariable *GV = Modules[i]->getGlobalVariable(Name,AllowInternal);
     if (GV && !GV->isDeclaration())
@@ -366,7 +370,7 @@ void *ArgvArray::reset(LLVMContext &C, ExecutionEngine *EE,
 
 void ExecutionEngine::runStaticConstructorsDestructors(Module &module,
                                                        bool isDtors) {
-  const char *Name = isDtors ? "llvm.global_dtors" : "llvm.global_ctors";
+  StringRef Name(isDtors ? "llvm.global_dtors" : "llvm.global_ctors");
   GlobalVariable *GV = module.getNamedGlobal(Name);
 
   // If this global has internal linkage, or if it has a use, then it must be
@@ -499,8 +503,8 @@ EngineBuilder::setMemoryManager(std::unique_ptr<MCJITMemoryManager> MM) {
 }
 
 EngineBuilder&
-EngineBuilder::setSymbolResolver(std::unique_ptr<RuntimeDyld::SymbolResolver> SR) {
-  Resolver = std::shared_ptr<RuntimeDyld::SymbolResolver>(std::move(SR));
+EngineBuilder::setSymbolResolver(std::unique_ptr<JITSymbolResolver> SR) {
+  Resolver = std::shared_ptr<JITSymbolResolver>(std::move(SR));
   return *this;
 }
 
@@ -688,7 +692,7 @@ GenericValue ExecutionEngine::getConstantValue(const Constant *C) {
       else if (CE->getType()->isDoubleTy())
         GV.DoubleVal = GV.IntVal.roundToDouble();
       else if (CE->getType()->isX86_FP80Ty()) {
-        APFloat apf = APFloat::getZero(APFloat::x87DoubleExtended);
+        APFloat apf = APFloat::getZero(APFloat::x87DoubleExtended());
         (void)apf.convertFromAPInt(GV.IntVal,
                                    false,
                                    APFloat::rmNearestTiesToEven);
@@ -703,7 +707,7 @@ GenericValue ExecutionEngine::getConstantValue(const Constant *C) {
       else if (CE->getType()->isDoubleTy())
         GV.DoubleVal = GV.IntVal.signedRoundToDouble();
       else if (CE->getType()->isX86_FP80Ty()) {
-        APFloat apf = APFloat::getZero(APFloat::x87DoubleExtended);
+        APFloat apf = APFloat::getZero(APFloat::x87DoubleExtended());
         (void)apf.convertFromAPInt(GV.IntVal,
                                    true,
                                    APFloat::rmNearestTiesToEven);
@@ -720,7 +724,7 @@ GenericValue ExecutionEngine::getConstantValue(const Constant *C) {
       else if (Op0->getType()->isDoubleTy())
         GV.IntVal = APIntOps::RoundDoubleToAPInt(GV.DoubleVal, BitWidth);
       else if (Op0->getType()->isX86_FP80Ty()) {
-        APFloat apf = APFloat(APFloat::x87DoubleExtended, GV.IntVal);
+        APFloat apf = APFloat(APFloat::x87DoubleExtended(), GV.IntVal);
         uint64_t v;
         bool ignored;
         (void)apf.convertToInteger(&v, BitWidth,

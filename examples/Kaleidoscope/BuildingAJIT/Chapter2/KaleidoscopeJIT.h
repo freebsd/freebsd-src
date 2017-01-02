@@ -16,19 +16,22 @@
 
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ExecutionEngine/ExecutionEngine.h"
+#include "llvm/ExecutionEngine/JITSymbol.h"
 #include "llvm/ExecutionEngine/RuntimeDyld.h"
 #include "llvm/ExecutionEngine/SectionMemoryManager.h"
 #include "llvm/ExecutionEngine/Orc/CompileUtils.h"
-#include "llvm/ExecutionEngine/Orc/JITSymbol.h"
 #include "llvm/ExecutionEngine/Orc/IRCompileLayer.h"
 #include "llvm/ExecutionEngine/Orc/IRTransformLayer.h"
 #include "llvm/ExecutionEngine/Orc/LambdaResolver.h"
 #include "llvm/ExecutionEngine/Orc/ObjectLinkingLayer.h"
 #include "llvm/IR/DataLayout.h"
+#include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Mangler.h"
 #include "llvm/Support/DynamicLibrary.h"
-#include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetMachine.h"
+#include "llvm/Support/raw_ostream.h"
+#include "llvm/Transforms/Scalar.h"
+#include "llvm/Transforms/Scalar/GVN.h"
 #include <algorithm>
 #include <memory>
 #include <string>
@@ -72,17 +75,17 @@ public:
     auto Resolver = createLambdaResolver(
         [&](const std::string &Name) {
           if (auto Sym = OptimizeLayer.findSymbol(Name, false))
-            return Sym.toRuntimeDyldSymbol();
-          return RuntimeDyld::SymbolInfo(nullptr);
+            return Sym;
+          return JITSymbol(nullptr);
         },
         [](const std::string &Name) {
           if (auto SymAddr =
                 RTDyldMemoryManager::getSymbolAddressInProcess(Name))
-            return RuntimeDyld::SymbolInfo(SymAddr, JITSymbolFlags::Exported);
-          return RuntimeDyld::SymbolInfo(nullptr);
+            return JITSymbol(SymAddr, JITSymbolFlags::Exported);
+          return JITSymbol(nullptr);
         });
 
-    // Build a singlton module set to hold our module.
+    // Build a singleton module set to hold our module.
     std::vector<std::unique_ptr<Module>> Ms;
     Ms.push_back(std::move(M));
 
@@ -105,7 +108,6 @@ public:
   }
 
 private:
-
   std::unique_ptr<Module> optimizeModule(std::unique_ptr<Module> M) {
     // Create a function pass manager.
     auto FPM = llvm::make_unique<legacy::FunctionPassManager>(M.get());
@@ -124,7 +126,6 @@ private:
 
     return M;
   }
-
 };
 
 } // end namespace orc

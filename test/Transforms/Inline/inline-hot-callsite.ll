@@ -1,4 +1,5 @@
-; RUN: opt < %s -inline -inline-threshold=0 -inlinehint-threshold=100 -S | FileCheck %s
+; RUN: opt < %s -inline -inline-threshold=0 -hot-callsite-threshold=100 -S | FileCheck %s
+; RUN: opt < %s -passes='require<profile-summary>,cgscc(inline)' -inline-threshold=0 -hot-callsite-threshold=100 -S | FileCheck %s
 
 ; This tests that a hot callsite gets the (higher) inlinehint-threshold even without
 ; without inline hints and gets inlined because the cost is less than
@@ -9,7 +10,7 @@ define i32 @callee1(i32 %x) {
   %x1 = add i32 %x, 1
   %x2 = add i32 %x1, 1
   %x3 = add i32 %x2, 1
-
+  call void @extern()
   ret i32 %x3
 }
 
@@ -18,7 +19,7 @@ define i32 @callee2(i32 %x) {
   %x1 = add i32 %x, 1
   %x2 = add i32 %x1, 1
   %x3 = add i32 %x2, 1
-
+  call void @extern()
   ret i32 %x3
 }
 
@@ -31,6 +32,8 @@ define i32 @caller2(i32 %y1) {
   %y3 = call i32 @callee1(i32 %y2), !prof !21
   ret i32 %y3
 }
+
+declare void @extern()
 
 !llvm.module.flags = !{!1}
 !21 = !{!"branch_weights", i64 300}

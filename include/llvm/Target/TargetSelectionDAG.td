@@ -450,10 +450,10 @@ def ftrunc     : SDNode<"ISD::FTRUNC"     , SDTFPUnaryOp>;
 def fceil      : SDNode<"ISD::FCEIL"      , SDTFPUnaryOp>;
 def ffloor     : SDNode<"ISD::FFLOOR"     , SDTFPUnaryOp>;
 def fnearbyint : SDNode<"ISD::FNEARBYINT" , SDTFPUnaryOp>;
-def frnd       : SDNode<"ISD::FROUND"     , SDTFPUnaryOp>;
+def fround     : SDNode<"ISD::FROUND"     , SDTFPUnaryOp>;
 
-def fround     : SDNode<"ISD::FP_ROUND"   , SDTFPRoundOp>;
-def fextend    : SDNode<"ISD::FP_EXTEND"  , SDTFPExtendOp>;
+def fpround    : SDNode<"ISD::FP_ROUND"   , SDTFPRoundOp>;
+def fpextend   : SDNode<"ISD::FP_EXTEND"  , SDTFPExtendOp>;
 def fcopysign  : SDNode<"ISD::FCOPYSIGN"  , SDTFPSignOp>;
 
 def sint_to_fp : SDNode<"ISD::SINT_TO_FP" , SDTIntToFPOp>;
@@ -1165,10 +1165,12 @@ class Pat<dag pattern, dag result> : Pattern<pattern, [result]>;
 // e.g. X86 addressing mode - def addr : ComplexPattern<4, "SelectAddr", [add]>;
 //
 class ComplexPattern<ValueType ty, int numops, string fn,
-                     list<SDNode> roots = [], list<SDNodeProperty> props = []> {
+                     list<SDNode> roots = [], list<SDNodeProperty> props = [],
+                     int complexity = -1> {
   ValueType Ty = ty;
   int NumOperands = numops;
   string SelectFunc = fn;
   list<SDNode> RootNodes = roots;
   list<SDNodeProperty> Properties = props;
+  int Complexity = complexity;
 }

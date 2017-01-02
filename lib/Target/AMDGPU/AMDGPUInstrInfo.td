@@ -40,6 +40,8 @@ def AMDGPUFmasOp : SDTypeProfile<1, 4,
   [SDTCisFP<0>, SDTCisSameAs<0, 1>, SDTCisSameAs<0, 2>, SDTCisSameAs<0, 3>, SDTCisInt<4>]
 >;
 
+def AMDGPUKillSDT : SDTypeProfile<0, 1, [SDTCisInt<0>]>;
+
 //===----------------------------------------------------------------------===//
 // AMDGPU DAG Nodes
 //
@@ -65,6 +67,7 @@ def AMDGPUrcp : SDNode<"AMDGPUISD::RCP", SDTFPUnaryOp>;
 def AMDGPUrsq : SDNode<"AMDGPUISD::RSQ", SDTFPUnaryOp>;
 
 // out = 1.0 / sqrt(a)
+def AMDGPUrcp_legacy : SDNode<"AMDGPUISD::RCP_LEGACY", SDTFPUnaryOp>;
 def AMDGPUrsq_legacy : SDNode<"AMDGPUISD::RSQ_LEGACY", SDTFPUnaryOp>;
 
 // out = 1.0 / sqrt(a) result clamped to +/- max_float.
@@ -80,6 +83,10 @@ def AMDGPUfp_class : SDNode<"AMDGPUISD::FP_CLASS", AMDGPUFPClassOp>;
 //   nan < x ? nan : x -> x
 def AMDGPUfmax_legacy : SDNode<"AMDGPUISD::FMAX_LEGACY", SDTFPBinOp,
   []
+>;
+
+def AMDGPUfmul_legacy : SDNode<"AMDGPUISD::FMUL_LEGACY", SDTFPBinOp,
+  [SDNPCommutative, SDNPAssociative]
 >;
 
 def AMDGPUclamp : SDNode<"AMDGPUISD::CLAMP", SDTFPTernaryOp, []>;
@@ -137,6 +144,24 @@ def AMDGPUcarry : SDNode<"AMDGPUISD::CARRY", SDTIntBinOp, []>;
 // out = (src1 > src0) ? 1 : 0
 def AMDGPUborrow : SDNode<"AMDGPUISD::BORROW", SDTIntBinOp, []>;
 
+def AMDGPUSetCCOp : SDTypeProfile<1, 3, [        // setcc
+  SDTCisVT<0, i64>, SDTCisSameAs<1, 2>, SDTCisVT<3, OtherVT>
+]>;
+
+def AMDGPUsetcc : SDNode<"AMDGPUISD::SETCC", AMDGPUSetCCOp>;
+
+def AMDGPUSetRegOp :  SDTypeProfile<0, 2, [
+  SDTCisInt<0>, SDTCisInt<1>
+]>;
+
+def AMDGPUsetreg : SDNode<"AMDGPUISD::SETREG", AMDGPUSetRegOp, [
+  SDNPHasChain, SDNPSideEffect, SDNPOptInGlue, SDNPOutGlue]>;
+
+def AMDGPUfma : SDNode<"AMDGPUISD::FMA_W_CHAIN", SDTFPTernaryOp, [
+   SDNPHasChain, SDNPOptInGlue, SDNPOutGlue]>;
+
+def AMDGPUmul : SDNode<"AMDGPUISD::FMUL_W_CHAIN", SDTFPBinOp, [
+  SDNPHasChain, SDNPOptInGlue, SDNPOutGlue]>;
 
 def AMDGPUcvt_f32_ubyte0 : SDNode<"AMDGPUISD::CVT_F32_UBYTE0",
   SDTIntToFPOp, []>;
@@ -202,14 +227,22 @@ def AMDGPUbfi : SDNode<"AMDGPUISD::BFI", AMDGPUDTIntTernaryOp>;
 def AMDGPUbfm : SDNode<"AMDGPUISD::BFM", SDTIntBinOp>;
 
 def AMDGPUffbh_u32 : SDNode<"AMDGPUISD::FFBH_U32", SDTIntUnaryOp>;
+def AMDGPUffbh_i32 : SDNode<"AMDGPUISD::FFBH_I32", SDTIntUnaryOp>;
 
-// Signed and unsigned 24-bit mulitply.  The highest 8-bits are ignore when
-// performing the mulitply.  The result is a 32-bit value.
+// Signed and unsigned 24-bit multiply. The highest 8-bits are ignore
+// when performing the mulitply. The result is a 32-bit value.
 def AMDGPUmul_u24 : SDNode<"AMDGPUISD::MUL_U24", SDTIntBinOp,
-  [SDNPCommutative]
+  [SDNPCommutative, SDNPAssociative]
 >;
 def AMDGPUmul_i24 : SDNode<"AMDGPUISD::MUL_I24", SDTIntBinOp,
-  [SDNPCommutative]
+  [SDNPCommutative, SDNPAssociative]
+>;
+
+def AMDGPUmulhi_u24 : SDNode<"AMDGPUISD::MULHI_U24", SDTIntBinOp,
+  [SDNPCommutative, SDNPAssociative]
+>;
+def AMDGPUmulhi_i24 : SDNode<"AMDGPUISD::MULHI_I24", SDTIntBinOp,
+  [SDNPCommutative, SDNPAssociative]
 >;
 
 def AMDGPUmad_u24 : SDNode<"AMDGPUISD::MAD_U24", AMDGPUDTIntTernaryOp,
@@ -244,6 +277,35 @@ def AMDGPUinterp_p1 : SDNode<"AMDGPUISD::INTERP_P1",
 def AMDGPUinterp_p2 : SDNode<"AMDGPUISD::INTERP_P2",
                       SDTypeProfile<1, 4, [SDTCisFP<0>]>,
                       [SDNPInGlue]>;
+
+
+def AMDGPUkill : SDNode<"AMDGPUISD::KILL", AMDGPUKillSDT,
+  [SDNPHasChain, SDNPSideEffect]>;
+
+// SI+ export
+def AMDGPUExportOp : SDTypeProfile<0, 8, [
+  SDTCisInt<0>, // i8 en
+  SDTCisInt<1>, // i1 vm
+  // skip done
+  SDTCisInt<2>, // i8 tgt
+  SDTCisSameAs<3, 1>, // i1 compr
+  SDTCisFP<4>,        // f32 src0
+  SDTCisSameAs<5, 4>, // f32 src1
+  SDTCisSameAs<6, 4>, // f32 src2
+  SDTCisSameAs<7, 4>  // f32 src3
+]>;
+
+def AMDGPUexport: SDNode<"AMDGPUISD::EXPORT", AMDGPUExportOp,
+  [SDNPHasChain, SDNPMayStore]>;
+
+def AMDGPUexport_done: SDNode<"AMDGPUISD::EXPORT_DONE", AMDGPUExportOp,
+  [SDNPHasChain, SDNPMayLoad, SDNPMayStore]>;
+
+
+def R600ExportOp : SDTypeProfile<0, 7, [SDTCisFP<0>, SDTCisInt<1>]>;
+
+def R600_EXPORT: SDNode<"AMDGPUISD::R600_EXPORT", R600ExportOp,
+  [SDNPHasChain, SDNPSideEffect]>;
 
 //===----------------------------------------------------------------------===//
 // Flow Control Profile Types

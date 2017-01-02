@@ -33,15 +33,12 @@ return:
 }
 
 ; CHECK-DIV-DAG: BB#0
-; CHECK-DIV-DAG: Successors according to CFG: BB#5({{.*}}) BB#4
+; CHECK-DIV-DAG: Successors according to CFG: BB#1({{.*}}) BB#2
 ; CHECK-DIV-DAG: BB#1
 ; CHECK-DIV-DAG: Successors according to CFG: BB#3
 ; CHECK-DIV-DAG: BB#2
 ; CHECK-DIV-DAG: Successors according to CFG: BB#3
 ; CHECK-DIV-DAG: BB#3
-; CHECK-DIV-DAG: BB#4
-; CHECK-DIV-DAG: Successors according to CFG: BB#1({{.*}}) BB#2
-; CHECK-DIV-DAG: BB#5
 
 ; RUN: llc -mtriple thumbv7--windows-itanium -print-machineinstrs=expand-isel-pseudos -verify-machineinstrs -o /dev/null %s 2>&1 | FileCheck %s -check-prefix CHECK-MOD
 
@@ -72,14 +69,13 @@ return:
 ; CHECK-MOD-DAG: BB#0
 ; CHECK-MOD-DAG: Successors according to CFG: BB#2({{.*}}) BB#1
 ; CHECK-MOD-DAG: BB#1
-; CHECK-MOD-DAG: Successors according to CFG: BB#4({{.*}}) BB#3
-; CHECK-MOD-DAG: BB#2
+; CHECK-MOD-DAG: Successors according to CFG: BB#3
 ; CHECK-MOD-DAG: BB#3
 ; CHECK-MOD-DAG: Successors according to CFG: BB#2
-; CHECK-MOD-DAG: BB#4
+; CHECK-MOD-DAG: BB#2
 
 ; RUN: llc -mtriple thumbv7--windows-itanium -print-machineinstrs=expand-isel-pseudos -verify-machineinstrs -filetype asm -o /dev/null %s 2>&1 | FileCheck %s -check-prefix CHECK-CFG
-; RUN: llc -mtriple thumbv7--windows-itanium -print-machineinstrs=expand-isel-pseudos -verify-machineinstrs -filetype asm -o - %s | FileCheck %s -check-prefix CHECK-CFG-ASM
+; RUN: llc -mtriple thumbv7--windows-itanium -verify-machineinstrs -filetype asm -o - %s | FileCheck %s -check-prefix CHECK-CFG-ASM
 
 ; unsigned c;
 ; extern unsigned long g(void);
@@ -123,8 +119,8 @@ attributes #0 = { optsize }
 ; CHECK-CFG-DAG: t2B <BB#3>
 
 ; CHECK-CFG-DAG: BB#2
-; CHECK-CFG-DAG: tCBZ %vreg{{[0-9]}}, <BB#5>
-; CHECK-CFG-DAG: t2B <BB#4>
+; CHECK-CFG-DAG: tCMPi8 %vreg{{[0-9]}}, 0
+; CHECK-CFG-DAG: t2Bcc <BB#5>
 
 ; CHECK-CFG-DAG: BB#4
 
@@ -132,18 +128,15 @@ attributes #0 = { optsize }
 ; CHECK-CFG-DAG: tBX_RET
 
 ; CHECK-CFG-DAG: BB#5
-; CHECK-CFG-DAG: t2UDF 249
+; CHECK-CFG-DAG: t__brkdiv0
 
 ; CHECK-CFG-ASM-LABEL: h:
-; CHECK-CFG-ASM: cbz r{{[0-9]}}, .LBB2_2
-; CHECK-CFG-ASM: b .LBB2_4
-; CHECK-CFG-ASM-LABEL: .LBB2_2:
-; CHECK-CFG-ASM-NEXT: udf.w #249
-; CHECK-CFG-ASM-LABEL: .LBB2_4:
+; CHECK-CFG-ASM: cbz r{{[0-9]}}, .LBB2_4
 ; CHECK-CFG-ASM: bl __rt_udiv
-; CHECK-CFG-ASM: pop.w {{{.*}}, r11, pc}
+; CHECK-CFG-ASM-LABEL: .LBB2_4:
+; CHECK-CFG-ASM: __brkdiv0
 
-; RUN: llc -O0 -mtriple thumbv7--windows-itanium -verify-machineinstrs -filetype asm -o - %s | FileCheck %s -check-prefix CHECK-WIN__DBZCHK
+; RUN: llc -O1 -mtriple thumbv7--windows-itanium -verify-machineinstrs -filetype asm -o - %s | FileCheck %s -check-prefix CHECK-WIN__DBZCHK
 
 ; long k(void);
 ; int l(void);

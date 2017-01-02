@@ -198,7 +198,7 @@ define   <8 x double> @_sd8xdouble_maskz_load(double* %a.ptr, <8 x i32> %mask1) 
 define   <16 x i32> @_xmm16xi32(<16 x i32> %a) {
 ; ALL-LABEL: _xmm16xi32:
 ; ALL:       # BB#0:
-; ALL-NEXT:    vpbroadcastd %xmm0, %zmm0
+; ALL-NEXT:    vbroadcastss %xmm0, %zmm0
 ; ALL-NEXT:    retq
   %b = shufflevector <16 x i32> %a, <16 x i32> undef, <16 x i32> zeroinitializer
   ret <16 x i32> %b
@@ -359,7 +359,7 @@ define <64 x i8> @_invec32xi8(<32 x i8>%a)  {
 ; AVX512F-LABEL: _invec32xi8:
 ; AVX512F:       # BB#0:
 ; AVX512F-NEXT:    vpbroadcastb %xmm0, %ymm0
-; AVX512F-NEXT:    vmovaps %zmm0, %zmm1
+; AVX512F-NEXT:    vmovdqa %ymm0, %ymm1
 ; AVX512F-NEXT:    retq
 ;
 ; AVX512BW-LABEL: _invec32xi8:
@@ -374,7 +374,7 @@ define <32 x i16> @_invec16xi16(<16 x i16>%a)  {
 ; AVX512F-LABEL: _invec16xi16:
 ; AVX512F:       # BB#0:
 ; AVX512F-NEXT:    vpbroadcastw %xmm0, %ymm0
-; AVX512F-NEXT:    vmovaps %zmm0, %zmm1
+; AVX512F-NEXT:    vmovdqa %ymm0, %ymm1
 ; AVX512F-NEXT:    retq
 ;
 ; AVX512BW-LABEL: _invec16xi16:
@@ -388,7 +388,7 @@ define <32 x i16> @_invec16xi16(<16 x i16>%a)  {
 define <16 x i32> @_invec8xi32(<8 x i32>%a)  {
 ; ALL-LABEL: _invec8xi32:
 ; ALL:       # BB#0:
-; ALL-NEXT:    vpbroadcastd %xmm0, %zmm0
+; ALL-NEXT:    vbroadcastss %xmm0, %zmm0
 ; ALL-NEXT:    retq
   %res = shufflevector <8 x i32> %a, <8 x i32> undef, <16 x i32> zeroinitializer
   ret <16 x i32>%res
@@ -397,7 +397,7 @@ define <16 x i32> @_invec8xi32(<8 x i32>%a)  {
 define <8 x i64> @_invec4xi64(<4 x i64>%a)  {
 ; ALL-LABEL: _invec4xi64:
 ; ALL:       # BB#0:
-; ALL-NEXT:    vpbroadcastq %xmm0, %zmm0
+; ALL-NEXT:    vbroadcastsd %xmm0, %zmm0
 ; ALL-NEXT:    retq
   %res = shufflevector <4 x i64> %a, <4 x i64> undef, <8 x i32> zeroinitializer
   ret <8 x i64>%res
@@ -408,7 +408,7 @@ define <16 x float> @broadcast_ss_spill(float %x) {
 ; ALL-LABEL: broadcast_ss_spill:
 ; ALL:       # BB#0:
 ; ALL-NEXT:    pushq %rax
-; ALL-NEXT:  .Ltmp0:
+; ALL-NEXT:  .Lcfi0:
 ; ALL-NEXT:    .cfi_def_cfa_offset 16
 ; ALL-NEXT:    vaddss %xmm0, %xmm0, %xmm0
 ; ALL-NEXT:    vmovss %xmm0, {{[0-9]+}}(%rsp) # 4-byte Spill
@@ -428,7 +428,7 @@ define <8 x double> @broadcast_sd_spill(double %x) {
 ; ALL-LABEL: broadcast_sd_spill:
 ; ALL:       # BB#0:
 ; ALL-NEXT:    pushq %rax
-; ALL-NEXT:  .Ltmp1:
+; ALL-NEXT:  .Lcfi1:
 ; ALL-NEXT:    .cfi_def_cfa_offset 16
 ; ALL-NEXT:    vaddsd %xmm0, %xmm0, %xmm0
 ; ALL-NEXT:    vmovsd %xmm0, (%rsp) # 8-byte Spill

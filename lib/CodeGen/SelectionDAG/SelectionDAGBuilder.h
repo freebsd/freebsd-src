@@ -305,12 +305,13 @@ private:
   };
 
   /// Check whether a range of clusters is dense enough for a jump table.
-  bool isDense(const CaseClusterVector &Clusters, unsigned *TotalCases,
-               unsigned First, unsigned Last, unsigned MinDensity);
+  bool isDense(const CaseClusterVector &Clusters,
+               const SmallVectorImpl<unsigned> &TotalCases,
+               unsigned First, unsigned Last, unsigned MinDensity) const;
 
   /// Build a jump table cluster from Clusters[First..Last]. Returns false if it
   /// decides it's not a good idea.
-  bool buildJumpTable(CaseClusterVector &Clusters, unsigned First,
+  bool buildJumpTable(const CaseClusterVector &Clusters, unsigned First,
                       unsigned Last, const SwitchInst *SI,
                       MachineBasicBlock *DefaultMBB, CaseCluster &JTCluster);
 
@@ -652,8 +653,6 @@ public:
     return CurInst ? CurInst->getDebugLoc() : DebugLoc();
   }
 
-  unsigned getSDNodeOrder() const { return SDNodeOrder; }
-
   void CopyValueToVirtualRegister(const Value *V, unsigned Reg);
 
   void visit(const Instruction &I);
@@ -875,8 +874,8 @@ private:
   void visitAlloca(const AllocaInst &I);
   void visitLoad(const LoadInst &I);
   void visitStore(const StoreInst &I);
-  void visitMaskedLoad(const CallInst &I);
-  void visitMaskedStore(const CallInst &I);
+  void visitMaskedLoad(const CallInst &I, bool IsExpanding = false);
+  void visitMaskedStore(const CallInst &I, bool IsCompressing = false);
   void visitMaskedGather(const CallInst &I);
   void visitMaskedScatter(const CallInst &I);
   void visitAtomicCmpXchg(const AtomicCmpXchgInst &I);
@@ -885,6 +884,7 @@ private:
   void visitPHI(const PHINode &I);
   void visitCall(const CallInst &I);
   bool visitMemCmpCall(const CallInst &I);
+  bool visitMemPCpyCall(const CallInst &I);
   bool visitMemChrCall(const CallInst &I);
   bool visitStrCpyCall(const CallInst &I, bool isStpcpy);
   bool visitStrCmpCall(const CallInst &I);
@@ -941,6 +941,11 @@ private:
   /// Update the DAG and DAG builder with the relevant information after
   /// a new root node has been created which could be a tail call.
   void updateDAGForMaybeTailCall(SDValue MaybeTC);
+
+  /// Return the appropriate SDDbgValue based on N.
+  SDDbgValue *getDbgValue(SDValue N, DILocalVariable *Variable,
+                          DIExpression *Expr, int64_t Offset, DebugLoc dl,
+                          unsigned DbgSDNodeOrder);
 };
 
 /// RegsForValue - This struct represents the registers (physical or virtual)

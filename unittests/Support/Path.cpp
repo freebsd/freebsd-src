@@ -8,10 +8,12 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Support/Path.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/ConvertUTF.h"
 #include "llvm/Support/Errc.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/FileSystem.h"
+#include "llvm/Support/FileUtilities.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/raw_ostream.h"
 #include "gtest/gtest.h"
@@ -120,22 +122,24 @@ TEST(Support, Path) {
     }
     ASSERT_TRUE(ComponentStack.empty());
 
-    path::has_root_path(*i);
-    path::root_path(*i);
-    path::has_root_name(*i);
-    path::root_name(*i);
-    path::has_root_directory(*i);
-    path::root_directory(*i);
-    path::has_parent_path(*i);
-    path::parent_path(*i);
-    path::has_filename(*i);
-    path::filename(*i);
-    path::has_stem(*i);
-    path::stem(*i);
-    path::has_extension(*i);
-    path::extension(*i);
-    path::is_absolute(*i);
-    path::is_relative(*i);
+    // Crash test most of the API - since we're iterating over all of our paths
+    // here there isn't really anything reasonable to assert on in the results.
+    (void)path::has_root_path(*i);
+    (void)path::root_path(*i);
+    (void)path::has_root_name(*i);
+    (void)path::root_name(*i);
+    (void)path::has_root_directory(*i);
+    (void)path::root_directory(*i);
+    (void)path::has_parent_path(*i);
+    (void)path::parent_path(*i);
+    (void)path::has_filename(*i);
+    (void)path::filename(*i);
+    (void)path::has_stem(*i);
+    (void)path::stem(*i);
+    (void)path::has_extension(*i);
+    (void)path::extension(*i);
+    (void)path::is_absolute(*i);
+    (void)path::is_relative(*i);
 
     SmallString<128> temp_store;
     temp_store = *i;
@@ -486,6 +490,10 @@ TEST_F(FileSystemTest, Unique) {
      fs::createUniqueDirectory("dir2", Dir2));
   ASSERT_NO_ERROR(fs::getUniqueID(Dir2.c_str(), F2));
   ASSERT_NE(F1, F2);
+  ASSERT_NO_ERROR(fs::remove(Dir1));
+  ASSERT_NO_ERROR(fs::remove(Dir2));
+  ASSERT_NO_ERROR(fs::remove(TempPath2));
+  ASSERT_NO_ERROR(fs::remove(TempPath));
 }
 
 TEST_F(FileSystemTest, TempFiles) {
@@ -529,6 +537,7 @@ TEST_F(FileSystemTest, TempFiles) {
   SmallString<64> TempPath3;
   ASSERT_NO_ERROR(fs::createTemporaryFile("prefix", "", TempPath3));
   ASSERT_FALSE(TempPath3.endswith("."));
+  FileRemover Cleanup3(TempPath3);
 
   // Create a hard link to Temp1.
   ASSERT_NO_ERROR(fs::create_link(Twine(TempPath), Twine(TempPath2)));
@@ -677,16 +686,15 @@ TEST_F(FileSystemTest, DirectoryIteration) {
       i.no_push();
     visited.push_back(path::filename(i->path()));
   }
-  v_t::const_iterator a0 = std::find(visited.begin(), visited.end(), "a0");
-  v_t::const_iterator aa1 = std::find(visited.begin(), visited.end(), "aa1");
-  v_t::const_iterator ab1 = std::find(visited.begin(), visited.end(), "ab1");
-  v_t::const_iterator dontlookhere = std::find(visited.begin(), visited.end(),
-                                               "dontlookhere");
-  v_t::const_iterator da1 = std::find(visited.begin(), visited.end(), "da1");
-  v_t::const_iterator z0 = std::find(visited.begin(), visited.end(), "z0");
-  v_t::const_iterator za1 = std::find(visited.begin(), visited.end(), "za1");
-  v_t::const_iterator pop = std::find(visited.begin(), visited.end(), "pop");
-  v_t::const_iterator p1 = std::find(visited.begin(), visited.end(), "p1");
+  v_t::const_iterator a0 = find(visited, "a0");
+  v_t::const_iterator aa1 = find(visited, "aa1");
+  v_t::const_iterator ab1 = find(visited, "ab1");
+  v_t::const_iterator dontlookhere = find(visited, "dontlookhere");
+  v_t::const_iterator da1 = find(visited, "da1");
+  v_t::const_iterator z0 = find(visited, "z0");
+  v_t::const_iterator za1 = find(visited, "za1");
+  v_t::const_iterator pop = find(visited, "pop");
+  v_t::const_iterator p1 = find(visited, "p1");
 
   // Make sure that each path was visited correctly.
   ASSERT_NE(a0, visited.end());
@@ -851,6 +859,8 @@ TEST_F(FileSystemTest, Resize) {
   fs::file_status Status;
   ASSERT_NO_ERROR(fs::status(FD, Status));
   ASSERT_EQ(Status.getSize(), 123U);
+  ::close(FD);
+  ASSERT_NO_ERROR(fs::remove(TempPath));
 }
 
 TEST_F(FileSystemTest, FileMapping) {
@@ -874,21 +884,25 @@ TEST_F(FileSystemTest, FileMapping) {
     mfr.data()[Val.size()] = 0;
     // Unmap temp file
   }
+  ASSERT_EQ(close(FileDescriptor), 0);
 
   // Map it back in read-only
-  int FD;
-  EC = fs::openFileForRead(Twine(TempPath), FD);
-  ASSERT_NO_ERROR(EC);
-  fs::mapped_file_region mfr(FD, fs::mapped_file_region::readonly, Size, 0, EC);
-  ASSERT_NO_ERROR(EC);
+  {
+    int FD;
+    EC = fs::openFileForRead(Twine(TempPath), FD);
+    ASSERT_NO_ERROR(EC);
+    fs::mapped_file_region mfr(FD, fs::mapped_file_region::readonly, Size, 0, EC);
+    ASSERT_NO_ERROR(EC);
 
-  // Verify content
-  EXPECT_EQ(StringRef(mfr.const_data()), Val);
+    // Verify content
+    EXPECT_EQ(StringRef(mfr.const_data()), Val);
 
-  // Unmap temp file
-  fs::mapped_file_region m(FD, fs::mapped_file_region::readonly, Size, 0, EC);
-  ASSERT_NO_ERROR(EC);
-  ASSERT_EQ(close(FD), 0);
+    // Unmap temp file
+    fs::mapped_file_region m(FD, fs::mapped_file_region::readonly, Size, 0, EC);
+    ASSERT_NO_ERROR(EC);
+    ASSERT_EQ(close(FD), 0);
+  }
+  ASSERT_NO_ERROR(fs::remove(TempPath));
 }
 
 TEST(Support, NormalizePath) {
@@ -953,6 +967,8 @@ TEST(Support, RemoveDots) {
   EXPECT_EQ("a\\..\\b\\c", remove_dots(".\\a\\..\\b\\c", false));
   EXPECT_EQ("b\\c", remove_dots(".\\a\\..\\b\\c", true));
   EXPECT_EQ("c", remove_dots(".\\.\\c", true));
+  EXPECT_EQ("..\\a\\c", remove_dots("..\\a\\b\\..\\c", true));
+  EXPECT_EQ("..\\..\\a\\c", remove_dots("..\\..\\a\\b\\..\\c", true));
 
   SmallString<64> Path1(".\\.\\c");
   EXPECT_TRUE(path::remove_dots(Path1, true));
@@ -964,6 +980,10 @@ TEST(Support, RemoveDots) {
   EXPECT_EQ("a/../b/c", remove_dots("./a/../b/c", false));
   EXPECT_EQ("b/c", remove_dots("./a/../b/c", true));
   EXPECT_EQ("c", remove_dots("././c", true));
+  EXPECT_EQ("../a/c", remove_dots("../a/b/../c", true));
+  EXPECT_EQ("../../a/c", remove_dots("../../a/b/../c", true));
+  EXPECT_EQ("/a/c", remove_dots("/../../a/c", true));
+  EXPECT_EQ("/a/c", remove_dots("/../a/b//../././/c", true));
 
   SmallString<64> Path1("././c");
   EXPECT_TRUE(path::remove_dots(Path1, true));
@@ -1002,6 +1022,7 @@ TEST_F(FileSystemTest, PathFromFD) {
   SmallString<64> TempPath;
   ASSERT_NO_ERROR(
       fs::createTemporaryFile("prefix", "temp", FileDescriptor, TempPath));
+  FileRemover Cleanup(TempPath);
 
   // Make sure it exists.
   ASSERT_TRUE(sys::fs::exists(Twine(TempPath)));
@@ -1030,6 +1051,7 @@ TEST_F(FileSystemTest, PathFromFDWin32) {
   SmallString<64> TempPath;
   ASSERT_NO_ERROR(
     fs::createTemporaryFile("prefix", "temp", FileDescriptor, TempPath));
+  FileRemover Cleanup(TempPath);
 
   // Make sure it exists.
   ASSERT_TRUE(sys::fs::exists(Twine(TempPath)));
@@ -1066,6 +1088,7 @@ TEST_F(FileSystemTest, PathFromFDUnicode) {
   ASSERT_NO_ERROR(
     fs::createTemporaryFile("\xCF\x80r\xC2\xB2",
                             "\xE2\x84\xB5.0", FileDescriptor, TempPath));
+  FileRemover Cleanup(TempPath);
 
   // Make sure it exists.
   ASSERT_TRUE(sys::fs::exists(Twine(TempPath)));
@@ -1089,6 +1112,7 @@ TEST_F(FileSystemTest, OpenFileForRead) {
   SmallString<64> TempPath;
   ASSERT_NO_ERROR(
       fs::createTemporaryFile("prefix", "temp", FileDescriptor, TempPath));
+  FileRemover Cleanup(TempPath);
 
   // Make sure it exists.
   ASSERT_TRUE(sys::fs::exists(Twine(TempPath)));

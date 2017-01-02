@@ -79,7 +79,7 @@ define <4 x float> @test7(<4 x float> %a, <4 x float> %b) {
 ;
 ; SKX-LABEL: test7:
 ; SKX:       ## BB#0:
-; SKX-NEXT:    vpxord %xmm2, %xmm2, %xmm2
+; SKX-NEXT:    vxorps %xmm2, %xmm2, %xmm2
 ; SKX-NEXT:    vcmpltps %xmm2, %xmm0, %k1
 ; SKX-NEXT:    vblendmps %xmm0, %xmm1, %xmm0 {%k1}
 ; SKX-NEXT:    retq
@@ -99,7 +99,7 @@ define <2 x double> @test8(<2 x double> %a, <2 x double> %b) {
 ;
 ; SKX-LABEL: test8:
 ; SKX:       ## BB#0:
-; SKX-NEXT:    vpxord %xmm2, %xmm2, %xmm2
+; SKX-NEXT:    vxorpd %xmm2, %xmm2, %xmm2
 ; SKX-NEXT:    vcmpltpd %xmm2, %xmm0, %k1
 ; SKX-NEXT:    vblendmpd %xmm0, %xmm1, %xmm0 {%k1}
 ; SKX-NEXT:    retq
@@ -166,7 +166,6 @@ define i16 @test12(<16 x i64> %a, <16 x i64> %b) nounwind {
 ; CHECK-NEXT:    vpcmpeqq %zmm3, %zmm1, %k1
 ; CHECK-NEXT:    kunpckbw %k0, %k1, %k0
 ; CHECK-NEXT:    kmovw %k0, %eax
-; CHECK-NEXT:    ## kill: %AX<def> %AX<kill> %EAX<kill>
 ; CHECK-NEXT:    retq
   %res = icmp eq <16 x i64> %a, %b
   %res1 = bitcast <16 x i1> %res to i16
@@ -241,7 +240,6 @@ define i32 @test12_v32i32(<32 x i32> %a, <32 x i32> %b) nounwind {
 ; KNL-NEXT:    kshiftrw $15, %k1, %k1
 ; KNL-NEXT:    kmovw %k1, %eax
 ; KNL-NEXT:    vpinsrb $14, %eax, %xmm1, %xmm1
-; KNL-NEXT:    kshiftlw $0, %k0, %k0
 ; KNL-NEXT:    kshiftrw $15, %k0, %k0
 ; KNL-NEXT:    kmovw %k0, %eax
 ; KNL-NEXT:    vpinsrb $15, %eax, %xmm1, %xmm1
@@ -310,7 +308,6 @@ define i32 @test12_v32i32(<32 x i32> %a, <32 x i32> %b) nounwind {
 ; KNL-NEXT:    kshiftrw $15, %k1, %k1
 ; KNL-NEXT:    kmovw %k1, %eax
 ; KNL-NEXT:    vpinsrb $14, %eax, %xmm0, %xmm0
-; KNL-NEXT:    kshiftlw $0, %k0, %k0
 ; KNL-NEXT:    kshiftrw $15, %k0, %k0
 ; KNL-NEXT:    kmovw %k0, %eax
 ; KNL-NEXT:    vpinsrb $15, %eax, %xmm0, %xmm0
@@ -406,7 +403,6 @@ define i64 @test12_v64i16(<64 x i16> %a, <64 x i16> %b) nounwind {
 ; KNL-NEXT:    kshiftrw $15, %k1, %k1
 ; KNL-NEXT:    kmovw %k1, %eax
 ; KNL-NEXT:    vpinsrb $14, %eax, %xmm1, %xmm1
-; KNL-NEXT:    kshiftlw $0, %k0, %k0
 ; KNL-NEXT:    kshiftrw $15, %k0, %k0
 ; KNL-NEXT:    kmovw %k0, %eax
 ; KNL-NEXT:    vpinsrb $15, %eax, %xmm1, %xmm1
@@ -478,7 +474,6 @@ define i64 @test12_v64i16(<64 x i16> %a, <64 x i16> %b) nounwind {
 ; KNL-NEXT:    kshiftrw $15, %k1, %k1
 ; KNL-NEXT:    kmovw %k1, %eax
 ; KNL-NEXT:    vpinsrb $14, %eax, %xmm0, %xmm0
-; KNL-NEXT:    kshiftlw $0, %k0, %k0
 ; KNL-NEXT:    kshiftrw $15, %k0, %k0
 ; KNL-NEXT:    kmovw %k0, %eax
 ; KNL-NEXT:    vpinsrb $15, %eax, %xmm0, %xmm0
@@ -550,7 +545,6 @@ define i64 @test12_v64i16(<64 x i16> %a, <64 x i16> %b) nounwind {
 ; KNL-NEXT:    kshiftrw $15, %k1, %k1
 ; KNL-NEXT:    kmovw %k1, %eax
 ; KNL-NEXT:    vpinsrb $14, %eax, %xmm0, %xmm0
-; KNL-NEXT:    kshiftlw $0, %k0, %k0
 ; KNL-NEXT:    kshiftrw $15, %k0, %k0
 ; KNL-NEXT:    kmovw %k0, %eax
 ; KNL-NEXT:    vpinsrb $15, %eax, %xmm0, %xmm0
@@ -622,7 +616,6 @@ define i64 @test12_v64i16(<64 x i16> %a, <64 x i16> %b) nounwind {
 ; KNL-NEXT:    kshiftrw $15, %k1, %k1
 ; KNL-NEXT:    kmovw %k1, %eax
 ; KNL-NEXT:    vpinsrb $14, %eax, %xmm0, %xmm0
-; KNL-NEXT:    kshiftlw $0, %k0, %k0
 ; KNL-NEXT:    kshiftrw $15, %k0, %k0
 ; KNL-NEXT:    kmovw %k0, %eax
 ; KNL-NEXT:    vpinsrb $15, %eax, %xmm0, %xmm0
@@ -665,9 +658,9 @@ define <16 x i32> @test13(<16 x float>%a, <16 x float>%b)
 define <16 x i32> @test14(<16 x i32>%a, <16 x i32>%b) {
 ; CHECK-LABEL: test14:
 ; CHECK:       ## BB#0:
-; CHECK-NEXT:    vpsubd %zmm1, %zmm0, %zmm1
-; CHECK-NEXT:    vpcmpgtd %zmm0, %zmm1, %k1
-; CHECK-NEXT:    vmovdqa32 %zmm1, %zmm0 {%k1} {z}
+; CHECK-NEXT:    vpsubd	%zmm1, %zmm0, %zmm2
+; CHECK-NEXT:    vpcmpgtd %zmm0, %zmm2, %k1
+; CHECK-NEXT:    vpsubd	%zmm1, %zmm0, %zmm0 {%k1} {z}
 ; CHECK-NEXT:    retq
   %sub_r = sub <16 x i32> %a, %b
   %cmp.i2.i = icmp sgt <16 x i32> %sub_r, %a
@@ -680,9 +673,9 @@ define <16 x i32> @test14(<16 x i32>%a, <16 x i32>%b) {
 define <8 x i64> @test15(<8 x i64>%a, <8 x i64>%b) {
 ; CHECK-LABEL: test15:
 ; CHECK:       ## BB#0:
-; CHECK-NEXT:    vpsubq %zmm1, %zmm0, %zmm1
-; CHECK-NEXT:    vpcmpgtq %zmm0, %zmm1, %k1
-; CHECK-NEXT:    vmovdqa64 %zmm1, %zmm0 {%k1} {z}
+; CHECK-NEXT:    vpsubq	%zmm1, %zmm0, %zmm2
+; CHECK-NEXT:    vpcmpgtq %zmm0, %zmm2, %k1
+; CHECK-NEXT:    vpsubq	%zmm1, %zmm0, %zmm0 {%k1} {z}
 ; CHECK-NEXT:    retq
   %sub_r = sub <8 x i64> %a, %b
   %cmp.i2.i = icmp sgt <8 x i64> %sub_r, %a
@@ -1197,7 +1190,7 @@ define <4 x i32> @test44(<4 x i16> %x, <4 x i16> %y) #0 {
 ;
 ; SKX-LABEL: test44:
 ; SKX:       ## BB#0:
-; SKX-NEXT:    vpxord %xmm2, %xmm2, %xmm2
+; SKX-NEXT:    vpxor %xmm2, %xmm2, %xmm2
 ; SKX-NEXT:    vpblendw {{.*#+}} xmm1 = xmm1[0],xmm2[1],xmm1[2],xmm2[3],xmm1[4],xmm2[5],xmm1[6],xmm2[7]
 ; SKX-NEXT:    vpblendw {{.*#+}} xmm0 = xmm0[0],xmm2[1],xmm0[2],xmm2[3],xmm0[4],xmm2[5],xmm0[6],xmm2[7]
 ; SKX-NEXT:    vpcmpeqd %xmm1, %xmm0, %k0
@@ -1220,7 +1213,7 @@ define <2 x i64> @test45(<2 x i16> %x, <2 x i16> %y) #0 {
 ;
 ; SKX-LABEL: test45:
 ; SKX:       ## BB#0:
-; SKX-NEXT:    vpxord %xmm2, %xmm2, %xmm2
+; SKX-NEXT:    vpxor %xmm2, %xmm2, %xmm2
 ; SKX-NEXT:    vpblendw {{.*#+}} xmm1 = xmm1[0],xmm2[1,2,3],xmm1[4],xmm2[5,6,7]
 ; SKX-NEXT:    vpblendw {{.*#+}} xmm0 = xmm0[0],xmm2[1,2,3],xmm0[4],xmm2[5,6,7]
 ; SKX-NEXT:    vpcmpeqq %xmm1, %xmm0, %k1

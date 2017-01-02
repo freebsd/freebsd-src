@@ -14,6 +14,7 @@
 
 #include "Unix.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/Demangle/Demangle.h"
 #include "llvm/Support/Format.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/FileUtilities.h"
@@ -33,9 +34,6 @@
 #if HAVE_SYS_STAT_H
 #include <sys/stat.h>
 #endif
-#if HAVE_CXXABI_H
-#include <cxxabi.h>
-#endif
 #if HAVE_DLFCN_H
 #include <dlfcn.h>
 #endif
@@ -45,15 +43,15 @@
 #if HAVE_LINK_H
 #include <link.h>
 #endif
-#if HAVE_UNWIND_BACKTRACE
+#ifdef HAVE__UNWIND_BACKTRACE
 // FIXME: We should be able to use <unwind.h> for any target that has an
 // _Unwind_Backtrace function, but on FreeBSD the configure test passes
 // despite the function not existing, and on Android, <unwind.h> conflicts
 // with <link.h>.
-#ifdef __GLIBC__
+#if defined(__GLIBC__) || defined(__APPLE__)
 #include <unwind.h>
 #else
-#undef HAVE_UNWIND_BACKTRACE
+#undef HAVE__UNWIND_BACKTRACE
 #endif
 #endif
 
@@ -120,14 +118,15 @@ static void RegisterHandler(int Signal) {
 }
 
 #if defined(HAVE_SIGALTSTACK)
-// Hold onto the old alternate signal stack so that it's not reported as a leak.
-// We don't make any attempt to remove our alt signal stack if we remove our
-// signal handlers; that can't be done reliably if someone else is also trying
-// to do the same thing.
+// Hold onto both the old and new alternate signal stack so that it's not
+// reported as a leak. We don't make any attempt to remove our alt signal
+// stack if we remove our signal handlers; that can't be done reliably if
+// someone else is also trying to do the same thing.
 static stack_t OldAltStack;
+static void* NewAltStackPointer;
 
 static void CreateSigAltStack() {
-  const size_t AltStackSize = MINSIGSTKSZ + 8192;
+  const size_t AltStackSize = MINSIGSTKSZ + 64 * 1024;
 
   // If we're executing on the alternate stack, or we already have an alternate
   // signal stack that we're happy with, there's nothing for us to do. Don't
@@ -140,6 +139,7 @@ static void CreateSigAltStack() {
 
   stack_t AltStack = {};
   AltStack.ss_sp = reinterpret_cast<char *>(malloc(AltStackSize));
+  NewAltStackPointer = AltStack.ss_sp; // Save to avoid reporting a leak.
   AltStack.ss_size = AltStackSize;
   if (sigaltstack(&AltStack, &OldAltStack) != 0)
     free(AltStack.ss_sp);
@@ -284,7 +284,7 @@ bool llvm::sys::RemoveFileOnSignal(StringRef Filename,
 void llvm::sys::DontRemoveFileOnSignal(StringRef Filename) {
   sys::SmartScopedLock<true> Guard(*SignalsMutex);
   std::vector<std::string>::reverse_iterator RI =
-    std::find(FilesToRemove->rbegin(), FilesToRemove->rend(), Filename);
+      find(reverse(*FilesToRemove), Filename);
   std::vector<std::string>::iterator I = FilesToRemove->end();
   if (RI != FilesToRemove->rend())
     I = FilesToRemove->erase(RI.base()-1);
@@ -298,7 +298,7 @@ void llvm::sys::AddSignalHandler(void (*FnPtr)(void *), void *Cookie) {
   RegisterHandlers();
 }
 
-#if defined(HAVE_BACKTRACE) && defined(ENABLE_BACKTRACES) && HAVE_LINK_H &&    \
+#if defined(HAVE_BACKTRACE) && ENABLE_BACKTRACES && HAVE_LINK_H &&    \
     (defined(__linux__) || defined(__FreeBSD__) ||                             \
      defined(__FreeBSD_kernel__) || defined(__NetBSD__))
 struct DlIteratePhdrData {
@@ -353,9 +353,9 @@ static bool findModulesAndOffsets(void **StackTrace, int Depth,
                                   StringSaver &StrPool) {
   return false;
 }
-#endif // defined(HAVE_BACKTRACE) && defined(ENABLE_BACKTRACES) && ...
+#endif // defined(HAVE_BACKTRACE) && ENABLE_BACKTRACES && ...
 
-#if defined(ENABLE_BACKTRACES) && defined(HAVE_UNWIND_BACKTRACE)
+#if ENABLE_BACKTRACES && defined(HAVE__UNWIND_BACKTRACE)
 static int unwindBacktrace(void **StackTrace, int MaxEntries) {
   if (MaxEntries < 0)
     return 0;
@@ -393,7 +393,7 @@ static int unwindBacktrace(void **StackTrace, int MaxEntries) {
 // On glibc systems we have the 'backtrace' function, which works nicely, but
 // doesn't demangle symbols.
 void llvm::sys::PrintStackTrace(raw_ostream &OS) {
-#if defined(ENABLE_BACKTRACES)
+#if ENABLE_BACKTRACES
   static void *StackTrace[256];
   int depth = 0;
 #if defined(HAVE_BACKTRACE)
@@ -401,7 +401,7 @@ void llvm::sys::PrintStackTrace(raw_ostream &OS) {
   if (!depth)
     depth = backtrace(StackTrace, static_cast<int>(array_lengthof(StackTrace)));
 #endif
-#if defined(HAVE_UNWIND_BACKTRACE)
+#if defined(HAVE__UNWIND_BACKTRACE)
   // Try _Unwind_Backtrace() if backtrace() failed.
   if (!depth)
     depth = unwindBacktrace(StackTrace,
@@ -441,12 +441,8 @@ void llvm::sys::PrintStackTrace(raw_ostream &OS) {
 
     if (dlinfo.dli_sname != nullptr) {
       OS << ' ';
-#  if HAVE_CXXABI_H
       int res;
-      char* d = abi::__cxa_demangle(dlinfo.dli_sname, nullptr, nullptr, &res);
-#  else
-      char* d = NULL;
-#  endif
+      char* d = itaniumDemangle(dlinfo.dli_sname, nullptr, nullptr, &res);
       if (!d) OS << dlinfo.dli_sname;
       else    OS << d;
       free(d);
@@ -479,7 +475,7 @@ void llvm::sys::PrintStackTraceOnErrorSignal(StringRef Argv0,
 
   AddSignalHandler(PrintStackTraceSignalHandler, nullptr);
 
-#if defined(__APPLE__) && defined(ENABLE_CRASH_OVERRIDES)
+#if defined(__APPLE__) && ENABLE_CRASH_OVERRIDES
   // Environment variable to disable any kind of crash dialog.
   if (DisableCrashReporting || getenv("LLVM_DISABLE_CRASH_REPORT")) {
     mach_port_t self = mach_task_self();

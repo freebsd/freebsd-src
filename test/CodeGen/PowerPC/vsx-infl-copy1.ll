@@ -1,4 +1,4 @@
-; RUN: llc -mcpu=pwr7 < %s | FileCheck %s
+; RUN: llc -verify-machineinstrs -mcpu=pwr7 < %s | FileCheck %s
 target datalayout = "E-m:e-i64:64-n32:64"
 target triple = "powerpc64-unknown-linux-gnu"
 
@@ -11,7 +11,15 @@ entry:
   br label %vector.body
 
 ; CHECK-LABEL: @_Z8example9Pj
-; CHECK: xxlor
+; CHECK: vor
+; CHECK: vor
+; CHECK: vor
+; CHECK: vor
+; CHECK: vor
+; CHECK: vor
+; CHECK: vor
+; CHECK: vor
+; CHECK: vor
 
 vector.body:                                      ; preds = %vector.body, %entry
   %index = phi i64 [ 0, %entry ], [ %index.next, %vector.body ]

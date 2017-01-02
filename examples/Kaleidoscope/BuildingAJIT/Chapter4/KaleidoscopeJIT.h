@@ -16,21 +16,27 @@
 
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ExecutionEngine/ExecutionEngine.h"
+#include "llvm/ExecutionEngine/JITSymbol.h"
 #include "llvm/ExecutionEngine/RuntimeDyld.h"
 #include "llvm/ExecutionEngine/SectionMemoryManager.h"
 #include "llvm/ExecutionEngine/Orc/CompileOnDemandLayer.h"
 #include "llvm/ExecutionEngine/Orc/CompileUtils.h"
-#include "llvm/ExecutionEngine/Orc/JITSymbol.h"
 #include "llvm/ExecutionEngine/Orc/IRCompileLayer.h"
 #include "llvm/ExecutionEngine/Orc/IRTransformLayer.h"
 #include "llvm/ExecutionEngine/Orc/LambdaResolver.h"
 #include "llvm/ExecutionEngine/Orc/ObjectLinkingLayer.h"
 #include "llvm/IR/DataLayout.h"
+#include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Mangler.h"
 #include "llvm/Support/DynamicLibrary.h"
+#include "llvm/Support/Error.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetMachine.h"
+#include "llvm/Transforms/Scalar.h"
+#include "llvm/Transforms/Scalar/GVN.h"
 #include <algorithm>
+#include <cassert>
+#include <cstdlib>
 #include <memory>
 #include <string>
 #include <vector>
@@ -47,6 +53,7 @@ public:
   FunctionAST(std::unique_ptr<PrototypeAST> Proto,
               std::unique_ptr<ExprAST> Body)
       : Proto(std::move(Proto)), Body(std::move(Body)) {}
+
   const PrototypeAST& getProto() const;
   const std::string& getName() const;
   llvm::Function *codegen();
@@ -107,19 +114,19 @@ public:
     auto Resolver = createLambdaResolver(
         [&](const std::string &Name) {
           if (auto Sym = IndirectStubsMgr->findStub(Name, false))
-            return Sym.toRuntimeDyldSymbol();
+            return Sym;
           if (auto Sym = OptimizeLayer.findSymbol(Name, false))
-            return Sym.toRuntimeDyldSymbol();
-          return RuntimeDyld::SymbolInfo(nullptr);
+            return Sym;
+          return JITSymbol(nullptr);
         },
         [](const std::string &Name) {
           if (auto SymAddr =
                 RTDyldMemoryManager::getSymbolAddressInProcess(Name))
-            return RuntimeDyld::SymbolInfo(SymAddr, JITSymbolFlags::Exported);
-          return RuntimeDyld::SymbolInfo(nullptr);
+            return JITSymbol(SymAddr, JITSymbolFlags::Exported);
+          return JITSymbol(nullptr);
         });
 
-    // Build a singlton module set to hold our module.
+    // Build a singleton module set to hold our module.
     std::vector<std::unique_ptr<Module>> Ms;
     Ms.push_back(std::move(M));
 
@@ -173,7 +180,7 @@ public:
         addModule(std::move(M));
         auto Sym = findSymbol(SharedFnAST->getName() + "$impl");
         assert(Sym && "Couldn't find compiled function?");
-        TargetAddress SymAddr = Sym.getAddress();
+        JITTargetAddress SymAddr = Sym.getAddress();
         if (auto Err =
               IndirectStubsMgr->updatePointer(mangle(SharedFnAST->getName()),
                                               SymAddr)) {
@@ -197,7 +204,6 @@ public:
   }
 
 private:
-
   std::string mangle(const std::string &Name) {
     std::string MangledName;
     raw_string_ostream MangledNameStream(MangledName);
@@ -223,7 +229,6 @@ private:
 
     return M;
   }
-
 };
 
 } // end namespace orc

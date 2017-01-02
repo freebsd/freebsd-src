@@ -11,10 +11,11 @@
 // requires that clients of LibFuzzer pass ``--export-dynamic`` to the linker.
 // That is a complication we don't wish to expose to clients right now.
 //===----------------------------------------------------------------------===//
-#include "FuzzerInternal.h"
+#include "FuzzerDefs.h"
 #if LIBFUZZER_APPLE
 
 #include "FuzzerExtFunctions.h"
+#include "FuzzerIO.h"
 #include <dlfcn.h>
 
 using namespace fuzzer;
@@ -45,5 +46,7 @@ ExternalFunctions::ExternalFunctions() {
 
 #undef EXT_FUNC
 }
+
 } // namespace fuzzer
+
 #endif // LIBFUZZER_APPLE

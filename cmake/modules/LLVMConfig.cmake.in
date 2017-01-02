@@ -37,6 +37,8 @@ set(LLVM_ENABLE_THREADS @LLVM_ENABLE_THREADS@)
 
 set(LLVM_ENABLE_ZLIB @LLVM_ENABLE_ZLIB@)
 
+set(LLVM_ENABLE_DIA_SDK @LLVM_ENABLE_DIA_SDK@)
+
 set(LLVM_NATIVE_ARCH @LLVM_NATIVE_ARCH@)
 
 set(LLVM_ENABLE_PIC @LLVM_ENABLE_PIC@)
@@ -54,7 +56,13 @@ set(LLVM_LIBDIR_SUFFIX @LLVM_LIBDIR_SUFFIX@)
 
 set(LLVM_INCLUDE_DIRS "@LLVM_CONFIG_INCLUDE_DIRS@")
 set(LLVM_LIBRARY_DIRS "@LLVM_CONFIG_LIBRARY_DIRS@")
+
+# These variables are duplicated, but they must match the LLVM variables of the
+# same name. The variables ending in "S" could some day become lists, and are
+# preserved for convention and compatibility.
+set(LLVM_INCLUDE_DIR "@LLVM_CONFIG_INCLUDE_DIRS@")
 set(LLVM_LIBRARY_DIR "@LLVM_CONFIG_LIBRARY_DIRS@")
+
 set(LLVM_DEFINITIONS "@LLVM_DEFINITIONS@")
 set(LLVM_CMAKE_DIR "@LLVM_CONFIG_CMAKE_DIR@")
 set(LLVM_BINARY_DIR "@LLVM_CONFIG_BINARY_DIR@")
@@ -62,8 +70,9 @@ set(LLVM_TOOLS_BINARY_DIR "@LLVM_CONFIG_TOOLS_BINARY_DIR@")
 set(LLVM_TOOLS_INSTALL_DIR "@LLVM_TOOLS_INSTALL_DIR@")
 
 if(NOT TARGET LLVMSupport)
-  set(LLVM_EXPORTED_TARGETS "@LLVM_EXPORTS@")
+  set(LLVM_EXPORTED_TARGETS "@LLVM_CONFIG_EXPORTS@")
   include("@LLVM_CONFIG_EXPORTS_FILE@")
+  @llvm_config_include_buildtree_only_exports@
 endif()
 
 include(${LLVM_CMAKE_DIR}/LLVM-Config.cmake)

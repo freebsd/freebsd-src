@@ -207,11 +207,10 @@ define <4 x double> @test_mm256_broadcast_pd(<2 x double>* %a0) nounwind {
 ; X64:       # BB#0:
 ; X64-NEXT:    vbroadcastf128 {{.*#+}} ymm0 = mem[0,1,0,1]
 ; X64-NEXT:    retq
-  %arg0 = bitcast <2 x double>* %a0 to i8*
-  %res = call <4 x double> @llvm.x86.avx.vbroadcastf128.pd.256(i8* %arg0)
+  %ld = load <2 x double>, <2 x double>* %a0
+  %res = shufflevector <2 x double> %ld, <2 x double> %ld, <4 x i32> <i32 0, i32 1, i32 0, i32 1>
   ret <4 x double> %res
 }
-declare <4 x double> @llvm.x86.avx.vbroadcastf128.pd.256(i8*) nounwind readonly
 
 define <8 x float> @test_mm256_broadcast_ps(<4 x float>* %a0) nounwind {
 ; X32-LABEL: test_mm256_broadcast_ps:
@@ -224,11 +223,10 @@ define <8 x float> @test_mm256_broadcast_ps(<4 x float>* %a0) nounwind {
 ; X64:       # BB#0:
 ; X64-NEXT:    vbroadcastf128 {{.*#+}} ymm0 = mem[0,1,0,1]
 ; X64-NEXT:    retq
-  %arg0 = bitcast <4 x float>* %a0 to i8*
-  %res = call <8 x float> @llvm.x86.avx.vbroadcastf128.ps.256(i8* %arg0)
+  %ld = load <4 x float>, <4 x float>* %a0
+  %res = shufflevector <4 x float> %ld, <4 x float> %ld, <8 x i32> <i32 0, i32 1, i32 2, i32 3, i32 0, i32 1, i32 2, i32 3>
   ret <8 x float> %res
 }
-declare <8 x float> @llvm.x86.avx.vbroadcastf128.ps.256(i8*) nounwind readonly
 
 define <4 x double> @test_mm256_broadcast_sd(double* %a0) nounwind {
 ; X32-LABEL: test_mm256_broadcast_sd:
@@ -607,13 +605,13 @@ declare <8 x float> @llvm.x86.avx.cvtdq2.ps.256(<8 x i32>) nounwind readnone
 define <2 x i64> @test_mm256_cvtpd_epi32(<4 x double> %a0) nounwind {
 ; X32-LABEL: test_mm256_cvtpd_epi32:
 ; X32:       # BB#0:
-; X32-NEXT:    vcvtpd2dqy %ymm0, %xmm0
+; X32-NEXT:    vcvtpd2dq %ymm0, %xmm0
 ; X32-NEXT:    vzeroupper
 ; X32-NEXT:    retl
 ;
 ; X64-LABEL: test_mm256_cvtpd_epi32:
 ; X64:       # BB#0:
-; X64-NEXT:    vcvtpd2dqy %ymm0, %xmm0
+; X64-NEXT:    vcvtpd2dq %ymm0, %xmm0
 ; X64-NEXT:    vzeroupper
 ; X64-NEXT:    retq
   %cvt = call <4 x i32> @llvm.x86.avx.cvt.pd2dq.256(<4 x double> %a0)
@@ -625,13 +623,13 @@ declare <4 x i32> @llvm.x86.avx.cvt.pd2dq.256(<4 x double>) nounwind readnone
 define <4 x float> @test_mm256_cvtpd_ps(<4 x double> %a0) nounwind {
 ; X32-LABEL: test_mm256_cvtpd_ps:
 ; X32:       # BB#0:
-; X32-NEXT:    vcvtpd2psy %ymm0, %xmm0
+; X32-NEXT:    vcvtpd2ps %ymm0, %xmm0
 ; X32-NEXT:    vzeroupper
 ; X32-NEXT:    retl
 ;
 ; X64-LABEL: test_mm256_cvtpd_ps:
 ; X64:       # BB#0:
-; X64-NEXT:    vcvtpd2psy %ymm0, %xmm0
+; X64-NEXT:    vcvtpd2ps %ymm0, %xmm0
 ; X64-NEXT:    vzeroupper
 ; X64-NEXT:    retq
   %res = call <4 x float> @llvm.x86.avx.cvt.pd2.ps.256(<4 x double> %a0)
@@ -672,13 +670,13 @@ define <4 x double> @test_mm256_cvtps_pd(<4 x float> %a0) nounwind {
 define <2 x i64> @test_mm256_cvttpd_epi32(<4 x double> %a0) nounwind {
 ; X32-LABEL: test_mm256_cvttpd_epi32:
 ; X32:       # BB#0:
-; X32-NEXT:    vcvttpd2dqy %ymm0, %xmm0
+; X32-NEXT:    vcvttpd2dq %ymm0, %xmm0
 ; X32-NEXT:    vzeroupper
 ; X32-NEXT:    retl
 ;
 ; X64-LABEL: test_mm256_cvttpd_epi32:
 ; X64:       # BB#0:
-; X64-NEXT:    vcvttpd2dqy %ymm0, %xmm0
+; X64-NEXT:    vcvttpd2dq %ymm0, %xmm0
 ; X64-NEXT:    vzeroupper
 ; X64-NEXT:    retq
   %cvt = call <4 x i32> @llvm.x86.avx.cvtt.pd2dq.256(<4 x double> %a0)
@@ -1028,9 +1026,8 @@ define <4 x i64> @test_mm256_insert_epi64(<4 x i64> %a0, i64 %a1) nounwind {
 ; X32:       # BB#0:
 ; X32-NEXT:    vextractf128 $1, %ymm0, %xmm1
 ; X32-NEXT:    vpinsrd $2, {{[0-9]+}}(%esp), %xmm1, %xmm1
-; X32-NEXT:    vpinsrd $3, {{[0-9]+}}(%esp), %xmm1, %xmm2
+; X32-NEXT:    vpinsrd $3, {{[0-9]+}}(%esp), %xmm1, %xmm1
 ; X32-NEXT:    vinsertf128 $1, %xmm1, %ymm0, %ymm0
-; X32-NEXT:    vinsertf128 $1, %xmm2, %ymm0, %ymm0
 ; X32-NEXT:    retl
 ;
 ; X64-LABEL: test_mm256_insert_epi64:

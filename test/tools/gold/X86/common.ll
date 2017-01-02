@@ -3,6 +3,8 @@
 ; RUN: llvm-as %p/Inputs/common2.ll -o %t2b.o
 ; RUN: llvm-as %p/Inputs/common3.ll -o %t2c.o
 
+target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"
+
 @a = common global i16 0, align 8
 
 ; RUN: %gold -plugin %llvmshlibdir/LLVMgold.so \
@@ -11,7 +13,7 @@
 ; RUN: llvm-dis %t3.o -o - | FileCheck %s --check-prefix=A
 
 ; Shared library case, we merge @a as common and keep it for the symbol table.
-; A: @a = common global i32 0, align 8
+; A: @a = common global [4 x i8] zeroinitializer, align 8
 
 ; RUN: %gold -plugin %llvmshlibdir/LLVMgold.so \
 ; RUN:    --plugin-opt=emit-llvm \
@@ -35,7 +37,7 @@
 ; RUN: llvm-dis %t3.o -o - | FileCheck --check-prefix=EXEC %s
 
 ; All IR case, we internalize a after merging.
-; EXEC: @a = internal global i32 0, align 8
+; EXEC: @a = internal global [4 x i8] zeroinitializer, align 8
 
 ; RUN: llc %p/Inputs/common.ll -o %t2native.o -filetype=obj
 ; RUN: %gold -plugin %llvmshlibdir/LLVMgold.so \

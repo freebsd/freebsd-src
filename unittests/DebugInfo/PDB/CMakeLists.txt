@@ -1,11 +1,12 @@
 set(LLVM_LINK_COMPONENTS
   DebugInfoCodeView
+  DebugInfoMSF
   DebugInfoPDB
   )
 
 set(DebugInfoPDBSources
   MappedBlockStreamTest.cpp
-  MsfBuilderTest.cpp
+  MSFBuilderTest.cpp
   PDBApiTest.cpp
   )
 

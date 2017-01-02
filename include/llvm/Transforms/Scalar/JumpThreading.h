@@ -85,20 +85,13 @@ class JumpThreadingPass : public PassInfoMixin<JumpThreadingPass> {
 
 public:
   JumpThreadingPass(int T = -1);
-  // Hack for MSVC 2013 which seems like it can't synthesize this.
-  JumpThreadingPass(JumpThreadingPass &&Other)
-      : TLI(Other.TLI), LVI(Other.LVI), BFI(std::move(Other.BFI)),
-        BPI(std::move(Other.BPI)), HasProfileData(Other.HasProfileData),
-        LoopHeaders(std::move(Other.LoopHeaders)),
-        RecursionSet(std::move(Other.RecursionSet)),
-        BBDupThreshold(Other.BBDupThreshold) {}
 
   // Glue for old PM.
   bool runImpl(Function &F, TargetLibraryInfo *TLI_, LazyValueInfo *LVI_,
                bool HasProfileData_, std::unique_ptr<BlockFrequencyInfo> BFI_,
                std::unique_ptr<BranchProbabilityInfo> BPI_);
 
-  PreservedAnalyses run(Function &F, AnalysisManager<Function> &AM);
+  PreservedAnalyses run(Function &F, FunctionAnalysisManager &AM);
 
   void releaseMemory() {
     BFI.reset();
@@ -134,6 +127,8 @@ private:
                               const char *Suffix);
   void UpdateBlockFreqAndEdgeWeight(BasicBlock *PredBB, BasicBlock *BB,
                                     BasicBlock *NewBB, BasicBlock *SuccBB);
+  /// Check if the block has profile metadata for its outgoing edges.
+  bool doesBlockHaveProfileData(BasicBlock *BB);
 };
 
 } // end namespace llvm

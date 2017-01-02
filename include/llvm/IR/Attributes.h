@@ -68,7 +68,7 @@ public:
     // IR-Level Attributes
     None,                  ///< No attributes have been set
     #define GET_ATTR_ENUM
-    #include "llvm/IR/Attributes.inc"
+    #include "llvm/IR/Attributes.gen"
     EndAttrKinds           ///< Sentinal value useful for loops
   };
 
@@ -338,6 +338,10 @@ public:
   /// may be faster.
   bool hasFnAttribute(Attribute::AttrKind Kind) const;
 
+  /// \brief Equivalent to hasAttribute(AttributeSet::FunctionIndex, Kind) but
+  /// may be faster.
+  bool hasFnAttribute(StringRef Kind) const;
+
   /// \brief Return true if the specified attribute is set for at least one
   /// parameter or for the return value. If Index is not nullptr, the index
   /// of a parameter with the specified attribute is provided.
@@ -386,9 +390,6 @@ public:
   //===--------------------------------------------------------------------===//
   // AttributeSet Introspection
   //===--------------------------------------------------------------------===//
-
-  // FIXME: Remove this.
-  uint64_t Raw(unsigned Index) const;
 
   /// \brief Return a raw pointer that uniquely identifies this attribute list.
   void *getRawPointer() const {
@@ -454,11 +455,6 @@ public:
   AttrBuilder()
       : Attrs(0), Alignment(0), StackAlignment(0), DerefBytes(0),
         DerefOrNullBytes(0), AllocSizeArgs(0) {}
-  explicit AttrBuilder(uint64_t Val)
-      : Attrs(0), Alignment(0), StackAlignment(0), DerefBytes(0),
-        DerefOrNullBytes(0), AllocSizeArgs(0) {
-    addRawValue(Val);
-  }
   AttrBuilder(const Attribute &A)
       : Attrs(0), Alignment(0), StackAlignment(0), DerefBytes(0),
         DerefOrNullBytes(0), AllocSizeArgs(0) {
@@ -586,11 +582,6 @@ public:
   bool operator!=(const AttrBuilder &B) {
     return !(*this == B);
   }
-
-  // FIXME: Remove this in 4.0.
-
-  /// \brief Add the raw value to the internal representation.
-  AttrBuilder &addRawValue(uint64_t Val);
 };
 
 namespace AttributeFuncs {

@@ -25,21 +25,33 @@
 ; RUN: llvm-bcanalyzer -dump %t2.o.thinlto.bc | FileCheck %s --check-prefix=BACKEND2
 ; RUN: not test -e %t3
 
-; Ensure gold generates an index as well as a binary by default in ThinLTO mode.
+; Ensure gold generates an index as well as a binary with save-temps in ThinLTO mode.
 ; First force single-threaded mode
 ; RUN: %gold -plugin %llvmshlibdir/LLVMgold.so \
+; RUN:    --plugin-opt=save-temps \
 ; RUN:    --plugin-opt=thinlto \
 ; RUN:    --plugin-opt=jobs=1 \
 ; RUN:    -shared %t.o %t2.o -o %t4
-; RUN: llvm-bcanalyzer -dump %t4.thinlto.bc | FileCheck %s --check-prefix=COMBINED
+; RUN: llvm-bcanalyzer -dump %t4.index.bc | FileCheck %s --check-prefix=COMBINED
+; RUN: llvm-nm %t4 | FileCheck %s --check-prefix=NM
+
+; Check with --no-map-whole-files
+; RUN: %gold -plugin %llvmshlibdir/LLVMgold.so \
+; RUN:    --plugin-opt=save-temps \
+; RUN:    --plugin-opt=thinlto \
+; RUN:    --plugin-opt=jobs=1 \
+; RUN:    --no-map-whole-files \
+; RUN:    -shared %t.o %t2.o -o %t4
+; RUN: llvm-bcanalyzer -dump %t4.index.bc | FileCheck %s --check-prefix=COMBINED
 ; RUN: llvm-nm %t4 | FileCheck %s --check-prefix=NM
 
 ; Next force multi-threaded mode
 ; RUN: %gold -plugin %llvmshlibdir/LLVMgold.so \
+; RUN:    --plugin-opt=save-temps \
 ; RUN:    --plugin-opt=thinlto \
 ; RUN:    --plugin-opt=jobs=2 \
 ; RUN:    -shared %t.o %t2.o -o %t4
-; RUN: llvm-bcanalyzer -dump %t4.thinlto.bc | FileCheck %s --check-prefix=COMBINED
+; RUN: llvm-bcanalyzer -dump %t4.index.bc | FileCheck %s --check-prefix=COMBINED
 ; RUN: llvm-nm %t4 | FileCheck %s --check-prefix=NM
 
 ; Test --plugin-opt=obj-path to ensure unique object files generated.
@@ -102,6 +114,8 @@
 ; COMBINED-NEXT: <COMBINED_ENTRY abbrevid={{[0-9]+}} op0={{1|2}} op1={{-3706093650706652785|-5300342847281564238}}
 ; COMBINED-NEXT: <COMBINED_ENTRY abbrevid={{[0-9]+}} op0={{1|2}} op1={{-3706093650706652785|-5300342847281564238}}
 ; COMBINED-NEXT: </VALUE_SYMTAB
+
+target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"
 
 declare void @g(...)
 

@@ -20,6 +20,8 @@ def to_string(bytes):
 def convert_string(bytes):
     try:
         return to_string(bytes.decode('utf-8'))
+    except AttributeError: # 'str' object has no attribute 'decode'.
+        return str(bytes)
     except UnicodeError:
         return str(bytes)
 
@@ -65,11 +67,18 @@ def mkdir_p(path):
 
 def capture(args, env=None):
     """capture(command) - Run the given command (or argv list) in a shell and
-    return the standard output."""
+    return the standard output. Raises a CalledProcessError if the command
+    exits with a non-zero status."""
     p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                          env=env)
-    out,_ = p.communicate()
-    return convert_string(out)
+    out, err = p.communicate()
+    out = convert_string(out)
+    err = convert_string(err)
+    if p.returncode != 0:
+        raise subprocess.CalledProcessError(cmd=args,
+                                            returncode=p.returncode,
+                                            output="{}\n{}".format(out, err))
+    return out
 
 def which(command, paths = None):
     """which(command, [paths]) - Look up the given command in the paths string
@@ -105,8 +114,8 @@ def which(command, paths = None):
 def checkToolsPath(dir, tools):
     for tool in tools:
         if not os.path.exists(os.path.join(dir, tool)):
-            return False;
-    return True;
+            return False
+    return True
 
 def whichTools(tools, paths):
     for path in paths.split(os.pathsep):
@@ -242,7 +251,7 @@ def usePlatformSdkOnDarwin(config, lit_config):
     # default system root path.
     if 'darwin' in config.target_triple:
         try:
-            cmd = subprocess.Popen(['xcrun', '--show-sdk-path'],
+            cmd = subprocess.Popen(['xcrun', '--show-sdk-path', '--sdk', 'macosx'],
                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             out, err = cmd.communicate()
             out = out.strip()

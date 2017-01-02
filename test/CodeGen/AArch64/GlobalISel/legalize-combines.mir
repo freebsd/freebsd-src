@@ -1,0 +1,92 @@
+# RUN: llc -O0 -run-pass=legalizer -global-isel %s -o - 2>&1 | FileCheck %s
+
+--- |
+  target datalayout = "e-m:o-i64:64-i128:128-n32:64-S128"
+  target triple = "aarch64--"
+  define void @test_combines() {
+  entry:
+    ret void
+  }
+...
+
+---
+name:            test_combines
+registers:
+  - { id: 0, class: _ }
+  - { id: 1, class: _ }
+  - { id: 2, class: _ }
+  - { id: 3, class: _ }
+  - { id: 4, class: _ }
+  - { id: 5, class: _ }
+  - { id: 6, class: _ }
+  - { id: 7, class: _ }
+  - { id: 8, class: _ }
+  - { id: 9, class: _ }
+  - { id: 10, class: _ }
+  - { id: 11, class: _ }
+  - { id: 12, class: _ }
+  - { id: 13, class: _ }
+  - { id: 14, class: _ }
+  - { id: 15, class: _ }
+  - { id: 16, class: _ }
+  - { id: 17, class: _ }
+  - { id: 18, class: _ }
+  - { id: 19, class: _ }
+  - { id: 20, class: _ }
+  - { id: 21, class: _ }
+  - { id: 22, class: _ }
+  - { id: 23, class: _ }
+  - { id: 24, class: _ }
+body: |
+  bb.0.entry:
+    liveins: %w0, %w1, %x2, %x3
+
+    %0(s32) = COPY %w0
+    %1(s32) = COPY %w1
+    %2(s8) = G_TRUNC %0
+
+      ; Only one of these extracts can be eliminated, the offsets don't match
+      ; properly in the other cases.
+    ; CHECK-LABEL: name: test_combines
+    ; CHECK: %3(s32) = G_SEQUENCE %2(s8), 1
+    ; CHECK: %4(s8) = G_EXTRACT %3(s32), 0
+    ; CHECK-NOT: G_EXTRACT
+    ; CHECK: %6(s8) = G_EXTRACT %3(s32), 2
+    ; CHECK: %7(s32) = G_ZEXT %2(s8)
+    %3(s32) = G_SEQUENCE %2, 1
+    %4(s8) = G_EXTRACT %3, 0
+    %5(s8) = G_EXTRACT %3, 1
+    %6(s8) = G_EXTRACT %3, 2
+    %7(s32) = G_ZEXT %5
+
+      ; Similarly, here the types don't match.
+    ; CHECK: %10(s32) = G_SEQUENCE %8(s16), 0, %9(s16), 16
+    ; CHECK: %11(s1) = G_EXTRACT %10(s32), 0
+    ; CHECK: %12(s32) = G_EXTRACT %10(s32), 0
+    %8(s16) = G_TRUNC %0
+    %9(s16) = G_ADD %8, %8
+    %10(s32) = G_SEQUENCE %8, 0, %9, 16
+    %11(s1) = G_EXTRACT %10, 0
+    %12(s32) = G_EXTRACT %10, 0
+
+    ; CHECK-NOT: G_EXTRACT
+    ; CHECK: %15(s16) = G_ADD %8, %9
+    %13(s16), %14(s16) = G_EXTRACT %10, 0, 16
+    %15(s16) = G_ADD %13, %14
+
+    ; CHECK: %18(<2 x s32>) = G_EXTRACT %17(s128), 0
+    ; CHECK: %19(<2 x s32>) = G_ADD %18, %18
+    %16(s64) = COPY %x0
+    %17(s128) = G_SEQUENCE %16, 0, %16, 64
+    %18(<2 x s32>) = G_EXTRACT %17, 0
+    %19(<2 x s32>) = G_ADD %18, %18
+
+    ; CHECK-NOT: G_SEQUENCE
+    ; CHECK-NOT: G_EXTRACT
+    ; CHECK: %24(s32) = G_ADD %0, %20
+    %20(s32) = G_ADD %0, %0
+    %21(s64) = G_SEQUENCE %0, 0, %20, 32
+    %22(s32) = G_EXTRACT %21, 0
+    %23(s32) = G_EXTRACT %21, 32
+    %24(s32) = G_ADD %22, %23
+...

@@ -28,6 +28,7 @@
 #ifdef __MINGW32__
  #include <imagehlp.h>
 #else
+ #include <crtdbg.h>
  #include <dbghelp.h>
 #endif
 #include <psapi.h>
@@ -266,7 +267,7 @@ static BOOL CALLBACK findModuleCallback(PCSTR ModuleName,
       continue;
     intptr_t Addr = (intptr_t)Data->StackTrace[I];
     if (Beg <= Addr && Addr < End) {
-      Data->Modules[I] = Data->StrPool->save(ModuleName);
+      Data->Modules[I] = Data->StrPool->save(ModuleName).data();
       Data->Offsets[I] = Addr - Beg;
     }
   }
@@ -470,7 +471,7 @@ void sys::DontRemoveFileOnSignal(StringRef Filename) {
   RegisterHandler();
 
   std::vector<std::string>::reverse_iterator I =
-  std::find(FilesToRemove->rbegin(), FilesToRemove->rend(), Filename);
+      find(reverse(*FilesToRemove), Filename);
   if (I != FilesToRemove->rend())
     FilesToRemove->erase(I.base()-1);
 

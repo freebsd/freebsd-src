@@ -335,7 +335,18 @@ v_cos_f16 v1, v0 row_shl:1 row_mask:0xa bank_mask:0x1 bound_ctrl:0
 // Check VOP2 opcodes
 //===----------------------------------------------------------------------===//
 // ToDo: VOP2bInst instructions: v_add_u32, v_sub_u32 ... (vcc and ApplyMnemonic in AsmMatcherEmitter.cpp)
-// ToDo: v_mac_f32 (VOP_MAC)
+
+// NOSICI: error:
+// VI: v_mac_f32_dpp v0, v0, v0  row_shl:1 row_mask:0xf bank_mask:0xf ; encoding: [0xfa,0x00,0x00,0x2c,0x00,0x01,0x01,0xff]
+v_mac_f32 v0, v0, v0 row_shl:1
+
+// NOSICI: error:
+// VI: v_mac_f32_dpp v0, v0, v0  row_shr:15 row_mask:0xf bank_mask:0xf ; encoding: [0xfa,0x00,0x00,0x2c,0x00,0x1f,0x01,0xff]
+v_mac_f32 v0, v0, v0 row_shr:0xf
+
+// NOSICI: error:
+// VI: v_mac_f32_dpp v0, v0, v0  quad_perm:[1,3,0,1] row_mask:0xa bank_mask:0xf bound_ctrl:0 ; encoding: [0xfa,0x00,0x00,0x2c,0x00,0x4d,0x08,0xaf]
+v_mac_f32 v0, v0, v0 quad_perm:[1,3,0,1] row_mask:0xa bound_ctrl:0
 
 // NOSICI: error:
 // VI: v_add_f32_dpp v0, v0, v0 row_shl:1 row_mask:0xa bank_mask:0x1 bound_ctrl:0 ; encoding: [0xfa,0x00,0x00,0x02,0x00,0x01,0x09,0xa1]
@@ -462,8 +473,8 @@ v_lshlrev_b16 v1, v2, v3 row_shl:1 row_mask:0xa bank_mask:0x1 bound_ctrl:0
 v_lshrrev_b16 v1, v2, v3 row_shl:1 row_mask:0xa bank_mask:0x1 bound_ctrl:0
 
 // NOSICI: error:
-// VI: v_ashrrev_b16_dpp v1, v2, v3 row_shl:1 row_mask:0xa bank_mask:0x1 bound_ctrl:0 ; encoding: [0xfa,0x06,0x02,0x58,0x02,0x01,0x09,0xa1]
-v_ashrrev_b16 v1, v2, v3 row_shl:1 row_mask:0xa bank_mask:0x1 bound_ctrl:0
+// VI: v_ashrrev_i16_dpp v1, v2, v3 row_shl:1 row_mask:0xa bank_mask:0x1 bound_ctrl:0 ; encoding: [0xfa,0x06,0x02,0x58,0x02,0x01,0x09,0xa1]
+v_ashrrev_i16 v1, v2, v3 row_shl:1 row_mask:0xa bank_mask:0x1 bound_ctrl:0
 
 // NOSICI: error:
 // VI: v_max_f16_dpp v1, v2, v3 row_shl:1 row_mask:0xa bank_mask:0x1 bound_ctrl:0 ; encoding: [0xfa,0x06,0x02,0x5a,0x02,0x01,0x09,0xa1]
@@ -492,3 +503,27 @@ v_min_i16 v1, v2, v3 row_shl:1 row_mask:0xa bank_mask:0x1 bound_ctrl:0
 // NOSICI: error:
 // VI: v_ldexp_f16_dpp v1, v2, v3 row_shl:1 row_mask:0xa bank_mask:0x1 bound_ctrl:0 ; encoding: [0xfa,0x06,0x02,0x66,0x02,0x01,0x09,0xa1]
 v_ldexp_f16 v1, v2, v3 row_shl:1 row_mask:0xa bank_mask:0x1 bound_ctrl:0
+
+// NOSICI: error:
+// VI: v_add_i32_dpp v1, vcc, v2, v3 row_shl:1 row_mask:0xa bank_mask:0x1 bound_ctrl:0 ; encoding: [0xfa,0x06,0x02,0x32,0x02,0x01,0x09,0xa1]
+v_add_i32 v1, vcc, v2, v3 row_shl:1 row_mask:0xa bank_mask:0x1 bound_ctrl:0
+
+// NOSICI: error:
+// VI: v_sub_i32_dpp v1, vcc, v2, v3 row_shl:1 row_mask:0xa bank_mask:0x1 bound_ctrl:0 ; encoding: [0xfa,0x06,0x02,0x34,0x02,0x01,0x09,0xa1]
+v_sub_i32 v1, vcc, v2, v3 row_shl:1 row_mask:0xa bank_mask:0x1 bound_ctrl:0
+
+// NOSICI: error:
+// VI: v_subrev_i32_dpp v1, vcc, v2, v3 row_shl:1 row_mask:0xa bank_mask:0x1 bound_ctrl:0 ; encoding: [0xfa,0x06,0x02,0x36,0x02,0x01,0x09,0xa1]
+v_subrev_i32 v1, vcc, v2, v3 row_shl:1 row_mask:0xa bank_mask:0x1 bound_ctrl:0
+
+// NOSICI: error:
+// VI: v_addc_u32_dpp v1, vcc, v2, v3, vcc row_shl:1 row_mask:0xa bank_mask:0x1 bound_ctrl:0 ; encoding: [0xfa,0x06,0x02,0x38,0x02,0x01,0x09,0xa1]
+v_addc_u32 v1, vcc, v2, v3, vcc row_shl:1 row_mask:0xa bank_mask:0x1 bound_ctrl:0
+
+// NOSICI: error:
+// VI: v_subb_u32_dpp v1, vcc, v2, v3, vcc row_shl:1 row_mask:0xa bank_mask:0x1 bound_ctrl:0 ; encoding: [0xfa,0x06,0x02,0x3a,0x02,0x01,0x09,0xa1]
+v_subb_u32 v1, vcc, v2, v3, vcc row_shl:1 row_mask:0xa bank_mask:0x1 bound_ctrl:0
+
+// NOSICI: error:
+// VI: v_subbrev_u32_dpp v1, vcc, v2, v3, vcc row_shl:1 row_mask:0xa bank_mask:0x1 bound_ctrl:0 ; encoding: [0xfa,0x06,0x02,0x3c,0x02,0x01,0x09,0xa1]
+v_subbrev_u32 v1, vcc, v2, v3, vcc row_shl:1 row_mask:0xa bank_mask:0x1 bound_ctrl:0

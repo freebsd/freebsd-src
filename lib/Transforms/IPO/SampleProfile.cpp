@@ -88,132 +88,6 @@ typedef DenseMap<Edge, uint64_t> EdgeWeightMap;
 typedef DenseMap<const BasicBlock *, SmallVector<const BasicBlock *, 8>>
     BlockEdgeMap;
 
-/// \brief Sample profile pass.
-///
-/// This pass reads profile data from the file specified by
-/// -sample-profile-file and annotates every affected function with the
-/// profile information found in that file.
-class SampleProfileLoader {
-public:
-  SampleProfileLoader(StringRef Name = SampleProfileFile)
-      : DT(nullptr), PDT(nullptr), LI(nullptr), ACT(nullptr), Reader(),
-        Samples(nullptr), Filename(Name), ProfileIsValid(false),
-        TotalCollectedSamples(0) {}
-
-  bool doInitialization(Module &M);
-  bool runOnModule(Module &M);
-  void setACT(AssumptionCacheTracker *A) { ACT = A; }
-
-  void dump() { Reader->dump(); }
-
-protected:
-  bool runOnFunction(Function &F);
-  unsigned getFunctionLoc(Function &F);
-  bool emitAnnotations(Function &F);
-  ErrorOr<uint64_t> getInstWeight(const Instruction &I) const;
-  ErrorOr<uint64_t> getBlockWeight(const BasicBlock *BB) const;
-  const FunctionSamples *findCalleeFunctionSamples(const CallInst &I) const;
-  const FunctionSamples *findFunctionSamples(const Instruction &I) const;
-  bool inlineHotFunctions(Function &F);
-  void printEdgeWeight(raw_ostream &OS, Edge E);
-  void printBlockWeight(raw_ostream &OS, const BasicBlock *BB) const;
-  void printBlockEquivalence(raw_ostream &OS, const BasicBlock *BB);
-  bool computeBlockWeights(Function &F);
-  void findEquivalenceClasses(Function &F);
-  void findEquivalencesFor(BasicBlock *BB1, ArrayRef<BasicBlock *> Descendants,
-                           DominatorTreeBase<BasicBlock> *DomTree);
-  void propagateWeights(Function &F);
-  uint64_t visitEdge(Edge E, unsigned *NumUnknownEdges, Edge *UnknownEdge);
-  void buildEdges(Function &F);
-  bool propagateThroughEdges(Function &F);
-  void computeDominanceAndLoopInfo(Function &F);
-  unsigned getOffset(unsigned L, unsigned H) const;
-  void clearFunctionData();
-
-  /// \brief Map basic blocks to their computed weights.
-  ///
-  /// The weight of a basic block is defined to be the maximum
-  /// of all the instruction weights in that block.
-  BlockWeightMap BlockWeights;
-
-  /// \brief Map edges to their computed weights.
-  ///
-  /// Edge weights are computed by propagating basic block weights in
-  /// SampleProfile::propagateWeights.
-  EdgeWeightMap EdgeWeights;
-
-  /// \brief Set of visited blocks during propagation.
-  SmallPtrSet<const BasicBlock *, 32> VisitedBlocks;
-
-  /// \brief Set of visited edges during propagation.
-  SmallSet<Edge, 32> VisitedEdges;
-
-  /// \brief Equivalence classes for block weights.
-  ///
-  /// Two blocks BB1 and BB2 are in the same equivalence class if they
-  /// dominate and post-dominate each other, and they are in the same loop
-  /// nest. When this happens, the two blocks are guaranteed to execute
-  /// the same number of times.
-  EquivalenceClassMap EquivalenceClass;
-
-  /// \brief Dominance, post-dominance and loop information.
-  std::unique_ptr<DominatorTree> DT;
-  std::unique_ptr<DominatorTreeBase<BasicBlock>> PDT;
-  std::unique_ptr<LoopInfo> LI;
-
-  AssumptionCacheTracker *ACT;
-
-  /// \brief Predecessors for each basic block in the CFG.
-  BlockEdgeMap Predecessors;
-
-  /// \brief Successors for each basic block in the CFG.
-  BlockEdgeMap Successors;
-
-  /// \brief Profile reader object.
-  std::unique_ptr<SampleProfileReader> Reader;
-
-  /// \brief Samples collected for the body of this function.
-  FunctionSamples *Samples;
-
-  /// \brief Name of the profile file to load.
-  StringRef Filename;
-
-  /// \brief Flag indicating whether the profile input loaded successfully.
-  bool ProfileIsValid;
-
-  /// \brief Total number of samples collected in this profile.
-  ///
-  /// This is the sum of all the samples collected in all the functions executed
-  /// at runtime.
-  uint64_t TotalCollectedSamples;
-};
-
-class SampleProfileLoaderLegacyPass : public ModulePass {
-public:
-  // Class identification, replacement for typeinfo
-  static char ID;
-
-  SampleProfileLoaderLegacyPass(StringRef Name = SampleProfileFile)
-      : ModulePass(ID), SampleLoader(Name) {
-    initializeSampleProfileLoaderLegacyPassPass(
-        *PassRegistry::getPassRegistry());
-  }
-
-  void dump() { SampleLoader.dump(); }
-
-  bool doInitialization(Module &M) override {
-    return SampleLoader.doInitialization(M);
-  }
-  const char *getPassName() const override { return "Sample profile pass"; }
-  bool runOnModule(Module &M) override;
-
-  void getAnalysisUsage(AnalysisUsage &AU) const override {
-    AU.addRequired<AssumptionCacheTracker>();
-  }
-private:
-  SampleProfileLoader SampleLoader;
-};
-
 class SampleCoverageTracker {
 public:
   SampleCoverageTracker() : SampleCoverage(), TotalUsedSamples(0) {}
@@ -260,7 +134,134 @@ private:
   uint64_t TotalUsedSamples;
 };
 
-SampleCoverageTracker CoverageTracker;
+/// \brief Sample profile pass.
+///
+/// This pass reads profile data from the file specified by
+/// -sample-profile-file and annotates every affected function with the
+/// profile information found in that file.
+class SampleProfileLoader {
+public:
+  SampleProfileLoader(StringRef Name = SampleProfileFile)
+      : DT(nullptr), PDT(nullptr), LI(nullptr), ACT(nullptr), Reader(),
+        Samples(nullptr), Filename(Name), ProfileIsValid(false),
+        TotalCollectedSamples(0) {}
+
+  bool doInitialization(Module &M);
+  bool runOnModule(Module &M);
+  void setACT(AssumptionCacheTracker *A) { ACT = A; }
+
+  void dump() { Reader->dump(); }
+
+protected:
+  bool runOnFunction(Function &F);
+  unsigned getFunctionLoc(Function &F);
+  bool emitAnnotations(Function &F);
+  ErrorOr<uint64_t> getInstWeight(const Instruction &I);
+  ErrorOr<uint64_t> getBlockWeight(const BasicBlock *BB);
+  const FunctionSamples *findCalleeFunctionSamples(const Instruction &I) const;
+  const FunctionSamples *findFunctionSamples(const Instruction &I) const;
+  bool inlineHotFunctions(Function &F);
+  void printEdgeWeight(raw_ostream &OS, Edge E);
+  void printBlockWeight(raw_ostream &OS, const BasicBlock *BB) const;
+  void printBlockEquivalence(raw_ostream &OS, const BasicBlock *BB);
+  bool computeBlockWeights(Function &F);
+  void findEquivalenceClasses(Function &F);
+  void findEquivalencesFor(BasicBlock *BB1, ArrayRef<BasicBlock *> Descendants,
+                           DominatorTreeBase<BasicBlock> *DomTree);
+  void propagateWeights(Function &F);
+  uint64_t visitEdge(Edge E, unsigned *NumUnknownEdges, Edge *UnknownEdge);
+  void buildEdges(Function &F);
+  bool propagateThroughEdges(Function &F, bool UpdateBlockCount);
+  void computeDominanceAndLoopInfo(Function &F);
+  unsigned getOffset(unsigned L, unsigned H) const;
+  void clearFunctionData();
+
+  /// \brief Map basic blocks to their computed weights.
+  ///
+  /// The weight of a basic block is defined to be the maximum
+  /// of all the instruction weights in that block.
+  BlockWeightMap BlockWeights;
+
+  /// \brief Map edges to their computed weights.
+  ///
+  /// Edge weights are computed by propagating basic block weights in
+  /// SampleProfile::propagateWeights.
+  EdgeWeightMap EdgeWeights;
+
+  /// \brief Set of visited blocks during propagation.
+  SmallPtrSet<const BasicBlock *, 32> VisitedBlocks;
+
+  /// \brief Set of visited edges during propagation.
+  SmallSet<Edge, 32> VisitedEdges;
+
+  /// \brief Equivalence classes for block weights.
+  ///
+  /// Two blocks BB1 and BB2 are in the same equivalence class if they
+  /// dominate and post-dominate each other, and they are in the same loop
+  /// nest. When this happens, the two blocks are guaranteed to execute
+  /// the same number of times.
+  EquivalenceClassMap EquivalenceClass;
+
+  /// \brief Dominance, post-dominance and loop information.
+  std::unique_ptr<DominatorTree> DT;
+  std::unique_ptr<DominatorTreeBase<BasicBlock>> PDT;
+  std::unique_ptr<LoopInfo> LI;
+
+  AssumptionCacheTracker *ACT;
+
+  /// \brief Predecessors for each basic block in the CFG.
+  BlockEdgeMap Predecessors;
+
+  /// \brief Successors for each basic block in the CFG.
+  BlockEdgeMap Successors;
+
+  SampleCoverageTracker CoverageTracker;
+
+  /// \brief Profile reader object.
+  std::unique_ptr<SampleProfileReader> Reader;
+
+  /// \brief Samples collected for the body of this function.
+  FunctionSamples *Samples;
+
+  /// \brief Name of the profile file to load.
+  std::string Filename;
+
+  /// \brief Flag indicating whether the profile input loaded successfully.
+  bool ProfileIsValid;
+
+  /// \brief Total number of samples collected in this profile.
+  ///
+  /// This is the sum of all the samples collected in all the functions executed
+  /// at runtime.
+  uint64_t TotalCollectedSamples;
+};
+
+class SampleProfileLoaderLegacyPass : public ModulePass {
+public:
+  // Class identification, replacement for typeinfo
+  static char ID;
+
+  SampleProfileLoaderLegacyPass(StringRef Name = SampleProfileFile)
+      : ModulePass(ID), SampleLoader(Name) {
+    initializeSampleProfileLoaderLegacyPassPass(
+        *PassRegistry::getPassRegistry());
+  }
+
+  void dump() { SampleLoader.dump(); }
+
+  bool doInitialization(Module &M) override {
+    return SampleLoader.doInitialization(M);
+  }
+  StringRef getPassName() const override { return "Sample profile pass"; }
+  bool runOnModule(Module &M) override;
+
+  void getAnalysisUsage(AnalysisUsage &AU) const override {
+    AU.addRequired<AssumptionCacheTracker>();
+  }
+
+private:
+  SampleProfileLoader SampleLoader;
+};
 
 /// Return true if the given callsite is hot wrt to its caller.
 ///
@@ -451,7 +452,7 @@ void SampleProfileLoader::printBlockWeight(raw_ostream &OS,
 ///
 /// \returns the weight of \p Inst.
 ErrorOr<uint64_t>
-SampleProfileLoader::getInstWeight(const Instruction &Inst) const {
+SampleProfileLoader::getInstWeight(const Instruction &Inst) {
   const DebugLoc &DLoc = Inst.getDebugLoc();
   if (!DLoc)
     return std::error_code();
@@ -460,10 +461,18 @@ SampleProfileLoader::getInstWeight(const Instruction &Inst) const {
   if (!FS)
     return std::error_code();
 
-  // Ignore all dbg_value intrinsics.
-  const IntrinsicInst *II = dyn_cast<IntrinsicInst>(&Inst);
-  if (II && II->getIntrinsicID() == Intrinsic::dbg_value)
+  // Ignore all intrinsics and branch instructions.
+  // Branch instruction usually contains debug info from sources outside of
+  // the residing basic block, thus we ignore them during annotation.
+  if (isa<BranchInst>(Inst) || isa<IntrinsicInst>(Inst))
     return std::error_code();
+
+  // If a call/invoke instruction is inlined in profile, but not inlined here,
+  // it means that the inlined callsite has no sample, thus the call
+  // instruction should have 0 count.
+  bool IsCall = isa<CallInst>(Inst) || isa<InvokeInst>(Inst);
+  if (IsCall && findCalleeFunctionSamples(Inst))
+    return 0;
 
   const DILocation *DIL = DLoc;
   unsigned Lineno = DLoc.getLine();
@@ -471,7 +480,9 @@ SampleProfileLoader::getInstWeight(const Instruction &Inst) const {
 
   uint32_t LineOffset = getOffset(Lineno, HeaderLineno);
   uint32_t Discriminator = DIL->getDiscriminator();
-  ErrorOr<uint64_t> R = FS->findSamplesAt(LineOffset, Discriminator);
+  ErrorOr<uint64_t> R = IsCall
+                            ? FS->findCallSamplesAt(LineOffset, Discriminator)
+                            : FS->findSamplesAt(LineOffset, Discriminator);
   if (R) {
     bool FirstMark =
         CoverageTracker.markSamplesUsed(FS, LineOffset, Discriminator, R.get());
@@ -488,13 +499,6 @@ SampleProfileLoader::getInstWeight(const Instruction &Inst) const {
                  << Inst << " (line offset: " << Lineno - HeaderLineno << "."
                  << DIL->getDiscriminator() << " - weight: " << R.get()
                  << ")\n");
-  } else {
-    // If a call instruction is inlined in profile, but not inlined here,
-    // it means that the inlined callsite has no sample, thus the call
-    // instruction should have 0 count.
-    const CallInst *CI = dyn_cast<CallInst>(&Inst);
-    if (CI && findCalleeFunctionSamples(*CI))
-      R = 0;
   }
   return R;
 }
@@ -508,23 +512,17 @@ SampleProfileLoader::getInstWeight(const Instruction &Inst) const {
 ///
 /// \returns the weight for \p BB.
 ErrorOr<uint64_t>
-SampleProfileLoader::getBlockWeight(const BasicBlock *BB) const {
-  DenseMap<uint64_t, uint64_t> CM;
+SampleProfileLoader::getBlockWeight(const BasicBlock *BB) {
+  uint64_t Max = 0;
+  bool HasWeight = false;
   for (auto &I : BB->getInstList()) {
     const ErrorOr<uint64_t> &R = getInstWeight(I);
-    if (R) CM[R.get()]++;
-  }
-  if (CM.size() == 0) return std::error_code();
-  uint64_t W = 0, C = 0;
-  for (const auto &C_W : CM) {
-    if (C_W.second == W) {
-      C = std::max(C, C_W.first);
-    } else if (C_W.second > W) {
-      C = C_W.first;
-      W = C_W.second;
+    if (R) {
+      Max = std::max(Max, R.get());
+      HasWeight = true;
     }
   }
-  return C;
+  return HasWeight ? ErrorOr<uint64_t>(Max) : std::error_code();
 }
 
 /// \brief Compute and store the weights of every basic block.
@@ -551,18 +549,18 @@ bool SampleProfileLoader::computeBlockWeights(Function &F) {
 
 /// \brief Get the FunctionSamples for a call instruction.
 ///
-/// The FunctionSamples of a call instruction \p Inst is the inlined
+/// The FunctionSamples of a call/invoke instruction \p Inst is the inlined
 /// instance in which that call instruction is calling to. It contains
 /// all samples that resides in the inlined instance. We first find the
 /// inlined instance in which the call instruction is from, then we
 /// traverse its children to find the callsite with the matching
-/// location and callee function name.
+/// location.
 ///
-/// \param Inst Call instruction to query.
+/// \param Inst Call/Invoke instruction to query.
 ///
 /// \returns The FunctionSamples pointer to the inlined instance.
 const FunctionSamples *
-SampleProfileLoader::findCalleeFunctionSamples(const CallInst &Inst) const {
+SampleProfileLoader::findCalleeFunctionSamples(const Instruction &Inst) const {
   const DILocation *DIL = Inst.getDebugLoc();
   if (!DIL) {
     return nullptr;
@@ -611,7 +609,6 @@ SampleProfileLoader::findFunctionSamples(const Instruction &Inst) const {
   return FS;
 }
 
-
 /// \brief Iteratively inline hot callsites of a function.
 ///
 /// Iteratively traverse all callsites of the function \p F, and find if
@@ -627,22 +624,36 @@ SampleProfileLoader::findFunctionSamples(const Instruction &Inst) const {
 bool SampleProfileLoader::inlineHotFunctions(Function &F) {
   bool Changed = false;
   LLVMContext &Ctx = F.getContext();
+  std::function<AssumptionCache &(Function &)> GetAssumptionCache = [&](
+      Function &F) -> AssumptionCache & { return ACT->getAssumptionCache(F); };
   while (true) {
     bool LocalChanged = false;
-    SmallVector<CallInst *, 10> CIS;
+    SmallVector<Instruction *, 10> CIS;
     for (auto &BB : F) {
+      bool Hot = false;
+      SmallVector<Instruction *, 10> Candidates;
       for (auto &I : BB.getInstList()) {
-        CallInst *CI = dyn_cast<CallInst>(&I);
-        if (CI && callsiteIsHot(Samples, findCalleeFunctionSamples(*CI)))
-          CIS.push_back(CI);
+        const FunctionSamples *FS = nullptr;
+        if ((isa<CallInst>(I) || isa<InvokeInst>(I)) &&
+            (FS = findCalleeFunctionSamples(I))) {
+          Candidates.push_back(&I);
+          if (callsiteIsHot(Samples, FS))
+            Hot = true;
+        }
+      }
+      if (Hot) {
+        CIS.insert(CIS.begin(), Candidates.begin(), Candidates.end());
       }
     }
-    for (auto CI : CIS) {
-      InlineFunctionInfo IFI(nullptr, ACT);
-      Function *CalledFunction = CI->getCalledFunction();
-      DebugLoc DLoc = CI->getDebugLoc();
-      uint64_t NumSamples = findCalleeFunctionSamples(*CI)->getTotalSamples();
-      if (InlineFunction(CI, IFI)) {
+    for (auto I : CIS) {
+      InlineFunctionInfo IFI(nullptr, ACT ? &GetAssumptionCache : nullptr);
+      CallSite CS(I);
+      Function *CalledFunction = CS.getCalledFunction();
+      if (!CalledFunction || !CalledFunction->getSubprogram())
+        continue;
+      DebugLoc DLoc = I->getDebugLoc();
+      uint64_t NumSamples = findCalleeFunctionSamples(*I)->getTotalSamples();
+      if (InlineFunction(CS, IFI)) {
         LocalChanged = true;
         emitOptimizationRemark(Ctx, DEBUG_TYPE, F, DLoc,
                                Twine("inlined hot callee '") +
@@ -693,6 +704,10 @@ void SampleProfileLoader::findEquivalencesFor(
     bool IsInSameLoop = LI->getLoopFor(BB1) == LI->getLoopFor(BB2);
     if (BB1 != BB2 && IsDomParent && IsInSameLoop) {
       EquivalenceClass[BB2] = EC;
+      // If BB2 is visited, then the entire EC should be marked as visited.
+      if (VisitedBlocks.count(BB2)) {
+        VisitedBlocks.insert(EC);
+      }
 
       // If BB2 is heavier than BB1, make BB2 have the same weight
       // as BB1.
@@ -705,7 +720,11 @@ void SampleProfileLoader::findEquivalencesFor(
       Weight = std::max(Weight, BlockWeights[BB2]);
     }
   }
-  BlockWeights[EC] = Weight;
+  if (EC == &EC->getParent()->getEntryBlock()) {
+    BlockWeights[EC] = Samples->getHeadSamples() + 1;
+  } else {
+    BlockWeights[EC] = Weight;
+  }
 }
 
 /// \brief Find equivalence classes.
@@ -796,9 +815,12 @@ uint64_t SampleProfileLoader::visitEdge(Edge E, unsigned *NumUnknownEdges,
 /// count of the basic block, if needed.
 ///
 /// \param F  Function to process.
+/// \param UpdateBlockCount  Whether we should update basic block counts that
+///                          has already been annotated.
 ///
 /// \returns  True if new weights were assigned to edges or blocks.
-bool SampleProfileLoader::propagateThroughEdges(Function &F) {
+bool SampleProfileLoader::propagateThroughEdges(Function &F,
+                                                bool UpdateBlockCount) {
   bool Changed = false;
   DEBUG(dbgs() << "\nPropagation through edges\n");
   for (const auto &BI : F) {
@@ -890,10 +912,34 @@ bool SampleProfileLoader::propagateThroughEdges(Function &F) {
             EdgeWeights[UnknownEdge] = BBWeight - TotalWeight;
           else
             EdgeWeights[UnknownEdge] = 0;
+          const BasicBlock *OtherEC;
+          if (i == 0)
+            OtherEC = EquivalenceClass[UnknownEdge.first];
+          else
+            OtherEC = EquivalenceClass[UnknownEdge.second];
+          // Edge weights should never exceed the BB weights it connects.
+          if (VisitedBlocks.count(OtherEC) &&
+              EdgeWeights[UnknownEdge] > BlockWeights[OtherEC])
+            EdgeWeights[UnknownEdge] = BlockWeights[OtherEC];
           VisitedEdges.insert(UnknownEdge);
           Changed = true;
           DEBUG(dbgs() << "Set weight for edge: ";
                 printEdgeWeight(dbgs(), UnknownEdge));
+        }
+      } else if (VisitedBlocks.count(EC) && BlockWeights[EC] == 0) {
+        // If a block Weights 0, all its in/out edges should weight 0.
+        if (i == 0) {
+          for (auto *Pred : Predecessors[BB]) {
+            Edge E = std::make_pair(Pred, BB);
+            EdgeWeights[E] = 0;
+            VisitedEdges.insert(E);
+          }
+        } else {
+          for (auto *Succ : Successors[BB]) {
+            Edge E = std::make_pair(BB, Succ);
+            EdgeWeights[E] = 0;
+            VisitedEdges.insert(E);
+          }
         }
       } else if (SelfReferentialEdge.first && VisitedBlocks.count(EC)) {
         uint64_t &BBWeight = BlockWeights[BB];
@@ -906,6 +952,11 @@ bool SampleProfileLoader::propagateThroughEdges(Function &F) {
         Changed = true;
         DEBUG(dbgs() << "Set self-referential edge weight to: ";
               printEdgeWeight(dbgs(), SelfReferentialEdge));
+      }
+      if (UpdateBlockCount && !VisitedBlocks.count(EC) && TotalWeight > 0) {
+        BlockWeights[EC] = TotalWeight;
+        VisitedBlocks.insert(EC);
+        Changed = true;
       }
     }
   }
@@ -966,7 +1017,21 @@ void SampleProfileLoader::propagateWeights(Function &F) {
 
   // Add an entry count to the function using the samples gathered
   // at the function entry.
-  F.setEntryCount(Samples->getHeadSamples());
+  F.setEntryCount(Samples->getHeadSamples() + 1);
+
+  // If BB weight is larger than its corresponding loop's header BB weight,
+  // use the BB weight to replace the loop header BB weight.
+  for (auto &BI : F) {
+    BasicBlock *BB = &BI;
+    Loop *L = LI->getLoopFor(BB);
+    if (!L) {
+      continue;
+    }
+    BasicBlock *Header = L->getHeader();
+    if (Header && BlockWeights[BB] > BlockWeights[Header]) {
+      BlockWeights[Header] = BlockWeights[BB];
+    }
+  }
 
   // Before propagation starts, build, for each block, a list of
   // unique predecessors and successors. This is necessary to handle
@@ -977,7 +1042,23 @@ void SampleProfileLoader::propagateWeights(Function &F) {
 
   // Propagate until we converge or we go past the iteration limit.
   while (Changed && I++ < SampleProfileMaxPropagateIterations) {
-    Changed = propagateThroughEdges(F);
+    Changed = propagateThroughEdges(F, false);
+  }
+
+  // The first propagation propagates BB counts from annotated BBs to unknown
+  // BBs. The 2nd propagation pass resets edges weights, and use all BB weights
+  // to propagate edge weights.
+  VisitedEdges.clear();
+  Changed = true;
+  while (Changed && I++ < SampleProfileMaxPropagateIterations) {
+    Changed = propagateThroughEdges(F, false);
+  }
+
+  // The 3rd propagation pass allows adjust annotated BB weights that are
+  // obviously wrong.
+  Changed = true;
+  while (Changed && I++ < SampleProfileMaxPropagateIterations) {
+    Changed = propagateThroughEdges(F, true);
   }
 
   // Generate MD_prof metadata for every branch instruction using the
@@ -994,7 +1075,7 @@ void SampleProfileLoader::propagateWeights(Function &F) {
           if (!dyn_cast<IntrinsicInst>(&I)) {
             SmallVector<uint32_t, 1> Weights;
             Weights.push_back(BlockWeights[BB]);
-            CI->setMetadata(LLVMContext::MD_prof, 
+            CI->setMetadata(LLVMContext::MD_prof,
                             MDB.createBranchWeights(Weights));
           }
         }
@@ -1023,7 +1104,9 @@ void SampleProfileLoader::propagateWeights(Function &F) {
         DEBUG(dbgs() << " (saturated due to uint32_t overflow)");
         Weight = std::numeric_limits<uint32_t>::max();
       }
-      Weights.push_back(static_cast<uint32_t>(Weight));
+      // Weight is added by one to avoid propagation errors introduced by
+      // 0 weights.
+      Weights.push_back(static_cast<uint32_t>(Weight + 1));
       if (Weight != 0) {
         if (Weight > MaxWeight) {
           MaxWeight = Weight;
@@ -1192,10 +1275,10 @@ bool SampleProfileLoader::emitAnnotations(Function &F) {
 
 char SampleProfileLoaderLegacyPass::ID = 0;
 INITIALIZE_PASS_BEGIN(SampleProfileLoaderLegacyPass, "sample-profile",
-                "Sample Profile loader", false, false)
+                      "Sample Profile loader", false, false)
 INITIALIZE_PASS_DEPENDENCY(AssumptionCacheTracker)
 INITIALIZE_PASS_END(SampleProfileLoaderLegacyPass, "sample-profile",
-                "Sample Profile loader", false, false)
+                    "Sample Profile loader", false, false)
 
 bool SampleProfileLoader::doInitialization(Module &M) {
   auto &Ctx = M.getContext();
@@ -1232,12 +1315,13 @@ bool SampleProfileLoader::runOnModule(Module &M) {
       clearFunctionData();
       retval |= runOnFunction(F);
     }
-  M.setProfileSummary(Reader->getSummary().getMD(M.getContext()));
+  if (M.getProfileSummary() == nullptr)
+    M.setProfileSummary(Reader->getSummary().getMD(M.getContext()));
   return retval;
 }
 
 bool SampleProfileLoaderLegacyPass::runOnModule(Module &M) {
-  // FIXME: pass in AssumptionCache correctly for the new pass manager. 
+  // FIXME: pass in AssumptionCache correctly for the new pass manager.
   SampleLoader.setACT(&getAnalysis<AssumptionCacheTracker>());
   return SampleLoader.runOnModule(M);
 }
@@ -1251,7 +1335,7 @@ bool SampleProfileLoader::runOnFunction(Function &F) {
 }
 
 PreservedAnalyses SampleProfileLoaderPass::run(Module &M,
-                                               AnalysisManager<Module> &AM) {
+                                               ModuleAnalysisManager &AM) {
 
   SampleProfileLoader SampleLoader(SampleProfileFile);
 

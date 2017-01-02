@@ -1,4 +1,4 @@
-; RUN: llc -mtriple=powerpc64-linux-gnu -mcpu=pwr8 -mattr=+vsx < %s | FileCheck %s
+; RUN: llc -verify-machineinstrs -mtriple=powerpc64-linux-gnu -mcpu=pwr8 -mattr=+vsx < %s | FileCheck %s
 
 define <4 x float> @bar(float* %p, float* %q) {
   %1 = bitcast float* %p to <12 x float>*
@@ -9,7 +9,11 @@ define <4 x float> @bar(float* %p, float* %q) {
   %6 = shufflevector <12 x float> %5, <12 x float> undef, <4 x i32> <i32 0, i32 3, i32 6, i32 9>
   ret <4 x float>  %6
 
-; CHECK: xxspltw
-; CHECK: vmrghw
 ; CHECK: vsldoi
+; CHECK-NEXT: vmrghw
+; CHECK-NEXT: vmrglw
+; CHECK-NEXT: vsldoi
+; CHECK-NEXT: vsldoi
+; CHECK-NEXT: vsldoi
+; CHECK-NEXT: blr
 }

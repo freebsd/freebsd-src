@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+
 '''Prepare a code coverage artifact.
 
 - Collate raw profiles into one indexed profile.
-- Delete the raw profiles.
-- Copy the coverage mappings in the binaries directory.
+- Generate html reports for the given binaries.
 '''
 
 import argparse
@@ -13,8 +14,8 @@ import os
 import subprocess
 import sys
 
-def merge_raw_profiles(host_llvm_profdata, profile_data_dir):
-    print ':: Merging raw profiles...',
+def merge_raw_profiles(host_llvm_profdata, profile_data_dir, preserve_profiles):
+    print(':: Merging raw profiles...', end='')
     sys.stdout.flush()
     raw_profiles = glob.glob(os.path.join(profile_data_dir, '*.profraw'))
     manifest_path = os.path.join(profile_data_dir, 'profiles.manifest')
@@ -23,22 +24,44 @@ def merge_raw_profiles(host_llvm_profdata, profile_data_dir):
         manifest.write('\n'.join(raw_profiles))
     subprocess.check_call([host_llvm_profdata, 'merge', '-sparse', '-f',
                            manifest_path, '-o', profdata_path])
-    for raw_profile in raw_profiles:
-        os.remove(raw_profile)
-    print 'Done!'
+    if not preserve_profiles:
+        for raw_profile in raw_profiles:
+            os.remove(raw_profile)
+    os.remove(manifest_path)
+    print('Done!')
+    return profdata_path
 
-def extract_covmappings(host_llvm_cov, profile_data_dir, llvm_bin_dir):
-    print ':: Extracting covmappings...',
+def prepare_html_report(host_llvm_cov, profile, report_dir, binaries,
+                        restricted_dirs):
+    print(':: Preparing html report for {0}...'.format(binaries), end='')
     sys.stdout.flush()
-    for prog in os.listdir(llvm_bin_dir):
-        if prog == 'llvm-lit':
-            continue
-        covmapping_path = os.path.join(profile_data_dir,
-                                       os.path.basename(prog) + '.covmapping')
-        subprocess.check_call([host_llvm_cov, 'convert-for-testing',
-                               os.path.join(llvm_bin_dir, prog), '-o',
-                               covmapping_path])
-    print 'Done!'
+    objects = []
+    for i, binary in enumerate(binaries):
+        if i == 0:
+            objects.append(binary)
+        else:
+            objects.extend(('-object', binary))
+    invocation = [host_llvm_cov, 'show'] + objects + ['-format', 'html',
+                  '-instr-profile', profile, '-o', report_dir,
+                  '-show-line-counts-or-regions', '-Xdemangler', 'c++filt',
+                  '-Xdemangler', '-n'] + restricted_dirs
+    subprocess.check_call(invocation)
+    with open(os.path.join(report_dir, 'summary.txt'), 'wb') as Summary:
+        subprocess.check_call([host_llvm_cov, 'report'] + objects +
+                               ['-instr-profile', profile], stdout=Summary)
+    print('Done!')
+
+def prepare_html_reports(host_llvm_cov, profdata_path, report_dir, binaries,
+                         unified_report, restricted_dirs):
+    if unified_report:
+        prepare_html_report(host_llvm_cov, profdata_path, report_dir, binaries,
+                            restricted_dirs)
+    else:
+        for binary in binaries:
+            binary_report_dir = os.path.join(report_dir,
+                                             os.path.basename(binary))
+            prepare_html_report(host_llvm_cov, profdata_path, binary_report_dir,
+                                [binary], restricted_dirs)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
@@ -46,10 +69,39 @@ if __name__ == '__main__':
     parser.add_argument('host_llvm_cov', help='Path to llvm-cov')
     parser.add_argument('profile_data_dir',
                        help='Path to the directory containing the raw profiles')
-    parser.add_argument('llvm_bin_dir',
-                       help='Path to the directory containing llvm binaries')
+    parser.add_argument('report_dir',
+                       help='Path to the output directory for html reports')
+    parser.add_argument('binaries', metavar='B', type=str, nargs='*',
+                       help='Path to an instrumented binary')
+    parser.add_argument('--only-merge', action='store_true',
+                        help='Only merge raw profiles together, skip report '
+                             'generation')
+    parser.add_argument('--preserve-profiles',
+                       help='Do not delete raw profiles', action='store_true')
+    parser.add_argument('--use-existing-profdata',
+                       help='Specify an existing indexed profile to use')
+    parser.add_argument('--unified-report', action='store_true',
+                       help='Emit a unified report for all binaries')
+    parser.add_argument('--restrict', metavar='R', type=str, nargs='*',
+                       default=[],
+                       help='Restrict the reporting to the given source paths')
     args = parser.parse_args()
 
-    merge_raw_profiles(args.host_llvm_profdata, args.profile_data_dir)
-    extract_covmappings(args.host_llvm_cov, args.profile_data_dir,
-                        args.llvm_bin_dir)
+    if args.use_existing_profdata and args.only_merge:
+        print('--use-existing-profdata and --only-merge are incompatible')
+        exit(1)
+
+    if args.use_existing_profdata:
+        profdata_path = args.use_existing_profdata
+    else:
+        profdata_path = merge_raw_profiles(args.host_llvm_profdata,
+                                           args.profile_data_dir,
+                                           args.preserve_profiles)
+
+    if not len(args.binaries):
+        print('No binaries specified, no work to do!')
+        exit(1)
+
+    if not args.only_merge:
+        prepare_html_reports(args.host_llvm_cov, profdata_path, args.report_dir,
+                            args.binaries, args.unified_report, args.restrict)
