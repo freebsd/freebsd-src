@@ -55,6 +55,7 @@ error_category::equivalent(const error_code& code, int condition) const _NOEXCEP
     return *this == code.category() && code.value() == condition;
 }
 
+#if !defined(_LIBCPP_HAS_NO_THREADS)
 namespace {
 
 //  GLIBC also uses 1024 as the maximum buffer size internally.
@@ -96,6 +97,7 @@ string do_strerror_r(int ev) {
 #endif
 
 } // end namespace
+#endif
 
 string
 __do_message::message(int ev) const
@@ -258,6 +260,7 @@ __throw_system_error(int ev, const char* what_arg)
 #else
     (void)ev;
     (void)what_arg;
+    _VSTD::abort();
 #endif
 }
 

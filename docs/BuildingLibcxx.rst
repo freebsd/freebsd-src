@@ -49,7 +49,7 @@ The basic steps needed to build libc++ are:
    For more information about configuring libc++ see :ref:`CMake Options`.
 
    * ``make cxx`` --- will build libc++ and libc++abi.
-   * ``make check-libcxx check-libcxxabi`` --- will run the test suites.
+   * ``make check-cxx check-cxxabi`` --- will run the test suites.
 
    Shared libraries for libc++ and libc++ abi should now be present in llvm/build/lib.
    See :ref:`using an alternate libc++ installation <alternate libcxx>`
@@ -60,7 +60,7 @@ The basic steps needed to build libc++ are:
    careful not to replace it. Remember Use the CMake option ``CMAKE_INSTALL_PREFIX`` to
    select a safe place to install libc++.
 
-   * ``make install-libcxx install-libcxxabi`` --- Will install the libraries and the headers
+   * ``make install-cxx install-cxxabi`` --- Will install the libraries and the headers
 
    .. warning::
      * Replacing your systems libc++ installation could render the system non-functional.
@@ -144,19 +144,26 @@ libc++ specific options
 
   **Default**: ``OFF``
 
-  Build libc++ as a 32 bit library. Also see :option:`LLVM_BUILD_32_BITS`.
+  Build libc++ as a 32 bit library. Also see `LLVM_BUILD_32_BITS`.
 
 .. option:: LIBCXX_ENABLE_SHARED:BOOL
 
   **Default**: ``ON``
 
-  Build libc++ as a shared library. If ``OFF`` is specified then libc++ is
-  built as a static library.
+  Build libc++ as a shared library. Either `LIBCXX_ENABLE_SHARED` or
+  `LIBCXX_ENABLE_STATIC` has to be enabled.
+
+.. option:: LIBCXX_ENABLE_STATIC:BOOL
+
+  **Default**: ``ON``
+
+  Build libc++ as a static library. Either `LIBCXX_ENABLE_SHARED` or
+  `LIBCXX_ENABLE_STATIC` has to be enabled.
 
 .. option:: LIBCXX_LIBDIR_SUFFIX:STRING
 
   Extra suffix to append to the directory where libraries are to be installed.
-  This option overrides :option:`LLVM_LIBDIR_SUFFIX`.
+  This option overrides `LLVM_LIBDIR_SUFFIX`.
 
 
 .. _libc++experimental options:
@@ -172,7 +179,7 @@ libc++experimental Specific Options
 
 .. option:: LIBCXX_INSTALL_EXPERIMENTAL_LIBRARY:BOOL
 
-  **Default**: ``OFF``
+  **Default**: ``LIBCXX_ENABLE_EXPERIMENTAL_LIBRARY AND LIBCXX_INSTALL_LIBRARY``
 
   Install libc++experimental.a alongside libc++.
 
@@ -227,7 +234,7 @@ ABI Library Specific Options
   libc++abi is the C++ ABI library used.
 
 
-libc++ Feature options
+libc++ Feature Options
 ----------------------
 
 .. option:: LIBCXX_ENABLE_EXCEPTIONS:BOOL
@@ -242,9 +249,32 @@ libc++ Feature options
 
   Build libc++ with run time type information.
 
+.. option:: LIBCXX_INCLUDE_BENCHMARKS:BOOL
 
-libc++ Feature options
-----------------------
+  **Default**: ``ON``
+
+  Build the libc++ benchmark tests and the Google Benchmark library needed
+  to support them.
+
+.. option:: LIBCXX_BENCHMARK_NATIVE_STDLIB:STRING
+
+  **Default**:: ``""``
+
+  **Values**:: ``libc++``, ``libstdc++``
+
+  Build the libc++ benchmark tests and Google Benchmark library against the
+  specified standard library on the platform. On linux this can be used to
+  compare libc++ to libstdc++ by building the benchmark tests against both
+  standard libraries.
+
+.. option:: LIBCXX_BENCHMARK_NATIVE_GCC_TOOLCHAIN:STRING
+
+  Use the specified GCC toolchain and standard library when building the native
+  stdlib benchmark tests.
+
+
+libc++ ABI Feature Options
+--------------------------
 
 The following options allow building libc++ for a different ABI version.
 

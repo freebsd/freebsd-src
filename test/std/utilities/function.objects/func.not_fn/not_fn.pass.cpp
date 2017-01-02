@@ -138,26 +138,26 @@ inline constexpr CallType operator|(CallType LHS, CallType RHS) {
 struct ForwardingCallObject {
 
   template <class ...Args>
-  bool operator()(Args&&... args) & {
+  bool operator()(Args&&...) & {
       set_call<Args&&...>(CT_NonConst | CT_LValue);
       return true;
   }
 
   template <class ...Args>
-  bool operator()(Args&&... args) const & {
+  bool operator()(Args&&...) const & {
       set_call<Args&&...>(CT_Const | CT_LValue);
       return true;
   }
 
   // Don't allow the call operator to be invoked as an rvalue.
   template <class ...Args>
-  bool operator()(Args&&... args) && {
+  bool operator()(Args&&...) && {
       set_call<Args&&...>(CT_NonConst | CT_RValue);
       return true;
   }
 
   template <class ...Args>
-  bool operator()(Args&&... args) const && {
+  bool operator()(Args&&...) const && {
       set_call<Args&&...>(CT_Const | CT_RValue);
       return true;
   }
@@ -526,7 +526,6 @@ void call_operator_forwarding_test()
         assert(Fn::check_call<int&&>(CT_Const | CT_RValue));
     }
     { // test multi arg
-        int x = 42;
         const double y = 3.14;
         std::string s = "abc";
         obj(42, std::move(y), s, std::string{"foo"});
@@ -554,7 +553,10 @@ void call_operator_noexcept_test()
         using T = NoExceptCallable<bool>;
         T value(true);
         auto ret = std::not_fn(value);
-        static_assert(noexcept(!_VSTD::__invoke(value)), "");
+        LIBCPP_STATIC_ASSERT(noexcept(!_VSTD::__invoke(value)), "");
+#if TEST_STD_VER > 14
+        static_assert(noexcept(!std::invoke(value)), "");
+#endif
         static_assert(noexcept(ret()), "call should be noexcept");
         auto const& cret = ret;
         static_assert(noexcept(cret()), "call should be noexcept");
@@ -577,6 +579,19 @@ void call_operator_noexcept_test()
     }
 }
 
+void test_lwg2767() {
+    // See http://wg21.link/LWG2767
+    struct Abstract { virtual void f() const = 0; };
+    struct Derived : public Abstract { void f() const {} };
+    struct F { bool operator()(Abstract&&) { return false; } };
+    {
+        Derived d;
+        Abstract &a = d;
+        bool b = std::not_fn(F{})(std::move(a));
+        assert(b);
+    }
+}
+
 int main()
 {
     constructor_tests();
@@ -586,4 +601,5 @@ int main()
     call_operator_sfinae_test(); // somewhat of an extension
     call_operator_forwarding_test();
     call_operator_noexcept_test();
+    test_lwg2767();
 }

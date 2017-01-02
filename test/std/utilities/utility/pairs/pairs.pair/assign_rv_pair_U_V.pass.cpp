@@ -7,6 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+// UNSUPPORTED: c++98, c++03
+
 // <utility>
 
 // template <class T1, class T2> struct pair
@@ -29,15 +31,13 @@ struct Derived
 
 int main()
 {
-#ifndef _LIBCPP_HAS_NO_RVALUE_REFERENCES
     {
         typedef std::pair<std::unique_ptr<Derived>, short> P1;
         typedef std::pair<std::unique_ptr<Base>, long> P2;
-        P1 p1(std::unique_ptr<Derived>(), 4);
+        P1 p1(std::unique_ptr<Derived>(), static_cast<short>(4));
         P2 p2;
         p2 = std::move(p1);
         assert(p2.first == nullptr);
         assert(p2.second == 4);
     }
-#endif  // _LIBCPP_HAS_NO_RVALUE_REFERENCES
 }

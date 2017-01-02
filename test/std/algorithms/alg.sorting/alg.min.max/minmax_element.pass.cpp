@@ -41,7 +41,7 @@ test(Iter first, Iter last)
 
 template <class Iter>
 void
-test(unsigned N)
+test(int N)
 {
     int* a = new int[N];
     for (int i = 0; i < N; ++i)
@@ -62,7 +62,7 @@ test()
     test<Iter>(10);
     test<Iter>(1000);
     {
-    const unsigned N = 100;
+    const int N = 100;
     int* a = new int[N];
     for (int i = 0; i < N; ++i)
         a[i] = 5;

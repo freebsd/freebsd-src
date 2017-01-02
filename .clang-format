@@ -1,0 +1,11 @@
+BasedOnStyle: LLVM
+
+---
+Language: Cpp
+
+AlwaysBreakTemplateDeclarations: true
+
+# Disable formatting options which may break tests.
+SortIncludes: false
+ReflowComments: false
+---

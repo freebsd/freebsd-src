@@ -7,7 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-// XFAIL: libcpp-no-exceptions
 // <string>
 
 // basic_string<charT,traits,Allocator>&
@@ -24,20 +23,29 @@ template <class S>
 void
 test(S s, typename S::size_type pos, const typename S::value_type* str, S expected)
 {
-    typename S::size_type old_size = s.size();
+    const typename S::size_type old_size = s.size();
     S s0 = s;
-    try
+    if (pos <= old_size)
     {
         s.insert(pos, str);
         LIBCPP_ASSERT(s.__invariants());
-        assert(pos <= old_size);
         assert(s == expected);
     }
-    catch (std::out_of_range&)
+#ifndef TEST_HAS_NO_EXCEPTIONS
+    else
     {
-        assert(pos > old_size);
-        assert(s == s0);
+        try
+        {
+            s.insert(pos, str);
+            assert(false);
+        }
+        catch (std::out_of_range&)
+        {
+            assert(pos > old_size);
+            assert(s == s0);
+        }
     }
+#endif
 }
 
 int main()
@@ -210,4 +218,20 @@ int main()
     test(S("abcdefghijklmnopqrst"), 21, "12345678901234567890", S("can't happen"));
     }
 #endif
+
+	{ // test inserting into self
+    typedef std::string S;
+	S s_short = "123/";
+	S s_long  = "Lorem ipsum dolor sit amet, consectetur/";
+
+	s_short.insert(0, s_short.c_str());
+	assert(s_short == "123/123/");
+	s_short.insert(0, s_short.c_str());
+	assert(s_short == "123/123/123/123/");
+	s_short.insert(0, s_short.c_str());
+	assert(s_short == "123/123/123/123/123/123/123/123/");
+
+	s_long.insert(0, s_long.c_str());
+	assert(s_long == "Lorem ipsum dolor sit amet, consectetur/Lorem ipsum dolor sit amet, consectetur/");
+	}
 }

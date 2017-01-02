@@ -13,33 +13,33 @@
 
 // UNSUPPORTED: sanitizer-new-delete
 
-// TODO Investigate why UBSAN prevents new from calling our replacement.
-// XFAIL: ubsan
-
-
 #include <new>
 #include <cstddef>
 #include <cstdlib>
 #include <cassert>
 
+#include "test_macros.h"
+
 int delete_called = 0;
 int delete_nothrow_called = 0;
 
-void operator delete(void* p) throw()
+void operator delete(void* p) TEST_NOEXCEPT
 {
     ++delete_called;
     std::free(p);
 }
 
-void operator delete(void* p, const std::nothrow_t&) throw()
+void operator delete(void* p, const std::nothrow_t&) TEST_NOEXCEPT
 {
     ++delete_nothrow_called;
     std::free(p);
 }
 
+int* volatile x;
+
 int main()
 {
-    int *x = new int(42);
+    x = new int(42);
     assert(0 == delete_called);
     assert(0 == delete_nothrow_called);
 

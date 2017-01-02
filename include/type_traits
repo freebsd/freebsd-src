@@ -425,7 +425,7 @@ template <bool _Bp, class _Tp = void> using enable_if_t = typename enable_if<_Bp
 #endif
 
 // addressof
-#if __has_builtin(__builtin_addressof)
+#ifndef _LIBCPP_HAS_NO_BUILTIN_ADDRESSOF
 
 template <class _Tp>
 inline _LIBCPP_CONSTEXPR_AFTER_CXX14
@@ -443,10 +443,11 @@ inline _LIBCPP_NO_CFI _LIBCPP_INLINE_VISIBILITY
 _Tp*
 addressof(_Tp& __x) _NOEXCEPT
 {
-    return (_Tp*)&reinterpret_cast<const volatile char&>(__x);
+  return reinterpret_cast<_Tp *>(
+      const_cast<char *>(&reinterpret_cast<const volatile char &>(__x)));
 }
 
-#endif // __has_builtin(__builtin_addressof)
+#endif // _LIBCPP_HAS_NO_BUILTIN_ADDRESSOF
 
 #if defined(_LIBCPP_HAS_OBJC_ARC) && !defined(_LIBCPP_PREDEFINED_OBJC_ARC_ADDRESSOF)
 // Objective-C++ Automatic Reference Counting uses qualified pointers
@@ -488,6 +489,10 @@ addressof(__unsafe_unretained _Tp& __x) _NOEXCEPT
 }
 #endif
 
+#if !defined(_LIBCPP_HAS_NO_RVALUE_REFERENCES) && !defined(_LIBCPP_HAS_NO_DELETED_FUNCTIONS)
+template <class _Tp> _Tp* addressof(const _Tp&&) noexcept = delete;
+#endif
+
 struct __two {char __lx[2];};
 
 // helper class:
@@ -520,7 +525,7 @@ using bool_constant = integral_constant<bool, __b>;
 typedef _LIBCPP_BOOL_CONSTANT(true)  true_type;
 typedef _LIBCPP_BOOL_CONSTANT(false) false_type;
 
-#if !defined(_LIBCPP_HAS_NO_VARIADICS)
+#if !defined(_LIBCPP_CXX03_LANG)
 
 // __lazy_and
 
@@ -595,7 +600,7 @@ struct __or_<_B0, _B1, _B2, _Bn...>
 template<class _Tp> 
 struct __not_ : conditional<_Tp::value, false_type, true_type>::type {};
 
-#endif // !defined(_LIBCPP_HAS_NO_VARIADICS)
+#endif // !defined(_LIBCPP_CXX03_LANG)
 
 // is_const
 
@@ -1121,6 +1126,11 @@ template <class _Tp>
 struct __unconstref {
     typedef typename remove_const<typename remove_reference<_Tp>::type>::type type;
 };
+
+#ifndef _LIBCPP_CXX03_LANG
+template <class _Tp>
+using __uncvref_t = typename __uncvref<_Tp>::type;
+#endif
 
 // __is_same_uncvref
 
@@ -1670,10 +1680,10 @@ _CREATE_ALIGNED_STORAGE_SPECIALIZATION(0x400);
 _CREATE_ALIGNED_STORAGE_SPECIALIZATION(0x800);
 _CREATE_ALIGNED_STORAGE_SPECIALIZATION(0x1000);
 _CREATE_ALIGNED_STORAGE_SPECIALIZATION(0x2000);
-// MSDN says that MSVC does not support alignment beyond 8192 (=0x2000)
-#if !defined(_LIBCPP_MSVC)
+// PE/COFF does not support alignment beyond 8192 (=0x2000)
+#if !defined(_WIN32)
 _CREATE_ALIGNED_STORAGE_SPECIALIZATION(0x4000);
-#endif // !_LIBCPP_MSVC
+#endif // !_WIN32
 
 #undef _CREATE_ALIGNED_STORAGE_SPECIALIZATION
 
@@ -1987,10 +1997,10 @@ struct _LIBCPP_TYPE_VIS_ONLY common_type<_Tp>
 // bullet 3 - sizeof...(Tp) == 2
 
 template <class _Tp, class _Up, class = void>
-struct __common_type2 {};
+struct __common_type2_imp {};
 
 template <class _Tp, class _Up>
-struct __common_type2<_Tp, _Up,
+struct __common_type2_imp<_Tp, _Up,
     typename __void_t<decltype(
         true ? _VSTD::declval<_Tp>() : _VSTD::declval<_Up>()
     )>::type>
@@ -1999,6 +2009,16 @@ struct __common_type2<_Tp, _Up,
         true ? _VSTD::declval<_Tp>() : _VSTD::declval<_Up>()
     )>::type type;
 };
+
+template <class _Tp, class _Up,
+          class _DTp = typename decay<_Tp>::type,
+          class _DUp = typename decay<_Up>::type>
+using __common_type2 =
+  typename conditional<
+    is_same<_Tp, _DTp>::value && is_same<_Up, _DUp>::value,
+    __common_type2_imp<_Tp, _Up>,
+    common_type<_DTp, _DUp>
+  >::type;
 
 template <class _Tp, class _Up>
 struct _LIBCPP_TYPE_VIS_ONLY common_type<_Tp, _Up>
@@ -2011,13 +2031,21 @@ template <class ...Tp> struct __common_types;
 template <class, class = void>
 struct __common_type_impl {};
 
+template <class _Tp, class _Up>
+struct __common_type_impl<
+    __common_types<_Tp, _Up>,
+    typename __void_t<typename common_type<_Tp, _Up>::type>::type>
+{
+  typedef typename common_type<_Tp, _Up>::type type;
+};
+
 template <class _Tp, class _Up, class ..._Vp>
 struct __common_type_impl<__common_types<_Tp, _Up, _Vp...>,
     typename __void_t<typename common_type<_Tp, _Up>::type>::type>
+  : __common_type_impl<
+      __common_types<typename common_type<_Tp, _Up>::type, _Vp...> >
 {
-    typedef typename common_type<
-        typename common_type<_Tp, _Up>::type, _Vp...
-    >::type type;
+
 };
 
 template <class _Tp, class _Up, class ..._Vp>
@@ -2036,26 +2064,15 @@ template<typename, typename _Tp> struct __select_2nd { typedef _Tp type; };
 
 template <class _Tp, class _Arg>
 typename __select_2nd<decltype((_VSTD::declval<_Tp>() = _VSTD::declval<_Arg>())), true_type>::type
-#ifndef _LIBCPP_HAS_NO_RVALUE_REFERENCES
-__is_assignable_test(_Tp&&, _Arg&&);
-#else
-__is_assignable_test(_Tp, _Arg&);
-#endif
+__is_assignable_test(int);
 
-template <class _Arg>
-false_type
-#ifndef _LIBCPP_HAS_NO_RVALUE_REFERENCES
-__is_assignable_test(__any, _Arg&&);
-#else
-__is_assignable_test(__any, _Arg&);
-#endif
+template <class, class>
+false_type __is_assignable_test(...);
+
 
 template <class _Tp, class _Arg, bool = is_void<_Tp>::value || is_void<_Arg>::value>
 struct __is_assignable_imp
-    : public common_type
-        <
-            decltype(_VSTD::__is_assignable_test(declval<_Tp>(), declval<_Arg>()))
-        >::type {};
+    : public decltype((_VSTD::__is_assignable_test<_Tp, _Arg>(0))) {};
 
 template <class _Tp, class _Arg>
 struct __is_assignable_imp<_Tp, _Arg, true>
@@ -2088,7 +2105,7 @@ template <class _Tp> _LIBCPP_CONSTEXPR bool is_copy_assignable_v
 template <class _Tp> struct _LIBCPP_TYPE_VIS_ONLY is_move_assignable
 #ifndef _LIBCPP_HAS_NO_RVALUE_REFERENCES
     : public is_assignable<typename add_lvalue_reference<_Tp>::type,
-                     const typename add_rvalue_reference<_Tp>::type> {};
+                           typename add_rvalue_reference<_Tp>::type> {};
 #else
     : public is_copy_assignable<_Tp> {};
 #endif
@@ -2166,7 +2183,7 @@ template <class _Tp> _LIBCPP_CONSTEXPR bool is_destructible_v
 #ifndef _LIBCPP_HAS_NO_RVALUE_REFERENCES
 
 template <class _Tp>
-inline _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR_AFTER_CXX11
+inline _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR
 typename remove_reference<_Tp>::type&&
 move(_Tp&& __t) _NOEXCEPT
 {
@@ -2175,7 +2192,7 @@ move(_Tp&& __t) _NOEXCEPT
 }
 
 template <class _Tp>
-inline _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR_AFTER_CXX11
+inline _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR
 _Tp&&
 forward(typename remove_reference<_Tp>::type& __t) _NOEXCEPT
 {
@@ -2183,12 +2200,12 @@ forward(typename remove_reference<_Tp>::type& __t) _NOEXCEPT
 }
 
 template <class _Tp>
-inline _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR_AFTER_CXX11
+inline _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR
 _Tp&&
 forward(typename remove_reference<_Tp>::type&& __t) _NOEXCEPT
 {
     static_assert(!is_lvalue_reference<_Tp>::value,
-                  "Can not forward an rvalue as an lvalue.");
+                  "can not forward an rvalue as an lvalue");
     return static_cast<_Tp&&>(__t);
 }
 
@@ -2900,135 +2917,132 @@ namespace __is_construct
 struct __nat {};
 }
 
-#if __has_feature(is_constructible)
+#if !defined(_LIBCPP_CXX03_LANG) && (!__has_feature(is_constructible) || \
+    defined(_LIBCPP_TESTING_FALLBACK_IS_CONSTRUCTIBLE))
 
+template <class _Tp, class... _Args>
+struct __libcpp_is_constructible;
+
+template <class _To, class _From>
+struct __is_invalid_base_to_derived_cast {
+  static_assert(is_reference<_To>::value, "Wrong specialization");
+  using _RawFrom = __uncvref_t<_From>;
+  using _RawTo = __uncvref_t<_To>;
+  static const bool value = __lazy_and<
+        __lazy_not<is_same<_RawFrom, _RawTo>>,
+        is_base_of<_RawFrom, _RawTo>,
+        __lazy_not<__libcpp_is_constructible<_RawTo, _From>>
+  >::value;
+};
+
+template <class _To, class _From>
+struct __is_invalid_lvalue_to_rvalue_cast : false_type {
+  static_assert(is_reference<_To>::value, "Wrong specialization");
+};
+
+template <class _ToRef, class _FromRef>
+struct __is_invalid_lvalue_to_rvalue_cast<_ToRef&&, _FromRef&> {
+  using _RawFrom = __uncvref_t<_FromRef>;
+  using _RawTo = __uncvref_t<_ToRef>;
+  static const bool value = __lazy_and<
+      __lazy_not<is_function<_RawTo>>,
+      __lazy_or<
+        is_same<_RawFrom, _RawTo>,
+        is_base_of<_RawTo, _RawFrom>>
+    >::value;
+};
+
+struct __is_constructible_helper
+{
+    template <class _To>
+    static void __eat(_To);
+
+    // This overload is needed to work around a Clang bug that disallows
+    // static_cast<T&&>(e) for non-reference-compatible types.
+    // Example: static_cast<int&&>(declval<double>());
+    // NOTE: The static_cast implementation below is required to support
+    //  classes with explicit conversion operators.
+    template <class _To, class _From,
+              class = decltype(__eat<_To>(_VSTD::declval<_From>()))>
+    static true_type __test_cast(int);
+
+    template <class _To, class _From,
+              class = decltype(static_cast<_To>(_VSTD::declval<_From>()))>
+    static integral_constant<bool,
+        !__is_invalid_base_to_derived_cast<_To, _From>::value &&
+        !__is_invalid_lvalue_to_rvalue_cast<_To, _From>::value
+    > __test_cast(long);
+
+    template <class, class>
+    static false_type __test_cast(...);
+
+    template <class _Tp, class ..._Args,
+        class = decltype(_Tp(_VSTD::declval<_Args>()...))>
+    static true_type __test_nary(int);
+    template <class _Tp, class...>
+    static false_type __test_nary(...);
+
+    template <class _Tp, class _A0, class = decltype(::new _Tp(_VSTD::declval<_A0>()))>
+    static is_destructible<_Tp> __test_unary(int);
+    template <class, class>
+    static false_type __test_unary(...);
+};
+
+template <class _Tp, bool = is_void<_Tp>::value>
+struct __is_default_constructible
+    : decltype(__is_constructible_helper::__test_nary<_Tp>(0))
+{};
+
+template <class _Tp>
+struct __is_default_constructible<_Tp, true> : false_type {};
+
+template <class _Tp>
+struct __is_default_constructible<_Tp[], false> : false_type {};
+
+template <class _Tp, size_t _Nx>
+struct __is_default_constructible<_Tp[_Nx], false>
+    : __is_default_constructible<typename remove_all_extents<_Tp>::type>  {};
+
+template <class _Tp, class... _Args>
+struct __libcpp_is_constructible
+{
+  static_assert(sizeof...(_Args) > 1, "Wrong specialization");
+  typedef decltype(__is_constructible_helper::__test_nary<_Tp, _Args...>(0))
+      type;
+};
+
+template <class _Tp>
+struct __libcpp_is_constructible<_Tp> : __is_default_constructible<_Tp> {};
+
+template <class _Tp, class _A0>
+struct __libcpp_is_constructible<_Tp, _A0>
+    : public decltype(__is_constructible_helper::__test_unary<_Tp, _A0>(0))
+{};
+
+template <class _Tp, class _A0>
+struct __libcpp_is_constructible<_Tp&, _A0>
+    : public decltype(__is_constructible_helper::
+    __test_cast<_Tp&, _A0>(0))
+{};
+
+template <class _Tp, class _A0>
+struct __libcpp_is_constructible<_Tp&&, _A0>
+    : public decltype(__is_constructible_helper::
+    __test_cast<_Tp&&, _A0>(0))
+{};
+
+#endif
+
+#if __has_feature(is_constructible)
 template <class _Tp, class ..._Args>
 struct _LIBCPP_TYPE_VIS_ONLY is_constructible
     : public integral_constant<bool, __is_constructible(_Tp, _Args...)>
     {};
-
-#else
-
-#ifndef _LIBCPP_HAS_NO_VARIADICS
-
-//      main is_constructible test
-
-template <class _Tp, class ..._Args>
-typename __select_2nd<decltype(_VSTD::move(_Tp(_VSTD::declval<_Args>()...))), true_type>::type
-__is_constructible_test(_Tp&&, _Args&& ...);
-
-template <class ..._Args>
-false_type
-__is_constructible_test(__any, _Args&& ...);
-
-template <bool, class _Tp, class... _Args>
-struct __libcpp_is_constructible // false, _Tp is not a scalar
-    : public common_type
-             <
-                 decltype(__is_constructible_test(declval<_Tp>(), declval<_Args>()...))
-             >::type
-    {};
-
-//      function types are not constructible
-
-template <class _Rp, class... _A1, class... _A2>
-struct __libcpp_is_constructible<false, _Rp(_A1...), _A2...>
-    : public false_type
-    {};
-
-//      handle scalars and reference types
-
-//      Scalars are default constructible, references are not
-
-template <class _Tp>
-struct __libcpp_is_constructible<true, _Tp>
-    : public is_scalar<_Tp>
-    {};
-
-//      Scalars and references are constructible from one arg if that arg is
-//          implicitly convertible to the scalar or reference.
-
-template <class _Tp>
-struct __is_constructible_ref
-{
-    true_type static __lxx(_Tp);
-    false_type static __lxx(...);
-};
-
-template <class _Tp, class _A0>
-struct __libcpp_is_constructible<true, _Tp, _A0>
-    : public common_type
-             <
-                 decltype(__is_constructible_ref<_Tp>::__lxx(declval<_A0>()))
-             >::type
-    {};
-
-//      Scalars and references are not constructible from multiple args.
-
-template <class _Tp, class _A0, class ..._Args>
-struct __libcpp_is_constructible<true, _Tp, _A0, _Args...>
-    : public false_type
-    {};
-
-//      Treat scalars and reference types separately
-
-template <bool, class _Tp, class... _Args>
-struct __is_constructible_void_check
-    : public __libcpp_is_constructible<is_scalar<_Tp>::value || is_reference<_Tp>::value,
-                                _Tp, _Args...>
-    {};
-
-//      If any of T or Args is void, is_constructible should be false
-
-template <class _Tp, class... _Args>
-struct __is_constructible_void_check<true, _Tp, _Args...>
-    : public false_type
-    {};
-
-template <class ..._Args> struct __contains_void;
-
-template <> struct __contains_void<> : false_type {};
-
-template <class _A0, class ..._Args>
-struct __contains_void<_A0, _Args...>
-{
-    static const bool value = is_void<_A0>::value ||
-                              __contains_void<_Args...>::value;
-};
-
-//      is_constructible entry point
-
+#elif !defined(_LIBCPP_CXX03_LANG)
 template <class _Tp, class... _Args>
 struct _LIBCPP_TYPE_VIS_ONLY is_constructible
-    : public __is_constructible_void_check<__contains_void<_Tp, _Args...>::value
-                                        || is_abstract<_Tp>::value,
-                                           _Tp, _Args...>
-    {};
-
-//      Array types are default constructible if their element type
-//      is default constructible
-
-template <class _Ap, size_t _Np>
-struct __libcpp_is_constructible<false, _Ap[_Np]>
-    : public is_constructible<typename remove_all_extents<_Ap>::type>
-    {};
-
-//      Otherwise array types are not constructible by this syntax
-
-template <class _Ap, size_t _Np, class ..._Args>
-struct __libcpp_is_constructible<false, _Ap[_Np], _Args...>
-    : public false_type
-    {};
-
-//      Incomplete array types are not constructible
-
-template <class _Ap, class ..._Args>
-struct __libcpp_is_constructible<false, _Ap[], _Args...>
-    : public false_type
-    {};
-
-#else  // _LIBCPP_HAS_NO_VARIADICS
-
+    : public __libcpp_is_constructible<_Tp, _Args...>::type {};
+#else
 // template <class T> struct is_constructible0;
 
 //      main is_constructible0 test
@@ -3201,8 +3215,8 @@ struct __is_constructible2_imp<false, _Ap[], _A0, _A1>
     : public false_type
     {};
 
-#endif  // _LIBCPP_HAS_NO_VARIADICS
-#endif  // __has_feature(is_constructible)
+#endif // __has_feature(is_constructible)
+
 
 #if _LIBCPP_STD_VER > 14 && !defined(_LIBCPP_HAS_NO_VARIABLE_TEMPLATES) && !defined(_LIBCPP_HAS_NO_VARIADICS)
 template <class _Tp, class ..._Args> _LIBCPP_CONSTEXPR bool is_constructible_v
@@ -4406,7 +4420,7 @@ template <class _Tp> struct __is_nothrow_swappable;
 
 template <class _Tp>
 inline _LIBCPP_INLINE_VISIBILITY
-#ifndef _LIBCPP_HAS_NO_ADVANCED_SFINAE
+#ifndef _LIBCPP_CXX03_LANG
 typename enable_if
 <
     is_move_constructible<_Tp>::value &&
@@ -4614,7 +4628,7 @@ inline _LIBCPP_INLINE_VISIBILITY
 typename __sfinae_underlying_type<_Tp>::__promoted_type
 __convert_to_integral(_Tp __val) { return __val; }
 
-#ifndef _LIBCPP_HAS_NO_ADVANCED_SFINAE
+#ifndef _LIBCPP_CXX03_LANG
 
 template <class _Tp>
 struct __has_operator_addressof_member_imp
@@ -4646,9 +4660,11 @@ struct __has_operator_addressof
                                   || __has_operator_addressof_free_imp<_Tp>::value>
 {};
 
-#endif  // _LIBCPP_HAS_NO_ADVANCED_SFINAE
+#endif  // _LIBCPP_CXX03_LANG
 
 #if _LIBCPP_STD_VER > 14
+
+#define __cpp_lib_void_t 201411
 template <class...> using void_t = void;
 
 # ifndef _LIBCPP_HAS_NO_VARIADICS

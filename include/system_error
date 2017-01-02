@@ -46,6 +46,12 @@ template <class T> struct is_error_code_enum
 template <class T> struct is_error_condition_enum
     : public false_type {};
 
+template <class _Tp>
+constexpr size_t is_error_condition_enum_v = is_error_condition_enum<_Tp>::value; // C++17
+
+template <class _Tp>
+constexpr size_t is_error_code_enum_v = is_error_code_enum<_Tp>::value; // C++17
+
 class error_code
 {
 public:
@@ -213,6 +219,7 @@ bool operator!=(const error_condition& lhs, const error_code& rhs) noexcept;
 bool operator!=(const error_condition& lhs, const error_condition& rhs) noexcept;
 
 template <> struct hash<std::error_code>;
+template <> struct hash<std::error_condition>;
 
 }  // std
 
@@ -236,11 +243,21 @@ template <class _Tp>
 struct _LIBCPP_TYPE_VIS_ONLY is_error_code_enum
     : public false_type {};
 
+#if _LIBCPP_STD_VER > 14
+template <class _Tp>
+constexpr size_t is_error_code_enum_v = is_error_code_enum<_Tp>::value;
+#endif
+
 // is_error_condition_enum
 
 template <class _Tp>
 struct _LIBCPP_TYPE_VIS_ONLY is_error_condition_enum
     : public false_type {};
+
+#if _LIBCPP_STD_VER > 14
+template <class _Tp>
+constexpr size_t is_error_condition_enum_v = is_error_condition_enum<_Tp>::value;
+#endif
 
 // Some error codes are not present on all platforms, so we provide equivalents
 // for them:
@@ -613,6 +630,17 @@ struct _LIBCPP_TYPE_VIS_ONLY hash<error_code>
     }
 };
 
+template <>
+struct _LIBCPP_TYPE_VIS_ONLY hash<error_condition>
+    : public unary_function<error_condition, size_t>
+{
+    _LIBCPP_INLINE_VISIBILITY
+    size_t operator()(const error_condition& __ec) const _NOEXCEPT
+    {
+        return static_cast<size_t>(__ec.value());
+    }
+};
+
 // system_error
 
 class _LIBCPP_TYPE_VIS system_error
@@ -635,7 +663,8 @@ private:
     static string __init(const error_code&, string);
 };
 
-_LIBCPP_FUNC_VIS void __throw_system_error(int ev, const char* what_arg);
+_LIBCPP_NORETURN _LIBCPP_FUNC_VIS
+void __throw_system_error(int ev, const char* what_arg);
 
 _LIBCPP_END_NAMESPACE_STD
 

@@ -24,6 +24,7 @@
 
 #include <experimental/filesystem>
 #include <type_traits>
+#include <string_view>
 #include <cassert>
 
 #include "test_macros.h"
@@ -77,6 +78,7 @@ void doAppendSourceAllocTest(AppendOperatorTestcase const& TC)
   using namespace fs;
   using Ptr = CharT const*;
   using Str = std::basic_string<CharT>;
+  using StrView = std::basic_string_view<CharT>;
   using InputIter = input_iterator<Ptr>;
 
   const Ptr L = TC.lhs;
@@ -93,6 +95,16 @@ void doAppendSourceAllocTest(AppendOperatorTestcase const& TC)
   {
     path LHS(L); PathReserve(LHS, ReserveSize);
     Str  RHS(R);
+    {
+      DisableAllocationGuard g;
+      LHS /= RHS;
+    }
+    assert(LHS == E);
+  }
+  // basic_string_view
+  {
+    path LHS(L); PathReserve(LHS, ReserveSize);
+    StrView  RHS(R);
     {
       DisableAllocationGuard g;
       LHS /= RHS;
@@ -153,6 +165,7 @@ void doAppendSourceTest(AppendOperatorTestcase const& TC)
   using namespace fs;
   using Ptr = CharT const*;
   using Str = std::basic_string<CharT>;
+  using StrView = std::basic_string_view<CharT>;
   using InputIter = input_iterator<Ptr>;
   const Ptr L = TC.lhs;
   const Ptr R = TC.rhs;
@@ -168,6 +181,21 @@ void doAppendSourceTest(AppendOperatorTestcase const& TC)
   {
     path LHS(L);
     Str RHS(R);
+    path& Ref = LHS.append(RHS);
+    assert(LHS == E);
+    assert(&Ref == &LHS);
+  }
+  // basic_string_view
+  {
+    path LHS(L);
+    StrView RHS(R);
+    path& Ref = (LHS /= RHS);
+    assert(LHS == E);
+    assert(&Ref == &LHS);
+  }
+  {
+    path LHS(L);
+    StrView RHS(R);
     path& Ref = LHS.append(RHS);
     assert(LHS == E);
     assert(&Ref == &LHS);
@@ -218,6 +246,60 @@ void doAppendSourceTest(AppendOperatorTestcase const& TC)
   }
 }
 
+
+
+template <class It, class = decltype(fs::path{}.append(std::declval<It>()))>
+constexpr bool has_append(int) { return true; }
+template <class It>
+constexpr bool has_append(long) { return false; }
+
+template <class It, class = decltype(fs::path{}.operator/=(std::declval<It>()))>
+constexpr bool has_append_op(int) { return true; }
+template <class It>
+constexpr bool has_append_op(long) { return false; }
+
+template <class It>
+constexpr bool has_append() {
+  static_assert(has_append<It>(0) == has_append_op<It>(0), "must be same");
+  return has_append<It>(0) && has_append_op<It>(0);
+}
+
+void test_sfinae()
+{
+  using namespace fs;
+  {
+    using It = const char* const;
+    static_assert(has_append<It>(), "");
+  }
+  {
+    using It = input_iterator<const char*>;
+    static_assert(has_append<It>(), "");
+  }
+  {
+    struct Traits {
+      using iterator_category = std::input_iterator_tag;
+      using value_type = const char;
+      using pointer = const char*;
+      using reference = const char&;
+      using difference_type = std::ptrdiff_t;
+    };
+    using It = input_iterator<const char*, Traits>;
+    static_assert(has_append<It>(), "");
+  }
+  {
+    using It = output_iterator<const char*>;
+    static_assert(!has_append<It>(), "");
+
+  }
+  {
+    static_assert(!has_append<int*>(), "");
+  }
+  {
+    static_assert(!has_append<char>(), "");
+    static_assert(!has_append<const char>(), "");
+  }
+}
+
 int main()
 {
   using namespace fs;
@@ -238,4 +320,5 @@ int main()
     doAppendSourceAllocTest<char>(TC);
     doAppendSourceAllocTest<wchar_t>(TC);
   }
+  test_sfinae();
 }

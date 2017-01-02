@@ -15,6 +15,7 @@
 #include <stdexcept>
 #include <algorithm>
 #include <cassert>
+#include <cstddef>
 
 #include "test_macros.h"
 #include "test_allocator.h"
@@ -61,8 +62,8 @@ test(Tp n, Tp c)
     typedef typename S::allocator_type A;
     S s2(n, c);
     LIBCPP_ASSERT(s2.__invariants());
-    assert(s2.size() == n);
-    for (unsigned i = 0; i < n; ++i)
+    assert(s2.size() == static_cast<std::size_t>(n));
+    for (int i = 0; i < n; ++i)
         assert(s2[i] == c);
     assert(s2.get_allocator() == A());
     assert(s2.capacity() >= s2.size());
@@ -77,8 +78,8 @@ test(Tp n, Tp c, const A& a)
     typedef typename S::traits_type T;
     S s2(n, c, a);
     LIBCPP_ASSERT(s2.__invariants());
-    assert(s2.size() == n);
-    for (unsigned i = 0; i < n; ++i)
+    assert(s2.size() == static_cast<std::size_t>(n));
+    for (int i = 0; i < n; ++i)
         assert(s2[i] == c);
     assert(s2.get_allocator() == a);
     assert(s2.capacity() >= s2.size());
@@ -102,8 +103,8 @@ int main()
     test(100, 'a');
     test(100, 'a', A(2));
 
-    test(100, 65);
-    test(100, 65, A(3));
+    test(static_cast<char>(100), static_cast<char>(65));
+    test(static_cast<char>(100), static_cast<char>(65), A(3));
     }
 #if TEST_STD_VER >= 11
     {
@@ -122,8 +123,8 @@ int main()
     test(100, 'a');
     test(100, 'a', A());
 
-    test(100, 65);
-    test(100, 65, A());
+    test(static_cast<char>(100), static_cast<char>(65));
+    test(static_cast<char>(100), static_cast<char>(65), A());
     }
 #endif
 }

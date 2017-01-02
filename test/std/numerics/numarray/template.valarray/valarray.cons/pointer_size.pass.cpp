@@ -15,6 +15,7 @@
 
 #include <valarray>
 #include <cassert>
+#include <cstddef>
 
 int main()
 {
@@ -24,7 +25,7 @@ int main()
         const unsigned N = sizeof(a)/sizeof(a[0]);
         std::valarray<T> v(a, N);
         assert(v.size() == N);
-        for (int i = 0; i < N; ++i)
+        for (unsigned i = 0; i < N; ++i)
             assert(v[i] == a[i]);
     }
     {
@@ -33,7 +34,7 @@ int main()
         const unsigned N = sizeof(a)/sizeof(a[0]);
         std::valarray<T> v(a, N);
         assert(v.size() == N);
-        for (int i = 0; i < N; ++i)
+        for (unsigned i = 0; i < N; ++i)
             assert(v[i] == a[i]);
     }
     {
@@ -42,10 +43,10 @@ int main()
         const unsigned N = sizeof(a)/sizeof(a[0]);
         std::valarray<T> v(a, N);
         assert(v.size() == N);
-        for (int i = 0; i < N; ++i)
+        for (unsigned i = 0; i < N; ++i)
         {
             assert(v[i].size() == a[i].size());
-            for (int j = 0; j < v[i].size(); ++j)
+            for (std::size_t j = 0; j < v[i].size(); ++j)
                 assert(v[i][j] == a[i][j]);
         }
     }

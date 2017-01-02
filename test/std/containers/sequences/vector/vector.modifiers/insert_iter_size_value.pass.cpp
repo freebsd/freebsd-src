@@ -11,13 +11,12 @@
 
 // iterator insert(const_iterator position, size_type n, const value_type& x);
 
-#if _LIBCPP_DEBUG >= 1
-#define _LIBCPP_ASSERT(x, m) ((x) ? (void)0 : std::exit(0))
-#endif
-
 #include <vector>
 #include <cassert>
-#include "../../../stack_allocator.h"
+#include <cstddef>
+
+#include "test_macros.h"
+#include "test_allocator.h"
 #include "min_allocator.h"
 #include "asan_testing.h"
 
@@ -45,7 +44,7 @@ int main()
         assert(v.size() == sz + 5);
         assert(is_contiguous_container_asan_correct(v));
         assert(i == v.begin() + 10);
-        int j;
+        std::size_t j;
         for (j = 0; j < 10; ++j)
             assert(v[j] == 0);
         for (; j < 15; ++j)
@@ -61,7 +60,7 @@ int main()
         assert(v.size() == sz + 5);
         assert(is_contiguous_container_asan_correct(v));
         assert(i == v.begin() + 10);
-        int j;
+        std::size_t j;
         for (j = 0; j < 10; ++j)
             assert(v[j] == 0);
         for (; j < 15; ++j)
@@ -70,8 +69,8 @@ int main()
             assert(v[j] == 0);
     }
     {
-        std::vector<int, stack_allocator<int, 300> > v(100);
-        std::vector<int, stack_allocator<int, 300> >::iterator i = v.insert(v.cbegin() + 10, 5, 1);
+        std::vector<int, limited_allocator<int, 300> > v(100);
+        std::vector<int, limited_allocator<int, 300> >::iterator i = v.insert(v.cbegin() + 10, 5, 1);
         assert(v.size() == 105);
         assert(is_contiguous_container_asan_correct(v));
         assert(i == v.begin() + 10);
@@ -83,14 +82,6 @@ int main()
         for (++j; j < 105; ++j)
             assert(v[j] == 0);
     }
-#if _LIBCPP_DEBUG >= 1
-    {
-        std::vector<int> c1(100);
-        std::vector<int> c2;
-        std::vector<int>::iterator i = c1.insert(c2.cbegin() + 10, 5, 1);
-        assert(false);
-    }
-#endif
 #if TEST_STD_VER >= 11
     {
         std::vector<int, min_allocator<int>> v(100);
@@ -120,13 +111,5 @@ int main()
         for (++j; j < 105; ++j)
             assert(v[j] == 0);
     }
-#if _LIBCPP_DEBUG >= 1
-    {
-        std::vector<int, min_allocator<int>> c1(100);
-        std::vector<int, min_allocator<int>> c2;
-        std::vector<int, min_allocator<int>>::iterator i = c1.insert(c2.cbegin() + 10, 5, 1);
-        assert(false);
-    }
-#endif
 #endif
 }

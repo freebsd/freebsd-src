@@ -35,7 +35,8 @@ TEST_CASE(test_signatures)
     std::error_code ec; ((void)ec);
     ASSERT_NOT_NOEXCEPT(fs::permissions(p, opts));
     // Not noexcept because of narrow contract
-    ASSERT_NOT_NOEXCEPT(fs::permissions(p, opts, ec));
+    LIBCPP_ONLY(
+        ASSERT_NOT_NOEXCEPT(fs::permissions(p, opts, ec)));
 }
 
 TEST_CASE(test_error_reporting)
@@ -52,6 +53,7 @@ TEST_CASE(test_error_reporting)
                 && err.code() == ec;
         }
 #else
+        ((void)f); ((void)opts); ((void)ec);
         return true;
 #endif
     };
@@ -115,7 +117,7 @@ TEST_CASE(basic_permissions_test)
         permissions(TC.p, TC.set_perms, ec);
         TEST_CHECK(!ec);
         auto pp = status(TC.p).permissions();
-        TEST_CHECK(status(TC.p).permissions() == TC.expected);
+        TEST_CHECK(pp == TC.expected);
     }
 }
 

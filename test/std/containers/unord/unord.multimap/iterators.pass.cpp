@@ -23,7 +23,9 @@
 #include <unordered_map>
 #include <string>
 #include <cassert>
+#include <cstddef>
 
+#include "test_macros.h"
 #include "min_allocator.h"
 
 int main()
@@ -43,8 +45,8 @@ int main()
         C c(a, a + sizeof(a)/sizeof(a[0]));
         assert(c.bucket_count() >= 7);
         assert(c.size() == 6);
-        assert(std::distance(c.begin(), c.end()) == c.size());
-        assert(std::distance(c.cbegin(), c.cend()) == c.size());
+        assert(static_cast<std::size_t>(std::distance(c.begin(), c.end())) == c.size());
+        assert(static_cast<std::size_t>(std::distance(c.cbegin(), c.cend())) == c.size());
         C::iterator i;
         i = c.begin();
         i->second = "ONE";
@@ -65,8 +67,8 @@ int main()
         const C c(a, a + sizeof(a)/sizeof(a[0]));
         assert(c.bucket_count() >= 7);
         assert(c.size() == 6);
-        assert(std::distance(c.begin(), c.end()) == c.size());
-        assert(std::distance(c.cbegin(), c.cend()) == c.size());
+        assert(static_cast<std::size_t>(std::distance(c.begin(), c.end())) == c.size());
+        assert(static_cast<std::size_t>(std::distance(c.cbegin(), c.cend())) == c.size());
         C::const_iterator i;
     }
 #if TEST_STD_VER >= 11
@@ -86,8 +88,8 @@ int main()
         C c(a, a + sizeof(a)/sizeof(a[0]));
         assert(c.bucket_count() >= 7);
         assert(c.size() == 6);
-        assert(std::distance(c.begin(), c.end()) == c.size());
-        assert(std::distance(c.cbegin(), c.cend()) == c.size());
+        assert(static_cast<std::size_t>(std::distance(c.begin(), c.end())) == c.size());
+        assert(static_cast<std::size_t>(std::distance(c.cbegin(), c.cend())) == c.size());
         C::iterator i;
         i = c.begin();
         i->second = "ONE";
@@ -109,12 +111,12 @@ int main()
         const C c(a, a + sizeof(a)/sizeof(a[0]));
         assert(c.bucket_count() >= 7);
         assert(c.size() == 6);
-        assert(std::distance(c.begin(), c.end()) == c.size());
-        assert(std::distance(c.cbegin(), c.cend()) == c.size());
+        assert(static_cast<std::size_t>(std::distance(c.begin(), c.end())) == c.size());
+        assert(static_cast<std::size_t>(std::distance(c.cbegin(), c.cend())) == c.size());
         C::const_iterator i;
     }
 #endif
-#if _LIBCPP_STD_VER > 11
+#if TEST_STD_VER > 11
     { // N3644 testing
         typedef std::unordered_multimap<int,double> C;
         C::iterator ii1{}, ii2{};

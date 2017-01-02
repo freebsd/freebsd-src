@@ -13,8 +13,9 @@
 
 #include <deque>
 #include <cassert>
+#include <cstddef>
 
-#include "../../../stack_allocator.h"
+#include "test_allocator.h"
 #include "test_iterators.h"
 #include "min_allocator.h"
 
@@ -27,8 +28,8 @@ test(InputIterator f, InputIterator l)
     typedef std::deque<T, Allocator> C;
     typedef typename C::const_iterator const_iterator;
     C d(f, l);
-    assert(d.size() == std::distance(f, l));
-    assert(distance(d.begin(), d.end()) == d.size());
+    assert(d.size() == static_cast<std::size_t>(std::distance(f, l)));
+    assert(static_cast<std::size_t>(distance(d.begin(), d.end())) == d.size());
     for (const_iterator i = d.begin(), e = d.end(); i != e; ++i, ++f)
         assert(*i == *f);
 }
@@ -41,8 +42,8 @@ test(InputIterator f, InputIterator l)
     typedef std::deque<T, Allocator> C;
     typedef typename C::const_iterator const_iterator;
     C d(f, l);
-    assert(d.size() == std::distance(f, l));
-    assert(distance(d.begin(), d.end()) == d.size());
+    assert(d.size() == static_cast<std::size_t>(std::distance(f, l)));
+    assert(static_cast<std::size_t>(distance(d.begin(), d.end())) == d.size());
     for (const_iterator i = d.begin(), e = d.end(); i != e; ++i, ++f)
         assert(*i == *f);
 }
@@ -55,7 +56,7 @@ int main()
     test(forward_iterator<const int*>(ab), forward_iterator<const int*>(an));
     test(bidirectional_iterator<const int*>(ab), bidirectional_iterator<const int*>(an));
     test(random_access_iterator<const int*>(ab), random_access_iterator<const int*>(an));
-    test<stack_allocator<int, 4096> >(ab, an);
+    test<limited_allocator<int, 4096> >(ab, an);
 #if TEST_STD_VER >= 11
     test<min_allocator<int> >(ab, an);
 #endif

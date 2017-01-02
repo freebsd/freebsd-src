@@ -15,6 +15,8 @@
 #include <type_traits>
 #include <cassert>
 
+#include "test_macros.h"
+
 int main()
 {
     typedef std::divides<int> F;
@@ -23,7 +25,7 @@ int main()
     static_assert((std::is_same<int, F::second_argument_type>::value), "" );
     static_assert((std::is_same<int, F::result_type>::value), "" );
     assert(f(36, 4) == 9);
-#if _LIBCPP_STD_VER > 11
+#if TEST_STD_VER > 11
     typedef std::divides<> F2;
     const F2 f2 = F2();
     assert(f2(36, 4) == 9);
@@ -33,7 +35,7 @@ int main()
     constexpr int foo = std::divides<int> () (3, 2);
     static_assert ( foo == 1, "" );
 
-    constexpr int bar = std::divides<> () (3.0, 2);
-    static_assert ( bar == 1, "" );
+    constexpr double bar = std::divides<> () (3.0, 2);
+    static_assert ( bar == 1.5, "" ); // exact in binary
 #endif
 }

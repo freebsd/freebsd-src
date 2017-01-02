@@ -10,12 +10,11 @@
 #ifndef USES_ALLOC_TYPES_HPP
 #define USES_ALLOC_TYPES_HPP
 
-# include <experimental/memory_resource>
-# include <experimental/utility>
 # include <memory>
 # include <cassert>
+#include <cstdlib>
 
-#include "test_memory_resource.hpp"
+#include "test_macros.h"
 #include "type_id.h"
 
 // There are two forms of uses-allocator construction:
@@ -30,6 +29,30 @@ enum class UsesAllocatorType {
 constexpr UsesAllocatorType UA_None = UsesAllocatorType::UA_None;
 constexpr UsesAllocatorType UA_AllocArg = UsesAllocatorType::UA_AllocArg;
 constexpr UsesAllocatorType UA_AllocLast = UsesAllocatorType::UA_AllocLast;
+
+inline const char* toString(UsesAllocatorType UA) {
+    switch (UA) {
+    case UA_None:
+        return "UA_None";
+    case UA_AllocArg:
+        return "UA_AllocArg";
+    case UA_AllocLast:
+        return "UA_AllocLast";
+    default:
+    std::abort();
+    }
+}
+
+#define COMPARE_ALLOC_TYPE(LHS, RHS) CompareVerbose(#LHS, LHS, #RHS, RHS)
+
+inline bool CompareVerbose(const char* LHSString, UsesAllocatorType LHS,
+                           const char* RHSString, UsesAllocatorType RHS) {
+    if (LHS == RHS)
+        return true;
+    std::printf("UsesAllocatorType's don't match:\n%s %s\n----------\n%s %s\n",
+                LHSString, toString(LHS), RHSString, toString(RHS));
+    return false;
+}
 
 template <class Alloc, std::size_t N>
 class UsesAllocatorV1;
@@ -115,56 +138,107 @@ using EnableIfB = typename std::enable_if<Value, bool>::type;
 
 } // end namespace detail
 
+// FIXME: UsesAllocatorTestBase needs some special logic to deal with
+// polymorphic allocators. However we don't want to include
+// <experimental/memory_resource> in this header. Therefore in order
+// to inject this behavior later we use a trait.
+// See test_memory_resource.hpp for more info.
+template <class Alloc>
+struct TransformErasedTypeAlloc {
+  using type = Alloc;
+};
+
 using detail::EnableIfB;
 
 struct AllocLastTag {};
 
+template <class Alloc, bool = std::is_default_constructible<Alloc>::value>
+struct UsesAllocatorTestBaseStorage {
+    Alloc allocator;
+    UsesAllocatorTestBaseStorage() = default;
+    UsesAllocatorTestBaseStorage(Alloc const& a) : allocator(a) {}
+    const Alloc* get_allocator() const { return &allocator; }
+};
+
 template <class Alloc>
+struct UsesAllocatorTestBaseStorage<Alloc, false> {
+  union {
+    char dummy;
+    Alloc alloc;
+  };
+  bool has_alloc = false;
+
+  UsesAllocatorTestBaseStorage() : dummy(), has_alloc(false) {}
+  UsesAllocatorTestBaseStorage(Alloc const& a) : alloc(a), has_alloc(true) {}
+  ~UsesAllocatorTestBaseStorage() {
+      if (has_alloc)
+          alloc.~Alloc();
+  }
+
+  Alloc const* get_allocator() const {
+      if (!has_alloc)
+          return nullptr;
+      return &alloc;
+  }
+};
+
+template <class Self, class Alloc>
 struct UsesAllocatorTestBase {
 public:
-    using CtorAlloc = typename std::conditional<
-        std::is_same<Alloc, std::experimental::erased_type>::value,
-        std::experimental::pmr::memory_resource*,
-        Alloc
-    >::type;
+    using CtorAlloc = typename TransformErasedTypeAlloc<Alloc>::type;
 
     template <class ...ArgTypes>
     bool checkConstruct(UsesAllocatorType expectType) const {
-        return expectType == constructor_called &&
-               makeArgumentID<ArgTypes...>() == *args_id;
+        auto expectArgs = &makeArgumentID<ArgTypes...>();
+        return COMPARE_ALLOC_TYPE(expectType, constructor_called) &&
+               COMPARE_TYPEID(args_id, expectArgs);
     }
 
     template <class ...ArgTypes>
     bool checkConstruct(UsesAllocatorType expectType,
                         CtorAlloc const& expectAlloc) const {
-        return expectType == constructor_called &&
-               makeArgumentID<ArgTypes...>() == *args_id &&
-               expectAlloc == allocator;
+        auto ExpectID = &makeArgumentID<ArgTypes...>() ;
+        return COMPARE_ALLOC_TYPE(expectType, constructor_called) &&
+               COMPARE_TYPEID(args_id, ExpectID) &&
+               has_alloc() && expectAlloc == *get_alloc();
+
     }
 
     bool checkConstructEquiv(UsesAllocatorTestBase& O) const {
-        return constructor_called == O.constructor_called
-            && *args_id == *O.args_id
-            && allocator == O.allocator;
+        if (has_alloc() != O.has_alloc())
+            return false;
+        return COMPARE_ALLOC_TYPE(constructor_called, O.constructor_called)
+            && COMPARE_TYPEID(args_id, O.args_id)
+            && (!has_alloc() || *get_alloc() == *O.get_alloc());
     }
 
 protected:
     explicit UsesAllocatorTestBase(const TypeID* aid)
-        : args_id(aid), constructor_called(UA_None), allocator()
+        : args_id(aid), constructor_called(UA_None), alloc_store()
+    {}
+
+    UsesAllocatorTestBase(UsesAllocatorTestBase const&)
+        : args_id(&makeArgumentID<Self const&>()), constructor_called(UA_None),
+          alloc_store()
+    {}
+
+    UsesAllocatorTestBase(UsesAllocatorTestBase&&)
+        : args_id(&makeArgumentID<Self&&>()), constructor_called(UA_None),
+          alloc_store()
     {}
 
     template <class ...Args>
     UsesAllocatorTestBase(std::allocator_arg_t, CtorAlloc const& a, Args&&...)
         : args_id(&makeArgumentID<Args&&...>()),
           constructor_called(UA_AllocArg),
-          allocator(a)
+          alloc_store(a)
     {}
 
     template <class ...Args, class ArgsIDL = detail::TakeNArgs<sizeof...(Args) - 1, Args&&...>>
     UsesAllocatorTestBase(AllocLastTag, Args&&... args)
-        : args_id(&makeTypeID<typename ArgsIDL::type>()),
+        : args_id(&makeTypeIDImp<typename ArgsIDL::type>()),
           constructor_called(UA_AllocLast),
-          allocator(getAllocatorFromPack(
+          alloc_store(UsesAllocatorTestBase::getAllocatorFromPack(
             typename ArgsIDL::type{},
             std::forward<Args>(args)...))
     {
@@ -173,7 +247,7 @@ protected:
 private:
     template <class ...LArgs, class ...Args>
     static CtorAlloc getAllocatorFromPack(ArgumentListID<LArgs...>, Args&&... args) {
-        return getAllocatorFromPackImp<LArgs const&...>(args...);
+        return UsesAllocatorTestBase::getAllocatorFromPackImp<LArgs const&...>(args...);
     }
 
     template <class ...LArgs>
@@ -182,25 +256,32 @@ private:
         return alloc;
     }
 
+    bool has_alloc() const { return alloc_store.get_allocator() != nullptr; }
+    const CtorAlloc *get_alloc() const { return alloc_store.get_allocator(); }
+public:
     const TypeID* args_id;
     UsesAllocatorType constructor_called = UA_None;
-    CtorAlloc allocator;
+    UsesAllocatorTestBaseStorage<CtorAlloc> alloc_store;
 };
 
 template <class Alloc, size_t Arity>
-class UsesAllocatorV1 : public UsesAllocatorTestBase<Alloc>
+class UsesAllocatorV1 : public UsesAllocatorTestBase<UsesAllocatorV1<Alloc, Arity>, Alloc>
 {
 public:
     typedef Alloc allocator_type;
 
-    using Base = UsesAllocatorTestBase<Alloc>;
+    using Base = UsesAllocatorTestBase<UsesAllocatorV1, Alloc>;
     using CtorAlloc = typename Base::CtorAlloc;
 
     UsesAllocatorV1() : Base(&makeArgumentID<>()) {}
 
+    UsesAllocatorV1(UsesAllocatorV1 const&)
+        : Base(&makeArgumentID<UsesAllocatorV1 const&>()) {}
+    UsesAllocatorV1(UsesAllocatorV1 &&)
+        : Base(&makeArgumentID<UsesAllocatorV1 &&>()) {}
     // Non-Uses Allocator Ctor
     template <class ...Args, EnableIfB<sizeof...(Args) == Arity> = false>
-    UsesAllocatorV1(Args&&... args) : Base(&makeArgumentID<Args&&...>()) {};
+    UsesAllocatorV1(Args&&...) : Base(&makeArgumentID<Args&&...>()) {}
 
     // Uses Allocator Arg Ctor
     template <class ...Args>
@@ -209,28 +290,32 @@ public:
     { }
 
     // BLOWS UP: Uses Allocator Last Ctor
-    template <class _First, class ...Args, EnableIfB<sizeof...(Args) == Arity> _Dummy = false>
-    constexpr UsesAllocatorV1(_First&& __first, Args&&... args)
+    template <class First, class ...Args, EnableIfB<sizeof...(Args) == Arity> Dummy = false>
+    constexpr UsesAllocatorV1(First&&, Args&&...)
     {
-        static_assert(!std::is_same<_First, _First>::value, "");
+        static_assert(!std::is_same<First, First>::value, "");
     }
 };
 
 
 template <class Alloc, size_t Arity>
-class UsesAllocatorV2 : public UsesAllocatorTestBase<Alloc>
+class UsesAllocatorV2 : public UsesAllocatorTestBase<UsesAllocatorV2<Alloc, Arity>, Alloc>
 {
 public:
     typedef Alloc allocator_type;
 
-    using Base = UsesAllocatorTestBase<Alloc>;
+    using Base = UsesAllocatorTestBase<UsesAllocatorV2, Alloc>;
     using CtorAlloc = typename Base::CtorAlloc;
 
     UsesAllocatorV2() : Base(&makeArgumentID<>()) {}
+    UsesAllocatorV2(UsesAllocatorV2 const&)
+        : Base(&makeArgumentID<UsesAllocatorV2 const&>()) {}
+    UsesAllocatorV2(UsesAllocatorV2 &&)
+        : Base(&makeArgumentID<UsesAllocatorV2 &&>()) {}
 
     // Non-Uses Allocator Ctor
     template <class ...Args, EnableIfB<sizeof...(Args) == Arity> = false>
-    UsesAllocatorV2(Args&&... args) : Base(&makeArgumentID<Args&&...>()) {};
+    UsesAllocatorV2(Args&&...) : Base(&makeArgumentID<Args&&...>()) {}
 
     // Uses Allocator Last Ctor
     template <class ...Args, EnableIfB<sizeof...(Args) == Arity + 1> = false>
@@ -240,19 +325,23 @@ public:
 };
 
 template <class Alloc, size_t Arity>
-class UsesAllocatorV3 : public UsesAllocatorTestBase<Alloc>
+class UsesAllocatorV3 : public UsesAllocatorTestBase<UsesAllocatorV3<Alloc, Arity>, Alloc>
 {
 public:
     typedef Alloc allocator_type;
 
-    using Base = UsesAllocatorTestBase<Alloc>;
+    using Base = UsesAllocatorTestBase<UsesAllocatorV3, Alloc>;
     using CtorAlloc = typename Base::CtorAlloc;
 
     UsesAllocatorV3() : Base(&makeArgumentID<>()) {}
+    UsesAllocatorV3(UsesAllocatorV3 const&)
+        : Base(&makeArgumentID<UsesAllocatorV3 const&>()) {}
+    UsesAllocatorV3(UsesAllocatorV3 &&)
+        : Base(&makeArgumentID<UsesAllocatorV3 &&>()) {}
 
     // Non-Uses Allocator Ctor
     template <class ...Args, EnableIfB<sizeof...(Args) == Arity> = false>
-    UsesAllocatorV3(Args&&... args) : Base(&makeArgumentID<Args&&...>()) {};
+    UsesAllocatorV3(Args&&...) : Base(&makeArgumentID<Args&&...>()) {}
 
     // Uses Allocator Arg Ctor
     template <class ...Args>
@@ -268,19 +357,22 @@ public:
 };
 
 template <class Alloc, size_t Arity>
-class NotUsesAllocator : public UsesAllocatorTestBase<Alloc>
+class NotUsesAllocator : public UsesAllocatorTestBase<NotUsesAllocator<Alloc, Arity>, Alloc>
 {
 public:
     // no allocator_type typedef provided
 
-    using Base = UsesAllocatorTestBase<Alloc>;
+    using Base = UsesAllocatorTestBase<NotUsesAllocator, Alloc>;
     using CtorAlloc = typename Base::CtorAlloc;
 
     NotUsesAllocator() : Base(&makeArgumentID<>()) {}
-
+    NotUsesAllocator(NotUsesAllocator const&)
+        : Base(&makeArgumentID<NotUsesAllocator const&>()) {}
+    NotUsesAllocator(NotUsesAllocator &&)
+        : Base(&makeArgumentID<NotUsesAllocator &&>()) {}
     // Non-Uses Allocator Ctor
     template <class ...Args, EnableIfB<sizeof...(Args) == Arity> = false>
-    NotUsesAllocator(Args&&... args) : Base(&makeArgumentID<Args&&...>()) {};
+    NotUsesAllocator(Args&&...) : Base(&makeArgumentID<Args&&...>()) {}
 
     // Uses Allocator Arg Ctor
     template <class ...Args>

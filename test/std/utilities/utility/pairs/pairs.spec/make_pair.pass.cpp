@@ -15,34 +15,35 @@
 #include <memory>
 #include <cassert>
 
+#include "test_macros.h"
+
 int main()
 {
     {
         typedef std::pair<int, short> P1;
-        P1 p1 = std::make_pair(3, 4);
+        P1 p1 = std::make_pair(3, static_cast<short>(4));
         assert(p1.first == 3);
         assert(p1.second == 4);
     }
 
-#ifndef _LIBCPP_HAS_NO_RVALUE_REFERENCES
+#if TEST_STD_VER >= 11
     {
         typedef std::pair<std::unique_ptr<int>, short> P1;
-        P1 p1 = std::make_pair(std::unique_ptr<int>(new int(3)), 4);
+        P1 p1 = std::make_pair(std::unique_ptr<int>(new int(3)), static_cast<short>(4));
         assert(*p1.first == 3);
         assert(p1.second == 4);
     }
     {
         typedef std::pair<std::unique_ptr<int>, short> P1;
-        P1 p1 = std::make_pair(nullptr, 4);
+        P1 p1 = std::make_pair(nullptr, static_cast<short>(4));
         assert(p1.first == nullptr);
         assert(p1.second == 4);
     }
-#endif  // _LIBCPP_HAS_NO_RVALUE_REFERENCES
-
-#if _LIBCPP_STD_VER > 11
+#endif
+#if TEST_STD_VER >= 14
     {
         typedef std::pair<int, short> P1;
-        constexpr P1 p1 = std::make_pair(3, 4);
+        constexpr P1 p1 = std::make_pair(3, static_cast<short>(4));
         static_assert(p1.first == 3, "");
         static_assert(p1.second == 4, "");
     }

@@ -8,6 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 // <functional>
+// REQUIRES-ANY: c++98, c++03, c++11, c++14
 
 // class function<R(ArgTypes...)>
 
@@ -16,10 +17,23 @@
 #include <functional>
 #include <cassert>
 
+#include "test_macros.h"
 #include "min_allocator.h"
 #include "test_allocator.h"
 #include "count_new.hpp"
 #include "../function_types.h"
+
+
+#if TEST_STD_VER >= 11
+struct RValueCallable {
+    template <class ...Args>
+    void operator()(Args&&...) && {}
+};
+struct LValueCallable {
+    template <class ...Args>
+    void operator()(Args&&...) & {}
+};
+#endif
 
 class DummyClass {};
 
@@ -103,4 +117,14 @@ int main()
         non_default_test_allocator<DummyClass> non_default_alloc(42);
         test_for_alloc(non_default_alloc);
     }
+#if TEST_STD_VER >= 11
+    {
+        using Fn = std::function<void(int, int, int)>;
+        static_assert(std::is_constructible<Fn, std::allocator_arg_t, std::allocator<int>, LValueCallable&>::value, "");
+        static_assert(std::is_constructible<Fn, std::allocator_arg_t, std::allocator<int>, LValueCallable>::value, "");
+        static_assert(!std::is_constructible<Fn, std::allocator_arg_t, std::allocator<int>, RValueCallable&>::value, "");
+        static_assert(!std::is_constructible<Fn, std::allocator_arg_t, std::allocator<int>, RValueCallable>::value, "");
+    }
+#endif
+
 }

@@ -7,7 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// XFAIL: libcpp-no-exceptions
 // UNSUPPORTED: libcpp-has-no-threads
 // UNSUPPORTED: c++98, c++03
 
@@ -20,6 +19,8 @@
 #include <future>
 #include <cassert>
 
+#include "test_macros.h"
+
 class A
 {
     long data_;
@@ -30,7 +31,7 @@ public:
     long operator()(long i, long j) const {return data_ + i + j;}
 };
 
-void func(std::packaged_task<double(int, char)> p)
+void func(std::packaged_task<double(int, char)>)
 {
 }
 
@@ -41,6 +42,7 @@ void func2(std::packaged_task<double(int, char)> p)
 
 int main()
 {
+#ifndef TEST_HAS_NO_EXCEPTIONS
     {
         std::packaged_task<double(int, char)> p(A(5));
         std::future<double> f = p.get_future();
@@ -48,6 +50,7 @@ int main()
         try
         {
             double i = f.get();
+            ((void)i); // Prevent unused warning
             assert(false);
         }
         catch (const std::future_error& e)
@@ -55,6 +58,7 @@ int main()
             assert(e.code() == make_error_code(std::future_errc::broken_promise));
         }
     }
+#endif
     {
         std::packaged_task<double(int, char)> p(A(5));
         std::future<double> f = p.get_future();

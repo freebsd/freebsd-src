@@ -7,7 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-// XFAIL: libcpp-no-exceptions
 // <locale>
 
 // wstring_convert<Codecvt, Elem, Wide_alloc, Byte_alloc>
@@ -19,14 +18,17 @@
 #include <codecvt>
 #include <cassert>
 
+#include "test_macros.h"
+
 int main()
 {
     typedef std::codecvt_utf8<wchar_t> Codecvt;
     typedef std::wstring_convert<Codecvt> Myconv;
-#if _LIBCPP_STD_VER > 11
+#if TEST_STD_VER > 11
     static_assert(!std::is_convertible<std::string, Myconv>::value, "");
     static_assert( std::is_constructible<Myconv, std::string>::value, "");
 #endif
+#ifndef TEST_HAS_NO_EXCEPTIONS
     {
         Myconv myconv;
         try
@@ -46,10 +48,12 @@ int main()
         {
         }
     }
+#endif
     {
         Myconv myconv("byte error");
         std::string bs = myconv.to_bytes(L"\xDA83");
         assert(bs == "byte error");
+#ifndef TEST_HAS_NO_EXCEPTIONS
         try
         {
             myconv.from_bytes('\xA5');
@@ -58,6 +62,7 @@ int main()
         catch (const std::range_error&)
         {
         }
+#endif
     }
     {
         Myconv myconv("byte error", L"wide error");

@@ -7,7 +7,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-// XFAIL: libcpp-no-exceptions
+// UNSUPPORTED: libcpp-no-exceptions
 // Test asan vector annotations with a class that throws in a CTOR.
 
 #include <vector>
@@ -41,7 +41,7 @@ private:
 class ThrowOnCopy {
 public:
     ThrowOnCopy() : should_throw(false) {}
-    explicit ThrowOnCopy(bool should_throw) : should_throw(should_throw) {}
+    explicit ThrowOnCopy(bool xshould_throw) : should_throw(xshould_throw) {}
 
     ThrowOnCopy(ThrowOnCopy const & other)
         : should_throw(other.should_throw)

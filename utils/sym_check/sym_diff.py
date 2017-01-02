@@ -24,6 +24,13 @@ def main():
         help='Only print symbol names',
         action='store_true', default=False)
     parser.add_argument(
+        '--removed-only', dest='removed_only',
+        help='Only print removed symbols',
+        action='store_true', default=False)
+    parser.add_argument('--only-stdlib-symbols', dest='only_stdlib',
+                        help="Filter all symbols not related to the stdlib",
+                        action='store_true', default=False)
+    parser.add_argument(
         '-o', '--output', dest='output',
         help='The output file. stdout is used if not given',
         type=str, action='store', default=None)
@@ -40,7 +47,13 @@ def main():
     old_syms_list = util.extract_or_load(args.old_syms)
     new_syms_list = util.extract_or_load(args.new_syms)
 
+    if args.only_stdlib:
+        old_syms_list, _ = util.filter_stdlib_symbols(old_syms_list)
+        new_syms_list, _ = util.filter_stdlib_symbols(new_syms_list)
+
     added, removed, changed = diff.diff(old_syms_list, new_syms_list)
+    if args.removed_only:
+        added = {}
     report, is_break = diff.report_diff(added, removed, changed,
                                         names_only=args.names_only,
                                         demangle=args.demangle)

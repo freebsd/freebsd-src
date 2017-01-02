@@ -14,8 +14,9 @@
 // class path
 
 // path& operator+=(const path& x);
-// path& operator+=(const string_type& x); // Implemented as Source template
-// path& operator+=(const value_type* x);  // Implemented as Source template
+// path& operator+=(const string_type& x);
+// path& operator+=(string_view x);
+// path& operator+=(const value_type* x);
 // path& operator+=(value_type x);
 // template <class Source>
 //   path& operator+=(const Source& x);
@@ -29,6 +30,8 @@
 
 #include <experimental/filesystem>
 #include <type_traits>
+#include <string>
+#include <string_view>
 #include <cassert>
 
 #include "test_macros.h"
@@ -82,6 +85,7 @@ void doConcatSourceAllocTest(ConcatOperatorTestcase const& TC)
   using namespace fs;
   using Ptr = CharT const*;
   using Str = std::basic_string<CharT>;
+  using StrView = std::basic_string_view<CharT>;
   using InputIter = input_iterator<Ptr>;
 
   const Ptr L = TC.lhs;
@@ -92,6 +96,16 @@ void doConcatSourceAllocTest(ConcatOperatorTestcase const& TC)
   {
     path LHS(L); PathReserve(LHS, ReserveSize);
     Str  RHS(R);
+    {
+      DisableAllocationGuard g;
+      LHS += RHS;
+    }
+    assert(LHS == E);
+  }
+  // basic_string_view
+  {
+    path LHS(L); PathReserve(LHS, ReserveSize);
+    StrView  RHS(R);
     {
       DisableAllocationGuard g;
       LHS += RHS;
@@ -152,6 +166,7 @@ void doConcatSourceTest(ConcatOperatorTestcase const& TC)
   using namespace fs;
   using Ptr = CharT const*;
   using Str = std::basic_string<CharT>;
+  using StrView = std::basic_string_view<CharT>;
   using InputIter = input_iterator<Ptr>;
   const Ptr L = TC.lhs;
   const Ptr R = TC.rhs;
@@ -167,6 +182,21 @@ void doConcatSourceTest(ConcatOperatorTestcase const& TC)
   {
     path LHS(L);
     Str RHS(R);
+    path& Ref = LHS.concat(RHS);
+    assert(LHS == E);
+    assert(&Ref == &LHS);
+  }
+  // basic_string_view
+  {
+    path LHS(L);
+    StrView RHS(R);
+    path& Ref = (LHS += RHS);
+    assert(LHS == E);
+    assert(&Ref == &LHS);
+  }
+  {
+    path LHS(L);
+    StrView RHS(R);
     path& Ref = LHS.concat(RHS);
     assert(LHS == E);
     assert(&Ref == &LHS);
@@ -235,6 +265,68 @@ void doConcatECharTest(ConcatOperatorTestcase const& TC)
   }
 }
 
+
+template <class It, class = decltype(fs::path{}.concat(std::declval<It>()))>
+constexpr bool has_concat(int) { return true; }
+template <class It>
+constexpr bool has_concat(long) { return false; }
+
+template <class It, class = decltype(fs::path{}.operator+=(std::declval<It>()))>
+constexpr bool has_concat_op(int) { return true; }
+template <class It>
+constexpr bool has_concat_op(long) { return false; }
+template <class It>
+constexpr bool has_concat_op() { return has_concat_op<It>(0); }
+
+template <class It>
+constexpr bool has_concat() {
+  static_assert(has_concat<It>(0) == has_concat_op<It>(0), "must be same");
+  return has_concat<It>(0) && has_concat_op<It>(0);
+}
+
+void test_sfinae() {
+  using namespace fs;
+  {
+    static_assert(has_concat_op<char>(), "");
+    static_assert(has_concat_op<const char>(), "");
+    static_assert(has_concat_op<char16_t>(), "");
+    static_assert(has_concat_op<const char16_t>(), "");
+  }
+  {
+    using It = const char* const;
+    static_assert(has_concat<It>(), "");
+  }
+  {
+    using It = input_iterator<const char*>;
+    static_assert(has_concat<It>(), "");
+  }
+  {
+    struct Traits {
+      using iterator_category = std::input_iterator_tag;
+      using value_type = const char;
+      using pointer = const char*;
+      using reference = const char&;
+      using difference_type = std::ptrdiff_t;
+    };
+    using It = input_iterator<const char*, Traits>;
+    static_assert(has_concat<It>(), "");
+  }
+  {
+    using It = output_iterator<const char*>;
+    static_assert(!has_concat<It>(), "");
+  }
+  {
+    static_assert(!has_concat<int>(0), "");
+    // operator+=(int) is well formed since it converts to operator+=(value_type)
+    // but concat(int) isn't valid because there is no concat(value_type).
+    // This should probably be addressed by a LWG issue.
+    static_assert(has_concat_op<int>(), "");
+  }
+  {
+    static_assert(!has_concat<int*>(), "");
+  }
+}
+
 int main()
 {
   using namespace fs;
@@ -242,6 +334,13 @@ int main()
     {
       path LHS((const char*)TC.lhs);
       path RHS((const char*)TC.rhs);
+      path& Ref = (LHS += RHS);
+      assert(LHS == (const char*)TC.expect);
+      assert(&Ref == &LHS);
+    }
+    {
+      path LHS((const char*)TC.lhs);
+      std::string_view RHS((const char*)TC.rhs);
       path& Ref = (LHS += RHS);
       assert(LHS == (const char*)TC.expect);
       assert(&Ref == &LHS);
@@ -265,6 +364,18 @@ int main()
       }
       assert(LHS == E);
     }
+    {
+      path LHS((const char*)TC.lhs);
+      std::string_view RHS((const char*)TC.rhs);
+      const char* E = TC.expect;
+      PathReserve(LHS, StrLen(E) + 5);
+      {
+        DisableAllocationGuard g;
+        path& Ref = (LHS += RHS);
+        assert(&Ref == &LHS);
+      }
+      assert(LHS == E);
+    }
     doConcatSourceAllocTest<char>(TC);
     doConcatSourceAllocTest<wchar_t>(TC);
   }
@@ -274,4 +385,5 @@ int main()
     doConcatECharTest<char16_t>(TC);
     doConcatECharTest<char32_t>(TC);
   }
+  test_sfinae();
 }

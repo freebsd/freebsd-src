@@ -15,6 +15,7 @@
 #include <cassert>
 #include <iterator>
 
+#include "test_macros.h"
 #include "test_allocator.h"
 #include "min_allocator.h"
 
@@ -27,14 +28,14 @@ int main()
         const T t[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
         C c0(std::begin(t), std::end(t), A(10));
         C c = c0;
-        unsigned n = 0;
+        int n = 0;
         for (C::const_iterator i = c.begin(), e = c.end(); i != e; ++i, ++n)
             assert(*i == n);
         assert(n == std::end(t) - std::begin(t));
         assert(c == c0);
         assert(c.get_allocator() == A(10));
     }
-#ifndef _LIBCPP_HAS_NO_ADVANCED_SFINAE
+#if TEST_STD_VER >= 11
     {
         typedef int T;
         typedef other_allocator<int> A;
@@ -42,15 +43,13 @@ int main()
         const T t[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
         C c0(std::begin(t), std::end(t), A(10));
         C c = c0;
-        unsigned n = 0;
+        int n = 0;
         for (C::const_iterator i = c.begin(), e = c.end(); i != e; ++i, ++n)
             assert(*i == n);
         assert(n == std::end(t) - std::begin(t));
         assert(c == c0);
         assert(c.get_allocator() == A(-2));
     }
-#endif  // _LIBCPP_HAS_NO_ADVANCED_SFINAE
-#if TEST_STD_VER >= 11
     {
         typedef int T;
         typedef min_allocator<int> A;
@@ -58,7 +57,7 @@ int main()
         const T t[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
         C c0(std::begin(t), std::end(t), A());
         C c = c0;
-        unsigned n = 0;
+        int n = 0;
         for (C::const_iterator i = c.begin(), e = c.end(); i != e; ++i, ++n)
             assert(*i == n);
         assert(n == std::end(t) - std::begin(t));

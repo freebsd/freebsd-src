@@ -12,6 +12,7 @@
 // constexpr const_iterator end() const;
 
 #include <experimental/string_view>
+#include <cstddef>
 #include <cassert>
 
 #include "test_macros.h"
@@ -38,9 +39,9 @@ test(S s)
         assert(ce2 !=  s.begin());
     }
 
-    assert(  e -  s.begin() == s.size());
-    assert(ce1 - cs.begin() == cs.size());
-    assert(ce2 - s.cbegin() == s.size());
+    assert(  e -  s.begin() == static_cast<std::ptrdiff_t>(s.size()));
+    assert(ce1 - cs.begin() == static_cast<std::ptrdiff_t>(cs.size()));
+    assert(ce2 - s.cbegin() == static_cast<std::ptrdiff_t>(s.size()));
 
     assert(  e == ce1);
     assert(  e == ce2);
@@ -66,7 +67,7 @@ int main()
     test(u32string_view{U"123"});
 #endif
 
-#if _LIBCPP_STD_VER > 11
+#if TEST_STD_VER > 11
     {
     constexpr string_view       sv { "123", 3 };
     constexpr u16string_view u16sv {u"123", 3 };

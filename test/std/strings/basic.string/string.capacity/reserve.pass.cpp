@@ -7,7 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-// XFAIL: libcpp-no-exceptions
 // <string>
 
 // void reserve(size_type res_arg=0);
@@ -37,19 +36,29 @@ void
 test(S s, typename S::size_type res_arg)
 {
     typename S::size_type old_cap = s.capacity();
+    ((void)old_cap); // Prevent unused warning
     S s0 = s;
-    try
+    if (res_arg <= s.max_size())
     {
         s.reserve(res_arg);
-        assert(res_arg <= s.max_size());
         assert(s == s0);
         assert(s.capacity() >= res_arg);
         assert(s.capacity() >= s.size());
     }
-    catch (std::length_error&)
+#ifndef TEST_HAS_NO_EXCEPTIONS
+    else
     {
-        assert(res_arg > s.max_size());
+        try
+        {
+            s.reserve(res_arg);
+            assert(false);
+        }
+        catch (std::length_error&)
+        {
+            assert(res_arg > s.max_size());
+        }
     }
+#endif
 }
 
 int main()

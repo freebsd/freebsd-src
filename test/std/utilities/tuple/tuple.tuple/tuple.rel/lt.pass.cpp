@@ -33,6 +33,8 @@
 #include <string>
 #include <cassert>
 
+#include "test_macros.h"
+
 int main()
 {
     {
@@ -46,7 +48,7 @@ int main()
         assert( (t1 >= t2));
     }
     {
-        typedef std::tuple<char> T1;
+        typedef std::tuple<long> T1;
         typedef std::tuple<double> T2;
         const T1 t1(1);
         const T2 t2(1);
@@ -56,7 +58,7 @@ int main()
         assert( (t1 >= t2));
     }
     {
-        typedef std::tuple<char> T1;
+        typedef std::tuple<long> T1;
         typedef std::tuple<double> T2;
         const T1 t1(1);
         const T2 t2(0.9);
@@ -66,7 +68,7 @@ int main()
         assert( (t1 >= t2));
     }
     {
-        typedef std::tuple<char> T1;
+        typedef std::tuple<long> T1;
         typedef std::tuple<double> T2;
         const T1 t1(1);
         const T2 t2(1.1);
@@ -76,8 +78,8 @@ int main()
         assert(!(t1 >= t2));
     }
     {
-        typedef std::tuple<char, int> T1;
-        typedef std::tuple<double, char> T2;
+        typedef std::tuple<long, int> T1;
+        typedef std::tuple<double, long> T2;
         const T1 t1(1, 2);
         const T2 t2(1, 2);
         assert(!(t1 <  t2));
@@ -86,8 +88,8 @@ int main()
         assert( (t1 >= t2));
     }
     {
-        typedef std::tuple<char, int> T1;
-        typedef std::tuple<double, char> T2;
+        typedef std::tuple<long, int> T1;
+        typedef std::tuple<double, long> T2;
         const T1 t1(1, 2);
         const T2 t2(0.9, 2);
         assert(!(t1 <  t2));
@@ -96,8 +98,8 @@ int main()
         assert( (t1 >= t2));
     }
     {
-        typedef std::tuple<char, int> T1;
-        typedef std::tuple<double, char> T2;
+        typedef std::tuple<long, int> T1;
+        typedef std::tuple<double, long> T2;
         const T1 t1(1, 2);
         const T2 t2(1.1, 2);
         assert( (t1 <  t2));
@@ -106,8 +108,8 @@ int main()
         assert(!(t1 >= t2));
     }
     {
-        typedef std::tuple<char, int> T1;
-        typedef std::tuple<double, char> T2;
+        typedef std::tuple<long, int> T1;
+        typedef std::tuple<double, long> T2;
         const T1 t1(1, 2);
         const T2 t2(1, 1);
         assert(!(t1 <  t2));
@@ -116,8 +118,8 @@ int main()
         assert( (t1 >= t2));
     }
     {
-        typedef std::tuple<char, int> T1;
-        typedef std::tuple<double, char> T2;
+        typedef std::tuple<long, int> T1;
+        typedef std::tuple<double, long> T2;
         const T1 t1(1, 2);
         const T2 t2(1, 3);
         assert( (t1 <  t2));
@@ -126,8 +128,8 @@ int main()
         assert(!(t1 >= t2));
     }
     {
-        typedef std::tuple<char, int, double> T1;
-        typedef std::tuple<double, char, int> T2;
+        typedef std::tuple<long, int, double> T1;
+        typedef std::tuple<double, long, int> T2;
         const T1 t1(1, 2, 3);
         const T2 t2(1, 2, 3);
         assert(!(t1 <  t2));
@@ -136,8 +138,8 @@ int main()
         assert( (t1 >= t2));
     }
     {
-        typedef std::tuple<char, int, double> T1;
-        typedef std::tuple<double, char, int> T2;
+        typedef std::tuple<long, int, double> T1;
+        typedef std::tuple<double, long, int> T2;
         const T1 t1(1, 2, 3);
         const T2 t2(0.9, 2, 3);
         assert(!(t1 <  t2));
@@ -146,8 +148,8 @@ int main()
         assert( (t1 >= t2));
     }
     {
-        typedef std::tuple<char, int, double> T1;
-        typedef std::tuple<double, char, int> T2;
+        typedef std::tuple<long, int, double> T1;
+        typedef std::tuple<double, long, int> T2;
         const T1 t1(1, 2, 3);
         const T2 t2(1.1, 2, 3);
         assert( (t1 <  t2));
@@ -156,8 +158,8 @@ int main()
         assert(!(t1 >= t2));
     }
     {
-        typedef std::tuple<char, int, double> T1;
-        typedef std::tuple<double, char, int> T2;
+        typedef std::tuple<long, int, double> T1;
+        typedef std::tuple<double, long, int> T2;
         const T1 t1(1, 2, 3);
         const T2 t2(1, 1, 3);
         assert(!(t1 <  t2));
@@ -166,8 +168,8 @@ int main()
         assert( (t1 >= t2));
     }
     {
-        typedef std::tuple<char, int, double> T1;
-        typedef std::tuple<double, char, int> T2;
+        typedef std::tuple<long, int, double> T1;
+        typedef std::tuple<double, long, int> T2;
         const T1 t1(1, 2, 3);
         const T2 t2(1, 3, 3);
         assert( (t1 <  t2));
@@ -176,8 +178,8 @@ int main()
         assert(!(t1 >= t2));
     }
     {
-        typedef std::tuple<char, int, double> T1;
-        typedef std::tuple<double, char, int> T2;
+        typedef std::tuple<long, int, double> T1;
+        typedef std::tuple<double, long, int> T2;
         const T1 t1(1, 2, 3);
         const T2 t2(1, 2, 2);
         assert(!(t1 <  t2));
@@ -186,8 +188,8 @@ int main()
         assert( (t1 >= t2));
     }
     {
-        typedef std::tuple<char, int, double> T1;
-        typedef std::tuple<double, char, int> T2;
+        typedef std::tuple<long, int, double> T1;
+        typedef std::tuple<double, long, int> T2;
         const T1 t1(1, 2, 3);
         const T2 t2(1, 2, 4);
         assert( (t1 <  t2));
@@ -195,10 +197,10 @@ int main()
         assert(!(t1 >  t2));
         assert(!(t1 >= t2));
     }
-#if _LIBCPP_STD_VER > 11
+#if TEST_STD_VER > 11
     {
-        typedef std::tuple<char, int, double> T1;
-        typedef std::tuple<double, char, int> T2;
+        typedef std::tuple<long, int, double> T1;
+        typedef std::tuple<double, long, int> T2;
         constexpr T1 t1(1, 2, 3);
         constexpr T2 t2(1, 2, 4);
         static_assert( (t1 <  t2), "");

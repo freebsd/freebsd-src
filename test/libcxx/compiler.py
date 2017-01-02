@@ -7,22 +7,85 @@
 #
 #===----------------------------------------------------------------------===##
 
+import platform
 import os
 import lit.util
 import libcxx.util
 
 
 class CXXCompiler(object):
+    CM_Default = 0
+    CM_PreProcess = 1
+    CM_Compile = 2
+    CM_Link = 3
+
     def __init__(self, path, flags=None, compile_flags=None, link_flags=None,
-                 use_ccache=False):
+                 warning_flags=None, verify_supported=None,
+                 verify_flags=None, use_verify=False,
+                 modules_flags=None, use_modules=False,
+                 use_ccache=False, use_warnings=False, compile_env=None,
+                 cxx_type=None, cxx_version=None):
         self.path = path
         self.flags = list(flags or [])
         self.compile_flags = list(compile_flags or [])
         self.link_flags = list(link_flags or [])
+        self.warning_flags = list(warning_flags or [])
+        self.verify_supported = verify_supported
+        self.use_verify = use_verify
+        self.verify_flags = list(verify_flags or [])
+        assert not use_verify or verify_supported
+        assert not use_verify or verify_flags is not None
+        self.modules_flags = list(modules_flags or [])
+        self.use_modules = use_modules
+        assert not use_modules or modules_flags is not None
         self.use_ccache = use_ccache
-        self.type = None
-        self.version = None
-        self._initTypeAndVersion()
+        self.use_warnings = use_warnings
+        if compile_env is not None:
+            self.compile_env = dict(compile_env)
+        else:
+            self.compile_env = None
+        self.type = cxx_type
+        self.version = cxx_version
+        if self.type is None or self.version is None:
+            self._initTypeAndVersion()
+
+    def copy(self):
+        new_cxx = CXXCompiler(
+            self.path, flags=self.flags, compile_flags=self.compile_flags,
+            link_flags=self.link_flags, warning_flags=self.warning_flags,
+            verify_supported=self.verify_supported,
+            verify_flags=self.verify_flags, use_verify=self.use_verify,
+            modules_flags=self.modules_flags, use_modules=self.use_modules,
+            use_ccache=self.use_ccache, use_warnings=self.use_warnings,
+            compile_env=self.compile_env, cxx_type=self.type,
+            cxx_version=self.version)
+        return new_cxx
+
+    def isVerifySupported(self):
+        if self.verify_supported is None:
+            self.verify_supported = self.hasCompileFlag(['-Xclang',
+                                        '-verify-ignore-unexpected'])
+            if self.verify_supported:
+                self.verify_flags = [
+                    '-Xclang', '-verify',
+                    '-Xclang', '-verify-ignore-unexpected=note',
+                    '-ferror-limit=1024'
+                ]
+        return self.verify_supported
+
+    def useVerify(self, value=True):
+        self.use_verify = value
+        assert not self.use_verify or self.verify_flags is not None
+
+    def useModules(self, value=True):
+        self.use_modules = value
+        assert not self.use_modules or self.modules_flags is not None
+
+    def useCCache(self, value=True):
+        self.use_ccache = value
+
+    def useWarnings(self, value=True):
+        self.use_warnings = value
 
     def _initTypeAndVersion(self):
         # Get compiler type and version
@@ -47,10 +110,12 @@ class CXXCompiler(object):
         self.type = compiler_type
         self.version = (major_ver, minor_ver, patchlevel)
 
-    def _basicCmd(self, source_files, out, is_link=False, input_is_cxx=False,
-                  disable_ccache=False):
+    def _basicCmd(self, source_files, out, mode=CM_Default, flags=[],
+                  input_is_cxx=False):
         cmd = []
-        if self.use_ccache and not disable_ccache and not is_link:
+        if self.use_ccache \
+                and not mode == self.CM_Link \
+                and not mode == self.CM_PreProcess:
             cmd += ['ccache']
         cmd += [self.path]
         if out is not None:
@@ -63,57 +128,69 @@ class CXXCompiler(object):
             cmd += [source_files]
         else:
             raise TypeError('source_files must be a string or list')
+        if mode == self.CM_PreProcess:
+            cmd += ['-E']
+        elif mode == self.CM_Compile:
+            cmd += ['-c']
+        cmd += self.flags
+        if self.use_verify:
+            cmd += self.verify_flags
+            assert mode in [self.CM_Default, self.CM_Compile]
+        if self.use_modules:
+            cmd += self.modules_flags
+        if mode != self.CM_Link:
+            cmd += self.compile_flags
+            if self.use_warnings:
+                cmd += self.warning_flags
+        if mode != self.CM_PreProcess and mode != self.CM_Compile:
+            cmd += self.link_flags
+        cmd += flags
         return cmd
 
     def preprocessCmd(self, source_files, out=None, flags=[]):
-        cmd = self._basicCmd(source_files, out, input_is_cxx=True,
-                             disable_ccache=True) + ['-E']
-        cmd += self.flags + self.compile_flags + flags
-        return cmd
+        return self._basicCmd(source_files, out, flags=flags,
+                             mode=self.CM_PreProcess,
+                             input_is_cxx=True)
 
-    def compileCmd(self, source_files, out=None, flags=[],
-                   disable_ccache=False):
-        cmd = self._basicCmd(source_files, out, input_is_cxx=True,
-                             disable_ccache=disable_ccache) + ['-c']
-        cmd += self.flags + self.compile_flags + flags
-        return cmd
+    def compileCmd(self, source_files, out=None, flags=[]):
+        return self._basicCmd(source_files, out, flags=flags,
+                             mode=self.CM_Compile,
+                             input_is_cxx=True) + ['-c']
 
     def linkCmd(self, source_files, out=None, flags=[]):
-        cmd = self._basicCmd(source_files, out, is_link=True)
-        cmd += self.flags + self.link_flags + flags
-        return cmd
+        return self._basicCmd(source_files, out, flags=flags,
+                              mode=self.CM_Link)
 
     def compileLinkCmd(self, source_files, out=None, flags=[]):
-        cmd = self._basicCmd(source_files, out, is_link=True)
-        cmd += self.flags + self.compile_flags + self.link_flags + flags
-        return cmd
+        return self._basicCmd(source_files, out, flags=flags)
 
-    def preprocess(self, source_files, out=None, flags=[], env=None, cwd=None):
+    def preprocess(self, source_files, out=None, flags=[], cwd=None):
         cmd = self.preprocessCmd(source_files, out, flags)
-        out, err, rc = lit.util.executeCommand(cmd, env=env, cwd=cwd)
+        out, err, rc = lit.util.executeCommand(cmd, env=self.compile_env,
+                                               cwd=cwd)
         return cmd, out, err, rc
 
-    def compile(self, source_files, out=None, flags=[], env=None, cwd=None,
-                disable_ccache=False):
-        cmd = self.compileCmd(source_files, out, flags,
-                              disable_ccache=disable_ccache)
-        out, err, rc = lit.util.executeCommand(cmd, env=env, cwd=cwd)
+    def compile(self, source_files, out=None, flags=[], cwd=None):
+        cmd = self.compileCmd(source_files, out, flags)
+        out, err, rc = lit.util.executeCommand(cmd, env=self.compile_env,
+                                               cwd=cwd)
         return cmd, out, err, rc
 
-    def link(self, source_files, out=None, flags=[], env=None, cwd=None):
+    def link(self, source_files, out=None, flags=[], cwd=None):
         cmd = self.linkCmd(source_files, out, flags)
-        out, err, rc = lit.util.executeCommand(cmd, env=env, cwd=cwd)
+        out, err, rc = lit.util.executeCommand(cmd, env=self.compile_env,
+                                               cwd=cwd)
         return cmd, out, err, rc
 
-    def compileLink(self, source_files, out=None, flags=[], env=None,
+    def compileLink(self, source_files, out=None, flags=[],
                     cwd=None):
         cmd = self.compileLinkCmd(source_files, out, flags)
-        out, err, rc = lit.util.executeCommand(cmd, env=env, cwd=cwd)
+        out, err, rc = lit.util.executeCommand(cmd, env=self.compile_env,
+                                               cwd=cwd)
         return cmd, out, err, rc
 
     def compileLinkTwoSteps(self, source_file, out=None, object_file=None,
-                            flags=[], env=None, cwd=None,
-                            disable_ccache=False):
+                            flags=[], cwd=None):
         if not isinstance(source_file, str):
             raise TypeError('This function only accepts a single input file')
         if object_file is None:
@@ -124,22 +201,20 @@ class CXXCompiler(object):
             with_fn = lambda: libcxx.util.nullContext(object_file)
         with with_fn() as object_file:
             cc_cmd, cc_stdout, cc_stderr, rc = self.compile(
-                    source_file, object_file, flags=flags, env=env, cwd=cwd,
-                    disable_ccache=disable_ccache)
+                source_file, object_file, flags=flags, cwd=cwd)
             if rc != 0:
                 return cc_cmd, cc_stdout, cc_stderr, rc
 
             link_cmd, link_stdout, link_stderr, rc = self.link(
-                    object_file, out=out, flags=flags, env=env, cwd=cwd)
+                object_file, out=out, flags=flags, cwd=cwd)
             return (cc_cmd + ['&&'] + link_cmd, cc_stdout + link_stdout,
                     cc_stderr + link_stderr, rc)
 
-    def dumpMacros(self, source_files=None, flags=[], env=None, cwd=None):
+    def dumpMacros(self, source_files=None, flags=[], cwd=None):
         if source_files is None:
             source_files = os.devnull
         flags = ['-dM'] + flags
-        cmd, out, err, rc = self.preprocess(source_files, flags=flags, env=env,
-                                            cwd=cwd)
+        cmd, out, err, rc = self.preprocess(source_files, flags=flags, cwd=cwd)
         if rc != 0:
             return None
         parsed_macros = {}
@@ -163,10 +238,21 @@ class CXXCompiler(object):
         # Add -Werror to ensure that an unrecognized flag causes a non-zero
         # exit code. -Werror is supported on all known compiler types.
         if self.type is not None:
-            flags += ['-Werror']
+            flags += ['-Werror', '-fsyntax-only']
         cmd, out, err, rc = self.compile(os.devnull, out=os.devnull,
                                          flags=flags)
         return rc == 0
+
+    def addFlagIfSupported(self, flag):
+        if isinstance(flag, list):
+            flags = list(flag)
+        else:
+            flags = [flag]
+        if self.hasCompileFlag(flags):
+            self.flags += flags
+            return True
+        else:
+            return False
 
     def addCompileFlagIfSupported(self, flag):
         if isinstance(flag, list):
@@ -179,27 +265,38 @@ class CXXCompiler(object):
         else:
             return False
 
-    def addWarningFlagIfSupported(self, flag):
+    def hasWarningFlag(self, flag):
         """
-        addWarningFlagIfSupported - Add a warning flag if the compiler
-        supports it. Unlike addCompileFlagIfSupported, this function detects
-        when "-Wno-<warning>" flags are unsupported. If flag is a
+        hasWarningFlag - Test if the compiler supports a given warning flag.
+        Unlike addCompileFlagIfSupported, this function detects when
+        "-Wno-<warning>" flags are unsupported. If flag is a
         "-Wno-<warning>" GCC will not emit an unknown option diagnostic unless
         another error is triggered during compilation.
         """
         assert isinstance(flag, str)
+        assert flag.startswith('-W')
         if not flag.startswith('-Wno-'):
-            return self.addCompileFlagIfSupported(flag)
+            return self.hasCompileFlag(flag)
         flags = ['-Werror', flag]
+        old_use_warnings = self.use_warnings
+        self.useWarnings(False)
         cmd = self.compileCmd('-', os.devnull, flags)
+        self.useWarnings(old_use_warnings)
         # Remove '-v' because it will cause the command line invocation
         # to be printed as part of the error output.
         # TODO(EricWF): Are there other flags we need to worry about?
         if '-v' in cmd:
             cmd.remove('-v')
         out, err, rc = lit.util.executeCommand(cmd, input='#error\n')
+
         assert rc != 0
         if flag in err:
             return False
-        self.compile_flags += [flag]
         return True
+
+    def addWarningFlagIfSupported(self, flag):
+        if self.hasWarningFlag(flag):
+            assert flag not in self.warning_flags
+            self.warning_flags += [flag]
+            return True
+        return False

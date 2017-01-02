@@ -84,7 +84,7 @@ template <class T, class Tuple>
   constexpr T make_from_tuple(Tuple&& t); // C++17
 
 // 20.4.1.4, tuple helper classes:
-template <class T> class tuple_size; // undefined
+template <class T> class tuple_size;
 template <class... T> class tuple_size<tuple<T...>>;
 template <class T>
  constexpr size_t tuple_size_v = tuple_size<T>::value; // C++17
@@ -150,27 +150,6 @@ _LIBCPP_BEGIN_NAMESPACE_STD
 
 #ifndef _LIBCPP_HAS_NO_VARIADICS
 
-// tuple_size
-
-template <class ..._Tp>
-class _LIBCPP_TYPE_VIS_ONLY tuple_size<tuple<_Tp...> >
-    : public integral_constant<size_t, sizeof...(_Tp)>
-{
-};
-
-// tuple_element
-
-template <size_t _Ip, class ..._Tp>
-class _LIBCPP_TYPE_VIS_ONLY tuple_element<_Ip, tuple<_Tp...> >
-{
-public:
-    typedef typename tuple_element<_Ip, __tuple_types<_Tp...> >::type type;
-};
-
-#if _LIBCPP_STD_VER > 11
-template <size_t _Ip, class ..._Tp>
-using tuple_element_t = typename tuple_element <_Ip, _Tp...>::type;
-#endif
 
 // __tuple_leaf
 
@@ -191,6 +170,20 @@ template <size_t _Ip, class _Hp, bool>
 class __tuple_leaf
 {
     _Hp value;
+
+    template <class _Tp>
+    static constexpr bool __can_bind_reference() {
+        using _RawTp = typename remove_reference<_Tp>::type;
+        using _RawHp = typename remove_reference<_Hp>::type;
+        using _CheckLValueArg = integral_constant<bool,
+            is_lvalue_reference<_Tp>::value
+        ||  is_same<_RawTp, reference_wrapper<_RawHp>>::value
+        ||  is_same<_RawTp, reference_wrapper<typename remove_const<_RawHp>::type>>::value
+        >;
+        return  !is_reference<_Hp>::value
+            || (is_lvalue_reference<_Hp>::value && _CheckLValueArg::value)
+            || (is_rvalue_reference<_Hp>::value && !is_lvalue_reference<_Tp>::value);
+    }
 
     __tuple_leaf& operator=(const __tuple_leaf&);
 public:
@@ -231,59 +224,29 @@ public:
         _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR_AFTER_CXX11
         explicit __tuple_leaf(_Tp&& __t) _NOEXCEPT_((is_nothrow_constructible<_Hp, _Tp>::value))
             : value(_VSTD::forward<_Tp>(__t))
-        {static_assert(!is_reference<_Hp>::value ||
-                       (is_lvalue_reference<_Hp>::value &&
-                        (is_lvalue_reference<_Tp>::value ||
-                         is_same<typename remove_reference<_Tp>::type,
-                                 reference_wrapper<
-                                    typename remove_reference<_Hp>::type
-                                 >
-                                >::value)) ||
-                        (is_rvalue_reference<_Hp>::value &&
-                         !is_lvalue_reference<_Tp>::value),
+        {static_assert(__can_bind_reference<_Tp>(),
        "Attempted to construct a reference element in a tuple with an rvalue");}
 
     template <class _Tp, class _Alloc>
         _LIBCPP_INLINE_VISIBILITY
         explicit __tuple_leaf(integral_constant<int, 0>, const _Alloc&, _Tp&& __t)
             : value(_VSTD::forward<_Tp>(__t))
-        {static_assert(!is_lvalue_reference<_Hp>::value ||
-                       (is_lvalue_reference<_Hp>::value &&
-                        (is_lvalue_reference<_Tp>::value ||
-                         is_same<typename remove_reference<_Tp>::type,
-                                 reference_wrapper<
-                                    typename remove_reference<_Hp>::type
-                                 >
-                                >::value)),
+        {static_assert(__can_bind_reference<_Tp>(),
        "Attempted to construct a reference element in a tuple with an rvalue");}
 
     template <class _Tp, class _Alloc>
         _LIBCPP_INLINE_VISIBILITY
         explicit __tuple_leaf(integral_constant<int, 1>, const _Alloc& __a, _Tp&& __t)
             : value(allocator_arg_t(), __a, _VSTD::forward<_Tp>(__t))
-        {static_assert(!is_lvalue_reference<_Hp>::value ||
-                       (is_lvalue_reference<_Hp>::value &&
-                        (is_lvalue_reference<_Tp>::value ||
-                         is_same<typename remove_reference<_Tp>::type,
-                                 reference_wrapper<
-                                    typename remove_reference<_Hp>::type
-                                 >
-                                >::value)),
-       "Attempted to construct a reference element in a tuple with an rvalue");}
+        {static_assert(!is_reference<_Hp>::value,
+            "Attempted to uses-allocator construct a reference element in a tuple");}
 
     template <class _Tp, class _Alloc>
         _LIBCPP_INLINE_VISIBILITY
         explicit __tuple_leaf(integral_constant<int, 2>, const _Alloc& __a, _Tp&& __t)
             : value(_VSTD::forward<_Tp>(__t), __a)
-        {static_assert(!is_lvalue_reference<_Hp>::value ||
-                       (is_lvalue_reference<_Hp>::value &&
-                        (is_lvalue_reference<_Tp>::value ||
-                         is_same<typename remove_reference<_Tp>::type,
-                                 reference_wrapper<
-                                    typename remove_reference<_Hp>::type
-                                 >
-                                >::value)),
-       "Attempted to construct a reference element in a tuple with an rvalue");}
+        {static_assert(!is_reference<_Hp>::value,
+           "Attempted to uses-allocator construct a reference element in a tuple");}
 
     __tuple_leaf(const __tuple_leaf& __t) = default;
     __tuple_leaf(__tuple_leaf&& __t) = default;
@@ -505,27 +468,7 @@ struct __tuple_impl<__tuple_indices<_Indx...>, _Tp...>
     }
 };
 
-template <bool _IsTuple, class _SizeTrait, size_t _Expected>
-struct __tuple_like_with_size_imp : false_type {};
 
-template <class _SizeTrait, size_t _Expected>
-struct __tuple_like_with_size_imp<true, _SizeTrait, _Expected>
-    : integral_constant<bool, _SizeTrait::value == _Expected> {};
-
-template <class _Tuple, size_t _ExpectedSize,
-          class _RawTuple = typename __uncvref<_Tuple>::type>
-using __tuple_like_with_size = __tuple_like_with_size_imp<
-                                   __tuple_like<_RawTuple>::value,
-                                   tuple_size<_RawTuple>, _ExpectedSize
-                              >;
-
-
-struct _LIBCPP_TYPE_VIS __check_tuple_constructor_fail {
-    template <class ...>
-    static constexpr bool __enable_explicit() { return false; }
-    template <class ...>
-    static constexpr bool __enable_implicit() { return false; }
-};
 
 template <class ..._Tp>
 class _LIBCPP_TYPE_VIS_ONLY tuple
@@ -533,6 +476,12 @@ class _LIBCPP_TYPE_VIS_ONLY tuple
     typedef __tuple_impl<typename __make_tuple_indices<sizeof...(_Tp)>::type, _Tp...> base;
 
     base base_;
+
+#if defined(_LIBCPP_ENABLE_TUPLE_IMPLICIT_REDUCED_ARITY_EXTENSION)
+    static constexpr bool _EnableImplicitReducedArityExtension = true;
+#else
+    static constexpr bool _EnableImplicitReducedArityExtension = false;
+#endif
 
     template <class ..._Args>
     struct _PackExpandsToThisTuple : false_type {};
@@ -547,6 +496,11 @@ class _LIBCPP_TYPE_VIS_ONLY tuple
     template <class _Dummy>
     struct _CheckArgsConstructor<true, _Dummy>
     {
+        template <class ..._Args>
+        static constexpr bool __enable_default() {
+            return __all<is_default_constructible<_Args>::value...>::value;
+        }
+
         template <class ..._Args>
         static constexpr bool __enable_explicit() {
             return
@@ -657,11 +611,14 @@ class _LIBCPP_TYPE_VIS_ONLY tuple
 public:
 
     template <bool _Dummy = true, class = typename enable_if<
-        __all<__dependent_type<is_default_constructible<_Tp>, _Dummy>::value...>::value
+        _CheckArgsConstructor<_Dummy>::template __enable_default<_Tp...>()
     >::type>
     _LIBCPP_INLINE_VISIBILITY
     _LIBCPP_CONSTEXPR tuple()
         _NOEXCEPT_(__all<is_nothrow_default_constructible<_Tp>::value...>::value) {}
+
+    tuple(tuple const&) = default;
+    tuple(tuple&&) = default;
 
     template <class _AllocArgT, class _Alloc, bool _Dummy = true, class = typename enable_if<
         __lazy_and<
@@ -752,11 +709,17 @@ public:
                ) {}
 
     template <class ..._Up,
+              bool _PackIsTuple = _PackExpandsToThisTuple<_Up...>::value,
               typename enable_if
                       <
                          _CheckArgsConstructor<
-                             sizeof...(_Up) <= sizeof...(_Tp)
-                             && !_PackExpandsToThisTuple<_Up...>::value
+                             sizeof...(_Up) == sizeof...(_Tp)
+                             && !_PackIsTuple
+                         >::template __enable_implicit<_Up...>() ||
+                        _CheckArgsConstructor<
+                            _EnableImplicitReducedArityExtension
+                            && sizeof...(_Up) < sizeof...(_Tp)
+                            && !_PackIsTuple
                          >::template __enable_implicit<_Up...>(),
                          bool
                       >::type = false
@@ -784,7 +747,12 @@ public:
                          _CheckArgsConstructor<
                              sizeof...(_Up) <= sizeof...(_Tp)
                              && !_PackExpandsToThisTuple<_Up...>::value
-                         >::template __enable_explicit<_Up...>(),
+                         >::template __enable_explicit<_Up...>() ||
+                         _CheckArgsConstructor<
+                            !_EnableImplicitReducedArityExtension
+                            && sizeof...(_Up) < sizeof...(_Tp)
+                            && !_PackExpandsToThisTuple<_Up...>()
+                         >::template __enable_implicit<_Up...>(),
                          bool
                       >::type = false
              >
@@ -900,6 +868,25 @@ public:
         explicit
         tuple(allocator_arg_t, const _Alloc& __a, _Tuple&& __t)
             : base_(allocator_arg_t(), __a, _VSTD::forward<_Tuple>(__t)) {}
+
+    using _CanCopyAssign = __all<is_copy_assignable<_Tp>::value...>;
+    using _CanMoveAssign = __all<is_move_assignable<_Tp>::value...>;
+
+    _LIBCPP_INLINE_VISIBILITY
+    tuple& operator=(typename conditional<_CanCopyAssign::value, tuple, __nat>::type const& __t)
+        _NOEXCEPT_((__all<is_nothrow_copy_assignable<_Tp>::value...>::value))
+    {
+        base_.operator=(__t.base_);
+        return *this;
+    }
+
+    _LIBCPP_INLINE_VISIBILITY
+    tuple& operator=(typename conditional<_CanMoveAssign::value, tuple, __nat>::type&& __t)
+        _NOEXCEPT_((__all<is_nothrow_move_assignable<_Tp>::value...>::value))
+    {
+        base_.operator=(static_cast<base&&>(__t.base_));
+        return *this;
+    }
 
     template <class _Tuple,
               class = typename enable_if
@@ -1356,6 +1343,9 @@ template <class ..._Tp, class _Alloc>
 struct _LIBCPP_TYPE_VIS_ONLY uses_allocator<tuple<_Tp...>, _Alloc>
     : true_type {};
 
+#endif // _LIBCPP_HAS_NO_VARIADICS
+
+#ifndef _LIBCPP_CXX03_LANG
 template <class _T1, class _T2>
 template <class... _Args1, class... _Args2, size_t ..._I1, size_t ..._I2>
 inline _LIBCPP_INLINE_VISIBILITY
@@ -1366,8 +1356,7 @@ pair<_T1, _T2>::pair(piecewise_construct_t,
       second(_VSTD::forward<_Args2>(_VSTD::get<_I2>(__second_args))...)
 {
 }
-
-#endif  // _LIBCPP_HAS_NO_VARIADICS
+#endif // _LIBCPP_CXX03_LANG
 
 #if _LIBCPP_STD_VER > 14
 template <class _Tp>
