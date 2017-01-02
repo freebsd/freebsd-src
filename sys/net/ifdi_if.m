@@ -229,6 +229,7 @@ METHOD int promisc_set {
 METHOD void crcstrip_set {
 	if_ctx_t _ctx;
 	int _onoff;
+	int _strip;
 };
 
 #
