@@ -1766,26 +1766,6 @@ sfxge_tx_qinit(struct sfxge_softc *sc, unsigned int txq_index,
 	    (rc = tso_init(txq)) != 0)
 		goto fail3;
 
-	if (sfxge_tx_dpl_get_max <= 0) {
-		log(LOG_ERR, "%s=%d must be greater than 0",
-		    SFXGE_PARAM_TX_DPL_GET_MAX, sfxge_tx_dpl_get_max);
-		rc = EINVAL;
-		goto fail_tx_dpl_get_max;
-	}
-	if (sfxge_tx_dpl_get_non_tcp_max <= 0) {
-		log(LOG_ERR, "%s=%d must be greater than 0",
-		    SFXGE_PARAM_TX_DPL_GET_NON_TCP_MAX,
-		    sfxge_tx_dpl_get_non_tcp_max);
-		rc = EINVAL;
-		goto fail_tx_dpl_get_max;
-	}
-	if (sfxge_tx_dpl_put_max < 0) {
-		log(LOG_ERR, "%s=%d must be greater or equal to 0",
-		    SFXGE_PARAM_TX_DPL_PUT_MAX, sfxge_tx_dpl_put_max);
-		rc = EINVAL;
-		goto fail_tx_dpl_put_max;
-	}
-
 	/* Initialize the deferred packet list. */
 	stdp = &txq->dpl;
 	stdp->std_put_max = sfxge_tx_dpl_put_max;
@@ -1830,8 +1810,6 @@ sfxge_tx_qinit(struct sfxge_softc *sc, unsigned int txq_index,
 
 fail_txq_stat_init:
 fail_dpl_node:
-fail_tx_dpl_put_max:
-fail_tx_dpl_get_max:
 fail3:
 fail_txq_node:
 	free(txq->pend_desc, M_SFXGE);
@@ -1938,6 +1916,26 @@ sfxge_tx_init(struct sfxge_softc *sc)
 	KASSERT(intr->state == SFXGE_INTR_INITIALIZED,
 	    ("intr->state != SFXGE_INTR_INITIALIZED"));
 
+	if (sfxge_tx_dpl_get_max <= 0) {
+		log(LOG_ERR, "%s=%d must be greater than 0",
+		    SFXGE_PARAM_TX_DPL_GET_MAX, sfxge_tx_dpl_get_max);
+		rc = EINVAL;
+		goto fail_tx_dpl_get_max;
+	}
+	if (sfxge_tx_dpl_get_non_tcp_max <= 0) {
+		log(LOG_ERR, "%s=%d must be greater than 0",
+		    SFXGE_PARAM_TX_DPL_GET_NON_TCP_MAX,
+		    sfxge_tx_dpl_get_non_tcp_max);
+		rc = EINVAL;
+		goto fail_tx_dpl_get_non_tcp_max;
+	}
+	if (sfxge_tx_dpl_put_max < 0) {
+		log(LOG_ERR, "%s=%d must be greater or equal to 0",
+		    SFXGE_PARAM_TX_DPL_PUT_MAX, sfxge_tx_dpl_put_max);
+		rc = EINVAL;
+		goto fail_tx_dpl_put_max;
+	}
+
 	sc->txq_count = SFXGE_TXQ_NTYPES - 1 + sc->intr.n_alloc;
 
 	sc->tso_fw_assisted = sfxge_tso_fw_assisted;
@@ -1990,5 +1988,8 @@ fail2:
 fail:
 fail_txq_node:
 	sc->txq_count = 0;
+fail_tx_dpl_put_max:
+fail_tx_dpl_get_non_tcp_max:
+fail_tx_dpl_get_max:
 	return (rc);
 }
