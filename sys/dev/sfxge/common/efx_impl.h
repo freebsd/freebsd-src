@@ -252,7 +252,7 @@ efx_filter_reconfigure(
 
 typedef struct efx_port_s {
 	efx_mac_type_t		ep_mac_type;
-	uint32_t  		ep_phy_type;
+	uint32_t		ep_phy_type;
 	uint8_t			ep_port;
 	uint32_t		ep_mac_pdu;
 	uint8_t			ep_mac_addr[6];
@@ -600,7 +600,7 @@ struct efx_nic_s {
 	uint32_t		en_features;
 	efsys_identifier_t	*en_esip;
 	efsys_lock_t		*en_eslp;
-	efsys_bar_t 		*en_esbp;
+	efsys_bar_t		*en_esbp;
 	unsigned int		en_mod_flags;
 	unsigned int		en_reset_flags;
 	efx_nic_cfg_t		en_nic_cfg;
