@@ -179,7 +179,6 @@ then
             echo "Creating symlink for darwin-debug"
         fi
         cd "${framework_python_dir}"
-        ln -s "../../../../bin/lldb-launcher" darwin-debug
     else
         if [ $Debug -eq 1 ]
         then
@@ -273,6 +272,7 @@ create_python_package "/runtime" ""
 # lldb/formatters
 # having these files copied here ensures that lldb/formatters is a valid package itself
 package_files="${SRC_ROOT}/examples/summaries/cocoa/cache.py
+${SRC_ROOT}/examples/summaries/synth.py
 ${SRC_ROOT}/examples/summaries/cocoa/metrics.py
 ${SRC_ROOT}/examples/summaries/cocoa/attrib_fromdict.py
 ${SRC_ROOT}/examples/summaries/cocoa/Logger.py"

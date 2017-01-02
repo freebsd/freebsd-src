@@ -16,6 +16,8 @@
 # Byte compiled python modules.
 *.pyc
 *.pyproj
+# pyenv settings
+.python-version
 *.sln
 *.suo
 # vim swap files
@@ -35,8 +37,23 @@ ninja/
 *xcuserdata
 test/20*
 __pycache__/
+*.lock
+*.so
+
+clang-module-cache
+
+# Skip ctags-style tags files
+tags
 
 # We should ignore Xcode-style embedding of llvm/ at lldb root dir.
 # Do not add trailing '/'s, they skip symlinks.
 /llvm
 /DerivedData
+
+# Ignore test trace directories.
+20??-??-??-??_??_??/
+
+# Ignore crashlog support files.
+crashinfo.lock
+crashinfo.so
+

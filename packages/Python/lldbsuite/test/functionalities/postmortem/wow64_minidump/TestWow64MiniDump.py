@@ -16,12 +16,12 @@ from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
 from lldbsuite.test import lldbutil
 
+
 class Wow64MiniDumpTestCase(TestBase):
 
     mydir = TestBase.compute_mydir(__file__)
+    NO_DEBUG_INFO_TESTCASE = True
 
-    @skipUnlessWindows  # for now mini-dump debugging is limited to Windows hosts
-    @no_debug_info_test
     def test_wow64_mini_dump(self):
         """Test that lldb can read the process information from the minidump."""
         # target create -c fizzbuzz_wow64.dmp
@@ -31,8 +31,6 @@ class Wow64MiniDumpTestCase(TestBase):
         self.assertEqual(process.GetNumThreads(), 1)
         self.assertEqual(process.GetProcessID(), 0x1E9C)
 
-    @skipUnlessWindows  # for now mini-dump debugging is limited to Windows hosts
-    @no_debug_info_test
     def test_thread_info_in_wow64_mini_dump(self):
         """Test that lldb can read the thread information from the minidump."""
         # target create -c fizzbuzz_wow64.dmp
@@ -49,8 +47,6 @@ class Wow64MiniDumpTestCase(TestBase):
         thread = process.GetThreadAtIndex(0)
         self.assertEqual(thread.GetStopReason(), lldb.eStopReasonNone)
 
-    @skipUnlessWindows  # for now mini-dump debugging is limited to Windows hosts
-    @no_debug_info_test
     def test_stack_info_in_wow64_mini_dump(self):
         """Test that we can see a trivial stack in a VS-generate mini dump."""
         # target create -c fizzbuzz_no_heap.dmp
@@ -66,7 +62,8 @@ class Wow64MiniDumpTestCase(TestBase):
         # In the dump, none of the threads are stopped, so we cannot use
         # lldbutil.get_stopped_thread.
         thread = process.GetThreadAtIndex(0)
-        # The crash is in main, so there should be at least one frame on the stack.
+        # The crash is in main, so there should be at least one frame on the
+        # stack.
         self.assertGreaterEqual(thread.GetNumFrames(), 1)
         frame = thread.GetFrameAtIndex(0)
         self.assertTrue(frame.IsValid())

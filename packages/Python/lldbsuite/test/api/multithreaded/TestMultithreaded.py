@@ -5,19 +5,31 @@ from __future__ import print_function
 # __package__ = "lldbsuite.test"
 
 
-import os, re
+import os
+import re
 from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
 from lldbsuite.test import lldbutil
 import subprocess
 
+
 class SBBreakpointCallbackCase(TestBase):
+
+    def setUp(self):
+        TestBase.setUp(self)
+        self.generateSource('driver.cpp')
+        self.generateSource('listener_test.cpp')
+        self.generateSource('test_breakpoint_callback.cpp')
+        self.generateSource('test_listener_event_description.cpp')
+        self.generateSource('test_listener_event_process_state.cpp')
+        self.generateSource('test_listener_resume.cpp')
 
     mydir = TestBase.compute_mydir(__file__)
 
     @skipIfRemote
     @skipIfNoSBHeaders
-    @skipIfWindows # clang-cl does not support throw or catch (llvm.org/pr24538)
+    # clang-cl does not support throw or catch (llvm.org/pr24538)
+    @skipIfWindows
     def test_breakpoint_callback(self):
         """Test the that SBBreakpoint callback is invoked when a breakpoint is hit. """
         self.build_and_test('driver.cpp test_breakpoint_callback.cpp',
@@ -25,40 +37,44 @@ class SBBreakpointCallbackCase(TestBase):
 
     @skipIfRemote
     @skipIfNoSBHeaders
-    @skipIfWindows # clang-cl does not support throw or catch (llvm.org/pr24538)
+    # clang-cl does not support throw or catch (llvm.org/pr24538)
+    @skipIfWindows
     @expectedFlakeyFreeBSD
     def test_sb_api_listener_event_description(self):
         """ Test the description of an SBListener breakpoint event is valid."""
-        self.build_and_test('driver.cpp listener_test.cpp test_listener_event_description.cpp',
-                            'test_listener_event_description')
+        self.build_and_test(
+            'driver.cpp listener_test.cpp test_listener_event_description.cpp',
+            'test_listener_event_description')
         pass
 
     @skipIfRemote
     @skipIfNoSBHeaders
-    @skipIfWindows # clang-cl does not support throw or catch (llvm.org/pr24538)
+    # clang-cl does not support throw or catch (llvm.org/pr24538)
+    @skipIfWindows
     @expectedFlakeyFreeBSD
-    @expectedFailureAll("llvm.org/pr23139", oslist=["linux"], compiler="gcc", compiler_version=[">=","4.9"], archs=["x86_64"])
     def test_sb_api_listener_event_process_state(self):
         """ Test that a registered SBListener receives events when a process
             changes state.
         """
-        self.build_and_test('driver.cpp listener_test.cpp test_listener_event_process_state.cpp',
-                            'test_listener_event_process_state')
+        self.build_and_test(
+            'driver.cpp listener_test.cpp test_listener_event_process_state.cpp',
+            'test_listener_event_process_state')
         pass
-
 
     @skipIfRemote
     @skipIfNoSBHeaders
-    @skipIfWindows # clang-cl does not support throw or catch (llvm.org/pr24538)
+    # clang-cl does not support throw or catch (llvm.org/pr24538)
+    @skipIfWindows
     @expectedFlakeyFreeBSD
     @expectedFailureAll(oslist=["linux"])
     def test_sb_api_listener_resume(self):
         """ Test that a process can be resumed from a non-main thread. """
-        self.build_and_test('driver.cpp listener_test.cpp test_listener_resume.cpp',
-                            'test_listener_resume')
+        self.build_and_test(
+            'driver.cpp listener_test.cpp test_listener_resume.cpp',
+            'test_listener_resume')
         pass
 
-    def build_and_test(self, sources, test_name, args = None):
+    def build_and_test(self, sources, test_name, args=None):
         """ Build LLDB test from sources, and run expecting 0 exit code """
 
         # These tests link against host lldb API.
@@ -66,7 +82,8 @@ class SBBreakpointCallbackCase(TestBase):
         # because remote is disabled, we can assume that the os is the same
         # still need to check architecture
         if self.getLldbArchitecture() != self.getArchitecture():
-            self.skipTest("This test is only run if the target arch is the same as the lldb binary arch")
+            self.skipTest(
+                "This test is only run if the target arch is the same as the lldb binary arch")
 
         self.inferior = 'inferior_program'
         self.buildProgram('inferior.cpp', self.inferior)
@@ -79,7 +96,7 @@ class SBBreakpointCallbackCase(TestBase):
         self.signBinary(test_exe)
         exe = [test_exe, self.inferior]
 
-        env = {self.dylibPath : self.getLLDBLibraryEnvVal()}
+        env = {self.dylibPath: self.getLLDBLibraryEnvVal()}
         if self.TraceOn():
             print("Running test %s" % " ".join(exe))
             check_call(exe, env=env)
