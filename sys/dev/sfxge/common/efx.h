@@ -1867,12 +1867,12 @@ typedef enum efx_rx_hash_alg_e {
 	EFX_RX_HASHALG_TOEPLITZ
 } efx_rx_hash_alg_t;
 
-typedef enum efx_rx_hash_type_e {
-	EFX_RX_HASH_IPV4 = 0,
-	EFX_RX_HASH_TCPIPV4,
-	EFX_RX_HASH_IPV6,
-	EFX_RX_HASH_TCPIPV6,
-} efx_rx_hash_type_t;
+#define	EFX_RX_HASH_IPV4	(1U << 0)
+#define	EFX_RX_HASH_TCPIPV4	(1U << 1)
+#define	EFX_RX_HASH_IPV6	(1U << 2)
+#define	EFX_RX_HASH_TCPIPV6	(1U << 3)
+
+typedef unsigned int efx_rx_hash_type_t;
 
 typedef enum efx_rx_hash_support_e {
 	EFX_RX_HASH_UNAVAILABLE = 0,	/* Hardware hash not inserted */

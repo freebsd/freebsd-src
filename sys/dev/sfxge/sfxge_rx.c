@@ -1135,8 +1135,8 @@ sfxge_rx_start(struct sfxge_softc *sc)
 				       nitems(sc->rx_indir_table))) != 0)
 		goto fail;
 	(void)efx_rx_scale_mode_set(sc->enp, EFX_RX_HASHALG_TOEPLITZ,
-	    (1 << EFX_RX_HASH_IPV4) | (1 << EFX_RX_HASH_TCPIPV4) |
-	    (1 << EFX_RX_HASH_IPV6) | (1 << EFX_RX_HASH_TCPIPV6), B_TRUE);
+	    EFX_RX_HASH_IPV4 | EFX_RX_HASH_TCPIPV4 |
+	    EFX_RX_HASH_IPV6 | EFX_RX_HASH_TCPIPV6, B_TRUE);
 
 	if ((rc = efx_rx_scale_key_set(sc->enp, toep_key,
 				       sizeof(toep_key))) != 0)
