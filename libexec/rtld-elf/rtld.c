@@ -200,9 +200,6 @@ Elf_Sym sym_zero;		/* For resolving undefined weak refs. */
 
 extern Elf_Dyn _DYNAMIC;
 #pragma weak _DYNAMIC
-#ifndef RTLD_IS_DYNAMIC
-#define	RTLD_IS_DYNAMIC()	(&_DYNAMIC != NULL)
-#endif
 
 int dlclose(void *) __exported;
 char *dlerror(void) __exported;
@@ -1916,22 +1913,20 @@ init_rtld(caddr_t mapbase, Elf_Auxinfo **aux_info)
 #ifdef PIC
     objtmp.relocbase = mapbase;
 #endif
-    if (RTLD_IS_DYNAMIC()) {
-	objtmp.dynamic = rtld_dynamic(&objtmp);
-	digest_dynamic1(&objtmp, 1, &dyn_rpath, &dyn_soname, &dyn_runpath);
-	assert(objtmp.needed == NULL);
+
+    objtmp.dynamic = rtld_dynamic(&objtmp);
+    digest_dynamic1(&objtmp, 1, &dyn_rpath, &dyn_soname, &dyn_runpath);
+    assert(objtmp.needed == NULL);
 #if !defined(__mips__)
-	/* MIPS has a bogus DT_TEXTREL. */
-	assert(!objtmp.textrel);
+    /* MIPS has a bogus DT_TEXTREL. */
+    assert(!objtmp.textrel);
 #endif
+    /*
+     * Temporarily put the dynamic linker entry into the object list, so
+     * that symbols can be found.
+     */
+    relocate_objects(&objtmp, true, &objtmp, 0, NULL);
 
-	/*
-	 * Temporarily put the dynamic linker entry into the object list, so
-	 * that symbols can be found.
-	 */
-
-	relocate_objects(&objtmp, true, &objtmp, 0, NULL);
-    }
     ehdr = (Elf_Ehdr *)mapbase;
     objtmp.phdr = (Elf_Phdr *)((char *)mapbase + ehdr->e_phoff);
     objtmp.phsize = ehdr->e_phnum * sizeof(objtmp.phdr[0]);
