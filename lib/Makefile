@@ -3,12 +3,13 @@
 
 .include <src.opts.mk>
 
-# The SUBDIR_ORDERED list is a small set of libraries which are used by many
+# The SUBDIR_BOOTSTRAP list is a small set of libraries which are used by many
 # of the other libraries.  These are built first with a .WAIT between them
 # and the main list to avoid needing a SUBDIR_DEPEND line on every library
 # naming just these few items.
 
-SUBDIR_ORDERED=	csu \
+SUBDIR_BOOTSTRAP= \
+	csu \
 	.WAIT \
 	libc \
 	libc_nonshared \
@@ -21,7 +22,7 @@ SUBDIR_ORDERED=	csu \
 
 # The main list; please keep these sorted alphabetically.
 
-SUBDIR=	${SUBDIR_ORDERED} \
+SUBDIR=	${SUBDIR_BOOTSTRAP} \
 	.WAIT \
 	libalias \
 	libarchive \
