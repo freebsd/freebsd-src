@@ -754,7 +754,7 @@ void
 thread_lock_flags_(struct thread *td, int opts, const char *file, int line)
 {
 	struct mtx *m;
-	uintptr_t tid;
+	uintptr_t tid, v;
 	struct lock_delay_arg lda;
 #ifdef LOCK_PROFILING
 	int contested = 0;
@@ -796,10 +796,15 @@ retry:
 			    m->lock_object.lo_name, file, line));
 		WITNESS_CHECKORDER(&m->lock_object,
 		    opts | LOP_NEWORDER | LOP_EXCLUSIVE, file, line, NULL);
+		v = MTX_READ_VALUE(m);
 		for (;;) {
-			if (m->mtx_lock == MTX_UNOWNED && _mtx_obtain_lock(m, tid))
-				break;
-			if (m->mtx_lock == tid) {
+			if (v == MTX_UNOWNED) {
+				if (_mtx_obtain_lock(m, tid))
+					break;
+				v = MTX_READ_VALUE(m);
+				continue;
+			}
+			if (v == tid) {
 				m->mtx_recurse++;
 				break;
 			}
@@ -810,7 +815,7 @@ retry:
 			    &contested, &waittime);
 			/* Give interrupts a chance while we spin. */
 			spinlock_exit();
-			while (m->mtx_lock != MTX_UNOWNED) {
+			do {
 				if (lda.spin_cnt < 10000000) {
 					lock_delay(&lda);
 				} else {
@@ -824,7 +829,8 @@ retry:
 				}
 				if (m != td->td_lock)
 					goto retry;
-			}
+				v = MTX_READ_VALUE(m);
+			} while (v != MTX_UNOWNED);
 			spinlock_enter();
 		}
 		if (m == td->td_lock)
