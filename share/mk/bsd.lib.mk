@@ -297,13 +297,14 @@ all:
 .else
 .if defined(_LIBS) && !empty(_LIBS)
 all: ${_LIBS}
-CLEANFILES+=	${_LIBS}
 .endif
 
 .if ${MK_MAN} != "no" && !defined(LIBRARIES_ONLY)
 all: all-man
 .endif
 .endif
+
+CLEANFILES+=	${_LIBS}
 
 _EXTRADEPEND:
 .if !defined(NO_EXTRADEPEND) && defined(SHLIB_NAME)
