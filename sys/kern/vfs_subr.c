@@ -2571,6 +2571,7 @@ void
 vrefl(struct vnode *vp)
 {
 
+	ASSERT_VI_LOCKED(vp, __func__);
 	CTR2(KTR_VFS, "%s: vp %p", __func__, vp);
 	_vhold(vp, true);
 	v_incr_usecount_locked(vp);
