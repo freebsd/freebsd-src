@@ -3545,7 +3545,7 @@ dl_iterate_phdr(__dl_iterate_hdr_callback callback, void *param)
 	error = 0;
 
 	wlock_acquire(rtld_phdr_lock, &phdr_lockstate);
-	rlock_acquire(rtld_bind_lock, &bind_lockstate);
+	wlock_acquire(rtld_bind_lock, &bind_lockstate);
 	for (obj = globallist_curr(TAILQ_FIRST(&obj_list)); obj != NULL;) {
 		TAILQ_INSERT_AFTER(&obj_list, obj, &marker, next);
 		rtld_fill_dl_phdr_info(obj, &phdr_info);
@@ -3553,7 +3553,7 @@ dl_iterate_phdr(__dl_iterate_hdr_callback callback, void *param)
 
 		error = callback(&phdr_info, sizeof phdr_info, param);
 
-		rlock_acquire(rtld_bind_lock, &bind_lockstate);
+		wlock_acquire(rtld_bind_lock, &bind_lockstate);
 		obj = globallist_next(&marker);
 		TAILQ_REMOVE(&obj_list, &marker, next);
 		if (error != 0) {
