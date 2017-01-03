@@ -88,9 +88,6 @@ unsigned AArch64InstrInfo::getInstSizeInBytes(const MachineInstr &MI) const {
     // This gets lowered to an instruction sequence which takes 16 bytes
     NumBytes = 16;
     break;
-  case AArch64::TLSDESC_CALLSEQ:
-    // This gets lowered to an instruction sequence which takes 16 bytes
-    return 16;
   }
 
   return NumBytes;
