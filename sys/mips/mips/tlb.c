@@ -47,7 +47,7 @@
 #elif defined(CPU_NLM)
 #define	MIPS_MAX_TLB_ENTRIES	(2048 + 128)
 #elif defined(CPU_BERI)
-#define	MIPS_MAX_TLB_ENTRIES	144
+#define	MIPS_MAX_TLB_ENTRIES	272
 #else
 #define	MIPS_MAX_TLB_ENTRIES	64
 #endif
