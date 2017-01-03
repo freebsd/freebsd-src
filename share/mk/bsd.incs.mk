@@ -33,9 +33,9 @@ ${group}OWN?=	${BINOWN}
 ${group}GRP?=	${BINGRP}
 ${group}MODE?=	${NOBINMODE}
 ${group}DIR?=	${INCLUDEDIR}${PRIVATELIB:D/private/${LIB}}
-STAGE_SETS+=	${group}
-STAGE_DIR.${group}= ${STAGE_OBJTOP}${${group}DIR}
-STAGE_SYMLINKS_DIR.${group}= ${STAGE_OBJTOP}
+STAGE_SETS+=	${group:C,[/*],_,g}
+STAGE_DIR.${group:C,[/*],_,g}= ${STAGE_OBJTOP}${${group}DIR}
+STAGE_SYMLINKS_DIR.${group:C,[/*],_,g}= ${STAGE_OBJTOP}
 
 _${group}INCS=
 .for header in ${${group}}
