@@ -420,9 +420,15 @@ extern struct mtx_pool *mtxpool_sleep;
 	_sleep((chan), &(mtx)->lock_object, (pri), (wmesg),		\
 	    tick_sbt * (timo), 0, C_HARDCLOCK)
 
+#define	MTX_READ_VALUE(m)	((m)->mtx_lock)
+
 #define	mtx_initialized(m)	lock_initialized(&(m)->lock_object)
 
-#define mtx_owned(m)	(((m)->mtx_lock & ~MTX_FLAGMASK) == (uintptr_t)curthread)
+#define lv_mtx_owner(v)	((struct thread *)((v) & ~MTX_FLAGMASK))
+
+#define mtx_owner(m)	lv_mtx_owner(MTX_READ_VALUE(m))
+
+#define mtx_owned(m)	(mtx_owner(m) == curthread)
 
 #define mtx_recursed(m)	((m)->mtx_recurse != 0)
 
