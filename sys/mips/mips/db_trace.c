@@ -133,6 +133,7 @@ void
 stacktrace_subr(register_t pc, register_t sp, register_t ra,
 	int (*printfn) (const char *,...))
 {
+	struct trapframe *trapframe;
 	InstFmt i;
 	/*
 	 * Arrays for a0..a3 registers and flags if content
@@ -160,6 +161,8 @@ loop:
 /* Jump here after a nonstandard (interrupt handler) frame */
 	stksize = 0;
 	subr = 0;
+	trapframe = NULL;
+
 	if (frames++ > 100) {
 		(*printfn) ("\nstackframe count exceeded\n");
 		/* return breaks stackframe-size heuristics with gcc -O2 */
@@ -183,13 +186,15 @@ loop:
 	 * preceding "j ra" at the tail of the preceding function. Depends
 	 * on relative ordering of functions in exception.S, swtch.S.
 	 */
-	if (pcBetween(MipsKernGenException, MipsUserGenException))
+	if (pcBetween(MipsKernGenException, MipsUserGenException)) {
 		subr = (uintptr_t)MipsKernGenException;
-	else if (pcBetween(MipsUserGenException, MipsKernIntr))
+		trapframe = (struct trapframe *)(sp + 32);
+	} else if (pcBetween(MipsUserGenException, MipsKernIntr))
 		subr = (uintptr_t)MipsUserGenException;
-	else if (pcBetween(MipsKernIntr, MipsUserIntr))
+	else if (pcBetween(MipsKernIntr, MipsUserIntr)) {
 		subr = (uintptr_t)MipsKernIntr;
-	else if (pcBetween(MipsUserIntr, MipsTLBInvalidException))
+		trapframe = (struct trapframe *)(sp + 32);
+	} else if (pcBetween(MipsUserIntr, MipsTLBInvalidException))
 		subr = (uintptr_t)MipsUserIntr;
 	else if (pcBetween(MipsTLBInvalidException, MipsTLBMissException))
 		subr = (uintptr_t)MipsTLBInvalidException;
@@ -208,6 +213,7 @@ loop:
 		ra = 0;
 		goto done;
 	}
+
 	/* check for bad PC */
 	/*XXX MIPS64 bad: These hard coded constants are lame */
 	if (!MIPS_IS_VALID_KERNELADDR(pc)) {
@@ -242,6 +248,7 @@ loop:
 			va += sizeof(int);
 		subr = va;
 	}
+
 	/* scan forwards to find stack size and any saved registers */
 	stksize = 0;
 	more = 3;
@@ -376,6 +383,30 @@ loop:
 	}
 
 done:
+	/*
+	 * If we are walking over a kernel exception, interpret the trap frame
+	 * to find the next $ra, as we may have preempted a kernel function
+	 * that doesn't have a stack frame (e.g., it is a leaf node such as
+	 * memcpy()).  Otherwise we'll end up without a known next_ra for that
+	 * function.
+	 */
+	if (trapframe != NULL) {
+		(*printfn)("INFO: trapframe at %p: pc %p ra %p sp %p\n",
+		    trapframe, (void *)trapframe->pc, (void *)trapframe->ra,
+		    (void *)trapframe->sp);
+		(*printfn)("INFO: decode discovered ra %p sp %p next_ra %p\n",
+		    (void *)ra, (void *)sp, (void *)next_ra);
+		(*printfn)("IMFO: presumed pc subr %s\n", fn_name(subr));
+		if (ra == trapframe->pc) {
+			/* trapframe interpretation of the stack valid. */
+			next_ra = trapframe->ra;
+		} else {
+			(*printfn)
+			    ("WARNING: inconsistent trapframe; aborting\n");
+			next_ra = 0;
+		}
+	}
+
 	(*printfn) ("%s+%x (", fn_name(subr), pc - subr);
 	for (j = 0; j < 4; j ++) {
 		if (j > 0)
@@ -386,11 +417,12 @@ done:
 			(*printfn)("?");
 	}
 
-	(*printfn) (") ra %jx sp %jx sz %d\n",
-	    (uintmax_t)(u_register_t) ra,
-	    (uintmax_t)(u_register_t) sp,
-	    stksize);
+	(*printfn) (") ra %jx sp %jx sz %d\n", (uintmax_t)(u_register_t) ra,
+	    (uintmax_t)(u_register_t) sp, stksize);
 
+	if (trapframe != NULL) {
+		(*printfn) ("-- exception --\n");
+	}
 	if (ra) {
 		if (pc == ra && stksize == 0)
 			(*printfn) ("stacktrace: loop!\n");
