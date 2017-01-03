@@ -36,12 +36,7 @@ CFLAGS.gcc.ioctl.c+= -Wno-unused
 
 CFLAGS.gcc+=	${CFLAGS.gcc.${.IMPSRC}}
 
-# mkioctls runs find(1) for headers so needs to rebuild every time.  This used
-# to be a hack only done in buildworld.
-.if !defined(_SKIP_BUILD)
-ioctl.c: .PHONY
-.endif
-ioctl.c: mkioctls .META
+ioctl.c: mkioctls
 	env MACHINE=${MACHINE} CPP="${CPP}" \
 		/bin/sh ${.CURDIR}/mkioctls ${DESTDIR}${INCLUDEDIR} > ${.TARGET}
 
