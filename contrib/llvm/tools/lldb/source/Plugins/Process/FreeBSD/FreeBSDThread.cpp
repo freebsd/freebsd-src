@@ -259,7 +259,7 @@ void FreeBSDThread::DidStop() {
 void FreeBSDThread::WillResume(lldb::StateType resume_state) {
   Log *log(ProcessPOSIXLog::GetLogIfAllCategoriesSet(POSIX_LOG_THREAD));
   if (log)
-    log->Printf("tid %lu resume_state = %s", GetID(),
+    log->Printf("tid %" PRIu64 " resume_state = %s", GetID(),
                 lldb_private::StateAsCString(resume_state));
   ProcessSP process_sp(GetProcess());
   ProcessFreeBSD *process = static_cast<ProcessFreeBSD *>(process_sp.get());
