@@ -97,7 +97,7 @@ META_MODE?= normal
 # This needs to be done early - before .PATH is computed
 # Don't do this for 'make showconfig' as it enables all options where meta mode
 # is not expected.
-.if !make(showconfig)
+.if !make(showconfig) && !make(print-dir)
 .sinclude <auto.obj.mk>
 .endif
 .endif
