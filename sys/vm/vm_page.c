@@ -393,6 +393,11 @@ vm_page_domain_init(struct vm_domain *vmd)
 	    "vm laundry pagequeue";
 	*__DECONST(int **, &vmd->vmd_pagequeues[PQ_LAUNDRY].pq_vcnt) =
 	    &vm_cnt.v_laundry_count;
+	*__DECONST(char **, &vmd->vmd_pagequeues[PQ_UNSWAPPABLE].pq_name) =
+	    "vm unswappable pagequeue";
+	/* Unswappable dirty pages are counted as being in the laundry. */
+	*__DECONST(int **, &vmd->vmd_pagequeues[PQ_UNSWAPPABLE].pq_vcnt) =
+	    &vm_cnt.v_laundry_count;
 	vmd->vmd_page_count = 0;
 	vmd->vmd_free_count = 0;
 	vmd->vmd_segs = 0;
@@ -2578,7 +2583,7 @@ vm_page_enqueue(uint8_t queue, vm_page_t m)
 	KASSERT(queue < PQ_COUNT,
 	    ("vm_page_enqueue: invalid queue %u request for page %p",
 	    queue, m));
-	if (queue == PQ_LAUNDRY)
+	if (queue == PQ_LAUNDRY || queue == PQ_UNSWAPPABLE)
 		pq = &vm_dom[0].vmd_pagequeues[queue];
 	else
 		pq = &vm_phys_domain(m)->vmd_pagequeues[queue];
@@ -2944,6 +2949,23 @@ vm_page_launder(vm_page_t m)
 			KASSERT(queue == PQ_NONE,
 			    ("wired page %p is queued", m));
 	}
+}
+
+/*
+ * vm_page_unswappable
+ *
+ *	Put a page in the PQ_UNSWAPPABLE holding queue.
+ */
+void
+vm_page_unswappable(vm_page_t m)
+{
+
+	vm_page_assert_locked(m);
+	KASSERT(m->wire_count == 0 && (m->oflags & VPO_UNMANAGED) == 0,
+	    ("page %p already unswappable", m));
+	if (m->queue != PQ_NONE)
+		vm_page_dequeue(m);
+	vm_page_enqueue(PQ_UNSWAPPABLE, m);
 }
 
 /*
@@ -3534,13 +3556,14 @@ DB_SHOW_COMMAND(pageq, vm_page_print_pageq_info)
 	db_printf("pq_free %d\n", vm_cnt.v_free_count);
 	for (dom = 0; dom < vm_ndomains; dom++) {
 		db_printf(
-	    "dom %d page_cnt %d free %d pq_act %d pq_inact %d pq_laund %d\n",
+    "dom %d page_cnt %d free %d pq_act %d pq_inact %d pq_laund %d pq_unsw %d\n",
 		    dom,
 		    vm_dom[dom].vmd_page_count,
 		    vm_dom[dom].vmd_free_count,
 		    vm_dom[dom].vmd_pagequeues[PQ_ACTIVE].pq_cnt,
 		    vm_dom[dom].vmd_pagequeues[PQ_INACTIVE].pq_cnt,
-		    vm_dom[dom].vmd_pagequeues[PQ_LAUNDRY].pq_cnt);
+		    vm_dom[dom].vmd_pagequeues[PQ_LAUNDRY].pq_cnt,
+		    vm_dom[dom].vmd_pagequeues[PQ_UNSWAPPABLE].pq_cnt);
 	}
 }
 

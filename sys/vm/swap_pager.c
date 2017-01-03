@@ -1664,6 +1664,13 @@ swap_pager_isswapped(vm_object_t object, struct swdevt *sp)
 	return (0);
 }
 
+int
+swap_pager_nswapdev(void)
+{
+
+	return (nswapdev);
+}
+
 /*
  * SWP_PAGER_FORCE_PAGEIN() - force a swap block to be paged in
  *
@@ -1782,6 +1789,7 @@ restart:
 		pause("swpoff", hz / 20);
 		goto full_rescan;
 	}
+	EVENTHANDLER_INVOKE(swapoff, sp);
 }
 
 /************************************************************************
@@ -2348,6 +2356,7 @@ swaponsomething(struct vnode *vp, void *id, u_long nblks,
 	swapon_check_swzone(swap_total / PAGE_SIZE);
 	swp_sizecheck();
 	mtx_unlock(&sw_dev_mtx);
+	EVENTHANDLER_INVOKE(swapon, sp);
 }
 
 /*
