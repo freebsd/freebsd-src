@@ -8,7 +8,9 @@ INCSDIR=	${LIBDIR}/clang/3.9.1/include
 
 GENINCS+=	arm_neon.h
 
+INCS+=		__clang_cuda_builtin_vars.h
 INCS+=		__clang_cuda_cmath.h
+INCS+=		__clang_cuda_complex_builtins.h
 INCS+=		__clang_cuda_intrinsics.h
 INCS+=		__clang_cuda_math_forward_declares.h
 INCS+=		__clang_cuda_runtime_wrapper.h
@@ -19,6 +21,7 @@ INCS+=		adxintrin.h
 INCS+=		altivec.h
 INCS+=		ammintrin.h
 INCS+=		arm_acle.h
+INCS+=		armintr.h
 INCS+=		avx2intrin.h
 INCS+=		avx512bwintrin.h
 INCS+=		avx512cdintrin.h
@@ -39,7 +42,6 @@ INCS+=		bmi2intrin.h
 INCS+=		bmiintrin.h
 INCS+=		clflushoptintrin.h
 INCS+=		cpuid.h
-INCS+=		cuda_builtin_vars.h
 INCS+=		emmintrin.h
 INCS+=		f16cintrin.h
 INCS+=		fma4intrin.h

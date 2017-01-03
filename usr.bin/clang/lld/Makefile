@@ -31,7 +31,6 @@ SRCS+=		ELF/OutputSections.cpp
 SRCS+=		ELF/Relocations.cpp
 SRCS+=		ELF/ScriptParser.cpp
 SRCS+=		ELF/Strings.cpp
-SRCS+=		ELF/SymbolListFile.cpp
 SRCS+=		ELF/SymbolTable.cpp
 SRCS+=		ELF/Symbols.cpp
 SRCS+=		ELF/Target.cpp
