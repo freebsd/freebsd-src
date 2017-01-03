@@ -70,7 +70,10 @@ print-dir:	.PHONY
 .endif
 
 .if !defined(NEED_SUBDIR)
-.if ${.MAKE.LEVEL} == 0 && ${MK_DIRDEPS_BUILD} == "yes" && !empty(SUBDIR) && !(make(clean*) || make(destroy*))
+# .MAKE.DEPENDFILE==/dev/null is set by bsd.dep.mk to avoid reading
+# Makefile.depend
+.if ${.MAKE.LEVEL} == 0 && ${MK_DIRDEPS_BUILD} == "yes" && !empty(SUBDIR) && \
+    ${.MAKE.DEPENDFILE} != "/dev/null"
 .include <meta.subdir.mk>
 # ignore this
 _SUBDIR:
