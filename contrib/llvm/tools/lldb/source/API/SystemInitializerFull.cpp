@@ -360,7 +360,7 @@ void SystemInitializerFull::Initialize() {
 
   process_gdb_remote::ProcessGDBRemote::Initialize();
 //DynamicLoaderMacOSXDYLD::Initialize();
-  DynamicLoaderMacOS::Initialize();
+//DynamicLoaderMacOS::Initialize();
   DynamicLoaderPOSIXDYLD::Initialize();
   DynamicLoaderStatic::Initialize();
 //DynamicLoaderWindowsDYLD::Initialize();
@@ -474,7 +474,7 @@ void SystemInitializerFull::Terminate() {
   StructuredDataDarwinLog::Terminate();
 
 //DynamicLoaderMacOSXDYLD::Terminate();
-  DynamicLoaderMacOS::Terminate();
+//DynamicLoaderMacOS::Terminate();
   DynamicLoaderPOSIXDYLD::Terminate();
   DynamicLoaderStatic::Terminate();
 //DynamicLoaderWindowsDYLD::Terminate();
