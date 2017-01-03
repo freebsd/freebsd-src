@@ -2039,10 +2039,10 @@ int32_t
 snmp_output_resp(struct snmp_toolinfo *snmptoolctx, struct snmp_pdu *pdu,
     struct asn_oid *root)
 {
-	int32_t error;
-	char p[ASN_OIDSTRLEN];
-	uint32_t i;
 	struct snmp_object object;
+	char p[ASN_OIDSTRLEN];
+	int32_t error;
+	uint32_t i;
 
 	i = error = 0;
 	while (i < pdu->nbindings) {
