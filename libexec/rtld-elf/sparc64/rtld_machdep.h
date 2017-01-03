@@ -37,7 +37,6 @@ struct Struct_Obj_Entry;
 /* Return the address of the .dynamic section in the dynamic linker. */
 Elf_Dyn *rtld_dynamic_addr(void);
 #define	rtld_dynamic(obj)	rtld_dynamic_addr()
-#define	RTLD_IS_DYNAMIC()	(rtld_dynamic_addr() != NULL)
 
 Elf_Addr reloc_jmpslot(Elf_Addr *, Elf_Addr,
 		       const struct Struct_Obj_Entry *,
