@@ -30,6 +30,7 @@ MLINKS+=sysdecode_enum.3 sysdecode_acltype.3 \
 	sysdecode_enum.3 sysdecode_extattrnamespace.3 \
 	sysdecode_enum.3 sysdecode_fadvice.3 \
 	sysdecode_enum.3 sysdecode_fcntl_cmd.3 \
+	sysdecode_enum.3 sysdecode_getfsstat_mode.3 \
 	sysdecode_enum.3 sysdecode_idtype.3 \
 	sysdecode_enum.3 sysdecode_ipproto.3 \
 	sysdecode_enum.3 sysdecode_kldsym_cmd.3 \
@@ -70,7 +71,6 @@ MLINKS+=sysdecode_mask.3 sysdecode_accessmode.3 \
 	sysdecode_mask.3 sysdecode_fileflags.3 \
 	sysdecode_mask.3 sysdecode_filemode.3 \
 	sysdecode_mask.3 sysdecode_flock_operation.3 \
-	sysdecode_mask.3 sysdecode_getfsstat_flags.3 \
 	sysdecode_mask.3 sysdecode_mlockall_flags.3 \
 	sysdecode_mask.3 sysdecode_mmap_flags.3 \
 	sysdecode_mask.3 sysdecode_mmap_prot.3 \
