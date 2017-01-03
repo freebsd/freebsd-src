@@ -24,7 +24,7 @@
 	tsch_ticks = 100000, 10000, 1000, 10
 
 	filterMode = fragmentation, mpshittype, protocol, vlan, port, fcoe
-	filterMask = protocol, fcoe
+	filterMask = protocol
 
 	tp_pmrx = 36, 512
 	tp_pmrx_pagesize = 64K
@@ -263,7 +263,6 @@
 	dwm = 30
 	#aec_retry_cnt = 4
 	flags = an_dis
-	fec = none
 
 
 [port "1"]
@@ -275,12 +274,11 @@
 	dwm = 30
 	#aec_retry_cnt = 4
 	flags = an_dis
-	fec = none
 
 
 [fini]
 	version = 0x1
-	checksum = 0xc3afb4e0
+	checksum = 0xd4ef7f0
 #
 # $FreeBSD$
 #
