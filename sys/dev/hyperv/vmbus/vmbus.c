@@ -1472,7 +1472,7 @@ cleanup:
 		vmbus_xact_ctx_destroy(sc->vmbus_xc);
 		sc->vmbus_xc = NULL;
 	}
-	free(sc->vmbus_chmap, M_DEVBUF);
+	free(__DEVOLATILE(void *, sc->vmbus_chmap), M_DEVBUF);
 	mtx_destroy(&sc->vmbus_prichan_lock);
 	mtx_destroy(&sc->vmbus_chan_lock);
 
@@ -1534,7 +1534,7 @@ vmbus_detach(device_t dev)
 		sc->vmbus_xc = NULL;
 	}
 
-	free(sc->vmbus_chmap, M_DEVBUF);
+	free(__DEVOLATILE(void *, sc->vmbus_chmap), M_DEVBUF);
 	mtx_destroy(&sc->vmbus_prichan_lock);
 	mtx_destroy(&sc->vmbus_chan_lock);
 

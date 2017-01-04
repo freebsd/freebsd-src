@@ -92,7 +92,7 @@ struct vmbus_softc {
 
 	u_long			*vmbus_rx_evtflags;
 						/* compat evtflgs from host */
-	struct vmbus_channel	**vmbus_chmap;
+	struct vmbus_channel *volatile *vmbus_chmap;
 	struct vmbus_xact_ctx	*vmbus_xc;
 	struct vmbus_pcpu_data	vmbus_pcpu[MAXCPU];
 
