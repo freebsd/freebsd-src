@@ -81,12 +81,19 @@ atomic_store_long(volatile u_long *dst, u_long src)
 }
 
 #define atomic_clear_ptr		atomic_clear_32
+#define atomic_clear_acq_ptr		atomic_clear_acq_32
+#define atomic_clear_rel_ptr		atomic_clear_rel_32
 #define atomic_set_ptr			atomic_set_32
+#define atomic_set_acq_ptr		atomic_set_acq_32
+#define atomic_set_rel_ptr		atomic_set_rel_32
 #define atomic_cmpset_ptr		atomic_cmpset_32
-#define atomic_cmpset_rel_ptr		atomic_cmpset_rel_32
 #define atomic_cmpset_acq_ptr		atomic_cmpset_acq_32
+#define atomic_cmpset_rel_ptr		atomic_cmpset_rel_32
+#define atomic_load_acq_ptr		atomic_load_acq_32
 #define atomic_store_ptr		atomic_store_32
 #define atomic_store_rel_ptr		atomic_store_rel_32
+#define atomic_swap_ptr			atomic_swap_32
+#define atomic_readandclear_ptr		atomic_readandclear_32
 
 #define atomic_add_int			atomic_add_32
 #define atomic_add_acq_int		atomic_add_acq_32
