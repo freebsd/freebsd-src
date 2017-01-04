@@ -63,7 +63,12 @@ ATF_TC_BODY(unlink_basic, tc)
 		ATF_REQUIRE(unlink(path) == 0);
 
 		errno = 0;
+#ifdef	__FreeBSD__
+		ATF_REQUIRE_ERRNO(ENOENT, (fd = open(path, O_RDONLY)) == -1);
+		(void)close(fd);
+#else
 		ATF_REQUIRE_ERRNO(ENOENT, open(path, O_RDONLY) == -1);
+#endif
 	}
 }
 
@@ -111,12 +116,24 @@ ATF_TC_HEAD(unlink_fifo, tc)
 
 ATF_TC_BODY(unlink_fifo, tc)
 {
+#ifdef	__FreeBSD__
+	int fd;
 
+	ATF_REQUIRE_MSG((fd = mkfifo(path, 0666)) == 0,
+	    "mkfifo failed: %s", strerror(errno));
+	(void)close(fd);
+#else
 	ATF_REQUIRE(mkfifo(path, 0666) == 0);
+#endif
 	ATF_REQUIRE(unlink(path) == 0);
 
 	errno = 0;
+#ifdef	__FreeBSD__
+	ATF_REQUIRE_ERRNO(ENOENT, (fd = open(path, O_RDONLY)) == -1);
+	(void)close(fd);
+#else
 	ATF_REQUIRE_ERRNO(ENOENT, open(path, O_RDONLY) == -1);
+#endif
 }
 
 ATF_TC_CLEANUP(unlink_fifo, tc)
