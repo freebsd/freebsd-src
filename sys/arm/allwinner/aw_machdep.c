@@ -111,6 +111,15 @@ a31s_attach(platform_t plat)
 }
 
 static int
+a33_attach(platform_t plat)
+{
+	soc_type = ALLWINNERSOC_A33;
+	soc_family = ALLWINNERSOC_SUN8I;
+
+	return (0);
+}
+
+static int
 a83t_attach(platform_t plat)
 {
 	soc_type = ALLWINNERSOC_A83T;
@@ -220,6 +229,21 @@ static platform_method_t a31s_methods[] = {
 	PLATFORMMETHOD_END,
 };
 FDT_PLATFORM_DEF(a31s, "a31s", 0, "allwinner,sun6i-a31s", 200);
+#endif
+
+#if defined(SOC_ALLWINNER_A33)
+static platform_method_t a33_methods[] = {
+	PLATFORMMETHOD(platform_attach,         a33_attach),
+	PLATFORMMETHOD(platform_devmap_init,    allwinner_devmap_init),
+	PLATFORMMETHOD(platform_cpu_reset,	allwinner_cpu_reset),
+
+#ifdef SMP
+	PLATFORMMETHOD(platform_mp_start_ap,	aw_mp_start_ap),
+	PLATFORMMETHOD(platform_mp_setmaxid,	aw_mp_setmaxid),
+#endif
+	PLATFORMMETHOD_END,
+};
+FDT_PLATFORM_DEF(a33, "a33", 0, "allwinner,sun8i-a33", 200);
 #endif
 
 #if defined(SOC_ALLWINNER_A83T)

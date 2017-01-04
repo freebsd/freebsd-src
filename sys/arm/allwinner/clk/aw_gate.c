@@ -83,6 +83,11 @@ static struct ofw_compat_data compat_data[] = {
 	{ "allwinner,sun6i-a31-apb2-gates-clk",
 	  (uintptr_t)"Allwinner APB2 Clock Gates" },
 
+	{ "allwinner,sun8i-a23-apb1-gates-clk",
+	  (uintptr_t)"Allwinner APB1 Clock Gates" },
+	{ "allwinner,sun8i-a23-apb2-gates-clk",
+	  (uintptr_t)"Allwinner APB2 Clock Gates" },
+
 	{ "allwinner,sun8i-a83t-bus-gates-clk",
 	  (uintptr_t)"Allwinner Bus Clock Gates" },
 	{ "allwinner,sun8i-a83t-apb0-gates-clk",

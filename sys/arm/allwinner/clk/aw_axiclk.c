@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 
 static struct ofw_compat_data compat_data[] = {
 	{ "allwinner,sun4i-a10-axi-clk",	1 },
+	{ "allwinner,sun8i-a23-axi-clk",	1 },
 	{ NULL, 0 }
 };
 
