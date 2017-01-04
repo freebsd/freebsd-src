@@ -651,9 +651,9 @@ trm_action(struct cam_sim *psim, union ccb *pccb)
 			cpi->initiator_id = pACB->AdaptSCSIID;
 			cpi->bus_id = cam_sim_bus(psim);
 			cpi->base_transfer_speed = 3300;
-			strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
-			strncpy(cpi->hba_vid, "Tekram_TRM", HBA_IDLEN);
-			strncpy(cpi->dev_name, cam_sim_name(psim), DEV_IDLEN);
+			strlcpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
+			strlcpy(cpi->hba_vid, "Tekram_TRM", HBA_IDLEN);
+			strlcpy(cpi->dev_name, cam_sim_name(psim), DEV_IDLEN);
 			cpi->unit_number = cam_sim_unit(psim);
 			cpi->transport = XPORT_SPI;
 			cpi->transport_version = 2;
