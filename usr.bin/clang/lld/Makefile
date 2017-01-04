@@ -14,7 +14,7 @@ SYMLINKS=	${PROG_CXX} ${BINDIR}/ld
 
 CFLAGS+=	-I${LLD_SRCS}/include
 CFLAGS+=	-I${.OBJDIR}
-CFLAGS+=	-I$${OBJTOP}/lib/clang/libllvm
+CFLAGS+=	-I${OBJTOP}/lib/clang/libllvm
 
 SRCDIR=		tools/lld
 SRCS+=		ELF/Driver.cpp
