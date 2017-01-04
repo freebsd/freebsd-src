@@ -1909,6 +1909,9 @@ iwn_alloc_rx_ring(struct iwn_softc *sc, struct iwn_rx_ring *ring)
 			goto fail;
 		}
 
+		bus_dmamap_sync(ring->data_dmat, data->map,
+		    BUS_DMASYNC_PREREAD);
+
 		/* Set physical address of RX buffer (256-byte aligned). */
 		ring->desc[i] = htole32(paddr >> 8);
 	}
@@ -2115,6 +2118,9 @@ iwn5000_ict_reset(struct iwn_softc *sc)
 	/* Reset ICT table. */
 	memset(sc->ict, 0, IWN_ICT_SIZE);
 	sc->ict_cur = 0;
+
+	bus_dmamap_sync(sc->ict_dma.tag, sc->ict_dma.map,
+	    BUS_DMASYNC_PREWRITE);
 
 	/* Set physical address of ICT table (4KB aligned). */
 	DPRINTF(sc, IWN_DEBUG_RESET, "%s: enabling ICT\n", __func__);
@@ -3039,13 +3045,18 @@ iwn_rx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 		if (error != 0 && error != EFBIG) {
 			panic("%s: could not load old RX mbuf", __func__);
 		}
+		bus_dmamap_sync(ring->data_dmat, data->map,
+		    BUS_DMASYNC_PREREAD);
 		/* Physical address may have changed. */
 		ring->desc[ring->cur] = htole32(paddr >> 8);
-		bus_dmamap_sync(ring->data_dmat, ring->desc_dma.map,
+		bus_dmamap_sync(ring->desc_dma.tag, ring->desc_dma.map,
 		    BUS_DMASYNC_PREWRITE);
 		counter_u64_add(ic->ic_ierrors, 1);
 		return;
 	}
+
+	bus_dmamap_sync(ring->data_dmat, data->map,
+	    BUS_DMASYNC_PREREAD);
 
 	m = data->m;
 	data->m = m1;
@@ -4075,6 +4086,8 @@ iwn_intr(void *arg)
 
 	/* Read interrupts from ICT (fast) or from registers (slow). */
 	if (sc->sc_flags & IWN_FLAG_USE_ICT) {
+		bus_dmamap_sync(sc->ict_dma.tag, sc->ict_dma.map,
+		    BUS_DMASYNC_POSTREAD);
 		tmp = 0;
 		while (sc->ict[sc->ict_cur] != 0) {
 			tmp |= sc->ict[sc->ict_cur];
@@ -4610,7 +4623,7 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 	}
 
 	bus_dmamap_sync(ring->data_dmat, data->map, BUS_DMASYNC_PREWRITE);
-	bus_dmamap_sync(ring->data_dmat, ring->cmd_dma.map,
+	bus_dmamap_sync(ring->cmd_dma.tag, ring->cmd_dma.map,
 	    BUS_DMASYNC_PREWRITE);
 	bus_dmamap_sync(ring->desc_dma.tag, ring->desc_dma.map,
 	    BUS_DMASYNC_PREWRITE);
@@ -4803,7 +4816,7 @@ iwn_tx_data_raw(struct iwn_softc *sc, struct mbuf *m,
 	}
 
 	bus_dmamap_sync(ring->data_dmat, data->map, BUS_DMASYNC_PREWRITE);
-	bus_dmamap_sync(ring->data_dmat, ring->cmd_dma.map,
+	bus_dmamap_sync(ring->cmd_dma.tag, ring->cmd_dma.map,
 	    BUS_DMASYNC_PREWRITE);
 	bus_dmamap_sync(ring->desc_dma.tag, ring->desc_dma.map,
 	    BUS_DMASYNC_PREWRITE);
@@ -5136,7 +5149,7 @@ iwn_cmd(struct iwn_softc *sc, int code, const void *buf, int size, int async)
 		bus_dmamap_sync(ring->data_dmat, data->map,
 		    BUS_DMASYNC_PREWRITE);
 	} else {
-		bus_dmamap_sync(ring->data_dmat, ring->cmd_dma.map,
+		bus_dmamap_sync(ring->cmd_dma.tag, ring->cmd_dma.map,
 		    BUS_DMASYNC_PREWRITE);
 	}
 	bus_dmamap_sync(ring->desc_dma.tag, ring->desc_dma.map,
