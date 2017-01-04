@@ -58,6 +58,9 @@ ATF_TC_HEAD(strchr_basic, tc)
 
 ATF_TC_BODY(strchr_basic, tc)
 {
+#ifdef	__FreeBSD__
+	void *dl_handle;
+#endif
 	unsigned int t, a;
 	char *off;
 	char buf[32];
@@ -245,8 +248,12 @@ ATF_TC_BODY(strchr_basic, tc)
 		"abcdefgh/abcdefgh/",
 	};
 
-
+#ifdef	__FreeBSD__
+	dl_handle = dlopen(NULL, RTLD_LAZY);
+	strchr_fn = dlsym(dl_handle, "test_strlen");
+#else
 	strchr_fn = dlsym(dlopen(0, RTLD_LAZY), "test_strchr");
+#endif
 	if (!strchr_fn)
 		strchr_fn = strchr;
 
@@ -281,6 +288,9 @@ ATF_TC_BODY(strchr_basic, tc)
 			verify_strchr(buf + a, 0xff, t, a);
 		}
 	}
+#ifdef	__FreeBSD__
+	(void)dlclose(dl_handle);
+#endif
 }
 
 ATF_TP_ADD_TCS(tp)

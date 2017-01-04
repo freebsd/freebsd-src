@@ -243,12 +243,19 @@ sockets_main(int argc, char **argv)
 		return EXIT_FAILURE;
 	}
 
+#ifdef	__FreeBSD__
+	addr.sun_len = sizeof(addr.sun_path);
+	(void)strlcpy(addr.sun_path, argv[1], addr.sun_len);
+#else
 	(void)strlcpy(addr.sun_path, argv[1], sizeof(addr.sun_path));
+#endif
 	addr.sun_family = PF_UNIX;
-
 	error = bind(fd, (struct sockaddr *)&addr, sizeof(addr));
 	if (error == -1) {
 		warn("connect");
+#ifdef	__FreeBSD__
+		(void)close(fd);
+#endif
 		return EXIT_FAILURE;
 	}
 

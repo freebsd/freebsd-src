@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 17, 2016
+.Dd January 2, 2017
 .Dt sysdecode_enum 3
 .Os
 .Sh NAME
@@ -35,6 +35,7 @@
 .Nm sysdecode_extattrnamespace ,
 .Nm sysdecode_fadvice ,
 .Nm sysdecode_fcntl_cmd ,
+.Nm sysdecode_getfsstat_mode ,
 .Nm sysdecode_idtype ,
 .Nm sysdecode_ipproto ,
 .Nm sysdecode_kldsym_cmd ,
@@ -85,6 +86,8 @@
 .Fn sysdecode_fadvice "int advice"
 .Ft const char *
 .Fn sysdecode_fcntl_cmd "int cmd"
+.Ft const char *
+.Fn sysdecode_getfsstat_mode "int mode"
 .Ft const char *
 .Fn sysdecode_idtype "int idtype"
 .Ft const char *
@@ -168,6 +171,7 @@ Most of these functions decode an argument passed to a system call:
 .It Fn sysdecode_extattrnamespace Ta Xr extattr_get_fd 2 Ta Fa attrnamespace
 .It Fn sysdecode_fadvice Ta Xr posix_fadvise 2 Ta Fa advice
 .It Fn sysdecode_fcntl_cmd Ta Xr fcntl 2 Ta Fa cmd
+.It Fn sysdecode_getfsstat_mode Ta Xr getfsstat 2 Ta Fa mode
 .It Fn sysdecode_idtype Ta
 .Xr procctl 2 ,
 .Xr waitid 2
