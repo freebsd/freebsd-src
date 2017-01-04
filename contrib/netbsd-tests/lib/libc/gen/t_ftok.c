@@ -68,6 +68,9 @@ ATF_TC_BODY(ftok_link, tc)
 	fd = open(path, O_RDONLY | O_CREAT);
 
 	ATF_REQUIRE(fd >= 0);
+#ifdef	__FreeBSD__
+	(void)close(fd);
+#endif
 	ATF_REQUIRE(link(path, hlnk) == 0);
 	ATF_REQUIRE(symlink(path, slnk) == 0);
 
