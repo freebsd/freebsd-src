@@ -62,6 +62,12 @@ enum {
 	PAUSE_AUTONEG = 1 << 2
 };
 
+enum {
+	FEC_RS        = 1 << 0,
+	FEC_BASER_RS  = 1 << 1,
+	FEC_RESERVED  = 1 << 2,
+};
+
 struct port_stats {
 	u64 tx_octets;            /* total # of octets in good frames */
 	u64 tx_frames;            /* all good frames */
@@ -227,7 +233,7 @@ struct tp_params {
 
 	uint32_t vlan_pri_map;
 	uint32_t ingress_config;
-	uint32_t rx_pkt_encap;
+	__be16 err_vec_mask;
 
 	int8_t fcoe_shift;
 	int8_t port_shift;
@@ -392,12 +398,16 @@ struct trace_params {
 struct link_config {
 	unsigned short supported;        /* link capabilities */
 	unsigned short advertising;      /* advertised capabilities */
-	unsigned short requested_speed;  /* speed user has requested */
-	unsigned short speed;            /* actual link speed */
+	unsigned short lp_advertising;   /* peer advertised capabilities */
+	unsigned int   requested_speed;  /* speed user has requested */
+	unsigned int   speed;            /* actual link speed */
 	unsigned char  requested_fc;     /* flow control user has requested */
 	unsigned char  fc;               /* actual link flow control */
+	unsigned char  requested_fec;    /* FEC user has requested */
+	unsigned char  fec;              /* actual FEC */
 	unsigned char  autoneg;          /* autonegotiating? */
 	unsigned char  link_ok;          /* link up? */
+	unsigned char  link_down_rc;     /* link down reason */
 };
 
 #include "adapter.h"

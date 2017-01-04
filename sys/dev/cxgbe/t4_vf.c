@@ -670,8 +670,6 @@ t4vf_attach(device_t dev)
 			n1g++;
 		}
 
-		pi->linkdnrc = -1;
-
 		pi->dev = device_add_child(dev, sc->names->vf_ifnet_name, -1);
 		if (pi->dev == NULL) {
 			device_printf(dev,

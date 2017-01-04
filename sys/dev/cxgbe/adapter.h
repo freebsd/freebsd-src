@@ -78,45 +78,6 @@ prefetch(void *x)
 #define SBUF_DRAIN 1
 #endif
 
-#ifdef __amd64__
-/* XXX: need systemwide bus_space_read_8/bus_space_write_8 */
-static __inline uint64_t
-t4_bus_space_read_8(bus_space_tag_t tag, bus_space_handle_t handle,
-    bus_size_t offset)
-{
-	KASSERT(tag == X86_BUS_SPACE_MEM,
-	    ("%s: can only handle mem space", __func__));
-
-	return (*(volatile uint64_t *)(handle + offset));
-}
-
-static __inline void
-t4_bus_space_write_8(bus_space_tag_t tag, bus_space_handle_t bsh,
-    bus_size_t offset, uint64_t value)
-{
-	KASSERT(tag == X86_BUS_SPACE_MEM,
-	    ("%s: can only handle mem space", __func__));
-
-	*(volatile uint64_t *)(bsh + offset) = value;
-}
-#else
-static __inline uint64_t
-t4_bus_space_read_8(bus_space_tag_t tag, bus_space_handle_t handle,
-    bus_size_t offset)
-{
-	return (uint64_t)bus_space_read_4(tag, handle, offset) +
-	    ((uint64_t)bus_space_read_4(tag, handle, offset + 4) << 32);
-}
-
-static __inline void
-t4_bus_space_write_8(bus_space_tag_t tag, bus_space_handle_t bsh,
-    bus_size_t offset, uint64_t value)
-{
-	bus_space_write_4(tag, bsh, offset, value);
-	bus_space_write_4(tag, bsh, offset + 4, value >> 32);
-}
-#endif
-
 struct adapter;
 typedef struct adapter adapter_t;
 
@@ -298,7 +259,6 @@ struct port_info {
 	uint8_t  tx_chan;
 	uint8_t  rx_chan_map;	/* rx MPS channel bitmap */
 
-	int linkdnrc;
 	struct link_config link_cfg;
 
 	struct timeval last_refreshed;
@@ -970,14 +930,25 @@ static inline uint64_t
 t4_read_reg64(struct adapter *sc, uint32_t reg)
 {
 
-	return t4_bus_space_read_8(sc->bt, sc->bh, reg);
+#if defined(__LP64__) && !defined(__ia64__)
+	return bus_space_read_8(sc->bt, sc->bh, reg);
+#else
+	return (uint64_t)bus_space_read_4(sc->bt, sc->bh, reg) +
+	    ((uint64_t)bus_space_read_4(sc->bt, sc->bh, reg + 4) << 32);
+
+#endif
 }
 
 static inline void
 t4_write_reg64(struct adapter *sc, uint32_t reg, uint64_t val)
 {
 
-	t4_bus_space_write_8(sc->bt, sc->bh, reg, val);
+#if defined(__LP64__) && !defined(__ia64__)
+	bus_space_write_8(sc->bt, sc->bh, reg, val);
+#else
+	bus_space_write_4(sc->bt, sc->bh, reg, val);
+	bus_space_write_4(sc->bt, sc->bh, reg + 4, val>> 32);
+#endif
 }
 
 static inline void
@@ -1119,7 +1090,7 @@ int t4_os_find_pci_capability(struct adapter *, int);
 int t4_os_pci_save_state(struct adapter *);
 int t4_os_pci_restore_state(struct adapter *);
 void t4_os_portmod_changed(const struct adapter *, int);
-void t4_os_link_changed(struct adapter *, int, int, int);
+void t4_os_link_changed(struct adapter *, int, int);
 void t4_iterate(void (*)(struct adapter *, void *), void *);
 void t4_init_devnames(struct adapter *);
 void t4_add_adapter(struct adapter *);
