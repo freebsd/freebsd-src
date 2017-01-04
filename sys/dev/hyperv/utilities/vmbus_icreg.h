@@ -114,8 +114,17 @@ struct vmbus_icmsg_timesync {
 	struct vmbus_icmsg_hdr	ic_hdr;
 	uint64_t		ic_hvtime;
 	uint64_t		ic_vmtime;
+	uint64_t		ic_rtt;
+	uint8_t			ic_tsflags;	/* VMBUS_ICMSG_TS_FLAG_ */
+} __packed;
+
+/* VMBUS_ICMSG_TYPE_TIMESYNC, MSGVER4 */
+struct vmbus_icmsg_timesync4 {
+	struct vmbus_icmsg_hdr	ic_hdr;
+	uint64_t		ic_hvtime;
 	uint64_t		ic_sent_tc;
 	uint8_t			ic_tsflags;	/* VMBUS_ICMSG_TS_FLAG_ */
+	uint8_t			ic_rsvd[5];
 } __packed;
 
 #define VMBUS_ICMSG_TS_FLAG_SYNC	0x01
