@@ -42,6 +42,8 @@ __RCSID("$NetBSD: t_condwait.c,v 1.4 2013/04/12 17:18:11 christos Exp $");
 
 #ifdef __FreeBSD__
 #include <sys/time.h>
+
+#include "h_common.h"
 #endif
 
 #define WAITTIME 2	/* Timeout wait secound */
@@ -60,8 +62,13 @@ run(void *param)
 
 
 	clck = *(clockid_t *)param;
+#ifdef	__FreeBSD__
+	PTHREAD_REQUIRE(pthread_condattr_init(&attr));
+	PTHREAD_REQUIRE(pthread_condattr_setclock(&attr, clck));
+#else
 	pthread_condattr_init(&attr);
 	pthread_condattr_setclock(&attr, clck); /* MONOTONIC or MONOTONIC */
+#endif
 	pthread_cond_init(&cond, &attr);
 
 	ATF_REQUIRE_EQ((ret = pthread_mutex_lock(&m)), 0);
