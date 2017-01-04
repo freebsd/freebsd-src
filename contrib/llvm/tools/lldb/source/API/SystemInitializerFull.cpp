@@ -78,7 +78,7 @@
 #include "Plugins/Platform/gdb-server/PlatformRemoteGDBServer.h"
 #include "Plugins/Process/elf-core/ProcessElfCore.h"
 #include "Plugins/Process/gdb-remote/ProcessGDBRemote.h"
-#include "Plugins/Process/minidump/ProcessMinidump.h"
+//#include "Plugins/Process/minidump/ProcessMinidump.h"
 #include "Plugins/ScriptInterpreter/None/ScriptInterpreterNone.h"
 #include "Plugins/SymbolFile/DWARF/SymbolFileDWARF.h"
 #include "Plugins/SymbolFile/DWARF/SymbolFileDWARFDebugMap.h"
@@ -101,7 +101,7 @@
 #include "Plugins/Process/mach-core/ProcessMachCore.h"
 #include "Plugins/SymbolVendor/MacOSX/SymbolVendorMacOSX.h"
 #endif
-#include "Plugins/StructuredData/DarwinLog/StructuredDataDarwinLog.h"
+//#include "Plugins/StructuredData/DarwinLog/StructuredDataDarwinLog.h"
 
 #if defined(__FreeBSD__)
 #include "Plugins/Process/FreeBSD/ProcessFreeBSD.h"
@@ -304,7 +304,7 @@ void SystemInitializerFull::Initialize() {
 
   JITLoaderGDB::Initialize();
   ProcessElfCore::Initialize();
-  minidump::ProcessMinidump::Initialize();
+//minidump::ProcessMinidump::Initialize();
   MemoryHistoryASan::Initialize();
   AddressSanitizerRuntime::Initialize();
 //ThreadSanitizerRuntime::Initialize();
@@ -351,7 +351,7 @@ void SystemInitializerFull::Initialize() {
 
   // This plugin is valid on any host that talks to a Darwin remote.
   // It shouldn't be limited to __APPLE__.
-  StructuredDataDarwinLog::Initialize();
+  //StructuredDataDarwinLog::Initialize();
 
   //----------------------------------------------------------------------
   // Platform agnostic plugins
@@ -427,7 +427,7 @@ void SystemInitializerFull::Terminate() {
 
   JITLoaderGDB::Terminate();
   ProcessElfCore::Terminate();
-  minidump::ProcessMinidump::Terminate();
+//minidump::ProcessMinidump::Terminate();
   MemoryHistoryASan::Terminate();
   AddressSanitizerRuntime::Terminate();
 //ThreadSanitizerRuntime::Terminate();
@@ -471,7 +471,7 @@ void SystemInitializerFull::Terminate() {
 
   platform_gdb_server::PlatformRemoteGDBServer::Terminate();
   process_gdb_remote::ProcessGDBRemote::Terminate();
-  StructuredDataDarwinLog::Terminate();
+//StructuredDataDarwinLog::Terminate();
 
 //DynamicLoaderMacOSXDYLD::Terminate();
 //DynamicLoaderMacOS::Terminate();
