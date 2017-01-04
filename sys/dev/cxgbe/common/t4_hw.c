@@ -3680,9 +3680,7 @@ void t4_ulprx_read_la(struct adapter *adap, u32 *la_buf)
 	}
 }
 
-#define ADVERT_MASK (FW_PORT_CAP_SPEED_100M | FW_PORT_CAP_SPEED_1G |\
-		     FW_PORT_CAP_SPEED_10G | FW_PORT_CAP_SPEED_25G | \
-		     FW_PORT_CAP_SPEED_40G | FW_PORT_CAP_SPEED_100G | \
+#define ADVERT_MASK (V_FW_PORT_CAP_SPEED(M_FW_PORT_CAP_SPEED) | \
 		     FW_PORT_CAP_ANEG)
 
 /**
@@ -3702,13 +3700,22 @@ int t4_link_l1cfg(struct adapter *adap, unsigned int mbox, unsigned int port,
 		  struct link_config *lc)
 {
 	struct fw_port_cmd c;
-	unsigned int fc = 0, mdi = V_FW_PORT_CAP_MDI(FW_PORT_CAP_MDI_AUTO);
+	unsigned int mdi = V_FW_PORT_CAP_MDI(FW_PORT_CAP_MDI_AUTO);
+	unsigned int fc, fec;
 
-	lc->link_ok = 0;
+	fc = 0;
 	if (lc->requested_fc & PAUSE_RX)
 		fc |= FW_PORT_CAP_FC_RX;
 	if (lc->requested_fc & PAUSE_TX)
 		fc |= FW_PORT_CAP_FC_TX;
+
+	fec = 0;
+	if (lc->requested_fec & FEC_RS)
+		fec |= FW_PORT_CAP_FEC_RS;
+	if (lc->requested_fec & FEC_BASER_RS)
+		fec |= FW_PORT_CAP_FEC_BASER_RS;
+	if (lc->requested_fec & FEC_RESERVED)
+		fec |= FW_PORT_CAP_FEC_RESERVED;
 
 	memset(&c, 0, sizeof(c));
 	c.op_to_portid = cpu_to_be32(V_FW_CMD_OP(FW_PORT_CMD) |
@@ -3720,13 +3727,16 @@ int t4_link_l1cfg(struct adapter *adap, unsigned int mbox, unsigned int port,
 
 	if (!(lc->supported & FW_PORT_CAP_ANEG)) {
 		c.u.l1cfg.rcap = cpu_to_be32((lc->supported & ADVERT_MASK) |
-					     fc);
-		lc->fc = lc->requested_fc & (PAUSE_RX | PAUSE_TX);
+					     fc | fec);
+		lc->fc = lc->requested_fc & ~PAUSE_AUTONEG;
+		lc->fec = lc->requested_fec;
 	} else if (lc->autoneg == AUTONEG_DISABLE) {
-		c.u.l1cfg.rcap = cpu_to_be32(lc->requested_speed | fc | mdi);
-		lc->fc = lc->requested_fc & (PAUSE_RX | PAUSE_TX);
+		c.u.l1cfg.rcap = cpu_to_be32(lc->requested_speed |
+					     fc | fec | mdi);
+		lc->fc = lc->requested_fc & ~PAUSE_AUTONEG;
+		lc->fec = lc->requested_fec;
 	} else
-		c.u.l1cfg.rcap = cpu_to_be32(lc->advertising | fc | mdi);
+		c.u.l1cfg.rcap = cpu_to_be32(lc->advertising | fc | fec | mdi);
 
 	return t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
 }
@@ -7514,18 +7524,14 @@ int t4_handle_fw_rpl(struct adapter *adap, const __be64 *rpl)
 		}
 		if (link_ok != lc->link_ok || speed != lc->speed ||
 		    fc != lc->fc) {                    /* something changed */
-			int reason;
-
 			if (!link_ok && lc->link_ok)
-				reason = G_FW_PORT_CMD_LINKDNRC(stat);
-			else
-				reason = -1;
-
+				lc->link_down_rc = G_FW_PORT_CMD_LINKDNRC(stat);
 			lc->link_ok = link_ok;
 			lc->speed = speed;
 			lc->fc = fc;
 			lc->supported = be16_to_cpu(p->u.info.pcap);
-			t4_os_link_changed(adap, i, link_ok, reason);
+			lc->lp_advertising = be16_to_cpu(p->u.info.lpacap);
+			t4_os_link_changed(adap, i, link_ok);
 		}
 	} else {
 		CH_WARN_RATELIMIT(adap, "Unknown firmware reply %d\n", opcode);
@@ -7559,17 +7565,34 @@ static void get_pci_mode(struct adapter *adapter,
 /**
  *	init_link_config - initialize a link's SW state
  *	@lc: structure holding the link state
- *	@caps: link capabilities
+ *	@pcaps: supported link capabilities
+ *	@acaps: advertised link capabilities
  *
  *	Initializes the SW state maintained for each link, including the link's
  *	capabilities and default speed/flow-control/autonegotiation settings.
  */
-static void init_link_config(struct link_config *lc, unsigned int caps)
+static void init_link_config(struct link_config *lc, unsigned int pcaps,
+    			     unsigned int acaps)
 {
-	lc->supported = caps;
+	unsigned int fec;
+
+	lc->supported = pcaps;
+	lc->lp_advertising = 0;
 	lc->requested_speed = 0;
 	lc->speed = 0;
 	lc->requested_fc = lc->fc = PAUSE_RX | PAUSE_TX;
+	lc->link_ok = 0;
+	lc->link_down_rc = 255;
+
+	fec = 0;
+	if (acaps & FW_PORT_CAP_FEC_RS)
+		fec |= FEC_RS;
+	if (acaps & FW_PORT_CAP_FEC_BASER_RS)
+		fec |= FEC_BASER_RS;
+	if (acaps & FW_PORT_CAP_FEC_RESERVED)
+		fec |= FEC_RESERVED;
+	lc->requested_fec = lc->fec = fec;
+
 	if (lc->supported & FW_PORT_CAP_ANEG) {
 		lc->advertising = lc->supported & ADVERT_MASK;
 		lc->autoneg = AUTONEG_ENABLE;
@@ -8017,12 +8040,17 @@ int t4_init_tp_params(struct adapter *adap)
 	read_filter_mode_and_ingress_config(adap);
 
 	/*
-	 * For T6, cache the adapter's compressed error vector
-	 * and passing outer header info for encapsulated packets.
+	 * Cache a mask of the bits that represent the error vector portion of
+	 * rx_pkt.err_vec.  T6+ can use a compressed error vector to make room
+	 * for information about outer encapsulation (GENEVE/VXLAN/NVGRE).
 	 */
+	tpp->err_vec_mask = htobe16(0xffff);
 	if (chip_id(adap) > CHELSIO_T5) {
 		v = t4_read_reg(adap, A_TP_OUT_CONFIG);
-		tpp->rx_pkt_encap = (v & F_CRXPKTENC) ? 1 : 0;
+		if (v & F_CRXPKTENC) {
+			tpp->err_vec_mask =
+			    htobe16(V_T6_COMPR_RXERR_VEC(M_T6_COMPR_RXERR_VEC));
+		}
 	}
 
 	return 0;
@@ -8118,7 +8146,8 @@ int t4_port_init(struct adapter *adap, int mbox, int pf, int vf, int port_id)
 		p->port_type = G_FW_PORT_CMD_PTYPE(ret);
 		p->mod_type = G_FW_PORT_CMD_MODTYPE(ret);
 
-		init_link_config(&p->link_cfg, be16_to_cpu(c.u.info.pcap));
+		init_link_config(&p->link_cfg, be16_to_cpu(c.u.info.pcap),
+		    		 be16_to_cpu(c.u.info.acap));
 	}
 
 	ret = t4_alloc_vi(adap, mbox, j, pf, vf, 1, addr, &rss_size);

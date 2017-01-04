@@ -290,6 +290,24 @@ The default is 3 (both rx_pause and tx_pause = 1).
 This tunable establishes the default PAUSE settings for all ports.
 Settings can be displayed and controlled on a per-port basis via the
 dev.<port>.X.pause_settings sysctl.
+.It Va hw.cxgbe.fec
+FEC (Forward Error Correction) settings.
+0 diables FEC.
+Bit 0 enables RS FEC, bit 1 enables BASE-R RS, bit 3 is reserved.
+The default is -1 which lets the driver pick a value.
+This tunable establishes the default FEC settings for all ports.
+Settings can be displayed and controlled on a per-port basis via the
+dev.<port>.X.fec sysctl.
+.It Va hw.cxgbe.autoneg
+Link autonegotiation settings.
+This tunable establishes the default autonegotiation settings for all ports.
+Settings can be displayed and controlled on a per-port basis via the
+dev.<port>.X.autoneg sysctl.
+0 disables autonegotiation.
+1 enables autonegotiation.
+The default is -1 which lets the driver pick a value.
+dev.<port>.X.autoneg is -1 for port and module combinations that do not support
+autonegotiation.
 .It Va hw.cxgbe.buffer_packing
 Allow the hardware to deliver multiple frames in the same receive buffer
 opportunistically.
