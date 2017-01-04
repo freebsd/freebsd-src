@@ -141,11 +141,12 @@ stacktrace_subr(register_t pc, register_t sp, register_t ra,
 	 */
 	int valid_args[4];
 	register_t args[4];
-	register_t va, subr;
+	register_t va, subr, cause, badvaddr;
 	unsigned instr, mask;
 	unsigned int frames = 0;
 	int more, stksize, j;
 	register_t	next_ra;
+	bool trapframe;
 
 /* Jump here when done with a frame, to start a new one */
 loop:
@@ -160,6 +161,7 @@ loop:
 	next_ra = 0;
 	stksize = 0;
 	subr = 0;
+	trapframe = false;
 	if (frames++ > 100) {
 		(*printfn) ("\nstackframe count exceeded\n");
 		/* return breaks stackframe-size heuristics with gcc -O2 */
@@ -183,17 +185,21 @@ loop:
 	 * preceding "j ra" at the tail of the preceding function. Depends
 	 * on relative ordering of functions in exception.S, swtch.S.
 	 */
-	if (pcBetween(MipsKernGenException, MipsUserGenException))
+	if (pcBetween(MipsKernGenException, MipsUserGenException)) {
 		subr = (uintptr_t)MipsKernGenException;
-	else if (pcBetween(MipsUserGenException, MipsKernIntr))
+		trapframe = true;
+	} else if (pcBetween(MipsUserGenException, MipsKernIntr))
 		subr = (uintptr_t)MipsUserGenException;
-	else if (pcBetween(MipsKernIntr, MipsUserIntr))
+	else if (pcBetween(MipsKernIntr, MipsUserIntr)) {
 		subr = (uintptr_t)MipsKernIntr;
-	else if (pcBetween(MipsUserIntr, MipsTLBInvalidException))
+		trapframe = true;
+	} else if (pcBetween(MipsUserIntr, MipsTLBInvalidException))
 		subr = (uintptr_t)MipsUserIntr;
-	else if (pcBetween(MipsTLBInvalidException, MipsTLBMissException))
+	else if (pcBetween(MipsTLBInvalidException, MipsTLBMissException)) {
 		subr = (uintptr_t)MipsTLBInvalidException;
-	else if (pcBetween(fork_trampoline, savectx))
+		if (pc == (uintptr_t)MipsKStackOverflow)
+			trapframe = true;
+	} else if (pcBetween(fork_trampoline, savectx))
 		subr = (uintptr_t)fork_trampoline;
 	else if (pcBetween(savectx, cpu_throw))
 		subr = (uintptr_t)savectx;
@@ -215,11 +221,11 @@ loop:
 	}
 
 	/*
-	 * For a kernel stack overflow, skip to the output and
-	 * afterwards pull the previous registers out of the trapframe
-	 * instead of decoding the function prologue.
+	 * For a trapframe, skip to the output and afterwards pull the
+	 * previous registers out of the trapframe instead of decoding
+	 * the function prologue.
 	 */
-	if (pc == (uintptr_t)MipsKStackOverflow)
+	if (trapframe)
 		goto done;
 
 	/*
@@ -398,19 +404,24 @@ done:
 	    (uintmax_t)(u_register_t) sp,
 	    stksize);
 
-	if (pc == (uintptr_t)MipsKStackOverflow) {
+	if (trapframe) {
 #define	TF_REG(base, reg)	((base) + CALLFRAME_SIZ + ((reg) * SZREG))
 #if defined(__mips_n64) || defined(__mips_n32)
 		pc = kdbpeekd((int *)TF_REG(sp, PC));
 		ra = kdbpeekd((int *)TF_REG(sp, RA));
 		sp = kdbpeekd((int *)TF_REG(sp, SP));
+		cause = kdbpeekd((int *)TF_REG(sp, CAUSE));
+		badvaddr = kdbpeekd((int *)TF_REG(sp, BADVADDR));
 #else
 		pc = kdbpeek((int *)TF_REG(sp, PC));
 		ra = kdbpeek((int *)TF_REG(sp, RA));
 		sp = kdbpeek((int *)TF_REG(sp, SP));
+		cause = kdbpeek((int *)TF_REG(sp, CAUSE));
+		badvaddr = kdbpeek((int *)TF_REG(sp, BADVADDR));
 #endif
 #undef TF_REG
-		(*printfn) ("--- Kernel Stack Overflow ---\n");
+		(*printfn) ("--- exception, cause %jx badvaddr %jx ---\n",
+		    (uintmax_t)cause, (uintmax_t)badvaddr);
 		goto loop;
 	} else if (ra) {
 		if (pc == ra && stksize == 0)
