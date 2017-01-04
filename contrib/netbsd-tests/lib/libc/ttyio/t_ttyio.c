@@ -152,6 +152,9 @@ ATF_TC_BODY(ioctl, tc)
 	REQUIRE_ERRNO(sigaction(SIGCHLD, &sa, NULL), -1);
 	(void) wait(NULL);
 
+#ifdef	__FreeBSD__
+	(void)close(s);
+#endif
 	ATF_REQUIRE_EQ(rc, 0);
 }
 
