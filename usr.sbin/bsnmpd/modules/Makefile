@@ -10,12 +10,15 @@ _snmp_atm= snmp_atm
 
 SUBDIR=	${_snmp_atm} \
 	snmp_bridge \
-	snmp_hast \
 	snmp_hostres \
 	snmp_mibII \
 	snmp_target \
 	snmp_usm \
 	snmp_vacm \
+
+.if ${MK_HAST} != "no"
+SUBDIR+=snmp_hast
+.endif
 
 .if ${MK_PF} != "no"
 SUBDIR+=snmp_pf
