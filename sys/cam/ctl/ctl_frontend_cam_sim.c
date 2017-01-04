@@ -773,9 +773,9 @@ cfcs_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->hpath_id = 0;
 		cpi->initiator_id = 0;
 
-		strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
-		strncpy(cpi->hba_vid, "FreeBSD", HBA_IDLEN);
-		strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
+		strlcpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
+		strlcpy(cpi->hba_vid, "FreeBSD", HBA_IDLEN);
+		strlcpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
 		cpi->unit_number = 0;
 		cpi->bus_id = 0;
 		cpi->base_transfer_speed = 800000;

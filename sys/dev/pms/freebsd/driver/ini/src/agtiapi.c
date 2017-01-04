@@ -1838,9 +1838,9 @@ static void agtiapi_cam_action( struct cam_sim *sim, union ccb * ccb )
     cpi->max_lun = AGTIAPI_MAX_LUN;
     cpi->maxio = 1024 *1024; /* Max supported I/O size, in bytes. */
     cpi->initiator_id = 255;
-    strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
-    strncpy(cpi->hba_vid, "PMC", HBA_IDLEN);
-    strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
+    strlcpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
+    strlcpy(cpi->hba_vid, "PMC", HBA_IDLEN);
+    strlcpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
     cpi->unit_number = cam_sim_unit(sim);
     cpi->bus_id = cam_sim_bus(sim);
     // rate is set when XPT_GET_TRAN_SETTINGS is processed
