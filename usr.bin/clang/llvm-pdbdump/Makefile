@@ -17,6 +17,8 @@ SRCS+=		TypeDumper.cpp
 SRCS+=		TypedefDumper.cpp
 SRCS+=		VariableDumper.cpp
 SRCS+=		YAMLOutputStyle.cpp
+SRCS+=		YamlSymbolDumper.cpp
+SRCS+=		YamlTypeDumper.cpp
 SRCS+=		llvm-pdbdump.cpp
 
 .include "../llvm.prog.mk"
