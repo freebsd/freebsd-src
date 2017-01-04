@@ -38,8 +38,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/hyperv/utilities/vmbus_icreg.h>
 #include <dev/hyperv/utilities/vmbus_icvar.h>
 
-#include "vmbus_if.h"
-
 #define VMBUS_HEARTBEAT_FWVER_MAJOR	3
 #define VMBUS_HEARTBEAT_FWVER		\
 	VMBUS_IC_VERSION(VMBUS_HEARTBEAT_FWVER_MAJOR, 0)

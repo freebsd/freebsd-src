@@ -22,23 +22,16 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-/*
- * A common driver for all hyper-V util services.
- */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/bus.h>
 #include <sys/malloc.h>
-#include <sys/module.h>
-#include <sys/reboot.h>
 #include <sys/systm.h>
 #include <sys/sysctl.h>
-#include <sys/timetc.h>
 
 #include <dev/hyperv/include/hyperv.h>
 #include <dev/hyperv/include/vmbus.h>
