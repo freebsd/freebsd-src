@@ -5166,9 +5166,9 @@ xptaction(struct cam_sim *sim, union ccb *work_ccb)
 		cpi->max_target = 0;
 		cpi->max_lun = 0;
 		cpi->initiator_id = 0;
-		strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
-		strncpy(cpi->hba_vid, "", HBA_IDLEN);
-		strncpy(cpi->dev_name, sim->sim_name, DEV_IDLEN);
+		strlcpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
+		strlcpy(cpi->hba_vid, "", HBA_IDLEN);
+		strlcpy(cpi->dev_name, sim->sim_name, DEV_IDLEN);
 		cpi->unit_number = sim->unit_number;
 		cpi->bus_id = sim->bus_id;
 		cpi->base_transfer_speed = 0;

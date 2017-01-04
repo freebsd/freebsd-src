@@ -356,9 +356,9 @@ mrsas_action(struct cam_sim *sim, union ccb *ccb)
 			ccb->cpi.bus_id = cam_sim_bus(sim);
 			ccb->cpi.initiator_id = MRSAS_SCSI_INITIATOR_ID;
 			ccb->cpi.base_transfer_speed = 150000;
-			strncpy(ccb->cpi.sim_vid, "FreeBSD", SIM_IDLEN);
-			strncpy(ccb->cpi.hba_vid, "AVAGO", HBA_IDLEN);
-			strncpy(ccb->cpi.dev_name, cam_sim_name(sim), DEV_IDLEN);
+			strlcpy(ccb->cpi.sim_vid, "FreeBSD", SIM_IDLEN);
+			strlcpy(ccb->cpi.hba_vid, "AVAGO", HBA_IDLEN);
+			strlcpy(ccb->cpi.dev_name, cam_sim_name(sim), DEV_IDLEN);
 			ccb->cpi.transport = XPORT_SPI;
 			ccb->cpi.transport_version = 2;
 			ccb->cpi.protocol = PROTO_SCSI;
