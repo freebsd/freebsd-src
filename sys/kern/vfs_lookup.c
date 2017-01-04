@@ -621,11 +621,13 @@ needs_exclusive_leaf(struct mount *mp, int flags)
 int
 lookup(struct nameidata *ndp)
 {
-	char *cp;		/* pointer into pathname argument */
+	char *cp;			/* pointer into pathname argument */
+	char *prev_ni_next;		/* saved ndp->ni_next */
 	struct vnode *dp = NULL;	/* the directory we are searching */
 	struct vnode *tdp;		/* saved dp */
 	struct mount *mp;		/* mount table entry */
 	struct prison *pr;
+	size_t prev_ni_pathlen;		/* saved ndp->ni_pathlen */
 	int docache;			/* == 0 do not cache last component */
 	int wantparent;			/* 1 => wantparent or lockparent flag */
 	int rdonly;			/* lookup read-only flag bit */
@@ -687,7 +689,11 @@ dirloop:
 	printf("{%s}: ", cnp->cn_nameptr);
 	*cp = c; }
 #endif
+	prev_ni_pathlen = ndp->ni_pathlen;
 	ndp->ni_pathlen -= cnp->cn_namelen;
+	KASSERT(ndp->ni_pathlen <= PATH_MAX,
+	    ("%s: ni_pathlen underflow to %zd\n", __func__, ndp->ni_pathlen));
+	prev_ni_next = ndp->ni_next;
 	ndp->ni_next = cp;
 
 	/*
@@ -1008,6 +1014,8 @@ nextname:
 	    ("lookup: invalid path state."));
 	if (relookup) {
 		relookup = 0;
+		ndp->ni_pathlen = prev_ni_pathlen;
+		ndp->ni_next = prev_ni_next;
 		if (ndp->ni_dvp != dp)
 			vput(ndp->ni_dvp);
 		else
