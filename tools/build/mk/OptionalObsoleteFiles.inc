@@ -9094,6 +9094,12 @@ OLD_FILES+=usr/share/man/man8/wlandebug.8.gz
 OLD_FILES+=usr/share/man/man8/wpa_cli.8.gz
 OLD_FILES+=usr/share/man/man8/wpa_passphrase.8.gz
 OLD_FILES+=usr/share/man/man8/wpa_supplicant.8.gz
+OLD_FILES+=usr/lib/snmp_wlan.so
+OLD_LIBS+=usr/lib/snmp_wlan.so.6
+# bsnmp module
+OLD_FILES+=usr/share/man/man3/snmp_wlan.3.gz
+OLD_FILES+=usr/share/snmp/defs/wlan_tree.def
+OLD_FILES+=usr/share/snmp/mibs/BEGEMOT-WIRELESS-MIB.txt
 .endif
 
 .if ${MK_SVNLITE} == no || ${MK_SVN} == yes
