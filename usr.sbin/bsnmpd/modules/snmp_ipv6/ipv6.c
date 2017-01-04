@@ -38,73 +38,9 @@ __FBSDID("$FreeBSD$");
 
 static struct lmodule *module;
 
-struct ipv6_interface_list ipv6_interfaces =
-    TAILQ_HEAD_INITIALIZER(ipv6_interfaces);
-
 static const struct asn_oid oid_ipv6MIB = OIDX_ipv6MIB;
 
 static u_int ipv6_reg;
-
-int
-load_ipv6_interface_table(void)
-{
-	struct ipv6_interface *ip = NULL;
-	struct if_nameindex *p = NULL, *ifnames = NULL;
-
-	ifnames = if_nameindex();
-
-	for (p = ifnames; p != NULL && p->if_index; p++) {
-		ip = calloc(1, sizeof(struct ipv6_interface));
-		if (ip == NULL) {
-			free_ipv6_interface_table();
-			if_freenameindex(ifnames);
-	    		return (-1);
-		}
-
-		ip->index = p->if_index;
-
-		if ((ip->name = strdup(p->if_name)) == NULL) {
-			free_ipv6_interface_table();
-			if_freenameindex(ifnames);
-	    		return (-1);
-		}
-
-		INSERT_OBJECT_INT(ip, &ipv6_interfaces);
-	}
-
-	if_freenameindex(ifnames);
-
-	return (0);
-}
-
-void
-free_ipv6_interface_table(void)
-{
-	struct ipv6_interface *ip;
-
-	/*
-	 * XXX (ngie): TAILQ_FOREACH_SAFE would be better, but using mibII
-	 * would be the best
-	 */
-	while ((ip = TAILQ_FIRST(&ipv6_interfaces)) != NULL) {
-		TAILQ_REMOVE(&ipv6_interfaces, ip, link);
-		free(ip->name);
-		free(ip);
-		ip = NULL;
-	}
-}
-
-static int
-if_countifindex(void)
-{
-	struct ipv6_interface *ip;
-	int count = 0;
-
-	TAILQ_FOREACH(ip, &ipv6_interfaces, link) {
-		count++;
-	}
-	return count;
-}
 
 int
 op_ipv6MIBObjects(struct snmp_context *ctx __unused, struct snmp_value *value,
@@ -156,7 +92,7 @@ op_ipv6MIBObjects(struct snmp_context *ctx __unused, struct snmp_value *value,
 		 * XXX (ngie): this incorrectly assumes that all interfaces
 		 * are IPv6 enabled.
 		 */
-		value->v.integer = if_countifindex();
+		/*value->v.integer = if_countifindex()*/;
 		break;
 	default:
 		return (SNMP_ERR_NOSUCHNAME);
@@ -167,7 +103,6 @@ op_ipv6MIBObjects(struct snmp_context *ctx __unused, struct snmp_value *value,
 static void
 ipv6MIB_start(void)
 {
-	load_ipv6_interface_table();
 
 	ipv6_reg = or_register(&oid_ipv6MIB,
 	    "The (incomplete) MIB module for RFC 2465.", module);
@@ -184,7 +119,6 @@ ipv6MIB_init(struct lmodule *mod, int argc __unused, char *argv[] __unused)
 static int
 ipv6MIB_fini(void)
 {
-	free_ipv6_interface_table();
 
 	or_unregister(ipv6_reg);
 

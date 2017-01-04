@@ -52,17 +52,4 @@ __FBSDID("$FreeBSD$");
 
 #include "ipv6MIB_tree.h"
 
-struct ipv6_interface {
-	TAILQ_ENTRY(ipv6_interface) link;
-
-	char *name;	/* The interface name */
-	int index;	/* The interface number */
-};
-TAILQ_HEAD(ipv6_interface_list, ipv6_interface);
-
-extern struct ipv6_interface_list ipv6_interfaces;
-
-int	load_ipv6_interface_table(void);
-void	free_ipv6_interface_table(void);
-
 #endif

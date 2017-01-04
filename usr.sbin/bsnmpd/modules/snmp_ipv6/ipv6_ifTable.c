@@ -29,31 +29,38 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+#include <net/if.h>
+#include <net/if_mib.h>
 #include <netinet/in.h>
 #include <netinet/ip6.h>
 
+#include <bsnmp/snmpmod.h>
+#include <bsnmp/snmp_mibII.h>
+
 #include "ipv6.h"
-#include "util.h"
 
 int
 op_ipv6IfTable(struct snmp_context *ctx __unused, struct snmp_value *value,
     u_int sub, u_int iidx __unused, enum snmp_op op)
 {
-	struct ipv6_interface *ip;
 	asn_subid_t which;
 
 	switch (op) {
 	case SNMP_OP_GETNEXT:
+#if 0
 		ip = NEXT_OBJECT_INT(&ipv6_interfaces, &value->var, sub);
 		if (ip == NULL)
 			return SNMP_ERR_NOSUCHNAME;
 		value->var.len = sub + 1;
 		value->var.subs[sub] = ip->index;
+#endif
 		break;
 	case SNMP_OP_GET:
+#if 0
 		ip = FIND_OBJECT_INT(&ipv6_interfaces, &value->var, sub);
 		if (ip == NULL)
 			return (SNMP_ERR_NOSUCHNAME);
+#endif
 		break;
 	case SNMP_OP_SET:
 	case SNMP_OP_COMMIT:
@@ -67,7 +74,9 @@ op_ipv6IfTable(struct snmp_context *ctx __unused, struct snmp_value *value,
 
 	switch (which) {
 	case LEAF_ipv6IfDescr:
+#if 0
 		string_get(value, ip->name, strlen(ip->name));
+#endif
 		break;
 	case LEAF_ipv6IfLowerLayer:
 		/*
@@ -81,6 +90,7 @@ op_ipv6IfTable(struct snmp_context *ctx __unused, struct snmp_value *value,
 		break;
 	case LEAF_ipv6IfEffectiveMtu:
 	{
+#if 0
 		struct ifreq ifr;
 		int s;
 
@@ -95,6 +105,7 @@ op_ipv6IfTable(struct snmp_context *ctx __unused, struct snmp_value *value,
 			value->v.uint32 = ifr.ifr_mtu;
 
 		close(s);
+#endif
 		break;
 	}
 	case LEAF_ipv6IfIdentifier:
@@ -106,62 +117,18 @@ op_ipv6IfTable(struct snmp_context *ctx __unused, struct snmp_value *value,
 		break;
 	case LEAF_ipv6IfPhysicalAddress:
 	{
-		char *c, *tmp = NULL;
-		struct ifaddrs *ifap, *ifa;
-		struct sockaddr_dl sdl;
-
-		if (getifaddrs(&ifap) == -1) {
-			string_get(value, "", 0);
-			break;
-		}
-
-		for (ifa = ifap; ifa != NULL; ifa = ifa->ifa_next) {
-
-			if (strcmp(ifa->ifa_name, ip->name) != 0)
-				continue;
-
-			if (ifa->ifa_addr->sa_family != AF_LINK)
-				continue;
-
-			/*
-			 * XXX (ngie): the following string manipulation seems
-			 * really hacky. This should emulate what ifconfig(8)
-			 * does by opening a socket and throbbing a few ioctls
-			 * to get the MAC address for an interface.
-			 */
-			memcpy(&sdl, ifa->ifa_addr,
-			    sizeof(*(ifa->ifa_addr)));
-
-			tmp = link_ntoa(&sdl);
-
-			/*
-			 * link_ntoa returns a string with the follow format
-			 * <interface>:<mac-address-period-separated-octets>,
-			 * e.g. "em0:0.50.56.30.1.26".
-			 *
-			 * We need the MAC address in colon-separated octet
-			 * format.
-			 */
-			tmp = strchr(tmp, ':');
-			if (tmp == NULL)
-				break;
-			tmp++;
-			/* convert the '.' to ':' */
-			while ((c = strchr(tmp, '.')) != NULL)
-				*c = ':';
-			/* now tmp == "0:50:56:30:1:26" */
-			break;
-		}
+#if 0
+ 		get_physaddr();
 		if (tmp == NULL)
 			string_get(value, "", 0);
 		else
 			string_get(value, tmp, strlen(tmp));
-
-		freeifaddrs(ifap);
+#endif
 		break;
 	}
 	case LEAF_ipv6IfAdminStatus:
 	{
+#if 0
 		struct ifaddrs *ifap, *ifa;
 
 		if (getifaddrs(&ifap) == -1) {
@@ -180,10 +147,12 @@ op_ipv6IfTable(struct snmp_context *ctx __unused, struct snmp_value *value,
 			break;
 		}
 		freeifaddrs(ifap);
+#endif
 		break;
 	}
 	case LEAF_ipv6IfOperStatus:
 	{
+#if 0
 		struct ifaddrs *ifap, *ifa;
 		if (getifaddrs(&ifap) == -1) {
 			value->v.integer = 4; /* Unknown */
@@ -201,10 +170,12 @@ op_ipv6IfTable(struct snmp_context *ctx __unused, struct snmp_value *value,
 			break;
 		}
 		freeifaddrs(ifap);
+#endif
 		break;
 	}
 	case LEAF_ipv6IfLastChange:
 	{
+#if 0
 		/*
 		 * XXX (ngie): not checking for error code from
 		 * gettimeofday(2).
@@ -223,6 +194,7 @@ op_ipv6IfTable(struct snmp_context *ctx __unused, struct snmp_value *value,
 		    (uint32_t)((now.tv_sec - lastchange.tv_sec) * 100);
 		value->v.uint32 +=
 		    (uint32_t)((now.tv_usec - lastchange.tv_usec) / 10000);
+#endif
 		break;
 	}
 	default:
