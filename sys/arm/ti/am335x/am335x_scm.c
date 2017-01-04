@@ -110,11 +110,14 @@ am335x_scm_attach(device_t dev)
 	struct sysctl_oid_list *tree;
 	uint32_t reg;
 
-	/* Set ADC to continous mode, clear output reset. */
-	reg = SCM_BGAP_CLRZ | SCM_BGAP_CONTCONV;
-	ti_scm_reg_write_4(SCM_BGAP_CTRL, reg);
-	/* Flush write. */
+	/* Reset the digital outputs. */
+	ti_scm_reg_write_4(SCM_BGAP_CTRL, 0);
 	ti_scm_reg_read_4(SCM_BGAP_CTRL, &reg);
+	DELAY(500);
+	/* Set continous mode. */
+	ti_scm_reg_write_4(SCM_BGAP_CTRL, SCM_BGAP_CONTCONV);
+	ti_scm_reg_read_4(SCM_BGAP_CTRL, &reg);
+	DELAY(500);
 	/* Start the ADC conversion. */
 	reg = SCM_BGAP_CLRZ | SCM_BGAP_CONTCONV | SCM_BGAP_SOC;
 	ti_scm_reg_write_4(SCM_BGAP_CTRL, reg);
