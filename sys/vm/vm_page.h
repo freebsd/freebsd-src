@@ -243,6 +243,8 @@ extern struct vm_domain vm_dom[MAXMEMDOM];
 #define	vm_pagequeue_unlock(pq)		mtx_unlock(&(pq)->pq_mutex)
 
 #ifdef _KERNEL
+extern vm_page_t bogus_page;
+
 static __inline void
 vm_pagequeue_cnt_add(struct vm_pagequeue *pq, int addend)
 {

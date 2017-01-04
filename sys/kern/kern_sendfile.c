@@ -62,8 +62,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_pager.h>
 
-extern vm_page_t bogus_page;
-
 /*
  * Structure describing a single sendfile(2) I/O, which may consist of
  * several underlying pager I/Os.

@@ -288,15 +288,6 @@ static int bufspace_request;
 static int bd_speedupreq;
 
 /*
- * bogus page -- for I/O to/from partially complete buffers
- * this is a temporary solution to the problem, but it is not
- * really that bad.  it would be better to split the buffer
- * for input in the case of buffers partially already in memory,
- * but the code is intricate enough already.
- */
-vm_page_t bogus_page;
-
-/*
  * Synchronization (sleep/wakeup) variable for active buffer space requests.
  * Set when wait starts, cleared prior to wakeup().
  * Used in runningbufwakeup() and waitrunningbufspace().
@@ -1114,9 +1105,6 @@ bufinit(void)
 	lofreebuffers = MIN((nbuf / 25) + (20 * mp_ncpus), 128 * mp_ncpus);
 	hifreebuffers = (3 * lofreebuffers) / 2;
 	numfreebuffers = nbuf;
-
-	bogus_page = vm_page_alloc(NULL, 0, VM_ALLOC_NOOBJ |
-	    VM_ALLOC_NORMAL | VM_ALLOC_WIRED);
 
 	/* Setup the kva and free list allocators. */
 	vmem_set_reclaim(buffer_arena, bufkva_reclaim);

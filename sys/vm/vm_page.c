@@ -131,6 +131,12 @@ struct mtx_padalign vm_page_queue_free_mtx;
 
 struct mtx_padalign pa_lock[PA_LOCK_COUNT];
 
+/*
+ * bogus page -- for I/O to/from partially complete buffers,
+ * or for paging into sparsely invalid regions.
+ */
+vm_page_t bogus_page;
+
 vm_page_t vm_page_array;
 long vm_page_array_size;
 long first_page;
@@ -158,7 +164,7 @@ static void vm_page_alloc_check(vm_page_t m);
 static void vm_page_clear_dirty_mask(vm_page_t m, vm_page_bits_t pagebits);
 static void vm_page_enqueue(uint8_t queue, vm_page_t m);
 static void vm_page_free_wakeup(void);
-static void vm_page_init_fakepg(void *dummy);
+static void vm_page_init(void *dummy);
 static int vm_page_insert_after(vm_page_t m, vm_object_t object,
     vm_pindex_t pindex, vm_page_t mpred);
 static void vm_page_insert_radixdone(vm_page_t m, vm_object_t object,
@@ -166,14 +172,16 @@ static void vm_page_insert_radixdone(vm_page_t m, vm_object_t object,
 static int vm_page_reclaim_run(int req_class, u_long npages, vm_page_t m_run,
     vm_paddr_t high);
 
-SYSINIT(vm_page, SI_SUB_VM, SI_ORDER_SECOND, vm_page_init_fakepg, NULL);
+SYSINIT(vm_page, SI_SUB_VM, SI_ORDER_SECOND, vm_page_init, NULL);
 
 static void
-vm_page_init_fakepg(void *dummy)
+vm_page_init(void *dummy)
 {
 
 	fakepg_zone = uma_zcreate("fakepg", sizeof(struct vm_page), NULL, NULL,
 	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE | UMA_ZONE_VM);
+	bogus_page = vm_page_alloc(NULL, 0, VM_ALLOC_NOOBJ |
+	    VM_ALLOC_NORMAL | VM_ALLOC_WIRED);
 }
 
 /* Make sure that u_long is at least 64 bits when PAGE_SIZE is 32K. */
