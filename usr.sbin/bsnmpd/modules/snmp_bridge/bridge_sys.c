@@ -485,7 +485,7 @@ bridge_set_if_up(const char* b_name, int8_t up)
 	struct ifreq ifr;
 
 	bzero(&ifr, sizeof(ifr));
-	strcpy(ifr.ifr_name, b_name);
+	strlcpy(ifr.ifr_name, b_name, sizeof(ifr.ifr_name));
 	if (ioctl(sock, SIOCGIFFLAGS, (caddr_t) &ifr) < 0) {
 		syslog(LOG_ERR, "set bridge up: ioctl(SIOCGIFFLAGS) "
 		    "failed: %s", strerror(errno));
@@ -516,7 +516,7 @@ bridge_create(const char *b_name)
 	struct ifreq ifr;
 
 	bzero(&ifr, sizeof(ifr));
-	strcpy(ifr.ifr_name, b_name);
+	strlcpy(ifr.ifr_name, b_name, sizeof(ifr.ifr_name));
 
 	if (ioctl(sock, SIOCIFCREATE, &ifr) < 0) {
 		syslog(LOG_ERR, "create bridge: ioctl(SIOCIFCREATE) "
@@ -549,7 +549,7 @@ bridge_destroy(const char *b_name)
 	struct ifreq ifr;
 
 	bzero(&ifr, sizeof(ifr));
-	strcpy(ifr.ifr_name, b_name);
+	strlcpy(ifr.ifr_name, b_name, sizeof(ifr.ifr_name));
 
 	if (ioctl(sock, SIOCIFDESTROY, &ifr) < 0) {
 		syslog(LOG_ERR, "destroy bridge: ioctl(SIOCIFDESTROY) "
