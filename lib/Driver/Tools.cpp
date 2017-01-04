@@ -2235,6 +2235,15 @@ static void AddGoldPlugin(const ToolChain &ToolChain, const ArgList &Args,
                    UseSeparateSections)) {
     CmdArgs.push_back("-plugin-opt=-data-sections");
   }
+
+  if (Arg *A = Args.getLastArg(options::OPT_fprofile_sample_use_EQ)) {
+    StringRef FName = A->getValue();
+    if (!llvm::sys::fs::exists(FName))
+      D.Diag(diag::err_drv_no_such_file) << FName;
+    else
+      CmdArgs.push_back(
+          Args.MakeArgString(Twine("-plugin-opt=sample-profile=") + FName));
+  }
 }
 
 /// This is a helper function for validating the optional refinement step
@@ -3057,6 +3066,10 @@ static void CollectArgsForIntegratedAssembler(Compilation &C,
         TakeNextArg = false;
         continue;
       }
+
+      if (C.getDefaultToolChain().getTriple().isOSBinFormatCOFF() &&
+          Value == "-mbig-obj")
+        continue; // LLVM handles bigobj automatically
 
       switch (C.getDefaultToolChain().getArch()) {
       default:
@@ -4453,6 +4466,9 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   if (Args.hasFlag(options::OPT_fstrict_enums, options::OPT_fno_strict_enums,
                    false))
     CmdArgs.push_back("-fstrict-enums");
+  if (!Args.hasFlag(options::OPT_fstrict_return, options::OPT_fno_strict_return,
+                    true))
+    CmdArgs.push_back("-fno-strict-return");
   if (Args.hasFlag(options::OPT_fstrict_vtable_pointers,
                    options::OPT_fno_strict_vtable_pointers,
                    false))
