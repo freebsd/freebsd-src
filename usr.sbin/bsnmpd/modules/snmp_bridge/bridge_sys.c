@@ -1449,8 +1449,8 @@ static struct {
 int32_t
 bridge_get_pfval(uint8_t which)
 {
-	if (which > sizeof(bridge_pf_sysctl) / sizeof(bridge_pf_sysctl[0])
-	    || which < 1)
+
+	if (which > nitems(bridge_pf_sysctl) || which < 1)
 		return (-1);
 
 	return (bridge_pf_sysctl[which - 1].val);
