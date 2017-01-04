@@ -474,11 +474,18 @@ update_ifinfo(struct ifilist_head_t *ifi_head, int ifindex)
 			    ifindex != ifm->ifm_index)
 				continue;
 
+			/* ifname */
+			if (if_indextoname(ifm->ifm_index, ifname) == NULL) {
+				syslog(LOG_WARNING,
+				    "<%s> ifname not found (idx=%d)",
+				    __func__, ifm->ifm_index);
+				continue;
+			}
+
 			/* lookup an entry with the same ifindex */
 			TAILQ_FOREACH(ifi, ifi_head, ifi_next) {
 				if (ifm->ifm_index == ifi->ifi_ifindex)
 					break;
-				if_indextoname(ifm->ifm_index, ifname);
 				if (strncmp(ifname, ifi->ifi_ifname,
 					sizeof(ifname)) == 0)
 					break;
@@ -497,15 +504,7 @@ update_ifinfo(struct ifilist_head_t *ifi_head, int ifindex)
 			ifi->ifi_ifindex = ifm->ifm_index;
 
 			/* ifname */
-			if_indextoname(ifm->ifm_index, ifi->ifi_ifname);
-			if (ifi->ifi_ifname == NULL) {
-				syslog(LOG_WARNING,
-				    "<%s> ifname not found (idx=%d)",
-				    __func__, ifm->ifm_index);
-				if (ifi_new)
-					free(ifi);
-				continue;
-			}
+			strlcpy(ifi->ifi_ifname, ifname, IFNAMSIZ);
 
 			if ((s = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
 				syslog(LOG_ERR,
