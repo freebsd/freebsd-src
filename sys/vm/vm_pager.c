@@ -84,8 +84,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pager.h>
 #include <vm/vm_extern.h>
 
-extern vm_page_t bogus_page;
-
 int cluster_pbuf_freecnt = -1;	/* unlimited to begin with */
 
 struct buf *swbuf;
