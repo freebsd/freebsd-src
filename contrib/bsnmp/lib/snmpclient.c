@@ -1231,7 +1231,7 @@ snmp_send_packet(struct snmp_pdu * pdu)
 	struct asn_buf b;
 	ssize_t ret;
 
-	if ((buf = malloc(snmp_client.txbuflen)) == NULL) {
+	if ((buf = calloc(1, snmp_client.txbuflen)) == NULL) {
 		seterr(&snmp_client, "%s", strerror(errno));
 		return (-1);
 	}
@@ -1256,7 +1256,7 @@ snmp_send_packet(struct snmp_pdu * pdu)
 	}
 	free(buf);
 
-	return pdu->request_id;
+	return (pdu->request_id);
 }
 
 /*
@@ -1352,7 +1352,7 @@ snmp_receive_packet(struct snmp_pdu *pdu, struct timeval *tv)
 	socklen_t optlen;
 #endif
 
-	if ((buf = malloc(snmp_client.rxbuflen)) == NULL) {
+	if ((buf = calloc(1, snmp_client.rxbuflen)) == NULL) {
 		seterr(&snmp_client, "%s", strerror(errno));
 		return (-1);
 	}
