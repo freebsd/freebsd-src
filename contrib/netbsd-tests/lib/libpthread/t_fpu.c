@@ -58,6 +58,11 @@ __RCSID("$NetBSD: t_fpu.c,v 1.2 2013/01/27 14:47:37 mbalmer Exp $");
 
 #include <atf-c.h>
 
+#ifdef	__FreeBSD__
+#include <errno.h>
+#include <string.h>
+#endif
+
 #include "h_common.h"
 
 #define N_RECURSE 10
@@ -77,14 +82,24 @@ stir(void *p)
 
 	for (;;) {
 		x = sin ((y = cos (x + y + .4)) - (z = cos (x + z + .6)));
+#ifdef	__FreeBSD__
+		ATF_REQUIRE_MSG(sched_yield() == 0,
+		    "sched_yield failed: %s", strerror(errno));
+#else
 		PTHREAD_REQUIRE(sched_yield());
+#endif
 	}
 }
 
 static double
 mul3(double x, double y, double z)
 {
+#ifdef	__FreeBSD__
+	ATF_REQUIRE_MSG(sched_yield() == 0,
+	    "sched_yield failed: %s", strerror(errno));
+#else
 	PTHREAD_REQUIRE(sched_yield());
+#endif
 
 	return x * y * z;
 }
@@ -114,7 +129,11 @@ bar(void *p)
 static void
 recurse(void) {
 	pthread_t s2;
+#ifdef	__FreeBSD__
+	PTHREAD_REQUIRE(pthread_create(&s2, 0, bar, 0));
+#else
 	pthread_create(&s2, 0, bar, 0);
+#endif
 	sleep(20); /* XXX must be long enough for our slowest machine */
 }
 
@@ -134,7 +153,11 @@ ATF_TC_BODY(fpu, tc)
 
 	PTHREAD_REQUIRE(pthread_mutex_init(&recursion_depth_lock, 0));
 
+#ifdef	__FreeBSD__
+	PTHREAD_REQUIRE(pthread_create(&s5, 0, stir, stirseed));
+#else
 	pthread_create(&s5, 0, stir, stirseed);
+#endif
 	recurse();
 
 	atf_tc_fail("exiting from main");
