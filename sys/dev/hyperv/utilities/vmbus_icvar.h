@@ -28,23 +28,19 @@
  * $FreeBSD$
  */
 
-#ifndef _HVUTIL_H_
-#define _HVUTIL_H_
+#ifndef _VMBUS_ICVAR_H_
+#define _VMBUS_ICVAR_H_
 
 #include <dev/hyperv/include/hyperv.h>
 #include <dev/hyperv/include/vmbus.h>
 
-/**
- * hv_util related structures
- *
- */
-typedef struct hv_util_sc {
+struct vmbus_ic_softc {
 	device_t		ic_dev;
-	uint8_t			*receive_buffer;
+	uint8_t			*ic_buf;
 	int			ic_buflen;
 	uint32_t		ic_fwver;	/* framework version */
 	uint32_t		ic_msgver;	/* message version */
-} hv_util_sc;
+};
 
 struct vmbus_ic_desc {
 	const struct hyperv_guid	ic_guid;
@@ -53,10 +49,13 @@ struct vmbus_ic_desc {
 
 #define VMBUS_IC_DESC_END	{ .ic_desc = NULL }
 
-int		hv_util_attach(device_t dev, vmbus_chan_callback_t cb);
-int		hv_util_detach(device_t dev);
+int		vmbus_ic_attach(device_t dev, vmbus_chan_callback_t cb);
+int		vmbus_ic_detach(device_t dev);
 int		vmbus_ic_probe(device_t dev, const struct vmbus_ic_desc descs[]);
-int		vmbus_ic_negomsg(struct hv_util_sc *sc, void *data, int *dlen,
-		    uint32_t fw_ver, uint32_t msg_ver);
+int		vmbus_ic_negomsg(struct vmbus_ic_softc *sc, void *data,
+		    int *dlen, uint32_t fw_ver, uint32_t msg_ver);
+int		vmbus_ic_sendresp(struct vmbus_ic_softc *sc,
+		    struct vmbus_channel *chan, void *data, int dlen,
+		    uint64_t xactid);
 
-#endif
+#endif	/* !_VMBUS_ICVAR_H_ */
