@@ -70,6 +70,9 @@ ATF_TC_BODY(fexecve, tc)
 				error = 76;
 			else
 				error = EXIT_FAILURE;
+#ifdef	__FreeBSD__
+			(void)close(fd);
+#endif
 			err(error, "fexecve");
 		}
 	}
