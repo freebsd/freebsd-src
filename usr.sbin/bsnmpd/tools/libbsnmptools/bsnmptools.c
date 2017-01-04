@@ -2011,7 +2011,7 @@ snmp_output_err_resp(struct snmp_toolinfo *snmptoolctx, struct snmp_pdu *pdu)
 		return;
 	}
 
-	if ((object = calloc(1, sizeof(struct snmp_object))) != NULL) {
+	if ((object = calloc(1, sizeof(struct snmp_object))) == NULL) {
 		fprintf(stdout, "calloc: %s", strerror(errno));
 		return;
 	}
