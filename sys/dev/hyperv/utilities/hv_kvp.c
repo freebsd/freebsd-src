@@ -64,8 +64,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/hyperv/include/vmbus.h>
 #include <dev/hyperv/utilities/hv_utilreg.h>
 #include <dev/hyperv/utilities/vmbus_icreg.h>
+#include <dev/hyperv/utilities/vmbus_icvar.h>
 
-#include "hv_util.h"
 #include "unicode.h"
 #include "hv_kvp.h"
 #include "vmbus_if.h"
@@ -128,7 +128,7 @@ static struct cdevsw hv_kvp_cdevsw =
  * KVP transaction requests from the host.
  */
 typedef struct hv_kvp_sc {
-	struct hv_util_sc	util_sc;
+	struct vmbus_ic_softc	util_sc;
 	device_t		dev;
 
 	/* Unless specified the pending mutex should be
@@ -590,7 +590,7 @@ hv_kvp_process_request(void *context, int pending)
 	hv_kvp_log_info("%s: entering hv_kvp_process_request\n", __func__);
 
 	sc = (hv_kvp_sc*)context;
-	kvp_buf = sc->util_sc.receive_buffer;;
+	kvp_buf = sc->util_sc.ic_buf;
 	channel = vmbus_get_channel(sc->dev);
 
 	recvlen = sc->util_sc.ic_buflen;
@@ -885,7 +885,7 @@ hv_kvp_attach(device_t dev)
 		return (error);
 	sc->hv_kvp_dev->si_drv1 = sc;
 
-	return hv_util_attach(dev, hv_kvp_callback);
+	return (vmbus_ic_attach(dev, hv_kvp_callback));
 }
 
 static int
@@ -900,7 +900,7 @@ hv_kvp_detach(device_t dev)
 	}
 
 	destroy_dev(sc->hv_kvp_dev);
-	return hv_util_detach(dev);
+	return (vmbus_ic_detach(dev));
 }
 
 static device_method_t kvp_methods[] = {
