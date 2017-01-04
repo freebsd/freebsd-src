@@ -1460,8 +1460,8 @@ int32_t
 bridge_do_pfctl(int32_t bridge_ctl, enum snmp_op op, int32_t *val)
 {
 	char *mib_oid;
-	int32_t i, s_i;
 	size_t len, s_len;
+	int32_t i, s_i;
 
 	if (bridge_ctl >= LEAF_begemotBridgeLayer2PfStatus)
 		return (-2);
@@ -1500,8 +1500,7 @@ bridge_pf_dump(void)
 {
 	uint8_t i;
 
-	for (i = 0; i < sizeof(bridge_pf_sysctl) / sizeof(bridge_pf_sysctl[0]);
-	    i++) {
+	for (i = 0; i < nitems(bridge_pf_sysctl); i++) {
 		syslog(LOG_ERR, "%s%s = %d", bridge_sysctl,
 		    bridge_pf_sysctl[i].name, bridge_pf_sysctl[i].val);
 	}
