@@ -153,6 +153,9 @@ ATF_TC_BODY(pipe_restart, tc)
 
 		ATF_REQUIRE_EQ(WEXITSTATUS(st), 0);
 	}
+#ifdef	__FreeBSD__
+	free(f);
+#endif
 }
 
 ATF_TP_ADD_TCS(tp)
