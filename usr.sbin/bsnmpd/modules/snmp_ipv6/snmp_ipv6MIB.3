@@ -1,0 +1,62 @@
+.\"-
+.\" Copyright (C) Dell EMC Isilon
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 28, 2016
+.Dt SNMP_IPV6MIB 3
+.Os
+.Sh NAME
+.Nm snmp_ipv6MIB
+.Nd "ipv6 module for snmpd"
+.Sh LIBRARY
+.Pq begemotSnmpdModulePath."ipv6MIB" = "/usr/lib/snmp_ipv6MIB.so"
+.Sh DESCRIPTION
+The
+.Nm snmp_ipv6
+module implements the IPV6-MIB as standardized in RFC 2465.
+.Sh FILES
+.Bl -tag -width "XXXXXXXXX"
+.It Pa /usr/share/snmp/defs/ipv6MIB_tree.def
+The description of the MIB tree implemented by
+.Nm .
+.It Pa /usr/share/snmp/mibs/IPV6-MIB.txt
+The MIB that is implemented by this module.
+.El
+.Sh STANDARDS
+This module does not completely implement IPV6-MIB as standardized in
+RFC 2465 and RFC 4293.
+.Sh SEE ALSO
+.Xr bsnmpd 1 ,
+.Xr gensnmptree 1 ,
+.Xr inet6 4 ,
+.Xr snmpmod 3 ,
+.Sh AUTHORS
+The module was written by
+.An Thor Steingrimsson Aq Mt thor.steingrimsson@isilon.com
+and ported to FreeBSD by
+.An Ngie Cooper Aq Mt ngie@FreeBSD.org
+This manual page was written by
+.An Ngie Cooper Aq Mt ngie@FreeBSD.org

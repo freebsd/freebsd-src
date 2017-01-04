@@ -1,0 +1,126 @@
+#-
+# Copyright (C) 2010 The FreeBSD Foundation
+# All rights reserved.
+#
+# This software was developed by Shteryana Sotirova Shopova under
+# sponsorship from the FreeBSD Foundation.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#   documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+#
+
+(1 internet
+  (2 mgmt
+    (1 mib2
+      (55 ipv6MIB
+        (1 ipv6MIBObjects
+          (1 ipv6Forwarding INTEGER op_ipv6MIBObjects GET SET)
+          (2 ipv6DefaultHopLimit INTEGER op_ipv6MIBObjects GET SET)
+          (3 ipv6Interfaces UNSIGNED32 op_ipv6MIBObjects GET)
+          (4 ipv6IfTableLastChange TIMETICKS op_ipv6MIBObjects GET)
+          (5 ipv6IfTable
+            (1 ipv6IfEntry : INTEGER op_ipv6IfTable
+              (1 ipv6IfIndex INTEGER) # lookup
+              (2 ipv6IfDescr OCTETSTRING GET SET)
+              (3 ipv6IfLowerLayer OID GET)
+              (4 ipv6IfEffectiveMtu UNSIGNED32 GET)
+              (5 ipv6IfReasmMaxSize UNSIGNED32 GET)
+              (6 ipv6IfIdentifier OCTETSTRING GET SET) # lookup
+              (7 ipv6IfIdentifierLength INTEGER GET SET)
+              (8 ipv6IfPhysicalAddress OCTETSTRING GET) # lookup
+              (9 ipv6IfAdminStatus INTEGER GET SET)
+              (10 ipv6IfOperStatus INTEGER GET)
+              (11 ipv6IfLastChange TIMETICKS GET)
+          ))
+          (6 ipv6IfStatsTable
+            (1 ipv6IfStatsEntry : INTEGER op_ipv6IfStatsTable
+              (1 ipv6IfStatsInReceives COUNTER GET)
+              (2 ipv6IfStatsInHdrErrors COUNTER GET)
+              (3 ipv6IfStatsInTooBigErrors COUNTER GET)
+              (4 ipv6IfStatsInNoRoutes COUNTER GET)
+              (5 ipv6IfStatsInAddrErrors COUNTER GET)
+              (6 ipv6IfStatsInUnknownProtos COUNTER GET)
+              (7 ipv6IfStatsInTruncatedPkts COUNTER GET)
+              (8 ipv6IfStatsInDiscards COUNTER GET)
+              (9 ipv6IfStatsInDelievers COUNTER GET)
+              (10 ipv6IfStatsOutForwDatagrams COUNTER GET)
+              (11 ipv6IfStatsOutRequests COUNTER GET)
+              (12 ipv6IfStatsOutDiscards COUNTER GET)
+              (13 ipv6IfStatsOutFragOKs COUNTER GET)
+              (14 ipv6IfStatsOutFragFails COUNTER GET)
+              (15 ipv6IfStatsOutFragCreates COUNTER GET)
+              (16 ipv6IfStatsReasmReqds COUNTER GET)
+              (17 ipv6IfStatsReasmOKs COUNTER GET)
+              (18 ipv6IfStatsReasmFails COUNTER GET)
+              (19 ipv6IfStatsInMcastPkts COUNTER GET)
+              (20 ipv6IfStatsOutMcastPkts COUNTER GET)
+          ))
+          (7 ipv6AddrPrefixTable
+            (1 ipv6AddrPrefixEntry : INTEGER OCTETSTRING INTEGER op_ipv6AddrPrefixTable
+              (1 ipv6AddrPrefix OCTETSTRING) # lookup
+              (2 ipv6AddrPrefixLength INTEGER)
+              (3 ipv6AddrPrefixOnLinkFlag INTEGER GET)
+              (4 ipv6AddrPrefixAutonomousFlag INTEGER GET)
+              (5 ipv6AddrPrefixAdvPreferredLifetime UNSIGNED32 GET)
+              (6 ipv6AddrPrefixPrefixAdvValidLifetime UNSIGNED32 GET)
+          ))
+          (8 ipv6AddrTable
+            (1 ipv6AddrEntry : INTEGER OCTETSTRING op_ipv6AddrTable
+              (1 ipv6AddrAddress OCTETSTRING) # lookup
+              (2 ipv6AddrPfxLength INTEGER GET)
+              (3 ipv6AddrType INTEGER GET)
+              (4 ipv6AddrAnycastFlag INTEGER GET)
+              (5 ipv6AddrStatus INTEGER GET)
+          ))
+          (9 ipv6RouteNumber GAUGE op_ipv6MIBObjects GET)
+          (10 ipv6DiscardedRoutes GAUGE op_ipv6MIBObjects GET)
+          (11 ipv6RouteTable
+            (1 ipv6RouteEntry : OCTETSTRING INTEGER UNSIGNED32 op_ipv6RouteTable
+              (1 ipv6RouteDest OCTETSTRING) # lookup
+              (2 ipv6RoutePfxLength INTEGER)
+              (3 ipv6RouteIndex UNSIGNED32)
+              (4 ipv6RouteIfIndex OID GET) # lookup
+              (5 ipv6RouteNextHop OCTETSTRING GET) # lookup
+              (6 ipv6RouteType INTEGER GET)
+              (7 ipv6RouteProtocol INTEGER GET)
+              (8 ipv6RoutePolicy INTEGER GET)
+              (9 ipv6RouteAge UNSIGNED32 GET)
+              (10 ipv6RouteNextHopRDI UNSIGNED32 GET)
+              (11 ipv6RouteMetric UNSIGNED32 GET)
+              (12 ipv6RouteWeight UNSIGNED32 GET)
+              (13 ipv6RouteInfo OID GET) # lookup
+              (14 ipv6RouteValid INTEGER GET)
+          ))
+          (12 ipv6NetToMediaTable
+            (1 ipv6NetToMediaEntry : INTEGER OCTETSTRING op_ipv6NetToMediaTable
+              (1 ipv6NetToMediaAddress OCTETSTRING) # lookup
+              (2 ipv6NetToMediaPhysAddress OCTETSTRING GET) # lookup
+              (3 ipv6NetToMediaType INTEGER GET)
+              (4 ipv6NetToMediaState INTEGER GET)
+              (5 ipv6NetToMediaLastUpdated UNSIGNED32 GET)
+              (6 ipv6NetToMediaValid INTEGER GET)
+          ))
+        )
+      )
+    )
+  )
+)

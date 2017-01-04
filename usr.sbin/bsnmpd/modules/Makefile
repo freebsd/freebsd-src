@@ -21,6 +21,10 @@ SUBDIR=	${_snmp_atm} \
 SUBDIR+=snmp_hast
 .endif
 
+.if ${MK_INET6} != "no"
+SUBDIR+=snmp_ipv6
+.endif
+
 .if ${MK_PF} != "no"
 SUBDIR+=snmp_pf
 .endif
