@@ -7,7 +7,7 @@ includedir=${prefix}/include
 
 Name: zlib
 Description: zlib compression library
-Version: 1.2.8
+Version: 1.2.10
 
 Requires:
 Libs: -L${libdir} -L${sharedlibdir} -lz
