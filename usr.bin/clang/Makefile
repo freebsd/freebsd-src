@@ -19,18 +19,22 @@ SUBDIR+=	llvm-as
 SUBDIR+=	llvm-bcanalyzer
 SUBDIR+=	llvm-cov
 SUBDIR+=	llvm-cxxdump
+SUBDIR+=	llvm-cxxfilt
 SUBDIR+=	llvm-diff
 SUBDIR+=	llvm-dis
 SUBDIR+=	llvm-dwarfdump
 SUBDIR+=	llvm-extract
 SUBDIR+=	llvm-link
 SUBDIR+=	llvm-lto
+SUBDIR+=	llvm-lto2
 SUBDIR+=	llvm-mc
+SUBDIR+=	llvm-modextract
 SUBDIR+=	llvm-nm
 SUBDIR+=	llvm-pdbdump
 SUBDIR+=	llvm-profdata
 SUBDIR+=	llvm-rtdyld
 SUBDIR+=	llvm-symbolizer
+SUBDIR+=	llvm-xray
 SUBDIR+=	opt
 .endif
 
