@@ -16,7 +16,6 @@ SUBDIR=	${_snmp_atm} \
 	snmp_target \
 	snmp_usm \
 	snmp_vacm \
-	snmp_wlan
 
 .if ${MK_PF} != "no"
 SUBDIR+=snmp_pf
@@ -24,6 +23,10 @@ SUBDIR+=snmp_pf
 
 .if ${MK_NETGRAPH_SUPPORT} != "no"
 SUBDIR+=snmp_netgraph
+.endif
+
+.if ${MK_WIRELESS} != "no"
+SUBDIR+=snmp_wlan
 .endif
 
 INCS=	snmpmod.h
