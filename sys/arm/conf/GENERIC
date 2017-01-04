@@ -35,6 +35,7 @@ files		"../allwinner/a10/files.a10"
 files		"../allwinner/a13/files.a13"
 files		"../allwinner/a20/files.a20"
 files		"../allwinner/a31/files.a31"
+files		"../allwinner/a33/files.a33"
 files		"../allwinner/a83t/files.a83t"
 files		"../allwinner/h3/files.h3"
 files		"../broadcom/bcm2835/files.bcm2836"
@@ -50,6 +51,7 @@ options 	SOC_ALLWINNER_A13
 options 	SOC_ALLWINNER_A20
 options 	SOC_ALLWINNER_A31
 options 	SOC_ALLWINNER_A31S
+options 	SOC_ALLWINNER_A33
 options 	SOC_ALLWINNER_A83T
 options 	SOC_ALLWINNER_H3
 options 	SOC_BCM2836
