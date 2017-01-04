@@ -692,7 +692,7 @@ SRCS_MIN+=	Support/regerror.c
 SRCS_MIN+=	Support/regexec.c
 SRCS_MIN+=	Support/regfree.c
 SRCS_MIN+=	Support/regstrlcpy.c
-#SRCS_MIN+=	Support/xxhash.cpp
+SRCS_LLD+=	Support/xxhash.cpp
 SRCS_MIN+=	TableGen/Error.cpp
 SRCS_MIN+=	TableGen/Main.cpp
 SRCS_MIN+=	TableGen/Record.cpp
@@ -1155,6 +1155,9 @@ SRCS_ALL+=	${SRCS_FUL}
 .endif
 .if ${MK_CLANG_EXTRAS} != "no" || ${MK_LLD} != "no"
 SRCS_ALL+=	${SRCS_EXL}
+.endif
+.if ${MK_LLD} != "no"
+SRCS_ALL+=	${SRCS_LLD}
 .endif
 .if ${MK_CLANG_EXTRAS} != "no" || ${MK_LLDB} != "no"
 SRCS_ALL+=	${SRCS_XDB}
