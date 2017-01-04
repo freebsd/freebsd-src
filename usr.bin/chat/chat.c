@@ -1173,7 +1173,7 @@ int
 get_string(char *string)
 {
     char temp[STR_LEN];
-    int c, printed = 0;
+    int c;
     size_t len, minlen;
     char *s = temp, *end = s + STR_LEN;
     char *logged = temp;
@@ -1306,13 +1306,6 @@ get_string(char *string)
 
     alarm(0);
     
-    if (verbose && printed) {
-	if (alarmed)
-	    chat_logf(" -- read timed out");
-	else
-	    chat_logf(" -- read failed: %m");
-    }
-
     exit_code = 3;
     alarmed   = 0;
     return (0);
