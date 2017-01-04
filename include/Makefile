@@ -184,6 +184,9 @@ copies:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 nand_dev.h \
 	    ${DESTDIR}${INCLUDEDIR}/dev/nand
 .endif
+	cd ${.CURDIR}/../sys/dev/hyperv/include; \
+	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 hyperv.h \
+	    ${DESTDIR}${INCLUDEDIR}/dev/hyperv
 	cd ${.CURDIR}/../sys/dev/hyperv/utilities; \
 	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 hv_snapshot.h \
 	    ${DESTDIR}${INCLUDEDIR}/dev/hyperv
@@ -287,6 +290,11 @@ symlinks:
 		    ${DESTDIR}${INCLUDEDIR}/dev/nand; \
 	done
 .endif
+	cd ${.CURDIR}/../sys/dev/hyperv/include; \
+	for h in hyperv.h; do \
+		${INSTALL_SYMLINK} ${TAG_ARGS} ../../../../sys/dev/hyperv/include/$$h \
+		    ${DESTDIR}${INCLUDEDIR}/dev/hyperv; \
+	done
 	cd ${.CURDIR}/../sys/dev/hyperv/utilities; \
 	for h in hv_snapshot.h; do \
 		${INSTALL_SYMLINK} ${TAG_ARGS} ../../../../sys/dev/hyperv/utilities/$$h \

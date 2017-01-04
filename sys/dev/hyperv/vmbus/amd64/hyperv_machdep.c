@@ -28,7 +28,52 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/conf.h>
+#include <sys/fcntl.h>
+#include <sys/kernel.h>
+#include <sys/systm.h>
+#include <sys/timetc.h>
+
+#include <machine/cpufunc.h>
+#include <machine/cputypes.h>
+#include <machine/md_var.h>
+#include <machine/specialreg.h>
+
+#include <vm/vm.h>
+
+#include <dev/hyperv/include/hyperv.h>
+#include <dev/hyperv/include/hyperv_busdma.h>
 #include <dev/hyperv/vmbus/hyperv_machdep.h>
+#include <dev/hyperv/vmbus/hyperv_reg.h>
+#include <dev/hyperv/vmbus/hyperv_var.h>
+
+struct hyperv_reftsc_ctx {
+	struct hyperv_reftsc	*tsc_ref;
+	struct hyperv_dma	tsc_ref_dma;
+};
+
+static d_open_t			hyperv_tsc_open;
+static d_mmap_t			hyperv_tsc_mmap;
+
+static struct timecounter	hyperv_tsc_timecounter = {
+	.tc_get_timecount	= NULL,	/* based on CPU vendor. */
+	.tc_poll_pps		= NULL,
+	.tc_counter_mask	= 0xffffffff,
+	.tc_frequency		= HYPERV_TIMER_FREQ,
+	.tc_name		= "Hyper-V-TSC",
+	.tc_quality		= 3000,
+	.tc_flags		= 0,
+	.tc_priv		= NULL
+};
+
+static struct cdevsw		hyperv_tsc_cdevsw = {
+	.d_version		= D_VERSION,
+	.d_open			= hyperv_tsc_open,
+	.d_mmap			= hyperv_tsc_mmap,
+	.d_name			= HYPERV_REFTSC_DEVNAME
+};
+
+static struct hyperv_reftsc_ctx	hyperv_ref_tsc;
 
 uint64_t
 hypercall_md(volatile void *hc_addr, uint64_t in_val,
@@ -41,3 +86,122 @@ hypercall_md(volatile void *hc_addr, uint64_t in_val,
 	    "c" (in_val), "d" (in_paddr), "m" (hc_addr));
 	return (status);
 }
+
+static int
+hyperv_tsc_open(struct cdev *dev __unused, int oflags, int devtype __unused,
+    struct thread *td __unused)
+{
+
+	if (oflags & FWRITE)
+		return (EPERM);
+	return (0);
+}
+
+static int
+hyperv_tsc_mmap(struct cdev *dev __unused, vm_ooffset_t offset,
+    vm_paddr_t *paddr, int nprot __unused, vm_memattr_t *memattr __unused)
+{
+
+	KASSERT(hyperv_ref_tsc.tsc_ref != NULL, ("reftsc has not been setup"));
+
+	/*
+	 * NOTE:
+	 * 'nprot' does not contain information interested to us;
+	 * WR-open is blocked by d_open.
+	 */
+
+	if (offset != 0)
+		return (EOPNOTSUPP);
+
+	*paddr = hyperv_ref_tsc.tsc_ref_dma.hv_paddr;
+	return (0);
+}
+
+#define HYPERV_TSC_TIMECOUNT(fence)					\
+static u_int								\
+hyperv_tsc_timecount_##fence(struct timecounter *tc)			\
+{									\
+	struct hyperv_reftsc *tsc_ref = hyperv_ref_tsc.tsc_ref;		\
+	uint32_t seq;							\
+									\
+	while ((seq = tsc_ref->tsc_seq) != 0) {				\
+		uint64_t disc, ret, tsc, scale;				\
+		int64_t ofs;						\
+									\
+		__compiler_membar();					\
+		scale = tsc_ref->tsc_scale;				\
+		ofs = tsc_ref->tsc_ofs;					\
+									\
+		fence();						\
+		tsc = rdtsc();						\
+									\
+		/* ret = ((tsc * scale) >> 64) + ofs */			\
+		__asm__ __volatile__ ("mulq %3" :			\
+		    "=d" (ret), "=a" (disc) :				\
+		    "a" (tsc), "r" (scale));				\
+		ret += ofs;						\
+									\
+		__compiler_membar();					\
+		if (tsc_ref->tsc_seq == seq)				\
+			return (ret);					\
+									\
+		/* Sequence changed; re-sync. */			\
+	}								\
+	/* Fallback to the generic timecounter, i.e. rdmsr. */		\
+	return (rdmsr(MSR_HV_TIME_REF_COUNT));				\
+}									\
+struct __hack
+
+HYPERV_TSC_TIMECOUNT(lfence);
+HYPERV_TSC_TIMECOUNT(mfence);
+
+static void
+hyperv_tsc_tcinit(void *dummy __unused)
+{
+	uint64_t val, orig;
+
+	if ((hyperv_features &
+	     (CPUID_HV_MSR_TIME_REFCNT | CPUID_HV_MSR_REFERENCE_TSC)) !=
+	    (CPUID_HV_MSR_TIME_REFCNT | CPUID_HV_MSR_REFERENCE_TSC) ||
+	    (cpu_feature & CPUID_SSE2) == 0)	/* SSE2 for mfence/lfence */
+		return;
+
+	switch (cpu_vendor_id) {
+	case CPU_VENDOR_AMD:
+		hyperv_tsc_timecounter.tc_get_timecount =
+		    hyperv_tsc_timecount_mfence;
+		break;
+
+	case CPU_VENDOR_INTEL:
+		hyperv_tsc_timecounter.tc_get_timecount =
+		    hyperv_tsc_timecount_lfence;
+		break;
+
+	default:
+		/* Unsupport CPU vendors. */
+		return;
+	}
+
+	hyperv_ref_tsc.tsc_ref = hyperv_dmamem_alloc(NULL, PAGE_SIZE, 0,
+	    sizeof(struct hyperv_reftsc), &hyperv_ref_tsc.tsc_ref_dma,
+	    BUS_DMA_WAITOK | BUS_DMA_ZERO);
+	if (hyperv_ref_tsc.tsc_ref == NULL) {
+		printf("hyperv: reftsc page allocation failed\n");
+		return;
+	}
+
+	orig = rdmsr(MSR_HV_REFERENCE_TSC);
+	val = MSR_HV_REFTSC_ENABLE | (orig & MSR_HV_REFTSC_RSVD_MASK) |
+	    ((hyperv_ref_tsc.tsc_ref_dma.hv_paddr >> PAGE_SHIFT) <<
+	     MSR_HV_REFTSC_PGSHIFT);
+	wrmsr(MSR_HV_REFERENCE_TSC, val);
+
+	/* Register "enlightened" timecounter. */
+	tc_init(&hyperv_tsc_timecounter);
+
+	/* Add device for mmap(2). */
+	make_dev(&hyperv_tsc_cdevsw, 0, UID_ROOT, GID_WHEEL, 0444,
+	    HYPERV_REFTSC_DEVNAME);
+}
+SYSINIT(hyperv_tsc_init, SI_SUB_DRIVERS, SI_ORDER_FIRST, hyperv_tsc_tcinit,
+    NULL);
