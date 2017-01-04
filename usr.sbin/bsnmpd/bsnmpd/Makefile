@@ -125,15 +125,20 @@ DEFSDIR= ${SHAREDIR}/snmp/defs
 
 CFLAGS+= -DSNMPTREE_TYPES
 CFLAGS+= -I${CONTRIB}/lib -I${CONTRIB}/snmpd -I. -DUSE_LIBBEGEMOT
-CFLAGS+= -DUSE_TCPWRAPPERS
 CFLAGS+= -DHAVE_STDINT_H -DHAVE_INTTYPES_H -DHAVE_ERR_H -DHAVE_STRLCPY
-DPADD=	${LIBBEGEMOT} ${LIBBSNMP} ${LIBWRAP}
-LDADD=	-lbegemot -lbsnmp -lwrap
+DPADD=	${LIBBEGEMOT} ${LIBBSNMP}
+LDADD=	-lbegemot -lbsnmp
 
 LDFLAGS= -Wl,-export-dynamic
 
 .if ${MK_OPENSSL} != "no"
 CFLAGS+= -DHAVE_LIBCRYPTO
+.endif
+
+.if ${MK_TCP_WRAPPERS} != "no"
+CFLAGS+=	-DUSE_TCPWRAPPERS
+DPADD+=		${LIBWRAP}
+LDADD+=		-lwrap
 .endif
 
 oid.h: tree.def Makefile
