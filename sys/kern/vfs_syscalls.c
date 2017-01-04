@@ -429,6 +429,8 @@ kern_getfsstat(struct thread *td, struct statfs **buf, size_t bufsize,
 	case MNT_NOWAIT:
 		break;
 	default:
+		if (bufseg == UIO_SYSSPACE)
+			*buf = NULL;
 		return (EINVAL);
 	}
 restart:
