@@ -545,7 +545,7 @@ __mtx_lock_sleep(volatile uintptr_t *c, uintptr_t tid, int opts,
 			    m->lock_object.lo_name);
 			do {
 				lock_delay(&lda);
-				v = m->mtx_lock;
+				v = MTX_READ_VALUE(m);
 				owner = lv_mtx_owner(v);
 			} while (v != MTX_UNOWNED && TD_IS_RUNNING(owner));
 			KTR_STATE0(KTR_SCHED, "thread",
