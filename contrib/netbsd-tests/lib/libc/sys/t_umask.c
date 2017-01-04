@@ -129,6 +129,9 @@ ATF_TC_BODY(umask_open, tc)
 		if (fd < 0)
 			continue;
 
+#ifdef	__FreeBSD__
+		(void)close(fd);
+#endif
 		(void)memset(&st, 0, sizeof(struct stat));
 
 		if (stat(path, &st) != 0) {
