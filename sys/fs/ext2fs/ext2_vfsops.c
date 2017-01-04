@@ -141,7 +141,7 @@ ext2_mount(struct mount *mp)
 	 */
 	if (mp->mnt_flag & MNT_UPDATE) {
 		ump = VFSTOEXT2(mp);
-		fs = ump->um_e2fs; 
+		fs = ump->um_e2fs;
 		error = 0;
 		if (fs->e2fs_ronly == 0 &&
 		    vfs_flagopt(opts, "ro", NULL, 0)) {
@@ -152,7 +152,7 @@ ext2_mount(struct mount *mp)
 			if (mp->mnt_flag & MNT_FORCE)
 				flags |= FORCECLOSE;
 			error = ext2_flushfiles(mp, flags, td);
-			if ( error == 0 && fs->e2fs_wasvalid && ext2_cgupdate(ump, MNT_WAIT) == 0) {
+			if (error == 0 && fs->e2fs_wasvalid && ext2_cgupdate(ump, MNT_WAIT) == 0) {
 				fs->e2fs->e2fs_state |= E2FS_ISCLEAN;
 				ext2_sbupdate(ump, MNT_WAIT);
 			}
@@ -332,7 +332,7 @@ compute_sb_data(struct vnode *devvp, struct ext2fs *es,
 	fs->e2fs_fpg = es->e2fs_fpg;
 	fs->e2fs_ipg = es->e2fs_ipg;
 	if (es->e2fs_rev == E2FS_REV0) {
-		fs->e2fs_isize = E2FS_REV0_INODE_SIZE ;
+		fs->e2fs_isize = E2FS_REV0_INODE_SIZE;
 	} else {
 		fs->e2fs_isize = es->e2fs_inode_size;
 
@@ -372,12 +372,12 @@ compute_sb_data(struct vnode *devvp, struct ext2fs *es,
 	 * Godmar thinks: if the blocksize is greater than 1024, then
 	 * the superblock is logically part of block zero.
 	 */
-	if(fs->e2fs_bsize > SBSIZE)
+	if (fs->e2fs_bsize > SBSIZE)
 		logic_sb_block = 0;
 	for (i = 0; i < db_count; i++) {
-		error = bread(devvp ,
-			 fsbtodb(fs, logic_sb_block + i + 1 ),
-			fs->e2fs_bsize, NOCRED, &bp);
+		error = bread(devvp,
+		    fsbtodb(fs, logic_sb_block + i + 1),
+		    fs->e2fs_bsize, NOCRED, &bp);
 		if (error) {
 			free(fs->e2fs_contigdirs, M_EXT2MNT);
 			free(fs->e2fs_gd, M_EXT2MNT);
@@ -386,7 +386,7 @@ compute_sb_data(struct vnode *devvp, struct ext2fs *es,
 		}
 		e2fs_cgload((struct ext2_gd *)bp->b_data,
 		    &fs->e2fs_gd[
-			i * fs->e2fs_bsize / sizeof(struct ext2_gd)],
+		    i * fs->e2fs_bsize / sizeof(struct ext2_gd)],
 		    fs->e2fs_bsize);
 		brelse(bp);
 		bp = NULL;
@@ -469,7 +469,7 @@ ext2_reload(struct mount *mp, struct thread *td)
 	fs = VFSTOEXT2(mp)->um_e2fs;
 	bcopy(bp->b_data, fs->e2fs, sizeof(struct ext2fs));
 
-	if((error = compute_sb_data(devvp, es, fs)) != 0) {
+	if ((error = compute_sb_data(devvp, es, fs)) != 0) {
 		brelse(bp);
 		return (error);
 	}
@@ -516,7 +516,7 @@ loop:
 			MNT_VNODE_FOREACH_ALL_ABORT(mp, mvp);
 			return (error);
 		}
-		ext2_ei2i((struct ext2fs_dinode *) ((char *)bp->b_data +
+		ext2_ei2i((struct ext2fs_dinode *)((char *)bp->b_data +
 		    EXT2_INODE_SIZE(fs) * ino_to_fsbo(fs, ip->i_number)), ip);
 		brelse(bp);
 		VOP_UNLOCK(vp, 0);
@@ -605,9 +605,9 @@ ext2_mountfs(struct vnode *devvp, struct mount *mp)
 	 * while Linux keeps the super block in a locked buffer.
 	 */
 	ump->um_e2fs = malloc(sizeof(struct m_ext2fs),
-		M_EXT2MNT, M_WAITOK | M_ZERO);
+	    M_EXT2MNT, M_WAITOK | M_ZERO);
 	ump->um_e2fs->e2fs = malloc(sizeof(struct ext2fs),
-		M_EXT2MNT, M_WAITOK);
+	    M_EXT2MNT, M_WAITOK);
 	mtx_init(EXT2_MTX(ump), "EXT2FS", "EXT2FS Lock", MTX_DEF);
 	bcopy(es, ump->um_e2fs->e2fs, (u_int)sizeof(struct ext2fs));
 	if ((error = compute_sb_data(devvp, ump->um_e2fs->e2fs, ump->um_e2fs)))
@@ -615,8 +615,8 @@ ext2_mountfs(struct vnode *devvp, struct mount *mp)
 
 	/*
 	 * Calculate the maximum contiguous blocks and size of cluster summary
-	 * array.  In FFS this is done by newfs; however, the superblock 
-	 * in ext2fs doesn't have these variables, so we can calculate 
+	 * array.  In FFS this is done by newfs; however, the superblock
+	 * in ext2fs doesn't have these variables, so we can calculate
 	 * them here.
 	 */
 	e2fs_maxcontig = MAX(1, MAXPHYS / ump->um_e2fs->e2fs_bsize);
@@ -647,7 +647,7 @@ ext2_mountfs(struct vnode *devvp, struct mount *mp)
 	 */
 	fs->e2fs_wasvalid = fs->e2fs->e2fs_state & E2FS_ISCLEAN ? 1 : 0;
 	if (ronly == 0) {
-		fs->e2fs_fmod = 1;		/* mark it modified */
+		fs->e2fs_fmod = 1;	/* mark it modified */
 		fs->e2fs->e2fs_state &= ~E2FS_ISCLEAN;	/* set fs invalid */
 	}
 	mp->mnt_data = ump;
@@ -764,6 +764,7 @@ ext2_flushfiles(struct mount *mp, int flags, struct thread *td)
 	error = vflush(mp, 0, flags, td);
 	return (error);
 }
+
 /*
  * Get filesystem statistics.
  */
@@ -926,7 +927,7 @@ ext2_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 	vp->v_data = ip;
 	ip->i_vnode = vp;
 	ip->i_e2fs = fs = ump->um_e2fs;
-	ip->i_ump  = ump;
+	ip->i_ump = ump;
 	ip->i_number = ino;
 
 	lockmgr(vp->v_vnlock, LK_EXCLUSIVE, NULL);
@@ -955,8 +956,8 @@ ext2_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 		return (error);
 	}
 	/* convert ext2 inode to dinode */
-	ext2_ei2i((struct ext2fs_dinode *) ((char *)bp->b_data + EXT2_INODE_SIZE(fs) *
-			ino_to_fsbo(fs, ino)), ip);
+	ext2_ei2i((struct ext2fs_dinode *)((char *)bp->b_data + EXT2_INODE_SIZE(fs) *
+	    ino_to_fsbo(fs, ino)), ip);
 	ip->i_block_group = ino_to_cg(fs, ino);
 	ip->i_next_alloc_block = 0;
 	ip->i_next_alloc_goal = 0;
@@ -1099,6 +1100,7 @@ ext2_cgupdate(struct ext2mount *mp, int waitfor)
 		allerror = error;
 	return (allerror);
 }
+
 /*
  * Return the root of a filesystem.
  */

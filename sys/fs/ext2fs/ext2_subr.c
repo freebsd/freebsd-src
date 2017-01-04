@@ -173,6 +173,7 @@ ext2_clusteracct(struct m_ext2fs *fs, char *bbp, int cg, daddr_t bno, int cnt)
 	/* Initialize the cluster summary array. */
 	if (fs->e2fs_clustersum[cg].cs_init == 0) {
 		int run = 0;
+
 		bit = 1;
 		loc = 0;
 

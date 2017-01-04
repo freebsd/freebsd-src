@@ -61,19 +61,19 @@ struct ext4_extent_index {
  * Extent tree header.
  */
 struct ext4_extent_header {
-	uint16_t eh_magic;	/* magic number: 0xf30a */
-	uint16_t eh_ecount;	/* number of valid entries */
-	uint16_t eh_max;	/* capacity of store in entries */
-	uint16_t eh_depth;	/* the depth of extent tree */
-	uint32_t eh_gen;	/* generation of extent tree */
+	uint16_t eh_magic;		/* magic number: 0xf30a */
+	uint16_t eh_ecount;		/* number of valid entries */
+	uint16_t eh_max;		/* capacity of store in entries */
+	uint16_t eh_depth;		/* the depth of extent tree */
+	uint32_t eh_gen;		/* generation of extent tree */
 };
 
 /*
  * Save cached extent.
  */
 struct ext4_extent_cache {
-	daddr_t	ec_start;	/* extent start */
-	uint32_t ec_blk;	/* logical block */
+	daddr_t	ec_start;		/* extent start */
+	uint32_t ec_blk;		/* logical block */
 	uint32_t ec_len;
 	uint32_t ec_type;
 };
@@ -93,7 +93,8 @@ struct inode;
 struct m_ext2fs;
 int	ext4_ext_in_cache(struct inode *, daddr_t, struct ext4_extent *);
 void	ext4_ext_put_cache(struct inode *, struct ext4_extent *, int);
-struct ext4_extent_path *ext4_ext_find_extent(struct m_ext2fs *fs,
+struct ext4_extent_path *
+ext4_ext_find_extent(struct m_ext2fs *fs,
     struct inode *, daddr_t, struct ext4_extent_path *);
 
-#endif /* !_FS_EXT2FS_EXT2_EXTENTS_H_ */
+#endif	/* !_FS_EXT2FS_EXT2_EXTENTS_H_ */
