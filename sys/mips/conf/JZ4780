@@ -75,9 +75,6 @@ device		ext_resources
 
 device		gpio
 
-device		iicbus
-device		iic
-
 device 		scbus
 device 		da
 
