@@ -80,6 +80,9 @@ ATF_TC_BODY(mknodat_fd, tc)
 	ATF_REQUIRE((fd = mknodat(dfd, BASEFILE, mode, dev)) != -1);
 	ATF_REQUIRE(close(fd) == 0);
 	ATF_REQUIRE(access(FILE, F_OK) == 0);
+#ifdef	__FreeBSD__
+	(void)close(dfd);
+#endif
 }
 
 ATF_TC(mknodat_fdcwd);
