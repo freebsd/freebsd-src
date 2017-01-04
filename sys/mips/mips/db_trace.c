@@ -370,7 +370,7 @@ done:
 		badvaddr = kdbpeek((int *)TF_REG(sp, BADVADDR));
 #endif
 #undef TF_REG
-		db_printf("--- exception, cause %jx badvaddr %jx ---\n",
+		(*printfn) ("--- exception, cause %jx badvaddr %jx ---\n",
 		    (uintmax_t)cause, (uintmax_t)badvaddr);
 		goto loop;
 	} else if (ra) {
