@@ -381,9 +381,13 @@ ATF_TC_BODY(mmap_prot_3, tc)
 	 * the access should generate SIGSEGV.
 	 */
 	fd = open(path, O_RDWR | O_CREAT, 0700);
-
 	if (fd < 0)
+#ifdef	__FreeBSD__
+		atf_tc_skip("opening %s failed; skipping testcase: %s",
+		    path, strerror(errno));
+#else
 		return;
+#endif
 
 	ATF_REQUIRE(write(fd, "XXX", 3) == 3);
 	ATF_REQUIRE(close(fd) == 0);
@@ -409,6 +413,9 @@ ATF_TC_BODY(mmap_prot_3, tc)
 	ATF_REQUIRE(WIFEXITED(sta) != 0);
 	ATF_REQUIRE(WEXITSTATUS(sta) == SIGSEGV);
 	ATF_REQUIRE(munmap(map, 3) == 0);
+#ifdef	__FreeBSD__
+	(void)close(fd);
+#endif
 }
 
 ATF_TC_CLEANUP(mmap_prot_3, tc)
@@ -453,6 +460,9 @@ ATF_TC_BODY(mmap_truncate, tc)
 	ATF_REQUIRE(ftruncate(fd, page / 12) == 0);
 	ATF_REQUIRE(ftruncate(fd, page / 64) == 0);
 
+#ifdef	__FreeBSD__
+	(void)munmap(map, page);
+#endif
 	ATF_REQUIRE(close(fd) == 0);
 }
 
@@ -509,6 +519,10 @@ ATF_TC_BODY(mmap_truncate_signal, tc)
 		   prevent the access to be optimized out */
 		ATF_REQUIRE(i == 0);
 		ATF_REQUIRE(sta == 0);
+#ifdef	__FreeBSD__
+		(void)munmap(map, page);
+		(void)close(fd);
+#endif
 		return;
 	}
 

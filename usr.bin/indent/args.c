@@ -96,6 +96,7 @@ struct pro {
 
     {"T", PRO_SPECIAL, 0, KEY, 0},
     {"U", PRO_SPECIAL, 0, KEY_FILE, 0},
+    {"P", PRO_SPECIAL, 0, IGN, 0},
     {"bacc", PRO_BOOL, false, ON, &blanklines_around_conditional_compilation},
     {"badp", PRO_BOOL, false, ON, &blanklines_after_declarations_at_proctop},
     {"bad", PRO_BOOL, false, ON, &blanklines_after_declarations},
@@ -177,13 +178,16 @@ struct pro {
  * given in these files.
  */
 void
-set_profile(void)
+set_profile(const char *profile_name)
 {
     FILE *f;
     char fname[PATH_MAX];
     static char prof[] = ".indent.pro";
 
-    snprintf(fname, sizeof(fname), "%s/%s", getenv("HOME"), prof);
+    if (profile_name == NULL)
+	snprintf(fname, sizeof(fname), "%s/%s", getenv("HOME"), prof);
+    else
+	snprintf(fname, sizeof(fname), "%s", profile_name + 2);
     if ((f = fopen(option_source = fname, "r")) != NULL) {
 	scan_profile(f);
 	(void) fclose(f);
