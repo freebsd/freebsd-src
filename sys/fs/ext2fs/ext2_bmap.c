@@ -94,7 +94,7 @@ ext4_bmapext(struct vnode *vp, int32_t bn, int64_t *bnp, int *runp, int *runb)
 	struct inode *ip;
 	struct m_ext2fs *fs;
 	struct ext4_extent *ep;
-	struct ext4_extent_path path = { .ep_bp = NULL };
+	struct ext4_extent_path path = {.ep_bp = NULL};
 	daddr_t lbn;
 	int ret = 0;
 
@@ -152,7 +152,7 @@ ext2_bmaparray(struct vnode *vp, daddr_t bn, daddr_t *bnp, int *runp, int *runb)
 	struct buf *bp;
 	struct ext2mount *ump;
 	struct mount *mp;
-	struct indir a[NIADDR+1], *ap;
+	struct indir a[NIADDR + 1], *ap;
 	daddr_t daddr;
 	e2fs_lbn_t metalbn;
 	int error, num, maxrun = 0, bsize;
@@ -169,10 +169,8 @@ ext2_bmaparray(struct vnode *vp, daddr_t bn, daddr_t *bnp, int *runp, int *runb)
 		maxrun = mp->mnt_iosize_max / bsize - 1;
 		*runp = 0;
 	}
-
-	if (runb) {
+	if (runb)
 		*runb = 0;
-	}
 
 
 	ap = a;
@@ -188,6 +186,7 @@ ext2_bmaparray(struct vnode *vp, daddr_t bn, daddr_t *bnp, int *runp, int *runb)
 			*bnp = -1;
 		} else if (runp) {
 			daddr_t bnb = bn;
+
 			for (++bn; bn < NDADDR && *runp < maxrun &&
 			    is_sequential(ump, ip->i_db[bn - 1], ip->i_db[bn]);
 			    ++bn, ++*runp);
@@ -201,7 +200,6 @@ ext2_bmaparray(struct vnode *vp, daddr_t bn, daddr_t *bnp, int *runp, int *runb)
 		}
 		return (0);
 	}
-
 
 	/* Get disk address out of indirect block array */
 	daddr = ip->i_ib[ap->in_off];
@@ -272,7 +270,7 @@ ext2_bmaparray(struct vnode *vp, daddr_t bn, daddr_t *bnp, int *runp, int *runb)
 	 * return a request for a zeroed out buffer if attempts are made
 	 * to read a BLK_NOCOPY or BLK_SNAP block.
 	 */
-	if ((ip->i_flags & SF_SNAPSHOT) && daddr > 0 && daddr < ump->um_seqinc){
+	if ((ip->i_flags & SF_SNAPSHOT) && daddr > 0 && daddr < ump->um_seqinc) {
 		*bnp = -1;
 		return (0);
 	}
