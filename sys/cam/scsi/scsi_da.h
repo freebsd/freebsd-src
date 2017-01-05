@@ -554,6 +554,20 @@ struct scsi_da_rw_recovery_page {
 	u_int8_t recovery_time_limit[2];
 };
 
+struct scsi_da_verify_recovery_page {
+	u_int8_t page_code;
+#define SMS_VERIFY_ERROR_RECOVERY_PAGE	0x07
+	u_int8_t page_length;
+	u_int8_t byte3;
+#define SMS_VER_EER			0x08
+#define SMS_VER_PER			0x04
+#define SMS_VER_DTE			0x02
+#define SMS_VER_DCR			0x01
+	u_int8_t read_retry_count;
+	u_int8_t reserved[6];
+	u_int8_t recovery_time_limit[2];
+};
+
 __BEGIN_DECLS
 /*
  * XXX These are only left out of the kernel build to silence warnings.  If,
