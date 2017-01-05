@@ -67,7 +67,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
-#include <sys/libkern.h>
 #include <sys/lock.h>
 #include <sys/proc.h>
 #include <sys/rwlock.h>
@@ -276,7 +275,7 @@ again:
 #ifdef __LP64__
 	exec_map_entries = 8 * mp_ncpus;
 #else
-	exec_map_entries = min(8 * mp_ncpus, 2 * mp_ncpus + 4);
+	exec_map_entries = 2 * mp_ncpus + 4;
 #endif
 	exec_map_entry_size = round_page(PATH_MAX + ARG_MAX);
 	exec_map = kmem_suballoc(kernel_map, &minaddr, &maxaddr,
