@@ -37,6 +37,9 @@ device		vlan
 device		mii
 device		bpf
 device		re
+device		mdio
+device		etherswitch
+device		e6000sw
 
 # PCI
 device		pci
