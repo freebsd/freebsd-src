@@ -68,8 +68,10 @@ struct spigen_softc {
 static int
 spigen_probe(device_t dev)
 {
+
 	device_set_desc(dev, "SPI Generic IO");
-	return (0);
+
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 static int spigen_open(struct cdev *, int, int, struct thread *);
@@ -191,7 +193,7 @@ spigen_transfer(struct cdev *cdev, struct spigen_transfer *st)
 	int error = 0;
 
 	mtx_lock(&sc->sc_mtx);
-	if (st->st_command.iov_len == 0 || st->st_data.iov_len == 0)
+	if (st->st_command.iov_len == 0)
 		error = EINVAL;
 	else if (st->st_command.iov_len > sc->sc_command_length_max ||
 	    st->st_data.iov_len > sc->sc_data_length_max)
@@ -208,16 +210,20 @@ spigen_transfer(struct cdev *cdev, struct spigen_transfer *st)
 	    M_DEVBUF, M_WAITOK);
 	if (transfer.tx_cmd == NULL)
 		return (ENOMEM);
-	transfer.tx_data = transfer.rx_data = malloc(st->st_data.iov_len,
-	    M_DEVBUF, M_WAITOK);
-	if (transfer.tx_data == NULL) {
-		free(transfer.tx_cmd, M_DEVBUF);
-		return (ENOMEM);
+	if (st->st_data.iov_len > 0) {
+		transfer.tx_data = transfer.rx_data = malloc(st->st_data.iov_len,
+		    M_DEVBUF, M_WAITOK);
+		if (transfer.tx_data == NULL) {
+			free(transfer.tx_cmd, M_DEVBUF);
+			return (ENOMEM);
+		}
 	}
+	else
+		transfer.tx_data = transfer.rx_data = NULL;
 
 	error = copyin(st->st_command.iov_base, transfer.tx_cmd,
 	    transfer.tx_cmd_sz = transfer.rx_cmd_sz = st->st_command.iov_len);	
-	if (error == 0)
+	if ((error == 0) && (st->st_data.iov_len > 0))
 		error = copyin(st->st_data.iov_base, transfer.tx_data,
 		    transfer.tx_data_sz = transfer.rx_data_sz =
 		                          st->st_data.iov_len);	
@@ -226,7 +232,7 @@ spigen_transfer(struct cdev *cdev, struct spigen_transfer *st)
 	if (error == 0) {
 		error = copyout(transfer.rx_cmd, st->st_command.iov_base,
 		    transfer.rx_cmd_sz);
-		if (error == 0)
+		if ((error == 0) && (st->st_data.iov_len > 0))
 			error = copyout(transfer.rx_data, st->st_data.iov_base,
 			    transfer.rx_data_sz);
 	}
