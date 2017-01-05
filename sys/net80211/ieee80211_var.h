@@ -232,8 +232,9 @@ struct ieee80211com {
 	/* VHT information */
 	uint32_t		ic_vhtcaps;	/* VHT capabilities */
 	uint32_t		ic_vhtextcaps;	/* VHT extended capabilities (TODO) */
-	struct ieee80211_vht_mcs_info	iv_vht_mcsinfo; /* Support TX/RX VHT MCS */
-	uint32_t		ic_vht_spare[4];
+	struct ieee80211_vht_mcs_info	ic_vht_mcsinfo; /* Support TX/RX VHT MCS */
+	uint32_t		ic_flags_vht;	/* VHT state flags */
+	uint32_t		ic_vht_spare[3];
 
 	/* optional state for Atheros SuperG protocol extensions */
 	struct ieee80211_superg	*ic_superg;
@@ -650,6 +651,10 @@ MALLOC_DECLARE(M_80211_VAP);
 	"\35HTCOMPAT\36RIFS\37STBC_TX\40STBC_RX"
 
 #define	IEEE80211_FVEN_BITS	"\20"
+
+#define	IEEE80211_FVHT_VHT	0x000000001	/* CONF: VHT supported */
+#define	IEEE80211_VFHT_BITS \
+	"\20\1VHT"
 
 int	ic_printf(struct ieee80211com *, const char *, ...) __printflike(2, 3);
 void	ieee80211_ifattach(struct ieee80211com *);
