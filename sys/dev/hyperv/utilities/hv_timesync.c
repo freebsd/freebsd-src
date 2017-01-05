@@ -46,9 +46,13 @@ __FBSDID("$FreeBSD$");
 #define VMBUS_TIMESYNC_FWVER		\
 	VMBUS_IC_VERSION(VMBUS_TIMESYNC_FWVER_MAJOR, 0)
 
-#define VMBUS_TIMESYNC_MSGVER_MAJOR	3
+#define VMBUS_TIMESYNC_MSGVER_MAJOR	4
 #define VMBUS_TIMESYNC_MSGVER		\
 	VMBUS_IC_VERSION(VMBUS_TIMESYNC_MSGVER_MAJOR, 0)
+
+#define VMBUS_TIMESYNC_DORTT(sc)	\
+	((sc)->ic_msgver >= VMBUS_IC_VERSION(4, 0) && \
+	 (hyperv_features & CPUID_HV_MSR_TIME_REFCNT))
 
 static const struct vmbus_ic_desc vmbus_timesync_descs[] = {
 	{
@@ -81,12 +85,16 @@ SYSCTL_INT(_hw_hvtimesync, OID_AUTO, sample_verbose, CTLFLAG_RWTUN,
     &vmbus_ts_sample_verbose, 0, "Increase sample request verbosity.");
 
 static void
-vmbus_timesync(struct hv_util_sc *sc, uint64_t hvtime, uint8_t tsflags)
+vmbus_timesync(struct hv_util_sc *sc, uint64_t hvtime, uint64_t sent_tc,
+    uint8_t tsflags)
 {
 	struct timespec vm_ts;
-	uint64_t hv_ns, vm_ns;
+	uint64_t hv_ns, vm_ns, rtt = 0;
 
-	hv_ns = (hvtime - VMBUS_ICMSG_TS_BASE) * VMBUS_ICMSG_TS_FACTOR;
+	if (VMBUS_TIMESYNC_DORTT(sc))
+		rtt = rdmsr(MSR_HV_TIME_REF_COUNT) - sent_tc;
+
+	hv_ns = (hvtime - VMBUS_ICMSG_TS_BASE + rtt) * HYPERV_TIMER_NS_FACTOR;
 	nanotime(&vm_ts);
 	vm_ns = (vm_ts.tv_sec * NANOSEC) + vm_ts.tv_nsec;
 
@@ -174,6 +182,8 @@ vmbus_timesync_cb(struct vmbus_channel *chan, void *xsc)
 		    VMBUS_TIMESYNC_FWVER, VMBUS_TIMESYNC_MSGVER);
 		if (error)
 			return;
+		if (VMBUS_TIMESYNC_DORTT(sc))
+			device_printf(sc->ic_dev, "RTT\n");
 		break;
 
 	case VMBUS_ICMSG_TYPE_TIMESYNC:
@@ -183,7 +193,8 @@ vmbus_timesync_cb(struct vmbus_channel *chan, void *xsc)
 			return;
 		}
 		msg = data;
-		vmbus_timesync(sc, msg->ic_hvtime, msg->ic_tsflags);
+		vmbus_timesync(sc, msg->ic_hvtime, msg->ic_sent_tc,
+		    msg->ic_tsflags);
 		break;
 
 	default:
