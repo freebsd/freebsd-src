@@ -4371,6 +4371,8 @@ hex2bin(const char *str, uint8_t *buf, int buf_size)
 		str += 2;
 	buf_size *= 2;
 	for (i = 0; str[i] != 0 && i < buf_size; i++) {
+		while (str[i] == '-')	/* Skip dashes in UUIDs. */
+			str++;
 		c = str[i];
 		if (isdigit(c))
 			c -= '0';
@@ -4406,7 +4408,7 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 	struct ctl_lun *nlun, *lun;
 	struct scsi_vpd_id_descriptor *desc;
 	struct scsi_vpd_id_t10 *t10id;
-	const char *eui, *naa, *scsiname, *vendor, *value;
+	const char *eui, *naa, *scsiname, *uuid, *vendor, *value;
 	int lun_number, i, lun_malloced;
 	int devidlen, idlen1, idlen2 = 0, len;
 
@@ -4458,6 +4460,10 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 	if (naa != NULL) {
 		len += sizeof(struct scsi_vpd_id_descriptor) + 16;
 	}
+	uuid = ctl_get_opt(&be_lun->options, "uuid");
+	if (uuid != NULL) {
+		len += sizeof(struct scsi_vpd_id_descriptor) + 18;
+	}
 	lun->lun_devid = malloc(sizeof(struct ctl_devid) + len,
 	    M_CTL, M_WAITOK | M_ZERO);
 	desc = (struct scsi_vpd_id_descriptor *)lun->lun_devid->data;
@@ -4503,6 +4509,16 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 		desc->length = hex2bin(naa, desc->identifier, 16);
 		desc->length = desc->length > 8 ? 16 : 8;
 		len -= 16 - desc->length;
+	}
+	if (uuid != NULL) {
+		desc = (struct scsi_vpd_id_descriptor *)(&desc->identifier[0] +
+		    desc->length);
+		desc->proto_codeset = SVPD_ID_CODESET_BINARY;
+		desc->id_type = SVPD_ID_PIV | SVPD_ID_ASSOC_LUN |
+		    SVPD_ID_TYPE_UUID;
+		desc->identifier[0] = 0x10;
+		hex2bin(uuid, &desc->identifier[2], 16);
+		desc->length = 18;
 	}
 	lun->lun_devid->len = len;
 
