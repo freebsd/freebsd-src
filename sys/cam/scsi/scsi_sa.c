@@ -2861,7 +2861,7 @@ samount(struct cam_periph *periph, int oflags, struct cdev *dev)
 	softc = (struct sa_softc *)periph->softc;
 
 	/*
-	 * This should determine if something has happend since the last
+	 * This should determine if something has happened since the last
 	 * open/mount that would invalidate the mount. We do *not* want
 	 * to retry this command- we just want the status. But we only
 	 * do this if we're mounted already- if we're not mounted,

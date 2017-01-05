@@ -459,7 +459,7 @@ static struct scsi_quirk_entry scsi_quirk_table[] =
 	},
 	{
 		/*
-		 * The Hitachi CJ series with J8A8 firmware apparantly has
+		 * The Hitachi CJ series with J8A8 firmware apparently has
 		 * problems with tagged commands.
 		 * PR: 23536
 		 * Reported by: amagai@nue.org
@@ -2442,7 +2442,7 @@ scsi_devise_transport(struct cam_path *path)
 			path->device->transport_version =
 			    otherdev->transport_version;
 		} else {
-			/* Until we know better, opt for safty */
+			/* Until we know better, opt for safety */
 			path->device->protocol_version = 2;
 			if (path->device->transport == XPORT_SPI)
 				path->device->transport_version = 2;
