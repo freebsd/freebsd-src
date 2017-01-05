@@ -7371,6 +7371,8 @@ ctl_report_supported_opcodes(struct ctl_scsiio *ctsio)
 			ctl_done((union ctl_io *)ctsio);
 			return (CTL_RETVAL_COMPLETE);
 		}
+		/* FALLTHROUGH */
+	case RSO_OPTIONS_OC_ASA:
 		total_len = sizeof(struct scsi_report_supported_opcodes_one) + 32;
 		break;
 	default:
@@ -7459,6 +7461,18 @@ fill_one:
 		} else
 			one->support = 1;
 		break;
+	case RSO_OPTIONS_OC_ASA:
+		one = (struct scsi_report_supported_opcodes_one *)
+		    ctsio->kern_data_ptr;
+		entry = &ctl_cmd_table[opcode];
+		if (entry->flags & CTL_CMD_FLAG_SA5) {
+			entry = &((const struct ctl_cmd_entry *)
+			    entry->execute)[service_action];
+		} else if (service_action != 0) {
+			one->support = 1;
+			break;
+		}
+		goto fill_one;
 	}
 
 	ctl_set_success(ctsio);
