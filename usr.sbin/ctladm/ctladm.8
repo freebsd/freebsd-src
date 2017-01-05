@@ -35,7 +35,7 @@
 .\" $Id: //depot/users/kenm/FreeBSD-test2/usr.sbin/ctladm/ctladm.8#3 $
 .\" $FreeBSD$
 .\"
-.Dd October 15, 2016
+.Dd December 21, 2016
 .Dt CTLADM 8
 .Os
 .Sh NAME
@@ -859,9 +859,12 @@ Specifies LUN SCSI name string.
 Specifies LUN EUI-64 identifier.
 .It Va naa
 Specifies LUN NAA identifier.
-Either EUI or NAA identifier should be set to UNIQUE value to allow
+.It Va uuid
+Specifies LUN locally assigned RFC 4122 UUID identifier.
+EUI, NAA or UUID identifier should be set to UNIQUE value to allow
 EXTENDED COPY command access the LUN.
 Non-unique LUN identifiers may lead to data corruption.
+Some initiators may not support later introduced UUID identifiers.
 .It Va ha_role
 Setting to "primary" or "secondary" overrides default role of the node
 in HA cluster, set by kern.cam.ctl.ha_role sysctl.
