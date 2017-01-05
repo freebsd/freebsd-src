@@ -167,7 +167,7 @@ op_usm_users(struct snmp_context *ctx, struct snmp_value *val,
 		if ((uuser = usm_get_user(&val->var, sub)) == NULL &&
 		    val->var.subs[sub - 1] != LEAF_usmUserStatus &&
 		    val->var.subs[sub - 1] != LEAF_usmUserCloneFrom)
-				return (SNMP_ERR_NOSUCHNAME);
+			return (SNMP_ERR_NOSUCHNAME);
 
 		if (community != COMM_INITIALIZE &&
 		    uuser->type == StorageType_readOnly)
