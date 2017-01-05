@@ -280,7 +280,7 @@ aic_action(struct cam_sim *sim, union ccb *ccb)
                 cpi->max_lun = 7;
                 cpi->initiator_id = aic->initiator;
                 cpi->bus_id = cam_sim_bus(sim);
-		cpi->base_transfer_speed = 3300;
+                cpi->base_transfer_speed = 3300;
                 strlcpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
                 strlcpy(cpi->hba_vid, "Adaptec", HBA_IDLEN);
                 strlcpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
