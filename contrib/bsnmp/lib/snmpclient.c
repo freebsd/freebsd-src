@@ -728,8 +728,11 @@ snmp_table_fetch_async(const struct snmp_table *descr, void *list,
 	work->last_change = 0;
 	table_init_pdu(descr, &work->pdu);
 
-	if (snmp_pdu_send(&work->pdu, table_cb, work) == -1)
+	if (snmp_pdu_send(&work->pdu, table_cb, work) == -1) {
+		free(work);
+		work = NULL;
 		return (-1);
+	}
 	return (0);
 }
 
