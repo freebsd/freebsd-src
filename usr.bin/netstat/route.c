@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <ifaddrs.h>
 #include <libutil.h>
 #include <netdb.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -115,7 +116,7 @@ static const char *fmt_sockaddr(struct sockaddr *sa, struct sockaddr *mask,
     int flags);
 static void p_flags(int, const char *);
 static const char *fmt_flags(int f);
-static void domask(char *, in_addr_t, u_long);
+static void domask(char *, size_t, u_long);
 
 
 /*
@@ -494,12 +495,16 @@ fmt_sockaddr(struct sockaddr *sa, struct sockaddr *mask, int flags)
 
 		cq = buf;
 		slim =  sa->sa_len + (u_char *) sa;
-		cqlim = cq + sizeof(buf) - 6;
-		cq += sprintf(cq, "(%d)", sa->sa_family);
+		cqlim = cq + sizeof(buf) - sizeof(" ffff");
+		snprintf(cq, sizeof(cq), "(%d)", sa->sa_family);
+		cq += strlen(cq);
 		while (s < slim && cq < cqlim) {
-			cq += sprintf(cq, " %02x", *s++);
-			if (s < slim)
-			    cq += sprintf(cq, "%02x", *s++);
+			snprintf(cq, sizeof(" ff"), " %02x", *s++);
+			cq += strlen(cq);
+			if (s < slim) {
+			    snprintf(cq, sizeof("ff"), "%02x", *s++);
+			    cq += strlen(cq);
+			}
 		}
 		cp = buf;
 	    }
@@ -576,7 +581,7 @@ routename(struct sockaddr *sa, int flags)
 	0)
 
 static void
-domask(char *dst, in_addr_t addr __unused, u_long mask)
+domask(char *dst, size_t buflen, u_long mask)
 {
 	int b, i;
 
@@ -598,9 +603,9 @@ domask(char *dst, in_addr_t addr __unused, u_long mask)
 			break;
 		}
 	if (i == -1)
-		sprintf(dst, "&0x%lx", mask);
+		snprintf(dst, buflen, "&0x%lx", mask);
 	else
-		sprintf(dst, "/%d", 32-i);
+		snprintf(dst, buflen, "/%d", 32-i);
 }
 
 /*
@@ -631,7 +636,7 @@ static const char *
 netname4(in_addr_t in, in_addr_t mask)
 {
 	char *cp = 0;
-	static char line[MAXHOSTNAMELEN + sizeof("/xx")];
+	static char line[MAXHOSTNAMELEN + sizeof("&0xffffffff")];
 	char nline[INET_ADDRSTRLEN];
 	struct netent *np = 0;
 	in_addr_t i;
@@ -657,7 +662,7 @@ netname4(in_addr_t in, in_addr_t mask)
 	else {
 		inet_ntop(AF_INET, &in, nline, sizeof(nline));
 		strlcpy(line, nline, sizeof(line));
-		domask(line + strlen(line), i, ntohl(mask));
+		domask(line + strlen(line), sizeof(line) - strlen(line), ntohl(mask));
 	}
 
 	return (line);
@@ -686,7 +691,7 @@ in6_fillscopeid(struct sockaddr_in6 *sa6)
 }
 
 /* Mask to length table.  To check an invalid value, (length + 1) is used. */
-static int masktolen[256] = {
+static const u_char masktolen[256] = {
 	[0xff] = 8 + 1,
 	[0xfe] = 7 + 1,
 	[0xfc] = 6 + 1,
@@ -704,17 +709,20 @@ netname6(struct sockaddr_in6 *sa6, struct sockaddr_in6 *mask)
 	static char line[NI_MAXHOST + sizeof("/xxx") - 1];
 	struct sockaddr_in6 addr;
 	char nline[NI_MAXHOST];
+	char maskbuf[sizeof("/xxx")];
 	u_char *p, *lim;
-	int masklen, illegal = 0, i;
+	u_char masklen;
+	int i;
+	bool illegal = false;
 
 	if (mask) {
 		p = (u_char *)&mask->sin6_addr;
 		for (masklen = 0, lim = p + 16; p < lim; p++) {
-			if (masktolen[*p] > 0)
+			if (masktolen[*p] > 0) {
 				/* -1 is required. */
-				masklen += masktolen[*p] - 1;
-			else
-				illegal++;
+				masklen += (masktolen[*p] - 1);
+			} else
+				illegal = true;
 		}
 		if (illegal)
 			xo_error("illegal prefixlen\n");
@@ -738,8 +746,10 @@ netname6(struct sockaddr_in6 *sa6, struct sockaddr_in6 *mask)
 	else
 		getnameinfo((struct sockaddr *)sa6, sa6->sin6_len, line,
 		    sizeof(line), NULL, 0, 0);
-	if (numeric_addr || strcmp(line, nline) == 0)
-		sprintf(&line[strlen(line)], "/%d", masklen);
+	if (numeric_addr || strcmp(line, nline) == 0) {
+		snprintf(maskbuf, sizeof(maskbuf), "/%d", masklen);
+		strlcat(line, maskbuf, sizeof(line));
+	}
 
 	return (line);
 }
