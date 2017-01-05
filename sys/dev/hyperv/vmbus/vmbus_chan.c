@@ -67,7 +67,7 @@ static void			vmbus_chan_set_chmap(struct vmbus_channel *);
 static void			vmbus_chan_clear_chmap(struct vmbus_channel *);
 static void			vmbus_chan_detach(struct vmbus_channel *);
 static bool			vmbus_chan_wait_revoke(
-				    const struct vmbus_channel *);
+				    const struct vmbus_channel *, bool);
 
 static void			vmbus_chan_ins_prilist(struct vmbus_softc *,
 				    struct vmbus_channel *);
@@ -349,7 +349,6 @@ vmbus_chan_open_br(struct vmbus_channel *chan, const struct vmbus_chan_br *cbr,
     const void *udata, int udlen, vmbus_chan_callback_t cb, void *cbarg)
 {
 	struct vmbus_softc *sc = chan->ch_vmbus;
-	const struct vmbus_chanmsg_chopen_resp *resp;
 	const struct vmbus_message *msg;
 	struct vmbus_chanmsg_chopen *req;
 	struct vmbus_msghc *mh;
@@ -453,9 +452,50 @@ vmbus_chan_open_br(struct vmbus_channel *chan, const struct vmbus_chan_br *cbr,
 		goto failed;
 	}
 
-	msg = vmbus_msghc_wait_result(sc, mh);
-	resp = (const struct vmbus_chanmsg_chopen_resp *)msg->msg_data;
-	status = resp->chm_status;
+	for (;;) {
+		msg = vmbus_msghc_poll_result(sc, mh);
+		if (msg != NULL)
+			break;
+		if (vmbus_chan_is_revoked(chan)) {
+			int i;
+
+			/*
+			 * NOTE:
+			 * Hypervisor does _not_ send response CHOPEN to
+			 * a revoked channel.
+			 */
+			vmbus_chan_printf(chan,
+			    "chan%u is revoked, when it is being opened\n",
+			    chan->ch_id);
+
+			/*
+			 * XXX
+			 * Add extra delay before cancel the hypercall
+			 * execution; mainly to close any possible
+			 * CHRESCIND and CHOPEN_RESP races on the
+			 * hypervisor side.
+			 */
+#define REVOKE_LINGER	100
+			for (i = 0; i < REVOKE_LINGER; ++i) {
+				msg = vmbus_msghc_poll_result(sc, mh);
+				if (msg != NULL)
+					break;
+				pause("rchopen", 1);
+			}
+#undef REVOKE_LINGER
+			if (msg == NULL)
+				vmbus_msghc_exec_cancel(sc, mh);
+			break;
+		}
+		pause("chopen", 1);
+	}
+	if (msg != NULL) {
+		status = ((const struct vmbus_chanmsg_chopen_resp *)
+		    msg->msg_data)->chm_status;
+	} else {
+		/* XXX any non-0 value is ok here. */
+		status = 0xff;
+	}
 
 	vmbus_msghc_put(sc, mh);
 
@@ -620,7 +660,7 @@ vmbus_chan_gpadl_connect(struct vmbus_channel *chan, bus_addr_t paddr,
 }
 
 static bool
-vmbus_chan_wait_revoke(const struct vmbus_channel *chan)
+vmbus_chan_wait_revoke(const struct vmbus_channel *chan, bool can_sleep)
 {
 #define WAIT_COUNT	200	/* 200ms */
 
@@ -629,8 +669,10 @@ vmbus_chan_wait_revoke(const struct vmbus_channel *chan)
 	for (i = 0; i < WAIT_COUNT; ++i) {
 		if (vmbus_chan_is_revoked(chan))
 			return (true);
-		/* Not sure about the context; use busy-wait. */
-		DELAY(1000);
+		if (can_sleep)
+			pause("wchrev", 1);
+		else
+			DELAY(1000);
 	}
 	return (false);
 
@@ -667,7 +709,7 @@ vmbus_chan_gpadl_disconnect(struct vmbus_channel *chan, uint32_t gpadl)
 	if (error) {
 		vmbus_msghc_put(sc, mh);
 
-		if (vmbus_chan_wait_revoke(chan)) {
+		if (vmbus_chan_wait_revoke(chan, true)) {
 			/*
 			 * Error is benign; this channel is revoked,
 			 * so this GPADL will not be touched anymore.
