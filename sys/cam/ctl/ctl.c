@@ -7453,7 +7453,7 @@ int
 ctl_report_supported_tmf(struct ctl_scsiio *ctsio)
 {
 	struct scsi_report_supported_tmf *cdb;
-	struct scsi_report_supported_tmf_data *data;
+	struct scsi_report_supported_tmf_ext_data *data;
 	int retval;
 	int alloc_len, total_len;
 
@@ -7463,7 +7463,10 @@ ctl_report_supported_tmf(struct ctl_scsiio *ctsio)
 
 	retval = CTL_RETVAL_COMPLETE;
 
-	total_len = sizeof(struct scsi_report_supported_tmf_data);
+	if (cdb->options & RST_REPD)
+		total_len = sizeof(struct scsi_report_supported_tmf_ext_data);
+	else
+		total_len = sizeof(struct scsi_report_supported_tmf_data);
 	alloc_len = scsi_4btoul(cdb->length);
 
 	ctsio->kern_data_ptr = malloc(total_len, M_CTL, M_WAITOK | M_ZERO);
@@ -7482,10 +7485,11 @@ ctl_report_supported_tmf(struct ctl_scsiio *ctsio)
 	ctsio->kern_data_resid = 0;
 	ctsio->kern_rel_offset = 0;
 
-	data = (struct scsi_report_supported_tmf_data *)ctsio->kern_data_ptr;
+	data = (struct scsi_report_supported_tmf_ext_data *)ctsio->kern_data_ptr;
 	data->byte1 |= RST_ATS | RST_ATSS | RST_CTSS | RST_LURS | RST_QTS |
 	    RST_TRS;
 	data->byte2 |= RST_QAES | RST_QTSS | RST_ITNRS;
+	data->length = total_len - 4;
 
 	ctl_set_success(ctsio);
 	ctsio->io_hdr.flags |= CTL_FLAG_ALLOCATED;
