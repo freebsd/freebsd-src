@@ -515,6 +515,7 @@ ctl_build_ua(struct ctl_lun *lun, uint32_t initidx,
 	uint32_t p, i;
 
 	mtx_assert(&lun->lun_lock, MA_OWNED);
+	mtx_assert(&lun->ctl_softc->ctl_lock, MA_NOTOWNED);
 	p = initidx / CTL_MAX_INIT_PER_PORT;
 	if ((ua = lun->pending_ua[p]) == NULL) {
 		mtx_unlock(&lun->lun_lock);
@@ -546,6 +547,17 @@ ctl_build_ua(struct ctl_lun *lun, uint32_t initidx,
 
 	/* We're reporting this UA, so clear it */
 	ua[i] &= ~ua_to_clear;
+
+	if (ua_to_build == CTL_UA_LUN_CHANGE) {
+		mtx_unlock(&lun->lun_lock);
+		mtx_lock(&lun->ctl_softc->ctl_lock);
+		ctl_clr_ua_allluns(lun->ctl_softc, initidx, ua_to_build);
+		mtx_unlock(&lun->ctl_softc->ctl_lock);
+		mtx_lock(&lun->lun_lock);
+	} else if (ua_to_build == CTL_UA_THIN_PROV_THRES &&
+	    (lun->MODE_LBP.main.flags & SLBPP_SITUA) != 0) {
+		ctl_clr_ua_all(lun, -1, ua_to_build);
+	}
 
 	return (ua_to_build);
 }

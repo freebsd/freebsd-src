@@ -332,7 +332,7 @@ const static struct ctl_logical_block_provisioning_page lbp_page_changeable = {{
 	/*page_code*/SMS_INFO_EXCEPTIONS_PAGE | SMPH_SPF,
 	/*subpage_code*/0x02,
 	/*page_length*/{CTL_LBPM_LEN >> 8, CTL_LBPM_LEN},
-	/*flags*/0,
+	/*flags*/SLBPP_SITUA,
 	/*reserved*/{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 	/*descr*/{}},
 	{{/*flags*/0,
@@ -6075,11 +6075,7 @@ do_next_page:
 	 * the mode page header, or if they didn't specify enough data in
 	 * the CDB to avoid truncating this page, kick out the request.
 	 */
-	if ((page_len != (page_index->page_len - page_len_offset -
-			  page_len_size))
-	 || (*len_left < page_index->page_len)) {
-
-
+	if (page_len != page_index->page_len - page_len_offset - page_len_size) {
 		ctl_set_invalid_field(ctsio,
 				      /*sks_valid*/ 1,
 				      /*command*/ 0,
@@ -6087,6 +6083,12 @@ do_next_page:
 				      /*bit_valid*/ 0,
 				      /*bit*/ 0);
 		free(ctsio->kern_data_ptr, M_CTL);
+		ctl_done((union ctl_io *)ctsio);
+		return (CTL_RETVAL_COMPLETE);
+	}
+	if (*len_left < page_index->page_len) {
+		free(ctsio->kern_data_ptr, M_CTL);
+		ctl_set_param_len_error(ctsio);
 		ctl_done((union ctl_io *)ctsio);
 		return (CTL_RETVAL_COMPLETE);
 	}
@@ -9326,13 +9328,6 @@ ctl_request_sense(struct ctl_scsiio *ctsio)
 		ua_type = ctl_build_ua(lun, initidx, sense_ptr, sense_format);
 		if (ua_type != CTL_UA_NONE)
 			have_error = 1;
-		if (ua_type == CTL_UA_LUN_CHANGE) {
-			mtx_unlock(&lun->lun_lock);
-			mtx_lock(&softc->ctl_lock);
-			ctl_clr_ua_allluns(softc, initidx, ua_type);
-			mtx_unlock(&softc->ctl_lock);
-			mtx_lock(&lun->lun_lock);
-		}
 	}
 	if (have_error == 0) {
 		/*
