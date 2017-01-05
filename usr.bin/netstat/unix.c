@@ -75,7 +75,7 @@ pcblist_sysctl(int type, char **bufp)
 	size_t	len;
 	char mibvar[sizeof "net.local.seqpacket.pcblist"];
 
-	sprintf(mibvar, "net.local.%s.pcblist", socktype[type]);
+	snprintf(mibvar, sizeof(mibvar), "net.local.%s.pcblist", socktype[type]);
 
 	len = 0;
 	if (sysctlbyname(mibvar, 0, &len, 0, 0) < 0) {
