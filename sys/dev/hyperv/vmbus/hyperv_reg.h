@@ -57,8 +57,6 @@
 
 #define MSR_HV_VP_INDEX			0x40000002
 
-#define MSR_HV_TIME_REF_COUNT		0x40000020
-
 #define MSR_HV_SCONTROL			0x40000080
 #define MSR_HV_SCTRL_ENABLE		0x0001ULL
 #define MSR_HV_SCTRL_RSVD_MASK		0xfffffffffffffffeULL
@@ -106,15 +104,7 @@
 #define CPUID_LEAF_HV_IDENTITY		0x40000002
 
 #define CPUID_LEAF_HV_FEATURES		0x40000003
-/* EAX: features */
-#define CPUID_HV_MSR_TIME_REFCNT	0x0002	/* MSR_HV_TIME_REF_COUNT */
-#define CPUID_HV_MSR_SYNIC		0x0004	/* MSRs for SynIC */
-#define CPUID_HV_MSR_SYNTIMER		0x0008	/* MSRs for SynTimer */
-#define CPUID_HV_MSR_APIC		0x0010	/* MSR_HV_{EOI,ICR,TPR} */
-#define CPUID_HV_MSR_HYPERCALL		0x0020	/* MSR_HV_GUEST_OS_ID
-						 * MSR_HV_HYPERCALL */
-#define CPUID_HV_MSR_VP_INDEX		0x0040	/* MSR_HV_VP_INDEX */
-#define CPUID_HV_MSR_GUEST_IDLE		0x0400	/* MSR_HV_GUEST_IDLE */
+/* EAX: features include/hyperv.h CPUID_HV_MSR */
 /* ECX: power management features */
 #define CPUPM_HV_CSTATE_MASK		0x000f	/* deepest C-state */
 #define CPUPM_HV_C3_HPET		0x0010	/* C3 requires HPET */
