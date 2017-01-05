@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/stdarg.h>
 
 #include <dev/hyperv/include/hyperv_busdma.h>
+#include <dev/hyperv/include/vmbus_xact.h>
 #include <dev/hyperv/vmbus/hyperv_var.h>
 #include <dev/hyperv/vmbus/vmbus_reg.h>
 #include <dev/hyperv/vmbus/vmbus_var.h>
@@ -64,6 +65,7 @@ static void			vmbus_chan_cpu_default(struct vmbus_channel *);
 static int			vmbus_chan_release(struct vmbus_channel *);
 static void			vmbus_chan_set_chmap(struct vmbus_channel *);
 static void			vmbus_chan_clear_chmap(struct vmbus_channel *);
+static void			vmbus_chan_detach(struct vmbus_channel *);
 
 static void			vmbus_chan_ins_prilist(struct vmbus_softc *,
 				    struct vmbus_channel *);
@@ -627,6 +629,32 @@ vmbus_chan_gpadl_disconnect(struct vmbus_channel *chan, uint32_t gpadl)
 }
 
 static void
+vmbus_chan_detach(struct vmbus_channel *chan)
+{
+	int refs;
+
+	KASSERT(chan->ch_refs > 0, ("chan%u: invalid refcnt %d",
+	    chan->ch_id, chan->ch_refs));
+	refs = atomic_fetchadd_int(&chan->ch_refs, -1);
+#ifdef INVARIANTS
+	if (VMBUS_CHAN_ISPRIMARY(chan)) {
+		KASSERT(refs == 1, ("chan%u: invalid refcnt %d for prichan",
+		    chan->ch_id, refs + 1));
+	}
+#endif
+	if (refs == 1) {
+		/*
+		 * Detach the target channel.
+		 */
+		if (bootverbose) {
+			vmbus_chan_printf(chan, "chan%u detached\n",
+			    chan->ch_id);
+		}
+		taskqueue_enqueue(chan->ch_mgmt_tq, &chan->ch_detach_task);
+	}
+}
+
+static void
 vmbus_chan_clrchmap_task(void *xchan, int pending __unused)
 {
 	struct vmbus_channel *chan = xchan;
@@ -751,8 +779,15 @@ vmbus_chan_close(struct vmbus_channel *chan)
 		int i;
 
 		subchan = vmbus_subchan_get(chan, subchan_cnt);
-		for (i = 0; i < subchan_cnt; ++i)
+		for (i = 0; i < subchan_cnt; ++i) {
 			vmbus_chan_close_internal(subchan[i]);
+			/*
+			 * This sub-channel is referenced, when it is
+			 * linked to the primary channel; drop that
+			 * reference now.
+			 */
+			vmbus_chan_detach(subchan[i]);
+		}
 		vmbus_subchan_rel(subchan, subchan_cnt);
 	}
 
@@ -1113,8 +1148,10 @@ vmbus_chan_alloc(struct vmbus_softc *sc)
 		return NULL;
 	}
 
+	chan->ch_refs = 1;
 	chan->ch_vmbus = sc;
 	mtx_init(&chan->ch_subchan_lock, "vmbus subchan", NULL, MTX_DEF);
+	sx_init(&chan->ch_orphan_lock, "vmbus chorphan");
 	TAILQ_INIT(&chan->ch_subchans);
 	vmbus_rxbr_init(&chan->ch_rxbr);
 	vmbus_txbr_init(&chan->ch_txbr);
@@ -1133,8 +1170,14 @@ vmbus_chan_free(struct vmbus_channel *chan)
 	     VMBUS_CHAN_ST_ONPRIL |
 	     VMBUS_CHAN_ST_ONSUBL |
 	     VMBUS_CHAN_ST_ONLIST)) == 0, ("free busy channel"));
+	KASSERT(chan->ch_orphan_xact == NULL,
+	    ("still has orphan xact installed"));
+	KASSERT(chan->ch_refs == 0, ("chan%u: invalid refcnt %d",
+	    chan->ch_id, chan->ch_refs));
+
 	hyperv_dmamem_free(&chan->ch_monprm_dma, chan->ch_monprm);
 	mtx_destroy(&chan->ch_subchan_lock);
+	sx_destroy(&chan->ch_orphan_lock);
 	vmbus_rxbr_deinit(&chan->ch_rxbr);
 	vmbus_txbr_deinit(&chan->ch_txbr);
 	free(chan, M_DEVBUF);
@@ -1207,6 +1250,14 @@ vmbus_chan_add(struct vmbus_channel *newchan)
 	    ("new channel is not sub-channel"));
 	KASSERT(prichan != NULL, ("no primary channel"));
 
+	/*
+	 * Reference count this sub-channel; it will be dereferenced
+	 * when this sub-channel is closed.
+	 */
+	KASSERT(newchan->ch_refs == 1, ("chan%u: invalid refcnt %d",
+	    newchan->ch_id, newchan->ch_refs));
+	atomic_add_int(&newchan->ch_refs, 1);
+
 	newchan->ch_prichan = prichan;
 	newchan->ch_dev = prichan->ch_dev;
 
@@ -1220,7 +1271,7 @@ vmbus_chan_add(struct vmbus_channel *newchan)
 	wakeup(prichan);
 done:
 	/*
-	 * Hook this channel up for later rescind.
+	 * Hook this channel up for later revocation.
 	 */
 	mtx_lock(&sc->vmbus_chan_lock);
 	vmbus_chan_ins_list(sc, newchan);
@@ -1353,6 +1404,7 @@ vmbus_chan_msgproc_choffer(struct vmbus_softc *sc,
 	if (error) {
 		device_printf(sc->vmbus_dev, "add chan%u failed: %d\n",
 		    chan->ch_id, error);
+		atomic_subtract_int(&chan->ch_refs, 1);
 		vmbus_chan_free(chan);
 		return;
 	}
@@ -1368,7 +1420,7 @@ vmbus_chan_msgproc_chrescind(struct vmbus_softc *sc,
 
 	note = (const struct vmbus_chanmsg_chrescind *)msg->msg_data;
 	if (note->chm_chanid > VMBUS_CHAN_MAX) {
-		device_printf(sc->vmbus_dev, "invalid rescinded chan%u\n",
+		device_printf(sc->vmbus_dev, "invalid revoked chan%u\n",
 		    note->chm_chanid);
 		return;
 	}
@@ -1403,11 +1455,24 @@ vmbus_chan_msgproc_chrescind(struct vmbus_softc *sc,
 		mtx_unlock(&sc->vmbus_prichan_lock);
 	}
 
-	if (bootverbose)
-		vmbus_chan_printf(chan, "chan%u rescinded\n", note->chm_chanid);
+	/*
+	 * NOTE:
+	 * The following processing order is critical:
+	 * Set the REVOKED state flag before orphaning the installed xact.
+	 */
 
-	/* Detach the target channel. */
-	taskqueue_enqueue(chan->ch_mgmt_tq, &chan->ch_detach_task);
+	if (atomic_testandset_int(&chan->ch_stflags,
+	    VMBUS_CHAN_ST_REVOKED_SHIFT))
+		panic("channel has already been revoked");
+
+	sx_xlock(&chan->ch_orphan_lock);
+	if (chan->ch_orphan_xact != NULL)
+		vmbus_xact_ctx_orphan(chan->ch_orphan_xact);
+	sx_xunlock(&chan->ch_orphan_lock);
+
+	if (bootverbose)
+		vmbus_chan_printf(chan, "chan%u revoked\n", note->chm_chanid);
+	vmbus_chan_detach(chan);
 }
 
 static int
@@ -1694,4 +1759,31 @@ vmbus_chan_mgmt_tq(const struct vmbus_channel *chan)
 {
 
 	return (chan->ch_mgmt_tq);
+}
+
+bool
+vmbus_chan_is_revoked(const struct vmbus_channel *chan)
+{
+
+	if (chan->ch_stflags & VMBUS_CHAN_ST_REVOKED)
+		return (true);
+	return (false);
+}
+
+void
+vmbus_chan_set_orphan(struct vmbus_channel *chan, struct vmbus_xact_ctx *xact)
+{
+
+	sx_xlock(&chan->ch_orphan_lock);
+	chan->ch_orphan_xact = xact;
+	sx_xunlock(&chan->ch_orphan_lock);
+}
+
+void
+vmbus_chan_unset_orphan(struct vmbus_channel *chan)
+{
+
+	sx_xlock(&chan->ch_orphan_lock);
+	chan->ch_orphan_xact = NULL;
+	sx_xunlock(&chan->ch_orphan_lock);
 }
