@@ -2447,10 +2447,17 @@ struct scsi_vpd_extended_inquiry_data
 #define	SVPD_EID_NV_SUP		0x02
 #define	SVPD_EID_V_SUP		0x01
 	uint8_t flags4;
+#define	SVPD_EID_NO_PI_CHK	0x20
 #define	SVPD_EID_P_I_I_SUP	0x10
-#define	SVPD_EID_LUICLT		0x01
+#define	SVPD_EID_LUICLR		0x01
 	uint8_t flags5;
+#define	SVPD_EID_LUCT_MASK	0xe0
+#define	SVPD_EID_LUCT_NOT_REP	0x00
+#define	SVPD_EID_LUCT_CONGL	0x20
+#define	SVPD_EID_LUCT_GROUP	0x40
 #define	SVPD_EID_R_SUP		0x10
+#define	SVPD_EID_RTD_SUP	0x08
+#define	SVPD_EID_HSSRELEF	0x02
 #define	SVPD_EID_CBCS		0x01
 	uint8_t flags6;
 #define	SVPD_EID_MULTI_I_T_FW	0x0F
@@ -2461,10 +2468,16 @@ struct scsi_vpd_extended_inquiry_data
 	uint8_t est[2];
 	uint8_t flags7;
 #define	SVPD_EID_POA_SUP	0x80
-#define	SVPD_EID_HRA_SUP	0x80
-#define	SVPD_EID_VSA_SUP	0x80
+#define	SVPD_EID_HRA_SUP	0x40
+#define	SVPD_EID_VSA_SUP	0x20
 	uint8_t max_sense_length;
-	uint8_t reserved2[50];
+	uint8_t bind_flags;
+#define	SVPD_EID_IBS		0x80
+#define	SVPD_EID_IAS		0x40
+#define	SVPD_EID_SAC		0x04
+#define	SVPD_EID_NRD1		0x02
+#define	SVPD_EID_NRD0		0x01
+	uint8_t reserved2[49];
 };
 
 struct scsi_vpd_mode_page_policy_descr

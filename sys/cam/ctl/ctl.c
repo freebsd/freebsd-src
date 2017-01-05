@@ -9533,7 +9533,7 @@ ctl_inquiry_evpd_eid(struct ctl_scsiio *ctsio, int alloc_len)
 	 * attention for a particular IT nexus on all LUNs once we report
 	 * it to that nexus once.  This bit is required as of SPC-4.
 	 */
-	eid_ptr->flags4 = SVPD_EID_LUICLT;
+	eid_ptr->flags4 = SVPD_EID_LUICLR;
 
 	/*
 	 * XXX KDM in order to correctly answer this, we would need
