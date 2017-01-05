@@ -118,7 +118,7 @@ struct iscsi_session {
 	char				is_reason[ISCSI_REASON_LEN];
 
 #ifdef ICL_KERNEL_PROXY
-	struct cv			is_login_cv;;
+	struct cv			is_login_cv;
 	struct icl_pdu			*is_login_pdu;
 #endif
 };
