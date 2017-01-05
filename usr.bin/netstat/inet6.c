@@ -1290,7 +1290,7 @@ inet6print(const char *container, struct in6_addr *in6, int port,
 
 	xo_emit("{d:target/%-*.*s} ", width, width, line);
 
-	plen = strlen(cp) - 1;
+	plen = strlen(cp);
 	alen--;
 	xo_emit("{e:address/%*.*s}{e:port/%*.*s}", alen, alen, line, plen,
 	    plen, cp);
