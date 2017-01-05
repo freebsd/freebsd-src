@@ -42,8 +42,8 @@
 
 #include <dev/hyperv/include/hyperv.h>
 #include <dev/hyperv/include/vmbus.h>
-#include <dev/hyperv/utilities/hv_util.h>
 #include <dev/hyperv/utilities/vmbus_icreg.h>
+#include <dev/hyperv/utilities/vmbus_icvar.h>
 
 #include "vmbus_if.h"
 
@@ -58,7 +58,7 @@ static int	vmbus_ic_fwver_sysctl(SYSCTL_HANDLER_ARGS);
 static int	vmbus_ic_msgver_sysctl(SYSCTL_HANDLER_ARGS);
 
 int
-vmbus_ic_negomsg(struct hv_util_sc *sc, void *data, int *dlen0,
+vmbus_ic_negomsg(struct vmbus_ic_softc *sc, void *data, int *dlen0,
     uint32_t fw_ver, uint32_t msg_ver)
 {
 	struct vmbus_icmsg_negotiate *nego;
@@ -214,9 +214,9 @@ vmbus_ic_probe(device_t dev, const struct vmbus_ic_desc descs[])
 }
 
 int
-hv_util_attach(device_t dev, vmbus_chan_callback_t cb)
+vmbus_ic_attach(device_t dev, vmbus_chan_callback_t cb)
 {
-	struct hv_util_sc *sc = device_get_softc(dev);
+	struct vmbus_ic_softc *sc = device_get_softc(dev);
 	struct vmbus_channel *chan = vmbus_get_channel(dev);
 	struct sysctl_oid_list *child;
 	struct sysctl_ctx_list *ctx;
@@ -224,8 +224,7 @@ hv_util_attach(device_t dev, vmbus_chan_callback_t cb)
 
 	sc->ic_dev = dev;
 	sc->ic_buflen = VMBUS_IC_BRSIZE;
-	sc->receive_buffer = malloc(VMBUS_IC_BRSIZE, M_DEVBUF,
-	    M_WAITOK | M_ZERO);
+	sc->ic_buf = malloc(VMBUS_IC_BRSIZE, M_DEVBUF, M_WAITOK | M_ZERO);
 
 	/*
 	 * These services are not performance critical and do not need
@@ -239,7 +238,7 @@ hv_util_attach(device_t dev, vmbus_chan_callback_t cb)
 	error = vmbus_chan_open(chan, VMBUS_IC_BRSIZE, VMBUS_IC_BRSIZE, NULL, 0,
 	    cb, sc);
 	if (error) {
-		free(sc->receive_buffer, M_DEVBUF);
+		free(sc->ic_buf, M_DEVBUF);
 		return (error);
 	}
 
@@ -258,7 +257,7 @@ hv_util_attach(device_t dev, vmbus_chan_callback_t cb)
 static int
 vmbus_ic_fwver_sysctl(SYSCTL_HANDLER_ARGS)
 {
-	struct hv_util_sc *sc = arg1;
+	struct vmbus_ic_softc *sc = arg1;
 	char verstr[16];
 
 	snprintf(verstr, sizeof(verstr), "%u.%u",
@@ -269,7 +268,7 @@ vmbus_ic_fwver_sysctl(SYSCTL_HANDLER_ARGS)
 static int
 vmbus_ic_msgver_sysctl(SYSCTL_HANDLER_ARGS)
 {
-	struct hv_util_sc *sc = arg1;
+	struct vmbus_ic_softc *sc = arg1;
 	char verstr[16];
 
 	snprintf(verstr, sizeof(verstr), "%u.%u",
@@ -278,12 +277,30 @@ vmbus_ic_msgver_sysctl(SYSCTL_HANDLER_ARGS)
 }
 
 int
-hv_util_detach(device_t dev)
+vmbus_ic_detach(device_t dev)
 {
-	struct hv_util_sc *sc = device_get_softc(dev);
+	struct vmbus_ic_softc *sc = device_get_softc(dev);
 
 	vmbus_chan_close(vmbus_get_channel(dev));
-	free(sc->receive_buffer, M_DEVBUF);
+	free(sc->ic_buf, M_DEVBUF);
 
 	return (0);
+}
+
+int
+vmbus_ic_sendresp(struct vmbus_ic_softc *sc, struct vmbus_channel *chan,
+    void *data, int dlen, uint64_t xactid)
+{
+	struct vmbus_icmsg_hdr *hdr;
+	int error;
+
+	KASSERT(dlen >= sizeof(*hdr), ("invalid data length %d", dlen));
+	hdr = data;
+
+	hdr->ic_flags = VMBUS_ICMSG_FLAG_XACT | VMBUS_ICMSG_FLAG_RESP;
+	error = vmbus_chan_send(chan, VMBUS_CHANPKT_TYPE_INBAND, 0,
+	    data, dlen, xactid);
+	if (error)
+		device_printf(sc->ic_dev, "resp send failed: %d\n", error);
+	return (error);
 }
