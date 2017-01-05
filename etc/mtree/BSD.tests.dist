@@ -593,9 +593,8 @@
                 t0
                 ..
             ..
+        bsdcat
         ..
-	bsdcat
-	..
         calendar
         ..
         cmp
