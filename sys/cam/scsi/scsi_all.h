@@ -662,6 +662,14 @@ struct scsi_log_fua_stat_and_perf {
 	uint8_t	fuanv_write_int[8];
 };
 
+struct scsi_log_informational_exceptions {
+	struct scsi_log_param_header hdr;
+#define	SLP_IE_GEN			0x0000
+	uint8_t	ie_asc;
+	uint8_t	ie_ascq;
+	uint8_t	temperature;
+};
+
 struct scsi_control_page {
 	u_int8_t page_code;
 	u_int8_t page_length;
@@ -765,21 +773,6 @@ struct scsi_caching_page {
 	uint8_t non_cache_seg_size[3];
 };
 
-/*
- * XXX KDM move this off to a vendor shim.
- */
-struct copan_debugconf_subpage {
-	uint8_t page_code;
-#define DBGCNF_PAGE_CODE		0x00
-	uint8_t subpage;
-#define DBGCNF_SUBPAGE_CODE	0xF0
-	uint8_t page_length[2];
-	uint8_t page_version;
-#define DBGCNF_VERSION			0x00
-	uint8_t ctl_time_io_secs[2];
-};
-
-
 struct scsi_info_exceptions_page {
 	u_int8_t page_code;
 #define	SIEP_PAGE_SAVABLE		0x80	/* Page is savable */
@@ -793,6 +786,12 @@ struct scsi_info_exceptions_page {
 #define	SIEP_FLAGS_EBACKERR		0x02
 #define	SIEP_FLAGS_LOGERR		0x01
 	u_int8_t mrie;
+#define	SIEP_MRIE_NO		0x00
+#define	SIEP_MRIE_UA		0x02
+#define	SIEP_MRIE_REC_COND	0x03
+#define	SIEP_MRIE_REC_UNCOND	0x04
+#define	SIEP_MRIE_NO_SENSE	0x05
+#define	SIEP_MRIE_ON_REQ	0x06
 	u_int8_t interval_timer[4];
 	u_int8_t report_count[4];
 };
