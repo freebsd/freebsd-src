@@ -10165,7 +10165,7 @@ ctl_inquiry_std(struct ctl_scsiio *ctsio)
 		inq_ptr->device = (SID_QUAL_BAD_LU << 5) | T_NODEVICE;
 
 	/* RMB in byte 2 is 0 */
-	inq_ptr->version = SCSI_REV_SPC4;
+	inq_ptr->version = SCSI_REV_SPC5;
 
 	/*
 	 * According to SAM-3, even if a device only supports a single
@@ -10263,10 +10263,10 @@ ctl_inquiry_std(struct ctl_scsiio *ctsio)
 		inq_ptr->spi3data = SID_SPI_CLOCK_DT_ST | SID_SPI_QAS |
 				    SID_SPI_IUS;
 
-	/* SAM-5 (no version claimed) */
-	scsi_ulto2b(0x00A0, inq_ptr->version1);
-	/* SPC-4 (no version claimed) */
-	scsi_ulto2b(0x0460, inq_ptr->version2);
+	/* SAM-6 (no version claimed) */
+	scsi_ulto2b(0x00C0, inq_ptr->version1);
+	/* SPC-5 (no version claimed) */
+	scsi_ulto2b(0x05C0, inq_ptr->version2);
 	if (port_type == CTL_PORT_FC) {
 		/* FCP-2 ANSI INCITS.350:2003 */
 		scsi_ulto2b(0x0917, inq_ptr->version3);
