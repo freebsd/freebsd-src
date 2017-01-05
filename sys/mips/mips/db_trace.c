@@ -130,9 +130,8 @@ fn_name(uintptr_t addr)
 	return (buf);
 }
 
-void
-stacktrace_subr(register_t pc, register_t sp, register_t ra,
-	int (*printfn) (const char *,...))
+static void
+stacktrace_subr(register_t pc, register_t sp, register_t ra)
 {
 	InstFmt i;
 	/*
@@ -163,14 +162,14 @@ loop:
 	subr = 0;
 	trapframe = false;
 	if (frames++ > 100) {
-		(*printfn) ("\nstackframe count exceeded\n");
+		db_printf("\nstackframe count exceeded\n");
 		/* return breaks stackframe-size heuristics with gcc -O2 */
 		goto finish;	/* XXX */
 	}
 	/* check for bad SP: could foul up next frame */
 	/*XXX MIPS64 bad: this hard-coded SP is lame */
 	if (!MIPS_IS_VALID_KERNELADDR(sp)) {
-		(*printfn) ("SP 0x%jx: not in kernel\n", sp);
+		db_printf("SP 0x%jx: not in kernel\n", sp);
 		ra = 0;
 		subr = 0;
 		goto done;
@@ -215,7 +214,7 @@ loop:
 	/* check for bad PC */
 	/*XXX MIPS64 bad: These hard coded constants are lame */
 	if (!MIPS_IS_VALID_KERNELADDR(pc)) {
-		(*printfn) ("PC 0x%jx: not in kernel\n", pc);
+		db_printf("PC 0x%jx: not in kernel\n", pc);
 		ra = 0;
 		goto done;
 	}
@@ -389,17 +388,17 @@ loop:
 	}
 
 done:
-	(*printfn) ("%s+%x (", fn_name(subr), pc - subr);
+	db_printf("%s+%jx (", fn_name(subr), (uintmax_t)(pc - subr));
 	for (j = 0; j < 4; j ++) {
 		if (j > 0)
-			(*printfn)(",");
+			db_printf(",");
 		if (valid_args[j])
-			(*printfn)("%jx", (uintmax_t)(u_register_t)args[j]);
+			db_printf("%jx", (uintmax_t)(u_register_t)args[j]);
 		else
-			(*printfn)("?");
+			db_printf("?");
 	}
 
-	(*printfn) (") ra %jx sp %jx sz %d\n",
+	db_printf(") ra %jx sp %jx sz %d\n",
 	    (uintmax_t)(u_register_t) ra,
 	    (uintmax_t)(u_register_t) sp,
 	    stksize);
@@ -420,12 +419,12 @@ done:
 		badvaddr = kdbpeek((int *)TF_REG(sp, BADVADDR));
 #endif
 #undef TF_REG
-		(*printfn) ("--- exception, cause %jx badvaddr %jx ---\n",
+		db_printf("--- exception, cause %jx badvaddr %jx ---\n",
 		    (uintmax_t)cause, (uintmax_t)badvaddr);
 		goto loop;
 	} else if (ra) {
 		if (pc == ra && stksize == 0)
-			(*printfn) ("stacktrace: loop!\n");
+			db_printf("stacktrace: loop!\n");
 		else {
 			pc = ra;
 			sp += stksize;
@@ -435,9 +434,9 @@ done:
 	} else {
 finish:
 		if (curproc)
-			(*printfn) ("pid %d\n", curproc->p_pid);
+			db_printf("pid %d\n", curproc->p_pid);
 		else
-			(*printfn) ("curproc NULL\n");
+			db_printf("curproc NULL\n");
 	}
 }
 
@@ -479,7 +478,7 @@ db_trace_self(void)
 		 "move $31, %1\n" /* restore ra */
 		 : "=r" (pc)
 		 : "r" (ra));
-	stacktrace_subr(pc, sp, ra, db_printf);
+	stacktrace_subr(pc, sp, ra);
 	return;
 }
 
@@ -493,7 +492,7 @@ db_trace_thread(struct thread *thr, int count)
 	sp = (register_t)ctx->pcb_context[PCB_REG_SP];
 	pc = (register_t)ctx->pcb_context[PCB_REG_PC];
 	ra = (register_t)ctx->pcb_context[PCB_REG_RA];
-	stacktrace_subr(pc, sp, ra, db_printf);
+	stacktrace_subr(pc, sp, ra);
 
 	return (0);
 }
