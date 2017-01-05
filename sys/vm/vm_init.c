@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/libkern.h>
 #include <sys/lock.h>
 #include <sys/proc.h>
 #include <sys/rwlock.h>
@@ -90,10 +91,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 
 long physmem;
-
-static int exec_map_entries = 16;
-SYSCTL_INT(_vm, OID_AUTO, exec_map_entries, CTLFLAG_RDTUN, &exec_map_entries, 0,
-    "Maximum number of simultaneous execs");
 
 /*
  * System initialization
@@ -271,10 +268,19 @@ again:
 		panic("Clean map calculation incorrect");
 
 	/*
- 	 * Allocate the pageable submaps.
+	 * Allocate the pageable submaps.  We may cache an exec map entry per
+	 * CPU, so we therefore need to reserve space for at least ncpu+1
+	 * entries to avoid deadlock.  The exec map is also used by some image
+	 * activators, so we leave a fixed number of pages for their use.
 	 */
+#ifdef __LP64__
+	exec_map_entries = 8 * mp_ncpus;
+#else
+	exec_map_entries = min(8 * mp_ncpus, 2 * mp_ncpus + 4);
+#endif
+	exec_map_entry_size = round_page(PATH_MAX + ARG_MAX);
 	exec_map = kmem_suballoc(kernel_map, &minaddr, &maxaddr,
-	    exec_map_entries * round_page(PATH_MAX + ARG_MAX), FALSE);
+	    exec_map_entries * exec_map_entry_size + 64 * PAGE_SIZE, FALSE);
 	pipe_map = kmem_suballoc(kernel_map, &minaddr, &maxaddr, maxpipekva,
 	    FALSE);
 }
