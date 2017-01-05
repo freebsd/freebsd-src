@@ -308,10 +308,9 @@ lsock_init_port(struct tport *tp)
 			return (SNMP_ERR_RES_UNAVAIL);
 		}
 
-		strcpy(sa.sun_path, p->name);
+		strlcpy(sa.sun_path, p->name, sizeof(sa.sun_path));
 		sa.sun_family = AF_LOCAL;
-		sa.sun_len = strlen(p->name) +
-		    offsetof(struct sockaddr_un, sun_path);
+		sa.sun_len = SUN_LEN(&sa);
 
 		(void)remove(p->name);
 
@@ -363,10 +362,9 @@ lsock_init_port(struct tport *tp)
 			return (SNMP_ERR_GENERR);
 		}
 
-		strcpy(sa.sun_path, p->name);
+		strlcpy(sa.sun_path, p->name, sizeof(sa.sun_path));
 		sa.sun_family = AF_LOCAL;
-		sa.sun_len = strlen(p->name) +
-		    offsetof(struct sockaddr_un, sun_path);
+		sa.sun_len = SUN_LEN(&sa);
 
 		(void)remove(p->name);
 
