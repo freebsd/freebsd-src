@@ -485,7 +485,7 @@ restart:
 				continue;
 			}
 		}
-		if (sfsp && count < maxcount) {
+		if (sfsp != NULL && count < maxcount) {
 			sp = &mp->mnt_stat;
 			/*
 			 * Set these in case the underlying filesystem
@@ -530,7 +530,7 @@ restart:
 		vfs_unbusy(mp);
 	}
 	mtx_unlock(&mountlist_mtx);
-	if (sfsp && count > maxcount)
+	if (sfsp != NULL && count > maxcount)
 		*countp = maxcount;
 	else
 		*countp = count;
