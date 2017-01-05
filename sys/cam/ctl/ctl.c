@@ -9205,7 +9205,7 @@ ctl_request_sense(struct ctl_scsiio *ctsio)
 {
 	struct scsi_request_sense *cdb;
 	struct scsi_sense_data *sense_ptr;
-	struct ctl_softc *ctl_softc;
+	struct ctl_softc *softc;
 	struct ctl_lun *lun;
 	uint32_t initidx;
 	int have_error;
@@ -9215,7 +9215,7 @@ ctl_request_sense(struct ctl_scsiio *ctsio)
 
 	cdb = (struct scsi_request_sense *)ctsio->cdb;
 
-	ctl_softc = control_softc;
+	softc = control_softc;
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 
 	CTL_DEBUG_PRINT(("ctl_request_sense\n"));
@@ -9248,8 +9248,18 @@ ctl_request_sense(struct ctl_scsiio *ctsio)
 	/*
 	 * If we don't have a LUN, we don't have any pending sense.
 	 */
-	if (lun == NULL)
-		goto no_sense;
+	if (lun == NULL ||
+	    ((lun->flags & CTL_LUN_PRIMARY_SC) == 0 &&
+	     softc->ha_link < CTL_HA_LINK_UNKNOWN)) {
+		/* "Logical unit not supported" */
+		ctl_set_sense_data(sense_ptr, NULL, sense_format,
+		    /*current_error*/ 1,
+		    /*sense_key*/ SSD_KEY_ILLEGAL_REQUEST,
+		    /*asc*/ 0x25,
+		    /*ascq*/ 0x00,
+		    SSD_ELEM_NONE);
+		goto send;
+	}
 
 	have_error = 0;
 	initidx = ctl_get_initindex(&ctsio->io_hdr.nexus);
@@ -9297,61 +9307,39 @@ ctl_request_sense(struct ctl_scsiio *ctsio)
 		have_error = 1;
 	} else
 #endif
-	{
+	if (have_error == 0) {
 		ua_type = ctl_build_ua(lun, initidx, sense_ptr, sense_format);
 		if (ua_type != CTL_UA_NONE)
 			have_error = 1;
 		if (ua_type == CTL_UA_LUN_CHANGE) {
 			mtx_unlock(&lun->lun_lock);
-			mtx_lock(&ctl_softc->ctl_lock);
-			ctl_clr_ua_allluns(ctl_softc, initidx, ua_type);
-			mtx_unlock(&ctl_softc->ctl_lock);
+			mtx_lock(&softc->ctl_lock);
+			ctl_clr_ua_allluns(softc, initidx, ua_type);
+			mtx_unlock(&softc->ctl_lock);
 			mtx_lock(&lun->lun_lock);
 		}
-
+	}
+	if (have_error == 0) {
+		/*
+		 * Report informational exception if have one and allowed.
+		 */
+		if (lun->mode_pages.ie_page[CTL_PAGE_CURRENT].mrie != SIEP_MRIE_NO) {
+			asc = lun->ie_asc;
+			ascq = lun->ie_ascq;
+		}
+		ctl_set_sense_data(sense_ptr, lun, sense_format,
+		    /*current_error*/ 1,
+		    /*sense_key*/ SSD_KEY_NO_SENSE,
+		    /*asc*/ asc,
+		    /*ascq*/ ascq,
+		    SSD_ELEM_NONE);
 	}
 	mtx_unlock(&lun->lun_lock);
 
+send:
 	/*
-	 * We already have a pending error, return it.
-	 */
-	if (have_error != 0) {
-		/*
-		 * We report the SCSI status as OK, since the status of the
-		 * request sense command itself is OK.
-		 * We report 0 for the sense length, because we aren't doing
-		 * autosense in this case.  We're reporting sense as
-		 * parameter data.
-		 */
-		ctl_set_success(ctsio);
-		ctsio->io_hdr.flags |= CTL_FLAG_ALLOCATED;
-		ctsio->be_move_done = ctl_config_move_done;
-		ctl_datamove((union ctl_io *)ctsio);
-		return (CTL_RETVAL_COMPLETE);
-	}
-
-	/*
-	 * No sense information to report, so we report that everything is
-	 * okay, unless we have allowed Informational Exception.
-	 */
-	if (lun->mode_pages.ie_page[CTL_PAGE_CURRENT].mrie != SIEP_MRIE_NO) {
-		asc = lun->ie_asc;
-		ascq = lun->ie_ascq;
-	}
-
-no_sense:
-	ctl_set_sense_data(sense_ptr,
-			   lun,
-			   sense_format,
-			   /*current_error*/ 1,
-			   /*sense_key*/ SSD_KEY_NO_SENSE,
-			   /*asc*/ asc,
-			   /*ascq*/ ascq,
-			   SSD_ELEM_NONE);
-
-	/*
-	 * We report 0 for the sense length, because we aren't doing
-	 * autosense in this case.  We're reporting sense as parameter data.
+	 * We report the SCSI status as OK, since the status of the command
+	 * itself is OK.  We're reporting sense as parameter data.
 	 */
 	ctl_set_success(ctsio);
 	ctsio->io_hdr.flags |= CTL_FLAG_ALLOCATED;
