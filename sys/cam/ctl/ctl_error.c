@@ -83,9 +83,7 @@ ctl_set_sense_data_va(struct scsi_sense_data *sense_data, void *lunptr,
 		 * sense if the LUN exists and descriptor sense is turned
 		 * on for that LUN.
 		 */
-		if ((lun != NULL)
-		 && (lun->mode_pages.control_page[CTL_PAGE_CURRENT].rlec &
-		    SCP_DSENSE))
+		if ((lun != NULL) && (lun->MODE_CTRL.rlec & SCP_DSENSE))
 			sense_format = SSD_TYPE_DESC;
 		else
 			sense_format = SSD_TYPE_FIXED;
