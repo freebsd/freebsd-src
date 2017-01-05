@@ -5362,7 +5362,8 @@ ctl_sync_cache(struct ctl_scsiio *ctsio)
 	 * to see an error for an out of range LBA.
 	 */
 	if ((starting_lba + block_count) > (lun->be_lun->maxlba + 1)) {
-		ctl_set_lba_out_of_range(ctsio);
+		ctl_set_lba_out_of_range(ctsio,
+		    MAX(starting_lba, lun->be_lun->maxlba + 1));
 		ctl_done((union ctl_io *)ctsio);
 		goto bailout;
 	}
@@ -5678,7 +5679,8 @@ ctl_write_same(struct ctl_scsiio *ctsio)
 	 */
 	if (((lba + num_blocks) > (lun->be_lun->maxlba + 1))
 	 || ((lba + num_blocks) < lba)) {
-		ctl_set_lba_out_of_range(ctsio);
+		ctl_set_lba_out_of_range(ctsio,
+		    MAX(lba, lun->be_lun->maxlba + 1));
 		ctl_done((union ctl_io *)ctsio);
 		return (CTL_RETVAL_COMPLETE);
 	}
@@ -5791,7 +5793,8 @@ ctl_unmap(struct ctl_scsiio *ctsio)
 		num_blocks = scsi_4btoul(range->length);
 		if (((lba + num_blocks) > (lun->be_lun->maxlba + 1))
 		 || ((lba + num_blocks) < lba)) {
-			ctl_set_lba_out_of_range(ctsio);
+			ctl_set_lba_out_of_range(ctsio,
+			    MAX(lba, lun->be_lun->maxlba + 1));
 			ctl_done((union ctl_io *)ctsio);
 			return (CTL_RETVAL_COMPLETE);
 		}
@@ -6995,7 +6998,7 @@ ctl_get_lba_status(struct ctl_scsiio *ctsio)
 	alloc_len = scsi_4btoul(cdb->alloc_len);
 
 	if (lba > lun->be_lun->maxlba) {
-		ctl_set_lba_out_of_range(ctsio);
+		ctl_set_lba_out_of_range(ctsio, lba);
 		ctl_done((union ctl_io *)ctsio);
 		return (CTL_RETVAL_COMPLETE);
 	}
@@ -8785,7 +8788,8 @@ ctl_read_write(struct ctl_scsiio *ctsio)
 	 */
 	if (((lba + num_blocks) > (lun->be_lun->maxlba + 1))
 	 || ((lba + num_blocks) < lba)) {
-		ctl_set_lba_out_of_range(ctsio);
+		ctl_set_lba_out_of_range(ctsio,
+		    MAX(lba, lun->be_lun->maxlba + 1));
 		ctl_done((union ctl_io *)ctsio);
 		return (CTL_RETVAL_COMPLETE);
 	}
@@ -8894,7 +8898,8 @@ ctl_cnw(struct ctl_scsiio *ctsio)
 	 */
 	if (((lba + num_blocks) > (lun->be_lun->maxlba + 1))
 	 || ((lba + num_blocks) < lba)) {
-		ctl_set_lba_out_of_range(ctsio);
+		ctl_set_lba_out_of_range(ctsio,
+		    MAX(lba, lun->be_lun->maxlba + 1));
 		ctl_done((union ctl_io *)ctsio);
 		return (CTL_RETVAL_COMPLETE);
 	}
@@ -9005,7 +9010,8 @@ ctl_verify(struct ctl_scsiio *ctsio)
 	 */
 	if (((lba + num_blocks) > (lun->be_lun->maxlba + 1))
 	 || ((lba + num_blocks) < lba)) {
-		ctl_set_lba_out_of_range(ctsio);
+		ctl_set_lba_out_of_range(ctsio,
+		    MAX(lba, lun->be_lun->maxlba + 1));
 		ctl_done((union ctl_io *)ctsio);
 		return (CTL_RETVAL_COMPLETE);
 	}
