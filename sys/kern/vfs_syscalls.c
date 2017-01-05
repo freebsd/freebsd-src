@@ -298,12 +298,14 @@ sys_statfs(td, uap)
 		struct statfs *buf;
 	} */ *uap;
 {
-	struct statfs sf;
+	struct statfs *sfp;
 	int error;
 
-	error = kern_statfs(td, uap->path, UIO_USERSPACE, &sf);
+	sfp = malloc(sizeof(struct statfs), M_STATFS, M_WAITOK);
+	error = kern_statfs(td, uap->path, UIO_USERSPACE, sfp);
 	if (error == 0)
-		error = copyout(&sf, uap->buf, sizeof(sf));
+		error = copyout(sfp, uap->buf, sizeof(struct statfs));
+	free(sfp, M_STATFS);
 	return (error);
 }
 
@@ -344,12 +346,14 @@ sys_fstatfs(td, uap)
 		struct statfs *buf;
 	} */ *uap;
 {
-	struct statfs sf;
+	struct statfs *sfp;
 	int error;
 
-	error = kern_fstatfs(td, uap->fd, &sf);
+	sfp = malloc(sizeof(struct statfs), M_STATFS, M_WAITOK);
+	error = kern_fstatfs(td, uap->fd, sfp);
 	if (error == 0)
-		error = copyout(&sf, uap->buf, sizeof(sf));
+		error = copyout(sfp, uap->buf, sizeof(struct statfs));
+	free(sfp, M_STATFS);
 	return (error);
 }
 
@@ -420,7 +424,7 @@ kern_getfsstat(struct thread *td, struct statfs **buf, size_t bufsize,
     size_t *countp, enum uio_seg bufseg, int mode)
 {
 	struct mount *mp, *nmp;
-	struct statfs *sfsp, *sp, sb, *tofree;
+	struct statfs *sfsp, *sp, *sptmp, *tofree;
 	size_t count, maxcount;
 	int error;
 
@@ -451,7 +455,7 @@ restart:
 		if (maxcount > count)
 			maxcount = count;
 		tofree = sfsp = *buf = malloc(maxcount * sizeof(struct statfs),
-		    M_TEMP, M_WAITOK);
+		    M_STATFS, M_WAITOK);
 	}
 	count = 0;
 	mtx_lock(&mountlist_mtx);
@@ -476,7 +480,7 @@ restart:
 				 * no other choice than to start over.
 				 */
 				mtx_unlock(&mountlist_mtx);
-				free(tofree, M_TEMP);
+				free(tofree, M_STATFS);
 				goto restart;
 			}
 		} else {
@@ -485,7 +489,7 @@ restart:
 				continue;
 			}
 		}
-		if (sfsp && count < maxcount) {
+		if (sfsp != NULL && count < maxcount) {
 			sp = &mp->mnt_stat;
 			/*
 			 * Set these in case the underlying filesystem
@@ -508,15 +512,20 @@ restart:
 				}
 			}
 			if (priv_check(td, PRIV_VFS_GENERATION)) {
-				bcopy(sp, &sb, sizeof(sb));
-				sb.f_fsid.val[0] = sb.f_fsid.val[1] = 0;
-				prison_enforce_statfs(td->td_ucred, mp, &sb);
-				sp = &sb;
-			}
-			if (bufseg == UIO_SYSSPACE)
+				sptmp = malloc(sizeof(struct statfs), M_STATFS,
+				    M_WAITOK);
+				*sptmp = *sp;
+				sptmp->f_fsid.val[0] = sptmp->f_fsid.val[1] = 0;
+				prison_enforce_statfs(td->td_ucred, mp, sptmp);
+				sp = sptmp;
+			} else
+				sptmp = NULL;
+			if (bufseg == UIO_SYSSPACE) {
 				bcopy(sp, sfsp, sizeof(*sp));
-			else /* if (bufseg == UIO_USERSPACE) */ {
+				free(sptmp, M_STATFS);
+			} else /* if (bufseg == UIO_USERSPACE) */ {
 				error = copyout(sp, sfsp, sizeof(*sp));
+				free(sptmp, M_STATFS);
 				if (error != 0) {
 					vfs_unbusy(mp);
 					return (error);
@@ -530,7 +539,7 @@ restart:
 		vfs_unbusy(mp);
 	}
 	mtx_unlock(&mountlist_mtx);
-	if (sfsp && count > maxcount)
+	if (sfsp != NULL && count > maxcount)
 		*countp = maxcount;
 	else
 		*countp = count;
@@ -558,14 +567,17 @@ freebsd4_statfs(td, uap)
 	} */ *uap;
 {
 	struct ostatfs osb;
-	struct statfs sf;
+	struct statfs *sfp;
 	int error;
 
-	error = kern_statfs(td, uap->path, UIO_USERSPACE, &sf);
-	if (error != 0)
-		return (error);
-	cvtstatfs(&sf, &osb);
-	return (copyout(&osb, uap->buf, sizeof(osb)));
+	sfp = malloc(sizeof(struct statfs), M_STATFS, M_WAITOK);
+	error = kern_statfs(td, uap->path, UIO_USERSPACE, sfp);
+	if (error == 0) {
+		cvtstatfs(sfp, &osb);
+		error = copyout(&osb, uap->buf, sizeof(osb));
+	}
+	free(sfp, M_STATFS);
+	return (error);
 }
 
 /*
@@ -586,14 +598,17 @@ freebsd4_fstatfs(td, uap)
 	} */ *uap;
 {
 	struct ostatfs osb;
-	struct statfs sf;
+	struct statfs *sfp;
 	int error;
 
-	error = kern_fstatfs(td, uap->fd, &sf);
-	if (error != 0)
-		return (error);
-	cvtstatfs(&sf, &osb);
-	return (copyout(&osb, uap->buf, sizeof(osb)));
+	sfp = malloc(sizeof(struct statfs), M_STATFS, M_WAITOK);
+	error = kern_fstatfs(td, uap->fd, sfp);
+	if (error == 0) {
+		cvtstatfs(sfp, &osb);
+		error = copyout(&osb, uap->buf, sizeof(osb));
+	}
+	free(sfp, M_STATFS);
+	return (error);
 }
 
 /*
@@ -638,7 +653,7 @@ freebsd4_getfsstat(td, uap)
 			uap->buf++;
 			count--;
 		}
-		free(buf, M_TEMP);
+		free(buf, M_STATFS);
 	}
 	return (error);
 }
@@ -661,18 +676,21 @@ freebsd4_fhstatfs(td, uap)
 	} */ *uap;
 {
 	struct ostatfs osb;
-	struct statfs sf;
+	struct statfs *sfp;
 	fhandle_t fh;
 	int error;
 
 	error = copyin(uap->u_fhp, &fh, sizeof(fhandle_t));
 	if (error != 0)
 		return (error);
-	error = kern_fhstatfs(td, fh, &sf);
-	if (error != 0)
-		return (error);
-	cvtstatfs(&sf, &osb);
-	return (copyout(&osb, uap->buf, sizeof(osb)));
+	sfp = malloc(sizeof(struct statfs), M_STATFS, M_WAITOK);
+	error = kern_fhstatfs(td, fh, sfp);
+	if (error == 0) {
+		cvtstatfs(sfp, &osb);
+		error = copyout(&osb, uap->buf, sizeof(osb));
+	}
+	free(sfp, M_STATFS);
+	return (error);
 }
 
 /*
@@ -4407,17 +4425,19 @@ sys_fhstatfs(td, uap)
 		struct statfs *buf;
 	} */ *uap;
 {
-	struct statfs sf;
+	struct statfs *sfp;
 	fhandle_t fh;
 	int error;
 
 	error = copyin(uap->u_fhp, &fh, sizeof(fhandle_t));
 	if (error != 0)
 		return (error);
-	error = kern_fhstatfs(td, fh, &sf);
-	if (error != 0)
-		return (error);
-	return (copyout(&sf, uap->buf, sizeof(sf)));
+	sfp = malloc(sizeof(struct statfs), M_STATFS, M_WAITOK);
+	error = kern_fhstatfs(td, fh, sfp);
+	if (error == 0)
+		error = copyout(sfp, uap->buf, sizeof(*sfp));
+	free(sfp, M_STATFS);
+	return (error);
 }
 
 int

@@ -79,60 +79,8 @@ extern char edata[];
 					((vm_offset_t)(reg) >= MIPS_KSEG0_START))
 #endif
 
-/*
- * Functions ``special'' enough to print by name
- */
-#ifdef __STDC__
-#define	Name(_fn)  { (void*)_fn, # _fn }
-#else
-#define	Name(_fn) { _fn, "_fn"}
-#endif
-static struct {
-	void *addr;
-	char *name;
-}      names[] = {
-
-	Name(trap),
-	Name(MipsKernGenException),
-	Name(MipsUserGenException),
-	Name(MipsKernIntr),
-	Name(MipsUserIntr),
-	Name(cpu_switch),
-	{
-		0, 0
-	}
-};
-
-/*
- * Map a function address to a string name, if known; or a hex string.
- */
-static const char *
-fn_name(uintptr_t addr)
-{
-	static char buf[17];
-	int i = 0;
-
-	db_expr_t diff;
-	c_db_sym_t sym;
-	const char *symname;
-
-	diff = 0;
-	symname = NULL;
-	sym = db_search_symbol((db_addr_t)addr, DB_STGY_ANY, &diff);
-	db_symbol_values(sym, &symname, NULL);
-	if (symname && diff == 0)
-		return (symname);
-
-	for (i = 0; names[i].name; i++)
-		if (names[i].addr == (void *)addr)
-			return (names[i].name);
-	sprintf(buf, "%jx", (uintmax_t)addr);
-	return (buf);
-}
-
-void
-stacktrace_subr(register_t pc, register_t sp, register_t ra,
-	int (*printfn) (const char *,...))
+static void
+stacktrace_subr(register_t pc, register_t sp, register_t ra)
 {
 	InstFmt i;
 	/*
@@ -163,14 +111,13 @@ loop:
 	subr = 0;
 	trapframe = false;
 	if (frames++ > 100) {
-		(*printfn) ("\nstackframe count exceeded\n");
-		/* return breaks stackframe-size heuristics with gcc -O2 */
-		goto finish;	/* XXX */
+		db_printf("\nstackframe count exceeded\n");
+		return;
 	}
-	/* check for bad SP: could foul up next frame */
-	/*XXX MIPS64 bad: this hard-coded SP is lame */
+
+	/* Check for bad SP: could foul up next frame. */
 	if (!MIPS_IS_VALID_KERNELADDR(sp)) {
-		(*printfn) ("SP 0x%jx: not in kernel\n", sp);
+		db_printf("SP 0x%jx: not in kernel\n", sp);
 		ra = 0;
 		subr = 0;
 		goto done;
@@ -212,10 +159,10 @@ loop:
 		ra = 0;
 		goto done;
 	}
-	/* check for bad PC */
-	/*XXX MIPS64 bad: These hard coded constants are lame */
+
+	/* Check for bad PC. */
 	if (!MIPS_IS_VALID_KERNELADDR(pc)) {
-		(*printfn) ("PC 0x%jx: not in kernel\n", pc);
+		db_printf("PC 0x%jx: not in kernel\n", pc);
 		ra = 0;
 		goto done;
 	}
@@ -389,17 +336,18 @@ loop:
 	}
 
 done:
-	(*printfn) ("%s+%x (", fn_name(subr), pc - subr);
+	db_printsym(pc, DB_STGY_PROC);
+	db_printf(" (");
 	for (j = 0; j < 4; j ++) {
 		if (j > 0)
-			(*printfn)(",");
+			db_printf(",");
 		if (valid_args[j])
-			(*printfn)("%jx", (uintmax_t)(u_register_t)args[j]);
+			db_printf("%jx", (uintmax_t)(u_register_t)args[j]);
 		else
-			(*printfn)("?");
+			db_printf("?");
 	}
 
-	(*printfn) (") ra %jx sp %jx sz %d\n",
+	db_printf(") ra %jx sp %jx sz %d\n",
 	    (uintmax_t)(u_register_t) ra,
 	    (uintmax_t)(u_register_t) sp,
 	    stksize);
@@ -420,24 +368,18 @@ done:
 		badvaddr = kdbpeek((int *)TF_REG(sp, BADVADDR));
 #endif
 #undef TF_REG
-		(*printfn) ("--- exception, cause %jx badvaddr %jx ---\n",
+		db_printf("--- exception, cause %jx badvaddr %jx ---\n",
 		    (uintmax_t)cause, (uintmax_t)badvaddr);
 		goto loop;
 	} else if (ra) {
 		if (pc == ra && stksize == 0)
-			(*printfn) ("stacktrace: loop!\n");
+			db_printf("stacktrace: loop!\n");
 		else {
 			pc = ra;
 			sp += stksize;
 			ra = next_ra;
 			goto loop;
 		}
-	} else {
-finish:
-		if (curproc)
-			(*printfn) ("pid %d\n", curproc->p_pid);
-		else
-			(*printfn) ("curproc NULL\n");
 	}
 }
 
@@ -479,7 +421,7 @@ db_trace_self(void)
 		 "move $31, %1\n" /* restore ra */
 		 : "=r" (pc)
 		 : "r" (ra));
-	stacktrace_subr(pc, sp, ra, db_printf);
+	stacktrace_subr(pc, sp, ra);
 	return;
 }
 
@@ -493,7 +435,7 @@ db_trace_thread(struct thread *thr, int count)
 	sp = (register_t)ctx->pcb_context[PCB_REG_SP];
 	pc = (register_t)ctx->pcb_context[PCB_REG_PC];
 	ra = (register_t)ctx->pcb_context[PCB_REG_RA];
-	stacktrace_subr(pc, sp, ra, db_printf);
+	stacktrace_subr(pc, sp, ra);
 
 	return (0);
 }
