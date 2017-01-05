@@ -1453,6 +1453,7 @@ struct scsi_report_supported_opcodes
 #define RSO_OPTIONS_ALL		0x00
 #define RSO_OPTIONS_OC		0x01
 #define RSO_OPTIONS_OC_SA	0x02
+#define RSO_OPTIONS_OC_ASA	0x03
         uint8_t  requested_opcode;
         uint8_t  requested_service_action[2];
 	uint8_t  length[4];
