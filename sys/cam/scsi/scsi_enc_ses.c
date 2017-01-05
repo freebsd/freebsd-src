@@ -550,6 +550,7 @@ static int ses_set_timed_completion(enc_softc_t *, uint8_t);
 static int ses_putstatus(enc_softc_t *, int, struct ses_comstat *);
 #endif
 
+static void ses_poll_status(enc_softc_t *);
 static void ses_print_addl_data(enc_softc_t *, enc_element_t *);
 
 /*=========================== SES cleanup routines ===========================*/
@@ -1475,11 +1476,7 @@ out:
 	if (err)
 		ses_cache_free(enc, enc_cache);
 	else {
-		enc_update_request(enc, SES_UPDATE_GETSTATUS);
-		if (ses->ses_flags & SES_FLAG_DESC)
-			enc_update_request(enc, SES_UPDATE_GETELMDESCS);
-		if (ses->ses_flags & SES_FLAG_ADDLSTATUS)
-			enc_update_request(enc, SES_UPDATE_GETELMADDLSTATUS);
+		ses_poll_status(enc);
 		enc_update_request(enc, SES_PUBLISH_CACHE);
 	}
 	ENC_DLOG(enc, "%s: exiting with err %d\n", __func__, err);
@@ -1869,7 +1866,7 @@ ses_process_control_request(enc_softc_t *enc, struct enc_fsm_state *state,
 	 *  o Some SCSI status error.
 	 */
 	ses_terminate_control_requests(&ses->ses_pending_requests, error);
-	enc_update_request(enc, SES_UPDATE_GETSTATUS);
+	ses_poll_status(enc);
 	return (0);
 }
 
@@ -2801,6 +2798,8 @@ ses_poll_status(enc_softc_t *enc)
 
 	ses = enc->enc_private;
 	enc_update_request(enc, SES_UPDATE_GETSTATUS);
+	if (ses->ses_flags & SES_FLAG_DESC)
+		enc_update_request(enc, SES_UPDATE_GETELMDESCS);
 	if (ses->ses_flags & SES_FLAG_ADDLSTATUS)
 		enc_update_request(enc, SES_UPDATE_GETELMADDLSTATUS);
 }
