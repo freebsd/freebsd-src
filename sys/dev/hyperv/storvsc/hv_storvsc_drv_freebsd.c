@@ -147,6 +147,10 @@ static u_int hv_storvsc_max_io = 512;
 SYSCTL_UINT(_hw_storvsc, OID_AUTO, max_io, CTLFLAG_RDTUN,
 	&hv_storvsc_max_io, 0, "Hyper-V storage max io limit");
 
+static int hv_storvsc_chan_cnt = 0;
+SYSCTL_INT(_hw_storvsc, OID_AUTO, chan_cnt, CTLFLAG_RDTUN,
+	&hv_storvsc_chan_cnt, 0, "# of channels to use");
+
 #define STORVSC_MAX_IO						\
 	vmbus_chan_prplist_nelem(hv_storvsc_ringbuffer_size,	\
 	   STORVSC_DATA_SEGCNT_MAX, VSTOR_PKT_SIZE)
@@ -385,16 +389,16 @@ storvsc_subchan_attach(struct storvsc_softc *sc,
  * @param max_chans  the max channels supported by vmbus
  */
 static void
-storvsc_send_multichannel_request(struct storvsc_softc *sc, int max_chans)
+storvsc_send_multichannel_request(struct storvsc_softc *sc, int max_subch)
 {
 	struct vmbus_channel **subchan;
 	struct hv_storvsc_request *request;
 	struct vstor_packet *vstor_packet;	
-	int request_channels_cnt = 0;
+	int request_subch;
 	int ret, i;
 
-	/* get multichannels count that need to create */
-	request_channels_cnt = MIN(max_chans, mp_ncpus);
+	/* get sub-channel count that need to create */
+	request_subch = MIN(max_subch, mp_ncpus - 1);
 
 	request = &sc->hs_init_req;
 
@@ -407,7 +411,7 @@ storvsc_send_multichannel_request(struct storvsc_softc *sc, int max_chans)
 	
 	vstor_packet->operation = VSTOR_OPERATION_CREATE_MULTI_CHANNELS;
 	vstor_packet->flags = REQUEST_COMPLETION_FLAG;
-	vstor_packet->u.multi_channels_cnt = request_channels_cnt;
+	vstor_packet->u.multi_channels_cnt = request_subch;
 
 	ret = vmbus_chan_send(sc->hs_chan,
 	    VMBUS_CHANPKT_TYPE_INBAND, VMBUS_CHANPKT_FLAG_RC,
@@ -424,17 +428,17 @@ storvsc_send_multichannel_request(struct storvsc_softc *sc, int max_chans)
 	}
 
 	/* Update channel count */
-	sc->hs_nchan = request_channels_cnt + 1;
+	sc->hs_nchan = request_subch + 1;
 
 	/* Wait for sub-channels setup to complete. */
-	subchan = vmbus_subchan_get(sc->hs_chan, request_channels_cnt);
+	subchan = vmbus_subchan_get(sc->hs_chan, request_subch);
 
 	/* Attach the sub-channels. */
-	for (i = 0; i < request_channels_cnt; ++i)
+	for (i = 0; i < request_subch; ++i)
 		storvsc_subchan_attach(sc, subchan[i]);
 
 	/* Release the sub-channels. */
-	vmbus_subchan_rel(subchan, request_channels_cnt);
+	vmbus_subchan_rel(subchan, request_subch);
 
 	if (bootverbose)
 		printf("Storvsc create multi-channel success!\n");
@@ -452,11 +456,11 @@ hv_storvsc_channel_init(struct storvsc_softc *sc)
 	int ret = 0, i;
 	struct hv_storvsc_request *request;
 	struct vstor_packet *vstor_packet;
-	uint16_t max_chans = 0;
-	boolean_t support_multichannel = FALSE;
+	uint16_t max_subch;
+	boolean_t support_multichannel;
 	uint32_t version;
 
-	max_chans = 0;
+	max_subch = 0;
 	support_multichannel = FALSE;
 
 	request = &sc->hs_init_req;
@@ -550,13 +554,20 @@ hv_storvsc_channel_init(struct storvsc_softc *sc)
 		goto cleanup;
 	}
 
+	max_subch = vstor_packet->u.chan_props.max_channel_cnt;
+	if (hv_storvsc_chan_cnt > 0 && hv_storvsc_chan_cnt < (max_subch + 1))
+		max_subch = hv_storvsc_chan_cnt - 1;
+
 	/* multi-channels feature is supported by WIN8 and above version */
-	max_chans = vstor_packet->u.chan_props.max_channel_cnt;
 	version = VMBUS_GET_VERSION(device_get_parent(sc->hs_dev), sc->hs_dev);
 	if (version != VMBUS_VERSION_WIN7 && version != VMBUS_VERSION_WS2008 &&
 	    (vstor_packet->u.chan_props.flags &
 	     HV_STORAGE_SUPPORTS_MULTI_CHANNEL)) {
 		support_multichannel = TRUE;
+	}
+	if (bootverbose) {
+		device_printf(sc->hs_dev, "max chans %d%s\n", max_subch + 1,
+		    support_multichannel ? ", multi-chan capable" : "");
 	}
 
 	memset(vstor_packet, 0, sizeof(struct vstor_packet));
@@ -581,8 +592,8 @@ hv_storvsc_channel_init(struct storvsc_softc *sc)
 	 * If multi-channel is supported, send multichannel create
 	 * request to host.
 	 */
-	if (support_multichannel)
-		storvsc_send_multichannel_request(sc, max_chans);
+	if (support_multichannel && max_subch > 0)
+		storvsc_send_multichannel_request(sc, max_subch);
 cleanup:
 	sema_destroy(&request->synch_sema);
 	return (ret);
