@@ -167,10 +167,14 @@ op_usm_users(struct snmp_context *ctx, struct snmp_value *val,
 		if ((uuser = usm_get_user(&val->var, sub)) == NULL &&
 		    val->var.subs[sub - 1] != LEAF_usmUserStatus &&
 		    val->var.subs[sub - 1] != LEAF_usmUserCloneFrom)
-				return (SNMP_ERR_NOSUCHNAME);
+			return (SNMP_ERR_NOSUCHNAME);
 
+		/*
+		 * XXX (ngie): need to investigate the MIB to determine how
+		 * this is possible given some of the transitions below.
+		 */
 		if (community != COMM_INITIALIZE &&
-		    uuser->type == StorageType_readOnly)
+		    uuser != NULL && uuser->type == StorageType_readOnly)
 			return (SNMP_ERR_NOT_WRITEABLE);
 
 		switch (val->var.subs[sub - 1]) {

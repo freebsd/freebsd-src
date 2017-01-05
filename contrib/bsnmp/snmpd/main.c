@@ -2324,13 +2324,12 @@ lm_load(const char *path, const char *section)
 	}
 	m->handle = NULL;
 	m->flags = 0;
-	strcpy(m->section, section);
+	strlcpy(m->section, section, sizeof(m->section));
 
-	if ((m->path = malloc(strlen(path) + 1)) == NULL) {
+	if ((m->path = strdup(path)) == NULL) {
 		syslog(LOG_ERR, "lm_load: %m");
 		goto err;
 	}
-	strcpy(m->path, path);
 
 	/*
 	 * Make index
