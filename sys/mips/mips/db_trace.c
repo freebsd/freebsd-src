@@ -79,57 +79,6 @@ extern char edata[];
 					((vm_offset_t)(reg) >= MIPS_KSEG0_START))
 #endif
 
-/*
- * Functions ``special'' enough to print by name
- */
-#ifdef __STDC__
-#define	Name(_fn)  { (void*)_fn, # _fn }
-#else
-#define	Name(_fn) { _fn, "_fn"}
-#endif
-static struct {
-	void *addr;
-	char *name;
-}      names[] = {
-
-	Name(trap),
-	Name(MipsKernGenException),
-	Name(MipsUserGenException),
-	Name(MipsKernIntr),
-	Name(MipsUserIntr),
-	Name(cpu_switch),
-	{
-		0, 0
-	}
-};
-
-/*
- * Map a function address to a string name, if known; or a hex string.
- */
-static const char *
-fn_name(uintptr_t addr)
-{
-	static char buf[17];
-	int i = 0;
-
-	db_expr_t diff;
-	c_db_sym_t sym;
-	const char *symname;
-
-	diff = 0;
-	symname = NULL;
-	sym = db_search_symbol((db_addr_t)addr, DB_STGY_ANY, &diff);
-	db_symbol_values(sym, &symname, NULL);
-	if (symname && diff == 0)
-		return (symname);
-
-	for (i = 0; names[i].name; i++)
-		if (names[i].addr == (void *)addr)
-			return (names[i].name);
-	sprintf(buf, "%jx", (uintmax_t)addr);
-	return (buf);
-}
-
 static void
 stacktrace_subr(register_t pc, register_t sp, register_t ra)
 {
@@ -163,8 +112,7 @@ loop:
 	trapframe = false;
 	if (frames++ > 100) {
 		db_printf("\nstackframe count exceeded\n");
-		/* return breaks stackframe-size heuristics with gcc -O2 */
-		goto finish;	/* XXX */
+		return;
 	}
 
 	/* Check for bad SP: could foul up next frame. */
@@ -390,7 +338,8 @@ loop:
 	}
 
 done:
-	db_printf("%s+%jx (", fn_name(subr), (uintmax_t)(pc - subr));
+	db_printsym(pc, DB_STGY_PROC);
+	db_printf(" (");
 	for (j = 0; j < 4; j ++) {
 		if (j > 0)
 			db_printf(",");
@@ -433,12 +382,6 @@ done:
 			ra = next_ra;
 			goto loop;
 		}
-	} else {
-finish:
-		if (curproc)
-			db_printf("pid %d\n", curproc->p_pid);
-		else
-			db_printf("curproc NULL\n");
 	}
 }
 
