@@ -3196,11 +3196,12 @@ struct scsi_sense_data_fixed
 #define		SSD_KEY_BLANK_CHECK	0x08
 #define		SSD_KEY_Vendor_Specific	0x09
 #define		SSD_KEY_COPY_ABORTED	0x0a
-#define		SSD_KEY_ABORTED_COMMAND	0x0b		
+#define		SSD_KEY_ABORTED_COMMAND	0x0b
 #define		SSD_KEY_EQUAL		0x0c
 #define		SSD_KEY_VOLUME_OVERFLOW	0x0d
 #define		SSD_KEY_MISCOMPARE	0x0e
-#define		SSD_KEY_COMPLETED	0x0f			
+#define		SSD_KEY_COMPLETED	0x0f
+#define	SSD_SDAT_OVFL	0x10
 #define	SSD_ILI		0x20
 #define	SSD_EOM		0x40
 #define	SSD_FILEMARK	0x80
@@ -3238,7 +3239,9 @@ struct scsi_sense_data_desc
 	uint8_t sense_key;
 	uint8_t	add_sense_code;
 	uint8_t	add_sense_code_qual;
-	uint8_t	reserved[3];
+	uint8_t	flags;
+#define	SSDD_SDAT_OVFL		0x80
+	uint8_t	reserved[2];
 	/*
 	 * Note that SPC-4, section 4.5.2.1 says that the extra_len field
 	 * must be less than or equal to 244.
@@ -3706,13 +3709,15 @@ void scsi_desc_iterate(struct scsi_sense_data_desc *sense, u_int sense_len,
 					void *), void *arg);
 uint8_t *scsi_find_desc(struct scsi_sense_data_desc *sense, u_int sense_len,
 			uint8_t desc_type);
-void scsi_set_sense_data(struct scsi_sense_data *sense_data, 
+void scsi_set_sense_data(struct scsi_sense_data *sense_data,
 			 scsi_sense_data_type sense_format, int current_error,
 			 int sense_key, int asc, int ascq, ...) ;
+void scsi_set_sense_data_len(struct scsi_sense_data *sense_data,
+    u_int *sense_len, scsi_sense_data_type sense_format, int current_error,
+    int sense_key, int asc, int ascq, ...) ;
 void scsi_set_sense_data_va(struct scsi_sense_data *sense_data,
-			    scsi_sense_data_type sense_format,
-			    int current_error, int sense_key, int asc,
-			    int ascq, va_list ap);
+    u_int *sense_len, scsi_sense_data_type sense_format,
+    int current_error, int sense_key, int asc, int ascq, va_list ap);
 int scsi_get_sense_info(struct scsi_sense_data *sense_data, u_int sense_len,
 			uint8_t info_type, uint64_t *info,
 			int64_t *signed_info);
