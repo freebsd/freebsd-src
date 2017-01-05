@@ -73,5 +73,4 @@ __cheri_sdcard_vaddr__ = __mips64_xkphys_uncached__ + __cheri_sdcard_base__;
 __kernel_base__ = 0x100000;
 __kernel_vaddr__ = __mips64_xkphys_cached__ + __kernel_base__;
 
-OUTPUT_FORMAT("elf64-tradbigmips");
 OUTPUT_ARCH(mips)
