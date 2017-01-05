@@ -297,12 +297,12 @@ dev/hyperv/netvsc/hn_nvs.c				optional	hyperv
 dev/hyperv/netvsc/hn_rndis.c				optional	hyperv
 dev/hyperv/netvsc/if_hn.c				optional	hyperv
 dev/hyperv/storvsc/hv_storvsc_drv_freebsd.c		optional	hyperv
-dev/hyperv/utilities/hv_heartbeat.c			optional	hyperv
 dev/hyperv/utilities/hv_kvp.c				optional	hyperv
 dev/hyperv/utilities/hv_snapshot.c			optional	hyperv
-dev/hyperv/utilities/hv_shutdown.c			optional	hyperv
-dev/hyperv/utilities/hv_timesync.c			optional	hyperv
+dev/hyperv/utilities/vmbus_heartbeat.c			optional	hyperv
 dev/hyperv/utilities/vmbus_ic.c				optional	hyperv
+dev/hyperv/utilities/vmbus_shutdown.c			optional	hyperv
+dev/hyperv/utilities/vmbus_timesync.c			optional	hyperv
 dev/hyperv/vmbus/hyperv.c				optional	hyperv
 dev/hyperv/vmbus/hyperv_busdma.c			optional	hyperv
 dev/hyperv/vmbus/vmbus.c				optional	hyperv pci
