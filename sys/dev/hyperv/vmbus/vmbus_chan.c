@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 static void			vmbus_chan_update_evtflagcnt(
 				    struct vmbus_softc *,
 				    const struct vmbus_channel *);
-static void			vmbus_chan_close_internal(
+static int			vmbus_chan_close_internal(
 				    struct vmbus_channel *);
 static int			vmbus_chan_sysctl_mnf(SYSCTL_HANDLER_ARGS);
 static void			vmbus_chan_sysctl_create(
@@ -66,6 +66,8 @@ static int			vmbus_chan_release(struct vmbus_channel *);
 static void			vmbus_chan_set_chmap(struct vmbus_channel *);
 static void			vmbus_chan_clear_chmap(struct vmbus_channel *);
 static void			vmbus_chan_detach(struct vmbus_channel *);
+static bool			vmbus_chan_wait_revoke(
+				    const struct vmbus_channel *);
 
 static void			vmbus_chan_ins_prilist(struct vmbus_softc *,
 				    struct vmbus_channel *);
@@ -322,7 +324,21 @@ vmbus_chan_open(struct vmbus_channel *chan, int txbr_size, int rxbr_size,
 
 	error = vmbus_chan_open_br(chan, &cbr, udata, udlen, cb, cbarg);
 	if (error) {
-		hyperv_dmamem_free(&chan->ch_bufring_dma, chan->ch_bufring);
+		if (error == EISCONN) {
+			/*
+			 * XXX
+			 * The bufring GPADL is still connected; abandon
+			 * this bufring, instead of having mysterious
+			 * crash or trashed data later on.
+			 */
+			vmbus_chan_printf(chan, "chan%u bufring GPADL "
+			    "is still connected upon channel open error; "
+			    "leak %d bytes memory\n", chan->ch_id,
+			    txbr_size + rxbr_size);
+		} else {
+			hyperv_dmamem_free(&chan->ch_bufring_dma,
+			    chan->ch_bufring);
+		}
 		chan->ch_bufring = NULL;
 	}
 	return (error);
@@ -345,7 +361,7 @@ vmbus_chan_open_br(struct vmbus_channel *chan, const struct vmbus_chan_br *cbr,
 	if (udlen > VMBUS_CHANMSG_CHOPEN_UDATA_SIZE) {
 		vmbus_chan_printf(chan,
 		    "invalid udata len %d for chan%u\n", udlen, chan->ch_id);
-		return EINVAL;
+		return (EINVAL);
 	}
 
 	br = cbr->cbr;
@@ -390,6 +406,8 @@ vmbus_chan_open_br(struct vmbus_channel *chan, const struct vmbus_chan_br *cbr,
 	/*
 	 * Connect the bufrings, both RX and TX, to this channel.
 	 */
+	KASSERT(chan->ch_bufring_gpadl == 0,
+	    ("bufring GPADL is still connected"));
 	error = vmbus_chan_gpadl_connect(chan, cbr->cbr_paddr,
 	    txbr_size + rxbr_size, &chan->ch_bufring_gpadl);
 	if (error) {
@@ -442,23 +460,33 @@ vmbus_chan_open_br(struct vmbus_channel *chan, const struct vmbus_chan_br *cbr,
 	vmbus_msghc_put(sc, mh);
 
 	if (status == 0) {
-		if (bootverbose) {
+		if (bootverbose)
 			vmbus_chan_printf(chan, "chan%u opened\n", chan->ch_id);
-		}
-		return 0;
+		return (0);
 	}
 
 	vmbus_chan_printf(chan, "failed to open chan%u\n", chan->ch_id);
 	error = ENXIO;
 
 failed:
+	sysctl_ctx_free(&chan->ch_sysctl_ctx);
 	vmbus_chan_clear_chmap(chan);
-	if (chan->ch_bufring_gpadl) {
-		vmbus_chan_gpadl_disconnect(chan, chan->ch_bufring_gpadl);
+	if (chan->ch_bufring_gpadl != 0) {
+		int error1;
+
+		error1 = vmbus_chan_gpadl_disconnect(chan,
+		    chan->ch_bufring_gpadl);
+		if (error1) {
+			/*
+			 * Give caller a hint that the bufring GPADL is still
+			 * connected.
+			 */
+			error = EISCONN;
+		}
 		chan->ch_bufring_gpadl = 0;
 	}
 	atomic_clear_int(&chan->ch_stflags, VMBUS_CHAN_ST_OPENED);
-	return error;
+	return (error);
 }
 
 int
@@ -473,6 +501,12 @@ vmbus_chan_gpadl_connect(struct vmbus_channel *chan, bus_addr_t paddr,
 	uint32_t gpadl, status;
 	int page_count, range_len, i, cnt, error;
 	uint64_t page_id;
+
+	/*
+	 * Reset GPADL, so that the result would consistent, if error
+	 * happened later on.
+	 */
+	*gpadl0 = 0;
 
 	/*
 	 * Preliminary checks.
@@ -500,7 +534,6 @@ vmbus_chan_gpadl_connect(struct vmbus_channel *chan, bus_addr_t paddr,
 	 * Allocate GPADL id.
 	 */
 	gpadl = vmbus_gpadl_alloc(sc);
-	*gpadl0 = gpadl;
 
 	/*
 	 * Connect this GPADL to the target channel.
@@ -579,13 +612,33 @@ vmbus_chan_gpadl_connect(struct vmbus_channel *chan, bus_addr_t paddr,
 		vmbus_chan_printf(chan, "gpadl_conn(chan%u) failed: %u\n",
 		    chan->ch_id, status);
 		return EIO;
-	} else {
-		if (bootverbose) {
-			vmbus_chan_printf(chan,
-			    "gpadl_conn(chan%u) succeeded\n", chan->ch_id);
-		}
+	}
+
+	/* Done; commit the GPADL id. */
+	*gpadl0 = gpadl;
+	if (bootverbose) {
+		vmbus_chan_printf(chan, "gpadl_conn(chan%u) succeeded\n",
+		    chan->ch_id);
 	}
 	return 0;
+}
+
+static bool
+vmbus_chan_wait_revoke(const struct vmbus_channel *chan)
+{
+#define WAIT_COUNT	200	/* 200ms */
+
+	int i;
+
+	for (i = 0; i < WAIT_COUNT; ++i) {
+		if (vmbus_chan_is_revoked(chan))
+			return (true);
+		/* Not sure about the context; use busy-wait. */
+		DELAY(1000);
+	}
+	return (false);
+
+#undef WAIT_COUNT
 }
 
 /*
@@ -604,7 +657,7 @@ vmbus_chan_gpadl_disconnect(struct vmbus_channel *chan, uint32_t gpadl)
 		vmbus_chan_printf(chan,
 		    "can not get msg hypercall for gpadl_disconn(chan%u)\n",
 		    chan->ch_id);
-		return EBUSY;
+		return (EBUSY);
 	}
 
 	req = vmbus_msghc_dataptr(mh);
@@ -614,18 +667,29 @@ vmbus_chan_gpadl_disconnect(struct vmbus_channel *chan, uint32_t gpadl)
 
 	error = vmbus_msghc_exec(sc, mh);
 	if (error) {
+		vmbus_msghc_put(sc, mh);
+
+		if (vmbus_chan_wait_revoke(chan)) {
+			/*
+			 * Error is benign; this channel is revoked,
+			 * so this GPADL will not be touched anymore.
+			 */
+			vmbus_chan_printf(chan,
+			    "gpadl_disconn(revoked chan%u) msg hypercall "
+			    "exec failed: %d\n", chan->ch_id, error);
+			return (0);
+		}
 		vmbus_chan_printf(chan,
 		    "gpadl_disconn(chan%u) msg hypercall exec failed: %d\n",
 		    chan->ch_id, error);
-		vmbus_msghc_put(sc, mh);
-		return error;
+		return (error);
 	}
 
 	vmbus_msghc_wait_result(sc, mh);
 	/* Discard result; no useful information */
 	vmbus_msghc_put(sc, mh);
 
-	return 0;
+	return (0);
 }
 
 static void
@@ -681,16 +745,34 @@ vmbus_chan_set_chmap(struct vmbus_channel *chan)
 	chan->ch_vmbus->vmbus_chmap[chan->ch_id] = chan;
 }
 
-static void
+static int
 vmbus_chan_close_internal(struct vmbus_channel *chan)
 {
 	struct vmbus_softc *sc = chan->ch_vmbus;
 	struct vmbus_msghc *mh;
 	struct vmbus_chanmsg_chclose *req;
+	uint32_t old_stflags;
 	int error;
 
-	/* TODO: stringent check */
-	atomic_clear_int(&chan->ch_stflags, VMBUS_CHAN_ST_OPENED);
+	/*
+	 * NOTE:
+	 * Sub-channels are closed upon their primary channel closing,
+	 * so they can be closed even before they are opened.
+	 */
+	for (;;) {
+		old_stflags = chan->ch_stflags;
+		if (atomic_cmpset_int(&chan->ch_stflags, old_stflags,
+		    old_stflags & ~VMBUS_CHAN_ST_OPENED))
+			break;
+	}
+	if ((old_stflags & VMBUS_CHAN_ST_OPENED) == 0) {
+		/* Not opened yet; done */
+		if (bootverbose) {
+			vmbus_chan_printf(chan, "chan%u not opened\n",
+			    chan->ch_id);
+		}
+		return (0);
+	}
 
 	/*
 	 * Free this channel's sysctl tree attached to its device's
@@ -716,7 +798,8 @@ vmbus_chan_close_internal(struct vmbus_channel *chan)
 		vmbus_chan_printf(chan,
 		    "can not get msg hypercall for chclose(chan%u)\n",
 		    chan->ch_id);
-		return;
+		error = ENXIO;
+		goto disconnect;
 	}
 
 	req = vmbus_msghc_dataptr(mh);
@@ -730,16 +813,37 @@ vmbus_chan_close_internal(struct vmbus_channel *chan)
 		vmbus_chan_printf(chan,
 		    "chclose(chan%u) msg hypercall exec failed: %d\n",
 		    chan->ch_id, error);
-		return;
-	} else if (bootverbose) {
-		vmbus_chan_printf(chan, "close chan%u\n", chan->ch_id);
+		goto disconnect;
 	}
 
+	if (bootverbose)
+		vmbus_chan_printf(chan, "chan%u closed\n", chan->ch_id);
+
+disconnect:
 	/*
 	 * Disconnect the TX+RX bufrings from this channel.
 	 */
-	if (chan->ch_bufring_gpadl) {
-		vmbus_chan_gpadl_disconnect(chan, chan->ch_bufring_gpadl);
+	if (chan->ch_bufring_gpadl != 0) {
+		int error1;
+
+		error1 = vmbus_chan_gpadl_disconnect(chan,
+		    chan->ch_bufring_gpadl);
+		if (error1) {
+			/*
+			 * XXX
+			 * The bufring GPADL is still connected; abandon
+			 * this bufring, instead of having mysterious
+			 * crash or trashed data later on.
+			 */
+			vmbus_chan_printf(chan, "chan%u bufring GPADL "
+			    "is still connected after close\n", chan->ch_id);
+			chan->ch_bufring = NULL;
+			/*
+			 * Give caller a hint that the bufring GPADL is
+			 * still connected.
+			 */
+			error = EISCONN;
+		}
 		chan->ch_bufring_gpadl = 0;
 	}
 
@@ -750,6 +854,42 @@ vmbus_chan_close_internal(struct vmbus_channel *chan)
 		hyperv_dmamem_free(&chan->ch_bufring_dma, chan->ch_bufring);
 		chan->ch_bufring = NULL;
 	}
+	return (error);
+}
+
+int
+vmbus_chan_close_direct(struct vmbus_channel *chan)
+{
+	int error;
+
+#ifdef INVARIANTS
+	if (VMBUS_CHAN_ISPRIMARY(chan)) {
+		struct vmbus_channel *subchan;
+
+		/*
+		 * All sub-channels _must_ have been closed, or are _not_
+		 * opened at all.
+		 */
+		mtx_lock(&chan->ch_subchan_lock);
+		TAILQ_FOREACH(subchan, &chan->ch_subchans, ch_sublink) {
+			KASSERT(
+			   (subchan->ch_stflags & VMBUS_CHAN_ST_OPENED) == 0,
+			   ("chan%u: subchan%u is still opened",
+			    chan->ch_id, subchan->ch_subidx));
+		}
+		mtx_unlock(&chan->ch_subchan_lock);
+	}
+#endif
+
+	error = vmbus_chan_close_internal(chan);
+	if (!VMBUS_CHAN_ISPRIMARY(chan)) {
+		/*
+		 * This sub-channel is referenced, when it is linked to
+		 * the primary channel; drop that reference now.
+		 */
+		vmbus_chan_detach(chan);
+	}
+	return (error);
 }
 
 /*
@@ -1786,4 +1926,38 @@ vmbus_chan_unset_orphan(struct vmbus_channel *chan)
 	sx_xlock(&chan->ch_orphan_lock);
 	chan->ch_orphan_xact = NULL;
 	sx_xunlock(&chan->ch_orphan_lock);
+}
+
+const void *
+vmbus_chan_xact_wait(const struct vmbus_channel *chan,
+    struct vmbus_xact *xact, size_t *resp_len, bool can_sleep)
+{
+	const void *ret;
+
+	if (can_sleep)
+		ret = vmbus_xact_wait(xact, resp_len);
+	else
+		ret = vmbus_xact_busywait(xact, resp_len);
+	if (vmbus_chan_is_revoked(chan)) {
+		/*
+		 * This xact probably is interrupted, and the
+		 * interruption can race the reply reception,
+		 * so we have to make sure that there are nothing
+		 * left on the RX bufring, i.e. this xact will
+		 * not be touched, once this function returns.
+		 *
+		 * Since the hypervisor will not put more data
+		 * onto the RX bufring once the channel is revoked,
+		 * the following loop will be terminated, once all
+		 * data are drained by the driver's channel
+		 * callback.
+		 */
+		while (!vmbus_chan_rx_empty(chan)) {
+			if (can_sleep)
+				pause("chxact", 1);
+			else
+				DELAY(1000);
+		}
+	}
+	return (ret);
 }
