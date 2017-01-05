@@ -69,7 +69,7 @@ SRCS+=	utaddress.c utalloc.c utascii.c utbuffer.c utcache.c	\
 	utxface.c utxferror.c utxfinit.c
 
 # os_specific/service_layers
-SRCS+=	osunixxf.c
+SRCS+=	osgendbg.c osunixxf.c
 
 MAN=	acpidb.8
 WARNS?=	3
