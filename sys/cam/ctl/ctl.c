@@ -253,7 +253,7 @@ const static struct scsi_control_page control_page_changeable = {
 	/*page_code*/SMS_CONTROL_MODE_PAGE,
 	/*page_length*/sizeof(struct scsi_control_page) - 2,
 	/*rlec*/SCP_DSENSE,
-	/*queue_flags*/SCP_QUEUE_ALG_MASK,
+	/*queue_flags*/SCP_QUEUE_ALG_MASK | SCP_NUAR,
 	/*eca_and_aen*/SCP_SWP,
 	/*flags4*/0,
 	/*aen_holdoff_period*/{0, 0},
@@ -8431,12 +8431,11 @@ ctl_persistent_reserve_out(struct ctl_scsiio *ctsio)
 		lun->pr_res_type = 0;
 
 		/*
-		 * if this isn't an exclusive access
-		 * res generate UA for all other
-		 * registrants.
+		 * If this isn't an exclusive access reservation and NUAR
+		 * is not set, generate UA for all other registrants.
 		 */
-		if (type != SPR_TYPE_EX_AC
-		 && type != SPR_TYPE_WR_EX) {
+		if (type != SPR_TYPE_EX_AC && type != SPR_TYPE_WR_EX &&
+		    (lun->MODE_CTRL.queue_flags & SCP_NUAR) == 0) {
 			for (i = softc->init_min; i < softc->init_max; i++) {
 				if (i == residx || ctl_get_prkey(lun, i) == 0)
 					continue;
@@ -8586,11 +8585,12 @@ ctl_hndl_per_res_out_on_other_sc(union ctl_ha_msg *msg)
 
 	case CTL_PR_RELEASE:
 		/*
-		 * if this isn't an exclusive access res generate UA for all
-		 * other registrants.
+		 * If this isn't an exclusive access reservation and NUAR
+		 * is not set, generate UA for all other registrants.
 		 */
 		if (lun->pr_res_type != SPR_TYPE_EX_AC &&
-		    lun->pr_res_type != SPR_TYPE_WR_EX) {
+		    lun->pr_res_type != SPR_TYPE_WR_EX &&
+		    (lun->MODE_CTRL.queue_flags & SCP_NUAR) == 0) {
 			for (i = softc->init_min; i < softc->init_max; i++)
 				if (i == residx || ctl_get_prkey(lun, i) == 0)
 					continue;
