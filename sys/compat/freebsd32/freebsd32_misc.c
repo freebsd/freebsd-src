@@ -244,7 +244,8 @@ copy_statfs(struct statfs *in, struct statfs32 *out)
 
 #ifdef COMPAT_FREEBSD4
 int
-freebsd4_freebsd32_getfsstat(struct thread *td, struct freebsd4_freebsd32_getfsstat_args *uap)
+freebsd4_freebsd32_getfsstat(struct thread *td,
+    struct freebsd4_freebsd32_getfsstat_args *uap)
 {
 	struct statfs *buf, *sp;
 	struct statfs32 stat32;
