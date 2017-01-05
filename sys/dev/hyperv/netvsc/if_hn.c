@@ -296,6 +296,7 @@ static int			hn_synth_attach(struct hn_softc *, int);
 static void			hn_synth_detach(struct hn_softc *);
 static int			hn_synth_alloc_subchans(struct hn_softc *,
 				    int *);
+static bool			hn_synth_attachable(const struct hn_softc *);
 static void			hn_suspend(struct hn_softc *);
 static void			hn_suspend_data(struct hn_softc *);
 static void			hn_suspend_mgmt(struct hn_softc *);
@@ -318,7 +319,7 @@ static void			hn_destroy_rx_data(struct hn_softc *);
 static int			hn_check_iplen(const struct mbuf *, int);
 static int			hn_set_rxfilter(struct hn_softc *);
 static int			hn_rss_reconfig(struct hn_softc *);
-static void			hn_rss_ind_fixup(struct hn_softc *, int);
+static void			hn_rss_ind_fixup(struct hn_softc *);
 static int			hn_rxpkt(struct hn_rx_ring *, const void *,
 				    int, const struct hn_rxinfo *);
 
@@ -464,7 +465,7 @@ SYSCTL_INT(_hw_hn, OID_AUTO, tx_agg_size, CTLFLAG_RDTUN,
     &hn_tx_agg_size, 0, "Packet transmission aggregation size limit");
 
 /* Packet transmission aggregation count limit */
-static int			hn_tx_agg_pkts = 0;
+static int			hn_tx_agg_pkts = -1;
 SYSCTL_INT(_hw_hn, OID_AUTO, tx_agg_pkts, CTLFLAG_RDTUN,
     &hn_tx_agg_pkts, 0, "Packet transmission aggregation packet limit");
 
@@ -705,6 +706,10 @@ hn_set_txagg(struct hn_softc *sc)
 	if (sc->hn_rndis_agg_size < size)
 		size = sc->hn_rndis_agg_size;
 
+	/* NOTE: We only aggregate packets using chimney sending buffers. */
+	if (size > (uint32_t)sc->hn_chim_szmax)
+		size = sc->hn_chim_szmax;
+
 	if (size <= 2 * HN_PKTSIZE_MIN(sc->hn_rndis_agg_align)) {
 		/* Disable */
 		size = 0;
@@ -715,10 +720,6 @@ hn_set_txagg(struct hn_softc *sc)
 	/* NOTE: Type of the per TX ring setting is 'int'. */
 	if (size > INT_MAX)
 		size = INT_MAX;
-
-	/* NOTE: We only aggregate packets using chimney sending buffers. */
-	if (size > (uint32_t)sc->hn_chim_szmax)
-		size = sc->hn_chim_szmax;
 
 	/*
 	 * Setup aggregation packet count.
@@ -816,11 +817,12 @@ hn_rss_reconfig(struct hn_softc *sc)
 }
 
 static void
-hn_rss_ind_fixup(struct hn_softc *sc, int nchan)
+hn_rss_ind_fixup(struct hn_softc *sc)
 {
 	struct ndis_rssprm_toeplitz *rss = &sc->hn_rss;
-	int i;
+	int i, nchan;
 
+	nchan = sc->hn_rx_ring_inuse;
 	KASSERT(nchan > 1, ("invalid # of channels %d", nchan));
 
 	/*
@@ -1523,7 +1525,7 @@ hn_txpkt_done(struct hn_nvs_sendctx *sndc, struct hn_softc *sc,
 	txr = txd->txr;
 	KASSERT(txr->hn_chan == chan,
 	    ("channel mismatch, on chan%u, should be chan%u",
-	     vmbus_chan_subidx(chan), vmbus_chan_subidx(txr->hn_chan)));
+	     vmbus_chan_id(chan), vmbus_chan_id(txr->hn_chan)));
 
 	txr->hn_has_txeof = 1;
 	hn_txdesc_put(txr, txd);
@@ -2942,7 +2944,7 @@ hn_rss_ind_sysctl(SYSCTL_HANDLER_ARGS)
 		goto back;
 	sc->hn_flags |= HN_FLAG_HAS_RSSIND;
 
-	hn_rss_ind_fixup(sc, sc->hn_rx_ring_inuse);
+	hn_rss_ind_fixup(sc);
 	error = hn_rss_reconfig(sc);
 back:
 	HN_UNLOCK(sc);
@@ -3249,7 +3251,10 @@ hn_destroy_rx_data(struct hn_softc *sc)
 	int i;
 
 	if (sc->hn_rxbuf != NULL) {
-		hyperv_dmamem_free(&sc->hn_rxbuf_dma, sc->hn_rxbuf);
+		if ((sc->hn_flags & HN_FLAG_RXBUF_REF) == 0)
+			hyperv_dmamem_free(&sc->hn_rxbuf_dma, sc->hn_rxbuf);
+		else
+			device_printf(sc->hn_dev, "RXBUF is referenced\n");
 		sc->hn_rxbuf = NULL;
 	}
 
@@ -3261,7 +3266,12 @@ hn_destroy_rx_data(struct hn_softc *sc)
 
 		if (rxr->hn_br == NULL)
 			continue;
-		hyperv_dmamem_free(&rxr->hn_br_dma, rxr->hn_br);
+		if ((rxr->hn_rx_flags & HN_RX_FLAG_BR_REF) == 0) {
+			hyperv_dmamem_free(&rxr->hn_br_dma, rxr->hn_br);
+		} else {
+			device_printf(sc->hn_dev,
+			    "%dth channel bufring is referenced", i);
+		}
 		rxr->hn_br = NULL;
 
 #if defined(INET) || defined(INET6)
@@ -3730,7 +3740,12 @@ hn_destroy_tx_data(struct hn_softc *sc)
 	int i;
 
 	if (sc->hn_chim != NULL) {
-		hyperv_dmamem_free(&sc->hn_chim_dma, sc->hn_chim);
+		if ((sc->hn_flags & HN_FLAG_CHIM_REF) == 0) {
+			hyperv_dmamem_free(&sc->hn_chim_dma, sc->hn_chim);
+		} else {
+			device_printf(sc->hn_dev,
+			    "chimney sending buffer is referenced");
+		}
 		sc->hn_chim = NULL;
 	}
 
@@ -4201,11 +4216,14 @@ hn_chan_attach(struct hn_softc *sc, struct vmbus_channel *chan)
 	cbr.cbr_rxsz = HN_RXBR_SIZE;
 	error = vmbus_chan_open_br(chan, &cbr, NULL, 0, hn_chan_callback, rxr);
 	if (error) {
-		if_printf(sc->hn_ifp, "open chan%u failed: %d\n",
-		    vmbus_chan_id(chan), error);
-		rxr->hn_rx_flags &= ~HN_RX_FLAG_ATTACHED;
-		if (txr != NULL)
-			txr->hn_tx_flags &= ~HN_TX_FLAG_ATTACHED;
+		if (error == EISCONN) {
+			if_printf(sc->hn_ifp, "bufring is connected after "
+			    "chan%u open failure\n", vmbus_chan_id(chan));
+			rxr->hn_rx_flags |= HN_RX_FLAG_BR_REF;
+		} else {
+			if_printf(sc->hn_ifp, "open chan%u failed: %d\n",
+			    vmbus_chan_id(chan), error);
+		}
 	}
 	return (error);
 }
@@ -4214,7 +4232,7 @@ static void
 hn_chan_detach(struct hn_softc *sc, struct vmbus_channel *chan)
 {
 	struct hn_rx_ring *rxr;
-	int idx;
+	int idx, error;
 
 	idx = vmbus_chan_subidx(chan);
 
@@ -4243,7 +4261,15 @@ hn_chan_detach(struct hn_softc *sc, struct vmbus_channel *chan)
 	 * NOTE:
 	 * Channel closing does _not_ destroy the target channel.
 	 */
-	vmbus_chan_close(chan);
+	error = vmbus_chan_close_direct(chan);
+	if (error == EISCONN) {
+		if_printf(sc->hn_ifp, "chan%u bufring is connected "
+		    "after being closed\n", vmbus_chan_id(chan));
+		rxr->hn_rx_flags |= HN_RX_FLAG_BR_REF;
+	} else if (error) {
+		if_printf(sc->hn_ifp, "chan%u close failed: %d\n",
+		    vmbus_chan_id(chan), error);
+	}
 }
 
 static int
@@ -4253,15 +4279,18 @@ hn_attach_subchans(struct hn_softc *sc)
 	int subchan_cnt = sc->hn_rx_ring_inuse - 1;
 	int i, error = 0;
 
-	if (subchan_cnt == 0)
-		return (0);
+	KASSERT(subchan_cnt > 0, ("no sub-channels"));
 
 	/* Attach the sub-channels. */
 	subchans = vmbus_subchan_get(sc->hn_prichan, subchan_cnt);
 	for (i = 0; i < subchan_cnt; ++i) {
-		error = hn_chan_attach(sc, subchans[i]);
-		if (error)
-			break;
+		int error1;
+
+		error1 = hn_chan_attach(sc, subchans[i]);
+		if (error1) {
+			error = error1;
+			/* Move on; all channels will be detached later. */
+		}
 	}
 	vmbus_subchan_rel(subchans, subchan_cnt);
 
@@ -4373,15 +4402,38 @@ hn_synth_alloc_subchans(struct hn_softc *sc, int *nsubch)
 	return (0);
 }
 
+static bool
+hn_synth_attachable(const struct hn_softc *sc)
+{
+	int i;
+
+	if (sc->hn_flags & HN_FLAG_ERRORS)
+		return (false);
+
+	for (i = 0; i < sc->hn_rx_ring_cnt; ++i) {
+		const struct hn_rx_ring *rxr = &sc->hn_rx_ring[i];
+
+		if (rxr->hn_rx_flags & HN_RX_FLAG_BR_REF)
+			return (false);
+	}
+	return (true);
+}
+
 static int
 hn_synth_attach(struct hn_softc *sc, int mtu)
 {
+#define ATTACHED_NVS		0x0002
+#define ATTACHED_RNDIS		0x0004
+
 	struct ndis_rssprm_toeplitz *rss = &sc->hn_rss;
 	int error, nsubch, nchan, i;
-	uint32_t old_caps;
+	uint32_t old_caps, attached = 0;
 
 	KASSERT((sc->hn_flags & HN_FLAG_SYNTH_ATTACHED) == 0,
 	    ("synthetic parts were attached"));
+
+	if (!hn_synth_attachable(sc))
+		return (ENXIO);
 
 	/* Save capabilities for later verification. */
 	old_caps = sc->hn_caps;
@@ -4396,21 +4448,23 @@ hn_synth_attach(struct hn_softc *sc, int mtu)
 	 */
 	error = hn_chan_attach(sc, sc->hn_prichan);
 	if (error)
-		return (error);
+		goto failed;
 
 	/*
 	 * Attach NVS.
 	 */
 	error = hn_nvs_attach(sc, mtu);
 	if (error)
-		return (error);
+		goto failed;
+	attached |= ATTACHED_NVS;
 
 	/*
 	 * Attach RNDIS _after_ NVS is attached.
 	 */
 	error = hn_rndis_attach(sc, mtu);
 	if (error)
-		return (error);
+		goto failed;
+	attached |= ATTACHED_RNDIS;
 
 	/*
 	 * Make sure capabilities are not changed.
@@ -4418,9 +4472,8 @@ hn_synth_attach(struct hn_softc *sc, int mtu)
 	if (device_is_attached(sc->hn_dev) && old_caps != sc->hn_caps) {
 		if_printf(sc->hn_ifp, "caps mismatch old 0x%08x, new 0x%08x\n",
 		    old_caps, sc->hn_caps);
-		/* Restore old capabilities and abort. */
-		sc->hn_caps = old_caps;
-		return ENXIO;
+		error = ENXIO;
+		goto failed;
 	}
 
 	/*
@@ -4433,19 +4486,34 @@ hn_synth_attach(struct hn_softc *sc, int mtu)
 	nsubch = sc->hn_rx_ring_cnt - 1;
 	error = hn_synth_alloc_subchans(sc, &nsubch);
 	if (error)
-		return (error);
+		goto failed;
+	/* NOTE: _Full_ synthetic parts detach is required now. */
+	sc->hn_flags |= HN_FLAG_SYNTH_ATTACHED;
 
+	/*
+	 * Set the # of TX/RX rings that could be used according to
+	 * the # of channels that NVS offered.
+	 */
 	nchan = nsubch + 1;
+	hn_set_ring_inuse(sc, nchan);
 	if (nchan == 1) {
 		/* Only the primary channel can be used; done */
 		goto back;
 	}
 
 	/*
-	 * Configure RSS key and indirect table _after_ all sub-channels
-	 * are allocated.
+	 * Attach the sub-channels.
+	 *
+	 * NOTE: hn_set_ring_inuse() _must_ have been called.
 	 */
+	error = hn_attach_subchans(sc);
+	if (error)
+		goto failed;
 
+	/*
+	 * Configure RSS key and indirect table _after_ all sub-channels
+	 * are attached.
+	 */
 	if ((sc->hn_flags & HN_FLAG_HAS_RSSKEY) == 0) {
 		/*
 		 * RSS key is not set yet; set it to the default RSS key.
@@ -4473,39 +4541,38 @@ hn_synth_attach(struct hn_softc *sc, int mtu)
 		 * # of usable channels may be changed, so we have to
 		 * make sure that all entries in RSS indirect table
 		 * are valid.
+		 *
+		 * NOTE: hn_set_ring_inuse() _must_ have been called.
 		 */
-		hn_rss_ind_fixup(sc, nchan);
+		hn_rss_ind_fixup(sc);
 	}
 
 	error = hn_rndis_conf_rss(sc, NDIS_RSS_FLAG_NONE);
-	if (error) {
-		/*
-		 * Failed to configure RSS key or indirect table; only
-		 * the primary channel can be used.
-		 */
-		nchan = 1;
-	}
-back:
-	/*
-	 * Set the # of TX/RX rings that could be used according to
-	 * the # of channels that NVS offered.
-	 */
-	hn_set_ring_inuse(sc, nchan);
-
-	/*
-	 * Attach the sub-channels, if any.
-	 */
-	error = hn_attach_subchans(sc);
 	if (error)
-		return (error);
-
+		goto failed;
+back:
 	/*
 	 * Fixup transmission aggregation setup.
 	 */
 	hn_set_txagg(sc);
-
-	sc->hn_flags |= HN_FLAG_SYNTH_ATTACHED;
 	return (0);
+
+failed:
+	if (sc->hn_flags & HN_FLAG_SYNTH_ATTACHED) {
+		hn_synth_detach(sc);
+	} else {
+		if (attached & ATTACHED_RNDIS)
+			hn_rndis_detach(sc);
+		if (attached & ATTACHED_NVS)
+			hn_nvs_detach(sc);
+		hn_chan_detach(sc, sc->hn_prichan);
+		/* Restore old capabilities. */
+		sc->hn_caps = old_caps;
+	}
+	return (error);
+
+#undef ATTACHED_RNDIS
+#undef ATTACHED_NVS
 }
 
 /*
@@ -4516,7 +4583,6 @@ back:
 static void
 hn_synth_detach(struct hn_softc *sc)
 {
-	HN_LOCK_ASSERT(sc);
 
 	KASSERT(sc->hn_flags & HN_FLAG_SYNTH_ATTACHED,
 	    ("synthetic parts were not attached"));
