@@ -3426,6 +3426,8 @@ struct scsi_sense_forwarded
 #define	SSD_FORWARDED_SDS_UNK	0x00
 #define	SSD_FORWARDED_SDS_EXSRC	0x01
 #define	SSD_FORWARDED_SDS_EXDST	0x02
+	uint8_t	status;
+	uint8_t	sense_data[];
 };
 
 /*
@@ -3651,6 +3653,10 @@ void scsi_sense_block_sbuf(struct sbuf *sb, struct scsi_sense_data *sense,
 			   struct scsi_inquiry_data *inq_data,
 			   struct scsi_sense_desc_header *header);
 void scsi_sense_progress_sbuf(struct sbuf *sb, struct scsi_sense_data *sense,
+			      u_int sense_len, uint8_t *cdb, int cdb_len,
+			      struct scsi_inquiry_data *inq_data,
+			      struct scsi_sense_desc_header *header);
+void scsi_sense_forwarded_sbuf(struct sbuf *sb, struct scsi_sense_data *sense,
 			      u_int sense_len, uint8_t *cdb, int cdb_len,
 			      struct scsi_inquiry_data *inq_data,
 			      struct scsi_sense_desc_header *header);
