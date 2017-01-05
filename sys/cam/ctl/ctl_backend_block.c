@@ -203,7 +203,8 @@ struct ctl_be_block_io {
 	int				num_bios_sent;
 	int				num_bios_done;
 	int				send_complete;
-	int				num_errors;
+	int				first_error;
+	uint64_t			first_error_offset;
 	struct bintime			ds_t0;
 	devstat_tag_type		ds_tag_type;
 	devstat_trans_flags		ds_trans_type;
@@ -489,8 +490,12 @@ ctl_be_block_biodone(struct bio *bio)
 
 	error = bio->bio_error;
 	mtx_lock(&be_lun->io_lock);
-	if (error != 0)
-		beio->num_errors++;
+	if (error != 0 &&
+	    (beio->first_error == 0 ||
+	     bio->bio_offset < beio->first_error_offset)) {
+		beio->first_error = error;
+		beio->first_error_offset = bio->bio_offset;
+	}
 
 	beio->num_bios_done++;
 
@@ -523,7 +528,8 @@ ctl_be_block_biodone(struct bio *bio)
 	 * If there are any errors from the backing device, we fail the
 	 * entire I/O with a medium error.
 	 */
-	if (beio->num_errors > 0) {
+	error = beio->first_error;
+	if (error != 0) {
 		if (error == EOPNOTSUPP) {
 			ctl_set_invalid_opcode(&io->scsiio);
 		} else if (error == ENOSPC || error == EDQUOT) {
