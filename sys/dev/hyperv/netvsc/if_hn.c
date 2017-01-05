@@ -169,6 +169,8 @@ do {							\
 #define HN_PKTSIZE(m, align)		\
 	roundup2((m)->m_pkthdr.len + HN_RNDIS_PKT_LEN, (align))
 
+#define HN_RING_IDX2CPU(sc, idx)	(((sc)->hn_cpu + (idx)) % mp_ncpus)
+
 struct hn_txdesc {
 #ifndef HN_USE_TXDESC_BUFRING
 	SLIST_ENTRY(hn_txdesc)		link;
@@ -411,10 +413,18 @@ SYSCTL_INT(_hw_hn, OID_AUTO, lro_entry_count, CTLFLAG_RDTUN,
 #endif
 #endif
 
-/* Use shared TX taskqueue */
-static int			hn_share_tx_taskq = 0;
-SYSCTL_INT(_hw_hn, OID_AUTO, share_tx_taskq, CTLFLAG_RDTUN,
-    &hn_share_tx_taskq, 0, "Enable shared TX taskqueue");
+static int			hn_tx_taskq_cnt = 1;
+SYSCTL_INT(_hw_hn, OID_AUTO, tx_taskq_cnt, CTLFLAG_RDTUN,
+    &hn_tx_taskq_cnt, 0, "# of TX taskqueues");
+
+#define HN_TX_TASKQ_M_INDEP	0
+#define HN_TX_TASKQ_M_GLOBAL	1
+#define HN_TX_TASKQ_M_EVTTQ	2
+
+static int			hn_tx_taskq_mode = HN_TX_TASKQ_M_INDEP;
+SYSCTL_INT(_hw_hn, OID_AUTO, tx_taskq_mode, CTLFLAG_RDTUN,
+    &hn_tx_taskq_mode, 0, "TX taskqueue modes: "
+    "0 - independent, 1 - share global tx taskqs, 2 - share event taskqs");
 
 #ifndef HN_USE_TXDESC_BUFRING
 static int			hn_use_txdesc_bufring = 0;
@@ -423,11 +433,6 @@ static int			hn_use_txdesc_bufring = 1;
 #endif
 SYSCTL_INT(_hw_hn, OID_AUTO, use_txdesc_bufring, CTLFLAG_RD,
     &hn_use_txdesc_bufring, 0, "Use buf_ring for TX descriptors");
-
-/* Bind TX taskqueue to the target CPU */
-static int			hn_bind_tx_taskq = -1;
-SYSCTL_INT(_hw_hn, OID_AUTO, bind_tx_taskq, CTLFLAG_RDTUN,
-    &hn_bind_tx_taskq, 0, "Bind TX taskqueue to the specified cpu");
 
 #ifdef HN_IFSTART_SUPPORT
 /* Use ifnet.if_start instead of ifnet.if_transmit */
@@ -470,7 +475,7 @@ SYSCTL_INT(_hw_hn, OID_AUTO, tx_agg_pkts, CTLFLAG_RDTUN,
     &hn_tx_agg_pkts, 0, "Packet transmission aggregation packet limit");
 
 static u_int			hn_cpu_index;	/* next CPU for channel */
-static struct taskqueue		*hn_tx_taskq;	/* shared TX taskqueue */
+static struct taskqueue		**hn_tx_taskque;/* shared TX taskqueues */
 
 static const uint8_t
 hn_rss_key_default[NDIS_HASH_KEYSIZE_TOEPLITZ] = {
@@ -903,25 +908,21 @@ hn_attach(device_t dev)
 	/*
 	 * Setup taskqueue for transmission.
 	 */
-	if (hn_tx_taskq == NULL) {
-		sc->hn_tx_taskq = taskqueue_create("hn_tx", M_WAITOK,
-		    taskqueue_thread_enqueue, &sc->hn_tx_taskq);
-		if (hn_bind_tx_taskq >= 0) {
-			int cpu = hn_bind_tx_taskq;
-			cpuset_t cpu_set;
+	if (hn_tx_taskq_mode == HN_TX_TASKQ_M_INDEP) {
+		int i;
 
-			if (cpu > mp_ncpus - 1)
-				cpu = mp_ncpus - 1;
-			CPU_SETOF(cpu, &cpu_set);
-			taskqueue_start_threads_cpuset(&sc->hn_tx_taskq, 1,
-			    PI_NET, &cpu_set, "%s tx",
-			    device_get_nameunit(dev));
-		} else {
-			taskqueue_start_threads(&sc->hn_tx_taskq, 1, PI_NET,
-			    "%s tx", device_get_nameunit(dev));
+		sc->hn_tx_taskqs =
+		    malloc(hn_tx_taskq_cnt * sizeof(struct taskqueue *),
+		    M_DEVBUF, M_WAITOK);
+		for (i = 0; i < hn_tx_taskq_cnt; ++i) {
+			sc->hn_tx_taskqs[i] = taskqueue_create("hn_tx",
+			    M_WAITOK, taskqueue_thread_enqueue,
+			    &sc->hn_tx_taskqs[i]);
+			taskqueue_start_threads(&sc->hn_tx_taskqs[i], 1, PI_NET,
+			    "%s tx%d", device_get_nameunit(dev), i);
 		}
-	} else {
-		sc->hn_tx_taskq = hn_tx_taskq;
+	} else if (hn_tx_taskq_mode == HN_TX_TASKQ_M_GLOBAL) {
+		sc->hn_tx_taskqs = hn_tx_taskque;
 	}
 
 	/*
@@ -1221,8 +1222,13 @@ hn_detach(device_t dev)
 	hn_destroy_rx_data(sc);
 	hn_destroy_tx_data(sc);
 
-	if (sc->hn_tx_taskq != hn_tx_taskq)
-		taskqueue_free(sc->hn_tx_taskq);
+	if (sc->hn_tx_taskqs != NULL && sc->hn_tx_taskqs != hn_tx_taskque) {
+		int i;
+
+		for (i = 0; i < hn_tx_taskq_cnt; ++i)
+			taskqueue_free(sc->hn_tx_taskqs[i]);
+		free(sc->hn_tx_taskqs, M_DEVBUF);
+	}
 	taskqueue_free(sc->hn_mgmt_taskq0);
 
 	if (sc->hn_xact != NULL) {
@@ -3312,7 +3318,12 @@ hn_tx_ring_create(struct hn_softc *sc, int id)
 	    M_WAITOK, &txr->hn_tx_lock);
 #endif
 
-	txr->hn_tx_taskq = sc->hn_tx_taskq;
+	if (hn_tx_taskq_mode == HN_TX_TASKQ_M_EVTTQ) {
+		txr->hn_tx_taskq = VMBUS_GET_EVENT_TASKQ(
+		    device_get_parent(dev), dev, HN_RING_IDX2CPU(sc, id));
+	} else {
+		txr->hn_tx_taskq = sc->hn_tx_taskqs[id % hn_tx_taskq_cnt];
+	}
 
 #ifdef HN_IFSTART_SUPPORT
 	if (hn_use_if_start) {
@@ -4205,7 +4216,7 @@ hn_chan_attach(struct hn_softc *sc, struct vmbus_channel *chan)
 	}
 
 	/* Bind this channel to a proper CPU. */
-	vmbus_chan_cpu_set(chan, (sc->hn_cpu + idx) % mp_ncpus);
+	vmbus_chan_cpu_set(chan, HN_RING_IDX2CPU(sc, idx));
 
 	/*
 	 * Open this channel
@@ -5351,26 +5362,42 @@ hn_chan_callback(struct vmbus_channel *chan, void *xrxr)
 static void
 hn_tx_taskq_create(void *arg __unused)
 {
+	int i;
+
+	/*
+	 * Fix the # of TX taskqueues.
+	 */
+	if (hn_tx_taskq_cnt <= 0)
+		hn_tx_taskq_cnt = 1;
+	else if (hn_tx_taskq_cnt > mp_ncpus)
+		hn_tx_taskq_cnt = mp_ncpus;
+
+	/*
+	 * Fix the TX taskqueue mode.
+	 */
+	switch (hn_tx_taskq_mode) {
+	case HN_TX_TASKQ_M_INDEP:
+	case HN_TX_TASKQ_M_GLOBAL:
+	case HN_TX_TASKQ_M_EVTTQ:
+		break;
+	default:
+		hn_tx_taskq_mode = HN_TX_TASKQ_M_INDEP;
+		break;
+	}
 
 	if (vm_guest != VM_GUEST_HV)
 		return;
 
-	if (!hn_share_tx_taskq)
+	if (hn_tx_taskq_mode != HN_TX_TASKQ_M_GLOBAL)
 		return;
 
-	hn_tx_taskq = taskqueue_create("hn_tx", M_WAITOK,
-	    taskqueue_thread_enqueue, &hn_tx_taskq);
-	if (hn_bind_tx_taskq >= 0) {
-		int cpu = hn_bind_tx_taskq;
-		cpuset_t cpu_set;
-
-		if (cpu > mp_ncpus - 1)
-			cpu = mp_ncpus - 1;
-		CPU_SETOF(cpu, &cpu_set);
-		taskqueue_start_threads_cpuset(&hn_tx_taskq, 1, PI_NET,
-		    &cpu_set, "hn tx");
-	} else {
-		taskqueue_start_threads(&hn_tx_taskq, 1, PI_NET, "hn tx");
+	hn_tx_taskque = malloc(hn_tx_taskq_cnt * sizeof(struct taskqueue *),
+	    M_DEVBUF, M_WAITOK);
+	for (i = 0; i < hn_tx_taskq_cnt; ++i) {
+		hn_tx_taskque[i] = taskqueue_create("hn_tx", M_WAITOK,
+		    taskqueue_thread_enqueue, &hn_tx_taskque[i]);
+		taskqueue_start_threads(&hn_tx_taskque[i], 1, PI_NET,
+		    "hn tx%d", i);
 	}
 }
 SYSINIT(hn_txtq_create, SI_SUB_DRIVERS, SI_ORDER_SECOND,
@@ -5380,8 +5407,13 @@ static void
 hn_tx_taskq_destroy(void *arg __unused)
 {
 
-	if (hn_tx_taskq != NULL)
-		taskqueue_free(hn_tx_taskq);
+	if (hn_tx_taskque != NULL) {
+		int i;
+
+		for (i = 0; i < hn_tx_taskq_cnt; ++i)
+			taskqueue_free(hn_tx_taskque[i]);
+		free(hn_tx_taskque, M_DEVBUF);
+	}
 }
 SYSUNINIT(hn_txtq_destroy, SI_SUB_DRIVERS, SI_ORDER_SECOND,
     hn_tx_taskq_destroy, NULL);
