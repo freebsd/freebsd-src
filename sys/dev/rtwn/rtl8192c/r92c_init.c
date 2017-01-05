@@ -159,6 +159,9 @@ r92c_init_bb_common(struct rtwn_softc *sc)
 			rtwn_delay(sc, 1);
 		}
 	}
+
+	if (rtwn_bb_read(sc, R92C_HSSI_PARAM2(0)) & R92C_HSSI_PARAM2_CCK_HIPWR)
+		sc->sc_flags |= RTWN_FLAG_CCK_HIPWR;
 }
 
 int
