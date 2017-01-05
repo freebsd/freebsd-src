@@ -5860,21 +5860,19 @@ static void
 ctl_ie_timer(void *arg)
 {
 	struct ctl_lun *lun = arg;
-	struct scsi_info_exceptions_page *pg;
 	uint64_t t;
 
 	if (lun->ie_asc == 0)
 		return;
 
-	pg = &lun->mode_pages.ie_page[CTL_PAGE_CURRENT];
-	if (pg->mrie == SIEP_MRIE_UA)
+	if (lun->MODE_IE.mrie == SIEP_MRIE_UA)
 		ctl_est_ua_all(lun, -1, CTL_UA_IE);
 	else
 		lun->ie_reported = 0;
 
-	if (lun->ie_reportcnt < scsi_4btoul(pg->report_count)) {
+	if (lun->ie_reportcnt < scsi_4btoul(lun->MODE_IE.report_count)) {
 		lun->ie_reportcnt++;
-		t = scsi_4btoul(pg->interval_timer);
+		t = scsi_4btoul(lun->MODE_IE.interval_timer);
 		if (t == 0 || t == UINT32_MAX)
 			t = 3000;  /* 5 min */
 		callout_schedule(&lun->ie_callout, t * hz / 10);
@@ -6468,9 +6466,8 @@ ctl_mode_sense(struct ctl_scsiio *ctsio)
 		if (lun->be_lun->lun_type == T_DIRECT) {
 			header->dev_specific = 0x10; /* DPOFUA */
 			if ((lun->be_lun->flags & CTL_LUN_FLAG_READONLY) ||
-			    (lun->mode_pages.control_page[CTL_PAGE_CURRENT]
-			    .eca_and_aen & SCP_SWP) != 0)
-				    header->dev_specific |= 0x80; /* WP */
+			    (lun->MODE_CTRL.eca_and_aen & SCP_SWP) != 0)
+				header->dev_specific |= 0x80; /* WP */
 		}
 		if (dbd)
 			header->block_descr_len = 0;
@@ -6491,9 +6488,8 @@ ctl_mode_sense(struct ctl_scsiio *ctsio)
 		if (lun->be_lun->lun_type == T_DIRECT) {
 			header->dev_specific = 0x10; /* DPOFUA */
 			if ((lun->be_lun->flags & CTL_LUN_FLAG_READONLY) ||
-			    (lun->mode_pages.control_page[CTL_PAGE_CURRENT]
-			    .eca_and_aen & SCP_SWP) != 0)
-				    header->dev_specific |= 0x80; /* WP */
+			    (lun->MODE_CTRL.eca_and_aen & SCP_SWP) != 0)
+				header->dev_specific |= 0x80; /* WP */
 		}
 		if (dbd)
 			scsi_ulto2b(0, header->block_descr_len);
@@ -8798,12 +8794,10 @@ ctl_read_write(struct ctl_scsiio *ctsio)
 
 	/* Set FUA and/or DPO if caches are disabled. */
 	if (isread) {
-		if ((lun->mode_pages.caching_page[CTL_PAGE_CURRENT].flags1 &
-		    SCP_RCD) != 0)
+		if ((lun->MODE_CACHING.flags1 & SCP_RCD) != 0)
 			flags |= CTL_LLF_FUA | CTL_LLF_DPO;
 	} else {
-		if ((lun->mode_pages.caching_page[CTL_PAGE_CURRENT].flags1 &
-		    SCP_WCE) == 0)
+		if ((lun->MODE_CACHING.flags1 & SCP_WCE) == 0)
 			flags |= CTL_LLF_FUA;
 	}
 
@@ -8906,8 +8900,7 @@ ctl_cnw(struct ctl_scsiio *ctsio)
 	}
 
 	/* Set FUA if write cache is disabled. */
-	if ((lun->mode_pages.caching_page[CTL_PAGE_CURRENT].flags1 &
-	    SCP_WCE) == 0)
+	if ((lun->MODE_CACHING.flags1 & SCP_WCE) == 0)
 		flags |= CTL_LLF_FUA;
 
 	ctsio->kern_total_len = 2 * num_blocks * lun->be_lun->blocksize;
@@ -9314,7 +9307,7 @@ ctl_request_sense(struct ctl_scsiio *ctsio)
 		/*
 		 * Report informational exception if have one and allowed.
 		 */
-		if (lun->mode_pages.ie_page[CTL_PAGE_CURRENT].mrie != SIEP_MRIE_NO) {
+		if (lun->MODE_IE.mrie != SIEP_MRIE_NO) {
 			asc = lun->ie_asc;
 			ascq = lun->ie_ascq;
 		}
@@ -11079,8 +11072,8 @@ ctl_check_for_blockage(struct ctl_lun *lun, union ctl_io *pending_io,
 		return (ctl_extent_check(ooa_io, pending_io,
 		    (lun->be_lun && lun->be_lun->serseq == CTL_LUN_SERSEQ_ON)));
 	case CTL_SER_EXTENTOPT:
-		if ((lun->mode_pages.control_page[CTL_PAGE_CURRENT].queue_flags
-		    & SCP_QUEUE_ALG_MASK) != SCP_QUEUE_ALG_UNRESTRICTED)
+		if ((lun->MODE_CTRL.queue_flags & SCP_QUEUE_ALG_MASK) !=
+		    SCP_QUEUE_ALG_UNRESTRICTED)
 			return (ctl_extent_check(ooa_io, pending_io,
 			    (lun->be_lun &&
 			     lun->be_lun->serseq == CTL_LUN_SERSEQ_ON)));
@@ -11092,8 +11085,8 @@ ctl_check_for_blockage(struct ctl_lun *lun, union ctl_io *pending_io,
 	case CTL_SER_PASS:
 		return (CTL_ACTION_PASS);
 	case CTL_SER_BLOCKOPT:
-		if ((lun->mode_pages.control_page[CTL_PAGE_CURRENT].queue_flags
-		    & SCP_QUEUE_ALG_MASK) != SCP_QUEUE_ALG_UNRESTRICTED)
+		if ((lun->MODE_CTRL.queue_flags & SCP_QUEUE_ALG_MASK) !=
+		    SCP_QUEUE_ALG_UNRESTRICTED)
 			return (CTL_ACTION_BLOCK);
 		return (CTL_ACTION_PASS);
 	case CTL_SER_SKIP:
@@ -11334,8 +11327,7 @@ ctl_scsiio_lun_check(struct ctl_lun *lun,
 			retval = 1;
 			goto bailout;
 		}
-		if ((lun->mode_pages.control_page[CTL_PAGE_CURRENT]
-		    .eca_and_aen & SCP_SWP) != 0) {
+		if ((lun->MODE_CTRL.eca_and_aen & SCP_SWP) != 0) {
 			ctl_set_sense(ctsio, /*current_error*/ 1,
 			    /*sense_key*/ SSD_KEY_DATA_PROTECT,
 			    /*asc*/ 0x27, /*ascq*/ 0x02, SSD_ELEM_NONE);
@@ -13202,12 +13194,9 @@ ctl_process_done(union ctl_io *io)
 	if (lun->ie_reported == 0 && lun->ie_asc != 0 &&
 	    io->io_hdr.status == CTL_SUCCESS &&
 	    (io->io_hdr.flags & CTL_FLAG_STATUS_SENT) == 0) {
-		uint8_t mrie = lun->mode_pages.ie_page[CTL_PAGE_CURRENT].mrie;
-		uint8_t per =
-		    ((lun->mode_pages.rw_er_page[CTL_PAGE_CURRENT].byte3 &
-		      SMS_RWER_PER) ||
-		     (lun->mode_pages.verify_er_page[CTL_PAGE_CURRENT].byte3 &
-		      SMS_VER_PER));
+		uint8_t mrie = lun->MODE_IE.mrie;
+		uint8_t per = ((lun->MODE_RWER.byte3 & SMS_RWER_PER) ||
+		    (lun->MODE_VER.byte3 & SMS_VER_PER));
 		if (((mrie == SIEP_MRIE_REC_COND && per) ||
 		     mrie == SIEP_MRIE_REC_UNCOND ||
 		     mrie == SIEP_MRIE_NO_SENSE) &&
@@ -13613,7 +13602,6 @@ ctl_thresh_thread(void *arg)
 {
 	struct ctl_softc *softc = (struct ctl_softc *)arg;
 	struct ctl_lun *lun;
-	struct scsi_da_rw_recovery_page *rwpage;
 	struct ctl_logical_block_provisioning_page *page;
 	const char *attr;
 	union ctl_ha_msg msg;
@@ -13632,11 +13620,10 @@ ctl_thresh_thread(void *arg)
 			if ((lun->flags & CTL_LUN_PRIMARY_SC) == 0 &&
 			    softc->ha_mode == CTL_HA_MODE_XFER)
 				continue;
-			rwpage = &lun->mode_pages.rw_er_page[CTL_PAGE_CURRENT];
-			if ((rwpage->byte8 & SMS_RWER_LBPERE) == 0)
+			if ((lun->MODE_RWER.byte8 & SMS_RWER_LBPERE) == 0)
 				continue;
 			e = 0;
-			page = &lun->mode_pages.lbp_page[CTL_PAGE_CURRENT];
+			page = &lun->MODE_LBP;
 			for (i = 0; i < CTL_NUM_LBP_THRESH; i++) {
 				if ((page->descr[i].flags & SLBPPD_ENABLED) == 0)
 					continue;
