@@ -2868,7 +2868,7 @@ cmd6workaround(union ccb *ccb)
 		 *
 		 * While we will attempt to choose an alternative delete method
 		 * this may result in short deletes if the existing delete
-		 * requests from geom are big for the new method choosen.
+		 * requests from geom are big for the new method chosen.
 		 *
 		 * This method assumes that the error which triggered this
 		 * will not retry the io otherwise a panic will occur
@@ -3319,7 +3319,7 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 			 * Based on older SBC-3 spec revisions
 			 * any of the UNMAP methods "may" be
 			 * available via LBP given this flag so
-			 * we flag all of them as availble and
+			 * we flag all of them as available and
 			 * then remove those which further
 			 * probes confirm aren't available
 			 * later.

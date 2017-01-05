@@ -3655,7 +3655,7 @@ scsi_desc_iterate(struct scsi_sense_data_desc *sense, u_int sense_len,
 
 	/*
 	 * The length of data actually returned may be different than the
-	 * extra_len recorded in the sturcture.
+	 * extra_len recorded in the structure.
 	 */
 	desc_len = sense_len -offsetof(struct scsi_sense_data_desc, sense_desc);
 
@@ -8722,7 +8722,7 @@ scsi_static_inquiry_match(caddr_t inqbuffer, caddr_t table_entry)
  * \return  0 on a match, -1 otherwise.
  *
  * Treat rhs and lhs as arrays of vpd device id descriptors.  Walk lhs matching
- * agains each element in rhs until all data are exhausted or we have found
+ * against each element in rhs until all data are exhausted or we have found
  * a match.
  */
 int

@@ -81,7 +81,7 @@ typedef enum {
     CAM_RL_VALUES
 } cam_rl;
 /*
- * The generation number is incremented everytime a new entry is entered into
+ * The generation number is incremented every time a new entry is entered into
  * the queue giving round robin per priority level scheduling.
  */
 typedef struct {
@@ -122,7 +122,7 @@ typedef enum {
 enum {
 	SF_RETRY_UA		= 0x01,	/* Retry UNIT ATTENTION conditions. */
 	SF_NO_PRINT		= 0x02,	/* Never print error status. */
-	SF_QUIET_IR		= 0x04,	/* Be quiet about Illegal Request reponses */
+	SF_QUIET_IR		= 0x04,	/* Be quiet about Illegal Request responses */
 	SF_PRINT_ALWAYS		= 0x08,	/* Always print error status. */
 	SF_NO_RECOVERY		= 0x10,	/* Don't do active error recovery. */
 	SF_NO_RETRY		= 0x20,	/* Don't do any retries. */
