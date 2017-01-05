@@ -194,6 +194,7 @@ MAN=	aac.4 \
 	${_hv_storvsc.4} \
 	${_hv_utils.4} \
 	${_hv_vmbus.4} \
+	hv_vss.4 \
 	hwpmc.4 \
 	ichsmb.4 \
 	${_ichwd.4} \
