@@ -315,9 +315,11 @@ whichaf(struct request_info *req)
 	sa = (struct sockaddr *)req->client->sin;
 	if (sa == NULL)
 		return AF_UNSPEC;
+#ifdef INET6
 	if (sa->sa_family == AF_INET6 &&
 	    IN6_IS_ADDR_V4MAPPED(&satosin6(sa)->sin6_addr))
 		return AF_INET;
+#endif
 	return sa->sa_family;
 }
 
@@ -1283,6 +1285,7 @@ setsockopt(fd, SOL_SOCKET, opt, (char *)&on, sizeof (on))
 		syslog(LOG_ERR, "setsockopt (SO_PRIVSTATE): %m");
 #endif
 	/* tftpd opens a new connection then needs more infos */
+#ifdef INET6
 	if ((sep->se_family == AF_INET6) &&
 	    (strcmp(sep->se_proto, "udp") == 0) &&
 	    (sep->se_accept == 0) &&
@@ -1295,6 +1298,7 @@ setsockopt(fd, SOL_SOCKET, opt, (char *)&on, sizeof (on))
 			       (char *)&flag, sizeof (flag)) < 0)
 			syslog(LOG_ERR, "setsockopt (IPV6_V6ONLY): %m");
 	}
+#endif
 #undef turnon
 #ifdef IPSEC
 	ipsecsetup(sep);
@@ -1332,7 +1336,9 @@ setsockopt(fd, SOL_SOCKET, opt, (char *)&on, sizeof (on))
 		u_int i;
 		socklen_t len = sep->se_ctrladdr_size;
 		struct netconfig *netid, *netid2 = NULL;
+#ifdef INET6
 		struct sockaddr_in sock;
+#endif
 		struct netbuf nbuf, nbuf2;
 
                 if (getsockname(sep->se_fd,
@@ -1347,6 +1353,7 @@ setsockopt(fd, SOL_SOCKET, opt, (char *)&on, sizeof (on))
 		nbuf.len = sep->se_ctrladdr.sa_len;
 		if (sep->se_family == AF_INET)
 			netid = sep->se_socktype==SOCK_DGRAM? udpconf:tcpconf;
+#ifdef INET6
 		else  {
 			netid = sep->se_socktype==SOCK_DGRAM? udp6conf:tcp6conf;
 			if (!sep->se_nomapped) { /* INET and INET6 */
@@ -1358,6 +1365,7 @@ setsockopt(fd, SOL_SOCKET, opt, (char *)&on, sizeof (on))
 				sock.sin_port = sep->se_ctrladdr6.sin6_port;
 			}
 		}
+#endif
                 if (debug)
                         print_service("REG ", sep);
                 for (i = sep->se_rpc_lowvers; i <= sep->se_rpc_highvers; i++) {
