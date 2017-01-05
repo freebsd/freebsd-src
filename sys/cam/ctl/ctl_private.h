@@ -285,7 +285,7 @@ static const struct ctl_page_index page_index_template[] = {
 	 CTL_PAGE_FLAG_ALL, NULL, ctl_default_page_handler},
 	{SMS_CONTROL_MODE_PAGE | SMPH_SPF, 0x01,
 	 sizeof(struct scsi_control_ext_page), NULL,
-	 CTL_PAGE_FLAG_ALL, NULL, NULL},
+	 CTL_PAGE_FLAG_ALL, NULL, ctl_default_page_handler},
 	{SMS_INFO_EXCEPTIONS_PAGE, 0, sizeof(struct scsi_info_exceptions_page), NULL,
 	 CTL_PAGE_FLAG_ALL, NULL, ctl_ie_page_handler},
 	{SMS_INFO_EXCEPTIONS_PAGE | SMPH_SPF, 0x02,
