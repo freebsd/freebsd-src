@@ -244,13 +244,15 @@ sockets_main(int argc, char **argv)
 	}
 
 #ifdef	__FreeBSD__
-	addr.sun_len = sizeof(addr.sun_path);
-	(void)strlcpy(addr.sun_path, argv[1], addr.sun_len);
-#else
-	(void)strlcpy(addr.sun_path, argv[1], sizeof(addr.sun_path));
+	memset(&addr, 0, sizeof(addr));
 #endif
+	(void)strlcpy(addr.sun_path, argv[1], sizeof(addr.sun_path));
 	addr.sun_family = PF_UNIX;
+#ifdef	__FreeBSD__
+	error = bind(fd, (struct sockaddr *)&addr, SUN_LEN(&addr));
+#else
 	error = bind(fd, (struct sockaddr *)&addr, sizeof(addr));
+#endif
 	if (error == -1) {
 		warn("connect");
 #ifdef	__FreeBSD__
