@@ -3399,6 +3399,29 @@ struct scsi_sense_osd_attr_id
 };
 
 /*
+ * ATA Return descriptor, used for the SCSI ATA PASS-THROUGH(12), (16) and
+ * (32) commands.  Described in SAT-4r05.
+ */
+struct scsi_sense_ata_ret_desc
+{
+	uint8_t desc_type;
+#define	SSD_DESC_ATA		0x09
+	uint8_t length;
+	uint8_t flags;
+#define	SSD_DESC_ATA_FLAG_EXTEND	0x01
+	uint8_t error;
+	uint8_t count_15_8;
+	uint8_t count_7_0;
+	uint8_t lba_31_24;
+	uint8_t lba_7_0;
+	uint8_t lba_39_32;
+	uint8_t lba_15_8;
+	uint8_t lba_47_40;
+	uint8_t lba_23_16;
+	uint8_t device;
+	uint8_t status;
+};
+/*
  * Used with Sense keys No Sense (0x00) and Not Ready (0x02).
  *
  * Maximum descriptors allowed: 32 (as of SPC-4)
@@ -3663,6 +3686,10 @@ void scsi_sense_progress_sbuf(struct sbuf *sb, struct scsi_sense_data *sense,
 			      u_int sense_len, uint8_t *cdb, int cdb_len,
 			      struct scsi_inquiry_data *inq_data,
 			      struct scsi_sense_desc_header *header);
+void scsi_sense_ata_sbuf(struct sbuf *sb, struct scsi_sense_data *sense,
+			 u_int sense_len, uint8_t *cdb, int cdb_len,
+			 struct scsi_inquiry_data *inq_data,
+			 struct scsi_sense_desc_header *header);
 void scsi_sense_forwarded_sbuf(struct sbuf *sb, struct scsi_sense_data *sense,
 			      u_int sense_len, uint8_t *cdb, int cdb_len,
 			      struct scsi_inquiry_data *inq_data,
