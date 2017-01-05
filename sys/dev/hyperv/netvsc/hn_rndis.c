@@ -232,7 +232,10 @@ hn_rndis_xact_exec1(struct hn_softc *sc, struct vmbus_xact *xact, size_t reqlen,
 		if_printf(sc->hn_ifp, "RNDIS ctrl send failed: %d\n", error);
 		return (NULL);
 	}
-	return (vmbus_xact_wait(xact, comp_len));
+	if (HN_CAN_SLEEP(sc))
+		return (vmbus_xact_wait(xact, comp_len));
+	else
+		return (vmbus_xact_busywait(xact, comp_len));
 }
 
 static const void *
