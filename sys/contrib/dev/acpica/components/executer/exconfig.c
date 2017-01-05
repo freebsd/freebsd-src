@@ -224,7 +224,7 @@ AcpiExLoadTableOp (
     AcpiExEnterInterpreter ();
     if (ACPI_FAILURE (Status))
     {
-	return_ACPI_STATUS (Status);
+        return_ACPI_STATUS (Status);
     }
 
     Status = AcpiExAddTable (TableIndex, &DdbHandle);

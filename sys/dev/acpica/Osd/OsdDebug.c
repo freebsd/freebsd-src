@@ -99,7 +99,6 @@ AcpiOsSignal(UINT32 Function, void *Info)
 void
 acpi_EnterDebugger(void)
 {
-    ACPI_PARSE_OBJECT	obj;
     static int		initted = 0;
 
     if (!initted) {
@@ -109,6 +108,6 @@ acpi_EnterDebugger(void)
     }
 
     printf("Entering ACPICA debugger...\n");
-    AcpiDbUserCommands('A', &obj);
+    AcpiDbUserCommands();
 }
 #endif /* ACPI_DEBUGGER */
