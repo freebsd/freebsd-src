@@ -293,6 +293,7 @@ static int			hn_txagg_size_sysctl(SYSCTL_HANDLER_ARGS);
 static int			hn_txagg_pkts_sysctl(SYSCTL_HANDLER_ARGS);
 static int			hn_txagg_pktmax_sysctl(SYSCTL_HANDLER_ARGS);
 static int			hn_txagg_align_sysctl(SYSCTL_HANDLER_ARGS);
+static int			hn_polling_sysctl(SYSCTL_HANDLER_ARGS);
 
 static void			hn_stop(struct hn_softc *);
 static void			hn_init_locked(struct hn_softc *);
@@ -319,6 +320,8 @@ static void			hn_resume_mgmt(struct hn_softc *);
 static void			hn_suspend_mgmt_taskfunc(void *, int);
 static void			hn_chan_drain(struct hn_softc *,
 				    struct vmbus_channel *);
+static void			hn_polling(struct hn_softc *, u_int);
+static void			hn_chan_polling(struct vmbus_channel *, u_int);
 
 static void			hn_update_link_status(struct hn_softc *);
 static void			hn_change_network(struct hn_softc *);
@@ -1117,6 +1120,10 @@ hn_attach(device_t dev)
 	    hn_txagg_pkts_sysctl, "I",
 	    "Packet transmission aggregation packets, "
 	    "0 -- disable, -1 -- auto");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "polling",
+	    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE, sc, 0,
+	    hn_polling_sysctl, "I",
+	    "Polling frequency: [100,1000000], 0 disable polling");
 
 	/*
 	 * Setup the ifmedia, which has been initialized earlier.
@@ -2360,6 +2367,9 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			break;
 		}
 
+		/* Disable polling. */
+		hn_polling(sc, 0);
+
 		/*
 		 * Suspend this interface before the synthetic parts
 		 * are ripped.
@@ -2404,6 +2414,13 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		 * All done!  Resume the interface now.
 		 */
 		hn_resume(sc);
+
+		/*
+		 * Re-enable polling if this interface is running and
+		 * the polling is requested.
+		 */
+		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) && sc->hn_pollhz > 0)
+			hn_polling(sc, sc->hn_pollhz);
 
 		HN_UNLOCK(sc);
 		break;
@@ -2531,6 +2548,9 @@ hn_stop(struct hn_softc *sc)
 	KASSERT(sc->hn_flags & HN_FLAG_SYNTH_ATTACHED,
 	    ("synthetic parts were not attached"));
 
+	/* Disable polling. */
+	hn_polling(sc, 0);
+
 	/* Clear RUNNING bit _before_ hn_suspend_data() */
 	atomic_clear_int(&ifp->if_drv_flags, IFF_DRV_RUNNING);
 	hn_suspend_data(sc);
@@ -2568,6 +2588,10 @@ hn_init_locked(struct hn_softc *sc)
 
 	/* Everything is ready; unleash! */
 	atomic_set_int(&ifp->if_drv_flags, IFF_DRV_RUNNING);
+
+	/* Re-enable polling if requested. */
+	if (sc->hn_pollhz > 0)
+		hn_polling(sc, sc->hn_pollhz);
 }
 
 static void
@@ -2873,6 +2897,61 @@ hn_txagg_align_sysctl(SYSCTL_HANDLER_ARGS)
 
 	align = sc->hn_tx_ring[0].hn_agg_align;
 	return (sysctl_handle_int(oidp, &align, 0, req));
+}
+
+static void
+hn_chan_polling(struct vmbus_channel *chan, u_int pollhz)
+{
+	if (pollhz == 0)
+		vmbus_chan_poll_disable(chan);
+	else
+		vmbus_chan_poll_enable(chan, pollhz);
+}
+
+static void
+hn_polling(struct hn_softc *sc, u_int pollhz)
+{
+	int nsubch = sc->hn_rx_ring_inuse - 1;
+
+	HN_LOCK_ASSERT(sc);
+
+	if (nsubch > 0) {
+		struct vmbus_channel **subch;
+		int i;
+
+		subch = vmbus_subchan_get(sc->hn_prichan, nsubch);
+		for (i = 0; i < nsubch; ++i)
+			hn_chan_polling(subch[i], pollhz);
+		vmbus_subchan_rel(subch, nsubch);
+	}
+	hn_chan_polling(sc->hn_prichan, pollhz);
+}
+
+static int
+hn_polling_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct hn_softc *sc = arg1;
+	int pollhz, error;
+
+	pollhz = sc->hn_pollhz;
+	error = sysctl_handle_int(oidp, &pollhz, 0, req);
+	if (error || req->newptr == NULL)
+		return (error);
+
+	if (pollhz != 0 &&
+	    (pollhz < VMBUS_CHAN_POLLHZ_MIN || pollhz > VMBUS_CHAN_POLLHZ_MAX))
+		return (EINVAL);
+
+	HN_LOCK(sc);
+	if (sc->hn_pollhz != pollhz) {
+		sc->hn_pollhz = pollhz;
+		if ((sc->hn_ifp->if_drv_flags & IFF_DRV_RUNNING) &&
+		    (sc->hn_flags & HN_FLAG_SYNTH_ATTACHED))
+			hn_polling(sc, sc->hn_pollhz);
+	}
+	HN_UNLOCK(sc);
+
+	return (0);
 }
 
 static int
