@@ -4019,11 +4019,17 @@ scsi_set_sense_data_va(struct scsi_sense_data *sense_data,
 					data_dest = &sense->info[0];
 					len_to_copy = MIN(sense_len,
 					    sizeof(sense->info));
-					/*
-					 * We're setting the info field, so
-					 * set the valid bit.
-					 */
-					sense->error_code |= SSD_ERRCODE_VALID;
+
+					/* Set VALID bit only if no overflow. */
+					for (i = 0; i < sense_len - len_to_copy;
+					    i++) {
+						if (data[i] != 0)
+							break;
+					}
+					if (i >= sense_len - len_to_copy) {
+						sense->error_code |=
+						    SSD_ERRCODE_VALID;
+					}
 				}
 
 				/*
