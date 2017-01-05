@@ -278,7 +278,7 @@ const static struct scsi_control_ext_page control_ext_page_changeable = {
 	/*page_length*/{CTL_CEM_LEN >> 8, CTL_CEM_LEN},
 	/*flags*/0,
 	/*prio*/0,
-	/*max_sense*/0
+	/*max_sense*/0xff
 };
 
 const static struct scsi_info_exceptions_page ie_page_default = {
@@ -9211,6 +9211,7 @@ ctl_request_sense(struct ctl_scsiio *ctsio)
 	struct ctl_lun *lun;
 	uint32_t initidx;
 	int have_error;
+	u_int sense_len = SSD_FULL_SIZE;
 	scsi_sense_data_type sense_format;
 	ctl_ua_type ua_type;
 	uint8_t asc = 0, ascq = 0;
@@ -9254,7 +9255,7 @@ ctl_request_sense(struct ctl_scsiio *ctsio)
 	    ((lun->flags & CTL_LUN_PRIMARY_SC) == 0 &&
 	     softc->ha_link < CTL_HA_LINK_UNKNOWN)) {
 		/* "Logical unit not supported" */
-		ctl_set_sense_data(sense_ptr, NULL, sense_format,
+		ctl_set_sense_data(sense_ptr, &sense_len, NULL, sense_format,
 		    /*current_error*/ 1,
 		    /*sense_key*/ SSD_KEY_ILLEGAL_REQUEST,
 		    /*asc*/ 0x25,
@@ -9310,7 +9311,8 @@ ctl_request_sense(struct ctl_scsiio *ctsio)
 	} else
 #endif
 	if (have_error == 0) {
-		ua_type = ctl_build_ua(lun, initidx, sense_ptr, sense_format);
+		ua_type = ctl_build_ua(lun, initidx, sense_ptr, &sense_len,
+		    sense_format);
 		if (ua_type != CTL_UA_NONE)
 			have_error = 1;
 	}
@@ -9322,7 +9324,7 @@ ctl_request_sense(struct ctl_scsiio *ctsio)
 			asc = lun->ie_asc;
 			ascq = lun->ie_ascq;
 		}
-		ctl_set_sense_data(sense_ptr, lun, sense_format,
+		ctl_set_sense_data(sense_ptr, &sense_len, lun, sense_format,
 		    /*current_error*/ 1,
 		    /*sense_key*/ SSD_KEY_NO_SENSE,
 		    /*asc*/ asc,
@@ -11626,14 +11628,15 @@ ctl_scsiio_precheck(struct ctl_softc *softc, struct ctl_scsiio *ctsio)
 	 */
 	if ((entry->flags & CTL_CMD_FLAG_NO_SENSE) == 0) {
 		ctl_ua_type ua_type;
+		u_int sense_len = 0;
 
 		ua_type = ctl_build_ua(lun, initidx, &ctsio->sense_data,
-		    SSD_TYPE_NONE);
+		    &sense_len, SSD_TYPE_NONE);
 		if (ua_type != CTL_UA_NONE) {
 			mtx_unlock(&lun->lun_lock);
 			ctsio->scsi_status = SCSI_STATUS_CHECK_COND;
 			ctsio->io_hdr.status = CTL_SCSI_ERROR | CTL_AUTOSENSE;
-			ctsio->sense_len = SSD_FULL_SIZE;
+			ctsio->sense_len = sense_len;
 			ctl_done((union ctl_io *)ctsio);
 			return (retval);
 		}
