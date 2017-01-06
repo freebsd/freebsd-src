@@ -19,4 +19,7 @@ DEFS=	${MOD}_tree.def
 
 CFLAGS+=	-DSNMPTREE_TYPES
 
+# XXX (ngie): unused variables
+NO_WERROR=
+
 .include <bsd.snmpmod.mk>
