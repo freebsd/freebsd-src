@@ -34,10 +34,48 @@ __FBSDID("$FreeBSD$");
 #include "ipv6.h"
 
 int
-op_ipv6IfStatsTable(struct snmp_context *ctx, struct snmp_value *value,
-    u_int sub, u_int iidx, enum snmp_op op)
+op_ipv6IfStatsTable(struct snmp_context *ctx __unused, struct snmp_value *value,
+    u_int sub, u_int iidx __unused, enum snmp_op op)
 {
+	asn_subid_t which;
 
-	/* Not yet implemented */
-	return (SNMP_ERR_NOSUCHNAME);
+	switch (op) {
+	case SNMP_OP_GETNEXT:
+	case SNMP_OP_GET:
+		break;
+	case SNMP_OP_SET:
+		return (SNMP_ERR_NOT_WRITEABLE);
+	case SNMP_OP_ROLLBACK:
+	case SNMP_OP_COMMIT:
+		return (SNMP_ERR_NOERROR);
+	}
+
+	which = value->var.subs[sub - 1];
+
+	switch (which) {
+	case LEAF_ipv6IfStatsInReceives:
+	case LEAF_ipv6IfStatsInHdrErrors:
+	case LEAF_ipv6IfStatsInTooBigErrors:
+	case LEAF_ipv6IfStatsInNoRoutes:
+	case LEAF_ipv6IfStatsInAddrErrors:
+	case LEAF_ipv6IfStatsInUnknownProtos:
+	case LEAF_ipv6IfStatsInTruncatedPkts:
+	case LEAF_ipv6IfStatsInDiscards:
+	case LEAF_ipv6IfStatsInDelievers:
+	case LEAF_ipv6IfStatsOutForwDatagrams:
+	case LEAF_ipv6IfStatsOutRequests:
+	case LEAF_ipv6IfStatsOutDiscards:
+	case LEAF_ipv6IfStatsOutFragOKs:
+	case LEAF_ipv6IfStatsOutFragFails:
+	case LEAF_ipv6IfStatsOutFragCreates:
+	case LEAF_ipv6IfStatsReasmReqds:
+	case LEAF_ipv6IfStatsReasmOKs:
+	case LEAF_ipv6IfStatsReasmFails:
+	case LEAF_ipv6IfStatsInMcastPkts:
+	case LEAF_ipv6IfStatsOutMcastPkts:
+	default:
+		return (SNMP_ERR_RES_UNAVAIL);
+	}
+
+	return (SNMP_ERR_NOERROR);
 }

@@ -40,8 +40,8 @@ __FBSDID("$FreeBSD$");
 #include "ipv6.h"
 
 int
-op_ipv6IfTable(struct snmp_context *ctx, struct snmp_value *value,
-    u_int sub, u_int iidx, enum snmp_op op)
+op_ipv6IfTable(struct snmp_context *ctx __unused, struct snmp_value *value,
+    u_int sub, u_int iidx __unused, enum snmp_op op)
 {
 	asn_subid_t which;
 

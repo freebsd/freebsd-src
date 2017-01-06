@@ -42,8 +42,8 @@ static const struct asn_oid oid_ipv6MIB = OIDX_ipv6MIB;
 static u_int ipv6_reg;
 
 int
-op_ipv6MIBObjects(struct snmp_context *ctx, struct snmp_value *value,
-    u_int sub, u_int iidx, enum snmp_op op)
+op_ipv6MIBObjects(struct snmp_context *ctx __unused, struct snmp_value *value,
+    u_int sub, u_int iidx __unused, enum snmp_op op)
 {
 	const char *namestr = NULL;
 	int name[] = { CTL_NET, PF_INET6, IPPROTO_IPV6, 0 };
@@ -55,7 +55,6 @@ op_ipv6MIBObjects(struct snmp_context *ctx, struct snmp_value *value,
 	case SNMP_OP_GET:
 		break;
 	case SNMP_OP_SET:
-		/* XXX (ngie): this is a lie. It's not implemented. */
 		return (SNMP_ERR_NOT_WRITEABLE);
 	case SNMP_OP_ROLLBACK:
 	case SNMP_OP_COMMIT:

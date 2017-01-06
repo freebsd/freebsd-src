@@ -35,9 +35,34 @@ __FBSDID("$FreeBSD$");
 #include "ipv6_addrPrefixTable.h"
 
 int
-op_ipv6AddrPrefixTable(struct snmp_context *ctx, struct snmp_value *value,
-    u_int sub, u_int iidx, enum snmp_op op)
+op_ipv6AddrPrefixTable(struct snmp_context *ctx __unused,
+    struct snmp_value *value, u_int sub, u_int iidx __unused, enum snmp_op op)
 {
+	asn_subid_t which;
 
-	return (SNMP_ERR_NOSUCHNAME);
+	switch (op) {
+	case SNMP_OP_GETNEXT:
+	case SNMP_OP_GET:
+		break;
+	case SNMP_OP_SET:
+		return (SNMP_ERR_NOT_WRITEABLE);
+	case SNMP_OP_ROLLBACK:
+	case SNMP_OP_COMMIT:
+		return (SNMP_ERR_NOERROR);
+	}
+
+	which = value->var.subs[sub - 1];
+
+	switch (which) {
+	case LEAF_ipv6AddrPrefix:
+	case LEAF_ipv6AddrPrefixLength:
+	case LEAF_ipv6AddrPrefixOnLinkFlag:
+	case LEAF_ipv6AddrPrefixAutonomousFlag:
+	case LEAF_ipv6AddrPrefixAdvPreferredLifetime:
+	case LEAF_ipv6AddrPrefixPrefixAdvValidLifetime:
+	default:
+		return (SNMP_ERR_RES_UNAVAIL);
+	}
+
+	return (SNMP_ERR_NOERROR);
 }
