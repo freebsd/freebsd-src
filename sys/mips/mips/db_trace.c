@@ -117,7 +117,7 @@ loop:
 
 	/* Check for bad SP: could foul up next frame. */
 	if (!MIPS_IS_VALID_KERNELADDR(sp)) {
-		db_printf("SP 0x%jx: not in kernel\n", sp);
+		db_printf("SP 0x%jx: not in kernel\n", (uintmax_t)sp);
 		ra = 0;
 		subr = 0;
 		goto done;
@@ -162,7 +162,7 @@ loop:
 
 	/* Check for bad PC. */
 	if (!MIPS_IS_VALID_KERNELADDR(pc)) {
-		db_printf("PC 0x%jx: not in kernel\n", pc);
+		db_printf("PC 0x%jx: not in kernel\n", (uintmax_t)pc);
 		ra = 0;
 		goto done;
 	}
