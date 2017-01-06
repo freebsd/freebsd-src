@@ -91,8 +91,7 @@
 	reg[0x105c] = 128		# SGE_FL_BUFFER_SIZE6
 	reg[0x1060] = 8192		# SGE_FL_BUFFER_SIZE7
 	reg[0x1064] = 16384		# SGE_FL_BUFFER_SIZE8
-	reg[0x10a4] = 0xa000a000/0xf000f000 # SGE_DBFIFO_STATUS
-	reg[0x10a8] = 0x402000/0x402000	# SGE_DOORBELL_CONTROL
+
 	sge_timer_value = 5, 10, 20, 50, 100, 200 # SGE_TIMER_VALUE* in usecs
 	reg[0x10c4] = 0x20000000/0x20000000 # GK_CONTROL, enable 5th thread
 
@@ -110,10 +109,10 @@
 	# filter tuples : fragmentation, mpshittype, macmatch, ethertype,
 	#		  protocol, tos, vlan, vnic_id, port, fcoe
 	# valid filterModes are described the Terminator 5 Data Book
-	filterMode = fcoemask, srvrsram, fragmentation, mpshittype, protocol, vlan, port, fcoe
+	filterMode = srvrsram, fragmentation, mpshittype, protocol, vlan, port, fcoe
 
 	# filter tuples enforced in LE active region (equal to or subset of filterMode)
-	filterMask = protocol, fcoe
+	filterMask = protocol
 
 	# Percentage of dynamic memory (in either the EDRAM or external MEM)
 	# to use for TP RX payload
@@ -395,6 +394,7 @@
 	neq = 256		# NEQ_UNIFIED + NEQ_WD
 	nqpcq = 12288
 	nexactf = 40		# NMPSTCAM_UNIFIED
+	nrawf = 2
 	cmask = all		# access to all channels
 	pmask = all		# access to all four ports ...
 	nethofld = 1024		# number of user mode ethernet flow contexts
@@ -554,7 +554,6 @@
 	dcb_app_tlv[2] = 3260, socketnum, 5
 	#aec_retry_cnt = 4
 	flags = an_dis
-	fec = none		# FEC type none/rs/firecode
 
 
 [port "1"]
@@ -569,12 +568,11 @@
 	dcb_app_tlv[2] = 3260, socketnum, 5
 	#aec_retry_cnt = 4
 	flags = an_dis
-	fec = none		# FEC type none/rs/firecode
 
 
 [fini]
-	version = 0x01000024
-	checksum = 0x36cebfcb
+	version = 0x01000025
+	checksum = 0xb23e8983
 
 # Total resources used by above allocations:
 #   Virtual Interfaces: 104
