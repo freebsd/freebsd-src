@@ -73,7 +73,6 @@ Usage (
     ACPI_OPTION ("-I <dir>",        "Specify additional include directory");
     ACPI_OPTION ("-p <prefix>",     "Specify path/filename prefix for all output files");
     ACPI_OPTION ("-v",              "Display compiler version");
-    ACPI_OPTION ("-vd",             "Display compiler build date and time");
     ACPI_OPTION ("-vo",             "Enable optimization comments");
     ACPI_OPTION ("-vs",             "Disable signon");
 
