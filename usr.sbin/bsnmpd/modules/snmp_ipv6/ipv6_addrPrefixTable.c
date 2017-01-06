@@ -54,10 +54,6 @@ op_ipv6AddrPrefixTable(struct snmp_context *ctx __unused,
 	which = value->var.subs[sub - 1];
 
 	switch (which) {
-#if 0
-	case LEAF_ipv6AddrPrefix:
-	case LEAF_ipv6AddrPrefixLength:
-#endif
 	case LEAF_ipv6AddrPrefixOnLinkFlag:
 	case LEAF_ipv6AddrPrefixAutonomousFlag:
 	case LEAF_ipv6AddrPrefixAdvPreferredLifetime:
