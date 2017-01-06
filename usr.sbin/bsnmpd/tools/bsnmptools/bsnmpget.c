@@ -840,10 +840,9 @@ parse_pair_numoid_val(char *str, struct snmp_value *snmp_val)
 	return (1);
 }
 
-/* XXX-BZ aruments should be swapped. */
 static int32_t
-parse_syntax_strval(struct snmp_toolinfo *snmptoolctx, char *str,
-    struct snmp_object *object)
+parse_syntax_strval(struct snmp_toolinfo *snmptoolctx,
+    struct snmp_object *object, char *str)
 {
 	uint32_t len;
 	enum snmp_syntax syn;
@@ -915,7 +914,7 @@ parse_pair_stroid_val(struct snmp_toolinfo *snmptoolctx,
 		return (-1);
 	}
 
-	if (parse_syntax_strval(snmptoolctx, ptr + 1, obj) < 0)
+	if (parse_syntax_strval(snmptoolctx, obj, ptr + 1) < 0)
 		return (-1);
 
 	return (1);
