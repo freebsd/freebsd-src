@@ -95,50 +95,23 @@ AcpiDbStartCommand (
 
     AcpiGbl_MethodExecuting = TRUE;
     Status = AE_CTRL_TRUE;
+
     while (Status == AE_CTRL_TRUE)
     {
-        if (AcpiGbl_DebuggerConfiguration == DEBUGGER_MULTI_THREADED)
+        /* Notify the completion of the command */
+
+        Status = AcpiOsNotifyCommandComplete ();
+        if (ACPI_FAILURE (Status))
         {
-            /* Handshake with the front-end that gets user command lines */
-
-            AcpiOsReleaseMutex (AcpiGbl_DbCommandComplete);
-
-            Status = AcpiOsAcquireMutex (AcpiGbl_DbCommandReady,
-                ACPI_WAIT_FOREVER);
-            if (ACPI_FAILURE (Status))
-            {
-                return (Status);
-            }
+            goto ErrorExit;
         }
-        else
+
+        /* Wait the readiness of the command */
+
+        Status = AcpiOsWaitCommandReady ();
+        if (ACPI_FAILURE (Status))
         {
-            /* Single threaded, we must get a command line ourselves */
-
-            /* Force output to console until a command is entered */
-
-            AcpiDbSetOutputDestination (ACPI_DB_CONSOLE_OUTPUT);
-
-            /* Different prompt if method is executing */
-
-            if (!AcpiGbl_MethodExecuting)
-            {
-                AcpiOsPrintf ("%1c ", ACPI_DEBUGGER_COMMAND_PROMPT);
-            }
-            else
-            {
-                AcpiOsPrintf ("%1c ", ACPI_DEBUGGER_EXECUTE_PROMPT);
-            }
-
-            /* Get the user input line */
-
-            Status = AcpiOsGetLine (AcpiGbl_DbLineBuf,
-                ACPI_DB_LINE_BUFFER_SIZE, NULL);
-            if (ACPI_FAILURE (Status))
-            {
-                ACPI_EXCEPTION ((AE_INFO, Status,
-                    "While parsing command line"));
-                return (Status);
-            }
+            goto ErrorExit;
         }
 
         Status = AcpiDbCommandDispatch (AcpiGbl_DbLineBuf, WalkState, Op);
@@ -146,6 +119,12 @@ AcpiDbStartCommand (
 
     /* AcpiUtAcquireMutex (ACPI_MTX_NAMESPACE); */
 
+ErrorExit:
+    if (ACPI_FAILURE (Status) && Status != AE_CTRL_TERMINATE)
+    {
+        ACPI_EXCEPTION ((AE_INFO, Status,
+            "While parsing/handling command line"));
+    }
     return (Status);
 }
 
@@ -493,16 +472,7 @@ AcpiInitializeDebugger (
     {
         /* These were created with one unit, grab it */
 
-        Status = AcpiOsAcquireMutex (AcpiGbl_DbCommandComplete,
-            ACPI_WAIT_FOREVER);
-        if (ACPI_FAILURE (Status))
-        {
-            AcpiOsPrintf ("Could not get debugger mutex\n");
-            return_ACPI_STATUS (Status);
-        }
-
-        Status = AcpiOsAcquireMutex (AcpiGbl_DbCommandReady,
-            ACPI_WAIT_FOREVER);
+        Status = AcpiOsInitializeDebugger ();
         if (ACPI_FAILURE (Status))
         {
             AcpiOsPrintf ("Could not get debugger mutex\n");
@@ -556,14 +526,14 @@ AcpiTerminateDebugger (
 
     if (AcpiGbl_DebuggerConfiguration & DEBUGGER_MULTI_THREADED)
     {
-        AcpiOsReleaseMutex (AcpiGbl_DbCommandReady);
-
         /* Wait the AML Debugger threads */
 
         while (!AcpiGbl_DbThreadsTerminated)
         {
             AcpiOsSleep (100);
         }
+
+        AcpiOsTerminateDebugger ();
     }
 
     if (AcpiGbl_DbBuffer)

@@ -64,10 +64,6 @@ AcpiDbMatchCommand (
     char                    *UserCommand);
 
 static void
-AcpiDbSingleThread (
-    void);
-
-static void
 AcpiDbDisplayCommandInfo (
     const char              *Command,
     BOOLEAN                 DisplayAll);
@@ -1231,52 +1227,9 @@ void ACPI_SYSTEM_XFACE
 AcpiDbExecuteThread (
     void                    *Context)
 {
-    ACPI_STATUS             Status = AE_OK;
-    ACPI_STATUS             MStatus;
 
-
-    while (Status != AE_CTRL_TERMINATE && !AcpiGbl_DbTerminateLoop)
-    {
-        AcpiGbl_MethodExecuting = FALSE;
-        AcpiGbl_StepToNextCall = FALSE;
-
-        MStatus = AcpiOsAcquireMutex (AcpiGbl_DbCommandReady,
-            ACPI_WAIT_FOREVER);
-        if (ACPI_FAILURE (MStatus))
-        {
-            return;
-        }
-
-        Status = AcpiDbCommandDispatch (AcpiGbl_DbLineBuf, NULL, NULL);
-
-        AcpiOsReleaseMutex (AcpiGbl_DbCommandComplete);
-    }
+    (void) AcpiDbUserCommands ();
     AcpiGbl_DbThreadsTerminated = TRUE;
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiDbSingleThread
- *
- * PARAMETERS:  None
- *
- * RETURN:      None
- *
- * DESCRIPTION: Debugger execute thread. Waits for a command line, then
- *              simply dispatches it.
- *
- ******************************************************************************/
-
-static void
-AcpiDbSingleThread (
-    void)
-{
-
-    AcpiGbl_MethodExecuting = FALSE;
-    AcpiGbl_StepToNextCall = FALSE;
-
-    (void) AcpiDbCommandDispatch (AcpiGbl_DbLineBuf, NULL, NULL);
 }
 
 
@@ -1284,8 +1237,7 @@ AcpiDbSingleThread (
  *
  * FUNCTION:    AcpiDbUserCommands
  *
- * PARAMETERS:  Prompt              - User prompt (depends on mode)
- *              Op                  - Current executing parse op
+ * PARAMETERS:  None
  *
  * RETURN:      None
  *
@@ -1296,8 +1248,7 @@ AcpiDbSingleThread (
 
 ACPI_STATUS
 AcpiDbUserCommands (
-    char                    Prompt,
-    ACPI_PARSE_OBJECT       *Op)
+    void)
 {
     ACPI_STATUS             Status = AE_OK;
 
@@ -1308,55 +1259,33 @@ AcpiDbUserCommands (
 
     while (!AcpiGbl_DbTerminateLoop)
     {
-        /* Force output to console until a command is entered */
+        /* Wait the readiness of the command */
 
-        AcpiDbSetOutputDestination (ACPI_DB_CONSOLE_OUTPUT);
-
-        /* Different prompt if method is executing */
-
-        if (!AcpiGbl_MethodExecuting)
-        {
-            AcpiOsPrintf ("%1c ", ACPI_DEBUGGER_COMMAND_PROMPT);
-        }
-        else
-        {
-            AcpiOsPrintf ("%1c ", ACPI_DEBUGGER_EXECUTE_PROMPT);
-        }
-
-        /* Get the user input line */
-
-        Status = AcpiOsGetLine (AcpiGbl_DbLineBuf,
-            ACPI_DB_LINE_BUFFER_SIZE, NULL);
+        Status = AcpiOsWaitCommandReady ();
         if (ACPI_FAILURE (Status))
         {
-            ACPI_EXCEPTION ((AE_INFO, Status, "While parsing command line"));
-            return (Status);
+            break;
         }
 
-        /* Check for single or multithreaded debug */
+        /* Just call to the command line interpreter */
 
-        if (AcpiGbl_DebuggerConfiguration & DEBUGGER_MULTI_THREADED)
+        AcpiGbl_MethodExecuting = FALSE;
+        AcpiGbl_StepToNextCall = FALSE;
+
+        (void) AcpiDbCommandDispatch (AcpiGbl_DbLineBuf, NULL, NULL);
+
+        /* Notify the completion of the command */
+
+        Status = AcpiOsNotifyCommandComplete ();
+        if (ACPI_FAILURE (Status))
         {
-            /*
-             * Signal the debug thread that we have a command to execute,
-             * and wait for the command to complete.
-             */
-            AcpiOsReleaseMutex (AcpiGbl_DbCommandReady);
-
-            Status = AcpiOsAcquireMutex (AcpiGbl_DbCommandComplete,
-                ACPI_WAIT_FOREVER);
-            if (ACPI_FAILURE (Status))
-            {
-                return (Status);
-            }
-        }
-        else
-        {
-            /* Just call to the command line interpreter */
-
-            AcpiDbSingleThread ();
+            break;
         }
     }
 
+    if (ACPI_FAILURE (Status) && Status != AE_CTRL_TERMINATE)
+    {
+        ACPI_EXCEPTION ((AE_INFO, Status, "While parsing command line"));
+    }
     return (Status);
 }

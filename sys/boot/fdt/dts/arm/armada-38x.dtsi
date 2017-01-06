@@ -154,7 +154,8 @@
 
 			crypto@90000 {
 				compatible = "mrvl,cesa";
-				reg = <0x90000 0x10000>;
+				reg = <0x90000 0x1000   /* tdma base reg chan 0 */
+				       0x9D000 0x1000>;	/* cesa base reg chan 0 */
 				interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>;
 				interrupt-parent = <&gic>;
 				sram-handle = <&SRAM0>;
@@ -562,6 +563,14 @@
 				status = "disabled";
 			};
 
+			bm: bm@c8000 {
+				compatible = "marvell,armada-380-neta-bm";
+				reg = <0xc8000 0xac>;
+				clocks = <&gateclk 13>;
+				internal-mem = <&bm_bppi>;
+				status = "disabled";
+			};
+
 			sata@e0000 {
 				compatible = "marvell,armada-380-ahci";
 				reg = <0xe0000 0x2000>;
@@ -621,6 +630,17 @@
 				clocks = <&gateclk 10>;
 				status = "disabled";
 			};
+		};
+
+		bm_bppi: bm-bppi {
+			compatible = "mmio-sram";
+			reg = <MBUS_ID(0x0c, 0x04) 0 0x100000>;
+			ranges = <0 MBUS_ID(0x0c, 0x04) 0 0x100000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			clocks = <&gateclk 13>;
+			no-memory-wc;
+			status = "disabled";
 		};
 	};
 

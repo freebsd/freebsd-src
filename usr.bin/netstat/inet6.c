@@ -70,8 +70,6 @@ __FBSDID("$FreeBSD$");
 #include <libxo/xo.h>
 #include "netstat.h"
 
-char	*inet6name(struct in6_addr *);
-
 static char ntop_buf[INET6_ADDRSTRLEN];
 
 static	const char *ip6nh[] = {
@@ -1270,24 +1268,30 @@ inet6print(const char *container, struct in6_addr *in6, int port,
 	struct servent *sp = 0;
 	char line[80], *cp;
 	int width;
+	size_t alen, plen;
 
 	if (container)
 		xo_open_container(container);
 
-	sprintf(line, "%.*s.", Wflag ? 39 : (Aflag && !numeric) ? 12 : 16,
+	snprintf(line, sizeof(line), "%.*s.",
+	    Wflag ? 39 : (Aflag && !numeric) ? 12 : 16,
 	    inet6name(in6));
-	cp = strchr(line, '\0');
+	alen = strlen(line);
+	cp = line + alen;
 	if (!numeric && port)
 		GETSERVBYPORT6(port, proto, sp);
 	if (sp || port == 0)
-		sprintf(cp, "%.15s", sp ? sp->s_name : "*");
+		snprintf(cp, sizeof(line) - alen,
+		    "%.15s", sp ? sp->s_name : "*");
 	else
-		sprintf(cp, "%d", ntohs((u_short)port));
+		snprintf(cp, sizeof(line) - alen,
+		    "%d", ntohs((u_short)port));
 	width = Wflag ? 45 : Aflag ? 18 : 22;
 
 	xo_emit("{d:target/%-*.*s} ", width, width, line);
 
-	int alen = cp - line - 1, plen = strlen(cp) - 1;
+	plen = strlen(cp);
+	alen--;
 	xo_emit("{e:address/%*.*s}{e:port/%*.*s}", alen, alen, line, plen,
 	    plen, cp);
 
@@ -1306,7 +1310,7 @@ inet6name(struct in6_addr *in6p)
 {
 	struct sockaddr_in6 sin6;
 	char hbuf[NI_MAXHOST], *cp;
-	static char line[50];
+	static char line[NI_MAXHOST];
 	static char domain[MAXHOSTNAMELEN];
 	static int first = 1;
 	int flags, error;
@@ -1317,9 +1321,9 @@ inet6name(struct in6_addr *in6p)
 	}
 	if (first && !numeric_addr) {
 		first = 0;
-		if (gethostname(domain, MAXHOSTNAMELEN) == 0 &&
+		if (gethostname(domain, sizeof(domain)) == 0 &&
 		    (cp = strchr(domain, '.')))
-			(void) strcpy(domain, cp + 1);
+			strlcpy(domain, cp + 1, sizeof(domain));
 		else
 			domain[0] = 0;
 	}
@@ -1336,10 +1340,10 @@ inet6name(struct in6_addr *in6p)
 		    (cp = strchr(hbuf, '.')) &&
 		    !strcmp(cp + 1, domain))
 			*cp = 0;
-		strcpy(line, hbuf);
+		strlcpy(line, hbuf, sizeof(line));
 	} else {
 		/* XXX: this should not happen. */
-		sprintf(line, "%s",
+		snprintf(line, sizeof(line), "%s",
 			inet_ntop(AF_INET6, (void *)&sin6.sin6_addr, ntop_buf,
 				sizeof(ntop_buf)));
 	}

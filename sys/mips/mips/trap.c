@@ -278,11 +278,6 @@ char *trap_type[] = {
 struct trapdebug trapdebug[TRAPSIZE], *trp = trapdebug;
 #endif
 
-#if defined(DDB) || defined(DEBUG)
-void stacktrace(struct trapframe *);
-void logstacktrace(struct trapframe *);
-#endif
-
 #define	KERNLAND(x)	((vm_offset_t)(x) >= VM_MIN_KERNEL_ADDRESS && (vm_offset_t)(x) < VM_MAX_KERNEL_ADDRESS)
 #define	DELAYBRANCH(x)	((int)(x) < 0)
 
@@ -1082,7 +1077,6 @@ dofault:
 err:
 
 #if !defined(SMP) && defined(DEBUG)
-		stacktrace(!usermode ? trapframe : td->td_frame);
 		trapDump("trap");
 #endif
 #ifdef SMP
@@ -1301,18 +1295,6 @@ MipsEmulateBranch(struct trapframe *framePtr, uintptr_t instPC, int fpcCSR,
 	}
 	return (retAddr);
 }
-
-
-#if defined(DDB) || defined(DEBUG)
-/*
- * Print a stack backtrace.
- */
-void
-stacktrace(struct trapframe *regs)
-{
-	stacktrace_subr(regs->pc, regs->sp, regs->ra, printf);
-}
-#endif
 
 static void
 log_frame_dump(struct trapframe *frame)
