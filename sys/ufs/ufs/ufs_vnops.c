@@ -948,8 +948,8 @@ print_bad_link_count(const char *funcname, struct vnode *dvp)
 	struct inode *dip;
 
 	dip = VTOI(dvp);
-	uprintf("%s: Bad link count %d on parent inode %d in file system %s\n",
-	    funcname, dip->i_effnlink, dip->i_number,
+	uprintf("%s: Bad link count %d on parent inode %jd in file system %s\n",
+	    funcname, dip->i_effnlink, (intmax_t)dip->i_number,
 	    dvp->v_mount->mnt_stat.f_mntonname);
 }
 
