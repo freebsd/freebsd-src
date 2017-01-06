@@ -167,7 +167,10 @@ check_symbol_exists(futimens sys/stat.h HAVE_FUTIMENS)
 check_symbol_exists(futimes sys/time.h HAVE_FUTIMES)
 check_symbol_exists(posix_fallocate fcntl.h HAVE_POSIX_FALLOCATE)
 # AddressSanitizer conflicts with lib/Support/Unix/Signals.inc
-if( HAVE_SIGNAL_H AND NOT LLVM_USE_SANITIZER MATCHES ".*Address.*")
+# Avoid sigaltstack on Apple platforms, where backtrace() cannot handle it
+# (rdar://7089625) and _Unwind_Backtrace is unusable because it cannot unwind
+# past the signal handler after an assertion failure (rdar://29866587).
+if( HAVE_SIGNAL_H AND NOT LLVM_USE_SANITIZER MATCHES ".*Address.*" AND NOT APPLE )
   check_symbol_exists(sigaltstack signal.h HAVE_SIGALTSTACK)
 endif()
 if( HAVE_SYS_UIO_H )
@@ -314,6 +317,8 @@ else()
 endif()
 
 check_cxx_compiler_flag("-Wno-variadic-macros" SUPPORTS_NO_VARIADIC_MACROS_FLAG)
+check_cxx_compiler_flag("-Wno-gnu-zero-variadic-macro-arguments"
+                        SUPPORTS_NO_GNU_ZERO_VARIADIC_MACRO_ARGUMENTS_FLAG)
 
 set(USE_NO_MAYBE_UNINITIALIZED 0)
 set(USE_NO_UNINITIALIZED 0)
