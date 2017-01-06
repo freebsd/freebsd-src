@@ -268,7 +268,6 @@ efx_nic_create(
 		    EFX_FEATURE_LFSR_HASH_INSERT |
 		    EFX_FEATURE_LINK_EVENTS |
 		    EFX_FEATURE_PERIODIC_MAC_STATS |
-		    EFX_FEATURE_WOL |
 		    EFX_FEATURE_MCDI |
 		    EFX_FEATURE_LOOKAHEAD_SPLIT |
 		    EFX_FEATURE_MAC_HEADER_FILTERS |
@@ -279,7 +278,6 @@ efx_nic_create(
 #if EFSYS_OPT_HUNTINGTON
 	case EFX_FAMILY_HUNTINGTON:
 		enp->en_enop = &__efx_nic_hunt_ops;
-		/* FIXME: Add WOL support */
 		enp->en_features =
 		    EFX_FEATURE_IPV6 |
 		    EFX_FEATURE_LINK_EVENTS |
