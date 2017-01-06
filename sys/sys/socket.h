@@ -435,6 +435,7 @@ struct msghdr {
 #endif
 #ifdef _KERNEL
 #define	MSG_SOCALLBCK   0x10000		/* for use by socket callbacks - soreceive (TCP) */
+#define	MSG_MORETOCOME	0x20000		/* additional data pending */
 #endif
 
 /*
