@@ -30,7 +30,7 @@ CFLAGS+= -I${SRCTOP}/contrib/amd/amd \
 	 -I${SRCTOP}/contrib/amd/include \
 	 -I${.OBJDIR}/../../../include/rpcsvc
 
-LIBADD=	amu wrap
+LIBADD=	amu
 
 SRCS+=		conf_parse.c conf_parse.h conf_tok.c
 SRCS+=		sun_map_parse.c sun_map_parse.h sun_map_tok.c
@@ -71,6 +71,11 @@ CFLAGS+= -DHAVE_MAP_HESIOD
 
 .if ${MK_NIS} != "no"
 SRCS+=	info_nis.c
+.endif
+
+.if ${MK_TCP_WRAPPERS} != "no"
+CFLAGS+=	-DHAVE_LIBWRAP -DHAVE_TCPD_H
+LIBADD+=	wrap
 .endif
 
 .include <bsd.prog.mk>
