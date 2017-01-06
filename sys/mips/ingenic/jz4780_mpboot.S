@@ -27,14 +27,7 @@
  */
 
 #include <machine/asm.h>
-#include <machine/cpu.h>
-#include <machine/cpuregs.h>
-#include <machine/cache_r4k.h>
-
 #include "assym.s"
-
-#define CACHE_SIZE (32 * 1024)
-#define CACHE_LINESIZE 32
 
 	.text
 	.set	noat
@@ -42,21 +35,11 @@
 	.section .text.mpentry_jz4780
 	.balign 0x10000
 
+/*
+ * JZ4870 has stricter alignment requirement for
+ * CPU entry point. Enforce it in CPU-specific
+ * file.
+ */
 GLOBAL(jz4780_mpentry)
-
-	/* Initialize caches */
-	li	t0, MIPS_KSEG0_START
-	ori	t1, t0, CACHE_SIZE
-	mtc0	zero, MIPS_COP_0_TAG_LO
-	COP0_SYNC
-1:	cache	CACHEOP_R4K_INDEX_STORE_TAG | CACHE_R4K_I, 0(t0)
-	cache	CACHEOP_R4K_INDEX_STORE_TAG | CACHE_R4K_D, 0(t0)
-	bne	t0, t1, 1b
-	addiu	t0, t0, CACHE_LINESIZE
-
-	/* Set TLB page mask */
-	mtc0	zero, MIPS_COP_0_TLB_PG_MASK
-	COP0_SYNC
-
 	j	mpentry
 	nop
