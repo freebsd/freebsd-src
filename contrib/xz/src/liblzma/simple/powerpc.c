@@ -15,7 +15,7 @@
 
 
 static size_t
-powerpc_code(lzma_simple *simple lzma_attribute((__unused__)),
+powerpc_code(void *simple lzma_attribute((__unused__)),
 		uint32_t now_pos, bool is_encoder,
 		uint8_t *buffer, size_t size)
 {
