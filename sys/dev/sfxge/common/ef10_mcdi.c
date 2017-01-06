@@ -159,6 +159,8 @@ ef10_mcdi_poll_response(
 	efx_dword_t hdr;
 
 	EFSYS_MEM_READD(esmp, 0, &hdr);
+	EFSYS_MEM_READ_BARRIER();
+
 	return (EFX_DWORD_FIELD(hdr, MCDI_HEADER_RESPONSE) ? B_TRUE : B_FALSE);
 }
 
