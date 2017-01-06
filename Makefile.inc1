@@ -611,12 +611,17 @@ XCFLAGS+=	${BFLAGS}
 .endif
 
 .if ${MK_LIB32} != "no" && (${TARGET_ARCH} == "amd64" || \
-    ${TARGET_ARCH} == "powerpc64")
+    ${TARGET_ARCH} == "powerpc64") || ${TARGET_ARCH:Mmips64*} != ""
 LIBCOMPAT= 32
 .include "Makefile.libcompat"
 .elif ${MK_LIBSOFT} != "no" && ${TARGET_ARCH} == "armv6"
 LIBCOMPAT= SOFT
 .include "Makefile.libcompat"
+.endif
+.if ${MK_CHERI} != "no"
+# CHERI specific code isn't o32 compatible and other attempts to disable
+# failed so use a big hammer for now.
+.undef LIBCOMPAT
 .endif
 
 WMAKE=		${WMAKEENV} ${MAKE} ${WORLD_FLAGS} -f Makefile.inc1 DESTDIR=${WORLDTMP}
