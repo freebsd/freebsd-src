@@ -6129,10 +6129,10 @@ CHERIABI_SYS_getfsstat_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->bufsize, CHERI_CR_CTEMP0);
 
-	/* [2] int flags */
+	/* [2] int mode */
 	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_getfsstat, 2);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
-	CHERI_CTOINT(uap->flags, CHERI_CR_CTEMP0);
+	CHERI_CTOINT(uap->mode, CHERI_CR_CTEMP0);
 
 	/* [0] _Out_writes_bytes_opt_(bufsize) struct statfs * buf */
 	{

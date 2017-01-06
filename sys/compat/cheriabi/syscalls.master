@@ -801,7 +801,7 @@
 395	AUE_GETFSSTAT	NOPROTO	{ int getfsstat( \
 				    _Out_writes_bytes_opt_(bufsize) \
 				    struct statfs *buf, \
-				    long bufsize, int flags); }
+				    long bufsize, int mode); }
 396	AUE_STATFS	NOPROTO	{ int statfs(_In_z_ char *path, \
 				    _Out_ struct statfs *buf); }
 397	AUE_FSTATFS	NOPROTO	{ int fstatfs(int fd, \
