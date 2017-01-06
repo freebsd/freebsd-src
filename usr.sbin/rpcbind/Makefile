@@ -8,10 +8,15 @@ MAN=	rpcbind.8
 SRCS=	check_bound.c rpcb_stat.c rpcb_svc_4.c rpcbind.c pmap_svc.c \
 	rpcb_svc.c rpcb_svc_com.c security.c warmstart.c util.c
 
-CFLAGS+= -DPORTMAP -DLIBWRAP
+CFLAGS+= -DPORTMAP
 
 .if ${MK_INET6_SUPPORT} != "no"
 CFLAGS+= -DINET6
+.endif
+
+.if ${MK_TCP_WRAPPERS} != "no"
+CFLAGS+=	-DLIBWRAP
+LIBADD+=	wrap
 .endif
 
 .if ${MK_TESTS} != "no"
@@ -19,7 +24,5 @@ SUBDIR+=	tests
 .endif
 
 WARNS?=	1
-
-LIBADD=	wrap
 
 .include <bsd.prog.mk>
