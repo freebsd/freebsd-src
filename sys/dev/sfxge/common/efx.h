@@ -2211,10 +2211,10 @@ typedef enum efx_filter_match_flags_e {
 	EFX_FILTER_MATCH_OUTER_VID = 0x0100,	/* Match by outer VLAN ID */
 	EFX_FILTER_MATCH_IP_PROTO = 0x0200,	/* Match by IP transport
 						 * protocol */
-	EFX_FILTER_MATCH_LOC_MAC_IG = 0x0400,	/* Match by local MAC address
-						 * I/G bit. Used for RX default
-						 * unicast and multicast/
-						 * broadcast filters. */
+	/* Match otherwise-unmatched multicast and broadcast packets */
+	EFX_FILTER_MATCH_UNKNOWN_MCAST_DST = 0x40000000,
+	/* Match otherwise-unmatched unicast packets */
+	EFX_FILTER_MATCH_UNKNOWN_UCAST_DST = 0x80000000,
 } efx_filter_match_flags_t;
 
 typedef enum efx_filter_priority_s {
@@ -2236,7 +2236,7 @@ typedef enum efx_filter_priority_s {
  */
 
 typedef struct efx_filter_spec_s {
-	uint32_t	efs_match_flags:12;
+	uint32_t	efs_match_flags;
 	uint32_t	efs_priority:2;
 	uint32_t	efs_flags:6;
 	uint32_t	efs_dmaq_id:12;
