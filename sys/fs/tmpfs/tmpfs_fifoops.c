@@ -52,11 +52,11 @@ static int
 tmpfs_fifo_close(struct vop_close_args *v)
 {
 	struct tmpfs_node *node;
-	node = VP_TO_TMPFS_NODE(v->a_vp);
-	node->tn_status |= TMPFS_NODE_ACCESSED;
 
+	node = VP_TO_TMPFS_NODE(v->a_vp);
+	tmpfs_set_status(node, TMPFS_NODE_ACCESSED);
 	tmpfs_update(v->a_vp);
-	return fifo_specops.vop_close(v);
+	return (fifo_specops.vop_close(v));
 }
 
 /*
