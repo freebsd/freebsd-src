@@ -604,6 +604,8 @@ retry:
 		if (td->td_ru.ru_msgrcv != ru_before)
 			job->msgrcv = 1;
 	} else {
+		if (!TAILQ_EMPTY(&sb->sb_aiojobq))
+			flags |= MSG_MORETOCOME;
 		uio.uio_rw = UIO_WRITE;
 		ru_before = td->td_ru.ru_msgsnd;
 #ifdef MAC
