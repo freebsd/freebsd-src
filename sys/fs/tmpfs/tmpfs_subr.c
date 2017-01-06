@@ -1092,9 +1092,9 @@ tmpfs_dir_getdotdent(struct tmpfs_node *node, struct uio *uio)
 	else
 		error = uiomove(&dent, dent.d_reclen, uio);
 
-	node->tn_status |= TMPFS_NODE_ACCESSED;
+	tmpfs_set_status(node, TMPFS_NODE_ACCESSED);
 
-	return error;
+	return (error);
 }
 
 /*
@@ -1137,9 +1137,9 @@ tmpfs_dir_getdotdotdent(struct tmpfs_node *node, struct uio *uio)
 	else
 		error = uiomove(&dent, dent.d_reclen, uio);
 
-	node->tn_status |= TMPFS_NODE_ACCESSED;
+	tmpfs_set_status(node, TMPFS_NODE_ACCESSED);
 
-	return error;
+	return (error);
 }
 
 /*
@@ -1282,7 +1282,7 @@ tmpfs_dir_getdents(struct tmpfs_node *node, struct uio *uio, int maxcookies,
 	node->tn_dir.tn_readdir_lastn = off;
 	node->tn_dir.tn_readdir_lastp = de;
 
-	node->tn_status |= TMPFS_NODE_ACCESSED;
+	tmpfs_set_status(node, TMPFS_NODE_ACCESSED);
 	return error;
 }
 
@@ -1735,15 +1735,25 @@ tmpfs_chtimes(struct vnode *vp, struct vattr *vap,
 	return (0);
 }
 
-/* Sync timestamps */
 void
-tmpfs_itimes(struct vnode *vp, const struct timespec *acc,
+tmpfs_set_status(struct tmpfs_node *node, int status)
+{
+
+	if ((node->tn_status & status) == status)
+		return;
+	TMPFS_NODE_LOCK(node);
+	node->tn_status |= status;
+	TMPFS_NODE_UNLOCK(node);
+}
+
+/* Sync timestamps */
+static void
+tmpfs_itimes_locked(struct tmpfs_node *node, const struct timespec *acc,
     const struct timespec *mod)
 {
-	struct tmpfs_node *node;
 	struct timespec now;
 
-	node = VP_TO_TMPFS_NODE(vp);
+	TMPFS_ASSERT_LOCKED(node);
 
 	if ((node->tn_status & (TMPFS_NODE_ACCESSED | TMPFS_NODE_MODIFIED |
 	    TMPFS_NODE_CHANGED)) == 0)
@@ -1760,11 +1770,25 @@ tmpfs_itimes(struct vnode *vp, const struct timespec *acc,
 			mod = &now;
 		node->tn_mtime = *mod;
 	}
-	if (node->tn_status & TMPFS_NODE_CHANGED) {
+	if (node->tn_status & TMPFS_NODE_CHANGED)
 		node->tn_ctime = now;
-	}
-	node->tn_status &=
-	    ~(TMPFS_NODE_ACCESSED | TMPFS_NODE_MODIFIED | TMPFS_NODE_CHANGED);
+	node->tn_status &= ~(TMPFS_NODE_ACCESSED | TMPFS_NODE_MODIFIED |
+	    TMPFS_NODE_CHANGED);
+}
+
+void
+tmpfs_itimes(struct vnode *vp, const struct timespec *acc,
+    const struct timespec *mod)
+{
+	struct tmpfs_node *node;
+
+	ASSERT_VOP_LOCKED(vp, "tmpfs_itimes");
+	node = VP_TO_TMPFS_NODE(vp);
+
+	TMPFS_NODE_LOCK(node);
+	tmpfs_itimes_locked(node, acc, mod);
+	TMPFS_NODE_UNLOCK(node);
+
 	/* XXX: FIX? The entropy here is desirable, but the harvesting may be expensive */
 	random_harvest_queue(node, sizeof(*node), 1, RANDOM_FS_ATIME);
 }
@@ -1798,14 +1822,13 @@ tmpfs_truncate(struct vnode *vp, off_t length)
 		return (EFBIG);
 
 	error = tmpfs_reg_resize(vp, length, FALSE);
-	if (error == 0) {
+	if (error == 0)
 		node->tn_status |= TMPFS_NODE_CHANGED | TMPFS_NODE_MODIFIED;
-	}
 
 out:
 	tmpfs_update(vp);
 
-	return error;
+	return (error);
 }
 
 static __inline int
