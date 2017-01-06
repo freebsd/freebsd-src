@@ -39,6 +39,8 @@ static struct lmodule *module;
 
 static const struct asn_oid oid_ipv6MIB = OIDX_ipv6MIB;
 
+uint64_t mib_ipv6_ipv6IfTableLastChange;
+
 static u_int ipv6_reg;
 
 int
@@ -81,8 +83,11 @@ op_ipv6MIBObjects(struct snmp_context *ctx __unused, struct snmp_value *value,
 		break;
 	case LEAF_ipv6IfTableLastChange:
 	{
-		/* XXX (ngie): this needs to be implemented */
-		value->v.uint32 = 0;
+                if (mib_ipv6_ipv6IfTableLastChange > start_tick)
+			value->v.uint32 =
+			    mib_ipv6_ipv6IfTableLastChange - start_tick;
+		else
+			value->v.uint32 = 0;
 		break;
 	}
 	case LEAF_ipv6Interfaces:
