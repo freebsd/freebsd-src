@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Dell EMC Isilon
+ * Copyright (c) 2017 Dell EMC Isilon
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,13 +28,12 @@
 
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
+#include <sys/sysctl.h>
+#include <bsnmp/snmpmod.h>
+
 #include "ipv6.h"
 #include "ipv6MIB_oid.h"
-
-/*
- * XXX (ngie): mibII implements a lot of this already. Probably should
- * converge the two modules.
- */
 
 static struct lmodule *module;
 
@@ -43,8 +42,8 @@ static const struct asn_oid oid_ipv6MIB = OIDX_ipv6MIB;
 static u_int ipv6_reg;
 
 int
-op_ipv6MIBObjects(struct snmp_context *ctx __unused, struct snmp_value *value,
-	u_int sub, u_int iidx __unused, enum snmp_op op)
+op_ipv6MIBObjects(struct snmp_context *ctx, struct snmp_value *value,
+    u_int sub, u_int iidx, enum snmp_op op)
 {
 	const char *namestr = NULL;
 	int name[] = { CTL_NET, PF_INET6, IPPROTO_IPV6, 0 };

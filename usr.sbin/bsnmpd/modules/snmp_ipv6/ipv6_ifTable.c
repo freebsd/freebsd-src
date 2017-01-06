@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2016 Dell EMC Isilon
+ * Copyright (c) 2017 Dell EMC Isilon
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,7 +28,7 @@
 
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <net/if.h>
 #include <net/if_mib.h>
 #include <netinet/in.h>
@@ -40,8 +40,8 @@ __FBSDID("$FreeBSD$");
 #include "ipv6.h"
 
 int
-op_ipv6IfTable(struct snmp_context *ctx __unused, struct snmp_value *value,
-    u_int sub, u_int iidx __unused, enum snmp_op op)
+op_ipv6IfTable(struct snmp_context *ctx, struct snmp_value *value,
+    u_int sub, u_int iidx, enum snmp_op op)
 {
 	asn_subid_t which;
 

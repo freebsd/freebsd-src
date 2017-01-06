@@ -22,22 +22,13 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
-#include <sys/cdefs.h>
+#ifndef __SNMP_IPV6__IPV6_STATSTABLE_H__
+#define __SNMP_IPV6__IPV6_STATSTABLE_H__
 
-__FBSDID("$FreeBSD$");
+#include "ipv6MIB_tree.h"
 
-#include <sys/param.h>
-#include <sys/sysctl.h>
-#include <bsnmp/snmpmod.h>
-
-#include "ipv6_addrPrefixTable.h"
-
-int
-op_ipv6AddrPrefixTable(struct snmp_context *ctx, struct snmp_value *value,
-    u_int sub, u_int iidx, enum snmp_op op)
-{
-
-	return (SNMP_ERR_NOSUCHNAME);
-}
+#endif
