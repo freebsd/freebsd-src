@@ -1747,19 +1747,22 @@ tmpfs_set_status(struct tmpfs_node *node, int status)
 }
 
 /* Sync timestamps */
-static void
-tmpfs_itimes_locked(struct tmpfs_node *node, const struct timespec *acc,
+void
+tmpfs_itimes(struct vnode *vp, const struct timespec *acc,
     const struct timespec *mod)
 {
+	struct tmpfs_node *node;
 	struct timespec now;
 
-	TMPFS_ASSERT_LOCKED(node);
+	ASSERT_VOP_LOCKED(vp, "tmpfs_itimes");
+	node = VP_TO_TMPFS_NODE(vp);
 
 	if ((node->tn_status & (TMPFS_NODE_ACCESSED | TMPFS_NODE_MODIFIED |
 	    TMPFS_NODE_CHANGED)) == 0)
 		return;
 
 	vfs_timestamp(&now);
+	TMPFS_NODE_LOCK(node);
 	if (node->tn_status & TMPFS_NODE_ACCESSED) {
 		if (acc == NULL)
 			 acc = &now;
@@ -1774,19 +1777,6 @@ tmpfs_itimes_locked(struct tmpfs_node *node, const struct timespec *acc,
 		node->tn_ctime = now;
 	node->tn_status &= ~(TMPFS_NODE_ACCESSED | TMPFS_NODE_MODIFIED |
 	    TMPFS_NODE_CHANGED);
-}
-
-void
-tmpfs_itimes(struct vnode *vp, const struct timespec *acc,
-    const struct timespec *mod)
-{
-	struct tmpfs_node *node;
-
-	ASSERT_VOP_LOCKED(vp, "tmpfs_itimes");
-	node = VP_TO_TMPFS_NODE(vp);
-
-	TMPFS_NODE_LOCK(node);
-	tmpfs_itimes_locked(node, acc, mod);
 	TMPFS_NODE_UNLOCK(node);
 
 	/* XXX: FIX? The entropy here is desirable, but the harvesting may be expensive */
