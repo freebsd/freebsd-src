@@ -27,7 +27,7 @@
 				/* 18 is obsolete getstatfs */
 				/* 19 is obsolete lseek */
 #define	CHERIABI_SYS_getpid	20
-#define	CHERIABI_SYS_mount	21
+				/* 21 is obsolete mount */
 #define	CHERIABI_SYS_unmount	22
 #define	CHERIABI_SYS_setuid	23
 #define	CHERIABI_SYS_getuid	24

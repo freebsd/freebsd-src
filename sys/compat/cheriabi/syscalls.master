@@ -99,10 +99,7 @@
 18	AUE_GETFSSTAT	OBSOL	getstatfs
 19	AUE_LSEEK	OBSOL	lseek
 20	AUE_GETPID	NOPROTO	{ pid_t getpid(void); }
-; XXX-BD: no way to sanity check data
-21	AUE_MOUNT	NOPROTO	{ int mount(_In_z_ const char *type, \
-				    _In_z_ const char *path, \
-				    int flags, _In_opt_ void *data); }
+21	AUE_MOUNT	OBSOL	mount
 22	AUE_UMOUNT	NOPROTO	{ int unmount(_In_z_ const char *path, \
 				    int flags); }
 23	AUE_SETUID	NOPROTO	{ int setuid(uid_t uid); }

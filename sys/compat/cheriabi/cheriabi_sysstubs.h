@@ -212,16 +212,6 @@ SYS_STUB(20, pid_t, getpid,
     /* _localcheck */ {}
 )
 
-SYS_STUB(21, int, mount,
-    /* _protoargs */ (const char * type, const char * path, int flags, void * data),
-    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * type, __capability const char * path, int flags, __capability void * data),
-    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * type, __capability const char * path, int flags, __capability void * data),
-    /* _callargs */ ((const char *)type, (const char *)path, flags, (void *)data),
-    /* _callargs_chk */ (&ret, stub_errno, type, path, flags, data),
-    /* _callargs_err */ (&errno, (const char *)type, (const char *)path, flags, (void *)data),
-    /* _localcheck */ {if (!(cheri_getperm(type) & CHERI_PERM_GLOBAL)) {errno = EPROT; return ((int)-1);} if (!(cheri_getperm(path) & CHERI_PERM_GLOBAL)) {errno = EPROT; return ((int)-1);} if (!(cheri_getperm(data) & CHERI_PERM_GLOBAL)) {errno = EPROT; return ((int)-1);} }
-)
-
 SYS_STUB(22, int, unmount,
     /* _protoargs */ (const char * path, int flags),
     /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * path, int flags),

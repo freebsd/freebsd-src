@@ -137,16 +137,6 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 0;
 		break;
 	}
-	/* mount */
-	case 21: {
-		struct mount_args *p = params;
-		uarg[0] = (intptr_t) p->type; /* const char * */
-		uarg[1] = (intptr_t) p->path; /* const char * */
-		iarg[2] = p->flags; /* int */
-		uarg[3] = (intptr_t) p->data; /* void * */
-		*n_args = 4;
-		break;
-	}
 	/* unmount */
 	case 22: {
 		struct unmount_args *p = params;
@@ -3343,25 +3333,6 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* getpid */
 	case 20:
-		break;
-	/* mount */
-	case 21:
-		switch(ndx) {
-		case 0:
-			p = "userland const char *";
-			break;
-		case 1:
-			p = "userland const char *";
-			break;
-		case 2:
-			p = "int";
-			break;
-		case 3:
-			p = "userland void *";
-			break;
-		default:
-			break;
-		};
 		break;
 	/* unmount */
 	case 22:
@@ -8456,11 +8427,6 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* getpid */
 	case 20:
-	/* mount */
-	case 21:
-		if (ndx == 0 || ndx == 1)
-			p = "int";
-		break;
 	/* unmount */
 	case 22:
 		if (ndx == 0 || ndx == 1)
