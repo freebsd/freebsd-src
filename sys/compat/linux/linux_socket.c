@@ -775,6 +775,7 @@ linux_connect(struct thread *td, struct linux_connect_args *args)
 	cap_rights_t rights;
 	struct socket *so;
 	struct sockaddr *sa;
+	struct file *fp;
 	u_int fflag;
 	int error;
 
@@ -792,24 +793,23 @@ linux_connect(struct thread *td, struct linux_connect_args *args)
 	 * Linux doesn't return EISCONN the first time it occurs,
 	 * when on a non-blocking socket. Instead it returns the
 	 * error getsockopt(SOL_SOCKET, SO_ERROR) would return on BSD.
-	 *
-	 * XXXRW: Instead of using fgetsock(), check that it is a
-	 * socket and use the file descriptor reference instead of
-	 * creating a new one.
 	 */
-	error = fgetsock(td, args->s, cap_rights_init(&rights, CAP_CONNECT),
-	    &so, &fflag);
-	if (error == 0) {
-		error = EISCONN;
-		if (fflag & FNONBLOCK) {
-			SOCK_LOCK(so);
-			if (so->so_emuldata == 0)
-				error = so->so_error;
-			so->so_emuldata = (void *)1;
-			SOCK_UNLOCK(so);
-		}
-		fputsock(so);
+	error = getsock_cap(td, args->s, cap_rights_init(&rights, CAP_CONNECT),
+	    &fp, &fflag, NULL);
+	if (error != 0)
+		return (error);
+
+	error = EISCONN;
+	so = fp->f_data;
+	if (fflag & FNONBLOCK) {
+		SOCK_LOCK(so);
+		if (so->so_emuldata == 0)
+			error = so->so_error;
+		so->so_emuldata = (void *)1;
+		SOCK_UNLOCK(so);
 	}
+	fdrop(fp, td);
+
 	return (error);
 }
 
