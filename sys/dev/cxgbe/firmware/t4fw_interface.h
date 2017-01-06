@@ -3405,14 +3405,20 @@ struct fw_tlstx_data_wr {
         __be32 flowid_len16;
         __be32 plen;
         __be32 lsodisable_to_flags;
-        __be32 ddraddr;
+        __be32 r5;
         __be32 ctxloc_to_exp;
         __be16 mfs;
         __be16 adjustedplen_pkd;
         __be16 expinplenmax_pkd;
         __u8   pdusinplenmax_pkd;
-        __u8   r9;
+        __u8   r10;
 };
+
+#define S_FW_TLSTX_DATA_WR_OPCODE       24
+#define M_FW_TLSTX_DATA_WR_OPCODE       0xff
+#define V_FW_TLSTX_DATA_WR_OPCODE(x)    ((x) << S_FW_TLSTX_DATA_WR_OPCODE)
+#define G_FW_TLSTX_DATA_WR_OPCODE(x)    \
+    (((x) >> S_FW_TLSTX_DATA_WR_OPCODE) & M_FW_TLSTX_DATA_WR_OPCODE)
 
 #define S_FW_TLSTX_DATA_WR_COMPL        21
 #define M_FW_TLSTX_DATA_WR_COMPL        0x1
@@ -3503,26 +3509,26 @@ struct fw_tlstx_data_wr {
 #define S_FW_TLSTX_DATA_WR_ADJUSTEDPLEN 1
 #define M_FW_TLSTX_DATA_WR_ADJUSTEDPLEN 0x7fff
 #define V_FW_TLSTX_DATA_WR_ADJUSTEDPLEN(x) \
-            ((x) << S_FW_TLSTX_DATA_WR_ADJUSTEDPLEN)
+    ((x) << S_FW_TLSTX_DATA_WR_ADJUSTEDPLEN)
 #define G_FW_TLSTX_DATA_WR_ADJUSTEDPLEN(x) \
-            (((x) >> S_FW_TLSTX_DATA_WR_ADJUSTEDPLEN) & \
-                  M_FW_TLSTX_DATA_WR_ADJUSTEDPLEN)
+    (((x) >> S_FW_TLSTX_DATA_WR_ADJUSTEDPLEN) & \
+     M_FW_TLSTX_DATA_WR_ADJUSTEDPLEN)
 
 #define S_FW_TLSTX_DATA_WR_EXPINPLENMAX 4
 #define M_FW_TLSTX_DATA_WR_EXPINPLENMAX 0xfff
 #define V_FW_TLSTX_DATA_WR_EXPINPLENMAX(x) \
-            ((x) << S_FW_TLSTX_DATA_WR_EXPINPLENMAX)
+    ((x) << S_FW_TLSTX_DATA_WR_EXPINPLENMAX)
 #define G_FW_TLSTX_DATA_WR_EXPINPLENMAX(x) \
-            (((x) >> S_FW_TLSTX_DATA_WR_EXPINPLENMAX) & \
-                  M_FW_TLSTX_DATA_WR_EXPINPLENMAX)
+    (((x) >> S_FW_TLSTX_DATA_WR_EXPINPLENMAX) & \
+     M_FW_TLSTX_DATA_WR_EXPINPLENMAX)
 
 #define S_FW_TLSTX_DATA_WR_PDUSINPLENMAX 2
 #define M_FW_TLSTX_DATA_WR_PDUSINPLENMAX 0x3f
 #define V_FW_TLSTX_DATA_WR_PDUSINPLENMAX(x) \
-            ((x) << S_FW_TLSTX_DATA_WR_PDUSINPLENMAX)
+    ((x) << S_FW_TLSTX_DATA_WR_PDUSINPLENMAX)
 #define G_FW_TLSTX_DATA_WR_PDUSINPLENMAX(x) \
-            (((x) >> S_FW_TLSTX_DATA_WR_PDUSINPLENMAX) & \
-                  M_FW_TLSTX_DATA_WR_PDUSINPLENMAX)
+    (((x) >> S_FW_TLSTX_DATA_WR_PDUSINPLENMAX) & \
+     M_FW_TLSTX_DATA_WR_PDUSINPLENMAX)
 
 struct fw_tls_keyctx_tx_wr {
         __be32 op_to_compl;
@@ -3555,7 +3561,7 @@ struct fw_tls_keyctx_tx_wr {
         } keys;
         __u8   reneg_to_write_rx;
         __u8   protocol;
-        __u8   r7[2];
+        __be16 mfs;
         __be32 ftid;
 };
 
@@ -9308,17 +9314,17 @@ enum fw_hdr_chip {
 enum {
 	T4FW_VERSION_MAJOR	= 0x01,
 	T4FW_VERSION_MINOR	= 0x10,
-	T4FW_VERSION_MICRO	= 0x16,
+	T4FW_VERSION_MICRO	= 0x1a,
 	T4FW_VERSION_BUILD	= 0x00,
 
 	T5FW_VERSION_MAJOR	= 0x01,
 	T5FW_VERSION_MINOR	= 0x10,
-	T5FW_VERSION_MICRO	= 0x16,
+	T5FW_VERSION_MICRO	= 0x1a,
 	T5FW_VERSION_BUILD	= 0x00,
 
 	T6FW_VERSION_MAJOR	= 0x01,
 	T6FW_VERSION_MINOR	= 0x10,
-	T6FW_VERSION_MICRO	= 0x16,
+	T6FW_VERSION_MICRO	= 0x1a,
 	T6FW_VERSION_BUILD	= 0x00,
 };
 
