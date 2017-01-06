@@ -70,8 +70,10 @@ op_ipv6MIBObjects(struct snmp_context *ctx __unused, struct snmp_value *value,
 		if (sysctl(name, nitems(name), &result, &resultsiz, NULL,
 		    0) < 0)
 			return (SNMP_ERR_GENERR);
-		/* XXX (ngie): hardcoded value. */
-		value->v.integer = (result) ? 1 : 2;
+		if (result == 0)
+			value->v.integer = ipv6Forwarding_notForwarding;
+		else
+			value->v.integer = ipv6Forwarding_forwarding;
 		break;
 	case LEAF_ipv6DefaultHopLimit:
 		name[3] = IPV6CTL_DEFHLIM;
