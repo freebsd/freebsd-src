@@ -2281,9 +2281,10 @@ efx_filter_restore(
 
 extern	__checkReturn	efx_rc_t
 efx_filter_supported_filters(
-	__in		efx_nic_t *enp,
-	__out		uint32_t *list,
-	__out		size_t *length);
+	__in				efx_nic_t *enp,
+	__out_ecount(buffer_length)	uint32_t *buffer,
+	__in				size_t buffer_length,
+	__out				size_t *list_lengthp);
 
 extern			void
 efx_filter_spec_init_rx(

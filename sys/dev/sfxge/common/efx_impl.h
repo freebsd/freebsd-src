@@ -231,7 +231,8 @@ typedef struct efx_filter_ops_s {
 	efx_rc_t	(*efo_add)(efx_nic_t *, efx_filter_spec_t *,
 				   boolean_t may_replace);
 	efx_rc_t	(*efo_delete)(efx_nic_t *, efx_filter_spec_t *);
-	efx_rc_t	(*efo_supported_filters)(efx_nic_t *, uint32_t *, size_t *);
+	efx_rc_t	(*efo_supported_filters)(efx_nic_t *, uint32_t *,
+				   size_t, size_t *);
 	efx_rc_t	(*efo_reconfigure)(efx_nic_t *, uint8_t const *, boolean_t,
 				   boolean_t, boolean_t, boolean_t,
 				   uint8_t const *, uint32_t);
