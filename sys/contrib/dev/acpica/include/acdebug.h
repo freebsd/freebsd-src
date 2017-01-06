@@ -421,8 +421,7 @@ AcpiDbExecuteThread (
 
 ACPI_STATUS
 AcpiDbUserCommands (
-    char                    Prompt,
-    ACPI_PARSE_OBJECT       *Op);
+    void);
 
 char *
 AcpiDbGetNextToken (
