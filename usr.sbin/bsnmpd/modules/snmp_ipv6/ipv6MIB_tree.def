@@ -39,7 +39,7 @@
           (4 ipv6IfTableLastChange UNSIGNED32 op_ipv6MIBObjects GET)
           (5 ipv6IfTable
             (1 ipv6IfEntry : INTEGER op_ipv6IfTable
-              (1 ipv6IfIndex INTEGER GET)
+              (1 ipv6IfIndex INTEGER)
               (2 ipv6IfDescr OCTETSTRING | DisplayString GET SET)
               (3 ipv6IfLowerLayer OID GET)
               (4 ipv6IfEffectiveMtu UNSIGNED32 GET)
