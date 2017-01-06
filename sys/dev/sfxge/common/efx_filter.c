@@ -64,9 +64,10 @@ siena_filter_delete(
 
 static	__checkReturn	efx_rc_t
 siena_filter_supported_filters(
-	__in		efx_nic_t *enp,
-	__out		uint32_t *list,
-	__out		size_t *length);
+	__in				efx_nic_t *enp,
+	__out_ecount(buffer_length)	uint32_t *buffer,
+	__in				size_t buffer_length,
+	__out				size_t *list_lengthp);
 
 #endif /* EFSYS_OPT_SIENA */
 
@@ -212,11 +213,22 @@ efx_filter_fini(
 	enp->en_mod_flags &= ~EFX_MOD_FILTER;
 }
 
+/*
+ * Query the possible combinations of match flags which can be filtered on.
+ * These are returned as a list, of which each 32 bit element is a bitmask
+ * formed of EFX_FILTER_MATCH flags.
+ *
+ * The combinations are ordered in priority from highest to lowest.
+ *
+ * If the provided buffer is too short to hold the list, the call with fail with
+ * ENOSPC and *list_lengthp will be set to the buffer length required.
+ */
 	__checkReturn	efx_rc_t
 efx_filter_supported_filters(
-	__in		efx_nic_t *enp,
-	__out		uint32_t *list,
-	__out		size_t *length)
+	__in				efx_nic_t *enp,
+	__out_ecount(buffer_length)	uint32_t *buffer,
+	__in				size_t buffer_length,
+	__out				size_t *list_lengthp)
 {
 	efx_rc_t rc;
 
@@ -225,11 +237,20 @@ efx_filter_supported_filters(
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_FILTER);
 	EFSYS_ASSERT(enp->en_efop->efo_supported_filters != NULL);
 
-	if ((rc = enp->en_efop->efo_supported_filters(enp, list, length)) != 0)
+	if (buffer == NULL) {
+		rc = EINVAL;
 		goto fail1;
+	}
+
+	rc = enp->en_efop->efo_supported_filters(enp, buffer, buffer_length,
+						    list_lengthp);
+	if (rc != 0)
+		goto fail2;
 
 	return (0);
 
+fail2:
+	EFSYS_PROBE(fail2);
 fail1:
 	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
@@ -1349,22 +1370,19 @@ fail1:
 	return (rc);
 }
 
-#define	MAX_SUPPORTED 4
+#define	SIENA_MAX_SUPPORTED_MATCHES 4
 
 static	__checkReturn	efx_rc_t
 siena_filter_supported_filters(
-	__in		efx_nic_t *enp,
-	__out		uint32_t *list,
-	__out		size_t *length)
+	__in				efx_nic_t *enp,
+	__out_ecount(buffer_length)	uint32_t *buffer,
+	__in				size_t buffer_length,
+	__out				size_t *list_lengthp)
 {
-	int index = 0;
-	uint32_t rx_matches[MAX_SUPPORTED];
+	uint32_t index = 0;
+	uint32_t rx_matches[SIENA_MAX_SUPPORTED_MATCHES];
+	size_t list_length;
 	efx_rc_t rc;
-
-	if (list == NULL) {
-		rc = EINVAL;
-		goto fail1;
-	}
 
 	rx_matches[index++] =
 	    EFX_FILTER_MATCH_ETHER_TYPE | EFX_FILTER_MATCH_IP_PROTO |
@@ -1382,14 +1400,22 @@ siena_filter_supported_filters(
 		rx_matches[index++] = EFX_FILTER_MATCH_LOC_MAC;
 	}
 
-	EFSYS_ASSERT3U(index, <=, MAX_SUPPORTED);
+	EFSYS_ASSERT3U(index, <=, SIENA_MAX_SUPPORTED_MATCHES);
+	list_length = index;
 
-	*length = index;
-	memcpy(list, rx_matches, *length);
+	*list_lengthp = list_length;
+
+	if (buffer_length < list_length) {
+		rc = ENOSPC;
+		goto fail1;
+	}
+
+	memcpy(buffer, rx_matches, list_length * sizeof (rx_matches[0]));
 
 	return (0);
 
 fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
