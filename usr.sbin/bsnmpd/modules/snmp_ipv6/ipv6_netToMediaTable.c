@@ -53,15 +53,8 @@ op_ipv6NetToMediaTable(struct snmp_context *ctx __unused,
 	which = value->var.subs[sub - 1];
 
 	switch (which) {
-#if 0
-	case LEAF_ipv6NetToMediaAddress:
-#endif
 	case LEAF_ipv6NetToMediaPhysAddress:
 	case LEAF_ipv6NetToMediaType:
-#if 0
-	case LEAF_ipv6NetToMediaState:
-	case LEAF_ipv6NetToMediaLastUpdated:
-#endif
 	case LEAF_ipv6NetToMediaValid:
 	default:
 		return (SNMP_ERR_RES_UNAVAIL);
