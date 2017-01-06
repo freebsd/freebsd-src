@@ -39,14 +39,14 @@
           (4 ipv6IfTableLastChange TIMETICKS op_ipv6MIBObjects GET)
           (5 ipv6IfTable
             (1 ipv6IfEntry : INTEGER op_ipv6IfTable
-              (1 ipv6IfIndex INTEGER) # lookup
+              (1 ipv6IfIndex INTEGER GET)
               (2 ipv6IfDescr OCTETSTRING GET SET)
               (3 ipv6IfLowerLayer OID GET)
               (4 ipv6IfEffectiveMtu UNSIGNED32 GET)
               (5 ipv6IfReasmMaxSize UNSIGNED32 GET)
-              (6 ipv6IfIdentifier OCTETSTRING GET SET) # lookup
+              (6 ipv6IfIdentifier OCTETSTRING GET SET)
               (7 ipv6IfIdentifierLength INTEGER GET SET)
-              (8 ipv6IfPhysicalAddress OCTETSTRING GET) # lookup
+              (8 ipv6IfPhysicalAddress OCTETSTRING GET)
               (9 ipv6IfAdminStatus INTEGER GET SET)
               (10 ipv6IfOperStatus INTEGER GET)
               (11 ipv6IfLastChange TIMETICKS GET)
@@ -76,8 +76,8 @@
           ))
           (7 ipv6AddrPrefixTable
             (1 ipv6AddrPrefixEntry : INTEGER OCTETSTRING INTEGER op_ipv6AddrPrefixTable
-              (1 ipv6AddrPrefix OCTETSTRING) # lookup
-              (2 ipv6AddrPrefixLength INTEGER)
+              (1 ipv6AddrPrefix OCTETSTRING GET)
+              (2 ipv6AddrPrefixLength INTEGER GET)
               (3 ipv6AddrPrefixOnLinkFlag INTEGER GET)
               (4 ipv6AddrPrefixAutonomousFlag INTEGER GET)
               (5 ipv6AddrPrefixAdvPreferredLifetime UNSIGNED32 GET)
@@ -85,7 +85,7 @@
           ))
           (8 ipv6AddrTable
             (1 ipv6AddrEntry : INTEGER OCTETSTRING op_ipv6AddrTable
-              (1 ipv6AddrAddress OCTETSTRING) # lookup
+              (1 ipv6AddrAddress OCTETSTRING GET)
               (2 ipv6AddrPfxLength INTEGER GET)
               (3 ipv6AddrType INTEGER GET)
               (4 ipv6AddrAnycastFlag INTEGER GET)
@@ -95,11 +95,11 @@
           (10 ipv6DiscardedRoutes GAUGE op_ipv6MIBObjects GET)
           (11 ipv6RouteTable
             (1 ipv6RouteEntry : OCTETSTRING INTEGER UNSIGNED32 op_ipv6RouteTable
-              (1 ipv6RouteDest OCTETSTRING) # lookup
-              (2 ipv6RoutePfxLength INTEGER)
-              (3 ipv6RouteIndex UNSIGNED32)
-              (4 ipv6RouteIfIndex OID GET) # lookup
-              (5 ipv6RouteNextHop OCTETSTRING GET) # lookup
+              (1 ipv6RouteDest OCTETSTRING GET)
+              (2 ipv6RoutePfxLength INTEGER GET)
+              (3 ipv6RouteIndex UNSIGNED32 GET)
+              (4 ipv6RouteIfIndex OID GET)
+              (5 ipv6RouteNextHop OCTETSTRING GET)
               (6 ipv6RouteType INTEGER GET)
               (7 ipv6RouteProtocol INTEGER GET)
               (8 ipv6RoutePolicy INTEGER GET)
@@ -107,13 +107,13 @@
               (10 ipv6RouteNextHopRDI UNSIGNED32 GET)
               (11 ipv6RouteMetric UNSIGNED32 GET)
               (12 ipv6RouteWeight UNSIGNED32 GET)
-              (13 ipv6RouteInfo OID GET) # lookup
+              (13 ipv6RouteInfo OID GET)
               (14 ipv6RouteValid INTEGER GET)
           ))
           (12 ipv6NetToMediaTable
             (1 ipv6NetToMediaEntry : INTEGER OCTETSTRING op_ipv6NetToMediaTable
-              (1 ipv6NetToMediaAddress OCTETSTRING) # lookup
-              (2 ipv6NetToMediaPhysAddress OCTETSTRING GET) # lookup
+              (1 ipv6NetToMediaAddress OCTETSTRING GET)
+              (2 ipv6NetToMediaPhysAddress OCTETSTRING GET)
               (3 ipv6NetToMediaType INTEGER GET)
               (4 ipv6NetToMediaState INTEGER GET)
               (5 ipv6NetToMediaLastUpdated UNSIGNED32 GET)
