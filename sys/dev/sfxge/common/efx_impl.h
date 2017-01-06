@@ -428,7 +428,10 @@ typedef struct efx_mcdi_ops_s {
 	boolean_t	(*emco_poll_response)(efx_nic_t *);
 	void		(*emco_read_response)(efx_nic_t *, void *, size_t, size_t);
 	void		(*emco_fini)(efx_nic_t *);
-	efx_rc_t	(*emco_feature_supported)(efx_nic_t *, efx_mcdi_feature_id_t, boolean_t *);
+	efx_rc_t	(*emco_feature_supported)(efx_nic_t *,
+					    efx_mcdi_feature_id_t, boolean_t *);
+	void		(*emco_get_timeout)(efx_nic_t *, efx_mcdi_req_t *,
+					    uint32_t *);
 } efx_mcdi_ops_t;
 
 typedef struct efx_mcdi_s {
