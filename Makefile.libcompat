@@ -4,8 +4,7 @@
 __<${_this:T}>__:
 
 # Makefile for the compatibility libraries.
-# - 32-bit compat libraries on PowerPC and AMD64.
-#   could also be for mips, but that doesn't work today.
+# - 32-bit compat libraries on MIPS, PowerPC, and AMD64.
 
 # -------------------------------------------------------------------
 # 32 bit world
@@ -34,6 +33,21 @@ LIB32WMAKEENV=	MACHINE=powerpc MACHINE_ARCH=powerpc
 LIB32WMAKEFLAGS=	\
 		LD="${XLD} -m elf32ppc_fbsd" \
 		OBJCOPY="${XOBJCOPY}"
+
+.elif ${TARGET_ARCH:Mmips64*} != ""
+.if empty(TARGET_CPUTYPE)
+LIB32CPUFLAGS=	-march=mips3
+.else
+LIB32CPUFLAGS=	-march=${TARGET_CPUTYPE}
+.endif
+LIB32CPUFLAGS+= -mabi=32
+LIB32WMAKEENV=	MACHINE=mips MACHINE_ARCH=mips
+.if ${TARGET_ARCH:Mmips64el*} != ""
+LIB32WMAKEFLAGS= LD="${XLD} -m elf32ltsmip_fbsd"
+.else
+LIB32WMAKEFLAGS= LD="${XLD} -m elf32btsmip_fbsd"
+.endif
+LIB32WMAKEFLAGS+= OBJCOPY="${XOBJCOPY}"
 .endif
 
 
