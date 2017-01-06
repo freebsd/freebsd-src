@@ -1,6 +1,9 @@
 .\" $FreeBSD$
-Use the
-.Xr mandoc 1
-version of
+Use the version of
+.Xr makewhatis 1
+introduced in
+.Fx 2.1 ,
+instead of the
 .Xr makewhatis 8
-database and utilities.
+database and utilities from
+.Xr mandoc 1 .
