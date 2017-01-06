@@ -23,8 +23,18 @@ static bool warn_fchown;
 
 #if defined(HAVE_FUTIMES) || defined(HAVE_FUTIMESAT) || defined(HAVE_UTIMES)
 #	include <sys/time.h>
+#elif defined(HAVE__FUTIME)
+#	include <sys/utime.h>
 #elif defined(HAVE_UTIME)
 #	include <utime.h>
+#endif
+
+#ifdef HAVE_CAPSICUM
+#	ifdef HAVE_SYS_CAPSICUM_H
+#		include <sys/capsicum.h>
+#	else
+#		include <sys/capability.h>
+#	endif
 #endif
 
 #include "tuklib_open_stdxxx.h"
@@ -37,6 +47,14 @@ static bool warn_fchown;
 #	define O_NOCTTY 0
 #endif
 
+// Using this macro to silence a warning from gcc -Wlogical-op.
+#if EAGAIN == EWOULDBLOCK
+#	define IS_EAGAIN_OR_EWOULDBLOCK(e) ((e) == EAGAIN)
+#else
+#	define IS_EAGAIN_OR_EWOULDBLOCK(e) \
+		((e) == EAGAIN || (e) == EWOULDBLOCK)
+#endif
+
 
 typedef enum {
 	IO_WAIT_MORE,    // Reading or writing is possible.
@@ -47,6 +65,11 @@ typedef enum {
 
 /// If true, try to create sparse files when decompressing.
 static bool try_sparse = true;
+
+#ifdef ENABLE_SANDBOX
+/// True if the conditions for sandboxing (described in main()) have been met.
+static bool sandbox_allowed = false;
+#endif
 
 #ifndef TUKLIB_DOSLIKE
 /// File status flags of standard input. This is used by io_open_src()
@@ -130,6 +153,73 @@ io_no_sparse(void)
 	try_sparse = false;
 	return;
 }
+
+
+#ifdef ENABLE_SANDBOX
+extern void
+io_allow_sandbox(void)
+{
+	sandbox_allowed = true;
+	return;
+}
+
+
+/// Enables operating-system-specific sandbox if it is possible.
+/// src_fd is the file descriptor of the input file.
+static void
+io_sandbox_enter(int src_fd)
+{
+	if (!sandbox_allowed) {
+		message(V_DEBUG, _("Sandbox is disabled due "
+				"to incompatible command line arguments"));
+		return;
+	}
+
+	const char dummy_str[] = "x";
+
+	// Try to ensure that both libc and xz locale files have been
+	// loaded when NLS is enabled.
+	snprintf(NULL, 0, "%s%s", _(dummy_str), strerror(EINVAL));
+
+	// Try to ensure that iconv data files needed for handling multibyte
+	// characters have been loaded. This is needed at least with glibc.
+	tuklib_mbstr_width(dummy_str, NULL);
+
+#ifdef HAVE_CAPSICUM
+	// Capsicum needs FreeBSD 10.0 or later.
+	cap_rights_t rights;
+
+	if (cap_rights_limit(src_fd, cap_rights_init(&rights,
+			CAP_EVENT, CAP_FCNTL, CAP_LOOKUP, CAP_READ, CAP_SEEK)))
+		goto error;
+
+	if (cap_rights_limit(STDOUT_FILENO, cap_rights_init(&rights,
+			CAP_EVENT, CAP_FCNTL, CAP_FSTAT, CAP_LOOKUP,
+			CAP_WRITE, CAP_SEEK)))
+		goto error;
+
+	if (cap_rights_limit(user_abort_pipe[0], cap_rights_init(&rights,
+			CAP_EVENT)))
+		goto error;
+
+	if (cap_rights_limit(user_abort_pipe[1], cap_rights_init(&rights,
+			CAP_WRITE)))
+		goto error;
+
+	if (cap_enter())
+		goto error;
+
+#else
+#	error ENABLE_SANDBOX is defined but no sandboxing method was found.
+#endif
+
+	message(V_DEBUG, _("Sandbox was successfully enabled"));
+	return;
+
+error:
+	message(V_DEBUG, _("Failed to enable the sandbox"));
+}
+#endif // ENABLE_SANDBOX
 
 
 #ifndef TUKLIB_DOSLIKE
@@ -368,6 +458,22 @@ io_copy_attrs(const file_pair *pair)
 	// Argh, no function to use a file descriptor to set the timestamp.
 	(void)utimes(pair->dest_name, tv);
 #	endif
+
+#elif defined(HAVE__FUTIME)
+	// Use one-second precision with Windows-specific _futime().
+	// We could use utime() too except that for some reason the
+	// timestamp will get reset at close(). With _futime() it works.
+	// This struct cannot be const as _futime() takes a non-const pointer.
+	struct _utimbuf buf = {
+		.actime = pair->src_st.st_atime,
+		.modtime = pair->src_st.st_mtime,
+	};
+
+	// Avoid warnings.
+	(void)atime_nsec;
+	(void)mtime_nsec;
+
+	(void)_futime(pair->dest_fd, &buf);
 
 #elif defined(HAVE_UTIME)
 	// Use one-second precision. utime() doesn't support using file
@@ -649,6 +755,11 @@ io_open_src(const char *src_name)
 	const bool error = io_open_src_real(&pair);
 	signals_unblock();
 
+#ifdef ENABLE_SANDBOX
+	if (!error)
+		io_sandbox_enter(pair.src_fd);
+#endif
+
 	return error ? NULL : &pair;
 }
 
@@ -675,23 +786,22 @@ io_close_src(file_pair *pair, bool success)
 #endif
 
 	if (pair->src_fd != STDIN_FILENO && pair->src_fd != -1) {
-#ifdef TUKLIB_DOSLIKE
-		(void)close(pair->src_fd);
-#endif
-
-		// If we are going to unlink(), do it before closing the file.
-		// This way there's no risk that someone replaces the file and
-		// happens to get same inode number, which would make us
-		// unlink() wrong file.
+		// Close the file before possibly unlinking it. On DOS-like
+		// systems this is always required since unlinking will fail
+		// if the file is open. On POSIX systems it usually works
+		// to unlink open files, but in some cases it doesn't and
+		// one gets EBUSY in errno.
 		//
-		// NOTE: DOS-like systems are an exception to this, because
-		// they don't allow unlinking files that are open. *sigh*
+		// xz 5.2.2 and older unlinked the file before closing it
+		// (except on DOS-like systems). The old code didn't handle
+		// EBUSY and could fail e.g. on some CIFS shares. The
+		// advantage of unlinking before closing is negligible
+		// (avoids a race between close() and stat()/lstat() and
+		// unlink()), so let's keep this simple.
+		(void)close(pair->src_fd);
+
 		if (success && !opt_keep_original)
 			io_unlink(pair->src_name, &pair->src_st);
-
-#ifndef TUKLIB_DOSLIKE
-		(void)close(pair->src_fd);
-#endif
 	}
 
 	return;
@@ -1018,7 +1128,7 @@ io_read(file_pair *pair, io_buf *buf_union, size_t size)
 			}
 
 #ifndef TUKLIB_DOSLIKE
-			if (errno == EAGAIN || errno == EWOULDBLOCK) {
+			if (IS_EAGAIN_OR_EWOULDBLOCK(errno)) {
 				const io_wait_ret ret = io_wait(pair,
 						mytime_get_flush_timeout(),
 						true);
@@ -1106,7 +1216,7 @@ io_write_buf(file_pair *pair, const uint8_t *buf, size_t size)
 			}
 
 #ifndef TUKLIB_DOSLIKE
-			if (errno == EAGAIN || errno == EWOULDBLOCK) {
+			if (IS_EAGAIN_OR_EWOULDBLOCK(errno)) {
 				if (io_wait(pair, -1, false) == IO_WAIT_MORE)
 					continue;
 
