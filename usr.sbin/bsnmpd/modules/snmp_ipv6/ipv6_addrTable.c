@@ -53,7 +53,9 @@ op_ipv6AddrTable(struct snmp_context *ctx __unused, struct snmp_value *value,
 	which = value->var.subs[sub - 1];
 
 	switch (which) {
+#if 0
 	case LEAF_ipv6AddrAddress:
+#endif
 	case LEAF_ipv6AddrPfxLength:
 	case LEAF_ipv6AddrType:
 	case LEAF_ipv6AddrAnycastFlag:

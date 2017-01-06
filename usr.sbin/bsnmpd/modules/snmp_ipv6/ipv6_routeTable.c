@@ -53,9 +53,11 @@ op_ipv6RouteTable(struct snmp_context *ctx __unused, struct snmp_value *value,
 	which = value->var.subs[sub - 1];
 
 	switch (which) {
+#if 0
 	case LEAF_ipv6RouteDest:
 	case LEAF_ipv6RoutePfxLength:
 	case LEAF_ipv6RouteIndex:
+#endif
 	case LEAF_ipv6RouteIfIndex:
 	case LEAF_ipv6RouteNextHop:
 	case LEAF_ipv6RouteType:

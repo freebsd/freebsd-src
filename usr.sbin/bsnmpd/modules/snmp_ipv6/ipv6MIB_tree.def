@@ -30,27 +30,28 @@
 
 (1 internet
   (2 mgmt
-    (1 mib2
+    (1 mib_2
       (55 ipv6MIB
         (1 ipv6MIBObjects
-          (1 ipv6Forwarding INTEGER op_ipv6MIBObjects GET SET)
+          (1 ipv6Forwarding ENUM ( 1 forwarding 2 notForwarding ) op_ipv6MIBObjects GET SET)
           (2 ipv6DefaultHopLimit INTEGER op_ipv6MIBObjects GET SET)
           (3 ipv6Interfaces UNSIGNED32 op_ipv6MIBObjects GET)
-          (4 ipv6IfTableLastChange TIMETICKS op_ipv6MIBObjects GET)
+          (4 ipv6IfTableLastChange UNSIGNED32 op_ipv6MIBObjects GET)
           (5 ipv6IfTable
             (1 ipv6IfEntry : INTEGER op_ipv6IfTable
               (1 ipv6IfIndex INTEGER GET)
-              (2 ipv6IfDescr OCTETSTRING GET SET)
+              (2 ipv6IfDescr OCTETSTRING | DisplayString GET SET)
               (3 ipv6IfLowerLayer OID GET)
               (4 ipv6IfEffectiveMtu UNSIGNED32 GET)
               (5 ipv6IfReasmMaxSize UNSIGNED32 GET)
-              (6 ipv6IfIdentifier OCTETSTRING GET SET)
+              (6 ipv6IfIdentifier OCTETSTRING | Ipv6AddressIfIdentifier GET SET)
               (7 ipv6IfIdentifierLength INTEGER GET SET)
-              (8 ipv6IfPhysicalAddress OCTETSTRING GET)
-              (9 ipv6IfAdminStatus INTEGER GET SET)
-              (10 ipv6IfOperStatus INTEGER GET)
-              (11 ipv6IfLastChange TIMETICKS GET)
-          ))
+              (8 ipv6IfPhysicalAddress OCTETSTRING | PhysAddress GET)
+              (9 ipv6IfAdminStatus ENUM ( 1 up 2 down ) GET SET)
+              (10 ipv6IfOperStatus ENUM ( 1 up 2 down 3 noIfIdentifier 4 unknown 5 notPresent ) GET)
+              (11 ipv6IfLastChange UNSIGNED32 GET)
+            )
+          )
           (6 ipv6IfStatsTable
             (1 ipv6IfStatsEntry : INTEGER op_ipv6IfStatsTable
               (1 ipv6IfStatsInReceives COUNTER GET)
@@ -61,7 +62,7 @@
               (6 ipv6IfStatsInUnknownProtos COUNTER GET)
               (7 ipv6IfStatsInTruncatedPkts COUNTER GET)
               (8 ipv6IfStatsInDiscards COUNTER GET)
-              (9 ipv6IfStatsInDelievers COUNTER GET)
+              (9 ipv6IfStatsInDelivers COUNTER GET)
               (10 ipv6IfStatsOutForwDatagrams COUNTER GET)
               (11 ipv6IfStatsOutRequests COUNTER GET)
               (12 ipv6IfStatsOutDiscards COUNTER GET)
@@ -73,52 +74,68 @@
               (18 ipv6IfStatsReasmFails COUNTER GET)
               (19 ipv6IfStatsInMcastPkts COUNTER GET)
               (20 ipv6IfStatsOutMcastPkts COUNTER GET)
-          ))
+            )
+          )
           (7 ipv6AddrPrefixTable
-            (1 ipv6AddrPrefixEntry : INTEGER OCTETSTRING INTEGER op_ipv6AddrPrefixTable
-              (1 ipv6AddrPrefix OCTETSTRING GET)
-              (2 ipv6AddrPrefixLength INTEGER GET)
-              (3 ipv6AddrPrefixOnLinkFlag INTEGER GET)
-              (4 ipv6AddrPrefixAutonomousFlag INTEGER GET)
+            (1 ipv6AddrPrefixEntry : INTEGER OCTETSTRING | Ipv6AddressPrefix INTEGER op_ipv6AddrPrefixTable
+              (1 ipv6AddrPrefix OCTETSTRING | Ipv6AddressPrefix)
+              (2 ipv6AddrPrefixLength INTEGER)
+              (3 ipv6AddrPrefixOnLinkFlag ENUM ( 1 true 2 false ) GET)
+              (4 ipv6AddrPrefixAutonomousFlag ENUM ( 1 true 2 false ) GET)
               (5 ipv6AddrPrefixAdvPreferredLifetime UNSIGNED32 GET)
-              (6 ipv6AddrPrefixPrefixAdvValidLifetime UNSIGNED32 GET)
-          ))
+              (6 ipv6AddrPrefixAdvValidLifetime UNSIGNED32 GET)
+            )
+          )
           (8 ipv6AddrTable
-            (1 ipv6AddrEntry : INTEGER OCTETSTRING op_ipv6AddrTable
-              (1 ipv6AddrAddress OCTETSTRING GET)
+            (1 ipv6AddrEntry : INTEGER OCTETSTRING | Ipv6Address op_ipv6AddrTable
+              (1 ipv6AddrAddress OCTETSTRING | Ipv6Address)
               (2 ipv6AddrPfxLength INTEGER GET)
-              (3 ipv6AddrType INTEGER GET)
-              (4 ipv6AddrAnycastFlag INTEGER GET)
-              (5 ipv6AddrStatus INTEGER GET)
-          ))
+              (3 ipv6AddrType ENUM ( 1 stateless 2 stateful 3 unknown ) GET)
+              (4 ipv6AddrAnycastFlag ENUM ( 1 true 2 false ) GET)
+              (5 ipv6AddrStatus ENUM ( 1 preferred 2 deprecated 3 invalid 4 inaccessible 5 unknown ) GET)
+            )
+          )
           (9 ipv6RouteNumber GAUGE op_ipv6MIBObjects GET)
-          (10 ipv6DiscardedRoutes GAUGE op_ipv6MIBObjects GET)
+          (10 ipv6DiscardedRoutes COUNTER op_ipv6MIBObjects GET)
           (11 ipv6RouteTable
-            (1 ipv6RouteEntry : OCTETSTRING INTEGER UNSIGNED32 op_ipv6RouteTable
-              (1 ipv6RouteDest OCTETSTRING GET)
-              (2 ipv6RoutePfxLength INTEGER GET)
-              (3 ipv6RouteIndex UNSIGNED32 GET)
-              (4 ipv6RouteIfIndex OID GET)
-              (5 ipv6RouteNextHop OCTETSTRING GET)
-              (6 ipv6RouteType INTEGER GET)
-              (7 ipv6RouteProtocol INTEGER GET)
-              (8 ipv6RoutePolicy INTEGER GET)
+            (1 ipv6RouteEntry : OCTETSTRING | Ipv6Address INTEGER UNSIGNED32 op_ipv6RouteTable
+              (1 ipv6RouteDest OCTETSTRING | Ipv6Address)
+              (2 ipv6RoutePfxLength INTEGER)
+              (3 ipv6RouteIndex UNSIGNED32)
+              (4 ipv6RouteIfIndex INTEGER GET)
+              (5 ipv6RouteNextHop OCTETSTRING | Ipv6Address GET)
+              (6 ipv6RouteType ENUM ( 1 other 2 discard 3 local 4 remote ) GET)
+              (7 ipv6RouteProtocol ENUM ( 1 other 2 local 3 netmgmt 4 ndisc 5 rip 6 ospf 7 bgp 8 idrp 9 igrp ) GET)
+              (8 ipv6RoutePolicy INTEGER32 GET)
               (9 ipv6RouteAge UNSIGNED32 GET)
               (10 ipv6RouteNextHopRDI UNSIGNED32 GET)
               (11 ipv6RouteMetric UNSIGNED32 GET)
               (12 ipv6RouteWeight UNSIGNED32 GET)
               (13 ipv6RouteInfo OID GET)
-              (14 ipv6RouteValid INTEGER GET)
-          ))
+              (14 ipv6RouteValid ENUM ( 1 true 2 false ) GET SET)
+            )
+          )
           (12 ipv6NetToMediaTable
-            (1 ipv6NetToMediaEntry : INTEGER OCTETSTRING op_ipv6NetToMediaTable
-              (1 ipv6NetToMediaAddress OCTETSTRING GET)
-              (2 ipv6NetToMediaPhysAddress OCTETSTRING GET)
-              (3 ipv6NetToMediaType INTEGER GET)
-              (4 ipv6NetToMediaState INTEGER GET)
-              (5 ipv6NetToMediaLastUpdated UNSIGNED32 GET)
-              (6 ipv6NetToMediaValid INTEGER GET)
-          ))
+            (1 ipv6NetToMediaEntry : INTEGER OCTETSTRING | Ipv6Address op_ipv6NetToMediaTable
+              (1 ipv6NetToMediaNetAddress OCTETSTRING | Ipv6Address)
+              (2 ipv6NetToMediaPhysAddress OCTETSTRING | PhysAddress GET)
+              (3 ipv6NetToMediaType ENUM ( 1 other 2 dynamic 3 static 4 local ) GET)
+              (4 ipv6IfNetToMediaState ENUM ( 1 reachable 2 stale 3 delay 4 probe 5 invalid 6 unknown ) GET)
+              (5 ipv6IfNetToMediaLastUpdated UNSIGNED32 GET)
+              (6 ipv6NetToMediaValid ENUM ( 1 true 2 false ) GET SET)
+            )
+          )
+        )
+        (2 ipv6Notifications
+          (0 ipv6NotificationPrefix
+            (1 ipv6IfStateChange OID op_ipv6IfStateChange)
+          )
+        )
+        (3 ipv6Conformance
+          (1 ipv6Compliances
+          )
+          (2 ipv6Groups
+          )
         )
       )
     )

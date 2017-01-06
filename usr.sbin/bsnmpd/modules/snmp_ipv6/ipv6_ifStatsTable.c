@@ -61,7 +61,7 @@ op_ipv6IfStatsTable(struct snmp_context *ctx __unused, struct snmp_value *value,
 	case LEAF_ipv6IfStatsInUnknownProtos:
 	case LEAF_ipv6IfStatsInTruncatedPkts:
 	case LEAF_ipv6IfStatsInDiscards:
-	case LEAF_ipv6IfStatsInDelievers:
+	case LEAF_ipv6IfStatsInDelivers:
 	case LEAF_ipv6IfStatsOutForwDatagrams:
 	case LEAF_ipv6IfStatsOutRequests:
 	case LEAF_ipv6IfStatsOutDiscards:
