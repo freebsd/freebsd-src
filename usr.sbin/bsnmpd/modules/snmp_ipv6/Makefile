@@ -13,9 +13,11 @@ SRCS+=	ipv6_routeTable.c
 
 XSYM=	${MOD}
 
-BMIBS=	IPV6-MIB.txt
 MAN=	snmp_${MOD}.3
+
 DEFS=	${MOD}_tree.def
+#INCS=	snmp_${MOD}.h
+BMIBS=	IPV6-MIB.txt
 
 CFLAGS+=	-DSNMPTREE_TYPES
 
