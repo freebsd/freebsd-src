@@ -398,6 +398,9 @@ ATF_TC_BODY(stat_symlink, tc)
 
 	ATF_REQUIRE(unlink(path) == 0);
 	ATF_REQUIRE(unlink(pathlink) == 0);
+#ifdef	__FreeBSD__
+	(void)close(fd);
+#endif
 }
 
 ATF_TC_CLEANUP(stat_symlink, tc)
