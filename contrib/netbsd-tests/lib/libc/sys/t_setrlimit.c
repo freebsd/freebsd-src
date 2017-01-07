@@ -124,6 +124,9 @@ out:
 
 	if (lim != 0)
 		atf_tc_fail("failed to set limit (%d)", lim);
+#ifdef	__FreeBSD__
+	free(buf);
+#endif
 }
 
 ATF_TC(setrlimit_current);
