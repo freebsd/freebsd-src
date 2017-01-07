@@ -63,6 +63,9 @@ ATF_TC_BODY(mkfifoat_fd, tc)
 	ATF_REQUIRE((fd = mkfifoat(dfd, BASEFIFO, mode)) != -1);
 	ATF_REQUIRE(close(fd) == 0);
 	ATF_REQUIRE(access(FIFO, F_OK) == 0);
+#ifdef	__FreeBSD__
+	(void)close(dfd);
+#endif
 }
 
 ATF_TC(mkfifoat_fdcwd);
