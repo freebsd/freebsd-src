@@ -7622,24 +7622,34 @@ scsi_inquiry(struct ccb_scsiio *csio, u_int32_t retries,
 }
 
 void
-scsi_mode_sense(struct ccb_scsiio *csio, u_int32_t retries,
-		void (*cbfcnp)(struct cam_periph *, union ccb *),
-		u_int8_t tag_action, int dbd, u_int8_t page_code,
-		u_int8_t page, u_int8_t *param_buf, u_int32_t param_len,
-		u_int8_t sense_len, u_int32_t timeout)
+scsi_mode_sense(struct ccb_scsiio *csio, uint32_t retries,
+    void (*cbfcnp)(struct cam_periph *, union ccb *), uint8_t tag_action,
+    int dbd, uint8_t pc, uint8_t page, uint8_t *param_buf, uint32_t param_len,
+    uint8_t sense_len, uint32_t timeout)
 {
 
-	scsi_mode_sense_len(csio, retries, cbfcnp, tag_action, dbd,
-			    page_code, page, param_buf, param_len, 0,
-			    sense_len, timeout);
+	scsi_mode_sense_subpage(csio, retries, cbfcnp, tag_action, dbd,
+	    pc, page, 0, param_buf, param_len, 0, sense_len, timeout);
 }
 
 void
-scsi_mode_sense_len(struct ccb_scsiio *csio, u_int32_t retries,
-		    void (*cbfcnp)(struct cam_periph *, union ccb *),
-		    u_int8_t tag_action, int dbd, u_int8_t page_code,
-		    u_int8_t page, u_int8_t *param_buf, u_int32_t param_len,
-		    int minimum_cmd_size, u_int8_t sense_len, u_int32_t timeout)
+scsi_mode_sense_len(struct ccb_scsiio *csio, uint32_t retries,
+    void (*cbfcnp)(struct cam_periph *, union ccb *), uint8_t tag_action,
+    int dbd, uint8_t pc, uint8_t page, uint8_t *param_buf, uint32_t param_len,
+    int minimum_cmd_size, uint8_t sense_len, uint32_t timeout)
+{
+
+	scsi_mode_sense_subpage(csio, retries, cbfcnp, tag_action, dbd,
+	    pc, page, 0, param_buf, param_len, minimum_cmd_size,
+	    sense_len, timeout);
+}
+
+void
+scsi_mode_sense_subpage(struct ccb_scsiio *csio, uint32_t retries,
+    void (*cbfcnp)(struct cam_periph *, union ccb *), uint8_t tag_action,
+    int dbd, uint8_t pc, uint8_t page, uint8_t subpage, uint8_t *param_buf,
+    uint32_t param_len, int minimum_cmd_size, uint8_t sense_len,
+    uint32_t timeout)
 {
 	u_int8_t cdb_len;
 
@@ -7658,7 +7668,8 @@ scsi_mode_sense_len(struct ccb_scsiio *csio, u_int32_t retries,
 		scsi_cmd->opcode = MODE_SENSE_6;
 		if (dbd != 0)
 			scsi_cmd->byte2 |= SMS_DBD;
-		scsi_cmd->page = page_code | page;
+		scsi_cmd->page = pc | page;
+		scsi_cmd->subpage = subpage;
 		scsi_cmd->length = param_len;
 		cdb_len = sizeof(*scsi_cmd);
 	} else {
@@ -7672,7 +7683,8 @@ scsi_mode_sense_len(struct ccb_scsiio *csio, u_int32_t retries,
 		scsi_cmd->opcode = MODE_SENSE_10;
 		if (dbd != 0)
 			scsi_cmd->byte2 |= SMS_DBD;
-		scsi_cmd->page = page_code | page;
+		scsi_cmd->page = pc | page;
+		scsi_cmd->subpage = subpage;
 		scsi_ulto2b(param_len, scsi_cmd->length);
 		cdb_len = sizeof(*scsi_cmd);
 	}
