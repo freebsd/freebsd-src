@@ -326,7 +326,9 @@ struct sfxge_softc {
 #endif
 };
 
-#define	SFXGE_LINK_UP(sc) ((sc)->port.link_mode != EFX_LINK_DOWN)
+#define	SFXGE_LINK_UP(sc) \
+	((sc)->port.link_mode != EFX_LINK_DOWN && \
+	 (sc)->port.link_mode != EFX_LINK_UNKNOWN)
 #define	SFXGE_RUNNING(sc) ((sc)->ifnet->if_drv_flags & IFF_DRV_RUNNING)
 
 #define	SFXGE_PARAM(_name)	"hw.sfxge." #_name
