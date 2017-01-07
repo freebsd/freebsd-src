@@ -193,7 +193,14 @@ editentry_save(void *hook __unused, char *name)
 	struct editentry *src;		/* Entry value to save. */
 
 	src = editentry_lookup(name);
-	assert(src != NULL);
+	if (src == 0) {
+		/*
+		 * This happens if field does not fit into read page size.
+		 * It also means that this field won't be written, so the
+		 * returned value does not really matter.
+		 */
+		return (0);
+	}
 
 	switch (src->type) {
 	case 'i':			/* Byte-sized integral type. */
