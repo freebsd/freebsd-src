@@ -710,6 +710,7 @@ ieee80211_ioctl_getdevcaps(struct ieee80211com *ic,
 	dc->dc_drivercaps = ic->ic_caps;
 	dc->dc_cryptocaps = ic->ic_cryptocaps;
 	dc->dc_htcaps = ic->ic_htcaps;
+	dc->dc_vhtcaps = ic->ic_vhtcaps;
 	ci = &dc->dc_chaninfo;
 	ic->ic_getradiocaps(ic, maxchans, &ci->ic_nchans, ci->ic_chans);
 	KASSERT(ci->ic_nchans <= maxchans,
@@ -1135,6 +1136,22 @@ ieee80211_ioctl_get80211(struct ieee80211vap *vap, u_long cmd,
 		if (vap->iv_flags_ht & IEEE80211_FHT_STBC_RX)
 			ireq->i_val |= 2;
 		break;
+
+	/* VHT */
+	case IEEE80211_IOC_VHTCONF:
+		ireq->i_val = 0;
+		if (vap->iv_flags_vht & IEEE80211_FVHT_VHT)
+			ireq->i_val |= 1;
+		if (vap->iv_flags_vht & IEEE80211_FVHT_USEVHT40)
+			ireq->i_val |= 2;
+		if (vap->iv_flags_vht & IEEE80211_FVHT_USEVHT80)
+			ireq->i_val |= 4;
+		if (vap->iv_flags_vht & IEEE80211_FVHT_USEVHT80P80)
+			ireq->i_val |= 8;
+		if (vap->iv_flags_vht & IEEE80211_FVHT_USEVHT160)
+			ireq->i_val |= 16;
+		break;
+
 	default:
 		error = ieee80211_ioctl_getdefault(vap, ireq);
 		break;
@@ -1869,6 +1886,8 @@ findchannel(struct ieee80211com *ic, int ieee, int mode)
 	    /* NB: handled specially below */
 	    [IEEE80211_MODE_11NA]	= IEEE80211_CHAN_A,
 	    [IEEE80211_MODE_11NG]	= IEEE80211_CHAN_G,
+	    [IEEE80211_MODE_VHT_5GHZ]	= IEEE80211_CHAN_A,
+	    [IEEE80211_MODE_VHT_2GHZ]	= IEEE80211_CHAN_G,
 	};
 	u_int modeflags;
 	int i;
@@ -1893,11 +1912,27 @@ findchannel(struct ieee80211com *ic, int ieee, int mode)
 			    !find11gchannel(ic, i, c->ic_freq))
 				return c;
 		} else {
-			/* must check HT specially */
+			/* must check VHT specifically */
+			if ((mode == IEEE80211_MODE_VHT_5GHZ ||
+			    mode == IEEE80211_MODE_VHT_2GHZ) &&
+			    !IEEE80211_IS_CHAN_VHT(c))
+				continue;
+
+			/*
+			 * Must check HT specially - only match on HT,
+			 * not HT+VHT channels
+			 */
 			if ((mode == IEEE80211_MODE_11NA ||
 			    mode == IEEE80211_MODE_11NG) &&
 			    !IEEE80211_IS_CHAN_HT(c))
 				continue;
+
+			if ((mode == IEEE80211_MODE_11NA ||
+			    mode == IEEE80211_MODE_11NG) &&
+			    IEEE80211_IS_CHAN_VHT(c))
+				continue;
+
+			/* Check that the modeflags above match */
 			if ((c->ic_flags & modeflags) == modeflags)
 				return c;
 		}
@@ -2021,6 +2056,7 @@ ieee80211_ioctl_setchannel(struct ieee80211vap *vap,
 			if (c == NULL)
 				return EINVAL;
 		}
+
 		/*
 		 * Fine tune channel selection based on desired mode:
 		 *   if 11b is requested, find the 11b version of any
@@ -2031,6 +2067,9 @@ ieee80211_ioctl_setchannel(struct ieee80211vap *vap,
 		 *      11a channel returned,
 		 *   if 11ng is requested, find the ht version of any
 		 *      11g channel returned,
+		 *   if 11ac is requested, find the 11ac version
+		 *      of any 11a/11na channel returned,
+		 *   (TBD) 11acg (2GHz VHT)
 		 *   otherwise we should be ok with what we've got.
 		 */
 		switch (vap->iv_des_mode) {
@@ -2067,6 +2106,17 @@ ieee80211_ioctl_setchannel(struct ieee80211vap *vap,
 					c = c2;
 			}
 			break;
+		case IEEE80211_MODE_VHT_2GHZ:
+			printf("%s: TBD\n", __func__);
+			break;
+		case IEEE80211_MODE_VHT_5GHZ:
+			if (IEEE80211_IS_CHAN_A(c)) {
+				c2 = findchannel(ic, ireq->i_val,
+					IEEE80211_MODE_VHT_5GHZ);
+				if (c2 != NULL)
+					c = c2;
+			}
+			break;
 		default:		/* NB: no static turboG */
 			break;
 		}
@@ -2092,6 +2142,7 @@ ieee80211_ioctl_setcurchan(struct ieee80211vap *vap,
 	error = copyin(ireq->i_data, &chan, sizeof(chan));
 	if (error != 0)
 		return error;
+
 	/* XXX 0xffff overflows 16-bit signed */
 	if (chan.ic_freq == 0 || chan.ic_freq == IEEE80211_CHAN_ANY) {
 		c = IEEE80211_CHAN_ANYC;
@@ -3321,6 +3372,37 @@ ieee80211_ioctl_set80211(struct ieee80211vap *vap, u_long cmd, struct ieee80211r
 		if (isvapht(vap))
 			error = ERESTART;
 		break;
+
+	/* VHT */
+	case IEEE80211_IOC_VHTCONF:
+		if (ireq->i_val & 1)
+			ieee80211_syncflag_vht(vap, IEEE80211_FVHT_VHT);
+		else
+			ieee80211_syncflag_vht(vap, -IEEE80211_FVHT_VHT);
+
+		if (ireq->i_val & 2)
+			ieee80211_syncflag_vht(vap, IEEE80211_FVHT_USEVHT40);
+		else
+			ieee80211_syncflag_vht(vap, -IEEE80211_FVHT_USEVHT40);
+
+		if (ireq->i_val & 4)
+			ieee80211_syncflag_vht(vap, IEEE80211_FVHT_USEVHT80);
+		else
+			ieee80211_syncflag_vht(vap, -IEEE80211_FVHT_USEVHT80);
+
+		if (ireq->i_val & 8)
+			ieee80211_syncflag_vht(vap, IEEE80211_FVHT_USEVHT80P80);
+		else
+			ieee80211_syncflag_vht(vap, -IEEE80211_FVHT_USEVHT80P80);
+
+		if (ireq->i_val & 16)
+			ieee80211_syncflag_vht(vap, IEEE80211_FVHT_USEVHT160);
+		else
+			ieee80211_syncflag_vht(vap, -IEEE80211_FVHT_USEVHT160);
+
+		error = ENETRESET;
+		break;
+
 	default:
 		error = ieee80211_ioctl_setdefault(vap, ireq);
 		break;
