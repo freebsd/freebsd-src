@@ -178,9 +178,10 @@ gpio_pin_is_active(gpio_pin_t pin, bool *active)
 		return (rv);
 	}
 
-	*active = tmp != 0;
 	if (pin->flags & GPIO_ACTIVE_LOW)
-		*active = !(*active);
+		*active = tmp == 0;
+	else
+		*active = tmp != 0;
 	return (0);
 }
 
