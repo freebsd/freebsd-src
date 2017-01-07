@@ -279,6 +279,9 @@ ATF_TC_BODY(mincore_resid, tc)
 	(void)munmap(addr2, npgs * page);
 	(void)munmap(addr3, npgs * page);
 	(void)unlink(path);
+#ifdef	__FreeBSD__
+	free(buf);
+#endif
 }
 
 ATF_TC_CLEANUP(mincore_resid, tc)
