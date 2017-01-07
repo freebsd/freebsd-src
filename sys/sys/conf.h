@@ -305,7 +305,6 @@ int	make_dev_physpath_alias(int _flags, struct cdev **_cdev,
 		const char *_physpath);
 void	dev_lock(void);
 void	dev_unlock(void);
-void	setconf(void);
 
 #ifdef KLD_MODULE
 #define	MAKEDEV_ETERNAL_KLD	0
