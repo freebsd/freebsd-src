@@ -78,6 +78,9 @@ ATF_TC_BODY(ttyname_err, tc)
 
 		ATF_REQUIRE(ttyname(fd) == NULL);
 		ATF_REQUIRE(errno == ENOTTY);
+#ifdef	__FreeBSD__
+		(void)close(fd);
+#endif
 	}
 }
 
