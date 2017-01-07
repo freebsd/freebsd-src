@@ -253,7 +253,7 @@ tcp_print(netdissect_options *ndo,
                 if (ip6) {
                         register struct tcp_seq_hash6 *th;
                         struct tcp_seq_hash6 *tcp_seq_hash;
-                        const struct in6_addr *src, *dst;
+                        const void *src, *dst;
                         struct tha6 tha;
 
                         tcp_seq_hash = tcp_seq_hash6;
@@ -309,7 +309,7 @@ tcp_print(netdissect_options *ndo,
 #endif /*INET6*/
                         register struct tcp_seq_hash *th;
                         struct tcp_seq_hash *tcp_seq_hash;
-                        const struct in_addr *src, *dst;
+                        const void *src, *dst;
                         struct tha tha;
 
                         tcp_seq_hash = tcp_seq_hash4;
