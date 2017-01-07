@@ -438,8 +438,9 @@ ef10_tx_qpost(
 		size_t offset;
 		efx_qword_t qword;
 
-		/* Fragments must not span 4k boundaries. */
-		EFSYS_ASSERT(P2ROUNDUP(addr + 1, 4096) >= (addr + size));
+		/* No limitations on boundary crossing */
+		EFSYS_ASSERT(size <=
+		    etp->et_enp->en_nic_cfg.enc_tx_dma_desc_size_max);
 
 		id = added++ & etp->et_mask;
 		offset = id * sizeof (efx_qword_t);
@@ -584,8 +585,8 @@ ef10_tx_qdesc_dma_create(
 	__in	boolean_t eop,
 	__out	efx_desc_t *edp)
 {
-	/* Fragments must not span 4k boundaries. */
-	EFSYS_ASSERT(P2ROUNDUP(addr + 1, 4096) >= addr + size);
+	/* No limitations on boundary crossing */
+	EFSYS_ASSERT(size <= etp->et_enp->en_nic_cfg.enc_tx_dma_desc_size_max);
 
 	EFSYS_PROBE4(tx_desc_dma_create, unsigned int, etp->et_index,
 		    efsys_dma_addr_t, addr,

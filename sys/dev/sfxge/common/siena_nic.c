@@ -138,6 +138,10 @@ siena_board_cfg(
 	/* Alignment for WPTR updates */
 	encp->enc_rx_push_align = 1;
 
+	encp->enc_tx_dma_desc_size_max = EFX_MASK32(FSF_AZ_TX_KER_BYTE_COUNT);
+	/* Fragments must not span 4k boundaries. */
+	encp->enc_tx_dma_desc_boundary = 4096;
+
 	/* Resource limits */
 	rc = efx_mcdi_get_resource_limits(enp, &nevq, &nrxq, &ntxq);
 	if (rc != 0) {
