@@ -664,6 +664,7 @@ SRCS_MIN+=	Support/StringMap.cpp
 SRCS_MIN+=	Support/StringRef.cpp
 SRCS_MIN+=	Support/StringSaver.cpp
 SRCS_EXT+=	Support/SystemUtils.cpp
+SRCS_LLD+=	Support/TarWriter.cpp
 SRCS_MIN+=	Support/TargetParser.cpp
 SRCS_MIN+=	Support/TargetRegistry.cpp
 SRCS_MIN+=	Support/ThreadLocal.cpp
