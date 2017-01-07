@@ -27,9 +27,10 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/capsicum.h>
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
+
+#include <sys/capsicum.h>
 
 #include <err.h>
 #include <errno.h>
