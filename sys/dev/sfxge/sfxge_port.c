@@ -311,8 +311,7 @@ sfxge_mac_link_update(struct sfxge_softc *sc, efx_link_mode_t mode)
 	port->link_mode = mode;
 
 	/* Push link state update to the OS */
-	link_state = (port->link_mode != EFX_LINK_DOWN ?
-		      LINK_STATE_UP : LINK_STATE_DOWN);
+	link_state = (SFXGE_LINK_UP(sc) ? LINK_STATE_UP : LINK_STATE_DOWN);
 	sc->ifnet->if_baudrate = sfxge_link_baudrate[port->link_mode];
 	if_link_state_change(sc->ifnet, link_state);
 }
