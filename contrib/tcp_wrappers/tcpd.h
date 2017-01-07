@@ -12,6 +12,11 @@
 #define	TCPD_SOCKADDR struct sockaddr_in
 #endif
 
+#ifndef _STDFILE_DECLARED
+#define _STDFILE_DECLARED
+typedef struct __sFILE FILE;
+#endif
+
 /* Structure to describe one communications endpoint. */
 
 #define	STRING_LENGTH	128		/* hosts, users, processes */

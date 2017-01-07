@@ -107,7 +107,7 @@ free_atid(struct adapter *sc, int atid)
 }
 
 /*
- * Active open failed.
+ * Active open succeeded.
  */
 static int
 do_act_establish(struct sge_iq *iq, const struct rss_header *rss,
@@ -187,6 +187,9 @@ act_open_failure_cleanup(struct adapter *sc, u_int atid, u_int status)
 		INP_INFO_RUNLOCK(&V_tcbinfo);
 }
 
+/*
+ * Active open failed.
+ */
 static int
 do_act_open_rpl(struct sge_iq *iq, const struct rss_header *rss,
     struct mbuf *m)

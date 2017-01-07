@@ -1489,6 +1489,7 @@ OLD_FILES+=usr/bin/llvm-lto
 OLD_FILES+=usr/bin/llvm-mc
 OLD_FILES+=usr/bin/llvm-nm
 OLD_FILES+=usr/bin/llvm-pdbdump
+OLD_FILES+=usr/bin/llvm-ranlib
 OLD_FILES+=usr/bin/llvm-rtdyld
 OLD_FILES+=usr/bin/llvm-symbolizer
 OLD_FILES+=usr/bin/opt
