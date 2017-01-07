@@ -824,14 +824,16 @@ done_with_synqe(struct adapter *sc, struct synq_entry *synqe)
 	struct inpcb *inp = lctx->inp;
 	struct vi_info *vi = synqe->syn->m_pkthdr.rcvif->if_softc;
 	struct l2t_entry *e = &sc->l2t->l2tab[synqe->l2e_idx];
+	int ntids;
 
 	INP_WLOCK_ASSERT(inp);
+	ntids = inp->inp_vflag & INP_IPV6 ? 2 : 1;
 
 	TAILQ_REMOVE(&lctx->synq, synqe, link);
 	inp = release_lctx(sc, lctx);
 	if (inp)
 		INP_WUNLOCK(inp);
-	remove_tid(sc, synqe->tid);
+	remove_tid(sc, synqe->tid, ntids);
 	release_tid(sc, synqe->tid, &sc->sge.ctrlq[vi->pi->port_id]);
 	t4_l2t_release(e);
 	release_synqe(synqe);	/* removed from synq list */
@@ -1180,7 +1182,7 @@ do_pass_accept_req(struct sge_iq *iq, const struct rss_header *rss,
 	struct l2t_entry *e = NULL;
 	int rscale, mtu_idx, rx_credits, rxqid, ulp_mode;
 	struct synq_entry *synqe = NULL;
-	int reject_reason, v;
+	int reject_reason, v, ntids;
 	uint16_t vid;
 #ifdef INVARIANTS
 	unsigned int opcode = G_CPL_OPCODE(be32toh(OPCODE_TID(cpl)));
@@ -1254,6 +1256,8 @@ found:
 		 */
 		if (!in6_ifhasaddr(ifp, &inc.inc6_laddr))
 			REJECT_PASS_ACCEPT();
+
+		ntids = 2;
 	} else {
 
 		/* Don't offload if the ifcap isn't enabled */
@@ -1266,6 +1270,8 @@ found:
 		 */
 		if (!in_ifhasaddr(ifp, inc.inc_laddr))
 			REJECT_PASS_ACCEPT();
+
+		ntids = 1;
 	}
 
 	e = get_l2te_for_nexthop(pi, ifp, &inc);
@@ -1343,7 +1349,7 @@ found:
 	synqe->rcv_bufsize = rx_credits;
 	atomic_store_rel_ptr(&synqe->wr, (uintptr_t)wr);
 
-	insert_tid(sc, tid, synqe);
+	insert_tid(sc, tid, synqe, ntids);
 	TAILQ_INSERT_TAIL(&lctx->synq, synqe, link);
 	hold_synqe(synqe);	/* hold for the duration it's in the synq */
 	hold_lctx(lctx);	/* A synqe on the list has a ref on its lctx */
@@ -1372,7 +1378,7 @@ found:
 		if (m)
 			m->m_pkthdr.rcvif = hw_ifp;
 
-		remove_tid(sc, synqe->tid);
+		remove_tid(sc, synqe->tid, ntids);
 		free(wr, M_CXGBE);
 
 		/* Yank the synqe out of the lctx synq. */

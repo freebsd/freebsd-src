@@ -307,7 +307,7 @@ release_offload_resources(struct toepcb *toep)
 		t4_l2t_release(toep->l2te);
 
 	if (tid >= 0) {
-		remove_tid(sc, tid);
+		remove_tid(sc, tid, toep->ce ? 2 : 1);
 		release_tid(sc, tid, toep->ctrlq);
 	}
 
@@ -420,12 +420,12 @@ final_cpl_received(struct toepcb *toep)
 }
 
 void
-insert_tid(struct adapter *sc, int tid, void *ctx)
+insert_tid(struct adapter *sc, int tid, void *ctx, int ntids)
 {
 	struct tid_info *t = &sc->tids;
 
 	t->tid_tab[tid] = ctx;
-	atomic_add_int(&t->tids_in_use, 1);
+	atomic_add_int(&t->tids_in_use, ntids);
 }
 
 void *
@@ -445,12 +445,12 @@ update_tid(struct adapter *sc, int tid, void *ctx)
 }
 
 void
-remove_tid(struct adapter *sc, int tid)
+remove_tid(struct adapter *sc, int tid, int ntids)
 {
 	struct tid_info *t = &sc->tids;
 
 	t->tid_tab[tid] = NULL;
-	atomic_subtract_int(&t->tids_in_use, 1);
+	atomic_subtract_int(&t->tids_in_use, ntids);
 }
 
 void
