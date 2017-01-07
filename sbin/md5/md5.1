@@ -1,9 +1,10 @@
 .\" $FreeBSD$
-.Dd April 22, 2016
+.Dd January 7, 2017
 .Dt MD5 1
 .Os
 .Sh NAME
-.Nm md5 , sha1 , sha256 , sha384 , sha512, sha512t256, rmd160
+.Nm md5 , sha1 , sha256 , sha384 , sha512 , sha512t256 , rmd160 ,
+.Nm skein256 , skein512 , skein1024
 .Nd calculate a message-digest fingerprint (checksum) for a file
 .Sh SYNOPSIS
 .Nm md5
@@ -41,11 +42,27 @@
 .Op Fl c Ar string
 .Op Fl s Ar string
 .Op Ar
+.Nm skein256
+.Op Fl pqrtx
+.Op Fl c Ar string
+.Op Fl s Ar string
+.Op Ar
+.Nm skein512
+.Op Fl pqrtx
+.Op Fl c Ar string
+.Op Fl s Ar string
+.Op Ar
+.Nm skein1024
+.Op Fl pqrtx
+.Op Fl c Ar string
+.Op Fl s Ar string
+.Op Ar
 .Sh DESCRIPTION
 The
-.Nm md5 , sha1 , sha256 , sha384 , sha512, sha512t256
+.Nm md5 , sha1 , sha256 , sha384 , sha512, sha512t256, rmd160,
+.Nm skein256, skein512,
 and
-.Nm rmd160
+.Nm skein1024
 utilities take as input a message of arbitrary length and produce as
 output a
 .Dq fingerprint
@@ -56,9 +73,9 @@ It is conjectured that it is computationally infeasible to
 produce two messages having the same message digest, or to produce any
 message having a given prespecified target message digest.
 The
-.Tn MD5 , SHA-1 , SHA-256 , SHA-384 , SHA-512
+.Tn MD5 , SHA-1 , SHA-256 , SHA-384 , SHA-512, RIPEMD-160,
 and
-.Tn RIPEMD-160
+.Tn SKEIN
 algorithms are intended for digital signature applications, where a
 large file must be
 .Dq compressed
@@ -128,9 +145,10 @@ Run a built-in test script.
 .El
 .Sh EXIT STATUS
 The
-.Nm md5 , sha1 , sha256 , sha512, sha512t256
+.Nm md5 , sha1 , sha256 , sha512, sha512t256, rmd160,
+.Nm skein256, skein512,
 and
-.Nm rmd160
+.Nm skein1024
 utilities exit 0 on success,
 1 if at least one of the input files could not be read,
 and 2 if at least one file does not have the same hash as the
@@ -143,7 +161,8 @@ option.
 .Xr sha 3 ,
 .Xr sha256 3 ,
 .Xr sha384 3 ,
-.Xr sha512 3
+.Xr sha512 3 ,
+.Xr skein 3
 .Rs
 .%A R. Rivest
 .%T The MD5 Message-Digest Algorithm
