@@ -29,10 +29,17 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/sysctl.h>
+
 #include <bsnmp/snmpmod.h>
 
 #include "ipv6_addrPrefixTable.h"
+
+#if 0
+SLIST_HEAD(ipv6AddrPrefixTable, ipv6AddrPrefixEntry)
+    ipv6AddrPrefixTable_head = SLIST_HEAD_INITIALIZER(ipv6AddrPrefixTable);
+struct ipv6AddrPrefixEntry	*ipv6AddrPrefixTable;
+SLIST_INIT(&ipv6AddrPrefixTable_head);
+#endif
 
 int
 op_ipv6AddrPrefixTable(struct snmp_context *ctx __unused,

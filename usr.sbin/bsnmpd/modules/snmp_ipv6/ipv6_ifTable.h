@@ -31,4 +31,22 @@
 
 #include "ipv6MIB_tree.h"
 
+typedef struct ipv6IfEntry {
+/*
+	INTEGER	ipv6IfIndex
+ */
+	char	*ipv6IfDescr;
+/*
+	OID	ipv6IfLowerLayer
+ */
+	uint32_t	ipv6IfEffectiveMtu;
+	uint32_t	ipv6IfReasmMaxSize;
+	char		*ipv6IfIdentifier;
+	u_int		ipv6IfIdentifierLength;
+	char		*ipv6IfPhysicalAddress;
+	uint32_t	ipv6IfAdminStatus;
+	uint32_t	ipv6IfOperStatus;
+	uint32_t	ipv6IfLastChange;
+} ipv6IfEntry;
+
 #endif

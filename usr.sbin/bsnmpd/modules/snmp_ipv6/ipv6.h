@@ -31,4 +31,7 @@
 
 #include "ipv6MIB_tree.h"
 
+extern	uint32_t mib_ipv6_ipv6Interfaces;
+extern	uint64_t mib_ipv6_ipv6IfTableLastChange;
+
 #endif

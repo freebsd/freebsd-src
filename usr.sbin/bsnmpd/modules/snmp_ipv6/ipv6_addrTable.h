@@ -31,4 +31,12 @@
 
 #include "ipv6MIB_tree.h"
 
+typedef struct ipv6AddrEntry {
+	char *		ipv6AddrAddress;
+	uint32_t	ipv6AddrPfxLength;
+	uint32_t	ipv6AddrType;
+	uint32_t	ipv6AddrAnycastFlag;
+	uint32_t	ipv6AddrStatus;
+} ipv6AddrEntry;
+
 #endif

@@ -10,6 +10,7 @@ SRCS+=	ipv6_ifStatsTable.c
 SRCS+=	ipv6_ifTable.c
 SRCS+=	ipv6_netToMediaTable.c
 SRCS+=	ipv6_routeTable.c
+SRCS+=	ipv6_sys.c
 
 XSYM=	${MOD}
 

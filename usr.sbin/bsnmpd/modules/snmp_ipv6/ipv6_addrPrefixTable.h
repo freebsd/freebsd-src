@@ -31,4 +31,19 @@
 
 #include "ipv6MIB_tree.h"
 
+typedef struct ipv6AddrPrefixEntry {
+#if 0
+	SLIST_ENTRY(ipv6AddrPrefixEntry) entries;
+#endif
+/*
+	char		*ipv6AddrPrefix;
+	u_int		ipv6AddrPrefixLength;
+ */
+	uint32_t	ipv6AddrPrefixOnLinkFlag;
+	uint32_t	ipv6AddrPrefixAutonomousFlag;
+	u_int		ipv6AddrPrefixAdvPreferredLifetime;
+	u_int		ipv6AddrPrefixAdvValidLifetime;
+
+} ipv6AddrPrefixEntry;
+
 #endif

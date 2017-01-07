@@ -31,4 +31,26 @@
 
 #include "ipv6MIB_tree.h"
 
+typedef struct ipv6RouteEntry {
+#if 0
+	OCTETSTRING | Ipv6Address	ipv6RouteDest
+	INTEGER				ipv6RoutePfxLength
+	USIGNED32			ipv6RouteIndex
+#endif
+	char		*ipv6RouteNextHop;
+	uint32_t	ipv6RouteIfIndex;
+	uint32_t	ipv6RouteType;
+	uint32_t	ipv6RouteProtocol;
+	int32_t		ipv6RoutePolicy;
+	uint32_t	ipv6RouteAge;
+	uint32_t	ipv6RouteNextHopRDI;
+#if 0
+	UNSIGNED32	ipv6RouteIndex
+#endif
+	uint32_t	ipv6RouteMetric;
+	uint32_t	ipv6RouteWeight;
+	void		*ipv6RouteInfo;
+	uint32_t	ipv6RouteValid;
+} ipv6RouteEntry;
+
 #endif

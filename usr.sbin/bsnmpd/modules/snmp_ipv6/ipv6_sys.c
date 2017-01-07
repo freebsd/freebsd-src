@@ -22,36 +22,33 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-#ifndef __SNMP_IPV6__IPV6_STATSTABLE_H__
-#define __SNMP_IPV6__IPV6_STATSTABLE_H__
+#include <sys/cdefs.h>
 
-#include "ipv6MIB_tree.h"
+__FBSDID("$FreeBSD$");
 
-typedef struct ipv6IfStatsEntry {
-	u_int	ipv6IfStatsInReceives;
-	u_int	ipv6IfStatsInHdrErrors;
-	u_int	ipv6IfStatsInTooBigErrors;
-	u_int	ipv6IfStatsInNoRoutes;
-	u_int	ipv6IfStatsInAddrErrors;
-	u_int	ipv6IfStatsInUnknownProtos;
-	u_int	ipv6IfStatsInTruncatedPkts;
-	u_int	ipv6IfStatsInDiscards;
-	u_int	ipv6IfStatsInDelivers;
-	u_int	ipv6IfStatsOutForwDatagrams;
-	u_int	ipv6IfStatsOutRequests;
-	u_int	ipv6IfStatsOutDiscards;
-	u_int	ipv6IfStatsOutFragOKs;
-	u_int	ipv6IfStatsOutFragFails;
-	u_int	ipv6IfStatsOutFragCreates;
-	u_int	ipv6IfStatsReasmReqds;
-	u_int	ipv6IfStatsReasmOKs;
-	u_int	ipv6IfStatsReasmFails;
-	u_int	ipv6IfStatsInMcastPkts;
-	u_int	ipv6IfStatsOutMcastPkts;
-} ipv6IfStatsEntry;
+#include <sys/param.h>
+#include <bsnmp/snmpmod.h>
 
-#endif
+#include "ipv6.h"
+#include "ipv6_sys.h"
+
+void
+mib_ipv6_refresh_interfaces(void)
+{
+
+	/* Refresh interfaces via MIB-II */
+
+	/*
+	 * Take interface information from MIB-II and update cached interface
+	 * structures
+	 */
+
+	/*
+	 * If there is a change between the cached interfaces and the
+	 * retrieved interfaces, update the scalars.
+	 */
+	mib_ipv6_ipv6Interfaces = 0;
+	mib_ipv6_ipv6IfTableLastChange = this_tick;
+}

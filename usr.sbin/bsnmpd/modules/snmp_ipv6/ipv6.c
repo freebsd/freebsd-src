@@ -33,11 +33,14 @@ __FBSDID("$FreeBSD$");
 #include <bsnmp/snmpmod.h>
 
 #include "ipv6.h"
+#include "ipv6_sys.h"
 #include "ipv6MIB_oid.h"
 
 static struct lmodule *module;
 
 static const struct asn_oid oid_ipv6MIB = OIDX_ipv6MIB;
+
+uint32_t mib_ipv6_ipv6Interfaces;
 
 uint64_t mib_ipv6_ipv6IfTableLastChange;
 
@@ -85,7 +88,8 @@ op_ipv6MIBObjects(struct snmp_context *ctx __unused, struct snmp_value *value,
 		break;
 	case LEAF_ipv6IfTableLastChange:
 	{
-                if (mib_ipv6_ipv6IfTableLastChange > start_tick)
+		mib_ipv6_refresh_interfaces();
+		if (mib_ipv6_ipv6IfTableLastChange > start_tick)
 			value->v.uint32 =
 			    mib_ipv6_ipv6IfTableLastChange - start_tick;
 		else
@@ -93,11 +97,8 @@ op_ipv6MIBObjects(struct snmp_context *ctx __unused, struct snmp_value *value,
 		break;
 	}
 	case LEAF_ipv6Interfaces:
-		/*
-		 * XXX (ngie): this incorrectly assumes that all interfaces
-		 * are IPv6 enabled.
-		 */
-		/*value->v.integer = if_countifindex()*/;
+		mib_ipv6_refresh_interfaces();
+		value->v.integer = mib_ipv6_ipv6Interfaces;
 		break;
 	default:
 		return (SNMP_ERR_NOSUCHNAME);
