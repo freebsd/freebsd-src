@@ -1154,6 +1154,13 @@ typedef struct efx_nic_cfg_s {
 	uint32_t		enc_rx_batch_max;
 	/* Number of rx descriptors the hardware requires for a push. */
 	uint32_t		enc_rx_push_align;
+	/* Maximum amount of data in DMA descriptor */
+	uint32_t		enc_tx_dma_desc_size_max;
+	/*
+	 * Boundary which DMA descriptor data must not cross or 0 if no
+	 * limitation.
+	 */
+	uint32_t		enc_tx_dma_desc_boundary;
 	/*
 	 * Maximum number of bytes into the packet the TCP header can start for
 	 * the hardware to apply TSO packet edits.
