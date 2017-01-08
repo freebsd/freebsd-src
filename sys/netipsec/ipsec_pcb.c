@@ -360,6 +360,8 @@ ipsec_get_pcbpolicy(struct inpcb *inp, void *request, size_t *len)
 	int error, flags;
 
 	xpl = (struct sadb_x_policy *)request;
+
+	INP_RLOCK(inp);
 	flags = inp->inp_sp->flags;
 	/* Select direction. */
 	switch (xpl->sadb_x_policy_dir) {
@@ -372,6 +374,7 @@ ipsec_get_pcbpolicy(struct inpcb *inp, void *request, size_t *len)
 		flags &= INP_OUTBOUND_POLICY;
 		break;
 	default:
+		INP_RUNLOCK(inp);
 		ipseclog((LOG_ERR, "%s: invalid direction=%u\n", __func__,
 			xpl->sadb_x_policy_dir));
 		return (EINVAL);
@@ -379,6 +382,7 @@ ipsec_get_pcbpolicy(struct inpcb *inp, void *request, size_t *len)
 
 	if (flags == 0) {
 		/* Return ENTRUST policy */
+		INP_RUNLOCK(inp);
 		xpl->sadb_x_policy_exttype = SADB_X_EXT_POLICY;
 		xpl->sadb_x_policy_type = IPSEC_POLICY_ENTRUST;
 		xpl->sadb_x_policy_id = 0;
@@ -392,6 +396,7 @@ ipsec_get_pcbpolicy(struct inpcb *inp, void *request, size_t *len)
 	    ("sp is NULL, but flags is 0x%04x", inp->inp_sp->flags));
 
 	key_addref(sp);
+	INP_RUNLOCK(inp);
 	error = key_sp2msg(sp, request, len);
 	key_freesp(&sp);
 	if (error == EINVAL)
