@@ -316,7 +316,14 @@ isodirino(isodir, imp)
 {
 	cd_ino_t ino;
 
-	ino = (isonum_733(isodir->extent) + isonum_711(isodir->ext_attr_length))
-	      << imp->im_bshift;
-	return (ino);
+	/*
+	 * Note there is an inverse calculation in
+	 * cd9660_vfsops.c:cd9660_vget_internal():
+	 *   ip->iso_start = ino >> imp->im_bshift;
+	 * and also a calculation of the isodir pointer
+	 * from an inode in cd9660_vnops.c:cd9660_readlink()
+	 */
+	ino = ((cd_ino_t)isonum_733(isodir->extent) +
+		isonum_711(isodir->ext_attr_length)) << imp->im_bshift;
+	return ino;
 }
