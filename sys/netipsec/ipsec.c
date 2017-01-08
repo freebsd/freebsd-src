@@ -241,7 +241,7 @@ SYSCTL_VNET_PCPUSTAT(_net_inet6_ipsec6, IPSECCTL_STATS, ipsecstats,
 #endif /* INET6 */
 
 static int ipsec_in_reject(struct secpolicy *, const struct mbuf *);
-static int ipsec_setspidx_inpcb(const struct mbuf *, struct inpcb *);
+static int ipsec_setspidx_inpcb(const struct mbuf *, struct inpcb *, u_int);
 static int ipsec_setspidx(const struct mbuf *, struct secpolicyindex *, int);
 static void ipsec4_get_ulp(const struct mbuf *m, struct secpolicyindex *, int);
 static int ipsec4_setspidx_ipaddr(const struct mbuf *, struct secpolicyindex *);
@@ -343,7 +343,7 @@ ipsec_getpolicybysock(const struct mbuf *m, u_int dir, struct inpcb *inp,
 	}
 
 	/* Set spidx in pcb. */
-	*error = ipsec_setspidx_inpcb(m, inp);
+	*error = ipsec_setspidx_inpcb(m, inp, dir);
 	if (*error)
 		return (NULL);
 
@@ -500,8 +500,9 @@ ipsec4_checkpolicy(const struct mbuf *m, u_int dir, int *error,
 }
 
 static int
-ipsec_setspidx_inpcb(const struct mbuf *m, struct inpcb *inp)
+ipsec_setspidx_inpcb(const struct mbuf *m, struct inpcb *inp, u_int dir)
 {
+	struct secpolicyindex *spidx;
 	int error;
 
 	IPSEC_ASSERT(inp != NULL, ("null inp"));
@@ -509,11 +510,13 @@ ipsec_setspidx_inpcb(const struct mbuf *m, struct inpcb *inp)
 	IPSEC_ASSERT(inp->inp_sp->sp_out != NULL && inp->inp_sp->sp_in != NULL,
 		("null sp_in || sp_out"));
 
-	error = ipsec_setspidx(m, &inp->inp_sp->sp_in->spidx, 1);
+	if (dir == IPSEC_DIR_INBOUND)
+		spidx = &inp->inp_sp->sp_in->spidx;
+	else
+		spidx = &inp->inp_sp->sp_out->spidx;
+	error = ipsec_setspidx(m, spidx, 1);
 	if (error == 0) {
-		inp->inp_sp->sp_in->spidx.dir = IPSEC_DIR_INBOUND;
-		inp->inp_sp->sp_out->spidx = inp->inp_sp->sp_in->spidx;
-		inp->inp_sp->sp_out->spidx.dir = IPSEC_DIR_OUTBOUND;
+		spidx->dir = dir;
 	} else {
 		bzero(&inp->inp_sp->sp_in->spidx,
 			sizeof (inp->inp_sp->sp_in->spidx));
