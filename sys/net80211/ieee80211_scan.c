@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #define	ROAM_RATE_HALF_DEFAULT		2*6	/* half-width 11a/g bss */
 #define	ROAM_RATE_QUARTER_DEFAULT	2*3	/* quarter-width 11a/g bss */
 #define	ROAM_MCS_11N_DEFAULT		(1 | IEEE80211_RATE_MCS) /* 11n bss */
+#define	ROAM_MCS_11AC_DEFAULT		(1 | IEEE80211_RATE_MCS) /* 11ac bss; XXX not used yet */
 
 void
 ieee80211_scan_attach(struct ieee80211com *ic)
@@ -116,6 +117,11 @@ static const struct ieee80211_roamparam defroam[IEEE80211_MODE_MAX] = {
 				    .rate = ROAM_MCS_11N_DEFAULT },
 	[IEEE80211_MODE_11NG]	= { .rssi = ROAM_RSSI_11B_DEFAULT,
 				    .rate = ROAM_MCS_11N_DEFAULT },
+	[IEEE80211_MODE_VHT_2GHZ]	= { .rssi = ROAM_RSSI_11B_DEFAULT,
+				    .rate = ROAM_MCS_11AC_DEFAULT },
+	[IEEE80211_MODE_VHT_5GHZ]	= { .rssi = ROAM_RSSI_11A_DEFAULT,
+				    .rate = ROAM_MCS_11AC_DEFAULT },
+
 };
 
 void
