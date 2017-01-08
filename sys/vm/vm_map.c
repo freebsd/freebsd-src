@@ -1130,24 +1130,24 @@ vm_map_lookup_entry(
  */
 int
 vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
-	      vm_offset_t start, vm_offset_t end, vm_prot_t prot, vm_prot_t max,
-	      int cow)
+    vm_offset_t start, vm_offset_t end, vm_prot_t prot, vm_prot_t max, int cow)
 {
-	vm_map_entry_t new_entry;
-	vm_map_entry_t prev_entry;
-	vm_map_entry_t temp_entry;
-	vm_eflags_t protoeflags;
+	vm_map_entry_t new_entry, prev_entry, temp_entry;
 	struct ucred *cred;
+	vm_eflags_t protoeflags;
 	vm_inherit_t inheritance;
-	boolean_t charge_prev_obj;
 
 	VM_MAP_ASSERT_LOCKED(map);
+	KASSERT((object != kmem_object && object != kernel_object) ||
+	    (cow & MAP_COPY_ON_WRITE) == 0,
+	    ("vm_map_insert: kmem or kernel object and COW"));
+	KASSERT(object == NULL || (cow & MAP_NOFAULT) == 0,
+	    ("vm_map_insert: paradoxical MAP_NOFAULT request"));
 
 	/*
 	 * Check that the start and end points are not bogus.
 	 */
-	if ((start < map->min_offset) || (end > map->max_offset) ||
-	    (start >= end))
+	if (start < map->min_offset || end > map->max_offset || start >= end)
 		return (KERN_INVALID_ADDRESS);
 
 	/*
@@ -1162,26 +1162,22 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	/*
 	 * Assert that the next entry doesn't overlap the end point.
 	 */
-	if ((prev_entry->next != &map->header) &&
-	    (prev_entry->next->start < end))
+	if (prev_entry->next != &map->header && prev_entry->next->start < end)
 		return (KERN_NO_SPACE);
 
 	protoeflags = 0;
-	charge_prev_obj = FALSE;
-
 	if (cow & MAP_COPY_ON_WRITE)
-		protoeflags |= MAP_ENTRY_COW|MAP_ENTRY_NEEDS_COPY;
-
-	if (cow & MAP_NOFAULT) {
+		protoeflags |= MAP_ENTRY_COW | MAP_ENTRY_NEEDS_COPY;
+	if (cow & MAP_NOFAULT)
 		protoeflags |= MAP_ENTRY_NOFAULT;
-
-		KASSERT(object == NULL,
-			("vm_map_insert: paradoxical MAP_NOFAULT request"));
-	}
 	if (cow & MAP_DISABLE_SYNCER)
 		protoeflags |= MAP_ENTRY_NOSYNC;
 	if (cow & MAP_DISABLE_COREDUMP)
 		protoeflags |= MAP_ENTRY_NOCOREDUMP;
+	if (cow & MAP_STACK_GROWS_DOWN)
+		protoeflags |= MAP_ENTRY_GROWS_DOWN;
+	if (cow & MAP_STACK_GROWS_UP)
+		protoeflags |= MAP_ENTRY_GROWS_UP;
 	if (cow & MAP_VN_WRITECOUNT)
 		protoeflags |= MAP_ENTRY_VN_WRITECNT;
 	if (cow & MAP_INHERIT_SHARE)
@@ -1190,23 +1186,17 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 		inheritance = VM_INHERIT_DEFAULT;
 
 	cred = NULL;
-	KASSERT((object != kmem_object && object != kernel_object) ||
-	    ((object == kmem_object || object == kernel_object) &&
-		!(protoeflags & MAP_ENTRY_NEEDS_COPY)),
-	    ("kmem or kernel object and cow"));
 	if (cow & (MAP_ACC_NO_CHARGE | MAP_NOFAULT))
 		goto charged;
 	if ((cow & MAP_ACC_CHARGED) || ((prot & VM_PROT_WRITE) &&
 	    ((protoeflags & MAP_ENTRY_NEEDS_COPY) || object == NULL))) {
 		if (!(cow & MAP_ACC_CHARGED) && !swap_reserve(end - start))
 			return (KERN_RESOURCE_SHORTAGE);
-		KASSERT(object == NULL || (protoeflags & MAP_ENTRY_NEEDS_COPY) ||
+		KASSERT(object == NULL ||
+		    (protoeflags & MAP_ENTRY_NEEDS_COPY) != 0 ||
 		    object->cred == NULL,
-		    ("OVERCOMMIT: vm_map_insert o %p", object));
+		    ("overcommit: vm_map_insert o %p", object));
 		cred = curthread->td_ucred;
-		crhold(cred);
-		if (object == NULL && !(protoeflags & MAP_ENTRY_NEEDS_COPY))
-			charge_prev_obj = TRUE;
 	}
 
 charged:
@@ -1225,33 +1215,30 @@ charged:
 		if (object->ref_count > 1 || object->shadow_count != 0)
 			vm_object_clear_flag(object, OBJ_ONEMAPPING);
 		VM_OBJECT_WUNLOCK(object);
-	}
-	else if ((prev_entry != &map->header) &&
-		 (prev_entry->eflags == protoeflags) &&
-		 (cow & (MAP_STACK_GROWS_DOWN | MAP_STACK_GROWS_UP)) == 0 &&
-		 (prev_entry->end == start) &&
-		 (prev_entry->wired_count == 0) &&
-		 (prev_entry->cred == cred ||
-		  (prev_entry->object.vm_object != NULL &&
-		   (prev_entry->object.vm_object->cred == cred))) &&
-		   vm_object_coalesce(prev_entry->object.vm_object,
-		       prev_entry->offset,
-		       (vm_size_t)(prev_entry->end - prev_entry->start),
-		       (vm_size_t)(end - prev_entry->end), charge_prev_obj)) {
+	} else if (prev_entry != &map->header &&
+	    prev_entry->eflags == protoeflags &&
+	    (cow & (MAP_STACK_GROWS_DOWN | MAP_STACK_GROWS_UP)) == 0 &&
+	    prev_entry->end == start && prev_entry->wired_count == 0 &&
+	    (prev_entry->cred == cred ||
+	    (prev_entry->object.vm_object != NULL &&
+	    prev_entry->object.vm_object->cred == cred)) &&
+	    vm_object_coalesce(prev_entry->object.vm_object,
+	    prev_entry->offset,
+	    (vm_size_t)(prev_entry->end - prev_entry->start),
+	    (vm_size_t)(end - prev_entry->end), cred != NULL &&
+	    (protoeflags & MAP_ENTRY_NEEDS_COPY) == 0)) {
 		/*
 		 * We were able to extend the object.  Determine if we
 		 * can extend the previous map entry to include the
 		 * new range as well.
 		 */
-		if ((prev_entry->inheritance == inheritance) &&
-		    (prev_entry->protection == prot) &&
-		    (prev_entry->max_protection == max)) {
-			map->size += (end - prev_entry->end);
+		if (prev_entry->inheritance == inheritance &&
+		    prev_entry->protection == prot &&
+		    prev_entry->max_protection == max) {
+			map->size += end - prev_entry->end;
 			prev_entry->end = end;
 			vm_map_entry_resize_free(map, prev_entry);
 			vm_map_simplify_entry(map, prev_entry);
-			if (cred != NULL)
-				crfree(cred);
 			return (KERN_SUCCESS);
 		}
 
@@ -1263,21 +1250,16 @@ charged:
 		 */
 		object = prev_entry->object.vm_object;
 		offset = prev_entry->offset +
-			(prev_entry->end - prev_entry->start);
+		    (prev_entry->end - prev_entry->start);
 		vm_object_reference(object);
 		if (cred != NULL && object != NULL && object->cred != NULL &&
 		    !(prev_entry->eflags & MAP_ENTRY_NEEDS_COPY)) {
 			/* Object already accounts for this uid. */
-			crfree(cred);
 			cred = NULL;
 		}
 	}
-
-	/*
-	 * NOTE: if conditionals fail, object can be NULL here.  This occurs
-	 * in things like the buffer map where we manage kva but do not manage
-	 * backing objects.
-	 */
+	if (cred != NULL)
+		crhold(cred);
 
 	/*
 	 * Create a new entry
@@ -1301,7 +1283,7 @@ charged:
 	new_entry->next_read = OFF_TO_IDX(offset);
 
 	KASSERT(cred == NULL || !ENTRY_CHARGED(new_entry),
-	    ("OVERCOMMIT: vm_map_insert leaks vm_map %p", new_entry));
+	    ("overcommit: vm_map_insert leaks vm_map %p", new_entry));
 	new_entry->cred = cred;
 
 	/*
@@ -1311,17 +1293,16 @@ charged:
 	map->size += new_entry->end - new_entry->start;
 
 	/*
-	 * It may be possible to merge the new entry with the next and/or
-	 * previous entries.  However, due to MAP_STACK_* being a hack, a
-	 * panic can result from merging such entries.
+	 * Try to coalesce the new entry with both the previous and next
+	 * entries in the list.  Previously, we only attempted to coalesce
+	 * with the previous entry when object is NULL.  Here, we handle the
+	 * other cases, which are less common.
 	 */
-	if ((cow & (MAP_STACK_GROWS_DOWN | MAP_STACK_GROWS_UP)) == 0)
-		vm_map_simplify_entry(map, new_entry);
+	vm_map_simplify_entry(map, new_entry);
 
-	if (cow & (MAP_PREFAULT|MAP_PREFAULT_PARTIAL)) {
-		vm_map_pmap_enter(map, start, prot,
-				    object, OFF_TO_IDX(offset), end - start,
-				    cow & MAP_PREFAULT_PARTIAL);
+	if ((cow & (MAP_PREFAULT | MAP_PREFAULT_PARTIAL)) != 0) {
+		vm_map_pmap_enter(map, start, prot, object, OFF_TO_IDX(offset),
+		    end - start, cow & MAP_PREFAULT_PARTIAL);
 	}
 
 	return (KERN_SUCCESS);
@@ -1531,7 +1512,8 @@ vm_map_simplify_entry(vm_map_t map, vm_map_entry_t entry)
 	vm_map_entry_t next, prev;
 	vm_size_t prevsize, esize;
 
-	if (entry->eflags & (MAP_ENTRY_IN_TRANSITION | MAP_ENTRY_IS_SUB_MAP))
+	if ((entry->eflags & (MAP_ENTRY_GROWS_DOWN | MAP_ENTRY_GROWS_UP |
+	    MAP_ENTRY_IN_TRANSITION | MAP_ENTRY_IS_SUB_MAP)) != 0)
 		return;
 
 	prev = entry->prev;
@@ -3527,17 +3509,17 @@ vm_map_stack_locked(vm_map_t map, vm_offset_t addrbos, vm_size_t max_ssize,
 
 	/* Now set the avail_ssize amount. */
 	if (rv == KERN_SUCCESS) {
-		if (prev_entry != &map->header)
-			vm_map_clip_end(map, prev_entry, bot);
 		new_entry = prev_entry->next;
 		if (new_entry->end != top || new_entry->start != bot)
 			panic("Bad entry start/end for new stack entry");
 
 		new_entry->avail_ssize = max_ssize - init_ssize;
-		if (orient & MAP_STACK_GROWS_DOWN)
-			new_entry->eflags |= MAP_ENTRY_GROWS_DOWN;
-		if (orient & MAP_STACK_GROWS_UP)
-			new_entry->eflags |= MAP_ENTRY_GROWS_UP;
+		KASSERT((orient & MAP_STACK_GROWS_DOWN) == 0 ||
+		    (new_entry->eflags & MAP_ENTRY_GROWS_DOWN) != 0,
+		    ("new entry lacks MAP_ENTRY_GROWS_DOWN"));
+		KASSERT((orient & MAP_STACK_GROWS_UP) == 0 ||
+		    (new_entry->eflags & MAP_ENTRY_GROWS_UP) != 0,
+		    ("new entry lacks MAP_ENTRY_GROWS_UP"));
 	}
 
 	return (rv);
@@ -3764,21 +3746,21 @@ Retry:
 		}
 
 		rv = vm_map_insert(map, NULL, 0, addr, stack_entry->start,
-		    next_entry->protection, next_entry->max_protection, 0);
+		    next_entry->protection, next_entry->max_protection,
+		    MAP_STACK_GROWS_DOWN);
 
 		/* Adjust the available stack space by the amount we grew. */
 		if (rv == KERN_SUCCESS) {
-			if (prev_entry != &map->header)
-				vm_map_clip_end(map, prev_entry, addr);
 			new_entry = prev_entry->next;
 			KASSERT(new_entry == stack_entry->prev, ("foo"));
 			KASSERT(new_entry->end == stack_entry->start, ("foo"));
 			KASSERT(new_entry->start == addr, ("foo"));
+			KASSERT((new_entry->eflags & MAP_ENTRY_GROWS_DOWN) !=
+			    0, ("new entry lacks MAP_ENTRY_GROWS_DOWN"));
 			grow_amount = new_entry->end - new_entry->start;
 			new_entry->avail_ssize = stack_entry->avail_ssize -
 			    grow_amount;
 			stack_entry->eflags &= ~MAP_ENTRY_GROWS_DOWN;
-			new_entry->eflags |= MAP_ENTRY_GROWS_DOWN;
 		}
 	} else {
 		/*
