@@ -3,8 +3,8 @@
 #
 #	List of PCI ID's
 #
-#	Version: 2016.11.21
-#	Date:    2016-11-21 03:15:01
+#	Version: 2017.01.08
+#	Date:    2017-01-08 03:15:02
 #
 #	Maintained by Albert Pool, Martin Mares, and other volunteers from
 #	the PCI ID Project at http://pci-ids.ucw.cz/.
@@ -249,6 +249,7 @@
 	0014  MegaRAID Tri-Mode SAS3516
 		1028 1fd4  PERC H745P MX
 		1d49 0602  ThinkSystem RAID 930-16i 4GB Flash PCIe 12Gb Adapter
+	0015  MegaRAID Tri-Mode SAS3416
 	0016  MegaRAID Tri-Mode SAS3508
 		1028 1fc9  PERC H840 Adapter
 		1028 1fcb  PERC H740P Adapter
@@ -548,6 +549,7 @@
 		1028 1f53  HBA330 Mini
 		1028 1fd2  HBA330 MX
 		1028 1fd3  HBA330 MMZ
+		1bd4 0011  Inspur 12Gb 8i-3008 IT SAS HBA
 	00ab  SAS3516 Fusion-MPT Tri-Mode RAID On Chip (ROC)
 	00ac  SAS3416 Fusion-MPT Tri-Mode I/O Controller Chip (IOC)
 		1d49 0201  ThinkSystem 430-16i SAS/SATA 12Gb HBA
@@ -2201,6 +2203,11 @@
 	67b9  Vesuvius [Radeon R9 295X2]
 	67be  Hawaii LE
 	67c0  Ellesmere [Polaris10]
+	67c4  Ellesmere [Radeon Pro WX 7100]
+	67c7  Ellesmere [Radeon Pro WX 5100]
+	67ca  Ellesmere [Polaris10]
+	67cc  Ellesmere [Polaris10]
+	67cf  Ellesmere [Polaris10]
 	67df  Ellesmere [Radeon RX 470/480]
 		1002 0b37  Radeon RX 480
 		1043 04a8  Radeon RX 480
@@ -2218,6 +2225,7 @@
 		1787 a480  Radeon RX 480
 	67e0  Baffin [Polaris11]
 	67e1  Baffin [Polaris11]
+	67e3  Baffin [Radeon Pro WX 4100]
 	67e8  Baffin [Polaris11]
 	67e9  Baffin [Polaris11]
 	67eb  Baffin [Polaris11]
@@ -2924,6 +2932,12 @@
 		148c 9380  Radeon R9 380
 # Make naming scheme consistent
 		174b e308  Radeon R9 380 Nitro 4G D5
+	6980  Polaris12
+	6981  Polaris12
+	6985  Polaris12
+	6986  Polaris12
+	6987  Polaris12
+	699f  Polaris12
 	700f  RS100 AGP Bridge
 	7010  RS200/RS250 AGP Bridge
 	7100  R520 [Radeon X1800 XT]
@@ -5095,6 +5109,7 @@
 		0675 1704  ISDN Adapter (PCI Bus, D, C)
 		0675 1707  ISDN Adapter (PCI Bus, DV, W)
 		10cf 105e  ISDN Adapter (PCI Bus, DV, W)
+	13a0  Transformer Book T101HA-GR030R
 # Should be 1022:9602
 	9602  AMD RS780/RS880 PCI to PCI bridge (int gfx)
 		1043 83a2  M4A785TD Motherboard
@@ -10077,6 +10092,7 @@
 	10c3  GT218 [GeForce 8400 GS Rev. 3]
 	10c5  GT218 [GeForce 405]
 	10d8  GT218 [NVS 300]
+	10ef  GP102 HDMI Audio Controller
 	10f0  GP104 High Definition Audio Controller
 	1140  GF117M [GeForce 610M/710M/810M/820M / GT 620M/625M/630M/720M]
 		1019 0799  GeForce 820M
@@ -10620,7 +10636,7 @@
 	13f1  GM204GL [Quadro M4000]
 	13f2  GM204GL [Tesla M60]
 	13f3  GM204GL [Tesla M6]
-	13f8  GM204GLM [Quadro M5000M]
+	13f8  GM204GLM [Quadro M5000M / M5000 SE]
 	13f9  GM204GLM [Quadro M4000M]
 	13fa  GM204GLM [Quadro M3000M]
 		10de 11c9  Quadro M3000 SE
@@ -10634,8 +10650,9 @@
 	1431  GM206GL [Tesla M4]
 	15f0  GP100GL
 	15f1  GP100GL
-	15f8  GP100GL
-	15f9  GP100GL
+	15f7  GP100GL [Tesla P100 PCIe 12GB]
+	15f8  GP100GL [Tesla P100 PCIe 16GB]
+	15f9  GP100GL [Tesla P100 SMX2 16GB]
 	1617  GM204M [GeForce GTX 980M]
 	1618  GM204M [GeForce GTX 970M]
 	1619  GM204M [GeForce GTX 965M]
@@ -10659,10 +10676,12 @@
 	1b81  GP104 [GeForce GTX 1070]
 	1b82  GP104
 	1b83  GP104
+	1b84  GP104 [GeForce GTX 1060 3GB]
 	1ba0  GP104M [GeForce GTX 1080]
 	1ba1  GP104M [GeForce GTX 1070]
 	1bb0  GP104GL [Quadro P5000]
 	1bb1  GP104GL
+	1bb3  GP104GL [Tesla P4]
 	1bb4  GP104GL
 	1be0  GP104M [GeForce GTX 1080]
 	1be1  GP104M [GeForce GTX 1070]
@@ -10678,6 +10697,9 @@
 	1c80  GP107
 	1c81  GP107 [GeForce GTX 1050]
 	1c82  GP107 [GeForce GTX 1050 Ti]
+	1c8c  GP107M [GeForce GTX 1050 Ti]
+	1c8d  GP107M [GeForce GTX 1050]
+	1c8e  GP107M
 	1ca7  GP107GL
 	1ca8  GP107GL
 	1caa  GP107GL
@@ -12103,7 +12125,11 @@
 111f  Precision Digital Images
 	4a47  Precision MX Video engine interface
 	5243  Frame capture bus interface
-1120  EMC Corporation
+# formerly EMC Corporation
+1120  Dell EMC
+	2306  Unity Fibre Channel Controller
+	2501  Unity Ethernet Controller
+	2505  Unity Fibre Channel Controller
 1121  Zilog
 1122  Multi-tech Systems, Inc.
 1123  Excellent Design, Inc.
@@ -15975,7 +16001,7 @@
 	5081  T540-5081 Unified Wire Ethernet Controller
 	5082  T504-5082 Unified Wire Ethernet Controller
 	5083  T540-5083 Unified Wire Ethernet Controller
-	5084  T580-5084 Unified Wire Ethernet Controller
+	5084  T540-5084 Unified Wire Ethernet Controller
 	5085  T580-5085 Unified Wire Ethernet Controller
 	5086  T580-5086 Unified Wire Ethernet Controller
 	5087  T580-5087 Unified Wire Ethernet Controller
@@ -15994,6 +16020,7 @@
 	509a  T520-509A Unified Wire Ethernet Controller
 	509b  T540-509B Unified Wire Ethernet Controller
 	509c  T520-509C Unified Wire Ethernet Controller
+	509d  T540-509D Unified Wire Ethernet Controller
 	5401  T520-CR Unified Wire Ethernet Controller
 	5402  T522-CR Unified Wire Ethernet Controller
 	5403  T540-CR Unified Wire Ethernet Controller
@@ -16041,6 +16068,7 @@
 	549a  T520-509A Unified Wire Ethernet Controller
 	549b  T540-509B Unified Wire Ethernet Controller
 	549c  T520-509C Unified Wire Ethernet Controller
+	549d  T540-509D Unified Wire Ethernet Controller
 	5501  T520-CR Unified Wire Storage Controller
 	5502  T522-CR Unified Wire Storage Controller
 	5503  T540-CR Unified Wire Storage Controller
@@ -16088,6 +16116,7 @@
 	559a  T520-509A Unified Wire Storage Controller
 	559b  T540-509B Unified Wire Storage Controller
 	559c  T520-509C Unified Wire Storage Controller
+	559d  T540-509D Unified Wire Storage Controller
 	5601  T520-CR Unified Wire Storage Controller
 	5602  T522-CR Unified Wire Storage Controller
 	5603  T540-CR Unified Wire Storage Controller
@@ -16135,6 +16164,7 @@
 	569a  T520-509A Unified Wire Storage Controller
 	569b  T540-509B Unified Wire Storage Controller
 	569c  T520-509C Unified Wire Storage Controller
+	569d  T540-509D Unified Wire Storage Controller
 	5701  T520-CR Unified Wire Ethernet Controller
 	5702  T522-CR Unified Wire Ethernet Controller
 	5703  T540-CR Unified Wire Ethernet Controller
@@ -16221,6 +16251,7 @@
 	589a  T520-509A Unified Wire Ethernet Controller [VF]
 	589b  T540-509B Unified Wire Ethernet Controller [VF]
 	589c  T520-509C Unified Wire Ethernet Controller [VF]
+	589d  T540-509D Unified Wire Ethernet Controller [VF]
 	6001  T6225-CR Unified Wire Ethernet Controller
 	6002  T6225-SO-CR Unified Wire Ethernet Controller
 	6003  T6425-CR Unified Wire Ethernet Controller
@@ -16357,7 +16388,8 @@
 144d  Samsung Electronics Co Ltd
 	1600  Apple PCIe SSD
 	a800  XP941 PCIe SSD
-	a802  NVMe SSD Controller
+	a802  NVMe SSD Controller SM951/PM951
+	a804  NVMe SSD Controller SM961/PM961
 	a820  NVMe SSD Controller 171X
 		1028 1f95  Express Flash NVMe XS1715 SSD 400GB
 		1028 1f96  Express Flash NVMe XS1715 SSD 800GB
@@ -17968,11 +18000,13 @@
 15b3  Mellanox Technologies
 	0191  MT25408 [ConnectX IB Flash Recovery]
 	01f6  MT27500 Family [ConnectX-3 Flash Recovery]
+	01f8  MT27520 Family [ConnectX-3 Pro Flash Recovery]
 	01ff  MT27600 Family [Connect-IB Flash Recovery]
 	0209  MT27700 Family [ConnectX-4 Flash Recovery]
 	020b  MT27710 Family [ConnectX-4 Lx Flash Recovery]
 	020d  MT28800 Family [ConnectX-5 Flash Recovery]
 	020f  MT28908A0 Family [ConnectX-6 Flash Recovery]
+	0211  MT416842 Family [BlueField SoC Flash Recovery]
 # reserved for RM#105916
 	024e  MT53100 [Spectrum-2, Flash recovery mode]
 # Actual value to be used
@@ -18732,6 +18766,7 @@
 	7013  AP440-3: 32-Channel Isolated Digital Input Module
 	7014  AP445: 32-Channel Isolated Digital Output Module
 	7016  AP470 48-Channel TTL Level Digital Input/Output Module
+	7017  AP323 16-bit, 20 or 40 Channel Analog Input Module
 	7018  AP408: 32-Channel Digital I/O Module
 	701a  AP220-16 12-Bit, 16-Channel Analog Output Module
 	701b  AP231-16 16-Bit, 16-Channel Analog Output Module
@@ -18992,6 +19027,7 @@
 	1160  ARC-1160 16-Port PCI-X to SATA RAID Controller
 	1170  ARC-1170 24-Port PCI-X to SATA RAID Controller
 	1201  ARC-1200 2-Port PCI-Express to SATA II RAID Controller
+	1203  ARC-1203 2/4/8 Port PCIe 2.0 to SATA 6Gb RAID Controller
 	1210  ARC-1210 4-Port PCI-Express to SATA RAID Controller
 	1214  ARC-12x4 PCIe 2.0 to SAS/SATA 6Gb RAID Controller
 		17d3 1214  ARC-1214 4-Port PCIe 2.0 to SAS/SATA 6Gb RAID Controller
@@ -19510,7 +19546,7 @@
 		1924 5105  SFN4111T-R5
 		1924 5201  SFN4112F-R1
 		1924 5202  SFN4112F-R2
-	0803  SFC9020 [Solarstorm]
+	0803  SFC9020 10G Ethernet Controller
 		1014 0478  2-port 10GbE Low-Latency (R7)
 		1014 0479  2-port 10GbE OpenOnload (R7)
 		1014 04a7  Solarflare 10Gb Low-latency Dual-port HBA (R7)
@@ -19540,7 +19576,7 @@
 		1924 7207  SFN5162F-R7 SFP+ Server Adapter
 		1924 7a06  SFN5152F-R6 SFP+ Server Adapter
 		1924 7a07  SFN5152F-R7 SFP+ Server Adapter
-	0813  SFL9021 [Solarstorm]
+	0813  SFL9021 10GBASE-T Ethernet Controller
 		1924 6100  SFN5121T-R0 10GBASE-T Server Adapter
 		1924 6102  SFN5121T-R2 10GBASE-T Server Adapter
 		1924 6103  SFN5121T-R3 10GBASE-T Server Adapter
@@ -19549,7 +19585,7 @@
 		1924 6904  SFN5111T-R4 10GBASE-T Server Adapter
 		1924 7104  SFN5161T-R4 10GBASE-T Server Adapter
 		1924 7904  SFN5151T-R4 10GBASE-T Server Adapter
-	0903  SFC9120
+	0903  SFC9120 10G Ethernet Controller
 		1014 04cc  SFN7122F-R2 2x10GbE SFP+ Flareon Ultra
 		1924 8002  SFN7122F-R1 SFP+ Server Adapter
 		1924 8003  SFN7x41Q-R1 Flareon Ultra 7000 Series 10/40G Adapter
@@ -19561,11 +19597,11 @@
 		1924 800d  SFN7x02F-R3 Flareon 7000 Series 10G Adapter
 		1924 8010  SFA7942Q-R1 QSFP+ AOE Adapter
 		1924 8015  SFA7942Q-A5-0-R1 QSFP+ AOE Adapter
-	0923  SFC9140
+	0923  SFC9140 10/40G Ethernet Controller
 		1924 800b  SFN7x42Q-R1 Flareon Ultra 7000 Series 10/40G Adapter
 		1924 800e  SFN7x42Q-R2 Flareon Ultra 7000 Series 10/40G Adapter
 		1924 800f  SFN7xx4F-R1 Flareon Ultra 7000 Series 10G Adapter
-	0a03  SFC9220
+	0a03  SFC9220 10/40G Ethernet Controller
 		1924 8011  SFN 8022-R1 Solarflare Flareon 8000 Series 10G Adapter
 		1924 8012  SFN8522-R1 Flareon Ultra 8000 Series 10G Adapter
 		1924 8013  SFN8042-R1 Solarflare Flareon 8000 Series 10/40G Adapter
@@ -19574,10 +19610,11 @@
 		1924 8017  SFN8522-R2 Flareon Ultra 8000 Series 10G Adapter
 		1924 8018  SFN8042-R2 Flareon 8000 Series 10/40G Adapter
 		1924 8019  SFN8542-R2 Flareon Ultra 8000 Series 10/40G Adapter
-	1803  SFC9020 Virtual Function [Solarstorm]
-	1813  SFL9021 Virtual Function [Solarstorm]
-	1903  SFC9120 Virtual Function
-	1923  SFC9140 Virtual Function
+	1803  SFC9020 10G Ethernet Controller (Virtual Function)
+	1813  SFL9021 10GBASE-T Ethernet Controller (Virtual Function)
+	1903  SFC9120 10G Ethernet Controller (Virtual Function)
+	1923  SFC9140 10/40G Ethernet Controller (Virtual Function)
+	1a03  SFC9220 10/40G Ethernet Controller (Virtual Function)
 	6703  SFC4000 rev A iSCSI/Onload [Solarstorm]
 		10b8 0102  SMC10GPCIe-10BT (A2) [TigerCard]
 		10b8 0103  SMC10GPCIe-10BT (A3) [TigerCard]
@@ -19864,6 +19901,7 @@
 	5801  DDRdrive X1
 	5808  DDRdrive X8
 	dd52  DDRdrive X1-30
+19e5  Huawei Technologies Co., Ltd.
 19e7  NET (Network Equipment Technologies)
 	1001  STIX DSP Card
 	1002  STIX - 1 Port T1/E1 Card
@@ -20303,6 +20341,8 @@
 	0303  Simulyzer-RT CompactPCI Serial PSI5-SIM-1 card
 	0304  Simulyzer-RT CompactPCI Serial PWR-ANA-1 card
 	0305  Simulyzer-RT CompactPCI Serial CAN-1 card
+1cd7  Nanjing Magewell Electronics Co., Ltd.
+	0010  Pro Capture Endpoint
 1cdd  secunet Security Networks AG
 1ce4  Exablaze
 	0001  ExaNIC X4
@@ -20310,6 +20350,7 @@
 	0003  ExaNIC X10
 	0004  ExaNIC X10-GM
 	0005  ExaNIC X40
+	0006  ExaNIC X10-HPT
 1cf7  Subspace Dynamics
 1d00  Pure Storage
 1d1d  CNEX Labs
@@ -21336,6 +21377,27 @@
 	0813  Moorestown SC DMA
 	0814  Moorestown LPE DMA
 	0815  Moorestown SSP0
+	0817  Medfield Serial IO I2C Controller #3
+	0818  Medfield Serial IO I2C Controller #4
+	0819  Medfield Serial IO I2C Controller #5
+	081a  Medfield GPIO Controller [Core]
+	081b  Medfield Serial IO HSUART Controller #1
+	081c  Medfield Serial IO HSUART Controller #2
+	081d  Medfield Serial IO HSUART Controller #3
+	081e  Medfield Serial IO HSUART DMA Controller
+	081f  Medfield GPIO Controller [AON]
+	0820  Medfield SD Host Controller
+	0821  Medfield SDIO Controller #1
+	0822  Medfield SDIO Controller #2
+	0823  Medfield eMMC Controller #0
+	0824  Medfield eMMC Controller #1
+	0827  Medfield Serial IO DMA Controller
+	0828  Medfield Power Management Unit
+	0829  Medfield USB Device Controller (OTG)
+	082a  Medfield SCU IPC
+	082c  Medfield Serial IO I2C Controller #0
+	082d  Medfield Serial IO I2C Controller #1
+	082e  Medfield Serial IO I2C Controller #2
 	0885  Centrino Wireless-N + WiMAX 6150
 		8086 1305  Centrino Wireless-N + WiMAX 6150 BGN
 		8086 1307  Centrino Wireless-N + WiMAX 6150 BG
@@ -22445,6 +22507,18 @@
 	1161  82806AA PCI64 Hub Advanced Programmable Interrupt Controller
 		8086 1161  82806AA PCI64 Hub APIC
 	1162  Xscale 80200 Big Endian Companion Chip
+	1190  Merrifield SD/SDIO/eMMC Controller
+	1191  Merrifield Serial IO HSUART Controller
+	1192  Merrifield Serial IO HSUART DMA Controller
+	1194  Merrifield Serial IO SPI Controller
+	1195  Merrifield Serial IO I2C Controller
+	1196  Merrifield Serial IO I2C Controller
+	1199  Merrifield GPIO Controller
+	119e  Merrifield USB Device Controller (OTG)
+	11a0  Merrifield SCU IPC
+	11a1  Merrifield Power Management Unit
+	11a2  Merrifield Serial IO DMA Controller
+	11a5  Merrifield Serial IO PWM Controller
 	1200  IXP1200 Network Processor
 		172a 0000  AEP SSL Accelerator
 	1209  8255xER/82551IT Fast Ethernet Controller
@@ -22917,8 +22991,8 @@
 		103c 0000  HPE Ethernet 10/20Gb 2-port 660FLB Adapter
 		103c 22fe  HPE Ethernet 10/20Gb 2-port 660FLB Adapter
 	1588  Ethernet Controller XL710 for 20GbE backplane
-		103c 0000  HPE Ethernet 10/20Gb 2-port 660M Adapter
-		103c 22ff  HPE Ethernet 10/20Gb 2-port 660M Adapter
+		103c 0000  Ethernet 10/20Gb 2-port 660M Adapter
+		103c 22ff  Ethernet 10/20Gb 2-port 660M Adapter
 	1589  Ethernet Controller X710/X557-AT 10GBASE-T
 		108e 0000  Quad Port 10GBase-T Adapter
 		108e 7b1c  Quad Port 10GBase-T Adapter
@@ -22951,12 +23025,17 @@
 	15ac  Ethernet Connection X552 10 GbE SFP+
 	15ad  Ethernet Connection X552/X557-AT 10GBASE-T
 	15ae  Ethernet Connection X552 1000BASE-T
+	15b0  Ethernet Connection X552 Backplane
 	15b4  X553 Virtual Function
 	15b5  DSL6340 USB 3.1 Controller [Alpine Ridge]
 	15b6  DSL6540 USB 3.1 Controller [Alpine Ridge]
 	15b7  Ethernet Connection (2) I219-LM
 	15b8  Ethernet Connection (2) I219-V
 	15b9  Ethernet Connection (3) I219-LM
+	15bb  Ethernet Connection (7) I219-LM
+	15bc  Ethernet Connection (7) I219-V
+	15bd  Ethernet Connection (6) I219-LM
+	15be  Ethernet Connection (6) I219-V
 	15bf  JHL6240 Thunderbolt 3 NHI (Low Power) [Alpine Ridge LP 2016]
 	15c0  JHL6240 Thunderbolt 3 Bridge (Low Power) [Alpine Ridge LP 2016]
 	15c5  X553 Virtual Function
@@ -24258,6 +24337,9 @@
 	24f4  Wireless 8260
 # Snow Field Peak AC
 		8086 0030  Dual Band Wireless-AC 8260
+	24fd  Wireless 8265 / 8275
+# Windstorm Peak
+		8086 0010  Dual Band Wireless-AC 8265
 	2500  82820 820 (Camino) Chipset Host Bridge (MCH)
 		1028 0095  Precision Workstation 220 Chipset
 		1043 801c  P3C-2000 system chipset
@@ -25145,12 +25227,12 @@
 		1028 01da  OptiPlex 745
 		1462 7235  P965 Neo MS-7235 mainboard
 	2826  C600/X79 series chipset SATA RAID Controller
-		1d49 0100  ThinkSystem RAID 331
-		1d49 0101  ThinkSystem RAID 331
-		1d49 0102  ThinkSystem RAID 331
-		1d49 0103  ThinkSystem RAID 331
-		1d49 0104  ThinkSystem RAID 331
-		1d49 0105  ThinkSystem RAID 331
+		1d49 0100  Intel RSTe SATA Software RAID
+		1d49 0101  Intel RSTe SATA Software RAID
+		1d49 0102  Intel RSTe SATA Software RAID
+		1d49 0103  Intel RSTe SATA Software RAID
+		1d49 0104  Intel RSTe SATA Software RAID
+		1d49 0105  Intel RSTe SATA Software RAID
 	2827  C610/X99 series chipset sSATA Controller [RAID mode]
 	2828  82801HM/HEM (ICH8M/ICH8M-E) SATA Controller [IDE mode]
 		1028 01f3  Inspiron 1420
@@ -26950,41 +27032,41 @@
 	530d  80310 (IOP) IO Processor
 	5845  QEMU NVM Express Controller
 		1af4 1100  QEMU Virtual Machine
-	5a84  Atom/Celeron/Pentium Processor N4200/N3350/E3900 Series Integrated Graphics Controller
-	5a88  Atom/Celeron/Pentium Processor N4200/N3350/E3900 Series Imaging Unit
-	5a98  Atom/Celeron/Pentium Processor N4200/N3350/E3900 Series Audio Cluster
-	5a9a  Atom/Celeron/Pentium Processor N4200/N3350/E3900 Series Trusted Execution Engine
-	5aa2  Atom/Celeron/Pentium Processor N4200/N3350/E3900 Series Integrated Sensor Hub
-	5aa8  Atom/Celeron/Pentium Processor N4200/N3350/E3900 Series USB xHCI
-	5aac  Atom/Celeron/Pentium Processor N4200/N3350/E3900 Series I2C Controller #1
-	5aae  Atom/Celeron/Pentium Processor N4200/N3350/E3900 Series I2C Controller #2
-	5ab0  Atom/Celeron/Pentium Processor N4200/N3350/E3900 Series I2C Controller #3
-	5ab2  Atom/Celeron/Pentium Processor N4200/N3350/E3900 Series I2C Controller #4
-	5ab4  Atom/Celeron/Pentium Processor N4200/N3350/E3900 Series I2C Controller #5
-	5ab6  Atom/Celeron/Pentium Processor N4200/N3350/E3900 Series I2C Controller #6
-	5ab8  Atom/Celeron/Pentium Processor N4200/N3350/E3900 Series I2C Controller #7
-	5aba  Atom/Celeron/Pentium Processor N4200/N3350/E3900 Series I2C Controller #8
-	5abc  Atom/Celeron/Pentium Processor N4200/N3350/E3900 Series HSUART Controller #1
-	5abe  Atom/Celeron/Pentium Processor N4200/N3350/E3900 Series HSUART Controller #2
-	5ac0  Atom/Celeron/Pentium Processor N4200/N3350/E3900 Series HSUART Controller #3
-	5ac2  Atom/Celeron/Pentium Processor N4200/N3350/E3900 Series SPI Controller #1
-	5ac4  Atom/Celeron/Pentium Processor N4200/N3350/E3900 Series SPI Controller #2
-	5ac6  Atom/Celeron/Pentium Processor N4200/N3350/E3900 Series SPI Controller #3
-	5ac8  Atom/Celeron/Pentium Processor N4200/N3350/E3900 Series PWM Pin Controller
-	5aca  Atom/Celeron/Pentium Processor N4200/N3350/E3900 Series SDXC/MMC Host Controller
-	5acc  Atom/Celeron/Pentium Processor N4200/N3350/E3900 Series eMMC Controller
-	5ad0  Atom/Celeron/Pentium Processor N4200/N3350/E3900 Series SDIO Controller
-	5ad4  Atom/Celeron/Pentium Processor N4200/N3350/E3900 Series SMBus Controller
-	5ad6  Atom/Celeron/Pentium Processor N4200/N3350/E3900 Series PCI Express Port B #1
-	5ad7  Atom/Celeron/Pentium Processor N4200/N3350/E3900 Series PCI Express Port B #2
-	5ad8  Atom/Celeron/Pentium Processor N4200/N3350/E3900 Series PCI Express Port A #1
-	5ad9  Atom/Celeron/Pentium Processor N4200/N3350/E3900 Series PCI Express Port A #2
-	5ada  Atom/Celeron/Pentium Processor N4200/N3350/E3900 Series PCI Express Port A #3
-	5adb  Atom/Celeron/Pentium Processor N4200/N3350/E3900 Series PCI Express Port A #4
-	5ae3  Atom/Celeron/Pentium Processor N4200/N3350/E3900 Series SATA AHCI Controller
-	5ae8  Atom/Celeron/Pentium Processor N4200/N3350/E3900 Series Low Pin Count Interface
-	5aee  Atom/Celeron/Pentium Processor N4200/N3350/E3900 Series HSUART Controller #4
-	5af0  Atom/Celeron/Pentium Processor N4200/N3350/E3900 Series Host Bridge
+	5a84  Celeron N3350/Pentium N4200/Atom E3900 Series Integrated Graphics Controller
+	5a88  Celeron N3350/Pentium N4200/Atom E3900 Series Imaging Unit
+	5a98  Celeron N3350/Pentium N4200/Atom E3900 Series Audio Cluster
+	5a9a  Celeron N3350/Pentium N4200/Atom E3900 Series Trusted Execution Engine
+	5aa2  Celeron N3350/Pentium N4200/Atom E3900 Series Integrated Sensor Hub
+	5aa8  Celeron N3350/Pentium N4200/Atom E3900 Series USB xHCI
+	5aac  Celeron N3350/Pentium N4200/Atom E3900 Series I2C Controller #1
+	5aae  Celeron N3350/Pentium N4200/Atom E3900 Series I2C Controller #2
+	5ab0  Celeron N3350/Pentium N4200/Atom E3900 Series I2C Controller #3
+	5ab2  Celeron N3350/Pentium N4200/Atom E3900 Series I2C Controller #4
+	5ab4  Celeron N3350/Pentium N4200/Atom E3900 Series I2C Controller #5
+	5ab6  Celeron N3350/Pentium N4200/Atom E3900 Series I2C Controller #6
+	5ab8  Celeron N3350/Pentium N4200/Atom E3900 Series I2C Controller #7
+	5aba  Celeron N3350/Pentium N4200/Atom E3900 Series I2C Controller #8
+	5abc  Celeron N3350/Pentium N4200/Atom E3900 Series HSUART Controller #1
+	5abe  Celeron N3350/Pentium N4200/Atom E3900 Series HSUART Controller #2
+	5ac0  Celeron N3350/Pentium N4200/Atom E3900 Series HSUART Controller #3
+	5ac2  Celeron N3350/Pentium N4200/Atom E3900 Series SPI Controller #1
+	5ac4  Celeron N3350/Pentium N4200/Atom E3900 Series SPI Controller #2
+	5ac6  Celeron N3350/Pentium N4200/Atom E3900 Series SPI Controller #3
+	5ac8  Celeron N3350/Pentium N4200/Atom E3900 Series PWM Pin Controller
+	5aca  Celeron N3350/Pentium N4200/Atom E3900 Series SDXC/MMC Host Controller
+	5acc  Celeron N3350/Pentium N4200/Atom E3900 Series eMMC Controller
+	5ad0  Celeron N3350/Pentium N4200/Atom E3900 Series SDIO Controller
+	5ad4  Celeron N3350/Pentium N4200/Atom E3900 Series SMBus Controller
+	5ad6  Celeron N3350/Pentium N4200/Atom E3900 Series PCI Express Port B #1
+	5ad7  Celeron N3350/Pentium N4200/Atom E3900 Series PCI Express Port B #2
+	5ad8  Celeron N3350/Pentium N4200/Atom E3900 Series PCI Express Port A #1
+	5ad9  Celeron N3350/Pentium N4200/Atom E3900 Series PCI Express Port A #2
+	5ada  Celeron N3350/Pentium N4200/Atom E3900 Series PCI Express Port A #3
+	5adb  Celeron N3350/Pentium N4200/Atom E3900 Series PCI Express Port A #4
+	5ae3  Celeron N3350/Pentium N4200/Atom E3900 Series SATA AHCI Controller
+	5ae8  Celeron N3350/Pentium N4200/Atom E3900 Series Low Pin Count Interface
+	5aee  Celeron N3350/Pentium N4200/Atom E3900 Series HSUART Controller #4
+	5af0  Celeron N3350/Pentium N4200/Atom E3900 Series Host Bridge
 	65c0  5100 Chipset Memory Controller Hub
 	65e2  5100 Chipset PCI Express x4 Port 2
 	65e3  5100 Chipset PCI Express x4 Port 3
@@ -27826,6 +27908,25 @@
 	a243  Lewisburg LPC or eSPI Controller
 	a252  Lewisburg SSATA Controller [AHCI mode]
 	a256  Lewisburg SSATA Controller [RAID mode]
+	a282  200 Series PCH SATA controller [AHCI mode]
+	a294  200 Series PCH PCI Express Root Port #1
+	a2a1  200 Series PCH PMC
+	a2a3  200 Series PCH SMBus Controller
+	a2a7  200 Series PCH Serial IO UART Controller #0
+	a2a8  200 Series PCH Serial IO UART Controller #1
+	a2a9  200 Series PCH Serial IO SPI Controller #0
+	a2aa  200 Series PCH Serial IO SPI Controller #1
+	a2af  200 Series PCH USB 3.0 xHCI Controller
+	a2b1  200 Series PCH Thermal Subsystem
+	a2ba  200 Series PCH CSME HECI #1
+	a2bb  200 Series PCH CSME HECI #2
+	a2c6  200 Series PCH LPC Controller
+	a2e0  200 Series PCH Serial IO I2C Controller #0
+	a2e1  200 Series PCH Serial IO I2C Controller #1
+	a2e2  200 Series PCH Serial IO I2C Controller #2
+	a2e3  200 Series PCH Serial IO I2C Controller #3
+	a2e6  200 Series PCH Serial IO UART Controller #2
+	a2f0  200 Series PCH HD Audio
 	a620  6400/6402 Advanced Memory Buffer (AMB)
 	abc0  Omni-Path Fabric Switch Silicon 100 Series
 	b152  21152 PCI-to-PCI Bridge
@@ -28605,6 +28706,7 @@ f1d0  AJA Video
 	cafe  Kona SD
 	cfee  Xena LS/SD-22-DA/SD-DA
 	daff  KONA LHi
+	db09  Corvid 24
 	dcaf  Kona HD
 	dfee  Xena HD-DA
 	efac  Xena SD-MM/SD-22-MM
