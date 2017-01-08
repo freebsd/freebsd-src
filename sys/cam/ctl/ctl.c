@@ -2779,32 +2779,29 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		break;
 	}
 	case CTL_GETSTATS: {
-		struct ctl_stats *stats;
+		struct ctl_stats *stats = (struct ctl_stats *)addr;
 		int i;
 
-		stats = (struct ctl_stats *)addr;
-
-		if ((sizeof(struct ctl_lun_io_stats) * softc->num_luns) >
-		     stats->alloc_len) {
-			stats->status = CTL_SS_NEED_MORE_SPACE;
-			stats->num_luns = softc->num_luns;
-			break;
-		}
 		/*
 		 * XXX KDM no locking here.  If the LUN list changes,
 		 * things can blow up.
 		 */
 		i = 0;
+		stats->status = CTL_SS_OK;
+		stats->fill_len = 0;
 		STAILQ_FOREACH(lun, &softc->lun_list, links) {
+			if (stats->fill_len + sizeof(lun->stats) >
+			    stats->alloc_len) {
+				stats->status = CTL_SS_NEED_MORE_SPACE;
+				break;
+			}
 			retval = copyout(&lun->stats, &stats->lun_stats[i++],
 					 sizeof(lun->stats));
 			if (retval != 0)
 				break;
+			stats->fill_len += sizeof(lun->stats);
 		}
 		stats->num_luns = softc->num_luns;
-		stats->fill_len = sizeof(struct ctl_lun_io_stats) *
-				 softc->num_luns;
-		stats->status = CTL_SS_OK;
 #ifdef CTL_TIME_IO
 		stats->flags = CTL_STATS_FLAG_TIME_VALID;
 #else
