@@ -314,11 +314,12 @@ ACPI_EXPORT_SYMBOL (AcpiGetTableHeader)
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiGetTable
+ * FUNCTION:    AcpiGetTableWithSize
  *
  * PARAMETERS:  Signature           - ACPI signature of needed table
  *              Instance            - Which instance (for SSDTs)
  *              OutTable            - Where the pointer to the table is returned
+ *              TblSize             - Size of the table
  *
  * RETURN:      Status and pointer to the requested table
  *
@@ -333,10 +334,11 @@ ACPI_EXPORT_SYMBOL (AcpiGetTableHeader)
  ******************************************************************************/
 
 ACPI_STATUS
-AcpiGetTable (
+AcpiGetTableWithSize (
     char                    *Signature,
     UINT32                  Instance,
-    ACPI_TABLE_HEADER       **OutTable)
+    ACPI_TABLE_HEADER       **OutTable,
+    ACPI_SIZE		    *TblSize)
 {
     UINT32                  i;
     UINT32                  j;
@@ -434,8 +436,36 @@ AcpiPutTable (
     (void) AcpiUtReleaseMutex (ACPI_MTX_TABLES);
     return_VOID;
 }
-
 ACPI_EXPORT_SYMBOL (AcpiPutTable)
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiGetTable
+ *
+ * PARAMETERS:  Signature           - ACPI signature of needed table
+ *              Instance            - Which instance (for SSDTs)
+ *              OutTable            - Where the pointer to the table is returned
+ *
+ * RETURN:      Status and pointer to the requested table
+ *
+ * DESCRIPTION: Finds and verifies an ACPI table. Table must be in the
+ *              RSDT/XSDT.
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiGetTable (
+    char                    *Signature,
+    UINT32                  Instance,
+    ACPI_TABLE_HEADER       **OutTable)
+{
+    ACPI_SIZE             Size;
+
+    return (AcpiGetTableWithSize(Signature, Instance, OutTable, &Size));
+}
+
+ACPI_EXPORT_SYMBOL (AcpiGetTable)
 
 
 /*******************************************************************************
