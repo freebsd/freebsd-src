@@ -119,6 +119,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/in6_rss.h>
 
 #ifdef IPSEC
+#include <netipsec/key.h>
 #include <netipsec/ipsec.h>
 #include <netinet6/ip6_ipsec.h>
 #include <netipsec/ipsec6.h>
@@ -554,6 +555,12 @@ ip6_input(struct mbuf *m)
 	int nxt, ours = 0;
 	int srcrt = 0;
 
+	/*
+	 * Drop the packet if IPv6 operation is disabled on the interface.
+	 */
+	if ((ND_IFINFO(m->m_pkthdr.rcvif)->flags & ND6_IFF_IFDISABLED))
+		goto bad;
+
 #ifdef IPSEC
 	/*
 	 * should the inner packet be considered authentic?
@@ -596,10 +603,6 @@ ip6_input(struct mbuf *m)
 		} else
 			IP6STAT_INC(ip6s_m1);
 	}
-
-	/* drop the packet if IPv6 operation is disabled on the IF */
-	if ((ND_IFINFO(m->m_pkthdr.rcvif)->flags & ND6_IFF_IFDISABLED))
-		goto bad;
 
 	in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_receive);
 	IP6STAT_INC(ip6s_total);
@@ -728,12 +731,21 @@ ip6_input(struct mbuf *m)
 		goto bad;
 	}
 #endif
+	/* Try to forward the packet, but if we fail continue */
 #ifdef IPSEC
+	if (V_ip6_forwarding != 0 && !key_havesp(IPSEC_DIR_INBOUND) &&
+	    !key_havesp(IPSEC_DIR_OUTBOUND))
+		if (ip6_tryforward(m) == NULL)
+			return;
 	/*
 	 * Bypass packet filtering for packets previously handled by IPsec.
 	 */
 	if (ip6_ipsec_filtertunnel(m))
 		goto passin;
+#else
+	if (V_ip6_forwarding != 0)
+		if (ip6_tryforward(m) == NULL)
+			return;
 #endif /* IPSEC */
 
 	/*

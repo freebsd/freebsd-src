@@ -819,6 +819,7 @@ void	in6_newaddrmsg(struct in6_ifaddr *, int);
 /*
  * Extended API for IPv6 FIB support.
  */
+struct mbuf *ip6_tryforward(struct mbuf *);
 void	in6_rtredirect(struct sockaddr *, struct sockaddr *, struct sockaddr *,
 	    int, struct sockaddr *, u_int);
 int	in6_rtrequest(int, struct sockaddr *, struct sockaddr *,
