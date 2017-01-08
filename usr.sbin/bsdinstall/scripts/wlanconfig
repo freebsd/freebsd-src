@@ -207,6 +207,7 @@ fi
 
 while :
 do
+	SCANSSID=0
 	output=$( wpa_cli scan 2>&1 )
 	f_dprintf "%s" "$output"
 	dialog --backtitle "FreeBSD Installer" --title "Scanning" \
@@ -236,7 +237,19 @@ do
 		break
 		;;
 	1)	# Cancel
-		exit 1
+		# here we ask if the user wants to select the network manually
+		f_dialog_title "Network Selection"
+		f_dialog_yesno "Do you want to select the network manually?" || exit 1
+		# and take the manual input
+		# first, take the ssid
+		f_dialog_input NETWORK "Enter SSID" || exit 1
+		# then, the encryption
+		ENCRYPTION=$( dialog --backtitle "$DIALOG_BACKTITLE" --title \
+			"$DIALOG_TITLE" --menu "Select encryption type" 0 0 0 \
+			"1 WPA/WPA2 PSK" "" "2 WPA/WPA2 EAP" "" "3 WEP" "" "0 None" "" 2>&1 1>&3 ) || exit 1
+		SCANSSID=1
+		f_dialog_title_restore
+		break
 		;;
 	3)	# Rescan
 		;;
@@ -244,7 +257,7 @@ do
 	exec 3>&-
 done
 
-ENCRYPTION=`echo "$NETWORKS" | awk -F '\t' \
+[ -z "$ENCRYPTION" ] && ENCRYPTION=`echo "$NETWORKS" | awk -F '\t' \
     "/^\"$NETWORK\"\t/ {printf(\"%s\n\", \\\$2 );}"`
 
 if echo $ENCRYPTION | grep -q 'PSK'; then
@@ -258,6 +271,7 @@ if echo $ENCRYPTION | grep -q 'PSK'; then
 	exec 3>&-
 echo "network={
 	ssid=\"$NETWORK\"
+	scan_ssid=$SCANSSID
 	psk=\"$PASS\"
 	priority=5
 }" >> $BSDINSTALL_TMPETC/wpa_supplicant.conf
@@ -273,6 +287,7 @@ elif echo $ENCRYPTION | grep -q EAP; then
 	exec 3>&-
 echo "network={
 	ssid=\"$NETWORK\"
+	scan_ssid=$SCANSSID
 	key_mgmt=WPA-EAP" >> $BSDINSTALL_TMPETC/wpa_supplicant.conf
 echo "$USERPASS" | awk '
 {
@@ -294,6 +309,7 @@ elif echo $ENCRYPTION | grep -q WEP; then
 	|| exec $0 $@
 echo "network={
 	ssid=\"$NETWORK\"
+	scan_ssid=$SCANSSID
 	key_mgmt=NONE
 	wep_key0=\"$WEPKEY\"
 	wep_tx_keyidx=0
@@ -302,6 +318,7 @@ echo "network={
 else	# Open
 echo "network={
 	ssid=\"$NETWORK\"
+	scan_ssid=$SCANSSID
 	key_mgmt=NONE
 	priority=5
 }" >> $BSDINSTALL_TMPETC/wpa_supplicant.conf
