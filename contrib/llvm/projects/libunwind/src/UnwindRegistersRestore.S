@@ -527,3 +527,5 @@ DEFINE_LIBUNWIND_PRIVATE_FUNCTION(_ZN9libunwind15Registers_riscv6jumptoEv)
   ret                       // jump to ra
 
 #endif
+
+  .section .note.GNU-stack,"",@progbits

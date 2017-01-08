@@ -1494,6 +1494,7 @@ OLD_FILES+=usr/bin/llvm-mc
 OLD_FILES+=usr/bin/llvm-modextract
 OLD_FILES+=usr/bin/llvm-nm
 OLD_FILES+=usr/bin/llvm-pdbdump
+OLD_FILES+=usr/bin/llvm-ranlib
 OLD_FILES+=usr/bin/llvm-rtdyld
 OLD_FILES+=usr/bin/llvm-symbolizer
 OLD_FILES+=usr/bin/llvm-xray

@@ -30,6 +30,10 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/capsicum.h>
+
+#include <err.h>
+#include <errno.h>
 #include <utmpx.h>
 
 #include <algorithm>
@@ -51,6 +55,10 @@ main(int argc, char **)
 	}
 
 	setutxent();
+
+	if (cap_enter() < 0 && errno != ENOSYS)
+		err(1, "Failed to enter capability mode.");
+
 	while ((ut = getutxent()) != NULL)
 		if (ut->ut_type == USER_PROCESS)
 			names.insert(ut->ut_user);
