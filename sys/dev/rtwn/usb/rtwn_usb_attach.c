@@ -133,8 +133,9 @@ rtwn_usb_alloc_rx_list(struct rtwn_softc *sc)
 	struct rtwn_usb_softc *uc = RTWN_USB_SOFTC(sc);
 	int error, i;
 
+	/* XXX recheck */
 	error = rtwn_usb_alloc_list(sc, uc->uc_rx, RTWN_USB_RX_LIST_COUNT,
-	    RTWN_RXBUFSZ);
+	    sc->rx_dma_size + 1024);
 	if (error != 0)
 		return (error);
 

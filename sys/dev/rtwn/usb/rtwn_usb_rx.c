@@ -158,8 +158,12 @@ rtwn_rxeof(struct rtwn_softc *sc, uint8_t *buf, int len)
 
 		/* Make sure everything fits in xfer. */
 		totlen = sizeof(*stat) + infosz + pktlen;
-		if (totlen > len)
+		if (totlen > len) {
+			device_printf(sc->sc_dev,
+			    "%s: totlen (%d) > len (%d)!\n",
+			    __func__, totlen, len);
 			break;
+		}
 
 		if (m0 == NULL)
 			m0 = m = rtwn_rx_copy_to_mbuf(sc, stat, totlen);

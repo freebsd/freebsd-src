@@ -25,7 +25,6 @@
 
 #define RTWN_TX_DESC_SIZE	64
 
-#define RTWN_RXBUFSZ		(8 * 1024)
 #define RTWN_TXBUFSZ		(16 * 1024)
 
 #define RTWN_BCN_MAX_SIZE	512
