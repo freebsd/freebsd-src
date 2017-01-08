@@ -13,6 +13,7 @@
 
 #include "sanitizer_common.h"
 
+#include "sanitizer_allocator_interface.h"
 #include "sanitizer_flags.h"
 #include "sanitizer_stackdepot.h"
 #include "sanitizer_stacktrace.h"
@@ -46,7 +47,7 @@ void SetSandboxingCallback(void (*f)()) {
   sandboxing_callback = f;
 }
 
-void ReportErrorSummary(const char *error_type, StackTrace *stack) {
+void ReportErrorSummary(const char *error_type, const StackTrace *stack) {
 #if !SANITIZER_GO
   if (!common_flags()->print_summary)
     return;
@@ -69,12 +70,15 @@ void SetSoftRssLimitExceededCallback(void (*Callback)(bool exceeded)) {
   SoftRssLimitExceededCallback = Callback;
 }
 
+#if SANITIZER_LINUX && !SANITIZER_GO
 void BackgroundThread(void *arg) {
   uptr hard_rss_limit_mb = common_flags()->hard_rss_limit_mb;
   uptr soft_rss_limit_mb = common_flags()->soft_rss_limit_mb;
+  bool heap_profile = common_flags()->heap_profile;
   uptr prev_reported_rss = 0;
   uptr prev_reported_stack_depot_size = 0;
   bool reached_soft_rss_limit = false;
+  uptr rss_during_last_reported_profile = 0;
   while (true) {
     SleepForMillis(100);
     uptr current_rss_mb = GetRSS() >> 20;
@@ -116,8 +120,15 @@ void BackgroundThread(void *arg) {
           SoftRssLimitExceededCallback(false);
       }
     }
+    if (heap_profile &&
+        current_rss_mb > rss_during_last_reported_profile * 1.1) {
+      Printf("\n\nHEAP PROFILE at RSS %zdMb\n", current_rss_mb);
+      __sanitizer_print_memory_profile(90);
+      rss_during_last_reported_profile = current_rss_mb;
+    }
   }
 }
+#endif
 
 void WriteToSyslog(const char *msg) {
   InternalScopedString msg_copy(kErrorMessageBufferSize);
@@ -142,7 +153,8 @@ void MaybeStartBackgroudThread() {
     !SANITIZER_GO  // Need to implement/test on other platforms.
   // Start the background thread if one of the rss limits is given.
   if (!common_flags()->hard_rss_limit_mb &&
-      !common_flags()->soft_rss_limit_mb) return;
+      !common_flags()->soft_rss_limit_mb &&
+      !common_flags()->heap_profile) return;
   if (!&real_pthread_create) return;  // Can't spawn the thread anyway.
   internal_start_thread(BackgroundThread, nullptr);
 #endif
@@ -152,7 +164,7 @@ void MaybeStartBackgroudThread() {
 
 void NOINLINE
 __sanitizer_sandbox_on_notify(__sanitizer_sandbox_arguments *args) {
-  PrepareForSandboxing(args);
-  if (sandboxing_callback)
-    sandboxing_callback();
+  __sanitizer::PrepareForSandboxing(args);
+  if (__sanitizer::sandboxing_callback)
+    __sanitizer::sandboxing_callback();
 }
