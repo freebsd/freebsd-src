@@ -82,4 +82,61 @@ void BufferedStackTrace::Unwind(u32 max_depth, uptr pc, uptr bp, void *context,
   }
 }
 
+static int GetModuleAndOffsetForPc(uptr pc, char *module_name,
+                                   uptr module_name_len, uptr *pc_offset) {
+  const char *found_module_name = nullptr;
+  bool ok = Symbolizer::GetOrInit()->GetModuleNameAndOffsetForPC(
+      pc, &found_module_name, pc_offset);
+
+  if (!ok) return false;
+
+  if (module_name && module_name_len) {
+    internal_strncpy(module_name, found_module_name, module_name_len);
+    module_name[module_name_len - 1] = '\x00';
+  }
+  return true;
+}
+
 }  // namespace __sanitizer
+using namespace __sanitizer;
+
+extern "C" {
+SANITIZER_INTERFACE_ATTRIBUTE
+void __sanitizer_symbolize_pc(uptr pc, const char *fmt, char *out_buf,
+                              uptr out_buf_size) {
+  if (!out_buf_size) return;
+  pc = StackTrace::GetPreviousInstructionPc(pc);
+  SymbolizedStack *frame = Symbolizer::GetOrInit()->SymbolizePC(pc);
+  if (!frame) {
+    internal_strncpy(out_buf, "<can't symbolize>", out_buf_size);
+    out_buf[out_buf_size - 1] = 0;
+    return;
+  }
+  InternalScopedString frame_desc(GetPageSizeCached());
+  RenderFrame(&frame_desc, fmt, 0, frame->info,
+              common_flags()->symbolize_vs_style,
+              common_flags()->strip_path_prefix);
+  internal_strncpy(out_buf, frame_desc.data(), out_buf_size);
+  out_buf[out_buf_size - 1] = 0;
+}
+
+SANITIZER_INTERFACE_ATTRIBUTE
+void __sanitizer_symbolize_global(uptr data_addr, const char *fmt,
+                                  char *out_buf, uptr out_buf_size) {
+  if (!out_buf_size) return;
+  out_buf[0] = 0;
+  DataInfo DI;
+  if (!Symbolizer::GetOrInit()->SymbolizeData(data_addr, &DI)) return;
+  InternalScopedString data_desc(GetPageSizeCached());
+  RenderData(&data_desc, fmt, &DI, common_flags()->strip_path_prefix);
+  internal_strncpy(out_buf, data_desc.data(), out_buf_size);
+  out_buf[out_buf_size - 1] = 0;
+}
+
+SANITIZER_INTERFACE_ATTRIBUTE
+int __sanitizer_get_module_and_offset_for_pc( // NOLINT
+    uptr pc, char *module_name, uptr module_name_len, uptr *pc_offset) {
+  return __sanitizer::GetModuleAndOffsetForPc(pc, module_name, module_name_len,
+                                              pc_offset);
+}
+}  // extern "C"

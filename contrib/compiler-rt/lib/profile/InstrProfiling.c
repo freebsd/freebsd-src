@@ -16,13 +16,24 @@
 #define INSTR_PROF_VALUE_PROF_DATA
 #include "InstrProfData.inc"
 
-COMPILER_RT_VISIBILITY char *(*GetEnvHook)(const char *) = 0;
 
-COMPILER_RT_WEAK uint64_t __llvm_profile_raw_version = INSTR_PROF_RAW_VERSION;
+COMPILER_RT_WEAK uint64_t INSTR_PROF_RAW_VERSION_VAR = INSTR_PROF_RAW_VERSION;
+
+COMPILER_RT_WEAK char INSTR_PROF_PROFILE_NAME_VAR[1] = {0};
 
 COMPILER_RT_VISIBILITY uint64_t __llvm_profile_get_magic(void) {
   return sizeof(void *) == sizeof(uint64_t) ? (INSTR_PROF_RAW_MAGIC_64)
                                             : (INSTR_PROF_RAW_MAGIC_32);
+}
+
+static unsigned ProfileDumped = 0;
+
+COMPILER_RT_VISIBILITY unsigned lprofProfileDumped() {
+  return ProfileDumped;
+}
+
+COMPILER_RT_VISIBILITY void lprofSetProfileDumped() {
+  ProfileDumped = 1;
 }
 
 /* Return the number of bytes needed to add to SizeInBytes to make it
@@ -66,4 +77,5 @@ COMPILER_RT_VISIBILITY void __llvm_profile_reset_counters(void) {
       }
     }
   }
+  ProfileDumped = 0;
 }

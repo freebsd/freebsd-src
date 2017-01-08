@@ -70,7 +70,7 @@
 #if defined(__ARM_ARCH_4T__) || __ARM_ARCH >= 5
 #define ARM_HAS_BX
 #endif
-#if !defined(__ARM_FEATURE_CLZ) &&                                             \
+#if !defined(__ARM_FEATURE_CLZ) && __ARM_ARCH_ISA_THUMB != 1 &&                \
     (__ARM_ARCH >= 6 || (__ARM_ARCH == 5 && !defined(__ARM_ARCH_5__)))
 #define __ARM_FEATURE_CLZ
 #endif
@@ -149,6 +149,7 @@
 #define DEFINE_COMPILERRT_FUNCTION_ALIAS(name, target)                         \
   .globl SYMBOL_NAME(name) SEPARATOR                                           \
   SYMBOL_IS_FUNC(SYMBOL_NAME(name)) SEPARATOR                                  \
+  DECLARE_SYMBOL_VISIBILITY(SYMBOL_NAME(name)) SEPARATOR                       \
   .set SYMBOL_NAME(name), SYMBOL_NAME(target) SEPARATOR
 
 #if defined(__ARM_EABI__)
