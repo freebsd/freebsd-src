@@ -54,6 +54,7 @@
 #define	ISO_SUSP_STOP		0x1000
 #define	ISO_SUSP_UNKNOWN	0x8000
 
+#ifdef _KERNEL
 typedef struct {
 	struct iso_node	*inop;
 	int		fields;		/* interesting fields in this analysis */
@@ -80,3 +81,4 @@ int cd9660_rrip_getsymname(struct iso_directory_record *isodir,
 			       struct iso_mnt *imp);
 int cd9660_rrip_offset(struct iso_directory_record *isodir,
 			   struct iso_mnt *imp);
+#endif /* _KERNEL */
