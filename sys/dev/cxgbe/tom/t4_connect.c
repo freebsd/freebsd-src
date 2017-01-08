@@ -107,7 +107,7 @@ free_atid(struct adapter *sc, int atid)
 }
 
 /*
- * Active open failed.
+ * Active open succeeded.
  */
 static int
 do_act_establish(struct sge_iq *iq, const struct rss_header *rss,
@@ -128,7 +128,7 @@ do_act_establish(struct sge_iq *iq, const struct rss_header *rss,
 
 	INP_WLOCK(inp);
 	toep->tid = tid;
-	insert_tid(sc, tid, toep);
+	insert_tid(sc, tid, toep, inp->inp_vflag & INP_IPV6 ? 2 : 1);
 	if (inp->inp_flags & INP_DROPPED) {
 
 		/* socket closed by the kernel before hw told us it connected */
@@ -187,6 +187,9 @@ act_open_failure_cleanup(struct adapter *sc, u_int atid, u_int status)
 		INP_INFO_RUNLOCK(&V_tcbinfo);
 }
 
+/*
+ * Active open failed.
+ */
 static int
 do_act_open_rpl(struct sge_iq *iq, const struct rss_header *rss,
     struct mbuf *m)

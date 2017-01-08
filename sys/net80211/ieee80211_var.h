@@ -88,6 +88,14 @@
 #define	IEEE80211_TU_TO_TICKS(x)(((uint64_t)(x) * 1024 * hz) / (1000 * 1000))
 
 /*
+ * Technically, vhtflags may be 0 /and/ 11ac is enabled.
+ * At some point ic should just grow a flag somewhere that
+ * says that VHT is supported - and then this macro can be
+ * changed.
+ */
+#define	IEEE80211_CONF_VHT(ic)		((ic)->ic_vhtcaps != 0)
+
+/*
  * 802.11 control state is split into a common portion that maps
  * 1-1 to a physical device and one or more "Virtual AP's" (VAP)
  * that are bound to an ieee80211com instance and share a single
@@ -653,8 +661,12 @@ MALLOC_DECLARE(M_80211_VAP);
 #define	IEEE80211_FVEN_BITS	"\20"
 
 #define	IEEE80211_FVHT_VHT	0x000000001	/* CONF: VHT supported */
+#define	IEEE80211_FVHT_USEVHT40	0x000000002	/* CONF: Use VHT40 */
+#define	IEEE80211_FVHT_USEVHT80	0x000000004	/* CONF: Use VHT80 */
+#define	IEEE80211_FVHT_USEVHT80P80	0x000000008	/* CONF: Use VHT 80+80 */
+#define	IEEE80211_FVHT_USEVHT160	0x000000010	/* CONF: Use VHT160 */
 #define	IEEE80211_VFHT_BITS \
-	"\20\1VHT"
+	"\20\1VHT\2VHT40\3VHT80\4VHT80P80\5VHT160"
 
 int	ic_printf(struct ieee80211com *, const char *, ...) __printflike(2, 3);
 void	ieee80211_ifattach(struct ieee80211com *);
@@ -827,6 +839,27 @@ ieee80211_htchanflags(const struct ieee80211_channel *c)
 	return IEEE80211_IS_CHAN_HT40(c) ?
 	    IEEE80211_FHT_HT | IEEE80211_FHT_USEHT40 :
 	    IEEE80211_IS_CHAN_HT(c) ?  IEEE80211_FHT_HT : 0;
+}
+
+/*
+ * Calculate VHT channel promotion flags for a channel.
+ * XXX belongs in ieee80211_vht.h but needs IEEE80211_FVHT_*
+ */
+static __inline int
+ieee80211_vhtchanflags(const struct ieee80211_channel *c)
+{
+
+	if (IEEE80211_IS_CHAN_VHT160(c))
+		return IEEE80211_FVHT_USEVHT160;
+	if (IEEE80211_IS_CHAN_VHT80_80(c))
+		return IEEE80211_FVHT_USEVHT80P80;
+	if (IEEE80211_IS_CHAN_VHT80(c))
+		return IEEE80211_FVHT_USEVHT80;
+	if (IEEE80211_IS_CHAN_VHT40(c))
+		return IEEE80211_FVHT_USEVHT40;
+	if (IEEE80211_IS_CHAN_VHT(c))
+		return IEEE80211_FVHT_VHT;
+	return (0);
 }
 
 /*
