@@ -88,6 +88,14 @@
 #define	IEEE80211_TU_TO_TICKS(x)(((uint64_t)(x) * 1024 * hz) / (1000 * 1000))
 
 /*
+ * Technically, vhtflags may be 0 /and/ 11ac is enabled.
+ * At some point ic should just grow a flag somewhere that
+ * says that VHT is supported - and then this macro can be
+ * changed.
+ */
+#define	IEEE80211_CONF_VHT(ic)		((ic)->ic_vhtcaps != 0)
+
+/*
  * 802.11 control state is split into a common portion that maps
  * 1-1 to a physical device and one or more "Virtual AP's" (VAP)
  * that are bound to an ieee80211com instance and share a single
