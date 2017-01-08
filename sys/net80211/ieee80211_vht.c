@@ -352,6 +352,14 @@ ieee80211_vht_get_chwidth_ie(struct ieee80211_channel *c)
 /*
  * Note: this just uses the current channel information;
  * it doesn't use the node info after parsing.
+ *
+ * XXX TODO: need to make the basic MCS set configurable.
+ * XXX TODO: read 802.11-2013 to determine what to set
+ *           chwidth to when scanning.  I have a feeling
+ *           it isn't involved in scanning and we shouldn't
+ *           be sending it; and I don't yet know what to set
+ *           it to for IBSS or hostap where the peer may be
+ *           a completely different channel width to us.
  */
 uint8_t *
 ieee80211_add_vhtinfo(uint8_t *frm, struct ieee80211_node *ni)
@@ -380,7 +388,7 @@ ieee80211_add_vhtinfo(uint8_t *frm, struct ieee80211_node *ni)
 	*frm++ = ni->ni_chan->ic_vht_ch_freq1;
 
 	/* 8-bit freq2 */
-	*frm++ = ni->ni_chan->ic_vht_ch_freq1;
+	*frm++ = ni->ni_chan->ic_vht_ch_freq2;
 
 	/* 16-bit basic MCS set - just MCS0..7 for NSS=1 for now */
 	ADDSHORT(frm, 0xfffc);
