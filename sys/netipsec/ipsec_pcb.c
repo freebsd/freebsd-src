@@ -276,12 +276,7 @@ ipsec_set_pcbpolicy(struct inpcb *inp, struct ucred *cred,
 	/* Select direction. */
 	switch (xpl->sadb_x_policy_dir) {
 	case IPSEC_DIR_INBOUND:
-		spp = &inp->inp_sp->sp_in;
-		flags = INP_INBOUND_POLICY;
-		break;
 	case IPSEC_DIR_OUTBOUND:
-		spp = &inp->inp_sp->sp_out;
-		flags = INP_OUTBOUND_POLICY;
 		break;
 	default:
 		ipseclog((LOG_ERR, "%s: invalid direction=%u\n", __func__,
@@ -333,6 +328,14 @@ ipsec_set_pcbpolicy(struct inpcb *inp, struct ucred *cred,
 		return (EINVAL);
 	}
 
+	INP_WLOCK(inp);
+	if (xpl->sadb_x_policy_dir == IPSEC_DIR_INBOUND) {
+		spp = &inp->inp_sp->sp_in;
+		flags = INP_INBOUND_POLICY;
+	} else {
+		spp = &inp->inp_sp->sp_out;
+		flags = INP_OUTBOUND_POLICY;
+	}
 	/* Clear old SP and set new SP. */
 	if (*spp != NULL)
 		key_freesp(spp);
@@ -345,6 +348,7 @@ ipsec_set_pcbpolicy(struct inpcb *inp, struct ucred *cred,
 		inp->inp_sp->flags |= flags;
 		KEYDBG(IPSEC_DUMP, kdebug_secpolicy(newsp));
 	}
+	INP_WUNLOCK(inp);
 	return (0);
 }
 
