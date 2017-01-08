@@ -61,7 +61,7 @@ typedef struct {
 	off_t		iso_ce_off;	/* offset of continuation area */
 	int		iso_ce_len;	/* length of continuation area */
 	struct iso_mnt	*imp;		/* mount structure */
-	ino_t		*inump;		/* inode number pointer */
+	cd_ino_t	*inump;		/* inode number pointer */
 	char		*outbuf;	/* name/symbolic link output area */
 	u_short		*outlen;	/* length of above */
 	u_short		maxlen;		/* maximum length of above */
@@ -74,7 +74,7 @@ int cd9660_rrip_analyze(struct iso_directory_record *isodir,
 			    struct iso_node *inop, struct iso_mnt *imp);
 int cd9660_rrip_getname(struct iso_directory_record *isodir,
 			    char *outbuf, u_short *outlen,
-			    ino_t *inump, struct iso_mnt *imp);
+			    cd_ino_t *inump, struct iso_mnt *imp);
 int cd9660_rrip_getsymname(struct iso_directory_record *isodir,
 			       char *outbuf, u_short *outlen,
 			       struct iso_mnt *imp);

@@ -309,12 +309,12 @@ cd9660_tstamp_conv17(pi,pu)
 	return cd9660_tstamp_conv7(buf, pu, ISO_FTYPE_DEFAULT);
 }
 
-ino_t
+cd_ino_t
 isodirino(isodir, imp)
 	struct iso_directory_record *isodir;
 	struct iso_mnt *imp;
 {
-	ino_t ino;
+	cd_ino_t ino;
 
 	ino = (isonum_733(isodir->extent) + isonum_711(isodir->ext_attr_length))
 	      << imp->im_bshift;

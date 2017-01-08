@@ -58,7 +58,7 @@ typedef	struct	{
 
 struct iso_node {
 	struct	vnode *i_vnode;	/* vnode associated with this inode */
-	ino_t	i_number;	/* the identity of the inode */
+	cd_ino_t	i_number;	/* the identity of the inode */
 				/* we use the actual starting block of the file */
 	struct	iso_mnt *i_mnt;	/* filesystem associated with this inode */
 	struct	lockf *i_lockf;	/* head of byte-level lock list */
