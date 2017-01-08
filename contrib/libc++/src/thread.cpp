@@ -24,16 +24,17 @@
 # endif // defined(BSD)
 #endif // defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
 
-#if !defined(_WIN32)
+#if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
 # include <unistd.h>
-#endif // !_WIN32
+#endif // defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
 
 #if defined(__NetBSD__)
 #pragma weak pthread_create // Do not create libpthread dependency
 #endif
-#if defined(_WIN32)
+
+#if defined(_LIBCPP_WIN32API)
 #include <windows.h>
-#endif
+#endif // defined(_LIBCPP_WIN32API)
 
 _LIBCPP_BEGIN_NAMESPACE_STD
 
@@ -53,10 +54,9 @@ thread::join()
         if (ec == 0)
             __t_ = 0;
     }
-#ifndef _LIBCPP_NO_EXCEPTIONS
+
     if (ec)
-        throw system_error(error_code(ec, system_category()), "thread::join failed");
-#endif  // _LIBCPP_NO_EXCEPTIONS
+        __throw_system_error(ec, "thread::join failed");
 }
 
 void
@@ -69,10 +69,9 @@ thread::detach()
         if (ec == 0)
             __t_ = 0;
     }
-#ifndef _LIBCPP_NO_EXCEPTIONS
+
     if (ec)
-        throw system_error(error_code(ec, system_category()), "thread::detach failed");
-#endif  // _LIBCPP_NO_EXCEPTIONS
+        __throw_system_error(ec, "thread::detach failed");
 }
 
 unsigned
@@ -93,7 +92,7 @@ thread::hardware_concurrency() _NOEXCEPT
     if (result < 0)
         return 0;
     return static_cast<unsigned>(result);
-#elif defined(_WIN32)
+#elif defined(_LIBCPP_WIN32API)
     SYSTEM_INFO info;
     GetSystemInfo(&info);
     return info.dwNumberOfProcessors;

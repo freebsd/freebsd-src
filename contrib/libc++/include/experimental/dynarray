@@ -106,10 +106,6 @@ public:
 
 #include <__undef___deallocate>
 
-#if defined(_LIBCPP_NO_EXCEPTIONS)
-    #include <cassert>
-#endif
-
 #if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
 #pragma GCC system_header
 #endif
@@ -117,7 +113,7 @@ public:
 namespace std { namespace experimental { inline namespace __array_extensions_v1 {
 
 template <class _Tp>
-struct _LIBCPP_TYPE_VIS_ONLY dynarray
+struct _LIBCPP_TEMPLATE_VIS dynarray
 {
 public:
     // types:
@@ -142,13 +138,8 @@ private:
     static inline _LIBCPP_INLINE_VISIBILITY value_type* __allocate ( size_t count )
     {
         if ( numeric_limits<size_t>::max() / sizeof (value_type) <= count )
-        {
-#ifndef _LIBCPP_NO_EXCEPTIONS
-            throw bad_array_length();
-#else
-            assert(!"dynarray::allocation");
-#endif
-        }
+            __throw_bad_array_length();
+
         return static_cast<value_type *> (_VSTD::__allocate (sizeof(value_type) * count));
     }
 
@@ -283,13 +274,8 @@ typename dynarray<_Tp>::reference
 dynarray<_Tp>::at(size_type __n)
 {
     if (__n >= __size_)
-    {
-#ifndef _LIBCPP_NO_EXCEPTIONS
-        throw out_of_range("dynarray::at");
-#else
-        assert(!"dynarray::at out_of_range");
-#endif
-    }
+        __throw_out_of_range("dynarray::at");
+
     return data()[__n];
 }
 
@@ -299,13 +285,8 @@ typename dynarray<_Tp>::const_reference
 dynarray<_Tp>::at(size_type __n) const
 {
     if (__n >= __size_)
-    {
-#ifndef _LIBCPP_NO_EXCEPTIONS
-        throw out_of_range("dynarray::at");
-#else
-        assert(!"dynarray::at out_of_range");
-#endif
-    }
+        __throw_out_of_range("dynarray::at");
+
     return data()[__n];
 }
 
@@ -314,7 +295,7 @@ dynarray<_Tp>::at(size_type __n) const
 
 _LIBCPP_BEGIN_NAMESPACE_STD
 template <class _Tp, class _Alloc>
-struct _LIBCPP_TYPE_VIS_ONLY uses_allocator<std::experimental::dynarray<_Tp>, _Alloc> : true_type {};
+struct _LIBCPP_TEMPLATE_VIS uses_allocator<std::experimental::dynarray<_Tp>, _Alloc> : true_type {};
 _LIBCPP_END_NAMESPACE_STD
 
 #endif  // if _LIBCPP_STD_VER > 11 
