@@ -821,7 +821,7 @@ static void
 sdhci_start_command(struct sdhci_slot *slot, struct mmc_command *cmd)
 {
 	int flags, timeout;
-	uint32_t mask, state;
+	uint32_t mask;
 
 	slot->curcmd = cmd;
 	slot->cmd_done = 0;
@@ -836,8 +836,6 @@ sdhci_start_command(struct sdhci_slot *slot, struct mmc_command *cmd)
 		return;
 	}
 
-	/* Read controller present state. */
-	state = RD4(slot, SDHCI_PRESENT_STATE);
 	/* Do not issue command if there is no card, clock or power.
 	 * Controller will not detect timeout without clock active. */
 	if (!SDHCI_GET_CARD_PRESENT(slot->bus, slot) ||
@@ -866,7 +864,7 @@ sdhci_start_command(struct sdhci_slot *slot, struct mmc_command *cmd)
 	 *  (It's usually more like 20-30ms in the real world.)
 	 */
 	timeout = 250;
-	while (state & mask) {
+	while (mask & RD4(slot, SDHCI_PRESENT_STATE)) {
 		if (timeout == 0) {
 			slot_printf(slot, "Controller never released "
 			    "inhibit bit(s).\n");
@@ -877,7 +875,6 @@ sdhci_start_command(struct sdhci_slot *slot, struct mmc_command *cmd)
 		}
 		timeout--;
 		DELAY(1000);
-		state = RD4(slot, SDHCI_PRESENT_STATE);
 	}
 
 	/* Prepare command flags. */
