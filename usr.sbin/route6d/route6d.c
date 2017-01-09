@@ -2418,7 +2418,7 @@ getifmtu(int ifindex)
 	mib[3] = AF_INET6;
 	mib[4] = NET_RT_IFLIST;
 	mib[5] = ifindex;
-	if (sysctl(mib, 6, NULL, &msize, NULL, 0) < 0) {
+	if (sysctl(mib, nitems(mib), NULL, &msize, NULL, 0) < 0) {
 		fatal("sysctl estimate NET_RT_IFLIST");
 		/*NOTREACHED*/
 	}
@@ -2426,7 +2426,7 @@ getifmtu(int ifindex)
 		fatal("malloc");
 		/*NOTREACHED*/
 	}
-	if (sysctl(mib, 6, buf, &msize, NULL, 0) < 0) {
+	if (sysctl(mib, nitems(mib), buf, &msize, NULL, 0) < 0) {
 		fatal("sysctl NET_RT_IFLIST");
 		/*NOTREACHED*/
 	}
@@ -2598,7 +2598,7 @@ krtread(int again)
 			free(buf);
 			buf = NULL;
 		}
-		if (sysctl(mib, 6, NULL, &msize, NULL, 0) < 0) {
+		if (sysctl(mib, nitems(mib), NULL, &msize, NULL, 0) < 0) {
 			errmsg = "sysctl estimate";
 			continue;
 		}
@@ -2606,7 +2606,7 @@ krtread(int again)
 			errmsg = "malloc";
 			continue;
 		}
-		if (sysctl(mib, 6, buf, &msize, NULL, 0) < 0) {
+		if (sysctl(mib, nitems(mib), buf, &msize, NULL, 0) < 0) {
 			errmsg = "sysctl NET_RT_DUMP";
 			continue;
 		}
