@@ -2272,6 +2272,11 @@ usb_needs_explore(struct usb_bus *bus, uint8_t do_probe)
 
 	DPRINTF("\n");
 
+	if (cold != 0) {
+		DPRINTF("Cold\n");
+		return;
+	}
+
 	if (bus == NULL) {
 		DPRINTF("No bus pointer!\n");
 		return;
@@ -2335,6 +2340,26 @@ usb_needs_explore_all(void)
 		max--;
 	}
 }
+
+/*------------------------------------------------------------------------*
+ *	usb_needs_explore_init
+ *
+ * This function will ensure that the USB controllers are not enumerated
+ * until the "cold" variable is cleared.
+ *------------------------------------------------------------------------*/
+static void
+usb_needs_explore_init(void *arg)
+{
+	/*
+	 * The cold variable should be cleared prior to this function
+	 * being called:
+	 */
+	if (cold == 0)
+		usb_needs_explore_all();
+	else
+		DPRINTFN(-1, "Cold variable is still set!\n");
+}
+SYSINIT(usb_needs_explore_init, SI_SUB_KICK_SCHEDULER, SI_ORDER_SECOND, usb_needs_explore_init, NULL);
 
 /*------------------------------------------------------------------------*
  *	usb_bus_power_update
