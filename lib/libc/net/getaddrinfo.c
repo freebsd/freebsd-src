@@ -673,9 +673,8 @@ reorder(struct addrinfo *sentinel)
 		return(n);
 
 	/* allocate a temporary array for sort and initialization of it. */
-	if ((aio = malloc(sizeof(*aio) * n)) == NULL)
+	if ((aio = calloc(n, sizeof(*aio))) == NULL)
 		return(n);	/* give up reordering */
-	memset(aio, 0, sizeof(*aio) * n);
 
 	/* retrieve address selection policy from the kernel */
 	TAILQ_INIT(&policyhead);
@@ -1454,9 +1453,8 @@ copy_ai(const struct addrinfo *pai)
 	size_t l;
 
 	l = sizeof(*ai) + pai->ai_addrlen;
-	if ((ai = (struct addrinfo *)malloc(l)) == NULL)
+	if ((ai = calloc(1, l)) == NULL)
 		return NULL;
-	memset(ai, 0, l);
 	memcpy(ai, pai, sizeof(*ai));
 	ai->ai_addr = (struct sockaddr *)(void *)(ai + 1);
 	memcpy(ai->ai_addr, pai->ai_addr, pai->ai_addrlen);
@@ -1876,8 +1874,7 @@ addrinfo_unmarshal_func(char *buffer, size_t buffer_size, void *retval,
 		size = new_ai.ai_addrlen + sizeof(struct addrinfo) +
 			_ALIGNBYTES;
 
-		sentinel = (struct addrinfo *)malloc(size);
-		memset(sentinel, 0, size);
+		sentinel = calloc(1, size);
 
 		memcpy(sentinel, &new_ai, sizeof(struct addrinfo));
 		sentinel->ai_addr = (struct sockaddr *)_ALIGN((char *)sentinel +
@@ -1890,8 +1887,7 @@ addrinfo_unmarshal_func(char *buffer, size_t buffer_size, void *retval,
 			memcpy(&size, p, sizeof(size_t));
 			p += sizeof(size_t);
 
-			sentinel->ai_canonname = (char *)malloc(size + 1);
-			memset(sentinel->ai_canonname, 0, size + 1);
+			sentinel->ai_canonname = calloc(1, size + 1);
 
 			memcpy(sentinel->ai_canonname, p, size);
 			p += size;
