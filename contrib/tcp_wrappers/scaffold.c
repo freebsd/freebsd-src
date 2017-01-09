@@ -235,16 +235,6 @@ struct request_info *request;
     exit(0);
 }
 
-/* dummy function  to intercept the real rfc931() */
-
-/* ARGSUSED */
-
-void    rfc931(request)
-struct request_info *request;
-{
-    strcpy(request->user, unknown);
-}
-
 /* check_path - examine accessibility */
 
 int     check_path(path, st)
