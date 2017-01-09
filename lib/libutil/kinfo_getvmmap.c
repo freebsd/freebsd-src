@@ -2,8 +2,8 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/user.h>
 #include <sys/sysctl.h>
+#include <sys/user.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -26,14 +26,14 @@ kinfo_getvmmap(pid_t pid, int *cntp)
 	mib[2] = KERN_PROC_VMMAP;
 	mib[3] = pid;
 
-	error = sysctl(mib, 4, NULL, &len, NULL, 0);
+	error = sysctl(mib, nitems(mib), NULL, &len, NULL, 0);
 	if (error)
 		return (NULL);
 	len = len * 4 / 3;
 	buf = malloc(len);
 	if (buf == NULL)
 		return (NULL);
-	error = sysctl(mib, 4, buf, &len, NULL, 0);
+	error = sysctl(mib, nitems(mib), buf, &len, NULL, 0);
 	if (error) {
 		free(buf);
 		return (NULL);
