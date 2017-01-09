@@ -79,7 +79,8 @@ STATISTIC(NumGVNInstrDeleted, "Number of instructions deleted");
 STATISTIC(NumGVNBlocksDeleted, "Number of blocks deleted");
 STATISTIC(NumGVNOpsSimplified, "Number of Expressions simplified");
 STATISTIC(NumGVNPhisAllSame, "Number of PHIs whos arguments are all the same");
-STATISTIC(NumGVNMaxIterations, "Maximum Number of iterations it took to converge GVN");
+STATISTIC(NumGVNMaxIterations,
+          "Maximum Number of iterations it took to converge GVN");
 
 //===----------------------------------------------------------------------===//
 //                                GVN Pass
@@ -327,7 +328,7 @@ private:
   // Elimination.
   struct ValueDFS;
   void convertDenseToDFSOrdered(CongruenceClass::MemberSet &,
-                                std::vector<ValueDFS> &);
+                                SmallVectorImpl<ValueDFS> &);
 
   bool eliminateInstructions(Function &);
   void replaceInstruction(Instruction *, Value *);
@@ -336,8 +337,11 @@ private:
 
   // New instruction creation.
   void handleNewInstruction(Instruction *){};
+
+  // Various instruction touch utilities
   void markUsersTouched(Value *);
   void markMemoryUsersTouched(MemoryAccess *);
+  void markLeaderChangeTouched(CongruenceClass *CC);
 
   // Utilities.
   void cleanupTables();
@@ -390,10 +394,10 @@ INITIALIZE_PASS_DEPENDENCY(GlobalsAAWrapperPass)
 INITIALIZE_PASS_END(NewGVN, "newgvn", "Global Value Numbering", false, false)
 
 PHIExpression *NewGVN::createPHIExpression(Instruction *I) {
-  BasicBlock *PhiBlock = I->getParent();
+  BasicBlock *PHIBlock = I->getParent();
   auto *PN = cast<PHINode>(I);
-  auto *E = new (ExpressionAllocator)
-      PHIExpression(PN->getNumOperands(), I->getParent());
+  auto *E =
+      new (ExpressionAllocator) PHIExpression(PN->getNumOperands(), PHIBlock);
 
   E->allocateOperands(ArgRecycler, ExpressionAllocator);
   E->setType(I->getType());
@@ -408,10 +412,10 @@ PHIExpression *NewGVN::createPHIExpression(Instruction *I) {
 
   std::transform(Filtered.begin(), Filtered.end(), op_inserter(E),
                  [&](const Use &U) -> Value * {
-                   // Don't try to transform self-defined phis
+                   // Don't try to transform self-defined phis.
                    if (U == PN)
                      return PN;
-                   const BasicBlockEdge BBE(PN->getIncomingBlock(U), PhiBlock);
+                   const BasicBlockEdge BBE(PN->getIncomingBlock(U), PHIBlock);
                    return lookupOperandLeader(U, I, BBE);
                  });
   return E;
@@ -710,6 +714,15 @@ const StoreExpression *NewGVN::createStoreExpression(StoreInst *SI,
   return E;
 }
 
+// Utility function to check whether the congruence class has a member other
+// than the given instruction.
+bool hasMemberOtherThanUs(const CongruenceClass *CC, Instruction *I) {
+  // Either it has more than one member, in which case it must contain something
+  // other than us (because it's indexed by value), or if it only has one member
+  // right now, that member should not be us.
+  return CC->Members.size() > 1 || CC->Members.count(I) == 0;
+}
+
 const Expression *NewGVN::performSymbolicStoreEvaluation(Instruction *I,
                                                          const BasicBlock *B) {
   // Unlike loads, we never try to eliminate stores, so we do not check if they
@@ -725,8 +738,12 @@ const Expression *NewGVN::performSymbolicStoreEvaluation(Instruction *I,
         cast<MemoryDef>(StoreAccess)->getDefiningAccess());
     const Expression *OldStore = createStoreExpression(SI, StoreRHS, B);
     CongruenceClass *CC = ExpressionToClass.lookup(OldStore);
+    // Basically, check if the congruence class the store is in is defined by a
+    // store that isn't us, and has the same value.  MemorySSA takes care of
+    // ensuring the store has the same memory state as us already.
     if (CC && CC->DefiningExpr && isa<StoreExpression>(CC->DefiningExpr) &&
-        CC->RepLeader == lookupOperandLeader(SI->getValueOperand(), SI, B))
+        CC->RepLeader == lookupOperandLeader(SI->getValueOperand(), SI, B) &&
+        hasMemberOtherThanUs(CC, I))
       return createStoreExpression(SI, StoreRHS, B);
   }
 
@@ -810,36 +827,50 @@ bool NewGVN::setMemoryAccessEquivTo(MemoryAccess *From, MemoryAccess *To) {
 const Expression *NewGVN::performSymbolicPHIEvaluation(Instruction *I,
                                                        const BasicBlock *B) {
   auto *E = cast<PHIExpression>(createPHIExpression(I));
-  if (E->op_empty()) {
+  // We match the semantics of SimplifyPhiNode from InstructionSimplify here.
+
+  // See if all arguaments are the same.
+  // We track if any were undef because they need special handling.
+  bool HasUndef = false;
+  auto Filtered = make_filter_range(E->operands(), [&](const Value *Arg) {
+    if (Arg == I)
+      return false;
+    if (isa<UndefValue>(Arg)) {
+      HasUndef = true;
+      return false;
+    }
+    return true;
+  });
+  // If we are left with no operands, it's undef
+  if (Filtered.begin() == Filtered.end()) {
     DEBUG(dbgs() << "Simplified PHI node " << *I << " to undef"
                  << "\n");
     E->deallocateOperands(ArgRecycler);
     ExpressionAllocator.Deallocate(E);
     return createConstantExpression(UndefValue::get(I->getType()));
   }
-
-  Value *AllSameValue = E->getOperand(0);
-
-  // See if all arguments are the same, ignoring undef arguments, because we can
-  // choose a value that is the same for them.
-  for (const Value *Arg : E->operands())
-    if (Arg != AllSameValue && !isa<UndefValue>(Arg)) {
-      AllSameValue = nullptr;
-      break;
+  Value *AllSameValue = *(Filtered.begin());
+  ++Filtered.begin();
+  // Can't use std::equal here, sadly, because filter.begin moves.
+  if (llvm::all_of(Filtered, [AllSameValue](const Value *V) {
+        return V == AllSameValue;
+      })) {
+    // In LLVM's non-standard representation of phi nodes, it's possible to have
+    // phi nodes with cycles (IE dependent on other phis that are .... dependent
+    // on the original phi node), especially in weird CFG's where some arguments
+    // are unreachable, or uninitialized along certain paths.  This can cause
+    // infinite loops during evaluation. We work around this by not trying to
+    // really evaluate them independently, but instead using a variable
+    // expression to say if one is equivalent to the other.
+    // We also special case undef, so that if we have an undef, we can't use the
+    // common value unless it dominates the phi block.
+    if (HasUndef) {
+      // Only have to check for instructions
+      if (auto *AllSameInst = dyn_cast<Instruction>(AllSameValue))
+        if (!DT->dominates(AllSameInst, I))
+          return E;
     }
 
-  if (AllSameValue) {
-    // It's possible to have phi nodes with cycles (IE dependent on
-    // other phis that are .... dependent on the original phi node),
-    // especially in weird CFG's where some arguments are unreachable, or
-    // uninitialized along certain paths.
-    // This can cause infinite loops  during evaluation (even if you disable
-    // the recursion below, you will simply ping-pong between congruence
-    // classes). If a phi node symbolically evaluates to another phi node,
-    // just leave it alone. If they are really the same, we will still
-    // eliminate them in favor of each other.
-    if (isa<PHINode>(AllSameValue))
-      return E;
     NumGVNPhisAllSame++;
     DEBUG(dbgs() << "Simplified PHI node " << *I << " to " << *AllSameValue
                  << "\n");
@@ -1007,12 +1038,22 @@ void NewGVN::markMemoryUsersTouched(MemoryAccess *MA) {
   }
 }
 
+// Touch the instructions that need to be updated after a congruence class has a
+// leader change, and mark changed values.
+void NewGVN::markLeaderChangeTouched(CongruenceClass *CC) {
+  for (auto M : CC->Members) {
+    if (auto *I = dyn_cast<Instruction>(M))
+      TouchedInstructions.set(InstrDFS[I]);
+    ChangedValues.insert(M);
+  }
+}
+
 // Perform congruence finding on a given value numbering expression.
 void NewGVN::performCongruenceFinding(Value *V, const Expression *E) {
-
   ValueToExpression[V] = E;
   // This is guaranteed to return something, since it will at least find
   // INITIAL.
+
   CongruenceClass *VClass = ValueToClass[V];
   assert(VClass && "Should have found a vclass");
   // Dead classes should have been eliminated from the mapping.
@@ -1031,14 +1072,17 @@ void NewGVN::performCongruenceFinding(Value *V, const Expression *E) {
       place->second = NewClass;
 
       // Constants and variables should always be made the leader.
-      if (const auto *CE = dyn_cast<ConstantExpression>(E))
+      if (const auto *CE = dyn_cast<ConstantExpression>(E)) {
         NewClass->RepLeader = CE->getConstantValue();
-      else if (const auto *VE = dyn_cast<VariableExpression>(E))
-        NewClass->RepLeader = VE->getVariableValue();
-      else if (const auto *SE = dyn_cast<StoreExpression>(E))
-        NewClass->RepLeader = SE->getStoreInst()->getValueOperand();
-      else
+      } else if (const auto *SE = dyn_cast<StoreExpression>(E)) {
+        StoreInst *SI = SE->getStoreInst();
+        NewClass->RepLeader =
+            lookupOperandLeader(SI->getValueOperand(), SI, SI->getParent());
+      } else {
         NewClass->RepLeader = V;
+      }
+      assert(!isa<VariableExpression>(E) &&
+             "VariableExpression should have been handled already");
 
       EClass = NewClass;
       DEBUG(dbgs() << "Created new congruence class for " << *V
@@ -1077,14 +1121,11 @@ void NewGVN::performCongruenceFinding(Value *V, const Expression *E) {
           ExpressionToClass.erase(VClass->DefiningExpr);
         }
       } else if (VClass->RepLeader == V) {
-        // FIXME: When the leader changes, the value numbering of
-        // everything may change, so we need to reprocess.
+        // When the leader changes, the value numbering of
+        // everything may change due to symbolization changes, so we need to
+        // reprocess.
         VClass->RepLeader = *(VClass->Members.begin());
-        for (auto M : VClass->Members) {
-          if (auto *I = dyn_cast<Instruction>(M))
-            TouchedInstructions.set(InstrDFS[I]);
-          ChangedValues.insert(M);
-        }
+        markLeaderChangeTouched(VClass);
       }
     }
 
@@ -1105,6 +1146,27 @@ void NewGVN::performCongruenceFinding(Value *V, const Expression *E) {
         }
         markMemoryUsersTouched(MA);
       }
+    }
+  } else if (StoreInst *SI = dyn_cast<StoreInst>(V)) {
+    // There is, sadly, one complicating thing for stores.  Stores do not
+    // produce values, only consume them.  However, in order to make loads and
+    // stores value number the same, we ignore the value operand of the store.
+    // But the value operand will still be the leader of our class, and thus, it
+    // may change.  Because the store is a use, the store will get reprocessed,
+    // but nothing will change about it, and so nothing above will catch it
+    // (since the class will not change).  In order to make sure everything ends
+    // up okay, we need to recheck the leader of the class.  Since stores of
+    // different values value number differently due to different memorydefs, we
+    // are guaranteed the leader is always the same between stores in the same
+    // class.
+    DEBUG(dbgs() << "Checking store leader\n");
+    auto ProperLeader =
+        lookupOperandLeader(SI->getValueOperand(), SI, SI->getParent());
+    if (EClass->RepLeader != ProperLeader) {
+      DEBUG(dbgs() << "Store leader changed, fixing\n");
+      EClass->RepLeader = ProperLeader;
+      markLeaderChangeTouched(EClass);
+      markMemoryUsersTouched(MSSA->getMemoryAccess(SI));
     }
   }
 }
@@ -1708,8 +1770,9 @@ struct NewGVN::ValueDFS {
   }
 };
 
-void NewGVN::convertDenseToDFSOrdered(CongruenceClass::MemberSet &Dense,
-                                      std::vector<ValueDFS> &DFSOrderedSet) {
+void NewGVN::convertDenseToDFSOrdered(
+    CongruenceClass::MemberSet &Dense,
+    SmallVectorImpl<ValueDFS> &DFSOrderedSet) {
   for (auto D : Dense) {
     // First add the value.
     BasicBlock *BB = getBlockForValue(D);
@@ -1972,21 +2035,25 @@ bool NewGVN::eliminateInstructions(Function &F) {
         ValueDFSStack EliminationStack;
 
         // Convert the members to DFS ordered sets and then merge them.
-        std::vector<ValueDFS> DFSOrderedSet;
+        SmallVector<ValueDFS, 8> DFSOrderedSet;
         convertDenseToDFSOrdered(CC->Members, DFSOrderedSet);
 
         // Sort the whole thing.
-        sort(DFSOrderedSet.begin(), DFSOrderedSet.end());
+        std::sort(DFSOrderedSet.begin(), DFSOrderedSet.end());
 
-        for (auto &C : DFSOrderedSet) {
-          int MemberDFSIn = C.DFSIn;
-          int MemberDFSOut = C.DFSOut;
-          Value *Member = C.Val;
-          Use *MemberUse = C.U;
+        for (auto &VD : DFSOrderedSet) {
+          int MemberDFSIn = VD.DFSIn;
+          int MemberDFSOut = VD.DFSOut;
+          Value *Member = VD.Val;
+          Use *MemberUse = VD.U;
 
-          // We ignore void things because we can't get a value from them.
-          if (Member && Member->getType()->isVoidTy())
-            continue;
+          if (Member) {
+            // We ignore void things because we can't get a value from them.
+            // FIXME: We could actually use this to kill dead stores that are
+            // dominated by equivalent earlier stores.
+            if (Member->getType()->isVoidTy())
+              continue;
+          }
 
           if (EliminationStack.empty()) {
             DEBUG(dbgs() << "Elimination Stack is empty\n");
@@ -1995,8 +2062,6 @@ bool NewGVN::eliminateInstructions(Function &F) {
                          << EliminationStack.dfs_back().first << ","
                          << EliminationStack.dfs_back().second << ")\n");
           }
-          if (Member && isa<Constant>(Member))
-            assert(isa<Constant>(CC->RepLeader));
 
           DEBUG(dbgs() << "Current DFS numbers are (" << MemberDFSIn << ","
                        << MemberDFSOut << ")\n");
@@ -2037,11 +2102,8 @@ bool NewGVN::eliminateInstructions(Function &F) {
             continue;
           Value *Result = EliminationStack.back();
 
-          // Don't replace our existing users with ourselves, and don't replace
-          // phi node arguments with the result of the same phi node.
-          // IE tmp = phi(tmp11, undef); tmp11 = foo -> tmp = phi(tmp, undef)
-          if (MemberUse->get() == Result ||
-              (isa<PHINode>(Result) && MemberUse->getUser() == Result))
+          // Don't replace our existing users with ourselves.
+          if (MemberUse->get() == Result)
             continue;
 
           DEBUG(dbgs() << "Found replacement " << *Result << " for "
