@@ -2,7 +2,7 @@
 #
 # Author: Shteryana Shopova <syrinx@freebsd.org>
 
-CONTRIB= ${.CURDIR}/../../../../contrib/bsnmp
+CONTRIB= ${SRCTOP}/contrib/bsnmp
 .PATH: ${CONTRIB}/snmp_target
 
 MOD=	target
