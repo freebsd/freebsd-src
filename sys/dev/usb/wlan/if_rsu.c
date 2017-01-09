@@ -523,6 +523,12 @@ rsu_attach(device_t self)
 		sc->sc_ntxstream = 2;
 		rft = "2T2R";
 		break;
+	case 0x3:	/* "green" NIC */
+		sc->sc_rftype = RTL8712_RFCONFIG_1T2R;
+		sc->sc_nrxstream = 2;
+		sc->sc_ntxstream = 1;
+		rft = "1T2R ('green')";
+		break;
 	default:
 		device_printf(sc->sc_dev,
 		    "%s: unknown board type (rfconfig=0x%02x)\n",
