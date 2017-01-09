@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2003 Silicon Graphics International Corp.
+ * Copyright (c) 2014-2017 Alexander Motin <mav@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +39,8 @@
 
 #ifndef	_CTL_FRONTEND_H_
 #define	_CTL_FRONTEND_H_
+
+#include <cam/ctl/ctl_ioctl.h>
 
 typedef enum {
 	CTL_PORT_STATUS_NONE		= 0x00,
@@ -243,6 +246,8 @@ struct ctl_port {
 	struct ctl_devid *port_devid;		/* passed to CTL */
 	struct ctl_devid *target_devid;		/* passed to CTL */
 	struct ctl_devid *init_devid;		/* passed to CTL */
+	struct ctl_io_stats stats;		/* used by CTL */
+	struct mtx	port_lock;		/* used by CTL */
 	STAILQ_ENTRY(ctl_port) fe_links;	/* used by CTL */
 	STAILQ_ENTRY(ctl_port) links;		/* used by CTL */
 };

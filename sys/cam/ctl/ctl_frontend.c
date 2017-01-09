@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2003 Silicon Graphics International Corp.
+ * Copyright (c) 2014-2017 Alexander Motin <mav@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -192,13 +193,14 @@ error:
 		mtx_unlock(&softc->ctl_lock);
 		return (retval);
 	}
+	port->targ_port = port_num;
 	port->ctl_pool_ref = pool;
-
 	if (port->options.stqh_first == NULL)
 		STAILQ_INIT(&port->options);
+	port->stats.item = port_num;
+	mtx_init(&port->port_lock, "CTL port", NULL, MTX_DEF);
 
 	mtx_lock(&softc->ctl_lock);
-	port->targ_port = port_num;
 	STAILQ_INSERT_TAIL(&port->frontend->port_list, port, fe_links);
 	for (tport = NULL, nport = STAILQ_FIRST(&softc->port_list);
 	    nport != NULL && nport->targ_port < port_num;
@@ -218,17 +220,11 @@ int
 ctl_port_deregister(struct ctl_port *port)
 {
 	struct ctl_softc *softc = port->ctl_softc;
-	struct ctl_io_pool *pool;
-	int retval, i;
+	struct ctl_io_pool *pool = (struct ctl_io_pool *)port->ctl_pool_ref;
+	int i;
 
-	retval = 0;
-
-	pool = (struct ctl_io_pool *)port->ctl_pool_ref;
-
-	if (port->targ_port == -1) {
-		retval = 1;
-		goto bailout;
-	}
+	if (port->targ_port == -1)
+		return (1);
 
 	mtx_lock(&softc->ctl_lock);
 	STAILQ_REMOVE(&softc->port_list, port, ctl_port, links);
@@ -251,9 +247,9 @@ ctl_port_deregister(struct ctl_port *port)
 	for (i = 0; i < port->max_initiators; i++)
 		free(port->wwpn_iid[i].name, M_CTL);
 	free(port->wwpn_iid, M_CTL);
+	mtx_destroy(&port->port_lock);
 
-bailout:
-	return (retval);
+	return (0);
 }
 
 void

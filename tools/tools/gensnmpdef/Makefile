@@ -19,4 +19,6 @@ LDFLAGS+=	-L${LOCALBASE}/lib
 
 LDADD+=	-lsmi
 
+WARNS?=	6
+
 .include <bsd.prog.mk>
