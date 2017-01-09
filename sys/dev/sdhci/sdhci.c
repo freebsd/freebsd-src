@@ -73,6 +73,7 @@ static void sdhci_set_clock(struct sdhci_slot *slot, uint32_t clock);
 static void sdhci_start(struct sdhci_slot *slot);
 static void sdhci_start_data(struct sdhci_slot *slot, struct mmc_data *data);
 
+static void sdhci_card_poll(void *);
 static void sdhci_card_task(void *, int);
 
 /* helper routines */
@@ -88,6 +89,9 @@ static void sdhci_card_task(void *, int);
 
 #define	SDHCI_200_MAX_DIVIDER	256
 #define	SDHCI_300_MAX_DIVIDER	2046
+
+#define	SDHCI_CARD_PRESENT_TICKS	(hz / 5)
+#define	SDHCI_INSERT_DELAY_TICKS	(hz / 2)
 
 /*
  * Broadcom BCM577xx Controller Constants
@@ -229,10 +233,15 @@ sdhci_init(struct sdhci_slot *slot)
 	slot->intmask = SDHCI_INT_BUS_POWER | SDHCI_INT_DATA_END_BIT |
 	    SDHCI_INT_DATA_CRC | SDHCI_INT_DATA_TIMEOUT | SDHCI_INT_INDEX |
 	    SDHCI_INT_END_BIT | SDHCI_INT_CRC | SDHCI_INT_TIMEOUT |
-	    SDHCI_INT_CARD_REMOVE | SDHCI_INT_CARD_INSERT |
 	    SDHCI_INT_DATA_AVAIL | SDHCI_INT_SPACE_AVAIL |
 	    SDHCI_INT_DMA_END | SDHCI_INT_DATA_END | SDHCI_INT_RESPONSE |
 	    SDHCI_INT_ACMD12ERR;
+
+	if (!(slot->quirks & SDHCI_QUIRK_POLL_CARD_PRESENT) &&
+	    !(slot->opt & SDHCI_NON_REMOVABLE)) {
+		slot->intmask |= SDHCI_INT_CARD_REMOVE | SDHCI_INT_CARD_INSERT;
+	}
+
 	WR4(slot, SDHCI_INT_ENABLE, slot->intmask);
 	WR4(slot, SDHCI_SIGNAL_ENABLE, slot->intmask);
 }
@@ -474,14 +483,6 @@ sdhci_transfer_pio(struct sdhci_slot *slot)
 	}
 }
 
-static void 
-sdhci_card_delay(void *arg)
-{
-	struct sdhci_slot *slot = arg;
-
-	taskqueue_enqueue(taskqueue_swi_giant, &slot->card_task);
-}
- 
 static void
 sdhci_card_task(void *arg, int pending)
 {
@@ -491,6 +492,8 @@ sdhci_card_task(void *arg, int pending)
 	if (SDHCI_GET_CARD_PRESENT(slot->bus, slot)) {
 		if (slot->dev == NULL) {
 			/* If card is present - attach mmc bus. */
+			if (bootverbose || sdhci_debug)
+				slot_printf(slot, "Card inserted\n");
 			slot->dev = device_add_child(slot->bus, "mmc", -1);
 			device_set_ivars(slot->dev, slot);
 			SDHCI_UNLOCK(slot);
@@ -500,6 +503,8 @@ sdhci_card_task(void *arg, int pending)
 	} else {
 		if (slot->dev != NULL) {
 			/* If no card present - detach mmc bus. */
+			if (bootverbose || sdhci_debug)
+				slot_printf(slot, "Card removed\n");
 			device_t d = slot->dev;
 			slot->dev = NULL;
 			SDHCI_UNLOCK(slot);
@@ -509,6 +514,44 @@ sdhci_card_task(void *arg, int pending)
 	}
 }
 
+void
+sdhci_handle_card_present(struct sdhci_slot *slot, bool is_present)
+{
+	bool was_present;
+
+	/*
+	 * If there was no card and now there is one, schedule the task to
+	 * create the child device after a short delay.  The delay is to
+	 * debounce the card insert (sometimes the card detect pin stabilizes
+	 * before the other pins have made good contact).
+	 *
+	 * If there was a card present and now it's gone, immediately schedule
+	 * the task to delete the child device.  No debouncing -- gone is gone,
+	 * because once power is removed, a full card re-init is needed, and
+	 * that happens by deleting and recreating the child device.
+	 */
+	SDHCI_LOCK(slot);
+	was_present = slot->dev != NULL;
+	if (!was_present && is_present) {
+		taskqueue_enqueue_timeout(taskqueue_swi_giant,
+		    &slot->card_delayed_task, -SDHCI_INSERT_DELAY_TICKS);
+	} else if (was_present && !is_present) {
+		taskqueue_enqueue(taskqueue_swi_giant, &slot->card_task);
+	}
+	SDHCI_UNLOCK(slot);
+}
+
+static void 
+sdhci_card_poll(void *arg)
+{
+	struct sdhci_slot *slot = arg;
+
+	sdhci_handle_card_present(slot,
+	    SDHCI_GET_CARD_PRESENT(slot->bus, slot));
+	callout_reset(&slot->card_poll_callout, SDHCI_CARD_PRESENT_TICKS,
+	    sdhci_card_poll, slot);
+}
+ 
 int
 sdhci_init_slot(device_t dev, struct sdhci_slot *slot, int num)
 {
@@ -652,8 +695,16 @@ sdhci_init_slot(device_t dev, struct sdhci_slot *slot, int num)
 	    "timeout", CTLFLAG_RW, &slot->timeout, 0,
 	    "Maximum timeout for SDHCI transfers (in secs)");
 	TASK_INIT(&slot->card_task, 0, sdhci_card_task, slot);
-	callout_init(&slot->card_callout, 1);
+	TIMEOUT_TASK_INIT(taskqueue_swi_giant, &slot->card_delayed_task, 0,
+		sdhci_card_task, slot);
+	callout_init(&slot->card_poll_callout, 1);
 	callout_init_mtx(&slot->timeout_callout, &slot->mtx, 0);
+
+	if ((slot->quirks & SDHCI_QUIRK_POLL_CARD_PRESENT) &&
+	    !(slot->opt & SDHCI_NON_REMOVABLE)) {
+		callout_reset(&slot->card_poll_callout,
+		    SDHCI_CARD_PRESENT_TICKS, sdhci_card_poll, slot);
+	}
 
 	return (0);
 }
@@ -670,8 +721,9 @@ sdhci_cleanup_slot(struct sdhci_slot *slot)
 	device_t d;
 
 	callout_drain(&slot->timeout_callout);
-	callout_drain(&slot->card_callout);
+	callout_drain(&slot->card_poll_callout);
 	taskqueue_drain(taskqueue_swi_giant, &slot->card_task);
+	taskqueue_drain_timeout(taskqueue_swi_giant, &slot->card_delayed_task);
 
 	SDHCI_LOCK(slot);
 	d = slot->dev;
@@ -720,6 +772,9 @@ sdhci_generic_min_freq(device_t brdev, struct sdhci_slot *slot)
 bool
 sdhci_generic_get_card_present(device_t brdev, struct sdhci_slot *slot)
 {
+
+	if (slot->opt & SDHCI_NON_REMOVABLE)
+		return true;
 
 	return (RD4(slot, SDHCI_PRESENT_STATE) & SDHCI_CARD_PRESENT);
 }
@@ -1326,7 +1381,7 @@ sdhci_generic_intr(struct sdhci_slot *slot)
 
 	/* Handle card presence interrupts. */
 	if (intmask & (SDHCI_INT_CARD_INSERT | SDHCI_INT_CARD_REMOVE)) {
-		present = SDHCI_GET_CARD_PRESENT(slot->bus, slot);
+		present = (intmask & SDHCI_INT_CARD_INSERT) != 0;
 		slot->intmask &=
 		    ~(SDHCI_INT_CARD_INSERT | SDHCI_INT_CARD_REMOVE);
 		slot->intmask |= present ? SDHCI_INT_CARD_REMOVE :
@@ -1335,20 +1390,7 @@ sdhci_generic_intr(struct sdhci_slot *slot)
 		WR4(slot, SDHCI_SIGNAL_ENABLE, slot->intmask);
 		WR4(slot, SDHCI_INT_STATUS, intmask & 
 		    (SDHCI_INT_CARD_INSERT | SDHCI_INT_CARD_REMOVE));
-
-		if (intmask & SDHCI_INT_CARD_REMOVE) {
-			if (bootverbose || sdhci_debug)
-				slot_printf(slot, "Card removed\n");
-			callout_stop(&slot->card_callout);
-			taskqueue_enqueue(taskqueue_swi_giant,
-			    &slot->card_task);
-		}
-		if (intmask & SDHCI_INT_CARD_INSERT) {
-			if (bootverbose || sdhci_debug)
-				slot_printf(slot, "Card inserted\n");
-			callout_reset(&slot->card_callout, hz / 2,
-			    sdhci_card_delay, slot);
-		}
+		sdhci_handle_card_present(slot, present);
 		intmask &= ~(SDHCI_INT_CARD_INSERT | SDHCI_INT_CARD_REMOVE);
 	}
 	/* Handle command interrupts. */
