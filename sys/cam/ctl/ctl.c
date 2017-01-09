@@ -4585,6 +4585,10 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 	lun->ie_reported = 1;
 	callout_init_mtx(&lun->ie_callout, &lun->lun_lock, 0);
 	ctl_tpc_lun_init(lun);
+	if (lun->flags & CTL_LUN_REMOVABLE) {
+		lun->prevent = malloc((CTL_MAX_INITIATORS + 31) / 32 * 4,
+		    M_CTL, M_WAITOK);
+	}
 
 	/*
 	 * Initialize the mode and log page index.
@@ -4666,6 +4670,7 @@ ctl_free_lun(struct ctl_lun *lun)
 	for (i = 0; i < CTL_MAX_PORTS; i++)
 		free(lun->pr_keys[i], M_CTL);
 	free(lun->write_buffer, M_CTL);
+	free(lun->prevent, M_CTL);
 	if (lun->flags & CTL_LUN_MALLOCED)
 		free(lun, M_CTL);
 
@@ -5276,7 +5281,7 @@ ctl_prevent_allow(struct ctl_scsiio *ctsio)
 
 	cdb = (struct scsi_prevent *)ctsio->cdb;
 
-	if ((lun->flags & CTL_LUN_REMOVABLE) == 0) {
+	if ((lun->flags & CTL_LUN_REMOVABLE) == 0 || lun->prevent == NULL) {
 		ctl_set_invalid_opcode(ctsio);
 		ctl_done((union ctl_io *)ctsio);
 		return (CTL_RETVAL_COMPLETE);
@@ -11872,8 +11877,10 @@ ctl_do_lun_reset(struct ctl_lun *lun, union ctl_io *io, ctl_ua_type ua_type)
 		ctl_clear_mask(lun->have_ca, i);
 #endif
 	lun->prevent_count = 0;
-	for (i = 0; i < CTL_MAX_INITIATORS; i++)
-		ctl_clear_mask(lun->prevent, i);
+	if (lun->prevent) {
+		for (i = 0; i < CTL_MAX_INITIATORS; i++)
+			ctl_clear_mask(lun->prevent, i);
+	}
 	mtx_unlock(&lun->lun_lock);
 
 	return (0);
@@ -12019,7 +12026,7 @@ ctl_i_t_nexus_reset(union ctl_io *io)
 #endif
 		if ((lun->flags & CTL_LUN_RESERVED) && (lun->res_idx == initidx))
 			lun->flags &= ~CTL_LUN_RESERVED;
-		if (ctl_is_set(lun->prevent, initidx)) {
+		if (lun->prevent && ctl_is_set(lun->prevent, initidx)) {
 			ctl_clear_mask(lun->prevent, initidx);
 			lun->prevent_count--;
 		}
