@@ -28,7 +28,7 @@
 # $FreeBSD$
 #
 
-LPRSRC=	${.CURDIR}/../../../lpr/common_source
+LPRSRC=	${SRCTOP}/usr.sbin/lpr/common_source
 .PATH: ${LPRSRC}
 
 MOD=	hostres
