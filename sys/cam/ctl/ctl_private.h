@@ -412,7 +412,7 @@ struct ctl_lun {
 	uint32_t			pr_res_idx;
 	uint8_t				pr_res_type;
 	int				prevent_count;
-	uint32_t			prevent[(CTL_MAX_INITIATORS+31)/32];
+	uint32_t			*prevent;
 	uint8_t				*write_buffer;
 	struct ctl_devid		*lun_devid;
 	TAILQ_HEAD(tpc_lists, tpc_list) tpc_lists;
