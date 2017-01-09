@@ -1418,6 +1418,82 @@ linux_irq_handler(void *ent)
 	irqe->handler(irqe->irq, irqe->arg);
 }
 
+struct linux_cdev *
+linux_find_cdev(const char *name, unsigned major, unsigned minor)
+{
+	int unit = MKDEV(major, minor);
+	struct cdev *cdev;
+
+	dev_lock();
+	LIST_FOREACH(cdev, &linuxcdevsw.d_devs, si_list) {
+		struct linux_cdev *ldev = cdev->si_drv1;
+		if (dev2unit(cdev) == unit &&
+		    strcmp(kobject_name(&ldev->kobj), name) == 0) {
+			break;
+		}
+	}
+	dev_unlock();
+
+	return (cdev != NULL ? cdev->si_drv1 : NULL);
+}
+
+int
+__register_chrdev(unsigned int major, unsigned int baseminor,
+    unsigned int count, const char *name,
+    const struct file_operations *fops)
+{
+	struct linux_cdev *cdev;
+	int ret = 0;
+	int i;
+
+	for (i = baseminor; i < baseminor + count; i++) {
+		cdev = cdev_alloc();
+		cdev_init(cdev, fops);
+		kobject_set_name(&cdev->kobj, name);
+
+		ret = cdev_add(cdev, makedev(major, i), 1);
+		if (ret != 0)
+			break;
+	}
+	return (ret);
+}
+
+int
+__register_chrdev_p(unsigned int major, unsigned int baseminor,
+    unsigned int count, const char *name,
+    const struct file_operations *fops, uid_t uid,
+    gid_t gid, int mode)
+{
+	struct linux_cdev *cdev;
+	int ret = 0;
+	int i;
+
+	for (i = baseminor; i < baseminor + count; i++) {
+		cdev = cdev_alloc();
+		cdev_init(cdev, fops);
+		kobject_set_name(&cdev->kobj, name);
+
+		ret = cdev_add_ext(cdev, makedev(major, i), uid, gid, mode);
+		if (ret != 0)
+			break;
+	}
+	return (ret);
+}
+
+void
+__unregister_chrdev(unsigned int major, unsigned int baseminor,
+    unsigned int count, const char *name)
+{
+	struct linux_cdev *cdevp;
+	int i;
+
+	for (i = baseminor; i < baseminor + count; i++) {
+		cdevp = linux_find_cdev(name, major, i);
+		if (cdevp != NULL)
+			cdev_del(cdevp);
+	}
+}
+
 #if defined(__i386__) || defined(__amd64__)
 bool linux_cpu_has_clflush;
 #endif
