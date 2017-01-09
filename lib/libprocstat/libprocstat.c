@@ -282,7 +282,7 @@ procstat_getprocs(struct procstat *procstat, int what, int arg,
 		name[1] = KERN_PROC;
 		name[2] = what;
 		name[3] = arg;
-		error = sysctl(name, 4, NULL, &len, NULL, 0);
+		error = sysctl(name, nitems(name), NULL, &len, NULL, 0);
 		if (error < 0 && errno != EPERM) {
 			warn("sysctl(kern.proc)");
 			goto fail;
@@ -299,7 +299,7 @@ procstat_getprocs(struct procstat *procstat, int what, int arg,
 				goto fail;
 			}
 			olen = len;
-			error = sysctl(name, 4, p, &len, NULL, 0);
+			error = sysctl(name, nitems(name), p, &len, NULL, 0);
 		} while (error < 0 && errno == ENOMEM && olen == len);
 		if (error < 0 && errno != EPERM) {
 			warn("sysctl(kern.proc)");
@@ -1760,7 +1760,7 @@ getargv(struct procstat *procstat, struct kinfo_proc *kp, size_t nchr, int env)
 		name[2] = env ? KERN_PROC_ENV : KERN_PROC_ARGS;
 		name[3] = kp->ki_pid;
 		len = nchr;
-		error = sysctl(name, 4, av->buf, &len, NULL, 0);
+		error = sysctl(name, nitems(name), av->buf, &len, NULL, 0);
 		if (error != 0 && errno != ESRCH && errno != EPERM)
 			warn("sysctl(kern.proc.%s)", env ? "env" : "args");
 		if (error != 0 || len == 0)
@@ -1983,7 +1983,7 @@ procstat_getgroups_sysctl(pid_t pid, unsigned int *cntp)
 		warn("malloc(%zu)", len);
 		return (NULL);
 	}
-	if (sysctl(mib, 4, groups, &len, NULL, 0) == -1) {
+	if (sysctl(mib, nitems(mib), groups, &len, NULL, 0) == -1) {
 		warn("sysctl: kern.proc.groups: %d", pid);
 		free(groups);
 		return (NULL);
@@ -2059,7 +2059,7 @@ procstat_getumask_sysctl(pid_t pid, unsigned short *maskp)
 	mib[2] = KERN_PROC_UMASK;
 	mib[3] = pid;
 	len = sizeof(*maskp);
-	error = sysctl(mib, 4, maskp, &len, NULL, 0);
+	error = sysctl(mib, nitems(mib), maskp, &len, NULL, 0);
 	if (error != 0 && errno != ESRCH && errno != EPERM)
 		warn("sysctl: kern.proc.umask: %d", pid);
 	return (error);
@@ -2139,7 +2139,7 @@ procstat_getrlimit_sysctl(pid_t pid, int which, struct rlimit* rlimit)
 	name[3] = pid;
 	name[4] = which;
 	len = sizeof(struct rlimit);
-	error = sysctl(name, 5, rlimit, &len, NULL, 0);
+	error = sysctl(name, nitems(name), rlimit, &len, NULL, 0);
 	if (error < 0 && errno != ESRCH) {
 		warn("sysctl: kern.proc.rlimit: %d", pid);
 		return (-1);
@@ -2201,7 +2201,7 @@ procstat_getpathname_sysctl(pid_t pid, char *pathname, size_t maxlen)
 	name[2] = KERN_PROC_PATHNAME;
 	name[3] = pid;
 	len = maxlen;
-	error = sysctl(name, 4, pathname, &len, NULL, 0);
+	error = sysctl(name, nitems(name), pathname, &len, NULL, 0);
 	if (error != 0 && errno != ESRCH)
 		warn("sysctl: kern.proc.pathname: %d", pid);
 	if (len == 0)
@@ -2281,7 +2281,7 @@ procstat_getosrel_sysctl(pid_t pid, int *osrelp)
 	name[2] = KERN_PROC_OSREL;
 	name[3] = pid;
 	len = sizeof(*osrelp);
-	error = sysctl(name, 4, osrelp, &len, NULL, 0);
+	error = sysctl(name, nitems(name), osrelp, &len, NULL, 0);
 	if (error != 0 && errno != ESRCH)
 		warn("sysctl: kern.proc.osrel: %d", pid);
 	return (error);
@@ -2341,7 +2341,7 @@ is_elf32_sysctl(pid_t pid)
 	name[2] = KERN_PROC_SV_NAME;
 	name[3] = pid;
 	len = sizeof(sv_name);
-	error = sysctl(name, 4, sv_name, &len, NULL, 0);
+	error = sysctl(name, nitems(name), sv_name, &len, NULL, 0);
 	if (error != 0 || len == 0)
 		return (0);
 	for (i = 0; i < sizeof(elf32_sv_names) / sizeof(*elf32_sv_names); i++) {
@@ -2372,7 +2372,7 @@ procstat_getauxv32_sysctl(pid_t pid, unsigned int *cntp)
 		warn("malloc(%zu)", len);
 		goto out;
 	}
-	if (sysctl(name, 4, auxv32, &len, NULL, 0) == -1) {
+	if (sysctl(name, nitems(name), auxv32, &len, NULL, 0) == -1) {
 		if (errno != ESRCH && errno != EPERM)
 			warn("sysctl: kern.proc.auxv: %d: %d", pid, errno);
 		goto out;
@@ -2421,7 +2421,7 @@ procstat_getauxv_sysctl(pid_t pid, unsigned int *cntp)
 		warn("malloc(%zu)", len);
 		return (NULL);
 	}
-	if (sysctl(name, 4, auxv, &len, NULL, 0) == -1) {
+	if (sysctl(name, nitems(name), auxv, &len, NULL, 0) == -1) {
 		if (errno != ESRCH && errno != EPERM)
 			warn("sysctl: kern.proc.auxv: %d: %d", pid, errno);
 		free(auxv);
@@ -2482,7 +2482,7 @@ procstat_getkstack_sysctl(pid_t pid, int *cntp)
 	name[3] = pid;
 
 	len = 0;
-	error = sysctl(name, 4, NULL, &len, NULL, 0);
+	error = sysctl(name, nitems(name), NULL, &len, NULL, 0);
 	if (error < 0 && errno != ESRCH && errno != EPERM && errno != ENOENT) {
 		warn("sysctl: kern.proc.kstack: %d", pid);
 		return (NULL);
@@ -2499,7 +2499,7 @@ procstat_getkstack_sysctl(pid_t pid, int *cntp)
 		warn("malloc(%zu)", len);
 		return (NULL);
 	}
-	if (sysctl(name, 4, kkstp, &len, NULL, 0) == -1) {
+	if (sysctl(name, nitems(name), kkstp, &len, NULL, 0) == -1) {
 		warn("sysctl: kern.proc.pid: %d", pid);
 		free(kkstp);
 		return (NULL);
