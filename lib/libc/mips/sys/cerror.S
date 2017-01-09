@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 	.globl	_C_LABEL(__error)
 NESTED_NOPROFILE(__cerror, CALLFRAME_SIZ, ra)
 #ifndef __CHERI_PURE_CAPABILITY__
+	.protected	_C_LABEL(__cerror)
 	.mask	0x80000000, (CALLFRAME_RA - CALLFRAME_SIZ)
 	SETUP_GP
 	PTR_SUBU	sp, sp, CALLFRAME_SIZ

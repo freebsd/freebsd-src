@@ -43,7 +43,7 @@ __FBSDID("$FreeBSD$");
 
 #include "libc_private.h"
 
-void
+__attribute__((visibility("protected"))) void
 abort(void)
 {
 	struct sigaction act;

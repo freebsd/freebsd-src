@@ -59,8 +59,8 @@ __FBSDID("$FreeBSD$");
 
 #define SETJMP_FRAME_SIZE	(CALLFRAME_SIZ + _MIPS_SZCAP/8)
 
-
 NESTED(_setjmp, SETJMP_FRAME_SIZE, ra)
+	.protected _C_LABEL(_setjmp)
 	.set	noreorder
 
 	li		v0, _JB_MAGIC__SETJMP
@@ -131,8 +131,8 @@ NESTED(_setjmp, SETJMP_FRAME_SIZE, ra)
 END(_setjmp)
 
 #define LONGJMP_FRAME_SIZE	(CALLFRAME_SIZ + _MIPS_SZCAP/8)
-
 NESTED(_longjmp, LONGJMP_FRAME_SIZE, ra)
+	.protected _C_LABEL(_longjmp)
 	.mask	0xc0000000, (CALLFRAME_RA - CALLFRAME_SIZ)
 	PTR_SUBU	sp, sp, LONGJMP_FRAME_SIZE	# allocate stack frame
 

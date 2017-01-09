@@ -52,7 +52,7 @@ __set_error_selector(int *(*arg)(void))
 	__error_selector = arg;
 }
 
-int *
+__attribute__((visibility("protected"))) int *
 __error(void)
 {
 

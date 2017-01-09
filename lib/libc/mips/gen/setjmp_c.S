@@ -59,8 +59,8 @@ __FBSDID("$FreeBSD$");
 
 #define SETJMP_FRAME_SIZE	(CALLFRAME_SIZ + _MIPS_SZCAP/8)
 
-
 NESTED(setjmp, SETJMP_FRAME_SIZE, ra)
+	.protected _C_LABEL(setjmp)
 	.mask	0xc0000000, (CALLFRAME_RA - CALLFRAME_SIZ)
 	PTR_SUBU sp, sp, SETJMP_FRAME_SIZE	# allocate stack frame
 
@@ -78,7 +78,7 @@ NESTED(setjmp, SETJMP_FRAME_SIZE, ra)
 	csetoffset	$c3, $c3, t0			# oset
 	cfromptr	$c4, $c3, zero			# set == NULL
 	li		a0, 1				# SIG_SETBLOCK
-	PTR_LA		t9, _C_LABEL(sigprocmask)	# get current signal mask
+	PTR_LA		t9, _C_LABEL(__libc_sigprocmask)	# get current signal mask
 	dla		t0, 1f
 1:	cgetpcc		$c12
 	cgetoffset	t1, $c12
@@ -166,6 +166,7 @@ END(setjmp)
 #define LONGJMP_FRAME_SIZE	(CALLFRAME_SIZ + _MIPS_SZCAP/8)
 
 NESTED(longjmp, LONGJMP_FRAME_SIZE, ra)
+	.protected _C_LABEL(longjmp)
 	.mask	0xc0000000, (CALLFRAME_RA - CALLFRAME_SIZ)
 	PTR_SUBU	sp, sp, LONGJMP_FRAME_SIZE	# allocate stack frame
 
@@ -186,7 +187,7 @@ NESTED(longjmp, LONGJMP_FRAME_SIZE, ra)
 	csetoffset	$c3, $c3, t0			# set
 	cfromptr	$c4, $c3, zero			# oset == NULL
 	li		a0, 3				# SIG_SETMASK
-	PTR_LA		t9, _C_LABEL(sigprocmask)	# set current signal mask
+	PTR_LA		t9, _C_LABEL(__libc_sigprocmask)# set current signal mask
 	cgetpcc		$c12
 	csetoffset	$c12, $c12, t9
 	cjalr		$c12, $c17

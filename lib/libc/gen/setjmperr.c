@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include "un-namespace.h"
 
-void
+__attribute__((visibility("protected"))) void
 longjmperror(void)
 {
 #define	ERRMSG	"longjmp botch.\n"
