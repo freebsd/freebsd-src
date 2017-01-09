@@ -63,6 +63,14 @@ struct device {
 	struct device	*parent;
 	struct list_head irqents;
 	device_t	bsddev;
+	/*
+	 * The following flag is used to determine if the LinuxKPI is
+	 * responsible for detaching the BSD device or not. If the
+	 * LinuxKPI got the BSD device using devclass_get_device(), it
+	 * must not try to detach or delete it, because it's already
+	 * done somewhere else.
+	 */
+	bool		bsddev_attached_here;
 	dev_t		devt;
 	struct class	*class;
 	void		(*release)(struct device *dev);
@@ -208,23 +216,36 @@ static inline struct device *kobj_to_dev(struct kobject *kobj)
 static inline void
 device_initialize(struct device *dev)
 {
-	device_t bsddev;
+	device_t bsddev = NULL;
+	int unit = -1;
 
-	bsddev = NULL;
 	if (dev->devt) {
-		int unit = MINOR(dev->devt);
+		unit = MINOR(dev->devt);
 		bsddev = devclass_get_device(dev->class->bsdclass, unit);
+		dev->bsddev_attached_here = false;
+	} else if (dev->parent == NULL) {
+		bsddev = devclass_get_device(dev->class->bsdclass, 0);
+		dev->bsddev_attached_here = false;
+	} else {
+		dev->bsddev_attached_here = true;
 	}
+
+	if (bsddev == NULL && dev->parent != NULL) {
+		bsddev = device_add_child(dev->parent->bsddev,
+		    dev->class->kobj.name, unit);
+	}
+
 	if (bsddev != NULL)
 		device_set_softc(bsddev, dev);
 
 	dev->bsddev = bsddev;
+	MPASS(dev->bsddev != NULL);
 	kobject_init(&dev->kobj, &linux_dev_ktype);
 }
 
 static inline int
 device_add(struct device *dev)
-{	
+{
 	if (dev->bsddev != NULL) {
 		if (dev->devt == 0)
 			dev->devt = makedev(0, device_get_unit(dev->bsddev));
@@ -256,13 +277,13 @@ device_create_groups_vargs(struct class *class, struct device *parent,
 		goto error;
 	}
 
-	device_initialize(dev);
 	dev->devt = devt;
 	dev->class = class;
 	dev->parent = parent;
 	dev->groups = groups;
 	dev->release = device_create_release;
-	dev->bsddev = devclass_get_device(dev->class->bsdclass, MINOR(devt));
+	/* device_initialize() needs the class and parent to be set */
+	device_initialize(dev);
 	dev_set_drvdata(dev, drvdata);
 
 	retval = kobject_set_name_vargs(&dev->kobj, fmt, args);
@@ -298,17 +319,21 @@ device_create_with_groups(struct class *class,
 static inline int
 device_register(struct device *dev)
 {
-	device_t bsddev;
-	int unit;
+	device_t bsddev = NULL;
+	int unit = -1;
 
-	bsddev = NULL;
-	unit = -1;
+	if (dev->bsddev != NULL)
+		goto done;
 
 	if (dev->devt) {
 		unit = MINOR(dev->devt);
 		bsddev = devclass_get_device(dev->class->bsdclass, unit);
+		dev->bsddev_attached_here = false;
 	} else if (dev->parent == NULL) {
 		bsddev = devclass_get_device(dev->class->bsdclass, 0);
+		dev->bsddev_attached_here = false;
+	} else {
+		dev->bsddev_attached_here = true;
 	}
 	if (bsddev == NULL && dev->parent != NULL) {
 		bsddev = device_add_child(dev->parent->bsddev,
@@ -320,6 +345,7 @@ device_register(struct device *dev)
 		device_set_softc(bsddev, dev);
 	}
 	dev->bsddev = bsddev;
+done:
 	kobject_init(&dev->kobj, &linux_dev_ktype);
 	kobject_add(&dev->kobj, &dev->class->kobj, dev_name(dev));
 
@@ -334,7 +360,7 @@ device_unregister(struct device *dev)
 	bsddev = dev->bsddev;
 	dev->bsddev = NULL;
 
-	if (bsddev != NULL) {
+	if (bsddev != NULL && dev->bsddev_attached_here) {
 		mtx_lock(&Giant);
 		device_delete_child(device_get_parent(bsddev), bsddev);
 		mtx_unlock(&Giant);
@@ -350,7 +376,7 @@ device_del(struct device *dev)
 	bsddev = dev->bsddev;
 	dev->bsddev = NULL;
 
-	if (bsddev != NULL) {
+	if (bsddev != NULL && dev->bsddev_attached_here) {
 		mtx_lock(&Giant);
 		device_delete_child(device_get_parent(bsddev), bsddev);
 		mtx_unlock(&Giant);
