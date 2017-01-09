@@ -496,7 +496,7 @@ fmt_sockaddr(struct sockaddr *sa, struct sockaddr *mask, int flags)
 		cq = buf;
 		slim =  sa->sa_len + (u_char *) sa;
 		cqlim = cq + sizeof(buf) - sizeof(" ffff");
-		snprintf(cq, sizeof(cq), "(%d)", sa->sa_family);
+		snprintf(cq, sizeof(buf), "(%d)", sa->sa_family);
 		cq += strlen(cq);
 		while (s < slim && cq < cqlim) {
 			snprintf(cq, sizeof(" ff"), " %02x", *s++);
