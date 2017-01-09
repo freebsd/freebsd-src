@@ -65,7 +65,7 @@ struct ig4iic_softc {
 	char		rbuf[IG4_RBUFSIZE];
 	int		error;
 	uint8_t		last_slave;
-	int		pci_attached : 1;
+	int		platform_attached : 1;
 	int		use_10bit : 1;
 	int		slave_valid : 1;
 	int		read_started : 1;
