@@ -543,7 +543,7 @@ X86InstrInfo::X86InstrInfo(X86Subtarget &STI)
     { X86::MOV8rr,          X86::MOV8rm,              0 },
     { X86::MOVAPDrr,        X86::MOVAPDrm,            TB_ALIGN_16 },
     { X86::MOVAPSrr,        X86::MOVAPSrm,            TB_ALIGN_16 },
-    { X86::MOVDDUPrr,       X86::MOVDDUPrm,           0 },
+    { X86::MOVDDUPrr,       X86::MOVDDUPrm,           TB_NO_REVERSE },
     { X86::MOVDI2PDIrr,     X86::MOVDI2PDIrm,         0 },
     { X86::MOVDI2SSrr,      X86::MOVDI2SSrm,          0 },
     { X86::MOVDQArr,        X86::MOVDQArm,            TB_ALIGN_16 },
@@ -661,7 +661,7 @@ X86InstrInfo::X86InstrInfo(X86Subtarget &STI)
     { X86::VMOV64toSDrr,    X86::VMOV64toSDrm,        0 },
     { X86::VMOVAPDrr,       X86::VMOVAPDrm,           TB_ALIGN_16 },
     { X86::VMOVAPSrr,       X86::VMOVAPSrm,           TB_ALIGN_16 },
-    { X86::VMOVDDUPrr,      X86::VMOVDDUPrm,          0 },
+    { X86::VMOVDDUPrr,      X86::VMOVDDUPrm,          TB_NO_REVERSE },
     { X86::VMOVDI2PDIrr,    X86::VMOVDI2PDIrm,        0 },
     { X86::VMOVDI2SSrr,     X86::VMOVDI2SSrm,         0 },
     { X86::VMOVDQArr,       X86::VMOVDQArm,           TB_ALIGN_16 },
@@ -6862,6 +6862,21 @@ bool X86InstrInfo::expandPostRAPseudo(MachineInstr &MI) const {
     // 0xff will return 1s for any input.
     MIB.addReg(Reg, RegState::Undef).addReg(Reg, RegState::Undef)
        .addReg(Reg, RegState::Undef).addImm(0xff);
+    return true;
+  }
+  case X86::AVX512_512_SEXT_MASK_32:
+  case X86::AVX512_512_SEXT_MASK_64: {
+    unsigned Reg = MIB->getOperand(0).getReg();
+    unsigned MaskReg = MIB->getOperand(1).getReg();
+    unsigned MaskState = getRegState(MIB->getOperand(1));
+    unsigned Opc = (MI.getOpcode() == X86::AVX512_512_SEXT_MASK_64) ?
+                   X86::VPTERNLOGQZrrikz : X86::VPTERNLOGDZrrikz;
+    MI.RemoveOperand(1);
+    MIB->setDesc(get(Opc));
+    // VPTERNLOG needs 3 register inputs and an immediate.
+    // 0xff will return 1s for any input.
+    MIB.addReg(Reg, RegState::Undef).addReg(MaskReg, MaskState)
+       .addReg(Reg, RegState::Undef).addReg(Reg, RegState::Undef).addImm(0xff);
     return true;
   }
   case X86::VMOVAPSZ128rm_NOVLX:
