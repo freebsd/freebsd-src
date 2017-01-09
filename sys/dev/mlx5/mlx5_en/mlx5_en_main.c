@@ -314,7 +314,7 @@ mlx5e_update_pport_counters(struct mlx5e_priv *priv)
 	struct mlx5e_port_stats_debug *s_debug = &priv->stats.port_stats_debug;
 	u32 *in;
 	u32 *out;
-	u64 *ptr;
+	const u64 *ptr;
 	unsigned sz = MLX5_ST_SZ_BYTES(ppcnt_reg);
 	unsigned x;
 	unsigned y;
@@ -324,7 +324,7 @@ mlx5e_update_pport_counters(struct mlx5e_priv *priv)
 	if (in == NULL || out == NULL)
 		goto free_out;
 
-	ptr = (uint64_t *)MLX5_ADDR_OF(ppcnt_reg, out, counter_set);
+	ptr = (const uint64_t *)MLX5_ADDR_OF(ppcnt_reg, out, counter_set);
 
 	MLX5_SET(ppcnt_reg, in, local_port, 1);
 
