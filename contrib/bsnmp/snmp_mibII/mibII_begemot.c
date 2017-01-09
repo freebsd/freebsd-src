@@ -37,7 +37,7 @@
  * Scalars
  */
 int
-op_begemot_mibII(struct snmp_context *ctx __unused, struct snmp_value *value,
+op_begemot_mibII(struct snmp_context *ctx, struct snmp_value *value,
     u_int sub, u_int idx __unused, enum snmp_op op)
 {
 	switch (op) {
