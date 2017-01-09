@@ -41,10 +41,7 @@ static char sccsid[] = "@(#)kdump.c	8.1 (Berkeley) 6/6/93";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#define _KERNEL
-extern int errno;
-#include <sys/errno.h>
-#undef _KERNEL
+#define _WANT_KERNEL_ERRNO
 #include <sys/param.h>
 #include <sys/capsicum.h>
 #include <sys/errno.h>
