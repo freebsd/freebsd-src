@@ -399,12 +399,11 @@ static void
 save_typdef(char *name)
 {
 	struct tdef *t;
-	t = malloc(sizeof(struct tdef));
 
+	t = calloc(1, sizeof(struct tdef));
 	if (t == NULL)
 		err(1, NULL);
 
-	memset(t, 0 , sizeof(struct tdef));
 	t->name = name;
 	SLIST_INSERT_HEAD(&tdefs, t, link);
 }
