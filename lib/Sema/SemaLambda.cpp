@@ -1274,7 +1274,7 @@ static void addFunctionPointerConversion(Sema &S,
                                 ConvTy, 
                                 ConvTSI,
                                 /*isInline=*/true, /*isExplicit=*/false,
-                                /*isConstexpr=*/false, 
+                                /*isConstexpr=*/S.getLangOpts().CPlusPlus1z, 
                                 CallOperator->getBody()->getLocEnd());
   Conversion->setAccess(AS_public);
   Conversion->setImplicit(true);
@@ -1565,6 +1565,7 @@ ExprResult Sema::BuildLambdaExpr(SourceLocation StartLoc, SourceLocation EndLoc,
     //   A lambda-expression shall not appear in an unevaluated operand
     //   (Clause 5).
     case Unevaluated:
+    case UnevaluatedList:
     case UnevaluatedAbstract:
     // C++1y [expr.const]p2:
     //   A conditional-expression e is a core constant expression unless the
