@@ -13,6 +13,7 @@ static char sccsid[] = "@(#) clean_exit.c 1.4 94/12/28 17:42:19";
 #endif
 
 #include <stdio.h>
+#include <unistd.h>
 
 extern void exit();
 
