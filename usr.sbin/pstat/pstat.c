@@ -174,8 +174,6 @@ main(int argc, char *argv[])
 		default:
 			usage();
 		}
-	argc -= optind;
-	argv += optind;
 
 	/*
 	 * Initialize symbol names list.
@@ -339,7 +337,7 @@ static void
 ttyprt(struct xtty *xt)
 {
 	int i, j;
-	char *name;
+	const char *name;
 
 	if (xt->xt_size != sizeof *xt)
 		errx(1, "struct xtty size mismatch");
