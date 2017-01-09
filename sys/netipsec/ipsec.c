@@ -123,8 +123,24 @@ static VNET_DEFINE(int, ip4_filtertunnel) = 0;
 #define	V_ip4_filtertunnel VNET(ip4_filtertunnel)
 static VNET_DEFINE(int, check_policy_history) = 0;
 #define	V_check_policy_history	VNET(check_policy_history)
-static VNET_DEFINE(struct secpolicy, def_policy);
+static VNET_DEFINE(struct secpolicy *, def_policy) = NULL;
 #define	V_def_policy	VNET(def_policy)
+static int
+sysctl_def_policy(SYSCTL_HANDLER_ARGS)
+{
+	int error, value;
+
+	value = V_def_policy->policy;
+	error = sysctl_handle_int(oidp, &value, 0, req);
+	if (error == 0) {
+		if (value != IPSEC_POLICY_DISCARD &&
+		    value != IPSEC_POLICY_NONE)
+			return (EINVAL);
+		V_def_policy->policy = value;
+	}
+	return (error);
+}
+
 /*
  * Crypto support requirements:
  *
@@ -148,8 +164,8 @@ FEATURE(ipsec_natt, "UDP Encapsulation of IPsec ESP Packets ('NAT-T')");
 SYSCTL_DECL(_net_inet_ipsec);
 
 /* net.inet.ipsec */
-SYSCTL_INT(_net_inet_ipsec, IPSECCTL_DEF_POLICY, def_policy,
-	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(def_policy).policy, 0,
+SYSCTL_PROC(_net_inet_ipsec, IPSECCTL_DEF_POLICY, def_policy,
+	CTLTYPE_INT | CTLFLAG_VNET | CTLFLAG_RW, 0, 0, sysctl_def_policy, "I",
 	"IPsec default policy.");
 SYSCTL_INT(_net_inet_ipsec, IPSECCTL_DEF_ESP_TRANSLEV, esp_trans_deflev,
 	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip4_esp_trans_deflev), 0,
@@ -229,8 +245,8 @@ static VNET_DEFINE(int, ip6_filtertunnel) = 0;
 SYSCTL_DECL(_net_inet6_ipsec6);
 
 /* net.inet6.ipsec6 */
-SYSCTL_INT(_net_inet6_ipsec6, IPSECCTL_DEF_POLICY, def_policy,
-	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(def_policy).policy, 0,
+SYSCTL_PROC(_net_inet6_ipsec6, IPSECCTL_DEF_POLICY, def_policy,
+	CTLTYPE_INT | CTLFLAG_VNET | CTLFLAG_RW, 0, 0, sysctl_def_policy, "I",
 	"IPsec default policy.");
 SYSCTL_INT(_net_inet6_ipsec6, IPSECCTL_DEF_ESP_TRANSLEV, esp_trans_deflev,
 	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_esp_trans_deflev), 0,
@@ -272,17 +288,9 @@ static void ipsec6_setspidx_ipaddr(const struct mbuf *,
 static struct secpolicy *
 key_allocsp_default(void)
 {
-	struct secpolicy *sp;
 
-	sp = &V_def_policy;
-	if (sp->policy != IPSEC_POLICY_DISCARD &&
-	    sp->policy != IPSEC_POLICY_NONE) {
-		ipseclog((LOG_INFO, "fixed system default policy: %d->%d\n",
-		    sp->policy, IPSEC_POLICY_NONE));
-		sp->policy = IPSEC_POLICY_NONE;
-	}
-	key_addref(sp);
-	return (sp);
+	key_addref(V_def_policy);
+	return (V_def_policy);
 }
 
 static void
@@ -1345,16 +1353,38 @@ ipsec_updateid(struct secasvar *sav, uint64_t *new, uint64_t *old)
 	return (0);
 }
 
+int
+ipsec_initialized(void)
+{
+
+	return (V_def_policy != NULL);
+}
+
 static void
 def_policy_init(const void *unused __unused)
 {
 
-	bzero(&V_def_policy, sizeof(struct secpolicy));
-	V_def_policy.policy = IPSEC_POLICY_NONE;
-	V_def_policy.refcnt = 1;
-
-	/* Force INPCB SP cache invalidation */
-	key_bumpspgen();
+	V_def_policy = key_newsp();
+	if (V_def_policy != NULL) {
+		V_def_policy->policy = IPSEC_POLICY_NONE;
+		/* Force INPCB SP cache invalidation */
+		key_bumpspgen();
+	} else
+		printf("%s: failed to initialize default policy\n", __func__);
 }
+
+
+static void
+def_policy_uninit(const void *unused __unused)
+{
+
+	if (V_def_policy != NULL) {
+		key_freesp(&V_def_policy);
+		key_bumpspgen();
+	}
+}
+
 VNET_SYSINIT(def_policy_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_FIRST,
     def_policy_init, NULL);
+VNET_SYSUNINIT(def_policy_uninit, SI_SUB_PROTO_DOMAIN, SI_ORDER_FIRST,
+    def_policy_uninit, NULL);

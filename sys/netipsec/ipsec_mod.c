@@ -107,6 +107,8 @@ ipsec_modevent(module_t mod, int type, void *data)
 	switch (type) {
 	case MOD_LOAD:
 		/* All xforms are registered via SYSINIT */
+		if (!ipsec_initialized())
+			return (ENOMEM);
 #ifdef KLD_MODULE
 #ifdef INET
 		ipsec_support_enable(ipv4_ipsec_support, &ipv4_methods);
