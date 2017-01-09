@@ -376,6 +376,13 @@ sdhci_set_power(struct sdhci_slot *slot, u_char power)
 	/* Turn on the power. */
 	pwr |= SDHCI_POWER_ON;
 	WR1(slot, SDHCI_POWER_CONTROL, pwr);
+
+	if (slot->quirks & SDHCI_QUIRK_INTEL_POWER_UP_RESET) {
+		WR1(slot, SDHCI_POWER_CONTROL, pwr | 0x10);
+		DELAY(10);
+		WR1(slot, SDHCI_POWER_CONTROL, pwr);
+		DELAY(300);
+	}
 }
 
 static void
@@ -622,9 +629,11 @@ sdhci_init_slot(device_t dev, struct sdhci_slot *slot, int num)
 		device_printf(dev, "Hardware doesn't specify base clock "
 		    "frequency, using %dMHz as default.\n", SDHCI_DEFAULT_MAX_FREQ);
 	}
-	/* Calculate timeout clock frequency. */
+	/* Calculate/set timeout clock frequency. */
 	if (slot->quirks & SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK) {
 		slot->timeout_clk = slot->max_clk / 1000;
+	} else if (slot->quirks & SDHCI_QUIRK_DATA_TIMEOUT_1MHZ) {
+		slot->timeout_clk = 1000;
 	} else {
 		slot->timeout_clk =
 			(caps & SDHCI_TIMEOUT_CLK_MASK) >> SDHCI_TIMEOUT_CLK_SHIFT;
@@ -668,6 +677,8 @@ sdhci_init_slot(device_t dev, struct sdhci_slot *slot, int num)
 		slot->opt &= ~SDHCI_HAVE_DMA;
 	if (slot->quirks & SDHCI_QUIRK_FORCE_DMA)
 		slot->opt |= SDHCI_HAVE_DMA;
+	if (slot->quirks & SDHCI_QUIRK_ALL_SLOTS_NON_REMOVABLE)
+		slot->opt |= SDHCI_NON_REMOVABLE;
 
 	/* 
 	 * Use platform-provided transfer backend
@@ -680,8 +691,9 @@ sdhci_init_slot(device_t dev, struct sdhci_slot *slot, int num)
 		slot_printf(slot, "%uMHz%s %s%s%s%s %s\n",
 		    slot->max_clk / 1000000,
 		    (caps & SDHCI_CAN_DO_HISPD) ? " HS" : "",
-		    (caps & MMC_CAP_8_BIT_DATA) ? "8bits" :
-			((caps & MMC_CAP_4_BIT_DATA) ? "4bits" : "1bit"),
+		    (slot->host.caps & MMC_CAP_8_BIT_DATA) ? "8bits" :
+			((slot->host.caps & MMC_CAP_4_BIT_DATA) ? "4bits" :
+			"1bit"),
 		    (caps & SDHCI_CAN_VDD_330) ? " 3.3V" : "",
 		    (caps & SDHCI_CAN_VDD_300) ? " 3.0V" : "",
 		    (caps & SDHCI_CAN_VDD_180) ? " 1.8V" : "",
