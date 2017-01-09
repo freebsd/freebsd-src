@@ -380,8 +380,9 @@ ipsec_cachepolicy(struct inpcb *inp, struct secpolicy *sp, u_int dir)
 		inp->inp_sp->genid = genid;
 	}
 	KEYDBG(IPSEC_STAMP,
-	    printf("%s: PCB(%p): cached SP(%p)\n",
-	    __func__, inp, sp));
+	    printf("%s: PCB(%p): cached %s SP(%p)\n",
+	    __func__, inp, dir == IPSEC_DIR_OUTBOUND ? "OUTBOUND":
+	    "INBOUND", sp));
 	if (downgrade != 0)
 		INP_DOWNGRADE(inp);
 }
