@@ -375,8 +375,10 @@ ipsec_cachepolicy(struct inpcb *inp, struct secpolicy *sp, u_int dir)
 	 */
 	key_addref(sp);
 	genid = key_getspgen();
-	if (genid != inp->inp_sp->genid)
+	if (genid != inp->inp_sp->genid) {
 		ipsec_invalidate_cache(inp, dir);
+		inp->inp_sp->genid = genid;
+	}
 	KEYDBG(IPSEC_STAMP,
 	    printf("%s: PCB(%p): cached SP(%p)\n",
 	    __func__, inp, sp));
