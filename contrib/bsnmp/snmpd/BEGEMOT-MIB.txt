@@ -54,6 +54,9 @@ begemot MODULE-IDENTITY
 	     E-mail:	harti@freebsd.org"
     DESCRIPTION
 	    "The root of the Begemot subtree of the fokus tree."
+    REVISION "200201300000Z"
+    DESCRIPTION
+	    "Initial revision."
     ::= { fokus 1 }
 
 END
