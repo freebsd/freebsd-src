@@ -92,7 +92,6 @@ STD_HEADERS=	__bit_reference\
 		__threading_support\
 		__tree\
 		__tuple\
-		__undef___deallocate\
 		__undef_min_max\
 		algorithm\
 		any\
