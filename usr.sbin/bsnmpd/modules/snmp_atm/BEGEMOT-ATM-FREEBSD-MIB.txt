@@ -56,7 +56,9 @@ begemotAtmFreeBSDGroup MODULE-IDENTITY
 	     E-mail:	harti@freebsd.org"
     DESCRIPTION
 	    "The FreeBSD specific Begemot MIB for ATM interfaces."
-
+    REVISION "200408060000Z"
+    DESCRIPTION
+	    "Initial revision."
     ::= { begemotAtmSysGroup 1 }
 
 -- Netgraph
