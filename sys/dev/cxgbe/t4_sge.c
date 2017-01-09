@@ -2298,7 +2298,7 @@ slowpath:
 
 	w = &eq->desc[eq->pidx];
 	IDXINCR(eq->pidx, ndesc, eq->sidx);
-	if (__predict_false(eq->pidx < ndesc - 1)) {
+	if (__predict_false(cookie->pidx + ndesc > eq->sidx)) {
 		w = &wrq->ss[0];
 		wrq->ss_pidx = cookie->pidx;
 		wrq->ss_len = len16 * 16;
