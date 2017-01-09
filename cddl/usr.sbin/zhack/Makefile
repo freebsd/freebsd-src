@@ -1,5 +1,8 @@
 # $FreeBSD$
 
+# Linker error
+WANT_CHERI=none
+
 .PATH: ${.CURDIR}/../../../cddl/contrib/opensolaris/cmd/zhack
 
 PROG=	zhack
