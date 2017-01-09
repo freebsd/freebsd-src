@@ -116,7 +116,12 @@ if (LIBCXX_CXX_ABI STREQUAL "default")
     set(LIBCXX_CXX_ABI_INCLUDE_PATHS "${LIBCXX_LIBCXXABI_INCLUDES_INTERNAL}")
     set(LIBCXX_CXX_ABI_INTREE 1)
   else()
-    set(LIBCXX_CXX_ABI_LIBNAME "default")
+    if (WIN32 AND NOT MINGW)
+      # FIXME: Figure out how to configure the ABI library on Windows.
+      set(LIBCXX_CXX_ABI_LIBNAME "none")
+    else()
+      set(LIBCXX_CXX_ABI_LIBNAME "default")
+    endif()
   endif()
 else()
   set(LIBCXX_CXX_ABI_LIBNAME "${LIBCXX_CXX_ABI}")
@@ -169,6 +174,9 @@ option(LIBCXX_HAS_PTHREAD_API "Ignore auto-detection and force use of pthread AP
 option(LIBCXX_HAS_EXTERNAL_THREAD_API
   "Build libc++ with an externalized threading API.
    This option may only be set to ON when LIBCXX_ENABLE_THREADS=ON." OFF)
+option(LIBCXX_BUILD_EXTERNAL_THREAD_LIBRARY
+    "Build libc++ with an externalized threading library.
+     This option may only be set to ON when LIBCXX_ENABLE_THREADS=ON" OFF)
 
 # Misc options ----------------------------------------------------------------
 # FIXME: Turn -pedantic back ON. It is currently off because it warns
@@ -230,12 +238,24 @@ if(NOT LIBCXX_ENABLE_THREADS)
     message(FATAL_ERROR "LIBCXX_HAS_EXTERNAL_THREAD_API can only be set to ON"
                         " when LIBCXX_ENABLE_THREADS is also set to ON.")
   endif()
+  if (LIBCXX_BUILD_EXTERNAL_THREAD_LIBRARY)
+    message(FATAL_ERROR "LIBCXX_BUILD_EXTERNAL_THREAD_LIBRARY can only be set "
+                        "to ON when LIBCXX_ENABLE_THREADS is also set to ON.")
+  endif()
+
 endif()
 
-if(LIBCXX_HAS_PTHREAD_API AND LIBCXX_HAS_EXTERNAL_THREAD_API)
-  message(FATAL_ERROR "The options LIBCXX_HAS_EXTERNAL_THREAD_API"
-                      "and LIBCXX_HAS_PTHREAD_API cannot be both"
-                      "set to ON at the same time.")
+if (LIBCXX_HAS_EXTERNAL_THREAD_API)
+  if (LIBCXX_BUILD_EXTERNAL_THREAD_LIBRARY)
+    message(FATAL_ERROR "The options LIBCXX_BUILD_EXTERNAL_THREAD_LIBRARY and "
+                        "LIBCXX_HAS_EXTERNAL_THREAD_API cannot both be ON at "
+                        "the same time")
+  endif()
+  if (LIBCXX_HAS_PTHREAD_API)
+    message(FATAL_ERROR "The options LIBCXX_HAS_EXTERNAL_THREAD_API"
+                        "and LIBCXX_HAS_PTHREAD_API cannot be both"
+                        "set to ON at the same time.")
+  endif()
 endif()
 
 # Ensure LLVM_USE_SANITIZER is not specified when LIBCXX_GENERATE_COVERAGE
@@ -441,7 +461,7 @@ if (NOT LIBCXX_ENABLE_RTTI)
 endif()
 
 # Threading flags =============================================================
-if (LIBCXX_HAS_EXTERNAL_THREAD_API AND LIBCXX_ENABLE_SHARED)
+if (LIBCXX_BUILD_EXTERNAL_THREAD_LIBRARY AND LIBCXX_ENABLE_SHARED)
   # Need to allow unresolved symbols if this is to work with shared library builds
   if (APPLE)
     add_link_flags("-undefined dynamic_lookup")
@@ -520,6 +540,7 @@ config_define_if_not(LIBCXX_ENABLE_THREAD_UNSAFE_C_FUNCTIONS _LIBCPP_HAS_NO_THRE
 
 config_define_if(LIBCXX_HAS_PTHREAD_API _LIBCPP_HAS_THREAD_API_PTHREAD)
 config_define_if(LIBCXX_HAS_EXTERNAL_THREAD_API _LIBCPP_HAS_THREAD_API_EXTERNAL)
+config_define_if(LIBCXX_BUILD_EXTERNAL_THREAD_LIBRARY _LIBCPP_HAS_THREAD_LIBRARY_EXTERNAL)
 config_define_if(LIBCXX_HAS_MUSL_LIBC _LIBCPP_HAS_MUSL_LIBC)
 
 # By default libc++ on Windows expects to use a shared library, which requires
