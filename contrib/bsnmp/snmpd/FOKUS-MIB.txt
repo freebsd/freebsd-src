@@ -52,6 +52,9 @@ fokus MODULE-IDENTITY
 	     E-mail:	harti@freebsd.org"
     DESCRIPTION
 	    "The root of the Fokus enterprises tree."
+    REVISION "200202050000Z"
+    DESCRIPTION
+	    "Initial revision."
     ::= { enterprises 12325 }
 
 END
