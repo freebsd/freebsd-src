@@ -126,9 +126,11 @@ open_node(const SmiNode *n, u_int level, SmiNode **last)
 
 	while (level < n->oidlen - 1) {
 		if (level >= cut) {
+			n1 = smiGetNodeByOID(level + 1, n->oid);
+			if (n1 == NULL)
+				continue;
 			pindent(level);
 			printf("(%u", n->oid[level]);
-			n1 = smiGetNodeByOID(level + 1, n->oid);
 			printf(" ");
 			print_name(n1);
 			printf("\n");
@@ -560,6 +562,8 @@ main(int argc, char *argv[])
 	last = NULL;
 	for (opt = 0; opt < argc; opt++) {
 		n = smiGetFirstNode(mods[opt], SMI_NODEKIND_ANY);
+		if (n == NULL)
+			continue;
 		for (;;) {
 			if (do_typedef == 0) {
 				level = open_node(n, level, &last);
