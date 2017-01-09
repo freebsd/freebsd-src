@@ -52,8 +52,12 @@ op_ipv6MIBObjects(struct snmp_context *ctx __unused, struct snmp_value *value,
 {
 	const char *namestr = NULL;
 	int name[] = { CTL_NET, PF_INET6, IPPROTO_IPV6, 0 };
-	int result = 0;
-	size_t resultsiz = sizeof(result);
+	asn_subid_t which;
+	size_t resultsz;
+	int result;
+
+	result = 0;
+	resultsz = sizeof(result);
 
 	switch (op) {
 	case SNMP_OP_GETNEXT:
@@ -66,11 +70,13 @@ op_ipv6MIBObjects(struct snmp_context *ctx __unused, struct snmp_value *value,
 		return (SNMP_ERR_NOERROR);
 	}
 
-	switch (value->var.subs[sub - 1]) {
+	which = value->var.subs[sub - 1];
+
+	switch (which) {
 	case LEAF_ipv6Forwarding:
 		name[3] = IPV6CTL_FORWARDING;
 		namestr = "IPV6CTL_FORWARDING";
-		if (sysctl(name, nitems(name), &result, &resultsiz, NULL,
+		if (sysctl(name, nitems(name), &result, &resultsz, NULL,
 		    0) < 0)
 			return (SNMP_ERR_GENERR);
 		if (result == 0)
@@ -81,13 +87,12 @@ op_ipv6MIBObjects(struct snmp_context *ctx __unused, struct snmp_value *value,
 	case LEAF_ipv6DefaultHopLimit:
 		name[3] = IPV6CTL_DEFHLIM;
 		namestr = "IPV6CTL_DEFHLIM";
-		if (sysctl(name, nitems(name), &result, &resultsiz, NULL,
+		if (sysctl(name, nitems(name), &result, &resultsz, NULL,
 		    0) < 0)
 			return (SNMP_ERR_GENERR);
 		value->v.integer = result;
 		break;
 	case LEAF_ipv6IfTableLastChange:
-	{
 		mib_ipv6_refresh_interfaces();
 		if (mib_ipv6_ipv6IfTableLastChange > start_tick)
 			value->v.uint32 =
@@ -95,7 +100,6 @@ op_ipv6MIBObjects(struct snmp_context *ctx __unused, struct snmp_value *value,
 		else
 			value->v.uint32 = 0;
 		break;
-	}
 	case LEAF_ipv6Interfaces:
 		mib_ipv6_refresh_interfaces();
 		value->v.integer = mib_ipv6_ipv6Interfaces;
@@ -103,6 +107,7 @@ op_ipv6MIBObjects(struct snmp_context *ctx __unused, struct snmp_value *value,
 	default:
 		return (SNMP_ERR_NOSUCHNAME);
 	}
+
 	return (SNMP_ERR_NOERROR);
 }
 
