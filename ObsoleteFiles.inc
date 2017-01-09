@@ -38,6 +38,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 2017mmdd: new libc++ import which bumps version from 3.9.1 to 4.0.0.
+OLD_FILES+=usr/include/c++/v1/__undef___deallocate
+OLD_FILES+=usr/include/c++/v1/tr1/__undef___deallocate
 # 2017mmdd: new clang import which bumps version from 3.9.1 to 4.0.0.
 OLD_FILES+=usr/lib/clang/3.9.1/include/sanitizer/allocator_interface.h
 OLD_FILES+=usr/lib/clang/3.9.1/include/sanitizer/asan_interface.h
