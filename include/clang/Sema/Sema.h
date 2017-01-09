@@ -27,6 +27,7 @@
 #include "clang/AST/NSAPI.h"
 #include "clang/AST/PrettyPrinter.h"
 #include "clang/AST/TypeLoc.h"
+#include "clang/AST/TypeOrdering.h"
 #include "clang/Basic/ExpressionTraits.h"
 #include "clang/Basic/LangOptions.h"
 #include "clang/Basic/Module.h"
@@ -119,6 +120,7 @@ namespace clang {
   class FunctionProtoType;
   class FunctionTemplateDecl;
   class ImplicitConversionSequence;
+  typedef MutableArrayRef<ImplicitConversionSequence> ConversionSequenceList;
   class InitListExpr;
   class InitializationKind;
   class InitializationSequence;
@@ -806,6 +808,12 @@ public:
     /// run time.
     Unevaluated,
 
+    /// \brief The current expression occurs within a braced-init-list within
+    /// an unevaluated operand. This is mostly like a regular unevaluated
+    /// context, except that we still instantiate constexpr functions that are
+    /// referenced here so that we can perform narrowing checks correctly.
+    UnevaluatedList,
+
     /// \brief The current expression occurs within a discarded statement.
     /// This behaves largely similarly to an unevaluated operand in preventing
     /// definitions from being required, but not in other ways.
@@ -898,7 +906,8 @@ public:
     MangleNumberingContext &getMangleNumberingContext(ASTContext &Ctx);
 
     bool isUnevaluated() const {
-      return Context == Unevaluated || Context == UnevaluatedAbstract;
+      return Context == Unevaluated || Context == UnevaluatedAbstract ||
+             Context == UnevaluatedList;
     }
   };
 
@@ -2510,10 +2519,11 @@ public:
   void AddOverloadCandidate(FunctionDecl *Function,
                             DeclAccessPair FoundDecl,
                             ArrayRef<Expr *> Args,
-                            OverloadCandidateSet& CandidateSet,
+                            OverloadCandidateSet &CandidateSet,
                             bool SuppressUserConversions = false,
                             bool PartialOverloading = false,
-                            bool AllowExplicit = false);
+                            bool AllowExplicit = false,
+                            ConversionSequenceList EarlyConversions = None);
   void AddFunctionCandidates(const UnresolvedSetImpl &Functions,
                       ArrayRef<Expr *> Args,
                       OverloadCandidateSet &CandidateSet,
@@ -2523,23 +2533,25 @@ public:
   void AddMethodCandidate(DeclAccessPair FoundDecl,
                           QualType ObjectType,
                           Expr::Classification ObjectClassification,
-                          ArrayRef<Expr *> Args,
+                          Expr *ThisArg, ArrayRef<Expr *> Args,
                           OverloadCandidateSet& CandidateSet,
                           bool SuppressUserConversion = false);
   void AddMethodCandidate(CXXMethodDecl *Method,
                           DeclAccessPair FoundDecl,
                           CXXRecordDecl *ActingContext, QualType ObjectType,
                           Expr::Classification ObjectClassification,
-                          ArrayRef<Expr *> Args,
+                          Expr *ThisArg, ArrayRef<Expr *> Args,
                           OverloadCandidateSet& CandidateSet,
                           bool SuppressUserConversions = false,
-                          bool PartialOverloading = false);
+                          bool PartialOverloading = false,
+                          ConversionSequenceList EarlyConversions = None);
   void AddMethodTemplateCandidate(FunctionTemplateDecl *MethodTmpl,
                                   DeclAccessPair FoundDecl,
                                   CXXRecordDecl *ActingContext,
                                  TemplateArgumentListInfo *ExplicitTemplateArgs,
                                   QualType ObjectType,
                                   Expr::Classification ObjectClassification,
+                                  Expr *ThisArg,
                                   ArrayRef<Expr *> Args,
                                   OverloadCandidateSet& CandidateSet,
                                   bool SuppressUserConversions = false,
@@ -2551,6 +2563,16 @@ public:
                                     OverloadCandidateSet& CandidateSet,
                                     bool SuppressUserConversions = false,
                                     bool PartialOverloading = false);
+  bool CheckNonDependentConversions(FunctionTemplateDecl *FunctionTemplate,
+                                    ArrayRef<QualType> ParamTypes,
+                                    ArrayRef<Expr *> Args,
+                                    OverloadCandidateSet &CandidateSet,
+                                    ConversionSequenceList &Conversions,
+                                    bool SuppressUserConversions,
+                                    CXXRecordDecl *ActingContext = nullptr,
+                                    QualType ObjectType = QualType(),
+                                    Expr::Classification
+                                        ObjectClassification = {});
   void AddConversionCandidate(CXXConversionDecl *Conversion,
                               DeclAccessPair FoundDecl,
                               CXXRecordDecl *ActingContext,
@@ -2602,6 +2624,38 @@ public:
   /// failing attribute, or NULL if they were all successful.
   EnableIfAttr *CheckEnableIf(FunctionDecl *Function, ArrayRef<Expr *> Args,
                               bool MissingImplicitThis = false);
+
+  /// Check the diagnose_if attributes on the given function. Returns the
+  /// first succesful fatal attribute, or null if calling Function(Args) isn't
+  /// an error.
+  ///
+  /// This only considers ArgDependent DiagnoseIfAttrs.
+  ///
+  /// This will populate Nonfatal with all non-error DiagnoseIfAttrs that
+  /// succeed. If this function returns non-null, the contents of Nonfatal are
+  /// unspecified.
+  DiagnoseIfAttr *
+  checkArgDependentDiagnoseIf(FunctionDecl *Function, ArrayRef<Expr *> Args,
+                              SmallVectorImpl<DiagnoseIfAttr *> &Nonfatal,
+                              bool MissingImplicitThis = false,
+                              Expr *ThisArg = nullptr);
+
+  /// Check the diagnose_if expressions on the given function. Returns the
+  /// first succesful fatal attribute, or null if using Function isn't
+  /// an error.
+  ///
+  /// This ignores all ArgDependent DiagnoseIfAttrs.
+  ///
+  /// This will populate Nonfatal with all non-error DiagnoseIfAttrs that
+  /// succeed. If this function returns non-null, the contents of Nonfatal are
+  /// unspecified.
+  DiagnoseIfAttr *
+  checkArgIndependentDiagnoseIf(FunctionDecl *Function,
+                                SmallVectorImpl<DiagnoseIfAttr *> &Nonfatal);
+
+  /// Emits the diagnostic contained in the given DiagnoseIfAttr at Loc. Also
+  /// emits a note about the location of said attribute.
+  void emitDiagnoseIfDiagnostic(SourceLocation Loc, const DiagnoseIfAttr *DIA);
 
   /// Returns whether the given function's address can be taken or not,
   /// optionally emitting a diagnostic if the address can't be taken.
@@ -3801,6 +3855,9 @@ public:
   /// variable will have in the given scope.
   QualType getCapturedDeclRefType(VarDecl *Var, SourceLocation Loc);
 
+  /// Mark all of the declarations referenced within a particular AST node as
+  /// referenced. Used when template instantiation instantiates a non-dependent
+  /// type -- entities referenced by the type are now referenced.
   void MarkDeclarationsReferencedInType(SourceLocation Loc, QualType T);
   void MarkDeclarationsReferencedInExpr(Expr *E,
                                         bool SkipLocalVariables = false);
@@ -6580,6 +6637,8 @@ public:
     /// \brief The explicitly-specified template arguments were not valid
     /// template arguments for the given template.
     TDK_InvalidExplicitArguments,
+    /// \brief Checking non-dependent argument conversions failed.
+    TDK_NonDependentConversionFailure,
     /// \brief Deduction failed; that's all we know.
     TDK_MiscellaneousDeductionFailure,
     /// \brief CUDA Target attributes do not match.
@@ -6618,22 +6677,21 @@ public:
     QualType OriginalArgType;
   };
 
-  TemplateDeductionResult
-  FinishTemplateArgumentDeduction(FunctionTemplateDecl *FunctionTemplate,
-                      SmallVectorImpl<DeducedTemplateArgument> &Deduced,
-                                  unsigned NumExplicitlySpecified,
-                                  FunctionDecl *&Specialization,
-                                  sema::TemplateDeductionInfo &Info,
-           SmallVectorImpl<OriginalCallArg> const *OriginalCallArgs = nullptr,
-                                  bool PartialOverloading = false);
+  TemplateDeductionResult FinishTemplateArgumentDeduction(
+      FunctionTemplateDecl *FunctionTemplate,
+      SmallVectorImpl<DeducedTemplateArgument> &Deduced,
+      unsigned NumExplicitlySpecified, FunctionDecl *&Specialization,
+      sema::TemplateDeductionInfo &Info,
+      SmallVectorImpl<OriginalCallArg> const *OriginalCallArgs = nullptr,
+      bool PartialOverloading = false,
+      llvm::function_ref<bool()> CheckNonDependent = []{ return false; });
 
-  TemplateDeductionResult
-  DeduceTemplateArguments(FunctionTemplateDecl *FunctionTemplate,
-                          TemplateArgumentListInfo *ExplicitTemplateArgs,
-                          ArrayRef<Expr *> Args,
-                          FunctionDecl *&Specialization,
-                          sema::TemplateDeductionInfo &Info,
-                          bool PartialOverloading = false);
+  TemplateDeductionResult DeduceTemplateArguments(
+      FunctionTemplateDecl *FunctionTemplate,
+      TemplateArgumentListInfo *ExplicitTemplateArgs, ArrayRef<Expr *> Args,
+      FunctionDecl *&Specialization, sema::TemplateDeductionInfo &Info,
+      bool PartialOverloading,
+      llvm::function_ref<bool(ArrayRef<QualType>)> CheckNonDependent);
 
   TemplateDeductionResult
   DeduceTemplateArguments(FunctionTemplateDecl *FunctionTemplate,
@@ -6876,6 +6934,10 @@ public:
 
   /// Specializations whose definitions are currently being instantiated.
   llvm::DenseSet<std::pair<Decl *, unsigned>> InstantiatingSpecializations;
+
+  /// Non-dependent types used in templates that have already been instantiated
+  /// by some template instantiation.
+  llvm::DenseSet<QualType> InstantiatedNonDependentTypes;
 
   /// \brief Extra modules inspected when performing a lookup during a template
   /// instantiation. Computed lazily.
@@ -10184,6 +10246,22 @@ public:
     Actions.PushExpressionEvaluationContext(NewContext,
                                             Sema::ReuseLambdaContextDecl,
                                             IsDecltype);
+  }
+
+  enum InitListTag { InitList };
+  EnterExpressionEvaluationContext(Sema &Actions, InitListTag,
+                                   bool ShouldEnter = true)
+      : Actions(Actions), Entered(false) {
+    // In C++11 onwards, narrowing checks are performed on the contents of
+    // braced-init-lists, even when they occur within unevaluated operands.
+    // Therefore we still need to instantiate constexpr functions used in such
+    // a context.
+    if (ShouldEnter && Actions.isUnevaluatedContext() &&
+        Actions.getLangOpts().CPlusPlus11) {
+      Actions.PushExpressionEvaluationContext(Sema::UnevaluatedList, nullptr,
+                                              false);
+      Entered = true;
+    }
   }
 
   ~EnterExpressionEvaluationContext() {
