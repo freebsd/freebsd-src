@@ -560,6 +560,8 @@ main(int argc, char *argv[])
 	level = 0;
 	last = NULL;
 	for (opt = 0; opt < argc; opt++) {
+		if (mods[opt] == NULL) /* smiGetModule failed above */
+			continue;
 		n = smiGetFirstNode(mods[opt], SMI_NODEKIND_ANY);
 		if (n == NULL)
 			continue;
