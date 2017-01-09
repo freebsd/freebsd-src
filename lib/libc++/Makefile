@@ -80,6 +80,7 @@ STD_HEADERS=	__bit_reference\
 		__functional_base\
 		__functional_base_03\
 		__hash_table\
+		__libcpp_version\
 		__locale\
 		__mutex_base\
 		__nullptr\
@@ -87,12 +88,14 @@ STD_HEADERS=	__bit_reference\
 		__split_buffer\
 		__sso_allocator\
 		__std_stream\
+		__string\
 		__threading_support\
 		__tree\
 		__tuple\
 		__undef___deallocate\
 		__undef_min_max\
 		algorithm\
+		any\
 		array\
 		atomic\
 		bitset\
@@ -143,14 +146,17 @@ STD_HEADERS=	__bit_reference\
 		istream\
 		iterator\
 		limits\
+		limits.h\
 		list\
 		locale\
+		locale.h\
 		map\
 		math.h\
 		memory\
 		mutex\
 		new\
 		numeric\
+		optional\
 		ostream\
 		queue\
 		random\
@@ -165,11 +171,13 @@ STD_HEADERS=	__bit_reference\
 		stdbool.h\
 		stddef.h\
 		stdexcept\
+		stdint.h\
 		stdio.h\
 		stdlib.h\
 		streambuf\
 		string\
 		string.h\
+		string_view\
 		strstream\
 		system_error\
 		tgmath.h\
@@ -182,6 +190,7 @@ STD_HEADERS=	__bit_reference\
 		unordered_set\
 		utility\
 		valarray\
+		variant\
 		vector\
 		wchar.h\
 		wctype.h
@@ -213,6 +222,7 @@ EXP_HEADERS=	__config\
 		list\
 		map\
 		memory_resource\
+		numeric\
 		optional\
 		propagate_const\
 		ratio\
