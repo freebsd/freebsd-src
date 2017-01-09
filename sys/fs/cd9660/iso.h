@@ -222,7 +222,7 @@ enum ISO_FTYPE	{ ISO_FTYPE_DEFAULT, ISO_FTYPE_9660, ISO_FTYPE_RRIP,
 /*
  * When ino_t becomes 64-bit, we can remove this definition in favor of ino_t.
  */
-#define cd_ino_t	uint64_t
+typedef __uint64_t cd_ino_t;
 
 struct iso_mnt {
 	uint64_t im_flags;
