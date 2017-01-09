@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2003-2009 Silicon Graphics International Corp.
  * Copyright (c) 2012 The FreeBSD Foundation
- * Copyright (c) 2015 Alexander Motin <mav@FreeBSD.org>
+ * Copyright (c) 2014-2017 Alexander Motin <mav@FreeBSD.org>
  * All rights reserved.
  *
  * Portions of this software were developed by Edward Tomasz Napierala
@@ -2567,6 +2567,7 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 	  struct thread *td)
 {
 	struct ctl_softc *softc = dev->si_drv1;
+	struct ctl_port *port;
 	struct ctl_lun *lun;
 	int retval;
 
@@ -2778,6 +2779,7 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 #endif /* CTL_IO_DELAY */
 		break;
 	}
+#ifdef CTL_LEGACY_STATS
 	case CTL_GETSTATS: {
 		struct ctl_stats *stats = (struct ctl_stats *)addr;
 		int i;
@@ -2790,26 +2792,26 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		stats->status = CTL_SS_OK;
 		stats->fill_len = 0;
 		STAILQ_FOREACH(lun, &softc->lun_list, links) {
-			if (stats->fill_len + sizeof(lun->stats) >
+			if (stats->fill_len + sizeof(lun->legacy_stats) >
 			    stats->alloc_len) {
 				stats->status = CTL_SS_NEED_MORE_SPACE;
 				break;
 			}
-			retval = copyout(&lun->stats, &stats->lun_stats[i++],
-					 sizeof(lun->stats));
+			retval = copyout(&lun->legacy_stats, &stats->lun_stats[i++],
+					 sizeof(lun->legacy_stats));
 			if (retval != 0)
 				break;
-			stats->fill_len += sizeof(lun->stats);
+			stats->fill_len += sizeof(lun->legacy_stats);
 		}
 		stats->num_luns = softc->num_luns;
-#ifdef CTL_TIME_IO
-		stats->flags = CTL_STATS_FLAG_TIME_VALID;
-#else
 		stats->flags = CTL_STATS_FLAG_NONE;
+#ifdef CTL_TIME_IO
+		stats->flags |= CTL_STATS_FLAG_TIME_VALID;
 #endif
 		getnanouptime(&stats->timestamp);
 		break;
 	}
+#endif /* CTL_LEGACY_STATS */
 	case CTL_ERROR_INJECT: {
 		struct ctl_error_desc *err_desc, *new_err_desc;
 
@@ -3395,6 +3397,72 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		}
 		if (port->status & CTL_PORT_STATUS_ONLINE)
 			ctl_isc_announce_port(port);
+		break;
+	}
+	case CTL_GET_LUN_STATS: {
+		struct ctl_get_io_stats *stats = (struct ctl_get_io_stats *)addr;
+		int i;
+
+		/*
+		 * XXX KDM no locking here.  If the LUN list changes,
+		 * things can blow up.
+		 */
+		i = 0;
+		stats->status = CTL_SS_OK;
+		stats->fill_len = 0;
+		STAILQ_FOREACH(lun, &softc->lun_list, links) {
+			if (lun->lun < stats->first_item)
+				continue;
+			if (stats->fill_len + sizeof(lun->stats) >
+			    stats->alloc_len) {
+				stats->status = CTL_SS_NEED_MORE_SPACE;
+				break;
+			}
+			retval = copyout(&lun->stats, &stats->stats[i++],
+					 sizeof(lun->stats));
+			if (retval != 0)
+				break;
+			stats->fill_len += sizeof(lun->stats);
+		}
+		stats->num_items = softc->num_luns;
+		stats->flags = CTL_STATS_FLAG_NONE;
+#ifdef CTL_TIME_IO
+		stats->flags |= CTL_STATS_FLAG_TIME_VALID;
+#endif
+		getnanouptime(&stats->timestamp);
+		break;
+	}
+	case CTL_GET_PORT_STATS: {
+		struct ctl_get_io_stats *stats = (struct ctl_get_io_stats *)addr;
+		int i;
+
+		/*
+		 * XXX KDM no locking here.  If the LUN list changes,
+		 * things can blow up.
+		 */
+		i = 0;
+		stats->status = CTL_SS_OK;
+		stats->fill_len = 0;
+		STAILQ_FOREACH(port, &softc->port_list, links) {
+			if (port->targ_port < stats->first_item)
+				continue;
+			if (stats->fill_len + sizeof(port->stats) >
+			    stats->alloc_len) {
+				stats->status = CTL_SS_NEED_MORE_SPACE;
+				break;
+			}
+			retval = copyout(&port->stats, &stats->stats[i++],
+					 sizeof(port->stats));
+			if (retval != 0)
+				break;
+			stats->fill_len += sizeof(port->stats);
+		}
+		stats->num_items = softc->num_ports;
+		stats->flags = CTL_STATS_FLAG_NONE;
+#ifdef CTL_TIME_IO
+		stats->flags |= CTL_STATS_FLAG_TIME_VALID;
+#endif
+		getnanouptime(&stats->timestamp);
 		break;
 	}
 	default: {
@@ -4391,7 +4459,7 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 	struct scsi_vpd_id_descriptor *desc;
 	struct scsi_vpd_id_t10 *t10id;
 	const char *eui, *naa, *scsiname, *uuid, *vendor, *value;
-	int lun_number, i, lun_malloced;
+	int lun_number, lun_malloced;
 	int devidlen, idlen1, idlen2 = 0, len;
 
 	if (be_lun == NULL)
@@ -4585,6 +4653,10 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 	lun->ie_reported = 1;
 	callout_init_mtx(&lun->ie_callout, &lun->lun_lock, 0);
 	ctl_tpc_lun_init(lun);
+	if (lun->flags & CTL_LUN_REMOVABLE) {
+		lun->prevent = malloc((CTL_MAX_INITIATORS + 31) / 32 * 4,
+		    M_CTL, M_WAITOK);
+	}
 
 	/*
 	 * Initialize the mode and log page index.
@@ -4609,13 +4681,16 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 	ctl_softc->num_luns++;
 
 	/* Setup statistics gathering */
-	lun->stats.device_type = be_lun->lun_type;
-	lun->stats.lun_number = lun_number;
-	lun->stats.blocksize = be_lun->blocksize;
+#ifdef CTL_LEGACY_STATS
+	lun->legacy_stats.device_type = be_lun->lun_type;
+	lun->legacy_stats.lun_number = lun_number;
+	lun->legacy_stats.blocksize = be_lun->blocksize;
 	if (be_lun->blocksize == 0)
-		lun->stats.flags = CTL_LUN_STATS_NO_BLOCKSIZE;
-	for (i = 0;i < CTL_MAX_PORTS;i++)
-		lun->stats.ports[i].targ_port = i;
+		lun->legacy_stats.flags = CTL_LUN_STATS_NO_BLOCKSIZE;
+	for (len = 0; len < CTL_MAX_PORTS; len++)
+		lun->legacy_stats.ports[len].targ_port = len;
+#endif /* CTL_LEGACY_STATS */
+	lun->stats.item = lun_number;
 
 	mtx_unlock(&ctl_softc->ctl_lock);
 
@@ -4666,6 +4741,7 @@ ctl_free_lun(struct ctl_lun *lun)
 	for (i = 0; i < CTL_MAX_PORTS; i++)
 		free(lun->pr_keys[i], M_CTL);
 	free(lun->write_buffer, M_CTL);
+	free(lun->prevent, M_CTL);
 	if (lun->flags & CTL_LUN_MALLOCED)
 		free(lun, M_CTL);
 
@@ -5276,7 +5352,7 @@ ctl_prevent_allow(struct ctl_scsiio *ctsio)
 
 	cdb = (struct scsi_prevent *)ctsio->cdb;
 
-	if ((lun->flags & CTL_LUN_REMOVABLE) == 0) {
+	if ((lun->flags & CTL_LUN_REMOVABLE) == 0 || lun->prevent == NULL) {
 		ctl_set_invalid_opcode(ctsio);
 		ctl_done((union ctl_io *)ctsio);
 		return (CTL_RETVAL_COMPLETE);
@@ -6680,9 +6756,7 @@ ctl_sap_log_sense_handler(struct ctl_scsiio *ctsio,
 {
 	struct ctl_lun *lun = CTL_LUN(ctsio);
 	struct stat_page *data;
-	uint64_t rn, wn, rb, wb;
-	struct bintime rt, wt;
-	int i;
+	struct bintime *t;
 
 	data = (struct stat_page *)page_index->page_data;
 
@@ -6690,28 +6764,21 @@ ctl_sap_log_sense_handler(struct ctl_scsiio *ctsio,
 	data->sap.hdr.param_control = SLP_LBIN;
 	data->sap.hdr.param_len = sizeof(struct scsi_log_stat_and_perf) -
 	    sizeof(struct scsi_log_param_header);
-	rn = wn = rb = wb = 0;
-	bintime_clear(&rt);
-	bintime_clear(&wt);
-	for (i = 0; i < CTL_MAX_PORTS; i++) {
-		rn += lun->stats.ports[i].operations[CTL_STATS_READ];
-		wn += lun->stats.ports[i].operations[CTL_STATS_WRITE];
-		rb += lun->stats.ports[i].bytes[CTL_STATS_READ];
-		wb += lun->stats.ports[i].bytes[CTL_STATS_WRITE];
-		bintime_add(&rt, &lun->stats.ports[i].time[CTL_STATS_READ]);
-		bintime_add(&wt, &lun->stats.ports[i].time[CTL_STATS_WRITE]);
+	scsi_u64to8b(lun->stats.operations[CTL_STATS_READ],
+	    data->sap.read_num);
+	scsi_u64to8b(lun->stats.operations[CTL_STATS_WRITE],
+	    data->sap.write_num);
+	if (lun->be_lun->blocksize > 0) {
+		scsi_u64to8b(lun->stats.bytes[CTL_STATS_WRITE] /
+		    lun->be_lun->blocksize, data->sap.recvieved_lba);
+		scsi_u64to8b(lun->stats.bytes[CTL_STATS_READ] /
+		    lun->be_lun->blocksize, data->sap.transmitted_lba);
 	}
-	scsi_u64to8b(rn, data->sap.read_num);
-	scsi_u64to8b(wn, data->sap.write_num);
-	if (lun->stats.blocksize > 0) {
-		scsi_u64to8b(wb / lun->stats.blocksize,
-		    data->sap.recvieved_lba);
-		scsi_u64to8b(rb / lun->stats.blocksize,
-		    data->sap.transmitted_lba);
-	}
-	scsi_u64to8b((uint64_t)rt.sec * 1000 + rt.frac / (UINT64_MAX / 1000),
+	t = &lun->stats.time[CTL_STATS_READ];
+	scsi_u64to8b((uint64_t)t->sec * 1000 + t->frac / (UINT64_MAX / 1000),
 	    data->sap.read_int);
-	scsi_u64to8b((uint64_t)wt.sec * 1000 + wt.frac / (UINT64_MAX / 1000),
+	t = &lun->stats.time[CTL_STATS_WRITE];
+	scsi_u64to8b((uint64_t)t->sec * 1000 + t->frac / (UINT64_MAX / 1000),
 	    data->sap.write_int);
 	scsi_u64to8b(0, data->sap.weighted_num);
 	scsi_u64to8b(0, data->sap.weighted_int);
@@ -11872,8 +11939,10 @@ ctl_do_lun_reset(struct ctl_lun *lun, union ctl_io *io, ctl_ua_type ua_type)
 		ctl_clear_mask(lun->have_ca, i);
 #endif
 	lun->prevent_count = 0;
-	for (i = 0; i < CTL_MAX_INITIATORS; i++)
-		ctl_clear_mask(lun->prevent, i);
+	if (lun->prevent) {
+		for (i = 0; i < CTL_MAX_INITIATORS; i++)
+			ctl_clear_mask(lun->prevent, i);
+	}
 	mtx_unlock(&lun->lun_lock);
 
 	return (0);
@@ -12019,7 +12088,7 @@ ctl_i_t_nexus_reset(union ctl_io *io)
 #endif
 		if ((lun->flags & CTL_LUN_RESERVED) && (lun->res_idx == initidx))
 			lun->flags &= ~CTL_LUN_RESERVED;
-		if (ctl_is_set(lun->prevent, initidx)) {
+		if (lun->prevent && ctl_is_set(lun->prevent, initidx)) {
 			ctl_clear_mask(lun->prevent, initidx);
 			lun->prevent_count--;
 		}
@@ -13046,13 +13115,13 @@ static void
 ctl_process_done(union ctl_io *io)
 {
 	struct ctl_softc *softc = CTL_SOFTC(io);
+	struct ctl_port *port = CTL_PORT(io);
 	struct ctl_lun *lun = CTL_LUN(io);
 	void (*fe_done)(union ctl_io *io);
 	union ctl_ha_msg msg;
-	uint32_t targ_port = io->io_hdr.nexus.targ_port;
 
 	CTL_DEBUG_PRINT(("ctl_process_done\n"));
-	fe_done = softc->ctl_ports[targ_port]->fe_done;
+	fe_done = port->fe_done;
 
 #ifdef CTL_TIME_IO
 	if ((time_uptime - io->io_hdr.start_time) > ctl_time_io_secs) {
@@ -13155,11 +13224,13 @@ ctl_process_done(union ctl_io *io)
 	 */
 	if ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_SUCCESS &&
 	    io->io_hdr.io_type == CTL_IO_SCSI) {
-#ifdef CTL_TIME_IO
-		struct bintime cur_bt;
-#endif
 		int type;
+#ifdef CTL_TIME_IO
+		struct bintime bt;
 
+		getbinuptime(&bt);
+		bintime_sub(&bt, &io->io_hdr.start_bt);
+#endif
 		if ((io->io_hdr.flags & CTL_FLAG_DATA_MASK) ==
 		    CTL_FLAG_DATA_IN)
 			type = CTL_STATS_READ;
@@ -13169,18 +13240,38 @@ ctl_process_done(union ctl_io *io)
 		else
 			type = CTL_STATS_NO_IO;
 
-		lun->stats.ports[targ_port].bytes[type] +=
+#ifdef CTL_LEGACY_STATS
+		uint32_t targ_port = port->targ_port;
+		lun->legacy_stats.ports[targ_port].bytes[type] +=
 		    io->scsiio.kern_total_len;
-		lun->stats.ports[targ_port].operations[type]++;
-#ifdef CTL_TIME_IO
-		bintime_add(&lun->stats.ports[targ_port].dma_time[type],
-		   &io->io_hdr.dma_bt);
-		getbinuptime(&cur_bt);
-		bintime_sub(&cur_bt, &io->io_hdr.start_bt);
-		bintime_add(&lun->stats.ports[targ_port].time[type], &cur_bt);
-#endif
-		lun->stats.ports[targ_port].num_dmas[type] +=
+		lun->legacy_stats.ports[targ_port].operations[type] ++;
+		lun->legacy_stats.ports[targ_port].num_dmas[type] +=
 		    io->io_hdr.num_dmas;
+#ifdef CTL_TIME_IO
+		bintime_add(&lun->legacy_stats.ports[targ_port].dma_time[type],
+		   &io->io_hdr.dma_bt);
+		bintime_add(&lun->legacy_stats.ports[targ_port].time[type],
+		    &bt);
+#endif
+#endif /* CTL_LEGACY_STATS */
+
+		lun->stats.bytes[type] += io->scsiio.kern_total_len;
+		lun->stats.operations[type] ++;
+		lun->stats.dmas[type] += io->io_hdr.num_dmas;
+#ifdef CTL_TIME_IO
+		bintime_add(&lun->stats.dma_time[type], &io->io_hdr.dma_bt);
+		bintime_add(&lun->stats.time[type], &bt);
+#endif
+
+		mtx_lock(&port->port_lock);
+		port->stats.bytes[type] += io->scsiio.kern_total_len;
+		port->stats.operations[type] ++;
+		port->stats.dmas[type] += io->io_hdr.num_dmas;
+#ifdef CTL_TIME_IO
+		bintime_add(&port->stats.dma_time[type], &io->io_hdr.dma_bt);
+		bintime_add(&port->stats.time[type], &bt);
+#endif
+		mtx_unlock(&port->port_lock);
 	}
 
 	/*

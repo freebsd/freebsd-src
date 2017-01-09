@@ -99,17 +99,24 @@ etherswitch_probe(device_t dev)
 static int
 etherswitch_attach(device_t dev)
 {
-	struct etherswitch_softc *sc = (struct etherswitch_softc *)device_get_softc(dev);
+	int err;
+	struct etherswitch_softc *sc;
+	struct make_dev_args devargs;
 
+	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
-	sc->sc_devnode = make_dev(&etherswitch_cdevsw, device_get_unit(dev),
-			UID_ROOT, GID_WHEEL,
-			0600, "etherswitch%d", device_get_unit(dev));
-	if (sc->sc_devnode == NULL) {
+	make_dev_args_init(&devargs);
+	devargs.mda_devsw = &etherswitch_cdevsw;
+	devargs.mda_uid = UID_ROOT;
+	devargs.mda_gid = GID_WHEEL;
+	devargs.mda_mode = 0600;
+	devargs.mda_si_drv1 = sc;
+	err = make_dev_s(&devargs, &sc->sc_devnode, "etherswitch%d",
+	    device_get_unit(dev));
+	if (err != 0) {
 		device_printf(dev, "failed to create character device\n");
 		return (ENXIO);
 	}
-	sc->sc_devnode->si_drv1 = sc;
 
 	return (0);
 }

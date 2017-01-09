@@ -52,8 +52,7 @@ __FBSDID("$FreeBSD$");
 	VMBUS_ICVER_LE(VMBUS_IC_VERSION(4, 0), (sc)->ic_msgver)
 
 #define VMBUS_TIMESYNC_DORTT(sc)	\
-	(VMBUS_TIMESYNC_MSGVER4((sc)) &&\
-	 (hyperv_features & CPUID_HV_MSR_TIME_REFCNT))
+	(VMBUS_TIMESYNC_MSGVER4((sc)) && hyperv_tc64 != NULL)
 
 static int			vmbus_timesync_probe(device_t);
 static int			vmbus_timesync_attach(device_t);
@@ -117,7 +116,7 @@ vmbus_timesync(struct vmbus_ic_softc *sc, uint64_t hvtime, uint64_t sent_tc,
 	uint64_t hv_ns, vm_ns, rtt = 0;
 
 	if (VMBUS_TIMESYNC_DORTT(sc))
-		rtt = rdmsr(MSR_HV_TIME_REF_COUNT) - sent_tc;
+		rtt = hyperv_tc64() - sent_tc;
 
 	hv_ns = (hvtime - VMBUS_ICMSG_TS_BASE + rtt) * HYPERV_TIMER_NS_FACTOR;
 	nanotime(&vm_ts);
