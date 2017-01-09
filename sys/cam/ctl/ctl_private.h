@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2003, 2004, 2005, 2008 Silicon Graphics International Corp.
- * Copyright (c) 2014-2015 Alexander Motin <mav@FreeBSD.org>
+ * Copyright (c) 2014-2017 Alexander Motin <mav@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -404,7 +404,10 @@ struct ctl_lun {
 	struct callout			ie_callout;	/* INTERVAL TIMER */
 	struct ctl_mode_pages		mode_pages;
 	struct ctl_log_pages		log_pages;
-	struct ctl_lun_io_stats		stats;
+#ifdef CTL_LEGACY_STATS
+	struct ctl_lun_io_stats		legacy_stats;
+#endif /* CTL_LEGACY_STATS */
+	struct ctl_io_stats		stats;
 	uint32_t			res_idx;
 	uint32_t			pr_generation;
 	uint64_t			*pr_keys[CTL_MAX_PORTS];
@@ -412,7 +415,7 @@ struct ctl_lun {
 	uint32_t			pr_res_idx;
 	uint8_t				pr_res_type;
 	int				prevent_count;
-	uint32_t			prevent[(CTL_MAX_INITIATORS+31)/32];
+	uint32_t			*prevent;
 	uint8_t				*write_buffer;
 	struct ctl_devid		*lun_devid;
 	TAILQ_HEAD(tpc_lists, tpc_list) tpc_lists;
