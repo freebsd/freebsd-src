@@ -285,29 +285,113 @@ key_allocsp_default(void)
 	return (sp);
 }
 
+static void
+ipsec_invalidate_cache(struct inpcb *inp, u_int dir)
+{
+	struct secpolicy *sp;
+
+	INP_WLOCK_ASSERT(inp);
+	if (dir == IPSEC_DIR_OUTBOUND) {
+		if (inp->inp_sp->flags & INP_INBOUND_POLICY)
+			return;
+		sp = inp->inp_sp->sp_in;
+		inp->inp_sp->sp_in = NULL;
+	} else {
+		if (inp->inp_sp->flags & INP_OUTBOUND_POLICY)
+			return;
+		sp = inp->inp_sp->sp_out;
+		inp->inp_sp->sp_out = NULL;
+	}
+	if (sp != NULL)
+		key_freesp(&sp); /* release extra reference */
+}
+
+static void
+ipsec_cachepolicy(struct inpcb *inp, struct secpolicy *sp, u_int dir)
+{
+	uint32_t genid;
+	int downgrade;
+
+	INP_LOCK_ASSERT(inp);
+
+	if (dir == IPSEC_DIR_OUTBOUND) {
+		/* Do we have configured PCB policy? */
+		if (inp->inp_sp->flags & INP_OUTBOUND_POLICY)
+			return;
+		/* Another thread has already set cached policy */
+		if (inp->inp_sp->sp_out != NULL)
+			return;
+		/*
+		 * Do not cache OUTBOUND policy if PCB isn't connected,
+		 * i.e. foreign address is INADDR_ANY/UNSPECIFIED.
+		 */
+#ifdef INET
+		if ((inp->inp_vflag & INP_IPV4) != 0 &&
+		    inp->inp_faddr.s_addr == INADDR_ANY)
+			return;
+#endif
+#ifdef INET6
+		if ((inp->inp_vflag & INP_IPV6) != 0 &&
+		    IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr))
+			return;
+#endif
+	} else {
+		/* Do we have configured PCB policy? */
+		if (inp->inp_sp->flags & INP_INBOUND_POLICY)
+			return;
+		/* Another thread has already set cached policy */
+		if (inp->inp_sp->sp_in != NULL)
+			return;
+		/*
+		 * Do not cache INBOUND policy for listen socket,
+		 * that is bound to INADDR_ANY/UNSPECIFIED address.
+		 */
+#ifdef INET
+		if ((inp->inp_vflag & INP_IPV4) != 0 &&
+		    inp->inp_faddr.s_addr == INADDR_ANY)
+			return;
+#endif
+#ifdef INET6
+		if ((inp->inp_vflag & INP_IPV6) != 0 &&
+		    IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr))
+			return;
+#endif
+	}
+	downgrade = 0;
+	if (!INP_WLOCKED(inp)) {
+		if ((downgrade = INP_TRY_UPGRADE(inp)) == 0)
+			return;
+	}
+	if (dir == IPSEC_DIR_OUTBOUND)
+		inp->inp_sp->sp_out = sp;
+	else
+		inp->inp_sp->sp_in = sp;
+	/*
+	 * SP is already referenced by the lookup code.
+	 * We take extra reference here to avoid race in the
+	 * ipsec_getpcbpolicy() function - SP will not be freed in the
+	 * time between we take SP pointer from the cache and key_addref()
+	 * call.
+	 */
+	key_addref(sp);
+	genid = key_getspgen();
+	if (genid != inp->inp_sp->genid)
+		ipsec_invalidate_cache(inp, dir);
+	KEYDBG(IPSEC_STAMP,
+	    printf("%s: PCB(%p): cached SP(%p)\n",
+	    __func__, inp, sp));
+	if (downgrade != 0)
+		INP_DOWNGRADE(inp);
+}
+
 static struct secpolicy *
 ipsec_checkpolicy(struct secpolicy *sp, struct inpcb *inp, int *error)
 {
-	uint32_t genid;
 
-	if (inp != NULL && inp->inp_sp != NULL &&
-	    (inp->inp_sp->flags & INP_OUTBOUND_POLICY) == 0 &&
-	    inp->inp_sp->sp_out == NULL) {
-		/*
-		 * Save found OUTBOUND policy into PCB SP cache.
-		 */
-		genid = key_getspgen();
-		inp->inp_sp->sp_out = sp;
-		if (genid != inp->inp_sp->genid) {
-			/* Reset INBOUND cached policy if genid is changed */
-			if ((inp->inp_sp->flags & INP_INBOUND_POLICY) == 0)
-				inp->inp_sp->sp_in = NULL;
-			inp->inp_sp->genid = genid;
-		}
-		KEYDBG(IPSEC_STAMP,
-		    printf("%s: PCB(%p): cached SP(%p)\n",
-		    __func__, inp, sp));
-	}
+	/* Save found OUTBOUND policy into PCB SP cache. */
+	if (inp != NULL && inp->inp_sp != NULL && inp->inp_sp->sp_out == NULL)
+		ipsec_cachepolicy(inp, sp, IPSEC_DIR_OUTBOUND);
+
 	switch (sp->policy) {
 	default:
 		printf("%s: invalid policy %u\n", __func__, sp->policy);
@@ -333,10 +417,12 @@ static struct secpolicy *
 ipsec_getpcbpolicy(struct inpcb *inp, u_int dir)
 {
 	struct secpolicy *sp;
-	int flags;
+	int flags, downgrade;
 
 	if (inp == NULL || inp->inp_sp == NULL)
 		return (NULL);
+
+	INP_LOCK_ASSERT(inp);
 
 	flags = inp->inp_sp->flags;
 	if (dir == IPSEC_DIR_OUTBOUND) {
@@ -354,14 +440,16 @@ ipsec_getpcbpolicy(struct inpcb *inp, u_int dir)
 		if (sp == NULL)
 			return (NULL);
 		if (inp->inp_sp->genid != key_getspgen()) {
-			/*
-			 * Invalidate the cache.
-			 * Do not touch policy if it was set by PCB.
-			 */
-			if ((inp->inp_sp->flags & INP_INBOUND_POLICY) == 0)
-				inp->inp_sp->sp_in = NULL;
-			if ((inp->inp_sp->flags & INP_OUTBOUND_POLICY) == 0)
-				inp->inp_sp->sp_out = NULL;
+			/* Invalidate the cache. */
+			downgrade = 0;
+			if (!INP_WLOCKED(inp)) {
+				if ((downgrade = INP_TRY_UPGRADE(inp)) == 0)
+					return (NULL);
+			}
+			ipsec_invalidate_cache(inp, IPSEC_DIR_OUTBOUND);
+			ipsec_invalidate_cache(inp, IPSEC_DIR_INBOUND);
+			if (downgrade != 0)
+				INP_DOWNGRADE(inp);
 			return (NULL);
 		}
 		KEYDBG(IPSEC_STAMP,
@@ -369,7 +457,6 @@ ipsec_getpcbpolicy(struct inpcb *inp, u_int dir)
 		    __func__, inp, sp));
 		/* Return referenced cached policy */
 	}
-	IPSEC_ASSERT(sp != NULL, ("null SP, but flags is 0x%04x", flags));
 	key_addref(sp);
 	return (sp);
 }
@@ -909,37 +996,15 @@ ipsec_check_history(const struct mbuf *m, struct secpolicy *sp, u_int idx)
 static int
 ipsec_in_reject(struct secpolicy *sp, struct inpcb *inp, const struct mbuf *m)
 {
-	uint32_t genid;
 	int i;
 
 	KEYDBG(IPSEC_STAMP,
 	    printf("%s: PCB(%p): using SP(%p)\n", __func__, inp, sp));
 	KEYDBG(IPSEC_DATA, kdebug_secpolicy(sp));
 
-	if (inp != NULL &&
-	    (inp->inp_sp->flags & INP_INBOUND_POLICY) == 0 &&
-	    inp->inp_sp->sp_in == NULL &&
-	    inp->inp_laddr.s_addr != INADDR_ANY) {
-		/*
-		 * Save found INBOUND policy into PCB SP cache.
-		 * NOTE: We do this only if local address isn't INADDR_ANY,
-		 * because a cached policy for listen socket, that bound to
-		 * ANY address, may prevent to establish another connection.
-		 * We don't check address family, since both INADDR_ANY and
-		 * UNSPECIFIED IPv6 address contains all zeroes.
-		 */
-		genid = key_getspgen();
-		inp->inp_sp->sp_in = sp;
-		if (genid != inp->inp_sp->genid) {
-			/* Reset OUTBOUND cached policy if genid is changed */
-			if ((inp->inp_sp->flags & INP_OUTBOUND_POLICY) == 0)
-				inp->inp_sp->sp_out = NULL;
-			inp->inp_sp->genid = genid;
-		}
-		KEYDBG(IPSEC_STAMP,
-		    printf("%s: PCB(%p): cached SP(%p)\n",
-		    __func__, inp, sp));
-	}
+	if (inp != NULL && inp->inp_sp != NULL && inp->inp_sp->sp_in == NULL)
+		ipsec_cachepolicy(inp, sp, IPSEC_DIR_INBOUND);
+
 	/* Check policy. */
 	switch (sp->policy) {
 	case IPSEC_POLICY_DISCARD:
