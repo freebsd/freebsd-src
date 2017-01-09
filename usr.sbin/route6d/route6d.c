@@ -34,44 +34,40 @@
 static const char _rcsid[] = "$KAME: route6d.c,v 1.104 2003/10/31 00:30:20 itojun Exp $";
 #endif
 
-#include <stdio.h>
-
-#include <time.h>
-#include <unistd.h>
-#include <fnmatch.h>
-#include <stdlib.h>
-#include <string.h>
-#include <signal.h>
-#ifdef __STDC__
-#include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
-#include <syslog.h>
-#include <stddef.h>
-#include <errno.h>
-#include <err.h>
-#ifdef HAVE_POLL_H
-#include <poll.h>
-#endif
-
-#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/file.h>
-#include <sys/socket.h>
 #include <sys/ioctl.h>
+#include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/uio.h>
+#include <arpa/inet.h>
 #include <net/if.h>
 #include <net/route.h>
 #include <netinet/in.h>
 #include <netinet/in_var.h>
 #include <netinet/ip6.h>
 #include <netinet/udp.h>
-#include <netdb.h>
+#include <err.h>
+#include <errno.h>
+#include <fnmatch.h>
 #include <ifaddrs.h>
-
-#include <arpa/inet.h>
+#include <netdb.h>
+#ifdef HAVE_POLL_H
+#include <poll.h>
+#endif
+#include <signal.h>
+#include <stdio.h>
+#ifdef __STDC__
+#include <stdarg.h>
+#else
+#include <varargs.h>
+#endif
+#include <stddef.h>
+#include <stdlib.h>
+#include <string.h>
+#include <syslog.h>
+#include <time.h>
+#include <unistd.h>
 
 #include "route6d.h"
 
