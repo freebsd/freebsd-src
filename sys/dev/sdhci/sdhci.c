@@ -521,8 +521,8 @@ sdhci_card_task(void *arg, int pending)
 	}
 }
 
-void
-sdhci_handle_card_present(struct sdhci_slot *slot, bool is_present)
+static void
+sdhci_handle_card_present_locked(struct sdhci_slot *slot, bool is_present)
 {
 	bool was_present;
 
@@ -537,7 +537,6 @@ sdhci_handle_card_present(struct sdhci_slot *slot, bool is_present)
 	 * because once power is removed, a full card re-init is needed, and
 	 * that happens by deleting and recreating the child device.
 	 */
-	SDHCI_LOCK(slot);
 	was_present = slot->dev != NULL;
 	if (!was_present && is_present) {
 		taskqueue_enqueue_timeout(taskqueue_swi_giant,
@@ -545,6 +544,14 @@ sdhci_handle_card_present(struct sdhci_slot *slot, bool is_present)
 	} else if (was_present && !is_present) {
 		taskqueue_enqueue(taskqueue_swi_giant, &slot->card_task);
 	}
+}
+
+void
+sdhci_handle_card_present(struct sdhci_slot *slot, bool is_present)
+{
+
+	SDHCI_LOCK(slot);
+	sdhci_handle_card_present_locked(slot, is_present);
 	SDHCI_UNLOCK(slot);
 }
 
@@ -1402,7 +1409,7 @@ sdhci_generic_intr(struct sdhci_slot *slot)
 		WR4(slot, SDHCI_SIGNAL_ENABLE, slot->intmask);
 		WR4(slot, SDHCI_INT_STATUS, intmask & 
 		    (SDHCI_INT_CARD_INSERT | SDHCI_INT_CARD_REMOVE));
-		sdhci_handle_card_present(slot, present);
+		sdhci_handle_card_present_locked(slot, present);
 		intmask &= ~(SDHCI_INT_CARD_INSERT | SDHCI_INT_CARD_REMOVE);
 	}
 	/* Handle command interrupts. */
