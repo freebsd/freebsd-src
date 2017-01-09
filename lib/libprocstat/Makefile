@@ -9,7 +9,7 @@ SRCS=	cd9660.c	\
 	common_kvm.c	\
 	core.c		\
 	libprocstat.c	\
-        msdosfs.c	\
+	msdosfs.c	\
 	smbfs.c		\
 	udf.c
 
