@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-SHLIB_MAJOR=	6
+SHLIB_MAJOR?=	6
 PACKAGE=	bsnmp
 
 MANFILTER=	sed -e 's%@MODPATH@%${LIBDIR}/%g'		\
