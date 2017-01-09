@@ -33,7 +33,7 @@
  * Host Resources MIB scalars implementation for SNMPd.
  */
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/sysctl.h>
 
 #include <pwd.h>
@@ -85,7 +85,7 @@ OS_getSystemUptime(uint32_t *ut)
 		int mib[2] = { CTL_KERN, KERN_BOOTTIME };
 		size_t len = sizeof(kernel_boot_timestamp);
 
-		if (sysctl(mib, 2, &kernel_boot_timestamp,
+		if (sysctl(mib, nitems(mib), &kernel_boot_timestamp,
 		    &len, NULL, 0) == -1) {
 			syslog(LOG_ERR, "sysctl KERN_BOOTTIME failed: %m");
 			return (SNMP_ERR_GENERR);
