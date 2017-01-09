@@ -2,7 +2,7 @@
 #
 # Author: Harti Brandt <harti@freebsd.org>
 
-CONTRIB= ${.CURDIR}/../../../../contrib/ngatm
+CONTRIB= ${SRCTOP}/contrib/ngatm
 .PATH: ${CONTRIB}/snmp_atm
 
 MOD=	atm
