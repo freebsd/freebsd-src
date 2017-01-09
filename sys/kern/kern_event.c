@@ -2177,17 +2177,8 @@ void
 knlist_destroy(struct knlist *knl)
 {
 
-#ifdef INVARIANTS
-	/*
-	 * if we run across this error, we need to find the offending
-	 * driver and have it call knlist_clear or knlist_delete.
-	 */
-	if (!SLIST_EMPTY(&knl->kl_list))
-		printf("WARNING: destroying knlist w/ knotes on it!\n");
-#endif
-
-	knl->kl_lockarg = knl->kl_lock = knl->kl_unlock = NULL;
-	SLIST_INIT(&knl->kl_list);
+	KASSERT(KNLIST_EMPTY(knl),
+	    ("destroying knlist %p with knotes on it", knl));
 }
 
 /*
