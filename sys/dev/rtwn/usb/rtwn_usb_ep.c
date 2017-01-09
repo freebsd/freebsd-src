@@ -63,7 +63,6 @@ static struct usb_config rtwn_config[RTWN_N_TRANSFER] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.bufsize = RTWN_RXBUFSZ,
 		.flags = {
 			.pipe_bof = 1,
 			.short_xfer_ok = 1
@@ -222,6 +221,7 @@ rtwn_usb_setup_endpoints(struct rtwn_usb_softc *uc)
 		break;
 	}
 
+	rtwn_config[RTWN_BULK_RX].bufsize = sc->rx_dma_size + 1024;
 	error = usbd_transfer_setup(uc->uc_udev, &iface_index,
 	    uc->uc_xfer, rtwn_config, RTWN_N_TRANSFER, uc, &sc->sc_mtx);
 	if (error) {

@@ -884,7 +884,7 @@ genkbd_commonioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 			omapp->key[i].spcl = mapp->key[i].spcl;
 			omapp->key[i].flgs = mapp->key[i].flgs;
 		}
-		return (0);
+		break;
 	case PIO_KEYMAP:	/* set keyboard translation table */
 	case OPIO_KEYMAP:	/* set keyboard translation table (compat) */
 #ifndef KBD_DISABLE_KEYMAP_LOAD
