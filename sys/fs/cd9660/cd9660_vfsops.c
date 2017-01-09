@@ -88,6 +88,7 @@ static struct vfsops cd9660_vfsops = {
 VFS_SET(cd9660_vfsops, cd9660, VFCF_READONLY);
 MODULE_VERSION(cd9660, 1);
 
+static int cd9660_vfs_hash_cmp(struct vnode *vp, cd_ino_t *pino);
 static int iso_mountfs(struct vnode *devvp, struct mount *mp);
 
 /*
