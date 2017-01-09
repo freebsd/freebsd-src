@@ -545,6 +545,8 @@ mmcsd_task(void *arg)
 			bp->bio_error = EIO;
 			bp->bio_resid = (end - block) * sz;
 			bp->bio_flags |= BIO_ERROR;
+		} else {
+			bp->bio_resid = 0;
 		}
 		biodone(bp);
 	}
