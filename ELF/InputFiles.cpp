@@ -8,7 +8,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "InputFiles.h"
-#include "Driver.h"
 #include "Error.h"
 #include "InputSection.h"
 #include "LinkerScript.h"
@@ -26,6 +25,7 @@
 #include "llvm/MC/StringTableBuilder.h"
 #include "llvm/Object/ELFObjectFile.h"
 #include "llvm/Support/Path.h"
+#include "llvm/Support/TarWriter.h"
 #include "llvm/Support/raw_ostream.h"
 
 using namespace llvm;
@@ -35,6 +35,8 @@ using namespace llvm::sys::fs;
 
 using namespace lld;
 using namespace lld::elf;
+
+TarWriter *elf::Tar;
 
 namespace {
 // In ELF object file all section addresses are zero. If we have multiple
@@ -51,6 +53,24 @@ public:
     return std::unique_ptr<LoadedObjectInfo>();
   }
 };
+}
+
+Optional<MemoryBufferRef> elf::readFile(StringRef Path) {
+  if (Config->Verbose)
+    outs() << Path << "\n";
+
+  auto MBOrErr = MemoryBuffer::getFile(Path);
+  if (auto EC = MBOrErr.getError()) {
+    error(EC, "cannot open " + Path);
+    return None;
+  }
+  std::unique_ptr<MemoryBuffer> &MB = *MBOrErr;
+  MemoryBufferRef MBRef = MB->getMemBufferRef();
+  make<std::unique_ptr<MemoryBuffer>>(std::move(MB)); // take MB ownership
+
+  if (Tar)
+    Tar->append(relativeToRoot(Path), MBRef.getBuffer());
+  return MBRef;
 }
 
 template <class ELFT> void elf::ObjectFile<ELFT>::initializeDwarfLine() {
@@ -398,6 +418,14 @@ elf::ObjectFile<ELFT>::createInputSection(const Elf_Shdr &Sec,
   if (Config->Strip != StripPolicy::None && Name.startswith(".debug"))
     return &InputSection<ELFT>::Discarded;
 
+  // The linkonce feature is a sort of proto-comdat. Some glibc i386 object
+  // files contain definitions of symbol "__x86.get_pc_thunk.bx" in linkonce
+  // sections. Drop those sections to avoid duplicate symbol errors.
+  // FIXME: This is glibc PR20543, we should remove this hack once that has been
+  // fixed for a while.
+  if (Name.startswith(".gnu.linkonce."))
+    return &InputSection<ELFT>::Discarded;
+
   // The linker merges EH (exception handling) frames and creates a
   // .eh_frame_hdr section for runtime. So we handle them with a special
   // class. For relocatable outputs, they are just passed through.
@@ -524,9 +552,8 @@ ArchiveFile::getMember(const Archive::Symbol *Sym) {
             "could not get the buffer for the member defining symbol " +
                 Sym->getName());
 
-  if (C.getParent()->isThin() && Driver->Tar)
-    Driver->Tar->append(relativeToRoot(check(C.getFullName())),
-                        Ret.getBuffer());
+  if (C.getParent()->isThin() && Tar)
+    Tar->append(relativeToRoot(check(C.getFullName())), Ret.getBuffer());
   if (C.getParent()->isThin())
     return {Ret, 0};
   return {Ret, C.getChildOffset()};
@@ -651,6 +678,8 @@ template <class ELFT> void SharedFile<ELFT>::parseRest() {
       VersymIndex = Versym->vs_index;
       ++Versym;
     }
+    bool Hidden = VersymIndex & VERSYM_HIDDEN;
+    VersymIndex = VersymIndex & ~VERSYM_HIDDEN;
 
     StringRef Name = check(Sym.getName(this->StringTable));
     if (Sym.isUndefined()) {
@@ -658,15 +687,23 @@ template <class ELFT> void SharedFile<ELFT>::parseRest() {
       continue;
     }
 
-    if (Versym) {
-      // Ignore local symbols and non-default versions.
-      if (VersymIndex == VER_NDX_LOCAL || (VersymIndex & VERSYM_HIDDEN))
-        continue;
-    }
+    // Ignore local symbols.
+    if (Versym && VersymIndex == VER_NDX_LOCAL)
+      continue;
 
     const Elf_Verdef *V =
         VersymIndex == VER_NDX_GLOBAL ? nullptr : Verdefs[VersymIndex];
-    elf::Symtab<ELFT>::X->addShared(this, Name, Sym, V);
+
+    if (!Hidden)
+      elf::Symtab<ELFT>::X->addShared(this, Name, Sym, V);
+
+    // Also add the symbol with the versioned name to handle undefined symbols
+    // with explicit versions.
+    if (V) {
+      StringRef VerName = this->StringTable.data() + V->getAux()->vda_name;
+      Name = Saver.save(Twine(Name) + "@" + VerName);
+      elf::Symtab<ELFT>::X->addShared(this, Name, Sym, V);
+    }
   }
 }
 
