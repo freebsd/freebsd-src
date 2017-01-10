@@ -27,7 +27,7 @@
 __FBSDID("$FreeBSD$");
 
 /*
-ecute the following to rebuild the data for this program:
+execute the following to rebuild the data for this program:
    tail -n +33 test_read_format_cpio_afio.c | /bin/sh
 
 # How to make a sample data.

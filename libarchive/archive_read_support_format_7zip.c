@@ -552,7 +552,7 @@ skip_sfx(struct archive_read *a, ssize_t bytes_avail)
 	/*
 	 * If bytes_avail > SFX_MIN_ADDR we do not have to call
 	 * __archive_read_seek() at this time since we have
-	 * alredy had enough data.
+	 * already had enough data.
 	 */
 	if (bytes_avail > SFX_MIN_ADDR)
 		__archive_read_consume(a, SFX_MIN_ADDR);
@@ -760,7 +760,7 @@ archive_read_format_7zip_read_header(struct archive_read *a,
 			symsize += size;
 		}
 		if (symsize == 0) {
-			/* If there is no synname, handle it as a regular
+			/* If there is no symname, handle it as a regular
 			 * file. */
 			zip_entry->mode &= ~AE_IFMT;
 			zip_entry->mode |= AE_IFREG;
@@ -3288,7 +3288,7 @@ read_stream(struct archive_read *a, const void **buff, size_t size,
 		return (r);
 
 	/*
-	 * Skip the bytes we alrady has skipped in skip_stream().
+	 * Skip the bytes we already has skipped in skip_stream().
 	 */
 	while (skip_bytes) {
 		ssize_t skipped;
@@ -3506,7 +3506,7 @@ setup_decode_folder(struct archive_read *a, struct _7z_folder *folder,
 				return (ARCHIVE_FATAL);
 			}
 
-			/* Allocate memory for the decorded data of a sub
+			/* Allocate memory for the decoded data of a sub
 			 * stream. */
 			b[i] = malloc((size_t)zip->folder_outbytes_remaining);
 			if (b[i] == NULL) {
@@ -3591,7 +3591,7 @@ skip_stream(struct archive_read *a, size_t skip_bytes)
 	if (zip->folder_index == 0) {
 		/*
 		 * Optimization for a list mode.
-		 * Avoid unncecessary decoding operations.
+		 * Avoid unnecessary decoding operations.
 		 */
 		zip->si.ci.folders[zip->entry->folderIndex].skipped_bytes
 		    += skip_bytes;
