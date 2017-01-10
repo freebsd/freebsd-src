@@ -2269,7 +2269,7 @@ load_object(const char *name, int fd_u, const Obj_Entry *refobj, int flags)
     fd = -1;
     if (name != NULL) {
 	TAILQ_FOREACH(obj, &obj_list, next) {
-	    if (obj->marker)
+	    if (obj->marker || obj->doomed)
 		continue;
 	    if (object_match_name(obj, name))
 		return (obj);
@@ -2316,7 +2316,7 @@ load_object(const char *name, int fd_u, const Obj_Entry *refobj, int flags)
 	return NULL;
     }
     TAILQ_FOREACH(obj, &obj_list, next) {
-	if (obj->marker)
+	if (obj->marker || obj->doomed)
 	    continue;
 	if (obj->ino == sb.st_ino && obj->dev == sb.st_dev)
 	    break;
@@ -2458,6 +2458,9 @@ objlist_call_fini(Objlist *list, Obj_Entry *root, RtldLockState *lockstate)
 
     assert(root == NULL || root->refcount == 1);
 
+    if (root != NULL)
+	root->doomed = true;
+
     /*
      * Preserve the current error message since a fini function might
      * call into the dynamic linker and overwrite it.
@@ -2470,16 +2473,11 @@ objlist_call_fini(Objlist *list, Obj_Entry *root, RtldLockState *lockstate)
 		continue;
 	    /* Remove object from fini list to prevent recursive invocation. */
 	    STAILQ_REMOVE(list, elm, Struct_Objlist_Entry, link);
-	    /*
-	     * XXX: If a dlopen() call references an object while the
-	     * fini function is in progress, we might end up trying to
-	     * unload the referenced object in dlclose() or the object
-	     * won't be unloaded although its fini function has been
-	     * called.
-	     */
+	    /* Ensure that new references cannot be acquired. */
+	    elm->obj->doomed = true;
+
 	    hold_object(elm->obj);
 	    lock_release(rtld_bind_lock, lockstate);
-
 	    /*
 	     * It is legal to have both DT_FINI and DT_FINI_ARRAY defined.
 	     * When this happens, DT_FINI_ARRAY is processed first.
