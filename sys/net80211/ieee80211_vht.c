@@ -85,9 +85,49 @@ __FBSDID("$FreeBSD$");
  * Look at mac80211/vht.c:ieee80211_vht_handle_opmode() for further details.
  */
 
+static int
+vht_recv_action_placeholder(struct ieee80211_node *ni,
+    const struct ieee80211_frame *wh,
+    const uint8_t *frm, const uint8_t *efrm)
+{
+
+	ieee80211_note(ni->ni_vap, "%s: called; fc=0x%.2x/0x%.2x",
+	    __func__,
+	    wh->i_fc[0],
+	    wh->i_fc[1]);
+
+	return (0);
+}
+
+static int
+vht_send_action_placeholder(struct ieee80211_node *ni,
+    int category, int action, void *arg0)
+{
+
+	ieee80211_note(ni->ni_vap, "%s: called; category=%d, action=%d",
+	    __func__,
+	    category,
+	    action);
+	return (EINVAL);
+}
+
 static void
 ieee80211_vht_init(void)
 {
+
+	ieee80211_recv_action_register(IEEE80211_ACTION_CAT_VHT,
+	    WLAN_ACTION_VHT_COMPRESSED_BF, vht_recv_action_placeholder);
+	ieee80211_recv_action_register(IEEE80211_ACTION_CAT_VHT,
+	    WLAN_ACTION_VHT_GROUPID_MGMT, vht_recv_action_placeholder);
+	ieee80211_recv_action_register(IEEE80211_ACTION_CAT_VHT,
+	    WLAN_ACTION_VHT_OPMODE_NOTIF, vht_recv_action_placeholder);
+
+	ieee80211_send_action_register(IEEE80211_ACTION_CAT_VHT,
+	    WLAN_ACTION_VHT_COMPRESSED_BF, vht_send_action_placeholder);
+	ieee80211_send_action_register(IEEE80211_ACTION_CAT_VHT,
+	    WLAN_ACTION_VHT_GROUPID_MGMT, vht_send_action_placeholder);
+	ieee80211_send_action_register(IEEE80211_ACTION_CAT_VHT,
+	    WLAN_ACTION_VHT_OPMODE_NOTIF, vht_send_action_placeholder);
 }
 
 SYSINIT(wlan_vht, SI_SUB_DRIVERS, SI_ORDER_FIRST, ieee80211_vht_init, NULL);
