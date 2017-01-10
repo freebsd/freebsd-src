@@ -1924,9 +1924,9 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 		cloudabi_filestat_t fsb;
 		if (get_struct(pid, (void *)args[sc->offset], &fsb, sizeof(fsb))
 		    != -1)
-			fprintf(fp, "{ %s, %lu }",
+			fprintf(fp, "{ %s, %ju }",
 			    xlookup(cloudabi_filetype, fsb.st_filetype),
-			    fsb.st_size);
+			    (uintmax_t)fsb.st_size);
 		else
 			fprintf(fp, "0x%lx", args[sc->offset]);
 		break;
