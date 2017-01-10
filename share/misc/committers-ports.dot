@@ -144,6 +144,7 @@ laszlof [label="Frank Laszlo\nlaszlof@FreeBSD.org\n2006/11/07"]
 lawrance [label="Sam Lawrance\nlawrance@FreeBSD.org\n2005/04/11\n2007/02/21"]
 lbr [label="Lars Balker Rasmussen\nlbr@FreeBSD.org\n2006/04/30"]
 leeym [label="Yen-Ming Lee\nleeym@FreeBSD.org\n2002/08/14"]
+ler [label="Larry Rosenman\nler@FreeBSD.org\n2017/01/09"]
 lev [label="Lev Serebryakov\nlev@FreeBSD.org\n2003/06/17"]
 lifanov [label="Nikolai Lifanov\nlifanov@FreeBSD.org\n2016/12/11"]
 linimon [label="Mark Linimon\nlinimon@FreeBSD.org\n2003/10/23"]
@@ -252,6 +253,7 @@ znerd [label="Ernst de Haan\nznerd@FreeBSD.org\n2001/11/15"]
 
 adamw -> ahze
 adamw -> jylefort
+adamw -> ler
 adamw -> mezz
 adamw -> pav
 adamw -> woodsb02
@@ -554,6 +556,7 @@ rene -> bar
 rene -> cmt
 rene -> crees
 rene -> jgh
+rene -> ler
 rene -> olivierd
 
 rm -> koobs
