@@ -51,6 +51,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 ****************************** SPECIAL WARNING: ******************************
 
+20170109:
+	The igb(4), em(4) and lem(4) ethernet drivers are now implemented via
+	IFLIB.  If you have a custom kernel configuration that excludes em(4)
+	but you use igb(4), you need to re-add em(4) to your custom configuration.
+
 20161217:
 	Clang, llvm, lldb, compiler-rt and libc++ have been upgraded to 3.9.1.
 	Please see the 20141231 entry below for information about prerequisites
