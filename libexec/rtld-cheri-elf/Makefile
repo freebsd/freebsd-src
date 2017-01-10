@@ -37,8 +37,11 @@ BINDIR=		/libexec
 
 CFLAGS+=	-fpic
 CFLAGS+=	-DPIC $(DEBUG)
-LDFLAGS+=	-shared -Wl,-Bsymbolic
+LDFLAGS+=	-shared -Wl,-Bsymbolic -Wl,-z,defs
 LIBADD=		c_pic
+
+# For floating-point functions used by gdtoa.
+LIBADD+=	compiler_rt
 
 .if defined(NOT_YET)
 .if ${MK_SYMVER} == "yes"
