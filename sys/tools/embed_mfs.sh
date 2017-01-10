@@ -36,12 +36,12 @@ mfs_size=`stat -f '%z' $2 2> /dev/null`
 # If we can't determine MFS image size - bail.
 [ -z ${mfs_size} ] && echo "Can't determine MFS image size" && exit 1
 
-sec_info=`${CROSS_BINUTILS_PREFIX}objdump -h $1 2> /dev/null | grep " oldmfs "`
+sec_info=`elfdump -c $1 2> /dev/null | grep -A 5 -E "sh_name: oldmfs$"`
 # If we can't find the mfs section within the given kernel - bail.
 [ -z "${sec_info}" ] && echo "Can't locate mfs section within kernel" && exit 1
 
-sec_size=`echo ${sec_info} | awk '{printf("%d", "0x" $3)}' 2> /dev/null`
-sec_start=`echo ${sec_info} | awk '{printf("%d", "0x" $6)}' 2> /dev/null`
+sec_size=`echo "${sec_info}" | awk '/sh_size/ {print $2}' 2> /dev/null`
+sec_start=`echo "${sec_info}" | awk '/sh_offset/ {print $2}' 2> /dev/null`
 
 # If the mfs section size is smaller than the mfs image - bail.
 [ ${sec_size} -lt ${mfs_size} ] && echo "MFS image too large" && exit 1
