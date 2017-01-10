@@ -1169,8 +1169,6 @@ ahci_ch_intr(void *arg)
 
 	/* Read interrupt statuses. */
 	istatus = ATA_INL(ch->r_mem, AHCI_P_IS);
-	if (istatus == 0)
-		return;
 
 	mtx_lock(&ch->mtx);
 	ahci_ch_intr_main(ch, istatus);
@@ -1187,8 +1185,6 @@ ahci_ch_intr_direct(void *arg)
 
 	/* Read interrupt statuses. */
 	istatus = ATA_INL(ch->r_mem, AHCI_P_IS);
-	if (istatus == 0)
-		return;
 
 	mtx_lock(&ch->mtx);
 	ch->batch = 1;
