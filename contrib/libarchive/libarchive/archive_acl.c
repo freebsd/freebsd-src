@@ -786,7 +786,8 @@ append_entry_w(wchar_t **wp, const wchar_t *prefix, int type,
 		} else if (tag == ARCHIVE_ENTRY_ACL_USER
 		    || tag == ARCHIVE_ENTRY_ACL_GROUP) {
 			append_id_w(wp, id);
-			id = -1;
+			if ((type & ARCHIVE_ENTRY_ACL_TYPE_NFS4) == 0)
+				id = -1;
 		}
 		/* Solaris style has no second colon after other and mask */
 		if (((flags & ARCHIVE_ENTRY_ACL_STYLE_SOLARIS) == 0)
@@ -1042,7 +1043,8 @@ append_entry(char **p, const char *prefix, int type,
 		} else if (tag == ARCHIVE_ENTRY_ACL_USER
 		    || tag == ARCHIVE_ENTRY_ACL_GROUP) {
 			append_id(p, id);
-			id = -1;
+			if ((type & ARCHIVE_ENTRY_ACL_TYPE_NFS4) == 0)
+				id = -1;
 		}
 		/* Solaris style has no second colon after other and mask */
 		if (((flags & ARCHIVE_ENTRY_ACL_STYLE_SOLARIS) == 0)
@@ -1328,6 +1330,7 @@ archive_acl_from_text_w(struct archive_acl *acl, const wchar_t *text,
 			    tag == ARCHIVE_ENTRY_ACL_GROUP) {
 				n = 1;
 				name = field[1];
+				isint_w(name.start, name.end, &id);
 			} else
 				n = 0;
 
@@ -1799,6 +1802,7 @@ archive_acl_from_text_l(struct archive_acl *acl, const char *text,
 			    tag == ARCHIVE_ENTRY_ACL_GROUP) {
 				n = 1;
 				name = field[1];
+				isint(name.start, name.end, &id);
 			} else
 				n = 0;
 

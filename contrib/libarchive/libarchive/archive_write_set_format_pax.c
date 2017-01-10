@@ -62,10 +62,17 @@ struct pax {
 	struct sparse_block	*sparse_tail;
 	struct archive_string_conv *sconv_utf8;
 	int			 opt_binary;
+
+	unsigned flags;
+#define WRITE_SCHILY_XATTR       (1 << 0)
+#define WRITE_LIBARCHIVE_XATTR   (1 << 1)
 };
 
 static void		 add_pax_attr(struct archive_string *, const char *key,
 			     const char *value);
+static void		 add_pax_attr_binary(struct archive_string *,
+			     const char *key,
+			     const char *value, size_t value_len);
 static void		 add_pax_attr_int(struct archive_string *,
 			     const char *key, int64_t value);
 static void		 add_pax_attr_time(struct archive_string *,
@@ -136,6 +143,8 @@ archive_write_set_format_pax(struct archive *_a)
 		    "Can't allocate pax data");
 		return (ARCHIVE_FATAL);
 	}
+	pax->flags = WRITE_LIBARCHIVE_XATTR | WRITE_SCHILY_XATTR;
+
 	a->format_data = pax;
 	a->format_name = "pax";
 	a->format_options = archive_write_pax_options;
@@ -275,6 +284,17 @@ add_pax_attr_int(struct archive_string *as, const char *key, int64_t value)
 static void
 add_pax_attr(struct archive_string *as, const char *key, const char *value)
 {
+	add_pax_attr_binary(as, key, value, strlen(value));
+}
+
+/*
+ * Add a key/value attribute to the pax header.  This function handles
+ * binary values.
+ */
+static void
+add_pax_attr_binary(struct archive_string *as, const char *key,
+		    const char *value, size_t value_len)
+{
 	int digits, i, len, next_ten;
 	char tmp[1 + 3 * sizeof(int)];	/* < 3 base-10 digits per byte */
 
@@ -282,7 +302,7 @@ add_pax_attr(struct archive_string *as, const char *key, const char *value)
 	 * PAX attributes have the following layout:
 	 *     <len> <space> <key> <=> <value> <nl>
 	 */
-	len = 1 + (int)strlen(key) + 1 + (int)strlen(value) + 1;
+	len = 1 + (int)strlen(key) + 1 + (int)value_len + 1;
 
 	/*
 	 * The <len> field includes the length of the <len> field, so
@@ -313,21 +333,47 @@ add_pax_attr(struct archive_string *as, const char *key, const char *value)
 	archive_strappend_char(as, ' ');
 	archive_strcat(as, key);
 	archive_strappend_char(as, '=');
-	archive_strcat(as, value);
+	archive_array_append(as, value, value_len);
 	archive_strappend_char(as, '\n');
+}
+
+static void
+archive_write_pax_header_xattr(struct pax *pax, const char *encoded_name,
+    const void *value, size_t value_len)
+{
+	struct archive_string s;
+	char *encoded_value;
+
+	if (pax->flags & WRITE_LIBARCHIVE_XATTR) {
+		encoded_value = base64_encode((const char *)value, value_len);
+
+		if (encoded_name != NULL && encoded_value != NULL) {
+			archive_string_init(&s);
+			archive_strcpy(&s, "LIBARCHIVE.xattr.");
+			archive_strcat(&s, encoded_name);
+			add_pax_attr(&(pax->pax_header), s.s, encoded_value);
+			archive_string_free(&s);
+		}
+		free(encoded_value);
+	}
+	if (pax->flags & WRITE_SCHILY_XATTR) {
+		archive_string_init(&s);
+		archive_strcpy(&s, "SCHILY.xattr.");
+		archive_strcat(&s, encoded_name);
+		add_pax_attr_binary(&(pax->pax_header), s.s, value, value_len);
+		archive_string_free(&s);
+	}
 }
 
 static int
 archive_write_pax_header_xattrs(struct archive_write *a,
     struct pax *pax, struct archive_entry *entry)
 {
-	struct archive_string s;
 	int i = archive_entry_xattr_reset(entry);
 
 	while (i--) {
 		const char *name;
 		const void *value;
-		char *encoded_value;
 		char *url_encoded_name = NULL, *encoded_name = NULL;
 		size_t size;
 		int r;
@@ -348,16 +394,9 @@ archive_write_pax_header_xattrs(struct archive_write *a,
 			}
 		}
 
-		encoded_value = base64_encode((const char *)value, size);
+		archive_write_pax_header_xattr(pax, encoded_name,
+		    value, size);
 
-		if (encoded_name != NULL && encoded_value != NULL) {
-			archive_string_init(&s);
-			archive_strcpy(&s, "LIBARCHIVE.xattr.");
-			archive_strcat(&s, encoded_name);
-			add_pax_attr(&(pax->pax_header), s.s, encoded_value);
-			archive_string_free(&s);
-		}
-		free(encoded_value);
 	}
 	return (ARCHIVE_OK);
 }

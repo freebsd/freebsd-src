@@ -1,6 +1,7 @@
 /*-
+ * Copyright (c) 2016 IBM Corporation
  * Copyright (c) 2003-2007 Tim Kientzle
- * Copyright (c) 2012 Michihiro NAKAJIMA
+ *
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,42 +23,48 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * This test case's code has been derived from test_entry.c
  */
 #include "test.h"
-__FBSDID("$FreeBSD$");
 
-static char archive_data[] = {
-"begin 644 test_read_uu.Z\n"
-"M'YV0+@`('$BPH,&#\"!,J7,BP(4(8$&_4J`$\"`,08$F%4O)AQ(\\2/(#7&@#%C\n"
-"M!@T8-##.L`$\"QL@:-F(``%'#H<V;.'/J!%!G#ITP<BS\"H).FS<Z$1(T>/1A2\n"
-"IHU\"0%9=*G4JUJM6K6+-JW<JUJ]>O8,.*'4NVK-FS:-.J7<NVK=NW9P$`\n"
-"`\n"
-"end\n"
-"\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
-"\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
-"\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
-"\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
-};
-
-/*
- * Compatibility: uudecode command ignores junk data placed after the "end"
- * marker.
- */
-DEFINE_TEST(test_compat_uudecode)
+DEFINE_TEST(test_schily_xattr_pax)
 {
-	struct archive_entry *ae;
 	struct archive *a;
+	struct archive_entry *ae;
+	const char *refname = "test_read_pax_schily_xattr.tar";
+	const char *xname; /* For xattr tests. */
+	const void *xval; /* For xattr tests. */
+	size_t xsize; /* For xattr tests. */
+	const char *string, *array;
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+
+	extract_reference_file(refname);
 	assertEqualIntA(a, ARCHIVE_OK,
-	    read_open_memory(a, archive_data, sizeof(archive_data), 2));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
-	assertEqualInt(archive_filter_code(a, 0), ARCHIVE_FILTER_COMPRESS);
-	assertEqualInt(archive_filter_code(a, 1), ARCHIVE_FILTER_UU);
-	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_TAR_USTAR);
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	    archive_read_open_filename(a, refname, 10240));
+
+	assertEqualInt(ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt(2, archive_entry_xattr_count(ae));
+	assertEqualInt(2, archive_entry_xattr_reset(ae));
+
+	assertEqualInt(0, archive_entry_xattr_next(ae, &xname, &xval, &xsize));
+	assertEqualString(xname, "security.selinux");
+	string = "system_u:object_r:unlabeled_t:s0";
+	assertEqualString(xval, string);
+	/* the xattr's value also contains the terminating \0 */
+	assertEqualInt((int)xsize, strlen(string) + 1);
+
+	assertEqualInt(0, archive_entry_xattr_next(ae, &xname, &xval, &xsize));
+	assertEqualString(xname, "security.ima");
+	assertEqualInt((int)xsize, 265);
+	/* we only compare the first 12 bytes */
+	array = "\x03\x02\x04\xb0\xe9\xd6\x79\x01\x00\x2b\xad\x1e";
+	assertEqualMem(xval, array, 12);
+
+	/* Close the archive. */
+	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
-

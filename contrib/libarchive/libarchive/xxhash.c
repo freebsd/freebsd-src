@@ -29,10 +29,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 You can contact the author at :
 - xxHash source repository : http://code.google.com/p/xxhash/
 */
+#include "archive_platform.h"
+
 #include <stdlib.h>
 #include <string.h>
 
-#include "archive_platform.h"
 #include "archive_xxhash.h"
 
 #ifdef HAVE_LIBLZ4
@@ -60,7 +61,7 @@ You can contact the author at :
 ** By default, xxHash library provides endian-independent Hash values, based on little-endian convention.
 ** Results are therefore identical for little-endian and big-endian CPU.
 ** This comes at a performance cost for big-endian CPU, since some swapping is required to emulate little-endian format.
-** Should endian-independance be of no importance for your application, you may set the #define below to 1.
+** Should endian-independence be of no importance for your application, you may set the #define below to 1.
 ** It will improve speed for Big-endian CPU.
 ** This option has no impact on Little_Endian CPU.
 */

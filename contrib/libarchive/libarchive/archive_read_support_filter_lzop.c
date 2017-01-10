@@ -436,7 +436,7 @@ lzop_filter_read(struct archive_read_filter *self, const void **p)
 	}
 
 	/*
-	 * Drive lzo uncompresison.
+	 * Drive lzo uncompression.
 	 */
 	out_size = (lzo_uint)state->uncompressed_size;
 	r = lzo1x_decompress_safe(b, (lzo_uint)state->compressed_size,
