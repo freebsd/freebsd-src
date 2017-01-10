@@ -51,6 +51,9 @@ struct {
 	[CHERIABI_SYS_chown] = {
 		.sam_ptrmask = 0x1
 	},
+	[CHERIABI_SYS_mount] = {
+		.sam_ptrmask = 0x1 | 0x2 | 0x8
+	},
 	[CHERIABI_SYS_unmount] = {
 		.sam_ptrmask = 0x1
 	},

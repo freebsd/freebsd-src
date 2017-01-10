@@ -19,6 +19,7 @@ MIASM =  \
 	chmod.o \
 	chown.o \
 	getpid.o \
+	mount.o \
 	unmount.o \
 	setuid.o \
 	getuid.o \

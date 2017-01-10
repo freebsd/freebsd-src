@@ -35,6 +35,7 @@ static fill_uap_fp cheriabi_fill_uap_funcs[CHERIABI_SYS_MAXSYSCALL] = {
 	[CHERIABI_SYS_chmod] = (fill_uap_fp)CHERIABI_SYS_chmod_fill_uap,
 	[CHERIABI_SYS_chown] = (fill_uap_fp)CHERIABI_SYS_chown_fill_uap,
 	[CHERIABI_SYS_getpid] = nop_fill_uap,
+	[CHERIABI_SYS_mount] = (fill_uap_fp)CHERIABI_SYS_mount_fill_uap,
 	[CHERIABI_SYS_unmount] = (fill_uap_fp)CHERIABI_SYS_unmount_fill_uap,
 	[CHERIABI_SYS_setuid] = (fill_uap_fp)CHERIABI_SYS_setuid_fill_uap,
 	[CHERIABI_SYS_getuid] = nop_fill_uap,
