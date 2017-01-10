@@ -386,7 +386,7 @@ AcpiGetTableWithSize (
     return (Status);
 }
 
-ACPI_EXPORT_SYMBOL (AcpiGetTable)
+ACPI_EXPORT_SYMBOL (AcpiGetTableWithSize)
 
 
 /*******************************************************************************
