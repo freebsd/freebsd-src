@@ -18,7 +18,7 @@ SECTIONS
   . = ALIGN(16);
   .data    :
   {
-    *(.data *.data.*)
+    *(.data .data.*)
     *(.gnu.linkonce.d*)
     *(.rodata)
     *(.rodata.*)
