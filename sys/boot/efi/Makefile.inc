@@ -23,4 +23,8 @@ CFLAGS+=	-fshort-wchar
 CFLAGS+=	-fPIC
 .endif
 
+.if ${MACHINE_CPUARCH} == "arm"
+CFLAGS+=	-fPIC
+.endif
+
 .include "../Makefile.inc"
