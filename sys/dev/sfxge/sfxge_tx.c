@@ -363,8 +363,22 @@ static int sfxge_tx_queue_mbuf(struct sfxge_txq *txq, struct mbuf *mbuf)
 
 	KASSERT(!txq->blocked, ("txq->blocked"));
 
+#if SFXGE_TX_PARSE_EARLY
+	/*
+	 * If software TSO is used, we still need to copy packet header,
+	 * even if we have already parsed it early before enqueue.
+	 */
+	if ((mbuf->m_pkthdr.csum_flags & CSUM_TSO) &&
+	    (txq->tso_fw_assisted == 0))
+		prefetch_read_many(mbuf->m_data);
+#else
+	/*
+	 * Prefetch packet header since we need to parse it and extract
+	 * IP ID, TCP sequence number and flags.
+	 */
 	if (mbuf->m_pkthdr.csum_flags & CSUM_TSO)
 		prefetch_read_many(mbuf->m_data);
+#endif
 
 	if (__predict_false(txq->init_state != SFXGE_TXQ_STARTED)) {
 		rc = EINTR;
