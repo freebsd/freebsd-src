@@ -81,6 +81,7 @@ NESTED(setjmp, SETJMP_FRAME_SIZE, ra)
 	PTR_LA		t9, _C_LABEL(sigprocmask)	# get current signal mask
 	cgetpcc		$c12
 	csetoffset	$c12, $c12, t9
+	cjalr		$c12, $c17
 	nop
 
 	move		sp, s8
