@@ -157,6 +157,18 @@ struct imx_ehci_softc {
 	struct resource	*ehci_irq_res;	/* EHCI core IRQ. */ 
 };
 
+static void
+imx_ehci_post_reset(struct ehci_softc *ehci_softc)
+{
+        uint32_t usbmode;
+
+        /* Force HOST mode */
+        usbmode = EOREAD4(ehci_softc, EHCI_USBMODE_NOLPM);
+        usbmode &= ~EHCI_UM_CM;
+        usbmode |= EHCI_UM_CM_HOST;
+        EOWRITE4(ehci_softc, EHCI_USBMODE_NOLPM, usbmode);
+}
+
 static int
 imx_ehci_probe(device_t dev)
 {
@@ -282,8 +294,13 @@ imx_ehci_attach(device_t dev)
 	esc->sc_id_vendor = USB_VENDOR_FREESCALE;
 	strlcpy(esc->sc_vendor, "Freescale", sizeof(esc->sc_vendor));
 
-	/* Set flags that affect ehci_init() behavior. */
-	esc->sc_flags |= EHCI_SCFLG_DONTRESET | EHCI_SCFLG_NORESTERM;
+	/*
+	 * Set flags that affect ehci_init() behavior, and hook our post-reset
+	 * code into the standard controller code.
+	 */
+	esc->sc_flags |= EHCI_SCFLG_NORESTERM;
+	esc->sc_vendor_post_reset = imx_ehci_post_reset;
+
 	err = ehci_init(esc);
 	if (err != 0) {
 		device_printf(dev, "USB init failed, usb_err_t=%d\n", 
