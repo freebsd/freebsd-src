@@ -1401,7 +1401,7 @@ close_and_restore_time(HANDLE h, struct tree *t, struct restore_time *rt)
 	if (h == INVALID_HANDLE_VALUE && AE_IFLNK == rt->filetype)
 		return (0);
 
-	/* Close a file descritor.
+	/* Close a file descriptor.
 	 * It will not be used for SetFileTime() because it has been opened
 	 * by a read only mode.
 	 */

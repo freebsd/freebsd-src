@@ -322,7 +322,7 @@ struct iso9660 {
 
 	struct archive_string pathname;
 	char	seenRockridge;	/* Set true if RR extensions are used. */
-	char	seenSUSP;	/* Set true if SUSP is beging used. */
+	char	seenSUSP;	/* Set true if SUSP is being used. */
 	char	seenJoliet;
 
 	unsigned char	suspOffset;
