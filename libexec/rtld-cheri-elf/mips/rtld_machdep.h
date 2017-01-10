@@ -53,6 +53,9 @@ Elf_Addr reloc_jmpslot(Elf_Addr *where, Elf_Addr target,
 	(((InitArrFunc)(cheri_setoffset(cheri_getpcc(), (target))))	\
 	    (main_argc, main_argv, environ))
 
+#define	call_ifunc_resolver(ptr) \
+	(((Elf_Addr (*)(void))ptr)())
+
 typedef struct {
 	unsigned long ti_module;
 	unsigned long ti_offset;
