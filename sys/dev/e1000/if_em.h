@@ -1,36 +1,67 @@
-/******************************************************************************
-
-  Copyright (c) 2001-2015, Intel Corporation 
-  All rights reserved.
-  
-  Redistribution and use in source and binary forms, with or without 
-  modification, are permitted provided that the following conditions are met:
-  
-   1. Redistributions of source code must retain the above copyright notice, 
-      this list of conditions and the following disclaimer.
-  
-   2. Redistributions in binary form must reproduce the above copyright 
-      notice, this list of conditions and the following disclaimer in the 
-      documentation and/or other materials provided with the distribution.
-  
-   3. Neither the name of the Intel Corporation nor the names of its 
-      contributors may be used to endorse or promote products derived from 
-      this software without specific prior written permission.
-  
-  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
-  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
-  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE 
-  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
-  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
-  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
-  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
-  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
-  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-  POSSIBILITY OF SUCH DAMAGE.
-
-******************************************************************************/
 /*$FreeBSD$*/
+#include "opt_em.h"
+#include "opt_ddb.h"
+#include "opt_inet.h"
+#include "opt_inet6.h"
+
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_device_polling.h"
+#endif
+
+#include <sys/param.h>
+#include <sys/systm.h>
+#ifdef DDB
+#include <sys/types.h>
+#include <ddb/ddb.h>
+#endif
+#if __FreeBSD_version >= 800000
+#include <sys/buf_ring.h>
+#endif
+#include <sys/bus.h>
+#include <sys/endian.h>
+#include <sys/kernel.h>
+#include <sys/kthread.h>
+#include <sys/malloc.h>
+#include <sys/mbuf.h>
+#include <sys/module.h>
+#include <sys/rman.h>
+#include <sys/smp.h>
+#include <sys/socket.h>
+#include <sys/sockio.h>
+#include <sys/sysctl.h>
+#include <sys/taskqueue.h>
+#include <sys/eventhandler.h>
+#include <machine/bus.h>
+#include <machine/resource.h>
+
+#include <net/bpf.h>
+#include <net/ethernet.h>
+#include <net/if.h>
+#include <net/if_var.h>
+#include <net/if_arp.h>
+#include <net/if_dl.h>
+#include <net/if_media.h>
+#include <net/iflib.h>
+
+#include <net/if_types.h>
+#include <net/if_vlan_var.h>
+
+#include <netinet/in_systm.h>
+#include <netinet/in.h>
+#include <netinet/if_ether.h>
+#include <netinet/ip.h>
+#include <netinet/ip6.h>
+#include <netinet/tcp.h>
+#include <netinet/udp.h>
+
+#include <machine/in_cksum.h>
+#include <dev/led/led.h>
+#include <dev/pci/pcivar.h>
+#include <dev/pci/pcireg.h>
+
+#include "e1000_api.h"
+#include "e1000_82571.h"
+#include "ifdi_if.h"
 
 
 #ifndef _EM_H_DEFINED_
@@ -51,13 +82,10 @@
  *   desscriptors should meet the following condition.
  *      (num_tx_desc * sizeof(struct e1000_tx_desc)) % 128 == 0
  */
-#define EM_MIN_TXD		80
+#define EM_MIN_TXD		128
 #define EM_MAX_TXD		4096
-#ifdef EM_MULTIQUEUE
-#define EM_DEFAULT_TXD		4096
-#else
-#define EM_DEFAULT_TXD		1024
-#endif
+#define EM_DEFAULT_TXD          1024
+#define EM_DEFAULT_MULTI_TXD	4096
 
 /*
  * EM_RXD - Maximum number of receive Descriptors
@@ -72,13 +100,10 @@
  *   desscriptors should meet the following condition.
  *      (num_tx_desc * sizeof(struct e1000_tx_desc)) % 128 == 0
  */
-#define EM_MIN_RXD		80
+#define EM_MIN_RXD		128
 #define EM_MAX_RXD		4096
-#ifdef EM_MULTIQUEUE
-#define EM_DEFAULT_RXD		4096
-#else
-#define EM_DEFAULT_RXD		1024
-#endif
+#define EM_DEFAULT_RXD          1024
+#define EM_DEFAULT_MULTI_RXD	4096
 
 /*
  * EM_TIDV - Transmit Interrupt Delay Value
@@ -149,17 +174,6 @@
 #endif
 
 /*
- * This parameter controls the max duration of transmit watchdog.
- */
-#define EM_WATCHDOG                   (10 * hz)
-
-/*
- * This parameter controls when the driver calls the routine to reclaim
- * transmit descriptors.
- */
-#define EM_TX_CLEANUP_THRESHOLD	(adapter->num_tx_desc / 8)
-
-/*
  * This parameter controls whether or not autonegotation is enabled.
  *              0 - Disable autonegotiation
  *              1 - Enable  autonegotiation
@@ -221,6 +235,18 @@
 #define PCICFG_DESC_RING_STATUS		0xe4
 #define FLUSH_DESC_REQUIRED		0x100
 
+
+#define IGB_RX_PTHRESH			((hw->mac.type == e1000_i354) ? 12 : \
+					  ((hw->mac.type <= e1000_82576) ? 16 : 8))
+#define IGB_RX_HTHRESH			8
+#define IGB_RX_WTHRESH			((hw->mac.type == e1000_82576 && \
+					  (adapter->intr_type == IFLIB_INTR_MSIX)) ? 1 : 4)
+
+#define IGB_TX_PTHRESH			((hw->mac.type == e1000_i354) ? 20 : 8)
+#define IGB_TX_HTHRESH			1
+#define IGB_TX_WTHRESH			((hw->mac.type != e1000_82575 && \
+                                          (adapter->intr_type == IFLIB_INTR_MSIX) ? 1 : 16)
+
 /*
  * TDBA/RDBA should be aligned on 16 byte boundary. But TDLEN/RDLEN should be
  * multiple of 128 bytes. So we align TDBA/RDBA on 128 byte boundary. This will
@@ -242,6 +268,7 @@
 #define EM_BAR_TYPE(v)		((v) & EM_BAR_TYPE_MASK)
 #define EM_BAR_TYPE_MASK	0x00000001
 #define EM_BAR_TYPE_MMEM	0x00000000
+#define EM_BAR_TYPE_IO		0x00000001
 #define EM_BAR_TYPE_FLASH	0x0014 
 #define EM_BAR_MEM_TYPE(v)	((v) & EM_BAR_MEM_TYPE_MASK)
 #define EM_BAR_MEM_TYPE_MASK	0x00000006
@@ -279,6 +306,9 @@
 #define ETH_ADDR_LEN		6
 #define CSUM_OFFLOAD		7	/* Offload bits in mbuf flag */
 
+#define IGB_PKTTYPE_MASK	0x0000FFF0
+#define IGB_DMCTLX_DCFLUSH_DIS	0x80000000  /* Disable DMA Coalesce Flush */
+
 /*
  * 82574 has a nonstandard address for EIAC
  * and since its only used in MSIX, and in
@@ -295,19 +325,6 @@
 #define EM_NVM_MSIX_N_MASK	(0x7 << EM_NVM_MSIX_N_SHIFT)
 #define EM_NVM_MSIX_N_SHIFT	7
 
-/*
- * Bus dma allocation structure used by
- * e1000_dma_malloc and e1000_dma_free.
- */
-struct em_dma_alloc {
-        bus_addr_t              dma_paddr;
-        caddr_t                 dma_vaddr;
-        bus_dma_tag_t           dma_tag;
-        bus_dmamap_t            dma_map;
-        bus_dma_segment_t       dma_seg;
-        int                     dma_nseg;
-};
-
 struct adapter;
 
 struct em_int_delay_info {
@@ -321,35 +338,31 @@ struct em_int_delay_info {
  */
 struct tx_ring {
         struct adapter          *adapter;
-        struct mtx              tx_mtx;
-        char                    mtx_name[16];
+	struct em_tx_queue      *que;
         u32                     me;
-        u32                     msix;
-	u32			ims;
         int			busy;
-	struct em_dma_alloc	txdma;
 	struct e1000_tx_desc	*tx_base;
-        struct task             tx_task;
-        struct taskqueue        *tq;
-        u32                     next_avail_desc;
-        u32                     next_to_clean;
+	uint64_t                tx_paddr; 
         struct em_txbuffer	*tx_buffers;
-        volatile u16            tx_avail;
 	u32			tx_tso;		/* last tx was tso */
-        u16			last_hw_offload;
-	u8			last_hw_ipcso;
-	u8			last_hw_ipcss;
-	u8			last_hw_tucso;
-	u8			last_hw_tucss;
-#if __FreeBSD_version >= 800000
-	struct buf_ring         *br;
-#endif
+
 	/* Interrupt resources */
-        bus_dma_tag_t           txtag;
 	void                    *tag;
 	struct resource         *res;
         unsigned long		tx_irq;
         unsigned long		no_desc_avail;
+
+	/* Saved csum offloading context information */
+	int			csum_flags;
+	int			csum_lhlen;
+	int			csum_iphlen;
+
+	int			csum_thlen;
+	int			csum_mss;
+	int			csum_pktlen;
+
+	uint32_t		csum_txd_upper;
+	uint32_t		csum_txd_lower; /* last field */
 };
 
 /*
@@ -357,26 +370,15 @@ struct tx_ring {
  */
 struct rx_ring {
         struct adapter          *adapter;
+        struct em_rx_queue      *que;
         u32                     me;
-        u32                     msix;
-	u32			ims;
-        struct mtx              rx_mtx;
-        char                    mtx_name[16];
         u32                     payload;
-        struct task             rx_task;
-        struct taskqueue        *tq;
         union e1000_rx_desc_extended	*rx_base;
-        struct em_dma_alloc	rxdma;
-        u32			next_to_refresh;
-        u32			next_to_check;
-        struct em_rxbuffer	*rx_buffers;
-	struct mbuf		*fmp;
-	struct mbuf		*lmp;
+        uint64_t                rx_paddr; 
 
         /* Interrupt resources */
         void                    *tag;
         struct resource         *res;
-        bus_dma_tag_t           rxtag;
 	bool			discard;
 
         /* Soft stats */
@@ -386,62 +388,68 @@ struct rx_ring {
         unsigned long		rx_bytes;
 };
 
+struct em_tx_queue {
+	struct adapter         *adapter;
+        u32                     msix;
+	u32			eims;		/* This queue's EIMS bit */
+	u32                    me;
+	struct tx_ring         txr;
+};
+
+struct em_rx_queue {
+	struct adapter         *adapter;
+	u32                    me;
+	u32                    msix;
+	u32                    eims;
+	struct rx_ring         rxr;
+	u64                    irqs;
+	struct if_irq          que_irq; 
+};  
 
 /* Our adapter structure */
 struct adapter {
-	if_t 		ifp;
+	struct ifnet 	*ifp;
 	struct e1000_hw	hw;
 
+        if_softc_ctx_t shared;
+        if_ctx_t ctx;
+#define tx_num_queues shared->isc_ntxqsets
+#define rx_num_queues shared->isc_nrxqsets
+#define intr_type shared->isc_intr
 	/* FreeBSD operating-system-specific structures. */
 	struct e1000_osdep osdep;
-	device_t	dev;
+	struct device	*dev;
 	struct cdev	*led_dev;
+
+        struct em_tx_queue *tx_queues;
+        struct em_rx_queue *rx_queues; 
+        struct if_irq   irq;
 
 	struct resource *memory;
 	struct resource *flash;
-	struct resource *msix_mem;
+	struct resource	*ioport;
+	int		io_rid;
 
 	struct resource	*res;
 	void		*tag;
 	u32		linkvec;
 	u32		ivars;
 
-	struct ifmedia	media;
-	struct callout	timer;
+	struct ifmedia	*media;
 	int		msix;
 	int		if_flags;
-	int		max_frame_size;
 	int		min_frame_size;
-	struct mtx	core_mtx;
 	int		em_insert_vlan_header;
 	u32		ims;
 	bool		in_detach;
 
 	/* Task for FAST handling */
-	struct task     link_task;
-	struct task     que_task;
-	struct taskqueue *tq;           /* private task queue */
+	struct grouptask link_task;
 
-	eventhandler_tag vlan_attach;
-	eventhandler_tag vlan_detach;
-
-	u16	num_vlans;
-	u8	num_queues;
-
-        /*
-         * Transmit rings:
-         *      Allocated at run time, an array of rings.
-         */
-        struct tx_ring  *tx_rings;
-        int             num_tx_desc;
+	u16	        num_vlans;
         u32		txd_cmd;
 
-        /*
-         * Receive rings:
-         *      Allocated at run time, an array of rings.
-         */
-        struct rx_ring  *rx_rings;
-        int             num_rx_desc;
+        u32             tx_process_limit; 
         u32             rx_process_limit;
 	u32		rx_mbuf_sz;
 
@@ -467,7 +475,12 @@ struct adapter {
 	u16		link_speed;
 	u16		link_duplex;
 	u32		smartspeed;
+	u32		dmac;
+	int		link_mask;
 
+	u64		que_mask;
+
+	
 	struct em_int_delay_info tx_int_delay;
 	struct em_int_delay_info tx_abs_int_delay;
 	struct em_int_delay_info rx_int_delay;
@@ -502,33 +515,9 @@ typedef struct _em_vendor_info_t {
 } em_vendor_info_t;
 
 struct em_txbuffer {
-	int		next_eop;  /* Index of the desc to watch */
-        struct mbuf    *m_head;
-        bus_dmamap_t    map;         /* bus_dma map for packet */
+	int		eop;  
 };
 
-struct em_rxbuffer {
-	int		next_eop;  /* Index of the desc to watch */
-        struct mbuf    *m_head;
-        bus_dmamap_t    map;         /* bus_dma map for packet */
-	bus_addr_t	paddr;
-};
-
-
-/*
-** Find the number of unrefreshed RX descriptors
-*/
-static inline u16
-e1000_rx_unrefreshed(struct rx_ring *rxr)
-{
-	struct adapter	*adapter = rxr->adapter;
-
-	if (rxr->next_to_check > rxr->next_to_refresh)
-		return (rxr->next_to_check - rxr->next_to_refresh - 1);
-	else
-		return ((adapter->num_rx_desc + rxr->next_to_check) -
-		    rxr->next_to_refresh - 1); 
-}
 
 #define	EM_CORE_LOCK_INIT(_sc, _name) \
 	mtx_init(&(_sc)->core_mtx, _name, "EM Core Lock", MTX_DEF)
