@@ -204,13 +204,14 @@ static int	archive_read_format_tar_read_header(struct archive_read *,
 		    struct archive_entry *);
 static int	checksum(struct archive_read *, const void *);
 static int 	pax_attribute(struct archive_read *, struct tar *,
-		    struct archive_entry *, const char *key, const char *value);
+		    struct archive_entry *, const char *key, const char *value,
+		    size_t value_length);
 static int	pax_attribute_acl(struct archive_read *, struct tar *,
 		    struct archive_entry *, const char *, int);
 static int	pax_attribute_xattr(struct archive_entry *, const char *,
 		    const char *);
 static int 	pax_header(struct archive_read *, struct tar *,
-		    struct archive_entry *, char *attr);
+		    struct archive_entry *, struct archive_string *);
 static void	pax_time(const char *, int64_t *sec, long *nanos);
 static ssize_t	readline(struct archive_read *, struct tar *, const char **,
 		    ssize_t limit, size_t *);
@@ -1483,7 +1484,7 @@ header_pax_extensions(struct archive_read *a, struct tar *tar,
 	 * and then skip any fields in the standard header that were
 	 * defined in the pax header.
 	 */
-	err2 = pax_header(a, tar, entry, tar->pax_header.s);
+	err2 = pax_header(a, tar, entry, &tar->pax_header);
 	err =  err_combine(err, err2);
 	tar->entry_padding = 0x1ff & (-tar->entry_bytes_remaining);
 	return (err);
@@ -1564,16 +1565,17 @@ header_ustar(struct archive_read *a, struct tar *tar,
  */
 static int
 pax_header(struct archive_read *a, struct tar *tar,
-    struct archive_entry *entry, char *attr)
+    struct archive_entry *entry, struct archive_string *in_as)
 {
-	size_t attr_length, l, line_length;
+	size_t attr_length, l, line_length, value_length;
 	char *p;
 	char *key, *value;
 	struct archive_string *as;
 	struct archive_string_conv *sconv;
 	int err, err2;
+	char *attr = in_as->s;
 
-	attr_length = strlen(attr);
+	attr_length = in_as->length;
 	tar->pax_hdrcharset_binary = 0;
 	archive_string_empty(&(tar->entry_gname));
 	archive_string_empty(&(tar->entry_linkpath));
@@ -1638,11 +1640,13 @@ pax_header(struct archive_read *a, struct tar *tar,
 		}
 		*p = '\0';
 
-		/* Identify null-terminated 'value' portion. */
 		value = p + 1;
 
+		/* Some values may be binary data */
+		value_length = attr + line_length - 1 - value;
+
 		/* Identify this attribute and set it in the entry. */
-		err2 = pax_attribute(a, tar, entry, key, value);
+		err2 = pax_attribute(a, tar, entry, key, value, value_length);
 		if (err2 == ARCHIVE_FATAL)
 			return (err2);
 		err = err_combine(err, err2);
@@ -1764,6 +1768,20 @@ pax_attribute_xattr(struct archive_entry *entry,
 }
 
 static int
+pax_attribute_schily_xattr(struct archive_entry *entry,
+	const char *name, const char *value, size_t value_length)
+{
+	if (strlen(name) < 14 || (memcmp(name, "SCHILY.xattr.", 13)) != 0)
+		return 1;
+
+	name += 13;
+
+	archive_entry_xattr_add_entry(entry, name, value, value_length);
+
+	return 0;
+}
+
+static int
 pax_attribute_acl(struct archive_read *a, struct tar *tar,
     struct archive_entry *entry, const char *value, int type)
 {
@@ -1824,7 +1842,7 @@ pax_attribute_acl(struct archive_read *a, struct tar *tar,
  */
 static int
 pax_attribute(struct archive_read *a, struct tar *tar,
-    struct archive_entry *entry, const char *key, const char *value)
+    struct archive_entry *entry, const char *key, const char *value, size_t value_length)
 {
 	int64_t s;
 	long n;
@@ -1961,6 +1979,9 @@ pax_attribute(struct archive_read *a, struct tar *tar,
 		} else if (strcmp(key, "SCHILY.realsize") == 0) {
 			tar->realsize = tar_atol10(value, strlen(value));
 			archive_entry_set_size(entry, tar->realsize);
+		} else if (strncmp(key, "SCHILY.xattr.", 13) == 0) {
+			pax_attribute_schily_xattr(entry, key, value,
+			    value_length);
 		} else if (strcmp(key, "SUN.holesdata") == 0) {
 			/* A Solaris extension for sparse. */
 			r = solaris_sparse_parse(a, tar, entry, value);
