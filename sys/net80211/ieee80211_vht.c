@@ -91,11 +91,12 @@ vht_recv_action_placeholder(struct ieee80211_node *ni,
     const uint8_t *frm, const uint8_t *efrm)
 {
 
+#ifdef IEEE80211_DEBUG
 	ieee80211_note(ni->ni_vap, "%s: called; fc=0x%.2x/0x%.2x",
 	    __func__,
 	    wh->i_fc[0],
 	    wh->i_fc[1]);
-
+#endif
 	return (0);
 }
 
@@ -104,10 +105,12 @@ vht_send_action_placeholder(struct ieee80211_node *ni,
     int category, int action, void *arg0)
 {
 
+#ifdef IEEE80211_DEBUG
 	ieee80211_note(ni->ni_vap, "%s: called; category=%d, action=%d",
 	    __func__,
 	    category,
 	    action);
+#endif
 	return (EINVAL);
 }
 
