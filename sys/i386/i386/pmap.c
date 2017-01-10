@@ -4905,7 +4905,7 @@ pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int advice)
 {
 	pd_entry_t oldpde, *pde;
 	pt_entry_t *pte;
-	vm_offset_t pdnxt;
+	vm_offset_t va, pdnxt;
 	vm_page_t m;
 	boolean_t anychanged, pv_lists_locked;
 
@@ -4966,11 +4966,11 @@ resume:
 		}
 		if (pdnxt > eva)
 			pdnxt = eva;
+		va = pdnxt;
 		for (pte = pmap_pte_quick(pmap, sva); sva != pdnxt; pte++,
 		    sva += PAGE_SIZE) {
-			if ((*pte & (PG_MANAGED | PG_V)) != (PG_MANAGED |
-			    PG_V))
-				continue;
+			if ((*pte & (PG_MANAGED | PG_V)) != (PG_MANAGED | PG_V))
+				goto maybe_invlrng;
 			else if ((*pte & (PG_M | PG_RW)) == (PG_M | PG_RW)) {
 				if (advice == MADV_DONTNEED) {
 					/*
@@ -4985,12 +4985,21 @@ resume:
 			} else if ((*pte & PG_A) != 0)
 				atomic_clear_int((u_int *)pte, PG_A);
 			else
-				continue;
-			if ((*pte & PG_G) != 0)
-				pmap_invalidate_page(pmap, sva);
-			else
+				goto maybe_invlrng;
+			if ((*pte & PG_G) != 0) {
+				if (va == pdnxt)
+					va = sva;
+			} else
 				anychanged = TRUE;
+			continue;
+maybe_invlrng:
+			if (va != pdnxt) {
+				pmap_invalidate_range(pmap, va, sva);
+				va = pdnxt;
+			}
 		}
+		if (va != pdnxt)
+			pmap_invalidate_range(pmap, va, sva);
 	}
 	if (anychanged)
 		pmap_invalidate_all(pmap);
