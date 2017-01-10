@@ -1572,43 +1572,43 @@ dev/eisa/eisa_if.m		standard
 dev/eisa/eisaconf.c		optional eisa
 dev/e1000/if_em.c		optional em \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
-dev/e1000/if_lem.c		optional em \
+dev/e1000/em_txrx.c		optional em \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
-dev/e1000/if_igb.c		optional igb \
+dev/e1000/igb_txrx.c		optional em \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
-dev/e1000/e1000_80003es2lan.c	optional em | igb \
+dev/e1000/e1000_80003es2lan.c	optional em \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
-dev/e1000/e1000_82540.c		optional em | igb \
+dev/e1000/e1000_82540.c		optional em \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
-dev/e1000/e1000_82541.c		optional em | igb \
+dev/e1000/e1000_82541.c		optional em \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
-dev/e1000/e1000_82542.c		optional em | igb \
+dev/e1000/e1000_82542.c		optional em \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
-dev/e1000/e1000_82543.c		optional em | igb \
+dev/e1000/e1000_82543.c		optional em \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
-dev/e1000/e1000_82571.c		optional em | igb \
+dev/e1000/e1000_82571.c		optional em \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
-dev/e1000/e1000_82575.c		optional em | igb \
+dev/e1000/e1000_82575.c		optional em \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
-dev/e1000/e1000_ich8lan.c	optional em | igb \
+dev/e1000/e1000_ich8lan.c	optional em \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
-dev/e1000/e1000_i210.c		optional em | igb \
+dev/e1000/e1000_i210.c		optional em \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
-dev/e1000/e1000_api.c		optional em | igb \
+dev/e1000/e1000_api.c		optional em \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
-dev/e1000/e1000_mac.c		optional em | igb \
+dev/e1000/e1000_mac.c		optional em \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
-dev/e1000/e1000_manage.c	optional em | igb \
+dev/e1000/e1000_manage.c	optional em \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
-dev/e1000/e1000_nvm.c		optional em | igb \
+dev/e1000/e1000_nvm.c		optional em \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
-dev/e1000/e1000_phy.c		optional em | igb \
+dev/e1000/e1000_phy.c		optional em \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
-dev/e1000/e1000_vf.c		optional em | igb \
+dev/e1000/e1000_vf.c		optional em \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
-dev/e1000/e1000_mbx.c		optional em | igb \
+dev/e1000/e1000_mbx.c		optional em \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
-dev/e1000/e1000_osdep.c		optional em | igb \
+dev/e1000/e1000_osdep.c		optional em \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
 dev/et/if_et.c			optional et
 dev/en/if_en_pci.c		optional en pci
