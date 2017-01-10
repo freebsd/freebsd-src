@@ -53,8 +53,8 @@ OLD_FILES+=usr/share/man/man3/sysdecode_getfsstat_flags.3.gz
 # 20161230: libarchive ACL pax test renamed to test_acl_pax_posix1e.tar.uu
 OLD_FILES+=usr/tests/lib/libarchive/test_acl_pax.tar.uu
 # 20161229: Three files from gnop tests consolidated into one
-OLD_FILES+=usr/tests/sys/geom/class/nop/1_test.sh
-OLD_FILES+=usr/tests/sys/geom/class/nop/2_test.sh
+OLD_FILES+=usr/tests/sys/geom/class/nop/1_test
+OLD_FILES+=usr/tests/sys/geom/class/nop/2_test
 OLD_FILES+=usr/tests/sys/geom/class/nop/conf.sh
 # 20161217: new clang import which bumps version from 3.9.0 to 3.9.1.
 OLD_FILES+=usr/lib/clang/3.9.0/include/sanitizer/allocator_interface.h
