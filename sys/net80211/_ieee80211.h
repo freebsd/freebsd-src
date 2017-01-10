@@ -313,6 +313,12 @@ struct ieee80211_channel {
 
 #define	IEEE80211_IS_CHAN_VHT(_c) \
 	(((_c)->ic_flags & IEEE80211_CHAN_VHT) != 0)
+#define	IEEE80211_IS_CHAN_VHT_2GHZ(_c) \
+	(IEEE80211_IS_CHAN_2GHZ(_c) && \
+	 ((_c)->ic_flags & IEEE80211_CHAN_VHT) != 0)
+#define	IEEE80211_IS_CHAN_VHT_5GHZ(_c) \
+	(IEEE80211_IS_CHAN_5GHZ(_c) && \
+	 ((_c)->ic_flags & IEEE80211_CHAN_VHT) != 0)
 #define	IEEE80211_IS_CHAN_VHT20(_c) \
 	(((_c)->ic_flags & IEEE80211_CHAN_VHT20) != 0)
 #define	IEEE80211_IS_CHAN_VHT40(_c) \
