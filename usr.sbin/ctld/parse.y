@@ -808,6 +808,11 @@ lun_number:	STR
 			free($1);
 			return (1);
 		}
+		if (tmp >= MAX_LUNS) {
+			yyerror("LU number is too big");
+			free($1);
+			return (1);
+		}
 
 		ret = asprintf(&name, "%s,lun,%ju", target->t_name, tmp);
 		if (ret <= 0)
@@ -832,6 +837,11 @@ target_lun_ref:	LUN STR STR
 			return (1);
 		}
 		free($2);
+		if (tmp >= MAX_LUNS) {
+			yyerror("LU number is too big");
+			free($3);
+			return (1);
+		}
 
 		lun = lun_find(conf, $3);
 		free($3);
