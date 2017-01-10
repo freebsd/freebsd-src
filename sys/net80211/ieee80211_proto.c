@@ -842,6 +842,9 @@ setbasicrates(struct ieee80211_rateset *rs,
 	    [IEEE80211_MODE_11NA]	= { 3, { 12, 24, 48 } },
 					    /* NB: mixed b/g */
 	    [IEEE80211_MODE_11NG]	= { 4, { 2, 4, 11, 22 } },
+					    /* NB: mixed b/g */
+	    [IEEE80211_MODE_VHT_2GHZ]	= { 4, { 2, 4, 11, 22 } },
+	    [IEEE80211_MODE_VHT_5GHZ]	= { 3, { 12, 24, 48 } },
 	};
 	int i, j;
 
@@ -906,6 +909,8 @@ static const struct phyParamType phyParamForAC_BE[IEEE80211_MODE_MAX] = {
 	[IEEE80211_MODE_QUARTER]= { 3, 4,  6,  0, 0 },
 	[IEEE80211_MODE_11NA]	= { 3, 4,  6,  0, 0 },
 	[IEEE80211_MODE_11NG]	= { 3, 4,  6,  0, 0 },
+	[IEEE80211_MODE_VHT_2GHZ]	= { 3, 4,  6,  0, 0 },
+	[IEEE80211_MODE_VHT_5GHZ]	= { 3, 4,  6,  0, 0 },
 };
 static const struct phyParamType phyParamForAC_BK[IEEE80211_MODE_MAX] = {
 	[IEEE80211_MODE_AUTO]	= { 7, 4, 10,  0, 0 },
@@ -920,6 +925,8 @@ static const struct phyParamType phyParamForAC_BK[IEEE80211_MODE_MAX] = {
 	[IEEE80211_MODE_QUARTER]= { 7, 4, 10,  0, 0 },
 	[IEEE80211_MODE_11NA]	= { 7, 4, 10,  0, 0 },
 	[IEEE80211_MODE_11NG]	= { 7, 4, 10,  0, 0 },
+	[IEEE80211_MODE_VHT_2GHZ]	= { 7, 4, 10,  0, 0 },
+	[IEEE80211_MODE_VHT_5GHZ]	= { 7, 4, 10,  0, 0 },
 };
 static const struct phyParamType phyParamForAC_VI[IEEE80211_MODE_MAX] = {
 	[IEEE80211_MODE_AUTO]	= { 1, 3, 4,  94, 0 },
@@ -934,6 +941,8 @@ static const struct phyParamType phyParamForAC_VI[IEEE80211_MODE_MAX] = {
 	[IEEE80211_MODE_QUARTER]= { 1, 3, 4,  94, 0 },
 	[IEEE80211_MODE_11NA]	= { 1, 3, 4,  94, 0 },
 	[IEEE80211_MODE_11NG]	= { 1, 3, 4,  94, 0 },
+	[IEEE80211_MODE_VHT_2GHZ]	= { 1, 3, 4,  94, 0 },
+	[IEEE80211_MODE_VHT_5GHZ]	= { 1, 3, 4,  94, 0 },
 };
 static const struct phyParamType phyParamForAC_VO[IEEE80211_MODE_MAX] = {
 	[IEEE80211_MODE_AUTO]	= { 1, 2, 3,  47, 0 },
@@ -948,6 +957,8 @@ static const struct phyParamType phyParamForAC_VO[IEEE80211_MODE_MAX] = {
 	[IEEE80211_MODE_QUARTER]= { 1, 2, 3,  47, 0 },
 	[IEEE80211_MODE_11NA]	= { 1, 2, 3,  47, 0 },
 	[IEEE80211_MODE_11NG]	= { 1, 2, 3,  47, 0 },
+	[IEEE80211_MODE_VHT_2GHZ]	= { 1, 2, 3,  47, 0 },
+	[IEEE80211_MODE_VHT_5GHZ]	= { 1, 2, 3,  47, 0 },
 };
 
 static const struct phyParamType bssPhyParamForAC_BE[IEEE80211_MODE_MAX] = {
@@ -1123,6 +1134,8 @@ ieee80211_wme_updateparams_locked(struct ieee80211vap *vap)
 	    [IEEE80211_MODE_QUARTER]	= { 2, 4, 10, 64, 0 },
 	    [IEEE80211_MODE_11NA]	= { 2, 4, 10, 64, 0 },	/* XXXcheck*/
 	    [IEEE80211_MODE_11NG]	= { 2, 4, 10, 64, 0 },	/* XXXcheck*/
+	    [IEEE80211_MODE_VHT_2GHZ]	= { 2, 4, 10, 64, 0 },	/* XXXcheck*/
+	    [IEEE80211_MODE_VHT_5GHZ]	= { 2, 4, 10, 64, 0 },	/* XXXcheck*/
 	};
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ieee80211_wme_state *wme = &ic->ic_wme;
@@ -1243,6 +1256,8 @@ ieee80211_wme_updateparams_locked(struct ieee80211vap *vap)
 		    [IEEE80211_MODE_QUARTER]	= 3,
 		    [IEEE80211_MODE_11NA]	= 3,
 		    [IEEE80211_MODE_11NG]	= 3,
+		    [IEEE80211_MODE_VHT_2GHZ]	= 3,
+		    [IEEE80211_MODE_VHT_5GHZ]	= 3,
 		};
 		chanp = &wme->wme_chanParams.cap_wmeParams[WME_AC_BE];
 		bssp = &wme->wme_bssChanParams.cap_wmeParams[WME_AC_BE];
