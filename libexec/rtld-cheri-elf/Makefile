@@ -47,8 +47,6 @@ SYMBOL_MAPS=	${.CURDIR}/../rtld-elf/Symbol.map
 VERSION_MAP=	Version.map
 LDFLAGS+=	-Wl,--version-script=${VERSION_MAP}
 
-${PROG}:	${VERSION_MAP}
-
 .if exists(${.CURDIR}/${RTLD_ARCH}/Symbol.map)
 SYMBOL_MAPS+=	${.CURDIR}/${RTLD_ARCH}/Symbol.map
 .endif
@@ -60,6 +58,9 @@ SYMBOL_MAPS+=	${.CURDIR}/${RTLD_ARCH}/Symbol.map
 .PATH: ${.CURDIR}/${RTLD_ARCH}
 
 .include <bsd.prog.mk>
+.if defined(NOT_YET)
+${PROG_FULL}:	${VERSION_MAP}
+.endif
 .include <bsd.symver.mk>
 
 #CFLAGS:=	${CFLAGS} -O0
