@@ -64,7 +64,7 @@ typedef struct Struct_Lock {
 } Lock;
 
 static sigset_t fullsigmask, oldsigmask;
-static int thread_flag;
+static int thread_flag, wnested;
 
 static void *
 def_lock_create(void)
@@ -117,29 +117,34 @@ def_rlock_acquire(void *lock)
 static void
 def_wlock_acquire(void *lock)
 {
-    Lock *l = (Lock *)lock;
-    sigset_t tmp_oldsigmask;
+	Lock *l;
+	sigset_t tmp_oldsigmask;
 
-    for ( ; ; ) {
-	sigprocmask(SIG_BLOCK, &fullsigmask, &tmp_oldsigmask);
-	if (atomic_cmpset_acq_int(&l->lock, 0, WAFLAG))
-	    break;
-	sigprocmask(SIG_SETMASK, &tmp_oldsigmask, NULL);
-    }
-    oldsigmask = tmp_oldsigmask;
+	l = (Lock *)lock;
+	for (;;) {
+		sigprocmask(SIG_BLOCK, &fullsigmask, &tmp_oldsigmask);
+		if (atomic_cmpset_acq_int(&l->lock, 0, WAFLAG))
+			break;
+		sigprocmask(SIG_SETMASK, &tmp_oldsigmask, NULL);
+	}
+	if (atomic_fetchadd_int(&wnested, 1) == 0)
+		oldsigmask = tmp_oldsigmask;
 }
 
 static void
 def_lock_release(void *lock)
 {
-    Lock *l = (Lock *)lock;
+	Lock *l;
 
-    if ((l->lock & WAFLAG) == 0)
-    	atomic_add_rel_int(&l->lock, -RC_INCR);
-    else {
-    	atomic_add_rel_int(&l->lock, -WAFLAG);
-    	sigprocmask(SIG_SETMASK, &oldsigmask, NULL);
-    }
+	l = (Lock *)lock;
+	if ((l->lock & WAFLAG) == 0)
+		atomic_add_rel_int(&l->lock, -RC_INCR);
+	else {
+		assert(wnested > 0);
+		atomic_add_rel_int(&l->lock, -WAFLAG);
+		if (atomic_fetchadd_int(&wnested, -1) == 1)
+			sigprocmask(SIG_SETMASK, &oldsigmask, NULL);
+	}
 }
 
 static int
@@ -373,12 +378,12 @@ _rtld_atfork_pre(int *locks)
 		return;
 
 	/*
-	 * Warning: this does not work with the rtld compat locks
-	 * above, since the thread signal mask is corrupted (set to
-	 * all signals blocked) if two locks are taken in write mode.
-	 * The caller of the _rtld_atfork_pre() must provide the
-	 * working implementation of the locks, and libthr locks are
-	 * fine.
+	 * Warning: this did not worked well with the rtld compat
+	 * locks above, when the thread signal mask was corrupted (set
+	 * to all signals blocked) if two locks were taken
+	 * simultaneously in the write mode.  The caller of the
+	 * _rtld_atfork_pre() must provide the working implementation
+	 * of the locks anyway, and libthr locks are fine.
 	 */
 	wlock_acquire(rtld_phdr_lock, &ls[0]);
 	wlock_acquire(rtld_bind_lock, &ls[1]);
