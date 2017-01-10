@@ -25,6 +25,5 @@ CFLAGS+= -I${.CURDIR}/../../contrib/opensolaris/head
 CFLAGS+= -I${.CURDIR}/../../lib/libumem
 
 LIBADD=	geom m nvpair umem uutil zfs_core zfs zpool
-LIBADD+=	pthread
 
 .include <bsd.prog.mk>

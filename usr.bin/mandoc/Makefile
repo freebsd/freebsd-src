@@ -86,6 +86,5 @@ CFLAGS+= -DHAVE_CONFIG_H \
 	 -I${.CURDIR}/../../lib/libopenbsd/ \
 	 -I${.CURDIR}/../../contrib/sqlite3
 LIBADD=	openbsd sqlite3 z
-LIBADD+=	pthread
 
 .include <bsd.prog.mk>

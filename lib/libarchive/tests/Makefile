@@ -305,7 +305,6 @@ SRCS.libarchive_test=		\
 	list.h
 
 LIBADD.libarchive_test=	archive
-LIBADD.libarchive_test+=	pthread
 
 .PATH: ${_LIBARCHIVEDIR}/test_utils
 SRCS.libarchive_test+=	test_utils.c

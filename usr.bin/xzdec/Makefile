@@ -23,6 +23,5 @@ CFLAGS+=	-DHAVE_CONFIG_H \
 		-I${XZDIR}/common
 
 LIBADD=	lzma
-LIBADD+=	pthread
 
 .include <bsd.prog.mk>

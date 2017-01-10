@@ -37,7 +37,6 @@ MLINKS= grep.1 egrep.1 \
 .endif
 
 LIBADD=	z
-LIBADD+=	pthread
 
 .if ${MK_LZMA_SUPPORT} != "no"
 LIBADD+=	lzma

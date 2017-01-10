@@ -41,7 +41,6 @@ LIBADD=	geom md
 
 .if ${MK_ZFS} != "no"
 LIBADD+=nvpair zfs
-LIBADD+=	pthread
 .endif
 
 .include <bsd.prog.mk>

@@ -28,7 +28,6 @@ CFLAGS+= -I${.CURDIR}/../../../cddl/contrib/opensolaris/head
 CFLAGS+= -I${.CURDIR}/../../lib/libumem
 
 LIBADD=	nvpair umem uutil zfs zpool
-LIBADD+=	pthread
 
 # Since there are many asserts in this program, it makes no sense to compile
 # it without debugging.

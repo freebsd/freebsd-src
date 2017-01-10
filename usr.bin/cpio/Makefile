@@ -24,7 +24,6 @@ CFLAGS+= -I${_LIBARCHIVEDIR}/cpio -I${_LIBARCHIVEDIR}/libarchive_fe
 CFLAGS+= -DSMALLER
 .endif
 LIBADD=	archive
-LIBADD+=	pthread
 
 .if ${MK_ICONV} != "no"
 CFLAGS+=	-DHAVE_ICONV=1 -DHAVE_ICONV_H=1 -DICONV_CONST=const

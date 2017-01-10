@@ -7,7 +7,6 @@ PROG=		gzip
 MAN=		gzip.1 gzexe.1 zdiff.1 zforce.1 zmore.1 znew.1
 
 LIBADD=		z lzma
-LIBADD+=	pthread
 
 .if ${MK_BZIP2_SUPPORT} != "no"
 LIBADD+=	bz2

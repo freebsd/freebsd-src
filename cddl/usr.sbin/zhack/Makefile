@@ -27,7 +27,6 @@ CFLAGS+= -I${.CURDIR}/../../../cddl/contrib/opensolaris/head
 CFLAGS+= -I${.CURDIR}/../../lib/libumem
 
 LIBADD=	nvpair zfs zpool
-LIBADD+=	pthread
 
 CFLAGS+=	-DDEBUG=1
 #DEBUG_FLAGS+=	-g

@@ -18,7 +18,6 @@ SRCS=	archive.c ascii.c binary.c main.c pe.c sections.c segments.c symbols.c
 WARNS?=	5
 
 LIBADD=	archive elftc elf pe
-LIBADD+=	pthread
 
 CFLAGS+=-I${ELFTCDIR}/libelftc -I${ELFTCDIR}/libpe -I${ELFTCDIR}/common
 CFLAGS+=-DWITH_PE=1

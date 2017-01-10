@@ -10,7 +10,6 @@ MAN=	blacklistctl.8
 
 LDFLAGS+=-L${LIBBLACKLISTDIR}
 LIBADD+= blacklist util
-LIBADD+=	pthread
 
 CFLAGS+=-I${BLACKLIST_DIR}/include -I${BLACKLIST_DIR}/port \
 	-D_PATH_BLCONTROL=\"/usr/libexec/blacklistd-helper\" \

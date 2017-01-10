@@ -56,7 +56,6 @@ NETBSD_ATF_TESTS_C+=		sigtimedwait_test
 NETBSD_ATF_TESTS_C+=		socketpair_test
 NETBSD_ATF_TESTS_C+=		stat_test
 NETBSD_ATF_TESTS_C+=		timer_create_test
-LIBADD.timer_create_test+=	pthread
 NETBSD_ATF_TESTS_C+=		truncate_test
 NETBSD_ATF_TESTS_C+=		ucontext_test
 NETBSD_ATF_TESTS_C+=		umask_test

@@ -18,7 +18,6 @@ LIBADD+=	krb5 roken
 .else
 CFLAGS+= -DWITHOUT_KERBEROS
 .endif
-LIBADD+=	pthread
 
 CLEANFILES= gssd_svc.c gssd_xdr.c gssd.h
 
