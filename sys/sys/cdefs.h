@@ -543,22 +543,6 @@
 	    __attribute__((__format__ (__strftime__, fmtarg, firstvararg)))
 #endif
 
-/*
- * FORTIFY_SOURCE, and perhaps other compiler-specific features, require
- * the use of non-standard inlining.  In general we should try to avoid
- * using these but GCC-compatible compilers tend to support the extensions
- * well enough to use them in limited cases.
- */ 
-#if defined(__GNUC_GNU_INLINE__) || defined(__GNUC_STDC_INLINE__)
-#if __GNUC_PREREQ__(4, 3) || __has_attribute(__artificial__)
-#define	__gnu_inline	__attribute__((__gnu_inline__, __artificial__))
-#else
-#define	__gnu_inline	__attribute__((__gnu_inline__))
-#endif /* artificial */
-#else
-#define	__gnu_inline
-#endif
-
 /* Compiler-dependent macros that rely on FreeBSD-specific extensions. */
 #if defined(__FreeBSD_cc_version) && __FreeBSD_cc_version >= 300001 && \
     defined(__GNUC__) && !defined(__INTEL_COMPILER)
