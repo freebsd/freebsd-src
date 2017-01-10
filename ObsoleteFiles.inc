@@ -38,6 +38,11 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20170110: Four files from ggate tests consolidated into one
+OLD_FILES+=usr/tests/sys/geom/class/gate/1_test
+OLD_FILES+=usr/tests/sys/geom/class/gate/2_test
+OLD_FILES+=usr/tests/sys/geom/class/gate/3_test
+OLD_FILES+=usr/tests/sys/geom/class/gate/conf.sh
 # 20170103: libbsnmptools.so made into an INTERNALLIB
 OLD_FILES+=usr/lib/libbsnmptools.a
 OLD_FILES+=usr/lib/libbsnmptools_p.a
