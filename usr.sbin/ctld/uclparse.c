@@ -183,18 +183,25 @@ static int
 uclparse_target_lun(struct target *target, const ucl_object_t *obj)
 {
 	struct lun *lun;
+	uint64_t tmp;
 
 	if (obj->type == UCL_INT) {
 		char *name;
 
-		asprintf(&name, "%s,lun,%ju", target->t_name,
-		    ucl_object_toint(obj));
+		tmp = ucl_object_toint(obj);
+		if (tmp >= MAX_LUNS) {
+			log_warnx("LU number %ju in target \"%s\" is too big",
+			    tmp, target->t_name);
+			return (1);
+		}
+
+		asprintf(&name, "%s,lun,%ju", target->t_name, tmp);
 		lun = lun_new(conf, name);
 		if (lun == NULL)
 			return (1);
 
 		lun_set_scsiname(lun, name);
-		target->t_luns[ucl_object_toint(obj)] = lun;
+		target->t_luns[tmp] = lun;
 		return (0);
 	}
 
@@ -205,6 +212,12 @@ uclparse_target_lun(struct target *target, const ucl_object_t *obj)
 		if (num == NULL || num->type != UCL_INT) {
 			log_warnx("lun section in target \"%s\" is missing "
 			    "\"number\" integer property", target->t_name);
+			return (1);
+		}
+		tmp = ucl_object_toint(num);
+		if (tmp >= MAX_LUNS) {
+			log_warnx("LU number %ju in target \"%s\" is too big",
+			    tmp, target->t_name);
 			return (1);
 		}
 
@@ -218,7 +231,7 @@ uclparse_target_lun(struct target *target, const ucl_object_t *obj)
 		if (lun == NULL)
 			return (1);
 
-		target->t_luns[ucl_object_toint(num)] = lun;
+		target->t_luns[tmp] = lun;
 	}
 
 	return (0);
