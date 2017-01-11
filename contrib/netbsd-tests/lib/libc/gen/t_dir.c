@@ -59,12 +59,12 @@ ATF_TC_BODY(seekdir_basic, tc)
 	long here;
 
 #ifdef	__FreeBSD__
-#define	CREAT(x, m)	do {					\
-		int _creat_fd;					\
-		ATF_REQUIRE_MSG((_creat_fd = creat((x), (m))),	\
-		    "creat(%s, %x) failed: %s", (x), (m),	\
-		    strerror(errno));				\
-		(void)close(_creat_fd);			\
+#define	CREAT(x, m)	do {						\
+		int _creat_fd;						\
+		ATF_REQUIRE_MSG((_creat_fd = creat((x), (m))) != -1,	\
+		    "creat(%s, %x) failed: %s", (x), (m),		\
+		    strerror(errno));					\
+		(void)close(_creat_fd);					\
 	} while(0);
 
 	ATF_REQUIRE_MSG(mkdir("t", 0755) == 0,
