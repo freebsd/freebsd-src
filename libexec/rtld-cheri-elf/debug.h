@@ -46,11 +46,7 @@ extern int debug;
 #define dbg(...)	((void) 0)
 #endif
 
-#ifndef COMPAT_32BIT
-#define _MYNAME	"ld-elf.so.1"
-#else
-#define _MYNAME	"ld-elf32.so.1"
-#endif
+#define _MYNAME	"ld-cheri-elf.so.1"
 
 #define assert(cond)	((cond) ? (void) 0 :		\
     (msg(_MYNAME ": assert failed: " __FILE__ ":"	\
