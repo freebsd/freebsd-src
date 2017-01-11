@@ -141,6 +141,7 @@ struct toepcb {
 	int refcount;
 	struct tom_data *td;
 	struct inpcb *inp;	/* backpointer to host stack's PCB */
+	struct vnet *vnet;
 	struct vi_info *vi;	/* virtual interface */
 	struct sge_wrq *ofld_txq;
 	struct sge_ofld_rxq *ofld_rxq;
@@ -232,6 +233,7 @@ struct listen_ctx {
 	struct stid_region stid_region;
 	int flags;
 	struct inpcb *inp;		/* listening socket's inp */
+	struct vnet *vnet;
 	struct sge_wrq *ctrlq;
 	struct sge_ofld_rxq *ofld_rxq;
 	struct clip_entry *ce;
