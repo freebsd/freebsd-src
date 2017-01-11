@@ -7,4 +7,6 @@ SRCS+=		llvm-ar.cpp
 
 LIBADD+=	z
 
+LINKS+=		${BINDIR}/llvm-ar ${BINDIR}/llvm-ranlib
+
 .include "../llvm.prog.mk"
