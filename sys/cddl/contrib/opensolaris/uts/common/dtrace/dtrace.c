@@ -4335,7 +4335,9 @@ dtrace_dif_subr(uint_t subr, uint_t rd, uint64_t *regs,
 			break;
 		}
 		l.lx = dtrace_loadptr((uintptr_t)&tupregs[0].dttk_value);
+		DTRACE_CPUFLAG_SET(CPU_DTRACE_NOFAULT);
 		regs[rd] = LOCK_CLASS(l.li)->lc_owner(l.li, &lowner);
+		DTRACE_CPUFLAG_CLEAR(CPU_DTRACE_NOFAULT);
 		break;
 
 	case DIF_SUBR_MUTEX_OWNER:
@@ -4345,7 +4347,9 @@ dtrace_dif_subr(uint_t subr, uint_t rd, uint64_t *regs,
 			break;
 		}
 		l.lx = dtrace_loadptr((uintptr_t)&tupregs[0].dttk_value);
+		DTRACE_CPUFLAG_SET(CPU_DTRACE_NOFAULT);
 		LOCK_CLASS(l.li)->lc_owner(l.li, &lowner);
+		DTRACE_CPUFLAG_CLEAR(CPU_DTRACE_NOFAULT);
 		regs[rd] = (uintptr_t)lowner;
 		break;
 
@@ -4356,7 +4360,9 @@ dtrace_dif_subr(uint_t subr, uint_t rd, uint64_t *regs,
 			break;
 		}
 		l.lx = dtrace_loadptr((uintptr_t)&tupregs[0].dttk_value);
+		DTRACE_CPUFLAG_SET(CPU_DTRACE_NOFAULT);
 		regs[rd] = (LOCK_CLASS(l.li)->lc_flags & LC_SLEEPLOCK) != 0;
+		DTRACE_CPUFLAG_CLEAR(CPU_DTRACE_NOFAULT);
 		break;
 
 	case DIF_SUBR_MUTEX_TYPE_SPIN:
@@ -4366,7 +4372,9 @@ dtrace_dif_subr(uint_t subr, uint_t rd, uint64_t *regs,
 			break;
 		}
 		l.lx = dtrace_loadptr((uintptr_t)&tupregs[0].dttk_value);
+		DTRACE_CPUFLAG_SET(CPU_DTRACE_NOFAULT);
 		regs[rd] = (LOCK_CLASS(l.li)->lc_flags & LC_SPINLOCK) != 0;
+		DTRACE_CPUFLAG_CLEAR(CPU_DTRACE_NOFAULT);
 		break;
 
 	case DIF_SUBR_RW_READ_HELD: 
@@ -4377,8 +4385,10 @@ dtrace_dif_subr(uint_t subr, uint_t rd, uint64_t *regs,
 			break;
 		}
 		l.lx = dtrace_loadptr((uintptr_t)&tupregs[0].dttk_value);
+		DTRACE_CPUFLAG_SET(CPU_DTRACE_NOFAULT);
 		regs[rd] = LOCK_CLASS(l.li)->lc_owner(l.li, &lowner) &&
 		    lowner == NULL;
+		DTRACE_CPUFLAG_CLEAR(CPU_DTRACE_NOFAULT);
 		break;
 
 	case DIF_SUBR_RW_WRITE_HELD:
@@ -4389,8 +4399,10 @@ dtrace_dif_subr(uint_t subr, uint_t rd, uint64_t *regs,
 			break;
 		}
 		l.lx = dtrace_loadptr(tupregs[0].dttk_value);
+		DTRACE_CPUFLAG_SET(CPU_DTRACE_NOFAULT);
 		regs[rd] = LOCK_CLASS(l.li)->lc_owner(l.li, &lowner) &&
 		    lowner != NULL;
+		DTRACE_CPUFLAG_CLEAR(CPU_DTRACE_NOFAULT);
 		break;
 
 	case DIF_SUBR_RW_ISWRITER:
@@ -4401,7 +4413,9 @@ dtrace_dif_subr(uint_t subr, uint_t rd, uint64_t *regs,
 			break;
 		}
 		l.lx = dtrace_loadptr(tupregs[0].dttk_value);
+		DTRACE_CPUFLAG_SET(CPU_DTRACE_NOFAULT);
 		LOCK_CLASS(l.li)->lc_owner(l.li, &lowner);
+		DTRACE_CPUFLAG_CLEAR(CPU_DTRACE_NOFAULT);
 		regs[rd] = (lowner == curthread);
 		break;
 #endif /* illumos */
