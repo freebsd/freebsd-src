@@ -170,11 +170,11 @@ r_reg(FILE *fp, const char *fn, enum STYLE style, off_t off, struct stat *sbp)
 		ierr(fn);
 }
 
-static const size_t bsz = 128 * 1024;
+#define BSZ	(128 * 1024)
 typedef struct bfelem {
 	TAILQ_ENTRY(bfelem) entries;
 	size_t len;
-	char l[bsz];
+	char l[BSZ];
 } bfelem_t;
 
 /*
@@ -190,8 +190,8 @@ typedef struct bfelem {
 static void
 r_buf(FILE *fp, const char *fn)
 {
-	struct bfelem *tl, *temp, *first = NULL;
-	size_t len, llen;
+	struct bfelem *tl, *first = NULL;
+	size_t llen;
 	char *p;
 	off_t enomem = 0;
 	TAILQ_HEAD(bfhead, bfelem) head;
@@ -199,6 +199,8 @@ r_buf(FILE *fp, const char *fn)
 	TAILQ_INIT(&head);
 
 	while (!feof(fp)) {
+		size_t len;
+
 		/*
 		 * Allocate a new block and link it into place in a doubly
 		 * linked list.  If out of memory, toss the LRU block and
@@ -216,9 +218,9 @@ r_buf(FILE *fp, const char *fn)
 
 		/* Fill the block with input data. */
 		len = 0;
-		while ((!feof(fp)) && len < bsz) {
+		while ((!feof(fp)) && len < BSZ) {
 			p = tl->l + len;
-			len += fread(p, 1, bsz - len, fp);
+			len += fread(p, 1, BSZ - len, fp);
 			if (ferror(fp)) {
 				ierr(fn);
 				return;
@@ -244,6 +246,8 @@ r_buf(FILE *fp, const char *fn)
 	tl = TAILQ_LAST(&head, bfhead);
 	first = TAILQ_FIRST(&head);
 	while (tl != NULL) {
+		struct bfelem *temp;
+
 		for (p = tl->l + tl->len - 1, llen = 0; p >= tl->l;
 		    --p, ++llen) {
 			int start = (tl == first && p == tl->l);
@@ -251,7 +255,7 @@ r_buf(FILE *fp, const char *fn)
 			if ((*p == '\n') || start) {
 				struct bfelem *tr;
 
-				if (start && len)
+				if (start && llen)
 					WR(p, llen + 1);
 				else if (llen)
 					WR(p + 1, llen);
