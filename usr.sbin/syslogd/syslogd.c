@@ -89,9 +89,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/resource.h>
 #include <sys/syslimits.h>
 
+#if defined(INET) || defined(INET6) 
 #include <netinet/in.h>
-#include <netdb.h>
 #include <arpa/inet.h>
+#endif
+#include <netdb.h>
 
 #include <ctype.h>
 #include <dirent.h>
@@ -127,8 +129,11 @@ static const char include_ext[] = ".conf";
 #define	MAXUNAMES	20	/* maximum number of user names */
 
 #define	sstosa(ss)	((struct sockaddr *)(ss))
+#ifdef INET
 #define	sstosin(ss)	((struct sockaddr_in *)(void *)(ss))
 #define	satosin(sa)	((struct sockaddr_in *)(void *)(sa))
+#endif
+#ifdef INET6
 #define	sstosin6(ss)	((struct sockaddr_in6 *)(void *)(ss))
 #define	satosin6(sa)	((struct sockaddr_in6 *)(void *)(sa))
 #define	s6_addr32	__u6_addr.__u6_addr32
@@ -137,6 +142,7 @@ static const char include_ext[] = ".conf";
 	(((d)->s6_addr32[1] ^ (a)->s6_addr32[1]) & (m)->s6_addr32[1]) == 0 && \
 	(((d)->s6_addr32[2] ^ (a)->s6_addr32[2]) & (m)->s6_addr32[2]) == 0 && \
 	(((d)->s6_addr32[3] ^ (a)->s6_addr32[3]) & (m)->s6_addr32[3]) == 0 )
+#endif
 /*
  * List of peers and sockets for binding.
  */
@@ -1305,10 +1311,12 @@ fprintlog(struct filed *f, int flags, const char *msg)
 	case F_FORW:
 		dprintf(" %s", f->fu_forw_hname);
 		switch (f->fu_forw_addr->ai_addr->sa_family) {
+#ifdef INET
 		case AF_INET:
 			dprintf(":%d\n",
 			    ntohs(satosin(f->fu_forw_addr->ai_addr)->sin_port));
 			break;
+#endif
 #ifdef INET6
 		case AF_INET6:
 			dprintf(":%d\n",
@@ -1929,7 +1937,20 @@ init(int signo)
 				break;
 
 			case F_FORW:
-				port = ntohs(satosin(f->fu_forw_addr->ai_addr)->sin_port);
+				switch (f->fu_forw_addr->ai_addr->sa_family) {
+#ifdef INET
+				case AF_INET:
+					port = ntohs(satosin(f->fu_forw_addr->ai_addr)->sin_port);
+					break;
+#endif
+#ifdef INET6
+				case AF_INET6:
+					port = ntohs(satosin6(f->fu_forw_addr->ai_addr)->sin6_port);
+					break;
+#endif
+				default:
+					port = 0;
+				}
 				if (port != 514) {
 					printf("%s:%d",
 						f->fu_forw_hname, port);
@@ -2410,6 +2431,7 @@ timedout(int sig __unused)
 static int
 allowaddr(char *s)
 {
+#if defined(INET) || defined(INET6)
 	char *cp1, *cp2;
 	struct allowedpeer *ap;
 	struct servent *se;
@@ -2571,6 +2593,7 @@ allowaddr(char *s)
 		}
 		printf("port = %d\n", ap->port);
 	}
+#endif
 	return (0);
 }
 
