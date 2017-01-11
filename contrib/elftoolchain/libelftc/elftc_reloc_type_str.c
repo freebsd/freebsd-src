@@ -607,6 +607,12 @@ elftc_reloc_type_str(unsigned int mach, unsigned int type)
 		case 104: return "R_PPC64_DTPREL16_HIGHERA";
 		case 105: return "R_PPC64_DTPREL16_HIGHEST";
 		case 106: return "R_PPC64_DTPREL16_HIGHESTA";
+		case 107: return "R_PPC64_TLSGD";
+		case 108: return "R_PPC64_TLSLD";
+		case 249: return "R_PPC64_REL16";
+		case 250: return "R_PPC64_REL16_LO";
+		case 251: return "R_PPC64_REL16_HI";
+		case 252: return "R_PPC64_REL16_HA";
 		}
 		break;
 	case EM_RISCV:
