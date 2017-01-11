@@ -222,6 +222,7 @@ alloc_lctx(struct adapter *sc, struct inpcb *inp, struct vi_info *vi)
 	TAILQ_INIT(&lctx->synq);
 
 	lctx->inp = inp;
+	lctx->vnet = inp->inp_socket->so_vnet;
 	in_pcbref(inp);
 
 	return (lctx);
@@ -1200,6 +1201,8 @@ do_pass_accept_req(struct sge_iq *iq, const struct rss_header *rss,
 
 	pi = sc->port[G_SYN_INTF(be16toh(cpl->l2info))];
 
+	CURVNET_SET(lctx->vnet);
+
 	/*
 	 * Use the MAC index to lookup the associated VI.  If this SYN
 	 * didn't match a perfect MAC filter, punt.
@@ -1274,6 +1277,13 @@ found:
 		ntids = 1;
 	}
 
+	/*
+	 * Don't offload if the ifnet that the SYN came in on is not in the same
+	 * vnet as the listening socket.
+	 */
+	if (lctx->vnet != ifp->if_vnet)
+		REJECT_PASS_ACCEPT();
+
 	e = get_l2te_for_nexthop(pi, ifp, &inc);
 	if (e == NULL)
 		REJECT_PASS_ACCEPT();
@@ -1313,7 +1323,6 @@ found:
 		REJECT_PASS_ACCEPT();
 	}
 	so = inp->inp_socket;
-	CURVNET_SET(so->so_vnet);
 
 	mtu_idx = find_best_mtu_idx(sc, &inc, be16toh(cpl->tcpopt.mss));
 	rscale = cpl->tcpopt.wsf && V_tcp_do_rfc1323 ? select_rcv_wscale() : 0;
@@ -1360,7 +1369,6 @@ found:
 	 */
 	toe_syncache_add(&inc, &to, &th, inp, tod, synqe);
 	INP_UNLOCK_ASSERT(inp);	/* ok to assert, we have a ref on the inp */
-	CURVNET_RESTORE();
 
 	/*
 	 * If we replied during syncache_add (synqe->wr has been consumed),
@@ -1415,10 +1423,12 @@ found:
 		return (__LINE__);
 	}
 	INP_WUNLOCK(inp);
+	CURVNET_RESTORE();
 
 	release_synqe(synqe);	/* extra hold */
 	return (0);
 reject:
+	CURVNET_RESTORE();
 	CTR4(KTR_CXGBE, "%s: stid %u, tid %u, REJECT (%d)", __func__, stid, tid,
 	    reject_reason);
 
@@ -1490,6 +1500,7 @@ do_pass_establish(struct sge_iq *iq, const struct rss_header *rss,
 	KASSERT(synqe->flags & TPF_SYNQE,
 	    ("%s: tid %u (ctx %p) not a synqe", __func__, tid, synqe));
 
+	CURVNET_SET(lctx->vnet);
 	INP_INFO_RLOCK(&V_tcbinfo);	/* for syncache_expand */
 	INP_WLOCK(inp);
 
@@ -1507,6 +1518,7 @@ do_pass_establish(struct sge_iq *iq, const struct rss_header *rss,
 
 		INP_WUNLOCK(inp);
 		INP_INFO_RUNLOCK(&V_tcbinfo);
+		CURVNET_RESTORE();
 		return (0);
 	}
 
@@ -1532,6 +1544,7 @@ reset:
 		send_reset_synqe(TOEDEV(ifp), synqe);
 		INP_WUNLOCK(inp);
 		INP_INFO_RUNLOCK(&V_tcbinfo);
+		CURVNET_RESTORE();
 		return (0);
 	}
 	toep->tid = tid;
@@ -1568,6 +1581,8 @@ reset:
 	/* New connection inpcb is already locked by syncache_expand(). */
 	new_inp = sotoinpcb(so);
 	INP_WLOCK_ASSERT(new_inp);
+	MPASS(so->so_vnet == lctx->vnet);
+	toep->vnet = lctx->vnet;
 
 	/*
 	 * This is for the unlikely case where the syncache entry that we added
@@ -1591,6 +1606,7 @@ reset:
 	if (inp != NULL)
 		INP_WUNLOCK(inp);
 	INP_INFO_RUNLOCK(&V_tcbinfo);
+	CURVNET_RESTORE();
 	release_synqe(synqe);
 
 	return (0);
