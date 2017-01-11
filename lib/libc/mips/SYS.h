@@ -97,21 +97,21 @@
 #else /* defined(__CHERI_PURE_CAPABILITY__) */
 #ifdef PIC
 # define PIC_PROLOGUE(x)
- /*
-  * XXX: Danger Will Robinson!
-  *
-  * Using a local label in this macro is fraught with peril as
-  * surrounding code might branch to this local label by accident.
-  * Hopefully '100' is big enough that no manually coded assembly uses
-  * it and thus avoids confusion.
-  */
+/*
+ * XXXAR: current CHERI clang ignores any arithmetic expressions in a statement
+ * if it encounters %pc_rel. Therefore we need to manually subtract 8 from
+ * t9 (offset between daddiu and cgetpcc) to get the right value.
+ *
+ * This appears to have been fixed in the latest clang HEAD so we can remove
+ * the extra subtraction after it has been merged into CHERI clang.
+ *
+ * FIXME: if the difference is at a 16 bit boundary this calculation is wrong.
+ */
 # define PIC_TAILCALL(l)			\
-	dla		t0, 100f;		\
-100:	cgetpcc		$c12;			\
-	cgetoffset	t1, $c12;		\
-	dsub		t0, t1, t0;		\
-	csetoffset	$c12, $c12, t0;		\
-	dla		t9, _C_LABEL(l);	\
+	lui		t9, %pcrel_hi(l);	\
+	daddiu		t9, t9, %pcrel_lo(l);	\
+	daddiu		t9, t9, -8;		\
+	cgetpcc		$c12;			\
 	cincoffset	$c12, $c12, t9;		\
 	cjr		$c12;
 # define PIC_RETURN()		cjr $c17
