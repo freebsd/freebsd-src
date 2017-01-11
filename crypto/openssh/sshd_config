@@ -120,7 +120,7 @@
 #MaxStartups 10:30:100
 #PermitTunnel no
 #ChrootDirectory none
-#VersionAddendum FreeBSD-20160310
+#VersionAddendum FreeBSD-20161230
 
 # no default banner path
 #Banner none
