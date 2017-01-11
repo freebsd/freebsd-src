@@ -735,6 +735,10 @@ rtld_resolve_ifunc(const Obj_Entry *obj, const Elf_Sym *def)
 	return ((void *)cheri_setoffset(cheri_getdefault(), target));
 }
 
+/*
+ * NB: MIPS uses a private version of this function (_mips_rtld_bind).
+ * Changes to this function should be applied there as well.
+ */
 Elf_Addr
 _rtld_bind(Obj_Entry *obj, Elf_Size reloff)
 {
