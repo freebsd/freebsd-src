@@ -2,6 +2,11 @@
 
 .include <src.opts.mk>
 
+.if ${MK_CHERI128} == "yes"
+# Linker error
+WANT_CHERI=none
+.endif
+
 _LIBARCHIVEDIR=	${.CURDIR}/../../contrib/libarchive
 _LIBARCHIVECONFDIR=	${.CURDIR}/../../lib/libarchive
 
