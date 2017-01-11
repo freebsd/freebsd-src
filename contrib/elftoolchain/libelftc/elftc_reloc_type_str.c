@@ -664,6 +664,37 @@ elftc_reloc_type_str(unsigned int mach, unsigned int type)
 		case 48: return "R_RISCV_GPREL_S";
 		}
 		break;
+	case EM_S390:
+		switch (type) {
+		case 0: return "R_390_NONE";
+		case 1: return "R_390_8";
+		case 2: return "R_390_12";
+		case 3: return "R_390_16";
+		case 4: return "R_390_32";
+		case 5: return "R_390_PC32";
+		case 6: return "R_390_GOT12";
+		case 7: return "R_390_GOT32";
+		case 8: return "R_390_PLT32";
+		case 9: return "R_390_COPY";
+		case 10: return "R_390_GLOB_DAT";
+		case 11: return "R_390_JMP_SLOT";
+		case 12: return "R_390_RELATIVE";
+		case 13: return "R_390_GOTOFF";
+		case 14: return "R_390_GOTPC";
+		case 15: return "R_390_GOT16";
+		case 16: return "R_390_PC16";
+		case 17: return "R_390_PC16DBL";
+		case 18: return "R_390_PLT16DBL";
+		case 19: return "R_390_PC32DBL";
+		case 20: return "R_390_PLT32DBL";
+		case 21: return "R_390_GOTPCDBL";
+		case 22: return "R_390_64";
+		case 23: return "R_390_PC64";
+		case 24: return "R_390_GOT64";
+		case 25: return "R_390_PLT64";
+		case 26: return "R_390_GOTENT";
+		}
+		break;
 	case EM_SPARC:
 	case EM_SPARCV9:
 		switch(type) {
