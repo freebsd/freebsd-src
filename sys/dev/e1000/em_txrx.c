@@ -304,7 +304,7 @@ em_isc_txd_encap(void *arg, if_pkt_info_t pi)
 	if (do_tso) {
 		i = em_tso_setup(sc, pi, &txd_upper, &txd_lower);
 		tso_desc = TRUE;
-	} else if (csum_flags & CSUM_OFFLOAD) {
+	} else if (csum_flags & EM_CSUM_OFFLOAD) {
 		i = em_transmit_checksum_setup(sc, pi, &txd_upper, &txd_lower);
 	}
 
