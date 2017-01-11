@@ -171,7 +171,7 @@ igb_tx_ctx_setup(struct tx_ring *txr, if_pkt_info_t pi, u32 *cmd_type_len, u32 *
 	*/
         if (pi->ipi_mflags & M_VLANTAG) {
 		vlan_macip_lens |= (pi->ipi_vtag << E1000_ADVTXD_VLAN_SHIFT);
-	} else if ((pi->ipi_csum_flags & CSUM_OFFLOAD) == 0) {
+	} else if ((pi->ipi_csum_flags & IGB_CSUM_OFFLOAD) == 0) {
 		return (0);
 	}
 	
