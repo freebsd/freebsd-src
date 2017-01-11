@@ -88,7 +88,12 @@ START_RELOC_NUMBERS (elf_mips_reloc_type)
   RELOC_NUMBER (R_MIPS_TLS_TPREL_HI16, 49)
   RELOC_NUMBER (R_MIPS_TLS_TPREL_LO16, 50)
   RELOC_NUMBER (R_MIPS_GLOB_DAT, 51)
-  FAKE_RELOC (R_MIPS_max, 52)
+
+  /* PC relative relocations */
+  RELOC_NUMBER (R_MIPS_PCHI16, 64)
+  RELOC_NUMBER (R_MIPS_PCLO16, 65)
+
+  FAKE_RELOC (R_MIPS_max, 66)
   /* These relocs are used for the mips16.  */
   FAKE_RELOC (R_MIPS16_min, 100)
   RELOC_NUMBER (R_MIPS16_26, 100)

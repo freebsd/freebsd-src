@@ -4335,6 +4335,16 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
       value &= howto->dst_mask;
       break;
 
+    case R_MIPS_PCHI16:
+      /* XXXAR: overflow check? */
+      value = mips_elf_high(symbol + addend - p);
+      value &= howto->dst_mask;
+      break;
+    case R_MIPS_PCLO16:
+      value = symbol + addend - p;
+      value &= howto->dst_mask;
+      break;
+
     case R_MIPS16_26:
       /* The calculation for R_MIPS16_26 is just the same as for an
 	 R_MIPS_26.  It's only the storage of the relocated field into
