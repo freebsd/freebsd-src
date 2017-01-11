@@ -1,4 +1,4 @@
-/* $NetBSD: t_chroot.c,v 1.1 2011/07/07 06:57:53 jruoho Exp $ */
+/* $NetBSD: t_chroot.c,v 1.2 2017/01/10 22:36:29 christos Exp $ */
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -29,9 +29,10 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_chroot.c,v 1.1 2011/07/07 06:57:53 jruoho Exp $");
+__RCSID("$NetBSD: t_chroot.c,v 1.2 2017/01/10 22:36:29 christos Exp $");
 
 #include <sys/wait.h>
+#include <sys/stat.h>
 
 #include <atf-c.h>
 #include <errno.h>
@@ -41,10 +42,6 @@ __RCSID("$NetBSD: t_chroot.c,v 1.1 2011/07/07 06:57:53 jruoho Exp $");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-
-#ifdef __FreeBSD__
-#include <sys/stat.h>
-#endif
 
 ATF_TC(chroot_basic);
 ATF_TC_HEAD(chroot_basic, tc)

@@ -1,4 +1,4 @@
-/*	$NetBSD: t_o_search.c,v 1.4 2013/03/17 04:46:06 jmmv Exp $ */
+/*	$NetBSD: t_o_search.c,v 1.5 2017/01/10 22:25:01 christos Exp $ */
 
 /*-
  * Copyright (c) 2012 The NetBSD Foundation, Inc.
@@ -29,9 +29,13 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_o_search.c,v 1.4 2013/03/17 04:46:06 jmmv Exp $");
+__RCSID("$NetBSD: t_o_search.c,v 1.5 2017/01/10 22:25:01 christos Exp $");
 
 #include <atf-c.h>
+
+#include <sys/param.h>
+#include <sys/stat.h>
+
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
@@ -40,7 +44,6 @@ __RCSID("$NetBSD: t_o_search.c,v 1.4 2013/03/17 04:46:06 jmmv Exp $");
 #include <string.h>
 #include <unistd.h>
 #include <pwd.h>
-#include <sys/param.h>
 
 /*
  * dholland 20130112: disable tests that require O_SEARCH semantics
