@@ -1,4 +1,4 @@
-/*	$NetBSD: t_ftok.c,v 1.1 2011/11/08 05:47:00 jruoho Exp $ */
+/*	$NetBSD: t_ftok.c,v 1.2 2017/01/10 15:19:52 christos Exp $ */
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -29,7 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_ftok.c,v 1.1 2011/11/08 05:47:00 jruoho Exp $");
+__RCSID("$NetBSD: t_ftok.c,v 1.2 2017/01/10 15:19:52 christos Exp $");
 
 #include <sys/types.h>
 #include <sys/ipc.h>
@@ -68,9 +68,7 @@ ATF_TC_BODY(ftok_link, tc)
 	fd = open(path, O_RDONLY | O_CREAT);
 
 	ATF_REQUIRE(fd >= 0);
-#ifdef	__FreeBSD__
 	(void)close(fd);
-#endif
 	ATF_REQUIRE(link(path, hlnk) == 0);
 	ATF_REQUIRE(symlink(path, slnk) == 0);
 

@@ -1,4 +1,4 @@
-/*	$NetBSD: t_unlinkat.c,v 1.2 2013/03/17 04:46:06 jmmv Exp $ */
+/*	$NetBSD: t_unlinkat.c,v 1.3 2017/01/10 15:13:56 christos Exp $ */
 
 /*-
  * Copyright (c) 2012 The NetBSD Foundation, Inc.
@@ -29,8 +29,10 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_unlinkat.c,v 1.2 2013/03/17 04:46:06 jmmv Exp $");
+__RCSID("$NetBSD: t_unlinkat.c,v 1.3 2017/01/10 15:13:56 christos Exp $");
 
+#include <sys/param.h>
+#include <sys/stat.h>
 #include <atf-c.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -39,10 +41,6 @@ __RCSID("$NetBSD: t_unlinkat.c,v 1.2 2013/03/17 04:46:06 jmmv Exp $");
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
-#include <sys/param.h>
-#ifdef __FreeBSD__
-#include <sys/stat.h>
-#endif
 
 #define DIR "dir"
 #define FILE "dir/unlinkat"

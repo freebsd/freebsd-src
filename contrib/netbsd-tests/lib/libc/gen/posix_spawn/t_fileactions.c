@@ -1,4 +1,4 @@
-/* $NetBSD: t_fileactions.c,v 1.5 2012/04/09 19:42:07 martin Exp $ */
+/* $NetBSD: t_fileactions.c,v 1.6 2017/01/10 22:36:29 christos Exp $ */
 
 /*-
  * Copyright (c) 2012 The NetBSD Foundation, Inc.
@@ -31,10 +31,11 @@
  */
 
 
-#ifdef __FreeBSD__
-#include <sys/stat.h>
-#endif
 #include <atf-c.h>
+
+#include <sys/wait.h>
+#include <sys/stat.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -42,7 +43,6 @@
 #include <fcntl.h>
 #include <spawn.h>
 #include <unistd.h>
-#include <sys/wait.h>
 
 
 ATF_TC(t_spawn_openmode);
