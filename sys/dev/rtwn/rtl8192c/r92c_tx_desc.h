@@ -68,7 +68,7 @@ struct r92c_tx_desc {
 	uint16_t	txdseq;
 
 	uint32_t	txdw4;
-#define R92C_TXDW4_RTSRATE_M	0x0000003f
+#define R92C_TXDW4_RTSRATE_M	0x0000001f
 #define R92C_TXDW4_RTSRATE_S	0
 #define R92C_TXDW4_SEQ_SEL_M	0x00000040
 #define R92C_TXDW4_SEQ_SEL_S	6
