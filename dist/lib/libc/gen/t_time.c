@@ -1,4 +1,4 @@
-/*	$NetBSD: t_time.c,v 1.3 2014/10/31 12:22:38 justin Exp $ */
+/*	$NetBSD: t_time.c,v 1.4 2017/01/10 15:32:46 christos Exp $ */
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -29,7 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_time.c,v 1.3 2014/10/31 12:22:38 justin Exp $");
+__RCSID("$NetBSD: t_time.c,v 1.4 2017/01/10 15:32:46 christos Exp $");
 
 #include <atf-c.h>
 #include <errno.h>
@@ -38,6 +38,7 @@ __RCSID("$NetBSD: t_time.c,v 1.3 2014/10/31 12:22:38 justin Exp $");
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <sys/time.h>
 #include <unistd.h>
 
 ATF_TC(time_copy);

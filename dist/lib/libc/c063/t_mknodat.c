@@ -1,4 +1,4 @@
-/*	$NetBSD: t_mknodat.c,v 1.3 2013/03/17 04:46:06 jmmv Exp $ */
+/*	$NetBSD: t_mknodat.c,v 1.4 2017/01/10 15:15:09 christos Exp $ */
 
 /*-
  * Copyright (c) 2012 The NetBSD Foundation, Inc.
@@ -29,7 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_mknodat.c,v 1.3 2013/03/17 04:46:06 jmmv Exp $");
+__RCSID("$NetBSD: t_mknodat.c,v 1.4 2017/01/10 15:15:09 christos Exp $");
 
 #include <atf-c.h>
 #include <errno.h>
@@ -80,6 +80,7 @@ ATF_TC_BODY(mknodat_fd, tc)
 	ATF_REQUIRE((fd = mknodat(dfd, BASEFILE, mode, dev)) != -1);
 	ATF_REQUIRE(close(fd) == 0);
 	ATF_REQUIRE(access(FILE, F_OK) == 0);
+	(void)close(dfd);
 }
 
 ATF_TC(mknodat_fdcwd);

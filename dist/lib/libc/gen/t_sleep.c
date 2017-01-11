@@ -1,4 +1,4 @@
-/* $NetBSD: t_sleep.c,v 1.9 2016/08/11 21:34:11 kre Exp $ */
+/* $NetBSD: t_sleep.c,v 1.11 2017/01/10 15:43:59 maya Exp $ */
 
 /*-
  * Copyright (c) 2006 Frank Kardel
@@ -26,18 +26,20 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+#include <sys/event.h>
+#include <sys/signal.h>
+#include <sys/time.h>		/* for TIMESPEC_TO_TIMEVAL on FreeBSD */
+
 #include <atf-c.h>
 #include <errno.h>
+#include <inttypes.h>
 #include <poll.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
-
-#include <sys/cdefs.h>
-#include <sys/event.h>
-#include <sys/signal.h>
 
 #include "isqemu.h"
 
