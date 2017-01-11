@@ -83,9 +83,14 @@
 #include "misc.h"
 #include "digest.h"
 #include "ssherr.h"
+#include "match.h"
 
 #ifdef ENABLE_PKCS11
 #include "ssh-pkcs11.h"
+#endif
+
+#ifndef DEFAULT_PKCS11_WHITELIST
+# define DEFAULT_PKCS11_WHITELIST "/usr/lib/*,/usr/local/lib/*"
 #endif
 
 #if defined(HAVE_SYS_PRCTL_H)
@@ -138,6 +143,9 @@ pid_t cleanup_pid = 0;
 /* pathname and directory for AUTH_SOCKET */
 char socket_name[PATH_MAX];
 char socket_dir[PATH_MAX];
+
+/* PKCS#11 path whitelist */
+static char *pkcs11_whitelist;
 
 /* locking */
 #define LOCK_SIZE	32
@@ -741,7 +749,7 @@ no_identities(SocketEntry *e, u_int type)
 static void
 process_add_smartcard_key(SocketEntry *e)
 {
-	char *provider = NULL, *pin;
+	char *provider = NULL, *pin, canonical_provider[PATH_MAX];
 	int r, i, version, count = 0, success = 0, confirm = 0;
 	u_int seconds;
 	time_t death = 0;
@@ -773,10 +781,21 @@ process_add_smartcard_key(SocketEntry *e)
 			goto send;
 		}
 	}
+	if (realpath(provider, canonical_provider) == NULL) {
+		verbose("failed PKCS#11 add of \"%.100s\": realpath: %s",
+		    provider, strerror(errno));
+		goto send;
+	}
+	if (match_pattern_list(canonical_provider, pkcs11_whitelist, 0) != 1) {
+		verbose("refusing PKCS#11 add of \"%.100s\": "
+		    "provider not whitelisted", canonical_provider);
+		goto send;
+	}
+	debug("%s: add %.100s", __func__, canonical_provider);
 	if (lifetime && !death)
 		death = monotime() + lifetime;
 
-	count = pkcs11_add_provider(provider, pin, &keys);
+	count = pkcs11_add_provider(canonical_provider, pin, &keys);
 	for (i = 0; i < count; i++) {
 		k = keys[i];
 		version = k->type == KEY_RSA1 ? 1 : 2;
@@ -784,8 +803,8 @@ process_add_smartcard_key(SocketEntry *e)
 		if (lookup_identity(k, version) == NULL) {
 			id = xcalloc(1, sizeof(Identity));
 			id->key = k;
-			id->provider = xstrdup(provider);
-			id->comment = xstrdup(provider); /* XXX */
+			id->provider = xstrdup(canonical_provider);
+			id->comment = xstrdup(canonical_provider); /* XXX */
 			id->death = death;
 			id->confirm = confirm;
 			TAILQ_INSERT_TAIL(&tab->idlist, id, next);
@@ -1176,7 +1195,7 @@ usage(void)
 {
 	fprintf(stderr,
 	    "usage: ssh-agent [-c | -s] [-Dd] [-a bind_address] [-E fingerprint_hash]\n"
-	    "                 [-t life] [command [arg ...]]\n"
+	    "                 [-P pkcs11_whitelist] [-t life] [command [arg ...]]\n"
 	    "       ssh-agent [-c | -s] -k\n");
 	exit(1);
 }
@@ -1220,7 +1239,7 @@ main(int ac, char **av)
 	__progname = ssh_get_progname(av[0]);
 	seed_rng();
 
-	while ((ch = getopt(ac, av, "cDdksE:a:t:")) != -1) {
+	while ((ch = getopt(ac, av, "cDdksE:a:P:t:")) != -1) {
 		switch (ch) {
 		case 'E':
 			fingerprint_hash = ssh_digest_alg_by_name(optarg);
@@ -1234,6 +1253,11 @@ main(int ac, char **av)
 			break;
 		case 'k':
 			k_flag++;
+			break;
+		case 'P':
+			if (pkcs11_whitelist != NULL)
+				fatal("-P option already specified");
+			pkcs11_whitelist = xstrdup(optarg);
 			break;
 		case 's':
 			if (c_flag)
@@ -1268,6 +1292,9 @@ main(int ac, char **av)
 
 	if (ac > 0 && (c_flag || k_flag || s_flag || d_flag || D_flag))
 		usage();
+
+	if (pkcs11_whitelist == NULL)
+		pkcs11_whitelist = xstrdup(DEFAULT_PKCS11_WHITELIST);
 
 	if (ac == 0 && !c_flag && !s_flag) {
 		shell = getenv("SHELL");
@@ -1416,7 +1443,7 @@ skip:
 	signal(SIGTERM, cleanup_handler);
 	nalloc = 0;
 
-	if (pledge("stdio cpath unix id proc exec", NULL) == -1)
+	if (pledge("stdio rpath cpath unix id proc exec", NULL) == -1)
 		fatal("%s: pledge: %s", __progname, strerror(errno));
 	platform_pledge_agent();
 
