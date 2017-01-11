@@ -1,4 +1,4 @@
-/* $NetBSD: t_mmap.c,v 1.9 2015/02/28 13:57:08 martin Exp $ */
+/* $NetBSD: t_mmap.c,v 1.10 2017/01/10 22:36:29 christos Exp $ */
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -55,10 +55,11 @@
  * SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_mmap.c,v 1.9 2015/02/28 13:57:08 martin Exp $");
+__RCSID("$NetBSD: t_mmap.c,v 1.10 2017/01/10 22:36:29 christos Exp $");
 
 #include <sys/param.h>
 #include <sys/mman.h>
+#include <sys/stat.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/wait.h>
@@ -78,7 +79,6 @@ __RCSID("$NetBSD: t_mmap.c,v 1.9 2015/02/28 13:57:08 martin Exp $");
 
 #ifdef __FreeBSD__
 #include <sys/disklabel.h>
-#include <sys/stat.h>
 #include <stdint.h>
 #endif
 
