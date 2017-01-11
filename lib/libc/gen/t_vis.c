@@ -1,4 +1,4 @@
-/*	$NetBSD: t_vis.c,v 1.8 2015/05/23 14:02:11 christos Exp $	*/
+/*	$NetBSD: t_vis.c,v 1.9 2017/01/10 15:16:57 christos Exp $	*/
 
 /*-
  * Copyright (c) 2002 The NetBSD Foundation, Inc.
@@ -144,6 +144,7 @@ ATF_TC_BODY(strunvis_hex, tc)
 	}
 }
 
+#ifdef VIS_NOLOCALE
 ATF_TC(strvis_locale);
 ATF_TC_HEAD(strvis_locale, tc)
 {
@@ -172,6 +173,7 @@ ATF_TC_BODY(strvis_locale, tc)
 	setlocale(LC_CTYPE, ol);
 	free(ol);
 }
+#endif /* VIS_NOLOCALE */
 
 ATF_TP_ADD_TCS(tp)
 {
@@ -180,7 +182,9 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, strvis_null);
 	ATF_TP_ADD_TC(tp, strvis_empty);
 	ATF_TP_ADD_TC(tp, strunvis_hex);
+#ifdef VIS_NOLOCALE
 	ATF_TP_ADD_TC(tp, strvis_locale);
+#endif /* VIS_NOLOCALE */
 
 	return atf_no_error();
 }
