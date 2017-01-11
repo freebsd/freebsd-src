@@ -121,7 +121,7 @@
 #PermitTunnel no
 #ChrootDirectory none
 #UseBlacklist no
-#VersionAddendum FreeBSD-20160310
+#VersionAddendum FreeBSD-20161230
 
 # no default banner path
 #Banner none

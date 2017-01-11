@@ -50,4 +50,4 @@
 #   ProxyCommand ssh -q -W %h:%p gateway.example.com
 #   RekeyLimit 1G 1h
 #   VerifyHostKeyDNS yes
-#   VersionAddendum FreeBSD-20160310
+#   VersionAddendum FreeBSD-20161230
