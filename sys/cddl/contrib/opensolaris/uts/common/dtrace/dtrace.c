@@ -4356,9 +4356,7 @@ dtrace_dif_subr(uint_t subr, uint_t rd, uint64_t *regs,
 			break;
 		}
 		l.lx = dtrace_loadptr((uintptr_t)&tupregs[0].dttk_value);
-		/* XXX - should be only LC_SLEEPABLE? */
-		regs[rd] = (LOCK_CLASS(l.li)->lc_flags &
-		    (LC_SLEEPLOCK | LC_SLEEPABLE)) != 0;
+		regs[rd] = (LOCK_CLASS(l.li)->lc_flags & LC_SLEEPLOCK) != 0;
 		break;
 
 	case DIF_SUBR_MUTEX_TYPE_SPIN:
