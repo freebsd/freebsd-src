@@ -770,6 +770,8 @@ em_if_attach_pre(if_ctx_t ctx)
 
 
 	if (adapter->hw.mac.type >= igb_mac_min) {
+		int try_second_bar;
+
 		scctx->isc_txqsizes[0] = roundup2(scctx->isc_ntxd[0] * sizeof(union e1000_adv_tx_desc), EM_DBA_ALIGN);
 		scctx->isc_rxqsizes[0] = roundup2(scctx->isc_nrxd[0] * sizeof(union e1000_adv_rx_desc), EM_DBA_ALIGN);
 		scctx->isc_txrx = &igb_txrx;
@@ -778,6 +780,15 @@ em_if_attach_pre(if_ctx_t ctx)
 			| CSUM_IP6_UDP | CSUM_IP6_TCP;
 		if (adapter->hw.mac.type != e1000_82575)
 			scctx->isc_tx_csum_flags |= CSUM_SCTP | CSUM_IP6_SCTP;
+
+		/*
+		** Some new devices, as with ixgbe, now may
+		** use a different BAR, so we need to keep
+		** track of which is used.
+		*/
+		try_second_bar = pci_read_config(dev, scctx->isc_msix_bar, 4);
+		if (try_second_bar == 0)
+			scctx->isc_msix_bar += 4;
 
 	} else if (adapter->hw.mac.type >= em_mac_min) {
 		scctx->isc_txqsizes[0] = roundup2(scctx->isc_ntxd[0]* sizeof(struct e1000_tx_desc), EM_DBA_ALIGN);
