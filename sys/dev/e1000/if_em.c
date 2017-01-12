@@ -3308,6 +3308,8 @@ em_get_wakeup(if_ctx_t ctx)
 	case e1000_ich10lan:
 	case e1000_pchlan:
 	case e1000_pch2lan:
+	case e1000_pch_lpt:
+	case e1000_pch_spt:
 		apme_mask = E1000_WUC_APME;
 		adapter->has_amt = TRUE;
 		eeprom_data = E1000_READ_REG(&adapter->hw, E1000_WUC);
@@ -3376,7 +3378,7 @@ em_enable_wakeup(if_ctx_t ctx)
 	struct adapter	*adapter = iflib_get_softc(ctx);
 	device_t dev = iflib_get_dev(ctx);
 	if_t ifp = iflib_get_ifp(ctx);
-	u32		pmc, ctrl, ctrl_ext, rctl;
+	u32		pmc, ctrl, ctrl_ext, rctl, wuc;
 	u16     	status;
 
 	if ((pci_find_cap(dev, PCIY_PMG, &pmc) != 0))
@@ -3386,7 +3388,9 @@ em_enable_wakeup(if_ctx_t ctx)
 	ctrl = E1000_READ_REG(&adapter->hw, E1000_CTRL);
 	ctrl |= (E1000_CTRL_SWDPIN2 | E1000_CTRL_SWDPIN3);
 	E1000_WRITE_REG(&adapter->hw, E1000_CTRL, ctrl);
-	E1000_WRITE_REG(&adapter->hw, E1000_WUC, E1000_WUC_PME_EN);
+	wuc = E1000_READ_REG(&adapter->hw, E1000_WUC);
+	wuc |= E1000_WUC_PME_EN ;
+	E1000_WRITE_REG(&adapter->hw, E1000_WUC, wuc);
 
 	if ((adapter->hw.mac.type == e1000_ich8lan) ||
 	    (adapter->hw.mac.type == e1000_pchlan) ||
@@ -3418,7 +3422,9 @@ em_enable_wakeup(if_ctx_t ctx)
 	}
 
 	if ((adapter->hw.mac.type == e1000_pchlan) ||
-	    (adapter->hw.mac.type == e1000_pch2lan)) {
+	    (adapter->hw.mac.type == e1000_pch2lan) ||
+	    (adapter->hw.mac.type == e1000_pch_lpt) ||
+	    (adapter->hw.mac.type == e1000_pch_spt)) {
 		if (em_enable_phy_wakeup(adapter))
 			return;
 	} else {
