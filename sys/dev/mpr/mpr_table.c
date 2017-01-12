@@ -209,6 +209,7 @@ mpr_print_iocfacts(struct mpr_softc *sc, MPI2_IOC_FACTS_REPLY *facts)
 	mpr_dprint_field(sc, MPR_XINFO, "WhoInit: %s\n",
 	    mpr_describe_table(mpr_whoinit_names, facts->WhoInit));
 	MPR_PRINTFIELD(sc, facts, NumberOfPorts, %d);
+	MPR_PRINTFIELD(sc, facts, MaxMSIxVectors, %d);
 	MPR_PRINTFIELD(sc, facts, RequestCredit, %d);
 	MPR_PRINTFIELD(sc, facts, ProductID, 0x%x);
 	mpr_dprint_field(sc, MPR_XINFO, "IOCCapabilities: %b\n",
