@@ -298,10 +298,10 @@ iconv_xlat16_name(struct iconv_converter_class *dcp)
 }
 
 static int
-iconv_xlat16_tolower(void *d2p, register int c)
+iconv_xlat16_tolower(void *d2p, int c)
 {
         struct iconv_xlat16 *dp = (struct iconv_xlat16*)d2p;
-	register int c1, c2, out;
+	int c1, c2, out;
 
 	if (c < 0x100) {
 		c1 = C2I1(c << 8);
@@ -323,10 +323,10 @@ iconv_xlat16_tolower(void *d2p, register int c)
 }
 
 static int
-iconv_xlat16_toupper(void *d2p, register int c)
+iconv_xlat16_toupper(void *d2p, int c)
 {
         struct iconv_xlat16 *dp = (struct iconv_xlat16*)d2p;
-	register int c1, c2, out;
+	int c1, c2, out;
 
 	if (c < 0x100) {
 		c1 = C2I1(c << 8);

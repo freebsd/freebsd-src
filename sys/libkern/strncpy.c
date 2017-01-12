@@ -43,8 +43,8 @@ char *
 strncpy(char * __restrict dst, const char * __restrict src, size_t n)
 {
 	if (n != 0) {
-		register char *d = dst;
-		register const char *s = src;
+		char *d = dst;
+		const char *s = src;
 
 		do {
 			if ((*d++ = *s++) == 0) {
