@@ -1,4 +1,4 @@
-# $NetBSD: Makefile,v 1.11 2015/10/14 16:32:55 christos Exp $
+# $NetBSD: Makefile,v 1.13 2016/08/19 10:21:50 christos Exp $
 
 NOMAN=		# defined
 
@@ -11,6 +11,7 @@ TESTS_SH=	t_integration
 FILESDIR=	${TESTSDIR}
 FILES+=		d_alignof.c
 FILES+=		d_c99_anon_struct.c
+FILES+=		d_c99_anon_union.c
 FILES+=		d_c99_complex_num.c
 FILES+=		d_c99_complex_split.c
 FILES+=		d_c99_compound_literal_comma.c
@@ -23,6 +24,7 @@ FILES+=		d_c99_func.c
 FILES+=		d_c99_recursive_init.c
 FILES+=		d_c99_struct_init.c
 FILES+=		d_c99_nested_struct.c
+FILES+=		d_c99_union_cast.c
 FILES+=		d_c99_union_init1.c
 FILES+=		d_c99_union_init2.c
 FILES+=		d_c99_union_init3.c

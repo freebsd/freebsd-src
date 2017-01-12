@@ -1,4 +1,4 @@
-# $NetBSD: Makefile,v 1.43 2016/07/30 11:03:54 njoly Exp $
+# $NetBSD: Makefile,v 1.45 2016/11/11 15:30:44 njoly Exp $
 
 MKMAN=	no
 
@@ -12,6 +12,7 @@ TESTS_C+=		t_access
 TESTS_C+=		t_bind
 TESTS_C+=		t_chroot
 TESTS_C+=		t_clock_gettime
+TESTS_C+=		t_clock_nanosleep
 TESTS_C+=		t_clone
 TESTS_C+=		t_connect
 TESTS_C+=		t_dup
@@ -67,6 +68,8 @@ TESTS_C+=		t_ucontext
 TESTS_C+=		t_umask
 TESTS_C+=		t_unlink
 TESTS_C+=		t_wait
+TESTS_C+=		t_wait_noproc
+TESTS_C+=		t_wait_noproc_wnohang
 TESTS_C+=		t_write
 
 SRCS.t_mprotect=	t_mprotect.c ${SRCS_EXEC_PROT}

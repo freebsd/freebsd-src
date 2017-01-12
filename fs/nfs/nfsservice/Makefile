@@ -1,4 +1,4 @@
-#	$NetBSD: Makefile,v 1.11 2015/12/23 18:42:23 christos Exp $
+#	$NetBSD: Makefile,v 1.12 2016/08/13 11:20:00 christos Exp $
 #
 
 NOMAN=	1
@@ -18,10 +18,11 @@ TESTS_C=rumpnfsd
 
 SRCS.rumpnfsd= rumpnfsd.c nfsd.c mountd.c getmntinfo.c get_net.c
 
+LDADD+=	-lrumpnet -lrumpnet_net -lrumpnet_local
+LDADD+= -lrumpnet_netinet6 -lrumpnet_netinet			# TCP/IP
 LDADD+=	-lrumpfs_nfsserver -lrumpfs_nfs				# NFS support
 LDADD+=	-lrumpdev_disk -lrumpdev				# disk devices
 LDADD+=	-lrumpfs_ffs -lrumpvfs					# FFS
-LDADD+=	-lrumpnet_netinet -lrumpnet_net -lrumpnet_local		# TCP/IP
 LDADD+=	-lrumpnet_shmif						# shmif
 LDADD+=	-lrumpnet -lrumpkern_sysproxy -lrump -lrumpuser		# base
 LDADD+=	-lpthread -lutil

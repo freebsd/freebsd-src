@@ -1,6 +1,6 @@
-# $NetBSD: Makefile,v 1.1 2011/01/12 02:58:40 pgoyette Exp $
+# $NetBSD: Makefile,v 1.2 2016/08/26 01:31:43 darcy Exp $
 
-MKMAN=	no
+NOMAN=
 
 .include <bsd.own.mk>
 

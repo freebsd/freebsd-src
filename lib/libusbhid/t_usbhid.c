@@ -1,4 +1,4 @@
-/*	$NetBSD: t_usbhid.c,v 1.11 2016/01/07 16:10:49 jakllsch Exp $	*/
+/*	$NetBSD: t_usbhid.c,v 1.12 2016/08/17 12:10:42 jakllsch Exp $	*/
 
 /*
  * Copyright (c) 2016 Jonathan A. Kollasch
@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_usbhid.c,v 1.11 2016/01/07 16:10:49 jakllsch Exp $");
+__RCSID("$NetBSD: t_usbhid.c,v 1.12 2016/08/17 12:10:42 jakllsch Exp $");
 
 #include <atf-c.h>
 
@@ -243,6 +243,9 @@ ATF_TC_BODY(check_hid_get_data, tc)
 	hid_item_t hi;
 	int32_t data;
 	uint32_t udat;
+
+	atf_tc_expect_fail("only the 32-bit opcode works, "
+	    "8 and 16-bit is broken");
 
 	ATF_REQUIRE((hrd = hid_use_report_desc(
 	    range_test_report_descriptor,
