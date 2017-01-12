@@ -684,6 +684,7 @@ init(void)
 		/*NOTREACHED*/
 	}
 #endif
+	freeaddrinfo(res);
 
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = PF_INET6;
@@ -699,6 +700,7 @@ init(void)
 		/*NOTREACHED*/
 	}
 	memcpy(&ripsin, res->ai_addr, res->ai_addrlen);
+	freeaddrinfo(res);
 
 #ifdef HAVE_POLL_H
 	set[0].fd = ripsock;
@@ -788,10 +790,17 @@ ripflush(struct ifc *ifcp, struct sockaddr_in6 *sin6, int nrt, struct netinfo6 *
 	error = sendpacket(sin6, RIPSIZE(nrt));
 	if (error == EAFNOSUPPORT) {
 		/* Protocol not supported */
-		tracet(1, "Could not send info to %s (%s): "
-			"set IFF_UP to 0\n",
-			ifcp->ifc_name, inet6_n2p(&ifcp->ifc_ripsin.sin6_addr));
-		ifcp->ifc_flags &= ~IFF_UP;	/* As if down for AF_INET6 */
+		if (ifcp != NULL) {
+			tracet(1, "Could not send info to %s (%s): "
+			    "set IFF_UP to 0\n",
+			    ifcp->ifc_name,
+			    inet6_n2p(&ifcp->ifc_ripsin.sin6_addr));
+			/* As if down for AF_INET6 */
+			ifcp->ifc_flags &= ~IFF_UP;
+		} else {
+			tracet(1, "Could not send info to %s\n",
+			    inet6_n2p(&sin6->sin6_addr));
+		}
 	}
 }
 
