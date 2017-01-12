@@ -254,7 +254,7 @@ _mips_rtld_bind(Obj_Entry *obj, Elf_Size reloff)
         dbg("bind now/fixup at %s sym # %jd in %s --> was=%p new=%p",
 	    obj->path,
 	    (intmax_t)reloff, defobj->strtab + def->st_name, 
-	    (void *)*where, (void *)target);
+	    (void *)(uintptr_t)*where, (void *)(uintptr_t)target);
 	*where = target;
 	lock_release(rtld_bind_lock, &lockstate);
 	return (Elf_Addr)target;
