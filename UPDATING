@@ -51,6 +51,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 ****************************** SPECIAL WARNING: ******************************
 
+20170112:
+	The EM_MULTIQUEUE kernel configuration option is deprecated now that
+	the em(4) driver conforms to iflib specifications.
+
 20170109:
 	The igb(4), em(4) and lem(4) ethernet drivers are now implemented via
 	IFLIB.  If you have a custom kernel configuration that excludes em(4)

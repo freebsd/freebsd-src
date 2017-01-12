@@ -25,7 +25,6 @@
  */
 
 /*$FreeBSD$*/
-#include "opt_em.h"
 #include "opt_ddb.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
@@ -176,11 +175,7 @@
  *            restoring the network connection. To eliminate the potential
  *            for the hang ensure that EM_RDTR is set to 0.
  */
-#ifdef EM_MULTIQUEUE
-#define EM_RDTR                         64
-#else
 #define EM_RDTR                         0
-#endif
 
 /*
  * Receive Interrupt Absolute Delay Timer (Not valid for 82542/82543/82544)
@@ -193,11 +188,7 @@
  *   along with EM_RDTR, may improve traffic throughput in specific network
  *   conditions.
  */
-#ifdef EM_MULTIQUEUE
-#define EM_RADV                         128
-#else
 #define EM_RADV                         64
-#endif
 
 /*
  * This parameter controls whether or not autonegotation is enabled.
