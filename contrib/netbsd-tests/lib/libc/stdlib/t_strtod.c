@@ -51,10 +51,6 @@ static const char * const inf_strings[] =
 const char *nan_string = "NaN(x)y";
 #endif
 
-#ifdef __FreeBSD__
-#define __HAVE_LONG_DOUBLE
-#endif
-
 ATF_TC(strtod_basic);
 ATF_TC_HEAD(strtod_basic, tc)
 {
