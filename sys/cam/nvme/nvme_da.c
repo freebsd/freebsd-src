@@ -761,7 +761,7 @@ ndaregister(struct cam_periph *periph, void *arg)
 	    MIN(sizeof(softc->disk->d_descr), sizeof(cd->mn)));
 	strlcpy(softc->disk->d_ident, cd->sn,
 	    MIN(sizeof(softc->disk->d_ident), sizeof(cd->sn)));
-	disk->d_rotation_rate = 0;	/* Spinning rust need not apply */
+	disk->d_rotation_rate = DISK_RR_NON_ROTATING;
 	disk->d_open = ndaopen;
 	disk->d_close = ndaclose;
 	disk->d_strategy = ndastrategy;

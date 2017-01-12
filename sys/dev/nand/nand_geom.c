@@ -394,6 +394,7 @@ create_geom_disk(struct nand_chip *chip)
 
 	snprintf(ndisk->d_ident, sizeof(ndisk->d_ident),
 	    "nand: Man:0x%02x Dev:0x%02x", chip->id.man_id, chip->id.dev_id);
+	ndisk->d_rotation_rate = DISK_RR_NON_ROTATING;
 
 	disk_create(ndisk, DISK_VERSION);
 
@@ -415,6 +416,7 @@ create_geom_disk(struct nand_chip *chip)
 	snprintf(rdisk->d_ident, sizeof(rdisk->d_ident),
 	    "nand_raw: Man:0x%02x Dev:0x%02x", chip->id.man_id,
 	    chip->id.dev_id);
+	disk->d_rotation_rate = DISK_RR_NON_ROTATING;
 
 	disk_create(rdisk, DISK_VERSION);
 
