@@ -696,6 +696,21 @@ kdebug_secreplay(struct secreplay *rpl)
 	printf("    }\n");
 }
 
+static void
+kdebug_secnatt(struct secnatt *natt)
+{
+	char buf[IPSEC_ADDRSTRLEN];
+
+	IPSEC_ASSERT(natt != NULL, ("null natt"));
+	printf("  natt{ sport=%u dport=%u ", ntohs(natt->sport),
+	    ntohs(natt->dport));
+	if (natt->flags & IPSEC_NATT_F_OAI)
+		printf("oai=%s ", ipsec_address(&natt->oai, buf, sizeof(buf)));
+	if (natt->flags & IPSEC_NATT_F_OAR)
+		printf("oar=%s ", ipsec_address(&natt->oar, buf, sizeof(buf)));
+	printf("}\n");
+}
+
 void
 kdebug_secasv(struct secasvar *sav)
 {
@@ -729,6 +744,8 @@ kdebug_secasv(struct secasvar *sav)
 	if (sav->key_enc != NULL)
 		KEYDBG(DUMP,
 		    kdebug_sadb_key((struct sadb_ext *)sav->key_enc));
+	if (sav->natt != NULL)
+		kdebug_secnatt(sav->natt);
 	if (sav->replay != NULL) {
 		KEYDBG(DUMP,
 		    SECASVAR_LOCK(sav);
