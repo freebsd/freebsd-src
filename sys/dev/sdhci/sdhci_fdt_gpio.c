@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/gpio.h>
 #include <sys/sysctl.h>
+#include <sys/systm.h>
 #include <sys/taskqueue.h>
 
 #include <dev/gpio/gpiobusvar.h>
