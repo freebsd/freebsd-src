@@ -974,7 +974,7 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int count,
 #ifdef INVARIANTS
 	KASSERT(bp->b_npages <= nitems(bp->b_pages),
 	    ("%s: buf %p overflowed", __func__, bp));
-	for (int j = 1, prev = 1; j < bp->b_npages; j++) {
+	for (int j = 1, prev = 0; j < bp->b_npages; j++) {
 		if (bp->b_pages[j] == bogus_page)
 			continue;
 		KASSERT(bp->b_pages[j]->pindex - bp->b_pages[prev]->pindex ==
