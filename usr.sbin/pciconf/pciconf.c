@@ -917,11 +917,8 @@ parsesel(const char *str)
 		while (isdigit(*ep) && i < 4) {
 			selarr[i++] = strtoul(ep, &eppos, 10);
 			ep = eppos;
-			if (*ep == ':') {
+			if (*ep == ':')
 				ep++;
-				if (*ep  == '\0')
-					i = 0;
-			}
 		}
 		if (i > 0 && *ep == '\0') {
 			sel.pc_func = (i > 2) ? selarr[--i] : 0;
