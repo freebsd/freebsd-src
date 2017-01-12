@@ -79,8 +79,12 @@ NESTED(setjmp, SETJMP_FRAME_SIZE, ra)
 	cfromptr	$c4, $c3, zero			# set == NULL
 	li		a0, 1				# SIG_SETBLOCK
 	PTR_LA		t9, _C_LABEL(sigprocmask)	# get current signal mask
-	cgetpcc		$c12
-	csetoffset	$c12, $c12, t9
+	dla		t0, 1f
+1:	cgetpcc		$c12
+	cgetoffset	t1, $c12
+	dsub		t0, t1, t0
+	csetoffset	$c12, $c12, t0
+	cincoffset	$c12, $c12, t9
 	cjalr		$c12, $c17
 	nop
 
