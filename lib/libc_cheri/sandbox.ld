@@ -117,7 +117,7 @@ SECTIONS
 	.data ALIGN(CAP_ALIGN): {
 		*(.data)
 	}
-	_gp = ALIGN(CAP_ALIGN) + 0x7fc0;
+	_gp = ABSOLUTE(ALIGN(CAP_ALIGN) + 0x7fc0);
 	.got : {
 		*(.got.plt)
 		*(.got)
