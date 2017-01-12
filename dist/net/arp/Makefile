@@ -1,11 +1,13 @@
-# $NetBSD: Makefile,v 1.3 2015/07/30 05:43:42 ozaki-r Exp $
+# $NetBSD: Makefile,v 1.4 2016/11/24 08:52:19 ozaki-r Exp $
 #
 
 .include <bsd.own.mk>
 
 TESTSDIR=	${TESTSBASE}/net/arp
 
-TESTS_SH=	t_arp
-TESTS_SH+=	t_dad
+.for name in arp dad
+TESTS_SH+=		t_${name}
+TESTS_SH_SRC_t_${name}=	../net_common.sh t_${name}.sh
+.endfor
 
 .include <bsd.test.mk>
