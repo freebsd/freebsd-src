@@ -40,14 +40,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/event.h>
 #include <sys/ioccom.h>
-#include <sys/mman.h>
 #include <sys/mount.h>
-#include <sys/procctl.h>
 #include <sys/ptrace.h>
 #include <sys/resource.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
-#include <sys/umtx.h>
 #include <sys/un.h>
 #include <sys/wait.h>
 #include <machine/sysarch.h>
@@ -60,13 +57,10 @@ __FBSDID("$FreeBSD$");
 #include <poll.h>
 #include <signal.h>
 #include <stdbool.h>
-#include <stddef.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sysdecode.h>
-#include <time.h>
 #include <unistd.h>
 #include <vis.h>
 
@@ -256,7 +250,7 @@ static struct syscall decoded_syscalls[] = {
 	{ .name = "pipe", .ret_type = 1, .nargs = 1,
 	  .args = { { PipeFds | OUT, 0 } } },
 	{ .name = "pipe2", .ret_type = 1, .nargs = 2,
-	  .args = { { Ptr, 0 }, { Open, 1 } } },
+	  .args = { { Ptr, 0 }, { Pipe2, 1 } } },
 	{ .name = "poll", .ret_type = 1, .nargs = 3,
 	  .args = { { Pollfd, 0 }, { Int, 1 }, { Int, 2 } } },
 	{ .name = "posix_openpt", .ret_type = 1, .nargs = 1,
@@ -553,81 +547,9 @@ static struct xlat poll_flags[] = {
 	X(POLLWRBAND) X(POLLINIGNEOF) XEND
 };
 
-static struct xlat mmap_flags[] = {
-	X(MAP_SHARED) X(MAP_PRIVATE) X(MAP_FIXED) X(MAP_RESERVED0020)
-	X(MAP_RESERVED0040) X(MAP_RESERVED0080) X(MAP_RESERVED0100)
-	X(MAP_HASSEMAPHORE) X(MAP_STACK) X(MAP_NOSYNC) X(MAP_ANON)
-	X(MAP_EXCL) X(MAP_NOCORE) X(MAP_PREFAULT_READ)
-#ifdef MAP_32BIT
-	X(MAP_32BIT)
-#endif
-	XEND
-};
-
-static struct xlat mprot_flags[] = {
-	X(PROT_NONE) X(PROT_READ) X(PROT_WRITE) X(PROT_EXEC) XEND
-};
-
-static struct xlat whence_arg[] = {
-	X(SEEK_SET) X(SEEK_CUR) X(SEEK_END) X(SEEK_DATA) X(SEEK_HOLE) XEND
-};
-
 static struct xlat sigaction_flags[] = {
 	X(SA_ONSTACK) X(SA_RESTART) X(SA_RESETHAND) X(SA_NOCLDSTOP)
 	X(SA_NODEFER) X(SA_NOCLDWAIT) X(SA_SIGINFO) XEND
-};
-
-static struct xlat fcntl_arg[] = {
-	X(F_DUPFD) X(F_GETFD) X(F_SETFD) X(F_GETFL) X(F_SETFL)
-	X(F_GETOWN) X(F_SETOWN) X(F_OGETLK) X(F_OSETLK) X(F_OSETLKW)
-	X(F_DUP2FD) X(F_GETLK) X(F_SETLK) X(F_SETLKW) X(F_SETLK_REMOTE)
-	X(F_READAHEAD) X(F_RDAHEAD) X(F_DUPFD_CLOEXEC) X(F_DUP2FD_CLOEXEC)
-	XEND
-};
-
-static struct xlat fcntlfd_arg[] = {
-	X(FD_CLOEXEC) XEND
-};
-
-static struct xlat fcntlfl_arg[] = {
-	X(O_APPEND) X(O_ASYNC) X(O_FSYNC) X(O_NONBLOCK) X(O_NOFOLLOW)
-	X(FRDAHEAD) X(O_DIRECT) XEND
-};
-
-static struct xlat sockdomain_arg[] = {
-	X(PF_UNSPEC) X(PF_LOCAL) X(PF_UNIX) X(PF_INET) X(PF_IMPLINK)
-	X(PF_PUP) X(PF_CHAOS) X(PF_NETBIOS) X(PF_ISO) X(PF_OSI)
-	X(PF_ECMA) X(PF_DATAKIT) X(PF_CCITT) X(PF_SNA) X(PF_DECnet)
-	X(PF_DLI) X(PF_LAT) X(PF_HYLINK) X(PF_APPLETALK) X(PF_ROUTE)
-	X(PF_LINK) X(PF_XTP) X(PF_COIP) X(PF_CNT) X(PF_SIP) X(PF_IPX)
-	X(PF_RTIP) X(PF_PIP) X(PF_ISDN) X(PF_KEY) X(PF_INET6)
-	X(PF_NATM) X(PF_ATM) X(PF_NETGRAPH) X(PF_SLOW) X(PF_SCLUSTER)
-	X(PF_ARP) X(PF_BLUETOOTH) X(PF_IEEE80211) X(PF_INET_SDP)
-	X(PF_INET6_SDP) XEND
-};
-
-static struct xlat socktype_arg[] = {
-	X(SOCK_STREAM) X(SOCK_DGRAM) X(SOCK_RAW) X(SOCK_RDM)
-	X(SOCK_SEQPACKET) XEND
-};
-
-static struct xlat open_flags[] = {
-	X(O_RDONLY) X(O_WRONLY) X(O_RDWR) X(O_ACCMODE) X(O_NONBLOCK)
-	X(O_APPEND) X(O_SHLOCK) X(O_EXLOCK) X(O_ASYNC) X(O_FSYNC)
-	X(O_NOFOLLOW) X(O_CREAT) X(O_TRUNC) X(O_EXCL) X(O_NOCTTY)
-	X(O_DIRECT) X(O_DIRECTORY) X(O_EXEC) X(O_TTY_INIT) X(O_CLOEXEC)
-	X(O_VERIFY) XEND
-};
-
-static struct xlat shutdown_arg[] = {
-	X(SHUT_RD) X(SHUT_WR) X(SHUT_RDWR) XEND
-};
-
-static struct xlat resource_arg[] = {
-	X(RLIMIT_CPU) X(RLIMIT_FSIZE) X(RLIMIT_DATA) X(RLIMIT_STACK)
-	X(RLIMIT_CORE) X(RLIMIT_RSS) X(RLIMIT_MEMLOCK) X(RLIMIT_NPROC)
-	X(RLIMIT_NOFILE) X(RLIMIT_SBSIZE) X(RLIMIT_VMEM) X(RLIMIT_NPTS)
-	X(RLIMIT_SWAP) X(RLIMIT_KQUEUES) XEND
 };
 
 static struct xlat pathconf_arg[] = {
@@ -643,48 +565,9 @@ static struct xlat pathconf_arg[] = {
 	X(_PC_ACL_NFS4) X(_PC_MIN_HOLE_SIZE) XEND
 };
 
-static struct xlat rfork_flags[] = {
-	X(RFFDG) X(RFPROC) X(RFMEM) X(RFNOWAIT) X(RFCFDG) X(RFTHREAD)
-	X(RFSIGSHARE) X(RFLINUXTHPN) X(RFTSIGZMB) X(RFPPWAIT) XEND
-};
-
-static struct xlat wait_options[] = {
-	X(WNOHANG) X(WUNTRACED) X(WCONTINUED) X(WNOWAIT) X(WEXITED)
-	X(WTRAPPED) XEND
-};
-
-static struct xlat idtype_arg[] = {
-	X(P_PID) X(P_PPID) X(P_PGID) X(P_SID) X(P_CID) X(P_UID) X(P_GID)
-	X(P_ALL) X(P_LWPID) X(P_TASKID) X(P_PROJID) X(P_POOLID) X(P_JAILID)
-	X(P_CTID) X(P_CPUID) X(P_PSETID) XEND
-};
-
-static struct xlat procctl_arg[] = {
-	X(PROC_SPROTECT) X(PROC_REAP_ACQUIRE) X(PROC_REAP_RELEASE)
-	X(PROC_REAP_STATUS) X(PROC_REAP_GETPIDS) X(PROC_REAP_KILL)
-	X(PROC_TRACE_CTL) X(PROC_TRACE_STATUS) XEND
-};
-
-static struct xlat umtx_ops[] = {
-	X(UMTX_OP_RESERVED0) X(UMTX_OP_RESERVED1) X(UMTX_OP_WAIT)
-	X(UMTX_OP_WAKE) X(UMTX_OP_MUTEX_TRYLOCK) X(UMTX_OP_MUTEX_LOCK)
-	X(UMTX_OP_MUTEX_UNLOCK) X(UMTX_OP_SET_CEILING) X(UMTX_OP_CV_WAIT)
-	X(UMTX_OP_CV_SIGNAL) X(UMTX_OP_CV_BROADCAST) X(UMTX_OP_WAIT_UINT)
-	X(UMTX_OP_RW_RDLOCK) X(UMTX_OP_RW_WRLOCK) X(UMTX_OP_RW_UNLOCK)
-	X(UMTX_OP_WAIT_UINT_PRIVATE) X(UMTX_OP_WAKE_PRIVATE)
-	X(UMTX_OP_MUTEX_WAIT) X(UMTX_OP_MUTEX_WAKE) X(UMTX_OP_SEM_WAIT)
-	X(UMTX_OP_SEM_WAKE) X(UMTX_OP_NWAKE_PRIVATE) X(UMTX_OP_MUTEX_WAKE2)
-	X(UMTX_OP_SEM2_WAIT) X(UMTX_OP_SEM2_WAKE)
-	XEND
-};
-
 static struct xlat at_flags[] = {
 	X(AT_EACCESS) X(AT_SYMLINK_NOFOLLOW) X(AT_SYMLINK_FOLLOW)
 	X(AT_REMOVEDIR) XEND
-};
-
-static struct xlat access_modes[] = {
-	X(R_OK) X(W_OK) X(X_OK) XEND
 };
 
 static struct xlat sysarch_ops[] = {
@@ -704,11 +587,6 @@ static struct xlat linux_socketcall_ops[] = {
 	X(LINUX_SOCKETPAIR) X(LINUX_SEND) X(LINUX_RECV) X(LINUX_SENDTO)
 	X(LINUX_RECVFROM) X(LINUX_SHUTDOWN) X(LINUX_SETSOCKOPT)
 	X(LINUX_GETSOCKOPT) X(LINUX_SENDMSG) X(LINUX_RECVMSG)
-	XEND
-};
-
-static struct xlat sigprocmask_ops[] = {
-	X(SIG_BLOCK) X(SIG_UNBLOCK) X(SIG_SETMASK)
 	XEND
 };
 
@@ -909,6 +787,29 @@ xlookup_bits(struct xlat *xlat, int val)
 	return (str);
 }
 
+static void
+print_integer_arg(const char *(*decoder)(int), FILE *fp, int value)
+{
+	const char *str;
+
+	str = decoder(value);
+	if (str != NULL)
+		fputs(str, fp);
+	else
+		fprintf(fp, "%d", value);
+}
+
+static void
+print_mask_arg(bool (*decoder)(FILE *, int, int *), FILE *fp, int value)
+{
+	int rem;
+
+	if (!decoder(fp, value, &rem))
+		fprintf(fp, "0x%x", rem);
+	else if (rem != 0)
+		fprintf(fp, "|0x%x", rem);
+}
+
 void
 init_syscalls(void)
 {
@@ -1028,18 +929,18 @@ get_string(pid_t pid, void *addr, int max)
 	}
 }
 
-static char *
+static const char *
 strsig2(int sig)
 {
-	static char tmp[sizeof(int) * 3 + 1];
-	char *ret;
+	static char tmp[32];
+	const char *signame;
 
-	ret = strsig(sig);
-	if (ret == NULL) {
+	signame = sysdecode_signal(sig);
+	if (signame == NULL) {
 		snprintf(tmp, sizeof(tmp), "%d", sig);
-		ret = tmp;
+		signame = tmp;
 	}
-	return (ret);
+	return (signame);
 }
 
 static void
@@ -1493,7 +1394,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 		for (i = 1; i < sys_nsig; i++) {
 			if (sigismember(&ss, i)) {
 				fprintf(fp, "%s%s", !first ? "|" : "",
-				    strsig(i));
+				    strsig2(i));
 				first = 0;
 			}
 		}
@@ -1502,92 +1403,48 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 		fputc('}', fp);
 		break;
 	}
-	case Sigprocmask: {
-		fputs(xlookup(sigprocmask_ops, args[sc->offset]), fp);
+	case Sigprocmask:
+		print_integer_arg(sysdecode_sigprocmask_how, fp,
+		    args[sc->offset]);
 		break;
-	}
-	case Fcntlflag: {
+	case Fcntlflag:
 		/* XXX: Output depends on the value of the previous argument. */
-		switch (args[sc->offset - 1]) {
-		case F_SETFD:
-			fputs(xlookup_bits(fcntlfd_arg, args[sc->offset]), fp);
-			break;
-		case F_SETFL:
-			fputs(xlookup_bits(fcntlfl_arg, args[sc->offset]), fp);
-			break;
-		case F_GETFD:
-		case F_GETFL:
-		case F_GETOWN:
-			break;
-		default:
-			fprintf(fp, "0x%lx", args[sc->offset]);
-			break;
-		}
+		if (sysdecode_fcntl_arg_p(args[sc->offset - 1]))
+			sysdecode_fcntl_arg(fp, args[sc->offset - 1],
+			    args[sc->offset], 16);
 		break;
-	}
 	case Open:
-		fputs(xlookup_bits(open_flags, args[sc->offset]), fp);
+		print_mask_arg(sysdecode_open_flags, fp, args[sc->offset]);
 		break;
 	case Fcntl:
-		fputs(xlookup(fcntl_arg, args[sc->offset]), fp);
+		print_integer_arg(sysdecode_fcntl_cmd, fp, args[sc->offset]);
 		break;
 	case Mprot:
-		fputs(xlookup_bits(mprot_flags, args[sc->offset]), fp);
+		print_mask_arg(sysdecode_mmap_prot, fp, args[sc->offset]);
 		break;
-	case Mmapflags: {
-		int align, flags;
-
-		/*
-		 * MAP_ALIGNED can't be handled by xlookup_bits(), so
-		 * generate that string manually and prepend it to the
-		 * string from xlookup_bits().  Have to be careful to
-		 * avoid outputting MAP_ALIGNED|0 if MAP_ALIGNED is
-		 * the only flag.
-		 */
-		flags = args[sc->offset] & ~MAP_ALIGNMENT_MASK;
-		align = args[sc->offset] & MAP_ALIGNMENT_MASK;
-		if (align != 0) {
-			if (align == MAP_ALIGNED_SUPER)
-				fputs("MAP_ALIGNED_SUPER", fp);
-			else
-				fprintf(fp, "MAP_ALIGNED(%d)",
-				    align >> MAP_ALIGNMENT_SHIFT);
-			if (flags == 0)
-				break;
-			fputc('|', fp);
-		}
-		fputs(xlookup_bits(mmap_flags, flags), fp);
+	case Mmapflags:
+		print_mask_arg(sysdecode_mmap_flags, fp, args[sc->offset]);
 		break;
-	}
 	case Whence:
-		fputs(xlookup(whence_arg, args[sc->offset]), fp);
+		print_integer_arg(sysdecode_whence, fp, args[sc->offset]);
 		break;
 	case Sockdomain:
-		fputs(xlookup(sockdomain_arg, args[sc->offset]), fp);
+		print_integer_arg(sysdecode_socketdomain, fp, args[sc->offset]);
 		break;
-	case Socktype: {
-		int type, flags;
-
-		flags = args[sc->offset] & (SOCK_CLOEXEC | SOCK_NONBLOCK);
-		type = args[sc->offset] & ~flags;
-		fputs(xlookup(socktype_arg, type), fp);
-		if (flags & SOCK_CLOEXEC)
-			fprintf(fp, "|SOCK_CLOEXEC");
-		if (flags & SOCK_NONBLOCK)
-			fprintf(fp, "|SOCK_NONBLOCK");
+	case Socktype:
+		print_mask_arg(sysdecode_socket_type, fp, args[sc->offset]);
 		break;
-	}
 	case Shutdown:
-		fputs(xlookup(shutdown_arg, args[sc->offset]), fp);
+		print_integer_arg(sysdecode_shutdown_how, fp, args[sc->offset]);
 		break;
 	case Resource:
-		fputs(xlookup(resource_arg, args[sc->offset]), fp);
+		print_integer_arg(sysdecode_rlimit, fp, args[sc->offset]);
 		break;
 	case Pathconf:
 		fputs(xlookup(pathconf_arg, args[sc->offset]), fp);
 		break;
 	case Rforkflags:
-		fputs(xlookup_bits(rfork_flags, args[sc->offset]), fp);
+		print_mask_arg(sysdecode_rfork_flags, fp, args[sc->offset]);
 		break;
 	case Sockaddr: {
 		char addr[64];
@@ -1818,31 +1675,25 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 		break;
 	}
 	case Waitoptions:
-		fputs(xlookup_bits(wait_options, args[sc->offset]), fp);
+		print_mask_arg(sysdecode_wait6_options, fp, args[sc->offset]);
 		break;
 	case Idtype:
-		fputs(xlookup(idtype_arg, args[sc->offset]), fp);
+		print_integer_arg(sysdecode_idtype, fp, args[sc->offset]);
 		break;
 	case Procctl:
-		fputs(xlookup(procctl_arg, args[sc->offset]), fp);
+		print_integer_arg(sysdecode_procctl_cmd, fp, args[sc->offset]);
 		break;
 	case Umtxop:
-		fputs(xlookup(umtx_ops, args[sc->offset]), fp);
+		print_integer_arg(sysdecode_umtx_op, fp, args[sc->offset]);
 		break;
 	case Atfd:
-		if ((int)args[sc->offset] == AT_FDCWD)
-			fputs("AT_FDCWD", fp);
-		else
-			fprintf(fp, "%d", (int)args[sc->offset]);
+		print_integer_arg(sysdecode_atfd, fp, args[sc->offset]);
 		break;
 	case Atflags:
 		fputs(xlookup_bits(at_flags, args[sc->offset]), fp);
 		break;
 	case Accessmode:
-		if (args[sc->offset] == F_OK)
-			fputs("F_OK", fp);
-		else
-			fputs(xlookup_bits(access_modes, args[sc->offset]), fp);
+		print_mask_arg(sysdecode_access_mode, fp, args[sc->offset]);
 		break;
 	case Sysarch:
 		fputs(xlookup(sysarch_ops, args[sc->offset]), fp);
@@ -1898,6 +1749,9 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 			fprintf(fp, "0x%lx", args[sc->offset]);
 		break;
 	}
+	case Pipe2:
+		print_mask_arg(sysdecode_pipe2_flags, fp, args[sc->offset]);
+		break;
 
 	case CloudABIAdvice:
 		fputs(xlookup(cloudabi_advice, args[sc->offset]), fp);

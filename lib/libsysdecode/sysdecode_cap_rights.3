@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 2015 John Baldwin <jhb@FreeBSD.org>
+.\" Copyright (c) 2016 John Baldwin <jhb@FreeBSD.org>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -26,35 +26,25 @@
 .\" $FreeBSD$
 .\"
 .Dd October 17, 2016
-.Dt sysdecode_ioctlname 3
+.Dt sysdecode_cap_rights 3
 .Os
 .Sh NAME
-.Nm sysdecode_ioctlname
-.Nd lookup name of device control command
+.Nm sysdecode_cap_rights
+.Nd output list of capability rights
 .Sh LIBRARY
 .Lb libsysdecode
 .Sh SYNOPSIS
 .In sys/types.h
 .In stdbool.h
 .In sysdecode.h
-.Ft conts char *
-.Fn sysdecode_ioctlname "unsigned long request"
+.Ft void
+.Fn sysdecode_cap_rights "FILE *fp" "cap_rights_t *rightsp"
 .Sh DESCRIPTION
 The
-.Fn sysdecode_ioctlname
-function returns the name of a device control request identified by
-.Fa request .
-A table of names is generated during the build of the
-.Nm sysdecode
-library from system headers that maps device control request values to
-the name of the corresponding C macro.
-.Sh RETURN VALUES
-The
-.Fn sysdecode_ioctlname
-function returns the name of a device control request if
-.Fa request
-is a known value;
-otherwise
-.Dv NULL .
+.Fn sysdecode_cap_rights
+function outputs a comma-separated list of capability rights at
+.Fa rightsp
+to the stream
+.Fa fp .
 .Sh SEE ALSO
 .Xr sysdecode 3

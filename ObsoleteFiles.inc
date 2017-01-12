@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20170112: sysdecode_getfsstat_flags() renamed to sysdecode_getfsstat_mode()
+OLD_FILES+=usr/share/man/man3/sysdecode_getfsstat_flags.3.gz
 # 20161217: new clang import which bumps version from 3.9.0 to 3.9.1.
 OLD_FILES+=usr/lib/clang/3.9.0/include/sanitizer/allocator_interface.h
 OLD_FILES+=usr/lib/clang/3.9.0/include/sanitizer/asan_interface.h
