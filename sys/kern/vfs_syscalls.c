@@ -464,7 +464,7 @@ kern_getfsstat(struct thread *td, struct statfs **buf, size_t bufsize,
 			nmp = TAILQ_NEXT(mp, mnt_list);
 			continue;
 		}
-		if (sfsp && count < maxcount) {
+		if (sfsp != NULL && count < maxcount) {
 			sp = &mp->mnt_stat;
 			/*
 			 * Set these in case the underlying filesystem
@@ -509,7 +509,7 @@ kern_getfsstat(struct thread *td, struct statfs **buf, size_t bufsize,
 		vfs_unbusy(mp);
 	}
 	mtx_unlock(&mountlist_mtx);
-	if (sfsp && count > maxcount)
+	if (sfsp != NULL && count > maxcount)
 		td->td_retval[0] = maxcount;
 	else
 		td->td_retval[0] = count;
