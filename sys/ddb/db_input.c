@@ -63,7 +63,6 @@ static int	db_lhist_nlines;
 #define	BLANK		' '
 #define	BACKUP		'\b'
 
-static int	cnmaygetc(void);
 static void	db_delete(int n, int bwd);
 static int	db_inputchar(int c);
 static void	db_putnchars(int c, int count);
@@ -291,12 +290,6 @@ db_inputchar(c)
 	return (0);
 }
 
-static int
-cnmaygetc()
-{
-	return (-1);
-}
-
 int
 db_readline(lstart, lsize)
 	char *	lstart;
@@ -350,7 +343,7 @@ db_check_interrupt(void)
 {
 	int	c;
 
-	c = cnmaygetc();
+	c = cncheckc();
 	switch (c) {
 	    case -1:		/* no character */
 		return;
@@ -361,7 +354,7 @@ db_check_interrupt(void)
 
 	    case CTRL('s'):
 		do {
-		    c = cnmaygetc();
+		    c = cncheckc();
 		    if (c == CTRL('c'))
 			db_error((char *)0);
 		} while (c != CTRL('q'));
