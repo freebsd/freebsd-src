@@ -221,11 +221,6 @@ botch:
 	 * our caller's GP.
 	 */
 	ld		v1, 0(zero)
-	PTR_LA		t9, _C_LABEL(longjmperror)
-	cgetpcc		$c12
-	csetoffset	$c12, $c12, t9
-	cjalr		$c12, $c17
-	nop
-
+	PIC_CALL(longjmperror)
 	PIC_TAILCALL(abort)
 END(_longjmp)

@@ -25,6 +25,7 @@
  */
 
 #include <machine/asm.h>
+#include "SYS.h"
 __FBSDID("$FreeBSD$");
 
 /*
@@ -34,8 +35,11 @@ ENTRY(_ctx_start)
 	jalr	t9
 
 	move	a0, s0
+#ifndef __CHERI_PURE_CAPABILITY__
 	PTR_LA	t9, _ctx_done
 	jalr	t9
-
+#else
+	PIC_CALL(_ctx_done)
+#endif
 	break	0
 END(_ctx_start)

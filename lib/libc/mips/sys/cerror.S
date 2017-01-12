@@ -82,19 +82,7 @@ NESTED_NOPROFILE(__cerror, CALLFRAME_SIZ, ra)
 	csc		$c17, sp, CALLFRAME_C17($c11)
 	move		s8, sp
 
-	dla		t9, _C_LABEL(__error)   # locate address of errno
-#ifdef PIC
-	dla		t0, 1f
-1:	cgetpcc		$c12
-	cgetoffset	t1, $c12
-	dsub		t0, t1, t0
-	csetoffset	$c12, $c12, t0
-	cincoffset	$c12, $c12, t9
-#else
-	cgetpccsetoffset $c12, t9
-#endif
-	cjalr		$c12, $c17
-	nop
+	PIC_CALL(__error)	# locate address of errno
 
 	move		sp, s8
 	cld		t0, sp, CALLFRAME_S0($c11)

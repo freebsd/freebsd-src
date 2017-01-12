@@ -107,17 +107,28 @@
  *
  * FIXME: if the difference is at a 16 bit boundary this calculation is wrong.
  */
-# define PIC_TAILCALL(l)			\
-	lui		t9, %pcrel_hi(l);	\
-	daddiu		t9, t9, %pcrel_lo(l);	\
-	daddiu		t9, t9, -8;		\
-	cgetpcc		$c12;			\
-	cincoffset	$c12, $c12, t9;		\
-	cjr		$c12;
+# define PIC_LOAD_CODE_PTR(capreg, gpr, l)		\
+	lui		gpr, %pcrel_hi(l);		\
+	daddiu		gpr, gpr, %pcrel_lo(l);		\
+	daddiu		gpr, gpr, -8;			\
+	cgetpcc		capreg;				\
+	cincoffset	capreg, capreg, t9;
+# define PIC_TAILCALL(l)				\
+	PIC_LOAD_CODE_PTR($c12, t9, _C_LABEL(l))	\
+	cjr $c12;
+# define PIC_CALL(l)					\
+	PIC_LOAD_CODE_PTR($c12, t9, _C_LABEL(l))	\
+	cjalr $c12, $c17;				\
+	nop;
 # define PIC_RETURN()		cjr $c17
 #else
 # define PIC_PROLOGUE(x)
 # define PIC_TAILCALL(l)	j _C_LABEL(l)
+# define PIC_CALL(l)				\
+	dla			t9, l;		\
+	cgetpccsetoffset	$c12, t9;	\
+	cjalr			$c12, $c17;	\
+	nop
 # define PIC_RETURN()		cjr $c17
 #endif
 #endif /* defined(__CHERI_PURE_CAPABILITY__) */
