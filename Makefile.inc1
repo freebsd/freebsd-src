@@ -655,9 +655,6 @@ _worldtmp: .PHONY
 .endif
 .else
 	rm -rf ${WORLDTMP}/legacy/usr/include
-#	XXX - These can depend on any header file.
-	rm -f ${OBJTREE}${.CURDIR}/lib/libsysdecode/ioctl.c
-	rm -f ${OBJTREE}${.CURDIR}/usr.bin/kdump/kdump_subr.c
 .endif
 .for _dir in \
     lib lib/casper usr legacy/bin legacy/usr
