@@ -3055,9 +3055,6 @@ options 	RANDOM_ENABLE_UMA	# slab allocator
 # Module to enable execution of application via emulators like QEMU
 options         IMAGACT_BINMISC
 
-# Intel em(4) driver
-options		EM_MULTIQUEUE # Activate multiqueue features/disable MSI-X
-
 # zlib I/O stream support
 # This enables support for compressed core dumps.
 options 	GZIO
