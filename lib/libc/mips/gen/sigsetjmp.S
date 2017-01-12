@@ -60,8 +60,12 @@ __FBSDID("$FreeBSD$");
 
 LEAF(sigsetjmp)
 	PIC_PROLOGUE(sigsetjmp)
-
+#ifndef __CHERI_PURE_CAPABILITY__
 	bne	a1, zero, 1f			# do saving of signal mask?
+#else
+	/* The first argument is a capability so v is passed in a0 instead */
+	bne	a0, zero, 1f
+#endif
 	PIC_TAILCALL(_setjmp)
 
 1:	PIC_TAILCALL(setjmp)
@@ -69,6 +73,7 @@ END(sigsetjmp)
 
 LEAF(siglongjmp)
 	PIC_PROLOGUE(siglongjmp)
+	# FIXME: this looks like it won't work with CheriABI
 	REG_L	t0, (_JB_MAGIC  * SZREG)(a0)
 	REG_LI	t1, _JB_MAGIC__SETJMP
 	bne	t0, t1, 1f			# setjmp or _setjmp magic?
