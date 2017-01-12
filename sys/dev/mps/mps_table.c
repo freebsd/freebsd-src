@@ -208,6 +208,7 @@ mps_print_iocfacts(struct mps_softc *sc, MPI2_IOC_FACTS_REPLY *facts)
 	mps_dprint_field(sc, MPS_XINFO, "WhoInit: %s\n",
 	    mps_describe_table(mps_whoinit_names, facts->WhoInit));
 	MPS_PRINTFIELD(sc, facts, NumberOfPorts, %d);
+	MPS_PRINTFIELD(sc, facts, MaxMSIxVectors, %d);
 	MPS_PRINTFIELD(sc, facts, RequestCredit, %d);
 	MPS_PRINTFIELD(sc, facts, ProductID, 0x%x);
 	mps_dprint_field(sc, MPS_XINFO, "IOCCapabilities: %b\n",
