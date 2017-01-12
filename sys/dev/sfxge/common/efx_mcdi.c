@@ -1725,7 +1725,8 @@ static	__checkReturn	efx_rc_t
 efx_mcdi_mac_stats(
 	__in		efx_nic_t *enp,
 	__in_opt	efsys_mem_t *esmp,
-	__in		efx_stats_action_t action)
+	__in		efx_stats_action_t action,
+	__in		uint16_t period_ms)
 {
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_MAC_STATS_IN_LEN,
@@ -1750,7 +1751,7 @@ efx_mcdi_mac_stats(
 	    MAC_STATS_IN_PERIODIC_CHANGE, enable | events | disable,
 	    MAC_STATS_IN_PERIODIC_ENABLE, enable | events,
 	    MAC_STATS_IN_PERIODIC_NOEVENT, !events,
-	    MAC_STATS_IN_PERIOD_MS, (enable | events) ? 1000 : 0);
+	    MAC_STATS_IN_PERIOD_MS, (enable | events) ? period_ms : 0);
 
 	if (esmp != NULL) {
 		int bytes = MC_CMD_MAC_NSTATS * sizeof (uint64_t);
@@ -1800,7 +1801,7 @@ efx_mcdi_mac_stats_clear(
 {
 	efx_rc_t rc;
 
-	if ((rc = efx_mcdi_mac_stats(enp, NULL, EFX_STATS_CLEAR)) != 0)
+	if ((rc = efx_mcdi_mac_stats(enp, NULL, EFX_STATS_CLEAR, 0)) != 0)
 		goto fail1;
 
 	return (0);
@@ -1823,7 +1824,7 @@ efx_mcdi_mac_stats_upload(
 	 * avoid having to pull the statistics buffer into the cache to
 	 * maintain cumulative statistics.
 	 */
-	if ((rc = efx_mcdi_mac_stats(enp, esmp, EFX_STATS_UPLOAD)) != 0)
+	if ((rc = efx_mcdi_mac_stats(enp, esmp, EFX_STATS_UPLOAD, 0)) != 0)
 		goto fail1;
 
 	return (0);
@@ -1838,7 +1839,7 @@ fail1:
 efx_mcdi_mac_stats_periodic(
 	__in		efx_nic_t *enp,
 	__in		efsys_mem_t *esmp,
-	__in		uint16_t period,
+	__in		uint16_t period_ms,
 	__in		boolean_t events)
 {
 	efx_rc_t rc;
@@ -1847,14 +1848,17 @@ efx_mcdi_mac_stats_periodic(
 	 * The MC DMAs aggregate statistics for our convenience, so we can
 	 * avoid having to pull the statistics buffer into the cache to
 	 * maintain cumulative statistics.
-	 * Huntington uses a fixed 1sec period, so use that on Siena too.
+	 * Huntington uses a fixed 1sec period.
+	 * Medford uses a fixed 1sec period before v6.2.1.1033 firmware.
 	 */
-	if (period == 0)
-		rc = efx_mcdi_mac_stats(enp, NULL, EFX_STATS_DISABLE);
+	if (period_ms == 0)
+		rc = efx_mcdi_mac_stats(enp, NULL, EFX_STATS_DISABLE, 0);
 	else if (events)
-		rc = efx_mcdi_mac_stats(enp, esmp, EFX_STATS_ENABLE_EVENTS);
+		rc = efx_mcdi_mac_stats(enp, esmp, EFX_STATS_ENABLE_EVENTS,
+		    period_ms);
 	else
-		rc = efx_mcdi_mac_stats(enp, esmp, EFX_STATS_ENABLE_NOEVENTS);
+		rc = efx_mcdi_mac_stats(enp, esmp, EFX_STATS_ENABLE_NOEVENTS,
+		    period_ms);
 
 	if (rc != 0)
 		goto fail1;
