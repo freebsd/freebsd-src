@@ -702,6 +702,48 @@ sfxge_port_stats_update_period_ms(struct sfxge_softc *sc)
 	return period_ms;
 }
 
+static int
+sfxge_port_stats_update_period_ms_handler(SYSCTL_HANDLER_ARGS)
+{
+	struct sfxge_softc *sc;
+	struct sfxge_port *port;
+	unsigned int period_ms;
+	int error;
+
+	sc = arg1;
+	port = &sc->port;
+
+	if (req->newptr != NULL) {
+		error = SYSCTL_IN(req, &period_ms, sizeof(period_ms));
+		if (error != 0)
+			return (error);
+
+		if (period_ms > UINT16_MAX)
+			return (EINVAL);
+
+		SFXGE_PORT_LOCK(port);
+
+		if (port->stats_update_period_ms != period_ms) {
+			if (port->init_state == SFXGE_PORT_STARTED)
+				error = efx_mac_stats_periodic(sc->enp,
+						&port->mac_stats.dma_buf,
+						period_ms, B_FALSE);
+			if (error == 0)
+				port->stats_update_period_ms = period_ms;
+		}
+
+		SFXGE_PORT_UNLOCK(port);
+	} else {
+		SFXGE_PORT_LOCK(port);
+		period_ms = port->stats_update_period_ms;
+		SFXGE_PORT_UNLOCK(port);
+
+		error = SYSCTL_OUT(req, &period_ms, sizeof(period_ms));
+	}
+
+	return (error);
+}
+
 int
 sfxge_port_init(struct sfxge_softc *sc)
 {
@@ -752,6 +794,11 @@ sfxge_port_init(struct sfxge_softc *sc)
 		goto fail2;
 	port->stats_update_period_ms = sfxge_port_stats_update_period_ms(sc);
 	sfxge_mac_stat_init(sc);
+
+	SYSCTL_ADD_PROC(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree), OID_AUTO,
+	    "stats_update_period_ms", CTLTYPE_UINT|CTLFLAG_RW, sc, 0,
+	    sfxge_port_stats_update_period_ms_handler, "IU",
+	    "interface statistics refresh period");
 
 	port->init_state = SFXGE_PORT_INITIALIZED;
 
