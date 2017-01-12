@@ -97,9 +97,17 @@
 #else /* defined(__CHERI_PURE_CAPABILITY__) */
 #ifdef PIC
 # define PIC_PROLOGUE(x)
+ /*
+  * XXX: Danger Will Robinson!
+  *
+  * Using a local label in this macro is fraught with peril as
+  * surrounding code might branch to this local label by accident.
+  * Hopefully '100' is big enough that no manually coded assembly uses
+  * it and thus avoids confusion.
+  */
 # define PIC_TAILCALL(l)			\
-	dla		t0, 1f;			\
-1:	cgetpcc		$c12;			\
+	dla		t0, 100f;		\
+100:	cgetpcc		$c12;			\
 	cgetoffset	t1, $c12;		\
 	dsub		t0, t1, t0;		\
 	csetoffset	$c12, $c12, t0;		\
