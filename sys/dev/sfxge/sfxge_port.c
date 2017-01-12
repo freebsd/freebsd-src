@@ -51,6 +51,7 @@ sfxge_mac_stat_update(struct sfxge_softc *sc)
 	struct sfxge_port *port = &sc->port;
 	efsys_mem_t *esmp = &(port->mac_stats.dma_buf);
 	clock_t now;
+	unsigned int min_ticks;
 	unsigned int count;
 	int rc;
 
@@ -61,8 +62,10 @@ sfxge_mac_stat_update(struct sfxge_softc *sc)
 		goto out;
 	}
 
+	min_ticks = (unsigned int)hz * SFXGE_STATS_UPDATE_PERIOD_MS / 1000;
+
 	now = ticks;
-	if ((unsigned int)(now - port->mac_stats.update_time) < (unsigned int)hz) {
+	if ((unsigned int)(now - port->mac_stats.update_time) < min_ticks) {
 		rc = 0;
 		goto out;
 	}
@@ -510,9 +513,10 @@ sfxge_port_start(struct sfxge_softc *sc)
 
 	sfxge_mac_filter_set_locked(sc);
 
-	/* Update MAC stats by DMA every second */
+	/* Update MAC stats by DMA every period */
 	if ((rc = efx_mac_stats_periodic(enp, &port->mac_stats.dma_buf,
-					 1000, B_FALSE)) != 0)
+					 SFXGE_STATS_UPDATE_PERIOD_MS,
+					 B_FALSE)) != 0)
 		goto fail6;
 
 	if ((rc = efx_mac_drain(enp, B_FALSE)) != 0)
