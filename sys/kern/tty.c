@@ -166,11 +166,9 @@ tty_drain(struct tty *tp, int leaving)
 			return (error);
 		ttydevsw_outwakeup(tp);
 		error = tty_timedwait(tp, &tp->t_outwait, hz / 10);
-		if (timeout_at == 0 && error == EWOULDBLOCK)
-			error = 0;
-		if (error != EWOULDBLOCK)
-			continue;
-		if (getsbinuptime() < timeout_at)
+		if (error != 0 && error != EWOULDBLOCK)
+			return (error);
+		else if (timeout_at == 0 || getsbinuptime() < timeout_at)
 			error = 0;
 		else if (leaving && ttyoutq_bytesused(&tp->t_outq) < bytes) {
 			/* In close, making progress, grant an extra second. */
