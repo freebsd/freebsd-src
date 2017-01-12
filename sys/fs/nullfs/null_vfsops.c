@@ -301,29 +301,33 @@ nullfs_statfs(mp, sbp)
 	struct statfs *sbp;
 {
 	int error;
-	struct statfs mstat;
+	struct statfs *mstat;
 
 	NULLFSDEBUG("nullfs_statfs(mp = %p, vp = %p->%p)\n", (void *)mp,
 	    (void *)MOUNTTONULLMOUNT(mp)->nullm_rootvp,
 	    (void *)NULLVPTOLOWERVP(MOUNTTONULLMOUNT(mp)->nullm_rootvp));
 
-	bzero(&mstat, sizeof(mstat));
+	mstat = malloc(sizeof(struct statfs), M_STATFS, M_WAITOK | M_ZERO);
 
-	error = VFS_STATFS(MOUNTTONULLMOUNT(mp)->nullm_vfs, &mstat);
-	if (error)
+	error = VFS_STATFS(MOUNTTONULLMOUNT(mp)->nullm_vfs, mstat);
+	if (error) {
+		free(mstat, M_STATFS);
 		return (error);
+	}
 
 	/* now copy across the "interesting" information and fake the rest */
-	sbp->f_type = mstat.f_type;
+	sbp->f_type = mstat->f_type;
 	sbp->f_flags = (sbp->f_flags & (MNT_RDONLY | MNT_NOEXEC | MNT_NOSUID |
-	    MNT_UNION | MNT_NOSYMFOLLOW)) | (mstat.f_flags & ~MNT_ROOTFS);
-	sbp->f_bsize = mstat.f_bsize;
-	sbp->f_iosize = mstat.f_iosize;
-	sbp->f_blocks = mstat.f_blocks;
-	sbp->f_bfree = mstat.f_bfree;
-	sbp->f_bavail = mstat.f_bavail;
-	sbp->f_files = mstat.f_files;
-	sbp->f_ffree = mstat.f_ffree;
+	    MNT_UNION | MNT_NOSYMFOLLOW)) | (mstat->f_flags & ~MNT_ROOTFS);
+	sbp->f_bsize = mstat->f_bsize;
+	sbp->f_iosize = mstat->f_iosize;
+	sbp->f_blocks = mstat->f_blocks;
+	sbp->f_bfree = mstat->f_bfree;
+	sbp->f_bavail = mstat->f_bavail;
+	sbp->f_files = mstat->f_files;
+	sbp->f_ffree = mstat->f_ffree;
+
+	free(mstat, M_STATFS);
 	return (0);
 }
 

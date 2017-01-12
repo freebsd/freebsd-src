@@ -1430,17 +1430,20 @@ svr4_sys_statvfs(td, uap)
 	struct svr4_sys_statvfs_args *uap;
 {
 	struct svr4_statvfs sfs;
-	struct statfs bfs;
+	struct statfs *bfs;
 	char *path;
 	int error;
 
 	CHECKALTEXIST(td, uap->path, &path);
 
-	error = kern_statfs(td, path, UIO_SYSSPACE, &bfs);
+	bfs = malloc(sizeof(struct statfs), M_STATFS, M_WAITOK);
+	error = kern_statfs(td, path, UIO_SYSSPACE, bfs);
 	free(path, M_TEMP);
-	if (error)
+	if (error == 0)
+		bsd_statfs_to_svr4_statvfs(bfs, &sfs);
+	free(bfs, M_STATFS);
+	if (error != 0)
 		return (error);
-	bsd_statfs_to_svr4_statvfs(&bfs, &sfs);
 	return copyout(&sfs, uap->fs, sizeof(sfs));
 }
 
@@ -1451,13 +1454,16 @@ svr4_sys_fstatvfs(td, uap)
 	struct svr4_sys_fstatvfs_args *uap;
 {
 	struct svr4_statvfs sfs;
-	struct statfs bfs;
+	struct statfs *bfs;
 	int error;
 
-	error = kern_fstatfs(td, uap->fd, &bfs);
-	if (error)
+	bfs = malloc(sizeof(struct statfs), M_STATFS, M_WAITOK);
+	error = kern_fstatfs(td, uap->fd, bfs);
+	if (error == 0)
+		bsd_statfs_to_svr4_statvfs(bfs, &sfs);
+	free(bfs, M_STATFS);
+	if (error != 0)
 		return (error);
-	bsd_statfs_to_svr4_statvfs(&bfs, &sfs);
 	return copyout(&sfs, uap->fs, sizeof(sfs));
 }
 
@@ -1468,17 +1474,20 @@ svr4_sys_statvfs64(td, uap)
 	struct svr4_sys_statvfs64_args *uap;
 {
 	struct svr4_statvfs64 sfs;
-	struct statfs bfs;
+	struct statfs *bfs;
 	char *path;
 	int error;
 
 	CHECKALTEXIST(td, uap->path, &path);
 
-	error = kern_statfs(td, path, UIO_SYSSPACE, &bfs);
+	bfs = malloc(sizeof(struct statfs), M_STATFS, M_WAITOK);
+	error = kern_statfs(td, path, UIO_SYSSPACE, bfs);
 	free(path, M_TEMP);
-	if (error)
+	if (error == 0)
+		bsd_statfs_to_svr4_statvfs64(bfs, &sfs);
+	free(bfs, M_STATFS);
+	if (error != 0)
 		return (error);
-	bsd_statfs_to_svr4_statvfs64(&bfs, &sfs);
 	return copyout(&sfs, uap->fs, sizeof(sfs));
 }
 
@@ -1489,13 +1498,16 @@ svr4_sys_fstatvfs64(td, uap)
 	struct svr4_sys_fstatvfs64_args *uap;
 {
 	struct svr4_statvfs64 sfs;
-	struct statfs bfs;
+	struct statfs *bfs;
 	int error;
 
-	error = kern_fstatfs(td, uap->fd, &bfs);
-	if (error)
+	bfs = malloc(sizeof(struct statfs), M_STATFS, M_WAITOK);
+	error = kern_fstatfs(td, uap->fd, bfs);
+	if (error == 0)
+		bsd_statfs_to_svr4_statvfs64(bfs, &sfs);
+	free(bfs, M_STATFS);
+	if (error != 0)
 		return (error);
-	bsd_statfs_to_svr4_statvfs64(&bfs, &sfs);
 	return copyout(&sfs, uap->fs, sizeof(sfs));
 }
 
