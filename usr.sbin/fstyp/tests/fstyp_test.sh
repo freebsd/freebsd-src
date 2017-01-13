@@ -1,3 +1,29 @@
+#!/bin/sh
+#
+# Copyright (c) 2015 Alan Somers
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+
 # $FreeBSD$
 
 atf_test_case cd9660
@@ -9,7 +35,7 @@ cd9660_body() {
 	atf_check -s exit:0 -o ignore makefs -t cd9660 -Z -s 64m cd9660.img dir
 	atf_check -s exit:0 -o inline:"cd9660\n" fstyp cd9660.img
 	atf_check -s exit:0 -o inline:"cd9660\n" fstyp -l cd9660.img
-}	
+}
 
 atf_test_case cd9660_label
 cd9660_label_head() {
@@ -21,7 +47,7 @@ cd9660_label_body() {
 	atf_check -s exit:0 -o inline:"cd9660\n" fstyp cd9660.img
 	# Note: cd9660 labels are always upper case
 	atf_check -s exit:0 -o inline:"cd9660 FOO\n" fstyp -l cd9660.img
-}	
+}
 
 atf_test_case dir
 dir_head() {
@@ -177,7 +203,7 @@ ufs2_label_body() {
 	atf_check -s exit:0 mkdir dir
 	atf_check -s exit:0 -o ignore makefs -o version=2,label="foo" -Z -s 64m ufs.img dir
 	atf_check -s exit:0 -o inline:"ufs foo\n" fstyp -l ufs.img
-}	
+}
 
 atf_test_case ufs_on_device cleanup
 ufs_on_device_head() {
