@@ -400,13 +400,16 @@ snmptool_get(struct snmp_toolinfo *snmptoolctx)
 
 		if (snmp_parse_resp(&resp, &req) >= 0) {
 			snmp_output_resp(snmptoolctx, &resp, NULL);
+			snmp_pdu_free(&resp);
 			break;
 		}
 
 		snmp_output_err_resp(snmptoolctx, &resp);
 		if (GET_PDUTYPE(snmptoolctx) == SNMP_PDU_GETBULK ||
-		    !ISSET_RETRY(snmptoolctx))
+		    !ISSET_RETRY(snmptoolctx)) {
+			snmp_pdu_free(&resp);
 			break;
+		}
 
 		/*
 		 * Loop through the object list and set object->error to the
@@ -414,15 +417,17 @@ snmptool_get(struct snmp_toolinfo *snmptoolctx)
 		 */
 		if (snmp_object_seterror(snmptoolctx,
 		    &(resp.bindings[resp.error_index - 1]),
-		    resp.error_status) <= 0)
+		    resp.error_status) <= 0) {
+			snmp_pdu_free(&resp);
 			break;
+		}
 
 		fprintf(stderr, "Retrying...\n");
 		snmp_pdu_free(&resp);
 		snmp_pdu_create(&req, GET_PDUTYPE(snmptoolctx));
 	}
 
-	snmp_pdu_free(&resp);
+	snmp_pdu_free(&req);
 
 	return (0);
 }
@@ -498,27 +503,29 @@ snmptool_walk(struct snmp_toolinfo *snmptoolctx)
 			}
 
 			outputs += rc;
-			snmp_pdu_free(&resp);
 
-			if ((u_int)rc < resp.nbindings)
+			if ((u_int)rc < resp.nbindings) {
+				snmp_pdu_free(&resp);
 				break;
+			}
 
 			snmpwalk_nextpdu_create(op,
 			    &(resp.bindings[resp.nbindings - 1].var), &req);
 			if (op == SNMP_PDU_GETBULK)
 				snmpget_fix_getbulk(&req, GET_MAXREP(snmptoolctx),
 				    GET_NONREP(snmptoolctx));
+			snmp_pdu_free(&resp);
 		}
 
 		/* Just in case our root was a leaf. */
 		if (outputs == 0) {
 			snmpwalk_nextpdu_create(SNMP_PDU_GET, &root, &req);
 			if (snmp_dialog(&req, &resp) == SNMP_CODE_OK) {
-				if (snmp_parse_resp(&resp,&req) < 0)
+				if (snmp_parse_resp(&resp, &req) < 0)
 					snmp_output_err_resp(snmptoolctx, &resp);
 				else
-					snmp_output_resp(snmptoolctx, &(resp), NULL);
-
+					snmp_output_resp(snmptoolctx, &resp,
+					    NULL);
 				snmp_pdu_free(&resp);
 			} else
 				warn("Snmp dialog");
@@ -529,8 +536,11 @@ snmptool_walk(struct snmp_toolinfo *snmptoolctx)
 			break;
 		}
 
+		snmp_pdu_free(&req);
 		snmp_pdu_create(&req, op);
 	}
+
+	snmp_pdu_free(&req);
 
 	if (rc == 0)
 		return (0);
@@ -1089,25 +1099,29 @@ snmptool_set(struct snmp_toolinfo *snmptoolctx)
 		if (snmp_pdu_check(&req, &resp) > 0) {
 			if (GET_OUTPUT(snmptoolctx) != OUTPUT_QUIET)
 				snmp_output_resp(snmptoolctx, &resp, NULL);
+			snmp_pdu_free(&resp);
 			break;
 		}
 
 		snmp_output_err_resp(snmptoolctx, &resp);
-		if (!ISSET_RETRY(snmptoolctx))
+		if (!ISSET_RETRY(snmptoolctx)) {
+			snmp_pdu_free(&resp);
 			break;
+		}
 
 		if (snmp_object_seterror(snmptoolctx,
 		    &(resp.bindings[resp.error_index - 1]),
-		    resp.error_status) <= 0)
+		    resp.error_status) <= 0) {
+			snmp_pdu_free(&resp);
 			break;
+		}
 
 		fprintf(stderr, "Retrying...\n");
 		snmp_pdu_free(&req);
-		snmp_pdu_free(&resp);
 		snmp_pdu_create(&req, SNMP_PDU_SET);
 	}
 
-	snmp_pdu_free(&resp);
+	snmp_pdu_free(&req);
 
 	return (0);
 }
