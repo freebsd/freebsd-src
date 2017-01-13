@@ -67,7 +67,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/resourcevar.h>
 #include <sys/sbuf.h>
 #include <sys/signalvar.h>
-#include <sys/socketvar.h>
 #include <sys/kdb.h>
 #include <sys/stat.h>
 #include <sys/sx.h>
@@ -2838,61 +2837,6 @@ fgetvp_write(struct thread *td, int fd, cap_rights_t *rightsp,
 	return (_fgetvp(td, fd, FWRITE, rightsp, vpp));
 }
 #endif
-
-/*
- * Like fget() but loads the underlying socket, or returns an error if the
- * descriptor does not represent a socket.
- *
- * We bump the ref count on the returned socket.  XXX Also obtain the SX lock
- * in the future.
- *
- * Note: fgetsock() and fputsock() are deprecated, as consumers should rely
- * on their file descriptor reference to prevent the socket from being free'd
- * during use.
- */
-int
-fgetsock(struct thread *td, int fd, cap_rights_t *rightsp, struct socket **spp,
-    u_int *fflagp)
-{
-	struct file *fp;
-	int error;
-
-	*spp = NULL;
-	if (fflagp != NULL)
-		*fflagp = 0;
-	if ((error = _fget(td, fd, &fp, 0, rightsp, NULL)) != 0)
-		return (error);
-	if (fp->f_type != DTYPE_SOCKET) {
-		error = ENOTSOCK;
-	} else {
-		*spp = fp->f_data;
-		if (fflagp)
-			*fflagp = fp->f_flag;
-		SOCK_LOCK(*spp);
-		soref(*spp);
-		SOCK_UNLOCK(*spp);
-	}
-	fdrop(fp, td);
-
-	return (error);
-}
-
-/*
- * Drop the reference count on the socket and XXX release the SX lock in the
- * future.  The last reference closes the socket.
- *
- * Note: fputsock() is deprecated, see comment for fgetsock().
- */
-void
-fputsock(struct socket *so)
-{
-
-	ACCEPT_LOCK();
-	SOCK_LOCK(so);
-	CURVNET_SET(so->so_vnet);
-	sorele(so);
-	CURVNET_RESTORE();
-}
 
 /*
  * Handle the last reference to a file being closed.
