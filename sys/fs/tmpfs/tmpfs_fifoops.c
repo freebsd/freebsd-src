@@ -49,27 +49,6 @@
 #include <fs/tmpfs/tmpfs_vnops.h>
 
 static int
-tmpfs_fifo_kqfilter(struct vop_kqfilter_args *ap)
-{
-	struct vnode *vp;
-	struct tmpfs_node *node;
-
-	vp = ap->a_vp;
-	node = VP_TO_TMPFS_NODE(vp);
-
-	switch (ap->a_kn->kn_filter){
-	case EVFILT_READ:
-		node->tn_status |= TMPFS_NODE_ACCESSED;
-		break;
-	case EVFILT_WRITE:
-		node->tn_status |= TMPFS_NODE_MODIFIED;
-		break;
-	}
-
-	return fifo_specops.vop_kqfilter(ap);
-}
-
-static int
 tmpfs_fifo_close(struct vop_close_args *v)
 {
 	struct tmpfs_node *node;
@@ -90,6 +69,5 @@ struct vop_vector tmpfs_fifoop_entries = {
 	.vop_access =			tmpfs_access,
 	.vop_getattr =			tmpfs_getattr,
 	.vop_setattr =			tmpfs_setattr,
-	.vop_kqfilter =			tmpfs_fifo_kqfilter,
 };
 
