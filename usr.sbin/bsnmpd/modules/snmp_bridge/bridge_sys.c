@@ -485,7 +485,7 @@ bridge_set_if_up(const char* b_name, int8_t up)
 	struct ifreq ifr;
 
 	bzero(&ifr, sizeof(ifr));
-	strcpy(ifr.ifr_name, b_name);
+	strlcpy(ifr.ifr_name, b_name, sizeof(ifr.ifr_name));
 	if (ioctl(sock, SIOCGIFFLAGS, (caddr_t) &ifr) < 0) {
 		syslog(LOG_ERR, "set bridge up: ioctl(SIOCGIFFLAGS) "
 		    "failed: %s", strerror(errno));
@@ -516,7 +516,7 @@ bridge_create(const char *b_name)
 	struct ifreq ifr;
 
 	bzero(&ifr, sizeof(ifr));
-	strcpy(ifr.ifr_name, b_name);
+	strlcpy(ifr.ifr_name, b_name, sizeof(ifr.ifr_name));
 
 	if (ioctl(sock, SIOCIFCREATE, &ifr) < 0) {
 		syslog(LOG_ERR, "create bridge: ioctl(SIOCIFCREATE) "
@@ -549,7 +549,7 @@ bridge_destroy(const char *b_name)
 	struct ifreq ifr;
 
 	bzero(&ifr, sizeof(ifr));
-	strcpy(ifr.ifr_name, b_name);
+	strlcpy(ifr.ifr_name, b_name, sizeof(ifr.ifr_name));
 
 	if (ioctl(sock, SIOCIFDESTROY, &ifr) < 0) {
 		syslog(LOG_ERR, "destroy bridge: ioctl(SIOCIFDESTROY) "
@@ -1459,9 +1459,9 @@ bridge_get_pfval(uint8_t which)
 int32_t
 bridge_do_pfctl(int32_t bridge_ctl, enum snmp_op op, int32_t *val)
 {
-	char mib_name[100];
-	int32_t i, s_i;
+	char *mib_oid;
 	size_t len, s_len;
+	int32_t i, s_i;
 
 	if (bridge_ctl >= LEAF_begemotBridgeLayer2PfStatus)
 		return (-2);
@@ -1474,18 +1474,23 @@ bridge_do_pfctl(int32_t bridge_ctl, enum snmp_op op, int32_t *val)
 
 	len = sizeof(i);
 
-	strcpy(mib_name, bridge_sysctl);
+	asprintf(&mib_oid, "%s%s", bridge_sysctl,
+	    bridge_pf_sysctl[bridge_ctl].name);
+	if (mib_oid == NULL)
+		return (-1);
 
-	if (sysctlbyname(strcat(mib_name,
-	    bridge_pf_sysctl[bridge_ctl].name), &i, &len,
-	    (op == SNMP_OP_SET ? &s_i : NULL), s_len) == -1) {
-		syslog(LOG_ERR, "sysctl(%s%s) failed - %s", bridge_sysctl,
-		    bridge_pf_sysctl[bridge_ctl].name, strerror(errno));
+	if (sysctlbyname(mib_oid, &i, &len, (op == SNMP_OP_SET ? &s_i : NULL),
+	    s_len) == -1) {
+		syslog(LOG_ERR, "sysctl(%s) failed - %s", mib_oid,
+		    strerror(errno));
+		free(mib_oid);
 		return (-1);
 	}
 
 	bridge_pf_sysctl[bridge_ctl].val = i;
 	*val = i;
+
+	free(mib_oid);
 
 	return (i);
 }
@@ -1495,8 +1500,7 @@ bridge_pf_dump(void)
 {
 	uint8_t i;
 
-	for (i = 0; i < sizeof(bridge_pf_sysctl) / sizeof(bridge_pf_sysctl[0]);
-	    i++) {
+	for (i = 0; i < nitems(bridge_pf_sysctl); i++) {
 		syslog(LOG_ERR, "%s%s = %d", bridge_sysctl,
 		    bridge_pf_sysctl[i].name, bridge_pf_sysctl[i].val);
 	}
