@@ -57,11 +57,7 @@ static const char _rcsid[] = "$KAME: route6d.c,v 1.104 2003/10/31 00:30:20 itoju
 #endif
 #include <signal.h>
 #include <stdio.h>
-#ifdef __STDC__
 #include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
@@ -203,7 +199,6 @@ static volatile sig_atomic_t seenusr1;
 #define RRTF_SENDANYWAY		0x40000000
 #define	RRTF_CHANGED		0x80000000
 
-int main(int, char **);
 static void sighandler(int);
 static void ripalarm(void);
 static void riprecv(void);
@@ -3457,22 +3452,12 @@ ripsuptrig(void)
 #endif
 
 static void
-#ifdef __STDC__
 fatal(const char *fmt, ...)
-#else
-fatal(fmt, va_alist)
-	char	*fmt;
-	va_dcl
-#endif
 {
 	va_list ap;
 	char buf[1024];
 
-#ifdef __STDC__
 	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
 	vsnprintf(buf, sizeof(buf), fmt, ap);
 	va_end(ap);
 	perror(buf);
@@ -3484,33 +3469,18 @@ fatal(fmt, va_alist)
 }
 
 static void
-#ifdef __STDC__
 tracet(int level, const char *fmt, ...)
-#else
-tracet(level, fmt, va_alist)
-	int level;
-	char *fmt;
-	va_dcl
-#endif
 {
 	va_list ap;
 
 	if (level <= dflag) {
-#ifdef __STDC__
 		va_start(ap, fmt);
-#else
-		va_start(ap);
-#endif
 		fprintf(stderr, "%s: ", hms());
 		vfprintf(stderr, fmt, ap);
 		va_end(ap);
 	}
 	if (dflag) {
-#ifdef __STDC__
 		va_start(ap, fmt);
-#else
-		va_start(ap);
-#endif
 		if (level > 0)
 			vsyslog(LOG_DEBUG, fmt, ap);
 		else
@@ -3520,32 +3490,17 @@ tracet(level, fmt, va_alist)
 }
 
 static void
-#ifdef __STDC__
 trace(int level, const char *fmt, ...)
-#else
-trace(level, fmt, va_alist)
-	int level;
-	char *fmt;
-	va_dcl
-#endif
 {
 	va_list ap;
 
 	if (level <= dflag) {
-#ifdef __STDC__
 		va_start(ap, fmt);
-#else
-		va_start(ap);
-#endif
 		vfprintf(stderr, fmt, ap);
 		va_end(ap);
 	}
 	if (dflag) {
-#ifdef __STDC__
 		va_start(ap, fmt);
-#else
-		va_start(ap);
-#endif
 		if (level > 0)
 			vsyslog(LOG_DEBUG, fmt, ap);
 		else
