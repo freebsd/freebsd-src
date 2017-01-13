@@ -63,6 +63,8 @@ static int dev_pager_getpages(vm_object_t, vm_page_t *, int, int *, int *);
 static void dev_pager_putpages(vm_object_t, vm_page_t *, int, int, int *);
 static boolean_t dev_pager_haspage(vm_object_t, vm_pindex_t, int *, int *);
 static void dev_pager_free_page(vm_object_t object, vm_page_t m);
+static int dev_pager_populate(vm_object_t object, vm_pindex_t pidx,
+    int fault_type, vm_prot_t, vm_pindex_t *first, vm_pindex_t *last);
 
 /* list of device pager objects */
 static struct pagerlst dev_pager_object_list;
@@ -84,6 +86,7 @@ struct pagerops mgtdevicepagerops = {
 	.pgo_getpages =	dev_pager_getpages,
 	.pgo_putpages =	dev_pager_putpages,
 	.pgo_haspage =	dev_pager_haspage,
+	.pgo_populate =	dev_pager_populate,
 };
 
 static int old_dev_pager_ctor(void *handle, vm_ooffset_t size, vm_prot_t prot,
@@ -127,6 +130,8 @@ cdev_pager_allocate(void *handle, enum obj_type tp, struct cdev_pager_ops *ops,
 
 	if (tp != OBJT_DEVICE && tp != OBJT_MGTDEVICE)
 		return (NULL);
+	KASSERT(tp == OBJT_MGTDEVICE || ops->cdev_pg_populate == NULL,
+	    ("populate on unmanaged device pager"));
 
 	/*
 	 * Offset should be page aligned.
@@ -179,6 +184,8 @@ cdev_pager_allocate(void *handle, enum obj_type tp, struct cdev_pager_ops *ops,
 			object->handle = handle;
 			TAILQ_INSERT_TAIL(&dev_pager_object_list, object,
 			    pager_object_list);
+			if (ops->cdev_pg_populate != NULL)
+				vm_object_set_flag(object, OBJ_POPULATE);
 		}
 	} else {
 		if (pindex > object->size)
@@ -268,6 +275,8 @@ dev_pager_getpages(vm_object_t object, vm_page_t *ma, int count, int *rbehind,
 	/* Since our haspage reports zero after/before, the count is 1. */
 	KASSERT(count == 1, ("%s: count %d", __func__, count));
 	VM_OBJECT_ASSERT_WLOCKED(object);
+	if (object->un_pager.devp.ops->cdev_pg_fault == NULL)
+		return (VM_PAGER_FAIL);
 	error = object->un_pager.devp.ops->cdev_pg_fault(object,
 	    IDX_TO_OFF(ma[0]->pindex), PROT_READ, &ma[0]);
 
@@ -290,6 +299,18 @@ dev_pager_getpages(vm_object_t object, vm_page_t *ma, int count, int *rbehind,
 	}
 
 	return (error);
+}
+
+static int
+dev_pager_populate(vm_object_t object, vm_pindex_t pidx, int fault_type,
+    vm_prot_t max_prot, vm_pindex_t *first, vm_pindex_t *last)
+{
+
+	VM_OBJECT_ASSERT_WLOCKED(object);
+	if (object->un_pager.devp.ops->cdev_pg_populate == NULL)
+		return (VM_PAGER_FAIL);
+	return (object->un_pager.devp.ops->cdev_pg_populate(object, pidx,
+	    fault_type, max_prot, first, last));
 }
 
 static int
