@@ -32,6 +32,7 @@
  */
 #include <sys/types.h>
 #include <sys/queue.h>
+#include <sys/ucred.h>
 
 #include <stdlib.h>
 #include <syslog.h>
@@ -54,6 +55,7 @@ static void udp_close_port(struct tport *);
 static int udp_init_port(struct tport *);
 static ssize_t udp_send(struct tport *, const u_char *, size_t,
     const struct sockaddr *, size_t);
+static ssize_t udp_recv(struct port_input *);
 
 /* exported */
 const struct transport_def udp_trans = {
@@ -63,7 +65,8 @@ const struct transport_def udp_trans = {
 	udp_stop,
 	udp_close_port,
 	udp_init_port,
-	udp_send
+	udp_send,
+	udp_recv
 };
 static struct transport *my_trans;
 
@@ -216,6 +219,123 @@ udp_send(struct tport *tp, const u_char *buf, size_t len,
 	struct udp_port *p = (struct udp_port *)tp;
 
 	return (sendto(p->input.fd, buf, len, 0, addr, addrlen));
+}
+
+static void
+check_priv_dgram(struct port_input *pi, struct sockcred *cred)
+{
+
+	/* process explicitly sends credentials */
+	if (cred)
+		pi->priv = (cred->sc_euid == 0);
+	else
+		pi->priv = 0;
+}
+
+/*
+ * Input from a datagram socket.
+ * Each receive should return one datagram.
+ */
+static ssize_t
+recv_dgram(struct port_input *pi, struct in_addr *laddr)
+{
+	u_char embuf[1000];
+	char cbuf[CMSG_SPACE(SOCKCREDSIZE(CMGROUP_MAX)) +
+	    CMSG_SPACE(sizeof(struct in_addr))];
+	struct msghdr msg;
+	struct iovec iov[1];
+	ssize_t len;
+	struct cmsghdr *cmsg;
+	struct sockcred *cred = NULL;
+
+	if (pi->buf == NULL) {
+		/* no buffer yet - allocate one */
+		if ((pi->buf = buf_alloc(0)) == NULL) {
+			/* ups - could not get buffer. Read away input
+			 * and drop it */
+			(void)recvfrom(pi->fd, embuf, sizeof(embuf),
+			    0, NULL, NULL);
+			/* return error */
+			return (-1);
+		}
+		pi->buflen = buf_size(0);
+	}
+
+	/* try to get a message */
+	msg.msg_name = pi->peer;
+	msg.msg_namelen = pi->peerlen;
+	msg.msg_iov = iov;
+	msg.msg_iovlen = 1;
+	memset(cbuf, 0, sizeof(cbuf));
+	msg.msg_control = cbuf;
+	msg.msg_controllen = sizeof(cbuf);
+	msg.msg_flags = 0;
+
+	iov[0].iov_base = pi->buf;
+	iov[0].iov_len = pi->buflen;
+
+	len = recvmsg(pi->fd, &msg, 0);
+
+	if (len == -1 || len == 0)
+		/* receive error */
+		return (-1);
+
+	if (msg.msg_flags & MSG_TRUNC) {
+		/* truncated - drop */
+		snmpd_stats.silentDrops++;
+		snmpd_stats.inTooLong++;
+		return (-1);
+	}
+
+	pi->length = (size_t)len;
+
+	for (cmsg = CMSG_FIRSTHDR(&msg); cmsg != NULL;
+	    cmsg = CMSG_NXTHDR(&msg, cmsg)) {
+		if (cmsg->cmsg_level == IPPROTO_IP &&
+		    cmsg->cmsg_type == IP_RECVDSTADDR)
+			memcpy(laddr, CMSG_DATA(cmsg), sizeof(struct in_addr));
+		if (cmsg->cmsg_level == SOL_SOCKET &&
+		    cmsg->cmsg_type == SCM_CREDS)
+			cred = (struct sockcred *)CMSG_DATA(cmsg);
+	}
+
+	if (pi->cred)
+		check_priv_dgram(pi, cred);
+
+	return (0);
+}
+
+/*
+ * Receive something
+ */
+static ssize_t
+udp_recv(struct port_input *pi)
+{
+	struct in_addr *laddr;
+	struct msghdr msg;
+	char cbuf[CMSG_SPACE(sizeof(struct in_addr))];
+	struct cmsghdr *cmsgp;
+	ssize_t ret;
+
+	memset(cbuf, 0, sizeof(cbuf));
+
+	msg.msg_control = cbuf;
+	msg.msg_controllen = sizeof(cbuf);
+
+	cmsgp = CMSG_FIRSTHDR(&msg);
+	cmsgp->cmsg_len = CMSG_LEN(sizeof(struct in_addr));
+	cmsgp->cmsg_level = IPPROTO_IP;
+	cmsgp->cmsg_type = IP_SENDSRCADDR;
+	laddr = (struct in_addr *)CMSG_DATA(cmsgp);
+
+	ret = recv_dgram(pi, laddr);
+
+	if (laddr->s_addr == INADDR_ANY) {
+		msg.msg_control = NULL;
+		msg.msg_controllen = 0;
+	}
+
+	return (ret);
 }
 
 /*
