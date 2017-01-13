@@ -54,7 +54,7 @@
 void __hidden
 __cheriabi_longjmperror(void)
 {
-	return longjmperror();
+	longjmperror();
 }
 
 int __hidden
@@ -66,6 +66,6 @@ __cheriabi_sigprocmask(int how, const sigset_t *set, sigset_t *oset)
 void __dead2 __hidden
 __cheriabi_abort(void)
 {
-	return abort();
+	abort();
 }
 #endif
