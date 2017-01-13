@@ -199,7 +199,9 @@ struct tmpfs_node {
 	 * allocated for it or it has been reclaimed). */
 	struct vnode *		tn_vnode;
 
-	/* interlock to protect tn_vpstate */
+	/* Interlock to protect tn_vpstate, and tn_status under shared
+	 * vnode lock.
+	 */
 	struct mtx	tn_interlock;
 
 	/* Identify if current node has vnode assiocate with
@@ -420,6 +422,7 @@ int	tmpfs_chtimes(struct vnode *, struct vattr *, struct ucred *cred,
 void	tmpfs_itimes(struct vnode *, const struct timespec *,
 	    const struct timespec *);
 
+void	tmpfs_set_status(struct tmpfs_node *node, int status);
 void	tmpfs_update(struct vnode *);
 int	tmpfs_truncate(struct vnode *, off_t);
 
