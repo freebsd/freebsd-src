@@ -1,4 +1,4 @@
-/*	$NetBSD: t_mqueue.c,v 1.4 2014/03/02 19:56:48 jmmv Exp $ */
+/*	$NetBSD: t_mqueue.c,v 1.5 2017/01/10 22:10:22 christos Exp $ */
 
 /*
  * Test for POSIX message queue priority handling.
@@ -14,6 +14,7 @@
 #endif
 
 #include <atf-c.h>
+#include <sys/stat.h>
 
 #include <stdio.h>
 #include <stdlib.h>

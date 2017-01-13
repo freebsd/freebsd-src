@@ -1,4 +1,4 @@
-/*	$NetBSD: t_lwproc.c,v 1.7 2015/01/21 15:19:01 pooka Exp $	*/
+/*	$NetBSD: t_lwproc.c,v 1.8 2017/01/10 22:36:29 christos Exp $	*/
 
 /*
  * Copyright (c) 2010 The NetBSD Foundation, Inc.
@@ -29,6 +29,7 @@
 
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
 
 #include <rump/rump.h>
 #include <rump/rump_syscalls.h>
