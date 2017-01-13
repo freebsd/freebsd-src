@@ -3139,6 +3139,6 @@ scsi_proto_debug_out(union ccb *ccb)
 	device = ccb->ccb_h.path->device;
 	CAM_DEBUG(ccb->ccb_h.path,
 	    CAM_DEBUG_CDB,("%s. CDB: %s\n",
-		scsi_op_desc(ccb->csio.cdb_io.cdb_bytes[0], &device->inq_data),
-		scsi_cdb_string(ccb->csio.cdb_io.cdb_bytes, cdb_str, sizeof(cdb_str))));
+		scsi_op_desc(scsiio_cdb_ptr(&ccb->csio)[0], &device->inq_data),
+		scsi_cdb_string(scsiio_cdb_ptr(&ccb->csio), cdb_str, sizeof(cdb_str))));
 }

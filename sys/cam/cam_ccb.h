@@ -784,6 +784,13 @@ struct ccb_accept_tio {
 	struct     scsi_sense_data sense_data;
 };
 
+static __inline uint8_t *
+atio_cdb_ptr(struct ccb_accept_tio *ccb)
+{
+	return ((ccb->ccb_h.flags & CAM_CDB_POINTER) ?
+	    ccb->cdb_io.cdb_ptr : ccb->cdb_io.cdb_bytes);
+}
+
 /* Release SIM Queue */
 struct ccb_relsim {
 	struct ccb_hdr ccb_h;
