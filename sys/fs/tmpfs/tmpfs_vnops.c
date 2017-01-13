@@ -441,7 +441,7 @@ tmpfs_read(struct vop_read_args *v)
 	if (uio->uio_offset < 0)
 		return (EINVAL);
 	node = VP_TO_TMPFS_NODE(vp);
-	node->tn_status |= TMPFS_NODE_ACCESSED;
+	tmpfs_set_status(node, TMPFS_NODE_ACCESSED);
 	return (uiomove_object(node->tn_reg.tn_aobj, node->tn_size, uio));
 }
 
@@ -1078,8 +1078,8 @@ tmpfs_rmdir(struct vop_rmdir_args *v)
 	    v->a_cnp->cn_namelen));
 
 	/* Check flags to see if we are allowed to remove the directory. */
-	if (dnode->tn_flags & APPEND
-		|| node->tn_flags & (NOUNLINK | IMMUTABLE | APPEND)) {
+	if ((dnode->tn_flags & APPEND) != 0 ||
+	    (node->tn_flags & (NOUNLINK | IMMUTABLE | APPEND)) != 0) {
 		error = EPERM;
 		goto out;
 	}
@@ -1095,7 +1095,7 @@ tmpfs_rmdir(struct vop_rmdir_args *v)
 	TMPFS_ASSERT_ELOCKED(node);
 	node->tn_links--;
 	node->tn_dir.tn_parent = NULL;
-	node->tn_status |= TMPFS_NODE_ACCESSED | TMPFS_NODE_CHANGED | \
+	node->tn_status |= TMPFS_NODE_ACCESSED | TMPFS_NODE_CHANGED |
 	    TMPFS_NODE_MODIFIED;
 
 	TMPFS_NODE_UNLOCK(node);
@@ -1103,8 +1103,8 @@ tmpfs_rmdir(struct vop_rmdir_args *v)
 	TMPFS_NODE_LOCK(dnode);
 	TMPFS_ASSERT_ELOCKED(dnode);
 	dnode->tn_links--;
-	dnode->tn_status |= TMPFS_NODE_ACCESSED | \
-	    TMPFS_NODE_CHANGED | TMPFS_NODE_MODIFIED;
+	dnode->tn_status |= TMPFS_NODE_ACCESSED | TMPFS_NODE_CHANGED |
+	    TMPFS_NODE_MODIFIED;
 	TMPFS_NODE_UNLOCK(dnode);
 
 	cache_purge(dvp);
@@ -1216,9 +1216,9 @@ tmpfs_readlink(struct vop_readlink_args *v)
 
 	error = uiomove(node->tn_link, MIN(node->tn_size, uio->uio_resid),
 	    uio);
-	node->tn_status |= TMPFS_NODE_ACCESSED;
+	tmpfs_set_status(node, TMPFS_NODE_ACCESSED);
 
-	return error;
+	return (error);
 }
 
 static int
