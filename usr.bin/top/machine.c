@@ -363,7 +363,7 @@ machine_init(struct statics *statics, char do_unames)
 	size = sizeof(long) * maxcpu * CPUSTATES;
 	times = malloc(size);
 	if (times == NULL)
-		err(1, "malloc %zd bytes", size);
+		err(1, "malloc %zu bytes", size);
 	if (sysctlbyname("kern.cp_times", times, &size, NULL, 0) == -1)
 		err(1, "sysctlbyname kern.cp_times");
 	pcpu_cp_time = calloc(1, size);
@@ -396,7 +396,7 @@ format_header(char *uname_field)
 {
 	static char Header[128];
 	const char *prehead;
-	
+
 	if (ps.jail)
 		jidlength = TOP_JID_LEN + 1;	/* +1 for extra left space. */
 	else
@@ -536,7 +536,7 @@ get_system_info(struct system_info *si)
 		arc_stats[5] = arc_stat >> 10;
 		si->arc = arc_stats;
 	}
-		    
+
 	/* set arrays and strings */
 	if (pcpu_stats) {
 		si->cpustates = pcpu_cpu_states;
@@ -562,7 +562,7 @@ get_system_info(struct system_info *si)
 	mib[0] = CTL_KERN;
 	mib[1] = KERN_BOOTTIME;
 	size = sizeof(boottime);
-	if (sysctl(mib, 2, &boottime, &size, NULL, 0) != -1 &&
+	if (sysctl(mib, nitems(mib), &boottime, &size, NULL, 0) != -1 &&
 	    boottime.tv_sec != 0) {
 		si->boottime = boottime;
 	} else {
@@ -917,7 +917,7 @@ format_next_process(caddr_t handle, char *(*get_userid)(int), int flags)
 			argbuflen = cmdlen * 4;
 			argbuf = (char *)malloc(argbuflen + 1);
 			if (argbuf == NULL) {
-				warn("malloc(%d)", argbuflen + 1);
+				warn("malloc(%zu)", argbuflen + 1);
 				free(cmdbuf);
 				return NULL;
 			}
@@ -970,7 +970,7 @@ format_next_process(caddr_t handle, char *(*get_userid)(int), int flags)
 		}
 	}
 
-	if (ps.jail == 0) 
+	if (ps.jail == 0)
 		jid_buf[0] = '\0';
 	else
 		snprintf(jid_buf, sizeof(jid_buf), "%*d",
@@ -1026,7 +1026,7 @@ format_next_process(caddr_t handle, char *(*get_userid)(int), int flags)
 		thr_buf[0] = '\0';
 	else
 		snprintf(thr_buf, sizeof(thr_buf), "%*d ",
-		    sizeof(thr_buf) - 2, pp->ki_numthreads);
+		    (int)(sizeof(thr_buf) - 2), pp->ki_numthreads);
 
 	snprintf(fmt, sizeof(fmt), proc_fmt,
 	    pp->ki_pid,
