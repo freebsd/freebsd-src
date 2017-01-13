@@ -4,7 +4,7 @@
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -16,7 +16,7 @@
  * 3. Neither the name of the project nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -34,44 +34,40 @@
 static const char _rcsid[] = "$KAME: route6d.c,v 1.104 2003/10/31 00:30:20 itojun Exp $";
 #endif
 
-#include <stdio.h>
-
-#include <time.h>
-#include <unistd.h>
-#include <fnmatch.h>
-#include <stdlib.h>
-#include <string.h>
-#include <signal.h>
-#ifdef __STDC__
-#include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
-#include <syslog.h>
-#include <stddef.h>
-#include <errno.h>
-#include <err.h>
-#ifdef HAVE_POLL_H
-#include <poll.h>
-#endif
-
-#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/file.h>
-#include <sys/socket.h>
 #include <sys/ioctl.h>
+#include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/uio.h>
+#include <arpa/inet.h>
 #include <net/if.h>
 #include <net/route.h>
 #include <netinet/in.h>
 #include <netinet/in_var.h>
 #include <netinet/ip6.h>
 #include <netinet/udp.h>
-#include <netdb.h>
+#include <err.h>
+#include <errno.h>
+#include <fnmatch.h>
 #include <ifaddrs.h>
-
-#include <arpa/inet.h>
+#include <netdb.h>
+#ifdef HAVE_POLL_H
+#include <poll.h>
+#endif
+#include <signal.h>
+#include <stdio.h>
+#ifdef __STDC__
+#include <stdarg.h>
+#else
+#include <varargs.h>
+#endif
+#include <stddef.h>
+#include <stdlib.h>
+#include <string.h>
+#include <syslog.h>
+#include <time.h>
+#include <unistd.h>
 
 #include "route6d.h"
 
@@ -106,7 +102,7 @@ struct ifc {			/* Configuration of an interface */
 };
 TAILQ_HEAD(, ifc) ifc_head = TAILQ_HEAD_INITIALIZER(ifc_head);
 
-struct ifac {			/* Adddress associated to an interface */ 
+struct ifac {			/* Adddress associated to an interface */
 	TAILQ_ENTRY(ifac) ifac_next;
 
 	struct	ifc *ifac_ifc;		/* back pointer */
@@ -673,7 +669,7 @@ init(void)
 		fatal("rip IPV6_PKTINFO");
 		/*NOTREACHED*/
 	}
-#endif 
+#endif
 
 #ifdef IPV6_RECVPKTINFO
 	if (setsockopt(ripsock, IPPROTO_IPV6, IPV6_RECVHOPLIMIT,
@@ -819,8 +815,8 @@ ripsend(struct	ifc *ifcp, struct sockaddr_in6 *sin6, int flag)
 		 * Request from non-link local address is not
 		 * a regular route6d update.
 		 */
-		maxrte = (IFMINMTU - sizeof(struct ip6_hdr) - 
-				sizeof(struct udphdr) - 
+		maxrte = (IFMINMTU - sizeof(struct ip6_hdr) -
+				sizeof(struct udphdr) -
 				sizeof(struct rip6) + sizeof(struct netinfo6)) /
 				sizeof(struct netinfo6);
 		nh = NULL;
@@ -868,8 +864,8 @@ ripsend(struct	ifc *ifcp, struct sockaddr_in6 *sin6, int flag)
 		return;
 	}
 
-	maxrte = (ifcp->ifc_mtu - sizeof(struct ip6_hdr) - 
-			sizeof(struct udphdr) - 
+	maxrte = (ifcp->ifc_mtu - sizeof(struct ip6_hdr) -
+			sizeof(struct udphdr) -
 			sizeof(struct rip6) + sizeof(struct netinfo6)) /
 			sizeof(struct netinfo6);
 
@@ -953,13 +949,13 @@ out_filter(struct riprt *rrt, struct ifc *ifcp)
 	/*
 	 * -A: filter out less specific routes, if we have aggregated
 	 * route configured.
-	 */ 
+	 */
 	TAILQ_FOREACH(iffp, &ifcp->ifc_iff_head, iff_next) {
 		if (iffp->iff_type != 'A')
 			continue;
 		if (rrt->rrt_info.rip6_plen <= iffp->iff_plen)
 			continue;
-		ia = rrt->rrt_info.rip6_dest; 
+		ia = rrt->rrt_info.rip6_dest;
 		applyplen(&ia, iffp->iff_plen);
 		if (IN6_ARE_ADDR_EQUAL(&ia, &iffp->iff_addr))
 			return 0;
@@ -995,7 +991,7 @@ out_filter(struct riprt *rrt, struct ifc *ifcp)
 				continue;
 			if (rrt->rrt_info.rip6_plen < iffp->iff_plen)
 				continue;
-			ia = rrt->rrt_info.rip6_dest; 
+			ia = rrt->rrt_info.rip6_dest;
 			applyplen(&ia, iffp->iff_plen);
 			if (IN6_ARE_ADDR_EQUAL(&ia, &iffp->iff_addr)) {
 				ok = 1;
@@ -1195,8 +1191,8 @@ riprecv(void)
 		} else {
 			riprequest(NULL, np, nn, &fsock);
 		}
-		return; 
-	} 
+		return;
+	}
 
 	if (!IN6_IS_ADDR_LINKLOCAL(&fsock.sin6_addr)) {
 		trace(1, "Response from non-ll addr: %s\n",
@@ -1223,7 +1219,7 @@ riprecv(void)
 	 * source address to be forwarded to a different link.
 	 * So we also check whether the destination address is a link-local
 	 * address or the hop limit is 255.  Note that RFC2080 does not require
-	 * the specific hop limit for a unicast response, so we cannot assume 
+	 * the specific hop limit for a unicast response, so we cannot assume
 	 * the limitation.
 	 */
 	if (!IN6_IS_ADDR_LINKLOCAL(&pi->ipi6_addr) && *hlimp != 255) {
@@ -1245,7 +1241,7 @@ riprecv(void)
 		return;		/* The packet is from me; ignore */
 	if (rp->rip6_cmd != RIP6_RESPONSE) {
 		trace(1, "Invalid command %d\n", rp->rip6_cmd);
-		return; 
+		return;
 	}
 
 	/* -N: no use */
@@ -1323,7 +1319,7 @@ riprecv(void)
                         /* special rule: ::/0 means default, not "in /0" */
                         if (iffp->iff_plen == 0 && np->rip6_plen > 0)
                                 continue;
-                        ia = np->rip6_dest; 
+                        ia = np->rip6_dest;
                         applyplen(&ia, iffp->iff_plen);
                         if (IN6_ARE_ADDR_EQUAL(&ia, &iffp->iff_addr)) {
                                 ok = 1;
@@ -1374,7 +1370,7 @@ riprecv(void)
 			} else if (nq->rip6_metric == np->rip6_metric &&
 				   np->rip6_metric < HOPCNT_INFINITY6) {
 				if (rrt->rrt_index == ifcp->ifc_index &&
-				   IN6_ARE_ADDR_EQUAL(&nh, &rrt->rrt_gw)) { 
+				   IN6_ARE_ADDR_EQUAL(&nh, &rrt->rrt_gw)) {
 					/* same metric, same route from same gw */
 					rrt->rrt_t = t;
 				} else if (rrt->rrt_t < t_half_lifetime) {
@@ -1389,7 +1385,7 @@ riprecv(void)
 					rrt->rrt_t = t;
 				}
 			}
-			/* 
+			/*
 			 * if nq->rip6_metric == HOPCNT_INFINITY6 then
 			 * do not update age value.  Do nothing.
 			 */
@@ -1667,7 +1663,7 @@ ifremove(int ifindex)
 			break;
 	}
 	if (ifcp == NULL)
-		return; 
+		return;
 
 	tracet(1, "ifremove: %s is departed.\n", ifcp->ifc_name);
 	TAILQ_REMOVE(&ifc_head, ifcp, ifc_next);
@@ -1824,7 +1820,7 @@ rtrecv(void)
 #if 0
 		if (rta[RTAX_DST] == NULL) {
 			trace(1, "\tno destination, ignored\n");
-			continue;	
+			continue;
 		}
 		if (rta[RTAX_DST]->sin6_family != AF_INET6) {
 			trace(1, "\taf mismatch, ignored\n");
@@ -2422,7 +2418,7 @@ getifmtu(int ifindex)
 	mib[3] = AF_INET6;
 	mib[4] = NET_RT_IFLIST;
 	mib[5] = ifindex;
-	if (sysctl(mib, 6, NULL, &msize, NULL, 0) < 0) {
+	if (sysctl(mib, nitems(mib), NULL, &msize, NULL, 0) < 0) {
 		fatal("sysctl estimate NET_RT_IFLIST");
 		/*NOTREACHED*/
 	}
@@ -2430,7 +2426,7 @@ getifmtu(int ifindex)
 		fatal("malloc");
 		/*NOTREACHED*/
 	}
-	if (sysctl(mib, 6, buf, &msize, NULL, 0) < 0) {
+	if (sysctl(mib, nitems(mib), buf, &msize, NULL, 0) < 0) {
 		fatal("sysctl NET_RT_IFLIST");
 		/*NOTREACHED*/
 	}
@@ -2602,7 +2598,7 @@ krtread(int again)
 			free(buf);
 			buf = NULL;
 		}
-		if (sysctl(mib, 6, NULL, &msize, NULL, 0) < 0) {
+		if (sysctl(mib, nitems(mib), NULL, &msize, NULL, 0) < 0) {
 			errmsg = "sysctl estimate";
 			continue;
 		}
@@ -2610,7 +2606,7 @@ krtread(int again)
 			errmsg = "malloc";
 			continue;
 		}
-		if (sysctl(mib, 6, buf, &msize, NULL, 0) < 0) {
+		if (sysctl(mib, nitems(mib), buf, &msize, NULL, 0) < 0) {
 			errmsg = "sysctl NET_RT_DUMP";
 			continue;
 		}
@@ -3238,7 +3234,7 @@ ifonly:
 #if 0
 			/*
 			 * When the address has already been registered in the
-			 * kernel routing table, it should be removed 
+			 * kernel routing table, it should be removed
 			 */
 			delroute(&rrt->rrt_info, &gw);
 #else
@@ -3319,7 +3315,7 @@ mask2len(const struct in6_addr *addr, int lenlim)
 {
 	int i = 0, j;
 	const u_char *p = (const u_char *)addr;
-	
+
 	for (j = 0; j < lenlim; j++, p++) {
 		if (*p != 0xff)
 			break;
@@ -3446,7 +3442,7 @@ ripsuptrig(void)
 	time_t t;
 
 	double r = rand();
-	t  = (int)(RIP_TRIG_INT6_MIN + 
+	t  = (int)(RIP_TRIG_INT6_MIN +
 		(RIP_TRIG_INT6_MAX - RIP_TRIG_INT6_MIN) * (r / RAND_MAX));
 	sup_trig_update = time(NULL) + t;
 	return t;
