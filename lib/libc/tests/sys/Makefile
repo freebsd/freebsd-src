@@ -61,7 +61,11 @@ NETBSD_ATF_TESTS_C+=		ucontext_test
 NETBSD_ATF_TESTS_C+=		umask_test
 NETBSD_ATF_TESTS_C+=		unlink_test
 NETBSD_ATF_TESTS_C+=		wait_test
+NETBSD_ATF_TESTS_C+=		wait_noproc_test
+NETBSD_ATF_TESTS_C+=		wait_noproc_wnohang_test
 NETBSD_ATF_TESTS_C+=		write_test
+
+CSTD?=				c99
 
 LIBADD.getpid_test+=		pthread
 LIBADD.timer_create_test+=	rt

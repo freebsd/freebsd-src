@@ -1,4 +1,4 @@
-#	$NetBSD: t_mcast.sh,v 1.2 2016/08/10 22:45:39 kre Exp $
+#	$NetBSD: t_mcast.sh,v 1.4 2016/11/25 08:51:16 ozaki-r Exp $
 #
 # Copyright (c) 2015 The NetBSD Foundation, Inc.
 # All rights reserved.
@@ -25,12 +25,9 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-netserver="rump_server -lrumpnet -lrumpnet_net"
-netserver="$netserver -lrumpnet_netinet -lrumpnet_netinet6 -lrumpnet_shmif"
-netserver="$netserver -lrumpdev"
 export RUMP_SERVER=unix://commsock
 
-DEBUG=false
+DEBUG=${DEBUG:-false}
 
 run_test()
 {
@@ -38,9 +35,8 @@ run_test()
 	local opts="$2"
 	local mcast="$(atf_get_srcdir)/mcast"
 
-	atf_check -s exit:0 ${netserver} ${RUMP_SERVER}
-	atf_check -s exit:0 rump.ifconfig shmif0 create
-	atf_check -s exit:0 rump.ifconfig shmif0 linkstr bus1
+	rump_server_start $RUMP_SERVER netinet6
+	rump_server_add_iface $RUMP_SERVER shmif0 bus1
 	atf_check -s exit:0 rump.ifconfig shmif0 10.0.0.2/24
 	atf_check -s exit:0 rump.ifconfig shmif0 inet6 fc00::2/64
 	atf_check -s exit:0 rump.ifconfig shmif0 up
@@ -79,11 +75,11 @@ add_test()
 		}; \
 	    mcast_${name}_body() { \
 			run_test \"${name}\" \"${opts}\"; \
+			rump_server_destroy_ifaces; \
 		}; \
 	    mcast_${name}_cleanup() { \
-			${DEBUG} && /usr/bin/shmif_dumpbus -p - bus1 2>/dev/null | \
-			/usr/sbin/tcpdump -n -e -r -; \
-			env RUMP_SERVER=unix://commsock rump.halt; \
+			${DEBUG} && dump; \
+			cleanup; \
 		}"
 	atf_add_test_case "mcast_${name}"
 }

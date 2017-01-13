@@ -1,4 +1,4 @@
-/*	$NetBSD: t_print.c,v 1.1 2014/12/02 19:48:21 christos Exp $	*/
+/*	$NetBSD: t_print.c,v 1.2 2016/08/27 11:30:49 christos Exp $	*/
 
 /*-
  * Copyright (c) 2014 The NetBSD Foundation, Inc.
@@ -29,7 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_print.c,v 1.1 2014/12/02 19:48:21 christos Exp $");
+__RCSID("$NetBSD: t_print.c,v 1.2 2016/08/27 11:30:49 christos Exp $");
 
 #include "net/dl_print.c"
 
@@ -147,7 +147,10 @@ ATF_TC_BODY(sdl_print, tc)
 		memcpy(&sdl.sdl_addr, &tst[i].ia, sizeof(sdl.sdl_addr));
 		sdl.sdl_index = (uint16_t)i;
 		r = sdl_print(buf, l, &sdl);
-		e = snprintf(res, l, "[%s]:%zu", tst[i].str, i);
+		if (i == 3)
+			e = snprintf(res, l, "link#%zu", i);
+		else
+			e = snprintf(res, l, "[%s]:%zu", tst[i].str, i);
 		ATF_REQUIRE_STREQ(buf, res);
 		ATF_REQUIRE_EQ(r, e);
 	}
@@ -157,7 +160,10 @@ ATF_TC_BODY(sdl_print, tc)
 		memcpy(&sdl.sdl_addr, &tst[i].ia, sizeof(sdl.sdl_addr));
 		sdl.sdl_index = (uint16_t)i;
 		r = sdl_print(buf, l, &sdl);
-		e = snprintf(res, l, "[%s]:%zu", tst[i].str, i);
+		if (i == 3)
+			e = snprintf(res, l, "link#%zu", i);
+		else
+			e = snprintf(res, l, "[%s]:%zu", tst[i].str, i);
 		ATF_REQUIRE_STREQ(buf, res);
 		ATF_REQUIRE_EQ(r, e);
 	}

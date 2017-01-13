@@ -1,4 +1,4 @@
-/* $NetBSD: t_dir.c,v 1.8 2017/01/11 07:26:17 christos Exp $ */
+/* $NetBSD: t_dir.c,v 1.10 2017/01/11 18:15:02 christos Exp $ */
 
 /*-
  * Copyright (c) 2010 The NetBSD Foundation, Inc.
@@ -75,33 +75,40 @@ ATF_TC_BODY(seekdir_basic, tc)
 
 	/* skip two for . and .. */
 	entry = readdir(dp);
+	ATF_REQUIRE_MSG(entry != NULL, "readdir[%s] failed: %s",
+	    ".", strerror(errno));
+
 	entry = readdir(dp);
+	ATF_REQUIRE_MSG(entry != NULL, "readdir[%s] failed: %s",
+	    "..", strerror(errno));
 
 	/* get first entry */
 	entry = readdir(dp);
+	ATF_REQUIRE_MSG(entry != NULL, "readdir[%s] failed: %s",
+	    "first", strerror(errno));
+
 	here = telldir(dp);
-	ATF_REQUIRE_MSG(here != -1,
-	    "telldir failed: %s", strerror(errno));
+	ATF_REQUIRE_MSG(here != -1, "telldir failed: %s", strerror(errno));
 
 	/* get second entry */
 	entry = readdir(dp);
-#ifdef	__FreeBSD__
-	ATF_REQUIRE_MSG(entry != NULL,
-	    "readdir failed: %s", strerror(errno));
-#endif
+	ATF_REQUIRE_MSG(entry != NULL, "readdir[%s] failed: %s",
+	    "second", strerror(errno));
+
 	wasname = strdup(entry->d_name);
 	if (wasname == NULL)
 		atf_tc_fail("cannot allocate memory");
 
 	/* get third entry */
 	entry = readdir(dp);
+	ATF_REQUIRE_MSG(entry != NULL, "readdir[%s] failed: %s",
+	    "third", strerror(errno));
 
 	/* try to return to the position after the first entry */
 	seekdir(dp, here);
 	entry = readdir(dp);
-
-	if (entry == NULL)
-		atf_tc_fail("entry 1 not found");
+	ATF_REQUIRE_MSG(entry != NULL, "readdir[%s] failed: %s",
+	    "first[1]", strerror(errno));
 	if (strcmp(entry->d_name, wasname) != 0)
 		atf_tc_fail("1st seekdir found wrong name");
 
@@ -109,18 +116,17 @@ ATF_TC_BODY(seekdir_basic, tc)
 	seekdir(dp, here);
 	here = telldir(dp);
 	entry = readdir(dp);
-
-	if (entry == NULL)
-		atf_tc_fail("entry 2 not found");
+	ATF_REQUIRE_MSG(entry != NULL, "readdir[%s] failed: %s",
+	    "second[1]", strerror(errno));
 	if (strcmp(entry->d_name, wasname) != 0)
 		atf_tc_fail("2nd seekdir found wrong name");
 
 	/* One more time, to make sure that telldir() doesn't affect result */
 	seekdir(dp, here);
 	entry = readdir(dp);
+	ATF_REQUIRE_MSG(entry != NULL, "readdir[%s] failed: %s",
+	    "third[1]", strerror(errno));
 
-	if (entry == NULL)
-		atf_tc_fail("entry 3 not found");
 	if (strcmp(entry->d_name, wasname) != 0)
 		atf_tc_fail("3rd seekdir found wrong name");
 

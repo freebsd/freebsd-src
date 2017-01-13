@@ -1,4 +1,4 @@
-/*	$NetBSD: h_execthr.c,v 1.3 2014/08/13 00:03:00 pooka Exp $	*/
+/*	$NetBSD: h_execthr.c,v 1.7 2016/11/24 00:37:29 dholland Exp $	*/
 
 /*
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -41,6 +41,14 @@
 
 #include <rump/rumpclient.h>
 #include <rump/rump_syscalls.h>
+
+//#define VERBOSE
+
+#ifdef VERBOSE
+#define SAY(...) printf(__VA_ARGS__)
+#else
+#define SAY(...)
+#endif
 
 static int canreturn = 0;
 
@@ -103,6 +111,7 @@ main(int argc, char *argv[], char *envp[])
 	else
 		execd = 0;
 	sprintf(nexec, "%d", execd+1);
+	SAY("execd: %d\n", execd);
 
 	if (rumpclient_init() == -1) {
 		if (execd)
@@ -111,32 +120,42 @@ main(int argc, char *argv[], char *envp[])
 			err(1, "init");
 	}
 	mypid = rump_sys_getpid();
+	SAY("rumpclient_init finished.\n");
 
 	if (execd) {
 		canreturn = 1;
-		if (pthread_create(&pt, NULL,
-		    wrk, (void *)(uintptr_t)P2_0) != 0)
-			errx(1, "exec pthread_create");
+		errno = pthread_create(&pt, NULL,
+		    wrk, (void *)(uintptr_t)P2_0);
+		if (errno != 0)
+			err(1, "exec pthread_create");
+		SAY("startup pthread_create finished.\n");
 
 		i = 37;
 		rump_sys_write(P2_1, &i, sizeof(i));
 		pthread_join(pt, NULL);
+		SAY("startup pthread_join finished.\n");
 
 		n = rump_sys_read(P1_0, &i, sizeof(i));
 		if (n != -1 || errno != EBADF)
 			errx(1, "post-exec cloexec works");
+		SAY("startup rump_sys_read finished.\n");
 
 		getproc(mypid, &p);
+		SAY("startup getproc finished.\n");
 		if (p.p_nlwps != 2)
 			errx(1, "invalid nlwps: %lld", (long long)p.p_nlwps);
 
 		/* we passed? */
-		if (execd > 10)
+		if (execd > 10) {
+			SAY("done.\n");
 			exit(0);
+		}
 
 		rump_sys_close(P2_0);
 		rump_sys_close(P2_1);
 	}
+
+	SAY("making pipes...\n");
 
 	if (rump_sys_pipe(p1) == -1)
 		err(1, "pipe1");
@@ -151,32 +170,47 @@ main(int argc, char *argv[], char *envp[])
 	if (rump_sys_fcntl(p1[1], F_SETFD, FD_CLOEXEC) == -1)
 		err(1, "cloexec");
 
-	for (i = 0; i < NTHR; i++)
-		if (pthread_create(&pt, NULL,
-		    wrk, (void *)(uintptr_t)p1[0]) != 0)
-			errx(1, "pthread_create 1 %d", i);
+	SAY("making threads...\n");
 
-	for (i = 0; i < NTHR; i++)
-		if (pthread_create(&pt, NULL,
-		    wrk, (void *)(uintptr_t)p2[0]) != 0)
-			errx(1, "pthread_create 2 %d", i);
+	for (i = 0; i < NTHR; i++) {
+		errno = pthread_create(&pt, NULL,
+		    wrk, (void *)(uintptr_t)p1[0]);
+		if (errno != 0)
+			err(1, "pthread_create 1 %d", i);
+	}
+
+	for (i = 0; i < NTHR; i++) {
+		errno = pthread_create(&pt, NULL,
+		    wrk, (void *)(uintptr_t)p2[0]);
+		if (errno != 0)
+			err(1, "pthread_create 2 %d", i);
+	}
+
+	SAY("waiting for threads to start...\n");
 
 	/* wait for all the threads to be enjoying themselves */
 	for (;;) {
 		getproc(mypid, &p);
+		SAY("getproc finished.\n");
 		if (p.p_nlwps == 2*NTHR + 2)
 			break;
 		usleep(10000);
 	}
 
+	SAY("making some more threads start...\n");
+
 	/*
 	 * load up one more (big) set.  these won't start executing, though,
 	 * but we're interested in if they create blockage
 	 */
-	for (i = 0; i < 3*NTHR; i++)
-		if (pthread_create(&pt, NULL,
-		    wrk, (void *)(uintptr_t)p1[0]) != 0)
-			errx(1, "pthread_create 1 %d", i);
+	for (i = 0; i < 3*NTHR; i++) {
+		errno = pthread_create(&pt, NULL,
+		    wrk, (void *)(uintptr_t)p1[0]);
+		if (errno != 0)
+			err(1, "pthread_create 3 %d", i);
+	}
+
+	SAY("calling exec...\n");
 
 	/* then, we exec! */
 	execarg[0] = argv[0];

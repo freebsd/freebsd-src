@@ -1,4 +1,4 @@
-/* $NetBSD: t_mutex.c,v 1.10 2016/07/31 13:01:29 christos Exp $ */
+/* $NetBSD: t_mutex.c,v 1.14 2016/10/31 23:51:20 christos Exp $ */
 
 /*
  * Copyright (c) 2008 The NetBSD Foundation, Inc.
@@ -29,12 +29,17 @@
 #include <sys/cdefs.h>
 __COPYRIGHT("@(#) Copyright (c) 2008\
  The NetBSD Foundation, inc. All rights reserved.");
-__RCSID("$NetBSD: t_mutex.c,v 1.10 2016/07/31 13:01:29 christos Exp $");
+__RCSID("$NetBSD: t_mutex.c,v 1.14 2016/10/31 23:51:20 christos Exp $");
 
+#ifdef __FreeBSD__
+#include <sys/time.h> /* For timespecadd */
+#include <inttypes.h> /* For UINT16_MAX */
+#endif
 #include <pthread.h>
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
+#include <time.h>
 #include <unistd.h>
 #include <sys/sched.h>
 #include <sys/param.h>
@@ -47,6 +52,31 @@ static pthread_mutex_t mutex;
 static pthread_mutex_t static_mutex = PTHREAD_MUTEX_INITIALIZER;
 static int global_x;
 
+#ifdef TIMEDMUTEX
+/* This code is used for verifying non-timed specific code */
+static struct timespec ts_lengthy = {
+	.tv_sec = UINT16_MAX,
+	.tv_nsec = 0
+};
+/* This code is used for verifying timed-only specific code */
+static struct timespec ts_shortlived = {
+	.tv_sec = 0,
+	.tv_nsec = 120
+};
+
+static int
+mutex_lock(pthread_mutex_t *m, const struct timespec *ts)
+{
+	struct timespec ts_wait;
+	ATF_REQUIRE(clock_gettime(CLOCK_REALTIME, &ts_wait) != -1);
+	timespecadd(&ts_wait, ts, &ts_wait);
+
+	return pthread_mutex_timedlock(m, &ts_wait);
+}
+#else
+#define mutex_lock(a, b) pthread_mutex_lock(a)
+#endif
+
 static void *
 mutex1_threadfunc(void *arg)
 {
@@ -56,7 +86,7 @@ mutex1_threadfunc(void *arg)
 
 	param = arg;
 	printf("2: Locking mutex\n");
-	pthread_mutex_lock(&mutex);
+	mutex_lock(&mutex, &ts_lengthy);
 	printf("2: Got mutex. *param = %d\n", *param);
 	ATF_REQUIRE_EQ(*param, 20);
 	(*param)++;
@@ -81,7 +111,7 @@ ATF_TC_BODY(mutex1, tc)
 
 	PTHREAD_REQUIRE(pthread_mutex_init(&mutex, NULL));
 	x = 1;
-	PTHREAD_REQUIRE(pthread_mutex_lock(&mutex));
+	PTHREAD_REQUIRE(mutex_lock(&mutex, &ts_lengthy));
 	PTHREAD_REQUIRE(pthread_create(&new, NULL, mutex1_threadfunc, &x));
 	printf("1: Before changing the value.\n");
 	sleep(2);
@@ -92,7 +122,7 @@ ATF_TC_BODY(mutex1, tc)
 	printf("1: After releasing the mutex.\n");
 	PTHREAD_REQUIRE(pthread_join(new, &joinval));
 
-	PTHREAD_REQUIRE(pthread_mutex_lock(&mutex));
+	PTHREAD_REQUIRE(mutex_lock(&mutex, &ts_lengthy));
 	printf("1: Thread joined. X was %d. Return value (int) was %d\n",
 		x, *(int *)joinval);
 	ATF_REQUIRE_EQ(x, 21);
@@ -108,7 +138,7 @@ mutex2_threadfunc(void *arg)
 	printf("2: Second thread (%p). Count is %ld\n", pthread_self(), count);
 
 	while (count--) {
-		PTHREAD_REQUIRE(pthread_mutex_lock(&mutex));
+		PTHREAD_REQUIRE(mutex_lock(&mutex, &ts_lengthy));
 		global_x++;
 		PTHREAD_REQUIRE(pthread_mutex_unlock(&mutex));
 	}
@@ -145,7 +175,7 @@ ATF_TC_BODY(mutex2, tc)
 	global_x = 0;
 	count = count2 = 10000000;
 
-	PTHREAD_REQUIRE(pthread_mutex_lock(&mutex));
+	PTHREAD_REQUIRE(mutex_lock(&mutex, &ts_lengthy));
 	PTHREAD_REQUIRE(pthread_create(&new, NULL, mutex2_threadfunc, &count2));
 
 	printf("1: Thread %p\n", pthread_self());
@@ -153,14 +183,14 @@ ATF_TC_BODY(mutex2, tc)
 	PTHREAD_REQUIRE(pthread_mutex_unlock(&mutex));
 
 	while (count--) {
-		PTHREAD_REQUIRE(pthread_mutex_lock(&mutex));
+		PTHREAD_REQUIRE(mutex_lock(&mutex, &ts_lengthy));
 		global_x++;
 		PTHREAD_REQUIRE(pthread_mutex_unlock(&mutex));
 	}
 
 	PTHREAD_REQUIRE(pthread_join(new, &joinval));
 
-	PTHREAD_REQUIRE(pthread_mutex_lock(&mutex));
+	PTHREAD_REQUIRE(mutex_lock(&mutex, &ts_lengthy));
 	printf("1: Thread joined. X was %d. Return value (long) was %ld\n",
 		global_x, (long)joinval);
 	ATF_REQUIRE_EQ(global_x, 20000000);
@@ -184,7 +214,7 @@ mutex3_threadfunc(void *arg)
 	printf("2: Second thread (%p). Count is %ld\n", pthread_self(), count);
 
 	while (count--) {
-		PTHREAD_REQUIRE(pthread_mutex_lock(&static_mutex));
+		PTHREAD_REQUIRE(mutex_lock(&static_mutex, &ts_lengthy));
 		global_x++;
 		PTHREAD_REQUIRE(pthread_mutex_unlock(&static_mutex));
 	}
@@ -220,7 +250,7 @@ ATF_TC_BODY(mutex3, tc)
 	global_x = 0;
 	count = count2 = 10000000;
 
-	PTHREAD_REQUIRE(pthread_mutex_lock(&static_mutex));
+	PTHREAD_REQUIRE(mutex_lock(&static_mutex, &ts_lengthy));
 	PTHREAD_REQUIRE(pthread_create(&new, NULL, mutex3_threadfunc, &count2));
 
 	printf("1: Thread %p\n", pthread_self());
@@ -228,14 +258,14 @@ ATF_TC_BODY(mutex3, tc)
 	PTHREAD_REQUIRE(pthread_mutex_unlock(&static_mutex));
 
 	while (count--) {
-		PTHREAD_REQUIRE(pthread_mutex_lock(&static_mutex));
+		PTHREAD_REQUIRE(mutex_lock(&static_mutex, &ts_lengthy));
 		global_x++;
 		PTHREAD_REQUIRE(pthread_mutex_unlock(&static_mutex));
 	}
 
 	PTHREAD_REQUIRE(pthread_join(new, &joinval));
 
-	PTHREAD_REQUIRE(pthread_mutex_lock(&static_mutex));
+	PTHREAD_REQUIRE(mutex_lock(&static_mutex, &ts_lengthy));
 	printf("1: Thread joined. X was %d. Return value (long) was %ld\n",
 		global_x, (long)joinval);
 	ATF_REQUIRE_EQ(global_x, 20000000);
@@ -260,7 +290,7 @@ mutex4_threadfunc(void *arg)
 
 	param = arg;
 	printf("2: Locking mutex\n");
-	PTHREAD_REQUIRE(pthread_mutex_lock(&mutex));
+	PTHREAD_REQUIRE(mutex_lock(&mutex, &ts_lengthy));
 	printf("2: Got mutex. *param = %d\n", *param);
 	(*param)++;
 
@@ -291,11 +321,11 @@ ATF_TC_BODY(mutex4, tc)
 	PTHREAD_REQUIRE(pthread_mutexattr_destroy(&mattr));
 
 	x = 1;
-	PTHREAD_REQUIRE(pthread_mutex_lock(&mutex));
+	PTHREAD_REQUIRE(mutex_lock(&mutex, &ts_lengthy));
 	PTHREAD_REQUIRE(pthread_create(&new, NULL, mutex4_threadfunc, &x));
 
 	printf("1: Before recursively acquiring the mutex.\n");
-	PTHREAD_REQUIRE(pthread_mutex_lock(&mutex));
+	PTHREAD_REQUIRE(mutex_lock(&mutex, &ts_lengthy));
 
 	printf("1: Before releasing the mutex once.\n");
 	sleep(2);
@@ -311,7 +341,7 @@ ATF_TC_BODY(mutex4, tc)
 
 	PTHREAD_REQUIRE(pthread_join(new, &joinval));
 
-	PTHREAD_REQUIRE(pthread_mutex_lock(&mutex));
+	PTHREAD_REQUIRE(mutex_lock(&mutex, &ts_lengthy));
 	printf("1: Thread joined. X was %d. Return value (int) was %d\n",
 		x, *(int *)joinval);
 	ATF_REQUIRE_EQ(x, 21);
@@ -333,7 +363,7 @@ child_func(void* arg)
 	res = _sched_protect(-2);
 	ATF_REQUIRE_EQ_MSG(res, -1, "sched_protect returned %d", res);
 	ATF_REQUIRE_EQ(errno, ENOENT);
-	PTHREAD_REQUIRE(pthread_mutex_lock(&mutex5));
+	PTHREAD_REQUIRE(mutex_lock(&mutex5, &ts_lengthy));
 	printf("child is owning resource\n");
 	res = _sched_protect(-2);
 	ATF_REQUIRE_EQ(res,  max_fifo_prio);
@@ -376,7 +406,7 @@ ATF_TC_BODY(mutex5, tc)
 	    max_fifo_prio));
 	
 	PTHREAD_REQUIRE(pthread_mutex_init(&mutex5, &attr5));
-	PTHREAD_REQUIRE(pthread_mutex_lock(&mutex5));
+	PTHREAD_REQUIRE(mutex_lock(&mutex5, &ts_lengthy));
 	printf("enter critical section for main\n");
 	PTHREAD_REQUIRE(pthread_create(&child, NULL, child_func, NULL));
 	printf("main starts to sleep\n");
@@ -414,7 +444,7 @@ high_prio(void* arg)
 		high_cnt = 0;
 		sleep(1);
 	}
-	PTHREAD_REQUIRE(pthread_mutex_lock(&mutex6));
+	PTHREAD_REQUIRE(mutex_lock(&mutex6, &ts_lengthy));
 	if (start == 0) start = 2;
 	PTHREAD_REQUIRE(pthread_mutex_unlock(&mutex6));
 
@@ -446,7 +476,7 @@ low_prio(void* arg)
 		low_cnt = 0;
 		sleep(1);
 	}
-	PTHREAD_REQUIRE(pthread_mutex_lock(&mutex6));
+	PTHREAD_REQUIRE(mutex_lock(&mutex6, &ts_lengthy));
 	if (start == 0)
 		start = 1;
 	PTHREAD_REQUIRE(pthread_mutex_unlock(&mutex6));
@@ -582,6 +612,123 @@ ATF_TC_BODY(mutexattr2, tc)
 	}
 }
 
+#ifdef TIMEDMUTEX
+ATF_TC(timedmutex1);
+ATF_TC_HEAD(timedmutex1, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Checks timeout on selflock");
+}
+
+ATF_TC_BODY(timedmutex1, tc)
+{
+
+	printf("Timed mutex-test 1\n");
+
+	PTHREAD_REQUIRE(pthread_mutex_init(&mutex, NULL));
+
+	printf("Before acquiring mutex\n");
+	PTHREAD_REQUIRE(pthread_mutex_lock(&mutex));
+
+	printf("Before endeavor to reacquire timed-mutex (timeout expected)\n");
+	PTHREAD_REQUIRE_STATUS(mutex_lock(&mutex, &ts_shortlived),
+	    ETIMEDOUT);
+
+	printf("Unlocking mutex\n");
+	PTHREAD_REQUIRE(pthread_mutex_unlock(&mutex));
+}
+
+ATF_TC(timedmutex2);
+ATF_TC_HEAD(timedmutex2, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "Checks timeout on selflock with timedlock");
+}
+
+ATF_TC_BODY(timedmutex2, tc)
+{
+
+	printf("Timed mutex-test 2\n");
+
+	PTHREAD_REQUIRE(pthread_mutex_init(&mutex, NULL));
+
+	printf("Before acquiring mutex with timedlock\n");
+	PTHREAD_REQUIRE(mutex_lock(&mutex, &ts_lengthy));
+
+	printf("Before endeavor to reacquire timed-mutex (timeout expected)\n");
+	PTHREAD_REQUIRE_STATUS(mutex_lock(&mutex, &ts_shortlived),
+	    ETIMEDOUT);
+
+	printf("Unlocking mutex\n");
+	PTHREAD_REQUIRE(pthread_mutex_unlock(&mutex));
+}
+
+ATF_TC(timedmutex3);
+ATF_TC_HEAD(timedmutex3, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "Checks timeout on selflock in a new thread");
+}
+
+static void *
+timedmtx_thrdfunc(void *arg)
+{
+	printf("Before endeavor to reacquire timed-mutex (timeout expected)\n");
+	PTHREAD_REQUIRE_STATUS(mutex_lock(&mutex, &ts_shortlived),
+	    ETIMEDOUT);
+
+	return NULL;
+}
+
+ATF_TC_BODY(timedmutex3, tc)
+{
+	pthread_t new;
+
+	printf("Timed mutex-test 3\n");
+
+	PTHREAD_REQUIRE(pthread_mutex_init(&mutex, NULL));
+
+	printf("Before acquiring mutex with timedlock\n");
+	PTHREAD_REQUIRE(pthread_mutex_lock(&mutex));
+
+	printf("Before creating new thread\n");
+	PTHREAD_REQUIRE(pthread_create(&new, NULL, timedmtx_thrdfunc, NULL));
+
+	printf("Before joining the mutex\n");
+	PTHREAD_REQUIRE(pthread_join(new, NULL));
+
+	printf("Unlocking mutex\n");
+	PTHREAD_REQUIRE(pthread_mutex_unlock(&mutex));
+}
+
+ATF_TC(timedmutex4);
+ATF_TC_HEAD(timedmutex4, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "Checks timeout on selflock with timedlock in a new thread");
+}
+
+ATF_TC_BODY(timedmutex4, tc)
+{
+	pthread_t new;
+
+	printf("Timed mutex-test 4\n");
+
+	PTHREAD_REQUIRE(pthread_mutex_init(&mutex, NULL));
+
+	printf("Before acquiring mutex with timedlock\n");
+	PTHREAD_REQUIRE(mutex_lock(&mutex, &ts_lengthy));
+
+	printf("Before creating new thread\n");
+	PTHREAD_REQUIRE(pthread_create(&new, NULL, timedmtx_thrdfunc, NULL));
+
+	printf("Before joining the mutex\n");
+	PTHREAD_REQUIRE(pthread_join(new, NULL));
+
+	printf("Unlocking mutex\n");
+	PTHREAD_REQUIRE(pthread_mutex_unlock(&mutex));
+}
+#endif
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, mutex1);
@@ -594,6 +741,13 @@ ATF_TP_ADD_TCS(tp)
 #endif
 	ATF_TP_ADD_TC(tp, mutexattr1);
 	ATF_TP_ADD_TC(tp, mutexattr2);
-	
+
+#ifdef TIMEDMUTEX
+	ATF_TP_ADD_TC(tp, timedmutex1);
+	ATF_TP_ADD_TC(tp, timedmutex2);
+	ATF_TP_ADD_TC(tp, timedmutex3);
+	ATF_TP_ADD_TC(tp, timedmutex4);
+#endif
+
 	return atf_no_error();
 }
