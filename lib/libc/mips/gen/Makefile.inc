@@ -11,7 +11,7 @@ SRCS+=	_ctx_start.S _set_tp.c makecontext.c \
 	trivial-getcontextx.c
 
 .if defined(LIBCHERI)
-SRCS+=	_setjmp_c.S setjmp_c.S
+SRCS+=	_setjmp_c.S setjmp_c.S cheriabi_pic_wrappers.c
 .else
 SRCS+=	_setjmp.S setjmp.S
 .endif

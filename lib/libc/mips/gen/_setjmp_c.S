@@ -221,6 +221,6 @@ botch:
 	 * our caller's GP.
 	 */
 	ld		v1, 0(zero)
-	PIC_CALL(longjmperror)
-	PIC_TAILCALL(abort)
+	PIC_CALL(__cheriabi_longjmperror)
+	PIC_TAILCALL(__cheriabi_abort)
 END(_longjmp)

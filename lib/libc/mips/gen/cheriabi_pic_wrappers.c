@@ -1,6 +1,14 @@
-/*
- * Copyright (c) 1980, 1993
- *	The Regents of the University of California.  All rights reserved.
+ /*-
+ * Copyright (c) 2016 Alex Richardson
+ *
+ * All rights reserved.
+ *
+ * This software was developed by SRI International and the University of
+ * Cambridge Computer Laboratory under DARPA/AFRL contract FA8750-10-C-0237
+ * ("CTSRD"), as part of the DARPA CRASH research programme.
+ *
+ * This code is derived from software contributed to Berkeley by
+ * Ralph Campbell.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -10,7 +18,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -26,28 +34,38 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+#include <sys/types.h>
+#include <setjmp.h>
+#include <signal.h>
+#include <unistd.h>
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)setjmperr.c	8.1 (Berkeley) 6/4/93";
-#endif /* LIBC_SCCS and not lint */
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 
 /*
- * This routine is called from longjmp() when an error occurs.
- * Programs that wish to exit gracefully from this error may
- * write their own versions.
- * If this routine returns, the program is aborted.
+ * XXXAR: These wrapper only exists so that the CheriABI assembly code
+ * can reference a local symbol. The current PIC_CALL() implementation does
+ * not deal with preemptible symbols but we still want LD_PRELOAD to work for
+ * all callsites of longjmperror(), abort() and sigprocmask()
+ *
+ * XXXAR: The better solution to this problem would be to add assembly for
+ * PIC_(TAIL)CALL_PREEMPTIBLE() that does the right thing.
  */
+#ifdef __CHERI_PURE_CAPABILITY__
 
-#include "namespace.h"
-#include <setjmp.h>
-#include <unistd.h>
-#include "un-namespace.h"
-
-void
-longjmperror(void)
+void __hidden
+__cheriabi_longjmperror(void)
 {
-#define	ERRMSG	"longjmp botch.\n"
-	(void)_write(STDERR_FILENO, ERRMSG, sizeof(ERRMSG) - 1);
+	return longjmperror();
 }
+
+int __hidden
+__cheriabi_sigprocmask(int how, const sigset_t *set, sigset_t *oset)
+{
+	return sigprocmask(how, set, oset);
+}
+
+void __dead2 __hidden
+__cheriabi_abort(void)
+{
+	return abort();
+}
+#endif

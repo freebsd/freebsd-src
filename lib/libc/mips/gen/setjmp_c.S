@@ -78,7 +78,7 @@ NESTED(setjmp, SETJMP_FRAME_SIZE, ra)
 	csetoffset	$c3, $c3, t0			# oset
 	cfromptr	$c4, $c3, zero			# set == NULL
 	li		a0, 1				# SIG_SETBLOCK
-	PIC_CALL(__libc_sigprocmask)			# get current signal mask
+	PIC_CALL(__cheriabi_sigprocmask)			# get current signal mask
 
 	move		sp, s8
 
@@ -179,7 +179,7 @@ NESTED(longjmp, LONGJMP_FRAME_SIZE, ra)
 	csetoffset	$c3, $c3, t0			# set
 	cfromptr	$c4, $c3, zero			# oset == NULL
 	li		a0, 3				# SIG_SETMASK
-	PIC_CALL(__libc_sigprocmask)			# set current signal mask
+	PIC_CALL(__cheriabi_sigprocmask)		# set current signal mask
 
 	move		sp, s8
 
@@ -257,7 +257,6 @@ botch:
 	 * our caller's GP.
 	 */
 	ld		v1, 0(zero)
-	PIC_CALL(longjmperror)
-
-	PIC_TAILCALL(abort)
+	PIC_CALL(__cheriabi_longjmperror)
+	PIC_TAILCALL(__cheriabi_abort)
 END(longjmp)
