@@ -56,6 +56,10 @@ sighandler(int signo)
 	/* Nothing. */
 }
 
+#ifdef __FreeBSD__
+#define	asm __asm
+#endif
+
 static void
 work(void)
 {
