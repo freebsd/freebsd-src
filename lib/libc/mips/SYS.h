@@ -112,7 +112,7 @@
 	daddiu		gpr, gpr, %pcrel_lo(l);		\
 	daddiu		gpr, gpr, -8;			\
 	cgetpcc		capreg;				\
-	cincoffset	capreg, capreg, t9;
+	cincoffset	capreg, capreg, gpr;
 # define PIC_TAILCALL(l)				\
 	PIC_LOAD_CODE_PTR($c12, t9, _C_LABEL(l))	\
 	cjr $c12;
