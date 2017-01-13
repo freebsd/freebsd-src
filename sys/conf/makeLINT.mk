@@ -38,7 +38,6 @@ LINT: ${NOTES} ../../conf/makeLINT.sed
 	echo "nodevice bxe"		>> ${.TARGET}-NOIP
 	echo "nodevice em"		>> ${.TARGET}-NOIP
 	echo "nodevice fxp"		>> ${.TARGET}-NOIP
-	echo "nodevice igb"		>> ${.TARGET}-NOIP
 	echo "nodevice jme"		>> ${.TARGET}-NOIP
 	echo "nodevice msk"		>> ${.TARGET}-NOIP
 	echo "nodevice mxge"		>> ${.TARGET}-NOIP

@@ -196,6 +196,7 @@ TESTS_SRCS= \
 	test_read_format_zip_winzip_aes_large.c	\
 	test_read_format_zip_zip64.c		\
 	test_read_large.c			\
+	test_read_pax_schily_xattr.c		\
 	test_read_pax_truncated.c		\
 	test_read_position.c			\
 	test_read_set_format.c			\
@@ -549,6 +550,7 @@ ${PACKAGE}FILES+=	test_read_large_splitted_rar_ab.uu
 ${PACKAGE}FILES+=	test_read_large_splitted_rar_ac.uu
 ${PACKAGE}FILES+=	test_read_large_splitted_rar_ad.uu
 ${PACKAGE}FILES+=	test_read_large_splitted_rar_ae.uu
+${PACKAGE}FILES+=	test_read_pax_schily_xattr.tar.uu
 ${PACKAGE}FILES+=	test_read_splitted_rar_aa.uu
 ${PACKAGE}FILES+=	test_read_splitted_rar_ab.uu
 ${PACKAGE}FILES+=	test_read_splitted_rar_ac.uu

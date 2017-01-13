@@ -38,6 +38,11 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20170110: Four files from ggate tests consolidated into one
+OLD_FILES+=usr/tests/sys/geom/class/gate/1_test
+OLD_FILES+=usr/tests/sys/geom/class/gate/2_test
+OLD_FILES+=usr/tests/sys/geom/class/gate/3_test
+OLD_FILES+=usr/tests/sys/geom/class/gate/conf.sh
 # 20170103: libbsnmptools.so made into an INTERNALLIB
 OLD_FILES+=usr/lib/libbsnmptools.a
 OLD_FILES+=usr/lib/libbsnmptools_p.a
@@ -48,8 +53,8 @@ OLD_FILES+=usr/share/man/man3/sysdecode_getfsstat_flags.3.gz
 # 20161230: libarchive ACL pax test renamed to test_acl_pax_posix1e.tar.uu
 OLD_FILES+=usr/tests/lib/libarchive/test_acl_pax.tar.uu
 # 20161229: Three files from gnop tests consolidated into one
-OLD_FILES+=usr/tests/sys/geom/class/nop/1_test.sh
-OLD_FILES+=usr/tests/sys/geom/class/nop/2_test.sh
+OLD_FILES+=usr/tests/sys/geom/class/nop/1_test
+OLD_FILES+=usr/tests/sys/geom/class/nop/2_test
 OLD_FILES+=usr/tests/sys/geom/class/nop/conf.sh
 # 20161217: new clang import which bumps version from 3.9.0 to 3.9.1.
 OLD_FILES+=usr/lib/clang/3.9.0/include/sanitizer/allocator_interface.h
@@ -2260,7 +2265,6 @@ OLD_LIBS+=usr/lib32/private/libyaml.so.1
 OLD_FILES+=usr/lib32/private/libyaml_p.a
 # 20140216: new clang import which bumps version from 3.3 to 3.4.
 OLD_FILES+=usr/bin/llvm-prof
-OLD_FILES+=usr/bin/llvm-ranlib
 OLD_FILES+=usr/include/clang/3.3/__wmmintrin_aes.h
 OLD_FILES+=usr/include/clang/3.3/__wmmintrin_pclmul.h
 OLD_FILES+=usr/include/clang/3.3/altivec.h

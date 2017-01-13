@@ -1,4 +1,4 @@
-# $NetBSD: t_db.sh,v 1.6 2015/11/18 18:35:35 christos Exp $
+# $NetBSD: t_db.sh,v 1.7 2016/09/24 20:12:33 christos Exp $
 #
 # Copyright (c) 2008 The NetBSD Foundation, Inc.
 # All rights reserved.
@@ -563,6 +563,7 @@ delete_recno_body()
 
 h_repeated()
 {
+	local type="$1"
 	TMPDIR="$(pwd)/db_dir"; export TMPDIR
 	mkdir ${TMPDIR}
 
@@ -581,7 +582,7 @@ h_repeated()
 		}
 	}' >in
 
-	$(prog_db) btree in
+	$(prog_db) $type in
 }
 
 atf_test_case repeated_btree
@@ -641,10 +642,9 @@ duplicate_btree_body()
 
 h_cursor_flags()
 {
+	local type=$1
 	TMPDIR="$(pwd)/db_dir"; export TMPDIR
 	mkdir ${TMPDIR}
-
-	type=$1
 
 	echo $SEVEN_SEVEN |
 	awk '{
@@ -784,6 +784,7 @@ h_byte_orders()
 			echo p
 			echo k$i
 			echo d$i
+			echo S
 			echo g
 			echo k$i
 		done >in
@@ -974,6 +975,298 @@ bsize_torture_body()
 	done
 }
 
+atf_test_case btree_weird_page_split
+btree_weird_page_split_head()
+{
+	atf_set "descr"  \
+	    "Test for a weird page split condition where an insertion " \
+	    "into index 0 of a page that would cause the new item to " \
+	    "be the only item on the left page results in index 0 of " \
+	    "the right page being erroneously skipped; this only " \
+	    "happens with one particular key+data length for each page size."
+}
+btree_weird_page_split_body()
+{
+	for psize in 512 1024 2048 4096 8192; do
+		echo "    page size $psize"
+		kdsizes=`awk 'BEGIN {
+			psize = '$psize'; hsize = int(psize/2);
+			for (kdsize = hsize-40; kdsize <= hsize; kdsize++) {
+				print kdsize;
+			}
+		}' /dev/null`
+
+		# Use a series of keylen+datalen values in the right
+		# neighborhood to find the one that triggers the bug.
+		# We could compute the exact size that triggers the
+		# bug but this additional fuzz may be useful.
+
+		# Insert keys in reverse order to maximize the chances
+		# for a split on index 0.
+
+		for kdsize in $kdsizes; do
+			awk 'BEGIN {
+				kdsize = '$kdsize';
+				for (i = 8; i-- > 0; ) {
+					s = sprintf("a%03d:%09d", i, kdsize);
+					for (j = 0; j < kdsize-20; j++) {
+						s = s "x";
+					}
+					printf("p\nka%03d\nd%s\n", i, s);
+				}
+				print "o";
+			}' /dev/null > in
+			sed -n 's/^d//p' in | sort > exp
+			atf_check -o file:exp \
+			    "$(prog_db)" -i psize=$psize btree in
+		done
+	done
+}
+
+# Extremely tricky test attempting to replicate some unusual database
+# corruption seen in the field: pieces of the database becoming
+# inaccessible to random access, sequential access, or both.  The
+# hypothesis is that at least some of these are triggered by the bug
+# in page splits on index 0 with a particular exact keylen+datalen.
+# (See Test 40.)  For psize=4096, this size is exactly 2024.
+
+# The order of operations here relies on very specific knowledge of
+# the internals of the btree access method in order to place records
+# at specific offsets in a page and to create certain keys on internal
+# pages.  The to-be-split page immediately prior to the bug-triggering
+# split has the following properties:
+#
+# * is not the leftmost leaf page
+# * key on the parent page is compares less than the key of the item
+#   on index 0
+# * triggering record's key also compares greater than the key on the
+#   parent page
+
+# Additionally, we prime the mpool LRU chain so that the head page on
+# the chain has the following properties:
+#
+# * record at index 0 is located where it will not get overwritten by
+#   items written to the right-hand page during the split
+# * key of the record at index 0 compares less than the key of the
+#   bug-triggering record
+
+# If the page-split bug exists, this test appears to create a database
+# where some records are inaccessible to a search, but still remain in
+# the file and are accessible by sequential traversal.  At least one
+# record gets duplicated out of sequence.
+
+atf_test_case btree_tricky_page_split
+btree_tricky_page_split_head()
+{
+	atf_set "descr"  \
+	    "btree: no unsearchables due to page split on index 0"
+}
+btree_tricky_page_split_body()
+{
+	list=`(for i in a b c d; do
+			for j in 990 998 999; do
+				echo g ${i}${j} 1024
+			done
+		done;
+		echo g y997 2014
+		for i in y z; do
+			for j in 998 999; do
+				echo g ${i}${j} 1024
+			done
+		done)`
+	# Exact number for trigger condition accounts for newlines
+	# retained by dbtest with -ofile but not without; we use
+	# -ofile, so count newlines.  keylen=5,datalen=5+2014 for
+	# psize=4096 here.
+	(cat - <<EOF
+p z999 1024
+p z998 1024
+p y999 1024
+p y990 1024
+p d999 1024
+p d990 1024
+p c999 1024
+p c990 1024
+p b999 1024
+p b990 1024
+p a999 1024
+p a990 1024
+p y998 1024
+r y990
+p d998 1024
+p d990 1024
+p c998 1024
+p c990 1024
+p b998 1024
+p b990 1024
+p a998 1024
+p a990 1024
+p y997 2014
+S
+o
+EOF
+	echo "$list") |
+	# awk script input:
+	# {p|g|r} key [datasize]
+	awk '/^[pgr]/{
+		printf("%s\nk%s\n", $1, $2);
+	}
+	/^p/{
+		s = $2;
+		for (i = 0; i < $3; i++) {
+			s = s "x";
+		}
+		printf("d%s\n", s);
+	}
+	!/^[pgr]/{
+		print $0;
+	}' > in
+	(echo "$list"; echo "$list") | awk '{
+		s = $2;
+		for (i = 0; i < $3; i++) {
+			s = s "x";
+		}
+		print s;
+	}' > exp 
+	atf_check -o file:exp \
+	    "$(prog_db)" -i psize=4096 btree in
+}
+
+# Begin FreeBSD
+if false; then
+# End FreeBSD
+atf_test_case btree_recursive_traversal
+btree_recursive_traversal_head()
+{
+	atf_set "descr"  \
+	    "btree: Test for recursive traversal successfully " \
+	    "retrieving records that are inaccessible to normal " \
+	    "sequential 'sibling-link' traversal. This works by " \
+	    "unlinking a few leaf pages but leaving their parent " \
+	    "links intact. To verify that the unlink actually makes " \
+	    "records inaccessible, the test first uses 'o' to do a " \
+	    "normal sequential traversal, followed by 'O' to do a " \
+	    "recursive traversal."
+}
+btree_recursive_traversal_body()
+{
+	fill="abcdefghijklmnopqrstuvwxyzy"
+	script='{
+		for (i = 0; i < 20000; i++) {
+			printf("p\nkAA%05d\nd%05d%s\n", i, i, $0);
+		}
+		print "u";
+		print "u";
+		print "u";
+		print "u";
+	}'
+	(echo $fill | awk "$script"; echo o) > in1
+	echo $fill |
+	awk '{
+		for (i = 0; i < 20000; i++) {
+			if (i >= 5 && i <= 40)
+				continue;
+			printf("%05d%s\n", i, $0);
+		}
+	}' > exp1
+	atf_check -o file:exp1 \
+	    "$(prog_db)" -i psize=512 btree in1
+	echo $fill |
+	awk '{
+		for (i = 0; i < 20000; i++) {
+			printf("%05d%s\n", i, $0);
+		}
+	}' > exp2
+	(echo $fill | awk "$script"; echo O) > in2
+	atf_check -o file:exp2 \
+	    "$(prog_db)" -i psize=512 btree in2
+}
+# Begin FreeBSD
+fi
+# End FreeBSD
+
+atf_test_case btree_byteswap_unaligned_access_bksd
+btree_byteswap_unaligned_access_bksd_head()
+{
+	atf_set "descr"  \
+	    "btree: big key, small data, byteswap unaligned access"
+}
+btree_byteswap_unaligned_access_bksd_body()
+{
+	(echo foo; echo bar) |
+	awk '{
+		s = $0
+		for (i = 0; i < 488; i++) {
+			s = s "x";
+		}
+		printf("p\nk%s\ndx\n", s);
+	}' > in
+	for order in 1234 4321; do
+		atf_check \
+		    "$(prog_db)" -o out -i psize=512,lorder=$order btree in
+	done
+}
+
+atf_test_case btree_byteswap_unaligned_access_skbd
+btree_byteswap_unaligned_access_skbd_head()
+{
+	atf_set "descr"  \
+	    "btree: small key, big data, byteswap unaligned access"
+}
+btree_byteswap_unaligned_access_skbd_body()
+{
+	# 484 = 512 - 20 (header) - 7 ("foo1234") - 1 (newline)
+	(echo foo1234; echo bar1234) |
+	awk '{
+		s = $0
+		for (i = 0; i < 484; i++) {
+			s = s "x";
+		}
+		printf("p\nk%s\nd%s\n", $0, s);
+	}' > in
+	for order in 1234 4321; do
+		atf_check \
+		    "$(prog_db)" -o out -i psize=512,lorder=$order btree in
+	done
+}
+
+atf_test_case btree_known_byte_order
+btree_known_byte_order_head()
+{
+	atf_set "descr"  \
+	    "btree: small key, big data, known byte order"
+}
+btree_known_byte_order_body()
+{
+	local a="-i psize=512,lorder="
+
+	(echo foo1234; echo bar1234) |
+	awk '{
+		s = $0
+		for (i = 0; i < 484; i++) {
+			s = s "x";
+		}
+		printf("%s\n", s);
+	}' > exp
+	(echo foo1234; echo bar1234) |
+	awk '{
+		s = $0
+		for (i = 0; i < 484; i++) {
+			s = s "x";
+		}
+		printf("p\nk%s\nd%s\n", $0, s);
+	}' > in1
+	for order in 1234 4321; do
+		atf_check \
+		    "$(prog_db)" -f out.$order $a$order btree in1
+	done
+	(echo g; echo kfoo1234; echo g; echo kbar1234) > in2
+	for order in 1234 4321; do
+		atf_check -o file:exp \
+		    "$(prog_db)" -s -f out.$order $a$order btree in2
+	done
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case small_btree
@@ -1002,4 +1295,16 @@ atf_init_test_cases()
 	atf_add_test_case bsize_ffactor
 	atf_add_test_case four_char_hash
 	atf_add_test_case bsize_torture
+	atf_add_test_case btree_weird_page_split
+	atf_add_test_case btree_tricky_page_split
+	# Begin FreeBSD
+	if false; then
+	# End FreeBSD
+	atf_add_test_case btree_recursive_traversal
+	# Begin FreeBSD
+	fi
+	# End FreeBSD
+	atf_add_test_case btree_byteswap_unaligned_access_bksd
+	atf_add_test_case btree_byteswap_unaligned_access_skbd
+	atf_add_test_case btree_known_byte_order
 }

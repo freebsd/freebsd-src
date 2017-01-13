@@ -1,4 +1,4 @@
-#       $NetBSD: t_tcpip.sh,v 1.17 2016/08/11 21:29:44 kre Exp $
+#       $NetBSD: t_tcpip.sh,v 1.18 2016/08/13 11:22:11 christos Exp $
 #
 # Copyright (c) 2011 The NetBSD Foundation, Inc.
 # All rights reserved.
@@ -25,7 +25,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-rumpnetsrv='rump_server -lrumpnet -lrumpnet_net -lrumpnet_netinet -lrumpdev'
+rumpnetlibs="-lrumpnet -lrumpnet_net -lrumpnet_netinet6 -lrumpnet_netinet"
+rumpnetsrv="rump_server $rumpnetlibs -lrumpdev"
 export RUMP_SERVER=unix://csock
 
 atf_test_case http cleanup
@@ -37,7 +38,7 @@ http_head()
 http_body()
 {
 
-	atf_check -s exit:0 ${rumpnetsrv} -lrumpnet_netinet6 ${RUMP_SERVER}
+	atf_check -s exit:0 ${rumpnetsrv} ${RUMP_SERVER}
 
 	# start bozo in daemon mode
 	atf_check -s exit:0 env LD_PRELOAD=/usr/lib/librumphijack.so \
