@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+#include <assert.h>
 #include <ctype.h>
 #include <err.h>
 #include <fcntl.h>
@@ -819,21 +820,66 @@ init_syscalls(void)
 	for (sc = decoded_syscalls; sc->name != NULL; sc++)
 		STAILQ_INSERT_HEAD(&syscalls, sc, entries);
 }
+
+static struct syscall *
+find_syscall(struct procabi *abi, u_int number)
+{
+	struct extra_syscall *es;
+
+	if (number < nitems(abi->syscalls))
+		return (abi->syscalls[number]);
+	STAILQ_FOREACH(es, &abi->extra_syscalls, entries) {
+		if (es->number == number)
+			return (es->sc);
+	}
+	return (NULL);
+}
+
+static void
+add_syscall(struct procabi *abi, u_int number, struct syscall *sc)
+{
+	struct extra_syscall *es;
+
+	if (number < nitems(abi->syscalls)) {
+		assert(abi->syscalls[number] == NULL);
+		abi->syscalls[number] = sc;
+	} else {
+		es = malloc(sizeof(*es));
+		es->sc = sc;
+		es->number = number;
+		STAILQ_INSERT_TAIL(&abi->extra_syscalls, es, entries);
+	}
+}
+
 /*
  * If/when the list gets big, it might be desirable to do it
  * as a hash table or binary search.
  */
 struct syscall *
-get_syscall(const char *name, int nargs)
+get_syscall(struct threadinfo *t, u_int number, u_int nargs)
 {
 	struct syscall *sc;
-	int i;
+	const char *name;
+	char *new_name;
+	u_int i;
 
-	if (name == NULL)
-		return (NULL);
-	STAILQ_FOREACH(sc, &syscalls, entries)
-		if (strcmp(name, sc->name) == 0)
+	sc = find_syscall(t->proc->abi, number);
+	if (sc != NULL)
+		return (sc);
+
+	name = sysdecode_syscallname(t->proc->abi->abi, number);
+	if (name == NULL) {
+		asprintf(&new_name, "#%d", number);
+		name = new_name;
+	} else
+		new_name = NULL;
+	STAILQ_FOREACH(sc, &syscalls, entries) {
+		if (strcmp(name, sc->name) == 0) {
+			add_syscall(t->proc->abi, number, sc);
+			free(new_name);
 			return (sc);
+		}
+	}
 
 	/* It is unknown.  Add it into the list. */
 #if DEBUG
@@ -842,7 +888,9 @@ get_syscall(const char *name, int nargs)
 #endif
 
 	sc = calloc(1, sizeof(struct syscall));
-	sc->name = strdup(name);
+	sc->name = name;
+	if (new_name != NULL)
+		sc->unknown = true;
 	sc->ret_type = 1;
 	sc->nargs = nargs;
 	for (i = 0; i < nargs; i++) {
@@ -851,6 +899,7 @@ get_syscall(const char *name, int nargs)
 		sc->args[i].type = LongHex;
 	}
 	STAILQ_INSERT_HEAD(&syscalls, sc, entries);
+	add_syscall(t->proc->abi, number, sc);
 
 	return (sc);
 }
@@ -1866,7 +1915,7 @@ print_syscall(struct trussinfo *trussinfo)
 
 	t = trussinfo->curthread;
 
-	name = t->cs.name;
+	name = t->cs.sc->name;
 	nargs = t->cs.nargs;
 	s_args = t->cs.s_args;
 

@@ -106,7 +106,9 @@ static struct procabi i386_linux = {
 	"Linux ELF",
 	SYSDECODE_ABI_LINUX,
 	i386_linux_fetch_args,
-	i386_linux_fetch_retval
+	i386_linux_fetch_retval,
+	STAILQ_HEAD_INITIALIZER(i386_linux.extra_syscalls),
+	{ NULL }
 };
 
 PROCABI(i386_linux);
