@@ -43,14 +43,14 @@ static char sccsid[] = "@(#)rwhod.c	8.1 (Berkeley) 6/6/93";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/capsicum.h>
 #include <sys/param.h>
+#include <sys/capsicum.h>
+#include <sys/ioctl.h>
+#include <sys/procdesc.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/signal.h>
-#include <sys/ioctl.h>
 #include <sys/sysctl.h>
-#include <sys/procdesc.h>
 #include <sys/wait.h>
 
 #include <net/if.h>
@@ -549,7 +549,7 @@ getboottime(int signo __unused)
 	mib[0] = CTL_KERN;
 	mib[1] = KERN_BOOTTIME;
 	size = sizeof(tm);
-	if (sysctl(mib, 2, &tm, &size, NULL, 0) == -1) {
+	if (sysctl(mib, nitems(mib), &tm, &size, NULL, 0) == -1) {
 		syslog(LOG_ERR, "cannot get boottime: %m");
 		exit(1);
 	}
@@ -630,11 +630,11 @@ configure(int so)
 	mib[3] = AF_INET;
 	mib[4] = NET_RT_IFLIST;
 	mib[5] = 0;
-	if (sysctl(mib, 6, NULL, &needed, NULL, 0) < 0)
+	if (sysctl(mib, nitems(mib), NULL, &needed, NULL, 0) < 0)
 		quit("route-sysctl-estimate");
 	if ((buf = malloc(needed)) == NULL)
 		quit("malloc");
-	if (sysctl(mib, 6, buf, &needed, NULL, 0) < 0)
+	if (sysctl(mib, nitems(mib), buf, &needed, NULL, 0) < 0)
 		quit("actual retrieval of interface table");
 	lim = buf + needed;
 
