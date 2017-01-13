@@ -344,7 +344,7 @@ alloc_syscall(struct threadinfo *t, struct ptrace_lwpinfo *pl)
 
 	assert(t->in_syscall == 0);
 	assert(t->cs.number == 0);
-	assert(t->cs.name == NULL);
+	assert(t->cs.sc == NULL);
 	assert(t->cs.nargs == 0);
 	for (i = 0; i < nitems(t->cs.s_args); i++)
 		assert(t->cs.s_args[i] == NULL);
@@ -378,12 +378,11 @@ enter_syscall(struct trussinfo *info, struct threadinfo *t,
 		return;
 	}
 
-	t->cs.name = sysdecode_syscallname(t->proc->abi->abi, t->cs.number);
-	if (t->cs.name == NULL)
+	sc = get_syscall(t, t->cs.number, narg);
+	if (sc->unknown)
 		fprintf(info->outfile, "-- UNKNOWN %s SYSCALL %d --\n",
 		    t->proc->abi->type, t->cs.number);
 
-	sc = get_syscall(t->cs.name, narg);
 	t->cs.nargs = sc->nargs;
 	assert(sc->nargs <= nitems(t->cs.s_args));
 
@@ -396,25 +395,22 @@ enter_syscall(struct trussinfo *info, struct threadinfo *t,
 	 * now.	This doesn't currently support arguments that are
 	 * passed in *and* out, however.
 	 */
-	if (t->cs.name != NULL) {
 #if DEBUG
-		fprintf(stderr, "syscall %s(", t->cs.name);
+	fprintf(stderr, "syscall %s(", sc->name);
 #endif
-		for (i = 0; i < t->cs.nargs; i++) {
+	for (i = 0; i < t->cs.nargs; i++) {
 #if DEBUG
-			fprintf(stderr, "0x%lx%s", sc ?
-			    t->cs.args[sc->args[i].offset] : t->cs.args[i],
-			    i < (t->cs.nargs - 1) ? "," : "");
+		fprintf(stderr, "0x%lx%s", t->cs.args[sc->args[i].offset],
+		    i < (t->cs.nargs - 1) ? "," : "");
 #endif
-			if (!(sc->args[i].type & OUT)) {
-				t->cs.s_args[i] = print_arg(&sc->args[i],
-				    t->cs.args, 0, info);
-			}
+		if (!(sc->args[i].type & OUT)) {
+			t->cs.s_args[i] = print_arg(&sc->args[i],
+			    t->cs.args, 0, info);
 		}
-#if DEBUG
-		fprintf(stderr, ")\n");
-#endif
 	}
+#if DEBUG
+	fprintf(stderr, ")\n");
+#endif
 
 	clock_gettime(CLOCK_REALTIME, &t->before);
 }
