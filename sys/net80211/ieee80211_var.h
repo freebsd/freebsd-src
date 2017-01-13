@@ -95,6 +95,9 @@
  */
 #define	IEEE80211_CONF_VHT(ic)		((ic)->ic_vhtcaps != 0)
 
+#define	IEEE80211_CONF_SEQNO_OFFLOAD(ic)	\
+	    ((ic)->ic_flags_ext & IEEE80211_FEXT_SEQNO_OFFLOAD)
+
 /*
  * 802.11 control state is split into a common portion that maps
  * 1-1 to a physical device and one or more "Virtual AP's" (VAP)
