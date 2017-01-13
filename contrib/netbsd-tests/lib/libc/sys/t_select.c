@@ -135,6 +135,9 @@ child(const struct timespec *ts)
 		    "after timeout %s != %s",
 		    prmask(&nset, nbuf, sizeof(nbuf)),
 		    prmask(&oset, obuf, sizeof(obuf)));
+#ifdef	__FreeBSD__
+	_exit(0);
+#endif
 }
 
 ATF_TC(pselect_sigmask);
@@ -154,6 +157,9 @@ ATF_TC_BODY(pselect_sigmask, tc)
 	switch (pid = fork()) {
 	case 0:
 		child(NULL);
+#ifdef	__FreeBSD__
+		break;
+#endif
 	case -1:
 		err(1, "fork");
 	default:
