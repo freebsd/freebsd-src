@@ -1544,7 +1544,7 @@ key_msg2sp(struct sadb_x_policy *xpl0, size_t len, int *error)
 				 * mandatory.
 				 */
 				if (isr->saidx.mode == IPSEC_MODE_TUNNEL) {
-					ipseclog((LOG_DEBUG, "%s: missing ",
+					ipseclog((LOG_DEBUG, "%s: missing "
 					    "request addresses.\n", __func__));
 					key_freesp(&newsp);
 					*error = EINVAL;
