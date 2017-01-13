@@ -3617,15 +3617,9 @@ scsi_command_string(struct cam_device *device, struct ccb_scsiio *csio,
 
 #endif /* _KERNEL/!_KERNEL */
 
-	if ((csio->ccb_h.flags & CAM_CDB_POINTER) != 0) {
-		sbuf_printf(sb, "%s. CDB: ", 
-			    scsi_op_desc(csio->cdb_io.cdb_ptr[0], inq_data));
-		scsi_cdb_sbuf(csio->cdb_io.cdb_ptr, sb);
-	} else {
-		sbuf_printf(sb, "%s. CDB: ",
-			    scsi_op_desc(csio->cdb_io.cdb_bytes[0], inq_data));
-		scsi_cdb_sbuf(csio->cdb_io.cdb_bytes, sb);
-	}
+	sbuf_printf(sb, "%s. CDB: ",
+		    scsi_op_desc(scsiio_cdb_ptr(csio)[0], inq_data));
+	scsi_cdb_sbuf(scsiio_cdb_ptr(csio), sb);
 
 #ifdef _KERNEL
 	xpt_free_ccb((union ccb *)cgd);
@@ -5030,7 +5024,6 @@ scsi_sense_sbuf(struct cam_device *device, struct ccb_scsiio *csio,
 	struct	  ccb_getdev *cgd;
 #endif /* _KERNEL */
 	char	  path_str[64];
-	uint8_t	  *cdb;
 
 #ifndef _KERNEL
 	if (device == NULL)
@@ -5128,14 +5121,9 @@ scsi_sense_sbuf(struct cam_device *device, struct ccb_scsiio *csio,
 			sense = &csio->sense_data;
 	}
 
-	if (csio->ccb_h.flags & CAM_CDB_POINTER)
-		cdb = csio->cdb_io.cdb_ptr;
-	else
-		cdb = csio->cdb_io.cdb_bytes;
-
 	scsi_sense_only_sbuf(sense, csio->sense_len - csio->sense_resid, sb,
-			     path_str, inq_data, cdb, csio->cdb_len);
-			 
+	    path_str, inq_data, scsiio_cdb_ptr(csio), csio->cdb_len);
+
 #ifdef _KERNEL
 	xpt_free_ccb((union ccb*)cgd);
 #endif /* _KERNEL/!_KERNEL */
