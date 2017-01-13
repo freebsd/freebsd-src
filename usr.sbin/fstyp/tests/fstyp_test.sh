@@ -63,7 +63,7 @@ exfat_head() {
 	atf_set "descr" "fstyp(8) can detect exFAT filesystems"
 }
 exfat_body() {
-	bzcat $(atf_get_srcdir)/dfr-01-xfat.dd.bz2 > exfat.img
+	bzcat $(atf_get_srcdir)/dfr-01-xfat.img.bz2 > exfat.img
 	atf_check -s exit:0 -o inline:"exfat\n" fstyp exfat.img
 }
 
