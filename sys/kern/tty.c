@@ -105,25 +105,38 @@ SYSCTL_INT(_kern, OID_AUTO, tty_drainwait, CTLFLAG_RWTUN,
 
 #define	TTYBUF_MAX	65536
 
-static void
+/*
+ * Allocate buffer space if necessary, and set low watermarks, based on speed.
+ * Note that the ttyxxxq_setsize() functions may drop and then reacquire the tty
+ * lock during memory allocation.  They will return ENXIO if the tty disappears
+ * while unlocked.
+ */
+static int
 tty_watermarks(struct tty *tp)
 {
 	size_t bs = 0;
+	int error;
 
 	/* Provide an input buffer for 0.2 seconds of data. */
 	if (tp->t_termios.c_cflag & CREAD)
 		bs = MIN(tp->t_termios.c_ispeed / 5, TTYBUF_MAX);
-	ttyinq_setsize(&tp->t_inq, tp, bs);
+	error = ttyinq_setsize(&tp->t_inq, tp, bs);
+	if (error != 0)
+		return (error);
 
 	/* Set low watermark at 10% (when 90% is available). */
 	tp->t_inlow = (ttyinq_getallocatedsize(&tp->t_inq) * 9) / 10;
 
 	/* Provide an output buffer for 0.2 seconds of data. */
 	bs = MIN(tp->t_termios.c_ospeed / 5, TTYBUF_MAX);
-	ttyoutq_setsize(&tp->t_outq, tp, bs);
+	error = ttyoutq_setsize(&tp->t_outq, tp, bs);
+	if (error != 0)
+		return (error);
 
 	/* Set low watermark at 10% (when 90% is available). */
 	tp->t_outlow = (ttyoutq_getallocatedsize(&tp->t_outq) * 9) / 10;
+
+	return (0);
 }
 
 static int
@@ -318,7 +331,9 @@ ttydev_open(struct cdev *dev, int oflags, int devtype __unused,
 			goto done;
 
 		ttydisc_open(tp);
-		tty_watermarks(tp); /* XXXGL: drops lock */
+		error = tty_watermarks(tp);
+		if (error != 0)
+			goto done;
 	}
 
 	/* Wait for Carrier Detect. */
@@ -1627,7 +1642,9 @@ tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, int fflag,
 			tp->t_termios.c_ospeed = t->c_ospeed;
 
 			/* Baud rate has changed - update watermarks. */
-			tty_watermarks(tp);
+			error = tty_watermarks(tp);
+			if (error)
+				return (error);
 		}
 
 		/* Copy new non-device driver parameters. */
