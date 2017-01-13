@@ -121,17 +121,18 @@ sys_sctp_peeloff(td, uap)
 	} */ *uap;
 {
 #if (defined(INET) || defined(INET6)) && defined(SCTP)
-	struct file *nfp = NULL;
+	struct file *headfp, *nfp = NULL;
 	struct socket *head, *so;
 	cap_rights_t rights;
 	u_int fflag;
 	int error, fd;
 
 	AUDIT_ARG_FD(uap->sd);
-	error = fgetsock(td, uap->sd, cap_rights_init(&rights, CAP_PEELOFF),
-	    &head, &fflag);
+	error = getsock_cap(td, uap->sd, cap_rights_init(&rights, CAP_PEELOFF),
+	    &headfp, &fflag, NULL);
 	if (error != 0)
 		goto done2;
+	head = headfp->f_data;
 	if (head->so_proto->pr_protocol != IPPROTO_SCTP) {
 		error = EOPNOTSUPP;
 		goto done;
@@ -196,7 +197,7 @@ noconnection:
 done:
 	if (nfp != NULL)
 		fdrop(nfp, td);
-	fputsock(head);
+	fdrop(headfp, td);
 done2:
 	return (error);
 #else  /* SCTP */
