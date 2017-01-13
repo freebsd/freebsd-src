@@ -1024,154 +1024,6 @@ snmp_input_consume(struct port_input *pi)
 	pi->length -= pi->consumed;
 }
 
-static void
-check_priv_dgram(struct port_input *pi, struct sockcred *cred)
-{
-
-	/* process explicitly sends credentials */
-	if (cred)
-		pi->priv = (cred->sc_euid == 0);
-	else
-		pi->priv = 0;
-}
-
-static void
-check_priv_stream(struct port_input *pi)
-{
-	struct xucred ucred;
-	socklen_t ucredlen;
-
-	/* obtain the accept time credentials */
-	ucredlen = sizeof(ucred);
-
-	if (getsockopt(pi->fd, 0, LOCAL_PEERCRED, &ucred, &ucredlen) == 0 &&
-	    ucredlen >= sizeof(ucred) && ucred.cr_version == XUCRED_VERSION)
-		pi->priv = (ucred.cr_uid == 0);
-	else
-		pi->priv = 0;
-}
-
-/*
- * Input from a stream socket.
- */
-static int
-recv_stream(struct port_input *pi)
-{
-	struct msghdr msg;
-	struct iovec iov[1];
-	ssize_t len;
-
-	if (pi->buf == NULL) {
-		/* no buffer yet - allocate one */
-		if ((pi->buf = buf_alloc(0)) == NULL) {
-			/* ups - could not get buffer. Return an error
-			 * the caller must close the transport. */
-			return (-1);
-		}
-		pi->buflen = buf_size(0);
-		pi->consumed = 0;
-		pi->length = 0;
-	}
-
-	/* try to get a message */
-	msg.msg_name = pi->peer;
-	msg.msg_namelen = pi->peerlen;
-	msg.msg_iov = iov;
-	msg.msg_iovlen = 1;
-	msg.msg_control = NULL;
-	msg.msg_controllen = 0;
-	msg.msg_flags = 0;
-
-	iov[0].iov_base = pi->buf + pi->length;
-	iov[0].iov_len = pi->buflen - pi->length;
-
-	len = recvmsg(pi->fd, &msg, 0);
-
-	if (len == -1 || len == 0)
-		/* receive error */
-		return (-1);
-
-	pi->length += len;
-
-	if (pi->cred)
-		check_priv_stream(pi);
-
-	return (0);
-}
-
-/*
- * Input from a datagram socket.
- * Each receive should return one datagram.
- */
-static int
-recv_dgram(struct port_input *pi, struct in_addr *laddr)
-{
-	u_char embuf[1000];
-	char cbuf[CMSG_SPACE(SOCKCREDSIZE(CMGROUP_MAX)) +
-	    CMSG_SPACE(sizeof(struct in_addr))];
-	struct msghdr msg;
-	struct iovec iov[1];
-	ssize_t len;
-	struct cmsghdr *cmsg;
-	struct sockcred *cred = NULL;
-
-	if (pi->buf == NULL) {
-		/* no buffer yet - allocate one */
-		if ((pi->buf = buf_alloc(0)) == NULL) {
-			/* ups - could not get buffer. Read away input
-			 * and drop it */
-			(void)recvfrom(pi->fd, embuf, sizeof(embuf),
-			    0, NULL, NULL);
-			/* return error */
-			return (-1);
-		}
-		pi->buflen = buf_size(0);
-	}
-
-	/* try to get a message */
-	msg.msg_name = pi->peer;
-	msg.msg_namelen = pi->peerlen;
-	msg.msg_iov = iov;
-	msg.msg_iovlen = 1;
-	memset(cbuf, 0, sizeof(cbuf));
-	msg.msg_control = cbuf;
-	msg.msg_controllen = sizeof(cbuf);
-	msg.msg_flags = 0;
-
-	iov[0].iov_base = pi->buf;
-	iov[0].iov_len = pi->buflen;
-
-	len = recvmsg(pi->fd, &msg, 0);
-
-	if (len == -1 || len == 0)
-		/* receive error */
-		return (-1);
-
-	if (msg.msg_flags & MSG_TRUNC) {
-		/* truncated - drop */
-		snmpd_stats.silentDrops++;
-		snmpd_stats.inTooLong++;
-		return (-1);
-	}
-
-	pi->length = (size_t)len;
-
-	for (cmsg = CMSG_FIRSTHDR(&msg); cmsg != NULL;
-	    cmsg = CMSG_NXTHDR(&msg, cmsg)) {
-		if (cmsg->cmsg_level == IPPROTO_IP &&
-		    cmsg->cmsg_type == IP_RECVDSTADDR)
-			memcpy(laddr, CMSG_DATA(cmsg), sizeof(struct in_addr));
-		if (cmsg->cmsg_level == SOL_SOCKET &&
-		    cmsg->cmsg_type == SCM_CREDS)
-			cred = (struct sockcred *)CMSG_DATA(cmsg);
-	}
-
-	if (pi->cred)
-		check_priv_dgram(pi, cred);
-
-	return (0);
-}
-
 /*
  * Input from a socket
  */
@@ -1183,43 +1035,15 @@ snmpd_input(struct port_input *pi, struct tport *tport)
 	struct snmp_pdu pdu;
 	enum snmpd_input_err ierr, ferr;
 	enum snmpd_proxy_err perr;
+	ssize_t ret, slen;
 	int32_t vi;
-	int ret;
-	ssize_t slen;
 #ifdef USE_TCPWRAPPERS
 	char client[16];
 #endif
 	struct msghdr msg;
 	struct iovec iov[1];
-	char cbuf[CMSG_SPACE(sizeof(struct in_addr))];
-	struct cmsghdr *cmsgp;
 
-	/* get input depending on the transport */
-	if (pi->stream) {
-		msg.msg_control = NULL;
-		msg.msg_controllen = 0;
-
-		ret = recv_stream(pi);
-	} else {
-		struct in_addr *laddr;
-
-		memset(cbuf, 0, CMSG_SPACE(sizeof(struct in_addr)));
-		msg.msg_control = cbuf;
-		msg.msg_controllen = CMSG_SPACE(sizeof(struct in_addr));
-		cmsgp = CMSG_FIRSTHDR(&msg);
-		cmsgp->cmsg_len = CMSG_LEN(sizeof(struct in_addr));
-		cmsgp->cmsg_level = IPPROTO_IP;
-		cmsgp->cmsg_type = IP_SENDSRCADDR;
-		laddr = (struct in_addr *)CMSG_DATA(cmsgp);
-		
-		ret = recv_dgram(pi, laddr);
-
-		if (laddr->s_addr == 0) {
-			msg.msg_control = NULL;
-			msg.msg_controllen = 0;
-		}
-	}
-
+	ret = tport->transport->vtab->recv(pi);
 	if (ret == -1)
 		return (-1);
 
