@@ -43,7 +43,7 @@ __FBSDID("$FreeBSD$");
 /*
  * Memory special file
  *
- * NOTE: other architectures support mmap()'ing the mem and kmem devices; this
+ * NOTE: other architectures support mmap()'ing the mem device; this
  * might cause illegal aliases to be created for the locked kernel page(s), so
  * it is not implemented.
  */
