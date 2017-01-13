@@ -508,7 +508,7 @@ rip_output(struct mbuf *m, struct socket *so, ...)
 		 * and don't allow packet length sizes that will crash.
 		 */
 		if (((ip->ip_hl != (sizeof (*ip) >> 2)) && inp->inp_options)
-		    || (ntohs(ip->ip_len) > m->m_pkthdr.len)
+		    || (ntohs(ip->ip_len) != m->m_pkthdr.len)
 		    || (ntohs(ip->ip_len) < (ip->ip_hl << 2))) {
 			INP_RUNLOCK(inp);
 			m_freem(m);
