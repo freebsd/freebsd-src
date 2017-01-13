@@ -8,6 +8,7 @@ MK_SSP=		no
 WARNS?=	2
 
 LDFLAGS+=	-nodefaultlibs
+LIBADD+=	c
 .ifndef LIBCHERI
 VERSION_MAP=	${.CURDIR}/Version.map
 
