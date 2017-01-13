@@ -1499,7 +1499,6 @@ key_msg2sp(struct sadb_x_policy *xpl0, size_t len, int *error)
 			isr->level = xisr->sadb_x_ipsecrequest_level;
 
 			/* set IP addresses if there */
-			/* XXXAE: those are needed only for tunnel mode */
 			if (xisr->sadb_x_ipsecrequest_len > sizeof(*xisr)) {
 				struct sockaddr *paddr;
 
@@ -1539,6 +1538,18 @@ key_msg2sp(struct sadb_x_policy *xpl0, size_t len, int *error)
 					return (NULL);
 				}
 				bcopy(paddr, &isr->saidx.dst, paddr->sa_len);
+			} else {
+				/*
+				 * Addresses for TUNNEL mode requests are
+				 * mandatory.
+				 */
+				if (isr->saidx.mode == IPSEC_MODE_TUNNEL) {
+					ipseclog((LOG_DEBUG, "%s: missing ",
+					    "request addresses.\n", __func__));
+					key_freesp(&newsp);
+					*error = EINVAL;
+					return (NULL);
+				}
 			}
 			tlen -= xisr->sadb_x_ipsecrequest_len;
 
