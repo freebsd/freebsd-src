@@ -319,7 +319,7 @@ fetch_generic_mib(struct mibif *ifp, const struct ifmibdata *old)
 	name[5] = IFDATA_GENERAL;
 
 	len = sizeof(ifp->mib);
-	if (sysctl(name, 6, &ifp->mib, &len, NULL, 0) == -1) {
+	if (sysctl(name, nitems(name), &ifp->mib, &len, NULL, 0) == -1) {
 		if (errno != ENOENT)
 			syslog(LOG_WARNING, "sysctl(ifmib, %s) failed %m",
 			    ifp->name);
@@ -480,7 +480,7 @@ mib_fetch_ifmib(struct mibif *ifp)
 	name[3] = IFMIB_IFDATA;
 	name[4] = ifp->sysindex;
 	name[5] = IFDATA_LINKSPECIFIC;
-	if (sysctl(name, 6, NULL, &len, NULL, 0) == -1) {
+	if (sysctl(name, nitems(name), NULL, &len, NULL, 0) == -1) {
 		syslog(LOG_WARNING, "sysctl linkmib estimate (%s): %m",
 		    ifp->name);
 		if (ifp->specmib != NULL) {
@@ -506,7 +506,7 @@ mib_fetch_ifmib(struct mibif *ifp)
 		ifp->specmib = newmib;
 		ifp->specmiblen = len;
 	}
-	if (sysctl(name, 6, ifp->specmib, &len, NULL, 0) == -1) {
+	if (sysctl(name, nitems(name), ifp->specmib, &len, NULL, 0) == -1) {
 		syslog(LOG_WARNING, "sysctl linkmib (%s): %m", ifp->name);
 		if (ifp->specmib != NULL) {
 			ifp->specmib = NULL;
@@ -902,7 +902,7 @@ mib_refresh_iflist(void)
 	for (idx = 1; idx <= count; idx++) {
 		name[4] = idx;
 		len = sizeof(mib);
-		if (sysctl(name, 6, &mib, &len, NULL, 0) == -1) {
+		if (sysctl(name, nitems(name), &mib, &len, NULL, 0) == -1) {
 			if (errno == ENOENT)
 				continue;
 			syslog(LOG_ERR, "ifmib(%u): %m", idx);
@@ -1213,7 +1213,7 @@ mib_fetch_rtab(int af, int info, int arg, size_t *lenp)
 	*lenp = 0;
 
 	/* initial estimate */
-	if (sysctl(name, 6, NULL, lenp, NULL, 0) == -1) {
+	if (sysctl(name, nitems(name), NULL, lenp, NULL, 0) == -1) {
 		syslog(LOG_ERR, "sysctl estimate (%d,%d,%d,%d,%d,%d): %m",
 		    name[0], name[1], name[2], name[3], name[4], name[5]);
 		return (NULL);
@@ -1230,7 +1230,7 @@ mib_fetch_rtab(int af, int info, int arg, size_t *lenp)
 		}
 		buf = newbuf;
 
-		if (sysctl(name, 6, buf, lenp, NULL, 0) == 0)
+		if (sysctl(name, nitems(name), buf, lenp, NULL, 0) == 0)
 			break;
 
 		if (errno != ENOMEM) {
