@@ -1,4 +1,4 @@
-/*	$NetBSD: t_unpriv.c,v 1.12 2015/04/09 19:51:13 riastradh Exp $	*/
+/*	$NetBSD: t_unpriv.c,v 1.13 2017/01/13 21:30:40 christos Exp $	*/
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -38,7 +38,7 @@
 #include <rump/rump.h>
 
 #include "../common/h_fsmacros.h"
-#include "../../h_macros.h"
+#include "h_macros.h"
 
 #define USES_OWNER							 \
 	if (FSTYPE_MSDOS(tc))						 \

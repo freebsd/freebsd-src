@@ -1,4 +1,4 @@
-/*	$NetBSD: t_regex_att.c,v 1.1 2012/08/24 20:24:40 jmmv Exp $	*/
+/*	$NetBSD: t_regex_att.c,v 1.2 2017/01/14 00:50:56 christos Exp $	*/
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -37,7 +37,7 @@
  */
 
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_regex_att.c,v 1.1 2012/08/24 20:24:40 jmmv Exp $");
+__RCSID("$NetBSD: t_regex_att.c,v 1.2 2017/01/14 00:50:56 christos Exp $");
 
 #include <sys/param.h>
 
@@ -374,7 +374,7 @@ checkmatches(const char *matches, size_t nm, const regmatch_t *pm,
 		    " cur=%d, max=%zu", res, l, len - off);
 		off += l;
 	}
-	ATF_REQUIRE_STREQ_MSG(res, matches, " at line %zu", lineno);
+	ATF_CHECK_STREQ_MSG(res, matches, " at line %zu", lineno);
 	free(res);
 }
 

@@ -1,4 +1,4 @@
-/*	$NetBSD: t_io.c,v 1.16 2015/04/04 12:34:44 riastradh Exp $	*/
+/*	$NetBSD: t_io.c,v 1.17 2017/01/13 21:30:40 christos Exp $	*/
 
 /*-
  * Copyright (c) 2010 The NetBSD Foundation, Inc.
@@ -39,7 +39,7 @@
 #include <rump/rump.h>
 
 #include "../common/h_fsmacros.h"
-#include "../../h_macros.h"
+#include "h_macros.h"
 
 #define TESTSTR "this is a string.  collect enough and you'll have Em"
 #define TESTSZ sizeof(TESTSTR)

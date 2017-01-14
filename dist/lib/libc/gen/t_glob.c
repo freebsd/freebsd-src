@@ -1,4 +1,4 @@
-/*	$NetBSD: t_glob.c,v 1.3 2013/01/02 11:28:48 martin Exp $	*/
+/*	$NetBSD: t_glob.c,v 1.4 2017/01/13 21:30:41 christos Exp $	*/
 /*-
  * Copyright (c) 2010 The NetBSD Foundation, Inc.
  * All rights reserved.
@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_glob.c,v 1.3 2013/01/02 11:28:48 martin Exp $");
+__RCSID("$NetBSD: t_glob.c,v 1.4 2017/01/13 21:30:41 christos Exp $");
 
 #include <atf-c.h>
 
@@ -46,7 +46,7 @@ __RCSID("$NetBSD: t_glob.c,v 1.3 2013/01/02 11:28:48 martin Exp $");
 #include <string.h>
 #include <errno.h>
 
-#include "../../../h_macros.h"
+#include "h_macros.h"
 
 
 #ifdef DEBUG

@@ -1,4 +1,4 @@
-/*	$NetBSD: t_io.c,v 1.1 2010/11/12 17:33:28 pooka Exp $	*/
+/*	$NetBSD: t_io.c,v 1.2 2017/01/13 21:30:40 christos Exp $	*/
 
 #include <sys/types.h>
 #include <sys/mount.h>
@@ -20,7 +20,7 @@
 #include <rump/rump.h>
 #include <rump/rump_syscalls.h>
 
-#include "../../h_macros.h"
+#include "h_macros.h"
 #include "../common/h_fsmacros.h"
 
 #define MAKEOPTS(...) \
