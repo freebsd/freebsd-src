@@ -1,4 +1,4 @@
-/* $NetBSD: t_sig.c,v 1.2 2010/11/03 16:10:20 christos Exp $ */
+/* $NetBSD: t_sig.c,v 1.3 2017/01/13 21:30:41 christos Exp $ */
 
 /*-
  * Copyright (c) 2002, 2008 The NetBSD Foundation, Inc.
@@ -32,7 +32,7 @@
 #include <sys/cdefs.h>
 __COPYRIGHT("@(#) Copyright (c) 2008\
  The NetBSD Foundation, inc. All rights reserved.");
-__RCSID("$NetBSD: t_sig.c,v 1.2 2010/11/03 16:10:20 christos Exp $");
+__RCSID("$NetBSD: t_sig.c,v 1.3 2017/01/13 21:30:41 christos Exp $");
 
 #ifdef __FreeBSD__
 #include <sys/types.h>
@@ -51,7 +51,7 @@ __RCSID("$NetBSD: t_sig.c,v 1.2 2010/11/03 16:10:20 christos Exp $");
 
 #include <atf-c.h>
 
-#include "../../h_macros.h"
+#include "h_macros.h"
 
 #define NSIGNALS 5
 

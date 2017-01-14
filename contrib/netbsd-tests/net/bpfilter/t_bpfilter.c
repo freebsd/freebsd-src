@@ -1,4 +1,4 @@
-/*	$NetBSD: t_bpfilter.c,v 1.10 2015/02/11 23:39:07 alnsn Exp $	*/
+/*	$NetBSD: t_bpfilter.c,v 1.11 2017/01/13 21:30:42 christos Exp $	*/
 
 /*-
  * Copyright (c) 2012 The NetBSD Foundation, Inc.
@@ -25,7 +25,7 @@
  * SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_bpfilter.c,v 1.10 2015/02/11 23:39:07 alnsn Exp $");
+__RCSID("$NetBSD: t_bpfilter.c,v 1.11 2017/01/13 21:30:42 christos Exp $");
 
 #include <sys/param.h>
 #include <sys/ioctl.h>
@@ -53,7 +53,7 @@ __RCSID("$NetBSD: t_bpfilter.c,v 1.10 2015/02/11 23:39:07 alnsn Exp $");
 #undef m_data
 #include <atf-c.h>
 
-#include "../../h_macros.h"
+#include "h_macros.h"
 #include "../config/netconfig.c"
 
 

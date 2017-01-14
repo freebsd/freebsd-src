@@ -1,4 +1,4 @@
-/*	$NetBSD: t_mount.c,v 1.13 2012/11/27 16:01:49 jakllsch Exp $	*/
+/*	$NetBSD: t_mount.c,v 1.14 2017/01/13 21:30:39 christos Exp $	*/
 
 /*
  * Basic tests for mounting
@@ -25,7 +25,7 @@
 #include <rump/rump.h>
 #include <rump/rump_syscalls.h>
 
-#include "../../h_macros.h"
+#include "h_macros.h"
 
 ATF_TC(48Kimage);
 ATF_TC_HEAD(48Kimage, tc)

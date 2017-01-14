@@ -1,4 +1,4 @@
-/*	$NetBSD: t_cd.c,v 1.7 2014/04/25 00:24:39 pooka Exp $	*/
+/*	$NetBSD: t_cd.c,v 1.8 2017/01/13 21:30:39 christos Exp $	*/
 
 /*
  * Copyright (c) 2010 Antti Kantee.  All Rights Reserved.
@@ -39,7 +39,7 @@
 
 #include "scsitest.h"
 
-#include "../../h_macros.h"
+#include "h_macros.h"
 
 ATF_TC(noisyeject);
 ATF_TC_HEAD(noisyeject, tc)
