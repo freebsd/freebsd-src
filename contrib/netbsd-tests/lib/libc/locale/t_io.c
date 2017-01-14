@@ -61,7 +61,6 @@ ATF_TC_BODY(bad_big5_wprintf, tc)
 	/* XXX implementation detail knowledge (wchar_t encoding) */
 	wchar_t ibuf[] = { 0xcf10, 0 };
 	setlocale(LC_CTYPE, "zh_TW.Big5");
-
 	ATF_REQUIRE_ERRNO(EILSEQ, wprintf(L"%ls\n", ibuf) < 0);
 	ATF_REQUIRE(ferror(stdout));
 }
