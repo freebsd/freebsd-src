@@ -4216,6 +4216,12 @@ pmap_zero_page(vm_page_t m)
 	invlcaddr(pc->pc_cmap_addr2);
 	pagezero(pc->pc_cmap_addr2);
 	*cmap_pte2 = 0;
+
+	/*
+	 * Unpin the thread before releasing the lock.  Otherwise the thread
+	 * could be rescheduled while still bound to the current CPU, only
+	 * to unpin itself immediately upon resuming execution.
+	 */
 	sched_unpin();
 	mtx_unlock(&pc->pc_cmap_lock);
 }
