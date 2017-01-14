@@ -66,7 +66,7 @@ ATF_TC_BODY(sethostname_basic, tc)
 		(void)memset(name, 0, sizeof(name));
 
 #ifdef __FreeBSD__
-		/* 
+		/*
 		 * Sanity checks to ensure that the wrong invariant isn't being
 		 * tested for per PR # 181127
 		 */
