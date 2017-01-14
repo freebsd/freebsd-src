@@ -986,9 +986,6 @@ RANDOM_LOADABLE	opt_global.h
 # the uma slab allocator.
 RANDOM_ENABLE_UMA	opt_global.h
 
-# Intel em(4) driver
-EM_MULTIQUEUE	opt_em.h
-
 # BHND(4) driver
 BHND_LOGLEVEL	opt_global.h
 

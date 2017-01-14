@@ -39,6 +39,7 @@ char	*checked_strdup(const char *s);
 void	rtrim(char *label, size_t size);
 
 int	fstyp_cd9660(FILE *fp, char *label, size_t size);
+int	fstyp_exfat(FILE *fp, char *label, size_t size);
 int	fstyp_ext2fs(FILE *fp, char *label, size_t size);
 int	fstyp_geli(FILE *fp, char *label, size_t size);
 int	fstyp_msdosfs(FILE *fp, char *label, size_t size);

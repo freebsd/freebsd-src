@@ -770,6 +770,8 @@ em_if_attach_pre(if_ctx_t ctx)
 
 
 	if (adapter->hw.mac.type >= igb_mac_min) {
+		int try_second_bar;
+
 		scctx->isc_txqsizes[0] = roundup2(scctx->isc_ntxd[0] * sizeof(union e1000_adv_tx_desc), EM_DBA_ALIGN);
 		scctx->isc_rxqsizes[0] = roundup2(scctx->isc_nrxd[0] * sizeof(union e1000_adv_rx_desc), EM_DBA_ALIGN);
 		scctx->isc_txrx = &igb_txrx;
@@ -778,6 +780,15 @@ em_if_attach_pre(if_ctx_t ctx)
 			| CSUM_IP6_UDP | CSUM_IP6_TCP;
 		if (adapter->hw.mac.type != e1000_82575)
 			scctx->isc_tx_csum_flags |= CSUM_SCTP | CSUM_IP6_SCTP;
+
+		/*
+		** Some new devices, as with ixgbe, now may
+		** use a different BAR, so we need to keep
+		** track of which is used.
+		*/
+		try_second_bar = pci_read_config(dev, scctx->isc_msix_bar, 4);
+		if (try_second_bar == 0)
+			scctx->isc_msix_bar += 4;
 
 	} else if (adapter->hw.mac.type >= em_mac_min) {
 		scctx->isc_txqsizes[0] = roundup2(scctx->isc_ntxd[0]* sizeof(struct e1000_tx_desc), EM_DBA_ALIGN);
@@ -3106,7 +3117,7 @@ em_if_enable_intr(if_ctx_t ctx)
 	u32 ims_mask = IMS_ENABLE_MASK;
 
 	if (hw->mac.type == e1000_82574) {
-		E1000_WRITE_REG(hw, EM_EIAC, adapter->ims);
+		E1000_WRITE_REG(hw, EM_EIAC, EM_MSIX_MASK);
 		ims_mask |= adapter->ims;
 	} if (adapter->intr_type == IFLIB_INTR_MSIX && hw->mac.type >= igb_mac_min)  {
 		u32 mask = (adapter->que_mask | adapter->link_mask);
@@ -3297,6 +3308,8 @@ em_get_wakeup(if_ctx_t ctx)
 	case e1000_ich10lan:
 	case e1000_pchlan:
 	case e1000_pch2lan:
+	case e1000_pch_lpt:
+	case e1000_pch_spt:
 		apme_mask = E1000_WUC_APME;
 		adapter->has_amt = TRUE;
 		eeprom_data = E1000_READ_REG(&adapter->hw, E1000_WUC);
@@ -3365,7 +3378,7 @@ em_enable_wakeup(if_ctx_t ctx)
 	struct adapter	*adapter = iflib_get_softc(ctx);
 	device_t dev = iflib_get_dev(ctx);
 	if_t ifp = iflib_get_ifp(ctx);
-	u32		pmc, ctrl, ctrl_ext, rctl;
+	u32		pmc, ctrl, ctrl_ext, rctl, wuc;
 	u16     	status;
 
 	if ((pci_find_cap(dev, PCIY_PMG, &pmc) != 0))
@@ -3375,7 +3388,9 @@ em_enable_wakeup(if_ctx_t ctx)
 	ctrl = E1000_READ_REG(&adapter->hw, E1000_CTRL);
 	ctrl |= (E1000_CTRL_SWDPIN2 | E1000_CTRL_SWDPIN3);
 	E1000_WRITE_REG(&adapter->hw, E1000_CTRL, ctrl);
-	E1000_WRITE_REG(&adapter->hw, E1000_WUC, E1000_WUC_PME_EN);
+	wuc = E1000_READ_REG(&adapter->hw, E1000_WUC);
+	wuc |= E1000_WUC_PME_EN ;
+	E1000_WRITE_REG(&adapter->hw, E1000_WUC, wuc);
 
 	if ((adapter->hw.mac.type == e1000_ich8lan) ||
 	    (adapter->hw.mac.type == e1000_pchlan) ||
@@ -3407,7 +3422,9 @@ em_enable_wakeup(if_ctx_t ctx)
 	}
 
 	if ((adapter->hw.mac.type == e1000_pchlan) ||
-	    (adapter->hw.mac.type == e1000_pch2lan)) {
+	    (adapter->hw.mac.type == e1000_pch2lan) ||
+	    (adapter->hw.mac.type == e1000_pch_lpt) ||
+	    (adapter->hw.mac.type == e1000_pch_spt)) {
 		if (em_enable_phy_wakeup(adapter))
 			return;
 	} else {

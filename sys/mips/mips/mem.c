@@ -151,12 +151,6 @@ int
 memmmap(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr,
     int prot, vm_memattr_t *memattr)
 {
-	/*
-	 * /dev/mem is the only one that makes sense through this
-	 * interface.  For /dev/kmem any physaddr we return here
-	 * could be transient and hence incorrect or invalid at
-	 * a later time.
-	 */
 	if (dev2unit(dev) != CDEV_MINOR_MEM)
 		return (-1);
 

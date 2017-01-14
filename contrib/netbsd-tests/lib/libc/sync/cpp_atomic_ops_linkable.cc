@@ -1,4 +1,4 @@
-/* $NetBSD: cpp_atomic_ops_linkable.cc,v 1.4 2016/02/27 18:50:39 joerg Exp $ */
+/* $NetBSD: cpp_atomic_ops_linkable.cc,v 1.5 2017/01/11 12:10:26 joerg Exp $ */
 
 /*-
  * Copyright (c) 2014 The NetBSD Foundation, Inc.
@@ -58,19 +58,13 @@ private:
   volatile std::atomic<T> m_val;
 };
 
-#if defined(__clang__) && defined(__sparc64__)
-#define NO_SHORT_ATOMICS
-#endif
-
 int main(int argc, char **argv)
 {
-#ifndef NO_SHORT_ATOMICS
   ATest<char>();
   ATest<signed char>();
   ATest<unsigned char>();
   ATest<short>();
   ATest<unsigned short>();
-#endif
   ATest<int>();
   ATest<unsigned int>();
   ATest<long>();
@@ -79,29 +73,23 @@ int main(int argc, char **argv)
   ATest<long long>();
   ATest<unsigned long long>();
 #endif
-#ifndef NO_SHORT_ATOMICS
   ATest<char16_t>();
-#endif
   ATest<char32_t>();
   ATest<wchar_t>();
-#ifndef NO_SHORT_ATOMICS
   ATest<int_least8_t>();
   ATest<uint_least8_t>();
   ATest<int_least16_t>();
   ATest<uint_least16_t>();
-#endif
   ATest<int_least32_t>();
   ATest<uint_least32_t>();
 #ifdef __HAVE_ATOMIC64_OPS
   ATest<int_least64_t>();
   ATest<uint_least64_t>();
 #endif
-#ifndef NO_SHORT_ATOMICS
   ATest<int_fast8_t>();
   ATest<uint_fast8_t>();
   ATest<int_fast16_t>();
   ATest<uint_fast16_t>();
-#endif
   ATest<int_fast32_t>();
   ATest<uint_fast32_t>();
 #ifdef __HAVE_ATOMIC64_OPS
@@ -115,5 +103,5 @@ int main(int argc, char **argv)
 #ifdef __HAVE_ATOMIC64_OPS
   ATest<intmax_t>();
   ATest<uintmax_t>();
-#endif /* NO_SHORT_ATOMICS */
+#endif
 }

@@ -62,6 +62,7 @@ struct tty {
 	struct mtx	*t_mtx;		/* TTY lock. */
 	struct mtx	t_mtxobj;	/* Per-TTY lock (when not borrowing). */
 	TAILQ_ENTRY(tty) t_list;	/* (l) TTY list entry. */
+	int		t_drainwait;	/* (t) TIOCDRAIN timeout seconds. */
 	unsigned int	t_flags;	/* (t) Terminal option flags. */
 /* Keep flags in sync with db_show_tty and pstat(8). */
 #define	TF_NOPREFIX	0x00001	/* Don't prepend "tty" to device name. */

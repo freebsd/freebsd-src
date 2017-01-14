@@ -822,10 +822,14 @@ adhoc_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 #if 0
 			if (scan.htcap != NULL && scan.htinfo != NULL &&
 			    (vap->iv_flags_ht & IEEE80211_FHT_HT)) {
-				if (ieee80211_ht_updateparams(ni,
+				ieee80211_ht_updateparams(ni,
+				    scan.htcap, scan.htinfo));
+				if (ieee80211_ht_updateparams_final(ni,
 				    scan.htcap, scan.htinfo))
 					ht_state_change = 1;
 			}
+
+			/* XXX same for VHT? */
 #endif
 			if (ni != NULL) {
 				IEEE80211_RSSI_LPF(ni->ni_avgrssi, rssi);

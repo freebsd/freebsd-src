@@ -1,7 +1,7 @@
-/*	$NetBSD: t_rpc.c,v 1.9 2015/11/27 13:59:40 christos Exp $	*/
+/*	$NetBSD: t_rpc.c,v 1.10 2016/08/27 14:36:22 christos Exp $	*/
 
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_rpc.c,v 1.9 2015/11/27 13:59:40 christos Exp $");
+__RCSID("$NetBSD: t_rpc.c,v 1.10 2016/08/27 14:36:22 christos Exp $");
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -21,7 +21,7 @@ __RCSID("$NetBSD: t_rpc.c,v 1.9 2015/11/27 13:59:40 christos Exp $");
 
 #define SKIPX(ev, msg, ...)	do {			\
 	atf_tc_skip(msg, __VA_ARGS__);			\
-	return;						\
+	return ev;					\
 } while(/*CONSTCOND*/0)
 
 #ifdef __FreeBSD__
@@ -32,8 +32,8 @@ __RCSID("$NetBSD: t_rpc.c,v 1.9 2015/11/27 13:59:40 christos Exp $");
 #endif
 
 #else
-#define ERRX(ev, msg, ...)	errx(ev, msg, __VA_ARGS__)
-#define SKIPX(ev, msg, ...)	errx(ev, msg, __VA_ARGS__)
+#define ERRX(ev, msg, ...)	errx(EXIT_FAILURE, msg, __VA_ARGS__)
+#define SKIPX(ev, msg, ...)	errx(EXIT_FAILURE, msg, __VA_ARGS__)
 #endif
 
 #ifdef DEBUG
@@ -83,7 +83,7 @@ onehost(const char *host, const char *transp)
 	__rpc_control(CLCR_SET_RPCB_TIMEOUT, &tv);
 
 	if ((clnt = clnt_create(host, RPCBPROG, RPCBVERS, transp)) == NULL)
-		SKIPX(EXIT_FAILURE, "clnt_create (%s)", clnt_spcreateerror(""));
+		SKIPX(, "clnt_create (%s)", clnt_spcreateerror(""));
 
 	tv.tv_sec = 1;
 	tv.tv_usec = 0;
@@ -95,7 +95,7 @@ onehost(const char *host, const char *transp)
 	if (clnt_call(clnt, RPCBPROC_NULL, xdr_void, NULL, xdr_void, NULL, tv)
 	    != RPC_SUCCESS)
 #endif
-		ERRX(EXIT_FAILURE, "clnt_call (%s)", clnt_sperror(clnt, ""));
+		ERRX(, "clnt_call (%s)", clnt_sperror(clnt, ""));
 	clnt_control(clnt, CLGET_SVC_ADDR, (char *) &addr);
 	reply(NULL, &addr, NULL);
 }
@@ -117,13 +117,13 @@ server(struct svc_req *rqstp, SVCXPRT *transp)
 	switch (rqstp->rq_proc) {
 	case NULLPROC:
 		if (!svc_sendreply(transp, (xdrproc_t)xdr_void, NULL))
-			ERRX(EXIT_FAILURE, "svc_sendreply failed %d", 0);
+			ERRX(, "svc_sendreply failed %d", 0);
 		return;
 	case PLUSONE:
 		break;
 	case DESTROY:
 		if (!svc_sendreply(transp, (xdrproc_t)xdr_void, NULL))
-			ERRX(EXIT_FAILURE, "svc_sendreply failed %d", 0);
+			ERRX(, "svc_sendreply failed %d", 0);
 		svc_destroy(transp);
 		exit(0);
 	default:
@@ -138,7 +138,7 @@ server(struct svc_req *rqstp, SVCXPRT *transp)
 	DPRINTF("About to increment\n");
 	num++;
 	if (!svc_sendreply(transp, (xdrproc_t)xdr_int, (void *)&num))
-		ERRX(EXIT_FAILURE, "svc_sendreply failed %d", 1);
+		ERRX(, "svc_sendreply failed %d", 1);
 	DPRINTF("Leaving server procedure.\n");
 }
 
@@ -195,13 +195,9 @@ regtest(const char *hostname, const char *transp, const char *arg, int p)
 	svc_fdset_init(p ? SVC_FDSET_POLL : 0);
 #endif
 	if (!svc_create(server, PROGNUM, VERSNUM, transp))
-#ifdef __NetBSD__
-		ERRX(EXIT_FAILURE, "Cannot create server %d", num);
-#else
 	{
 		SKIPXI(EXIT_FAILURE, "Cannot create server %d", num);
 	}
-#endif
 
 	switch ((pid = fork())) {
 	case 0:

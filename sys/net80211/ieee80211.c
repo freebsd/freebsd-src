@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_superg.h>
 #endif
 #include <net80211/ieee80211_ratectl.h>
+#include <net80211/ieee80211_vht.h>
 
 #include <net/bpf.h>
 
@@ -119,6 +120,8 @@ static const struct ieee80211_rateset ieee80211_rateset_11g =
 	{ 12, { B(2), B(4), B(11), B(22), 12, 18, 24, 36, 48, 72, 96, 108 } };
 #undef B
 
+static int set_vht_extchan(struct ieee80211_channel *c);
+
 /*
  * Fill in 802.11 available channel set, mark
  * all available channels as active, and pick
@@ -150,10 +153,23 @@ ieee80211_chan_init(struct ieee80211com *ic)
 		 */
 		if (c->ic_ieee == 0)
 			c->ic_ieee = ieee80211_mhz2ieee(c->ic_freq,c->ic_flags);
+
+		/*
+		 * Setup the HT40/VHT40 upper/lower bits.
+		 * The VHT80 math is done elsewhere.
+		 */
 		if (IEEE80211_IS_CHAN_HT40(c) && c->ic_extieee == 0)
 			c->ic_extieee = ieee80211_mhz2ieee(c->ic_freq +
 			    (IEEE80211_IS_CHAN_HT40U(c) ? 20 : -20),
 			    c->ic_flags);
+
+		/* Update VHT math */
+		/*
+		 * XXX VHT again, note that this assumes VHT80 channels
+		 * are legit already
+		 */
+		set_vht_extchan(c);
+
 		/* default max tx power to max regulatory */
 		if (c->ic_maxpower == 0)
 			c->ic_maxpower = 2*c->ic_maxregpower;
@@ -343,6 +359,7 @@ ieee80211_ifattach(struct ieee80211com *ic)
 	ieee80211_superg_attach(ic);
 #endif
 	ieee80211_ht_attach(ic);
+	ieee80211_vht_attach(ic);
 	ieee80211_scan_attach(ic);
 	ieee80211_regdomain_attach(ic);
 	ieee80211_dfs_attach(ic);
@@ -386,6 +403,7 @@ ieee80211_ifdetach(struct ieee80211com *ic)
 #ifdef IEEE80211_SUPPORT_SUPERG
 	ieee80211_superg_detach(ic);
 #endif
+	ieee80211_vht_detach(ic);
 	ieee80211_ht_detach(ic);
 	/* NB: must be called before ieee80211_node_detach */
 	ieee80211_proto_detach(ic);
@@ -515,8 +533,15 @@ ieee80211_vap_setup(struct ieee80211com *ic, struct ieee80211vap *vap,
 	vap->iv_flags_ext = ic->ic_flags_ext;
 	vap->iv_flags_ven = ic->ic_flags_ven;
 	vap->iv_caps = ic->ic_caps &~ IEEE80211_C_OPMODE;
+
+	/* 11n capabilities - XXX methodize */
 	vap->iv_htcaps = ic->ic_htcaps;
 	vap->iv_htextcaps = ic->ic_htextcaps;
+
+	/* 11ac capabilities - XXX methodize */
+	vap->iv_vhtcaps = ic->ic_vhtcaps;
+	vap->iv_vhtextcaps = ic->ic_vhtextcaps;
+
 	vap->iv_opmode = opmode;
 	vap->iv_caps |= ieee80211_opcap[opmode];
 	IEEE80211_ADDR_COPY(vap->iv_myaddr, ic->ic_macaddr);
@@ -601,6 +626,7 @@ ieee80211_vap_setup(struct ieee80211com *ic, struct ieee80211vap *vap,
 	ieee80211_superg_vattach(vap);
 #endif
 	ieee80211_ht_vattach(vap);
+	ieee80211_vht_vattach(vap);
 	ieee80211_scan_vattach(vap);
 	ieee80211_regdomain_vattach(vap);
 	ieee80211_radiotap_vattach(vap);
@@ -737,6 +763,7 @@ ieee80211_vap_detach(struct ieee80211vap *vap)
 #ifdef IEEE80211_SUPPORT_SUPERG
 	ieee80211_superg_vdetach(vap);
 #endif
+	ieee80211_vht_vdetach(vap);
 	ieee80211_ht_vdetach(vap);
 	/* NB: must be before ieee80211_node_vdetach */
 	ieee80211_proto_vdetach(vap);
@@ -1081,6 +1108,110 @@ set_extchan(struct ieee80211_channel *c)
 		c->ic_extieee = 0;
 }
 
+/*
+ * Populate the freq1/freq2 fields as appropriate for VHT channels.
+ *
+ * This for now uses a hard-coded list of 80MHz wide channels.
+ *
+ * For HT20/HT40, freq1 just is the centre frequency of the 40MHz
+ * wide channel we've already decided upon.
+ *
+ * For VHT80 and VHT160, there are only a small number of fixed
+ * 80/160MHz wide channels, so we just use those.
+ *
+ * This is all likely very very wrong - both the regulatory code
+ * and this code needs to ensure that all four channels are
+ * available and valid before the VHT80 (and eight for VHT160) channel
+ * is created.
+ */
+
+struct vht_chan_range {
+	uint16_t freq_start;
+	uint16_t freq_end;
+};
+
+struct vht_chan_range vht80_chan_ranges[] = {
+	{ 5170, 5250 },
+	{ 5250, 5330 },
+	{ 5490, 5570 },
+	{ 5570, 5650 },
+	{ 5650, 5730 },
+	{ 5735, 5815 },
+	{ 0, 0, }
+};
+
+static int
+set_vht_extchan(struct ieee80211_channel *c)
+{
+	int i;
+
+	if (! IEEE80211_IS_CHAN_VHT(c)) {
+		return (0);
+	}
+
+	if (IEEE80211_IS_CHAN_VHT20(c)) {
+		c->ic_vht_ch_freq1 = c->ic_ieee;
+		return (1);
+	}
+
+	if (IEEE80211_IS_CHAN_VHT40(c)) {
+		if (IEEE80211_IS_CHAN_HT40U(c))
+			c->ic_vht_ch_freq1 = c->ic_ieee + 2;
+		else if (IEEE80211_IS_CHAN_HT40D(c))
+			c->ic_vht_ch_freq1 = c->ic_ieee - 2;
+		else
+			return (0);
+		return (1);
+	}
+
+	if (IEEE80211_IS_CHAN_VHT80(c)) {
+		for (i = 0; vht80_chan_ranges[i].freq_start != 0; i++) {
+			if (c->ic_freq >= vht80_chan_ranges[i].freq_start &&
+			    c->ic_freq < vht80_chan_ranges[i].freq_end) {
+				int midpoint;
+
+				midpoint = vht80_chan_ranges[i].freq_start + 40;
+				c->ic_vht_ch_freq1 =
+				    ieee80211_mhz2ieee(midpoint, c->ic_flags);
+				c->ic_vht_ch_freq2 = 0;
+#if 0
+				printf("%s: %d, freq=%d, midpoint=%d, freq1=%d, freq2=%d\n",
+				    __func__, c->ic_ieee, c->ic_freq, midpoint,
+				    c->ic_vht_ch_freq1, c->ic_vht_ch_freq2);
+#endif
+				return (1);
+			}
+		}
+		return (0);
+	}
+
+	printf("%s: unknown VHT channel type (ieee=%d, flags=0x%08x)\n",
+	    __func__,
+	    c->ic_ieee,
+	    c->ic_flags);
+
+	return (0);
+}
+
+/*
+ * Return whether the current channel could possibly be a part of
+ * a VHT80 channel.
+ *
+ * This doesn't check that the whole range is in the allowed list
+ * according to regulatory.
+ */
+static int
+is_vht80_valid_freq(uint16_t freq)
+{
+	int i;
+	for (i = 0; vht80_chan_ranges[i].freq_start != 0; i++) {
+		if (freq >= vht80_chan_ranges[i].freq_start &&
+		    freq < vht80_chan_ranges[i].freq_end)
+			return (1);
+	}
+	return (0);
+}
+
 static int
 addchan(struct ieee80211_channel chans[], int maxchans, int *nchans,
     uint8_t ieee, uint16_t freq, int8_t maxregpower, uint32_t flags)
@@ -1090,13 +1221,25 @@ addchan(struct ieee80211_channel chans[], int maxchans, int *nchans,
 	if (*nchans >= maxchans)
 		return (ENOBUFS);
 
+#if 0
+	printf("%s: %d: ieee=%d, freq=%d, flags=0x%08x\n",
+	    __func__,
+	    *nchans,
+	    ieee,
+	    freq,
+	    flags);
+#endif
+
 	c = &chans[(*nchans)++];
 	c->ic_ieee = ieee;
 	c->ic_freq = freq != 0 ? freq : ieee80211_ieee2mhz(ieee, flags);
 	c->ic_maxregpower = maxregpower;
 	c->ic_maxpower = 2 * maxregpower;
 	c->ic_flags = flags;
+	c->ic_vht_ch_freq1 = 0;
+	c->ic_vht_ch_freq2 = 0;
 	set_extchan(c);
+	set_vht_extchan(c);
 
 	return (0);
 }
@@ -1112,14 +1255,27 @@ copychan_prev(struct ieee80211_channel chans[], int maxchans, int *nchans,
 	if (*nchans >= maxchans)
 		return (ENOBUFS);
 
+#if 0
+	printf("%s: %d: flags=0x%08x\n",
+	    __func__,
+	    *nchans,
+	    flags);
+#endif
+
 	c = &chans[(*nchans)++];
 	c[0] = c[-1];
 	c->ic_flags = flags;
+	c->ic_vht_ch_freq1 = 0;
+	c->ic_vht_ch_freq2 = 0;
 	set_extchan(c);
+	set_vht_extchan(c);
 
 	return (0);
 }
 
+/*
+ * XXX VHT-2GHz
+ */
 static void
 getflags_2ghz(const uint8_t bands[], uint32_t flags[], int ht40)
 {
@@ -1140,35 +1296,73 @@ getflags_2ghz(const uint8_t bands[], uint32_t flags[], int ht40)
 }
 
 static void
-getflags_5ghz(const uint8_t bands[], uint32_t flags[], int ht40)
+getflags_5ghz(const uint8_t bands[], uint32_t flags[], int ht40, int vht80)
 {
 	int nmodes;
 
+	/*
+	 * the addchan_list function seems to expect the flags array to
+	 * be in channel width order, so the VHT bits are interspersed
+	 * as appropriate to maintain said order.
+	 *
+	 * It also assumes HT40U is before HT40D.
+	 */
 	nmodes = 0;
+
+	/* 20MHz */
 	if (isset(bands, IEEE80211_MODE_11A))
 		flags[nmodes++] = IEEE80211_CHAN_A;
 	if (isset(bands, IEEE80211_MODE_11NA))
 		flags[nmodes++] = IEEE80211_CHAN_A | IEEE80211_CHAN_HT20;
+	if (isset(bands, IEEE80211_MODE_VHT_5GHZ)) {
+		flags[nmodes++] = IEEE80211_CHAN_A | IEEE80211_CHAN_HT20 |
+		    IEEE80211_CHAN_VHT20;
+
+	/* 40MHz */
 	if (ht40) {
 		flags[nmodes++] = IEEE80211_CHAN_A | IEEE80211_CHAN_HT40U;
+	}
+	if (ht40 && isset(bands, IEEE80211_MODE_VHT_5GHZ)) {
+		flags[nmodes++] = IEEE80211_CHAN_A | IEEE80211_CHAN_HT40U
+		    | IEEE80211_CHAN_VHT40U;
+	}
+	if (ht40) {
 		flags[nmodes++] = IEEE80211_CHAN_A | IEEE80211_CHAN_HT40D;
 	}
+	if (ht40 && isset(bands, IEEE80211_MODE_VHT_5GHZ)) {
+		flags[nmodes++] = IEEE80211_CHAN_A | IEEE80211_CHAN_HT40D
+		    | IEEE80211_CHAN_VHT40D;
+	}
+
+	/* 80MHz */
+	if (vht80 && isset(bands, IEEE80211_MODE_VHT_5GHZ)) {
+		flags[nmodes++] = IEEE80211_CHAN_A |
+		    IEEE80211_CHAN_HT40U | IEEE80211_CHAN_VHT80;
+		flags[nmodes++] = IEEE80211_CHAN_A |
+		    IEEE80211_CHAN_HT40D | IEEE80211_CHAN_VHT80;
+		}
+	}
+
+	/* XXX VHT80+80 */
+	/* XXX VHT160 */
 	flags[nmodes] = 0;
 }
 
 static void
-getflags(const uint8_t bands[], uint32_t flags[], int ht40)
+getflags(const uint8_t bands[], uint32_t flags[], int ht40, int vht80)
 {
 
 	flags[0] = 0;
 	if (isset(bands, IEEE80211_MODE_11A) ||
-	    isset(bands, IEEE80211_MODE_11NA)) {
+	    isset(bands, IEEE80211_MODE_11NA) ||
+	    isset(bands, IEEE80211_MODE_VHT_5GHZ)) {
 		if (isset(bands, IEEE80211_MODE_11B) ||
 		    isset(bands, IEEE80211_MODE_11G) ||
-		    isset(bands, IEEE80211_MODE_11NG))
+		    isset(bands, IEEE80211_MODE_11NG) ||
+		    isset(bands, IEEE80211_MODE_VHT_2GHZ))
 			return;
 
-		getflags_5ghz(bands, flags, ht40);
+		getflags_5ghz(bands, flags, ht40, vht80);
 	} else
 		getflags_2ghz(bands, flags, ht40);
 }
@@ -1176,6 +1370,7 @@ getflags(const uint8_t bands[], uint32_t flags[], int ht40)
 /*
  * Add one 20 MHz channel into specified channel list.
  */
+/* XXX VHT */
 int
 ieee80211_add_channel(struct ieee80211_channel chans[], int maxchans,
     int *nchans, uint8_t ieee, uint16_t freq, int8_t maxregpower,
@@ -1184,7 +1379,7 @@ ieee80211_add_channel(struct ieee80211_channel chans[], int maxchans,
 	uint32_t flags[IEEE80211_MODE_MAX];
 	int i, error;
 
-	getflags(bands, flags, 0);
+	getflags(bands, flags, 0, 0);
 	KASSERT(flags[0] != 0, ("%s: no correct mode provided\n", __func__));
 
 	error = addchan(chans, maxchans, nchans, ieee, freq, maxregpower,
@@ -1218,6 +1413,7 @@ findchannel(struct ieee80211_channel chans[], int nchans, uint16_t freq,
 /*
  * Add 40 MHz channel pair into specified channel list.
  */
+/* XXX VHT */
 int
 ieee80211_add_channel_ht40(struct ieee80211_channel chans[], int maxchans,
     int *nchans, uint8_t ieee, int8_t maxregpower, uint32_t flags)
@@ -1275,10 +1471,16 @@ ieee80211_get_channel_center_freq(const struct ieee80211_channel *c)
  * For 80+80MHz channels this will be the centre of the primary
  * 80MHz channel; the secondary 80MHz channel will be center_freq2().
  */
-
 uint32_t
 ieee80211_get_channel_center_freq1(const struct ieee80211_channel *c)
 {
+
+	/*
+	 * VHT - use the pre-calculated centre frequency
+	 * of the given channel.
+	 */
+	if (IEEE80211_IS_CHAN_VHT(c))
+		return (ieee80211_ieee2mhz(c->ic_vht_ch_freq1, c->ic_flags));
 
 	if (IEEE80211_IS_CHAN_HT40U(c)) {
 		return (c->ic_freq + 10);
@@ -1291,11 +1493,14 @@ ieee80211_get_channel_center_freq1(const struct ieee80211_channel *c)
 }
 
 /*
- * For now, no 80+80 support; this is zero.
+ * For now, no 80+80 support; it will likely always return 0.
  */
 uint32_t
 ieee80211_get_channel_center_freq2(const struct ieee80211_channel *c)
 {
+
+	if (IEEE80211_IS_CHAN_VHT(c) && (c->ic_vht_ch_freq2 != 0))
+		return (ieee80211_ieee2mhz(c->ic_vht_ch_freq2, c->ic_flags));
 
 	return (0);
 }
@@ -1310,16 +1515,70 @@ add_chanlist(struct ieee80211_channel chans[], int maxchans, int *nchans,
 {
 	uint16_t freq;
 	int i, j, error;
+	int is_vht;
 
 	for (i = 0; i < nieee; i++) {
 		freq = ieee80211_ieee2mhz(ieee[i], flags[0]);
 		for (j = 0; flags[j] != 0; j++) {
+			/*
+			 * Notes:
+			 * + HT40 and VHT40 channels occur together, so
+			 *   we need to be careful that we actually allow that.
+			 * + VHT80, VHT160 will coexist with HT40/VHT40, so
+			 *   make sure it's not skipped because of the overlap
+			 *   check used for (V)HT40.
+			 */
+			is_vht = !! (flags[j] & IEEE80211_CHAN_VHT);
+
+			/*
+			 * Test for VHT80.
+			 * XXX This is all very broken right now.
+			 * What we /should/ do is:
+			 *
+			 * + check that the frequency is in the list of
+			 *   allowed VHT80 ranges; and
+			 * + the other 3 channels in the list are actually
+			 *   also available.
+			 */
+			if (is_vht && flags[j] & IEEE80211_CHAN_VHT80)
+				if (! is_vht80_valid_freq(freq))
+					continue;
+
+			/*
+			 * Test for (V)HT40.
+			 *
+			 * This is also a fall through from VHT80; as we only
+			 * allow a VHT80 channel if the VHT40 combination is
+			 * also valid.  If the VHT40 form is not valid then
+			 * we certainly can't do VHT80..
+			 */
 			if (flags[j] & IEEE80211_CHAN_HT40D)
+				/*
+				 * Can't have a "lower" channel if we are the
+				 * first channel.
+				 *
+				 * Can't have a "lower" channel if it's below/
+				 * within 20MHz of the first channel.
+				 *
+				 * Can't have a "lower" channel if the channel
+				 * below it is not 20MHz away.
+				 */
 				if (i == 0 || ieee[i] < ieee[0] + 4 ||
 				    freq - 20 !=
 				    ieee80211_ieee2mhz(ieee[i] - 4, flags[j]))
 					continue;
 			if (flags[j] & IEEE80211_CHAN_HT40U)
+				/*
+				 * Can't have an "upper" channel if we are
+				 * the last channel.
+				 *
+				 * Can't have an "upper" channel be above the
+				 * last channel in the list.
+				 *
+				 * Can't have an "upper" channel if the next
+				 * channel according to the math isn't 20MHz
+				 * away.  (Likely for channel 13/14.)
+				 */
 				if (i == nieee - 1 ||
 				    ieee[i] + 4 > ieee[nieee - 1] ||
 				    freq + 20 !=
@@ -1348,6 +1607,7 @@ ieee80211_add_channel_list_2ghz(struct ieee80211_channel chans[], int maxchans,
 {
 	uint32_t flags[IEEE80211_MODE_MAX];
 
+	/* XXX no VHT for now */
 	getflags_2ghz(bands, flags, ht40);
 	KASSERT(flags[0] != 0, ("%s: no correct mode provided\n", __func__));
 
@@ -1360,8 +1620,15 @@ ieee80211_add_channel_list_5ghz(struct ieee80211_channel chans[], int maxchans,
     int ht40)
 {
 	uint32_t flags[IEEE80211_MODE_MAX];
+	int vht80 = 0;
 
-	getflags_5ghz(bands, flags, ht40);
+	/*
+	 * For now, assume VHT == VHT80 support as a minimum.
+	 */
+	if (isset(bands, IEEE80211_MODE_VHT_5GHZ))
+		vht80 = 1;
+
+	getflags_5ghz(bands, flags, ht40, vht80);
 	KASSERT(flags[0] != 0, ("%s: no correct mode provided\n", __func__));
 
 	return (add_chanlist(chans, maxchans, nchans, ieee, nieee, flags));
@@ -1662,6 +1929,7 @@ ieee80211_announce(struct ieee80211com *ic)
 		printf("\n");
 	}
 	ieee80211_ht_announce(ic);
+	ieee80211_vht_announce(ic);
 }
 
 void

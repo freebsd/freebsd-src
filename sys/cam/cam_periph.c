@@ -1930,10 +1930,7 @@ cam_periph_devctl_notify(union ccb *ccb)
 
 	if (ccb->ccb_h.func_code == XPT_SCSI_IO) {
 		sbuf_printf(&sb, "CDB=\"");
-		if ((ccb->ccb_h.flags & CAM_CDB_POINTER) != 0)
-			scsi_cdb_sbuf(ccb->csio.cdb_io.cdb_ptr, &sb);
-		else
-			scsi_cdb_sbuf(ccb->csio.cdb_io.cdb_bytes, &sb);
+		scsi_cdb_sbuf(scsiio_cdb_ptr(&ccb->csio), &sb);
 		sbuf_printf(&sb, "\" ");
 	} else if (ccb->ccb_h.func_code == XPT_ATA_IO) {
 		sbuf_printf(&sb, "ACB=\"");

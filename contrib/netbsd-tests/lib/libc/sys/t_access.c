@@ -1,4 +1,4 @@
-/* $NetBSD: t_access.c,v 1.2 2017/01/10 22:36:29 christos Exp $ */
+/* $NetBSD: t_access.c,v 2.2 2017/01/10 22:36:29 christos Exp $ */
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -30,6 +30,10 @@
  */
 #include <sys/cdefs.h>
 __RCSID("$NetBSD: t_access.c,v 1.2 2017/01/10 22:36:29 christos Exp $");
+
+#ifdef __FreeBSD__
+#include <sys/param.h> /* For __FreeBSD_version */
+#endif
 
 #include <atf-c.h>
 

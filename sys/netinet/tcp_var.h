@@ -452,7 +452,7 @@ struct tcptw {
 	tcp_seq		iss;
 	tcp_seq		irs;
 	u_short		last_win;	/* cached window value */
-	u_short		tw_so_options;	/* copy of so_options */
+	short		tw_so_options;	/* copy of so_options */
 	struct ucred	*tw_cred;	/* user credentials */
 	u_int32_t	t_recent;
 	u_int32_t	ts_offset;	/* our timestamp offset */

@@ -172,8 +172,10 @@ connection_new(int iscsi_fd, const struct iscsi_daemon_request *request)
 	conn->conn_data_digest = CONN_DIGEST_NONE;
 	conn->conn_initial_r2t = true;
 	conn->conn_immediate_data = true;
-	conn->conn_max_burst_length = MAX_BURST_LENGTH;
-	conn->conn_first_burst_length = FIRST_BURST_LENGTH;
+	conn->conn_max_recv_data_segment_length = 8192;
+	conn->conn_max_send_data_segment_length = 8192;
+	conn->conn_max_burst_length = 262144;
+	conn->conn_first_burst_length = 65536;
 	conn->conn_iscsi_fd = iscsi_fd;
 
 	conn->conn_session_id = request->idr_session_id;
@@ -190,30 +192,27 @@ connection_new(int iscsi_fd, const struct iscsi_daemon_request *request)
 	 */
 	isl = &conn->conn_limits;
 	memcpy(isl, &request->idr_limits, sizeof(*isl));
-	if (isl->isl_max_recv_data_segment_length == 0) {
-		conn->conn_max_recv_data_segment_length = 8192;
-		conn->conn_max_send_data_segment_length = 8192;
-		isl->isl_max_recv_data_segment_length = 8192;
-	} else {
-		conn->conn_max_recv_data_segment_length =
-		    isl->isl_max_recv_data_segment_length;
-		conn->conn_max_send_data_segment_length =
-		    isl->isl_max_recv_data_segment_length;
-	}
-	if (isl->isl_max_send_data_segment_length == 0) {
+	if (isl->isl_max_recv_data_segment_length == 0)
+		isl->isl_max_recv_data_segment_length = (1 << 24) - 1;
+	if (isl->isl_max_send_data_segment_length == 0)
 		isl->isl_max_send_data_segment_length =
 		    isl->isl_max_recv_data_segment_length;
-	} else {
+	if (isl->isl_max_burst_length == 0)
+		isl->isl_max_burst_length = (1 << 24) - 1;
+	if (isl->isl_first_burst_length == 0)
+		isl->isl_first_burst_length = (1 << 24) - 1;
+	if (isl->isl_first_burst_length > isl->isl_max_burst_length)
+		isl->isl_first_burst_length = isl->isl_max_burst_length;
+
+	/*
+	 * Limit default send length in case it won't be negotiated.
+	 * We can't do it for other limits, since they may affect both
+	 * sender and receiver operation, and we must obey defaults.
+	 */
+	if (conn->conn_max_send_data_segment_length >
+	    isl->isl_max_send_data_segment_length) {
 		conn->conn_max_send_data_segment_length =
 		    isl->isl_max_send_data_segment_length;
-	}
-	if (isl->isl_max_burst_length == 0)
-		isl->isl_max_burst_length = conn->conn_max_burst_length;
-	if (isl->isl_first_burst_length == 0) {
-		if (isl->isl_max_burst_length < (int)conn->conn_first_burst_length)
-			isl->isl_first_burst_length = isl->isl_max_burst_length;
-		else
-			isl->isl_first_burst_length = conn->conn_first_burst_length;
 	}
 
 	from_addr = conn->conn_conf.isc_initiator_addr;
