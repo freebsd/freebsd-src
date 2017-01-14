@@ -336,9 +336,11 @@ main(int argc, char **argv)
 #ifdef LOGIN_CAP
 	login_cap_t *lc = NULL;
 #endif
+#ifdef LIBWRAP
 	struct request_info req;
 	int denied;
 	char *service = NULL;
+#endif
 	struct sockaddr_storage peer;
 	int i;
 	struct addrinfo hints, *res;
@@ -748,6 +750,7 @@ main(int argc, char **argv)
 					    _exit(0);
 				    }
 			    }
+#ifdef LIBWRAP
 			    if (ISWRAP(sep)) {
 				inetd_setproctitle("wrapping", ctrl);
 				service = sep->se_server_name ?
@@ -776,6 +779,7 @@ main(int argc, char **argv)
 					(whichaf(&req) == AF_INET6) ? "6" : "");
 				}
 			    }
+#endif
 			    if (sep->se_bi) {
 				(*sep->se_bi->bi_fn)(ctrl, sep);
 			    } else {
