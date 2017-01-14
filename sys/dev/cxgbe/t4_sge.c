@@ -2289,7 +2289,7 @@ slowpath:
 
 	w = &eq->desc[eq->pidx];
 	IDXINCR(eq->pidx, ndesc, eq->sidx);
-	if (__predict_false(eq->pidx < ndesc - 1)) {
+	if (__predict_false(cookie->pidx + ndesc > eq->sidx)) {
 		w = &wrq->ss[0];
 		wrq->ss_pidx = cookie->pidx;
 		wrq->ss_len = len16 * 16;
@@ -3296,12 +3296,13 @@ ctrl_eq_alloc(struct adapter *sc, struct sge_eq *eq)
 	c.cmpliqid_eqid = htonl(V_FW_EQ_CTRL_CMD_CMPLIQID(eq->iqid));
 	c.physeqid_pkd = htobe32(0);
 	c.fetchszm_to_iqid =
-	    htobe32(V_FW_EQ_CTRL_CMD_HOSTFCMODE(X_HOSTFCMODE_NONE) |
+	    htobe32(V_FW_EQ_CTRL_CMD_HOSTFCMODE(X_HOSTFCMODE_STATUS_PAGE) |
 		V_FW_EQ_CTRL_CMD_PCIECHN(eq->tx_chan) |
 		F_FW_EQ_CTRL_CMD_FETCHRO | V_FW_EQ_CTRL_CMD_IQID(eq->iqid));
 	c.dcaen_to_eqsize =
 	    htobe32(V_FW_EQ_CTRL_CMD_FBMIN(X_FETCHBURSTMIN_64B) |
 		V_FW_EQ_CTRL_CMD_FBMAX(X_FETCHBURSTMAX_512B) |
+		V_FW_EQ_CTRL_CMD_CIDXFTHRESH(X_CIDXFLUSHTHRESH_32) |
 		V_FW_EQ_CTRL_CMD_EQSIZE(qsize));
 	c.eqaddr = htobe64(eq->ba);
 
