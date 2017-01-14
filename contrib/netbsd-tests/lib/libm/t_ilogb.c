@@ -31,9 +31,6 @@
 #include <sys/cdefs.h>
 __RCSID("$NetBSD: t_ilogb.c,v 1.7 2017/01/13 19:23:40 christos Exp $");
 
-#ifdef __FreeBSD__
-#include <limits.h>
-#endif
 #include <atf-c.h>
 #include <fenv.h>
 #include <limits.h>
