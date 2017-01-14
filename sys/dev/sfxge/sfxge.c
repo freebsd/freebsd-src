@@ -94,14 +94,6 @@ SYSCTL_INT(_hw_sfxge, OID_AUTO, tx_ring, CTLFLAG_RDTUN,
 	   &sfxge_tx_ring_entries, 0,
 	   "Maximum number of descriptors in a transmit ring");
 
-#define	SFXGE_PARAM_STATS_UPDATE_PERIOD	SFXGE_PARAM(stats_update_period)
-static int sfxge_stats_update_period = SFXGE_CALLOUT_TICKS;
-TUNABLE_INT(SFXGE_PARAM_STATS_UPDATE_PERIOD,
-	    &sfxge_stats_update_period);
-SYSCTL_INT(_hw_sfxge, OID_AUTO, stats_update_period, CTLFLAG_RDTUN,
-	   &sfxge_stats_update_period, 0,
-	   "netstat interface statistics update period in ticks");
-
 #define	SFXGE_PARAM_RESTART_ATTEMPTS	SFXGE_PARAM(restart_attempts)
 static int sfxge_restart_attempts = 3;
 TUNABLE_INT(SFXGE_PARAM_RESTART_ATTEMPTS, &sfxge_restart_attempts);
@@ -558,7 +550,7 @@ sfxge_tick(void *arg)
 	sfxge_port_update_stats(sc);
 	sfxge_tx_update_stats(sc);
 
-	callout_reset(&sc->tick_callout, sfxge_stats_update_period,
+	callout_reset(&sc->tick_callout, hz * SFXGE_STATS_UPDATE_PERIOD_MS / 1000,
 		      sfxge_tick, sc);
 }
 
@@ -623,7 +615,7 @@ sfxge_ifnet_init(struct ifnet *ifp, struct sfxge_softc *sc)
 	if ((rc = sfxge_port_ifmedia_init(sc)) != 0)
 		goto fail;
 
-	callout_reset(&sc->tick_callout, sfxge_stats_update_period,
+	callout_reset(&sc->tick_callout, hz * SFXGE_STATS_UPDATE_PERIOD_MS / 1000,
 		      sfxge_tick, sc);
 
 	return (0);
