@@ -135,7 +135,6 @@ ATF_TC_BODY(kqueue_desc_passing, tc)
 	msg->cmsg_len = CMSG_LEN(sizeof(int));
 
 	EV_SET(&ev, 1, EVFILT_TIMER, EV_ADD|EV_ENABLE, 0, 1, 0);
-	EV_SET(&ev, 1, EVFILT_TIMER, EV_ADD|EV_ENABLE, 0, 1, 0);
 	ATF_CHECK(kevent(kq, &ev, 1, NULL, 0, NULL) != -1);
 
 	printf("parent (pid %d): sending kq fd %d\n", getpid(), kq);
