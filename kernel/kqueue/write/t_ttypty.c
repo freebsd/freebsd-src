@@ -1,4 +1,4 @@
-/* $NetBSD: t_ttypty.c,v 1.1 2009/02/20 21:39:58 jmmv Exp $ */
+/* $NetBSD: t_ttypty.c,v 1.2 2017/01/13 21:30:41 christos Exp $ */
 
 /*-
  * Copyright (c) 2002, 2008 The NetBSD Foundation, Inc.
@@ -32,7 +32,7 @@
 #include <sys/cdefs.h>
 __COPYRIGHT("@(#) Copyright (c) 2008\
  The NetBSD Foundation, inc. All rights reserved.");
-__RCSID("$NetBSD: t_ttypty.c,v 1.1 2009/02/20 21:39:58 jmmv Exp $");
+__RCSID("$NetBSD: t_ttypty.c,v 1.2 2017/01/13 21:30:41 christos Exp $");
 
 #include <sys/event.h>
 #include <sys/wait.h>
@@ -47,7 +47,7 @@ __RCSID("$NetBSD: t_ttypty.c,v 1.1 2009/02/20 21:39:58 jmmv Exp $");
 
 #include <atf-c.h>
 
-#include "../../../h_macros.h"
+#include "h_macros.h"
 
 static void
 h_check(bool check_master)

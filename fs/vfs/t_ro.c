@@ -1,4 +1,4 @@
-/*	$NetBSD: t_ro.c,v 1.5 2011/02/22 21:23:19 yamt Exp $	*/
+/*	$NetBSD: t_ro.c,v 1.6 2017/01/13 21:30:40 christos Exp $	*/
 
 /*-
  * Copyright (c) 2010 The NetBSD Foundation, Inc.
@@ -39,7 +39,7 @@
 #include <rump/rump.h>
 
 #include "../common/h_fsmacros.h"
-#include "../../h_macros.h"
+#include "h_macros.h"
 
 #define AFILE "testfile"
 #define ADIR "testdir"

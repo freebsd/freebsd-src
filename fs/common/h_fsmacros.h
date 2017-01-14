@@ -1,4 +1,4 @@
-/*	$NetBSD: h_fsmacros.h,v 1.40 2015/08/29 19:19:43 dholland Exp $	*/
+/*	$NetBSD: h_fsmacros.h,v 1.41 2017/01/13 21:30:39 christos Exp $	*/
 
 /*-
  * Copyright (c) 2010 The NetBSD Foundation, Inc.
@@ -40,7 +40,7 @@
 
 #include <rump/rump.h>
 
-#include "../../h_macros.h"
+#include "h_macros.h"
 
 #define FSPROTOS(_fs_)							\
 int _fs_##_fstest_newfs(const atf_tc_t *, void **, const char *,	\
