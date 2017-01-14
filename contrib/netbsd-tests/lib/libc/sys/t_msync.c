@@ -65,22 +65,33 @@ msync_sync(const char *garbage, int flags)
 	if (buf == NULL)
 		return NULL;
 
+#ifdef __FreeBSD__
+	memset(buf, 'x', page);
+#else
 	for (i = 0; i < (size_t)page; i++)
 		buf[i] = 'x';
+#endif
 
 	fd = open(path, O_RDWR | O_CREAT, 0700);
 
 	if (fd < 0) {
+#ifdef	__FreeBSD__
+		free(buf);
+		return "failed to open";
+#else
 		str = "failed to open";
 		goto out;
+#endif
 	}
 
+#if __FreeBSD__
+	(void)write(fd, buf, page);
+#else
 	tot = 0;
 
 	while (tot < page) {
 
 		rv = write(fd, buf, sizeof(buf));
-
 		if (rv < 0) {
 			str = "failed to write";
 			goto out;
@@ -88,6 +99,7 @@ msync_sync(const char *garbage, int flags)
 
 		tot += rv;
 	}
+#endif
 
 	map = mmap(NULL, page, PROT_READ | PROT_WRITE, MAP_FILE|MAP_PRIVATE,
 	     fd, 0);

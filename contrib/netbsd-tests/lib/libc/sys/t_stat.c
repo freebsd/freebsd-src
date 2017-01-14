@@ -48,10 +48,6 @@ __RCSID("$NetBSD: t_stat.c,v 1.5 2017/01/13 20:06:50 christos Exp $");
 
 #include <stdio.h>
 
-#ifdef __FreeBSD__
-#include <netinet/in.h>
-#endif
-
 static const char *path = "stat";
 
 ATF_TC_WITH_CLEANUP(stat_chflags);
@@ -400,9 +396,6 @@ ATF_TC_BODY(stat_symlink, tc)
 	(void)close(fd);
 	ATF_REQUIRE(unlink(path) == 0);
 	ATF_REQUIRE(unlink(pathlink) == 0);
-#ifdef	__FreeBSD__
-	(void)close(fd);
-#endif
 }
 
 ATF_TC_CLEANUP(stat_symlink, tc)

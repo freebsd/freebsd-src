@@ -37,10 +37,6 @@
 
 #include <atf-c.h>
 
-#ifdef __FreeBSD__
-#include <sys/socket.h>
-#endif
-
 ATF_TC(connect_low_port);
 ATF_TC_HEAD(connect_low_port, tc)
 {

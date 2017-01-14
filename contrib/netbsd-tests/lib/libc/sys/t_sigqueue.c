@@ -41,11 +41,6 @@ __RCSID("$NetBSD: t_sigqueue.c,v 1.7 2017/01/13 20:44:10 christos Exp $");
 #include <sched.h>
 #include <unistd.h>
 
-#ifdef __FreeBSD__
-#include <err.h>
-#include <stdio.h>
-#endif
-
 static void	handler(int, siginfo_t *, void *);
 
 #define VALUE (int)0xc001dad1
@@ -212,7 +207,6 @@ ATF_TC_BODY(sigqueue_rt, tc)
 		if (sigaddset(&mask, signals[i]) == -1)
 			warn("sigaddset");
 
-
 	ATF_REQUIRE(sigprocmask(SIG_BLOCK, &mask, &orig) != -1);
 	
 	for (size_t i = 0; i < CNT; i++)
@@ -222,7 +216,6 @@ ATF_TC_BODY(sigqueue_rt, tc)
 	sleep(1);
 	ATF_CHECK_MSG((size_t)count == ndelivered,
 	    "count %zu != ndelivered %zu", (size_t)count, ndelivered);
-
 	for (size_t i = 0; i < ndelivered; i++)
 		ATF_REQUIRE_MSG(ordered[i] == delivered[i],
 		    "%zu: ordered %d != delivered %d",
