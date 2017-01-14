@@ -733,13 +733,13 @@ vpanic(const char *fmt, va_list ap)
 		CPU_CLR(PCPU_GET(cpuid), &other_cpus);
 		stop_cpus_hard(other_cpus);
 	}
+#endif
 
 	/*
 	 * Ensure that the scheduler is stopped while panicking, even if panic
 	 * has been entered from kdb.
 	 */
 	td->td_stopsched = 1;
-#endif
 
 	bootopt = RB_AUTOBOOT;
 	newpanic = 0;
