@@ -222,7 +222,7 @@ main(void)
 		return (0);
 	}
 
-	printf("1..%lu\n", nitems(test_users) + nitems(test_groups) +
+	printf("1..%zu\n", nitems(test_users) + nitems(test_groups) +
 	    3 * nitems(test_strings) + 2);
 
 	test_libugidfw_strings();
