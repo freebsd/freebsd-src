@@ -725,8 +725,8 @@ login_negotiate(struct connection *conn, struct pdu *request)
 		 */
 		if (conn->conn_max_send_data_segment_limit <
 		    conn->conn_max_send_data_segment_length) {
-			conn->conn_max_send_data_segment_limit =
-			    conn->conn_max_send_data_segment_length;
+			conn->conn_max_send_data_segment_length =
+			    conn->conn_max_send_data_segment_limit;
 		}
 	} else {
 		conn->conn_max_recv_data_segment_limit =
