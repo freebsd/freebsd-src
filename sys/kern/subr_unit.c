@@ -986,7 +986,7 @@ main(int argc, char **argv)
 	long count = 10000;	/* Number of unrs to test */
 	long reps = 1, m;
 	int ch;
-	u_int i, x, j;
+	u_int i, j;
 
 	verbose = false;
 
@@ -999,7 +999,7 @@ main(int argc, char **argv)
 				usage(argv);
 				exit(2);
 			}
-			
+
 			break;
 		case 'v':
 			verbose = true;
@@ -1026,7 +1026,6 @@ main(int argc, char **argv)
 	printf("sizeof(struct unrb) %zu\n", sizeof(struct unrb));
 	printf("sizeof(struct unrhdr) %zu\n", sizeof(struct unrhdr));
 	printf("NBITS %lu\n", (unsigned long)NBITS);
-	x = 1;
 	for (m = 0; m < count * reps; m++) {
 		j = random();
 		i = (j >> 1) % count;
