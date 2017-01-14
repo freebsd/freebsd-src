@@ -43,11 +43,11 @@ static int dirfd = -1;
 static char *abspath;
 
 static void
-touchat(int dirfd, const char *name)
+touchat(int _dirfd, const char *name)
 {
 	int fd;
 
-	ATF_REQUIRE((fd = openat(dirfd, name, O_CREAT | O_TRUNC | O_WRONLY,
+	ATF_REQUIRE((fd = openat(_dirfd, name, O_CREAT | O_TRUNC | O_WRONLY,
 	    0777)) >= 0);
 	ATF_REQUIRE(close(fd) == 0);
 }
@@ -117,7 +117,6 @@ ATF_TC_HEAD(lookup_cap_dotdot__basic, tc)
 ATF_TC_BODY(lookup_cap_dotdot__basic, tc)
 {
 	cap_rights_t rights;
-	int fd;
 
 	check_capsicum();
 	prepare_dotdot_tests();
@@ -141,7 +140,6 @@ ATF_TC_HEAD(lookup_cap_dotdot__advanced, tc)
 ATF_TC_BODY(lookup_cap_dotdot__advanced, tc)
 {
 	cap_rights_t rights;
-	int fd;
 
 	check_capsicum();
 	prepare_dotdot_tests();
@@ -220,7 +218,6 @@ ATF_TC_HEAD(lookup_cap_dotdot__negative, tc)
 ATF_TC_BODY(lookup_cap_dotdot__negative, tc)
 {
 	cap_rights_t rights;
-	int fd;
 
 	check_capsicum();
 	prepare_dotdot_tests();
