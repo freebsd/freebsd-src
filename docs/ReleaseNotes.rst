@@ -31,11 +31,6 @@ the latest release, please check out the main please see the `Clang Web
 Site <http://clang.llvm.org>`_ or the `LLVM Web
 Site <http://llvm.org>`_.
 
-Note that if you are reading this file from a Subversion checkout or the
-main Clang web page, this document applies to the *next* release, not
-the current one. To see the release notes for a specific release, please
-see the `releases page <http://llvm.org/releases/>`_.
-
 What's New in Clang 4.0.0?
 ==========================
 
@@ -65,6 +60,8 @@ The option -Og has been added to optimize the debugging experience.
 For now, this option is exactly the same as -O1. However, in the future,
 some other optimizations might be enabled or disabled.
 
+The option -MJ has been added to simplify adding JSON compilation
+database output into existing build systems.
 
 The option ....
 
