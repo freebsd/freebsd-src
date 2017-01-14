@@ -397,6 +397,9 @@ login_negotiate_key(struct connection *conn, const char *name,
 			tmp = isl->isl_max_send_data_segment_length;
 		}
 		conn->conn_max_send_data_segment_length = tmp;
+		/* We received target's limit, that means it accepted our's. */
+		conn->conn_max_recv_data_segment_length =
+		    isl->isl_max_recv_data_segment_length;
 	} else if (strcmp(name, "MaxBurstLength") == 0) {
 		tmp = strtoul(value, NULL, 10);
 		if (tmp <= 0)
