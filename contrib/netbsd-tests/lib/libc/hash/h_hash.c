@@ -37,6 +37,7 @@
 #include <md5.h>
 #include <sha1.h>
 
+
 int mflag, rflag, sflag, tflag;
 
 static void
