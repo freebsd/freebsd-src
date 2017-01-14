@@ -57,7 +57,6 @@ ATF_TC_BODY(bad_big5_wprintf, tc)
 	atf_tc_skip("does not fail as expected (may be implementation "
 	    "specific issue with the test)");
 #endif
-
 	/* XXX implementation detail knowledge (wchar_t encoding) */
 	wchar_t ibuf[] = { 0xcf10, 0 };
 	setlocale(LC_CTYPE, "zh_TW.Big5");
@@ -77,12 +76,10 @@ ATF_TC_BODY(bad_big5_swprintf, tc)
 	atf_tc_skip("does not fail as expected (may be implementation "
 	    "specific issue with the test)");
 #endif
-
 	/* XXX implementation detail knowledge (wchar_t encoding) */
 	wchar_t ibuf[] = { 0xcf10, 0 };
 	wchar_t obuf[20];
 	setlocale(LC_CTYPE, "zh_TW.Big5");
-
 	ATF_REQUIRE_ERRNO(EILSEQ,
 			  swprintf(obuf, sizeof(obuf), L"%ls\n", ibuf) < 0);
 }
