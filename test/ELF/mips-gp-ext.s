@@ -1,17 +1,11 @@
 # Check that the linker use a value of _gp symbol defined
 # in a linker script to calculate GOT relocations.
 
-# FIXME: This test is xfailed because there is currently a bug
-# that causes symbols defined by linker scripts to be put in the
-# wrong sections.  In particular, `_gp = . + 0x100` ends up in
-# `.text` when it should be in `*ABS*`.
-# XFAIL: *
-
 # RUN: llvm-mc -filetype=obj -triple=mips-unknown-linux %s -o %t.o
 
 # RUN: echo "SECTIONS { \
 # RUN:          .text : { *(.text) } \
-# RUN:          _gp = . + 0x100; \
+# RUN:          _gp = ABSOLUTE(.) + 0x100; \
 # RUN:          .got  : { *(.got) } }" > %t.rel.script
 # RUN: ld.lld -shared -o %t.rel.so --script %t.rel.script %t.o
 # RUN: llvm-objdump -s -t %t.rel.so | FileCheck --check-prefix=REL %s
@@ -26,10 +20,10 @@
 # REQUIRES: mips
 
 # REL:      Contents of section .text:
-# REL-NEXT:  0000 3c080000 2108010c 8f82ffe4
+# REL-NEXT:  0000 3c080000 2108010c 8f82fff0
 #                 ^-- %hi(_gp_disp)
 #                          ^-- %lo(_gp_disp)
-#                                   ^-- 8 - (0x10c - 0xe8)
+#                                   ^-- 8 - (0x10c - 0xf4)
 #                                       G - (GP - .got)
 
 # REL:      Contents of section .reginfo:
@@ -38,7 +32,7 @@
 #                          ^-- _gp
 
 # REL:      Contents of section .data:
-# REL-NEXT:  0100 fffffef4
+# REL-NEXT:  00f0 fffffef4
 #                 ^-- 0-0x10c
 
 # REL: 00000000         .text           00000000 foo
@@ -46,10 +40,10 @@
 # REL: 0000010c         *ABS*           00000000 .hidden _gp
 
 # ABS:      Contents of section .text:
-# ABS-NEXT:  0000 3c080000 21080200 8f82fef0
+# ABS-NEXT:  0000 3c080000 21080200 8f82fefc
 #                 ^-- %hi(_gp_disp)
 #                          ^-- %lo(_gp_disp)
-#                                   ^-- 8 - (0x200 - 0xe8)
+#                                   ^-- 8 - (0x200 - 0xf4)
 #                                       G - (GP - .got)
 
 # ABS:      Contents of section .reginfo:
@@ -58,7 +52,7 @@
 #                          ^-- _gp
 
 # ABS:      Contents of section .data:
-# ABS-NEXT:  0100 fffffe00
+# ABS-NEXT:  00f0 fffffe00
 #                 ^-- 0-0x200
 
 # ABS: 00000000         .text           00000000 foo
