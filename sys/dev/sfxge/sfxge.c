@@ -550,7 +550,8 @@ sfxge_tick(void *arg)
 	sfxge_port_update_stats(sc);
 	sfxge_tx_update_stats(sc);
 
-	callout_reset(&sc->tick_callout, hz * SFXGE_STATS_UPDATE_PERIOD_MS / 1000,
+	callout_reset(&sc->tick_callout,
+		      hz * sc->port.stats_update_period_ms / 1000,
 		      sfxge_tick, sc);
 }
 
@@ -615,7 +616,8 @@ sfxge_ifnet_init(struct ifnet *ifp, struct sfxge_softc *sc)
 	if ((rc = sfxge_port_ifmedia_init(sc)) != 0)
 		goto fail;
 
-	callout_reset(&sc->tick_callout, hz * SFXGE_STATS_UPDATE_PERIOD_MS / 1000,
+	callout_reset(&sc->tick_callout,
+		      hz * sc->port.stats_update_period_ms / 1000,
 		      sfxge_tick, sc);
 
 	return (0);
