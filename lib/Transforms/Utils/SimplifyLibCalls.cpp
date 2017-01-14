@@ -1074,6 +1074,24 @@ Value *LibCallSimplifier::optimizePow(CallInst *CI, IRBuilder<> &B) {
   if (Op2C->getValueAPF().isZero()) // pow(x, 0.0) -> 1.0
     return ConstantFP::get(CI->getType(), 1.0);
 
+  if (Op2C->isExactlyValue(-0.5) &&
+      hasUnaryFloatFn(TLI, Op2->getType(), LibFunc::sqrt, LibFunc::sqrtf,
+                      LibFunc::sqrtl)) {
+    // If -ffast-math:
+    // pow(x, -0.5) -> 1.0 / sqrt(x)
+    if (CI->hasUnsafeAlgebra()) {
+      IRBuilder<>::FastMathFlagGuard Guard(B);
+      B.setFastMathFlags(CI->getFastMathFlags());
+
+      // Here we cannot lower to an intrinsic because C99 sqrt() and llvm.sqrt
+      // are not guaranteed to have the same semantics.
+      Value *Sqrt = emitUnaryFloatFnCall(Op1, TLI->getName(LibFunc::sqrt), B,
+                                         Callee->getAttributes());
+
+      return B.CreateFDiv(ConstantFP::get(CI->getType(), 1.0), Sqrt, "sqrtrecip");
+    }
+  }
+
   if (Op2C->isExactlyValue(0.5) &&
       hasUnaryFloatFn(TLI, Op2->getType(), LibFunc::sqrt, LibFunc::sqrtf,
                       LibFunc::sqrtl) &&
@@ -1121,6 +1139,10 @@ Value *LibCallSimplifier::optimizePow(CallInst *CI, IRBuilder<> &B) {
         !V.isInteger())
       return nullptr;
 
+    // Propagate fast math flags.
+    IRBuilder<>::FastMathFlagGuard Guard(B);
+    B.setFastMathFlags(CI->getFastMathFlags());
+
     // We will memoize intermediate products of the Addition Chain.
     Value *InnerChain[33] = {nullptr};
     InnerChain[1] = Op1;
@@ -1131,7 +1153,6 @@ Value *LibCallSimplifier::optimizePow(CallInst *CI, IRBuilder<> &B) {
     bool ignored;
     V.convert(APFloat::IEEEdouble(), APFloat::rmTowardZero, &ignored);
     
-    // TODO: Should the new instructions propagate the 'fast' flag of the pow()?
     Value *FMul = getPow(InnerChain, V.convertToDouble(), B);
     // For negative exponents simply compute the reciprocal.
     if (Op2C->isNegative())
