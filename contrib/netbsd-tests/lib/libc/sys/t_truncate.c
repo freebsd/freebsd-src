@@ -41,10 +41,6 @@ __RCSID("$NetBSD: t_truncate.c,v 1.3 2017/01/13 20:03:51 christos Exp $");
 #include <string.h>
 #include <unistd.h>
 
-#ifdef __FreeBSD__
-#include <limits.h>
-#endif
-
 static const char path[] = "truncate";
 static const size_t sizes[] = { 8, 16, 512, 1024, 2048, 4094, 3000, 30 };
 

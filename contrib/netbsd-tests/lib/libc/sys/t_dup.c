@@ -46,10 +46,6 @@ __RCSID("$NetBSD: t_dup.c,v 1.9 2017/01/13 20:31:53 christos Exp $");
 #include <unistd.h>
 #include <sysexits.h>
 
-#ifdef __FreeBSD__
-#include <stdbool.h>
-#endif
-
 static char	path[] = "dup";
 #ifdef __NetBSD__
 static void	check_mode(bool, bool, bool);
