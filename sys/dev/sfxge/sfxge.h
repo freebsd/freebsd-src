@@ -158,7 +158,7 @@ enum sfxge_evq_state {
 
 #define	SFXGE_EV_BATCH	16384
 
-#define	SFXGE_CALLOUT_TICKS 100
+#define	SFXGE_STATS_UPDATE_PERIOD_MS	1000
 
 struct sfxge_evq {
 	/* Structure members below are sorted by usage order */
