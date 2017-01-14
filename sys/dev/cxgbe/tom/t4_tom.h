@@ -123,6 +123,7 @@ struct toepcb {
 	u_int flags;		/* miscellaneous flags */
 	struct tom_data *td;
 	struct inpcb *inp;	/* backpointer to host stack's PCB */
+	struct vnet *vnet;
 	struct vi_info *vi;	/* virtual interface */
 	struct sge_wrq *ofld_txq;
 	struct sge_ofld_rxq *ofld_rxq;
@@ -199,6 +200,7 @@ struct listen_ctx {
 	struct stid_region stid_region;
 	int flags;
 	struct inpcb *inp;		/* listening socket's inp */
+	struct vnet *vnet;
 	struct sge_wrq *ctrlq;
 	struct sge_ofld_rxq *ofld_rxq;
 	struct clip_entry *ce;
@@ -278,10 +280,10 @@ void free_toepcb(struct toepcb *);
 void offload_socket(struct socket *, struct toepcb *);
 void undo_offload_socket(struct socket *);
 void final_cpl_received(struct toepcb *);
-void insert_tid(struct adapter *, int, void *);
+void insert_tid(struct adapter *, int, void *, int);
 void *lookup_tid(struct adapter *, int);
 void update_tid(struct adapter *, int, void *);
-void remove_tid(struct adapter *, int);
+void remove_tid(struct adapter *, int, int);
 void release_tid(struct adapter *, int, struct sge_wrq *);
 int find_best_mtu_idx(struct adapter *, struct in_conninfo *, int);
 u_long select_rcv_wnd(struct socket *);
