@@ -515,8 +515,9 @@ void ExprEngine::ProcessInitializer(const CFGInitializer Init,
           Init = ASE->getBase()->IgnoreImplicit();
 
         SVal LValue = State->getSVal(Init, stackFrame);
-        if (Optional<Loc> LValueLoc = LValue.getAs<Loc>())
-          InitVal = State->getSVal(*LValueLoc);
+        if (!Field->getType()->isReferenceType())
+          if (Optional<Loc> LValueLoc = LValue.getAs<Loc>())
+            InitVal = State->getSVal(*LValueLoc);
 
         // If we fail to get the value for some reason, use a symbolic value.
         if (InitVal.isUnknownOrUndef()) {
@@ -870,6 +871,7 @@ void ExprEngine::Visit(const Stmt *S, ExplodedNode *Pred,
     case Stmt::OMPTargetTeamsDistributeDirectiveClass:
     case Stmt::OMPTargetTeamsDistributeParallelForDirectiveClass:
     case Stmt::OMPTargetTeamsDistributeParallelForSimdDirectiveClass:
+    case Stmt::OMPTargetTeamsDistributeSimdDirectiveClass:
       llvm_unreachable("Stmt should not be in analyzer evaluation loop");
 
     case Stmt::ObjCSubscriptRefExprClass:

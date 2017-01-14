@@ -43,7 +43,7 @@
 #define HAVE_DECL_STRERROR_S 0
 
 /* Define to 1 if you have the DIA SDK installed, and to 0 if you don't. */
-#define HAVE_DIA_SDK 0
+#define LLVM_ENABLE_DIA_SDK 0
 
 /* Define to 1 if you have the <dirent.h> header file, and it defines `DIR'.
    */
@@ -405,7 +405,7 @@
 #define LLVM_VERSION_PATCH 0
 
 /* LLVM version string */
-#define LLVM_VERSION_STRING "4.0.0svn"
+#define LLVM_VERSION_STRING "4.0.0"
 
 /* Define to the extension used for shared libraries, say, ".so". */
 #define LTDL_SHLIB_EXT ".so"
@@ -417,13 +417,13 @@
 #define PACKAGE_NAME "LLVM"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "LLVM 4.0.0svn"
+#define PACKAGE_STRING "LLVM 4.0.0"
 
 /* Define to the one symbol short name of this package. */
 #undef PACKAGE_TARNAME
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "4.0.0svn"
+#define PACKAGE_VERSION "4.0.0"
 
 /* Define to the vendor of this package. */
 /* #undef PACKAGE_VENDOR */
