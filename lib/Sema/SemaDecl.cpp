@@ -1044,7 +1044,8 @@ Corrected:
   }
 
   // We can have a type template here if we're classifying a template argument.
-  if (isa<TemplateDecl>(FirstDecl) && !isa<FunctionTemplateDecl>(FirstDecl))
+  if (isa<TemplateDecl>(FirstDecl) && !isa<FunctionTemplateDecl>(FirstDecl) &&
+      !isa<VarTemplateDecl>(FirstDecl))
     return NameClassification::TypeTemplate(
         TemplateName(cast<TemplateDecl>(FirstDecl)));
 
@@ -4503,7 +4504,7 @@ Decl *Sema::BuildAnonymousStructOrUnion(Scope *S, DeclSpec &DS,
     // trivial in almost all cases, except if a union member has an in-class
     // initializer:
     //   union { int n = 0; };
-    ActOnUninitializedDecl(Anon, /*TypeMayContainAuto=*/false);
+    ActOnUninitializedDecl(Anon);
   }
   Anon->setImplicit();
 
@@ -6425,9 +6426,10 @@ NamedDecl *Sema::ActOnVariableDeclarator(
     }
   }
 
-  // Diagnose shadowed variables before filtering for scope.
-  if (D.getCXXScopeSpec().isEmpty())
-    CheckShadow(S, NewVD, Previous);
+  // Find the shadowed declaration before filtering for scope.
+  NamedDecl *ShadowedDecl = D.getCXXScopeSpec().isEmpty()
+                                ? getShadowedDeclaration(NewVD, Previous)
+                                : nullptr;
 
   // Don't consider existing declarations that are in a different
   // scope and are out-of-semantic-context declarations (if the new
@@ -6522,6 +6524,10 @@ NamedDecl *Sema::ActOnVariableDeclarator(
     }
   }
 
+  // Diagnose shadowed variables iff this isn't a redeclaration.
+  if (ShadowedDecl && !D.isRedeclaration())
+    CheckShadow(NewVD, ShadowedDecl, Previous);
+
   ProcessPragmaWeak(S, NewVD);
 
   // If this is the first declaration of an extern C variable, update
@@ -6595,33 +6601,40 @@ static SourceLocation getCaptureLocation(const LambdaScopeInfo *LSI,
   return SourceLocation();
 }
 
+/// \brief Return the declaration shadowed by the given variable \p D, or null
+/// if it doesn't shadow any declaration or shadowing warnings are disabled.
+NamedDecl *Sema::getShadowedDeclaration(const VarDecl *D,
+                                        const LookupResult &R) {
+  // Return if warning is ignored.
+  if (Diags.isIgnored(diag::warn_decl_shadow, R.getNameLoc()))
+    return nullptr;
+
+  // Don't diagnose declarations at file scope.
+  if (D->hasGlobalStorage())
+    return nullptr;
+
+  // Only diagnose if we're shadowing an unambiguous field or variable.
+  if (R.getResultKind() != LookupResult::Found)
+    return nullptr;
+
+  NamedDecl *ShadowedDecl = R.getFoundDecl();
+  return isa<VarDecl>(ShadowedDecl) || isa<FieldDecl>(ShadowedDecl)
+             ? ShadowedDecl
+             : nullptr;
+}
+
 /// \brief Diagnose variable or built-in function shadowing.  Implements
 /// -Wshadow.
 ///
 /// This method is called whenever a VarDecl is added to a "useful"
 /// scope.
 ///
-/// \param S the scope in which the shadowing name is being declared
+/// \param ShadowedDecl the declaration that is shadowed by the given variable
 /// \param R the lookup of the name
 ///
-void Sema::CheckShadow(Scope *S, VarDecl *D, const LookupResult& R) {
-  // Return if warning is ignored.
-  if (Diags.isIgnored(diag::warn_decl_shadow, R.getNameLoc()))
-    return;
-
-  // Don't diagnose declarations at file scope.
-  if (D->hasGlobalStorage())
-    return;
-
+void Sema::CheckShadow(VarDecl *D, NamedDecl *ShadowedDecl,
+                       const LookupResult &R) {
   DeclContext *NewDC = D->getDeclContext();
-
-  // Only diagnose if we're shadowing an unambiguous field or variable.
-  if (R.getResultKind() != LookupResult::Found)
-    return;
-
-  NamedDecl* ShadowedDecl = R.getFoundDecl();
-  if (!isa<VarDecl>(ShadowedDecl) && !isa<FieldDecl>(ShadowedDecl))
-    return;
 
   if (FieldDecl *FD = dyn_cast<FieldDecl>(ShadowedDecl)) {
     // Fields are not shadowed by variables in C++ static methods.
@@ -6732,7 +6745,8 @@ void Sema::CheckShadow(Scope *S, VarDecl *D) {
   LookupResult R(*this, D->getDeclName(), D->getLocation(),
                  Sema::LookupOrdinaryName, Sema::ForRedeclaration);
   LookupName(R, S);
-  CheckShadow(S, D, R);
+  if (NamedDecl *ShadowedDecl = getShadowedDeclaration(D, R))
+    CheckShadow(D, ShadowedDecl, R);
 }
 
 /// Check if 'E', which is an expression that is about to be modified, refers
@@ -9782,8 +9796,7 @@ QualType Sema::deduceVarTypeFromInitializer(VarDecl *VDecl,
 /// AddInitializerToDecl - Adds the initializer Init to the
 /// declaration dcl. If DirectInit is true, this is C++ direct
 /// initialization rather than copy initialization.
-void Sema::AddInitializerToDecl(Decl *RealDecl, Expr *Init,
-                                bool DirectInit, bool TypeMayContainAuto) {
+void Sema::AddInitializerToDecl(Decl *RealDecl, Expr *Init, bool DirectInit) {
   // If there is no declaration, there was an error parsing it.  Just ignore
   // the initializer.
   if (!RealDecl || RealDecl->isInvalidDecl()) {
@@ -9808,7 +9821,7 @@ void Sema::AddInitializerToDecl(Decl *RealDecl, Expr *Init,
   }
 
   // C++11 [decl.spec.auto]p6. Deduce the type which 'auto' stands in for.
-  if (TypeMayContainAuto && VDecl->getType()->isUndeducedType()) {
+  if (VDecl->getType()->isUndeducedType()) {
     // Attempt typo correction early so that the type of the init expression can
     // be deduced based on the chosen correction if the original init contains a
     // TypoExpr.
@@ -10280,8 +10293,7 @@ bool Sema::canInitializeWithParenthesizedList(QualType TargetType) {
          TargetType->getContainedAutoType();
 }
 
-void Sema::ActOnUninitializedDecl(Decl *RealDecl,
-                                  bool TypeMayContainAuto) {
+void Sema::ActOnUninitializedDecl(Decl *RealDecl) {
   // If there is no declaration, there was an error parsing it. Just ignore it.
   if (!RealDecl)
     return;
@@ -10297,7 +10309,7 @@ void Sema::ActOnUninitializedDecl(Decl *RealDecl,
     }
 
     // C++11 [dcl.spec.auto]p3
-    if (TypeMayContainAuto && Type->getContainedAutoType()) {
+    if (Type->isUndeducedType()) {
       Diag(Var->getLocation(), diag::err_auto_var_requires_init)
         << Var->getDeclName() << Type;
       Var->setInvalidDecl();
@@ -11081,32 +11093,32 @@ Sema::DeclGroupPtrTy Sema::FinalizeDeclaratorGroup(Scope *S, const DeclSpec &DS,
     }
   }
 
-  return BuildDeclaratorGroup(Decls, DS.containsPlaceholderType());
+  return BuildDeclaratorGroup(Decls);
 }
 
 /// BuildDeclaratorGroup - convert a list of declarations into a declaration
 /// group, performing any necessary semantic checking.
 Sema::DeclGroupPtrTy
-Sema::BuildDeclaratorGroup(MutableArrayRef<Decl *> Group,
-                           bool TypeMayContainAuto) {
-  // C++0x [dcl.spec.auto]p7:
-  //   If the type deduced for the template parameter U is not the same in each
+Sema::BuildDeclaratorGroup(MutableArrayRef<Decl *> Group) {
+  // C++14 [dcl.spec.auto]p7: (DR1347)
+  //   If the type that replaces the placeholder type is not the same in each
   //   deduction, the program is ill-formed.
-  // FIXME: When initializer-list support is added, a distinction is needed
-  // between the deduced type U and the deduced type which 'auto' stands for.
-  //   auto a = 0, b = { 1, 2, 3 };
-  // is legal because the deduced type U is 'int' in both cases.
-  if (TypeMayContainAuto && Group.size() > 1) {
+  if (Group.size() > 1) {
     QualType Deduced;
     CanQualType DeducedCanon;
     VarDecl *DeducedDecl = nullptr;
     for (unsigned i = 0, e = Group.size(); i != e; ++i) {
       if (VarDecl *D = dyn_cast<VarDecl>(Group[i])) {
         AutoType *AT = D->getType()->getContainedAutoType();
+        // FIXME: DR1265: if we have a function pointer declaration, we can have
+        // an 'auto' from a trailing return type. In that case, the return type
+        // must match the various other uses of 'auto'.
+        if (!AT)
+          continue;
         // Don't reissue diagnostics when instantiating a template.
-        if (AT && D->isInvalidDecl())
+        if (D->isInvalidDecl())
           break;
-        QualType U = AT ? AT->getDeducedType() : QualType();
+        QualType U = AT->getDeducedType();
         if (!U.isNull()) {
           CanQualType UCanon = Context.getCanonicalType(U);
           if (Deduced.isNull()) {
