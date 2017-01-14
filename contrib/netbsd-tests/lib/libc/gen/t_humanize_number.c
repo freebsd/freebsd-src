@@ -34,7 +34,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <libutil.h>
+#include <util.h>
 
 const struct hnopts {
 	size_t ho_len;
