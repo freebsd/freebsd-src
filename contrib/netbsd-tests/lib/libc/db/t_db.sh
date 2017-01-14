@@ -42,7 +42,6 @@ dict()
 	elif [ -f /usr/dict/words ]; then
 		echo /usr/dict/words
 	else
-		echo ""
 		atf_fail "no dictionary found"
 	fi
 }
