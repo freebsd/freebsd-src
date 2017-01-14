@@ -11,6 +11,10 @@
 #ifndef	__IP_FIL_H__
 #define	__IP_FIL_H__
 
+#if !defined(linux) || !defined(_KERNEL)
+# include <netinet/in.h>
+#endif
+
 #include "netinet/ip_compat.h"
 #include "netinet/ipf_rb.h"
 #if NETBSD_GE_REV(104040000)
@@ -22,10 +26,6 @@
 # else
 #  include <sys/selinfo.h>
 # endif
-#endif
-
-#if !defined(linux) || !defined(_KERNEL)
-# include <netinet/in.h>
 #endif
 
 #ifndef	SOLARIS

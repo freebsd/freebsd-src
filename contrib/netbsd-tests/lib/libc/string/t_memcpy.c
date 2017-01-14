@@ -1,4 +1,4 @@
-/* $NetBSD: t_memcpy.c,v 1.5 2013/03/17 02:23:31 christos Exp $ */
+/* $NetBSD: t_memcpy.c,v 1.6 2017/01/11 18:05:54 christos Exp $ */
 
 /*-
  * Copyright (c) 2010 The NetBSD Foundation, Inc.
@@ -108,12 +108,8 @@ ATF_TC_BODY(memcpy_basic, tc)
 			if (i != j)
 				runTest(start[i], start[j]);
 	MD5End(mc, result);
-#ifdef __NetBSD__
-	ATF_REQUIRE_EQ(strcmp(result, goodResult), 0);
-#else
 	ATF_REQUIRE_EQ_MSG(strcmp(result, goodResult), 0, "%s != %s",
 	    result, goodResult);
-#endif
 }
 
 ATF_TC(memccpy_simple);

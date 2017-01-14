@@ -1,4 +1,4 @@
-# $NetBSD: t_config.sh,v 1.7 2015/10/04 07:59:47 uebayasi Exp $
+# $NetBSD: t_config.sh,v 1.8 2016/08/27 12:08:14 christos Exp $
 #
 # Copyright (c) 2008, 2010 The NetBSD Foundation, Inc.
 # All rights reserved.
@@ -25,12 +25,32 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
+srcdir=..
+merge_backslash()
+{
+	sed '
+: again
+/\\$/ {
+    N
+    s/\\\n//
+    t again
+}
+' "$1"
+}
 run_and_check_prep()
 {
 	local name="${1}"; shift
 
-	mkdir compile
-	supportdir="$(atf_get_srcdir)/support"
+	mkdir -p compile
+	srcdir="$(atf_get_srcdir)"
+	if [ ! -d "${srcdir}/support" ]; then
+		srcdir="$(dirname "${srcdir}")"
+		if [ ! -d "${srcdir}/support" ]; then
+			atf_fail "bad source directory ${srcdir}"
+			exit 1
+		fi
+	fi
+	supportdir="${srcdir}/support"
 
 	local config_str
 	eval config_str=\$${name}_config_str
@@ -38,7 +58,7 @@ run_and_check_prep()
 		config="d_${name}"
 		printf "$config_str" >"${config}"
 	else
-		config="$(atf_get_srcdir)/d_${name}"
+		config="${srcdir}/d_${name}"
 	fi
 }
 
@@ -121,28 +141,28 @@ test_case deffs_redef fail "Checks that config doesn't allow a deffs to use" \
     "the same name as a previous defflag/defparam"
 
 # Selecting an undefined option.
-undefined_opt_config_str='
-include "../d_min"
+undefined_opt_config_str="
+include \"${srcdir}/d_min\"
 options UNDEFINED
-'
+"
 test_case undefined_opt pass \
     "Checks that config allows a selection for an undefined options"
 
 # Negating an undefined option.
-no_undefined_opt_config_str='
-include "../d_min"
+no_undefined_opt_config_str="
+include \"${srcdir}/d_min\"
 no options UNDEFINED
-'
+"
 no_undefined_opt_stderr='match:UNDEFINED'
 test_case no_undefined_opt warn \
     "Checks that config allows a negation for an undefined options"
 
 # Attribute selection
 test_case select pass "Attribute selection"
-select_config_str='
-include "../d_min"
+select_config_str="
+include \"${srcdir}/d_min\"
 select c
-'
+"
 check_select()
 {
 	local f=Makefile
@@ -158,11 +178,11 @@ select_body() {
 
 # Attribute negation
 test_case no_select pass "Attribute negation"
-no_select_config_str='
-include "../d_min"
+no_select_config_str="
+include \"${srcdir}/d_min\"
 select c
 no select a
-'
+"
 check_no_select()
 {
 	local f=Makefile
@@ -181,10 +201,10 @@ no_select_body() {
 
 # Device instance
 test_case devi pass "Device instance"
-devi_config_str='
-include "../d_min"
+devi_config_str="
+include \"${srcdir}/d_min\"
 d0 at root
-'
+"
 check_devi()
 {
 	local f=ioconf.c
@@ -226,9 +246,7 @@ check_min_makefile()
 	grep -q '^%' $f >tmp.template
 
 	grep -q '^MACHINE=regress$' $f &&
-	grep -q '^PARAM=-DMAXUSERS=4$' $f &&
-	grep -q '^all: regress$' $f &&
-	grep -q '^regress:' $f &&
+	(merge_backslash $f | grep -q '^IDENT=[ 	]*-DMAXUSERS="4"') &&
 	[ ! -s tmp.template ] &&
 	:
 }

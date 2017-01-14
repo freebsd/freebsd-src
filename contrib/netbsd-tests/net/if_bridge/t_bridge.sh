@@ -1,4 +1,4 @@
-#	$NetBSD: t_bridge.sh,v 1.13 2016/08/10 22:37:07 kre Exp $
+#	$NetBSD: t_bridge.sh,v 1.16 2016/11/25 08:51:16 ozaki-r Exp $
 #
 # Copyright (c) 2014 The NetBSD Foundation, Inc.
 # All rights reserved.
@@ -25,13 +25,6 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-libs1="-lrumpnet -lrumpnet_net -lrumpnet_netinet"
-libs2="-lrumpnet_bridge -lrumpnet_shmif -lrumpdev"
-libs6="-lrumpnet_netinet6"
-
-inetserver="rump_server ${libs1} ${libs2}"
-inet6server="rump_server ${libs1} ${libs6} ${libs2}"
-
 SOCK1=unix://commsock1
 SOCK2=unix://commsock2
 SOCK3=unix://commsock3
@@ -44,6 +37,7 @@ IPBR2=10.0.0.12
 IP6BR1=fc00::11
 IP6BR2=fc00::12
 
+DEBUG=${DEBUG:-false}
 TIMEOUT=5
 
 atf_test_case bridge_ipv4 cleanup
@@ -89,9 +83,8 @@ setup_endpoint()
 	bus=${3}
 	mode=${4}
 
+	rump_server_add_iface $sock shmif0 $bus
 	export RUMP_SERVER=${sock}
-	atf_check -s exit:0 rump.ifconfig shmif0 create
-	atf_check -s exit:0 rump.ifconfig shmif0 linkstr ${bus}
 	if [ $mode = "ipv6" ]; then
 		atf_check -s exit:0 rump.ifconfig shmif0 inet6 ${addr}
 	else
@@ -99,7 +92,7 @@ setup_endpoint()
 	fi
 
 	atf_check -s exit:0 rump.ifconfig shmif0 up
-	rump.ifconfig shmif0
+	$DEBUG && rump.ifconfig shmif0
 }
 
 test_endpoint()
@@ -116,14 +109,6 @@ test_endpoint()
 	else
 		atf_check -s exit:0 -o ignore rump.ping -n -w $TIMEOUT -c 1 ${addr}
 	fi
-}
-
-show_endpoint()
-{
-	sock=${1}
-
-	export RUMP_SERVER=${sock}
-	rump.ifconfig -v shmif0
 }
 
 test_setup()
@@ -148,21 +133,20 @@ test_setup6()
 
 setup_bridge_server()
 {
-	export RUMP_SERVER=$SOCK2
-	atf_check -s exit:0 rump.ifconfig shmif0 create
-	atf_check -s exit:0 rump.ifconfig shmif0 linkstr bus1
-	atf_check -s exit:0 rump.ifconfig shmif0 up
 
-	atf_check -s exit:0 rump.ifconfig shmif1 create
-	atf_check -s exit:0 rump.ifconfig shmif1 linkstr bus2
+	rump_server_add_iface $SOCK2 shmif0 bus1
+	rump_server_add_iface $SOCK2 shmif1 bus2
+	export RUMP_SERVER=$SOCK2
+	atf_check -s exit:0 rump.ifconfig shmif0 up
 	atf_check -s exit:0 rump.ifconfig shmif1 up
 }
 
 setup()
 {
-	atf_check -s exit:0 ${inetserver} $SOCK1
-	atf_check -s exit:0 ${inetserver} $SOCK2
-	atf_check -s exit:0 ${inetserver} $SOCK3
+
+	rump_server_start $SOCK1 bridge
+	rump_server_start $SOCK2 bridge
+	rump_server_start $SOCK3 bridge
 
 	setup_endpoint $SOCK1 $IP1 bus1 ipv4
 	setup_endpoint $SOCK3 $IP2 bus2 ipv4
@@ -171,9 +155,10 @@ setup()
 
 setup6()
 {
-	atf_check -s exit:0 ${inet6server} $SOCK1
-	atf_check -s exit:0 ${inet6server} $SOCK2
-	atf_check -s exit:0 ${inet6server} $SOCK3
+
+	rump_server_start $SOCK1 netinet6 bridge
+	rump_server_start $SOCK2 netinet6 bridge
+	rump_server_start $SOCK3 netinet6 bridge
 
 	setup_endpoint $SOCK1 $IP61 bus1 ipv6
 	setup_endpoint $SOCK3 $IP62 bus2 ipv6
@@ -242,19 +227,6 @@ test_setup_bridge()
 	atf_check -s exit:0 -o match:shmif1 /sbin/brconfig bridge0
 	/sbin/brconfig bridge0
 	unset LD_PRELOAD
-}
-
-cleanup()
-{
-	env RUMP_SERVER=$SOCK1 rump.halt
-	env RUMP_SERVER=$SOCK2 rump.halt
-	env RUMP_SERVER=$SOCK3 rump.halt
-}
-
-dump_bus()
-{
-	/usr/bin/shmif_dumpbus -p - bus1 2>/dev/null| /usr/sbin/tcpdump -n -e -r -
-	/usr/bin/shmif_dumpbus -p - bus2 2>/dev/null| /usr/sbin/tcpdump -n -e -r -
 }
 
 down_up_interfaces()
@@ -360,11 +332,8 @@ test_brconfig_maxaddr()
 	addr1= addr3= n=
 
 	# Get MAC addresses of the endpoints.
-	export RUMP_SERVER=$SOCK1
-	addr1=$(rump.ifconfig shmif0 |awk '/address:/ { print $2;}')
-	export RUMP_SERVER=$SOCK3
-	addr3=$(rump.ifconfig shmif0 |awk '/address:/ { print $2;}')
-	unset RUMP_SERVER
+	addr1=$(get_macaddr $SOCK1 shmif0)
+	addr3=$(get_macaddr $SOCK3 shmif0)
 
 	# Refill the MAC addresses of the endpoints.
 	export RUMP_SERVER=$SOCK1
@@ -422,6 +391,8 @@ bridge_ipv4_body()
 
 	teardown_bridge
 	test_ping_failure
+
+	rump_server_destroy_ifaces
 }
 
 bridge_ipv6_body()
@@ -438,6 +409,8 @@ bridge_ipv6_body()
 
 	teardown_bridge
 	test_ping6_failure
+
+	rump_server_destroy_ifaces
 }
 
 bridge_rtable_body()
@@ -448,16 +421,13 @@ bridge_rtable_body()
 	setup_bridge
 
 	# Get MAC addresses of the endpoints.
-	export RUMP_SERVER=$SOCK1
-	addr1=$(rump.ifconfig shmif0 |awk '/address:/ { print $2;}')
-	export RUMP_SERVER=$SOCK3
-	addr3=$(rump.ifconfig shmif0 |awk '/address:/ { print $2;}')
-	unset RUMP_SERVER
+	addr1=$(get_macaddr $SOCK1 shmif0)
+	addr3=$(get_macaddr $SOCK3 shmif0)
 
 	# Confirm there is no MAC address caches.
 	export RUMP_SERVER=$SOCK2
 	export LD_PRELOAD=/usr/lib/librumphijack.so
-	/sbin/brconfig bridge0
+	$DEBUG && /sbin/brconfig bridge0
 	atf_check -s exit:0 -o not-match:"$addr1" /sbin/brconfig bridge0
 	atf_check -s exit:0 -o not-match:"$addr3" /sbin/brconfig bridge0
 	unset LD_PRELOAD
@@ -470,7 +440,7 @@ bridge_rtable_body()
 	# Tests the addresses are in the cache.
 	export RUMP_SERVER=$SOCK2
 	export LD_PRELOAD=/usr/lib/librumphijack.so
-	/sbin/brconfig bridge0
+	$DEBUG && /sbin/brconfig bridge0
 	atf_check -s exit:0 -o match:"$addr1 shmif0" /sbin/brconfig bridge0
 	atf_check -s exit:0 -o match:"$addr3 shmif1" /sbin/brconfig bridge0
 
@@ -487,7 +457,7 @@ bridge_rtable_body()
 	unset RUMP_SERVER
 	export RUMP_SERVER=$SOCK2
 	export LD_PRELOAD=/usr/lib/librumphijack.so
-	/sbin/brconfig bridge0
+	$DEBUG && /sbin/brconfig bridge0
 	atf_check -s exit:0 -o match:"$addr1 shmif0" /sbin/brconfig bridge0
 	atf_check -s exit:0 -o match:"$addr3 shmif1" /sbin/brconfig bridge0
 
@@ -511,6 +481,8 @@ bridge_rtable_body()
 	# TODO: brconfig static/flushall/discover/learn
 	# TODO: cache expiration; it takes 5 minutes at least and we want to
 	#       wait here so long. Should we have a sysctl to change the period?
+
+	rump_server_destroy_ifaces
 }
 
 bridge_member_ipv4_body()
@@ -531,6 +503,8 @@ bridge_member_ipv4_body()
 
 	teardown_bridge
 	test_ping_failure
+
+	rump_server_destroy_ifaces
 }
 
 bridge_member_ipv6_body()
@@ -550,35 +524,42 @@ bridge_member_ipv6_body()
 
 	teardown_bridge
 	test_ping6_failure
+
+	rump_server_destroy_ifaces
 }
 
 bridge_ipv4_cleanup()
 {
-	dump_bus
+
+	$DEBUG && dump
 	cleanup
 }
 
 bridge_ipv6_cleanup()
 {
-	dump_bus
+
+	$DEBUG && dump
 	cleanup
 }
 
 bridge_rtable_cleanup()
 {
-	dump_bus
+
+	$DEBUG && dump
 	cleanup
 }
 
 bridge_member_ipv4_cleanup()
 {
-	dump_bus
+
+	$DEBUG && dump
 	cleanup
 }
 
 bridge_member_ipv6_cleanup()
 {
-	dump_bus
+
+	$DEBUG && dump
 	cleanup
 }
 

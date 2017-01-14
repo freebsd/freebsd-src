@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <net80211/ieee80211_ratectl.h>
 #include <net80211/ieee80211_sta.h>
+#include <net80211/ieee80211_vht.h>
 
 #define	IEEE80211_RATE2MBS(r)	(((r) & IEEE80211_RATE_VAL) / 2)
 
@@ -1330,8 +1331,9 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0, int subtype,
 	struct ieee80211_frame *wh;
 	uint8_t *frm, *efrm;
 	uint8_t *rates, *xrates, *wme, *htcap, *htinfo;
+	uint8_t *vhtcap, *vhtopmode;
 	uint8_t rate;
-	int ht_state_change = 0;
+	int ht_state_change = 0, do_ht = 0;
 
 	wh = mtod(m0, struct ieee80211_frame *);
 	frm = (uint8_t *)&wh[1];
@@ -1430,10 +1432,23 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0, int subtype,
 			if (scan.htcap != NULL && scan.htinfo != NULL &&
 			    (vap->iv_flags_ht & IEEE80211_FHT_HT)) {
 				/* XXX state changes? */
-				if (ieee80211_ht_updateparams(ni,
+				ieee80211_ht_updateparams(ni,
+				    scan.htcap, scan.htinfo);
+				do_ht = 1;
+			}
+			if (scan.vhtcap != NULL && scan.vhtopmode != NULL &&
+			    (vap->iv_flags_vht & IEEE80211_FVHT_VHT)) {
+				/* XXX state changes? */
+				ieee80211_vht_updateparams(ni,
+				    scan.vhtcap, scan.vhtopmode);
+				do_ht = 1;
+			}
+			if (do_ht) {
+				if (ieee80211_ht_updateparams_final(ni,
 				    scan.htcap, scan.htinfo))
 					ht_state_change = 1;
 			}
+
 			if (scan.quiet)
 				ic->ic_set_quiet(ni, scan.quiet);
 
@@ -1660,6 +1675,7 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0, int subtype,
 		frm += 2;
 
 		rates = xrates = wme = htcap = htinfo = NULL;
+		vhtcap = vhtopmode = NULL;
 		while (efrm - frm > 1) {
 			IEEE80211_VERIFY_LENGTH(efrm - frm, frm[1] + 2, return);
 			switch (*frm) {
@@ -1692,6 +1708,12 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0, int subtype,
 					}
 				}
 				/* XXX Atheros OUI support */
+				break;
+			case IEEE80211_ELEMID_VHT_CAP:
+				vhtcap = frm;
+				break;
+			case IEEE80211_ELEMID_VHT_OPMODE:
+				vhtopmode = frm;
 				break;
 			}
 			frm += frm[1] + 2;
@@ -1737,9 +1759,30 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0, int subtype,
 		    (vap->iv_flags_ht & IEEE80211_FHT_HT)) {
 			ieee80211_ht_node_init(ni);
 			ieee80211_ht_updateparams(ni, htcap, htinfo);
+
+			if ((vhtcap != NULL) && (vhtopmode != NULL) &
+			    (vap->iv_flags_vht & IEEE80211_FVHT_VHT)) {
+				/*
+				 * Log if we get a VHT assoc/reassoc response.
+				 * We aren't ready for 2GHz VHT support.
+				 */
+				if (IEEE80211_IS_CHAN_2GHZ(ni->ni_chan)) {
+					printf("%s: peer %6D: VHT on 2GHz, ignoring\n",
+					    __func__,
+					    ni->ni_macaddr,
+					    ":");
+				} else {
+					ieee80211_vht_node_init(ni);
+					ieee80211_vht_updateparams(ni, vhtcap, vhtopmode);
+					ieee80211_setup_vht_rates(ni, vhtcap, vhtopmode);
+				}
+			}
+
+			ieee80211_ht_updateparams_final(ni, htcap, htinfo);
 			ieee80211_setup_htrates(ni, htcap,
 			     IEEE80211_F_JOIN | IEEE80211_F_DOBRS);
 			ieee80211_setup_basic_htrates(ni, htinfo);
+
 			ieee80211_node_setuptxparms(ni);
 			ieee80211_ratectl_node_init(ni);
 		}
