@@ -218,7 +218,7 @@ extern	__checkReturn	efx_rc_t
 efx_mcdi_mac_stats_periodic(
 	__in		efx_nic_t *enp,
 	__in		efsys_mem_t *esmp,
-	__in		uint16_t period,
+	__in		uint16_t period_ms,
 	__in		boolean_t events);
 
 
