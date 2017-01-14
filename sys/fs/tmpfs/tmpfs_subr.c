@@ -129,7 +129,7 @@ tmpfs_pages_check_avail(struct tmpfs_mount *tmp, size_t req_pages)
 	if (tmpfs_mem_avail() < req_pages)
 		return (0);
 
-	if (tmp->tm_pages_max != SIZE_MAX &&
+	if (tmp->tm_pages_max != ULONG_MAX &&
 	    tmp->tm_pages_max < req_pages + tmpfs_pages_used(tmp))
 			return (0);
 
@@ -327,9 +327,7 @@ tmpfs_free_node(struct tmpfs_mount *tmp, struct tmpfs_node *node)
 	case VREG:
 		uobj = node->tn_reg.tn_aobj;
 		if (uobj != NULL) {
-			TMPFS_LOCK(tmp);
-			tmp->tm_pages_used -= uobj->size;
-			TMPFS_UNLOCK(tmp);
+			atomic_subtract_long(&tmp->tm_pages_used, uobj->size);
 			KASSERT((uobj->flags & OBJ_TMPFS) == 0,
 			    ("leaked OBJ_TMPFS node %p vm_obj %p", node, uobj));
 			vm_object_deallocate(uobj);
@@ -1417,9 +1415,7 @@ retry:
 	uobj->size = newpages;
 	VM_OBJECT_WUNLOCK(uobj);
 
-	TMPFS_LOCK(tmp);
-	tmp->tm_pages_used += (newpages - oldpages);
-	TMPFS_UNLOCK(tmp);
+	atomic_add_long(&tmp->tm_pages_used, newpages - oldpages);
 
 	node->tn_size = newsize;
 	return (0);
