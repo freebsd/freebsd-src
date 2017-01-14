@@ -52,8 +52,12 @@ msync_sync(const char *garbage, int flags)
 {
 	char *buf, *map = MAP_FAILED;
 	const char *str = NULL;
+#ifdef __FreeBSD__
+	size_t len;
+#else
 	size_t i, len;
 	ssize_t tot;
+#endif
 	int fd, rv;
 
 	/*
