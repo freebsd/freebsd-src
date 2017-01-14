@@ -1,5 +1,5 @@
 #ifdef __FreeBSD__
-#include <sys/types.h>
+#include <sys/types.h> /* for kqueue(2) */
 #endif
 #include <sys/event.h>
 #include <sys/stat.h>
