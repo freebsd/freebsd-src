@@ -29,6 +29,7 @@ check_cxx_compiler_flag(-std=c++11           COMPILER_RT_HAS_STD_CXX11_FLAG)
 check_cxx_compiler_flag(-ftls-model=initial-exec COMPILER_RT_HAS_FTLS_MODEL_INITIAL_EXEC)
 check_cxx_compiler_flag(-fno-lto             COMPILER_RT_HAS_FNO_LTO_FLAG)
 check_cxx_compiler_flag("-Werror -msse3" COMPILER_RT_HAS_MSSE3_FLAG)
+check_cxx_compiler_flag("-Werror -msse4.2"   COMPILER_RT_HAS_MSSE4_2_FLAG)
 check_cxx_compiler_flag(--sysroot=.          COMPILER_RT_HAS_SYSROOT_FLAG)
 
 if(NOT WIN32 AND NOT CYGWIN)
@@ -241,26 +242,26 @@ if(APPLE)
   set(CMAKE_OSX_DEPLOYMENT_TARGET "")
   
   set(DARWIN_COMMON_CFLAGS -stdlib=libc++)
-  set(DARWIN_COMMON_LINKFLAGS
+  set(DARWIN_COMMON_LINK_FLAGS
     -stdlib=libc++
     -lc++
     -lc++abi)
   
   check_linker_flag("-fapplication-extension" COMPILER_RT_HAS_APP_EXTENSION)
   if(COMPILER_RT_HAS_APP_EXTENSION)
-    list(APPEND DARWIN_COMMON_LINKFLAGS "-fapplication-extension")
+    list(APPEND DARWIN_COMMON_LINK_FLAGS "-fapplication-extension")
   endif()
 
   set(DARWIN_osx_CFLAGS
     ${DARWIN_COMMON_CFLAGS}
     -mmacosx-version-min=${SANITIZER_MIN_OSX_VERSION})
-  set(DARWIN_osx_LINKFLAGS
-    ${DARWIN_COMMON_LINKFLAGS}
+  set(DARWIN_osx_LINK_FLAGS
+    ${DARWIN_COMMON_LINK_FLAGS}
     -mmacosx-version-min=${SANITIZER_MIN_OSX_VERSION})
 
   if(DARWIN_osx_SYSROOT)
     list(APPEND DARWIN_osx_CFLAGS -isysroot ${DARWIN_osx_SYSROOT})
-    list(APPEND DARWIN_osx_LINKFLAGS -isysroot ${DARWIN_osx_SYSROOT})
+    list(APPEND DARWIN_osx_LINK_FLAGS -isysroot ${DARWIN_osx_SYSROOT})
   endif()
 
   # Figure out which arches to use for each OS
@@ -283,8 +284,8 @@ if(APPLE)
           ${DARWIN_COMMON_CFLAGS}
           ${DARWIN_${platform}_SANITIZER_MIN_VER_FLAG}
           -isysroot ${DARWIN_${platform}sim_SYSROOT})
-        set(DARWIN_${platform}sim_LINKFLAGS
-          ${DARWIN_COMMON_LINKFLAGS}
+        set(DARWIN_${platform}sim_LINK_FLAGS
+          ${DARWIN_COMMON_LINK_FLAGS}
           ${DARWIN_${platform}_SANITIZER_MIN_VER_FLAG}
           -isysroot ${DARWIN_${platform}sim_SYSROOT})
 
@@ -311,8 +312,8 @@ if(APPLE)
           ${DARWIN_COMMON_CFLAGS}
           ${DARWIN_${platform}_SANITIZER_MIN_VER_FLAG}
           -isysroot ${DARWIN_${platform}_SYSROOT})
-        set(DARWIN_${platform}_LINKFLAGS
-          ${DARWIN_COMMON_LINKFLAGS}
+        set(DARWIN_${platform}_LINK_FLAGS
+          ${DARWIN_COMMON_LINK_FLAGS}
           ${DARWIN_${platform}_SANITIZER_MIN_VER_FLAG}
           -isysroot ${DARWIN_${platform}_SYSROOT})
 
