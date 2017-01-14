@@ -39,6 +39,10 @@
 
 #include <sys/stat.h>
 
+#ifdef	__FreeBSD__
+#include <errno.h>
+#endif
+
 ATF_TC(seekdir_basic);
 ATF_TC_HEAD(seekdir_basic, tc)
 {
@@ -54,10 +58,26 @@ ATF_TC_BODY(seekdir_basic, tc)
 	struct dirent *entry;
 	long here;
 
+#ifdef	__FreeBSD__
+#define	CREAT(x, m)	do {						\
+		int _creat_fd;						\
+		ATF_REQUIRE_MSG((_creat_fd = creat((x), (m))) != -1,	\
+		    "creat(%s, %x) failed: %s", (x), (m),		\
+		    strerror(errno));					\
+		(void)close(_creat_fd);					\
+	} while(0);
+
+	ATF_REQUIRE_MSG(mkdir("t", 0755) == 0,
+	    "mkdir failed: %s", strerror(errno));
+	CREAT("t/a", 0600);
+	CREAT("t/b", 0600);
+	CREAT("t/c", 0600);
+#else
 	mkdir("t", 0755);
 	creat("t/a", 0600);
 	creat("t/b", 0600);
 	creat("t/c", 0600);
+#endif
 
 	dp = opendir("t");
 	if ( dp == NULL)
@@ -70,9 +90,17 @@ ATF_TC_BODY(seekdir_basic, tc)
 	/* get first entry */
 	entry = readdir(dp);
 	here = telldir(dp);
+#ifdef	__FreeBSD__
+	ATF_REQUIRE_MSG(here != -1,
+	    "telldir failed: %s", strerror(errno));
+#endif
 
 	/* get second entry */
 	entry = readdir(dp);
+#ifdef	__FreeBSD__
+	ATF_REQUIRE_MSG(entry != NULL,
+	    "readdir failed: %s", strerror(errno));
+#endif
 	wasname = strdup(entry->d_name);
 	if (wasname == NULL)
 		atf_tc_fail("cannot allocate memory");
@@ -109,6 +137,9 @@ ATF_TC_BODY(seekdir_basic, tc)
 		atf_tc_fail("3rd seekdir found wrong name");
 
 	closedir(dp);
+#ifdef	__FreeBSD__
+	free(wasname);
+#endif
 }
 
 ATF_TC(telldir_leak);
