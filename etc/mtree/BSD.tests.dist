@@ -660,6 +660,8 @@
         ..
         uuencode
         ..
+        uniq
+        ..
         xargs
         ..
         xinstall
