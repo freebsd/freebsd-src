@@ -34,10 +34,6 @@ __RCSID("$NetBSD: t_pow.c,v 1.4 2015/09/08 05:24:27 dholland Exp $");
 #include <atf-c.h>
 #include <math.h>
 
-#ifdef __FreeBSD__
-#define isinff isinf
-#endif
-
 /*
  * pow(3)
  */
