@@ -469,8 +469,8 @@ static uint32_t
 encode_timeval(struct timeval tv)
 {
 	int log2_s;
-	int val, exp;	/* Unnormalized value and exponent */
-	int norm_exp;	/* Normalized exponent */
+	int val, exponent;	/* Unnormalized value and exponent */
+	int norm_exponent;	/* Normalized exponent */
 	int shift;
 
 	/*
@@ -481,7 +481,7 @@ encode_timeval(struct timeval tv)
 	if (tv.tv_sec == 0) {
 		if (tv.tv_usec == 0)
 			return (0);
-		exp = 0;
+		exponent = 0;
 		val = tv.tv_usec;
 	} else {
 		/*
@@ -490,24 +490,24 @@ encode_timeval(struct timeval tv)
 		 */
 		log2_s = fls(tv.tv_sec) - 1;
 		if (log2_s + LOG2_1M < CALC_BITS) {
-			exp = 0;
+			exponent = 0;
 			val = 1000000 * tv.tv_sec + tv.tv_usec;
 		} else {
-			exp = log2_s + LOG2_1M - CALC_BITS;
+			exponent = log2_s + LOG2_1M - CALC_BITS;
 			val = (unsigned int)(((uint64_t)1000000 * tv.tv_sec +
-			    tv.tv_usec) >> exp);
+			    tv.tv_usec) >> exponent);
 		}
 	}
 	/* Now normalize and pack the value into an IEEE-754 float. */
-	norm_exp = fls(val) - 1;
-	shift = FLT_MANT_DIG - norm_exp - 1;
+	norm_exponent = fls(val) - 1;
+	shift = FLT_MANT_DIG - norm_exponent - 1;
 #ifdef ACCT_DEBUG
 	printf("val=%d exp=%d shift=%d log2(val)=%d\n",
-	    val, exp, shift, norm_exp);
-	printf("exp=%x mant=%x\n", FLT_MAX_EXP - 1 + exp + norm_exp,
+	    val, exponent, shift, norm_exponent);
+	printf("exp=%x mant=%x\n", FLT_MAX_EXP - 1 + exponent + norm_exponent,
 	    ((shift > 0 ? (val << shift) : (val >> -shift)) & MANT_MASK));
 #endif
-	return (((FLT_MAX_EXP - 1 + exp + norm_exp) << (FLT_MANT_DIG - 1)) |
+	return (((FLT_MAX_EXP - 1 + exponent + norm_exponent) << (FLT_MANT_DIG - 1)) |
 	    ((shift > 0 ? val << shift : val >> -shift) & MANT_MASK));
 }
 
@@ -518,7 +518,7 @@ encode_timeval(struct timeval tv)
 static uint32_t
 encode_long(long val)
 {
-	int norm_exp;	/* Normalized exponent */
+	int norm_exponent;	/* Normalized exponent */
 	int shift;
 
 	if (val == 0)
@@ -529,15 +529,15 @@ encode_long(long val)
 		    val);
 		val = LONG_MAX;
 	}
-	norm_exp = fls(val) - 1;
-	shift = FLT_MANT_DIG - norm_exp - 1;
+	norm_exponent = fls(val) - 1;
+	shift = FLT_MANT_DIG - norm_exponent - 1;
 #ifdef ACCT_DEBUG
 	printf("val=%d shift=%d log2(val)=%d\n",
-	    val, shift, norm_exp);
-	printf("exp=%x mant=%x\n", FLT_MAX_EXP - 1 + exp + norm_exp,
+	    val, shift, norm_exponent);
+	printf("exp=%x mant=%x\n", FLT_MAX_EXP - 1 + exp + norm_exponent,
 	    ((shift > 0 ? (val << shift) : (val >> -shift)) & MANT_MASK));
 #endif
-	return (((FLT_MAX_EXP - 1 + norm_exp) << (FLT_MANT_DIG - 1)) |
+	return (((FLT_MAX_EXP - 1 + norm_exponent) << (FLT_MANT_DIG - 1)) |
 	    ((shift > 0 ? val << shift : val >> -shift) & MANT_MASK));
 }
 
