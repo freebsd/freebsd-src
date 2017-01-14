@@ -134,6 +134,10 @@ ATF_TC_BODY(kqueue_desc_passing, tc)
 	msg->cmsg_type = SCM_RIGHTS;
 	msg->cmsg_len = CMSG_LEN(sizeof(int));
 
+#ifdef __NetBSD__
+	*(int *)CMSG_DATA(msg) = kq;
+#endif
+
 	EV_SET(&ev, 1, EVFILT_TIMER, EV_ADD|EV_ENABLE, 0, 1, 0);
 	ATF_CHECK(kevent(kq, &ev, 1, NULL, 0, NULL) != -1);
 
