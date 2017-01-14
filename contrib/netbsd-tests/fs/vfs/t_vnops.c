@@ -1,4 +1,4 @@
-/*	$NetBSD: t_vnops.c,v 1.58 2016/08/29 02:31:46 kre Exp $	*/
+/*	$NetBSD: t_vnops.c,v 1.59 2017/01/13 21:30:40 christos Exp $	*/
 
 /*-
  * Copyright (c) 2010 The NetBSD Foundation, Inc.
@@ -43,7 +43,7 @@
 #include <rump/rump.h>
 
 #include "../common/h_fsmacros.h"
-#include "../../h_macros.h"
+#include "h_macros.h"
 
 #define TESTFILE "afile"
 

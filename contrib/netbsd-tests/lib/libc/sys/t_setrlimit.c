@@ -1,4 +1,4 @@
-/* $NetBSD: t_setrlimit.c,v 1.5 2016/07/13 09:53:16 njoly Exp $ */
+/* $NetBSD: t_setrlimit.c,v 1.6 2017/01/13 21:16:38 christos Exp $ */
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -29,7 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_setrlimit.c,v 1.5 2016/07/13 09:53:16 njoly Exp $");
+__RCSID("$NetBSD: t_setrlimit.c,v 1.6 2017/01/13 21:16:38 christos Exp $");
 
 #include <sys/resource.h>
 #include <sys/mman.h>
@@ -129,9 +129,7 @@ out:
 
 	if (lim != 0)
 		atf_tc_fail("failed to set limit (%d)", lim);
-#ifdef	__FreeBSD__
 	free(buf);
-#endif
 }
 
 ATF_TC(setrlimit_current);

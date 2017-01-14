@@ -1,4 +1,4 @@
-/* $NetBSD: t_nanosleep.c,v 1.3 2013/03/31 16:47:16 christos Exp $ */
+/* $NetBSD: t_nanosleep.c,v 1.4 2017/01/13 21:15:14 christos Exp $ */
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -29,7 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_nanosleep.c,v 1.3 2013/03/31 16:47:16 christos Exp $");
+__RCSID("$NetBSD: t_nanosleep.c,v 1.4 2017/01/13 21:15:14 christos Exp $");
 
 #include <sys/time.h>
 #include <sys/wait.h>
@@ -45,11 +45,7 @@ __RCSID("$NetBSD: t_nanosleep.c,v 1.3 2013/03/31 16:47:16 christos Exp $");
 #include <unistd.h>
 
 static void
-#ifdef __FreeBSD__
 handler(int signo __unused)
-#else
-handler(int signo)
-#endif
 {
 	/* Nothing. */
 }

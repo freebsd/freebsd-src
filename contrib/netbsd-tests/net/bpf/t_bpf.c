@@ -1,4 +1,4 @@
-/*	$NetBSD: t_bpf.c,v 1.5 2012/08/14 19:40:30 alnsn Exp $	*/
+/*	$NetBSD: t_bpf.c,v 1.6 2017/01/13 21:30:42 christos Exp $	*/
 
 /*-
  * Copyright (c) 2010 Antti Kantee.  All Rights Reserved.
@@ -25,7 +25,7 @@
  * SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_bpf.c,v 1.5 2012/08/14 19:40:30 alnsn Exp $");
+__RCSID("$NetBSD: t_bpf.c,v 1.6 2017/01/13 21:30:42 christos Exp $");
 
 #include <sys/param.h>
 #include <sys/ioctl.h>
@@ -50,7 +50,7 @@ __RCSID("$NetBSD: t_bpf.c,v 1.5 2012/08/14 19:40:30 alnsn Exp $");
 #undef m_data
 #include <atf-c.h>
 
-#include "../../h_macros.h"
+#include "h_macros.h"
 #include "../config/netconfig.c"
 
 ATF_TC(bpfwriteleak);

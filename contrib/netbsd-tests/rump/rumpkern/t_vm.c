@@ -1,4 +1,4 @@
-/*	$NetBSD: t_vm.c,v 1.3 2012/03/17 18:00:28 hannken Exp $	*/
+/*	$NetBSD: t_vm.c,v 1.4 2017/01/13 21:30:43 christos Exp $	*/
 
 /*-
  * Copyright (c) 2010 The NetBSD Foundation, Inc.
@@ -37,7 +37,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "../../h_macros.h"
+#include "h_macros.h"
 #include "../kernspace/kernspace.h"
 
 ATF_TC(busypage);

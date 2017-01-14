@@ -1,4 +1,4 @@
-/*	$NetBSD: t_basic.c,v 1.5 2011/06/26 13:13:31 christos Exp $	*/
+/*	$NetBSD: t_basic.c,v 1.6 2017/01/13 21:30:42 christos Exp $	*/
 
 /*-
  * Copyright (c) 2010 The NetBSD Foundation, Inc.
@@ -29,7 +29,7 @@
 
 #include <sys/cdefs.h>
 #ifndef lint
-__RCSID("$NetBSD: t_basic.c,v 1.5 2011/06/26 13:13:31 christos Exp $");
+__RCSID("$NetBSD: t_basic.c,v 1.6 2017/01/13 21:30:42 christos Exp $");
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -52,7 +52,7 @@ __RCSID("$NetBSD: t_basic.c,v 1.5 2011/06/26 13:13:31 christos Exp $");
 #include <signal.h>
 
 #include "../config/netconfig.c"
-#include "../../h_macros.h"
+#include "h_macros.h"
 
 static bool oknow = false;
 
