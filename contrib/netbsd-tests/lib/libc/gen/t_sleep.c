@@ -27,6 +27,7 @@
  */
 
 #ifdef __FreeBSD__
+/* kqueue(2) on FreeBSD requires sys/types.h for uintptr_t; NetBSD doesn't. */
 #include <sys/types.h>
 #endif
 #include <sys/cdefs.h>
