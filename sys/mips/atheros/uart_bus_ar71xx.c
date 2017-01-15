@@ -86,4 +86,21 @@ uart_ar71xx_probe(device_t dev)
 	return (uart_bus_probe(dev, 2, freq, 0, 0));
 }
 
+#ifdef	EARLY_PRINTF
+static void
+ar71xx_early_putc(int c)
+{
+	int i;
+
+	for (i = 0; i < 1000; i++) {
+		if (ATH_READ_REG(AR71XX_UART_ADDR + AR71XX_UART_LSR)
+		    & AR71XX_UART_LSR_THRE)
+			break;
+	}
+
+	ATH_WRITE_REG(AR71XX_UART_ADDR + AR71XX_UART_THR, (c & 0xff));
+}
+early_putc_t *early_putc = ar71xx_early_putc;
+#endif
+
 DRIVER_MODULE(uart, apb, uart_ar71xx_driver, uart_devclass, 0, 0);
