@@ -304,10 +304,6 @@ cfcs_datamove(union ctl_io *io)
 	int ctl_watermark, cam_watermark;
 	int i, j;
 
-
-	cam_sg_offset = 0;
-	cam_sg_start = 0;
-
 	ccb = io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr;
 
 	/*
@@ -330,6 +326,8 @@ cfcs_datamove(union ctl_io *io)
 
 		cam_sglist = (bus_dma_segment_t *)ccb->csio.data_ptr;
 		cam_sg_count = ccb->csio.sglist_cnt;
+		cam_sg_start = cam_sg_count;
+		cam_sg_offset = 0;
 
 		for (i = 0, len_seen = 0; i < cam_sg_count; i++) {
 			if ((len_seen + cam_sglist[i].ds_len) >=
@@ -422,9 +420,20 @@ cfcs_datamove(union ctl_io *io)
 
 	io->scsiio.ext_data_filled += len_copied;
 
+	/*
+	 * Report write underflow as error, since CTL and backends don't
+	 * really support it.
+	 */
+	if ((io->io_hdr.flags & CTL_FLAG_DATA_MASK) == CTL_FLAG_DATA_OUT &&
+	    j < ctl_sg_count) {
+		io->io_hdr.port_status = 43;
+	} else
+
 	if ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_SUCCESS) {
 		io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr = NULL;
 		io->io_hdr.flags |= CTL_FLAG_STATUS_SENT;
+		ccb->csio.resid = ccb->csio.dxfer_len -
+		    io->scsiio.ext_data_filled;
 		ccb->ccb_h.status &= ~CAM_STATUS_MASK;
 		ccb->ccb_h.status |= CAM_REQ_CMP;
 		xpt_done(ccb);
@@ -453,6 +462,10 @@ cfcs_done(union ctl_io *io)
 	/*
 	 * Translate CTL status to CAM status.
 	 */
+	if (ccb->ccb_h.func_code == XPT_SCSI_IO) {
+		ccb->csio.resid = ccb->csio.dxfer_len -
+		    io->scsiio.ext_data_filled;
+	}
 	ccb->ccb_h.status &= ~CAM_STATUS_MASK;
 	switch (io->io_hdr.status & CTL_STATUS_MASK) {
 	case CTL_SUCCESS:
