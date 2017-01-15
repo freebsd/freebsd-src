@@ -33,7 +33,7 @@
 #ifndef _LIBNETBSD_UTIL_H_
 #define _LIBNETBSD_UTIL_H_
 
-#include <stdio.h>	/* for fparseln(3) */
+#include <sys/types.h>
 #include <libutil.h>
 
 char	*flags_to_string(u_long flags, const char *def);
