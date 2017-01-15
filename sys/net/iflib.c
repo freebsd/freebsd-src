@@ -133,10 +133,13 @@ typedef struct iflib_rxq *iflib_rxq_t;
 struct iflib_fl;
 typedef struct iflib_fl *iflib_fl_t;
 
+struct iflib_ctx;
+
 typedef struct iflib_filter_info {
 	driver_filter_t *ifi_filter;
 	void *ifi_filter_arg;
 	struct grouptask *ifi_task;
+	struct iflib_ctx *ifi_ctx;
 } *iflib_filter_info_t;
 
 struct iflib_ctx {
@@ -300,6 +303,8 @@ typedef struct iflib_sw_tx_desc_array {
 #define	IFC_MULTISEG		0x04
 #define	IFC_DMAR		0x08
 #define	IFC_SC_ALLOCATED	0x10
+#define	IFC_INIT_DONE		0x20
+
 
 #define CSUM_OFFLOAD		(CSUM_IP_TSO|CSUM_IP6_TSO|CSUM_IP| \
 				 CSUM_IP_UDP|CSUM_IP_TCP|CSUM_IP_SCTP| \
@@ -1194,7 +1199,7 @@ iflib_fast_intr(void *arg)
 	iflib_filter_info_t info = arg;
 	struct grouptask *gtask = info->ifi_task;
 
-	if (!smp_started)
+	if (!smp_started && mp_ncpus > 1)
 		return (FILTER_HANDLED);
 
 	DBG_COUNTER_INC(fast_intrs);
@@ -3753,6 +3758,7 @@ iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ct
 
 	if_setgetcounterfn(ctx->ifc_ifp, iflib_if_get_counter);
 	iflib_add_device_sysctl_post(ctx);
+	ctx->ifc_flags |= IFC_INIT_DONE;
 	return (0);
 fail_detach:
 	ether_ifdetach(ctx->ifc_ifp);
@@ -4471,6 +4477,7 @@ iflib_irq_alloc_generic(if_ctx_t ctx, if_irq_t irq, int rid,
 	info->ifi_filter = filter;
 	info->ifi_filter_arg = filter_arg;
 	info->ifi_task = gtask;
+	info->ifi_ctx = ctx;
 
 	err = _iflib_irq_alloc(ctx, irq, rid, iflib_fast_intr, NULL, info,  name);
 	if (err != 0) {
@@ -4567,6 +4574,7 @@ iflib_legacy_setup(if_ctx_t ctx, driver_filter_t filter, void *filter_arg, int *
 	info->ifi_filter = filter;
 	info->ifi_filter_arg = filter_arg;
 	info->ifi_task = gtask;
+	info->ifi_ctx = ctx;
 
 	/* We allocate a single interrupt resource */
 	if ((err = _iflib_irq_alloc(ctx, irq, tqrid, iflib_fast_intr, NULL, info, name)) != 0)

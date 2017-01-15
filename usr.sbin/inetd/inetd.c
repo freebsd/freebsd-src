@@ -138,7 +138,9 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <sysexits.h>
 #include <syslog.h>
+#ifdef LIBWRAP
 #include <tcpd.h>
+#endif
 #include <unistd.h>
 
 #include "inetd.h"
@@ -307,6 +309,7 @@ getvalue(const char *arg, int *value, const char *whine)
 	return 0;				/* success */
 }
 
+#ifdef LIBWRAP
 static sa_family_t
 whichaf(struct request_info *req)
 {
@@ -322,6 +325,7 @@ whichaf(struct request_info *req)
 #endif
 	return sa->sa_family;
 }
+#endif
 
 int
 main(int argc, char **argv)
