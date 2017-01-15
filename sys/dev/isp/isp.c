@@ -4396,7 +4396,7 @@ isp_start(XS_T *xs)
 
 	/*
 	 * Now see if we need to synchronize the ISP with respect to anything.
-	 * We do dual duty here (cough) for synchronizing for busses other
+	 * We do dual duty here (cough) for synchronizing for buses other
 	 * than which we got here to send a command to.
 	 */
 	reqp = (ispreq_t *) local;

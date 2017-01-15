@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 21, 2012
+.Dd January 15, 2017
 .Dt DRIVER_MODULE 9
 .Os
 .Sh NAME
@@ -69,9 +69,9 @@ or
 The identifier used in
 .Fn DRIVER_MODULE
 can be different from the driver name.
-Also, the same driver identifier can exist on different busses,
+Also, the same driver identifier can exist on different buses,
 which is a pretty clean way of making front ends for different cards
-using the same driver on the same or different busses.
+using the same driver on the same or different buses.
 For example, the following is allowed:
 .Pp
 .Fn DRIVER_MODULE foo isa foo_driver foo_devclass NULL NULL ;

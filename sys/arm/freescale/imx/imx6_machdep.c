@@ -117,7 +117,7 @@ fdt_pic_decode_t fdt_pic_table[] = {
  *  - GIC node exists and is its own interrupt parent.
  *
  * This applies to all models of imx6.  Luckily all of them have the devices
- * involved at the same addresses on the same busses, so we don't need any
+ * involved at the same addresses on the same buses, so we don't need any
  * per-soc logic.  We handle this at platform attach time rather than via the
  * fdt_fixup_table, because the latter requires matching on the FDT "model"
  * property, and this applies to all boards including those not yet invented.

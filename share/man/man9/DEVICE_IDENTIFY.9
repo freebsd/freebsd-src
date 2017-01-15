@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 13, 2004
+.Dd January 15, 2017
 .Dt DEVICE_IDENTIFY 9
 .Os
 .Sh NAME
@@ -40,7 +40,7 @@
 .Ft void
 .Fn DEVICE_IDENTIFY "driver_t *driver" "device_t parent"
 .Sh DESCRIPTION
-The identify function for a device is only needed for devices on busses
+The identify function for a device is only needed for devices on buses
 that cannot identify their children independently, e.g.\& the ISA bus.
 It is used to recognize the device (usually done by accessing non-ambiguous
 registers in the hardware) and to tell the kernel about it and thus
