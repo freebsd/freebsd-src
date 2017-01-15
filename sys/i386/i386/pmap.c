@@ -4216,8 +4216,14 @@ pmap_zero_page(vm_page_t m)
 	invlcaddr(pc->pc_cmap_addr2);
 	pagezero(pc->pc_cmap_addr2);
 	*cmap_pte2 = 0;
-	mtx_unlock(&pc->pc_cmap_lock);
+
+	/*
+	 * Unpin the thread before releasing the lock.  Otherwise the thread
+	 * could be rescheduled while still bound to the current CPU, only
+	 * to unpin itself immediately upon resuming execution.
+	 */
 	sched_unpin();
+	mtx_unlock(&pc->pc_cmap_lock);
 }
 
 /*
@@ -4244,8 +4250,8 @@ pmap_zero_page_area(vm_page_t m, int off, int size)
 	else
 		bzero(pc->pc_cmap_addr2 + off, size);
 	*cmap_pte2 = 0;
-	mtx_unlock(&pc->pc_cmap_lock);
 	sched_unpin();
+	mtx_unlock(&pc->pc_cmap_lock);
 }
 
 /*
@@ -4275,8 +4281,8 @@ pmap_copy_page(vm_page_t src, vm_page_t dst)
 	bcopy(pc->pc_cmap_addr1, pc->pc_cmap_addr2, PAGE_SIZE);
 	*cmap_pte1 = 0;
 	*cmap_pte2 = 0;
-	mtx_unlock(&pc->pc_cmap_lock);
 	sched_unpin();
+	mtx_unlock(&pc->pc_cmap_lock);
 }
 
 int unmapped_buf_allowed = 1;
@@ -4323,8 +4329,8 @@ pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
 	}
 	*cmap_pte1 = 0;
 	*cmap_pte2 = 0;
-	mtx_unlock(&pc->pc_cmap_lock);
 	sched_unpin();
+	mtx_unlock(&pc->pc_cmap_lock);
 }
 
 /*
@@ -5310,8 +5316,8 @@ pmap_flush_page(vm_page_t m)
 		if (useclflushopt || cpu_vendor_id != CPU_VENDOR_INTEL)
 			mfence();
 		*cmap_pte2 = 0;
-		mtx_unlock(&pc->pc_cmap_lock);
 		sched_unpin();
+		mtx_unlock(&pc->pc_cmap_lock);
 	} else
 		pmap_invalidate_cache();
 }

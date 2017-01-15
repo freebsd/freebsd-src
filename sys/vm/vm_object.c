@@ -1097,7 +1097,7 @@ vm_object_sync(vm_object_t object, vm_ooffset_t offset, vm_size_t size,
  */
 void
 vm_object_madvise(vm_object_t object, vm_pindex_t pindex, vm_pindex_t end,
-    int advise)
+    int advice)
 {
 	vm_pindex_t tpindex;
 	vm_object_t backing_object, tobject;
@@ -1105,11 +1105,9 @@ vm_object_madvise(vm_object_t object, vm_pindex_t pindex, vm_pindex_t end,
 
 	if (object == NULL)
 		return;
+
 	VM_OBJECT_WLOCK(object);
-	/*
-	 * Locate and adjust resident pages
-	 */
-	for (; pindex < end; pindex += 1) {
+	for (m = NULL; pindex < end; pindex++) {
 relookup:
 		tobject = object;
 		tpindex = pindex;
@@ -1118,7 +1116,7 @@ shadowlookup:
 		 * MADV_FREE only operates on OBJT_DEFAULT or OBJT_SWAP pages
 		 * and those pages must be OBJ_ONEMAPPING.
 		 */
-		if (advise == MADV_FREE) {
+		if (advice == MADV_FREE) {
 			if ((tobject->type != OBJT_DEFAULT &&
 			     tobject->type != OBJT_SWAP) ||
 			    (tobject->flags & OBJ_ONEMAPPING) == 0) {
@@ -1126,15 +1124,29 @@ shadowlookup:
 			}
 		} else if ((tobject->flags & OBJ_UNMANAGED) != 0)
 			goto unlock_tobject;
-		m = vm_page_lookup(tobject, tpindex);
-		if (m == NULL) {
-			/*
-			 * There may be swap even if there is no backing page
-			 */
-			if (advise == MADV_FREE && tobject->type == OBJT_SWAP)
+
+		/*
+		 * In the common case where the object has no backing object, we
+		 * can avoid performing lookups at each pindex.  In either case,
+		 * when applying MADV_FREE we take care to release any swap
+		 * space used to store non-resident pages.
+		 */
+		if (object->backing_object == NULL) {
+			m = (m != NULL) ? TAILQ_NEXT(m, listq) :
+			    vm_page_find_least(object, pindex);
+			tpindex = (m != NULL && m->pindex < end) ?
+			    m->pindex : end;
+			if (advice == MADV_FREE && object->type == OBJT_SWAP &&
+			    tpindex > pindex)
+				swap_pager_freespace(object, pindex,
+				    tpindex - pindex);
+			if ((pindex = tpindex) == end)
+				break;
+		} else if ((m = vm_page_lookup(tobject, tpindex)) == NULL) {
+			if (advice == MADV_FREE && tobject->type == OBJT_SWAP)
 				swap_pager_freespace(tobject, tpindex, 1);
 			/*
-			 * next object
+			 * Prepare to search the next object in the chain.
 			 */
 			backing_object = tobject->backing_object;
 			if (backing_object == NULL)
@@ -1145,11 +1157,13 @@ shadowlookup:
 				VM_OBJECT_WUNLOCK(tobject);
 			tobject = backing_object;
 			goto shadowlookup;
-		} else if (m->valid != VM_PAGE_BITS_ALL)
-			goto unlock_tobject;
+		}
+
 		/*
 		 * If the page is not in a normal state, skip it.
 		 */
+		if (m->valid != VM_PAGE_BITS_ALL)
+			goto unlock_tobject;
 		vm_page_lock(m);
 		if (m->hold_count != 0 || m->wire_count != 0) {
 			vm_page_unlock(m);
@@ -1160,7 +1174,7 @@ shadowlookup:
 		KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 		    ("vm_object_madvise: page %p is not managed", m));
 		if (vm_page_busied(m)) {
-			if (advise == MADV_WILLNEED) {
+			if (advice == MADV_WILLNEED) {
 				/*
 				 * Reference the page before unlocking and
 				 * sleeping so that the page daemon is less
@@ -1172,21 +1186,18 @@ shadowlookup:
 				VM_OBJECT_WUNLOCK(object);
 			VM_OBJECT_WUNLOCK(tobject);
 			vm_page_busy_sleep(m, "madvpo", false);
+			m = NULL;
 			VM_OBJECT_WLOCK(object);
   			goto relookup;
 		}
-		if (advise == MADV_WILLNEED) {
-			vm_page_activate(m);
-		} else {
-			vm_page_advise(m, advise);
-		}
+		vm_page_advise(m, advice);
 		vm_page_unlock(m);
-		if (advise == MADV_FREE && tobject->type == OBJT_SWAP)
+		if (advice == MADV_FREE && tobject->type == OBJT_SWAP)
 			swap_pager_freespace(tobject, tpindex, 1);
 unlock_tobject:
 		if (tobject != object)
 			VM_OBJECT_WUNLOCK(tobject);
-	}	
+	}
 	VM_OBJECT_WUNLOCK(object);
 }
 
