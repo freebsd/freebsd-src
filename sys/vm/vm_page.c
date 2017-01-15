@@ -3002,7 +3002,7 @@ vm_page_try_to_free(vm_page_t m)
 /*
  * vm_page_advise
  *
- * 	Deactivate or do nothing, as appropriate.
+ * 	Apply the specified advice to the given page.
  *
  *	The object and page must be locked.
  */
@@ -3020,8 +3020,11 @@ vm_page_advise(vm_page_t m, int advice)
 		 * would result in a page fault on a later access.
 		 */
 		vm_page_undirty(m);
-	else if (advice != MADV_DONTNEED)
+	else if (advice != MADV_DONTNEED) {
+		if (advice == MADV_WILLNEED)
+			vm_page_activate(m);
 		return;
+	}
 
 	/*
 	 * Clear any references to the page.  Otherwise, the page daemon will
