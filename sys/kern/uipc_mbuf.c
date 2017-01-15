@@ -169,7 +169,7 @@ CTASSERT(sizeof(struct m_ext) == 28);
  * plain pointer does.
  */
 #ifdef INVARIANTS
-static struct mbuf m_assertbuf;
+static struct mbuf __used m_assertbuf;
 CTASSERT(sizeof(m_assertbuf.m_slist) == sizeof(m_assertbuf.m_next));
 CTASSERT(sizeof(m_assertbuf.m_stailq) == sizeof(m_assertbuf.m_next));
 CTASSERT(sizeof(m_assertbuf.m_slistpkt) == sizeof(m_assertbuf.m_nextpkt));
