@@ -219,20 +219,19 @@ find_currdev(EFI_LOADED_IMAGE *img, struct devsw **dev, int *unit,
 		if (h == NULL)
 			break;
 
-		if (efi_handle_lookup(h, dev, unit, extra) == 0) {
-			if (copy != NULL)
-				free(copy);
-			return (0);
-		}
+		free(copy);
+		copy = NULL;
 
-		if (copy != NULL)
-			free(copy);
+		if (efi_handle_lookup(h, dev, unit, extra) == 0)
+			return (0);
+
 		devpath = efi_lookup_devpath(h);
 		if (devpath != NULL) {
 			copy = efi_devpath_trim(devpath);
 			devpath = copy;
 		}
 	}
+	free(copy);
 
 	/* Try to fallback on first device */
 	if (devsw[0] != NULL) {
