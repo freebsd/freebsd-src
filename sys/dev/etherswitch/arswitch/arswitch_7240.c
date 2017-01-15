@@ -81,6 +81,8 @@ static int
 ar7240_hw_global_setup(struct arswitch_softc *sc)
 {
 
+	ARSWITCH_LOCK(sc);
+
 	/* Enable CPU port; disable mirror port */
 	arswitch_writereg(sc->sc_dev, AR8X16_REG_CPU_PORT,
 	    AR8X16_CPU_PORT_EN | AR8X16_CPU_MIRROR_DIS);
@@ -102,6 +104,8 @@ ar7240_hw_global_setup(struct arswitch_softc *sc)
 	/* Service Tag */
 	arswitch_modifyreg(sc->sc_dev, AR8X16_REG_SERVICE_TAG,
 	    AR8X16_SERVICE_TAG_MASK, 0);
+
+	ARSWITCH_UNLOCK(sc);
 
 	return (0);
 }
