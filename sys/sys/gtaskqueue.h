@@ -32,7 +32,7 @@
 #include <sys/taskqueue.h>
 
 #ifndef _KERNEL
-#error "no user-servicable parts inside"
+#error "no user-serviceable parts inside"
 #endif
 
 struct gtaskqueue;
