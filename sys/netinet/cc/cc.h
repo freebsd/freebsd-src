@@ -52,7 +52,7 @@
 #define _NETINET_CC_CC_H_
 
 #if !defined(_KERNEL)
-#error "no user-servicable parts inside"
+#error "no user-serviceable parts inside"
 #endif
 
 /* Global CC vars. */

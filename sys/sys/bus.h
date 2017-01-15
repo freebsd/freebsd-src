@@ -662,7 +662,7 @@ void	bus_data_generation_update(void);
  * Some convenience defines for probe routines to return.  These are just
  * suggested values, and there's nothing magical about them.
  * BUS_PROBE_SPECIFIC is for devices that cannot be reprobed, and that no
- * possible other driver may exist (typically legacy drivers who don't fallow
+ * possible other driver may exist (typically legacy drivers who don't follow
  * all the rules, or special needs drivers).  BUS_PROBE_VENDOR is the
  * suggested value that vendor supplied drivers use.  This is for source or
  * binary drivers that are not yet integrated into the FreeBSD tree.  Its use
@@ -675,7 +675,7 @@ void	bus_data_generation_update(void);
  * supports the newer ones would return BUS_PROBE_DEFAULT.  BUS_PROBE_GENERIC
  * is for drivers that wish to have a generic form and a specialized form,
  * like is done with the pci bus and the acpi pci bus.  BUS_PROBE_HOOVER is
- * for those buses that implement a generic device place-holder for devices on
+ * for those buses that implement a generic device placeholder for devices on
  * the bus that have no more specific driver for them (aka ugen).
  * BUS_PROBE_NOWILDCARD or lower means that the device isn't really bidding
  * for a device node, but accepts only devices that its parent has told it
