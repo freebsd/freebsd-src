@@ -39,7 +39,7 @@
  * \file xenbusb.h
  *
  * Datastructures and function declarations for use in implementing
- * bus attachements (e.g. frontend and backend device busses) for XenBus.
+ * bus attachements (e.g. frontend and backend device buses) for XenBus.
  */
 
 /**

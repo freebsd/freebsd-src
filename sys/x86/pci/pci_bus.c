@@ -195,7 +195,7 @@ legacy_pcib_is_host_bridge(int bus, int slot, int func,
 		 * For the 450nx chipset, there is a whole bundle of
 		 * things pretending to be host bridges. The MIOC will
 		 * be seen first and isn't really a pci bridge (the
-		 * actual busses are attached to the PXB's). We need to
+		 * actual buses are attached to the PXB's). We need to
 		 * read the registers of the MIOC to figure out the
 		 * bus numbers for the PXB channels.
 		 *
@@ -566,7 +566,7 @@ legacy_pcib_write_ivar(device_t dev, device_t child, int which,
  *
  * If no memory preference is given, use upper 32MB slot most BIOSes
  * use for their memory window.  This is typically only used on older
- * laptops that don't have PCI busses behind a PCI bridge, so assuming
+ * laptops that don't have PCI buses behind a PCI bridge, so assuming
  * > 32MB is likely OK.
  *	
  * However, this can cause problems for other chipsets, so we make
@@ -723,7 +723,7 @@ DRIVER_MODULE(pcibus_pnp, isa, pcibus_pnp_driver, pcibus_pnp_devclass, 0, 0);
 
 #ifdef __HAVE_PIR
 /*
- * Provide a PCI-PCI bridge driver for PCI busses behind PCI-PCI bridges
+ * Provide a PCI-PCI bridge driver for PCI buses behind PCI-PCI bridges
  * that appear in the PCIBIOS Interrupt Routing Table to use the routing
  * table for interrupt routing when possible.
  */

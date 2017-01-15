@@ -88,7 +88,7 @@ SET_DECLARE(cam_xpt_proto_set, struct xpt_proto);
 
 /*
  * The CAM EDT (Existing Device Table) contains the device information for
- * all devices for all busses in the system.  The table contains a
+ * all devices for all buses in the system.  The table contains a
  * cam_ed structure for each device on the bus.
  */
 struct cam_ed {

@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 6, 2017
+.Dd January 15, 2017
 .Dt CAMCONTROL 8
 .Os
 .Sh NAME
@@ -565,12 +565,12 @@ start bit set and the load/eject bit set.
 Send the SCSI Start/Stop Unit (0x1B) command to the given device with the
 start bit cleared and the load/eject bit set.
 .It Ic rescan
-Tell the kernel to scan all busses in the system (with the
+Tell the kernel to scan all buses in the system (with the
 .Ar all
 argument), the given bus (XPT_SCAN_BUS), or bus:target:lun
 (XPT_SCAN_LUN) for new devices or devices that have gone away.
 The user
-may specify a scan of all busses, a single bus, or a lun.
+may specify a scan of all buses, a single bus, or a lun.
 Scanning all luns
 on a target is not supported.
 .It Ic reprobe
@@ -580,7 +580,7 @@ notify the upper layer,
 This includes sending the SCSI READ CAPACITY command and updating
 the disk size visible to the rest of the system.
 .It Ic reset
-Tell the kernel to reset all busses in the system (with the
+Tell the kernel to reset all buses in the system (with the
 .Ar all
 argument) or the given bus (XPT_RESET_BUS) by issuing a SCSI bus
 reset for that bus, or to reset the given bus:target:lun
@@ -2557,7 +2557,7 @@ write reallocation settings, among other things.
 .Pp
 .Dl camcontrol rescan all
 .Pp
-Rescan all SCSI busses in the system for devices that have been added,
+Rescan all SCSI buses in the system for devices that have been added,
 removed or changed.
 .Pp
 .Dl camcontrol rescan 0
