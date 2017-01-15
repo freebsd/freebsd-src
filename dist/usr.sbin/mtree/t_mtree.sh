@@ -1,4 +1,4 @@
-# $NetBSD: t_mtree.sh,v 1.6 2013/02/05 16:49:42 christos Exp $
+# $NetBSD: t_mtree.sh,v 1.7 2017/01/14 20:45:16 christos Exp $
 #
 # Copyright (c) 2009, 2012 The NetBSD Foundation, Inc.
 # All rights reserved.
@@ -284,6 +284,13 @@ ignore_head()
 
 ignore_body()
 {
+	# Kyua 0.11 and above point TMPDIR to our work directory and atf-check
+	# generates a temporary file, which confuses mtree.  Put the mtree files
+	# into a subdirectory.
+	#
+	# See https://github.com/jmmv/kyua/issues/133 for details.
+	mkdir root && cd root
+
 	mkdir newdir
 	mtree -F ${FLAVOR} -c | mtree -F ${FLAVOR} -Ck uid,gid,mode > mtree.spec
 	ln -s newdir otherdir
@@ -313,6 +320,13 @@ mtree_ignore_body()
 }
 netbsd6_ignore_body() 
 {
+	# Kyua 0.11 and above point TMPDIR to our work directory and atf-check
+	# generates a temporary file, which confuses mtree.  Put the mtree files
+	# into a subdirectory.
+	#
+	# See https://github.com/jmmv/kyua/issues/133 for details.
+	mkdir root && cd root
+
 	FLAVOR=netbsd6 ignore_body
 }
 

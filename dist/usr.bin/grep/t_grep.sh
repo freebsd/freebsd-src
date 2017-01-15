@@ -1,4 +1,4 @@
-# $NetBSD: t_grep.sh,v 1.2 2013/05/17 15:39:17 christos Exp $
+# $NetBSD: t_grep.sh,v 1.3 2017/01/14 20:43:52 christos Exp $
 #
 # Copyright (c) 2008, 2009 The NetBSD Foundation, Inc.
 # All rights reserved.
@@ -43,7 +43,9 @@ binary_head()
 }
 binary_body()
 {
-	atf_check -o file:"$(atf_get_srcdir)/d_binary.out" grep $(uname) /bin/sh
+	dd if=/dev/zero count=1 of=test.file
+	echo -n "foobar" >> test.file
+	atf_check -o file:"$(atf_get_srcdir)/d_binary.out" grep foobar test.file
 }
 
 atf_test_case recurse
@@ -57,7 +59,7 @@ recurse_body()
 	echo -e "cod\ndover sole\nhaddock\nhalibut\npilchard" > recurse/d/fish
 	echo -e "cod\nhaddock\nplaice" > recurse/a/f/favourite-fish
 
-	atf_check -o file:"$(atf_get_srcdir)/d_recurse.out" grep -r haddock recurse
+	atf_check -o file:"$(atf_get_srcdir)/d_recurse.out" -x "grep -r haddock recurse | sort"
 }
 
 atf_test_case recurse_symlink
