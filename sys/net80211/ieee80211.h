@@ -165,6 +165,12 @@ struct ieee80211_qosframe_addr4 {
 #define	IEEE80211_IS_MGMT(wh)					\
 	(!! (((wh)->i_fc[0] & IEEE80211_FC0_TYPE_MASK)		\
 	    == IEEE80211_FC0_TYPE_MGT))
+#define	IEEE80211_IS_CTL(wh)					\
+	(!! (((wh)->i_fc[0] & IEEE80211_FC0_TYPE_MASK)		\
+	    == IEEE80211_FC0_TYPE_CTL))
+#define	IEEE80211_IS_DATA(wh)					\
+	(!! (((wh)->i_fc[0] & IEEE80211_FC0_TYPE_MASK)		\
+	    == IEEE80211_FC0_TYPE_DATA))
 
 #define	IEEE80211_FC0_QOSDATA \
 	(IEEE80211_FC0_TYPE_DATA|IEEE80211_FC0_SUBTYPE_QOS|IEEE80211_FC0_VERSION_0)
