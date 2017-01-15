@@ -45,10 +45,6 @@ __RCSID("$NetBSD: t_wait.c,v 1.8 2017/01/13 19:28:55 christos Exp $");
 
 #include <atf-c.h>
 
-#ifdef __FreeBSD__
-#define	wrusage	__wrusage
-#endif
-
 ATF_TC(wait6_invalid);
 ATF_TC_HEAD(wait6_invalid, tc)
 {

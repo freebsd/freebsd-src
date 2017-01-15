@@ -75,11 +75,9 @@ __RCSID("$NetBSD: t_mmap.c,v 1.11 2017/01/13 20:43:11 christos Exp $");
 #include <paths.h>
 #ifdef __NetBSD__
 #include <machine/disklabel.h>
-#endif
-
-#ifdef __FreeBSD__
-#include <sys/disklabel.h>
+#else
 #include <stdint.h>
+#include <sys/disklabel.h>
 #endif
 
 static long	page = 0;

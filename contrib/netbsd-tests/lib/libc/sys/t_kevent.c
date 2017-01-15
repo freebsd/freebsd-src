@@ -45,15 +45,13 @@ __RCSID("$NetBSD: t_kevent.c,v 1.7 2015/02/05 13:55:37 isaki Exp $");
 #include <err.h>
 #ifdef __NetBSD__
 #include <sys/drvctlio.h>
+#else
+#define	DRVCTLDEV "/nonexistent"
 #endif
 #include <sys/event.h>
 #include <sys/time.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
-
-#ifdef __FreeBSD__
-#define	DRVCTLDEV "/nonexistent"
-#endif
 
 ATF_TC(kevent_zerotimer);
 ATF_TC_HEAD(kevent_zerotimer, tc)
