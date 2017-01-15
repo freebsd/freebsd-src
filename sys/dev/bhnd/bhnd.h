@@ -77,7 +77,7 @@ enum bhnd_device_vars {
  */
 enum {
 	BHND_PROBE_ROOT         = 0,    /**< Nexus or host bridge */
-	BHND_PROBE_BUS		= 1000,	/**< Busses and bridges */
+	BHND_PROBE_BUS		= 1000,	/**< Buses and bridges */
 	BHND_PROBE_CPU		= 2000,	/**< CPU devices */
 	BHND_PROBE_INTERRUPT	= 3000,	/**< Interrupt controllers. */
 	BHND_PROBE_TIMER	= 4000,	/**< Timers and clocks. */

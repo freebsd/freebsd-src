@@ -55,7 +55,7 @@
 #define	DEV_MMC_MMCREG_H
 
 /*
- * This file contains the register definitions for the mmc and sd busses.
+ * This file contains the register definitions for the mmc and sd buses.
  * They are taken from publicly available sources.
  */
 

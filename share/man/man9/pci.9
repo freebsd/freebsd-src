@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 6, 2016
+.Dd January 15, 2017
 .Dt PCI 9
 .Os
 .Sh NAME
@@ -583,14 +583,14 @@ full functionality to the user.
 .It Dv PCI_POWERSTATE_D1
 Class-specific low-power state in which device context may or
 may not be lost.
-Busses in this state cannot do anything to the bus, to
+Buses in this state cannot do anything to the bus, to
 force devices to lose context.
 .It Dv PCI_POWERSTATE_D2
 Class-specific low-power state in which device context may or
 may not be lost.
 Attains greater power savings than
 .Dv PCI_POWERSTATE_D1 .
-Busses in this state can cause devices to lose some context.
+Buses in this state can cause devices to lose some context.
 Devices
 .Em must
 be prepared for the bus to be in this state or higher.

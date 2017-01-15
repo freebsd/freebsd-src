@@ -24,7 +24,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd June 7, 2012
+.Dd January 15, 2017
 .Dt CAM 4
 .Os
 .Sh NAME
@@ -62,7 +62,7 @@ devices, and to utilize different
 and
 .Tn ATA
 host adapters through host adapter drivers.
-When the system probes busses, it attaches any devices it finds to the
+When the system probes buses, it attaches any devices it finds to the
 appropriate drivers.
 The
 .Xr pass 4
@@ -150,7 +150,7 @@ In that case, the
 will be reset to 100ms.
 .El
 .Pp
-All devices and busses support dynamic allocation so that
+All devices and buses support dynamic allocation so that
 an upper number of devices and controllers does not need to be configured;
 .Cd "device da"
 will suffice for any number of disk drivers.
@@ -297,7 +297,7 @@ see printfs for multiple debugging levels.
 This allows to set the various debugging flags from a kernel config file.
 .It Dv CAM_DEBUG_BUS
 Specify a bus to debug.
-To debug all busses, set this to -1.
+To debug all buses, set this to -1.
 .It Dv CAM_DEBUG_TARGET
 Specify a target to debug.
 To debug all targets, set this to -1.

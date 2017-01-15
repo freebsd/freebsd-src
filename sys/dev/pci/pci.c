@@ -3095,7 +3095,7 @@ pci_add_map(device_t bus, device_t dev, int reg, struct resource_list *rl,
 	 * If base is 0, then we have problems if this architecture does
 	 * not allow that.  It is best to ignore such entries for the
 	 * moment.  These will be allocated later if the driver specifically
-	 * requests them.  However, some removable busses look better when
+	 * requests them.  However, some removable buses look better when
 	 * all resources are allocated, so allow '0' to be overriden.
 	 *
 	 * Similarly treat maps whose values is the same as the test value
@@ -4178,7 +4178,7 @@ pci_attach(device_t dev)
 
 	/*
 	 * Since there can be multiple independently numbered PCI
-	 * busses on systems with multiple PCI domains, we can't use
+	 * buses on systems with multiple PCI domains, we can't use
 	 * the unit number to decide which bus we are probing. We ask
 	 * the parent pcib what our domain and bus numbers are.
 	 */

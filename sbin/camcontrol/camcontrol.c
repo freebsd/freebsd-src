@@ -3179,8 +3179,8 @@ rescan_or_reset_bus(path_id_t bus, int rescan)
 	/*
 	 * The right way to handle this is to modify the xpt so that it can
 	 * handle a wildcarded bus in a rescan or reset CCB.  At the moment
-	 * that isn't implemented, so instead we enumerate the busses and
-	 * send the rescan or reset to those busses in the case where the
+	 * that isn't implemented, so instead we enumerate the buses and
+	 * send the rescan or reset to those buses in the case where the
 	 * given bus is -1 (wildcard).  We don't send a rescan or reset
 	 * to the xpt bus; sending a rescan to the xpt bus is effectively a
 	 * no-op, sending a rescan to the xpt bus would result in a status of
@@ -8954,8 +8954,8 @@ usage(int printlong)
 "load        send a Start Unit command to the device with the load bit set\n"
 "eject       send a Stop Unit command to the device with the eject bit set\n"
 "reprobe     update capacity information of the given device\n"
-"rescan      rescan all busses, the given bus, or bus:target:lun\n"
-"reset       reset all busses, the given bus, or bus:target:lun\n"
+"rescan      rescan all buses, the given bus, or bus:target:lun\n"
+"reset       reset all buses, the given bus, or bus:target:lun\n"
 "defects     read the defect list of the specified device\n"
 "modepage    display or edit (-e) the given mode page\n"
 "cmd         send the given SCSI command, may need -i or -o as well\n"

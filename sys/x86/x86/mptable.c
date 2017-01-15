@@ -385,7 +385,7 @@ mptable_setup_io(void)
 	for (i = 0; i <= mptable_maxbusid; i++)
 		busses[i].bus_type = NOBUS;
 
-	/* Second, we run through adding I/O APIC's and busses. */
+	/* Second, we run through adding I/O APIC's and buses. */
 	mptable_parse_apics_and_busses();	
 
 	/* Third, we run through the table tweaking interrupt sources. */
@@ -584,7 +584,7 @@ mptable_parse_apics_and_busses_handler(u_char *entry, void *arg __unused)
 }
 
 /*
- * Enumerate I/O APIC's and busses.
+ * Enumerate I/O APIC's and buses.
  */
 static void
 mptable_parse_apics_and_busses(void)
@@ -988,7 +988,7 @@ mptable_pci_setup(void)
 
 	/*
 	 * Find the first pci bus and call it 0.  Panic if pci0 is not
-	 * bus zero and there are multiple PCI busses.
+	 * bus zero and there are multiple PCI buses.
 	 */
 	for (i = 0; i <= mptable_maxbusid; i++)
 		if (busses[i].bus_type == PCI) {
@@ -996,7 +996,7 @@ mptable_pci_setup(void)
 				pci0 = i;
 			else if (pci0 != 0)
 				panic(
-		"MPTable contains multiple PCI busses but no PCI bus 0");
+		"MPTable contains multiple PCI buses but no PCI bus 0");
 		}
 }
 
