@@ -682,7 +682,7 @@ struct atapi_sense {
 #define	ATA_IDL_ATA_STRINGS	0x05	/* ATA Strings */
 #define	ATA_IDL_SECURITY	0x06	/* Security */
 #define	ATA_IDL_PARALLEL_ATA	0x07	/* Parallel ATA */
-#define	ATA_IDL_SERIAL_ATA	0x08	/* Seiral ATA */
+#define	ATA_IDL_SERIAL_ATA	0x08	/* Serial ATA */
 #define	ATA_IDL_ZDI		0x09	/* Zoned Device Information */
 
 struct ata_gp_log_dir {
