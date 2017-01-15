@@ -32,9 +32,6 @@
 #include <sys/cdefs.h>
 __RCSID("$NetBSD: t_proc3.c,v 1.3 2017/01/13 21:30:41 christos Exp $");
 
-#ifdef __FreeBSD__
-#include <sys/types.h> /* for kqueue(2) */
-#endif
 #include <sys/event.h>
 #include <sys/time.h>
 #include <sys/types.h>
