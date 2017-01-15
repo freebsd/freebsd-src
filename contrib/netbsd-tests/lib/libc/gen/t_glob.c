@@ -48,10 +48,6 @@ __RCSID("$NetBSD: t_glob.c,v 1.5 2017/01/14 20:47:41 christos Exp $");
 
 #include "h_macros.h"
 
-#ifdef __FreeBSD__
-#define	__gl_stat_t struct stat
-#endif
-
 
 #ifdef DEBUG
 #define DPRINTF(a) printf a
