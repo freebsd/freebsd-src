@@ -1,4 +1,4 @@
-/* $NetBSD: t_unlink.c,v 1.3 2017/01/13 19:33:03 christos Exp $ */
+/* $NetBSD: t_unlink.c,v 1.4 2017/01/14 20:55:26 christos Exp $ */
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -29,7 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_unlink.c,v 1.3 2017/01/13 19:33:03 christos Exp $");
+__RCSID("$NetBSD: t_unlink.c,v 1.4 2017/01/14 20:55:26 christos Exp $");
 
 #include <sys/stat.h>
 
@@ -111,11 +111,8 @@ ATF_TC_HEAD(unlink_fifo, tc)
 
 ATF_TC_BODY(unlink_fifo, tc)
 {
-	int fd;
 
-	ATF_REQUIRE_MSG((fd = mkfifo(path, 0666)) == 0,
-	    "mkfifo failed: %s", strerror(errno));
-	(void)close(fd);
+	ATF_REQUIRE(mkfifo(path, 0666) == 0);
 	ATF_REQUIRE(unlink(path) == 0);
 
 	errno = 0;

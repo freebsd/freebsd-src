@@ -1,4 +1,4 @@
-/*	$NetBSD: t_mqueue.c,v 1.5 2017/01/10 22:10:22 christos Exp $ */
+/*	$NetBSD: t_mqueue.c,v 1.6 2017/01/14 20:57:24 christos Exp $ */
 
 /*
  * Test for POSIX message queue priority handling.
@@ -6,23 +6,20 @@
  * This file is in the Public Domain.
  */
 
-#ifdef __FreeBSD__
 #include <sys/stat.h>
-#include <fcntl.h>
-
-#include "freebsd_test_suite/macros.h"
-#endif
 
 #include <atf-c.h>
-#include <sys/stat.h>
-
+#include <errno.h>
+#include <fcntl.h>
+#include <mqueue.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
 #include <unistd.h>
 
-#include <mqueue.h>
+#ifdef __FreeBSD__
+#include "freebsd_test_suite/macros.h"
+#endif
 
 #define	MQ_PRIO_BASE	24
 
