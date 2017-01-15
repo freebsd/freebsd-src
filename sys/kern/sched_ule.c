@@ -656,7 +656,7 @@ int __noinline cpu_search_both(const struct cpu_group *cg,
  * according to the match argument.  This routine actually compares the
  * load on all paths through the tree and finds the least loaded cpu on
  * the least loaded path, which may differ from the least loaded cpu in
- * the system.  This balances work among caches and busses.
+ * the system.  This balances work among caches and buses.
  *
  * This inline is instantiated in three forms below using constants for the
  * match argument.  It is reduced to the minimum set for each case.  It is
