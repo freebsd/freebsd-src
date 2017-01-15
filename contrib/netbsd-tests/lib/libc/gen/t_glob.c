@@ -1,4 +1,4 @@
-/*	$NetBSD: t_glob.c,v 1.4 2017/01/13 21:30:41 christos Exp $	*/
+/*	$NetBSD: t_glob.c,v 1.5 2017/01/14 20:47:41 christos Exp $	*/
 /*-
  * Copyright (c) 2010 The NetBSD Foundation, Inc.
  * All rights reserved.
@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_glob.c,v 1.4 2017/01/13 21:30:41 christos Exp $");
+__RCSID("$NetBSD: t_glob.c,v 1.5 2017/01/14 20:47:41 christos Exp $");
 
 #include <atf-c.h>
 
@@ -50,7 +50,6 @@ __RCSID("$NetBSD: t_glob.c,v 1.4 2017/01/13 21:30:41 christos Exp $");
 
 #ifdef __FreeBSD__
 #define	__gl_stat_t struct stat
-#define	_S_IFDIR S_IFDIR
 #endif
 
 
@@ -157,7 +156,7 @@ gl_stat(const char *name , __gl_stat_t *st)
 	memset(st, 0, sizeof(*st));
 
 	if (strcmp(buf, "a") == 0 || strcmp(buf, "a/b") == 0) {
-		st->st_mode |= _S_IFDIR;
+		st->st_mode |= S_IFDIR;
 		return 0;
 	}
 

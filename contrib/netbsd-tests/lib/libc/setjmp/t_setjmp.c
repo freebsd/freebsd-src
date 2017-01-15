@@ -1,4 +1,4 @@
-/* $NetBSD: t_setjmp.c,v 1.1 2010/12/27 19:35:31 pgoyette Exp $ */
+/* $NetBSD: t_setjmp.c,v 1.2 2017/01/14 21:08:17 christos Exp $ */
 
 /*-
  * Copyright (c) 2008 The NetBSD Foundation, Inc.
@@ -63,7 +63,7 @@
 #include <sys/cdefs.h>
 __COPYRIGHT("@(#) Copyright (c) 2008\
  The NetBSD Foundation, inc. All rights reserved.");
-__RCSID("$NetBSD: t_setjmp.c,v 1.1 2010/12/27 19:35:31 pgoyette Exp $");
+__RCSID("$NetBSD: t_setjmp.c,v 1.2 2017/01/14 21:08:17 christos Exp $");
 
 #include <sys/types.h>
 
