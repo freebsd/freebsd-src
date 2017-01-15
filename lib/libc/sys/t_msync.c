@@ -1,4 +1,4 @@
-/* $NetBSD: t_msync.c,v 1.2 2012/03/16 06:15:17 matt Exp $ */
+/* $NetBSD: t_msync.c,v 1.3 2017/01/14 20:52:42 christos Exp $ */
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -29,7 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_msync.c,v 1.2 2012/03/16 06:15:17 matt Exp $");
+__RCSID("$NetBSD: t_msync.c,v 1.3 2017/01/14 20:52:42 christos Exp $");
 
 #include <sys/mman.h>
 
@@ -52,8 +52,7 @@ msync_sync(const char *garbage, int flags)
 {
 	char *buf, *map = MAP_FAILED;
 	const char *str = NULL;
-	size_t i, len;
-	ssize_t tot;
+	size_t len;
 	int fd, rv;
 
 	/*
@@ -65,29 +64,17 @@ msync_sync(const char *garbage, int flags)
 	if (buf == NULL)
 		return NULL;
 
-	for (i = 0; i < (size_t)page; i++)
-		buf[i] = 'x';
+	memset(buf, 'x', page);
 
 	fd = open(path, O_RDWR | O_CREAT, 0700);
 
 	if (fd < 0) {
-		str = "failed to open";
-		goto out;
+		free(buf);
+		return "failed to open";
 	}
 
-	tot = 0;
-
-	while (tot < page) {
-
-		rv = write(fd, buf, sizeof(buf));
-
-		if (rv < 0) {
-			str = "failed to write";
-			goto out;
-		}
-
-		tot += rv;
-	}
+	ATF_REQUIRE_MSG(write(fd, buf, page) != -1, "write(2) failed: %s",
+	    strerror(errno));
 
 	map = mmap(NULL, page, PROT_READ | PROT_WRITE, MAP_FILE|MAP_PRIVATE,
 	     fd, 0);

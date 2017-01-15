@@ -1,4 +1,4 @@
-/* $NetBSD: t_strlen.c,v 1.5 2011/07/14 07:33:20 jruoho Exp $ */
+/* $NetBSD: t_strlen.c,v 1.6 2017/01/14 20:49:24 christos Exp $ */
 
 /*
  * Written by J.T. Conklin <jtc@acorntoolworks.com>
@@ -40,6 +40,7 @@ ATF_TC_HEAD(strlen_basic, tc)
 
 ATF_TC_BODY(strlen_basic, tc)
 {
+	void *dl_handle;
 	/* try to trick the compiler */
 	size_t (*strlen_fn)(const char *);
 
@@ -107,7 +108,8 @@ ATF_TC_BODY(strlen_basic, tc)
 	 * During testing it is useful have the rest of the program
 	 * use a known good version!
 	 */
-	strlen_fn = dlsym(dlopen(NULL, RTLD_LAZY), "test_strlen");
+	dl_handle = dlopen(NULL, RTLD_LAZY);
+	strlen_fn = dlsym(dl_handle, "test_strlen");
 	if (!strlen_fn)
 		strlen_fn = strlen;
 
@@ -134,6 +136,7 @@ ATF_TC_BODY(strlen_basic, tc)
 			}
 		}
 	}
+	(void)dlclose(dl_handle);
 }
 
 ATF_TC(strlen_huge);
