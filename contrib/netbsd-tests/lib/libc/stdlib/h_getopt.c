@@ -34,9 +34,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <err.h>
-#ifdef __FreeBSD__
-#include <libutil.h>
-#endif
 
 #define	WS	"\t\n "
 #define	debug	0
