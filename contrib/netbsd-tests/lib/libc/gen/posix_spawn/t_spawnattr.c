@@ -30,7 +30,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/param.h>
 #include <atf-c.h>
 #include <stdio.h>
 #include <stdlib.h>
