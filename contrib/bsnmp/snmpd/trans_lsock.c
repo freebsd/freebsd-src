@@ -59,7 +59,7 @@ static void lsock_close_port(struct tport *);
 static int lsock_init_port(struct tport *);
 static ssize_t lsock_send(struct tport *, const u_char *, size_t,
     const struct sockaddr *, size_t);
-static ssize_t lsock_recv(struct port_input *);
+static ssize_t lsock_recv(struct tport *, struct port_input *);
 
 /* exported */
 const struct transport_def lsock_trans = {
@@ -439,7 +439,7 @@ check_priv_stream(struct port_input *pi)
  * Receive something
  */
 static ssize_t
-lsock_recv(struct port_input *pi)
+lsock_recv(struct tport *tp __unused, struct port_input *pi)
 {
 	struct msghdr msg;
 	struct iovec iov[1];
