@@ -12,7 +12,7 @@ SRCS=	cd9660.c	\
 	smbfs.c		\
 	udf.c
 
-VERSION_DEF=	${.CURDIR}/Versions.def
+VERSION_DEF=	${SRCTOP}/lib/libc/Versions.def
 SYMBOL_MAPS=	${.CURDIR}/Symbol.map
 
 INCS=		libprocstat.h
