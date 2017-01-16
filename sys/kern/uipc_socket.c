@@ -161,6 +161,7 @@ static void	filt_sowdetach(struct knote *kn);
 static int	filt_sowrite(struct knote *kn, long hint);
 static int	filt_solisten(struct knote *kn, long hint);
 static int inline hhook_run_socket(struct socket *so, void *hctx, int32_t h_id);
+static int	filt_soempty(struct knote *kn, long hint);
 fo_kqfilter_t	soo_kqfilter;
 
 static struct filterops solisten_filtops = {
@@ -177,6 +178,11 @@ static struct filterops sowrite_filtops = {
 	.f_isfd = 1,
 	.f_detach = filt_sowdetach,
 	.f_event = filt_sowrite,
+};
+static struct filterops soempty_filtops = {
+	.f_isfd = 1,
+	.f_detach = filt_sowdetach,
+	.f_event = filt_soempty,
 };
 
 so_gen_t	so_gencnt;	/* generation count for sockets */
@@ -3083,6 +3089,10 @@ soo_kqfilter(struct file *fp, struct knote *kn)
 		kn->kn_fop = &sowrite_filtops;
 		sb = &so->so_snd;
 		break;
+	case EVFILT_EMPTY:
+		kn->kn_fop = &soempty_filtops;
+		sb = &so->so_snd;
+		break;
 	default:
 		return (EINVAL);
 	}
@@ -3342,6 +3352,21 @@ filt_sowrite(struct knote *kn, long hint)
 		return (kn->kn_data >= kn->kn_sdata);
 	else
 		return (kn->kn_data >= so->so_snd.sb_lowat);
+}
+
+static int
+filt_soempty(struct knote *kn, long hint)
+{
+	struct socket *so;
+
+	so = kn->kn_fp->f_data;
+	SOCKBUF_LOCK_ASSERT(&so->so_snd);
+	kn->kn_data = sbused(&so->so_snd);
+
+	if (kn->kn_data == 0)
+		return (1);
+	else
+		return (0);
 }
 
 /*ARGSUSED*/
