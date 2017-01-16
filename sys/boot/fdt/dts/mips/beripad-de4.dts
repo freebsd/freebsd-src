@@ -103,7 +103,6 @@
 		 * we use mips4k coprocessor 0 interrupt management directly.
 		 */
 		compatible = "simple-bus", "mips,mips4k";
-		ranges = <>;
 
 		memory {
 			device_type = "memory";
