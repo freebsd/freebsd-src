@@ -85,7 +85,7 @@ static struct gl_dir d[] = {
 	{ "a/b", b, __arraycount(b), 0 },
 };
 
-#ifndef __FreeBSD__
+#ifdef GLOB_STAR
 static const char *glob_star[] = {
     "a/1", "a/3", "a/4", "a/b", "a/b/w", "a/b/x", "a/b/y", "a/b/z",
 };
@@ -219,7 +219,7 @@ run(const char *p, int flags, const char **res, size_t len)
 }
 
 
-#ifndef __FreeBSD__
+#ifdef GLOB_STAR
 ATF_TC(glob_star);
 ATF_TC_HEAD(glob_star, tc)
 {
@@ -268,7 +268,7 @@ ATF_TC_BODY(glob_nocheck, tc)
 
 ATF_TP_ADD_TCS(tp)
 {
-#ifndef __FreeBSD__
+#ifdef GLOB_STAR
 	ATF_TP_ADD_TC(tp, glob_star);
 #endif
 	ATF_TP_ADD_TC(tp, glob_star_not);
