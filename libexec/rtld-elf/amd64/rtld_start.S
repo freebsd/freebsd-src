@@ -156,4 +156,16 @@ _rtld_bind_start:
 	.cfi_endproc
 	.size	_rtld_bind_start, . - _rtld_bind_start
 
+	.align	4
+	.globl	rtld_dynamic_addr
+	.type	rtld_dynamic_addr,@function
+rtld_dynamic_addr:
+	.cfi_startproc
+	.weak _DYNAMIC
+	.hidden _DYNAMIC
+	lea	_DYNAMIC(%rip),%rax
+	ret
+	.cfi_endproc
+	.size	rtld_dynamic_addr, . - rtld_dynamic_addr
+
 	.section .note.GNU-stack,"",%progbits
