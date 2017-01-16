@@ -226,6 +226,7 @@ udp_send(struct tport *tp, const u_char *buf, size_t len,
 	iov.iov_base = __DECONST(void*, buf);
 	iov.iov_len = len;
 
+	msg.msg_flags = 0;
 	msg.msg_iov = &iov;
 	msg.msg_iovlen = 1;
 	msg.msg_name = __DECONST(void *, addr);
@@ -334,10 +335,10 @@ static ssize_t
 udp_recv(struct tport *tp, struct port_input *pi)
 {
 	struct udp_port *p = (struct udp_port *)tp;
+	struct cmsghdr *cmsgp;
 	struct in_addr *laddr;
 	struct msghdr msg;
 	char cbuf[CMSG_SPACE(sizeof(struct in_addr))];
-	struct cmsghdr *cmsgp;
 	ssize_t ret;
 
 	memset(cbuf, 0, sizeof(cbuf));
