@@ -32,6 +32,4 @@
 
 #include_next <stdio.h>
 
-#include "util.h"
-
 #endif /* _SHA1_H_ */
