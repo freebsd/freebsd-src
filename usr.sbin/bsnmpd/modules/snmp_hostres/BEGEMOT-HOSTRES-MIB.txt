@@ -54,6 +54,9 @@ begemotHostres MODULE-IDENTITY
 	     E-mail:	harti@freebsd.org"
     DESCRIPTION
 	    "The MIB for additional HOST-RESOURCES data."
+    REVISION	"200601030000Z"
+    DESCRIPTION
+		"Initial revision."
     ::= { begemot 202 }
 
 begemotHostresObjects	OBJECT IDENTIFIER ::= { begemotHostres 1 }
