@@ -377,6 +377,7 @@ ATF_TC_BODY(mmap_prot_3, tc)
 	 * the access should generate SIGSEGV.
 	 */
 	fd = open(path, O_RDWR | O_CREAT, 0700);
+
 	if (fd < 0)
 #ifdef	__FreeBSD__
 		atf_tc_skip("opening %s failed; skipping testcase: %s",
