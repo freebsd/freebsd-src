@@ -51,7 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/endian.h>
 
-#include <machine/cpuconf.h>
 #include <machine/md_var.h>
 
 char machine[] = "arm";
