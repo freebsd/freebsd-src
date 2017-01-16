@@ -47,6 +47,7 @@ ATF_TESTS_SH_SED_mount_test=		\
 					-e 's,-o -s,-o size=,g' \
 					-e 's,-o -u,-o uid=,g' \
 					-e 's,mount_${FILESYSTEM},mount -t ${FILESYSTEM},g'
+ATF_TESTS_SH_SED_readdir_test=		-e 's,mknod fifo p,mkfifo fifo,g'
 ATF_TESTS_SH_SED_sizes_test=		-e 's,-o -s,-o size=,g'
 ATF_TESTS_SH_SED_statvfs_test=		-e 's,-o -s,-o size=,g'
 ATF_TESTS_SH_SED_vnode_leak_test=	-e 's,-o -s,-o size=,g'
