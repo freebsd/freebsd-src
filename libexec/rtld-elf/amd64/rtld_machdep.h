@@ -35,8 +35,8 @@
 struct Struct_Obj_Entry;
 
 /* Return the address of the .dynamic section in the dynamic linker. */
-#define rtld_dynamic(obj) \
-    ((const Elf_Dyn *)((obj)->relocbase + (Elf_Addr)&_DYNAMIC))
+Elf_Dyn *rtld_dynamic_addr(void);
+#define	rtld_dynamic(obj)	rtld_dynamic_addr()
 
 /* Fixup the jump slot at "where" to transfer control to "target". */
 static inline Elf_Addr
