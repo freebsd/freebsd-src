@@ -419,6 +419,16 @@ ctl_be_block_move_done(union ctl_io *io)
 	 */
 	if (io->io_hdr.flags & CTL_FLAG_ABORT) {
 		;
+	} else if ((io->io_hdr.port_status != 0) &&
+	    ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_STATUS_NONE ||
+	     (io->io_hdr.status & CTL_STATUS_MASK) == CTL_SUCCESS)) {
+		ctl_set_internal_failure(&io->scsiio, /*sks_valid*/ 1,
+		    /*retry_count*/ io->io_hdr.port_status);
+	} else if (io->scsiio.kern_data_resid != 0 &&
+	    (io->io_hdr.flags & CTL_FLAG_DATA_MASK) == CTL_FLAG_DATA_OUT &&
+	    ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_STATUS_NONE ||
+	     (io->io_hdr.status & CTL_STATUS_MASK) == CTL_SUCCESS)) {
+		ctl_set_invalid_field_ciu(&io->scsiio);
 	} else if ((io->io_hdr.port_status == 0) &&
 	    ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_STATUS_NONE)) {
 		lbalen = ARGS(beio->io);
@@ -428,21 +438,6 @@ ctl_be_block_move_done(union ctl_io *io)
 			/* We have two data blocks ready for comparison. */
 			ctl_be_block_compare(io);
 		}
-	} else if ((io->io_hdr.port_status != 0) &&
-	    ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_STATUS_NONE ||
-	     (io->io_hdr.status & CTL_STATUS_MASK) == CTL_SUCCESS)) {
-		/*
-		 * For hardware error sense keys, the sense key
-		 * specific value is defined to be a retry count,
-		 * but we use it to pass back an internal FETD
-		 * error code.  XXX KDM  Hopefully the FETD is only
-		 * using 16 bits for an error code, since that's
-		 * all the space we have in the sks field.
-		 */
-		ctl_set_internal_failure(&io->scsiio,
-					 /*sks_valid*/ 1,
-					 /*retry_count*/
-					 io->io_hdr.port_status);
 	}
 
 	/*
@@ -1634,7 +1629,6 @@ ctl_be_block_dispatch(struct ctl_be_block_lun *be_lun,
 	else
 		io->scsiio.kern_data_ptr = (uint8_t *)beio->sg_segs;
 	io->scsiio.kern_data_len = beio->io_len;
-	io->scsiio.kern_data_resid = 0;
 	io->scsiio.kern_sg_entries = beio->num_segs;
 	io->io_hdr.flags |= CTL_FLAG_ALLOCATED;
 

@@ -35,7 +35,7 @@
  * Note that the hardware is capable of running as both a master and a slave.
  * This driver currently implements only master-mode operations.
  *
- * This driver supports multi-master i2c busses, by detecting bus arbitration
+ * This driver supports multi-master i2c buses, by detecting bus arbitration
  * loss and returning IIC_EBUSBSY status.  Notably, it does not do any kind of
  * retries if some other master jumps onto the bus and interrupts one of our
  * transfer cycles resulting in arbitration loss in mid-transfer.  The caller

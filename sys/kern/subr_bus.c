@@ -1093,7 +1093,7 @@ devclass_driver_added(devclass_t dc, driver_t *driver)
 	int i;
 
 	/*
-	 * Call BUS_DRIVER_ADDED for any existing busses in this class.
+	 * Call BUS_DRIVER_ADDED for any existing buses in this class.
 	 */
 	for (i = 0; i < dc->maxunit; i++)
 		if (dc->devices[i] && device_is_attached(dc->devices[i]))
@@ -3269,7 +3269,7 @@ resource_list_delete(struct resource_list *rl, int type, int rid)
 /**
  * @brief Allocate a reserved resource
  *
- * This can be used by busses to force the allocation of resources
+ * This can be used by buses to force the allocation of resources
  * that are always active in the system even if they are not allocated
  * by a driver (e.g. PCI BARs).  This function is usually called when
  * adding a new child to the bus.  The resource is allocated from the
@@ -3648,7 +3648,7 @@ bus_generic_probe(device_t dev)
 		 * only call the identify routines of eligible drivers
 		 * when this routine is called.  Drivers for later
 		 * passes should have their identify routines called
-		 * on early-pass busses during BUS_NEW_PASS().
+		 * on early-pass buses during BUS_NEW_PASS().
 		 */
 		if (dl->pass > bus_current_pass)
 			continue;

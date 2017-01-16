@@ -281,13 +281,14 @@ static const struct pci_quirk pci_quirks[] = {
 	{ 0x43851002, PCI_QUIRK_UNMAP_REG,	0x14,	0 },
 
 	/*
-	 * Atheros AR8161/AR8162/E2200/E2400 Ethernet controllers have a
-	 * bug that MSI interrupt does not assert if PCIM_CMD_INTxDIS bit
+	 * Atheros AR8161/AR8162/E2200/E2400/E2500 Ethernet controllers have
+	 * a bug that MSI interrupt does not assert if PCIM_CMD_INTxDIS bit
 	 * of the command register is set.
 	 */
 	{ 0x10911969, PCI_QUIRK_MSI_INTX_BUG,	0,	0 },
 	{ 0xE0911969, PCI_QUIRK_MSI_INTX_BUG,	0,	0 },
 	{ 0xE0A11969, PCI_QUIRK_MSI_INTX_BUG,	0,	0 },
+	{ 0xE0B11969, PCI_QUIRK_MSI_INTX_BUG,	0,	0 },
 	{ 0x10901969, PCI_QUIRK_MSI_INTX_BUG,	0,	0 },
 
 	/*
@@ -3095,7 +3096,7 @@ pci_add_map(device_t bus, device_t dev, int reg, struct resource_list *rl,
 	 * If base is 0, then we have problems if this architecture does
 	 * not allow that.  It is best to ignore such entries for the
 	 * moment.  These will be allocated later if the driver specifically
-	 * requests them.  However, some removable busses look better when
+	 * requests them.  However, some removable buses look better when
 	 * all resources are allocated, so allow '0' to be overriden.
 	 *
 	 * Similarly treat maps whose values is the same as the test value
@@ -4178,7 +4179,7 @@ pci_attach(device_t dev)
 
 	/*
 	 * Since there can be multiple independently numbered PCI
-	 * busses on systems with multiple PCI domains, we can't use
+	 * buses on systems with multiple PCI domains, we can't use
 	 * the unit number to decide which bus we are probing. We ask
 	 * the parent pcib what our domain and bus numbers are.
 	 */

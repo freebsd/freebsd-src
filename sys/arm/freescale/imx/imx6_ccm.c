@@ -90,7 +90,7 @@ ccm_init_gates(struct ccm_softc *sc)
 {
 	uint32_t reg;
 
- 	/* ahpbdma, aipstz 1 & 2 busses */
+ 	/* ahpbdma, aipstz 1 & 2 buses */
 	reg = CCGR0_AIPS_TZ1 | CCGR0_AIPS_TZ2 | CCGR0_ABPHDMA;
 	WR4(sc, CCM_CCGR0, reg);
 

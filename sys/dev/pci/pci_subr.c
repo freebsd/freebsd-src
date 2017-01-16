@@ -73,7 +73,7 @@ host_pcib_get_busno(pci_read_config_fn read_config, int bus, int slot, int func,
 		 * For the 450nx chipset, there is a whole bundle of
 		 * things pretending to be host bridges. The MIOC will 
 		 * be seen first and isn't really a pci bridge (the
-		 * actual busses are attached to the PXB's). We need to 
+		 * actual buses are attached to the PXB's). We need to 
 		 * read the registers of the MIOC to figure out the
 		 * bus numbers for the PXB channels.
 		 *

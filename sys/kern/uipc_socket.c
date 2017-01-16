@@ -161,6 +161,7 @@ static void	filt_sowdetach(struct knote *kn);
 static int	filt_sowrite(struct knote *kn, long hint);
 static int	filt_solisten(struct knote *kn, long hint);
 static int inline hhook_run_socket(struct socket *so, void *hctx, int32_t h_id);
+static int	filt_soempty(struct knote *kn, long hint);
 fo_kqfilter_t	soo_kqfilter;
 
 static struct filterops solisten_filtops = {
@@ -177,6 +178,11 @@ static struct filterops sowrite_filtops = {
 	.f_isfd = 1,
 	.f_detach = filt_sowdetach,
 	.f_event = filt_sowrite,
+};
+static struct filterops soempty_filtops = {
+	.f_isfd = 1,
+	.f_detach = filt_sowdetach,
+	.f_event = filt_soempty,
 };
 
 so_gen_t	so_gencnt;	/* generation count for sockets */
@@ -2681,6 +2687,18 @@ sosetopt(struct socket *so, struct sockopt *sopt)
 #endif
 			break;
 
+		case SO_TS_CLOCK:
+			error = sooptcopyin(sopt, &optval, sizeof optval,
+			    sizeof optval);
+			if (error)
+				goto bad;
+			if (optval < 0 || optval > SO_TS_CLOCK_MAX) {
+				error = EINVAL;
+				goto bad;
+			}
+			so->so_ts_clock = optval;
+			break;
+
 		default:
 			if (V_socket_hhh[HHOOK_SOCKET_OPT]->hhh_nhooks > 0)
 				error = hhook_run_socket(so, sopt,
@@ -2866,6 +2884,10 @@ integer:
 
 		case SO_LISTENINCQLEN:
 			optval = so->so_incqlen;
+			goto integer;
+
+		case SO_TS_CLOCK:
+			optval = so->so_ts_clock;
 			goto integer;
 
 		default:
@@ -3081,6 +3103,10 @@ soo_kqfilter(struct file *fp, struct knote *kn)
 		break;
 	case EVFILT_WRITE:
 		kn->kn_fop = &sowrite_filtops;
+		sb = &so->so_snd;
+		break;
+	case EVFILT_EMPTY:
+		kn->kn_fop = &soempty_filtops;
 		sb = &so->so_snd;
 		break;
 	default:
@@ -3342,6 +3368,21 @@ filt_sowrite(struct knote *kn, long hint)
 		return (kn->kn_data >= kn->kn_sdata);
 	else
 		return (kn->kn_data >= so->so_snd.sb_lowat);
+}
+
+static int
+filt_soempty(struct knote *kn, long hint)
+{
+	struct socket *so;
+
+	so = kn->kn_fp->f_data;
+	SOCKBUF_LOCK_ASSERT(&so->so_snd);
+	kn->kn_data = sbused(&so->so_snd);
+
+	if (kn->kn_data == 0)
+		return (1);
+	else
+		return (0);
 }
 
 /*ARGSUSED*/

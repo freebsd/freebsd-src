@@ -71,7 +71,7 @@ typedef struct busdma_bufalloc *busdma_bufalloc_t;
  * name appears in zone stats as 'dma name nnnnn' where 'dma' is fixed and
  * 'nnnnn' is the size of buffers in that zone.
  *
- * If if the alloc/free function pointers are NULL, the regular uma internal
+ * If the alloc/free function pointers are NULL, the regular uma internal
  * allocators are used (I.E., you get "plain old kernel memory").  On a platform
  * with an exclusion zone that applies to all DMA operations, a custom allocator
  * could be used to ensure no buffer memory is ever allocated from that zone,
@@ -116,4 +116,3 @@ void  busdma_bufalloc_free_uncacheable(void *item, vm_size_t size,
     uint8_t pflag);
 
 #endif	/* _MACHINE_BUSDMA_BUFALLOC_H_ */
-
