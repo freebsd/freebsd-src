@@ -41,6 +41,10 @@ ${PACKAGE}FILESDIR=	${TESTSDIR}
 PROGS+=			h_tools
 BINDIR.h_tools=		${TESTSDIR}
 
+ATF_TESTS_SH_SED_mknod_test=		\
+					-e 's,mknod pipe p,mkfifo pipe,g' \
+					-e 's,mknod dir/pipe p,mkfifo dir/pipe,g'
+
 ATF_TESTS_SH_SED_mount_test=		\
 					-e 's,-o -g,-o gid=,g' \
 					-e 's,-o -m,-o mode=,g' \
