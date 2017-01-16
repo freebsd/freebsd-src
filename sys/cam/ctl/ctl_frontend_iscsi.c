@@ -769,6 +769,7 @@ cfiscsi_handle_data_segment(struct icl_pdu *request, struct cfiscsi_data_wait *c
 		cdw->cdw_sg_len -= copy_len;
 		off += copy_len;
 		io->scsiio.ext_data_filled += copy_len;
+		io->scsiio.kern_data_resid -= copy_len;
 
 		if (cdw->cdw_sg_len == 0) {
 			/*
@@ -2514,6 +2515,7 @@ cfiscsi_datamove_in(union ctl_io *io)
 		}
 		sg_addr += len;
 		sg_len -= len;
+		io->scsiio.kern_data_resid -= len;
 
 		KASSERT(buffer_offset + response->ip_data_len <= expected_len,
 		    ("buffer_offset %zd + ip_data_len %zd > expected_len %zd",
@@ -2599,7 +2601,7 @@ cfiscsi_datamove_out(union ctl_io *io)
 	struct iscsi_bhs_r2t *bhsr2t;
 	struct cfiscsi_data_wait *cdw;
 	struct ctl_sg_entry ctl_sg_entry, *ctl_sglist;
-	uint32_t expected_len, r2t_off, r2t_len;
+	uint32_t expected_len, datamove_len, r2t_off, r2t_len;
 	uint32_t target_transfer_tag;
 	bool done;
 
@@ -2618,16 +2620,15 @@ cfiscsi_datamove_out(union ctl_io *io)
 	PDU_TOTAL_TRANSFER_LEN(request) = io->scsiio.kern_total_len;
 
 	/*
-	 * Report write underflow as error since CTL and backends don't
-	 * really support it, and SCSI does not tell how to do it right.
+	 * Complete write underflow.  Not a single byte to read.  Return.
 	 */
 	expected_len = ntohl(bhssc->bhssc_expected_data_transfer_length);
-	if (io->scsiio.kern_rel_offset + io->scsiio.kern_data_len >
-	    expected_len) {
-		io->scsiio.io_hdr.port_status = 43;
+	if (io->scsiio.kern_rel_offset > expected_len) {
 		io->scsiio.be_move_done(io);
 		return;
 	}
+	datamove_len = MIN(io->scsiio.kern_data_len,
+	    expected_len - io->scsiio.kern_rel_offset);
 
 	target_transfer_tag =
 	    atomic_fetchadd_32(&cs->cs_target_transfer_tag, 1);
@@ -2650,7 +2651,7 @@ cfiscsi_datamove_out(union ctl_io *io)
 	cdw->cdw_ctl_io = io;
 	cdw->cdw_target_transfer_tag = target_transfer_tag;
 	cdw->cdw_initiator_task_tag = bhssc->bhssc_initiator_task_tag;
-	cdw->cdw_r2t_end = io->scsiio.kern_data_len;
+	cdw->cdw_r2t_end = datamove_len;
 	cdw->cdw_datasn = 0;
 
 	/* Set initial data pointer for the CDW respecting ext_data_filled. */
@@ -2659,7 +2660,7 @@ cfiscsi_datamove_out(union ctl_io *io)
 	} else {
 		ctl_sglist = &ctl_sg_entry;
 		ctl_sglist->addr = io->scsiio.kern_data_ptr;
-		ctl_sglist->len = io->scsiio.kern_data_len;
+		ctl_sglist->len = datamove_len;
 	}
 	cdw->cdw_sg_index = 0;
 	cdw->cdw_sg_addr = ctl_sglist[cdw->cdw_sg_index].addr;
@@ -2690,7 +2691,7 @@ cfiscsi_datamove_out(union ctl_io *io)
 	}
 
 	r2t_off = io->scsiio.kern_rel_offset + io->scsiio.ext_data_filled;
-	r2t_len = MIN(io->scsiio.kern_data_len - io->scsiio.ext_data_filled,
+	r2t_len = MIN(datamove_len - io->scsiio.ext_data_filled,
 	    cs->cs_max_burst_length);
 	cdw->cdw_r2t_end = io->scsiio.ext_data_filled + r2t_len;
 
