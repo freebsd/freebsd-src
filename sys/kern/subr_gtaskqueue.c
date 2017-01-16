@@ -646,6 +646,7 @@ taskqgroup_attach(struct taskqgroup *qgroup, struct grouptask *gtask,
 	qid = taskqgroup_find(qgroup, uniq);
 	qgroup->tqg_queue[qid].tgc_cnt++;
 	LIST_INSERT_HEAD(&qgroup->tqg_queue[qid].tgc_tasks, gtask, gt_list);
+	MPASS(qgroup->tqg_queue[qid].tgc_taskq != NULL);
 	gtask->gt_taskqueue = qgroup->tqg_queue[qid].tgc_taskq;
 	if (irq != -1 && (smp_started || mp_ncpus == 1)) {
 		gtask->gt_cpu = qgroup->tqg_queue[qid].tgc_cpu;
