@@ -25,7 +25,7 @@
 #define _SYS_PIPE_H_
 
 #ifndef _KERNEL
-#error "no user-servicable parts inside"
+#error "no user-serviceable parts inside"
 #endif
 
 /*

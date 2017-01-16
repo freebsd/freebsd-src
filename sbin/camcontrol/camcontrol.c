@@ -3179,8 +3179,8 @@ rescan_or_reset_bus(path_id_t bus, int rescan)
 	/*
 	 * The right way to handle this is to modify the xpt so that it can
 	 * handle a wildcarded bus in a rescan or reset CCB.  At the moment
-	 * that isn't implemented, so instead we enumerate the busses and
-	 * send the rescan or reset to those busses in the case where the
+	 * that isn't implemented, so instead we enumerate the buses and
+	 * send the rescan or reset to those buses in the case where the
 	 * given bus is -1 (wildcard).  We don't send a rescan or reset
 	 * to the xpt bus; sending a rescan to the xpt bus is effectively a
 	 * no-op, sending a rescan to the xpt bus would result in a status of
@@ -4150,7 +4150,7 @@ scsicmd(struct cam_device *device, int argc, char **argv, char *combinedopt,
 	u_int8_t cdb[20];
 	u_int8_t atacmd[12];
 	struct get_hook hook;
-	int c, data_bytes = 0;
+	int c, data_bytes = 0, valid_bytes;
 	int cdb_len = 0;
 	int atacmd_len = 0;
 	int dmacmd = 0;
@@ -4454,16 +4454,20 @@ scsicmd(struct cam_device *device, int argc, char **argv, char *combinedopt,
 		}
 	}
 
+	if (cdb_len)
+		valid_bytes = ccb->csio.dxfer_len - ccb->csio.resid;
+	else
+		valid_bytes = ccb->ataio.dxfer_len - ccb->ataio.resid;
 	if (((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP)
 	 && (arglist & CAM_ARG_CMD_IN)
-	 && (data_bytes > 0)) {
+	 && (valid_bytes > 0)) {
 		if (fd_data == 0) {
-			buff_decode_visit(data_ptr, data_bytes, datastr,
+			buff_decode_visit(data_ptr, valid_bytes, datastr,
 					  arg_put, NULL);
 			fprintf(stdout, "\n");
 		} else {
 			ssize_t amt_written;
-			int amt_to_write = data_bytes;
+			int amt_to_write = valid_bytes;
 			u_int8_t *buf_ptr = data_ptr;
 
 			for (amt_written = 0; (amt_to_write > 0) &&
@@ -4478,7 +4482,7 @@ scsicmd(struct cam_device *device, int argc, char **argv, char *combinedopt,
 			} else if ((amt_written == 0)
 				&& (amt_to_write > 0)) {
 				warnx("only wrote %u bytes out of %u",
-				      data_bytes - amt_to_write, data_bytes);
+				      valid_bytes - amt_to_write, valid_bytes);
 			}
 		}
 	}
@@ -8950,8 +8954,8 @@ usage(int printlong)
 "load        send a Start Unit command to the device with the load bit set\n"
 "eject       send a Stop Unit command to the device with the eject bit set\n"
 "reprobe     update capacity information of the given device\n"
-"rescan      rescan all busses, the given bus, or bus:target:lun\n"
-"reset       reset all busses, the given bus, or bus:target:lun\n"
+"rescan      rescan all buses, the given bus, or bus:target:lun\n"
+"reset       reset all buses, the given bus, or bus:target:lun\n"
 "defects     read the defect list of the specified device\n"
 "modepage    display or edit (-e) the given mode page\n"
 "cmd         send the given SCSI command, may need -i or -o as well\n"
