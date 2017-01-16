@@ -46,13 +46,6 @@ dict()
 	fi
 }
 
-# Begin FreeBSD
-dict()
-{
-	echo /usr/share/dict/words
-}
-# End FreeBSD
-
 SEVEN_SEVEN="abcdefg|abcdefg|abcdefg|abcdefg|abcdefg|abcdefg|abcdefg"
 
 atf_test_case small_btree
