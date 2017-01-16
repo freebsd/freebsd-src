@@ -32,8 +32,6 @@
 
 #ifdef _KERNEL
 
-#include <machine/cpuconf.h>
-
 #define	ALT_STACK_SIZE	128
 
 struct vmspace;

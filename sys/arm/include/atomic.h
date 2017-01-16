@@ -44,8 +44,6 @@
 
 #ifndef _KERNEL
 #include <machine/sysarch.h>
-#else
-#include <machine/cpuconf.h>
 #endif
 
 #if __ARM_ARCH >= 6

@@ -48,7 +48,6 @@
 
 #include <sys/types.h>
 #include <machine/armreg.h>
-#include <machine/cpuconf.h>
 
 static __inline void
 breakpoint(void)
