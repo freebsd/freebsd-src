@@ -152,8 +152,8 @@ _sleep(void *ident, struct lock_object *lock, int priority,
 	    "Sleeping on \"%s\"", wmesg);
 	KASSERT(sbt != 0 || mtx_owned(&Giant) || lock != NULL,
 	    ("sleeping without a lock"));
-	KASSERT(p != NULL, ("msleep1"));
-	KASSERT(ident != NULL && TD_IS_RUNNING(td), ("msleep"));
+	KASSERT(ident != NULL, ("_sleep: NULL ident"));
+	KASSERT(TD_IS_RUNNING(td), ("_sleep: curthread not running"));
 	if (priority & PDROP)
 		KASSERT(lock != NULL && lock != &Giant.lock_object,
 		    ("PDROP requires a non-Giant lock"));
@@ -247,8 +247,8 @@ msleep_spin_sbt(void *ident, struct mtx *mtx, const char *wmesg,
 	td = curthread;
 	p = td->td_proc;
 	KASSERT(mtx != NULL, ("sleeping without a mutex"));
-	KASSERT(p != NULL, ("msleep1"));
-	KASSERT(ident != NULL && TD_IS_RUNNING(td), ("msleep"));
+	KASSERT(ident != NULL, ("msleep_spin_sbt: NULL ident"));
+	KASSERT(TD_IS_RUNNING(td), ("msleep_spin_sbt: curthread not running"));
 
 	if (SCHEDULER_STOPPED())
 		return (0);
