@@ -42,7 +42,7 @@ DPADD+=  ${LIBBSM}
 LDADD+=  -lbsm
 .endif
 
-.if ${MK_KERBEROS_SUPPORT} != "no"
+.if ${MK_GSSAPI} != "no" && ${MK_KERBEROS_SUPPORT} != "no"
 CFLAGS+= -include krb5_config.h
 SRCS+=	krb5_config.h
 DPADD+=	 ${LIBGSSAPI_KRB5} ${LIBGSSAPI} ${LIBKRB5} ${LIBHX509} ${LIBASN1} \

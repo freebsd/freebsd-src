@@ -47,7 +47,7 @@ USEPRIVATELIB+= ldns
 CFLAGS+= -I${SSHDIR} -include ssh_namespace.h
 SRCS+=	 ssh_namespace.h
 
-.if ${MK_KERBEROS_SUPPORT} != "no"
+.if ${MK_GSSAPI} != "no" && ${MK_KERBEROS_SUPPORT} != "no"
 CFLAGS+= -include krb5_config.h
 SRCS+=	 krb5_config.h
 DPADD+=	${LIBGSSAPI} ${LIBKRB5} ${LIBHX509} ${LIBASN1} ${LIBCOM_ERR} ${LIBMD} ${LIBROKEN}
