@@ -106,7 +106,12 @@ struct xpt_softc {
 	int buses_to_config;
 	int buses_config_done;
 
-	/* Registered busses */
+	/*
+	 * Registered buses
+	 *
+	 * N.B., "busses" is an archaic spelling of "buses".  In new code
+	 * "buses" is preferred.
+	 */
 	TAILQ_HEAD(,cam_eb)	xpt_busses;
 	u_int			bus_generation;
 
@@ -892,7 +897,7 @@ xpt_init(void *dummy)
 	/*
 	 * The xpt layer is, itself, the equivalent of a SIM.
 	 * Allow 16 ccbs in the ccb pool for it.  This should
-	 * give decent parallelism when we probe busses and
+	 * give decent parallelism when we probe buses and
 	 * perform other XPT functions.
 	 */
 	devq = cam_simq_alloc(16);
@@ -1627,7 +1632,7 @@ xptedtbusfunc(struct cam_eb *bus, void *arg)
 	}
 
 	/*
-	 * If the user is only interested in busses, there's no
+	 * If the user is only interested in buses, there's no
 	 * reason to descend to the next level in the tree.
 	 */
 	if ((retval & DM_RET_ACTION_MASK) == DM_RET_STOP)
@@ -2070,7 +2075,7 @@ xptperiphlistmatch(struct ccb_dev_match *cdm)
 
 	/*
 	 * At this point in the edt traversal function, we check the bus
-	 * list generation to make sure that no busses have been added or
+	 * list generation to make sure that no buses have been added or
 	 * removed since the user last sent a XPT_DEV_MATCH ccb through.
 	 * For the peripheral driver list traversal function, however, we
 	 * don't have to worry about new peripheral driver types coming or
@@ -2816,7 +2821,7 @@ call_sim:
 		/*
 		 * There are two ways of getting at information in the EDT.
 		 * The first way is via the primary EDT tree.  It starts
-		 * with a list of busses, then a list of targets on a bus,
+		 * with a list of buses, then a list of targets on a bus,
 		 * then devices/luns on a target, and then peripherals on a
 		 * device/lun.  The "other" way is by the peripheral driver
 		 * lists.  The peripheral driver lists are organized by
@@ -3356,7 +3361,7 @@ xpt_run_devq(struct cam_devq *devq)
 
 		/*
 		 * Device queues can be shared among multiple SIM instances
-		 * that reside on different busses.  Use the SIM from the
+		 * that reside on different buses.  Use the SIM from the
 		 * queued device, rather than the one from the calling bus.
 		 */
 		sim = device->sim;
@@ -3865,7 +3870,7 @@ CAM_XPT_XPORT(xport_default);
  * A sim structure, listing the SIM entry points and instance
  * identification info is passed to xpt_bus_register to hook the SIM
  * into the CAM framework.  xpt_bus_register creates a cam_eb entry
- * for this new bus and places it in the array of busses and assigns
+ * for this new bus and places it in the array of buses and assigns
  * it a path_id.  The path_id may be influenced by "hard wiring"
  * information specified by the user.  Once interrupt services are
  * available, the bus will be probed.
@@ -5040,7 +5045,7 @@ xpt_release_boot(void)
 
 		xsoftc.buses_config_done = 1;
 		xpt_unlock_buses();
-		/* Call manually because we don't have any busses */
+		/* Call manually because we don't have any buses */
 		task = malloc(sizeof(struct xpt_task), M_CAMXPT, M_NOWAIT);
 		if (task != NULL) {
 			TASK_INIT(&task->task, 0, xpt_finishconfig_task, task);
@@ -5138,7 +5143,7 @@ xpt_register_async(int event, ac_callback_t *cbfunc, void *cbarg,
 	    (csa.event_enable & AC_PATH_REGISTERED)) {
 		/*
 		 * Get this peripheral up to date with all
-		 * the currently existing busses.
+		 * the currently existing buses.
 		 */
 		xpt_for_all_busses(xptsetasyncbusfunc, &csa);
 	}

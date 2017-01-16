@@ -2297,7 +2297,7 @@ usb_needs_explore(struct usb_bus *bus, uint8_t do_probe)
  *	usb_needs_explore_all
  *
  * This function is called whenever a new driver is loaded and will
- * cause that all USB busses are re-explored.
+ * cause that all USB buses are re-explored.
  *------------------------------------------------------------------------*/
 void
 usb_needs_explore_all(void)
@@ -2315,7 +2315,7 @@ usb_needs_explore_all(void)
 		return;
 	}
 	/*
-	 * Explore all USB busses in parallel.
+	 * Explore all USB buses in parallel.
 	 */
 	max = devclass_get_maxunit(dc);
 	while (max >= 0) {

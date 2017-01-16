@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 17, 2014
+.Dd January 15, 2017
 .Dt IICBUS 4
 .Os
 .Sh NAME
@@ -112,11 +112,11 @@ different speed.
 A general purpose I2C bus, such as those found in many embedded systems,
 will often support multiple bus frequencies.
 .Pp
-When a system supports multiple I2C busses, a different frequency can
+When a system supports multiple I2C buses, a different frequency can
 be configured for each bus by number, represented by the
 .Va %d
 in the variable names below.
-Busses can be configured using any combination of device hints,
+Buses can be configured using any combination of device hints,
 Flattened Device Tree (FDT) data, tunables set via
 .Xr loader 8 ,
 or at runtime using
