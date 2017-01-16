@@ -138,7 +138,7 @@ ctl_ioctl_do_datamove(struct ctl_scsiio *ctsio)
 	struct ctl_sg_entry ext_entry, kern_entry;
 	int ext_sglen, ext_sg_entries, kern_sg_entries;
 	int ext_sg_start, ext_offset;
-	int len_to_copy, len_copied;
+	int len_to_copy;
 	int kern_watermark, ext_watermark;
 	int ext_sglist_malloced;
 	int i, j;
@@ -150,7 +150,8 @@ ctl_ioctl_do_datamove(struct ctl_scsiio *ctsio)
 	 */
 	if (ctsio->io_hdr.flags & CTL_FLAG_NO_DATAMOVE) {
 		ext_sglist_malloced = 0;
-		ctsio->ext_data_filled = ctsio->ext_data_len;
+		ctsio->ext_data_filled += ctsio->kern_data_len;
+		ctsio->kern_data_resid = 0;
 		goto bailout;
 	}
 
@@ -204,7 +205,6 @@ ctl_ioctl_do_datamove(struct ctl_scsiio *ctsio)
 
 	kern_watermark = 0;
 	ext_watermark = ext_offset;
-	len_copied = 0;
 	for (i = ext_sg_start, j = 0;
 	     i < ext_sg_entries && j < kern_sg_entries;) {
 		uint8_t *ext_ptr, *kern_ptr;
@@ -225,9 +225,6 @@ ctl_ioctl_do_datamove(struct ctl_scsiio *ctsio)
 		} else
 			kern_ptr = (uint8_t *)kern_sglist[j].addr;
 		kern_ptr = kern_ptr + kern_watermark;
-
-		kern_watermark += len_to_copy;
-		ext_watermark += len_to_copy;
 
 		if ((ctsio->io_hdr.flags & CTL_FLAG_DATA_MASK) ==
 		     CTL_FLAG_DATA_IN) {
@@ -250,20 +247,21 @@ ctl_ioctl_do_datamove(struct ctl_scsiio *ctsio)
 			}
 		}
 
-		len_copied += len_to_copy;
+		ctsio->ext_data_filled += len_to_copy;
+		ctsio->kern_data_resid -= len_to_copy;
 
+		ext_watermark += len_to_copy;
 		if (ext_sglist[i].len == ext_watermark) {
 			i++;
 			ext_watermark = 0;
 		}
 
+		kern_watermark += len_to_copy;
 		if (kern_sglist[j].len == kern_watermark) {
 			j++;
 			kern_watermark = 0;
 		}
 	}
-
-	ctsio->ext_data_filled += len_copied;
 
 	CTL_DEBUG_PRINT(("ctl_ioctl_do_datamove: ext_sg_entries: %d, "
 			 "kern_sg_entries: %d\n", ext_sg_entries,
@@ -271,15 +269,6 @@ ctl_ioctl_do_datamove(struct ctl_scsiio *ctsio)
 	CTL_DEBUG_PRINT(("ctl_ioctl_do_datamove: ext_data_len = %d, "
 			 "kern_data_len = %d\n", ctsio->ext_data_len,
 			 ctsio->kern_data_len));
-
-	/*
-	 * Report write underflow as error, since CTL and backends don't
-	 * really support it.
-	 */
-	if ((ctsio->io_hdr.flags & CTL_FLAG_DATA_MASK) == CTL_FLAG_DATA_OUT &&
-	    j < kern_sg_entries) {
-		ctsio->io_hdr.port_status = 43;
-	}
 
 bailout:
 	if (ext_sglist_malloced != 0)

@@ -300,7 +300,7 @@ cfcs_datamove(union ctl_io *io)
 	struct ctl_sg_entry ctl_sg_entry, *ctl_sglist;
 	int cam_sg_count, ctl_sg_count, cam_sg_start;
 	int cam_sg_offset;
-	int len_to_copy, len_copied;
+	int len_to_copy;
 	int ctl_watermark, cam_watermark;
 	int i, j;
 
@@ -365,7 +365,6 @@ cfcs_datamove(union ctl_io *io)
 
 	ctl_watermark = 0;
 	cam_watermark = cam_sg_offset;
-	len_copied = 0;
 	for (i = cam_sg_start, j = 0;
 	     i < cam_sg_count && j < ctl_sg_count;) {
 		uint8_t *cam_ptr, *ctl_ptr;
@@ -387,9 +386,6 @@ cfcs_datamove(union ctl_io *io)
 			ctl_ptr = (uint8_t *)ctl_sglist[j].addr;
 		ctl_ptr = ctl_ptr + ctl_watermark;
 
-		ctl_watermark += len_to_copy;
-		cam_watermark += len_to_copy;
-
 		if ((io->io_hdr.flags & CTL_FLAG_DATA_MASK) ==
 		     CTL_FLAG_DATA_IN) {
 			CTL_DEBUG_PRINT(("%s: copying %d bytes to CAM\n",
@@ -405,29 +401,21 @@ cfcs_datamove(union ctl_io *io)
 			bcopy(cam_ptr, ctl_ptr, len_to_copy);
 		}
 
-		len_copied += len_to_copy;
+		io->scsiio.ext_data_filled += len_to_copy;
+		io->scsiio.kern_data_resid -= len_to_copy;
 
+		cam_watermark += len_to_copy;
 		if (cam_sglist[i].ds_len == cam_watermark) {
 			i++;
 			cam_watermark = 0;
 		}
 
+		ctl_watermark += len_to_copy;
 		if (ctl_sglist[j].len == ctl_watermark) {
 			j++;
 			ctl_watermark = 0;
 		}
 	}
-
-	io->scsiio.ext_data_filled += len_copied;
-
-	/*
-	 * Report write underflow as error, since CTL and backends don't
-	 * really support it.
-	 */
-	if ((io->io_hdr.flags & CTL_FLAG_DATA_MASK) == CTL_FLAG_DATA_OUT &&
-	    j < ctl_sg_count) {
-		io->io_hdr.port_status = 43;
-	} else
 
 	if ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_SUCCESS) {
 		io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr = NULL;

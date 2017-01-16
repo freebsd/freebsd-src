@@ -231,6 +231,16 @@ ctl_backend_ramdisk_move_done(union ctl_io *io)
 	io->scsiio.kern_rel_offset += io->scsiio.kern_data_len;
 	if (io->io_hdr.flags & CTL_FLAG_ABORT) {
 		;
+	} else if (io->io_hdr.port_status != 0 &&
+	    ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_STATUS_NONE ||
+	     (io->io_hdr.status & CTL_STATUS_MASK) == CTL_SUCCESS)) {
+		ctl_set_internal_failure(&io->scsiio, /*sks_valid*/ 1,
+		    /*retry_count*/ io->io_hdr.port_status);
+	} else if (io->scsiio.kern_data_resid != 0 &&
+	    (io->io_hdr.flags & CTL_FLAG_DATA_MASK) == CTL_FLAG_DATA_OUT &&
+	    ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_STATUS_NONE ||
+	     (io->io_hdr.status & CTL_STATUS_MASK) == CTL_SUCCESS)) {
+		ctl_set_invalid_field_ciu(&io->scsiio);
 	} else if ((io->io_hdr.port_status == 0) &&
 	    ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_STATUS_NONE)) {
 		if (io->io_hdr.ctl_private[CTL_PRIV_BACKEND].integer > 0) {
@@ -243,21 +253,6 @@ ctl_backend_ramdisk_move_done(union ctl_io *io)
 			return (0);
 		}
 		ctl_set_success(&io->scsiio);
-	} else if ((io->io_hdr.port_status != 0) &&
-	    ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_STATUS_NONE ||
-	     (io->io_hdr.status & CTL_STATUS_MASK) == CTL_SUCCESS)) {
-		/*
-		 * For hardware error sense keys, the sense key
-		 * specific value is defined to be a retry count,
-		 * but we use it to pass back an internal FETD
-		 * error code.  XXX KDM  Hopefully the FETD is only
-		 * using 16 bits for an error code, since that's
-		 * all the space we have in the sks field.
-		 */
-		ctl_set_internal_failure(&io->scsiio,
-					 /*sks_valid*/ 1,
-					 /*retry_count*/
-					 io->io_hdr.port_status);
 	}
 	ctl_data_submit_done(io);
 	return(0);
@@ -318,7 +313,6 @@ ctl_backend_ramdisk_continue(union ctl_io *io)
 #endif /* CTL_RAMDISK_PAGES */
 
 	io->scsiio.be_move_done = ctl_backend_ramdisk_move_done;
-	io->scsiio.kern_data_resid = 0;
 	io->scsiio.kern_data_len = len_filled;
 	io->scsiio.kern_sg_entries = sg_filled;
 	io->io_hdr.flags |= CTL_FLAG_ALLOCATED;
