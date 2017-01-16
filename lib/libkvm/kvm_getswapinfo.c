@@ -112,7 +112,8 @@ int
 kvm_getswapinfo_kvm(kvm_t *kd, struct kvm_swap *swap_ary, int swap_max,
     int flags)
 {
-	int i, ttl;
+	int i;
+	swblk_t ttl;
 	TAILQ_HEAD(, swdevt) swtailq;
 	struct swdevt *sp, swinfo;
 	struct kvm_swap tot;
@@ -157,7 +158,8 @@ int
 kvm_getswapinfo_sysctl(kvm_t *kd, struct kvm_swap *swap_ary, int swap_max,
     int flags)
 {
-	int ti, ttl;
+	int ti;
+	swblk_t ttl;
 	size_t mibi, len;
 	int soid[SWI_MAXMIB];
 	struct xswdev xsd;
