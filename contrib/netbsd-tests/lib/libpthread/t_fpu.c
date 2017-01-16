@@ -60,11 +60,6 @@ __RCSID("$NetBSD: t_fpu.c,v 1.3 2017/01/16 16:27:43 christos Exp $");
 
 #include <atf-c.h>
 
-#ifdef	__FreeBSD__
-#include <errno.h>
-#include <string.h>
-#endif
-
 #include "h_common.h"
 
 #define N_RECURSE 10
