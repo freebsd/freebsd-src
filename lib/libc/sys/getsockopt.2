@@ -187,6 +187,7 @@ The following options are recognized in
 .It Dv SO_LISTENQLEN Ta "get complete queue length of the socket (get only)"
 .It Dv SO_LISTENINCQLEN Ta "get incomplete queue length of the socket (get only)"
 .It Dv SO_USER_COOKIE Ta "set the 'so_user_cookie' value for the socket (uint32_t, set only)"
+.It Dv SO_TS_CLOCK Ta "set specific format of timestamp returned by SO_TIMESTAMP"
 .El
 .Pp
 .Dv SO_DEBUG
@@ -435,7 +436,7 @@ for
 .Dv SO_BINTIME .
 The
 .Vt cmsghdr
-fields have the following values for TIMESTAMP:
+fields have the following values for TIMESTAMP by default:
 .Bd -literal
      cmsg_len = CMSG_LEN(sizeof(struct timeval));
      cmsg_level = SOL_SOCKET;
@@ -449,6 +450,24 @@ and for
      cmsg_level = SOL_SOCKET;
      cmsg_type = SCM_BINTIME;
 .Ed
+.Pp
+Additional timestamp types are available by following
+.Dv SO_TIMESTAMP
+with
+.Dv SO_TS_CLOCK ,
+which requests specific timestamp format to be returned instead of
+.Dv SCM_TIMESTAMP when
+.Dv SO_TIMESTAMP is enabled.
+The following
+.Dv SO_TS_CLOCK
+values are recognized in
+.Fx :
+.Bl -column SO_TS_CLOCK -offset indent
+.It Dv SO_TS_REALTIME_MICRO Ta "realtime (SCM_TIMESTAMP, struct timeval), default"
+.It Dv SO_TS_BINTIME Ta "realtime (SCM_BINTIME, struct bintime)"
+.It Dv SO_TS_REALTIME Ta "realtime (SCM_REALTIME, struct timespec)"
+.It Dv SO_TS_MONOTONIC Ta "monotonic time (SCM_MONOTONIC, struct timespec)"
+.El
 .Pp
 .Dv SO_ACCEPTCONN ,
 .Dv SO_TYPE ,
