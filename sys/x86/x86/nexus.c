@@ -210,7 +210,7 @@ nexus_init_resources(void)
 	 *
 	 * - IRQ resource creation should be moved to the PIC/APIC driver.
 	 * - DRQ resource creation should be moved to the DMAC driver.
-	 * - The above should be sorted to probe earlier than any child busses.
+	 * - The above should be sorted to probe earlier than any child buses.
 	 *
 	 * - Leave I/O and memory creation here, as child probes may need them.
 	 *   (especially eg. ACPI)

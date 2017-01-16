@@ -127,6 +127,8 @@ static int
 ar8316_hw_global_setup(struct arswitch_softc *sc)
 {
 
+	ARSWITCH_LOCK(sc);
+
 	arswitch_writereg(sc->sc_dev, 0x38, AR8X16_MAGIC);
 
 	/* Enable CPU port and disable mirror port. */
@@ -156,6 +158,7 @@ ar8316_hw_global_setup(struct arswitch_softc *sc)
 	arswitch_modifyreg(sc->sc_dev, AR8X16_REG_SERVICE_TAG,
 	    AR8X16_SERVICE_TAG_MASK, 0);
 
+	ARSWITCH_UNLOCK(sc);
 	return (0);
 }
 

@@ -344,6 +344,7 @@ static struct {
 	{ &null_filtops },			/* EVFILT_LIO */
 	{ &user_filtops, 1 },			/* EVFILT_USER */
 	{ &null_filtops },			/* EVFILT_SENDFILE */
+	{ &file_filtops, 1 },                   /* EVFILT_EMPTY */
 };
 
 /*
