@@ -1,4 +1,4 @@
-/* $NetBSD: t_swapcontext.c,v 1.2 2014/08/25 16:31:15 bouyer Exp $ */
+/* $NetBSD: t_swapcontext.c,v 1.3 2017/01/16 16:27:06 christos Exp $ */
 
 /*
  * Copyright (c) 2012 Emmanuel Dreyfus. All rights reserved.
@@ -28,15 +28,13 @@
 #include <sys/cdefs.h>
 __RCSID("$NetBSD");
 
-#ifdef __FreeBSD__
 #include <sys/types.h>
 #include <errno.h>
-#include <string.h>
-#endif
 #include <pthread.h>
-#include <ucontext.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <ucontext.h>
 
 #include <atf-c.h>
 
@@ -82,12 +80,8 @@ threadfunc(void *arg)
        
 	oself = (void *)pthread_self();
 	printf("before swapcontext self = %p\n", oself);
-#ifdef	__FreeBSD__
 	ATF_REQUIRE_MSG(swapcontext(&octx, &nctx) != -1, "swapcontext failed: %s",
 	    strerror(errno));
-#else
-	PTHREAD_REQUIRE(swapcontext(&octx, &nctx));
-#endif
 
 	/* NOTREACHED */
 	return NULL;
@@ -118,12 +112,8 @@ ATF_TC_BODY(swapcontext1, tc)
 
 	printf("Testing if swapcontext() alters pthread_self()\n");
 
-#ifdef	__FreeBSD__
 	ATF_REQUIRE_MSG(getcontext(&nctx) != -1, "getcontext failed: %s",
 	    strerror(errno));
-#else
-	PTHREAD_REQUIRE(getcontext(&nctx));
-#endif
 	PTHREAD_REQUIRE(pthread_create(&thread, NULL, threadfunc, NULL));
 	PTHREAD_REQUIRE(pthread_join(thread, NULL));
 }
