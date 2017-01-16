@@ -1,4 +1,4 @@
-/* $NetBSD: h_read.c,v 1.1 2010/12/27 02:04:19 pgoyette Exp $ */
+/* $NetBSD: h_read.c,v 1.2 2017/01/16 16:35:57 christos Exp $ */
 
 /*
  * Copyright (c) 2008 The NetBSD Foundation, Inc.
@@ -29,9 +29,11 @@
 #include <sys/cdefs.h>
 __COPYRIGHT("@(#) Copyright (c) 2008\
  The NetBSD Foundation, inc. All rights reserved.");
-__RCSID("$NetBSD: h_read.c,v 1.1 2010/12/27 02:04:19 pgoyette Exp $");
+__RCSID("$NetBSD: h_read.c,v 1.2 2017/01/16 16:35:57 christos Exp $");
 
 #include <sys/param.h>
+#include <fcntl.h>
+#include <paths.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -40,8 +42,13 @@ int
 main(int argc, char *argv[])
 {
 	char b[MAXPATHLEN];
+	int fd, n;
 	size_t len = atoi(argv[1]);
-	(void)read(0, b, len);
+
+	if ((fd = open(_PATH_DEVZERO, O_RDONLY)) == -1)
+		abort();
+	if ((n = read(fd, b, len)) == -1)
+		abort();
 	(void)printf("%s\n", b);
-	return 0;
+	return (0);
 }
