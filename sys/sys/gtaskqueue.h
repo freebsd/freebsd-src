@@ -115,7 +115,7 @@ taskqgroup_adjust_##name(void *arg)					\
 	taskqgroup_adjust(qgroup_##name, (cnt), (stride));		\
 }									\
 									\
-SYSINIT(taskqgroup_adj_##name, SI_SUB_SMP, SI_ORDER_ANY,		\
+SYSINIT(taskqgroup_adj_##name, SI_SUB_INIT_IF, SI_ORDER_ANY,		\
 	taskqgroup_adjust_##name, NULL);				\
 									\
 struct __hack
