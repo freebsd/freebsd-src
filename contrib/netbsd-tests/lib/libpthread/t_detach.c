@@ -39,10 +39,6 @@ __RCSID("$NetBSD: t_detach.c,v 1.2 2017/01/16 16:29:54 christos Exp $");
 
 #include "h_common.h"
 
-#ifdef __FreeBSD__
-#include <time.h>
-#endif
-
 static void	*func(void *);
 
 static void *

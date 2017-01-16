@@ -112,10 +112,6 @@ __RCSID("$NetBSD: t_sem.c,v 1.9 2017/01/16 16:22:22 christos Exp $");
 
 static sem_t sem;
 
-#ifdef __FreeBSD__
-#include <sys/time.h>
-#endif
-
 ATF_TC(named);
 ATF_TC_HEAD(named, tc)
 {
