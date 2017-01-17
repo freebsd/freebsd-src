@@ -4,10 +4,10 @@
 # -----------------------------------------------------------------------------
 #
 # int_curr_symbol (last character always SPACE)
-BYR 
+BYN 
 #
 # currency_symbol
-à.
+Br
 #
 # mon_decimal_point
 ,
@@ -25,22 +25,22 @@ BYR
 -
 #
 # int_frac_digits
-0
+2
 #
 # frac_digits
-0
+2
 #
 # p_cs_precedes
-1
+0
 #
 # p_sep_by_space
-0
-#
-# n_cs_precedes
 1
 #
-# n_sep_by_space
+# n_cs_precedes
 0
+#
+# n_sep_by_space
+1
 #
 # p_sign_posn
 1
