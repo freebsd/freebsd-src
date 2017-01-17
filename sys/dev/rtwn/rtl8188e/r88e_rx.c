@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/rtwn/if_rtwn_debug.h>
 #include <dev/rtwn/if_rtwn_ridx.h>
 
+#include <dev/rtwn/rtl8192c/r92c.h>
 #include <dev/rtwn/rtl8188e/r88e.h>
 #include <dev/rtwn/rtl8188e/r88e_rx_desc.h>
 
@@ -208,4 +209,20 @@ r88e_get_rssi_ofdm(struct rtwn_softc *sc, void *physt)
 	rssi = ((phy->sig_qual >> 1) & 0x7f) - 110;
 
 	return (rssi);
+}
+
+void
+r88e_get_rx_stats(struct rtwn_softc *sc, struct ieee80211_rx_stats *rxs,
+    const void *desc, const void *physt_ptr)
+{
+	const struct r88e_rx_phystat *physt = physt_ptr;
+
+	r92c_get_rx_stats(sc, rxs, desc, physt_ptr);
+
+	if (!sc->sc_ht40) {	/* XXX center channel */
+		rxs->r_flags |= IEEE80211_R_IEEE | IEEE80211_R_FREQ;
+		rxs->c_ieee = le16toh(physt->chan);
+		rxs->c_freq = ieee80211_ieee2mhz(rxs->c_ieee,
+		    IEEE80211_CHAN_2GHZ);
+	}
 }

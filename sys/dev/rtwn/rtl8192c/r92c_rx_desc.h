@@ -45,6 +45,9 @@ struct r92c_rx_stat {
 	uint32_t	rxdw1;
 #define R92C_RXDW1_MACID_M	0x0000001f
 #define R92C_RXDW1_MACID_S	0
+#define R92C_RXDW1_AMSDU	0x00002000
+#define R92C_RXDW1_AMPDU_MORE	0x00004000
+#define R92C_RXDW1_AMPDU	0x00008000
 #define R92C_RXDW1_MC		0x40000000
 #define R92C_RXDW1_BC		0x80000000
 
@@ -56,6 +59,8 @@ struct r92c_rx_stat {
 #define R92C_RXDW3_SPLCP	0x00000100
 #define R92C_RXDW3_HT40		0x00000200
 #define R92C_RXDW3_HTC		0x00000400
+#define R92C_RXDW3_BSSID_FIT_M	0x00003000
+#define R92C_RXDW3_BSSID_FIT_S	12
 
 	uint32_t	rxdw4;
 	uint32_t	tsf_low;
