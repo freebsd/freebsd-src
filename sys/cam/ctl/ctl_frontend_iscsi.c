@@ -2084,7 +2084,8 @@ cfiscsi_ioctl_port_create(struct ctl_req *req)
 	if (ct->ct_state == CFISCSI_TARGET_STATE_ACTIVE) {
 		req->status = CTL_LUN_ERROR;
 		snprintf(req->error_str, sizeof(req->error_str),
-		    "target \"%s\" already exists", target);
+		    "target \"%s\" for portal group tag %u already exists",
+		    target, tag);
 		cfiscsi_target_release(ct);
 		ctl_free_opts(&opts);
 		return;
