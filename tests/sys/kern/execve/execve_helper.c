@@ -50,5 +50,5 @@ main(int argc, char **argv)
 	}
 
 	execve(argv[1], &argv[1], NULL);
-	err(1, "");
+	err(1, "execve failed");
 }
