@@ -2716,6 +2716,7 @@ dev/rtwn/rtl8821a/r21a_led.c	optional rtwn
 dev/rtwn/rtl8821a/r21a_rom.c	optional rtwn
 dev/rtwn/rtl8821a/r21a_rx.c	optional rtwn
 dev/rtwn/rtl8821a/usb/r21au_attach.c	optional rtwn_usb
+dev/rtwn/rtl8821a/usb/r21au_dfs.c	optional rtwn_usb
 dev/rtwn/rtl8821a/usb/r21au_init.c	optional rtwn_usb
 rtwn-rtl8188eufw.c		optional rtwn-rtl8188eufw | rtwnfw	\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk rtwn-rtl8188eufw.fw:rtwn-rtl8188eufw:111 -mrtwn-rtl8188eufw -c${.TARGET}" \
