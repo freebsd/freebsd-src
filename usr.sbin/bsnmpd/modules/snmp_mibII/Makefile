@@ -21,8 +21,3 @@ INCS=	snmp_${MOD}.h
 BMIBS=	BEGEMOT-IP-MIB.txt BEGEMOT-MIB2-MIB.txt
 
 .include <bsd.snmpmod.mk>
-
-smilint: .PHONY
-smilint: ${BMIBS}
-	env SMIPATH=/usr/share/snmp/mibs:/usr/local/share/snmp/mibs \
-	    smilint -c /dev/null -l6 -i group-membership ${.ALLSRC}
