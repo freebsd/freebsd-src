@@ -152,9 +152,10 @@ VNET_DEFINE(int, crypto_support) = CRYPTOCAP_F_HARDWARE | CRYPTOCAP_F_SOFTWARE;
 /*
  * TCP/UDP checksum handling policy for transport mode NAT-T (RFC3948)
  *
- * 0 - incrementally recompute.
+ * 0 - auto: incrementally recompute, when checksum delta is known;
+ *     if checksum delta isn't known, reset checksum to zero for UDP,
+ *     and mark csum_flags as valid for TCP.
  * 1 - fully recompute TCP/UDP checksum.
- * 2 - for UDP reset checksum to zero; for TCP mark csum_flags as valid.
  */
 VNET_DEFINE(int, natt_cksum_policy) = 0;
 

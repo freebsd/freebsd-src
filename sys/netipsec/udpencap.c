@@ -261,14 +261,25 @@ udp_ipsec_adjust_cksum(struct mbuf *m, struct secasvar *sav, int proto,
 	else
 		off = offsetof(struct tcphdr, th_sum);
 
-	switch (V_natt_cksum_policy) {
-	case 0:	/* Incrementally recompute. */
-		if (sav->natt->cksum == 0) /* No OA from IKEd */
-			return;
-		m_copydata(m, skip + off, sizeof(cksum), (caddr_t)&cksum);
-		cksum = in_addword(cksum, sav->natt->cksum);
-		break;
-	case 1: /* Fully recompute */
+	if (V_natt_cksum_policy == 0) {	/* auto */
+		if (sav->natt->cksum != 0) {
+			/* Incrementally recompute. */
+			m_copydata(m, skip + off, sizeof(cksum),
+			    (caddr_t)&cksum);
+			cksum = in_addword(cksum, sav->natt->cksum);
+		} else {
+			/* No OA from IKEd. */
+			if (proto == IPPROTO_TCP) {
+				/* Ignore for TCP. */
+				m->m_pkthdr.csum_data = 0xffff;
+				m->m_pkthdr.csum_flags |= (CSUM_DATA_VALID |
+				    CSUM_PSEUDO_HDR);
+				return;
+			}
+			cksum = 0; /* Reset for UDP. */
+		}
+		m_copyback(m, skip + off, sizeof(cksum), (caddr_t)&cksum);
+	} else { /* Fully recompute */
 		ip = mtod(m, struct ip *);
 		cksum = in_pseudo(ip->ip_src.s_addr, ip->ip_dst.s_addr,
 		    htons(m->m_pkthdr.len - skip + proto));
@@ -278,16 +289,6 @@ udp_ipsec_adjust_cksum(struct mbuf *m, struct secasvar *sav, int proto,
 		m->m_pkthdr.csum_data = off;
 		in_delayed_cksum(m);
 		m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
-		return;
-	default:/* Reset for UDP, ignore for TCP */
-		if (proto == IPPROTO_UDP) {
-			cksum = 0;
-			break;
-		}
-		m->m_pkthdr.csum_data = 0xffff;
-		m->m_pkthdr.csum_flags |= (CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
-		return;
 	}
-	m_copyback(m, skip + off, sizeof(cksum), (caddr_t)&cksum);
 }
 
