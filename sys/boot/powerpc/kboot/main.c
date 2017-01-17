@@ -38,10 +38,7 @@ __FBSDID("$FreeBSD$");
 struct arch_switch	archsw;
 extern void *_end;
 
-extern char bootprog_name[];
-extern char bootprog_rev[];
-extern char bootprog_date[];
-extern char bootprog_maker[];
+extern char bootprog_info[];
 
 int kboot_getdev(void **vdev, const char *devspec, const char **path);
 ssize_t kboot_copyin(const void *src, vm_offset_t dest, const size_t len);
@@ -119,9 +116,7 @@ main(int argc, const char **argv)
 	archsw.arch_autoload = kboot_autoload;
 	archsw.arch_loadaddr = kboot_loadaddr;
 
-	printf("\n");
-	printf("%s, Revision %s\n", bootprog_name, bootprog_rev);
-	printf("(%s, %s)\n", bootprog_maker, bootprog_date);
+	printf("\n%s", bootprog_info);
 
 	setenv("currdev", bootdev, 1);
 	setenv("loaddev", bootdev, 1);

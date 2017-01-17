@@ -41,10 +41,7 @@ __FBSDID("$FreeBSD$");
 struct arch_switch	archsw;
 extern void *_end;
 
-extern char bootprog_name[];
-extern char bootprog_rev[];
-extern char bootprog_date[];
-extern char bootprog_maker[];
+extern char bootprog_info[];
 
 int ps3_getdev(void **vdev, const char *devspec, const char **path);
 ssize_t ps3_copyin(const void *src, vm_offset_t dest, const size_t len);
@@ -133,9 +130,7 @@ main(void)
 	archsw.arch_readin = ps3_readin;
 	archsw.arch_autoload = ps3_autoload;
 
-	printf("\n");
-	printf("%s, Revision %s\n", bootprog_name, bootprog_rev);
-	printf("(%s, %s)\n", bootprog_maker, bootprog_date);
+	printf("\n%s", bootprog_info);
 	printf("Memory: %lldKB\n", maxmem / 1024);
 
 	env_setenv("currdev", EV_VOLATILE, ps3_fmtdev(&currdev),
