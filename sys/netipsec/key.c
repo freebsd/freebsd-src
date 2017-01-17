@@ -4968,12 +4968,6 @@ key_update(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 	if (SADB_CHECKHDR(mhp, SADB_EXT_SA) ||
 	    SADB_CHECKHDR(mhp, SADB_EXT_ADDRESS_SRC) ||
 	    SADB_CHECKHDR(mhp, SADB_EXT_ADDRESS_DST) ||
-	    (mhp->msg->sadb_msg_satype == SADB_SATYPE_ESP && (
-		SADB_CHECKHDR(mhp, SADB_EXT_KEY_ENCRYPT) ||
-		SADB_CHECKLEN(mhp, SADB_EXT_KEY_ENCRYPT))) ||
-	    (mhp->msg->sadb_msg_satype == SADB_SATYPE_AH && (
-		SADB_CHECKHDR(mhp, SADB_EXT_KEY_AUTH) ||
-		SADB_CHECKLEN(mhp, SADB_EXT_KEY_AUTH))) ||
 	    (SADB_CHECKHDR(mhp, SADB_EXT_LIFETIME_HARD) &&
 		!SADB_CHECKHDR(mhp, SADB_EXT_LIFETIME_SOFT)) ||
 	    (SADB_CHECKHDR(mhp, SADB_EXT_LIFETIME_SOFT) &&
@@ -5053,6 +5047,16 @@ key_update(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 	}
 
 	if (sav->state == SADB_SASTATE_LARVAL) {
+		if ((mhp->msg->sadb_msg_satype == SADB_SATYPE_ESP &&
+		    SADB_CHECKHDR(mhp, SADB_EXT_KEY_ENCRYPT)) ||
+		    (mhp->msg->sadb_msg_satype == SADB_SATYPE_AH &&
+		    SADB_CHECKHDR(mhp, SADB_EXT_KEY_AUTH))) {
+			ipseclog((LOG_DEBUG,
+			    "%s: invalid message: missing required header.\n",
+			    __func__));
+			key_freesav(&sav);
+			return key_senderror(so, m, EINVAL);
+		}
 		/*
 		 * We can set any values except src, dst and SPI.
 		 */
