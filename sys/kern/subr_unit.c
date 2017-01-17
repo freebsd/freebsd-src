@@ -192,7 +192,7 @@ CTASSERT(sizeof(struct unr) == sizeof(struct unrb));
  * Consistency check function.
  *
  * Checks the internal consistency as well as we can.
- * 
+ *
  * Called at all boundaries of this API.
  */
 static void
@@ -220,7 +220,7 @@ check_unrhdr(struct unrhdr *uh, int line)
 			    ("UNR inconsistency: busy %u found %u (line %d)\n",
 			    ub->busy, w, line));
 			y += w;
-		} else if (up->ptr != NULL) 
+		} else if (up->ptr != NULL)
 			y += up->len;
 	}
 	KASSERT (y == uh->busy,
@@ -355,7 +355,7 @@ is_bitmap(struct unrhdr *uh, struct unr *up)
 /*
  * Look for sequence of items which can be combined into a bitmap, if
  * multiple are present, take the one which saves most memory.
- * 
+ *
  * Return (1) if a sequence was found to indicate that another call
  * might be able to do more.  Return (0) if we found no suitable sequence.
  *
@@ -582,7 +582,7 @@ alloc_unrl(struct unrhdr *uh)
 	}
 
 	/*
-	 * We can always allocate from the first list element, so if we have 
+	 * We can always allocate from the first list element, so if we have
 	 * nothing on the list, we must have run out of unit numbers.
 	 */
 	if (up == NULL)
@@ -797,7 +797,7 @@ free_unrl(struct unrhdr *uh, u_int item, void **p1, void **p2)
 	/* Handle bitmap items */
 	if (is_bitmap(uh, up)) {
 		ub = up->ptr;
-		
+
 		KASSERT(bit_test(ub->map, item) != 0,
 		    ("UNR: Freeing free item %d (bitmap)\n", item));
 		bit_clear(ub->map, item);
@@ -900,7 +900,7 @@ print_unr(struct unrhdr *uh, struct unr *up)
 		for (x = 0; x < up->len; x++) {
 			if (bit_test(ub->map, x))
 				printf("#");
-			else 
+			else
 				printf(" ");
 		}
 		printf("]\n");
