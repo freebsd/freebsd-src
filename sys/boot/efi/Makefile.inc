@@ -22,4 +22,8 @@ CFLAGS+=	-mno-aes
 CFLAGS+=	-fshort-wchar
 .endif
 
+.if ${MACHINE_CPUARCH} == "arm"
+CFLAGS+=	-fPIC
+.endif
+
 .include "../Makefile.inc"
