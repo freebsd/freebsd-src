@@ -65,20 +65,20 @@
 
 8	AUE_NULL	STD	{ size_t cloudabi32_sys_fd_pread( \
 					cloudabi_fd_t fd, \
-					const cloudabi32_iovec_t *iov, \
-					size_t iovcnt, \
+					const cloudabi32_iovec_t *iovs, \
+					size_t iovs_len, \
 					cloudabi_filesize_t offset); }
 
 9	AUE_NULL	STD	{ size_t cloudabi32_sys_fd_pwrite( \
 					cloudabi_fd_t fd, \
-					const cloudabi32_ciovec_t *iov, \
-					size_t iovcnt, \
+					const cloudabi32_ciovec_t *iovs, \
+					size_t iovs_len, \
 					cloudabi_filesize_t offset); }
 
 10	AUE_NULL	STD	{ size_t cloudabi32_sys_fd_read( \
 					cloudabi_fd_t fd, \
-					const cloudabi32_iovec_t *iov, \
-					size_t iovcnt); }
+					const cloudabi32_iovec_t *iovs, \
+					size_t iovs_len); }
 
 11	AUE_NULL	STD	{ void cloudabi_sys_fd_replace( \
 					cloudabi_fd_t from, \
@@ -104,8 +104,8 @@
 
 16	AUE_NULL	STD	{ size_t cloudabi32_sys_fd_write( \
 					cloudabi_fd_t fd, \
-					const cloudabi32_ciovec_t *iov, \
-					size_t iovcnt); }
+					const cloudabi32_ciovec_t *iovs, \
+					size_t iovs_len); }
 
 17	AUE_NULL	STD	{ void cloudabi_sys_file_advise( \
 					cloudabi_fd_t fd, \
@@ -121,44 +121,44 @@
 19	AUE_NULL	STD	{ void cloudabi_sys_file_create( \
 					cloudabi_fd_t fd, \
 					const char *path, \
-					size_t pathlen, \
+					size_t path_len, \
 					cloudabi_filetype_t type); }
 
 20	AUE_NULL	STD	{ void cloudabi_sys_file_link( \
 					cloudabi_lookup_t fd1, \
 					const char *path1, \
-					size_t path1len, \
+					size_t path1_len, \
 					cloudabi_fd_t fd2, \
 					const char *path2, \
-					size_t path2len); }
+					size_t path2_len); }
 
 21	AUE_NULL	STD	{ cloudabi_fd_t cloudabi_sys_file_open( \
 					cloudabi_lookup_t dirfd, \
 					const char *path, \
-					size_t pathlen, \
+					size_t path_len, \
 					cloudabi_oflags_t oflags, \
 					const cloudabi_fdstat_t *fds); }
 
 22	AUE_NULL	STD	{ size_t cloudabi_sys_file_readdir( \
 					cloudabi_fd_t fd, \
 					void *buf, \
-					size_t nbyte, \
+					size_t buf_len, \
 					cloudabi_dircookie_t cookie); }
 
 23	AUE_NULL	STD	{ size_t cloudabi_sys_file_readlink( \
 					cloudabi_fd_t fd, \
 					const char *path, \
-					size_t pathlen, \
+					size_t path_len, \
 					char *buf, \
-					size_t bufsize); }
+					size_t buf_len); }
 
 24	AUE_NULL	STD	{ void cloudabi_sys_file_rename( \
-					cloudabi_fd_t oldfd, \
-					const char *old, \
-					size_t oldlen, \
-					cloudabi_fd_t newfd, \
-					const char *new, \
-					size_t newlen); }
+					cloudabi_fd_t fd1, \
+					const char *path1, \
+					size_t path1_len, \
+					cloudabi_fd_t fd2, \
+					const char *path2, \
+					size_t path2_len); }
 
 25	AUE_NULL	STD	{ void cloudabi_sys_file_stat_fget( \
 					cloudabi_fd_t fd, \
@@ -172,27 +172,27 @@
 27	AUE_NULL	STD	{ void cloudabi_sys_file_stat_get( \
 					cloudabi_lookup_t fd, \
 					const char *path, \
-					size_t pathlen, \
+					size_t path_len, \
 					cloudabi_filestat_t *buf); }
 
 28	AUE_NULL	STD	{ void cloudabi_sys_file_stat_put( \
 					cloudabi_lookup_t fd, \
 					const char *path, \
-					size_t pathlen, \
+					size_t path_len, \
 					const cloudabi_filestat_t *buf, \
 					cloudabi_fsflags_t flags); }
 
 29	AUE_NULL	STD	{ void cloudabi_sys_file_symlink( \
 					const char *path1, \
-					size_t path1len, \
+					size_t path1_len, \
 					cloudabi_fd_t fd, \
 					const char *path2, \
-					size_t path2len); }
+					size_t path2_len); }
 
 30	AUE_NULL	STD	{ void cloudabi_sys_file_unlink( \
 					cloudabi_fd_t fd, \
 					const char *path, \
-					size_t pathlen, \
+					size_t path_len, \
 					cloudabi_ulflags_t flags); }
 
 31	AUE_NULL	STD	{ void cloudabi_sys_lock_unlock( \
@@ -200,13 +200,13 @@
 					cloudabi_scope_t scope); }
 
 32	AUE_NULL	STD	{ void cloudabi_sys_mem_advise( \
-					void *addr, \
-					size_t len, \
+					void *mapping, \
+					size_t mapping_len, \
 					cloudabi_advice_t advice); }
 
 33	AUE_NULL	STD	{ void cloudabi_sys_mem_lock( \
-					const void *addr, \
-					size_t len); }
+					const void *mapping, \
+					size_t mapping_len); }
 
 34	AUE_NULL	STD	{ void cloudabi_sys_mem_map( \
 					void *addr, \
@@ -217,22 +217,22 @@
 					cloudabi_filesize_t off); }
 
 35	AUE_NULL	STD	{ void cloudabi_sys_mem_protect( \
-					void *addr, \
-					size_t len, \
+					void *mapping, \
+					size_t mapping_len, \
 					cloudabi_mprot_t prot); }
 
 36	AUE_NULL	STD	{ void cloudabi_sys_mem_sync( \
-					void *addr, \
-					size_t len, \
+					void *mapping, \
+					size_t mapping_len, \
 					cloudabi_msflags_t flags); }
 
 37	AUE_NULL	STD	{ void cloudabi_sys_mem_unlock( \
-					const void *addr, \
-					size_t len); }
+					const void *mapping, \
+					size_t mapping_len); }
 
 38	AUE_NULL	STD	{ void cloudabi_sys_mem_unmap( \
-					void *addr, \
-					size_t len); }
+					void *mapping, \
+					size_t mapping_len); }
 
 39	AUE_NULL	STD	{ size_t cloudabi32_sys_poll( \
 					const cloudabi32_subscription_t *in, \
@@ -242,17 +242,17 @@
 40	AUE_NULL	STD	{ size_t cloudabi32_sys_poll_fd( \
 					cloudabi_fd_t fd, \
 					const cloudabi32_subscription_t *in, \
-					size_t nin, \
+					size_t in_len, \
 					cloudabi32_event_t *out, \
-					size_t nout, \
+					size_t out_len, \
 					const cloudabi32_subscription_t *timeout); }
 
 41	AUE_NULL	STD	{ void cloudabi_sys_proc_exec( \
 					cloudabi_fd_t fd, \
 					const void *data, \
-					size_t datalen, \
+					size_t data_len, \
 					const cloudabi_fd_t *fds, \
-					size_t fdslen); }
+					size_t fds_len); }
 
 42	AUE_NULL	STD	{ void cloudabi_sys_proc_exit( \
 					cloudabi_exitcode_t rval); }
@@ -264,7 +264,7 @@
 
 45	AUE_NULL	STD	{ void cloudabi_sys_random_get( \
 					void *buf, \
-					size_t nbyte); }
+					size_t buf_len); }
 
 46	AUE_NULL	STD	{ cloudabi_fd_t cloudabi_sys_sock_accept( \
 					cloudabi_fd_t sock, \
@@ -274,13 +274,13 @@
 					cloudabi_fd_t sock, \
 					cloudabi_fd_t fd, \
 					const char *path, \
-					size_t pathlen); }
+					size_t path_len); }
 
 48	AUE_NULL	STD	{ void cloudabi_sys_sock_connect( \
 					cloudabi_fd_t sock, \
 					cloudabi_fd_t fd, \
 					const char *path, \
-					size_t pathlen); }
+					size_t path_len); }
 
 49	AUE_NULL	STD	{ void cloudabi_sys_sock_listen( \
 					cloudabi_fd_t sock, \
