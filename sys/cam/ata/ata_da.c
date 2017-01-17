@@ -513,6 +513,14 @@ static struct ada_quirk_entry ada_quirk_table[] =
 	},
 	{
 		/*
+		 * Intel S3610 Series SSDs
+		 * 4k optimised & trim only works in 4k requests + 4k aligned
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "INTEL SSDSC2BX*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/*
 		 * Intel X25-M Series SSDs
 		 * 4k optimised & trim only works in 4k requests + 4k aligned
 		 */
@@ -566,6 +574,14 @@ static struct ada_quirk_entry ada_quirk_table[] =
 		 */
 		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "Micron M5[15]0*", "MU01" },
 		/*quirks*/ADA_Q_NCQ_TRIM_BROKEN
+	},
+	{
+		/*
+		 * Micron 5100 SSDs
+		 * 4k optimised & trim only works in 4k requests + 4k aligned
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "Micron 5100 MTFDDAK*", "*" },
+		/*quirks*/ADA_Q_4K
 	},
 	{
 		/*
