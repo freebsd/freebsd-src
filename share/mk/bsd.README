@@ -418,7 +418,15 @@ tree.
 bsd.snmpmod.mk leverages bsd.lib.mk for building MIB modules and
 bsd.files.mk for installing MIB description and definition files.
 
-It has no additional targets.
+It implements the following additional targets:
+
+	smilint:
+		execute smilint on the MIBs defined by BMIBS.
+
+		The net-mgmt/libsmi package must be installed before
+		executing this target. The net-mgmt/net-snmp package
+		should be installed as well to reduce false positives
+		from smilint.
 
 It sets/uses the following variables:
 
@@ -444,7 +452,18 @@ EXTRAMIBSYMS	Extra MIB definition files used only for extracting
 
 		See ${MOD}_oid.h for more details.
 
+LOCALBASE	The package root where smilint and the net-snmp
+		definitions can be found
+
 MOD		The bsnmpd module name.
+
+SMILINT		smilint binary to use with the smilint make target.
+
+SMILINT_FLAGS	flags to pass to smilint.
+
+SMIPATH		A colon-separated directory path where MIBs definitions
+		can be found. See "SMIPATH" in smi_config for more
+		details.
 
 XSYM		MIB names to extract symbols for. See ${MOD}_oid.h for
 		more details.
