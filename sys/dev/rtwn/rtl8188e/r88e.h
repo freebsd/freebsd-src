@@ -85,6 +85,8 @@ void	r88e_ratectl_tx_complete(struct rtwn_softc *, uint8_t *, int);
 void	r88e_handle_c2h_report(struct rtwn_softc *, uint8_t *, int);
 int8_t	r88e_get_rssi_cck(struct rtwn_softc *, void *);
 int8_t	r88e_get_rssi_ofdm(struct rtwn_softc *, void *);
+void	r88e_get_rx_stats(struct rtwn_softc *, struct ieee80211_rx_stats *,
+	    const void *, const void *);
 
 /* r88e_tx.c */
 void	r88e_tx_enable_ampdu(void *, int);

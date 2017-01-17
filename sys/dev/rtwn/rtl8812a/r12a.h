@@ -128,6 +128,8 @@ void	r12a_ratectl_tx_complete(struct rtwn_softc *, uint8_t *, int);
 void	r12a_handle_c2h_report(struct rtwn_softc *, uint8_t *, int);
 int	r12a_check_frame_checksum(struct rtwn_softc *, struct mbuf *);
 uint8_t	r12a_rx_radiotap_flags(const void *);
+void	r12a_get_rx_stats(struct rtwn_softc *, struct ieee80211_rx_stats *,
+	    const void *, const void *);
 
 /* r12a_tx.c */
 void	r12a_fill_tx_desc(struct rtwn_softc *, struct ieee80211_node *,

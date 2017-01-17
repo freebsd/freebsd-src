@@ -172,6 +172,7 @@ r92ce_attach(struct rtwn_pci_softc *pc)
 	sc->sc_dump_tx_desc		= r92ce_dump_tx_desc;
 	sc->sc_tx_radiotap_flags	= r92c_tx_radiotap_flags;
 	sc->sc_rx_radiotap_flags	= r92c_rx_radiotap_flags;
+	sc->sc_get_rx_stats		= r92c_get_rx_stats;
 	sc->sc_get_rssi_cck		= r92c_get_rssi_cck;
 	sc->sc_get_rssi_ofdm		= r92c_get_rssi_ofdm;
 	sc->sc_classify_intr		= r92ce_classify_intr;

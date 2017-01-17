@@ -127,6 +127,7 @@ r88eu_attach(struct rtwn_usb_softc *uc)
 	sc->sc_dump_tx_desc		= r92cu_dump_tx_desc;
 	sc->sc_tx_radiotap_flags	= r92c_tx_radiotap_flags;
 	sc->sc_rx_radiotap_flags	= r92c_rx_radiotap_flags;
+	sc->sc_get_rx_stats		= r88e_get_rx_stats;
 	sc->sc_get_rssi_cck		= r88e_get_rssi_cck;
 	sc->sc_get_rssi_ofdm		= r88e_get_rssi_ofdm;
 	sc->sc_classify_intr		= r88eu_classify_intr;

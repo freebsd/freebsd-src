@@ -1999,6 +1999,7 @@ rtwn_stop(struct rtwn_softc *sc)
 	sc->fwver = 0;
 	sc->thcal_temp = 0;
 	sc->cur_bcnq_id = RTWN_VAP_ID_INVALID;
+	bzero(&sc->last_physt, sizeof(sc->last_physt));
 
 #ifdef D4054
 	ieee80211_tx_watchdog_stop(&sc->sc_ic);

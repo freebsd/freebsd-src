@@ -420,6 +420,7 @@
 #define R92C_PBP_1024		4
 
 /* Bits for R92C_TRXDMA_CTRL. */
+#define R92C_TRXDMA_CTRL_RX_SHIFT_EN		0x0002
 #define R92C_TRXDMA_CTRL_RXDMA_AGG_EN		0x0004
 #define R92C_TRXDMA_CTRL_TXDMA_VOQ_MAP_M	0x0030
 #define R92C_TRXDMA_CTRL_TXDMA_VOQ_MAP_S	4
@@ -593,7 +594,8 @@
 #define R92C_RCR_APPFCS		0x80000000
 
 /* Bits for R92C_RX_DRVINFO_SZ. */
-#define R92C_RX_DRVINFO_SZ_DEF	4	/* XXX other values will not work */
+/* XXX other values will not work */
+#define R92C_RX_DRVINFO_SZ_DEF	((RTWN_PHY_STATUS_SIZE) / 8)
 
 /* Bits for R92C_WMAC_TRXPTCL_CTL. */
 #define R92C_WMAC_TRXPTCL_SHPRE	0x00020000
