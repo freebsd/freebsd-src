@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2016 Alexandre Joannou
+ * Copyright (c) 2016-2017 Alexandre Joannou
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -60,6 +60,8 @@ static inline uint64_t get_##name##_count (void)   \
 // level 2 cache, CacheCore, 10
 // memory operations, MIPSMem, 11
 // tag cache, CacheCore, 12
+// level 2 cache master, MasterStats, 13
+// tag cache master, MasterStats, 14
 
 // module type : CacheCore
 // available counter, associated rdhwr secondary selector
@@ -114,6 +116,25 @@ enum
     STATCOUNTERS_CAP_READ    = 8,
     STATCOUNTERS_CAP_WRITE   = 9
 };
+//----------------------------------------------------------------------------
+// module type : MasterStats
+// available counter, associated rdhwr secondary selector
+//----------------------------------------------------------------------------
+// read request, 0
+// write request, 1
+// write request flit, 2
+// read response, 3
+// read response flit, 4
+// write response, 5
+enum
+{
+    STATCOUNTERS_READ_REQ       = 0,
+    STATCOUNTERS_WRITE_REQ      = 1,
+    STATCOUNTERS_WRITE_REQ_FLIT = 2,
+    STATCOUNTERS_READ_RSP       = 3,
+    STATCOUNTERS_READ_RSP_FLIT  = 4,
+    STATCOUNTERS_WRITE_RSP      = 5
+};
 
 DEFINE_GET_STAT_COUNTER(cycle,2,0);
 DEFINE_GET_STAT_COUNTER(inst,4,0);
@@ -153,6 +174,18 @@ DEFINE_GET_STAT_COUNTER(tagcache_write_miss,12,1);
 DEFINE_GET_STAT_COUNTER(tagcache_read_hit,12,2);
 DEFINE_GET_STAT_COUNTER(tagcache_read_miss,12,3);
 DEFINE_GET_STAT_COUNTER(tagcache_evict,12,6);
+DEFINE_GET_STAT_COUNTER(l2cachemaster_read_req,13,0);
+DEFINE_GET_STAT_COUNTER(l2cachemaster_write_req,13,1);
+DEFINE_GET_STAT_COUNTER(l2cachemaster_write_req_flit,13,2);
+DEFINE_GET_STAT_COUNTER(l2cachemaster_read_rsp,13,3);
+DEFINE_GET_STAT_COUNTER(l2cachemaster_read_rsp_flit,13,4);
+DEFINE_GET_STAT_COUNTER(l2cachemaster_write_rsp,13,5);
+DEFINE_GET_STAT_COUNTER(tagcachemaster_read_req,14,0);
+DEFINE_GET_STAT_COUNTER(tagcachemaster_write_req,14,1);
+DEFINE_GET_STAT_COUNTER(tagcachemaster_write_req_flit,14,2);
+DEFINE_GET_STAT_COUNTER(tagcachemaster_read_rsp,14,3);
+DEFINE_GET_STAT_COUNTER(tagcachemaster_read_rsp_flit,14,4);
+DEFINE_GET_STAT_COUNTER(tagcachemaster_write_rsp,14,5);
 
 // libstatcounters API
 //////////////////////////////////////////////////////////////////////////////
@@ -189,44 +222,56 @@ int statcounters_sample (statcounters_bank_t * const cnt_bank)
 {
     if (cnt_bank == NULL)
         return -1;
-    cnt_bank->icache[STATCOUNTERS_WRITE_HIT]      = get_icache_write_hit_count();
-    cnt_bank->icache[STATCOUNTERS_WRITE_MISS]     = get_icache_write_miss_count();
-    cnt_bank->icache[STATCOUNTERS_READ_HIT]       = get_icache_read_hit_count();
-    cnt_bank->icache[STATCOUNTERS_READ_MISS]      = get_icache_read_miss_count();
-    cnt_bank->icache[STATCOUNTERS_EVICT]          = get_icache_evict_count();
-    cnt_bank->dcache[STATCOUNTERS_WRITE_HIT]      = get_dcache_write_hit_count();
-    cnt_bank->dcache[STATCOUNTERS_WRITE_MISS]     = get_dcache_write_miss_count();
-    cnt_bank->dcache[STATCOUNTERS_READ_HIT]       = get_dcache_read_hit_count();
-    cnt_bank->dcache[STATCOUNTERS_READ_MISS]      = get_dcache_read_miss_count();
-    cnt_bank->dcache[STATCOUNTERS_EVICT]          = get_dcache_evict_count();
-    cnt_bank->dcache[STATCOUNTERS_SET_TAG_WRITE]  = get_dcache_set_tag_write_count();
-    cnt_bank->dcache[STATCOUNTERS_SET_TAG_READ]   = get_dcache_set_tag_read_count();
-    cnt_bank->l2cache[STATCOUNTERS_WRITE_HIT]     = get_l2cache_write_hit_count();
-    cnt_bank->l2cache[STATCOUNTERS_WRITE_MISS]    = get_l2cache_write_miss_count();
-    cnt_bank->l2cache[STATCOUNTERS_READ_HIT]      = get_l2cache_read_hit_count();
-    cnt_bank->l2cache[STATCOUNTERS_READ_MISS]     = get_l2cache_read_miss_count();
-    cnt_bank->l2cache[STATCOUNTERS_EVICT]         = get_l2cache_evict_count();
-    cnt_bank->l2cache[STATCOUNTERS_SET_TAG_WRITE] = get_l2cache_set_tag_write_count();
-    cnt_bank->l2cache[STATCOUNTERS_SET_TAG_READ]  = get_l2cache_set_tag_read_count();
-    cnt_bank->tagcache[STATCOUNTERS_WRITE_HIT]    = get_tagcache_write_hit_count();
-    cnt_bank->tagcache[STATCOUNTERS_WRITE_MISS]   = get_tagcache_write_miss_count();
-    cnt_bank->tagcache[STATCOUNTERS_READ_HIT]     = get_tagcache_read_hit_count();
-    cnt_bank->tagcache[STATCOUNTERS_READ_MISS]    = get_tagcache_read_miss_count();
-    cnt_bank->tagcache[STATCOUNTERS_EVICT]        = get_tagcache_evict_count();
-    cnt_bank->mipsmem[STATCOUNTERS_BYTE_READ]     = get_mem_byte_read_count();
-    cnt_bank->mipsmem[STATCOUNTERS_BYTE_WRITE]    = get_mem_byte_write_count();
-    cnt_bank->mipsmem[STATCOUNTERS_HWORD_READ]    = get_mem_hword_read_count();
-    cnt_bank->mipsmem[STATCOUNTERS_HWORD_WRITE]   = get_mem_hword_write_count();
-    cnt_bank->mipsmem[STATCOUNTERS_WORD_READ]     = get_mem_word_read_count();
-    cnt_bank->mipsmem[STATCOUNTERS_WORD_WRITE]    = get_mem_word_write_count();
-    cnt_bank->mipsmem[STATCOUNTERS_DWORD_READ]    = get_mem_dword_read_count();
-    cnt_bank->mipsmem[STATCOUNTERS_DWORD_WRITE]   = get_mem_dword_write_count();
-    cnt_bank->mipsmem[STATCOUNTERS_CAP_READ]      = get_mem_cap_read_count();
-    cnt_bank->mipsmem[STATCOUNTERS_CAP_WRITE]     = get_mem_cap_write_count();
-    cnt_bank->dtlb_miss                           = get_dtlb_miss_count();
-    cnt_bank->itlb_miss                           = get_itlb_miss_count();
-    cnt_bank->inst                                = get_inst_count();
-    cnt_bank->cycle                               = get_cycle_count();
+    cnt_bank->icache[STATCOUNTERS_WRITE_HIT]              = get_icache_write_hit_count();
+    cnt_bank->icache[STATCOUNTERS_WRITE_MISS]             = get_icache_write_miss_count();
+    cnt_bank->icache[STATCOUNTERS_READ_HIT]               = get_icache_read_hit_count();
+    cnt_bank->icache[STATCOUNTERS_READ_MISS]              = get_icache_read_miss_count();
+    cnt_bank->icache[STATCOUNTERS_EVICT]                  = get_icache_evict_count();
+    cnt_bank->dcache[STATCOUNTERS_WRITE_HIT]              = get_dcache_write_hit_count();
+    cnt_bank->dcache[STATCOUNTERS_WRITE_MISS]             = get_dcache_write_miss_count();
+    cnt_bank->dcache[STATCOUNTERS_READ_HIT]               = get_dcache_read_hit_count();
+    cnt_bank->dcache[STATCOUNTERS_READ_MISS]              = get_dcache_read_miss_count();
+    cnt_bank->dcache[STATCOUNTERS_EVICT]                  = get_dcache_evict_count();
+    cnt_bank->dcache[STATCOUNTERS_SET_TAG_WRITE]          = get_dcache_set_tag_write_count();
+    cnt_bank->dcache[STATCOUNTERS_SET_TAG_READ]           = get_dcache_set_tag_read_count();
+    cnt_bank->l2cache[STATCOUNTERS_WRITE_HIT]             = get_l2cache_write_hit_count();
+    cnt_bank->l2cache[STATCOUNTERS_WRITE_MISS]            = get_l2cache_write_miss_count();
+    cnt_bank->l2cache[STATCOUNTERS_READ_HIT]              = get_l2cache_read_hit_count();
+    cnt_bank->l2cache[STATCOUNTERS_READ_MISS]             = get_l2cache_read_miss_count();
+    cnt_bank->l2cache[STATCOUNTERS_EVICT]                 = get_l2cache_evict_count();
+    cnt_bank->l2cache[STATCOUNTERS_SET_TAG_WRITE]         = get_l2cache_set_tag_write_count();
+    cnt_bank->l2cache[STATCOUNTERS_SET_TAG_READ]          = get_l2cache_set_tag_read_count();
+    cnt_bank->l2cachemaster[STATCOUNTERS_READ_REQ]        = get_l2cachemaster_read_req_count();
+    cnt_bank->l2cachemaster[STATCOUNTERS_WRITE_REQ]       = get_l2cachemaster_write_req_count();
+    cnt_bank->l2cachemaster[STATCOUNTERS_WRITE_REQ_FLIT]  = get_l2cachemaster_write_req_flit_count();
+    cnt_bank->l2cachemaster[STATCOUNTERS_READ_RSP]        = get_l2cachemaster_read_rsp_count();
+    cnt_bank->l2cachemaster[STATCOUNTERS_READ_RSP_FLIT]   = get_l2cachemaster_read_rsp_flit_count();
+    cnt_bank->l2cachemaster[STATCOUNTERS_WRITE_RSP]       = get_l2cachemaster_write_rsp_count();
+    cnt_bank->tagcache[STATCOUNTERS_WRITE_HIT]            = get_tagcache_write_hit_count();
+    cnt_bank->tagcache[STATCOUNTERS_WRITE_MISS]           = get_tagcache_write_miss_count();
+    cnt_bank->tagcache[STATCOUNTERS_READ_HIT]             = get_tagcache_read_hit_count();
+    cnt_bank->tagcache[STATCOUNTERS_READ_MISS]            = get_tagcache_read_miss_count();
+    cnt_bank->tagcache[STATCOUNTERS_EVICT]                = get_tagcache_evict_count();
+    cnt_bank->tagcachemaster[STATCOUNTERS_READ_REQ]       = get_tagcachemaster_read_req_count();
+    cnt_bank->tagcachemaster[STATCOUNTERS_WRITE_REQ]      = get_tagcachemaster_write_req_count();
+    cnt_bank->tagcachemaster[STATCOUNTERS_WRITE_REQ_FLIT] = get_tagcachemaster_write_req_flit_count();
+    cnt_bank->tagcachemaster[STATCOUNTERS_READ_RSP]       = get_tagcachemaster_read_rsp_count();
+    cnt_bank->tagcachemaster[STATCOUNTERS_READ_RSP_FLIT]  = get_tagcachemaster_read_rsp_flit_count();
+    cnt_bank->tagcachemaster[STATCOUNTERS_WRITE_RSP]      = get_tagcachemaster_write_rsp_count();
+    cnt_bank->mipsmem[STATCOUNTERS_BYTE_READ]             = get_mem_byte_read_count();
+    cnt_bank->mipsmem[STATCOUNTERS_BYTE_WRITE]            = get_mem_byte_write_count();
+    cnt_bank->mipsmem[STATCOUNTERS_HWORD_READ]            = get_mem_hword_read_count();
+    cnt_bank->mipsmem[STATCOUNTERS_HWORD_WRITE]           = get_mem_hword_write_count();
+    cnt_bank->mipsmem[STATCOUNTERS_WORD_READ]             = get_mem_word_read_count();
+    cnt_bank->mipsmem[STATCOUNTERS_WORD_WRITE]            = get_mem_word_write_count();
+    cnt_bank->mipsmem[STATCOUNTERS_DWORD_READ]            = get_mem_dword_read_count();
+    cnt_bank->mipsmem[STATCOUNTERS_DWORD_WRITE]           = get_mem_dword_write_count();
+    cnt_bank->mipsmem[STATCOUNTERS_CAP_READ]              = get_mem_cap_read_count();
+    cnt_bank->mipsmem[STATCOUNTERS_CAP_WRITE]             = get_mem_cap_write_count();
+    cnt_bank->dtlb_miss                                   = get_dtlb_miss_count();
+    cnt_bank->itlb_miss                                   = get_itlb_miss_count();
+    cnt_bank->inst                                        = get_inst_count();
+    cnt_bank->cycle                                       = get_cycle_count();
     return 0;
 }
 
@@ -251,11 +296,13 @@ int statcounters_diff (
     bd->inst         = be->inst - bs->inst;
     for (int i = 0; i < STATCOUNTERS_MAX_MOD_CNT; i++)
     {
-        bd->icache[i]    = be->icache[i] - bs->icache[i];
-        bd->dcache[i]    = be->dcache[i] - bs->dcache[i];
-        bd->l2cache[i]   = be->l2cache[i] - bs->l2cache[i];
-        bd->mipsmem[i]   = be->mipsmem[i] - bs->mipsmem[i];
-        bd->tagcache[i]  = be->tagcache[i] - bs->tagcache[i];
+        bd->icache[i]         = be->icache[i] - bs->icache[i];
+        bd->dcache[i]         = be->dcache[i] - bs->dcache[i];
+        bd->l2cache[i]        = be->l2cache[i] - bs->l2cache[i];
+        bd->mipsmem[i]        = be->mipsmem[i] - bs->mipsmem[i];
+        bd->tagcache[i]       = be->tagcache[i] - bs->tagcache[i];
+        bd->l2cachemaster[i]  = be->l2cachemaster[i] - bs->l2cachemaster[i];
+        bd->tagcachemaster[i] = be->tagcachemaster[i] - bs->tagcachemaster[i];
     }
     return 0;
 }
@@ -330,7 +377,19 @@ int statcounters_dump (
             fprintf(fp, "mipsmem_dword_read,");
             fprintf(fp, "mipsmem_dword_write,");
             fprintf(fp, "mipsmem_cap_read,");
-            fprintf(fp, "mipsmem_cap_write");
+            fprintf(fp, "mipsmem_cap_write,");
+            fprintf(fp, "l2cachemaster_read_req,");
+            fprintf(fp, "l2cachemaster_write_req,");
+            fprintf(fp, "l2cachemaster_write_req_flit,");
+            fprintf(fp, "l2cachemaster_read_rsp,");
+            fprintf(fp, "l2cachemaster_read_rsp_flit,");
+            fprintf(fp, "l2cachemaster_write_rsp,");
+            fprintf(fp, "tagcachemaster_read_req,");
+            fprintf(fp, "tagcachemaster_write_req,");
+            fprintf(fp, "tagcachemaster_write_req_flit,");
+            fprintf(fp, "tagcachemaster_read_rsp,");
+            fprintf(fp, "tagcachemaster_read_rsp_flit,");
+            fprintf(fp, "tagcachemaster_write_rsp");
             fprintf(fp, "\n");
         case CSV_NOHEADER:
             fprintf(fp, "%s,",getprogname());
@@ -371,55 +430,81 @@ int statcounters_dump (
             fprintf(fp, "%lu,",b->mipsmem[STATCOUNTERS_DWORD_READ]);
             fprintf(fp, "%lu,",b->mipsmem[STATCOUNTERS_DWORD_WRITE]);
             fprintf(fp, "%lu,",b->mipsmem[STATCOUNTERS_CAP_READ]);
-            fprintf(fp, "%lu",b->mipsmem[STATCOUNTERS_CAP_WRITE]);
+            fprintf(fp, "%lu,",b->mipsmem[STATCOUNTERS_CAP_WRITE]);
+            fprintf(fp, "%lu,",b->l2cachemaster[STATCOUNTERS_READ_REQ]);
+            fprintf(fp, "%lu,",b->l2cachemaster[STATCOUNTERS_WRITE_REQ]);
+            fprintf(fp, "%lu,",b->l2cachemaster[STATCOUNTERS_WRITE_REQ_FLIT]);
+            fprintf(fp, "%lu,",b->l2cachemaster[STATCOUNTERS_READ_RSP]);
+            fprintf(fp, "%lu,",b->l2cachemaster[STATCOUNTERS_READ_RSP_FLIT]);
+            fprintf(fp, "%lu,",b->l2cachemaster[STATCOUNTERS_WRITE_RSP]);
+            fprintf(fp, "%lu,",b->tagcachemaster[STATCOUNTERS_READ_REQ]);
+            fprintf(fp, "%lu,",b->tagcachemaster[STATCOUNTERS_WRITE_REQ]);
+            fprintf(fp, "%lu,",b->tagcachemaster[STATCOUNTERS_WRITE_REQ_FLIT]);
+            fprintf(fp, "%lu,",b->tagcachemaster[STATCOUNTERS_READ_RSP]);
+            fprintf(fp, "%lu,",b->tagcachemaster[STATCOUNTERS_READ_RSP_FLIT]);
+            fprintf(fp, "%lu",b->tagcachemaster[STATCOUNTERS_WRITE_RSP]);
             fprintf(fp, "\n");
             break;
         case HUMAN_READABLE:
         default:
             fprintf(fp, "===== %s =====\n",getprogname());
-            fprintf(fp, "cycles:               \t%lu\n",b->cycle);
-            fprintf(fp, "instructions:         \t%lu\n",b->inst);
-            fprintf(fp, "itlb_miss:            \t%lu\n",b->itlb_miss);
-            fprintf(fp, "dtlb_miss:            \t%lu\n",b->dtlb_miss);
+            fprintf(fp, "cycles:                       \t%lu\n",b->cycle);
+            fprintf(fp, "instructions:                 \t%lu\n",b->inst);
+            fprintf(fp, "itlb_miss:                    \t%lu\n",b->itlb_miss);
+            fprintf(fp, "dtlb_miss:                    \t%lu\n",b->dtlb_miss);
             fprintf(fp, "\n");
-            fprintf(fp, "icache_write_hit:     \t%lu\n",b->icache[STATCOUNTERS_WRITE_HIT]);
-            fprintf(fp, "icache_write_miss:    \t%lu\n",b->icache[STATCOUNTERS_WRITE_MISS]);
-            fprintf(fp, "icache_read_hit:      \t%lu\n",b->icache[STATCOUNTERS_READ_HIT]);
-            fprintf(fp, "icache_read_miss:     \t%lu\n",b->icache[STATCOUNTERS_READ_MISS]);
-            fprintf(fp, "icache_evict:         \t%lu\n",b->icache[STATCOUNTERS_EVICT]);
+            fprintf(fp, "icache_write_hit:             \t%lu\n",b->icache[STATCOUNTERS_WRITE_HIT]);
+            fprintf(fp, "icache_write_miss:            \t%lu\n",b->icache[STATCOUNTERS_WRITE_MISS]);
+            fprintf(fp, "icache_read_hit:              \t%lu\n",b->icache[STATCOUNTERS_READ_HIT]);
+            fprintf(fp, "icache_read_miss:             \t%lu\n",b->icache[STATCOUNTERS_READ_MISS]);
+            fprintf(fp, "icache_evict:                 \t%lu\n",b->icache[STATCOUNTERS_EVICT]);
             fprintf(fp, "\n");
-            fprintf(fp, "dcache_write_hit:     \t%lu\n",b->dcache[STATCOUNTERS_WRITE_HIT]);
-            fprintf(fp, "dcache_write_miss:    \t%lu\n",b->dcache[STATCOUNTERS_WRITE_MISS]);
-            fprintf(fp, "dcache_read_hit:      \t%lu\n",b->dcache[STATCOUNTERS_READ_HIT]);
-            fprintf(fp, "dcache_read_miss:     \t%lu\n",b->dcache[STATCOUNTERS_READ_MISS]);
-            fprintf(fp, "dcache_evict:         \t%lu\n",b->dcache[STATCOUNTERS_EVICT]);
-            fprintf(fp, "dcache_set_tag_write: \t%lu\n",b->dcache[STATCOUNTERS_SET_TAG_WRITE]);
-            fprintf(fp, "dcache_set_tag_read:  \t%lu\n",b->dcache[STATCOUNTERS_SET_TAG_READ]);
+            fprintf(fp, "dcache_write_hit:             \t%lu\n",b->dcache[STATCOUNTERS_WRITE_HIT]);
+            fprintf(fp, "dcache_write_miss:            \t%lu\n",b->dcache[STATCOUNTERS_WRITE_MISS]);
+            fprintf(fp, "dcache_read_hit:              \t%lu\n",b->dcache[STATCOUNTERS_READ_HIT]);
+            fprintf(fp, "dcache_read_miss:             \t%lu\n",b->dcache[STATCOUNTERS_READ_MISS]);
+            fprintf(fp, "dcache_evict:                 \t%lu\n",b->dcache[STATCOUNTERS_EVICT]);
+            fprintf(fp, "dcache_set_tag_write:         \t%lu\n",b->dcache[STATCOUNTERS_SET_TAG_WRITE]);
+            fprintf(fp, "dcache_set_tag_read:          \t%lu\n",b->dcache[STATCOUNTERS_SET_TAG_READ]);
             fprintf(fp, "\n");
-            fprintf(fp, "l2cache_write_hit:    \t%lu\n",b->l2cache[STATCOUNTERS_WRITE_HIT]);
-            fprintf(fp, "l2cache_write_miss:   \t%lu\n",b->l2cache[STATCOUNTERS_WRITE_MISS]);
-            fprintf(fp, "l2cache_read_hit:     \t%lu\n",b->l2cache[STATCOUNTERS_READ_HIT]);
-            fprintf(fp, "l2cache_read_miss:    \t%lu\n",b->l2cache[STATCOUNTERS_READ_MISS]);
-            fprintf(fp, "l2cache_evict:        \t%lu\n",b->l2cache[STATCOUNTERS_EVICT]);
-            fprintf(fp, "l2cache_set_tag_write:\t%lu\n",b->l2cache[STATCOUNTERS_SET_TAG_WRITE]);
-            fprintf(fp, "l2cache_set_tag_read: \t%lu\n",b->l2cache[STATCOUNTERS_SET_TAG_READ]);
+            fprintf(fp, "l2cache_write_hit:            \t%lu\n",b->l2cache[STATCOUNTERS_WRITE_HIT]);
+            fprintf(fp, "l2cache_write_miss:           \t%lu\n",b->l2cache[STATCOUNTERS_WRITE_MISS]);
+            fprintf(fp, "l2cache_read_hit:             \t%lu\n",b->l2cache[STATCOUNTERS_READ_HIT]);
+            fprintf(fp, "l2cache_read_miss:            \t%lu\n",b->l2cache[STATCOUNTERS_READ_MISS]);
+            fprintf(fp, "l2cache_evict:                \t%lu\n",b->l2cache[STATCOUNTERS_EVICT]);
+            fprintf(fp, "l2cache_set_tag_write:        \t%lu\n",b->l2cache[STATCOUNTERS_SET_TAG_WRITE]);
+            fprintf(fp, "l2cache_set_tag_read:         \t%lu\n",b->l2cache[STATCOUNTERS_SET_TAG_READ]);
             fprintf(fp, "\n");
-            fprintf(fp, "tagcache_write_hit:   \t%lu\n",b->tagcache[STATCOUNTERS_WRITE_HIT]);
-            fprintf(fp, "tagcache_write_miss:  \t%lu\n",b->tagcache[STATCOUNTERS_WRITE_MISS]);
-            fprintf(fp, "tagcache_read_hit:    \t%lu\n",b->tagcache[STATCOUNTERS_READ_HIT]);
-            fprintf(fp, "tagcache_read_miss:   \t%lu\n",b->tagcache[STATCOUNTERS_READ_MISS]);
-            fprintf(fp, "tagcache_evict:       \t%lu\n",b->tagcache[STATCOUNTERS_EVICT]);
+            fprintf(fp, "tagcache_write_hit:           \t%lu\n",b->tagcache[STATCOUNTERS_WRITE_HIT]);
+            fprintf(fp, "tagcache_write_miss:          \t%lu\n",b->tagcache[STATCOUNTERS_WRITE_MISS]);
+            fprintf(fp, "tagcache_read_hit:            \t%lu\n",b->tagcache[STATCOUNTERS_READ_HIT]);
+            fprintf(fp, "tagcache_read_miss:           \t%lu\n",b->tagcache[STATCOUNTERS_READ_MISS]);
+            fprintf(fp, "tagcache_evict:               \t%lu\n",b->tagcache[STATCOUNTERS_EVICT]);
             fprintf(fp, "\n");
-            fprintf(fp, "mem_byte_read:        \t%lu\n",b->mipsmem[STATCOUNTERS_BYTE_READ]);
-            fprintf(fp, "mem_byte_write:       \t%lu\n",b->mipsmem[STATCOUNTERS_BYTE_WRITE]);
-            fprintf(fp, "mem_hword_read:       \t%lu\n",b->mipsmem[STATCOUNTERS_HWORD_READ]);
-            fprintf(fp, "mem_hword_write:      \t%lu\n",b->mipsmem[STATCOUNTERS_HWORD_WRITE]);
-            fprintf(fp, "mem_word_read:        \t%lu\n",b->mipsmem[STATCOUNTERS_WORD_READ]);
-            fprintf(fp, "mem_word_write:       \t%lu\n",b->mipsmem[STATCOUNTERS_WORD_WRITE]);
-            fprintf(fp, "mem_dword_read:       \t%lu\n",b->mipsmem[STATCOUNTERS_DWORD_READ]);
-            fprintf(fp, "mem_dword_write:      \t%lu\n",b->mipsmem[STATCOUNTERS_DWORD_WRITE]);
-            fprintf(fp, "mem_cap_read:         \t%lu\n",b->mipsmem[STATCOUNTERS_CAP_READ]);
-            fprintf(fp, "mem_cap_write:        \t%lu\n",b->mipsmem[STATCOUNTERS_CAP_WRITE]);
+            fprintf(fp, "mem_byte_read:                \t%lu\n",b->mipsmem[STATCOUNTERS_BYTE_READ]);
+            fprintf(fp, "mem_byte_write:               \t%lu\n",b->mipsmem[STATCOUNTERS_BYTE_WRITE]);
+            fprintf(fp, "mem_hword_read:               \t%lu\n",b->mipsmem[STATCOUNTERS_HWORD_READ]);
+            fprintf(fp, "mem_hword_write:              \t%lu\n",b->mipsmem[STATCOUNTERS_HWORD_WRITE]);
+            fprintf(fp, "mem_word_read:                \t%lu\n",b->mipsmem[STATCOUNTERS_WORD_READ]);
+            fprintf(fp, "mem_word_write:               \t%lu\n",b->mipsmem[STATCOUNTERS_WORD_WRITE]);
+            fprintf(fp, "mem_dword_read:               \t%lu\n",b->mipsmem[STATCOUNTERS_DWORD_READ]);
+            fprintf(fp, "mem_dword_write:              \t%lu\n",b->mipsmem[STATCOUNTERS_DWORD_WRITE]);
+            fprintf(fp, "mem_cap_read:                 \t%lu\n",b->mipsmem[STATCOUNTERS_CAP_READ]);
+            fprintf(fp, "mem_cap_write:                \t%lu\n",b->mipsmem[STATCOUNTERS_CAP_WRITE]);
+            fprintf(fp, "\n");
+            fprintf(fp, "l2cachemaster_read_req:       \t%lu\n",b->l2cachemaster[STATCOUNTERS_READ_REQ]);
+            fprintf(fp, "l2cachemaster_write_req:      \t%lu\n",b->l2cachemaster[STATCOUNTERS_WRITE_REQ]);
+            fprintf(fp, "l2cachemaster_write_req_flit: \t%lu\n",b->l2cachemaster[STATCOUNTERS_WRITE_REQ_FLIT]);
+            fprintf(fp, "l2cachemaster_read_rsp:       \t%lu\n",b->l2cachemaster[STATCOUNTERS_READ_RSP]);
+            fprintf(fp, "l2cachemaster_read_rsp_flit:  \t%lu\n",b->l2cachemaster[STATCOUNTERS_READ_RSP_FLIT]);
+            fprintf(fp, "l2cachemaster_write_rsp:      \t%lu\n",b->l2cachemaster[STATCOUNTERS_WRITE_RSP]);
+            fprintf(fp, "\n");
+            fprintf(fp, "tagcachemaster_read_req:      \t%lu\n",b->tagcachemaster[STATCOUNTERS_READ_REQ]);
+            fprintf(fp, "tagcachemaster_write_req:     \t%lu\n",b->tagcachemaster[STATCOUNTERS_WRITE_REQ]);
+            fprintf(fp, "tagcachemaster_write_req_flit:\t%lu\n",b->tagcachemaster[STATCOUNTERS_WRITE_REQ_FLIT]);
+            fprintf(fp, "tagcachemaster_read_rsp:      \t%lu\n",b->tagcachemaster[STATCOUNTERS_READ_RSP]);
+            fprintf(fp, "tagcachemaster_read_rsp_flit: \t%lu\n",b->tagcachemaster[STATCOUNTERS_READ_RSP_FLIT]);
+            fprintf(fp, "tagcachemaster_write_rsp:     \t%lu\n",b->tagcachemaster[STATCOUNTERS_WRITE_RSP]);
             fprintf(fp, "\n");
             break;
     }

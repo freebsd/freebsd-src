@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2016 Alexandre Joannou
+ * Copyright (c) 2016-2017 Alexandre Joannou
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -53,6 +53,8 @@ typedef struct statcounters_bank
     uint64_t l2cache[STATCOUNTERS_MAX_MOD_CNT];
     uint64_t mipsmem[STATCOUNTERS_MAX_MOD_CNT];
     uint64_t tagcache[STATCOUNTERS_MAX_MOD_CNT];
+    uint64_t l2cachemaster[STATCOUNTERS_MAX_MOD_CNT];
+    uint64_t tagcachemaster[STATCOUNTERS_MAX_MOD_CNT];
 } statcounters_bank_t;
 
 // format flags

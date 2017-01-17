@@ -1,4 +1,4 @@
-.\" Copyright (c) 2016 Alexandre Joannou
+.\" Copyright (c) 2016-2017 Alexandre Joannou
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,7 @@ provides an API to the BERI/CHERI statcounters. To link with
 .Pp
 to the linking flags to still enable the automatic sampling of statcounters before and after
 .Fn main
-, and output of the difference (this is naturally available if not linking static). The behaviour of the automatic sampling is controlled through the
+, and output of the difference (this feature is directly available when linking non static). The behaviour of the automatic sampling is controlled by the
 .Nm STATCOUNTERS_OUTPUT
 and
 .Nm STATCOUNTERS_FORMAT
