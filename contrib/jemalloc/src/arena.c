@@ -3326,13 +3326,8 @@ arena_ralloc(tsd_t *tsd, arena_t *arena, void *ptr, size_t oldsize, size_t size,
 		/* Try to avoid moving the allocation. */
 		if (!arena_ralloc_no_move(tsd_tsdn(tsd), ptr, oldsize, usize, 0,
 		    zero))
-#ifndef __CHERI_PURE_CAPABILITY__
-			return (ptr);
-#else
-			/* XXX-BD: should probably reinstall permissions */
-			return(cheri_setoffset(cheri_getdefault(),
-			    (vaddr_t)(ptr) - (vaddr_t)cheri_getdefault()));
-#endif
+			/* XXX-BD: CHERI reinstall permissions? */
+			return (UNBOUND_PTR(ptr));
 
 		/*
 		 * size and oldsize are different enough that we need to move

@@ -64,8 +64,7 @@ pages_map(void *addr, size_t size, bool *commit)
 #ifdef __CHERI_PURE_CAPABILITY__
 	/* Discard the bounds on the allocation */
 	if (ret != NULL)
-		ret = cheri_setoffset(cheri_getdefault(),
-		    (vaddr_t)(ret) - (vaddr_t)cheri_getdefault());
+		ret = UNBOUND_PTR(ret);
 #endif
 	return (ret);
 }

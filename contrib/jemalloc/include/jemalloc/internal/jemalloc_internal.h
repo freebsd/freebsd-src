@@ -314,6 +314,14 @@ typedef unsigned szind_t;
 #endif
 #define	PTR_MASK		(SIZEOF_PTR - 1)
 
+#if defined(JEMALLOC_NO_PTR_BOUNDS) || !defined(__CHERI_PURE_CAPABILITY__)
+#define	UNBOUND_PTR(a)	(a)
+#else
+#define	UNBOUND_PTR(a)							\
+	 cheri_setoffset(cheri_getdefault(),				\
+	     (vaddr_t)(a) - (vaddr_t)cheri_getdefault())
+#endif
+
 /* Return the smallest (void *) multiple that is >= a. */
 #define	PTR_CEILING(a)							\
 	(((a) + PTR_MASK) & ~PTR_MASK)
@@ -341,29 +349,16 @@ typedef unsigned szind_t;
 #define	PAGE_MASK	((size_t)(PAGE - 1))
 
 /* Return the page base address for the page containing address a. */
-#ifndef __CHERI_PURE_CAPABILITY__
 #define	PAGE_ADDR2BASE(a)						\
-	((void *)((uintptr_t)(a) & ~PAGE_MASK))
-#else
-#define	PAGE_ADDR2BASE(a)						\
-	cheri_setoffset(cheri_getdefault(),				\
-	((vaddr_t)(a) - (vaddr_t)cheri_getdefault()) & ~PAGE_MASK)
-#endif
+	((void *)((uintptr_t)(UNBOUND_PTR(a)) & ~(uintptr_t)PAGE_MASK))
 
 /* Return the smallest pagesize multiple that is >= s. */
 #define	PAGE_CEILING(s)							\
 	(((s) + PAGE_MASK) & ~PAGE_MASK)
 
 /* Return the nearest aligned address at or below a. */
-#ifndef __CHERI_PURE_CAPABILITY__
 #define	ALIGNMENT_ADDR2BASE(a, alignment)				\
-	((void *)((uintptr_t)(a) & ((~(alignment)) + 1)))
-#else
-/* XXX-CHERI: Rederive from $ddc. */
-#define	ALIGNMENT_ADDR2BASE(a, alignment)				\
-	cheri_setoffset(cheri_getdefault(),				\
-	((vaddr_t)(a) - (vaddr_t)cheri_getdefault()) & ((~(alignment)) + 1))
-#endif
+	((void *)((uintptr_t)(UNBOUND_PTR(a)) & (uintptr_t)((~(alignment)) + 1)))
 
 /* Return the offset between a and the nearest aligned address at or below a. */
 #define	ALIGNMENT_ADDR2OFFSET(a, alignment)				\

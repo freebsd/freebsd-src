@@ -11,15 +11,8 @@
 #define	LG_CHUNK_DEFAULT	21
 
 /* Return the chunk address for allocation address a. */
-#ifndef __CHERI_PURE_CAPABILITY__
 #define	CHUNK_ADDR2BASE(a)						\
-	((void *)((uintptr_t)(a) & ~chunksize_mask))
-#else
-/* XXX-CHERI: Rederive the chunk from from $ddc */
-#define	CHUNK_ADDR2BASE(a)						\
-	cheri_setoffset(cheri_getdefault(),				\
-	((vaddr_t)(a) - (vaddr_t)cheri_getdefault()) & ~chunksize_mask)
-#endif
+	((void *)((uintptr_t)(UNBOUND_PTR(a)) & ~(uintptr_t)chunksize_mask))
 
 /* Return the chunk offset of address a. */
 #define	CHUNK_ADDR2OFFSET(a)						\
