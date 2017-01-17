@@ -85,15 +85,15 @@ cloudabi_sys_mem_advise(struct thread *td,
 		return (EINVAL);
 	}
 
-	return (kern_madvise(td, uap->addr, uap->len, behav));
+	return (kern_madvise(td, uap->mapping, uap->mapping_len, behav));
 }
 
 int
 cloudabi_sys_mem_lock(struct thread *td, struct cloudabi_sys_mem_lock_args *uap)
 {
 	struct mlock_args mlock_args = {
-		.addr	= uap->addr,
-		.len	= uap->len
+		.addr	= uap->mapping,
+		.len	= uap->mapping_len
 	};
 
 	return (sys_mlock(td, &mlock_args));
@@ -140,15 +140,15 @@ cloudabi_sys_mem_protect(struct thread *td,
 	if (error != 0)
 		return (error);
 
-	return (kern_mprotect(td, uap->addr, uap->len, prot));
+	return (kern_mprotect(td, uap->mapping, uap->mapping_len, prot));
 }
 
 int
 cloudabi_sys_mem_sync(struct thread *td, struct cloudabi_sys_mem_sync_args *uap)
 {
 	struct msync_args msync_args = {
-		.addr	= uap->addr,
-		.len	= uap->len,
+		.addr	= uap->mapping,
+		.len	= uap->mapping_len,
 	};
 
 	/* Convert flags. */
@@ -173,8 +173,8 @@ cloudabi_sys_mem_unlock(struct thread *td,
     struct cloudabi_sys_mem_unlock_args *uap)
 {
 	struct munlock_args munlock_args = {
-		.addr	= uap->addr,
-		.len	= uap->len
+		.addr	= uap->mapping,
+		.len	= uap->mapping_len
 	};
 
 	return (sys_munlock(td, &munlock_args));
@@ -185,8 +185,8 @@ cloudabi_sys_mem_unmap(struct thread *td,
     struct cloudabi_sys_mem_unmap_args *uap)
 {
 	struct munmap_args munmap_args = {
-		.addr	= uap->addr,
-		.len	= uap->len
+		.addr	= uap->mapping,
+		.len	= uap->mapping_len
 	};
 
 	return (sys_munmap(td, &munmap_args));
