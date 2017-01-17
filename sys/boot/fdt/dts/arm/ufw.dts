@@ -278,6 +278,7 @@
 	pinctrl-0 = <&mmc1_pins>;
 	bus-width = <4>;
 	non-removable;
+	wp-disable;
 	status = "okay";
 };
 
