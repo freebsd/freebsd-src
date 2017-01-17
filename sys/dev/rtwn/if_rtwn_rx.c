@@ -117,18 +117,19 @@ rtwn_set_basicrates(struct rtwn_softc *sc, uint32_t rates)
 }
 
 static void
-rtwn_update_avgrssi(struct rtwn_softc *sc, struct rtwn_node *un, int rate)
+rtwn_update_avgrssi(struct rtwn_softc *sc, struct rtwn_node *un, int8_t rssi,
+    int is_cck)
 {
 	int pwdb;
 
 	/* Convert antenna signal to percentage. */
-	if (un->last_rssi <= -100 || un->last_rssi >= 20)
+	if (rssi <= -100 || rssi >= 20)
 		pwdb = 0;
-	else if (un->last_rssi >= 0)
+	else if (rssi >= 0)
 		pwdb = 100;
 	else
-		pwdb = 100 + un->last_rssi;
-	if (RTWN_RATE_IS_CCK(rate)) {
+		pwdb = 100 + rssi;
+	if (is_cck) {
 		/* CCK gain is smaller than OFDM/MCS gain. */
 		pwdb += 6;
 		if (pwdb > 100)
@@ -155,11 +156,11 @@ rtwn_update_avgrssi(struct rtwn_softc *sc, struct rtwn_node *un, int rate)
 }
 
 static int8_t
-rtwn_get_rssi(struct rtwn_softc *sc, int rate, void *physt)
+rtwn_get_rssi(struct rtwn_softc *sc, void *physt, int is_cck)
 {
 	int8_t rssi;
 
-	if (RTWN_RATE_IS_CCK(rate))
+	if (is_cck)
 		rssi = rtwn_get_rssi_cck(sc, physt);
 	else	/* OFDM/HT. */
 		rssi = rtwn_get_rssi_ofdm(sc, physt);
@@ -188,81 +189,133 @@ rtwn_get_tsf(struct rtwn_softc *sc, uint64_t *buf, int id)
 	*buf += rtwn_get_tsf_low(sc, id);
 }
 
+static uint64_t
+rtwn_extend_rx_tsf(struct rtwn_softc *sc, const struct r92c_rx_stat *stat)
+{
+	uint64_t tsft;
+	uint32_t rxdw3, tsfl, tsfl_curr;
+	int id;
+
+	rxdw3 = le32toh(stat->rxdw3);
+	tsfl = le32toh(stat->tsf_low);
+	id = MS(rxdw3, R92C_RXDW3_BSSID_FIT);
+
+	switch (id) {
+	case 1:
+	case 2:
+		id >>= 1;
+		tsfl_curr = rtwn_get_tsf_low(sc, id);
+		break;
+	default:
+	{
+		uint32_t tsfl0, tsfl1;
+
+		tsfl0 = rtwn_get_tsf_low(sc, 0);
+		tsfl1 = rtwn_get_tsf_low(sc, 1);
+
+		if (abs(tsfl0 - tsfl) < abs(tsfl1 - tsfl)) {
+			id = 0;
+			tsfl_curr = tsfl0;
+		} else {
+			id = 1;
+			tsfl_curr = tsfl1;
+		}
+		break;
+	}
+	}
+
+	tsft = rtwn_get_tsf_high(sc, id);
+	if (tsfl > tsfl_curr && tsfl > 0xffff0000)
+		tsft--;
+	tsft <<= 32;
+	tsft += tsfl;
+
+	return (tsft);
+}
+
 struct ieee80211_node *
-rtwn_rx_common(struct rtwn_softc *sc, struct mbuf *m, void *desc,
-    int8_t *rssi)
+rtwn_rx_common(struct rtwn_softc *sc, struct mbuf *m, void *desc)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211_node *ni;
 	struct ieee80211_frame_min *wh;
+	struct ieee80211_rx_stats rxs;
 	struct rtwn_node *un;
 	struct r92c_rx_stat *stat;
-	uint32_t rxdw0, rxdw3;
-	int cipher, infosz, pktlen, rate, shift;
+	void *physt;
+	uint32_t rxdw0;
+	int8_t rssi;
+	int cipher, infosz, is_cck, pktlen, shift;
 
 	stat = desc;
 	rxdw0 = le32toh(stat->rxdw0);
-	rxdw3 = le32toh(stat->rxdw3);
 
 	cipher = MS(rxdw0, R92C_RXDW0_CIPHER);
 	infosz = MS(rxdw0, R92C_RXDW0_INFOSZ) * 8;
 	pktlen = MS(rxdw0, R92C_RXDW0_PKTLEN);
 	shift = MS(rxdw0, R92C_RXDW0_SHIFT);
-	rate = MS(rxdw3, R92C_RXDW3_RATE);
 
 	wh = (struct ieee80211_frame_min *)(mtodo(m, shift + infosz));
 	if ((wh->i_fc[1] & IEEE80211_FC1_PROTECTED) &&
 	    cipher != R92C_CAM_ALGO_NONE)
 		m->m_flags |= M_WEP;
 
-	if (pktlen >= sizeof(*wh))
+	if (pktlen >= sizeof(*wh)) {
 		ni = ieee80211_find_rxnode(ic, wh);
-	else
+		if (ni != NULL && (ni->ni_flags & IEEE80211_NODE_HT))
+			m->m_flags |= M_AMPDU;
+	} else
 		ni = NULL;
 	un = RTWN_NODE(ni);
 
-	/* Get RSSI from PHY status descriptor if present. */
-	if (infosz != 0 && (rxdw0 & R92C_RXDW0_PHYST)) {
-		*rssi = rtwn_get_rssi(sc, rate, mtod(m, void *));
-		RTWN_DPRINTF(sc, RTWN_DEBUG_RSSI, "%s: rssi %d, ridx %d\n",
-		    __func__, *rssi, rate);
+	if (infosz != 0 && (rxdw0 & R92C_RXDW0_PHYST))
+		physt = (void *)mtodo(m, shift);
+	else
+		physt = (un != NULL) ? &un->last_physt : &sc->last_physt;
 
-		sc->last_rssi = *rssi;
-		if (un != NULL) {
-			un->last_rssi = *rssi;
+	bzero(&rxs, sizeof(rxs));
+	rtwn_get_rx_stats(sc, &rxs, desc, physt);
+	if (rxs.c_pktflags & IEEE80211_RX_F_AMPDU) {
+		/* Next MPDU will come without PHY info. */
+		memcpy(&sc->last_physt, physt, sizeof(sc->last_physt));
+		if (un != NULL)
+			memcpy(&un->last_physt, physt, sizeof(sc->last_physt));
+	}
 
-			/* Update our average RSSI. */
-			rtwn_update_avgrssi(sc, un, rate);
-		}
-	} else
-		*rssi = (un != NULL) ? un->last_rssi : sc->last_rssi;
+	/* Add some common bits. */
+	/* NB: should not happen. */
+	if (rxdw0 & R92C_RXDW0_CRCERR)
+		rxs.c_pktflags |= IEEE80211_RX_F_FAIL_FCSCRC;
+
+	rxs.r_flags |= IEEE80211_R_TSF_START;	/* XXX undocumented */
+	rxs.r_flags |= IEEE80211_R_TSF64;
+	rxs.c_rx_tsf = rtwn_extend_rx_tsf(sc, stat);
+
+	/* Get RSSI from PHY status descriptor. */
+	is_cck = (rxs.c_pktflags & IEEE80211_RX_F_CCK) != 0;
+	rssi = rtwn_get_rssi(sc, physt, is_cck);
+
+	/* XXX TODO: we really need a rate-to-string method */
+	RTWN_DPRINTF(sc, RTWN_DEBUG_RSSI, "%s: rssi %d, rate %d\n",
+	    __func__, rssi, rxs.c_rate);
+	if (un != NULL && infosz != 0 && (rxdw0 & R92C_RXDW0_PHYST)) {
+		/* Update our average RSSI. */
+		rtwn_update_avgrssi(sc, un, rssi, is_cck);
+	}
+
+	rxs.r_flags |= IEEE80211_R_NF | IEEE80211_R_RSSI;
+	rxs.c_nf = RTWN_NOISE_FLOOR;
+	rxs.c_rssi = rssi - rxs.c_nf;
+	(void) ieee80211_add_rx_params(m, &rxs);
 
 	if (ieee80211_radiotap_active(ic)) {
 		struct rtwn_rx_radiotap_header *tap = &sc->sc_rxtap;
-		int id = RTWN_VAP_ID_INVALID;
-
-		if (ni != NULL)
-			id = RTWN_VAP(ni->ni_vap)->id;
-		if (id == RTWN_VAP_ID_INVALID)
-			id = 0;
 
 		tap->wr_flags = rtwn_rx_radiotap_flags(sc, desc);
-		tap->wr_tsft = rtwn_get_tsf_high(sc, id);
-		if (le32toh(stat->tsf_low) > rtwn_get_tsf_low(sc, id))
-			tap->wr_tsft--;
-		tap->wr_tsft = (uint64_t)htole32(tap->wr_tsft) << 32;
-		tap->wr_tsft += stat->tsf_low;
-
-		/* XXX 20/40? */
-
-		/* Map HW rate index to 802.11 rate. */
-		if (rate < RTWN_RIDX_MCS(0))
-			tap->wr_rate = ridx2rate[rate];
-		else	/* MCS0~15. */
-			tap->wr_rate = IEEE80211_RATE_MCS | (rate - 12);
-
-		tap->wr_dbm_antsignal = *rssi;
-		tap->wr_dbm_antnoise = RTWN_NOISE_FLOOR;
+		tap->wr_tsft = htole64(rxs.c_rx_tsf);
+		tap->wr_rate = rxs.c_rate;
+		tap->wr_dbm_antsignal = rssi;
+		tap->wr_dbm_antnoise = rxs.c_nf;
 	}
 
 	/* Drop PHY descriptor. */
