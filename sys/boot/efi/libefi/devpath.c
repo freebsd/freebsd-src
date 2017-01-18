@@ -106,15 +106,18 @@ efi_devpath_trim(EFI_DEVICE_PATH *devpath)
 	EFI_DEVICE_PATH *node, *copy;
 	size_t prefix, len;
 
-	node = efi_devpath_last_node(devpath);
+	if ((node = efi_devpath_last_node(devpath)) == NULL)
+		return (NULL);
 	prefix = (UINT8 *)node - (UINT8 *)devpath;
 	if (prefix == 0)
 		return (NULL);
 	len = prefix + DevicePathNodeLength(NextDevicePathNode(node));
 	copy = malloc(len);
-	memcpy(copy, devpath, prefix);
-	node = (EFI_DEVICE_PATH *)((UINT8 *)copy + prefix);
-	SetDevicePathEndNode(node);
+	if (copy != NULL) {
+		memcpy(copy, devpath, prefix);
+		node = (EFI_DEVICE_PATH *)((UINT8 *)copy + prefix);
+		SetDevicePathEndNode(node);
+	}
 	return (copy);
 }
 
