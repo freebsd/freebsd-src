@@ -134,8 +134,8 @@ libstand_bzlib_private.h: bzlib_private.h
 		${.ALLSRC} > ${.TARGET}
 
 # decompression functionality from libz
-.PATH: ${.CURDIR}/../libz
-CFLAGS+=-DHAVE_MEMCPY -I${.CURDIR}/../libz
+.PATH: ${.CURDIR}/../../contrib/zlib
+CFLAGS+=-DHAVE_MEMCPY -I${.CURDIR}/../../contrib/zlib
 SRCS+=	adler32.c crc32.c libstand_zutil.h libstand_gzguts.h
 
 .for file in infback.c inffast.c inflate.c inftrees.c zutil.c

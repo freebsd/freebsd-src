@@ -7,6 +7,10 @@ SHLIBDIR?=	/lib
 SHLIB_MAJOR=	6
 MAN=		zlib.3
 
+ZLIBSRC=	${SRCTOP}/contrib/zlib
+
+.PATH:		${ZLIBSRC}
+
 #CFLAGS=-O -DMAX_WBITS=14 -DMAX_MEM_LEVEL=7
 #CFLAGS=-g -DDEBUG
 #CFLAGS=-O3 -Wall -Wwrite-strings -Wpointer-arith -Wconversion \
@@ -36,14 +40,14 @@ SRCS+=		zopen.c
 SRCS+=		zutil.c
 
 #.if ${MACHINE_ARCH} == "i386" && ${MACHINE_CPU:M*i686*}
-#.PATH:		${.CURDIR}/contrib/asm686
+#.PATH:		${ZLIBSRC}/contrib/asm686
 #SRCS+=		match.S
 #CFLAGS+=	-DASMV -DNO_UNDERLINE
 #ACFLAGS+=	-Wa,--noexecstack
 #.endif
 
 #.if ${MACHINE_ARCH} == "amd64"
-#.PATH:		${.CURDIR}/contrib/gcc_gvmat64
+#.PATH:		${ZLIBSRC}/contrib/gcc_gvmat64
 #SRCS+=		gvmat64.S
 #CFLAGS+=	-DASMV -DNO_UNDERLINE
 #ACFLAGS+=	-Wa,--noexecstack
@@ -55,7 +59,7 @@ CFLAGS+=	-DSYMBOL_VERSIONING
 
 INCS=		zconf.h zlib.h
 
-.PATH:		${.CURDIR}/test
+.PATH:		${ZLIBSRC}/test
 
 minigzip:	all minigzip.o
 	$(CC) -o minigzip minigzip.o -L. -lz
