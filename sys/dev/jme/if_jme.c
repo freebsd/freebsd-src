@@ -803,7 +803,7 @@ jme_attach(device_t dev)
 	}
 	/* Create coalescing sysctl node. */
 	jme_sysctl_node(sc);
-	if ((error = jme_dma_alloc(sc) != 0))
+	if ((error = jme_dma_alloc(sc)) != 0)
 		goto fail;
 
 	ifp = sc->jme_ifp = if_alloc(IFT_ETHER);
