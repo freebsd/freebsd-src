@@ -130,10 +130,13 @@ efipart_init(void)
 		 * we try to find the parent device and add that instead as
 		 * that will be the CD filesystem.
 		 */
-		node = efi_devpath_last_node(devpath);
+		if ((node = efi_devpath_last_node(devpath)) == NULL)
+			continue;
 		if (DevicePathType(node) == MEDIA_DEVICE_PATH &&
 		    DevicePathSubType(node) == MEDIA_CDROM_DP) {
 			devpathcpy = efi_devpath_trim(devpath);
+			if (devpathcpy == NULL)
+				continue;
 			tmpdevpath = devpathcpy;
 			status = BS->LocateDevicePath(&blkio_guid, &tmpdevpath,
 			    &handle);
