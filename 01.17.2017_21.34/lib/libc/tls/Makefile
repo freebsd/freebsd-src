@@ -1,0 +1,28 @@
+# $NetBSD: Makefile,v 1.6 2016/07/18 12:17:39 christos Exp $
+
+NOPIE=yes
+.include <bsd.own.mk>
+
+TESTSDIR=	${TESTSBASE}/lib/libc/tls
+.if (${MKPIC} == "yes")
+SUBDIR+=	dso
+.endif
+
+TESTS_C+=	t_tls_static
+.if (${MKPIC} == "yes")
+TESTS_C+=	t_tls_dynamic t_tls_dlopen
+.endif
+
+DSODIR!=	cd ${.CURDIR}/../tls_dso && ${PRINTOBJDIR}
+
+SRCS.t_tls_static=	t_tls_static.c t_tls_static_helper.c
+DPADD.t_tls_static+=	${LIBPTHREAD}
+LDADD.t_tls_static+=	-lpthread
+LDSTATIC.t_tls_static+=	-static
+DPADD.t_tls_dynamic+=	${LIBPTHREAD} ${DSODIR}/libh_tls_dynamic.so
+LDADD.t_tls_dynamic+=	-lpthread \
+			-Wl,-rpath,${TESTSDIR} -L${DSODIR} -lh_tls_dynamic
+DPADD.t_tls_dlopen+=	${LIBPTHREAD}
+LDADD.t_tls_dlopen+=	-lpthread -Wl,-rpath,${TESTSDIR} -Wl,-export-dynamic
+
+.include <bsd.test.mk>
