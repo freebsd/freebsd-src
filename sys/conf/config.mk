@@ -19,6 +19,10 @@ opt_inet.h:
 opt_inet6.h:
 	@echo "#define INET6 1" > ${.TARGET}
 .endif
+.if ${MK_RATELIMIT} != "no"
+opt_ratelimit.h:
+	@echo "#define RATELIMIT 1" > ${.TARGET}
+.endif
 .if ${MK_EISA} != "no"
 opt_eisa.h:
 	@echo "#define DEV_EISA 1" > ${.TARGET}
