@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_ipsec.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
+#include "opt_ratelimit.h"
 #include "opt_pcbgroup.h"
 #include "opt_rss.h"
 
@@ -57,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rmlock.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
+#include <sys/sockio.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/refcount.h>
@@ -1140,6 +1142,10 @@ in_pcbdetach(struct inpcb *inp)
 
 	KASSERT(inp->inp_socket != NULL, ("%s: inp_socket == NULL", __func__));
 
+#ifdef RATELIMIT
+	if (inp->inp_snd_tag != NULL)
+		in_pcbdetach_txrtlmt(inp);
+#endif
 	inp->inp_socket->so_pcb = NULL;
 	inp->inp_socket = NULL;
 }
@@ -2677,3 +2683,253 @@ DB_SHOW_COMMAND(inpcb, db_show_inpcb)
 	db_print_inpcb(inp, "inpcb", 0);
 }
 #endif /* DDB */
+
+#ifdef RATELIMIT
+/*
+ * Modify TX rate limit based on the existing "inp->inp_snd_tag",
+ * if any.
+ */
+int
+in_pcbmodify_txrtlmt(struct inpcb *inp, uint32_t max_pacing_rate)
+{
+	union if_snd_tag_modify_params params = {
+		.rate_limit.max_rate = max_pacing_rate,
+	};
+	struct m_snd_tag *mst;
+	struct ifnet *ifp;
+	int error;
+
+	mst = inp->inp_snd_tag;
+	if (mst == NULL)
+		return (EINVAL);
+
+	ifp = mst->ifp;
+	if (ifp == NULL)
+		return (EINVAL);
+
+	if (ifp->if_snd_tag_modify == NULL) {
+		error = EOPNOTSUPP;
+	} else {
+		error = ifp->if_snd_tag_modify(mst, &params);
+	}
+	return (error);
+}
+
+/*
+ * Query existing TX rate limit based on the existing
+ * "inp->inp_snd_tag", if any.
+ */
+int
+in_pcbquery_txrtlmt(struct inpcb *inp, uint32_t *p_max_pacing_rate)
+{
+	union if_snd_tag_query_params params = { };
+	struct m_snd_tag *mst;
+	struct ifnet *ifp;
+	int error;
+
+	mst = inp->inp_snd_tag;
+	if (mst == NULL)
+		return (EINVAL);
+
+	ifp = mst->ifp;
+	if (ifp == NULL)
+		return (EINVAL);
+
+	if (ifp->if_snd_tag_query == NULL) {
+		error = EOPNOTSUPP;
+	} else {
+		error = ifp->if_snd_tag_query(mst, &params);
+		if (error == 0 &&  p_max_pacing_rate != NULL)
+			*p_max_pacing_rate = params.rate_limit.max_rate;
+	}
+	return (error);
+}
+
+/*
+ * Allocate a new TX rate limit send tag from the network interface
+ * given by the "ifp" argument and save it in "inp->inp_snd_tag":
+ */
+int
+in_pcbattach_txrtlmt(struct inpcb *inp, struct ifnet *ifp,
+    uint32_t flowtype, uint32_t flowid, uint32_t max_pacing_rate)
+{
+	union if_snd_tag_alloc_params params = {
+		.rate_limit.hdr.type = IF_SND_TAG_TYPE_RATE_LIMIT,
+		.rate_limit.hdr.flowid = flowid,
+		.rate_limit.hdr.flowtype = flowtype,
+		.rate_limit.max_rate = max_pacing_rate,
+	};
+	int error;
+
+	INP_WLOCK_ASSERT(inp);
+
+	if (inp->inp_snd_tag != NULL)
+		return (EINVAL);
+
+	if (ifp->if_snd_tag_alloc == NULL) {
+		error = EOPNOTSUPP;
+	} else {
+		error = ifp->if_snd_tag_alloc(ifp, &params, &inp->inp_snd_tag);
+
+		/*
+		 * At success increment the refcount on
+		 * the send tag's network interface:
+		 */
+		if (error == 0)
+			if_ref(inp->inp_snd_tag->ifp);
+	}
+	return (error);
+}
+
+/*
+ * Free an existing TX rate limit tag based on the "inp->inp_snd_tag",
+ * if any:
+ */
+void
+in_pcbdetach_txrtlmt(struct inpcb *inp)
+{
+	struct m_snd_tag *mst;
+	struct ifnet *ifp;
+
+	INP_WLOCK_ASSERT(inp);
+
+	mst = inp->inp_snd_tag;
+	inp->inp_snd_tag = NULL;
+
+	if (mst == NULL)
+		return;
+
+	ifp = mst->ifp;
+	if (ifp == NULL)
+		return;
+
+	/*
+	 * If the device was detached while we still had reference(s)
+	 * on the ifp, we assume if_snd_tag_free() was replaced with
+	 * stubs.
+	 */
+	ifp->if_snd_tag_free(mst);
+
+	/* release reference count on network interface */
+	if_rele(ifp);
+}
+
+/*
+ * This function should be called when the INP_RATE_LIMIT_CHANGED flag
+ * is set in the fast path and will attach/detach/modify the TX rate
+ * limit send tag based on the socket's so_max_pacing_rate value.
+ */
+void
+in_pcboutput_txrtlmt(struct inpcb *inp, struct ifnet *ifp, struct mbuf *mb)
+{
+	struct socket *socket;
+	uint32_t max_pacing_rate;
+	bool did_upgrade;
+	int error;
+
+	if (inp == NULL)
+		return;
+
+	socket = inp->inp_socket;
+	if (socket == NULL)
+		return;
+
+	if (!INP_WLOCKED(inp)) {
+		/*
+		 * NOTE: If the write locking fails, we need to bail
+		 * out and use the non-ratelimited ring for the
+		 * transmit until there is a new chance to get the
+		 * write lock.
+		 */
+		if (!INP_TRY_UPGRADE(inp))
+			return;
+		did_upgrade = 1;
+	} else {
+		did_upgrade = 0;
+	}
+
+	/*
+	 * NOTE: The so_max_pacing_rate value is read unlocked,
+	 * because atomic updates are not required since the variable
+	 * is checked at every mbuf we send. It is assumed that the
+	 * variable read itself will be atomic.
+	 */
+	max_pacing_rate = socket->so_max_pacing_rate;
+
+	/*
+	 * NOTE: When attaching to a network interface a reference is
+	 * made to ensure the network interface doesn't go away until
+	 * all ratelimit connections are gone. The network interface
+	 * pointers compared below represent valid network interfaces,
+	 * except when comparing towards NULL.
+	 */
+	if (max_pacing_rate == 0 && inp->inp_snd_tag == NULL) {
+		error = 0;
+	} else if (!(ifp->if_capenable & IFCAP_TXRTLMT)) {
+		if (inp->inp_snd_tag != NULL)
+			in_pcbdetach_txrtlmt(inp);
+		error = 0;
+	} else if (inp->inp_snd_tag == NULL) {
+		/*
+		 * In order to utilize packet pacing with RSS, we need
+		 * to wait until there is a valid RSS hash before we
+		 * can proceed:
+		 */
+		if (M_HASHTYPE_GET(mb) == M_HASHTYPE_NONE) {
+			error = EAGAIN;
+		} else {
+			error = in_pcbattach_txrtlmt(inp, ifp, M_HASHTYPE_GET(mb),
+			    mb->m_pkthdr.flowid, max_pacing_rate);
+		}
+	} else {
+		error = in_pcbmodify_txrtlmt(inp, max_pacing_rate);
+	}
+	if (error == 0 || error == EOPNOTSUPP)
+		inp->inp_flags2 &= ~INP_RATE_LIMIT_CHANGED;
+	if (did_upgrade)
+		INP_DOWNGRADE(inp);
+}
+
+/*
+ * Track route changes for TX rate limiting.
+ */
+void
+in_pcboutput_eagain(struct inpcb *inp)
+{
+	struct socket *socket;
+	bool did_upgrade;
+
+	if (inp == NULL)
+		return;
+
+	socket = inp->inp_socket;
+	if (socket == NULL)
+		return;
+
+	if (inp->inp_snd_tag == NULL)
+		return;
+
+	if (!INP_WLOCKED(inp)) {
+		/*
+		 * NOTE: If the write locking fails, we need to bail
+		 * out and use the non-ratelimited ring for the
+		 * transmit until there is a new chance to get the
+		 * write lock.
+		 */
+		if (!INP_TRY_UPGRADE(inp))
+			return;
+		did_upgrade = 1;
+	} else {
+		did_upgrade = 0;
+	}
+
+	/* detach rate limiting */
+	in_pcbdetach_txrtlmt(inp);
+
+	/* make sure new mbuf send tag allocation is made */
+	inp->inp_flags2 |= INP_RATE_LIMIT_CHANGED;
+
+	if (did_upgrade)
+		INP_DOWNGRADE(inp);
+}
+#endif /* RATELIMIT */
