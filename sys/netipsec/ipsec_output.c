@@ -302,7 +302,7 @@ static int
 ipsec4_common_output(struct mbuf *m, struct inpcb *inp, int forwarding)
 {
 	struct secpolicy *sp;
-	int error, idx;
+	int error;
 
 	/* Lookup for the corresponding outbound security policy */
 	sp = ipsec4_checkpolicy(m, inp, &error);
@@ -315,22 +315,15 @@ ipsec4_common_output(struct mbuf *m, struct inpcb *inp, int forwarding)
 		return (0); /* No IPsec required. */
 	}
 
-	if (forwarding) {
-		/*
-		 * Check that SP has tunnel mode IPsec transform.
-		 * We can't use transport mode when forwarding.
-		 */
-		for (idx = 0; idx < sp->tcount; idx++) {
-			if (sp->req[idx]->saidx.mode == IPSEC_MODE_TUNNEL)
-				break;
-		}
-		if (idx == sp->tcount) {
-			IPSECSTAT_INC(ips_out_inval);
-			key_freesp(&sp);
-			m_freem(m);
-			return (EACCES);
-		}
-	} else {
+	/*
+	 * Usually we have to have tunnel mode IPsec security policy
+	 * when we are forwarding a packet. Otherwise we could not handle
+	 * encrypted replies, because they are not destined for us. But
+	 * some users are doing source address translation for forwarded
+	 * packets, and thus, even if they are forwarded, the replies will
+	 * return back to us.
+	 */
+	if (!forwarding) {
 		/*
 		 * Do delayed checksums now because we send before
 		 * this is done in the normal processing path.
@@ -616,7 +609,7 @@ static int
 ipsec6_common_output(struct mbuf *m, struct inpcb *inp, int forwarding)
 {
 	struct secpolicy *sp;
-	int error, idx;
+	int error;
 
 	/* Lookup for the corresponding outbound security policy */
 	sp = ipsec6_checkpolicy(m, inp, &error);
@@ -629,29 +622,7 @@ ipsec6_common_output(struct mbuf *m, struct inpcb *inp, int forwarding)
 		return (0); /* No IPsec required. */
 	}
 
-	if (forwarding) {
-		/*
-		 * Check that SP has tunnel mode IPsec transform.
-		 * We can't use transport mode when forwarding.
-		 *
-		 * RFC2473 says:
-		 * "A tunnel IPv6 packet resulting from the encapsulation of
-		 * an original packet is considered an IPv6 packet originating
-		 * from the tunnel entry-point node."
-		 * So, we don't need MTU checking, after IPsec processing
-		 * we will just fragment it if needed.
-		 */
-		for (idx = 0; idx < sp->tcount; idx++) {
-			if (sp->req[idx]->saidx.mode == IPSEC_MODE_TUNNEL)
-				break;
-		}
-		if (idx == sp->tcount) {
-			IPSEC6STAT_INC(ips_out_inval);
-			key_freesp(&sp);
-			m_freem(m);
-			return (EACCES);
-		}
-	} else {
+	if (!forwarding) {
 		/*
 		 * Do delayed checksums now because we send before
 		 * this is done in the normal processing path.
