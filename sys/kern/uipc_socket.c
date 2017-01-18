@@ -2699,6 +2699,14 @@ sosetopt(struct socket *so, struct sockopt *sopt)
 			so->so_ts_clock = optval;
 			break;
 
+		case SO_MAX_PACING_RATE:
+			error = sooptcopyin(sopt, &val32, sizeof(val32),
+			    sizeof(val32));
+			if (error)
+				goto bad;
+			so->so_max_pacing_rate = val32;
+			break;
+
 		default:
 			if (V_socket_hhh[HHOOK_SOCKET_OPT]->hhh_nhooks > 0)
 				error = hhook_run_socket(so, sopt,
@@ -2888,6 +2896,10 @@ integer:
 
 		case SO_TS_CLOCK:
 			optval = so->so_ts_clock;
+			goto integer;
+
+		case SO_MAX_PACING_RATE:
+			optval = so->so_max_pacing_rate;
 			goto integer;
 
 		default:

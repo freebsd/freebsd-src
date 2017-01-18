@@ -30,6 +30,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_ratelimit.h"
+
 #include <sys/param.h>
 #include <sys/callout.h>
 #include <sys/eventhandler.h>
@@ -853,6 +855,35 @@ lacp_select_tx_port(struct lagg_softc *sc, struct mbuf *m)
 
 	return (lp->lp_lagg);
 }
+
+#ifdef RATELIMIT
+struct lagg_port *
+lacp_select_tx_port_by_hash(struct lagg_softc *sc, uint32_t flowid)
+{
+	struct lacp_softc *lsc = LACP_SOFTC(sc);
+	struct lacp_portmap *pm;
+	struct lacp_port *lp;
+	uint32_t hash;
+
+	if (__predict_false(lsc->lsc_suppress_distributing)) {
+		LACP_DPRINTF((NULL, "%s: waiting transit\n", __func__));
+		return (NULL);
+	}
+
+	pm = &lsc->lsc_pmap[lsc->lsc_activemap];
+	if (pm->pm_count == 0) {
+		LACP_DPRINTF((NULL, "%s: no active aggregator\n", __func__));
+		return (NULL);
+	}
+
+	hash = flowid >> sc->flowid_shift;
+	hash %= pm->pm_count;
+	lp = pm->pm_map[hash];
+
+	return (lp->lp_lagg);
+}
+#endif
+
 /*
  * lacp_suppress_distributing: drop transmit packets for a while
  * to preserve packet ordering.
