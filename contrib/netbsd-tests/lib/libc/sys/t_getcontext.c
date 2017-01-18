@@ -58,6 +58,8 @@ run(int n, ...)
 	for (i = 0; i < 7; i++) {
 #elif defined(__mips__)
 	for (i = 0; i < 5; i++) {
+#else
+	for (i = 0; i < 9; i++) {
 #endif
 #else
 	for (i = 0; i < 9; i++) {
