@@ -926,7 +926,7 @@ static const struct cheri_test cheri_tests[] = {
 	{ .ct_name = "test_sandbox_return_local_capability_nocatch",
 	  .ct_desc = "Try to return a local capability from a sandbox; uncaught",
 	  .ct_func = test_sandbox_return_local_capability_nocatch,
-		    CT_FLAG_SANDBOX, },
+		.ct_flags = CT_FLAG_SANDBOX, },
 
 	{ .ct_name = "test_sandbox_pass_local_capability_arg",
 	  .ct_desc = "Try to pass a local capability to a sandbox",
