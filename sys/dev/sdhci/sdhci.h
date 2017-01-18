@@ -66,7 +66,13 @@
 /* Alternate clock source is required when supplying a 400 KHz clock. */
 #define	SDHCI_QUIRK_BCM577XX_400KHZ_CLKSRC		(1<<16)
 /* Card insert/remove interrupts don't work, polling required. */
-#define SDHCI_QUIRK_POLL_CARD_PRESENT				(1<<17)
+#define	SDHCI_QUIRK_POLL_CARD_PRESENT			(1<<17)
+/* All controller slots are non-removable. */
+#define	SDHCI_QUIRK_ALL_SLOTS_NON_REMOVABLE		(1<<18)
+/* Issue custom Intel controller reset sequence after power-up. */
+#define	SDHCI_QUIRK_INTEL_POWER_UP_RESET		(1<<19)
+/* Data timeout is invalid, use 1 MHz clock instead. */
+#define	SDHCI_QUIRK_DATA_TIMEOUT_1MHZ			(1<<20)
 
 /*
  * Controller registers
@@ -155,6 +161,9 @@
 #define  SDHCI_CLOCK_CARD_EN	0x0004
 #define  SDHCI_CLOCK_INT_STABLE	0x0002
 #define  SDHCI_CLOCK_INT_EN	0x0001
+#define  SDHCI_DIVIDERS_MASK	\
+    ((SDHCI_DIVIDER_MASK << SDHCI_DIVIDER_SHIFT) | \
+    (SDHCI_DIVIDER_HI_MASK << SDHCI_DIVIDER_HI_SHIFT))
 
 #define SDHCI_TIMEOUT_CONTROL	0x2E
 
