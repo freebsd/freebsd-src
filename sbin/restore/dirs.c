@@ -645,7 +645,7 @@ setdirmodes(int flags)
 		if (!Nflag) {
 			if (node.extsize > 0) {
 				if (bufsize >= node.extsize) {
-					set_extattr_file(cp, buf, node.extsize);
+					set_extattr(-1, cp, buf, node.extsize, SXA_FILE);
 				} else {
 					fprintf(stderr, "Cannot restore %s%s\n",
 					    "extended attributes for ", cp);

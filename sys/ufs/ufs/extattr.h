@@ -93,12 +93,14 @@ struct extattr {
  *	content referenced by eap.
  */
 #define	EXTATTR_NEXT(eap) \
-	((struct extattr *)(((void *)(eap)) + (eap)->ea_length))
-#define	EXTATTR_CONTENT(eap) (((void *)(eap)) + EXTATTR_BASE_LENGTH(eap))
+	((struct extattr *)(((u_char *)(eap)) + (eap)->ea_length))
+#define	EXTATTR_CONTENT(eap) \
+	(void *)(((u_char *)(eap)) + EXTATTR_BASE_LENGTH(eap))
 #define	EXTATTR_CONTENT_SIZE(eap) \
 	((eap)->ea_length - EXTATTR_BASE_LENGTH(eap) - (eap)->ea_contentpadlen)
+/* -1 below compensates for ea_name[1] */
 #define	EXTATTR_BASE_LENGTH(eap) \
-	((sizeof(struct extattr) + (eap)->ea_namelength + 7) & ~7)
+	roundup2((sizeof(struct extattr) - 1 + (eap)->ea_namelength), 8)
 
 #ifdef _KERNEL
 
