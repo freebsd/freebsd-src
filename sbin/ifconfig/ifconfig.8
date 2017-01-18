@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd September 17, 2016
+.Dd January 18, 2017
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -460,6 +460,8 @@ this directive is used to select between 802.11a
 and 802.11g
 .Pq Cm 11g
 operating modes.
+.It Cm txrtlmt
+Set if the driver supports TX rate limiting.
 .It Cm inst Ar minst , Cm instance Ar minst
 Set the media instance to
 .Ar minst .
