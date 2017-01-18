@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 26, 2013
+.Dd July 11, 2016
 .Dt IFNET 9
 .Os
 .Sh NAME
@@ -795,18 +795,6 @@ The interface will compute IP checksums.
 The interface will compute TCP checksums.
 .It Dv CSUM_UDP
 The interface will compute UDP checksums.
-.It Dv CSUM_IP_FRAGS
-The interface can compute a TCP or UDP checksum for a packet
-fragmented by the host CPU.
-Makes sense only along with
-.Dv CSUM_TCP
-or
-.Dv CSUM_UDP .
-.It Dv CSUM_FRAGMENT
-The interface will do the fragmentation of IP packets if necessary.
-The host CPU does not need to care about MTU on this interface
-as long as a packet to transmit through it is an IP one and it
-does not exceed the size of the hardware buffer.
 .El
 .Pp
 An interface notifies the TCP/IP module about the tasks
