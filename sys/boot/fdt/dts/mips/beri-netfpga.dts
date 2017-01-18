@@ -97,7 +97,6 @@
 		 * we use mips4k coprocessor 0 interrupt management directly.
 		 */
 		compatible = "simple-bus", "mips,mips4k";
-		ranges = <>;
 
 		beripic: beripic@7f804000 {
 			compatible = "sri-cambridge,beri-pic";
