@@ -249,7 +249,7 @@ SOLINKOPTS+=	-Wl,--warn-shared-textrel
 
 .if defined(WANT_DUMP)
 ${SHLIB_NAME}.dump: ${SHLIB_NAME_FULL}
-	${OBJDUMP} -xrsSD ${SHLIB_NAME_FULL} > ${.TARGET}
+	${OBJDUMP} -xrsSd ${SHLIB_NAME_FULL} > ${.TARGET}
 
 _LIBS+=		${SHLIB_NAME}.dump
 CLEANFILES+=	${SHLIB_NAME}.dump
