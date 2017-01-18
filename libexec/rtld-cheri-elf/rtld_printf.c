@@ -300,7 +300,7 @@ reswitch:	switch (ch = (u_char)*fmt++) {
 				PCHAR('p'); PCHAR(':');
 				q = ksprintn(nbuf, cheri_getperm(ptr), 16,
 				     &n, 0);
-				for (width = 8 - n; width > 0; width++)
+				for (width = 8 - n; width > 0; width--)
 					PCHAR('0');
 				while (*q)
 					PCHAR(*q--);
@@ -310,7 +310,7 @@ reswitch:	switch (ch = (u_char)*fmt++) {
 				PCHAR('b'); PCHAR(':');
 				q = ksprintn(nbuf, cheri_getbase(ptr), 16,
 				     &n, 0);
-				for (width = 16 - n; width > 0; width++)
+				for (width = 16 - n; width > 0; width--)
 					PCHAR('0');
 				while (*q)
 					PCHAR(*q--);
@@ -320,7 +320,7 @@ reswitch:	switch (ch = (u_char)*fmt++) {
 				PCHAR('l'); PCHAR(':');
 				q = ksprintn(nbuf, cheri_getlen(ptr), 16,
 				     &n, 0);
-				for (width = 16 - n; width > 0; width++)
+				for (width = 16 - n; width > 0; width--)
 					PCHAR('0');
 				while (*q)
 					PCHAR(*q--);
