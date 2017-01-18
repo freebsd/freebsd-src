@@ -179,8 +179,6 @@ memmmap(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr,
 
 	if (dev2unit(dev) == CDEV_MINOR_MEM)
 		*paddr = offset;
-	else if (dev2unit(dev) == CDEV_MINOR_KMEM)
-		*paddr = vtophys(offset);
 	else
 		return (EFAULT);
 
