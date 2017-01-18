@@ -714,6 +714,15 @@ hdaa_patch_direct(struct hdaa_devinfo *devinfo)
 		hda_command(dev, HDA_CMD_12BIT(0, devinfo->nid,
 		    0xf88, 0xc0));
 		break;
+	case HDA_CODEC_ALC1150:
+		if (subid == 0xd9781462) {
+			/* Too low volume on MSI H170 GAMING M3. */
+			hda_command(dev, HDA_CMD_SET_COEFF_INDEX(0, 0x20,
+			    0x07));
+			hda_command(dev, HDA_CMD_SET_PROCESSING_COEFF(0, 0x20,
+			    0x7cb));
+		}
+		break;
 	}
 	if (subid == APPLE_INTEL_MAC)
 		hda_command(dev, HDA_CMD_12BIT(0, devinfo->nid,
