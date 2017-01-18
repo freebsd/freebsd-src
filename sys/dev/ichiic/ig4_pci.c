@@ -68,6 +68,12 @@ static int ig4iic_pci_detach(device_t dev);
 
 #define PCI_CHIP_LYNXPT_LP_I2C_1	0x9c618086
 #define PCI_CHIP_LYNXPT_LP_I2C_2	0x9c628086
+#define PCI_CHIP_BRASWELL_I2C_1 	0x22c18086
+#define PCI_CHIP_BRASWELL_I2C_2 	0x22c28086
+#define PCI_CHIP_BRASWELL_I2C_3 	0x22c38086
+#define PCI_CHIP_BRASWELL_I2C_5 	0x22c58086
+#define PCI_CHIP_BRASWELL_I2C_6 	0x22c68086
+#define PCI_CHIP_BRASWELL_I2C_7 	0x22c78086
 
 static int
 ig4iic_pci_probe(device_t dev)
@@ -78,6 +84,24 @@ ig4iic_pci_probe(device_t dev)
 		break;
 	case PCI_CHIP_LYNXPT_LP_I2C_2:
 		device_set_desc(dev, "Intel Lynx Point-LP I2C Controller-2");
+		break;
+	case PCI_CHIP_BRASWELL_I2C_1:
+		device_set_desc(dev, "Intel Braswell Serial I/O I2C Port 1");
+		break;
+	case PCI_CHIP_BRASWELL_I2C_2:
+		device_set_desc(dev, "Intel Braswell Serial I/O I2C Port 2");
+		break;
+	case PCI_CHIP_BRASWELL_I2C_3:
+		device_set_desc(dev, "Intel Braswell Serial I/O I2C Port 3");
+		break;
+	case PCI_CHIP_BRASWELL_I2C_5:
+		device_set_desc(dev, "Intel Braswell Serial I/O I2C Port 5");
+		break;
+	case PCI_CHIP_BRASWELL_I2C_6:
+		device_set_desc(dev, "Intel Braswell Serial I/O I2C Port 6");
+		break;
+	case PCI_CHIP_BRASWELL_I2C_7:
+		device_set_desc(dev, "Intel Braswell Serial I/O I2C Port 7");
 		break;
 	default:
 		return (ENXIO);
