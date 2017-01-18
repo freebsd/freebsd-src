@@ -602,7 +602,7 @@ ale_attach(device_t dev)
 	/* Create device sysctl node. */
 	ale_sysctl_node(sc);
 
-	if ((error = ale_dma_alloc(sc) != 0))
+	if ((error = ale_dma_alloc(sc)) != 0)
 		goto fail;
 
 	/* Load station address. */

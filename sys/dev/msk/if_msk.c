@@ -1626,7 +1626,7 @@ msk_attach(device_t dev)
 	callout_init_mtx(&sc_if->msk_tick_ch, &sc_if->msk_softc->msk_mtx, 0);
 	msk_sysctl_node(sc_if);
 
-	if ((error = msk_txrx_dma_alloc(sc_if) != 0))
+	if ((error = msk_txrx_dma_alloc(sc_if)) != 0)
 		goto fail;
 	msk_rx_dma_jalloc(sc_if);
 

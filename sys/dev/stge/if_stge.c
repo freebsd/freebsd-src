@@ -507,7 +507,7 @@ stge_attach(device_t dev)
 		}
 	}
 
-	if ((error = stge_dma_alloc(sc) != 0))
+	if ((error = stge_dma_alloc(sc)) != 0)
 		goto fail;
 
 	/*
