@@ -394,6 +394,11 @@ struct tmpfs_fid {
 	unsigned long		tf_gen;
 };
 
+struct tmpfs_dir_cursor {
+	struct tmpfs_dirent	*tdc_current;
+	struct tmpfs_dirent	*tdc_tree;
+};
+
 #ifdef _KERNEL
 /*
  * Prototypes for tmpfs_subr.c.
@@ -438,6 +443,10 @@ void	tmpfs_itimes(struct vnode *, const struct timespec *,
 void	tmpfs_set_status(struct tmpfs_node *node, int status);
 void	tmpfs_update(struct vnode *);
 int	tmpfs_truncate(struct vnode *, off_t);
+struct tmpfs_dirent *tmpfs_dir_first(struct tmpfs_node *dnode,
+	    struct tmpfs_dir_cursor *dc);
+struct tmpfs_dirent *tmpfs_dir_next(struct tmpfs_node *dnode,
+	    struct tmpfs_dir_cursor *dc);
 
 /*
  * Convenience macros to simplify some logical expressions.
