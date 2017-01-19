@@ -161,7 +161,7 @@ m_pulldown(struct mbuf *m, int off, int len, int *offp)
 	 * the target data is on <n, off>.
 	 * if we got enough data on the mbuf "n", we're done.
 	 */
-	if ((off == 0 || offp) && len <= n->m_len - off && writable)
+	if ((off == 0 || offp) && len <= n->m_len - off)
 		goto ok;
 
 	/*
