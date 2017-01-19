@@ -81,7 +81,7 @@ int	taskqgroup_adjust(struct taskqgroup *qgroup, int cnt, int stride);
 extern struct taskqgroup *qgroup_##name
 
 
-#ifdef EARLY_AP_STARTUP
+#if (!defined(SMP) || defined(EARLY_AP_STARTUP))
 #define TASKQGROUP_DEFINE(name, cnt, stride)				\
 									\
 struct taskqgroup *qgroup_##name;					\
@@ -95,7 +95,7 @@ taskqgroup_define_##name(void *arg)					\
 									\
 SYSINIT(taskqgroup_##name, SI_SUB_INIT_IF, SI_ORDER_FIRST,		\
 	taskqgroup_define_##name, NULL)
-#else
+#else /* SMP && !EARLY_AP_STARTUP */
 #define TASKQGROUP_DEFINE(name, cnt, stride)				\
 									\
 struct taskqgroup *qgroup_##name;					\
@@ -104,6 +104,15 @@ static void								\
 taskqgroup_define_##name(void *arg)					\
 {									\
 	qgroup_##name = taskqgroup_create(#name);			\
+	/* Adjustment will be null unless smp_cpus == 1. */		\
+	/*								\
+	 * XXX this was intended to fix the smp_cpus == 1 case, but	\
+	 * doesn't actually work for that.  It gives thes same strange	\
+	 * panic as adjustment at SI_SUB_INIT_IF:SI_ORDER_ANY for a	\
+	 * device that works with a pure UP kernel.			\
+	 */								\
+	/* XXX this code is common now, so should not be ifdefed. */	\
+	taskqgroup_adjust(qgroup_##name, (cnt), (stride));		\
 }									\
 									\
 SYSINIT(taskqgroup_##name, SI_SUB_INIT_IF, SI_ORDER_FIRST,		\
@@ -112,14 +121,18 @@ SYSINIT(taskqgroup_##name, SI_SUB_INIT_IF, SI_ORDER_FIRST,		\
 static void								\
 taskqgroup_adjust_##name(void *arg)					\
 {									\
+	/* 								\
+	 * Adjustment when smp_cpus > 1 only works accidentally		\
+	 * (when there is no device interrupt before adjustment).	\
+	 */								\
 	taskqgroup_adjust(qgroup_##name, (cnt), (stride));		\
 }									\
 									\
-SYSINIT(taskqgroup_adj_##name, SI_SUB_INIT_IF, SI_ORDER_ANY,		\
+SYSINIT(taskqgroup_adj_##name, SI_SUB_SMP, SI_ORDER_ANY,		\
 	taskqgroup_adjust_##name, NULL);				\
-									\
-struct __hack
-#endif
+
+#endif /* !SMP || EARLY_AP_STARTUP */
+
 TASKQGROUP_DECLARE(net);
 
 #endif /* !_SYS_GTASKQUEUE_H_ */
