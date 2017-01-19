@@ -198,8 +198,8 @@ tmpfs_alloc_node(struct mount *mp, struct tmpfs_mount *tmp, enum vtype type,
 		return (EBUSY);
 	}
 
-	nnode = (struct tmpfs_node *)uma_zalloc_arg(
-				tmp->tm_node_pool, tmp, M_WAITOK);
+	nnode = (struct tmpfs_node *)uma_zalloc_arg(tmp->tm_node_pool, tmp,
+	    M_WAITOK);
 
 	/* Generic initialization. */
 	nnode->tn_type = type;
@@ -257,7 +257,8 @@ tmpfs_alloc_node(struct mount *mp, struct tmpfs_mount *tmp, enum vtype type,
 		break;
 
 	default:
-		panic("tmpfs_alloc_node: type %p %d", nnode, (int)nnode->tn_type);
+		panic("tmpfs_alloc_node: type %p %d", nnode,
+		    (int)nnode->tn_type);
 	}
 
 	TMPFS_LOCK(tmp);
@@ -266,25 +267,12 @@ tmpfs_alloc_node(struct mount *mp, struct tmpfs_mount *tmp, enum vtype type,
 	TMPFS_UNLOCK(tmp);
 
 	*node = nnode;
-	return 0;
+	return (0);
 }
 
 /*
  * Destroys the node pointed to by node from the file system 'tmp'.
- * If the node does not belong to the given mount point, the results are
- * unpredicted.
- *
- * If the node references a directory; no entries are allowed because
- * their removal could need a recursive algorithm, something forbidden in
- * kernel space.  Furthermore, there is not need to provide such
- * functionality (recursive removal) because the only primitives offered
- * to the user are the removal of empty directories and the deletion of
- * individual files.
- *
- * Note that nodes are not really deleted; in fact, when a node has been
- * allocated, it cannot be deleted during the whole life of the file
- * system.  Instead, they are moved to the available list and remain there
- * until reused.
+ * If the node references a directory, no entries are allowed.
  */
 void
 tmpfs_free_node(struct tmpfs_mount *tmp, struct tmpfs_node *node)
@@ -609,7 +597,7 @@ loop1:
 		VN_LOCK_ASHARE(vp);
 
 	error = insmntque1(vp, mp, tmpfs_insmntque_dtr, NULL);
-	if (error)
+	if (error != 0)
 		vp = NULL;
 
 unlock:
@@ -638,7 +626,7 @@ out:
 	}
 #endif
 
-	return error;
+	return (error);
 }
 
 /*
@@ -706,8 +694,8 @@ tmpfs_alloc_file(struct vnode *dvp, struct vnode **vpp, struct vattr *vap,
 
 	/* Allocate a node that represents the new file. */
 	error = tmpfs_alloc_node(dvp->v_mount, tmp, vap->va_type,
-	    cnp->cn_cred->cr_uid,
-	    dnode->tn_gid, vap->va_mode, parent, target, vap->va_rdev, &node);
+	    cnp->cn_cred->cr_uid, dnode->tn_gid, vap->va_mode, parent,
+	    target, vap->va_rdev, &node);
 	if (error != 0)
 		return (error);
 
@@ -1115,9 +1103,8 @@ tmpfs_dir_getdotdotdent(struct tmpfs_node *node, struct uio *uio)
 	 * Return ENOENT if the current node is already removed.
 	 */
 	TMPFS_ASSERT_LOCKED(node);
-	if (node->tn_dir.tn_parent == NULL) {
+	if (node->tn_dir.tn_parent == NULL)
 		return (ENOENT);
-	}
 
 	TMPFS_NODE_LOCK(node->tn_dir.tn_parent);
 	dent.d_fileno = node->tn_dir.tn_parent->tn_id;
