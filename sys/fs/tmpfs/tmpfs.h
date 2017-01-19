@@ -150,7 +150,7 @@ RB_HEAD(tmpfs_dir, tmpfs_dirent);
  * (vi) vnode lock in exclusive mode, or vnode lock in shared vnode and
  *	tn_interlock
  * (i)  tn_interlock
- * (m)  tmpfs_mount allnode_lock
+ * (m)  tmpfs_mount tm_allnode_lock
  * (c)  stable after creation
  */
 struct tmpfs_node {
@@ -370,7 +370,7 @@ struct tmpfs_mount {
 	struct tmpfs_node_list	tm_nodes_used;
 
 	/* All node lock to protect the node list and tmp_pages_used. */
-	struct mtx allnode_lock;
+	struct mtx		tm_allnode_lock;
 
 	/* Zones used to store file system meta data, per tmpfs mount. */
 	uma_zone_t		tm_dirent_pool;
@@ -379,8 +379,9 @@ struct tmpfs_mount {
 	/* Read-only status. */
 	int			tm_ronly;
 };
-#define TMPFS_LOCK(tm) mtx_lock(&(tm)->allnode_lock)
-#define TMPFS_UNLOCK(tm) mtx_unlock(&(tm)->allnode_lock)
+#define	TMPFS_LOCK(tm) mtx_lock(&(tm)->tm_allnode_lock)
+#define	TMPFS_UNLOCK(tm) mtx_unlock(&(tm)->tm_allnode_lock)
+#define	TMPFS_MP_ASSERT_LOCKED(tm) mtx_assert(&(tm)->tm_allnode_lock, MA_OWNED)
 
 /*
  * This structure maps a file identifier to a tmpfs node.  Used by the

@@ -219,7 +219,7 @@ tmpfs_mount(struct mount *mp)
 	tmp = (struct tmpfs_mount *)malloc(sizeof(struct tmpfs_mount),
 	    M_TMPFSMNT, M_WAITOK | M_ZERO);
 
-	mtx_init(&tmp->allnode_lock, "tmpfs allnode lock", NULL, MTX_DEF);
+	mtx_init(&tmp->tm_allnode_lock, "tmpfs allnode lock", NULL, MTX_DEF);
 	tmp->tm_nodes_max = nodes_max;
 	tmp->tm_nodes_inuse = 0;
 	tmp->tm_maxfilesize = maxfilesize > 0 ? maxfilesize : OFF_MAX;
@@ -227,7 +227,7 @@ tmpfs_mount(struct mount *mp)
 
 	tmp->tm_pages_max = pages;
 	tmp->tm_pages_used = 0;
-	tmp->tm_ino_unr = new_unrhdr(2, INT_MAX, &tmp->allnode_lock);
+	tmp->tm_ino_unr = new_unrhdr(2, INT_MAX, &tmp->tm_allnode_lock);
 	tmp->tm_dirent_pool = uma_zcreate("TMPFS dirent",
 	    sizeof(struct tmpfs_dirent), NULL, NULL, NULL, NULL,
 	    UMA_ALIGN_PTR, 0);
@@ -316,7 +316,7 @@ tmpfs_unmount(struct mount *mp, int mntflags)
 	uma_zdestroy(tmp->tm_node_pool);
 	delete_unrhdr(tmp->tm_ino_unr);
 
-	mtx_destroy(&tmp->allnode_lock);
+	mtx_destroy(&tmp->tm_allnode_lock);
 	MPASS(tmp->tm_pages_used == 0);
 	MPASS(tmp->tm_nodes_inuse == 0);
 
