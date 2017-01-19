@@ -609,6 +609,9 @@ mps_unlock(struct mps_softc *sc)
 #define mps_printf(sc, args...)				\
 	device_printf((sc)->mps_dev, ##args)
 
+#define mps_print_field(sc, msg, args...)		\
+	printf("\t" msg, ##args)
+
 #define mps_vprintf(sc, args...)			\
 do {							\
 	if (bootverbose)				\
@@ -621,25 +624,13 @@ do {							\
 		device_printf((sc)->mps_dev, msg, ##args);	\
 } while (0)
 
-#define mps_dprint_field(sc, level, msg, args...)		\
-do {								\
-	if ((sc)->mps_debug & (level))				\
-		printf("\t" msg, ##args);			\
-} while (0)
-
 #define MPS_PRINTFIELD_START(sc, tag...)	\
-	mps_dprint((sc), MPS_XINFO, ##tag);	\
-	mps_dprint_field((sc), MPS_XINFO, ":\n")
+	mps_printf((sc), ##tag);			\
+	mps_print_field((sc), ":\n")
 #define MPS_PRINTFIELD_END(sc, tag)		\
-	mps_dprint((sc), MPS_XINFO, tag "\n")
+	mps_printf((sc), tag "\n")
 #define MPS_PRINTFIELD(sc, facts, attr, fmt)	\
-	mps_dprint_field((sc), MPS_XINFO, #attr ": " #fmt "\n", (facts)->attr)
-
-#define MPS_EVENTFIELD_START(sc, tag...)	\
-	mps_dprint((sc), MPS_EVENT, ##tag);	\
-	mps_dprint_field((sc), MPS_EVENT, ":\n")
-#define MPS_EVENTFIELD(sc, facts, attr, fmt)	\
-	mps_dprint_field((sc), MPS_EVENT, #attr ": " #fmt "\n", (facts)->attr)
+	mps_print_field((sc), #attr ": " #fmt "\n", (facts)->attr)
 
 #define MPS_FUNCTRACE(sc)			\
 	mps_dprint((sc), MPS_TRACE, "%s\n", __func__)
