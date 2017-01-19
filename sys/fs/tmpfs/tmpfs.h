@@ -347,8 +347,6 @@ struct tmpfs_mount {
 	 */
 	struct tmpfs_node *	tm_root;
 
-	struct mount *		tm_mnt;
-
 	/*
 	 * Maximum number of possible nodes for this file system; set
 	 * during mount time.  We need a hard limit on the maximum number
