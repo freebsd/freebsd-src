@@ -4,3 +4,7 @@
 
 SRCS+= \
 	__vdso_gettc.c
+
+.if ${MK_HYPERV} != "no"
+CFLAGS+=	-DWANT_HYPERV
+.endif
