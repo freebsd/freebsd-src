@@ -581,27 +581,96 @@ carp6_input(struct mbuf **mp, int *offp, int proto)
 }
 #endif /* INET6 */
 
+/*
+ * This routine should not be necessary at all, but some switches
+ * (VMWare ESX vswitches) can echo our own packets back at us,
+ * and we must ignore them or they will cause us to drop out of
+ * MASTER mode.
+ *
+ * We cannot catch all cases of network loops.  Instead, what we
+ * do here is catch any packet that arrives with a carp header
+ * with a VHID of 0, that comes from an address that is our own.
+ * These packets are by definition "from us" (even if they are from
+ * a misconfigured host that is pretending to be us).
+ *
+ * The VHID test is outside this mini-function.
+ */
+static int
+carp_source_is_self(struct mbuf *m, struct ifaddr *ifa, sa_family_t af)
+{
+#ifdef INET
+	struct ip *ip4;
+	struct in_addr in4;
+#endif
+#ifdef INET6
+	struct ip6_hdr *ip6;
+	struct in6_addr in6;
+#endif
+
+	switch (af) {
+#ifdef INET
+	case AF_INET:
+		ip4 = mtod(m, struct ip *);
+		in4 = ifatoia(ifa)->ia_addr.sin_addr;
+		return (in4.s_addr == ip4->ip_src.s_addr);
+#endif
+#ifdef INET6
+	case AF_INET6:
+		ip6 = mtod(m, struct ip6_hdr *);
+		in6 = ifatoia6(ifa)->ia_addr.sin6_addr;
+		return (memcmp(&in6, &ip6->ip6_src, sizeof(in6)) == 0);
+#endif
+	default:
+		break;
+	}
+	return (0);
+}
+
 static void
 carp_input_c(struct mbuf *m, struct carp_header *ch, sa_family_t af)
 {
 	struct ifnet *ifp = m->m_pkthdr.rcvif;
-	struct ifaddr *ifa;
+	struct ifaddr *ifa, *match;
 	struct carp_softc *sc;
 	uint64_t tmp_counter;
 	struct timeval sc_tv, ch_tv;
+	int error;
 
-	/* verify that the VHID is valid on the receiving interface */
+	/*
+	 * Verify that the VHID is valid on the receiving interface.
+	 *
+	 * There should be just one match.  If there are none
+	 * the VHID is not valid and we drop the packet.  If
+	 * there are multiple VHID matches, take just the first
+	 * one, for compatibility with previous code.  While we're
+	 * scanning, check for obvious loops in the network topology
+	 * (these should never happen, and as noted above, we may
+	 * miss real loops; this is just a double-check).
+	 */
 	IF_ADDR_RLOCK(ifp);
-	IFNET_FOREACH_IFA(ifp, ifa)
-		if (ifa->ifa_addr->sa_family == af &&
-		    ifa->ifa_carp->sc_vhid == ch->carp_vhid) {
-			ifa_ref(ifa);
-			break;
-		}
+	error = 0;
+	match = NULL;
+	IFNET_FOREACH_IFA(ifp, ifa) {
+		if (match == NULL && ifa->ifa_carp != NULL &&
+		    ifa->ifa_addr->sa_family == af &&
+		    ifa->ifa_carp->sc_vhid == ch->carp_vhid)
+			match = ifa;
+		if (ch->carp_vhid == 0 && carp_source_is_self(m, ifa, af))
+			error = ELOOP;
+	}
+	ifa = error ? NULL : match;
+	if (ifa != NULL)
+		ifa_ref(ifa);
 	IF_ADDR_RUNLOCK(ifp);
 
 	if (ifa == NULL) {
-		CARPSTATS_INC(carps_badvhid);
+		if (error == ELOOP) {
+			CARP_DEBUG("dropping looped packet on interface %s\n",
+			    ifp->if_xname);
+			CARPSTATS_INC(carps_badif);	/* ??? */
+		} else {
+			CARPSTATS_INC(carps_badvhid);
+		}
 		m_freem(m);
 		return;
 	}
@@ -787,12 +856,41 @@ carp_send_ad_error(struct carp_softc *sc, int error)
 	}
 }
 
+/*
+ * Pick the best ifaddr on the given ifp for sending CARP
+ * advertisements.
+ *
+ * "Best" here is defined by ifa_preferred().  This function is much
+ * much like ifaof_ifpforaddr() except that we just use ifa_preferred().
+ *
+ * (This could be simplified to return the actual address, except that
+ * it has a different format in AF_INET and AF_INET6.)
+ */
+static struct ifaddr *
+carp_best_ifa(int af, struct ifnet *ifp)
+{
+	struct ifaddr *ifa, *best;
+
+	if (af >= AF_MAX)
+		return (NULL);
+	best = NULL;
+	IF_ADDR_RLOCK(ifp);
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+		if (ifa->ifa_addr->sa_family == af &&
+		    (best == NULL || ifa_preferred(best, ifa)))
+			best = ifa;
+	}
+	IF_ADDR_RUNLOCK(ifp);
+	if (best != NULL)
+		ifa_ref(best);
+	return (best);
+}
+
 static void
 carp_send_ad_locked(struct carp_softc *sc)
 {
 	struct carp_header ch;
 	struct timeval tv;
-	struct sockaddr sa;
 	struct ifaddr *ifa;
 	struct carp_header *ch_ptr;
 	struct mbuf *m;
@@ -841,9 +939,7 @@ carp_send_ad_locked(struct carp_softc *sc)
 		ip->ip_sum = 0;
 		ip_fillid(ip);
 
-		bzero(&sa, sizeof(sa));
-		sa.sa_family = AF_INET;
-		ifa = ifaof_ifpforaddr(&sa, sc->sc_carpdev);
+		ifa = carp_best_ifa(AF_INET, sc->sc_carpdev);
 		if (ifa != NULL) {
 			ip->ip_src.s_addr =
 			    ifatoia(ifa)->ia_addr.sin_addr.s_addr;
@@ -887,11 +983,9 @@ carp_send_ad_locked(struct carp_softc *sc)
 		ip6->ip6_vfc |= IPV6_VERSION;
 		ip6->ip6_hlim = CARP_DFLTTL;
 		ip6->ip6_nxt = IPPROTO_CARP;
-		bzero(&sa, sizeof(sa));
 
 		/* set the source address */
-		sa.sa_family = AF_INET6;
-		ifa = ifaof_ifpforaddr(&sa, sc->sc_carpdev);
+		ifa = carp_best_ifa(AF_INET6, sc->sc_carpdev);
 		if (ifa != NULL) {
 			bcopy(IFA_IN6(ifa), &ip6->ip6_src,
 			    sizeof(struct in6_addr));
