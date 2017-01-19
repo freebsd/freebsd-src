@@ -80,8 +80,10 @@ struct tmpfs_dirent {
 	uint32_t			td_hash;
 	u_int				td_namelen;
 
-	/* Pointer to the node this entry refers to.  In case this field
-	 * is NULL, the node is a whiteout. */
+	/*
+	 * Pointer to the node this entry refers to.  In case this field
+	 * is NULL, the node is a whiteout.
+	 */
 	struct tmpfs_node *		td_node;
 
 	union {
@@ -94,21 +96,24 @@ struct tmpfs_dirent {
 	} ud;
 };
 
-/* A directory in tmpfs holds a list of directory entries, which in
- * turn point to other files (which can be directories themselves).
+/*
+ * A directory in tmpfs holds a collection of directory entries, which
+ * in turn point to other files (which can be directories themselves).
  *
- * In tmpfs, this list is managed by a RB-Tree, whose head is defined by
- * the struct tmpfs_dir type.
+ * In tmpfs, this collection is managed by a RB-Tree, whose head is
+ * defined by the struct tmpfs_dir type.
  *
  * It is important to notice that directories do not have entries for . and
  * .. as other file systems do.  These can be generated when requested
  * based on information available by other means, such as the pointer to
  * the node itself in the former case or the pointer to the parent directory
  * in the latter case.  This is done to simplify tmpfs's code and, more
- * importantly, to remove redundancy. */
+ * importantly, to remove redundancy.
+ */
 RB_HEAD(tmpfs_dir, tmpfs_dirent);
 
-/* Each entry in a directory has a cookie that identifies it.  Cookies
+/*
+ * Each entry in a directory has a cookie that identifies it.  Cookies
  * supersede offsets within directories because, given how tmpfs stores
  * directories in memory, there is no such thing as an offset.
  *
@@ -139,51 +144,65 @@ RB_HEAD(tmpfs_dir, tmpfs_dirent);
  * a particular type.  The code must be careful to only access those
  * attributes that are actually allowed by the node's type.
  *
- *
  * Below is the key of locks used to protected the fields in the following
  * structures.
- *
+ * (v)  vnode lock in exclusive mode
+ * (vi) vnode lock in exclusive mode, or vnode lock in shared vnode and
+ *	tn_interlock
+ * (i)  tn_interlock
+ * (m)  tmpfs_mount allnode_lock
+ * (c)  stable after creation
  */
 struct tmpfs_node {
-	/* Doubly-linked list entry which links all existing nodes for a
-	 * single file system.  This is provided to ease the removal of
-	 * all nodes during the unmount operation. */
-	LIST_ENTRY(tmpfs_node)	tn_entries;
+	/*
+	 * Doubly-linked list entry which links all existing nodes for
+	 * a single file system.  This is provided to ease the removal
+	 * of all nodes during the unmount operation, and to support
+	 * the implementation of VOP_VNTOCNP().
+	 */
+	LIST_ENTRY(tmpfs_node)	tn_entries;	/* (m) */
 
-	/* The node's type.  Any of 'VBLK', 'VCHR', 'VDIR', 'VFIFO',
+	/*
+	 * The node's type.  Any of 'VBLK', 'VCHR', 'VDIR', 'VFIFO',
 	 * 'VLNK', 'VREG' and 'VSOCK' is allowed.  The usage of vnode
 	 * types instead of a custom enumeration is to make things simpler
-	 * and faster, as we do not need to convert between two types. */
-	enum vtype		tn_type;
+	 * and faster, as we do not need to convert between two types.
+	 */
+	enum vtype		tn_type;	/* (c) */
 
 	/* Node identifier. */
-	ino_t			tn_id;
+	ino_t			tn_id;		/* (c) */
 
-	/* Node's internal status.  This is used by several file system
+	/*
+	 * Node's internal status.  This is used by several file system
 	 * operations to do modifications to the node in a delayed
-	 * fashion. */
-	int			tn_status;
+	 * fashion.
+	 */
+	int			tn_status;	/* (vi) */
 #define	TMPFS_NODE_ACCESSED	(1 << 1)
 #define	TMPFS_NODE_MODIFIED	(1 << 2)
 #define	TMPFS_NODE_CHANGED	(1 << 3)
 
-	/* The node size.  It does not necessarily match the real amount
-	 * of memory consumed by it. */
-	off_t			tn_size;
+	/*
+	 * The node size.  It does not necessarily match the real amount
+	 * of memory consumed by it.
+	 */
+	off_t			tn_size;	/* (v) */
 
 	/* Generic node attributes. */
-	uid_t			tn_uid;
-	gid_t			tn_gid;
-	mode_t			tn_mode;
-	u_long			tn_flags;
-	nlink_t			tn_links;
-	struct timespec		tn_atime;
-	struct timespec		tn_mtime;
-	struct timespec		tn_ctime;
-	struct timespec		tn_birthtime;
-	unsigned long		tn_gen;
+	uid_t			tn_uid;		/* (v) */
+	gid_t			tn_gid;		/* (v) */
+	mode_t			tn_mode;	/* (v) */
+	u_long			tn_flags;	/* (v) */
+	nlink_t			tn_links;	/* (v) */
+	struct timespec		tn_atime;	/* (vi) */
+	struct timespec		tn_mtime;	/* (vi) */
+	struct timespec		tn_ctime;	/* (vi) */
+	struct timespec		tn_birthtime;	/* (v) */
+	unsigned long		tn_gen;		/* (c) */
 
-	/* As there is a single vnode for each active file within the
+	/*
+	 * As there is a single vnode for each active file within the
 	 * system, care has to be taken to avoid allocating more than one
 	 * vnode per file.  In order to do this, a bidirectional association
 	 * is kept between vnodes and nodes.
@@ -196,70 +215,81 @@ struct tmpfs_node {
 	 * tn_vnode.
 	 *
 	 * May be NULL when the node is unused (that is, no vnode has been
-	 * allocated for it or it has been reclaimed). */
-	struct vnode *		tn_vnode;
+	 * allocated for it or it has been reclaimed).
+	 */
+	struct vnode *		tn_vnode;	/* (i) */
 
-	/* Interlock to protect tn_vpstate, and tn_status under shared
+	/*
+	 * Interlock to protect tn_vpstate, and tn_status under shared
 	 * vnode lock.
 	 */
 	struct mtx	tn_interlock;
 
-	/* Identify if current node has vnode assiocate with
+	/*
+	 * Identify if current node has vnode assiocate with
 	 * or allocating vnode.
 	 */
-	int		tn_vpstate;
+	int		tn_vpstate;		/* (i) */
 
 	/* misc data field for different tn_type node */
 	union {
 		/* Valid when tn_type == VBLK || tn_type == VCHR. */
-		dev_t			tn_rdev;
+		dev_t			tn_rdev;	/* (c) */
 
 		/* Valid when tn_type == VDIR. */
 		struct tn_dir {
-			/* Pointer to the parent directory.  The root
+			/*
+			 * Pointer to the parent directory.  The root
 			 * directory has a pointer to itself in this field;
-			 * this property identifies the root node. */
+			 * this property identifies the root node.
+			 */
 			struct tmpfs_node *	tn_parent;
 
-			/* Head of a tree that links the contents of
-			 * the directory together. */
+			/*
+			 * Head of a tree that links the contents of
+			 * the directory together.
+			 */
 			struct tmpfs_dir	tn_dirhead;
 
-			/* Head of a list the contains fake directory entries
+			/*
+			 * Head of a list the contains fake directory entries
 			 * heads, i.e. entries with TMPFS_DIRCOOKIE_DUPHEAD
-			 * flag. */
+			 * flag.
+			 */
 			struct tmpfs_dir_duphead tn_dupindex;
 
-			/* Number and pointer of the first directory entry
+			/*
+			 * Number and pointer of the first directory entry
 			 * returned by the readdir operation if it were
 			 * called again to continue reading data from the
 			 * same directory as before.  This is used to speed
 			 * up reads of long directories, assuming that no
 			 * more than one read is in progress at a given time.
-			 * Otherwise, these values are discarded. */
+			 * Otherwise, these values are discarded.
+			 */
 			off_t			tn_readdir_lastn;
 			struct tmpfs_dirent *	tn_readdir_lastp;
 		} tn_dir;
 
 		/* Valid when tn_type == VLNK. */
 		/* The link's target, allocated from a string pool. */
-		char *			tn_link;
+		char *			tn_link;	/* (c) */
 
 		/* Valid when tn_type == VREG. */
 		struct tn_reg {
-			/* The contents of regular files stored in a tmpfs
-			 * file system are represented by a single anonymous
-			 * memory object (aobj, for short).  The aobj provides
-			 * direct access to any position within the file,
-			 * because its contents are always mapped in a
-			 * contiguous region of virtual memory.  It is a task
-			 * of the memory management subsystem (see uvm(9)) to
-			 * issue the required page ins or page outs whenever
-			 * a position within the file is accessed. */
-			vm_object_t		tn_aobj;
-
-		}tn_reg;
-	}tn_spec;
+			/*
+			 * The contents of regular files stored in a
+			 * tmpfs file system are represented by a
+			 * single anonymous memory object (aobj, for
+			 * short).  The aobj provides direct access to
+			 * any position within the file.  It is a task
+			 * of the memory management subsystem to issue
+			 * the required page ins or page outs whenever
+			 * a position within the file is accessed.
+			 */
+			vm_object_t		tn_aobj;	/* (c) */
+		} tn_reg;
+	} tn_spec;	/* (v) */
 };
 LIST_HEAD(tmpfs_node_list, tmpfs_node);
 
@@ -303,26 +333,34 @@ LIST_HEAD(tmpfs_node_list, tmpfs_node);
  * Internal representation of a tmpfs mount point.
  */
 struct tmpfs_mount {
-	/* Maximum number of memory pages available for use by the file
+	/*
+	 * Maximum number of memory pages available for use by the file
 	 * system, set during mount time.  This variable must never be
 	 * used directly as it may be bigger than the current amount of
 	 * free memory; in the extreme case, it will hold the ULONG_MAX
-	 * value. */
+	 * value.
+	 */
 	u_long			tm_pages_max;
 
 	/* Number of pages in use by the file system. */
 	u_long			tm_pages_used;
 
-	/* Pointer to the node representing the root directory of this
-	 * file system. */
+	/*
+	 * Pointer to the node representing the root directory of this
+	 * file system.
+	 */
 	struct tmpfs_node *	tm_root;
 
-	/* Maximum number of possible nodes for this file system; set
+	struct mount *		tm_mnt;
+
+	/*
+	 * Maximum number of possible nodes for this file system; set
 	 * during mount time.  We need a hard limit on the maximum number
 	 * of nodes to avoid allocating too much of them; their objects
 	 * cannot be released until the file system is unmounted.
 	 * Otherwise, we could easily run out of memory by creating lots
-	 * of empty files and then simply removing them. */
+	 * of empty files and then simply removing them.
+	 */
 	ino_t			tm_nodes_max;
 
 	/* unrhdr used to allocate inode numbers */
@@ -334,27 +372,16 @@ struct tmpfs_mount {
 	/* maximum representable file size */
 	u_int64_t		tm_maxfilesize;
 
-	/* Nodes are organized in two different lists.  The used list
-	 * contains all nodes that are currently used by the file system;
-	 * i.e., they refer to existing files.  The available list contains
-	 * all nodes that are currently available for use by new files.
-	 * Nodes must be kept in this list (instead of deleting them)
-	 * because we need to keep track of their generation number (tn_gen
-	 * field).
-	 *
-	 * Note that nodes are lazily allocated: if the available list is
-	 * empty and we have enough space to create more nodes, they will be
-	 * created and inserted in the used list.  Once these are released,
-	 * they will go into the available list, remaining alive until the
-	 * file system is unmounted. */
+	/*
+	 * The used list contains all nodes that are currently used by
+	 * the file system; i.e., they refer to existing files.
+	 */
 	struct tmpfs_node_list	tm_nodes_used;
 
-	/* All node lock to protect the node list and tmp_pages_used */
+	/* All node lock to protect the node list and tmp_pages_used. */
 	struct mtx allnode_lock;
 
-	/* Pools used to store file system meta data.  These are not shared
-	 * across several instances of tmpfs for the reasons described in
-	 * tmpfs_pool.c. */
+	/* Zones used to store file system meta data, per tmpfs mount. */
 	uma_zone_t		tm_dirent_pool;
 	uma_zone_t		tm_node_pool;
 
@@ -444,10 +471,6 @@ int	tmpfs_truncate(struct vnode *, off_t);
 } while (0)
 
 /*
- * Memory management stuff.
- */
-
-/*
  * Amount of memory pages to reserve for the system (e.g., to not use by
  * tmpfs).
  */
@@ -464,37 +487,34 @@ size_t tmpfs_pages_used(struct tmpfs_mount *tmp);
  * specific ones.
  */
 
-static inline
-struct tmpfs_mount *
+static inline struct tmpfs_mount *
 VFS_TO_TMPFS(struct mount *mp)
 {
 	struct tmpfs_mount *tmp;
 
-	MPASS((mp) != NULL && (mp)->mnt_data != NULL);
-	tmp = (struct tmpfs_mount *)(mp)->mnt_data;
-	return tmp;
+	MPASS(mp != NULL && mp->mnt_data != NULL);
+	tmp = (struct tmpfs_mount *)mp->mnt_data;
+	return (tmp);
 }
 
-static inline
-struct tmpfs_node *
+static inline struct tmpfs_node *
 VP_TO_TMPFS_NODE(struct vnode *vp)
 {
 	struct tmpfs_node *node;
 
-	MPASS((vp) != NULL && (vp)->v_data != NULL);
+	MPASS(vp != NULL && vp->v_data != NULL);
 	node = (struct tmpfs_node *)vp->v_data;
-	return node;
+	return (node);
 }
 
-static inline
-struct tmpfs_node *
+static inline struct tmpfs_node *
 VP_TO_TMPFS_DIR(struct vnode *vp)
 {
 	struct tmpfs_node *node;
 
 	node = VP_TO_TMPFS_NODE(vp);
 	TMPFS_VALIDATE_DIR(node);
-	return node;
+	return (node);
 }
 
 #endif /* _FS_TMPFS_TMPFS_H_ */

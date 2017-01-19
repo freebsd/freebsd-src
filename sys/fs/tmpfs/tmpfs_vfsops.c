@@ -190,7 +190,7 @@ tmpfs_mount(struct mount *mp)
 	/* Do not allow mounts if we do not have enough memory to preserve
 	 * the minimum reserved pages. */
 	if (tmpfs_mem_avail() < TMPFS_PAGES_MINRESERVED)
-		return ENOSPC;
+		return (ENOSPC);
 
 	/* Get the maximum number of memory pages this file system is
 	 * allowed to use, based on the maximum size the user passed in
@@ -229,27 +229,23 @@ tmpfs_mount(struct mount *mp)
 	tmp->tm_pages_used = 0;
 	tmp->tm_ino_unr = new_unrhdr(2, INT_MAX, &tmp->allnode_lock);
 	tmp->tm_dirent_pool = uma_zcreate("TMPFS dirent",
-	    sizeof(struct tmpfs_dirent),
-	    NULL, NULL, NULL, NULL,
+	    sizeof(struct tmpfs_dirent), NULL, NULL, NULL, NULL,
 	    UMA_ALIGN_PTR, 0);
 	tmp->tm_node_pool = uma_zcreate("TMPFS node",
-	    sizeof(struct tmpfs_node),
-	    tmpfs_node_ctor, tmpfs_node_dtor,
-	    tmpfs_node_init, tmpfs_node_fini,
-	    UMA_ALIGN_PTR, 0);
+	    sizeof(struct tmpfs_node), tmpfs_node_ctor, tmpfs_node_dtor,
+	    tmpfs_node_init, tmpfs_node_fini, UMA_ALIGN_PTR, 0);
 	tmp->tm_ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
 
 	/* Allocate the root node. */
-	error = tmpfs_alloc_node(mp, tmp, VDIR, root_uid,
-	    root_gid, root_mode & ALLPERMS, NULL, NULL,
-	    VNOVAL, &root);
+	error = tmpfs_alloc_node(mp, tmp, VDIR, root_uid, root_gid,
+	    root_mode & ALLPERMS, NULL, NULL, VNOVAL, &root);
 
 	if (error != 0 || root == NULL) {
-	    uma_zdestroy(tmp->tm_node_pool);
-	    uma_zdestroy(tmp->tm_dirent_pool);
-	    delete_unrhdr(tmp->tm_ino_unr);
-	    free(tmp, M_TMPFSMNT);
-	    return error;
+		uma_zdestroy(tmp->tm_node_pool);
+		uma_zdestroy(tmp->tm_dirent_pool);
+		delete_unrhdr(tmp->tm_ino_unr);
+		free(tmp, M_TMPFSMNT);
+		return (error);
 	}
 	KASSERT(root->tn_id == 2,
 	    ("tmpfs root with invalid ino: %ju", (uintmax_t)root->tn_id));
@@ -340,12 +336,11 @@ static int
 tmpfs_root(struct mount *mp, int flags, struct vnode **vpp)
 {
 	int error;
+
 	error = tmpfs_alloc_vp(mp, VFS_TO_TMPFS(mp)->tm_root, flags, vpp);
-
-	if (!error)
+	if (error == 0)
 		(*vpp)->v_vflag |= VV_ROOT;
-
-	return error;
+	return (error);
 }
 
 static int
