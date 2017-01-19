@@ -100,6 +100,9 @@ __FBSDID("$FreeBSD$");
 #include "opt_directio.h"
 #include "opt_ffs.h"
 
+#define	ALIGNED_TO(ptr, s)	\
+	(((uintptr_t)(ptr) & (_Alignof(s) - 1)) == 0)
+
 #ifdef DIRECTIO
 extern int	ffs_rawread(struct vnode *vp, struct uio *uio, int *workdone);
 #endif
@@ -1100,46 +1103,30 @@ ffs_extwrite(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *ucred)
  * the length of the EA, and possibly the pointer to the entry and to the data.
  */
 static int
-ffs_findextattr(u_char *ptr, u_int length, int nspace, const char *name, u_char **eap, u_char **eac)
+ffs_findextattr(u_char *ptr, u_int length, int nspace, const char *name,
+    struct extattr **eapp, u_char **eac)
 {
-	u_char *p, *pe, *pn, *p0;
-	int eapad1, eapad2, ealength, ealen, nlen;
-	uint32_t ul;
+	struct extattr *eap, *eaend;
+	size_t nlen;
 
-	pe = ptr + length;
 	nlen = strlen(name);
-
-	for (p = ptr; p < pe; p = pn) {
-		p0 = p;
-		bcopy(p, &ul, sizeof(ul));
-		pn = p + ul;
+	KASSERT(ALIGNED_TO(ptr, struct extattr), ("unaligned"));
+	eap = (struct extattr *)ptr;
+	eaend = (struct extattr *)(ptr + length);
+	for (; eap < eaend; eap = EXTATTR_NEXT(eap)) {
 		/* make sure this entry is complete */
-		if (pn > pe)
+		if (EXTATTR_NEXT(eap) > eaend)
 			break;
-		p += sizeof(uint32_t);
-		if (*p != nspace)
+		if (eap->ea_namespace != nspace || eap->ea_namelength != nlen
+		    || memcmp(eap->ea_name, name, nlen) != 0)
 			continue;
-		p++;
-		eapad2 = *p++;
-		if (*p != nlen)
-			continue;
-		p++;
-		if (bcmp(p, name, nlen))
-			continue;
-		ealength = sizeof(uint32_t) + 3 + nlen;
-		eapad1 = 8 - (ealength % 8);
-		if (eapad1 == 8)
-			eapad1 = 0;
-		ealength += eapad1;
-		ealen = ul - ealength - eapad2;
-		p += nlen + eapad1;
-		if (eap != NULL)
-			*eap = p0;
+		if (eapp != NULL)
+			*eapp = eap;
 		if (eac != NULL)
-			*eac = p;
-		return (ealen);
+			*eac = EXTATTR_CONTENT(eap);
+		return (EXTATTR_CONTENT_SIZE(eap));
 	}
-	return(-1);
+	return (-1);
 }
 
 static int
@@ -1380,9 +1367,11 @@ vop_deleteextattr {
 {
 	struct inode *ip;
 	struct fs *fs;
-	uint32_t ealength, ul;
-	int ealen, olen, eapad1, eapad2, error, i, easize;
-	u_char *eae, *p;
+	struct extattr *eap;
+	uint32_t ul;
+	int olen, error, i, easize;
+	u_char *eae;
+	void *tmp;
 
 	ip = VTOI(ap->a_vp);
 	fs = ITOFS(ip);
@@ -1413,39 +1402,30 @@ vop_deleteextattr {
 	if (error)
 		return (error);
 
-	ealength = eapad1 = ealen = eapad2 = 0;
-
+	/* CEM: delete could be done in-place instead */
 	eae = malloc(ip->i_ea_len, M_TEMP, M_WAITOK);
 	bcopy(ip->i_ea_area, eae, ip->i_ea_len);
 	easize = ip->i_ea_len;
 
 	olen = ffs_findextattr(eae, easize, ap->a_attrnamespace, ap->a_name,
-	    &p, NULL);
+	    &eap, NULL);
 	if (olen == -1) {
 		/* delete but nonexistent */
 		free(eae, M_TEMP);
 		ffs_close_ea(ap->a_vp, 0, ap->a_cred, ap->a_td);
-		return(ENOATTR);
+		return (ENOATTR);
 	}
-	bcopy(p, &ul, sizeof ul);
-	i = p - eae + ul;
-	if (ul != ealength) {
-		bcopy(p + ul, p + ealength, easize - i);
-		easize += (ealength - ul);
-	}
-	if (easize > NXADDR * fs->fs_bsize) {
-		free(eae, M_TEMP);
-		ffs_close_ea(ap->a_vp, 0, ap->a_cred, ap->a_td);
-		if (ip->i_ea_area != NULL && ip->i_ea_error == 0)
-			ip->i_ea_error = ENOSPC;
-		return(ENOSPC);
-	}
-	p = ip->i_ea_area;
+	ul = eap->ea_length;
+	i = (u_char *)EXTATTR_NEXT(eap) - eae;
+	bcopy(EXTATTR_NEXT(eap), eap, easize - i);
+	easize -= ul;
+
+	tmp = ip->i_ea_area;
 	ip->i_ea_area = eae;
 	ip->i_ea_len = easize;
-	free(p, M_TEMP);
+	free(tmp, M_TEMP);
 	error = ffs_close_ea(ap->a_vp, 1, ap->a_cred, ap->a_td);
-	return(error);
+	return (error);
 }
 
 /*
@@ -1499,7 +1479,7 @@ vop_getextattr {
 		error = ENOATTR;
 
 	ffs_close_ea(ap->a_vp, 0, ap->a_cred, ap->a_td);
-	return(error);
+	return (error);
 }
 
 /*
@@ -1519,9 +1499,7 @@ vop_listextattr {
 */
 {
 	struct inode *ip;
-	u_char *eae, *p, *pe, *pn;
-	unsigned easize;
-	uint32_t ul;
+	struct extattr *eap, *eaend;
 	int error, ealen;
 
 	ip = VTOI(ap->a_vp);
@@ -1537,31 +1515,31 @@ vop_listextattr {
 	error = ffs_open_ea(ap->a_vp, ap->a_cred, ap->a_td);
 	if (error)
 		return (error);
-	eae = ip->i_ea_area;
-	easize = ip->i_ea_len;
 
 	error = 0;
 	if (ap->a_size != NULL)
 		*ap->a_size = 0;
-	pe = eae + easize;
-	for(p = eae; error == 0 && p < pe; p = pn) {
-		bcopy(p, &ul, sizeof(ul));
-		pn = p + ul;
-		if (pn > pe)
+
+	KASSERT(ALIGNED_TO(ip->i_ea_area, struct extattr), ("unaligned"));
+	eap = (struct extattr *)ip->i_ea_area;
+	eaend = (struct extattr *)(ip->i_ea_area + ip->i_ea_len);
+	for (; error == 0 && eap < eaend; eap = EXTATTR_NEXT(eap)) {
+		/* make sure this entry is complete */
+		if (EXTATTR_NEXT(eap) > eaend)
 			break;
-		p += sizeof(ul);
-		if (*p++ != ap->a_attrnamespace)
+		if (eap->ea_namespace != ap->a_attrnamespace)
 			continue;
-		p++;	/* pad2 */
-		ealen = *p;
-		if (ap->a_size != NULL) {
+
+		ealen = eap->ea_namelength;
+		if (ap->a_size != NULL)
 			*ap->a_size += ealen + 1;
-		} else if (ap->a_uio != NULL) {
-			error = uiomove(p, ealen + 1, ap->a_uio);
-		}
+		else if (ap->a_uio != NULL)
+			error = uiomove(&eap->ea_namelength, ealen + 1,
+			    ap->a_uio);
 	}
+
 	ffs_close_ea(ap->a_vp, 0, ap->a_cred, ap->a_td);
-	return(error);
+	return (error);
 }
 
 /*
@@ -1582,10 +1560,12 @@ vop_setextattr {
 {
 	struct inode *ip;
 	struct fs *fs;
+	struct extattr *eap;
 	uint32_t ealength, ul;
 	ssize_t ealen;
 	int olen, eapad1, eapad2, error, i, easize;
-	u_char *eae, *p;
+	u_char *eae;
+	void *tmp;
 
 	ip = VTOI(ap->a_vp);
 	fs = ITOFS(ip);
@@ -1625,29 +1605,33 @@ vop_setextattr {
 		return (error);
 
 	ealength = sizeof(uint32_t) + 3 + strlen(ap->a_name);
-	eapad1 = 8 - (ealength % 8);
-	if (eapad1 == 8)
-		eapad1 = 0;
-	eapad2 = 8 - (ealen % 8);
-	if (eapad2 == 8)
-		eapad2 = 0;
+	eapad1 = roundup2(ealength, 8) - ealength;
+	eapad2 = roundup2(ealen, 8) - ealen;
 	ealength += eapad1 + ealen + eapad2;
 
+	/*
+	 * CEM: rewrites of the same size or smaller could be done in-place
+	 * instead.  (We don't acquire any fine-grained locks in here either,
+	 * so we could also do bigger writes in-place.)
+	 */
 	eae = malloc(ip->i_ea_len + ealength, M_TEMP, M_WAITOK);
 	bcopy(ip->i_ea_area, eae, ip->i_ea_len);
 	easize = ip->i_ea_len;
 
-	olen = ffs_findextattr(eae, easize,
-	    ap->a_attrnamespace, ap->a_name, &p, NULL);
+	olen = ffs_findextattr(eae, easize, ap->a_attrnamespace, ap->a_name,
+	    &eap, NULL);
         if (olen == -1) {
 		/* new, append at end */
-		p = eae + easize;
+		KASSERT(ALIGNED_TO(eae + easize, struct extattr),
+		    ("unaligned"));
+		eap = (struct extattr *)(eae + easize);
 		easize += ealength;
 	} else {
-		bcopy(p, &ul, sizeof ul);
-		i = p - eae + ul;
+		ul = eap->ea_length;
+		i = (u_char *)EXTATTR_NEXT(eap) - eae;
 		if (ul != ealength) {
-			bcopy(p + ul, p + ealength, easize - i);
+			bcopy(EXTATTR_NEXT(eap), (u_char *)eap + ealength,
+			    easize - i);
 			easize += (ealength - ul);
 		}
 	}
@@ -1656,34 +1640,30 @@ vop_setextattr {
 		ffs_close_ea(ap->a_vp, 0, ap->a_cred, ap->a_td);
 		if (ip->i_ea_area != NULL && ip->i_ea_error == 0)
 			ip->i_ea_error = ENOSPC;
-		return(ENOSPC);
+		return (ENOSPC);
 	}
-	bcopy(&ealength, p, sizeof(ealength));
-	p += sizeof(ealength);
-	*p++ = ap->a_attrnamespace;
-	*p++ = eapad2;
-	*p++ = strlen(ap->a_name);
-	strcpy(p, ap->a_name);
-	p += strlen(ap->a_name);
-	bzero(p, eapad1);
-	p += eapad1;
-	error = uiomove(p, ealen, ap->a_uio);
+	eap->ea_length = ealength;
+	eap->ea_namespace = ap->a_attrnamespace;
+	eap->ea_contentpadlen = eapad2;
+	eap->ea_namelength = strlen(ap->a_name);
+	memcpy(eap->ea_name, ap->a_name, strlen(ap->a_name));
+	bzero(&eap->ea_name[strlen(ap->a_name)], eapad1);
+	error = uiomove(EXTATTR_CONTENT(eap), ealen, ap->a_uio);
 	if (error) {
 		free(eae, M_TEMP);
 		ffs_close_ea(ap->a_vp, 0, ap->a_cred, ap->a_td);
 		if (ip->i_ea_area != NULL && ip->i_ea_error == 0)
 			ip->i_ea_error = error;
-		return(error);
+		return (error);
 	}
-	p += ealen;
-	bzero(p, eapad2);
+	bzero((u_char *)EXTATTR_CONTENT(eap) + ealen, eapad2);
 
-	p = ip->i_ea_area;
+	tmp = ip->i_ea_area;
 	ip->i_ea_area = eae;
 	ip->i_ea_len = easize;
-	free(p, M_TEMP);
+	free(tmp, M_TEMP);
 	error = ffs_close_ea(ap->a_vp, 1, ap->a_cred, ap->a_td);
-	return(error);
+	return (error);
 }
 
 /*
