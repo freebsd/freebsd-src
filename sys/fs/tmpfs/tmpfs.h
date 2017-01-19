@@ -309,19 +309,10 @@ LIST_HEAD(tmpfs_node_list, tmpfs_node);
 #define TMPFS_ASSERT_LOCKED(node) do {					\
 		MPASS(node != NULL);					\
 		MPASS(node->tn_vnode != NULL);				\
-		if (!VOP_ISLOCKED(node->tn_vnode) &&			\
-		    !mtx_owned(TMPFS_NODE_MTX(node)))			\
-			panic("tmpfs: node is not locked: %p", node);	\
-	} while (0)
-#define TMPFS_ASSERT_ELOCKED(node) do {					\
-		MPASS((node) != NULL);					\
-		MPASS((node)->tn_vnode != NULL);			\
-		mtx_assert(TMPFS_NODE_MTX(node), MA_OWNED);		\
-		ASSERT_VOP_LOCKED((node)->tn_vnode, "tmpfs");		\
+		ASSERT_VOP_LOCKED(node->tn_vnode, "tmpfs assert");	\
 	} while (0)
 #else
 #define TMPFS_ASSERT_LOCKED(node) (void)0
-#define TMPFS_ASSERT_ELOCKED(node) (void)0
 #endif
 
 #define TMPFS_VNODE_ALLOCATING	1
