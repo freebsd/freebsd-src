@@ -158,9 +158,11 @@ struct tmpfs_node {
 	 * Doubly-linked list entry which links all existing nodes for
 	 * a single file system.  This is provided to ease the removal
 	 * of all nodes during the unmount operation, and to support
-	 * the implementation of VOP_VNTOCNP().
+	 * the implementation of VOP_VNTOCNP().  tn_attached is false
+	 * when the node is removed from list and unlocked.
 	 */
 	LIST_ENTRY(tmpfs_node)	tn_entries;	/* (m) */
+	bool			tn_attached;	/* (m) */
 
 	/*
 	 * The node's type.  Any of 'VBLK', 'VCHR', 'VDIR', 'VFIFO',
@@ -230,6 +232,9 @@ struct tmpfs_node {
 	 * or allocating vnode.
 	 */
 	int		tn_vpstate;		/* (i) */
+
+	/* Transient refcounter on this node. */
+	u_int		tn_refcount;		/* (m) + (i) */
 
 	/* misc data field for different tn_type node */
 	union {
@@ -360,6 +365,9 @@ struct tmpfs_mount {
 	/* Number of nodes currently that are in use. */
 	ino_t			tm_nodes_inuse;
 
+	/* Refcounter on this struct tmpfs_mount. */
+	uint64_t		tm_refcount;
+
 	/* maximum representable file size */
 	u_int64_t		tm_maxfilesize;
 
@@ -404,10 +412,14 @@ struct tmpfs_dir_cursor {
  * Prototypes for tmpfs_subr.c.
  */
 
+void	tmpfs_ref_node(struct tmpfs_node *node);
+void	tmpfs_ref_node_locked(struct tmpfs_node *node);
 int	tmpfs_alloc_node(struct mount *mp, struct tmpfs_mount *, enum vtype,
 	    uid_t uid, gid_t gid, mode_t mode, struct tmpfs_node *,
 	    char *, dev_t, struct tmpfs_node **);
 void	tmpfs_free_node(struct tmpfs_mount *, struct tmpfs_node *);
+bool	tmpfs_free_node_locked(struct tmpfs_mount *, struct tmpfs_node *, bool);
+void	tmpfs_free_tmp(struct tmpfs_mount *);
 int	tmpfs_alloc_dirent(struct tmpfs_mount *, struct tmpfs_node *,
 	    const char *, u_int, struct tmpfs_dirent **);
 void	tmpfs_free_dirent(struct tmpfs_mount *, struct tmpfs_dirent *);
