@@ -259,12 +259,6 @@ struct tmpfs_node {
 			vm_object_t		tn_aobj;
 
 		}tn_reg;
-
-		/* Valid when tn_type = VFIFO */
-		struct tn_fifo {
-			fo_rdwr_t		*tn_fo_read;
-			fo_rdwr_t		*tn_fo_write;
-		}tn_fifo;
 	}tn_spec;
 };
 LIST_HEAD(tmpfs_node_list, tmpfs_node);
