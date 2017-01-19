@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpufunc.h>
 #include <machine/specialreg.h>
 #include <dev/acpica/acpi_hpet.h>
-#ifdef __amd64__
+#ifdef WANT_HYPERV
 #include <dev/hyperv/hyperv.h>
 #endif
 #include "libc_private.h"
@@ -158,7 +158,7 @@ __vdso_init_hpet(uint32_t u)
 		munmap((void *)new_map, PAGE_SIZE);
 }
 
-#ifdef __amd64__
+#ifdef WANT_HYPERV
 
 #define HYPERV_REFTSC_DEVPATH	"/dev/" HYPERV_REFTSC_DEVNAME
 
@@ -217,7 +217,7 @@ __vdso_hyperv_tsc(struct hyperv_reftsc *tsc_ref, u_int *tc)
 	return (ENOSYS);
 }
 
-#endif	/* __amd64__ */
+#endif	/* WANT_HYPERV */
 
 #pragma weak __vdso_gettc
 int
@@ -246,7 +246,7 @@ __vdso_gettc(const struct vdso_timehands *th, u_int *tc)
 			return (ENOSYS);
 		*tc = *(volatile uint32_t *)(map + HPET_MAIN_COUNTER);
 		return (0);
-#ifdef __amd64__
+#ifdef WANT_HYPERV
 	case VDSO_TH_ALGO_X86_HVTSC:
 		if (hyperv_ref_tsc == NULL)
 			__vdso_init_hyperv_tsc();
