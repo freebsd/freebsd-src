@@ -591,7 +591,8 @@ loop:
 	TMPFS_NODE_UNLOCK(node);
 
 	/* Get a new vnode and associate it with our node. */
-	error = getnewvnode("tmpfs", mp, &tmpfs_vnodeop_entries, &vp);
+	error = getnewvnode("tmpfs", mp, VFS_TO_TMPFS(mp)->tm_nonc ?
+	    &tmpfs_vnodeop_nonc_entries : &tmpfs_vnodeop_entries, &vp);
 	if (error != 0)
 		goto unlock;
 	MPASS(vp != NULL);

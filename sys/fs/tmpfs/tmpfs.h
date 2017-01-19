@@ -385,7 +385,9 @@ struct tmpfs_mount {
 	uma_zone_t		tm_node_pool;
 
 	/* Read-only status. */
-	int			tm_ronly;
+	bool			tm_ronly;
+	/* Do not use namecache. */
+	bool			tm_nonc;
 };
 #define	TMPFS_LOCK(tm) mtx_lock(&(tm)->tm_allnode_lock)
 #define	TMPFS_UNLOCK(tm) mtx_unlock(&(tm)->tm_allnode_lock)
@@ -528,6 +530,13 @@ VP_TO_TMPFS_DIR(struct vnode *vp)
 	node = VP_TO_TMPFS_NODE(vp);
 	TMPFS_VALIDATE_DIR(node);
 	return (node);
+}
+
+static inline bool
+tmpfs_use_nc(struct vnode *vp)
+{
+
+	return (!(VFS_TO_TMPFS(vp->v_mount)->tm_nonc));
 }
 
 #endif /* _FS_TMPFS_TMPFS_H_ */

@@ -76,11 +76,8 @@ tmpfs_vn_get_ino_alloc(struct mount *mp, void *arg, int lkflags,
 }
 
 static int
-tmpfs_lookup(struct vop_cachedlookup_args *v)
+tmpfs_lookup1(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp)
 {
-	struct vnode *dvp = v->a_dvp;
-	struct vnode **vpp = v->a_vpp;
-	struct componentname *cnp = v->a_cnp;
 	struct tmpfs_dirent *de;
 	struct tmpfs_node *dnode, *pnode;
 	struct tmpfs_mount *tm;
@@ -213,7 +210,7 @@ tmpfs_lookup(struct vop_cachedlookup_args *v)
 	 * request was for creation, as it does not improve timings on
 	 * emprical tests.
 	 */
-	if ((cnp->cn_flags & MAKEENTRY) != 0)
+	if ((cnp->cn_flags & MAKEENTRY) != 0 && tmpfs_use_nc(dvp))
 		cache_enter(dvp, *vpp, cnp);
 
 out:
@@ -224,6 +221,20 @@ out:
 	MPASS(IFF(error == 0, *vpp != NULLVP && VOP_ISLOCKED(*vpp)));
 
 	return (error);
+}
+
+static int
+tmpfs_cached_lookup(struct vop_cachedlookup_args *v)
+{
+
+	return (tmpfs_lookup1(v->a_dvp, v->a_vpp, v->a_cnp));
+}
+
+static int
+tmpfs_lookup(struct vop_lookup_args *v)
+{
+
+	return (tmpfs_lookup1(v->a_dvp, v->a_vpp, v->a_cnp));
 }
 
 static int
@@ -238,7 +249,7 @@ tmpfs_create(struct vop_create_args *v)
 	MPASS(vap->va_type == VREG || vap->va_type == VSOCK);
 
 	error = tmpfs_alloc_file(dvp, vpp, vap, cnp, NULL);
-	if (error == 0 && (cnp->cn_flags & MAKEENTRY) != 0)
+	if (error == 0 && (cnp->cn_flags & MAKEENTRY) != 0 && tmpfs_use_nc(dvp))
 		cache_enter(dvp, *vpp, cnp);
 	return (error);
 }
@@ -1013,10 +1024,12 @@ tmpfs_rename(struct vop_rename_args *v)
 
 	tmpfs_dir_attach(tdvp, de);
 
-	cache_purge(fvp);
-	if (tvp != NULL)
-		cache_purge(tvp);
-	cache_purge_negative(tdvp);
+	if (tmpfs_use_nc(fvp)) {
+		cache_purge(fvp);
+		if (tvp != NULL)
+			cache_purge(tvp);
+		cache_purge_negative(tdvp);
+	}
 
 	error = 0;
 
@@ -1129,8 +1142,10 @@ tmpfs_rmdir(struct vop_rmdir_args *v)
 	    TMPFS_NODE_MODIFIED;
 	TMPFS_NODE_UNLOCK(dnode);
 
-	cache_purge(dvp);
-	cache_purge(vp);
+	if (tmpfs_use_nc(dvp)) {
+		cache_purge(dvp);
+		cache_purge(vp);
+	}
 
 	/* Free the directory entry we just deleted.  Note that the node
 	 * referred by it will not be removed until the vnode is really
@@ -1274,7 +1289,8 @@ tmpfs_reclaim(struct vop_reclaim_args *v)
 	else
 		vnode_destroy_vobject(vp);
 	vp->v_object = NULL;
-	cache_purge(vp);
+	if (tmpfs_use_nc(vp))
+		cache_purge(vp);
 
 	TMPFS_NODE_LOCK(node);
 	tmpfs_free_vp(vp);
@@ -1538,7 +1554,7 @@ restart:
 struct vop_vector tmpfs_vnodeop_entries = {
 	.vop_default =			&default_vnodeops,
 	.vop_lookup =			vfs_cache_lookup,
-	.vop_cachedlookup =		tmpfs_lookup,
+	.vop_cachedlookup =		tmpfs_cached_lookup,
 	.vop_create =			tmpfs_create,
 	.vop_mknod =			tmpfs_mknod,
 	.vop_open =			tmpfs_open,
@@ -1567,3 +1583,10 @@ struct vop_vector tmpfs_vnodeop_entries = {
 	.vop_vptocnp =			tmpfs_vptocnp,
 };
 
+/*
+ * Same vector for mounts which do not use namecache.
+ */
+struct vop_vector tmpfs_vnodeop_nonc_entries = {
+	.vop_default =			&tmpfs_vnodeop_entries,
+	.vop_lookup =			tmpfs_lookup,
+};
