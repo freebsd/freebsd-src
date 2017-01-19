@@ -113,6 +113,11 @@ struct disk {
 #define	DISKFLAG_DIRECT_COMPLETION	0x20
 #define DISKFLAG_LACKS_ROTRATE	0x40
 
+#define	DISK_RR_UNKNOWN		0
+#define	DISK_RR_NON_ROTATING	1
+#define	DISK_RR_MIN		0x0401
+#define	DISK_RR_MAX		0xfffe
+
 struct disk *disk_alloc(void);
 void disk_create(struct disk *disk, int version);
 void disk_destroy(struct disk *disk);

@@ -589,12 +589,12 @@ g_disk_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp, struct g
 		 * special cases, and there's also a valid range.
 		 */
 		sbuf_printf(sb, "%s<rotationrate>", indent);
-		if (dp->d_rotation_rate == 0)		/* Old drives don't */
-			sbuf_printf(sb, "unknown");	/* report RPM. */
-		else if (dp->d_rotation_rate == 1)	/* Since 0 is used */
-			sbuf_printf(sb, "0");		/* above, SSDs use 1. */
-		else if ((dp->d_rotation_rate >= 0x041) &&
-		    (dp->d_rotation_rate <= 0xfffe))
+		if (dp->d_rotation_rate == DISK_RR_UNKNOWN) /* Old drives */
+			sbuf_printf(sb, "unknown");	/* don't report RPM. */
+		else if (dp->d_rotation_rate == DISK_RR_NON_ROTATING)
+			sbuf_printf(sb, "0");
+		else if ((dp->d_rotation_rate >= DISK_RR_MIN) &&
+		    (dp->d_rotation_rate <= DISK_RR_MAX))
 			sbuf_printf(sb, "%u", dp->d_rotation_rate);
 		else
 			sbuf_printf(sb, "invalid");
