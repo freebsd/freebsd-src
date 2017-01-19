@@ -2,34 +2,11 @@
 # Common make for acpica tools and utilities
 #
 
-#
-# Get the OS machine architecture. Anything with a "64" in the returned
-# string will be treated as a 64-bit OS. Otherwise, the default is 32-bit.
-#
-ifeq ($(HOST), _FreeBSD)
-HARDWARE_NAME := $(shell uname -p)
-else
-ifeq ($(HOST), _QNX)
-HARDWARE_NAME := x86pc
-else
-HARDWARE_NAME := $(shell uname -m)
-endif
-endif
-
-#
-# Main rule will only generate versions that are appropriate for the running
-# OS, either 64-bit or 32-bit.
-#
 all:	$(PROGS)
 $(PROGS): FORCE
 	@cd $(BUILD_DIRECTORY_PATH)/$@; \
 	mkdir -p obj; \
 	$(MAKE) || exit "$$?"; \
-	if [ $(findstring 64,$(HARDWARE_NAME)) ]; then \
-		echo "64-bit version of $@:"; \
-	else \
-		echo "32-bit version of $@:"; \
-	fi; \
 	ls -al ../bin/$@; \
 	echo "";
 
@@ -72,26 +49,15 @@ veryclean:	FORCE
 		rmdir bin; \
 	fi;
 
-#
-# Install all tools, either 32-bit or 64-bit as appropriate for the host OS
-#
 install:	FORCE
 	@for toolname in $(PROGS); do \
 		(cd $(BUILD_DIRECTORY_PATH)/$$toolname; \
 		pwd; \
 		$(MAKE) PROG=$$toolname install; \
-		if [ $(findstring 64,$(HARDWARE_NAME)) ]; then \
-			echo "Installed 64-bit version of $$toolname"; \
-		else \
-			echo "Installed 32-bit version of $$toolname"; \
-		fi; \
-		echo ""; \
 		); \
 	done;
 
 machine:	FORCE
-	@echo "Machine architecture: $(HARDWARE_NAME), $(XBITS)";
-	@echo "Findstring: $(findstring 64, $(HARDWARE_NAME))";
 
 FORCE:
 
