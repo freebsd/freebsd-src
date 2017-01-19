@@ -79,7 +79,7 @@ static void	tmpfs_susp_clean(struct mount *);
 
 static const char *tmpfs_opts[] = {
 	"from", "size", "maxfilesize", "inodes", "uid", "gid", "mode", "export",
-	"union", NULL
+	"union", "nonc", NULL
 };
 
 static const char *tmpfs_updateopts[] = {
@@ -138,6 +138,7 @@ tmpfs_mount(struct mount *mp)
 	struct tmpfs_node *root;
 	struct thread *td = curthread;
 	int error;
+	bool nonc;
 	/* Size counters. */
 	u_quad_t pages;
 	off_t nodes_max, size_max, maxfilesize;
@@ -186,6 +187,7 @@ tmpfs_mount(struct mount *mp)
 		size_max = 0;
 	if (vfs_getopt_size(mp->mnt_optnew, "maxfilesize", &maxfilesize) != 0)
 		maxfilesize = 0;
+	nonc = vfs_getopt(mp->mnt_optnew, "nonc", NULL, NULL) == 0;
 
 	/* Do not allow mounts if we do not have enough memory to preserve
 	 * the minimum reserved pages. */
@@ -236,6 +238,7 @@ tmpfs_mount(struct mount *mp)
 	    sizeof(struct tmpfs_node), tmpfs_node_ctor, tmpfs_node_dtor,
 	    tmpfs_node_init, tmpfs_node_fini, UMA_ALIGN_PTR, 0);
 	tmp->tm_ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
+	tmp->tm_nonc = nonc;
 
 	/* Allocate the root node. */
 	error = tmpfs_alloc_node(mp, tmp, VDIR, root_uid, root_gid,
