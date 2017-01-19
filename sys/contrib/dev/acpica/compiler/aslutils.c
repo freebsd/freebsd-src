@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2016, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -381,8 +381,8 @@ UtDisplaySummary (
     {
         /* Compiler name and version number */
 
-        FlPrintFile (FileId, "%s version %X%s\n\n",
-            ASL_COMPILER_NAME, (UINT32) ACPI_CA_VERSION, ACPI_WIDTH);
+        FlPrintFile (FileId, "%s version %X\n\n",
+            ASL_COMPILER_NAME, (UINT32) ACPI_CA_VERSION);
     }
 
     /* Summary of main input and output files */
