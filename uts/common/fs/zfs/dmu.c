@@ -56,6 +56,14 @@
  */
 int zfs_nopwrite_enabled = 1;
 
+/*
+ * Tunable to control percentage of dirtied blocks from frees in one TXG.
+ * After this threshold is crossed, additional dirty blocks from frees
+ * wait until the next TXG.
+ * A value of zero will disable this throttle.
+ */
+uint32_t zfs_per_txg_dirty_frees_percent = 30;
+
 const dmu_object_type_info_t dmu_ot[DMU_OT_NUMTYPES] = {
 	{	DMU_BSWAP_UINT8,	TRUE,	"unallocated"		},
 	{	DMU_BSWAP_ZAP,		TRUE,	"object directory"	},
@@ -717,15 +725,25 @@ dmu_free_long_range_impl(objset_t *os, dnode_t *dn, uint64_t offset,
 {
 	uint64_t object_size = (dn->dn_maxblkid + 1) * dn->dn_datablksz;
 	int err;
+	uint64_t dirty_frees_threshold;
+	dsl_pool_t *dp = dmu_objset_pool(os);
 
 	if (offset >= object_size)
 		return (0);
+
+	if (zfs_per_txg_dirty_frees_percent <= 100)
+		dirty_frees_threshold =
+		    zfs_per_txg_dirty_frees_percent * zfs_dirty_data_max / 100;
+	else
+		dirty_frees_threshold = zfs_dirty_data_max / 4;
 
 	if (length == DMU_OBJECT_END || offset + length > object_size)
 		length = object_size - offset;
 
 	while (length != 0) {
-		uint64_t chunk_end, chunk_begin;
+		uint64_t chunk_end, chunk_begin, chunk_len;
+		uint64_t long_free_dirty_all_txgs = 0;
+		dmu_tx_t *tx;
 
 		if (dmu_objset_zfs_unmounting(dn->dn_objset))
 			return (SET_ERROR(EINTR));
@@ -739,9 +757,28 @@ dmu_free_long_range_impl(objset_t *os, dnode_t *dn, uint64_t offset,
 		ASSERT3U(chunk_begin, >=, offset);
 		ASSERT3U(chunk_begin, <=, chunk_end);
 
-		dmu_tx_t *tx = dmu_tx_create(os);
-		dmu_tx_hold_free(tx, dn->dn_object,
-		    chunk_begin, chunk_end - chunk_begin);
+		chunk_len = chunk_end - chunk_begin;
+
+		mutex_enter(&dp->dp_lock);
+		for (int t = 0; t < TXG_SIZE; t++) {
+			long_free_dirty_all_txgs +=
+			    dp->dp_long_free_dirty_pertxg[t];
+		}
+		mutex_exit(&dp->dp_lock);
+
+		/*
+		 * To avoid filling up a TXG with just frees wait for
+		 * the next TXG to open before freeing more chunks if
+		 * we have reached the threshold of frees
+		 */
+		if (dirty_frees_threshold != 0 &&
+		    long_free_dirty_all_txgs >= dirty_frees_threshold) {
+			txg_wait_open(dp, 0);
+			continue;
+		}
+
+		tx = dmu_tx_create(os);
+		dmu_tx_hold_free(tx, dn->dn_object, chunk_begin, chunk_len);
 
 		/*
 		 * Mark this transaction as typically resulting in a net
@@ -753,10 +790,18 @@ dmu_free_long_range_impl(objset_t *os, dnode_t *dn, uint64_t offset,
 			dmu_tx_abort(tx);
 			return (err);
 		}
-		dnode_free_range(dn, chunk_begin, chunk_end - chunk_begin, tx);
+
+		mutex_enter(&dp->dp_lock);
+		dp->dp_long_free_dirty_pertxg[dmu_tx_get_txg(tx) & TXG_MASK] +=
+		    chunk_len;
+		mutex_exit(&dp->dp_lock);
+		DTRACE_PROBE3(free__long__range,
+		    uint64_t, long_free_dirty_all_txgs, uint64_t, chunk_len,
+		    uint64_t, dmu_tx_get_txg(tx));
+		dnode_free_range(dn, chunk_begin, chunk_len, tx);
 		dmu_tx_commit(tx);
 
-		length -= chunk_end - chunk_begin;
+		length -= chunk_len;
 	}
 	return (0);
 }
