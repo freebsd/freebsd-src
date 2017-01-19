@@ -170,6 +170,7 @@ mmcsd_attach(device_t dev)
 	d->d_delmaxsize = mmc_get_erase_sector(dev) * d->d_sectorsize;
 	strlcpy(d->d_ident, mmc_get_card_sn_string(dev), sizeof(d->d_ident));
 	strlcpy(d->d_descr, mmc_get_card_id_string(dev), sizeof(d->d_descr));
+	d->d_rotation_rate = DISK_RR_NON_ROTATING;
 
 	/*
 	 * Display in most natural units.  There's no cards < 1MB.  The SD

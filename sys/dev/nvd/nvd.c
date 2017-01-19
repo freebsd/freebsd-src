@@ -338,13 +338,11 @@ nvd_new_disk(struct nvme_namespace *ns, void *ctrlr_arg)
 	 */
 	nvme_strvis(disk->d_ident, nvme_ns_get_serial_number(ns),
 	    sizeof(disk->d_ident), NVME_SERIAL_NUMBER_LENGTH);
-
 	nvme_strvis(descr, nvme_ns_get_model_number(ns), sizeof(descr),
 	    NVME_MODEL_NUMBER_LENGTH);
-
-#if __FreeBSD_version >= 900034
 	strlcpy(disk->d_descr, descr, sizeof(descr));
-#endif
+
+	disk->d_rotation_rate = DISK_RR_NON_ROTATING;
 
 	ndisk->ns = ns;
 	ndisk->disk = disk;
