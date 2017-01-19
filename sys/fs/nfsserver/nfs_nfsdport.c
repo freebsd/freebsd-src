@@ -2013,25 +2013,17 @@ again:
 	}
 
 	/*
-	 * Check to see if entries in this directory can be safely acquired
-	 * via VFS_VGET() or if a switch to VOP_LOOKUP() is required.
-	 * ZFS snapshot directories need VOP_LOOKUP(), so that any
-	 * automount of the snapshot directory that is required will
-	 * be done.
-	 * This needs to be done here for NFSv4, since NFSv4 never does
-	 * a VFS_VGET() for "." or "..".
+	 * For now ZFS requires VOP_LOOKUP as a workaround.  Until ino_t is changed
+	 * to 64 bit type a ZFS filesystem with over 1 billion files in it
+	 * will suffer from 64bit -> 32bit truncation.
 	 */
-	if (is_zfs == 1) {
-		r = VFS_VGET(mp, at.na_fileid, LK_SHARED, &nvp);
-		if (r == EOPNOTSUPP) {
-			usevget = 0;
-			cn.cn_nameiop = LOOKUP;
-			cn.cn_lkflags = LK_SHARED | LK_RETRY;
-			cn.cn_cred = nd->nd_cred;
-			cn.cn_thread = p;
-		} else if (r == 0)
-			vput(nvp);
-	}
+	if (is_zfs == 1)
+		usevget = 0;
+
+	cn.cn_nameiop = LOOKUP;
+	cn.cn_lkflags = LK_SHARED | LK_RETRY;
+	cn.cn_cred = nd->nd_cred;
+	cn.cn_thread = p;
 
 	/*
 	 * Save this position, in case there is an error before one entry
@@ -2100,16 +2092,7 @@ again:
 					else
 						r = EOPNOTSUPP;
 					if (r == EOPNOTSUPP) {
-						if (usevget) {
-							usevget = 0;
-							cn.cn_nameiop = LOOKUP;
-							cn.cn_lkflags =
-							    LK_SHARED |
-							    LK_RETRY;
-							cn.cn_cred =
-							    nd->nd_cred;
-							cn.cn_thread = p;
-						}
+						usevget = 0;
 						cn.cn_nameptr = dp->d_name;
 						cn.cn_namelen = nlen;
 						cn.cn_flags = ISLASTCN |
