@@ -349,7 +349,7 @@ mprsas_log_command(struct mpr_command *cm, u_int level, const char *fmt, ...)
 	sbuf_printf(&sb, "SMID %u ", cm->cm_desc.Default.SMID);
 	sbuf_vprintf(&sb, fmt, ap);
 	sbuf_finish(&sb);
-	mpr_dprint_field(cm->cm_sc, level, "%s", sbuf_data(&sb));
+	mpr_print_field(cm->cm_sc, "%s", sbuf_data(&sb));
 
 	va_end(ap);
 }

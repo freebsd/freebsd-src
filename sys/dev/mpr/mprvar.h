@@ -584,6 +584,9 @@ mpr_unlock(struct mpr_softc *sc)
 #define mpr_printf(sc, args...)				\
 	device_printf((sc)->mpr_dev, ##args)
 
+#define mpr_print_field(sc, msg, args...)		\
+	printf("\t" msg, ##args)
+
 #define mpr_vprintf(sc, args...)			\
 do {							\
 	if (bootverbose)				\
@@ -596,25 +599,13 @@ do {							\
 		device_printf((sc)->mpr_dev, msg, ##args);	\
 } while (0)
 
-#define mpr_dprint_field(sc, level, msg, args...)		\
-do {								\
-	if ((sc)->mpr_debug & (level))				\
-		printf("\t" msg, ##args);			\
-} while (0)
-
 #define MPR_PRINTFIELD_START(sc, tag...)	\
-	mpr_dprint((sc), MPR_INFO, ##tag);	\
-	mpr_dprint_field((sc), MPR_INFO, ":\n")
+	mpr_printf((sc), ##tag);		\
+	mpr_print_field((sc), ":\n")
 #define MPR_PRINTFIELD_END(sc, tag)		\
-	mpr_dprint((sc), MPR_INFO, tag "\n")
+	mpr_printf((sc), tag "\n")
 #define MPR_PRINTFIELD(sc, facts, attr, fmt)	\
-	mpr_dprint_field((sc), MPR_INFO, #attr ": " #fmt "\n", (facts)->attr)
-
-#define MPR_EVENTFIELD_START(sc, tag...)	\
-	mpr_dprint((sc), MPR_EVENT, ##tag);	\
-	mpr_dprint_field((sc), MPR_EVENT, ":\n")
-#define MPR_EVENTFIELD(sc, facts, attr, fmt)	\
-	mpr_dprint_field((sc), MPR_EVENT, #attr ": " #fmt "\n", (facts)->attr)
+	mpr_print_field((sc), #attr ": " #fmt "\n", (facts)->attr)
 
 static __inline void
 mpr_from_u64(uint64_t data, U64 *mpr)
