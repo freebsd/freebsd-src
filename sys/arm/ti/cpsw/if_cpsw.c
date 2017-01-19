@@ -1800,13 +1800,8 @@ cpswp_tx_enqueue(struct cpswp_softc *sc)
 	struct cpsw_cpdma_bd bd;
 	struct cpsw_slot *first_new_slot, *last, *last_old_slot, *next, *slot;
 	struct mbuf *m0;
-	int error, flags, nsegs, seg, added = 0, padlen;
+	int error, nsegs, seg, added = 0, padlen;
 
-	flags = 0;
-	if (sc->swsc->dualemac) {
-		flags = CPDMA_BD_TO_PORT |
-		    ((sc->unit + 1) & CPDMA_BD_PORT_MASK);
-	}
 	/* Pull pending packets from IF queue and prep them for DMA. */
 	last = NULL;
 	first_new_slot = NULL;
@@ -1884,7 +1879,11 @@ cpswp_tx_enqueue(struct cpswp_softc *sc)
 		bd.bufoff = 0;
 		bd.buflen = segs[0].ds_len;
 		bd.pktlen = m_length(slot->mbuf, NULL) + padlen;
-		bd.flags =  CPDMA_BD_SOP | CPDMA_BD_OWNER | flags;
+		bd.flags =  CPDMA_BD_SOP | CPDMA_BD_OWNER;
+		if (sc->swsc->dualemac) {
+			bd.flags |= CPDMA_BD_TO_PORT;
+			bd.flags |= ((sc->unit + 1) & CPDMA_BD_PORT_MASK);
+		}
 		for (seg = 1; seg < nsegs; ++seg) {
 			/* Save the previous buffer (which isn't EOP) */
 			cpsw_cpdma_write_bd(sc->swsc, slot, &bd);
@@ -1902,7 +1901,7 @@ cpswp_tx_enqueue(struct cpswp_softc *sc)
 			bd.bufoff = 0;
 			bd.buflen = segs[seg].ds_len;
 			bd.pktlen = 0;
-			bd.flags = CPDMA_BD_OWNER | flags;
+			bd.flags = CPDMA_BD_OWNER;
 		}
 		/* Save the final buffer. */
 		if (padlen <= 0)
@@ -1924,7 +1923,7 @@ cpswp_tx_enqueue(struct cpswp_softc *sc)
 			bd.bufoff = 0;
 			bd.buflen = padlen;
 			bd.pktlen = 0;
-			bd.flags = CPDMA_BD_EOP | CPDMA_BD_OWNER | flags;
+			bd.flags = CPDMA_BD_EOP | CPDMA_BD_OWNER;
 			cpsw_cpdma_write_bd(sc->swsc, slot, &bd);
 			++nsegs;
 
