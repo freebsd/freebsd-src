@@ -95,6 +95,7 @@ __FBSDID("$FreeBSD$");
 #include <map>
 #include <string>
 #include <list>
+#include <stdexcept>
 #include <vector>
 
 #include "devd.h"		/* C compatible definitions */
