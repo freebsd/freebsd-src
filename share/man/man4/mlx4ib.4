@@ -25,10 +25,10 @@
 .\" $FreeBSD$
 .\"
 .Dd January 18, 2017
-.Dt MLX4EN 4
+.Dt MLX4IB 4
 .Os
 .Sh NAME
-.Nm mlx4en
+.Nm mlx4ib
 .Nd "Mellanox ConnectX-3 10GbE/40GbE network adapter driver"
 .Sh SYNOPSIS
 To compile this driver into the kernel,
@@ -37,20 +37,20 @@ kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "options COMPAT_LINUXKPI"
 .Cd "device mlx4"
-.Cd "device mlx4en"
+.Cd "device mlx4ib"
 .Ed
 .Pp
 To load the driver as a module at run-time,
 run the following command as root:
 .Bd -literal -offset indent
-kldload mlx4en
+kldload mlx4ib
 .Ed
 .Pp
 To load the driver as a
 module at boot time, place the following lines in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
-mlx4en_load="YES"
+mlx4ib_load="YES"
 .Ed
 .Sh DESCRIPTION
 Mellanox ConnectX adapter cards with Virtual Protocol Interconnect
@@ -68,9 +68,9 @@ driver supports the following network adapters:
 .Pp
 .Bl -bullet -compact
 .It
-Mellanox ConnectX-2 (ETH)
+Mellanox ConnectX-2 (IB)
 .It
-Mellanox ConnectX-3 (ETH)
+Mellanox ConnectX-3 (IB)
 .El
 .Sh SUPPORT
 For general information and support,
@@ -81,7 +81,7 @@ If an issue is identified with this driver with a supported adapter,
 email all the specific information related to the issue to
 .Aq Mt freebsd-drivers@mellanox.com .
 .Sh SEE ALSO
-.Xr mlx4ib 4 ,
+.Xr mlx4en 4 ,
 .Xr ifconfig 8
 .Sh HISTORY
 The
