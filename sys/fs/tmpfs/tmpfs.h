@@ -307,9 +307,9 @@ LIST_HEAD(tmpfs_node_list, tmpfs_node);
 
 #ifdef INVARIANTS
 #define TMPFS_ASSERT_LOCKED(node) do {					\
-		MPASS(node != NULL);					\
-		MPASS(node->tn_vnode != NULL);				\
-		ASSERT_VOP_LOCKED(node->tn_vnode, "tmpfs assert");	\
+		MPASS((node) != NULL);					\
+		MPASS((node)->tn_vnode != NULL);			\
+		ASSERT_VOP_LOCKED((node)->tn_vnode, "tmpfs assert");	\
 	} while (0)
 #else
 #define TMPFS_ASSERT_LOCKED(node) (void)0
