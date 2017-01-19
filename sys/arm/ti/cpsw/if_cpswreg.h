@@ -191,6 +191,7 @@
 #define	 CPDMA_BD_OWNER			(1 << 13)
 #define	 CPDMA_BD_EOQ			(1 << 12)
 #define	 CPDMA_BD_TDOWNCMPLT		(1 << 11)
+#define	 CPDMA_BD_PASS_CRC		(1 << 10)
 #define	 CPDMA_BD_PKT_ERR_MASK		(3 << 4)
 #define	 CPDMA_BD_TO_PORT		(1 << 4)
 #define	 CPDMA_BD_PORT_MASK		3
