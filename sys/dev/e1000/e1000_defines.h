@@ -469,6 +469,8 @@
 
 #define ETHERNET_FCS_SIZE		4
 #define MAX_JUMBO_FRAME_SIZE		0x3F00
+/* The datasheet maximum supported RX size is 9.5KB (9728 bytes) */
+#define MAX_RX_JUMBO_FRAME_SIZE		0x2600
 #define E1000_TX_PTR_GAP		0x1F
 
 /* Extended Configuration Control and Size */
