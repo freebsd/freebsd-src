@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2016, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -370,7 +370,7 @@ AcpiOsPhysicalTableOverride (
  * RETURN:      Status
  *
  * DESCRIPTION: A hook before writing sleep registers to enter the sleep
- *              state. Return AE_CTRL_SKIP to skip further sleep register
+ *              state. Return AE_CTRL_TERMINATE to skip further sleep register
  *              writes.
  *
  *****************************************************************************/
