@@ -439,7 +439,8 @@ mlx5e_update_stats_work(struct work_struct *work)
 			tso_packets += sq_stats->tso_packets;
 			tso_bytes += sq_stats->tso_bytes;
 			tx_queue_dropped += sq_stats->dropped;
-			tx_queue_dropped += sq_br->br_drops;
+			if (sq_br != NULL)
+				tx_queue_dropped += sq_br->br_drops;
 			tx_defragged += sq_stats->defragged;
 			tx_offload_none += sq_stats->csum_offload_none;
 		}
@@ -987,34 +988,37 @@ mlx5e_create_sq(struct mlx5e_channel *c,
 	sq->priv = priv;
 	sq->tc = tc;
 
-	sq->br = buf_ring_alloc(MLX5E_SQ_TX_QUEUE_SIZE, M_MLX5EN,
-	    M_WAITOK, &sq->lock);
-	if (sq->br == NULL) {
-		if_printf(c->ifp, "%s: Failed allocating sq drbr buffer\n",
-		    __func__);
-		err = -ENOMEM;
-		goto err_free_sq_db;
-	}
+	/* check if we should allocate a second packet buffer */
+	if (priv->params_ethtool.tx_bufring_disable == 0) {
+		sq->br = buf_ring_alloc(MLX5E_SQ_TX_QUEUE_SIZE, M_MLX5EN,
+		    M_WAITOK, &sq->lock);
+		if (sq->br == NULL) {
+			if_printf(c->ifp, "%s: Failed allocating sq drbr buffer\n",
+			    __func__);
+			err = -ENOMEM;
+			goto err_free_sq_db;
+		}
 
-	sq->sq_tq = taskqueue_create_fast("mlx5e_que", M_WAITOK,
-	    taskqueue_thread_enqueue, &sq->sq_tq);
-	if (sq->sq_tq == NULL) {
-		if_printf(c->ifp, "%s: Failed allocating taskqueue\n",
-		    __func__);
-		err = -ENOMEM;
-		goto err_free_drbr;
-	}
+		sq->sq_tq = taskqueue_create_fast("mlx5e_que", M_WAITOK,
+		    taskqueue_thread_enqueue, &sq->sq_tq);
+		if (sq->sq_tq == NULL) {
+			if_printf(c->ifp, "%s: Failed allocating taskqueue\n",
+			    __func__);
+			err = -ENOMEM;
+			goto err_free_drbr;
+		}
 
-	TASK_INIT(&sq->sq_task, 0, mlx5e_tx_que, sq);
+		TASK_INIT(&sq->sq_task, 0, mlx5e_tx_que, sq);
 #ifdef RSS
-	cpu_id = rss_getcpu(c->ix % rss_getnumbuckets());
-	CPU_SETOF(cpu_id, &cpu_mask);
-	taskqueue_start_threads_cpuset(&sq->sq_tq, 1, PI_NET, &cpu_mask,
-	    "%s TX SQ%d.%d CPU%d", c->ifp->if_xname, c->ix, tc, cpu_id);
+		cpu_id = rss_getcpu(c->ix % rss_getnumbuckets());
+		CPU_SETOF(cpu_id, &cpu_mask);
+		taskqueue_start_threads_cpuset(&sq->sq_tq, 1, PI_NET, &cpu_mask,
+		    "%s TX SQ%d.%d CPU%d", c->ifp->if_xname, c->ix, tc, cpu_id);
 #else
-	taskqueue_start_threads(&sq->sq_tq, 1, PI_NET,
-	    "%s TX SQ%d.%d", c->ifp->if_xname, c->ix, tc);
+		taskqueue_start_threads(&sq->sq_tq, 1, PI_NET,
+		    "%s TX SQ%d.%d", c->ifp->if_xname, c->ix, tc);
 #endif
+	}
 	snprintf(buffer, sizeof(buffer), "txstat%dtc%d", c->ix, tc);
 	mlx5e_create_stats(&sq->stats.ctx, SYSCTL_CHILDREN(priv->sysctl_ifnet),
 	    buffer, mlx5e_sq_stats_desc, MLX5E_SQ_STATS_NUM,
@@ -1047,9 +1051,12 @@ mlx5e_destroy_sq(struct mlx5e_sq *sq)
 	mlx5e_free_sq_db(sq);
 	mlx5_wq_destroy(&sq->wq_ctrl);
 	mlx5_unmap_free_uar(sq->priv->mdev, &sq->uar);
-	taskqueue_drain(sq->sq_tq, &sq->sq_task);
-	taskqueue_free(sq->sq_tq);
-	buf_ring_free(sq->br, M_MLX5EN);
+	if (sq->sq_tq != NULL) {
+		taskqueue_drain(sq->sq_tq, &sq->sq_task);
+		taskqueue_free(sq->sq_tq);
+	}
+	if (sq->br != NULL)
+		buf_ring_free(sq->br, M_MLX5EN);
 }
 
 int
@@ -1497,9 +1504,10 @@ mlx5e_chan_mtx_init(struct mlx5e_channel *c)
 	for (tc = 0; tc < c->num_tc; tc++) {
 		struct mlx5e_sq *sq = c->sq + tc;
 
-		mtx_init(&sq->lock, "mlx5tx", MTX_NETWORK_LOCK, MTX_DEF);
-		mtx_init(&sq->comp_lock, "mlx5comp", MTX_NETWORK_LOCK,
-		    MTX_DEF);
+		mtx_init(&sq->lock, "mlx5tx",
+		    MTX_NETWORK_LOCK " TX", MTX_DEF);
+		mtx_init(&sq->comp_lock, "mlx5comp",
+		    MTX_NETWORK_LOCK " TX", MTX_DEF);
 
 		callout_init_mtx(&sq->cev_callout, &sq->lock, 0);
 
